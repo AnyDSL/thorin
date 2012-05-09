@@ -5,6 +5,7 @@
 #include "anydsl/util/ops.h"
 #include "anydsl/util/cast.h"
 #include "anydsl/util/location.h"
+#include "anydsl/air/primop.h"
 
 using namespace anydsl;
 
@@ -70,6 +71,22 @@ int main() {
         ++u;
         std::cout << u << std::endl;
     }
+
+    //ArithOp* p = new ArithOp(ArithOp_add, 0, 0, "todo");
+    //switch (p->arithOpKind()) {
+        //case ArithOp_ashr
+    //}
+
+    //std::cout << p-> << std::endl;
+    //
+
+    std::cout << std::endl;
+    std::cout << Num_Nodes << std::endl;
+    std::cout << Num_ArithOps << std::endl;
+    std::cout << Num_RelOps << std::endl;
+    std::cout << Num_ConvOps << std::endl;
+    std::cout << Num_Indexes << std::endl;
+
 
     return 0;
 }

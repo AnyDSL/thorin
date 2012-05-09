@@ -4,27 +4,25 @@
 #include <string>
 #include <vector>
 
+#include <boost/unordered_set.hpp>
+
 #include "anydsl/air/airnode.h"
 
 namespace anydsl {
 
 class Use;
+typedef boost::unordered_set<Use*> Uses;
 
 class Def : public AIRNode {
 private:
 
-    ~Def() { anydsl_warn_assert(false, "TODO: Detach all uses in Def destructor"); }
+    virtual ~Def() { anydsl_assert(uses_.empty(), "there are still uses pointing to this def"); }
 
 public:
 
-    typedef std::vector<Use*> Uses;
-
-    Def(Nodekind nodekind, AIRNode* parent, const std::string& debug)
-        : AIRNode(nodekind, parent, debug) 
+    Def(IndexKind indexKind, const std::string& debug)
+        : AIRNode(indexKind, debug) 
     {}
-
-    /// Creates a new \p Use object pointing to \p this definition
-    Use* useMe();
 
     /**
      * Manually adds given \p Use object to the list of uses of this \p Def.
@@ -38,25 +36,11 @@ public:
      */
     void unregisterUse(Use* use);
 
-    /*
-        TODO: What if noone is using given Def anymore. delete?
-        Or maybe put on a list "todelete" (and remove if some use appears)
-        Otherwise bad things can happen when we try to swap uses
-        */
-
-    bool lt(const Def* /*other*/) const {
-        ANYDSL_NOT_IMPLEMENTED;
-        return false;
-    }
-
     const Uses& uses() const { return uses_; }
 
 private:
-    Uses uses_;
 
-#if 0
-    ANYDSL_DEBUG_FUNCTIONS;
-#endif
+    Uses uses_;
 };
 
 } // namespace anydsl

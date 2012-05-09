@@ -6,6 +6,7 @@
 #include "anydsl/util/cast.h"
 #include "anydsl/util/location.h"
 #include "anydsl/air/primop.h"
+#include "anydsl/support/universe.h"
 
 using namespace anydsl;
 
@@ -87,6 +88,8 @@ int main() {
     std::cout << Num_ConvOps << std::endl;
     std::cout << Num_Indexes << std::endl;
 
+    Universe uni;
+    std::cout << uni.get_u8()->debug() << std::endl;
 
     return 0;
 }

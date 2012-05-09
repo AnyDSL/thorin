@@ -3,17 +3,19 @@
 
 namespace anydsl {
 
+//------------------------------------------------------------------------------
+
 namespace detail {
 
 enum CountPrimTypes_u {
 #define ANYDSL_U_TYPE(T) CountType_u_##T,
-#include "anydsl/tables/typetable.h"
+#include "anydsl/tables/primtypetable.h"
     Num_PrimTypes_u,
 };
 
 enum CountPrimTypes_f {
 #define ANYDSL_F_TYPE(T) CountType_f_##T,
-#include "anydsl/tables/typetable.h"
+#include "anydsl/tables/primtypetable.h"
     Num_PrimTypes_f,
 };
 
@@ -43,6 +45,8 @@ enum CountConvOps {
 
 } // namespace detail
 
+//------------------------------------------------------------------------------
+
 enum Counter {
     Num_PrimTypes_u = detail::Num_PrimTypes_u,
     Num_PrimTypes_f = detail::Num_PrimTypes_f,
@@ -65,7 +69,7 @@ enum IndexKind {
 
 #define ANYDSL_U_TYPE(T) Index_##T,
 #define ANYDSL_F_TYPE(T) Index_##T,
-#include "anydsl/tables/typetable.h"
+#include "anydsl/tables/primtypetable.h"
 
 #define ANYDSL_ARITHOP(op) Index_##op,
 #include "anydsl/tables/arithoptable.h"
@@ -85,7 +89,7 @@ enum NodeKind {
 enum PrimTypeKind {
 #define ANYDSL_U_TYPE(T) PrimType_##T = Index_##T,
 #define ANYDSL_F_TYPE(T) PrimType_##T = Index_##T,
-#include "anydsl/tables/typetable.h"
+#include "anydsl/tables/primtypetable.h"
 };
 
 enum PrimOpKind {

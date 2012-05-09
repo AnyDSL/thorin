@@ -31,12 +31,6 @@ private:
 
     Def* def_;
     AIRNode* parent_;
-
-    //friend class Def;
-
-#if 0
-    ANYDSL_DEBUG_FUNCTIONS;
-#endif
 };
 
 } // namespace anydsl

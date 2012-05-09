@@ -19,7 +19,7 @@ enum CountPrimTypes_f {
 
 enum CountNodes {
 #define ANYDSL_AIR_NODE(node) CountNode_##node,
-#include "anydsl/tables/airnodetable.h"
+#include "anydsl/tables/nodetable.h"
     Num_Nodes,
 };
 
@@ -59,15 +59,13 @@ enum Counter {
                             + Num_ConvOps
 };
 
-enum PrimTypeKind {
-#define ANYDSL_U_TYPE(T) PrimType_##T,
-#define ANYDSL_F_TYPE(T) PrimType_##T,
-#include "anydsl/tables/typetable.h"
-};
-
 enum IndexKind {
 #define ANYDSL_AIR_NODE(node) Index_##node,
-#include "anydsl/tables/airnodetable.h"
+#include "anydsl/tables/nodetable.h"
+
+#define ANYDSL_U_TYPE(T) Index_##T,
+#define ANYDSL_F_TYPE(T) Index_##T,
+#include "anydsl/tables/typetable.h"
 
 #define ANYDSL_ARITHOP(op) Index_##op,
 #include "anydsl/tables/arithoptable.h"
@@ -81,7 +79,13 @@ enum IndexKind {
 
 enum NodeKind {
 #define ANYDSL_AIR_NODE(node) Node_##node = Index_##node,
-#include "anydsl/tables/airnodetable.h"
+#include "anydsl/tables/nodetable.h"
+};
+
+enum PrimTypeKind {
+#define ANYDSL_U_TYPE(T) PrimType_##T = Index_##T,
+#define ANYDSL_F_TYPE(T) PrimType_##T = Index_##T,
+#include "anydsl/tables/typetable.h"
 };
 
 enum PrimOpKind {

@@ -14,15 +14,15 @@ class Use;
 typedef boost::unordered_set<Use*> Uses;
 
 class Def : public AIRNode {
-private:
-
-    virtual ~Def() { anydsl_assert(uses_.empty(), "there are still uses pointing to this def"); }
-
-public:
+protected:
 
     Def(IndexKind indexKind, const std::string& debug)
         : AIRNode(indexKind, debug) 
     {}
+
+public:
+
+    virtual ~Def() { anydsl_assert(uses_.empty(), "there are still uses pointing to this def"); }
 
     /**
      * Manually adds given \p Use object to the list of uses of this \p Def.

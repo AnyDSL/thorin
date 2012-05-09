@@ -4,8 +4,6 @@
 
 ANYDSL_AIR_NODE(Use)
     // Def
-        ANYDSL_AIR_NODE(Param)
-
         // Type
             ANYDSL_AIR_NODE(PrimType)
             ANYDSL_AIR_NODE(Pi)
@@ -14,10 +12,11 @@ ANYDSL_AIR_NODE(Use)
             ANYDSL_AIR_NODE(Prim)
             ANYDSL_AIR_NODE(Lambda)
             ANYDSL_AIR_NODE(Tuple)
-
-    // PrimOp
-        ANYDSL_AIR_NODE(ArithOp)
-        ANYDSL_AIR_NODE(RelOp)
-        ANYDSL_AIR_NODE(ConvOp)
+        // Param
+            ANYDSL_AIR_NODE(LParam)
+            // PrimOp
+                ANYDSL_AIR_NODE(ArithOp)
+                ANYDSL_AIR_NODE(RelOp)
+                ANYDSL_AIR_NODE(ConvOp)
 
 #undef ANYDSL_AIR_NODE

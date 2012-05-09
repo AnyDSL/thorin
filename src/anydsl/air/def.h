@@ -4,14 +4,20 @@
 #include <string>
 #include <vector>
 
+#include <boost/cstdint.hpp>
 #include <boost/unordered_set.hpp>
 
 #include "anydsl/air/airnode.h"
 
 namespace anydsl {
 
+//------------------------------------------------------------------------------
+
+class Lambda;
 class Use;
 typedef boost::unordered_set<Use*> Uses;
+
+//------------------------------------------------------------------------------
 
 class Def : public AIRNode {
 protected:
@@ -38,10 +44,41 @@ public:
 
     const Uses& uses() const { return uses_; }
 
+    virtual uint64_t hash() const = 0;
+
 private:
 
     Uses uses_;
 };
+
+//------------------------------------------------------------------------------
+
+class Param : public Def {
+protected:
+
+    Param(IndexKind indexKind, const std::string& debug = "")
+        : Def(indexKind, debug)
+    {}
+};
+
+//------------------------------------------------------------------------------
+
+class LParam : public Param {
+public:
+
+    LParam(Lambda* parent, const std::string& debug = "")
+        : Param(Index_LParam, debug)
+        , parent_(parent)
+    {}
+
+    const Lambda* parent() const { return parent_; }
+
+private:
+
+    Lambda* parent_;
+};
+
+//------------------------------------------------------------------------------
 
 } // namespace anydsl
 

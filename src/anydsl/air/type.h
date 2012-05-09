@@ -1,5 +1,5 @@
-#ifndef ANYDSL_TYPE_H
-#define ANYDSL_TYPE_H
+#ifndef ANYDSL_AIR_TYPE_H
+#define ANYDSL_AIR_TYPE_H
 
 #include "anydsl/air/def.h"
 
@@ -10,8 +10,8 @@ namespace anydsl {
 class Type : public Def {
 protected:
 
-    Type(IndexKind indexKind, const std::string& debug)
-        : Def(indexKind, debug)
+    Type(PrimTypeKind primTypeKind, const std::string& debug)
+        : Def((IndexKind) primTypeKind, debug)
     {}
 };
 
@@ -21,12 +21,14 @@ class PrimType : public Type {
 public:
 
     PrimType(PrimTypeKind primTypeKind, const std::string& debug = "")
-        : Type((IndexKind) primTypeKind, debug)
+        : Type(primTypeKind, debug)
     {}
+
+    virtual uint64_t hash() const { return (uint64_t) indexKind_; }
 };
 
 //------------------------------------------------------------------------------
 
 } // namespace anydsl
 
-#endif // ANYDSL_TYPE_H
+#endif // ANYDSL_AIR_TYPE_H

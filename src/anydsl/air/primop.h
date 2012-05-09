@@ -4,20 +4,23 @@
 #include "anydsl/air/airnode.h"
 #include "anydsl/air/enums.h"
 #include "anydsl/air/use.h"
+#include "anydsl/air/param.h"
 
 namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-class PrimOp : public AIRNode {
+class PrimOp : public Param {
 public:
 
     PrimOpKind primOpKind() const { return (PrimOpKind) indexKind_; }
 
+    bool compare(PrimOp* other) const;
+
 protected:
 
     PrimOp(IndexKind indexKind, const std::string& debug)
-        : AIRNode(indexKind, debug)
+        : Param(indexKind, debug)
     {}
 };
 
@@ -38,6 +41,8 @@ public:
     ArithOpKind arithOpKind() { return (ArithOpKind) indexKind_; }
     const Use& luse() const { return luse_; }
     const Use& ruse() const { return ruse_; }
+
+    virtual uint64_t hash() const;
 
 private:
 

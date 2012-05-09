@@ -6,7 +6,7 @@
 #define ANYDSL_F_TYPE(foo)
 #endif
 
-ANYDSL_U_TYPE(u1)
+ANYDSL_U_TYPE(u1) // leave this one as first
 ANYDSL_U_TYPE(u8)
 ANYDSL_U_TYPE(u16)
 ANYDSL_U_TYPE(u32)

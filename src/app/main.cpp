@@ -91,6 +91,13 @@ int main() {
     Universe uni;
     std::cout << uni.get_u8()->debug() << std::endl;
 
+    std::cout << std::endl;
+
+    std::cout << uni.get(anydsl::PrimType_u1)->debug() << std::endl;
+    std::cout << uni.get(anydsl::PrimType_u64)->debug() << std::endl;
+    std::cout << uni.get(anydsl::PrimType_f32)->debug() << std::endl;
+    std::cout << uni.get(anydsl::PrimType_f64)->debug() << std::endl;
+
     return 0;
 }
 

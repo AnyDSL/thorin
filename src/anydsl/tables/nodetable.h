@@ -5,11 +5,12 @@
 ANYDSL_AIR_NODE(Use)
     // Def
         // Type
-            ANYDSL_AIR_NODE(PrimType)
+            // PrimType
             ANYDSL_AIR_NODE(Pi)
             ANYDSL_AIR_NODE(Sigma)
         // Literal
-            ANYDSL_AIR_NODE(Prim)
+            // Prim
+            ANYDSL_AIR_NODE(Undef)
             ANYDSL_AIR_NODE(Lambda)
             ANYDSL_AIR_NODE(Tuple)
         // Param

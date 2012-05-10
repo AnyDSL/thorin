@@ -8,6 +8,7 @@ namespace impala {
 
 std::ostream& Binding::error() const { 
     //return def->error(); 
+    return std::cerr;
 }
 
 } // namespace impala

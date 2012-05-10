@@ -14,6 +14,7 @@ namespace anydsl {
 //------------------------------------------------------------------------------
 
 class Lambda;
+class Type;
 class Use;
 typedef boost::unordered_set<Use*> Uses;
 
@@ -22,8 +23,9 @@ typedef boost::unordered_set<Use*> Uses;
 class Def : public AIRNode {
 protected:
 
-    Def(IndexKind indexKind, const std::string& debug)
+    Def(IndexKind indexKind, Type* type, const std::string& debug)
         : AIRNode(indexKind, debug) 
+        , type_(type)
     {}
 
 public:
@@ -44,10 +46,14 @@ public:
 
     const Uses& uses() const { return uses_; }
 
+    Type* type() { return type_; }
+    const Type* type() const { return type_; }
+
     virtual uint64_t hash() const = 0;
 
 private:
 
+    Type* type_;
     Uses uses_;
 };
 
@@ -56,8 +62,8 @@ private:
 class Param : public Def {
 protected:
 
-    Param(IndexKind indexKind, const std::string& debug = "")
-        : Def(indexKind, debug)
+    Param(IndexKind indexKind, Type* type, const std::string& debug = "")
+        : Def(indexKind, type, debug)
     {}
 };
 
@@ -66,8 +72,8 @@ protected:
 class LParam : public Param {
 public:
 
-    LParam(Lambda* parent, const std::string& debug = "")
-        : Param(Index_LParam, debug)
+    LParam(Lambda* parent, Type* type, const std::string& debug = "")
+        : Param(Index_LParam, type, debug)
         , parent_(parent)
     {}
 

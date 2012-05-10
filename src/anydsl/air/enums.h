@@ -92,6 +92,12 @@ enum PrimTypeKind {
 #include "anydsl/tables/primtypetable.h"
 };
 
+enum PrimKind {
+#define ANYDSL_U_TYPE(T) Prim_##T = Index_##T,
+#define ANYDSL_F_TYPE(T) Prim_##T = Index_##T,
+#include "anydsl/tables/primtypetable.h"
+};
+
 enum PrimOpKind {
 #define ANYDSL_ARITHOP(op) PrimOp_##op = Index_##op,
 #include "anydsl/tables/arithoptable.h"

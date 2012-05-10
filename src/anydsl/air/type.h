@@ -7,11 +7,11 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-class Type : public Def {
+class Type : public AIRNode {
 protected:
 
     Type(PrimTypeKind primTypeKind, const std::string& debug)
-        : Def((IndexKind) primTypeKind, debug)
+        : AIRNode((IndexKind) primTypeKind, debug)
     {}
 };
 

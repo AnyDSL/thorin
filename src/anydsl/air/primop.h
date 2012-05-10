@@ -19,8 +19,8 @@ public:
 
 protected:
 
-    PrimOp(IndexKind indexKind, const std::string& debug)
-        : Param(indexKind, debug)
+    PrimOp(IndexKind indexKind, Type* type, const std::string& debug)
+        : Param(indexKind, type, debug)
     {}
 };
 
@@ -33,10 +33,12 @@ public:
             Def* ldef, Def* rdef, 
             const std::string& ldebug = "", const std::string& rdebug = "", 
             const std::string& debug = "")
-        : PrimOp((IndexKind) arithOpKind, debug)
+        : PrimOp((IndexKind) arithOpKind, ldef->type(), debug)
         , luse_(ldef, this, ldebug)
         , ruse_(rdef, this, rdebug)
-    {}
+    {
+        anydsl_assert(ldef->type() == rdef->type(), "type are not equal");
+    }
 
     ArithOpKind arithOpKind() { return (ArithOpKind) indexKind(); }
     const Use& luse() const { return luse_; }

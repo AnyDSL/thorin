@@ -36,6 +36,8 @@ private:
     };
 };
 
+inline Universe& universe() { static Universe uni; return uni; }
+
 } // namespace anydsl
 
 #endif // ANYDSL_SUPPORT_UNIVERSE_H

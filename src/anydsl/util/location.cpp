@@ -155,11 +155,9 @@ std::ostream& Location::error() const {
     return std::cerr << *this << ": error: ";
 }
 
-#if 0
 std::ostream& HasLocation::error() const {
     return std::cerr << loc_ << ": error: ";
 }
-#endif
 
 //------------------------------------------------------------------------------
 

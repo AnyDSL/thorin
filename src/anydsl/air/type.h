@@ -24,7 +24,7 @@ public:
         : Type(primTypeKind, debug)
     {}
 
-    virtual uint64_t hash() const { return (uint64_t) indexKind_; }
+    virtual uint64_t hash() const { return (uint64_t) indexKind(); }
 };
 
 //------------------------------------------------------------------------------

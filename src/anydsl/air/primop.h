@@ -3,8 +3,8 @@
 
 #include "anydsl/air/airnode.h"
 #include "anydsl/air/enums.h"
+#include "anydsl/air/def.h"
 #include "anydsl/air/use.h"
-#include "anydsl/air/param.h"
 
 namespace anydsl {
 
@@ -13,7 +13,7 @@ namespace anydsl {
 class PrimOp : public Param {
 public:
 
-    PrimOpKind primOpKind() const { return (PrimOpKind) indexKind_; }
+    PrimOpKind primOpKind() const { return (PrimOpKind) indexKind(); }
 
     bool compare(PrimOp* other) const;
 
@@ -38,7 +38,7 @@ public:
         , ruse_(rdef, this, rdebug)
     {}
 
-    ArithOpKind arithOpKind() { return (ArithOpKind) indexKind_; }
+    ArithOpKind arithOpKind() { return (ArithOpKind) indexKind(); }
     const Use& luse() const { return luse_; }
     const Use& ruse() const { return ruse_; }
 

@@ -14,7 +14,7 @@ inline uint64_t hash_helper(const IndexKind index, const Use& luse, const Use& r
      * hence the shift ammount of 3 to the right.
      * The first def pointer is placed in the lower region,
      * the second one in the higher region,
-     * the index is being placed in the remaining 6 bits
+     * the index is being placed in the upper (remaining) 6 bits
      */
 
     // NOTE the check will be easily optimized away by every reasonable compiler
@@ -24,12 +24,12 @@ inline uint64_t hash_helper(const IndexKind index, const Use& luse, const Use& r
             +  (((uintptr_t)      index) << 8*7);
     else
         return (((uintptr_t) luse.def()) >> 3)
-            |  (((uintptr_t) ruse.def()) << (8*4 - 3 - 3))
-            |  (((uintptr_t)      index) << (8*8-6));
+            |  (((uintptr_t) ruse.def()) << (8*4 - 6))
+            |  (((uintptr_t)      index) << (8*8 - 6));
 }
 
 uint64_t ArithOp::hash() const {
-    return hash_helper(indexKind_, luse_, ruse_);
+    return hash_helper(indexKind(), luse_, ruse_);
 }
 
 bool PrimOp::compare(PrimOp* other) const {
@@ -39,7 +39,22 @@ bool PrimOp::compare(PrimOp* other) const {
     if (typeid(*this) != typeid(*other))
         return false;
 
-    return true;
+    if (this->indexKind() != other->indexKind())
+        return false;
+
+    if (const ArithOp* a = dcast<ArithOp>(this)) {
+        const ArithOp* b = scast<ArithOp>(other);
+
+        if (a->luse().def() != b->luse().def())
+            return false;
+
+        if (a->luse().def() != b->ruse().def())
+            return false;
+
+        return false;
+    }
+
+    ANYDSL_UNREACHABLE;
 }
 
-}
+} // namespace anydsl

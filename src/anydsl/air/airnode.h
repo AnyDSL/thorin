@@ -38,9 +38,12 @@ public:
     inline RetT accept(DualConstVisitor<Child,  RetT>* v, const AIRNode* other) const;
 #endif
 
-protected:
+private:
 
     IndexKind indexKind_;
+
+protected:
+
     std::string debug_;
 };
 

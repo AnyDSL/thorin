@@ -8,7 +8,7 @@ namespace anydsl {
 #define ANYDSL_GLUE(pre, next) \
     End_##pre, \
     Begin_##next = End_##pre, \
-    __##Begin_##next = Begin_##next - 1,
+    zzz##Begin_##next = Begin_##next - 1,
 
 enum IndexKind {
     Begin_Node = 0,
@@ -52,6 +52,12 @@ enum IndexKind {
 #include "anydsl/tables/convoptable.h"
     End_ConvOp,
 
+    Begin_PrimType  = Begin_PrimType_u,
+    Begin_PrimConst = Begin_PrimConst_u,
+
+    End_PrimType    = End_PrimType_f,
+    End_PrimConst   = End_PrimConst_f,
+
     Num_Indexes = End_ConvOp,
 
     Num_Nodes        = End_Node        - Begin_Node,
@@ -81,8 +87,8 @@ enum PrimTypeKind {
 };
 
 enum PrimConstKind {
-#define ANYDSL_U_TYPE(T) Prim_##T = Index_PrimConst_##T,
-#define ANYDSL_F_TYPE(T) Prim_##T = Index_PrimConst_##T,
+#define ANYDSL_U_TYPE(T) PrimConst_##T = Index_PrimConst_##T,
+#define ANYDSL_F_TYPE(T) PrimConst_##T = Index_PrimConst_##T,
 #include "anydsl/tables/primtypetable.h"
 };
 
@@ -111,6 +117,22 @@ enum ConvOpKind {
 #define ANYDSL_CONVOP(op) ConvOp_##op = Index_##op,
 #include "anydsl/tables/convoptable.h"
 };
+
+inline PrimTypeKind const2type(PrimConstKind primConst) {
+    // it holds: Begin_PrimConst + offset = Begin_PrimType
+    int offset = Begin_PrimType - Begin_PrimConst;
+
+    // it holds: primConst + offset = primType
+    return (PrimTypeKind) (((int) primConst) + offset);
+}
+
+inline PrimConstKind type2const(PrimTypeKind primType) {
+    // it holds: Begin_PrimType + offset = Begin_PrimConst
+    int offset = Begin_PrimConst - Begin_PrimType;
+
+    // it holds: primType + offset = primConst
+    return (PrimConstKind) (((int) primType) + offset);
+}
 
 } // namespace anydsl
 

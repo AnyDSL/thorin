@@ -88,6 +88,11 @@ int main() {
     std::cout << uni.get(anydsl::PrimType_f32)->debug() << std::endl;
     std::cout << uni.get(anydsl::PrimType_f64)->debug() << std::endl;
 
+    std::cout << uni.get(anydsl::PrimConst_u1)->debug() << std::endl;
+    std::cout << uni.get(anydsl::PrimConst_u64)->debug() << std::endl;
+    std::cout << uni.get(anydsl::PrimConst_f32)->debug() << std::endl;
+    std::cout << uni.get(anydsl::PrimConst_f64)->debug() << std::endl;
+
     std::cout << std::endl;
 
     return 0;

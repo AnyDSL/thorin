@@ -16,9 +16,15 @@ public:
 #include "anydsl/tables/primtypetable.h"
 
     PrimType* get(PrimTypeKind kind) const { 
-        size_t i = kind - PrimType_u1;
+        size_t i = kind - Begin_PrimType;
         assert(0 <= i && i < (size_t) Num_PrimTypes); 
-        return primTypes_[kind - PrimType_u1];
+        return primTypes_[i];
+    }
+
+    PrimType* get(PrimConstKind kind) const { 
+        size_t i = const2type(kind) - Begin_PrimType;
+        assert(0 <= i && i < (size_t) Num_PrimTypes); 
+        return primTypes_[i];
     }
 
 private:

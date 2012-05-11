@@ -85,8 +85,8 @@ public:
 private:
 
     Lambda* parent_;
-    Fix fix_;
     Terminator* terminator_;
+    Fix fix_;
 };
 
 //------------------------------------------------------------------------------

@@ -76,7 +76,7 @@ class Param : public Value {
 public:
 
     Param(Lambda* parent, Type* type, const std::string& debug = "")
-        : Value(Index_LParam, type, debug)
+        : Value(Index_Param, type, debug)
         , parent_(parent)
     {}
 

@@ -134,6 +134,14 @@ inline PrimConstKind type2const(PrimTypeKind primType) {
     return (PrimConstKind) (((int) primType) + offset);
 }
 
+inline bool isInteger(PrimTypeKind primType) {
+    return (int) Begin_PrimType_u <= (int) primType && (int) primType < (int) End_PrimType_u;
+}
+
+inline bool isFloat(PrimTypeKind primType) {
+    return (int) Begin_PrimType_f <= (int) primType && (int) primType < (int) End_PrimType_f;
+}
+
 } // namespace anydsl
 
 #endif // ANYDSL_AIR_ENUMS_H

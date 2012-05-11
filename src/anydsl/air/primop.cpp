@@ -2,6 +2,8 @@
 
 #include <typeinfo>
 
+#include "anydsl/air/type.h"
+
 namespace anydsl {
 
 inline uint64_t hash_helper(const IndexKind index, const Use& luse, const Use& ruse) {
@@ -28,10 +30,6 @@ inline uint64_t hash_helper(const IndexKind index, const Use& luse, const Use& r
             |  (((uintptr_t)      index) << (8*8 - 6));
 }
 
-uint64_t ArithOp::hash() const {
-    return hash_helper(index(), luse_, ruse_);
-}
-
 bool PrimOp::compare(PrimOp* other) const {
     if (this->hash() != other->hash())
         return false;
@@ -56,5 +54,40 @@ bool PrimOp::compare(PrimOp* other) const {
 
     ANYDSL_UNREACHABLE;
 }
+
+//------------------------------------------------------------------------------
+
+uint64_t ArithOp::hash() const {
+    return hash_helper(index(), luse_, ruse_);
+}
+
+//------------------------------------------------------------------------------
+
+Extract::Extract(Def* tuple, PrimConst* elem, 
+               const std::string& tupleDebug,
+               const std::string debug)
+    : PrimOp(Index_Extract, 
+             scast<Sigma>(tuple->type())->get(elem),
+             debug)
+    , tuple_(tuple, this, tupleDebug)
+    , elem_(elem)
+{}
+
+//------------------------------------------------------------------------------
+
+Insert::Insert(Def* tuple, Def* value, PrimConst* elem, 
+               const std::string& tupleDebug, const std::string& valueDebug,
+               const std::string debug)
+    : PrimOp(Index_Insert, 
+             tuple->type(),
+             debug)
+    , tuple_(tuple, this, tupleDebug)
+    , value_(value, this, valueDebug)
+    , elem_(elem)
+{
+    anydsl_assert(tuple->getAs<Sigma>(), "must be of Sigma type");
+}
+
+//------------------------------------------------------------------------------
 
 } // namespace anydsl

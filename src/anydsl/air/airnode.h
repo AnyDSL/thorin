@@ -22,8 +22,8 @@ public:
     IndexKind index() const { return index_; }
     NodeKind nodeKind() const { return (NodeKind) index_; }
 
-    template<class T> T* getAs() { return dcast<T*>(this); }
-    template<class T> const T* getAs() const { return dcast<T*>(this); }
+    template<class T> T* getAs() { return dcast<T>(this); }
+    template<class T> const T* getAs() const { return dcast<T>(this); }
 
     std::string debug() const { return debug_; }
 

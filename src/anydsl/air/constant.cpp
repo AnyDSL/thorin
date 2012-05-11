@@ -7,7 +7,7 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-PrimConst::PrimConst(PrimTypeKind primTypeKind, Box box, const std::string& debug /*= ""*/)
+PrimConst::PrimConst(PrimTypeKind primTypeKind, Box box, const std::string& debug)
     : Constant((IndexKind) primTypeKind, universe().get(primTypeKind), debug)
     , box_(box)
 {}

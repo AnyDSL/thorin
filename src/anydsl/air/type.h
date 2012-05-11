@@ -5,6 +5,7 @@
 
 namespace anydsl {
 
+class PrimConst;
 class Universe;
 
 //------------------------------------------------------------------------------
@@ -16,6 +17,7 @@ protected:
         : AIRNode((IndexKind) primTypeKind, debug)
         , universe_(universe)
     {}
+    virtual ~Type() {}
 
 public:
 
@@ -40,6 +42,15 @@ public:
     virtual uint64_t hash() const { return (uint64_t) index(); }
 
     friend class Universe;
+};
+
+//------------------------------------------------------------------------------
+
+class Sigma : public Type {
+public:
+
+    Type* get(size_t) { return 0; }
+    Type* get(PrimConst*) { return 0; }
 };
 
 //------------------------------------------------------------------------------

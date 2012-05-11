@@ -37,7 +37,7 @@ private:
 
 public:
 
-    virtual uint64_t hash() const { return (uint64_t) indexKind(); }
+    virtual uint64_t hash() const { return (uint64_t) index(); }
 
     friend class Universe;
 };

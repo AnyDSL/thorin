@@ -19,8 +19,8 @@ typedef boost::unordered_set<Lambda*> Fix;
 class Constant : public Def {
 protected:
 
-    Constant(IndexKind indexKind, Type* type, const std::string& debug)
-        : Def(indexKind, type, debug)
+    Constant(IndexKind index, Type* type, const std::string& debug)
+        : Def(index, type, debug)
     {}
 };
 
@@ -50,7 +50,7 @@ public:
         , box_(box)
         {}
 
-    PrimTypeKind primTypeKind() { return (PrimTypeKind) indexKind(); }
+    PrimTypeKind primTypeKind() { return (PrimTypeKind) index(); }
 
 private:
 

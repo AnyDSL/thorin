@@ -13,14 +13,14 @@ namespace anydsl {
 class PrimOp : public Param {
 public:
 
-    PrimOpKind primOpKind() const { return (PrimOpKind) indexKind(); }
+    PrimOpKind primOpKind() const { return (PrimOpKind) index(); }
 
     bool compare(PrimOp* other) const;
 
 protected:
 
-    PrimOp(IndexKind indexKind, Type* type, const std::string& debug)
-        : Param(indexKind, type, debug)
+    PrimOp(IndexKind index, Type* type, const std::string& debug)
+        : Param(index, type, debug)
     {}
 };
 
@@ -40,7 +40,7 @@ public:
         anydsl_assert(ldef->type() == rdef->type(), "type are not equal");
     }
 
-    ArithOpKind arithOpKind() { return (ArithOpKind) indexKind(); }
+    ArithOpKind arithOpKind() { return (ArithOpKind) index(); }
     const Use& luse() const { return luse_; }
     const Use& ruse() const { return ruse_; }
 

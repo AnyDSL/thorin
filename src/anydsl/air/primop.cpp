@@ -29,7 +29,7 @@ inline uint64_t hash_helper(const IndexKind index, const Use& luse, const Use& r
 }
 
 uint64_t ArithOp::hash() const {
-    return hash_helper(indexKind(), luse_, ruse_);
+    return hash_helper(index(), luse_, ruse_);
 }
 
 bool PrimOp::compare(PrimOp* other) const {
@@ -39,7 +39,7 @@ bool PrimOp::compare(PrimOp* other) const {
     if (typeid(*this) != typeid(*other))
         return false;
 
-    if (this->indexKind() != other->indexKind())
+    if (this->index() != other->index())
         return false;
 
     if (const ArithOp* a = dcast<ArithOp>(this)) {

@@ -24,8 +24,8 @@ typedef boost::unordered_set<Use*> Uses;
 class Def : public AIRNode {
 protected:
 
-    Def(IndexKind indexKind, Type* type, const std::string& debug)
-        : AIRNode(indexKind, debug) 
+    Def(IndexKind index, Type* type, const std::string& debug)
+        : AIRNode(index, debug) 
         , type_(type)
     {}
 
@@ -65,8 +65,8 @@ private:
 class Param : public Def {
 protected:
 
-    Param(IndexKind indexKind, Type* type, const std::string& debug = "")
-        : Def(indexKind, type, debug)
+    Param(IndexKind index, Type* type, const std::string& debug = "")
+        : Def(index, type, debug)
     {}
 };
 

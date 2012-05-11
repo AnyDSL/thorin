@@ -62,21 +62,21 @@ private:
 
 //------------------------------------------------------------------------------
 
-class Param : public Def {
+class Value : public Def {
 protected:
 
-    Param(IndexKind index, Type* type, const std::string& debug = "")
+    Value(IndexKind index, Type* type, const std::string& debug = "")
         : Def(index, type, debug)
     {}
 };
 
 //------------------------------------------------------------------------------
 
-class LParam : public Param {
+class Param : public Value {
 public:
 
-    LParam(Lambda* parent, Type* type, const std::string& debug = "")
-        : Param(Index_LParam, type, debug)
+    Param(Lambda* parent, Type* type, const std::string& debug = "")
+        : Value(Index_LParam, type, debug)
         , parent_(parent)
     {}
 

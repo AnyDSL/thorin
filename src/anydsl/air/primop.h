@@ -10,7 +10,7 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-class PrimOp : public Param {
+class PrimOp : public Value {
 public:
 
     PrimOpKind primOpKind() const { return (PrimOpKind) index(); }
@@ -20,14 +20,14 @@ public:
 protected:
 
     PrimOp(IndexKind index, Type* type, const std::string& debug)
-        : Param(index, type, debug)
+        : Value(index, type, debug)
     {}
 };
 
 //------------------------------------------------------------------------------
 
 class ArithOp : public PrimOp {
-public:
+private:
 
     ArithOp(ArithOpKind arithOpKind, 
             Def* ldef, Def* rdef, 
@@ -40,6 +40,8 @@ public:
         anydsl_assert(ldef->type() == rdef->type(), "type are not equal");
     }
 
+public:
+
     ArithOpKind arithOpKind() { return (ArithOpKind) index(); }
     const Use& luse() const { return luse_; }
     const Use& ruse() const { return ruse_; }
@@ -50,6 +52,8 @@ private:
 
     Use luse_;
     Use ruse_;
+
+    friend class Universe;
 };
 
 //------------------------------------------------------------------------------

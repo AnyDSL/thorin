@@ -5,11 +5,19 @@
 
 namespace anydsl {
 
+class ArithOp;
+
 class Universe {
 public:
 
     Universe();
     ~Universe();
+
+    ArithOp* createArithOp(ArithOpKind arithOpKind,
+                           Def* ldef, Def* rdef, 
+                           const std::string& ldebug = "", 
+                           const std::string& rdebug = "", 
+                           const std::string&  debug = "");
 
 #define ANYDSL_U_TYPE(T) PrimType* get_##T() const { return T##_; }
 #define ANYDSL_F_TYPE(T) PrimType* get_##T() const { return T##_; }

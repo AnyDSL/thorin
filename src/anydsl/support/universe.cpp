@@ -1,6 +1,7 @@
 #include "anydsl/support/universe.h"
 
 #include "anydsl/air/primop.h"
+#include "anydsl/air/type.h"
 
 namespace anydsl {
 

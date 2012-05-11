@@ -45,10 +45,7 @@ private:
 class PrimConst : public Constant {
 public:
 
-    PrimConst(PrimTypeKind primTypeKind, Box box, const std::string& debug = "")
-        : Constant((IndexKind) primTypeKind, universe().get(primTypeKind), debug)
-        , box_(box)
-        {}
+    PrimConst(PrimTypeKind primTypeKind, Box box, const std::string& debug = "");
 
     PrimTypeKind primTypeKind() { return (PrimTypeKind) index(); }
 

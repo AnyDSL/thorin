@@ -6,6 +6,7 @@
 #include "anydsl/util/cast.h"
 #include "anydsl/util/location.h"
 #include "anydsl/air/primop.h"
+#include "anydsl/air/type.h"
 #include "anydsl/support/universe.h"
 
 using namespace anydsl;

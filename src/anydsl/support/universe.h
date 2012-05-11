@@ -1,11 +1,16 @@
 #ifndef ANYDSL_SUPPORT_UNIVERSE_H
 #define ANYDSL_SUPPORT_UNIVERSE_H
 
-#include "anydsl/air/type.h"
+#include <cassert>
+#include <string>
+
+#include "anydsl/air/enums.h"
 
 namespace anydsl {
 
 class ArithOp;
+class Def;
+class PrimType;
 
 class Universe {
 public:

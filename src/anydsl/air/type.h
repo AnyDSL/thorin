@@ -5,26 +5,41 @@
 
 namespace anydsl {
 
+class Universe;
+
 //------------------------------------------------------------------------------
 
 class Type : public AIRNode {
 protected:
 
-    Type(PrimTypeKind primTypeKind, const std::string& debug)
+    Type(Universe& universe, PrimTypeKind primTypeKind, const std::string& debug)
         : AIRNode((IndexKind) primTypeKind, debug)
+        , universe_(universe)
     {}
+
+public:
+
+    Universe& universe() const { return universe_; }
+
+private:
+
+    Universe& universe_;
 };
 
 //------------------------------------------------------------------------------
 
 class PrimType : public Type {
-public:
+private:
 
-    PrimType(PrimTypeKind primTypeKind, const std::string& debug = "")
-        : Type(primTypeKind, debug)
+    PrimType(Universe& universe, PrimTypeKind primTypeKind, const std::string& debug = "")
+        : Type(universe, primTypeKind, debug)
     {}
 
+public:
+
     virtual uint64_t hash() const { return (uint64_t) indexKind(); }
+
+    friend class Universe;
 };
 
 //------------------------------------------------------------------------------

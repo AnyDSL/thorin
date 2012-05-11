@@ -15,6 +15,7 @@ namespace anydsl {
 
 class Lambda;
 class Type;
+class Universe;
 class Use;
 typedef boost::unordered_set<Use*> Uses;
 
@@ -48,6 +49,8 @@ public:
 
     Type* type() { return type_; }
     const Type* type() const { return type_; }
+
+    Universe& universe() const;
 
     virtual uint64_t hash() const = 0;
 

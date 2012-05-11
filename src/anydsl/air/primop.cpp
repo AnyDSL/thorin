@@ -6,7 +6,7 @@
 
 namespace anydsl {
 
-inline uint64_t hash_helper(const IndexKind index, const Use& luse, const Use& ruse) {
+inline uint64_t hashBinOp(const IndexKind index, const void* p1, const void* p2) {
     /*
      * The first variant assumes 16 byte alignment on malloc; 
      * hence the shift ammount of 4 to the right.
@@ -21,13 +21,13 @@ inline uint64_t hash_helper(const IndexKind index, const Use& luse, const Use& r
 
     // NOTE the check will be easily optimized away by every reasonable compiler
     if (sizeof(uintptr_t) == 8)
-        return (((uintptr_t) luse.def()) >> 4)
-            +  (((uintptr_t) ruse.def()) >> 4)
-            +  (((uintptr_t)      index) << 8*7);
+        return (((uintptr_t)    p1) >> 4)
+            +  (((uintptr_t)    p2) >> 4)
+            +  (((uintptr_t) index) << 8*7);
     else
-        return (((uintptr_t) luse.def()) >> 3)
-            |  (((uintptr_t) ruse.def()) << (8*4 - 6))
-            |  (((uintptr_t)      index) << (8*8 - 6));
+        return (((uintptr_t)    p1) >> 3)
+            |  (((uintptr_t)    p2) << (8*4 - 6))
+            |  (((uintptr_t) index) << (8*8 - 6));
 }
 
 bool PrimOp::compare(PrimOp* other) const {
@@ -58,7 +58,7 @@ bool PrimOp::compare(PrimOp* other) const {
 //------------------------------------------------------------------------------
 
 uint64_t ArithOp::hash() const {
-    return hash_helper(index(), luse_, ruse_);
+    return hashBinOp(index(), luse_.def(), ruse_.def());
 }
 
 //------------------------------------------------------------------------------
@@ -72,6 +72,10 @@ Extract::Extract(Def* tuple, PrimConst* elem,
     , tuple_(tuple, this, tupleDebug)
     , elem_(elem)
 {}
+
+uint64_t Extract::hash() const {
+    return hashBinOp(index(), tuple_.def(), elem_);
+}
 
 //------------------------------------------------------------------------------
 

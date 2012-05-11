@@ -10,16 +10,6 @@
 
 using namespace anydsl;
 
-struct A {
-    virtual ~A() {}
-};
-
-struct B : public  A {
-};
-
-struct C : public  A {
-};
-
 int main() {
     std::cout << Location(Position("aaa", 23, 42), Position("bbb", 101, 666)) << std::endl;
     std::cout << Location(Position("aaa", 23, 42), Position("aaa", 101, 666)) << std::endl;

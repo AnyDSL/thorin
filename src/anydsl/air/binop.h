@@ -1,13 +1,11 @@
-#ifndef ANYDSL_PRIMOP_H
-#define ANYDSL_PRIMOP_H
+#ifndef ANYDSL_BINOP_H
+#define ANYDSL_BINOP_H
 
 #include "anydsl/air/enums.h"
 #include "anydsl/air/def.h"
 #include "anydsl/air/use.h"
 
 namespace anydsl {
-
-class PrimConst;
 
 //------------------------------------------------------------------------------
 

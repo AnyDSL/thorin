@@ -1,13 +1,13 @@
 //#include <iostream>
 
-#include "anydsl/util/box.h"
-#include "anydsl/util/types.h"
-#include "anydsl/util/ops.h"
-#include "anydsl/util/cast.h"
-#include "anydsl/util/location.h"
-#include "anydsl/air/primop.h"
+#include "anydsl/air/binop.h"
 #include "anydsl/air/type.h"
 #include "anydsl/support/universe.h"
+#include "anydsl/util/box.h"
+#include "anydsl/util/cast.h"
+#include "anydsl/util/location.h"
+#include "anydsl/util/ops.h"
+#include "anydsl/util/types.h"
 
 using namespace anydsl;
 

@@ -1,6 +1,7 @@
 #include "anydsl/support/universe.h"
 
 #include "anydsl/air/binop.h"
+#include "anydsl/air/constant.h"
 #include "anydsl/air/type.h"
 
 namespace anydsl {
@@ -16,6 +17,10 @@ Universe::Universe()
 Universe::~Universe() {
     for (size_t i = 0; i < Num_PrimTypes; ++i)
         delete primTypes_[i];
+}
+
+PrimConst* Universe::getPrimConst(PrimTypeKind kind, Box value) {
+    return new PrimConst(kind, value, "todo");
 }
 
 ArithOp* Universe::createArithOp(ArithOpKind arithOpKind,

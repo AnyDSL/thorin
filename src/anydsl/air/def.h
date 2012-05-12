@@ -70,6 +70,8 @@ protected:
     {}
 };
 
+typedef std::vector<Value*> ValueList;
+
 //------------------------------------------------------------------------------
 
 class Param : public Value {

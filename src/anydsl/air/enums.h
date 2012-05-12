@@ -1,6 +1,8 @@
 #ifndef ANYDSL_AIR_ENUMS_H
 #define ANYDSL_AIR_ENUMS_H
 
+#include "anydsl/util/types.h"
+
 namespace anydsl {
 
 //------------------------------------------------------------------------------
@@ -141,6 +143,16 @@ inline bool isInteger(PrimTypeKind primType) {
 inline bool isFloat(PrimTypeKind primType) {
     return (int) Begin_PrimType_f <= (int) primType && (int) primType < (int) End_PrimType_f;
 }
+
+template<PrimTypeKind kind> struct PrimTypeKind2Type {};
+#define ANYDSL_U_TYPE(T) template<> struct PrimTypeKind2Type<PrimType_##T> { typedef T type; };
+#define ANYDSL_F_TYPE(T) template<> struct PrimTypeKind2Type<PrimType_##T> { typedef T type; };
+#include "anydsl/tables/primtypetable.h"
+
+template<class T> struct Type2PrimTypeKind {};
+#define ANYDSL_U_TYPE(T) template<> struct Type2PrimTypeKind<T> { static const PrimTypeKind kind = PrimType_##T; };
+#define ANYDSL_F_TYPE(T) template<> struct Type2PrimTypeKind<T> { static const PrimTypeKind kind = PrimType_##T; };
+#include "anydsl/tables/primtypetable.h"
 
 } // namespace anydsl
 

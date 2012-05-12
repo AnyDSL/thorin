@@ -7,10 +7,23 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-PrimConst::PrimConst(PrimTypeKind primTypeKind, Box box, const std::string& debug)
-    : Constant((IndexKind) primTypeKind, universe().get(primTypeKind), debug)
+PrimConst::PrimConst(PrimTypeKind kind, Box box, const std::string& debug)
+    : Constant((IndexKind) kind, universe().getPrimType(kind), debug)
     , box_(box)
 {}
+
+uint64_t PrimConst::hash() const {
+    anydsl_assert(sizeof(Box) == 8, "Box has unexpected size");
+    return (uint64_t(index()) << 32) | bcast<uint64_t, Box>((box()));
+}
+
+//------------------------------------------------------------------------------
+
+
+uint64_t Tuple::hash() const {
+    // TODO
+    return 0;
+}
 
 //------------------------------------------------------------------------------
 

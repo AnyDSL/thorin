@@ -1,5 +1,5 @@
-#ifndef DSLU_TYPES_H
-#define DSLU_TYPES_H
+#ifndef ANYDSL_UTIL_TYPES_H
+#define ANYDSL_UTIL_TYPES_H
 
 #include <cmath>
 #include <ostream>
@@ -93,8 +93,8 @@ template<> struct make_signed<u16> { typedef i16 type; };
 template<> struct make_signed<u32> { typedef i32 type; };
 template<> struct make_signed<u64> { typedef i64 type; };
 
-std::ostream& operator << (std::ostream& o, u1 u) { return o << ((unsigned) u.get()); }
+inline std::ostream& operator << (std::ostream& o, u1 u) { return o << ((unsigned) u.get()); }
 
 } // namespace anydsl
 
-#endif // DSLU_TYPES_H
+#endif // ANYDSL_UTIL_TYPES_H

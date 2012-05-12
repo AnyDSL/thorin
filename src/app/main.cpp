@@ -1,6 +1,7 @@
 //#include <iostream>
 
 #include "anydsl/air/binop.h"
+#include "anydsl/air/constant.h"
 #include "anydsl/air/type.h"
 #include "anydsl/support/universe.h"
 #include "anydsl/util/box.h"
@@ -84,17 +85,23 @@ int main() {
 
     std::cout << std::endl;
 
-    std::cout << uni.get(anydsl::PrimType_u1)->debug() << std::endl;
-    std::cout << uni.get(anydsl::PrimType_u64)->debug() << std::endl;
-    std::cout << uni.get(anydsl::PrimType_f32)->debug() << std::endl;
-    std::cout << uni.get(anydsl::PrimType_f64)->debug() << std::endl;
+    std::cout << uni.getPrimType(anydsl::PrimType_u1)->debug() << std::endl;
+    std::cout << uni.getPrimType(anydsl::PrimType_u64)->debug() << std::endl;
+    std::cout << uni.getPrimType(anydsl::PrimType_f32)->debug() << std::endl;
+    std::cout << uni.getPrimType(anydsl::PrimType_f64)->debug() << std::endl;
 
-    std::cout << uni.get(anydsl::PrimConst_u1)->debug() << std::endl;
-    std::cout << uni.get(anydsl::PrimConst_u64)->debug() << std::endl;
-    std::cout << uni.get(anydsl::PrimConst_f32)->debug() << std::endl;
-    std::cout << uni.get(anydsl::PrimConst_f64)->debug() << std::endl;
+    std::cout << uni.getPrimConst(u32(5)) << std::endl;
+#if 0
+    std::cout << uni.getPrimType(anydsl::PrimConst_u64)->debug() << std::endl;
+    std::cout << uni.getPrimType(anydsl::PrimConst_f32)->debug() << std::endl;
+    std::cout << uni.getPrimType(anydsl::PrimConst_f64)->debug() << std::endl;
+#endif
 
     std::cout << std::endl;
+
+    Universe u;
+    PrimConst* consts[] = { u.getPrimConst(1u), u.getPrimConst(2ul), u.getPrimConst(3.f) };
+    //Tuple* t = new Tuple(u, consts, consts + 3, "fdjk");
 
     return 0;
 }

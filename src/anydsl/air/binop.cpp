@@ -22,4 +22,6 @@ RelOp::RelOp(ArithOpKind arithOpKind,
             ldef, rdef, ldebug, rdebug, debug)
 {}
 
+//------------------------------------------------------------------------------
+
 } // namespace anydsl

@@ -5,12 +5,15 @@
 #include <string>
 
 #include "anydsl/air/enums.h"
+#include "anydsl/util/box.h"
 
 namespace anydsl {
 
 class ArithOp;
 class Def;
+class PrimConst;
 class PrimType;
+class Sigma;
 
 class Universe {
 public:
@@ -28,17 +31,20 @@ public:
 #define ANYDSL_F_TYPE(T) PrimType* get_##T() const { return T##_; }
 #include "anydsl/tables/primtypetable.h"
 
-    PrimType* get(PrimTypeKind kind) const { 
+    PrimType* getPrimType(PrimTypeKind kind) const { 
         size_t i = kind - Begin_PrimType;
         assert(0 <= i && i < (size_t) Num_PrimTypes); 
         return primTypes_[i];
     }
 
-    PrimType* get(PrimConstKind kind) const { 
-        size_t i = const2type(kind) - Begin_PrimType;
-        assert(0 <= i && i < (size_t) Num_PrimTypes); 
-        return primTypes_[i];
+    template<class T>
+    PrimConst* getPrimConst(T value) { 
+        return getPrimConst(Type2PrimTypeKind<T>::kind, Box(value));
     }
+
+    Sigma* getSigma();
+
+    PrimConst* getPrimConst(PrimTypeKind kind, Box value);
 
 private:
 

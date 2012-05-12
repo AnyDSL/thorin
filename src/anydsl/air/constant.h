@@ -1,6 +1,8 @@
 #ifndef ANYDSL_AIR_CONSTANT_H
 #define ANYDSL_AIR_CONSTANT_H
 
+#include <vector>
+
 #include <boost/unordered_set.hpp>
 
 #include "anydsl/air/def.h"
@@ -45,9 +47,12 @@ private:
 class PrimConst : public Constant {
 public:
 
-    PrimConst(PrimTypeKind primTypeKind, Box box, const std::string& debug = "");
+    PrimConst(PrimTypeKind kind, Box box, const std::string& debug = "");
 
     PrimTypeKind primTypeKind() { return (PrimTypeKind) index(); }
+    Box box() const { return box_; }
+
+    virtual uint64_t hash() const;
 
 private:
 
@@ -57,6 +62,14 @@ private:
 //------------------------------------------------------------------------------
 
 class Tuple : public Constant {
+public:
+
+    virtual uint64_t hash() const;
+
+private:
+
+
+    ValueList values_;
 };
 
 //------------------------------------------------------------------------------

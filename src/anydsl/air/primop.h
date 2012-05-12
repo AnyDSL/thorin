@@ -11,97 +11,64 @@ class PrimConst;
 
 //------------------------------------------------------------------------------
 
-class PrimOp : public Value {
+class BinOp : public PrimOp {
+protected:
+
+    BinOp(IndexKind index, Type* type,
+            Def* ldef, Def* rdef, 
+            const std::string& ldebug, const std::string& rdebug,
+            const std::string& debug)
+        : PrimOp(index, type, debug)
+        , luse_(ldef, this, ldebug)
+        , ruse_(rdef, this, rdebug)
+    {}
+
 public:
 
-    PrimOpKind primOpKind() const { return (PrimOpKind) index(); }
+    const Use& luse() const { return luse_; }
+    const Use& ruse() const { return ruse_; }
 
-    bool compare(PrimOp* other) const;
+    ArithOpKind arithOpKind() { return (ArithOpKind) index(); }
+    virtual uint64_t hash() const;
 
 protected:
 
-    PrimOp(IndexKind index, Type* type, const std::string& debug)
-        : Value(index, type, debug)
-    {}
+    Use luse_;
+    Use ruse_;
 };
 
 //------------------------------------------------------------------------------
 
-class ArithOp : public PrimOp {
+class ArithOp : public BinOp {
 private:
 
     ArithOp(ArithOpKind arithOpKind, 
             Def* ldef, Def* rdef, 
             const std::string& ldebug, const std::string& rdebug,
             const std::string& debug)
-        : PrimOp((IndexKind) arithOpKind, ldef->type(), debug)
-        , luse_(ldef, this, ldebug)
-        , ruse_(rdef, this, rdebug)
+        : BinOp((IndexKind) arithOpKind, ldef->type(), ldef, rdef, ldebug, rdebug, debug)
     {
         anydsl_assert(ldef->type() == rdef->type(), "type are not equal");
     }
-
-public:
-
-    ArithOpKind arithOpKind() { return (ArithOpKind) index(); }
-    const Use& luse() const { return luse_; }
-    const Use& ruse() const { return ruse_; }
-
-    virtual uint64_t hash() const;
-
-private:
-
-    Use luse_;
-    Use ruse_;
 
     friend class Universe;
 };
 
 //------------------------------------------------------------------------------
 
-class Extract : public PrimOp {
+class RelOp : public BinOp {
 private:
 
-    Extract(Def* tuple, PrimConst* elem, 
-            const std::string& tupleDebug,
-            const std::string debug);
+    RelOp(ArithOpKind arithOpKind, 
+            Def* ldef, Def* rdef, 
+            const std::string& ldebug, const std::string& rdebug,
+            const std::string& debug);
 
-public:
-
-    const Use& tuple() const { return tuple_; }
-    const PrimConst* elem() const { return elem_; }
-
-    virtual uint64_t hash() const;
-
-private:
-
-    Use tuple_;
-    PrimConst* elem_;
+    friend class Universe;
 };
 
 //------------------------------------------------------------------------------
 
-class Insert : public PrimOp {
-private:
-
-    Insert(Def* tuple, Def* value, PrimConst* elem,
-           const std::string& tupleDebug, const std::string& valueDebug,
-           const std::string debug);
-
-public:
-
-    const Use& tuple() const { return tuple_; }
-    const Use& value() const { return value_; }
-    const PrimConst* elem() const { return elem_; }
-
-private:
-
-    Use tuple_;
-    Use value_;
-    PrimConst* elem_;
-};
-
-//------------------------------------------------------------------------------
 
 } // namespace anydsl
 

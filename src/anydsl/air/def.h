@@ -89,6 +89,22 @@ private:
 
 //------------------------------------------------------------------------------
 
+class PrimOp : public Value {
+public:
+
+    PrimOpKind primOpKind() const { return (PrimOpKind) index(); }
+
+    bool compare(PrimOp* other) const;
+
+protected:
+
+    PrimOp(IndexKind index, Type* type, const std::string& debug)
+        : Value(index, type, debug)
+    {}
+};
+
+//------------------------------------------------------------------------------
+
 } // namespace anydsl
 
 #endif // ANYDSL_DEF_H

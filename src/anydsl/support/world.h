@@ -4,6 +4,8 @@
 #include <cassert>
 #include <string>
 
+#include <boost/unordered_map.hpp>
+
 #include "anydsl/air/enums.h"
 #include "anydsl/util/box.h"
 
@@ -14,6 +16,9 @@ class Def;
 class PrimConst;
 class PrimType;
 class Sigma;
+class Value;
+
+typedef boost::unordered_multimap<uint64_t, Value*> Values;
 
 class World {
 public:
@@ -48,7 +53,7 @@ public:
 
 private:
 
-    bool dummy_;
+    Values values_;
 
     union {
         struct {

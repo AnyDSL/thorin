@@ -2,7 +2,6 @@
 #define ANYDSL_DEF_H
 
 #include <string>
-#include <vector>
 
 #include <boost/cstdint.hpp>
 #include <boost/unordered_set.hpp>
@@ -62,23 +61,11 @@ private:
 
 //------------------------------------------------------------------------------
 
-class Value : public Def {
-protected:
-
-    Value(IndexKind index, Type* type, const std::string& debug = "")
-        : Def(index, type, debug)
-    {}
-};
-
-typedef std::vector<Value*> ValueList;
-
-//------------------------------------------------------------------------------
-
-class Param : public Value {
+class Param : public Def {
 public:
 
     Param(Lambda* parent, Type* type, const std::string& debug = "")
-        : Value(Index_Param, type, debug)
+        : Def(Index_Param, type, debug)
         , parent_(parent)
     {}
 
@@ -87,6 +74,17 @@ public:
 private:
 
     Lambda* parent_;
+};
+
+//------------------------------------------------------------------------------
+
+
+class Value : public Def {
+protected:
+
+    Value(IndexKind index, Type* type, const std::string& debug = "")
+        : Def(index, type, debug)
+    {}
 };
 
 //------------------------------------------------------------------------------

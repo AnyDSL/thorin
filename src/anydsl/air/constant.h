@@ -18,13 +18,15 @@ typedef boost::unordered_set<Lambda*> Fix;
 
 //------------------------------------------------------------------------------
 
-class Constant : public Def {
+class Constant : public Value {
 protected:
 
     Constant(IndexKind index, Type* type, const std::string& debug)
-        : Def(index, type, debug)
+        : Value(index, type, debug)
     {}
 };
+
+typedef std::vector<Constant*> ConstList;
 
 //------------------------------------------------------------------------------
 
@@ -64,12 +66,13 @@ private:
 class Tuple : public Constant {
 public:
 
+    const ConstList& consts() const { return consts_; }
+
     virtual uint64_t hash() const;
 
 private:
 
-
-    ValueList values_;
+    ConstList consts_;
 };
 
 //------------------------------------------------------------------------------

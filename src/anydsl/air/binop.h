@@ -49,7 +49,7 @@ private:
         anydsl_assert(ldef->type() == rdef->type(), "type are not equal");
     }
 
-    friend class Universe;
+    friend class World;
 };
 
 //------------------------------------------------------------------------------
@@ -62,7 +62,7 @@ private:
             const std::string& ldebug, const std::string& rdebug,
             const std::string& debug);
 
-    friend class Universe;
+    friend class World;
 };
 
 //------------------------------------------------------------------------------

@@ -3,7 +3,7 @@
 #include "anydsl/air/binop.h"
 #include "anydsl/air/constant.h"
 #include "anydsl/air/type.h"
-#include "anydsl/support/universe.h"
+#include "anydsl/support/world.h"
 #include "anydsl/util/box.h"
 #include "anydsl/util/cast.h"
 #include "anydsl/util/location.h"
@@ -80,27 +80,27 @@ int main() {
     std::cout << Num_ConvOps << std::endl;
     std::cout << Num_Indexes << std::endl;
 
-    Universe uni;
-    std::cout << uni.get_u8()->debug() << std::endl;
+    World w;
+    std::cout << w.type_u8()->debug() << std::endl;
 
     std::cout << std::endl;
 
-    std::cout << uni.getPrimType(anydsl::PrimType_u1)->debug() << std::endl;
-    std::cout << uni.getPrimType(anydsl::PrimType_u64)->debug() << std::endl;
-    std::cout << uni.getPrimType(anydsl::PrimType_f32)->debug() << std::endl;
-    std::cout << uni.getPrimType(anydsl::PrimType_f64)->debug() << std::endl;
+    std::cout << w.type(anydsl::PrimType_u1)->debug() << std::endl;
+    std::cout << w.type(anydsl::PrimType_u64)->debug() << std::endl;
+    std::cout << w.type(anydsl::PrimType_f32)->debug() << std::endl;
+    std::cout << w.type(anydsl::PrimType_f64)->debug() << std::endl;
+    std::cout << w.type_f64()->debug() << std::endl;
 
-    std::cout << uni.getPrimConst(u32(5)) << std::endl;
+    std::cout << w.constant(u32(5)) << std::endl;
 #if 0
-    std::cout << uni.getPrimType(anydsl::PrimConst_u64)->debug() << std::endl;
-    std::cout << uni.getPrimType(anydsl::PrimConst_f32)->debug() << std::endl;
-    std::cout << uni.getPrimType(anydsl::PrimConst_f64)->debug() << std::endl;
+    std::cout << w.getPrimType(anydsl::PrimConst_u64)->debug() << std::endl;
+    std::cout << w.getPrimType(anydsl::PrimConst_f32)->debug() << std::endl;
+    std::cout << w.getPrimType(anydsl::PrimConst_f64)->debug() << std::endl;
 #endif
 
     std::cout << std::endl;
 
-    Universe u;
-    PrimConst* consts[] = { u.getPrimConst(1u), u.getPrimConst(2ul), u.getPrimConst(3.f) };
+    //PrimConst* consts[] = { w.getPrimConst(1u), w.getPrimConst(2ul), w.getPrimConst(3.f) };
     //Tuple* t = new Tuple(u, consts, consts + 3, "fdjk");
 
     return 0;

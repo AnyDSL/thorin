@@ -6,7 +6,7 @@
 #include <boost/unordered_set.hpp>
 
 #include "anydsl/air/def.h"
-#include "anydsl/support/universe.h"
+#include "anydsl/support/world.h"
 #include "anydsl/util/box.h"
 
 namespace anydsl {

@@ -2,7 +2,7 @@
 
 #include "anydsl/air/type.h"
 #include "anydsl/support/hash.h"
-#include "anydsl/support/universe.h"
+#include "anydsl/support/world.h"
 
 namespace anydsl {
 
@@ -18,7 +18,7 @@ RelOp::RelOp(ArithOpKind arithOpKind,
              Def* ldef, Def* rdef, 
              const std::string& ldebug, const std::string& rdebug,
              const std::string& debug)
-    : BinOp((IndexKind) arithOpKind, ldef->universe().get_u1(), 
+    : BinOp((IndexKind) arithOpKind, ldef->world().type_u1(), 
             ldef, rdef, ldebug, rdebug, debug)
 {}
 

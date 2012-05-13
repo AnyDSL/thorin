@@ -21,8 +21,8 @@ void Def::unregisterUse(Use* use) {
     uses_.erase(use);
 }
 
-Universe& Def::universe() const { 
-    return type_->universe(); 
+World& Def::world() const { 
+    return type_->world(); 
 }
 
 //------------------------------------------------------------------------------

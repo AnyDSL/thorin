@@ -91,7 +91,7 @@ int main() {
     std::cout << w.type(anydsl::PrimType_f64)->debug() << std::endl;
     std::cout << w.type_f64()->debug() << std::endl;
 
-    std::cout << w.constant(u32(5)) << std::endl;
+    std::cout << w.constant(5u) << std::endl;
 #if 0
     std::cout << w.getPrimType(anydsl::PrimConst_u64)->debug() << std::endl;
     std::cout << w.getPrimType(anydsl::PrimConst_f32)->debug() << std::endl;

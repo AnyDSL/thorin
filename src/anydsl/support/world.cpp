@@ -3,6 +3,7 @@
 #include "anydsl/air/binop.h"
 #include "anydsl/air/constant.h"
 #include "anydsl/air/type.h"
+#include "anydsl/util/foreach.h"
 
 namespace anydsl {
 
@@ -11,8 +12,7 @@ World::World()
 #define ANYDSL_U_TYPE(T) ,T##_(new PrimType(*this, PrimType_##T, #T))
 #define ANYDSL_F_TYPE(T) ,T##_(new PrimType(*this, PrimType_##T, #T))
 #include "anydsl/tables/primtypetable.h"
-{
-}
+{}
 
 World::~World() {
     for (size_t i = 0; i < Num_PrimTypes; ++i)
@@ -20,6 +20,7 @@ World::~World() {
 }
 
 PrimConst* World::constant(PrimTypeKind kind, Box value) {
+    //Values::iterator i = values_.find(
     return new PrimConst(kind, value, "todo");
 }
 
@@ -28,9 +29,14 @@ ArithOp* World::createArithOp(ArithOpKind arithOpKind,
                                 const std::string& ldebug /*= ""*/, 
                                 const std::string& rdebug /*= ""*/, 
                                 const std::string&  debug /*= ""*/) {
-    // TODO
+    ValRange range = values_.equal_range(0);
+    FOREACH(val, range)
+    {
+    }
 
-    return new ArithOp(arithOpKind, ldef, rdef, ldebug, rdebug, debug);
+    ArithOp* op = new ArithOp(arithOpKind, ldef, rdef, ldebug, rdebug, debug);
+    values_.insert(std::make_pair(op->hash(), op));
+    return op;
 }
 
 } // namespace anydsl

@@ -29,6 +29,35 @@ typedef std::vector<Sigma*> NamedSigmas;
 
 //------------------------------------------------------------------------------
 
+/**
+ * This class manages the following things for the whole program:
+ *  - Type unification:
+ *      There exists only one unique type for PrimType%s, Pi%s and \em unnamed Sigma%s.
+ *      These types are hashed into internal maps for fast access.
+ *      The getters just calculate a hash and lookup the type, if it is already present, or create a new one otherwise.
+ *      There also exists the concept of \em named \p Sigma%s to allow for recursive types.
+ *      These types are \em not unified, i.e., each instance is by definition a different type;
+ *      thus, two different pointers of the same named sigma are considered different types.
+ *  - PrimOp unification:
+ *      This is a built-in mechanism for the following things:
+ *      - common subexpression elimination
+ *      - constant folding 
+ *      - copy propagation
+ *      - dead code elimination
+ *      - canonicalization of expressions
+ *      - several local optimizations
+ *      PrimOp%s do not explicitly belong to a Lambda.
+ *      Instead they either implicitly belong to a Lambda 
+ *      when they (possibly via multiple steps) depend on an Lambda's Param or they are dead. 
+ *      Use \p cleanup to remove dead code.
+ *  - Lambda%s are register here in order to not have dangling pointers 
+ *  and to perform unreachable code elimination.
+ *  The aforementioned \p cleanup will also delete these lambdas.
+ *
+ *  You can create several worlds. 
+ *  All worlds are independent from each other.
+ *  This is particular useful for multi-threading.
+ */
 class World {
 public:
 
@@ -67,6 +96,9 @@ public:
 
     PrimConst* constant(PrimTypeKind kind, Box value);
 
+    /// Performs dead code elimination.
+    void cleanup();
+
 private:
 
     Values values_;
@@ -75,7 +107,7 @@ private:
     NamedSigmas namedSigmas_;
 
     AutoPtr<Pi> emptyPi_; ///< pi().
-    AutoPtr<Sigma> unit_;
+    AutoPtr<Sigma> unit_; ///< sigma().
 
     union {
         struct {

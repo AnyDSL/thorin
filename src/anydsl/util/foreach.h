@@ -2,6 +2,7 @@
 #define DSLU_FOREACH_H
 
 #include <cstddef>
+#include <utility>
 
 #include <boost/typeof/typeof.hpp>
 
@@ -10,14 +11,17 @@ namespace anydsl {
 
 template<class T, typename SEL> struct SelIter   { typedef typename T::const_iterator iter; };
 template<class T> struct SelIter<T, void (int&)> { typedef typename T::iterator       iter; };
+template<class T, class U> struct SelIter<std::pair<T, T>, U> { typedef T iter; };
 
 template<class T> typename T::iterator       begin(T& t)       { return t.begin(); }
 template<class T> typename T::const_iterator begin(const T& t) { return t.begin(); }
 template<class T, size_t N> T*               begin(T (&t)[N])  { return t; }
+template<class T> T                          begin(const std::pair<T, T>& t) { return t.first; }
 
 template<class T> typename T::iterator       end(T& t)       { return t.end(); }
 template<class T> typename T::const_iterator end(const T& t) { return t.end(); }
 template<class T, size_t N> T*               end(T (&t)[N])  { return t + N; }
+template<class T> T                          end(const std::pair<T, T>& t) { return t.second; }
 
 } // namespace anydsl
 

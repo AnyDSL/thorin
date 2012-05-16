@@ -26,19 +26,6 @@ typedef boost::unordered_multimap<uint64_t, Value*> Values;
 typedef Values::iterator ValIter;
 typedef Values::const_iterator ValConstIter;
 
-/// Make std::pair<ValIter, ValIter> work with the FOREACH macro
-struct ValRange : public std::pair<ValIter, ValIter> {
-    ValRange(const std::pair<ValIter, ValIter>& p)
-        : std::pair<ValIter, ValIter>(p)
-    {}
-
-    ValIter begin() { return first; }
-    ValIter   end() { return second; }
-
-    typedef ValIter iterator;
-    typedef ValConstIter const_iterator;
-};
-
 //------------------------------------------------------------------------------
 
 class World {

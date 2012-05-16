@@ -1,9 +1,9 @@
 #include <impala/emitter.h>
 
 #include "anydsl/util/location.h"
+#include "anydsl/support/cfg.h"
 
 #include "impala/binding.h"
-#include "impala/cfg.h"
 #include "impala/token.h"
 
 #if 0

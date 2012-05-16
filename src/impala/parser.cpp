@@ -5,11 +5,10 @@
 #include <sstream>
 
 #include "anydsl/util/assert.h"
-
+#include "anydsl/support/cfg.h"
 #include "anydsl/support/symbol.h"
 
 #include "impala/binding.h"
-#include "impala/cfg.h"
 
 #if 0
 

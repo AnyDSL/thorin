@@ -1,5 +1,5 @@
-#ifndef IMPALA_CFG_H
-#define CF_BINDING_H
+#ifndef ANYDSL_SUPPORT_CFG_H
+#define ANYDSL_SUPPORTDING_H
 
 #include <map>
 
@@ -148,5 +148,4 @@ private:
 } // namespace impala
 
 #endif
-
 #endif // IMPALA_CFG_H

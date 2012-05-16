@@ -1,4 +1,4 @@
-#include "impala/cfg.h"
+#include "anydsl/support/cfg.h"
 
 #include "impala/binding.h"
 #if 0

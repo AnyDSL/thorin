@@ -21,10 +21,10 @@ class Sigma;
 
 //------------------------------------------------------------------------------
 
-typedef boost::unordered_multimap<uint64_t, Def*> Defs;
-typedef Defs::iterator DefIter;
-typedef boost::unordered_multimap<uint64_t, Pi*> Pis;
-typedef boost::unordered_multimap<uint64_t, Sigma*> Sigmas;
+typedef boost::unordered_multimap<uint64_t, Def*> DefMap;
+typedef DefMap::iterator DefIter;
+typedef boost::unordered_multimap<uint64_t, Pi*> PiMap;
+typedef boost::unordered_multimap<uint64_t, Sigma*> SigmaMap;
 typedef std::vector<Sigma*> NamedSigmas;
 
 //------------------------------------------------------------------------------
@@ -100,9 +100,9 @@ public:
 
 private:
 
-    Defs defs_;
-    Pis pis_;
-    Sigmas sigmas_;
+    DefMap defs_;
+    PiMap pis_;
+    SigmaMap sigmas_;
     NamedSigmas namedSigmas_;
 
     AutoPtr<Pi> emptyPi_; ///< pi().

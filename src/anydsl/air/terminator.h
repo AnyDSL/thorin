@@ -4,11 +4,16 @@
 #include <list>
 
 #include "anydsl/air/airnode.h"
+#include "anydsl/air/constant.h"
 #include "anydsl/air/use.h"
 
 namespace anydsl {
 
+//------------------------------------------------------------------------------
+
 class Lambda;
+
+//------------------------------------------------------------------------------
 
 class Terminator : public AIRNode {
 public:
@@ -23,30 +28,32 @@ class Branch : public Terminator {
 public:
 
     const Use& cond() const { return cond_; }
-    const Lambda* ifTrue()  { return ifTrue_; }
-    const Lambda* ifFalse() { return ifFalse_; }
+    const Use& useT() const { return useT_; }
+    const Use& useF() const { return useF_; }
+    const Lambda* lambdaT() const { return scast<Lambda>(useT_.def()); }
+    const Lambda* lambdaF() const { return scast<Lambda>(useF_.def()); }
 
 private:
 
     Use cond_;
-    Lambda* ifTrue_;
-    Lambda* ifFalse_;
+    Use useT_;
+    Use useF_;
 };
 
 //------------------------------------------------------------------------------
 
-typedef std::list<Use> Uses;
-
 class Invoke : public Terminator {
+private:
+
 public:
 
     const Use& fct() const { return fct_; }
-    const Uses& uses() const { return uses_; }
+    const Uses& args() const { return args_; }
 
 private:
 
     Use fct_;
-    Uses uses_;
+    Uses args_;
 };
 
 //------------------------------------------------------------------------------

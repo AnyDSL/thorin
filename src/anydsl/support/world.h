@@ -18,11 +18,11 @@ class Pi;
 class PrimConst;
 class PrimType;
 class Sigma;
-class Value;
 
 //------------------------------------------------------------------------------
 
-typedef boost::unordered_multimap<uint64_t, Value*> Values;
+typedef boost::unordered_multimap<uint64_t, Def*> Defs;
+typedef Defs::iterator DefIter;
 typedef boost::unordered_multimap<uint64_t, Pi*> Pis;
 typedef boost::unordered_multimap<uint64_t, Sigma*> Sigmas;
 typedef std::vector<Sigma*> NamedSigmas;
@@ -96,12 +96,12 @@ public:
 
     PrimConst* constant(PrimTypeKind kind, Box value);
 
-    /// Performs dead code elimination.
+    /// Performs dead code and unreachable code elimination.
     void cleanup();
 
 private:
 
-    Values values_;
+    Defs defs_;
     Pis pis_;
     Sigmas sigmas_;
     NamedSigmas namedSigmas_;
@@ -118,8 +118,6 @@ private:
 
         PrimType* primTypes_[Num_PrimTypes];
     };
-
-
 };
 
 } // namespace anydsl

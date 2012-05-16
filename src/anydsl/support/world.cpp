@@ -33,14 +33,14 @@ ArithOp* World::createArithOp(ArithOpKind arithOpKind,
                                 const std::string& ldebug /*= ""*/, 
                                 const std::string& rdebug /*= ""*/, 
                                 const std::string&  debug /*= ""*/) {
-    //ValRange range = values_.equal_range(0);
-    FOREACH(p, values_.equal_range(0))
-    {
-        std::cout << p.second << std::endl;
-    }
+    ////ValRange range = values_.equal_range(0);
+    //FOREACH(p, values_.equal_range(0))
+    //{
+        //std::cout << p.second << std::endl;
+    //}
 
     ArithOp* op = new ArithOp(arithOpKind, ldef, rdef, ldebug, rdebug, debug);
-    values_.insert(std::make_pair(op->hash(), op));
+    defs_.insert(std::make_pair(op->hash(), op));
     return op;
 }
 
@@ -48,6 +48,23 @@ Sigma* World::getNamedSigma(const std::string& name /*= ""*/) {
     Sigma* sigma = new Sigma(*this, name);
     namedSigmas_.push_back(sigma);
     return sigma;
+}
+
+void World::cleanup() {
+    size_t oldSize;
+
+    // repeaut until defs do not change anymore
+    do {
+        oldSize = defs_.size();
+
+        for (DefIter i = defs_.begin(), e = defs_.end(); i != e; ++i) {
+            Def* def = i->second;
+            if (def->uses().empty()) {
+                delete def;
+                i = defs_.erase(i);
+            }
+        }
+    } while (oldSize != defs_.size());
 }
 
 } // namespace anydsl

@@ -23,8 +23,9 @@ class Value;
 //------------------------------------------------------------------------------
 
 typedef boost::unordered_multimap<uint64_t, Value*> Values;
-typedef Values::iterator ValIter;
-typedef Values::const_iterator ValConstIter;
+typedef boost::unordered_multimap<uint64_t, Pi*> Pis;
+typedef boost::unordered_multimap<uint64_t, Sigma*> Sigmas;
+typedef std::vector<Sigma*> NamedSigmas;
 
 //------------------------------------------------------------------------------
 
@@ -55,16 +56,26 @@ public:
         return constant(Type2PrimTypeKind<T>::kind, Box(value));
     }
 
-    Sigma* getSigma();
+    template<class T>
+    const Sigma* sigma(T begin, T end);
+
+    /// Creates a fresh named sigma
+    Sigma* getNamedSigma(const std::string& name = "");
+
     const Pi* emptyPi() const { return emptyPi_; }
+    const Sigma* unit() const { return unit_; }
 
     PrimConst* constant(PrimTypeKind kind, Box value);
 
 private:
 
     Values values_;
+    Pis pis_;
+    Sigmas sigmas_;
+    NamedSigmas namedSigmas_;
 
     AutoPtr<Pi> emptyPi_; ///< pi().
+    AutoPtr<Sigma> unit_;
 
     union {
         struct {
@@ -75,6 +86,8 @@ private:
 
         PrimType* primTypes_[Num_PrimTypes];
     };
+
+
 };
 
 } // namespace anydsl

@@ -13,8 +13,8 @@ class World;
 class Type : public AIRNode {
 protected:
 
-    Type(World& world, IndexKind index, const std::string& debug)
-        : AIRNode(index, debug)
+    Type(World& world, IndexKind index, const std::string& name)
+        : AIRNode(index, name)
         , world_(world)
     {}
     virtual ~Type() {}
@@ -36,9 +36,7 @@ typedef std::vector<const Type*> Types;
 class PrimType : public Type {
 private:
 
-    PrimType(World& world, PrimTypeKind primTypeKind, const std::string& debug = "")
-        : Type(world, (IndexKind) primTypeKind, debug)
-    {}
+    PrimType(World& world, PrimTypeKind primTypeKind);
 
 public:
 
@@ -53,14 +51,14 @@ class CompoundType : public Type {
 protected:
 
     /// Creates an empty \p CompoundType.
-    CompoundType(World& world, IndexKind index, const std::string& debug)
-        : Type(world, index, debug)
+    CompoundType(World& world, IndexKind index, const std::string& name)
+        : Type(world, index, name)
     {}
 
     /// Copies over the range specified by \p begin and \p end to \p types_.
     template<class T>
-    CompoundType(World& world, IndexKind index, T begin, T end, const std::string& debug)
-        : Type(world, index, debug)
+    CompoundType(World& world, IndexKind index, T begin, T end, const std::string& name)
+        : Type(world, index, name)
     {
         types_.insert(types_.begin(), begin, end);
     }
@@ -81,17 +79,19 @@ private:
     Types types_;
 };
 
+//------------------------------------------------------------------------------
+
 /// A tuple type.
 class Sigma : public CompoundType {
 private:
 
-    Sigma(World& world, const std::string& debug)
-        : CompoundType(world, Index_Sigma, debug)
+    Sigma(World& world, const std::string& name)
+        : CompoundType(world, Index_Sigma, name)
     {}
 
     template<class T>
-    Sigma(World& world, T begin, T end, const std::string& debug)
-        : CompoundType(world, Index_Sigma, begin, end, debug)
+    Sigma(World& world, T begin, T end, const std::string& name)
+        : CompoundType(world, Index_Sigma, begin, end, name)
     {}
 
     friend class World;
@@ -103,13 +103,13 @@ private:
 class Pi : public CompoundType {
 private:
 
-    Pi(World& world, const std::string& debug)
-        : CompoundType(world, Index_Pi, debug)
+    Pi(World& world, const std::string& name)
+        : CompoundType(world, Index_Pi, name)
     {}
 
     template<class T>
-    Pi(World& world, T begin, T end, const std::string& debug)
-        : CompoundType(world, Index_Sigma, begin, end, debug)
+    Pi(World& world, T begin, T end, const std::string& name)
+        : CompoundType(world, Index_Sigma, begin, end, name)
     {}
 
     friend class World;

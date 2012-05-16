@@ -154,6 +154,9 @@ template<class T> struct Type2PrimTypeKind {};
 #define ANYDSL_F_TYPE(T) template<> struct Type2PrimTypeKind<T> { static const PrimTypeKind kind = PrimType_##T; };
 #include "anydsl/tables/primtypetable.h"
 
+
+const char* primTypeKind2str(PrimTypeKind primTypeKind);
+
 } // namespace anydsl
 
 #endif // ANYDSL_AIR_ENUMS_H

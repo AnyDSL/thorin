@@ -91,7 +91,7 @@ int main() {
     std::cout << w.type(anydsl::PrimType_f64)->debug() << std::endl;
     std::cout << w.type_f64()->debug() << std::endl;
 
-    std::cout << w.constant(5u) << std::endl;
+    std::cout << w.constant(5u)->debug() << std::endl;
 #if 0
     std::cout << w.getPrimType(anydsl::PrimConst_u64)->debug() << std::endl;
     std::cout << w.getPrimType(anydsl::PrimConst_f32)->debug() << std::endl;
@@ -102,6 +102,11 @@ int main() {
 
     //PrimConst* consts[] = { w.getPrimConst(1u), w.getPrimConst(2ul), w.getPrimConst(3.f) };
     //Tuple* t = new Tuple(u, consts, consts + 3, "fdjk");
+    //
+
+    Sigma* s = w.getNamedSigma();
+    const Type* members[4] = {w.type_u8(), w.type_f32(), w.type_u1(), w.type_u8()};
+    s->set(members, members + 4);
 
     return 0;
 }

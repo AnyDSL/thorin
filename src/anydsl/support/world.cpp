@@ -21,11 +21,18 @@ World::~World() {
 
     FOREACH(sigma, namedSigmas_)
         delete sigma;
+
+    // clean up hash multi maps
+    FOREACH(p, defs_)   delete p.second;
+    FOREACH(p, pis_)    delete p.second;
+    FOREACH(p, sigmas_) delete p.second;
 }
 
 PrimConst* World::constant(PrimTypeKind kind, Box value) {
     //Values::iterator i = values_.find(
-    return new PrimConst(kind, value, "todo");
+    PrimConst* prim = new PrimConst(*this, kind, value, "todo");
+    defs_.insert(std::make_pair(prim->hash(), prim));
+    return prim;
 }
 
 ArithOp* World::createArithOp(ArithOpKind arithOpKind,

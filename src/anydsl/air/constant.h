@@ -43,7 +43,7 @@ public:
 class PrimConst : public Constant {
 public:
 
-    PrimConst(PrimTypeKind kind, Box box, const std::string& debug = "");
+    PrimConst(World& world, PrimTypeKind kind, Box box, const std::string& debug = "");
 
     PrimTypeKind primTypeKind() { return (PrimTypeKind) index(); }
     Box box() const { return box_; }

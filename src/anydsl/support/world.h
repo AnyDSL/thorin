@@ -84,17 +84,16 @@ public:
     PrimConst* constant(T value) { 
         return constant(Type2PrimTypeKind<T>::kind, Box(value));
     }
+    PrimConst* constant(PrimTypeKind kind, Box value);
 
     template<class T>
     const Sigma* sigma(T begin, T end);
 
-    /// Creates a fresh named sigma
+    /// Creates a fresh named sigma.
     Sigma* getNamedSigma(const std::string& name = "");
 
     const Pi* emptyPi() const { return emptyPi_; }
     const Sigma* unit() const { return unit_; }
-
-    PrimConst* constant(PrimTypeKind kind, Box value);
 
     /// Performs dead code and unreachable code elimination.
     void cleanup();

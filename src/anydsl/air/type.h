@@ -28,6 +28,8 @@ private:
     World& world_;
 };
 
+typedef std::vector<const Type*> Types;
+
 //------------------------------------------------------------------------------
 
 /// Primitive types -- also known as atomic or scalar types.
@@ -47,36 +49,70 @@ public:
 
 //------------------------------------------------------------------------------
 
-/// A tuple type.
-class Sigma : public Type {
-public:
+class CompoundType : public Type {
+protected:
 
-    Sigma(World& world, const std::string& debug)
-        : Type(world, Index_Sigma, debug)
+    /// Creates an empty \p CompoundType.
+    CompoundType(World& world, IndexKind index, const std::string& debug)
+        : Type(world, index, debug)
     {}
 
+    /// Copies over the range specified by \p begin and \p end to \p types_.
+    template<class T>
+    CompoundType(World& world, IndexKind index, T begin, T end, const std::string& debug)
+        : Type(world, index, debug)
+    {
+        types_.insert(types_.begin(), begin, end);
+    }
+
+public:
+
     /// Get element type via index.
-    const Type* get(size_t) const { return 0; }
+    const Type* get(size_t i) const { 
+        anydsl_assert(i < types_.size(), "index out of range"); 
+        return types_[i]; 
+    }
 
     /// Get element type via anydsl::PrimConst which serves as index.
-    const Type* get(PrimConst*) const { return 0; }
+    const Type* get(PrimConst* c) const;
+
+private:
+
+    Types types_;
+};
+
+/// A tuple type.
+class Sigma : public CompoundType {
+private:
+
+    Sigma(World& world, const std::string& debug)
+        : CompoundType(world, Index_Sigma, debug)
+    {}
+
+    template<class T>
+    Sigma(World& world, T begin, T end, const std::string& debug)
+        : CompoundType(world, Index_Sigma, begin, end, debug)
+    {}
+
+    friend class World;
 };
 
 //------------------------------------------------------------------------------
 
 /// A function type.
-class Pi : public Type {
-public:
+class Pi : public CompoundType {
+private:
 
     Pi(World& world, const std::string& debug)
-        : Type(world, Index_Pi, debug)
+        : CompoundType(world, Index_Pi, debug)
     {}
 
-    /// Get element type.
-    const Type* get(size_t) const { return 0; }
+    template<class T>
+    Pi(World& world, T begin, T end, const std::string& debug)
+        : CompoundType(world, Index_Sigma, begin, end, debug)
+    {}
 
-    /// Get element type via anydsl::PrimConst which serves as index.
-    const Type* get(PrimConst*) const { return 0; }
+    friend class World;
 };
 
 //------------------------------------------------------------------------------

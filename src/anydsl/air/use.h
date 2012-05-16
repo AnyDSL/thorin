@@ -10,8 +10,11 @@ class Def;
 class Use : public AIRNode {
 private:
 
+    /// Do not create "default" \p Use instances.
     Use();
+    /// Do not copy-construct a \p Use instance.
     Use(const Use&);
+    /// Do not copy-assign a \p Use instance.
     Use& operator = (const Use&);
 
 public:
@@ -25,7 +28,6 @@ public:
     const AIRNode* parent() const { return parent_; }
     template<class T> T* parentAs() { return dcast<T>(parent_); }
     template<class T> const T* parentAs() const { return dcast<T>(parent_); }
-
 
 private:
 

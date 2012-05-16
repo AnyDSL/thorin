@@ -8,11 +8,13 @@
 
 #include "anydsl/air/enums.h"
 #include "anydsl/util/box.h"
+#include "anydsl/util/autoptr.h"
 
 namespace anydsl {
 
 class ArithOp;
 class Def;
+class Pi;
 class PrimConst;
 class PrimType;
 class Sigma;
@@ -67,12 +69,15 @@ public:
     }
 
     Sigma* getSigma();
+    const Pi* emptyPi() const { return emptyPi_; }
 
     PrimConst* constant(PrimTypeKind kind, Box value);
 
 private:
 
     Values values_;
+
+    AutoPtr<Pi> emptyPi_; ///< pi().
 
     union {
         struct {

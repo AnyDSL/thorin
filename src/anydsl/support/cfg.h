@@ -2,150 +2,132 @@
 #define ANYDSL_SUPPORTDING_H
 
 #include <map>
+#include <boost/unordered_set.hpp>
 
 #include "anydsl/util/assert.h"
 #include "anydsl/support/symbol.h"
 #include "impala/value.h"
 
 
-#if 0
-
 namespace anydsl {
-    class Beta;
     class Branch;
-    class CExpr;
     class Def;
-    class Fix;
     class Lambda;
     class Location;
     class Param;
     class Type;
 }
 
-namespace impala {
+namespace anydsl {
 
 class BB;
 class Emitter;
 class Fct;
-class Parser;
 class Token;
-typedef anydsl::Set<BB*> BBList;
+class World;
+typedef boost::unordered_set<BB*> BBs;
 
 //------------------------------------------------------------------------------
 
 class BB {
 public:
 
-    BB(BB* parent, const anydsl::Location& loc, const anydsl::Symbol sym = anydsl::Symbol(""));
+    BB(World& world, const std::string& name = "");
     virtual ~BB() {}
 
-    static BB* create(const anydsl::Symbol sym = anydsl::Symbol(""));
+    //static BB* create(const Symbol sym = Symbol(""));
 
-    BB* createSubBB(const anydsl::Location& loc, const anydsl::Symbol sym = anydsl::Symbol(""));
-    void hangInBB(BB* root);
-    void jumps(const anydsl::Location& loc, BB* to);
-    void calls(const anydsl::Location& loc, anydsl::Def* f);
-    void branches(const anydsl::Location& loc, anydsl::Def* cond, BB* toT, BB* toF);
-    void mergeChild();
+    /// Insert \p bb as sub BB (i.e., as dom child) into this BB.
+    void insert(BB* bb);
+    //void jumps(const Location& loc, BB* to);
+    //void calls(const Location& loc, Def* f);
+    //void branches(const Location& loc, Def* cond, BB* toT, BB* toF);
+    //void mergeChild();
 
-    const BBList& pre() const { return pred_; }
-    const BBList& succ() const { return succ_; }
-    anydsl::Def* appendLambda(anydsl::CExpr* cexpr, anydsl::Type* type);
-    virtual Binding* getVN(const anydsl::Location& loc, const anydsl::Symbol sym, anydsl::Type* type, bool finalize);
-    void setVN(const anydsl::Location& loc, Binding* bind);
+    const BBs& pre() const { return pred_; }
+    const BBs& succ() const { return succ_; }
+    //Def* appendLambda(CExpr* cexpr, Type* type);
+    //virtual Binding* getVN(const Location& loc, const Symbol sym, Type* type, bool finalize);
+    //void setVN(const Location& loc, Binding* bind);
 
     void finalizeAll();
-    void processTodos();
-    void finalize(size_t x, const anydsl::Symbol sym);
-    bool hasVN(const anydsl::Symbol sym) { return values_.find(sym) != values_.end(); }
+    //void processTodos();
+    //void finalize(size_t x, const Symbol sym);
+    //bool hasVN(const Symbol sym) { return values_.find(sym) != values_.end(); }
 
     void inheritValues(BB* bb);
 
-    const char* name();
+    Lambda* lambda() const { return lambda_; }
+    std::string name() const;
 
 #ifndef NDEBUG
-    anydsl::Symbol belongsTo();
+    Symbol belongsTo();
 #endif
 
 protected:
 public:
 
-    typedef std::map<const anydsl::Symbol, Binding*> ValueMap;
+#if 0
+
+    typedef std::map<const Symbol, Binding*> ValueMap;
     ValueMap values_;
 
-    typedef std::map<anydsl::Symbol, int, anydsl::Symbol::FastLess> Todos;
+    typedef std::map<Symbol, int, Symbol::FastLess> Todos;
     Todos todos_;
+#endif
 
     void flowsTo(BB* to);
 
     // dominator tree
     BB* parent_;
-    BBList children_;
+    BBs children_;
 
     // CFG
-    BBList pred_;
-    BBList succ_;
+    BBs pred_;
+    BBs succ_;
 
-    anydsl::Param* param_;
-    anydsl::Lambda* lambda_;
-    anydsl::Fix* fix_;
+    Param* param_;
+    Lambda* lambda_;
 
 #ifndef NDEBUG
     bool verify(BB* bb);
 #endif
 
-
-    anydsl::Beta* getBeta();
-    anydsl::Branch* getBranch();
-
 private:
 
-    void fixBeta(anydsl::Beta* beta, size_t x, const anydsl::Symbol sym, anydsl::Type* type);
-
-    /// keeps track of the last thing in this BB
-    union {
-        anydsl::Lambda* lcursor_;///< points to the lambda in an unfinished BB
-        anydsl::Beta* beta_;     ///< points to the jump in a finished BB with one successor
-        anydsl::Branch* branch_; ///< points to the branch in a finished BB with two successors
-    };
+    //void fixBeta(Beta* beta, size_t x, const Symbol sym, Type* type);
 
     bool finalized_;
 
-    bool hasTerminator_;
-    void setTerminator() { anydsl_assert(!hasTerminator_, "already set"); hasTerminator_ = true; }
-    bool hasTerminator() { return hasTerminator_; }
-
-
-    friend class impala::Emitter;
-    friend class impala::Parser;
+    //friend class impala::Emitter;
 };
 
 //------------------------------------------------------------------------------
 
+#if 0
 class Fct : public BB {
 public:
 
-    Fct(const anydsl::Location& loc, const anydsl::Symbol sym);
-    Fct(BB* parent, const anydsl::Location& loc, const anydsl::Symbol sym);
+    Fct(const Location& loc, const Symbol sym);
+    Fct(BB* parent, const Location& loc, const Symbol sym);
 
-    Fct* createSubFct(const anydsl::Location& loc, const anydsl::Symbol sym);
-    void setReturn(const anydsl::Location& loc, anydsl::Type* retType);
+    //Fct* createSubFct(const Location& loc, const Symbol sym);
+    void setReturn(const Location& loc, Type* retType);
     bool hasReturn() const { return ret_; }
-    void insertReturn(const anydsl::Location& loc, BB* bb, anydsl::Def* def);
-    void insertCont(const anydsl::Location& loc, BB* where, anydsl::Def* cont);
-    anydsl::Def* appendLambda(BB* bb, anydsl::CExpr* cexpr, anydsl::Type* type);
-    virtual Binding* getVN(const anydsl::Location& loc, const anydsl::Symbol, anydsl::Type* type, bool finalize);
+    void insertReturn(const Location& loc, BB* bb, Def* def);
+    void insertCont(const Location& loc, BB* where, Def* cont);
+    //Def* appendLambda(BB* bb, CExpr* cexpr, Type* type);
+    //virtual Binding* getVN(const Location& loc, const Symbol, Type* type, bool finalize);
 
 private:
 
     BB* exit_;
-    anydsl::Param* ret_;
+    Param* ret_;
 
-    friend class impala::Emitter;
-    friend class impala::Parser;
+    //friend class impala::Emitter;
 };
-
-} // namespace impala
-
 #endif
-#endif // IMPALA_CFG_H
+
+} // namespace anydsl
+
+#endif // ANYDSL_SUPPORT_CFG_H

@@ -21,7 +21,7 @@ typedef boost::unordered_set<Lambda*> Fix;
 class Constant : public Value {
 protected:
 
-    Constant(IndexKind index, Type* type, const std::string& debug)
+    Constant(IndexKind index, const Type* type, const std::string& debug)
         : Value(index, type, debug)
     {}
 };
@@ -33,15 +33,9 @@ typedef std::vector<Constant*> ConstList;
 class Undef : public Constant {
 public:
 
-    Undef(Type* type, const std::string& debug = "")
+    Undef(const Type* type, const std::string& debug = "")
         : Constant(Index_Undef, type, debug)
         {}
-
-    Type* type() const { return type_; }
-
-private:
-
-    Type* type_;
 };
 
 //------------------------------------------------------------------------------
@@ -80,11 +74,17 @@ private:
 class Lambda : public Constant {
 public:
 
-    Lambda(Lambda* parent, Type* type, const std::string& debug = "")
-        : Constant(Index_Lambda, type, debug)
-        , parent_(parent)
-        , terminator_(0)
-    {}
+    /**
+     * Use this constructor if you know the type beforehand.
+     * You are still free to append other params later on.
+     */
+    Lambda(Lambda* parent, const Pi* type, const std::string& debug = "");
+
+    /**
+     * Use this constructor if you want to incrementally build the type.
+     * Initially the type is set to "pi()".
+     */
+    Lambda(World& world, Lambda* parent, const std::string& debug = "");
     ~Lambda();
 
     const Fix& fix() const { return fix_; }
@@ -97,6 +97,8 @@ public:
 
     void insert(Lambda* lambda);
     void remove(Lambda* lambda);
+
+    virtual uint64_t hash() const { return 0; /* TODO */ }
 
 private:
 

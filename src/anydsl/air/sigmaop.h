@@ -13,9 +13,9 @@ class PrimConst;
 class SigmaOp : public PrimOp {
 protected:
 
-    SigmaOp(IndexKind index, Type* type,
+    SigmaOp(IndexKind index, const Type* type,
             Def* tuple, PrimConst* elem, 
-            const std::string& tupleDebug, const std::string debug);
+            const std::string& tupleDebug, const std::string& debug);
 
 public:
 
@@ -37,7 +37,7 @@ private:
 
     Extract(Def* tuple, PrimConst* elem, 
             const std::string& tupleDebug,
-            const std::string debug);
+            const std::string& debug);
 };
 
 //------------------------------------------------------------------------------
@@ -47,7 +47,7 @@ private:
 
     Insert(Def* tuple, PrimConst* elem, Def* value, 
            const std::string& tupleDebug, const std::string& valueDebug,
-           const std::string debug)
+           const std::string& debug)
         : SigmaOp(Index_Insert, tuple->type(), tuple, elem, tupleDebug, debug)
         , value_(value, this, valueDebug)
     {}

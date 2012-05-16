@@ -12,7 +12,7 @@ namespace anydsl {
 class BinOp : public PrimOp {
 protected:
 
-    BinOp(IndexKind index, Type* type,
+    BinOp(IndexKind index, const Type* type,
             Def* ldef, Def* rdef, 
             const std::string& ldebug, const std::string& rdebug,
             const std::string& debug)

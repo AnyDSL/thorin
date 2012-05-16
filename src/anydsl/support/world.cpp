@@ -8,7 +8,7 @@
 namespace anydsl {
 
 World::World() 
-    : values_()
+    : emptyPi_(new Pi(*this, "pi()"))
 #define ANYDSL_U_TYPE(T) ,T##_(new PrimType(*this, PrimType_##T, #T))
 #define ANYDSL_F_TYPE(T) ,T##_(new PrimType(*this, PrimType_##T, #T))
 #include "anydsl/tables/primtypetable.h"
@@ -29,10 +29,12 @@ ArithOp* World::createArithOp(ArithOpKind arithOpKind,
                                 const std::string& ldebug /*= ""*/, 
                                 const std::string& rdebug /*= ""*/, 
                                 const std::string&  debug /*= ""*/) {
+#if 0
     ValRange range = values_.equal_range(0);
     FOREACH(val, range)
     {
     }
+#endif
 
     ArithOp* op = new ArithOp(arithOpKind, ldef, rdef, ldebug, rdebug, debug);
     values_.insert(std::make_pair(op->hash(), op));

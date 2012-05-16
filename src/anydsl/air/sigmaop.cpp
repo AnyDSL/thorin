@@ -7,10 +7,10 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-SigmaOp::SigmaOp(IndexKind index, Type* type,
+SigmaOp::SigmaOp(IndexKind index, const Type* type,
                  Def* tuple, PrimConst* elem, 
                  const std::string& tupleDebug,
-                 const std::string debug)
+                 const std::string& debug)
     : PrimOp(index, type, debug)
     , tuple_(tuple, this, tupleDebug)
     , elem_(elem)
@@ -26,7 +26,7 @@ uint64_t SigmaOp::hash() const {
 
 Extract::Extract(Def* tuple, PrimConst* elem, 
         const std::string& tupleDebug,
-        const std::string debug)
+        const std::string& debug)
     : SigmaOp(Index_Extract, 
               scast<Sigma>(tuple->type())->get(elem),
               tuple, elem, tupleDebug, debug)

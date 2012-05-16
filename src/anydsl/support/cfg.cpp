@@ -1,41 +1,27 @@
 #include "anydsl/support/cfg.h"
+#include "anydsl/util/foreach.h"
 
-#include "impala/binding.h"
-#if 0
+#include "anydsl/air/constant.h"
 
 using namespace anydsl;
 
-namespace impala {
+namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-BB::BB(BB* parent, const Location& loc, const Symbol sym /*= Symbol("")*/) 
-    : parent_(parent)
-    , param_(new Param(loc, sym))
-    , lambda_(new Lambda(loc))
-    , fix_(new Fix(loc))
-    , finalized_(false)
-    , hasTerminator_(false)
-{
-    fix_->appendNote(new CFGFixAnnotation());
+BB::BB(World& world, const std::string& name /*= ""*/) 
+    : parent_(0)
+    , lambda_(new Lambda(world, 0, name))
+{}
 
-    // type for this BB
-    lambda_->meta = Pi::create(loc);
-    param_ ->meta = new Tau(loc);
-
-    // embed Fix in lambda
-    lambda_->body() = fix_;
-
-    lcursor_ = new Lambda(loc);
-    lcursor_->meta = Pi::create(loc);
-    fix_->body.set(lcursor_);
-}
-
+#if 0
 /*static*/ BB* BB::create(const Symbol sym /*= Symbol("")*/) {
     BB* bb = new BB(0, Location(), sym);
     return bb;
 }
+#endif
 
+#if 0
 Def* BB::appendLambda(CExpr* cexpr, Type* type) {
     anydsl_assert(parent_, "not set");
     anydsl_assert(!lcursor_->body(), "must be empty");
@@ -49,21 +35,17 @@ Def* BB::appendLambda(CExpr* cexpr, Type* type) {
 
     return result;
 }
+#endif
 
-BB* BB::createSubBB(const Location& loc, const Symbol sym /*= Symbol("")*/) {
-    BB* subBB = new BB(this, loc, sym);
-    children_.insert(subBB);
-    fix_->append(subBB->param_, subBB->lambda_);
-
-    return subBB;
-}
-
-void BB::hangInBB(BB* bb) {
+void BB::insert(BB* bb) {
     anydsl_assert(!bb->parent_, "parent already set");
+
     bb->parent_ = this;
+    this->lambda_->insert(bb->lambda());
     children_.insert(bb);
-    fix_->append(bb->param_, bb->lambda_);
 }
+
+#if 0
 
 void BB::calls(const Location& loc, Def* f) {
     setTerminator();
@@ -138,8 +120,10 @@ void BB::mergeChild() {
     //this->flowsTo(child);
 }
 
+#endif
+
 void BB::flowsTo(BB* to) {
-    BBList::iterator i = succ_.find(to);
+    BBs::iterator i = succ_.find(to);
     if (i == succ_.end()) {
         succ_.insert(to);
         to->pred_.insert(this);
@@ -149,6 +133,7 @@ void BB::flowsTo(BB* to) {
     }
 }
 
+#if 0
 void BB::finalizeAll() {
     processTodos();
 
@@ -213,7 +198,7 @@ void BB::fixBeta(Beta* beta, size_t x, const Symbol sym, Type* type) {
     args[x] = def;
 }
 
-Binding* BB::getVN(const Location& loc, const Symbol sym, anydsl::Type* type, bool finalize) {
+Binding* BB::getVN(const Location& loc, const Symbol sym, Type* type, bool finalize) {
     BB::ValueMap::iterator i = values_.find(sym);
 
     if (i == values_.end()) {
@@ -258,31 +243,16 @@ Binding* BB::getVN(const Location& loc, const Symbol sym, anydsl::Type* type, bo
     return i->second;
 }
 
-void BB::setVN(const anydsl::Location& loc, Binding* bind) {
+void BB::setVN(const Location& loc, Binding* bind) {
     anydsl_assert(values_.find(bind->sym) == values_.end(), "double insert");
     values_[bind->sym] = bind;
 }
 
-const char* BB::name() { 
-    Symbol sym = param_->symbol().str(); 
-    if (sym.isEmpty())
-        return "<unnamed>";
-    else
-        return sym.str();
-}
+#endif
 
-Beta* BB::getBeta() {
-    if (succ_.size() == 1) 
-        return beta_;
-
-    return 0;
-}
-
-Branch* BB::getBranch() {
-    if (succ_.size() == 2)
-        return branch_;
-
-    return 0;
+std::string BB::name() const { 
+    const std::string& str = lambda_->debug();
+    return str.empty() ? "<unnamed>" : str;
 }
 
 #if 0
@@ -313,6 +283,8 @@ bool BB::verify(BB* bb) {
 
 //------------------------------------------------------------------------------
 
+#if 0
+
 Fct::Fct(const Location& loc, const Symbol sym)
     : BB(0, loc, sym)
     , ret_(0)
@@ -323,6 +295,7 @@ Fct::Fct(BB* parent, const Location& loc, const Symbol sym)
     , ret_(0)
 {}
 
+#if 0
 Fct* Fct::createSubFct(const Location& loc, const Symbol sym) {
     Fct* subFct = new Fct(this, loc, sym);
     children_.insert(subFct);
@@ -330,6 +303,7 @@ Fct* Fct::createSubFct(const Location& loc, const Symbol sym) {
 
     return subFct;
 }
+#endif
 
 // TODO handle this with normal magic by introducing a <ret> value
 void Fct::setReturn(const Location& loc, Type* retType) {
@@ -379,6 +353,7 @@ Binding* Fct::getVN(const Location& loc, const Symbol sym, Type* type, bool fina
     anydsl_assert(i->second->def, "must be valid");
     return i->second;
 }
+#endif
 
 //------------------------------------------------------------------------------
 
@@ -398,5 +373,3 @@ Symbol BB::belongsTo() {
 #endif
 
 } // namespace impala
-
-#endif

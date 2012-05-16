@@ -27,6 +27,18 @@ uint64_t Tuple::hash() const {
 
 //------------------------------------------------------------------------------
 
+Lambda::Lambda(Lambda* parent, const Pi* type, const std::string& debug /*= ""*/)
+    : Constant(Index_Lambda, type, debug)
+    , parent_(parent)
+    , terminator_(0)
+{}
+
+Lambda::Lambda(World& world, Lambda* parent, const std::string& debug /*= ""*/)
+    : Constant(Index_Lambda, world.emptyPi(), debug)
+    , parent_(parent)
+    , terminator_(0)
+{}
+
 Lambda::~Lambda() {
     FOREACH(lambda, fix_)
         delete lambda;

@@ -17,5 +17,9 @@ ANYDSL_AIR_NODE(Use)
             ANYDSL_AIR_NODE(Insert)
             ANYDSL_AIR_NODE(Extract)
         ANYDSL_AIR_NODE(Param)
+// Type
+    // PrimType
+    ANYDSL_AIR_NODE(Pi)
+    ANYDSL_AIR_NODE(Sigma)
 
 #undef ANYDSL_AIR_NODE

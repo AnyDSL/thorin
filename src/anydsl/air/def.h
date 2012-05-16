@@ -1,5 +1,5 @@
-#ifndef ANYDSL_DEF_H
-#define ANYDSL_DEF_H
+#ifndef ANYDSL_AIR_DEF_H
+#define ANYDSL_AIR_DEF_H
 
 #include <string>
 
@@ -104,4 +104,4 @@ protected:
 
 } // namespace anydsl
 
-#endif // ANYDSL_DEF_H
+#endif // ANYDSL_AIR_DEF_H

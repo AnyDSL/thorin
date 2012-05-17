@@ -14,12 +14,8 @@ uint64_t BinOp::hash() const {
 
 //------------------------------------------------------------------------------
 
-RelOp::RelOp(ArithOpKind arithOpKind, 
-             Def* ldef, Def* rdef, 
-             const std::string& ldebug, const std::string& rdebug,
-             const std::string& debug)
-    : BinOp((IndexKind) arithOpKind, ldef->world().type_u1(), 
-            ldef, rdef, ldebug, rdebug, debug)
+RelOp::RelOp(ArithOpKind arithOpKind, Def* ldef, Def* rdef)
+    : BinOp((IndexKind) arithOpKind, ldef->world().type_u1(), ldef, rdef)
 {}
 
 //------------------------------------------------------------------------------

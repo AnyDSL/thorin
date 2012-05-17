@@ -5,8 +5,8 @@
 
 namespace anydsl {
 
-Use::Use(AIRNode* parent, Def* def, const std::string& debug)
-    : AIRNode(Index_Use, debug)
+Use::Use(AIRNode* parent, Def* def)
+    : AIRNode(Index_Use)
     , def_(def) 
     , parent_(parent)
 {
@@ -34,8 +34,8 @@ Args::~Args() {
     delete sentinel_;
 }
 
-Args::iterator Args::insert(Args::iterator pos, Def* def, const std::string& debug) {
-    Node* newNode = new UseNode(parent_, def, debug);
+Args::iterator Args::insert(Args::iterator pos, Def* def) {
+    Node* newNode = new UseNode(parent_, def);
     Node* n = pos.n_;
 
     newNode->next_ = n;

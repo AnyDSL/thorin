@@ -14,13 +14,10 @@ namespace anydsl {
 class BinOp : public PrimOp {
 protected:
 
-    BinOp(IndexKind index, const Type* type,
-            Def* ldef, Def* rdef, 
-            const std::string& ldebug, const std::string& rdebug,
-            const std::string& debug)
-        : PrimOp(index, type, debug)
-        , luse(ldef, this, ldebug)
-        , ruse(rdef, this, rdebug)
+    BinOp(IndexKind index, const Type* type, Def* ldef, Def* rdef)
+        : PrimOp(index, type)
+        , luse(this, ldef)
+        , ruse(this, rdef)
     {}
 
 public:
@@ -45,11 +42,8 @@ public:
 class ArithOp : public BinOp {
 private:
 
-    ArithOp(ArithOpKind arithOpKind, 
-            Def* ldef, Def* rdef, 
-            const std::string& ldebug, const std::string& rdebug,
-            const std::string& debug)
-        : BinOp((IndexKind) arithOpKind, ldef->type(), ldef, rdef, ldebug, rdebug, debug)
+    ArithOp(ArithOpKind arithOpKind, Def* ldef, Def* rdef)
+        : BinOp((IndexKind) arithOpKind, ldef->type(), ldef, rdef)
     {
         anydsl_assert(ldef->type() == rdef->type(), "type are not equal");
     }
@@ -62,10 +56,7 @@ private:
 class RelOp : public BinOp {
 private:
 
-    RelOp(ArithOpKind arithOpKind, 
-            Def* ldef, Def* rdef, 
-            const std::string& ldebug, const std::string& rdebug,
-            const std::string& debug);
+    RelOp(ArithOpKind arithOpKind, Def* ldef, Def* rdef);
 
     friend class World;
 };

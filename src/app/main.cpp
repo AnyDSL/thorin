@@ -83,42 +83,42 @@ int main() {
     std::cout << Num_Indexes << std::endl;
 
     World w;
-    std::cout << w.type_u8()->debug() << std::endl;
+    std::cout << w.type_u8()->debug << std::endl;
 
     std::cout << std::endl;
 
-    std::cout << w.type(anydsl::PrimType_u1)->debug() << std::endl;
-    std::cout << w.type(anydsl::PrimType_u64)->debug() << std::endl;
-    std::cout << w.type(anydsl::PrimType_f32)->debug() << std::endl;
-    std::cout << w.type(anydsl::PrimType_f64)->debug() << std::endl;
-    std::cout << w.type_f64()->debug() << std::endl;
+    std::cout << w.type(anydsl::PrimType_u1)->debug << std::endl;
+    std::cout << w.type(anydsl::PrimType_u64)->debug << std::endl;
+    std::cout << w.type(anydsl::PrimType_f32)->debug << std::endl;
+    std::cout << w.type(anydsl::PrimType_f64)->debug << std::endl;
+    std::cout << w.type_f64()->debug << std::endl;
 
-    Sigma* s = w.getNamedSigma();
+    Sigma* s = w.sigma();
     const Type* members[4] = {w.type_u8(), w.type_f32(), w.type_u1(), w.type_u8()};
     s->set(members, members + 4);
 
     Args args(0);
-    args.append(w.literal(7u), "7");
-    args.append(w.literal(32ul), "32");
-    args.append(w.literal(666ul), "666");
-    args.append(w.literal(64ul), "64");
-    args.prepend(w.literal(1u), "1");
+    args.append(w.literal(7u))->debug = "7";
+    args.append(w.literal(32ul))->debug = "32";
+    args.append(w.literal(666ul))->debug = "666";
+    args.append(w.literal(64ul))->debug = "64";
+    args.prepend(w.literal(1u))->debug = "1";
 
     // prepend
     // remove evil and substitute by heavenly
     Args::iterator i = args.begin();
     ++i; ++i; ++i;
-    std::cout << "evil: " << i->debug() << std::endl;
+    std::cout << "evil: " << i->debug << std::endl;
     i = args.erase(i);
-    args.insert(i, w.literal(777ul), "777");
+    args.insert(i, w.literal(777ul))->debug = "777";
 
     std::cout << "--- testing args ---" << std::endl;
     FOREACH(const& use, args)
-        std::cout << "--> " << use.debug() << std::endl;
+        std::cout << "--> " << use.debug << std::endl;
 
     std::cout << "--- reverse args ---" << std::endl;
     for (Args::const_reverse_iterator i = args.rbegin(), e = args.rend(); i != e; ++i)
-        std::cout << "--> " << i->debug() << std::endl;
+        std::cout << "--> " << i->debug << std::endl;
 
     std::cout << args.size() << std::endl;
 

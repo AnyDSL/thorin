@@ -21,8 +21,8 @@ typedef boost::unordered_set<Lambda*> Fix;
 class Literal : public Value {
 protected:
 
-    Literal(IndexKind index, const Type* type, const std::string& debug)
-        : Value(index, type, debug)
+    Literal(IndexKind index, const Type* type)
+        : Value(index, type)
     {}
 };
 
@@ -33,8 +33,8 @@ typedef std::vector<Literal*> Literals;
 class Undef : public Literal {
 public:
 
-    Undef(const Type* type, const std::string& debug)
-        : Literal(Index_Undef, type, debug)
+    Undef(const Type* type)
+        : Literal(Index_Undef, type)
         {}
 };
 
@@ -43,7 +43,7 @@ public:
 class PrimLit : public Literal {
 public:
 
-    PrimLit(World& world, PrimTypeKind kind, Box box, const std::string& debug);
+    PrimLit(World& world, PrimTypeKind kind, Box box);
 
     PrimTypeKind primTypeKind() { return (PrimTypeKind) index(); }
     Box box() const { return box_; }
@@ -78,13 +78,13 @@ private:
      * Use this constructor if you know the type beforehand.
      * You are still free to append other params later on.
      */
-    Lambda(Lambda* parent, const Type* type, const std::string& debug);
+    Lambda(Lambda* parent, const Type* type);
 
     /**
      * Use this constructor if you want to incrementally build the type.
      * Initially the type is set to "pi()".
      */
-    Lambda(World& world, Lambda* parent, const std::string& debug);
+    Lambda(World& world, Lambda* parent);
     ~Lambda();
 
 public:

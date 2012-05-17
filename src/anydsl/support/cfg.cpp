@@ -13,8 +13,10 @@ namespace anydsl {
 
 BB::BB(World& world, const std::string& name /*= ""*/) 
     : parent_(0)
-    , lambda_(world.createLambda(0, name))
-{}
+    , lambda_(world.createLambda(0))
+{
+    lambda_->debug = name;
+}
 
 World& BB::world() { 
     return lambda_->world();
@@ -226,7 +228,7 @@ void BB::setVN(const Location& loc, Binding* bind) {
 #endif
 
 std::string BB::name() const { 
-    const std::string& str = lambda_->debug();
+    const std::string& str = lambda_->debug;
     return str.empty() ? "<unnamed>" : str;
 }
 

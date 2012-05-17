@@ -15,9 +15,8 @@ private:
 
 protected:
 
-    AIRNode(IndexKind index, const std::string& debug)
+    AIRNode(IndexKind index)
         : index_(index)
-        , debug_(debug)
     {}
     virtual ~AIRNode() {}
 
@@ -31,8 +30,6 @@ public:
     template<class T> const T* as()  const { return scast<T>(this); }
     template<class T> const T* isa() const { return dcast<T>(this); }
 
-    std::string debug() const { return debug_; }
-
 #if 0
     template<class Child, class RetT>
     inline RetT accept(Visitor<Child,  RetT>* v);
@@ -44,13 +41,13 @@ public:
     inline RetT accept(DualConstVisitor<Child,  RetT>* v, const AIRNode* other) const;
 #endif
 
+    mutable std::string debug;
+
 private:
 
     IndexKind index_;
 
 protected:
-
-    std::string debug_;
 };
 
 } // namespace anydsl

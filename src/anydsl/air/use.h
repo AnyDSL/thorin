@@ -25,7 +25,7 @@ private:
 
 public:
 
-    Use(AIRNode* parent, Def* def, const std::string& debug = "");
+    Use(AIRNode* parent, Def* def);
     virtual ~Use();
 
     Def* def() { return def_; }
@@ -79,8 +79,8 @@ private:
     };
 
     struct UseNode : public Node {
-        UseNode(AIRNode* parent, Def* def, const std::string& debug)
-            : use_(parent, def, debug)
+        UseNode(AIRNode* parent, Def* def)
+            : use_(parent, def)
         {
 #ifndef NDEBUG
             isSentinel_ = false;
@@ -132,8 +132,8 @@ public:
     Args(Terminator* parent);
     ~Args();
 
-    void append(Def* def, const std::string& debug = "") { insert(end(), def, debug); }
-    void prepend(Def* def, const std::string& debug = "") { insert(begin(), def, debug); }
+    iterator append(Def* def)  { return insert(end(), def); }
+    iterator prepend(Def* def) { return insert(begin(), def); }
 
     iterator begin() { return iterator(head()); }
     iterator end() { return iterator(sentinel_); }
@@ -160,7 +160,7 @@ public:
      * 
      * @return iterator to new Node.
      */
-    iterator insert(iterator pos, Def* def, const std::string& debug = "");
+    iterator insert(iterator pos, Def* def);
 
     /** 
      * Erase node at \p pos.

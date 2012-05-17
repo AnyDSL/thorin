@@ -87,8 +87,8 @@ public:
     template<class T>
     const Sigma* sigma(T begin, T end);
 
-    /// Creates a fresh named sigma.
-    Sigma* getNamedSigma(const std::string& name = "");
+    /// Creates a fresh \em named sigma.
+    Sigma* sigma(const std::string& name = "");
 
     const Pi* emptyPi() const { return emptyPi_; }
     const Sigma* unit() const { return unit_; }
@@ -98,21 +98,17 @@ public:
      */
 
     template<class T>
-    PrimLit* literal(T value, const std::string& debug = "") { return literal(Type2PrimTypeKind<T>::kind, Box(value), debug); }
-    PrimLit* literal(PrimTypeKind kind, Box value, const std::string& debug = "");
+    PrimLit* literal(T value) { return literal(Type2PrimTypeKind<T>::kind, Box(value)); }
+    PrimLit* literal(PrimTypeKind kind, Box value);
 
     /*
      * create
      */
 
-    Lambda* createLambda(Lambda* parent, const std::string& debug = "");
-    Goto* createGoto(Lambda* parent, Lambda* to, const std::string& toDebug = "", const std::string& debug = "");
+    Lambda* createLambda(Lambda* parent);
+    Goto* createGoto(Lambda* parent, Lambda* to);
 
-    ArithOp* createArithOp(ArithOpKind arithOpKind,
-                           Def* ldef, Def* rdef, 
-                           const std::string& ldebug = "", 
-                           const std::string& rdebug = "", 
-                           const std::string&  debug = "");
+    ArithOp* createArithOp(ArithOpKind arithOpKind, Def* ldef, Def* rdef);
 
     /*
      * optimize

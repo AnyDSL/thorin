@@ -13,8 +13,8 @@ class World;
 class Type : public AIRNode {
 protected:
 
-    Type(World& world, IndexKind index, const std::string& name)
-        : AIRNode(index, name)
+    Type(World& world, IndexKind index)
+        : AIRNode(index)
         , world_(world)
     {}
     virtual ~Type() {}
@@ -51,14 +51,14 @@ class CompoundType : public Type {
 protected:
 
     /// Creates an empty \p CompoundType.
-    CompoundType(World& world, IndexKind index, const std::string& name)
-        : Type(world, index, name)
+    CompoundType(World& world, IndexKind index)
+        : Type(world, index)
     {}
 
     /// Copies over the range specified by \p begin and \p end to \p types_.
     template<class T>
-    CompoundType(World& world, IndexKind index, T begin, T end, const std::string& name)
-        : Type(world, index, name)
+    CompoundType(World& world, IndexKind index, T begin, T end)
+        : Type(world, index)
     {
         types_.insert(types_.begin(), begin, end);
     }
@@ -85,22 +85,15 @@ protected:
 class Sigma : public CompoundType {
 private:
 
-    /// Creates a unit, i.e., sigma().
-    Sigma(World& world)
-        : CompoundType(world, Index_Sigma, "")
-        , named_(false)
-    {}
-
-    /// Creates a named Sigma.
-    Sigma(World& world, const std::string& name)
-        : CompoundType(world, Index_Sigma, name)
-        , named_(true)
+    Sigma(World& world, bool named)
+        : CompoundType(world, Index_Sigma)
+        , named_(named)
     {}
 
     /// Creates an unamed Sigma from the given range.
     template<class T>
     Sigma(World& world, T begin, T end)
-        : CompoundType(world, Index_Sigma, begin, end, "")
+        : CompoundType(world, Index_Sigma, begin, end)
         , named_(false)
     {}
 
@@ -128,8 +121,8 @@ private:
 class Pi : public CompoundType {
 private:
 
-    Pi(World& world, const std::string& name)
-        : CompoundType(world, Index_Pi, name)
+    Pi(World& world)
+        : CompoundType(world, Index_Pi)
     {}
 
     template<class T>

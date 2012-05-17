@@ -15,8 +15,8 @@ namespace anydsl {
 class Terminator : public AIRNode {
 protected:
 
-    Terminator(Lambda* parent, IndexKind index, const std::string& debug)
-        : AIRNode(index, debug)
+    Terminator(Lambda* parent, IndexKind index)
+        : AIRNode(index)
         , parent_(parent)
     {}
 
@@ -50,8 +50,8 @@ public:
      * (arguments) with this parent.
      * Let \p parent point to the Terminator where this Jump is embedded.
      */
-    Jump(Terminator* parent, Lambda* to, const std::string& debug)
-        : to(parent, to, debug)
+    Jump(Terminator* parent, Lambda* to)
+        : to(parent, to)
         , args(parent)
     {}
 
@@ -69,9 +69,9 @@ public:
 class Goto : public Terminator {
 private:
 
-    Goto(Lambda* parent, Lambda* to, const std::string toDebug, const std::string debug)
-        : Terminator(parent, Index_Goto, debug)
-        , jump(this, to, toDebug)
+    Goto(Lambda* parent, Lambda* to)
+        : Terminator(parent, Index_Goto)
+        , jump(this, to)
     {}
 
 public:
@@ -86,14 +86,11 @@ public:
 class Branch : public Terminator {
 private:
 
-    Branch(Lambda* parent, Def* cond, Lambda* tlambda, Lambda* flambda, 
-           const std::string& condDebug, 
-           const std::string& tdebug, const std::string& fdebug, 
-           const std::string& debug)
-        : Terminator(parent, Index_Branch, debug)
-        , cond(this, cond, condDebug)
-        , tjump(this, tlambda, tdebug)
-        , fjump(this, flambda, fdebug)
+    Branch(Lambda* parent, Def* cond, Lambda* tlambda, Lambda* flambda)
+        : Terminator(parent, Index_Branch)
+        , cond(this, cond)
+        , tjump(this, tlambda)
+        , fjump(this, flambda)
     {}
 
 public:
@@ -116,9 +113,9 @@ public:
 class Invoke : public Terminator {
 private:
 
-    Invoke(Lambda* parent, Def* fct, const std::string& fctDebug, const std::string& debug)
-        : Terminator(parent, Index_Invoke, debug)
-        , fct(this, fct, fctDebug)
+    Invoke(Lambda* parent, Def* fct)
+        : Terminator(parent, Index_Invoke)
+        , fct(this, fct)
         , args(this)
     {}
 

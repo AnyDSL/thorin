@@ -13,9 +13,7 @@ class PrimLit;
 class SigmaOp : public PrimOp {
 protected:
 
-    SigmaOp(IndexKind index, const Type* type,
-            Def* tuple, PrimLit* elem, 
-            const std::string& tupleDebug, const std::string& debug);
+    SigmaOp(IndexKind index, const Type* type, Def* tuple, PrimLit* elem);
 
 public:
 
@@ -34,9 +32,7 @@ private:
 class Extract : public SigmaOp {
 private:
 
-    Extract(Def* tuple, PrimLit* elem, 
-            const std::string& tupleDebug,
-            const std::string& debug);
+    Extract(Def* tuple, PrimLit* elem);
 };
 
 //------------------------------------------------------------------------------
@@ -44,11 +40,9 @@ private:
 class Insert : public SigmaOp {
 private:
 
-    Insert(Def* tuple, PrimLit* elem, Def* value, 
-           const std::string& tupleDebug, const std::string& valueDebug,
-           const std::string& debug)
-        : SigmaOp(Index_Insert, tuple->type(), tuple, elem, tupleDebug, debug)
-        , value(value, this, valueDebug)
+    Insert(Def* tuple, PrimLit* elem, Def* value)
+        : SigmaOp(Index_Insert, tuple->type(), tuple, elem)
+        , value(value, this)
     {}
 
     virtual uint64_t hash() const;

@@ -8,8 +8,8 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-PrimLit::PrimLit(World& world, PrimTypeKind kind, Box box, const std::string& debug)
-    : Literal((IndexKind) kind, world.type(kind), debug)
+PrimLit::PrimLit(World& world, PrimTypeKind kind, Box box)
+    : Literal((IndexKind) kind, world.type(kind))
     , box_(box)
 {}
 
@@ -28,16 +28,16 @@ uint64_t Tuple::hash() const {
 
 //------------------------------------------------------------------------------
 
-Lambda::Lambda(Lambda* parent, const Type* type, const std::string& debug)
-    : Literal(Index_Lambda, type, debug)
+Lambda::Lambda(Lambda* parent, const Type* type)
+    : Literal(Index_Lambda, type)
     , parent_(parent)
     , terminator_(0)
 {
     anydsl_assert(type->isa<Pi>(), "type must be a Pi");
 }
 
-Lambda::Lambda(World& world, Lambda* parent, const std::string& debug)
-    : Literal(Index_Lambda, world.emptyPi(), debug)
+Lambda::Lambda(World& world, Lambda* parent)
+    : Literal(Index_Lambda, world.emptyPi())
     , parent_(parent)
     , terminator_(0)
 {}

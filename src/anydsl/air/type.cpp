@@ -7,8 +7,10 @@ namespace anydsl {
 //------------------------------------------------------------------------------
 
 PrimType::PrimType(World& world, PrimTypeKind primTypeKind)
-    : Type(world, (IndexKind) primTypeKind, primTypeKind2str(primTypeKind))
-{}
+    : Type(world, (IndexKind) primTypeKind)
+{
+    debug = primTypeKind2str(primTypeKind);
+}
 
 //------------------------------------------------------------------------------
 

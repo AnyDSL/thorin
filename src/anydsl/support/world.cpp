@@ -13,8 +13,8 @@ namespace anydsl {
  */
 
 World::World() 
-    : emptyPi_(new Pi(*this, "pi()"))
-    , unit_(new Sigma(*this, "sigma()"))
+    : emptyPi_(new Pi(*this))
+    , unit_(new Sigma(*this, /*named*/ false))
 #define ANYDSL_U_TYPE(T) ,T##_(new PrimType(*this, PrimType_##T))
 #define ANYDSL_F_TYPE(T) ,T##_(new PrimType(*this, PrimType_##T))
 #include "anydsl/tables/primtypetable.h"
@@ -41,11 +41,11 @@ World::~World() {
  * literals
  */
 
-PrimLit* World::literal(PrimTypeKind kind, Box value, const std::string& debug /*= ""*/) {
+PrimLit* World::literal(PrimTypeKind kind, Box value) {
     //Values::iterator i = values_.find(
     std::ostringstream oss;
     oss << value.u64_;
-    PrimLit* prim = new PrimLit(*this, kind, value, debug);
+    PrimLit* prim = new PrimLit(*this, kind, value);
     defs_.insert(std::make_pair(prim->hash(), prim));
     return prim;
 }
@@ -54,33 +54,31 @@ PrimLit* World::literal(PrimTypeKind kind, Box value, const std::string& debug /
  * create
  */
 
-Lambda* World::createLambda(Lambda* parent, const std::string& debug /*= ""*/) {
-    return new Lambda(*this, parent, debug);
+Lambda* World::createLambda(Lambda* parent) {
+    return new Lambda(*this, parent);
 }
 
-Goto* World::createGoto(Lambda* parent, Lambda* to, const std::string& toDebug /*= ""*/, const std::string& debug /*= ""*/) {
-    return new Goto(parent, to, toDebug, debug);
+Goto* World::createGoto(Lambda* parent, Lambda* to) {
+    return new Goto(parent, to);
 }
 
-ArithOp* World::createArithOp(ArithOpKind arithOpKind,
-                                Def* ldef, Def* rdef, 
-                                const std::string& ldebug /*= ""*/, 
-                                const std::string& rdebug /*= ""*/, 
-                                const std::string&  debug /*= ""*/) {
+ArithOp* World::createArithOp(ArithOpKind arithOpKind, Def* ldef, Def* rdef) {
     ////ValRange range = values_.equal_range(0);
     //FOREACH(p, values_.equal_range(0))
     //{
         //std::cout << p.second << std::endl;
     //}
 
-    ArithOp* op = new ArithOp(arithOpKind, ldef, rdef, ldebug, rdebug, debug);
+    ArithOp* op = new ArithOp(arithOpKind, ldef, rdef);
     defs_.insert(std::make_pair(op->hash(), op));
     return op;
 }
 
-Sigma* World::getNamedSigma(const std::string& name /*= ""*/) {
-    Sigma* sigma = new Sigma(*this, name);
+Sigma* World::sigma(const std::string& name /*= ""*/) {
+    Sigma* sigma = new Sigma(*this, true);
+    sigma->debug = name;
     namedSigmas_.push_back(sigma);
+
     return sigma;
 }
 

@@ -13,8 +13,10 @@
 namespace anydsl {
 
 class ArithOp;
+class Branch;
 class Def;
 class Goto;
+class Invoke;
 class Lambda;
 class Pi;
 class PrimLit;
@@ -107,6 +109,8 @@ public:
 
     Lambda* createLambda(Lambda* parent);
     Goto* createGoto(Lambda* parent, Lambda* to);
+    Branch* createBranch(Lambda* parent, Def* cond, Lambda* tto, Lambda* fto);
+    Invoke* createInvoke(Lambda* parent, Def* fct);
 
     ArithOp* createArithOp(ArithOpKind arithOpKind, Def* ldef, Def* rdef);
 

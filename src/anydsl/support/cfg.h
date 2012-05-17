@@ -13,7 +13,6 @@ namespace anydsl {
     class Branch;
     class Def;
     class Lambda;
-    class Location;
     class Param;
     class Type;
 }
@@ -39,9 +38,10 @@ public:
 
     /// Insert \p bb as sub BB (i.e., as dom child) into this BB.
     void insert(BB* bb);
+
     void goesto(BB* to);
-    //void calls(const Location& loc, Def* f);
-    //void branches(const Location& loc, Def* cond, BB* toT, BB* toF);
+    void branches(Def* cond, BB* tbb, BB* fbb);
+    void invokes(Def* fct);
 
     const BBs& pre() const { return pred_; }
     const BBs& succ() const { return succ_; }

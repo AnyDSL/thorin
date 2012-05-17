@@ -54,48 +54,29 @@ void BB::insert(BB* bb) {
 }
 
 void BB::goesto(BB* to) {
-    anydsl_assert(to, "must be valid");
+    assert(to);
+
     lambda_->setTerminator(world().createGoto(lambda(), to->lambda()));
     this->flowsTo(to);
     anydsl_assert(succ_.size() == 1, "wrong number of succ");
 }
 
-#if 0
-
-void BB::calls(const Location& loc, Def* f) {
-    setTerminator();
-    anydsl_assert(!lcursor_->body(), "must be empty");
-
-    Beta* beta = new Beta(loc);
-    beta->fct.set(f);
-    lcursor_->body() = beta;
-    // we can now overwrite lcursor_ in the union
-    beta_ = beta;
-}
-
-void BB::branches(const Location& loc, Def* cond, BB* toT, BB* toF) {
-    setTerminator();
-    Branch* branch = new Branch(loc);
-    branch->value.set(cond);
-
-    for (size_t i = 0; i < 2; ++i) {
-        Lambda* lam = new Lambda(loc);
-        Beta* beta = new Beta(loc);
-        beta->fct.set(i == 0 ? toT->param_ : toF->param_);
-        lam->meta = Pi::create(loc);
-        lam->body() = beta;
-        branch->appendLambda(lam);
-    }
-
-
-    lcursor_->body() = branch;
-    // we can now overwrite lcursor_ in the union
-    branch_ = branch; 
-
-    this->flowsTo(toT);
-    this->flowsTo(toF);
+void BB::branches(Def* cond, BB* tbb, BB* fbb) {
+    assert(tbb);
+    assert(fbb);
+    Branch* b = world().createBranch(lambda_, cond, tbb->lambda_, fbb->lambda_);
+    lambda_->setTerminator(b);
+    this->flowsTo(tbb);
+    this->flowsTo(fbb);
     anydsl_assert(succ_.size() == 2, "wrong number of succ");
 }
+
+void BB::invokes(Def* fct) {
+    anydsl_assert(fct, "must be valid");
+    lambda_->setTerminator(world().createInvoke(lambda(), fct));
+}
+
+#if 0
 
 #endif
 

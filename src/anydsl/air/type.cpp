@@ -6,16 +6,16 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-PrimType::PrimType(World& world, PrimTypeKind primTypeKind)
-    : Type(world, (IndexKind) primTypeKind)
+PrimType::PrimType(World& world, PrimTypeKind kind)
+    : Type(world, (IndexKind) kind)
 {
-    debug = primTypeKind2str(primTypeKind);
+    debug = kind2str(kind);
 }
 
 //------------------------------------------------------------------------------
 
 const Type* CompoundType::get(PrimLit* c) const { 
-    anydsl_assert(isInteger(c->primTypeKind()), "must be an integer constant");
+    anydsl_assert(isInteger(c->kind()), "must be an integer constant");
     return get(c->box().get_u64()); 
 }
 

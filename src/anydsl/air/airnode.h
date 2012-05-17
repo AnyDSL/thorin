@@ -1,5 +1,5 @@
-#ifndef ANYDSL_AIRNODE_H
-#define ANYDSL_AIRNODE_H
+#ifndef ANYDSL_AIR_AIRNODE_H
+#define ANYDSL_AIR_AIRNODE_H
 
 #include <string>
 
@@ -9,10 +9,6 @@
 namespace anydsl {
 
 class AIRNode {
-private:
-    AIRNode() {}
-    friend class Use;
-
 protected:
 
     AIRNode(IndexKind index)
@@ -23,7 +19,6 @@ protected:
 public:
 
     IndexKind index() const { return index_; }
-    NodeKind nodeKind() const { return (NodeKind) index_; }
 
     template<class T> T* as()  { return scast<T>(this); }
     template<class T> T* isa() { return dcast<T>(this); }
@@ -41,15 +36,18 @@ public:
     inline RetT accept(DualConstVisitor<Child,  RetT>* v, const AIRNode* other) const;
 #endif
 
+    /**
+     * Just do what ever you want with this field.
+     * Perhaps you want to attach file/line/col information in this field.
+     * \p Location provides convenient functionality to achieve this.
+     */
     mutable std::string debug;
 
 private:
 
     IndexKind index_;
-
-protected:
 };
 
 } // namespace anydsl
 
-#endif // ANYDSL_AIRNODE_H
+#endif // ANYDSL_AIR_AIRNODE_H

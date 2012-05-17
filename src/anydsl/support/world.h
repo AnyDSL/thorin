@@ -98,7 +98,7 @@ public:
      */
 
     template<class T>
-    PrimLit* literal(T value) { return literal(Type2PrimTypeKind<T>::kind, Box(value)); }
+    PrimLit* literal(T value) { return literal(type2kind<T>::kind, Box(value)); }
     PrimLit* literal(PrimTypeKind kind, Box value);
 
     /*

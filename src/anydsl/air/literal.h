@@ -45,7 +45,7 @@ public:
 
     PrimLit(World& world, PrimTypeKind kind, Box box);
 
-    PrimTypeKind primTypeKind() { return (PrimTypeKind) index(); }
+    PrimTypeKind kind() { return (PrimTypeKind) index(); }
     Box box() const { return box_; }
 
     virtual uint64_t hash() const;

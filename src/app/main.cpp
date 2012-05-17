@@ -67,14 +67,6 @@ int main() {
         std::cout << u << std::endl;
     }
 
-    //ArithOp* p = new ArithOp(ArithOp_add, 0, 0, "todo");
-    //switch (p->arithOpKind()) {
-        //case ArithOp_ashr
-    //}
-
-    //std::cout << p-> << std::endl;
-    //
-
     std::cout << std::endl;
     std::cout << Num_Nodes << std::endl;
     std::cout << Num_ArithOps << std::endl;

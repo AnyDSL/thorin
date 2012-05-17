@@ -77,11 +77,6 @@ enum IndexKind {
     Num_PrimLits  = Num_PrimTypes,
 };
 
-enum NodeKind {
-#define ANYDSL_AIR_NODE(node) Node_##node = Index_##node,
-#include "anydsl/tables/nodetable.h"
-};
-
 enum PrimTypeKind {
 #define ANYDSL_U_TYPE(T) PrimType_##T = Index_PrimType_##T,
 #define ANYDSL_F_TYPE(T) PrimType_##T = Index_PrimType_##T,
@@ -120,42 +115,42 @@ enum ConvOpKind {
 #include "anydsl/tables/convoptable.h"
 };
 
-inline PrimTypeKind const2type(PrimLitKind primLit) {
+inline PrimTypeKind const2type(PrimLitKind kind) {
     // it holds: Begin_PrimLit + offset = Begin_PrimType
     int offset = Begin_PrimType - Begin_PrimLit;
 
     // it holds: primLit + offset = primType
-    return (PrimTypeKind) (((int) primLit) + offset);
+    return (PrimTypeKind) (((int) kind) + offset);
 }
 
-inline PrimLitKind type2const(PrimTypeKind primType) {
+inline PrimLitKind type2const(PrimTypeKind kind) {
     // it holds: Begin_PrimType + offset = Begin_PrimLit
     int offset = Begin_PrimLit - Begin_PrimType;
 
     // it holds: primType + offset = primLit
-    return (PrimLitKind) (((int) primType) + offset);
+    return (PrimLitKind) (((int) kind) + offset);
 }
 
-inline bool isInteger(PrimTypeKind primType) {
-    return (int) Begin_PrimType_u <= (int) primType && (int) primType < (int) End_PrimType_u;
+inline bool isInteger(PrimTypeKind kind) {
+    return (int) Begin_PrimType_u <= (int) kind && (int) kind < (int) End_PrimType_u;
 }
 
-inline bool isFloat(PrimTypeKind primType) {
-    return (int) Begin_PrimType_f <= (int) primType && (int) primType < (int) End_PrimType_f;
+inline bool isFloat(PrimTypeKind kind) {
+    return (int) Begin_PrimType_f <= (int) kind && (int) kind < (int) End_PrimType_f;
 }
 
-template<PrimTypeKind kind> struct PrimTypeKind2Type {};
-#define ANYDSL_U_TYPE(T) template<> struct PrimTypeKind2Type<PrimType_##T> { typedef T type; };
-#define ANYDSL_F_TYPE(T) template<> struct PrimTypeKind2Type<PrimType_##T> { typedef T type; };
+template<PrimTypeKind kind> struct kind2type {};
+#define ANYDSL_U_TYPE(T) template<> struct kind2type<PrimType_##T> { typedef T type; };
+#define ANYDSL_F_TYPE(T) template<> struct kind2type<PrimType_##T> { typedef T type; };
 #include "anydsl/tables/primtypetable.h"
 
-template<class T> struct Type2PrimTypeKind {};
-#define ANYDSL_U_TYPE(T) template<> struct Type2PrimTypeKind<T> { static const PrimTypeKind kind = PrimType_##T; };
-#define ANYDSL_F_TYPE(T) template<> struct Type2PrimTypeKind<T> { static const PrimTypeKind kind = PrimType_##T; };
+template<class T> struct type2kind {};
+#define ANYDSL_U_TYPE(T) template<> struct type2kind<T> { static const PrimTypeKind kind = PrimType_##T; };
+#define ANYDSL_F_TYPE(T) template<> struct type2kind<T> { static const PrimTypeKind kind = PrimType_##T; };
 #include "anydsl/tables/primtypetable.h"
 
 
-const char* primTypeKind2str(PrimTypeKind primTypeKind);
+const char* kind2str(PrimTypeKind kind);
 
 } // namespace anydsl
 

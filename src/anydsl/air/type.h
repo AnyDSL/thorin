@@ -36,10 +36,11 @@ typedef std::vector<const Type*> Types;
 class PrimType : public Type {
 private:
 
-    PrimType(World& world, PrimTypeKind primTypeKind);
+    PrimType(World& world, PrimTypeKind kind);
 
 public:
 
+    PrimTypeKind kind() const { return (PrimTypeKind) index(); }
     virtual uint64_t hash() const { return (uint64_t) index(); }
 
     friend class World;

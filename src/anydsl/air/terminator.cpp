@@ -2,4 +2,4 @@
 
 namespace anydsl {
 
-}
+} // namespace anydsl

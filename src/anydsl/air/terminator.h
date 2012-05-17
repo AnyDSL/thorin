@@ -13,7 +13,7 @@ namespace anydsl {
 //------------------------------------------------------------------------------
 
 class Terminator : public AIRNode {
-public:
+protected:
 
     Terminator(Lambda* parent, IndexKind index, const std::string& debug)
         : AIRNode(index, debug)
@@ -51,25 +51,31 @@ public:
 
     Use to;
     Args args;
+
+    friend class World;
 };
 
 //------------------------------------------------------------------------------
 
 class Goto : public Terminator {
-public:
+private:
 
     Goto(Lambda* parent, Lambda* to, const std::string toDebug, const std::string debug)
         : Terminator(parent, Index_Goto, debug)
         , jump(this, to, toDebug)
     {}
 
+public:
+
     Jump jump;
+
+    friend class World;
 };
 
 //------------------------------------------------------------------------------
 
 class Branch : public Terminator {
-public:
+private:
 
     Branch(Lambda* parent, Def* cond, Lambda* tlambda, Lambda* flambda, 
            const std::string& condDebug, 
@@ -81,6 +87,8 @@ public:
         , fjump(this, flambda, fdebug)
     {}
 
+public:
+
     typedef boost::array<Jump*, 2> TFJump;
     typedef boost::array<const Jump*, 2> ConstTFJump;
 
@@ -90,12 +98,14 @@ public:
     Use cond;
     Jump tjump;
     Jump fjump;
+
+    friend class World;
 };
 
 //------------------------------------------------------------------------------
 
 class Invoke : public Terminator {
-public:
+private:
 
     Invoke(Lambda* parent, Def* fct, const std::string& fctDebug, const std::string& debug)
         : Terminator(parent, Index_Invoke, debug)
@@ -103,8 +113,12 @@ public:
         , args(this)
     {}
 
+public:
+
     Use fct;
     Args args;
+
+    friend class World;
 };
 
 //------------------------------------------------------------------------------

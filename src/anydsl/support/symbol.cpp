@@ -20,17 +20,14 @@ SymbolTable::SymbolTable() {
 Symbol SymbolTable::get(const char* str) {
     if (str[0]==0) return Symbol(); //empty string
     Symbol tmp = Symbol((size_t)str); //create a temporary Symbol which does not copy str into internal memory
-    SymbolSet::const_iterator i = symbolSet_.insert(tmp).first;
 
-    if ( i->index() != tmp.index() ) {
-        // there is already a symbol with the same string
-        return *i;
-    }
+    std::pair<SymbolSet::iterator, bool> res = symbolSet_.insert(tmp);
+    if (!res.second)
+        return *res.first;// there is already a symbol with the same string
 
-    //TODO: Find a way to do it more nicely!
-    symbolSet_.erase(i); //remove the temporary Symbol
+    symbolSet_.erase(res.first); //remove the temporary Symbol
     Symbol result = store(str);
-    bool inserted=symbolSet_.insert(result).second; //insert the real Symbol
+    bool inserted=symbolSet_.insert(result).second; // insert the real Symbol
     assert(inserted);
 
     return result;

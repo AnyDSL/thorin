@@ -1,6 +1,8 @@
 #ifndef ANYDSL_BINOP_H
 #define ANYDSL_BINOP_H
 
+#include <boost/array.hpp>
+
 #include "anydsl/air/enums.h"
 #include "anydsl/air/def.h"
 #include "anydsl/air/use.h"
@@ -17,22 +19,25 @@ protected:
             const std::string& ldebug, const std::string& rdebug,
             const std::string& debug)
         : PrimOp(index, type, debug)
-        , luse_(ldef, this, ldebug)
-        , ruse_(rdef, this, rdebug)
+        , luse(ldef, this, ldebug)
+        , ruse(rdef, this, rdebug)
     {}
 
 public:
 
-    const Use& luse() const { return luse_; }
-    const Use& ruse() const { return ruse_; }
+    typedef boost::array<Use*, 2> LRUse;
+    typedef boost::array<const Use*, 2> ConstLRUse;
 
     ArithOpKind arithOpKind() { return (ArithOpKind) index(); }
     virtual uint64_t hash() const;
 
-protected:
+    LRUse lruse() { return (LRUse){{ &luse, &ruse }}; }
+    ConstLRUse lruse() const { return (ConstLRUse){{ &ruse, &ruse }}; }
 
-    Use luse_;
-    Use ruse_;
+public:
+
+    Use luse;
+    Use ruse;
 };
 
 //------------------------------------------------------------------------------

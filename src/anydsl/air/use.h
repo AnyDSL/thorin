@@ -8,6 +8,13 @@ namespace anydsl {
 
 class Def;
 
+/**
+ * @brief Use encapsulates a use of an SSA value, i.e., a \p Def.
+ *
+ * Use already has enough encapsulation magic. 
+ * No need to hammer further getters/setters around a Use aggregate within a class.
+ * Just make it a public class member.
+ */
 class Use : public AIRNode {
 private:
 
@@ -41,14 +48,18 @@ private:
 /**
  * Circular doubly linked list of Use instances.
  *
- * NOTE: iterating using the FOREACH macro already yields a reference. 
+ * Iterating using the FOREACH macro already yields a reference. 
  * In other words do it like this:
- *
+ * \code
  * FOREACH(use, args) // type of use is const Use&
- *
+ * \endcode
  * This won't even compile:
- *
+ * \code
  * FOREACH(& use, args) // type of use would be const Use&&
+ * \endcode
+ * Args already have enough encapsulation magic. 
+ * No need to hammer further getters/setters around an Args aggregate within a class.
+ * Just make it a public class member.
  */
 class Args  {
 private:

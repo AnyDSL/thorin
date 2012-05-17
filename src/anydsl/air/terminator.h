@@ -68,12 +68,12 @@ private:
 
 class Branch : public Terminator {
 public:
-    typedef boost::array<Jump*, 2> JumpTF;
-    typedef boost::array<const Jump*, 2> ConstJumpTF;
+    typedef boost::array<Jump*, 2> TFJump;
+    typedef boost::array<const Jump*, 2> ConstTFJump;
 
     const Use& cond() const { return cond_; }
-    JumpTF jumpTF() { return (JumpTF){{ &jumpT, &jumpF }}; }
-    ConstJumpTF jumpTF() const { return (ConstJumpTF){{ &jumpT, &jumpF }}; }
+    TFJump tfjump() { return (TFJump){{ &tjump, &fjump }}; }
+    ConstTFJump tfjump() const { return (ConstTFJump){{ &tjump, &fjump }}; }
 
 private:
 
@@ -81,8 +81,8 @@ private:
 
 public:
 
-    Jump jumpT;
-    Jump jumpF;
+    Jump tjump;
+    Jump fjump;
 };
 
 //------------------------------------------------------------------------------

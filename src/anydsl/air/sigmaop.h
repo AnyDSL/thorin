@@ -19,14 +19,14 @@ protected:
 
 public:
 
-    const Use& tuple() const { return tuple_; }
     const PrimConst* elem() const { return elem_; }
 
     virtual uint64_t hash() const;
 
+    Use tuple;
+
 private:
 
-    Use tuple_;
     PrimConst* elem_;
 };
 
@@ -49,18 +49,14 @@ private:
            const std::string& tupleDebug, const std::string& valueDebug,
            const std::string& debug)
         : SigmaOp(Index_Insert, tuple->type(), tuple, elem, tupleDebug, debug)
-        , value_(value, this, valueDebug)
+        , value(value, this, valueDebug)
     {}
 
     virtual uint64_t hash() const;
 
 public:
 
-    const Use& value() const { return value_; }
-
-private:
-
-    Use value_;
+    Use value;
 };
 
 //------------------------------------------------------------------------------

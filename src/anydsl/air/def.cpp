@@ -40,10 +40,10 @@ bool PrimOp::compare(PrimOp* other) const {
     if (const ArithOp* a = this->isa<ArithOp>()) {
         const ArithOp* b = other->as<ArithOp>();
 
-        if (a->luse().def() != b->luse().def())
+        if (a->luse.def() != b->luse.def())
             return false;
 
-        if (a->luse().def() != b->ruse().def())
+        if (a->luse.def() != b->ruse.def())
             return false;
 
         return false;

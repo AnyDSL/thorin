@@ -12,14 +12,14 @@ SigmaOp::SigmaOp(IndexKind index, const Type* type,
                  const std::string& tupleDebug,
                  const std::string& debug)
     : PrimOp(index, type, debug)
-    , tuple_(tuple, this, tupleDebug)
+    , tuple(tuple, this, tupleDebug)
     , elem_(elem)
 {
     anydsl_assert(tuple->as<Sigma>(), "must be of Sigma type");
 }
 
 uint64_t SigmaOp::hash() const {
-    return hashBinOp(index(), tuple_.def(), elem_);
+    return hashBinOp(index(), tuple.def(), elem_);
 }
 
 //------------------------------------------------------------------------------
@@ -35,7 +35,7 @@ Extract::Extract(Def* tuple, PrimConst* elem,
 //------------------------------------------------------------------------------
 
 uint64_t Insert::hash() const {
-    return SigmaOp::hash() * 31 ^ ((uintptr_t) value_.def());
+    return SigmaOp::hash() * 31 ^ ((uintptr_t) value.def());
 }
 
 //------------------------------------------------------------------------------

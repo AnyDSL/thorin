@@ -9,7 +9,7 @@ namespace anydsl {
 //------------------------------------------------------------------------------
 
 uint64_t BinOp::hash() const {
-    return hashBinOp(index(), luse_.def(), ruse_.def());
+    return hashBinOp(index(), luse.def(), ruse.def());
 }
 
 //------------------------------------------------------------------------------

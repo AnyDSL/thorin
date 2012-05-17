@@ -1,7 +1,7 @@
 #ifndef ANYDSL_AIR_TERMINATOR_H
 #define ANYDSL_AIR_TERMINATOR_H
 
-#include <list>
+#include <boost/array.hpp>
 
 #include "anydsl/air/airnode.h"
 #include "anydsl/air/constant.h"
@@ -30,8 +30,9 @@ public:
 
 
     const Use& to() const { return to_; }
-    const Lambda* toLambda() const { return scast<Lambda>(to_.def()); }
+    const Lambda* toLambda() const { return to_.def()->as<Lambda>(); }
     Args& args() { return args_; }
+    const Args& args() const { return args_; }
 
 private:
 
@@ -41,20 +42,33 @@ private:
 
 //------------------------------------------------------------------------------
 
-class Branch : public Terminator {
+class Goto : public Terminator {
 public:
 
+    const Jump& jump() const { return jump_; }
+
+private:
+
+    Jump jump_;
+};
+
+
+//------------------------------------------------------------------------------
+
+class Branch : public Terminator {
+public:
+    typedef boost::array<const Jump*, 2> JumpTF;
+
     const Use& cond() const { return cond_; }
-    const Use& useT() const { return useT_; }
-    const Use& useF() const { return useF_; }
-    const Lambda* lambdaT() const { return scast<Lambda>(useT_.def()); }
-    const Lambda* lambdaF() const { return scast<Lambda>(useF_.def()); }
+    const Jump& jumpT() const { return jumpT_; }
+    const Jump& jumpF() const { return jumpF_; }
+    JumpTF jumpTF() const { return (JumpTF){{ &jumpT_, &jumpF_ }}; }
 
 private:
 
     Use cond_;
-    Use useT_;
-    Use useF_;
+    Jump jumpT_;
+    Jump jumpF_;
 };
 
 //------------------------------------------------------------------------------

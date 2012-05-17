@@ -37,8 +37,8 @@ bool PrimOp::compare(PrimOp* other) const {
     if (this->index() != other->index())
         return false;
 
-    if (const ArithOp* a = dcast<ArithOp>(this)) {
-        const ArithOp* b = scast<ArithOp>(other);
+    if (const ArithOp* a = this->isa<ArithOp>()) {
+        const ArithOp* b = other->as<ArithOp>();
 
         if (a->luse().def() != b->luse().def())
             return false;

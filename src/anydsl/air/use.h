@@ -38,7 +38,18 @@ private:
 
 //------------------------------------------------------------------------------
 
-/// Circular doubly linked list of Use instances.
+/**
+ * Circular doubly linked list of Use instances.
+ *
+ * NOTE: iterating using the FOREACH macro already yields a reference. 
+ * In other words do it like this:
+ *
+ * FOREACH(use, args) // type of use is const Use&
+ *
+ * This won't even compile:
+ *
+ * FOREACH(& use, args) // type of use would be const Use&&
+ */
 class Args  {
 private:
 

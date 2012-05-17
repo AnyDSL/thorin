@@ -3,6 +3,7 @@
 #include "anydsl/air/binop.h"
 #include "anydsl/air/constant.h"
 #include "anydsl/air/type.h"
+#include "anydsl/air/terminator.h"
 #include "anydsl/support/world.h"
 #include "anydsl/util/box.h"
 #include "anydsl/util/cast.h"
@@ -121,5 +122,6 @@ int main() {
 
     std::cout << args.size() << std::endl;
 
+    Branch b();
     return 0;
 }

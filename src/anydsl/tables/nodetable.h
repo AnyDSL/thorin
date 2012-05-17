@@ -3,6 +3,11 @@
 #endif
 
 ANYDSL_AIR_NODE(Use)
+// Terminator
+    ANYDSL_AIR_NODE(Goto)
+    ANYDSL_AIR_NODE(Branch)
+    //ANYDSL_AIR_NODE(Switch)
+    ANYDSL_AIR_NODE(Invoke)
 // Def
     // Constant
         // PrimConst

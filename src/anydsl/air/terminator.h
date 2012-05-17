@@ -15,8 +15,17 @@ namespace anydsl {
 class Terminator : public AIRNode {
 public:
 
-    Terminator();
-    ~Terminator();
+    Terminator(Lambda* parent, IndexKind index, const std::string& debug)
+        : AIRNode(index, debug)
+        , parent_(parent)
+    {}
+
+    Lambda* parent() { return parent_; }
+    const Lambda* parent() const { return parent_; }
+
+private:
+
+    Lambda* parent_;
 };
 
 //------------------------------------------------------------------------------
@@ -25,8 +34,6 @@ public:
 class Jump {
 private:
 
-    /// Do not create "default" \p Jump instances
-    Jump();
     /// Do not copy-create a \p Jump instance.
     Jump(const Jump&);
     /// Do not copy-assign a \p Jump instance.
@@ -35,7 +42,7 @@ private:
 public:
 
     Jump(Terminator* parent, Lambda* to, const std::string& debug)
-        : to(to, parent, debug)
+        : to(parent, to, debug)
         , args(parent)
     {}
 
@@ -51,14 +58,28 @@ public:
 class Goto : public Terminator {
 public:
 
+    Goto(Lambda* parent, Lambda* to, const std::string toDebug, const std::string debug)
+        : Terminator(parent, Index_Goto, debug)
+        , jump(this, to, toDebug)
+    {}
+
     Jump jump;
 };
-
 
 //------------------------------------------------------------------------------
 
 class Branch : public Terminator {
 public:
+
+    Branch(Lambda* parent, Def* cond, Lambda* tlambda, Lambda* flambda, 
+           const std::string& condDebug, 
+           const std::string& tdebug, const std::string& fdebug, 
+           const std::string& debug)
+        : Terminator(parent, Index_Branch, debug)
+        , cond(this, cond, condDebug)
+        , tjump(this, tlambda, tdebug)
+        , fjump(this, flambda, fdebug)
+    {}
 
     typedef boost::array<Jump*, 2> TFJump;
     typedef boost::array<const Jump*, 2> ConstTFJump;
@@ -76,7 +97,13 @@ public:
 class Invoke : public Terminator {
 public:
 
-    Use fct_;
+    Invoke(Lambda* parent, Def* fct, const std::string& fctDebug, const std::string& debug)
+        : Terminator(parent, Index_Invoke, debug)
+        , fct(this, fct, fctDebug)
+        , args(this)
+    {}
+
+    Use fct;
     Args args;
 };
 

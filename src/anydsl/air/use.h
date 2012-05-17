@@ -2,11 +2,11 @@
 #define ANYDSL_AIR_USE_H
 
 #include "anydsl/air/airnode.h"
-#include "anydsl/util/autoptr.h"
 
 namespace anydsl {
 
 class Def;
+class Terminator;
 
 /**
  * @brief Use encapsulates a use of an SSA value, i.e., a \p Def.
@@ -18,8 +18,6 @@ class Def;
 class Use : public AIRNode {
 private:
 
-    /// Do not create "default" \p Use instances
-    Use();
     /// Do not copy-create a \p Use instance.
     Use(const Use&);
     /// Do not copy-assign a \p Use instance.
@@ -27,7 +25,7 @@ private:
 
 public:
 
-    Use(Def* def, AIRNode* parent, const std::string& debug = "");
+    Use(AIRNode* parent, Def* def, const std::string& debug = "");
     virtual ~Use();
 
     Def* def() { return def_; }
@@ -65,8 +63,6 @@ private:
 class Args  {
 private:
 
-    /// Do not create "default" \p Args instances
-    Args();
     /// Do not copy-create a \p Args instance.
     Args(const Args&);
     /// Do not copy-assign a \p Args instance.
@@ -83,8 +79,8 @@ private:
     };
 
     struct UseNode : public Node {
-        UseNode(Def* def, AIRNode* parent, const std::string& debug)
-            : use_(def, parent, debug)
+        UseNode(AIRNode* parent, Def* def, const std::string& debug)
+            : use_(parent, def, debug)
         {
 #ifndef NDEBUG
             isSentinel_ = false;
@@ -133,7 +129,7 @@ public:
     typedef node_iter<const Node*, true> const_reverse_iterator;
 
     /// Create empty argument list.
-    Args(AIRNode* parent);
+    Args(Terminator* parent);
     ~Args();
 
     void append(Def* def, const std::string& debug = "") { insert(end(), def, debug); }
@@ -182,7 +178,7 @@ private:
     Node* tail() { return sentinel_->prev_; }
     const Node* tail() const { return sentinel_->prev_; }
 
-    AIRNode* parent_;
+    Terminator* parent_;
     Node* sentinel_;
     size_t size_;
 };

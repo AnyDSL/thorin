@@ -1,10 +1,11 @@
 #include "anydsl/air/use.h"
 
 #include "anydsl/air/def.h"
+#include "anydsl/air/terminator.h"
 
 namespace anydsl {
 
-Use::Use(Def* def, AIRNode* parent, const std::string& debug /*= ""*/)
+Use::Use(AIRNode* parent, Def* def, const std::string& debug /*= ""*/)
     : AIRNode(Index_Use, debug)
     , def_(def) 
     , parent_(parent)
@@ -18,7 +19,7 @@ Use::~Use() {
 
 //------------------------------------------------------------------------------
 
-Args::Args(AIRNode* parent)
+Args::Args(Terminator* parent)
     : parent_(parent)
     , sentinel_(new Node())
     , size_(0)
@@ -34,7 +35,7 @@ Args::~Args() {
 }
 
 Args::iterator Args::insert(Args::iterator pos, Def* def, const std::string& debug /*= ""*/) {
-    Node* newNode = new UseNode(def, parent_, debug);
+    Node* newNode = new UseNode(parent_, def, debug);
     Node* n = pos.n_;
 
     newNode->next_ = n;

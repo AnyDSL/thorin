@@ -20,7 +20,6 @@ protected:
 public:
 
     const PrimConst* elem() const { return elem_; }
-
     virtual uint64_t hash() const;
 
     Use tuple;

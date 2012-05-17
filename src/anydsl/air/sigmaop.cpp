@@ -15,7 +15,7 @@ SigmaOp::SigmaOp(IndexKind index, const Type* type,
     , tuple_(tuple, this, tupleDebug)
     , elem_(elem)
 {
-    anydsl_assert(tuple->getAs<Sigma>(), "must be of Sigma type");
+    anydsl_assert(tuple->as<Sigma>(), "must be of Sigma type");
 }
 
 uint64_t SigmaOp::hash() const {

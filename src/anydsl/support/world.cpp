@@ -30,7 +30,9 @@ World::~World() {
 
 PrimConst* World::constant(PrimTypeKind kind, Box value) {
     //Values::iterator i = values_.find(
-    PrimConst* prim = new PrimConst(*this, kind, value, "todo");
+    std::ostringstream oss;
+    oss << value.u64_;
+    PrimConst* prim = new PrimConst(*this, kind, value);
     defs_.insert(std::make_pair(prim->hash(), prim));
     return prim;
 }

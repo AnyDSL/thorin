@@ -9,6 +9,10 @@
 namespace anydsl {
 
 class AIRNode {
+private:
+    AIRNode() {}
+    friend class Use;
+
 protected:
 
     AIRNode(IndexKind index, const std::string& debug)
@@ -22,8 +26,10 @@ public:
     IndexKind index() const { return index_; }
     NodeKind nodeKind() const { return (NodeKind) index_; }
 
-    template<class T> T* getAs() { return dcast<T>(this); }
-    template<class T> const T* getAs() const { return dcast<T>(this); }
+    template<class T> T* as()  { return scast<T>(this); }
+    template<class T> T* isa() { return dcast<T>(this); }
+    template<class T> const T* as()  const { return scast<T>(this); }
+    template<class T> const T* isa() const { return dcast<T>(this); }
 
     std::string debug() const { return debug_; }
 

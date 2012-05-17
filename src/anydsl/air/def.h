@@ -30,7 +30,8 @@ protected:
 
 public:
 
-    virtual ~Def() { anydsl_assert(uses_.empty(), "there are still uses pointing to this def"); }
+    //virtual ~Def() { anydsl_assert(uses_.empty(), "there are still uses pointing to this def"); }
+    virtual ~Def() {}
 
     /**
      * Manually adds given \p Use object to the list of uses of this \p Def.
@@ -79,7 +80,7 @@ private:
 class Value : public Def {
 protected:
 
-    Value(IndexKind index, const Type* type, const std::string& debug = "")
+    Value(IndexKind index, const Type* type, const std::string& debug)
         : Def(index, type, debug)
     {}
 };

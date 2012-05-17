@@ -11,15 +11,32 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-class Lambda;
-
-//------------------------------------------------------------------------------
-
 class Terminator : public AIRNode {
 public:
 
     Terminator();
     ~Terminator();
+};
+
+//------------------------------------------------------------------------------
+
+class Jump {
+public:
+
+    Jump(Terminator* parent, Lambda* to, const std::string& debug)
+        : to_(to, parent, debug)
+        , args_(parent)
+    {}
+
+
+    const Use& to() const { return to_; }
+    const Lambda* toLambda() const { return scast<Lambda>(to_.def()); }
+    Args& args() { return args_; }
+
+private:
+
+    Use to_;
+    Args args_;
 };
 
 //------------------------------------------------------------------------------
@@ -48,12 +65,12 @@ private:
 public:
 
     const Use& fct() const { return fct_; }
-    const Uses& args() const { return args_; }
+    const Args& args() const { return args_; }
 
 private:
 
     Use fct_;
-    Uses args_;
+    Args args_;
 };
 
 //------------------------------------------------------------------------------

@@ -99,10 +99,16 @@ int main() {
     Args args(0);
     args.append(w.constant(7u), "7");
     args.append(w.constant(32ul), "32");
+    args.append(w.constant(64ul), "64");
 
     std::cout << "testing args" << std::endl;
     FOREACH(const& use, args)
         std::cout << "--> " << use.debug() << std::endl;
 
-    //return 0;
+    for (Args::const_reverse_iterator i = args.rbegin(), e = args.rend(); i != e; ++i)
+        std::cout << "rev-> " << i->debug() << std::endl;
+
+    std::cout << args.size() << std::endl;
+
+    return 0;
 }

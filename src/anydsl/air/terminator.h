@@ -21,23 +21,34 @@ public:
 //------------------------------------------------------------------------------
 
 class Jump {
+private:
+
+    /// Do not create "default" \p Jump instances
+    Jump();
+    /// Do not copy-create a \p Jump instance.
+    Jump(const Jump&);
+    /// Do not copy-assign a \p Jump instance.
+    Jump& operator = (const Jump&);
+
+
 public:
 
     Jump(Terminator* parent, Lambda* to, const std::string& debug)
         : to_(to, parent, debug)
-        , args_(parent)
+        , args(parent)
     {}
 
 
     const Use& to() const { return to_; }
     const Lambda* toLambda() const { return to_.def()->as<Lambda>(); }
-    Args& args() { return args_; }
-    const Args& args() const { return args_; }
 
 private:
 
     Use to_;
-    Args args_;
+
+public:
+
+    Args args;
 };
 
 //------------------------------------------------------------------------------
@@ -57,18 +68,21 @@ private:
 
 class Branch : public Terminator {
 public:
-    typedef boost::array<const Jump*, 2> JumpTF;
+    typedef boost::array<Jump*, 2> JumpTF;
+    typedef boost::array<const Jump*, 2> ConstJumpTF;
 
     const Use& cond() const { return cond_; }
-    const Jump& jumpT() const { return jumpT_; }
-    const Jump& jumpF() const { return jumpF_; }
-    JumpTF jumpTF() const { return (JumpTF){{ &jumpT_, &jumpF_ }}; }
+    JumpTF jumpTF() { return (JumpTF){{ &jumpT, &jumpF }}; }
+    ConstJumpTF jumpTF() const { return (ConstJumpTF){{ &jumpT, &jumpF }}; }
 
 private:
 
     Use cond_;
-    Jump jumpT_;
-    Jump jumpF_;
+
+public:
+
+    Jump jumpT;
+    Jump jumpF;
 };
 
 //------------------------------------------------------------------------------
@@ -79,12 +93,14 @@ private:
 public:
 
     const Use& fct() const { return fct_; }
-    const Args& args() const { return args_; }
 
 private:
 
     Use fct_;
-    Args args_;
+
+public:
+
+    Args args;
 };
 
 //------------------------------------------------------------------------------

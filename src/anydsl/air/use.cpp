@@ -29,16 +29,18 @@ Args::Args(AIRNode* parent)
 
 Args::~Args() {
     clear();
+    anydsl_assert(sentinel_->isSentinel_, "this must be the sentinel");
     delete sentinel_;
 }
 
 Args::iterator Args::insert(Args::iterator pos, Def* def, const std::string& debug /*= ""*/) {
     Node* newNode = new UseNode(def, parent_, debug);
+    Node* n = pos.n_;
 
-    newNode->next_ = pos.n_;
-    newNode->prev_ = pos.n_->prev_;
+    newNode->next_ = n;
+    newNode->prev_ = n->prev_;
 
-    newNode->next_->prev_ = newNode;
+    n->prev_ = newNode;
     newNode->prev_->next_ = newNode;
 
     ++size_;

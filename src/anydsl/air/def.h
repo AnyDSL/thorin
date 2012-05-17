@@ -30,8 +30,7 @@ protected:
 
 public:
 
-    //virtual ~Def() { anydsl_assert(uses_.empty(), "there are still uses pointing to this def"); }
-    virtual ~Def() {}
+    virtual ~Def() { anydsl_assert(uses_.empty(), "there are still uses pointing to this def"); }
 
     /**
      * Manually adds given \p Use object to the list of uses of this \p Def.

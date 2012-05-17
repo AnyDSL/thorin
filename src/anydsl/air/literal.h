@@ -6,13 +6,13 @@
 #include <boost/unordered_set.hpp>
 
 #include "anydsl/air/def.h"
-#include "anydsl/support/world.h"
 #include "anydsl/util/box.h"
 
 namespace anydsl {
 
 class Type;
 class Terminator;
+class World;
 
 typedef boost::unordered_set<Lambda*> Fix;
 
@@ -26,14 +26,14 @@ protected:
     {}
 };
 
-typedef std::vector<Literal*> LitList;
+typedef std::vector<Literal*> Literals;
 
 //------------------------------------------------------------------------------
 
 class Undef : public Literal {
 public:
 
-    Undef(const Type* type, const std::string& debug = "")
+    Undef(const Type* type, const std::string& debug)
         : Literal(Index_Undef, type, debug)
         {}
 };
@@ -43,7 +43,7 @@ public:
 class PrimLit : public Literal {
 public:
 
-    PrimLit(World& world, PrimTypeKind kind, Box box, const std::string& debug = "");
+    PrimLit(World& world, PrimTypeKind kind, Box box, const std::string& debug);
 
     PrimTypeKind primTypeKind() { return (PrimTypeKind) index(); }
     Box box() const { return box_; }
@@ -60,32 +60,34 @@ private:
 class Tuple : public Literal {
 public:
 
-    const LitList& consts() const { return consts_; }
+    const Literals& elems() const { return elems_; }
 
     virtual uint64_t hash() const;
 
 private:
 
-    LitList consts_;
+    Literals elems_;
 };
 
 //------------------------------------------------------------------------------
 
 class Lambda : public Literal {
-public:
+private:
 
     /**
      * Use this constructor if you know the type beforehand.
      * You are still free to append other params later on.
      */
-    Lambda(Lambda* parent, const Pi* type, const std::string& debug = "");
+    Lambda(Lambda* parent, const Type* type, const std::string& debug);
 
     /**
      * Use this constructor if you want to incrementally build the type.
      * Initially the type is set to "pi()".
      */
-    Lambda(World& world, Lambda* parent, const std::string& debug = "");
+    Lambda(World& world, Lambda* parent, const std::string& debug);
     ~Lambda();
+
+public:
 
     const Fix& fix() const { return fix_; }
     const Fix& siblings() const { assert(parent_); return parent_->fix(); }
@@ -105,6 +107,8 @@ private:
     Lambda* parent_;
     Terminator* terminator_;
     Fix fix_;
+
+    friend class World;
 };
 
 //------------------------------------------------------------------------------

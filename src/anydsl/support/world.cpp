@@ -3,9 +3,14 @@
 #include "anydsl/air/binop.h"
 #include "anydsl/air/literal.h"
 #include "anydsl/air/type.h"
+#include "anydsl/air/terminator.h"
 #include "anydsl/util/foreach.h"
 
 namespace anydsl {
+
+/*
+ * constructor and destructor
+ */
 
 World::World() 
     : emptyPi_(new Pi(*this, "pi()"))
@@ -28,13 +33,33 @@ World::~World() {
     FOREACH(p, sigmas_) delete p.second;
 }
 
-PrimLit* World::constant(PrimTypeKind kind, Box value) {
+/*
+ * types
+ */
+
+/*
+ * literals
+ */
+
+PrimLit* World::literal(PrimTypeKind kind, Box value, const std::string& debug /*= ""*/) {
     //Values::iterator i = values_.find(
     std::ostringstream oss;
     oss << value.u64_;
-    PrimLit* prim = new PrimLit(*this, kind, value);
+    PrimLit* prim = new PrimLit(*this, kind, value, debug);
     defs_.insert(std::make_pair(prim->hash(), prim));
     return prim;
+}
+
+/*
+ * create
+ */
+
+Lambda* World::createLambda(Lambda* parent, const std::string& debug /*= ""*/) {
+    return new Lambda(*this, parent, debug);
+}
+
+Goto* World::createGoto(Lambda* parent, Lambda* to, const std::string& toDebug /*= ""*/, const std::string& debug /*= ""*/) {
+    return new Goto(parent, to, toDebug, debug);
 }
 
 ArithOp* World::createArithOp(ArithOpKind arithOpKind,
@@ -58,6 +83,10 @@ Sigma* World::getNamedSigma(const std::string& name /*= ""*/) {
     namedSigmas_.push_back(sigma);
     return sigma;
 }
+
+/*
+ * optimize
+ */
 
 void World::cleanup() {
     size_t oldSize;

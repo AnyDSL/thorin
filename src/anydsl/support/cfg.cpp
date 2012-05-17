@@ -1,7 +1,9 @@
 #include "anydsl/support/cfg.h"
-#include "anydsl/util/foreach.h"
 
 #include "anydsl/air/literal.h"
+#include "anydsl/air/terminator.h"
+#include "anydsl/support/world.h"
+#include "anydsl/util/foreach.h"
 
 using namespace anydsl;
 
@@ -11,8 +13,12 @@ namespace anydsl {
 
 BB::BB(World& world, const std::string& name /*= ""*/) 
     : parent_(0)
-    , lambda_(new Lambda(world, 0, name))
+    , lambda_(world.createLambda(0, name))
 {}
+
+World& BB::world() { 
+    return lambda_->world();
+}
 
 #if 0
 /*static*/ BB* BB::create(const Symbol sym /*= Symbol("")*/) {
@@ -45,6 +51,13 @@ void BB::insert(BB* bb) {
     children_.insert(bb);
 }
 
+void BB::goesto(BB* to) {
+    anydsl_assert(to, "must be valid");
+    lambda_->setTerminator(world().createGoto(lambda(), to->lambda()));
+    this->flowsTo(to);
+    anydsl_assert(succ_.size() == 1, "wrong number of succ");
+}
+
 #if 0
 
 void BB::calls(const Location& loc, Def* f) {
@@ -56,21 +69,6 @@ void BB::calls(const Location& loc, Def* f) {
     lcursor_->body() = beta;
     // we can now overwrite lcursor_ in the union
     beta_ = beta;
-}
-
-void BB::jumps(const Location& loc, BB* to) {
-    setTerminator();
-    anydsl_assert(to, "must be valid");
-    anydsl_assert(!lcursor_->body(), "must be empty");
-
-    Beta* beta = new Beta(loc);
-    beta->fct.set(to->param_);
-    lcursor_->body() = beta;
-    // we can now overwrite lcursor_ in the union
-    beta_ = beta;
-
-    this->flowsTo(to);
-    anydsl_assert(succ_.size() == 1, "wrong number of succ");
 }
 
 void BB::branches(const Location& loc, Def* cond, BB* toT, BB* toF) {
@@ -95,29 +93,6 @@ void BB::branches(const Location& loc, Def* cond, BB* toT, BB* toF) {
     this->flowsTo(toT);
     this->flowsTo(toF);
     anydsl_assert(succ_.size() == 2, "wrong number of succ");
-}
-
-void BB::mergeChild() {
-    BB* child = *children_.begin();
-
-    // check dom propertiers
-    anydsl_assert(children_.size() == 1, "must have exactly one child");
-    anydsl_assert(child->parent_ == this, "wrong parent");
-
-    // check cfg properties
-    anydsl_assert(succ_.size() == 1, "must have exactly one successor");
-    anydsl_assert(*succ_.begin() == child, "wrong successor");
-    anydsl_assert(child->pred_.size() == 1, "must have exactly one predessor");
-    anydsl_assert(*child->pred_.begin() == this, "wrong predessor");
-
-    //// repair cfg
-    //succ_.clear();
-    //std::copy(child->succ_.begin(), child->succ_.end(), 
-            //std::inserter(this->succ_, this->succ_.begin()));
-
-    anydsl_assert(false, "TODO");
-    //delete
-    //this->flowsTo(child);
 }
 
 #endif

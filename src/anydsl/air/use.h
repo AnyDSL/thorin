@@ -171,6 +171,9 @@ public:
     /// Removes all elements from the list.
     void clear();
 
+    Terminator* parent() { return parent_; }
+    const Terminator* parent() const { return parent_; }
+
 private:
 
     Node* head() { return sentinel_->next_; }

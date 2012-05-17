@@ -14,6 +14,8 @@ namespace anydsl {
 
 class ArithOp;
 class Def;
+class Goto;
+class Lambda;
 class Pi;
 class PrimLit;
 class PrimType;
@@ -61,14 +63,16 @@ typedef std::vector<Sigma*> NamedSigmas;
 class World {
 public:
 
+    /*
+     * constructor and destructor
+     */
+
     World();
     ~World();
 
-    ArithOp* createArithOp(ArithOpKind arithOpKind,
-                           Def* ldef, Def* rdef, 
-                           const std::string& ldebug = "", 
-                           const std::string& rdebug = "", 
-                           const std::string&  debug = "");
+    /*
+     * types
+     */
 
 #define ANYDSL_U_TYPE(T) PrimType* type_##T() const { return T##_; }
 #define ANYDSL_F_TYPE(T) PrimType* type_##T() const { return T##_; }
@@ -81,12 +85,6 @@ public:
     }
 
     template<class T>
-    PrimLit* constant(T value) { 
-        return constant(Type2PrimTypeKind<T>::kind, Box(value));
-    }
-    PrimLit* constant(PrimTypeKind kind, Box value);
-
-    template<class T>
     const Sigma* sigma(T begin, T end);
 
     /// Creates a fresh named sigma.
@@ -94,6 +92,31 @@ public:
 
     const Pi* emptyPi() const { return emptyPi_; }
     const Sigma* unit() const { return unit_; }
+
+    /*
+     * literals
+     */
+
+    template<class T>
+    PrimLit* literal(T value, const std::string& debug = "") { return literal(Type2PrimTypeKind<T>::kind, Box(value), debug); }
+    PrimLit* literal(PrimTypeKind kind, Box value, const std::string& debug = "");
+
+    /*
+     * create
+     */
+
+    Lambda* createLambda(Lambda* parent, const std::string& debug = "");
+    Goto* createGoto(Lambda* parent, Lambda* to, const std::string& toDebug = "", const std::string& debug = "");
+
+    ArithOp* createArithOp(ArithOpKind arithOpKind,
+                           Def* ldef, Def* rdef, 
+                           const std::string& ldebug = "", 
+                           const std::string& rdebug = "", 
+                           const std::string&  debug = "");
+
+    /*
+     * optimize
+     */
 
     /// Performs dead code and unreachable code elimination.
     void cleanup();

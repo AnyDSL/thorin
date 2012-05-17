@@ -39,10 +39,9 @@ public:
 
     /// Insert \p bb as sub BB (i.e., as dom child) into this BB.
     void insert(BB* bb);
-    //void jumps(const Location& loc, BB* to);
+    void goesto(BB* to);
     //void calls(const Location& loc, Def* f);
     //void branches(const Location& loc, Def* cond, BB* toT, BB* toF);
-    //void mergeChild();
 
     const BBs& pre() const { return pred_; }
     const BBs& succ() const { return succ_; }
@@ -63,6 +62,8 @@ public:
 #ifndef NDEBUG
     Symbol belongsTo();
 #endif
+
+    World& world();
 
 protected:
 public:

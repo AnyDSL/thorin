@@ -1,5 +1,6 @@
 #include "anydsl/air/literal.h"
 #include "anydsl/air/type.h"
+#include "anydsl/support/world.h"
 
 #include "anydsl/util/foreach.h"
 
@@ -27,13 +28,15 @@ uint64_t Tuple::hash() const {
 
 //------------------------------------------------------------------------------
 
-Lambda::Lambda(Lambda* parent, const Pi* type, const std::string& debug /*= ""*/)
+Lambda::Lambda(Lambda* parent, const Type* type, const std::string& debug)
     : Literal(Index_Lambda, type, debug)
     , parent_(parent)
     , terminator_(0)
-{}
+{
+    anydsl_assert(type->isa<Pi>(), "type must be a Pi");
+}
 
-Lambda::Lambda(World& world, Lambda* parent, const std::string& debug /*= ""*/)
+Lambda::Lambda(World& world, Lambda* parent, const std::string& debug)
     : Literal(Index_Lambda, world.emptyPi(), debug)
     , parent_(parent)
     , terminator_(0)

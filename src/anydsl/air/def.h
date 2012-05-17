@@ -61,7 +61,7 @@ private:
 class Param : public Def {
 public:
 
-    Param(Lambda* parent, const Type* type, const std::string& debug = "")
+    Param(Lambda* parent, const Type* type, const std::string& debug)
         : Def(Index_Param, type, debug)
         , parent_(parent)
     {}

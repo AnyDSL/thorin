@@ -98,11 +98,11 @@ int main() {
     s->set(members, members + 4);
 
     Args args(0);
-    args.append(w.constant(7u), "7");
-    args.append(w.constant(32ul), "32");
-    args.append(w.constant(666ul), "666");
-    args.append(w.constant(64ul), "64");
-    args.prepend(w.constant(1u), "1");
+    args.append(w.literal(7u), "7");
+    args.append(w.literal(32ul), "32");
+    args.append(w.literal(666ul), "666");
+    args.append(w.literal(64ul), "64");
+    args.prepend(w.literal(1u), "1");
 
     // prepend
     // remove evil and substitute by heavenly
@@ -110,7 +110,7 @@ int main() {
     ++i; ++i; ++i;
     std::cout << "evil: " << i->debug() << std::endl;
     i = args.erase(i);
-    args.insert(i, w.constant(777ul), "777");
+    args.insert(i, w.literal(777ul), "777");
 
     std::cout << "--- testing args ---" << std::endl;
     FOREACH(const& use, args)

@@ -41,6 +41,15 @@ private:
 
 public:
 
+    /**
+     * Construct a Jump from a pointer to the embedding Terminator 
+     * and the target Lambda.
+     * The parameter \p parent is needed 
+     * in order to pass it to the constructor of Args.
+     * Args in turn needs it in order to automatically equip appended \p Use%s
+     * (arguments) with this parent.
+     * Let \p parent point to the Terminator where this Jump is embedded.
+     */
     Jump(Terminator* parent, Lambda* to, const std::string& debug)
         : to(parent, to, debug)
         , args(parent)

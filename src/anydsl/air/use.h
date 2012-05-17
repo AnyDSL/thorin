@@ -30,6 +30,7 @@ public:
     Use(Def* def, AIRNode* parent, const std::string& debug = "");
     virtual ~Use();
 
+    Def* def() { return def_; }
     const Def* def() const { return def_; }
 
     AIRNode* parent() { return parent_; }
@@ -121,8 +122,6 @@ private:
     private:
 
         T n_;
-
-        template <class, bool> friend class node_iter;
         friend class Args;
     };
 

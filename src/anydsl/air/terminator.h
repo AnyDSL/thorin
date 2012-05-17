@@ -2,6 +2,7 @@
 #define ANYDSL_AIR_TERMINATOR_H
 
 #include <boost/array.hpp>
+#include <boost/ptr_container/ptr_vector.hpp>
 
 #include "anydsl/air/airnode.h"
 #include "anydsl/air/constant.h"
@@ -20,6 +21,7 @@ public:
 
 //------------------------------------------------------------------------------
 
+/// Helper class for \p Terminator%s.
 class Jump {
 private:
 
@@ -30,24 +32,17 @@ private:
     /// Do not copy-assign a \p Jump instance.
     Jump& operator = (const Jump&);
 
-
 public:
 
     Jump(Terminator* parent, Lambda* to, const std::string& debug)
-        : to_(to, parent, debug)
+        : to(to, parent, debug)
         , args(parent)
     {}
 
+    Lambda* lambda() { return to.def()->as<Lambda>(); }
+    const Lambda* lambda() const { return to.def()->as<Lambda>(); }
 
-    const Use& to() const { return to_; }
-    const Lambda* toLambda() const { return to_.def()->as<Lambda>(); }
-
-private:
-
-    Use to_;
-
-public:
-
+    Use to;
     Args args;
 };
 
@@ -56,11 +51,7 @@ public:
 class Goto : public Terminator {
 public:
 
-    const Jump& jump() const { return jump_; }
-
-private:
-
-    Jump jump_;
+    Jump jump;
 };
 
 
@@ -68,19 +59,14 @@ private:
 
 class Branch : public Terminator {
 public:
+
     typedef boost::array<Jump*, 2> TFJump;
     typedef boost::array<const Jump*, 2> ConstTFJump;
 
-    const Use& cond() const { return cond_; }
     TFJump tfjump() { return (TFJump){{ &tjump, &fjump }}; }
     ConstTFJump tfjump() const { return (ConstTFJump){{ &tjump, &fjump }}; }
 
-private:
-
-    Use cond_;
-
-public:
-
+    Use cond;
     Jump tjump;
     Jump fjump;
 };
@@ -88,18 +74,9 @@ public:
 //------------------------------------------------------------------------------
 
 class Invoke : public Terminator {
-private:
-
 public:
-
-    const Use& fct() const { return fct_; }
-
-private:
 
     Use fct_;
-
-public:
-
     Args args;
 };
 

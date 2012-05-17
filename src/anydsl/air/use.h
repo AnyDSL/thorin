@@ -9,9 +9,10 @@ class Def;
 class Terminator;
 
 /**
- * @brief Use encapsulates a use of an SSA value, i.e., a \p Def.
+ * Use encapsulates a use of an SSA value, i.e., a \p Def.
  *
- * Use already has enough encapsulation magic. 
+ * This class is supposed to be embedded in other \p AIRNode%s.
+ * \p Use already has enough encapsulation magic. 
  * No need to hammer further getters/setters around a Use aggregate within a class.
  * Just make it a public class member.
  */
@@ -25,13 +26,21 @@ private:
 
 public:
 
+    /** 
+     * @brief Construct a \p Use of the specified \p Def.
+     * 
+     * @param parent The class where \p Use is embedded in.
+     * @param def 
+     */
     Use(AIRNode* parent, Def* def);
     virtual ~Use();
 
     Def* def() { return def_; }
     const Def* def() const { return def_; }
 
+    /// Get embedding ojbect.
     AIRNode* parent() { return parent_; }
+    /// Get embedding ojbect.
     const AIRNode* parent() const { return parent_; }
 
 private:
@@ -47,6 +56,11 @@ private:
 /**
  * Circular doubly linked list of Use instances.
  *
+ * This class is supposed to be embedded in a Terminator.
+ * Args already have enough encapsulation magic. 
+ * No need to hammer further getters/setters around an Args aggregate within a class.
+ * Just make it a public class member.
+ *
  * Iterators stay valid even if you put the whole list upside down 
  * and remove or insert many items.
  * Only erasing a node at all invalidates an interator.
@@ -60,9 +74,6 @@ private:
  * \code
  * FOREACH(& use, args) // type of use would be const Use&&
  * \endcode
- * Args already have enough encapsulation magic. 
- * No need to hammer further getters/setters around an Args aggregate within a class.
- * Just make it a public class member.
  */
 class Args  {
 private:
@@ -94,6 +105,8 @@ private:
         Use use_;
     };
 
+
+    /// This class implements four iterators; all combinations of const, non-const, reverse and non-reverse.
     template<class T, bool reverse>
     struct node_iter {
     public:
@@ -127,6 +140,7 @@ private:
 
 public:
 
+    /// typedefs are necessary for std::iterator_traits (needed by FOREACH)
     typedef node_iter<Node*, false> iterator;
     typedef node_iter<const Node*, false> const_iterator;
     typedef node_iter<Node*, true> reverse_iterator;
@@ -179,7 +193,9 @@ public:
      */
     void clear();
 
+    /// Get Terminator where this argument list is embedded in.
     Terminator* parent() { return parent_; }
+    /// Get Terminator where this argument list is embedded in.
     const Terminator* parent() const { return parent_; }
 
 private:

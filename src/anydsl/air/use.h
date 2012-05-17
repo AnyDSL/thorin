@@ -47,6 +47,10 @@ private:
 /**
  * Circular doubly linked list of Use instances.
  *
+ * Iterators stay valid even if you put the whole list upside down 
+ * and remove or insert many items.
+ * Only erasing a node at all invalidates an interator.
+ *
  * Iterating using the FOREACH macro already yields a reference. 
  * In other words do it like this:
  * \code
@@ -156,7 +160,6 @@ public:
      * 
      * @param pos Insertion happens before this position.
      * @param def Create new Use of this Def.
-     * @param debug Debug info for new Use.
      * 
      * @return iterator to new Node.
      */
@@ -164,11 +167,16 @@ public:
 
     /** 
      * Erase node at \p pos.
-     * @return Returns interator to the node previously followed by \p pos.
+     * The associated Use is also deleted (and thus unregistered from its Def).
+     *
+     * @return Returns iterator to the node previously followed by \p pos.
      */
     iterator erase(iterator pos);
 
-    /// Removes all elements from the list.
+    /** 
+     * Removes all elements from the list.
+     * All \p Use%s are destroyed in this process (and thus are unregistered from their Def).
+     */
     void clear();
 
     Terminator* parent() { return parent_; }

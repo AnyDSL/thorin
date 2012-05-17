@@ -5,7 +5,7 @@
 #include <boost/ptr_container/ptr_vector.hpp>
 
 #include "anydsl/air/airnode.h"
-#include "anydsl/air/constant.h"
+#include "anydsl/air/literal.h"
 #include "anydsl/air/use.h"
 
 namespace anydsl {

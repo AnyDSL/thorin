@@ -8,7 +8,7 @@ namespace anydsl {
 //------------------------------------------------------------------------------
 
 SigmaOp::SigmaOp(IndexKind index, const Type* type,
-                 Def* tuple, PrimConst* elem, 
+                 Def* tuple, PrimLit* elem, 
                  const std::string& tupleDebug,
                  const std::string& debug)
     : PrimOp(index, type, debug)
@@ -24,7 +24,7 @@ uint64_t SigmaOp::hash() const {
 
 //------------------------------------------------------------------------------
 
-Extract::Extract(Def* tuple, PrimConst* elem, 
+Extract::Extract(Def* tuple, PrimLit* elem, 
         const std::string& tupleDebug,
         const std::string& debug)
     : SigmaOp(Index_Extract, 

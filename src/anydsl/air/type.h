@@ -5,7 +5,7 @@
 
 namespace anydsl {
 
-class PrimConst;
+class PrimLit;
 class World;
 
 //------------------------------------------------------------------------------
@@ -71,8 +71,8 @@ public:
         return types_[i]; 
     }
 
-    /// Get element type via anydsl::PrimConst which serves as index.
-    const Type* get(PrimConst* c) const;
+    /// Get element type via anydsl::PrimLit which serves as index.
+    const Type* get(PrimLit* c) const;
 
 protected:
 

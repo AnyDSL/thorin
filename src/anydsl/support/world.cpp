@@ -1,7 +1,7 @@
 #include "anydsl/support/world.h"
 
 #include "anydsl/air/binop.h"
-#include "anydsl/air/constant.h"
+#include "anydsl/air/literal.h"
 #include "anydsl/air/type.h"
 #include "anydsl/util/foreach.h"
 
@@ -28,11 +28,11 @@ World::~World() {
     FOREACH(p, sigmas_) delete p.second;
 }
 
-PrimConst* World::constant(PrimTypeKind kind, Box value) {
+PrimLit* World::constant(PrimTypeKind kind, Box value) {
     //Values::iterator i = values_.find(
     std::ostringstream oss;
     oss << value.u64_;
-    PrimConst* prim = new PrimConst(*this, kind, value);
+    PrimLit* prim = new PrimLit(*this, kind, value);
     defs_.insert(std::make_pair(prim->hash(), prim));
     return prim;
 }

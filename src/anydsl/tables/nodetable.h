@@ -9,8 +9,8 @@ ANYDSL_AIR_NODE(Use)
     //ANYDSL_AIR_NODE(Switch)
     ANYDSL_AIR_NODE(Invoke)
 // Def
-    // Constant
-        // PrimConst
+    // Literal
+        // PrimLit
         ANYDSL_AIR_NODE(Undef)
         ANYDSL_AIR_NODE(Lambda)
         ANYDSL_AIR_NODE(Tuple)

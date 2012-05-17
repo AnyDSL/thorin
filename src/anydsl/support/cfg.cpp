@@ -1,7 +1,7 @@
 #include "anydsl/support/cfg.h"
 #include "anydsl/util/foreach.h"
 
-#include "anydsl/air/constant.h"
+#include "anydsl/air/literal.h"
 
 using namespace anydsl;
 

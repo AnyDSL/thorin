@@ -15,7 +15,7 @@ namespace anydsl {
 class ArithOp;
 class Def;
 class Pi;
-class PrimConst;
+class PrimLit;
 class PrimType;
 class Sigma;
 
@@ -81,10 +81,10 @@ public:
     }
 
     template<class T>
-    PrimConst* constant(T value) { 
+    PrimLit* constant(T value) { 
         return constant(Type2PrimTypeKind<T>::kind, Box(value));
     }
-    PrimConst* constant(PrimTypeKind kind, Box value);
+    PrimLit* constant(PrimTypeKind kind, Box value);
 
     template<class T>
     const Sigma* sigma(T begin, T end);

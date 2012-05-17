@@ -1,4 +1,4 @@
-#include "anydsl/air/constant.h"
+#include "anydsl/air/literal.h"
 #include "anydsl/air/type.h"
 
 #include "anydsl/util/foreach.h"
@@ -7,12 +7,12 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-PrimConst::PrimConst(World& world, PrimTypeKind kind, Box box, const std::string& debug)
-    : Constant((IndexKind) kind, world.type(kind), debug)
+PrimLit::PrimLit(World& world, PrimTypeKind kind, Box box, const std::string& debug)
+    : Literal((IndexKind) kind, world.type(kind), debug)
     , box_(box)
 {}
 
-uint64_t PrimConst::hash() const {
+uint64_t PrimLit::hash() const {
     anydsl_assert(sizeof(Box) == 8, "Box has unexpected size");
     return (uint64_t(index()) << 32) | bcast<uint64_t, Box>((box()));
 }
@@ -28,13 +28,13 @@ uint64_t Tuple::hash() const {
 //------------------------------------------------------------------------------
 
 Lambda::Lambda(Lambda* parent, const Pi* type, const std::string& debug /*= ""*/)
-    : Constant(Index_Lambda, type, debug)
+    : Literal(Index_Lambda, type, debug)
     , parent_(parent)
     , terminator_(0)
 {}
 
 Lambda::Lambda(World& world, Lambda* parent, const std::string& debug /*= ""*/)
-    : Constant(Index_Lambda, world.emptyPi(), debug)
+    : Literal(Index_Lambda, world.emptyPi(), debug)
     , parent_(parent)
     , terminator_(0)
 {}

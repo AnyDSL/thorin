@@ -1,5 +1,5 @@
-#ifndef ANYDSL_AIR_CONSTANT_H
-#define ANYDSL_AIR_CONSTANT_H
+#ifndef ANYDSL_AIR_LITERAL_H
+#define ANYDSL_AIR_LITERAL_H
 
 #include <vector>
 
@@ -18,32 +18,32 @@ typedef boost::unordered_set<Lambda*> Fix;
 
 //------------------------------------------------------------------------------
 
-class Constant : public Value {
+class Literal : public Value {
 protected:
 
-    Constant(IndexKind index, const Type* type, const std::string& debug)
+    Literal(IndexKind index, const Type* type, const std::string& debug)
         : Value(index, type, debug)
     {}
 };
 
-typedef std::vector<Constant*> ConstList;
+typedef std::vector<Literal*> LitList;
 
 //------------------------------------------------------------------------------
 
-class Undef : public Constant {
+class Undef : public Literal {
 public:
 
     Undef(const Type* type, const std::string& debug = "")
-        : Constant(Index_Undef, type, debug)
+        : Literal(Index_Undef, type, debug)
         {}
 };
 
 //------------------------------------------------------------------------------
 
-class PrimConst : public Constant {
+class PrimLit : public Literal {
 public:
 
-    PrimConst(World& world, PrimTypeKind kind, Box box, const std::string& debug = "");
+    PrimLit(World& world, PrimTypeKind kind, Box box, const std::string& debug = "");
 
     PrimTypeKind primTypeKind() { return (PrimTypeKind) index(); }
     Box box() const { return box_; }
@@ -57,21 +57,21 @@ private:
 
 //------------------------------------------------------------------------------
 
-class Tuple : public Constant {
+class Tuple : public Literal {
 public:
 
-    const ConstList& consts() const { return consts_; }
+    const LitList& consts() const { return consts_; }
 
     virtual uint64_t hash() const;
 
 private:
 
-    ConstList consts_;
+    LitList consts_;
 };
 
 //------------------------------------------------------------------------------
 
-class Lambda : public Constant {
+class Lambda : public Literal {
 public:
 
     /**
@@ -111,4 +111,4 @@ private:
 
 } // namespace anydsl
 
-#endif // ANYDSL_AIR_CONSTANT_H
+#endif // ANYDSL_AIR_LITERAL_H

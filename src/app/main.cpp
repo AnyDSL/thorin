@@ -1,7 +1,7 @@
 //#include <iostream>
 
 #include "anydsl/air/binop.h"
-#include "anydsl/air/constant.h"
+#include "anydsl/air/literal.h"
 #include "anydsl/air/type.h"
 #include "anydsl/air/terminator.h"
 #include "anydsl/support/world.h"

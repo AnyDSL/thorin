@@ -6,7 +6,7 @@
 
 namespace anydsl {
 
-class PrimConst;
+class PrimLit;
 
 //------------------------------------------------------------------------------
 
@@ -14,19 +14,19 @@ class SigmaOp : public PrimOp {
 protected:
 
     SigmaOp(IndexKind index, const Type* type,
-            Def* tuple, PrimConst* elem, 
+            Def* tuple, PrimLit* elem, 
             const std::string& tupleDebug, const std::string& debug);
 
 public:
 
-    const PrimConst* elem() const { return elem_; }
+    const PrimLit* elem() const { return elem_; }
     virtual uint64_t hash() const;
 
     Use tuple;
 
 private:
 
-    PrimConst* elem_;
+    PrimLit* elem_;
 };
 
 //------------------------------------------------------------------------------
@@ -34,7 +34,7 @@ private:
 class Extract : public SigmaOp {
 private:
 
-    Extract(Def* tuple, PrimConst* elem, 
+    Extract(Def* tuple, PrimLit* elem, 
             const std::string& tupleDebug,
             const std::string& debug);
 };
@@ -44,7 +44,7 @@ private:
 class Insert : public SigmaOp {
 private:
 
-    Insert(Def* tuple, PrimConst* elem, Def* value, 
+    Insert(Def* tuple, PrimLit* elem, Def* value, 
            const std::string& tupleDebug, const std::string& valueDebug,
            const std::string& debug)
         : SigmaOp(Index_Insert, tuple->type(), tuple, elem, tupleDebug, debug)

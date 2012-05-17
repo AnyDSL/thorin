@@ -37,6 +37,14 @@ World::~World() {
  * types
  */
 
+Sigma* World::sigma(const std::string& name /*= ""*/) {
+    Sigma* sigma = new Sigma(*this, true);
+    sigma->debug = name;
+    namedSigmas_.push_back(sigma);
+
+    return sigma;
+}
+
 /*
  * literals
  */
@@ -72,14 +80,6 @@ ArithOp* World::createArithOp(ArithOpKind arithOpKind, Def* ldef, Def* rdef) {
     ArithOp* op = new ArithOp(arithOpKind, ldef, rdef);
     defs_.insert(std::make_pair(op->hash(), op));
     return op;
-}
-
-Sigma* World::sigma(const std::string& name /*= ""*/) {
-    Sigma* sigma = new Sigma(*this, true);
-    sigma->debug = name;
-    namedSigmas_.push_back(sigma);
-
-    return sigma;
 }
 
 /*

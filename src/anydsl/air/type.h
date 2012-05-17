@@ -93,9 +93,9 @@ private:
 
     /// Creates an unamed Sigma from the given range.
     template<class T>
-    Sigma(World& world, T begin, T end)
+    Sigma(World& world, T begin, T end, bool named)
         : CompoundType(world, Index_Sigma, begin, end)
-        , named_(false)
+        , named_(named)
     {}
 
 public:

@@ -85,7 +85,7 @@ public:
     }
 
     template<class T>
-    const Sigma* sigma(T begin, T end);
+    const Sigma* sigma(T begin, T end, bool named = false);
 
     /// Creates a fresh \em named sigma.
     Sigma* sigma(const std::string& name = "");

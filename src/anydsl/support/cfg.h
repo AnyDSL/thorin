@@ -20,11 +20,14 @@ namespace anydsl {
 namespace anydsl {
 
 class BB;
+class Binding;
 class Emitter;
 class Fct;
 class Token;
 class World;
 typedef boost::unordered_set<BB*> BBs;
+typedef std::list<const Param*> Params;
+typedef Params::iterator ParamIter;
 
 //------------------------------------------------------------------------------
 
@@ -33,8 +36,6 @@ public:
 
     BB(World& world, const std::string& name = "");
     virtual ~BB() {}
-
-    //static BB* create(const Symbol sym = Symbol(""));
 
     /// Insert \p bb as sub BB (i.e., as dom child) into this BB.
     void insert(BB* bb);
@@ -45,13 +46,12 @@ public:
 
     const BBs& pre() const { return pred_; }
     const BBs& succ() const { return succ_; }
-    //Def* appendLambda(CExpr* cexpr, Type* type);
-    //virtual Binding* getVN(const Location& loc, const Symbol sym, Type* type, bool finalize);
-    //void setVN(const Location& loc, Binding* bind);
+    virtual Binding* getVN(const Symbol sym, const Type* type, bool finalize);
+    void setVN(Binding* bind);
 
     void finalizeAll();
     //void processTodos();
-    //void finalize(size_t x, const Symbol sym);
+    void finalize(ParamIter param, const Symbol sym);
     //bool hasVN(const Symbol sym) { return values_.find(sym) != values_.end(); }
 
     void inheritValues(BB* bb);
@@ -68,14 +68,11 @@ public:
 protected:
 public:
 
-#if 0
-
     typedef std::map<const Symbol, Binding*> ValueMap;
     ValueMap values_;
 
-    typedef std::map<Symbol, int, Symbol::FastLess> Todos;
+    typedef std::map<Symbol, ParamIter, Symbol::FastLess> Todos;
     Todos todos_;
-#endif
 
     void flowsTo(BB* to);
 
@@ -117,7 +114,6 @@ public:
     bool hasReturn() const { return ret_; }
     void insertReturn(const Location& loc, BB* bb, Def* def);
     void insertCont(const Location& loc, BB* where, Def* cont);
-    //Def* appendLambda(BB* bb, CExpr* cexpr, Type* type);
     //virtual Binding* getVN(const Location& loc, const Symbol, Type* type, bool finalize);
 
 private:

@@ -1,14 +1,14 @@
-#include <impala/binding.h>
+#include "anydsl/support/binding.h"
 
 #include "anydsl/util/assert.h"
 
 using namespace anydsl;
 
-namespace impala {
+namespace anydsl {
 
 std::ostream& Binding::error() const { 
     //return def->error(); 
     return std::cerr;
 }
 
-} // namespace impala
+} // namespace anydsl

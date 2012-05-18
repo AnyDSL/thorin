@@ -1,6 +1,6 @@
 #include "impala/value.h"
 
-#include "impala/binding.h"
+#include "anydsl/support/binding.h"
 
 #if 0
 

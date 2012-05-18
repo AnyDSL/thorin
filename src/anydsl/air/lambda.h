@@ -1,6 +1,7 @@
 #ifndef ANYDSL_AIR_LAMBDA_H
 #define ANYDSL_AIR_LAMBDA_H
 
+#include <list>
 #include <boost/unordered_set.hpp>
 
 #include "anydsl/air/def.h"
@@ -8,7 +9,11 @@
 namespace anydsl {
 
 class Lambda;
+class Param;
 class Terminator;
+
+typedef std::list<const Param*> Params;
+typedef Params::iterator ParamIter;
 
 typedef boost::unordered_set<Lambda*> Fix;
 
@@ -32,12 +37,15 @@ public:
 
     const Fix& fix() const { return fix_; }
     const Fix& siblings() const { assert(parent_); return parent_->fix(); }
+    const Params& params() const { return params_; }
 
     Terminator* terminator() { return terminator_; }
     const Terminator* terminator() const { return terminator_; }
 
     void insert(Lambda* lambda);
     void remove(Lambda* lambda);
+
+    ParamIter appendParam(const Type* type);
 
 private:
 
@@ -46,6 +54,7 @@ private:
     Lambda* parent_;
     Terminator* terminator_;
     Fix fix_;
+    Params params_;
 
     friend class World;
 };

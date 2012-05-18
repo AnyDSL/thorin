@@ -4,11 +4,10 @@
 #include <iomanip>
 #include <sstream>
 
-#include "anydsl/util/assert.h"
+#include "anydsl/support/binding.h"
 #include "anydsl/support/cfg.h"
 #include "anydsl/support/symbol.h"
-
-#include "impala/binding.h"
+#include "anydsl/util/assert.h"
 
 
 #define PARSE_COMMA_LIST(stmnt, delimiter, context) { \

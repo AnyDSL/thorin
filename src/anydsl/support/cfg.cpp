@@ -3,6 +3,7 @@
 #include "anydsl/air/literal.h"
 #include "anydsl/air/terminator.h"
 #include "anydsl/air/world.h"
+#include "anydsl/support/binding.h"
 #include "anydsl/util/foreach.h"
 
 using namespace anydsl;
@@ -21,29 +22,6 @@ BB::BB(World& world, const std::string& name /*= ""*/)
 World& BB::world() { 
     return lambda_->world();
 }
-
-#if 0
-/*static*/ BB* BB::create(const Symbol sym /*= Symbol("")*/) {
-    BB* bb = new BB(0, Location(), sym);
-    return bb;
-}
-#endif
-
-#if 0
-Def* BB::appendLambda(CExpr* cexpr, Type* type) {
-    anydsl_assert(parent_, "not set");
-    anydsl_assert(!lcursor_->body(), "must be empty");
-
-    const Location& loc = cexpr->loc();
-    Lambda* lambda = new Lambda(loc);
-    Param* result = lambda->appendParam(type, loc);
-    cexpr->appendLambda(lambda);
-    lcursor_->body() = cexpr;
-    lcursor_ = lambda;
-
-    return result;
-}
-#endif
 
 void BB::insert(BB* bb) {
     anydsl_assert(!bb->parent_, "parent already set");
@@ -75,10 +53,6 @@ void BB::invokes(Def* fct) {
     anydsl_assert(succ_.size() == 0, "wrong number of succ");
     // succs by invokes are not captured in the CFG
 }
-
-#if 0
-
-#endif
 
 void BB::flowsTo(BB* to) {
     BBs::iterator i = succ_.find(to);
@@ -156,31 +130,31 @@ void BB::fixBeta(Beta* beta, size_t x, const Symbol sym, Type* type) {
     args[x] = def;
 }
 
-Binding* BB::getVN(const Location& loc, const Symbol sym, Type* type, bool finalize) {
+#endif
+
+Binding* BB::getVN(const Symbol sym, const Type* type, bool finalize) {
     BB::ValueMap::iterator i = values_.find(sym);
 
     if (i == values_.end()) {
         if (pred_.size() == 1) {
             BB* pred = *pred_.begin();
-            Binding* bind = pred->getVN(loc, sym, type, finalize);
+            Binding* bind = pred->getVN(sym, type, finalize);
             // create copy of binding in this block
             Binding* newBind = new Binding(bind->sym, bind->def);
-            setVN(loc, newBind);
+            setVN(newBind);
 
             anydsl_assert(newBind->def, "must be valid");
             return newBind;
         } else {
             // add bind as param to current BB
-            Param* param = lambda_->appendParam(type, loc);
-            size_t x = lambda_->params().size() - 1;
-            param->meta = type;
+            ParamIter param = lambda_->appendParam(type);
             // insert new VN
-            Binding* bind = new Binding(sym, param);
-            setVN(loc, bind);
+            Binding* bind = new Binding(sym, *param);
+            setVN(bind);
 
             if (finalize) {
                 FOREACH(pred, pred_)
-                    pred->finalize(x, sym);
+                    pred->finalize(param, sym);
             } else {
                 // remember to fix preds
 #ifdef DEBUG_CFG
@@ -189,7 +163,7 @@ Binding* BB::getVN(const Location& loc, const Symbol sym, Type* type, bool final
                     std::cout << "    pred: " << pred->name() << std::endl;
 #endif
                 anydsl_assert(todos_.find(sym) == todos_.end(), "double insert");
-                todos_[sym] = x;
+                todos_[sym] = param;
             }
 
             anydsl_assert(bind->def, "must be valid");
@@ -201,12 +175,10 @@ Binding* BB::getVN(const Location& loc, const Symbol sym, Type* type, bool final
     return i->second;
 }
 
-void BB::setVN(const Location& loc, Binding* bind) {
+void BB::setVN(Binding* bind) {
     anydsl_assert(values_.find(bind->sym) == values_.end(), "double insert");
     values_[bind->sym] = bind;
 }
-
-#endif
 
 std::string BB::name() const { 
     const std::string& str = lambda_->debug;
@@ -285,17 +257,6 @@ void Fct::insertReturn(const Location& loc, BB* bb, Def* def) {
 void Fct::insertCont(const Location& loc, BB* where, Def* cont) {
     anydsl_assert(cont, "must be valid");
     where->calls(loc, cont);
-}
-
-Def* Fct::appendLambda(BB* bb, CExpr* cexpr, Type* type) {
-    anydsl_assert(verify(bb), "BB '" 
-            + std::string(bb->name()) 
-            + "' does not belong to function '"
-            + std::string(name()) 
-            + "' but to: '" 
-            + std::string(bb->belongsTo().str()) + "'");
-
-    return bb->appendLambda(cexpr, type);
 }
 
 Binding* Fct::getVN(const Location& loc, const Symbol sym, Type* type, bool finalize) {

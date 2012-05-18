@@ -37,4 +37,8 @@ void Lambda::remove(Lambda* lambda) {
     fix_.erase(lambda);
 }
 
+ParamIter appendParam(const Type* type) {
+    //return 0;
+}
+
 } // namespace anydsl

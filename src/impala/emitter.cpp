@@ -2,8 +2,8 @@
 
 #include "anydsl/util/location.h"
 #include "anydsl/support/cfg.h"
+#include "anydsl/support/binding.h"
 
-#include "impala/binding.h"
 #include "impala/token.h"
 
 #if 0

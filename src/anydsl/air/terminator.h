@@ -8,6 +8,9 @@
 #include "anydsl/air/literal.h"
 #include "anydsl/air/use.h"
 
+// No, this file is not about this guy:
+// http://en.wikipedia.org/wiki/The_Terminator
+
 namespace anydsl {
 
 //------------------------------------------------------------------------------

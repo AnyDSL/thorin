@@ -4,7 +4,7 @@
 #include "anydsl/air/literal.h"
 #include "anydsl/air/type.h"
 #include "anydsl/air/terminator.h"
-#include "anydsl/support/world.h"
+#include "anydsl/air/world.h"
 #include "anydsl/util/box.h"
 #include "anydsl/util/cast.h"
 #include "anydsl/util/location.h"

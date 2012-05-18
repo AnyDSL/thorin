@@ -2,7 +2,7 @@
 
 #include "anydsl/air/literal.h"
 #include "anydsl/air/terminator.h"
-#include "anydsl/support/world.h"
+#include "anydsl/air/world.h"
 #include "anydsl/util/foreach.h"
 
 using namespace anydsl;

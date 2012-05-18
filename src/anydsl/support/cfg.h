@@ -102,19 +102,17 @@ private:
 
 //------------------------------------------------------------------------------
 
-#if 0
 class Fct : public BB {
 public:
 
-    Fct(const Location& loc, const Symbol sym);
-    Fct(BB* parent, const Location& loc, const Symbol sym);
+    Fct(const Symbol sym, BB* parent = 0);
 
     //Fct* createSubFct(const Location& loc, const Symbol sym);
     void setReturn(const Location& loc, Type* retType);
     bool hasReturn() const { return ret_; }
     void insertReturn(const Location& loc, BB* bb, Def* def);
     void insertCont(const Location& loc, BB* where, Def* cont);
-    //virtual Binding* getVN(const Location& loc, const Symbol, Type* type, bool finalize);
+    virtual Binding* getVN(const Symbol sym, const Type* type, bool finalize);
 
 private:
 
@@ -123,7 +121,6 @@ private:
 
     //friend class impala::Emitter;
 };
-#endif
 
 } // namespace anydsl
 

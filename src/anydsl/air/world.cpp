@@ -58,6 +58,11 @@ PrimLit* World::literal(PrimLitKind kind, Box value) {
     return prim;
 }
 
+Undef* World::undef(const Type* type) {
+    Undef* u = new Undef(type);
+    return u;
+}
+
 /*
  * create
  */

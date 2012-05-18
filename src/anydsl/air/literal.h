@@ -36,6 +36,8 @@ public:
 
     virtual uint64_t hash() const { return hash(type()); }
     static  uint64_t hash(const Type*);
+
+    friend class World;
 };
 
 //------------------------------------------------------------------------------

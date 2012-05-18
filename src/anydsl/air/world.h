@@ -21,7 +21,9 @@ class PrimLit;
 class PrimType;
 class Sigma;
 class Terminator;
+class Type;
 class Value;
+class Undef;
 
 //------------------------------------------------------------------------------
 
@@ -103,6 +105,7 @@ public:
     PrimLit* literal(T value) { return literal(type2kind<T>::kind, Box(value)); }
     PrimLit* literal(PrimTypeKind kind, Box value) { return literal(type2lit(kind), value); }
     PrimLit* literal(PrimLitKind kind, Box value);
+    Undef* undef(const Type* type);
 
     /*
      * create

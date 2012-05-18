@@ -214,9 +214,8 @@ bool BB::verify(BB* bb) {
 //------------------------------------------------------------------------------
 
 #if 0
-
-Fct::Fct(const Location& loc, const Symbol sym)
-    : BB(0, loc, sym)
+Fct::Fct(const Symbol sym)
+    : BB(0, sym.str())
     , ret_(0)
 {}
 
@@ -225,7 +224,6 @@ Fct::Fct(BB* parent, const Location& loc, const Symbol sym)
     , ret_(0)
 {}
 
-#if 0
 Fct* Fct::createSubFct(const Location& loc, const Symbol sym) {
     Fct* subFct = new Fct(this, loc, sym);
     children_.insert(subFct);
@@ -233,7 +231,6 @@ Fct* Fct::createSubFct(const Location& loc, const Symbol sym) {
 
     return subFct;
 }
-#endif
 
 // TODO handle this with normal magic by introducing a <ret> value
 void Fct::setReturn(const Location& loc, Type* retType) {
@@ -259,11 +256,12 @@ void Fct::insertCont(const Location& loc, BB* where, Def* cont) {
     where->calls(loc, cont);
 }
 
-Binding* Fct::getVN(const Location& loc, const Symbol sym, Type* type, bool finalize) {
+#endif
+
+Binding* Fct::getVN(const Symbol sym, const Type* type, bool finalize) {
     BB::ValueMap::iterator i = values_.find(sym);
     if (i == values_.end()) {
-        Undef* undef = new Undef(loc);
-        undef->meta.set(type);
+        Undef* undef = world().undef(type);
         std::cerr << "may be undefined: " << sym << std::endl;
 
         return new Binding(sym, undef);
@@ -272,7 +270,6 @@ Binding* Fct::getVN(const Location& loc, const Symbol sym, Type* type, bool fina
     anydsl_assert(i->second->def, "must be valid");
     return i->second;
 }
-#endif
 
 //------------------------------------------------------------------------------
 

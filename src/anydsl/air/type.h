@@ -3,6 +3,8 @@
 
 #include "anydsl/air/def.h"
 
+#include "anydsl/support/hash.h" // TODO move to cpp
+
 namespace anydsl {
 
 class PrimLit;
@@ -22,6 +24,7 @@ protected:
 public:
 
     World& world() const { return world_; }
+    virtual uint64_t hash() const = 0;
 
 private:
 
@@ -41,7 +44,9 @@ private:
 public:
 
     PrimTypeKind kind() const { return (PrimTypeKind) index(); }
-    virtual uint64_t hash() const { return (uint64_t) index(); }
+
+    virtual uint64_t hash() const { return hash(kind()); }
+    static  uint64_t hash(PrimTypeKind kind);
 
     friend class World;
 };
@@ -109,6 +114,9 @@ public:
         types_.insert(types_.begin(), begin, end);
     }
 
+    virtual uint64_t hash() const { return hash1(Index_Sigma); }
+    //static  uint64_t hash() { return hash1(Index_Sigma); }
+
 private:
 
     bool named_;
@@ -130,6 +138,9 @@ private:
     Pi(World& world, T begin, T end, const std::string& name)
         : CompoundType(world, Index_Sigma, begin, end, name)
     {}
+
+    virtual uint64_t hash() const { return hash1(Index_Pi); }
+    //static  uint64_t hash() { return hash1(Index_Pi); }
 
     friend class World;
 };

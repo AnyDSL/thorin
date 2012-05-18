@@ -3,28 +3,36 @@
 
 namespace anydsl {
 
-inline uint64_t hashBinOp(const IndexKind index, const void* p1, const void* p2) {
-    /*
-     * The first variant assumes 16 byte alignment on malloc; 
-     * hence the shift ammount of 4 to the right.
-     * the index is being placed in the uppeer 8 bits
-     *
-     * The second variant assumes 8 byte alignment on malloc;
-     * hence the shift ammount of 3 to the right.
-     * The first def pointer is placed in the lower region,
-     * the second one in the higher region,
-     * the index is being placed in the upper (remaining) 6 bits
-     */
+/*
+ * NOTE sizeof-based runtime checks 
+ * will be easily optimized away by every reasonable compiler.
+ */
 
-    // NOTE the check will be easily optimized away by every reasonable compiler
+/**
+ * Casts to uin64_t and shifts alignment away.
+ *
+ * 16 byte alignment on malloc/new is assumed if sizeof(ptr) == 8;
+ * hence the shift amount of 4 to the right.
+ *
+ * 8 byte alignment on malloc/new is assumed otherwise;
+ * hence the shift amount of 3 to the right.
+ */
+inline uint64_t ptr2u64(const void* p) { 
+    int shift = sizeof(uintptr_t) == 8 ? 4 : 3;
+    return uint64_t(uintptr_t(p)) >> shift; 
+}
+
+/// The index \p i is placed in the upper 8 bits of the 64 bit wide hash region.
+inline uint64_t idx2u64(const IndexKind i) { return uint64_t(i) << (64 - 6); }
+
+inline uint64_t hash1(const IndexKind ix) { return idx2u64(ix) << 7*8; }
+inline uint64_t hash2(const IndexKind ix, const void* p) { return hash1(ix) | ptr2u64(p); }
+inline uint64_t hash2(const IndexKind ix, uint64_t ui) { return hash1(ix) ^ ui; }
+inline uint64_t hash3(const IndexKind ix, const void* p1, const void* p2) {
     if (sizeof(uintptr_t) == 8)
-        return (((uintptr_t)    p1) >> 4)
-            +  (((uintptr_t)    p2) >> 4)
-            +  (((uintptr_t) index) << 8*7);
+        return (ptr2u64(p1) + ptr2u64(p2)) | idx2u64(ix);
     else
-        return (((uintptr_t)    p1) >> 3)
-            |  (((uintptr_t)    p2) << (8*4 - 6))
-            |  (((uintptr_t) index) << (8*8 - 6));
+        return ptr2u64(p1) | ptr2u64(p2) | idx2u64(ix);
 }
 
 } // namespace anydsl

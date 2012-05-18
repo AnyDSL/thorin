@@ -8,8 +8,8 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-uint64_t BinOp::hash() const {
-    return hashBinOp(index(), luse.def(), ruse.def());
+/*static*/ uint64_t BinOp::hash(IndexKind index, const Def* ldef, const Def* rdef) {
+    return hash3(index, ldef, rdef);
 }
 
 //------------------------------------------------------------------------------

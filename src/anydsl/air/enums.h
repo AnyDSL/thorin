@@ -115,7 +115,7 @@ enum ConvOpKind {
 #include "anydsl/tables/convoptable.h"
 };
 
-inline PrimTypeKind const2type(PrimLitKind kind) {
+inline PrimTypeKind lit2type(PrimLitKind kind) {
     // it holds: Begin_PrimLit + offset = Begin_PrimType
     int offset = Begin_PrimType - Begin_PrimLit;
 
@@ -123,7 +123,7 @@ inline PrimTypeKind const2type(PrimLitKind kind) {
     return (PrimTypeKind) (((int) kind) + offset);
 }
 
-inline PrimLitKind type2const(PrimTypeKind kind) {
+inline PrimLitKind type2lit(PrimTypeKind kind) {
     // it holds: Begin_PrimType + offset = Begin_PrimLit
     int offset = Begin_PrimLit - Begin_PrimType;
 

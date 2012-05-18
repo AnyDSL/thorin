@@ -22,11 +22,12 @@ class Pi;
 class PrimLit;
 class PrimType;
 class Sigma;
+class Value;
 
 //------------------------------------------------------------------------------
 
-typedef boost::unordered_multimap<uint64_t, Def*> DefMap;
-typedef DefMap::iterator DefIter;
+typedef boost::unordered_multimap<uint64_t, Value*> ValueMap;
+typedef ValueMap::iterator DefIter;
 typedef boost::unordered_multimap<uint64_t, Pi*> PiMap;
 typedef boost::unordered_multimap<uint64_t, Sigma*> SigmaMap;
 typedef std::vector<Sigma*> NamedSigmas;
@@ -101,7 +102,9 @@ public:
 
     template<class T>
     PrimLit* literal(T value) { return literal(type2kind<T>::kind, Box(value)); }
-    PrimLit* literal(PrimTypeKind kind, Box value);
+    PrimLit* literal(PrimTypeKind kind, Box value) { return literal(type2lit(kind), value); }
+    PrimLit* literal(PrimLitKind kind, Box value);
+
 
     /*
      * create
@@ -112,7 +115,7 @@ public:
     Branch* createBranch(Lambda* parent, Def* cond, Lambda* tto, Lambda* fto);
     Invoke* createInvoke(Lambda* parent, Def* fct);
 
-    ArithOp* createArithOp(ArithOpKind arithOpKind, Def* ldef, Def* rdef);
+    const ArithOp* createArithOp(ArithOpKind arithOpKind, Def* ldef, Def* rdef);
 
     /*
      * optimize
@@ -123,7 +126,7 @@ public:
 
 private:
 
-    DefMap defs_;
+    ValueMap values_;
     PiMap pis_;
     SigmaMap sigmas_;
     NamedSigmas namedSigmas_;

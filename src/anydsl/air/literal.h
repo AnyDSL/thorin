@@ -26,28 +26,38 @@ typedef std::vector<Literal*> Literals;
 //------------------------------------------------------------------------------
 
 class Undef : public Literal {
-public:
+private:
 
     Undef(const Type* type)
         : Literal(Index_Undef, type)
-        {}
+    {}
+
+public:
+
+    virtual uint64_t hash() const { return hash(type()); }
+    static  uint64_t hash(const Type*);
 };
 
 //------------------------------------------------------------------------------
 
 class PrimLit : public Literal {
+private:
+
+    PrimLit(World& world, PrimLitKind kind, Box box);
+
 public:
 
-    PrimLit(World& world, PrimTypeKind kind, Box box);
-
-    PrimTypeKind kind() { return (PrimTypeKind) index(); }
+    PrimLitKind kind() const { return (PrimLitKind) index(); }
     Box box() const { return box_; }
 
-    virtual uint64_t hash() const;
+    virtual uint64_t hash() const { return hash(kind(), box()); }
+    static  uint64_t hash(PrimLitKind kind, Box box);
 
 private:
 
     Box box_;
+
+    friend class World;
 };
 
 //------------------------------------------------------------------------------
@@ -57,7 +67,8 @@ public:
 
     const Literals& elems() const { return elems_; }
 
-    virtual uint64_t hash() const;
+    virtual uint64_t hash() const { return hash(type()); }
+    static  uint64_t hash(const Type*) { return 0; }
 
 private:
 

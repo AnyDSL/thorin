@@ -25,11 +25,11 @@ public:
     typedef boost::array<Use*, 2> LRUse;
     typedef boost::array<const Use*, 2> ConstLRUse;
 
-    ArithOpKind arithOpKind() { return (ArithOpKind) index(); }
-    virtual uint64_t hash() const;
-
     LRUse lruse() { return (LRUse){{ &luse, &ruse }}; }
     ConstLRUse lruse() const { return (ConstLRUse){{ &ruse, &ruse }}; }
+
+    virtual uint64_t hash() const { return hash(index(), luse.def(), ruse.def()); }
+    static  uint64_t hash(IndexKind index, const Def* ldef, const Def* rdef);
 
 public:
 
@@ -48,6 +48,10 @@ private:
         anydsl_assert(ldef->type() == rdef->type(), "type are not equal");
     }
 
+public:
+
+    ArithOpKind kind() { return (ArithOpKind) index(); }
+
     friend class World;
 };
 
@@ -57,6 +61,10 @@ class RelOp : public BinOp {
 private:
 
     RelOp(ArithOpKind arithOpKind, Def* ldef, Def* rdef);
+
+public:
+
+    RelOpKind kind() { return (RelOpKind) index(); }
 
     friend class World;
 };

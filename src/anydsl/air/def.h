@@ -45,10 +45,8 @@ public:
     void unregisterUse(Use* use);
 
     const Uses& uses() const { return uses_; }
-    const Type* type() { return type_; }
+    const Type* type() const { return type_; }
     World& world() const;
-
-    virtual uint64_t hash() const = 0;
 
 private:
 
@@ -82,6 +80,8 @@ protected:
     Value(IndexKind index, const Type* type)
         : Def(index, type)
     {}
+
+    virtual uint64_t hash() const = 0;
 };
 
 //------------------------------------------------------------------------------

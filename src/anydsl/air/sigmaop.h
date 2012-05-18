@@ -18,7 +18,7 @@ protected:
 public:
 
     const PrimLit* elem() const { return elem_; }
-    virtual uint64_t hash() const;
+    virtual uint64_t hash() const { return 0; /* TODO */ }
 
     Use tuple;
 

@@ -28,7 +28,7 @@ World::~World() {
         delete sigma;
 
     // clean up hash multi maps
-    FOREACH(p, defs_)   delete p.second;
+    FOREACH(p, values_)   delete p.second;
     FOREACH(p, pis_)    delete p.second;
     FOREACH(p, sigmas_) delete p.second;
 }
@@ -49,12 +49,12 @@ Sigma* World::sigma(const std::string& name /*= ""*/) {
  * literals
  */
 
-PrimLit* World::literal(PrimTypeKind kind, Box value) {
+PrimLit* World::literal(PrimLitKind kind, Box value) {
     //Values::iterator i = values_.find(
     std::ostringstream oss;
     oss << value.u64_;
     PrimLit* prim = new PrimLit(*this, kind, value);
-    defs_.insert(std::make_pair(prim->hash(), prim));
+    values_.insert(std::make_pair(prim->hash(), prim));
     return prim;
 }
 
@@ -70,7 +70,7 @@ Goto* World::createGoto(Lambda* parent, Lambda* to) {
     return new Goto(parent, to);
 }
 
-ArithOp* World::createArithOp(ArithOpKind arithOpKind, Def* ldef, Def* rdef) {
+const ArithOp* World::createArithOp(ArithOpKind arithOpKind, Def* ldef, Def* rdef) {
     ////ValRange range = values_.equal_range(0);
     //FOREACH(p, values_.equal_range(0))
     //{
@@ -78,7 +78,7 @@ ArithOp* World::createArithOp(ArithOpKind arithOpKind, Def* ldef, Def* rdef) {
     //}
 
     ArithOp* op = new ArithOp(arithOpKind, ldef, rdef);
-    defs_.insert(std::make_pair(op->hash(), op));
+    values_.insert(std::make_pair(op->hash(), op));
     return op;
 }
 
@@ -91,16 +91,16 @@ void World::cleanup() {
 
     // repeaut until defs do not change anymore
     do {
-        oldSize = defs_.size();
+        oldSize = values_.size();
 
-        for (DefIter i = defs_.begin(), e = defs_.end(); i != e; ++i) {
+        for (DefIter i = values_.begin(), e = values_.end(); i != e; ++i) {
             Def* def = i->second;
             if (def->uses().empty()) {
                 delete def;
-                i = defs_.erase(i);
+                i = values_.erase(i);
             }
         }
-    } while (oldSize != defs_.size());
+    } while (oldSize != values_.size());
 }
 
 } // namespace anydsl

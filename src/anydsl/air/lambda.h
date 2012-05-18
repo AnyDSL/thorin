@@ -41,7 +41,7 @@ public:
 
 private:
 
-    void setTerminator(Terminator* Terminator) { assert(!terminator_); terminator_ = Terminator; }
+    void setTerminator(Terminator* terminator) { assert(!terminator_); terminator_ = terminator; }
 
     Lambda* parent_;
     Terminator* terminator_;

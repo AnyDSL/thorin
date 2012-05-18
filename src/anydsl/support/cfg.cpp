@@ -64,7 +64,7 @@ void BB::goesto(BB* to) {
 void BB::branches(Def* cond, BB* tbb, BB* fbb) {
     assert(tbb);
     assert(fbb);
-    Branch* b = world().createBranch(lambda_, cond, tbb->lambda_, fbb->lambda_);
+    Terminator* b = world().createBranch(lambda_, cond, tbb->lambda_, fbb->lambda_);
     lambda_->setTerminator(b);
     this->flowsTo(tbb);
     this->flowsTo(fbb);

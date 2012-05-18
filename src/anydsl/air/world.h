@@ -12,8 +12,6 @@
 
 namespace anydsl {
 
-class ArithOp;
-class Branch;
 class Def;
 class Goto;
 class Invoke;
@@ -22,6 +20,7 @@ class Pi;
 class PrimLit;
 class PrimType;
 class Sigma;
+class Terminator;
 class Value;
 
 //------------------------------------------------------------------------------
@@ -105,17 +104,16 @@ public:
     PrimLit* literal(PrimTypeKind kind, Box value) { return literal(type2lit(kind), value); }
     PrimLit* literal(PrimLitKind kind, Box value);
 
-
     /*
      * create
      */
 
     Lambda* createLambda(Lambda* parent);
     Goto* createGoto(Lambda* parent, Lambda* to);
-    Branch* createBranch(Lambda* parent, Def* cond, Lambda* tto, Lambda* fto);
+    Terminator* createBranch(Lambda* parent, Def* cond, Lambda* tto, Lambda* fto);
     Invoke* createInvoke(Lambda* parent, Def* fct);
 
-    const ArithOp* createArithOp(ArithOpKind arithOpKind, Def* ldef, Def* rdef);
+    const Value* createArithOp(ArithOpKind arithOpKind, Def* ldef, Def* rdef);
 
     /*
      * optimize

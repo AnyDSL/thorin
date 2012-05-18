@@ -70,7 +70,7 @@ Goto* World::createGoto(Lambda* parent, Lambda* to) {
     return new Goto(parent, to);
 }
 
-const ArithOp* World::createArithOp(ArithOpKind arithOpKind, Def* ldef, Def* rdef) {
+const Value* World::createArithOp(ArithOpKind arithOpKind, Def* ldef, Def* rdef) {
     ////ValRange range = values_.equal_range(0);
     //FOREACH(p, values_.equal_range(0))
     //{
@@ -80,6 +80,23 @@ const ArithOp* World::createArithOp(ArithOpKind arithOpKind, Def* ldef, Def* rde
     ArithOp* op = new ArithOp(arithOpKind, ldef, rdef);
     values_.insert(std::make_pair(op->hash(), op));
     return op;
+}
+
+Terminator* World::createBranch(Lambda* parent, Def* cond, Lambda* tto, Lambda* fto) {
+    Terminator* result; 
+
+    if (PrimLit* lit = cond->isa<PrimLit>()) {
+        if (lit->box().get_u1() == true) 
+            result = new Goto(parent, tto);
+        else
+            result = new Goto(parent, fto);
+    }
+    else
+        result = new Branch(parent, cond, tto, fto);
+
+    parent->setTerminator(result);
+
+    return result;
 }
 
 /*

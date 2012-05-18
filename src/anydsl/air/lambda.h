@@ -36,12 +36,10 @@ public:
     Terminator* terminator() { return terminator_; }
     const Terminator* terminator() const { return terminator_; }
 
-    void setTerminator(Terminator* Terminator) { terminator_ = Terminator; }
+    void setTerminator(Terminator* Terminator) { assert(!terminator_); terminator_ = Terminator; }
 
     void insert(Lambda* lambda);
     void remove(Lambda* lambda);
-
-    virtual uint64_t hash() const { return 0; /* TODO */ }
 
 private:
 

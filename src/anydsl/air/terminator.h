@@ -5,13 +5,15 @@
 #include <boost/ptr_container/ptr_vector.hpp>
 
 #include "anydsl/air/airnode.h"
-#include "anydsl/air/literal.h"
+#include "anydsl/air/lambda.h"
 #include "anydsl/air/use.h"
 
 // No, this file is not about this guy:
 // http://en.wikipedia.org/wiki/The_Terminator
 
 namespace anydsl {
+
+class Lambda;
 
 //------------------------------------------------------------------------------
 

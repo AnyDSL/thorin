@@ -10,7 +10,6 @@
 
 #include "impala/binding.h"
 
-#if 0
 
 #define PARSE_COMMA_LIST(stmnt, delimiter, context) { \
         if (la() != delimiter) { \
@@ -122,10 +121,11 @@ void Parser::error(const std::string& what, const std::string& context) {
  */
 
 Lambda* Parser::parse() {
-    emit.prologue(la().pos1());
+    //emit.prologue(la().pos1());
     parseGlobals();
 
-    return emit.exit();
+    //return emit.exit();
+    return 0;
 }
 
 Token Parser::parseId() {
@@ -138,6 +138,7 @@ Token Parser::parseId() {
     return name;
 }
 
+#if 0
 Type* Parser::parseType() {
     switch (la()) {
 #define IMPALA_TYPE(itype, atype) \
@@ -654,5 +655,6 @@ Value Parser::parseLambda() {
     return Value() /*TODO*/;
 }
 
-} // namespace impala
 #endif
+
+} // namespace impala

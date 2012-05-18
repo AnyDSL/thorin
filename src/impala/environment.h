@@ -19,7 +19,6 @@ namespace impala {
 //------------------------------------------------------------------------------
 
 /*
- * TODO merge this with dslu/context
  * TODO implement sth like a stack manager
  */
 

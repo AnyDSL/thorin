@@ -1,5 +1,5 @@
 #ifndef ANYDSL_SUPPORT_CFG_H
-#define ANYDSL_SUPPORTDING_H
+#define ANYDSL_SUPPORT_CFG_H
 
 #include <map>
 #include <boost/unordered_set.hpp>

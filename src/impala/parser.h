@@ -128,7 +128,7 @@ private:
 
     Lexer lexer_;       ///< invoked in order to get next token
     Token lookahead_[2];///< LL(2) look ahead
-    Emitter emit;       ///< encapsulates AIR construction
+    //Emitter emit;       ///< encapsulates AIR construction
 
     static Type2Prec    preRPrec_; ///< right precedence -- for unary prefix operators
     static Type2BinPrec binPrec_;  ///< left and right precedences -- for binary operators

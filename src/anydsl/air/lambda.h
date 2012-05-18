@@ -36,12 +36,12 @@ public:
     Terminator* terminator() { return terminator_; }
     const Terminator* terminator() const { return terminator_; }
 
-    void setTerminator(Terminator* Terminator) { assert(!terminator_); terminator_ = Terminator; }
-
     void insert(Lambda* lambda);
     void remove(Lambda* lambda);
 
 private:
+
+    void setTerminator(Terminator* Terminator) { assert(!terminator_); terminator_ = Terminator; }
 
     Lambda* parent_;
     Terminator* terminator_;

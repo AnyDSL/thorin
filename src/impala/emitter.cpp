@@ -41,15 +41,13 @@ Fct* Emitter::fct(Cursor& old, const Pi* pi, const Token& name) {
     return fct();
 }
 
-}
-#if 0
-
 
 void Emitter::returnStmt(Value retVal) {
-    fct()->insertReturn(cursor_.bb, retVal.load());
+    fct()->insertReturn(cursor.bb, retVal.load());
 }
 
-//------------------------------------------------------------------------------
+}
+#if 0
 
 Value Emitter::decl(const Token& tok, Type* type) {
     Location loc(tok.pos1(), type->pos2());

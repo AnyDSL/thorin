@@ -13,7 +13,7 @@ class Param;
 class Pi;
 class Terminator;
 
-typedef std::list<const Param*> Params;
+typedef std::list<Param*> Params;
 typedef Params::iterator ParamIter;
 
 typedef boost::unordered_set<Lambda*> Fix;

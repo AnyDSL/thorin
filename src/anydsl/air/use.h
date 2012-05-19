@@ -35,6 +35,7 @@ public:
     Use(AIRNode* parent, Def* def);
     virtual ~Use();
 
+    /// Get the definition \p Def of this \p Use.
     Def* def() { return def_; }
     const Def* def() const { return def_; }
 

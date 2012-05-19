@@ -27,7 +27,7 @@ class Fct;
 class Token;
 class World;
 typedef boost::unordered_set<BB*> BBs;
-typedef std::list<const Param*> Params;
+typedef std::list<Param*> Params;
 typedef Params::iterator ParamIter;
 
 //------------------------------------------------------------------------------
@@ -112,10 +112,9 @@ public:
     Fct(BB* parent, const Pi* pi, const Symbol sym);
     Fct* createSubFct(const Pi* pi, const Symbol sym);
 
-    void setReturn(const Location& loc, Type* retType);
+    void setReturn(const Type* retType);
     bool hasReturn() const { return ret_; }
-    void insertReturn(const Location& loc, BB* bb, Def* def);
-    void insertCont(const Location& loc, BB* where, Def* cont);
+    void insertReturn(BB* bb, Def* def);
     virtual Binding* getVN(const Symbol sym, const Type* type, bool finalize);
 
 private:

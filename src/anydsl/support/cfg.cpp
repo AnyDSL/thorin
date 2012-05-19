@@ -228,32 +228,22 @@ Fct* Fct::createSubFct(const Pi* pi, const Symbol sym) {
     return subFct;
 }
 
-#if 0
-// TODO handle this with normal magic by introducing a <ret> value
-void Fct::setReturn(const Location& loc, Type* retType) {
-    anydsl_assert(!ret_, "already set");
+void Fct::setReturn(const Type* retType) {
+    anydsl_assert(!exit_, "already set");
 
-    ret_ = new Param(loc, Symbol("<return>"));
-    ret_->meta.set(Pi::createUnary(retType));
+    Symbol resSymbol = "<result>";
 
-    exit_ = BB::create(Symbol("<exit>"));
-    exit_->calls(loc, ret_);
-
-    lambda_->params().push_back(ret_);
+    setVN(new Binding(resSymbol, world().undef(retType)));
+    exit_ = new BB(world(), "<exit>");
+    exit_->invokes(ret_);
+    exit_->lambda_->terminator()->as<Invoke>()->jump.args.append(getVN(resSymbol, retType, false)->def);
 }
 
-void Fct::insertReturn(const Location& loc, BB* bb, Def* def) {
+void Fct::insertReturn(BB* bb, Def* def) {
     anydsl_assert(bb, "must be valid");
-    bb->jumps(loc, exit_);
-    bb->getBeta()->args().push_back(def);
+    bb->goesto(exit_);
+    bb->lambda_->terminator()->as<Goto>()->jump.args.append(def);
 }
-
-void Fct::insertCont(const Location& loc, BB* where, Def* cont) {
-    anydsl_assert(cont, "must be valid");
-    where->calls(loc, cont);
-}
-
-#endif
 
 Binding* Fct::getVN(const Symbol sym, const Type* type, bool finalize) {
     BB::ValueMap::iterator i = values_.find(sym);

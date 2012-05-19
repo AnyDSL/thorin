@@ -100,6 +100,9 @@ public:
 
 };
 
+typedef boost::array<DirectJump*, 2> TFJump;
+typedef boost::array<const DirectJump*, 2> ConstTFJump;
+
 //------------------------------------------------------------------------------
 
 class Goto : public Terminator {
@@ -130,9 +133,6 @@ private:
     {}
 
 public:
-
-    typedef boost::array<DirectJump*, 2> TFJump;
-    typedef boost::array<const DirectJump*, 2> ConstTFJump;
 
     TFJump tfjump() { return (TFJump){{ &tjump, &fjump }}; }
     ConstTFJump tfjump() const { return (ConstTFJump){{ &tjump, &fjump }}; }

@@ -22,10 +22,6 @@ World::World()
 World::~World() {
     cleanup();
 
-    std::cout << "#pis: " << pis_.size() << std::endl;
-
-    //FOREACH(primType, primTypes_) delete primType;
-
     for (size_t i = 0; i < Num_PrimTypes; ++i)
         delete primTypes_[i];
 

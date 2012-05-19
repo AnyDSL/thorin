@@ -207,7 +207,7 @@ const T* World::getSigmaOrPi(M& map, Iter begin, Iter end) {
     uint64_t h = T::hash(begin, end);
 
     FOREACHT(p, map.equal_range(h))
-        if (p.second->cmp(begin, end))
+        if (p.second->equal(begin, end))
             return p.second;
 
     std::cout << h << std::endl;

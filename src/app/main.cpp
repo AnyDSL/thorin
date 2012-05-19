@@ -121,8 +121,6 @@ int main() {
     for (Args::const_reverse_iterator i = args.rbegin(), e = args.rend(); i != e; ++i)
         std::cout << "--> " << i->debug << std::endl;
 
-    std::cout << args.size() << std::endl;
-
     Branch b();
     return 0;
 }

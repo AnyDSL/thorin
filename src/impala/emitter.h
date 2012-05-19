@@ -32,8 +32,8 @@ public:
     // helpers
     Value decl(const Token& tok, const anydsl::Type* type);
     void param(const Token& tok, const anydsl::Type* type);
-    anydsl::Fct* fct(const anydsl::Pi* pi, const Token& name);
-    void glueTo(anydsl::BB* to);
+    anydsl::Fct* fct(const Token& name);
+    void fixto(anydsl::BB* to);
     void returnStmt(Value retVal);
 
     // expressions
@@ -53,9 +53,10 @@ public:
 
     Value error();
 
+    anydsl::World& world;
+
 private:
 
-    anydsl::World& world_;
     anydsl::Lambda* root_;
     anydsl::Fct* main_; ///< main function; 0 until not found
     Environment env_;   ///< keep track of symbols and its associated anydsl::Type

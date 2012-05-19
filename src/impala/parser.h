@@ -76,7 +76,7 @@ public:
     anydsl::Lambda* parse();
     Token parseId();
     anydsl::Type* parseType();
-    anydsl::Type* parseParam();
+    void parseParam();
     Value parseDecl();
     void parseGlobals();
     void parseFct();
@@ -116,6 +116,8 @@ public:
     /// helper for condition in if/while/do-while
     Value parseCond(const std::string& what);
 private:
+
+    anydsl::World& world() { return emit.world; }
 
     /// Consume next Token in input stream, fill look-ahead buffer, return consumed Token.
     Token lex();

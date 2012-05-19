@@ -91,7 +91,8 @@ protected:
 class Fct : public BB {
 public:
 
-    Fct(const Pi* pi, const Symbol sym = "<root-function>");
+    Fct(const Pi* pi, const Symbol sym);
+    Fct(World& world, const Symbol sym);
 
     BB* createBB(const std::string& name = "");
 
@@ -104,6 +105,7 @@ public:
     bool hasReturn() const { return ret_; }
     void insertReturn(BB* bb, Def* def);
     virtual Binding* getVN(const Symbol sym, const Type* type, bool finalize);
+    BB* exit() const { return exit_; }
 
 private:
 

@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <sstream>
 
+#include "anydsl/air/world.h"
 #include "anydsl/support/binding.h"
 #include "anydsl/support/cfg.h"
 #include "anydsl/support/symbol.h"
@@ -148,12 +149,12 @@ Type* Parser::parseType() {
     }
 }
 
-Type* Parser::parseParam() {
+void Parser::parseParam() {
     Token name = parseId();
     expect(Token::COLON, "lambda parameter");
-    Type* type = parseType();
+    const Type* type = parseType();
+
     emit.param(name, type);
-    return type;
 }
 
 Value Parser::parseDecl() {
@@ -179,43 +180,30 @@ void Parser::parseGlobals() {
     }
 }
 
-#if 0
 void Parser::parseFct() {
     emit.pushScope();
-    Cursor old;
 
-    Location loc(la().loc());
     eat(Token::DEF);
     Token fname = parseId();
-    Fct* fct = emit.fct(old, la().loc(), fname);
-    //ParamList& params = fct->lambda_->params();
+    emit.fct(fname);
+
     expect(Token::L_PAREN, "function head");
     PARSE_COMMA_LIST
     (
-        {
-            Type* type = parseParam();
-            fct->lambda_->appendParam(type, type->loc());
-        },
-        //params.push_back(scast<Param>(parseParam().load())),
+        parseParam(),
         Token::R_PAREN,
         "arguments of a function call"
     )
-    Type* retType = 0;
 
     // return-continuation
-    if (accept(Token::ARROW)) {
-        retType = parseType();
-        fct->setReturn(Location(/*todo*/), retType);
-    }
+    if (accept(Token::ARROW))
+        emit.curFct->setReturn(parseType());
 
     parseScopeBody();
 
-    if (!emit.getCursor().bb->lcursor_)
-        anydsl_assert(true, "todo");
+    emit.fixto(emit.curFct->exit());
 
-    emit.getCursor().bb->hangInBB(fct->exit_);
-    emit.glueTo(loc, fct->exit_);
-
+#if 0
     fct->finalizeAll();
 
     // HACK
@@ -223,12 +211,10 @@ void Parser::parseFct() {
     retVal->meta = retType;
     fct->exit_->lambda_->params().push_back(retVal);
     fct->exit_->beta_->args().push_back(retVal);
+#endif
 
-    emit.setCursor(old);
     emit.popScope();
 }
-
-#endif
 
 void Parser::parseStmtList() {
     while (true) {

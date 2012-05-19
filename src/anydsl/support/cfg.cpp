@@ -180,6 +180,11 @@ Fct::Fct(const Pi* pi, const Symbol sym)
     , ret_(0)
 {}
 
+Fct::Fct(World& world, const Symbol sym)
+    : BB(0, world.pi(), sym.str())
+    , ret_(0)
+{}
+
 /*static*/ BB* Fct::createBB(const std::string& name /*= ""*/) {
     BB* bb = BB::createBB(world(), name);
     cfg_.insert(bb);

@@ -14,10 +14,10 @@ using namespace anydsl;
 namespace impala {
 
 Emitter::Emitter(anydsl::World& world) 
-    : world_(world) 
+    : world(world) 
     , main_(0)
 {
-    root_ = world_.createLambda();
+    root_ = world.createLambda();
 }
 
 Lambda* Emitter::exit() {
@@ -31,8 +31,8 @@ Lambda* Emitter::exit() {
     return root_;
 }
 
-Fct* Emitter::fct(const Pi* pi, const Token& name) {
-    curBB = curFct = new Fct(pi, name.symbol());
+Fct* Emitter::fct(const Token& name) {
+    curBB = curFct = new Fct(world, name.symbol());
 
     if (std::string("main") == name.symbol().str()) {
         if (main_)
@@ -61,7 +61,7 @@ Value Emitter::decl(const Token& tok, const Type* type) {
         return Value(bind);
     }
 
-    Binding* bind = new Binding(sym, world_.undef(type));
+    Binding* bind = new Binding(sym, world.undef(type));
     curBB->setVN(bind);
     env_.insert(sym, type);
     return Value(bind);
@@ -85,13 +85,13 @@ void Emitter::param(const Token& tok, const Type* type) {
 
 Value Emitter::literal(const Token& tok) {
     switch (tok) {
-        case Token::TRUE:  return Value(world_.literal(true));
-        case Token::FALSE: return Value(world_.literal(false));
+        case Token::TRUE:  return Value(world.literal(true));
+        case Token::FALSE: return Value(world.literal(false));
 
         default:
             switch (tok) {
 #define IMPALA_LIT(TOK, T) \
-                case Token:: TOK: return Value(world_.literal(type2kind<T>::kind, tok.box()));
+                case Token:: TOK: return Value(world.literal(type2kind<T>::kind, tok.box()));
 #include <impala/tokenlist.h>
                 default: ANYDSL_UNREACHABLE;
             }
@@ -106,13 +106,13 @@ Value Emitter::prefixOp(const Token& op, Value bval) {
         switch (op) {
             case Token::SUB: {
                 // TODO incorrect for f32, f64
-                PrimLit* zero = world_.literal(p->kind(), 0u);
-                return Value(world_.createArithOp(anydsl::ArithOp_sub, zero, bval.load()));
+                PrimLit* zero = world.literal(p->kind(), 0u);
+                return Value(world.createArithOp(anydsl::ArithOp_sub, zero, bval.load()));
             }
             case Token::INC:
             case Token::DEC: {
-                PrimLit* one = world_.literal(p->kind(), 1u);
-                Value val(world_.createArithOp(op.toArithOp(), bval.load(), one));
+                PrimLit* one = world.literal(p->kind(), 1u);
+                Value val(world.createArithOp(op.toArithOp(), bval.load(), one));
                 bval.store(val.load());
                 return bval;
             }
@@ -141,24 +141,24 @@ Value Emitter::infixOp(Value aval, const Token& op, Value bval) {
         }
 
         if (op.isArith())
-            return Value(world_.createArithOp(op.toArithOp(), aval.load(), bval.load()));
+            return Value(world.createArithOp(op.toArithOp(), aval.load(), bval.load()));
         else if (op.isRel())
-            return Value(world_.createRelOp(op.toRelOp(), aval.load(), bval.load()));
+            return Value(world.createRelOp(op.toRelOp(), aval.load(), bval.load()));
     }
 
     op.error() << "type error: TODO\n";
 
     const Type* t = p1 ? p1 : p2;
     if (t)
-        return Value(world_.literal_error(t)); 
+        return Value(world.literal_error(t)); 
 
     return error();
 }
 
 Value Emitter::postfixOp(Value aval, const Token& op) {
     if (const PrimType* p = aval.type()->isa<PrimType>()) {
-        PrimLit* one = world_.literal(p->kind(), 1u);
-        Value val(world_.createArithOp(op.toArithOp(), aval.load(), one));
+        PrimLit* one = world.literal(p->kind(), 1u);
+        Value val(world.createArithOp(op.toArithOp(), aval.load(), one));
         aval.store(val.load());
         return val;
     }
@@ -181,7 +181,7 @@ Value Emitter::fctCall(Value f, std::vector<Value> args) {
 #endif
 
 Type* Emitter::builtinType(const Token& tok) {
-    return world_.type(tok.toPrimType());
+    return world.type(tok.toPrimType());
 }
 
 Value Emitter::id(const Token& tok) {
@@ -203,11 +203,11 @@ Value Emitter::id(const Token& tok) {
 
     tok.error() << "symbol '" << sym << "' not defined in current scope\n";
 
-    return Value(world_.undef(type));
+    return Value(world.undef(type));
 }
 
 Value Emitter::error() {
-    return Value(world_.error());
+    return Value(world.error());
 }
 
 } // namespace impala

@@ -13,10 +13,11 @@ using namespace anydsl;
 
 namespace impala {
 
-void Emitter::prologue() {
-    //root_ = new Fct(0, world_.pi(), Symbol("<root-function>"));
-    cursor = Cursor(root_, root_);
-    main_ = 0;
+Emitter::Emitter(anydsl::World& world) 
+    : world_(world) 
+    , main_(0)
+{
+    root_ = world_.createLambda();
 }
 
 Lambda* Emitter::exit() {
@@ -27,26 +28,25 @@ Lambda* Emitter::exit() {
         root_->invokes(root_->lambda()); // TODO exit
 #endif
 
-    return root_->lambda();
+    return root_;
 }
 
-Fct* Emitter::fct(Cursor& old, const Pi* pi, const Token& name) {
-    old = cursor;
-    cursor.bb = cursor.fct = new Fct(pi, name.symbol());
+Fct* Emitter::fct(const Pi* pi, const Token& name) {
+    curBB = curFct = new Fct(pi, name.symbol());
 
     if (std::string("main") == name.symbol().str()) {
         if (main_)
             name.error() << "main already defined\n";
         else
-            main_ = fct();
+            main_ = curFct;
     }
 
-    return fct();
+    return curFct;
 }
 
 
 void Emitter::returnStmt(Value retVal) {
-    fct()->insertReturn(cursor.bb, retVal.load());
+    curFct->insertReturn(curBB, retVal.load());
 }
 
 Value Emitter::decl(const Token& tok, const Type* type) {
@@ -55,14 +55,14 @@ Value Emitter::decl(const Token& tok, const Type* type) {
     if (/*Type* prev =*/ env_.clash(sym)) {
         tok.error() << "symbol '" << sym.str() << "' already defined in this scope\n";
         /*prev->error()*/ std::cerr << "previous definition here\n";
-        anydsl_assert(bb()->hasVN(sym), "env and value map out of sync");
-        Binding* bind = bb()->getVN(sym, type, false);
+        anydsl_assert(curBB->hasVN(sym), "env and value map out of sync");
+        Binding* bind = curBB->getVN(sym, type, false);
 
         return Value(bind);
     }
 
     Binding* bind = new Binding(sym, world_.undef(type));
-    bb()->setVN(bind);
+    curBB->setVN(bind);
     env_.insert(sym, type);
     return Value(bind);
 }
@@ -76,10 +76,10 @@ void Emitter::param(const Token& tok, const Type* type) {
         return;
     }
 
-    Param* p = *fct()->lambda()->appendParam(type);
+    Param* p = *curFct->lambda()->appendParam(type);
     p->debug = name.str();
     Binding* bind = new Binding(name, p);
-    bb()->setVN(bind);
+    curBB->setVN(bind);
     env_.insert(name, type);
 }
 
@@ -120,7 +120,7 @@ Value Emitter::prefixOp(const Token& op, Value bval) {
         }
     }
 
-    return Value(world_.error());
+    return error();
 }
 
 Value Emitter::infixOp(Value aval, const Token& op, Value bval) {
@@ -152,7 +152,7 @@ Value Emitter::infixOp(Value aval, const Token& op, Value bval) {
     if (t)
         return Value(world_.literal_error(t)); 
 
-    return Value(world_.error());
+    return error();
 }
 
 Value Emitter::postfixOp(Value aval, const Token& op) {
@@ -165,7 +165,7 @@ Value Emitter::postfixOp(Value aval, const Token& op) {
 
     op.error() << "type error: TODO\n";
 
-    return Value(world_.error());
+    return error();
 }
 
 #if 0
@@ -190,13 +190,13 @@ Value Emitter::id(const Token& tok) {
     const Type* type = env_.lookup(sym);
 
     if (!type) {
-        anydsl_assert(!bb()->hasVN(sym), "env and value map out of sync");
+        anydsl_assert(!curBB->hasVN(sym), "env and value map out of sync");
 
         tok.error() << "symbol '" << sym.str() << "' not defined in current scope\n";
-        return Value(world_.error());
+        return error();
     }
 
-    Binding* bind = bb()->getVN(tok.symbol(), type, false);
+    Binding* bind = curBB->getVN(tok.symbol(), type, false);
 
     if (bind)
         return Value(bind);
@@ -204,6 +204,10 @@ Value Emitter::id(const Token& tok) {
     tok.error() << "symbol '" << sym << "' not defined in current scope\n";
 
     return Value(world_.undef(type));
+}
+
+Value Emitter::error() {
+    return Value(world_.error());
 }
 
 } // namespace impala

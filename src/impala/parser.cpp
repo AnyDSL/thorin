@@ -228,6 +228,8 @@ void Parser::parseFct() {
     emit.popScope();
 }
 
+#endif
+
 void Parser::parseStmtList() {
     while (true) {
         if (isExpr()) {
@@ -308,6 +310,7 @@ void Parser::parseDeclStmt() {
     expect(Token::SEMICOLON, "the end of an declaration statement");
 }
 
+#if 0
 void Parser::parseIfElse() {
     int id = nextId();
 
@@ -510,6 +513,8 @@ Value Parser::parseCond(const std::string& what) {
     return val;
 }
 
+#endif
+
 bool Parser::isExpr() {
     // identifier without a succeeding colon
     if (la() == Token::ID && la2() != Token::COLON)
@@ -529,7 +534,7 @@ bool Parser::isExpr() {
 }
 
 Value Parser::tryExpr() {
-    return isExpr() ? parseExpr() : Value(new ErrorValue(la().loc()));
+    return isExpr() ? parseExpr() : emit.error();
 }
 
 /*
@@ -622,7 +627,7 @@ Value Parser::parsePrimaryExpr() {
 
         default: {
             error("expression", "primary expression");
-            return Value(new ErrorValue(la().loc()));
+            return emit.error();
         }
     }
 }
@@ -649,7 +654,5 @@ Value Parser::parseLambda() {
 
     return Value() /*TODO*/;
 }
-
-#endif
 
 } // namespace impala

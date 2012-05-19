@@ -21,33 +21,18 @@ namespace impala {
 
 class Token;
 
-struct Cursor {
-
-    Cursor() {}
-    Cursor(anydsl::Fct* fct, anydsl::BB* bb) 
-        : fct(fct)
-        , bb(bb)
-    {}
-
-    anydsl::Fct* fct;
-    anydsl::BB* bb;
-};
-
 class Emitter {
 public:
 
-    Emitter(anydsl::World& world) 
-        : world_(world) 
-    {}
+    Emitter(anydsl::World& world);
 
-    // prologue and epilogue
     void prologue();
     anydsl::Lambda* exit();
 
     // helpers
     Value decl(const Token& tok, const anydsl::Type* type);
     void param(const Token& tok, const anydsl::Type* type);
-    anydsl::Fct* fct(Cursor& old, const anydsl::Pi* pi, const Token& name);
+    anydsl::Fct* fct(const anydsl::Pi* pi, const Token& name);
     void glueTo(anydsl::BB* to);
     void returnStmt(Value retVal);
 
@@ -63,15 +48,15 @@ public:
     void pushScope() { env_.pushScope();  }
     void popScope()  { env_.popScope();  }
 
-    anydsl::BB* bb() { return cursor.bb; }
-    anydsl::Fct* fct() { return cursor.fct; }
+    anydsl::Fct* curFct;
+    anydsl::BB* curBB;
 
-    Cursor cursor;
+    Value error();
 
 private:
 
     anydsl::World& world_;
-    anydsl::Fct* root_;
+    anydsl::Lambda* root_;
     anydsl::Fct* main_; ///< main function; 0 until not found
     Environment env_;   ///< keep track of symbols and its associated anydsl::Type
 };

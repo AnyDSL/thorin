@@ -84,8 +84,6 @@ protected:
     //void fixBeta(Beta* beta, size_t x, const Symbol sym, Type* type);
 
     bool finalized_;
-
-    //friend class Fct;
 };
 
 //------------------------------------------------------------------------------

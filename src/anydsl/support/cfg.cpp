@@ -12,6 +12,13 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
+BB::BB(BB* parent, const Pi* pi, const std::string& name /*= ""*/) 
+    : parent_(parent)
+    , lambda_(world().createLambda(pi))
+{
+    lambda_->debug = name;
+}
+
 BB::BB(World& world, const std::string& name /*= ""*/) 
     : parent_(0)
     , lambda_(world.createLambda(0))
@@ -52,6 +59,11 @@ void BB::invokes(Def* fct) {
     world().createInvoke(lambda(), fct);
     anydsl_assert(succ_.size() == 0, "wrong number of succ");
     // succs by invokes are not captured in the CFG
+}
+
+void BB::fixto(BB* to) {
+    if (!lambda()->terminator())
+        this->goesto(to);
 }
 
 void BB::flowsTo(BB* to) {
@@ -185,17 +197,6 @@ std::string BB::name() const {
     return str.empty() ? "<unnamed>" : str;
 }
 
-#if 0
-void BB::inheritValues(BB* bb) {
-    FOREACH(p, bb->values_) {
-        Binding* bind = p.second;
-        anydsl_assert(p.first == bind->sym, "symbols must be equal");
-        values_[p.first] = new Binding(bind->sym, bind->def);
-    }
-}
-#endif
-
-
 #ifndef NDEBUG
 
 bool BB::verify(BB* bb) {
@@ -213,25 +214,21 @@ bool BB::verify(BB* bb) {
 
 //------------------------------------------------------------------------------
 
-#if 0
-Fct::Fct(const Symbol sym)
-    : BB(0, sym.str())
+Fct::Fct(BB* parent, const Pi* pi, const Symbol sym)
+    : BB(parent, pi, sym.str())
     , ret_(0)
-{}
+{
+    parent_ = parent;
+}
 
-Fct::Fct(BB* parent, const Location& loc, const Symbol sym)
-    : BB(parent, loc, sym)
-    , ret_(0)
-{}
-
-Fct* Fct::createSubFct(const Location& loc, const Symbol sym) {
-    Fct* subFct = new Fct(this, loc, sym);
+Fct* Fct::createSubFct(const Pi* pi, const Symbol sym) {
+    Fct* subFct = new Fct(this, pi, sym);
     children_.insert(subFct);
-    fix_->append(subFct->param_, subFct->lambda_);
 
     return subFct;
 }
 
+#if 0
 // TODO handle this with normal magic by introducing a <ret> value
 void Fct::setReturn(const Location& loc, Type* retType) {
     anydsl_assert(!ret_, "already set");

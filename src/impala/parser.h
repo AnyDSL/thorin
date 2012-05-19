@@ -134,8 +134,8 @@ private:
     static Type2BinPrec binPrec_;  ///< left and right precedences -- for binary operators
     static Type2Prec    postLPrec_;///< left precedence -- for unary postfix operators
 
-    BB* break_;   ///< current break target
-    BB* continue_;///< current continue target
+    anydsl::BB* break_;   ///< current break target
+    anydsl::BB* continue_;///< current continue target
 
     int counter_;
 };

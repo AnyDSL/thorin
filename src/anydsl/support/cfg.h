@@ -14,6 +14,7 @@ namespace anydsl {
     class Def;
     class Lambda;
     class Param;
+    class Pi;
     class Type;
 }
 
@@ -32,6 +33,10 @@ typedef Params::iterator ParamIter;
 //------------------------------------------------------------------------------
 
 class BB {
+protected:
+
+    BB(BB* parent, const Pi* pi, const std::string& name = "");
+
 public:
 
     BB(World& world, const std::string& name = "");
@@ -43,6 +48,7 @@ public:
     void goesto(BB* to);
     void branches(Def* cond, BB* tbb, BB* fbb);
     void invokes(Def* fct);
+    void fixto(BB* to);
 
     const BBs& pre() const { return pred_; }
     const BBs& succ() const { return succ_; }
@@ -53,8 +59,6 @@ public:
     //void processTodos();
     void finalize(ParamIter param, const Symbol sym);
     //bool hasVN(const Symbol sym) { return values_.find(sym) != values_.end(); }
-
-    void inheritValues(BB* bb);
 
     Lambda* lambda() const { return lambda_; }
     std::string name() const;
@@ -105,9 +109,9 @@ private:
 class Fct : public BB {
 public:
 
-    Fct(const Symbol sym, BB* parent = 0);
+    Fct(BB* parent, const Pi* pi, const Symbol sym);
+    Fct* createSubFct(const Pi* pi, const Symbol sym);
 
-    //Fct* createSubFct(const Location& loc, const Symbol sym);
     void setReturn(const Location& loc, Type* retType);
     bool hasReturn() const { return ret_; }
     void insertReturn(const Location& loc, BB* bb, Def* def);

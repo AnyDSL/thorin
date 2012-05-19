@@ -1,40 +1,35 @@
 #include <impala/emitter.h>
 
+#include "anydsl/air/lambda.h"
+#include "anydsl/air/world.h"
 #include "anydsl/util/location.h"
 #include "anydsl/support/cfg.h"
 #include "anydsl/support/binding.h"
 
 #include "impala/token.h"
 
-#if 0
-
 using namespace anydsl;
 
 namespace impala {
 
-void Emitter::prologue(const Position& pos) {
-    Location loc(pos, pos);
-    root_ = new Fct(loc, Symbol("<root-function>"));
-    cursor_ = Cursor(root_, root_);
+void Emitter::prologue() {
+    root_ = new Fct(0, world_.pi(), Symbol("<root-function>"));
+    cursor = Cursor(root_, root_);
     main_ = 0;
 }
 
 Lambda* Emitter::exit() {
-    Location loc;
-    if (main_) {
-        root_->jumps(loc, main_);
-    } else {
-        root_->calls(loc, new Intrinsic(Intrinsic::FUN_EXIT));
-    }
+    if (main_)
+        root_->goesto(main_); // TODO exit
+    else
+        root_->invokes(root_->lambda()); // TODO exit
 
     return root_->lambda_;
 }
 
-//------------------------------------------------------------------------------
-
-Fct* Emitter::fct(Cursor& old, const Location& loc, const Token& name) {
-    old = cursor_;
-    cursor_.bb = cursor_.fct = root_->createSubFct(loc, name.symbol());
+Fct* Emitter::fct(Cursor& old, const Pi* pi, const Token& name) {
+    old = cursor;
+    cursor.bb = cursor.fct = root_->createSubFct(pi, name.symbol());
 
     if (std::string("main") == name.symbol().str()) {
         if (main_)
@@ -46,19 +41,12 @@ Fct* Emitter::fct(Cursor& old, const Location& loc, const Token& name) {
     return fct();
 }
 
-void Emitter::fixBB(const Location& loc, BB* newBB) {
-    BB* bb = cursor_.bb;
-    if (bb != newBB && !bb->hasTerminator())
-        bb->jumps(loc, newBB);
 }
+#if 0
 
-void Emitter::glueTo(const Location& loc, BB* newBB) {
-    fixBB(loc, newBB);
-    setCursor(newBB);
-}
 
-void Emitter::returnStmt(const Location& loc, Value retVal) {
-    fct()->insertReturn(loc, cursor_.bb, retVal.load());
+void Emitter::returnStmt(Value retVal) {
+    fct()->insertReturn(cursor_.bb, retVal.load());
 }
 
 //------------------------------------------------------------------------------
@@ -72,7 +60,7 @@ Value Emitter::decl(const Token& tok, Type* type) {
         tok.error() << "symbol '" << sym.str() << "' already defined in this scope\n";
         prev->error() << "previous definition here\n";
         anydsl_assert(bb()->hasVN(sym), "env and value map out of sync");
-        Binding* bind = bb()->getVN(loc, sym, type, false);
+        Binding* bind = bb()->getVN(sym, type, false);
 
         return Value(bind);
     }
@@ -80,7 +68,7 @@ Value Emitter::decl(const Token& tok, Type* type) {
     Undef* undef = new Undef(loc);
     undef->meta.set(type);
     Binding* bind = new Binding(sym, undef);
-    bb()->setVN(loc, bind);
+    bb()->setVN(bind);
     env_.insert(sym, type);
 
     return Value(bind);
@@ -99,15 +87,11 @@ Value Emitter::param(const Token& tok, Type* type, Param* p) {
 #endif
 
     Binding* bind = new Binding(sym, p);
-    bb()->setVN(loc, bind);
+    bb()->setVN(bind);
     env_.insert(sym, type);
     //cursor_.bb->values_[sym] = p;
 
     return Value(bind);
-}
-
-Value Emitter::appendLambda(CExpr* cexpr, Type* type) {
-    return Value(fct()->appendLambda(cursor_.bb, cexpr, type));
 }
 
 Value Emitter::literal(const Token& tok) {
@@ -150,7 +134,7 @@ Value Emitter::prefixOp(const Token& op, Value bval) {
         beta->args().push_back(zero); \
         beta->args().push_back(bval.load()); \
         Def* fct = new Intrinsic(op.loc(), Intrinsic::BIN_SUB_ ## type ## _ ## type ); \
-        Type* retT = new PrimitiveType(loc, PrimitiveType::Type_ ## type ); \
+        Type* retT = new PrimitiveType(PrimitiveType::Type_ ## type ); \
         beta->fct.set(fct); \
         return appendLambda(beta, retT); \
     }
@@ -161,7 +145,7 @@ Value Emitter::prefixOp(const Token& op, Value bval) {
         beta->args().push_back(bval.load()); \
         beta->args().push_back(one); \
         Def* fct = new Intrinsic(op.loc(), Intrinsic::BIN_ADD_ ## type ## _ ## type ); \
-        Type* retT = new PrimitiveType(loc, PrimitiveType::Type_ ## type ); \
+        Type* retT = new PrimitiveType(PrimitiveType::Type_ ## type ); \
         beta->fct.set(fct); \
         Value val = appendLambda(beta, retT); \
         bval.store(val.load()); \
@@ -174,7 +158,7 @@ Value Emitter::prefixOp(const Token& op, Value bval) {
         beta->args().push_back(bval.load()); \
         beta->args().push_back(one); \
         Def* fct = new Intrinsic(op.loc(), Intrinsic::BIN_SUB_ ## type ## _ ## type ); \
-        Type* retT = new PrimitiveType(loc, PrimitiveType::Type_ ## type ); \
+        Type* retT = new PrimitiveType(PrimitiveType::Type_ ## type ); \
         beta->fct.set(fct); \
         Value val = appendLambda(beta, retT); \
         bval.store(val.load()); \
@@ -245,7 +229,7 @@ Value Emitter::infixOp(Value aval, const Token& op, Value bval) {
 #define CASE_INFIX_BIN(op, type) \
         case PrimitiveType:: Type_ ## type : { \
             Intrinsic::Which intrin = Intrinsic::FUN_BIN_ ## op ; \
-            Type* retT = new PrimitiveType(loc, PrimitiveType::Type_ ## type ); \
+            Type* retT = new PrimitiveType(PrimitiveType::Type_ ## type ); \
             beta->fct.set(new Intrinsic(intrin)); \
             return appendLambda(beta, retT); \
         }
@@ -254,7 +238,7 @@ Value Emitter::infixOp(Value aval, const Token& op, Value bval) {
 #define CASE_INFIX_REL(op, type) \
         case PrimitiveType:: Type_ ## type : { \
             Intrinsic::Which intrin = Intrinsic::FUN_BIN_ ## op ; \
-            Type* retT = new PrimitiveType(loc, PrimitiveType::Type_boolean); \
+            Type* retT = new PrimitiveType(PrimitiveType::Type_boolean); \
             beta->fct.set(new Intrinsic(intrin)); \
             return appendLambda(beta, retT); \
         }
@@ -328,7 +312,7 @@ Value Emitter::postfixOp(Value aval, const Token& op) {
         beta->args().push_back(aval.load()); \
         beta->args().push_back(one); \
         Def* fct = new Intrinsic(op.loc(), Intrinsic::BIN_ADD_ ## type ## _ ## type ); \
-        Type* retT = new PrimitiveType(loc, PrimitiveType::Type_ ## type ); \
+        Type* retT = new PrimitiveType(PrimitiveType::Type_ ## type ); \
         beta->fct.set(fct); \
         Value val = appendLambda(beta, retT); \
         aval.store(val.load()); \
@@ -341,7 +325,7 @@ Value Emitter::postfixOp(Value aval, const Token& op) {
         beta->args().push_back(aval.load()); \
         beta->args().push_back(one); \
         Def* fct = new Intrinsic(op.loc(), Intrinsic::BIN_SUB_ ## type ## _ ## type ); \
-        Type* retT = new PrimitiveType(loc, PrimitiveType::Type_ ## type ); \
+        Type* retT = new PrimitiveType(PrimitiveType::Type_ ## type ); \
         beta->fct.set(fct); \
         Value val = appendLambda(beta, retT); \
         aval.store(val.load()); \

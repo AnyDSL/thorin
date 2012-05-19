@@ -16,7 +16,7 @@ namespace impala {
 class Token : public anydsl::HasLocation {
 public:
 
-    enum Type {
+    enum Kind {
         /*
          * !!! DO NOT CHANGE THIS ORDER !!!
          */
@@ -49,13 +49,13 @@ public:
     Token() {}
 
     /// Create a literal operator or special char token
-    Token(const anydsl::Location& loc, Type tok);
+    Token(const anydsl::Location& loc, Kind tok);
 
     /// Create an identifier (\p ID) or a keyword
     Token(const anydsl::Location& loc, const std::string& str);
 
     /// Create a literal
-    Token(const anydsl::Location& loc, Type type, const std::string& str);
+    Token(const anydsl::Location& loc, Kind type, const std::string& str);
 
     /*
      * getters
@@ -63,8 +63,8 @@ public:
 
     anydsl::Symbol symbol() const { return symbol_; }
     anydsl::Box box() const { return box_; }
-    Type type() const { return type_; }
-    operator Type () const { return type_; }
+    Kind kind() const { return kind_; }
+    operator Kind () const { return kind_; }
 
     /*
      * operator/literal stuff
@@ -78,7 +78,7 @@ public:
         ASGN_OP = 8
     };
 
-    int op() const { return tok2op_[type_]; }
+    int op() const { return tok2op_[kind_]; }
 
     bool isPrefix()  const { return op() &  PREFIX; }
     bool isInfix()   const { return op() &   INFIX; }
@@ -98,8 +98,8 @@ public:
      * comparisons
      */
 
-    bool operator == (const Token& t) const { return type_ == t; }
-    bool operator != (const Token& t) const { return type_ != t; }
+    bool operator == (const Token& t) const { return kind_ == t; }
+    bool operator != (const Token& t) const { return kind_ != t; }
 
     /*
      * statics
@@ -110,32 +110,32 @@ public:
 private:
 
     anydsl::Symbol symbol_;
-    Type type_;
+    Kind kind_;
     anydsl::Box box_;
 
     static int tok2op_[NUM_TOKENS];
-    static anydsl::Symbol insert(Type tok, const char* str);
-    static void insertKey(Type tok, const char* str);
+    static anydsl::Symbol insert(Kind tok, const char* str);
+    static void insertKey(Kind tok, const char* str);
 
-    typedef std::map<Type, anydsl::Symbol> Tok2Sym;
+    typedef std::map<Kind, anydsl::Symbol> Tok2Sym;
     static Tok2Sym tok2sym_;
 
-    typedef std::map<anydsl::Symbol, Type, anydsl::Symbol::FastLess> Sym2Tok;
+    typedef std::map<anydsl::Symbol, Kind, anydsl::Symbol::FastLess> Sym2Tok;
     static Sym2Tok keywords_;
 
-    typedef std::map<Type, size_t> Tok2Str;
+    typedef std::map<Kind, size_t> Tok2Str;
     static Tok2Str tok2str_;
 
     friend std::ostream& operator << (std::ostream& os, const Token& tok);
-    friend std::ostream& operator << (std::ostream& os, const Type&  tok);
+    friend std::ostream& operator << (std::ostream& os, const Kind&  tok);
 };
 
-typedef Token::Type TokenType;
+typedef Token::Kind TokenKind;
 
 //------------------------------------------------------------------------------
 
 std::ostream& operator << (std::ostream& os, const Token& tok);
-std::ostream& operator << (std::ostream& os, const TokenType& tok);
+std::ostream& operator << (std::ostream& os, const TokenKind& tok);
 
 //------------------------------------------------------------------------------
 

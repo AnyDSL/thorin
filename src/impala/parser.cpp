@@ -87,7 +87,7 @@ static Symbol make_symbol(const char* cstr, int id) {
     return Symbol(oss.str());
 }
 
-bool Parser::accept(TokenType type) {
+bool Parser::accept(TokenKind type) {
     if (type == la()) {
         lex();
         return true;
@@ -95,7 +95,7 @@ bool Parser::accept(TokenType type) {
         return false;
 }
 
-bool Parser::expect(TokenType tok, const std::string& context) {
+bool Parser::expect(TokenKind tok, const std::string& context) {
     if (la() == tok) {
         lex();
         return true;
@@ -156,12 +156,10 @@ Type* Parser::parseParam() {
     return type;
 }
 
-#if 0
 Value Parser::parseDecl() {
     Token tok = la();
     expect(Token::ID, "declaration");
     expect(Token::COLON, "declaration");
-    //Value type = tryExpr();
     Type* type = parseType();
 
     return emit.decl(tok, type);
@@ -181,6 +179,7 @@ void Parser::parseGlobals() {
     }
 }
 
+#if 0
 void Parser::parseFct() {
     emit.pushScope();
     Cursor old;

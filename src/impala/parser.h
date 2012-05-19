@@ -62,14 +62,14 @@ public:
     const Token& la2() const { return lookahead_[1]; }
 
 #ifdef NDEBUG
-    Token eat(TokenType /*what*/) { return lex(); }
+    Token eat(TokenKind /*what*/) { return lex(); }
 #else
-    Token eat(TokenType what) { assert(what == la() && "internal parser error"); return lex(); }
+    Token eat(TokenKind what) { assert(what == la() && "internal parser error"); return lex(); }
 #endif
 
-    bool accept(TokenType kind);
+    bool accept(TokenKind tok);
 
-    bool expect(TokenType kind, const std::string& context);
+    bool expect(TokenKind tok, const std::string& context);
     void error(const std::string& what, const std::string& context);
 
     // misc

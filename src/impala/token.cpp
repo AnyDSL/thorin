@@ -15,10 +15,10 @@ namespace impala {
  * constructors
  */
 
-Token::Token(const anydsl::Location& loc, Type tok)
+Token::Token(const anydsl::Location& loc, Kind tok)
     : HasLocation(loc)
     , symbol_(tok2sym_[tok])
-    , type_(tok)
+    , kind_(tok)
 {}
 
 Token::Token(const anydsl::Location& loc, const std::string& str)
@@ -27,20 +27,20 @@ Token::Token(const anydsl::Location& loc, const std::string& str)
 {
     Sym2Tok::const_iterator i = keywords_.find(str);
     if (i == keywords_.end())
-        type_ = Token::ID;
+        kind_ = Token::ID;
     else {
-        type_ = i->second;
+        kind_ = i->second;
     }
 }
 
-Token::Token(const anydsl::Location& loc, Type type, const std::string& str)
+Token::Token(const anydsl::Location& loc, Kind kind, const std::string& str)
     : HasLocation(loc)
     , symbol_( anydsl::SymbolTable::This().get(str) )
-    , type_(type) 
+    , kind_(kind) 
 {
     using namespace std;
 
-    switch (type_) {
+    switch (kind_) {
         //case LIT_INT8:   box_.u8_  = anydsl::bcast< uint8_t,  int8_t>( int8_t(strtol  (symbol_.str(), 0, 0))); break;
         //case LIT_INT16:  box_.u16_ = anydsl::bcast<uint16_t, int16_t>(int16_t(strtol  (symbol_.str(), 0, 0))); break;
         //case LIT_INT32:  box_.u32_ = anydsl::bcast<uint32_t, int32_t>(int32_t(strtol  (symbol_.str(), 0, 0)));  break;
@@ -59,7 +59,7 @@ Token::Token(const anydsl::Location& loc, Type type, const std::string& str)
 }
 
 bool Token::isArith() const {
-    switch (type_) {
+    switch (kind_) {
         case ADD:
         case SUB:
         case MUL:
@@ -70,7 +70,7 @@ bool Token::isArith() const {
 }
 
 bool Token::isRel() const {
-    switch (type_) {
+    switch (kind_) {
         case EQ:
         case NE:
         case LT: 
@@ -84,7 +84,7 @@ bool Token::isRel() const {
 Token Token::seperateAssign() const {
     anydsl_assert(isAsgn(), "must be an assignment other than ASGN");
 
-    switch (type_) {
+    switch (kind_) {
         case ADD_ASGN: return Token(loc_, ADD);
         case SUB_ASGN: return Token(loc_, SUB);
         case MUL_ASGN: return Token(loc_, MUL);
@@ -100,7 +100,7 @@ Token Token::seperateAssign() const {
 }
 
 anydsl::ArithOpKind Token::toArithOp() const {
-    switch (type_) {
+    switch (kind_) {
         case INC:
         case ADD: return anydsl::ArithOp_add;
         case DEC:
@@ -112,7 +112,7 @@ anydsl::ArithOpKind Token::toArithOp() const {
 }
 
 anydsl::RelOpKind Token::toRelOp() const {
-    switch (type_) {
+    switch (kind_) {
         case EQ: return anydsl::RelOp_cmp_eq;
         case NE: return anydsl::RelOp_cmp_ne;
         case LT: return anydsl::RelOp_cmp_ult;
@@ -124,7 +124,7 @@ anydsl::RelOpKind Token::toRelOp() const {
 }
 
 anydsl::PrimTypeKind Token::toPrimType() const {
-    switch (type_) {
+    switch (kind_) {
 #define IMPALA_TYPE(itype, atype) \
         case Token:: TYPE_ ## itype: return anydsl::PrimType_##atype;
 #include "impala/tokenlist.h"
@@ -177,7 +177,7 @@ Token::Tok2Str Token::tok2str_;
     tok2str_[END_OF_FILE] = Symbol("<end of file>").index();
 }
 
-/*static*/ void Token::insertKey(TokenType tok, const char* str) {
+/*static*/ void Token::insertKey(TokenKind tok, const char* str) {
     Symbol s = str;
     anydsl_assert(keywords_.find(s) == keywords_.end(), "already inserted");
     keywords_[s] = tok;
@@ -185,12 +185,12 @@ Token::Tok2Str Token::tok2str_;
 }
 
 
-/*static*/ Symbol Token::insert(TokenType tok, const char* str) {
+/*static*/ Symbol Token::insert(TokenKind tok, const char* str) {
     Symbol s = str;
     std::pair<Tok2Sym::iterator, bool> p = tok2sym_.insert( std::make_pair(tok, s) );
 #ifndef NDEBUG
     if (!p.second) {
-        Type   oldTok = p.first->first;
+        Kind   oldTok = p.first->first;
         Symbol oldSym = p.first->second;
         anydsl_assert(s == oldSym && tok == oldTok, "inserted ambigous duplicate");
     }
@@ -203,8 +203,8 @@ Token::Tok2Str Token::tok2str_;
 
 //------------------------------------------------------------------------------
 
-std::ostream& operator << (std::ostream& os, const TokenType& type) {
-    Token::Tok2Str::iterator i = Token::tok2str_.find(type);
+std::ostream& operator << (std::ostream& os, const TokenKind& kind) {
+    Token::Tok2Str::iterator i = Token::tok2str_.find(kind);
     anydsl_assert(i != Token::tok2str_.end(), "must be found");
     return os << Symbol(i->second).str();
 }
@@ -212,7 +212,7 @@ std::ostream& operator << (std::ostream& os, const TokenType& type) {
 std::ostream& operator << (std::ostream& os, const Token& tok) {
     const char* sym = tok.symbol().str();
     if (std::strcmp(sym, "") == 0)
-        return os << Symbol(Token::tok2str_[tok.type()]).str();
+        return os << Symbol(Token::tok2str_[tok.kind()]).str();
     else
         return os << sym;
 }

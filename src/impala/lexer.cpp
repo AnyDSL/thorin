@@ -268,7 +268,7 @@ l_error:
         // fall through intended
 l_out:
         // lex suffix
-        TokenType tok = floating ? Token::LIT_DOUBLE : Token::LIT_INT32;
+        TokenKind tok = floating ? Token::LIT_DOUBLE : Token::LIT_INT32;
         
         if (floating) {
             if (accept(str, fF))

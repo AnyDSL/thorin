@@ -13,12 +13,23 @@ namespace anydsl {
 
 World::World() 
     : type_error_(new ErrorType(*this))
-    , pi_(pi((const Type**) 0, (const Type**) 0))     // create  pi()
-    , unit_(sigma((const Type**) 0, (const Type**) 0))// creates sigma()
 #define ANYDSL_U_TYPE(T) ,T##_(new PrimType(*this, PrimType_##T))
 #define ANYDSL_F_TYPE(T) ,T##_(new PrimType(*this, PrimType_##T))
 #include "anydsl/tables/primtypetable.h"
-{}
+{
+    {
+        Sigma* s = new Sigma(*this);
+        unit_ = s;
+        uint64_t h = Sigma::hash((const Type**) 0, (const Type**) 0);
+        sigmas_.insert(std::make_pair(h, s));
+    }
+    {
+        Pi* p = new Pi(*this);
+        pi_ = p;
+        uint64_t h = Pi::hash((const Type**) 0, (const Type**) 0);
+        pis_.insert(std::make_pair(h, p));
+    }
+}
 
 World::~World() {
     cleanup();

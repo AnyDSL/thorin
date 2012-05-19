@@ -80,7 +80,7 @@ int main() {
     World w;
     std::cout << w.type_u8()->debug << std::endl;
 
-    impala::Parser(w, std::cin, "asdf");
+    //impala::Parser(w, std::cin, "asdf");
 
     std::cout << std::endl;
 

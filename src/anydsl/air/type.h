@@ -76,8 +76,8 @@ public:
     template<class T>
     bool cmp(T begin, T end) {
         bool result = true;
-        Types::const_iterator j = types_.begin(), f = types_.end();
-        for (T i = begin, e = end; i != e && j != f && result; ++i)
+        Types::const_iterator j = types_.begin(), je = types_.end();
+        for (T i = begin, ie = end; i != ie && j != je && result; ++i, ++j)
             if (*i != *j)
                 return false;
         return true;

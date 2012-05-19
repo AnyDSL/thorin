@@ -20,7 +20,6 @@ Lambda::Lambda(World& world)
 {}
 
 Lambda::~Lambda() {
-    std::cout << "fjdkfjdlk" << std::endl;
     delete terminator_;
 }
 

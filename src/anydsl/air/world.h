@@ -210,6 +210,7 @@ const T* World::getSigmaOrPi(M& map, Iter begin, Iter end) {
         if (p.second->cmp(begin, end))
             return p.second;
 
+    std::cout << h << std::endl;
     return map.insert(std::make_pair(h, new T(*this, begin, end)))->second;
 }
 

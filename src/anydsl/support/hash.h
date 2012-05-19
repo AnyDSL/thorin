@@ -35,6 +35,16 @@ inline uint64_t hash3(const IndexKind ix, const void* p1, const void* p2) {
         return ptr2u64(p1) | ptr2u64(p2) | idx2u64(ix);
 }
 
+template<class T>
+uint64_t hashN(const IndexKind ix, T begin, T end) {
+    uint64_t h = (uint64_t) ix;
+
+    for (T i = begin, e = end; i != e; ++i)
+        h = uint64_t(*i) + h * 31;
+
+    return h;
+}
+
 } // namespace anydsl
 
 #endif // ANYDSL_SUPPORT_HASH_H

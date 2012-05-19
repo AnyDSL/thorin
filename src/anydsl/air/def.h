@@ -48,6 +48,10 @@ public:
     const Type* type() const { return type_; }
     World& world() const;
 
+protected:
+
+    void setType(const Type* type) { type_ = type; }
+
 private:
 
     const Type* type_;
@@ -57,7 +61,7 @@ private:
 //------------------------------------------------------------------------------
 
 class Param : public Def {
-public:
+private:
 
     Param(Lambda* parent, const Type* type)
         : Def(Index_Param, type)
@@ -69,6 +73,8 @@ public:
 private:
 
     Lambda* parent_;
+
+    friend class Lambda;
 };
 
 //------------------------------------------------------------------------------

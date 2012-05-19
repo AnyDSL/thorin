@@ -77,8 +77,20 @@ public:
         return types_[i]; 
     }
 
+    template<class T>
+    bool cmp(T begin, T end) {
+        bool result = true;
+        Types::const_iterator j = types_.begin(), f = types_.end();
+        for (T i = begin, e = end; i != e && j != f && result; ++i)
+            if (*i != *j)
+                return false;
+        return true;
+    }
+
     /// Get element type via anydsl::PrimLit which serves as index.
     const Type* get(PrimLit* c) const;
+
+    const Types& types() const { return types_; }
 
 protected:
 
@@ -114,8 +126,9 @@ public:
         types_.insert(types_.begin(), begin, end);
     }
 
-    virtual uint64_t hash() const { return hash1(Index_Sigma); }
-    //static  uint64_t hash() { return hash1(Index_Sigma); }
+    virtual uint64_t hash() const { return hash(types_.begin(), types_.end()); }
+    template<class T>
+    static uint64_t hash(T begin, T end) { return hashN(Index_Sigma, begin, end); }
 
 private:
 
@@ -135,12 +148,13 @@ private:
     {}
 
     template<class T>
-    Pi(World& world, T begin, T end, const std::string& name)
-        : CompoundType(world, Index_Sigma, begin, end, name)
+    Pi(World& world, T begin, T end)
+        : CompoundType(world, Index_Sigma, begin, end)
     {}
 
-    virtual uint64_t hash() const { return hash1(Index_Pi); }
-    //static  uint64_t hash() { return hash1(Index_Pi); }
+    virtual uint64_t hash() const { return hash(types_.begin(), types_.end()); }
+    template<class T>
+    static uint64_t hash(T begin, T end) { return hashN(Index_Pi, begin, end); }
 
     friend class World;
 };

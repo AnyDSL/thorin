@@ -4,7 +4,6 @@
 #include "anydsl/air/literal.h"
 #include "anydsl/air/type.h"
 #include "anydsl/air/terminator.h"
-#include "anydsl/util/foreach.h"
 
 namespace anydsl {
 
@@ -13,7 +12,7 @@ namespace anydsl {
  */
 
 World::World() 
-    : emptyPi_(new Pi(*this))
+    : pi_(new Pi(*this))
     , unit_(new Sigma(*this, /*named*/ false))
 #define ANYDSL_U_TYPE(T) ,T##_(new PrimType(*this, PrimType_##T))
 #define ANYDSL_F_TYPE(T) ,T##_(new PrimType(*this, PrimType_##T))
@@ -21,14 +20,15 @@ World::World()
 {}
 
 World::~World() {
+    //FOREACH(primType, primTypes_) delete primType;
+
     for (size_t i = 0; i < Num_PrimTypes; ++i)
         delete primTypes_[i];
 
-    FOREACH(sigma, namedSigmas_)
-        delete sigma;
+    FOREACH(sigma,  namedSigmas_) delete sigma;
+    FOREACH(lambda, lambdas_)     delete lambda;
 
-    // clean up hash multi maps
-    FOREACH(p, values_)   delete p.second;
+    FOREACH(p, values_) delete p.second;
     FOREACH(p, pis_)    delete p.second;
     FOREACH(p, sigmas_) delete p.second;
 }
@@ -68,7 +68,9 @@ Undef* World::undef(const Type* type) {
  */
 
 Lambda* World::createLambda(Lambda* parent) {
-    return new Lambda(*this, parent);
+    Lambda* lambda = new Lambda(*this, parent);
+    lambdas_.insert(lambda);
+    return lambda;
 }
 
 Goto* World::createGoto(Lambda* parent, Lambda* to) {

@@ -10,6 +10,7 @@ namespace anydsl {
 
 class Lambda;
 class Param;
+class Pi;
 class Terminator;
 
 typedef std::list<const Param*> Params;
@@ -46,6 +47,8 @@ public:
     void remove(Lambda* lambda);
 
     ParamIter appendParam(const Type* type);
+
+    const Pi* pi() const;
 
 private:
 

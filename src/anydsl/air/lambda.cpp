@@ -15,7 +15,7 @@ Lambda::Lambda(Lambda* parent, const Type* type)
 }
 
 Lambda::Lambda(World& world, Lambda* parent)
-    : Def(Index_Lambda, world.emptyPi())
+    : Def(Index_Lambda, world.pi())
     , parent_(parent)
     , terminator_(0)
 {}
@@ -37,8 +37,24 @@ void Lambda::remove(Lambda* lambda) {
     fix_.erase(lambda);
 }
 
-ParamIter appendParam(const Type* type) {
-    //return 0;
+ParamIter Lambda::appendParam(const Type* type) {
+    // get copy of parameter type list
+    Types types = pi()->types();
+
+    // append new param type
+    types.push_back(type);
+
+    // update pi type
+    setType(world().pi(types));
+
+    // create and register new param
+    ParamIter i = params_.insert(params_.end(), new Param(this, type));
+
+    return i;
+}
+
+const Pi* Lambda::pi() const {
+    return scast<Pi>(type());
 }
 
 } // namespace anydsl

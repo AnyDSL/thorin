@@ -5,10 +5,13 @@
 #include <string>
 
 #include <boost/unordered_map.hpp>
+#include <boost/unordered_set.hpp>
 
 #include "anydsl/air/enums.h"
+#include "anydsl/air/type.h"
 #include "anydsl/util/box.h"
 #include "anydsl/util/autoptr.h"
+#include "anydsl/util/foreach.h"
 
 namespace anydsl {
 
@@ -32,6 +35,7 @@ typedef ValueMap::iterator DefIter;
 typedef boost::unordered_multimap<uint64_t, Pi*> PiMap;
 typedef boost::unordered_multimap<uint64_t, Sigma*> SigmaMap;
 typedef std::vector<Sigma*> NamedSigmas;
+typedef boost::unordered_set<Lambda*> Lambdas;
 
 //------------------------------------------------------------------------------
 
@@ -82,20 +86,63 @@ public:
 #define ANYDSL_F_TYPE(T) PrimType* type_##T() const { return T##_; }
 #include "anydsl/tables/primtypetable.h"
 
+    // primitive types
+
+    /// Get PrimType.
     PrimType* type(PrimTypeKind kind) const { 
         size_t i = kind - Begin_PrimType;
         assert(0 <= i && i < (size_t) Num_PrimTypes); 
         return primTypes_[i];
     }
 
-    template<class T>
-    const Sigma* sigma(T begin, T end, bool named = false);
+    // sigmas
 
+    /// Get unit AKA sigma() AKA void.
+    const Sigma* unit() const { return unit_; }
     /// Creates a fresh \em named sigma.
     Sigma* sigma(const std::string& name = "");
+    template<class T> 
+    const Sigma* sigma(T container, bool named = false) { return sigma(container.begin(), container.end(), named); }
+    /** 
+     * @brief Get named or unnamed \p Sigma (according to \p named) with element types of given range.
+     * 
+     * @param T Must be a forward iterator which yields a const Type* upon using unary 'operator *'.
+     * @param begin Iterator which points to the beginning of the range.
+     * @param end Iterator which points to one element past the end of the range.
+     * @param named Whether you want to receive a named or unnamed Sigma.
+     * 
+     * @return The Sigma.
+     */
+    template<class T>
+    const Sigma* sigma(T begin, T end, bool named = false) {
+        if (named) {
+            Sigma* res = new Sigma(*this, begin, end, named);
+            namedSigmas_.push_back(res);
 
-    const Pi* emptyPi() const { return emptyPi_; }
-    const Sigma* unit() const { return unit_; }
+            return res;
+        }
+
+        return getSigmaOrPi<Sigma>(sigmas_, begin, end);
+    }
+
+    // pis
+
+    /// Creates 'pi()'.
+    const Pi* pi() const { return pi_; }
+    template<class T> 
+    const Pi* pi(T container) { return pi(container.begin(), container.end()); }
+    /** 
+     * @brief Get named or unnamed \p Sigma (according to \p named) with element types of given range.
+     * 
+     * @param T Must be a forward iterator which yields a const Type* upon using unary 'operator *'.
+     * @param begin Iterator which points to the beginning of the range.
+     * @param end Iterator which points to one element past the end of the range.
+     * @param named Whether you want to receive a named or unnamed Sigma.
+     * 
+     * @return The Sigma.
+     */
+    template<class T>
+    const Pi* pi(T begin, T end) { return getSigmaOrPi<Pi>(pis_, begin, end); }
 
     /*
      * literals
@@ -127,12 +174,16 @@ public:
 
 private:
 
+    template<class T, class M, class Iter>
+    const T* getSigmaOrPi(M& map, Iter begin, Iter end);
+
     ValueMap values_;
     PiMap pis_;
     SigmaMap sigmas_;
     NamedSigmas namedSigmas_;
+    Lambdas lambdas_;
 
-    AutoPtr<Pi> emptyPi_; ///< pi().
+    AutoPtr<Pi> pi_; ///< pi().
     AutoPtr<Sigma> unit_; ///< sigma().
 
     union {
@@ -145,6 +196,20 @@ private:
         PrimType* primTypes_[Num_PrimTypes];
     };
 };
+
+template<class T, class M, class Iter>
+const T* World::getSigmaOrPi(M& map, Iter begin, Iter end) {
+    uint64_t h = T::hash(begin, end);
+
+    FOREACHT(p, map.equal_range(h))
+        if (p.second->cmp(begin, end))
+            return p.second;
+
+    const T* res = map.insert(std::make_pair(h, new T(*this, begin, end)))->second;
+    anydsl_assert(h == res->hash(), "hash does not match");
+
+    return res;
+}
 
 } // namespace anydsl
 

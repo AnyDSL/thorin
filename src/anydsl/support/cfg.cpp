@@ -12,14 +12,14 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-BB::BB(BB* parent, const Pi* pi, const std::string& name /*= ""*/) 
+BB::BB(BB* parent, const Pi* pi, const std::string& name) 
     : parent_(parent)
     , lambda_(world().createLambda(pi))
 {
     lambda_->debug = name;
 }
 
-BB::BB(World& world, const std::string& name /*= ""*/) 
+BB::BB(World& world, const std::string& name) 
     : parent_(0)
     , lambda_(world.createLambda(0))
 {
@@ -30,40 +30,16 @@ World& BB::world() {
     return lambda_->world();
 }
 
+/*static*/ BB* BB::createBB(World& world, const std::string& name) {
+    return new BB(world, name);
+}
+
 void BB::insert(BB* bb) {
     anydsl_assert(!bb->parent_, "parent already set");
 
     bb->parent_ = this;
     this->lambda_->insert(bb->lambda());
     children_.insert(bb);
-}
-
-void BB::goesto(BB* to) {
-    assert(to);
-    world().createGoto(lambda_, to->lambda_);
-    this->flowsTo(to);
-    anydsl_assert(succ_.size() == 1, "wrong number of succ");
-}
-
-void BB::branches(Def* cond, BB* tbb, BB* fbb) {
-    assert(tbb);
-    assert(fbb);
-    world().createBranch(lambda_, cond, tbb->lambda_, fbb->lambda_);
-    this->flowsTo(tbb);
-    this->flowsTo(fbb);
-    anydsl_assert(succ_.size() == 2, "wrong number of succ");
-}
-
-void BB::invokes(Def* fct) {
-    anydsl_assert(fct, "must be valid");
-    world().createInvoke(lambda(), fct);
-    anydsl_assert(succ_.size() == 0, "wrong number of succ");
-    // succs by invokes are not captured in the CFG
-}
-
-void BB::fixto(BB* to) {
-    if (!lambda()->terminator())
-        this->goesto(to);
 }
 
 void BB::flowsTo(BB* to) {
@@ -199,16 +175,44 @@ std::string BB::name() const {
 
 //------------------------------------------------------------------------------
 
-Fct::Fct(World& world, const Symbol sym)
-    : BB(0, world.pi(), sym.str())
+Fct::Fct(const Pi* pi, const Symbol sym)
+    : BB(0, pi, sym.str())
     , ret_(0)
 {}
 
-Fct* Fct::createSubFct(const Pi* pi, const Symbol sym) {
-    Fct* subFct = new Fct(this, pi, sym);
-    children_.insert(subFct);
+/*static*/ BB* Fct::createBB(const std::string& name /*= ""*/) {
+    BB* bb = BB::createBB(world(), name);
+    cfg_.insert(bb);
 
-    return subFct;
+    return bb;
+}
+
+void Fct::goesto(BB* from, BB* to) {
+    assert(to);
+    world().createGoto(from->lambda(), to->lambda());
+    from->flowsTo(to);
+    anydsl_assert(from->succ().size() == 1, "wrong number of succ");
+}
+
+void Fct::branches(BB* from, Def* cond, BB* tbb, BB* fbb) {
+    assert(tbb);
+    assert(fbb);
+    world().createBranch(from->lambda(), cond, tbb->lambda(), fbb->lambda());
+    from->flowsTo(tbb);
+    from->flowsTo(fbb);
+    anydsl_assert(from->succ().size() == 2, "wrong number of succ");
+}
+
+void Fct::invokes(BB* from, Def* fct) {
+    anydsl_assert(fct, "must be valid");
+    world().createInvoke(from->lambda(), fct);
+    anydsl_assert(from->succ().size() == 0, "wrong number of succ");
+    // succs by invokes are not captured in the CFG
+}
+
+void Fct::fixto(BB* from, BB* to) {
+    if (!lambda()->terminator())
+        goesto(from, to);
 }
 
 void Fct::setReturn(const Type* retType) {
@@ -218,13 +222,13 @@ void Fct::setReturn(const Type* retType) {
 
     setVN(new Binding(resSymbol, world().undef(retType)));
     exit_ = 0; //new BB(world(), "<exit>");
-    exit_->invokes(ret_);
+    invokes(exit_, ret_);
     exit_->lambda()->terminator()->as<Invoke>()->jump.args.append(getVN(resSymbol, retType, false)->def);
 }
 
 void Fct::insertReturn(BB* bb, Def* def) {
     anydsl_assert(bb, "must be valid");
-    bb->goesto(exit_);
+    goesto(bb, exit_);
     bb->lambda()->terminator()->as<Goto>()->jump.args.append(def);
 }
 

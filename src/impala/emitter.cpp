@@ -20,17 +20,19 @@ void Emitter::prologue() {
 }
 
 Lambda* Emitter::exit() {
+#if 0
     if (main_)
         root_->goesto(main_); // TODO exit
     else
         root_->invokes(root_->lambda()); // TODO exit
+#endif
 
     return root_->lambda();
 }
 
 Fct* Emitter::fct(Cursor& old, const Pi* pi, const Token& name) {
     old = cursor;
-    cursor.bb = cursor.fct = root_->createSubFct(pi, name.symbol());
+    cursor.bb = cursor.fct = new Fct(pi, name.symbol());
 
     if (std::string("main") == name.symbol().str()) {
         if (main_)

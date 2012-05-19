@@ -123,6 +123,15 @@ anydsl::RelOpKind Token::toRelOp() const {
     }
 }
 
+anydsl::PrimTypeKind Token::toPrimType() const {
+    switch (type_) {
+#define IMPALA_TYPE(itype, atype) \
+        case Token:: TYPE_ ## itype: return anydsl::PrimType_##atype;
+#include <impala/tokenlist.h>
+        default: ANYDSL_UNREACHABLE;
+    }
+}
+
 /*
  * static member variables
  */

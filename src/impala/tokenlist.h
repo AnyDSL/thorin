@@ -200,7 +200,7 @@ IMPALA_TYPE(uint,   u32)
 IMPALA_TYPE(float,  f32)
 IMPALA_TYPE(double, f64)
 
-IMPALA_TYPE(  bool, boolean)
-IMPALA_TYPE(  kind, kind)
+IMPALA_TYPE(  bool, u1)
+//IMPALA_TYPE(  kind, kind)
 
 #undef IMPALA_TYPE

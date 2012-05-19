@@ -92,6 +92,7 @@ public:
     Token seperateAssign() const;
     anydsl::ArithOpKind toArithOp() const;
     anydsl::RelOpKind toRelOp() const;
+    anydsl::PrimTypeKind toPrimType() const;
 
     /*
      * comparisons

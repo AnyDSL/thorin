@@ -180,18 +180,13 @@ Value Emitter::fctCall(Value f, std::vector<Value> args) {
 
     return appendLambda(beta, 0 /*TODO*/);
 }
+#endif
 
 Type* Emitter::builtinType(const Token& tok) {
-    switch (tok) {
-#define IMPALA_TYPE(itype, atype) \
-        case Token:: TYPE_ ## itype: \
-            return new PrimitiveType(tok.loc(), PrimitiveType:: Type_ ## atype);
-#include <impala/tokenlist.h>
-
-        default: ANYDSL_UNREACHABLE;
-    }
+    return world_.type(tok.toPrimType());
 }
 
+#if 0
 Value Emitter::id(const Token& tok) {
     const Symbol sym = tok.symbol();
 

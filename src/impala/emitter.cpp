@@ -1,6 +1,7 @@
 #include <impala/emitter.h>
 
 #include "anydsl/air/lambda.h"
+#include "anydsl/air/literal.h"
 #include "anydsl/air/world.h"
 #include "anydsl/util/location.h"
 #include "anydsl/support/cfg.h"
@@ -46,31 +47,27 @@ void Emitter::returnStmt(Value retVal) {
     fct()->insertReturn(cursor.bb, retVal.load());
 }
 
-}
-#if 0
-
-Value Emitter::decl(const Token& tok, Type* type) {
-    Location loc(tok.pos1(), type->pos2());
-
+Value Emitter::decl(const Token& tok, const Type* type) {
     Symbol sym = tok.symbol();
 
-    if (Type* prev = env_.clash(sym)) {
+    if (/*Type* prev =*/ env_.clash(sym)) {
         tok.error() << "symbol '" << sym.str() << "' already defined in this scope\n";
-        prev->error() << "previous definition here\n";
+        /*prev->error()*/ std::cerr << "previous definition here\n";
         anydsl_assert(bb()->hasVN(sym), "env and value map out of sync");
         Binding* bind = bb()->getVN(sym, type, false);
 
         return Value(bind);
     }
 
-    Undef* undef = new Undef(loc);
-    undef->meta.set(type);
-    Binding* bind = new Binding(sym, undef);
+    Binding* bind = new Binding(sym, world_.undef(type));
     bb()->setVN(bind);
     env_.insert(sym, type);
 
     return Value(bind);
 }
+
+}
+#if 0
 
 Value Emitter::param(const Token& tok, Type* type, Param* p) {
     Location loc(tok.pos1(), type->pos2());

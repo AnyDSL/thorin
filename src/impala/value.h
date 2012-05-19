@@ -6,14 +6,13 @@
 #include "anydsl/util/location.h"
 
 namespace anydsl {
+    class Binding;
     class Def;
     class Symbol;
     class Type;
 }
 
 namespace impala {
-
-class Binding;
 
 class Value {
 public:
@@ -25,7 +24,7 @@ public:
         : kind(RVALUE)
         , def(def)
     {}
-    explicit Value(Binding* bind)
+    explicit Value(anydsl::Binding* bind)
         : kind(LVALUE)
         , bind(bind)
     {}
@@ -51,7 +50,7 @@ private:
 
     union {
         anydsl::Def* def;
-        Binding* bind;
+        anydsl::Binding* bind;
     };
 };
 

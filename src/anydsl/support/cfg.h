@@ -6,7 +6,6 @@
 
 #include "anydsl/util/assert.h"
 #include "anydsl/support/symbol.h"
-#include "impala/value.h"
 
 
 namespace anydsl {
@@ -58,7 +57,7 @@ public:
     void finalizeAll();
     //void processTodos();
     void finalize(ParamIter param, const Symbol sym);
-    //bool hasVN(const Symbol sym) { return values_.find(sym) != values_.end(); }
+    bool hasVN(const Symbol sym) { return values_.find(sym) != values_.end(); }
 
     Lambda* lambda() const { return lambda_; }
     std::string name() const;
@@ -100,8 +99,6 @@ private:
     //void fixBeta(Beta* beta, size_t x, const Symbol sym, Type* type);
 
     bool finalized_;
-
-    //friend class impala::Emitter;
 };
 
 //------------------------------------------------------------------------------
@@ -121,8 +118,6 @@ private:
 
     BB* exit_;
     Param* ret_;
-
-    //friend class impala::Emitter;
 };
 
 } // namespace anydsl

@@ -3,8 +3,8 @@
 
 #include <vector>
 
-#include <impala/environment.h>
-#include <impala/value.h>
+#include "impala/environment.h"
+#include "impala/value.h"
 
 namespace anydsl {
     class BB;
@@ -45,7 +45,7 @@ public:
     anydsl::Lambda* exit();
 
     // helpers
-    Value decl(const Token& tok, anydsl::Type* type);
+    Value decl(const Token& tok, const anydsl::Type* type);
     Value param(const Token& tok, anydsl::Type* type, anydsl::Param* p);
     anydsl::Fct* fct(Cursor& old, const anydsl::Pi* pi, const Token& name);
     void glueTo(anydsl::BB* to);

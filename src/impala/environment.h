@@ -38,7 +38,7 @@ public:
      * 
      * @return Returns 0 on failure.
      */
-    anydsl::Type* lookup(const anydsl::Symbol sym);
+    const anydsl::Type* lookup(const anydsl::Symbol sym);
 
     /** 
      * @brief Pushes a new Type on the internal \p TypeStack.
@@ -48,7 +48,7 @@ public:
      *
      * @param sym The \p Symbol to insert.
      */
-    void insert(const anydsl::Symbol sym, anydsl::Type* type);
+    void insert(const anydsl::Symbol sym, const anydsl::Type* type);
 
     /** 
      * @brief Checks whether there already exists a \p Symbol \p sym in the \em current scope.
@@ -57,7 +57,7 @@ public:
      * 
      * @return The current mapping if the lookup succeeds, 0 otherwise.
      */
-    anydsl::Type* clash(const anydsl::Symbol sym) const;
+    const anydsl::Type* clash(const anydsl::Symbol sym) const;
 
     /// Open a new scope.
     void pushScope();
@@ -66,7 +66,7 @@ public:
 
 private:
 
-    typedef std::stack<anydsl::Type*> TypeStack;
+    typedef std::stack<const anydsl::Type*> TypeStack;
     typedef std::map<const anydsl::Symbol, TypeStack*, anydsl::Symbol::FastLess> Scope;
     typedef std::stack<Scope> ScopeStack;
     typedef std::map<const anydsl::Symbol, TypeStack*, anydsl::Symbol::FastLess> Sym2TypeStack;

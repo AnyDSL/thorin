@@ -33,7 +33,7 @@ Environment::~Environment() {
 #endif
 }
 
-Type* Environment::lookup(const Symbol sym) {
+const Type* Environment::lookup(const Symbol sym) {
     Sym2TypeStack::iterator i = sym2typestack_.find(sym);
     if (i != sym2typestack_.end())
         return i->second->top();
@@ -41,7 +41,7 @@ Type* Environment::lookup(const Symbol sym) {
         return 0;
 }
 
-void Environment::insert(const Symbol sym, Type* type) {
+void Environment::insert(const Symbol sym, const Type* type) {
     anydsl_assert(clash(sym) == 0, "must not be found");
 
     // create stack if necessary
@@ -64,7 +64,7 @@ void Environment::insert(const Symbol sym, Type* type) {
     curScope()[sym] = stack;
 }
 
-Type* Environment::clash(const Symbol sym) const {
+const Type* Environment::clash(const Symbol sym) const {
     Scope::const_iterator i = curScope().find(sym);
     if (i != curScope().end())
         return i->second->top();

@@ -83,6 +83,11 @@ void Emitter::param(const Token& tok, const Type* type) {
     env_.insert(name, type);
 }
 
+void Emitter::fixto(anydsl::BB* to) {
+    curFct->fixto(curBB, to);
+    curBB = to;
+}
+
 Value Emitter::literal(const Token& tok) {
     switch (tok) {
         case Token::TRUE:  return Value(world.literal(true));

@@ -42,7 +42,7 @@ void BB::insert(BB* bb) {
     children_.insert(bb);
 }
 
-void BB::flowsTo(BB* to) {
+void BB::flowsto(BB* to) {
     BBs::iterator i = succ_.find(to);
     if (i == succ_.end()) {
         succ_.insert(to);
@@ -195,7 +195,7 @@ Fct::Fct(World& world, const Symbol sym)
 void Fct::goesto(BB* from, BB* to) {
     assert(to);
     world().createGoto(from->lambda(), to->lambda());
-    from->flowsTo(to);
+    from->flowsto(to);
     anydsl_assert(from->succ().size() == 1, "wrong number of succ");
 }
 
@@ -203,8 +203,8 @@ void Fct::branches(BB* from, Def* cond, BB* tbb, BB* fbb) {
     assert(tbb);
     assert(fbb);
     world().createBranch(from->lambda(), cond, tbb->lambda(), fbb->lambda());
-    from->flowsTo(tbb);
-    from->flowsTo(fbb);
+    from->flowsto(tbb);
+    from->flowsto(fbb);
     anydsl_assert(from->succ().size() == 2, "wrong number of succ");
 }
 

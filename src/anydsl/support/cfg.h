@@ -53,10 +53,9 @@ public:
     //void processTodos();
     void finalize(ParamIter param, const Symbol sym);
 
-    void flowsTo(BB* to);
-
     const BBs& pred() const { return pred_; }
     const BBs& succ() const { return succ_; }
+    void flowsto(BB* to);
 
 protected:
 

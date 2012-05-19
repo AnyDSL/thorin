@@ -80,12 +80,16 @@ int Parser::nextId() {
     return id;
 }
 
-static Symbol make_symbol(const char* cstr, int id) {
+static std::string make_name(const char* cstr, int id) {
     std::ostringstream oss;
     oss << '<' << cstr << '-';
     oss << std::setw(2) << std::setfill('0') << id << '>';
 
-    return Symbol(oss.str());
+    return oss.str();
+}
+
+static Symbol make_symbol(const char* cstr, int id) {
+    return Symbol(make_name(cstr, id));
 }
 
 bool Parser::accept(TokenKind type) {
@@ -122,9 +126,7 @@ void Parser::error(const std::string& what, const std::string& context) {
  */
 
 Lambda* Parser::parse() {
-    emit.prologue();
     parseGlobals();
-
     return emit.exit();
 }
 
@@ -197,11 +199,10 @@ void Parser::parseFct() {
 
     // return-continuation
     if (accept(Token::ARROW))
-        emit.curFct->setReturn(parseType());
+        curFct()->setReturn(parseType());
 
     parseScopeBody();
-
-    emit.fixto(emit.curFct->exit());
+    emit.fixto(curFct()->exit());
 
 #if 0
     fct->finalizeAll();
@@ -296,69 +297,60 @@ void Parser::parseDeclStmt() {
     expect(Token::SEMICOLON, "the end of an declaration statement");
 }
 
-#if 0
 void Parser::parseIfElse() {
-    int id = nextId();
-
+    eat(Token::IF);
     emit.pushScope();
+    int id = nextId();
 
     Location loc(la().loc());
 
-    BB*  oldBB = emit.getCursor().bb;
-    BB*   ifBB = oldBB->createSubBB(loc, make_symbol("if-body", id));
-    BB* elseBB = oldBB->createSubBB(loc, make_symbol("if-else-next", id));
-    BB* nextBB = 0; // only if else is there, other wise elseBB is infact "next"
+    BB*  oldBB = curBB();
+    BB*   ifBB = curFct()->createBB(make_name("if-then", id));
+    BB* elseBB = curFct()->createBB(make_name("if-else", id));
+    BB* contBB = curFct()->createBB(make_name("if-cont", id));
 
-    eat(Token::IF);
     Def* cond = parseCond("if-statement").load();
 
-    oldBB->branches(loc, cond, ifBB, elseBB);
+    curFct()->branches(oldBB, cond, ifBB, elseBB);
 
-    emit.setCursor(ifBB);
+    emit.curBB = ifBB;
     parseScope();
 
     if (accept(Token::ELSE)) {
         emit.popScope();
-        nextBB = oldBB->createSubBB(loc, make_symbol("next-body", id));
-        emit.fixBB(loc, nextBB);
-        emit.setCursor(elseBB);
+        emit.fixto(contBB);
+        emit.curBB = elseBB;
         emit.pushScope();
         parseScope();
-        emit.glueTo(loc, nextBB);
-    } else {
-        emit.glueTo(loc, elseBB); 
-        elseBB->param_->symbol() = make_symbol("next-body", id);
-        emit.setCursor(elseBB);
     }
 
     emit.popScope();
+    emit.fixto(contBB); 
 }
 
 void Parser::parseWhile() {
-    int id = nextId();
-    Location loc(la().loc());
-
-    emit.pushScope();
-
-    BB*  oldBB = emit.getCursor().bb;
-    BB* headBB =  oldBB->createSubBB(loc, make_symbol("while-head", id));
-    BB* bodyBB = headBB->createSubBB(loc, make_symbol("while-body", id));
-    BB* nextBB = headBB->createSubBB(loc, make_symbol("while-next", id));
-
     eat(Token::WHILE);
+    emit.pushScope();
+    int id = nextId();
+
+    BB* headBB = curFct()->createBB(make_name("while-head", id));
+    BB* bodyBB = curFct()->createBB(make_name("while-body", id));
+    BB* contBB = curFct()->createBB(make_name("while-cont", id));
+
+    emit.fixto(headBB);
     Def* cond = parseCond("while-statement").load();
 
-    emit.setCursor(bodyBB);
-    parseScope();
-    emit.glueTo(loc, nextBB);
+    curFct()->branches(headBB, cond, bodyBB, contBB);
+    curFct()->goesto(bodyBB, headBB);
 
-    oldBB->jumps(loc, headBB);
-    headBB->branches(loc, cond, bodyBB, nextBB);
-    bodyBB->jumps(loc, headBB);
+    emit.curBB = bodyBB;
+    parseScope();
+    emit.fixto(contBB);
 
     emit.popScope();
 }
 
+#if 0
 void Parser::parseDoWhile() {
     emit.pushScope();
 
@@ -381,12 +373,12 @@ void Parser::parseFor() {
     BB* headBB = pre_BB->createSubBB(loc, make_symbol("for-head", id));
     BB* bodyBB = pre_BB->createSubBB(loc, make_symbol("for-body", id));
     BB* iterBB = bodyBB->createSubBB(loc, make_symbol("for-iter", id));
-    BB* nextBB = pre_BB->createSubBB(loc, make_symbol("for-next", id));
+    BB* contBB = pre_BB->createSubBB(loc, make_symbol("for-next", id));
 
     old_BB->flowsTo(pre_BB);
     pre_BB->flowsTo(headBB);
     headBB->flowsTo(bodyBB);
-    headBB->flowsTo(nextBB);
+    headBB->flowsTo(contBB);
     bodyBB->flowsTo(iterBB);
     iterBB->flowsTo(headBB);
 
@@ -441,10 +433,10 @@ void Parser::parseFor() {
     emit.glueTo(loc, iterBB);
 
     old_BB->jumps(loc, pre_BB);
-    headBB->branches(loc, cond, bodyBB, nextBB);
+    headBB->branches(loc, cond, bodyBB, contBB);
     iterBB->jumps(loc, headBB);
 
-    emit.setCursor(nextBB);
+    emit.setCursor(contBB);
     emit.popScope();
 }
 

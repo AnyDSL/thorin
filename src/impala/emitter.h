@@ -26,7 +26,6 @@ public:
 
     Emitter(anydsl::World& world);
 
-    void prologue();
     anydsl::Lambda* exit();
 
     // helpers

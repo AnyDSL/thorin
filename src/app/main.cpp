@@ -13,6 +13,8 @@
 #include "anydsl/util/types.h"
 #include "anydsl/util/foreach.h"
 
+#include "impala/parser.h"
+
 using namespace anydsl;
 
 int main() {
@@ -77,6 +79,8 @@ int main() {
 
     World w;
     std::cout << w.type_u8()->debug << std::endl;
+
+    impala::Parser(w, std::cin, "asdf");
 
     std::cout << std::endl;
 

@@ -115,9 +115,12 @@ public:
 
     /// helper for condition in if/while/do-while
     Value parseCond(const std::string& what);
+
 private:
 
     anydsl::World& world() { return emit.world; }
+    anydsl::Fct* curFct() { return emit.curFct; }
+    anydsl::BB* curBB() { return emit.curBB; }
 
     /// Consume next Token in input stream, fill look-ahead buffer, return consumed Token.
     Token lex();

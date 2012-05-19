@@ -96,7 +96,7 @@ int main() {
     Args& args = g->jump.args;
     args.append(w.literal(7u))->debug = "7";
     args.append(w.literal(32ul))->debug = "32";
-    args.append(w.literal(666ul))->debug = "666";
+    Args::iterator i = args.append(w.literal(666ul)); i->debug = "666";
     args.append(w.literal(64ul))->debug = "64";
     args.prepend(w.literal(1u))->debug = "1";
     l->appendParam(w.type_u8());
@@ -107,8 +107,6 @@ int main() {
 
     // prepend
     // remove evil and substitute by heavenly
-    Args::iterator i = args.begin();
-    ++i; ++i; ++i;
     std::cout << "evil: " << i->debug << std::endl;
     i = args.erase(i);
     args.insert(i, w.literal(777ul))->debug = "777";

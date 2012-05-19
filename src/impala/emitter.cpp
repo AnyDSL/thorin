@@ -156,67 +156,20 @@ Value Emitter::infixOp(Value aval, const Token& op, Value bval) {
     return Value(world_.error());
 }
 
-#if 0
-
 Value Emitter::postfixOp(Value aval, const Token& op) {
-    Location loc(aval.pos1(), op.pos2());
-
-    if (const PrimitiveType* t = dcast<PrimitiveType>(aval.type())) {
-        Beta* beta = new Beta(loc); 
-
-#define CASE_POST_INC_TYPE(type) \
-    case PrimitiveType:: Type_ ## type: { \
-        Primitive* one = Primitive::create<PrimitiveType::Type_ ## type >(1); \
-        beta->args().push_back(aval.load()); \
-        beta->args().push_back(one); \
-        Def* fct = new Intrinsic(op.loc(), Intrinsic::BIN_ADD_ ## type ## _ ## type ); \
-        Type* retT = new PrimitiveType(PrimitiveType::Type_ ## type ); \
-        beta->fct.set(fct); \
-        Value val = appendLambda(beta, retT); \
-        aval.store(val.load()); \
-        return val; \
-    }
-
-#define CASE_POST_DEC_TYPE(type) \
-    case PrimitiveType:: Type_ ## type: { \
-        Primitive* one = Primitive::create<PrimitiveType::Type_ ## type >(1); \
-        beta->args().push_back(aval.load()); \
-        beta->args().push_back(one); \
-        Def* fct = new Intrinsic(op.loc(), Intrinsic::BIN_SUB_ ## type ## _ ## type ); \
-        Type* retT = new PrimitiveType(PrimitiveType::Type_ ## type ); \
-        beta->fct.set(fct); \
-        Value val = appendLambda(beta, retT); \
-        aval.store(val.load()); \
-        return val; \
-    }
-
-#define CASE_POST_OP(op) \
-    case Token:: op : \
-        switch (t->which()) {              \
-            CASE_POST_ ## op ## _TYPE(i8)  \
-            CASE_POST_ ## op ## _TYPE(i16) \
-            CASE_POST_ ## op ## _TYPE(i32) \
-            CASE_POST_ ## op ## _TYPE(i64) \
-            CASE_POST_ ## op ## _TYPE(u8)  \
-            CASE_POST_ ## op ## _TYPE(u16) \
-            CASE_POST_ ## op ## _TYPE(u32) \
-            CASE_POST_ ## op ## _TYPE(u64) \
-            CASE_POST_ ## op ## _TYPE(f32) \
-            CASE_POST_ ## op ## _TYPE(f64) \
-            default: ANYDSL_UNREACHABLE;   \
-        }
-
-        switch (op) {
-            CASE_POST_OP(INC)
-            CASE_POST_OP(DEC)
-            default: ANYDSL_UNREACHABLE;
-        }
+    if (const PrimType* p = aval.type()->isa<PrimType>()) {
+        PrimLit* one = world_.literal(p->kind(), 1u);
+        Value val(world_.createArithOp(op.toArithOp(), aval.load(), one));
+        aval.store(val.load());
+        return val;
     }
 
     op.error() << "type error: TODO\n";
 
-    return Value(new ErrorValue(loc));
+    return Value(world_.error());
 }
+
+#if 0
 
 Value Emitter::fctCall(Value f, std::vector<Value> args) {
     Beta* beta = new Beta(Location(f.pos1(), args.back().pos2()));

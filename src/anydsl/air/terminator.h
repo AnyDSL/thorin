@@ -35,7 +35,14 @@ private:
 
 //------------------------------------------------------------------------------
 
-/// Helper class for \p Terminator%s.
+/**
+ * Helper class for \p Terminator%s.
+ *
+ * This class is supposed to be embedded in other \p Terminator%s.
+ * \p Jump already has enough encapsulation magic. 
+ * No need to hammer further getters/setters around a Jump aggregate within a class.
+ * Just make it a public class member.
+ */
 class Jump {
 private:
 

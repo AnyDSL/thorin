@@ -117,33 +117,28 @@ Terminator* World::createBranch(Lambda* parent, Def* cond, Lambda* tto, Lambda* 
  * optimize
  */
 
-void World::cleanup() {
+Lambda* getvalue(Lambda* l) { return l; }
+Value* getvalue(std::pair<bool, Value*> p) { return p.second; }
+
+template<class T, class C>
+void World::kill(C& container) {
     size_t oldSize;
-
     do {
-        oldSize = lambdas_.size();
+        oldSize = container.size();
 
-        for (Lambdas::iterator i = lambdas_.begin(), e = lambdas_.end(); i != e; ++i) {
-            Lambda* l = *i;
+        for (typename C::iterator i = container.begin(), e = container.end(); i != e; ++i) {
+            T* l = getvalue(*i);
             if (l->uses().empty()) {
                 delete l;
-                i = lambdas_.erase(i);
+                i = container.erase(i);
             }
         }
-    } while (oldSize != lambdas_.size());
+    } while (oldSize != container.size());
+}
 
-    // repeaut until defs do not change anymore
-    do {
-        oldSize = values_.size();
-
-        for (DefIter i = values_.begin(), e = values_.end(); i != e; ++i) {
-            Def* def = i->second;
-            if (def->uses().empty()) {
-                delete def;
-                i = values_.erase(i);
-            }
-        }
-    } while (oldSize != values_.size());
+void World::cleanup() {
+    kill<Lambda>(lambdas_);
+    kill<Value>(values_);
 }
 
 } // namespace anydsl

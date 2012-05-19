@@ -30,7 +30,6 @@ class Undef;
 //------------------------------------------------------------------------------
 
 typedef boost::unordered_multimap<uint64_t, Value*> ValueMap;
-typedef ValueMap::iterator DefIter;
 typedef boost::unordered_multimap<uint64_t, Pi*> PiMap;
 typedef boost::unordered_multimap<uint64_t, Sigma*> SigmaMap;
 typedef std::vector<Sigma*> NamedSigmas;
@@ -172,6 +171,9 @@ public:
     void cleanup();
 
 private:
+
+    template<class T, class C>
+    static void kill(C& container);
 
     template<class T, class M, class Iter>
     const T* getSigmaOrPi(M& map, Iter begin, Iter end);

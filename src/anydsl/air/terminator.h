@@ -69,8 +69,8 @@ public:
         , args(this)
     {}
 
-    Terminator* parent() { return terminator_; }
-    const Terminator* parent() const { return terminator_; }
+    Terminator* parent() { return parent_; }
+    const Terminator* parent() const { return parent_; }
 
     // Jump/DirectJump do not have vtables so we test 'to'
     DirectJump* asDirectJump() { 
@@ -85,7 +85,7 @@ public:
 
 private:
 
-    Terminator* terminator_;
+    Terminator* parent_;
 
     friend class World;
 };

@@ -4,6 +4,7 @@
 #include "anydsl/air/literal.h"
 #include "anydsl/air/type.h"
 #include "anydsl/air/terminator.h"
+#include "anydsl/air/lambda.h"
 #include "anydsl/air/world.h"
 #include "anydsl/util/box.h"
 #include "anydsl/util/cast.h"
@@ -89,7 +90,10 @@ int main() {
     const Type* members[4] = {w.type_u8(), w.type_f32(), w.type_u1(), w.type_u8()};
     s->set(members, members + 4);
 
-    Args args(0);
+    Lambda* l = w.createLambda(0);
+    l->debug = "hallo";
+    Goto* g = w.createGoto(l, l);
+    Args& args = g->jump.args;
     args.append(w.literal(7u))->debug = "7";
     args.append(w.literal(32ul))->debug = "32";
     args.append(w.literal(666ul))->debug = "666";

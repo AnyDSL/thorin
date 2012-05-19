@@ -1,5 +1,6 @@
 #include "anydsl/air/lambda.h"
 
+#include "anydsl/air/terminator.h"
 #include "anydsl/air/type.h"
 #include "anydsl/air/world.h"
 #include "anydsl/util/foreach.h"
@@ -21,8 +22,8 @@ Lambda::Lambda(World& world, Lambda* parent)
 {}
 
 Lambda::~Lambda() {
-    FOREACH(lambda, fix_)
-        delete lambda;
+    std::cout << "fjdkfjdlk" << std::endl;
+    delete terminator_;
 }
 
 void Lambda::insert(Lambda* lambda) {

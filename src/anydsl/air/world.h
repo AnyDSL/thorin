@@ -205,10 +205,7 @@ const T* World::getSigmaOrPi(M& map, Iter begin, Iter end) {
         if (p.second->cmp(begin, end))
             return p.second;
 
-    const T* res = map.insert(std::make_pair(h, new T(*this, begin, end)))->second;
-    anydsl_assert(h == res->hash(), "hash does not match");
-
-    return res;
+    return map.insert(std::make_pair(h, new T(*this, begin, end)))->second;
 }
 
 } // namespace anydsl

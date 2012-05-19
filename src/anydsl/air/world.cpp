@@ -20,6 +20,8 @@ World::World()
 {}
 
 World::~World() {
+    cleanup();
+
     //FOREACH(primType, primTypes_) delete primType;
 
     for (size_t i = 0; i < Num_PrimTypes; ++i)
@@ -74,7 +76,9 @@ Lambda* World::createLambda(Lambda* parent) {
 }
 
 Goto* World::createGoto(Lambda* parent, Lambda* to) {
-    return new Goto(parent, to);
+    Goto* res = new Goto(parent, to);
+    parent->setTerminator(res);
+    return res;
 }
 
 const Value* World::createArithOp(ArithOpKind arithOpKind, Def* ldef, Def* rdef) {
@@ -112,6 +116,14 @@ Terminator* World::createBranch(Lambda* parent, Def* cond, Lambda* tto, Lambda* 
 
 void World::cleanup() {
     size_t oldSize;
+
+    do {
+        oldSize = lambdas_.size();
+
+        FOREACH(lambda, lambdas_)
+            if (lambda->uses().empty())
+                delete lambda;
+    } while (oldSize != lambdas_.size());
 
     // repeaut until defs do not change anymore
     do {

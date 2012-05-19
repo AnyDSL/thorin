@@ -24,7 +24,6 @@ protected:
 public:
 
     World& world() const { return world_; }
-    virtual uint64_t hash() const = 0;
 
 private:
 
@@ -44,9 +43,6 @@ private:
 public:
 
     PrimTypeKind kind() const { return (PrimTypeKind) index(); }
-
-    virtual uint64_t hash() const { return hash(kind()); }
-    static  uint64_t hash(PrimTypeKind kind);
 
     friend class World;
 };
@@ -126,7 +122,6 @@ public:
         types_.insert(types_.begin(), begin, end);
     }
 
-    virtual uint64_t hash() const { return hash(types_.begin(), types_.end()); }
     template<class T>
     static uint64_t hash(T begin, T end) { return hashN(Index_Sigma, begin, end); }
 
@@ -152,7 +147,6 @@ private:
         : CompoundType(world, Index_Sigma, begin, end)
     {}
 
-    virtual uint64_t hash() const { return hash(types_.begin(), types_.end()); }
     template<class T>
     static uint64_t hash(T begin, T end) { return hashN(Index_Pi, begin, end); }
 

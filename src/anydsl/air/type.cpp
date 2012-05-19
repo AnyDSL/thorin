@@ -13,10 +13,6 @@ PrimType::PrimType(World& world, PrimTypeKind kind)
     debug = kind2str(kind);
 }
 
-/*static*/ uint64_t PrimType::hash(PrimTypeKind kind) {
-    return hash1((IndexKind) kind);
-}
-
 //------------------------------------------------------------------------------
 
 const Type* CompoundType::get(PrimLit* c) const { 

@@ -24,6 +24,7 @@ Args::Args(Jump* parent)
     , sentinel_(new Node())
     , size_(0)
 {
+    assert(parent);
     sentinel_->next_ = sentinel_;
     sentinel_->prev_ = sentinel_;
 }

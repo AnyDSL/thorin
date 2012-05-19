@@ -41,10 +41,10 @@ Token::Token(const anydsl::Location& loc, Type type, const std::string& str)
     using namespace std;
 
     switch (type_) {
-        case LIT_INT8:   box_.u8_  = anydsl::bcast< uint8_t,  int8_t>( int8_t(strtol  (symbol_.str(), 0, 0))); break;
-        case LIT_INT16:  box_.u16_ = anydsl::bcast<uint16_t, int16_t>(int16_t(strtol  (symbol_.str(), 0, 0))); break;
-        case LIT_INT32:  box_.u32_ = anydsl::bcast<uint32_t, int32_t>(int32_t(strtol  (symbol_.str(), 0, 0)));  break;
-        case LIT_INT64:  box_.u64_ = anydsl::bcast<uint64_t, int64_t>(int64_t(strtoll (symbol_.str(), 0, 0)));  break;
+        //case LIT_INT8:   box_.u8_  = anydsl::bcast< uint8_t,  int8_t>( int8_t(strtol  (symbol_.str(), 0, 0))); break;
+        //case LIT_INT16:  box_.u16_ = anydsl::bcast<uint16_t, int16_t>(int16_t(strtol  (symbol_.str(), 0, 0))); break;
+        //case LIT_INT32:  box_.u32_ = anydsl::bcast<uint32_t, int32_t>(int32_t(strtol  (symbol_.str(), 0, 0)));  break;
+        //case LIT_INT64:  box_.u64_ = anydsl::bcast<uint64_t, int64_t>(int64_t(strtoll (symbol_.str(), 0, 0)));  break;
 
         case LIT_UINT8:  box_. u8_ = uint8_t (strtoul (symbol_.str(), 0, 0)); break;
         case LIT_UINT16: box_.u16_ = uint16_t(strtoul (symbol_.str(), 0, 0)); break;

@@ -145,6 +145,7 @@ template<PrimTypeKind kind> struct kind2type {};
 #include "anydsl/tables/primtypetable.h"
 
 template<class T> struct type2kind {};
+template<> struct type2kind<bool> { static const PrimTypeKind kind = PrimType_u1; };
 #define ANYDSL_U_TYPE(T) template<> struct type2kind<T> { static const PrimTypeKind kind = PrimType_##T; };
 #define ANYDSL_F_TYPE(T) template<> struct type2kind<T> { static const PrimTypeKind kind = PrimType_##T; };
 #include "anydsl/tables/primtypetable.h"

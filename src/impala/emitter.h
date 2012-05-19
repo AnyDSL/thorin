@@ -46,7 +46,7 @@ public:
 
     // helpers
     Value decl(const Token& tok, const anydsl::Type* type);
-    Value param(const Token& tok, anydsl::Type* type, anydsl::Param* p);
+    Value param(const Token& tok, const anydsl::Type* type, anydsl::Param* p);
     anydsl::Fct* fct(Cursor& old, const anydsl::Pi* pi, const Token& name);
     void glueTo(anydsl::BB* to);
     void returnStmt(Value retVal);

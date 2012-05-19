@@ -66,11 +66,7 @@ Value Emitter::decl(const Token& tok, const Type* type) {
     return Value(bind);
 }
 
-}
-#if 0
-
-Value Emitter::param(const Token& tok, Type* type, Param* p) {
-    Location loc(tok.pos1(), type->pos2());
+Value Emitter::param(const Token& tok, const Type* type, Param* p) {
     Symbol sym = tok.symbol();
 
 #if 0
@@ -84,34 +80,27 @@ Value Emitter::param(const Token& tok, Type* type, Param* p) {
     Binding* bind = new Binding(sym, p);
     bb()->setVN(bind);
     env_.insert(sym, type);
-    //cursor_.bb->values_[sym] = p;
 
     return Value(bind);
 }
 
 Value Emitter::literal(const Token& tok) {
-    Primitive* lit = new Primitive(tok.loc());
-
     switch (tok) {
-        case Token::TRUE:
-        case Token::FALSE:
-            lit->box().bool_ = tok == Token::TRUE;
-            lit->setType(PrimitiveType::Type_boolean);
-            return Value(lit);
+        case Token::TRUE:  return Value(world_.literal(true));
+        case Token::FALSE: return Value(world_.literal(false));
 
         default:
-            lit->box() = tok.box();
             switch (tok) {
-#define IMPALA_LIT(tok, t) \
-                case Token:: tok: \
-                    lit->setType(PrimitiveType::Type_ ## t); \
-                    return Value(lit);
+#define IMPALA_LIT(TOK, T) \
+                case Token:: TOK: return Value(world_.literal(type2kind<T>::kind, tok.box()));
 #include <impala/tokenlist.h>
-
                 default: ANYDSL_UNREACHABLE;
             }
     }
 }
+
+}
+#if 0
 
 Value Emitter::prefixOp(const Token& op, Value bval) {
     if (op == Token::ADD)

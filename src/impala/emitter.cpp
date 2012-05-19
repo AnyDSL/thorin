@@ -170,7 +170,6 @@ Value Emitter::postfixOp(Value aval, const Token& op) {
 }
 
 #if 0
-
 Value Emitter::fctCall(Value f, std::vector<Value> args) {
     Beta* beta = new Beta(Location(f.pos1(), args.back().pos2()));
     beta->fct.set(f.load());
@@ -186,32 +185,27 @@ Type* Emitter::builtinType(const Token& tok) {
     return world_.type(tok.toPrimType());
 }
 
-#if 0
 Value Emitter::id(const Token& tok) {
     const Symbol sym = tok.symbol();
 
-    Type* type = env_.lookup(sym);
+    const Type* type = env_.lookup(sym);
 
     if (!type) {
         anydsl_assert(!bb()->hasVN(sym), "env and value map out of sync");
 
         tok.error() << "symbol '" << sym.str() << "' not defined in current scope\n";
-        ErrorValue* error = new ErrorValue(tok.loc());
-        error->meta.set(type);
-
-        return Value(error);
+        return Value(world_.error());
     }
 
-    Binding* bind = bb()->getVN(tok.loc(), tok.symbol(), type, false);
+    Binding* bind = bb()->getVN(tok.symbol(), type, false);
 
     if (bind)
         return Value(bind);
 
     tok.error() << "symbol '" << sym << "' not defined in current scope\n";
-    return Value(new Undef(tok.loc()));
-}
 
-#endif
+    return Value(world_.undef(type));
+}
 
 } // namespace impala
 

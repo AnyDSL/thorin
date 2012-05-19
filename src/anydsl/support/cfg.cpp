@@ -197,29 +197,12 @@ std::string BB::name() const {
     return str.empty() ? "<unnamed>" : str;
 }
 
-#ifndef NDEBUG
-
-bool BB::verify(BB* bb) {
-    if (this == bb)
-        return true;
-
-    FOREACH(i, children_)
-        if (i->verify(bb))
-            return true;
-        
-    return false;
-}
-
-#endif
-
 //------------------------------------------------------------------------------
 
-Fct::Fct(BB* parent, const Pi* pi, const Symbol sym)
-    : BB(parent, pi, sym.str())
+Fct::Fct(World& world, const Symbol sym)
+    : BB(0, world.pi(), sym.str())
     , ret_(0)
-{
-    parent_ = parent;
-}
+{}
 
 Fct* Fct::createSubFct(const Pi* pi, const Symbol sym) {
     Fct* subFct = new Fct(this, pi, sym);
@@ -234,15 +217,15 @@ void Fct::setReturn(const Type* retType) {
     Symbol resSymbol = "<result>";
 
     setVN(new Binding(resSymbol, world().undef(retType)));
-    exit_ = new BB(world(), "<exit>");
+    exit_ = 0; //new BB(world(), "<exit>");
     exit_->invokes(ret_);
-    exit_->lambda_->terminator()->as<Invoke>()->jump.args.append(getVN(resSymbol, retType, false)->def);
+    exit_->lambda()->terminator()->as<Invoke>()->jump.args.append(getVN(resSymbol, retType, false)->def);
 }
 
 void Fct::insertReturn(BB* bb, Def* def) {
     anydsl_assert(bb, "must be valid");
     bb->goesto(exit_);
-    bb->lambda_->terminator()->as<Goto>()->jump.args.append(def);
+    bb->lambda()->terminator()->as<Goto>()->jump.args.append(def);
 }
 
 Binding* Fct::getVN(const Symbol sym, const Type* type, bool finalize) {
@@ -259,20 +242,5 @@ Binding* Fct::getVN(const Symbol sym, const Type* type, bool finalize) {
 }
 
 //------------------------------------------------------------------------------
-
-/*
- * belongs to
- */
-
-#ifndef NDEBUG
-
-Symbol BB::belongsTo() {
-    if (parent_)
-        return parent_->belongsTo();
-    else 
-        return name();
-}
-
-#endif
 
 } // namespace impala

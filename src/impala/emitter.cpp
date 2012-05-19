@@ -14,7 +14,7 @@ using namespace anydsl;
 namespace impala {
 
 void Emitter::prologue() {
-    root_ = new Fct(0, world_.pi(), Symbol("<root-function>"));
+    //root_ = new Fct(0, world_.pi(), Symbol("<root-function>"));
     cursor = Cursor(root_, root_);
     main_ = 0;
 }
@@ -25,7 +25,7 @@ Lambda* Emitter::exit() {
     else
         root_->invokes(root_->lambda()); // TODO exit
 
-    return root_->lambda_;
+    return root_->lambda();
 }
 
 Fct* Emitter::fct(Cursor& old, const Pi* pi, const Token& name) {

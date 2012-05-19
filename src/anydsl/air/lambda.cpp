@@ -59,4 +59,17 @@ const Pi* Lambda::pi() const {
     return scast<Pi>(type());
 }
 
+int Lambda::depth() {
+    int res = 0;
+
+    Lambda* i = parent_;
+
+    while (i) {
+        ++res;
+        i = i->parent_;
+    }
+
+    return res;
+}
+
 } // namespace anydsl

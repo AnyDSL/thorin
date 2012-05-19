@@ -35,41 +35,32 @@ class BB {
 protected:
 
     BB(BB* parent, const Pi* pi, const std::string& name = "");
-
-public:
-
     BB(World& world, const std::string& name = "");
     virtual ~BB() {}
 
-    /// Insert \p bb as sub BB (i.e., as dom child) into this BB.
-    void insert(BB* bb);
+public:
+
+    Lambda* lambda() const { return lambda_; }
+    std::string name() const;
 
     void goesto(BB* to);
     void branches(Def* cond, BB* tbb, BB* fbb);
     void invokes(Def* fct);
     void fixto(BB* to);
 
-    const BBs& pre() const { return pred_; }
-    const BBs& succ() const { return succ_; }
     virtual Binding* getVN(const Symbol sym, const Type* type, bool finalize);
     void setVN(Binding* bind);
+    bool hasVN(const Symbol sym) { return values_.find(sym) != values_.end(); }
 
     void finalizeAll();
     //void processTodos();
     void finalize(ParamIter param, const Symbol sym);
-    bool hasVN(const Symbol sym) { return values_.find(sym) != values_.end(); }
-
-    Lambda* lambda() const { return lambda_; }
-    std::string name() const;
-
-#ifndef NDEBUG
-    Symbol belongsTo();
-#endif
-
-    World& world();
 
 protected:
-public:
+
+    /// Insert \p bb as sub BB (i.e., as dom child) into this BB.
+    void insert(BB* bb);
+    World& world();
 
     typedef std::map<const Symbol, Binding*> ValueMap;
     ValueMap values_;
@@ -90,23 +81,28 @@ public:
     Param* param_;
     Lambda* lambda_;
 
-#ifndef NDEBUG
-    bool verify(BB* bb);
-#endif
-
-private:
-
     //void fixBeta(Beta* beta, size_t x, const Symbol sym, Type* type);
 
     bool finalized_;
+
+    //friend class Fct;
 };
 
 //------------------------------------------------------------------------------
 
 class Fct : public BB {
+private:
+
+    Fct(Fct* parent, const Pi* pi, const Symbol sym);
+
 public:
 
-    Fct(BB* parent, const Pi* pi, const Symbol sym);
+    /**
+     * Use this constructor to create the root function 
+     * which holds the whole program.
+     */
+    Fct(World& world, const Symbol sym = "<root-function>");
+
     Fct* createSubFct(const Pi* pi, const Symbol sym);
 
     void setReturn(const Type* retType);
@@ -115,6 +111,8 @@ public:
     virtual Binding* getVN(const Symbol sym, const Type* type, bool finalize);
 
 private:
+
+    BBs cfg_;
 
     BB* exit_;
     Param* ret_;

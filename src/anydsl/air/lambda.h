@@ -50,6 +50,8 @@ public:
 
     const Pi* pi() const;
 
+    int depth();
+
 private:
 
     void setTerminator(Terminator* terminator) { assert(!terminator_); terminator_ = terminator; }

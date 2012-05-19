@@ -34,8 +34,9 @@ namespace impala {
  * constructor and destructor
  */
 
-Parser::Parser(std::istream& stream, const std::string& filename)
+Parser::Parser(anydsl::World& world, std::istream& stream, const std::string& filename)
     : lexer_(stream, filename)
+    , emit(world)
     , break_(0)
     , continue_(0)
     , counter_(0)
@@ -120,11 +121,10 @@ void Parser::error(const std::string& what, const std::string& context) {
  */
 
 Lambda* Parser::parse() {
-    //emit.prologue(la().pos1());
+    emit.prologue();
     parseGlobals();
 
-    //return emit.exit();
-    return 0;
+    return emit.exit();
 }
 
 Token Parser::parseId() {
@@ -137,13 +137,12 @@ Token Parser::parseId() {
     return name;
 }
 
-#if 0
 Type* Parser::parseType() {
     switch (la()) {
 #define IMPALA_TYPE(itype, atype) \
         case Token:: TYPE_ ## itype: \
             return emit.builtinType(lex());
-#include <impala/tokenlist.h>
+#include "impala/tokenlist.h"
             
         default: ANYDSL_UNREACHABLE; // TODO
     }
@@ -153,13 +152,11 @@ Type* Parser::parseParam() {
     Token name = parseId();
     expect(Token::COLON, "lambda parameter");
     Type* type = parseType();
-    Param* param = new Param(Location(name.loc().pos1(), type->pos2()), name.symbol());
-    param->meta = type;
-    emit.param(name, type, param);
-
+    emit.param(name, type);
     return type;
 }
 
+#if 0
 Value Parser::parseDecl() {
     Token tok = la();
     expect(Token::ID, "declaration");

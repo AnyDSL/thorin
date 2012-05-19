@@ -62,26 +62,23 @@ Value Emitter::decl(const Token& tok, const Type* type) {
     Binding* bind = new Binding(sym, world_.undef(type));
     bb()->setVN(bind);
     env_.insert(sym, type);
-
     return Value(bind);
 }
 
-Value Emitter::param(const Token& tok, const Type* type, Param* p) {
-    Symbol sym = tok.symbol();
+void Emitter::param(const Token& tok, const Type* type) {
+    const Symbol name = tok.symbol();
 
-#if 0
-    if (Binding* prev = env_.clash(sym)) {
-        tok.error() << "symbol '" << sym.str() << "' already defined in this scope\n";
-        prev->error() << "previous definition here\n";
-        return prev;
+    if (/*const Type* prev =*/ env_.clash(name)) {
+        tok.error() << "symbol '" << name.str() << "' already defined in this scope\n";
+        /*prev->error()*/ std::cerr << "previous definition here\n";
+        return;
     }
-#endif
 
-    Binding* bind = new Binding(sym, p);
+    Param* p = *fct()->lambda()->appendParam(type);
+    p->debug = name.str();
+    Binding* bind = new Binding(name, p);
     bb()->setVN(bind);
-    env_.insert(sym, type);
-
-    return Value(bind);
+    env_.insert(name, type);
 }
 
 Value Emitter::literal(const Token& tok) {

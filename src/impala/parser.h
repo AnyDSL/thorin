@@ -1,14 +1,15 @@
 #ifndef IMPALA_PARSER_H
 #define IMPALA_PARSER_H
 
-#include <impala/emitter.h>
-#include <impala/lexer.h>
+#include "impala/emitter.h"
+#include "impala/lexer.h"
 
 namespace anydsl {
     class CExpr;
     class Def;
     class Lambda;
     class Param;
+    class World;
 }
 
 namespace impala {
@@ -38,8 +39,7 @@ struct BinPrec {
     Prec r;
 
     BinPrec() {}
-    BinPrec(Prec l, Prec r)
-        : l(l), r(r) {}
+    BinPrec(Prec l, Prec r) : l(l), r(r) {}
 };
 
 typedef Prec Type2Prec[Token::NUM_TOKENS];
@@ -52,7 +52,7 @@ public:
      * constructor
      */
 
-    Parser(std::istream& stream, const std::string& filename);
+    Parser(anydsl::World& world, std::istream& stream, const std::string& filename);
 
     /*
      * helpers
@@ -128,7 +128,7 @@ private:
 
     Lexer lexer_;       ///< invoked in order to get next token
     Token lookahead_[2];///< LL(2) look ahead
-    //Emitter emit;       ///< encapsulates AIR construction
+    Emitter emit;       ///< encapsulates AIR construction
 
     static Type2Prec    preRPrec_; ///< right precedence -- for unary prefix operators
     static Type2BinPrec binPrec_;  ///< left and right precedences -- for binary operators

@@ -10,7 +10,6 @@
 #include "anydsl/air/enums.h"
 #include "anydsl/air/type.h"
 #include "anydsl/util/box.h"
-#include "anydsl/util/autoptr.h"
 #include "anydsl/util/foreach.h"
 
 namespace anydsl {
@@ -158,7 +157,7 @@ public:
      * create
      */
 
-    Lambda* createLambda(Lambda* parent);
+    Lambda* createLambda(const Pi* type = 0);
     Goto* createGoto(Lambda* parent, Lambda* to);
     Terminator* createBranch(Lambda* parent, Def* cond, Lambda* tto, Lambda* fto);
     Invoke* createInvoke(Lambda* parent, Def* fct);
@@ -183,8 +182,8 @@ private:
     NamedSigmas namedSigmas_;
     Lambdas lambdas_;
 
-    AutoPtr<Pi> pi_; ///< pi().
-    AutoPtr<Sigma> unit_; ///< sigma().
+    const Pi* pi_; ///< pi().
+    const Sigma* unit_; ///< sigma().
 
     union {
         struct {

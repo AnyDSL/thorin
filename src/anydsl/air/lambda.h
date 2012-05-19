@@ -25,13 +25,13 @@ private:
      * Use this constructor if you know the type beforehand.
      * You are still free to append other params later on.
      */
-    Lambda(Lambda* parent, const Type* type);
+    Lambda(const Pi* pi);
 
     /**
      * Use this constructor if you want to incrementally build the type.
      * Initially the type is set to "pi()".
      */
-    Lambda(World& world, Lambda* parent);
+    Lambda(World& world);
     ~Lambda();
 
 public:

@@ -99,14 +99,14 @@ protected:
 class Sigma : public CompoundType {
 private:
 
-    Sigma(World& world, bool named)
+    Sigma(World& world, bool named = false)
         : CompoundType(world, Index_Sigma)
         , named_(named)
     {}
 
     /// Creates an unamed Sigma from the given range.
     template<class T>
-    Sigma(World& world, T begin, T end, bool named)
+    Sigma(World& world, T begin, T end, bool named = false)
         : CompoundType(world, Index_Sigma, begin, end)
         , named_(named)
     {}

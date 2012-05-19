@@ -12,8 +12,8 @@ namespace anydsl {
  */
 
 World::World() 
-    : pi_(new Pi(*this))
-    , unit_(new Sigma(*this, /*named*/ false))
+    : pi_(pi((const Type**)0, (const Type**)0))
+    , unit_(sigma((const Type**)0, (const Type**)0))
 #define ANYDSL_U_TYPE(T) ,T##_(new PrimType(*this, PrimType_##T))
 #define ANYDSL_F_TYPE(T) ,T##_(new PrimType(*this, PrimType_##T))
 #include "anydsl/tables/primtypetable.h"
@@ -21,6 +21,8 @@ World::World()
 
 World::~World() {
     cleanup();
+
+    std::cout << "#pis: " << pis_.size() << std::endl;
 
     //FOREACH(primType, primTypes_) delete primType;
 
@@ -69,8 +71,9 @@ Undef* World::undef(const Type* type) {
  * create
  */
 
-Lambda* World::createLambda(Lambda* parent) {
-    Lambda* lambda = new Lambda(*this, parent);
+Lambda* World::createLambda(const Pi* type) {
+    assert(type == 0 || type->isa<Pi>());
+    Lambda* lambda = type ? new Lambda(type) : new Lambda(*this);
     lambdas_.insert(lambda);
     return lambda;
 }
@@ -120,9 +123,13 @@ void World::cleanup() {
     do {
         oldSize = lambdas_.size();
 
-        FOREACH(lambda, lambdas_)
-            if (lambda->uses().empty())
-                delete lambda;
+        for (Lambdas::iterator i = lambdas_.begin(), e = lambdas_.end(); i != e; ++i) {
+            Lambda* l = *i;
+            if (l->uses().empty()) {
+                delete l;
+                i = lambdas_.erase(i);
+            }
+        }
     } while (oldSize != lambdas_.size());
 
     // repeaut until defs do not change anymore

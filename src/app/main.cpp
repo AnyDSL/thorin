@@ -99,6 +99,12 @@ int main() {
     args.append(w.literal(666ul))->debug = "666";
     args.append(w.literal(64ul))->debug = "64";
     args.prepend(w.literal(1u))->debug = "1";
+    l->appendParam(w.type_u8());
+    l->appendParam(w.type_u8());
+    l->appendParam(w.type_u32());
+
+    const Type* pitypes[] = { w.type_u8(), w.type_u8(), w.type_u32() };
+    w.createLambda(w.pi(pitypes, pitypes + 3));
 
     // prepend
     // remove evil and substitute by heavenly

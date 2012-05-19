@@ -15,7 +15,6 @@ namespace anydsl {
 BB::BB(BB* parent, const Pi* pi, const std::string& name) 
     : parent_(parent)
     , lambda_(world().createLambda(pi))
-    , multi_(false)
     , fct_(0)
 {
     lambda_->debug = name;
@@ -156,8 +155,7 @@ Binding* BB::getVN(const Symbol sym, const Type* type, bool finalize) {
     BB::ValueMap::iterator i = values_.find(sym);
 
     if (i == values_.end()) {
-        if (!multi_) {
-            assert(pred_.size() == 1);
+        if (pred_.size() == 1) {
             BB* pred = *pred_.begin();
             Binding* bind = pred->getVN(sym, type, finalize);
             // create copy of binding in this block

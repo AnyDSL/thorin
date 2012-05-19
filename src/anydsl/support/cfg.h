@@ -61,8 +61,6 @@ public:
     const BBs& pred() const { return pred_; }
     const BBs& succ() const { return succ_; }
 
-    void setMulti() { multi_ = true; }
-
 protected:
 
     void flowsto(BB* to);
@@ -86,8 +84,6 @@ protected:
 
     Param* param_;
     Lambda* lambda_;
-
-    bool multi_;
 
     //void fixBeta(Beta* beta, size_t x, const Symbol sym, Type* type);
 

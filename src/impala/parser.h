@@ -101,7 +101,7 @@ public:
     void parseIfElse();
     void parseWhile();
     void parseDoWhile();
-    void parseFor();
+    //void parseFor();
     void parseBreak();
     void parseContinue();
     void parseReturn();

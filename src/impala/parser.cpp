@@ -270,10 +270,10 @@ void Parser::parseStmt() {
         case Token::IF:        return parseIfElse();
         case Token::WHILE:     return parseWhile();
         case Token::DO:        return parseDoWhile();
-        case Token::FOR:       return parseFor();
-        //case Token::BREAK:     return parseBreak();
-        //case Token::CONTINUE:  return parseContinue();
-        //case Token::RETURN:    return parseReturn();
+        //case Token::FOR:       return parseFor();
+        case Token::BREAK:     return parseBreak();
+        case Token::CONTINUE:  return parseContinue();
+        case Token::RETURN:    return parseReturn();
         case Token::L_BRACE:   return parseCompoundStmt();
         case Token::SEMICOLON: return; // empty statement
         default:               error("statement", "");
@@ -325,8 +325,8 @@ void Parser::parseIfElse() {
         parseScope();
     }
 
-    emit.popScope();
     emit.fixto(contBB); 
+    emit.popScope();
 }
 
 void Parser::parseWhile() {
@@ -336,33 +336,46 @@ void Parser::parseWhile() {
 
     BB* headBB = curFct()->createBB(make_name("while-head", id));
     BB* bodyBB = curFct()->createBB(make_name("while-body", id));
+    BB* iterBB = curFct()->createBB(make_name("while-iter", id));
     BB* contBB = curFct()->createBB(make_name("while-cont", id));
-    headBB->setMulti();
 
     emit.fixto(headBB);
     Def* cond = parseCond("while-statement").load();
 
     headBB->branches(cond, bodyBB, contBB);
+    iterBB->goesto(headBB);
 
     emit.curBB = bodyBB;
     parseScope();
-    emit.fixto(headBB);
+    emit.fixto(iterBB);
 
     emit.popScope();
+    emit.curBB = contBB;
 }
 
 void Parser::parseDoWhile() {
-    emit.pushScope();
-
     eat(Token::DO);
+    emit.pushScope();
+    int id = nextId();
+
+    BB* bodyBB = curFct()->createBB(make_name("do-body", id));
+    BB* iterBB = curFct()->createBB(make_name("do-iter", id));
+    BB* contBB = curFct()->createBB(make_name("do-cont", id));
+
+    emit.fixto(bodyBB);
+    iterBB->goesto(bodyBB);
+
     parseScope();
+    emit.fixto(iterBB);
     expect(Token::WHILE, "do-while-statement");
     parseCond("do-while-statement");
     expect(Token::SEMICOLON, "do-while-statement");
 
     emit.popScope();
+    emit.curBB = contBB;
 }
 
+#if 0
 void Parser::parseFor() {
     int id = nextId();
     emit.pushScope();
@@ -432,6 +445,7 @@ void Parser::parseFor() {
     emit.curBB = contBB;
     emit.popScope();
 }
+#endif 0
 
 void Parser::parseBreak() {
     eat(Token::BREAK);

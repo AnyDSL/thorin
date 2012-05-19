@@ -1,23 +1,23 @@
 #include "impala/value.h"
 
+#include "anydsl/air/literal.h"
 #include "anydsl/support/binding.h"
+#include "anydsl/util/location.h"
 
-#if 0
-
+using anydsl::Location;
 using anydsl::Undef;
-using anydsl::dcast;
 
 namespace impala {
 
 anydsl::Def* Value::load() {
     if (kind == RVALUE) {
-        if (dcast<Undef>(def))
-            def->error() << "value undefined\n";
+        if (def->isa<Undef>())
+            /*def->error()*/ std::cerr << "value undefined\n";
 
         return def;
     }
 
-    if (dcast<Undef>(bind->def))
+    if (bind->def->isa<Undef>())
         bind->error() << "the value of variable '" << bind->sym.str() << "' is undefined\n";
 
     return bind->def;
@@ -25,19 +25,19 @@ anydsl::Def* Value::load() {
 
 void Value::store(anydsl::Def* newDef) {
     if (kind == RVALUE)
-        def->error() << "lvalue required\n";
+        /*def->error()*/ std::cerr << "lvalue required\n";
     else
         bind->def = newDef;
 }
 
-const anydsl::Location& Value::loc() const {
+const Location Value::loc() const {
     if (kind == RVALUE)
-        return def->loc();
+        return Location(def->debug);
     else
-        return bind->def->loc();
+        return Location(bind->def->debug);
 }
 
-anydsl::Type* Value::type() {
+const anydsl::Type* Value::type() {
     if (kind == RVALUE)
         return def->type();
     else
@@ -45,5 +45,3 @@ anydsl::Type* Value::type() {
 }
 
 } // namespace impala
-
-#endif

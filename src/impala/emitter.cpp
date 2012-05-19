@@ -99,7 +99,6 @@ Value Emitter::literal(const Token& tok) {
     }
 }
 
-}
 #if 0
 
 Value Emitter::prefixOp(const Token& op, Value bval) {
@@ -182,7 +181,10 @@ Value Emitter::prefixOp(const Token& op, Value bval) {
     return Value(new ErrorValue(loc));
 }
 
+#endif
+
 Value Emitter::infixOp(Value aval, const Token& op, Value bval) {
+#if 0
     // TODO type checking
     if (op.isAsgn()) {
         Value val = bval;
@@ -195,7 +197,11 @@ Value Emitter::infixOp(Value aval, const Token& op, Value bval) {
         aval.store(val.load());
         return aval;
     }
+#endif
+    return aval;
+}
 
+#if 0
     Type* t1 = aval.type();
     Type* t2 = bval.type();
 
@@ -389,6 +395,7 @@ Value Emitter::id(const Token& tok) {
     return Value(new Undef(tok.loc()));
 }
 
+#endif
+
 } // namespace impala
 
-#endif

@@ -31,9 +31,9 @@ public:
 
     anydsl::Def* load();
     void store(anydsl::Def* def);
-    anydsl::Type* type();
+    const anydsl::Type* type();
 
-    const anydsl::Location& loc() const;
+    const anydsl::Location loc() const;
     const anydsl::Position& pos1() const { return loc().pos1(); }
     const anydsl::Position& pos2() const { return loc().pos2(); }
 

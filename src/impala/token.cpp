@@ -101,7 +101,9 @@ Token Token::seperateAssign() const {
 
 anydsl::ArithOpKind Token::toArithOp() const {
     switch (type_) {
+        case INC:
         case ADD: return anydsl::ArithOp_add;
+        case DEC:
         case SUB: return anydsl::ArithOp_sub;
         case MUL: return anydsl::ArithOp_mul;
         case DIV: return anydsl::ArithOp_udiv;

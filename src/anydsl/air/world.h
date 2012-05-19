@@ -161,6 +161,8 @@ public:
     PrimLit* literal(PrimLitKind kind, Box value);
     Undef* undef(const Type* type);
     ErrorLit* literal_error(const Type* type);
+    /// ErrorLit of ErrorType
+    ErrorLit* error() { return literal_error(type_error_); }
 
     /*
      * create

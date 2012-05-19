@@ -99,89 +99,30 @@ Value Emitter::literal(const Token& tok) {
     }
 }
 
-#if 0
-
 Value Emitter::prefixOp(const Token& op, Value bval) {
     if (op == Token::ADD)
         return bval; // this is a NOP
 
-    Location loc(op.pos1(), bval.pos2());
-
-    if (const PrimitiveType* t = dcast<PrimitiveType>(bval.type())) {
-        Beta* beta = new Beta(loc); 
-
-    // TODO incorrect for f32, f64
-#define CASE_PRE_SUB_TYPE(type) \
-    case PrimitiveType:: Type_ ## type: { \
-        Primitive* zero = Primitive::create<PrimitiveType::Type_ ## type >(0); \
-        beta->args().push_back(zero); \
-        beta->args().push_back(bval.load()); \
-        Def* fct = new Intrinsic(op.loc(), Intrinsic::BIN_SUB_ ## type ## _ ## type ); \
-        Type* retT = new PrimitiveType(PrimitiveType::Type_ ## type ); \
-        beta->fct.set(fct); \
-        return appendLambda(beta, retT); \
-    }
-
-#define CASE_PRE_INC_TYPE(type) \
-    case PrimitiveType:: Type_ ## type: { \
-        Primitive* one = Primitive::create<PrimitiveType::Type_ ## type >(1); \
-        beta->args().push_back(bval.load()); \
-        beta->args().push_back(one); \
-        Def* fct = new Intrinsic(op.loc(), Intrinsic::BIN_ADD_ ## type ## _ ## type ); \
-        Type* retT = new PrimitiveType(PrimitiveType::Type_ ## type ); \
-        beta->fct.set(fct); \
-        Value val = appendLambda(beta, retT); \
-        bval.store(val.load()); \
-        return bval; \
-    }
-
-#define CASE_PRE_DEC_TYPE(type) \
-    case PrimitiveType:: Type_ ## type: { \
-        Primitive* one = Primitive::create<PrimitiveType::Type_ ## type >(1); \
-        beta->args().push_back(bval.load()); \
-        beta->args().push_back(one); \
-        Def* fct = new Intrinsic(op.loc(), Intrinsic::BIN_SUB_ ## type ## _ ## type ); \
-        Type* retT = new PrimitiveType(PrimitiveType::Type_ ## type ); \
-        beta->fct.set(fct); \
-        Value val = appendLambda(beta, retT); \
-        bval.store(val.load()); \
-        return bval; \
-    }
-
-#define CASE_PRE_OP(op) \
-    case Token:: op : \
-        switch (t->which()) {             \
-            CASE_PRE_ ## op ## _TYPE(i8)  \
-            CASE_PRE_ ## op ## _TYPE(i16) \
-            CASE_PRE_ ## op ## _TYPE(i32) \
-            CASE_PRE_ ## op ## _TYPE(i64) \
-            CASE_PRE_ ## op ## _TYPE(u8)  \
-            CASE_PRE_ ## op ## _TYPE(u16) \
-            CASE_PRE_ ## op ## _TYPE(u32) \
-            CASE_PRE_ ## op ## _TYPE(u64) \
-            CASE_PRE_ ## op ## _TYPE(f32) \
-            CASE_PRE_ ## op ## _TYPE(f64) \
-            default: ANYDSL_UNREACHABLE;  \
-        }
-
+    if (const PrimType* p = bval.type()->isa<PrimType>()) {
         switch (op) {
-            CASE_PRE_OP(SUB)
-            //CASE_PRE_OP(MUL) // TODO: deref
-            //CASE_PRE_OP(AND) // TODO: address of
-            //CASE_PRE_OP(NOT) // TODO: bit not
-            //CASE_PRE_OP(L_N) // TODO: logic not
-            CASE_PRE_OP(INC)
-            CASE_PRE_OP(DEC)
-            default: ANYDSL_UNREACHABLE;
+            case Token::SUB: {
+                // TODO incorrect for f32, f64
+                PrimLit* zero = world_.literal(p->kind(), 0u);
+                return Value(world_.createArithOp(anydsl::ArithOp_sub, zero, bval.load()));
+            }
+            case Token::INC:
+            case Token::DEC: {
+                PrimLit* one = world_.literal(p->kind(), 1u);
+                Value val(world_.createArithOp(op.toArithOp(), bval.load(), one));
+                bval.store(val.load());
+                return bval;
+            }
+            default: ANYDSL_UNREACHABLE; // TODO
         }
     }
 
-    op.error() << "type error: TODO\n";
-
-    return Value(new ErrorValue(loc));
+    return Value(world_.error());
 }
-
-#endif
 
 Value Emitter::infixOp(Value aval, const Token& op, Value bval) {
     const PrimType* p1 = aval.type()->isa<PrimType>();
@@ -209,9 +150,10 @@ Value Emitter::infixOp(Value aval, const Token& op, Value bval) {
     op.error() << "type error: TODO\n";
 
     const Type* t = p1 ? p1 : p2;
-    t = !t ? (const Type*) world_.type_error() : t;
+    if (t)
+        return Value(world_.literal_error(t)); 
 
-    return Value(world_.literal_error(t)); 
+    return Value(world_.error());
 }
 
 #if 0

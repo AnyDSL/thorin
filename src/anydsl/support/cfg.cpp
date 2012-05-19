@@ -15,13 +15,16 @@ namespace anydsl {
 BB::BB(BB* parent, const Pi* pi, const std::string& name) 
     : parent_(parent)
     , lambda_(world().createLambda(pi))
+    , multi_(false)
+    , fct_(0)
 {
     lambda_->debug = name;
 }
 
-BB::BB(World& world, const std::string& name) 
+BB::BB(Fct* fct, World& world, const std::string& name) 
     : parent_(0)
     , lambda_(world.createLambda(0))
+    , fct_(fct)
 {
     lambda_->debug = name;
 }
@@ -30,8 +33,8 @@ World& BB::world() {
     return lambda_->world();
 }
 
-/*static*/ BB* BB::createBB(World& world, const std::string& name) {
-    return new BB(world, name);
+/*static*/ BB* BB::createBB(Fct* fct, World& world, const std::string& name) {
+    return new BB(fct, world, name);
 }
 
 void BB::insert(BB* bb) {
@@ -41,6 +44,35 @@ void BB::insert(BB* bb) {
     this->lambda_->insert(bb->lambda());
     children_.insert(bb);
 }
+
+void BB::goesto(BB* to) {
+    assert(to);
+    world().createGoto(this->lambda(), to->lambda());
+    this->flowsto(to);
+    anydsl_assert(this->succ().size() == 1, "wrong number of succ");
+}
+
+void BB::branches(Def* cond, BB* tbb, BB* fbb) {
+    assert(tbb);
+    assert(fbb);
+    world().createBranch(lambda(), cond, tbb->lambda(), fbb->lambda());
+    this->flowsto(tbb);
+    this->flowsto(fbb);
+    anydsl_assert(succ().size() == 2, "wrong number of succ");
+}
+
+void BB::invokes(Def* fct) {
+    anydsl_assert(fct, "must be valid");
+    world().createInvoke(this->lambda(), fct);
+    anydsl_assert(this->succ().size() == 0, "wrong number of succ");
+    // succs by invokes are not captured in the CFG
+}
+
+void BB::fixto(BB* to) {
+    assert(!lambda()->terminator());
+    this->goesto(to);
+}
+
 
 void BB::flowsto(BB* to) {
     BBs::iterator i = succ_.find(to);
@@ -52,8 +84,8 @@ void BB::flowsto(BB* to) {
         /* do nothing */
     }
 }
-
 #if 0
+
 void BB::finalizeAll() {
     processTodos();
 
@@ -72,7 +104,7 @@ void BB::processTodos() {
     anydsl_assert(!pred_.empty() || dcast<Fct>(this), "must not be empty");
 
     FOREACH(i, todos_) {
-        size_t x = i.second;
+        ParamIter x = i.second;
         Symbol sym = i.first;
 
         FOREACH(pred, pred_) {
@@ -83,23 +115,23 @@ void BB::processTodos() {
     }
 }
 
-void BB::finalize(size_t x, const Symbol sym) {
+void BB::finalize(ParamIter param, const Symbol sym) {
     if (Beta* beta = getBeta()) {
         //anydsl_assert(beta->args().empty(), "must be empty");
-        fixBeta(beta, x, sym, 0);
+        fixBeta(beta, param, sym, 0);
     } else if (Branch* branch = getBranch()) {
         Lambda* lam[2] = {scast<Lambda>(branch-> trueExpr.def()), 
                           scast<Lambda>(branch->falseExpr.def()) };
 
         for (size_t i = 0; i < 2; ++i) {
             Beta* beta = scast<Beta>(lam[i]->body());
-            fixBeta(beta, x, sym, 0);
+            fixBeta(beta, param, sym, 0);
         }
     } else
         ANYDSL_UNREACHABLE;
 }
 
-void BB::fixBeta(Beta* beta, size_t x, const Symbol sym, Type* type) {
+void BB::fixBeta(Beta* beta, ParamIter param, const Symbol sym, Type* type) {
     UseList& args = beta->args();
 
     // make room for new arg
@@ -124,7 +156,8 @@ Binding* BB::getVN(const Symbol sym, const Type* type, bool finalize) {
     BB::ValueMap::iterator i = values_.find(sym);
 
     if (i == values_.end()) {
-        if (pred_.size() == 1) {
+        if (!multi_) {
+            assert(pred_.size() == 1);
             BB* pred = *pred_.begin();
             Binding* bind = pred->getVN(sym, type, finalize);
             // create copy of binding in this block
@@ -141,8 +174,10 @@ Binding* BB::getVN(const Symbol sym, const Type* type, bool finalize) {
             setVN(bind);
 
             if (finalize) {
+#if 0
                 FOREACH(pred, pred_)
                     pred->finalize(param, sym);
+#endif
             } else {
                 // remember to fix preds
 #ifdef DEBUG_CFG
@@ -186,38 +221,10 @@ Fct::Fct(World& world, const Symbol sym)
 {}
 
 /*static*/ BB* Fct::createBB(const std::string& name /*= ""*/) {
-    BB* bb = BB::createBB(world(), name);
+    BB* bb = BB::createBB(this, world(), name);
     cfg_.insert(bb);
 
     return bb;
-}
-
-void Fct::goesto(BB* from, BB* to) {
-    assert(to);
-    world().createGoto(from->lambda(), to->lambda());
-    from->flowsto(to);
-    anydsl_assert(from->succ().size() == 1, "wrong number of succ");
-}
-
-void Fct::branches(BB* from, Def* cond, BB* tbb, BB* fbb) {
-    assert(tbb);
-    assert(fbb);
-    world().createBranch(from->lambda(), cond, tbb->lambda(), fbb->lambda());
-    from->flowsto(tbb);
-    from->flowsto(fbb);
-    anydsl_assert(from->succ().size() == 2, "wrong number of succ");
-}
-
-void Fct::invokes(BB* from, Def* fct) {
-    anydsl_assert(fct, "must be valid");
-    world().createInvoke(from->lambda(), fct);
-    anydsl_assert(from->succ().size() == 0, "wrong number of succ");
-    // succs by invokes are not captured in the CFG
-}
-
-void Fct::fixto(BB* from, BB* to) {
-    if (!lambda()->terminator())
-        goesto(from, to);
 }
 
 void Fct::setReturn(const Type* retType) {
@@ -227,13 +234,13 @@ void Fct::setReturn(const Type* retType) {
 
     setVN(new Binding(resSymbol, world().undef(retType)));
     exit_ = 0; //new BB(world(), "<exit>");
-    invokes(exit_, ret_);
+    exit_->invokes(ret_);
     exit_->lambda()->terminator()->as<Invoke>()->jump.args.append(getVN(resSymbol, retType, false)->def);
 }
 
 void Fct::insertReturn(BB* bb, Def* def) {
     anydsl_assert(bb, "must be valid");
-    goesto(bb, exit_);
+    bb->goesto(exit_);
     bb->lambda()->terminator()->as<Goto>()->jump.args.append(def);
 }
 

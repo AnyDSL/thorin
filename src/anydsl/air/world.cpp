@@ -86,6 +86,12 @@ Goto* World::createGoto(Lambda* parent, Lambda* to) {
     return res;
 }
 
+Invoke* World::createInvoke(Lambda* parent, Def* fct) {
+    Invoke* res = new Invoke(parent, fct);
+    parent->setTerminator(res);
+    return res;
+}
+
 Value* World::createArithOp(ArithOpKind kind, Def* ldef, Def* rdef) {
     ArithOp* op = new ArithOp(kind, ldef, rdef);
     values_.insert(std::make_pair(op->hash(), op));

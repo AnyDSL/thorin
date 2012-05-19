@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <sstream>
 
+#include "anydsl/air/literal.h"
 #include "anydsl/air/world.h"
 #include "anydsl/support/binding.h"
 #include "anydsl/support/cfg.h"
@@ -270,9 +271,9 @@ void Parser::parseStmt() {
         case Token::WHILE:     return parseWhile();
         case Token::DO:        return parseDoWhile();
         case Token::FOR:       return parseFor();
-        case Token::BREAK:     return parseBreak();
-        case Token::CONTINUE:  return parseContinue();
-        case Token::RETURN:    return parseReturn();
+        //case Token::BREAK:     return parseBreak();
+        //case Token::CONTINUE:  return parseContinue();
+        //case Token::RETURN:    return parseReturn();
         case Token::L_BRACE:   return parseCompoundStmt();
         case Token::SEMICOLON: return; // empty statement
         default:               error("statement", "");
@@ -311,7 +312,7 @@ void Parser::parseIfElse() {
 
     Def* cond = parseCond("if-statement").load();
 
-    curFct()->branches(oldBB, cond, ifBB, elseBB);
+    oldBB->branches(cond, ifBB, elseBB);
 
     emit.curBB = ifBB;
     parseScope();
@@ -336,21 +337,20 @@ void Parser::parseWhile() {
     BB* headBB = curFct()->createBB(make_name("while-head", id));
     BB* bodyBB = curFct()->createBB(make_name("while-body", id));
     BB* contBB = curFct()->createBB(make_name("while-cont", id));
+    headBB->setMulti();
 
     emit.fixto(headBB);
     Def* cond = parseCond("while-statement").load();
 
-    curFct()->branches(headBB, cond, bodyBB, contBB);
-    curFct()->goesto(bodyBB, headBB);
+    headBB->branches(cond, bodyBB, contBB);
 
     emit.curBB = bodyBB;
     parseScope();
-    emit.fixto(contBB);
+    emit.fixto(headBB);
 
     emit.popScope();
 }
 
-#if 0
 void Parser::parseDoWhile() {
     emit.pushScope();
 
@@ -368,24 +368,18 @@ void Parser::parseFor() {
     emit.pushScope();
     Location loc;
 
-    BB* old_BB = emit.getCursor().bb;
-    BB* pre_BB = old_BB->createSubBB(loc, make_symbol("for-pre", id));
-    BB* headBB = pre_BB->createSubBB(loc, make_symbol("for-head", id));
-    BB* bodyBB = pre_BB->createSubBB(loc, make_symbol("for-body", id));
-    BB* iterBB = bodyBB->createSubBB(loc, make_symbol("for-iter", id));
-    BB* contBB = pre_BB->createSubBB(loc, make_symbol("for-next", id));
+    BB* prehBB = curFct()->createBB(make_name("for-preh", id));
+    BB* headBB = curFct()->createBB(make_name("for-head", id));
+    BB* bodyBB = curFct()->createBB(make_name("for-body", id));
+    BB* iterBB = curFct()->createBB(make_name("for-iter", id));
+    BB* contBB = curFct()->createBB(make_name("for-cont", id));
 
-    old_BB->flowsTo(pre_BB);
-    pre_BB->flowsTo(headBB);
-    headBB->flowsTo(bodyBB);
-    headBB->flowsTo(contBB);
-    bodyBB->flowsTo(iterBB);
-    iterBB->flowsTo(headBB);
+    headBB->setMulti();
 
     eat(Token::FOR);
     expect(Token::L_PAREN, "for-statement");
 
-    emit.setCursor(pre_BB);
+    emit.fixto(prehBB);
 
     // clause 1: decl or expr_opt ';'
     if (la2() == Token::COLON)
@@ -398,24 +392,24 @@ void Parser::parseFor() {
         error("expression or delcaration-statement", 
                 "first clause in for-statement");
 
-    emit.glueTo(loc, headBB);
+    emit.fixto(headBB);
         
     // clause 2: expr_opt ';'
     Def* cond;
     if (accept(Token::SEMICOLON)) { 
         // do nothing: no expr given, semicolon consumed
         // but create true cond
-        cond = Primitive::createBoolean(true);
+        cond = world().literal(true);
     } else if (isExpr()) {
         cond = parseExpr().load();
         expect(Token::SEMICOLON, "second clause in for-statement");
     } else {
         error("expression or nothing", 
                 "second clause in for-statement");
-        cond = new ErrorValue(la().loc());
+        cond = world().literal_error(world().type_u1());
     }
 
-    emit.setCursor(iterBB);
+    emit.curBB = iterBB;
 
     // clause 3: expr_opt ';'
     if (accept(Token::R_PAREN)) { 
@@ -428,15 +422,14 @@ void Parser::parseFor() {
                 "third clause in for-statement");
     }
 
-    emit.setCursor(bodyBB);
+    emit.curBB = bodyBB;
     parseScope();
-    emit.glueTo(loc, iterBB);
+    emit.fixto(iterBB);
 
-    old_BB->jumps(loc, pre_BB);
-    headBB->branches(loc, cond, bodyBB, contBB);
-    iterBB->jumps(loc, headBB);
+    headBB->branches(cond, bodyBB, contBB);
+    iterBB->goesto(headBB);
 
-    emit.setCursor(contBB);
+    emit.curBB = contBB;
     emit.popScope();
 }
 
@@ -461,7 +454,7 @@ void Parser::parseReturn() {
         expect(Token::SEMICOLON, "return-statement");
     }
 
-    emit.returnStmt(Location(ret.pos1(), res.pos2()), res);
+    emit.returnStmt(res);
 }
 
 void Parser::parseScopeBody() {
@@ -490,8 +483,6 @@ Value Parser::parseCond(const std::string& what) {
 
     return val;
 }
-
-#endif
 
 bool Parser::isExpr() {
     // identifier without a succeeding colon

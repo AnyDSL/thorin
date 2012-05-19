@@ -84,7 +84,7 @@ void Emitter::param(const Token& tok, const Type* type) {
 }
 
 void Emitter::fixto(anydsl::BB* to) {
-    curFct->fixto(curBB, to);
+    curBB->fixto(to);
     curBB = to;
 }
 
@@ -173,17 +173,17 @@ Value Emitter::postfixOp(Value aval, const Token& op) {
     return error();
 }
 
-#if 0
 Value Emitter::fctCall(Value f, std::vector<Value> args) {
+#if 0
     Beta* beta = new Beta(Location(f.pos1(), args.back().pos2()));
     beta->fct.set(f.load());
 
     FOREACH(arg, args)
         beta->args().push_back(arg.load());
-
-    return appendLambda(beta, 0 /*TODO*/);
-}
 #endif
+
+    return error();
+}
 
 Type* Emitter::builtinType(const Token& tok) {
     return world.type(tok.toPrimType());

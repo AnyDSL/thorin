@@ -42,6 +42,23 @@ public:
 
 //------------------------------------------------------------------------------
 
+class ErrorLit : public Literal {
+private:
+
+    ErrorLit(const Type* type)
+        : Literal(Index_ErrorLit, type)
+    {}
+
+public:
+
+    virtual uint64_t hash() const { return hash(type()); }
+    static  uint64_t hash(const Type*);
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
 class PrimLit : public Literal {
 private:
 

@@ -37,8 +37,6 @@ public:
     const anydsl::Position& pos1() const { return loc().pos1(); }
     const anydsl::Position& pos2() const { return loc().pos2(); }
 
-    intptr_t getVN() { return (intptr_t) def; };
-
 private:
 
     enum Kind {

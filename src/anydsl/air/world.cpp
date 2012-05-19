@@ -12,7 +12,8 @@ namespace anydsl {
  */
 
 World::World() 
-    : pi_(pi((const Type**) 0, (const Type**) 0))     // create  pi()
+    : type_error_(new ErrorType(*this))
+    , pi_(pi((const Type**) 0, (const Type**) 0))     // create  pi()
     , unit_(sigma((const Type**) 0, (const Type**) 0))// creates sigma()
 #define ANYDSL_U_TYPE(T) ,T##_(new PrimType(*this, PrimType_##T))
 #define ANYDSL_F_TYPE(T) ,T##_(new PrimType(*this, PrimType_##T))
@@ -63,6 +64,11 @@ Undef* World::undef(const Type* type) {
     return u;
 }
 
+ErrorLit* World::literal_error(const Type* type) {
+    ErrorLit* e = new ErrorLit(type);
+    return e;
+}
+
 /*
  * create
  */
@@ -80,14 +86,14 @@ Goto* World::createGoto(Lambda* parent, Lambda* to) {
     return res;
 }
 
-const Value* World::createArithOp(ArithOpKind arithOpKind, Def* ldef, Def* rdef) {
-    ////ValRange range = values_.equal_range(0);
-    //FOREACH(p, values_.equal_range(0))
-    //{
-        //std::cout << p.second << std::endl;
-    //}
+Value* World::createArithOp(ArithOpKind kind, Def* ldef, Def* rdef) {
+    ArithOp* op = new ArithOp(kind, ldef, rdef);
+    values_.insert(std::make_pair(op->hash(), op));
+    return op;
+}
 
-    ArithOp* op = new ArithOp(arithOpKind, ldef, rdef);
+Value* World::createRelOp(RelOpKind kind, Def* ldef, Def* rdef) {
+    RelOp* op = new RelOp(kind, ldef, rdef);
     values_.insert(std::make_pair(op->hash(), op));
     return op;
 }

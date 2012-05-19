@@ -34,6 +34,13 @@ typedef std::vector<const Type*> Types;
 
 //------------------------------------------------------------------------------
 
+class ErrorType : public Type {
+    ErrorType(World& world) : Type(world, Index_ErrorType) {}
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
 /// Primitive types -- also known as atomic or scalar types.
 class PrimType : public Type {
 private:

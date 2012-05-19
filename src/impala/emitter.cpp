@@ -184,111 +184,37 @@ Value Emitter::prefixOp(const Token& op, Value bval) {
 #endif
 
 Value Emitter::infixOp(Value aval, const Token& op, Value bval) {
-#if 0
-    // TODO type checking
-    if (op.isAsgn()) {
-        Value val = bval;
+    const PrimType* p1 = aval.type()->isa<PrimType>();
+    const PrimType* p2 = bval.type()->isa<PrimType>();
 
-        if (op != Token::ASGN) {
-            Token tok = op.seperateAssign();
-            val = infixOp(aval, tok, bval);
-        }
+    if (p1 && p1 == p2) {
+        if (op.isAsgn()) {
+            Value val = bval;
 
-        aval.store(val.load());
-        return aval;
-    }
-#endif
-    return aval;
-}
-
-#if 0
-    Type* t1 = aval.type();
-    Type* t2 = bval.type();
-
-    Location loc(Location(aval.pos1(), bval.pos2()));
-    Beta* beta  = new Beta(loc);
-    UseList& args = beta->args();
-    args.push_back(aval.load());
-    args.push_back(bval.load());
-
-    const PrimitiveType* p1 = dcast<PrimitiveType>(t1);
-    const PrimitiveType* p2 = dcast<PrimitiveType>(t2);
-
-    if (p1 && p2 && p1->which() == p2->which()) {
-
-#define CASE_INFIX_BIN(op, type) \
-        case PrimitiveType:: Type_ ## type : { \
-            Intrinsic::Which intrin = Intrinsic::FUN_BIN_ ## op ; \
-            Type* retT = new PrimitiveType(PrimitiveType::Type_ ## type ); \
-            beta->fct.set(new Intrinsic(intrin)); \
-            return appendLambda(beta, retT); \
-        }
-
-
-#define CASE_INFIX_REL(op, type) \
-        case PrimitiveType:: Type_ ## type : { \
-            Intrinsic::Which intrin = Intrinsic::FUN_BIN_ ## op ; \
-            Type* retT = new PrimitiveType(PrimitiveType::Type_boolean); \
-            beta->fct.set(new Intrinsic(intrin)); \
-            return appendLambda(beta, retT); \
-        }
-
-
-#define CASE_INFIX_OP(kind, op) \
-        case Token:: op : \
-            switch (p1->which()) {           \
-                CASE_INFIX_ ## kind(op, i8)  \
-                CASE_INFIX_ ## kind(op, i16) \
-                CASE_INFIX_ ## kind(op, i32) \
-                CASE_INFIX_ ## kind(op, i64) \
-                CASE_INFIX_ ## kind(op, u8)  \
-                CASE_INFIX_ ## kind(op, u16) \
-                CASE_INFIX_ ## kind(op, u32) \
-                CASE_INFIX_ ## kind(op, u64) \
-                CASE_INFIX_ ## kind(op, f32) \
-                CASE_INFIX_ ## kind(op, f64) \
-                default: ANYDSL_UNREACHABLE; \
+            if (op != Token::ASGN) {
+                Token tok = op.seperateAssign();
+                val = infixOp(aval, tok, bval);
             }
 
-#define CASE_INFIX_INT_OP(kind, op) \
-        case Token:: op : \
-            switch (p1->which()) {           \
-                CASE_INFIX_ ## kind(op, i8)  \
-                CASE_INFIX_ ## kind(op, i16) \
-                CASE_INFIX_ ## kind(op, i32) \
-                CASE_INFIX_ ## kind(op, i64) \
-                CASE_INFIX_ ## kind(op, u8)  \
-                CASE_INFIX_ ## kind(op, u16) \
-                CASE_INFIX_ ## kind(op, u32) \
-                CASE_INFIX_ ## kind(op, u64) \
-                default: ANYDSL_UNREACHABLE; \
-            }
-
-        switch (op) {
-            CASE_INFIX_OP(BIN, ADD)
-            CASE_INFIX_OP(BIN, SUB)
-            CASE_INFIX_OP(BIN, MUL)
-            CASE_INFIX_OP(BIN, DIV)
-            CASE_INFIX_OP(BIN, MOD)
-            CASE_INFIX_OP(REL,  EQ)
-            CASE_INFIX_OP(REL, NEQ)
-            CASE_INFIX_OP(REL,  LT)
-            CASE_INFIX_OP(REL, LEQ)
-            CASE_INFIX_OP(REL,  GT)
-            CASE_INFIX_OP(REL, GEQ)
-            CASE_INFIX_INT_OP(BIN, AND)
-            CASE_INFIX_INT_OP(BIN,  OR)
-            CASE_INFIX_INT_OP(BIN, XOR)
-            CASE_INFIX_INT_OP(BIN, SHL)
-            CASE_INFIX_INT_OP(BIN, SHR)
-            default: ANYDSL_UNREACHABLE;
+            aval.store(val.load());
+            return aval;
         }
+
+        if (op.isArith())
+            return Value(world_.createArithOp(op.toArithOp(), aval.load(), bval.load()));
+        else if (op.isRel())
+            return Value(world_.createRelOp(op.toRelOp(), aval.load(), bval.load()));
     }
 
     op.error() << "type error: TODO\n";
 
-    return Value(new ErrorValue(loc));
+    const Type* t = p1 ? p1 : p2;
+    t = !t ? (const Type*) world_.type_error() : t;
+
+    return Value(world_.literal_error(t)); 
 }
+
+#if 0
 
 Value Emitter::postfixOp(Value aval, const Token& op) {
     Location loc(aval.pos1(), op.pos2());

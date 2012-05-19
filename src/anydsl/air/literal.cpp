@@ -15,6 +15,12 @@ uint64_t Undef::hash(const Type* type) {
 
 //------------------------------------------------------------------------------
 
+uint64_t ErrorLit::hash(const Type* type) {
+    return hash2(Index_ErrorLit, type);
+}
+
+//------------------------------------------------------------------------------
+
 PrimLit::PrimLit(World& world, PrimLitKind kind, Box box)
     : Literal((IndexKind) kind, world.type(lit2type(kind)))
     , box_(box)

@@ -58,6 +58,29 @@ Token::Token(const anydsl::Location& loc, Type type, const std::string& str)
     }
 }
 
+bool Token::isArith() const {
+    switch (type_) {
+        case ADD:
+        case SUB:
+        case MUL:
+        case DIV:
+        case MOD: return true;
+        default:  return false;
+    }
+}
+
+bool Token::isRel() const {
+    switch (type_) {
+        case EQ:
+        case NE:
+        case LT: 
+        case LE: 
+        case GT: 
+        case GE: return true;
+        default: return false;
+    }
+}
+
 Token Token::seperateAssign() const {
     anydsl_assert(isAsgn(), "must be an assignment other than ASGN");
 
@@ -72,6 +95,28 @@ Token Token::seperateAssign() const {
         case XOR_ASGN: return Token(loc_, XOR);
         case SHL_ASGN: return Token(loc_, SHL);
         case SHR_ASGN: return Token(loc_, SHR);
+        default: ANYDSL_UNREACHABLE;
+    }
+}
+
+anydsl::ArithOpKind Token::toArithOp() const {
+    switch (type_) {
+        case ADD: return anydsl::ArithOp_add;
+        case SUB: return anydsl::ArithOp_sub;
+        case MUL: return anydsl::ArithOp_mul;
+        case DIV: return anydsl::ArithOp_udiv;
+        default: ANYDSL_UNREACHABLE;
+    }
+}
+
+anydsl::RelOpKind Token::toRelOp() const {
+    switch (type_) {
+        case EQ: return anydsl::RelOp_cmp_eq;
+        case NE: return anydsl::RelOp_cmp_ne;
+        case LT: return anydsl::RelOp_cmp_ult;
+        case LE: return anydsl::RelOp_cmp_ule;
+        case GT: return anydsl::RelOp_cmp_ugt;
+        case GE: return anydsl::RelOp_cmp_uge;
         default: ANYDSL_UNREACHABLE;
     }
 }

@@ -9,12 +9,15 @@
 
 #include "anydsl/air/enums.h"
 #include "anydsl/air/type.h"
+#include "anydsl/util/autoptr.h"
 #include "anydsl/util/box.h"
 #include "anydsl/util/foreach.h"
 
 namespace anydsl {
 
 class Def;
+class ErrorLit;
+class ErrorType;
 class Goto;
 class Invoke;
 class Lambda;
@@ -83,6 +86,8 @@ public:
 #define ANYDSL_U_TYPE(T) PrimType* type_##T() const { return T##_; }
 #define ANYDSL_F_TYPE(T) PrimType* type_##T() const { return T##_; }
 #include "anydsl/tables/primtypetable.h"
+
+    const ErrorType* type_error() { return type_error_; }
 
     // primitive types
 
@@ -155,6 +160,7 @@ public:
     PrimLit* literal(PrimTypeKind kind, Box value) { return literal(type2lit(kind), value); }
     PrimLit* literal(PrimLitKind kind, Box value);
     Undef* undef(const Type* type);
+    ErrorLit* literal_error(const Type* type);
 
     /*
      * create
@@ -165,7 +171,8 @@ public:
     Terminator* createBranch(Lambda* parent, Def* cond, Lambda* tto, Lambda* fto);
     Invoke* createInvoke(Lambda* parent, Def* fct);
 
-    const Value* createArithOp(ArithOpKind arithOpKind, Def* ldef, Def* rdef);
+    Value* createArithOp(ArithOpKind kind, Def* ldef, Def* rdef);
+    Value* createRelOp(RelOpKind kind, Def* ldef, Def* rdef);
 
     /*
      * optimize
@@ -182,12 +189,7 @@ private:
     template<class T, class M, class Iter>
     const T* getSigmaOrPi(M& map, Iter begin, Iter end);
 
-    ValueMap values_;
-    PiMap pis_;
-    SigmaMap sigmas_;
-    NamedSigmas namedSigmas_;
-    Lambdas lambdas_;
-
+    AutoPtr<const ErrorType> type_error_;
     const Pi* pi_; ///< pi().
     const Sigma* unit_; ///< sigma().
 
@@ -200,6 +202,12 @@ private:
 
         PrimType* primTypes_[Num_PrimTypes];
     };
+
+    ValueMap values_;
+    PiMap pis_;
+    SigmaMap sigmas_;
+    NamedSigmas namedSigmas_;
+    Lambdas lambdas_;
 };
 
 template<class T, class M, class Iter>

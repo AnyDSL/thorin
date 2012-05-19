@@ -110,8 +110,8 @@ Token Lexer::lex() {
         IMPALA_LEX_OP('*', MUL, MUL_ASGN)
         IMPALA_LEX_OP('%', MOD, MOD_ASGN)
         IMPALA_LEX_OP('^', XOR, XOR_ASGN)
-        IMPALA_LEX_OP('=', ASGN,  EQ)
-        IMPALA_LEX_OP('!', L_N,  NEQ)
+        IMPALA_LEX_OP('=', ASGN, EQ)
+        IMPALA_LEX_OP('!', L_N,  NE)
         IMPALA_LEX_OP(':', COLON,  COLONEQ)
 
         // <, <=, <<, <<=, >, >=, >>, >>=
@@ -125,8 +125,8 @@ Token Lexer::lex() {
             } \
             return Token(loc_, Token:: tok_rel); \
         }
-        IMPALA_LEX_REL_SHIFT('<', LT, LEQ, SHL, SHL_ASGN)
-        IMPALA_LEX_REL_SHIFT('>', GT, GEQ, SHR, SHR_ASGN)
+        IMPALA_LEX_REL_SHIFT('<', LT, LE, SHL, SHL_ASGN)
+        IMPALA_LEX_REL_SHIFT('>', GT, GE, SHR, SHR_ASGN)
 
         // /, /=, comments
 #define IMPALA_WITHIN_COMMENT(delim) \

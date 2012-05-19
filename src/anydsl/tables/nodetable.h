@@ -6,13 +6,13 @@ ANYDSL_AIR_NODE(Use)
 // Terminator
     ANYDSL_AIR_NODE(Goto)
     ANYDSL_AIR_NODE(Branch)
-    //ANYDSL_AIR_NODE(Switch)
     ANYDSL_AIR_NODE(Invoke)
 // Def
+    ANYDSL_AIR_NODE(Lambda)
     // Literal
         // PrimLit
         ANYDSL_AIR_NODE(Undef)
-        ANYDSL_AIR_NODE(Lambda)
+        ANYDSL_AIR_NODE(ErrorLit)
         ANYDSL_AIR_NODE(Tuple)
     // Value
         // PrimOp
@@ -24,6 +24,7 @@ ANYDSL_AIR_NODE(Use)
         ANYDSL_AIR_NODE(Param)
 // Type
     // PrimType
+    ANYDSL_AIR_NODE(ErrorType)
     ANYDSL_AIR_NODE(Pi)
     ANYDSL_AIR_NODE(Sigma)
 

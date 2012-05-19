@@ -73,12 +73,12 @@ IMPALA_INFIX(          XOR,    "^",       XOR,         AND)
 IMPALA_INFIX(          AND,    "&",       AND,          EQ)
 
 IMPALA_INFIX(           EQ,   "==",        EQ,         REL)
-IMPALA_INFIX(          NEQ,   "!=",        EQ,         REL)
+IMPALA_INFIX(           NE,   "!=",        EQ,         REL)
 
 IMPALA_INFIX(           LT,    "<",       REL,       SHIFT)
-IMPALA_INFIX(          LEQ,   "<=",       REL,       SHIFT)
+IMPALA_INFIX(           LE,   "<=",       REL,       SHIFT)
 IMPALA_INFIX(           GT,    ">",       REL,       SHIFT)
-IMPALA_INFIX(          GEQ,   ">=",       REL,       SHIFT)
+IMPALA_INFIX(           GE,   ">=",       REL,       SHIFT)
 
 IMPALA_INFIX(          SHL,   "<<",     SHIFT,         ADD)
 IMPALA_INFIX(          SHR,   ">>",     SHIFT,         ADD)

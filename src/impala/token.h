@@ -5,6 +5,7 @@
 #include <ostream>
 #include <string>
 
+#include "anydsl/air/enums.h"
 #include "anydsl/util/box.h"
 #include "anydsl/util/assert.h"
 #include "anydsl/util/location.h"
@@ -85,7 +86,12 @@ public:
     bool isAsgn()    const { return op() & ASGN_OP; }
     bool isOp() const { return isPrefix() || isInfix() || isPostfix(); }
 
+    bool isArith() const;
+    bool isRel() const;
+
     Token seperateAssign() const;
+    anydsl::ArithOpKind toArithOp() const;
+    anydsl::RelOpKind toRelOp() const;
 
     /*
      * comparisons

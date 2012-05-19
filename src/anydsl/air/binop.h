@@ -60,7 +60,7 @@ public:
 class RelOp : public BinOp {
 private:
 
-    RelOp(ArithOpKind arithOpKind, Def* ldef, Def* rdef);
+    RelOp(RelOpKind kind, Def* ldef, Def* rdef);
 
 public:
 

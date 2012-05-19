@@ -6,7 +6,7 @@
 namespace anydsl {
 
 class Def;
-class Terminator;
+class Jump;
 
 /**
  * Use encapsulates a use of an SSA value, i.e., a \p Def.
@@ -147,7 +147,7 @@ public:
     typedef node_iter<const Node*, true> const_reverse_iterator;
 
     /// Create empty argument list.
-    Args(Terminator* parent);
+    Args(Jump* parent);
     ~Args();
 
     iterator append(Def* def)  { return insert(end(), def); }
@@ -193,10 +193,10 @@ public:
      */
     void clear();
 
-    /// Get Terminator where this argument list is embedded in.
-    Terminator* parent() { return parent_; }
-    /// Get Terminator where this argument list is embedded in.
-    const Terminator* parent() const { return parent_; }
+    /// Get Jump where this argument list is embedded in.
+    Jump* parent() { return parent_; }
+    /// Get Jump where this argument list is embedded in.
+    const Jump* parent() const { return parent_; }
 
 private:
 
@@ -205,7 +205,7 @@ private:
     Node* tail() { return sentinel_->prev_; }
     const Node* tail() const { return sentinel_->prev_; }
 
-    Terminator* parent_;
+    Jump* parent_;
     Node* sentinel_;
     size_t size_;
 };

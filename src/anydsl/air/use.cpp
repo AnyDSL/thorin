@@ -19,7 +19,7 @@ Use::~Use() {
 
 //------------------------------------------------------------------------------
 
-Args::Args(Terminator* parent)
+Args::Args(Jump* parent)
     : parent_(parent)
     , sentinel_(new Node())
     , size_(0)
@@ -35,7 +35,7 @@ Args::~Args() {
 }
 
 Args::iterator Args::insert(Args::iterator pos, Def* def) {
-    Node* newNode = new UseNode(parent_, def);
+    Node* newNode = new UseNode(parent_->parent(), def);
     Node* n = pos.n_;
 
     newNode->next_ = n;

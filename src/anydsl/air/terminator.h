@@ -35,6 +35,8 @@ private:
 
 //------------------------------------------------------------------------------
 
+class DirectJump;
+
 /**
  * Helper class for \p Terminator%s.
  *
@@ -62,18 +64,40 @@ public:
      * (arguments) with this parent.
      * Let \p parent point to the Terminator where this Jump is embedded.
      */
-    Jump(Terminator* parent, Lambda* to)
+    Jump(Terminator* parent, Def* to)
         : to(parent, to)
-        , args(parent)
+        , args(this)
     {}
 
-    Lambda* lambda() { return to.def()->as<Lambda>(); }
-    const Lambda* lambda() const { return to.def()->as<Lambda>(); }
+    Terminator* parent() { return terminator_; }
+    const Terminator* parent() const { return terminator_; }
+
+    // Jump/DirectJump do not have vtables so we test 'to'
+    DirectJump* asDirectJump() { 
+        anydsl_assert(to.def()->isa<Lambda>(), "not a direct jump");
+        return (DirectJump*) this;
+    }
+
+    DirectJump* isaDirectJump() { return to.def()->isa<Lambda>() ? (DirectJump*) this : 0; }
 
     Use to;
     Args args;
 
+private:
+
+    Terminator* terminator_;
+
     friend class World;
+};
+
+class DirectJump : public Jump {
+public:
+
+    DirectJump(Terminator* parent, Lambda* to) : Jump(parent, to) {}
+
+    Lambda* lambda() { return to.def()->as<Lambda>(); }
+    const Lambda* lambda() const { return to.def()->as<Lambda>(); }
+
 };
 
 //------------------------------------------------------------------------------
@@ -88,7 +112,7 @@ private:
 
 public:
 
-    Jump jump;
+    DirectJump jump;
 
     friend class World;
 };
@@ -107,15 +131,15 @@ private:
 
 public:
 
-    typedef boost::array<Jump*, 2> TFJump;
-    typedef boost::array<const Jump*, 2> ConstTFJump;
+    typedef boost::array<DirectJump*, 2> TFJump;
+    typedef boost::array<const DirectJump*, 2> ConstTFJump;
 
     TFJump tfjump() { return (TFJump){{ &tjump, &fjump }}; }
     ConstTFJump tfjump() const { return (ConstTFJump){{ &tjump, &fjump }}; }
 
     Use cond;
-    Jump tjump;
-    Jump fjump;
+    DirectJump tjump;
+    DirectJump fjump;
 
     friend class World;
 };
@@ -125,16 +149,14 @@ public:
 class Invoke : public Terminator {
 private:
 
-    Invoke(Lambda* parent, Def* fct)
+    Invoke(Lambda* parent, Def* to)
         : Terminator(parent, Index_Invoke)
-        , fct(this, fct)
-        , args(this)
+        , jump(this, to)
     {}
 
 public:
 
-    Use fct;
-    Args args;
+    Jump jump;
 
     friend class World;
 };

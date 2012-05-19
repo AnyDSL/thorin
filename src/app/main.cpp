@@ -103,8 +103,7 @@ int main() {
     l->appendParam(w.type_u8());
     l->appendParam(w.type_u32());
 
-    const Type* pitypes[] = { w.type_u8(), w.type_u8(), w.type_u32() };
-    w.createLambda(w.pi(pitypes, pitypes + 3));
+    w.createLambda(w.pi((boost::array<const Type*, 3>){{ w.type_u8(), w.type_u8(), w.type_u32()}}));
 
     // prepend
     // remove evil and substitute by heavenly

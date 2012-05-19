@@ -12,8 +12,8 @@ namespace anydsl {
  */
 
 World::World() 
-    : pi_(pi((const Type**)0, (const Type**)0))
-    , unit_(sigma((const Type**)0, (const Type**)0))
+    : pi_(pi((const Type**) 0, (const Type**) 0))     // create  pi()
+    , unit_(sigma((const Type**) 0, (const Type**) 0))// creates sigma()
 #define ANYDSL_U_TYPE(T) ,T##_(new PrimType(*this, PrimType_##T))
 #define ANYDSL_F_TYPE(T) ,T##_(new PrimType(*this, PrimType_##T))
 #include "anydsl/tables/primtypetable.h"
@@ -120,6 +120,7 @@ Terminator* World::createBranch(Lambda* parent, Def* cond, Lambda* tto, Lambda* 
 Lambda* getvalue(Lambda* l) { return l; }
 Value* getvalue(std::pair<bool, Value*> p) { return p.second; }
 
+// TODO this is inefficient for Value -- there may be many iterations needed till the outer loop terminates
 template<class T, class C>
 void World::kill(C& container) {
     size_t oldSize;

@@ -101,6 +101,8 @@ public:
     Sigma* sigma(const std::string& name = "");
     template<class T> 
     const Sigma* sigma(T container, bool named = false) { return sigma(container.begin(), container.end(), named); }
+    template<size_t N>
+    const Sigma* sigma(const Type* (&array)[N], bool named = false) { return sigma(array, array + N, named); }
     /** 
      * @brief Get named or unnamed \p Sigma (according to \p named) with element types of given range.
      * 
@@ -129,6 +131,8 @@ public:
     const Pi* pi() const { return pi_; }
     template<class T> 
     const Pi* pi(T container) { return pi(container.begin(), container.end()); }
+    template<size_t N>
+    const Pi* pi(const Type* (&array)[N]) { return pi(array, array + N); }
     /** 
      * @brief Get named or unnamed \p Sigma (according to \p named) with element types of given range.
      * 

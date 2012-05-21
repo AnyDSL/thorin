@@ -38,6 +38,19 @@ static inline RelOpKind normalizeRel(RelOpKind kind, bool& swap) {
     }
 }
 
+static void examineDef(Def* def, FoldValue& v, bool& fold, bool& isLiteral) {
+    if (def->isa<Undef>()) {
+        v.kind = FoldValue::Undef;
+        fold = true;
+    } else if (def->isa<ErrorLit>()) {
+        v.kind = FoldValue::Error;
+        fold = true;
+    } if (PrimLit* lit = def->isa<PrimLit>()) {
+        v.box = lit->box();
+        isLiteral = true;
+    }
+}
+    
 /*
  * constructor and destructor
  */
@@ -183,20 +196,6 @@ Invoke* World::createInvoke(Lambda* parent, Def* fct) {
     return res;
 }
 
-
-static void examineDef(Def* def, FoldValue& v, bool& fold, bool& isLiteral) {
-    if (def->isa<Undef>()) {
-        v.kind = FoldValue::Undef;
-        fold = true;
-    } else if (def->isa<ErrorLit>()) {
-        v.kind = FoldValue::Error;
-        fold = true;
-    } if (PrimLit* lit = def->isa<PrimLit>()) {
-        v.box = lit->box();
-        isLiteral = true;
-    }
-}
-    
 Value* World::tryFold(IndexKind kind, Def* ldef, Def* rdef) {
     FoldValue a(ldef->type()->as<PrimType>()->kind());
     FoldValue b(a.type);

@@ -6,16 +6,31 @@
 
 namespace anydsl {
 
-struct FoldRes {
+struct FoldValue {
+    enum Kind {
+        Valid,
+        Error,
+        Undef,
+    };
+
+    Kind kind;
     PrimTypeKind type;
-    Box value;
-    bool error;
+    Box box;
+
+
+    FoldValue(PrimTypeKind type)
+        : kind(Valid)
+        , type(type)
+    {}
+    FoldValue(PrimTypeKind type, Box box)
+        : kind(Valid)
+        , type(type)
+        , box(box)
+    {}
+
 };
 
-FoldRes fold_bin(IndexKind kind, PrimTypeKind type, Box a, Box b);
-
-Box fold_arith(ArithOpKind, PrimTypeKind type, Box a, Box b, bool& error);
-Box fold_rel  (  RelOpKind, PrimTypeKind type, Box a, Box b, bool& error);
+FoldValue fold_bin(IndexKind kind, PrimTypeKind type, FoldValue a, FoldValue b);
 
 } // namespace anydsl
 

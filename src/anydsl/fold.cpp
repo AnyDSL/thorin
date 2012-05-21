@@ -2,93 +2,142 @@
 
 namespace anydsl {
 
-FoldRes fold_bin(IndexKind kind, PrimTypeKind type, Box a, Box b) {
-    FoldRes res;
+#define ANYDSL_NO_U_TYPE \
+    case PrimType_u1: \
+    case PrimType_u8: \
+    case PrimType_u16: \
+    case PrimType_u32: \
+    case PrimType_u64: ANYDSL_UNREACHABLE;
 
-    if (isArithOp(kind)) {
-        res.value = fold_arith((ArithOpKind) kind, type, a, b, res.error);
-        res.type = type;
+#define ANYDSL_NO_F_TYPE \
+    case PrimType_f32: \
+    case PrimType_f64: ANYDSL_UNREACHABLE;
+
+FoldValue fold_bin(IndexKind kind, PrimTypeKind type, FoldValue va, FoldValue vb) {
+    FoldValue res(res.type = isRelOp(kind) ? PrimType_u1 : type);
+
+    // if one of the operands is Error -> return Error
+    if (va.kind == FoldValue::Error || vb.kind == FoldValue::Error) {
+        res.kind = FoldValue::Error;
         return res;
-    } else if (isRelOp(kind)) {
-        res.value = fold_rel((RelOpKind) kind, type, a, b, res.error);
-        res.type = PrimType_u1;
-        return res;
-    } 
+    }
 
-    ANYDSL_UNREACHABLE;
-}
+    res.kind = FoldValue::Valid;
 
-Box fold_arith(ArithOpKind kind, PrimTypeKind type, Box a, Box b, bool& error) {
-    error = false;
+    // if one of the operands is Undef various things may happen
+    if (va.kind == FoldValue::Undef || vb.kind == FoldValue::Undef) {
+        switch (kind) {
+            case Index_udiv:
+            case Index_sdiv:
+            case Index_fdiv:
+                if (vb.kind == FoldValue::Undef) {
+                    res.kind = FoldValue::Error;
+                    return res; // due to division by zero
+                }
+            case Index_bit_and: {
+                //res.box = 
+                ANYDSL_NOT_IMPLEMENTED;
+            }
+            case Index_bit_or: {
+                //res.box = 
+                ANYDSL_NOT_IMPLEMENTED;
+            }
+            default:
+                res.kind = FoldValue::Undef;
+                return res;
+        }
+    }
+                    
+    Box& a = va.box;
+    Box& b = vb.box;
 
     switch (kind) {
-        case ArithOp_add:
+
+        /*
+         * ArithOps
+         */
+
+        case Index_add:
             switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return Box(T(a.get_##T() + b.get_##T()));
-#define ANYDSL_F_TYPE(T) case PrimType_##T: return Box(T(a.get_##T() + b.get_##T()));
+#define ANYDSL_U_TYPE(T) case PrimType_##T: res.box = Box(T(a.get_##T() + b.get_##T())); return res;
+#define ANYDSL_F_TYPE(T) case PrimType_##T: res.box = Box(T(a.get_##T() + b.get_##T())); return res;
 #include "anydsl/tables/primtypetable.h"
             }
         case ArithOp_sub:
             switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return Box(T(a.get_##T() - b.get_##T()));
-#define ANYDSL_F_TYPE(T) case PrimType_##T: return Box(T(a.get_##T() - b.get_##T()));
+#define ANYDSL_U_TYPE(T) case PrimType_##T: res.box = Box(T(a.get_##T() - b.get_##T())); return res;
+#define ANYDSL_F_TYPE(T) case PrimType_##T: res.box = Box(T(a.get_##T() - b.get_##T())); return res;
 #include "anydsl/tables/primtypetable.h"
             }
-        case ArithOp_mul:
+        case Index_mul:
             switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return Box(T(a.get_##T() * b.get_##T()));
-#define ANYDSL_F_TYPE(T) case PrimType_##T: return Box(T(a.get_##T() * b.get_##T()));
+#define ANYDSL_U_TYPE(T) case PrimType_##T: res.box = Box(T(a.get_##T() * b.get_##T())); return res;
+#define ANYDSL_F_TYPE(T) case PrimType_##T: res.box = Box(T(a.get_##T() * b.get_##T())); return res;
 #include "anydsl/tables/primtypetable.h"
             }
-        default: ANYDSL_NOT_IMPLEMENTED;
-    }
-}
+        case Index_udiv:
+            switch (type) {
+#define ANYDSL_U_TYPE(T) case PrimType_##T: res.box = Box(T(a.get_##T() / b.get_##T())); return res;
+#include "anydsl/tables/primtypetable.h"
+                ANYDSL_NO_F_TYPE;
+            }
+        case Index_sdiv:
+            switch (type) {
+#define ANYDSL_U_TYPE(T) \
+                case PrimType_##T: { \
+                    typedef make_signed<T>::type S; \
+                    res.box = Box(bcast<T , S>(bcast<S, T >(a.get_##T()) / bcast<S, T >(b.get_##T()))); \
+                    return res; \
+                }
+#include "anydsl/tables/primtypetable.h"
+                ANYDSL_NO_F_TYPE;
+            }
+        case Index_fdiv:
+            switch (type) {
+#define ANYDSL_F_TYPE(T) case PrimType_##T: res.box = Box(T(a.get_##T() / b.get_##T())); return res;
+#include "anydsl/tables/primtypetable.h"
+                ANYDSL_NO_U_TYPE;
+            }
 
-Box fold_rel(RelOpKind kind, PrimTypeKind type, Box a, Box b, bool& error) {
-    error = false;
+        /*
+         * RelOps
+         */
 
-    switch (kind) {
-        case RelOp_cmp_eq:
+        case Index_cmp_eq:
             switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return Box(a.get_##T() == b.get_##T());
+#define ANYDSL_U_TYPE(T) case PrimType_##T: res.box = Box(a.get_##T() == b.get_##T()); return res;
 #include "anydsl/tables/primtypetable.h"
-                case PrimType_f32:
-                case PrimType_f64: ANYDSL_UNREACHABLE;
+                ANYDSL_NO_F_TYPE;
             }
-        case RelOp_cmp_ne:
+        case Index_cmp_ne:
             switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return Box(a.get_##T() != b.get_##T());
+#define ANYDSL_U_TYPE(T) case PrimType_##T: res.box = Box(a.get_##T() != b.get_##T()); return res;
 #include "anydsl/tables/primtypetable.h"
-                case PrimType_f32:
-                case PrimType_f64: ANYDSL_UNREACHABLE;
+                ANYDSL_NO_F_TYPE;
             }
-        case RelOp_cmp_ult:
+        case Index_cmp_ult:
             switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return Box(a.get_##T() <  b.get_##T());
+#define ANYDSL_U_TYPE(T) case PrimType_##T: res.box = Box(a.get_##T() <  b.get_##T()); return res;
 #include "anydsl/tables/primtypetable.h"
-                case PrimType_f32:
-                case PrimType_f64: ANYDSL_UNREACHABLE;
+                ANYDSL_NO_F_TYPE;
             }
-        case RelOp_cmp_ule:
+        case Index_cmp_ule:
             switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return Box(a.get_##T() <= b.get_##T());
+#define ANYDSL_U_TYPE(T) case PrimType_##T: res.box = Box(a.get_##T() <= b.get_##T()); return res;
 #include "anydsl/tables/primtypetable.h"
-                case PrimType_f32:
-                case PrimType_f64: ANYDSL_UNREACHABLE;
+                ANYDSL_NO_F_TYPE;
             }
-        case RelOp_cmp_ugt:
+        case Index_cmp_ugt:
             switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return Box(a.get_##T() >  b.get_##T());
+#define ANYDSL_U_TYPE(T) case PrimType_##T: res.box = Box(a.get_##T() >  b.get_##T()); return res;
 #include "anydsl/tables/primtypetable.h"
-                case PrimType_f32:
-                case PrimType_f64: ANYDSL_UNREACHABLE;
+                ANYDSL_NO_F_TYPE;
             }
-        case RelOp_cmp_uge:
+        case Index_cmp_uge:
             switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return Box(a.get_##T() >= b.get_##T());
+#define ANYDSL_U_TYPE(T) case PrimType_##T: res.box = Box(a.get_##T() >= b.get_##T()); return res;
 #include "anydsl/tables/primtypetable.h"
-                case PrimType_f32:
-                case PrimType_f64: ANYDSL_UNREACHABLE;
+                ANYDSL_NO_F_TYPE;
             }
 
         default: ANYDSL_NOT_IMPLEMENTED;

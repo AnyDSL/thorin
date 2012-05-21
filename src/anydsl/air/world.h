@@ -17,7 +17,7 @@ namespace anydsl {
 
 class Def;
 class ErrorLit;
-class ErrorType;
+//class ErrorType;
 class Goto;
 class Invoke;
 class Lambda;
@@ -183,7 +183,9 @@ public:
     template<class T>
     PrimLit* literal(T value) { return literal(type2kind<T>::kind, Box(value)); }
     Undef* undef(const Type* type);
+    Undef* undef(PrimTypeKind kind) { return undef(type(kind)); }
     ErrorLit* literal_error(const Type* type);
+    ErrorLit* literal_error(PrimTypeKind kind) { return literal_error(type(kind)); }
     /// ErrorLit of ErrorType.
     ErrorLit* error() { return literal_error(type_error_); }
 

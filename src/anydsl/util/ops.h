@@ -3,17 +3,6 @@
 
 namespace anydsl {
 
-// div
-#define ANYDSL_U_TYPE(T) inline T udiv(T a, T b) { return a / b; }
-#define ANYDSL_F_TYPE(T) inline T fdiv(T a, T b) { return a / b; }
-#include "anydsl/tables/primtypetable.h"
-#define ANYDSL_U_TYPE(T) \
-    inline T sdiv(T a, T b) { \
-        typedef make_signed< T >::type S; \
-        return bcast< T , S>(bcast<S, T >(a) / bcast<S, T >(b)); \
-    }
-#include "anydsl/tables/primtypetable.h"
-
 // rem
 #define ANYDSL_U_TYPE(T) inline T urem(T a, T b) { return a / b; }
 #include "anydsl/tables/primtypetable.h"

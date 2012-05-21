@@ -187,16 +187,39 @@ Invoke* World::createInvoke(Lambda* parent, Def* fct) {
 }
 
 
+static void examineDef(Def* def, FoldValue& v, bool& fold, bool& isLiteral) {
+    if (def->isa<Undef>()) {
+        v.kind = FoldValue::Undef;
+        fold = true;
+    } else if (def->isa<ErrorLit>()) {
+        v.kind = FoldValue::Error;
+        fold = true;
+    } if (PrimLit* lit = def->isa<PrimLit>()) {
+        v.box = lit->box();
+        isLiteral = true;
+    }
+}
+    
 Value* World::tryFold(IndexKind kind, Def* ldef, Def* rdef) {
-    if (PrimLit* llit = ldef->isa<PrimLit>()) {
-        if (PrimLit* rlit = rdef->isa<PrimLit>()) {
-            const PrimType* p = ldef->type()->as<PrimType>();
-            FoldRes res = fold_bin(kind, p->kind(), llit->box(), rlit->box());
+    FoldValue a(ldef->type()->as<PrimType>()->kind());
+    FoldValue b(a.type);
 
-            if (res.error)
-                return literal_error(p);
+    bool fold = false;
+    bool l_lit = false;
+    bool r_lit = false;
 
-            return literal(res.type, res.value);
+    examineDef(ldef, a, fold, l_lit);
+    examineDef(rdef, b, fold, r_lit);
+    fold |= l_lit & r_lit;
+
+    if (fold) {
+        const PrimType* p = ldef->type()->as<PrimType>();
+        FoldValue res = fold_bin(kind, p->kind(), a, b);
+
+        switch (res.kind) {
+            case FoldValue::Valid: return literal(res.type, res.box);
+            case FoldValue::Undef: return undef(res.type);
+            case FoldValue::Error: return literal_error(res.type);
         }
     }
 
@@ -205,9 +228,6 @@ Value* World::tryFold(IndexKind kind, Def* ldef, Def* rdef) {
 
 
 Value* World::createArithOp(ArithOpKind kind, Def* ldef, Def* rdef) {
-    if (ldef->isa<Undef>()) undef(ldef->type());
-    if (rdef->isa<Undef>()) undef(rdef->type());
-
     if (Value* value = tryFold((IndexKind) kind, ldef, rdef))
         return value;
 
@@ -221,9 +241,6 @@ Value* World::createArithOp(ArithOpKind kind, Def* ldef, Def* rdef) {
 }
 
 Value* World::createRelOp(RelOpKind kind, Def* ldef, Def* rdef) {
-    if (ldef->isa<Undef>()) undef(type_u1());
-    if (rdef->isa<Undef>()) undef(type_u1());
-
     if (Value* value = tryFold((IndexKind) kind, ldef, rdef))
         return value;
 

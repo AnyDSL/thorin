@@ -26,7 +26,7 @@ typedef double   f64;
 class u1 {
 public:
 
-    u1();
+    u1() {}
     u1(bool b) : b_(b) {}
     u1( i8 i) : b_(i & 1) {}
     u1(i16 i) : b_(i & 1) {}

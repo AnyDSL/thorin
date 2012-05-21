@@ -95,27 +95,47 @@ const Pi* World::pi3(const Type* t1, const Type* t2, const Type* t3) {
     return pi(types);
 }
 
+template<class T>
+T* World::findValue(const ValueNumber& vn) {
+    ValueMap::iterator i = values_.find(vn);
+    if (i != values_.end())
+        return scast<T>(i->second);
+
+    T* value = new T(vn);
+    values_[vn] = value;
+
+    return value;
+}
+
+template<>
+PrimLit* World::findValue<PrimLit>(const ValueNumber& vn) {
+    ValueMap::iterator i = values_.find(vn);
+    if (i != values_.end())
+        return scast<PrimLit>(i->second);
+
+    PrimLit* value = new PrimLit(*this, vn);
+    values_[vn] = value;
+
+    return value;
+}
+
 /*
  * literals
  */
 
 PrimLit* World::literal(PrimLitKind kind, Box value) {
-    //Values::iterator i = values_.find(
-    std::ostringstream oss;
-    oss << value.u64_;
-    PrimLit* prim = new PrimLit(*this, kind, value);
-    values_.insert(std::make_pair(prim->hash(), prim));
-    return prim;
+    ValueNumber vn = PrimLit::VN(kind, value);
+    return findValue<PrimLit>(vn);
 }
 
 Undef* World::undef(const Type* type) {
-    Undef* u = new Undef(type);
-    return u;
+    ValueNumber vn = Undef::VN(type);
+    return findValue<Undef>(vn);
 }
 
 ErrorLit* World::literal_error(const Type* type) {
-    ErrorLit* e = new ErrorLit(type);
-    return e;
+    ValueNumber vn = ErrorLit::VN(type);
+    return findValue<ErrorLit>(vn);
 }
 
 /*
@@ -143,13 +163,13 @@ Invoke* World::createInvoke(Lambda* parent, Def* fct) {
 
 Value* World::createArithOp(ArithOpKind kind, Def* ldef, Def* rdef) {
     ArithOp* op = new ArithOp(kind, ldef, rdef);
-    values_.insert(std::make_pair(op->hash(), op));
+    //values_.insert(std::make_pair(op->hash(), op));
     return op;
 }
 
 Value* World::createRelOp(RelOpKind kind, Def* ldef, Def* rdef) {
     RelOp* op = new RelOp(kind, ldef, rdef);
-    values_.insert(std::make_pair(op->hash(), op));
+    //values_.insert(std::make_pair(op->hash(), op));
     return op;
 }
 

@@ -25,33 +25,4 @@ World& Def::world() const {
     return type_->world(); 
 }
 
-//------------------------------------------------------------------------------
-
-bool PrimOp::compare(PrimOp* other) const {
-    if (this->hash() != other->hash())
-        return false;
-
-    if (typeid(*this) != typeid(*other))
-        return false;
-
-    if (this->index() != other->index())
-        return false;
-
-    if (const ArithOp* a = this->isa<ArithOp>()) {
-        const ArithOp* b = other->as<ArithOp>();
-
-        if (a->luse.def() != b->luse.def())
-            return false;
-
-        if (a->luse.def() != b->ruse.def())
-            return false;
-
-        return false;
-    }
-
-    ANYDSL_UNREACHABLE;
-}
-
-//------------------------------------------------------------------------------
-
 } // namespace anydsl

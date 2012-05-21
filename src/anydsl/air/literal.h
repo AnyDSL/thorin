@@ -28,14 +28,11 @@ typedef std::vector<Literal*> Literals;
 class Undef : public Literal {
 private:
 
-    Undef(const Type* type)
-        : Literal(Index_Undef, type)
+    Undef(const ValueNumber& vn)
+        : Literal((IndexKind) vn.index, (const Type*) vn.op1)
     {}
 
-public:
-
-    virtual uint64_t hash() const { return hash(type()); }
-    static  uint64_t hash(const Type*);
+    static ValueNumber VN(const Type* type) { return ValueNumber(Index_Undef, type); }
 
     friend class World;
 };
@@ -45,14 +42,11 @@ public:
 class ErrorLit : public Literal {
 private:
 
-    ErrorLit(const Type* type)
-        : Literal(Index_ErrorLit, type)
+    ErrorLit(const ValueNumber& vn)
+        : Literal((IndexKind) vn.index, (const Type*) vn.op1)
     {}
 
-public:
-
-    virtual uint64_t hash() const { return hash(type()); }
-    static  uint64_t hash(const Type*);
+    static ValueNumber VN(const Type* type) { return ValueNumber(Index_ErrorLit, type); }
 
     friend class World;
 };
@@ -62,17 +56,22 @@ public:
 class PrimLit : public Literal {
 private:
 
-    PrimLit(World& world, PrimLitKind kind, Box box);
+    PrimLit(World& world, const ValueNumber& vn);
 
 public:
 
     PrimLitKind kind() const { return (PrimLitKind) index(); }
     Box box() const { return box_; }
 
-    virtual uint64_t hash() const { return hash(kind(), box()); }
-    static  uint64_t hash(PrimLitKind kind, Box box);
+
+    static ValueNumber VN(PrimLitKind kind, Box box);
 
 private:
+
+    struct Split { 
+        uintptr_t op1;
+        uintptr_t op2;
+    };
 
     Box box_;
 
@@ -85,9 +84,6 @@ class Tuple : public Literal {
 public:
 
     const Literals& elems() const { return elems_; }
-
-    virtual uint64_t hash() const { return hash(type()); }
-    static  uint64_t hash(const Type*) { return 0; }
 
 private:
 

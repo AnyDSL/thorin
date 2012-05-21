@@ -98,9 +98,18 @@ int main(int argc, char** argv) {
         World world;
         const char* filename = infiles[0].c_str();
         ifstream file(filename);
-        impala::Parser parser(world, file, filename);
-        Lambda* root = parser.parse();
+        //impala::Parser parser(world, file, filename);
+        //Lambda* root = 
+            //parser.parse();
         
+        world.literal_u8(1);
+        world.literal_u8(2);
+        world.literal_u8(3);
+        world.literal_u8(2);
+        world.literal_u16(2);
+        world.literal_u16(2);
+        world.literal_u16(2);
+
         //Emit the results
         switch (destinationType) {
             case None:

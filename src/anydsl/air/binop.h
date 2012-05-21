@@ -52,6 +52,8 @@ public:
 
     ArithOpKind kind() { return (ArithOpKind) index(); }
 
+    static ValueNumber VN(Def* ldef, Def* rdef);
+
     friend class World;
 };
 

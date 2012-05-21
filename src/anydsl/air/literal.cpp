@@ -9,26 +9,24 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-uint64_t Undef::hash(const Type* type) {
-    return hash2(Index_Undef, type);
+PrimLit::PrimLit(World& world, const ValueNumber& vn)
+    : Literal((IndexKind) vn.index, world.type(lit2type((PrimLitKind) vn.index)))
+{
+    if (sizeof(void*) == sizeof(uint64_t))
+        box_ = bcast<Box, uintptr_t>(vn.op1);
+    else {
+        Split split = {vn.op1, vn.op2};
+        box_ = bcast<Box, Split>(split);
+    }
 }
 
-//------------------------------------------------------------------------------
-
-uint64_t ErrorLit::hash(const Type* type) {
-    return hash2(Index_ErrorLit, type);
-}
-
-//------------------------------------------------------------------------------
-
-PrimLit::PrimLit(World& world, PrimLitKind kind, Box box)
-    : Literal((IndexKind) kind, world.type(lit2type(kind)))
-    , box_(box)
-{}
-
-/*static*/ uint64_t PrimLit::hash(PrimLitKind kind, Box box) {
-    anydsl_assert(sizeof(Box) == 8, "Box has unexpected size");
-    return hash2((IndexKind) kind, bcast<uint64_t, Box>(box));
+ValueNumber PrimLit::VN(PrimLitKind kind, Box box) {
+    if (sizeof(void*) == sizeof(uint64_t))
+        return ValueNumber((IndexKind) kind, bcast<const void*, Box>(box));
+    else {
+        Split split = bcast<Split, Box>(box);
+        return ValueNumber((IndexKind) kind, (const void*) split.op1, (const void*) split.op2);
+    }
 }
 
 //------------------------------------------------------------------------------

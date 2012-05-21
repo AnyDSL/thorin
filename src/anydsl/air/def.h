@@ -87,9 +87,41 @@ protected:
     Value(IndexKind index, const Type* type)
         : Def(index, type)
     {}
-
-    virtual uint64_t hash() const = 0;
 };
+
+struct ValueNumber {
+    uint8_t index;
+    uintptr_t op1;
+    uintptr_t op2;
+
+    ValueNumber() {}
+    ValueNumber(IndexKind index)
+        : index(index)
+        , op1(0)
+        , op2(0)
+    {}
+    ValueNumber(IndexKind index, const void* p)
+        : index(index)
+        , op1(uintptr_t(p))
+        , op2(uintptr_t(0))
+    {}
+    ValueNumber(IndexKind index, const void* p1, const void* p2) 
+        : index(index)
+        , op1(uintptr_t(p1))
+        , op2(uintptr_t(p2))
+    {}
+
+    bool operator == (const ValueNumber& vn) const {
+        return index == vn.index && op1 == vn.op1 && op2 == vn.op2;
+    }
+    bool operator != (const ValueNumber& vn) const {
+        return index != vn.index || op1 != vn.op1 || op2 != vn.op2;
+    }
+};
+
+inline size_t hash_value(const ValueNumber& vn) {
+    return 0;
+}
 
 //------------------------------------------------------------------------------
 
@@ -97,8 +129,6 @@ class PrimOp : public Value {
 public:
 
     PrimOpKind primOpKind() const { return (PrimOpKind) index(); }
-
-    bool compare(PrimOp* other) const;
 
 protected:
 

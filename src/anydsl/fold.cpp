@@ -34,13 +34,20 @@ FoldValue fold_bin(IndexKind kind, PrimTypeKind type, FoldValue va, FoldValue vb
                     res.kind = FoldValue::Error;
                     return res; // due to division by zero
                 }
+                // else fall through to default case
             case Index_bit_and: {
-                //res.box = 
-                ANYDSL_NOT_IMPLEMENTED;
+                switch (type) {
+#define ANYDSL_U_TYPE(T) case PrimType_##T: res.box = Box(T(0)); return res;
+#include "anydsl/tables/primtypetable.h"
+                    ANYDSL_NO_F_TYPE;
+                }
             }
             case Index_bit_or: {
-                //res.box = 
-                ANYDSL_NOT_IMPLEMENTED;
+                switch (type) {
+#define ANYDSL_U_TYPE(T) case PrimType_##T: res.box = Box(T(-1)); return res;
+#include "anydsl/tables/primtypetable.h"
+                    ANYDSL_NO_F_TYPE;
+                }
             }
             default:
                 res.kind = FoldValue::Undef;

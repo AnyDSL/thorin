@@ -200,6 +200,7 @@ public:
 
     Value* createArithOp(ArithOpKind kind, Def* ldef, Def* rdef);
     Value* createRelOp(RelOpKind kind, Def* ldef, Def* rdef);
+    Value* createProj(Def* tuple, PrimLit* i);
 
     /*
      * optimize

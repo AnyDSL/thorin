@@ -1,5 +1,6 @@
 #include "anydsl/air/primop.h"
 
+#include "anydsl/air/literal.h"
 #include "anydsl/air/type.h"
 #include "anydsl/air/world.h"
 
@@ -15,19 +16,14 @@ RelOp::RelOp(const ValueNumber& vn)
 
 //------------------------------------------------------------------------------
 
-SigmaOp::SigmaOp(IndexKind index, const Type* type, Def* tuple, PrimLit* elem)
-    : PrimOp(index, type)
-    , tuple(tuple, this)
-    , elem_(elem)
+Proj::Proj(const ValueNumber& vn)
+    : PrimOp(Index_Proj, 
+             ((Def*)vn.op1)->type()->as<Sigma>()->get(((Def*) vn.op2)->as<PrimLit>()))
+    , tuple(this, (Def*) vn.op1)
+    , elem(this, (Def*) vn.op2)
 {
-    anydsl_assert(tuple->as<Sigma>(), "must be of Sigma type");
+    anydsl_assert(vn.index == Index_Proj, "wrong index in VN");
 }
-
-//------------------------------------------------------------------------------
-
-Extract::Extract(Def* tuple, PrimLit* elem)
-    : SigmaOp(Index_Extract, scast<Sigma>(tuple->type())->get(elem), tuple, elem)
-{}
 
 //------------------------------------------------------------------------------
 

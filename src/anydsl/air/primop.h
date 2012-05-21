@@ -18,7 +18,7 @@ public:
 
     PrimOpKind primOpKind() const { return (PrimOpKind) index(); }
 
-    const Ops& ops() { return ops_; }
+    //const Ops& ops() { return ops_; }
 
 protected:
 
@@ -26,7 +26,7 @@ protected:
         : Value(index, type)
     {}
 
-    Ops ops_;
+    //Ops ops_;
 };
 
 //------------------------------------------------------------------------------
@@ -43,7 +43,7 @@ protected:
     }
 
     static ValueNumber VN(IndexKind kind, Def* ldef, Def* rdef) {
-        return ValueNumber(kind, (uintptr_t) ldef, (uintptr_t) rdef);
+        return ValueNumber(kind, uintptr_t(ldef), uintptr_t(rdef));
     }
 
 public:
@@ -72,13 +72,13 @@ private:
                 (Def*) vn.op2)
     {}
 
-public:
-
-    ArithOpKind kind() { return (ArithOpKind) index(); }
-
     static ValueNumber VN(ArithOpKind kind, Def* ldef, Def* rdef) {
         return BinOp::VN((IndexKind) kind, ldef, rdef);
     }
+
+public:
+
+    ArithOpKind kind() { return (ArithOpKind) index(); }
 
     friend class World;
 };
@@ -90,54 +90,37 @@ private:
 
     RelOp(const ValueNumber& vn);
 
+    static ValueNumber VN(RelOpKind kind, Def* ldef, Def* rdef) {
+        return ValueNumber((IndexKind) kind, uintptr_t(ldef), uintptr_t(rdef));
+    }
+
 public:
 
     RelOpKind kind() { return (RelOpKind) index(); }
-
-    static ValueNumber VN(RelOpKind kind, Def* ldef, Def* rdef) {
-        return ValueNumber((IndexKind) kind, (uintptr_t) ldef, (uintptr_t) rdef);
-    }
 
     friend class World;
 };
 
 //------------------------------------------------------------------------------
 
-class SigmaOp : public PrimOp {
-protected:
+class Proj : public PrimOp {
+private:
 
-    SigmaOp(IndexKind index, const Type* type, Def* tuple, PrimLit* elem);
+    Proj(const ValueNumber& vn);
 
-public:
-
+    static ValueNumber VN(Def* tuple, PrimLit* elem) {
+        return ValueNumber(Index_Proj, uintptr_t(tuple), uintptr_t(elem));
+    }
+    
     Use tuple;
+    Use elem;
 
-private:
-
-    PrimLit* elem_;
+    friend class World;
 };
 
 //------------------------------------------------------------------------------
 
-class Extract : public SigmaOp {
-private:
-
-    Extract(Def* tuple, PrimLit* elem);
-};
-
-//------------------------------------------------------------------------------
-
-class Insert : public SigmaOp {
-private:
-
-    Insert(Def* tuple, PrimLit* elem, Def* value)
-        : SigmaOp(Index_Insert, tuple->type(), tuple, elem)
-        , value(value, this)
-    {}
-
-public:
-
-    Use value;
+class Tuple : public PrimOp {
 };
 
 //------------------------------------------------------------------------------

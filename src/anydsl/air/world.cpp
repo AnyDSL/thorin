@@ -246,6 +246,11 @@ Value* World::createRelOp(RelOpKind kind, Def* ldef, Def* rdef) {
     return findValue<RelOp>(RelOp::VN(kind, ldef, rdef));
 }
 
+Value* World::createProj(Def* tuple, PrimLit* i) {
+    // TODO folding
+    return findValue<Proj>(Proj::VN(tuple, i));
+}
+
 Terminator* World::createBranch(Lambda* parent, Def* cond, Lambda* tto, Lambda* fto) {
     Terminator* result; 
 

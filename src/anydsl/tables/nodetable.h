@@ -13,14 +13,13 @@ ANYDSL_AIR_NODE(Use)
         // PrimLit
         ANYDSL_AIR_NODE(Undef)
         ANYDSL_AIR_NODE(ErrorLit)
-        ANYDSL_AIR_NODE(Tuple)
     // Value
         // PrimOp
             ANYDSL_AIR_NODE(ArithOp)
             ANYDSL_AIR_NODE(RelOp)
             ANYDSL_AIR_NODE(ConvOp)
-            ANYDSL_AIR_NODE(Insert)
-            ANYDSL_AIR_NODE(Extract)
+            ANYDSL_AIR_NODE(Proj)
+            ANYDSL_AIR_NODE(Tuple)
         ANYDSL_AIR_NODE(Param)
 // Type
     // PrimType

@@ -91,10 +91,20 @@ protected:
 };
 
 struct ValueNumber {
-    uint8_t index;
+public:
+    IndexKind index;
     uintptr_t op1;
-    uintptr_t op2;
-    uintptr_t op3;
+
+
+    union {
+        uintptr_t op2;
+        size_t size;
+    };
+
+    union {
+        uintptr_t op3;
+        uintptr_t* more;
+    };
 
     ValueNumber() {}
     ValueNumber(IndexKind index)
@@ -120,6 +130,35 @@ struct ValueNumber {
         , op2(p2)
         , op3(p3)
     {}
+    ValueNumber(size_t size, uintptr_t* more)
+        : size(size)
+        , more(more)
+    {}
+    ~ValueNumber() {
+        if (index == Index_Tuple)
+            delete more;
+    }
+    /// Mimics a C++11 move constructor by const_cast.
+    ValueNumber(const ValueNumber& vn) {
+        if (index == Index_Tuple) {
+            index = vn.index;
+            size = vn.size;
+            more = vn.more;
+            const_cast<ValueNumber&>(vn).more = 0;
+        } else
+            std::memcpy(this, &vn, sizeof(ValueNumber));
+    }
+    ValueNumber& operator = (ValueNumber& vn) {
+        if (index == Index_Tuple) {
+            index = vn.index;
+            size = vn.size;
+            more = vn.more;
+            vn.more = 0;
+        } else
+            std::memcpy(this, &vn, sizeof(ValueNumber));
+
+        return *this;
+    }
 
 
     bool operator == (const ValueNumber& vn) const {

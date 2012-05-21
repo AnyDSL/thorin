@@ -92,7 +92,7 @@ public:
     }
 
     /// Get element type via anydsl::PrimLit which serves as index.
-    const Type* get(PrimLit* c) const;
+    const Type* get(PrimLit* i) const;
 
     const Types& types() const { return types_; }
 

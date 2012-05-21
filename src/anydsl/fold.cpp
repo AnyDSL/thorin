@@ -61,6 +61,10 @@ FoldValue fold_bin(IndexKind kind, PrimTypeKind type, FoldValue va, FoldValue vb
     Box& a = va.box;
     Box& b = vb.box;
 
+    // Error and Undef cases have already been handled;
+    // From now on we know that both a and b are Valid.
+    // However, the operations itself may still produces Error or Undef values.
+
     switch (kind) {
 
         /*

@@ -21,8 +21,6 @@ protected:
     {}
 };
 
-typedef std::vector<Literal*> Literals;
-
 //------------------------------------------------------------------------------
 
 class Undef : public Literal {
@@ -76,18 +74,6 @@ private:
     Box box_;
 
     friend class World;
-};
-
-//------------------------------------------------------------------------------
-
-class Tuple : public Literal {
-public:
-
-    const Literals& elems() const { return elems_; }
-
-private:
-
-    Literals elems_;
 };
 
 //------------------------------------------------------------------------------

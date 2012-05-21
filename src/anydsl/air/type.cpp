@@ -1,6 +1,7 @@
 #include "anydsl/air/type.h"
 
 #include "anydsl/air/literal.h"
+#include "anydsl/air/use.h"
 
 namespace anydsl {
 

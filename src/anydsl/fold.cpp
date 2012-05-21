@@ -31,11 +31,13 @@ FoldValue fold_bin(IndexKind kind, PrimTypeKind type, FoldValue va, FoldValue vb
             case Index_sdiv:
             case Index_fdiv:
                 if (vb.kind == FoldValue::Undef) {
+                    // assume division by zero
                     res.kind = FoldValue::Error;
-                    return res; // due to division by zero
+                    return res;
                 }
                 // else fall through to default case
             case Index_bit_and: {
+                // assume 000...0
                 switch (type) {
 #define ANYDSL_U_TYPE(T) case PrimType_##T: res.box = Box(T(0)); return res;
 #include "anydsl/tables/primtypetable.h"
@@ -43,6 +45,7 @@ FoldValue fold_bin(IndexKind kind, PrimTypeKind type, FoldValue va, FoldValue vb
                 }
             }
             case Index_bit_or: {
+                // assume 111...1
                 switch (type) {
 #define ANYDSL_U_TYPE(T) case PrimType_##T: res.box = Box(T(-1)); return res;
 #include "anydsl/tables/primtypetable.h"

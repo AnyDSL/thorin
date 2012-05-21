@@ -23,6 +23,7 @@ static inline bool isCommutative(ArithOpKind kind) {
 }
 
 static inline RelOpKind normalizeRel(RelOpKind kind, bool& swap) {
+    swap = false;
     switch (kind) {
         case RelOp_cmp_ugt: swap = true; return RelOp_cmp_ult;
         case RelOp_cmp_uge: swap = true; return RelOp_cmp_ule;
@@ -144,23 +145,19 @@ T* World::findValue(const ValueNumber& vn) {
  */
 
 PrimLit* World::literal(PrimLitKind kind, Box value) {
-    ValueNumber vn = PrimLit::VN(type(lit2type(kind)), value);
-    return findValue<PrimLit>(vn);
+    return findValue<PrimLit>(PrimLit::VN(type(lit2type(kind)), value));
 }
 
 PrimLit* World::literal(const PrimType* p, Box value) {
-    ValueNumber vn = PrimLit::VN(p, value);
-    return findValue<PrimLit>(vn);
+    return findValue<PrimLit>(PrimLit::VN(p, value));
 }
 
 Undef* World::undef(const Type* type) {
-    ValueNumber vn = Undef::VN(type);
-    return findValue<Undef>(vn);
+    return findValue<Undef>(Undef::VN(type));
 }
 
 ErrorLit* World::literal_error(const Type* type) {
-    ValueNumber vn = ErrorLit::VN(type);
-    return findValue<ErrorLit>(vn);
+    return findValue<ErrorLit>(ErrorLit::VN(type));
 }
 
 /*
@@ -226,7 +223,6 @@ Value* World::tryFold(IndexKind kind, Def* ldef, Def* rdef) {
     return 0;
 }
 
-
 Value* World::createArithOp(ArithOpKind kind, Def* ldef, Def* rdef) {
     if (Value* value = tryFold((IndexKind) kind, ldef, rdef))
         return value;
@@ -235,23 +231,19 @@ Value* World::createArithOp(ArithOpKind kind, Def* ldef, Def* rdef) {
         if (ldef > rdef)
             std::swap(ldef, rdef);
 
-    ValueNumber vn = ArithOp::VN(kind, ldef, rdef);
-
-    return findValue<ArithOp>(vn);
+    return findValue<ArithOp>(ArithOp::VN(kind, ldef, rdef));
 }
 
 Value* World::createRelOp(RelOpKind kind, Def* ldef, Def* rdef) {
     if (Value* value = tryFold((IndexKind) kind, ldef, rdef))
         return value;
 
-    bool swap = false;
+    bool swap;
     kind = normalizeRel(kind, swap);
     if (swap)
         std::swap(ldef, rdef);
 
-    ValueNumber vn = RelOp::VN(kind, ldef, rdef);
-
-    return findValue<RelOp>(vn);
+    return findValue<RelOp>(RelOp::VN(kind, ldef, rdef));
 }
 
 Terminator* World::createBranch(Lambda* parent, Def* cond, Lambda* tto, Lambda* fto) {
@@ -262,8 +254,7 @@ Terminator* World::createBranch(Lambda* parent, Def* cond, Lambda* tto, Lambda* 
             result = new Goto(parent, tto);
         else
             result = new Goto(parent, fto);
-    }
-    else
+    } else
         result = new Branch(parent, cond, tto, fto);
 
     parent->setTerminator(result);

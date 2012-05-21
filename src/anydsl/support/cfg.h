@@ -2,7 +2,6 @@
 #define ANYDSL_SUPPORT_CFG_H
 
 #include <map>
-#include <boost/unordered_map.hpp>
 #include <boost/unordered_set.hpp>
 
 #include "anydsl/util/assert.h"
@@ -27,7 +26,6 @@ class Fct;
 class Token;
 class World;
 typedef boost::unordered_set<BB*> BBs;
-typedef boost::unordered_map<BB*, size_t> BB2I;
 typedef std::vector<BB*> BBList;
 typedef std::list<Param*> Params;
 typedef Params::iterator ParamIter;
@@ -91,6 +89,8 @@ protected:
 public:
 
     bool visited_;
+    /// postorder number
+    size_t poIndex_;
 
 private:
 
@@ -121,7 +121,6 @@ private:
     BBs cfg_;
     BBList postorder_;
     BBList idoms_;
-    BB2I bb2i_;
 
     BB* exit_;
     Param* retParam_;

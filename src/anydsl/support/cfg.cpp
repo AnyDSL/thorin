@@ -273,7 +273,7 @@ void Fct::buildDomTree() {
         BB* bb = postorder_[i];
         idoms_[i] = 0;
         bb->visited_ = false;
-        bb2i_[bb] = i;
+        bb->poIndex_ = i;
     }
 
     idoms_.back() = this;
@@ -289,7 +289,7 @@ void Fct::buildDomTree() {
             // find processed pred of bb
             FOREACH(pred, bb->pred()) {
                 if (pred->visited_) {
-                    new_i = bb2i_[pred];
+                    new_i = pred->poIndex_;
                     break;
                 }
             }
@@ -297,7 +297,7 @@ void Fct::buildDomTree() {
 
             // for all un processed preds of bb
             FOREACH(pred, bb->pred()) {
-                size_t pred_i = bb2i_[pred];
+                size_t pred_i = pred->poIndex_;
                 if (!pred->visited_) {
                     if (idoms_[pred_i])
                         new_i = intersect(pred_i, new_i);
@@ -315,8 +315,8 @@ void Fct::buildDomTree() {
 
 size_t Fct::intersect(size_t i, size_t j) {
     while (i != j) {
-        while (i < j) i = bb2i_[idoms_[i]];
-        while (j < i) j = bb2i_[idoms_[j]];
+        while (i < j) i = idoms_[i]->poIndex_;
+        while (j < i) j = idoms_[j]->poIndex_;
     }
     return i;
 }

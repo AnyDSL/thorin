@@ -139,6 +139,10 @@ inline bool isFloat(PrimTypeKind kind) {
     return (int) Begin_PrimType_f <= (int) kind && (int) kind < (int) End_PrimType_f;
 }
 
+bool isArithOp(IndexKind kind);
+bool isRelOp(IndexKind kind);
+bool isConvOp(IndexKind kind);
+
 template<PrimTypeKind kind> struct kind2type {};
 #define ANYDSL_U_TYPE(T) template<> struct kind2type<PrimType_##T> { typedef T type; };
 #define ANYDSL_F_TYPE(T) template<> struct kind2type<PrimType_##T> { typedef T type; };

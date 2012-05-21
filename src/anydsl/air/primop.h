@@ -38,7 +38,9 @@ protected:
         : PrimOp(index, type)
         , luse(this, ldef)
         , ruse(this, rdef)
-    {}
+    {
+        anydsl_assert(ldef->type() == rdef->type(), "types are not equal");
+    }
 
     static ValueNumber VN(IndexKind kind, Def* ldef, Def* rdef) {
         return ValueNumber(kind, (uintptr_t) ldef, (uintptr_t) rdef);
@@ -63,11 +65,12 @@ public:
 class ArithOp : public BinOp {
 private:
 
-    ArithOp(ArithOpKind arithOpKind, Def* ldef, Def* rdef)
-        : BinOp((IndexKind) arithOpKind, ldef->type(), ldef, rdef)
-    {
-        anydsl_assert(ldef->type() == rdef->type(), "type are not equal");
-    }
+    ArithOp(const ValueNumber& vn)
+        : BinOp((IndexKind) vn.index, 
+                ((Def*) vn.op1)->type(), 
+                (Def*) vn.op1, 
+                (Def*) vn.op2)
+    {}
 
 public:
 
@@ -85,13 +88,13 @@ public:
 class RelOp : public BinOp {
 private:
 
-    RelOp(RelOpKind kind, Def* ldef, Def* rdef);
+    RelOp(const ValueNumber& vn);
 
 public:
 
     RelOpKind kind() { return (RelOpKind) index(); }
 
-    static ValueNumber VN(ArithOpKind kind, Def* ldef, Def* rdef) {
+    static ValueNumber VN(RelOpKind kind, Def* ldef, Def* rdef) {
         return ValueNumber((IndexKind) kind, (uintptr_t) ldef, (uintptr_t) rdef);
     }
 

@@ -5,12 +5,12 @@
 
 namespace anydsl {
 
-//------------------------------------------------------------------------------
-
-RelOp::RelOp(RelOpKind kind, Def* ldef, Def* rdef)
-    : BinOp((IndexKind) kind, ldef->world().type_u1(), ldef, rdef)
+RelOp::RelOp(const ValueNumber& vn)
+    : BinOp((IndexKind) vn.index, 
+            ((Def*) vn.op1)->type()->world().type_u1(), 
+            (Def*) vn.op1, 
+            (Def*) vn.op2)
 {
-    anydsl_assert(ldef->type() == rdef->type(), "type are not equal");
 }
 
 //------------------------------------------------------------------------------

@@ -4,8 +4,38 @@
 #include "anydsl/air/literal.h"
 #include "anydsl/air/type.h"
 #include "anydsl/air/terminator.h"
+#include "anydsl/fold.h"
 
 namespace anydsl {
+
+/*
+ * helpers
+ */
+
+static inline bool isCommutative(ArithOpKind kind) {
+    switch (kind) {
+        case ArithOp_add:
+        case ArithOp_mul:
+            return true;
+        default:
+            return false;
+    }
+}
+
+static inline RelOpKind normalizeRel(RelOpKind kind, bool& swap) {
+    switch (kind) {
+        case RelOp_cmp_ugt: swap = true; return RelOp_cmp_ult;
+        case RelOp_cmp_uge: swap = true; return RelOp_cmp_ule;
+        case RelOp_cmp_sgt: swap = true; return RelOp_cmp_slt;
+        case RelOp_cmp_sge: swap = true; return RelOp_cmp_sle;
+
+        case RelOp_fcmp_ogt: swap = true; return RelOp_fcmp_olt;
+        case RelOp_fcmp_oge: swap = true; return RelOp_fcmp_ole;
+        case RelOp_fcmp_ugt: swap = true; return RelOp_fcmp_ult;
+        case RelOp_fcmp_uge: swap = true; return RelOp_fcmp_ule;
+        default: return kind;
+    }
+}
 
 /*
  * constructor and destructor
@@ -42,8 +72,6 @@ World::~World() {
     //FOREACH(lambda, lambdas_)     delete lambda;
 
     std::cout << values_.size() << std::endl;
-    //std::cout << values_.count() << std::endl;
-    std::cout << values_.bucket_count() << std::endl;
     FOREACH(p, values_) delete p.second;
     FOREACH(p, pis_)    delete p.second;
     FOREACH(p, sigmas_) delete p.second;
@@ -120,6 +148,11 @@ PrimLit* World::literal(PrimLitKind kind, Box value) {
     return findValue<PrimLit>(vn);
 }
 
+PrimLit* World::literal(const PrimType* p, Box value) {
+    ValueNumber vn = PrimLit::VN(p, value);
+    return findValue<PrimLit>(vn);
+}
+
 Undef* World::undef(const Type* type) {
     ValueNumber vn = Undef::VN(type);
     return findValue<Undef>(vn);
@@ -153,16 +186,55 @@ Invoke* World::createInvoke(Lambda* parent, Def* fct) {
     return res;
 }
 
+
+Value* World::tryFold(IndexKind kind, Def* ldef, Def* rdef) {
+    if (PrimLit* llit = ldef->isa<PrimLit>()) {
+        if (PrimLit* rlit = rdef->isa<PrimLit>()) {
+            const PrimType* p = ldef->type()->as<PrimType>();
+            FoldRes res = fold_bin(kind, p->kind(), llit->box(), rlit->box());
+
+            if (res.error)
+                return literal_error(p);
+
+            return literal(res.type, res.value);
+        }
+    }
+
+    return 0;
+}
+
+
 Value* World::createArithOp(ArithOpKind kind, Def* ldef, Def* rdef) {
-    ArithOp* op = new ArithOp(kind, ldef, rdef);
-    //values_.insert(std::make_pair(op->hash(), op));
-    return op;
+    if (ldef->isa<Undef>()) undef(ldef->type());
+    if (rdef->isa<Undef>()) undef(rdef->type());
+
+    if (Value* value = tryFold((IndexKind) kind, ldef, rdef))
+        return value;
+
+    if (isCommutative(kind))
+        if (ldef > rdef)
+            std::swap(ldef, rdef);
+
+    ValueNumber vn = ArithOp::VN(kind, ldef, rdef);
+
+    return findValue<ArithOp>(vn);
 }
 
 Value* World::createRelOp(RelOpKind kind, Def* ldef, Def* rdef) {
-    RelOp* op = new RelOp(kind, ldef, rdef);
-    //values_.insert(std::make_pair(op->hash(), op));
-    return op;
+    if (ldef->isa<Undef>()) undef(type_u1());
+    if (rdef->isa<Undef>()) undef(type_u1());
+
+    if (Value* value = tryFold((IndexKind) kind, ldef, rdef))
+        return value;
+
+    bool swap = false;
+    kind = normalizeRel(kind, swap);
+    if (swap)
+        std::swap(ldef, rdef);
+
+    ValueNumber vn = RelOp::VN(kind, ldef, rdef);
+
+    return findValue<RelOp>(vn);
 }
 
 Terminator* World::createBranch(Lambda* parent, Def* cond, Lambda* tto, Lambda* fto) {

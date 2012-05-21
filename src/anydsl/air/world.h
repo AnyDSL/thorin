@@ -177,10 +177,11 @@ public:
     PrimLit* literal_##T(Box val) { return literal(PrimType_##T, val); }
 #include "anydsl/tables/primtypetable.h"
 
+    PrimLit* literal(PrimLitKind kind, Box value);
+    PrimLit* literal(PrimTypeKind kind, Box value) { return literal(type2lit(kind), value); }
+    PrimLit* literal(const PrimType* p, Box value);
     template<class T>
     PrimLit* literal(T value) { return literal(type2kind<T>::kind, Box(value)); }
-    PrimLit* literal(PrimTypeKind kind, Box value) { return literal(type2lit(kind), value); }
-    PrimLit* literal(PrimLitKind kind, Box value);
     Undef* undef(const Type* type);
     ErrorLit* literal_error(const Type* type);
     /// ErrorLit of ErrorType.
@@ -209,6 +210,7 @@ private:
 
     template<class T>
     T* findValue(const ValueNumber& vn);
+    Value* tryFold(IndexKind kind, Def* ldef, Def* rdef);
 
     template<class T, class C>
     static void kill(C& container);

@@ -3,21 +3,6 @@
 
 namespace anydsl {
 
-// add
-#define ANYDSL_U_TYPE(T) inline T add(T a, T b) { return a + b; }
-#define ANYDSL_F_TYPE(T) inline T add(T a, T b) { return a + b; }
-#include "anydsl/tables/primtypetable.h"
-
-// sub
-#define ANYDSL_U_TYPE(T) inline T sub(T a, T b) { return a - b; }
-#define ANYDSL_F_TYPE(T) inline T sub(T a, T b) { return a - b; }
-#include "anydsl/tables/primtypetable.h"
-
-// mul
-#define ANYDSL_U_TYPE(T) inline T mul(T a, T b) { return a * b; }
-#define ANYDSL_F_TYPE(T) inline T mul(T a, T b) { return a * b; }
-#include "anydsl/tables/primtypetable.h"
-
 // div
 #define ANYDSL_U_TYPE(T) inline T udiv(T a, T b) { return a / b; }
 #define ANYDSL_F_TYPE(T) inline T fdiv(T a, T b) { return a / b; }
@@ -70,30 +55,6 @@ namespace anydsl {
         typedef make_signed< T >::type S; \
         return bcast< T , S>(bcast<S, T >(a) >> bcast<S, T >(b)); \
     }
-#include "anydsl/tables/primtypetable.h"
-
-// cmp_eq
-#define ANYDSL_U_TYPE(T) inline u1 cmp_eq(T a, T b) { return u1(a == b); }
-#include "anydsl/tables/primtypetable.h"
-
-// cmp_ne
-#define ANYDSL_U_TYPE(T) inline u1 cmp_ne(T a, T b) { return u1(a != b); }
-#include "anydsl/tables/primtypetable.h"
-
-// cmp_ugt
-#define ANYDSL_U_TYPE(T) inline u1 cmp_ugt(T a, T b) { return u1(a > b); }
-#include "anydsl/tables/primtypetable.h"
-
-// cmp_uge
-#define ANYDSL_U_TYPE(T) inline u1 cmp_uge(T a, T b) { return u1(a >= b); }
-#include "anydsl/tables/primtypetable.h"
-
-// cmp_ult
-#define ANYDSL_U_TYPE(T) inline u1 cmp_ult(T a, T b) { return u1(a < b); }
-#include "anydsl/tables/primtypetable.h"
-
-// cmp_ule
-#define ANYDSL_U_TYPE(T) inline u1 cmp_ule(T a, T b) { return u1(a <= b); }
 #include "anydsl/tables/primtypetable.h"
 
 // cmp_sgt

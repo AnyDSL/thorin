@@ -14,7 +14,7 @@ ANYDSL_APP_BIN  ?= $(BIN)/anydsl
 ANYDSL_LIB_FILE  ?= $(BIN)/lib$(ANYDSL_LIB).a
 IMPALA_LIB_FILE  ?= $(BIN)/lib$(IMPALA_LIB).a
 
-ANYDSL_SRCS := $(wildcard anydsl/support/*.cpp anydsl/air/*.cpp anydsl/util/*.cpp)
+ANYDSL_SRCS := $(wildcard anydsl/*.cpp anydsl/support/*.cpp anydsl/air/*.cpp anydsl/util/*.cpp)
 IMPALA_SRCS := $(wildcard impala/*.cpp)
 ANYDSL_APP_SRCS := $(wildcard app/*.cpp)
 

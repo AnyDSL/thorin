@@ -125,9 +125,6 @@ struct ValueNumber {
     bool operator == (const ValueNumber& vn) const {
         return index == vn.index && op1 == vn.op1 && op2 == vn.op2 && op3 == vn.op3;
     }
-    bool operator != (const ValueNumber& vn) const {
-        return index != vn.index || op1 != vn.op1 || op2 != vn.op2 || op3 != vn.op3;
-    }
 };
 
 inline size_t hash_value(const ValueNumber& vn) {

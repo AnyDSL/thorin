@@ -9,6 +9,7 @@
 
 #include <boost/program_options.hpp>
 
+#include "anydsl/air/literal.h"
 #include "anydsl/air/world.h"
 #include "impala/parser.h"
 
@@ -108,7 +109,16 @@ int main(int argc, char** argv) {
         world.literal_u8(2);
         world.literal_u16(2);
         world.literal_u16(2);
-        world.literal_u16(2);
+        world.literal_u16(5);
+        world.literal_u32(5);
+        world.literal_u32(0);
+        world.literal_u32(11);
+        world.createArithOp(ArithOp_add, world.literal_u32(5), world.literal_u32(6));
+        world.createArithOp(ArithOp_add, world.literal_u32(11), world.literal_u32(0));
+        //world.createArithOp(ArithOp_add, a, world.literal_u32(6));
+        //world.createArithOp(ArithOp_add, world.literal_u32(6), a);
+        //world.createRelOp(RelOp_cmp_ult, world.literal_u16(2), world.literal_u16(5));
+        //world.createRelOp(RelOp_cmp_ugt, world.literal_u16(5), world.literal_u16(2));
 
         //Emit the results
         switch (destinationType) {

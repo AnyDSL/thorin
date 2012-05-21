@@ -21,14 +21,14 @@ World::World()
     {
         Sigma* s = new Sigma(*this);
         unit_ = s;
-        uint64_t h = Sigma::hash((const Type**) 0, (const Type**) 0);
-        sigmas_.insert(std::make_pair(h, s));
+        //uint64_t h = Sigma::hash((const Type**) 0, (const Type**) 0);
+        //sigmas_.insert(std::make_pair(h, s));
     }
     {
         Pi* p = new Pi(*this);
         pi0_ = p;
-        uint64_t h = Pi::hash((const Type**) 0, (const Type**) 0);
-        pis_.insert(std::make_pair(h, p));
+        //uint64_t h = Pi::hash((const Type**) 0, (const Type**) 0);
+        //pis_.insert(std::make_pair(h, p));
     }
 }
 

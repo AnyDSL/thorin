@@ -3,7 +3,6 @@
 #include "anydsl/air/type.h"
 #include "anydsl/air/world.h"
 #include "anydsl/util/foreach.h"
-#include "anydsl/support/hash.h"
 
 namespace anydsl {
 

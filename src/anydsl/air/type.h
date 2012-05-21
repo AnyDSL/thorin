@@ -3,8 +3,6 @@
 
 #include "anydsl/air/def.h"
 
-#include "anydsl/support/hash.h" // TODO move to cpp
-
 namespace anydsl {
 
 class PrimLit;
@@ -35,7 +33,10 @@ typedef std::vector<const Type*> Types;
 //------------------------------------------------------------------------------
 
 class ErrorType : public Type {
+private:
+
     ErrorType(World& world) : Type(world, Index_ErrorType) {}
+
     friend class World;
 };
 
@@ -95,6 +96,9 @@ public:
 
     const Types& types() const { return types_; }
 
+    template<class T>
+    static size_t hash(T begin, T end) {  return 0; }
+
 protected:
 
     Types types_;
@@ -130,7 +134,7 @@ public:
     }
 
     template<class T>
-    static uint64_t hash(T begin, T end) { return hashN(Index_Sigma, begin, end); }
+    static uint64_t hash(T begin, T end) { return 0; }
 
 private:
 
@@ -155,7 +159,7 @@ private:
     {}
 
     template<class T>
-    static uint64_t hash(T begin, T end) { return hashN(Index_Pi, begin, end); }
+    static uint64_t hash(T begin, T end) { return 0; }
 
     friend class World;
 };

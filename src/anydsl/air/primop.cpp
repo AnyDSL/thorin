@@ -2,15 +2,8 @@
 
 #include "anydsl/air/type.h"
 #include "anydsl/air/world.h"
-#include "anydsl/support/hash.h"
 
 namespace anydsl {
-
-//------------------------------------------------------------------------------
-
-/*static*/ uint64_t BinOp::hash(IndexKind index, const Def* ldef, const Def* rdef) {
-    return hash3(index, ldef, rdef);
-}
 
 //------------------------------------------------------------------------------
 

@@ -272,12 +272,10 @@ void Fct::buildDomTree() {
     for (size_t i = last - 1; i >= 0; --i) {
         BB* bb = postorder_[i];
         idoms_[i] = 0;
-        bb->visited_ = false;
         bb->poIndex_ = i;
     }
 
     idoms_.back() = this;
-    anydsl_assert(visited_, "should still be true");
 
     bool changed = true;
     while (changed) {
@@ -286,15 +284,16 @@ void Fct::buildDomTree() {
             BB* bb = postorder_[bb_i];
             bb->visited_ = true;
 
-            size_t new_i = -1;
+            BB* new_bb = 0;
             // find processed pred of bb
             FOREACH(pred, bb->pred()) {
-                if (pred->visited_) {
-                    new_i = pred->poIndex_;
+                if (pred->poIndex_ > bb_i) {
+                    new_bb = pred;
                     break;
                 }
             }
-            anydsl_assert(new_i != size_t(-1), "no processed pred of bb found");
+            anydsl_assert(new_bb, "no processed pred of bb found");
+            size_t new_i = new_bb->poIndex_;
 
             // for all un processed preds of bb
             FOREACH(pred, bb->pred()) {
@@ -305,7 +304,6 @@ void Fct::buildDomTree() {
                 }
             }
 
-            BB* new_bb = postorder_[new_i];
             if (idoms_[bb_i] != new_bb) {
                 idoms_[bb_i] = new_bb;
                 changed = true;

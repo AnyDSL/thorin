@@ -1,7 +1,6 @@
 #include "anydsl/air/type.h"
 
 #include "anydsl/air/literal.h"
-#include "anydsl/support/hash.h"
 
 namespace anydsl {
 

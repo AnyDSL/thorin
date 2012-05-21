@@ -40,6 +40,10 @@ protected:
         , ruse(this, rdef)
     {}
 
+    static ValueNumber VN(IndexKind kind, Def* ldef, Def* rdef) {
+        return ValueNumber(kind, (uintptr_t) ldef, (uintptr_t) rdef);
+    }
+
 public:
 
     typedef boost::array<Use*, 2> LRUse;
@@ -47,9 +51,6 @@ public:
 
     LRUse lruse() { return (LRUse){{ &luse, &ruse }}; }
     ConstLRUse lruse() const { return (ConstLRUse){{ &ruse, &ruse }}; }
-
-    virtual uint64_t hash() const { return hash(index(), luse.def(), ruse.def()); }
-    static  uint64_t hash(IndexKind index, const Def* ldef, const Def* rdef);
 
 public:
 
@@ -72,7 +73,9 @@ public:
 
     ArithOpKind kind() { return (ArithOpKind) index(); }
 
-    static ValueNumber VN(Def* ldef, Def* rdef);
+    static ValueNumber VN(ArithOpKind kind, Def* ldef, Def* rdef) {
+        return BinOp::VN((IndexKind) kind, ldef, rdef);
+    }
 
     friend class World;
 };
@@ -88,6 +91,10 @@ public:
 
     RelOpKind kind() { return (RelOpKind) index(); }
 
+    static ValueNumber VN(ArithOpKind kind, Def* ldef, Def* rdef) {
+        return ValueNumber((IndexKind) kind, (uintptr_t) ldef, (uintptr_t) rdef);
+    }
+
     friend class World;
 };
 
@@ -99,9 +106,6 @@ protected:
     SigmaOp(IndexKind index, const Type* type, Def* tuple, PrimLit* elem);
 
 public:
-
-    const PrimLit* elem() const { return elem_; }
-    virtual uint64_t hash() const { return 0; /* TODO */ }
 
     Use tuple;
 
@@ -127,8 +131,6 @@ private:
         : SigmaOp(Index_Insert, tuple->type(), tuple, elem)
         , value(value, this)
     {}
-
-    virtual uint64_t hash() const;
 
 public:
 

@@ -284,6 +284,7 @@ void Fct::buildDomTree() {
         // for each bb in reverse post-order except start node
         for (size_t bb_i = last - 1; bb_i >= 0; --bb_i) {
             BB* bb = postorder_[bb_i];
+            bb->visited_ = true;
 
             size_t new_i = -1;
             // find processed pred of bb
@@ -311,12 +312,21 @@ void Fct::buildDomTree() {
             }
         }
     }
+
+    // now build dom tree
+    for (size_t i = last - 1; i >= 0; --i) {
+        BB* bb = postorder_[i];
+        BB* dom = idoms_[i];
+        dom->lambda()->insert(bb->lambda());
+    }
 }
 
 size_t Fct::intersect(size_t i, size_t j) {
     while (i != j) {
-        while (i < j) i = idoms_[i]->poIndex_;
-        while (j < i) j = idoms_[j]->poIndex_;
+        while (i < j) 
+            i = idoms_[i]->poIndex_;
+        while (j < i) 
+            j = idoms_[j]->poIndex_;
     }
     return i;
 }

@@ -14,6 +14,7 @@ class Pi;
 class Terminator;
 
 typedef std::list<Param*> Params;
+typedef boost::unordered_set<Param*> ParamSet;
 typedef Params::iterator ParamIter;
 
 typedef boost::unordered_set<Lambda*> Fix;
@@ -60,6 +61,7 @@ private:
     Terminator* terminator_;
     Fix fix_;
     Params params_;
+    ParamSet paramSet_;
 
     friend class World;
 };

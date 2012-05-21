@@ -84,13 +84,10 @@ protected:
 
     //void fixBeta(Beta* beta, size_t x, const Symbol sym, Type* type);
 
-    bool finalized_;
-
 public:
 
     bool visited_;
-    /// postorder number
-    size_t poIndex_;
+    size_t poIndex_; ///< Post-order number -- index to \p Fct::postorder_.
 
 private:
 

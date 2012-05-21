@@ -38,7 +38,7 @@ World::~World() {
         delete primTypes_[i];
 
     FOREACH(sigma,  namedSigmas_) delete sigma;
-    FOREACH(lambda, lambdas_)     delete lambda;
+    //FOREACH(lambda, lambdas_)     delete lambda;
 
     FOREACH(p, values_) delete p.second;
     FOREACH(p, pis_)    delete p.second;
@@ -197,8 +197,8 @@ void World::kill(C& container) {
 }
 
 void World::cleanup() {
-    kill<Lambda>(lambdas_);
-    kill<Value>(values_);
+    //kill<Lambda>(lambdas_);
+    //kill<Value>(values_);
 }
 
 } // namespace anydsl

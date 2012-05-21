@@ -22,6 +22,12 @@ Lambda::Lambda(World& world)
 Lambda::~Lambda() {
     delete terminator_;
 
+#ifndef NDEBUG
+    FOREACH(param, params_)
+        anydsl_assert(param->uses().empty(), "there are still uses pointing to param '") 
+            << param->debug << "'";
+#endif
+
     FOREACH(param, params_) 
         delete param;
 }

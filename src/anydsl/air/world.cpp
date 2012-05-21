@@ -1,6 +1,6 @@
 #include "anydsl/air/world.h"
 
-#include "anydsl/air/binop.h"
+#include "anydsl/air/primop.h"
 #include "anydsl/air/literal.h"
 #include "anydsl/air/type.h"
 #include "anydsl/air/terminator.h"
@@ -16,6 +16,7 @@ World::World()
 #define ANYDSL_U_TYPE(T) ,T##_(new PrimType(*this, PrimType_##T))
 #define ANYDSL_F_TYPE(T) ,T##_(new PrimType(*this, PrimType_##T))
 #include "anydsl/tables/primtypetable.h"
+    , values_(1031)
 {
     {
         Sigma* s = new Sigma(*this);
@@ -40,6 +41,9 @@ World::~World() {
     FOREACH(sigma,  namedSigmas_) delete sigma;
     //FOREACH(lambda, lambdas_)     delete lambda;
 
+    std::cout << values_.size() << std::endl;
+    //std::cout << values_.count() << std::endl;
+    std::cout << values_.bucket_count() << std::endl;
     FOREACH(p, values_) delete p.second;
     FOREACH(p, pis_)    delete p.second;
     FOREACH(p, sigmas_) delete p.second;
@@ -107,24 +111,12 @@ T* World::findValue(const ValueNumber& vn) {
     return value;
 }
 
-template<>
-PrimLit* World::findValue<PrimLit>(const ValueNumber& vn) {
-    ValueMap::iterator i = values_.find(vn);
-    if (i != values_.end())
-        return scast<PrimLit>(i->second);
-
-    PrimLit* value = new PrimLit(*this, vn);
-    values_[vn] = value;
-
-    return value;
-}
-
 /*
  * literals
  */
 
 PrimLit* World::literal(PrimLitKind kind, Box value) {
-    ValueNumber vn = PrimLit::VN(kind, value);
+    ValueNumber vn = PrimLit::VN(type(lit2type(kind)), value);
     return findValue<PrimLit>(vn);
 }
 

@@ -32,7 +32,7 @@ private:
         : Literal((IndexKind) vn.index, (const Type*) vn.op1)
     {}
 
-    static ValueNumber VN(const Type* type) { return ValueNumber(Index_Undef, type); }
+    static ValueNumber VN(const Type* type) { return ValueNumber(Index_Undef, (uintptr_t) type); }
 
     friend class World;
 };
@@ -46,7 +46,7 @@ private:
         : Literal((IndexKind) vn.index, (const Type*) vn.op1)
     {}
 
-    static ValueNumber VN(const Type* type) { return ValueNumber(Index_ErrorLit, type); }
+    static ValueNumber VN(const Type* type) { return ValueNumber(Index_ErrorLit, (uintptr_t) type); }
 
     friend class World;
 };
@@ -56,7 +56,7 @@ private:
 class PrimLit : public Literal {
 private:
 
-    PrimLit(World& world, const ValueNumber& vn);
+    PrimLit(const ValueNumber& vn);
 
 public:
 
@@ -64,7 +64,7 @@ public:
     Box box() const { return box_; }
 
 
-    static ValueNumber VN(PrimLitKind kind, Box box);
+    static ValueNumber VN(const Type* type, Box box);
 
 private:
 

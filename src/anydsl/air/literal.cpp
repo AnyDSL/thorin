@@ -9,8 +9,8 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-PrimLit::PrimLit(World& world, const ValueNumber& vn)
-    : Literal((IndexKind) vn.index, world.type(lit2type((PrimLitKind) vn.index)))
+PrimLit::PrimLit(const ValueNumber& vn)
+    : Literal((IndexKind) vn.index, (const Type*) vn.op3)
 {
     if (sizeof(void*) == sizeof(uint64_t))
         box_ = bcast<Box, uintptr_t>(vn.op1);
@@ -20,12 +20,15 @@ PrimLit::PrimLit(World& world, const ValueNumber& vn)
     }
 }
 
-ValueNumber PrimLit::VN(PrimLitKind kind, Box box) {
+ValueNumber PrimLit::VN(const Type* t, Box box) {
+    const PrimType* p = t->as<PrimType>();
+    PrimLitKind litKind = type2lit(p->kind());
+    IndexKind   indexKind = (IndexKind) litKind;
     if (sizeof(void*) == sizeof(uint64_t))
-        return ValueNumber((IndexKind) kind, bcast<const void*, Box>(box));
+        return ValueNumber(indexKind, bcast<uintptr_t, Box>(box), 0, (uintptr_t) p);
     else {
         Split split = bcast<Split, Box>(box);
-        return ValueNumber((IndexKind) kind, (const void*) split.op1, (const void*) split.op2);
+        return ValueNumber(indexKind, split.op1, split.op2, (uintptr_t) p);
     }
 }
 

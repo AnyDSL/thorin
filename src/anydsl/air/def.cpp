@@ -2,7 +2,7 @@
 
 #include <typeinfo>
 
-#include "anydsl/air/binop.h"
+#include "anydsl/air/primop.h"
 #include "anydsl/air/type.h"
 #include "anydsl/air/use.h"
 #include "anydsl/util/foreach.h"

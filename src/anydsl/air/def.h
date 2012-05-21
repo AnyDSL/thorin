@@ -5,6 +5,7 @@
 
 #include <boost/cstdint.hpp>
 #include <boost/unordered_set.hpp>
+#include <boost/functional/hash.hpp>
 
 #include "anydsl/air/airnode.h"
 
@@ -17,6 +18,7 @@ class Type;
 class World;
 class Use;
 typedef boost::unordered_set<Use*> Uses;
+typedef std::vector<Use> Ops;
 
 //------------------------------------------------------------------------------
 
@@ -80,7 +82,6 @@ private:
 
 //------------------------------------------------------------------------------
 
-
 class Value : public Def {
 protected:
 
@@ -93,6 +94,7 @@ struct ValueNumber {
     uint8_t index;
     uintptr_t op1;
     uintptr_t op2;
+    uintptr_t op3;
 
     ValueNumber() {}
     ValueNumber(IndexKind index)
@@ -100,42 +102,43 @@ struct ValueNumber {
         , op1(0)
         , op2(0)
     {}
-    ValueNumber(IndexKind index, const void* p)
+    ValueNumber(IndexKind index, uintptr_t p)
         : index(index)
-        , op1(uintptr_t(p))
-        , op2(uintptr_t(0))
+        , op1(p)
+        , op2(0)
+        , op3(0)
     {}
-    ValueNumber(IndexKind index, const void* p1, const void* p2) 
+    ValueNumber(IndexKind index, uintptr_t p1, uintptr_t p2) 
         : index(index)
-        , op1(uintptr_t(p1))
-        , op2(uintptr_t(p2))
+        , op1(p1)
+        , op2(p2)
+        , op3(0)
+    {}
+    ValueNumber(IndexKind index, uintptr_t p1, uintptr_t p2, uintptr_t p3)
+        : index(index)
+        , op1(p1)
+        , op2(p2)
+        , op3(p3)
     {}
 
+
     bool operator == (const ValueNumber& vn) const {
-        return index == vn.index && op1 == vn.op1 && op2 == vn.op2;
+        return index == vn.index && op1 == vn.op1 && op2 == vn.op2 && op3 == vn.op3;
     }
     bool operator != (const ValueNumber& vn) const {
-        return index != vn.index || op1 != vn.op1 || op2 != vn.op2;
+        return index != vn.index || op1 != vn.op1 || op2 != vn.op2 || op3 != vn.op3;
     }
 };
 
 inline size_t hash_value(const ValueNumber& vn) {
-    return 0;
+    size_t seed = 0;
+    boost::hash_combine(seed, vn.index);
+    boost::hash_combine(seed, vn.op1);
+    boost::hash_combine(seed, vn.op2);
+    boost::hash_combine(seed, vn.op3);
+
+    return seed;
 }
-
-//------------------------------------------------------------------------------
-
-class PrimOp : public Value {
-public:
-
-    PrimOpKind primOpKind() const { return (PrimOpKind) index(); }
-
-protected:
-
-    PrimOp(IndexKind index, const Type* type)
-        : Value(index, type)
-    {}
-};
 
 //------------------------------------------------------------------------------
 

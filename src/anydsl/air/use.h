@@ -112,6 +112,7 @@ private:
     struct node_iter {
     public:
 
+        /// typedefs are necessary for std::iterator_traits (needed by FOREACH)
         typedef std::bidirectional_iterator_tag iterator_category;
         typedef const Use value_type;
         typedef ptrdiff_t difference_type;
@@ -141,7 +142,6 @@ private:
 
 public:
 
-    /// typedefs are necessary for std::iterator_traits (needed by FOREACH)
     typedef node_iter<Node*, false> iterator;
     typedef node_iter<const Node*, false> const_iterator;
     typedef node_iter<Node*, true> reverse_iterator;

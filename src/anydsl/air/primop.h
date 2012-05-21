@@ -1,5 +1,5 @@
-#ifndef ANYDSL_BINOP_H
-#define ANYDSL_BINOP_H
+#ifndef ANYDSL_PRIMOP_H
+#define ANYDSL_PRIMOP_H
 
 #include <boost/array.hpp>
 
@@ -8,6 +8,26 @@
 #include "anydsl/air/use.h"
 
 namespace anydsl {
+
+class PrimLit;
+
+//------------------------------------------------------------------------------
+
+class PrimOp : public Value {
+public:
+
+    PrimOpKind primOpKind() const { return (PrimOpKind) index(); }
+
+    const Ops& ops() { return ops_; }
+
+protected:
+
+    PrimOp(IndexKind index, const Type* type)
+        : Value(index, type)
+    {}
+
+    Ops ops_;
+};
 
 //------------------------------------------------------------------------------
 
@@ -73,6 +93,49 @@ public:
 
 //------------------------------------------------------------------------------
 
+class SigmaOp : public PrimOp {
+protected:
+
+    SigmaOp(IndexKind index, const Type* type, Def* tuple, PrimLit* elem);
+
+public:
+
+    const PrimLit* elem() const { return elem_; }
+    virtual uint64_t hash() const { return 0; /* TODO */ }
+
+    Use tuple;
+
+private:
+
+    PrimLit* elem_;
+};
+
+//------------------------------------------------------------------------------
+
+class Extract : public SigmaOp {
+private:
+
+    Extract(Def* tuple, PrimLit* elem);
+};
+
+//------------------------------------------------------------------------------
+
+class Insert : public SigmaOp {
+private:
+
+    Insert(Def* tuple, PrimLit* elem, Def* value)
+        : SigmaOp(Index_Insert, tuple->type(), tuple, elem)
+        , value(value, this)
+    {}
+
+    virtual uint64_t hash() const;
+
+public:
+
+    Use value;
+};
+
+//------------------------------------------------------------------------------
 
 } // namespace anydsl
 

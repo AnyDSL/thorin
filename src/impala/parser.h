@@ -1,6 +1,8 @@
 #ifndef IMPALA_PARSER_H
 #define IMPALA_PARSER_H
 
+#include <boost/unordered_map.hpp>
+
 #include "impala/emitter.h"
 #include "impala/lexer.h"
 
@@ -13,6 +15,8 @@ namespace anydsl {
 }
 
 namespace impala {
+
+typedef boost::unordered_map<anydsl::Symbol, anydsl::Fct*> FctMap;
 
 enum Prec {
     BOTTOM,
@@ -53,6 +57,7 @@ public:
      */
 
     Parser(anydsl::World& world, std::istream& stream, const std::string& filename);
+    ~Parser();
 
     /*
      * helpers
@@ -141,6 +146,8 @@ private:
 
     anydsl::BB* break_;   ///< current break target
     anydsl::BB* continue_;///< current continue target
+
+    FctMap fcts_;
 
     int counter_;
 };

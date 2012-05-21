@@ -102,6 +102,14 @@ public:
 
     /// Get unit AKA sigma() AKA void.
     const Sigma* unit() const { return unit_; }
+    /// Creates 'sigma()'.
+    const Sigma* sigma0(bool named = false);
+    /// Creates 'sigma(t1)'.
+    const Sigma* sigma1(const Type* t1, bool named = false);
+    /// Creates 'sigma(t1, t2)'.
+    const Sigma* sigma2(const Type* t1, const Type* t2, bool named = false);
+    /// Creates 'sigma(t1, t2, t3)'.
+    const Sigma* sigma3(const Type* t1, const Type* t2, const Type* t3, bool named = false);
     /// Creates a fresh \em named sigma.
     Sigma* sigma(const std::string& name = "");
     template<class T> 
@@ -133,7 +141,13 @@ public:
     // pis
 
     /// Creates 'pi()'.
-    const Pi* pi() const { return pi_; }
+    const Pi* pi0() { return pi0_; }
+    /// Creates 'pi(t1)'.
+    const Pi* pi1(const Type* t1);
+    /// Creates 'pi(t1, t2)'.
+    const Pi* pi2(const Type* t1, const Type* t2);
+    /// Creates 'pi(t1, t2, t3)'.
+    const Pi* pi3(const Type* t1, const Type* t2, const Type* t3);
     template<class T> 
     const Pi* pi(T container) { return pi(container.begin(), container.end()); }
     template<size_t N>
@@ -155,13 +169,21 @@ public:
      * literals
      */
 
+#define ANYDSL_U_TYPE(T) \
+    PrimLit* literal_##T(T val) { return literal(val); } \
+    PrimLit* literal_##T(Box val) { return literal(PrimType_##T, val); }
+#define ANYDSL_F_TYPE(T) \
+    PrimLit* literal_##T(T val) { return literal(val); } \
+    PrimLit* literal_##T(Box val) { return literal(PrimType_##T, val); }
+#include "anydsl/tables/primtypetable.h"
+
     template<class T>
     PrimLit* literal(T value) { return literal(type2kind<T>::kind, Box(value)); }
     PrimLit* literal(PrimTypeKind kind, Box value) { return literal(type2lit(kind), value); }
     PrimLit* literal(PrimLitKind kind, Box value);
     Undef* undef(const Type* type);
     ErrorLit* literal_error(const Type* type);
-    /// ErrorLit of ErrorType
+    /// ErrorLit of ErrorType.
     ErrorLit* error() { return literal_error(type_error_); }
 
     /*
@@ -192,7 +214,7 @@ private:
     const T* getSigmaOrPi(M& map, Iter begin, Iter end);
 
     AutoPtr<const ErrorType> type_error_;
-    const Pi* pi_; ///< pi().
+    const Pi* pi0_; ///< pi().
     const Sigma* unit_; ///< sigma().
 
     union {
@@ -220,7 +242,6 @@ const T* World::getSigmaOrPi(M& map, Iter begin, Iter end) {
         if (p.second->equal(begin, end))
             return p.second;
 
-    std::cout << h << std::endl;
     return map.insert(std::make_pair(h, new T(*this, begin, end)))->second;
 }
 

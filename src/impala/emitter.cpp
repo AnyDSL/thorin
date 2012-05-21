@@ -46,7 +46,7 @@ Fct* Emitter::fct(const Token& name) {
 
 
 void Emitter::returnStmt(Value retVal) {
-    curFct->insertReturn(curBB, retVal.load());
+    curFct->insertReturnStmt(curBB, retVal.load());
 }
 
 Value Emitter::decl(const Token& tok, const Type* type) {
@@ -96,7 +96,7 @@ Value Emitter::literal(const Token& tok) {
         default:
             switch (tok) {
 #define IMPALA_LIT(TOK, T) \
-                case Token:: TOK: return Value(world.literal(type2kind<T>::kind, tok.box()));
+                case Token:: TOK: return Value(world.literal_##T(tok.box()));
 #include <impala/tokenlist.h>
                 default: ANYDSL_UNREACHABLE;
             }

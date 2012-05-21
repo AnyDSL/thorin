@@ -25,7 +25,7 @@ World::World()
     }
     {
         Pi* p = new Pi(*this);
-        pi_ = p;
+        pi0_ = p;
         uint64_t h = Pi::hash((const Type**) 0, (const Type**) 0);
         pis_.insert(std::make_pair(h, p));
     }
@@ -55,6 +55,44 @@ Sigma* World::sigma(const std::string& name /*= ""*/) {
     namedSigmas_.push_back(sigma);
 
     return sigma;
+}
+
+const Sigma* World::sigma0(bool named /*= false*/) {
+    if (named) {
+        Sigma* s = new Sigma(*this, true);
+        namedSigmas_.push_back(s);
+        return s;
+    }
+
+    return unit_;
+}
+
+const Sigma* World::sigma1(const Type* t1, bool named /*= false*/) {
+    return sigma(&t1, (&t1) + 1, named);
+}
+
+const Sigma* World::sigma2(const Type* t1, const Type* t2, bool named /*= false*/) {
+    const Type* types[2] = {t1, t2};
+    return sigma(types, named);
+}
+
+const Sigma* World::sigma3(const Type* t1, const Type* t2, const Type* t3, bool named /*= false*/) {
+    const Type* types[3] = {t1, t2, t3};
+    return sigma(types, named);
+}
+
+const Pi* World::pi1(const Type* t1) {
+    return pi(&t1, (&t1) + 1);
+}
+
+const Pi* World::pi2(const Type* t1, const Type* t2) {
+    const Type* types[2] = {t1, t2};
+    return pi(types);
+}
+
+const Pi* World::pi3(const Type* t1, const Type* t2, const Type* t3) {
+    const Type* types[3] = {t1, t2, t3};
+    return pi(types);
 }
 
 /*
@@ -151,6 +189,8 @@ void World::kill(C& container) {
             if (l->uses().empty()) {
                 delete l;
                 i = container.erase(i);
+                if (i == e) 
+                    break;
             }
         }
     } while (oldSize != container.size());

@@ -1,127 +1,123 @@
-//#include <iostream>
+#include <cstdio>
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <memory>
+#include <set>
+#include <sstream>
+#include <vector>
 
-#include "anydsl/air/binop.h"
-#include "anydsl/air/literal.h"
-#include "anydsl/air/type.h"
-#include "anydsl/air/terminator.h"
-#include "anydsl/air/lambda.h"
+#include <boost/program_options.hpp>
+
 #include "anydsl/air/world.h"
-#include "anydsl/util/box.h"
-#include "anydsl/util/cast.h"
-#include "anydsl/util/location.h"
-#include "anydsl/util/ops.h"
-#include "anydsl/util/types.h"
-#include "anydsl/util/foreach.h"
-
 #include "impala/parser.h"
 
+//------------------------------------------------------------------------------
+
 using namespace anydsl;
+using namespace std;
+namespace po = boost::program_options;
 
-int main() {
-    std::cout << Location(Position("aaa", 23, 42), Position("bbb", 101, 666)) << std::endl;
-    std::cout << Location(Position("aaa", 23, 42), Position("aaa", 101, 666)) << std::endl;
-    std::cout << Location(Position("aaa", 23, 42), Position("aaa", 23, 666)) << std::endl;
-    std::cout << Location(Position("aaa", 23, 42), Position("aaa", 23, 42)) << std::endl;
+typedef vector<string> Names;
 
-    std::cout << std::endl;
+//------------------------------------------------------------------------------
 
-    std::cout << Location("aaa:23 col 42 - bbb:101 col 666") << std::endl;
-    std::cout << Location("aaa:23 col 42 - 101 col 666") << std::endl;
-    std::cout << Location("aaa:23 col 42 - 666") << std::endl;
-    std::cout << Location("aaa:23 col 42") << std::endl;
+enum EmitType {
+    None,
+    AIR,
+    LLVM,
+};
 
-    std::cout << std::endl;
+int main(int argc, char** argv) {
+    try {
+        if (argc < 1)
+            throw logic_error("bad number of arguments");
 
-    std::cout << "+" << std::endl;
-    std::cout << u1(false) + u1(false) << std::endl;
-    std::cout << u1(true) + u1(false) << std::endl;
-    std::cout << u1(false) + u1(true) << std::endl;
-    std::cout << u1(true) + u1(true) << std::endl;
+        string prgname = argv[0];
+        Names infiles;
+        string outfile = "-";
+        string emittype;
+        EmitType destinationType = None;
+        bool help, fancy, run, notc, debug, tracing = false;
 
-    std::cout << "*" << std::endl;
-    std::cout << u1(false) * u1(false) << std::endl;
-    std::cout << u1(true) * u1(false) << std::endl;
-    std::cout << u1(false) * u1(true) << std::endl;
-    std::cout << u1(true) * u1(true) << std::endl;
+        // specify options
+        po::options_description desc("Usage: " + prgname + " [options] file...");
+        desc.add_options()
+        ("help,h",      po::bool_switch(&help), "produce this help message")
+        ("emit,e",      po::value<string>(&emittype),   "emit code, arg={air|llvm}")
+        ("fancy,f",     po::bool_switch(&fancy), "use fancy air output")
+        ("run,r",       po::bool_switch(&run),  "run program")
+        ("notc",        po::bool_switch(&notc),  "no typechecks during execution")
+        ("debug,d",     po::bool_switch(&debug), "print debug information during execution")
+        ("trace,t",     po::bool_switch(&tracing), "print tracing information during execution")
+        ("outfile,o",   po::value(&outfile)->default_value("-"), "specifies output file")
+        ("infile,i",    po::value(&infiles),    "input file");
 
-    std::cout << "^" << std::endl;
-    std::cout << (u1(false) ^ u1(false)) << std::endl;
-    std::cout << (u1(true) ^ u1(false)) << std::endl;
-    std::cout << (u1(false) ^ u1(true)) << std::endl;
-    std::cout << (u1(true) ^ u1(true)) << std::endl;
+        // positional options, i.e., input files
+        po::positional_options_description pos_desc;
+        pos_desc.add("infile", -1);
 
-    {
-        std::cout << "+=" << std::endl;
-        u1 u(false);
-        std::cout << u << std::endl;
-        u += 1;
-        std::cout << u << std::endl;
-        u += 1;
-        std::cout << u << std::endl;
+        // do cmdline parsing
+        po::command_line_parser clp(argc, argv);
+        clp.options(desc);
+        clp.positional(pos_desc);
+        po::variables_map vm;
+
+        po::store(clp.run(), vm);
+        po::notify(vm);
+
+        if (!emittype.empty()) {
+            if (emittype == "air")
+                destinationType = AIR;
+            else if (emittype == "llvm")
+                ANYDSL_NOT_IMPLEMENTED;
+            else
+                throw logic_error("invalid emit type: " + emittype);
+        }
+
+        if (infiles.empty() && !help)
+            throw po::invalid_syntax("infile", po::invalid_syntax::missing_parameter);
+
+        if (help) {
+            desc.print(cout);
+            return EXIT_SUCCESS;
+        }
+
+        ofstream ofs;
+        if (outfile != "-") {
+            ofs.open(outfile.c_str());
+            ofs.exceptions(istream::badbit);
+        }
+        //ostream& out = ofs.is_open() ? ofs : cout;
+
+
+        if (debug) { 
+            ANYDSL_NOT_IMPLEMENTED;
+        }
+
+        World world;
+        const char* filename = infiles[0].c_str();
+        ifstream file(filename);
+        impala::Parser parser(world, file, filename);
+        Lambda* root = parser.parse();
+        
+        //Emit the results
+        switch (destinationType) {
+            case None:
+                break;
+            case AIR:
+                ANYDSL_NOT_IMPLEMENTED;
+                break;
+            case LLVM:
+                ANYDSL_NOT_IMPLEMENTED;
+                break;
+        }
+        return EXIT_SUCCESS;
+    } catch (exception const& e) {
+        cerr << e.what() << endl;
+        return EXIT_FAILURE;
+    } catch (...) {
+        cerr << "unknown exception" << endl;
+        return EXIT_FAILURE;
     }
-
-    {
-        std::cout << "pre ++" << std::endl;
-        u1 u(false);
-        std::cout << u << std::endl;
-        ++u;
-        std::cout << u << std::endl;
-        ++u;
-        std::cout << u << std::endl;
-    }
-
-    std::cout << std::endl;
-    std::cout << Num_Nodes << std::endl;
-    std::cout << Num_ArithOps << std::endl;
-    std::cout << Num_RelOps << std::endl;
-    std::cout << Num_ConvOps << std::endl;
-    std::cout << Num_Indexes << std::endl;
-
-    World w;
-    std::cout << w.type_u8()->debug << std::endl;
-
-    //impala::Parser(w, std::cin, "asdf");
-
-    std::cout << std::endl;
-
-    std::cout << w.type(anydsl::PrimType_u1)->debug << std::endl;
-    std::cout << w.type(anydsl::PrimType_u64)->debug << std::endl;
-    std::cout << w.type(anydsl::PrimType_f32)->debug << std::endl;
-    std::cout << w.type(anydsl::PrimType_f64)->debug << std::endl;
-    std::cout << w.type_f64()->debug << std::endl;
-
-    Sigma* s = w.sigma();
-    const Type* members[4] = {w.type_u8(), w.type_f32(), w.type_u1(), w.type_u8()};
-    s->set(members, members + 4);
-
-    Lambda* l = w.createLambda(0);
-    l->debug = "hallo";
-    Goto* g = w.createGoto(l, l);
-    Args& args = g->jump.args;
-    args.append(w.literal(7u))->debug = "7";
-    args.append(w.literal(32ul))->debug = "32";
-    Args::iterator i = args.append(w.literal(666ul)); i->debug = "666";
-    args.append(w.literal(64ul))->debug = "64";
-    args.prepend(w.literal(1u))->debug = "1";
-    l->appendParam(w.type_u8());
-    l->appendParam(w.type_u8());
-    l->appendParam(w.type_u32());
-
-    w.createLambda(w.pi((boost::array<const Type*, 3>){{ w.type_u8(), w.type_u8(), w.type_u32()}}));
-
-    // prepend
-    // remove evil and substitute by heavenly
-    std::cout << "evil: " << i->debug << std::endl;
-    i = args.erase(i);
-    args.insert(i, w.literal(777ul))->debug = "777";
-
-    std::cout << "--- testing args ---" << std::endl;
-    FOREACH(const& use, args)
-        std::cout << "--> " << use.debug << std::endl;
-
-    std::cout << "--- reverse args ---" << std::endl;
-    for (Args::const_reverse_iterator i = args.rbegin(), e = args.rend(); i != e; ++i)
-        std::cout << "--> " << i->debug << std::endl;
-
-    return 0;
 }

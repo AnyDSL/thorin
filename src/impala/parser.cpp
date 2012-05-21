@@ -62,6 +62,10 @@ Parser::Parser(anydsl::World& world, std::istream& stream, const std::string& fi
     }
 }
 
+Parser::~Parser() {
+    FOREACH(p, fcts_) delete p.second;
+}
+
 /*
  * helpers
  */
@@ -188,7 +192,7 @@ void Parser::parseFct() {
 
     eat(Token::DEF);
     Token fname = parseId();
-    emit.fct(fname);
+    fcts_[fname.symbol()] = emit.fct(fname);
 
     expect(Token::L_PAREN, "function head");
     PARSE_COMMA_LIST
@@ -200,7 +204,7 @@ void Parser::parseFct() {
 
     // return-continuation
     if (accept(Token::ARROW))
-        curFct()->setReturn(parseType());
+        curFct()->setReturnCont(parseType());
 
     parseScopeBody();
     emit.fixto(curFct()->exit());
@@ -445,7 +449,7 @@ void Parser::parseFor() {
     emit.curBB = contBB;
     emit.popScope();
 }
-#endif 0
+#endif
 
 void Parser::parseBreak() {
     eat(Token::BREAK);

@@ -13,16 +13,16 @@ namespace anydsl {
 //------------------------------------------------------------------------------
 
 BB::BB(BB* parent, const Pi* pi, const std::string& name) 
-    : parent_(parent)
-    , lambda_(world().createLambda(pi))
+    : lambda_(pi->world().createLambda(pi))
+    , visited_(false)
     , fct_(0)
 {
     lambda_->debug = name;
 }
 
 BB::BB(Fct* fct, World& world, const std::string& name) 
-    : parent_(0)
-    , lambda_(world.createLambda(0))
+    : lambda_(world.createLambda(0))
+    , visited_(false)
     , fct_(fct)
 {
     lambda_->debug = name;
@@ -34,14 +34,6 @@ World& BB::world() {
 
 /*static*/ BB* BB::createBB(Fct* fct, World& world, const std::string& name) {
     return new BB(fct, world, name);
-}
-
-void BB::insert(BB* bb) {
-    anydsl_assert(!bb->parent_, "parent already set");
-
-    bb->parent_ = this;
-    this->lambda_->insert(bb->lambda());
-    children_.insert(bb);
 }
 
 void BB::goesto(BB* to) {
@@ -206,16 +198,28 @@ std::string BB::name() const {
     return str.empty() ? "<unnamed>" : str;
 }
 
+void BB::dfs(BBList& bbs) {
+    visited_ = true;
+
+    FOREACH(bb, succ())
+        if (!bb->visited_)
+            dfs(bbs);
+
+    bbs.push_back(this);
+}
+
 //------------------------------------------------------------------------------
 
 Fct::Fct(const Pi* pi, const Symbol sym)
     : BB(0, pi, sym.str())
-    , ret_(0)
+    , exit_(0)
+    , retParam_(0)
 {}
 
 Fct::Fct(World& world, const Symbol sym)
-    : BB(0, world.pi(), sym.str())
-    , ret_(0)
+    : BB(0, world.pi0(), sym.str())
+    , exit_(0)
+    , retParam_(0)
 {}
 
 /*static*/ BB* Fct::createBB(const std::string& name /*= ""*/) {
@@ -225,18 +229,19 @@ Fct::Fct(World& world, const Symbol sym)
     return bb;
 }
 
-void Fct::setReturn(const Type* retType) {
+void Fct::setReturnCont(const Type* retType) {
     anydsl_assert(!exit_, "already set");
 
     Symbol resSymbol = "<result>";
-
+    retParam_ = *lambda_->appendParam(world().pi1(retType));
+    retParam_->debug = "<result>";
     setVN(new Binding(resSymbol, world().undef(retType)));
-    exit_ = 0; //new BB(world(), "<exit>");
-    exit_->invokes(ret_);
+    exit_ = createBB("<exit>");
+    exit_->invokes(retParam_);
     exit_->lambda()->terminator()->as<Invoke>()->jump.args.append(getVN(resSymbol, retType, false)->def);
 }
 
-void Fct::insertReturn(BB* bb, Def* def) {
+void Fct::insertReturnStmt(BB* bb, Def* def) {
     anydsl_assert(bb, "must be valid");
     bb->goesto(exit_);
     bb->lambda()->terminator()->as<Goto>()->jump.args.append(def);
@@ -253,6 +258,67 @@ Binding* Fct::getVN(const Symbol sym, const Type* type, bool finalize) {
 
     anydsl_assert(i->second->def, "must be valid");
     return i->second;
+}
+
+
+void Fct::buildDomTree() {
+    dfs(postorder_);
+    anydsl_assert(postorder_.back() == this, "last node must be start node, i.e., 'this'");
+    size_t last = postorder_.size() - 1;
+
+    idoms_.resize(postorder_.size());
+
+    // init idoms to 0, set visited_ to false
+    for (size_t i = last - 1; i >= 0; --i) {
+        BB* bb = postorder_[i];
+        idoms_[i] = 0;
+        bb->visited_ = false;
+        bb2i_[bb] = i;
+    }
+
+    idoms_.back() = this;
+    anydsl_assert(visited_, "should still be true");
+
+    bool changed = true;
+    while (changed) {
+        // for each bb in reverse post-order except start node
+        for (size_t bb_i = last - 1; bb_i >= 0; --bb_i) {
+            BB* bb = postorder_[bb_i];
+
+            size_t new_i = -1;
+            // find processed pred of bb
+            FOREACH(pred, bb->pred()) {
+                if (pred->visited_) {
+                    new_i = bb2i_[pred];
+                    break;
+                }
+            }
+            anydsl_assert(new_i != size_t(-1), "no processed pred of bb found");
+
+            // for all un processed preds of bb
+            FOREACH(pred, bb->pred()) {
+                size_t pred_i = bb2i_[pred];
+                if (!pred->visited_) {
+                    if (idoms_[pred_i])
+                        new_i = intersect(pred_i, new_i);
+                }
+            }
+
+            BB* new_bb = postorder_[new_i];
+            if (idoms_[bb_i] != new_bb) {
+                idoms_[bb_i] = new_bb;
+                changed = true;
+            }
+        }
+    }
+}
+
+size_t Fct::intersect(size_t i, size_t j) {
+    while (i != j) {
+        while (i < j) i = bb2i_[idoms_[i]];
+        while (j < i) j = bb2i_[idoms_[j]];
+    }
+    return i;
 }
 
 //------------------------------------------------------------------------------

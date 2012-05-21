@@ -14,13 +14,16 @@ Lambda::Lambda(const Pi* pi)
 {}
 
 Lambda::Lambda(World& world)
-    : Def(Index_Lambda, world.pi())
+    : Def(Index_Lambda, world.pi0())
     , parent_(0)
     , terminator_(0)
 {}
 
 Lambda::~Lambda() {
     delete terminator_;
+
+    FOREACH(param, params_) 
+        delete param;
 }
 
 void Lambda::insert(Lambda* lambda) {

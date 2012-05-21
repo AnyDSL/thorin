@@ -2,6 +2,7 @@
 #define ANYDSL_SUPPORT_CFG_H
 
 #include <map>
+#include <boost/unordered_map.hpp>
 #include <boost/unordered_set.hpp>
 
 #include "anydsl/util/assert.h"
@@ -26,6 +27,8 @@ class Fct;
 class Token;
 class World;
 typedef boost::unordered_set<BB*> BBs;
+typedef boost::unordered_map<BB*, size_t> BB2I;
+typedef std::vector<BB*> BBList;
 typedef std::list<Param*> Params;
 typedef Params::iterator ParamIter;
 
@@ -63,9 +66,9 @@ public:
 
 protected:
 
+    void dfs(BBList& bbs);
+
     void flowsto(BB* to);
-    /// Insert \p bb as sub BB (i.e., as dom child) into this BB.
-    void insert(BB* bb);
     World& world();
 
     typedef std::map<const Symbol, Binding*> ValueMap;
@@ -73,10 +76,6 @@ protected:
 
     typedef std::map<Symbol, ParamIter, Symbol::FastLess> Todos;
     Todos todos_;
-
-    // dominator tree
-    BB* parent_;
-    BBs children_;
 
     // CFG
     BBs pred_;
@@ -88,6 +87,10 @@ protected:
     //void fixBeta(Beta* beta, size_t x, const Symbol sym, Type* type);
 
     bool finalized_;
+
+public:
+
+    bool visited_;
 
 private:
 
@@ -104,18 +107,24 @@ public:
 
     BB* createBB(const std::string& name = "");
 
-    void setReturn(const Type* retType);
-    bool hasReturn() const { return ret_; }
-    void insertReturn(BB* bb, Def* def);
+    void setReturnCont(const Type* retType);
+    bool hasReturnCont() const { return retParam_; }
+    void insertReturnStmt(BB* bb, Def* def);
     virtual Binding* getVN(const Symbol sym, const Type* type, bool finalize);
     BB* exit() const { return exit_; }
+
+    void buildDomTree();
+    size_t intersect(size_t i, size_t j);
 
 private:
 
     BBs cfg_;
+    BBList postorder_;
+    BBList idoms_;
+    BB2I bb2i_;
 
     BB* exit_;
-    Param* ret_;
+    Param* retParam_;
 };
 
 } // namespace anydsl

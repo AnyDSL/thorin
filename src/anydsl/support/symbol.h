@@ -5,6 +5,8 @@
 #include <set>
 #include <string>
 
+#include <boost/functional/hash.hpp>
+
 #include "anydsl/util/singleton.h"
 #include "anydsl/support/symbolmemory.h"
 
@@ -92,7 +94,7 @@ public:
 
     /// Use this (much faster) if lexical ordering is not needed.
     struct FastLess {
-        bool operator()(const Symbol &a, const Symbol &b) const { return a.index()<b.index(); }
+        bool operator()(const Symbol &a, const Symbol &b) const { return a.index() < b.index(); }
     };
 
 private:
@@ -157,6 +159,10 @@ inline Symbol::Symbol(const std::string& str)
 //------------------------------------------------------------------------------
 
 std::ostream& operator << (std::ostream& o, Symbol s);
+
+//------------------------------------------------------------------------------
+
+inline size_t hash_value(const Symbol sym) { return boost::hash_value(sym.index()); }
 
 //------------------------------------------------------------------------------
 

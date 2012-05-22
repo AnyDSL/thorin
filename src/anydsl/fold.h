@@ -9,6 +9,7 @@ namespace anydsl {
 struct FoldValue {
     enum Kind {
         Valid,
+        Const,
         Error,
         Undef,
     };

@@ -38,17 +38,16 @@ static inline RelOpKind normalizeRel(RelOpKind kind, bool& swap) {
     }
 }
 
-static void examineDef(Def* def, FoldValue& v, bool& fold, bool& isLiteral) {
-    if (def->isa<Undef>()) {
+static void examineDef(Def* def, FoldValue& v) {
+    if (def->isa<Undef>())
         v.kind = FoldValue::Undef;
-        fold = true;
-    } else if (def->isa<ErrorLit>()) {
+    else if (def->isa<ErrorLit>())
         v.kind = FoldValue::Error;
-        fold = true;
-    } if (PrimLit* lit = def->isa<PrimLit>()) {
+    if (PrimLit* lit = def->isa<PrimLit>()) {
+        v.kind = FoldValue::Const;
         v.box = lit->box();
-        isLiteral = true;
     }
+   
 }
     
 /*
@@ -176,20 +175,16 @@ Value* World::tryFold(IndexKind kind, Def* ldef, Def* rdef) {
     FoldValue a(ldef->type()->as<PrimType>()->kind());
     FoldValue b(a.type);
 
-    bool fold = false;
-    bool l_lit = false;
-    bool r_lit = false;
+    examineDef(ldef, a);
+    examineDef(rdef, b);
 
-    examineDef(ldef, a, fold, l_lit);
-    examineDef(rdef, b, fold, r_lit);
-    fold |= l_lit & r_lit;
-
-    if (fold) {
+    if (a.kind != FoldValue::Valid || b.kind != FoldValue::Valid) {
         const PrimType* p = ldef->type()->as<PrimType>();
         FoldValue res = fold_bin(kind, p->kind(), a, b);
 
         switch (res.kind) {
-            case FoldValue::Valid: return literal(res.type, res.box);
+            case FoldValue::Valid: return 0;
+            case FoldValue::Const: return literal(res.type, res.box);
             case FoldValue::Undef: return undef(res.type);
             case FoldValue::Error: return literal_error(res.type);
         }

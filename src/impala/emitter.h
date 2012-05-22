@@ -41,7 +41,7 @@ public:
     Value infixOp(Value aval, const Token& op, Value bval);
     Value postfixOp(Value aval, const Token& op); 
     Value fctCall(Value f, std::vector<Value> args);
-    anydsl::Type* builtinType(const Token& tok);
+    const anydsl::Type* builtinType(const Token& tok);
     Value id(const Token& tok);
 
     void pushScope() { env_.pushScope();  }

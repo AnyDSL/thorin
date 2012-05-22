@@ -121,6 +121,18 @@ private:
 //------------------------------------------------------------------------------
 
 class Tuple : public PrimOp {
+private:
+
+    Tuple(const ValueNumber& vn);
+
+#if 0
+    template <class C>
+    static ValueNumber VN(C container) {
+        ValueNumber vn(container.size());
+        FOREACH(i, container)
+
+    }
+#endif
 };
 
 //------------------------------------------------------------------------------

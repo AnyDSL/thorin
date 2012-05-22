@@ -80,7 +80,7 @@ public:
     // misc
     anydsl::Lambda* parse();
     Token parseId();
-    anydsl::Type* parseType();
+    const anydsl::Type* parseType();
     void parseParam();
     Value parseDecl();
     void parseGlobals();

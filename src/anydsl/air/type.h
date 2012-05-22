@@ -17,7 +17,6 @@ protected:
         : AIRNode(index)
         , world_(world)
     {}
-    virtual ~Type() {}
 
 public:
 
@@ -32,21 +31,13 @@ typedef std::vector<const Type*> Types;
 
 //------------------------------------------------------------------------------
 
-class ErrorType : public Type {
-private:
-
-    ErrorType(World& world) : Type(world, Index_ErrorType) {}
-
-    friend class World;
-};
-
-//------------------------------------------------------------------------------
-
 /// Primitive types -- also known as atomic or scalar types.
 class PrimType : public Type {
 private:
 
-    PrimType(World& world, PrimTypeKind kind);
+    PrimType(World& world, const ValueNumber& vn);
+
+    static ValueNumber VN(PrimTypeKind kind) { return ValueNumber((IndexKind) kind); }
 
 public:
 
@@ -60,17 +51,23 @@ public:
 class CompoundType : public Type {
 protected:
 
-    /// Creates an empty \p CompoundType.
-    CompoundType(World& world, IndexKind index)
-        : Type(world, index)
-    {}
-
-    /// Copies over the range specified by \p begin and \p end to \p types_.
-    template<class T>
-    CompoundType(World& world, IndexKind index, T begin, T end)
-        : Type(world, index)
+    CompoundType(World& world, const ValueNumber vn)
+        : Type(world, vn.index)
     {
-        types_.insert(types_.begin(), begin, end);
+        for (size_t i = 0, e = vn.size; i != e; ++i)
+            types_.push_back((const Type*) vn.more[i]);
+    }
+
+    /// Copies over the range specified by \p begin and \p end.
+    template<class T>
+    static ValueNumber VN(IndexKind index, T begin, T end) {
+        size_t size = std::distance(begin, end);
+        ValueNumber vn = ValueNumber::createMore(index, size);
+        size_t x = 0;
+        for (T i = begin; i != end; ++i, ++x)
+            vn.more[x] = uintptr_t(*i);
+
+        return vn;
     }
 
 public:
@@ -79,16 +76,6 @@ public:
     const Type* get(size_t i) const { 
         anydsl_assert(i < types_.size(), "index out of range"); 
         return types_[i]; 
-    }
-
-    template<class T>
-    bool equal(T begin, T end) {
-        bool result = true;
-        Types::const_iterator j = types_.begin(), je = types_.end();
-        for (T i = begin, ie = end; i != ie && j != je && result; ++i, ++j)
-            if (*i != *j)
-                return false;
-        return true;
     }
 
     /// Get element type via anydsl::PrimLit which serves as index.
@@ -110,17 +97,15 @@ protected:
 class Sigma : public CompoundType {
 private:
 
-    Sigma(World& world, bool named = false)
-        : CompoundType(world, Index_Sigma)
-        , named_(named)
+    Sigma(World& world, const ValueNumber& vn)
+        : CompoundType(world, vn)
     {}
 
-    /// Creates an unamed Sigma from the given range.
+
     template<class T>
-    Sigma(World& world, T begin, T end, bool named = false)
-        : CompoundType(world, Index_Sigma, begin, end)
-        , named_(named)
-    {}
+    static ValueNumber VN(T begin, T end) {
+        return CompoundType::VN(Index_Sigma, begin, end);
+    }
 
 public:
 
@@ -149,17 +134,15 @@ private:
 class Pi : public CompoundType {
 private:
 
-    Pi(World& world)
-        : CompoundType(world, Index_Pi)
+    Pi(World& world, const ValueNumber& vn)
+        : CompoundType(world, vn)
     {}
 
-    template<class T>
-    Pi(World& world, T begin, T end)
-        : CompoundType(world, Index_Sigma, begin, end)
-    {}
 
     template<class T>
-    static uint64_t hash(T begin, T end) { return 0; }
+    static ValueNumber VN(T begin, T end) {
+        return CompoundType::VN(Index_Pi, begin, end);
+    }
 
     friend class World;
 };

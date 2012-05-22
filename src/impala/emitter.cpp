@@ -185,7 +185,7 @@ Value Emitter::fctCall(Value f, std::vector<Value> args) {
     return error();
 }
 
-Type* Emitter::builtinType(const Token& tok) {
+const Type* Emitter::builtinType(const Token& tok) {
     return world.type(tok.toPrimType());
 }
 
@@ -212,7 +212,7 @@ Value Emitter::id(const Token& tok) {
 }
 
 Value Emitter::error() {
-    return Value(world.error());
+    return Value(world.literal_error(world.type_u32()));
 }
 
 } // namespace impala

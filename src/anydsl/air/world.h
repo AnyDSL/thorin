@@ -33,8 +33,7 @@ class Undef;
 //------------------------------------------------------------------------------
 
 typedef boost::unordered_map<ValueNumber, Value*> ValueMap;
-typedef boost::unordered_multimap<uint64_t, Pi*> PiMap;
-typedef boost::unordered_multimap<uint64_t, Sigma*> SigmaMap;
+typedef boost::unordered_map<ValueNumber, const Type*> TypeMap;
 typedef std::vector<Sigma*> NamedSigmas;
 typedef boost::unordered_set<Lambda*> Lambdas;
 
@@ -84,16 +83,14 @@ public:
      * types
      */
 
-#define ANYDSL_U_TYPE(T) PrimType* type_##T() const { return T##_; }
-#define ANYDSL_F_TYPE(T) PrimType* type_##T() const { return T##_; }
+#define ANYDSL_U_TYPE(T) const PrimType* type_##T() const { return T##_; }
+#define ANYDSL_F_TYPE(T) const PrimType* type_##T() const { return T##_; }
 #include "anydsl/tables/primtypetable.h"
-
-    const ErrorType* type_error() { return type_error_; }
 
     // primitive types
 
     /// Get PrimType.
-    PrimType* type(PrimTypeKind kind) const { 
+    const PrimType* type(PrimTypeKind kind) const { 
         size_t i = kind - Begin_PrimType;
         assert(0 <= i && i < (size_t) Num_PrimTypes); 
         return primTypes_[i];
@@ -129,14 +126,16 @@ public:
      */
     template<class T>
     const Sigma* sigma(T begin, T end, bool named = false) {
+#if 0
         if (named) {
             Sigma* res = new Sigma(*this, begin, end, named);
             namedSigmas_.push_back(res);
 
             return res;
         }
+#endif
 
-        return getSigmaOrPi<Sigma>(sigmas_, begin, end);
+        return findType<Sigma>(Sigma::VN(begin, end));
     }
 
     // pis
@@ -164,7 +163,7 @@ public:
      * @return The Sigma.
      */
     template<class T>
-    const Pi* pi(T begin, T end) { return getSigmaOrPi<Pi>(pis_, begin, end); }
+    const Pi* pi(T begin, T end) { return findType<Pi>(Pi::VN(begin, end)); }
 
     /*
      * literals
@@ -187,8 +186,6 @@ public:
     Undef* undef(PrimTypeKind kind) { return undef(type(kind)); }
     ErrorLit* literal_error(const Type* type);
     ErrorLit* literal_error(PrimTypeKind kind) { return literal_error(type(kind)); }
-    /// ErrorLit of ErrorType.
-    ErrorLit* error() { return literal_error(type_error_); }
 
     /*
      * create
@@ -212,46 +209,48 @@ public:
 
 private:
 
-    template<class T>
-    T* findValue(const ValueNumber& vn);
+    template<class T> T* findValue(const ValueNumber& vn);
+    template<class T> const T* findType(const ValueNumber& vn);
     Value* tryFold(IndexKind kind, Def* ldef, Def* rdef);
 
     template<class T, class C>
     static void kill(C& container);
-    template<class T, class M, class Iter>
-    const T* getSigmaOrPi(M& map, Iter begin, Iter end);
 
-    AutoPtr<const ErrorType> type_error_;
-    const Pi* pi0_; ///< pi().
+    ValueMap values_;
+    TypeMap types_;
+
     const Sigma* unit_; ///< sigma().
+    const Pi* pi0_; ///< pi().
 
     union {
         struct {
-#define ANYDSL_U_TYPE(T) PrimType* T##_;
-#define ANYDSL_F_TYPE(T) PrimType* T##_;
+#define ANYDSL_U_TYPE(T) const PrimType* T##_;
+#define ANYDSL_F_TYPE(T) const PrimType* T##_;
 #include "anydsl/tables/primtypetable.h"
         };
 
-        PrimType* primTypes_[Num_PrimTypes];
+        const PrimType* primTypes_[Num_PrimTypes];
     };
 
-    ValueMap values_;
-    PiMap pis_;
-    SigmaMap sigmas_;
     NamedSigmas namedSigmas_;
     Lambdas lambdas_;
 };
 
-template<class T, class M, class Iter>
-const T* World::getSigmaOrPi(M& map, Iter begin, Iter end) {
-    uint64_t h = T::hash(begin, end);
+//------------------------------------------------------------------------------
 
-    FOREACHT(p, map.equal_range(h))
-        if (p.second->equal(begin, end))
-            return p.second;
+template<class T>
+const T* World::findType(const ValueNumber& vn) {
+    TypeMap::iterator i = types_.find(vn);
+    if (i != types_.end())
+        return scast<T>(i->second);
 
-    return map.insert(std::make_pair(h, new T(*this, begin, end)))->second;
+    const T* t = new T(*this, vn);
+    types_[vn] = t;
+
+    return t;
 }
+
+//------------------------------------------------------------------------------
 
 } // namespace anydsl
 

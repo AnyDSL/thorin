@@ -145,7 +145,7 @@ Token Parser::parseId() {
     return name;
 }
 
-Type* Parser::parseType() {
+const Type* Parser::parseType() {
     switch (la()) {
 #define IMPALA_TYPE(itype, atype) \
         case Token:: TYPE_ ## itype: \
@@ -168,7 +168,7 @@ Value Parser::parseDecl() {
     Token tok = la();
     expect(Token::ID, "declaration");
     expect(Token::COLON, "declaration");
-    Type* type = parseType();
+    const Type* type = parseType();
 
     return emit.decl(tok, type);
 }

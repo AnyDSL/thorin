@@ -91,6 +91,10 @@ protected:
 };
 
 struct ValueNumber {
+private:
+
+    ValueNumber& operator = (const ValueNumber& vn);
+
 public:
     IndexKind index;
     uintptr_t op1;
@@ -107,10 +111,11 @@ public:
     };
 
     ValueNumber() {}
-    ValueNumber(IndexKind index)
+    explicit ValueNumber(IndexKind index)
         : index(index)
         , op1(0)
         , op2(0)
+        , op3(0)
     {}
     ValueNumber(IndexKind index, uintptr_t p)
         : index(index)
@@ -130,51 +135,46 @@ public:
         , op2(p2)
         , op3(p3)
     {}
-    ValueNumber(size_t size, uintptr_t* more)
-        : size(size)
-        , more(more)
-    {}
-    ~ValueNumber() {
-        if (index == Index_Tuple)
-            delete more;
-    }
-    /// Mimics a C++11 move constructor by const_cast.
     ValueNumber(const ValueNumber& vn) {
-        if (index == Index_Tuple) {
-            index = vn.index;
-            size = vn.size;
-            more = vn.more;
-            const_cast<ValueNumber&>(vn).more = 0;
-        } else
-            std::memcpy(this, &vn, sizeof(ValueNumber));
+        std::memcpy(this, &vn, sizeof(ValueNumber));
+        if (hasMore(index)) {
+            more = new uintptr_t[size];
+            std::memcpy(more, vn.more, sizeof(uintptr_t) * size);
+        }
     }
-    ValueNumber& operator = (ValueNumber& vn) {
-        if (index == Index_Tuple) {
-            index = vn.index;
-            size = vn.size;
-            more = vn.more;
-            vn.more = 0;
-        } else
-            std::memcpy(this, &vn, sizeof(ValueNumber));
-
-        return *this;
+    ~ValueNumber() {
+        if (hasMore(index))
+            delete[] more;
     }
 
+    /**
+     * Creates a ValueNumber where the number of built-in fields do not suffice.
+     * Memory allocation and deallocation is handled by this class. 
+     * However, the caller is responsible to fill the allocated fields
+     * (pointed to by \p more) with correct data.
+     */
+    static ValueNumber createMore(IndexKind index, size_t size) {
+        ValueNumber res(index);
+        res.size = size;
+        res.more = new uintptr_t[size];
+        return res;
+    }
 
-    bool operator == (const ValueNumber& vn) const {
-        return index == vn.index && op1 == vn.op1 && op2 == vn.op2 && op3 == vn.op3;
+    bool operator == (const ValueNumber& vn) const;
+
+    static bool hasMore(IndexKind kind) {
+        switch (kind) {
+            case Index_Tuple:
+            case Index_Pi:
+            case Index_Sigma: 
+                return true;
+            default:
+                return false;
+        }
     }
 };
 
-inline size_t hash_value(const ValueNumber& vn) {
-    size_t seed = 0;
-    boost::hash_combine(seed, vn.index);
-    boost::hash_combine(seed, vn.op1);
-    boost::hash_combine(seed, vn.op2);
-    boost::hash_combine(seed, vn.op3);
-
-    return seed;
-}
+size_t hash_value(const ValueNumber& vn);
 
 //------------------------------------------------------------------------------
 

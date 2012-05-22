@@ -56,45 +56,32 @@ static void examineDef(Def* def, FoldValue& v, bool& fold, bool& isLiteral) {
  */
 
 World::World() 
-    : type_error_(new ErrorType(*this))
-#define ANYDSL_U_TYPE(T) ,T##_(new PrimType(*this, PrimType_##T))
-#define ANYDSL_F_TYPE(T) ,T##_(new PrimType(*this, PrimType_##T))
+    : values_(1031)
+    , types_(1031)
+    , unit_(findType<Sigma>(Sigma::VN((const Type**) 0, (const Type**) 0)))
+    , pi0_ (findType<Pi>   (Pi   ::VN((const Type**) 0, (const Type**) 0)))
+#define ANYDSL_U_TYPE(T) ,T##_(findType<PrimType>(PrimType::VN(PrimType_##T)))
+#define ANYDSL_F_TYPE(T) ,T##_(findType<PrimType>(PrimType::VN(PrimType_##T)))
 #include "anydsl/tables/primtypetable.h"
-    , values_(1031)
-{
-    {
-        Sigma* s = new Sigma(*this);
-        unit_ = s;
-        //uint64_t h = Sigma::hash((const Type**) 0, (const Type**) 0);
-        //sigmas_.insert(std::make_pair(h, s));
-    }
-    {
-        Pi* p = new Pi(*this);
-        pi0_ = p;
-        //uint64_t h = Pi::hash((const Type**) 0, (const Type**) 0);
-        //pis_.insert(std::make_pair(h, p));
-    }
-}
+{}
 
 World::~World() {
     cleanup();
 
-    for (size_t i = 0; i < Num_PrimTypes; ++i)
-        delete primTypes_[i];
-
     FOREACH(sigma,  namedSigmas_) delete sigma;
     //FOREACH(lambda, lambdas_)     delete lambda;
 
+    std::cout << types_.size() << std::endl;
     std::cout << values_.size() << std::endl;
     FOREACH(p, values_) delete p.second;
-    FOREACH(p, pis_)    delete p.second;
-    FOREACH(p, sigmas_) delete p.second;
+    FOREACH(t, types_) delete t.second;
 }
 
 /*
  * types
  */
 
+#if 0
 Sigma* World::sigma(const std::string& name /*= ""*/) {
     Sigma* sigma = new Sigma(*this, true);
     sigma->debug = name;
@@ -112,6 +99,7 @@ const Sigma* World::sigma0(bool named /*= false*/) {
 
     return unit_;
 }
+#endif
 
 const Sigma* World::sigma1(const Type* t1, bool named /*= false*/) {
     return sigma(&t1, (&t1) + 1, named);

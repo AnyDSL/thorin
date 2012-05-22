@@ -23,7 +23,6 @@ ANYDSL_AIR_NODE(Use)
         ANYDSL_AIR_NODE(Param)
 // Type
     // PrimType
-    ANYDSL_AIR_NODE(ErrorType)
     ANYDSL_AIR_NODE(Pi)
     ANYDSL_AIR_NODE(Sigma)
 

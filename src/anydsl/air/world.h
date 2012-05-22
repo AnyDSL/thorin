@@ -98,45 +98,33 @@ public:
 
     // sigmas
 
-    /// Get unit AKA sigma() AKA void.
+    /// Get unit AKA void AKA (unnamed) sigma(). 
     const Sigma* unit() const { return unit_; }
     /// Creates 'sigma()'.
-    const Sigma* sigma0(bool named = false);
+    const Sigma* sigma0();
     /// Creates 'sigma(t1)'.
-    const Sigma* sigma1(const Type* t1, bool named = false);
+    const Sigma* sigma1(const Type* t1);
     /// Creates 'sigma(t1, t2)'.
-    const Sigma* sigma2(const Type* t1, const Type* t2, bool named = false);
+    const Sigma* sigma2(const Type* t1, const Type* t2);
     /// Creates 'sigma(t1, t2, t3)'.
-    const Sigma* sigma3(const Type* t1, const Type* t2, const Type* t3, bool named = false);
-    /// Creates a fresh \em named sigma.
-    Sigma* sigma(const std::string& name = "");
+    const Sigma* sigma3(const Type* t1, const Type* t2, const Type* t3);
     template<class T> 
-    const Sigma* sigma(T container, bool named = false) { return sigma(container.begin(), container.end(), named); }
+    const Sigma* sigma(T container) { return sigma(container.begin(), container.end()); }
     template<size_t N>
-    const Sigma* sigma(const Type* (&array)[N], bool named = false) { return sigma(array, array + N, named); }
+    const Sigma* sigma(const Type* (&array)[N]) { return sigma(array, array + N); }
     /** 
-     * @brief Get named or unnamed \p Sigma (according to \p named) with element types of given range.
+     * @brief Get \em unamed \p Sigma with element types of given range.
      * 
      * @param T Must be a forward iterator which yields a const Type* upon using unary 'operator *'.
      * @param begin Iterator which points to the beginning of the range.
      * @param end Iterator which points to one element past the end of the range.
-     * @param named Whether you want to receive a named or unnamed Sigma.
      * 
      * @return The Sigma.
      */
     template<class T>
-    const Sigma* sigma(T begin, T end, bool named = false) {
-#if 0
-        if (named) {
-            Sigma* res = new Sigma(*this, begin, end, named);
-            namedSigmas_.push_back(res);
-
-            return res;
-        }
-#endif
-
-        return findType<Sigma>(Sigma::VN(begin, end));
-    }
+    const Sigma* sigma(T begin, T end) { return findType<Sigma>(Sigma::VN(begin, end)); }
+    /// Creates a fresh \em named sigma.
+    Sigma* namedSigma(const std::string& name = "");
 
     // pis
 
@@ -153,12 +141,11 @@ public:
     template<size_t N>
     const Pi* pi(const Type* (&array)[N]) { return pi(array, array + N); }
     /** 
-     * @brief Get named or unnamed \p Sigma (according to \p named) with element types of given range.
+     * @brief Get \p Pi with element types of given range.
      * 
      * @param T Must be a forward iterator which yields a const Type* upon using unary 'operator *'.
      * @param begin Iterator which points to the beginning of the range.
      * @param end Iterator which points to one element past the end of the range.
-     * @param named Whether you want to receive a named or unnamed Sigma.
      * 
      * @return The Sigma.
      */

@@ -51,6 +51,11 @@ public:
 class CompoundType : public Type {
 protected:
 
+    /// Only used by Sigma to create named Sigma%s.
+    CompoundType(World& world, IndexKind index)
+        : Type(world, index)
+    {}
+
     CompoundType(World& world, const ValueNumber vn)
         : Type(world, vn.index)
     {
@@ -97,10 +102,15 @@ protected:
 class Sigma : public CompoundType {
 private:
 
-    Sigma(World& world, const ValueNumber& vn)
-        : CompoundType(world, vn)
+    Sigma(World& world)
+        : CompoundType(world, Index_Sigma)
+        , named_(true)
     {}
 
+    Sigma(World& world, const ValueNumber& vn)
+        : CompoundType(world, vn)
+        , named_(false)
+    {}
 
     template<class T>
     static ValueNumber VN(T begin, T end) {

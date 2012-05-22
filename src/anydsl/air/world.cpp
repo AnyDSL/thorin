@@ -81,38 +81,26 @@ World::~World() {
  * types
  */
 
-#if 0
-Sigma* World::sigma(const std::string& name /*= ""*/) {
-    Sigma* sigma = new Sigma(*this, true);
-    sigma->debug = name;
-    namedSigmas_.push_back(sigma);
+Sigma* World::namedSigma(const std::string& name /*= ""*/) {
+    Sigma* s = new Sigma(*this);
+    s->debug = name;
+    namedSigmas_.push_back(s);
 
-    return sigma;
+    return s;
 }
 
-const Sigma* World::sigma0(bool named /*= false*/) {
-    if (named) {
-        Sigma* s = new Sigma(*this, true);
-        namedSigmas_.push_back(s);
-        return s;
-    }
-
-    return unit_;
-}
-#endif
-
-const Sigma* World::sigma1(const Type* t1, bool named /*= false*/) {
-    return sigma(&t1, (&t1) + 1, named);
+const Sigma* World::sigma1(const Type* t1) {
+    return sigma(&t1, (&t1) + 1);
 }
 
-const Sigma* World::sigma2(const Type* t1, const Type* t2, bool named /*= false*/) {
+const Sigma* World::sigma2(const Type* t1, const Type* t2) {
     const Type* types[2] = {t1, t2};
-    return sigma(types, named);
+    return sigma(types);
 }
 
-const Sigma* World::sigma3(const Type* t1, const Type* t2, const Type* t3, bool named /*= false*/) {
+const Sigma* World::sigma3(const Type* t1, const Type* t2, const Type* t3) {
     const Type* types[3] = {t1, t2, t3};
-    return sigma(types, named);
+    return sigma(types);
 }
 
 const Pi* World::pi1(const Type* t1) {

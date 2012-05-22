@@ -56,7 +56,7 @@ protected:
         : Type(world, index)
     {}
 
-    CompoundType(World& world, const ValueNumber vn)
+    CompoundType(World& world, const ValueNumber& vn)
         : Type(world, vn.index)
     {
         for (size_t i = 0, e = vn.size; i != e; ++i)

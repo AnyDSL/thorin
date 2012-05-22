@@ -25,15 +25,6 @@ World& Def::world() const {
     return type_->world(); 
 }
 
-//ValueNumber& ValueNumber::operator = (ValueNumber& vn) {
-    //std::memcpy(this, &vn, sizeof(ValueNumber));
-
-    //if (hasMore(index))
-        //vn.more = 0;
-
-    //return *this;
-//}
-
 bool ValueNumber::operator == (const ValueNumber& vn) const {
     if (index != vn.index)
         return false;

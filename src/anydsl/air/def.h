@@ -1,6 +1,7 @@
 #ifndef ANYDSL_AIR_DEF_H
 #define ANYDSL_AIR_DEF_H
 
+#include <cstring>
 #include <string>
 
 #include <boost/cstdint.hpp>
@@ -93,6 +94,7 @@ protected:
 struct ValueNumber {
 private:
 
+    /// Do not copy-assign ValueNumber%s.
     ValueNumber& operator = (const ValueNumber& vn);
 
 public:
@@ -117,9 +119,9 @@ public:
         , op2(0)
         , op3(0)
     {}
-    ValueNumber(IndexKind index, uintptr_t p)
+    ValueNumber(IndexKind index, uintptr_t p1)
         : index(index)
-        , op1(p)
+        , op1(p1)
         , op2(0)
         , op3(0)
     {}
@@ -142,6 +144,13 @@ public:
             std::memcpy(more, vn.more, sizeof(uintptr_t) * size);
         }
     }
+#if (__cplusplus >= 201103L)
+    ValueNumber(ValueNumber&& vn) {
+        std::memcpy(this, &vn, sizeof(ValueNumber));
+        if (hasMore(index)) 
+            vn.more = 0;
+    }
+#endif
     ~ValueNumber() {
         if (hasMore(index))
             delete[] more;

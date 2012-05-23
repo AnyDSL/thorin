@@ -3,7 +3,7 @@
 #include "anydsl/air/primop.h"
 #include "anydsl/air/literal.h"
 #include "anydsl/air/type.h"
-#include "anydsl/air/terminator.h"
+#include "anydsl/air/jump.h"
 #include "anydsl/fold.h"
 
 namespace anydsl {
@@ -159,20 +159,14 @@ Lambda* World::createLambda(const Pi* type) {
     return lambda;
 }
 
-Jump* World::createGoto(Lambda* parent, Lambda* to) {
+Jump* World::createJump(Lambda* parent, Def* to) {
     Jump* res = new Jump(parent, to);
     parent->setJump(res);
     return res;
 }
 
-Jump* World::createInvoke(Lambda* parent, Def* fct) {
-    Jump* res = new Jump(parent, fct);
-    parent->setJump(res);
-    return res;
-}
-
-Jump* World::createBranch(Lambda* parent, Def* cond, Lambda* tto, Lambda* fto) {
-    return  createInvoke(parent, createSelect(cond, tto, fto));
+Jump* World::createBranch(Lambda* parent, Def* cond, Def* tto, Def* fto) {
+    return  createJump(parent, createSelect(cond, tto, fto));
 }
 
 Value* World::tryFold(IndexKind kind, Def* ldef, Def* rdef) {

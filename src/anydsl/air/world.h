@@ -177,9 +177,8 @@ public:
      */
 
     Lambda* createLambda(const Pi* type = 0);
-    Jump* createGoto(Lambda* parent, Lambda* to);
-    Jump* createBranch(Lambda* parent, Def* cond, Lambda* tto, Lambda* fto);
-    Jump* createInvoke(Lambda* parent, Def* fct);
+    Jump* createJump(Lambda* parent, Def* to);
+    Jump* createBranch(Lambda* parent, Def* cond, Def* tto, Def* fto);
 
     Value* createArithOp(ArithOpKind kind, Def* ldef, Def* rdef);
     Value* createRelOp(RelOpKind kind, Def* ldef, Def* rdef);

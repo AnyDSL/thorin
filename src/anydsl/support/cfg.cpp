@@ -1,7 +1,7 @@
 #include "anydsl/support/cfg.h"
 
 #include "anydsl/air/literal.h"
-#include "anydsl/air/terminator.h"
+#include "anydsl/air/jump.h"
 #include "anydsl/air/world.h"
 #include "anydsl/support/binding.h"
 #include "anydsl/util/foreach.h"
@@ -38,7 +38,7 @@ World& BB::world() {
 
 void BB::goesto(BB* to) {
     assert(to);
-    world().createGoto(this->lambda(), to->lambda());
+    world().createJump(this->lambda(), to->lambda());
     this->flowsto(to);
     anydsl_assert(this->succ().size() == 1, "wrong number of succ");
 }
@@ -54,7 +54,7 @@ void BB::branches(Def* cond, BB* tbb, BB* fbb) {
 
 void BB::invokes(Def* fct) {
     anydsl_assert(fct, "must be valid");
-    world().createInvoke(this->lambda(), fct);
+    world().createJump(this->lambda(), fct);
     anydsl_assert(this->succ().size() == 0, "wrong number of succ");
     // succs by invokes are not captured in the CFG
 }

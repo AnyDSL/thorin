@@ -17,9 +17,7 @@ namespace anydsl {
 
 class Def;
 class ErrorLit;
-//class ErrorType;
-class Goto;
-class Invoke;
+class Jump;
 class Lambda;
 class Pi;
 class PrimLit;
@@ -179,13 +177,14 @@ public:
      */
 
     Lambda* createLambda(const Pi* type = 0);
-    Goto* createGoto(Lambda* parent, Lambda* to);
-    Terminator* createBranch(Lambda* parent, Def* cond, Lambda* tto, Lambda* fto);
-    Invoke* createInvoke(Lambda* parent, Def* fct);
+    Jump* createGoto(Lambda* parent, Lambda* to);
+    Jump* createBranch(Lambda* parent, Def* cond, Lambda* tto, Lambda* fto);
+    Jump* createInvoke(Lambda* parent, Def* fct);
 
     Value* createArithOp(ArithOpKind kind, Def* ldef, Def* rdef);
     Value* createRelOp(RelOpKind kind, Def* ldef, Def* rdef);
     Value* createProj(Def* tuple, PrimLit* i);
+    Value* createSelect(Def* cond, Def* tdef, Def* fdef);
 
     /*
      * optimize
@@ -207,7 +206,7 @@ private:
     TypeMap types_;
 
     const Sigma* unit_; ///< sigma().
-    const Pi* pi0_; ///< pi().
+    const Pi* pi0_;     ///< pi().
 
     union {
         struct {

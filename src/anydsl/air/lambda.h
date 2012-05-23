@@ -11,7 +11,7 @@ namespace anydsl {
 class Lambda;
 class Param;
 class Pi;
-class Terminator;
+class Jump;
 
 typedef std::list<Param*> Params;
 typedef boost::unordered_set<Param*> ParamSet;
@@ -41,8 +41,8 @@ public:
     const Fix& siblings() const { assert(parent_); return parent_->fix(); }
     const Params& params() const { return params_; }
 
-    Terminator* terminator() { return terminator_; }
-    const Terminator* terminator() const { return terminator_; }
+    Jump* jump() { return jump_; }
+    const Jump* jump() const { return jump_; }
 
     void insert(Lambda* lambda);
     void remove(Lambda* lambda);
@@ -55,10 +55,10 @@ public:
 
 private:
 
-    void setTerminator(Terminator* terminator) { assert(!terminator_); terminator_ = terminator; }
+    void setJump(Jump* jump) { assert(!jump_); jump_ = jump; }
 
     Lambda* parent_;
-    Terminator* terminator_;
+    Jump* jump_;
     Fix fix_;
     Params params_;
     ParamSet paramSet_;

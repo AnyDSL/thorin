@@ -159,16 +159,20 @@ Lambda* World::createLambda(const Pi* type) {
     return lambda;
 }
 
-Goto* World::createGoto(Lambda* parent, Lambda* to) {
-    Goto* res = new Goto(parent, to);
-    parent->setTerminator(res);
+Jump* World::createGoto(Lambda* parent, Lambda* to) {
+    Jump* res = new Jump(parent, to);
+    parent->setJump(res);
     return res;
 }
 
-Invoke* World::createInvoke(Lambda* parent, Def* fct) {
-    Invoke* res = new Invoke(parent, fct);
-    parent->setTerminator(res);
+Jump* World::createInvoke(Lambda* parent, Def* fct) {
+    Jump* res = new Jump(parent, fct);
+    parent->setJump(res);
     return res;
+}
+
+Jump* World::createBranch(Lambda* parent, Def* cond, Lambda* tto, Lambda* fto) {
+    return  createInvoke(parent, createSelect(cond, tto, fto));
 }
 
 Value* World::tryFold(IndexKind kind, Def* ldef, Def* rdef) {
@@ -220,20 +224,8 @@ Value* World::createProj(Def* tuple, PrimLit* i) {
     return findValue<Proj>(Proj::VN(tuple, i));
 }
 
-Terminator* World::createBranch(Lambda* parent, Def* cond, Lambda* tto, Lambda* fto) {
-    Terminator* result; 
-
-    if (PrimLit* lit = cond->isa<PrimLit>()) {
-        if (lit->box().get_u1() == true) 
-            result = new Goto(parent, tto);
-        else
-            result = new Goto(parent, fto);
-    } else
-        result = new Branch(parent, cond, tto, fto);
-
-    parent->setTerminator(result);
-
-    return result;
+Value* World::createSelect(Def* cond, Def* tdef, Def* fdef) {
+    return findValue<Select>(Select::VN(cond, tdef, fdef));
 }
 
 /*

@@ -60,7 +60,7 @@ void BB::invokes(Def* fct) {
 }
 
 void BB::fixto(BB* to) {
-    assert(!lambda()->terminator());
+    assert(!lambda()->jump());
     this->goesto(to);
 }
 
@@ -238,13 +238,13 @@ void Fct::setReturnCont(const Type* retType) {
     setVN(new Binding(resSymbol, world().undef(retType)));
     exit_ = createBB("<exit>");
     exit_->invokes(retParam_);
-    exit_->lambda()->terminator()->as<Invoke>()->jump.args.append(getVN(resSymbol, retType, false)->def);
+    exit_->lambda()->jump()->args.append(getVN(resSymbol, retType, false)->def);
 }
 
 void Fct::insertReturnStmt(BB* bb, Def* def) {
     anydsl_assert(bb, "must be valid");
     bb->goesto(exit_);
-    bb->lambda()->terminator()->as<Goto>()->jump.args.append(def);
+    bb->lambda()->jump()->args.append(def);
 }
 
 Binding* Fct::getVN(const Symbol sym, const Type* type, bool finalize) {

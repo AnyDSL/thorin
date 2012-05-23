@@ -32,7 +32,10 @@ Select::Select(const ValueNumber& vn)
     , cond(this, (Def*) vn.op1)
     , tuse(this, (Def*) vn.op2)
     , fuse(this, (Def*) vn.op3)
-{}
+{
+    anydsl_assert(cond.def()->type() == world().type_u1(), "condition must be of u1 type");
+    anydsl_assert(tuse.def()->type() == fuse.def()->type(), "types of both values must be equal");
+}
 
 //------------------------------------------------------------------------------
 

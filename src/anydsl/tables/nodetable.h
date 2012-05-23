@@ -3,10 +3,7 @@
 #endif
 
 ANYDSL_AIR_NODE(Use)
-// Terminator
-    ANYDSL_AIR_NODE(Goto)
-    ANYDSL_AIR_NODE(Branch)
-    ANYDSL_AIR_NODE(Invoke)
+ANYDSL_AIR_NODE(Jump)
 // Def
     ANYDSL_AIR_NODE(Lambda)
     // Literal

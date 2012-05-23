@@ -7,6 +7,7 @@ namespace anydsl {
 
 class Def;
 class Jump;
+class World;
 
 /**
  * Use encapsulates a use of an SSA value, i.e., a \p Def.
@@ -43,6 +44,8 @@ public:
     AIRNode* parent() { return parent_; }
     /// Get embedding ojbect.
     const AIRNode* parent() const { return parent_; }
+
+    World& world();
 
 private:
 

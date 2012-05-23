@@ -17,6 +17,10 @@ Use::~Use() {
     def_->unregisterUse(this);
 }
 
+World& Use::world() {
+    return def_->world();
+}
+
 //------------------------------------------------------------------------------
 
 Args::Args(Jump* parent)
@@ -36,7 +40,7 @@ Args::~Args() {
 }
 
 Args::iterator Args::insert(Args::iterator pos, Def* def) {
-    Node* newNode = new UseNode(parent_->parent(), def);
+    Node* newNode = new UseNode(parent_, def);
     Node* n = pos.n_;
 
     newNode->next_ = n;

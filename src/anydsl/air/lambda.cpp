@@ -10,17 +10,17 @@ namespace anydsl {
 Lambda::Lambda(const Pi* pi)
     : Def(Index_Lambda, pi)
     , parent_(0)
-    , terminator_(0)
+    , jump_(0)
 {}
 
 Lambda::Lambda(World& world)
     : Def(Index_Lambda, world.pi0())
     , parent_(0)
-    , terminator_(0)
+    , jump_(0)
 {}
 
 Lambda::~Lambda() {
-    delete terminator_;
+    delete jump_;
 
 #ifndef NDEBUG
     FOREACH(param, params_)

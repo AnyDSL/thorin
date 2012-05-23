@@ -44,7 +44,7 @@ static void examineDef(Def* def, FoldValue& v) {
     else if (def->isa<ErrorLit>())
         v.kind = FoldValue::Error;
     if (PrimLit* lit = def->isa<PrimLit>()) {
-        v.kind = FoldValue::Const;
+        v.kind = FoldValue::Valid;
         v.box = lit->box();
     }
    
@@ -178,13 +178,12 @@ Value* World::tryFold(IndexKind kind, Def* ldef, Def* rdef) {
     examineDef(ldef, a);
     examineDef(rdef, b);
 
-    if (a.kind != FoldValue::Valid || b.kind != FoldValue::Valid) {
+    if (ldef->isa<Literal>() && rdef->isa<Literal>()) {
         const PrimType* p = ldef->type()->as<PrimType>();
         FoldValue res = fold_bin(kind, p->kind(), a, b);
 
         switch (res.kind) {
-            case FoldValue::Valid: return 0;
-            case FoldValue::Const: return literal(res.type, res.box);
+            case FoldValue::Valid: return literal(res.type, res.box);
             case FoldValue::Undef: return undef(res.type);
             case FoldValue::Error: return literal_error(res.type);
         }

@@ -27,4 +27,13 @@ Proj::Proj(const ValueNumber& vn)
 
 //------------------------------------------------------------------------------
 
+Select::Select(const ValueNumber& vn) 
+    : PrimOp(Index_Select, ((Def*) vn.op2)->type())
+    , cond(this, (Def*) vn.op1)
+    , tuse(this, (Def*) vn.op2)
+    , fuse(this, (Def*) vn.op3)
+{}
+
+//------------------------------------------------------------------------------
+
 } // namespace anydsl

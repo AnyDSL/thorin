@@ -22,7 +22,7 @@ FoldValue fold_bin(IndexKind kind, PrimTypeKind type, FoldValue vl, FoldValue vr
         return res;
     }
 
-    // if one of the operands is Undef vlrious things may happen
+    // if one of the operands is Undef various things may happen
     if (vl.kind == FoldValue::Undef || vr.kind == FoldValue::Undef) {
         switch (kind) {
             case Index_udiv:
@@ -57,49 +57,13 @@ FoldValue fold_bin(IndexKind kind, PrimTypeKind type, FoldValue vl, FoldValue vr
     }
                     
     /*
-     * try to find identities if at least one vllue is Const
-     */
-
-    bool lconst = vl.kind == FoldValue::Const;
-    bool rconst = vr.kind == FoldValue::Const;
-
-    Box& l = vl.box;
-    Box& r = vr.box;
-
-    if (lconst || rconst) {
-        // optimistically assume that we find an identity
-        res.kind = FoldValue::Const;
-        Box& c = lconst ? l : r;
-
-        switch (kind) {
-            case Index_add:
-                switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: if (c.get_##T() == 0) { res.box = Box(T(0)); return res; }
-#define ANYDSL_F_TYPE(T) case PrimType_##T: if (c.get_##T() == 0) { res.box = Box(T(0)); return res; }
-#include "anydsl/tables/primtypetable.h"
-                }
-            default: { /* fall through */ }
-        }
-    }
-
-    /*
-     * if we didn't find any identities and at least one value is valid
-     * we have to return an unknown valid result.
-     */
-
-    if (vl.kind == FoldValue::Valid || vr.kind == FoldValue::Valid) {
-        res.kind = FoldValue::Valid;
-        return res;
-    }
-
-    /*
      * Error and Undef cases have already been handled.
      * From now on we know that both a and b are Const.
      * However, the operations itself may still produces Error or Undef values.
      */
 
-    anydsl_assert(vl.kind == FoldValue::Const && vr.kind == FoldValue::Const, "must both be constants");
-    res.kind = FoldValue::Const;
+    Box& l = vl.box;
+    Box& r = vr.box;
 
     switch (kind) {
 

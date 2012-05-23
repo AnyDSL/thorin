@@ -14,19 +14,15 @@ class PrimLit;
 //------------------------------------------------------------------------------
 
 class PrimOp : public Value {
-public:
-
-    PrimOpKind primOpKind() const { return (PrimOpKind) index(); }
-
-    //const Ops& ops() { return ops_; }
-
 protected:
 
     PrimOp(IndexKind index, const Type* type)
         : Value(index, type)
     {}
 
-    //Ops ops_;
+public:
+
+    PrimOpKind primOpKind() const { return (PrimOpKind) index(); }
 };
 
 //------------------------------------------------------------------------------
@@ -95,6 +91,28 @@ private:
     }
 
 public:
+
+    RelOpKind kind() { return (RelOpKind) index(); }
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
+class Select : public PrimOp {
+private:
+
+    Select(const ValueNumber& vn);
+
+    static ValueNumber VN(Def* cond, Def* t, Def* f) {
+        return ValueNumber(Index_Select, uintptr_t(cond), uintptr_t(t), uintptr_t(f));
+    }
+
+public:
+
+    Use cond;
+    Use tuse;
+    Use fuse;
 
     RelOpKind kind() { return (RelOpKind) index(); }
 

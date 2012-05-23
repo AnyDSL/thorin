@@ -120,6 +120,7 @@ int main(int argc, char** argv) {
         world.literal_u32(11);
         world.createArithOp(ArithOp_add, world.literal_u32(5), world.literal_u32(6));
         Value* a = world.createArithOp(ArithOp_add, world.literal_u32(11), world.literal_u32(0));
+        Value* b = world.createArithOp(ArithOp_add, world.literal_u32(7), world.literal_u32(4));
         world.createArithOp(ArithOp_add, a, world.literal_u32(6));
         world.createArithOp(ArithOp_add, world.literal_u32(6), a);
         world.createRelOp(RelOp_cmp_ult, world.literal_u16(2), world.literal_u16(5));

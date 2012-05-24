@@ -238,13 +238,13 @@ void Fct::setReturnCont(const Type* retType) {
     setVN(new Binding(resSymbol, world().undef(retType)));
     exit_ = createBB("<exit>");
     exit_->invokes(retParam_);
-    exit_->lambda()->jump()->args.append(getVN(resSymbol, retType, false)->def);
+    exit_->lambda()->jump()->ops_append(getVN(resSymbol, retType, false)->def);
 }
 
 void Fct::insertReturnStmt(BB* bb, Def* def) {
     anydsl_assert(bb, "must be valid");
     bb->goesto(exit_);
-    bb->lambda()->jump()->args.append(def);
+    bb->lambda()->jump()->ops_append(def);
 }
 
 Binding* Fct::getVN(const Symbol sym, const Type* type, bool finalize) {

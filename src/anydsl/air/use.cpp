@@ -23,24 +23,22 @@ World& Use::world() {
 
 //------------------------------------------------------------------------------
 
-Args::Args(Jump* parent)
-    : parent_(parent)
-    , sentinel_(new Node())
+Ops::Ops()
+    : sentinel_(new Node())
     , size_(0)
 {
-    assert(parent);
     sentinel_->next_ = sentinel_;
     sentinel_->prev_ = sentinel_;
 }
 
-Args::~Args() {
+Ops::~Ops() {
     clear();
     anydsl_assert(sentinel_->isSentinel_, "this must be the sentinel");
     delete sentinel_;
 }
 
-Args::iterator Args::insert(Args::iterator pos, Def* def) {
-    Node* newNode = new UseNode(parent_, def);
+Ops::iterator Ops::insert(Ops::iterator pos, Def* parent, Def* def) {
+    Node* newNode = new UseNode(parent, def);
     Node* n = pos.n_;
 
     newNode->next_ = n;
@@ -54,7 +52,7 @@ Args::iterator Args::insert(Args::iterator pos, Def* def) {
     return iterator(newNode);
 }
 
-Args::iterator Args::erase(Args::iterator pos) {
+Ops::iterator Ops::erase(Ops::iterator pos) {
     UseNode* n = (UseNode*) pos.n_;
     anydsl_assert(!n->isSentinel_, "this must not be the sentinel");
 
@@ -68,7 +66,7 @@ Args::iterator Args::erase(Args::iterator pos) {
     return res;
 }
 
-void Args::clear() {
+void Ops::clear() {
     Node* i = head();
 
     while (i != sentinel_) {

@@ -19,8 +19,8 @@ RelOp::RelOp(const ValueNumber& vn)
 Proj::Proj(const ValueNumber& vn)
     : PrimOp(Index_Proj, 
              ((Def*)vn.op1)->type()->as<Sigma>()->get(((Def*) vn.op2)->as<PrimLit>()))
-    , tuple(this, (Def*) vn.op1)
-    , elem(this, (Def*) vn.op2)
+    , tuple(*ops_append((Def*) vn.op1))
+    , elem (*ops_append((Def*) vn.op2))
 {
     anydsl_assert(vn.index == Index_Proj, "wrong index in VN");
 }
@@ -29,9 +29,9 @@ Proj::Proj(const ValueNumber& vn)
 
 Select::Select(const ValueNumber& vn) 
     : PrimOp(Index_Select, ((Def*) vn.op2)->type())
-    , cond(this, (Def*) vn.op1)
-    , tuse(this, (Def*) vn.op2)
-    , fuse(this, (Def*) vn.op3)
+    , cond(*ops_append((Def*) vn.op1))
+    , tuse(*ops_append((Def*) vn.op2))
+    , fuse(*ops_append((Def*) vn.op3))
 {
     anydsl_assert(cond.def()->type() == world().type_u1(), "condition must be of u1 type");
     anydsl_assert(tuse.def()->type() == fuse.def()->type(), "types of both values must be equal");

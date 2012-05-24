@@ -32,8 +32,8 @@ protected:
 
     BinOp(IndexKind index, const Type* type, Def* ldef, Def* rdef)
         : PrimOp(index, type)
-        , luse(this, ldef)
-        , ruse(this, rdef)
+        , luse(*ops_append(ldef))
+        , ruse(*ops_append(rdef))
     {
         anydsl_assert(ldef->type() == rdef->type(), "types are not equal");
     }
@@ -44,16 +44,8 @@ protected:
 
 public:
 
-    typedef boost::array<Use*, 2> LRUse;
-    typedef boost::array<const Use*, 2> ConstLRUse;
-
-    LRUse lruse() { return (LRUse){{ &luse, &ruse }}; }
-    ConstLRUse lruse() const { return (ConstLRUse){{ &ruse, &ruse }}; }
-
-public:
-
-    Use luse;
-    Use ruse;
+    const Use& luse;
+    const Use& ruse;
 };
 
 //------------------------------------------------------------------------------
@@ -110,9 +102,9 @@ private:
 
 public:
 
-    Use cond;
-    Use tuse;
-    Use fuse;
+    const Use& cond;
+    const Use& tuse;
+    const Use& fuse;
 
     RelOpKind kind() { return (RelOpKind) index(); }
 
@@ -130,8 +122,8 @@ private:
         return ValueNumber(Index_Proj, uintptr_t(tuple), uintptr_t(elem));
     }
     
-    Use tuple;
-    Use elem;
+    const Use& tuple;
+    const Use& elem;
 
     friend class World;
 };

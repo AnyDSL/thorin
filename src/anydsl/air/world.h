@@ -94,6 +94,8 @@ public:
         return primTypes_[i];
     }
 
+    const NoRet* noret() const { return noret_; }
+
     // sigmas
 
     /// Get unit AKA void AKA (unnamed) sigma(). 
@@ -206,6 +208,7 @@ private:
 
     const Sigma* unit_; ///< sigma().
     const Pi* pi0_;     ///< pi().
+    const NoRet* noret_;
 
     union {
         struct {

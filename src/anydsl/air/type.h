@@ -31,6 +31,20 @@ typedef std::vector<const Type*> Types;
 
 //------------------------------------------------------------------------------
 
+class NoRet : public Type {
+private:
+
+    NoRet(World& world, const ValueNumber& vn)
+        : Type(world, vn.index)
+    {}
+
+    static ValueNumber VN() { return ValueNumber(Index_NoRet); }
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
 /// Primitive types -- also known as atomic or scalar types.
 class PrimType : public Type {
 private:

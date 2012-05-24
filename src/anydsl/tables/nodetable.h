@@ -20,6 +20,7 @@ ANYDSL_AIR_NODE(Jump)
             ANYDSL_AIR_NODE(Select)
         ANYDSL_AIR_NODE(Param)
 // Type
+    ANYDSL_AIR_NODE(NoRet)
     // PrimType
     ANYDSL_AIR_NODE(Pi)
     ANYDSL_AIR_NODE(Sigma)

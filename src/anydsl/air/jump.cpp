@@ -4,8 +4,9 @@
 
 namespace anydsl {
 
-Jump::Jump(Lambda* parent, Def* to)
-    : Def(Index_Jump, to->world().noret(parent->pi()))
+Jump::Jump(Lambda* from, Def* to)
+    : Def(Index_Jump, to->world().noret(from->pi()))
+    , from(*ops_append(from))
     , to(*ops_append(to))
 {}
 

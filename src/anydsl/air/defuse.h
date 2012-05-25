@@ -82,16 +82,6 @@ private:
  * Iterators stay valid even if you put the whole list upside down 
  * and remove or insert many items.
  * Only erasing a node at all invalidates an interator.
- *
- * Iterating using the FOREACH macro already yields a reference. 
- * In other words do it like this:
- * \code
- * FOREACH(use, args) // type of use is const Use&
- * \endcode
- * This won't even compile:
- * \code
- * FOREACH(& use, args) // type of use would be const Use&&
- * \endcode
  */
 class Ops  {
 private:
@@ -131,10 +121,10 @@ private:
 
         /// typedefs are necessary for std::iterator_traits (needed by FOREACH)
         typedef std::bidirectional_iterator_tag iterator_category;
-        typedef const Use value_type;
+        typedef Use value_type;
         typedef ptrdiff_t difference_type;
-        typedef const Use* pointer;
-        typedef const Use& reference;
+        typedef Use* pointer;
+        typedef Use& reference;
 
         node_iter() {}
         explicit node_iter(T n) : n_(n) {}
@@ -150,6 +140,8 @@ private:
         node_iter& operator --() { n_ = reverse ? n_->next_ : n_->prev_; return *this; }
         node_iter operator ++(int) { node_iter<T, reverse> i(n_); n_ = n_->next_; return i; }
         node_iter operator --(int) { node_iter<T, reverse> i(n_); n_ = n_->next_; return i; }
+
+        node_iter<T, !reverse> switch_direction() const { return node_iter<T, !reverse>(n_); }
 
     private:
 
@@ -241,8 +233,7 @@ protected:
 
 public:
 
-    //virtual ~Def() { anydsl_assert(uses_.empty(), "there are still uses pointing to this def"); }
-    virtual ~Def() { /* TODO assertion above is useful */ }
+    ~Def() { anydsl_assert(uses_.empty(), "there are still uses pointing to this def"); }
 
     /**
      * Manually adds given \p Use object to the list of uses of this \p Def.
@@ -259,6 +250,7 @@ public:
     const UseSet& uses() const { return uses_; }
     const Type* type() const { return type_; }
     World& world() const;
+    const Ops& ops() const { return ops_; }
 
     Ops::iterator ops_append(Def* def)  { return ops_.insert(ops_.end(), this, def); }
     Ops::iterator ops_prepend(Def* def) { return ops_.insert(ops_.begin(), this, def); }

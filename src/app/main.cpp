@@ -126,6 +126,8 @@ int main(int argc, char** argv) {
         world.createRelOp(RelOp_cmp_ult, world.literal_u16(2), world.literal_u16(5));
         world.createRelOp(RelOp_cmp_ugt, world.literal_u16(5), world.literal_u16(2));
 
+        //FOREACH(
+
         //Emit the results
         switch (destinationType) {
             case None:

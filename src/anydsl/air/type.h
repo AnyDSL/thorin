@@ -1,7 +1,7 @@
 #ifndef ANYDSL_AIR_TYPE_H
 #define ANYDSL_AIR_TYPE_H
 
-#include "anydsl/air/def.h"
+#include "anydsl/air/defuse.h"
 
 namespace anydsl {
 

@@ -1,10 +1,9 @@
-#include "anydsl/air/def.h"
+#include "anydsl/air/defuse.h"
 
 #include <typeinfo>
 
 #include "anydsl/air/primop.h"
 #include "anydsl/air/type.h"
-#include "anydsl/air/use.h"
 #include "anydsl/util/foreach.h"
 
 namespace anydsl {

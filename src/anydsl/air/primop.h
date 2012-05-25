@@ -4,8 +4,7 @@
 #include <boost/array.hpp>
 
 #include "anydsl/air/enums.h"
-#include "anydsl/air/def.h"
-#include "anydsl/air/use.h"
+#include "anydsl/air/defuse.h"
 
 namespace anydsl {
 

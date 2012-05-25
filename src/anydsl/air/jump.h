@@ -7,18 +7,11 @@
 
 namespace anydsl {
 
+class NoRet;
+
 class Jump : public Def {
 public:
 
-    /**
-     * Construct a Jump from a pointer to the embedding Terminator 
-     * and the target Lambda.
-     * The parameter \p parent is needed 
-     * in order to pass it to the constructor of Ops.
-     * Args in turn needs it in order to automatically equip appended \p Use%s
-     * (arguments) with this parent.
-     * Let \p parent point to the Terminator where this Jump is embedded.
-     */
     Jump(Lambda* From, Def* to);
 
     Lambda* toLambda() { return ccast<Lambda>(to.def()->isa<Lambda>()); }
@@ -27,8 +20,7 @@ public:
     Lambda* fromLambda() { return ccast<Lambda>(from.def()->as<Lambda>()); }
     const Lambda* fromLambda() const { return from.def()->as<Lambda>(); }
 
-    const Use& from;
-    const Use& to;
+    const NoRet* noret() const;
 
     Ops& ops() { return ops_; }
 
@@ -56,6 +48,9 @@ public:
     };
 
     Args args() { return Args(*this); }
+
+    const Use& from;///< May be a Lambda (in the case of a direct jump).
+    const Use& to;  ///< Must be a Lambda.
 
 private:
 

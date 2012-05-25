@@ -41,9 +41,6 @@ void BB::goesto(BB* to) {
     world().createJump(this->lambda(), to->lambda());
     this->flowsto(to);
     anydsl_assert(this->succ().size() == 1, "wrong number of succ");
-
-    FOREACH(const &i, lambda()->jump()->args()) {
-    }
 }
 
 void BB::branches(Def* cond, BB* tbb, BB* fbb) {

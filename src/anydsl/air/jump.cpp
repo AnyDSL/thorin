@@ -10,4 +10,8 @@ Jump::Jump(Lambda* from, Def* to)
     , to(*ops_append(to))
 {}
 
+const NoRet* Jump::noret() const { 
+    return type()->as<NoRet>(); 
+}
+
 } // namespace anydsl

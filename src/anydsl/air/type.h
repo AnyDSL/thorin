@@ -6,6 +6,7 @@
 namespace anydsl {
 
 class PrimLit;
+class Pi;
 class World;
 
 //------------------------------------------------------------------------------
@@ -36,9 +37,16 @@ private:
 
     NoRet(World& world, const ValueNumber& vn)
         : Type(world, vn.index)
+        , pi_((const Pi*) vn.op1)
     {}
 
-    static ValueNumber VN() { return ValueNumber(Index_NoRet); }
+    static ValueNumber VN(const Pi* pi) { return ValueNumber(Index_NoRet, uintptr_t(pi)); }
+
+    const Pi* pi_;
+
+public:
+
+    const Pi* pi() const { return pi_; }
 
     friend class World;
 };

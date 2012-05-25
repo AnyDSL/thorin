@@ -94,7 +94,7 @@ public:
         return primTypes_[i];
     }
 
-    const NoRet* noret() const { return noret_; }
+    const NoRet* noret(const Pi* pi) { return findType<NoRet>(NoRet::VN(pi)); }
 
     // sigmas
 
@@ -208,7 +208,6 @@ private:
 
     const Sigma* unit_; ///< sigma().
     const Pi* pi0_;     ///< pi().
-    const NoRet* noret_;
 
     union {
         struct {

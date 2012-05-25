@@ -59,7 +59,6 @@ World::World()
     , types_(1031)
     , unit_ (findType<Sigma>(Sigma::VN((const Type**) 0, (const Type**) 0)))
     , pi0_  (findType<Pi>   (Pi   ::VN((const Type**) 0, (const Type**) 0)))
-    , noret_(findType<NoRet>(NoRet::VN()))
 #define ANYDSL_U_TYPE(T) ,T##_(findType<PrimType>(PrimType::VN(PrimType_##T)))
 #define ANYDSL_F_TYPE(T) ,T##_(findType<PrimType>(PrimType::VN(PrimType_##T)))
 #include "anydsl/tables/primtypetable.h"

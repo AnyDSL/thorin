@@ -224,6 +224,9 @@ private:
     /// Do not copy-assign a \p Def instance.
     Def& operator = (const Def&);
 
+    void registerUse(Use* use);
+    void unregisterUse(Use* use);
+
 protected:
 
     Def(IndexKind index, const Type* type)
@@ -234,18 +237,6 @@ protected:
 public:
 
     ~Def() { anydsl_assert(uses_.empty(), "there are still uses pointing to this def"); }
-
-    /**
-     * Manually adds given \p Use object to the list of uses of this \p Def.
-     * use->def() must already point to \p this .
-     */
-    void registerUse(Use* use);
-
-    /**
-     * Manually removes given \p Use object from the list of uses of this \p Def.
-     * use->def() must point to \p this , but should be unset right after the call to this function
-     */
-    void unregisterUse(Use* use);
 
     const UseSet& uses() const { return uses_; }
     const Type* type() const { return type_; }
@@ -265,6 +256,9 @@ private:
 
     const Type* type_;
     UseSet uses_;
+
+    friend Use::Use(AIRNode*, Def*);
+    friend Use::~Use();
 };
 
 //------------------------------------------------------------------------------

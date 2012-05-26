@@ -110,9 +110,6 @@ public:
 
     const Types& types() const { return types_; }
 
-    template<class T>
-    static size_t hash(T begin, T end) {  return 0; }
-
 protected:
 
     Types types_;
@@ -149,9 +146,6 @@ public:
         anydsl_assert(types_.empty(), "members already set");
         types_.insert(types_.begin(), begin, end);
     }
-
-    template<class T>
-    static uint64_t hash(T begin, T end) { return 0; }
 
 private:
 

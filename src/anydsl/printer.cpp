@@ -18,6 +18,25 @@ void print(std::ostream& s, const AIRNode* n) {
     p.print(s, n);
 }
 
+static void printCompoundType(std::ostream& s, const std::string& str, const AIRNode* n) {
+    const CompoundType* c = n->as<CompoundType>();
+    s << str << '(';
+    FOREACH(const& t, c->types())
+        print(s, t);
+    s << ')';
+    return;
+}
+
+static void printBinOp(std::ostream& s, const std::string& str, const AIRNode* n) {
+    const BinOp* b = n->as<BinOp>();
+    s << str << "("; 
+    print(s, b->luse.def());
+    s << ", ";
+    print(s, b->ruse.def());
+    s << ")";
+    return;
+}
+
 void Printer::print(std::ostream& s, const AIRNode* n) {
     std::string str;
 
@@ -34,16 +53,8 @@ void Printer::print(std::ostream& s, const AIRNode* n) {
 #define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
 #include "anydsl/tables/primtypetable.h"
 
-        case Index_Sigma: str = "sigma"; goto compound_type;
-        case Index_Pi:    str = "pi";    goto compound_type;
-compound_type: {
-            s << str << '(';
-            const CompoundType* c = n->as<CompoundType>();
-            FOREACH(const& t, c->types())
-                print(s, t);
-            s << ')';
-            return;
-        }
+        case Index_Sigma: return printCompoundType(s, "sigma", n);
+        case Index_Pi:    return printCompoundType(s, "pi",    n);
 
 /*
  * literals
@@ -60,19 +71,11 @@ compound_type: {
  * primops
  */
 
-#define ANYDSL_ARITHOP(op) case Index_##op: str = #op; goto binop;
-#define ANYDSL_RELOP(op)   case Index_##op: str = #op; goto binop;
+#define ANYDSL_ARITHOP(op) case Index_##op: return printBinOp(s, #op, n);
 #include "anydsl/tables/arithoptable.h"
+
+#define ANYDSL_RELOP(op)   case Index_##op: return printBinOp(s, #op, n);
 #include "anydsl/tables/reloptable.h"
-binop: {
-            const BinOp* b = n->as<BinOp>();
-            s << str << "("; 
-            print(s, b->luse.def());
-            s << ", ";
-            print(s, b->ruse.def());
-            s << ")";
-            return;
-        }
 
 #define ANYDSL_CONVOP(op) case Index_##op:
 #include "anydsl/tables/convoptable.h"

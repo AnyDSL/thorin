@@ -7,59 +7,36 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
+
+enum IndexKind {
+#define ANYDSL_GLUE(pre, next)
+#define ANYDSL_AIR_NODE(node) Index_##node,
+#define ANYDSL_PRIMTYPE(T) Index_PrimType_##T,
+#define ANYDSL_PRIMLIT(T)  Index_PrimLit_##T,
+#define ANYDSL_ARITHOP(op) Index_##op,
+#define ANYDSL_RELOP(op) Index_##op,
+#define ANYDSL_CONVOP(op) Index_##op,
+#include "anydsl/tables/allindices.h"
+};
+
+enum Markers {
 #define ANYDSL_GLUE(pre, next) \
     End_##pre, \
     Begin_##next = End_##pre, \
     zzz##Begin_##next = Begin_##next - 1,
-
-enum IndexKind {
-    Begin_Node = 0,
-    __Begin_Node = -1,
-#define ANYDSL_AIR_NODE(node) Index_##node,
-#include "anydsl/tables/nodetable.h"
-
-    ANYDSL_GLUE(Node, PrimType_u)
-
-#define ANYDSL_U_TYPE(T) Index_PrimType_##T,
-#include "anydsl/tables/primtypetable.h"
-
-    ANYDSL_GLUE(PrimType_u, PrimType_f)
-
-#define ANYDSL_F_TYPE(T) Index_PrimType_##T,
-#include "anydsl/tables/primtypetable.h"
-
-    ANYDSL_GLUE(PrimType_f, PrimLit_u)
-
-#define ANYDSL_U_TYPE(T) Index_PrimLit_##T,
-#include "anydsl/tables/primtypetable.h"
-
-    ANYDSL_GLUE(PrimLit_u, PrimLit_f)
-
-#define ANYDSL_F_TYPE(T) Index_PrimLit_##T,
-#include "anydsl/tables/primtypetable.h"
-
-    ANYDSL_GLUE(PrimLit_f, ArithOp)
-
-#define ANYDSL_ARITHOP(op) Index_##op,
-#include "anydsl/tables/arithoptable.h"
-
-    ANYDSL_GLUE(ArithOp, RelOp)
-
-#define ANYDSL_RELOP(op) Index_##op,
-#include "anydsl/tables/reloptable.h"
-
-    ANYDSL_GLUE(RelOp, ConvOp)
-
-#define ANYDSL_CONVOP(op) Index_##op,
-#include "anydsl/tables/convoptable.h"
+#define ANYDSL_AIR_NODE(node) zzzMarker_##node,
+#define ANYDSL_PRIMTYPE(T) zzzMarker_PrimType_##T,
+#define ANYDSL_PRIMLIT(T)  zzzMarker_PrimLit_##T,
+#define ANYDSL_ARITHOP(op) zzzMarker_##op,
+#define ANYDSL_RELOP(op) zzzMarker_##op,
+#define ANYDSL_CONVOP(op) zzzMarker_##op,
+#include "anydsl/tables/allindices.h"
     End_ConvOp,
-
+    Begin_Node = 0,
     Begin_PrimType  = Begin_PrimType_u,
     Begin_PrimLit   = Begin_PrimLit_u,
-
     End_PrimType    = End_PrimType_f,
     End_PrimLit     = End_PrimLit_f,
-
     Num_Indexes     = End_ConvOp,
 
     Num_Nodes       = End_Node       - Begin_Node,

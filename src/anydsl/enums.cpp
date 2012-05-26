@@ -2,12 +2,16 @@
 
 #include <boost/static_assert.hpp>
 
-#if 0
-BOOST_STATIC_ASSERT_MSG(anydsl::Num_Indexes < 64,
-        "hash magic assumes number of nodes to be representable in 6 bits");
-#endif
-
 namespace anydsl {
+
+#define ANYDSL_GLUE(pre, next)
+#define ANYDSL_AIR_NODE(node) BOOST_STATIC_ASSERT(Index_##node == (IndexKind) zzzMarker_##node);
+#define ANYDSL_PRIMTYPE(T) BOOST_STATIC_ASSERT(Index_PrimType_##T == (IndexKind) zzzMarker_PrimType_##T);
+#define ANYDSL_PRIMLIT(T)  BOOST_STATIC_ASSERT(Index_PrimLit_##T == (IndexKind) zzzMarker_PrimLit_##T);
+#define ANYDSL_ARITHOP(op) BOOST_STATIC_ASSERT(Index_##op == (IndexKind) zzzMarker_##op);
+#define ANYDSL_RELOP(op) BOOST_STATIC_ASSERT(Index_##op == (IndexKind) zzzMarker_##op);
+#define ANYDSL_CONVOP(op) BOOST_STATIC_ASSERT(Index_##op == (IndexKind) zzzMarker_##op);
+#include "anydsl/tables/allindices.h"
 
 const char* kind2str(PrimTypeKind kind) {
     switch (kind) {

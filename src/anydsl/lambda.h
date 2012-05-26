@@ -17,8 +17,6 @@ typedef std::list<Param*> Params;
 typedef boost::unordered_set<Param*> ParamSet;
 typedef Params::iterator ParamIter;
 
-typedef boost::unordered_set<Lambda*> Fix;
-
 class Lambda : public Def {
 private:
 
@@ -37,8 +35,6 @@ private:
 
 public:
 
-    const Fix& fix() const { return fix_; }
-    const Fix& siblings() const { assert(parent_); return parent_->fix(); }
     const Params& params() const { return params_; }
 
     Jump* jump() { return jump_; }
@@ -57,15 +53,12 @@ private:
 
     void setJump(Jump* jump) { assert(!jump_); jump_ = jump; }
 
-    Lambda* parent_;
     Jump* jump_;
-    Fix fix_;
     Params params_;
     ParamSet paramSet_;
 
     friend class World;
 };
-
 
 } // namespace air
 

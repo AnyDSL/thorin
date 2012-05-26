@@ -12,9 +12,9 @@ ANYDSL_AIR_NODE(Jump)
         ANYDSL_AIR_NODE(ErrorLit)
     // Value
         // PrimOp
-            ANYDSL_AIR_NODE(ArithOp)
-            ANYDSL_AIR_NODE(RelOp)
-            ANYDSL_AIR_NODE(ConvOp)
+            //ANYDSL_AIR_NODE(ArithOp)
+            //ANYDSL_AIR_NODE(RelOp)
+            //ANYDSL_AIR_NODE(ConvOp)
             ANYDSL_AIR_NODE(Proj)
             ANYDSL_AIR_NODE(Tuple)
             ANYDSL_AIR_NODE(Select)

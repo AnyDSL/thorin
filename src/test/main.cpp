@@ -1,11 +1,11 @@
 //#include <iostream>
 
-#include "anydsl/air/binop.h"
-#include "anydsl/air/literal.h"
-#include "anydsl/air/type.h"
-#include "anydsl/air/terminator.h"
-#include "anydsl/air/lambda.h"
-#include "anydsl/air/world.h"
+#include "anydsl/primop.h"
+#include "anydsl/literal.h"
+#include "anydsl/type.h"
+#include "anydsl/jump.h"
+#include "anydsl/lambda.h"
+#include "anydsl/world.h"
 #include "anydsl/util/box.h"
 #include "anydsl/util/cast.h"
 #include "anydsl/util/location.h"

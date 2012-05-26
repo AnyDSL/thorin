@@ -10,6 +10,7 @@
 #include <boost/program_options.hpp>
 
 #include "anydsl/literal.h"
+#include "anydsl/printer.h"
 #include "anydsl/world.h"
 #include "impala/parser.h"
 
@@ -106,7 +107,7 @@ int main(int argc, char** argv) {
         const Sigma* s = world.sigma2(world.type_u16(), world.type_u8());
         world.sigma3(s, s, s);
         const Sigma* u = world.sigma2(world.type_u16(), world.type_u8());
-        world.sigma3(u, s, s);
+        const Sigma* s3 = world.sigma3(u, s, s);
 
         world.literal_u8(1);
         world.literal_u8(2);
@@ -125,6 +126,12 @@ int main(int argc, char** argv) {
         world.createArithOp(ArithOp_add, world.literal_u32(6), a);
         world.createRelOp(RelOp_cmp_ult, world.literal_u16(2), world.literal_u16(5));
         world.createRelOp(RelOp_cmp_ugt, world.literal_u16(5), world.literal_u16(2));
+
+        print(std::cout, a);
+        std::cout << std::endl;
+
+        print(std::cout, s3);
+        std::cout << std::endl;
 
         //FOREACH(
 

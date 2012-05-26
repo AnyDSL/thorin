@@ -1,5 +1,5 @@
-#ifndef ANYDSL_SYMBOL_MEMORY_HEADER
-#define ANYDSL_SYMBOL_MEMORY_HEADER
+#ifndef ANYDSL_SYMBOLMEMORY_H
+#define ANYDSL_SYMBOLMEMORY_H
 
 #include <cstdlib>
 #include <vector>

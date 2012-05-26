@@ -1,5 +1,5 @@
-#ifndef ANYDSL_STRING_HEADER
-#define ANYDSL_STRING_HEADER
+#ifndef ANYDSL_SYMBOL_HEADER
+#define ANYDSL_SYMBOL_HEADER
 
 #include <cstring>
 #include <set>
@@ -36,8 +36,7 @@ public:
 
 
     /// \p index parameter must be returned from some other Symbol::index()
-    explicit Symbol(size_t index)
-        : str_((const char*)index) {}
+    explicit Symbol(size_t index) : str_((const char*)index) {}
 
     /// create the empty-string-symbol
     Symbol() : str_(SymbolMemory::nullStr) {}
@@ -62,7 +61,7 @@ public:
      *
      * @return The string.
      */
-    inline const char* str() const { return str_; }
+    const char* str() const { return str_; }
 
     /// Is this the empty string?
     bool isEmpty() const { return str_==SymbolMemory::nullStr; }
@@ -125,24 +124,13 @@ public:
     Symbol get(const char* str);
     Symbol get(const std::string& str) { return get(str.c_str()); }
 
-    /**
-     * @brief Lookups the given symbol and return its string.
-     *
-     * \warning Pointer is valid only temporarily, may be invalidated by 'get'.
-     *
-     * @param symbol The \p Symbol to lookup
-     *
-     * @return The string.
-     */
-//    inline const char* str(const Symbol &symbol);
-
 private:
 
     Symbol store(const char* str);
 
     SymbolMemory memory_;
-//    std::vector<char> memory_;
 
+    // TODO port to boost::unordered_set
     typedef std::set<Symbol, Symbol::LexicalLess> SymbolSet;
     SymbolSet symbolSet_;
 

@@ -154,4 +154,4 @@ private:
 
 } // namespace impala
 
-#endif // IMPALA_PARSER_H
+#endif

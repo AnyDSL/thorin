@@ -141,5 +141,4 @@ std::ostream& operator << (std::ostream& os, const TokenKind& tok);
 
 } // namespace impala
 
-#endif // IMPALA_TOKEN_H
-
+#endif

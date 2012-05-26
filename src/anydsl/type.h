@@ -1,5 +1,5 @@
-#ifndef ANYDSL_AIR_TYPE_H
-#define ANYDSL_AIR_TYPE_H
+#ifndef ANYDSL_TYPE_H
+#define ANYDSL_TYPE_H
 
 #include "anydsl/defuse.h"
 
@@ -183,4 +183,4 @@ private:
 
 } // namespace anydsl
 
-#endif // ANYDSL_AIR_TYPE_H
+#endif

@@ -1,5 +1,5 @@
-#ifndef ANYDSL_SUPPORT_WORLD_H
-#define ANYDSL_SUPPORT_WORLD_H
+#ifndef ANYDSL_WORLD_H
+#define ANYDSL_WORLD_H
 
 #include <cassert>
 #include <string>
@@ -241,4 +241,4 @@ const T* World::findType(const ValueNumber& vn) {
 
 } // namespace anydsl
 
-#endif // ANYDSL_SUPPORT_WORLD_H
+#endif

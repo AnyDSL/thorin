@@ -68,4 +68,4 @@ private:
 
 } // namespace impala
 
-#endif // IMPALA_LEXER_H
+#endif

@@ -1,5 +1,5 @@
-#ifndef ANYDSL_AIR_LITERAL_H
-#define ANYDSL_AIR_LITERAL_H
+#ifndef ANYDSL_LITERAL_H
+#define ANYDSL_LITERAL_H
 
 #include <vector>
 
@@ -80,4 +80,4 @@ private:
 
 } // namespace anydsl
 
-#endif // ANYDSL_AIR_LITERAL_H
+#endif

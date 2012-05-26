@@ -1,5 +1,5 @@
-#ifndef ANYDSL_AIR_JUMP_H
-#define ANYDSL_AIR_JUMP_H
+#ifndef ANYDSL_JUMP_H
+#define ANYDSL_JUMP_H
 
 #include "anydsl/airnode.h"
 #include "anydsl/lambda.h"
@@ -62,4 +62,4 @@ private:
 
 } // namespace anydsl
 
-#endif // ANYDSL_AIR_JUMP_H
+#endif

@@ -28,4 +28,4 @@ private:
 
 } // namespace anydsl
 
-#endif // ANYDSL_SYMBOL_MEMORY_HEADER
+#endif

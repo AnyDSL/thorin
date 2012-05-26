@@ -1,5 +1,5 @@
-#ifndef ANYDSL_AIR_ENUMS_H
-#define ANYDSL_AIR_ENUMS_H
+#ifndef ANYDSL_ENUMS_H
+#define ANYDSL_ENUMS_H
 
 #include "anydsl/util/types.h"
 
@@ -158,4 +158,4 @@ const char* kind2str(PrimTypeKind kind);
 
 } // namespace anydsl
 
-#endif // ANYDSL_AIR_ENUMS_H
+#endif

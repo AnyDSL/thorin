@@ -1,5 +1,5 @@
-#ifndef ANYDSL_AIR_DEF_H
-#define ANYDSL_AIR_DEF_H
+#ifndef ANYDSL_DEF_H
+#define ANYDSL_DEF_H
 
 #include <cstring>
 #include <string>
@@ -388,4 +388,4 @@ size_t hash_value(const ValueNumber& vn);
 
 } // namespace anydsl
 
-#endif // ANYDSL_AIR_DEF_H
+#endif

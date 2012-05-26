@@ -84,4 +84,4 @@ private:
 
 } // namespace impala
 
-#endif // IMPALA_ENVIROMENT_H
+#endif

@@ -54,4 +54,4 @@ private:
 
 } // namespace impala
 
-#endif // IMPALA_VALUE_H
+#endif

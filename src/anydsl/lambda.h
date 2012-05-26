@@ -1,5 +1,5 @@
-#ifndef ANYDSL_AIR_LAMBDA_H
-#define ANYDSL_AIR_LAMBDA_H
+#ifndef ANYDSL_LAMBDA_H
+#define ANYDSL_LAMBDA_H
 
 #include <list>
 #include <boost/unordered_set.hpp>
@@ -69,4 +69,4 @@ private:
 
 } // namespace air
 
-#endif // ANYDSL_AIR_LAMBDA_H
+#endif

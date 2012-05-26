@@ -1,5 +1,5 @@
-#ifndef ANYDSL_SUPPORT_CFG_H
-#define ANYDSL_SUPPORT_CFG_H
+#ifndef ANYDSL_CFG_H
+#define ANYDSL_CFG_H
 
 #include <map>
 #include <boost/unordered_set.hpp>
@@ -125,4 +125,4 @@ private:
 
 } // namespace anydsl
 
-#endif // ANYDSL_SUPPORT_CFG_H
+#endif

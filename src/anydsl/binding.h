@@ -1,5 +1,5 @@
-#ifndef ANYDSL_SUPPORT_BINDING_H
-#define ANYDSL_SUPPORT_BINDING_H
+#ifndef ANYDSL_BINDING_H
+#define ANYDSL_BINDING_H
 
 #include <map>
 
@@ -28,4 +28,4 @@ struct Binding {
 
 } // namespace anydsl
 
-#endif // ANYDSL_SUPPORT_BINDING_H
+#endif

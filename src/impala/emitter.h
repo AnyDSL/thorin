@@ -63,4 +63,4 @@ private:
 
 } // namespace impala
 
-#endif // IMPALA_EMITTER_H
+#endif

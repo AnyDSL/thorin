@@ -1,5 +1,5 @@
-#ifndef ANYDSL_AIR_AIRNODE_H
-#define ANYDSL_AIR_AIRNODE_H
+#ifndef ANYDSL_AIRNODE_H
+#define ANYDSL_AIRNODE_H
 
 #include <string>
 
@@ -50,4 +50,4 @@ private:
 
 } // namespace anydsl
 
-#endif // ANYDSL_AIR_AIRNODE_H
+#endif

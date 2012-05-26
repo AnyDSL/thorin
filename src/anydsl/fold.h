@@ -34,4 +34,4 @@ FoldValue fold_bin(IndexKind kind, PrimTypeKind type, FoldValue a, FoldValue b);
 
 } // namespace anydsl
 
-#endif // ANYDSL_FOLD_H
+#endif

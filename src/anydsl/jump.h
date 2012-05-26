@@ -1,9 +1,9 @@
 #ifndef ANYDSL_AIR_JUMP_H
 #define ANYDSL_AIR_JUMP_H
 
-#include "anydsl/air/airnode.h"
-#include "anydsl/air/lambda.h"
-#include "anydsl/air/defuse.h"
+#include "anydsl/airnode.h"
+#include "anydsl/lambda.h"
+#include "anydsl/defuse.h"
 
 namespace anydsl {
 

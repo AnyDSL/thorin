@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "anydsl/air/defuse.h"
+#include "anydsl/defuse.h"
 #include "anydsl/util/box.h"
 
 namespace anydsl {

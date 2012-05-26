@@ -1,7 +1,7 @@
 #include "impala/value.h"
 
-#include "anydsl/air/literal.h"
-#include "anydsl/support/binding.h"
+#include "anydsl/literal.h"
+#include "anydsl/binding.h"
 #include "anydsl/util/location.h"
 
 using anydsl::Location;

@@ -1,4 +1,4 @@
-#include "anydsl/support/binding.h"
+#include "anydsl/binding.h"
 
 #include "anydsl/util/assert.h"
 

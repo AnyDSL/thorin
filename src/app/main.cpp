@@ -9,8 +9,8 @@
 
 #include <boost/program_options.hpp>
 
-#include "anydsl/air/literal.h"
-#include "anydsl/air/world.h"
+#include "anydsl/literal.h"
+#include "anydsl/world.h"
 #include "impala/parser.h"
 
 //------------------------------------------------------------------------------

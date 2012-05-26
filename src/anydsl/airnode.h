@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include "anydsl/air/enums.h"
+#include "anydsl/enums.h"
 #include "anydsl/util/cast.h"
 
 namespace anydsl {

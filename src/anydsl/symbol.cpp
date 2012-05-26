@@ -1,4 +1,4 @@
-#include "anydsl/support/symbol.h"
+#include "anydsl/symbol.h"
 
 #include "anydsl/util/assert.h"
 

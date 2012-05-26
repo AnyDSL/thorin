@@ -4,8 +4,8 @@
 #include <map>
 #include <boost/unordered_set.hpp>
 
+#include "anydsl/symbol.h"
 #include "anydsl/util/assert.h"
-#include "anydsl/support/symbol.h"
 
 
 namespace anydsl {

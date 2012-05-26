@@ -1,8 +1,8 @@
-#include "anydsl/air/primop.h"
+#include "anydsl/primop.h"
 
-#include "anydsl/air/literal.h"
-#include "anydsl/air/type.h"
-#include "anydsl/air/world.h"
+#include "anydsl/literal.h"
+#include "anydsl/type.h"
+#include "anydsl/world.h"
 
 namespace anydsl {
 

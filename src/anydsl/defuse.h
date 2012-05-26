@@ -8,7 +8,7 @@
 #include <boost/unordered_set.hpp>
 #include <boost/functional/hash.hpp>
 
-#include "anydsl/air/airnode.h"
+#include "anydsl/airnode.h"
 
 namespace anydsl {
 

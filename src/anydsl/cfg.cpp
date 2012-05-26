@@ -1,9 +1,9 @@
-#include "anydsl/support/cfg.h"
+#include "anydsl/cfg.h"
 
-#include "anydsl/air/literal.h"
-#include "anydsl/air/jump.h"
-#include "anydsl/air/world.h"
-#include "anydsl/support/binding.h"
+#include "anydsl/literal.h"
+#include "anydsl/jump.h"
+#include "anydsl/world.h"
+#include "anydsl/binding.h"
 #include "anydsl/util/foreach.h"
 
 using namespace anydsl;

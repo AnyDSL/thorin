@@ -7,8 +7,8 @@
 #include <boost/unordered_map.hpp>
 #include <boost/unordered_set.hpp>
 
-#include "anydsl/air/enums.h"
-#include "anydsl/air/type.h"
+#include "anydsl/enums.h"
+#include "anydsl/type.h"
 #include "anydsl/util/autoptr.h"
 #include "anydsl/util/box.h"
 #include "anydsl/util/foreach.h"

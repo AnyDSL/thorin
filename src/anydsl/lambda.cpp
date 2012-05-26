@@ -1,8 +1,8 @@
-#include "anydsl/air/lambda.h"
+#include "anydsl/lambda.h"
 
-#include "anydsl/air/jump.h"
-#include "anydsl/air/type.h"
-#include "anydsl/air/world.h"
+#include "anydsl/jump.h"
+#include "anydsl/type.h"
+#include "anydsl/world.h"
 #include "anydsl/util/foreach.h"
 
 namespace anydsl {

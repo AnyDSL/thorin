@@ -7,8 +7,8 @@
 
 #include <boost/functional/hash.hpp>
 
+#include "anydsl/symbolmemory.h"
 #include "anydsl/util/singleton.h"
-#include "anydsl/support/symbolmemory.h"
 
 /*
  * TODO make index more typesafe by introducing a class Symbol::Handle

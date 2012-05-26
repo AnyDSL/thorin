@@ -1,9 +1,9 @@
-#include "anydsl/air/world.h"
+#include "anydsl/world.h"
 
-#include "anydsl/air/primop.h"
-#include "anydsl/air/literal.h"
-#include "anydsl/air/type.h"
-#include "anydsl/air/jump.h"
+#include "anydsl/primop.h"
+#include "anydsl/literal.h"
+#include "anydsl/type.h"
+#include "anydsl/jump.h"
 #include "anydsl/fold.h"
 
 namespace anydsl {

@@ -1,6 +1,6 @@
-#include "anydsl/air/jump.h"
+#include "anydsl/jump.h"
 
-#include "anydsl/air/world.h"
+#include "anydsl/world.h"
 
 namespace anydsl {
 

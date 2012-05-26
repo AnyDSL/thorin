@@ -3,8 +3,8 @@
 
 #include <boost/array.hpp>
 
-#include "anydsl/air/enums.h"
-#include "anydsl/air/defuse.h"
+#include "anydsl/enums.h"
+#include "anydsl/defuse.h"
 
 namespace anydsl {
 

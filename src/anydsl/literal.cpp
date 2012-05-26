@@ -1,7 +1,7 @@
-#include "anydsl/air/literal.h"
+#include "anydsl/literal.h"
 
-#include "anydsl/air/type.h"
-#include "anydsl/air/world.h"
+#include "anydsl/type.h"
+#include "anydsl/world.h"
 #include "anydsl/util/foreach.h"
 
 namespace anydsl {

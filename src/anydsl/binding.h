@@ -3,7 +3,7 @@
 
 #include <map>
 
-#include "anydsl/support/symbol.h"
+#include "anydsl/symbol.h"
 
 namespace anydsl {
 

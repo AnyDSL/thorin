@@ -5,9 +5,9 @@
 #include <set>
 #include <stack>
 
-#include "anydsl/support/symbol.h"
+#include "anydsl/symbol.h"
 
-#include <impala/value.h>
+#include "impala/value.h"
 
 namespace anydsl {
     class Def;

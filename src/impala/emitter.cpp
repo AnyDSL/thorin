@@ -1,11 +1,11 @@
 #include <impala/emitter.h>
 
-#include "anydsl/air/lambda.h"
-#include "anydsl/air/literal.h"
-#include "anydsl/air/world.h"
+#include "anydsl/lambda.h"
+#include "anydsl/literal.h"
+#include "anydsl/world.h"
+#include "anydsl/cfg.h"
+#include "anydsl/binding.h"
 #include "anydsl/util/location.h"
-#include "anydsl/support/cfg.h"
-#include "anydsl/support/binding.h"
 
 #include "impala/token.h"
 

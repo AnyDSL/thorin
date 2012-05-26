@@ -4,7 +4,7 @@
 #include <cstdio>
 #include <stdexcept>
 
-#include "anydsl/support/symbol.h"
+#include "anydsl/symbol.h"
 
 using anydsl::Symbol;
 

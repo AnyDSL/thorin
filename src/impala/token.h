@@ -5,11 +5,11 @@
 #include <ostream>
 #include <string>
 
-#include "anydsl/air/enums.h"
+#include "anydsl/enums.h"
+#include "anydsl/symbol.h"
 #include "anydsl/util/box.h"
 #include "anydsl/util/assert.h"
 #include "anydsl/util/location.h"
-#include "anydsl/support/symbol.h"
 
 namespace impala {
 

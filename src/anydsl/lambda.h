@@ -4,7 +4,7 @@
 #include <list>
 #include <boost/unordered_set.hpp>
 
-#include "anydsl/air/defuse.h"
+#include "anydsl/defuse.h"
 
 namespace anydsl {
 

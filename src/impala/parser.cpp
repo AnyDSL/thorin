@@ -4,11 +4,11 @@
 #include <iomanip>
 #include <sstream>
 
-#include "anydsl/air/literal.h"
-#include "anydsl/air/world.h"
-#include "anydsl/support/binding.h"
-#include "anydsl/support/cfg.h"
-#include "anydsl/support/symbol.h"
+#include "anydsl/literal.h"
+#include "anydsl/world.h"
+#include "anydsl/binding.h"
+#include "anydsl/cfg.h"
+#include "anydsl/symbol.h"
 #include "anydsl/util/assert.h"
 
 

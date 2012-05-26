@@ -1,7 +1,7 @@
 #ifndef ANYDSL_FOLD_H
 #define ANYDSL_FOLD_H
 
-#include "anydsl/air/enums.h"
+#include "anydsl/enums.h"
 #include "anydsl/util/box.h"
 
 namespace anydsl {

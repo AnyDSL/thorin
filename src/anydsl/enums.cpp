@@ -1,4 +1,4 @@
-#include "anydsl/air/enums.h"
+#include "anydsl/enums.h"
 
 #include <boost/static_assert.hpp>
 

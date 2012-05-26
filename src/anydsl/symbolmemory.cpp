@@ -1,4 +1,4 @@
-#include "anydsl/support//symbolmemory.h"
+#include "anydsl//symbolmemory.h"
 
 #include <cstdlib>
 

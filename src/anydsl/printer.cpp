@@ -21,9 +21,18 @@ void print(std::ostream& s, const AIRNode* n) {
 static void printCompoundType(std::ostream& s, const std::string& str, const AIRNode* n) {
     const CompoundType* c = n->as<CompoundType>();
     s << str << '(';
-    FOREACH(const& t, c->types())
-        print(s, t);
+
+    if (!c->types().empty()) {
+        for (Types::const_iterator i = c->types().begin(), e = --c->types().end(); i != e; ++i) {
+            print(s, *i);
+            s << ", ";
+        }
+
+        print(s, c->types().back());
+    }
+
     s << ')';
+
     return;
 }
 
@@ -41,6 +50,9 @@ void Printer::print(std::ostream& s, const AIRNode* n) {
     std::string str;
 
     switch (n->index()) {
+/*
+ * Use
+ */
         // normally we follow a use to a def
         case Index_Use: 
             return print(s, n->as<Use>()->def());

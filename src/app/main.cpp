@@ -100,9 +100,9 @@ int main(int argc, char** argv) {
         World world;
         const char* filename = infiles[0].c_str();
         ifstream file(filename);
-        //impala::Parser parser(world, file, filename);
+        impala::Parser parser(world, file, filename);
         //Lambda* root = 
-            //parser.parse();
+            parser.parse();
         
         const Sigma* s = world.sigma2(world.type_u16(), world.type_u8());
         world.sigma3(s, s, s);

@@ -1,4 +1,40 @@
 #if 0
+void Parser::parseFct() {
+#if 0
+    emit.pushScope();
+
+    eat(Token::DEF);
+    Token fname = parseId();
+    fcts_[fname.symbol()] = emit.fct(fname);
+
+    expect(Token::L_PAREN, "function head");
+    PARSE_COMMA_LIST
+    (
+        parseParam(),
+        Token::R_PAREN,
+        "arguments of a function call"
+    )
+
+    // return-continuation
+    if (accept(Token::ARROW))
+        curFct()->setReturnCont(parseType());
+
+    parseScopeBody();
+    emit.fixto(curFct()->exit());
+
+#if 0
+    fct->finalizeAll();
+
+    // HACK
+    Param* retVal = new Param(retType->loc());
+    retVal->meta = retType;
+    fct->exit_->lambda_->params().push_back(retVal);
+    fct->exit_->beta_->args().push_back(retVal);
+#endif
+
+    emit.popScope();
+#endif
+}
 
 void Parser::parseIfElse() {
     eat(Token::IF);

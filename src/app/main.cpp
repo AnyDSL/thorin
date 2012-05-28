@@ -100,7 +100,7 @@ int main(int argc, char** argv) {
         World world;
         const char* filename = infiles[0].c_str();
         ifstream file(filename);
-        impala::Parser parser(world, file, filename);
+        impala::Parser parser(file, filename);
         //Lambda* root = 
             parser.parse();
         

@@ -1,18 +1,8 @@
 #ifndef IMPALA_PARSER_H
 #define IMPALA_PARSER_H
 
-#include <boost/unordered_map.hpp>
-
 #include "impala/ast.h"
 #include "impala/lexer.h"
-
-namespace anydsl {
-    class CExpr;
-    class Def;
-    class Lambda;
-    class Param;
-    class World;
-}
 
 namespace impala {
 
@@ -56,7 +46,7 @@ public:
      * constructor
      */
 
-    Parser(anydsl::World& world, std::istream& stream, const std::string& filename);
+    Parser(std::istream& stream, const std::string& filename);
 
     /*
      * helpers
@@ -113,10 +103,8 @@ public:
     const Stmt* parseStmtList();
     /// '{' stmt '}'
     const Stmt* parseScopeBody();
-    /// stmt which is \em not a compound-stmt \em or '{' stmt '}' \em without pushing/poping of scopes
+    /// stmt which is \em not a compound-stmt \em or '{' stmt '}'
     const Stmt* parseScope();
-    /// (push scope) '{' stmt '}' (pop scope)
-    const Stmt* parseCompoundStmt();
 
     /// helper for condition in if/while/do-while
     const Expr* parseCond(const std::string& what);

@@ -4,11 +4,6 @@
 #include <iomanip>
 #include <sstream>
 
-#include "anydsl/literal.h"
-#include "anydsl/world.h"
-#include "anydsl/binding.h"
-#include "anydsl/cfg.h"
-#include "anydsl/symbol.h"
 #include "anydsl/util/assert.h"
 
 
@@ -36,7 +31,7 @@ namespace impala {
  * constructor and destructor
  */
 
-Parser::Parser(anydsl::World& world, std::istream& stream, const std::string& filename)
+Parser::Parser(std::istream& stream, const std::string& filename)
     : lexer_(stream, filename)
     , loop_(0)
     , counter_(0)
@@ -175,12 +170,9 @@ void Parser::parseGlobals() {
 }
 
 void Parser::parseFct() {
-#if 0
-    emit.pushScope();
-
-    eat(Token::DEF);
+    Position pos1 = eat(Token::DEF).pos1();
     Token fname = parseId();
-    fcts_[fname.symbol()] = emit.fct(fname);
+#if 0
 
     expect(Token::L_PAREN, "function head");
     PARSE_COMMA_LIST
@@ -197,7 +189,6 @@ void Parser::parseFct() {
     parseScopeBody();
     emit.fixto(curFct()->exit());
 
-#if 0
     fct->finalizeAll();
 
     // HACK
@@ -205,9 +196,6 @@ void Parser::parseFct() {
     retVal->meta = retType;
     fct->exit_->lambda_->params().push_back(retVal);
     fct->exit_->beta_->args().push_back(retVal);
-#endif
-
-    emit.popScope();
 #endif
 }
 
@@ -267,11 +255,11 @@ const Stmt* Parser::parseStmt() {
         case Token::IF:        return parseIfElse();
         case Token::WHILE:     return parseWhile();
         case Token::DO:        return parseDoWhile();
-        //case Token::FOR:       return parseFor();
+        case Token::FOR:       return parseFor();
         case Token::BREAK:     return parseBreak();
         case Token::CONTINUE:  return parseContinue();
         case Token::RETURN:    return parseReturn();
-        case Token::L_BRACE:   return parseCompoundStmt();
+        case Token::L_BRACE:   return parseScopeBody();
         case Token::SEMICOLON: return new EmptyStmt(lex().loc());
         default:               return new EmptyStmt(prevLoc_);
     }
@@ -443,10 +431,6 @@ const Stmt* Parser::parseScope() {
         return parseScopeBody();
 
     return parseStmt();
-}
-
-const Stmt* Parser::parseCompoundStmt() {
-    return parseScopeBody();
 }
 
 const Expr* Parser::parseCond(const std::string& what) {

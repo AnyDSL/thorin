@@ -53,11 +53,13 @@ public:
     /// Get the definition \p Def of this \p Use.
     Def* def() { return def_; }
     const Def* def() const { return def_; }
+    inline const Type* type() const;
 
     /// Get embedding ojbect.
     AIRNode* parent() { return parent_; }
     /// Get embedding ojbect.
     const AIRNode* parent() const { return parent_; }
+
 
     World& world();
 
@@ -386,6 +388,10 @@ public:
 size_t hash_value(const ValueNumber& vn);
 
 //------------------------------------------------------------------------------
+
+const Type* Use::type() const { 
+    return def_->type(); 
+}
 
 } // namespace anydsl
 

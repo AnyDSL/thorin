@@ -54,6 +54,9 @@ public:
         const_reverse_iterator rbegin() const { return jump_.ops_.rbegin(); }
         const_reverse_iterator rend() const { return (--jump_.args_begin_).switch_direction(); }
 
+        size_t size() const { return jump_.ops_.size() - 1; }
+        bool empty() const { return jump_.ops_.size() == 1; }
+
         Jump& jump_;
     };
 

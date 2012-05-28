@@ -88,8 +88,7 @@ protected:
     /// Copies over the range specified by \p begin and \p end.
     template<class T>
     static ValueNumber VN(IndexKind index, T begin, T end) {
-        size_t size = std::distance(begin, end);
-        ValueNumber vn = ValueNumber::createMore(index, size);
+        ValueNumber vn = ValueNumber(index, begin, end);
         size_t x = 0;
         for (T i = begin; i != end; ++i, ++x)
             vn.more[x] = uintptr_t(*i);

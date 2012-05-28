@@ -47,11 +47,10 @@ public:
 
     const Pi* pi() const;
 
-    int depth();
+    void setJump(Jump* jump) { assert(!jump_); jump_ = jump; }
 
 private:
 
-    void setJump(Jump* jump) { assert(!jump_); jump_ = jump; }
 
     Jump* jump_;
     Params params_;

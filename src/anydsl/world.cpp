@@ -116,18 +116,6 @@ const Pi* World::pi3(const Type* t1, const Type* t2, const Type* t3) {
     return pi(types);
 }
 
-template<class T>
-T* World::findValue(const ValueNumber& vn) {
-    ValueMap::iterator i = values_.find(vn);
-    if (i != values_.end())
-        return scast<T>(i->second);
-
-    T* value = new T(vn);
-    values_[vn] = value;
-
-    return value;
-}
-
 /*
  * literals
  */
@@ -157,16 +145,6 @@ Lambda* World::createLambda(const Pi* type) {
     Lambda* lambda = type ? new Lambda(type) : new Lambda(*this);
     lambdas_.insert(lambda);
     return lambda;
-}
-
-Jump* World::createJump(Lambda* parent, Def* to) {
-    Jump* res = new Jump(parent, to);
-    parent->setJump(res);
-    return res;
-}
-
-Jump* World::createBranch(Lambda* parent, Def* cond, Def* tto, Def* fto) {
-    return  createJump(parent, createSelect(cond, tto, fto));
 }
 
 Value* World::tryFold(IndexKind kind, Def* ldef, Def* rdef) {

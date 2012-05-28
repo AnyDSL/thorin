@@ -8,6 +8,7 @@
 #include <boost/unordered_set.hpp>
 
 #include "anydsl/enums.h"
+#include "anydsl/jump.h"
 #include "anydsl/type.h"
 #include "anydsl/util/autoptr.h"
 #include "anydsl/util/box.h"
@@ -17,7 +18,6 @@ namespace anydsl {
 
 class Def;
 class ErrorLit;
-class Jump;
 class Lambda;
 class Pi;
 class PrimLit;
@@ -179,8 +179,20 @@ public:
      */
 
     Lambda* createLambda(const Pi* type = 0);
-    Jump* createJump(Lambda* parent, Def* to);
-    Jump* createBranch(Lambda* parent, Def* cond, Def* tto, Def* fto);
+    template<class T>
+    Jump* createJump(Def* to, T arg_begin, T arg_end) {
+        return findValue<Jump>(Jump::VN(to, arg_begin, arg_end));
+    }
+    Jump* createJump(Def* to) { 
+        return createJump(to, (Def**) 0, (Def**) 0); 
+    }
+    template<class T>
+    Jump* createBranch(Def* cond, Def* tto, Def* fto, T arg_begin, T arg_end) {
+        return createJump(createSelect(cond, tto, fto), arg_begin, arg_end);
+    }
+    Jump* createBranch(Def* cond, Def* tto, Def* fto) {
+        return createJump(createSelect(cond, tto, fto));
+    }
 
     Value* createArithOp(ArithOpKind kind, Def* ldef, Def* rdef);
     Value* createRelOp(RelOpKind kind, Def* ldef, Def* rdef);
@@ -235,6 +247,18 @@ const T* World::findType(const ValueNumber& vn) {
     types_[vn] = t;
 
     return t;
+}
+
+template<class T>
+T* World::findValue(const ValueNumber& vn) {
+    ValueMap::iterator i = values_.find(vn);
+    if (i != values_.end())
+        return scast<T>(i->second);
+
+    T* value = new T(vn);
+    values_[vn] = value;
+
+    return value;
 }
 
 //------------------------------------------------------------------------------

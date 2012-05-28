@@ -9,16 +9,26 @@ namespace anydsl {
 
 class NoRet;
 
-class Jump : public Def {
-public:
+class Jump : public Value {
+private:
 
-    Jump(Lambda* From, Def* to);
+    Jump(const ValueNumber& vn);
+
+    template<class T>
+    static ValueNumber VN(Def* to, T begin, T end) { 
+        ValueNumber vn(Index_Jump, begin, end, 1); 
+        vn.more[0] = uintptr_t(to);
+        size_t x = 1;
+        for (T i = begin; i != end; ++i, ++x)
+            vn.more[x] = uintptr_t(*i);
+
+        return vn;
+    }
+
+public:
 
     Lambda* toLambda() { return ccast<Lambda>(to.def()->isa<Lambda>()); }
     const Lambda* toLambda() const { return to.def()->isa<Lambda>(); }
-
-    Lambda* fromLambda() { return ccast<Lambda>(from.def()->as<Lambda>()); }
-    const Lambda* fromLambda() const { return from.def()->as<Lambda>(); }
 
     const NoRet* noret() const;
 
@@ -49,7 +59,6 @@ public:
 
     Args args() { return Args(*this); }
 
-    const Use& from;///< May be a Lambda (in the case of a direct jump).
     const Use& to;  ///< Must be a Lambda.
 
 private:

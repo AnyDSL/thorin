@@ -38,7 +38,8 @@ World& BB::world() {
 
 void BB::goesto(BB* to) {
     assert(to);
-    world().createJump(this->lambda(), to->lambda());
+    Jump* jump = world().createJump(to->lambda());
+    lambda_->setJump(jump);
     this->flowsto(to);
     anydsl_assert(this->succ().size() == 1, "wrong number of succ");
 }
@@ -46,7 +47,8 @@ void BB::goesto(BB* to) {
 void BB::branches(Def* cond, BB* tbb, BB* fbb) {
     assert(tbb);
     assert(fbb);
-    world().createBranch(lambda(), cond, tbb->lambda(), fbb->lambda());
+    Jump* jump = world().createBranch(cond, tbb->lambda(), fbb->lambda());
+    lambda_->setJump(jump);
     this->flowsto(tbb);
     this->flowsto(fbb);
     anydsl_assert(succ().size() == 2, "wrong number of succ");
@@ -54,7 +56,8 @@ void BB::branches(Def* cond, BB* tbb, BB* fbb) {
 
 void BB::invokes(Def* fct) {
     anydsl_assert(fct, "must be valid");
-    world().createJump(this->lambda(), fct);
+    Jump* jump = world().createJump(fct);
+    lambda_->setJump(jump);
     anydsl_assert(this->succ().size() == 0, "wrong number of succ");
     // succs by invokes are not captured in the CFG
 }

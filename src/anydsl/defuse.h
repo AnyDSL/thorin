@@ -336,6 +336,20 @@ public:
         , op2(p2)
         , op3(p3)
     {}
+    template<class T>
+    ValueNumber(IndexKind index, T begin, T end)
+        : index(index)
+        , op1(0)
+        , size(std::distance(begin, end))
+        , more(new uintptr_t[size])
+    {}
+    template<class T>
+    ValueNumber(IndexKind index, T begin, T end, size_t extra)
+        : index(index)
+        , op1(0)
+        , size(std::distance(begin, end))
+        , more(new uintptr_t[size + extra])
+    {}
     ValueNumber(const ValueNumber& vn) {
         std::memcpy(this, &vn, sizeof(ValueNumber));
         if (hasMore(index)) {
@@ -353,19 +367,6 @@ public:
     ~ValueNumber() {
         if (hasMore(index))
             delete[] more;
-    }
-
-    /**
-     * Creates a ValueNumber where the number of built-in fields do not suffice.
-     * Memory allocation and deallocation is handled by this class. 
-     * However, the caller is responsible to fill the allocated fields
-     * (pointed to by \p more) with correct data.
-     */
-    static ValueNumber createMore(IndexKind index, size_t size) {
-        ValueNumber res(index);
-        res.size = size;
-        res.more = new uintptr_t[size];
-        return res;
     }
 
     bool operator == (const ValueNumber& vn) const;

@@ -38,9 +38,7 @@ namespace impala {
 
 Parser::Parser(anydsl::World& world, std::istream& stream, const std::string& filename)
     : lexer_(stream, filename)
-    , emit(world)
-    , break_(0)
-    , continue_(0)
+    , loop_(0)
     , counter_(0)
 {
     Token::init(); // HACK
@@ -62,10 +60,6 @@ Parser::Parser(anydsl::World& world, std::istream& stream, const std::string& fi
     }
 }
 
-Parser::~Parser() {
-    FOREACH(p, fcts_) delete p.second;
-}
-
 /*
  * helpers
  */
@@ -74,27 +68,9 @@ Token Parser::lex() {
     Token result  = lookahead_[0]; // remember result
     lookahead_[0] = lookahead_[1]; // copy over LA2 to LA1
     lookahead_[1] = lexer_.lex();  // fill new LA2
+    prevLoc_ = result.loc();       // remember previous location
 
     return result;
-}
-
-int Parser::nextId() {
-    int id = counter_++;
-    counter_ %= 0x100;
-
-    return id;
-}
-
-static std::string make_name(const char* cstr, int id) {
-    std::ostringstream oss;
-    oss << '<' << cstr << '-';
-    oss << std::setw(2) << std::setfill('0') << id << '>';
-
-    return oss.str();
-}
-
-static Symbol make_symbol(const char* cstr, int id) {
-    return Symbol(make_name(cstr, id));
 }
 
 bool Parser::accept(TokenKind type) {
@@ -126,13 +102,32 @@ void Parser::error(const std::string& what, const std::string& context) {
     os << "\n";
 }
 
+int Parser::nextId() {
+    int id = counter_++;
+    counter_ %= 0x100;
+
+    return id;
+}
+
+static std::string make_name(const char* cstr, int id) {
+    std::ostringstream oss;
+    oss << '<' << cstr << '-';
+    oss << std::setw(2) << std::setfill('0') << id << '>';
+
+    return oss.str();
+}
+
+static Symbol make_symbol(const char* cstr, int id) {
+    return Symbol(make_name(cstr, id));
+}
+
 /*
  * misc
  */
 
-Lambda* Parser::parse() {
+const Prg* Parser::parse() {
     parseGlobals();
-    return emit.exit();
+    return 0;
 }
 
 Token Parser::parseId() {
@@ -149,28 +144,20 @@ const Type* Parser::parseType() {
     switch (la()) {
 #define IMPALA_TYPE(itype, atype) \
         case Token:: TYPE_ ## itype: \
-            return emit.builtinType(lex());
+            return new PrimType(lex().loc(), PrimType:: TYPE_##itype);
 #include "impala/tokenlist.h"
             
         default: ANYDSL_UNREACHABLE; // TODO
     }
 }
 
-void Parser::parseParam() {
-    Token name = parseId();
-    expect(Token::COLON, "lambda parameter");
-    const Type* type = parseType();
-
-    emit.param(name, type);
-}
-
-Value Parser::parseDecl() {
+const Decl* Parser::parseDecl() {
     Token tok = la();
     expect(Token::ID, "declaration");
     expect(Token::COLON, "declaration");
     const Type* type = parseType();
 
-    return emit.decl(tok, type);
+    return new Decl(tok, type);
 }
 
 void Parser::parseGlobals() {
@@ -188,6 +175,7 @@ void Parser::parseGlobals() {
 }
 
 void Parser::parseFct() {
+#if 0
     emit.pushScope();
 
     eat(Token::DEF);
@@ -220,12 +208,16 @@ void Parser::parseFct() {
 #endif
 
     emit.popScope();
+#endif
 }
 
-void Parser::parseStmtList() {
+const Stmt* Parser::parseStmtList() {
+    ScopeStmt* scope = new ScopeStmt();
+    std::vector<const Stmt*>& stmts = scope->stmts_;
+
     while (true) {
         if (isExpr()) {
-            parseStmt();
+            stmts.push_back(parseStmt());
             continue;
         }
 
@@ -234,10 +226,10 @@ void Parser::parseStmtList() {
 #include <impala/tokenlist.h>
             case Token::L_PAREN:
             case Token::L_BRACE:  
-            case Token::ID:          parseStmt(); continue;
+            case Token::ID:          stmts.push_back(parseStmt()); continue;
 
-            case Token::END_OF_FILE: return;
-            case Token::R_BRACE:     return;
+            case Token::END_OF_FILE: return scope;
+            case Token::R_BRACE:     return scope;
 
             // consume token nobody wants to have in order to prevent infinite loop
             default:
@@ -251,13 +243,14 @@ void Parser::parseStmtList() {
  * statements
  */
 
-void Parser::parseStmt() {
+const Stmt* Parser::parseStmt() {
     if (isExpr())
         return parseExprStmt();
 
+    Location loc = la().loc();
     if (accept(Token::ELSE)) {
         error("'else' without matching 'if'", "statement");
-        return;
+        return new EmptyStmt(loc);
     }
 
     switch (la()) {
@@ -267,7 +260,7 @@ void Parser::parseStmt() {
                 return parseDeclStmt();
             else {
                 error("statement", "");
-                return;
+                return new EmptyStmt(loc);
             }
 
         // other statements
@@ -279,124 +272,78 @@ void Parser::parseStmt() {
         case Token::CONTINUE:  return parseContinue();
         case Token::RETURN:    return parseReturn();
         case Token::L_BRACE:   return parseCompoundStmt();
-        case Token::SEMICOLON: return; // empty statement
+        case Token::SEMICOLON: return new EmptyStmt(lex().loc());
         default:               error("statement", "");
     }
 }
 
-void Parser::parseExprStmt() {
-    parseExpr(); // discard val
+const Stmt* Parser::parseExprStmt() {
+    const Expr* expr = parseExpr(); // discard val
     expect(Token::SEMICOLON, "the end of an expression statement");
+
+    return new ExprStmt(expr, prevLoc_.pos2());
 }
 
-void Parser::parseDeclStmt() {
-    Value aval = parseDecl();
+const Stmt* Parser::parseDeclStmt() {
+    const Decl* decl = parseDecl();
 
     // initialization
+    const Expr* init = 0;
     if (la() == Token::COLONEQ) {
         Token op = Token(lex().loc(), Token::ASGN);
-        Value bval = tryExpr();
-        emit.infixOp(aval, op, bval);
+        init = tryExpr();
     }
 
     expect(Token::SEMICOLON, "the end of an declaration statement");
+
+    return new DeclStmt(decl, init, prevLoc_.pos2());
 }
 
-void Parser::parseIfElse() {
-    eat(Token::IF);
-    emit.pushScope();
-    int id = nextId();
+const Stmt* Parser::parseIfElse() {
+    Position pos1 = eat(Token::IF).pos1();
+    const Expr* cond = parseCond("if-statement");
+    const Stmt* ifStmt = parseScope();
+    const Stmt* elseStmt = accept(Token::ELSE) ? parseScope() : new EmptyStmt(prevLoc_);
 
-    Location loc(la().loc());
-
-    BB*  oldBB = curBB();
-    BB*   ifBB = curFct()->createBB(make_name("if-then", id));
-    BB* elseBB = curFct()->createBB(make_name("if-else", id));
-    BB* contBB = curFct()->createBB(make_name("if-cont", id));
-
-    Def* cond = parseCond("if-statement").load();
-
-    oldBB->branches(cond, ifBB, elseBB);
-
-    emit.curBB = ifBB;
-    parseScope();
-
-    if (accept(Token::ELSE)) {
-        emit.popScope();
-        emit.fixto(contBB);
-        emit.curBB = elseBB;
-        emit.pushScope();
-        parseScope();
-    }
-
-    emit.fixto(contBB); 
-    emit.popScope();
+    return new IfElseStmt(pos1, cond, ifStmt, elseStmt);
 }
 
-void Parser::parseWhile() {
-    eat(Token::WHILE);
-    emit.pushScope();
-    int id = nextId();
+const Stmt* Parser::parseWhile() {
+    Position pos1 = eat(Token::WHILE).pos1();
+    const Expr* cond = parseCond("while-statement");
 
-    BB* headBB = curFct()->createBB(make_name("while-head", id));
-    BB* bodyBB = curFct()->createBB(make_name("while-body", id));
-    BB* iterBB = curFct()->createBB(make_name("while-iter", id));
-    BB* contBB = curFct()->createBB(make_name("while-cont", id));
+    const Loop* oldLoop = loop_;
+    WhileStmt*  newLoop = new WhileStmt();
+    loop_ = newLoop;
+    const Stmt* body = parseScope();
+    loop_ = oldLoop;
 
-    emit.fixto(headBB);
-    Def* cond = parseCond("while-statement").load();
+    newLoop->set(pos1, cond, body);
 
-    headBB->branches(cond, bodyBB, contBB);
-    iterBB->goesto(headBB);
-
-    emit.curBB = bodyBB;
-    parseScope();
-    emit.fixto(iterBB);
-
-    emit.popScope();
-    emit.curBB = contBB;
+    return newLoop;
 }
 
-void Parser::parseDoWhile() {
-    eat(Token::DO);
-    emit.pushScope();
-    int id = nextId();
+const Stmt* Parser::parseDoWhile() {
+    Position pos1 = eat(Token::DO).pos1();
 
-    BB* bodyBB = curFct()->createBB(make_name("do-body", id));
-    BB* iterBB = curFct()->createBB(make_name("do-iter", id));
-    BB* contBB = curFct()->createBB(make_name("do-cont", id));
+    const Loop* oldLoop = loop_;
+    DoWhileStmt*  newLoop = new DoWhileStmt();
+    loop_ = newLoop;
+    const Stmt* body = parseScope();
+    loop_ = oldLoop;
 
-    emit.fixto(bodyBB);
-    iterBB->goesto(bodyBB);
-
-    parseScope();
-    emit.fixto(iterBB);
     expect(Token::WHILE, "do-while-statement");
-    parseCond("do-while-statement");
+    const Expr* cond = parseCond("do-while-statement");
     expect(Token::SEMICOLON, "do-while-statement");
 
-    emit.popScope();
-    emit.curBB = contBB;
+    newLoop->set(pos1, body, cond, prevLoc_.pos2());
+
+    return newLoop;
 }
 
-#if 0
-void Parser::parseFor() {
-    int id = nextId();
-    emit.pushScope();
-    Location loc;
-
-    BB* prehBB = curFct()->createBB(make_name("for-preh", id));
-    BB* headBB = curFct()->createBB(make_name("for-head", id));
-    BB* bodyBB = curFct()->createBB(make_name("for-body", id));
-    BB* iterBB = curFct()->createBB(make_name("for-iter", id));
-    BB* contBB = curFct()->createBB(make_name("for-cont", id));
-
-    headBB->setMulti();
-
-    eat(Token::FOR);
+const Stmt* Parser::parseFor() {
+    Position pos1 = eat(Token::FOR).pos1();
     expect(Token::L_PAREN, "for-statement");
-
-    emit.fixto(prehBB);
 
     // clause 1: decl or expr_opt ';'
     if (la2() == Token::COLON)
@@ -409,97 +356,96 @@ void Parser::parseFor() {
         error("expression or delcaration-statement", 
                 "first clause in for-statement");
 
-    emit.fixto(headBB);
-        
     // clause 2: expr_opt ';'
-    Def* cond;
+    const Expr* cond;
     if (accept(Token::SEMICOLON)) { 
         // do nothing: no expr given, semicolon consumed
         // but create true cond
-        cond = world().literal(true);
+        cond = new Literal(prevLoc_, Literal::BOOL, Box(true));
     } else if (isExpr()) {
-        cond = parseExpr().load();
+        cond = parseExpr();
         expect(Token::SEMICOLON, "second clause in for-statement");
     } else {
         error("expression or nothing", 
                 "second clause in for-statement");
-        cond = world().literal_error(world().type_u1());
+        cond = new Literal(prevLoc_, Literal::BOOL, Box(true));
     }
 
-    emit.curBB = iterBB;
-
+    const Expr* inc;
     // clause 3: expr_opt ';'
     if (accept(Token::R_PAREN)) { 
         // do nothing: no expr given, semicolon consumed
+        inc = 0;
     } else if (isExpr()) {
-        parseExpr();
+        inc = parseExpr();
         expect(Token::R_PAREN, "for-statement");
     } else {
         error("expression or nothing",
                 "third clause in for-statement");
+        inc = 0;
     }
 
-    emit.curBB = bodyBB;
-    parseScope();
-    emit.fixto(iterBB);
+    const Stmt* body = parseScope();
 
-    headBB->branches(cond, bodyBB, contBB);
-    iterBB->goesto(headBB);
-
-    emit.curBB = contBB;
-    emit.popScope();
+    return new ForStmt(pos1, inc, cond, body);
 }
-#endif
 
-void Parser::parseBreak() {
-    eat(Token::BREAK);
+const Stmt* Parser::parseBreak() {
+    Position pos1 = eat(Token::BREAK).pos1();
     expect(Token::SEMICOLON, "break-statement");
+
+    return new BreakStmt(pos1, prevLoc_.pos2(), loop_);
 }
 
-void Parser::parseContinue() {
-    eat(Token::CONTINUE);
+const Stmt* Parser::parseContinue() {
+    Position pos1 = eat(Token::CONTINUE).pos1();
     expect(Token::SEMICOLON, "continue-statement");
+
+    return new ContinueStmt(pos1, prevLoc_.pos2(), loop_);
 }
 
-void Parser::parseReturn() {
-    Token ret = eat(Token::RETURN);
+const Stmt* Parser::parseReturn() {
+    Position pos1 = eat(Token::RETURN).pos1();
 
-    Value res;
-    if (accept(Token::SEMICOLON))
-        res = Value(); // TODO
-    else if (isExpr()) {
-        res = parseExpr();
-        expect(Token::SEMICOLON, "return-statement");
+    const Expr* expr = 0;
+
+    if (la() != Token::SEMICOLON) {
+        if (isExpr()) {
+            expr = parseExpr();
+            expect(Token::SEMICOLON, "return-statement");
+        }
+    } else {
+        eat(Token::SEMICOLON);
     }
 
-    emit.returnStmt(res);
+    return new ReturnStmt(pos1, expr, prevLoc_.pos2());
 }
 
-void Parser::parseScopeBody() {
+const Stmt* Parser::parseScopeBody() {
     eat(Token::L_BRACE);
-    parseStmtList();
+    const Stmt* stmt = parseStmtList();
     expect(Token::R_BRACE, "scope-statement");
+
+    return stmt;
 }
 
-void Parser::parseScope() {
+const Stmt* Parser::parseScope() {
     if (la() == Token::L_BRACE)
-        parseScopeBody();
-    else
-        parseStmt();
+        return parseScopeBody();
+
+    return parseStmt();
 }
 
-void Parser::parseCompoundStmt() {
-    emit.pushScope();
-    parseScopeBody();
-    emit.popScope();
+const Stmt* Parser::parseCompoundStmt() {
+    return parseScopeBody();
 }
 
-Value Parser::parseCond(const std::string& what) {
+const Expr* Parser::parseCond(const std::string& what) {
     expect(Token::L_PAREN, "condition in " + what);
-    Value val = tryExpr();
+    const Expr* cond = tryExpr();
     expect(Token::R_PAREN, "condition in " + what);
 
-    return val;
+    return cond;
 }
 
 bool Parser::isExpr() {
@@ -520,21 +466,16 @@ bool Parser::isExpr() {
     }
 }
 
-Value Parser::tryExpr() {
-    return isExpr() ? parseExpr() : emit.error();
+const Expr* Parser::tryExpr() {
+    return isExpr() ? parseExpr() : new EmptyExpr(prevLoc_);
 }
 
 /*
  * expressions
  */
 
-Value Parser::parseExpr(Prec prec) {
-    Value aval;
-
-    if (la().isPrefix())
-        aval = parsePrefixExpr();
-    else
-        aval = parsePrimaryExpr();
+const Expr* Parser::parseExpr(Prec prec) {
+    const Expr* left = la().isPrefix() ? parsePrefixExpr() : parsePrimaryExpr();
 
     while (true) {
         /*
@@ -546,34 +487,35 @@ Value Parser::parseExpr(Prec prec) {
             if ( prec > binPrec_[la()].l )
                 break;
 
-            aval = parseInfixExpr(aval);
+            left = parseInfixExpr(left);
         } else if ( la().isPostfix() ) {
             if ( prec > postLPrec_[la()] )
                 break;
 
-            aval = parsePostfixExpr(aval);
+            left = parsePostfixExpr(left);
         } else
             break;
     }
 
-    return aval;
+    return left;
 }
 
-Value Parser::parsePrefixExpr() {
+const Expr* Parser::parsePrefixExpr() {
     Token op = lex();
-    Value bval = parseExpr(preRPrec_[op]);
+    const Expr* right = parseExpr(preRPrec_[op]);
 
-    return emit.prefixOp(op, bval);
+    return new PrefixExpr(op.pos1(), (PrefixExpr::Kind) op.kind(), right);
 }
 
-Value Parser::parseInfixExpr(Value aval) {
+const Expr* Parser::parseInfixExpr(const Expr* left) {
     Token op = lex();
-    Value bval = parseExpr(binPrec_[op].r);
+    const Expr* right = parseExpr(binPrec_[op].r);
 
-    return emit.infixOp(aval, op, bval);
+    return new InfixExpr(left, (InfixExpr::Kind) op.kind(), right);
 }
 
-Value Parser::parsePostfixExpr(Value aval) {
+const Expr* Parser::parsePostfixExpr(const Expr* left) {
+#if 0
     if (accept(Token::L_PAREN)) {
         std::vector<Value> args;
         PARSE_COMMA_LIST
@@ -583,21 +525,25 @@ Value Parser::parsePostfixExpr(Value aval) {
             "arguments of a function call"
         )
 
-        return emit.fctCall(aval, args);
-    } else
-        return emit.postfixOp(aval, lex());
+        return emit.fctCall(left, args);
+    } else {
+#endif
+        assert(la() == Token::INC || la() == Token::DEC);
+        Token op = lex();
+        return new PostfixExpr(left, (PostfixExpr::Kind) op.kind(), op.pos2());
+    //}
 }
 
-Value Parser::parsePrimaryExpr() {
+const Expr* Parser::parsePrimaryExpr() {
     switch (la() ) {
         case Token::L_PAREN: {
             eat(Token::L_PAREN);
-            Value val = parseExpr();
+            const Expr* expr = parseExpr();
             expect(Token::R_PAREN, "primary expression");
-            return val;
+            return expr;
         }
-        case Token::ID:     return emit.id(lex());
-        case Token::LAMBDA: return parseLambda();
+        //case Token::ID:     return emit.id(lex());
+        //case Token::LAMBDA: return parseLambda();
         //case Token::PI:            return parsePi();
         //case Token::SIGMA:         return parseSigma();
         //case Token::MEMORY:        return parseMemory();
@@ -619,11 +565,11 @@ Value Parser::parsePrimaryExpr() {
     }
 }
 
-Value Parser::parseLiteral() {
+const Expr* Parser::parseLiteral() {
     return emit.literal(lex());
 }
 
-Value Parser::parseLambda() {
+const Expr* Parser::parseLambda() {
     emit.pushScope();
 
     eat(Token::LAMBDA);

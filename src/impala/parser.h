@@ -3,7 +3,7 @@
 
 #include <boost/unordered_map.hpp>
 
-#include "impala/emitter.h"
+#include "impala/ast.h"
 #include "impala/lexer.h"
 
 namespace anydsl {
@@ -16,7 +16,7 @@ namespace anydsl {
 
 namespace impala {
 
-typedef boost::unordered_map<anydsl::Symbol, anydsl::Fct*> FctMap;
+class Loop;
 
 enum Prec {
     BOTTOM,
@@ -57,7 +57,6 @@ public:
      */
 
     Parser(anydsl::World& world, std::istream& stream, const std::string& filename);
-    ~Parser();
 
     /*
      * helpers
@@ -78,59 +77,56 @@ public:
     void error(const std::string& what, const std::string& context);
 
     // misc
-    anydsl::Lambda* parse();
+    const Prg* parse();
     Token parseId();
-    const anydsl::Type* parseType();
+    const Type* parseType();
     void parseParam();
-    Value parseDecl();
+    const Decl* parseDecl();
     void parseGlobals();
     void parseFct();
-    void parseStmtList();
 
     // expressions
     bool isExpr();
-    Value tryExpr();
-    Value parseExpr(Prec prec);
-    Value parseExpr() { return parseExpr(BOTTOM); }
-    Value parsePrefixExpr();
-    Value parseInfixExpr(Value aval);
-    Value parsePostfixExpr(Value aval);
-    Value parsePrimaryExpr();
-    Value parseLiteral();
-    Value parseLambda();
+    const Expr* tryExpr();
+    const Expr* parseExpr(Prec prec);
+    const Expr* parseExpr() { return parseExpr(BOTTOM); }
+    const Expr* parsePrefixExpr();
+    const Expr* parseInfixExpr(const Expr* left);
+    const Expr* parsePostfixExpr(const Expr* left);
+    const Expr* parsePrimaryExpr();
+    const Expr* parseLiteral();
+    const Expr* parseLambda();
 
     // statements
-    void parseStmt();
-    void parseExprStmt();
-    void parseDeclStmt();
-    void parseIfElse();
-    void parseWhile();
-    void parseDoWhile();
-    //void parseFor();
-    void parseBreak();
-    void parseContinue();
-    void parseReturn();
+    const Stmt* parseStmt();
+    const Stmt* parseExprStmt();
+    const Stmt* parseDeclStmt();
+    const Stmt* parseIfElse();
+    const Stmt* parseWhile();
+    const Stmt* parseDoWhile();
+    const Stmt* parseFor();
+    const Stmt* parseBreak();
+    const Stmt* parseContinue();
+    const Stmt* parseReturn();
 
+    /// Stmt+
+    const Stmt* parseStmtList();
     /// '{' stmt '}'
-    void parseScopeBody();
-    /// stmt which is \em not a compound-stmt \em or '{' stmt '}' \em wihout pushing/poping of scopes
-    void parseScope();
+    const Stmt* parseScopeBody();
+    /// stmt which is \em not a compound-stmt \em or '{' stmt '}' \em without pushing/poping of scopes
+    const Stmt* parseScope();
     /// (push scope) '{' stmt '}' (pop scope)
-    void parseCompoundStmt();
+    const Stmt* parseCompoundStmt();
 
     /// helper for condition in if/while/do-while
-    Value parseCond(const std::string& what);
+    const Expr* parseCond(const std::string& what);
 
 private:
 
-    anydsl::World& world() { return emit.world; }
-    anydsl::Fct* curFct() { return emit.curFct; }
-    anydsl::BB* curBB() { return emit.curBB; }
+    int nextId();
 
     /// Consume next Token in input stream, fill look-ahead buffer, return consumed Token.
     Token lex();
-
-    int nextId();
 
     /*
      * data
@@ -138,18 +134,13 @@ private:
 
     Lexer lexer_;       ///< invoked in order to get next token
     Token lookahead_[2];///< LL(2) look ahead
-    Emitter emit;       ///< encapsulates AIR construction
+    const Loop* loop_;
+    int counter_;
+    anydsl::Location prevLoc_;
 
     static Type2Prec    preRPrec_; ///< right precedence -- for unary prefix operators
     static Type2BinPrec binPrec_;  ///< left and right precedences -- for binary operators
     static Type2Prec    postLPrec_;///< left precedence -- for unary postfix operators
-
-    anydsl::BB* break_;   ///< current break target
-    anydsl::BB* continue_;///< current continue target
-
-    FctMap fcts_;
-
-    int counter_;
 };
 
 } // namespace impala

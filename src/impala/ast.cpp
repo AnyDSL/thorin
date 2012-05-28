@@ -30,6 +30,12 @@ Literal::Literal(const anydsl::Location& loc, Kind kind, anydsl::Box value)
     this->loc = loc;
 }
 
+Id::Id(const Token& tok) 
+    : symbol_(tok.symbol())
+{
+    loc = tok.loc();
+}
+
 PrefixExpr::PrefixExpr(const anydsl::Position& pos1, Kind kind, const Expr* rexpr)
     : kind_(kind)
 {
@@ -86,6 +92,13 @@ void DoWhileStmt::set(const anydsl::Position& pos1, const Stmt* body, const Expr
     Loop::set(cond, body);
     loc = anydsl::Location(pos1, pos2);
 }
+
+void ForStmt::set(const anydsl::Position& pos1, const Expr* cond, const Expr* inc, const Stmt* body) {
+    Loop::set(cond, body);
+    inc_ = inc;
+    loc = anydsl::Location(pos1, body->loc.pos2());
+}
+
 
 BreakStmt::BreakStmt(const anydsl::Position& pos1, const anydsl::Position& pos2, const Loop* loop) 
     : loop_(loop)

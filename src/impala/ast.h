@@ -97,6 +97,19 @@ private:
     anydsl::Box value_;
 };
 
+class Id : public Expr {
+public:
+
+    Id(const Token& tok);
+
+    anydsl::Symbol symbol() const { return symbol_; }
+
+private:
+
+    anydsl::Symbol symbol_;
+    const Decl* decl_; ///< Declaration of the variable in use.
+};
+
 class PrefixExpr : public Expr {
 public:
 
@@ -250,11 +263,21 @@ public:
 class ForStmt : public Loop {
 public:
 
-    ForStmt(const anydsl::Position& pos1, const Expr* cond, const Expr* inc, const Stmt* body);
+    ForStmt() {}
+
+    void set(const anydsl::Position& pos1, const Expr* cond, const Expr* inc, const Stmt* body);
+    void set(const DeclStmt* d) { initDecl_ = d; isDecl_ = true; }
+    void set(const ExprStmt* e) { initExpr_ = e; isDecl_ = false; }
 
 private:
 
+    union {
+        const DeclStmt* initDecl_;
+        const ExprStmt* initExpr_;
+    };
+
     const Expr* inc_;
+    bool isDecl_;
 };
 
 class BreakStmt : public Stmt {

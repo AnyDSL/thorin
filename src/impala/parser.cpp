@@ -273,18 +273,18 @@ const Stmt* Parser::parseStmt() {
         case Token::RETURN:    return parseReturn();
         case Token::L_BRACE:   return parseCompoundStmt();
         case Token::SEMICOLON: return new EmptyStmt(lex().loc());
-        default:               error("statement", "");
+        default:               return new EmptyStmt(prevLoc_);
     }
 }
 
-const Stmt* Parser::parseExprStmt() {
+const ExprStmt* Parser::parseExprStmt() {
     const Expr* expr = parseExpr(); // discard val
     expect(Token::SEMICOLON, "the end of an expression statement");
 
     return new ExprStmt(expr, prevLoc_.pos2());
 }
 
-const Stmt* Parser::parseDeclStmt() {
+const DeclStmt* Parser::parseDeclStmt() {
     const Decl* decl = parseDecl();
 
     // initialization
@@ -345,16 +345,22 @@ const Stmt* Parser::parseFor() {
     Position pos1 = eat(Token::FOR).pos1();
     expect(Token::L_PAREN, "for-statement");
 
+    const Loop* oldLoop = loop_;
+    ForStmt*  newLoop = new ForStmt();
+    loop_ = newLoop;
+
     // clause 1: decl or expr_opt ';'
     if (la2() == Token::COLON)
-        parseDeclStmt();
+        newLoop->set(parseDeclStmt());
     else if (accept(Token::SEMICOLON)) { 
         // do nothing: no expr given, semicolon consumed
     } else if (isExpr()) {
-        parseExprStmt();
-    } else
+        newLoop->set(parseExprStmt());
+    } else {
         error("expression or delcaration-statement", 
                 "first clause in for-statement");
+        newLoop->set(new ExprStmt(new EmptyExpr(prevLoc_), prevLoc_.pos2()));
+    }
 
     // clause 2: expr_opt ';'
     const Expr* cond;
@@ -375,19 +381,22 @@ const Stmt* Parser::parseFor() {
     // clause 3: expr_opt ';'
     if (accept(Token::R_PAREN)) { 
         // do nothing: no expr given, semicolon consumed
-        inc = 0;
+        inc = new EmptyExpr(prevLoc_);
     } else if (isExpr()) {
         inc = parseExpr();
         expect(Token::R_PAREN, "for-statement");
     } else {
         error("expression or nothing",
                 "third clause in for-statement");
-        inc = 0;
+        inc = new EmptyExpr(prevLoc_);
     }
 
     const Stmt* body = parseScope();
+    loop_ = oldLoop;
 
-    return new ForStmt(pos1, inc, cond, body);
+    newLoop->set(pos1, cond, inc, body);
+
+    return newLoop;
 }
 
 const Stmt* Parser::parseBreak() {
@@ -542,7 +551,7 @@ const Expr* Parser::parsePrimaryExpr() {
             expect(Token::R_PAREN, "primary expression");
             return expr;
         }
-        //case Token::ID:     return emit.id(lex());
+        case Token::ID:     return new Id(lex());
         //case Token::LAMBDA: return parseLambda();
         //case Token::PI:            return parsePi();
         //case Token::SIGMA:         return parseSigma();
@@ -560,16 +569,31 @@ const Expr* Parser::parsePrimaryExpr() {
 
         default: {
             error("expression", "primary expression");
-            return emit.error();
+            return new EmptyExpr(prevLoc_);
         }
     }
 }
 
 const Expr* Parser::parseLiteral() {
-    return emit.literal(lex());
+    Literal::Kind kind;
+    Box value;
+
+    switch (la()) {
+        case Token::TRUE:  return new Literal(lex().loc(), Literal::BOOL, Box(true));
+        case Token::FALSE: return new Literal(lex().loc(), Literal::BOOL, Box(false));
+#define IMPALA_LIT(tok, t) \
+        case Token:: tok: { \
+            kind = Literal:: tok; \
+            Box value = la().box(); \
+            return new Literal(lex().loc(), kind, value); \
+        }
+#include "impala/tokenlist.h"
+        default: ANYDSL_UNREACHABLE;
+    }
 }
 
 const Expr* Parser::parseLambda() {
+#if 0
     emit.pushScope();
 
     eat(Token::LAMBDA);
@@ -586,6 +610,8 @@ const Expr* Parser::parseLambda() {
     emit.popScope();
 
     return Value() /*TODO*/;
+#endif
+    return 0;
 }
 
 } // namespace impala

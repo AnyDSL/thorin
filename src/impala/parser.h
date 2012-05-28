@@ -99,8 +99,8 @@ public:
 
     // statements
     const Stmt* parseStmt();
-    const Stmt* parseExprStmt();
-    const Stmt* parseDeclStmt();
+    const ExprStmt* parseExprStmt();
+    const DeclStmt* parseDeclStmt();
     const Stmt* parseIfElse();
     const Stmt* parseWhile();
     const Stmt* parseDoWhile();

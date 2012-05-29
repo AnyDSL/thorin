@@ -9,6 +9,13 @@ Decl::Decl(const Token& id, const Type* type)
     loc = anydsl::Location(id.pos1(), type->loc.pos2());
 }
 
+void Fct::set(const anydsl::Position& pos1, const anydsl::Symbol symbol, const Type* retType, const Stmt* body) {
+    symbol_ = symbol;
+    retType_ = retType;
+    body_ = body;
+    loc = anydsl::Location(pos1, body->loc.pos2());
+}
+
 /*
  * types
  */

@@ -10,7 +10,16 @@
 
 namespace impala {
 
+class Decl;
+class Expr;
+class Stmt;
+class Type;
+
+typedef std::vector<const Decl*> Decls;
+typedef std::vector<const Expr*> Exprs;
+
 class ASTNode {
+
 public:
 
     virtual ~ASTNode() {}
@@ -19,10 +28,29 @@ public:
 };
 
 class Prg : public ASTNode {
-public :
+public:
 };
 
-class Type;
+class Fct : public ASTNode {
+public:
+
+    Fct() {}
+
+    anydsl::Symbol symbol() const { return symbol_; }
+    const Type* retType() const { return retType_; }
+    const Stmt* body() const { return body_; }
+
+private:
+
+    void set(const anydsl::Position& pos1, const anydsl::Symbol symbol, const Type* retType, const Stmt* body);
+
+    anydsl::Symbol symbol_;
+    Decls params_;
+    const Type* retType_;
+    const Stmt* body_;
+
+    friend class Parser;
+};
 
 class Decl : public ASTNode {
 public:
@@ -66,7 +94,7 @@ private:
 class Expr : public ASTNode {
 protected:
 
-    std::vector<const Expr*> args_;
+    Exprs args_;
 };
 
 class EmptyExpr : public Expr {

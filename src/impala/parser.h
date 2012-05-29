@@ -70,7 +70,6 @@ public:
     const Prg* parse();
     Token parseId();
     const Type* parseType();
-    void parseParam();
     const Decl* parseDecl();
     void parseGlobals();
     void parseFct();

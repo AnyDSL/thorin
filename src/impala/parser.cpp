@@ -171,32 +171,26 @@ void Parser::parseGlobals() {
 
 void Parser::parseFct() {
     Position pos1 = eat(Token::DEF).pos1();
-    Token fname = parseId();
-#if 0
+    Symbol symbol = parseId().symbol();
+
+    Fct* fct = new Fct();
+    const Type* retType = 0;
 
     expect(Token::L_PAREN, "function head");
     PARSE_COMMA_LIST
     (
-        parseParam(),
+        fct->params_.push_back(parseDecl()),
         Token::R_PAREN,
         "arguments of a function call"
     )
 
     // return-continuation
     if (accept(Token::ARROW))
-        curFct()->setReturnCont(parseType());
+        retType = parseType();
 
-    parseScopeBody();
-    emit.fixto(curFct()->exit());
+    const Stmt* body = parseScopeBody();
 
-    fct->finalizeAll();
-
-    // HACK
-    Param* retVal = new Param(retType->loc());
-    retVal->meta = retType;
-    fct->exit_->lambda_->params().push_back(retVal);
-    fct->exit_->beta_->args().push_back(retVal);
-#endif
+    fct->set(pos1, symbol, retType, body);
 }
 
 const Stmt* Parser::parseStmtList() {

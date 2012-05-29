@@ -255,7 +255,7 @@ const Stmt* Parser::parseStmt() {
         case Token::RETURN:    return parseReturn();
         case Token::L_BRACE:   return parseScopeBody();
         case Token::SEMICOLON: return new EmptyStmt(lex().loc());
-        default:               return new EmptyStmt(prevLoc_);
+        default:               ANYDSL_UNREACHABLE;
     }
 }
 

@@ -43,26 +43,26 @@ Id::Id(const Token& tok)
     loc = tok.loc();
 }
 
-PrefixExpr::PrefixExpr(const anydsl::Position& pos1, Kind kind, const Expr* rexpr)
+PrefixExpr::PrefixExpr(const anydsl::Position& pos1, Kind kind, const Expr* right)
     : kind_(kind)
 {
-    args_.push_back(rexpr);
-    loc = anydsl::Location(pos1, rexpr->loc.pos2());
+    args_.push_back(right);
+    loc = anydsl::Location(pos1, right->loc.pos2());
 }
 
-InfixExpr::InfixExpr(const Expr* lexpr, Kind kind, const Expr* rexpr)
+InfixExpr::InfixExpr(const Expr* left, Kind kind, const Expr* right)
     : kind_(kind)
 {
-    args_.push_back(lexpr);
-    args_.push_back(rexpr);
-    loc = anydsl::Location(lexpr->loc.pos1(), rexpr->loc.pos2());
+    args_.push_back(left);
+    args_.push_back(right);
+    loc = anydsl::Location(left->loc.pos1(), right->loc.pos2());
 }
 
-PostfixExpr::PostfixExpr(const Expr* lexpr, Kind kind, const anydsl::Position& pos2) 
+PostfixExpr::PostfixExpr(const Expr* left, Kind kind, const anydsl::Position& pos2) 
     : kind_(kind)
 {
-    args_.push_back(lexpr);
-    loc = anydsl::Location(lexpr->loc.pos1(), pos2);
+    args_.push_back(left);
+    loc = anydsl::Location(left->loc.pos1(), pos2);
 }
 
 /*

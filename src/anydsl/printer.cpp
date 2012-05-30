@@ -96,6 +96,9 @@ void Printer::print(std::ostream& s, const AIRNode* n) {
         case Index_Proj:
             ANYDSL_NOT_IMPLEMENTED;
 
+        case Index_Insert:
+            ANYDSL_NOT_IMPLEMENTED;
+
         case Index_Select:
             ANYDSL_NOT_IMPLEMENTED;
 

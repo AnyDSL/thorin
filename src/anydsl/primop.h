@@ -129,6 +129,24 @@ private:
 
 //------------------------------------------------------------------------------
 
+class Insert : public PrimOp {
+private:
+
+    Insert(const ValueNumber& vn);
+
+    static ValueNumber VN(Def* tuple, Def* elem, Def* value) {
+        return ValueNumber(Index_Insert, uintptr_t(tuple), uintptr_t(elem), uintptr_t(value));
+    }
+    
+    const Use& tuple;
+    const Use& elem;
+    const Use& value;
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
 class Tuple : public PrimOp {
 private:
 

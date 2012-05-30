@@ -196,6 +196,12 @@ Value* World::createProj(Def* tuple, PrimLit* i) {
     return findValue<Proj>(Proj::VN(tuple, i));
 }
 
+Value* World::createInsert(Def* tuple, PrimLit* i, Def* value) {
+    // TODO folding
+    return findValue<Insert>(Insert::VN(tuple, i, value));
+}
+
+
 Value* World::createSelect(Def* cond, Def* tdef, Def* fdef) {
     return findValue<Select>(Select::VN(cond, tdef, fdef));
 }

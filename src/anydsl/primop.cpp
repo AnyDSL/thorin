@@ -27,6 +27,19 @@ Proj::Proj(const ValueNumber& vn)
 
 //------------------------------------------------------------------------------
 
+Insert::Insert(const ValueNumber& vn)
+    : PrimOp(Index_Insert, 
+             ((Def*)vn.op1)->type()->as<Sigma>())
+    , tuple(*ops_append((Def*) vn.op1))
+    , elem (*ops_append((Def*) vn.op2))
+    , value(*ops_append((Def*) vn.op3))
+{
+    anydsl_assert(vn.index == Index_Insert, "wrong index in VN");
+    //anydsl_assert(tuple.type()->as<Sigma>()->get(elem.def()->as<PrimLit>()) == value.type(), "type error");
+}
+
+//------------------------------------------------------------------------------
+
 Select::Select(const ValueNumber& vn) 
     : PrimOp(Index_Select, ((Def*) vn.op2)->type())
     , cond(*ops_append((Def*) vn.op1))

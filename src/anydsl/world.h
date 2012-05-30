@@ -197,6 +197,7 @@ public:
     Value* createArithOp(ArithOpKind kind, Def* ldef, Def* rdef);
     Value* createRelOp(RelOpKind kind, Def* ldef, Def* rdef);
     Value* createProj(Def* tuple, PrimLit* i);
+    Value* createInsert(Def* tuple, PrimLit* i, Def* value);
     Value* createSelect(Def* cond, Def* tdef, Def* fdef);
 
     /*

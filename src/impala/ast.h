@@ -14,6 +14,7 @@ class Decl;
 class Expr;
 class Stmt;
 class Type;
+class Sema;
 
 typedef std::vector<const Decl*> Decls;
 typedef std::vector<const Expr*> Exprs;
@@ -24,10 +25,16 @@ public:
     virtual ~ASTNode() {}
 
     anydsl::Location loc;
+
+    virtual void check(Sema& sema) = 0;
+    virtual std::ostream& dump(std::ostream& o) = 0;
 };
 
 class Prg : public ASTNode {
 public:
+
+    virtual void check(Sema& sema);
+    virtual std::ostream& dump(std::ostream& o);
 };
 
 class Fct : public ASTNode {
@@ -38,6 +45,9 @@ public:
     anydsl::Symbol symbol() const { return symbol_; }
     const Type* retType() const { return retType_; }
     const Stmt* body() const { return body_; }
+
+    virtual void check(Sema& sema);
+    virtual std::ostream& dump(std::ostream& o);
 
 private:
 
@@ -58,6 +68,9 @@ public:
 
     anydsl::Symbol id() const { return id_; }
     const Type* type() const { return type_; }
+
+    virtual void check(Sema& sema);
+    virtual std::ostream& dump(std::ostream& o);
 
 private:
 
@@ -83,6 +96,9 @@ public:
 
     Kind kind() const { return kind_; }
 
+    virtual void check(Sema& sema);
+    virtual std::ostream& dump(std::ostream& o);
+
 private:
 
     Kind kind_;
@@ -102,6 +118,9 @@ public:
     EmptyExpr(const anydsl::Location& loc) {
         this->loc = loc;
     }
+
+    virtual void check(Sema& sema);
+    virtual std::ostream& dump(std::ostream& o);
 };
 
 class Literal : public Expr {
@@ -118,6 +137,9 @@ public:
     Kind kind() const { return kind_; }
     anydsl::Box value() const { return value_; }
 
+    virtual void check(Sema& sema);
+    virtual std::ostream& dump(std::ostream& o);
+
 private:
 
     Kind kind_;
@@ -130,6 +152,9 @@ public:
     Id(const Token& tok);
 
     anydsl::Symbol symbol() const { return symbol_; }
+
+    virtual void check(Sema& sema);
+    virtual std::ostream& dump(std::ostream& o);
 
 private:
 
@@ -151,6 +176,9 @@ public:
 
     Kind kind() const { return kind_; }
 
+    virtual void check(Sema& sema);
+    virtual std::ostream& dump(std::ostream& o);
+
 private:
 
     Kind kind_;
@@ -171,6 +199,9 @@ public:
     const Expr* right() const { return args_[1]; }
 
     Kind kind() const { return kind_; }
+
+    virtual void check(Sema& sema);
+    virtual std::ostream& dump(std::ostream& o);
 
 private:
 
@@ -195,6 +226,9 @@ public:
 
     Kind kind() const { return kind_; }
 
+    virtual void check(Sema& sema);
+    virtual std::ostream& dump(std::ostream& o);
+
 private:
 
     Kind kind_;
@@ -211,6 +245,9 @@ public:
     EmptyStmt(const anydsl::Location& loc) {
         this->loc = loc;
     }
+
+    virtual void check(Sema& sema);
+    virtual std::ostream& dump(std::ostream& o);
 };
 
 class ExprStmt : public Stmt {
@@ -219,6 +256,9 @@ public:
     ExprStmt(const Expr* expr, const anydsl::Position& pos2);
 
     const Expr* expr() const { return expr_; }
+
+    virtual void check(Sema& sema);
+    virtual std::ostream& dump(std::ostream& o);
 
 private:
 
@@ -232,6 +272,9 @@ public:
 
     const Decl* decl_;
     const Expr* init_;
+
+    virtual void check(Sema& sema);
+    virtual std::ostream& dump(std::ostream& o);
 };
 
 class IfElseStmt: public Stmt {
@@ -242,6 +285,9 @@ public:
     const Expr* cond() const { return cond_; }
     const Stmt* ifStmt() const { return ifStmt_; }
     const Stmt* elseStmt() const { return elseStmt_; }
+
+    virtual void check(Sema& sema);
+    virtual std::ostream& dump(std::ostream& o);
 
 private:
 
@@ -277,6 +323,9 @@ public:
     WhileStmt() {}
         
     void set(const anydsl::Position& pos1, const Expr* cond, const Stmt* body);
+
+    virtual void check(Sema& sema);
+    virtual std::ostream& dump(std::ostream& o);
 };
 
 class DoWhileStmt : public Loop {
@@ -285,6 +334,9 @@ public:
     DoWhileStmt() {}
 
     void set(const anydsl::Position& pos1, const Stmt* body, const Expr* cond, const anydsl::Position& pos2);
+
+    virtual void check(Sema& sema);
+    virtual std::ostream& dump(std::ostream& o);
 };
 
 class ForStmt : public Loop {
@@ -295,6 +347,9 @@ public:
     void set(const anydsl::Position& pos1, const Expr* cond, const Expr* inc, const Stmt* body);
     void set(const DeclStmt* d) { initDecl_ = d; isDecl_ = true; }
     void set(const ExprStmt* e) { initExpr_ = e; isDecl_ = false; }
+
+    virtual void check(Sema& sema);
+    virtual std::ostream& dump(std::ostream& o);
 
 private:
 
@@ -312,6 +367,9 @@ public:
 
     BreakStmt(const anydsl::Position& pos1, const anydsl::Position& pos2, const Loop* loop);
 
+    virtual void check(Sema& sema);
+    virtual std::ostream& dump(std::ostream& o);
+
 private:
 
     const Loop* loop_;
@@ -321,6 +379,9 @@ class ContinueStmt : public Stmt {
 public:
 
     ContinueStmt(const anydsl::Position& pos1, const anydsl::Position& pos2, const Loop* loop);
+
+    virtual void check(Sema& sema);
+    virtual std::ostream& dump(std::ostream& o);
 
 private:
 
@@ -334,6 +395,9 @@ public:
 
     const Expr* expr() const { return expr_; }
 
+    virtual void check(Sema& sema);
+    virtual std::ostream& dump(std::ostream& o);
+
 private:
 
     const Expr* expr_;
@@ -343,6 +407,9 @@ class ScopeStmt : public Stmt {
 public:
 
     ScopeStmt() {}
+
+    virtual void check(Sema& sema);
+    virtual std::ostream& dump(std::ostream& o);
 
 private:
 

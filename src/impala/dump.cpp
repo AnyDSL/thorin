@@ -25,6 +25,8 @@ public:
     std::ostream& o;
     Prec prec;
 
+    void dumpBlock(const Stmt* s);
+
 private:
 
     bool fancy_;
@@ -54,6 +56,18 @@ void dump(const ASTNode* n, bool fancy /*= false*/, std::ostream& o /*= std::cou
     n->dump(p);
 }
 
+void Printer::dumpBlock(const Stmt* s) {
+    if (s->isa<ScopeStmt>())
+        s->dump(*this);
+    else {
+        o << "{";
+        up();
+        s->dump(*this);
+        down();
+        o << "}";
+    }
+}
+
 //------------------------------------------------------------------------------
 
 void Prg::dump(Printer& p) const {
@@ -81,13 +95,7 @@ void Fct::dump(Printer& p) const {
         p.o << " -> ";
         retType()->dump(p);
     }
-    p.o << " {";
-
-    p.up();
-    body()->dump(p);
-    p.down();
-    p.newline();
-    p.o << '}';
+    p.dumpBlock(body());
 }
 
 void Decl::dump(Printer& p) const {
@@ -200,7 +208,7 @@ void PostfixExpr::dump(Printer& p) const {
     const char* op;
     switch (kind()) {
         case INC: op = "++"; break;
-        case DEC: op = "++"; break;
+        case DEC: op = "--"; break;
     }
 
     p.o << op;
@@ -238,42 +246,27 @@ void ExprStmt::dump(Printer& p) const {
 void IfElseStmt::dump(Printer& p) const {
     p.o << "if (";
     cond()->dump(p);
-    p.o << ") {";
+    p.o << ") ";
+    p.dumpBlock(ifStmt());
 
-    p.up();
-    ifStmt()->dump(p);
-    p.down();
-
-    p.o << "}";
     if (!elseStmt()->isa<EmptyStmt>()) {
-        p.o << " else {";
-
-        p.up();
-        elseStmt()->dump(p);
-        p.down();
-
-        p.o << '}';
+        p.o << " else ";
+        p.dumpBlock(elseStmt());
     }
 }
 
 void WhileStmt::dump(Printer& p) const {
     p.o << "while (";
     cond()->dump(p);
-    p.o << ") {";
+    p.o << ") ";
 
-    p.up();
-    body()->dump(p);
-    p.down();
-
-    p.o << "}";
+    p.dumpBlock(body());
 }
 
 void DoWhileStmt::dump(Printer& p) const {
-    p.o << "do {";
-    p.up();
-    body()->dump(p);
-    p.down();
-    p.o << "} while (";
+    p.o << "do ";
+    p.dumpBlock(body());
+    p.o << " while (";
     cond()->dump(p);
     p.o << ");";
 }
@@ -291,13 +284,9 @@ void ForStmt::dump(Printer& p) const {
     p.o << "; ";
 
     inc()->dump(p);
-    p.o << ") {";
+    p.o << ") ";
 
-    p.up();
-    body()->dump(p);
-    p.down();
-
-    p.o << "}";
+    p.dumpBlock(body());
 }
 
 void BreakStmt::dump(Printer& p) const {
@@ -315,9 +304,14 @@ void ReturnStmt::dump(Printer& p) const {
         p.o << ' ';
         expr()->dump(p);
     }
+
+    p.o << ';';
 }
 
 void ScopeStmt::dump(Printer& p) const {
+    p.o << "{";
+    p.up();
+
     if (!stmts().empty()) {
         for (Stmts::const_iterator i = stmts().begin(), e = stmts().end() - 1; i != e; ++i) {
             (*i)->dump(p);
@@ -326,6 +320,8 @@ void ScopeStmt::dump(Printer& p) const {
 
         stmts().back()->dump(p);
     }
+    p.down();
+    p.o << "}";
 }
 
 } // namespace impala

@@ -6,6 +6,110 @@
 
 #include "anydsl/util/assert.h"
 
+#include "impala/ast.h"
+#include "impala/lexer.h"
+#include "impala/prec.h"
+
+using namespace anydsl;
+
+namespace impala {
+
+class Parser {
+public:
+
+    /*
+     * constructor
+     */
+
+    Parser(std::istream& stream, const std::string& filename);
+
+    /*
+     * helpers
+     */
+
+    const Token& la () const { return lookahead_[0]; }
+    const Token& la2() const { return lookahead_[1]; }
+
+#ifdef NDEBUG
+    Token eat(TokenKind /*what*/) { return lex(); }
+#else
+    Token eat(TokenKind what) { assert(what == la() && "internal parser error"); return lex(); }
+#endif
+
+    bool accept(TokenKind tok);
+
+    bool expect(TokenKind tok, const std::string& context);
+    void error(const std::string& what, const std::string& context);
+
+    // misc
+    const Prg* parse();
+    Token parseId();
+    const Type* parseType();
+    const Decl* parseDecl();
+    void parseGlobals();
+    const Fct* parseFct();
+
+    // expressions
+    bool isExpr();
+    const Expr* tryExpr();
+    const Expr* parseExpr(Prec prec);
+    const Expr* parseExpr() { return parseExpr(BOTTOM); }
+    const Expr* parsePrefixExpr();
+    const Expr* parseInfixExpr(const Expr* left);
+    const Expr* parsePostfixExpr(const Expr* left);
+    const Expr* parsePrimaryExpr();
+    const Expr* parseLiteral();
+    const Expr* parseLambda();
+
+    // statements
+    const Stmt* parseStmt();
+    const ExprStmt* parseExprStmt();
+    const DeclStmt* parseDeclStmt();
+    const Stmt* parseIfElse();
+    const Stmt* parseWhile();
+    const Stmt* parseDoWhile();
+    const Stmt* parseFor();
+    const Stmt* parseBreak();
+    const Stmt* parseContinue();
+    const Stmt* parseReturn();
+
+    /// Stmt+
+    const Stmt* parseStmtList();
+    /// '{' stmt '}'
+    const Stmt* parseScopeBody();
+    /// stmt which is \em not a compound-stmt \em or '{' stmt '}'
+    const Stmt* parseScope();
+
+    /// helper for condition in if/while/do-while
+    const Expr* parseCond(const std::string& what);
+
+private:
+
+    int nextId();
+
+    /// Consume next Token in input stream, fill look-ahead buffer, return consumed Token.
+    Token lex();
+
+    /*
+     * data
+     */
+
+    Lexer lexer_;       ///< invoked in order to get next token
+    Token lookahead_[2];///< LL(2) look ahead
+    const Loop* loop_;
+    Prg* prg_;
+    int counter_;
+    anydsl::Location prevLoc_;
+};
+
+//------------------------------------------------------------------------------
+
+const Prg* parse(std::istream& i, const std::string& filename) {
+    Parser p(i, filename);
+    return p.parse();
+}
+
+//------------------------------------------------------------------------------
 
 #define PARSE_COMMA_LIST(stmnt, delimiter, context) { \
         if (la() != delimiter) { \
@@ -15,17 +119,6 @@
         expect(delimiter, context); \
     }
 
-using namespace anydsl;
-
-namespace impala {
-
-/*
- * statics
- */
-
-/*static*/ Type2Prec    Parser::preRPrec_;
-/*static*/ Type2BinPrec Parser::binPrec_;
-/*static*/ Type2Prec    Parser::postLPrec_;
 
 /*
  * constructor and destructor
@@ -34,6 +127,7 @@ namespace impala {
 Parser::Parser(std::istream& stream, const std::string& filename)
     : lexer_(stream, filename)
     , loop_(0)
+    , prg_(new Prg())
     , counter_(0)
 {
     Token::init(); // HACK
@@ -41,18 +135,6 @@ Parser::Parser(std::istream& stream, const std::string& filename)
     // init 2 lookahead
     lookahead_[0] = lexer_.lex();
     lookahead_[1] = lexer_.lex();
-
-    static bool init = false;
-    init = true;
-
-    if (!init) {
-        // init prec tables
-#define IMPALA_PREFIX(    tok, t_str,    r)  preRPrec_[Token:: tok] = r;
-#define IMPALA_POSTFIX(   tok, t_str, l   ) postLPrec_[Token:: tok] = l;
-#define IMPALA_INFIX(     tok, t_str, l, r)   binPrec_[Token:: tok] = BinPrec(l, r);
-#define IMPALA_INFIX_ASGN(tok, t_str, l, r)   binPrec_[Token:: tok] = BinPrec(l, r);
-#include <impala/tokenlist.h>
-    }
 }
 
 /*
@@ -122,7 +204,7 @@ static Symbol make_symbol(const char* cstr, int id) {
 
 const Prg* Parser::parse() {
     parseGlobals();
-    return 0;
+    return prg_;
 }
 
 Token Parser::parseId() {
@@ -158,7 +240,7 @@ const Decl* Parser::parseDecl() {
 void Parser::parseGlobals() {
     while (true) {
         switch (la()) {
-            case Token::DEF:         parseFct(); continue;
+            case Token::DEF:         prg_->fcts_.push_back(parseFct()); continue;
             case Token::END_OF_FILE: return;
 
             // consume token nobody wants to have in order to prevent infinite loop
@@ -169,7 +251,7 @@ void Parser::parseGlobals() {
     }
 }
 
-void Parser::parseFct() {
+const Fct* Parser::parseFct() {
     Position pos1 = eat(Token::DEF).pos1();
     Symbol symbol = parseId().symbol();
 
@@ -191,11 +273,13 @@ void Parser::parseFct() {
     const Stmt* body = parseScopeBody();
 
     fct->set(pos1, symbol, retType, body);
+
+    return fct;
 }
 
 const Stmt* Parser::parseStmtList() {
     ScopeStmt* scope = new ScopeStmt();
-    std::vector<const Stmt*>& stmts = scope->stmts_;
+    Stmts& stmts = scope->stmts_;
 
     while (true) {
         if (isExpr()) {
@@ -471,12 +555,12 @@ const Expr* Parser::parseExpr(Prec prec) {
          */
 
         if (la().isInfix()) {
-            if ( prec > binPrec_[la()].l )
+            if (prec > PrecTable::infix_l[la()])
                 break;
 
             left = parseInfixExpr(left);
         } else if ( la().isPostfix() ) {
-            if ( prec > postLPrec_[la()] )
+            if (prec > PrecTable::postfix_l[la()])
                 break;
 
             left = parsePostfixExpr(left);
@@ -489,14 +573,14 @@ const Expr* Parser::parseExpr(Prec prec) {
 
 const Expr* Parser::parsePrefixExpr() {
     Token op = lex();
-    const Expr* right = parseExpr(preRPrec_[op]);
+    const Expr* right = parseExpr(PrecTable::prefix_r[op]);
 
     return new PrefixExpr(op.pos1(), (PrefixExpr::Kind) op.kind(), right);
 }
 
 const Expr* Parser::parseInfixExpr(const Expr* left) {
     Token op = lex();
-    const Expr* right = parseExpr(binPrec_[op].r);
+    const Expr* right = parseExpr(PrecTable::infix_r[op]);
 
     return new InfixExpr(left, (InfixExpr::Kind) op.kind(), right);
 }

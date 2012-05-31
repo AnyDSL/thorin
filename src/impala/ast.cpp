@@ -2,11 +2,11 @@
 
 namespace impala {
 
-Decl::Decl(const Token& id, const Type* type)
-    : id_(id.symbol())
+Decl::Decl(const Token& tok, const Type* type)
+    : symbol_(tok.symbol())
     , type_(type)
 {
-    loc = anydsl::Location(id.pos1(), type->loc.pos2());
+    loc = anydsl::Location(tok.pos1(), type->loc.pos2());
 }
 
 void Fct::set(const anydsl::Position& pos1, const anydsl::Symbol symbol, const Type* retType, const Stmt* body) {

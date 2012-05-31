@@ -1,25 +1,109 @@
 #include "impala/ast.h"
 
+#include "anydsl/util/foreach.h"
+
+#include "impala/prec.h"
+
 namespace impala {
 
-std::ostream& Prg::dump(std::ostream& o) {
-    return o;
+class Printer {
+public:
+
+    Printer(std::ostream& o, bool fancy)
+        : o(o)
+        , prec(BOTTOM)
+        , fancy_(fancy)
+        , indent_(0)
+    {}
+
+    void newline();
+    void up();
+    void down();
+
+    bool fancy() const { return fancy_; }
+
+    std::ostream& o;
+    Prec prec;
+
+private:
+
+    bool fancy_;
+    int indent_;
+};
+
+void Printer::newline() {
+    o << '\n';
+    for (int i = 0; i < indent_; ++i)
+        o << "    ";
 }
 
-std::ostream& Fct::dump(std::ostream& o) {
-    return o;
+void Printer::up() {
+    ++indent_;
+    newline();
 }
 
-std::ostream& Decl::dump(std::ostream& o) {
-    return o;
+void Printer::down() {
+    --indent_;
+    newline();
+}
+
+//------------------------------------------------------------------------------
+
+void dump(const ASTNode* n, bool fancy /*= false*/, std::ostream& o /*= std::cout*/) {
+    Printer p(o, fancy);
+    n->dump(p);
+}
+
+//------------------------------------------------------------------------------
+
+void Prg::dump(Printer& p) const {
+    FOREACH(f, fcts()) {
+        f->dump(p);
+        p.newline();
+    }
+}
+
+void Fct::dump(Printer& p) const {
+    p.o << "def " << symbol() << '(';
+
+    if (!params().empty()) {
+        for (Decls::const_iterator i = params().begin(), e = params().end() - 1; i != e; ++i) {
+            (*i)->dump(p);
+            p.o << ", ";
+        }
+
+        params().back()->dump(p);
+    }
+
+    p.o << ')';
+
+    if (retType()) {
+        p.o << " -> ";
+        retType()->dump(p);
+    }
+    p.o << " {";
+
+    p.up();
+    body()->dump(p);
+    p.down();
+    p.newline();
+    p.o << '}';
+}
+
+void Decl::dump(Printer& p) const {
+    p.o << symbol() << " : ";
+    type()->dump(p);
 }
 
 /*
  * Type
  */
 
-std::ostream& PrimType::dump(std::ostream& o) {
-    return o;
+void PrimType::dump(Printer& p) const {
+    switch (kind()) {
+#define IMPALA_TYPE(itype, atype) case TYPE_##itype: p.o << #atype; return;
+#include "impala/tokenlist.h"
+    }
 }
 
 
@@ -27,76 +111,221 @@ std::ostream& PrimType::dump(std::ostream& o) {
  * Expr
  */
 
-std::ostream& EmptyExpr::dump(std::ostream& o) {
-    return o;
+void EmptyExpr::dump(Printer& p) const {
+    p.o << "/*empty*/";
 }
 
-std::ostream& Literal::dump(std::ostream& o) {
-    return o;
+void Literal::dump(Printer& p) const {
+    switch (kind()) {
+#define IMPALA_LIT(tok, t) \
+        case tok: { \
+            p.o << (anydsl::u64) value().get_##t(); \
+            return; \
+        }
+#include "impala/tokenlist.h"
+        case BOOL:
+            if (value().bool_) 
+                p.o << "true";
+            else
+                p.o << "false";
+            return;
+    }
 }
 
-std::ostream& Id::dump(std::ostream& o) {
-    return o;
+void Id::dump(Printer& p) const {
+    p.o << symbol();
 }
 
-std::ostream& PrefixExpr::dump(std::ostream& o) {
-    return o;
+void PrefixExpr::dump(Printer& p) const {
+    Prec r = PrecTable::prefix_r[kind()];
+    Prec old = p.prec;
+
+    const char* op;
+    switch (kind()) {
+#define IMPALA_PREFIX(tok, str, rprec) case tok: op = str; break;
+#include "impala/tokenlist.h"
+    }
+
+    p.o << op;
+
+    p.prec = r;
+    right()->dump(p);
+
+    p.prec = old;
 }
 
-std::ostream& InfixExpr::dump(std::ostream& o) {
-    return o;
+void InfixExpr::dump(Printer& p) const {
+    Prec l = PrecTable::infix_l[kind()];
+    Prec r = PrecTable::infix_r[kind()];
+    Prec old = p.prec;
+
+    bool paren = !p.fancy() || p.prec > l;
+
+    if (paren)
+        p.o << '(';
+
+    p.prec = l;
+    left()->dump(p);
+
+    const char* op;
+    switch (kind()) {
+#define IMPALA_INFIX_ASGN(tok, str, lprec, rprec) case tok: op = str; break;
+#define IMPALA_INFIX(     tok, str, lprec, rprec) case tok: op = str; break;
+#include "impala/tokenlist.h"
+    }
+
+    p.o << ' ' << op << ' ';
+
+    p.prec = r;
+    right()->dump(p);
+
+    if (paren)
+        p.o << ')';
+
+    p.prec = old;
 }
 
-std::ostream& PostfixExpr::dump(std::ostream& o) {
-    return o;
+void PostfixExpr::dump(Printer& p) const {
+    Prec l = PrecTable::postfix_l[kind()];
+    Prec old = p.prec;
+
+    bool paren = !p.fancy() || p.prec > l;
+
+    if (paren)
+        p.o << '(';
+
+    p.prec = l;
+    left()->dump(p);
+
+    const char* op;
+    switch (kind()) {
+        case INC: op = "++"; break;
+        case DEC: op = "++"; break;
+    }
+
+    p.o << op;
+
+    if (paren)
+        p.o << ')';
+
+    p.prec = old;
 }
 
 /*
  * Stmt
  */
 
-std::ostream& EmptyStmt::dump(std::ostream& o) {
-    return o;
+void EmptyStmt::dump(Printer& p) const {
+    p.o << ';';
 }
 
-std::ostream& DeclStmt::dump(std::ostream& o) {
-    return o;
+void DeclStmt::dump(Printer& p) const {
+    decl()->dump(p);
+
+    if (init()) {
+        p.o << " = ";
+        init()->dump(p);
+    }
+
+    p.o << ';';
 }
 
-std::ostream& ExprStmt::dump(std::ostream& o) {
-    return o;
+void ExprStmt::dump(Printer& p) const {
+    expr()->dump(p);
+    p.o << ';';
 }
 
-std::ostream& IfElseStmt::dump(std::ostream& o) {
-    return o;
+void IfElseStmt::dump(Printer& p) const {
+    p.o << "if (";
+    cond()->dump(p);
+    p.o << ") {";
+
+    p.up();
+    ifStmt()->dump(p);
+    p.down();
+
+    p.o << "}";
+    if (!elseStmt()->isa<EmptyStmt>()) {
+        p.o << " else {";
+
+        p.up();
+        elseStmt()->dump(p);
+        p.down();
+
+        p.o << '}';
+    }
 }
 
-std::ostream& WhileStmt::dump(std::ostream& o) {
-    return o;
+void WhileStmt::dump(Printer& p) const {
+    p.o << "while (";
+    cond()->dump(p);
+    p.o << ") {";
+
+    p.up();
+    body()->dump(p);
+    p.down();
+
+    p.o << "}";
 }
 
-std::ostream& DoWhileStmt::dump(std::ostream& o) {
-    return o;
+void DoWhileStmt::dump(Printer& p) const {
+    p.o << "do {";
+    p.up();
+    body()->dump(p);
+    p.down();
+    p.o << "} while (";
+    cond()->dump(p);
+    p.o << ");";
 }
 
-std::ostream& ForStmt::dump(std::ostream& o) {
-    return o;
+void ForStmt::dump(Printer& p) const {
+    p.o << "for (";
+
+    if (isDecl())
+        initDecl()->dump(p);
+    else
+        initExpr()->dump(p);
+
+    p.o << ' ';
+    cond()->dump(p);
+    p.o << "; ";
+
+    inc()->dump(p);
+    p.o << ") {";
+
+    p.up();
+    body()->dump(p);
+    p.down();
+
+    p.o << "}";
 }
 
-std::ostream& BreakStmt::dump(std::ostream& o) {
-    return o;
+void BreakStmt::dump(Printer& p) const {
+    p.o << "break;";
 }
 
-std::ostream& ContinueStmt::dump(std::ostream& o) {
-    return o;
+void ContinueStmt::dump(Printer& p) const {
+    p.o << "continue;";
 }
 
-std::ostream& ReturnStmt::dump(std::ostream& o) {
-    return o;
+void ReturnStmt::dump(Printer& p) const {
+    p.o << "return";
+
+    if (expr()) {
+        p.o << ' ';
+        expr()->dump(p);
+    }
 }
 
-std::ostream& ScopeStmt::dump(std::ostream& o) {
-    return o;
+void ScopeStmt::dump(Printer& p) const {
+    if (!stmts().empty()) {
+        for (Stmts::const_iterator i = stmts().begin(), e = stmts().end() - 1; i != e; ++i) {
+            (*i)->dump(p);
+            p.newline();
+        }
+
+        stmts().back()->dump(p);
+    }
 }
 
 } // namespace impala

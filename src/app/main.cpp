@@ -13,6 +13,8 @@
 #include "anydsl/printer.h"
 #include "anydsl/world.h"
 #include "impala/parser.h"
+#include "impala/ast.h"
+#include "impala/dump.h"
 
 //------------------------------------------------------------------------------
 
@@ -100,41 +102,9 @@ int main(int argc, char** argv) {
         World world;
         const char* filename = infiles[0].c_str();
         ifstream file(filename);
-        impala::Parser parser(file, filename);
-        //Lambda* root = 
-            parser.parse();
+        const impala::Prg* p = impala::parse(file, filename);
+        dump(p, true);
         
-        const Sigma* s = world.sigma2(world.type_u16(), world.type_u8());
-        world.sigma3(s, s, s);
-        const Sigma* u = world.sigma2(world.type_u16(), world.type_u8());
-        const Sigma* s3 = world.sigma3(u, s, s);
-
-        world.literal_u8(1);
-        world.literal_u8(2);
-        world.literal_u8(3);
-        world.literal_u8(2);
-        world.literal_u16(2);
-        world.literal_u16(2);
-        world.literal_u16(5);
-        world.literal_u32(5);
-        world.literal_u32(0);
-        world.literal_u32(11);
-        world.createArithOp(ArithOp_add, world.literal_u32(5), world.literal_u32(6));
-        Value* a = world.createArithOp(ArithOp_add, world.literal_u32(11), world.literal_u32(0));
-        //Value* b = world.createArithOp(ArithOp_add, world.literal_u32(7), world.literal_u32(4));
-        world.createArithOp(ArithOp_add, a, world.literal_u32(6));
-        world.createArithOp(ArithOp_add, world.literal_u32(6), a);
-        world.createRelOp(RelOp_cmp_ult, world.literal_u16(2), world.literal_u16(5));
-        world.createRelOp(RelOp_cmp_ugt, world.literal_u16(5), world.literal_u16(2));
-
-        print(std::cout, a);
-        std::cout << std::endl;
-
-        print(std::cout, s3);
-        std::cout << std::endl;
-
-        //FOREACH(
-
         //Emit the results
         switch (destinationType) {
             case None:

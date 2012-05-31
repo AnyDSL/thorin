@@ -70,8 +70,6 @@ World::~World() {
     FOREACH(sigma,  namedSigmas_) delete sigma;
     //FOREACH(lambda, lambdas_)     delete lambda;
 
-    std::cout << types_.size() << std::endl;
-    std::cout << values_.size() << std::endl;
     FOREACH(p, values_) delete p.second;
     FOREACH(t, types_) delete t.second;
 }

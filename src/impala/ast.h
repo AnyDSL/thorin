@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "anydsl/util/box.h"
+#include "anydsl/util/cast.h"
 #include "anydsl/util/location.h"
 
 #include "impala/token.h"
@@ -12,12 +13,16 @@ namespace impala {
 
 class Decl;
 class Expr;
+class Fct;
+class Printer;
 class Stmt;
 class Type;
 class Sema;
 
 typedef std::vector<const Decl*> Decls;
 typedef std::vector<const Expr*> Exprs;
+typedef std::vector<const Fct*>  Fcts;
+typedef std::vector<const Stmt*> Stmts;
 
 class ASTNode {
 public:
@@ -27,14 +32,27 @@ public:
     anydsl::Location loc;
 
     virtual void check(Sema& sema) = 0;
-    virtual std::ostream& dump(std::ostream& o) = 0;
+    virtual void dump(Printer& p) const = 0;
+
+    template<class T> T* as()  { return anydsl::scast<T>(this); }
+    template<class T> T* isa() { return anydsl::dcast<T>(this); }
+    template<class T> const T* as()  const { return anydsl::scast<T>(this); }
+    template<class T> const T* isa() const { return anydsl::dcast<T>(this); }
 };
 
 class Prg : public ASTNode {
 public:
 
     virtual void check(Sema& sema);
-    virtual std::ostream& dump(std::ostream& o);
+    virtual void dump(Printer& p) const;
+
+    const Fcts& fcts() const { return fcts_; }
+
+private:
+
+    Fcts fcts_;
+
+    friend class Parser;
 };
 
 class Fct : public ASTNode {
@@ -45,9 +63,10 @@ public:
     anydsl::Symbol symbol() const { return symbol_; }
     const Type* retType() const { return retType_; }
     const Stmt* body() const { return body_; }
+    const Decls& params() const { return params_; }
 
     virtual void check(Sema& sema);
-    virtual std::ostream& dump(std::ostream& o);
+    virtual void dump(Printer& p) const;
 
 private:
 
@@ -64,17 +83,17 @@ private:
 class Decl : public ASTNode {
 public:
 
-    Decl(const Token& id, const Type* type);
+    Decl(const Token& tok, const Type* type);
 
-    anydsl::Symbol id() const { return id_; }
+    anydsl::Symbol symbol() const { return symbol_; }
     const Type* type() const { return type_; }
 
     virtual void check(Sema& sema);
-    virtual std::ostream& dump(std::ostream& o);
+    virtual void dump(Printer& p) const;
 
 private:
 
-    anydsl::Symbol id_;
+    anydsl::Symbol symbol_;
     const Type* type_;
 };
 
@@ -97,7 +116,7 @@ public:
     Kind kind() const { return kind_; }
 
     virtual void check(Sema& sema);
-    virtual std::ostream& dump(std::ostream& o);
+    virtual void dump(Printer& p) const;
 
 private:
 
@@ -120,7 +139,7 @@ public:
     }
 
     virtual void check(Sema& sema);
-    virtual std::ostream& dump(std::ostream& o);
+    virtual void dump(Printer& p) const;
 };
 
 class Literal : public Expr {
@@ -138,7 +157,7 @@ public:
     anydsl::Box value() const { return value_; }
 
     virtual void check(Sema& sema);
-    virtual std::ostream& dump(std::ostream& o);
+    virtual void dump(Printer& p) const;
 
 private:
 
@@ -154,7 +173,7 @@ public:
     anydsl::Symbol symbol() const { return symbol_; }
 
     virtual void check(Sema& sema);
-    virtual std::ostream& dump(std::ostream& o);
+    virtual void dump(Printer& p) const;
 
 private:
 
@@ -177,7 +196,7 @@ public:
     Kind kind() const { return kind_; }
 
     virtual void check(Sema& sema);
-    virtual std::ostream& dump(std::ostream& o);
+    virtual void dump(Printer& p) const;
 
 private:
 
@@ -201,7 +220,7 @@ public:
     Kind kind() const { return kind_; }
 
     virtual void check(Sema& sema);
-    virtual std::ostream& dump(std::ostream& o);
+    virtual void dump(Printer& p) const;
 
 private:
 
@@ -227,7 +246,7 @@ public:
     Kind kind() const { return kind_; }
 
     virtual void check(Sema& sema);
-    virtual std::ostream& dump(std::ostream& o);
+    virtual void dump(Printer& p) const;
 
 private:
 
@@ -247,7 +266,7 @@ public:
     }
 
     virtual void check(Sema& sema);
-    virtual std::ostream& dump(std::ostream& o);
+    virtual void dump(Printer& p) const;
 };
 
 class ExprStmt : public Stmt {
@@ -258,7 +277,7 @@ public:
     const Expr* expr() const { return expr_; }
 
     virtual void check(Sema& sema);
-    virtual std::ostream& dump(std::ostream& o);
+    virtual void dump(Printer& p) const;
 
 private:
 
@@ -270,11 +289,16 @@ public:
 
     DeclStmt(const Decl* decl, const Expr* init, const anydsl::Position& pos2);
 
-    const Decl* decl_;
-    const Expr* init_;
+    const Decl* decl() const { return decl_; }
+    const Expr* init() const { return init_; }
 
     virtual void check(Sema& sema);
-    virtual std::ostream& dump(std::ostream& o);
+    virtual void dump(Printer& p) const;
+
+private:
+
+    const Decl* decl_;
+    const Expr* init_;
 };
 
 class IfElseStmt: public Stmt {
@@ -287,7 +311,7 @@ public:
     const Stmt* elseStmt() const { return elseStmt_; }
 
     virtual void check(Sema& sema);
-    virtual std::ostream& dump(std::ostream& o);
+    virtual void dump(Printer& p) const;
 
 private:
 
@@ -325,7 +349,7 @@ public:
     void set(const anydsl::Position& pos1, const Expr* cond, const Stmt* body);
 
     virtual void check(Sema& sema);
-    virtual std::ostream& dump(std::ostream& o);
+    virtual void dump(Printer& p) const;
 };
 
 class DoWhileStmt : public Loop {
@@ -336,7 +360,7 @@ public:
     void set(const anydsl::Position& pos1, const Stmt* body, const Expr* cond, const anydsl::Position& pos2);
 
     virtual void check(Sema& sema);
-    virtual std::ostream& dump(std::ostream& o);
+    virtual void dump(Printer& p) const;
 };
 
 class ForStmt : public Loop {
@@ -348,8 +372,15 @@ public:
     void set(const DeclStmt* d) { initDecl_ = d; isDecl_ = true; }
     void set(const ExprStmt* e) { initExpr_ = e; isDecl_ = false; }
 
+    const DeclStmt* initDecl() const { return initDecl_; }
+    const ExprStmt* initExpr() const { return initExpr_; }
+    const Stmt* init() const { return isDecl_ ? (const Stmt*) initDecl_ : (const Stmt*) initExpr_; }
+    const Expr* inc() const { return inc_; }
+
+    bool isDecl() const { return isDecl_; }
+
     virtual void check(Sema& sema);
-    virtual std::ostream& dump(std::ostream& o);
+    virtual void dump(Printer& p) const;
 
 private:
 
@@ -368,7 +399,7 @@ public:
     BreakStmt(const anydsl::Position& pos1, const anydsl::Position& pos2, const Loop* loop);
 
     virtual void check(Sema& sema);
-    virtual std::ostream& dump(std::ostream& o);
+    virtual void dump(Printer& p) const;
 
 private:
 
@@ -381,7 +412,7 @@ public:
     ContinueStmt(const anydsl::Position& pos1, const anydsl::Position& pos2, const Loop* loop);
 
     virtual void check(Sema& sema);
-    virtual std::ostream& dump(std::ostream& o);
+    virtual void dump(Printer& p) const;
 
 private:
 
@@ -396,7 +427,7 @@ public:
     const Expr* expr() const { return expr_; }
 
     virtual void check(Sema& sema);
-    virtual std::ostream& dump(std::ostream& o);
+    virtual void dump(Printer& p) const;
 
 private:
 
@@ -408,12 +439,14 @@ public:
 
     ScopeStmt() {}
 
+    const Stmts& stmts() const { return stmts_; }
+
     virtual void check(Sema& sema);
-    virtual std::ostream& dump(std::ostream& o);
+    virtual void dump(Printer& p) const;
 
 private:
 
-    std::vector<const Stmt*> stmts_;
+    Stmts stmts_;
 
     friend class Parser;
 };

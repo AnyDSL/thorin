@@ -38,10 +38,10 @@ struct BinPrec {
 typedef BinPrec Type2BinPrec[Token::NUM_TOKENS];
 
 struct PrecTable {
-    static Type2Prec    prefix_r; ///< Right precedence -- for unary prefix operators.
-    static Type2Prec    infix_l;  ///< Left precedences -- for binary operators.
-    static Type2Prec    infix_r;  ///< Right precedences -- for binary operators.
-    static Type2Prec    postfix_l;///< Left precedence -- for unary postfix operators.
+    static Type2Prec prefix_r; ///< Right precedence -- for unary prefix operators.
+    static Type2Prec infix_l;  ///< Left precedences -- for binary operators.
+    static Type2Prec infix_r;  ///< Right precedences -- for binary operators.
+    static Type2Prec postfix_l;///< Left precedence -- for unary postfix operators.
 
 private:
 

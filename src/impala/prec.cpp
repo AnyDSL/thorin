@@ -6,9 +6,9 @@ namespace impala {
 /*static*/ Type2Prec PrecTable::infix_l;
 /*static*/ Type2Prec PrecTable::infix_r;
 /*static*/ Type2Prec PrecTable::postfix_l;
-/*static*/ ForceInit PrecTable::init_;
+/*static*/ PrecTable::ForceInit PrecTable::init_;
 
-ForceInit::ForceInit() {
+PrecTable::ForceInit::ForceInit() {
 #define IMPALA_PREFIX(    tok, t_str,    r)  PrecTable::prefix_r[Token:: tok] = r;
 #define IMPALA_POSTFIX(   tok, t_str, l   ) PrecTable::postfix_l[Token:: tok] = l;
 #define IMPALA_INFIX(     tok, t_str, l, r)   PrecTable::infix_l[Token:: tok] = l; PrecTable::infix_r[Token:: tok] = r;

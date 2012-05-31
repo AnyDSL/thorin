@@ -126,8 +126,6 @@ Parser::Parser(std::istream& stream, const std::string& filename)
     , prg_(new Prg())
     , counter_(0)
 {
-    Token::init(); // HACK
-
     // init 2 lookahead
     lookahead_[0] = lexer_.lex();
     lookahead_[1] = lexer_.lex();

@@ -37,10 +37,6 @@ struct BinPrec {
 
 typedef BinPrec Type2BinPrec[Token::NUM_TOKENS];
 
-struct ForceInit {
-    ForceInit();
-};
-
 struct PrecTable {
     static Type2Prec    prefix_r; ///< Right precedence -- for unary prefix operators.
     static Type2Prec    infix_l;  ///< Left precedences -- for binary operators.
@@ -49,7 +45,7 @@ struct PrecTable {
 
 private:
 
-    static ForceInit init_;
+    static struct ForceInit { ForceInit(); } init_;
 };
 
 } // namespace impala

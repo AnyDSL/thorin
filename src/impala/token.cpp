@@ -140,12 +140,13 @@ int Token::tok2op_[NUM_TOKENS];
 Token::Sym2Tok Token::keywords_;
 Token::Tok2Sym Token::tok2sym_;
 Token::Tok2Str Token::tok2str_;
+/*static*/ Token::ForceInit Token::init_;
 
 /*
  * static methods
  */
 
-/*static*/ void Token::init() {
+Token::ForceInit::ForceInit() {
     ANYDSL_CALL_ONCE;
 
     /*

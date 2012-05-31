@@ -105,8 +105,6 @@ public:
      * statics
      */
 
-    static void init();
-
 private:
 
     anydsl::Symbol symbol_;
@@ -116,6 +114,7 @@ private:
     static int tok2op_[NUM_TOKENS];
     static anydsl::Symbol insert(Kind tok, const char* str);
     static void insertKey(Kind tok, const char* str);
+    static struct ForceInit { ForceInit(); } init_;
 
     typedef std::map<Kind, anydsl::Symbol> Tok2Sym;
     static Tok2Sym tok2sym_;

@@ -48,9 +48,6 @@ void PostfixExpr::check(Sema& sema) {
  * Stmt
  */
 
-void EmptyStmt::check(Sema& sema) {
-}
-
 void DeclStmt::check(Sema& sema) {
 }
 

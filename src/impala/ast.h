@@ -256,17 +256,9 @@ private:
 //------------------------------------------------------------------------------
 
 class Stmt : public ASTNode {
-};
-
-class EmptyStmt : public Stmt {
 public:
 
-    EmptyStmt(const anydsl::Location& loc) {
-        this->loc = loc;
-    }
-
-    virtual void check(Sema& sema);
-    virtual void dump(Printer& p) const;
+    virtual bool isEmpty() const { return false; }
 };
 
 class ExprStmt : public Stmt {
@@ -438,11 +430,15 @@ class ScopeStmt : public Stmt {
 public:
 
     ScopeStmt() {}
+    ScopeStmt(const anydsl::Location& loc) {
+        this->loc = loc;
+    }
 
     const Stmts& stmts() const { return stmts_; }
 
     virtual void check(Sema& sema);
     virtual void dump(Printer& p) const;
+    virtual bool isEmpty() { return stmts_.empty(); }
 
 private:
 

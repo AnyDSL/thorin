@@ -73,11 +73,7 @@ public:
     const Stmt* parseContinue();
     const Stmt* parseReturn();
 
-    /// Stmt+
-    const Stmt* parseStmtList();
-    /// '{' stmt '}'
-    const Stmt* parseScopeBody();
-    /// stmt which is \em not a compound-stmt \em or '{' stmt '}'
+    /// { Stmt* }
     const Stmt* parseScope();
 
     /// helper for condition in if/while/do-while
@@ -270,15 +266,19 @@ const Fct* Parser::parseFct() {
     if (accept(Token::ARROW))
         retType = parseType();
 
-    const Stmt* body = parseScopeBody();
+    const Stmt* body = parseScope();
 
     fct->set(pos1, symbol, retType, body);
 
     return fct;
 }
 
-const Stmt* Parser::parseStmtList() {
+const Stmt* Parser::parseScope() {
     ScopeStmt* scope = new ScopeStmt();
+    scope->loc.setPos1(la().pos1());
+
+    expect(Token::L_BRACE, "scope-statement");
+
     Stmts& stmts = scope->stmts_;
 
     while (true) {
@@ -294,13 +294,18 @@ const Stmt* Parser::parseStmtList() {
             case Token::L_BRACE:  
             case Token::ID:          stmts.push_back(parseStmt()); continue;
 
-            case Token::END_OF_FILE: return scope;
-            case Token::R_BRACE:     return scope;
+            case Token::END_OF_FILE:
+            case Token::R_BRACE:
+                scope->loc.setPos2(la().pos2());
+                expect(Token::R_BRACE, "scope-statement");
+                return scope;
 
             // consume token nobody wants to have in order to prevent infinite loop
             default:
                 error("statement", "statement list");
+                scope->loc.setPos2(prevLoc_.pos2());
                 lex(); 
+                return scope;
         }
     }
 }
@@ -316,7 +321,7 @@ const Stmt* Parser::parseStmt() {
     Location loc = la().loc();
     if (accept(Token::ELSE)) {
         error("'else' without matching 'if'", "statement");
-        return new EmptyStmt(loc);
+        return new ScopeStmt(loc);
     }
 
     switch (la()) {
@@ -326,7 +331,7 @@ const Stmt* Parser::parseStmt() {
                 return parseDeclStmt();
             else {
                 error("statement", "");
-                return new EmptyStmt(loc);
+                return new ScopeStmt(loc);
             }
 
         // other statements
@@ -337,8 +342,8 @@ const Stmt* Parser::parseStmt() {
         case Token::BREAK:     return parseBreak();
         case Token::CONTINUE:  return parseContinue();
         case Token::RETURN:    return parseReturn();
-        case Token::L_BRACE:   return parseScopeBody();
-        case Token::SEMICOLON: return new EmptyStmt(lex().loc());
+        case Token::L_BRACE:   return parseScope();
+        case Token::SEMICOLON: return new ScopeStmt(lex().loc());
         default:               ANYDSL_UNREACHABLE;
     }
 }
@@ -368,8 +373,8 @@ const DeclStmt* Parser::parseDeclStmt() {
 const Stmt* Parser::parseIfElse() {
     Position pos1 = eat(Token::IF).pos1();
     const Expr* cond = parseCond("if-statement");
-    const Stmt* ifStmt = parseScope();
-    const Stmt* elseStmt = accept(Token::ELSE) ? parseScope() : new EmptyStmt(prevLoc_);
+    const Stmt* ifStmt = parseStmt();
+    const Stmt* elseStmt = accept(Token::ELSE) ? parseStmt() : new ScopeStmt(prevLoc_);
 
     return new IfElseStmt(pos1, cond, ifStmt, elseStmt);
 }
@@ -381,7 +386,7 @@ const Stmt* Parser::parseWhile() {
     const Loop* oldLoop = loop_;
     WhileStmt*  newLoop = new WhileStmt();
     loop_ = newLoop;
-    const Stmt* body = parseScope();
+    const Stmt* body = parseStmt();
     loop_ = oldLoop;
 
     newLoop->set(pos1, cond, body);
@@ -395,7 +400,7 @@ const Stmt* Parser::parseDoWhile() {
     const Loop* oldLoop = loop_;
     DoWhileStmt*  newLoop = new DoWhileStmt();
     loop_ = newLoop;
-    const Stmt* body = parseScope();
+    const Stmt* body = parseStmt();
     loop_ = oldLoop;
 
     expect(Token::WHILE, "do-while-statement");
@@ -457,7 +462,7 @@ const Stmt* Parser::parseFor() {
         inc = new EmptyExpr(prevLoc_);
     }
 
-    const Stmt* body = parseScope();
+    const Stmt* body = parseStmt();
     loop_ = oldLoop;
 
     newLoop->set(pos1, cond, inc, body);
@@ -494,21 +499,6 @@ const Stmt* Parser::parseReturn() {
     }
 
     return new ReturnStmt(pos1, expr, prevLoc_.pos2());
-}
-
-const Stmt* Parser::parseScopeBody() {
-    eat(Token::L_BRACE);
-    const Stmt* stmt = parseStmtList();
-    expect(Token::R_BRACE, "scope-statement");
-
-    return stmt;
-}
-
-const Stmt* Parser::parseScope() {
-    if (la() == Token::L_BRACE)
-        return parseScopeBody();
-
-    return parseStmt();
 }
 
 const Expr* Parser::parseCond(const std::string& what) {

@@ -60,11 +60,12 @@ void Printer::dumpBlock(const Stmt* s) {
     if (s->isa<ScopeStmt>())
         s->dump(*this);
     else {
-        o << "{";
+        //o << "{";
         up();
         s->dump(*this);
-        down();
-        o << "}";
+        --indent_;
+        //down();
+        //o << "}";
     }
 }
 
@@ -223,10 +224,6 @@ void PostfixExpr::dump(Printer& p) const {
  * Stmt
  */
 
-void EmptyStmt::dump(Printer& p) const {
-    p.o << ';';
-}
-
 void DeclStmt::dump(Printer& p) const {
     decl()->dump(p);
 
@@ -249,7 +246,7 @@ void IfElseStmt::dump(Printer& p) const {
     p.o << ") ";
     p.dumpBlock(ifStmt());
 
-    if (!elseStmt()->isa<EmptyStmt>()) {
+    if (elseStmt()->isEmpty()) {
         p.o << " else ";
         p.dumpBlock(elseStmt());
     }

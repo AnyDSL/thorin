@@ -25,17 +25,6 @@ public:
     template<class T> const T* as()  const { return scast<T>(this); }
     template<class T> const T* isa() const { return dcast<T>(this); }
 
-#if 0
-    template<class Child, class RetT>
-    inline RetT accept(Visitor<Child,  RetT>* v);
-
-    template<class Child, class RetT>
-    inline RetT accept(ConstVisitor<Child,  RetT>* v) const;
-
-    template<class Child, class RetT>
-    inline RetT accept(DualConstVisitor<Child,  RetT>* v, const AIRNode* other) const;
-#endif
-
     /**
      * Just do what ever you want with this field.
      * Perhaps you want to attach file/line/col information in this field.

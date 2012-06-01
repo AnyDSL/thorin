@@ -8,9 +8,11 @@
 #include "anydsl/util/location.h"
 
 #include "impala/token.h"
+#include "impala/value.h"
 
 namespace impala {
 
+class CodeGen;
 class Decl;
 class Expr;
 class Fct;
@@ -126,6 +128,10 @@ private:
 //------------------------------------------------------------------------------
 
 class Expr : public ASTNode {
+public:
+
+    virtual Value emit(CodeGen& cg) const = 0;
+
 protected:
 
     Exprs args_;
@@ -140,6 +146,7 @@ public:
 
     virtual void check(Sema& sema);
     virtual void dump(Printer& p) const;
+    virtual Value emit(CodeGen& cg) const;
 };
 
 class Literal : public Expr {
@@ -158,6 +165,7 @@ public:
 
     virtual void check(Sema& sema);
     virtual void dump(Printer& p) const;
+    virtual Value emit(CodeGen& cg) const;
 
 private:
 
@@ -174,6 +182,7 @@ public:
 
     virtual void check(Sema& sema);
     virtual void dump(Printer& p) const;
+    virtual Value emit(CodeGen& cg) const;
 
 private:
 
@@ -189,14 +198,15 @@ public:
 #include "impala/tokenlist.h"
     };
 
-    PrefixExpr(const anydsl::Position& pos1, Kind kind, const Expr* right);
+    PrefixExpr(const anydsl::Position& pos1, Kind kind, const Expr* rexpr);
 
-    const Expr* right() const { return args_[0]; }
+    const Expr* rexpr() const { return args_[0]; }
 
     Kind kind() const { return kind_; }
 
     virtual void check(Sema& sema);
     virtual void dump(Printer& p) const;
+    virtual Value emit(CodeGen& cg) const;
 
 private:
 
@@ -212,15 +222,16 @@ public:
 #include "impala/tokenlist.h"
     };
 
-    InfixExpr(const Expr* left, Kind kind, const Expr* right);
+    InfixExpr(const Expr* lexpr, Kind kind, const Expr* rexpr);
 
-    const Expr* left() const { return args_[0]; }
-    const Expr* right() const { return args_[1]; }
+    const Expr* lexpr() const { return args_[0]; }
+    const Expr* rexpr() const { return args_[1]; }
 
     Kind kind() const { return kind_; }
 
     virtual void check(Sema& sema);
     virtual void dump(Printer& p) const;
+    virtual Value emit(CodeGen& cg) const;
 
 private:
 
@@ -239,14 +250,15 @@ public:
         DEC = Token::DEC
     };
 
-    PostfixExpr(const Expr* left, Kind kind, const anydsl::Position& pos2);
+    PostfixExpr(const Expr* lexpr, Kind kind, const anydsl::Position& pos2);
 
-    const Expr* left() const { return args_[0]; }
+    const Expr* lexpr() const { return args_[0]; }
 
     Kind kind() const { return kind_; }
 
     virtual void check(Sema& sema);
     virtual void dump(Printer& p) const;
+    virtual Value emit(CodeGen& cg) const;
 
 private:
 

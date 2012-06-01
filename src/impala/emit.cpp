@@ -1,3 +1,76 @@
+#include "impala/ast.h"
+
+#include "anydsl/type.h"
+
+namespace impala {
+
+class CodeGen {
+};
+
+/*
+ * Expr
+ */
+
+Value EmptyExpr::emit(CodeGen& cg) const {
+    return Value();
+}
+
+Value Literal::emit(CodeGen& cg) const {
+    return Value();
+}
+
+Value Id::emit(CodeGen& cg) const {
+    return Value();
+}
+
+Value PrefixExpr::emit(CodeGen& cg) const {
+    return Value();
+}
+
+Value InfixExpr::emit(CodeGen& cg) const {
+#if 0
+    Value lval = lexpr()->emit(cg);
+
+    Value rval = rexpr()->emit(cg);
+
+    const PrimType* p1 = lval.type()->isa<PrimType>();
+    const PrimType* p2 = rval.type()->isa<PrimType>();
+
+    if (p1 && p1 == p2) {
+        if (op.isAsgn()) {
+            Value val = bval;
+
+            if (op != Token::ASGN) {
+                Token tok = op.seperateAssign();
+                val = infixOp(aval, tok, bval);
+            }
+
+            aval.store(val.load());
+            return aval;
+        }
+
+        if (op.isArith())
+            return Value(world.createArithOp(op.toArithOp(), aval.load(), bval.load()));
+        else if (op.isRel())
+            return Value(world.createRelOp(op.toRelOp(), aval.load(), bval.load()));
+    }
+
+    op.error() << "type error: TODO\n";
+
+    const Type* t = p1 ? p1 : p2;
+    if (t)
+        return Value(world.literal_error(t)); 
+
+    return error();
+#endif
+}
+
+Value PostfixExpr::emit(CodeGen& cg) const {
+    return Value();
+}
+
+
+
 #if 0
 void Parser::parseFct() {
 #if 0
@@ -198,3 +271,5 @@ const Stmt* Parser::parseReturn() {
 }
 #endif
 #endif
+
+} // namespace impala

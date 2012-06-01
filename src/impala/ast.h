@@ -438,7 +438,7 @@ public:
 
     virtual void check(Sema& sema);
     virtual void dump(Printer& p) const;
-    virtual bool isEmpty() { return stmts_.empty(); }
+    virtual bool isEmpty() const { return stmts_.empty(); }
 
 private:
 

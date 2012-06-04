@@ -8,6 +8,7 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
+#if 0
 PrimLit::PrimLit(const ValueNumber& vn)
     : Literal((IndexKind) vn.index, (const Type*) vn.op3)
 {
@@ -30,6 +31,8 @@ ValueNumber PrimLit::VN(const Type* t, Box box) {
         return ValueNumber(indexKind, split.op1, split.op2, (uintptr_t) p);
     }
 }
+
+#endif
 
 //------------------------------------------------------------------------------
 

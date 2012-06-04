@@ -6,50 +6,25 @@
 
 namespace anydsl {
 
-RelOp::RelOp(const ValueNumber& vn)
-    : BinOp((IndexKind) vn.index, 
-            ((Def*) vn.op1)->type()->world().type_u1(), 
-            (Def*) vn.op1, 
-            (Def*) vn.op2)
+RelOp::RelOp(RelOpKind kind, Def* ldef, Def* rdef)
+    : BinOp((IndexKind) kind, ldef->world().type_u1(), ldef, rdef)
+{}
+
+Select::Select(Def* cond, Def* t, Def* f) 
+    : PrimOp(Index_Select, t->type(), 3)
 {
+    setOp(0, cond);
+    setOp(1, t);
+    setOp(2, f);
+    anydsl_assert(cond->type() == world().type_u1(), "condition must be of u1 type");
+    anydsl_assert(t->type() == f->type(), "types of both values must be equal");
 }
 
-//------------------------------------------------------------------------------
-
-Proj::Proj(const ValueNumber& vn)
-    : PrimOp(Index_Proj, 
-             ((Def*)vn.op1)->type()->as<Sigma>()->get(((Def*) vn.op2)->as<PrimLit>()))
-    , tuple(*ops_append((Def*) vn.op1))
-    , elem (*ops_append((Def*) vn.op2))
+Proj::Proj(Def* tuple, PrimLit* elem) 
+    : PrimOp(Index_Proj, tuple->type()->as<Sigma>()->get(elem), 2)
 {
-    anydsl_assert(vn.index == Index_Proj, "wrong index in VN");
+    setOp(0, tuple);
+    setOp(1, elem);
 }
-
-//------------------------------------------------------------------------------
-
-Insert::Insert(const ValueNumber& vn)
-    : PrimOp(Index_Insert, 
-             ((Def*)vn.op1)->type()->as<Sigma>())
-    , tuple(*ops_append((Def*) vn.op1))
-    , elem (*ops_append((Def*) vn.op2))
-    , value(*ops_append((Def*) vn.op3))
-{
-    anydsl_assert(vn.index == Index_Insert, "wrong index in VN");
-    //anydsl_assert(tuple.type()->as<Sigma>()->get(elem.def()->as<PrimLit>()) == value.type(), "type error");
-}
-
-//------------------------------------------------------------------------------
-
-Select::Select(const ValueNumber& vn) 
-    : PrimOp(Index_Select, ((Def*) vn.op2)->type())
-    , cond(*ops_append((Def*) vn.op1))
-    , tuse(*ops_append((Def*) vn.op2))
-    , fuse(*ops_append((Def*) vn.op3))
-{
-    anydsl_assert(cond.def()->type() == world().type_u1(), "condition must be of u1 type");
-    anydsl_assert(tuse.def()->type() == fuse.def()->type(), "types of both values must be equal");
-}
-
-//------------------------------------------------------------------------------
-
+    
 } // namespace anydsl

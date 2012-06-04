@@ -6,10 +6,10 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-PrimType::PrimType(World& world, const ValueNumber& vn)
-    : Type(world, vn.index)
+PrimType::PrimType(World& world, PrimTypeKind kind)
+    : Type(world, (IndexKind) kind)
 {
-    debug = kind2str(kind());
+    debug = kind2str(this->kind());
 }
 
 //------------------------------------------------------------------------------

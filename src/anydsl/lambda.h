@@ -37,8 +37,8 @@ public:
 
     const Params& params() const { return params_; }
 
-    Jump* jump() { return jump_; }
-    const Jump* jump() const { return jump_; }
+    Jump* jump() { return ops_[0].def()->as<Jump>(); }
+    const Jump* jump() const { return ops_[0].def()->as<Jump>(); }
 
     void insert(Lambda* lambda);
     void remove(Lambda* lambda);

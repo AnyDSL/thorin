@@ -39,9 +39,9 @@ static void printCompoundType(std::ostream& s, const std::string& str, const AIR
 static void printBinOp(std::ostream& s, const std::string& str, const AIRNode* n) {
     const BinOp* b = n->as<BinOp>();
     s << str << "("; 
-    print(s, b->luse.def());
+    print(s, b->luse().def());
     s << ", ";
-    print(s, b->ruse.def());
+    print(s, b->ruse().def());
     s << ")";
     return;
 }

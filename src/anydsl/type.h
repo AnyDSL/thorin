@@ -35,18 +35,18 @@ typedef std::vector<const Type*> Types;
 class NoRet : public Type {
 private:
 
-    NoRet(World& world, const ValueNumber& vn)
-        : Type(world, vn.index)
-        , pi_((const Pi*) vn.op1)
+    NoRet(World& world, const Pi* pi)
+        : Type(world, Index_NoRet)
+        , pi_(pi)
     {}
-
-    static ValueNumber VN(const Pi* pi) { return ValueNumber(Index_NoRet, uintptr_t(pi)); }
-
-    const Pi* pi_;
 
 public:
 
     const Pi* pi() const { return pi_; }
+
+private:
+
+    const Pi* pi_;
 
     friend class World;
 };
@@ -57,9 +57,7 @@ public:
 class PrimType : public Type {
 private:
 
-    PrimType(World& world, const ValueNumber& vn);
-
-    static ValueNumber VN(PrimTypeKind kind) { return ValueNumber((IndexKind) kind); }
+    PrimType(World& world, PrimTypeKind kind);
 
 public:
 
@@ -73,27 +71,13 @@ public:
 class CompoundType : public Type {
 protected:
 
-    /// Only used by Sigma to create named Sigma%s.
-    CompoundType(World& world, IndexKind index)
-        : Type(world, index)
-    {}
-
-    CompoundType(World& world, const ValueNumber& vn)
-        : Type(world, vn.index)
-    {
-        for (size_t i = 0, e = vn.size; i != e; ++i)
-            types_.push_back((const Type*) vn.more[i]);
-    }
-
     /// Copies over the range specified by \p begin and \p end.
     template<class T>
-    static ValueNumber VN(IndexKind index, T begin, T end) {
-        ValueNumber vn = ValueNumber(index, begin, end);
-        size_t x = 0;
-        for (T i = begin; i != end; ++i, ++x)
-            vn.more[x] = uintptr_t(*i);
-
-        return vn;
+    CompoundType(World& world, IndexKind index, T begin, T end) 
+        : Type(world, index)
+    {
+        for (T i = begin; i != end; ++i)
+           types_.push_back(*i);
     }
 
 public:
@@ -121,19 +105,15 @@ class Sigma : public CompoundType {
 private:
 
     Sigma(World& world)
-        : CompoundType(world, Index_Sigma)
+        : CompoundType(world, Index_Sigma, (const Type**) 0, (const Type**) 0)
         , named_(true)
     {}
 
-    Sigma(World& world, const ValueNumber& vn)
-        : CompoundType(world, vn)
+    template<class T>
+    Sigma(World& world, T begin, T end)
+        : CompoundType(world, Index_Sigma, begin, end)
         , named_(false)
     {}
-
-    template<class T>
-    static ValueNumber VN(T begin, T end) {
-        return CompoundType::VN(Index_Sigma, begin, end);
-    }
 
 public:
 
@@ -159,15 +139,11 @@ private:
 class Pi : public CompoundType {
 private:
 
-    Pi(World& world, const ValueNumber& vn)
-        : CompoundType(world, vn)
+    template<class T>
+    Pi(World& world, T begin, T end)
+        : CompoundType(world, Index_Pi, begin, end)
     {}
 
-
-    template<class T>
-    static ValueNumber VN(T begin, T end) {
-        return CompoundType::VN(Index_Pi, begin, end);
-    }
 
     friend class World;
 };

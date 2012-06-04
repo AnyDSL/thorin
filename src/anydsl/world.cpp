@@ -8,9 +8,36 @@
 
 namespace anydsl {
 
+#if 0
+
 /*
  * helpers
  */
+
+const Type* World::findType(const Type* type) {
+    TypeMap::iterator i = types_.find(type);
+    if (i != types_.end()) {
+        delete type;
+        return *i;
+    }
+
+    types_.insert(type);
+
+    return type;
+}
+
+Value* World::findValue(Value* value) {
+    ValueMap::iterator i = values_.find(value);
+    if (i != values_.end()) {
+        delete value;
+        return *i;
+    }
+
+    values_.insert(value);
+
+    return value;
+}
+
 
 static inline bool isCommutative(ArithOpKind kind) {
     switch (kind) {
@@ -49,7 +76,7 @@ static void examineDef(Def* def, FoldValue& v) {
     }
    
 }
-    
+
 /*
  * constructor and destructor
  */
@@ -234,5 +261,7 @@ void World::cleanup() {
     //kill<Lambda>(lambdas_);
     //kill<Value>(values_);
 }
+
+#endif
 
 } // namespace anydsl

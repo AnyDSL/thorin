@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "anydsl/defuse.h"
+#include "anydsl/type.h"
 #include "anydsl/util/box.h"
 
 namespace anydsl {
@@ -17,7 +18,7 @@ class Literal : public Value {
 protected:
 
     Literal(IndexKind index, const Type* type)
-        : Value(index, type)
+        : Value(index, type, 0)
     {}
 };
 
@@ -26,11 +27,9 @@ protected:
 class Undef : public Literal {
 private:
 
-    Undef(const ValueNumber& vn)
-        : Literal((IndexKind) vn.index, (const Type*) vn.op1)
+    Undef(const Type* type)
+        : Literal(Index_Undef, type)
     {}
-
-    static ValueNumber VN(const Type* type) { return ValueNumber(Index_Undef, (uintptr_t) type); }
 
     friend class World;
 };
@@ -40,11 +39,9 @@ private:
 class ErrorLit : public Literal {
 private:
 
-    ErrorLit(const ValueNumber& vn)
-        : Literal((IndexKind) vn.index, (const Type*) vn.op1)
+    ErrorLit(const Type* type)
+        : Literal(Index_ErrorLit, type)
     {}
-
-    static ValueNumber VN(const Type* type) { return ValueNumber(Index_ErrorLit, (uintptr_t) type); }
 
     friend class World;
 };
@@ -54,7 +51,10 @@ private:
 class PrimLit : public Literal {
 private:
 
-    PrimLit(const ValueNumber& vn);
+    PrimLit(const Type* type, Box box)
+        : Literal((IndexKind) type2lit(type->as<PrimType>()->kind()), type)
+        , box_(box)
+    {}
 
 public:
 
@@ -62,14 +62,7 @@ public:
     Box box() const { return box_; }
 
 
-    static ValueNumber VN(const Type* type, Box box);
-
 private:
-
-    struct Split { 
-        uintptr_t op1;
-        uintptr_t op2;
-    };
 
     Box box_;
 

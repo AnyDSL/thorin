@@ -8,13 +8,11 @@
 namespace anydsl {
 
 Lambda::Lambda(const Pi* pi)
-    : Def(Index_Lambda, pi)
-    , jump_(0)
+    : Def(Index_Lambda, pi, 1)
 {}
 
 Lambda::Lambda(World& world)
-    : Def(Index_Lambda, world.pi0())
-    , jump_(0)
+    : Def(Index_Lambda, world.pi0(), 1)
 {}
 
 Lambda::~Lambda() {

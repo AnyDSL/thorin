@@ -29,66 +29,6 @@ World& Use::world() {
 
 //------------------------------------------------------------------------------
 
-Ops::Ops()
-    : sentinel_(new Node())
-    , size_(0)
-{
-    sentinel_->next_ = sentinel_;
-    sentinel_->prev_ = sentinel_;
-}
-
-Ops::~Ops() {
-    clear();
-    anydsl_assert(sentinel_->isSentinel_, "this must be the sentinel");
-    delete sentinel_;
-}
-
-Ops::iterator Ops::insert(Ops::iterator pos, Def* parent, Def* def) {
-    Node* newNode = new UseNode(parent, def);
-    Node* n = pos.n_;
-
-    newNode->next_ = n;
-    newNode->prev_ = n->prev_;
-
-    n->prev_ = newNode;
-    newNode->prev_->next_ = newNode;
-
-    ++size_;
-
-    return iterator(newNode);
-}
-
-Ops::iterator Ops::erase(Ops::iterator pos) {
-    UseNode* n = (UseNode*) pos.n_;
-    anydsl_assert(!n->isSentinel_, "this must not be the sentinel");
-
-    iterator res(n->next_);
-    n->next_->prev_ = n->prev_;
-    n->prev_->next_ = n->next_;
-    delete n;
-
-    --size_;
-
-    return res;
-}
-
-void Ops::clear() {
-    Node* i = head();
-
-    while (i != sentinel_) {
-        anydsl_assert(!i->isSentinel_, "this must not be the sentinel");
-        UseNode* cur = (UseNode*) i;
-        i = i->next_;
-        delete cur;
-    }
-
-    size_ = 0;
-    sentinel_->next_ = sentinel_;
-    sentinel_->prev_ = sentinel_;
-}
-
-//------------------------------------------------------------------------------
-
 void Def::registerUse(Use* use) { 
     anydsl_assert(use->def() == this, "use does not point to this def");
     anydsl_assert(uses_.find(use) == uses_.end(), "must not be inside the use list");
@@ -105,41 +45,28 @@ World& Def::world() const {
     return type_->world(); 
 }
 
-bool ValueNumber::operator == (const ValueNumber& vn) const {
-    if (index != vn.index)
+bool Value::equal(const Value* other) const {
+    if (this->index() != other->index())
         return false;
 
-    if (hasMore(index)) {
-        if (size != vn.size)
-            return false;
+    if (this->numOps() != other->numOps())
+        return false;
 
-        bool result = true;
-        for (size_t i = 0, e = size; i != e && result; ++i)
-            result &= more[i] == vn.more[i];
+    bool result = true;
+    for (size_t i = 0, e = numOps(); i != e && result; ++i)
+        result &= this->ops_[i].def() == other->ops_[i].def();
 
-        return result;
-    }
-
-    return op1 == vn.op1 && op2 == vn.op2 && op3 == vn.op3;
+    return result;
 }
 
-size_t hash_value(const ValueNumber& vn) {
+size_t Value::hash() const {
     size_t seed = 0;
 
-    if (ValueNumber::hasMore(vn.index)) {
-        boost::hash_combine(seed, vn.index);
-        boost::hash_combine(seed, vn.size);
+    boost::hash_combine(seed, index());
+    boost::hash_combine(seed, numOps());
 
-        for (size_t i = 0, e = vn.size; i != e; ++i)
-            boost::hash_combine(seed, vn.more[i]);
-
-        return seed;
-    }
-
-    boost::hash_combine(seed, vn.index);
-    boost::hash_combine(seed, vn.op1);
-    boost::hash_combine(seed, vn.op2);
-    boost::hash_combine(seed, vn.op3);
+    for (size_t i = 0, e = numOps(); i != e; ++i)
+        boost::hash_combine(seed, ops_[i].def());
 
     return seed;
 }

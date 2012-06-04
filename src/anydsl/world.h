@@ -30,8 +30,8 @@ class Undef;
 
 //------------------------------------------------------------------------------
 
-typedef boost::unordered_map<ValueNumber, Value*> ValueMap;
-typedef boost::unordered_map<ValueNumber, const Type*> TypeMap;
+typedef boost::unordered_set<Value*> ValueMap;
+typedef boost::unordered_set<const Type*> TypeMap;
 typedef std::vector<Sigma*> NamedSigmas;
 typedef boost::unordered_set<Lambda*> Lambdas;
 
@@ -94,7 +94,7 @@ public:
         return primTypes_[i];
     }
 
-    const NoRet* noret(const Pi* pi) { return findType<NoRet>(NoRet::VN(pi)); }
+    const NoRet* noret(const Pi* pi) { return (const NoRet*) findType(new NoRet(*this, pi)); }
 
     // sigmas
 
@@ -122,7 +122,7 @@ public:
      * @return The Sigma.
      */
     template<class T>
-    const Sigma* sigma(T begin, T end) { return findType<Sigma>(Sigma::VN(begin, end)); }
+    const Sigma* sigma(T begin, T end) { return (const Sigma*) findType(new Sigma(*this, begin, end)); }
     /// Creates a fresh \em named sigma.
     Sigma* namedSigma(const std::string& name = "");
 
@@ -150,7 +150,7 @@ public:
      * @return The Sigma.
      */
     template<class T>
-    const Pi* pi(T begin, T end) { return findType<Pi>(Pi::VN(begin, end)); }
+    const Pi* pi(T begin, T end) { return (const Pi*) findType(new Pi(*this, begin, end)); }
 
     /*
      * literals
@@ -181,10 +181,10 @@ public:
     Lambda* createLambda(const Pi* type = 0);
     template<class T>
     Jump* createJump(Def* to, T arg_begin, T arg_end) {
-        return findValue<Jump>(Jump::VN(to, arg_begin, arg_end));
+        return (Jump*) findValue(new Jump(to, arg_begin, arg_end));
     }
     Jump* createJump(Def* to) { 
-        return createJump(to, (Def**) 0, (Def**) 0); 
+        return (Jump*) createJump(to, (Def**) 0, (Def**) 0); 
     }
     template<class T>
     Jump* createBranch(Def* cond, Def* tto, Def* fto, T arg_begin, T arg_end) {
@@ -209,8 +209,8 @@ public:
 
 private:
 
-    template<class T> T* findValue(const ValueNumber& vn);
-    template<class T> const T* findType(const ValueNumber& vn);
+    Value* findValue(Value* value);
+    const Type* findType(const Type* type);
     Value* tryFold(IndexKind kind, Def* ldef, Def* rdef);
 
     template<class T, class C>
@@ -235,32 +235,6 @@ private:
     NamedSigmas namedSigmas_;
     Lambdas lambdas_;
 };
-
-//------------------------------------------------------------------------------
-
-template<class T>
-const T* World::findType(const ValueNumber& vn) {
-    TypeMap::iterator i = types_.find(vn);
-    if (i != types_.end())
-        return scast<T>(i->second);
-
-    const T* t = new T(*this, vn);
-    types_[vn] = t;
-
-    return t;
-}
-
-template<class T>
-T* World::findValue(const ValueNumber& vn) {
-    ValueMap::iterator i = values_.find(vn);
-    if (i != values_.end())
-        return scast<T>(i->second);
-
-    T* value = new T(vn);
-    values_[vn] = value;
-
-    return value;
-}
 
 //------------------------------------------------------------------------------
 

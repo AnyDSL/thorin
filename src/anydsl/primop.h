@@ -15,8 +15,8 @@ class PrimLit;
 class PrimOp : public Value {
 protected:
 
-    PrimOp(IndexKind index, const Type* type)
-        : Value(index, type)
+    PrimOp(IndexKind index, const Type* type, size_t numOps)
+        : Value(index, type, numOps)
     {}
 
 public:
@@ -30,21 +30,19 @@ class BinOp : public PrimOp {
 protected:
 
     BinOp(IndexKind index, const Type* type, Def* ldef, Def* rdef)
-        : PrimOp(index, type)
-        , luse(*ops_append(ldef))
-        , ruse(*ops_append(rdef))
+        : PrimOp(index, type, 2)
     {
         anydsl_assert(ldef->type() == rdef->type(), "types are not equal");
-    }
-
-    static ValueNumber VN(IndexKind kind, Def* ldef, Def* rdef) {
-        return ValueNumber(kind, uintptr_t(ldef), uintptr_t(rdef));
+        setOp(0, ldef);
+        setOp(1, rdef);
     }
 
 public:
 
-    const Use& luse;
-    const Use& ruse;
+    Use& luse() { return ops_[0]; }
+    Use& ruse() { return ops_[1]; }
+    const Use& luse() const { return ops_[0]; }
+    const Use& ruse() const { return ops_[1]; }
 };
 
 //------------------------------------------------------------------------------
@@ -52,16 +50,9 @@ public:
 class ArithOp : public BinOp {
 private:
 
-    ArithOp(const ValueNumber& vn)
-        : BinOp((IndexKind) vn.index, 
-                ((Def*) vn.op1)->type(), 
-                (Def*) vn.op1, 
-                (Def*) vn.op2)
+    ArithOp(ArithOpKind kind, Def* ldef, Def* rdef)
+        : BinOp((IndexKind) kind, ldef->type(), ldef, rdef)
     {}
-
-    static ValueNumber VN(ArithOpKind kind, Def* ldef, Def* rdef) {
-        return BinOp::VN((IndexKind) kind, ldef, rdef);
-    }
 
 public:
 
@@ -75,11 +66,7 @@ public:
 class RelOp : public BinOp {
 private:
 
-    RelOp(const ValueNumber& vn);
-
-    static ValueNumber VN(RelOpKind kind, Def* ldef, Def* rdef) {
-        return ValueNumber((IndexKind) kind, uintptr_t(ldef), uintptr_t(rdef));
-    }
+    RelOp(RelOpKind kind, Def* ldef, Def* rdef);
 
 public:
 
@@ -93,17 +80,16 @@ public:
 class Select : public PrimOp {
 private:
 
-    Select(const ValueNumber& vn);
-
-    static ValueNumber VN(Def* cond, Def* t, Def* f) {
-        return ValueNumber(Index_Select, uintptr_t(cond), uintptr_t(t), uintptr_t(f));
-    }
+    Select(Def* cond, Def* t, Def* f);
 
 public:
 
-    const Use& cond;
-    const Use& tuse;
-    const Use& fuse;
+    Use& cond() { return ops_[0]; }
+    Use& tuse() { return ops_[1]; }
+    Use& fuse() { return ops_[2]; }
+    const Use& cond() const { return ops_[0]; }
+    const Use& tuse() const { return ops_[1]; }
+    const Use& fuse() const { return ops_[2]; }
 
     RelOpKind kind() { return (RelOpKind) index(); }
 
@@ -115,14 +101,12 @@ public:
 class Proj : public PrimOp {
 private:
 
-    Proj(const ValueNumber& vn);
-
-    static ValueNumber VN(Def* tuple, PrimLit* elem) {
-        return ValueNumber(Index_Proj, uintptr_t(tuple), uintptr_t(elem));
-    }
+    Proj(Def* tuple, PrimLit* elem);
     
-    const Use& tuple;
-    const Use& elem;
+    Use& tuple() { return ops_[0]; }
+    Use& elem()  { return ops_[1]; }
+    const Use& tuple() const { return ops_[0]; }
+    const Use& elem()  const { return ops_[1]; }
 
     friend class World;
 };
@@ -132,15 +116,21 @@ private:
 class Insert : public PrimOp {
 private:
 
-    Insert(const ValueNumber& vn);
-
-    static ValueNumber VN(Def* tuple, Def* elem, Def* value) {
-        return ValueNumber(Index_Insert, uintptr_t(tuple), uintptr_t(elem), uintptr_t(value));
+    Insert(Def* tuple, Def* elem, Def* value)
+        : PrimOp(Index_Insert, tuple->type(), 3)
+    {
+        setOp(0, tuple);
+        setOp(1, elem);
+        setOp(2, value);
+        //anydsl_assert(tuple.type()->as<Sigma>()->get(elem.def()->as<PrimLit>()) == value.type(), "type error");
     }
     
-    const Use& tuple;
-    const Use& elem;
-    const Use& value;
+    Use& tuple() { return ops_[0]; }
+    Use& elem()  { return ops_[1]; }
+    Use& value() { return ops_[2]; }
+    const Use& tuple() const { return ops_[0]; }
+    const Use& elem()  const { return ops_[1]; }
+    const Use& value() const { return ops_[2]; }
 
     friend class World;
 };
@@ -150,7 +140,7 @@ private:
 class Tuple : public PrimOp {
 private:
 
-    Tuple(const ValueNumber& vn);
+    //Tuple(const ValueNumber& vn);
 
 #if 0
     template <class C>

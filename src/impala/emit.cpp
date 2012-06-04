@@ -63,6 +63,7 @@ Value InfixExpr::emit(CodeGen& cg) const {
 
     return error();
 #endif
+    return Value();
 }
 
 Value PostfixExpr::emit(CodeGen& cg) const {

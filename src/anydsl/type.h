@@ -23,6 +23,9 @@ public:
 
     World& world() const { return world_; }
 
+    virtual bool equal(const Type* other) const;
+    virtual size_t hash() const;
+
 private:
 
     World& world_;
@@ -92,6 +95,9 @@ public:
     const Type* get(PrimLit* i) const;
 
     const Types& types() const { return types_; }
+
+    virtual bool equal(const Type* other) const;
+    virtual size_t hash() const;
 
 protected:
 

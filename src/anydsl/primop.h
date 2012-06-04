@@ -133,16 +133,17 @@ private:
 class Tuple : public PrimOp {
 private:
 
-    //Tuple(const ValueNumber& vn);
-
 #if 0
-    template <class C>
-    static ValueNumber VN(C container) {
-        ValueNumber vn(container.size());
-        FOREACH(i, container)
-
+    template<class T>
+    Tuple(T begin, T end) 
+        : PrimOp(Index_Tuple, world, std::distance(begin, end))
+    {
+        size_t x = 0;
+        for (T i = begin; i != end; ++i, ++x)
+            setOp(this, i);
     }
 #endif
+
 };
 
 //------------------------------------------------------------------------------

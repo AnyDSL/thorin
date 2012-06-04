@@ -72,17 +72,6 @@ private:
 };
 
 //------------------------------------------------------------------------------
-#if 0
-    /// typedefs are necessary for std::iterator_traits (needed by FOREACH)
-    typedef std::bidirectional_iterator_tag iterator_category;
-    typedef Use value_type;
-    typedef ptrdiff_t difference_type;
-    typedef Use* pointer;
-    typedef Use& reference;
-#endif
-
-
-//------------------------------------------------------------------------------
 
 class Def : public AIRNode {
 private:

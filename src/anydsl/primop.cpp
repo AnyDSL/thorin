@@ -27,4 +27,13 @@ Proj::Proj(Def* tuple, PrimLit* elem)
     setOp(1, elem);
 }
     
+Insert::Insert(Def* tuple, PrimLit* elem, Def* value)
+    : PrimOp(Index_Insert, tuple->type(), 3)
+{
+    setOp(0, tuple);
+    setOp(1, elem);
+    setOp(2, value);
+    anydsl_assert(tuple->type()->as<Sigma>()->get(elem) == value->type(), "type error");
+}
+
 } // namespace anydsl

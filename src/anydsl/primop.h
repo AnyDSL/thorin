@@ -116,14 +116,7 @@ private:
 class Insert : public PrimOp {
 private:
 
-    Insert(Def* tuple, Def* elem, Def* value)
-        : PrimOp(Index_Insert, tuple->type(), 3)
-    {
-        setOp(0, tuple);
-        setOp(1, elem);
-        setOp(2, value);
-        //anydsl_assert(tuple.type()->as<Sigma>()->get(elem.def()->as<PrimLit>()) == value.type(), "type error");
-    }
+    Insert(Def* tuple, PrimLit* elem, Def* value);
     
     Use& tuple() { return ops_[0]; }
     Use& elem()  { return ops_[1]; }

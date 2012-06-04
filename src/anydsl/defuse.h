@@ -108,7 +108,10 @@ protected:
 
 public:
 
-    virtual ~Def() { anydsl_assert(uses_.empty(), "there are still uses pointing to this def"); }
+    virtual ~Def() { 
+        anydsl_assert(uses_.empty(), "there are still uses pointing to this def"); 
+        :: operator delete(ops_);
+    }
 
     const UseSet& uses() const { return uses_; }
     const Type* type() const { return type_; }

@@ -90,6 +90,9 @@ World::World()
 {}
 
 World::~World() {
+    std::cout << values_.size() << std::endl;
+    std::cout << types_.size() << std::endl;
+
     cleanup();
 
     FOREACH(sigma,  namedSigmas_) delete sigma;

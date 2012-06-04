@@ -100,10 +100,11 @@ int main(int argc, char** argv) {
         }
 
         World world;
+
         const char* filename = infiles[0].c_str();
         ifstream file(filename);
-        const impala::Prg* p = impala::parse(file, filename);
-        dump(p, true);
+        //const impala::Prg* p = impala::parse(file, filename);
+        //dump(p, true);
         
         //Emit the results
         switch (destinationType) {

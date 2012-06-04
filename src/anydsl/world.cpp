@@ -8,8 +8,6 @@
 
 namespace anydsl {
 
-#if 0
-
 /*
  * helpers
  */
@@ -84,10 +82,10 @@ static void examineDef(Def* def, FoldValue& v) {
 World::World() 
     : values_(1031)
     , types_(1031)
-    , unit_ (findType<Sigma>(Sigma::VN((const Type**) 0, (const Type**) 0)))
-    , pi0_  (findType<Pi>   (Pi   ::VN((const Type**) 0, (const Type**) 0)))
-#define ANYDSL_U_TYPE(T) ,T##_(findType<PrimType>(PrimType::VN(PrimType_##T)))
-#define ANYDSL_F_TYPE(T) ,T##_(findType<PrimType>(PrimType::VN(PrimType_##T)))
+    , unit_ (tfind(new Sigma(*this, (const Type**) 0, (const Type**) 0)))
+    , pi0_  (tfind(new Pi   (*this, (const Type**) 0, (const Type**) 0)))
+#define ANYDSL_U_TYPE(T) ,T##_(tfind(new PrimType(*this, PrimType_##T)))
+#define ANYDSL_F_TYPE(T) ,T##_(tfind(new PrimType(*this, PrimType_##T)))
 #include "anydsl/tables/primtypetable.h"
 {}
 
@@ -97,8 +95,8 @@ World::~World() {
     FOREACH(sigma,  namedSigmas_) delete sigma;
     //FOREACH(lambda, lambdas_)     delete lambda;
 
-    FOREACH(p, values_) delete p.second;
-    FOREACH(t, types_) delete t.second;
+    FOREACH(v, values_) delete v;
+    FOREACH(t, types_) delete t;
 }
 
 /*
@@ -146,19 +144,19 @@ const Pi* World::pi3(const Type* t1, const Type* t2, const Type* t3) {
  */
 
 PrimLit* World::literal(PrimLitKind kind, Box value) {
-    return findValue<PrimLit>(PrimLit::VN(type(lit2type(kind)), value));
+    return vfind(new PrimLit(type(lit2type(kind)), value));
 }
 
 PrimLit* World::literal(const PrimType* p, Box value) {
-    return findValue<PrimLit>(PrimLit::VN(p, value));
+    return vfind(new PrimLit(p, value));
 }
 
 Undef* World::undef(const Type* type) {
-    return findValue<Undef>(Undef::VN(type));
+    return vfind(new Undef(type));
 }
 
 ErrorLit* World::literal_error(const Type* type) {
-    return findValue<ErrorLit>(ErrorLit::VN(type));
+    return vfind(new ErrorLit(type));
 }
 
 /*
@@ -201,7 +199,7 @@ Value* World::createArithOp(ArithOpKind kind, Def* ldef, Def* rdef) {
         if (ldef > rdef)
             std::swap(ldef, rdef);
 
-    return findValue<ArithOp>(ArithOp::VN(kind, ldef, rdef));
+    return vfind(new ArithOp(kind, ldef, rdef));
 }
 
 Value* World::createRelOp(RelOpKind kind, Def* ldef, Def* rdef) {
@@ -213,22 +211,22 @@ Value* World::createRelOp(RelOpKind kind, Def* ldef, Def* rdef) {
     if (swap)
         std::swap(ldef, rdef);
 
-    return findValue<RelOp>(RelOp::VN(kind, ldef, rdef));
+    return vfind(new RelOp(kind, ldef, rdef));
 }
 
 Value* World::createProj(Def* tuple, PrimLit* i) {
     // TODO folding
-    return findValue<Proj>(Proj::VN(tuple, i));
+    return vfind(new Proj(tuple, i));
 }
 
 Value* World::createInsert(Def* tuple, PrimLit* i, Def* value) {
     // TODO folding
-    return findValue<Insert>(Insert::VN(tuple, i, value));
+    return vfind(new Insert(tuple, i, value));
 }
 
 
 Value* World::createSelect(Def* cond, Def* tdef, Def* fdef) {
-    return findValue<Select>(Select::VN(cond, tdef, fdef));
+    return vfind(new Select(cond, tdef, fdef));
 }
 
 /*
@@ -261,7 +259,5 @@ void World::cleanup() {
     //kill<Lambda>(lambdas_);
     //kill<Value>(values_);
 }
-
-#endif
 
 } // namespace anydsl

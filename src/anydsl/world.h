@@ -30,8 +30,8 @@ class Undef;
 
 //------------------------------------------------------------------------------
 
-typedef boost::unordered_set<Value*> ValueMap;
-typedef boost::unordered_set<const Type*> TypeMap;
+typedef boost::unordered_set<Value*, ValueHash, ValueEqual> ValueMap;
+typedef boost::unordered_set<const Type*, TypeHash, TypeEqual> TypeMap;
 typedef std::vector<Sigma*> NamedSigmas;
 typedef boost::unordered_set<Lambda*> Lambdas;
 
@@ -94,7 +94,7 @@ public:
         return primTypes_[i];
     }
 
-    const NoRet* noret(const Pi* pi) { return (const NoRet*) findType(new NoRet(*this, pi)); }
+    const NoRet* noret(const Pi* pi) { return tfind(new NoRet(*this, pi)); }
 
     // sigmas
 
@@ -122,7 +122,7 @@ public:
      * @return The Sigma.
      */
     template<class T>
-    const Sigma* sigma(T begin, T end) { return (const Sigma*) findType(new Sigma(*this, begin, end)); }
+    const Sigma* sigma(T begin, T end) { return tfind(new Sigma(*this, begin, end)); }
     /// Creates a fresh \em named sigma.
     Sigma* namedSigma(const std::string& name = "");
 
@@ -150,7 +150,7 @@ public:
      * @return The Sigma.
      */
     template<class T>
-    const Pi* pi(T begin, T end) { return (const Pi*) findType(new Pi(*this, begin, end)); }
+    const Pi* pi(T begin, T end) { return tfind(new Pi(*this, begin, end)); }
 
     /*
      * literals
@@ -211,6 +211,13 @@ private:
 
     Value* findValue(Value* value);
     const Type* findType(const Type* type);
+
+    template<class T> 
+    T* tfind(T* type) { return (T*) findType(type); }
+
+    template<class T> 
+    T* vfind(T* value) { return (T*) findValue(value); }
+
     Value* tryFold(IndexKind kind, Def* ldef, Def* rdef);
 
     template<class T, class C>

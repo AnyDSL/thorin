@@ -189,6 +189,14 @@ public:
     virtual size_t hash() const;
 };
 
+struct ValueHash : std::unary_function<const Value*, size_t> {
+    size_t operator () (const Value* v) const { return v->hash(); }
+};
+
+struct ValueEqual : std::binary_function<const Value*, const Value*, bool> {
+    bool operator () (const Value* v1, const Value* v2) const { return v1->equal(v2); }
+};
+
 //------------------------------------------------------------------------------
 
 const Type* Use::type() const { 

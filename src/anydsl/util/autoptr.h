@@ -20,6 +20,7 @@ public:
 
     operator T*() const { return ptr_; }
     T* operator -> () const { return ptr_; }
+
     AutoPtr<T>& operator = (T* ptr) {
         delete ptr_;
         ptr_ = ptr;

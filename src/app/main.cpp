@@ -103,8 +103,8 @@ int main(int argc, char** argv) {
 
         const char* filename = infiles[0].c_str();
         ifstream file(filename);
-        //const impala::Prg* p = impala::parse(file, filename);
-        //dump(p, true);
+        anydsl::AutoPtr<const impala::Prg> p(impala::parse(file, filename));
+        dump(p, true);
         
         //Emit the results
         switch (destinationType) {

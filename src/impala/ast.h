@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include "anydsl/util/autoptr.h"
 #include "anydsl/util/box.h"
 #include "anydsl/util/cast.h"
 #include "anydsl/util/location.h"
@@ -45,6 +46,8 @@ public:
 class Prg : public ASTNode {
 public:
 
+    virtual ~Prg();
+
     virtual void check(Sema& sema);
     virtual void dump(Printer& p) const;
 
@@ -61,6 +64,7 @@ class Fct : public ASTNode {
 public:
 
     Fct() {}
+    virtual ~Fct();
 
     anydsl::Symbol symbol() const { return symbol_; }
     const Type* retType() const { return retType_; }
@@ -76,8 +80,8 @@ private:
 
     anydsl::Symbol symbol_;
     Decls params_;
-    const Type* retType_;
-    const Stmt* body_;
+    anydsl::AutoPtr<const Type> retType_;
+    anydsl::AutoPtr<const Stmt> body_;
 
     friend class Parser;
 };
@@ -96,7 +100,7 @@ public:
 private:
 
     anydsl::Symbol symbol_;
-    const Type* type_;
+    anydsl::AutoPtr<const Type> type_;
 };
 
 //------------------------------------------------------------------------------
@@ -129,6 +133,8 @@ private:
 
 class Expr : public ASTNode {
 public:
+
+    virtual ~Expr();
 
     virtual Value emit(CodeGen& cg) const = 0;
 
@@ -285,7 +291,7 @@ public:
 
 private:
 
-    const Expr* expr_;
+    anydsl::AutoPtr<const Expr> expr_;
 };
 
 class DeclStmt : public Stmt {
@@ -301,8 +307,8 @@ public:
 
 private:
 
-    const Decl* decl_;
-    const Expr* init_;
+    anydsl::AutoPtr<const Decl> decl_;
+    anydsl::AutoPtr<const Expr> init_;
 };
 
 class IfElseStmt: public Stmt {
@@ -319,9 +325,9 @@ public:
 
 private:
 
-    const Expr* cond_;
-    const Stmt* ifStmt_;
-    const Stmt* elseStmt_;
+    anydsl::AutoPtr<const Expr> cond_;
+    anydsl::AutoPtr<const Stmt> ifStmt_;
+    anydsl::AutoPtr<const Stmt> elseStmt_;
 };
 
 class Loop : public Stmt {
@@ -341,8 +347,8 @@ protected:
 
 private:
 
-    const Expr* cond_;
-    const Stmt* body_;
+    anydsl::AutoPtr<const Expr> cond_;
+    anydsl::AutoPtr<const Stmt> body_;
 };
 
 class WhileStmt : public Loop {
@@ -371,6 +377,7 @@ class ForStmt : public Loop {
 public:
 
     ForStmt() {}
+    virtual ~ForStmt();
 
     void set(const anydsl::Position& pos1, const Expr* cond, const Expr* inc, const Stmt* body);
     void set(const DeclStmt* d) { initDecl_ = d; isDecl_ = true; }
@@ -393,7 +400,7 @@ private:
         const ExprStmt* initExpr_;
     };
 
-    const Expr* inc_;
+    anydsl::AutoPtr<const Expr> inc_;
     bool isDecl_;
 };
 
@@ -435,7 +442,7 @@ public:
 
 private:
 
-    const Expr* expr_;
+    anydsl::AutoPtr<const Expr> expr_;
 };
 
 class ScopeStmt : public Stmt {
@@ -445,6 +452,7 @@ public:
     ScopeStmt(const anydsl::Location& loc) {
         this->loc = loc;
     }
+    virtual ~ScopeStmt();
 
     const Stmts& stmts() const { return stmts_; }
 

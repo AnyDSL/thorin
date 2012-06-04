@@ -1,6 +1,8 @@
 #ifndef DSLU_AUTOPTR_HEADER
 #define DSLU_AUTOPTR_HEADER
 
+#include <vector>
+
 namespace anydsl {
 
 template<class T>
@@ -36,8 +38,23 @@ private:
     T* ptr_;
 };
 
+template<class T>
+class AutoVector : public std::vector<T> {
+public:
+
+    AutoVector() : std::vector<T>() {}
+
+    explicit AutoVector(typename std::vector<T>::size_type s)
+        : std::vector<T>(s)
+    {}
+
+    ~AutoVector() {
+        for (typename std::vector<T>::const_iterator i = this->begin(), e = this->end(); i != e; ++i)
+            delete *i;
+    }
+};
+
 
 }
 
 #endif
-

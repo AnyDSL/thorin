@@ -22,10 +22,10 @@ class Stmt;
 class Type;
 class Sema;
 
-typedef std::vector<const Decl*> Decls;
-typedef std::vector<const Expr*> Exprs;
-typedef std::vector<const Fct*>  Fcts;
-typedef std::vector<const Stmt*> Stmts;
+typedef anydsl::AutoVector<const Decl*> Decls;
+typedef anydsl::AutoVector<const Expr*> Exprs;
+typedef anydsl::AutoVector<const Fct*>  Fcts;
+typedef anydsl::AutoVector<const Stmt*> Stmts;
 
 class ASTNode {
 public:
@@ -46,8 +46,6 @@ public:
 class Prg : public ASTNode {
 public:
 
-    virtual ~Prg();
-
     virtual void check(Sema& sema);
     virtual void dump(Printer& p) const;
 
@@ -64,7 +62,6 @@ class Fct : public ASTNode {
 public:
 
     Fct() {}
-    virtual ~Fct();
 
     anydsl::Symbol symbol() const { return symbol_; }
     const Type* retType() const { return retType_; }
@@ -133,8 +130,6 @@ private:
 
 class Expr : public ASTNode {
 public:
-
-    virtual ~Expr();
 
     virtual Value emit(CodeGen& cg) const = 0;
 
@@ -452,7 +447,6 @@ public:
     ScopeStmt(const anydsl::Location& loc) {
         this->loc = loc;
     }
-    virtual ~ScopeStmt();
 
     const Stmts& stmts() const { return stmts_; }
 

@@ -4,11 +4,6 @@
 
 namespace impala {
 
-Prg::~Prg() {
-    FOREACH(f, fcts_)
-        delete f;
-}
-
 Decl::Decl(const Token& tok, const Type* type)
     : symbol_(tok.symbol())
     , type_(type)
@@ -21,11 +16,6 @@ void Fct::set(const anydsl::Position& pos1, const anydsl::Symbol symbol, const T
     retType_ = retType;
     body_ = body;
     loc = anydsl::Location(pos1, body->loc.pos2());
-}
-
-Fct::~Fct() {
-    FOREACH(d, params_) 
-        delete d;
 }
 
 /*
@@ -41,11 +31,6 @@ PrimType::PrimType(const anydsl::Location& loc, Kind kind)
 /*
  * Expr
  */
-
-Expr::~Expr() {
-    FOREACH(a, args_)
-        delete a;
-}
 
 Literal::Literal(const anydsl::Location& loc, Kind kind, anydsl::Box value)
     : kind_(kind)
@@ -148,11 +133,5 @@ ReturnStmt::ReturnStmt(const anydsl::Position& pos1, const Expr* expr, const any
 {
     loc = anydsl::Location(pos1, pos2);
 }
-
-ScopeStmt::~ScopeStmt() {
-    FOREACH(s, stmts_)
-        delete s;
-}
-
 
 } // namespace impala

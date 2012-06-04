@@ -133,7 +133,7 @@ public:
 
     struct Ops {
         typedef Use* iterator;
-        typedef Use* const const_iterator;
+        typedef Use* const_iterator;
         typedef std::reverse_iterator<Use*> reverse_iterator;
         typedef std::reverse_iterator<Use*> const_reverse_iterator;
 

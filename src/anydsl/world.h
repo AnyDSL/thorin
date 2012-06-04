@@ -257,7 +257,6 @@ Jump::Jump(Def* to, T begin, T end)
     for (size_t x = 1; i != end; ++x, ++i)
         setOp(x, *i);
 
-#if 0
 #ifndef NDEBUG
     const Pi* pi = toLambda()->pi();
     anydsl_assert(pi->types().size() == args().size(), "element size of args and pi-to-type does not match");
@@ -267,7 +266,6 @@ Jump::Jump(Def* to, T begin, T end)
         anydsl_assert(arg.type() == *t, "type mismatch");
         ++t;
     }
-#endif
 #endif
 }
 

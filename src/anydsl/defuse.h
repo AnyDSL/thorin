@@ -134,19 +134,23 @@ public:
     struct Ops {
         typedef Use* iterator;
         typedef Use* const const_iterator;
+        typedef std::reverse_iterator<Use*> reverse_iterator;
+        typedef std::reverse_iterator<Use*> const_reverse_iterator;
 
-        Ops(Def& def)
-            : def(def)
-        {}
+        Ops(Def& def) : def(def) {}
 
-        iterator begin() { return def.ops_; }
+        iterator begin() { return def.ops_ + 1; }
         iterator end() { return def.ops_ + size(); }
-        const_iterator begin() const { return def.ops_; }
+        const_iterator begin() const { return def.ops_ + 1; }
         const_iterator end() const { return def.ops_ + size(); }
 
+        reverse_iterator rbegin() { return reverse_iterator(def.ops_ + size()); }
+        reverse_iterator rend() { return reverse_iterator(def.ops_ + 1); }
+        const_reverse_iterator rbegin() const { return reverse_iterator(def.ops_ + size()); }
+        const_reverse_iterator rend() const { return reverse_iterator(def.ops_ + 1); }
 
-        size_t size() const { return def.numOps(); }
-        bool empty() const { return def.numOps() == 0; }
+        size_t size() const { return def.numOps() - 1; }
+        bool empty() const { return def.numOps() == 1; }
 
         Def& def;
     };

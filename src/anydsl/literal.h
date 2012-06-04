@@ -61,6 +61,8 @@ public:
     PrimLitKind kind() const { return (PrimLitKind) index(); }
     Box box() const { return box_; }
 
+    virtual bool equal(const Value* other) const;
+    virtual size_t hash() const;
 
 private:
 

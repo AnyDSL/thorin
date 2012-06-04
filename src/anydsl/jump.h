@@ -13,16 +13,7 @@ class Jump : public Value {
 private:
 
     template<class T>
-    Jump(Def* to, T begin, T end) 
-        : Value(Index_Jump, 
-                0 /*to->world().noret(to->type()->as<Pi>())*/, std::distance(begin, end) + 1)
-    { 
-        setOp(0, to);
-
-        T i = begin;
-        for (size_t x = 1; i != end; ++x, ++i)
-            setOp(x, *i);
-    }
+    Jump(Def* to, T begin, T end);
 
 public:
 
@@ -31,46 +22,36 @@ public:
 
     const NoRet* noret() const;
 
-#if 0
-    Ops& ops() { return ops_; }
-
     struct Args {
         typedef Use* iterator;
         typedef Use* const const_iterator;
-        //typedef Ops::reverse_iterator reverse_iterator;
-        //typedef Ops::const_reverse_iterator const_reverse_iterator;
+        typedef std::reverse_iterator<Use*> reverse_iterator;
+        typedef std::reverse_iterator<Use*> const_reverse_iterator;
 
-        Args(Jump& jump)
-            : jump_(jump)
-        {}
+        Args(Jump& jump) : jump(jump) {}
 
-        iterator begin() { return jump_.args_begin_; }
-        iterator end() { return jump_.ops_.end(); }
-        const_iterator begin() const { return jump_.args_begin_; }
-        const_iterator end() const { return jump_.ops_.end(); }
+        iterator begin() { return jump.ops_ + 1; }
+        iterator end() { return jump.ops_ + size(); }
+        const_iterator begin() const { return jump.ops_ + 1; }
+        const_iterator end() const { return jump.ops_ + size(); }
 
-#if 0
-        reverse_iterator rbegin() { return jump_.ops_.rbegin(); }
-        reverse_iterator rend() { return (--jump_.args_begin_).switch_direction(); }
-        const_reverse_iterator rbegin() const { return jump_.ops_.rbegin(); }
-        const_reverse_iterator rend() const { return (--jump_.args_begin_).switch_direction(); }
-#endif
+        reverse_iterator rbegin() { return reverse_iterator(jump.ops_ + size()); }
+        reverse_iterator rend() { return reverse_iterator(jump.ops_ + 1); }
+        const_reverse_iterator rbegin() const { return reverse_iterator(jump.ops_ + size()); }
+        const_reverse_iterator rend() const { return reverse_iterator(jump.ops_ + 1); }
 
-        size_t size() const { return jump_.ops_.size() - 1; }
-        bool empty() const { return jump_.ops_.size() == 1; }
+        size_t size() const { return jump.numOps() - 1; }
+        bool empty() const { return jump.numOps() == 1; }
 
-        Jump& jump_;
+        Jump& jump;
     };
 
     Args args() { return Args(*this); }
-#endif
 
     Use& to() { return ops_[0]; }
     const Use& to() const { return ops_[0]; };
 
 private:
-
-    Ops::iterator args_begin_;
 
     friend class World;
     friend class Args;

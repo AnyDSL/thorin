@@ -93,14 +93,14 @@ protected:
         , ops_((Use*) ::operator new(sizeof(Use) * numOps))
     {}
 
+    virtual ~Def() { 
+        anydsl_assert(uses_.empty(), "there are still uses pointing to this def"); 
+        ::operator delete(ops_);
+    }
+
     void setOp(size_t i, Def* def) { new (&ops_[i]) Use(this, def); }
 
 public:
-
-    virtual ~Def() { 
-        anydsl_assert(uses_.empty(), "there are still uses pointing to this def"); 
-        :: operator delete(ops_);
-    }
 
     const UseSet& uses() const { return uses_; }
     const Type* type() const { return type_; }

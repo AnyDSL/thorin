@@ -138,6 +138,22 @@ ErrorLit* World::literal_error(const Type* type) {
  * create
  */
 
+Jump* World::createJump(Def* to, Def* const* arg_begin, Def* const* arg_end) {
+    return vfind(new Jump(to, arg_begin, arg_end));
+}
+
+Jump* World::createBranch(Def* cond, Def* tto, Def* fto, Def* const* arg_begin, Def* const* arg_end) {
+    return createJump(createSelect(cond, tto, fto), arg_begin, arg_end);
+}
+
+Jump* World::createBranch(Def* cond, Def* tto, Def* fto) {
+    return createBranch(cond, tto, fto, 0, 0);
+}
+
+Value* World::createTuple(Def* const* begin, Def* const* end) { 
+    return vfind(new Tuple(*this, begin, end));
+}
+
 Lambda* World::createLambda(const Pi* type) {
     assert(type == 0 || type->isa<Pi>());
     Lambda* lambda = type ? new Lambda(type) : new Lambda(*this);

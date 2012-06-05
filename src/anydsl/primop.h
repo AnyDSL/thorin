@@ -134,6 +134,8 @@ class Tuple : public PrimOp {
 private:
 
     Tuple(World& world, Def* const* begin, Def* const* end);
+
+    friend class World;
 };
 
 //------------------------------------------------------------------------------

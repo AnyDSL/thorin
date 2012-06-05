@@ -5,6 +5,7 @@
 #include <boost/unordered_set.hpp>
 
 #include "anydsl/defuse.h"
+#include "anydsl/jump.h"
 
 namespace anydsl {
 

@@ -21,7 +21,6 @@ class Pi;
 class PrimLit;
 class PrimType;
 class Sigma;
-class Terminator;
 class Type;
 class Value;
 class Undef;

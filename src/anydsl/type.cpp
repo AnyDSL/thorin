@@ -4,6 +4,8 @@
 
 namespace anydsl {
 
+//------------------------------------------------------------------------------
+
 bool Type::equal(const Type* other) const {
     if (this->index() != other->index())
         return false;
@@ -18,6 +20,32 @@ size_t Type::hash() const {
     return seed;
 }
 
+//------------------------------------------------------------------------------
+
+PrimType::PrimType(World& world, PrimTypeKind kind)
+    : Type(world, (IndexKind) kind)
+{
+    debug = kind2str(this->kind());
+}
+
+//------------------------------------------------------------------------------
+
+bool NoRet::equal(const Type* other) const {
+    if (!Type::equal(other))
+        return false;
+
+    return pi() == other->as<NoRet>()->pi();
+}
+
+
+size_t NoRet::hash() const {
+    size_t seed = Type::hash();
+    boost::hash_combine(seed, pi());
+
+    return seed;
+}
+
+//------------------------------------------------------------------------------
 
 bool Sigma::equal(const Type* other) const {
     if (!Type::equal(other))
@@ -46,41 +74,26 @@ size_t Sigma::hash() const {
     return seed;
 }
 
+const Type* Sigma::get(PrimLit* c) const { 
+    anydsl_assert(isInteger(lit2type(c->kind())), "must be an integer constant");
+    return get(c->box().get_u64()); 
+}
+
+//------------------------------------------------------------------------------
+
 bool Pi::equal(const Type* other) const {
     if (!Type::equal(other))
         return false;
 
-    const Pi* pi = other->as<Pi>();
-
-    return this->sigma() == pi->sigma();
+    return this->sigma() == other->as<Pi>()->sigma();
 }
 
 
 size_t Pi::hash() const {
     size_t seed = Type::hash();
-
-    boost::hash_combine(seed, types().size());
-
-    for (size_t i = 0, e = types().size(); i != e; ++i)
-        boost::hash_combine(seed, get(i));
+    boost::hash_combine(seed, sigma());
 
     return seed;
-}
-
-
-//------------------------------------------------------------------------------
-
-PrimType::PrimType(World& world, PrimTypeKind kind)
-    : Type(world, (IndexKind) kind)
-{
-    debug = kind2str(this->kind());
-}
-
-//------------------------------------------------------------------------------
-
-const Type* Sigma::get(PrimLit* c) const { 
-    anydsl_assert(isInteger(lit2type(c->kind())), "must be an integer constant");
-    return get(c->box().get_u64()); 
 }
 
 //------------------------------------------------------------------------------

@@ -56,6 +56,9 @@ public:
 
     const Pi* pi() const { return pi_; }
 
+    virtual bool equal(const Type* other) const;
+    virtual size_t hash() const;
+
 private:
 
     const Pi* pi_;

@@ -95,6 +95,7 @@ void Fct::dump(Printer& p) const {
     if (retType()) {
         p.o << " -> ";
         retType()->dump(p);
+        p.o << ' ';
     }
     p.dumpBlock(body());
 }

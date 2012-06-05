@@ -19,23 +19,44 @@ size_t Type::hash() const {
 }
 
 
-bool CompoundType::equal(const Type* other) const {
+bool Sigma::equal(const Type* other) const {
     if (!Type::equal(other))
         return false;
 
-    const CompoundType* c = other->as<CompoundType>();
+    const Sigma* s = other->as<Sigma>();
 
-    if (this->types().size() != c->types().size())
+    if (this->types().size() != s->types().size())
         return false;
 
     bool result = true;
     for (size_t i = 0, e = types().size(); i != e && result; ++i)
-        result &= this->get(i) == c->get(i);
+        result &= this->get(i) == s->get(i);
 
     return result;
 }
 
-size_t CompoundType::hash() const {
+size_t Sigma::hash() const {
+    size_t seed = Type::hash();
+
+    boost::hash_combine(seed, types().size());
+
+    for (size_t i = 0, e = types().size(); i != e; ++i)
+        boost::hash_combine(seed, get(i));
+
+    return seed;
+}
+
+bool Pi::equal(const Type* other) const {
+    if (!Type::equal(other))
+        return false;
+
+    const Pi* pi = other->as<Pi>();
+
+    return this->sigma() == pi->sigma();
+}
+
+
+size_t Pi::hash() const {
     size_t seed = Type::hash();
 
     boost::hash_combine(seed, types().size());
@@ -57,7 +78,7 @@ PrimType::PrimType(World& world, PrimTypeKind kind)
 
 //------------------------------------------------------------------------------
 
-const Type* CompoundType::get(PrimLit* c) const { 
+const Type* Sigma::get(PrimLit* c) const { 
     anydsl_assert(isInteger(lit2type(c->kind())), "must be an integer constant");
     return get(c->box().get_u64()); 
 }

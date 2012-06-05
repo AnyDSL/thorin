@@ -1,7 +1,7 @@
 #include <impala/environment.h>
 
 #include "anydsl/util/assert.h"
-#include "anydsl/util/foreach.h"
+#include "anydsl/util/for_all.h"
 
 using anydsl::Symbol;
 using anydsl::Type;
@@ -73,7 +73,7 @@ const Type* Environment::clash(const Symbol sym) const {
 }
 
 void Environment::popScope() {
-    FOREACH(& i, curScope()) {
+    for_all (&i, curScope()) {
         const Symbol& sym = i.first;
         TypeStack* stack = i.second;
 

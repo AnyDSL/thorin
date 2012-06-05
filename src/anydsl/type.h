@@ -40,6 +40,7 @@ struct TypeEqual : std::binary_function<const Type*, const Type*, bool> {
 };
 
 typedef std::vector<const Type*> Types;
+typedef std::pair<const Type* const*, const Type* const*> TypeRange;
 
 //------------------------------------------------------------------------------
 
@@ -79,19 +80,34 @@ public:
 
 //------------------------------------------------------------------------------
 
-class CompoundType : public Type {
-protected:
+/// A tuple type.
+class Sigma : public Type {
+private:
 
-    /// Copies over the range specified by \p begin and \p end.
-    template<class T>
-    CompoundType(World& world, IndexKind index, T begin, T end) 
-        : Type(world, index)
+    Sigma(World& world)
+        : Type(world, Index_Sigma)
+        , named_(true)
+    {}
+
+    Sigma(World& world, const Type* const* begin, const Type* const* end)
+        : Type(world, Index_Sigma)
+        , named_(false)
     {
-        for (T i = begin; i != end; ++i)
+        for (const Type* const* i = begin; i != end; ++i)
            types_.push_back(*i);
     }
 
+
 public:
+
+    bool named() const { return named_; }
+
+    template<class T>
+    void set(T begin, T end) {
+        anydsl_assert(named_, "only allowed on named Sigmas");
+        anydsl_assert(types_.empty(), "members already set");
+        types_.insert(types_.begin(), begin, end);
+    }
 
     /// Get element type via index.
     const Type* get(size_t i) const { 
@@ -107,41 +123,9 @@ public:
     virtual bool equal(const Type* other) const;
     virtual size_t hash() const;
 
-protected:
+private:
 
     Types types_;
-};
-
-//------------------------------------------------------------------------------
-
-/// A tuple type.
-class Sigma : public CompoundType {
-private:
-
-    Sigma(World& world)
-        : CompoundType(world, Index_Sigma, (const Type**) 0, (const Type**) 0)
-        , named_(true)
-    {}
-
-    template<class T>
-    Sigma(World& world, T begin, T end)
-        : CompoundType(world, Index_Sigma, begin, end)
-        , named_(false)
-    {}
-
-public:
-
-    bool named() const { return named_; }
-
-    template<class T>
-    void set(T begin, T end) {
-        anydsl_assert(named_, "only allowed on named Sigmas");
-        anydsl_assert(types_.empty(), "members already set");
-        types_.insert(types_.begin(), begin, end);
-    }
-
-private:
-
     bool named_;
 
     friend class World;
@@ -150,14 +134,33 @@ private:
 //------------------------------------------------------------------------------
 
 /// A function type.
-class Pi : public CompoundType {
+class Pi : public Type {
 private:
 
-    template<class T>
-    Pi(World& world, T begin, T end)
-        : CompoundType(world, Index_Pi, begin, end)
-    {}
+    Pi(const Sigma* sigma)
+        : Type(sigma->world(), Index_Pi)
+        , sigma_(sigma)
+    {
+        anydsl_assert(!sigma->named(), "only unnamed sigma allowed with pi type");
+    }
 
+public:
+
+    const Type* sigma() const { return sigma_; }
+
+    /// Get element type via index.
+    const Type* get(size_t i) const { return sigma_->get(i); }
+    /// Get element type via anydsl::PrimLit which serves as index.
+    const Type* get(PrimLit* i) const { return sigma_->get(i); }
+
+    const Types& types() const { return sigma_->types(); }
+
+    virtual bool equal(const Type* other) const;
+    virtual size_t hash() const;
+
+private:
+
+    const Sigma* sigma_;
 
     friend class World;
 };

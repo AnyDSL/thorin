@@ -4,7 +4,6 @@
 #include <cassert>
 #include <string>
 
-#include <boost/unordered_map.hpp>
 #include <boost/unordered_set.hpp>
 
 #include "anydsl/enums.h"
@@ -12,7 +11,7 @@
 #include "anydsl/type.h"
 #include "anydsl/util/autoptr.h"
 #include "anydsl/util/box.h"
-#include "anydsl/util/foreach.h"
+#include "anydsl/util/for_all.h"
 
 namespace anydsl {
 
@@ -101,28 +100,24 @@ public:
     /// Get unit AKA void AKA (unnamed) sigma(). 
     const Sigma* unit() const { return unit_; }
     /// Creates 'sigma()'.
-    const Sigma* sigma0();
+    const Sigma* sigma0() { return unit_; }
     /// Creates 'sigma(t1)'.
-    const Sigma* sigma1(const Type* t1);
+    const Sigma* sigma1(const Type* t1) { return sigma((const Type*[]){t1}); }
     /// Creates 'sigma(t1, t2)'.
-    const Sigma* sigma2(const Type* t1, const Type* t2);
+    const Sigma* sigma2(const Type* t1, const Type* t2) { return sigma((const Type*[]){t1, t2}); }
     /// Creates 'sigma(t1, t2, t3)'.
-    const Sigma* sigma3(const Type* t1, const Type* t2, const Type* t3);
-    template<class T> 
-    const Sigma* sigma(T container) { return sigma(container.begin(), container.end()); }
+    const Sigma* sigma3(const Type* t1, const Type* t2, const Type* t3) { return sigma((const Type*[]){t1, t2, t3}); }
+
+    const Sigma* sigma(const Type* const* begin, const Type* const* end) { 
+        return tfind(new Sigma(*this, begin, end)); 
+    }
+    const Sigma* sigma(const Types& types) { return sigma(types.begin().base(), types.end().base()); }
+
     template<size_t N>
-    const Sigma* sigma(const Type* (&array)[N]) { return sigma(array, array + N); }
-    /** 
-     * @brief Get \em unamed \p Sigma with element types of given range.
-     * 
-     * @param T Must be a forward iterator which yields a const Type* upon using unary 'operator *'.
-     * @param begin Iterator which points to the beginning of the range.
-     * @param end Iterator which points to one element past the end of the range.
-     * 
-     * @return The Sigma.
-     */
-    template<class T>
-    const Sigma* sigma(T begin, T end) { return tfind(new Sigma(*this, begin, end)); }
+    const Sigma* sigma(const Type* const (&array)[N]) { 
+        return sigma(array, array + N); 
+    }
+
     /// Creates a fresh \em named sigma.
     Sigma* namedSigma(const std::string& name = "");
 
@@ -131,26 +126,18 @@ public:
     /// Creates 'pi()'.
     const Pi* pi0() { return pi0_; }
     /// Creates 'pi(t1)'.
-    const Pi* pi1(const Type* t1);
+    const Pi* pi1(const Type* t1) { return pi(sigma1(t1)); }
     /// Creates 'pi(t1, t2)'.
-    const Pi* pi2(const Type* t1, const Type* t2);
+    const Pi* pi2(const Type* t1, const Type* t2) { return pi(sigma2(t1, t2)); }
     /// Creates 'pi(t1, t2, t3)'.
-    const Pi* pi3(const Type* t1, const Type* t2, const Type* t3);
-    template<class T> 
-    const Pi* pi(T container) { return pi(container.begin(), container.end()); }
+    const Pi* pi3(const Type* t1, const Type* t2, const Type* t3) { return pi(sigma3(t1, t2, t3)); }
+
+    const Pi* pi(const Sigma* sigma) { return tfind(new Pi(sigma)); }
+    const Pi* pi(const Type* const* begin, const Type* const* end) { return tfind(new Pi(sigma(begin, end))); }
+    const Pi* pi(const Types& types) { return pi(sigma(types)); }
     template<size_t N>
-    const Pi* pi(const Type* (&array)[N]) { return pi(array, array + N); }
-    /** 
-     * @brief Get \p Pi with element types of given range.
-     * 
-     * @param T Must be a forward iterator which yields a const Type* upon using unary 'operator *'.
-     * @param begin Iterator which points to the beginning of the range.
-     * @param end Iterator which points to one element past the end of the range.
-     * 
-     * @return The Sigma.
-     */
-    template<class T>
-    const Pi* pi(T begin, T end) { return tfind(new Pi(*this, begin, end)); }
+    const Pi* pi(const Type* const (&array)[N]) { return pi(sigma(array)); }
+
 
     /*
      * literals
@@ -242,32 +229,6 @@ private:
     NamedSigmas namedSigmas_;
     Lambdas lambdas_;
 };
-
-//------------------------------------------------------------------------------
-
-template<class T>
-Jump::Jump(Def* to, T begin, T end) 
-    : Value(Index_Jump, 
-            to->world().noret(to->type()->as<Pi>()), 
-            std::distance(begin, end) + 1)
-{ 
-    setOp(0, to);
-
-    T i = begin;
-    for (size_t x = 1; i != end; ++x, ++i)
-        setOp(x, *i);
-
-#ifndef NDEBUG
-    const Pi* pi = toLambda()->pi();
-    anydsl_assert(pi->types().size() == args().size(), "element size of args and pi-to-type does not match");
-
-    Types::const_iterator t = pi->types().begin();
-    FOREACH(const& arg, args()) {
-        anydsl_assert(arg.type() == *t, "type mismatch");
-        ++t;
-    }
-#endif
-}
 
 //------------------------------------------------------------------------------
 

@@ -4,7 +4,7 @@
 #include "anydsl/jump.h"
 #include "anydsl/world.h"
 #include "anydsl/binding.h"
-#include "anydsl/util/foreach.h"
+#include "anydsl/util/for_all.h"
 
 using namespace anydsl;
 
@@ -83,7 +83,7 @@ void BB::flowsto(BB* to) {
 void BB::finalizeAll() {
     processTodos();
 
-    FOREACH(bb, children_)
+    for_all (bb, children_)
         bb->finalizeAll();
 }
 
@@ -97,11 +97,11 @@ void BB::processTodos() {
 #endif
     anydsl_assert(!pred_.empty() || dcast<Fct>(this), "must not be empty");
 
-    FOREACH(i, todos_) {
+    for_all (i, todos_) {
         ParamIter x = i.second;
         Symbol sym = i.first;
 
-        FOREACH(pred, pred_) {
+        for_all (pred, pred_) {
             anydsl_assert(!pred->succ_.empty(), "must have at least one succ");
             anydsl_assert(pred->succ_.find(this) != pred->succ_.end(), "incorrectly wired");
             pred->finalize(x, sym);
@@ -168,14 +168,14 @@ Binding* BB::getVN(const Symbol sym, const Type* type, bool finalize) {
 
             if (finalize) {
 #if 0
-                FOREACH(pred, pred_)
+                for_all (pred, pred_)
                     pred->finalize(param, sym);
 #endif
             } else {
                 // remember to fix preds
 #ifdef DEBUG_CFG
                 std::cout << "todo: " << name() << ": " << sym << " -> " << x << std::endl;
-                FOREACH(pred, pred_)
+                for_all (pred, pred_)
                     std::cout << "    pred: " << pred->name() << std::endl;
 #endif
                 anydsl_assert(todos_.find(sym) == todos_.end(), "double insert");
@@ -204,7 +204,7 @@ std::string BB::name() const {
 void BB::dfs(BBList& bbs) {
     visited_ = true;
 
-    FOREACH(bb, succ())
+    for_all (bb, succ())
         if (!bb->visited_)
             dfs(bbs);
 
@@ -291,7 +291,7 @@ void Fct::buildDomTree() {
 
             BB* new_bb = 0;
             // find processed pred of bb
-            FOREACH(pred, bb->pred()) {
+            for_all (pred, bb->pred()) {
                 if (pred->poIndex_ > bb_i) {
                     new_bb = pred;
                     break;
@@ -301,7 +301,7 @@ void Fct::buildDomTree() {
             size_t new_i = new_bb->poIndex_;
 
             // for all un processed preds of bb
-            FOREACH(pred, bb->pred()) {
+            for_all (pred, bb->pred()) {
                 size_t pred_i = pred->poIndex_;
                 if (!pred->visited_) {
                     if (idoms_[pred_i])

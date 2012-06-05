@@ -34,7 +34,7 @@ public:
 
     anydsl::Location loc;
 
-    virtual void check(Sema& sema) = 0;
+    virtual void check(Sema& sema) const = 0;
     virtual void dump(Printer& p) const = 0;
 
     template<class T> T* as()  { return anydsl::scast<T>(this); }
@@ -46,7 +46,7 @@ public:
 class Prg : public ASTNode {
 public:
 
-    virtual void check(Sema& sema);
+    virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
 
     const Fcts& fcts() const { return fcts_; }
@@ -68,7 +68,7 @@ public:
     const Stmt* body() const { return body_; }
     const Decls& params() const { return params_; }
 
-    virtual void check(Sema& sema);
+    virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
 
 private:
@@ -91,7 +91,7 @@ public:
     anydsl::Symbol symbol() const { return symbol_; }
     const Type* type() const { return type_; }
 
-    virtual void check(Sema& sema);
+    virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
 
 private:
@@ -118,7 +118,7 @@ public:
 
     Kind kind() const { return kind_; }
 
-    virtual void check(Sema& sema);
+    virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
 
 private:
@@ -145,7 +145,7 @@ public:
         this->loc = loc;
     }
 
-    virtual void check(Sema& sema);
+    virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
     virtual Value emit(CodeGen& cg) const;
 };
@@ -164,7 +164,7 @@ public:
     Kind kind() const { return kind_; }
     anydsl::Box value() const { return value_; }
 
-    virtual void check(Sema& sema);
+    virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
     virtual Value emit(CodeGen& cg) const;
 
@@ -181,7 +181,7 @@ public:
 
     anydsl::Symbol symbol() const { return symbol_; }
 
-    virtual void check(Sema& sema);
+    virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
     virtual Value emit(CodeGen& cg) const;
 
@@ -205,7 +205,7 @@ public:
 
     Kind kind() const { return kind_; }
 
-    virtual void check(Sema& sema);
+    virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
     virtual Value emit(CodeGen& cg) const;
 
@@ -230,7 +230,7 @@ public:
 
     Kind kind() const { return kind_; }
 
-    virtual void check(Sema& sema);
+    virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
     virtual Value emit(CodeGen& cg) const;
 
@@ -257,7 +257,7 @@ public:
 
     Kind kind() const { return kind_; }
 
-    virtual void check(Sema& sema);
+    virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
     virtual Value emit(CodeGen& cg) const;
 
@@ -281,7 +281,7 @@ public:
 
     const Expr* expr() const { return expr_; }
 
-    virtual void check(Sema& sema);
+    virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
 
 private:
@@ -297,7 +297,7 @@ public:
     const Decl* decl() const { return decl_; }
     const Expr* init() const { return init_; }
 
-    virtual void check(Sema& sema);
+    virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
 
 private:
@@ -315,7 +315,7 @@ public:
     const Stmt* ifStmt() const { return ifStmt_; }
     const Stmt* elseStmt() const { return elseStmt_; }
 
-    virtual void check(Sema& sema);
+    virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
 
 private:
@@ -353,7 +353,7 @@ public:
         
     void set(const anydsl::Position& pos1, const Expr* cond, const Stmt* body);
 
-    virtual void check(Sema& sema);
+    virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
 };
 
@@ -364,7 +364,7 @@ public:
 
     void set(const anydsl::Position& pos1, const Stmt* body, const Expr* cond, const anydsl::Position& pos2);
 
-    virtual void check(Sema& sema);
+    virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
 };
 
@@ -385,7 +385,7 @@ public:
 
     bool isDecl() const { return isDecl_; }
 
-    virtual void check(Sema& sema);
+    virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
 
 private:
@@ -404,7 +404,7 @@ public:
 
     BreakStmt(const anydsl::Position& pos1, const anydsl::Position& pos2, const Loop* loop);
 
-    virtual void check(Sema& sema);
+    virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
 
 private:
@@ -417,7 +417,7 @@ public:
 
     ContinueStmt(const anydsl::Position& pos1, const anydsl::Position& pos2, const Loop* loop);
 
-    virtual void check(Sema& sema);
+    virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
 
 private:
@@ -432,7 +432,7 @@ public:
 
     const Expr* expr() const { return expr_; }
 
-    virtual void check(Sema& sema);
+    virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
 
 private:
@@ -450,7 +450,7 @@ public:
 
     const Stmts& stmts() const { return stmts_; }
 
-    virtual void check(Sema& sema);
+    virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
     virtual bool isEmpty() const { return stmts_.empty(); }
 

@@ -1,6 +1,6 @@
 #include "impala/ast.h"
 
-#include "anydsl/util/foreach.h"
+#include "anydsl/util/for_all.h"
 
 #include "impala/prec.h"
 
@@ -72,7 +72,7 @@ void Printer::dumpBlock(const Stmt* s) {
 //------------------------------------------------------------------------------
 
 void Prg::dump(Printer& p) const {
-    FOREACH(f, fcts()) {
+    for_all (f, fcts()) {
         f->dump(p);
         p.newline();
     }

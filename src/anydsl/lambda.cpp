@@ -3,7 +3,7 @@
 #include "anydsl/jump.h"
 #include "anydsl/type.h"
 #include "anydsl/world.h"
-#include "anydsl/util/foreach.h"
+#include "anydsl/util/for_all.h"
 
 namespace anydsl {
 
@@ -19,12 +19,12 @@ Lambda::~Lambda() {
     delete jump_;
 
 #ifndef NDEBUG
-    FOREACH(param, params_)
+    for_all (param, params_)
         anydsl_assert(param->uses().empty(), "there are still uses pointing to param '") 
             << param->debug << "'";
 #endif
 
-    FOREACH(param, params_) 
+    for_all (param, params_) 
         delete param;
 }
 

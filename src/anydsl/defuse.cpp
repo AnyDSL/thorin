@@ -4,7 +4,7 @@
 
 #include "anydsl/primop.h"
 #include "anydsl/type.h"
-#include "anydsl/util/foreach.h"
+#include "anydsl/util/for_all.h"
 
 namespace anydsl {
 

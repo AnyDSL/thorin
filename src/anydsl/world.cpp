@@ -82,8 +82,8 @@ static void examineDef(Def* def, FoldValue& v) {
 World::World() 
     : values_(1031)
     , types_(1031)
-    , unit_ (tfind(new Sigma(*this, (const Type**) 0, (const Type**) 0)))
-    , pi0_  (tfind(new Pi   (*this, (const Type**) 0, (const Type**) 0)))
+    , unit_ (tfind(new Sigma(*this, (const Type* const*) 0, (const Type* const*) 0)))
+    , pi0_  (tfind(new Pi(unit_)))
 #define ANYDSL_U_TYPE(T) ,T##_(tfind(new PrimType(*this, PrimType_##T)))
 #define ANYDSL_F_TYPE(T) ,T##_(tfind(new PrimType(*this, PrimType_##T)))
 #include "anydsl/tables/primtypetable.h"
@@ -95,11 +95,11 @@ World::~World() {
 
     cleanup();
 
-    FOREACH(sigma,  namedSigmas_) delete sigma;
-    //FOREACH(lambda, lambdas_)     delete lambda;
+    for_all (sigma,  namedSigmas_) delete sigma;
+    //for_all (lambda, lambdas_)     delete lambda;
 
-    FOREACH(v, values_) delete v;
-    FOREACH(t, types_) delete t;
+    for_all (v, values_) delete v;
+    for_all (t, types_) delete t;
 }
 
 /*
@@ -112,34 +112,6 @@ Sigma* World::namedSigma(const std::string& name /*= ""*/) {
     namedSigmas_.push_back(s);
 
     return s;
-}
-
-const Sigma* World::sigma1(const Type* t1) {
-    return sigma(&t1, (&t1) + 1);
-}
-
-const Sigma* World::sigma2(const Type* t1, const Type* t2) {
-    const Type* types[2] = {t1, t2};
-    return sigma(types);
-}
-
-const Sigma* World::sigma3(const Type* t1, const Type* t2, const Type* t3) {
-    const Type* types[3] = {t1, t2, t3};
-    return sigma(types);
-}
-
-const Pi* World::pi1(const Type* t1) {
-    return pi(&t1, (&t1) + 1);
-}
-
-const Pi* World::pi2(const Type* t1, const Type* t2) {
-    const Type* types[2] = {t1, t2};
-    return pi(types);
-}
-
-const Pi* World::pi3(const Type* t1, const Type* t2, const Type* t3) {
-    const Type* types[3] = {t1, t2, t3};
-    return pi(types);
 }
 
 /*

@@ -133,17 +133,7 @@ private:
 class Tuple : public PrimOp {
 private:
 
-#if 0
-    template<class T>
-    Tuple(T begin, T end) 
-        : PrimOp(Index_Tuple, world, std::distance(begin, end))
-    {
-        size_t x = 0;
-        for (T i = begin; i != end; ++i, ++x)
-            setOp(this, i);
-    }
-#endif
-
+    Tuple(World& world, Def* const* begin, Def* const* end);
 };
 
 //------------------------------------------------------------------------------

@@ -1,7 +1,5 @@
 #include "impala/ast.h"
 
-#include "anydsl/util/foreach.h"
-
 namespace impala {
 
 Decl::Decl(const Token& tok, const Type* type)

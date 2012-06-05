@@ -1,34 +1,34 @@
-#include "anydsl/printer.h"
+//#include "anydsl/dump.h"
 
 #include "anydsl/airnode.h"
 #include "anydsl/literal.h"
 #include "anydsl/primop.h"
 #include "anydsl/type.h"
-#include "anydsl/util/foreach.h"
+#include "anydsl/util/for_all.h"
 
 namespace anydsl {
 
-class Printer {
+class Dumper {
 public:
-    void print(std::ostream& s, const AIRNode* n);
+    void dump(const AIRNode* n, std::ostream& s);
 };
 
-void print(std::ostream& s, const AIRNode* n) {
-    Printer p;
-    p.print(s, n);
+void dump(const AIRNode* n, std::ostream& s /*= std::cout*/) {
+    Dumper p;
+    p.dump(n, s);
 }
 
-static void printCompoundType(std::ostream& s, const std::string& str, const AIRNode* n) {
-    const CompoundType* c = n->as<CompoundType>();
+static void dumpCompoundType(const std::string& str, const AIRNode* n, std::ostream& s) {
+    const Sigma* c = n->as<Sigma>();
     s << str << '(';
 
     if (!c->types().empty()) {
         for (Types::const_iterator i = c->types().begin(), e = --c->types().end(); i != e; ++i) {
-            print(s, *i);
+            dump(*i, s);
             s << ", ";
         }
 
-        print(s, c->types().back());
+        dump(c->types().back(), s);
     }
 
     s << ')';
@@ -36,17 +36,17 @@ static void printCompoundType(std::ostream& s, const std::string& str, const AIR
     return;
 }
 
-static void printBinOp(std::ostream& s, const std::string& str, const AIRNode* n) {
+static void dumpBinOp(const std::string& str, const AIRNode* n, std::ostream& s) {
     const BinOp* b = n->as<BinOp>();
     s << str << "("; 
-    print(s, b->luse().def());
+    dump(b->luse().def(), s);
     s << ", ";
-    print(s, b->ruse().def());
+    dump(b->ruse().def(), s);
     s << ")";
     return;
 }
 
-void Printer::print(std::ostream& s, const AIRNode* n) {
+void Dumper::dump(const AIRNode* n, std::ostream& s) {
     std::string str;
 
     switch (n->index()) {
@@ -55,7 +55,7 @@ void Printer::print(std::ostream& s, const AIRNode* n) {
  */
         // normally we follow a use to a def
         case Index_Use: 
-            return print(s, n->as<Use>()->def());
+            return dump(n->as<Use>()->def(), s);
 
 /*
  * types
@@ -65,8 +65,8 @@ void Printer::print(std::ostream& s, const AIRNode* n) {
 #define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
 #include "anydsl/tables/primtypetable.h"
 
-        case Index_Sigma: return printCompoundType(s, "sigma", n);
-        case Index_Pi:    return printCompoundType(s, "pi",    n);
+        case Index_Sigma: return dumpCompoundType("sigma", n, s);
+        case Index_Pi:    return dumpCompoundType("pi",    n->as<Pi>()->sigma(), s);
 
 /*
  * literals
@@ -83,10 +83,10 @@ void Printer::print(std::ostream& s, const AIRNode* n) {
  * primops
  */
 
-#define ANYDSL_ARITHOP(op) case Index_##op: return printBinOp(s, #op, n);
+#define ANYDSL_ARITHOP(op) case Index_##op: return dumpBinOp(#op, n, s);
 #include "anydsl/tables/arithoptable.h"
 
-#define ANYDSL_RELOP(op)   case Index_##op: return printBinOp(s, #op, n);
+#define ANYDSL_RELOP(op)   case Index_##op: return dumpBinOp(#op, n, s);
 #include "anydsl/tables/reloptable.h"
 
 #define ANYDSL_CONVOP(op) case Index_##op:
@@ -111,7 +111,7 @@ void Printer::print(std::ostream& s, const AIRNode* n) {
         case Index_NoRet:
         {
             const NoRet* noret = n->as<NoRet>();
-            print(s, noret->pi());
+            dump(noret->pi(), s);
             return;
         }
 

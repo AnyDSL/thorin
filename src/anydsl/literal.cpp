@@ -2,7 +2,6 @@
 
 #include "anydsl/type.h"
 #include "anydsl/world.h"
-#include "anydsl/util/foreach.h"
 
 namespace anydsl {
 

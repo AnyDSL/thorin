@@ -12,8 +12,7 @@ class NoRet;
 class Jump : public Value {
 private:
 
-    template<class T>
-    Jump(Def* to, T begin, T end);
+    Jump(Def* to, Def* const* begin, Def* const* end);
 
 public:
 

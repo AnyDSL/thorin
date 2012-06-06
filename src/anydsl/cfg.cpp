@@ -98,7 +98,7 @@ void BB::processTodos() {
     anydsl_assert(!pred_.empty() || dcast<Fct>(this), "must not be empty");
 
     for_all (i, todos_) {
-        ParamIter x = i.second;
+        size_t x = i.second;
         Symbol sym = i.first;
 
         for_all (pred, pred_) {
@@ -109,7 +109,7 @@ void BB::processTodos() {
     }
 }
 
-void BB::finalize(ParamIter param, const Symbol sym) {
+void BB::finalize(size_t param, const Symbol sym) {
     if (Beta* beta = getBeta()) {
         //anydsl_assert(beta->args().empty(), "must be empty");
         fixBeta(beta, param, sym, 0);
@@ -125,7 +125,7 @@ void BB::finalize(ParamIter param, const Symbol sym) {
         ANYDSL_UNREACHABLE;
 }
 
-void BB::fixBeta(Beta* beta, ParamIter param, const Symbol sym, Type* type) {
+void BB::fixBeta(Beta* beta, size_t param, const Symbol sym, Type* type) {
     UseList& args = beta->args();
 
     // make room for new arg
@@ -161,9 +161,9 @@ Binding* BB::getVN(const Symbol sym, const Type* type, bool finalize) {
             return newBind;
         } else {
             // add bind as param to current BB
-            ParamIter param = lambda_->appendParam(type);
+            size_t param = 0;// TODO lambda_->appendParam(type);
             // insert new VN
-            Binding* bind = new Binding(sym, *param);
+            Binding* bind = 0; // TODO new Binding(sym, *param);
             setVN(bind);
 
             if (finalize) {
@@ -234,7 +234,9 @@ Fct::Fct(World& world, const Symbol sym)
 
 void Fct::setReturnCont(const Type* retType) {
     anydsl_assert(!exit_, "already set");
+    return;
 
+#if 0
     Symbol resSymbol = "<result>";
     retParam_ = *lambda_->appendParam(world().pi1(retType));
     retParam_->debug = "<result>";
@@ -243,6 +245,7 @@ void Fct::setReturnCont(const Type* retType) {
     exit_->invokes(retParam_);
     // TODO
     //exit_->lambda()->jump()->ops_append(getVN(resSymbol, retType, false)->def);
+#endif
 }
 
 void Fct::insertReturnStmt(BB* bb, Def* def) {

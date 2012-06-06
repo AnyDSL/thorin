@@ -75,12 +75,14 @@ void Emitter::param(const Token& tok, const Type* type) {
         /*prev->error()*/ std::cerr << "previous definition here\n";
         return;
     }
+#if 0
 
     Param* p = *curFct->lambda()->appendParam(type);
     p->debug = name.str();
     Binding* bind = new Binding(name, p);
     curBB->setVN(bind);
     env_.insert(name, type);
+#endif
 }
 
 void Emitter::fixto(anydsl::BB* to) {

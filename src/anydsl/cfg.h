@@ -27,8 +27,6 @@ class Token;
 class World;
 typedef boost::unordered_set<BB*> BBs;
 typedef std::vector<BB*> BBList;
-typedef std::list<Param*> Params;
-typedef Params::iterator ParamIter;
 
 //------------------------------------------------------------------------------
 
@@ -72,7 +70,7 @@ protected:
     typedef std::map<const Symbol, Binding*> ValueMap;
     ValueMap values_;
 
-    typedef std::map<Symbol, ParamIter, Symbol::FastLess> Todos;
+    typedef std::map<Symbol, size_t, Symbol::FastLess> Todos;
     Todos todos_;
 
     // CFG

@@ -149,7 +149,7 @@ private:
 
 public:
 
-    const Type* sigma() const { return sigma_; }
+    const Sigma* sigma() const { return sigma_; }
 
     /// Get element type via index.
     const Type* get(size_t i) const { return sigma_->get(i); }

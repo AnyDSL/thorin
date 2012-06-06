@@ -16,6 +16,7 @@ namespace anydsl {
 
 class Lambda;
 class Type;
+class Sigma;
 class World;
 class Use;
 typedef boost::unordered_set<Use*> UseSet;
@@ -153,13 +154,14 @@ public:
 
 //------------------------------------------------------------------------------
 
-class Param : public Def {
+class Params : public Def {
 private:
 
-    Param(Lambda* parent, const Type* type)
-        : Def(Index_Param, type, 0)
-        , parent_(parent)
-    {}
+    Params(Lambda* parent, const Sigma* sigma);
+
+    const Sigma* sigma() const;
+
+public:
 
     const Lambda* parent() const { return parent_; }
 

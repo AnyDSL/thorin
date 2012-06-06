@@ -19,7 +19,7 @@ ANYDSL_AIR_NODE(Jump)
             ANYDSL_AIR_NODE(Insert)
             ANYDSL_AIR_NODE(Tuple)
             ANYDSL_AIR_NODE(Select)
-        ANYDSL_AIR_NODE(Param)
+        ANYDSL_AIR_NODE(Params)
 // Type
     ANYDSL_AIR_NODE(NoRet)
     // PrimType

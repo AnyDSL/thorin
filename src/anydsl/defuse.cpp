@@ -71,4 +71,17 @@ size_t Value::hash() const {
     return seed;
 }
 
+//------------------------------------------------------------------------------
+
+Params::Params(Lambda* parent, const Sigma* sigma)
+    : Def(Index_Params, sigma, 0)
+    , parent_(parent)
+{}
+
+const Sigma* Params::sigma() const { 
+    return type()->as<Sigma>(); 
+}
+
+//------------------------------------------------------------------------------
+
 } // namespace anydsl

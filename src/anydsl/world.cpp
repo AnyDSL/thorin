@@ -151,9 +151,8 @@ Value* World::createTuple(Def* const* begin, Def* const* end) {
     return vfind(new Tuple(*this, begin, end));
 }
 
-Lambda* World::createLambda(const Pi* type) {
-    assert(type == 0 || type->isa<Pi>());
-    Lambda* lambda = type ? new Lambda(type) : new Lambda(*this);
+Lambda* World::createLambda(const Pi* pi) {
+    Lambda* lambda = new Lambda(pi);
     lambdas_.insert(lambda);
     return lambda;
 }

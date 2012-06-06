@@ -100,21 +100,6 @@ int main(int argc, char** argv) {
             ANYDSL_NOT_IMPLEMENTED;
         }
 
-        World world;
-        Types types;
-        types.push_back(world.type_u16());
-        types.push_back(world.type_u16());
-        types.push_back(world.type_u64());
-        const Sigma* s = world.sigma( (const Type*[]){ world.type_u16(), world.type_u16(), world.type_u64() } );
-        const Sigma* t = world.sigma(types);
-        const Sigma* u = world.sigma3(world.type_u16(), world.type_u16(), world.type_u64());
-        dump(s);
-        std::cout << std::endl;
-        dump(t);
-        std::cout << std::endl;
-        dump(u);
-        std::cout << std::endl;
-
         const char* filename = infiles[0].c_str();
         ifstream file(filename);
         anydsl::AutoPtr<const impala::Prg> p(impala::parse(file, filename));

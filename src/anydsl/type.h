@@ -39,7 +39,7 @@ private:
 
 public:
 
-    const Pi* pi() const { return ops_[0].def()->as<Pi>(); }
+    const Pi* pi() const { return ops_[0]->as<Pi>(); }
 
 private:
 
@@ -79,15 +79,11 @@ public:
     /// Get element type via index.
     const Type* get(size_t i) const { 
         anydsl_assert(i < numOps(), "index out of range"); 
-        return ops_[i].def()->as<Type>();
+        return ops_[i]->as<Type>();
     }
 
     /// Get element type via anydsl::PrimLit which serves as index.
     const Type* get(const PrimLit* i) const;
-
-    typedef AsOps<Type> Types;
-
-    Types types() const { return Types(*this); }
 
 private:
 

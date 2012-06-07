@@ -19,9 +19,9 @@ Jump::Jump(const Def* to, const Def* const* begin, const Def* const* end)
     const Pi* pi = toLambda()->pi();
     anydsl_assert(pi->sigma()->ops().size() == args().size(), "element size of args and pi-to-type does not match");
 
-    const Use* t = pi->ops().begin();
+    const Def** t = pi->ops().begin();
     for_all (const& arg, args()) {
-        anydsl_assert(arg.type() == t->def(), "type mismatch");
+        anydsl_assert(arg->type() == *t, "type mismatch");
         ++t;
     }
 #endif

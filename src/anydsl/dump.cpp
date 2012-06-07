@@ -22,15 +22,15 @@ static void dumpCompoundType(const std::string& str, const AIRNode* n, std::ostr
     const Sigma* sigma = n->as<Sigma>();
     s << str << '(';
 
-    if (!sigma->types().empty()) {
-        for (Sigma::Types::const_iterator i = sigma->types().begin(), 
-                                          e = sigma->types().end() - 1; 
-                                          i != e; ++i) {
+    if (!sigma->ops().empty()) {
+        for (Sigma::Ops::const_iterator i = sigma->ops().begin(), 
+                                        e = sigma->ops().end() - 1; 
+                                        i != e; ++i) {
             dump(*i, s);
             s << ", ";
         }
 
-        dump(sigma->types().back(), s);
+        dump(sigma->ops().back(), s);
     }
 
     s << ')';
@@ -41,9 +41,9 @@ static void dumpCompoundType(const std::string& str, const AIRNode* n, std::ostr
 static void dumpBinOp(const std::string& str, const AIRNode* n, std::ostream& s) {
     const BinOp* b = n->as<BinOp>();
     s << str << "("; 
-    dump(b->luse().def(), s);
+    dump(b->ldef(), s);
     s << ", ";
-    dump(b->ruse().def(), s);
+    dump(b->rdef(), s);
     s << ")";
     return;
 }
@@ -52,13 +52,6 @@ void Dumper::dump(const AIRNode* n, std::ostream& s) {
     std::string str;
 
     switch (n->index()) {
-/*
- * Use
- */
-        // normally we follow a use to a def
-        case Index_Use: 
-            return dump(n->as<Use>()->def(), s);
-
 /*
  * types
  */

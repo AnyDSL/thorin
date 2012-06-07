@@ -22,7 +22,7 @@ private:
 public:
 
     const Params* params() const { return params_; }
-    const Jump* jump() const { return ops_[0].def()->as<Jump>(); }
+    const Jump* jump() const { return ops_[0]->as<Jump>(); }
     const Pi* pi() const;
 
     void setJump(const Jump* jump);

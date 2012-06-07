@@ -12,43 +12,25 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-Use::Use(AIRNode* parent, const Def* def)
-    : AIRNode(Index_Use)
-    , def_(def) 
-    , parent_(parent)
-{
-    def_->registerUse(this);
-}
-
-Use::~Use() {
-    def_->unregisterUse(this);
-}
-
-World& Use::world() {
-    return def_->world();
-}
-
-//------------------------------------------------------------------------------
-
 Def::~Def() { 
     anydsl_assert(isa<Lambda>() 
             || (isa<Sigma>() && as<Sigma>()->named()) 
             || uses_.empty(), 
             "there are still uses pointing to this def"); 
 
-    for_all (const& use, ops()) use.~Use();
-    ::operator delete(ops_); 
+    for (size_t i = 0, e = numOps(); i != e; ++i)
+        ops_[i]->unregisterUse(this);
+
+    delete[] ops_;
 }
 
 
-void Def::registerUse(Use* use) const {
-    anydsl_assert(use->def() == this, "use does not point to this def");
+void Def::registerUse(const Def* use) const {
     anydsl_assert(uses_.find(use) == uses_.end(), "must not be inside the use list");
     uses_.insert(use);
 }
 
-void Def::unregisterUse(Use* use) const {
-    anydsl_assert(use->def() == this, "use does not point to this def");
+void Def::unregisterUse(const Def* use) const {
     anydsl_assert(uses_.find(use) != uses_.end(), "must be inside the use list");
     uses_.erase(use);
 }
@@ -69,7 +51,7 @@ bool Value::equal(const Value* other) const {
 
     bool result = true;
     for (size_t i = 0, e = numOps(); i != e && result; ++i)
-        result &= this->ops_[i].def() == other->ops_[i].def();
+        result &= this->ops_[i] == other->ops_[i];
 
     return result;
 }
@@ -81,7 +63,7 @@ size_t Value::hash() const {
     boost::hash_combine(seed, numOps());
 
     for (size_t i = 0, e = numOps(); i != e; ++i)
-        boost::hash_combine(seed, ops_[i].def());
+        boost::hash_combine(seed, ops_[i]);
 
     return seed;
 }

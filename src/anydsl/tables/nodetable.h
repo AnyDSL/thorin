@@ -2,7 +2,6 @@
 #error "define ANYDSL_AIR_NODE before including this file"
 #endif
 
-ANYDSL_AIR_NODE(Use)
 ANYDSL_AIR_NODE(Jump)
 // Def
     ANYDSL_AIR_NODE(Lambda)

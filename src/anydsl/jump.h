@@ -16,13 +16,13 @@ private:
 
 public:
 
-    const Lambda* toLambda() const { return to().def()->isa<Lambda>(); }
+    const Lambda* toLambda() const { return to()->isa<Lambda>(); }
 
     const NoRet* noret() const;
 
     struct Args {
-        typedef const Use* const_iterator;
-        typedef std::reverse_iterator<const Use*> const_reverse_iterator;
+        typedef const Def** const_iterator;
+        typedef std::reverse_iterator<const Def**> const_reverse_iterator;
 
         Args(const Jump& jump) : jump(jump) {}
 
@@ -31,7 +31,7 @@ public:
         const_reverse_iterator rbegin() const { return const_reverse_iterator(jump.ops_ + size()); }
         const_reverse_iterator rend() const { return const_reverse_iterator(jump.ops_ + 1); }
 
-        const Use& operator [] (size_t i) const {
+        const Def* const& operator [] (size_t i) const {
             anydsl_assert(i < size(), "index out of bounds");
             return jump.ops_[i + 1];
         }
@@ -44,7 +44,7 @@ public:
 
     Args args() const { return Args(*this); }
 
-    const Use& to() const { return ops_[0]; };
+    const Def* to() const { return ops_[0]; };
 
 private:
 

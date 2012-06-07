@@ -39,8 +39,8 @@ protected:
 
 public:
 
-    const Use& luse() const { return ops_[0]; }
-    const Use& ruse() const { return ops_[1]; }
+    const Def* ldef() const { return ops_[0]; }
+    const Def* rdef() const { return ops_[1]; }
 };
 
 //------------------------------------------------------------------------------
@@ -82,12 +82,9 @@ private:
 
 public:
 
-    Use& cond() { return ops_[0]; }
-    Use& tuse() { return ops_[1]; }
-    Use& fuse() { return ops_[2]; }
-    const Use& cond() const { return ops_[0]; }
-    const Use& tuse() const { return ops_[1]; }
-    const Use& fuse() const { return ops_[2]; }
+    const Def* cond() const { return ops_[0]; }
+    const Def* tuse() const { return ops_[1]; }
+    const Def* fuse() const { return ops_[2]; }
 
     RelOpKind kind() { return (RelOpKind) index(); }
 
@@ -101,10 +98,8 @@ private:
 
     Proj(const Def* tuple, const PrimLit* elem);
     
-    Use& tuple() { return ops_[0]; }
-    Use& elem()  { return ops_[1]; }
-    const Use& tuple() const { return ops_[0]; }
-    const Use& elem()  const { return ops_[1]; }
+    const Def* tuple() const { return ops_[0]; }
+    const Def* elem()  const { return ops_[1]; }
 
     friend class World;
 };
@@ -116,12 +111,9 @@ private:
 
     Insert(const Def* tuple, const PrimLit* elem, const Def* value);
     
-    Use& tuple() { return ops_[0]; }
-    Use& elem()  { return ops_[1]; }
-    Use& value() { return ops_[2]; }
-    const Use& tuple() const { return ops_[0]; }
-    const Use& elem()  const { return ops_[1]; }
-    const Use& value() const { return ops_[2]; }
+    const Def* tuple() const { return ops_[0]; }
+    const Def* elem()  const { return ops_[1]; }
+    const Def* value() const { return ops_[2]; }
 
     friend class World;
 };

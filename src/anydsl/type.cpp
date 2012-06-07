@@ -51,7 +51,7 @@ Pi::Pi(const Sigma* sigma)
 }
 
 const Sigma* Pi::sigma() const { 
-    return ops_[0].def()->as<Sigma>();
+    return ops_[0]->as<Sigma>();
 }
 
 //------------------------------------------------------------------------------

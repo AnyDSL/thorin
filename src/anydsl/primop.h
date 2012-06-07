@@ -4,7 +4,7 @@
 #include <boost/array.hpp>
 
 #include "anydsl/enums.h"
-#include "anydsl/defuse.h"
+#include "anydsl/def.h"
 
 namespace anydsl {
 

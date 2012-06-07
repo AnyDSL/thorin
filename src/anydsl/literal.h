@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "anydsl/defuse.h"
+#include "anydsl/def.h"
 #include "anydsl/type.h"
 #include "anydsl/util/box.h"
 

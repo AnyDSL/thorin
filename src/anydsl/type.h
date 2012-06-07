@@ -3,7 +3,7 @@
 
 #include <iterator>
 
-#include "anydsl/defuse.h"
+#include "anydsl/def.h"
 
 namespace anydsl {
 

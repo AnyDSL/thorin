@@ -3,7 +3,7 @@
 
 #include <list>
 
-#include "anydsl/defuse.h"
+#include "anydsl/def.h"
 #include "anydsl/jump.h"
 #include "anydsl/util/autoptr.h"
 

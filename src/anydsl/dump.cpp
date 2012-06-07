@@ -23,7 +23,9 @@ static void dumpCompoundType(const std::string& str, const AIRNode* n, std::ostr
     s << str << '(';
 
     if (!sigma->types().empty()) {
-        for (Sigma::Types::const_iterator i = sigma->types().begin(), e = sigma->types().end() - 1; i != e; ++i) {
+        for (Sigma::Types::const_iterator i = sigma->types().begin(), 
+                                          e = sigma->types().end() - 1; 
+                                          i != e; ++i) {
             dump(*i, s);
             s << ", ";
         }

@@ -85,6 +85,10 @@ public:
     /// Get element type via anydsl::PrimLit which serves as index.
     const Type* get(const PrimLit* i) const;
 
+    typedef AsOps<Type> Types;
+
+    Types types() const { return Types(*this); }
+
 private:
 
     bool named_;

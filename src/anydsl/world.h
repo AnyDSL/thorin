@@ -187,6 +187,7 @@ public:
 
 private:
 
+    ValueMap::iterator remove(ValueMap::iterator i);
     const Value* findValue(const Value* value);
 
     template<class T> 

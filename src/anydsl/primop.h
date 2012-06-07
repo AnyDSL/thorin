@@ -39,8 +39,6 @@ protected:
 
 public:
 
-    Use& luse() { return ops_[0]; }
-    Use& ruse() { return ops_[1]; }
     const Use& luse() const { return ops_[0]; }
     const Use& ruse() const { return ops_[1]; }
 };

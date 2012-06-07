@@ -36,7 +36,7 @@ Def::~Def() {
             || uses_.empty(), 
             "there are still uses pointing to this def"); 
 
-    for_all (&use, ops()) use.~Use();
+    for_all (const& use, ops()) use.~Use();
     ::operator delete(ops_); 
 }
 

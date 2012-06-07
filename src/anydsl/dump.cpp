@@ -19,17 +19,16 @@ void dump(const AIRNode* n, std::ostream& s /*= std::cout*/) {
 }
 
 static void dumpCompoundType(const std::string& str, const AIRNode* n, std::ostream& s) {
-    const Sigma* c = n->as<Sigma>();
+    const Sigma* sigma = n->as<Sigma>();
     s << str << '(';
 
-    if (!c->ops().empty()) {
-        Use* e = c->ops().end() - 1;
-        for (Use* i = c->ops().begin(); i != e; ++i) {
-            dump(i->def(), s);
+    if (!sigma->types().empty()) {
+        for (Sigma::Types::const_iterator i = sigma->types().begin(), e = sigma->types().end() - 1; i != e; ++i) {
+            dump(*i, s);
             s << ", ";
         }
 
-        dump(c->ops().back().def(), s);
+        dump(sigma->types().back(), s);
     }
 
     s << ')';

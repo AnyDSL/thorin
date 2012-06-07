@@ -205,6 +205,27 @@ const Value* World::createSelect(const Def* cond, const Def* tdef, const Def* fd
 /*
  * optimize
  */
+#if 0
+ValueMap::iterator World::remove(ValueMap::iterator i) {
+    const Value* val = *i;
+
+    if (val->uses().empty()) {
+        UseSet uses = val->uses();
+
+        delete val;
+        i = values_.erase(i);
+
+        for_all (use, uses) {
+            const Def* def = use->def();
+
+            if (def->uses().empty())
+                remove(values_.find(def));
+        }
+    }
+
+    return i;
+}
+#endif
 
 void World::cleanup() {
     size_t oldSize;

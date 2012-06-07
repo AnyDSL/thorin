@@ -99,49 +99,104 @@ protected:
 
 public:
 
+    template<class AS>
+    struct def_iter {
+    public:
+
+        /// typedefs are necessary for std::iterator_traits (needed by FOREACH)
+        typedef std::bidirectional_iterator_tag iterator_category;
+        typedef const Def* value_type;
+        typedef ptrdiff_t difference_type;
+        typedef const Def** pointer;
+        typedef const Def*& reference;
+
+        def_iter() {}
+        explicit def_iter(const Use* base) : base_(base) {}
+        template<class U> def_iter(def_iter<U> const& i) : base_(i.base_) {}
+
+        const AS* operator * () const { return base_->def()->as<AS>(); }
+        const AS* operator ->() const { return base_->def()->as<AS>(); }
+
+        template<class U> bool operator == (const def_iter<U>& i) const { return base_ == i.base_; }
+        template<class U> bool operator != (const def_iter<U>& i) const { return base_ != i.base_; }
+
+        def_iter operator + (size_t i) { return def_iter(base_ + i); }
+        def_iter operator - (size_t i) { return def_iter(base_ - i); }
+
+        def_iter& operator ++() { ++base_; return *this; }
+        def_iter& operator --() { --base_; return *this; }
+        def_iter operator ++(int) { def_iter i(base_); ++base_; return i; }
+        def_iter operator --(int) { def_iter i(base_); --base_; return i; }
+
+    private:
+
+        const Use* base_;
+    };
+
     struct Ops {
-        typedef Use* iterator;
-        typedef Use* const_iterator;
-        typedef std::reverse_iterator<Use*> reverse_iterator;
-        typedef std::reverse_iterator<Use*> const_reverse_iterator;
+        typedef const Use* const_iterator;
+        typedef std::reverse_iterator<const Use*> const_reverse_iterator;
 
-        Ops(Def& def) : def(def) {}
+        Ops(const Def& def) : def(def) {}
 
-        iterator begin() { return def.ops_; }
-        iterator end() { return def.ops_ + size(); }
         const_iterator begin() const { return def.ops_; }
         const_iterator end() const { return def.ops_ + size(); }
-
-        reverse_iterator rbegin() { return reverse_iterator(def.ops_ + size()); }
-        reverse_iterator rend() { return reverse_iterator(def.ops_); }
-        const_reverse_iterator rbegin() const { return reverse_iterator(def.ops_ + size()); }
-        const_reverse_iterator rend() const { return reverse_iterator(def.ops_); }
+        const_reverse_iterator rbegin() const { return const_reverse_iterator(def.ops_ + size()); }
+        const_reverse_iterator rend() const { return const_reverse_iterator(def.ops_); }
 
         size_t size() const { return def.numOps(); }
         bool empty() const { return def.numOps() == 0; }
 
-        Use* operator [] (size_t i) {
+        const Use& operator [] (size_t i) const {
             anydsl_assert(i < size(), "index out of bounds");
-            return def.ops_ + i;
-        }
-        const Use* operator [] (size_t i) const {
-            anydsl_assert(i < size(), "index out of bounds");
-            return def.ops_ + i;
+            return def.ops_[i];
         }
 
-        Use& front() { return def.ops_[0]; }
-        Use& back() { return def.ops_[size()-1]; }
+        const Use& front() { return def.ops_[0]; }
+        const Use& back() { return def.ops_[size()-1]; }
 
-        Def& def;
+    private:
+
+        const Def& def;
     };
+
+    template<class AS>
+    struct AsOps {
+        typedef def_iter<AS> const_iterator;
+        typedef std::reverse_iterator<def_iter<AS> > const_reverse_iterator;
+
+        AsOps(const Def& def) : def(def) {}
+
+        const_iterator begin() const { return const_iterator(def.ops_); }
+        const_iterator end() const { return const_iterator(def.ops_ + size()); }
+        const_reverse_iterator rbegin() const { return const_reverse_iterator(end()); }
+        const_reverse_iterator rend() const { return const_reverse_iterator(begin()); }
+
+        size_t size() const { return def.numOps(); }
+        bool empty() const { return def.numOps() == 0; }
+
+        const Def* operator [] (size_t i) const {
+            anydsl_assert(i < size(), "index out of bounds");
+            return def.ops_[i].def();
+        }
+
+        const Def* front() { return def.ops_[0].def(); }
+        const Def* back() { return def.ops_[size()-1].def(); }
+
+    private:
+
+        const Def& def;
+    };
+
+    typedef AsOps<Def> DefOps;
 
     const UseSet& uses() const { return uses_; }
     const Type* type() const { return type_; }
     size_t numOps() const { return numOps_; }
     World& world() const;
 
-    Ops ops() { return Ops(*this); }
-    Ops ops() const { return Ops(*ccast<Def>(this)); }
+    Ops ops() const { return Ops(*this); }
+    DefOps defops() const { return DefOps(*this); }
 
 protected:
 

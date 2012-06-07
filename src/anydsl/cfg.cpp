@@ -38,7 +38,7 @@ World& BB::world() {
 
 void BB::goesto(BB* to) {
     assert(to);
-    Jump* jump = world().createJump(to->lambda());
+    const Jump* jump = world().createJump(to->lambda());
     lambda_->setJump(jump);
     this->flowsto(to);
     anydsl_assert(this->succ().size() == 1, "wrong number of succ");
@@ -47,7 +47,7 @@ void BB::goesto(BB* to) {
 void BB::branches(Def* cond, BB* tbb, BB* fbb) {
     assert(tbb);
     assert(fbb);
-    Jump* jump = world().createBranch(cond, tbb->lambda(), fbb->lambda());
+    const Jump* jump = world().createBranch(cond, tbb->lambda(), fbb->lambda());
     lambda_->setJump(jump);
     this->flowsto(tbb);
     this->flowsto(fbb);
@@ -56,7 +56,7 @@ void BB::branches(Def* cond, BB* tbb, BB* fbb) {
 
 void BB::invokes(Def* fct) {
     anydsl_assert(fct, "must be valid");
-    Jump* jump = world().createJump(fct);
+    const Jump* jump = world().createJump(fct);
     lambda_->setJump(jump);
     anydsl_assert(this->succ().size() == 0, "wrong number of succ");
     // succs by invokes are not captured in the CFG
@@ -248,7 +248,7 @@ void Fct::setReturnCont(const Type* retType) {
 #endif
 }
 
-void Fct::insertReturnStmt(BB* bb, Def* def) {
+void Fct::insertReturnStmt(BB* bb, const Def* def) {
     anydsl_assert(bb, "must be valid");
     bb->goesto(exit_);
     // TODO
@@ -258,7 +258,7 @@ void Fct::insertReturnStmt(BB* bb, Def* def) {
 Binding* Fct::getVN(const Symbol sym, const Type* type, bool finalize) {
     BB::ValueMap::iterator i = values_.find(sym);
     if (i == values_.end()) {
-        Undef* undef = world().undef(type);
+        const Undef* undef = world().undef(type);
         std::cerr << "may be undefined: " << sym << std::endl;
 
         return new Binding(sym, undef);
@@ -319,12 +319,14 @@ void Fct::buildDomTree() {
         }
     }
 
+#if 0
     // now build dom tree
     for (size_t i = last - 1; i >= 0; --i) {
         BB* bb = postorder_[i];
         BB* dom = idoms_[i];
-        dom->lambda()->insert(bb->lambda());
+        //dom->lambda()->insert(bb->lambda());
     }
+#endif
 }
 
 size_t Fct::intersect(size_t i, size_t j) {

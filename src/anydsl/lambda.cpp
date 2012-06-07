@@ -16,7 +16,7 @@ const Pi* Lambda::pi() const {
     return scast<Pi>(type());
 }
 
-void Lambda::setJump(Jump* jump) { 
+void Lambda::setJump(const Jump* jump) { 
     setOp(0, jump); 
 }
 

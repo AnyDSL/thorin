@@ -6,94 +6,52 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-bool Type::equal(const Type* other) const {
-    if (this->index() != other->index())
-        return false;
-
-    return true;
-}
-
-size_t Type::hash() const {
-    size_t seed = 0;
-    boost::hash_combine(seed, index());
-
-    return seed;
-}
-
-//------------------------------------------------------------------------------
-
 PrimType::PrimType(World& world, PrimTypeKind kind)
-    : Type(world, (IndexKind) kind)
+    : Type(world, (IndexKind) kind, 0)
 {
     debug = kind2str(this->kind());
 }
 
 //------------------------------------------------------------------------------
 
-bool NoRet::equal(const Type* other) const {
-    if (!Type::equal(other))
-        return false;
-
-    return pi() == other->as<NoRet>()->pi();
-}
-
-
-size_t NoRet::hash() const {
-    size_t seed = Type::hash();
-    boost::hash_combine(seed, pi());
-
-    return seed;
+NoRet::NoRet(World& world, const Pi* pi)
+    : Type(world, Index_NoRet, 1)
+{
+    setOp(0, pi);
 }
 
 //------------------------------------------------------------------------------
 
-bool Sigma::equal(const Type* other) const {
-    if (!Type::equal(other))
-        return false;
+Sigma::Sigma(World& world, size_t num)
+    : Type(world, Index_Sigma, num)
+    , named_(true)
+{}
 
-    const Sigma* s = other->as<Sigma>();
-
-    if (this->types().size() != s->types().size())
-        return false;
-
-    bool result = true;
-    for (size_t i = 0, e = types().size(); i != e && result; ++i)
-        result &= this->get(i) == s->get(i);
-
-    return result;
+Sigma::Sigma(World& world, const Type* const* begin, const Type* const* end)
+    : Type(world, Index_Sigma, std::distance(begin, end))
+    , named_(false)
+{
+    size_t x = 0;
+    for (const Type* const* i = begin; i != end; ++i, ++x)
+        setOp(x, *i);
 }
 
-size_t Sigma::hash() const {
-    size_t seed = Type::hash();
-
-    boost::hash_combine(seed, types().size());
-
-    for (size_t i = 0, e = types().size(); i != e; ++i)
-        boost::hash_combine(seed, get(i));
-
-    return seed;
-}
-
-const Type* Sigma::get(PrimLit* c) const { 
+const Type* Sigma::get(const PrimLit* c) const { 
     anydsl_assert(isInteger(lit2type(c->kind())), "must be an integer constant");
     return get(c->box().get_u64()); 
 }
 
 //------------------------------------------------------------------------------
 
-bool Pi::equal(const Type* other) const {
-    if (!Type::equal(other))
-        return false;
-
-    return this->sigma() == other->as<Pi>()->sigma();
+Pi::Pi(const Sigma* sigma)
+    : Type(sigma->world(), Index_Pi, 1)
+{
+    anydsl_assert(!sigma->named(), "only unnamed sigma allowed with pi type");
+    setOp(0, sigma);
 }
 
-
-size_t Pi::hash() const {
-    size_t seed = Type::hash();
-    boost::hash_combine(seed, sigma());
-
-    return seed;
+const Sigma* Pi::sigma() const { 
+    return ops_[0].def()->as<Sigma>();
 }
 
 //------------------------------------------------------------------------------

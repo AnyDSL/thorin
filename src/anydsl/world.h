@@ -27,8 +27,7 @@ class Undef;
 
 //------------------------------------------------------------------------------
 
-typedef boost::unordered_set<Value*, ValueHash, ValueEqual> ValueMap;
-typedef boost::unordered_set<const Type*, TypeHash, TypeEqual> TypeMap;
+typedef boost::unordered_set<const Value*, ValueHash, ValueEqual> ValueMap;
 typedef std::vector<Sigma*> NamedSigmas;
 typedef boost::unordered_set<Lambda*> Lambdas;
 
@@ -91,7 +90,7 @@ public:
         return primTypes_[i];
     }
 
-    const NoRet* noret(const Pi* pi) { return tfind(new NoRet(*this, pi)); }
+    const NoRet* noret(const Pi* pi) { return find(new NoRet(*this, pi)); }
 
     // sigmas
 
@@ -107,17 +106,15 @@ public:
     const Sigma* sigma3(const Type* t1, const Type* t2, const Type* t3) { return sigma((const Type*[]){t1, t2, t3}); }
 
     const Sigma* sigma(const Type* const* begin, const Type* const* end) { 
-        return tfind(new Sigma(*this, begin, end)); 
+        return find(new Sigma(*this, begin, end)); 
     }
-    const Sigma* sigma(const Types& types) { return sigma(types.begin().base(), types.end().base()); }
-
     template<size_t N>
     const Sigma* sigma(const Type* const (&array)[N]) { 
         return sigma(array, array + N); 
     }
 
     /// Creates a fresh \em named sigma.
-    Sigma* namedSigma(const std::string& name = "");
+    Sigma* namedSigma(size_t num, const std::string& name = "");
 
     // pis
 
@@ -130,9 +127,8 @@ public:
     /// Creates 'pi(t1, t2, t3)'.
     const Pi* pi3(const Type* t1, const Type* t2, const Type* t3) { return pi(sigma3(t1, t2, t3)); }
 
-    const Pi* pi(const Sigma* sigma) { return tfind(new Pi(sigma)); }
-    const Pi* pi(const Type* const* begin, const Type* const* end) { return tfind(new Pi(sigma(begin, end))); }
-    const Pi* pi(const Types& types) { return pi(sigma(types)); }
+    const Pi* pi(const Sigma* sigma) { return find(new Pi(sigma)); }
+    const Pi* pi(const Type* const* begin, const Type* const* end) { return find(new Pi(sigma(begin, end))); }
     template<size_t N>
     const Pi* pi(const Type* const (&array)[N]) { return pi(sigma(array)); }
 
@@ -142,46 +138,44 @@ public:
      */
 
 #define ANYDSL_U_TYPE(T) \
-    PrimLit* literal_##T(T val) { return literal(val); } \
-    PrimLit* literal_##T(Box val) { return literal(PrimType_##T, val); }
+    const PrimLit* literal_##T(T val) { return literal(val); } \
+    const PrimLit* literal_##T(Box val) { return literal(PrimType_##T, val); }
 #define ANYDSL_F_TYPE(T) \
-    PrimLit* literal_##T(T val) { return literal(val); } \
-    PrimLit* literal_##T(Box val) { return literal(PrimType_##T, val); }
+    const PrimLit* literal_##T(T val) { return literal(val); } \
+    const PrimLit* literal_##T(Box val) { return literal(PrimType_##T, val); }
 #include "anydsl/tables/primtypetable.h"
 
-    PrimLit* literal(PrimLitKind kind, Box value);
-    PrimLit* literal(PrimTypeKind kind, Box value) { return literal(type2lit(kind), value); }
-    PrimLit* literal(const PrimType* p, Box value);
+    const PrimLit* literal(PrimLitKind kind, Box value);
+    const PrimLit* literal(PrimTypeKind kind, Box value) { return literal(type2lit(kind), value); }
+    const PrimLit* literal(const PrimType* p, Box value);
     template<class T>
-    PrimLit* literal(T value) { return literal(type2kind<T>::kind, Box(value)); }
-    Undef* undef(const Type* type);
-    Undef* undef(PrimTypeKind kind) { return undef(type(kind)); }
-    ErrorLit* literal_error(const Type* type);
-    ErrorLit* literal_error(PrimTypeKind kind) { return literal_error(type(kind)); }
+    const PrimLit* literal(T value) { return literal(type2kind<T>::kind, Box(value)); }
+    const Undef* undef(const Type* type);
+    const Undef* undef(PrimTypeKind kind) { return undef(type(kind)); }
+    const ErrorLit* literal_error(const Type* type);
+    const ErrorLit* literal_error(PrimTypeKind kind) { return literal_error(type(kind)); }
 
     /*
      * create
      */
 
     Lambda* createLambda(const Pi* type = 0);
-    Jump* createJump(Def* to, Def* const* arg_begin, Def* const* arg_end);
-    Jump* createJump(Def* to) { 
-        return (Jump*) createJump(to, (Def**) 0, (Def**) 0); 
+    const Jump* createJump(const Def* to, const Def* const* arg_begin, const Def* const* arg_end);
+    const Jump* createJump(const Def* to) { 
+        return (Jump*) createJump(to, 0, 0); 
     }
-    Jump* createBranch(Def* cond, Def* tto, Def* fto, Def* const* arg_begin, Def* const* arg_end);
-    Jump* createBranch(Def* cond, Def* tto, Def* fto);
+    const Jump* createBranch(const Def* cond, const Def* tto, const Def* fto);
+    const Jump* createBranch(const Def* cond, const Def* tto, const Def* fto, 
+                             const Def* const* arg_begin, const Def* const* arg_end);
 
-    Value* createArithOp(ArithOpKind kind, Def* ldef, Def* rdef);
-    Value* createRelOp(RelOpKind kind, Def* ldef, Def* rdef);
-    Value* createProj(Def* tuple, PrimLit* i);
-    Value* createInsert(Def* tuple, PrimLit* i, Def* value);
-    Value* createSelect(Def* cond, Def* tdef, Def* fdef);
-    Value* createTuple(Def* const* begin, Def* const* end);
-    Value* createTuple(const std::vector<Def*>& defs) { 
-        return createTuple(defs.begin().base(), defs.end().base());
-    }
+    const Value* createArithOp(ArithOpKind kind, const Def* ldef, const Def* rdef);
+    const Value* createRelOp(RelOpKind kind, const Def* ldef, const Def* rdef);
+    const Value* createProj(const Def* tuple, const PrimLit* i);
+    const Value* createInsert(const Def* tuple, const PrimLit* i, const Def* value);
+    const Value* createSelect(const Def* cond, const Def* tdef, const Def* fdef);
+    const Value* createTuple(const Def* const* begin, const Def* const* end);
     template<size_t N>
-    Value* createTuple(Def* const (&array)[N]) { return createTuple(array, array + N); }
+    const Value* createTuple(const Def* const (&array)[N]) { return createTuple(array, array + N); }
 
 
     /*
@@ -193,22 +187,17 @@ public:
 
 private:
 
-    Value* findValue(Value* value);
-    const Type* findType(const Type* type);
+    const Value* findValue(const Value* value);
 
     template<class T> 
-    T* tfind(T* type) { return (T*) findType(type); }
+    T* find(T* val) { return (T*) findValue(val); }
 
-    template<class T> 
-    T* vfind(T* value) { return (T*) findValue(value); }
 
-    Value* tryFold(IndexKind kind, Def* ldef, Def* rdef);
-
-    template<class T, class C>
-    static void kill(C& container);
+    const Value* tryFold(IndexKind kind, const Def* ldef, const Def* rdef);
 
     ValueMap values_;
-    TypeMap types_;
+    NamedSigmas namedSigmas_;
+    Lambdas lambdas_;
 
     const Sigma* unit_; ///< sigma().
     const Pi* pi0_;     ///< pi().
@@ -222,9 +211,6 @@ private:
 
         const PrimType* primTypes_[Num_PrimTypes];
     };
-
-    NamedSigmas namedSigmas_;
-    Lambdas lambdas_;
 };
 
 //------------------------------------------------------------------------------

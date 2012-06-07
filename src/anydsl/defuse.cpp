@@ -2,6 +2,7 @@
 
 #include <typeinfo>
 
+#include "anydsl/lambda.h"
 #include "anydsl/primop.h"
 #include "anydsl/type.h"
 #include "anydsl/util/for_all.h"
@@ -11,7 +12,7 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-Use::Use(AIRNode* parent, Def* def)
+Use::Use(AIRNode* parent, const Def* def)
     : AIRNode(Index_Use)
     , def_(def) 
     , parent_(parent)
@@ -29,20 +30,34 @@ World& Use::world() {
 
 //------------------------------------------------------------------------------
 
-void Def::registerUse(Use* use) { 
+Def::~Def() { 
+    anydsl_assert(isa<Lambda>() 
+            || (isa<Sigma>() && as<Sigma>()->named()) 
+            || uses_.empty(), 
+            "there are still uses pointing to this def"); 
+
+    for_all (&use, ops()) use.~Use();
+    ::operator delete(ops_); 
+}
+
+
+void Def::registerUse(Use* use) const {
     anydsl_assert(use->def() == this, "use does not point to this def");
     anydsl_assert(uses_.find(use) == uses_.end(), "must not be inside the use list");
     uses_.insert(use);
 }
 
-void Def::unregisterUse(Use* use) { 
+void Def::unregisterUse(Use* use) const {
     anydsl_assert(use->def() == this, "use does not point to this def");
     anydsl_assert(uses_.find(use) != uses_.end(), "must be inside the use list");
     uses_.erase(use);
 }
 
 World& Def::world() const { 
-    return type_->world(); 
+    if (type_)
+        return type_->world(); 
+    else 
+        return as<Type>()->world();
 }
 
 bool Value::equal(const Value* other) const {

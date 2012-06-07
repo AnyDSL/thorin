@@ -29,7 +29,7 @@ public:
 class BinOp : public PrimOp {
 protected:
 
-    BinOp(IndexKind index, const Type* type, Def* ldef, Def* rdef)
+    BinOp(IndexKind index, const Type* type, const Def* ldef, const Def* rdef)
         : PrimOp(index, type, 2)
     {
         anydsl_assert(ldef->type() == rdef->type(), "types are not equal");
@@ -50,7 +50,7 @@ public:
 class ArithOp : public BinOp {
 private:
 
-    ArithOp(ArithOpKind kind, Def* ldef, Def* rdef)
+    ArithOp(ArithOpKind kind, const Def* ldef, const Def* rdef)
         : BinOp((IndexKind) kind, ldef->type(), ldef, rdef)
     {}
 
@@ -66,7 +66,7 @@ public:
 class RelOp : public BinOp {
 private:
 
-    RelOp(RelOpKind kind, Def* ldef, Def* rdef);
+    RelOp(RelOpKind kind, const Def* ldef, const Def* rdef);
 
 public:
 
@@ -80,7 +80,7 @@ public:
 class Select : public PrimOp {
 private:
 
-    Select(Def* cond, Def* t, Def* f);
+    Select(const Def* cond, const Def* t, const Def* f);
 
 public:
 
@@ -101,7 +101,7 @@ public:
 class Proj : public PrimOp {
 private:
 
-    Proj(Def* tuple, PrimLit* elem);
+    Proj(const Def* tuple, const PrimLit* elem);
     
     Use& tuple() { return ops_[0]; }
     Use& elem()  { return ops_[1]; }
@@ -116,7 +116,7 @@ private:
 class Insert : public PrimOp {
 private:
 
-    Insert(Def* tuple, PrimLit* elem, Def* value);
+    Insert(const Def* tuple, const PrimLit* elem, const Def* value);
     
     Use& tuple() { return ops_[0]; }
     Use& elem()  { return ops_[1]; }
@@ -133,7 +133,7 @@ private:
 class Tuple : public PrimOp {
 private:
 
-    Tuple(World& world, Def* const* begin, Def* const* end);
+    Tuple(World& world, const Def* const* begin, const Def* const* end);
 
     friend class World;
 };

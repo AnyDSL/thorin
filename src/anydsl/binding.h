@@ -11,7 +11,7 @@ class Def;
 
 struct Binding {
     Binding() {}
-    Binding(const Symbol sym, Def* def)
+    Binding(const Symbol sym, const Def* def)
         : sym(sym)
         , def(def)
     {}
@@ -23,7 +23,7 @@ struct Binding {
     std::ostream& error() const;
 
     const Symbol sym;
-    Def* def;
+    const Def* def;
 };
 
 } // namespace anydsl

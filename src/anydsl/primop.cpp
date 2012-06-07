@@ -6,11 +6,11 @@
 
 namespace anydsl {
 
-RelOp::RelOp(RelOpKind kind, Def* ldef, Def* rdef)
+RelOp::RelOp(RelOpKind kind, const Def* ldef, const Def* rdef)
     : BinOp((IndexKind) kind, ldef->world().type_u1(), ldef, rdef)
 {}
 
-Select::Select(Def* cond, Def* t, Def* f) 
+Select::Select(const Def* cond, const Def* t, const Def* f) 
     : PrimOp(Index_Select, t->type(), 3)
 {
     setOp(0, cond);
@@ -20,14 +20,14 @@ Select::Select(Def* cond, Def* t, Def* f)
     anydsl_assert(t->type() == f->type(), "types of both values must be equal");
 }
 
-Proj::Proj(Def* tuple, PrimLit* elem) 
+Proj::Proj(const Def* tuple, const PrimLit* elem) 
     : PrimOp(Index_Proj, tuple->type()->as<Sigma>()->get(elem), 2)
 {
     setOp(0, tuple);
     setOp(1, elem);
 }
     
-Insert::Insert(Def* tuple, PrimLit* elem, Def* value)
+Insert::Insert(const Def* tuple, const PrimLit* elem, const Def* value)
     : PrimOp(Index_Insert, tuple->type(), 3)
 {
     setOp(0, tuple);
@@ -36,7 +36,7 @@ Insert::Insert(Def* tuple, PrimLit* elem, Def* value)
     anydsl_assert(tuple->type()->as<Sigma>()->get(elem) == value->type(), "type error");
 }
 
-Tuple::Tuple(World& world, Def* const* begin, Def* const* end) 
+Tuple::Tuple(World& world, const Def* const* begin, const Def* const* end) 
     : PrimOp(Index_Tuple, 0, std::distance(begin, end))
 {
     if (numOps() == 0) {
@@ -44,7 +44,7 @@ Tuple::Tuple(World& world, Def* const* begin, Def* const* end)
     } else {
         const Type** types = new const Type*[std::distance(begin, end)];
         size_t x = 0;
-        for (Def* const* i = begin; i != end; ++i, ++x) {
+        for (const Def* const* i = begin; i != end; ++i, ++x) {
             setOp(x, *i);
             types[x] = (*i)->type();
         }

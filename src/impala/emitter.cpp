@@ -113,12 +113,12 @@ Value Emitter::prefixOp(const Token& op, Value bval) {
         switch (op) {
             case Token::SUB: {
                 // TODO incorrect for f32, f64
-                PrimLit* zero = world.literal(p->kind(), 0u);
+                const PrimLit* zero = world.literal(p->kind(), 0u);
                 return Value(world.createArithOp(anydsl::ArithOp_sub, zero, bval.load()));
             }
             case Token::INC:
             case Token::DEC: {
-                PrimLit* one = world.literal(p->kind(), 1u);
+                const PrimLit* one = world.literal(p->kind(), 1u);
                 Value val(world.createArithOp(op.toArithOp(), bval.load(), one));
                 bval.store(val.load());
                 return bval;
@@ -164,7 +164,7 @@ Value Emitter::infixOp(Value aval, const Token& op, Value bval) {
 
 Value Emitter::postfixOp(Value aval, const Token& op) {
     if (const PrimType* p = aval.type()->isa<PrimType>()) {
-        PrimLit* one = world.literal(p->kind(), 1u);
+        const PrimLit* one = world.literal(p->kind(), 1u);
         Value val(world.createArithOp(op.toArithOp(), aval.load(), one));
         aval.store(val.load());
         return val;

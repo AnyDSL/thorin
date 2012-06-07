@@ -48,11 +48,10 @@ public:
      * @param parent The class where \p Use is embedded in.
      * @param def 
      */
-    Use(AIRNode* parent, Def* def);
+    Use(AIRNode* parent, const Def* def);
     virtual ~Use();
 
     /// Get the definition \p Def of this \p Use.
-    Def* def() { return def_; }
     const Def* def() const { return def_; }
     inline const Type* type() const;
 
@@ -66,7 +65,7 @@ public:
 
 private:
 
-    Def* def_;
+    const Def* def_;
     AIRNode* parent_;
 
     friend class Def;
@@ -82,8 +81,8 @@ private:
     /// Do not copy-assign a \p Def instance.
     Def& operator = (const Def&);
 
-    void registerUse(Use* use);
-    void unregisterUse(Use* use);
+    void registerUse(Use* use) const;
+    void unregisterUse(Use* use) const;
 
 protected:
 
@@ -94,33 +93,9 @@ protected:
         , ops_((Use*) ::operator new(sizeof(Use) * numOps))
     {}
 
-    virtual ~Def() { 
-        anydsl_assert(uses_.empty(), "there are still uses pointing to this def"); 
-        ::operator delete(ops_);
-    }
+    virtual ~Def();
 
-    void setOp(size_t i, Def* def) { new (&ops_[i]) Use(this, def); }
-
-public:
-
-    const UseSet& uses() const { return uses_; }
-    const Type* type() const { return type_; }
-    size_t numOps() const { return numOps_; }
-    World& world() const;
-
-protected:
-
-    void setType(const Type* type) { type_ = type; }
-
-private:
-
-    const Type* type_;
-    UseSet uses_;
-    size_t numOps_;
-
-protected:
-
-    Use* ops_;
+    void setOp(size_t i, const Def* def) { new (&ops_[i]) Use(this, def); }
 
 public:
 
@@ -132,23 +107,59 @@ public:
 
         Ops(Def& def) : def(def) {}
 
-        iterator begin() { return def.ops_ + 1; }
+        iterator begin() { return def.ops_; }
         iterator end() { return def.ops_ + size(); }
-        const_iterator begin() const { return def.ops_ + 1; }
+        const_iterator begin() const { return def.ops_; }
         const_iterator end() const { return def.ops_ + size(); }
 
         reverse_iterator rbegin() { return reverse_iterator(def.ops_ + size()); }
-        reverse_iterator rend() { return reverse_iterator(def.ops_ + 1); }
+        reverse_iterator rend() { return reverse_iterator(def.ops_); }
         const_reverse_iterator rbegin() const { return reverse_iterator(def.ops_ + size()); }
-        const_reverse_iterator rend() const { return reverse_iterator(def.ops_ + 1); }
+        const_reverse_iterator rend() const { return reverse_iterator(def.ops_); }
 
-        size_t size() const { return def.numOps() - 1; }
-        bool empty() const { return def.numOps() == 1; }
+        size_t size() const { return def.numOps(); }
+        bool empty() const { return def.numOps() == 0; }
+
+        Use* operator [] (size_t i) {
+            anydsl_assert(i < size(), "index out of bounds");
+            return def.ops_ + i;
+        }
+        const Use* operator [] (size_t i) const {
+            anydsl_assert(i < size(), "index out of bounds");
+            return def.ops_ + i;
+        }
+
+        Use& front() { return def.ops_[0]; }
+        Use& back() { return def.ops_[size()-1]; }
 
         Def& def;
     };
 
-    friend Use::Use(AIRNode*, Def*);
+    const UseSet& uses() const { return uses_; }
+    const Type* type() const { return type_; }
+    size_t numOps() const { return numOps_; }
+    World& world() const;
+
+    Ops ops() { return Ops(*this); }
+    Ops ops() const { return Ops(*ccast<Def>(this)); }
+
+protected:
+
+    void setType(const Type* type) { type_ = type; }
+
+private:
+
+    const Type* type_;
+    mutable UseSet uses_;
+    size_t numOps_;
+
+protected:
+
+    Use* ops_;
+
+public:
+
+    friend Use::Use(AIRNode*, const Def*);
     friend Use::~Use();
 };
 

@@ -12,19 +12,7 @@ namespace anydsl {
  * helpers
  */
 
-const Type* World::findType(const Type* type) {
-    TypeMap::iterator i = types_.find(type);
-    if (i != types_.end()) {
-        delete type;
-        return *i;
-    }
-
-    types_.insert(type);
-
-    return type;
-}
-
-Value* World::findValue(Value* value) {
+const Value* World::findValue(const Value* value) {
     ValueMap::iterator i = values_.find(value);
     if (i != values_.end()) {
         delete value;
@@ -63,12 +51,12 @@ static inline RelOpKind normalizeRel(RelOpKind kind, bool& swap) {
     }
 }
 
-static void examineDef(Def* def, FoldValue& v) {
+static void examineDef(const Def* def, FoldValue& v) {
     if (def->isa<Undef>())
         v.kind = FoldValue::Undef;
     else if (def->isa<ErrorLit>())
         v.kind = FoldValue::Error;
-    if (PrimLit* lit = def->isa<PrimLit>()) {
+    if (const PrimLit* lit = def->isa<PrimLit>()) {
         v.kind = FoldValue::Valid;
         v.box = lit->box();
     }
@@ -81,30 +69,27 @@ static void examineDef(Def* def, FoldValue& v) {
 
 World::World() 
     : values_(1031)
-    , types_(1031)
-    , unit_ (tfind(new Sigma(*this, (const Type* const*) 0, (const Type* const*) 0)))
-    , pi0_  (tfind(new Pi(unit_)))
-#define ANYDSL_U_TYPE(T) ,T##_(tfind(new PrimType(*this, PrimType_##T)))
-#define ANYDSL_F_TYPE(T) ,T##_(tfind(new PrimType(*this, PrimType_##T)))
+    , unit_ (find(new Sigma(*this, (const Type* const*) 0, (const Type* const*) 0)))
+    , pi0_  (find(new Pi(unit_)))
+#define ANYDSL_U_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T)))
+#define ANYDSL_F_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T)))
 #include "anydsl/tables/primtypetable.h"
 {}
 
 World::~World() {
-    cleanup();
-
     for_all (sigma,  namedSigmas_) delete sigma;
-    //for_all (lambda, lambdas_)     delete lambda;
+    for_all (lambda, lambdas_)     delete lambda;
 
-    for_all (v, values_) delete v;
-    for_all (t, types_) delete t;
+    cleanup();
+    anydsl_assert(values_.empty(), "cleanup should catch everything");
 }
 
 /*
  * types
  */
 
-Sigma* World::namedSigma(const std::string& name /*= ""*/) {
-    Sigma* s = new Sigma(*this);
+Sigma* World::namedSigma(size_t num, const std::string& name /*= ""*/) {
+    Sigma* s = new Sigma(*this, num);
     s->debug = name;
     namedSigmas_.push_back(s);
 
@@ -115,40 +100,41 @@ Sigma* World::namedSigma(const std::string& name /*= ""*/) {
  * literals
  */
 
-PrimLit* World::literal(PrimLitKind kind, Box value) {
-    return vfind(new PrimLit(type(lit2type(kind)), value));
+const PrimLit* World::literal(PrimLitKind kind, Box value) {
+    return find(new PrimLit(type(lit2type(kind)), value));
 }
 
-PrimLit* World::literal(const PrimType* p, Box value) {
-    return vfind(new PrimLit(p, value));
+const PrimLit* World::literal(const PrimType* p, Box value) {
+    return find(new PrimLit(p, value));
 }
 
-Undef* World::undef(const Type* type) {
-    return vfind(new Undef(type));
+const Undef* World::undef(const Type* type) {
+    return find(new Undef(type));
 }
 
-ErrorLit* World::literal_error(const Type* type) {
-    return vfind(new ErrorLit(type));
+const ErrorLit* World::literal_error(const Type* type) {
+    return find(new ErrorLit(type));
 }
 
 /*
  * create
  */
 
-Jump* World::createJump(Def* to, Def* const* arg_begin, Def* const* arg_end) {
-    return vfind(new Jump(to, arg_begin, arg_end));
+const Jump* World::createJump(const Def* to, const Def* const* arg_begin, const Def* const* arg_end) {
+    return find(new Jump(to, arg_begin, arg_end));
 }
 
-Jump* World::createBranch(Def* cond, Def* tto, Def* fto, Def* const* arg_begin, Def* const* arg_end) {
+const Jump* World::createBranch(const Def* cond, const Def* tto, const Def* fto, 
+                                const Def* const* arg_begin, const Def* const* arg_end) {
     return createJump(createSelect(cond, tto, fto), arg_begin, arg_end);
 }
 
-Jump* World::createBranch(Def* cond, Def* tto, Def* fto) {
+const Jump* World::createBranch(const Def* cond, const Def* tto, const Def* fto) {
     return createBranch(cond, tto, fto, 0, 0);
 }
 
-Value* World::createTuple(Def* const* begin, Def* const* end) { 
-    return vfind(new Tuple(*this, begin, end));
+const Value* World::createTuple(const Def* const* begin, const Def* const* end) { 
+    return find(new Tuple(*this, begin, end));
 }
 
 Lambda* World::createLambda(const Pi* pi) {
@@ -157,7 +143,7 @@ Lambda* World::createLambda(const Pi* pi) {
     return lambda;
 }
 
-Value* World::tryFold(IndexKind kind, Def* ldef, Def* rdef) {
+const Value* World::tryFold(IndexKind kind, const Def* ldef, const Def* rdef) {
     FoldValue a(ldef->type()->as<PrimType>()->kind());
     FoldValue b(a.type);
 
@@ -178,19 +164,19 @@ Value* World::tryFold(IndexKind kind, Def* ldef, Def* rdef) {
     return 0;
 }
 
-Value* World::createArithOp(ArithOpKind kind, Def* ldef, Def* rdef) {
-    if (Value* value = tryFold((IndexKind) kind, ldef, rdef))
+const Value* World::createArithOp(ArithOpKind kind, const Def* ldef, const Def* rdef) {
+    if (const Value* value = tryFold((IndexKind) kind, ldef, rdef))
         return value;
 
     if (isCommutative(kind))
         if (ldef > rdef)
             std::swap(ldef, rdef);
 
-    return vfind(new ArithOp(kind, ldef, rdef));
+    return find(new ArithOp(kind, ldef, rdef));
 }
 
-Value* World::createRelOp(RelOpKind kind, Def* ldef, Def* rdef) {
-    if (Value* value = tryFold((IndexKind) kind, ldef, rdef))
+const Value* World::createRelOp(RelOpKind kind, const Def* ldef, const Def* rdef) {
+    if (const Value* value = tryFold((IndexKind) kind, ldef, rdef))
         return value;
 
     bool swap;
@@ -198,53 +184,48 @@ Value* World::createRelOp(RelOpKind kind, Def* ldef, Def* rdef) {
     if (swap)
         std::swap(ldef, rdef);
 
-    return vfind(new RelOp(kind, ldef, rdef));
+    return find(new RelOp(kind, ldef, rdef));
 }
 
-Value* World::createProj(Def* tuple, PrimLit* i) {
+const Value* World::createProj(const Def* tuple, const PrimLit* i) {
     // TODO folding
-    return vfind(new Proj(tuple, i));
+    return find(new Proj(tuple, i));
 }
 
-Value* World::createInsert(Def* tuple, PrimLit* i, Def* value) {
+const Value* World::createInsert(const Def* tuple, const PrimLit* i, const Def* value) {
     // TODO folding
-    return vfind(new Insert(tuple, i, value));
+    return find(new Insert(tuple, i, value));
 }
 
 
-Value* World::createSelect(Def* cond, Def* tdef, Def* fdef) {
-    return vfind(new Select(cond, tdef, fdef));
+const Value* World::createSelect(const Def* cond, const Def* tdef, const Def* fdef) {
+    return find(new Select(cond, tdef, fdef));
 }
 
 /*
  * optimize
  */
 
-Lambda* getvalue(Lambda* l) { return l; }
-Value* getvalue(std::pair<bool, Value*> p) { return p.second; }
-
-// TODO this is inefficient for Value -- there may be many iterations needed till the outer loop terminates
-template<class T, class C>
-void World::kill(C& container) {
+void World::cleanup() {
     size_t oldSize;
-    do {
-        oldSize = container.size();
 
-        for (typename C::iterator i = container.begin(), e = container.end(); i != e; ++i) {
-            T* l = getvalue(*i);
-            if (l->uses().empty()) {
-                delete l;
-                i = container.erase(i);
+    /*
+     * TODO this is slow
+     */
+    do {
+        oldSize = values_.size();
+
+        for (ValueMap::iterator i = values_.begin(), e = values_.end(); i != e; ++i) {
+            const Value* val = *i;
+            if (val->uses().empty()) {
+                delete val;
+                i = values_.erase(i);
                 if (i == e) 
                     break;
             }
         }
-    } while (oldSize != container.size());
-}
 
-void World::cleanup() {
-    //kill<Lambda>(lambdas_);
-    //kill<Value>(values_);
+    } while (oldSize != values_.size());
 }
 
 } // namespace anydsl

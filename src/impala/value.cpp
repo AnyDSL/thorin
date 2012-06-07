@@ -9,7 +9,7 @@ using anydsl::Undef;
 
 namespace impala {
 
-anydsl::Def* Value::load() {
+const anydsl::Def* Value::load() {
     if (kind == RVALUE) {
         if (def->isa<Undef>())
             /*def->error()*/ std::cerr << "value undefined\n";
@@ -23,7 +23,7 @@ anydsl::Def* Value::load() {
     return bind->def;
 }
 
-void Value::store(anydsl::Def* newDef) {
+void Value::store(const anydsl::Def* newDef) {
     if (kind == RVALUE)
         /*def->error()*/ std::cerr << "lvalue required\n";
     else

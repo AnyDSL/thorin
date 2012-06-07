@@ -12,11 +12,11 @@ class NoRet;
 class Jump : public Value {
 private:
 
-    Jump(Def* to, Def* const* begin, Def* const* end);
+    Jump(const Def* to, const Def* const* begin, const Def* const* end);
 
 public:
 
-    Lambda* toLambda() { return to().def()->isa<Lambda>(); }
+    Lambda* toLambda() { return ccast<Lambda>(to().def()->isa<Lambda>()); }
     const Lambda* toLambda() const { return to().def()->isa<Lambda>(); }
 
     const NoRet* noret() const;

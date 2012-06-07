@@ -20,7 +20,7 @@ public:
     Value() 
         : def(0) 
     {}
-    explicit Value(anydsl::Def* def)
+    explicit Value(const anydsl::Def* def)
         : kind(RVALUE)
         , def(def)
     {}
@@ -29,8 +29,8 @@ public:
         , bind(bind)
     {}
 
-    anydsl::Def* load();
-    void store(anydsl::Def* def);
+    const anydsl::Def* load();
+    void store(const anydsl::Def* def);
     const anydsl::Type* type();
 
     const anydsl::Location loc() const;
@@ -47,7 +47,7 @@ private:
     Kind kind;
 
     union {
-        anydsl::Def* def;
+        const anydsl::Def* def;
         anydsl::Binding* bind;
     };
 };

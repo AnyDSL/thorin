@@ -104,7 +104,7 @@ public:
 
     void setReturnCont(const Type* retType);
     bool hasReturnCont() const { return retParam_; }
-    void insertReturnStmt(BB* bb, Def* def);
+    void insertReturnStmt(BB* bb, const Def* def);
     virtual Binding* getVN(const Symbol sym, const Type* type, bool finalize);
     BB* exit() const { return exit_; }
 

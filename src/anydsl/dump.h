@@ -7,7 +7,7 @@ namespace anydsl {
 
 class AIRNode;
 
-void dump(const AIRNode* n, std::ostream& s = std::cout);
+void dump(const AIRNode* n, std::ostream& o = std::cout);
 
 } // namespace anydsl
 

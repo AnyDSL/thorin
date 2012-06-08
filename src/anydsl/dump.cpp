@@ -10,45 +10,28 @@ namespace anydsl {
 
 class Dumper {
 public:
-    void dump(const AIRNode* n, std::ostream& s);
+
+    Dumper(std::ostream& o)
+        : o(o)
+    {}
+
+    void dump(const AIRNode* n);
+    void dumpBinOp(const std::string& str, const AIRNode* n);
+
+    std::ostream& o;
 };
 
-void dump(const AIRNode* n, std::ostream& s /*= std::cout*/) {
-    Dumper p;
-    p.dump(n, s);
-}
-
-static void dumpCompoundType(const std::string& str, const AIRNode* n, std::ostream& s) {
-    const Sigma* sigma = n->as<Sigma>();
-    s << str << '(';
-
-    if (!sigma->ops().empty()) {
-        for (Sigma::Ops::const_iterator i = sigma->ops().begin(), 
-                                        e = sigma->ops().end() - 1; 
-                                        i != e; ++i) {
-            dump(*i, s);
-            s << ", ";
-        }
-
-        dump(sigma->ops().back(), s);
-    }
-
-    s << ')';
-
-    return;
-}
-
-static void dumpBinOp(const std::string& str, const AIRNode* n, std::ostream& s) {
+void Dumper::dumpBinOp(const std::string& str, const AIRNode* n) {
     const BinOp* b = n->as<BinOp>();
-    s << str << "("; 
-    dump(b->ldef(), s);
-    s << ", ";
-    dump(b->rdef(), s);
-    s << ")";
+    o << str << "("; 
+    dump(b->ldef());
+    o << ", ";
+    dump(b->rdef());
+    o << ")";
     return;
 }
 
-void Dumper::dump(const AIRNode* n, std::ostream& s) {
+void Dumper::dump(const AIRNode* n) {
     std::string str;
 
     switch (n->index()) {
@@ -56,32 +39,54 @@ void Dumper::dump(const AIRNode* n, std::ostream& s) {
  * types
  */
 
-#define ANYDSL_U_TYPE(T) case Index_PrimType_##T: s << #T; return;
+#define ANYDSL_U_TYPE(T) case Index_PrimType_##T: o << #T; return;
 #define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
 #include "anydsl/tables/primtypetable.h"
 
-        case Index_Sigma: return dumpCompoundType("sigma", n, s);
-        case Index_Pi:    return dumpCompoundType("pi",    n->as<Pi>()->sigma(), s);
+        case Index_Sigma: {
+            const Sigma* sigma = n->as<Sigma>();
+            o << "sigma(";
+
+            if (!sigma->ops().empty()) {
+                for (Sigma::Ops::const_iterator i = sigma->ops().begin(), e = sigma->ops().end() - 1; i != e; ++i) {
+                    dump(*i);
+                    o << ", ";
+                }
+
+                dump(sigma->ops().back());
+            }
+
+            o << ')';
+            return;
+        }
+
+        case Index_Pi: {
+            const Pi* pi = n->as<Pi>();
+            o << "pi(";
+            dump(pi->sigma());
+            o << ')';
+            return;
+        }
 
 /*
  * literals
  */
 
-#define ANYDSL_U_TYPE(T) case Index_PrimLit_##T: s << n->as<PrimLit>()->box().get_##T(); return;
+#define ANYDSL_U_TYPE(T) case Index_PrimLit_##T: o << n->as<PrimLit>()->box().get_##T(); return;
 #define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
 #include "anydsl/tables/primtypetable.h"
 
-        case Index_Undef:    s << "<undef>"; return;
-        case Index_ErrorLit: s << "<error>"; return;
+        case Index_Undef:    o << "<undef>"; return;
+        case Index_ErrorLit: o << "<error>"; return;
 
 /*
  * primops
  */
 
-#define ANYDSL_ARITHOP(op) case Index_##op: return dumpBinOp(#op, n, s);
+#define ANYDSL_ARITHOP(op) case Index_##op: return dumpBinOp(#op, n);
 #include "anydsl/tables/arithoptable.h"
 
-#define ANYDSL_RELOP(op)   case Index_##op: return dumpBinOp(#op, n, s);
+#define ANYDSL_RELOP(op)   case Index_##op: return dumpBinOp(#op, n);
 #include "anydsl/tables/reloptable.h"
 
 #define ANYDSL_CONVOP(op) case Index_##op:
@@ -103,10 +108,9 @@ void Dumper::dump(const AIRNode* n, std::ostream& s) {
         case Index_Tuple:
             ANYDSL_NOT_IMPLEMENTED;
 
-        case Index_NoRet:
-        {
+        case Index_NoRet: {
             const NoRet* noret = n->as<NoRet>();
-            dump(noret->pi(), s);
+            dump(noret->pi());
             return;
         }
 
@@ -125,5 +129,14 @@ void Dumper::dump(const AIRNode* n, std::ostream& s) {
         //default: ANYDSL_NOT_IMPLEMENTED;
     }
 }
+
+//------------------------------------------------------------------------------
+
+void dump(const AIRNode* n, std::ostream& o /*= std::cout*/) {
+    Dumper p(o);
+    p.dump(n);
+}
+
+//------------------------------------------------------------------------------
 
 } // namespace anydsl

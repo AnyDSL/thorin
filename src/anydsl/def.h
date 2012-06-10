@@ -19,7 +19,7 @@ class Lambda;
 class Type;
 class Sigma;
 class World;
-typedef boost::unordered_set<const Def*> UseSet;
+typedef boost::unordered_multiset<const Def*> UseSet;
 class Def;
 class Jump;
 class World;

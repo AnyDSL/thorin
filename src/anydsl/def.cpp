@@ -26,7 +26,6 @@ Def::~Def() {
 
 
 void Def::registerUse(const Def* use) const {
-    anydsl_assert(uses_.find(use) == uses_.end(), "must not be inside the use list");
     uses_.insert(use);
 }
 

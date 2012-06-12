@@ -28,9 +28,8 @@ Token::Token(const anydsl::Location& loc, const std::string& str)
     Sym2Tok::const_iterator i = keywords_.find(str);
     if (i == keywords_.end())
         kind_ = Token::ID;
-    else {
+    else
         kind_ = i->second;
-    }
 }
 
 Token::Token(const anydsl::Location& loc, Kind kind, const std::string& str)
@@ -170,11 +169,14 @@ Token::ForceInit::ForceInit() {
 #define IMPALA_TYPE(itype, atype)         insertKey(TYPE_ ## itype, #itype );
 #include <impala/tokenlist.h>
 
-    insert(ERROR, "error");
+    insertKey(TYPE_int, "int");
+    insertKey(TYPE_uint, "uint");
     insertKey(DEF, "def");
 
-    tok2str_[ID]  =         Symbol("<identifier>").index();
+    tok2str_[TYPE_int] =    Symbol("int").index();
+    tok2str_[TYPE_uint] =   Symbol("uint").index();
     tok2str_[DEF] =         Symbol("def").index();
+    tok2str_[ID]  =         Symbol("<identifier>").index();
     tok2str_[END_OF_FILE] = Symbol("<end of file>").index();
 }
 

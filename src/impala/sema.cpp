@@ -1,5 +1,7 @@
 #include "impala/ast.h"
 
+#include "impala/dump.h"
+
 #include <stack>
 
 #include "anydsl/util/for_all.h"
@@ -236,10 +238,16 @@ void EmptyExpr::check(Sema& sema) const {
 void Literal::check(Sema& sema) const {
     PrimType::Kind newKind;
 
-    if (kind() == Literal::LIT_bool)
-        newKind = PrimType::TYPE_bool;
-    else
-        newKind = (PrimType::Kind) kind();
+    switch (kind()) {
+#define IMPALA_LIT(itype, atype) \
+        case Literal::LIT_##itype: \
+            newKind = PrimType::TYPE_##itype; \
+            break;
+#include "impala/tokenlist.h"
+        case Literal::LIT_bool:
+            newKind = PrimType::TYPE_bool;
+            break;
+    }
 
     type_ = new PrimType(loc(), newKind);
 }
@@ -255,7 +263,8 @@ void Id::check(Sema& sema) const {
 }
 
 void PrefixExpr::check(Sema& sema) const {
-    assert(false);
+    rexpr()->check(sema);
+    type_ = rexpr()->type()->clone(loc());
 }
 
 void InfixExpr::check(Sema& sema) const {
@@ -266,8 +275,10 @@ void InfixExpr::check(Sema& sema) const {
 
     bool equal = lexpr()->type()->equal(rexpr()->type());
 
-    if (!equal)
-        sema.error(this) << "incomparable types in binary expression: '" << lexpr()->type() << "' and '" << rexpr()->type() << "'\n";
+    if (!equal) {
+        sema.error(this) << "incompatible types in binary expression: '" 
+            << lexpr()->type() << "' and '" << rexpr()->type() << "'\n";
+    }
 
     if (Token::isRel((TokenKind) kind())) {
         type_ = new PrimType(loc, PrimType::TYPE_bool);
@@ -281,7 +292,8 @@ void InfixExpr::check(Sema& sema) const {
 }
 
 void PostfixExpr::check(Sema& sema) const {
-    assert(false);
+    lexpr()->check(sema);
+    type_ = lexpr()->type()->clone(loc());
 }
 
 /*
@@ -308,28 +320,26 @@ static bool checkCond(Sema& sema, const Expr* cond) {
 }
 
 void IfElseStmt::check(Sema& sema) const {
-    if (!checkCond(sema, cond())) {
-        assert(false);
-    }
-
+    checkCond(sema, cond());
     ifStmt()->check(sema);
     elseStmt()->check(sema);
 }
 
 void WhileStmt::check(Sema& sema) const {
-    if (!checkCond(sema, cond())) {
-        assert(false);
-    }
-
+    checkCond(sema, cond());
     body()->check(sema);
 }
 
 void DoWhileStmt::check(Sema& sema) const {
-    assert(false);
+    body()->check(sema);
+    checkCond(sema, cond());
 }
 
 void ForStmt::check(Sema& sema) const {
-    assert(false);
+    init()->check(sema);
+    checkCond(sema, cond());
+    inc()->check(sema);
+    body()->check(sema);
 }
 
 void BreakStmt::check(Sema& sema) const {

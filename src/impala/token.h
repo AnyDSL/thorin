@@ -34,7 +34,8 @@ public:
         // manually insert missing unary prefix/postfix types
         NOT, L_N, INC, DEC,
 
-        ERROR, // for debuggin only
+        // type alias
+        TYPE_int, TYPE_uint,
 
         // these do ont appear in impala/tokenlist.h -- they are too special
         ID, END_OF_FILE, DEF,

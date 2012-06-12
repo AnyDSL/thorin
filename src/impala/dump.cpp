@@ -118,7 +118,7 @@ void Decl::dump(Printer& p) const {
 
 void PrimType::dump(Printer& p) const {
     switch (kind()) {
-#define IMPALA_TYPE(itype, atype) case TYPE_##itype: p.o << #atype; return;
+#define IMPALA_TYPE(itype, atype) case TYPE_##itype: p.o << #itype; return;
 #include "impala/tokenlist.h"
     }
 }

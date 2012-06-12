@@ -185,13 +185,9 @@ IMPALA_TYPE(uint16, u16)
 IMPALA_TYPE(uint32, u32)
 IMPALA_TYPE(uint64, u64)
 
-IMPALA_TYPE( int,   u32)
-IMPALA_TYPE(uint,   u32)
-
 IMPALA_TYPE(float,  f32)
 IMPALA_TYPE(double, f64)
 
 IMPALA_TYPE(  bool, u1)
-//IMPALA_TYPE(  kind, kind)
 
 #undef IMPALA_TYPE

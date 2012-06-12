@@ -220,9 +220,12 @@ Token Parser::parseId() {
 const Type* Parser::parseType() {
     switch (la()) {
 #define IMPALA_TYPE(itype, atype) \
-        case Token:: TYPE_ ## itype: \
-            return new PrimType(lex().loc(), PrimType:: TYPE_##itype);
+        case Token::TYPE_ ## itype: \
+            return new PrimType(lex().loc(), PrimType::TYPE_##itype);
 #include "impala/tokenlist.h"
+
+        case Token::TYPE_int:  return new PrimType(lex().loc(), PrimType::TYPE_int32);
+        case Token::TYPE_uint: return new PrimType(lex().loc(), PrimType::TYPE_uint32);
             
         default: ANYDSL_UNREACHABLE; // TODO
     }
@@ -244,7 +247,7 @@ void Parser::parseGlobals() {
             case Token::END_OF_FILE: return;
 
             // consume token nobody wants to have in order to prevent infinite loop
-            default:                  lex(); 
+            default:
                 error("global", "global list");
                 lex(); 
         }

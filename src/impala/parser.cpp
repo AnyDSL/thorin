@@ -503,6 +503,7 @@ const Stmt* Parser::parseReturn() {
             expect(Token::SEMICOLON, "return-statement");
         }
     } else {
+        expr = new EmptyExpr(la().loc());
         eat(Token::SEMICOLON);
     }
 

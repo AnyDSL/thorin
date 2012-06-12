@@ -441,9 +441,10 @@ public:
 
     BreakStmt(const anydsl::Position& pos1, const anydsl::Position& pos2, const Loop* loop);
 
+    const Loop* loop() const { return loop_; }
+
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-
 private:
 
     const Loop* loop_;
@@ -453,6 +454,8 @@ class ContinueStmt : public Stmt {
 public:
 
     ContinueStmt(const anydsl::Position& pos1, const anydsl::Position& pos2, const Loop* loop);
+
+    const Loop* loop() const { return loop_; }
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;

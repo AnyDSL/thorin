@@ -343,19 +343,21 @@ void ForStmt::check(Sema& sema) const {
 }
 
 void BreakStmt::check(Sema& sema) const {
-    assert(false);
+    if (!loop())
+        sema.error(this) << "break statement not within a loop\n";
 }
 
 void ContinueStmt::check(Sema& sema) const {
-    assert(false);
+    if (!loop())
+        sema.error(this) << "continue statement not within a loop\n";
 }
 
 void ReturnStmt::check(Sema& sema) const {
     expr()->check(sema);
 
     if (!fct()->retType()->equal(expr()->type())) {
-        sema.error(expr()) << "wrong return type\n";
-        assert(false);
+        sema.error(expr()) << "expected return type '" << fct()->retType() 
+            << "' but return expression is of type '" << expr()->type() << "'\n";
     }
 }
 

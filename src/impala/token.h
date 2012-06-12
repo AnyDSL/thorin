@@ -27,8 +27,8 @@ public:
 #define IMPALA_KEY_EXPR(  tok, t_str)       tok,
 #define IMPALA_KEY_STMT(  tok, t_str)       tok,
 #define IMPALA_MISC(      tok, t_str)       tok,
-#define IMPALA_LIT(       tok, t)           tok,
-#define IMPALA_TYPE(itype, atype)           TYPE_ ## itype,
+#define IMPALA_LIT(       tok, t)           LIT_##tok,
+#define IMPALA_TYPE(itype, atype)           TYPE_##itype,
 #include <impala/tokenlist.h>
 
         // manually insert missing unary prefix/postfix types
@@ -80,14 +80,22 @@ public:
 
     int op() const { return tok2op_[kind_]; }
 
-    bool isPrefix()  const { return op() &  PREFIX; }
-    bool isInfix()   const { return op() &   INFIX; }
-    bool isPostfix() const { return op() & POSTFIX; }
-    bool isAsgn()    const { return op() & ASGN_OP; }
-    bool isOp() const { return isPrefix() || isInfix() || isPostfix(); }
+    bool isPrefix()  const { return isPrefix(kind_); }
+    bool isInfix()   const { return isInfix(kind_); }
+    bool isPostfix() const { return isPostfix(kind_); }
+    bool isAsgn()    const { return isAsgn(kind_); }
+    bool isOp()      const { return isOp(kind_); }
+    bool isArith()   const { return isArith(kind_); }
+    bool isRel()     const { return isRel(kind_); }
 
-    bool isArith() const;
-    bool isRel() const;
+    static bool isPrefix(Kind op)  { return op &  PREFIX; }
+    static bool isInfix(Kind op)   { return op &   INFIX; }
+    static bool isPostfix(Kind op) { return op & POSTFIX; }
+    static bool isAsgn(Kind op)    { return op & ASGN_OP; }
+    static bool isOp(Kind op)      { return isPrefix(op) || isInfix(op) || isPostfix(op); }
+    static bool isArith(Kind op);
+    static bool isRel(Kind op);
+
 
     Token seperateAssign() const;
     anydsl::ArithOpKind toArithOp() const;

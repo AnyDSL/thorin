@@ -1,3 +1,4 @@
+#if 0
 #include <impala/emitter.h>
 
 #include "anydsl/lambda.h"
@@ -90,6 +91,7 @@ void Emitter::fixto(anydsl::BB* to) {
     curBB = to;
 }
 
+#if 0
 Value Emitter::literal(const Token& tok) {
     switch (tok) {
         case Token::TRUE:  return Value(world.literal(true));
@@ -104,6 +106,7 @@ Value Emitter::literal(const Token& tok) {
             }
     }
 }
+#endif
 
 Value Emitter::prefixOp(const Token& op, Value bval) {
     if (op == Token::ADD)
@@ -219,3 +222,4 @@ Value Emitter::error() {
 
 } // namespace impala
 
+#endif

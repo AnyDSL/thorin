@@ -104,6 +104,9 @@ private:
 
 class Type : public ASTNode {
 public:
+
+    virtual bool equal(const Type* t) const = 0;
+    virtual const Type* clone(const anydsl::Location& loc) const = 0;
 };
 
 class PrimType : public Type {
@@ -121,6 +124,9 @@ public:
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
 
+    virtual bool equal(const Type* t) const;
+    virtual const PrimType* clone(const anydsl::Location& loc) const;
+
 private:
 
     Kind kind_;
@@ -133,9 +139,13 @@ public:
 
     virtual Value emit(CodeGen& cg) const = 0;
 
+    const Type* type() const { return type_; }
+
 protected:
 
     Exprs args_;
+
+    mutable anydsl::AutoPtr<const Type> type_;
 };
 
 class EmptyExpr : public Expr {
@@ -154,9 +164,9 @@ class Literal : public Expr {
 public:
 
     enum Kind {
-#define IMPALA_LIT(tok, t) tok = Token:: tok,
+#define IMPALA_LIT(itype, atype) LIT_##itype = Token::LIT_##itype,
 #include "impala/tokenlist.h"
-        BOOL
+        LIT_bool
     };
 
     Literal(const anydsl::Location& loc, Kind kind, anydsl::Box value);
@@ -188,7 +198,7 @@ public:
 private:
 
     anydsl::Symbol symbol_;
-    const Decl* decl_; ///< Declaration of the variable in use.
+    mutable const Decl* decl_; ///< Declaration of the variable in use.
 };
 
 class PrefixExpr : public Expr {

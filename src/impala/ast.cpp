@@ -1,5 +1,9 @@
 #include "impala/ast.h"
 
+#include "anydsl/util/cast.h"
+
+using anydsl::dcast;
+
 namespace impala {
 
 Decl::Decl(const Token& tok, const Type* type)
@@ -24,6 +28,18 @@ PrimType::PrimType(const anydsl::Location& loc, Kind kind)
     : kind_(kind)
 {
     this->loc = loc;
+}
+
+bool PrimType::equal(const Type* t) const {
+    if (const PrimType* p = dcast<PrimType>(t)) {
+        return kind() == p->kind();
+    }
+
+    return false;
+}
+
+const PrimType* PrimType::clone(const anydsl::Location& loc) const {
+    return new PrimType(loc, kind());
 }
 
 /*

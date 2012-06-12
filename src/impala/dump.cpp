@@ -127,13 +127,13 @@ void EmptyExpr::dump(Printer& p) const {
 
 void Literal::dump(Printer& p) const {
     switch (kind()) {
-#define IMPALA_LIT(tok, t) \
-        case tok: { \
-            p.o << (anydsl::u64) value().get_##t(); \
+#define IMPALA_LIT(itype, atype) \
+        case LIT_##itype: { \
+            p.o << (anydsl::u64) value().get_##atype(); \
             return; \
         }
 #include "impala/tokenlist.h"
-        case BOOL:
+        case LIT_bool:
             if (value().bool_) 
                 p.o << "true";
             else

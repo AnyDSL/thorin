@@ -41,25 +41,25 @@ Token::Token(const anydsl::Location& loc, Kind kind, const std::string& str)
     using namespace std;
 
     switch (kind_) {
-        case LIT_INT8:   box_.u8_  = anydsl::bcast< uint8_t,  int8_t>( int8_t(strtol  (symbol_.str(), 0, 0))); break;
-        case LIT_INT16:  box_.u16_ = anydsl::bcast<uint16_t, int16_t>(int16_t(strtol  (symbol_.str(), 0, 0))); break;
-        case LIT_INT32:  box_.u32_ = anydsl::bcast<uint32_t, int32_t>(int32_t(strtol  (symbol_.str(), 0, 0)));  break;
-        case LIT_INT64:  box_.u64_ = anydsl::bcast<uint64_t, int64_t>(int64_t(strtoll (symbol_.str(), 0, 0)));  break;
+        case LIT_int8:   box_.u8_  = anydsl::bcast< uint8_t,  int8_t>( int8_t(strtol  (symbol_.str(), 0, 0))); break;
+        case LIT_int16:  box_.u16_ = anydsl::bcast<uint16_t, int16_t>(int16_t(strtol  (symbol_.str(), 0, 0))); break;
+        case LIT_int32:  box_.u32_ = anydsl::bcast<uint32_t, int32_t>(int32_t(strtol  (symbol_.str(), 0, 0)));  break;
+        case LIT_int64:  box_.u64_ = anydsl::bcast<uint64_t, int64_t>(int64_t(strtoll (symbol_.str(), 0, 0)));  break;
 
-        case LIT_UINT8:  box_. u8_ = uint8_t (strtoul (symbol_.str(), 0, 0)); break;
-        case LIT_UINT16: box_.u16_ = uint16_t(strtoul (symbol_.str(), 0, 0)); break;
-        case LIT_UINT32: box_.u32_ = uint32_t(strtoul (symbol_.str(), 0, 0)); break;
-        case LIT_UINT64: box_.u64_ = uint64_t(strtoull(symbol_.str(), 0, 0)); break;
+        case LIT_uint8:  box_. u8_ = uint8_t (strtoul (symbol_.str(), 0, 0)); break;
+        case LIT_uint16: box_.u16_ = uint16_t(strtoul (symbol_.str(), 0, 0)); break;
+        case LIT_uint32: box_.u32_ = uint32_t(strtoul (symbol_.str(), 0, 0)); break;
+        case LIT_uint64: box_.u64_ = uint64_t(strtoull(symbol_.str(), 0, 0)); break;
 
-        case LIT_FLOAT:  box_.f32_ = strtof(symbol_.str(), 0); break;
-        case LIT_DOUBLE: box_.f64_ = strtod(symbol_.str(), 0); break;
+        case LIT_float:  box_.f32_ = strtof(symbol_.str(), 0); break;
+        case LIT_double: box_.f64_ = strtod(symbol_.str(), 0); break;
 
         default: ANYDSL_UNREACHABLE;
     }
 }
 
-bool Token::isArith() const {
-    switch (kind_) {
+bool Token::isArith(Kind op) {
+    switch (op) {
         case ADD:
         case SUB:
         case MUL:
@@ -69,8 +69,8 @@ bool Token::isArith() const {
     }
 }
 
-bool Token::isRel() const {
-    switch (kind_) {
+bool Token::isRel(Kind op) {
+    switch (op) {
         case EQ:
         case NE:
         case LT: 
@@ -164,7 +164,7 @@ Token::ForceInit::ForceInit() {
 #define IMPALA_INFIX(     tok, str, r, l) insert(tok, str); tok2op_[tok] |= INFIX;   
 #define IMPALA_INFIX_ASGN(tok, str, r, l) insert(tok, str); tok2op_[tok] |= INFIX | ASGN_OP;
 #define IMPALA_MISC(      tok, str)       insert(tok, str);
-#define IMPALA_LIT(       tok, t)         tok2str_[ tok ] = Symbol("<literal>").index();
+#define IMPALA_LIT(       tok, atype)     tok2str_[LIT_##tok] = Symbol("<literal>").index();
 #define IMPALA_KEY_EXPR(  tok, str)       insertKey(tok, str);
 #define IMPALA_KEY_STMT(  tok, str)       insertKey(tok, str);
 #define IMPALA_TYPE(itype, atype)         insertKey(TYPE_ ## itype, #itype );

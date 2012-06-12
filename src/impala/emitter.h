@@ -1,9 +1,9 @@
 #ifndef IMPALA_EMITTER_H
 #define IMPALA_EMITTER_H
+#if 0
 
 #include <vector>
 
-#include "impala/environment.h"
 #include "impala/value.h"
 
 namespace anydsl {
@@ -44,8 +44,10 @@ public:
     const anydsl::Type* builtinType(const Token& tok);
     Value id(const Token& tok);
 
+#if 0
     void pushScope() { env_.pushScope();  }
     void popScope()  { env_.popScope();  }
+#endif
 
     anydsl::Fct* curFct;
     anydsl::BB* curBB;
@@ -58,9 +60,10 @@ private:
 
     anydsl::Lambda* root_;
     anydsl::Fct* main_; ///< main function; 0 until not found
-    Environment env_;   ///< keep track of symbols and its associated anydsl::Type
+    //Environment env_;   ///< keep track of symbols and its associated anydsl::Type
 };
 
 } // namespace impala
 
+#endif
 #endif

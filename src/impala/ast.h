@@ -167,12 +167,14 @@ public:
     virtual Value emit(CodeGen& cg) const = 0;
 
     const Type* type() const { return type_; }
+    bool lvalue() const { return lvalue_; }
 
 protected:
 
     Exprs args_;
 
     mutable anydsl::AutoPtr<const Type> type_;
+    mutable bool lvalue_;
 };
 
 class EmptyExpr : public Expr {

@@ -233,6 +233,7 @@ void ErrorType::check(Sema& sema) const {
 
 void EmptyExpr::check(Sema& sema) const {
     type_ = new Void(loc());
+    lvalue_ = false;
 }
 
 void Literal::check(Sema& sema) const {
@@ -250,9 +251,12 @@ void Literal::check(Sema& sema) const {
     }
 
     type_ = new PrimType(loc(), newKind);
+    lvalue_ = false;
 }
 
 void Id::check(Sema& sema) const {
+    lvalue_ = true;
+
     if (const Decl* decl = sema.lookup(symbol())) {
         type_ = decl->type()->clone(loc());
         return;
@@ -265,6 +269,7 @@ void Id::check(Sema& sema) const {
 void PrefixExpr::check(Sema& sema) const {
     rexpr()->check(sema);
     type_ = rexpr()->type()->clone(loc());
+    lvalue_ = true;
 }
 
 void InfixExpr::check(Sema& sema) const {
@@ -282,7 +287,15 @@ void InfixExpr::check(Sema& sema) const {
 
     if (Token::isRel((TokenKind) kind())) {
         type_ = new PrimType(loc, PrimType::TYPE_bool);
+        lvalue_ = false;
         return;
+    }
+
+    if (Token::isAsgn((TokenKind) kind())) {
+        if (!lexpr()->lvalue())
+            sema.error(lexpr()) << "no lvalue on left-hand side of assignment\n";
+
+        lvalue_ = true;
     }
 
     if (!lexpr()->type()->isError())
@@ -292,6 +305,8 @@ void InfixExpr::check(Sema& sema) const {
 }
 
 void PostfixExpr::check(Sema& sema) const {
+    lvalue_ = false;
+
     lexpr()->check(sema);
     type_ = lexpr()->type()->clone(loc());
 }

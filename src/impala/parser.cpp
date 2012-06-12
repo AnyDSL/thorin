@@ -92,7 +92,8 @@ private:
 
     Lexer lexer_;       ///< invoked in order to get next token
     Token lookahead_[2];///< LL(2) look ahead
-    const Loop* loop_;
+    const Loop* curLoop_;
+    const Fct* curFct_;
     Prg* prg_;
     int counter_;
     anydsl::Location prevLoc_;
@@ -122,7 +123,8 @@ const Prg* parse(std::istream& i, const std::string& filename) {
 
 Parser::Parser(std::istream& stream, const std::string& filename)
     : lexer_(stream, filename)
-    , loop_(0)
+    , curLoop_(0)
+    , curFct_(0)
     , prg_(new Prg())
     , counter_(0)
 {
@@ -250,6 +252,7 @@ const Fct* Parser::parseFct() {
     Symbol symbol = parseId().symbol();
 
     Fct* fct = new Fct();
+    curFct_ = fct;
     const Type* retType = 0;
 
     expect(Token::L_PAREN, "function head");
@@ -381,11 +384,11 @@ const Stmt* Parser::parseWhile() {
     Position pos1 = eat(Token::WHILE).pos1();
     const Expr* cond = parseCond("while-statement");
 
-    const Loop* oldLoop = loop_;
+    const Loop* oldLoop = curLoop_;
     WhileStmt*  newLoop = new WhileStmt();
-    loop_ = newLoop;
+    curLoop_ = newLoop;
     const Stmt* body = parseStmt();
-    loop_ = oldLoop;
+    curLoop_ = oldLoop;
 
     newLoop->set(pos1, cond, body);
 
@@ -395,11 +398,11 @@ const Stmt* Parser::parseWhile() {
 const Stmt* Parser::parseDoWhile() {
     Position pos1 = eat(Token::DO).pos1();
 
-    const Loop* oldLoop = loop_;
+    const Loop* oldLoop = curLoop_;
     DoWhileStmt*  newLoop = new DoWhileStmt();
-    loop_ = newLoop;
+    curLoop_ = newLoop;
     const Stmt* body = parseStmt();
-    loop_ = oldLoop;
+    curLoop_ = oldLoop;
 
     expect(Token::WHILE, "do-while-statement");
     const Expr* cond = parseCond("do-while-statement");
@@ -414,9 +417,9 @@ const Stmt* Parser::parseFor() {
     Position pos1 = eat(Token::FOR).pos1();
     expect(Token::L_PAREN, "for-statement");
 
-    const Loop* oldLoop = loop_;
+    const Loop* oldLoop = curLoop_;
     ForStmt*  newLoop = new ForStmt();
-    loop_ = newLoop;
+    curLoop_ = newLoop;
 
     // clause 1: decl or expr_opt ';'
     if (la2() == Token::COLON)
@@ -461,7 +464,7 @@ const Stmt* Parser::parseFor() {
     }
 
     const Stmt* body = parseStmt();
-    loop_ = oldLoop;
+    curLoop_ = oldLoop;
 
     newLoop->set(pos1, cond, inc, body);
 
@@ -472,14 +475,14 @@ const Stmt* Parser::parseBreak() {
     Position pos1 = eat(Token::BREAK).pos1();
     expect(Token::SEMICOLON, "break-statement");
 
-    return new BreakStmt(pos1, prevLoc_.pos2(), loop_);
+    return new BreakStmt(pos1, prevLoc_.pos2(), curLoop_);
 }
 
 const Stmt* Parser::parseContinue() {
     Position pos1 = eat(Token::CONTINUE).pos1();
     expect(Token::SEMICOLON, "continue-statement");
 
-    return new ContinueStmt(pos1, prevLoc_.pos2(), loop_);
+    return new ContinueStmt(pos1, prevLoc_.pos2(), curLoop_);
 }
 
 const Stmt* Parser::parseReturn() {
@@ -496,7 +499,7 @@ const Stmt* Parser::parseReturn() {
         eat(Token::SEMICOLON);
     }
 
-    return new ReturnStmt(pos1, expr, prevLoc_.pos2());
+    return new ReturnStmt(pos1, expr, curFct_, prevLoc_.pos2());
 }
 
 const Expr* Parser::parseCond(const std::string& what) {

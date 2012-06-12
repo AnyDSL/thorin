@@ -321,6 +321,12 @@ void ContinueStmt::check(Sema& sema) const {
 }
 
 void ReturnStmt::check(Sema& sema) const {
+    expr()->check(sema);
+
+    if (!fct()->retType()->equal(expr()->type())) {
+        expr()->loc.error() << "wrong return type\n";
+        assert(false);
+    }
 }
 
 void ScopeStmt::check(Sema& sema) const {

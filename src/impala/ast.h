@@ -441,9 +441,10 @@ private:
 class ReturnStmt : public Stmt {
 public:
 
-    ReturnStmt(const anydsl::Position& pos1, const Expr* expr, const anydsl::Position& pos2);
+    ReturnStmt(const anydsl::Position& pos1, const Expr* expr, const Fct* fct, const anydsl::Position& pos2);
 
     const Expr* expr() const { return expr_; }
+    const Fct* fct() const { return fct_; }
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
@@ -451,6 +452,7 @@ public:
 private:
 
     anydsl::AutoPtr<const Expr> expr_;
+    const Fct* fct_;
 };
 
 class ScopeStmt : public Stmt {

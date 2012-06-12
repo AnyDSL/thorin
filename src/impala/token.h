@@ -88,13 +88,13 @@ public:
     bool isArith()   const { return isArith(kind_); }
     bool isRel()     const { return isRel(kind_); }
 
-    static bool isPrefix(Kind op)  { return op &  PREFIX; }
-    static bool isInfix(Kind op)   { return op &   INFIX; }
-    static bool isPostfix(Kind op) { return op & POSTFIX; }
-    static bool isAsgn(Kind op)    { return op & ASGN_OP; }
-    static bool isOp(Kind op)      { return isPrefix(op) || isInfix(op) || isPostfix(op); }
-    static bool isArith(Kind op);
-    static bool isRel(Kind op);
+    static bool isPrefix(Kind kind)  { return tok2op_[kind] &  PREFIX; }
+    static bool isInfix(Kind kind)   { return tok2op_[kind] &   INFIX; }
+    static bool isPostfix(Kind kind) { return tok2op_[kind] & POSTFIX; }
+    static bool isAsgn(Kind kind)    { return tok2op_[kind] & ASGN_OP; }
+    static bool isOp(Kind kind)      { return isPrefix(kind) || isInfix(kind) || isPostfix(kind); }
+    static bool isArith(Kind kind);
+    static bool isRel(Kind kind);
 
 
     Token seperateAssign() const;

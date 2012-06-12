@@ -142,8 +142,9 @@ ContinueStmt::ContinueStmt(const anydsl::Position& pos1, const anydsl::Position&
     loc = anydsl::Location(pos1, pos2);
 }
 
-ReturnStmt::ReturnStmt(const anydsl::Position& pos1, const Expr* expr, const anydsl::Position& pos2)
+ReturnStmt::ReturnStmt(const anydsl::Position& pos1, const Expr* expr, const Fct* fct, const anydsl::Position& pos2)
     : expr_(expr)
+    , fct_(fct)
 {
     loc = anydsl::Location(pos1, pos2);
 }

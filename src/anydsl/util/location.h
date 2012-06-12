@@ -113,6 +113,7 @@ public:
     void setPos1(const Position& pos1) { loc_.pos1_ = pos1; }
     void setPos2(const Position& pos2) { loc_.pos2_ = pos2; }
     void setLoc(const Location& loc) { loc_ = loc; }
+    void setLoc(const Position& pos1, const Position& pos2) { loc_.pos1_ = pos1; loc_.pos2_ = pos2; }
 
     std::ostream& emitError() const;
     std::ostream& emitWarning() const;

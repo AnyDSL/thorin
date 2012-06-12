@@ -17,7 +17,8 @@ struct Binding {
     {}
 
     bool operator < (const Binding& bind) { 
-        return Symbol::FastLess()(sym, bind.sym);
+        //return Symbol::FastLess()(sym, bind.sym);
+        return true;
     }
 
     std::ostream& error() const;

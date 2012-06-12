@@ -6,6 +6,7 @@
 #include <string>
 
 #include <boost/functional/hash.hpp>
+#include <boost/unordered_set.hpp>
 
 #include "anydsl/symbolmemory.h"
 #include "anydsl/util/singleton.h"
@@ -70,31 +71,11 @@ public:
      * comparisons
      */
 
-    /// Lexical comparison of two \p Symbol%s.
-    bool lt(Symbol b) const { return strcmp(str(), b.str()) < 0; }
-
     /// Are two given \p Symbol%s identical?
     bool operator == (Symbol b) const { return index() == b.index(); }
 
     /// Are two given \p Symbol%s not identical?
     bool operator !=( Symbol b) const { return index() != b.index(); }
-
-    /// The preferred less-than operator using the FastLess functor
-    bool operator<(Symbol b) const { return FastLess()(*this, b); }
-
-    /*
-     * functors
-     */
-
-    /// Use this if you need lexical ordering.
-    struct LexicalLess {
-        bool operator()(const Symbol &a, const Symbol &b) const { return a.lt(b); }
-    };
-
-    /// Use this (much faster) if lexical ordering is not needed.
-    struct FastLess {
-        bool operator()(const Symbol &a, const Symbol &b) const { return a.index() < b.index(); }
-    };
 
 private:
 
@@ -102,6 +83,8 @@ private:
 
     friend class SymbolTable;
 };
+
+inline size_t hash_value(const Symbol sym) { return boost::hash_value(sym.index()); }
 
 //------------------------------------------------------------------------------
 
@@ -130,8 +113,7 @@ private:
 
     SymbolMemory memory_;
 
-    // TODO port to boost::unordered_set
-    typedef std::set<Symbol, Symbol::LexicalLess> SymbolSet;
+    typedef boost::unordered_set<Symbol> SymbolSet;
     SymbolSet symbolSet_;
 
     friend class Singleton<SymbolTable>;
@@ -147,10 +129,6 @@ inline Symbol::Symbol(const std::string& str)
 //------------------------------------------------------------------------------
 
 std::ostream& operator << (std::ostream& o, Symbol s);
-
-//------------------------------------------------------------------------------
-
-inline size_t hash_value(const Symbol sym) { return boost::hash_value(sym.index()); }
 
 //------------------------------------------------------------------------------
 

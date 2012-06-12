@@ -1,10 +1,11 @@
 #include "impala/ast.h"
 
-#include "impala/dump.h"
-
 #include <stack>
+#include <boost/unordered_map.hpp>
 
 #include "anydsl/util/for_all.h"
+
+#include "impala/dump.h"
 
 using anydsl::Location;
 using anydsl::Symbol;
@@ -71,7 +72,7 @@ private:
     };
 
     typedef std::stack<Slot> SlotStack;
-    typedef std::map<const anydsl::Symbol, SlotStack*, anydsl::Symbol::FastLess> Scope;
+    typedef boost::unordered_map<const anydsl::Symbol, SlotStack*> Scope;
 
     bool result_;
     Scope scope_;

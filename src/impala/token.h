@@ -1,9 +1,10 @@
 #ifndef IMPALA_TOKEN_H
 #define IMPALA_TOKEN_H
 
-#include <map>
 #include <ostream>
 #include <string>
+
+#include <boost/unordered_map.hpp>
 
 #include "anydsl/enums.h"
 #include "anydsl/symbol.h"
@@ -125,13 +126,13 @@ private:
     static void insertKey(Kind tok, const char* str);
     static struct ForceInit { ForceInit(); } init_;
 
-    typedef std::map<Kind, anydsl::Symbol> Tok2Sym;
+    typedef boost::unordered_map<Kind, anydsl::Symbol> Tok2Sym;
     static Tok2Sym tok2sym_;
 
-    typedef std::map<anydsl::Symbol, Kind, anydsl::Symbol::FastLess> Sym2Tok;
+    typedef boost::unordered_map<anydsl::Symbol, Kind> Sym2Tok;
     static Sym2Tok keywords_;
 
-    typedef std::map<Kind, size_t> Tok2Str;
+    typedef boost::unordered_map<Kind, size_t> Tok2Str;
     static Tok2Str tok2str_;
 
     friend std::ostream& operator << (std::ostream& os, const Token& tok);

@@ -2,7 +2,7 @@
 #define ANYDSL_CFG_H
 
 #include <map>
-#include <boost/unordered_set.hpp>
+#include <boost/unordered_map.hpp>
 
 #include "anydsl/symbol.h"
 #include "anydsl/util/assert.h"
@@ -67,10 +67,10 @@ protected:
     void flowsto(BB* to);
     World& world();
 
-    typedef std::map<const Symbol, Binding*> ValueMap;
+    typedef boost::unordered_map<Symbol, Binding*> ValueMap;
     ValueMap values_;
 
-    typedef std::map<Symbol, size_t, Symbol::FastLess> Todos;
+    typedef boost::unordered_map<Symbol, size_t> Todos;
     Todos todos_;
 
     // CFG

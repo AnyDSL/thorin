@@ -18,9 +18,10 @@ class Decl;
 class Expr;
 class Fct;
 class Printer;
+class ScopeStmt;
+class Sema;
 class Stmt;
 class Type;
-class Sema;
 
 typedef anydsl::AutoVector<const Decl*> Decls;
 typedef anydsl::AutoVector<const Expr*> Exprs;
@@ -65,7 +66,7 @@ public:
 
     anydsl::Symbol symbol() const { return symbol_; }
     const Type* retType() const { return retType_; }
-    const Stmt* body() const { return body_; }
+    const ScopeStmt* body() const { return body_; }
     const Decls& params() const { return params_; }
 
     virtual void check(Sema& sema) const;
@@ -73,12 +74,12 @@ public:
 
 private:
 
-    void set(const anydsl::Position& pos1, const anydsl::Symbol symbol, const Type* retType, const Stmt* body);
+    void set(const anydsl::Position& pos1, const anydsl::Symbol symbol, const Type* retType, const ScopeStmt* body);
 
     anydsl::Symbol symbol_;
     Decls params_;
     anydsl::AutoPtr<const Type> retType_;
-    anydsl::AutoPtr<const Stmt> body_;
+    anydsl::AutoPtr<const ScopeStmt> body_;
 
     friend class Parser;
 };
@@ -107,6 +108,7 @@ public:
 
     virtual bool equal(const Type* t) const = 0;
     virtual const Type* clone(const anydsl::Location& loc) const = 0;
+    virtual bool isBool() const { return false; }
 };
 
 class PrimType : public Type {
@@ -126,6 +128,7 @@ public:
 
     virtual bool equal(const Type* t) const;
     virtual const PrimType* clone(const anydsl::Location& loc) const;
+    virtual bool isBool() const { return kind_ == TYPE_bool; }
 
 private:
 

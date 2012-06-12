@@ -74,7 +74,7 @@ public:
     const Stmt* parseReturn();
 
     /// { Stmt* }
-    const Stmt* parseScope();
+    const ScopeStmt* parseScope();
 
     /// helper for condition in if/while/do-while
     const Expr* parseCond(const std::string& what);
@@ -264,14 +264,14 @@ const Fct* Parser::parseFct() {
     if (accept(Token::ARROW))
         retType = parseType();
 
-    const Stmt* body = parseScope();
+    const ScopeStmt* body = parseScope();
 
     fct->set(pos1, symbol, retType, body);
 
     return fct;
 }
 
-const Stmt* Parser::parseScope() {
+const ScopeStmt* Parser::parseScope() {
     ScopeStmt* scope = new ScopeStmt();
     scope->loc.setPos1(la().pos1());
 

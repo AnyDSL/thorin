@@ -34,7 +34,7 @@ public:
      *
      * @param sym The \p Symbol to insert.
      */
-    void insert(const anydsl::Symbol sym, const Decl* decl);
+    void insert(const Decl* decl);
 
     /** 
      * @brief Checks whether there already exists a \p Symbol \p sym in the \em current scope.
@@ -73,7 +73,6 @@ private:
 #ifndef NDEBUG
     int refcounter_;
 #endif
-
 };
 
 //------------------------------------------------------------------------------
@@ -105,7 +104,9 @@ const Decl* Sema::lookup(const Symbol sym) {
         return 0;
 }
 
-void Sema::insert(const Symbol sym, const Decl* decl) {
+void Sema::insert(const Decl* decl) {
+    const Symbol sym = decl->symbol();
+
     anydsl_assert(clash(sym) == 0, "must not be found");
 
     // create stack if necessary
@@ -174,17 +175,29 @@ void Prg::check(Sema& sema) const {
 }
 
 void Fct::check(Sema& sema) const {
+    sema.pushScope();
+
     for_all (p, params())
         p->check(sema);
 
     if (retType())
         retType()->check(sema);
 
-    body()->check(sema);
+    for_all (const &s, body()->stmts())
+        s->check(sema);
+
+    sema.popScope();
 }
 
 void Decl::check(Sema& sema) const {
     type()->check(sema);
+
+    if (const Decl* decl = sema.clash(symbol())) {
+        decl->loc.error() << "clash\n";
+        assert(false);
+    }
+
+    sema.insert(this);
 }
 
 /*
@@ -201,7 +214,7 @@ void PrimType::check(Sema& sema) const {
  */
 
 void EmptyExpr::check(Sema& sema) const {
-    /* do nothing */
+    assert(false);
 }
 
 void Literal::check(Sema& sema) const {
@@ -216,9 +229,17 @@ void Literal::check(Sema& sema) const {
 }
 
 void Id::check(Sema& sema) const {
+    if (const Decl* decl = sema.lookup(symbol())) {
+        type_ = decl->type()->clone(loc);
+        return;
+    }
+
+    loc.error() << "id not found\n";
+    assert(false);
 }
 
 void PrefixExpr::check(Sema& sema) const {
+    assert(false);
 }
 
 void InfixExpr::check(Sema& sema) const {
@@ -240,6 +261,7 @@ void InfixExpr::check(Sema& sema) const {
 }
 
 void PostfixExpr::check(Sema& sema) const {
+    assert(false);
 }
 
 /*
@@ -247,33 +269,67 @@ void PostfixExpr::check(Sema& sema) const {
  */
 
 void DeclStmt::check(Sema& sema) const {
+    decl()->check(sema);
 }
 
 void ExprStmt::check(Sema& sema) const {
+    expr()->check(sema);
+}
+
+static bool checkCond(Sema& sema, const Expr* cond) {
+    cond->check(sema);
+
+    if (!cond->type()->isBool()) {
+        cond->loc.error() << "condition not a bool\n";
+        return false;
+    }
+
+    return true;
 }
 
 void IfElseStmt::check(Sema& sema) const {
+    if (!checkCond(sema, cond())) {
+        assert(false);
+    }
+
+    ifStmt()->check(sema);
+    elseStmt()->check(sema);
 }
 
 void WhileStmt::check(Sema& sema) const {
+    if (!checkCond(sema, cond())) {
+        assert(false);
+    }
+
+    body()->check(sema);
 }
 
 void DoWhileStmt::check(Sema& sema) const {
+    assert(false);
 }
 
 void ForStmt::check(Sema& sema) const {
+    assert(false);
 }
 
 void BreakStmt::check(Sema& sema) const {
+    assert(false);
 }
 
 void ContinueStmt::check(Sema& sema) const {
+    assert(false);
 }
 
 void ReturnStmt::check(Sema& sema) const {
 }
 
 void ScopeStmt::check(Sema& sema) const {
+    sema.pushScope();
+
+    for_all (const &s, stmts())
+        s->check(sema);
+
+    sema.popScope();
 }
 
 } // namespace impala

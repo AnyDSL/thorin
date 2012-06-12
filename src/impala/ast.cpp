@@ -13,7 +13,7 @@ Decl::Decl(const Token& tok, const Type* type)
     loc = anydsl::Location(tok.pos1(), type->loc.pos2());
 }
 
-void Fct::set(const anydsl::Position& pos1, const anydsl::Symbol symbol, const Type* retType, const Stmt* body) {
+void Fct::set(const anydsl::Position& pos1, const anydsl::Symbol symbol, const Type* retType, const ScopeStmt* body) {
     symbol_ = symbol;
     retType_ = retType;
     body_ = body;

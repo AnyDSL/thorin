@@ -28,15 +28,15 @@ typedef anydsl::AutoVector<const Expr*> Exprs;
 typedef anydsl::AutoVector<const Fct*>  Fcts;
 typedef anydsl::AutoVector<const Stmt*> Stmts;
 
-class ASTNode {
+class ASTNode : public anydsl::HasLocation {
 public:
 
     virtual ~ASTNode() {}
 
-    anydsl::Location loc;
-
     virtual void check(Sema& sema) const = 0;
     virtual void dump(Printer& p) const = 0;
+
+    void dump() const;
 
     template<class T> T* as()  { return anydsl::scast<T>(this); }
     template<class T> T* isa() { return anydsl::dcast<T>(this); }
@@ -109,6 +109,7 @@ public:
     virtual bool equal(const Type* t) const = 0;
     virtual const Type* clone(const anydsl::Location& loc) const = 0;
     virtual bool isBool() const { return false; }
+    virtual bool isError() const { return false; }
 };
 
 class PrimType : public Type {
@@ -135,6 +136,29 @@ private:
     Kind kind_;
 };
 
+class Void : public Type {
+public:
+
+    Void(const anydsl::Location& loc);
+
+    virtual void check(Sema& sema) const;
+    virtual void dump(Printer& p) const;
+    virtual bool equal(const Type* t) const;
+    virtual const Void* clone(const anydsl::Location& loc) const;
+};
+
+class ErrorType : public Type {
+public:
+
+    ErrorType(const anydsl::Location& loc);
+
+    virtual void check(Sema& sema) const;
+    virtual void dump(Printer& p) const;
+    virtual bool equal(const Type* t) const;
+    virtual const ErrorType* clone(const anydsl::Location& loc) const;
+    virtual bool isError() const { return true; }
+};
+
 //------------------------------------------------------------------------------
 
 class Expr : public ASTNode {
@@ -155,7 +179,7 @@ class EmptyExpr : public Expr {
 public:
 
     EmptyExpr(const anydsl::Location& loc) {
-        this->loc = loc;
+        loc_ = loc;
     }
 
     virtual void check(Sema& sema) const;
@@ -460,7 +484,7 @@ public:
 
     ScopeStmt() {}
     ScopeStmt(const anydsl::Location& loc) {
-        this->loc = loc;
+        loc_ = loc;
     }
 
     const Stmts& stmts() const { return stmts_; }

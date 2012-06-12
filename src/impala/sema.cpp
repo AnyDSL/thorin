@@ -50,6 +50,11 @@ public:
     /// Discard current scope.
     void popScope();
 
+    bool result() const { return result_; }
+
+    std::ostream& error(const ASTNode* n) { result_ = false; return n->emitError(); }
+    std::ostream& warning(const ASTNode* n) { return n->emitWarning(); }
+
 private:
 
     struct Slot {
@@ -164,8 +169,11 @@ void Sema::pushScope() {
 
 //------------------------------------------------------------------------------
 
-
-
+bool check(const Prg* prg) {
+    Sema sema;
+    prg->check(sema);
+    return sema.result();
+}
 
 //------------------------------------------------------------------------------
 
@@ -193,11 +201,11 @@ void Decl::check(Sema& sema) const {
     type()->check(sema);
 
     if (const Decl* decl = sema.clash(symbol())) {
-        decl->loc.error() << "clash\n";
-        assert(false);
+        sema.error(this) << "symbol '" << symbol() << "' already defined\n";
+        sema.error(decl) << "previous location here\n";
+    } else {
+        sema.insert(this);
     }
-
-    sema.insert(this);
 }
 
 /*
@@ -208,13 +216,21 @@ void PrimType::check(Sema& sema) const {
     /* do nothing */
 }
 
+void Void::check(Sema& sema) const {
+    /* do nothing */
+}
+
+void ErrorType::check(Sema& sema) const {
+    /* do nothing */
+}
+
 
 /*
  * Expr
  */
 
 void EmptyExpr::check(Sema& sema) const {
-    assert(false);
+    type_ = new Void(loc());
 }
 
 void Literal::check(Sema& sema) const {
@@ -225,17 +241,17 @@ void Literal::check(Sema& sema) const {
     else
         newKind = (PrimType::Kind) kind();
 
-    type_ = new PrimType(loc, newKind);
+    type_ = new PrimType(loc(), newKind);
 }
 
 void Id::check(Sema& sema) const {
     if (const Decl* decl = sema.lookup(symbol())) {
-        type_ = decl->type()->clone(loc);
+        type_ = decl->type()->clone(loc());
         return;
     }
 
-    loc.error() << "id not found\n";
-    assert(false);
+    sema.error(this) << "symbol '" << symbol() << "' not found in current scope\n";
+    type_ = new ErrorType(loc());
 }
 
 void PrefixExpr::check(Sema& sema) const {
@@ -246,18 +262,22 @@ void InfixExpr::check(Sema& sema) const {
     lexpr()->check(sema);
     rexpr()->check(sema);
 
-    if (lexpr()->type()->equal(rexpr()->type())) {
-        loc.error() << "type error";
-        assert(false);
-    }
-    Location loc(lexpr()->loc.pos1(), rexpr()->loc.pos2());
+    Location loc(lexpr()->pos1(), rexpr()->pos2());
+
+    bool equal = lexpr()->type()->equal(rexpr()->type());
+
+    if (!equal)
+        sema.error(this) << "incomparable types in binary expression: '" << lexpr()->type() << "' and '" << rexpr()->type() << "'\n";
 
     if (Token::isRel((TokenKind) kind())) {
         type_ = new PrimType(loc, PrimType::TYPE_bool);
         return;
     }
 
-    type_ = lexpr()->type()->clone(loc);
+    if (!lexpr()->type()->isError())
+        type_ = lexpr()->type()->clone(loc);
+    else
+        type_ = rexpr()->type()->clone(loc);
 }
 
 void PostfixExpr::check(Sema& sema) const {
@@ -280,7 +300,7 @@ static bool checkCond(Sema& sema, const Expr* cond) {
     cond->check(sema);
 
     if (!cond->type()->isBool()) {
-        cond->loc.error() << "condition not a bool\n";
+        sema.error(cond) << "condition not a bool\n";
         return false;
     }
 
@@ -324,7 +344,7 @@ void ReturnStmt::check(Sema& sema) const {
     expr()->check(sema);
 
     if (!fct()->retType()->equal(expr()->type())) {
-        expr()->loc.error() << "wrong return type\n";
+        sema.error(expr()) << "wrong return type\n";
         assert(false);
     }
 }

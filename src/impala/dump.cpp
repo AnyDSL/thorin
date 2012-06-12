@@ -56,6 +56,13 @@ void dump(const ASTNode* n, bool fancy /*= false*/, std::ostream& o /*= std::cou
     n->dump(p);
 }
 
+std::ostream& operator << (std::ostream& o, const ASTNode* n) {
+    dump(n, true, o);
+    return o;
+}
+
+//------------------------------------------------------------------------------
+
 void Printer::dumpBlock(const Stmt* s) {
     if (s->isa<ScopeStmt>())
         s->dump(*this);
@@ -116,6 +123,13 @@ void PrimType::dump(Printer& p) const {
     }
 }
 
+void Void::dump(Printer& p) const {
+    p.o << "void";
+}
+
+void ErrorType::dump(Printer& p) const {
+    p.o << "<error type>";
+}
 
 /*
  * Expr

@@ -97,6 +97,7 @@ private:
     Prg* prg_;
     int counter_;
     anydsl::Location prevLoc_;
+    bool result_;
 };
 
 //------------------------------------------------------------------------------
@@ -127,6 +128,7 @@ Parser::Parser(std::istream& stream, const std::string& filename)
     , curFct_(0)
     , prg_(new Prg())
     , counter_(0)
+    , result_(true)
 {
     // init 2 lookahead
     lookahead_[0] = lexer_.lex();
@@ -167,7 +169,9 @@ bool Parser::expect(TokenKind tok, const std::string& context) {
 }
 
 void Parser::error(const std::string& what, const std::string& context) {
-    std::ostream& os = la().error() << "expected " << what << ", got '" << la() << "'";
+    result_ = false;
+
+    std::ostream& os = la().emitError() << "expected " << what << ", got '" << la() << "'";
 
     if (!context.empty())
         os << " while parsing " << context;
@@ -276,7 +280,7 @@ const Fct* Parser::parseFct() {
 
 const ScopeStmt* Parser::parseScope() {
     ScopeStmt* scope = new ScopeStmt();
-    scope->loc.setPos1(la().pos1());
+    scope->setPos1(la().pos1());
 
     expect(Token::L_BRACE, "scope-statement");
 
@@ -297,14 +301,14 @@ const ScopeStmt* Parser::parseScope() {
 
             case Token::END_OF_FILE:
             case Token::R_BRACE:
-                scope->loc.setPos2(la().pos2());
+                scope->setPos2(la().pos2());
                 expect(Token::R_BRACE, "scope-statement");
                 return scope;
 
             // consume token nobody wants to have in order to prevent infinite loop
             default:
                 error("statement", "statement list");
-                scope->loc.setPos2(prevLoc_.pos2());
+                scope->setPos2(prevLoc_.pos2());
                 lex(); 
                 return scope;
         }

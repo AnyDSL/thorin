@@ -45,11 +45,17 @@ Lexer::Lexer(std::istream& stream, const std::string& filename)
     : stream_(stream)
     , pos_(filename, 1, 1)
     , loc_(pos_) 
+    , result_(true)
 {
     if (!stream_)
         throw std::runtime_error("stream is bad");
 
     stream_.exceptions(std::istream::badbit);
+}
+
+std::ostream& Lexer::error(const anydsl::Location& loc) {
+    result_ = false;
+    return loc.emitError();
 }
 
 /*
@@ -132,7 +138,7 @@ Token Lexer::lex() {
 #define IMPALA_WITHIN_COMMENT(delim) \
         while (true) { \
             if (accept(std::istream::traits_type::eof())) { \
-                loc_.pos1().error() << "unterminated comment\n"; \
+                error(loc_.pos1()) << "unterminated comment\n"; \
                 return Token(loc_, Token::END_OF_FILE); \
             } \
             if (delim) break; \
@@ -198,7 +204,7 @@ Token Lexer::lex() {
         if (accept(str, dec_nonzero)) goto l_decimal;
 
         // invalid input char
-        pos_.error() << "invalid input character '" << (char) next() << "'\n";
+        error(pos_) << "invalid input character '" << (char) next() << "'\n";
         continue;
 
 l_0: // 0
@@ -264,7 +270,7 @@ l_octal: // 0[0-7]+
         goto l_out;
 
 l_error: 
-        pos_.error() << "invalid constant '" << str << "'\n";
+        error(pos_) << "invalid constant '" << str << "'\n";
         // fall through intended
 l_out:
         // lex suffix
@@ -288,7 +294,7 @@ l_out:
         // eat up erroneous trailing suffixing chars
         if (accept(str, sym)) {
             while (accept(str, sym)) {}
-            loc_.error() << "invalid suffix on " << (floating ? "floating" : "integer") << " constant '" << str << "'\n";
+            error(loc_) << "invalid suffix on " << (floating ? "floating" : "integer") << " constant '" << str << "'\n";
         }
 
         return Token(loc_, tok, str);

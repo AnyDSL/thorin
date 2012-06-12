@@ -15,6 +15,7 @@
 #include "anydsl/world.h"
 #include "impala/parser.h"
 #include "impala/ast.h"
+#include "impala/sema.h"
 #include "impala/dump.h"
 
 //------------------------------------------------------------------------------
@@ -104,12 +105,7 @@ int main(int argc, char** argv) {
         ifstream file(filename);
         anydsl::AutoPtr<const impala::Prg> p(impala::parse(file, filename));
         dump(p, true);
-
-        World w;
-        const Sigma* s = w.sigma3(w.type_u8(), w.type_u16(), w.type_u32());
-        std::cout << "-----" << std::endl;
-        dump(s);
-        std::cout << std::endl << "-----" << std::endl;
+        check(p);
         
         //Emit the results
         switch (destinationType) {

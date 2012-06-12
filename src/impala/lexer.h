@@ -18,6 +18,8 @@ public:
 
 private:
 
+    std::ostream& error(const anydsl::Location& loc);
+
     /*
      * peek, next and accept
      */
@@ -64,6 +66,7 @@ private:
     std::istream& stream_;
     anydsl::Position pos_;
     anydsl::Location loc_;
+    bool result_;
 };
 
 } // namespace impala

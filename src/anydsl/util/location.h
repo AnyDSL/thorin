@@ -35,7 +35,8 @@ public:
     void resetCol() { col_ = 1; }
 
     std::ostream& line_col(std::ostream& os) const;
-    std::ostream& error() const;
+    std::ostream& emitError() const;
+    std::ostream& emitWarning() const;
 
     bool isSet() const { return line_ != -1; }
 
@@ -51,10 +52,7 @@ private:
 class Location {
 public:
 
-    Location() 
-        : pos1_("<unknown>", -1, -1)
-        , pos2_(pos1_)
-    {}
+    Location() {}
     Location(const Position& pos1, const Position& pos2)
         : pos1_(pos1)
         , pos2_(pos2)
@@ -78,7 +76,8 @@ public:
     void setPos1(const Position& pos1) { pos1_ = pos1; }
     void setPos2(const Position& pos2) { pos2_ = pos2; }
 
-    std::ostream& error() const;
+    std::ostream& emitError() const;
+    std::ostream& emitWarning() const;
 
 protected:
 
@@ -111,10 +110,12 @@ public:
     const Location& loc() const  { return loc_; }
     const Position& pos1() const { return loc_.pos1(); }
     const Position& pos2() const { return loc_.pos2(); }
+    void setPos1(const Position& pos1) { loc_.pos1_ = pos1; }
     void setPos2(const Position& pos2) { loc_.pos2_ = pos2; }
     void setLoc(const Location& loc) { loc_ = loc; }
 
-    std::ostream& error() const;
+    std::ostream& emitError() const;
+    std::ostream& emitWarning() const;
 
 protected:
 

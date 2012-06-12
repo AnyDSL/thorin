@@ -13,6 +13,8 @@ namespace impala {
  */
 void dump(const ASTNode* n, bool fancy = false, std::ostream& o = std::cout);
 
+std::ostream& operator << (std::ostream& o, const ASTNode* n);
+
 } // namespace impala
 
 #endif // IMPALA_DUMP_H

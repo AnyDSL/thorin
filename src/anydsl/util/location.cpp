@@ -147,16 +147,28 @@ std::ostream& operator << (std::ostream& os, const Location& loc) {
 
 //------------------------------------------------------------------------------
 
-std::ostream& Position::error() const {
+std::ostream& Position::emitError() const {
     return std::cerr << *this << ": error: ";
 }
 
-std::ostream& Location::error() const {
+std::ostream& Position::emitWarning() const {
+    return std::cerr << *this << ": warning: ";
+}
+
+std::ostream& Location::emitError() const {
     return std::cerr << *this << ": error: ";
 }
 
-std::ostream& HasLocation::error() const {
+std::ostream& Location::emitWarning() const {
+    return std::cerr << *this << ": warning: ";
+}
+
+std::ostream& HasLocation::emitError() const {
     return std::cerr << loc_ << ": error: ";
+}
+
+std::ostream& HasLocation::emitWarning() const {
+    return std::cerr << loc_ << ": warning: ";
 }
 
 //------------------------------------------------------------------------------

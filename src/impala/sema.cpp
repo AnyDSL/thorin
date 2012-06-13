@@ -18,7 +18,7 @@ namespace impala {
 class Sema {
 public:
 
-    Sema();
+    Sema(TypeTable& typetable);
     ~Sema();
 
     /** 
@@ -59,7 +59,7 @@ public:
     std::ostream& error(const ASTNode* n) { result_ = false; return n->emitError(); }
     std::ostream& warning(const ASTNode* n) { return n->emitWarning(); }
 
-    TypeTable types;
+    TypeTable& types;
 
 private:
 
@@ -88,8 +88,9 @@ private:
 
 //------------------------------------------------------------------------------
 
-Sema::Sema()
-    : result_(true)
+Sema::Sema(TypeTable& types)
+    : types(types)
+    , result_(true)
     , depth_(0)
 #ifndef NDEBUG
     , refcounter_(0)
@@ -178,8 +179,8 @@ void Sema::pushScope() {
 
 //------------------------------------------------------------------------------
 
-bool check(const Prg* prg) {
-    Sema sema;
+bool check(TypeTable& types, const Prg* prg) {
+    Sema sema(types);
     prg->check(sema);
     return sema.result();
 }

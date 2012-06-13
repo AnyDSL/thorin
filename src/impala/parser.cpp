@@ -22,7 +22,7 @@ public:
      * constructor
      */
 
-    Parser(std::istream& stream, const std::string& filename);
+    Parser(TypeTable&, std::istream& stream, const std::string& filename);
 
     /*
      * helpers
@@ -91,6 +91,7 @@ private:
      * data
      */
 
+    TypeTable& types;
     Lexer lexer_;       ///< invoked in order to get next token
     Token lookahead_[2];///< LL(2) look ahead
     const Loop* curLoop_;
@@ -99,14 +100,12 @@ private:
     int counter_;
     anydsl::Location prevLoc_;
     bool result_;
-
-    TypeTable types;
 };
 
 //------------------------------------------------------------------------------
 
-const Prg* parse(std::istream& i, const std::string& filename) {
-    Parser p(i, filename);
+const Prg* parse(TypeTable& types, std::istream& i, const std::string& filename) {
+    Parser p(types, i, filename);
     return p.parse();
 }
 
@@ -125,8 +124,9 @@ const Prg* parse(std::istream& i, const std::string& filename) {
  * constructor and destructor
  */
 
-Parser::Parser(std::istream& stream, const std::string& filename)
-    : lexer_(stream, filename)
+Parser::Parser(TypeTable& types, std::istream& stream, const std::string& filename)
+    : types(types)
+    , lexer_(stream, filename)
     , curLoop_(0)
     , curFct_(0)
     , prg_(new Prg())
@@ -228,6 +228,7 @@ const Type* Parser::parseType() {
 
         case Token::TYPE_int:  lex(); return types.type_int32();
         case Token::TYPE_uint: lex(); return types.type_uint32();
+        case Token::TYPE_void: lex(); return types.type_void();
             
         default: ANYDSL_UNREACHABLE; // TODO
     }

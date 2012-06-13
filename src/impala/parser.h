@@ -4,12 +4,12 @@
 #include <istream>
 #include <fstream>
 
-
 namespace impala {
 
 class Prg;
+class TypeTable;
 
-const Prg* parse(std::istream& i, const std::string& filename);
+const Prg* parse(TypeTable& types, std::istream& i, const std::string& filename);
 
 } // namespace impala
 

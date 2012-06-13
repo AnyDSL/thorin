@@ -3,7 +3,9 @@
 
 namespace impala {
 
-bool check(const Prg* prg);
+class TypeTable;
+
+bool check(TypeTable& types, const Prg* prg);
 
 } // namespace impala
 

@@ -9,6 +9,7 @@
 #include "impala/ast.h"
 #include "impala/lexer.h"
 #include "impala/prec.h"
+#include "impala/type.h"
 
 using namespace anydsl;
 
@@ -98,6 +99,8 @@ private:
     int counter_;
     anydsl::Location prevLoc_;
     bool result_;
+
+    TypeTable types;
 };
 
 //------------------------------------------------------------------------------
@@ -220,12 +223,11 @@ Token Parser::parseId() {
 const Type* Parser::parseType() {
     switch (la()) {
 #define IMPALA_TYPE(itype, atype) \
-        case Token::TYPE_ ## itype: \
-            return new PrimType(lex().loc(), PrimType::TYPE_##itype);
+        case Token::TYPE_ ## itype: lex(); return types.type_##itype();
 #include "impala/tokenlist.h"
 
-        case Token::TYPE_int:  return new PrimType(lex().loc(), PrimType::TYPE_int32);
-        case Token::TYPE_uint: return new PrimType(lex().loc(), PrimType::TYPE_uint32);
+        case Token::TYPE_int:  lex(); return types.type_int32();
+        case Token::TYPE_uint: lex(); return types.type_uint32();
             
         default: ANYDSL_UNREACHABLE; // TODO
     }
@@ -237,7 +239,7 @@ const Decl* Parser::parseDecl() {
     expect(Token::COLON, "declaration");
     const Type* type = parseType();
 
-    return new Decl(tok, type);
+    return new Decl(tok, type, prevLoc_.pos2());
 }
 
 void Parser::parseGlobals() {
@@ -526,7 +528,7 @@ bool Parser::isExpr() {
     switch (la()) {
 #define IMPALA_PREFIX(tok, t_str, r) case Token:: tok:
 #define IMPALA_KEY_EXPR(tok, t_str)  case Token:: tok:
-#define IMPALA_LIT(itype, atype)           case Token:: LIT_##itype:
+#define IMPALA_LIT(itype, atype)     case Token:: LIT_##itype:
 //#define IMPALA_TYPE(itype, atype)    case Token:: TYPE_ ## itype:
 #include <impala/tokenlist.h>
         case Token::L_PAREN:

@@ -84,6 +84,12 @@ inline LEFT bcast(const RIGHT& from) {
     return to;
 }
 
+#define ANYDSL_MIXIN_AS_ISA \
+    template<class T> T* as()  { return anydsl::scast<T>(this); } \
+    template<class T> T* isa() { return anydsl::dcast<T>(this); } \
+    template<class T> const T* as()  const { return anydsl::scast<T>(this); } \
+    template<class T> const T* isa() const { return anydsl::dcast<T>(this); }
+
 } // namespace anydsl
 
 #endif // DSLU_CAST_HEADER

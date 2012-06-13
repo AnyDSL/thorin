@@ -20,10 +20,7 @@ public:
 
     IndexKind index() const { return index_; }
 
-    template<class T> T* as()  { return scast<T>(this); }
-    template<class T> T* isa() { return dcast<T>(this); }
-    template<class T> const T* as()  const { return scast<T>(this); }
-    template<class T> const T* isa() const { return dcast<T>(this); }
+    ANYDSL_MIXIN_AS_ISA
 
     /**
      * Just do what ever you want with this field.

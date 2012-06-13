@@ -3,6 +3,7 @@
 #include "anydsl/util/for_all.h"
 
 #include "impala/prec.h"
+#include "impala/type.h"
 
 namespace impala {
 
@@ -56,8 +57,18 @@ void dump(const ASTNode* n, bool fancy /*= false*/, std::ostream& o /*= std::cou
     n->dump(p);
 }
 
+void dump(const Type* t, bool fancy /*= false*/, std::ostream& o /*= std::cout*/) {
+    Printer p(o, fancy);
+    t->dump(p);
+}
+
 std::ostream& operator << (std::ostream& o, const ASTNode* n) {
     dump(n, true, o);
+    return o;
+}
+
+std::ostream& operator << (std::ostream& o, const Type* t) {
+    dump(t, true, o);
     return o;
 }
 
@@ -110,25 +121,6 @@ void Fct::dump(Printer& p) const {
 void Decl::dump(Printer& p) const {
     p.o << symbol() << " : ";
     type()->dump(p);
-}
-
-/*
- * Type
- */
-
-void PrimType::dump(Printer& p) const {
-    switch (kind()) {
-#define IMPALA_TYPE(itype, atype) case TYPE_##itype: p.o << #itype; return;
-#include "impala/tokenlist.h"
-    }
-}
-
-void Void::dump(Printer& p) const {
-    p.o << "void";
-}
-
-void ErrorType::dump(Printer& p) const {
-    p.o << "<error type>";
 }
 
 /*
@@ -334,6 +326,27 @@ void ScopeStmt::dump(Printer& p) const {
     }
     p.down();
     p.o << "}";
+}
+
+//------------------------------------------------------------------------------
+
+/*
+ * Type
+ */
+
+void PrimType::dump(Printer& p) const {
+    switch (kind()) {
+#define IMPALA_TYPE(itype, atype) case TYPE_##itype: p.o << #itype; return;
+#include "impala/tokenlist.h"
+    }
+}
+
+void Void::dump(Printer& p) const {
+    p.o << "void";
+}
+
+void TypeError::dump(Printer& p) const {
+    p.o << "<type error>";
 }
 
 } // namespace impala

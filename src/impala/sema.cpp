@@ -6,6 +6,7 @@
 #include "anydsl/util/for_all.h"
 
 #include "impala/dump.h"
+#include "impala/type.h"
 
 using anydsl::Location;
 using anydsl::Symbol;
@@ -57,6 +58,8 @@ public:
 
     std::ostream& error(const ASTNode* n) { result_ = false; return n->emitError(); }
     std::ostream& warning(const ASTNode* n) { return n->emitWarning(); }
+
+    TypeTable types;
 
 private:
 
@@ -194,9 +197,6 @@ void Fct::check(Sema& sema) const {
     for_all (p, params())
         p->check(sema);
 
-    if (retType())
-        retType()->check(sema);
-
     for_all (const &s, body()->stmts())
         s->check(sema);
 
@@ -204,8 +204,6 @@ void Fct::check(Sema& sema) const {
 }
 
 void Decl::check(Sema& sema) const {
-    type()->check(sema);
-
     if (const Decl* decl = sema.clash(symbol())) {
         sema.error(this) << "symbol '" << symbol() << "' already defined\n";
         sema.error(decl) << "previous location here\n";
@@ -215,28 +213,11 @@ void Decl::check(Sema& sema) const {
 }
 
 /*
- * Type
- */
-
-void PrimType::check(Sema& sema) const {
-    /* do nothing */
-}
-
-void Void::check(Sema& sema) const {
-    /* do nothing */
-}
-
-void ErrorType::check(Sema& sema) const {
-    /* do nothing */
-}
-
-
-/*
  * Expr
  */
 
 void EmptyExpr::check(Sema& sema) const {
-    type_ = new Void(loc());
+    type_ = sema.types.type_void();
     lvalue_ = false;
 }
 
@@ -254,7 +235,7 @@ void Literal::check(Sema& sema) const {
             break;
     }
 
-    type_ = new PrimType(loc(), newKind);
+    type_ = sema.types.type(newKind);
     lvalue_ = false;
 }
 
@@ -262,17 +243,17 @@ void Id::check(Sema& sema) const {
     lvalue_ = true;
 
     if (const Decl* decl = sema.lookup(symbol())) {
-        type_ = decl->type()->clone(loc());
+        type_ = decl->type();
         return;
     }
 
     sema.error(this) << "symbol '" << symbol() << "' not found in current scope\n";
-    type_ = new ErrorType(loc());
+    type_ = sema.types.type_error();
 }
 
 void PrefixExpr::check(Sema& sema) const {
     rexpr()->check(sema);
-    type_ = rexpr()->type()->clone(loc());
+    type_ = rexpr()->type();
     lvalue_ = true;
 }
 
@@ -290,7 +271,7 @@ void InfixExpr::check(Sema& sema) const {
     }
 
     if (Token::isRel((TokenKind) kind())) {
-        type_ = new PrimType(loc, PrimType::TYPE_bool);
+        type_ = sema.types.type_bool();
         lvalue_ = false;
         return;
     }
@@ -303,16 +284,16 @@ void InfixExpr::check(Sema& sema) const {
     }
 
     if (!lexpr()->type()->isError())
-        type_ = lexpr()->type()->clone(loc);
+        type_ = lexpr()->type();
     else
-        type_ = rexpr()->type()->clone(loc);
+        type_ = rexpr()->type();
 }
 
 void PostfixExpr::check(Sema& sema) const {
     lvalue_ = false;
 
     lexpr()->check(sema);
-    type_ = lexpr()->type()->clone(loc());
+    type_ = lexpr()->type();
 }
 
 /*

@@ -38,10 +38,7 @@ public:
 
     void dump() const;
 
-    template<class T> T* as()  { return anydsl::scast<T>(this); }
-    template<class T> T* isa() { return anydsl::dcast<T>(this); }
-    template<class T> const T* as()  const { return anydsl::scast<T>(this); }
-    template<class T> const T* isa() const { return anydsl::dcast<T>(this); }
+    ANYDSL_MIXIN_AS_ISA
 };
 
 class Prg : public ASTNode {
@@ -78,7 +75,7 @@ private:
 
     anydsl::Symbol symbol_;
     Decls params_;
-    anydsl::AutoPtr<const Type> retType_;
+    const Type* retType_;
     anydsl::AutoPtr<const ScopeStmt> body_;
 
     friend class Parser;
@@ -87,7 +84,7 @@ private:
 class Decl : public ASTNode {
 public:
 
-    Decl(const Token& tok, const Type* type);
+    Decl(const Token& tok, const Type* type, const anydsl::Position& pos2);
 
     anydsl::Symbol symbol() const { return symbol_; }
     const Type* type() const { return type_; }
@@ -98,65 +95,7 @@ public:
 private:
 
     anydsl::Symbol symbol_;
-    anydsl::AutoPtr<const Type> type_;
-};
-
-//------------------------------------------------------------------------------
-
-class Type : public ASTNode {
-public:
-
-    virtual bool equal(const Type* t) const = 0;
-    virtual const Type* clone(const anydsl::Location& loc) const = 0;
-    virtual bool isBool() const { return false; }
-    virtual bool isError() const { return false; }
-};
-
-class PrimType : public Type {
-public:
-
-    enum Kind {
-#define IMPALA_TYPE(itype, atype) TYPE_##itype = Token:: TYPE_##itype,
-#include "impala/tokenlist.h"
-    };
-
-    PrimType(const anydsl::Location& loc, Kind kind);
-
-    Kind kind() const { return kind_; }
-
-    virtual void check(Sema& sema) const;
-    virtual void dump(Printer& p) const;
-
-    virtual bool equal(const Type* t) const;
-    virtual const PrimType* clone(const anydsl::Location& loc) const;
-    virtual bool isBool() const { return kind_ == TYPE_bool; }
-
-private:
-
-    Kind kind_;
-};
-
-class Void : public Type {
-public:
-
-    Void(const anydsl::Location& loc);
-
-    virtual void check(Sema& sema) const;
-    virtual void dump(Printer& p) const;
-    virtual bool equal(const Type* t) const;
-    virtual const Void* clone(const anydsl::Location& loc) const;
-};
-
-class ErrorType : public Type {
-public:
-
-    ErrorType(const anydsl::Location& loc);
-
-    virtual void check(Sema& sema) const;
-    virtual void dump(Printer& p) const;
-    virtual bool equal(const Type* t) const;
-    virtual const ErrorType* clone(const anydsl::Location& loc) const;
-    virtual bool isError() const { return true; }
+    const Type* type_;
 };
 
 //------------------------------------------------------------------------------
@@ -173,7 +112,7 @@ protected:
 
     Exprs args_;
 
-    mutable anydsl::AutoPtr<const Type> type_;
+    mutable const Type* type_;
     mutable bool lvalue_;
 };
 

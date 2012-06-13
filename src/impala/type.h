@@ -12,14 +12,20 @@ class Printer;
 class Type {
 public:
 
-    virtual bool equal(const Type* t) const = 0;
-    virtual size_t hash() const = 0;
     virtual void dump(Printer& p) const = 0;
     virtual bool isBool() const { return false; }
     virtual bool isError() const { return false; }
     virtual bool isVoid() const { return false; }
 
     ANYDSL_MIXIN_AS_ISA
+
+private:
+
+    virtual bool equal(const Type* t) const = 0;
+    virtual size_t hash() const = 0;
+
+    friend class TypeHash;
+    friend class TypeEqual;
 };
 
 class PrimType : public Type {
@@ -42,13 +48,13 @@ public:
 
     Kind kind() const { return kind_; }
 
-    virtual bool equal(const Type* t) const;
-    virtual size_t hash() const;
     virtual void dump(Printer& p) const;
-
     virtual bool isBool() const { return kind_ == TYPE_bool; }
 
 private:
+
+    virtual bool equal(const Type* t) const;
+    virtual size_t hash() const;
 
     Kind kind_;
 
@@ -58,18 +64,24 @@ private:
 class Void : public Type {
 public:
 
+    virtual void dump(Printer& p) const;
+
+private:
+
     virtual bool equal(const Type* t) const;
     virtual size_t hash() const;
-    virtual void dump(Printer& p) const;
 };
 
 class TypeError : public Type {
 public:
 
-    virtual bool equal(const Type* t) const;
-    virtual size_t hash() const;
     virtual void dump(Printer& p) const;
     virtual bool isError() const { return true; }
+
+private:
+
+    virtual bool equal(const Type* t) const;
+    virtual size_t hash() const;
 };
 
 //------------------------------------------------------------------------------

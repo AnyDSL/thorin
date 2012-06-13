@@ -264,7 +264,7 @@ void InfixExpr::check(Sema& sema) const {
 
     Location loc(lexpr()->pos1(), rexpr()->pos2());
 
-    bool equal = lexpr()->type()->equal(rexpr()->type());
+    bool equal = lexpr()->type() == rexpr()->type();
 
     if (!equal) {
         sema.error(this) << "incompatible types in binary expression: '" 
@@ -356,7 +356,7 @@ void ContinueStmt::check(Sema& sema) const {
 void ReturnStmt::check(Sema& sema) const {
     expr()->check(sema);
 
-    if (!fct()->retType()->equal(expr()->type())) {
+    if (fct()->retType() != expr()->type()) {
         sema.error(expr()) << "expected return type '" << fct()->retType() 
             << "' but return expression is of type '" << expr()->type() << "'\n";
     }

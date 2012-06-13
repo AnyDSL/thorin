@@ -99,7 +99,6 @@ Sema::~Sema() {
     anydsl_assert(depth_ == 1, "root scope must be 1");
     popScope();
 
-    std::cout << refcounter_ << std::endl;
 #ifndef NDEBUG
     anydsl_assert(refcounter_ == 0, "memory leak");
 #endif

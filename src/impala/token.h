@@ -117,6 +117,8 @@ public:
 
 private:
 
+    static void init();
+
     anydsl::Symbol symbol_;
     Kind kind_;
     anydsl::Box box_;
@@ -124,7 +126,6 @@ private:
     static int tok2op_[NUM_TOKENS];
     static anydsl::Symbol insert(Kind tok, const char* str);
     static void insertKey(Kind tok, const char* str);
-    static struct ForceInit { ForceInit(); } init_;
 
     typedef boost::unordered_map<Kind, anydsl::Symbol> Tok2Sym;
     static Tok2Sym tok2sym_;
@@ -132,9 +133,10 @@ private:
     typedef boost::unordered_map<anydsl::Symbol, Kind> Sym2Tok;
     static Sym2Tok keywords_;
 
-    typedef boost::unordered_map<Kind, size_t> Tok2Str;
+    typedef boost::unordered_map<Kind, const char*> Tok2Str;
     static Tok2Str tok2str_;
 
+    friend void init();
     friend std::ostream& operator << (std::ostream& os, const Token& tok);
     friend std::ostream& operator << (std::ostream& os, const Kind&  tok);
 };

@@ -99,6 +99,7 @@ Sema::~Sema() {
     anydsl_assert(depth_ == 1, "root scope must be 1");
     popScope();
 
+    std::cout << refcounter_ << std::endl;
 #ifndef NDEBUG
     anydsl_assert(refcounter_ == 0, "memory leak");
 #endif
@@ -145,22 +146,25 @@ const Decl* Sema::clash(const Symbol sym) const {
 void Sema::popScope() {
     anydsl_assert(depth_ > 0, "illegal depth value");
 
-    for_all (i, scope_) {
-        const Symbol& sym = i.first;
-        SlotStack* stack = i.second;
+    Scope::iterator i = scope_.begin(); 
+    while (i != scope_.end()) {
+        SlotStack* stack = i->second;
         anydsl_assert(!stack->empty(), "must have at least on element");
         
         if (depth_ == stack->top().depth) {
             stack->pop();
 
             if (stack->empty()) {
-                scope_.erase(sym);
+                i = scope_.erase(i);
                 delete stack;
 #ifndef NDEBUG
                 --refcounter_;
 #endif
+                continue;
             }
         }
+
+         ++i;
     }
 
     --depth_;

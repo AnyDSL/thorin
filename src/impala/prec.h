@@ -45,7 +45,9 @@ struct PrecTable {
 
 private:
 
-    static struct ForceInit { ForceInit(); } init_;
+    static void init();
+
+    friend void init();
 };
 
 } // namespace impala

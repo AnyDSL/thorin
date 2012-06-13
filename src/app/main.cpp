@@ -17,6 +17,7 @@
 #include "impala/ast.h"
 #include "impala/sema.h"
 #include "impala/dump.h"
+#include "impala/init.h"
 
 //------------------------------------------------------------------------------
 
@@ -103,9 +104,11 @@ int main(int argc, char** argv) {
 
         const char* filename = infiles[0].c_str();
         ifstream file(filename);
+        impala::init();
         anydsl::AutoPtr<const impala::Prg> p(impala::parse(file, filename));
         dump(p, true);
         check(p);
+        impala::destroy();
         
         //Emit the results
         switch (destinationType) {

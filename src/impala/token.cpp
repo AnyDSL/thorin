@@ -23,7 +23,7 @@ Token::Token(const anydsl::Location& loc, Kind tok)
 
 Token::Token(const anydsl::Location& loc, const std::string& str)
     : HasLocation(loc)
-    , symbol_( anydsl::SymbolTable::This().get(str) )
+    , symbol_(str)
 {
     Sym2Tok::const_iterator i = keywords_.find(str);
     if (i == keywords_.end())
@@ -34,7 +34,7 @@ Token::Token(const anydsl::Location& loc, const std::string& str)
 
 Token::Token(const anydsl::Location& loc, Kind kind, const std::string& str)
     : HasLocation(loc)
-    , symbol_( anydsl::SymbolTable::This().get(str) )
+    , symbol_(str)
     , kind_(kind) 
 {
     using namespace std;
@@ -139,13 +139,12 @@ int Token::tok2op_[NUM_TOKENS];
 Token::Sym2Tok Token::keywords_;
 Token::Tok2Sym Token::tok2sym_;
 Token::Tok2Str Token::tok2str_;
-/*static*/ Token::ForceInit Token::init_;
 
 /*
  * static methods
  */
 
-Token::ForceInit::ForceInit() {
+void Token::init() {
     ANYDSL_CALL_ONCE;
 
     /*
@@ -163,7 +162,7 @@ Token::ForceInit::ForceInit() {
 #define IMPALA_INFIX(     tok, str, r, l) insert(tok, str); tok2op_[tok] |= INFIX;   
 #define IMPALA_INFIX_ASGN(tok, str, r, l) insert(tok, str); tok2op_[tok] |= INFIX | ASGN_OP;
 #define IMPALA_MISC(      tok, str)       insert(tok, str);
-#define IMPALA_LIT(       tok, atype)     tok2str_[LIT_##tok] = Symbol("<literal>").index();
+#define IMPALA_LIT(       tok, atype)     tok2str_[LIT_##tok] = Symbol("<literal>").str();
 #define IMPALA_KEY_EXPR(  tok, str)       insertKey(tok, str);
 #define IMPALA_KEY_STMT(  tok, str)       insertKey(tok, str);
 #define IMPALA_TYPE(itype, atype)         insertKey(TYPE_ ## itype, #itype );
@@ -173,24 +172,25 @@ Token::ForceInit::ForceInit() {
     insertKey(TYPE_uint, "uint");
     insertKey(DEF, "def");
 
-    tok2str_[TYPE_int] =    Symbol("int").index();
-    tok2str_[TYPE_uint] =   Symbol("uint").index();
-    tok2str_[DEF] =         Symbol("def").index();
-    tok2str_[ID]  =         Symbol("<identifier>").index();
-    tok2str_[END_OF_FILE] = Symbol("<end of file>").index();
+    tok2str_[TYPE_int] =    Symbol("int").str();
+    tok2str_[TYPE_uint] =   Symbol("uint").str();
+    tok2str_[DEF] =         Symbol("def").str();
+    tok2str_[ID]  =         Symbol("<identifier>").str();
+    tok2str_[END_OF_FILE] = Symbol("<end of file>").str();
 }
 
 /*static*/ void Token::insertKey(TokenKind tok, const char* str) {
     Symbol s = str;
     anydsl_assert(keywords_.find(s) == keywords_.end(), "already inserted");
     keywords_[s] = tok;
-    tok2str_ [tok] = s.index();
+    tok2str_ [tok] = s.str();
 }
 
 
 /*static*/ Symbol Token::insert(TokenKind tok, const char* str) {
     Symbol s = str;
     std::pair<Tok2Sym::iterator, bool> p = tok2sym_.insert( std::make_pair(tok, s) );
+
 #ifndef NDEBUG
     if (!p.second) {
         Kind   oldTok = p.first->first;
@@ -199,7 +199,7 @@ Token::ForceInit::ForceInit() {
     }
 #endif
 
-    tok2str_[tok] = s.index();
+    tok2str_[tok] = s.str();
 
     return p.first->second;
 }

@@ -1,49 +1,35 @@
 #include "anydsl/symbol.h"
 
-#include "anydsl/util/assert.h"
+#include "anydsl/util/for_all.h"
 
 namespace anydsl {
 
-/*
- * constructor
- */
+size_t StrHash::operator () (const char* s) const {
+    size_t seed = 0;
+    const char* i = s;
 
-SymbolTable::SymbolTable() {
-    ANYDSL_CALL_ONCE;
-    symbolSet_.insert(Symbol()); //add empty string into the map
+    while (*i != '\0')
+        boost::hash_combine(seed, *i++);
+
+    boost::hash_combine(seed, i-s);
+
+    return seed;
 }
 
-/*
- * further methods
- */
+Symbol::Table Symbol::table_(1031);
 
-Symbol SymbolTable::get(const char* str) {
-    if (str[0]==0) return Symbol(); //empty string
-    Symbol tmp = Symbol((size_t)str); //create a temporary Symbol which does not copy str into internal memory
+void Symbol::insert(const char* s) {
+    Table::iterator i = table_.find(s);
 
-    std::pair<SymbolSet::iterator, bool> res = symbolSet_.insert(tmp);
-    if (!res.second)
-        return *res.first;// there is already a symbol with the same string
+    if (i == table_.end())
+        i = table_.insert(strdup(s)).first;
 
-    symbolSet_.erase(res.first); //remove the temporary Symbol
-    Symbol result = store(str);
-    bool inserted=symbolSet_.insert(result).second; // insert the real Symbol
-    assert(inserted);
-
-    return result;
+    str_ = *i;
 }
 
-Symbol SymbolTable::store(const char* str) {
-    size_t strLength = strlen(str);
-    assert( strLength>0 ); //we already added the empty string
-    char *dest=memory_.alloc(strLength); //it will alloc the extra byte for \0 on its own
-    assert(dest);
-    memcpy(dest, str, strLength+1);
-    return Symbol((size_t)dest);
-}
-
-std::ostream& operator << (std::ostream& o, Symbol s) {
-    return o << s.str();
+void Symbol::destroy() {
+    for_all(s, table_)
+        free((void*) s);
 }
 
 } // namespace anydsl

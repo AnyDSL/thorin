@@ -236,14 +236,16 @@ void World::cleanup() {
     do {
         oldSize = values_.size();
 
-        for (ValueMap::iterator i = values_.begin(), e = values_.end(); i != e; ++i) {
+        ValueMap::iterator i = values_.begin();
+        while (i != values_.end()) {
             const Value* val = *i;
             if (val->uses().empty()) {
                 delete val;
                 i = values_.erase(i);
-                if (i == e) 
-                    break;
+                continue;
             }
+
+            ++i;
         }
 
     } while (oldSize != values_.size());

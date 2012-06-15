@@ -13,6 +13,7 @@ class Type {
 public:
 
     virtual void dump(Printer& p) const = 0;
+
     virtual bool isBool() const { return false; }
     virtual bool isError() const { return false; }
     virtual bool isVoid() const { return false; }

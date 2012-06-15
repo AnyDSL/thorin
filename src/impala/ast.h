@@ -35,6 +35,8 @@ public:
 
     virtual void check(Sema& sema) const = 0;
     virtual void dump(Printer& p) const = 0;
+    virtual void emit(CodeGen& cg) const = 0;
+
 
     void dump() const;
 
@@ -46,6 +48,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
+    virtual void emit(CodeGen& cg) const;
 
     const Fcts& fcts() const { return fcts_; }
 
@@ -68,6 +71,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
+    virtual void emit(CodeGen& cg) const;
 
 private:
 
@@ -91,6 +95,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
+    virtual void emit(CodeGen& cg) const;
 
 private:
 
@@ -102,8 +107,6 @@ private:
 
 class Expr : public ASTNode {
 public:
-
-    virtual Value emit(CodeGen& cg) const = 0;
 
     const Type* type() const { return type_; }
     bool lvalue() const { return lvalue_; }
@@ -125,7 +128,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual Value emit(CodeGen& cg) const;
+    virtual void emit(CodeGen& cg) const;
 };
 
 class Literal : public Expr {
@@ -144,7 +147,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual Value emit(CodeGen& cg) const;
+    virtual void emit(CodeGen& cg) const;
 
 private:
 
@@ -161,7 +164,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual Value emit(CodeGen& cg) const;
+    virtual void emit(CodeGen& cg) const;
 
 private:
 
@@ -185,7 +188,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual Value emit(CodeGen& cg) const;
+    virtual void emit(CodeGen& cg) const;
 
 private:
 
@@ -210,7 +213,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual Value emit(CodeGen& cg) const;
+    virtual void emit(CodeGen& cg) const;
 
 private:
 
@@ -237,7 +240,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual Value emit(CodeGen& cg) const;
+    virtual void emit(CodeGen& cg) const;
 
 private:
 
@@ -261,6 +264,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
+    virtual void emit(CodeGen& cg) const;
 
 private:
 
@@ -277,6 +281,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
+    virtual void emit(CodeGen& cg) const;
 
 private:
 
@@ -295,6 +300,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
+    virtual void emit(CodeGen& cg) const;
 
 private:
 
@@ -333,6 +339,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
+    virtual void emit(CodeGen& cg) const;
 };
 
 class DoWhileStmt : public Loop {
@@ -344,6 +351,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
+    virtual void emit(CodeGen& cg) const;
 };
 
 class ForStmt : public Loop {
@@ -365,6 +373,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
+    virtual void emit(CodeGen& cg) const;
 
 private:
 
@@ -386,6 +395,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
+    virtual void emit(CodeGen& cg) const;
 private:
 
     const Loop* loop_;
@@ -400,6 +410,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
+    virtual void emit(CodeGen& cg) const;
 
 private:
 
@@ -416,6 +427,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
+    virtual void emit(CodeGen& cg) const;
 
 private:
 
@@ -432,10 +444,11 @@ public:
     }
 
     const Stmts& stmts() const { return stmts_; }
+    bool empty() const { return stmts_.empty(); }
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual bool isEmpty() const { return stmts_.empty(); }
+    virtual void emit(CodeGen& cg) const;
 
 private:
 

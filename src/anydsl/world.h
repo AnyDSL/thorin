@@ -177,12 +177,6 @@ public:
     template<size_t N>
     const Value* createTuple(const Def* const (&array)[N]) { return createTuple(array, array + N); }
 
-
-    /*
-     * optimize
-     */
-
-    /// Performs dead code and unreachable code elimination.
     void cleanup();
 
 private:

@@ -1,38 +1,50 @@
 #include "impala/ast.h"
 
 #include "anydsl/type.h"
+#include "anydsl/util/for_all.h"
 
 namespace impala {
 
 class CodeGen {
+public:
+
+    anydsl::World& world;
 };
+
+//------------------------------------------------------------------------------
+
+void Prg::emit(CodeGen& cg) const {
+    for_all (f, fcts())
+        f->emit(cg);
+}
+
+void Fct::emit(CodeGen& cg) const {
+}
+
+void Decl::emit(CodeGen& cg) const {
+}
 
 /*
  * Expr
  */
 
-Value EmptyExpr::emit(CodeGen& cg) const {
-    return Value();
+void EmptyExpr::emit(CodeGen& cg) const {
 }
 
-Value Literal::emit(CodeGen& cg) const {
-    return Value();
+void Literal::emit(CodeGen& cg) const {
 }
 
-Value Id::emit(CodeGen& cg) const {
-    return Value();
+void Id::emit(CodeGen& cg) const {
 }
 
-Value PrefixExpr::emit(CodeGen& cg) const {
-    return Value();
+void PrefixExpr::emit(CodeGen& cg) const {
 }
 
-Value InfixExpr::emit(CodeGen& cg) const {
+void InfixExpr::emit(CodeGen& cg) const {
+    lexpr()->emit(cg);
+    rexpr()->emit(cg);
+
 #if 0
-    Value lval = lexpr()->emit(cg);
-
-    Value rval = rexpr()->emit(cg);
-
     const PrimType* p1 = lval.type()->isa<PrimType>();
     const PrimType* p2 = rval.type()->isa<PrimType>();
 
@@ -63,11 +75,9 @@ Value InfixExpr::emit(CodeGen& cg) const {
 
     return error();
 #endif
-    return Value();
 }
 
-Value PostfixExpr::emit(CodeGen& cg) const {
-    return Value();
+void PostfixExpr::emit(CodeGen& cg) const {
 }
 
 
@@ -272,5 +282,56 @@ const Stmt* Parser::parseReturn() {
 }
 #endif
 #endif
+
+/*
+ * Stmt
+ */
+
+void DeclStmt::emit(CodeGen& cg) const {
+    decl()->emit(cg);
+}
+
+void ExprStmt::emit(CodeGen& cg) const {
+    expr()->emit(cg);
+}
+
+void IfElseStmt::emit(CodeGen& cg) const {
+    cond()->emit(cg);
+    ifStmt()->emit(cg);
+    elseStmt()->emit(cg);
+}
+
+void WhileStmt::emit(CodeGen& cg) const {
+    cond()->emit(cg);
+    body()->emit(cg);
+}
+
+void DoWhileStmt::emit(CodeGen& cg) const {
+    body()->emit(cg);
+    cond()->emit(cg);
+}
+
+void ForStmt::emit(CodeGen& cg) const {
+    init()->emit(cg);
+    cond()->emit(cg);
+    inc()->emit(cg);
+    body()->emit(cg);
+}
+
+void BreakStmt::emit(CodeGen& cg) const {
+}
+
+void ContinueStmt::emit(CodeGen& cg) const {
+}
+
+void ReturnStmt::emit(CodeGen& cg) const {
+    expr()->emit(cg);
+}
+
+void ScopeStmt::emit(CodeGen& cg) const {
+    for_all (const &s, stmts())
+        s->emit(cg);
+}
+
 
 } // namespace impala

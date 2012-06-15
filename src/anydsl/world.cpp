@@ -202,53 +202,8 @@ const Value* World::createSelect(const Def* cond, const Def* tdef, const Def* fd
     return find(new Select(cond, tdef, fdef));
 }
 
-/*
- * optimize
- */
-#if 0
-ValueMap::iterator World::remove(ValueMap::iterator i) {
-    const Value* val = *i;
-
-    if (val->uses().empty()) {
-        UseSet uses = val->uses();
-
-        delete val;
-        i = values_.erase(i);
-
-        for_all (use, uses) {
-            const Def* def = use->def();
-
-            if (def->uses().empty())
-                remove(values_.find(def));
-        }
-    }
-
-    return i;
-}
-#endif
-
 void World::cleanup() {
-    size_t oldSize;
-
-    /*
-     * TODO this is slow
-     */
-    do {
-        oldSize = values_.size();
-
-        ValueMap::iterator i = values_.begin();
-        while (i != values_.end()) {
-            const Value* val = *i;
-            if (val->uses().empty()) {
-                delete val;
-                i = values_.erase(i);
-                continue;
-            }
-
-            ++i;
-        }
-
-    } while (oldSize != values_.size());
+    // TODO
 }
 
 } // namespace anydsl

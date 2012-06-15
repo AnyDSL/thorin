@@ -19,7 +19,6 @@ size_t PrimType::hash() const {
     return boost::hash_value(kind());
 }
 
-
 bool TypeError::equal(const Type* t) const {
     return t->isa<TypeError>();
 }

@@ -5,6 +5,11 @@
 
 #include <boost/unordered_set.hpp>
 
+namespace anydsl {
+    class Type;
+    class World;
+}
+
 namespace impala {
 
 class Printer;
@@ -13,6 +18,7 @@ class Type {
 public:
 
     virtual void dump(Printer& p) const = 0;
+    virtual const anydsl::Type* toAnyDSL(anydsl::World& world) const = 0;
 
     virtual bool isBool() const { return false; }
     virtual bool isError() const { return false; }
@@ -50,6 +56,7 @@ public:
     Kind kind() const { return kind_; }
 
     virtual void dump(Printer& p) const;
+    virtual const anydsl::Type* toAnyDSL(anydsl::World& world) const;
     virtual bool isBool() const { return kind_ == TYPE_bool; }
 
 private:
@@ -66,6 +73,7 @@ class Void : public Type {
 public:
 
     virtual void dump(Printer& p) const;
+    virtual const anydsl::Type* toAnyDSL(anydsl::World& world) const;
 
 private:
 
@@ -77,6 +85,7 @@ class TypeError : public Type {
 public:
 
     virtual void dump(Printer& p) const;
+    virtual const anydsl::Type* toAnyDSL(anydsl::World& world) const;
     virtual bool isError() const { return true; }
 
 private:

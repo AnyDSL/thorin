@@ -3,6 +3,8 @@
 #include "anydsl/type.h"
 #include "anydsl/util/for_all.h"
 
+#include "impala/type.h"
+
 namespace impala {
 
 class CodeGen {
@@ -45,8 +47,8 @@ void InfixExpr::emit(CodeGen& cg) const {
     rexpr()->emit(cg);
 
 #if 0
-    const PrimType* p1 = lval.type()->isa<PrimType>();
-    const PrimType* p2 = rval.type()->isa<PrimType>();
+    const PrimType* p1 = lexpr().type()->as<PrimType>();
+    const PrimType* p2 = rexpr().type()->as<PrimType>();
 
     if (p1 && p1 == p2) {
         if (op.isAsgn()) {
@@ -333,5 +335,28 @@ void ScopeStmt::emit(CodeGen& cg) const {
         s->emit(cg);
 }
 
+//------------------------------------------------------------------------------
+
+/*
+ * Type
+ */
+
+const anydsl::Type* PrimType::toAnyDSL(anydsl::World& world) const {
+#if 0
+    switch (kind()) {
+#define IMPALA_TYPE(itype, atype) case TYPE_##itype: p.o << #itype; return;
+#include "impala/tokenlist.h"
+    }
+#endif
+    return 0;
+}
+
+const anydsl::Type* Void::toAnyDSL(anydsl::World& world) const {
+    return 0;
+}
+
+const anydsl::Type* TypeError::toAnyDSL(anydsl::World& world) const {
+    return 0;
+}
 
 } // namespace impala

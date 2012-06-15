@@ -108,15 +108,17 @@ private:
 class Expr : public ASTNode {
 public:
 
-    const Type* type() const { return type_; }
     bool lvalue() const { return lvalue_; }
+    const Type* type() const { return type_; }
+    const anydsl::Def* def() const { return def_; }
 
 protected:
 
     Exprs args_;
 
-    mutable const Type* type_;
     mutable bool lvalue_;
+    mutable const Type* type_;
+    mutable const anydsl::Def* def_;
 };
 
 class EmptyExpr : public Expr {

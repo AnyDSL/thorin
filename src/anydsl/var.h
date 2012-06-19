@@ -18,7 +18,7 @@ public:
     virtual ~Var() {}
 
     const Def* load() const { return def_; }
-    virtual void store(const Def* def) = 0;
+    virtual void store(const Def* def) { assert(false); }
     const Type* type() const { return def_->type(); }
 
 protected:
@@ -33,7 +33,6 @@ public:
         : Var(def)
     {}
 
-    virtual void store(const Def* def) { assert(false); }
 
 private:
 

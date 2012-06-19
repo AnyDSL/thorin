@@ -113,7 +113,7 @@ public:
 
     bool lvalue() const { return lvalue_; }
     const Type* type() const { return type_; }
-    virtual anydsl::Var* emit(CodeGen& cg) const = 0;
+    virtual anydsl::Var emit(CodeGen& cg) const = 0;
 
 protected:
 
@@ -132,7 +132,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual anydsl::Var* emit(CodeGen& cg) const;
+    virtual anydsl::Var emit(CodeGen& cg) const;
 };
 
 class Literal : public Expr {
@@ -151,7 +151,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual anydsl::Var* emit(CodeGen& cg) const;
+    virtual anydsl::Var emit(CodeGen& cg) const;
 
 private:
 
@@ -168,7 +168,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual anydsl::Var* emit(CodeGen& cg) const;
+    virtual anydsl::Var emit(CodeGen& cg) const;
 
 private:
 
@@ -192,7 +192,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual anydsl::Var* emit(CodeGen& cg) const;
+    virtual anydsl::Var emit(CodeGen& cg) const;
 
 private:
 
@@ -217,7 +217,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual anydsl::Var* emit(CodeGen& cg) const;
+    virtual anydsl::Var emit(CodeGen& cg) const;
 
 private:
 
@@ -244,7 +244,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual anydsl::Var* emit(CodeGen& cg) const;
+    virtual anydsl::Var emit(CodeGen& cg) const;
 
 private:
 

@@ -40,21 +40,21 @@ void Decl::emit(CodeGen& cg) const {
  * Expr
  */
 
-Var* EmptyExpr::emit(CodeGen& cg) const {
+Var EmptyExpr::emit(CodeGen& cg) const {
     return 0;
 }
 
-Var* Literal::emit(CodeGen& cg) const {
-    return new RVar(cg.world.literal((anydsl::PrimLitKind) kind(), value()));
+Var Literal::emit(CodeGen& cg) const {
+    return RVar(cg.world.literal((anydsl::PrimLitKind) kind(), value()));
 }
 
-Var* Id::emit(CodeGen& cg) const {
-    return cg.bb->getVN(symbol());
+Var Id::emit(CodeGen& cg) const {
+    return *cg.bb->getVN(symbol());
 }
 
-Var* PrefixExpr::emit(CodeGen& cg) const {
-    Var* bvar = rexpr()->emit(cg);
-    const anydsl::PrimType* p = bvar->type()->as<anydsl::PrimType>();
+Var PrefixExpr::emit(CodeGen& cg) const {
+    Var bvar = rexpr()->emit(cg);
+    const anydsl::PrimType* p = bvar.type()->as<anydsl::PrimType>();
 
     if (kind() == ADD)
         return bvar; // this is a NOP
@@ -63,13 +63,13 @@ Var* PrefixExpr::emit(CodeGen& cg) const {
         case SUB: {
             // TODO incorrect for f32, f64
             const anydsl::PrimLit* zero = cg.world.literal(p->kind(), 0u);
-            return new RVar(cg.world.createArithOp(anydsl::ArithOp_sub, zero, bvar->load()));
+            return RVar(cg.world.createArithOp(anydsl::ArithOp_sub, zero, bvar.load()));
         }
         case INC:
         case DEC: {
             const anydsl::PrimLit* one = cg.world.literal(p->kind(), 1u);
-            RVar* val = new RVar(cg.world.createArithOp(Token::toArithOp((TokenKind) kind()), bvar->load(), one));
-            bvar->store(val->load());
+            RVar val = RVar(cg.world.createArithOp(Token::toArithOp((TokenKind) kind()), bvar.load(), one));
+            bvar.store(val.load());
             return bvar;
         }
         default: ANYDSL_UNREACHABLE; // TODO
@@ -88,34 +88,34 @@ anydsl::PrimTypeKind Token::toPrimType() const {
 #endif
 
 
-static Var* emitInfix(TokenKind op, Var* avar, Var* bvar, anydsl::World& world) {
+static Var emitInfix(TokenKind op, Var avar, Var bvar, anydsl::World& world) {
     if (Token::isAsgn(op)) {
-        Var* var = bvar;
+        Var var = bvar;
 
         if (op != Token::ASGN) {
             TokenKind sop = Token::seperateAssign(op);
             var = emitInfix(sop, avar, bvar, world);
         }
 
-        avar->store(var->load());
+        avar.store(var.load());
         return avar;
     }
 
     if (Token::isArith(op))
-        return new RVar(world.createArithOp(Token::toArithOp(op), avar->load(), bvar->load()));
+        return RVar(world.createArithOp(Token::toArithOp(op), avar.load(), bvar.load()));
 
     anydsl_assert(Token::isRel(op), "must be a relop");
-    return new RVar(world.createRelOp(Token::toRelOp(op), avar->load(), bvar->load()));
+    return RVar(world.createRelOp(Token::toRelOp(op), avar.load(), bvar.load()));
 }
 
-Var* InfixExpr::emit(CodeGen& cg) const {
-    Var* avar = lexpr()->emit(cg);
-    Var* bvar = rexpr()->emit(cg);
+Var InfixExpr::emit(CodeGen& cg) const {
+    Var avar = lexpr()->emit(cg);
+    Var bvar = rexpr()->emit(cg);
 
     return emitInfix((TokenKind) kind(), avar, bvar, cg.world);
 }
 
-Var* PostfixExpr::emit(CodeGen& cg) const {
+Var PostfixExpr::emit(CodeGen& cg) const {
     return 0;
 }
 

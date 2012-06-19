@@ -1,7 +1,13 @@
 #ifndef ANYDSL_VAR_H
 #define ANYDSL_VAR_H
 
+#include "anydsl/def.h"
+#include "anydsl/symbol.h"
+
 namespace anydsl {
+
+class Def;
+class Type;
 
 class Var {
 public:
@@ -15,7 +21,7 @@ public:
     virtual void store(const Def* def) = 0;
     const Type* type() const { return def_->type(); }
 
-private:
+protected:
 
     const Def* def_;
 };
@@ -23,7 +29,9 @@ private:
 class RVar : public Var {
 public:
 
-    LVar();
+    RVar(const Def* def)
+        : Var(def)
+    {}
 
     virtual void store(const Def* def) { assert(false); }
 
@@ -35,13 +43,18 @@ private:
 class LVar : public Var {
 public:
 
-    LVar();
+    LVar(const Def* def, const anydsl::Symbol symbol)
+        : Var(def)
+        , symbol_(symbol)
+    {}
+
+    anydsl::Symbol symbol() const { return symbol_; }
 
     virtual void store(const Def* def) { def_ = def; }
 
 private:
 
-    anydsl::Symbol sym_;
+    anydsl::Symbol symbol_;
 };
 
 } // namespace anydsl

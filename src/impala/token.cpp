@@ -80,26 +80,26 @@ bool Token::isRel(Kind op) {
     }
 }
 
-Token Token::seperateAssign() const {
-    anydsl_assert(isAsgn(), "must be an assignment other than ASGN");
+TokenKind Token::seperateAssign(TokenKind kind) {
+    anydsl_assert(isAsgn(kind), "must be an assignment other than ASGN");
 
-    switch (kind_) {
-        case ADD_ASGN: return Token(loc_, ADD);
-        case SUB_ASGN: return Token(loc_, SUB);
-        case MUL_ASGN: return Token(loc_, MUL);
-        case DIV_ASGN: return Token(loc_, DIV);
-        case MOD_ASGN: return Token(loc_, MOD);
-        case AND_ASGN: return Token(loc_, AND);
-        case  OR_ASGN: return Token(loc_,  OR);
-        case XOR_ASGN: return Token(loc_, XOR);
-        case SHL_ASGN: return Token(loc_, SHL);
-        case SHR_ASGN: return Token(loc_, SHR);
+    switch (kind) {
+        case ADD_ASGN: return ADD;
+        case SUB_ASGN: return SUB;
+        case MUL_ASGN: return MUL;
+        case DIV_ASGN: return DIV;
+        case MOD_ASGN: return MOD;
+        case AND_ASGN: return AND;
+        case  OR_ASGN: return OR;
+        case XOR_ASGN: return XOR;
+        case SHL_ASGN: return SHL;
+        case SHR_ASGN: return SHR;
         default: ANYDSL_UNREACHABLE;
     }
 }
 
-anydsl::ArithOpKind Token::toArithOp() const {
-    switch (kind_) {
+anydsl::ArithOpKind Token::toArithOp(Kind kind) {
+    switch (kind) {
         case INC:
         case ADD: return anydsl::ArithOp_add;
         case DEC:
@@ -110,8 +110,8 @@ anydsl::ArithOpKind Token::toArithOp() const {
     }
 }
 
-anydsl::RelOpKind Token::toRelOp() const {
-    switch (kind_) {
+anydsl::RelOpKind Token::toRelOp(Kind kind) {
+    switch (kind) {
         case EQ: return anydsl::RelOp_cmp_eq;
         case NE: return anydsl::RelOp_cmp_ne;
         case LT: return anydsl::RelOp_cmp_ult;
@@ -122,8 +122,8 @@ anydsl::RelOpKind Token::toRelOp() const {
     }
 }
 
-anydsl::PrimTypeKind Token::toPrimType() const {
-    switch (kind_) {
+anydsl::PrimTypeKind Token::toPrimType(Kind kind) {
+    switch (kind) {
 #define IMPALA_TYPE(itype, atype) \
         case Token:: TYPE_ ## itype: return anydsl::PrimType_##atype;
 #include "impala/tokenlist.h"

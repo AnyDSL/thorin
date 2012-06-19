@@ -1,14 +1,24 @@
 #include "impala/ast.h"
 
+#include "anydsl/cfg.h"
+#include "anydsl/literal.h"
 #include "anydsl/type.h"
+#include "anydsl/var.h"
+#include "anydsl/world.h"
 #include "anydsl/util/for_all.h"
 
 #include "impala/type.h"
+
+using anydsl::Var;
+using anydsl::LVar;
+using anydsl::RVar;
 
 namespace impala {
 
 class CodeGen {
 public:
+
+    anydsl::BB* bb;
 
     anydsl::World& world;
 };
@@ -30,56 +40,83 @@ void Decl::emit(CodeGen& cg) const {
  * Expr
  */
 
-void EmptyExpr::emit(CodeGen& cg) const {
+Var* EmptyExpr::emit(CodeGen& cg) const {
+    return 0;
 }
 
-void Literal::emit(CodeGen& cg) const {
+Var* Literal::emit(CodeGen& cg) const {
+    return new RVar(cg.world.literal((anydsl::PrimLitKind) kind(), value()));
 }
 
-void Id::emit(CodeGen& cg) const {
+Var* Id::emit(CodeGen& cg) const {
+    return cg.bb->getVN(symbol());
 }
 
-void PrefixExpr::emit(CodeGen& cg) const {
-}
+Var* PrefixExpr::emit(CodeGen& cg) const {
+    Var* bvar = rexpr()->emit(cg);
+    const anydsl::PrimType* p = bvar->type()->as<anydsl::PrimType>();
 
-void InfixExpr::emit(CodeGen& cg) const {
-    lexpr()->emit(cg);
-    rexpr()->emit(cg);
+    if (kind() == ADD)
+        return bvar; // this is a NOP
+
+    switch (kind()) {
+        case SUB: {
+            // TODO incorrect for f32, f64
+            const anydsl::PrimLit* zero = cg.world.literal(p->kind(), 0u);
+            return new RVar(cg.world.createArithOp(anydsl::ArithOp_sub, zero, bvar->load()));
+        }
+        case INC:
+        case DEC: {
+            const anydsl::PrimLit* one = cg.world.literal(p->kind(), 1u);
+            RVar* val = new RVar(cg.world.createArithOp(Token::toArithOp((TokenKind) kind()), bvar->load(), one));
+            bvar->store(val->load());
+            return bvar;
+        }
+        default: ANYDSL_UNREACHABLE; // TODO
+    }
+}
 
 #if 0
-    const PrimType* p1 = lexpr().type()->as<PrimType>();
-    const PrimType* p2 = rexpr().type()->as<PrimType>();
+anydsl::PrimTypeKind Token::toPrimType() const {
+    switch (kind_) {
+#define IMPALA_TYPE(itype, atype) \
+        case Token:: TYPE_ ## itype: return anydsl::PrimType_##atype;
+#include "impala/tokenlist.h"
+        default: ANYDSL_UNREACHABLE;
+    }
+}
+#endif
 
-    if (p1 && p1 == p2) {
-        if (op.isAsgn()) {
-            Value val = bval;
 
-            if (op != Token::ASGN) {
-                Token tok = op.seperateAssign();
-                val = infixOp(aval, tok, bval);
-            }
+static Var* emitInfix(TokenKind op, Var* avar, Var* bvar, anydsl::World& world) {
+    if (Token::isAsgn(op)) {
+        Var* var = bvar;
 
-            aval.store(val.load());
-            return aval;
+        if (op != Token::ASGN) {
+            TokenKind sop = Token::seperateAssign(op);
+            var = emitInfix(sop, avar, bvar, world);
         }
 
-        if (op.isArith())
-            return Value(world.createArithOp(op.toArithOp(), aval.load(), bval.load()));
-        else if (op.isRel())
-            return Value(world.createRelOp(op.toRelOp(), aval.load(), bval.load()));
+        avar->store(var->load());
+        return avar;
     }
 
-    op.error() << "type error: TODO\n";
+    if (Token::isArith(op))
+        return new RVar(world.createArithOp(Token::toArithOp(op), avar->load(), bvar->load()));
 
-    const Type* t = p1 ? p1 : p2;
-    if (t)
-        return Value(world.literal_error(t)); 
-
-    return error();
-#endif
+    anydsl_assert(Token::isRel(op), "must be a relop");
+    return new RVar(world.createRelOp(Token::toRelOp(op), avar->load(), bvar->load()));
 }
 
-void PostfixExpr::emit(CodeGen& cg) const {
+Var* InfixExpr::emit(CodeGen& cg) const {
+    Var* avar = lexpr()->emit(cg);
+    Var* bvar = rexpr()->emit(cg);
+
+    return emitInfix((TokenKind) kind(), avar, bvar, cg.world);
+}
+
+Var* PostfixExpr::emit(CodeGen& cg) const {
+    return 0;
 }
 
 

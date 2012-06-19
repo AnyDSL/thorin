@@ -8,8 +8,13 @@
 #include "anydsl/util/cast.h"
 #include "anydsl/util/location.h"
 
+#include "anydsl/var.h"
+
 #include "impala/token.h"
-#include "impala/value.h"
+
+namespace anydsl {
+    class Var;
+}
 
 namespace impala {
 
@@ -35,8 +40,6 @@ public:
 
     virtual void check(Sema& sema) const = 0;
     virtual void dump(Printer& p) const = 0;
-    virtual void emit(CodeGen& cg) const = 0;
-
 
     void dump() const;
 
@@ -48,7 +51,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual void emit(CodeGen& cg) const;
+    void emit(CodeGen& cg) const;
 
     const Fcts& fcts() const { return fcts_; }
 
@@ -71,7 +74,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual void emit(CodeGen& cg) const;
+    void emit(CodeGen& cg) const;
 
 private:
 
@@ -95,7 +98,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual void emit(CodeGen& cg) const;
+    void emit(CodeGen& cg) const;
 
 private:
 
@@ -110,7 +113,7 @@ public:
 
     bool lvalue() const { return lvalue_; }
     const Type* type() const { return type_; }
-    const anydsl::Def* def() const { return def_; }
+    virtual anydsl::Var* emit(CodeGen& cg) const = 0;
 
 protected:
 
@@ -118,7 +121,6 @@ protected:
 
     mutable bool lvalue_;
     mutable const Type* type_;
-    mutable const anydsl::Def* def_;
 };
 
 class EmptyExpr : public Expr {
@@ -130,7 +132,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual void emit(CodeGen& cg) const;
+    virtual anydsl::Var* emit(CodeGen& cg) const;
 };
 
 class Literal : public Expr {
@@ -149,7 +151,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual void emit(CodeGen& cg) const;
+    virtual anydsl::Var* emit(CodeGen& cg) const;
 
 private:
 
@@ -166,7 +168,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual void emit(CodeGen& cg) const;
+    virtual anydsl::Var* emit(CodeGen& cg) const;
 
 private:
 
@@ -190,7 +192,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual void emit(CodeGen& cg) const;
+    virtual anydsl::Var* emit(CodeGen& cg) const;
 
 private:
 
@@ -215,7 +217,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual void emit(CodeGen& cg) const;
+    virtual anydsl::Var* emit(CodeGen& cg) const;
 
 private:
 
@@ -242,7 +244,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual void emit(CodeGen& cg) const;
+    virtual anydsl::Var* emit(CodeGen& cg) const;
 
 private:
 
@@ -255,6 +257,7 @@ class Stmt : public ASTNode {
 public:
 
     virtual bool isEmpty() const { return false; }
+    virtual void emit(CodeGen& cg) const = 0;
 };
 
 class ExprStmt : public Stmt {

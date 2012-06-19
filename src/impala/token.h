@@ -98,12 +98,11 @@ public:
     static bool isOp(Kind kind)      { return isPrefix(kind) || isInfix(kind) || isPostfix(kind); }
     static bool isArith(Kind kind);
     static bool isRel(Kind kind);
+    static Kind seperateAssign(Kind kind);
 
-
-    Token seperateAssign() const;
-    anydsl::ArithOpKind toArithOp() const;
-    anydsl::RelOpKind toRelOp() const;
-    anydsl::PrimTypeKind toPrimType() const;
+    static anydsl::ArithOpKind toArithOp(Kind kind);
+    static anydsl::RelOpKind toRelOp(Kind kind);
+    static anydsl::PrimTypeKind toPrimType(Kind kind);
 
     /*
      * comparisons

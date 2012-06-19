@@ -15,6 +15,7 @@ namespace anydsl {
     class Param;
     class Pi;
     class Type;
+    class LVar;
 }
 
 namespace anydsl {
@@ -50,6 +51,7 @@ public:
     void fixto(BB* to);
 
     virtual Binding* getVN(const Symbol sym, const Type* type, bool finalize);
+    LVar* getVN(const Symbol sym) { return 0; }
     void setVN(Binding* bind);
     bool hasVN(const Symbol sym) { return values_.find(sym) != values_.end(); }
 

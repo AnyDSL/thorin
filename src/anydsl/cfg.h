@@ -1,7 +1,7 @@
 #ifndef ANYDSL_CFG_H
 #define ANYDSL_CFG_H
 
-#include <map>
+#include <vector>
 #include <boost/unordered_map.hpp>
 
 #include "anydsl/symbol.h"

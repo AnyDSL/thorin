@@ -104,10 +104,15 @@ public:
         return sigma(types); 
     }
     /// Creates 'sigma(t1, t2)'.
-    const Sigma* sigma2(const Type* t1, const Type* t2) { return sigma((const Type*[]){t1, t2}); }
+    const Sigma* sigma2(const Type* t1, const Type* t2) { 
+        const Type* types[] = {t1, t2};
+        return sigma(types);
+    }
     /// Creates 'sigma(t1, t2, t3)'.
-    const Sigma* sigma3(const Type* t1, const Type* t2, const Type* t3) { return sigma((const Type*[]){t1, t2, t3}); }
-
+    const Sigma* sigma3(const Type* t1, const Type* t2, const Type* t3) { 
+        const Type* types[] = {t1, t2, t3};
+        return sigma(types);
+    }
     const Sigma* sigma(const Type* const* begin, const Type* const* end) { 
         return find(new Sigma(*this, begin, end)); 
     }

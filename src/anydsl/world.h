@@ -99,7 +99,10 @@ public:
     /// Creates 'sigma()'.
     const Sigma* sigma0() { return unit_; }
     /// Creates 'sigma(t1)'.
-    const Sigma* sigma1(const Type* t1) { return sigma((const Type*[]){t1}); }
+    const Sigma* sigma1(const Type* t1) { 
+        const Type* types[] = {t1};
+        return sigma(types); 
+    }
     /// Creates 'sigma(t1, t2)'.
     const Sigma* sigma2(const Type* t1, const Type* t2) { return sigma((const Type*[]){t1, t2}); }
     /// Creates 'sigma(t1, t2, t3)'.

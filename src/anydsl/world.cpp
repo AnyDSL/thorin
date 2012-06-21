@@ -12,19 +12,6 @@ namespace anydsl {
  * helpers
  */
 
-const Value* World::findValue(const Value* value) {
-    ValueMap::iterator i = values_.find(value);
-    if (i != values_.end()) {
-        delete value;
-        return *i;
-    }
-
-    values_.insert(value);
-
-    return value;
-}
-
-
 static inline bool isCommutative(ArithOpKind kind) {
     switch (kind) {
         case ArithOp_add:
@@ -205,5 +192,18 @@ const Value* World::createSelect(const Def* cond, const Def* tdef, const Def* fd
 void World::cleanup() {
     // TODO
 }
+
+const Value* World::findValue(const Value* value) {
+    ValueMap::iterator i = values_.find(value);
+    if (i != values_.end()) {
+        delete value;
+        return *i;
+    }
+
+    values_.insert(value);
+
+    return value;
+}
+
 
 } // namespace anydsl

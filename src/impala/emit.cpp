@@ -378,7 +378,7 @@ void ScopeStmt::emit(CodeGen& cg) const {
  * Type
  */
 
-const anydsl::Type* PrimType::toAnyDSL(anydsl::World& world) const {
+const anydsl::Type* PrimType::emit(anydsl::World& world) const {
 #if 0
     switch (kind()) {
 #define IMPALA_TYPE(itype, atype) case TYPE_##itype: p.o << #itype; return;
@@ -388,12 +388,12 @@ const anydsl::Type* PrimType::toAnyDSL(anydsl::World& world) const {
     return 0;
 }
 
-const anydsl::Type* Void::toAnyDSL(anydsl::World& world) const {
+const anydsl::Type* Void::emit(anydsl::World& world) const {
     return 0;
 }
 
-const anydsl::Type* TypeError::toAnyDSL(anydsl::World& world) const {
-    return 0;
+const anydsl::Type* TypeError::emit(anydsl::World& world) const {
+    ANYDSL_UNREACHABLE;
 }
 
 } // namespace impala

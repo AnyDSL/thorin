@@ -117,7 +117,7 @@ void Dumper::dump(const AIRNode* n) {
 /*
  * Param
  */
-        case Index_Params:
+        case Index_Param:
             ANYDSL_NOT_IMPLEMENTED;
 
 /*

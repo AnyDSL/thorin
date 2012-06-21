@@ -1,5 +1,7 @@
 #include "anydsl/symbol.h"
 
+#include <iomanip>
+
 #include "anydsl/util/for_all.h"
 
 namespace anydsl {
@@ -30,6 +32,14 @@ void Symbol::insert(const char* s) {
 void Symbol::destroy() {
     for_all(s, table_)
         free((void*) s);
+}
+
+std::string make_name(const char* cstr, int id) {
+    std::ostringstream oss;
+    oss << '<' << cstr << '-';
+    oss << std::setw(2) << std::setfill('0') << id << '>';
+
+    return oss.str();
 }
 
 } // namespace anydsl

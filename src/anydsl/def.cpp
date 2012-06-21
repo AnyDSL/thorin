@@ -69,14 +69,10 @@ size_t Value::hash() const {
 
 //------------------------------------------------------------------------------
 
-Params::Params(Lambda* parent, const Sigma* sigma)
-    : Def(Index_Params, sigma, 0)
+Param::Param(Lambda* parent)
+    : Def(Index_Param, 0, 0)
     , parent_(parent)
 {}
-
-const Sigma* Params::sigma() const { 
-    return type()->as<Sigma>(); 
-}
 
 //------------------------------------------------------------------------------
 

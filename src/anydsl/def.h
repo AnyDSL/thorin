@@ -102,12 +102,10 @@ protected:
 
 //------------------------------------------------------------------------------
 
-class Params : public Def {
+class Param : public Def {
 private:
 
-    Params(Lambda* parent, const Sigma* sigma);
-
-    const Sigma* sigma() const;
+    Param(Lambda* parent);
 
 public:
 

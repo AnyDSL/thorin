@@ -297,10 +297,10 @@ private:
 class IfElseStmt: public Stmt {
 public:
 
-    IfElseStmt(const anydsl::Position& pos1, const Expr* cond, const Stmt* ifStmt, const Stmt* elseStmt);
+    IfElseStmt(const anydsl::Position& pos1, const Expr* cond, const Stmt* thenStmt, const Stmt* elseStmt);
 
     const Expr* cond() const { return cond_; }
-    const Stmt* ifStmt() const { return ifStmt_; }
+    const Stmt* thenStmt() const { return thenStmt_; }
     const Stmt* elseStmt() const { return elseStmt_; }
 
     virtual void check(Sema& sema) const;
@@ -310,7 +310,7 @@ public:
 private:
 
     anydsl::AutoPtr<const Expr> cond_;
-    anydsl::AutoPtr<const Stmt> ifStmt_;
+    anydsl::AutoPtr<const Stmt> thenStmt_;
     anydsl::AutoPtr<const Stmt> elseStmt_;
 };
 

@@ -12,6 +12,7 @@ class Type;
 class Var {
 public:
 
+    Var() {}
     Var(const Def* def)
         : def_(def)
     {}
@@ -42,6 +43,7 @@ private:
 class LVar : public Var {
 public:
 
+    LVar() {}
     LVar(const Def* def, const anydsl::Symbol symbol)
         : Var(def)
         , symbol_(symbol)

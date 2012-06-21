@@ -10,9 +10,10 @@
 namespace anydsl {
 
 class Lambda;
-class Params;
 class Pi;
 class Jump;
+
+typedef AutoVector<const Param*> Params;
 
 class Lambda : public Def {
 private:
@@ -21,15 +22,21 @@ private:
 
 public:
 
-    const Params* params() const { return params_; }
+    Lambda();
+
+    bool final() const { return final_; }
+    const Params& params() const { return params_; }
     const Jump* jump() const { return ops_[0]->as<Jump>(); }
     const Pi* pi() const;
+
+    Param* appendParam();
 
     void setJump(const Jump* jump);
 
 private:
 
-    anydsl::AutoPtr<const Params> params_;
+    bool final_;
+    Params params_;
 
     friend class World;
 };

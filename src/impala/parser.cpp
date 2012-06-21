@@ -189,18 +189,6 @@ int Parser::nextId() {
     return id;
 }
 
-static std::string make_name(const char* cstr, int id) {
-    std::ostringstream oss;
-    oss << '<' << cstr << '-';
-    oss << std::setw(2) << std::setfill('0') << id << '>';
-
-    return oss.str();
-}
-
-static Symbol make_symbol(const char* cstr, int id) {
-    return Symbol(make_name(cstr, id));
-}
-
 /*
  * misc
  */

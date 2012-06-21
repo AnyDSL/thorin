@@ -322,7 +322,7 @@ static bool checkCond(Sema& sema, const Expr* cond) {
 
 void IfElseStmt::check(Sema& sema) const {
     checkCond(sema, cond());
-    ifStmt()->check(sema);
+    thenStmt()->check(sema);
     elseStmt()->check(sema);
 }
 

@@ -15,7 +15,7 @@ Jump::Jump(const Def* to, const Def* const* begin, const Def* const* end)
     for (size_t x = 1; i != end; ++x, ++i)
         setOp(x, *i);
 
-#ifndef NDEBUG
+#if 0
     const Pi* pi = toLambda()->pi();
     anydsl_assert(pi->sigma()->ops().size() == args().size(), "element size of args and pi-to-type does not match");
 

@@ -85,9 +85,9 @@ DeclStmt::DeclStmt(const Decl* decl, const Expr* init, const Position& pos2)
     setLoc(decl->pos1(), pos2);
 }
 
-IfElseStmt::IfElseStmt(const Position& pos1, const Expr* cond, const Stmt* ifStmt, const Stmt* elseStmt)
+IfElseStmt::IfElseStmt(const Position& pos1, const Expr* cond, const Stmt* thenStmt, const Stmt* elseStmt)
     : cond_(cond)
-    , ifStmt_(ifStmt)
+    , thenStmt_(thenStmt)
     , elseStmt_(elseStmt)
 {
     setLoc(pos1, elseStmt->pos2());

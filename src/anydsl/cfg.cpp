@@ -1,344 +1,128 @@
 #include "anydsl/cfg.h"
 
-#include "anydsl/literal.h"
-#include "anydsl/jump.h"
+#include "anydsl/lambda.h"
+#include "anydsl/type.h"
+#include "anydsl/var.h"
 #include "anydsl/world.h"
-#include "anydsl/binding.h"
-#include "anydsl/util/for_all.h"
-
-using namespace anydsl;
 
 namespace anydsl {
 
-//------------------------------------------------------------------------------
-
-BB::BB(BB* parent, const Pi* pi, const std::string& name) 
-    : lambda_(pi->world().createLambda(pi))
-    , visited_(false)
-    , fct_(0)
-{
-    lambda_->debug = name;
-}
-
-BB::BB(Fct* fct, World& world, const std::string& name) 
-    : lambda_(world.createLambda(0))
-    , visited_(false)
+BB::BB(Fct* fct, bool final, const std::string& debug /*= ""*/) 
+    : final_(final)
     , fct_(fct)
+    , topLambda_(new Lambda())
+    , curLambda_(topLambda_)
 {
-    lambda_->debug = name;
+    topLambda_->debug = debug;
 }
 
-World& BB::world() { 
-    return lambda_->world();
+void BB::setVar(const LVar& lvar) {
+    anydsl_assert(values_.find(lvar.symbol()) == values_.end(), "double insert");
+    values_[lvar.symbol()] = lvar;
 }
 
-/*static*/ BB* BB::createBB(Fct* fct, World& world, const std::string& name) {
-    return new BB(fct, world, name);
+LVar BB::getVar(const Symbol& symbol) {
+    BB::ValueMap::iterator i = values_.find(symbol);
+
+    // if var is known -> return current var
+    if (i != values_.end())
+        return i->second;
+
+    if (!final_ || preds_.size() > 1) {
+        // otherwise insert a 'phi', i.e., create a param and remember to fix the callers
+        Param* param = topLambda_->appendParam();
+        size_t index = in_.size();
+        in_.push_back(param);
+        LVar lvar(param, symbol);
+        setVar(lvar);
+        todos_[symbol] = index;
+
+        return lvar;
+    }
+    
+    // look in pred if there exists exactly one pred
+    assert(preds().size() == 1);
+
+    BB* pred = *preds().begin();
+    LVar lvar = pred->getVar(symbol);
+    setVar(lvar);
+
+    return lvar;
+}
+
+void BB::finalize() {
+    anydsl_assert(!final_, "already finalized");
+
+    final_ = true;
+
+    for_all (pred, preds_) {
+        for_all (p, todos_) {
+            const Symbol& symbol = p.first;
+            size_t x = p.second;
+            Defs& out = pred->out_;
+
+            // make potentially room for the new arg
+            out.resize(std::max(x + 1, out.size()));
+
+            anydsl_assert(!pred->out_[x], "already set");
+            pred->out_[x] = getVar(symbol).load();
+        }
+    }
 }
 
 void BB::goesto(BB* to) {
     assert(to);
-    const Jump* jump = world().createJump(to->lambda());
-    lambda_->setJump(jump);
+
+    to_ = to->topLambda();
     this->flowsto(to);
-    anydsl_assert(this->succ().size() == 1, "wrong number of succ");
+
+    anydsl_assert(this->succs().size() == 1, "wrong number of succs");
 }
 
-void BB::branches(Def* cond, BB* tbb, BB* fbb) {
+void BB::branches(const Def* cond, BB* tbb, BB* fbb) {
     assert(tbb);
     assert(fbb);
-    const Jump* jump = world().createBranch(cond, tbb->lambda(), fbb->lambda());
-    lambda_->setJump(jump);
+
+    to_ = world().createSelect(cond, tbb->topLambda(), fbb->topLambda());
     this->flowsto(tbb);
     this->flowsto(fbb);
-    anydsl_assert(succ().size() == 2, "wrong number of succ");
-}
 
-void BB::invokes(Def* fct) {
-    anydsl_assert(fct, "must be valid");
-    const Jump* jump = world().createJump(fct);
-    lambda_->setJump(jump);
-    anydsl_assert(this->succ().size() == 0, "wrong number of succ");
-    // succs by invokes are not captured in the CFG
+    anydsl_assert(succs().size() == 2, "wrong number of succs");
 }
 
 void BB::fixto(BB* to) {
-    assert(!lambda()->jump());
-    this->goesto(to);
+    if (!to_)
+        this->goesto(to);
 }
 
-
 void BB::flowsto(BB* to) {
-    BBs::iterator i = succ_.find(to);
-    if (i == succ_.end()) {
-        succ_.insert(to);
-        to->pred_.insert(this);
+    BBs::iterator i = succs_.find(to);
+
+    if (i == succs_.end()) {
+        succs_.insert(to);
+        to->preds_.insert(this);
     } else {
-        anydsl_assert(to->pred_.find(this) != to->pred_.end(), "flow out of sync");
+        anydsl_assert(to->preds_.find(this) != to->preds_.end(), "flow out of sync");
         /* do nothing */
     }
 }
-#if 0
 
-void BB::finalizeAll() {
-    processTodos();
-
-    for_all (bb, children_)
-        bb->finalizeAll();
-}
-
-void BB::processTodos() {
-    if (finalized_)
-        return;
-    finalized_ = true;
-
-#ifdef DEBUG_CFG
-    std::cout << name() << std::endl;
-#endif
-    anydsl_assert(!pred_.empty() || dcast<Fct>(this), "must not be empty");
-
-    for_all (i, todos_) {
-        size_t x = i.second;
-        Symbol sym = i.first;
-
-        for_all (pred, pred_) {
-            anydsl_assert(!pred->succ_.empty(), "must have at least one succ");
-            anydsl_assert(pred->succ_.find(this) != pred->succ_.end(), "incorrectly wired");
-            pred->finalize(x, sym);
-        }
-    }
-}
-
-void BB::finalize(size_t param, const Symbol sym) {
-    if (Beta* beta = getBeta()) {
-        //anydsl_assert(beta->args().empty(), "must be empty");
-        fixBeta(beta, param, sym, 0);
-    } else if (Branch* branch = getBranch()) {
-        Lambda* lam[2] = {scast<Lambda>(branch-> trueExpr.def()), 
-                          scast<Lambda>(branch->falseExpr.def()) };
-
-        for (size_t i = 0; i < 2; ++i) {
-            Beta* beta = scast<Beta>(lam[i]->body());
-            fixBeta(beta, param, sym, 0);
-        }
-    } else
-        ANYDSL_UNREACHABLE;
-}
-
-void BB::fixBeta(Beta* beta, size_t param, const Symbol sym, Type* type) {
-    UseList& args = beta->args();
-
-    // make room for new arg
-    if (x >= args.size())
-        args.resize(x+1);
-
-#ifdef DEBUG_CFG
-    std::cout << "fixing: " << name() << " pos: " << x << " size: " << args.size() << std::endl;
-#endif
-
-    Def* def = getVN(beta->loc(), sym, 0, true)->def;
-
-    anydsl_assert(!args[x].isSet(), "must be unset");
-    anydsl_assert(hasVN(sym) || pred_.size() == 1, "must be found");
-    anydsl_assert(def, "must be valid");
-    args[x] = def;
-}
-
-#endif
-
-Binding* BB::getVN(const Symbol sym, const Type* type, bool finalize) {
-    BB::ValueMap::iterator i = values_.find(sym);
-
-    if (i == values_.end()) {
-        if (pred_.size() == 1) {
-            BB* pred = *pred_.begin();
-            Binding* bind = pred->getVN(sym, type, finalize);
-            // create copy of binding in this block
-            Binding* newBind = new Binding(bind->sym, bind->def);
-            setVN(newBind);
-
-            anydsl_assert(newBind->def, "must be valid");
-            return newBind;
-        } else {
-            // add bind as param to current BB
-            size_t param = 0;// TODO lambda_->appendParam(type);
-            // insert new VN
-            Binding* bind = 0; // TODO new Binding(sym, *param);
-            setVN(bind);
-
-            if (finalize) {
-#if 0
-                for_all (pred, pred_)
-                    pred->finalize(param, sym);
-#endif
-            } else {
-                // remember to fix preds
-#ifdef DEBUG_CFG
-                std::cout << "todo: " << name() << ": " << sym << " -> " << x << std::endl;
-                for_all (pred, pred_)
-                    std::cout << "    pred: " << pred->name() << std::endl;
-#endif
-                anydsl_assert(todos_.find(sym) == todos_.end(), "double insert");
-                todos_[sym] = param;
-            }
-
-            anydsl_assert(bind->def, "must be valid");
-            return bind;
-        }
-    }
-
-    anydsl_assert(i->second->def, "must be valid");
-    return i->second;
-}
-
-void BB::setVN(Binding* bind) {
-    anydsl_assert(values_.find(bind->sym) == values_.end(), "double insert");
-    values_[bind->sym] = bind;
-}
-
-std::string BB::name() const { 
-    const std::string& str = lambda_->debug;
-    return str.empty() ? "<unnamed>" : str;
-}
-
-void BB::dfs(BBList& bbs) {
-    visited_ = true;
-
-    for_all (bb, succ())
-        if (!bb->visited_)
-            dfs(bbs);
-
-    bbs.push_back(this);
+World& BB::world() {
+    return topLambda_->world();
 }
 
 //------------------------------------------------------------------------------
 
-Fct::Fct(const Pi* pi, const Symbol sym)
-    : BB(0, pi, sym.str())
-    , exit_(0)
-    , retParam_(0)
+Fct::Fct(const Symbol& symbol, const Pi* pi)
+    : pi_(pi)
+    , lambda_(pi->world().createLambda(pi))
 {}
 
-Fct::Fct(World& world, const Symbol sym)
-    : BB(0, world.pi0(), sym.str())
-    , exit_(0)
-    , retParam_(0)
-{}
-
-/*static*/ BB* Fct::createBB(const std::string& name /*= ""*/) {
-    BB* bb = BB::createBB(this, world(), name);
+BB* Fct::createBB(bool final, const std::string& debug /*= ""*/) {
+    BB* bb = new BB(this, final, debug);
     cfg_.insert(bb);
 
     return bb;
 }
 
-void Fct::setReturnCont(const Type* retType) {
-    anydsl_assert(!exit_, "already set");
-    return;
-
-#if 0
-    Symbol resSymbol = "<result>";
-    retParam_ = *lambda_->appendParam(world().pi1(retType));
-    retParam_->debug = "<result>";
-    setVN(new Binding(resSymbol, world().undef(retType)));
-    exit_ = createBB("<exit>");
-    exit_->invokes(retParam_);
-    // TODO
-    //exit_->lambda()->jump()->ops_append(getVN(resSymbol, retType, false)->def);
-#endif
-}
-
-void Fct::insertReturnStmt(BB* bb, const Def* def) {
-    anydsl_assert(bb, "must be valid");
-    bb->goesto(exit_);
-    // TODO
-    //bb->lambda()->jump()->ops_append(def);
-}
-
-Binding* Fct::getVN(const Symbol sym, const Type* type, bool finalize) {
-    BB::ValueMap::iterator i = values_.find(sym);
-    if (i == values_.end()) {
-        const Undef* undef = world().undef(type);
-        std::cerr << "may be undefined: " << sym << std::endl;
-
-        return new Binding(sym, undef);
-    }
-
-    anydsl_assert(i->second->def, "must be valid");
-    return i->second;
-}
-
-
-void Fct::buildDomTree() {
-    dfs(postorder_);
-    anydsl_assert(postorder_.back() == this, "last node must be start node, i.e., 'this'");
-    size_t last = postorder_.size() - 1;
-
-    idoms_.resize(postorder_.size());
-
-    // init idoms to 0, set visited_ to false
-    for (size_t i = last - 1; i >= 0; --i) {
-        BB* bb = postorder_[i];
-        idoms_[i] = 0;
-        bb->poIndex_ = i;
-    }
-
-    idoms_.back() = this;
-
-    bool changed = true;
-    while (changed) {
-        // for each bb in reverse post-order except start node
-        for (size_t bb_i = last - 1; bb_i >= 0; --bb_i) {
-            BB* bb = postorder_[bb_i];
-            bb->visited_ = true;
-
-            BB* new_bb = 0;
-            // find processed pred of bb
-            for_all (pred, bb->pred()) {
-                if (pred->poIndex_ > bb_i) {
-                    new_bb = pred;
-                    break;
-                }
-            }
-            anydsl_assert(new_bb, "no processed pred of bb found");
-            size_t new_i = new_bb->poIndex_;
-
-            // for all un processed preds of bb
-            for_all (pred, bb->pred()) {
-                size_t pred_i = pred->poIndex_;
-                if (!pred->visited_) {
-                    if (idoms_[pred_i])
-                        new_i = intersect(pred_i, new_i);
-                }
-            }
-
-            if (idoms_[bb_i] != new_bb) {
-                idoms_[bb_i] = new_bb;
-                changed = true;
-            }
-        }
-    }
-
-#if 0
-    // now build dom tree
-    for (size_t i = last - 1; i >= 0; --i) {
-        BB* bb = postorder_[i];
-        BB* dom = idoms_[i];
-        //dom->lambda()->insert(bb->lambda());
-    }
-#endif
-}
-
-size_t Fct::intersect(size_t i, size_t j) {
-    while (i != j) {
-        while (i < j) 
-            i = idoms_[i]->poIndex_;
-        while (j < i) 
-            j = idoms_[j]->poIndex_;
-    }
-    return i;
-}
-
-//------------------------------------------------------------------------------
-
-} // namespace impala
+} // namespace anydsl

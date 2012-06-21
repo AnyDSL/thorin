@@ -127,7 +127,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    void emit(CodeGen& cg) const;
+    anydsl::Var* emit(CodeGen& cg) const;
 
 private:
 

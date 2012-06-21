@@ -36,7 +36,8 @@ void Prg::emit(CodeGen& cg) const {
 void Fct::emit(CodeGen& cg) const {
 }
 
-void Decl::emit(CodeGen& cg) const {
+Var* Decl::emit(CodeGen& cg) const {
+    return cg.curBB->setVar(symbol(), cg.world.undef(type()->emit(cg.world)));
 }
 
 /*
@@ -118,7 +119,12 @@ Value PostfixExpr::emit(CodeGen& cg) const {
  */
 
 void DeclStmt::emit(CodeGen& cg) const {
-    decl()->emit(cg);
+    Var* var = decl()->emit(cg);
+
+    if (init()) {
+        const Def* def = init()->emit(cg).load();
+        var->def = def;
+    }
 }
 
 void ExprStmt::emit(CodeGen& cg) const {

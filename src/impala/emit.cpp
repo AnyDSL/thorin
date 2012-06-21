@@ -12,9 +12,8 @@
 using anydsl::BB;
 using anydsl::Def;
 using anydsl::Var;
-using anydsl::LVar;
-using anydsl::RVar;
 using anydsl::make_name;
+using anydsl::World;
 
 namespace impala {
 
@@ -44,71 +43,74 @@ void Decl::emit(CodeGen& cg) const {
  * Expr
  */
 
-Var EmptyExpr::emit(CodeGen& cg) const {
-    return 0;
+Value EmptyExpr::emit(CodeGen& cg) const {
+    return Value((const Def*) 0);
 }
 
-Var Literal::emit(CodeGen& cg) const {
-    return RVar(cg.world.literal((anydsl::PrimLitKind) kind(), value()));
+Value Literal::emit(CodeGen& cg) const {
+    return Value(cg.world.literal((anydsl::PrimLitKind) kind(), value()));
 }
 
-Var Id::emit(CodeGen& cg) const {
-    return cg.curBB->getVar(symbol());
+Value Id::emit(CodeGen& cg) const {
+    return Value(cg.curBB->getVar(symbol()));
 }
 
-Var PrefixExpr::emit(CodeGen& cg) const {
-    Var bvar = rexpr()->emit(cg);
-    const anydsl::PrimType* p = bvar.type()->as<anydsl::PrimType>();
+
+Value PrefixExpr::emit(CodeGen& cg) const {
+    Value val = right()->emit(cg);
+
+    const Def* def = val.load();
+    const anydsl::PrimType* p = def->type()->as<anydsl::PrimType>();
 
     if (kind() == ADD)
-        return bvar; // this is a NOP
+        return def; // this is a NOP
 
     switch (kind()) {
         case SUB: {
             // TODO incorrect for f32, f64
             const anydsl::PrimLit* zero = cg.world.literal(p->kind(), 0u);
-            return RVar(cg.world.createArithOp(anydsl::ArithOp_sub, zero, bvar.load()));
+            return cg.world.createArithOp(anydsl::ArithOp_sub, zero, def);
         }
         case INC:
         case DEC: {
             const anydsl::PrimLit* one = cg.world.literal(p->kind(), 1u);
-            RVar val = RVar(cg.world.createArithOp(Token::toArithOp((TokenKind) kind()), bvar.load(), one));
-            bvar.store(val.load());
-            return bvar;
+            const Def* ndef = cg.world.createArithOp(Token::toArithOp((TokenKind) kind()), def, one);
+            val.store(ndef);
+
+            return val;
         }
         default: ANYDSL_UNREACHABLE; // TODO
     }
 }
 
-static Var emitInfix(TokenKind op, Var avar, Var bvar, anydsl::World& world) {
+static Value emitInfix(anydsl::World& world, TokenKind op, Value aval, Value bval) {
     if (Token::isAsgn(op)) {
-        Var var = bvar;
-
         if (op != Token::ASGN) {
             TokenKind sop = Token::seperateAssign(op);
-            var = emitInfix(sop, avar, bvar, world);
+            bval = emitInfix(world, sop, aval, bval);
         }
 
-        avar.store(var.load());
-        return avar;
+        aval.store(bval.load());
+
+        return aval;
+
+        if (Token::isArith(op))
+            return world.createArithOp(Token::toArithOp(op), aval.load(), bval.load());
     }
 
-    if (Token::isArith(op))
-        return RVar(world.createArithOp(Token::toArithOp(op), avar.load(), bvar.load()));
-
     anydsl_assert(Token::isRel(op), "must be a relop");
-    return RVar(world.createRelOp(Token::toRelOp(op), avar.load(), bvar.load()));
+    return world.createRelOp(Token::toRelOp(op), aval.load(), bval.load());
 }
 
-Var InfixExpr::emit(CodeGen& cg) const {
-    Var avar = lexpr()->emit(cg);
-    Var bvar = rexpr()->emit(cg);
+Value InfixExpr::emit(CodeGen& cg) const {
+    Value aval = left()->emit(cg);
+    Value bval = right()->emit(cg);
 
-    return emitInfix((TokenKind) kind(), avar, bvar, cg.world);
+    return emitInfix(cg.world, (TokenKind) kind(), aval, bval);
 }
 
-Var PostfixExpr::emit(CodeGen& cg) const {
-    return 0;
+Value PostfixExpr::emit(CodeGen& cg) const {
+    return Value((const Def*) 0);
 }
 
 /*
@@ -139,8 +141,8 @@ void IfElseStmt::emit(CodeGen& cg) const {
     cg.curBB = headBB;
 
     // condition
-    Var cvar = cond()->emit(cg);
-    headBB->branches(cvar.load(), thenBB, elseBB);
+    const Def* cvar = cond()->emit(cg).load();
+    headBB->branches(cvar, thenBB, elseBB);
     headBB->seal();
     thenBB->seal();
     elseBB->seal();
@@ -175,8 +177,8 @@ void WhileStmt::emit(CodeGen& cg) const {
     cg.curBB = headBB;
 
     // condition
-    Var cvar = cond()->emit(cg);
-    headBB->branches(cvar.load(), bodyBB, nextBB);
+    const Def* cvar = cond()->emit(cg).load();
+    headBB->branches(cvar, bodyBB, nextBB);
     bodyBB->seal();
 
     // body

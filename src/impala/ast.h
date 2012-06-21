@@ -8,15 +8,44 @@
 #include "anydsl/util/cast.h"
 #include "anydsl/util/location.h"
 
-#include "anydsl/var.h"
-
 #include "impala/token.h"
 
 namespace anydsl {
+    class Def;
     class Var;
 }
 
 namespace impala {
+
+class Value {
+public:
+
+    enum Kind {
+        LVAL, RVAL
+    };
+
+    Value(const anydsl::Def* def)
+        : kind_(RVAL)
+        , def_(def)
+    {}
+    Value(anydsl::Var* var)
+        : kind_(LVAL)
+        , var_(var)
+    {}
+
+    const anydsl::Def* load() const { return def_; }
+    void store(const anydsl::Def* def) { assert(kind_ == LVAL); def_ = def; }
+    Kind kind() const { return kind_; }
+
+private:
+
+    Kind kind_;
+
+    union {
+        const anydsl::Def* def_;
+        anydsl::Var* var_;
+    };
+};
 
 class CodeGen;
 class Decl;
@@ -113,7 +142,7 @@ public:
 
     bool lvalue() const { return lvalue_; }
     const Type* type() const { return type_; }
-    virtual anydsl::Var emit(CodeGen& cg) const = 0;
+    virtual Value emit(CodeGen& cg) const = 0;
 
 protected:
 
@@ -132,7 +161,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual anydsl::Var emit(CodeGen& cg) const;
+    virtual Value emit(CodeGen& cg) const;
 };
 
 class Literal : public Expr {
@@ -151,7 +180,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual anydsl::Var emit(CodeGen& cg) const;
+    virtual Value emit(CodeGen& cg) const;
 
 private:
 
@@ -168,7 +197,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual anydsl::Var emit(CodeGen& cg) const;
+    virtual Value emit(CodeGen& cg) const;
 
 private:
 
@@ -184,15 +213,15 @@ public:
 #include "impala/tokenlist.h"
     };
 
-    PrefixExpr(const anydsl::Position& pos1, Kind kind, const Expr* rexpr);
+    PrefixExpr(const anydsl::Position& pos1, Kind kind, const Expr* right);
 
-    const Expr* rexpr() const { return args_[0]; }
+    const Expr* right() const { return args_[0]; }
 
     Kind kind() const { return kind_; }
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual anydsl::Var emit(CodeGen& cg) const;
+    virtual Value emit(CodeGen& cg) const;
 
 private:
 
@@ -208,16 +237,16 @@ public:
 #include "impala/tokenlist.h"
     };
 
-    InfixExpr(const Expr* lexpr, Kind kind, const Expr* rexpr);
+    InfixExpr(const Expr* left, Kind kind, const Expr* right);
 
-    const Expr* lexpr() const { return args_[0]; }
-    const Expr* rexpr() const { return args_[1]; }
+    const Expr* left() const { return args_[0]; }
+    const Expr* right() const { return args_[1]; }
 
     Kind kind() const { return kind_; }
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual anydsl::Var emit(CodeGen& cg) const;
+    virtual Value emit(CodeGen& cg) const;
 
 private:
 
@@ -236,15 +265,15 @@ public:
         DEC = Token::DEC
     };
 
-    PostfixExpr(const Expr* lexpr, Kind kind, const anydsl::Position& pos2);
+    PostfixExpr(const Expr* left, Kind kind, const anydsl::Position& pos2);
 
-    const Expr* lexpr() const { return args_[0]; }
+    const Expr* left() const { return args_[0]; }
 
     Kind kind() const { return kind_; }
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual anydsl::Var emit(CodeGen& cg) const;
+    virtual Value emit(CodeGen& cg) const;
 
 private:
 

@@ -12,13 +12,23 @@ namespace anydsl {
 class BB;
 class Def;
 class Fct;
-class LVar;
 class Lambda;
 class Pi;
 class World;
 
 typedef std::vector<const Def*> Defs;
 typedef boost::unordered_set<BB*> BBs;
+
+struct Var {
+    Symbol symbol;
+    const Def* def;
+
+    Var() {}
+    Var(const Symbol& symbol, const Def* def)
+        : symbol(symbol)
+        , def(def)
+    {}
+};
 
 class BB {
 private:
@@ -27,8 +37,8 @@ private:
 
 public:
 
-    void setVar(const LVar& lvar);
-    LVar getVar(const Symbol& symbol);
+    Var* setVar(const Symbol& symbol, const Def* def);
+    Var* getVar(const Symbol& symbol);
     void seal();
 
     void goesto(BB* to);
@@ -62,7 +72,7 @@ private:
     Lambda* topLambda_;
     Lambda* curLambda_;
 
-    typedef boost::unordered_map<Symbol, LVar> ValueMap;
+    typedef boost::unordered_map<Symbol, Var*> ValueMap;
     ValueMap values_;
 
     typedef boost::unordered_map<Symbol, size_t> Todos;

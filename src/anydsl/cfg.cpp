@@ -16,12 +16,16 @@ BB::BB(Fct* fct, const std::string& debug /*= ""*/)
     topLambda_->debug = debug;
 }
 
-void BB::setVar(const LVar& lvar) {
-    anydsl_assert(values_.find(lvar.symbol()) == values_.end(), "double insert");
-    values_[lvar.symbol()] = lvar;
+Var* BB::setVar(const Symbol& symbol, const Def* def) {
+    anydsl_assert(values_.find(symbol) == values_.end(), "double insert");
+
+    Var* lvar = new Var(symbol, def);
+    values_[symbol] = lvar;
+
+    return lvar;
 }
 
-LVar BB::getVar(const Symbol& symbol) {
+Var* BB::getVar(const Symbol& symbol) {
     BB::ValueMap::iterator i = values_.find(symbol);
 
     // if var is known -> return current var
@@ -33,8 +37,7 @@ LVar BB::getVar(const Symbol& symbol) {
         Param* param = topLambda_->appendParam();
         size_t index = in_.size();
         in_.push_back(param);
-        LVar lvar(param, symbol);
-        setVar(lvar);
+        Var* lvar = setVar(symbol, param);
         todos_[symbol] = index;
 
         return lvar;
@@ -44,10 +47,10 @@ LVar BB::getVar(const Symbol& symbol) {
     assert(preds().size() == 1);
 
     BB* pred = *preds().begin();
-    LVar lvar = pred->getVar(symbol);
-    setVar(lvar);
+    Var* lvar = pred->getVar(symbol);
 
-    return lvar;
+    // create copy of lvar in this BB
+    return setVar(lvar->symbol, lvar->def);
 }
 
 void BB::seal() {
@@ -55,8 +58,8 @@ void BB::seal() {
 
     sealed_ = true;
 
-    for_all (pred, preds_) {
-        for_all (p, todos_) {
+    for_all (p, todos_) {
+        for_all (pred, preds_) {
             const Symbol& symbol = p.first;
             size_t x = p.second;
             Defs& out = pred->out_;
@@ -65,7 +68,7 @@ void BB::seal() {
             out.resize(std::max(x + 1, out.size()));
 
             anydsl_assert(!pred->out_[x], "already set");
-            pred->out_[x] = getVar(symbol).load();
+            pred->out_[x] = pred->getVar(symbol)->def;
         }
     }
 }

@@ -1,5 +1,6 @@
 #include "impala/ast.h"
 
+#include "anydsl/cfg.h"
 #include "anydsl/util/cast.h"
 
 #include "impala/dump.h"

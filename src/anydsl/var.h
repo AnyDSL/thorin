@@ -4,6 +4,7 @@
 #include "anydsl/def.h"
 #include "anydsl/symbol.h"
 
+#if 0
 namespace anydsl {
 
 class Def;
@@ -44,7 +45,7 @@ class LVar : public Var {
 public:
 
     LVar() {}
-    LVar(const Def* def, const anydsl::Symbol symbol)
+    LVar(const anydsl::Symbol symbol, const Def* def)
         : Var(def)
         , symbol_(symbol)
     {}
@@ -61,3 +62,4 @@ private:
 } // namespace anydsl
 
 #endif // ANYDSL_VAR_H
+#endif

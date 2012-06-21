@@ -7,8 +7,8 @@
 
 namespace anydsl {
 
-BB::BB(Fct* fct, bool final, const std::string& debug /*= ""*/) 
-    : final_(final)
+BB::BB(Fct* fct, const std::string& debug /*= ""*/) 
+    : sealed_(false)
     , fct_(fct)
     , topLambda_(new Lambda())
     , curLambda_(topLambda_)
@@ -28,7 +28,7 @@ LVar BB::getVar(const Symbol& symbol) {
     if (i != values_.end())
         return i->second;
 
-    if (!final_ || preds_.size() > 1) {
+    if (!sealed_ || preds_.size() > 1) {
         // otherwise insert a 'phi', i.e., create a param and remember to fix the callers
         Param* param = topLambda_->appendParam();
         size_t index = in_.size();
@@ -50,10 +50,10 @@ LVar BB::getVar(const Symbol& symbol) {
     return lvar;
 }
 
-void BB::finalize() {
-    anydsl_assert(!final_, "already finalized");
+void BB::seal() {
+    anydsl_assert(!sealed(), "already finalized");
 
-    final_ = true;
+    sealed_ = true;
 
     for_all (pred, preds_) {
         for_all (p, todos_) {
@@ -97,6 +97,8 @@ void BB::fixto(BB* to) {
 
 void BB::flowsto(BB* to) {
     BBs::iterator i = succs_.find(to);
+    anydsl_assert(!to->sealed(), "'to' already sealed");
+
 
     if (i == succs_.end()) {
         succs_.insert(to);
@@ -118,8 +120,8 @@ Fct::Fct(const Symbol& symbol, const Pi* pi)
     , lambda_(pi->world().createLambda(pi))
 {}
 
-BB* Fct::createBB(bool final, const std::string& debug /*= ""*/) {
-    BB* bb = new BB(this, final, debug);
+BB* Fct::createBB(const std::string& debug /*= ""*/) {
+    BB* bb = new BB(this, debug);
     cfg_.insert(bb);
 
     return bb;

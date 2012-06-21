@@ -126,12 +126,13 @@ void ExprStmt::emit(CodeGen& cg) const {
 void IfElseStmt::emit(CodeGen& cg) const {
     static int id = 0;
 
+    // always create elseBB -- the edge from headBB to nextBB would be crtical anyway
+
     // create BBs
-    BB* headBB = cg.curFct->createBB(false, make_name("if-head", id));
-    BB* thenBB = cg.curFct->createBB(false, make_name("if-then", id));
-    BB* elseBB = elseStmt()->isEmpty() ? 0 : 
-                 cg.curFct->createBB(false, make_name("if-else", id));
-    BB* nextBB = cg.curFct->createBB(false, make_name("if-next", id));
+    BB* headBB = cg.curFct->createBB(make_name("if-head", id));
+    BB* thenBB = cg.curFct->createBB(make_name("if-then", id));
+    BB* elseBB = cg.curFct->createBB(make_name("if-else", id));
+    BB* nextBB = cg.curFct->createBB(make_name("if-next", id));
 
     // head
     cg.curBB->fixto(headBB);
@@ -139,25 +140,24 @@ void IfElseStmt::emit(CodeGen& cg) const {
 
     // condition
     Var cvar = cond()->emit(cg);
-    headBB->branches(cvar.load(), thenBB, elseBB ? elseBB : nextBB);
-    headBB->finalize();
-    thenBB->finalize();
+    headBB->branches(cvar.load(), thenBB, elseBB);
+    headBB->seal();
+    thenBB->seal();
+    elseBB->seal();
 
     // then
     cg.curBB = thenBB;
     thenStmt()->emit(cg);
+    cg.curBB->fixto(nextBB);
 
     // else
-    if (elseBB) {
-        cg.curBB->fixto(nextBB);
-        cg.curBB = elseBB;
-        elseBB->finalize();
-
-        elseStmt()->emit(cg);
-    }
-
+    cg.curBB = elseBB;
+    elseStmt()->emit(cg);
     cg.curBB->fixto(nextBB);
-    nextBB->finalize();
+
+    // next
+    cg.curBB = nextBB;
+    nextBB->seal();
 
     ++id;
 }
@@ -166,9 +166,9 @@ void WhileStmt::emit(CodeGen& cg) const {
     static int id = 0;
 
     // create BBs
-    BB* headBB = cg.curFct->createBB(false, make_name("while-head", id));
-    BB* bodyBB = cg.curFct->createBB(false, make_name("while-body", id));
-    BB* nextBB = cg.curFct->createBB(false, make_name("while-next", id));
+    BB* headBB = cg.curFct->createBB(make_name("while-head", id));
+    BB* bodyBB = cg.curFct->createBB(make_name("while-body", id));
+    BB* nextBB = cg.curFct->createBB(make_name("while-next", id));
 
     // head
     cg.curBB->fixto(headBB);
@@ -177,16 +177,17 @@ void WhileStmt::emit(CodeGen& cg) const {
     // condition
     Var cvar = cond()->emit(cg);
     headBB->branches(cvar.load(), bodyBB, nextBB);
-    bodyBB->finalize();
+    bodyBB->seal();
 
     // body
     cg.curBB = bodyBB;
     body()->emit(cg);
     cg.curBB->fixto(headBB);
-    headBB->finalize();
+    headBB->seal();
 
-    headBB->finalize();
+    // next
     cg.curBB = nextBB;
+    nextBB->seal();
 
     ++id;
 }

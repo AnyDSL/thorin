@@ -23,13 +23,13 @@ typedef boost::unordered_set<BB*> BBs;
 class BB {
 private:
 
-    BB(Fct* fct, bool final, const std::string& debug = "");
+    BB(Fct* fct, const std::string& debug = "");
 
 public:
 
     void setVar(const LVar& lvar);
     LVar getVar(const Symbol& symbol);
-    void finalize();
+    void seal();
 
     void goesto(BB* to);
     void branches(const Def* cond, BB* tbb, BB* fbb);
@@ -41,13 +41,13 @@ public:
     const Lambda* topLambda() const { return topLambda_; }
 
     World& world();
-    bool final() const { return final_; }
+    bool sealed() const { return sealed_; }
 
 private:
 
     void flowsto(BB* to);
 
-    bool final_;
+    bool sealed_;
 
     Fct* fct_;
 
@@ -76,7 +76,7 @@ public:
 
     Fct(const Symbol& symbol, const Pi* pi);
 
-    BB* createBB(bool final, const std::string& debug = "");
+    BB* createBB(const std::string& debug = "");
     const Pi* pi() const { return pi_; }
 
 private:

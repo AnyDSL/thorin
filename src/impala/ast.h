@@ -213,9 +213,9 @@ public:
 #include "impala/tokenlist.h"
     };
 
-    PrefixExpr(const anydsl::Position& pos1, Kind kind, const Expr* right);
+    PrefixExpr(const anydsl::Position& pos1, Kind kind, const Expr* bexpr);
 
-    const Expr* right() const { return args_[0]; }
+    const Expr* bexpr() const { return args_[0]; }
 
     Kind kind() const { return kind_; }
 
@@ -237,10 +237,10 @@ public:
 #include "impala/tokenlist.h"
     };
 
-    InfixExpr(const Expr* left, Kind kind, const Expr* right);
+    InfixExpr(const Expr* aexpr, Kind kind, const Expr* bexpr);
 
-    const Expr* left() const { return args_[0]; }
-    const Expr* right() const { return args_[1]; }
+    const Expr* aexpr() const { return args_[0]; }
+    const Expr* bexpr() const { return args_[1]; }
 
     Kind kind() const { return kind_; }
 
@@ -265,9 +265,9 @@ public:
         DEC = Token::DEC
     };
 
-    PostfixExpr(const Expr* left, Kind kind, const anydsl::Position& pos2);
+    PostfixExpr(const Expr* aexpr, Kind kind, const anydsl::Position& pos2);
 
-    const Expr* left() const { return args_[0]; }
+    const Expr* aexpr() const { return args_[0]; }
 
     Kind kind() const { return kind_; }
 

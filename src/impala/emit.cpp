@@ -57,7 +57,7 @@ Value Id::emit(CodeGen& cg) const {
 
 
 Value PrefixExpr::emit(CodeGen& cg) const {
-    Value val = right()->emit(cg);
+    Value val = bexpr()->emit(cg);
 
     const Def* def = val.load();
     const anydsl::PrimType* p = def->type()->as<anydsl::PrimType>();
@@ -103,8 +103,8 @@ static Value emitInfix(anydsl::World& world, TokenKind op, Value aval, Value bva
 }
 
 Value InfixExpr::emit(CodeGen& cg) const {
-    Value aval = left()->emit(cg);
-    Value bval = right()->emit(cg);
+    Value aval = aexpr()->emit(cg);
+    Value bval = bexpr()->emit(cg);
 
     return emitInfix(cg.world, (TokenKind) kind(), aval, bval);
 }

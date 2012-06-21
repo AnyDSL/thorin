@@ -165,7 +165,7 @@ void PrefixExpr::dump(Printer& p) const {
     p.o << op;
 
     p.prec = r;
-    right()->dump(p);
+    bexpr()->dump(p);
 
     p.prec = old;
 }
@@ -181,7 +181,7 @@ void InfixExpr::dump(Printer& p) const {
         p.o << '(';
 
     p.prec = l;
-    left()->dump(p);
+    aexpr()->dump(p);
 
     const char* op;
     switch (kind()) {
@@ -193,7 +193,7 @@ void InfixExpr::dump(Printer& p) const {
     p.o << ' ' << op << ' ';
 
     p.prec = r;
-    right()->dump(p);
+    bexpr()->dump(p);
 
     if (paren)
         p.o << ')';
@@ -211,7 +211,7 @@ void PostfixExpr::dump(Printer& p) const {
         p.o << '(';
 
     p.prec = l;
-    left()->dump(p);
+    aexpr()->dump(p);
 
     const char* op;
     switch (kind()) {

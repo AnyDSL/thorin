@@ -1,6 +1,7 @@
 #include "anydsl/cfg.h"
 
 #include "anydsl/lambda.h"
+#include "anydsl/literal.h"
 #include "anydsl/type.h"
 #include "anydsl/var.h"
 #include "anydsl/world.h"
@@ -34,7 +35,10 @@ Var* BB::getVar(const Symbol& symbol, const Type* type) {
 
     // value is undefined
     if (fct_ == this) {
+        std::cerr << "'" << symbol << "'" << " may be undefined" << std::endl;
+        return setVar(symbol, world().undef(type));
     }
+
 
     if (!sealed_ || preds_.size() > 1) {
         // otherwise insert a 'phi', i.e., create a param and remember to fix the callers

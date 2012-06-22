@@ -11,6 +11,8 @@
 
 using anydsl::BB;
 using anydsl::Def;
+using anydsl::FctParam;
+using anydsl::FctParams;
 using anydsl::Var;
 using anydsl::make_name;
 using anydsl::World;
@@ -20,9 +22,8 @@ namespace impala {
 class CodeGen {
 public:
 
-    BB* curBB;
+    anydsl::BB* curBB;
     anydsl::Fct* curFct;
-
     anydsl::World& world;
 };
 
@@ -34,6 +35,12 @@ void Prg::emit(CodeGen& cg) const {
 }
 
 void Fct::emit(CodeGen& cg) const {
+    FctParams fparams;
+
+    for_all (param, params())
+        fparams.push_back(FctParam(param->symbol(), param->type()->emit(cg.world)));
+
+    cg.curBB = cg.curFct = new anydsl::Fct(fparams, retType()->emit(cg.world), symbol().str());
 }
 
 Var* Decl::emit(CodeGen& cg) const {
@@ -53,9 +60,8 @@ Value Literal::emit(CodeGen& cg) const {
 }
 
 Value Id::emit(CodeGen& cg) const {
-    return Value(cg.curBB->getVar(symbol()));
+    return Value(cg.curBB->getVar(symbol(), type()->emit(cg.world)));
 }
-
 
 Value PrefixExpr::emit(CodeGen& cg) const {
     Value val = bexpr()->emit(cg);

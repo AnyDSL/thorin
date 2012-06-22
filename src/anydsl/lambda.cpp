@@ -9,11 +9,12 @@ namespace anydsl {
 
 Lambda::Lambda(const Pi* pi)
     : Def(Index_Lambda, pi, 1)
-    , final_(true)
+    , final_(false)
     , params_(pi->numOps())
 {
+    size_t i = 0;
     for_all (&param, params_)
-        param = new Param(this);
+        param = new Param(this, pi->get(i++));
 }
 
 Lambda::Lambda()
@@ -29,10 +30,10 @@ void Lambda::setJump(const Jump* jump) {
     setOp(0, jump); 
 }
 
-Param* Lambda::appendParam() {
+Param* Lambda::appendParam(const Type* type) {
     assert(!final_);
 
-    Param* param = new Param(this);
+    Param* param = new Param(this, type);
     params_.push_back(param);
 
     return param;

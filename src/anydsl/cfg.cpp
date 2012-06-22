@@ -25,20 +25,24 @@ Var* BB::setVar(const Symbol& symbol, const Def* def) {
     return lvar;
 }
 
-Var* BB::getVar(const Symbol& symbol) {
+Var* BB::getVar(const Symbol& symbol, const Type* type) {
     BB::ValueMap::iterator i = values_.find(symbol);
 
     // if var is known -> return current var
     if (i != values_.end())
         return i->second;
 
+    // value is undefined
+    if (fct_ == this) {
+    }
+
     if (!sealed_ || preds_.size() > 1) {
         // otherwise insert a 'phi', i.e., create a param and remember to fix the callers
-        Param* param = topLambda_->appendParam();
+        Param* param = topLambda_->appendParam(type);
         size_t index = in_.size();
         in_.push_back(param);
         Var* lvar = setVar(symbol, param);
-        todos_[symbol] = index;
+        todos_[symbol] = Todo(index, type);
 
         return lvar;
     }
@@ -47,7 +51,7 @@ Var* BB::getVar(const Symbol& symbol) {
     assert(preds().size() == 1);
 
     BB* pred = *preds().begin();
-    Var* lvar = pred->getVar(symbol);
+    Var* lvar = pred->getVar(symbol, type);
 
     // create copy of lvar in this BB
     return setVar(lvar->symbol, lvar->def);
@@ -61,14 +65,16 @@ void BB::seal() {
     for_all (p, todos_) {
         for_all (pred, preds_) {
             const Symbol& symbol = p.first;
-            size_t x = p.second;
+            size_t index = p.second.index;
+            const Type* type = p.second.type;
+
             Defs& out = pred->out_;
 
             // make potentially room for the new arg
-            out.resize(std::max(x + 1, out.size()));
+            out.resize(std::max(index + 1, out.size()));
 
-            anydsl_assert(!pred->out_[x], "already set");
-            pred->out_[x] = pred->getVar(symbol)->def;
+            anydsl_assert(!pred->out_[index], "already set");
+            pred->out_[index] = pred->getVar(symbol, type)->def;
         }
     }
 }
@@ -118,10 +124,26 @@ World& BB::world() {
 
 //------------------------------------------------------------------------------
 
-Fct::Fct(const Symbol& symbol, const Pi* pi)
-    : pi_(pi)
-    , lambda_(pi->world().createLambda(pi))
-{}
+Fct::Fct(const FctParams& fparams, const Type* retType, const std::string& debug /*= ""*/) 
+    : retType_(retType)
+{
+    sealed_ = true;
+    fct_ = this;
+    curLambda_ = topLambda_ = new Lambda();
+    topLambda_->debug = debug;
+
+    for_all (p, fparams)
+        setVar(p.symbol, topLambda_->appendParam(p.type));
+
+    if (retType)
+        setVar(Symbol("<return>"), world().pi(world().sigma1(retType)));
+
+#if 0
+    const anydsl::Pi* pi = cg.world.pi(
+            cg.world.sigma(argTypes.begin().base(), argTypes.end().base()));
+#endif
+}
+
 
 BB* Fct::createBB(const std::string& debug /*= ""*/) {
     BB* bb = new BB(this, debug);

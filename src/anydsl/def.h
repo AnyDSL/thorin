@@ -105,7 +105,7 @@ protected:
 class Param : public Def {
 private:
 
-    Param(Lambda* parent);
+    Param(Lambda* parent, const Type* type);
 
 public:
 

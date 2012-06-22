@@ -16,20 +16,17 @@ class Jump;
 typedef AutoVector<const Param*> Params;
 
 class Lambda : public Def {
-private:
-
-    Lambda(const Pi* pi);
-
 public:
 
     Lambda();
+    Lambda(const Pi* pi);
 
     bool final() const { return final_; }
     const Params& params() const { return params_; }
     const Jump* jump() const { return ops_[0]->as<Jump>(); }
     const Pi* pi() const;
 
-    Param* appendParam();
+    Param* appendParam(const Type* type);
 
     void setJump(const Jump* jump);
 

@@ -14,10 +14,35 @@ class Def;
 class Fct;
 class Lambda;
 class Pi;
+class Type;
 class World;
 
 typedef std::vector<const Def*> Defs;
 typedef boost::unordered_set<BB*> BBs;
+
+struct FctParam {
+    Symbol symbol;
+    const Type* type;
+
+    FctParam() {}
+    FctParam(const Symbol& symbol, const Type* type)
+        : symbol(symbol)
+        , type(type)
+    {}
+};
+
+struct Todo {
+    size_t index;
+    const Type* type;
+
+    Todo() {}
+    Todo(size_t index, const Type* type)
+        : index(index)
+        , type(type)
+    {}
+};
+
+typedef std::vector<FctParam> FctParams;
 
 struct Var {
     Symbol symbol;
@@ -34,11 +59,12 @@ class BB {
 private:
 
     BB(Fct* fct, const std::string& debug = "");
+    BB() {}
 
 public:
 
     Var* setVar(const Symbol& symbol, const Def* def);
-    Var* getVar(const Symbol& symbol);
+    Var* getVar(const Symbol& symbol, const Type* type);
     void seal();
 
     void goesto(BB* to);
@@ -75,25 +101,23 @@ private:
     typedef boost::unordered_map<Symbol, Var*> ValueMap;
     ValueMap values_;
 
-    typedef boost::unordered_map<Symbol, size_t> Todos;
+    typedef boost::unordered_map<Symbol, Todo> Todos;
     Todos todos_;
 
     friend class Fct;
 };
 
-class Fct {
+class Fct : public BB {
 public:
 
-    Fct(const Symbol& symbol, const Pi* pi);
+    Fct(const FctParams& fparams, const Type* retType, const std::string& debug = "");
 
     BB* createBB(const std::string& debug = "");
-    const Pi* pi() const { return pi_; }
 
 private:
 
-    const Pi* pi_;
-    const Lambda* lambda_;
     BBs cfg_;
+    const Type* retType_;
 };
 
 } // namespace anydsl

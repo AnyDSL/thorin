@@ -69,8 +69,8 @@ size_t Value::hash() const {
 
 //------------------------------------------------------------------------------
 
-Param::Param(Lambda* parent)
-    : Def(Index_Param, 0, 0)
+Param::Param(Lambda* parent, const Type* type)
+    : Def(Index_Param, type, 0)
     , parent_(parent)
 {}
 

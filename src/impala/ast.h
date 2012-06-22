@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include "anydsl/util/assert.h"
 #include "anydsl/util/autoptr.h"
 #include "anydsl/util/box.h"
 #include "anydsl/util/cast.h"
@@ -20,26 +21,22 @@ namespace impala {
 class Value {
 public:
 
-    enum Kind {
-        LVAL, RVAL
-    };
-
     Value(const anydsl::Def* def)
-        : kind_(RVAL)
+        : lvalue_(false)
         , def_(def)
     {}
     Value(anydsl::Var* var)
-        : kind_(LVAL)
+        : lvalue_(true)
         , var_(var)
     {}
 
     const anydsl::Def* load() const { return def_; }
-    void store(const anydsl::Def* def) { assert(kind_ == LVAL); def_ = def; }
-    Kind kind() const { return kind_; }
+    void store(const anydsl::Def* def) { anydsl_assert(lvalue_, "store to rvalue"); def_ = def; }
+    bool lvalue() const { return lvalue_; }
 
 private:
 
-    Kind kind_;
+    bool lvalue_;
 
     union {
         const anydsl::Def* def_;

@@ -287,7 +287,7 @@ void ForStmt::dump(Printer& p) const {
     cond()->dump(p);
     p.o << "; ";
 
-    inc()->dump(p);
+    step()->dump(p);
     p.o << ") ";
 
     p.dumpBlock(body());

@@ -391,14 +391,14 @@ public:
     ForStmt() {}
     virtual ~ForStmt();
 
-    void set(const anydsl::Position& pos1, const Expr* cond, const Expr* inc, const Stmt* body);
+    void set(const anydsl::Position& pos1, const Expr* cond, const Expr* step, const Stmt* body);
     void set(const DeclStmt* d) { initDecl_ = d; isDecl_ = true; }
     void set(const ExprStmt* e) { initExpr_ = e; isDecl_ = false; }
 
     const DeclStmt* initDecl() const { return initDecl_; }
     const ExprStmt* initExpr() const { return initExpr_; }
     const Stmt* init() const { return isDecl_ ? (const Stmt*) initDecl_ : (const Stmt*) initExpr_; }
-    const Expr* inc() const { return inc_; }
+    const Expr* step() const { return step_; }
 
     bool isDecl() const { return isDecl_; }
 
@@ -413,7 +413,7 @@ private:
         const ExprStmt* initExpr_;
     };
 
-    anydsl::AutoPtr<const Expr> inc_;
+    anydsl::AutoPtr<const Expr> step_;
     bool isDecl_;
 };
 

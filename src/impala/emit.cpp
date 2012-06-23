@@ -41,6 +41,8 @@ void Fct::emit(CodeGen& cg) const {
         fparams.push_back(FctParam(param->symbol(), param->type()->emit(cg.world)));
 
     cg.curBB = cg.curFct = new anydsl::Fct(fparams, retType()->emit(cg.world), symbol().str());
+
+    body()->emit(cg);
 }
 
 Var* Decl::emit(CodeGen& cg) const {
@@ -65,7 +67,6 @@ Value Id::emit(CodeGen& cg) const {
 
 Value PrefixExpr::emit(CodeGen& cg) const {
     Value val = bexpr()->emit(cg);
-
     const Def* def = val.load();
     const anydsl::PrimType* p = def->type()->as<anydsl::PrimType>();
 
@@ -117,7 +118,15 @@ Value InfixExpr::emit(CodeGen& cg) const {
 }
 
 Value PostfixExpr::emit(CodeGen& cg) const {
-    return Value((const Def*) 0);
+    Value val = aexpr()->emit(cg);
+    const Def* def = val.load();
+    const anydsl::PrimType* p = def->type()->as<anydsl::PrimType>();
+
+    const anydsl::PrimLit* one = cg.world.literal(p->kind(), 1u);
+    const Def* ndef = cg.world.createArithOp(Token::toArithOp((TokenKind) kind()), def, one);
+    val.store(ndef);
+
+    return Value(def);
 }
 
 /*
@@ -212,10 +221,42 @@ void DoWhileStmt::emit(CodeGen& cg) const {
 }
 
 void ForStmt::emit(CodeGen& cg) const {
+    static int id = 0;
+
     init()->emit(cg);
-    cond()->emit(cg);
-    inc()->emit(cg);
+
+    // create BBs
+    BB* headBB = cg.curFct->createBB(make_name("for-head", id));
+    BB* bodyBB = cg.curFct->createBB(make_name("for-body", id));
+    BB* stepBB = cg.curFct->createBB(make_name("for-step", id));
+    BB* nextBB = cg.curFct->createBB(make_name("for-next", id));
+
+    // head
+    cg.curBB->fixto(headBB);
+    cg.curBB = headBB;
+
+    // condition
+    const Def* cvar = cond()->emit(cg).load();
+    headBB->branches(cvar, bodyBB, nextBB);
+    bodyBB->seal();
+
+    // body
+    cg.curBB = bodyBB;
     body()->emit(cg);
+    cg.curBB->fixto(stepBB);
+    stepBB->seal();
+
+    // step
+    cg.curBB = stepBB;
+    step()->emit(cg);
+    cg.curBB->fixto(headBB);
+    headBB->seal();
+
+    // next
+    cg.curBB = nextBB;
+    nextBB->seal();
+
+    ++id;
 }
 
 void BreakStmt::emit(CodeGen& cg) const {

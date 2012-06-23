@@ -339,7 +339,7 @@ void DoWhileStmt::check(Sema& sema) const {
 void ForStmt::check(Sema& sema) const {
     init()->check(sema);
     checkCond(sema, cond());
-    inc()->check(sema);
+    step()->check(sema);
     body()->check(sema);
 }
 

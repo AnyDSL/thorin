@@ -39,9 +39,8 @@ Var* BB::getVar(const Symbol& symbol, const Type* type) {
         return setVar(symbol, world().undef(type));
     }
 
-
+    // otherwise insert a 'phi', i.e., create a param and remember to fix the callers
     if (!sealed_ || preds_.size() > 1) {
-        // otherwise insert a 'phi', i.e., create a param and remember to fix the callers
         Param* param = topLambda_->appendParam(type);
         size_t index = in_.size();
         in_.push_back(param);
@@ -75,7 +74,8 @@ void BB::seal() {
             Defs& out = pred->out_;
 
             // make potentially room for the new arg
-            out.resize(std::max(index + 1, out.size()));
+            if (index >= out.size())
+                out.resize(index + 1);
 
             anydsl_assert(!pred->out_[index], "already set");
             pred->out_[index] = pred->getVar(symbol, type)->def;

@@ -111,9 +111,9 @@ ForStmt::~ForStmt() {
         delete initExpr_;
 }
 
-void ForStmt::set(const Position& pos1, const Expr* cond, const Expr* inc, const Stmt* body) {
+void ForStmt::set(const Position& pos1, const Expr* cond, const Expr* step, const Stmt* body) {
     Loop::set(cond, body);
-    inc_ = inc;
+    step_ = step;
     setLoc(pos1, body->pos2());
 }
 

@@ -24,7 +24,6 @@ Def::~Def() {
     delete[] ops_;
 }
 
-
 void Def::registerUse(const Def* use) const {
     uses_.insert(use);
 }

@@ -68,7 +68,7 @@ World::~World() {
     for_all (lambda, lambdas_)     delete lambda;
 
     cleanup();
-    anydsl_assert(values_.empty(), "cleanup should catch everything");
+    //anydsl_assert(values_.empty(), "cleanup should catch everything");
 }
 
 /*

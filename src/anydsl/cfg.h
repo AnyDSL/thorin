@@ -79,6 +79,8 @@ public:
     World& world();
     bool sealed() const { return sealed_; }
 
+    void emit();
+
 private:
 
     void flowsto(BB* to);
@@ -113,6 +115,7 @@ public:
     Fct(const FctParams& fparams, const Type* retType, const std::string& debug = "");
 
     BB* createBB(const std::string& debug = "");
+    void emit();
 
 private:
 

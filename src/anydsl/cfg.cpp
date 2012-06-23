@@ -126,6 +126,9 @@ World& BB::world() {
     return topLambda_->world();
 }
 
+void BB::emit() {
+}
+
 //------------------------------------------------------------------------------
 
 Fct::Fct(const FctParams& fparams, const Type* retType, const std::string& debug /*= ""*/) 
@@ -154,6 +157,11 @@ BB* Fct::createBB(const std::string& debug /*= ""*/) {
     cfg_.insert(bb);
 
     return bb;
+}
+
+void Fct::emit() {
+    for_all (bb, cfg_)
+        bb->emit();
 }
 
 } // namespace anydsl

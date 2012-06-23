@@ -22,10 +22,21 @@ namespace impala {
 class CodeGen {
 public:
 
+    CodeGen(anydsl::World& world)
+        : world(world)
+    {}
+
     anydsl::BB* curBB;
     anydsl::Fct* curFct;
     anydsl::World& world;
 };
+
+//------------------------------------------------------------------------------
+
+void emit(anydsl::World& world, const Prg* prg) {
+    CodeGen cg(world);
+    prg->emit(cg);
+}
 
 //------------------------------------------------------------------------------
 
@@ -43,6 +54,8 @@ void Fct::emit(CodeGen& cg) const {
     cg.curBB = cg.curFct = new anydsl::Fct(fparams, retType()->emit(cg.world), symbol().str());
 
     body()->emit(cg);
+
+    cg.curFct->emit();
 }
 
 Var* Decl::emit(CodeGen& cg) const {

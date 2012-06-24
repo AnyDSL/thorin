@@ -1,6 +1,7 @@
 #include "anydsl/symbol.h"
 
 #include <iomanip>
+#include <sstream>
 
 #include "anydsl/util/for_all.h"
 

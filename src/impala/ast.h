@@ -31,7 +31,7 @@ public:
     {}
 
     const anydsl::Def* load() const;
-    void store(const anydsl::Def* def) { anydsl_assert(lvalue_, "store to rvalue"); def_ = def; }
+    void store(const anydsl::Def* def);
     bool lvalue() const { return lvalue_; }
 
 private:

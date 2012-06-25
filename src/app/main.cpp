@@ -33,12 +33,6 @@ typedef vector<string> Names;
 
 //------------------------------------------------------------------------------
 
-enum EmitType {
-    None,
-    AIR,
-    LLVM,
-};
-
 int main(int argc, char** argv) {
     try {
         if (argc < 1)
@@ -48,19 +42,16 @@ int main(int argc, char** argv) {
         Names infiles;
         string outfile = "-";
         string emittype;
-        EmitType destinationType = None;
-        bool help, fancy, run, notc, debug, tracing = false;
+        bool help, emit_air, emit_ast, emit_dot, fancy = false;
 
         // specify options
         po::options_description desc("Usage: " + prgname + " [options] file...");
         desc.add_options()
-        ("help,h",      po::bool_switch(&help), "produce this help message")
-        ("emit,e",      po::value<string>(&emittype),   "emit code, arg={air|llvm}")
-        ("fancy,f",     po::bool_switch(&fancy), "use fancy air output")
-        ("run,r",       po::bool_switch(&run),  "run program")
-        ("notc",        po::bool_switch(&notc),  "no typechecks during execution")
-        ("debug,d",     po::bool_switch(&debug), "print debug information during execution")
-        ("trace,t",     po::bool_switch(&tracing), "print tracing information during execution")
+        ("help,h",      po::bool_switch(&help),     "produce this help message")
+        ("emit-air",    po::bool_switch(&emit_air), "emit textual AIR representation of impala program")
+        ("emit-ast",    po::bool_switch(&emit_ast), "emit AST of impala program")
+        ("emit-dot",    po::bool_switch(&emit_dot), "emit dot, arg={air|llvm}")
+        ("fancy,f",     po::bool_switch(&fancy),    "use fancy output")
         ("outfile,o",   po::value(&outfile)->default_value("-"), "specifies output file")
         ("infile,i",    po::value(&infiles),    "input file");
 
@@ -76,15 +67,6 @@ int main(int argc, char** argv) {
 
         po::store(clp.run(), vm);
         po::notify(vm);
-
-        if (!emittype.empty()) {
-            if (emittype == "air")
-                destinationType = AIR;
-            else if (emittype == "llvm")
-                ANYDSL_NOT_IMPLEMENTED;
-            else
-                throw logic_error("invalid emit type: " + emittype);
-        }
 
         if (infiles.empty() && !help)
             throw po::invalid_syntax("infile", po::invalid_syntax::missing_parameter);
@@ -102,17 +84,18 @@ int main(int argc, char** argv) {
         //ostream& out = ofs.is_open() ? ofs : cout;
 
 
-        if (debug) { 
-            ANYDSL_NOT_IMPLEMENTED;
-        }
-
         const char* filename = infiles[0].c_str();
         ifstream file(filename);
         impala::init();
         impala::TypeTable types;
         anydsl::AutoPtr<const impala::Prg> p(impala::parse(types, file, filename));
-        dump(p, true);
         check(types, p);
+
+        if (emit_ast)
+            dump(p, fancy);
+        if (emit_dot)
+            ANYDSL_NOT_IMPLEMENTED;
+
         World w;
         Lambda* l = new Lambda();
         Param* pa = l->appendParam(w.type_u32());
@@ -136,17 +119,6 @@ int main(int argc, char** argv) {
         emit(w, p);
         impala::destroy();
         
-        //Emit the results
-        switch (destinationType) {
-            case None:
-                break;
-            case AIR:
-                ANYDSL_NOT_IMPLEMENTED;
-                break;
-            case LLVM:
-                ANYDSL_NOT_IMPLEMENTED;
-                break;
-        }
         return EXIT_SUCCESS;
     } catch (exception const& e) {
         cerr << e.what() << endl;

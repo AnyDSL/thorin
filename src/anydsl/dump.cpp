@@ -26,21 +26,53 @@ struct get_clean_type<const T&> {typedef T type; };
 
 namespace anydsl {
 
-class Dumper {
+class Printer {
 public:
 
-    Dumper(std::ostream& o)
+    Printer(std::ostream& o)
         : o(o)
     {}
 
     void dump(const AIRNode* n);
     void dump(const CompoundType* ct, const char* str);
     void dumpBinOp(const std::string& str, const AIRNode* n);
+    void dumpName(const AIRNode* n);
+
+    void newline();
+    void up();
+    void down();
 
     std::ostream& o;
+
+private:
+
+    bool fancy_;
+    int indent_;
 };
 
-void Dumper::dumpBinOp(const std::string& str, const AIRNode* n) {
+void Printer::newline() {
+    o << '\n';
+    for (int i = 0; i < indent_; ++i)
+        o << "    ";
+}
+
+void Printer::up() {
+    ++indent_;
+    newline();
+}
+
+void Printer::down() {
+    --indent_;
+    newline();
+}
+
+void Printer::dumpName(const AIRNode* n) {
+    o << n;
+    if (!n->debug.empty())
+        o << '[' << n->debug << ']';
+}
+
+void Printer::dumpBinOp(const std::string& str, const AIRNode* n) {
     const BinOp* b = n->as<BinOp>();
     o << str << "("; 
     dump(b->ldef());
@@ -50,14 +82,14 @@ void Dumper::dumpBinOp(const std::string& str, const AIRNode* n) {
     return;
 }
 
-void Dumper::dump(const CompoundType* ct, const char* str) {
+void Printer::dump(const CompoundType* ct, const char* str) {
     o << str << '(';
     ANYDSL_DUMP_COMMA_LIST(ct->ops());
     o << ')';
     return;
 }
 
-void Dumper::dump(const AIRNode* n) {
+void Printer::dump(const AIRNode* n) {
     std::string str;
 
     switch (n->index()) {
@@ -130,9 +162,7 @@ void Dumper::dump(const AIRNode* n) {
  * Param
  */
         case Index_Param:
-            o << n;
-            if (!n->debug.empty())
-                o << '[' << n->debug << ']';
+            dumpName(n);
             return;
 
 /*
@@ -142,10 +172,13 @@ void Dumper::dump(const AIRNode* n) {
             const Lambda* lambda = n->as<Lambda>();
             const Params& params = lambda->params();
 
-            o << "lambda(";
+            dumpName(lambda);
+            o << " = lambda(";
             ANYDSL_DUMP_COMMA_LIST(params);
             o << ')';
+            up();
             dump(lambda->jump());
+            down();
             return;
         }
 
@@ -156,7 +189,7 @@ void Dumper::dump(const AIRNode* n) {
 //------------------------------------------------------------------------------
 
 void dump(const AIRNode* n, std::ostream& o /*= std::cout*/) {
-    Dumper p(o);
+    Printer p(o);
     p.dump(n);
 }
 

@@ -19,7 +19,7 @@ protected:
 public:
 
     IndexKind index() const { return index_; }
-    void dump();
+    void dump() const;
 
     ANYDSL_MIXIN_AS_ISA
 

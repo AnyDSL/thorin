@@ -27,8 +27,8 @@ public:
         Args(const Jump& jump) : jump(jump) {}
 
         const_iterator begin() const { return jump.ops_ + 1; }
-        const_iterator end() const { return jump.ops_ + size(); }
-        const_reverse_iterator rbegin() const { return const_reverse_iterator(jump.ops_ + size()); }
+        const_iterator end() const { return jump.ops_ + 1 + size(); }
+        const_reverse_iterator rbegin() const { return const_reverse_iterator(jump.ops_ + 1 + size()); }
         const_reverse_iterator rend() const { return const_reverse_iterator(jump.ops_ + 1); }
 
         const Def* const& operator [] (size_t i) const {
@@ -40,7 +40,7 @@ public:
         bool empty() const { return jump.numOps() == 1; }
 
         const Def*& front() const { return *(jump.ops_ + 1); }
-        const Def*& back() const { return *(jump.ops_ + size() - 1); }
+        const Def*& back() const { return *(jump.ops_ + 1 + size() - 1); }
 
         const Jump& jump;
     };

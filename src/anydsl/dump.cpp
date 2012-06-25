@@ -132,7 +132,7 @@ void Printer::dump(const AIRNode* n, bool goInsideLambda /*= false*/) {
 #include "anydsl/tables/convoptable.h"
         ANYDSL_NOT_IMPLEMENTED;
 
-        case Index_Proj:
+        case Index_Extract:
             ANYDSL_NOT_IMPLEMENTED;
 
         case Index_Insert:

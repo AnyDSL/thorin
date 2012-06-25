@@ -20,8 +20,8 @@ Select::Select(const Def* cond, const Def* t, const Def* f)
     anydsl_assert(t->type() == f->type(), "types of both values must be equal");
 }
 
-Proj::Proj(const Def* tuple, const PrimLit* elem) 
-    : PrimOp(Index_Proj, tuple->type()->as<Sigma>()->get(elem), 2)
+Extract::Extract(const Def* tuple, const PrimLit* elem) 
+    : PrimOp(Index_Extract, tuple->type()->as<Sigma>()->get(elem), 2)
 {
     setOp(0, tuple);
     setOp(1, elem);

@@ -169,9 +169,9 @@ const Value* World::createRelOp(RelOpKind kind, const Def* ldef, const Def* rdef
     return find(new RelOp(kind, ldef, rdef));
 }
 
-const Value* World::createProj(const Def* tuple, const PrimLit* i) {
+const Value* World::createExtract(const Def* tuple, const PrimLit* i) {
     // TODO folding
-    return find(new Proj(tuple, i));
+    return find(new Extract(tuple, i));
 }
 
 const Value* World::createInsert(const Def* tuple, const PrimLit* i, const Def* value) {

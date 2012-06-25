@@ -93,10 +93,10 @@ public:
 
 //------------------------------------------------------------------------------
 
-class Proj : public PrimOp {
+class Extract : public PrimOp {
 private:
 
-    Proj(const Def* tuple, const PrimLit* elem);
+    Extract(const Def* tuple, const PrimLit* elem);
     
     const Def* tuple() const { return ops_[0]; }
     const Def* elem()  const { return ops_[1]; }

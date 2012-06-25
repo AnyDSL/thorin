@@ -189,7 +189,7 @@ public:
 
     const Value* createArithOp(ArithOpKind kind, const Def* ldef, const Def* rdef);
     const Value* createRelOp(RelOpKind kind, const Def* ldef, const Def* rdef);
-    const Value* createProj(const Def* tuple, const PrimLit* i);
+    const Value* createExtract(const Def* tuple, const PrimLit* i);
     const Value* createInsert(const Def* tuple, const PrimLit* i, const Def* value);
     const Value* createSelect(const Def* cond, const Def* tdef, const Def* fdef);
     const Value* createTuple(const Def* const* begin, const Def* const* end);

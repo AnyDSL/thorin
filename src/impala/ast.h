@@ -477,6 +477,7 @@ public:
     const Stmts& stmts() const { return stmts_; }
     bool empty() const { return stmts_.empty(); }
 
+    virtual bool isEmpty() const { return stmts_.empty(); }
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
     virtual void emit(CodeGen& cg) const;

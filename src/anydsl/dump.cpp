@@ -31,7 +31,10 @@ public:
 
     Printer(std::ostream& o)
         : o(o)
+        , fancy_(false)
     {}
+
+    bool fancy() const { return fancy_; }
 
     void dump(const AIRNode* n, bool goInsideLambda = false);
     void dump(const CompoundType* ct, const char* str);
@@ -67,9 +70,28 @@ void Printer::down() {
 }
 
 void Printer::dumpName(const AIRNode* n) {
+    if (fancy()) {
+        unsigned i = uintptr_t(n);
+        unsigned sum = 0;
+
+        while (i) {
+            sum += i & 0x3;
+            i >>= 2;
+        }
+
+        sum += i;
+
+        // elide white = 0 and black = 7
+        int code = (sum % 6) + 30 + 1;
+        o << "\e[" << code << "m";
+    }
+
     o << n;
     if (!n->debug.empty())
-        o << '[' << n->debug << ']';
+        o << "_[" << n->debug << ']';
+
+    if (fancy())
+        o << "\e[m";
 }
 
 void Printer::dumpBinOp(const std::string& str, const AIRNode* n) {

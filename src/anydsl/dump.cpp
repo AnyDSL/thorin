@@ -132,12 +132,26 @@ void Printer::dump(const AIRNode* n, bool goInsideLambda /*= false*/) {
 #include "anydsl/tables/convoptable.h"
         ANYDSL_NOT_IMPLEMENTED;
 
-        case Index_Extract:
-            ANYDSL_NOT_IMPLEMENTED;
-
-        case Index_Insert:
-            ANYDSL_NOT_IMPLEMENTED;
-
+        case Index_Extract: {
+            const Extract* extract = n->as<Extract>();
+            o << "extract(";
+            dump(extract->tuple());
+            o << ", ";
+            dump(extract->elem());
+            o << ')';
+            return;
+        }
+        case Index_Insert: {
+            const Insert* insert = n->as<Insert>();
+            o << "insert(";
+            dump(insert->tuple());
+            o << ", ";
+            dump(insert->elem());
+            o << ", ";
+            dump(insert->value());
+            o << ')';
+            return;
+        }
         case Index_Select: {
             const Select* select = n->as<Select>();
             o << "select(";
@@ -149,7 +163,6 @@ void Printer::dump(const AIRNode* n, bool goInsideLambda /*= false*/) {
             o << ')';
             return;
         }
-
         case Index_Jump: {
             const Jump* jump = n->as<Jump>();
             o << "jump(";
@@ -159,10 +172,13 @@ void Printer::dump(const AIRNode* n, bool goInsideLambda /*= false*/) {
             o << "])";
             return;
         }
-
-        case Index_Tuple:
-            ANYDSL_NOT_IMPLEMENTED;
-
+        case Index_Tuple: {
+            const Tuple* tuple = n->as<Tuple>();
+            o << '{';
+            ANYDSL_DUMP_COMMA_LIST(tuple->ops());
+            o << '}';
+            return;
+        }
         case Index_NoRet: {
             const NoRet* noret = n->as<NoRet>();
             dump(noret->pi());
@@ -196,8 +212,6 @@ void Printer::dump(const AIRNode* n, bool goInsideLambda /*= false*/) {
                 dumpName(n);
                 return;
             }
-
-        //default: ANYDSL_NOT_IMPLEMENTED;
     }
 }
 

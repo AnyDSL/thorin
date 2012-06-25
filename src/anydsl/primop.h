@@ -98,6 +98,8 @@ private:
 
     Extract(const Def* tuple, const PrimLit* elem);
     
+public:
+
     const Def* tuple() const { return ops_[0]; }
     const Def* elem()  const { return ops_[1]; }
 
@@ -111,6 +113,8 @@ private:
 
     Insert(const Def* tuple, const PrimLit* elem, const Def* value);
     
+public:
+
     const Def* tuple() const { return ops_[0]; }
     const Def* elem()  const { return ops_[1]; }
     const Def* value() const { return ops_[2]; }

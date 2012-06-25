@@ -112,15 +112,17 @@ private:
 class Fct : public BB {
 public:
 
-    Fct(const FctParams& fparams, const Type* retType, const std::string& debug = "");
+    Fct(World& world, const FctParams& fparams, const Type* retType, const std::string& debug = "");
 
     BB* createBB(const std::string& debug = "");
     void emit();
+    World& world() { return world_; }
 
 private:
 
     BBs cfg_;
     const Type* retType_;
+    World& world_;
 };
 
 } // namespace anydsl

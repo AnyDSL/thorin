@@ -30,7 +30,7 @@ public:
         , var_(var)
     {}
 
-    const anydsl::Def* load() const { return def_; }
+    const anydsl::Def* load() const;
     void store(const anydsl::Def* def) { anydsl_assert(lvalue_, "store to rvalue"); def_ = def; }
     bool lvalue() const { return lvalue_; }
 

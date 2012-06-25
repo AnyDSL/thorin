@@ -96,7 +96,7 @@ void BB::branches(const Def* cond, BB* tbb, BB* fbb) {
     assert(tbb);
     assert(fbb);
 
-    to_ = world().createSelect(cond, tbb->topLambda(), fbb->topLambda());
+    //to_ = world().createSelect(cond, tbb->topLambda(), fbb->topLambda());
     this->flowsto(tbb);
     this->flowsto(fbb);
 
@@ -123,7 +123,7 @@ void BB::flowsto(BB* to) {
 }
 
 World& BB::world() {
-    return topLambda_->world();
+    return fct_->world();
 }
 
 void BB::emit() {
@@ -131,8 +131,9 @@ void BB::emit() {
 
 //------------------------------------------------------------------------------
 
-Fct::Fct(const FctParams& fparams, const Type* retType, const std::string& debug /*= ""*/) 
+Fct::Fct(World& world, const FctParams& fparams, const Type* retType, const std::string& debug /*= ""*/) 
     : retType_(retType)
+    , world_(world)
 {
     sealed_ = true;
     fct_ = this;
@@ -143,7 +144,7 @@ Fct::Fct(const FctParams& fparams, const Type* retType, const std::string& debug
         setVar(p.symbol, topLambda_->appendParam(p.type));
 
     if (retType)
-        setVar(Symbol("<return>"), world().pi(world().sigma1(retType)));
+        setVar(Symbol("<return>"), world.pi(world.sigma1(retType)));
 
 #if 0
     const anydsl::Pi* pi = cg.world.pi(

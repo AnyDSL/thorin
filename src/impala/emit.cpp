@@ -51,7 +51,7 @@ void Fct::emit(CodeGen& cg) const {
     for_all (param, params())
         fparams.push_back(FctParam(param->symbol(), param->type()->emit(cg.world)));
 
-    cg.curBB = cg.curFct = new anydsl::Fct(fparams, retType()->emit(cg.world), symbol().str());
+    cg.curBB = cg.curFct = new anydsl::Fct(cg.world, fparams, retType()->emit(cg.world), symbol().str());
 
     body()->emit(cg);
 
@@ -71,7 +71,16 @@ Value EmptyExpr::emit(CodeGen& cg) const {
 }
 
 Value Literal::emit(CodeGen& cg) const {
-    return Value(cg.world.literal((anydsl::PrimLitKind) kind(), value()));
+    anydsl::PrimLitKind akind;
+
+    switch (kind()) {
+#define IMPALA_LIT(itype, atype) \
+        case LIT_##itype: akind = anydsl::PrimLit_##atype; break;
+#include "impala/tokenlist.h"
+        case LIT_bool: akind = anydsl::PrimLit_u1; break;
+    }
+
+    return Value(cg.world.literal(akind, value()));
 }
 
 Value Id::emit(CodeGen& cg) const {
@@ -114,10 +123,10 @@ static Value emitInfix(anydsl::World& world, TokenKind op, Value aval, Value bva
         aval.store(bval.load());
 
         return aval;
-
-        if (Token::isArith(op))
-            return world.createArithOp(Token::toArithOp(op), aval.load(), bval.load());
     }
+
+    if (Token::isArith(op))
+        return world.createArithOp(Token::toArithOp(op), aval.load(), bval.load());
 
     anydsl_assert(Token::isRel(op), "must be a relop");
     return world.createRelOp(Token::toRelOp(op), aval.load(), bval.load());
@@ -165,19 +174,13 @@ void IfElseStmt::emit(CodeGen& cg) const {
     // always create elseBB -- the edge from headBB to nextBB would be crtical anyway
 
     // create BBs
-    BB* headBB = cg.curFct->createBB(make_name("if-head", id));
     BB* thenBB = cg.curFct->createBB(make_name("if-then", id));
     BB* elseBB = cg.curFct->createBB(make_name("if-else", id));
     BB* nextBB = cg.curFct->createBB(make_name("if-next", id));
 
-    // head
-    cg.curBB->fixto(headBB);
-    cg.curBB = headBB;
-
     // condition
     const Def* cvar = cond()->emit(cg).load();
-    headBB->branches(cvar, thenBB, elseBB);
-    headBB->seal();
+    cg.curBB->branches(cvar, thenBB, elseBB);
     thenBB->seal();
     elseBB->seal();
 

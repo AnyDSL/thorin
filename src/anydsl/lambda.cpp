@@ -8,7 +8,7 @@
 namespace anydsl {
 
 Lambda::Lambda(const Pi* pi)
-    : Def(Index_Lambda, pi, 1)
+    : Value(Index_Lambda, pi, 1)
     , final_(false)
     , params_(pi->numOps())
 {
@@ -18,7 +18,7 @@ Lambda::Lambda(const Pi* pi)
 }
 
 Lambda::Lambda()
-    : Def(Index_Lambda, 0, 1)
+    : Value(Index_Lambda, 0, 1)
     , final_(false)
 {}
 

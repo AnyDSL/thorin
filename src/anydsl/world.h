@@ -176,11 +176,13 @@ public:
      * create
      */
 
-    Lambda* createLambda(const Pi* type = 0);
     const Jump* createJump(const Def* to, const Def* const* arg_begin, const Def* const* arg_end);
     const Jump* createJump(const Def* to) { 
         return (Jump*) createJump(to, 0, 0); 
     }
+    template<size_t N>
+    const Jump* createJump(const Def* to, const Def* const (&array)[N]) { return createJump(to, array, array + N); }
+
     const Jump* createBranch(const Def* cond, const Def* tto, const Def* fto);
     const Jump* createBranch(const Def* cond, const Def* tto, const Def* fto, 
                              const Def* const* arg_begin, const Def* const* arg_end);
@@ -194,6 +196,8 @@ public:
     template<size_t N>
     const Value* createTuple(const Def* const (&array)[N]) { return createTuple(array, array + N); }
 
+    const Lambda* finalize(const Lambda* lambda);
+
     void cleanup();
 
 private:
@@ -202,7 +206,7 @@ private:
     const Value* findValue(const Value* value);
 
     template<class T> 
-    T* find(T* val) { return (T*) findValue(val); }
+    const T* find(const T* val) { return (T*) findValue(val); }
 
 
     const Value* tryFold(IndexKind kind, const Def* ldef, const Def* rdef);

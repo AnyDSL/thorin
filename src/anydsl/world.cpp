@@ -1,6 +1,7 @@
 #include "anydsl/world.h"
 
 #include "anydsl/primop.h"
+#include "anydsl/lambda.h"
 #include "anydsl/literal.h"
 #include "anydsl/type.h"
 #include "anydsl/jump.h"
@@ -124,12 +125,6 @@ const Value* World::createTuple(const Def* const* begin, const Def* const* end) 
     return find(new Tuple(*this, begin, end));
 }
 
-Lambda* World::createLambda(const Pi* pi) {
-    Lambda* lambda = new Lambda(pi);
-    lambdas_.insert(lambda);
-    return lambda;
-}
-
 const Value* World::tryFold(IndexKind kind, const Def* ldef, const Def* rdef) {
     FoldValue a(ldef->type()->as<PrimType>()->kind());
     FoldValue b(a.type);
@@ -189,6 +184,12 @@ const Value* World::createSelect(const Def* cond, const Def* tdef, const Def* fd
     return find(new Select(cond, tdef, fdef));
 }
 
+const Lambda* World::finalize(const Lambda* lambda) {
+    anydsl_assert(lambda->type(), "must be set");
+    anydsl_assert(lambda->jump(), "must be set");
+    return find<Lambda>(lambda);
+}
+
 void World::cleanup() {
     // TODO
 }
@@ -204,6 +205,5 @@ const Value* World::findValue(const Value* value) {
 
     return value;
 }
-
 
 } // namespace anydsl

@@ -1,7 +1,7 @@
 #ifndef ANYDSL_DUMP_H
 #define ANYDSL_DUMP_H
 
-#include <ostream>
+#include <iostream>
 
 namespace anydsl {
 

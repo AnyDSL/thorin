@@ -1,10 +1,28 @@
-//#include "anydsl/dump.h"
+#include "anydsl/dump.h"
+
+#include <boost/typeof/typeof.hpp>
 
 #include "anydsl/airnode.h"
+#include "anydsl/lambda.h"
 #include "anydsl/literal.h"
 #include "anydsl/primop.h"
 #include "anydsl/type.h"
 #include "anydsl/util/for_all.h"
+
+template<class T>
+struct get_clean_type { typedef T type; } ;
+
+template<class T>
+struct get_clean_type<const T&> {typedef T type; };
+
+#define ANYDSL_DUMP_COMMA_LIST(list) \
+    if (!(list).empty()) { \
+        for (get_clean_type<BOOST_TYPEOF((list))>::type::const_iterator i = (list).begin(), e = (list).end() - 1; i != e; ++i) { \
+            dump(*i); \
+            o << ", "; \
+        } \
+        dump((list).back()); \
+    }
 
 namespace anydsl {
 
@@ -34,16 +52,7 @@ void Dumper::dumpBinOp(const std::string& str, const AIRNode* n) {
 
 void Dumper::dump(const CompoundType* ct, const char* str) {
     o << str << '(';
-
-    if (!ct->ops().empty()) {
-        for (CompoundType::Ops::const_iterator i = ct->ops().begin(), e = ct->ops().end() - 1; i != e; ++i) {
-            dump(*i);
-            o << ", ";
-        }
-
-        dump(ct->ops().back());
-    }
-
+    ANYDSL_DUMP_COMMA_LIST(ct->ops());
     o << ')';
     return;
 }
@@ -100,8 +109,13 @@ void Dumper::dump(const AIRNode* n) {
         case Index_Select:
             ANYDSL_NOT_IMPLEMENTED;
 
-        case Index_Jump:
-            ANYDSL_NOT_IMPLEMENTED;
+        case Index_Jump: {
+            const Jump* jump = n->as<Jump>();
+            o << jump->to() << '(';
+            ANYDSL_DUMP_COMMA_LIST(jump->args());
+            o << ')';
+            return;
+        }
 
         case Index_Tuple:
             ANYDSL_NOT_IMPLEMENTED;
@@ -116,13 +130,24 @@ void Dumper::dump(const AIRNode* n) {
  * Param
  */
         case Index_Param:
-            ANYDSL_NOT_IMPLEMENTED;
+            o << n;
+            if (!n->debug.empty())
+                o << '[' << n->debug << ']';
+            return;
 
 /*
  * Lambda
  */
-        case Index_Lambda:
-            ANYDSL_NOT_IMPLEMENTED;
+        case Index_Lambda: {
+            const Lambda* lambda = n->as<Lambda>();
+            const Params& params = lambda->params();
+
+            o << "lambda(";
+            ANYDSL_DUMP_COMMA_LIST(params);
+            o << ')';
+            dump(lambda->jump());
+            return;
+        }
 
         //default: ANYDSL_NOT_IMPLEMENTED;
     }

@@ -39,6 +39,9 @@ public:
         size_t size() const { return jump.numOps() - 1; }
         bool empty() const { return jump.numOps() == 1; }
 
+        const Def*& front() const { return *(jump.ops_ + 1); }
+        const Def*& back() const { return *(jump.ops_ + size() - 1); }
+
         const Jump& jump;
     };
 

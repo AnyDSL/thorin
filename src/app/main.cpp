@@ -11,6 +11,7 @@
 #include <boost/array.hpp>
 
 #include "anydsl/literal.h"
+#include "anydsl/lambda.h"
 #include "anydsl/dump.h"
 #include "anydsl/world.h"
 #include "impala/parser.h"
@@ -112,6 +113,18 @@ int main(int argc, char** argv) {
         dump(p, true);
         check(types, p);
         World w;
+        Lambda* l = new Lambda();
+        l->appendParam(w.type_u16())->debug = "a";
+        l->appendParam(w.type_u32())->debug = "b";
+        l->calcType(w);
+        const Def* args[] = { w.literal_u16(42), w.literal_u32(23) };
+        const Jump* jump = w.createJump(l, args);
+        l->setJump(jump);
+        const Lambda* newl = w.finalize(l);
+        dump(newl);
+        //newl-
+
+
         emit(w, p);
         impala::destroy();
         

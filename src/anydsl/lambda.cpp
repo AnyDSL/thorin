@@ -41,6 +41,7 @@ Param* Lambda::appendParam(const Type* type) {
 }
 
 void Lambda::calcType(World& world) {
+    anydsl_assert(!type(), "type already set");
     std::vector<const Type*> types;
 
     for_all (param, params())

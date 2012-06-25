@@ -83,8 +83,8 @@ private:
 public:
 
     const Def* cond() const { return ops_[0]; }
-    const Def* tuse() const { return ops_[1]; }
-    const Def* fuse() const { return ops_[2]; }
+    const Def* tdef() const { return ops_[1]; }
+    const Def* fdef() const { return ops_[2]; }
 
     RelOpKind kind() { return (RelOpKind) index(); }
 

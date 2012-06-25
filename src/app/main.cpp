@@ -13,6 +13,7 @@
 #include "anydsl/literal.h"
 #include "anydsl/lambda.h"
 #include "anydsl/dump.h"
+#include "anydsl/primop.h"
 #include "anydsl/world.h"
 #include "impala/parser.h"
 #include "impala/ast.h"
@@ -114,15 +115,22 @@ int main(int argc, char** argv) {
         check(types, p);
         World w;
         Lambda* l = new Lambda();
-        l->appendParam(w.type_u16())->debug = "a";
-        l->appendParam(w.type_u32())->debug = "b";
+        Param* pa = l->appendParam(w.type_u32());
+        Param* pb = l->appendParam(w.type_u32());
+        pa->debug = "a";
+        pb->debug = "b";
         l->calcType(w);
-        const Def* args[] = { w.literal_u16(42), w.literal_u32(23) };
+        const Def* args[] = { w.literal_u32(42), w.literal_u32(23) };
         const Jump* jump = w.createJump(l, args);
         l->setJump(jump);
         const Lambda* newl = w.finalize(l);
         dump(newl);
-        //newl-
+
+        std::cout << std::endl;
+        const Value* add = w.createArithOp(ArithOp_add,  pa, w.literal_u32(42));
+        const Value* mul = w.createArithOp(ArithOp_mul, add, w.literal_u32(23));
+        mul->dump();
+        std::cout << std::endl;
 
 
         emit(w, p);

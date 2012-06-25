@@ -33,7 +33,7 @@ public:
         : o(o)
     {}
 
-    void dump(const AIRNode* n);
+    void dump(const AIRNode* n, bool goInsideLambda = false);
     void dump(const CompoundType* ct, const char* str);
     void dumpBinOp(const std::string& str, const AIRNode* n);
     void dumpName(const AIRNode* n);
@@ -89,7 +89,7 @@ void Printer::dump(const CompoundType* ct, const char* str) {
     return;
 }
 
-void Printer::dump(const AIRNode* n) {
+void Printer::dump(const AIRNode* n, bool goInsideLambda /*= false*/) {
     std::string str;
 
     switch (n->index()) {
@@ -138,14 +138,25 @@ void Printer::dump(const AIRNode* n) {
         case Index_Insert:
             ANYDSL_NOT_IMPLEMENTED;
 
-        case Index_Select:
-            ANYDSL_NOT_IMPLEMENTED;
+        case Index_Select: {
+            const Select* select = n->as<Select>();
+            o << "select(";
+            dump(select->cond());
+            o << ", ";
+            dump(select->tdef());
+            o << ", ";
+            dump(select->fdef());
+            o << ')';
+            return;
+        }
 
         case Index_Jump: {
             const Jump* jump = n->as<Jump>();
-            o << jump->to() << '(';
+            o << "jump(";
+            dump(jump->to());
+            o << ", [";
             ANYDSL_DUMP_COMMA_LIST(jump->args());
-            o << ')';
+            o << "])";
             return;
         }
 
@@ -168,19 +179,23 @@ void Printer::dump(const AIRNode* n) {
 /*
  * Lambda
  */
-        case Index_Lambda: {
-            const Lambda* lambda = n->as<Lambda>();
-            const Params& params = lambda->params();
+        case Index_Lambda: 
+            if (goInsideLambda) {
+                const Lambda* lambda = n->as<Lambda>();
+                const Params& params = lambda->params();
 
-            dumpName(lambda);
-            o << " = lambda(";
-            ANYDSL_DUMP_COMMA_LIST(params);
-            o << ')';
-            up();
-            dump(lambda->jump());
-            down();
-            return;
-        }
+                dumpName(lambda);
+                o << " = lambda(";
+                ANYDSL_DUMP_COMMA_LIST(params);
+                o << ')';
+                up();
+                dump(lambda->jump());
+                down();
+                return;
+            } else {
+                dumpName(n);
+                return;
+            }
 
         //default: ANYDSL_NOT_IMPLEMENTED;
     }
@@ -190,7 +205,7 @@ void Printer::dump(const AIRNode* n) {
 
 void dump(const AIRNode* n, std::ostream& o /*= std::cout*/) {
     Printer p(o);
-    p.dump(n);
+    p.dump(n, true);
 }
 
 //------------------------------------------------------------------------------

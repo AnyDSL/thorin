@@ -21,7 +21,7 @@ protected:
 
 public:
 
-    PrimOpKind primOpKind() const { return (PrimOpKind) index(); }
+    PrimOpKind primOpKind() const { return (PrimOpKind) indexKind(); }
 };
 
 //------------------------------------------------------------------------------
@@ -54,7 +54,7 @@ private:
 
 public:
 
-    ArithOpKind kind() { return (ArithOpKind) index(); }
+    ArithOpKind kind() { return (ArithOpKind) indexKind(); }
 
     friend class World;
 };
@@ -68,7 +68,7 @@ private:
 
 public:
 
-    RelOpKind kind() { return (RelOpKind) index(); }
+    RelOpKind kind() { return (RelOpKind) indexKind(); }
 
     friend class World;
 };
@@ -86,7 +86,7 @@ public:
     const Def* tdef() const { return ops_[1]; }
     const Def* fdef() const { return ops_[2]; }
 
-    RelOpKind kind() { return (RelOpKind) index(); }
+    RelOpKind kind() { return (RelOpKind) indexKind(); }
 
     friend class World;
 };

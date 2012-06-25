@@ -3,6 +3,7 @@
 #include <boost/functional/hash.hpp>
 
 #include "anydsl/util/cast.h"
+#include "anydsl/util/for_all.h"
 
 using anydsl::dcast;
 
@@ -44,6 +45,11 @@ TypeTable::TypeTable()
     , itype##_((*types_.insert(new PrimType(PrimType::TYPE_##itype)).first)->as<PrimType>())
 #include "impala/tokenlist.h"
 {}
+
+TypeTable::~TypeTable() {
+    for_all (type, types_)
+        delete type;
+}
 
 const PrimType* TypeTable::type(PrimType::Kind kind) {
     switch (kind) {

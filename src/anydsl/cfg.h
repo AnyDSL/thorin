@@ -91,6 +91,7 @@ public:
     bool sealed() const { return sealed_; }
 
     void emit();
+    void calcType();
 
 private:
 
@@ -103,10 +104,11 @@ private:
     Defs in_;
     Defs out_;
 
-    const Def* to_;
-
     BBs preds_;
     BBs succs_;
+    const Def* cond_;
+    const Lambda* tlambda_;
+    const Lambda* flambda_;
 
     Lambda* topLambda_;
     Lambda* curLambda_;

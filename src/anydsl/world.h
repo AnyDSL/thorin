@@ -29,7 +29,7 @@ class Undef;
 
 typedef boost::unordered_set<const Value*, ValueHash, ValueEqual> ValueMap;
 typedef std::vector<Sigma*> NamedSigmas;
-typedef boost::unordered_set<Lambda*> Lambdas;
+typedef boost::unordered_set<const Lambda*> Lambdas;
 
 //------------------------------------------------------------------------------
 
@@ -196,11 +196,14 @@ public:
     template<size_t N>
     const Value* createTuple(const Def* const (&array)[N]) { return createTuple(array, array + N); }
 
-    const Lambda* finalize(const Lambda* lambda);
+    const Lambda* finalize(const Lambda* lambda, bool live = false);
 
     void cleanup();
 
 private:
+
+    void remove(ValueMap& live);
+    void insert(ValueMap& live, const Value* value);
 
     ValueMap::iterator remove(ValueMap::iterator i);
     const Value* findValue(const Value* value);

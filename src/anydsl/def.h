@@ -44,11 +44,14 @@ protected:
         , type_(type)
         , numOps_(numOps)
         , ops_(new const Def*[numOps])
-    {}
+    {
+        std::memset(ops_, 0, sizeof(const Def*) * numOps);
+    }
 
     virtual ~Def();
 
     void setOp(size_t i, const Def* def) { def->registerUse(this); ops_[i] = def; }
+    void delOp(size_t i) const { ops_[i] = 0; }
 
 public:
 
@@ -105,7 +108,9 @@ protected:
 class Param : public Def {
 private:
 
-    Param(Lambda* parent, const Type* type);
+    Param(Lambda* parent, size_t index, const Type* type);
+
+    size_t index() const { return index_; }
 
 public:
 
@@ -114,6 +119,7 @@ public:
 private:
 
     Lambda* parent_;
+    size_t index_;
 
     friend class Lambda;
 };

@@ -13,13 +13,14 @@ namespace anydsl {
 //------------------------------------------------------------------------------
 
 Def::~Def() { 
-    anydsl_assert(isa<Lambda>() 
-            || (isa<Sigma>() && as<Sigma>()->named()) 
-            || uses_.empty(), 
-            "there are still uses pointing to this def"); 
-
     for (size_t i = 0, e = numOps(); i != e; ++i)
-        ops_[i]->unregisterUse(this);
+        if (ops_[i])
+            ops_[i]->unregisterUse(this);
+
+    for_all (use, uses_)
+        for (size_t i = 0; i < use->numOps(); ++i)
+            if (use->ops()[i] == this)
+                use->delOp(i);
 
     delete[] ops_;
 }
@@ -41,7 +42,7 @@ World& Def::world() const {
 }
 
 bool Value::equal(const Value* other) const {
-    if (this->index() != other->index())
+    if (this->indexKind() != other->indexKind())
         return false;
 
     if (this->numOps() != other->numOps())
@@ -57,7 +58,7 @@ bool Value::equal(const Value* other) const {
 size_t Value::hash() const {
     size_t seed = 0;
 
-    boost::hash_combine(seed, index());
+    boost::hash_combine(seed, indexKind());
     boost::hash_combine(seed, numOps());
 
     for (size_t i = 0, e = numOps(); i != e; ++i)
@@ -68,9 +69,10 @@ size_t Value::hash() const {
 
 //------------------------------------------------------------------------------
 
-Param::Param(Lambda* parent, const Type* type)
+Param::Param(Lambda* parent, size_t index, const Type* type)
     : Def(Index_Param, type, 0)
     , parent_(parent)
+    , index_(index)
 {}
 
 //------------------------------------------------------------------------------

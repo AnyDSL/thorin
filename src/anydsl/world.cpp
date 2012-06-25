@@ -65,11 +65,26 @@ World::World()
 {}
 
 World::~World() {
+    std::cout << "no values: " << values_.size() << std::endl;
     for_all (sigma,  namedSigmas_) delete sigma;
-    for_all (lambda, lambdas_)     delete lambda;
 
+    std::cout << "destroy" << std::endl;
     cleanup();
-    //anydsl_assert(values_.empty(), "cleanup should catch everything");
+    lambdas_.clear();
+    cleanup();
+
+    for (size_t i = 0; i < Num_PrimTypes; ++i) {
+        values_.erase(values_.find(primTypes_[i]));
+        delete primTypes_[i];
+    }
+
+    values_.erase(values_.find(unit_));
+    values_.erase(values_.find(pi0_));
+    delete unit_;
+    delete pi0_;
+
+    std::cout << "no values: " << values_.size() << std::endl;
+    anydsl_assert(values_.empty(), "cleanup should catch everything");
 }
 
 /*
@@ -184,15 +199,59 @@ const Value* World::createSelect(const Def* cond, const Def* tdef, const Def* fd
     return find(new Select(cond, tdef, fdef));
 }
 
-const Lambda* World::finalize(const Lambda* lambda) {
+const Lambda* World::finalize(const Lambda* lambda, bool live /*= false*/) {
     anydsl_assert(lambda->type(), "must be set");
     anydsl_assert(lambda->jump(), "must be set");
-    return find<Lambda>(lambda);
+
+    const Lambda* l = find<Lambda>(lambda);
+    if (live)
+        lambdas_.insert(l);
+
+    return l;
+}
+
+void World::remove(ValueMap& live) {
+}
+
+void World::insert(ValueMap& live, const Value* value) {
+    if (live.find(value) != live.end())
+        return;
+
+    live.insert(value);
+
+    for_all (def, value->uses())
+        if (const Value* op = def->isa<Value>())
+            insert(live, op);
+
+    if (const Type* type = value->type())
+        insert(live, type);
 }
 
 void World::cleanup() {
-    // TODO
+    ValueMap live;
+
+    // mark all primtypes as live
+    for (size_t i = 0; i < Num_PrimTypes; ++i)
+        insert(live, primTypes_[i]);
+
+    // assume unit_ and pi0_ to live
+    insert(live, unit_);
+    insert(live, pi0_);
+
+    // insert all live lambdas
+    for_all (lambda, lambdas_)
+        insert(live, lambda);
+
+    ValueMap::iterator i = values_.begin();
+    while (i != values_.end()) {
+        if (live.find(*i) == live.end()) {
+            delete *i;
+            i = values_.erase(i);
+        } else
+            ++i;
+    }
 }
+
 
 const Value* World::findValue(const Value* value) {
     ValueMap::iterator i = values_.find(value);

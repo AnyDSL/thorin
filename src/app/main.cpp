@@ -95,27 +95,28 @@ int main(int argc, char** argv) {
         if (emit_dot)
             ANYDSL_NOT_IMPLEMENTED;
 
-        World w;
+        World world;
         Lambda* l = new Lambda();
-        Param* pa = l->appendParam(w.type_u32());
-        Param* pb = l->appendParam(w.type_u32());
+        Param* pa = l->appendParam(world.type_u32());
+        Param* pb = l->appendParam(world.type_u32());
         pa->debug = "a";
         pb->debug = "b";
-        l->calcType(w);
-        const Def* args[] = { w.literal_u32(42), w.literal_u32(23) };
-        const Jump* jump = w.createJump(l, args);
+        l->calcType(world);
+        const Def* args[] = { world.literal_u32(42), world.literal_u32(23) };
+        const Jump* jump = world.createJump(l, args);
         l->setJump(jump);
-        const Lambda* newl = w.finalize(l);
+        const Lambda* newl = world.finalize(l, true);
         dump(newl);
-
         std::cout << std::endl;
-        const Value* add = w.createArithOp(ArithOp_add,  pa, w.literal_u32(42));
-        const Value* mul = w.createArithOp(ArithOp_mul, add, w.literal_u32(23));
+        const Value* add = world.createArithOp(ArithOp_add,  pa, world.literal_u32(42));
+        const Value* mul = world.createArithOp(ArithOp_mul, add, world.literal_u32(23));
         mul->dump();
         std::cout << std::endl;
 
+        if (emit_air) {
+            emit(world, p);
+        }
 
-        emit(w, p);
         impala::destroy();
         
         return EXIT_SUCCESS;

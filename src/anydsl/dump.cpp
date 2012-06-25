@@ -114,7 +114,7 @@ void Printer::dump(const CompoundType* ct, const char* str) {
 void Printer::dump(const AIRNode* n, bool goInsideLambda /*= false*/) {
     std::string str;
 
-    switch (n->index()) {
+    switch (n->indexKind()) {
 /*
  * types
  */

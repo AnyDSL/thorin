@@ -86,10 +86,7 @@ void BB::seal() {
 
 void BB::goesto(BB* to) {
     assert(to);
-
-    to_ = to->topLambda();
     this->flowsto(to);
-
     anydsl_assert(this->succs().size() == 1, "wrong number of succs");
 }
 
@@ -97,7 +94,9 @@ void BB::branches(const Def* cond, BB* tbb, BB* fbb) {
     assert(tbb);
     assert(fbb);
 
-    //to_ = world().createSelect(cond, tbb->topLambda(), fbb->topLambda());
+    cond_ = cond;
+    tlambda_ = tbb->topLambda_;
+    flambda_ = fbb->topLambda_;
     this->flowsto(tbb);
     this->flowsto(fbb);
 
@@ -105,7 +104,7 @@ void BB::branches(const Def* cond, BB* tbb, BB* fbb) {
 }
 
 void BB::fixto(BB* to) {
-    if (!to_)
+    if (succs().empty())
         this->goesto(to);
 }
 
@@ -127,6 +126,21 @@ World& BB::world() {
 }
 
 void BB::emit() {
+    const Jump* jump;
+    switch (succs().size()) {
+        case 1:
+            jump = world().createJump((*succs().begin())->topLambda(), out_.begin().base(), out_.end().base());
+            break;
+        case 2:
+            jump = world().createBranch(cond_, tlambda_, flambda_, out_.begin().base(), out_.end().base());
+            break;
+    }
+
+    topLambda_->setJump(jump);
+    world().finalize(topLambda_);
+}
+
+void BB::calcType() {
     topLambda_->calcType(world());
 }
 
@@ -159,10 +173,8 @@ BB* Fct::createBB(const std::string& debug /*= ""*/) {
 void Fct::emit() {
     topLambda_->calcType(world());
 
-
-
     for_all (bb, cfg_)
-        bb->emit();
+        bb->calcType();
 }
 
 } // namespace anydsl

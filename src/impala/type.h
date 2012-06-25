@@ -17,6 +17,8 @@ class Printer;
 class Type {
 public:
 
+    virtual ~Type() {}
+
     virtual void dump(Printer& p) const = 0;
     virtual const anydsl::Type* emit(anydsl::World& world) const = 0;
 
@@ -108,6 +110,7 @@ class TypeTable {
 public:
 
     TypeTable();
+    ~TypeTable();
 
     const PrimType* type(PrimType::Kind kind);
 #define IMPALA_TYPE(itype, atype) \

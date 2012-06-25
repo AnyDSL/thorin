@@ -58,7 +58,7 @@ private:
 
 public:
 
-    PrimTypeKind kind() const { return (PrimTypeKind) index(); }
+    PrimTypeKind kind() const { return (PrimTypeKind) indexKind(); }
 
     friend class World;
 };

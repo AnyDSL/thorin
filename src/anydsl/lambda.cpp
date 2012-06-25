@@ -13,8 +13,10 @@ Lambda::Lambda(const Pi* pi)
     , params_(pi->numOps())
 {
     size_t i = 0;
-    for_all (&param, params_)
-        param = new Param(this, pi->get(i++));
+    for_all (&param, params_) {
+        param = new Param(this, i, pi->get(i));
+        ++i;
+    }
 }
 
 Lambda::Lambda()
@@ -34,7 +36,7 @@ Param* Lambda::appendParam(const Type* type) {
     assert(!final_);
     anydsl_assert(!this->type(), "type already set -- you are not allowed to add any more params");
 
-    Param* param = new Param(this, type);
+    Param* param = new Param(this, params_.size(), type);
     params_.push_back(param);
 
     return param;

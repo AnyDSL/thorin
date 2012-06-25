@@ -58,7 +58,7 @@ private:
 
 public:
 
-    PrimLitKind kind() const { return (PrimLitKind) index(); }
+    PrimLitKind kind() const { return (PrimLitKind) indexKind(); }
     Box box() const { return box_; }
 
     virtual bool equal(const Value* other) const;

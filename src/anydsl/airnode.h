@@ -11,14 +11,14 @@ namespace anydsl {
 class AIRNode {
 protected:
 
-    AIRNode(IndexKind index)
-        : index_(index)
+    AIRNode(IndexKind indexKind)
+        : indexKind_(indexKind)
     {}
     virtual ~AIRNode() {}
 
 public:
 
-    IndexKind index() const { return index_; }
+    IndexKind indexKind() const { return indexKind_; }
     void dump() const;
 
     ANYDSL_MIXIN_AS_ISA
@@ -32,7 +32,7 @@ public:
 
 private:
 
-    IndexKind index_;
+    IndexKind indexKind_;
 };
 
 } // namespace anydsl

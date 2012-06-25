@@ -65,16 +65,13 @@ public:
 
 //------------------------------------------------------------------------------
 
-/// A tuple type.
-class Sigma : public Type {
-private:
+class CompoundType : public Type {
+protected:
 
-    Sigma(World& world, size_t num);
-    Sigma(World& world, const Type* const* begin, const Type* const* end);
+    CompoundType(World& world, IndexKind index, size_t num);
+    CompoundType(World& world, IndexKind index, const Type* const* begin, const Type* const* end);
 
 public:
-
-    bool named() const { return named_; }
 
     /// Get element type via index.
     const Type* get(size_t i) const { 
@@ -84,6 +81,26 @@ public:
 
     /// Get element type via anydsl::PrimLit which serves as index.
     const Type* get(const PrimLit* i) const;
+};
+
+//------------------------------------------------------------------------------
+
+/// A tuple type.
+class Sigma : public CompoundType {
+private:
+
+    Sigma(World& world, size_t num)
+        : CompoundType(world, Index_Sigma, num)
+        , named_(true)
+    {}
+    Sigma(World& world, const Type* const* begin, const Type* const* end)
+        : CompoundType(world, Index_Sigma, begin, end)
+        , named_(false)
+    {}
+
+public:
+
+    bool named() const { return named_; }
 
 private:
 
@@ -95,21 +112,14 @@ private:
 //------------------------------------------------------------------------------
 
 /// A function type.
-class Pi : public Type {
+class Pi : public CompoundType {
 private:
 
-    Pi(const Sigma* sigma);
+    Pi(World& world, const Type* const* begin, const Type* const* end)
+        : CompoundType(world, Index_Pi, begin, end)
+    {}
 
 public:
-
-    /// Get element type via index.
-    const Type* get(size_t i) const { return sigma()->get(i); }
-    /// Get element type via anydsl::PrimLit which serves as index.
-    const Type* get(PrimLit* i) const { return sigma()->get(i); }
-
-    const Sigma* sigma() const;
-
-private:
 
     friend class World;
 };

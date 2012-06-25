@@ -27,6 +27,7 @@ public:
     const Pi* pi() const;
 
     Param* appendParam(const Type* type);
+    void calcType(World& world);
 
     void setJump(const Jump* jump);
 

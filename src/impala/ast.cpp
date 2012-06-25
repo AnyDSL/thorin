@@ -12,7 +12,9 @@ using anydsl::Symbol;
 
 namespace impala {
 
-const anydsl::Def* Value::load() const { return lvalue_ ? var_->def : def_; }
+const anydsl::Def* Value::load() const { 
+    return lvalue_ ? var_->def : def_; 
+}
 
 void ASTNode::dump() const {
     ::impala::dump(this);

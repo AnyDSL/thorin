@@ -128,18 +128,27 @@ public:
 
     /// Creates 'pi()'.
     const Pi* pi0() { return pi0_; }
-    /// Creates 'pi(t1)'.
-    const Pi* pi1(const Type* t1) { return pi(sigma1(t1)); }
+    const Pi* pi1(const Type* t1) { 
+        const Type* types[] = {t1};
+        return pi(types); 
+    }
     /// Creates 'pi(t1, t2)'.
-    const Pi* pi2(const Type* t1, const Type* t2) { return pi(sigma2(t1, t2)); }
+    const Pi* pi2(const Type* t1, const Type* t2) { 
+        const Type* types[] = {t1, t2};
+        return pi(types);
+    }
     /// Creates 'pi(t1, t2, t3)'.
-    const Pi* pi3(const Type* t1, const Type* t2, const Type* t3) { return pi(sigma3(t1, t2, t3)); }
-
-    const Pi* pi(const Sigma* sigma) { return find(new Pi(sigma)); }
-    const Pi* pi(const Type* const* begin, const Type* const* end) { return find(new Pi(sigma(begin, end))); }
+    const Pi* pi3(const Type* t1, const Type* t2, const Type* t3) { 
+        const Type* types[] = {t1, t2, t3};
+        return pi(types);
+    }
+    const Pi* pi(const Type* const* begin, const Type* const* end) { 
+        return find(new Pi(*this, begin, end)); 
+    }
     template<size_t N>
-    const Pi* pi(const Type* const (&array)[N]) { return pi(sigma(array)); }
-
+    const Pi* pi(const Type* const (&array)[N]) { 
+        return pi(array, array + N); 
+    }
 
     /*
      * literals

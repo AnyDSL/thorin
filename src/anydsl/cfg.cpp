@@ -112,7 +112,6 @@ void BB::flowsto(BB* to) {
     BBs::iterator i = succs_.find(to);
     anydsl_assert(!to->sealed(), "'to' already sealed");
 
-
     if (i == succs_.end()) {
         succs_.insert(to);
         to->preds_.insert(this);
@@ -127,6 +126,7 @@ World& BB::world() {
 }
 
 void BB::emit() {
+    topLambda_->calcType(world());
 }
 
 //------------------------------------------------------------------------------
@@ -144,7 +144,7 @@ Fct::Fct(World& world, const FctParams& fparams, const Type* retType, const std:
         setVar(p.symbol, topLambda_->appendParam(p.type));
 
     if (retType)
-        setVar(Symbol("<return>"), world.pi(world.sigma1(retType)));
+        setVar(Symbol("<return>"), world.pi1(retType));
 
 #if 0
     const anydsl::Pi* pi = cg.world.pi(
@@ -161,6 +161,10 @@ BB* Fct::createBB(const std::string& debug /*= ""*/) {
 }
 
 void Fct::emit() {
+    topLambda_->calcType(world());
+
+
+
     for_all (bb, cfg_)
         bb->emit();
 }

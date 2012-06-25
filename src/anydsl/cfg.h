@@ -55,6 +55,17 @@ struct Var {
     {}
 };
 
+/** 
+ * This class helps for code generation of imperative languages.
+ *
+ * SSA/CPS construction is supported via \p getVar and \p setVar.
+ * In order to make this work a \p BB must be aware of the fact whether all predecessors are known
+ * or whether there may still be predecessors added.
+ * A \em sealed \p BB knows all its predecessors.
+ * It is prohibited to add additional predecessors on a sealed \p BB.
+ * The construction algorithm works best, if you \p seal a \p BB as soon as possible, i.e., 
+ * as soon as you know that a \p BB cannot get any more predecessors invoke \p seal.
+ */
 class BB {
 private:
 

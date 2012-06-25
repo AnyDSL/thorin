@@ -78,12 +78,12 @@ void Printer::dumpBlock(const Stmt* s) {
     if (s->isa<ScopeStmt>())
         s->dump(*this);
     else {
-        //o << "{";
+        o << "{";
         up();
         s->dump(*this);
-        --indent_;
-        //down();
-        //o << "}";
+        //--indent_;
+        down();
+        o << "}";
     }
 }
 

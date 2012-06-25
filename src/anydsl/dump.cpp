@@ -16,6 +16,7 @@ public:
     {}
 
     void dump(const AIRNode* n);
+    void dump(const CompoundType* ct, const char* str);
     void dumpBinOp(const std::string& str, const AIRNode* n);
 
     std::ostream& o;
@@ -31,6 +32,22 @@ void Dumper::dumpBinOp(const std::string& str, const AIRNode* n) {
     return;
 }
 
+void Dumper::dump(const CompoundType* ct, const char* str) {
+    o << str << '(';
+
+    if (!ct->ops().empty()) {
+        for (CompoundType::Ops::const_iterator i = ct->ops().begin(), e = ct->ops().end() - 1; i != e; ++i) {
+            dump(*i);
+            o << ", ";
+        }
+
+        dump(ct->ops().back());
+    }
+
+    o << ')';
+    return;
+}
+
 void Dumper::dump(const AIRNode* n) {
     std::string str;
 
@@ -43,30 +60,11 @@ void Dumper::dump(const AIRNode* n) {
 #define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
 #include "anydsl/tables/primtypetable.h"
 
-        case Index_Sigma: {
-            const Sigma* sigma = n->as<Sigma>();
-            o << "sigma(";
+        case Index_Sigma: 
+            return dump(n->as<CompoundType>(), "sigma");
 
-            if (!sigma->ops().empty()) {
-                for (Sigma::Ops::const_iterator i = sigma->ops().begin(), e = sigma->ops().end() - 1; i != e; ++i) {
-                    dump(*i);
-                    o << ", ";
-                }
-
-                dump(sigma->ops().back());
-            }
-
-            o << ')';
-            return;
-        }
-
-        case Index_Pi: {
-            const Pi* pi = n->as<Pi>();
-            o << "pi(";
-            dump(pi->sigma());
-            o << ')';
-            return;
-        }
+        case Index_Pi: 
+            return dump(n->as<CompoundType>(), "pi");
 
 /*
  * literals

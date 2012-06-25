@@ -32,11 +32,21 @@ void Lambda::setJump(const Jump* jump) {
 
 Param* Lambda::appendParam(const Type* type) {
     assert(!final_);
+    anydsl_assert(!this->type(), "type already set -- you are not allowed to add any more params");
 
     Param* param = new Param(this, type);
     params_.push_back(param);
 
     return param;
+}
+
+void Lambda::calcType(World& world) {
+    std::vector<const Type*> types;
+
+    for_all (param, params())
+        types.push_back(param->type());
+
+    setType(world.pi(types.begin().base(), types.end().base()));
 }
 
 } // namespace anydsl

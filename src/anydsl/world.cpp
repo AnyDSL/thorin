@@ -57,7 +57,7 @@ static void examineDef(const Def* def, FoldValue& v) {
 World::World() 
     : values_(1031)
     , unit_ (find(new Sigma(*this, (const Type* const*) 0, (const Type* const*) 0)))
-    , pi0_  (find(new Pi(unit_)))
+    , pi0_  (find(new Pi(*this, (const Type* const*) 0, (const Type* const*) 0)))
 #define ANYDSL_U_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T)))
 #define ANYDSL_F_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T)))
 #include "anydsl/tables/primtypetable.h"

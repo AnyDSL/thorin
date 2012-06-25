@@ -81,7 +81,6 @@ void Printer::dumpBlock(const Stmt* s) {
         o << "{";
         up();
         s->dump(*this);
-        //--indent_;
         down();
         o << "}";
     }

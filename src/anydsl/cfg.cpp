@@ -35,11 +35,12 @@ Var* BB::getVar(const Symbol& symbol, const Type* type) {
 
     // value is undefined
     if (fct_ == this) {
+        // TODO provide hook instead of fixed functionality
         std::cerr << "'" << symbol << "'" << " may be undefined" << std::endl;
         return setVar(symbol, world().undef(type));
     }
 
-    // otherwise insert a 'phi', i.e., create a param and remember to fix the callers
+    // insert a 'phi', i.e., create a param and remember to fix the callers
     if (!sealed_ || preds_.size() > 1) {
         Param* param = topLambda_->appendParam(type);
         size_t index = in_.size();
@@ -145,11 +146,6 @@ Fct::Fct(World& world, const FctParams& fparams, const Type* retType, const std:
 
     if (retType)
         setVar(Symbol("<return>"), world.pi1(retType));
-
-#if 0
-    const anydsl::Pi* pi = cg.world.pi(
-            cg.world.sigma(argTypes.begin().base(), argTypes.end().base()));
-#endif
 }
 
 

@@ -32,6 +32,7 @@ public:
     Printer(std::ostream& o)
         : o(o)
         , fancy_(false)
+        , indent_(0)
     {}
 
     bool fancy() const { return fancy_; }

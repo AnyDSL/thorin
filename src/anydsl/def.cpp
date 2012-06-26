@@ -15,22 +15,26 @@ namespace anydsl {
 Def::~Def() { 
     for (size_t i = 0, e = numOps(); i != e; ++i)
         if (ops_[i])
-            ops_[i]->unregisterUse(this);
+            ops_[i]->unregisterUse(i, this);
 
-    for_all (use, uses_)
-        for (size_t i = 0; i < use->numOps(); ++i)
-            if (use->ops()[i] == this)
-                use->delOp(i);
+    for_all (use, uses_) {
+        size_t i = use.index();
+        anydsl_assert(use.def()->ops()[i] == this, "use points to incorrect def");
+        use.def()->delOp(i);
+    }
 
     delete[] ops_;
 }
 
-void Def::registerUse(const Def* use) const {
+void Def::registerUse(size_t i, const Def* def) const {
+    Use use(i, def);
+    anydsl_assert(uses_.find(use) == uses_.end(), "already in use set");
     uses_.insert(use);
 }
 
-void Def::unregisterUse(const Def* use) const {
-    anydsl_assert(uses_.find(use) != uses_.end(), "must be inside the use list");
+void Def::unregisterUse(size_t i, const Def* def) const {
+    Use use(i, def);
+    anydsl_assert(uses_.find(use) != uses_.end(), "must be inside the use set");
     uses_.erase(use);
 }
 

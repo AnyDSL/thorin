@@ -27,7 +27,7 @@ Var* BB::setVar(const Symbol& symbol, const Def* def) {
 }
 
 Var* BB::getVar(const Symbol& symbol, const Type* type) {
-    BB::ValueMap::iterator i = values_.find(symbol);
+    BB::VarMap::iterator i = values_.find(symbol);
 
     // if var is known -> return current var
     if (i != values_.end())

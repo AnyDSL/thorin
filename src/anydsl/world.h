@@ -27,9 +27,7 @@ class Undef;
 
 //------------------------------------------------------------------------------
 
-typedef boost::unordered_set<const Value*, ValueHash, ValueEqual> ValueMap;
 typedef std::vector<Sigma*> NamedSigmas;
-typedef boost::unordered_set<const Lambda*> Lambdas;
 
 //------------------------------------------------------------------------------
 
@@ -196,27 +194,31 @@ public:
     template<size_t N>
     const Value* createTuple(const Def* const (&array)[N]) { return createTuple(array, array + N); }
 
-    const Lambda* finalize(const Lambda* lambda, bool live = false);
+    const Lambda* finalize(const Lambda* lambda);
 
+    void setLive(const Value* value) { live_.insert(value); }
+
+    /// Performs dead code and unreachable code elimination.
     void cleanup();
 
 private:
 
-    void remove(ValueMap& live);
-    void insert(ValueMap& live, const Value* value);
-
+    typedef boost::unordered_set<const Value*, ValueHash, ValueEqual> ValueMap;
     ValueMap::iterator remove(ValueMap::iterator i);
     const Value* findValue(const Value* value);
+
+    void insert(const Value* value);
 
     template<class T> 
     const T* find(const T* val) { return (T*) findValue(val); }
 
-
     const Value* tryFold(IndexKind kind, const Def* ldef, const Def* rdef);
 
     ValueMap values_;
+
+    typedef boost::unordered_set<const Value*> LiveSet;
+    LiveSet live_;
     NamedSigmas namedSigmas_;
-    Lambdas lambdas_;
 
     const Sigma* unit_; ///< sigma().
     const Pi* pi0_;     ///< pi().

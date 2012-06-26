@@ -113,8 +113,8 @@ private:
     Lambda* topLambda_;
     Lambda* curLambda_;
 
-    typedef boost::unordered_map<Symbol, Var*> ValueMap;
-    ValueMap values_;
+    typedef boost::unordered_map<Symbol, Var*> VarMap;
+    VarMap values_;
 
     typedef boost::unordered_map<Symbol, Todo> Todos;
     Todos todos_;

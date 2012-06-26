@@ -19,10 +19,46 @@ class Lambda;
 class Type;
 class Sigma;
 class World;
-typedef boost::unordered_multiset<const Def*> UseSet;
 class Def;
 class Jump;
 class World;
+
+//------------------------------------------------------------------------------
+
+class Use {
+public:
+
+    Use(size_t index, const Def* def)
+        : index_(index)
+        , def_(def)
+    {}
+
+    size_t index() const { return index_; }
+    const Def* def() const { return def_; }
+
+    bool operator == (const Use& use) const {
+        return def() == use.def() && index() == use.index();
+    }
+
+    bool operator != (const Use& use) const {
+        return def() != use.def() || index() != use.index();
+    }
+
+private:
+
+    size_t index_;
+    const Def* def_;
+};
+
+inline size_t hash_value(const Use& use) { 
+    size_t seed = 0;
+    boost::hash_combine(seed, use.def());
+    boost::hash_combine(seed, use.index());
+
+    return seed;
+}
+
+typedef boost::unordered_set<Use> UseSet;
 
 //------------------------------------------------------------------------------
 
@@ -34,8 +70,8 @@ private:
     /// Do not copy-assign a \p Def instance.
     Def& operator = (const Def&);
 
-    void registerUse(const Def* use) const;
-    void unregisterUse(const Def* use) const;
+    void registerUse(size_t i, const Def* def) const;
+    void unregisterUse(size_t i, const Def* use) const;
 
 protected:
 
@@ -50,7 +86,7 @@ protected:
 
     virtual ~Def();
 
-    void setOp(size_t i, const Def* def) { def->registerUse(this); ops_[i] = def; }
+    void setOp(size_t i, const Def* def) { def->registerUse(i, this); ops_[i] = def; }
     void delOp(size_t i) const { ops_[i] = 0; }
 
 public:
@@ -137,6 +173,12 @@ public:
 
     virtual bool equal(const Value* other) const;
     virtual size_t hash() const;
+
+private:
+
+    mutable bool live_;
+
+    friend class World;
 };
 
 struct ValueHash : std::unary_function<const Value*, size_t> {

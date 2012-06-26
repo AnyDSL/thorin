@@ -105,7 +105,8 @@ int main(int argc, char** argv) {
         const Def* args[] = { world.literal_u32(42), world.literal_u32(23) };
         const Jump* jump = world.createJump(l, args);
         l->setJump(jump);
-        const Lambda* newl = world.finalize(l, true);
+        const Lambda* newl = world.finalize(l);
+        world.setLive(jump);
         dump(newl);
         std::cout << std::endl;
         const Value* add = world.createArithOp(ArithOp_add,  pa, world.literal_u32(42));

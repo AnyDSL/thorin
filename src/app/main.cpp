@@ -85,40 +85,18 @@ int main(int argc, char** argv) {
 
         const char* filename = infiles[0].c_str();
         ifstream file(filename);
-        impala::init();
-        impala::TypeTable types;
-        anydsl::AutoPtr<const impala::Prg> p(impala::parse(types, file, filename));
-        check(types, p);
+
+        impala::Init init;
+
+        anydsl::AutoPtr<const impala::Prg> p(impala::parse(init.types, file, filename));
+        check(init.types, p);
 
         if (emit_ast)
             dump(p, fancy);
         if (emit_dot)
             ANYDSL_NOT_IMPLEMENTED;
-
-        World world;
-        Lambda* l = new Lambda();
-        Param* pa = l->appendParam(world.type_u32());
-        Param* pb = l->appendParam(world.type_u32());
-        pa->debug = "a";
-        pb->debug = "b";
-        l->calcType(world);
-        const Def* args[] = { world.literal_u32(42), world.literal_u32(23) };
-        const Jump* jump = world.createJump(l, args);
-        l->setJump(jump);
-        const Lambda* newl = world.finalize(l);
-        world.setLive(jump);
-        dump(newl);
-        std::cout << std::endl;
-        const Value* add = world.createArithOp(ArithOp_add,  pa, world.literal_u32(42));
-        const Value* mul = world.createArithOp(ArithOp_mul, add, world.literal_u32(23));
-        mul->dump();
-        std::cout << std::endl;
-
-        if (emit_air) {
-            emit(world, p);
-        }
-
-        impala::destroy();
+        if (emit_air)
+            emit(init.world, p);
         
         return EXIT_SUCCESS;
     } catch (exception const& e) {

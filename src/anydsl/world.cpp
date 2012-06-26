@@ -70,20 +70,11 @@ World::World()
 }
 
 World::~World() {
-    std::cout << "no values: " << values_.size() << std::endl;
     for_all (sigma,  namedSigmas_) delete sigma;
 
-    std::cout << "destroy" << std::endl;
-    cleanup();
     live_.clear();
     cleanup();
 
-    std::cout << "no values: " << values_.size() << std::endl;
-    std::cout << std::endl;
-    for_all (value, values_) {
-        value->dump();
-        std::cout << std::endl;
-    }
     anydsl_assert(values_.empty(), "cleanup should catch everything");
 }
 

@@ -175,6 +175,9 @@ void Fct::emit() {
 
     for_all (bb, cfg_)
         bb->calcType();
+
+    for_all (bb, cfg_)
+        bb->emit();
 }
 
 } // namespace anydsl

@@ -15,7 +15,7 @@ class Jump;
 
 typedef AutoVector<const Param*> Params;
 
-class Lambda : public Value {
+class Lambda : public Def {
 public:
 
     Lambda();

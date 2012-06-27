@@ -18,7 +18,7 @@ struct get_clean_type<const T&> {typedef T type; };
 #define ANYDSL_DUMP_COMMA_LIST(printer, list) \
     if (!(list).empty()) { \
         for (get_clean_type<BOOST_TYPEOF((list))>::type::const_iterator i = (list).begin(), e = (list).end() - 1; i != e; ++i) { \
-            (*it)->dump(printer, mode); \
+            (*i)->dump(printer, mode); \
             printer << ", "; \
         } \
         ((list).back())->dump(printer, mode); \
@@ -30,7 +30,7 @@ class Printer {
 public:
 
     Printer(std::ostream& o)
-        : o_(o)
+        : o(o)
         , fancy_(false)
         , indent_(0)
     {}
@@ -46,19 +46,20 @@ public:
 
     template<class T>
     Printer& operator<<(T& data) {
-    	o_ << data;
+    	o << data;
     	return *this;
     }
 
+    std::ostream& o;
+
 private:
 
-    std::ostream& o_;
     bool fancy_;
     int indent_;
 };
 
 void Printer::newline() {
-    o_ << '\n';
+    o << '\n';
     for (int i = 0; i < indent_; ++i)
         o << "    ";
 }
@@ -87,10 +88,10 @@ void Printer::dumpName(const AIRNode* n) {
 
         // elide white = 0 and black = 7
         int code = (sum % 6) + 30 + 1;
-        o_ << "\e[" << code << "m";
+        o << "\e[" << code << "m";
     }
 
-    o_ << n;
+    o << n;
     if (!n->debug.empty())
         o << "_[" << n->debug << ']';
 
@@ -133,7 +134,7 @@ void ErrorLit::dump(Printer& printer, LambdaPrinterMode mode) const  {
 
 void PrimLit::dump(Printer& printer, LambdaPrinterMode mode) const  {
 	switch(indexKind()) {
-#define ANYDSL_U_TYPE(T) case Index_PrimLit_##T: printer << box().get_##T(); return;
+#define ANYDSL_U_TYPE(T) case Index_PrimLit_##T: printer.o << box().get_##T(); return;
 #define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
 #include "anydsl/tables/primtypetable.h"
 	default:
@@ -148,7 +149,7 @@ void Jump::dump(Printer& printer, LambdaPrinterMode mode) const  {
 	printer << "jump(";
 	to()->dump(printer, mode);
 	printer << ", [";
-	ANYDSL_DUMP_COMMA_LIST(printer, args);
+	ANYDSL_DUMP_COMMA_LIST(printer, args());
 	printer  << "])";
 }
 
@@ -180,6 +181,12 @@ void Insert::dump(Printer& printer, LambdaPrinterMode mode) const  {
 	printer << ", ";
 	value()->dump(printer, mode);
 	printer << ")";
+}
+
+void Tuple::dump(Printer& printer, LambdaPrinterMode mode) const {
+	printer << "{";
+	ANYDSL_DUMP_COMMA_LIST(printer, ops());
+	printer << "}";
 }
 
 // Types
@@ -238,7 +245,7 @@ void Param::dump(Printer &printer, LambdaPrinterMode mode) const  {
 
 //------------------------------------------------------------------------------
 
-void AIRNode::dump() {
+void AIRNode::dump() const {
     Printer p(std::cout);
     dump(p, LAMBDA_PRINTER_MODE_DEFAULT);
 }

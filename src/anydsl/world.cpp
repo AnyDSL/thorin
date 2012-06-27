@@ -56,7 +56,7 @@ static void examineDef(const Def* def, FoldValue& v) {
  */
 
 World::World() 
-    : values_(1031)
+    : defs_(1031)
     , unit_ (find(new Sigma(*this, (const Type* const*) 0, (const Type* const*) 0)))
     , pi0_  (find(new Pi(*this, (const Type* const*) 0, (const Type* const*) 0)))
 #define ANYDSL_U_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T)))
@@ -75,7 +75,7 @@ World::~World() {
     live_.clear();
     cleanup();
 
-    anydsl_assert(values_.empty(), "cleanup should catch everything");
+    anydsl_assert(defs_.empty(), "cleanup should catch everything");
 }
 
 /*
@@ -127,11 +127,11 @@ const Jump* World::createBranch(const Def* cond, const Def* tto, const Def* fto)
     return createBranch(cond, tto, fto, 0, 0);
 }
 
-const Value* World::createTuple(const Def* const* begin, const Def* const* end) { 
+const Def* World::createTuple(const Def* const* begin, const Def* const* end) { 
     return find(new Tuple(*this, begin, end));
 }
 
-const Value* World::tryFold(IndexKind kind, const Def* ldef, const Def* rdef) {
+const Def* World::tryFold(IndexKind kind, const Def* ldef, const Def* rdef) {
     FoldValue a(ldef->type()->as<PrimType>()->kind());
     FoldValue b(a.type);
 
@@ -152,8 +152,8 @@ const Value* World::tryFold(IndexKind kind, const Def* ldef, const Def* rdef) {
     return 0;
 }
 
-const Value* World::createArithOp(ArithOpKind kind, const Def* ldef, const Def* rdef) {
-    if (const Value* value = tryFold((IndexKind) kind, ldef, rdef))
+const Def* World::createArithOp(ArithOpKind kind, const Def* ldef, const Def* rdef) {
+    if (const Def* value = tryFold((IndexKind) kind, ldef, rdef))
         return value;
 
     if (isCommutative(kind))
@@ -163,8 +163,8 @@ const Value* World::createArithOp(ArithOpKind kind, const Def* ldef, const Def* 
     return find(new ArithOp(kind, ldef, rdef));
 }
 
-const Value* World::createRelOp(RelOpKind kind, const Def* ldef, const Def* rdef) {
-    if (const Value* value = tryFold((IndexKind) kind, ldef, rdef))
+const Def* World::createRelOp(RelOpKind kind, const Def* ldef, const Def* rdef) {
+    if (const Def* value = tryFold((IndexKind) kind, ldef, rdef))
         return value;
 
     bool swap;
@@ -175,18 +175,18 @@ const Value* World::createRelOp(RelOpKind kind, const Def* ldef, const Def* rdef
     return find(new RelOp(kind, ldef, rdef));
 }
 
-const Value* World::createExtract(const Def* tuple, const PrimLit* i) {
+const Def* World::createExtract(const Def* tuple, const PrimLit* i) {
     // TODO folding
     return find(new Extract(tuple, i));
 }
 
-const Value* World::createInsert(const Def* tuple, const PrimLit* i, const Def* value) {
+const Def* World::createInsert(const Def* tuple, const PrimLit* i, const Def* value) {
     // TODO folding
     return find(new Insert(tuple, i, value));
 }
 
 
-const Value* World::createSelect(const Def* cond, const Def* tdef, const Def* fdef) {
+const Def* World::createSelect(const Def* cond, const Def* tdef, const Def* fdef) {
     return find(new Select(cond, tdef, fdef));
 }
 
@@ -197,48 +197,48 @@ const Lambda* World::finalize(const Lambda* lambda) {
     return find<Lambda>(lambda);
 }
 
-void World::insert(const Value* value) {
-    if (value->live_)
+void World::insert(const Def* def) {
+    if (def->live_)
         return;
 
-    value->live_ = true;
+    def->live_ = true;
 
-    for_all (def, value->ops())
-        if (const Value* op = def->isa<Value>())
+    for_all (def, def->ops())
+        if (const Def* op = def->isa<Def>())
             insert(op);
 
-    if (const Type* type = value->type())
+    if (const Type* type = def->type())
         insert(type);
 }
 
 void World::cleanup() {
-    for_all (value, values_)
-        value->live_ = false;
+    for_all (def, defs_)
+        def->live_ = false;
 
-    for_all (value, live_)
-        insert(value);
+    for_all (def, live_)
+        insert(def);
 
-    ValueMap::iterator i = values_.begin();
-    while (i != values_.end()) {
-        const Value* value = *i;
-        if (!value->live_) {
-            delete value;
-            i = values_.erase(i);
+    DefMap::iterator i = defs_.begin();
+    while (i != defs_.end()) {
+        const Def* def = *i;
+        if (!def->live_) {
+            delete def;
+            i = defs_.erase(i);
         } else
             ++i;
     }
 }
 
-const Value* World::findValue(const Value* value) {
-    ValueMap::iterator i = values_.find(value);
-    if (i != values_.end()) {
-        delete value;
+const Def* World::findDef(const Def* def) {
+    DefMap::iterator i = defs_.find(def);
+    if (i != defs_.end()) {
+        delete def;
         return *i;
     }
 
-    values_.insert(value);
+    defs_.insert(def);
 
-    return value;
+    return def;
 }
 
 } // namespace anydsl

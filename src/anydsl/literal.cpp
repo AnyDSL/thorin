@@ -7,15 +7,15 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-bool PrimLit::equal(const Value* other) const {
-    if (!Value::equal(other))
+bool PrimLit::equal(const Def* other) const {
+    if (!Def::equal(other))
         return false;
 
     return box() == other->as<PrimLit>()->box();
 }
 
 size_t PrimLit::hash() const {
-    size_t seed = Value::hash();
+    size_t seed = Def::hash();
     boost::hash_combine(seed, bcast<u64, Box>(box()));
 
     return seed;

@@ -12,11 +12,11 @@ class PrimLit;
 
 //------------------------------------------------------------------------------
 
-class PrimOp : public Value {
+class PrimOp : public Def {
 protected:
 
     PrimOp(IndexKind index, const Type* type, size_t numOps)
-        : Value(index, type, numOps)
+        : Def(index, type, numOps)
     {}
 
 public:
@@ -139,7 +139,7 @@ private:
 
 public:
 
-    virtual void dump(Printer &printer) const;
+    virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
 
     friend class World;
 };

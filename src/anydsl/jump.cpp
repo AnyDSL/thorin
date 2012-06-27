@@ -5,9 +5,9 @@
 namespace anydsl {
 
 Jump::Jump(const Def* to, const Def* const* begin, const Def* const* end) 
-    : Value(Index_Jump, 
-            to->world().noret(to->type()->as<Pi>()), 
-            std::distance(begin, end) + 1)
+    : Def(Index_Jump, 
+          to->world().noret(to->type()->as<Pi>()), 
+          std::distance(begin, end) + 1)
 { 
     setOp(0, to);
 

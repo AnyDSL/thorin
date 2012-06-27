@@ -118,6 +118,9 @@ public:
         const Def& def;
     };
 
+    virtual bool equal(const Def* other) const;
+    virtual size_t hash() const;
+
     const UseSet& uses() const { return uses_; }
     const Type* type() const { return type_; }
     size_t numOps() const { return numOps_; }
@@ -133,10 +136,23 @@ private:
     const Type* type_;
     mutable UseSet uses_;
     size_t numOps_;
+    mutable bool live_;
 
 protected:
 
     const Def** ops_;
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
+struct DefHash : std::unary_function<const Def*, size_t> {
+    size_t operator () (const Def* v) const { return v->hash(); }
+};
+
+struct DefEqual : std::binary_function<const Def*, const Def*, bool> {
+    bool operator () (const Def* v1, const Def* v2) const { return v1->equal(v2); }
 };
 
 //------------------------------------------------------------------------------
@@ -144,19 +160,18 @@ protected:
 class Param : public Def {
 private:
 
-    Param(Lambda* parent, size_t index, const Type* type);
+    Param(const Type* type, const Lambda* parent, size_t index);
 
     size_t index() const { return index_; }
 
 public:
 
-    const Lambda* parent() const { return parent_; }
+    const Lambda* lambda() const;
 
     virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
 
 private:
 
-    Lambda* parent_;
     size_t index_;
 
     friend class Lambda;

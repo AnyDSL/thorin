@@ -22,7 +22,7 @@ class PrimLit;
 class PrimType;
 class Sigma;
 class Type;
-class Value;
+class Def;
 class Undef;
 
 //------------------------------------------------------------------------------
@@ -185,38 +185,38 @@ public:
     const Jump* createBranch(const Def* cond, const Def* tto, const Def* fto, 
                              const Def* const* arg_begin, const Def* const* arg_end);
 
-    const Value* createArithOp(ArithOpKind kind, const Def* ldef, const Def* rdef);
-    const Value* createRelOp(RelOpKind kind, const Def* ldef, const Def* rdef);
-    const Value* createExtract(const Def* tuple, const PrimLit* i);
-    const Value* createInsert(const Def* tuple, const PrimLit* i, const Def* value);
-    const Value* createSelect(const Def* cond, const Def* tdef, const Def* fdef);
-    const Value* createTuple(const Def* const* begin, const Def* const* end);
+    const Def* createArithOp(ArithOpKind kind, const Def* ldef, const Def* rdef);
+    const Def* createRelOp(RelOpKind kind, const Def* ldef, const Def* rdef);
+    const Def* createExtract(const Def* tuple, const PrimLit* i);
+    const Def* createInsert(const Def* tuple, const PrimLit* i, const Def* value);
+    const Def* createSelect(const Def* cond, const Def* tdef, const Def* fdef);
+    const Def* createTuple(const Def* const* begin, const Def* const* end);
     template<size_t N>
-    const Value* createTuple(const Def* const (&array)[N]) { return createTuple(array, array + N); }
+    const Def* createTuple(const Def* const (&array)[N]) { return createTuple(array, array + N); }
 
     const Lambda* finalize(const Lambda* lambda);
 
-    void setLive(const Value* value) { live_.insert(value); }
+    void setLive(const Def* def) { live_.insert(def); }
 
     /// Performs dead code and unreachable code elimination.
     void cleanup();
 
 private:
 
-    typedef boost::unordered_set<const Value*, ValueHash, ValueEqual> ValueMap;
-    ValueMap::iterator remove(ValueMap::iterator i);
-    const Value* findValue(const Value* value);
+    typedef boost::unordered_set<const Def*, DefHash, DefEqual> DefMap;
+    DefMap::iterator remove(DefMap::iterator i);
+    const Def* findDef(const Def* def);
 
-    void insert(const Value* value);
+    void insert(const Def* def);
 
     template<class T> 
-    const T* find(const T* val) { return (T*) findValue(val); }
+    const T* find(const T* val) { return (T*) findDef(val); }
 
-    const Value* tryFold(IndexKind kind, const Def* ldef, const Def* rdef);
+    const Def* tryFold(IndexKind kind, const Def* ldef, const Def* rdef);
 
-    ValueMap values_;
+    DefMap defs_;
 
-    typedef boost::unordered_set<const Value*> LiveSet;
+    typedef boost::unordered_set<const Def*> LiveSet;
     LiveSet live_;
     NamedSigmas namedSigmas_;
 

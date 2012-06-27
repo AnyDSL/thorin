@@ -13,11 +13,11 @@ class World;
 
 //------------------------------------------------------------------------------
 
-class Type : public Value {
+class Type : public Def {
 protected:
 
     Type(World& world, IndexKind index, size_t num)
-        : Value(index, 0, num)
+        : Def(index, 0, num)
         , world_(world)
     {}
 

@@ -221,11 +221,11 @@ void Printer::dump(const AIRNode* n, bool goInsideLambda /*= false*/) {
         case Index_Lambda: 
             if (goInsideLambda) {
                 const Lambda* lambda = n->as<Lambda>();
-                const Params& params = lambda->params();
+                //const Params& params = lambda->params();
 
                 dumpName(lambda);
                 o << " = lambda(";
-                ANYDSL_DUMP_COMMA_LIST(params);
+                //ANYDSL_DUMP_COMMA_LIST(params);
                 o << ')';
                 up();
                 dump(lambda->jump());

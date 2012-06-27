@@ -84,6 +84,20 @@ const Lambda* Param::lambda() const {
     return ops_[0]->as<Lambda>();
 }
 
+bool Param::equal(const Def* other) const {
+    if (!Def::equal(other))
+        return false;
+
+    return index() == other->as<Param>()->index();
+}
+
+size_t Param::hash() const {
+    size_t seed = Def::hash();
+    boost::hash_combine(seed, index());
+
+    return seed;
+}
+
 //------------------------------------------------------------------------------
 
 } // namespace anydsl

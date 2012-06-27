@@ -194,18 +194,19 @@ const Lambda* World::finalize(const Lambda* lambda) {
     anydsl_assert(lambda->type(), "must be set");
     anydsl_assert(lambda->jump(), "must be set");
 
+    // TODO insert param
+
     return find<Lambda>(lambda);
 }
 
 void World::insert(const Def* def) {
-    if (def->live_)
+    if (def->flag_)
         return;
 
-    def->live_ = true;
+    def->flag_ = true;
 
     for_all (def, def->ops())
-        if (const Def* op = def->isa<Def>())
-            insert(op);
+        insert(def);
 
     if (const Type* type = def->type())
         insert(type);
@@ -213,7 +214,7 @@ void World::insert(const Def* def) {
 
 void World::cleanup() {
     for_all (def, defs_)
-        def->live_ = false;
+        def->flag_ = false;
 
     for_all (def, live_)
         insert(def);
@@ -221,7 +222,7 @@ void World::cleanup() {
     DefMap::iterator i = defs_.begin();
     while (i != defs_.end()) {
         const Def* def = *i;
-        if (!def->live_) {
+        if (!def->flag_) {
             delete def;
             i = defs_.erase(i);
         } else

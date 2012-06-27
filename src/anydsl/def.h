@@ -118,6 +118,27 @@ public:
         const Def& def;
     };
 
+    template<class T>
+    struct FilteredUses {
+        typedef UseSet::const_iterator const_iterator;
+
+        FilteredUses(const UseSet& uses) : uses(uses) {}
+
+        const_iterator begin() const { return skip(uses.begin()); }
+        const_iterator end() const { return uses.end(); }
+
+    private:
+
+        template<class I>
+        I skip(I& i) {
+            while (!(*i)->isa<T>() && i != uses.end())
+                ++i;
+            return i;
+        }
+
+        const UseSet& uses;
+    };
+
     virtual bool equal(const Def* other) const;
     virtual size_t hash() const;
 
@@ -136,7 +157,7 @@ private:
     const Type* type_;
     mutable UseSet uses_;
     size_t numOps_;
-    mutable bool live_;
+    mutable bool flag_;
 
 protected:
 
@@ -163,6 +184,9 @@ private:
     Param(const Type* type, const Lambda* lambda, size_t index);
 
     size_t index() const { return index_; }
+
+    virtual bool equal(const Def* other) const;
+    virtual size_t hash() const;
 
 public:
 

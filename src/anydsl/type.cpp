@@ -39,7 +39,4 @@ const Type* CompoundType::get(const PrimLit* c) const {
     return get(c->box().get_u64()); 
 }
 
-
-//------------------------------------------------------------------------------
-
 } // namespace anydsl

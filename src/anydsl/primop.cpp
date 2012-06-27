@@ -26,7 +26,7 @@ Extract::Extract(const Def* tuple, const PrimLit* elem)
     setOp(0, tuple);
     setOp(1, elem);
 }
-    
+
 Insert::Insert(const Def* tuple, const PrimLit* elem, const Def* value)
     : PrimOp(Index_Insert, tuple->type(), 3)
 {

@@ -127,11 +127,22 @@ public:
         const_iterator begin() const { return skip(uses.begin()); }
         const_iterator end() const { return uses.end(); }
 
+        size_t size() const {
+            size_t n = 0;
+            for (const_iterator i = begin(), e = end(); i != e; ++i)
+                ++n;
+
+            return n;
+        }
+
+        bool empty() const {
+            return begin() == end();
+        }
+
     private:
 
-        template<class I>
-        I skip(I& i) {
-            while (!(*i)->isa<T>() && i != uses.end())
+        const_iterator skip(const_iterator i) const {
+            while (!(*i).def()->isa<T>() && i != uses.end())
                 ++i;
             return i;
         }
@@ -155,12 +166,12 @@ protected:
 private:
 
     const Type* type_;
-    mutable UseSet uses_;
     size_t numOps_;
     mutable bool flag_;
 
 protected:
 
+    mutable UseSet uses_;
     const Def** ops_;
 
     friend class World;
@@ -181,7 +192,7 @@ struct DefEqual : std::binary_function<const Def*, const Def*, bool> {
 class Param : public Def {
 private:
 
-    Param(const Type* type, const Lambda* lambda, size_t index);
+    Param(const Type* type, const Lambda* parent, size_t index);
 
     size_t index() const { return index_; }
 
@@ -192,13 +203,14 @@ public:
 
     const Lambda* lambda() const;
 
+    virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
+
 private:
 
     size_t index_;
 
     friend class Lambda;
 };
-
 
 } // namespace anydsl
 

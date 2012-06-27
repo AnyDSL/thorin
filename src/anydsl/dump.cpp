@@ -15,13 +15,13 @@ struct get_clean_type { typedef T type; } ;
 template<class T>
 struct get_clean_type<const T&> {typedef T type; };
 
-#define ANYDSL_DUMP_COMMA_LIST(list) \
+#define ANYDSL_DUMP_COMMA_LIST(printer, list) \
     if (!(list).empty()) { \
         for (get_clean_type<BOOST_TYPEOF((list))>::type::const_iterator i = (list).begin(), e = (list).end() - 1; i != e; ++i) { \
-            dump(*i); \
-            o << ", "; \
+            (*i)->dump(printer, mode); \
+            printer << ", "; \
         } \
-        dump((list).back()); \
+        ((list).back())->dump(printer, mode); \
     }
 
 namespace anydsl {
@@ -37,14 +37,18 @@ public:
 
     bool fancy() const { return fancy_; }
 
-    void dump(const AIRNode* n, bool goInsideLambda = false);
-    void dump(const CompoundType* ct, const char* str);
-    void dumpBinOp(const std::string& str, const AIRNode* n);
+    void dump(const AIRNode* n);
     void dumpName(const AIRNode* n);
 
     void newline();
     void up();
     void down();
+
+    template<class T>
+    Printer& operator<<(T& data) {
+    	o << data;
+    	return *this;
+    }
 
     std::ostream& o;
 
@@ -95,154 +99,168 @@ void Printer::dumpName(const AIRNode* n) {
         o << "\e[m";
 }
 
-void Printer::dumpBinOp(const std::string& str, const AIRNode* n) {
-    const BinOp* b = n->as<BinOp>();
-    o << str << "("; 
-    dump(b->ldef());
-    o << ", ";
-    dump(b->rdef());
-    o << ")";
-    return;
-}
-
-void Printer::dump(const CompoundType* ct, const char* str) {
-    o << str << '(';
-    ANYDSL_DUMP_COMMA_LIST(ct->ops());
-    o << ')';
-    return;
-}
-
-void Printer::dump(const AIRNode* n, bool goInsideLambda /*= false*/) {
-    std::string str;
-
-    switch (n->indexKind()) {
-/*
- * types
- */
-
-#define ANYDSL_U_TYPE(T) case Index_PrimType_##T: o << #T; return;
-#define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
-#include "anydsl/tables/primtypetable.h"
-
-        case Index_Sigma: 
-            return dump(n->as<CompoundType>(), "sigma");
-
-        case Index_Pi: 
-            return dump(n->as<CompoundType>(), "pi");
-
-/*
- * literals
- */
-
-#define ANYDSL_U_TYPE(T) case Index_PrimLit_##T: o << n->as<PrimLit>()->box().get_##T(); return;
-#define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
-#include "anydsl/tables/primtypetable.h"
-
-        case Index_Undef:    o << "<undef>"; return;
-        case Index_ErrorLit: o << "<error>"; return;
-
-/*
- * primops
- */
-
-#define ANYDSL_ARITHOP(op) case Index_##op: return dumpBinOp(#op, n);
+void BinOp::dump(Printer& printer, LambdaPrinterMode mode) const  {
+	switch(indexKind()) {
+#define ANYDSL_ARITHOP(op) case Index_##op: printer << #op;
 #include "anydsl/tables/arithoptable.h"
 
-#define ANYDSL_RELOP(op)   case Index_##op: return dumpBinOp(#op, n);
+#define ANYDSL_RELOP(op)   case Index_##op: printer << #op;
 #include "anydsl/tables/reloptable.h"
 
 #define ANYDSL_CONVOP(op) case Index_##op:
 #include "anydsl/tables/convoptable.h"
         ANYDSL_NOT_IMPLEMENTED;
 
-        case Index_Extract: {
-            const Extract* extract = n->as<Extract>();
-            o << "extract(";
-            dump(extract->tuple());
-            o << ", ";
-            dump(extract->elem());
-            o << ')';
-            return;
-        }
-        case Index_Insert: {
-            const Insert* insert = n->as<Insert>();
-            o << "insert(";
-            dump(insert->tuple());
-            o << ", ";
-            dump(insert->elem());
-            o << ", ";
-            dump(insert->value());
-            o << ')';
-            return;
-        }
-        case Index_Select: {
-            const Select* select = n->as<Select>();
-            o << "select(";
-            dump(select->cond());
-            o << ", ";
-            dump(select->tdef());
-            o << ", ";
-            dump(select->fdef());
-            o << ')';
-            return;
-        }
-        case Index_Jump: {
-            const Jump* jump = n->as<Jump>();
-            o << "jump(";
-            dump(jump->to());
-            o << ", [";
-            ANYDSL_DUMP_COMMA_LIST(jump->args());
-            o << "])";
-            return;
-        }
-        case Index_Tuple: {
-            const Tuple* tuple = n->as<Tuple>();
-            o << '{';
-            ANYDSL_DUMP_COMMA_LIST(tuple->ops());
-            o << '}';
-            return;
-        }
-        case Index_NoRet: {
-            const NoRet* noret = n->as<NoRet>();
-            dump(noret->pi());
-            return;
-        }
+	default:
+		ANYDSL_UNREACHABLE;
+		break;
+	}
+	printer << "(";
+	ldef()->dump(printer, mode);
+	printer << ", ";
+	rdef()->dump(printer, mode);
+	printer << ")";
+}
 
-/*
- * Param
- */
-        case Index_Param:
-            dumpName(n);
-            return;
+// Literal
 
-/*
- * Lambda
- */
-        case Index_Lambda: 
-            if (goInsideLambda) {
-                const Lambda* lambda = n->as<Lambda>();
-                //const Params& params = lambda->params();
+void Undef::dump(Printer& printer, LambdaPrinterMode mode) const  {
+	printer << "<undef>";
+}
 
-                dumpName(lambda);
-                o << " = lambda(";
-                //ANYDSL_DUMP_COMMA_LIST(params);
-                o << ')';
-                up();
-                dump(lambda->jump());
-                down();
-                return;
-            } else {
-                dumpName(n);
-                return;
-            }
+void ErrorLit::dump(Printer& printer, LambdaPrinterMode mode) const  {
+	printer << "<error>";
+}
+
+void PrimLit::dump(Printer& printer, LambdaPrinterMode mode) const  {
+	switch(indexKind()) {
+#define ANYDSL_U_TYPE(T) case Index_PrimLit_##T: printer.o << box().get_##T(); return;
+#define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
+#include "anydsl/tables/primtypetable.h"
+	default:
+		ANYDSL_UNREACHABLE;
+		break;
+	}
+}
+
+// Jump
+
+void Jump::dump(Printer& printer, LambdaPrinterMode mode) const  {
+	printer << "jump(";
+	to()->dump(printer, mode);
+	printer << ", [";
+	ANYDSL_DUMP_COMMA_LIST(printer, args());
+	printer  << "])";
+}
+
+// PrimOp
+
+void Select::dump(Printer& printer, LambdaPrinterMode mode) const  {
+	printer << "select(";
+	cond()->dump(printer, mode);
+	printer << ", ";
+	tdef()->dump(printer, mode);
+	printer << ", ";
+	fdef()->dump(printer, mode);
+	printer << ")";
+}
+
+void Extract::dump(Printer& printer, LambdaPrinterMode mode) const  {
+	printer << "extract(";
+	tuple()->dump(printer, mode);
+	printer << ", ";
+	elem()->dump(printer, mode);
+	printer << ")";
+}
+
+void Insert::dump(Printer& printer, LambdaPrinterMode mode) const  {
+	printer << "insert(";
+	tuple()->dump(printer, mode);
+	printer << ", ";
+	elem()->dump(printer, mode);
+	printer << ", ";
+	value()->dump(printer, mode);
+	printer << ")";
+}
+
+void Tuple::dump(Printer& printer, LambdaPrinterMode mode) const {
+	printer << "{";
+	ANYDSL_DUMP_COMMA_LIST(printer, ops());
+	printer << "}";
+}
+
+// Types
+
+void NoRet::dump(Printer& printer, LambdaPrinterMode mode) const  {
+	printer << "noret(";
+	pi()->dump(printer, mode);
+	printer << ")";
+}
+
+void CompoundType::dump(Printer& printer, LambdaPrinterMode mode) const  {
+	printer << "(";
+	ANYDSL_DUMP_COMMA_LIST(printer, ops());
+	printer << ")";
+}
+
+void PrimType::dump(Printer& printer, LambdaPrinterMode mode) const  {
+	switch(indexKind()) {
+#define ANYDSL_U_TYPE(T) case Index_PrimType_##T: printer << #T; return;
+#define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
+#include "anydsl/tables/primtypetable.h"
+	default:
+		ANYDSL_UNREACHABLE;
+		break;
+	}
+}
+
+void Sigma::dump(Printer& printer, LambdaPrinterMode mode) const  {
+	printer << "sigma";
+	CompoundType::dump(printer, mode);
+}
+
+void Pi::dump(Printer& printer, LambdaPrinterMode mode) const  {
+	printer << "pi";
+	CompoundType::dump(printer, mode);
+}
+
+void Lambda::dump(Printer& printer, LambdaPrinterMode mode) const  {
+	printer.dumpName(this);
+	if(mode == LAMBDA_PRINTER_MODE_SKIPBODY)
+		return;
+	printer << " = lambda(";
+
+    if (!params().empty()) {
+        Params::const_iterator i = params().begin();
+        while (true) {
+            Params::const_iterator j = i;
+            ++j;
+
+            if (j != params().end()) {
+                (*i).def()->dump(printer, mode);
+                printer << ", ";
+                i = j;
+            } else
+                break;
+        } 
+        (*i).def()->dump(printer, mode);
     }
+
+	printer << ")";
+	printer.up();
+	jump()->dump(printer, mode);
+	printer.down();
+}
+
+void Param::dump(Printer &printer, LambdaPrinterMode mode) const  {
+	printer.dumpName(this);
 }
 
 //------------------------------------------------------------------------------
 
-void dump(const AIRNode* n, std::ostream& o /*= std::cout*/) {
-    Printer p(o);
-    p.dump(n, true);
+void AIRNode::dump() const {
+    Printer p(std::cout);
+    dump(p, LAMBDA_PRINTER_MODE_DEFAULT);
 }
 
 //------------------------------------------------------------------------------

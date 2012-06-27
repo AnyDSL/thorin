@@ -47,6 +47,8 @@ public:
 
     Args args() const { return Args(*this); }
 
+    virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
+
     const Def* to() const { return ops_[0]; };
 
 private:

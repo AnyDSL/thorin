@@ -31,7 +31,12 @@ private:
         : Literal(Index_Undef, type)
     {}
 
+public:
+
+    virtual void dump(Printer& printer, LambdaPrinterMode mode) const ;
+
     friend class World;
+
 };
 
 //------------------------------------------------------------------------------
@@ -42,6 +47,10 @@ private:
     ErrorLit(const Type* type)
         : Literal(Index_ErrorLit, type)
     {}
+
+public:
+
+    virtual void dump(Printer& printer, LambdaPrinterMode mode) const ;
 
     friend class World;
 };
@@ -60,6 +69,8 @@ public:
 
     PrimLitKind kind() const { return (PrimLitKind) indexKind(); }
     Box box() const { return box_; }
+
+    virtual void dump(Printer& printer, LambdaPrinterMode mode) const ;
 
     virtual bool equal(const Def* other) const;
     virtual size_t hash() const;

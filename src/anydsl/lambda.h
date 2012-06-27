@@ -30,7 +30,12 @@ public:
     const Param* appendParam(const Type* type);
     void calcType(World& world);
 
+    Params params() const { return Params(uses_); }
+    Callers callers() const { return Callers(uses_); }
+
     void setJump(const Jump* jump);
+
+    virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
 
 private:
 

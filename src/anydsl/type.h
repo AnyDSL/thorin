@@ -41,6 +41,8 @@ public:
 
     const Pi* pi() const { return ops_[0]->as<Pi>(); }
 
+    virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
+
 private:
 
     const Pi* pi_;
@@ -59,6 +61,8 @@ private:
 public:
 
     PrimTypeKind kind() const { return (PrimTypeKind) indexKind(); }
+
+    virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
 
     friend class World;
 };
@@ -81,6 +85,8 @@ public:
 
     /// Get element type via anydsl::PrimLit which serves as index.
     const Type* get(const PrimLit* i) const;
+
+    virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
 };
 
 //------------------------------------------------------------------------------
@@ -102,6 +108,8 @@ public:
 
     bool named() const { return named_; }
 
+    virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
+
 private:
 
     bool named_;
@@ -120,6 +128,8 @@ private:
     {}
 
 public:
+
+    virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
 
     friend class World;
 };

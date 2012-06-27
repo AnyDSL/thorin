@@ -145,7 +145,7 @@ void PrimLit::dump(Printer& printer, LambdaPrinterMode mode) const  {
 
 // Jump
 
-void Jump::dump(Printer& printer, LambdaPrinterMode mode) const  {
+void Goto::dump(Printer& printer, LambdaPrinterMode mode) const  {
 	printer << "jump(";
 	to()->dump(printer, mode);
 	printer << ", [";
@@ -192,9 +192,7 @@ void Tuple::dump(Printer& printer, LambdaPrinterMode mode) const {
 // Types
 
 void NoRet::dump(Printer& printer, LambdaPrinterMode mode) const  {
-	printer << "noret(";
-	pi()->dump(printer, mode);
-	printer << ")";
+	printer << "noret";
 }
 
 void CompoundType::dump(Printer& printer, LambdaPrinterMode mode) const  {

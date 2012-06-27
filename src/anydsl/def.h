@@ -118,6 +118,8 @@ public:
         const Def& def;
     };
 
+    // TODO iterator class which gets def directly instead of Use
+
     template<class T>
     struct FilteredUses {
         typedef UseSet::const_iterator const_iterator;

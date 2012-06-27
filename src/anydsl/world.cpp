@@ -1,5 +1,6 @@
 #include "anydsl/world.h"
 
+#include "anydsl/def.h"
 #include "anydsl/primop.h"
 #include "anydsl/lambda.h"
 #include "anydsl/literal.h"
@@ -58,13 +59,15 @@ static void examineDef(const Def* def, FoldValue& v) {
 World::World() 
     : defs_(1031)
     , unit_ (find(new Sigma(*this, (const Type* const*) 0, (const Type* const*) 0)))
-    , pi0_  (find(new Pi(*this, (const Type* const*) 0, (const Type* const*) 0)))
+    , pi0_  (find(new Pi   (*this, (const Type* const*) 0, (const Type* const*) 0)))
+    , noret_(find(new NoRet(*this)))
 #define ANYDSL_U_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T)))
 #define ANYDSL_F_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T)))
 #include "anydsl/tables/primtypetable.h"
 {
     live_.insert(unit_);
     live_.insert(pi0_);
+    live_.insert(noret_);
     for (size_t i = 0; i < Num_PrimTypes; ++i)
         live_.insert(primTypes_[i]);
 }
@@ -115,7 +118,7 @@ const ErrorLit* World::literal_error(const Type* type) {
  */
 
 const Jump* World::createJump(const Def* to, const Def* const* arg_begin, const Def* const* arg_end) {
-    return find(new Jump(to, arg_begin, arg_end));
+    return find(new Goto(*this, to, arg_begin, arg_end));
 }
 
 const Jump* World::createBranch(const Def* cond, const Def* tto, const Def* fto, 
@@ -194,7 +197,10 @@ const Lambda* World::finalize(const Lambda* lambda) {
     anydsl_assert(lambda->type(), "must be set");
     anydsl_assert(lambda->jump(), "must be set");
 
-    // TODO insert param
+    const Lambda* l = find<Lambda>(lambda);
+
+    for_all (param, l->params())
+        findDef(param.def());
 
     return find<Lambda>(lambda);
 }

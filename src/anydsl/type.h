@@ -35,17 +35,13 @@ private:
 class NoRet : public Type {
 private:
 
-    NoRet(World& world, const Pi* pi);
+    NoRet(World& world);
 
 public:
-
-    const Pi* pi() const { return ops_[0]->as<Pi>(); }
 
     virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
 
 private:
-
-    const Pi* pi_;
 
     friend class World;
 };

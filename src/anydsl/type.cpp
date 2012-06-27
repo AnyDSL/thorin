@@ -14,11 +14,9 @@ PrimType::PrimType(World& world, PrimTypeKind kind)
 
 //------------------------------------------------------------------------------
 
-NoRet::NoRet(World& world, const Pi* pi)
+NoRet::NoRet(World& world)
     : Type(world, Index_NoRet, 1)
-{
-    setOp(0, pi);
-}
+{}
 
 //------------------------------------------------------------------------------
 

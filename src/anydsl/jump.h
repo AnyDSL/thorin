@@ -10,9 +10,17 @@ namespace anydsl {
 class NoRet;
 
 class Jump : public Def {
+protected:
+
+    Jump(World& world, IndexKind indexKind, size_t numOps);
+};
+
+//------------------------------------------------------------------------------
+
+class Goto : public Jump {
 private:
 
-    Jump(const Def* to, const Def* const* begin, const Def* const* end);
+    Goto(World& world, const Def* to, const Def* const* begin, const Def* const* end);
 
 public:
 
@@ -24,7 +32,7 @@ public:
         typedef const Def** const_iterator;
         typedef std::reverse_iterator<const Def**> const_reverse_iterator;
 
-        Args(const Jump& jump) : jump(jump) {}
+        Args(const Goto& jump) : jump(jump) {}
 
         const_iterator begin() const { return jump.ops_ + 1; }
         const_iterator end() const { return jump.ops_ + 1 + size(); }
@@ -42,7 +50,7 @@ public:
         const Def*& front() const { return *(jump.ops_ + 1); }
         const Def*& back() const { return *(jump.ops_ + 1 + size() - 1); }
 
-        const Jump& jump;
+        const Goto& jump;
     };
 
     Args args() const { return Args(*this); }

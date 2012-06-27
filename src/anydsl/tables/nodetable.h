@@ -2,7 +2,9 @@
 #error "define ANYDSL_AIR_NODE before including this file"
 #endif
 
-ANYDSL_AIR_NODE(Jump)
+// Jump
+    ANYDSL_AIR_NODE(Goto)
+    ANYDSL_AIR_NODE(Branch)
 // Def
     ANYDSL_AIR_NODE(Lambda)
     // Literal

@@ -224,15 +224,27 @@ void Pi::dump(Printer& printer, LambdaPrinterMode mode) const  {
 	CompoundType::dump(printer, mode);
 }
 
-
-// Lambda + Param
-
 void Lambda::dump(Printer& printer, LambdaPrinterMode mode) const  {
 	printer.dumpName(this);
 	if(mode == LAMBDA_PRINTER_MODE_SKIPBODY)
 		return;
 	printer << " = lambda(";
-	ANYDSL_DUMP_COMMA_LIST(printer, params());
+
+    if (!params().empty()) {
+        Params::const_iterator i = params().begin();
+        while (true) {
+            Params::const_iterator j = i;
+            ++j;
+
+            if (j != params().end()) {
+                (*i).def()->dump(printer, mode);
+                printer << ", ";
+                i = j;
+            } else
+                break;
+        } 
+        (*i).def()->dump(printer, mode); \
+    }
 	printer << ")";
 	printer.up();
 	jump()->dump(printer, mode);

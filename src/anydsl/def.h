@@ -118,6 +118,38 @@ public:
         const Def& def;
     };
 
+    template<class T>
+    struct FilteredUses {
+        typedef UseSet::const_iterator const_iterator;
+
+        FilteredUses(const UseSet& uses) : uses(uses) {}
+
+        const_iterator begin() const { return skip(uses.begin()); }
+        const_iterator end() const { return uses.end(); }
+
+        size_t size() const {
+            size_t n = 0;
+            for (const_iterator i = begin(), e = end(); i != e; ++i)
+                ++n;
+
+            return n;
+        }
+
+        bool empty() const {
+            return begin() == end();
+        }
+
+    private:
+
+        const_iterator skip(const_iterator i) const {
+            while (!(*i).def()->isa<T>() && i != uses.end())
+                ++i;
+            return i;
+        }
+
+        const UseSet& uses;
+    };
+
     virtual bool equal(const Def* other) const;
     virtual size_t hash() const;
 
@@ -134,12 +166,12 @@ protected:
 private:
 
     const Type* type_;
-    mutable UseSet uses_;
     size_t numOps_;
-    mutable bool live_;
+    mutable bool flag_;
 
 protected:
 
+    mutable UseSet uses_;
     const Def** ops_;
 
     friend class World;
@@ -163,6 +195,9 @@ private:
     Param(const Type* type, const Lambda* parent, size_t index);
 
     size_t index() const { return index_; }
+
+    virtual bool equal(const Def* other) const;
+    virtual size_t hash() const;
 
 public:
 

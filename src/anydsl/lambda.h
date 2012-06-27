@@ -13,7 +13,8 @@ class Lambda;
 class Pi;
 class Jump;
 
-typedef AutoVector<const Param*> Params;
+typedef Def::FilteredUses<Jump> Callers;
+typedef Def::FilteredUses<Param> Params;
 
 class Lambda : public Def {
 public:
@@ -22,12 +23,15 @@ public:
     Lambda(const Pi* pi);
 
     bool final() const { return final_; }
-    const Params& params() const { return params_; }
+    //const Params& params() const { return params_; }
     const Jump* jump() const { return ops_[0]->as<Jump>(); }
     const Pi* pi() const;
 
-    Param* appendParam(const Type* type);
+    const Param* appendParam(const Type* type);
     void calcType(World& world);
+
+    Params params() const { return Params(uses_); }
+    Callers callers() const { return Callers(uses_); }
 
     void setJump(const Jump* jump);
 
@@ -36,7 +40,6 @@ public:
 private:
 
     bool final_;
-    Params params_;
 
     friend class World;
 };

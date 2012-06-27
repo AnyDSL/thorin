@@ -10,13 +10,9 @@ namespace anydsl {
 Lambda::Lambda(const Pi* pi)
     : Def(Index_Lambda, pi, 1)
     , final_(false)
-    , params_(pi->numOps())
 {
-    size_t i = 0;
-    for_all (&param, params_) {
-        param = new Param(pi->get(i), this, i);
-        ++i;
-    }
+    for (size_t i = 0, e = pi->numOps(); i != e; ++i)
+        new Param(pi->get(i), this, i);
 }
 
 Lambda::Lambda()
@@ -32,22 +28,20 @@ void Lambda::setJump(const Jump* jump) {
     setOp(0, jump); 
 }
 
-Param* Lambda::appendParam(const Type* type) {
+const Param* Lambda::appendParam(const Type* type) {
     assert(!final_);
     anydsl_assert(!this->type(), "type already set -- you are not allowed to add any more params");
 
-    Param* param = new Param(type, this, params_.size());
-    params_.push_back(param);
-
-    return param;
+    return new Param(type, this, 0); // TODO
 }
 
 void Lambda::calcType(World& world) {
     anydsl_assert(!type(), "type already set");
     std::vector<const Type*> types;
 
-    for_all (param, params())
-        types.push_back(param->type());
+    // TODO
+    //for_all (param, params())
+        //types.push_back(param->type());
 
     setType(world.pi(types.begin().base(), types.end().base()));
 }

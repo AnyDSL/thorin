@@ -42,7 +42,7 @@ Var* BB::getVar(const Symbol& symbol, const Type* type) {
 
     // insert a 'phi', i.e., create a param and remember to fix the callers
     if (!sealed_ || preds_.size() > 1) {
-        Param* param = topLambda_->appendParam(type);
+        const Param* param = topLambda_->appendParam(type);
         size_t index = in_.size();
         in_.push_back(param);
         Var* lvar = setVar(symbol, param);

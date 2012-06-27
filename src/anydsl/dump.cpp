@@ -146,10 +146,26 @@ void PrimLit::dump(Printer& printer, LambdaPrinterMode mode) const  {
 // Jump
 
 void Goto::dump(Printer& printer, LambdaPrinterMode mode) const  {
-	printer << "jump(";
+	printer << "goto(";
 	to()->dump(printer, mode);
 	printer << ", [";
 	ANYDSL_DUMP_COMMA_LIST(printer, args());
+	printer  << "])";
+}
+
+void Branch::dump(Printer& printer, LambdaPrinterMode mode) const  {
+	printer << "branch(";
+    cond()->dump(printer, mode);
+	printer << ", ";
+
+	tto()->dump(printer, mode);
+	printer << ", [";
+	ANYDSL_DUMP_COMMA_LIST(printer, targs());
+	printer  << "]), ";
+
+	fto()->dump(printer, mode);
+	printer << ", [";
+	ANYDSL_DUMP_COMMA_LIST(printer, fargs());
 	printer  << "])";
 }
 

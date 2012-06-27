@@ -144,7 +144,7 @@ public:
     private:
 
         const_iterator skip(const_iterator i) const {
-            while (!(*i).def()->isa<T>() && i != uses.end())
+            while (i != uses.end() && !(*i).def()->isa<T>())
                 ++i;
             return i;
         }

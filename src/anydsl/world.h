@@ -181,10 +181,16 @@ public:
     template<size_t N>
     const Jump* createGoto(const Def* to, const Def* const (&args)[N]) { return createGoto(to, args, args + N); }
 
-    const Jump* createBranch(const Def* cond, const Def* tto, const Def* fto);
+    const Jump* createBranch(const Def* cond, const Def* tto, const Def* fto) { return createBranch(cond, tto, fto, 0, 0); }
     const Jump* createBranch(const Def* cond, 
                              const Def* tto, const Def* const* tbegin, const Def* const* tend,
                              const Def* fto, const Def* const* fbegin, const Def* const* fend);
+    const Jump* createBranch(const Def* cond, const Def* tto, const Def* fto, 
+                             const Def* const* begin, const Def* const* end);
+    template<size_t N>
+    const Jump* createBranch(const Def* cond, const Def* tto, const Def* fto, const Def* const (&args)[N]) { 
+        return createBranch(cond, tto, fto, args);
+    }
     template<size_t TN, size_t FN>
     const Jump* createBranch(const Def* cond,
                              const Def* tto, const Def* const (&targs)[TN],

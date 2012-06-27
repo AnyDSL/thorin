@@ -35,11 +35,14 @@ public:
 
     void setJump(const Jump* jump);
 
+    virtual bool equal(const Def* other) const;
+    virtual size_t hash() const;
     virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
 
 private:
 
     bool final_;
+    int numArgs_;
 
     friend class World;
 };

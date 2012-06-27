@@ -127,9 +127,9 @@ const Jump* World::createBranch(const Def* cond,
     return find(new Branch(*this, cond, tto, tbegin, tend, fto, fbegin, fend));
 }
 
-const Jump* World::createBranch(const Def* cond, const Def* tto, const Def* fto) {
-    return createBranch(cond, tto, (const Def* const*) 0, (const Def* const*) 0, 
-                              fto, (const Def* const*) 0, (const Def* const*) 0);
+const Jump* World::createBranch(const Def* cond, const Def* tto, const Def* fto, 
+                            const Def* const* begin, const Def* const* end) {
+    return createGoto(createSelect(cond, tto, fto), begin, end);
 }
 
 const Def* World::createTuple(const Def* const* begin, const Def* const* end) { 
@@ -192,11 +192,17 @@ const Def* World::createInsert(const Def* tuple, const PrimLit* i, const Def* va
 
 
 const Def* World::createSelect(const Def* cond, const Def* tdef, const Def* fdef) {
+    std::cout << std::endl;
+    tdef->type()->dump();
+    std::cout << std::endl;
+    fdef->type()->dump();
+    std::cout << std::endl;
     return find(new Select(cond, tdef, fdef));
 }
 
 const Lambda* World::finalize(const Lambda* lambda) {
     anydsl_assert(lambda->type(), "must be set");
+    anydsl_assert(lambda->pi(),   "must be a pi type");
     anydsl_assert(lambda->jump(), "must be set");
 
     const Lambda* l = find<Lambda>(lambda);
@@ -204,7 +210,7 @@ const Lambda* World::finalize(const Lambda* lambda) {
     for_all (param, l->params())
         findDef(param.def());
 
-    return find<Lambda>(lambda);
+    return l;
 }
 
 void World::insert(const Def* def) {

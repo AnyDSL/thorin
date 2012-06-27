@@ -72,6 +72,16 @@ void BB::seal() {
             size_t index = p.second.index;
             const Type* type = p.second.type;
 
+            if (pred->succs().size() > 1) {
+                // critical edge
+                BB* empty = fct_->createBB();
+                pred->eraseEdge(this);
+                pred->flowsto(empty);
+                empty->flowsto(this);
+                pred = empty;
+            }
+
+            anydsl_assert(pred->succs().size() == 1, "ciritical edge elimination did not work");
             Defs& out = pred->out_;
 
             // make potentially room for the new arg
@@ -121,6 +131,11 @@ void BB::flowsto(BB* to) {
     }
 }
 
+void BB::eraseEdge(BB* to) {
+    to->succs_.erase(this);
+    this->preds_.erase(to);
+}
+
 World& BB::world() {
     return fct_->world();
 }
@@ -132,7 +147,12 @@ void BB::emit() {
             jump = world().createGoto((*succs().begin())->topLambda(), out_.begin().base(), out_.end().base());
             break;
         case 2:
-            //jump = world().createBranch(cond_, tlambda_, flambda_, out_.begin().base(), out_.end().base());
+            std::cout << "in emit" << std::endl;
+            tlambda_->type()->dump();
+            std::cout << std::endl;
+            flambda_->type()->dump();
+            std::cout << std::endl;
+            jump = world().createBranch(cond_, tlambda_, flambda_, out_.begin().base(), out_.end().base());
             break;
         default: 
             ANYDSL_UNREACHABLE;

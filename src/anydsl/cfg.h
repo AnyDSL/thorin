@@ -96,6 +96,7 @@ public:
 private:
 
     void flowsto(BB* to);
+    void eraseEdge(BB* to);
 
     bool sealed_;
 

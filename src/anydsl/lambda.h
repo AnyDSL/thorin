@@ -31,6 +31,8 @@ public:
 
     void setJump(const Jump* jump);
 
+    virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
+
 private:
 
     bool final_;

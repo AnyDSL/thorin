@@ -4,8 +4,4 @@
 
 namespace anydsl {
 
-void AIRNode::dump() const {
-    ::anydsl::dump(this);
-}
-
 } // namespace anydsl

@@ -20,6 +20,12 @@ NoRet::NoRet(World& world, const Pi* pi)
     setOp(0, pi);
 }
 
+void NoRet::dump(Printer& printer) const {
+	printer << "noret(";
+	pi()->dump(printer);
+	printer << ')';
+}
+
 //------------------------------------------------------------------------------
 
 CompoundType::CompoundType(World& world, IndexKind index, size_t num)
@@ -39,7 +45,37 @@ const Type* CompoundType::get(const PrimLit* c) const {
     return get(c->box().get_u64()); 
 }
 
+void CompoundType::dump(Printer& printer) const {
+	printer << '(';
+	printer.dumpOps(ops());
+	printer << ')';
+}
 
 //------------------------------------------------------------------------------
+
+void PrimType::dump(Printer& printer) const {
+	switch(indexKind()) {
+#define ANYDSL_U_TYPE(T) case Index_PrimType_##T: printer << #T; return;
+#define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
+#include "anydsl/tables/primtypetable.h"
+	default:
+		ANYDSL_UNREACHABLE;
+		break;
+	}
+}
+
+//------------------------------------------------------------------------------
+
+void Sigma::dump(Printer& printer) const {
+	printer << "sigma";
+	CompoundType::dump(printer);
+}
+
+//------------------------------------------------------------------------------
+
+void Pi::dump(Printer& printer) const {
+	printer << "pi";
+	CompoundType::dump(printer);
+}
 
 } // namespace anydsl

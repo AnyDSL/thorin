@@ -20,11 +20,29 @@ Select::Select(const Def* cond, const Def* t, const Def* f)
     anydsl_assert(t->type() == f->type(), "types of both values must be equal");
 }
 
+void Select::dump(Printer& printer) const {
+	printer << "select(";
+	cond()->dump(printer);
+	printer << ", ";
+	tdef->dump(printer);
+	printer << ", ";
+	fdef()->dump(printer);
+	printer << ')';
+}
+
 Extract::Extract(const Def* tuple, const PrimLit* elem) 
     : PrimOp(Index_Extract, tuple->type()->as<Sigma>()->get(elem), 2)
 {
     setOp(0, tuple);
     setOp(1, elem);
+}
+
+void Extract::dump(Printer& printer) const {
+	printer << "extract(";
+	tuple()->dump(printer);
+	printer << ", ";
+	elem()->dump(printer);
+	printer << ')';
 }
     
 Insert::Insert(const Def* tuple, const PrimLit* elem, const Def* value)
@@ -34,6 +52,16 @@ Insert::Insert(const Def* tuple, const PrimLit* elem, const Def* value)
     setOp(1, elem);
     setOp(2, value);
     anydsl_assert(tuple->type()->as<Sigma>()->get(elem) == value->type(), "type error");
+}
+
+void Insert::dump(Printer& printer) const {
+	printer << "insert(";
+	tuple()->dump(printer);
+	printer << ", ";
+	elem()->dump(printer);
+	printer << ", ";
+	value()->dump(printer);
+	printer << ')';
 }
 
 Tuple::Tuple(World& world, const Def* const* begin, const Def* const* end) 
@@ -52,6 +80,12 @@ Tuple::Tuple(World& world, const Def* const* begin, const Def* const* end)
         setType(world.sigma(types, types + numOps()));
         delete[] types;
     }
+}
+
+void Tuple::dump(Printer& printer) const {
+	printer << '{';
+	printer.dumpOps(ops());
+	printer << '}';
 }
 
 } // namespace anydsl

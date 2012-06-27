@@ -141,53 +141,26 @@ protected:
 
 //------------------------------------------------------------------------------
 
-class Value : public Def {
-protected:
-
-    Value(IndexKind index, const Type* type, size_t numOps)
-        : Def(index, type, numOps)
-    {}
-
-public:
-
-    virtual bool equal(const Value* other) const;
-    virtual size_t hash() const;
-
+class Param : public Def {
 private:
 
-    mutable bool live_;
-
-    friend class World;
-};
-
-struct ValueHash : std::unary_function<const Value*, size_t> {
-    size_t operator () (const Value* v) const { return v->hash(); }
-};
-
-struct ValueEqual : std::binary_function<const Value*, const Value*, bool> {
-    bool operator () (const Value* v1, const Value* v2) const { return v1->equal(v2); }
-};
-
-//------------------------------------------------------------------------------
-
-class Param : public Value {
-private:
-
-    Param(const Type* type, const Lambda* lambda, size_t index);
+    Param(Lambda* parent, size_t index, const Type* type);
 
     size_t index() const { return index_; }
 
 public:
 
-    const Lambda* lambda() const;
+    const Lambda* parent() const { return parent_; }
+
+    virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
 
 private:
 
+    Lambda* parent_;
     size_t index_;
 
     friend class Lambda;
 };
-
 
 } // namespace anydsl
 

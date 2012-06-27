@@ -73,11 +73,16 @@ size_t Value::hash() const {
 
 //------------------------------------------------------------------------------
 
-Param::Param(Lambda* parent, size_t index, const Type* type)
-    : Def(Index_Param, type, 0)
-    , parent_(parent)
+Param::Param(const Type* type, const Lambda* lambda, size_t index)
+    : Value(Index_Param, type, 1)
     , index_(index)
-{}
+{
+    setOp(0, lambda);
+}
+
+const Lambda* Param::lambda() const {
+    return ops_[0]->as<Lambda>();
+}
 
 //------------------------------------------------------------------------------
 

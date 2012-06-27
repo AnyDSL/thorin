@@ -141,27 +141,6 @@ protected:
 
 //------------------------------------------------------------------------------
 
-class Param : public Def {
-private:
-
-    Param(Lambda* parent, size_t index, const Type* type);
-
-    size_t index() const { return index_; }
-
-public:
-
-    const Lambda* parent() const { return parent_; }
-
-private:
-
-    Lambda* parent_;
-    size_t index_;
-
-    friend class Lambda;
-};
-
-//------------------------------------------------------------------------------
-
 class Value : public Def {
 protected:
 
@@ -190,6 +169,25 @@ struct ValueEqual : std::binary_function<const Value*, const Value*, bool> {
 };
 
 //------------------------------------------------------------------------------
+
+class Param : public Value {
+private:
+
+    Param(const Type* type, const Lambda* lambda, size_t index);
+
+    size_t index() const { return index_; }
+
+public:
+
+    const Lambda* lambda() const;
+
+private:
+
+    size_t index_;
+
+    friend class Lambda;
+};
+
 
 } // namespace anydsl
 

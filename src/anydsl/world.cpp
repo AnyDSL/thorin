@@ -203,8 +203,8 @@ void World::insert(const Value* value) {
 
     value->live_ = true;
 
-    for_all (use, value->uses())
-        if (const Value* op = use.def()->isa<Value>())
+    for_all (def, value->ops())
+        if (const Value* op = def->isa<Value>())
             insert(op);
 
     if (const Type* type = value->type())

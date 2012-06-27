@@ -129,10 +129,10 @@ void BB::emit() {
     const Jump* jump;
     switch (succs().size()) {
         case 1:
-            jump = world().createJump((*succs().begin())->topLambda(), out_.begin().base(), out_.end().base());
+            jump = world().createGoto((*succs().begin())->topLambda(), out_.begin().base(), out_.end().base());
             break;
         case 2:
-            jump = world().createBranch(cond_, tlambda_, flambda_, out_.begin().base(), out_.end().base());
+            //jump = world().createBranch(cond_, tlambda_, flambda_, out_.begin().base(), out_.end().base());
             break;
         default: 
             ANYDSL_UNREACHABLE;

@@ -174,16 +174,23 @@ public:
      * create
      */
 
-    const Jump* createJump(const Def* to, const Def* const* arg_begin, const Def* const* arg_end);
-    const Jump* createJump(const Def* to) { 
-        return (Jump*) createJump(to, 0, 0); 
+    const Jump* createGoto(const Def* to, const Def* const* begin, const Def* const* end);
+    const Jump* createGoto(const Def* to) { 
+        return (Jump*) createGoto(to, 0, 0); 
     }
     template<size_t N>
-    const Jump* createJump(const Def* to, const Def* const (&array)[N]) { return createJump(to, array, array + N); }
+    const Jump* createGoto(const Def* to, const Def* const (&args)[N]) { return createGoto(to, args, args + N); }
 
     const Jump* createBranch(const Def* cond, const Def* tto, const Def* fto);
-    const Jump* createBranch(const Def* cond, const Def* tto, const Def* fto, 
-                             const Def* const* arg_begin, const Def* const* arg_end);
+    const Jump* createBranch(const Def* cond, 
+                             const Def* tto, const Def* const* tbegin, const Def* const* tend,
+                             const Def* fto, const Def* const* fbegin, const Def* const* fend);
+    template<size_t TN, size_t FN>
+    const Jump* createBranch(const Def* cond,
+                             const Def* tto, const Def* const (&targs)[TN],
+                             const Def* fto, const Def* const (&fargs)[FN]) { 
+        return createBranch(cond, tto, targs, targs + TN, fto, fargs, fargs + FN); 
+    }
 
     const Def* createArithOp(ArithOpKind kind, const Def* ldef, const Def* rdef);
     const Def* createRelOp(RelOpKind kind, const Def* ldef, const Def* rdef);

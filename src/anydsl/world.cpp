@@ -117,17 +117,19 @@ const ErrorLit* World::literal_error(const Type* type) {
  * create
  */
 
-const Jump* World::createJump(const Def* to, const Def* const* arg_begin, const Def* const* arg_end) {
-    return find(new Goto(*this, to, arg_begin, arg_end));
+const Jump* World::createGoto(const Def* to, const Def* const* begin, const Def* const* end) {
+    return find(new Goto(*this, to, begin, end));
 }
 
-const Jump* World::createBranch(const Def* cond, const Def* tto, const Def* fto, 
-                                const Def* const* arg_begin, const Def* const* arg_end) {
-    return createJump(createSelect(cond, tto, fto), arg_begin, arg_end);
+const Jump* World::createBranch(const Def* cond, 
+                                const Def* tto, const Def* const* tbegin, const Def* const* tend,
+                                const Def* fto, const Def* const* fbegin, const Def* const* fend) {
+    return find(new Branch(*this, cond, tto, tbegin, tend, fto, fbegin, fend));
 }
 
 const Jump* World::createBranch(const Def* cond, const Def* tto, const Def* fto) {
-    return createBranch(cond, tto, fto, 0, 0);
+    return createBranch(cond, tto, (const Def* const*) 0, (const Def* const*) 0, 
+                              fto, (const Def* const*) 0, (const Def* const*) 0);
 }
 
 const Def* World::createTuple(const Def* const* begin, const Def* const* end) { 

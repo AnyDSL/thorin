@@ -9,7 +9,7 @@ namespace anydsl {
 
 class NoRet;
 
-class Jump : public Value {
+class Jump : public Def {
 private:
 
     Jump(const Def* to, const Def* const* begin, const Def* const* end);

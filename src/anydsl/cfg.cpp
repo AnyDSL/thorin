@@ -134,6 +134,8 @@ void BB::emit() {
         case 2:
             jump = world().createBranch(cond_, tlambda_, flambda_, out_.begin().base(), out_.end().base());
             break;
+        default: 
+            ANYDSL_UNREACHABLE;
     }
 
     topLambda_->setJump(jump);

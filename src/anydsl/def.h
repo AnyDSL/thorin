@@ -118,6 +118,9 @@ public:
         const Def& def;
     };
 
+    virtual bool equal(const Def* other) const;
+    virtual size_t hash() const;
+
     const UseSet& uses() const { return uses_; }
     const Type* type() const { return type_; }
     size_t numOps() const { return numOps_; }
@@ -133,44 +136,28 @@ private:
     const Type* type_;
     mutable UseSet uses_;
     size_t numOps_;
+    mutable bool live_;
 
 protected:
 
     const Def** ops_;
-};
-
-//------------------------------------------------------------------------------
-
-class Value : public Def {
-protected:
-
-    Value(IndexKind index, const Type* type, size_t numOps)
-        : Def(index, type, numOps)
-    {}
-
-public:
-
-    virtual bool equal(const Value* other) const;
-    virtual size_t hash() const;
-
-private:
-
-    mutable bool live_;
 
     friend class World;
 };
 
-struct ValueHash : std::unary_function<const Value*, size_t> {
-    size_t operator () (const Value* v) const { return v->hash(); }
+//------------------------------------------------------------------------------
+
+struct DefHash : std::unary_function<const Def*, size_t> {
+    size_t operator () (const Def* v) const { return v->hash(); }
 };
 
-struct ValueEqual : std::binary_function<const Value*, const Value*, bool> {
-    bool operator () (const Value* v1, const Value* v2) const { return v1->equal(v2); }
+struct DefEqual : std::binary_function<const Def*, const Def*, bool> {
+    bool operator () (const Def* v1, const Def* v2) const { return v1->equal(v2); }
 };
 
 //------------------------------------------------------------------------------
 
-class Param : public Value {
+class Param : public Def {
 private:
 
     Param(const Type* type, const Lambda* lambda, size_t index);

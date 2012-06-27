@@ -12,11 +12,11 @@ class PrimLit;
 
 //------------------------------------------------------------------------------
 
-class PrimOp : public Value {
+class PrimOp : public Def {
 protected:
 
     PrimOp(IndexKind index, const Type* type, size_t numOps)
-        : Value(index, type, numOps)
+        : Def(index, type, numOps)
     {}
 
 public:

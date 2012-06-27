@@ -45,7 +45,7 @@ World& Def::world() const {
         return as<Type>()->world();
 }
 
-bool Value::equal(const Value* other) const {
+bool Def::equal(const Def* other) const {
     if (this->indexKind() != other->indexKind())
         return false;
 
@@ -59,7 +59,7 @@ bool Value::equal(const Value* other) const {
     return result;
 }
 
-size_t Value::hash() const {
+size_t Def::hash() const {
     size_t seed = 0;
 
     boost::hash_combine(seed, indexKind());
@@ -74,7 +74,7 @@ size_t Value::hash() const {
 //------------------------------------------------------------------------------
 
 Param::Param(const Type* type, const Lambda* lambda, size_t index)
-    : Value(Index_Param, type, 1)
+    : Def(Index_Param, type, 1)
     , index_(index)
 {
     setOp(0, lambda);

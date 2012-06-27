@@ -14,11 +14,11 @@ class World;
 
 //------------------------------------------------------------------------------
 
-class Literal : public Value {
+class Literal : public Def {
 protected:
 
     Literal(IndexKind index, const Type* type)
-        : Value(index, type, 0)
+        : Def(index, type, 0)
     {}
 };
 
@@ -61,7 +61,7 @@ public:
     PrimLitKind kind() const { return (PrimLitKind) indexKind(); }
     Box box() const { return box_; }
 
-    virtual bool equal(const Value* other) const;
+    virtual bool equal(const Def* other) const;
     virtual size_t hash() const;
 
 private:

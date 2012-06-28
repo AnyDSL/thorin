@@ -42,16 +42,12 @@ class Undef;
  *      - constant pooling
  *      - constant folding 
  *      - common subexpression elimination
- *      - dead code elimination
  *      - canonicalization of expressions
  *      - several local optimizations
  *      PrimOp%s do not explicitly belong to a Lambda.
  *      Instead they either implicitly belong to a Lambda--when 
  *      they (possibly via multiple levels of indirection) depend on a Lambda's Param--or they are dead. 
- *      Use \p cleanup to remove dead code.
- *  - Lambda%s are register here in order to not have dangling pointers 
- *  and to perform unreachable code elimination.
- *  The aforementioned \p cleanup will also delete these lambdas.
+ *      Use \p cleanup to remove dead code and unreachable code.
  *
  *  You can create several worlds. 
  *  All worlds are completely independent from each other.
@@ -205,7 +201,19 @@ public:
 
     const Lambda* finalize(const Lambda* lambda);
 
+    /*
+     * optimizations
+     */
+
+    /// Dead code elimination.
+    void dce();
+    /// Tell the world which nodes are axiomatically live.
     void setLive(const Def* def) { live_.insert(def); }
+
+    /// Unreachable code elimination.
+    void uce();
+    /// Tell the world which nodes are axiomatically reachable.
+    void setReachable(const Lambda* lambda) { reachable_.insert(lambda); }
 
     /// Performs dead code and unreachable code elimination.
     void cleanup();
@@ -216,17 +224,19 @@ private:
     DefMap::iterator remove(DefMap::iterator i);
     const Def* findDef(const Def* def);
 
-    void insert(const Def* def);
-
     template<class T> 
     const T* find(const T* val) { return (T*) findDef(val); }
+
+    void dce_insert(const Def* def);
 
     const Def* tryFold(IndexKind kind, const Def* ldef, const Def* rdef);
 
     DefMap defs_;
 
-    typedef boost::unordered_set<const Def*> LiveSet;
-    LiveSet live_;
+    typedef boost::unordered_set<const Def*> Live;
+    Live live_;
+    typedef boost::unordered_set<const Lambda*> Reachable;
+    Reachable reachable_;
 
     const Sigma* unit_; ///< sigma().
     const Pi* pi0_;     ///< pi().

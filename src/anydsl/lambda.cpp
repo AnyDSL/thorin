@@ -61,4 +61,8 @@ size_t Lambda::hash() const {
     return boost::hash_value(this);
 }
 
+size_t Lambda::numParams() const {
+    return pi()->numOps();
+}
+
 } // namespace anydsl

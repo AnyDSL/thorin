@@ -213,25 +213,16 @@ const Lambda* World::finalize(const Lambda* lambda) {
     return l;
 }
 
-void World::insert(const Def* def) {
-    if (def->flag_)
-        return;
+/*
+ * optimizations
+ */
 
-    def->flag_ = true;
-
-    for_all (def, def->ops())
-        insert(def);
-
-    if (const Type* type = def->type())
-        insert(type);
-}
-
-void World::cleanup() {
+void World::dce() {
     for_all (def, defs_)
         def->flag_ = false;
 
     for_all (def, live_)
-        insert(def);
+        dce_insert(def);
 
     DefMap::iterator i = defs_.begin();
     while (i != defs_.end()) {
@@ -242,6 +233,28 @@ void World::cleanup() {
         } else
             ++i;
     }
+}
+
+void World::dce_insert(const Def* def) {
+    if (def->flag_)
+        return;
+
+    def->flag_ = true;
+
+    for_all (def, def->ops())
+        dce_insert(def);
+
+    if (const Type* type = def->type())
+        dce_insert(type);
+}
+
+void World::uce() {
+    // TODO
+}
+
+void World::cleanup() {
+    dce();
+    uce();
 }
 
 const Def* World::findDef(const Def* def) {

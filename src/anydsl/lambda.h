@@ -23,7 +23,6 @@ public:
     Lambda(const Pi* pi);
 
     bool final() const { return final_; }
-    //const Params& params() const { return params_; }
     const Jump* jump() const { return ops_[0]->as<Jump>(); }
     const Pi* pi() const;
 
@@ -32,6 +31,7 @@ public:
 
     Params params() const { return Params(uses_); }
     Callers callers() const { return Callers(uses_); }
+    size_t numParams() const;
 
     void setJump(const Jump* jump);
 

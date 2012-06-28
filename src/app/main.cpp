@@ -12,7 +12,6 @@
 
 #include "anydsl/literal.h"
 #include "anydsl/lambda.h"
-#include "anydsl/dump.h"
 #include "anydsl/primop.h"
 #include "anydsl/world.h"
 #include "impala/parser.h"

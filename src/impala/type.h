@@ -14,10 +14,8 @@ namespace impala {
 
 class Printer;
 
-class Type {
+class Type : public anydsl::MagicCast {
 public:
-
-    virtual ~Type() {}
 
     virtual void dump(Printer& p) const = 0;
     virtual const anydsl::Type* emit(anydsl::World& world) const = 0;
@@ -25,8 +23,6 @@ public:
     virtual bool isBool() const { return false; }
     virtual bool isError() const { return false; }
     virtual bool isVoid() const { return false; }
-
-    ANYDSL_MIXIN_AS_ISA
 
 private:
 

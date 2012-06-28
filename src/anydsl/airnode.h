@@ -4,27 +4,23 @@
 #include <string>
 
 #include "anydsl/enums.h"
-#include "anydsl/util/cast.h"
 
 namespace anydsl {
 
 class Printer;
 
-class AIRNode {
+class AIRNode : public MagicCast {
 protected:
 
     AIRNode(IndexKind indexKind)
         : indexKind_(indexKind)
     {}
-    virtual ~AIRNode() {}
 
 public:
 
     IndexKind indexKind() const { return indexKind_; }
     void dump() const;
     virtual void dump(Printer &printer, bool descent) const = 0;
-
-    ANYDSL_MIXIN_AS_ISA
 
     /**
      * Just do what ever you want with this field.

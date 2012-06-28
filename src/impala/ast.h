@@ -59,17 +59,13 @@ typedef anydsl::AutoVector<const Expr*> Exprs;
 typedef anydsl::AutoVector<const Fct*>  Fcts;
 typedef anydsl::AutoVector<const Stmt*> Stmts;
 
-class ASTNode : public anydsl::HasLocation {
+class ASTNode : public anydsl::HasLocation, public anydsl::MagicCast {
 public:
-
-    virtual ~ASTNode() {}
 
     virtual void check(Sema& sema) const = 0;
     virtual void dump(Printer& p) const = 0;
 
     void dump() const;
-
-    ANYDSL_MIXIN_AS_ISA
 };
 
 class Prg : public ASTNode {

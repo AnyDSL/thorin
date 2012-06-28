@@ -94,8 +94,10 @@ int main(int argc, char** argv) {
             dump(p, fancy);
         if (emit_dot)
             ANYDSL_NOT_IMPLEMENTED;
-        if (emit_air)
+        if (emit_air) {
             emit(init.world, p);
+            init.world.dump(fancy);
+        }
         
         return EXIT_SUCCESS;
     } catch (exception const& e) {

@@ -264,4 +264,13 @@ const Def* World::findDef(const Def* def) {
     return def;
 }
 
+void World::dump(bool fancy /*= false*/) {
+    for_all (def, defs_) {
+        if (const Lambda* l = def->isa<Lambda>()) {
+            l->dump(fancy);
+            std::cout << std::endl;
+        }
+    }
+}
+
 } // namespace anydsl

@@ -19,8 +19,8 @@ protected:
 public:
 
     IndexKind indexKind() const { return indexKind_; }
-    void dump() const;
-    virtual void dump(Printer &printer, bool descent) const = 0;
+    void dump(bool fancy = false) const;
+    virtual void vdump(Printer &printer, bool descent) const = 0;
 
     /**
      * Just do what ever you want with this field.

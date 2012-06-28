@@ -65,7 +65,7 @@ public:
 
     Args args() const { return Args(*this, 1, numOps()); }
 
-    virtual void dump(Printer& printer, bool descent) const;
+    virtual void vdump(Printer& printer, bool descent) const;
 
     const Def* to() const { return ops_[0]; };
 
@@ -95,7 +95,7 @@ public:
     Args targs() const { return Args(*this, 2, findex_); }
     Args fargs() const { return Args(*this, findex_ + 1, numOps()); }
 
-    virtual void dump(Printer& printer, bool descent) const;
+    virtual void vdump(Printer& printer, bool descent) const;
 
 private:
 

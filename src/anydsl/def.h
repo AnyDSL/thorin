@@ -245,7 +245,7 @@ public:
 
     const Lambda* lambda() const;
 
-    virtual void dump(Printer& printer, bool descent) const;
+    virtual void vdump(Printer& printer, bool descent) const;
 
 private:
 
@@ -253,6 +253,8 @@ private:
 
     friend class Lambda;
 };
+
+//------------------------------------------------------------------------------
 
 } // namespace anydsl
 

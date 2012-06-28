@@ -39,7 +39,7 @@ private:
 
 public:
 
-    virtual void dump(Printer& printer, bool descent) const;
+    virtual void vdump(Printer& printer, bool descent) const;
 
 private:
 
@@ -58,7 +58,7 @@ public:
 
     PrimTypeKind kind() const { return (PrimTypeKind) indexKind(); }
 
-    virtual void dump(Printer& printer, bool descent) const;
+    virtual void vdump(Printer& printer, bool descent) const;
 
     friend class World;
 };
@@ -79,7 +79,9 @@ public:
         return ops_[i]->as<Type>();
     }
 
-    virtual void dump(Printer& printer, bool descent) const;
+protected:
+
+    void dump(Printer& printer, bool descent) const;
 };
 
 //------------------------------------------------------------------------------
@@ -101,7 +103,7 @@ public:
 
     bool named() const { return named_; }
 
-    virtual void dump(Printer& printer, bool descent) const;
+    virtual void vdump(Printer& printer, bool descent) const;
 
 private:
 
@@ -125,7 +127,7 @@ private:
 
 public:
 
-    virtual void dump(Printer& printer, bool descent) const;
+    virtual void vdump(Printer& printer, bool descent) const;
 
     friend class World;
 };

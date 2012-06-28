@@ -218,6 +218,8 @@ public:
     /// Performs dead code and unreachable code elimination.
     void cleanup();
 
+    void dump(bool fancy = false);
+
 private:
 
     typedef boost::unordered_set<const Def*, DefHash, DefEqual> DefMap;

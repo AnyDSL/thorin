@@ -3,7 +3,6 @@
 #include "anydsl/cfg.h"
 #include "anydsl/literal.h"
 #include "anydsl/type.h"
-#include "anydsl/var.h"
 #include "anydsl/world.h"
 #include "anydsl/util/for_all.h"
 

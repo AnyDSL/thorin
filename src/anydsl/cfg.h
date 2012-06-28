@@ -13,11 +13,13 @@ class BB;
 class Def;
 class Fct;
 class Lambda;
+class Param;
 class Pi;
 class Type;
 class World;
 
-typedef std::vector<const Def*> Defs;
+typedef std::vector<const Param*> In;
+typedef std::vector<const Def*> Out;
 typedef boost::unordered_set<BB*> BBs;
 
 struct FctParam {
@@ -102,8 +104,8 @@ private:
 
     Fct* fct_;
 
-    Defs in_;
-    Defs out_;
+    In in_;
+    Out out_;
 
     BBs preds_;
     BBs succs_;
@@ -132,11 +134,17 @@ public:
     void emit();
     World& world() { return world_; }
 
+    BB* exit() { return exit_; }
+    const Param* ret() { return ret_; }
+    const Type* retType() { return retType_; }
+
 private:
 
-    BBs cfg_;
-    const Type* retType_;
     World& world_;
+    const Type* retType_;
+    const Param* ret_;
+    BB* exit_;
+    BBs cfg_;
 };
 
 } // namespace anydsl

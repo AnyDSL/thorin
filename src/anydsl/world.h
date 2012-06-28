@@ -192,8 +192,8 @@ public:
 
     const Def* createArithOp(ArithOpKind kind, const Def* ldef, const Def* rdef);
     const Def* createRelOp(RelOpKind kind, const Def* ldef, const Def* rdef);
-    const Def* createExtract(const Def* tuple, const PrimLit* i);
-    const Def* createInsert(const Def* tuple, const PrimLit* i, const Def* value);
+    const Def* createExtract(const Def* tuple, size_t index);
+    const Def* createInsert(const Def* tuple, size_t index, const Def* value);
     const Def* createSelect(const Def* cond, const Def* tdef, const Def* fdef);
     const Def* createTuple(const Def* const* begin, const Def* const* end);
     template<size_t N>

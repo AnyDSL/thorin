@@ -97,15 +97,34 @@ public:
 
 //------------------------------------------------------------------------------
 
-class Extract : public PrimOp {
-private:
+class TupleOp : public PrimOp {
+protected:
 
-    Extract(const Def* tuple, const PrimLit* elem);
-    
+    TupleOp(IndexKind indexKind, const Type* type, size_t numOps, const Def* tuple, size_t index);
+
 public:
 
     const Def* tuple() const { return ops_[0]; }
-    const Def* elem()  const { return ops_[1]; }
+    size_t index() const { return index_; }
+
+private:
+
+    virtual bool equal(const Def* other) const;
+    virtual size_t hash() const;
+
+    size_t index_;
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
+class Extract : public TupleOp {
+private:
+
+    Extract(const Def* tuple, size_t index);
+    
+public:
 
     virtual void dump(Printer& printer, bool descent) const;
 
@@ -114,16 +133,14 @@ public:
 
 //------------------------------------------------------------------------------
 
-class Insert : public PrimOp {
+class Insert : public TupleOp {
 private:
 
-    Insert(const Def* tuple, const PrimLit* elem, const Def* value);
+    Insert(const Def* tuple, size_t index, const Def* value);
     
 public:
 
-    const Def* tuple() const { return ops_[0]; }
-    const Def* elem()  const { return ops_[1]; }
-    const Def* value() const { return ops_[2]; }
+    const Def* value() const { return ops_[1]; }
 
     virtual void dump(Printer& printer, bool descent) const;
 

@@ -79,9 +79,6 @@ public:
         return ops_[i]->as<Type>();
     }
 
-    /// Get element type via anydsl::PrimLit which serves as index.
-    const Type* get(const PrimLit* i) const;
-
     virtual void dump(Printer& printer, bool descent) const;
 };
 

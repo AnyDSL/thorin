@@ -14,20 +14,11 @@ template<class T>
 struct get_clean_type<const T&> {typedef T type; };
 
 #define ANYDSL_DUMP_COMMA_LIST(printer, list) \
-    if (!(list).empty()) { \
-        get_clean_type<BOOST_TYPEOF((list))>::type::const_iterator i = (list).begin(); \
-        while (true) { \
-            get_clean_type<BOOST_TYPEOF((list))>::type::const_iterator j = i; \
-            ++j; \
-            if (j != (list).end()) { \
-                (*i)->dump(printer, descent); \
-                printer << ", "; \
-                i = j; \
-            } else \
-                break; \
-        }  \
+    for (get_clean_type<BOOST_TYPEOF((list))>::type::const_iterator i = (list).begin(), e = (list).end() - 1; i != e; ++i) { \
         (*i)->dump(printer, descent); \
-    }
+        printer << ", "; \
+    } \
+    ((list).back())->dump(printer, descent); \
 
 namespace anydsl {
 
@@ -189,17 +180,13 @@ void Select::dump(Printer& printer, bool descent) const  {
 void Extract::dump(Printer& printer, bool descent) const  {
 	printer << "extract(";
 	tuple()->dump(printer, descent);
-	printer << ", ";
-	elem()->dump(printer, descent);
-	printer << ")";
+	printer << ", " << index() << ")";
 }
 
 void Insert::dump(Printer& printer, bool descent) const  {
 	printer << "insert(";
 	tuple()->dump(printer, descent);
-	printer << ", ";
-	elem()->dump(printer, descent);
-	printer << ", ";
+	printer << ", " << index() << ", ";
 	value()->dump(printer, descent);
 	printer << ")";
 }

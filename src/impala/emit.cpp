@@ -281,7 +281,10 @@ void ContinueStmt::emit(CodeGen& cg) const {
 }
 
 void ReturnStmt::emit(CodeGen& cg) const {
-    expr()->emit(cg);
+    const Def* def = expr()->emit(cg).load();
+
+    cg.curBB->setVar(anydsl::Symbol("<result>"), def);
+    cg.curBB->goesto(cg.curFct->exit());
 }
 
 void ScopeStmt::emit(CodeGen& cg) const {

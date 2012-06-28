@@ -13,7 +13,7 @@ Lambda::Lambda(const Pi* pi)
     , numArgs_(pi->numOps())
 {
     for (size_t i = 0, e = pi->numOps(); i != e; ++i)
-        new Param(pi->get(i), this, i);
+        params_.push_back(new Param(pi->get(i), this, i));
 }
 
 Lambda::Lambda()
@@ -34,7 +34,10 @@ const Param* Lambda::appendParam(const Type* type) {
     assert(!final_);
     anydsl_assert(!this->type(), "type already set -- you are not allowed to add any more params");
 
-    return new Param(type, this, numArgs_++);
+    const Param* param =  new Param(type, this, numArgs_++);
+    params_.push_back(param);
+
+    return param;
 }
 
 void Lambda::calcType(World& world) {
@@ -45,10 +48,6 @@ void Lambda::calcType(World& world) {
         types.push_back(param->type());
 
     setType(world.pi(types.begin().base(), types.end().base()));
-
-    std::cout << "in calcType" << std::endl;
-    type()->dump();
-    std::cout << std::endl;
 }
 
 // TODO do more magic here
@@ -62,7 +61,10 @@ size_t Lambda::hash() const {
 }
 
 size_t Lambda::numParams() const {
-    return pi()->numOps();
+    size_t size = params_.size();
+    anydsl_assert( !pi() || pi()->numOps() == size, "params and type out of sync");
+
+    return size;
 }
 
 } // namespace anydsl

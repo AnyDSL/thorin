@@ -180,23 +180,18 @@ const Def* World::createRelOp(RelOpKind kind, const Def* ldef, const Def* rdef) 
     return find(new RelOp(kind, ldef, rdef));
 }
 
-const Def* World::createExtract(const Def* tuple, const PrimLit* i) {
+const Def* World::createExtract(const Def* tuple, size_t index) {
     // TODO folding
-    return find(new Extract(tuple, i));
+    return find(new Extract(tuple, index));
 }
 
-const Def* World::createInsert(const Def* tuple, const PrimLit* i, const Def* value) {
+const Def* World::createInsert(const Def* tuple, size_t index, const Def* value) {
     // TODO folding
-    return find(new Insert(tuple, i, value));
+    return find(new Insert(tuple, index, value));
 }
 
 
 const Def* World::createSelect(const Def* cond, const Def* tdef, const Def* fdef) {
-    std::cout << std::endl;
-    tdef->type()->dump();
-    std::cout << std::endl;
-    fdef->type()->dump();
-    std::cout << std::endl;
     return find(new Select(cond, tdef, fdef));
 }
 

@@ -32,11 +32,6 @@ CompoundType::CompoundType(World& world, IndexKind index, const Type* const* beg
         setOp(x, *i);
 }
 
-const Type* CompoundType::get(const PrimLit* c) const { 
-    anydsl_assert(isInteger(lit2type(c->kind())), "must be an integer constant");
-    return get(c->box().get_u64()); 
-}
-
 //------------------------------------------------------------------------------
 
 size_t Sigma::hash() const {

@@ -14,7 +14,7 @@ class Pi;
 class Jump;
 
 typedef Def::FilteredUses<Jump> Callers;
-typedef Def::FilteredUses<Param> Params;
+typedef std::vector<const Param*> Params;
 
 class Lambda : public Def {
 public:
@@ -29,7 +29,7 @@ public:
     const Param* appendParam(const Type* type);
     void calcType(World& world);
 
-    Params params() const { return Params(uses_); }
+    const Params& params() const { return params_; }
     Callers callers() const { return Callers(uses_); }
     size_t numParams() const;
 
@@ -43,10 +43,11 @@ private:
 
     bool final_;
     int numArgs_;
+    Params params_;
 
     friend class World;
 };
 
-} // namespace air
+} // namespace anydsl
 
 #endif

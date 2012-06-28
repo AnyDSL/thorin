@@ -72,16 +72,17 @@ void BB::seal() {
             const Type* type = p.second.type;
 
             if (pred->succs().size() > 1) {
-                // critical edge
+                // critical edge -> eliminate
                 BB* empty = fct_->createBB();
                 pred->eraseEdge(this);
                 pred->flowsto(empty);
                 empty->flowsto(this);
+                empty->seal();
                 pred = empty;
             }
 
             anydsl_assert(pred->succs().size() == 1, "ciritical edge elimination did not work");
-            Defs& out = pred->out_;
+            Out& out = pred->out_;
 
             // make potentially room for the new arg
             if (index >= out.size())
@@ -140,17 +141,22 @@ World& BB::world() {
 }
 
 void BB::emit() {
+    if (this == fct_->exit()) {
+        fct_->exit()->seal();
+        const Def* ret[] = { fct_->exit()->getVar(Symbol("<result>"), fct_->retType())->def };
+        const Jump* jump = world().createGoto(fct_->ret(), ret, ret + 1);
+        fct_->exit()->topLambda_->setJump(jump);
+        fct_->exit()->calcType();
+        world().finalize(fct_->exit()->topLambda_);
+        return;
+    }
+
     const Jump* jump;
     switch (succs().size()) {
         case 1:
             jump = world().createGoto((*succs().begin())->topLambda(), out_.begin().base(), out_.end().base());
             break;
         case 2:
-            std::cout << "in emit" << std::endl;
-            tlambda_->type()->dump();
-            std::cout << std::endl;
-            flambda_->type()->dump();
-            std::cout << std::endl;
             jump = world().createBranch(cond_, tlambda_, flambda_, out_.begin().base(), out_.end().base());
             break;
         default: 
@@ -168,8 +174,9 @@ void BB::calcType() {
 //------------------------------------------------------------------------------
 
 Fct::Fct(World& world, const FctParams& fparams, const Type* retType, const std::string& debug /*= ""*/) 
-    : retType_(retType)
-    , world_(world)
+    : world_(world)
+    , retType_(retType)
+    , exit_(0)
 {
     sealed_ = true;
     fct_ = this;
@@ -179,8 +186,10 @@ Fct::Fct(World& world, const FctParams& fparams, const Type* retType, const std:
     for_all (p, fparams)
         setVar(p.symbol, topLambda_->appendParam(p.type));
 
-    if (retType)
-        setVar(Symbol("<return>"), world.pi1(retType));
+    if (retType) {
+        ret_ = topLambda_->appendParam(world.pi1(retType));
+        exit_ = createBB("exit");
+    }
 }
 
 
@@ -195,10 +204,14 @@ void Fct::emit() {
     topLambda_->calcType(world());
 
     for_all (bb, cfg_)
-        bb->calcType();
+        if (bb != exit())
+            bb->calcType();
 
     for_all (bb, cfg_)
-        bb->emit();
+        if (bb != exit())
+            bb->emit();
+
+    exit_->emit();
 }
 
 } // namespace anydsl

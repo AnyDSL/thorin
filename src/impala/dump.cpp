@@ -23,6 +23,12 @@ public:
 
     bool fancy() const { return fancy_; }
 
+    template<class T>
+    Printer& operator << (const T& data) {
+    	o << data;
+    	return *this;
+    }
+
     std::ostream& o;
     Prec prec;
 
@@ -76,29 +82,29 @@ void Prg::dump(Printer& p) const {
 }
 
 void Fct::dump(Printer& p) const {
-    p.o << "def " << symbol() << '(';
+    p << "def " << symbol() << '(';
 
     if (!params().empty()) {
         for (Decls::const_iterator i = params().begin(), e = params().end() - 1; i != e; ++i) {
             (*i)->dump(p);
-            p.o << ", ";
+            p << ", ";
         }
 
         params().back()->dump(p);
     }
 
-    p.o << ')';
+    p << ')';
 
     if (retType()) {
-        p.o << " -> ";
+        p << " -> ";
         retType()->dump(p);
-        p.o << ' ';
+        p << ' ';
     }
     p.dumpBlock(body());
 }
 
 void Decl::dump(Printer& p) const {
-    p.o << symbol() << " : ";
+    p << symbol() << " : ";
     type()->dump(p);
 }
 
@@ -107,28 +113,28 @@ void Decl::dump(Printer& p) const {
  */
 
 void EmptyExpr::dump(Printer& p) const {
-    p.o << "/*empty*/";
+    p << "/*empty*/";
 }
 
 void Literal::dump(Printer& p) const {
     switch (kind()) {
 #define IMPALA_LIT(itype, atype) \
         case LIT_##itype: { \
-            p.o << (anydsl::u64) value().get_##atype(); \
+            p << (anydsl::u64) value().get_##atype(); \
             return; \
         }
 #include "impala/tokenlist.h"
         case LIT_bool:
             if (value().bool_) 
-                p.o << "true";
+                p << "true";
             else
-                p.o << "false";
+                p << "false";
             return;
     }
 }
 
 void Id::dump(Printer& p) const {
-    p.o << symbol();
+    p << symbol();
 }
 
 void PrefixExpr::dump(Printer& p) const {
@@ -141,7 +147,7 @@ void PrefixExpr::dump(Printer& p) const {
 #include "impala/tokenlist.h"
     }
 
-    p.o << op;
+    p << op;
 
     p.prec = r;
     bexpr()->dump(p);
@@ -157,7 +163,7 @@ void InfixExpr::dump(Printer& p) const {
     bool paren = !p.fancy() || p.prec > l;
 
     if (paren)
-        p.o << '(';
+        p << '(';
 
     p.prec = l;
     aexpr()->dump(p);
@@ -169,13 +175,13 @@ void InfixExpr::dump(Printer& p) const {
 #include "impala/tokenlist.h"
     }
 
-    p.o << ' ' << op << ' ';
+    p << ' ' << op << ' ';
 
     p.prec = r;
     bexpr()->dump(p);
 
     if (paren)
-        p.o << ')';
+        p << ')';
 
     p.prec = old;
 }
@@ -187,7 +193,7 @@ void PostfixExpr::dump(Printer& p) const {
     bool paren = !p.fancy() || p.prec > l;
 
     if (paren)
-        p.o << '(';
+        p << '(';
 
     p.prec = l;
     aexpr()->dump(p);
@@ -198,10 +204,10 @@ void PostfixExpr::dump(Printer& p) const {
         case DEC: op = "--"; break;
     }
 
-    p.o << op;
+    p << op;
 
     if (paren)
-        p.o << ')';
+        p << ')';
 
     p.prec = old;
 }
@@ -214,85 +220,85 @@ void DeclStmt::dump(Printer& p) const {
     decl()->dump(p);
 
     if (init()) {
-        p.o << " = ";
+        p << " = ";
         init()->dump(p);
     }
 
-    p.o << ';';
+    p << ';';
 }
 
 void ExprStmt::dump(Printer& p) const {
     expr()->dump(p);
-    p.o << ';';
+    p << ';';
 }
 
 void IfElseStmt::dump(Printer& p) const {
-    p.o << "if (";
+    p << "if (";
     cond()->dump(p);
-    p.o << ") ";
+    p << ") ";
     p.dumpBlock(thenStmt());
 
     if (!elseStmt()->isEmpty()) {
-        p.o << " else ";
+        p << " else ";
         p.dumpBlock(elseStmt());
     }
 }
 
 void WhileStmt::dump(Printer& p) const {
-    p.o << "while (";
+    p << "while (";
     cond()->dump(p);
-    p.o << ") ";
+    p << ") ";
 
     p.dumpBlock(body());
 }
 
 void DoWhileStmt::dump(Printer& p) const {
-    p.o << "do ";
+    p << "do ";
     p.dumpBlock(body());
-    p.o << " while (";
+    p << " while (";
     cond()->dump(p);
-    p.o << ");";
+    p << ");";
 }
 
 void ForStmt::dump(Printer& p) const {
-    p.o << "for (";
+    p << "for (";
 
     if (isDecl())
         initDecl()->dump(p);
     else
         initExpr()->dump(p);
 
-    p.o << ' ';
+    p << ' ';
     cond()->dump(p);
-    p.o << "; ";
+    p << "; ";
 
     step()->dump(p);
-    p.o << ") ";
+    p << ") ";
 
     p.dumpBlock(body());
 }
 
 void BreakStmt::dump(Printer& p) const {
-    p.o << "break;";
+    p << "break;";
 }
 
 void ContinueStmt::dump(Printer& p) const {
-    p.o << "continue;";
+    p << "continue;";
 }
 
 void ReturnStmt::dump(Printer& p) const {
-    p.o << "return";
+    p << "return";
 
     if (expr()) {
-        p.o << ' ';
+        p << ' ';
         expr()->dump(p);
     }
 
-    p.o << ';';
+    p << ';';
 }
 
 void ScopeStmt::dump(Printer& p) const {
-    p.o << "{";
+    p << "{";
     p.up();
 
     if (!stmts().empty()) {
@@ -304,7 +310,7 @@ void ScopeStmt::dump(Printer& p) const {
         stmts().back()->dump(p);
     }
     p.down();
-    p.o << "}";
+    p << "}";
 }
 
 //------------------------------------------------------------------------------
@@ -315,17 +321,17 @@ void ScopeStmt::dump(Printer& p) const {
 
 void PrimType::dump(Printer& p) const {
     switch (kind()) {
-#define IMPALA_TYPE(itype, atype) case TYPE_##itype: p.o << #itype; return;
+#define IMPALA_TYPE(itype, atype) case TYPE_##itype: p << #itype; return;
 #include "impala/tokenlist.h"
     }
 }
 
 void Void::dump(Printer& p) const {
-    p.o << "void";
+    p << "void";
 }
 
 void TypeError::dump(Printer& p) const {
-    p.o << "<type error>";
+    p << "<type error>";
 }
 
 //------------------------------------------------------------------------------

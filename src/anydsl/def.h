@@ -122,7 +122,8 @@ public:
     };
 
     template<class T>
-    struct FilteredUses {
+    class FilteredUses {
+    public:
 
         class const_iterator {
         public:

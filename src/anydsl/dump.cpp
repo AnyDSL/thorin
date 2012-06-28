@@ -17,11 +17,18 @@ struct get_clean_type<const T&> {typedef T type; };
 
 #define ANYDSL_DUMP_COMMA_LIST(printer, list) \
     if (!(list).empty()) { \
-        for (get_clean_type<BOOST_TYPEOF((list))>::type::const_iterator i = (list).begin(), e = (list).end() - 1; i != e; ++i) { \
-            (*i)->dump(printer, descent); \
-            printer << ", "; \
-        } \
-        ((list).back())->dump(printer, descent); \
+        get_clean_type<BOOST_TYPEOF((list))>::type::const_iterator i = (list).begin(); \
+        while (true) { \
+            get_clean_type<BOOST_TYPEOF((list))>::type::const_iterator j = i; \
+            ++j; \
+            if (j != (list).end()) { \
+                (*i)->dump(printer, descent); \
+                printer << ", "; \
+                i = j; \
+            } else \
+                break; \
+        }  \
+        (*i)->dump(printer, descent); \
     }
 
 namespace anydsl {
@@ -45,7 +52,7 @@ public:
     void down();
 
     template<class T>
-    Printer& operator<<(T& data) {
+    Printer& operator << (const T& data) {
     	o << data;
     	return *this;
     }
@@ -243,23 +250,7 @@ void Lambda::dump(Printer& printer, bool descent) const  {
 	if (!descent)
 		return;
 	printer << " = lambda(";
-
-    if (!params().empty()) {
-        Params::const_iterator i = params().begin();
-        while (true) {
-            Params::const_iterator j = i;
-            ++j;
-
-            if (j != params().end()) {
-                (*i)->dump(printer, descent);
-                printer << ", ";
-                i = j;
-            } else
-                break;
-        } 
-        (*i)->dump(printer, descent);
-    }
-
+    ANYDSL_DUMP_COMMA_LIST(printer, params());
 	printer << ")";
 	printer.up();
 	jump()->dump(printer, descent);

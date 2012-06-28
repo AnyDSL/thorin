@@ -18,10 +18,10 @@ struct get_clean_type<const T&> {typedef T type; };
 #define ANYDSL_DUMP_COMMA_LIST(printer, list) \
     if (!(list).empty()) { \
         for (get_clean_type<BOOST_TYPEOF((list))>::type::const_iterator i = (list).begin(), e = (list).end() - 1; i != e; ++i) { \
-            (*i)->dump(printer, mode); \
+            (*i)->dump(printer, descent); \
             printer << ", "; \
         } \
-        ((list).back())->dump(printer, mode); \
+        ((list).back())->dump(printer, descent); \
     }
 
 namespace anydsl {
@@ -99,7 +99,7 @@ void Printer::dumpName(const AIRNode* n) {
         o << "\e[m";
 }
 
-void BinOp::dump(Printer& printer, LambdaPrinterMode mode) const  {
+void BinOp::dump(Printer& printer, bool descent) const  {
 	switch(indexKind()) {
 #define ANYDSL_ARITHOP(op) case Index_##op: printer << #op;
 #include "anydsl/tables/arithoptable.h"
@@ -116,23 +116,23 @@ void BinOp::dump(Printer& printer, LambdaPrinterMode mode) const  {
 		break;
 	}
 	printer << "(";
-	ldef()->dump(printer, mode);
+	ldef()->dump(printer, descent);
 	printer << ", ";
-	rdef()->dump(printer, mode);
+	rdef()->dump(printer, descent);
 	printer << ")";
 }
 
 // Literal
 
-void Undef::dump(Printer& printer, LambdaPrinterMode mode) const  {
+void Undef::dump(Printer& printer, bool descent) const  {
 	printer << "<undef>";
 }
 
-void ErrorLit::dump(Printer& printer, LambdaPrinterMode mode) const  {
+void ErrorLit::dump(Printer& printer, bool descent) const  {
 	printer << "<error>";
 }
 
-void PrimLit::dump(Printer& printer, LambdaPrinterMode mode) const  {
+void PrimLit::dump(Printer& printer, bool descent) const  {
 	switch(indexKind()) {
 #define ANYDSL_U_TYPE(T) case Index_PrimLit_##T: printer.o << box().get_##T(); return;
 #define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
@@ -145,25 +145,25 @@ void PrimLit::dump(Printer& printer, LambdaPrinterMode mode) const  {
 
 // Jump
 
-void Goto::dump(Printer& printer, LambdaPrinterMode mode) const  {
+void Goto::dump(Printer& printer, bool descent) const  {
 	printer << "goto(";
-	to()->dump(printer, mode);
+	to()->dump(printer, descent);
 	printer << ", [";
 	ANYDSL_DUMP_COMMA_LIST(printer, args());
 	printer  << "])";
 }
 
-void Branch::dump(Printer& printer, LambdaPrinterMode mode) const  {
+void Branch::dump(Printer& printer, bool descent) const  {
 	printer << "branch(";
-    cond()->dump(printer, mode);
+    cond()->dump(printer, descent);
 	printer << ", ";
 
-	tto()->dump(printer, mode);
+	tto()->dump(printer, descent);
 	printer << ", [";
 	ANYDSL_DUMP_COMMA_LIST(printer, targs());
 	printer  << "]), ";
 
-	fto()->dump(printer, mode);
+	fto()->dump(printer, descent);
 	printer << ", [";
 	ANYDSL_DUMP_COMMA_LIST(printer, fargs());
 	printer  << "])";
@@ -171,35 +171,35 @@ void Branch::dump(Printer& printer, LambdaPrinterMode mode) const  {
 
 // PrimOp
 
-void Select::dump(Printer& printer, LambdaPrinterMode mode) const  {
+void Select::dump(Printer& printer, bool descent) const  {
 	printer << "select(";
-	cond()->dump(printer, mode);
+	cond()->dump(printer, descent);
 	printer << ", ";
-	tdef()->dump(printer, mode);
+	tdef()->dump(printer, descent);
 	printer << ", ";
-	fdef()->dump(printer, mode);
+	fdef()->dump(printer, descent);
 	printer << ")";
 }
 
-void Extract::dump(Printer& printer, LambdaPrinterMode mode) const  {
+void Extract::dump(Printer& printer, bool descent) const  {
 	printer << "extract(";
-	tuple()->dump(printer, mode);
+	tuple()->dump(printer, descent);
 	printer << ", ";
-	elem()->dump(printer, mode);
+	elem()->dump(printer, descent);
 	printer << ")";
 }
 
-void Insert::dump(Printer& printer, LambdaPrinterMode mode) const  {
+void Insert::dump(Printer& printer, bool descent) const  {
 	printer << "insert(";
-	tuple()->dump(printer, mode);
+	tuple()->dump(printer, descent);
 	printer << ", ";
-	elem()->dump(printer, mode);
+	elem()->dump(printer, descent);
 	printer << ", ";
-	value()->dump(printer, mode);
+	value()->dump(printer, descent);
 	printer << ")";
 }
 
-void Tuple::dump(Printer& printer, LambdaPrinterMode mode) const {
+void Tuple::dump(Printer& printer, bool descent) const {
 	printer << "{";
 	ANYDSL_DUMP_COMMA_LIST(printer, ops());
 	printer << "}";
@@ -207,17 +207,17 @@ void Tuple::dump(Printer& printer, LambdaPrinterMode mode) const {
 
 // Types
 
-void NoRet::dump(Printer& printer, LambdaPrinterMode mode) const  {
+void NoRet::dump(Printer& printer, bool descent) const  {
 	printer << "noret";
 }
 
-void CompoundType::dump(Printer& printer, LambdaPrinterMode mode) const  {
+void CompoundType::dump(Printer& printer, bool descent) const  {
 	printer << "(";
 	ANYDSL_DUMP_COMMA_LIST(printer, ops());
 	printer << ")";
 }
 
-void PrimType::dump(Printer& printer, LambdaPrinterMode mode) const  {
+void PrimType::dump(Printer& printer, bool descent) const  {
 	switch(indexKind()) {
 #define ANYDSL_U_TYPE(T) case Index_PrimType_##T: printer << #T; return;
 #define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
@@ -228,19 +228,19 @@ void PrimType::dump(Printer& printer, LambdaPrinterMode mode) const  {
 	}
 }
 
-void Sigma::dump(Printer& printer, LambdaPrinterMode mode) const  {
+void Sigma::dump(Printer& printer, bool descent) const  {
 	printer << "sigma";
-	CompoundType::dump(printer, mode);
+	CompoundType::dump(printer, descent);
 }
 
-void Pi::dump(Printer& printer, LambdaPrinterMode mode) const  {
+void Pi::dump(Printer& printer, bool descent) const  {
 	printer << "pi";
-	CompoundType::dump(printer, mode);
+	CompoundType::dump(printer, descent);
 }
 
-void Lambda::dump(Printer& printer, LambdaPrinterMode mode) const  {
+void Lambda::dump(Printer& printer, bool descent) const  {
 	printer.dumpName(this);
-	if(mode == LAMBDA_PRINTER_MODE_SKIPBODY)
+	if (!descent)
 		return;
 	printer << " = lambda(";
 
@@ -251,22 +251,22 @@ void Lambda::dump(Printer& printer, LambdaPrinterMode mode) const  {
             ++j;
 
             if (j != params().end()) {
-                (*i)->dump(printer, mode);
+                (*i)->dump(printer, descent);
                 printer << ", ";
                 i = j;
             } else
                 break;
         } 
-        (*i)->dump(printer, mode);
+        (*i)->dump(printer, descent);
     }
 
 	printer << ")";
 	printer.up();
-	jump()->dump(printer, mode);
+	jump()->dump(printer, descent);
 	printer.down();
 }
 
-void Param::dump(Printer &printer, LambdaPrinterMode mode) const  {
+void Param::dump(Printer &printer, bool descent) const  {
 	printer.dumpName(this);
 }
 
@@ -274,7 +274,7 @@ void Param::dump(Printer &printer, LambdaPrinterMode mode) const  {
 
 void AIRNode::dump() const {
     Printer p(std::cout);
-    dump(p, LAMBDA_PRINTER_MODE_DEFAULT);
+    dump(p, false);
 }
 
 //------------------------------------------------------------------------------

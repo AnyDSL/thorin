@@ -4,10 +4,11 @@
 #include <string>
 
 #include "anydsl/enums.h"
-#include "anydsl/dump.h"
 #include "anydsl/util/cast.h"
 
 namespace anydsl {
+
+class Printer;
 
 class AIRNode {
 protected:
@@ -21,7 +22,7 @@ public:
 
     IndexKind indexKind() const { return indexKind_; }
     void dump() const;
-    virtual void dump(Printer &printer, LambdaPrinterMode mode) const = 0;
+    virtual void dump(Printer &printer, bool descent) const = 0;
 
     ANYDSL_MIXIN_AS_ISA
 

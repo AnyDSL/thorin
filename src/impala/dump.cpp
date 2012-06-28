@@ -1,7 +1,7 @@
-#include "impala/ast.h"
-
 #include "anydsl/util/for_all.h"
 
+#include "impala/ast.h"
+#include "impala/dump.h"
 #include "impala/prec.h"
 #include "impala/type.h"
 
@@ -50,30 +50,6 @@ void Printer::down() {
     newline();
 }
 
-//------------------------------------------------------------------------------
-
-void dump(const ASTNode* n, bool fancy /*= false*/, std::ostream& o /*= std::cout*/) {
-    Printer p(o, fancy);
-    n->dump(p);
-}
-
-void dump(const Type* t, bool fancy /*= false*/, std::ostream& o /*= std::cout*/) {
-    Printer p(o, fancy);
-    t->dump(p);
-}
-
-std::ostream& operator << (std::ostream& o, const ASTNode* n) {
-    dump(n, true, o);
-    return o;
-}
-
-std::ostream& operator << (std::ostream& o, const Type* t) {
-    dump(t, true, o);
-    return o;
-}
-
-//------------------------------------------------------------------------------
-
 void Printer::dumpBlock(const Stmt* s) {
     if (s->isa<ScopeStmt>())
         s->dump(*this);
@@ -87,6 +63,10 @@ void Printer::dumpBlock(const Stmt* s) {
 }
 
 //------------------------------------------------------------------------------
+
+void ASTNode::dump() const {
+    ::impala::dump(this);
+}
 
 void Prg::dump(Printer& p) const {
     for_all (f, fcts()) {
@@ -347,5 +327,29 @@ void Void::dump(Printer& p) const {
 void TypeError::dump(Printer& p) const {
     p.o << "<type error>";
 }
+
+//------------------------------------------------------------------------------
+
+void dump(const ASTNode* n, bool fancy /*= false*/, std::ostream& o /*= std::cout*/) {
+    Printer p(o, fancy);
+    n->dump(p);
+}
+
+void dump(const Type* t, bool fancy /*= false*/, std::ostream& o /*= std::cout*/) {
+    Printer p(o, fancy);
+    t->dump(p);
+}
+
+std::ostream& operator << (std::ostream& o, const ASTNode* n) {
+    dump(n, true, o);
+    return o;
+}
+
+std::ostream& operator << (std::ostream& o, const Type* t) {
+    dump(t, true, o);
+    return o;
+}
+
+//------------------------------------------------------------------------------
 
 } // namespace impala

@@ -37,7 +37,7 @@ protected:
         setOp(1, rdef);
     }
 
-    virtual void dump(Printer &printer, LambdaPrinterMode mode) const;
+    virtual void dump(Printer &printer, bool descent) const;
 
 public:
 
@@ -90,7 +90,7 @@ public:
 
     RelOpKind kind() { return (RelOpKind) indexKind(); }
 
-    virtual void dump(Printer &printer, LambdaPrinterMode mode) const;
+    virtual void dump(Printer &printer, bool descent) const;
 
     friend class World;
 };
@@ -107,7 +107,7 @@ public:
     const Def* tuple() const { return ops_[0]; }
     const Def* elem()  const { return ops_[1]; }
 
-    virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
+    virtual void dump(Printer& printer, bool descent) const;
 
     friend class World;
 };
@@ -125,7 +125,7 @@ public:
     const Def* elem()  const { return ops_[1]; }
     const Def* value() const { return ops_[2]; }
 
-    virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
+    virtual void dump(Printer& printer, bool descent) const;
 
     friend class World;
 };
@@ -139,7 +139,7 @@ private:
 
 public:
 
-    virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
+    virtual void dump(Printer& printer, bool descent) const;
 
     friend class World;
 };

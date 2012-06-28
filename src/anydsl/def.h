@@ -244,7 +244,7 @@ public:
 
     const Lambda* lambda() const;
 
-    virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
+    virtual void dump(Printer& printer, bool descent) const;
 
 private:
 

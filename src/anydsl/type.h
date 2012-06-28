@@ -39,7 +39,7 @@ private:
 
 public:
 
-    virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
+    virtual void dump(Printer& printer, bool descent) const;
 
 private:
 
@@ -58,7 +58,7 @@ public:
 
     PrimTypeKind kind() const { return (PrimTypeKind) indexKind(); }
 
-    virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
+    virtual void dump(Printer& printer, bool descent) const;
 
     friend class World;
 };
@@ -82,7 +82,7 @@ public:
     /// Get element type via anydsl::PrimLit which serves as index.
     const Type* get(const PrimLit* i) const;
 
-    virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
+    virtual void dump(Printer& printer, bool descent) const;
 };
 
 //------------------------------------------------------------------------------
@@ -104,7 +104,7 @@ public:
 
     bool named() const { return named_; }
 
-    virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
+    virtual void dump(Printer& printer, bool descent) const;
 
 private:
 
@@ -128,7 +128,7 @@ private:
 
 public:
 
-    virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
+    virtual void dump(Printer& printer, bool descent) const;
 
     friend class World;
 };

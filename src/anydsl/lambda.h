@@ -37,7 +37,7 @@ public:
 
     virtual bool equal(const Def* other) const;
     virtual size_t hash() const;
-    virtual void dump(Printer& printer, LambdaPrinterMode mode) const;
+    virtual void dump(Printer& printer, bool descent) const;
 
 private:
 

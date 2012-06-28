@@ -3,8 +3,6 @@
 #include "anydsl/cfg.h"
 #include "anydsl/util/cast.h"
 
-#include "impala/dump.h"
-
 using anydsl::dcast;
 using anydsl::Location;
 using anydsl::Position;
@@ -21,10 +19,6 @@ void Value::store(const anydsl::Def* def) {
 }
 
 //------------------------------------------------------------------------------
-
-void ASTNode::dump() const {
-    ::impala::dump(this);
-}
 
 Decl::Decl(const Token& tok, const Type* type, const Position& pos2)
     : symbol_(tok.symbol())

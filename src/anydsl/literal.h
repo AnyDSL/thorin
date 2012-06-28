@@ -33,7 +33,7 @@ private:
 
 public:
 
-    virtual void dump(Printer& printer, LambdaPrinterMode mode) const ;
+    virtual void dump(Printer& printer, bool descent) const ;
 
     friend class World;
 
@@ -50,7 +50,7 @@ private:
 
 public:
 
-    virtual void dump(Printer& printer, LambdaPrinterMode mode) const ;
+    virtual void dump(Printer& printer, bool descent) const ;
 
     friend class World;
 };
@@ -70,7 +70,7 @@ public:
     PrimLitKind kind() const { return (PrimLitKind) indexKind(); }
     Box box() const { return box_; }
 
-    virtual void dump(Printer& printer, LambdaPrinterMode mode) const ;
+    virtual void dump(Printer& printer, bool descent) const ;
 
     virtual bool equal(const Def* other) const;
     virtual size_t hash() const;

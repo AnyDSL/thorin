@@ -251,13 +251,13 @@ void Lambda::dump(Printer& printer, LambdaPrinterMode mode) const  {
             ++j;
 
             if (j != params().end()) {
-                (*i).def()->dump(printer, mode);
+                (*i)->dump(printer, mode);
                 printer << ", ";
                 i = j;
             } else
                 break;
         } 
-        (*i).def()->dump(printer, mode);
+        (*i)->dump(printer, mode);
     }
 
 	printer << ")";

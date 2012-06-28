@@ -42,7 +42,7 @@ void Lambda::calcType(World& world) {
     std::vector<const Type*> types;
 
     for_all (param, params())
-        types.push_back(param.def()->type());
+        types.push_back(param->type());
 
     setType(world.pi(types.begin().base(), types.end().base()));
 
@@ -51,10 +51,12 @@ void Lambda::calcType(World& world) {
     std::cout << std::endl;
 }
 
+// TODO do more magic here
 bool Lambda::equal(const Def* other) const {
     return false;
 }
 
+// TODO do more magic here
 size_t Lambda::hash() const {
     return boost::hash_value(this);
 }

@@ -2,6 +2,7 @@
 #define ANYDSL_DEF_H
 
 #include <cstring>
+#include <iterator>
 #include <string>
 
 #include <boost/cstdint.hpp>
@@ -91,44 +92,88 @@ protected:
 
 public:
 
-    struct Ops {
+    class Ops {
+    public:
+
         typedef const Def** const_iterator;
         typedef std::reverse_iterator<const Def**> const_reverse_iterator;
 
-        Ops(const Def& def) : def(def) {}
+        Ops(const Def& def) : def_(def) {}
 
-        const_iterator begin() const { return def.ops_; }
-        const_iterator end() const { return def.ops_ + size(); }
-        const_reverse_iterator rbegin() const { return const_reverse_iterator(def.ops_ + size()); }
-        const_reverse_iterator rend() const { return const_reverse_iterator(def.ops_); }
+        const_iterator begin() const { return def_.ops_; }
+        const_iterator end() const { return def_.ops_ + size(); }
+        const_reverse_iterator rbegin() const { return const_reverse_iterator(def_.ops_ + size()); }
+        const_reverse_iterator rend() const { return const_reverse_iterator(def_.ops_); }
 
-        size_t size() const { return def.numOps(); }
-        bool empty() const { return def.numOps() == 0; }
+        size_t size() const { return def_.numOps(); }
+        bool empty() const { return def_.numOps() == 0; }
 
         const Def* const& operator [] (size_t i) const {
             anydsl_assert(i < size(), "index out of bounds");
-            return def.ops_[i];
+            return def_.ops_[i];
         }
 
-        const Def* const& front() { return def.ops_[0]; }
-        const Def* const& back() { return def.ops_[size()-1]; }
+        const Def* const& front() { return def_.ops_[0]; }
+        const Def* const& back() { return def_.ops_[size()-1]; }
 
     private:
 
-        const Def& def;
+        const Def& def_;
     };
-
-    // TODO iterator class which gets def directly instead of Use
 
     template<class T>
     struct FilteredUses {
-        typedef UseSet::const_iterator const_iterator;
 
-        FilteredUses(const UseSet& uses) : uses(uses) {}
+        class const_iterator {
+        public:
+            typedef UseSet::const_iterator::iterator_category iterator_category;
+            typedef const T* value_type;
+            typedef ptrdiff_t difference_type;
+            typedef const T** pointer;
+            typedef const T*& reference;
 
-        const_iterator begin() const { return skip(uses.begin()); }
-        const_iterator end() const { return uses.end(); }
+            const_iterator(const const_iterator& i)
+                : base_(i.base_)
+                , end_(i.end_)
+            {
+                assert(base_ == end_ || base_->def()->isa<T>());
+            }
+            const_iterator(UseSet::const_iterator base, UseSet::const_iterator end)
+                : base_(base)
+                , end_(end)
+            {
+                skip();
+            }
 
+            const_iterator& operator ++ () { ++base_; skip(); return *this; }
+            const_iterator operator ++ (int) { const_iterator i(*this); ++(*this); return i; }
+
+            bool operator == (const const_iterator& i) { return base_ == i.base_; }
+            bool operator != (const const_iterator& i) { return base_ != i.base_; }
+
+            const T* operator *  () { return base_->def()->as<T>(); }
+            const T* operator -> () { return base_->def()->as<T>(); }
+
+        private:
+
+            UseSet::const_iterator base_;
+            UseSet::const_iterator end_;
+
+            void skip() {
+                while (base_ != end_ && !base_->def()->isa<T>())
+                    ++base_;
+            }
+        };
+
+        FilteredUses(const UseSet& uses) : uses_(uses) {}
+
+        const_iterator begin() const { return const_iterator(uses_.begin(), uses_.end()); }
+        const_iterator end() const   { return const_iterator(uses_.end(), uses_.end()); }
+
+        /**
+         * Be carfeull! This has O(n) worst case execution behavior!
+         * Anyway, a node usually has less then 3 uses - so in most cases you can forget about this cost.
+         */
         size_t size() const {
             size_t n = 0;
             for (const_iterator i = begin(), e = end(); i != e; ++i)
@@ -143,13 +188,7 @@ public:
 
     private:
 
-        const_iterator skip(const_iterator i) const {
-            while (i != uses.end() && !(*i).def()->isa<T>())
-                ++i;
-            return i;
-        }
-
-        const UseSet& uses;
+        const UseSet& uses_;
     };
 
     virtual bool equal(const Def* other) const;

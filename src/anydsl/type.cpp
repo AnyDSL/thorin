@@ -37,4 +37,20 @@ const Type* CompoundType::get(const PrimLit* c) const {
     return get(c->box().get_u64()); 
 }
 
+//------------------------------------------------------------------------------
+
+size_t Sigma::hash() const {
+    if (named_)
+        return boost::hash_value(this);
+    else
+        return CompoundType::hash();
+}
+
+bool Sigma::equal(const Def* other) const {
+    if (named_)
+        return false;
+    else
+        return CompoundType::equal(other);
+}
+
 } // namespace anydsl

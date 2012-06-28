@@ -108,6 +108,9 @@ public:
 
 private:
 
+    virtual size_t hash() const;
+    virtual bool equal(const Def* other) const;
+
     bool named_;
 
     friend class World;

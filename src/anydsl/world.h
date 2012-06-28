@@ -27,10 +27,6 @@ class Undef;
 
 //------------------------------------------------------------------------------
 
-typedef std::vector<Sigma*> NamedSigmas;
-
-//------------------------------------------------------------------------------
-
 /**
  * The World represents the whole program and manages creation and destruction of AIRNodes.
  * In particular, the following things are done by this class:
@@ -231,7 +227,6 @@ private:
 
     typedef boost::unordered_set<const Def*> LiveSet;
     LiveSet live_;
-    NamedSigmas namedSigmas_;
 
     const Sigma* unit_; ///< sigma().
     const Pi* pi0_;     ///< pi().

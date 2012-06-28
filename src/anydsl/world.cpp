@@ -73,8 +73,6 @@ World::World()
 }
 
 World::~World() {
-    for_all (sigma,  namedSigmas_) delete sigma;
-
     live_.clear();
     cleanup();
 
@@ -88,7 +86,9 @@ World::~World() {
 Sigma* World::namedSigma(size_t num, const std::string& name /*= ""*/) {
     Sigma* s = new Sigma(*this, num);
     s->debug = name;
-    namedSigmas_.push_back(s);
+
+    anydsl_assert(defs_.find(s) == defs_.end(), "must not be inside");
+    defs_.insert(s);
 
     return s;
 }
@@ -208,7 +208,7 @@ const Lambda* World::finalize(const Lambda* lambda) {
     const Lambda* l = find<Lambda>(lambda);
 
     for_all (param, l->params())
-        findDef(param.def());
+        findDef(param);
 
     return l;
 }

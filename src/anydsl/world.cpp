@@ -296,11 +296,8 @@ void World::destroyUnmarked() {
 }
 
 void World::cleanup() {
-    std::cout << "before: " << defs_.size() << std::endl;
     dce();
-    std::cout << "after dce: " << defs_.size() << std::endl;
     uce();
-    std::cout << "after uce: " << defs_.size() << std::endl;
 }
 
 const Def* World::findDef(const Def* def) {

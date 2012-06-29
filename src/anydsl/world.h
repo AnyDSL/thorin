@@ -225,6 +225,7 @@ public:
 private:
 
     void destroyUnmarked();
+    void insertAxiom(const Def* def);
 
     typedef boost::unordered_set<const Def*, DefHash, DefEqual> DefMap;
     DefMap::iterator remove(DefMap::iterator i);

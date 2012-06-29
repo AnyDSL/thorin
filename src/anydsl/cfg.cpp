@@ -215,10 +215,12 @@ BB* Fct::createBB(const std::string& debug /*= ""*/) {
 
 void Fct::emit() {
     topLambda_->calcType(world());
+    world().setReachable(topLambda_);
 
     exit()->seal();
     const Def* ret[] = { exit()->getVar(Symbol("<result>"), retType())->def };
     const Jump* jump = world().createGoto(ret_, ret, ret + 1);
+    world().setLive(jump);
     exit()->topLambda_->setJump(jump);
     exit()->calcType();
     world().finalize(exit()->topLambda_);

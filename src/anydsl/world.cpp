@@ -65,11 +65,16 @@ World::World()
 #define ANYDSL_F_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T)))
 #include "anydsl/tables/primtypetable.h"
 {
-    live_.insert(unit_);
-    live_.insert(pi0_);
-    live_.insert(noret_);
+    insertAxiom(unit_);
+    insertAxiom(pi0_);
+    insertAxiom(noret_);
     for (size_t i = 0; i < Num_PrimTypes; ++i)
-        live_.insert(primTypes_[i]);
+        insertAxiom(primTypes_[i]);
+}
+
+void World::insertAxiom(const Def* def) {
+    live_.insert(def);
+    reachable_.insert(def);
 }
 
 World::~World() {
@@ -192,6 +197,9 @@ const Def* World::createInsert(const Def* tuple, size_t index, const Def* value)
 
 
 const Def* World::createSelect(const Def* cond, const Def* tdef, const Def* fdef) {
+    if (const PrimLit* lit = cond->isa<PrimLit>())
+        return lit->box().get_u1().get() ? tdef : fdef;
+
     return find(new Select(cond, tdef, fdef));
 }
 
@@ -235,15 +243,16 @@ void World::dce_insert(const Def* def) {
 
     def->flag_ = true;
 
-    for_all (def, def->ops())
-        dce_insert(def);
+    for_all (op, def->ops())
+        dce_insert(op);
 
     if (const Type* type = def->type())
         dce_insert(type);
 }
 
 void World::uce() {
-    mark(false);
+    for_all (def, defs_)
+        def->flag_ = def->isa<Literal>();
 
     for_all (def, reachable_)
         uce_insert(def);
@@ -287,8 +296,11 @@ void World::destroyUnmarked() {
 }
 
 void World::cleanup() {
+    std::cout << "before: " << defs_.size() << std::endl;
     dce();
+    std::cout << "after dce: " << defs_.size() << std::endl;
     uce();
+    std::cout << "after uce: " << defs_.size() << std::endl;
 }
 
 const Def* World::findDef(const Def* def) {

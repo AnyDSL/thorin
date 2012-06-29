@@ -15,7 +15,7 @@ PrimType::PrimType(World& world, PrimTypeKind kind)
 //------------------------------------------------------------------------------
 
 NoRet::NoRet(World& world)
-    : Type(world, Index_NoRet, 1)
+    : Type(world, Index_NoRet, 0)
 {}
 
 //------------------------------------------------------------------------------

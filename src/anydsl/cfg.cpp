@@ -45,7 +45,13 @@ Var* BB::getVar(const Symbol& symbol, const Type* type) {
         size_t index = in_.size();
         in_.push_back(param);
         Var* lvar = setVar(symbol, param);
-        todos_[symbol] = Todo(index, type);
+
+        Todo todo(index, type);
+
+        if (sealed_)
+            fixTodo(symbol, todo);
+        else
+            todos_[symbol] = todo;
 
         return lvar;
     }
@@ -61,36 +67,40 @@ Var* BB::getVar(const Symbol& symbol, const Type* type) {
 }
 
 void BB::seal() {
-    anydsl_assert(!sealed(), "already finalized");
+    anydsl_assert(!sealed(), "already sealed");
 
     sealed_ = true;
 
-    for_all (p, todos_) {
-        for_all (pred, preds_) {
-            const Symbol& symbol = p.first;
-            size_t index = p.second.index;
-            const Type* type = p.second.type;
+    for_all (p, todos_)
+        fixTodo(p.first, p.second);
+}
 
-            if (pred->succs().size() > 1) {
-                // critical edge -> eliminate
-                BB* empty = fct_->createBB();
-                pred->eraseEdge(this);
-                pred->flowsto(empty);
-                empty->flowsto(this);
-                empty->seal();
-                pred = empty;
-            }
+void BB::fixTodo(const Symbol& symbol, Todo todo) {
+    anydsl_assert(sealed(), "must be sealed");
 
-            anydsl_assert(pred->succs().size() == 1, "ciritical edge elimination did not work");
-            Out& out = pred->out_;
+    size_t index = todo.index;
+    const Type* type = todo.type;
 
-            // make potentially room for the new arg
-            if (index >= out.size())
-                out.resize(index + 1);
-
-            anydsl_assert(!pred->out_[index], "already set");
-            pred->out_[index] = pred->getVar(symbol, type)->def;
+    for_all (pred, preds_) {
+        if (pred->succs().size() > 1) {
+            // critical edge -> eliminate
+            BB* empty = fct_->createBB();
+            pred->eraseEdge(this);
+            pred->flowsto(empty);
+            empty->flowsto(this);
+            empty->seal();
+            pred = empty;
         }
+
+        anydsl_assert(pred->succs().size() == 1, "ciritical edge elimination did not work");
+        Out& out = pred->out_;
+
+        // make potentially room for the new arg
+        if (index >= out.size())
+            out.resize(index + 1);
+
+        anydsl_assert(!pred->out_[index], "already set");
+        out[index] = pred->getVar(symbol, type)->def;
     }
 }
 
@@ -141,19 +151,14 @@ World& BB::world() {
 }
 
 void BB::emit() {
-    if (this == fct_->exit()) {
-        fct_->exit()->seal();
-        const Def* ret[] = { fct_->exit()->getVar(Symbol("<result>"), fct_->retType())->def };
-        const Jump* jump = world().createGoto(fct_->ret(), ret, ret + 1);
-        fct_->exit()->topLambda_->setJump(jump);
-        fct_->exit()->calcType();
-        world().finalize(fct_->exit()->topLambda_);
-        return;
-    }
 
     const Jump* jump;
     switch (succs().size()) {
+        case 0:
+            anydsl_assert(this == fct_->exit(), "must be the exit block");
+            return;
         case 1:
+            std::cout << "out size: " << out_.size() << std::endl;
             jump = world().createGoto((*succs().begin())->topLambda(), out_.begin().base(), out_.end().base());
             break;
         case 2:
@@ -203,6 +208,13 @@ BB* Fct::createBB(const std::string& debug /*= ""*/) {
 void Fct::emit() {
     topLambda_->calcType(world());
 
+    exit()->seal();
+    const Def* ret[] = { exit()->getVar(Symbol("<result>"), retType())->def };
+    const Jump* jump = world().createGoto(ret_, ret, ret + 1);
+    exit()->topLambda_->setJump(jump);
+    exit()->calcType();
+    world().finalize(exit()->topLambda_);
+
     for_all (bb, cfg_)
         if (bb != exit())
             bb->calcType();
@@ -212,6 +224,7 @@ void Fct::emit() {
             bb->emit();
 
     exit_->emit();
+    BB::emit();
 }
 
 } // namespace anydsl

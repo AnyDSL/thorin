@@ -81,7 +81,7 @@ public:
 
 protected:
 
-    void dump(Printer& printer) const;
+    void dumpInner(Printer& printer) const;
 };
 
 //------------------------------------------------------------------------------

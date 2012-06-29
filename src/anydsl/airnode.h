@@ -19,7 +19,9 @@ protected:
 public:
 
     IndexKind indexKind() const { return indexKind_; }
-    void dump(bool fancy = false) const;
+
+    void dump() const;
+    void dump(bool fancy) const;
 
     virtual void vdump(Printer &printer) const = 0;
 

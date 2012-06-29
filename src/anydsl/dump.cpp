@@ -204,7 +204,7 @@ void NoRet::vdump(Printer& printer) const  {
 	printer << "noret";
 }
 
-void CompoundType::dump(Printer& printer) const  {
+void CompoundType::dumpInner(Printer& printer) const  {
 	printer << "(";
 	ANYDSL_DUMP_COMMA_LIST(printer, ops());
 	printer << ")";
@@ -223,12 +223,12 @@ void PrimType::vdump(Printer& printer) const  {
 
 void Sigma::vdump(Printer& printer) const  {
 	printer << "sigma";
-	CompoundType::dump(printer);
+	dumpInner(printer);
 }
 
 void Pi::vdump(Printer& printer) const  {
 	printer << "pi";
-	CompoundType::dump(printer);
+	dumpInner(printer);
 }
 
 void Lambda::vdump(Printer& printer) const  {
@@ -240,6 +240,10 @@ void Param::vdump(Printer &printer) const  {
 }
 
 //------------------------------------------------------------------------------
+
+void AIRNode::dump() const {
+    dump(false);
+}
 
 void AIRNode::dump(bool fancy) const {
     Printer printer(std::cout, fancy);

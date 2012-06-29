@@ -100,6 +100,8 @@ private:
     void flowsto(BB* to);
     void eraseEdge(BB* to);
 
+    void fixTodo(const Symbol& symbol, Todo todo);
+
     bool sealed_;
 
     Fct* fct_;

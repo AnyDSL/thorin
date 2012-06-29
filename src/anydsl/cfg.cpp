@@ -50,6 +50,7 @@ Var* BB::getVar(const Symbol& symbol, const Type* type) {
         size_t index = in_.size();
         in_.push_back(param);
         Var* lvar = setVar(symbol, param);
+        param->debug = symbol.str();
 
         Todo todo(index, type);
 
@@ -192,8 +193,11 @@ Fct::Fct(World& world, const FctParams& fparams, const Type* retType, const std:
     curLambda_ = topLambda_ = new Lambda();
     topLambda_->debug = debug;
 
-    for_all (p, fparams)
-        setVar(p.symbol, topLambda_->appendParam(p.type));
+    for_all (p, fparams) {
+        const Param* param = topLambda_->appendParam(p.type);
+        setVar(p.symbol, param);
+        param->debug = p.symbol.str();
+    }
 
     if (retType) {
         ret_ = topLambda_->appendParam(world.pi1(retType));

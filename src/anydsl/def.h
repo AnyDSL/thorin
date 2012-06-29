@@ -245,9 +245,9 @@ public:
 
     const Lambda* lambda() const;
 
-    virtual void vdump(Printer& printer, bool descent) const;
-
 private:
+
+    virtual void vdump(Printer& printer) const;
 
     size_t index_;
 

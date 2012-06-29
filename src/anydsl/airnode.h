@@ -20,7 +20,8 @@ public:
 
     IndexKind indexKind() const { return indexKind_; }
     void dump(bool fancy = false) const;
-    virtual void vdump(Printer &printer, bool descent) const = 0;
+
+    virtual void vdump(Printer &printer) const = 0;
 
     /**
      * Just do what ever you want with this field.

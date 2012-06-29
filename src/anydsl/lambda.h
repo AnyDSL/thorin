@@ -37,9 +37,12 @@ public:
 
     virtual bool equal(const Def* other) const;
     virtual size_t hash() const;
-    virtual void vdump(Printer& printer, bool descent) const;
+
+    void dump(bool fancy = false) const;
 
 private:
+
+    virtual void vdump(Printer& printer) const;
 
     bool final_;
     int numArgs_;

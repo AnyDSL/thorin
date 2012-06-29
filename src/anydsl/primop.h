@@ -37,12 +37,14 @@ protected:
         setOp(1, rdef);
     }
 
-    virtual void vdump(Printer &printer, bool descent) const;
-
 public:
 
     const Def* ldef() const { return ops_[0]; }
     const Def* rdef() const { return ops_[1]; }
+
+private:
+
+    virtual void vdump(Printer &printer) const;
 };
 
 //------------------------------------------------------------------------------
@@ -90,7 +92,7 @@ public:
 
     RelOpKind kind() { return (RelOpKind) indexKind(); }
 
-    virtual void vdump(Printer &printer, bool descent) const;
+    virtual void vdump(Printer &printer) const;
 
     friend class World;
 };
@@ -126,7 +128,7 @@ private:
     
 public:
 
-    virtual void vdump(Printer& printer, bool descent) const;
+    virtual void vdump(Printer& printer) const;
 
     friend class World;
 };
@@ -142,7 +144,9 @@ public:
 
     const Def* value() const { return ops_[1]; }
 
-    virtual void vdump(Printer& printer, bool descent) const;
+private:
+
+    virtual void vdump(Printer& printer) const;
 
     friend class World;
 };
@@ -154,9 +158,7 @@ private:
 
     Tuple(World& world, const Def* const* begin, const Def* const* end);
 
-public:
-
-    virtual void vdump(Printer& printer, bool descent) const;
+    virtual void vdump(Printer& printer) const;
 
     friend class World;
 };

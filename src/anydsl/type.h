@@ -37,11 +37,9 @@ private:
 
     NoRet(World& world);
 
-public:
-
-    virtual void vdump(Printer& printer, bool descent) const;
-
 private:
+
+    virtual void vdump(Printer& printer) const;
 
     friend class World;
 };
@@ -58,7 +56,9 @@ public:
 
     PrimTypeKind kind() const { return (PrimTypeKind) indexKind(); }
 
-    virtual void vdump(Printer& printer, bool descent) const;
+private:
+
+    virtual void vdump(Printer& printer) const;
 
     friend class World;
 };
@@ -81,7 +81,7 @@ public:
 
 protected:
 
-    void dump(Printer& printer, bool descent) const;
+    void dump(Printer& printer) const;
 };
 
 //------------------------------------------------------------------------------
@@ -103,10 +103,9 @@ public:
 
     bool named() const { return named_; }
 
-    virtual void vdump(Printer& printer, bool descent) const;
-
 private:
 
+    virtual void vdump(Printer& printer) const;
     virtual size_t hash() const;
     virtual bool equal(const Def* other) const;
 
@@ -125,9 +124,7 @@ private:
         : CompoundType(world, Index_Pi, begin, end)
     {}
 
-public:
-
-    virtual void vdump(Printer& printer, bool descent) const;
+    virtual void vdump(Printer& printer) const;
 
     friend class World;
 };

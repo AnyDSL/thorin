@@ -31,9 +31,7 @@ private:
         : Literal(Index_Undef, type)
     {}
 
-public:
-
-    virtual void vdump(Printer& printer, bool descent) const ;
+    virtual void vdump(Printer& printer) const ;
 
     friend class World;
 
@@ -48,9 +46,7 @@ private:
         : Literal(Index_ErrorLit, type)
     {}
 
-public:
-
-    virtual void vdump(Printer& printer, bool descent) const ;
+    virtual void vdump(Printer& printer) const ;
 
     friend class World;
 };
@@ -70,12 +66,12 @@ public:
     PrimLitKind kind() const { return (PrimLitKind) indexKind(); }
     Box box() const { return box_; }
 
-    virtual void vdump(Printer& printer, bool descent) const ;
-
     virtual bool equal(const Def* other) const;
     virtual size_t hash() const;
 
 private:
+
+    virtual void vdump(Printer& printer) const ;
 
     Box box_;
 

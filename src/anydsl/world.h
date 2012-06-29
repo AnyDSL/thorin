@@ -205,22 +205,26 @@ public:
      * optimizations
      */
 
+    /// Tell the world which jump%s are axiomatically live.
+    void setLive(const Jump* jump);
+    /// Tell the world which Lambda%s axiomatically reachable.
+    void setReachable(const Lambda* lambda);
+
     /// Dead code elimination.
     void dce();
-    /// Tell the world which nodes are axiomatically live.
-    void setLive(const Def* def) { live_.insert(def); }
-
     /// Unreachable code elimination.
     void uce();
-    /// Tell the world which nodes are axiomatically reachable.
-    void setReachable(const Lambda* lambda) { reachable_.insert(lambda); }
 
     /// Performs dead code and unreachable code elimination.
     void cleanup();
 
     void dump(bool fancy = false);
 
+    void mark(bool b = false);
+
 private:
+
+    void destroyUnmarked();
 
     typedef boost::unordered_set<const Def*, DefHash, DefEqual> DefMap;
     DefMap::iterator remove(DefMap::iterator i);
@@ -230,15 +234,15 @@ private:
     const T* find(const T* val) { return (T*) findDef(val); }
 
     void dce_insert(const Def* def);
+    void uce_insert(const Def* def);
 
     const Def* tryFold(IndexKind kind, const Def* ldef, const Def* rdef);
 
     DefMap defs_;
 
-    typedef boost::unordered_set<const Def*> Live;
-    Live live_;
-    typedef boost::unordered_set<const Lambda*> Reachable;
-    Reachable reachable_;
+    typedef boost::unordered_set<const Def*> DefSet;
+    DefSet live_;
+    DefSet reachable_;
 
     const Sigma* unit_; ///< sigma().
     const Pi* pi0_;     ///< pi().

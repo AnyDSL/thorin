@@ -212,22 +212,21 @@ const Lambda* World::finalize(const Lambda* lambda) {
  * optimizations
  */
 
+void World::setLive(const Jump* jump) {
+    live_.insert(jump);
+}
+
+void World::setReachable(const Lambda* lambda) {
+    reachable_.insert(lambda);
+}
+
 void World::dce() {
-    for_all (def, defs_)
-        def->flag_ = false;
+    mark(false);
 
     for_all (def, live_)
         dce_insert(def);
 
-    DefMap::iterator i = defs_.begin();
-    while (i != defs_.end()) {
-        const Def* def = *i;
-        if (!def->flag_) {
-            delete def;
-            i = defs_.erase(i);
-        } else
-            ++i;
-    }
+    destroyUnmarked();
 }
 
 void World::dce_insert(const Def* def) {
@@ -244,7 +243,47 @@ void World::dce_insert(const Def* def) {
 }
 
 void World::uce() {
-    // TODO
+    mark(false);
+
+    for_all (def, reachable_)
+        uce_insert(def);
+
+    destroyUnmarked();
+}
+
+void World::uce_insert(const Def* def) {
+    if (def->flag_)
+        return;
+
+    def->flag_ = true;
+
+    for_all (use, def->uses())
+        uce_insert(use.def());
+
+    if (const Type* type = def->type())
+        uce_insert(type);
+}
+
+void World::destroyUnmarked() {
+    DefMap::iterator i = defs_.begin();
+    while (i != defs_.end()) {
+        const Def* def = *i;
+        if (!def->flag_) {
+            {
+                DefSet::iterator j = live_.find(def);
+                if (j != live_.end())
+                    live_.erase(j);
+            }
+            {
+                DefSet::iterator j = reachable_.find(def);
+                if (j != reachable_.end())
+                    reachable_.erase(j);
+            }
+            delete def;
+            i = defs_.erase(i);
+        } else
+            ++i;
+    }
 }
 
 void World::cleanup() {
@@ -264,7 +303,12 @@ const Def* World::findDef(const Def* def) {
     return def;
 }
 
-void World::dump(bool fancy /*= false*/) {
+void World::mark(bool b) {
+    for_all (def, defs_)
+        def->flag_ = b;
+}
+
+void World::dump(bool fancy) {
     for_all (def, defs_) {
         if (const Lambda* l = def->isa<Lambda>()) {
             l->dump(fancy);

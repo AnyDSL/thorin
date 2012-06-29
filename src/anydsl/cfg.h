@@ -73,6 +73,7 @@ private:
 
     BB(Fct* fct, const std::string& debug = "");
     BB() {}
+    ~BB();
 
 public:
 
@@ -119,7 +120,7 @@ private:
     Lambda* curLambda_;
 
     typedef boost::unordered_map<Symbol, Var*> VarMap;
-    VarMap values_;
+    VarMap vars_;
 
     typedef boost::unordered_map<Symbol, Todo> Todos;
     Todos todos_;
@@ -131,6 +132,7 @@ class Fct : public BB {
 public:
 
     Fct(World& world, const FctParams& fparams, const Type* retType, const std::string& debug = "");
+    ~Fct();
 
     BB* createBB(const std::string& debug = "");
     void emit();

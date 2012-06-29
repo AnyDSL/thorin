@@ -16,20 +16,25 @@ BB::BB(Fct* fct, const std::string& debug /*= ""*/)
     topLambda_->debug = debug;
 }
 
+BB::~BB() {
+    for_all (p, vars_)
+        delete p.second;
+}
+
 Var* BB::setVar(const Symbol& symbol, const Def* def) {
-    anydsl_assert(values_.find(symbol) == values_.end(), "double insert");
+    anydsl_assert(vars_.find(symbol) == vars_.end(), "double insert");
 
     Var* lvar = new Var(symbol, def);
-    values_[symbol] = lvar;
+    vars_[symbol] = lvar;
 
     return lvar;
 }
 
 Var* BB::getVar(const Symbol& symbol, const Type* type) {
-    BB::VarMap::iterator i = values_.find(symbol);
+    BB::VarMap::iterator i = vars_.find(symbol);
 
     // if var is known -> return current var
-    if (i != values_.end())
+    if (i != vars_.end())
         return i->second;
 
     // value is undefined
@@ -158,7 +163,6 @@ void BB::emit() {
             anydsl_assert(this == fct_->exit(), "must be the exit block");
             return;
         case 1:
-            std::cout << "out size: " << out_.size() << std::endl;
             jump = world().createGoto((*succs().begin())->topLambda(), out_.begin().base(), out_.end().base());
             break;
         case 2:
@@ -197,6 +201,10 @@ Fct::Fct(World& world, const FctParams& fparams, const Type* retType, const std:
     }
 }
 
+Fct::~Fct() {
+    for_all (bb, cfg_)
+        delete bb;
+}
 
 BB* Fct::createBB(const std::string& debug /*= ""*/) {
     BB* bb = new BB(this, debug);

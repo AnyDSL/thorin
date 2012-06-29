@@ -55,6 +55,10 @@ void Fct::emit(CodeGen& cg) const {
     body()->emit(cg);
 
     cg.curFct->emit();
+
+    delete cg.curFct;
+    cg.curFct = 0;
+    cg.curBB = 0;
 }
 
 Var* Decl::emit(CodeGen& cg) const {

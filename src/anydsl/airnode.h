@@ -12,13 +12,16 @@ class Printer;
 class AIRNode : public MagicCast {
 protected:
 
+    AIRNode(int kind)
+        : kind_(kind)
+    {}
     AIRNode(IndexKind indexKind)
-        : indexKind_(indexKind)
+        : kind_(indexKind)
     {}
 
 public:
 
-    IndexKind indexKind() const { return indexKind_; }
+    IndexKind indexKind() const { return (IndexKind) kind_; }
 
     void dump() const;
     void dump(bool fancy) const;
@@ -34,7 +37,7 @@ public:
 
 private:
 
-    IndexKind indexKind_;
+    int kind_;
 };
 
 } // namespace anydsl

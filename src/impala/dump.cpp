@@ -212,6 +212,24 @@ void PostfixExpr::dump(Printer& p) const {
     p.prec = old;
 }
 
+void Call::dump(Printer& p) const {
+    assert(args_.size() >= 1);
+
+    args_.front()->dump(p);
+    p << '(';
+
+    if (args_.size() != 1) {
+        for (Exprs::const_iterator i = args_.begin() + 1, e = args_.end() - 1; i != e; ++i) {
+            (*i)->dump(p);
+            p << ", ";
+        }
+
+        args_.back()->dump(p);
+    }
+
+    p << ')';
+}
+
 /*
  * Stmt
  */

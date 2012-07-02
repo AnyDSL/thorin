@@ -73,6 +73,16 @@ PostfixExpr::PostfixExpr(const Expr* aexpr, Kind kind, const Position& pos2)
     setLoc(aexpr->pos1(), pos2);
 }
 
+Call::Call(const Expr* fct) {
+    args_.push_back(fct);
+}
+
+void Call::setLoc(const Position& pos2) {
+    assert(!args_.empty());
+
+    HasLocation::setLoc(args_.front()->pos1(), pos2);
+}
+
 /*
  * Stmt
  */

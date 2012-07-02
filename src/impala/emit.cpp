@@ -158,6 +158,9 @@ Value PostfixExpr::emit(CodeGen& cg) const {
     return Value(def);
 }
 
+Value Call::emit(CodeGen& cg) const {
+}
+
 /*
  * Stmt
  */

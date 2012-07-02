@@ -576,23 +576,22 @@ const Expr* Parser::parseInfixExpr(const Expr* aexpr) {
 }
 
 const Expr* Parser::parsePostfixExpr(const Expr* aexpr) {
-#if 0
     if (accept(Token::L_PAREN)) {
-        std::vector<Value> args;
+        Call* call = new Call(aexpr);
         PARSE_COMMA_LIST
         (
-            args.push_back(tryExpr()),
+            call->appendArg(tryExpr()),
             Token::R_PAREN,
             "arguments of a function call"
         )
+        call->setLoc(prevLoc_.pos2());
 
-        return emit.fctCall(aexpr, args);
+        return call;
     } else {
-#endif
         assert(la() == Token::INC || la() == Token::DEC);
         Token op = lex();
         return new PostfixExpr(aexpr, (PostfixExpr::Kind) op.kind(), op.pos2());
-    //}
+    }
 }
 
 const Expr* Parser::parsePrimaryExpr() {

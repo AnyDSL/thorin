@@ -248,7 +248,7 @@ private:
 
 /**
  * Just for expr++ and expr--.
- * For indexing and function calls use IndexExpr or CallExpr, respectively.
+ * For indexing and function calls use IndexExpr or Call, respectively.
  */
 class PostfixExpr : public Expr {
 public:
@@ -271,6 +271,19 @@ public:
 private:
 
     Kind kind_;
+};
+
+class Call : public Expr {
+public:
+
+    Call(const Expr* fct);
+
+    void appendArg(const Expr* expr) { args_.push_back(expr); }
+    void setLoc(const anydsl::Position& pos2);
+
+    virtual void check(Sema& sema) const;
+    virtual void dump(Printer& p) const;
+    virtual Value emit(CodeGen& cg) const;
 };
 
 //------------------------------------------------------------------------------

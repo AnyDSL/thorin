@@ -297,6 +297,13 @@ void PostfixExpr::check(Sema& sema) const {
     type_ = aexpr()->type();
 }
 
+void Call::check(Sema& sema) const {
+    for_all (arg, args_)
+        arg->check(sema);
+
+    type_ = sema.types.type_error();
+}
+
 /*
  * Stmt
  */

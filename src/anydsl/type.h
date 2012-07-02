@@ -16,8 +16,8 @@ class World;
 class Type : public Def {
 protected:
 
-    Type(World& world, IndexKind index, size_t num)
-        : Def(index, 0, num)
+    Type(World& world, int kind, size_t num)
+        : Def(kind, 0, num)
         , world_(world)
     {}
 

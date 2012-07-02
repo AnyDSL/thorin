@@ -76,8 +76,8 @@ private:
 
 protected:
 
-    Def(IndexKind index, const Type* type, size_t numOps)
-        : AIRNode(index) 
+    Def(int kind, const Type* type, size_t numOps)
+        : AIRNode(kind) 
         , type_(type)
         , numOps_(numOps)
         , ops_(new const Def*[numOps])

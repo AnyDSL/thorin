@@ -319,13 +319,14 @@ void Call::check(Sema& sema) const {
             return;
         }
 
-        sema.error(f) << "type mismatch\n";
+        sema.error(f) << "'" << f << "' expects an invocation of type '" << fpi 
+            << "' but an invocation of type '" << pi << "' is given\n";
         type_ = sema.types.type_error();
 
         return;
     }
 
-    sema.error(f) << "call not done on function type\n";
+    sema.error(f) << "invocation not done on function type but instead type '" << f->type() << "' is given\n";
     type_ = sema.types.type_error();
 }
 

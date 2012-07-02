@@ -47,11 +47,12 @@ void Prg::emit(CodeGen& cg) const {
 
 void Fct::emit(CodeGen& cg) const {
     FctParams fparams;
+    const impala::Pi* ipi = pi();
 
     for_all (param, params())
         fparams.push_back(FctParam(param->symbol(), param->type()->emit(cg.world)));
 
-    cg.curBB = cg.curFct = new anydsl::Fct(cg.world, fparams, retType()->emit(cg.world), symbol().str());
+    cg.curBB = cg.curFct = new anydsl::Fct(cg.world, fparams, ipi->retType()->emit(cg.world), decl()->symbol().str());
 
     body()->emit(cg);
 
@@ -159,6 +160,9 @@ Value PostfixExpr::emit(CodeGen& cg) const {
 }
 
 Value Call::emit(CodeGen& cg) const {
+    Value f = args_.front()->emit(cg);
+
+    return f;
 }
 
 /*
@@ -326,6 +330,18 @@ const anydsl::Type* Void::emit(anydsl::World& world) const {
 
 const anydsl::Type* TypeError::emit(anydsl::World& /*world*/) const {
     ANYDSL_UNREACHABLE;
+}
+
+const anydsl::Type* Pi::emit(anydsl::World& world) const {
+    std::vector<const anydsl::Type*> types;
+
+    for (size_t i = 0; i < numArgs(); ++i)
+        types.push_back(args()[i]->emit(world));
+
+    if (retType())
+        types.push_back(world.pi1(retType()->emit(world)));
+
+    return world.pi(types.begin().base(), types.end().base());
 }
 
 } // namespace impala

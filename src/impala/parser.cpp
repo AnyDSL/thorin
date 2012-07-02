@@ -247,16 +247,22 @@ void Parser::parseGlobals() {
 
 const Fct* Parser::parseFct() {
     Position pos1 = eat(Token::DEF).pos1();
-    Symbol symbol = parseId().symbol();
+    Token id = parseId();
 
     Fct* fct = new Fct();
     curFct_ = fct;
     const Type* retType = 0;
 
+    std::vector<const Type*> argTypes;
+
     expect(Token::L_PAREN, "function head");
     PARSE_COMMA_LIST
     (
-        fct->params_.push_back(parseDecl()),
+        {
+            const Decl* param = parseDecl();
+            fct->params_.push_back(param);
+            argTypes.push_back(param->type());
+        },
         Token::R_PAREN,
         "arguments of a function call"
     )
@@ -265,9 +271,11 @@ const Fct* Parser::parseFct() {
     if (accept(Token::ARROW))
         retType = parseType();
 
+    const Pi* pi = types.pi(argTypes.begin().base(), argTypes.end().base(), retType);
+    const Decl* decl = new Decl(id, pi, prevLoc_.pos2());
     const ScopeStmt* body = parseScope();
 
-    fct->set(pos1, symbol, retType, body);
+    fct->set(decl, body);
 
     return fct;
 }

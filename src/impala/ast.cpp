@@ -3,6 +3,8 @@
 #include "anydsl/cfg.h"
 #include "anydsl/util/cast.h"
 
+#include "impala/type.h"
+
 using anydsl::dcast;
 using anydsl::Location;
 using anydsl::Position;
@@ -27,11 +29,14 @@ Decl::Decl(const Token& tok, const Type* type, const Position& pos2)
     setLoc(tok.pos1(), pos2);
 }
 
-void Fct::set(const Position& pos1, const Symbol symbol, const Type* retType, const ScopeStmt* body) {
-    symbol_ = symbol;
-    retType_ = retType;
+void Fct::set(const Decl* decl, const ScopeStmt* body) {
+    decl_ = decl;
     body_ = body;
-    setLoc(pos1, body->pos2());
+    setLoc(decl->pos1(), body->pos2());
+}
+
+const Pi* Fct::pi() const { 
+    return decl_->type()->as<Pi>(); 
 }
 
 /*

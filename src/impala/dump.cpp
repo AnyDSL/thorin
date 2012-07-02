@@ -82,7 +82,7 @@ void Prg::dump(Printer& p) const {
 }
 
 void Fct::dump(Printer& p) const {
-    p << "def " << symbol() << '(';
+    p << "def " << decl()->symbol() << '(';
 
     if (!params().empty()) {
         for (Decls::const_iterator i = params().begin(), e = params().end() - 1; i != e; ++i) {
@@ -95,9 +95,9 @@ void Fct::dump(Printer& p) const {
 
     p << ')';
 
-    if (retType()) {
+    if (pi()->retType()) {
         p << " -> ";
-        retType()->dump(p);
+        pi()->retType()->dump(p);
         p << ' ';
     }
     p.dumpBlock(body());
@@ -350,6 +350,26 @@ void Void::dump(Printer& p) const {
 
 void TypeError::dump(Printer& p) const {
     p << "<type error>";
+}
+
+void Pi::dump(Printer& p) const {
+    p << "pi(";
+
+    if (numArgs() != 0) {
+        for (size_t i = 0; i < numArgs() - 1; ++i) {
+            args()[i]->dump(p);
+            p << ", ";
+        }
+
+        args()[numArgs() - 1]->dump(p);
+    }
+
+    p << ")";
+    
+    if (retType()) {
+        p << " -> ";
+        retType()->dump(p);
+    }
 }
 
 //------------------------------------------------------------------------------

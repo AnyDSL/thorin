@@ -48,6 +48,7 @@ class CodeGen;
 class Decl;
 class Expr;
 class Fct;
+class Pi;
 class Printer;
 class ScopeStmt;
 class Sema;
@@ -89,10 +90,10 @@ public:
 
     Fct() {}
 
-    anydsl::Symbol symbol() const { return symbol_; }
-    const Type* retType() const { return retType_; }
+    const Decl* decl() const { return decl_; }
     const ScopeStmt* body() const { return body_; }
     const Decls& params() const { return params_; }
+    const Pi* pi() const;
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
@@ -100,11 +101,10 @@ public:
 
 private:
 
-    void set(const anydsl::Position& pos1, const anydsl::Symbol symbol, const Type* retType, const ScopeStmt* body);
+    void set(const Decl* decl, const ScopeStmt* body);
 
-    anydsl::Symbol symbol_;
+    anydsl::AutoPtr<const Decl> decl_;
     Decls params_;
-    const Type* retType_;
     anydsl::AutoPtr<const ScopeStmt> body_;
 
     friend class Parser;

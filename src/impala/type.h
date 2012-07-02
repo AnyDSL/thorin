@@ -17,6 +17,8 @@ class Printer;
 class Type : public anydsl::MagicCast {
 public:
 
+    virtual ~Type() {}
+
     virtual void dump(Printer& p) const = 0;
     virtual const anydsl::Type* emit(anydsl::World& world) const = 0;
 
@@ -49,6 +51,9 @@ private:
         : kind_(kind)
     {}
 
+    virtual bool equal(const Type* t) const;
+    virtual size_t hash() const;
+
 public:
 
     Kind kind() const { return kind_; }
@@ -59,37 +64,68 @@ public:
 
 private:
 
-    virtual bool equal(const Type* t) const;
-    virtual size_t hash() const;
-
     Kind kind_;
 
     friend class TypeTable;
 };
 
 class Void : public Type {
+private:
+
+    Void() {}
+
+    virtual bool equal(const Type* t) const;
+    virtual size_t hash() const;
+
 public:
 
     virtual void dump(Printer& p) const;
     virtual const anydsl::Type* emit(anydsl::World& world) const;
+    virtual bool isVoid() const { return true; }
 
-private:
-
-    virtual bool equal(const Type* t) const;
-    virtual size_t hash() const;
+    friend class TypeTable;
 };
 
 class TypeError : public Type {
+private:
+
+    TypeError() {}
+
+    virtual bool equal(const Type* t) const;
+    virtual size_t hash() const;
+
 public:
 
     virtual void dump(Printer& p) const;
     virtual const anydsl::Type* emit(anydsl::World& world) const;
     virtual bool isError() const { return true; }
 
+    friend class TypeTable;
+};
+
+class Pi : public Type {
+public:
+
+    Pi(const Type* const* begin, const Type* const* end, const Type* retType);
+    virtual ~Pi();
+
+    virtual void dump(Printer& p) const;
+    virtual const anydsl::Type* emit(anydsl::World& world) const;
+
+    size_t numArgs() const { return numArgs_; }
+    const Type* const* args() const { return args_; }
+    const Type* retType() const { return retType_; }
+
 private:
 
-    virtual bool equal(const Type* t) const;
+    virtual bool equal(const Type* other) const;
     virtual size_t hash() const;
+
+    size_t numArgs_;
+    const Type** args_;
+    const Type* retType_;
+
+    friend class TypeTable;
 };
 
 //------------------------------------------------------------------------------
@@ -115,11 +151,13 @@ public:
 
     const TypeError* type_error() const { return type_error_; }
     const Void* type_void() const { return type_void_; }
+    const Pi* pi(const Type* const* begin, const Type* const* end, const Type* retType);
 
     typedef boost::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;
-    TypeSet types_;
 
 private:
+
+    TypeSet types_;
 
     const TypeError* type_error_;
     const Void* type_void_;

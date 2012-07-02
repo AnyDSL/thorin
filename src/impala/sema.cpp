@@ -189,6 +189,9 @@ bool check(TypeTable& types, const Prg* prg) {
 
 void Prg::check(Sema& sema) const {
     for_all (f, fcts())
+        sema.insert(f->decl());
+
+    for_all (f, fcts())
         f->check(sema);
 }
 
@@ -301,6 +304,28 @@ void Call::check(Sema& sema) const {
     for_all (arg, args_)
         arg->check(sema);
 
+    const Expr* f = args_.front();
+
+    if (const Pi* fpi = f->type()->isa<Pi>()) {
+        std::vector<const Type*> argTypes;
+
+        for (size_t i = 1; i < args_.size(); ++i)
+            argTypes.push_back(args_[i]->type());
+
+        const Pi* pi = sema.types.pi(argTypes.begin().base(), argTypes.end().base(), fpi->retType());
+
+        if (pi == fpi) {
+            type_ = pi->retType();
+            return;
+        }
+
+        sema.error(f) << "type mismatch\n";
+        type_ = sema.types.type_error();
+
+        return;
+    }
+
+    sema.error(f) << "call not done on function type\n";
     type_ = sema.types.type_error();
 }
 
@@ -363,8 +388,10 @@ void ContinueStmt::check(Sema& sema) const {
 void ReturnStmt::check(Sema& sema) const {
     expr()->check(sema);
 
-    if (fct()->retType() != expr()->type()) {
-        sema.error(expr()) << "expected return type '" << fct()->retType() 
+    const Pi* pi = fct()->pi();
+
+    if (pi->retType() != expr()->type()) {
+        sema.error(expr()) << "expected return type '" << pi->retType() 
             << "' but return expression is of type '" << expr()->type() << "'\n";
     }
 }

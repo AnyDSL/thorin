@@ -248,6 +248,7 @@ void Id::check(Sema& sema) const {
 
     if (const Decl* decl = sema.lookup(symbol())) {
         type_ = decl->type();
+        decl_ = decl;
         return;
     }
 

@@ -187,6 +187,7 @@ public:
     Id(const Token& tok);
 
     anydsl::Symbol symbol() const { return symbol_; }
+    const Decl* decl() const { return decl_; }
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;

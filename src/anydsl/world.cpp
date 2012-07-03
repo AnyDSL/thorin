@@ -1,5 +1,7 @@
 #include "anydsl/world.h"
 
+#include <queue>
+
 #include "anydsl/def.h"
 #include "anydsl/primop.h"
 #include "anydsl/lambda.h"
@@ -221,8 +223,7 @@ void World::setReachable(const Lambda* lambda) {
 
 void World::dce() {
     // mark all as dead
-    for_all (def, defs_)
-        def->flag_ = false;
+    unmark();
 
     // find all live values
     for_all (def, live_)
@@ -270,8 +271,7 @@ void World::uce() {
     Reachable reachable;
 
     // mark all as unreachable
-    for_all (def, defs_)
-        def->flag_ = false;
+    unmark();
 
     // find all reachable lambdas
     for_all (lambda, reachable_)
@@ -312,6 +312,11 @@ void World::cleanup() {
     dce();
 }
 
+void World::unmark() {
+    for_all (def, defs_)
+        def->flag_ = false;
+}
+
 const Def* World::findDef(const Def* def) {
     DefMap::iterator i = defs_.find(def);
     if (i != defs_.end()) {
@@ -328,10 +333,36 @@ const Def* World::findDef(const Def* def) {
 }
 
 void World::dump(bool fancy) {
-    for_all (def, defs_) {
-        if (const Lambda* l = def->isa<Lambda>()) {
-            l->dump(fancy);
+    unmark();
+
+    for_all (lambda, reachable_) {
+        std::queue<const Lambda*> queue;
+        queue.push(lambda);
+        lambda->flag_ = true;
+
+        while (!queue.empty()) {
+            const Lambda* cur = queue.front();
+
+            // force last node to the end
+            if (live_.find(cur->jump()) != live_.end() && queue.size() != 1) {
+                queue.pop();
+                queue.push(cur);
+                continue;
+            }
+
+            queue.pop();
+
+            cur->dump(fancy);
             std::cout << std::endl;
+
+            std::vector<const Lambda*> succs = cur->jump()->succ();
+
+            for_all (succ, succs) {
+                if (!succ->flag_) {
+                    succ->flag_ = true;
+                    queue.push(succ);
+                }
+            }
         }
     }
 }

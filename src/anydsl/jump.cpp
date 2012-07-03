@@ -26,7 +26,6 @@ std::vector<const Lambda*> Jump::succ() const {
 
     if (const Lambda* lambda = to()->isa<Lambda>()) {
         result.push_back(lambda);
-        lambda->dump();
     } else if (const Select* select = to()->isa<Select>()) {
         const Lambda* tlambda = select->tdef()->as<Lambda>();
         const Lambda* flambda = select->fdef()->as<Lambda>();

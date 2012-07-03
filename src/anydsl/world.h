@@ -217,7 +217,7 @@ public:
 
 private:
 
-    void destroyUnmarked();
+    void unmark();
 
     typedef boost::unordered_set<const Def*, DefHash, DefEqual> DefMap;
     DefMap::iterator remove(DefMap::iterator i);

@@ -348,6 +348,10 @@ void Void::dump(Printer& p) const {
     p << "void";
 }
 
+void NoRet::dump(Printer& p) const {
+    p << "noret";
+}
+
 void TypeError::dump(Printer& p) const {
     p << "<type error>";
 }

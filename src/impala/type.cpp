@@ -37,6 +37,14 @@ size_t Void::hash() const {
     return boost::hash_value(Token::TYPE_void);
 }
 
+bool NoRet::equal(const Type* t) const {
+    return t->isa<NoRet>();
+}
+
+size_t NoRet::hash() const {
+    return boost::hash_value(Token::TYPE_noret);
+}
+
 Pi::Pi(const Type* const* begin, const Type* const* end, const Type* retType) 
     : numArgs_(std::distance(begin, end))
     , args_(new const Type*[numArgs_])
@@ -83,6 +91,7 @@ bool Pi::equal(const Type* other) const {
 TypeTable::TypeTable() 
     : type_error_((*types_.insert(new TypeError()).first)->as<TypeError>())
     , type_void_ ((*types_.insert(new Void()).first)->as<Void>())
+    , noret_((*types_.insert(new NoRet()).first)->as<NoRet>())
 #define IMPALA_TYPE(itype, atype) \
     , itype##_((*types_.insert(new PrimType(PrimType::TYPE_##itype)).first)->as<PrimType>())
 #include "impala/tokenlist.h"

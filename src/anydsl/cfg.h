@@ -113,8 +113,8 @@ private:
     BBs preds_;
     BBs succs_;
     const Def* cond_;
-    const Lambda* tlambda_;
-    const Lambda* flambda_;
+    BB* tbb_;
+    BB* fbb_;
 
     Lambda* topLambda_;
     Lambda* curLambda_;

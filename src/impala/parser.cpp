@@ -270,6 +270,8 @@ const Fct* Parser::parseFct() {
     // return-continuation
     if (accept(Token::ARROW))
         retType = parseType();
+    else
+        retType = types.noret();
 
     const Pi* pi = types.pi(argTypes.begin().base(), argTypes.end().base(), retType);
     const Decl* decl = new Decl(id, pi, prevLoc_.pos2());

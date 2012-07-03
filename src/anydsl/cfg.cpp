@@ -121,8 +121,8 @@ void BB::branches(const Def* cond, BB* tbb, BB* fbb) {
     assert(fbb);
 
     cond_ = cond;
-    tlambda_ = tbb->topLambda_;
-    flambda_ = fbb->topLambda_;
+    tbb_ = tbb;
+    fbb_ = fbb;
     this->flowsto(tbb);
     this->flowsto(fbb);
 
@@ -157,23 +157,20 @@ World& BB::world() {
 }
 
 void BB::emit() {
-
     const Jump* jump;
     switch (succs().size()) {
-        case 0:
-            anydsl_assert(this == fct_->exit(), "must be the exit block");
-            return;
         case 1:
-            jump = world().createGoto((*succs().begin())->topLambda(), out_.begin().base(), out_.end().base());
+            jump = world().createJump((*succs().begin())->topLambda(), out_.begin().base(), out_.end().base());
             break;
         case 2:
-            jump = world().createBranch(cond_, tlambda_, flambda_, out_.begin().base(), out_.end().base());
+            anydsl_assert(out_.empty(), "sth went wrong with critical edge elimination");
+            jump = world().createBranch(cond_, tbb_->curLambda_, fbb_->curLambda_);
             break;
         default: 
             ANYDSL_UNREACHABLE;
     }
 
-    topLambda_->setJump(jump);
+    curLambda_->setJump(jump);
     world().finalize(topLambda_);
 }
 
@@ -219,14 +216,14 @@ BB* Fct::createBB(const std::string& debug /*= ""*/) {
 
 void Fct::emit() {
     topLambda_->calcType(world());
-    world().setReachable(topLambda_);
 
+    // exit
     exit()->seal();
     const Def* ret[] = { exit()->getVar(Symbol("<result>"), retType())->def };
-    const Jump* jump = world().createGoto(ret_, ret, ret + 1);
+    const Jump* jump = world().createJump(ret_, ret, ret + 1);
     world().setLive(jump);
-    exit()->topLambda_->setJump(jump);
-    exit()->calcType();
+    exit_->topLambda_->setJump(jump);
+    exit_->calcType();
     world().finalize(exit()->topLambda_);
 
     for_all (bb, cfg_)
@@ -237,8 +234,9 @@ void Fct::emit() {
         if (bb != exit())
             bb->emit();
 
-    exit_->emit();
+    // fct
     BB::emit();
+    world().setReachable(topLambda_);
 }
 
 } // namespace anydsl

@@ -171,11 +171,12 @@ void Token::init() {
     insertKey(TYPE_int, "int");
     insertKey(TYPE_uint, "uint");
     insertKey(TYPE_void, "void");
+    insertKey(TYPE_noret, "noret");
     insertKey(DEF, "def");
 
-    tok2str_[TYPE_int]  =   Symbol("int").str();
-    tok2str_[TYPE_uint] =   Symbol("uint").str();
-    tok2str_[TYPE_void] =   Symbol("void").str();
+    tok2str_[TYPE_int]   =  Symbol("int").str();
+    tok2str_[TYPE_uint]  =  Symbol("uint").str();
+    tok2str_[TYPE_noret] =  Symbol("noret").str();
     tok2str_[DEF] =         Symbol("def").str();
     tok2str_[ID]  =         Symbol("<identifier>").str();
     tok2str_[END_OF_FILE] = Symbol("<end of file>").str();

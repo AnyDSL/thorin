@@ -84,6 +84,18 @@ const Lambda* Param::lambda() const {
     return ops_[0]->as<Lambda>();
 }
 
+std::vector<const Def*> Param::phiOps() const {
+    std::vector<const Def*> result;
+
+    size_t i = index();
+    const Lambda* l = lambda();
+
+    for_all (jump, l->callers())
+        result.push_back(jump->ops()[i]);
+
+    return result;
+}
+
 bool Param::equal(const Def* other) const {
     if (!Def::equal(other))
         return false;

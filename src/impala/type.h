@@ -24,6 +24,7 @@ public:
 
     virtual bool isBool() const { return false; }
     virtual bool isError() const { return false; }
+    virtual bool isNoRet() const { return false; }
     virtual bool isVoid() const { return false; }
 
 private:
@@ -76,6 +77,24 @@ private:
 
     virtual bool equal(const Type* t) const;
     virtual size_t hash() const;
+
+public:
+
+    virtual void dump(Printer& p) const;
+    virtual const anydsl::Type* emit(anydsl::World& world) const;
+    virtual bool isVoid() const { return true; }
+
+    friend class TypeTable;
+};
+
+class NoRet : public Type {
+private:
+
+    NoRet() {}
+
+    virtual bool equal(const Type* t) const;
+    virtual size_t hash() const;
+    virtual bool isNoRet() const { return true; }
 
 public:
 
@@ -151,6 +170,7 @@ public:
 
     const TypeError* type_error() const { return type_error_; }
     const Void* type_void() const { return type_void_; }
+    const NoRet* noret() const { return noret_; }
     const Pi* pi(const Type* const* begin, const Type* const* end, const Type* retType);
 
     typedef boost::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;
@@ -161,6 +181,7 @@ private:
 
     const TypeError* type_error_;
     const Void* type_void_;
+    const NoRet* noret_;
 #define IMPALA_TYPE(itype, atype) const PrimType* itype##_;
 #include "impala/tokenlist.h"
 };

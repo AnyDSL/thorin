@@ -65,20 +65,16 @@ World::World()
 #define ANYDSL_F_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T)))
 #include "anydsl/tables/primtypetable.h"
 {
-    insertAxiom(unit_);
-    insertAxiom(pi0_);
-    insertAxiom(noret_);
+    live_.insert(unit_);
+    live_.insert(pi0_);
+    live_.insert(noret_);
     for (size_t i = 0; i < Num_PrimTypes; ++i)
-        insertAxiom(primTypes_[i]);
-}
-
-void World::insertAxiom(const Def* def) {
-    live_.insert(def);
-    reachable_.insert(def);
+        live_.insert(primTypes_[i]);
 }
 
 World::~World() {
     live_.clear();
+    reachable_.clear();
     cleanup();
 
     anydsl_assert(defs_.empty(), "cleanup should catch everything");
@@ -122,19 +118,12 @@ const ErrorLit* World::literal_error(const Type* type) {
  * create
  */
 
-const Jump* World::createGoto(const Def* to, const Def* const* begin, const Def* const* end) {
-    return find(new Goto(*this, to, begin, end));
+const Jump* World::createJump(const Def* to, const Def* const* begin, const Def* const* end) {
+    return find(new Jump(*this, to, begin, end));
 }
 
-const Jump* World::createBranch(const Def* cond, 
-                                const Def* tto, const Def* const* tbegin, const Def* const* tend,
-                                const Def* fto, const Def* const* fbegin, const Def* const* fend) {
-    return find(new Branch(*this, cond, tto, tbegin, tend, fto, fbegin, fend));
-}
-
-const Jump* World::createBranch(const Def* cond, const Def* tto, const Def* fto, 
-                            const Def* const* begin, const Def* const* end) {
-    return createGoto(createSelect(cond, tto, fto), begin, end);
+const Jump* World::createBranch(const Def* cond, const Def* tto, const Def* fto) {
+    return createJump(createSelect(cond, tto, fto));
 }
 
 const Def* World::createTuple(const Def* const* begin, const Def* const* end) { 
@@ -205,10 +194,11 @@ const Def* World::createSelect(const Def* cond, const Def* tdef, const Def* fdef
 
 const Lambda* World::finalize(const Lambda* lambda) {
     anydsl_assert(lambda->type(), "must be set");
-    anydsl_assert(lambda->pi(),   "must be a pi type");
+    anydsl_assert(lambda->pi(),   "must be a set pi type");
     anydsl_assert(lambda->jump(), "must be set");
 
     const Lambda* l = find<Lambda>(lambda);
+    assert(l == lambda);
 
     for_all (param, l->params())
         findDef(param);
@@ -225,16 +215,35 @@ void World::setLive(const Jump* jump) {
 }
 
 void World::setReachable(const Lambda* lambda) {
+    assert(defs_.find(lambda) != defs_.end());
     reachable_.insert(lambda);
 }
 
 void World::dce() {
-    mark(false);
+    // mark all as dead
+    for_all (def, defs_)
+        def->flag_ = false;
 
+    // find all live values
     for_all (def, live_)
         dce_insert(def);
 
-    destroyUnmarked();
+    // destroy dead
+    DefMap::iterator i = defs_.begin();
+    while (i != defs_.end()) {
+        const Def* def = *i;
+        if (!def->flag_) {
+            if (const Lambda* lambda = def->isa<Lambda>()) {
+                Reachable::iterator j = reachable_.find(lambda);
+                if (j != reachable_.end())
+                    reachable_.erase(j);
+            }
+
+            delete def;
+            i = defs_.erase(i);
+        } else
+            ++i;
+    }
 }
 
 void World::dce_insert(const Def* def) {
@@ -243,78 +252,79 @@ void World::dce_insert(const Def* def) {
 
     def->flag_ = true;
 
-    for_all (op, def->ops())
+    for_all (op, def->ops()) {
         dce_insert(op);
+        
+        if (const Param* param = op->isa<Param>()) {
+            std::vector<const Def*> phiOps = param->phiOps();
+            for_all (phiOp, phiOps)
+                dce_insert(phiOp);
+        }
+    }
 
     if (const Type* type = def->type())
         dce_insert(type);
 }
 
 void World::uce() {
+    Reachable reachable;
+
+    // mark all as unreachable
     for_all (def, defs_)
-        def->flag_ = def->isa<Literal>();
+        def->flag_ = false;
 
-    for_all (def, reachable_)
-        uce_insert(def);
+    // find all reachable lambdas
+    for_all (lambda, reachable_)
+        uce_insert(reachable, lambda);
 
-    destroyUnmarked();
-}
-
-void World::uce_insert(const Def* def) {
-    if (def->flag_)
-        return;
-
-    def->flag_ = true;
-
-    for_all (use, def->uses())
-        uce_insert(use.def());
-
-    if (const Type* type = def->type())
-        uce_insert(type);
-}
-
-void World::destroyUnmarked() {
+    // destroy all unreachable lambdas
     DefMap::iterator i = defs_.begin();
     while (i != defs_.end()) {
-        const Def* def = *i;
-        if (!def->flag_) {
-            {
-                DefSet::iterator j = live_.find(def);
-                if (j != live_.end())
-                    live_.erase(j);
+        if (const Lambda* lambda = (*i)->isa<Lambda>()) {
+            if (!lambda->flag_) {
+                delete lambda;
+                i = defs_.erase(i);
+                continue;
             }
-            {
-                DefSet::iterator j = reachable_.find(def);
-                if (j != reachable_.end())
-                    reachable_.erase(j);
-            }
-            delete def;
-            i = defs_.erase(i);
-        } else
-            ++i;
+        }
+        ++i;
     }
 }
 
+void World::uce_insert(Reachable& reachable, const Lambda* lambda) {
+    assert(defs_.find(lambda) != defs_.end());
+
+    if (lambda->flag_)
+        return;
+
+    lambda->flag_ = true;
+    reachable.insert(lambda);
+
+    const Jump* jump = lambda->jump();
+
+    std::vector<const Lambda*> succs = jump->succ();
+    for_all (succ, succs)
+        uce_insert(reachable, succ);
+}
+
 void World::cleanup() {
-    dce();
     uce();
+    dce();
 }
 
 const Def* World::findDef(const Def* def) {
     DefMap::iterator i = defs_.find(def);
     if (i != defs_.end()) {
+        anydsl_assert(!def->isa<Lambda>(), "must not be a lambda");
         delete def;
+        anydsl_assert(defs_.find(*i) != defs_.end(), "hash/equal function of def class incorrect");
         return *i;
     }
 
     defs_.insert(def);
+    anydsl_assert(defs_.find(def) != defs_.end(), "hash/equal function of def class incorrect");
 
     return def;
-}
-
-void World::mark(bool b) {
-    for_all (def, defs_)
-        def->flag_ = b;
 }
 
 void World::dump(bool fancy) {

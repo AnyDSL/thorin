@@ -328,6 +328,10 @@ const anydsl::Type* Void::emit(anydsl::World& world) const {
     return world.unit();
 }
 
+const anydsl::Type* NoRet::emit(anydsl::World& /*world*/) const {
+    ANYDSL_UNREACHABLE;
+}
+
 const anydsl::Type* TypeError::emit(anydsl::World& /*world*/) const {
     ANYDSL_UNREACHABLE;
 }
@@ -338,7 +342,7 @@ const anydsl::Type* Pi::emit(anydsl::World& world) const {
     for (size_t i = 0; i < numArgs(); ++i)
         types.push_back(args()[i]->emit(world));
 
-    if (retType())
+    if (!retType()->isNoRet())
         types.push_back(world.pi1(retType()->emit(world)));
 
     return world.pi(types.begin().base(), types.end().base());

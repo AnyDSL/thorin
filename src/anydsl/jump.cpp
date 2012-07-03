@@ -1,23 +1,14 @@
 #include "anydsl/jump.h"
 
 #include "anydsl/world.h"
+#include "anydsl/primop.h"
 
 namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-Jump::Jump(World& world, IndexKind indexKind, size_t numOps)
-    : Def(indexKind, world.noret(), numOps)
-{}
-
-const NoRet* Jump::noret() const { 
-    return type()->as<NoRet>(); 
-}
-
-//------------------------------------------------------------------------------
-
-Goto::Goto(World& world, const Def* to, const Def* const* begin, const Def* const* end) 
-    : Jump(world, Index_Goto, std::distance(begin, end) + 1)
+Jump::Jump(World& world, const Def* to, const Def* const* begin, const Def* const* end) 
+    : Def(Index_Goto, world.noret(), std::distance(begin, end) + 1)
 { 
     setOp(0, to);
 
@@ -26,26 +17,26 @@ Goto::Goto(World& world, const Def* to, const Def* const* begin, const Def* cons
         setOp(x, *i);
 }
 
-//------------------------------------------------------------------------------
+const NoRet* Jump::noret() const { 
+    return type()->as<NoRet>(); 
+}
 
-Branch::Branch(World& world, const Def* cond, 
-               const Def* tto, const Def* const* tbegin, const Def* const* tend,
-               const Def* fto, const Def* const* fbegin, const Def* const* fend) 
-    : Jump(world, Index_Branch, std::distance(tbegin, tend) + std::distance(fbegin, fend) + 3)
-{
-    size_t arg = 0;
-    setOp(arg++, cond);
+std::vector<const Lambda*> Jump::succ() const {
+    std::vector<const Lambda*> result;
 
-    setOp(arg++, tto);
-    for (const Def* const* i = tbegin; i != tend; ++i)
-        setOp(arg++, *i);
+    if (const Lambda* lambda = to()->isa<Lambda>()) {
+        result.push_back(lambda);
+        lambda->dump();
+    } else if (const Select* select = to()->isa<Select>()) {
+        const Lambda* tlambda = select->tdef()->as<Lambda>();
+        const Lambda* flambda = select->fdef()->as<Lambda>();
+        result.push_back(tlambda);
+        result.push_back(flambda);
+    } else {
+        anydsl_assert(to()->as<Param>(), "unknown jump target");
+    }
 
-    findex_ = arg;
-
-    setOp(arg++, fto);
-    for (const Def* const* i = fbegin; i != fend; ++i)
-        setOp(arg++, *i);
-
+    return result;
 }
 
 //------------------------------------------------------------------------------

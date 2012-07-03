@@ -26,8 +26,9 @@ const Pi* Lambda::pi() const {
     return scast<Pi>(type());
 }
 
-void Lambda::setJump(const Jump* jump) { 
-    setOp(0, jump); 
+void Lambda::setJump(const Jump* j) { 
+    anydsl_assert(!ops_[0], "jump already set");
+    setOp(0, j); 
 }
 
 const Param* Lambda::appendParam(const Type* type) {
@@ -50,12 +51,10 @@ void Lambda::calcType(World& world) {
     setType(world.pi(types.begin().base(), types.end().base()));
 }
 
-// TODO do more magic here
 bool Lambda::equal(const Def* other) const {
-    return false;
+    return other->isa<Lambda>() && this == other->as<Lambda>();
 }
 
-// TODO do more magic here
 size_t Lambda::hash() const {
     return boost::hash_value(this);
 }

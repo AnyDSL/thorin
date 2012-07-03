@@ -166,19 +166,14 @@ public:
      * create
      */
 
-    const Jump* createGoto(const Def* to, const Def* const* begin, const Def* const* end);
-    const Jump* createGoto(const Def* to) { 
-        return (Jump*) createGoto(to, 0, 0); 
+    const Jump* createJump(const Def* to, const Def* const* begin, const Def* const* end);
+    const Jump* createJump(const Def* to) { 
+        return createJump(to, 0, 0); 
     }
     template<size_t N>
-    const Jump* createGoto(const Def* to, const Def* const (&args)[N]) { return createGoto(to, args, args + N); }
+    const Jump* createJump(const Def* to, const Def* const (&args)[N]) { return createGoto(to, args, args + N); }
 
-    const Jump* createBranch(const Def* cond, const Def* tto, const Def* fto) { return createBranch(cond, tto, fto, 0, 0); }
-    const Jump* createBranch(const Def* cond, 
-                             const Def* tto, const Def* const* tbegin, const Def* const* tend,
-                             const Def* fto, const Def* const* fbegin, const Def* const* fend);
-    const Jump* createBranch(const Def* cond, const Def* tto, const Def* fto, 
-                             const Def* const* begin, const Def* const* end);
+    const Jump* createBranch(const Def* cond, const Def* tto, const Def* fto);
     template<size_t N>
     const Jump* createBranch(const Def* cond, const Def* tto, const Def* fto, const Def* const (&args)[N]) { 
         return createBranch(cond, tto, fto, args);
@@ -220,12 +215,9 @@ public:
 
     void dump(bool fancy = false);
 
-    void mark(bool b = false);
-
 private:
 
     void destroyUnmarked();
-    void insertAxiom(const Def* def);
 
     typedef boost::unordered_set<const Def*, DefHash, DefEqual> DefMap;
     DefMap::iterator remove(DefMap::iterator i);
@@ -234,16 +226,18 @@ private:
     template<class T> 
     const T* find(const T* val) { return (T*) findDef(val); }
 
+    typedef boost::unordered_set<const Def*> DefSet;
+    typedef boost::unordered_set<const Lambda*> Reachable;
+
     void dce_insert(const Def* def);
-    void uce_insert(const Def* def);
+    void uce_insert(Reachable& reachable, const Lambda* lambda);
 
     const Def* tryFold(IndexKind kind, const Def* ldef, const Def* rdef);
 
     DefMap defs_;
 
-    typedef boost::unordered_set<const Def*> DefSet;
     DefSet live_;
-    DefSet reachable_;
+    Reachable reachable_;
 
     const Sigma* unit_; ///< sigma().
     const Pi* pi0_;     ///< pi().

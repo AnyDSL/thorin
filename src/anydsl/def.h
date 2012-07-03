@@ -121,6 +121,41 @@ public:
         const Def& def_;
     };
 
+    class Args {
+    public:
+
+        typedef const Def** const_iterator;
+        typedef std::reverse_iterator<const Def**> const_reverse_iterator;
+
+        Args(const Def& def, size_t begin, size_t end) 
+            : def_(def) 
+            , begin_(begin)
+            , end_(end)
+        {}
+
+        const_iterator begin() const { return def_.ops_ + begin_; }
+        const_iterator end() const { return def_.ops_ + end_; }
+        const_reverse_iterator rbegin() const { return const_reverse_iterator(end()); }
+        const_reverse_iterator rend() const { return const_reverse_iterator(begin()); }
+
+        const Def* const& operator [] (size_t i) const {
+            anydsl_assert(i < size(), "index out of bounds");
+            return def_.ops_[begin_ + i];
+        }
+
+        size_t size() const { return end_ - begin_; }
+        bool empty() const { return begin_ == end_; }
+
+        const Def*& front() const { assert(!empty()); return *(def_.ops_ + begin_); }
+        const Def*& back()  const { assert(!empty()); return *(def_.ops_ + end_ - 1); }
+
+    private:
+
+        const Def& def_;
+        size_t begin_;
+        size_t end_;
+    };
+
     template<class T>
     class FilteredUses {
     public:
@@ -236,14 +271,14 @@ private:
 
     Param(const Type* type, const Lambda* parent, size_t index);
 
-    size_t index() const { return index_; }
-
     virtual bool equal(const Def* other) const;
     virtual size_t hash() const;
 
 public:
 
     const Lambda* lambda() const;
+    size_t index() const { return index_; }
+    std::vector<const Def*> phiOps() const;
 
 private:
 

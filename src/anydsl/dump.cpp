@@ -149,27 +149,11 @@ void PrimLit::vdump(Printer& p) const  {
 
 // Jump
 
-void Goto::vdump(Printer& p) const  {
-	p << "goto(";
+void Jump::vdump(Printer& p) const  {
+	p << "jump(";
     p.dump(to());
 	p << ", [";
 	ANYDSL_DUMP_COMMA_LIST(p, args());
-	p  << "])";
-}
-
-void Branch::vdump(Printer& p) const  {
-	p << "branch(";
-    p.dump(cond());
-	p << ", ";
-
-    p.dump(tto());
-	p << ", [";
-	ANYDSL_DUMP_COMMA_LIST(p, targs());
-	p  << "]), ";
-
-    p.dump(fto());
-	p << ", [";
-	ANYDSL_DUMP_COMMA_LIST(p, fargs());
 	p  << "])";
 }
 

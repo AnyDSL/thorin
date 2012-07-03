@@ -36,7 +36,7 @@ public:
         NOT, L_N, INC, DEC,
 
         // types that need special handling
-        TYPE_int, TYPE_uint, TYPE_void,
+        TYPE_int, TYPE_uint, TYPE_void, TYPE_noret,
 
 
         // these do ont appear in impala/tokenlist.h -- they are too special

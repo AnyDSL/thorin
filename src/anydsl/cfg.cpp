@@ -198,6 +198,7 @@ Fct::Fct(World& world, const FctParams& fparams, const Type* retType, const std:
 
     if (retType) {
         ret_ = topLambda_->appendParam(world.pi1(retType));
+        ret_->debug = "<return>";
         exit_ = createBB("exit");
     }
 }

@@ -229,7 +229,7 @@ void World::dce() {
     for_all (def, live_)
         dce_insert(def);
 
-    // destroy dead
+    // kill the living dead
     DefMap::iterator i = defs_.begin();
     while (i != defs_.end()) {
         const Def* def = *i;

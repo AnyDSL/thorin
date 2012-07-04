@@ -201,7 +201,7 @@ void Fct::check(Sema& sema) const {
     for_all (p, params())
         p->check(sema);
 
-    for_all (const &s, body()->stmts())
+    for_all (s, body()->stmts())
         s->check(sema);
 
     sema.popScope();

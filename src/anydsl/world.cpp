@@ -257,8 +257,7 @@ void World::dce_insert(const Def* def) {
         dce_insert(op);
         
         if (const Param* param = op->isa<Param>()) {
-            std::vector<const Def*> phiOps = param->phiOps();
-            for_all (phiOp, phiOps)
+            for_all (phiOp, param->phiOps())
                 dce_insert(phiOp);
         }
     }
@@ -302,8 +301,7 @@ void World::uce_insert(Reachable& reachable, const Lambda* lambda) {
 
     const Jump* jump = lambda->jump();
 
-    std::vector<const Lambda*> succs = jump->succ();
-    for_all (succ, succs)
+    for_all (succ, jump->succ())
         uce_insert(reachable, succ);
 }
 

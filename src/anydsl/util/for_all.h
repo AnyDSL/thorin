@@ -34,8 +34,8 @@ template<class T> struct SelCont<T, void (int&)> { typedef T cont; };
 
 #define for_all_x(var, what, step) \
     if (bool LNAME(break) = false) {} else \
-        if (bool LNAME(once_ref) = true) {} else \
-            for (anydsl::SelCont<BOOST_TYPEOF((what)), void (int var)>::cont& LNAME(what_ref) = ((what)); LNAME(once_ref); LNAME(once_ref) = false) \
+        if (bool LNAME(once_ref) = false) {} else \
+            for (anydsl::SelCont<BOOST_TYPEOF((what)), void (int var)>::cont& LNAME(what_ref) = ((what)); !LNAME(once_ref); LNAME(once_ref) = true) \
                 for (anydsl::SelIter<BOOST_TYPEOF((what)), void (int var)>::iter LNAME(iter) = anydsl::begin(LNAME(what_ref)), LNAME(end) = anydsl::end(LNAME(what_ref)); !LNAME(break) && LNAME(iter) != LNAME(end); LNAME(break) ? (void)0 : (void)((step), ++LNAME(iter))) \
                     if (bool LNAME(once) = (LNAME(break) = true, false)) {} else for (std::iterator_traits<anydsl::SelIter<BOOST_TYPEOF((what)), void (int var)>::iter>::value_type var = *LNAME(iter); !LNAME(once); LNAME(break) = false, LNAME(once) = true)
 

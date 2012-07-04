@@ -353,9 +353,7 @@ void World::dump(bool fancy) {
             cur->dump(fancy);
             std::cout << std::endl;
 
-            std::vector<const Lambda*> succs = cur->jump()->succ();
-
-            for_all (succ, succs) {
+            for_all (succ, cur->jump()->succ()) {
                 if (!succ->flag_) {
                     succ->flag_ = true;
                     queue.push(succ);

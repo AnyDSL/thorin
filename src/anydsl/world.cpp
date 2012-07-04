@@ -340,15 +340,13 @@ void World::dump(bool fancy) {
 
         while (!queue.empty()) {
             const Lambda* cur = queue.front();
+            queue.pop();
 
             // force last node to the end
-            if (live_.find(cur->jump()) != live_.end() && queue.size() != 1) {
-                queue.pop();
+            if (live_.find(cur->jump()) != live_.end() && !queue.empty()) {
                 queue.push(cur);
                 continue;
             }
-
-            queue.pop();
 
             cur->dump(fancy);
             std::cout << std::endl;

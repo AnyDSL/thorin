@@ -72,10 +72,9 @@ private:
     Def& operator = (const Def&);
 
     void registerUse(size_t i, const Def* def) const;
+    void unregisterUse(size_t i, const Def* def) const;
 
 protected:
-
-    virtual void unregisterUse(size_t i, const Def* def) const;
 
     Def(int kind, const Type* type, size_t numOps)
         : AIRNode(kind) 
@@ -114,8 +113,8 @@ public:
             return def_.ops_[i];
         }
 
-        const Def* const& front() { return def_.ops_[0]; }
-        const Def* const& back() { return def_.ops_[size()-1]; }
+        const Def* const& front() const { return def_.ops_[0]; }
+        const Def* const& back() const { return def_.ops_[size()-1]; }
 
     private:
 

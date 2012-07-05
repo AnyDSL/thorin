@@ -14,12 +14,13 @@ template<class T>
 struct get_clean_type<const T&> {typedef T type; };
 
 #define ANYDSL_DUMP_COMMA_LIST(p, list) \
-    if (!(list).empty()) { \
-        for (get_clean_type<BOOST_TYPEOF((list))>::type::const_iterator i = (list).begin(), e = (list).end() - 1; i != e; ++i) { \
+    const BOOST_TYPEOF((list))& l = (list); \
+    if (!l.empty()) { \
+        for (get_clean_type<BOOST_TYPEOF(l)>::type::const_iterator i = l.begin(), e = l.end() - 1; i != e; ++i) { \
             p.dump(*i); \
             p << ", "; \
         } \
-        p.dump((list).back()); \
+        p.dump(l.back()); \
     }
 
 namespace anydsl {

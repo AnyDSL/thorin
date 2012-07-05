@@ -13,7 +13,7 @@ Lambda::Lambda(const Pi* pi)
     , numArgs_(pi->numOps())
 {
     for (size_t i = 0, e = pi->numOps(); i != e; ++i)
-        params_.push_back(new Param(pi->get(i), this, i));
+        new Param(pi->get(i), this, i);
 }
 
 Lambda::Lambda()
@@ -35,10 +35,7 @@ const Param* Lambda::appendParam(const Type* type) {
     assert(!final_);
     anydsl_assert(!this->type(), "type already set -- you are not allowed to add any more params");
 
-    const Param* param =  new Param(type, this, numArgs_++);
-    params_.push_back(param);
-
-    return param;
+    return new Param(type, this, numArgs_++);
 }
 
 void Lambda::calcType(World& world) {
@@ -59,21 +56,19 @@ size_t Lambda::hash() const {
     return boost::hash_value(this);
 }
 
-void Lambda::unregisterUse(size_t i, const Def* def) const {
-    // don't use dcast/scast or isa/as here
-    // unregisterUse is called from a destructor, namely ~Def()
-    // thus 'def' thinks it is a 'Def' not a 'Param'
-    if (def->indexKind() == Index_Param)
-        params_[((const Param*) def)->index()] = 0;
+Params Lambda::params() const { 
+    size_t size = unordered_params().size();
+    Params result(size);
 
-    Def::unregisterUse(i, def);
+    for_all (param, unordered_params())
+        result[param->index()] = param;
+
+    return result;
 }
 
 size_t Lambda::numParams() const {
-    size_t size = params_.size();
-    anydsl_assert( !pi() || pi()->numOps() == size, "params and type out of sync");
-
-    return size;
+    assert(type());
+    return pi()->numOps();
 }
 
 } // namespace anydsl

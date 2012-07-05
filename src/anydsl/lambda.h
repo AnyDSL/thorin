@@ -14,6 +14,7 @@ class Pi;
 class Jump;
 
 typedef Def::FilteredUses<Jump> Callers;
+typedef Def::FilteredUses<Param> UnorderedParams;
 typedef std::vector<const Param*> Params;
 
 class Lambda : public Def {
@@ -29,15 +30,15 @@ public:
     const Param* appendParam(const Type* type);
     void calcType(World& world);
 
-    const Params& params() const { return params_; }
     Callers callers() const { return Callers(uses_); }
+    UnorderedParams unordered_params() const { return UnorderedParams(uses_); }
+    Params params() const;
     size_t numParams() const;
 
     void setJump(const Jump* jump);
 
     virtual bool equal(const Def* other) const;
     virtual size_t hash() const;
-    virtual void unregisterUse(size_t i, const Def* use) const;
 
     void dump(bool fancy = false) const;
 
@@ -47,7 +48,6 @@ private:
 
     bool final_;
     int numArgs_;
-    mutable Params params_;
 
     friend class World;
 };

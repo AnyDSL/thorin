@@ -109,7 +109,7 @@ void Printer::dumpName(const AIRNode* n) {
 
 void Undef::vdump(Printer& p) const  {
 	p << "<undef> : ";
-    dump(type());
+    p.dump(type());
 }
 
 void ErrorLit::vdump(Printer& p) const  {

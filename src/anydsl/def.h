@@ -72,9 +72,10 @@ private:
     Def& operator = (const Def&);
 
     void registerUse(size_t i, const Def* def) const;
-    void unregisterUse(size_t i, const Def* use) const;
 
 protected:
+
+    virtual void unregisterUse(size_t i, const Def* def) const;
 
     Def(int kind, const Type* type, size_t numOps)
         : AIRNode(kind) 

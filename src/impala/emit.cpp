@@ -47,14 +47,14 @@ void Prg::emit(CodeGen& cg) const {
 
 void Fct::emit(CodeGen& cg) const {
     FctParams fparams;
-    const impala::Pi* ipi = pi();
 
     for_all (param, params())
         fparams.push_back(FctParam(param->symbol(), param->type()->emit(cg.world)));
 
-    cg.curBB = cg.curFct = new anydsl::Fct(cg.world, fparams, ipi->retType()->emit(cg.world), decl()->symbol().str());
+    cg.curBB = cg.curFct = new anydsl::Fct(cg.world, fparams, pi()->retType()->emit(cg.world), decl()->symbol().str());
 
     body()->emit(cg);
+    cg.curBB->fixto(cg.curFct->exit());
 
     cg.curFct->emit();
 

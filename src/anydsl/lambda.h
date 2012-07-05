@@ -37,6 +37,7 @@ public:
 
     virtual bool equal(const Def* other) const;
     virtual size_t hash() const;
+    virtual void unregisterUse(size_t i, const Def* use) const;
 
     void dump(bool fancy = false) const;
 
@@ -46,7 +47,7 @@ private:
 
     bool final_;
     int numArgs_;
-    Params params_;
+    mutable Params params_;
 
     friend class World;
 };

@@ -59,6 +59,16 @@ size_t Lambda::hash() const {
     return boost::hash_value(this);
 }
 
+void Lambda::unregisterUse(size_t i, const Def* def) const {
+    // don't use dcast/scast or isa/as here
+    // unregisterUse is called from a destructor, namely ~Def()
+    // thus 'def' thinks it is a 'Def' not a 'Param'
+    if (def->indexKind() == Index_Param)
+        params_[((const Param*) def)->index()] = 0;
+
+    Def::unregisterUse(i, def);
+}
+
 size_t Lambda::numParams() const {
     size_t size = params_.size();
     anydsl_assert( !pi() || pi()->numOps() == size, "params and type out of sync");

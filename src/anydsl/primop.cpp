@@ -1,5 +1,7 @@
 #include "anydsl/primop.h"
 
+#include <boost/scoped_array.hpp>
+
 #include "anydsl/literal.h"
 #include "anydsl/type.h"
 #include "anydsl/world.h"
@@ -60,15 +62,14 @@ Tuple::Tuple(World& world, const Def* const* begin, const Def* const* end)
     if (numOps() == 0) {
         setType(world.sigma0());
     } else {
-        const Type** types = new const Type*[std::distance(begin, end)];
+        boost::scoped_array<const Type*> types(new const Type*[numOps()]);
         size_t x = 0;
         for (const Def* const* i = begin; i != end; ++i, ++x) {
             setOp(x, *i);
             types[x] = (*i)->type();
         }
 
-        setType(world.sigma(types, types + numOps()));
-        delete[] types;
+        setType(world.sigma(types.get(), types.get() + numOps()));
     }
 }
 

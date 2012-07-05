@@ -1,5 +1,7 @@
 #include "anydsl/lambda.h"
 
+#include <boost/scoped_array.hpp>
+
 #include "anydsl/jump.h"
 #include "anydsl/type.h"
 #include "anydsl/world.h"
@@ -40,12 +42,13 @@ const Param* Lambda::appendParam(const Type* type) {
 
 void Lambda::calcType(World& world) {
     anydsl_assert(!type(), "type already set");
-    std::vector<const Type*> types;
+    size_t size = unordered_params().size();
+    boost::scoped_array<const Type*> types(new const Type*[size]);
 
-    for_all (param, params())
-        types.push_back(param->type());
+    for_all (param, unordered_params())
+        types[param->index()] = param->type();
 
-    setType(world.pi(types.begin().base(), types.end().base()));
+    setType(world.pi(types.get(), types.get() + size));;
 }
 
 bool Lambda::equal(const Def* other) const {

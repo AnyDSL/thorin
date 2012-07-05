@@ -15,9 +15,8 @@ public:
     ~AutoPtr() { delete ptr_; }
 
     void release() {
-        T* ptr = ptr_;
+        delete ptr_;
         ptr_ = 0;
-        return ptr;
     }
 
     operator T*() const { return ptr_; }

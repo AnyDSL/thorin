@@ -31,7 +31,9 @@ public:
     void calcType(World& world);
 
     Callers callers() const { return Callers(uses_); }
+    /// Fast but unsorted.
     UnorderedParams unordered_params() const { return UnorderedParams(uses_); }
+    /// Slow but sorted.
     Params params() const;
     size_t numParams() const;
 

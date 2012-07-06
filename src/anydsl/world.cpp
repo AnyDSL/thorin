@@ -347,50 +347,31 @@ const Def* World::findDef(const Def* def) {
 void World::dump(bool fancy) {
     unmark();
 
-    for_all (def, defs_)
-        if (const Lambda* lambda = def->isa<Lambda>())
-            lambda->dump(fancy);
-
-    std::cout << "---" << std::endl;
-
-#if 0
-    for_all (lambda, reachable_) {
-        std::queue<const Lambda*> queue;
-        queue.push(lambda);
-        lambda->flag_ = true;
-
-        while (!queue.empty()) {
-            const Lambda* cur = queue.front();
-            queue.pop();
-
-            // force last node to the end
-            if (live_.find(cur->jump()) != live_.end() && !queue.empty()) {
-                queue.push(cur);
+    for_all (def, defs_) {
+        if (const Lambda* lambda = def->isa<Lambda>()) {
+            if (lambda->flag_)
                 continue;
-            }
 
-            cur->dump(fancy);
-            std::cout << std::endl;
+            std::queue<const Lambda*> queue;
+            queue.push(lambda);
+            lambda->flag_ = true;
 
-#if 0
-            if (const Lambda* toLambda = cur->jump()->to()->isa<Lambda>()) {
-                if (reachable_.find(toLambda) != reachable_.end()) {
-                    queue.push(cur->jump()->args().back()->as<Lambda>());
-                    continue;
-                }
-            }
-#endif
+            while (!queue.empty()) {
+                const Lambda* cur = queue.front();
+                queue.pop();
 
+                cur->dump(fancy);
+                std::cout << std::endl;
 
-            for_all (succ, cur->jump()->succ()) {
-                if (!succ->flag_) {
-                    succ->flag_ = true;
-                    queue.push(succ);
+                for_all (succ, cur->jump()->succ()) {
+                    if (!succ->flag_) {
+                        succ->flag_ = true;
+                        queue.push(succ);
+                    }
                 }
             }
         }
     }
-#endif
 }
 
 } // namespace anydsl

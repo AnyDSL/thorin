@@ -144,10 +144,13 @@ void PrimLit::vdump(Printer& p) const  {
     p.dump(type());
 }
 
-static void dumpNameAndType(Printer& p, const Def* def, const char* name) {
+static void dumpNameAndType(Printer& p, const Def* def, const char* name, bool nl = false) {
 	p << name << " : ";
     p.dump(def->type());
-    p << " (";
+    p << " ";
+    if (nl)
+        p.newline(); 
+    p << '(';
 }
 
 // Jump
@@ -155,8 +158,11 @@ static void dumpNameAndType(Printer& p, const Def* def, const char* name) {
 void Jump::vdump(Printer& p) const  {
     dumpNameAndType(p, this, "jump");
     p.dump(to());
-	p << ", [";
+	p << ", ";
+    p.newline() << "[";
+    p.up();
 	ANYDSL_DUMP_COMMA_LIST(p, args(), false);
+    p.down();
 	p  << "])";
 }
 
@@ -178,7 +184,7 @@ void BinOp::vdump(Printer& p) const  {
 		ANYDSL_UNREACHABLE;
 	}
 
-    dumpNameAndType(p, this, name);
+    dumpNameAndType(p, this, name, true);
 
     p.up();
 	p.dump(ldef()) << ", ";

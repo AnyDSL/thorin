@@ -16,7 +16,7 @@ protected:
 
 public:
 
-    const Def* to() const { return ops_[0]; };
+    const Def* to() const { return op(0); };
     Args args() const { return Args(*this, 1, numOps()); }
     const NoRet* noret() const;
     std::vector<const Lambda*> succ() const;

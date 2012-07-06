@@ -76,7 +76,7 @@ public:
     /// Get element type via index.
     const Type* get(size_t i) const { 
         anydsl_assert(i < numOps(), "index out of range"); 
-        return ops_[i]->as<Type>();
+        return op(i)->as<Type>();
     }
 
 protected:

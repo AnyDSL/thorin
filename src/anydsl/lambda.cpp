@@ -29,7 +29,7 @@ const Pi* Lambda::pi() const {
 }
 
 void Lambda::setJump(const Jump* j) { 
-    anydsl_assert(!ops_[0], "jump already set");
+    anydsl_assert(!op(0), "jump already set");
     setOp(0, j); 
 }
 

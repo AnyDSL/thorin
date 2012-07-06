@@ -235,6 +235,7 @@ public:
     size_t numOps() const { return numOps_; }
     World& world() const;
     Ops ops() const { return Ops(*this); }
+    const Def* op(size_t i) const { anydsl_assert(i < numOps_, "index out of bounds"); return ops_[i]; }
 
 protected:
 
@@ -245,9 +246,6 @@ private:
     const Type* type_;
     size_t numOps_;
     mutable bool flag_;
-
-protected:
-
     mutable UseSet uses_;
     const Def** ops_;
 

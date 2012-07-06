@@ -39,8 +39,8 @@ protected:
 
 public:
 
-    const Def* ldef() const { return ops_[0]; }
-    const Def* rdef() const { return ops_[1]; }
+    const Def* ldef() const { return op(0); }
+    const Def* rdef() const { return op(1); }
 
 private:
 
@@ -86,9 +86,9 @@ private:
 
 public:
 
-    const Def* cond() const { return ops_[0]; }
-    const Def* tdef() const { return ops_[1]; }
-    const Def* fdef() const { return ops_[2]; }
+    const Def* cond() const { return op(0); }
+    const Def* tdef() const { return op(1); }
+    const Def* fdef() const { return op(2); }
 
     RelOpKind kind() { return (RelOpKind) indexKind(); }
 
@@ -106,7 +106,7 @@ protected:
 
 public:
 
-    const Def* tuple() const { return ops_[0]; }
+    const Def* tuple() const { return op(0); }
     size_t index() const { return index_; }
 
 private:
@@ -142,7 +142,7 @@ private:
     
 public:
 
-    const Def* value() const { return ops_[1]; }
+    const Def* value() const { return op(1); }
 
 private:
 

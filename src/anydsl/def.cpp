@@ -81,7 +81,7 @@ Param::Param(const Type* type, const Lambda* lambda, size_t index)
 }
 
 const Lambda* Param::lambda() const {
-    return ops_[0]->as<Lambda>();
+    return op(0)->as<Lambda>();
 }
 
 std::vector<const Def*> Param::phiOps() const {

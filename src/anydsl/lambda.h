@@ -24,15 +24,15 @@ public:
     Lambda(const Pi* pi);
 
     bool final() const { return final_; }
-    const Jump* jump() const { return ops_[0]->as<Jump>(); }
+    const Jump* jump() const { return op(0)->as<Jump>(); }
     const Pi* pi() const;
 
     const Param* appendParam(const Type* type);
     void calcType(World& world);
 
-    Callers callers() const { return Callers(uses_); }
+    Callers callers() const { return Callers(uses()); }
     /// Fast but unsorted.
-    UnorderedParams unordered_params() const { return UnorderedParams(uses_); }
+    UnorderedParams unordered_params() const { return UnorderedParams(uses()); }
     /// Slow but sorted.
     Params params() const;
     size_t numParams() const;

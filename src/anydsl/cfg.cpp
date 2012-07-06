@@ -1,5 +1,9 @@
 #include "anydsl/cfg.h"
 
+#include <algorithm>
+#include <iterator>
+#include <boost/scoped_array.hpp>
+
 #include "anydsl/lambda.h"
 #include "anydsl/literal.h"
 #include "anydsl/type.h"
@@ -129,6 +133,26 @@ void BB::branches(const Def* cond, BB* tbb, BB* fbb) {
     anydsl_assert(succs().size() == 2, "wrong number of succs");
 }
 
+const Def* BB::calls(const Def* to, const Def* const* begin, const Def* const* end, const Type* retType) {
+    // create next continuation in cascade
+    Lambda* lambda = new Lambda();
+    lambda->debug = curLambda_->debug + "_" + to->debug;
+    const Def* result = lambda->appendParam(retType);
+    lambda->calcType(world());
+
+    // create jump to this new continuation
+    size_t size = std::distance(begin, end) + 1;
+    boost::scoped_array<const Def*> args(new const Def*[size]);
+    *std::copy(begin, end, args.get()) = lambda;
+    const Jump* jump = world().createJump(to, args.get(), args.get() + size);
+
+    // wire curLambda_ to new lambda
+    curLambda_->setJump(jump);
+    curLambda_ = lambda;
+
+    return result;
+}
+
 void BB::fixto(BB* to) {
     if (succs().empty())
         this->goesto(to);
@@ -160,18 +184,22 @@ void BB::emit() {
     const Jump* jump;
     switch (succs().size()) {
         case 1:
-            jump = world().createJump((*succs().begin())->topLambda(), out_.begin().base(), out_.end().base());
+            jump = world().createJump((*succs().begin())->curLambda(), out_.begin().base(), out_.end().base());
             break;
         case 2:
             anydsl_assert(out_.empty(), "sth went wrong with critical edge elimination");
-            jump = world().createBranch(cond_, tbb_->curLambda_, fbb_->curLambda_);
+            jump = world().createBranch(cond_, tbb_->topLambda(), fbb_->topLambda());
             break;
         default: 
             ANYDSL_UNREACHABLE;
     }
 
     curLambda_->setJump(jump);
-    world().finalize(topLambda_);
+
+    for (const Lambda* i = topLambda_; i != curLambda_; i = i->jump()->args().back()->as<Lambda>())
+        world().finalize(i);
+
+    world().finalize(curLambda_);
 }
 
 void BB::calcType() {
@@ -199,7 +227,7 @@ Fct::Fct(World& world, const FctParams& fparams, const Type* retType, const std:
     if (retType) {
         ret_ = topLambda_->appendParam(world.pi1(retType));
         ret_->debug = "<return>";
-        exit_ = createBB("exit");
+        exit_ = createBB('<' + debug + "_exit>");
     }
 }
 

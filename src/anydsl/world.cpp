@@ -1,6 +1,7 @@
 #include "anydsl/world.h"
 
 #include <queue>
+#include <boost/unordered_set.hpp>
 
 #include "anydsl/def.h"
 #include "anydsl/primop.h"
@@ -201,6 +202,7 @@ const Lambda* World::finalize(const Lambda* lambda) {
 
     const Lambda* l = find<Lambda>(lambda);
     assert(l == lambda);
+    assert(defs_.find(l) != defs_.end());
 
     for_all (param, l->params())
         findDef(param);
@@ -229,6 +231,9 @@ void World::dce() {
     for_all (def, live_)
         dce_insert(def);
 
+    // collect lambdas with dead params
+    boost::unordered_set<const Lambda*> lambdas;
+
     // kill the living dead
     DefMap::iterator i = defs_.begin();
     while (i != defs_.end()) {
@@ -240,11 +245,20 @@ void World::dce() {
                     reachable_.erase(j);
             }
 
+            if (const Param* param = def->isa<Param>()) {
+                if (param->lambda())
+                    lambdas.insert(param->lambda());
+            } else if (const Lambda* lambda = def->isa<Lambda>())
+                lambdas.erase(lambda);
+
             delete def;
             i = defs_.erase(i);
         } else
             ++i;
     }
+
+    for_all (lambda, lambdas)
+        std::cout << "todo: " << lambda->debug << std::endl;
 }
 
 void World::dce_insert(const Def* def) {
@@ -333,6 +347,13 @@ const Def* World::findDef(const Def* def) {
 void World::dump(bool fancy) {
     unmark();
 
+    for_all (def, defs_)
+        if (const Lambda* lambda = def->isa<Lambda>())
+            lambda->dump(fancy);
+
+    std::cout << "---" << std::endl;
+
+#if 0
     for_all (lambda, reachable_) {
         std::queue<const Lambda*> queue;
         queue.push(lambda);
@@ -351,6 +372,16 @@ void World::dump(bool fancy) {
             cur->dump(fancy);
             std::cout << std::endl;
 
+#if 0
+            if (const Lambda* toLambda = cur->jump()->to()->isa<Lambda>()) {
+                if (reachable_.find(toLambda) != reachable_.end()) {
+                    queue.push(cur->jump()->args().back()->as<Lambda>());
+                    continue;
+                }
+            }
+#endif
+
+
             for_all (succ, cur->jump()->succ()) {
                 if (!succ->flag_) {
                     succ->flag_ = true;
@@ -359,6 +390,7 @@ void World::dump(bool fancy) {
             }
         }
     }
+#endif
 }
 
 } // namespace anydsl

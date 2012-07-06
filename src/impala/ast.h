@@ -91,6 +91,7 @@ public:
     Fct() {}
 
     const Decl* decl() const { return decl_; }
+    anydsl::Symbol symbol() const;
     const ScopeStmt* body() const { return body_; }
     const Decls& params() const { return params_; }
     const Pi* pi() const;

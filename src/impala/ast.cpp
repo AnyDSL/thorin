@@ -39,6 +39,10 @@ const Pi* Fct::pi() const {
     return decl_->type()->as<Pi>(); 
 }
 
+anydsl::Symbol Fct::symbol() const { 
+    return decl_->symbol(); 
+}
+
 /*
  * Expr
  */

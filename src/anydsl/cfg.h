@@ -84,11 +84,13 @@ public:
     void goesto(BB* to);
     void branches(const Def* cond, BB* tbb, BB* fbb);
     void fixto(BB* to);
+    const Def* calls(const Def* to, const Def* const* begin, const Def* const* end, const Type* retType);
 
     const BBs& preds() const { return preds_; }
     const BBs& succs() const { return succs_; }
 
     const Lambda* topLambda() const { return topLambda_; }
+    const Lambda* curLambda() const { return curLambda_; }
 
     World& world();
     bool sealed() const { return sealed_; }

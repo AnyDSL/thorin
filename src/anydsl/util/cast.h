@@ -24,14 +24,14 @@ namespace anydsl {
 /// \c static_cast checked in debug version
 template<class LEFT, class RIGHT>
 inline LEFT* scast(RIGHT* u) {
-    anydsl_assert( dynamic_cast<LEFT*>(u), "cast not possible" );
+    anydsl_assert( !u || dynamic_cast<LEFT*>(u), "cast not possible" );
     return static_cast<LEFT*>(u);
 }
 
 /// \c static_cast checked in debug version -- \c const version
 template<class LEFT, class RIGHT>
 inline const LEFT* scast(const RIGHT* u) {
-    anydsl_assert( dynamic_cast<const LEFT*>(u), "cast not possible" );
+    anydsl_assert( !u || dynamic_cast<const LEFT*>(u), "cast not possible" );
     return static_cast<const LEFT*>(u);
 }
 

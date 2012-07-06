@@ -13,14 +13,19 @@ struct get_clean_type { typedef T type; } ;
 template<class T>
 struct get_clean_type<const T&> {typedef T type; };
 
-#define ANYDSL_DUMP_COMMA_LIST(p, list) \
+#define ANYDSL_DUMP_COMMA_LIST(p, list, nl) \
     const BOOST_TYPEOF((list))& l = (list); \
     if (!l.empty()) { \
+        if (nl) (p).up(); \
         for (get_clean_type<BOOST_TYPEOF(l)>::type::const_iterator i = l.begin(), e = l.end() - 1; i != e; ++i) { \
-            p.dump(*i); \
-            p << ", "; \
+            (p).dump(*i); \
+            if (nl) \
+                (p).newline(); \
+            else \
+                (p) << ", "; \
         } \
-        p.dump(l.back()); \
+        (p).dump(l.back()); \
+        if (nl) (p).down(); \
     }
 
 namespace anydsl {
@@ -32,16 +37,17 @@ public:
         : o(o)
         , fancy_(fancy)
         , indent_(0)
+        , depth_(0)
     {}
 
     bool fancy() const { return fancy_; }
 
-    void dump(const AIRNode* n);
-    void dumpName(const AIRNode* n);
+    Printer& dump(const AIRNode* n);
+    Printer& dumpName(const AIRNode* n);
 
-    void newline();
-    void up();
-    void down();
+    Printer& newline();
+    Printer& up();
+    Printer& down();
 
     template<class T>
     Printer& operator << (const T& data) {
@@ -55,32 +61,37 @@ private:
 
     bool fancy_;
     int indent_;
+    int depth_;
 };
 
-void Printer::dump(const AIRNode* n) {
+Printer& Printer::dump(const AIRNode* n) {
     if (n)
-        return n->vdump(*this);
+        n->vdump(*this);
+    else
+        o << "<NULL>";
 
-    o << "<NULL>";
+    return *this;
 }
 
-void Printer::newline() {
+Printer& Printer::newline() {
     o << '\n';
     for (int i = 0; i < indent_; ++i)
         o << "    ";
+
+    return *this;
 }
 
-void Printer::up() {
+Printer& Printer::up() {
     ++indent_;
-    newline();
+    return newline();
 }
 
-void Printer::down() {
+Printer& Printer::down() {
     --indent_;
-    newline();
+    return newline();
 }
 
-void Printer::dumpName(const AIRNode* n) {
+Printer& Printer::dumpName(const AIRNode* n) {
     if (fancy()) {
         unsigned i = uintptr_t(n);
         unsigned sum = 0;
@@ -104,6 +115,8 @@ void Printer::dumpName(const AIRNode* n) {
 
     if (fancy())
         o << "\33[m";
+
+    return *this;
 }
 
 // Literal
@@ -143,7 +156,7 @@ void Jump::vdump(Printer& p) const  {
     dumpNameAndType(p, this, "jump");
     p.dump(to());
 	p << ", [";
-	ANYDSL_DUMP_COMMA_LIST(p, args());
+	ANYDSL_DUMP_COMMA_LIST(p, args(), false);
 	p  << "])";
 }
 
@@ -167,9 +180,11 @@ void BinOp::vdump(Printer& p) const  {
 
     dumpNameAndType(p, this, name);
 
-	p.dump(ldef());
-	p << ", ";
+    p.up();
+	p.dump(ldef()) << ", ";
+	p.newline();
 	p.dump(rdef());
+    p.down();
 	p << ")";
 }
 
@@ -204,7 +219,7 @@ void Tuple::vdump(Printer& p) const {
     p.dump(type());
     p << ')';
 	p << "{";
-	ANYDSL_DUMP_COMMA_LIST(p, ops());
+	ANYDSL_DUMP_COMMA_LIST(p, ops(), true);
 	p << "}";
 }
 
@@ -216,7 +231,7 @@ void NoRet::vdump(Printer& p) const  {
 
 void CompoundType::dumpInner(Printer& p) const  {
 	p << "(";
-	ANYDSL_DUMP_COMMA_LIST(p, ops());
+	ANYDSL_DUMP_COMMA_LIST(p, ops(), false);
 	p << ")";
 }
 
@@ -269,7 +284,7 @@ void Lambda::dump(bool fancy) const  {
 
 	p.dumpName(this);
 	p << " = lambda(";
-    ANYDSL_DUMP_COMMA_LIST(p, params());
+    ANYDSL_DUMP_COMMA_LIST(p, params(), false);
 	p << ") : ";
     p.dump(type());
 	p.up();

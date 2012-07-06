@@ -1,6 +1,10 @@
 #include "impala/ast.h"
 
+#include <boost/unordered_map.hpp>
+#include <boost/scoped_array.hpp>
+
 #include "anydsl/cfg.h"
+#include "anydsl/lambda.h"
 #include "anydsl/literal.h"
 #include "anydsl/type.h"
 #include "anydsl/world.h"
@@ -28,6 +32,7 @@ public:
     anydsl::BB* curBB;
     anydsl::Fct* curFct;
     anydsl::World& world;
+    boost::unordered_map<anydsl::Symbol, anydsl::Fct*> fcts;
 };
 
 //------------------------------------------------------------------------------
@@ -41,24 +46,32 @@ void emit(anydsl::World& world, const Prg* prg) {
 //------------------------------------------------------------------------------
 
 void Prg::emit(CodeGen& cg) const {
-    for_all (f, fcts())
+    for_all (f, fcts()) {
+        FctParams fparams;
+
+        for_all (param, f->params())
+            fparams.push_back(FctParam(param->symbol(), param->type()->emit(cg.world)));
+
+        const anydsl::Type* retType = f->pi()->retType()->emit(cg.world);
+        cg.fcts[f->symbol()] = new anydsl::Fct(cg.world, fparams, retType, f->symbol().str());
+    }
+
+    for_all (f, fcts()) {
+        cg.curBB = cg.curFct = cg.fcts[f->symbol()];
         f->emit(cg);
+    }
+
+    for_all (p, cg.fcts)
+        delete p.second;
 }
 
 void Fct::emit(CodeGen& cg) const {
-    FctParams fparams;
-
-    for_all (param, params())
-        fparams.push_back(FctParam(param->symbol(), param->type()->emit(cg.world)));
-
-    cg.curBB = cg.curFct = new anydsl::Fct(cg.world, fparams, pi()->retType()->emit(cg.world), decl()->symbol().str());
 
     body()->emit(cg);
     cg.curBB->fixto(cg.curFct->exit());
 
     cg.curFct->emit();
 
-    delete cg.curFct;
     cg.curFct = 0;
     cg.curBB = 0;
 }
@@ -92,6 +105,11 @@ Value Literal::emit(CodeGen& cg) const {
 }
 
 Value Id::emit(CodeGen& cg) const {
+    if (type()->isa<Pi>()) {
+        anydsl_assert(cg.fcts.find(symbol()) != cg.fcts.end(), "function not found");
+        return Value(cg.fcts[symbol()]->topLambda());
+    }
+
     return Value(cg.curBB->getVar(symbol(), type()->emit(cg.world)));
 }
 
@@ -160,9 +178,19 @@ Value PostfixExpr::emit(CodeGen& cg) const {
 }
 
 Value Call::emit(CodeGen& cg) const {
-    Value f = args_.front()->emit(cg);
+    size_t size = args_.size();
+    assert(size >= 1);
+    boost::scoped_array<const Def*> args(new const Def*[size]);
 
-    return f;
+    size_t i = 0;
+    for_all (arg, args_) {
+        args[i] = arg->emit(cg).load();
+        ++i;
+    }
+
+    const anydsl::Type* retType = type()->emit(cg.world);
+
+    return Value(cg.curBB->calls(args[0], args.get() + 1, args.get() + size, retType));
 }
 
 /*

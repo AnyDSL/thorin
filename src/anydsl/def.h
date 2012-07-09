@@ -81,7 +81,7 @@ protected:
         : AIRNode(kind) 
         , type_(type)
         , numOps_(numOps)
-        , ops_(new const Def*[numOps])
+        , ops_(numOps ? new const Def*[numOps] : 0)
     {
         std::memset(ops_, 0, sizeof(const Def*) * numOps);
     }
@@ -181,8 +181,8 @@ public:
 private:
 
     const Type* type_;
-    const Def** ops_;
     size_t numOps_;
+    const Def** ops_;
     mutable UseSet uses_;
     mutable bool flag_;
 

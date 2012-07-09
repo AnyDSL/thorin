@@ -10,6 +10,7 @@
 #include <boost/functional/hash.hpp>
 
 #include "anydsl/airnode.h"
+#include "anydsl/util/ptrascont.h"
 
 namespace anydsl {
 
@@ -96,6 +97,7 @@ protected:
 
 public:
 
+#if 0
     class Ops {
     public:
 
@@ -124,41 +126,10 @@ public:
 
         const Def& def_;
     };
+#endif
 
-    class Args {
-    public:
-
-        typedef const Def** const_iterator;
-        typedef std::reverse_iterator<const Def**> const_reverse_iterator;
-
-        Args(const Def& def, size_t begin, size_t end) 
-            : def_(def) 
-            , begin_(begin)
-            , end_(end)
-        {}
-
-        const_iterator begin() const { return def_.ops_ + begin_; }
-        const_iterator end() const { return def_.ops_ + end_; }
-        const_reverse_iterator rbegin() const { return const_reverse_iterator(end()); }
-        const_reverse_iterator rend() const { return const_reverse_iterator(begin()); }
-
-        const Def* const& operator [] (size_t i) const {
-            anydsl_assert(i < size(), "index out of bounds");
-            return def_.ops_[begin_ + i];
-        }
-
-        size_t size() const { return end_ - begin_; }
-        bool empty() const { return begin_ == end_; }
-
-        const Def*& front() const { assert(!empty()); return *(def_.ops_ + begin_); }
-        const Def*& back()  const { assert(!empty()); return *(def_.ops_ + end_ - 1); }
-
-    private:
-
-        const Def& def_;
-        size_t begin_;
-        size_t end_;
-    };
+    typedef PtrAsCont<const Def> Ops;
+    typedef PtrAsCont<const Def> Args;
 
     template<class T>
     class FilteredUses {
@@ -235,16 +206,20 @@ public:
     const Type* type() const { return type_; }
     size_t numOps() const { return numOps_; }
     World& world() const;
-    Ops ops() const { return Ops(*this); }
+    Ops ops() const { return Ops(ops_, numOps_); }
     const Def* op(size_t i) const { anydsl_assert(i < numOps_, "index out of bounds"); return ops_[i]; }
 
 private:
 
     const Type* type_;
     size_t numOps_;
-    const Def** ops_;
     mutable UseSet uses_;
     mutable bool flag_;
+
+protected:
+
+    const Def** ops_;
+
 
     friend class World;
     friend class DefHash;

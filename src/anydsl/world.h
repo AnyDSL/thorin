@@ -80,8 +80,6 @@ public:
         return primTypes_[i];
     }
 
-    const NoRet* noret() { return noret_; }
-
     // sigmas
 
     /// Get unit AKA void AKA (unnamed) sigma(). 
@@ -166,25 +164,6 @@ public:
      * create
      */
 
-    const Jump* createJump(const Def* to, const Def* const* begin, const Def* const* end);
-    const Jump* createJump(const Def* to) { 
-        return createJump(to, 0, 0); 
-    }
-    template<size_t N>
-    const Jump* createJump(const Def* to, const Def* const (&args)[N]) { return createGoto(to, args, args + N); }
-
-    const Jump* createBranch(const Def* cond, const Def* tto, const Def* fto);
-    template<size_t N>
-    const Jump* createBranch(const Def* cond, const Def* tto, const Def* fto, const Def* const (&args)[N]) { 
-        return createBranch(cond, tto, fto, args);
-    }
-    template<size_t TN, size_t FN>
-    const Jump* createBranch(const Def* cond,
-                             const Def* tto, const Def* const (&targs)[TN],
-                             const Def* fto, const Def* const (&fargs)[FN]) { 
-        return createBranch(cond, tto, targs, targs + TN, fto, fargs, fargs + FN); 
-    }
-
     const Def* createArithOp(ArithOpKind kind, const Def* ldef, const Def* rdef);
     const Def* createRelOp(RelOpKind kind, const Def* ldef, const Def* rdef);
     const Def* createExtract(const Def* tuple, size_t index);
@@ -200,8 +179,8 @@ public:
      * optimizations
      */
 
-    /// Tell the world which jump%s are axiomatically live.
-    void setLive(const Jump* jump);
+    /// Tell the world which Lambdas%s are axiomatically live.
+    void setLive(const Lambda* lambda);
     /// Tell the world which Lambda%s axiomatically reachable.
     void setReachable(const Lambda* lambda);
 
@@ -241,7 +220,6 @@ private:
 
     const Sigma* unit_; ///< sigma().
     const Pi* pi0_;     ///< pi().
-    const NoRet* noret_;///< noret.
 
     union {
         struct {

@@ -2,15 +2,15 @@
 
 #include <boost/scoped_array.hpp>
 
-#include "anydsl/jump.h"
 #include "anydsl/type.h"
+#include "anydsl/primop.h"
 #include "anydsl/world.h"
 #include "anydsl/util/for_all.h"
 
 namespace anydsl {
 
 Lambda::Lambda(const Pi* pi)
-    : Def(Index_Lambda, pi, 1)
+    : Def(Index_Lambda, pi, 0)
     , final_(false)
     , numArgs_(pi->numOps())
 {
@@ -19,7 +19,7 @@ Lambda::Lambda(const Pi* pi)
 }
 
 Lambda::Lambda()
-    : Def(Index_Lambda, 0, 1)
+    : Def(Index_Lambda, 0, 0)
     , final_(false)
     , numArgs_(0)
 {}
@@ -28,9 +28,18 @@ const Pi* Lambda::pi() const {
     return scast<Pi>(type());
 }
 
-void Lambda::setJump(const Jump* j) { 
-    anydsl_assert(!op(0), "jump already set");
-    setOp(0, j); 
+void Lambda::jumps(const Def* to, const Def* const* begin, const Def* const* end) { 
+    alloc(std::distance(begin, end) + 1);
+
+    setOp(0, to);
+
+    const Def* const* i = begin;
+    for (size_t x = 1; i != end; ++x, ++i)
+        setOp(x, *i);
+}
+
+void Lambda::branches(const Def* cond, const Def* tto, const Def*  fto) {
+    return jumps(cond->world().createSelect(cond, tto, fto), 0, 0);
 }
 
 const Param* Lambda::appendParam(const Type* type) {
@@ -49,6 +58,23 @@ void Lambda::calcType(World& world) {
         types[param->index()] = param->type();
 
     setType(world.pi(types.get(), types.get() + size));;
+}
+
+std::vector<const Lambda*> Lambda::succ() const {
+    std::vector<const Lambda*> result;
+
+    for_all (def, ops()) {
+        if (const Lambda* lambda = def->isa<Lambda>()) {
+            result.push_back(lambda);
+        } else if (const Select* select = todef()->isa<Select>()) {
+            const Lambda* tlambda = select->tdef()->as<Lambda>();
+            const Lambda* flambda = select->fdef()->as<Lambda>();
+            result.push_back(tlambda);
+            result.push_back(flambda);
+        }
+    }
+
+    return result;
 }
 
 bool Lambda::equal(const Def* other) const {

@@ -32,20 +32,6 @@ private:
 
 //------------------------------------------------------------------------------
 
-class NoRet : public Type {
-private:
-
-    NoRet(World& world);
-
-private:
-
-    virtual void vdump(Printer& printer) const;
-
-    friend class World;
-};
-
-//------------------------------------------------------------------------------
-
 /// Primitive types -- also known as atomic or scalar types.
 class PrimType : public Type {
 private:

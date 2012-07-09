@@ -14,12 +14,6 @@ PrimType::PrimType(World& world, PrimTypeKind kind)
 
 //------------------------------------------------------------------------------
 
-NoRet::NoRet(World& world)
-    : Type(world, Index_NoRet, 0)
-{}
-
-//------------------------------------------------------------------------------
-
 CompoundType::CompoundType(World& world, IndexKind index, size_t num)
     : Type(world, index, num)
 {}

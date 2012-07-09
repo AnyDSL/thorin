@@ -94,6 +94,7 @@ protected:
     void setOp(size_t i, const Def* def) { def->registerUse(i, this); ops_[i] = def; }
     void delOp(size_t i) const { ops_[i] = 0; }
     void setType(const Type* type) { type_ = type; }
+    void alloc(size_t size);
 
 public:
 

@@ -8,7 +8,6 @@
 #include "anydsl/lambda.h"
 #include "anydsl/literal.h"
 #include "anydsl/type.h"
-#include "anydsl/jump.h"
 #include "anydsl/fold.h"
 
 namespace anydsl {
@@ -63,14 +62,12 @@ World::World()
     : defs_(1031)
     , unit_ (find(new Sigma(*this, (const Type* const*) 0, (const Type* const*) 0)))
     , pi0_  (find(new Pi   (*this, (const Type* const*) 0, (const Type* const*) 0)))
-    , noret_(find(new NoRet(*this)))
 #define ANYDSL_U_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T)))
 #define ANYDSL_F_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T)))
 #include "anydsl/tables/primtypetable.h"
 {
     live_.insert(unit_);
     live_.insert(pi0_);
-    live_.insert(noret_);
     for (size_t i = 0; i < Num_PrimTypes; ++i)
         live_.insert(primTypes_[i]);
 }
@@ -120,14 +117,6 @@ const ErrorLit* World::literal_error(const Type* type) {
 /*
  * create
  */
-
-const Jump* World::createJump(const Def* to, const Def* const* begin, const Def* const* end) {
-    return find(new Jump(*this, to, begin, end));
-}
-
-const Jump* World::createBranch(const Def* cond, const Def* tto, const Def* fto) {
-    return createJump(createSelect(cond, tto, fto));
-}
 
 const Def* World::createTuple(const Def* const* begin, const Def* const* end) { 
     return find(new Tuple(*this, begin, end));
@@ -198,7 +187,6 @@ const Def* World::createSelect(const Def* cond, const Def* tdef, const Def* fdef
 const Lambda* World::finalize(const Lambda* lambda) {
     anydsl_assert(lambda->type(), "must be set");
     anydsl_assert(lambda->pi(),   "must be a set pi type");
-    anydsl_assert(lambda->jump(), "must be set");
 
     const Lambda* l = find<Lambda>(lambda);
     assert(l == lambda);
@@ -214,7 +202,7 @@ const Lambda* World::finalize(const Lambda* lambda) {
  * optimizations
  */
 
-void World::setLive(const Jump* jump) {
+void World::setLive(const Lambda* jump) {
     live_.insert(jump);
 }
 
@@ -317,9 +305,7 @@ void World::uce_insert(Reachable& reachable, const Lambda* lambda) {
     lambda->flag_ = true;
     reachable.insert(lambda);
 
-    const Jump* jump = lambda->jump();
-
-    for_all (succ, jump->succ())
+    for_all (succ, lambda->succ())
         uce_insert(reachable, succ);
 }
 
@@ -367,7 +353,7 @@ void World::dump(bool fancy) {
                 cur->dump(fancy);
                 std::cout << std::endl;
 
-                for_all (succ, cur->jump()->succ()) {
+                for_all (succ, cur->succ()) {
                     if (!succ->flag_) {
                         succ->flag_ = true;
                         queue.push(succ);

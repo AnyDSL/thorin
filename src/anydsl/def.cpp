@@ -71,6 +71,12 @@ size_t Def::hash() const {
     return seed;
 }
 
+void Def::alloc(size_t size) { 
+    assert(ops_ == 0); 
+    numOps_ = size;
+    ops_ = new const Def*[size];
+}
+
 //------------------------------------------------------------------------------
 
 Param::Param(const Type* type, const Lambda* lambda, size_t index)

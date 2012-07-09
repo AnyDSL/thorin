@@ -1,0 +1,9 @@
+def fac_rec(n : int) -> int 
+{
+    if (n == 0) 
+        return 1;
+    if (n == 1) 
+        return 1;
+
+    return fac_rec(n -1);
+}

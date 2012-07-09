@@ -153,19 +153,6 @@ static void dumpNameAndType(Printer& p, const Def* def, const char* name, bool n
     p << '(';
 }
 
-// Jump
-
-void Jump::vdump(Printer& p) const  {
-    dumpNameAndType(p, this, "jump");
-    p.dump(to());
-	p << ", ";
-    p.newline() << "[";
-    p.up();
-	ANYDSL_DUMP_COMMA_LIST(p, args(), false);
-    p.down();
-	p  << "])";
-}
-
 // PrimOp
 
 void BinOp::vdump(Printer& p) const  {
@@ -231,10 +218,6 @@ void Tuple::vdump(Printer& p) const {
 
 // Types
 
-void NoRet::vdump(Printer& p) const  {
-	p << "noret";
-}
-
 void CompoundType::dumpInner(Printer& p) const  {
 	p << "(";
 	ANYDSL_DUMP_COMMA_LIST(p, ops(), false);
@@ -294,7 +277,17 @@ void Lambda::dump(bool fancy) const  {
 	p << ") : ";
     p.dump(type());
 	p.up();
-    p.dump(jump());
+    {
+        p << "jump(";
+        p.dump(todef());
+        p << ", ";
+        p.newline() << "[";
+        p.up();
+        ANYDSL_DUMP_COMMA_LIST(p, args(), false);
+    }
+    p.down();
+	p  << "])";
+
 	p.down();
 }
 

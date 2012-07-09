@@ -4,16 +4,14 @@
 #include <list>
 
 #include "anydsl/def.h"
-#include "anydsl/jump.h"
 #include "anydsl/util/autoptr.h"
 
 namespace anydsl {
 
 class Lambda;
 class Pi;
-class Jump;
 
-typedef Def::FilteredUses<Jump> Callers;
+typedef Def::FilteredUses<Lambda> Callers;
 typedef Def::FilteredUses<Param> UnorderedParams;
 typedef std::vector<const Param*> Params;
 
@@ -24,7 +22,6 @@ public:
     Lambda(const Pi* pi);
 
     bool final() const { return final_; }
-    const Jump* jump() const { return op(0)->as<Jump>(); }
     const Pi* pi() const;
 
     const Param* appendParam(const Type* type);
@@ -37,15 +34,22 @@ public:
     Params params() const;
     size_t numParams() const;
 
-    void setJump(const Jump* jump);
+    void jumps(const Def* to, const Def* const* begin, const Def* const* end);
+    template<size_t N>
+    void jumps(const Def* to, const Def* const (&args)[N]) { return jumps(to, args, args + N); }
+    void branches(const Def* cond, const Def* tto, const Def* fto);
 
-    virtual bool equal(const Def* other) const;
-    virtual size_t hash() const;
+    std::vector<const Lambda*> succ() const;
 
     void dump(bool fancy = false) const;
 
+    const Def* todef() const { return op(0); };
+    Ops args() const { return ops(1, numOps()); }
+
 private:
 
+    virtual bool equal(const Def* other) const;
+    virtual size_t hash() const;
     virtual void vdump(Printer& printer) const;
 
     bool final_;

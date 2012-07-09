@@ -147,10 +147,7 @@ const Def* BB::calls(const Def* to, const Def* const* begin, const Def* const* e
     size_t size = std::distance(begin, end) + 1;
     boost::scoped_array<const Def*> args(new const Def*[size]);
     *std::copy(begin, end, args.get()) = lambda;
-    const Jump* jump = world().createJump(to, args.get(), args.get() + size);
-
-    // wire curLambda_ to new lambda
-    curLambda_->setJump(jump);
+    curLambda_->jumps(to, args.get(), args.get() + size);
     curLambda_ = lambda;
 
     ++id;
@@ -186,22 +183,19 @@ World& BB::world() {
 }
 
 void BB::emit() {
-    const Jump* jump;
     switch (succs().size()) {
         case 1:
-            jump = world().createJump((*succs().begin())->curLambda(), out_.begin().base(), out_.end().base());
+            curLambda_->jumps((*succs().begin())->curLambda(), out_.begin().base(), out_.end().base());
             break;
         case 2:
             anydsl_assert(out_.empty(), "sth went wrong with critical edge elimination");
-            jump = world().createBranch(cond_, tbb_->topLambda(), fbb_->topLambda());
+            curLambda_->branches(cond_, tbb_->topLambda(), fbb_->topLambda());
             break;
         default: 
             ANYDSL_UNREACHABLE;
     }
 
-    curLambda_->setJump(jump);
-
-    for (const Lambda* i = topLambda_; i != curLambda_; i = i->jump()->args().back()->as<Lambda>())
+    for (const Lambda* i = topLambda_; i != curLambda_; i = i->args().back()->as<Lambda>())
         world().finalize(i);
 
     world().finalize(curLambda_);
@@ -254,9 +248,8 @@ void Fct::emit() {
     // exit
     exit()->seal();
     const Def* ret[] = { exit()->getVar(Symbol("<result>"), retType())->def };
-    const Jump* jump = world().createJump(ret_, ret, ret + 1);
-    world().setLive(jump);
-    exit_->topLambda_->setJump(jump);
+    exit_->topLambda_->jumps(ret_, ret, ret + 1);
+    world().setLive(exit_->topLambda_);
     exit_->calcType();
     world().finalize(exit()->topLambda_);
 

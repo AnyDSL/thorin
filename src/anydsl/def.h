@@ -98,7 +98,6 @@ protected:
 public:
 
     typedef PtrAsCont<const Def> Ops;
-    typedef PtrAsCont<const Def> Args;
 
     template<class T>
     class FilteredUses {
@@ -176,18 +175,16 @@ public:
     size_t numOps() const { return numOps_; }
     World& world() const;
     Ops ops() const { return Ops(ops_, numOps_); }
+    Ops ops(size_t begin, size_t end) const { assert(end <= numOps_); return Ops(ops_ + begin, end - begin); }
     const Def* op(size_t i) const { anydsl_assert(i < numOps_, "index out of bounds"); return ops_[i]; }
 
 private:
 
     const Type* type_;
+    const Def** ops_;
     size_t numOps_;
     mutable UseSet uses_;
     mutable bool flag_;
-
-protected:
-
-    const Def** ops_;
 
     friend class World;
     friend class DefHash;

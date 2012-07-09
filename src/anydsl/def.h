@@ -97,37 +97,6 @@ protected:
 
 public:
 
-#if 0
-    class Ops {
-    public:
-
-        typedef const Def** const_iterator;
-        typedef std::reverse_iterator<const Def**> const_reverse_iterator;
-
-        Ops(const Def& def) : def_(def) {}
-
-        const_iterator begin() const { return def_.ops_; }
-        const_iterator end() const { return def_.ops_ + size(); }
-        const_reverse_iterator rbegin() const { return const_reverse_iterator(def_.ops_ + size()); }
-        const_reverse_iterator rend() const { return const_reverse_iterator(def_.ops_); }
-
-        size_t size() const { return def_.numOps(); }
-        bool empty() const { return def_.numOps() == 0; }
-
-        const Def* const& operator [] (size_t i) const {
-            anydsl_assert(i < size(), "index out of bounds");
-            return def_.ops_[i];
-        }
-
-        const Def* const& front() const { return def_.ops_[0]; }
-        const Def* const& back() const { return def_.ops_[size()-1]; }
-
-    private:
-
-        const Def& def_;
-    };
-#endif
-
     typedef PtrAsCont<const Def> Ops;
     typedef PtrAsCont<const Def> Args;
 
@@ -219,7 +188,6 @@ private:
 protected:
 
     const Def** ops_;
-
 
     friend class World;
     friend class DefHash;

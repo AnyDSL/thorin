@@ -1,13 +1,58 @@
 #ifndef ANYDSL_PTRASCONT_H
 #define ANYDSL_PTRASCONT_H
 
+#include <iterator>
+
 namespace anydsl {
 
 template<class T>
+T* deref_hook(T** ptr) {
+    return *ptr;
+}
+
+template<class T, T* (*Hook)(T**) = deref_hook<T> >
 class PtrAsCont {
 public:
-    typedef T** const_iterator;
-    typedef std::reverse_iterator<T**> const_reverse_iterator;
+
+    class const_iterator {
+    public:
+
+        typedef std::random_access_iterator_tag iterator_category;
+        typedef const T* value_type;
+        typedef ptrdiff_t difference_type;
+        typedef const T** pointer;
+        typedef const T*& reference;
+
+        const_iterator(const const_iterator& i) : base_(i.base_) {}
+        const_iterator(T** base) : base_(base) {}
+
+        const_iterator& operator ++ () { ++base_; return *this; }
+        const_iterator  operator ++ (int) { const_iterator i(*this); ++(*this); return i; }
+
+        const_iterator& operator -- () { --base_; return *this; }
+        const_iterator  operator -- (int) { const_iterator i(*this); --(*this); return i; }
+
+        const_iterator operator + (difference_type d) { return const_iterator(base_ + d); }
+        const_iterator operator - (difference_type d) { return const_iterator(base_ - d); }
+
+        bool operator <  (const const_iterator& i) { return base_ <  i.base_; }
+        bool operator <= (const const_iterator& i) { return base_ <= i.base_; }
+        bool operator >  (const const_iterator& i) { return base_ >  i.base_; }
+        bool operator >= (const const_iterator& i) { return base_ >= i.base_; }
+        bool operator == (const const_iterator& i) { return base_ == i.base_; }
+        bool operator != (const const_iterator& i) { return base_ != i.base_; }
+
+        const T* operator *  () { return Hook(base_); }
+        const T* operator -> () { return Hook(base_); }
+
+        T** base() const { return base_; }
+
+    private:
+
+        T** base_;
+    };
+
+    typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
     PtrAsCont(T** ptr, size_t size)
         : ptr_(ptr) 

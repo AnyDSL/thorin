@@ -75,9 +75,9 @@ World::World()
 World::~World() {
     live_.clear();
     reachable_.clear();
-    //cleanup();
+    cleanup();
 
-    //anydsl_assert(defs_.empty(), "cleanup should catch everything");
+    anydsl_assert(defs_.empty(), "cleanup should catch everything");
 }
 
 /*
@@ -219,37 +219,20 @@ void World::dce() {
     for_all (def, live_)
         dce_insert(def);
 
-    // collect lambdas with dead params
-    boost::unordered_set<const Lambda*> lambdas;
-
     // kill the living dead
     DefMap::iterator i = defs_.begin();
     while (i != defs_.end()) {
         const Def* def = *i;
         if (!def->flag_) {
-            if (const Lambda* lambda = def->isa<Lambda>()) {
-                Reachable::iterator j = reachable_.find(lambda);
-                if (j != reachable_.end())
-                    reachable_.erase(j);
-            }
+            DefSet::iterator j = live_.find(def);
+            if (j != live_.end())
+                live_.erase(j);
 
-            if (const Param* param = def->isa<Param>()) {
-                if (param->lambda())
-                    lambdas.insert(param->lambda());
-            } else if (const Lambda* lambda = def->isa<Lambda>())
-                lambdas.erase(lambda);
-
-            std::cout << "erasing: " << std::endl;
-            def->dump();
-            std::cout << std::endl;
             delete def;
             i = defs_.erase(i);
         } else
             ++i;
     }
-
-    for_all (lambda, lambdas)
-        std::cout << "todo: " << lambda->debug << std::endl;
 }
 
 void World::dce_insert(const Def* def) {
@@ -258,15 +241,13 @@ void World::dce_insert(const Def* def) {
 
     def->flag_ = true;
 
-    for_all (op, def->ops()) {
-        if (op)
+    for_all (op, def->depends())
+        if (op) {
+            std::cout << "hey" << std::endl;
+            op->dump();
+            std::cout << std::endl;
             dce_insert(op);
-        
-        if (const Param* param = op->isa<Param>()) {
-            for_all (phiOp, param->phiOps())
-                dce_insert(phiOp);
         }
-    }
 
     if (const Type* type = def->type())
         dce_insert(type);
@@ -287,6 +268,10 @@ void World::uce() {
     while (i != defs_.end()) {
         if (const Lambda* lambda = (*i)->isa<Lambda>()) {
             if (!lambda->flag_) {
+                DefSet::iterator j = live_.find(lambda);
+                if (j != live_.end())
+                    live_.erase(j);
+
                 delete lambda;
                 i = defs_.erase(i);
                 continue;
@@ -311,7 +296,7 @@ void World::uce_insert(Reachable& reachable, const Lambda* lambda) {
 
 void World::cleanup() {
     //uce();
-    //dce();
+    dce();
 }
 
 void World::unmark() {

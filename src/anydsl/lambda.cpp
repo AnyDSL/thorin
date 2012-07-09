@@ -9,13 +9,13 @@
 
 namespace anydsl {
 
-Lambda::Lambda(const Pi* pi)
+Lambda::Lambda(const Pi* pi, Params& params)
     : Def(Index_Lambda, pi, 0)
     , final_(false)
     , numArgs_(pi->numOps())
 {
     for (size_t i = 0, e = pi->numOps(); i != e; ++i)
-        new Param(pi->get(i), this, i);
+        params.push_back(new Param(pi->get(i), this, i));
 }
 
 Lambda::Lambda()
@@ -49,13 +49,13 @@ const Param* Lambda::appendParam(const Type* type) {
     return new Param(type, this, numArgs_++);
 }
 
-void Lambda::calcType(World& world) {
+void Lambda::calcType(World& world, const Params& params) {
     anydsl_assert(!type(), "type already set");
-    size_t size = unordered_params().size();
+    size_t size = params.size();
     boost::scoped_array<const Type*> types(new const Type*[size]);
 
-    for_all (param, unordered_params())
-        types[param->index()] = param->type();
+    for (size_t i = 0; i < size; ++i)
+        types[i] = params[i]->type();
 
     setType(world.pi(types.get(), types.get() + size));;
 }
@@ -85,19 +85,55 @@ size_t Lambda::hash() const {
     return boost::hash_value(this);
 }
 
-Params Lambda::params() const { 
-    size_t size = unordered_params().size();
-    Params result(size);
+static void findParam(const Def* def, const Lambda* lambda, Params& params) { 
+    if (const Param* param = def->isa<Param>()) {
+        if (param->lambda() == lambda)
+            params.push_back(param);
 
-    for_all (param, unordered_params())
-        result[param->index()] = param;
+        return;
+    } else if (def->isa<Lambda>())
+        return;
+
+    for_all (op, def->ops())
+        findParam(op, lambda, params);
+}
+
+struct SortParam {
+    bool operator () (const Param* p1, const Param* p2) {
+        assert(p1->lambda() == p2->lambda());
+        return p1->index() < p2->index();
+    }
+};
+
+Params Lambda::params() const { 
+    Params result;
+
+    for_all (op, ops())
+        findParam(op, this, result);
+
+    std::sort(result.begin(), result.end(), SortParam());
 
     return result;
 }
 
-size_t Lambda::numParams() const {
-    assert(type());
-    return pi()->numOps();
+static void findCallers(const Def* def, Callers& result) {
+    if (const Lambda* lambda = def->isa<Lambda>()) {
+        result.push_back(lambda);
+        return;
+    }
+
+    for_all (use, def->uses())
+        findCallers(use.def(), result);
+}
+
+Callers Lambda::callers() const {
+    std::cout << "num uses in callers() '" << debug << "' : " << uses().size() << std::endl;
+    Callers result;
+
+    for_all (use, uses())
+        findCallers(use.def(), result);
+
+    return result;
 }
 
 } // namespace anydsl

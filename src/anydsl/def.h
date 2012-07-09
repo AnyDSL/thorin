@@ -21,7 +21,6 @@ class Lambda;
 class Type;
 class Sigma;
 class World;
-class Def;
 class Jump;
 class World;
 
@@ -178,6 +177,7 @@ public:
     Ops ops() const { return Ops(ops_, numOps_); }
     Ops ops(size_t begin, size_t end) const { assert(end <= numOps_); return Ops(ops_ + begin, end - begin); }
     const Def* op(size_t i) const { anydsl_assert(i < numOps_, "index out of bounds"); return ops_[i]; }
+    std::vector<const Def*> depends() const;
 
 private:
 
@@ -214,7 +214,7 @@ private:
 
 public:
 
-    const Lambda* lambda() const;
+    const Lambda* lambda() const { return lambda_; }
     size_t index() const { return index_; }
     std::vector<const Def*> phiOps() const;
 
@@ -222,6 +222,7 @@ private:
 
     virtual void vdump(Printer& printer) const;
 
+    const Lambda* lambda_;
     size_t index_;
 
     friend class Lambda;

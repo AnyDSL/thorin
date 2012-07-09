@@ -141,7 +141,7 @@ const Def* BB::calls(const Def* to, const Def* const* begin, const Def* const* e
     lambda->debug = curLambda_->debug + "_" + to->debug;
     const Def* result = lambda->appendParam(retType);
     result->debug = make_name(to->debug.c_str(), id);
-    lambda->calcType(world());
+    lambda->calcType(world(), in_);
 
     // create jump to this new continuation
     size_t size = std::distance(begin, end) + 1;
@@ -202,7 +202,7 @@ void BB::emit() {
 }
 
 void BB::calcType() {
-    topLambda_->calcType(world());
+    topLambda_->calcType(world(), in_);
 }
 
 //------------------------------------------------------------------------------
@@ -219,12 +219,14 @@ Fct::Fct(World& world, const FctParams& fparams, const Type* retType, const std:
 
     for_all (p, fparams) {
         const Param* param = topLambda_->appendParam(p.type);
+        in_.push_back(param);
         setVar(p.symbol, param);
         param->debug = p.symbol.str();
     }
 
     if (retType) {
         ret_ = topLambda_->appendParam(world.pi1(retType));
+        in_.push_back(ret_);
         ret_->debug = "<return>";
         exit_ = createBB('<' + debug + "_exit>");
     }
@@ -243,7 +245,7 @@ BB* Fct::createBB(const std::string& debug /*= ""*/) {
 }
 
 void Fct::emit() {
-    topLambda_->calcType(world());
+    topLambda_->calcType(world(), in_);
 
     // exit
     exit()->seal();

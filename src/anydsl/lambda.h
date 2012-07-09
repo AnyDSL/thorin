@@ -11,28 +11,23 @@ namespace anydsl {
 class Lambda;
 class Pi;
 
-typedef Def::FilteredUses<Lambda> Callers;
-typedef Def::FilteredUses<Param> UnorderedParams;
+typedef std::vector<const Lambda*> Callers;
 typedef std::vector<const Param*> Params;
 
 class Lambda : public Def {
 public:
 
     Lambda();
-    Lambda(const Pi* pi);
+    Lambda(const Pi* pi, Params& params);
 
     bool final() const { return final_; }
     const Pi* pi() const;
 
     const Param* appendParam(const Type* type);
-    void calcType(World& world);
+    void calcType(World& world, const Params& params);
 
-    Callers callers() const { return Callers(uses()); }
-    /// Fast but unsorted.
-    UnorderedParams unordered_params() const { return UnorderedParams(uses()); }
-    /// Slow but sorted.
+    Callers callers() const;
     Params params() const;
-    size_t numParams() const;
 
     void jumps(const Def* to, const Def* const* begin, const Def* const* end);
     template<size_t N>
@@ -54,6 +49,8 @@ private:
 
     bool final_;
     int numArgs_;
+
+    Params params_;
 
     friend class World;
 };

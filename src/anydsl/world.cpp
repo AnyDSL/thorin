@@ -78,9 +78,9 @@ World::World()
 World::~World() {
     live_.clear();
     reachable_.clear();
-    cleanup();
+    //cleanup();
 
-    anydsl_assert(defs_.empty(), "cleanup should catch everything");
+    //anydsl_assert(defs_.empty(), "cleanup should catch everything");
 }
 
 /*
@@ -251,6 +251,9 @@ void World::dce() {
             } else if (const Lambda* lambda = def->isa<Lambda>())
                 lambdas.erase(lambda);
 
+            std::cout << "erasing: " << std::endl;
+            def->dump();
+            std::cout << std::endl;
             delete def;
             i = defs_.erase(i);
         } else
@@ -268,7 +271,8 @@ void World::dce_insert(const Def* def) {
     def->flag_ = true;
 
     for_all (op, def->ops()) {
-        dce_insert(op);
+        if (op)
+            dce_insert(op);
         
         if (const Param* param = op->isa<Param>()) {
             for_all (phiOp, param->phiOps())
@@ -320,8 +324,8 @@ void World::uce_insert(Reachable& reachable, const Lambda* lambda) {
 }
 
 void World::cleanup() {
-    uce();
-    dce();
+    //uce();
+    //dce();
 }
 
 void World::unmark() {

@@ -63,7 +63,11 @@ bool Token::isArith(Kind op) {
         case SUB:
         case MUL:
         case DIV:
-        case MOD: return true;
+        case MOD: 
+        case AND:
+        case  OR:
+        case XOR:
+            return true;
         default:  return false;
     }
 }
@@ -106,6 +110,9 @@ anydsl::ArithOpKind Token::toArithOp(Kind kind) {
         case SUB: return anydsl::ArithOp_sub;
         case MUL: return anydsl::ArithOp_mul;
         case DIV: return anydsl::ArithOp_udiv;
+        case AND: return anydsl::ArithOp_bit_and;
+        case  OR: return anydsl::ArithOp_bit_or;
+        case XOR: return anydsl::ArithOp_bit_xor;
         default: ANYDSL_UNREACHABLE;
     }
 }

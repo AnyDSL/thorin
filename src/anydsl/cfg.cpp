@@ -134,10 +134,13 @@ void BB::branches(const Def* cond, BB* tbb, BB* fbb) {
 }
 
 const Def* BB::calls(const Def* to, const Def* const* begin, const Def* const* end, const Type* retType) {
+    static int id = 0;
+
     // create next continuation in cascade
     Lambda* lambda = new Lambda();
     lambda->debug = curLambda_->debug + "_" + to->debug;
     const Def* result = lambda->appendParam(retType);
+    result->debug = make_name(to->debug.c_str(), id);
     lambda->calcType(world());
 
     // create jump to this new continuation
@@ -149,6 +152,8 @@ const Def* BB::calls(const Def* to, const Def* const* begin, const Def* const* e
     // wire curLambda_ to new lambda
     curLambda_->setJump(jump);
     curLambda_ = lambda;
+
+    ++id;
 
     return result;
 }

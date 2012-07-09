@@ -87,8 +87,12 @@ protected:
 
     virtual ~Def();
 
+    virtual bool equal(const Def* other) const;
+    virtual size_t hash() const;
+
     void setOp(size_t i, const Def* def) { def->registerUse(i, this); ops_[i] = def; }
     void delOp(size_t i) const { ops_[i] = 0; }
+    void setType(const Type* type) { type_ = type; }
 
 public:
 
@@ -227,9 +231,6 @@ public:
         const UseSet& uses_;
     };
 
-    virtual bool equal(const Def* other) const;
-    virtual size_t hash() const;
-
     const UseSet& uses() const { return uses_; }
     const Type* type() const { return type_; }
     size_t numOps() const { return numOps_; }
@@ -237,19 +238,17 @@ public:
     Ops ops() const { return Ops(*this); }
     const Def* op(size_t i) const { anydsl_assert(i < numOps_, "index out of bounds"); return ops_[i]; }
 
-protected:
-
-    void setType(const Type* type) { type_ = type; }
-
 private:
 
     const Type* type_;
     size_t numOps_;
-    mutable bool flag_;
-    mutable UseSet uses_;
     const Def** ops_;
+    mutable UseSet uses_;
+    mutable bool flag_;
 
     friend class World;
+    friend class DefHash;
+    friend class DefEqual;
 };
 
 //------------------------------------------------------------------------------

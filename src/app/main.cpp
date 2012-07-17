@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
         po::notify(vm);
 
         if (infiles.empty() && !help)
-            throw po::invalid_syntax("infile", po::invalid_syntax::missing_parameter);
+            throw po::invalid_syntax(po::invalid_syntax::missing_parameter, "infile");
 
         if (help) {
             desc.print(cout);

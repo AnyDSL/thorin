@@ -13,19 +13,14 @@ struct get_clean_type { typedef T type; } ;
 template<class T>
 struct get_clean_type<const T&> {typedef T type; };
 
-#define ANYDSL_DUMP_COMMA_LIST(p, list, nl) \
+#define ANYDSL_DUMP_COMMA_LIST(p, list) \
     const BOOST_TYPEOF((list))& l = (list); \
     if (!l.empty()) { \
-        if (nl) (p).up(); \
         for (get_clean_type<BOOST_TYPEOF(l)>::type::const_iterator i = l.begin(), e = l.end() - 1; i != e; ++i) { \
             (p).dump(*i); \
-            if (nl) \
-                (p).newline(); \
-            else \
-                (p) << ", "; \
+            (p) << ", "; \
         } \
         (p).dump(l.back()); \
-        if (nl) (p).down(); \
     }
 
 namespace anydsl {
@@ -144,13 +139,10 @@ void PrimLit::vdump(Printer& p) const  {
     p.dump(type());
 }
 
-static void dumpNameAndType(Printer& p, const Def* def, const char* name, bool nl = false) {
+static void dumpNameAndType(Printer& p, const Def* def, const char* name) {
 	p << name << " : ";
     p.dump(def->type());
-    p << " ";
-    if (nl)
-        p.newline(); 
-    p << '(';
+    p << " (";
 }
 
 // PrimOp
@@ -171,13 +163,10 @@ void BinOp::vdump(Printer& p) const  {
 		ANYDSL_UNREACHABLE;
 	}
 
-    dumpNameAndType(p, this, name, true);
+    dumpNameAndType(p, this, name);
 
-    p.up();
 	p.dump(ldef()) << ", ";
-	p.newline();
 	p.dump(rdef());
-    p.down();
 	p << ")";
 }
 
@@ -212,7 +201,7 @@ void Tuple::vdump(Printer& p) const {
     p.dump(type());
     p << ')';
 	p << "{";
-	ANYDSL_DUMP_COMMA_LIST(p, ops(), true);
+	ANYDSL_DUMP_COMMA_LIST(p, ops());
 	p << "}";
 }
 
@@ -220,7 +209,7 @@ void Tuple::vdump(Printer& p) const {
 
 void CompoundType::dumpInner(Printer& p) const  {
 	p << "(";
-	ANYDSL_DUMP_COMMA_LIST(p, ops(), false);
+	ANYDSL_DUMP_COMMA_LIST(p, ops());
 	p << ")";
 }
 
@@ -273,21 +262,17 @@ void Lambda::dump(bool fancy) const  {
 
 	p.dumpName(this);
 	p << " = lambda(";
-    ANYDSL_DUMP_COMMA_LIST(p, params(), false);
+    ANYDSL_DUMP_COMMA_LIST(p, params());
 	p << ") : ";
     p.dump(type());
 	p.up();
     {
         p << "jump(";
         p.dump(todef());
-        p << ", ";
-        p.newline() << "[";
-        p.up();
-        ANYDSL_DUMP_COMMA_LIST(p, args(), false);
+        p << ", [";
+        ANYDSL_DUMP_COMMA_LIST(p, args());
+        p  << "])";
     }
-    p.down();
-	p  << "])";
-
 	p.down();
 }
 

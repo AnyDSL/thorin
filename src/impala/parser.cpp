@@ -41,6 +41,7 @@ public:
 
     bool expect(TokenKind tok, const std::string& context);
     void error(const std::string& what, const std::string& context);
+    bool result() const { return result_; }
 
     // misc
     const Prg* parse();
@@ -104,9 +105,12 @@ private:
 
 //------------------------------------------------------------------------------
 
-const Prg* parse(TypeTable& types, std::istream& i, const std::string& filename) {
+const Prg* parse(TypeTable& types, std::istream& i, const std::string& filename, bool& result) {
     Parser p(types, i, filename);
-    return p.parse();
+    const Prg* prg = p.parse();
+    result = p.result();
+
+    return prg;
 }
 
 //------------------------------------------------------------------------------

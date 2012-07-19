@@ -87,14 +87,15 @@ int main(int argc, char** argv) {
 
         impala::Init init;
 
-        anydsl::AutoPtr<const impala::Prg> p(impala::parse(init.types, file, filename));
-        check(init.types, p);
+        bool result;
+        anydsl::AutoPtr<const impala::Prg> p(impala::parse(init.types, file, filename, result));
+        result &= check(init.types, p);
 
         if (emit_ast)
             dump(p, fancy);
-        if (emit_dot)
+        if (result && emit_dot)
             ANYDSL_NOT_IMPLEMENTED;
-        if (emit_air) {
+        if (result && emit_air) {
             emit(init.world, p);
             init.world.dump(fancy);
         }

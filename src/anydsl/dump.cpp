@@ -255,6 +255,7 @@ void AIRNode::dump() const {
 void AIRNode::dump(bool fancy) const {
     Printer p(std::cout, fancy);
     vdump(p);
+    std::cout << std::endl;
 }
 
 void Lambda::dump(bool fancy) const  {

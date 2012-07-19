@@ -1,6 +1,7 @@
 #ifndef ANYDSL_AIRNODE_H
 #define ANYDSL_AIRNODE_H
 
+#include <cassert>
 #include <string>
 
 #include "anydsl/enums.h"
@@ -21,7 +22,8 @@ protected:
 
 public:
 
-    IndexKind indexKind() const { return (IndexKind) kind_; }
+    IndexKind indexKind() const { assert(isStandardNode()); return (IndexKind) kind_; }
+    bool isStandardNode() const { return Begin_Node <= kind_ && kind_ < End_Node; }
 
     void dump() const;
     void dump(bool fancy) const;

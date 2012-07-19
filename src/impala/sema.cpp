@@ -237,6 +237,8 @@ void Literal::check(Sema& sema) const {
         case Literal::LIT_bool:
             newKind = PrimType::TYPE_bool;
             break;
+        default: 
+            ANYDSL_UNREACHABLE;
     }
 
     type_ = sema.types.type(newKind);

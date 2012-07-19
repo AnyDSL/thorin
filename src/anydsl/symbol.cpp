@@ -32,7 +32,7 @@ void Symbol::insert(const char* s) {
 
 void Symbol::destroy() {
     for_all(s, table_)
-        free((void*) s);
+        free((void*) const_cast<char*>(s));
 }
 
 std::string make_name(const char* cstr, int id) {

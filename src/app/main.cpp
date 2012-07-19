@@ -14,6 +14,7 @@
 #include "anydsl/lambda.h"
 #include "anydsl/primop.h"
 #include "anydsl/world.h"
+#include "anydsl/be/llvm/emit.h"
 #include "impala/parser.h"
 #include "impala/ast.h"
 #include "impala/sema.h"
@@ -41,7 +42,7 @@ int main(int argc, char** argv) {
         Names infiles;
         string outfile = "-";
         string emittype;
-        bool help, emit_air, emit_ast, emit_dot, fancy = false;
+        bool help, emit_air, emit_ast, emit_dot, emit_llvm, fancy = false;
 
         // specify options
         po::options_description desc("Usage: " + prgname + " [options] file...");
@@ -50,6 +51,7 @@ int main(int argc, char** argv) {
         ("emit-air",    po::bool_switch(&emit_air),                 "emit textual AIR representation of impala program")
         ("emit-ast",    po::bool_switch(&emit_ast),                 "emit AST of impala program")
         ("emit-dot",    po::bool_switch(&emit_dot),                 "emit dot, arg={air|llvm}")
+        ("emit-llvm",   po::bool_switch(&emit_llvm),                "emit llvm from AIR representation")
         ("fancy,f",     po::bool_switch(&fancy),                    "use fancy output")
         ("outfile,o",   po::value(&outfile)->default_value("-"),    "specifies output file")
         ("infile,i",    po::value(&infiles),                        "input file");
@@ -91,14 +93,18 @@ int main(int argc, char** argv) {
         anydsl::AutoPtr<const impala::Prg> p(impala::parse(init.types, file, filename, result));
         result &= check(init.types, p);
 
+        if (result)
+            emit(init.world, p);
+
         if (emit_ast)
             dump(p, fancy);
         if (result && emit_dot)
             ANYDSL_NOT_IMPLEMENTED;
-        if (result && emit_air) {
-            emit(init.world, p);
+        if (emit_air)
             init.world.dump(fancy);
-        }
+        if (emit_llvm)
+            be_llvm::emit(init.world);
+            
         
         return EXIT_SUCCESS;
     } catch (exception const& e) {

@@ -243,8 +243,8 @@ BB* Fct::createBB(const std::string& debug /*= ""*/) {
 void Fct::emit() {
     // exit
     exit()->seal();
-    const Def* retArgs[] = { exit()->getVar(Symbol("<result>"), retType())->def };
-    world().createJump(exit_->topLambda_, retCont(), retArgs, retArgs + 1);
+    const Def* retArgs[1] = { exit()->getVar(Symbol("<result>"), retType())->def };
+    world().createJump(exit_->topLambda_, retCont(), retArgs);
 
     world().setLive(exit_->curLambda_);
 

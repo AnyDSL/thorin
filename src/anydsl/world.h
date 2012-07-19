@@ -219,7 +219,7 @@ private:
     const Def* findDef(const Def* def);
 
     template<class T> 
-    const T* find(const T* val) { return (T*) findDef(val); }
+    const T* find(const T* val) { return (const T*) findDef(val); }
 
     typedef boost::unordered_set<const Def*> Live;
     typedef boost::unordered_set<const Lambda*> Reachable;

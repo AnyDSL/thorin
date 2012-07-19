@@ -61,7 +61,6 @@ LambdaSet Lambda::succ() const {
     return result;
 }
 
-
 static void findCallers(const Def* def, LambdaSet& result) {
     if (const Lambda* lambda = def->isa<Lambda>()) {
         result.insert(lambda);
@@ -83,29 +82,17 @@ LambdaSet Lambda::callers() const {
     return result;
 }
 
+Params Lambda::params() const { 
+    return world().findParams(this);
+}
+
+
 bool Lambda::equal(const Def* other) const {
     return other->isa<Lambda>() && this == other->as<Lambda>();
 }
 
 size_t Lambda::hash() const {
     return boost::hash_value(this);
-}
-
-static void findParam(const Def* def, const Lambda* lambda, Params& params) { 
-    if (const Param* param = def->isa<Param>()) {
-        if (param->lambda() == lambda)
-            params.push_back(param);
-
-        return;
-    } else if (def->isa<Lambda>())
-        return;
-
-    for_all (op, def->ops())
-        findParam(op, lambda, params);
-}
-
-Params Lambda::params() const { 
-    return world().findParams(this);
 }
 
 } // namespace anydsl

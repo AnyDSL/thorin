@@ -137,18 +137,20 @@ const Def* BB::calls(const Def* to, const Def* const* begin, const Def* const* e
     static int id = 0;
 
     // create next continuation in cascade
-    Lambda* lambda = new Lambda();
-    lambda->debug = curLambda_->debug + "_" + to->debug;
-    const Def* result = lambda->appendParam(retType);
+    Lambda* next = new Lambda();
+    next->debug = curLambda_->debug + "_" + to->debug;
+    const Param* result = next->appendParam(retType);
     result->debug = make_name(to->debug.c_str(), id);
-    lambda->calcType(world(), in_);
+    Params params;
+    params.push_back(result);
+    next->calcType(world(), params);
 
     // create jump to this new continuation
     size_t size = std::distance(begin, end) + 1;
     boost::scoped_array<const Def*> args(new const Def*[size]);
-    *std::copy(begin, end, args.get()) = lambda;
+    *std::copy(begin, end, args.get()) = next;
     curLambda_->jumps(to, args.get(), args.get() + size);
-    curLambda_ = lambda;
+    curLambda_ = next;
 
     ++id;
 
@@ -185,7 +187,7 @@ World& BB::world() {
 void BB::emit() {
     switch (succs().size()) {
         case 1:
-            curLambda_->jumps((*succs().begin())->curLambda(), out_.begin().base(), out_.end().base());
+            curLambda_->jumps((*succs().begin())->topLambda(), out_.begin().base(), out_.end().base());
             break;
         case 2:
             anydsl_assert(out_.empty(), "sth went wrong with critical edge elimination");

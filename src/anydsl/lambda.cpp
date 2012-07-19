@@ -16,25 +16,6 @@ Lambda::Lambda(const Pi* pi)
         world().createParam(pi->get(i), this, i);
 }
 
-const Pi* Lambda::pi() const {
-    return scast<Pi>(type());
-}
-
-const Param* Lambda::appendParam(const Type* type) {
-    size_t size = pi()->numOps();
-
-    boost::scoped_array<const Type*> types(new const Type*[size + 1]);
-
-    for (size_t i = 0; i < size; ++i)
-        types[i] = pi()->get(i);
-
-    types[size] = type;
-
-    setType(world().pi(types.get(), types.get() + size + 1));
-
-    return world().createParam(type, this, size);
-}
-
 static void findLambdas(const Def* def, LambdaSet& result) {
     if (const Lambda* lambda = def->isa<Lambda>()) {
         result.insert(lambda);
@@ -84,6 +65,25 @@ LambdaSet Lambda::callers() const {
 
 Params Lambda::params() const { 
     return world().findParams(this);
+}
+
+const Pi* Lambda::pi() const {
+    return scast<Pi>(type());
+}
+
+const Param* Lambda::appendParam(const Type* type) {
+    size_t size = pi()->numOps();
+
+    boost::scoped_array<const Type*> types(new const Type*[size + 1]);
+
+    for (size_t i = 0; i < size; ++i)
+        types[i] = pi()->get(i);
+
+    types[size] = type;
+
+    setType(world().pi(types.get(), types.get() + size + 1));
+
+    return world().createParam(type, this, size);
 }
 
 

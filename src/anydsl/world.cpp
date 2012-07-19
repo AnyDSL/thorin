@@ -16,7 +16,7 @@ namespace anydsl {
  * helpers
  */
 
-static inline bool isCommutative(ArithOpKind kind) {
+static bool isCommutative(ArithOpKind kind) {
     switch (kind) {
         case ArithOp_add:
         case ArithOp_mul:
@@ -26,7 +26,7 @@ static inline bool isCommutative(ArithOpKind kind) {
     }
 }
 
-static inline RelOpKind normalizeRel(RelOpKind kind, bool& swap) {
+static RelOpKind normalizeRel(RelOpKind kind, bool& swap) {
     swap = false;
     switch (kind) {
         case RelOp_cmp_ugt: swap = true; return RelOp_cmp_ult;

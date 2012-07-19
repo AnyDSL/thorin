@@ -19,8 +19,6 @@ public:
 
     Lambda(const Pi* pi);
 
-    const Pi* pi() const;
-
     const Param* appendParam(const Type* type);
 
     LambdaSet to() const;
@@ -28,10 +26,11 @@ public:
     LambdaSet callers() const;
     Params params() const;
 
-    void dump(bool fancy = false) const;
-
     const Def* todef() const { return op(0); };
     Ops args() const { return ops(1, numOps()); }
+    const Pi* pi() const;
+
+    void dump(bool fancy = false) const;
 
 private:
 

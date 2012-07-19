@@ -17,14 +17,11 @@ typedef std::vector<const Param*> Params;
 class Lambda : public Def {
 public:
 
-    Lambda();
-    Lambda(const Pi* pi, Params& params);
+    Lambda(const Pi* pi);
 
-    bool final() const { return final_; }
     const Pi* pi() const;
 
     const Param* appendParam(const Type* type);
-    void calcType(World& world, const Params& params);
 
     LambdaSet to() const;
     LambdaSet succ() const;
@@ -48,8 +45,7 @@ private:
     virtual size_t hash() const;
     virtual void vdump(Printer& printer) const;
 
-    bool final_;
-    int numArgs_;
+    int numParams_;
 
     Params params_;
 

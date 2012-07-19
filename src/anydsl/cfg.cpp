@@ -14,7 +14,7 @@ namespace anydsl {
 BB::BB(Fct* fct, const std::string& debug /*= ""*/) 
     : sealed_(false)
     , fct_(fct)
-    , topLambda_(new Lambda())
+    , topLambda_(new Lambda(world().pi0()))
     , curLambda_(topLambda_)
 {
     topLambda_->debug = debug;
@@ -141,13 +141,12 @@ const Def* BB::calls(const Def* to, const Def* const* begin, const Def* const* e
     static int id = 0;
 
     // create next continuation in cascade
-    Lambda* next = new Lambda();
+    Lambda* next = new Lambda(world().pi0());
     next->debug = curLambda_->debug + "_" + to->debug;
     const Param* result = next->appendParam(retType);
     result->debug = make_name(to->debug.c_str(), id);
     Params params;
     params.push_back(result);
-    next->calcType(world(), params);
 
     // create jump to this new continuation
     size_t size = std::distance(begin, end) + 1;
@@ -200,15 +199,6 @@ void BB::emit() {
         default: 
             ANYDSL_UNREACHABLE;
     }
-
-    for (const Lambda* i = topLambda_; i != curLambda_; i = i->args().back()->as<Lambda>())
-        world().finalize(i);
-
-    world().finalize(curLambda_);
-}
-
-void BB::calcType() {
-    topLambda_->calcType(world(), in_);
 }
 
 //------------------------------------------------------------------------------
@@ -220,7 +210,7 @@ Fct::Fct(World& world, const FctParams& fparams, const Type* retType, const std:
 {
     sealed_ = true;
     fct_ = this;
-    curLambda_ = topLambda_ = new Lambda();
+    curLambda_ = topLambda_ = new Lambda(world.pi0());
     topLambda_->debug = debug;
 
     for_all (p, fparams) {
@@ -251,21 +241,12 @@ BB* Fct::createBB(const std::string& debug /*= ""*/) {
 }
 
 void Fct::emit() {
-    topLambda_->calcType(world(), in_);
-
     // exit
     exit()->seal();
     const Def* ret[] = { exit()->getVar(Symbol("<result>"), retType())->def };
     exit_->topLambda_->jumps(ret_, ret, ret + 1);
 
     world().setLive(exit_->curLambda_);
-
-    exit_->calcType();
-    world().finalize(exit()->topLambda_);
-
-    for_all (bb, cfg_)
-        if (bb != exit())
-            bb->calcType();
 
     for_all (bb, cfg_)
         if (bb != exit())

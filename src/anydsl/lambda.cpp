@@ -9,20 +9,12 @@
 
 namespace anydsl {
 
-Lambda::Lambda(const Pi* pi, Params& params)
+Lambda::Lambda(const Pi* pi)
     : Def(Index_Lambda, pi, 0)
-    , final_(false)
-    , numArgs_(pi->numOps())
 {
     for (size_t i = 0, e = pi->numOps(); i != e; ++i)
-        params.push_back(world().createParam(pi->get(i), this, i));
+        world().createParam(pi->get(i), this, i);
 }
-
-Lambda::Lambda()
-    : Def(Index_Lambda, 0, 0)
-    , final_(false)
-    , numArgs_(0)
-{}
 
 const Pi* Lambda::pi() const {
     return scast<Pi>(type());
@@ -36,6 +28,8 @@ void Lambda::jumps(const Def* to, const Def* const* begin, const Def* const* end
     const Def* const* i = begin;
     for (size_t x = 1; i != end; ++x, ++i)
         setOp(x, *i);
+
+    world().finalize(this);
 }
 
 void Lambda::branches(const Def* cond, const Def* tto, const Def*  fto) {
@@ -43,21 +37,18 @@ void Lambda::branches(const Def* cond, const Def* tto, const Def*  fto) {
 }
 
 const Param* Lambda::appendParam(const Type* type) {
-    assert(!final_);
-    anydsl_assert(!this->type(), "type already set -- you are not allowed to add any more params");
+    size_t size = pi()->numOps();
 
-    return type->world().createParam(type, this, numArgs_++);
-}
-
-void Lambda::calcType(World& world, const Params& params) {
-    anydsl_assert(!type(), "type already set");
-    size_t size = params.size();
-    boost::scoped_array<const Type*> types(new const Type*[size]);
+    boost::scoped_array<const Type*> types(new const Type*[size + 1]);
 
     for (size_t i = 0; i < size; ++i)
-        types[i] = params[i]->type();
+        types[i] = pi()->get(i);
 
-    setType(world.pi(types.get(), types.get() + size));;
+    types[size] = type;
+
+    setType(world().pi(types.get(), types.get() + size + 1));
+
+    return world().createParam(type, this, size);
 }
 
 static void findLambdas(const Def* def, LambdaSet& result) {

@@ -176,7 +176,10 @@ public:
     const Def* createTuple(const Def* const (&array)[N]) { return createTuple(array, array + N); }
     const Param* createParam(const Type* type, const Lambda* parent, size_t index);
 
+    /// Don't use directly; needed by Lambda::jumps()
     const Lambda* finalize(const Lambda* lambda);
+
+public:
 
     /*
      * optimizations

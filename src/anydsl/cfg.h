@@ -96,7 +96,6 @@ public:
     bool sealed() const { return sealed_; }
 
     void emit();
-    void calcType();
 
 private:
 

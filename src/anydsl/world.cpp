@@ -184,13 +184,15 @@ const Def* World::createSelect(const Def* cond, const Def* tdef, const Def* fdef
     return find(new Select(cond, tdef, fdef));
 }
 
-const Lambda* World::finalize(const Lambda* lambda) {
+const Lambda* World::finalize(Lambda*& lambda) {
     anydsl_assert(lambda->type(), "must be set");
     anydsl_assert(lambda->pi(),   "must be a set pi type");
 
     const Lambda* l = find<Lambda>(lambda);
     assert(l == lambda);
     assert(defs_.find(l) != defs_.end());
+    // some day...
+    //lambda = 0;
 
     return l;
 }
@@ -198,6 +200,23 @@ const Lambda* World::finalize(const Lambda* lambda) {
 const Param* World::createParam(const Type* type, const Lambda* parent, size_t index) {
     return find(new Param(type, parent, index));
 }
+
+void World::createJump(Lambda*& lambda, const Def* to, const Def* const* begin, const Def* const* end) { 
+    lambda->alloc(std::distance(begin, end) + 1);
+
+    lambda->setOp(0, to);
+
+    const Def* const* i = begin;
+    for (size_t x = 1; i != end; ++x, ++i)
+        lambda->setOp(x, *i);
+
+    finalize(lambda);
+}
+
+void World::createBranch(Lambda*& lambda, const Def* cond, const Def* tto, const Def*  fto) {
+    return createJump(lambda, cond->world().createSelect(cond, tto, fto), 0, 0);
+}
+
 
 /*
  * optimizations

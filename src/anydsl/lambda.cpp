@@ -20,22 +20,6 @@ const Pi* Lambda::pi() const {
     return scast<Pi>(type());
 }
 
-void Lambda::jumps(const Def* to, const Def* const* begin, const Def* const* end) { 
-    alloc(std::distance(begin, end) + 1);
-
-    setOp(0, to);
-
-    const Def* const* i = begin;
-    for (size_t x = 1; i != end; ++x, ++i)
-        setOp(x, *i);
-
-    world().finalize(this);
-}
-
-void Lambda::branches(const Def* cond, const Def* tto, const Def*  fto) {
-    return jumps(cond->world().createSelect(cond, tto, fto), 0, 0);
-}
-
 const Param* Lambda::appendParam(const Type* type) {
     size_t size = pi()->numOps();
 

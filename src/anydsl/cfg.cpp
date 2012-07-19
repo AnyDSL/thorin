@@ -152,7 +152,7 @@ const Def* BB::calls(const Def* to, const Def* const* begin, const Def* const* e
     size_t size = std::distance(begin, end) + 1;
     boost::scoped_array<const Def*> args(new const Def*[size]);
     *std::copy(begin, end, args.get()) = next;
-    curLambda_->jumps(to, args.get(), args.get() + size);
+    world().createJump(curLambda_, to, args.get(), args.get() + size);
     curLambda_ = next;
 
     ++id;
@@ -190,11 +190,11 @@ World& BB::world() {
 void BB::emit() {
     switch (succs().size()) {
         case 1:
-            curLambda_->jumps((*succs().begin())->topLambda(), out_.begin().base(), out_.end().base());
+            world().createJump(curLambda_, (*succs().begin())->topLambda(), out_.begin().base(), out_.end().base());
             break;
         case 2:
             anydsl_assert(out_.empty(), "sth went wrong with critical edge elimination");
-            curLambda_->branches(cond_, tbb_->topLambda(), fbb_->topLambda());
+            world().createBranch(curLambda_, cond_, tbb_->topLambda(), fbb_->topLambda());
             break;
         default: 
             ANYDSL_UNREACHABLE;
@@ -221,9 +221,9 @@ Fct::Fct(World& world, const FctParams& fparams, const Type* retType, const std:
     }
 
     if (retType) {
-        ret_ = topLambda_->appendParam(world.pi1(retType));
-        in_.push_back(ret_);
-        ret_->debug = "<return>";
+        retCont_ = topLambda_->appendParam(world.pi1(retType));
+        in_.push_back(retCont());
+        retCont()->debug = "<return>";
         exit_ = createBB('<' + debug + "_exit>");
     }
 }
@@ -243,8 +243,8 @@ BB* Fct::createBB(const std::string& debug /*= ""*/) {
 void Fct::emit() {
     // exit
     exit()->seal();
-    const Def* ret[] = { exit()->getVar(Symbol("<result>"), retType())->def };
-    exit_->topLambda_->jumps(ret_, ret, ret + 1);
+    const Def* retArgs[] = { exit()->getVar(Symbol("<result>"), retType())->def };
+    world().createJump(exit_->topLambda_, retCont(), retArgs, retArgs + 1);
 
     world().setLive(exit_->curLambda_);
 

@@ -140,14 +140,14 @@ public:
     World& world() { return world_; }
 
     BB* exit() { return exit_; }
-    const Param* ret() { return ret_; }
+    const Param* retCont() { return retCont_; }
     const Type* retType() { return retType_; }
 
 private:
 
     World& world_;
     const Type* retType_;
-    const Param* ret_;
+    const Param* retCont_;
     BB* exit_;
     BBs cfg_;
 };

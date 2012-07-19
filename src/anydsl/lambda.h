@@ -28,12 +28,6 @@ public:
     LambdaSet callers() const;
     Params params() const;
 
-    void jumps(const Def* to, const Def* const* begin, const Def* const* end);
-    template<size_t N>
-    void jumps(const Def* to, const Def* const (&args)[N]) { return jumps(to, args, args + N); }
-    void branches(const Def* cond, const Def* tto, const Def* fto);
-
-
     void dump(bool fancy = false) const;
 
     const Def* todef() const { return op(0); };

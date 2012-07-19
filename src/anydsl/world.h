@@ -176,8 +176,12 @@ public:
     const Def* createTuple(const Def* const (&array)[N]) { return createTuple(array, array + N); }
     const Param* createParam(const Type* type, const Lambda* parent, size_t index);
 
-    /// Don't use directly; needed by Lambda::jumps()
-    const Lambda* finalize(const Lambda* lambda);
+    void createJump(Lambda*& lambda, const Def* to, const Def* const* begin, const Def* const* end);
+    template<size_t N>
+    void createJump(Lambda*& lambda, const Def* to, const Def* const (&args)[N]) { 
+        return createJump(lambda, to, args, args + N); 
+    }
+    void createBranch(Lambda*& lambda, const Def* cond, const Def* tto, const Def* fto);
 
 public:
 
@@ -207,6 +211,7 @@ public:
 
 private:
 
+    const Lambda* finalize(Lambda*& lambda);
     void unmark();
 
     typedef boost::unordered_set<const Def*, DefHash, DefEqual> DefSet;

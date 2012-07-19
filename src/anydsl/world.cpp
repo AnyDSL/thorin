@@ -241,23 +241,20 @@ void World::dce_insert(const Def* def) {
     if (const Type* type = def->type())
         dce_insert(type);
 
-    if (const Param* param = def->isa<Param>()) {
-        param->lambda()->flag_ = true;
+    for_all (op, def->ops())
+        dce_insert(op);
 
+    if (const Lambda* lambda = def->isa<Lambda>()) {
+        // insert control-dependent lambdas
+        for_all (caller, lambda->callers())
+            dce_insert(caller);
+    } else if (const Param* param = def->isa<Param>()) {
         for_all (op, param->phiOps()) {
             // look through "phi-args"
             dce_insert(op.def());
-
-            // insert control-dependent lambdas
-            for_all (caller, op.from()->callers())
-                dce_insert(caller);
+            dce_insert(op.from());
         }
-
-        return;
     }
-
-    for_all (op, def->ops())
-        dce_insert(op);
 }
 
 void World::uce() {

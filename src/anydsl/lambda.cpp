@@ -60,19 +60,50 @@ void Lambda::calcType(World& world, const Params& params) {
     setType(world.pi(types.get(), types.get() + size));;
 }
 
-std::vector<const Lambda*> Lambda::succ() const {
-    std::vector<const Lambda*> result;
-
-    for_all (def, ops()) {
-        if (const Lambda* lambda = def->isa<Lambda>()) {
-            result.push_back(lambda);
-        } else if (const Select* select = todef()->isa<Select>()) {
-            const Lambda* tlambda = select->tdef()->as<Lambda>();
-            const Lambda* flambda = select->fdef()->as<Lambda>();
-            result.push_back(tlambda);
-            result.push_back(flambda);
-        }
+static void findLambdas(const Def* def, LambdaSet& result) {
+    if (const Lambda* lambda = def->isa<Lambda>()) {
+        result.insert(lambda);
+        return;
     }
+
+    for_all (op, def->ops())
+        findLambdas(op, result);
+}
+
+LambdaSet Lambda::to() const {
+    LambdaSet result;
+    findLambdas(todef(), result);
+
+    return result;
+}
+
+LambdaSet Lambda::succ() const {
+    LambdaSet result;
+
+    for_all (def, ops())
+        findLambdas(def, result);
+
+    return result;
+}
+
+
+static void findCallers(const Def* def, LambdaSet& result) {
+    if (const Lambda* lambda = def->isa<Lambda>()) {
+        result.insert(lambda);
+        return;
+    }
+
+    anydsl_assert(def->isa<PrimOp>(), "not a PrimOp");
+
+    for_all (use, def->uses())
+        findCallers(use.def(), result);
+}
+
+LambdaSet Lambda::callers() const {
+    LambdaSet result;
+
+    for_all (use, uses())
+        findCallers(use.def(), result);
 
     return result;
 }
@@ -100,31 +131,6 @@ static void findParam(const Def* def, const Lambda* lambda, Params& params) {
 
 Params Lambda::params() const { 
     return world().findParams(this);
-}
-
-static void findCallers(const Def* def, Callers& result) {
-    if (const Lambda* lambda = def->isa<Lambda>()) {
-        result.push_back(lambda);
-        return;
-    }
-
-    anydsl_assert(def->isa<PrimOp>(), "not a PrimOp");
-
-    for_all (use, def->uses())
-        findCallers(use.def(), result);
-}
-
-Callers Lambda::callers() const {
-    Callers result;
-
-    std::cout << "callers of " << debug << std::endl;
-    for_all (use, uses())
-        findCallers(use.def(), result);
-
-    for (size_t i = 0; i < result.size(); ++i)
-        std::cout << "\t" << result[i]->debug << std::endl;
-
-    return result;
 }
 
 } // namespace anydsl

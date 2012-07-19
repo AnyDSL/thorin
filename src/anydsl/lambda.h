@@ -1,7 +1,7 @@
 #ifndef ANYDSL_LAMBDA_H
 #define ANYDSL_LAMBDA_H
 
-#include <list>
+#include <boost/unordered_set.hpp>
 
 #include "anydsl/def.h"
 #include "anydsl/util/autoptr.h"
@@ -11,7 +11,7 @@ namespace anydsl {
 class Lambda;
 class Pi;
 
-typedef std::vector<const Lambda*> Callers;
+typedef boost::unordered_set<const Lambda*> LambdaSet;
 typedef std::vector<const Param*> Params;
 
 class Lambda : public Def {
@@ -26,7 +26,9 @@ public:
     const Param* appendParam(const Type* type);
     void calcType(World& world, const Params& params);
 
-    Callers callers() const;
+    LambdaSet to() const;
+    LambdaSet succ() const;
+    LambdaSet callers() const;
     Params params() const;
 
     void jumps(const Def* to, const Def* const* begin, const Def* const* end);
@@ -34,7 +36,6 @@ public:
     void jumps(const Def* to, const Def* const (&args)[N]) { return jumps(to, args, args + N); }
     void branches(const Def* cond, const Def* tto, const Def* fto);
 
-    std::vector<const Lambda*> succ() const;
 
     void dump(bool fancy = false) const;
 

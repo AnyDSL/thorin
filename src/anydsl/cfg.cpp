@@ -252,8 +252,7 @@ void Fct::emit() {
     const Def* ret[] = { exit()->getVar(Symbol("<result>"), retType())->def };
     exit_->topLambda_->jumps(ret_, ret, ret + 1);
 
-    for_all (op, exit_->curLambda_->ops())
-        world().setLive(op);
+    world().setLive(exit_->curLambda_);
 
     exit_->calcType();
     world().finalize(exit()->topLambda_);

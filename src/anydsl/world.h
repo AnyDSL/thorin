@@ -25,6 +25,8 @@ class Type;
 class Def;
 class Undef;
 
+typedef std::vector<const Param*> Params;
+
 //------------------------------------------------------------------------------
 
 /**
@@ -172,6 +174,7 @@ public:
     const Def* createTuple(const Def* const* begin, const Def* const* end);
     template<size_t N>
     const Def* createTuple(const Def* const (&array)[N]) { return createTuple(array, array + N); }
+    const Param* createParam(const Type* type, const Lambda* parent, size_t index);
 
     const Lambda* finalize(const Lambda* lambda);
 
@@ -179,8 +182,8 @@ public:
      * optimizations
      */
 
-    /// Tell the world which Lambdas%s are axiomatically live.
-    void setLive(const Lambda* lambda);
+    /// Tell the world which Def%s are axiomatically live.
+    void setLive(const Def* def);
     /// Tell the world which Lambda%s axiomatically reachable.
     void setReachable(const Lambda* lambda);
 
@@ -192,20 +195,25 @@ public:
     /// Performs dead code and unreachable code elimination.
     void cleanup();
 
+    /*
+     * other
+     */
+
+    Params findParams(const Lambda* lambda);
     void dump(bool fancy = false);
 
 private:
 
     void unmark();
 
-    typedef boost::unordered_set<const Def*, DefHash, DefEqual> DefMap;
-    DefMap::iterator remove(DefMap::iterator i);
+    typedef boost::unordered_set<const Def*, DefHash, DefEqual> DefSet;
+    DefSet::iterator remove(DefSet::iterator i);
     const Def* findDef(const Def* def);
 
     template<class T> 
     const T* find(const T* val) { return (T*) findDef(val); }
 
-    typedef boost::unordered_set<const Def*> DefSet;
+    typedef boost::unordered_set<const Def*> Live;
     typedef boost::unordered_set<const Lambda*> Reachable;
 
     void dce_insert(const Def* def);
@@ -213,9 +221,9 @@ private:
 
     const Def* tryFold(IndexKind kind, const Def* ldef, const Def* rdef);
 
-    DefMap defs_;
+    DefSet defs_;
 
-    DefSet live_;
+    Live live_;
     Reachable reachable_;
 
     const Sigma* unit_; ///< sigma().

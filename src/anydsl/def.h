@@ -24,6 +24,26 @@ class World;
 class Jump;
 class World;
 
+class PhiOp {
+public:
+
+    PhiOp() {}
+    PhiOp(const Def* def, const Lambda* from)
+        : def_(def)
+        , from_(from)
+    {}
+
+    const Def* def() { return def_; }
+    const Lambda* from() { return from_; }
+
+private:
+
+    const Def* def_;
+    const Lambda* from_;
+};
+
+typedef std::vector<PhiOp> PhiOps;
+
 //------------------------------------------------------------------------------
 
 class Use {
@@ -177,7 +197,6 @@ public:
     Ops ops() const { return Ops(ops_, numOps_); }
     Ops ops(size_t begin, size_t end) const { assert(end <= numOps_); return Ops(ops_ + begin, end - begin); }
     const Def* op(size_t i) const { anydsl_assert(i < numOps_, "index out of bounds"); return ops_[i]; }
-    std::vector<const Def*> depends() const;
 
 private:
 
@@ -216,7 +235,7 @@ public:
 
     const Lambda* lambda() const { return lambda_; }
     size_t index() const { return index_; }
-    std::vector<const Def*> phiOps() const;
+    PhiOps phiOps() const;
 
 private:
 
@@ -225,7 +244,7 @@ private:
     const Lambda* lambda_;
     size_t index_;
 
-    friend class Lambda;
+    friend class World;
 };
 
 //------------------------------------------------------------------------------

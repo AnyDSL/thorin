@@ -192,18 +192,19 @@ const Lambda* World::finalize(const Lambda* lambda) {
     assert(l == lambda);
     assert(defs_.find(l) != defs_.end());
 
-    for_all (param, l->params())
-        findDef(param);
-
     return l;
+}
+
+const Param* World::createParam(const Type* type, const Lambda* parent, size_t index) {
+    return find(new Param(type, parent, index));
 }
 
 /*
  * optimizations
  */
 
-void World::setLive(const Lambda* jump) {
-    live_.insert(jump);
+void World::setLive(const Def* def) {
+    live_.insert(def);
 }
 
 void World::setReachable(const Lambda* lambda) {
@@ -220,14 +221,10 @@ void World::dce() {
         dce_insert(def);
 
     // kill the living dead
-    DefMap::iterator i = defs_.begin();
+    DefSet::iterator i = defs_.begin();
     while (i != defs_.end()) {
         const Def* def = *i;
         if (!def->flag_) {
-            DefSet::iterator j = live_.find(def);
-            if (j != live_.end())
-                live_.erase(j);
-
             delete def;
             i = defs_.erase(i);
         } else
@@ -241,16 +238,26 @@ void World::dce_insert(const Def* def) {
 
     def->flag_ = true;
 
-    for_all (op, def->depends())
-        if (op) {
-            std::cout << "hey" << std::endl;
-            op->dump();
-            std::cout << std::endl;
-            dce_insert(op);
-        }
-
     if (const Type* type = def->type())
         dce_insert(type);
+
+    if (const Param* param = def->isa<Param>()) {
+        param->lambda()->flag_ = true;
+
+        for_all (op, param->phiOps()) {
+            // look through "phi-args"
+            dce_insert(op.def());
+
+            // insert control-dependent lambdas
+            for_all (caller, op.from()->callers())
+                dce_insert(caller);
+        }
+
+        return;
+    }
+
+    for_all (op, def->ops())
+        dce_insert(op);
 }
 
 void World::uce() {
@@ -264,14 +271,10 @@ void World::uce() {
         uce_insert(reachable, lambda);
 
     // destroy all unreachable lambdas
-    DefMap::iterator i = defs_.begin();
+    DefSet::iterator i = defs_.begin();
     while (i != defs_.end()) {
         if (const Lambda* lambda = (*i)->isa<Lambda>()) {
             if (!lambda->flag_) {
-                DefSet::iterator j = live_.find(lambda);
-                if (j != live_.end())
-                    live_.erase(j);
-
                 delete lambda;
                 i = defs_.erase(i);
                 continue;
@@ -295,7 +298,7 @@ void World::uce_insert(Reachable& reachable, const Lambda* lambda) {
 }
 
 void World::cleanup() {
-    //uce();
+    uce();
     dce();
 }
 
@@ -305,7 +308,7 @@ void World::unmark() {
 }
 
 const Def* World::findDef(const Def* def) {
-    DefMap::iterator i = defs_.find(def);
+    DefSet::iterator i = defs_.find(def);
     if (i != defs_.end()) {
         anydsl_assert(!def->isa<Lambda>(), "must not be a lambda");
         delete def;
@@ -347,6 +350,23 @@ void World::dump(bool fancy) {
             }
         }
     }
+}
+
+Params World::findParams(const Lambda* lambda) {
+    Params result;
+
+    const Pi* pi = lambda->pi();
+    size_t num = pi->numOps();
+
+    for (size_t i = 0; i < num; ++i) {
+        Param param(pi->get(i), lambda, i);
+
+        DefSet::iterator j = defs_.find(&param);
+        if (j != defs_.end())
+            result.push_back((*j)->as<Param>());
+    }
+
+    return result;
 }
 
 } // namespace anydsl

@@ -15,7 +15,7 @@ Lambda::Lambda(const Pi* pi, Params& params)
     , numArgs_(pi->numOps())
 {
     for (size_t i = 0, e = pi->numOps(); i != e; ++i)
-        params.push_back(new Param(pi->get(i), this, i));
+        params.push_back(world().createParam(pi->get(i), this, i));
 }
 
 Lambda::Lambda()
@@ -46,7 +46,7 @@ const Param* Lambda::appendParam(const Type* type) {
     assert(!final_);
     anydsl_assert(!this->type(), "type already set -- you are not allowed to add any more params");
 
-    return new Param(type, this, numArgs_++);
+    return type->world().createParam(type, this, numArgs_++);
 }
 
 void Lambda::calcType(World& world, const Params& params) {
@@ -98,22 +98,8 @@ static void findParam(const Def* def, const Lambda* lambda, Params& params) {
         findParam(op, lambda, params);
 }
 
-struct SortParam {
-    bool operator () (const Param* p1, const Param* p2) {
-        assert(p1->lambda() == p2->lambda());
-        return p1->index() < p2->index();
-    }
-};
-
 Params Lambda::params() const { 
-    Params result;
-
-    for_all (op, ops())
-        findParam(op, this, result);
-
-    std::sort(result.begin(), result.end(), SortParam());
-
-    return result;
+    return world().findParams(this);
 }
 
 static void findCallers(const Def* def, Callers& result) {
@@ -122,16 +108,21 @@ static void findCallers(const Def* def, Callers& result) {
         return;
     }
 
+    anydsl_assert(def->isa<PrimOp>(), "not a PrimOp");
+
     for_all (use, def->uses())
         findCallers(use.def(), result);
 }
 
 Callers Lambda::callers() const {
-    std::cout << "num uses in callers() '" << debug << "' : " << uses().size() << std::endl;
     Callers result;
 
+    std::cout << "callers of " << debug << std::endl;
     for_all (use, uses())
         findCallers(use.def(), result);
+
+    for (size_t i = 0; i < result.size(); ++i)
+        std::cout << "\t" << result[i]->debug << std::endl;
 
     return result;
 }

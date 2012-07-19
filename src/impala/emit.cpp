@@ -99,6 +99,7 @@ Value Literal::emit(CodeGen& cg) const {
         case LIT_##itype: akind = anydsl::PrimLit_##atype; break;
 #include "impala/tokenlist.h"
         case LIT_bool: akind = anydsl::PrimLit_u1; break;
+        default: ANYDSL_UNREACHABLE;
     }
 
     return Value(cg.world.literal(akind, value()));

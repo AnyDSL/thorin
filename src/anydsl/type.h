@@ -51,6 +51,8 @@ private:
 
 //------------------------------------------------------------------------------
 
+inline const Type*& elem_as_type(const Def** ptr) { return *((const Type**) ptr); }
+
 class CompoundType : public Type {
 protected:
 
@@ -64,6 +66,10 @@ public:
         anydsl_assert(i < numOps(), "index out of range"); 
         return op(i)->as<Type>();
     }
+
+    typedef ArrayRef<const Def*, const Type*, elem_as_type> Elems;
+    Elems elems() const { return polyOps<Elems>(); }
+    size_t numElems() const { return numOps(); }
 
 protected:
 

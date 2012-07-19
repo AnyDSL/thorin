@@ -1,5 +1,7 @@
 #include "anydsl/be/llvm/emit.h"
 
+#include <boost/scoped_array.hpp>
+
 #include <llvm/Module.h>
 #include <llvm/Function.h>
 #include <llvm/Support/IRBuilder.h>
@@ -18,7 +20,8 @@ public:
 
     CodeGen(const World& world);
 
-    llvm::Type* convert(const anydsl::Type* type);
+    llvm::Type* convert(const Type* type);
+    llvm::Value* emit(const AIRNode* n);
 
 private:
 
@@ -36,7 +39,7 @@ void emit(const World& world) {
     CodeGen cg(world);
 }
 
-llvm::Type* CodeGen::convert(const anydsl::Type* type) {
+llvm::Type* CodeGen::convert(const Type* type) {
     switch (type->indexKind()) {
         case Index_PrimType_u1:  return llvm::IntegerType::get(context, 1);
         case Index_PrimType_u8:  return llvm::IntegerType::get(context, 8);
@@ -47,20 +50,53 @@ llvm::Type* CodeGen::convert(const anydsl::Type* type) {
         case Index_PrimType_f64: return llvm::IntegerType::get(context, 64);
 
         case Index_Pi: {
-            //llvm::FunctionType* ft = llvm::FunctionType::get();
-        }
-        default: ANYDSL_UNREACHABLE;
+            const Pi* pi = type->as<Pi>();
 
+            llvm::Type* retType = 0;
+            size_t i = 0;
+
+            boost::scoped_array<llvm::Type*> elems(new llvm::Type*[pi->numElems() - 1]);
+
+            // extract "return" type, collect all other types
+            for_all (t, pi->elems()) {
+                if (t->isa<Pi>()) {
+                    anydsl_assert(retType == 0, "not yet supported");
+                    retType = convert(t);
+                } else
+                    elems[i++] = convert(t);
+            }
+
+            return llvm::FunctionType::get(retType, elems);
+        }
+
+        case Index_Sigma: {
+            // TODO watch out for cycles!
+
+            const Sigma* sigma = type->as<Sigma>();
+
+            boost::scoped_array<llvm::Type*> elems(new llvm::Type*[sigma->numElems()]);
+            size_t i = 0;
+            for_all (t, sigma->elems())
+                elems[i++] = convert(t);
+
+            return llvm::StructType::get(context, elems);
+        }
+
+        default: ANYDSL_UNREACHABLE;
     }
 }
 
-void emit(const anydsl::AIRNode* n) {
+llvm::Value* CodeGen::emit(const AIRNode* n) {
     if (!n->isStandardNode())
         ANYDSL_NOT_IMPLEMENTED;
 
-    //switch (n->indexKind()) {
-        //case 
-    //}
+#if 0
+    if (n->indexKind()
+    switch (n->indexKind()) {
+        case Index_cmp_eq:
+            builder.CreateFCmp
+    }
+#endif
 }
 
 }

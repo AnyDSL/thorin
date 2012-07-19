@@ -10,7 +10,7 @@
 #include <boost/functional/hash.hpp>
 
 #include "anydsl/airnode.h"
-#include "anydsl/util/ptrascont.h"
+#include "anydsl/util/arrayref.h"
 
 namespace anydsl {
 
@@ -117,7 +117,7 @@ protected:
 
 public:
 
-    typedef PtrAsCont<const Def> Ops;
+    typedef ArrayRef<const Def*> Ops;
 
     template<class T>
     class FilteredUses {
@@ -194,8 +194,17 @@ public:
     const Type* type() const { return type_; }
     size_t numOps() const { return numOps_; }
     World& world() const;
+
     Ops ops() const { return Ops(ops_, numOps_); }
     Ops ops(size_t begin, size_t end) const { assert(end <= numOps_); return Ops(ops_ + begin, end - begin); }
+
+    template<class T> T polyOps() const { 
+        return T(ops_, numOps_); 
+    }
+    template<class T> T polyOps(size_t begin, size_t end) const { 
+        assert(end <= numOps_); return T(ops_ + begin, end - begin); 
+    }
+
     const Def* op(size_t i) const { anydsl_assert(i < numOps_, "index out of bounds"); return ops_[i]; }
 
 private:

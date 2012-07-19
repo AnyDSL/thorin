@@ -65,6 +65,10 @@ Var* BB::getVar(const Symbol& symbol, const Type* type) {
 
         return lvar;
     }
+
+    // fix for unreachable code
+    if (preds().empty())
+        return setVar(symbol, world().undef(type));
     
     // look in pred if there exists exactly one pred
     assert(preds().size() == 1);
@@ -73,7 +77,7 @@ Var* BB::getVar(const Symbol& symbol, const Type* type) {
     Var* lvar = pred->getVar(symbol, type);
 
     // create copy of lvar in this BB
-    return setVar(lvar->symbol, lvar->def);
+    return setVar(symbol, lvar->def);
 }
 
 void BB::seal() {

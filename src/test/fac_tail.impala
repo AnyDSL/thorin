@@ -1,0 +1,12 @@
+def fac(n : int) -> int 
+{
+    return fac_tail(1, n);
+}
+
+def fac_tail(r : int, n : int) -> int 
+{
+    if (n == 1) 
+        return r;
+
+    return fac_tail(r - 1, n * r);
+}

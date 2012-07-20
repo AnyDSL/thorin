@@ -26,6 +26,7 @@ class Def;
 class Undef;
 
 typedef std::vector<const Param*> Params;
+typedef boost::unordered_set<const Def*, DefHash, DefEqual> DefSet;
 
 //------------------------------------------------------------------------------
 
@@ -183,8 +184,6 @@ public:
     }
     void createBranch(Lambda*& lambda, const Def* cond, const Def* tto, const Def* fto);
 
-public:
-
     /*
      * optimizations
      */
@@ -203,6 +202,12 @@ public:
     void cleanup();
 
     /*
+     * getters
+     */
+
+    const DefSet& defs() const { return defs_; }
+
+    /*
      * other
      */
 
@@ -214,7 +219,6 @@ private:
     const Lambda* finalize(Lambda*& lambda);
     void unmark();
 
-    typedef boost::unordered_set<const Def*, DefHash, DefEqual> DefSet;
     DefSet::iterator remove(DefSet::iterator i);
     const Def* findDef(const Def* def);
 

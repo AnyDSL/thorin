@@ -21,20 +21,35 @@ public:
 
     CodeGen(const World& world);
 
+    void findTopLevelFunctions();
+
     llvm::Type* convert(const Type* type);
     llvm::Value* emit(const AIRNode* n);
 
 private:
 
+    const World& world;
     llvm::LLVMContext context;
     llvm::IRBuilder<> builder;
     llvm::Module* module;
 };
 
 CodeGen::CodeGen(const World& world)
-    : builder(context)
+    : world(world)
+    , builder(context)
     , module(new llvm::Module("anydsl", context))
 {}
+
+void CodeGen::findTopLevelFunctions() {
+    LambdaSet top;
+
+    for_all (def, world.defs()) {
+        if (const Lambda* lambda = def->isa<Lambda>()) {
+            for_all (param, lambda->params()) {
+            }
+        }
+    }
+}
 
 void emit(const World& world) {
     CodeGen cg(world);

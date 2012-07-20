@@ -22,7 +22,7 @@ Select::Select(const Def* cond, const Def* t, const Def* f)
     anydsl_assert(t->type() == f->type(), "types of both values must be equal");
 }
 
-TupleOp::TupleOp(IndexKind indexKind, const Type* type, size_t numOps, const Def* tuple, size_t index)
+TupleOp::TupleOp(IndexKind indexKind, const Type* type, size_t numOps, const Def* tuple, uint32_t index)
     : PrimOp(indexKind, type, numOps)
     , index_(index)
 {
@@ -43,13 +43,13 @@ size_t TupleOp::hash() const {
     return seed;
 }
 
-Extract::Extract(const Def* tuple, size_t index)
+Extract::Extract(const Def* tuple, uint32_t index)
     : TupleOp(Index_Extract, tuple->type()->as<Sigma>()->get(index), 1, tuple, index)
 {
     setOp(0, tuple);
 }
 
-Insert::Insert(const Def* tuple, size_t index, const Def* value)
+Insert::Insert(const Def* tuple, uint32_t index, const Def* value)
     : TupleOp(Index_Insert, tuple->type(), 2, tuple, index)
 {
     setOp(1, value);

@@ -165,8 +165,8 @@ void BinOp::vdump(Printer& p) const  {
 
     dumpNameAndType(p, this, name);
 
-	p.dump(ldef()) << ", ";
-	p.dump(rdef());
+	p.dump(lhs()) << ", ";
+	p.dump(rhs());
 	p << ")";
 }
 

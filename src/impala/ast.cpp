@@ -60,26 +60,26 @@ Id::Id(const Token& tok)
     loc_ = tok.loc();
 }
 
-PrefixExpr::PrefixExpr(const Position& pos1, Kind kind, const Expr* bexpr)
+PrefixExpr::PrefixExpr(const Position& pos1, Kind kind, const Expr* rhs)
     : kind_(kind)
 {
-    args_.push_back(bexpr);
-    setLoc(pos1, bexpr->pos2());
+    args_.push_back(rhs);
+    setLoc(pos1, rhs->pos2());
 }
 
-InfixExpr::InfixExpr(const Expr* aexpr, Kind kind, const Expr* bexpr)
+InfixExpr::InfixExpr(const Expr* lhs, Kind kind, const Expr* rhs)
     : kind_(kind)
 {
-    args_.push_back(aexpr);
-    args_.push_back(bexpr);
-    setLoc(aexpr->pos1(), bexpr->pos2());
+    args_.push_back(lhs);
+    args_.push_back(rhs);
+    setLoc(lhs->pos1(), rhs->pos2());
 }
 
-PostfixExpr::PostfixExpr(const Expr* aexpr, Kind kind, const Position& pos2) 
+PostfixExpr::PostfixExpr(const Expr* lhs, Kind kind, const Position& pos2) 
     : kind_(kind)
 {
-    args_.push_back(aexpr);
-    setLoc(aexpr->pos1(), pos2);
+    args_.push_back(lhs);
+    setLoc(lhs->pos1(), pos2);
 }
 
 Call::Call(const Expr* fct) {

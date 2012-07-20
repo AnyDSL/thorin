@@ -29,18 +29,18 @@ public:
 class BinOp : public PrimOp {
 protected:
 
-    BinOp(IndexKind index, const Type* type, const Def* ldef, const Def* rdef)
+    BinOp(IndexKind index, const Type* type, const Def* lhs, const Def* rhs)
         : PrimOp(index, type, 2)
     {
-        anydsl_assert(ldef->type() == rdef->type(), "types are not equal");
-        setOp(0, ldef);
-        setOp(1, rdef);
+        anydsl_assert(lhs->type() == rhs->type(), "types are not equal");
+        setOp(0, lhs);
+        setOp(1, rhs);
     }
 
 public:
 
-    const Def* ldef() const { return op(0); }
-    const Def* rdef() const { return op(1); }
+    const Def* lhs() const { return op(0); }
+    const Def* rhs() const { return op(1); }
 
 private:
 
@@ -52,13 +52,13 @@ private:
 class ArithOp : public BinOp {
 private:
 
-    ArithOp(ArithOpKind kind, const Def* ldef, const Def* rdef)
-        : BinOp((IndexKind) kind, ldef->type(), ldef, rdef)
+    ArithOp(ArithOpKind kind, const Def* lhs, const Def* rhs)
+        : BinOp((IndexKind) kind, lhs->type(), lhs, rhs)
     {}
 
 public:
 
-    ArithOpKind kind() { return (ArithOpKind) indexKind(); }
+    ArithOpKind arithOpKind() const { return (ArithOpKind) indexKind(); }
 
     friend class World;
 };
@@ -68,11 +68,11 @@ public:
 class RelOp : public BinOp {
 private:
 
-    RelOp(RelOpKind kind, const Def* ldef, const Def* rdef);
+    RelOp(RelOpKind kind, const Def* lhs, const Def* rhs);
 
 public:
 
-    RelOpKind kind() { return (RelOpKind) indexKind(); }
+    RelOpKind relOpKind() const { return (RelOpKind) indexKind(); }
 
     friend class World;
 };

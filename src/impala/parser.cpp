@@ -57,8 +57,8 @@ public:
     const Expr* parseExpr(Prec prec);
     const Expr* parseExpr() { return parseExpr(BOTTOM); }
     const Expr* parsePrefixExpr();
-    const Expr* parseInfixExpr(const Expr* aexpr);
-    const Expr* parsePostfixExpr(const Expr* aexpr);
+    const Expr* parseInfixExpr(const Expr* lhs);
+    const Expr* parsePostfixExpr(const Expr* lhs);
     const Expr* parsePrimaryExpr();
     const Expr* parseLiteral();
     const Expr* parseLambda();
@@ -550,7 +550,7 @@ const Expr* Parser::tryExpr() {
  */
 
 const Expr* Parser::parseExpr(Prec prec) {
-    const Expr* aexpr = la().isPrefix() ? parsePrefixExpr() : parsePrimaryExpr();
+    const Expr* lhs = la().isPrefix() ? parsePrefixExpr() : parsePrimaryExpr();
 
     while (true) {
         /*
@@ -562,36 +562,36 @@ const Expr* Parser::parseExpr(Prec prec) {
             if (prec > PrecTable::infix_l[la()])
                 break;
 
-            aexpr = parseInfixExpr(aexpr);
+            lhs = parseInfixExpr(lhs);
         } else if ( la().isPostfix() ) {
             if (prec > PrecTable::postfix_l[la()])
                 break;
 
-            aexpr = parsePostfixExpr(aexpr);
+            lhs = parsePostfixExpr(lhs);
         } else
             break;
     }
 
-    return aexpr;
+    return lhs;
 }
 
 const Expr* Parser::parsePrefixExpr() {
     Token op = lex();
-    const Expr* bexpr = parseExpr(PrecTable::prefix_r[op]);
+    const Expr* rhs = parseExpr(PrecTable::prefix_r[op]);
 
-    return new PrefixExpr(op.pos1(), (PrefixExpr::Kind) op.kind(), bexpr);
+    return new PrefixExpr(op.pos1(), (PrefixExpr::Kind) op.kind(), rhs);
 }
 
-const Expr* Parser::parseInfixExpr(const Expr* aexpr) {
+const Expr* Parser::parseInfixExpr(const Expr* lhs) {
     Token op = lex();
-    const Expr* bexpr = parseExpr(PrecTable::infix_r[op]);
+    const Expr* rhs = parseExpr(PrecTable::infix_r[op]);
 
-    return new InfixExpr(aexpr, (InfixExpr::Kind) op.kind(), bexpr);
+    return new InfixExpr(lhs, (InfixExpr::Kind) op.kind(), rhs);
 }
 
-const Expr* Parser::parsePostfixExpr(const Expr* aexpr) {
+const Expr* Parser::parsePostfixExpr(const Expr* lhs) {
     if (accept(Token::L_PAREN)) {
-        Call* call = new Call(aexpr);
+        Call* call = new Call(lhs);
         PARSE_COMMA_LIST
         (
             call->appendArg(tryExpr()),
@@ -604,7 +604,7 @@ const Expr* Parser::parsePostfixExpr(const Expr* aexpr) {
     } else {
         assert(la() == Token::INC || la() == Token::DEC);
         Token op = lex();
-        return new PostfixExpr(aexpr, (PostfixExpr::Kind) op.kind(), op.pos2());
+        return new PostfixExpr(lhs, (PostfixExpr::Kind) op.kind(), op.pos2());
     }
 }
 

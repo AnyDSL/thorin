@@ -259,22 +259,22 @@ void Id::check(Sema& sema) const {
 }
 
 void PrefixExpr::check(Sema& sema) const {
-    bexpr()->check(sema);
-    type_ = bexpr()->type();
+    rhs()->check(sema);
+    type_ = rhs()->type();
     lvalue_ = true;
 }
 
 void InfixExpr::check(Sema& sema) const {
-    aexpr()->check(sema);
-    bexpr()->check(sema);
+    lhs()->check(sema);
+    rhs()->check(sema);
 
-    Location loc(aexpr()->pos1(), bexpr()->pos2());
+    Location loc(lhs()->pos1(), rhs()->pos2());
 
-    bool equal = aexpr()->type() == bexpr()->type();
+    bool equal = lhs()->type() == rhs()->type();
 
     if (!equal) {
         sema.error(this) << "incompatible types in binary expression: '" 
-            << aexpr()->type() << "' and '" << bexpr()->type() << "'\n";
+            << lhs()->type() << "' and '" << rhs()->type() << "'\n";
     }
 
     if (Token::isRel((TokenKind) kind())) {
@@ -284,23 +284,23 @@ void InfixExpr::check(Sema& sema) const {
     }
 
     if (Token::isAsgn((TokenKind) kind())) {
-        if (!aexpr()->lvalue())
-            sema.error(aexpr()) << "no lvalue on left-hand side of assignment\n";
+        if (!lhs()->lvalue())
+            sema.error(lhs()) << "no lvalue on left-hand side of assignment\n";
 
         lvalue_ = true;
     }
 
-    if (!aexpr()->type()->isError())
-        type_ = aexpr()->type();
+    if (!lhs()->type()->isError())
+        type_ = lhs()->type();
     else
-        type_ = bexpr()->type();
+        type_ = rhs()->type();
 }
 
 void PostfixExpr::check(Sema& sema) const {
     lvalue_ = false;
 
-    aexpr()->check(sema);
-    type_ = aexpr()->type();
+    lhs()->check(sema);
+    type_ = lhs()->type();
 }
 
 void Call::check(Sema& sema) const {

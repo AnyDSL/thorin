@@ -91,6 +91,13 @@ llvm::Value* CodeGen::emit(const AIRNode* n) {
         ANYDSL_NOT_IMPLEMENTED;
 
     return 0;
+
+    if (const RelOp* rel = n->isa<RelOp>()) {
+        //llvm::Value* lhs = rel->
+        //switch (rel->relOpKind()) {
+            //case RelOp
+        //}
+    }
 #if 0
     if (n->indexKind()
     switch (n->indexKind()) {

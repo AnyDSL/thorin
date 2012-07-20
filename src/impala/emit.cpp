@@ -115,7 +115,7 @@ Value Id::emit(CodeGen& cg) const {
 }
 
 Value PrefixExpr::emit(CodeGen& cg) const {
-    Value val = bexpr()->emit(cg);
+    Value val = rhs()->emit(cg);
     const Def* def = val.load();
     const anydsl::PrimType* p = def->type()->as<anydsl::PrimType>();
 
@@ -140,34 +140,34 @@ Value PrefixExpr::emit(CodeGen& cg) const {
     }
 }
 
-static Value emitInfix(anydsl::World& world, TokenKind op, Value aval, Value bval) {
+static Value emitInfix(anydsl::World& world, TokenKind op, Value vlhs, Value vrhs) {
     if (Token::isAsgn(op)) {
         if (op != Token::ASGN) {
             TokenKind sop = Token::seperateAssign(op);
-            bval = emitInfix(world, sop, aval, bval);
+            vrhs = emitInfix(world, sop, vlhs, vrhs);
         }
 
-        aval.store(bval.load());
+        vlhs.store(vrhs.load());
 
-        return aval;
+        return vlhs;
     }
 
     if (Token::isArith(op))
-        return world.createArithOp(Token::toArithOp(op), aval.load(), bval.load());
+        return world.createArithOp(Token::toArithOp(op), vlhs.load(), vrhs.load());
 
     anydsl_assert(Token::isRel(op), "must be a relop");
-    return world.createRelOp(Token::toRelOp(op), aval.load(), bval.load());
+    return world.createRelOp(Token::toRelOp(op), vlhs.load(), vrhs.load());
 }
 
 Value InfixExpr::emit(CodeGen& cg) const {
-    Value aval = aexpr()->emit(cg);
-    Value bval = bexpr()->emit(cg);
+    Value vlhs = lhs()->emit(cg);
+    Value vrhs = rhs()->emit(cg);
 
-    return emitInfix(cg.world, (TokenKind) kind(), aval, bval);
+    return emitInfix(cg.world, (TokenKind) kind(), vlhs, vrhs);
 }
 
 Value PostfixExpr::emit(CodeGen& cg) const {
-    Value val = aexpr()->emit(cg);
+    Value val = lhs()->emit(cg);
     const Def* def = val.load();
     const anydsl::PrimType* p = def->type()->as<anydsl::PrimType>();
 

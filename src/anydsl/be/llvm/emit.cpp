@@ -113,18 +113,18 @@ llvm::Value* CodeGen::emit(const AIRNode* n) {
         llvm::Value* rhs = emit(rel->rhs());
 
         switch (rel->relOpKind()) {
-            case RelOp_cmp_eq:  return builder.CreateICmpEQ (lhs, rhs);
-            case RelOp_cmp_ne:  return builder.CreateICmpNE (lhs, rhs);
+            case RelOp_cmp_eq:   return builder.CreateICmpEQ (lhs, rhs);
+            case RelOp_cmp_ne:   return builder.CreateICmpNE (lhs, rhs);
 
-            case RelOp_cmp_ugt: return builder.CreateICmpUGT(lhs, rhs);
-            case RelOp_cmp_uge: return builder.CreateICmpUGE(lhs, rhs);
-            case RelOp_cmp_ult: return builder.CreateICmpULT(lhs, rhs);
-            case RelOp_cmp_ule: return builder.CreateICmpULE(lhs, rhs);
+            case RelOp_cmp_ugt:  return builder.CreateICmpUGT(lhs, rhs);
+            case RelOp_cmp_uge:  return builder.CreateICmpUGE(lhs, rhs);
+            case RelOp_cmp_ult:  return builder.CreateICmpULT(lhs, rhs);
+            case RelOp_cmp_ule:  return builder.CreateICmpULE(lhs, rhs);
 
-            case RelOp_cmp_sgt: return builder.CreateICmpSGT(lhs, rhs);
-            case RelOp_cmp_sge: return builder.CreateICmpSGE(lhs, rhs);
-            case RelOp_cmp_slt: return builder.CreateICmpSLT(lhs, rhs);
-            case RelOp_cmp_sle: return builder.CreateICmpSLE(lhs, rhs);
+            case RelOp_cmp_sgt:  return builder.CreateICmpSGT(lhs, rhs);
+            case RelOp_cmp_sge:  return builder.CreateICmpSGE(lhs, rhs);
+            case RelOp_cmp_slt:  return builder.CreateICmpSLT(lhs, rhs);
+            case RelOp_cmp_sle:  return builder.CreateICmpSLE(lhs, rhs);
 
             case RelOp_fcmp_oeq: return builder.CreateFCmpOEQ(lhs, rhs);
             case RelOp_fcmp_one: return builder.CreateFCmpONE(lhs, rhs);
@@ -175,15 +175,7 @@ llvm::Value* CodeGen::emit(const AIRNode* n) {
             case ArithOp_ashr: return builder.CreateAShr(lhs, rhs);
         }
     }
-
-#if 0
-    if (n->indexKind()
-    switch (n->indexKind()) {
-        case Index_cmp_eq:
-            builder.CreateFCmp
-    }
-#endif
 }
 
-}
-}
+} // namespace anydsl
+} // namespace be_llvm

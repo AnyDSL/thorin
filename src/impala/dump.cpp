@@ -145,6 +145,7 @@ void PrefixExpr::dump(Printer& p) const {
     switch (kind()) {
 #define IMPALA_PREFIX(tok, str, rprec) case tok: op = str; break;
 #include "impala/tokenlist.h"
+        default: ANYDSL_UNREACHABLE;
     }
 
     p << op;
@@ -202,6 +203,7 @@ void PostfixExpr::dump(Printer& p) const {
     switch (kind()) {
         case INC: op = "++"; break;
         case DEC: op = "--"; break;
+        default: ANYDSL_UNREACHABLE;
     }
 
     p << op;

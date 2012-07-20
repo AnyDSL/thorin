@@ -87,9 +87,10 @@ llvm::Type* CodeGen::convert(const Type* type) {
 }
 
 llvm::Value* CodeGen::emit(const AIRNode* n) {
-    if (!n->isStandardNode())
+    if (!n->isCoreNode())
         ANYDSL_NOT_IMPLEMENTED;
 
+    return 0;
 #if 0
     if (n->indexKind()
     switch (n->indexKind()) {

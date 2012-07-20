@@ -116,9 +116,12 @@ inline bool isFloat(PrimTypeKind kind) {
     return (int) Begin_PrimType_f <= (int) kind && (int) kind < (int) End_PrimType_f;
 }
 
-bool isArithOp(IndexKind kind);
-bool isRelOp(IndexKind kind);
-bool isConvOp(IndexKind kind);
+inline bool isCoreNode(int kind){ return (int) Begin_Node <= kind && kind < (int) End_Node; }
+inline bool isPrimType(int kind){ return (int) Begin_PrimType <= kind && kind < (int) End_PrimType; }
+inline bool isArithOp(int kind) { return (int) Begin_ArithOp <= kind && kind < (int) End_ArithOp; }
+inline bool isRelOp(int kind)   { return (int) Begin_RelOp   <= kind && kind < (int) End_RelOp; }
+inline bool isConvOp(int kind)  { return (int) Begin_ConvOp  <= kind && kind < (int) End_ConvOp; }
+inline bool isType(int kind)    { return isPrimType(kind) || kind == Index_Pi || kind == Index_Sigma; }
 
 template<PrimTypeKind kind> struct kind2type {};
 #define ANYDSL_U_TYPE(T) template<> struct kind2type<PrimType_##T> { typedef T type; };

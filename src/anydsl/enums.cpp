@@ -22,28 +22,4 @@ const char* kind2str(PrimTypeKind kind) {
     }
 }
 
-bool isArithOp(IndexKind kind) {
-    switch (kind) {
-#define ANYDSL_ARITHOP(op) case Index_##op: return true;
-#include "anydsl/tables/arithoptable.h"
-        default: return false;
-    }
-}
-
-bool isRelOp(IndexKind kind) {
-    switch (kind) {
-#define ANYDSL_RELOP(op) case Index_##op: return true;
-#include "anydsl/tables/reloptable.h"
-        default: return false;
-    }
-}
-
-bool isConvOp(IndexKind kind) {
-    switch (kind) {
-#define ANYDSL_CONVOP(op) case Index_##op: return true;
-#include "anydsl/tables/convoptable.h"
-        default: return false;
-    }
-}
-
 } // namespace anydsl

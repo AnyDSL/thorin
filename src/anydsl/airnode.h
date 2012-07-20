@@ -22,8 +22,15 @@ protected:
 
 public:
 
-    IndexKind indexKind() const { assert(isStandardNode()); return (IndexKind) kind_; }
-    bool isStandardNode() const { return Begin_Node <= kind_ && kind_ < End_Node; }
+    int kind() const { return kind_; }
+    bool isCoreNode() const { return ::anydsl::isCoreNode(kind()); }
+    bool isPrimType() const { return ::anydsl::isPrimType(kind()); }
+    bool isType()     const { return ::anydsl::isType(kind()); }
+    bool isArithOp()  const { return ::anydsl::isArithOp(kind()); }
+    bool isRelOp()    const { return ::anydsl::isRelOp(kind()); }
+    bool isConvOp()   const { return ::anydsl::isConvOp(kind()); }
+
+    IndexKind indexKind() const { assert(isCoreNode()); return (IndexKind) kind_; }
 
     void dump() const;
     void dump(bool fancy) const;

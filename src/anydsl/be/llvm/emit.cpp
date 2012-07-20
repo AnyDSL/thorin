@@ -4,6 +4,7 @@
 
 #include <llvm/Module.h>
 #include <llvm/Function.h>
+#include <llvm/Type.h>
 #include <llvm/Support/IRBuilder.h>
 
 #include "anydsl/def.h"
@@ -46,8 +47,8 @@ llvm::Type* CodeGen::convert(const Type* type) {
         case Index_PrimType_u16: return llvm::IntegerType::get(context, 16);
         case Index_PrimType_u32: return llvm::IntegerType::get(context, 32);
         case Index_PrimType_u64: return llvm::IntegerType::get(context, 64);
-        case Index_PrimType_f32: return llvm::IntegerType::get(context, 32);
-        case Index_PrimType_f64: return llvm::IntegerType::get(context, 64);
+        case Index_PrimType_f32: return llvm::Type::getFloatTy(context);
+        case Index_PrimType_f64: return llvm::Type::getDoubleTy(context);
 
         case Index_Pi: {
             const Pi* pi = type->as<Pi>();

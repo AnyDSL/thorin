@@ -121,7 +121,7 @@ void Undef::vdump(Printer& p) const  {
     p.dump(type());
 }
 
-void ErrorLit::vdump(Printer& p) const  {
+void Error::vdump(Printer& p) const  {
 	p << "<error>";
 }
 

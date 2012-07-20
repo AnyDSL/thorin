@@ -51,7 +51,10 @@ private:
 
 //------------------------------------------------------------------------------
 
-inline const Type*& elem_as_type(const Def** ptr) { return *((const Type**) ptr); }
+inline const Type*& elem_as_type(const Def** ptr) { 
+    assert((*ptr)->as<Type>());
+    return *((const Type**) ptr); 
+}
 
 class CompoundType : public Type {
 protected:

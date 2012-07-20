@@ -45,7 +45,7 @@ static RelOpKind normalizeRel(RelOpKind kind, bool& swap) {
 static void examineDef(const Def* def, FoldValue& v) {
     if (def->isa<Undef>())
         v.kind = FoldValue::Undef;
-    else if (def->isa<ErrorLit>())
+    else if (def->isa<Error>())
         v.kind = FoldValue::Error;
     if (const PrimLit* lit = def->isa<PrimLit>()) {
         v.kind = FoldValue::Valid;
@@ -110,8 +110,8 @@ const Undef* World::undef(const Type* type) {
     return find(new Undef(type));
 }
 
-const ErrorLit* World::literal_error(const Type* type) {
-    return find(new ErrorLit(type));
+const Error* World::error(const Type* type) {
+    return find(new Error(type));
 }
 
 /*
@@ -136,7 +136,7 @@ const Def* World::tryFold(IndexKind kind, const Def* ldef, const Def* rdef) {
         switch (res.kind) {
             case FoldValue::Valid: return literal(res.type, res.box);
             case FoldValue::Undef: return undef(res.type);
-            case FoldValue::Error: return literal_error(res.type);
+            case FoldValue::Error: return error(res.type);
         }
     }
 

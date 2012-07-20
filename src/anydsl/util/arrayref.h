@@ -1,5 +1,5 @@
-#ifndef ANYDSL_PTRASCONT_H
-#define ANYDSL_PTRASCONT_H
+#ifndef ANYDSL_ARRAYREF_H
+#define ANYDSL_ARRAYREF_H
 
 #include <iterator>
 

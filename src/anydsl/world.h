@@ -15,7 +15,7 @@
 namespace anydsl {
 
 class Def;
-class ErrorLit;
+class Error;
 class Lambda;
 class Pi;
 class PrimLit;
@@ -160,8 +160,8 @@ public:
     const PrimLit* literal(T value) { return literal(type2kind<T>::kind, Box(value)); }
     const Undef* undef(const Type* type);
     const Undef* undef(PrimTypeKind kind) { return undef(type(kind)); }
-    const ErrorLit* literal_error(const Type* type);
-    const ErrorLit* literal_error(PrimTypeKind kind) { return literal_error(type(kind)); }
+    const Error* error(const Type* type);
+    const Error* error(PrimTypeKind kind) { return error(type(kind)); }
 
     /*
      * create

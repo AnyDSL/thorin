@@ -39,11 +39,11 @@ private:
 
 //------------------------------------------------------------------------------
 
-class ErrorLit : public Literal {
+class Error : public Literal {
 private:
 
-    ErrorLit(const Type* type)
-        : Literal(Index_ErrorLit, type)
+    Error(const Type* type)
+        : Literal(Index_Error, type)
     {}
 
     virtual void vdump(Printer& printer) const ;

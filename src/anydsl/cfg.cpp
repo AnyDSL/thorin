@@ -66,7 +66,7 @@ Var* BB::getVar(const Symbol& symbol, const Type* type) {
         return lvar;
     }
 
-    // fix for unreachable code
+    // unreachable code
     if (preds().empty())
         return setVar(symbol, world().undef(type));
     

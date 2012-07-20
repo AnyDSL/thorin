@@ -110,9 +110,9 @@ anydsl::ArithOpKind Token::toArithOp(Kind kind) {
         case SUB: return anydsl::ArithOp_sub;
         case MUL: return anydsl::ArithOp_mul;
         case DIV: return anydsl::ArithOp_udiv;
-        case AND: return anydsl::ArithOp_bit_and;
-        case  OR: return anydsl::ArithOp_bit_or;
-        case XOR: return anydsl::ArithOp_bit_xor;
+        case AND: return anydsl::ArithOp_and;
+        case  OR: return anydsl::ArithOp_or;
+        case XOR: return anydsl::ArithOp_xor;
         default: ANYDSL_UNREACHABLE;
     }
 }

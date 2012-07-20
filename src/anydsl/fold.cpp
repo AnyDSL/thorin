@@ -34,7 +34,7 @@ FoldValue fold_bin(IndexKind kind, PrimTypeKind type, FoldValue vl, FoldValue vr
                     return res;
                 }
                 // else fall through to default case
-            case Index_bit_and: {
+            case Index_and: {
                 // assume 000...0
                 switch (type) {
 #define ANYDSL_U_TYPE(T) case PrimType_##T: res.box = Box(T(0)); return res;
@@ -42,7 +42,7 @@ FoldValue fold_bin(IndexKind kind, PrimTypeKind type, FoldValue vl, FoldValue vr
                     ANYDSL_NO_F_TYPE;
                 }
             }
-            case Index_bit_or: {
+            case Index_or: {
                 // assume 111...1
                 switch (type) {
 #define ANYDSL_U_TYPE(T) case PrimType_##T: res.box = Box(T(-1)); return res;

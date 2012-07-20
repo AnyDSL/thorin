@@ -158,6 +158,12 @@ private:
 
     Tuple(World& world, const Def* const* begin, const Def* const* end);
 
+public:
+
+    const Def* get(size_t i) const { return op(i); }
+
+private:
+
     virtual void vdump(Printer& printer) const;
 
     friend class World;

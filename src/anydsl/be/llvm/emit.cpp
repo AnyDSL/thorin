@@ -43,12 +43,14 @@ CodeGen::CodeGen(const World& world)
 void CodeGen::findTopLevelFunctions() {
     LambdaSet top;
 
+#if 0
     for_all (def, world.defs()) {
         if (const Lambda* lambda = def->isa<Lambda>()) {
             for_all (param, lambda->params()) {
             }
         }
     }
+#endif
 }
 
 void emit(const World& world) {
@@ -106,50 +108,48 @@ llvm::Value* CodeGen::emit(const AIRNode* n) {
     if (!n->isCoreNode())
         ANYDSL_NOT_IMPLEMENTED;
 
-    return 0;
+    if (const BinOp* bin = n->isa<BinOp>()) {
+        llvm::Value* lhs = emit(bin->lhs());
+        llvm::Value* rhs = emit(bin->rhs());
 
-    if (const RelOp* rel = n->isa<RelOp>()) {
-        llvm::Value* lhs = emit(rel->lhs());
-        llvm::Value* rhs = emit(rel->rhs());
+        if (const RelOp* rel = n->isa<RelOp>()) {
 
-        switch (rel->relOpKind()) {
-            case RelOp_cmp_eq:   return builder.CreateICmpEQ (lhs, rhs);
-            case RelOp_cmp_ne:   return builder.CreateICmpNE (lhs, rhs);
+            switch (rel->relOpKind()) {
+                case RelOp_cmp_eq:   return builder.CreateICmpEQ (lhs, rhs);
+                case RelOp_cmp_ne:   return builder.CreateICmpNE (lhs, rhs);
 
-            case RelOp_cmp_ugt:  return builder.CreateICmpUGT(lhs, rhs);
-            case RelOp_cmp_uge:  return builder.CreateICmpUGE(lhs, rhs);
-            case RelOp_cmp_ult:  return builder.CreateICmpULT(lhs, rhs);
-            case RelOp_cmp_ule:  return builder.CreateICmpULE(lhs, rhs);
+                case RelOp_cmp_ugt:  return builder.CreateICmpUGT(lhs, rhs);
+                case RelOp_cmp_uge:  return builder.CreateICmpUGE(lhs, rhs);
+                case RelOp_cmp_ult:  return builder.CreateICmpULT(lhs, rhs);
+                case RelOp_cmp_ule:  return builder.CreateICmpULE(lhs, rhs);
 
-            case RelOp_cmp_sgt:  return builder.CreateICmpSGT(lhs, rhs);
-            case RelOp_cmp_sge:  return builder.CreateICmpSGE(lhs, rhs);
-            case RelOp_cmp_slt:  return builder.CreateICmpSLT(lhs, rhs);
-            case RelOp_cmp_sle:  return builder.CreateICmpSLE(lhs, rhs);
+                case RelOp_cmp_sgt:  return builder.CreateICmpSGT(lhs, rhs);
+                case RelOp_cmp_sge:  return builder.CreateICmpSGE(lhs, rhs);
+                case RelOp_cmp_slt:  return builder.CreateICmpSLT(lhs, rhs);
+                case RelOp_cmp_sle:  return builder.CreateICmpSLE(lhs, rhs);
 
-            case RelOp_fcmp_oeq: return builder.CreateFCmpOEQ(lhs, rhs);
-            case RelOp_fcmp_one: return builder.CreateFCmpONE(lhs, rhs);
+                case RelOp_fcmp_oeq: return builder.CreateFCmpOEQ(lhs, rhs);
+                case RelOp_fcmp_one: return builder.CreateFCmpONE(lhs, rhs);
 
-            case RelOp_fcmp_ogt: return builder.CreateFCmpOGT(lhs, rhs);
-            case RelOp_fcmp_oge: return builder.CreateFCmpOGE(lhs, rhs);
-            case RelOp_fcmp_olt: return builder.CreateFCmpOLT(lhs, rhs);
-            case RelOp_fcmp_ole: return builder.CreateFCmpOLE(lhs, rhs);
+                case RelOp_fcmp_ogt: return builder.CreateFCmpOGT(lhs, rhs);
+                case RelOp_fcmp_oge: return builder.CreateFCmpOGE(lhs, rhs);
+                case RelOp_fcmp_olt: return builder.CreateFCmpOLT(lhs, rhs);
+                case RelOp_fcmp_ole: return builder.CreateFCmpOLE(lhs, rhs);
 
-            case RelOp_fcmp_ueq: return builder.CreateFCmpUEQ(lhs, rhs);
-            case RelOp_fcmp_une: return builder.CreateFCmpUNE(lhs, rhs);
+                case RelOp_fcmp_ueq: return builder.CreateFCmpUEQ(lhs, rhs);
+                case RelOp_fcmp_une: return builder.CreateFCmpUNE(lhs, rhs);
 
-            case RelOp_fcmp_ugt: return builder.CreateFCmpUGT(lhs, rhs);
-            case RelOp_fcmp_uge: return builder.CreateFCmpUGE(lhs, rhs);
-            case RelOp_fcmp_ult: return builder.CreateFCmpULT(lhs, rhs);
-            case RelOp_fcmp_ule: return builder.CreateFCmpULE(lhs, rhs);
+                case RelOp_fcmp_ugt: return builder.CreateFCmpUGT(lhs, rhs);
+                case RelOp_fcmp_uge: return builder.CreateFCmpUGE(lhs, rhs);
+                case RelOp_fcmp_ult: return builder.CreateFCmpULT(lhs, rhs);
+                case RelOp_fcmp_ule: return builder.CreateFCmpULE(lhs, rhs);
 
-            case RelOp_fcmp_uno: return builder.CreateFCmpUNO(lhs, rhs);
-            case RelOp_fcmp_ord: return builder.CreateFCmpORD(lhs, rhs);
+                case RelOp_fcmp_uno: return builder.CreateFCmpUNO(lhs, rhs);
+                case RelOp_fcmp_ord: return builder.CreateFCmpORD(lhs, rhs);
+            }
         }
-    }
 
-    if (const ArithOp* arith = n->isa<ArithOp>()) {
-        llvm::Value* lhs = emit(arith->lhs());
-        llvm::Value* rhs = emit(arith->rhs());
+        const ArithOp* arith = n->as<ArithOp>();
 
         switch (arith->arithOpKind()) {
             case ArithOp_add:  return builder.CreateAdd (lhs, rhs);
@@ -175,6 +175,34 @@ llvm::Value* CodeGen::emit(const AIRNode* n) {
             case ArithOp_ashr: return builder.CreateAShr(lhs, rhs);
         }
     }
+
+    if (const TupleOp* tupleop = n->isa<TupleOp>()) {
+        llvm::Value* tuple = emit(tupleop->tuple());
+        unsigned idxs[1] = { unsigned(tupleop->index()) };
+
+        if (tupleop->indexKind() == Index_Extract)
+            return builder.CreateExtractValue(tuple, idxs);
+
+        const Insert* insert = n->as<Insert>();
+        llvm::Value* value = emit(insert->value());
+
+        return builder.CreateInsertValue(tuple, value, idxs);
+    }
+
+    if (const Tuple* tuple = n->isa<Tuple>()) {
+        llvm::Value* agg = llvm::UndefValue::get(convert(tuple->type()));
+
+        for (unsigned i = 0, e = tuple->numOps(); i != e; ++i) {
+            unsigned idxs[1] = { unsigned(i) };
+            agg = builder.CreateInsertValue(agg, emit(tuple->get(i)), idxs);
+        }
+
+        return agg;
+    }
+
+
+
+    ANYDSL_UNREACHABLE;
 }
 
 } // namespace anydsl

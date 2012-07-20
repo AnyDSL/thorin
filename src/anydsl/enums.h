@@ -121,7 +121,6 @@ inline bool isPrimType(int kind){ return (int) Begin_PrimType <= kind && kind < 
 inline bool isArithOp(int kind) { return (int) Begin_ArithOp <= kind && kind < (int) End_ArithOp; }
 inline bool isRelOp(int kind)   { return (int) Begin_RelOp   <= kind && kind < (int) End_RelOp; }
 inline bool isConvOp(int kind)  { return (int) Begin_ConvOp  <= kind && kind < (int) End_ConvOp; }
-inline bool isType(int kind)    { return isPrimType(kind) || kind == Index_Pi || kind == Index_Sigma; }
 
 template<PrimTypeKind kind> struct kind2type {};
 #define ANYDSL_U_TYPE(T) template<> struct kind2type<PrimType_##T> { typedef T type; };

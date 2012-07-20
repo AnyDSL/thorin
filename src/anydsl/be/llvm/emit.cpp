@@ -47,6 +47,8 @@ void CodeGen::findTopLevelFunctions() {
     for_all (def, world.defs()) {
         if (const Lambda* lambda = def->isa<Lambda>()) {
             for_all (param, lambda->params()) {
+                for_all (use, param->uses()) {
+                }
             }
         }
     }
@@ -199,8 +201,6 @@ llvm::Value* CodeGen::emit(const AIRNode* n) {
 
         return agg;
     }
-
-
 
     ANYDSL_UNREACHABLE;
 }

@@ -118,7 +118,7 @@ const ErrorLit* World::literal_error(const Type* type) {
  * create
  */
 
-const Def* World::createTuple(const Def* const* begin, const Def* const* end) { 
+const Def* World::tuple(const Def* const* begin, const Def* const* end) { 
     return find(new Tuple(*this, begin, end));
 }
 
@@ -143,7 +143,7 @@ const Def* World::tryFold(IndexKind kind, const Def* ldef, const Def* rdef) {
     return 0;
 }
 
-const Def* World::createArithOp(ArithOpKind kind, const Def* ldef, const Def* rdef) {
+const Def* World::arithOp(ArithOpKind kind, const Def* ldef, const Def* rdef) {
     if (const Def* value = tryFold((IndexKind) kind, ldef, rdef))
         return value;
 
@@ -154,7 +154,7 @@ const Def* World::createArithOp(ArithOpKind kind, const Def* ldef, const Def* rd
     return find(new ArithOp(kind, ldef, rdef));
 }
 
-const Def* World::createRelOp(RelOpKind kind, const Def* ldef, const Def* rdef) {
+const Def* World::relOp(RelOpKind kind, const Def* ldef, const Def* rdef) {
     if (const Def* value = tryFold((IndexKind) kind, ldef, rdef))
         return value;
 
@@ -166,18 +166,18 @@ const Def* World::createRelOp(RelOpKind kind, const Def* ldef, const Def* rdef) 
     return find(new RelOp(kind, ldef, rdef));
 }
 
-const Def* World::createExtract(const Def* tuple, size_t index) {
+const Def* World::extract(const Def* tuple, size_t index) {
     // TODO folding
     return find(new Extract(tuple, index));
 }
 
-const Def* World::createInsert(const Def* tuple, size_t index, const Def* value) {
+const Def* World::insert(const Def* tuple, size_t index, const Def* value) {
     // TODO folding
     return find(new Insert(tuple, index, value));
 }
 
 
-const Def* World::createSelect(const Def* cond, const Def* tdef, const Def* fdef) {
+const Def* World::select(const Def* cond, const Def* tdef, const Def* fdef) {
     if (const PrimLit* lit = cond->isa<PrimLit>())
         return lit->box().get_u1().get() ? tdef : fdef;
 
@@ -197,11 +197,11 @@ const Lambda* World::finalize(Lambda*& lambda) {
     return l;
 }
 
-const Param* World::createParam(const Type* type, const Lambda* parent, size_t index) {
+const Param* World::param(const Type* type, const Lambda* parent, size_t index) {
     return find(new Param(type, parent, index));
 }
 
-void World::createJump(Lambda*& lambda, const Def* to, const Def* const* begin, const Def* const* end) { 
+void World::jump(Lambda*& lambda, const Def* to, const Def* const* begin, const Def* const* end) { 
     lambda->alloc(std::distance(begin, end) + 1);
 
     lambda->setOp(0, to);
@@ -213,8 +213,8 @@ void World::createJump(Lambda*& lambda, const Def* to, const Def* const* begin, 
     finalize(lambda);
 }
 
-void World::createBranch(Lambda*& lambda, const Def* cond, const Def* tto, const Def*  fto) {
-    return createJump(lambda, cond->world().createSelect(cond, tto, fto), 0, 0);
+void World::branch(Lambda*& lambda, const Def* cond, const Def* tto, const Def*  fto) {
+    return jump(lambda, select(cond, tto, fto), 0, 0);
 }
 
 

@@ -126,12 +126,12 @@ Value PrefixExpr::emit(CodeGen& cg) const {
         case SUB: {
             // TODO incorrect for f32, f64
             const anydsl::PrimLit* zero = cg.world.literal(p->kind(), 0u);
-            return cg.world.createArithOp(anydsl::ArithOp_sub, zero, def);
+            return cg.world.arithOp(anydsl::ArithOp_sub, zero, def);
         }
         case INC:
         case DEC: {
             const anydsl::PrimLit* one = cg.world.literal(p->kind(), 1u);
-            const Def* ndef = cg.world.createArithOp(Token::toArithOp((TokenKind) kind()), def, one);
+            const Def* ndef = cg.world.arithOp(Token::toArithOp((TokenKind) kind()), def, one);
             val.store(ndef);
 
             return val;
@@ -153,10 +153,10 @@ static Value emitInfix(anydsl::World& world, TokenKind op, Value vlhs, Value vrh
     }
 
     if (Token::isArith(op))
-        return world.createArithOp(Token::toArithOp(op), vlhs.load(), vrhs.load());
+        return world.arithOp(Token::toArithOp(op), vlhs.load(), vrhs.load());
 
     anydsl_assert(Token::isRel(op), "must be a relop");
-    return world.createRelOp(Token::toRelOp(op), vlhs.load(), vrhs.load());
+    return world.relOp(Token::toRelOp(op), vlhs.load(), vrhs.load());
 }
 
 Value InfixExpr::emit(CodeGen& cg) const {
@@ -172,7 +172,7 @@ Value PostfixExpr::emit(CodeGen& cg) const {
     const anydsl::PrimType* p = def->type()->as<anydsl::PrimType>();
 
     const anydsl::PrimLit* one = cg.world.literal(p->kind(), 1u);
-    const Def* ndef = cg.world.createArithOp(Token::toArithOp((TokenKind) kind()), def, one);
+    const Def* ndef = cg.world.arithOp(Token::toArithOp((TokenKind) kind()), def, one);
     val.store(ndef);
 
     return Value(def);

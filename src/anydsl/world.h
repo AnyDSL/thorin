@@ -91,17 +91,17 @@ public:
     const Sigma* sigma0() { return unit_; }
     /// Creates 'sigma(t1)'.
     const Sigma* sigma1(const Type* t1) { 
-        const Type* types[] = {t1};
+        const Type* types[1] = {t1};
         return sigma(types); 
     }
     /// Creates 'sigma(t1, t2)'.
     const Sigma* sigma2(const Type* t1, const Type* t2) { 
-        const Type* types[] = {t1, t2};
+        const Type* types[2] = {t1, t2};
         return sigma(types);
     }
     /// Creates 'sigma(t1, t2, t3)'.
     const Sigma* sigma3(const Type* t1, const Type* t2, const Type* t3) { 
-        const Type* types[] = {t1, t2, t3};
+        const Type* types[3] = {t1, t2, t3};
         return sigma(types);
     }
     const Sigma* sigma(const Type* const* begin, const Type* const* end) { 
@@ -120,17 +120,17 @@ public:
     /// Creates 'pi()'.
     const Pi* pi0() { return pi0_; }
     const Pi* pi1(const Type* t1) { 
-        const Type* types[] = {t1};
+        const Type* types[1] = {t1};
         return pi(types); 
     }
     /// Creates 'pi(t1, t2)'.
     const Pi* pi2(const Type* t1, const Type* t2) { 
-        const Type* types[] = {t1, t2};
+        const Type* types[2] = {t1, t2};
         return pi(types);
     }
     /// Creates 'pi(t1, t2, t3)'.
     const Pi* pi3(const Type* t1, const Type* t2, const Type* t3) { 
-        const Type* types[] = {t1, t2, t3};
+        const Type* types[3] = {t1, t2, t3};
         return pi(types);
     }
     const Pi* pi(const Type* const* begin, const Type* const* end) { 
@@ -167,22 +167,34 @@ public:
      * create
      */
 
-    const Def* createArithOp(ArithOpKind kind, const Def* ldef, const Def* rdef);
-    const Def* createRelOp(RelOpKind kind, const Def* ldef, const Def* rdef);
-    const Def* createExtract(const Def* tuple, size_t index);
-    const Def* createInsert(const Def* tuple, size_t index, const Def* value);
-    const Def* createSelect(const Def* cond, const Def* tdef, const Def* fdef);
-    const Def* createTuple(const Def* const* begin, const Def* const* end);
+    const Def* arithOp(ArithOpKind kind, const Def* ldef, const Def* rdef);
+    const Def* relOp(RelOpKind kind, const Def* ldef, const Def* rdef);
+    const Def* extract(const Def* tuple, size_t index);
+    const Def* insert(const Def* tuple, size_t index, const Def* value);
+    const Def* select(const Def* cond, const Def* tdef, const Def* fdef);
+    const Def* tuple(const Def* const* begin, const Def* const* end);
     template<size_t N>
-    const Def* createTuple(const Def* const (&array)[N]) { return createTuple(array, array + N); }
-    const Param* createParam(const Type* type, const Lambda* parent, size_t index);
+    const Def* tuple(const Def* const (&array)[N]) { return createTuple(array, array + N); }
+    const Param* param(const Type* type, const Lambda* parent, size_t index);
 
-    void createJump(Lambda*& lambda, const Def* to, const Def* const* begin, const Def* const* end);
+    void jump(Lambda*& from, const Def* to, const Def* const* begin, const Def* const* end);
     template<size_t N>
-    void createJump(Lambda*& lambda, const Def* to, const Def* const (&args)[N]) { 
-        return createJump(lambda, to, args, args + N); 
+    void jump(Lambda*& from, const Def* to, const Def* const (&args)[N]) { 
+        return jump(from, to, args, args + N); 
     }
-    void createBranch(Lambda*& lambda, const Def* cond, const Def* tto, const Def* fto);
+    void jump1(Lambda*& from, const Def* to, const Def* arg1) { 
+        const Def* args[1] = { arg1 };
+        return jump(from, to, args, args + 1); 
+    }
+    void jump2(Lambda*& from, const Def* to, const Def* arg1, const Def* arg2) { 
+        const Def* args[2] = { arg1 };
+        return jump(from, to, args, args + 2); 
+    }
+    void jump3(Lambda*& from, const Def* to, const Def* arg1, const Def* arg2, const Def* arg3) { 
+        const Def* args[3] = { arg1, arg2, arg3 };
+        return jump(from, to, args, args + 3); 
+    }
+    void branch(Lambda*& lambda, const Def* cond, const Def* tto, const Def* fto);
 
     /*
      * optimizations

@@ -13,7 +13,7 @@ Lambda::Lambda(const Pi* pi)
     : Def(Index_Lambda, pi, 0)
 {
     for (size_t i = 0, e = pi->numOps(); i != e; ++i)
-        world().createParam(pi->get(i), this, i);
+        world().param(pi->get(i), this, i);
 }
 
 static void findLambdas(const Def* def, LambdaSet& result) {
@@ -83,7 +83,7 @@ const Param* Lambda::appendParam(const Type* type) {
 
     setType(world().pi(types.get(), types.get() + size + 1));
 
-    return world().createParam(type, this, size);
+    return world().param(type, this, size);
 }
 
 

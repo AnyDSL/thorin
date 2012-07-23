@@ -84,6 +84,20 @@ inline LEFT bcast(const RIGHT& from) {
     return to;
 }
 
+/** 
+ * @brief Provides handy \p as and \p isa methods.
+ *
+ * Inherit from this class in order to use 
+ * \code
+Bar* bar = foo->as<Bar>();
+if (Bar* bar = foo->isa<Bar>()) { ... }
+ * \endcode
+ * instead of more combersume
+ * \code
+Bar* bar = anydsl::scast<Bar>(foo);
+if (Bar* bar = anydsl::dcast<Bar>(foo)) { ... }
+ * \endcode
+ */
 class MagicCast {
 public:
 

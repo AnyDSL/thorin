@@ -36,7 +36,7 @@ public:
      * If sym already has a definition in this scope an assertion is raised.
      * use \p clash in order to check this.
      *
-     * @param sym The \p Symbol to insert.
+     * @param decl The \p decl to insert.
      */
     void insert(const Decl* decl);
 

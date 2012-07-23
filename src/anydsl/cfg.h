@@ -6,6 +6,7 @@
 #include <boost/unordered_map.hpp>
 
 #include "anydsl/symbol.h"
+#include "anydsl/util/array.h"
 
 namespace anydsl {
 
@@ -84,7 +85,7 @@ public:
     void goesto(BB* to);
     void branches(const Def* cond, BB* tbb, BB* fbb);
     void fixto(BB* to);
-    const Def* calls(const Def* to, const Def* const* begin, const Def* const* end, const Type* retType);
+    const Def* calls(const Def* to, ArrayRef<const Def*> args, const Type* retType);
 
     const BBs& preds() const { return preds_; }
     const BBs& succs() const { return succs_; }

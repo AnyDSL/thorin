@@ -137,7 +137,7 @@ void BB::branches(const Def* cond, BB* tbb, BB* fbb) {
     anydsl_assert(succs().size() == 2, "wrong number of succs");
 }
 
-const Def* BB::calls(const Def* to, const Def* const* begin, const Def* const* end, const Type* retType) {
+const Def* BB::calls(const Def* to, ArrayRef<const Def*> args, const Type* retType) {
     static int id = 0;
 
     // create next continuation in cascade
@@ -149,10 +149,10 @@ const Def* BB::calls(const Def* to, const Def* const* begin, const Def* const* e
     params.push_back(result);
 
     // create jump to this new continuation
-    size_t size = std::distance(begin, end) + 1;
-    Array<const Def*> args(size);
-    *std::copy(begin, end, args.begin()) = next;
-    world().jump(curLambda_, to, args);
+    size_t csize = args.size() + 1;
+    Array<const Def*> cargs(csize);
+    *std::copy(args.begin(), args.end(), cargs.begin()) = next;
+    world().jump(curLambda_, to, cargs);
     curLambda_ = next;
 
     ++id;

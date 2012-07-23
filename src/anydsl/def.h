@@ -44,7 +44,7 @@ private:
     const Lambda* from_;
 };
 
-typedef std::vector<PhiOp> PhiOps;
+typedef Array<PhiOp> PhiOps;
 
 //------------------------------------------------------------------------------
 

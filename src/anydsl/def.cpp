@@ -91,13 +91,15 @@ Param::Param(const Type* type, const Lambda* lambda, size_t index)
 {}
 
 PhiOps Param::phiOps() const {
-    PhiOps result;
-
-    size_t i = index();
+    size_t x = index();
     const Lambda* l = lambda();
+    LambdaSet callers = l->callers();
 
-    for_all (caller, l->callers())
-        result.push_back(PhiOp(caller->args()[i], caller));
+    PhiOps result(callers.size());
+
+    size_t i = 0;
+    for_all (caller, callers)
+        result[i++] = PhiOp(caller->args()[x], caller);
 
     return result;
 }

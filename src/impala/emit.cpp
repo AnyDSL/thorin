@@ -191,7 +191,7 @@ Value PostfixExpr::emit(CodeGen& cg) const {
 Value Call::emit(CodeGen& cg) const {
     size_t size = args_.size();
     assert(size >= 1);
-    boost::scoped_array<const Def*> args(new const Def*[size]);
+    Array<const Def*> args(size);
 
     size_t i = 0;
     for_all (arg, args_) {
@@ -201,7 +201,7 @@ Value Call::emit(CodeGen& cg) const {
 
     const anydsl::Type* retType = type()->emit(cg.world);
 
-    return Value(cg.curBB->calls(args[0], args.get() + 1, args.get() + size, retType));
+    return Value(cg.curBB->calls(args[0], args.slice_back(1), retType));
 }
 
 /*

@@ -95,6 +95,7 @@ public:
     const ScopeStmt* body() const { return body_; }
     const Decls& params() const { return params_; }
     const Pi* pi() const;
+    bool isContinuation() const;
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;

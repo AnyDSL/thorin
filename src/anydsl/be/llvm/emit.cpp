@@ -2,13 +2,16 @@
 
 #include <boost/scoped_array.hpp>
 
-#include <llvm/Module.h>
+#include <llvm/Constant.h>
+#include <llvm/Constants.h>
 #include <llvm/Function.h>
+#include <llvm/Module.h>
 #include <llvm/Type.h>
 #include <llvm/Support/IRBuilder.h>
 
 #include "anydsl/def.h"
 #include "anydsl/lambda.h"
+#include "anydsl/literal.h"
 #include "anydsl/primop.h"
 #include "anydsl/type.h"
 #include "anydsl/world.h"
@@ -21,10 +24,11 @@ public:
 
     CodeGen(const World& world);
 
-    void findTopLevelFunctions();
+    void emit();
 
     llvm::Type* convert(const Type* type);
     llvm::Value* emit(const Def* def);
+    void emit(const Lambda* lambda);
 
 private:
 
@@ -40,22 +44,51 @@ CodeGen::CodeGen(const World& world)
     , module(new llvm::Module("anydsl", context))
 {}
 
-void CodeGen::findTopLevelFunctions() {
+void CodeGen::emit() {
     LambdaSet top;
 
     for_all (def, world.defs()) {
         if (const Lambda* lambda = def->isa<Lambda>()) {
-            for_all (param, lambda->params()) {
-                for_all (use, param->uses()) {
-                    
+            const Pi* pi = lambda->pi();
+            size_t i = 0;
+            for_all (elem, pi->elems()) {
+                if (elem->isa<Pi>()) {
+                    top.insert(lambda);
+                    anydsl_assert(i == pi->numElems() - 1, "TODO");
+                    break;
                 }
+                ++i;
             }
         }
     }
+
+    for_all (lambda, top) {
+        llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
+        llvm::Function* f = llvm::cast<llvm::Function>(module->getOrInsertFunction(lambda->debug, ft));
+        builder.SetInsertPoint(&f->getEntryBlock());
+        emit(lambda);
+    }
+}
+
+void CodeGen::emit(const Lambda* lambda) {
+    std::vector<llvm::Value*> values;
+
+    for_all (arg, lambda->args())
+        values.push_back(emit(arg));
+
+    LambdaSet to = lambda->to();
+
+    if (to.size() == 2) {
+        const Select* select = lambda->todef()->as<Select>();
+        llvm::Value* cond = emit(select->cond());
+        //builder.CreateCondBr();
+    }
+
 }
 
 void emit(const World& world) {
     CodeGen cg(world);
+    cg.emit();
 }
 
 llvm::Type* CodeGen::convert(const Type* type) {
@@ -69,22 +102,26 @@ llvm::Type* CodeGen::convert(const Type* type) {
         case Index_PrimType_f64: return llvm::Type::getDoubleTy(context);
 
         case Index_Pi: {
+            // extract "return" type, collect all other types
             const Pi* pi = type->as<Pi>();
-
             llvm::Type* retType = 0;
             size_t i = 0;
-
             boost::scoped_array<llvm::Type*> elems(new llvm::Type*[pi->numElems() - 1]);
 
-            // extract "return" type, collect all other types
-            for_all (t, pi->elems()) {
-                if (t->isa<Pi>()) {
+            for_all (elem, pi->elems()) {
+                if (const Pi* pi = elem->isa<Pi>()) {
                     anydsl_assert(retType == 0, "not yet supported");
-                    retType = convert(t);
+                    if (pi->numElems() == 0)
+                        retType = llvm::Type::getVoidTy(context);
+                    else {
+                        anydsl_assert(pi->numElems() == 1, "TODO");
+                        retType = convert(pi->get(0));
+                    }
                 } else
-                    elems[i++] = convert(t);
+                    elems[i++] = convert(elem);
             }
 
+            assert(retType);
             return llvm::FunctionType::get(retType, elems);
         }
 
@@ -108,6 +145,27 @@ llvm::Type* CodeGen::convert(const Type* type) {
 llvm::Value* CodeGen::emit(const Def* def) {
     if (!def->isCoreNode())
         ANYDSL_NOT_IMPLEMENTED;
+
+    if (const Param* param = def->isa<Param>()) {
+        llvm::Function::arg_iterator args = builder.GetInsertBlock()->getParent()->arg_begin();
+        std::advance(args, param->index());
+
+        return args;
+    }
+
+    if (const PrimLit* lit = def->isa<PrimLit>()) {
+        llvm::Type* type = convert(lit->type());
+        Box box = lit->box();
+        switch (lit->kind()) {
+            case PrimLit_u1:  return builder.getInt1(box.get_u1().get());
+            case PrimLit_u8:  return builder.getInt8(box.get_u8());
+            case PrimLit_u16: return builder.getInt8(box.get_u16());
+            case PrimLit_u32: return builder.getInt8(box.get_u32());
+            case PrimLit_u64: return builder.getInt8(box.get_u64());
+            case PrimLit_f32: return llvm::ConstantFP::get(type, box.get_f32());
+            case PrimLit_f64: return llvm::ConstantFP::get(type, box.get_f64());
+        }
+    }
 
     if (const BinOp* bin = def->isa<BinOp>()) {
         llvm::Value* lhs = emit(bin->lhs());
@@ -176,6 +234,13 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
     }
 
+    if (const Select* select = def->isa<Select>()) {
+        llvm::Value* cond = emit(select->cond());
+        llvm::Value* tval = emit(select->tdef());
+        llvm::Value* fval = emit(select->fdef());
+        return builder.CreateSelect(cond, tval, fval);
+    }
+
     if (const TupleOp* tupleop = def->isa<TupleOp>()) {
         llvm::Value* tuple = emit(tupleop->tuple());
         unsigned idxs[1] = { unsigned(tupleop->index()) };
@@ -199,6 +264,12 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
         return agg;
     }
+
+    if (const Undef* undef = def->isa<Undef>())
+        return llvm::UndefValue::get(convert(undef->type()));
+
+    if (const Error* error = def->isa<Error>())
+        return llvm::UndefValue::get(convert(error->type()));
 
     ANYDSL_UNREACHABLE;
 }

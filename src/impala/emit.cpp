@@ -247,16 +247,15 @@ void IfElseStmt::emit(CodeGen& cg) const {
     elseStmt()->emit(cg);
     BB* elseCur = cg.curBB;
 
-    if (thenCur && elseCur) {
+    if (!elseCur) {
+        cg.curBB = thenCur;
+    } else if (thenCur) {
         BB* nextBB = cg.curFct->createBB(make_name("if-next", id));
         thenCur->fixto(nextBB);
         elseCur->fixto(nextBB);
         nextBB->seal();
         cg.curBB = nextBB;
-    } else if (BB* nextBB = (BB*) (uintptr_t(thenCur) | uintptr_t(elseCur)))
-        cg.curBB = nextBB;
-    else 
-        cg.curBB = 0;
+    }
 
     ++id;
 }
@@ -376,7 +375,7 @@ const anydsl::Type* Void::emit(anydsl::World& world) const {
 }
 
 const anydsl::Type* NoRet::emit(anydsl::World& /*world*/) const {
-    ANYDSL_UNREACHABLE;
+    return 0;
 }
 
 const anydsl::Type* TypeError::emit(anydsl::World& /*world*/) const {

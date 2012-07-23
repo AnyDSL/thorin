@@ -1,5 +1,7 @@
 #include "anydsl/lambda.h"
 
+#include <algorithm>
+
 #include "anydsl/type.h"
 #include "anydsl/primop.h"
 #include "anydsl/world.h"
@@ -74,11 +76,7 @@ const Param* Lambda::appendParam(const Type* type) {
     size_t size = pi()->numOps();
 
     Array<const Type*> elems(size + 1);
-
-    for (size_t i = 0; i < size; ++i)
-        elems[i] = pi()->get(i);
-
-    elems[size] = type;
+    *std::copy(pi()->elems().begin(), pi()->elems().end(), elems.begin()) = type;
 
     setType(world().pi(elems));
 

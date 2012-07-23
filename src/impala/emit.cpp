@@ -252,8 +252,9 @@ void IfElseStmt::emit(CodeGen& cg) const {
         thenCur->fixto(nextBB);
         elseCur->fixto(nextBB);
         nextBB->seal();
-    } else if (thenCur || elseCur)
-        cg.curBB = thenCur ? thenCur : elseCur;
+        cg.curBB = nextBB;
+    } else if (BB* nextBB = (BB*) (uintptr_t(thenCur) | uintptr_t(elseCur)))
+        cg.curBB = nextBB;
     else 
         cg.curBB = 0;
 

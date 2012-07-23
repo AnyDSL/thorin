@@ -64,9 +64,9 @@ public:
     const_reverse_iterator rbegin() const { return const_reverse_iterator(end()); }
     const_reverse_iterator rend() const { return const_reverse_iterator(begin()); }
 
-    T const& operator [] (size_t i) const {
+    Deref const& operator [] (size_t i) const {
         anydsl_assert(i < size(), "index out of bounds");
-        return ptr_[i];
+        return Hook(ptr_ + i);
     }
 
     size_t size() const { return size_; }

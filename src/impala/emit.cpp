@@ -29,6 +29,13 @@ public:
         : world(world)
     {}
 
+    void fixto(BB* to) {
+        if (reachable())
+            curBB->fixto(to);
+    }
+
+    bool reachable() const { return curBB; }
+
     anydsl::BB* curBB;
     anydsl::Fct* curFct;
     anydsl::World& world;
@@ -68,7 +75,7 @@ void Prg::emit(CodeGen& cg) const {
 void Fct::emit(CodeGen& cg) const {
 
     body()->emit(cg);
-    cg.curBB->fixto(cg.curFct->exit());
+    cg.fixto(cg.curFct->exit());
 
     cg.curFct->emit();
 
@@ -208,7 +215,8 @@ void DeclStmt::emit(CodeGen& cg) const {
 }
 
 void ExprStmt::emit(CodeGen& cg) const {
-    expr()->emit(cg);
+    if (cg.reachable())
+        expr()->emit(cg);
 }
 
 void IfElseStmt::emit(CodeGen& cg) const {
@@ -219,27 +227,35 @@ void IfElseStmt::emit(CodeGen& cg) const {
     // create BBs
     BB* thenBB = cg.curFct->createBB(make_name("if-then", id));
     BB* elseBB = cg.curFct->createBB(make_name("if-else", id));
-    BB* nextBB = cg.curFct->createBB(make_name("if-next", id));
 
     // condition
-    const Def* cvar = cond()->emit(cg).load();
-    cg.curBB->branches(cvar, thenBB, elseBB);
+    if (cg.reachable()) {
+        const Def* cvar = cond()->emit(cg).load();
+        cg.curBB->branches(cvar, thenBB, elseBB);
+    }
+
     thenBB->seal();
     elseBB->seal();
 
     // then
     cg.curBB = thenBB;
     thenStmt()->emit(cg);
-    cg.curBB->fixto(nextBB);
+    BB* thenCur = cg.curBB;
 
     // else
     cg.curBB = elseBB;
     elseStmt()->emit(cg);
-    cg.curBB->fixto(nextBB);
+    BB* elseCur = cg.curBB;
 
-    // next
-    cg.curBB = nextBB;
-    nextBB->seal();
+    if (thenCur && elseCur) {
+        BB* nextBB = cg.curFct->createBB(make_name("if-next", id));
+        thenCur->fixto(nextBB);
+        elseCur->fixto(nextBB);
+        nextBB->seal();
+    } else if (thenCur || elseCur)
+        cg.curBB = thenCur ? thenCur : elseCur;
+    else 
+        cg.curBB = 0;
 
     ++id;
 }
@@ -253,7 +269,7 @@ void WhileStmt::emit(CodeGen& cg) const {
     BB* nextBB = cg.curFct->createBB(make_name("while-next", id));
 
     // head
-    cg.curBB->fixto(headBB);
+    cg.fixto(headBB);
     cg.curBB = headBB;
 
     // condition
@@ -264,7 +280,7 @@ void WhileStmt::emit(CodeGen& cg) const {
     // body
     cg.curBB = bodyBB;
     body()->emit(cg);
-    cg.curBB->fixto(headBB);
+    cg.fixto(headBB);
     headBB->seal();
 
     // next
@@ -291,7 +307,7 @@ void ForStmt::emit(CodeGen& cg) const {
     BB* nextBB = cg.curFct->createBB(make_name("for-next", id));
 
     // head
-    cg.curBB->fixto(headBB);
+    cg.fixto(headBB);
     cg.curBB = headBB;
 
     // condition
@@ -302,13 +318,13 @@ void ForStmt::emit(CodeGen& cg) const {
     // body
     cg.curBB = bodyBB;
     body()->emit(cg);
-    cg.curBB->fixto(stepBB);
+    cg.fixto(stepBB);
     stepBB->seal();
 
     // step
     cg.curBB = stepBB;
     step()->emit(cg);
-    cg.curBB->fixto(headBB);
+    cg.fixto(headBB);
     headBB->seal();
 
     // next
@@ -329,6 +345,7 @@ void ReturnStmt::emit(CodeGen& cg) const {
 
     cg.curBB->setVar(anydsl::Symbol("<result>"), def);
     cg.curBB->goesto(cg.curFct->exit());
+    cg.curBB = 0;
 }
 
 void ScopeStmt::emit(CodeGen& cg) const {

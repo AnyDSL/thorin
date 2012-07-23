@@ -48,6 +48,7 @@ void CodeGen::findTopLevelFunctions() {
         if (const Lambda* lambda = def->isa<Lambda>()) {
             for_all (param, lambda->params()) {
                 for_all (use, param->uses()) {
+
                 }
             }
         }
@@ -115,7 +116,6 @@ llvm::Value* CodeGen::emit(const AIRNode* n) {
         llvm::Value* rhs = emit(bin->rhs());
 
         if (const RelOp* rel = n->isa<RelOp>()) {
-
             switch (rel->relOpKind()) {
                 case RelOp_cmp_eq:   return builder.CreateICmpEQ (lhs, rhs);
                 case RelOp_cmp_ne:   return builder.CreateICmpNE (lhs, rhs);

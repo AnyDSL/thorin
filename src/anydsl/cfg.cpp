@@ -68,7 +68,7 @@ Var* BB::getVar(const Symbol& symbol, const Type* type) {
 
     // unreachable code
     if (preds().empty())
-        return setVar(symbol, world().undef(type));
+        return setVar(symbol, world().error(type));
     
     // look in pred if there exists exactly one pred
     assert(preds().size() == 1);

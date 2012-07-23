@@ -8,6 +8,6 @@ def a(m : int, n : int) -> int
 
     if (n == 0)
         return a(m-1,1);
-else
+
     return a(m-1, a(m, n-42));
 }

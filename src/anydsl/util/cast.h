@@ -88,24 +88,36 @@ inline LEFT bcast(const RIGHT& from) {
  * @brief Provides handy \p as and \p isa methods.
  *
  * Inherit from this class in order to use 
- * \code
+ * @code
 Bar* bar = foo->as<Bar>();
 if (Bar* bar = foo->isa<Bar>()) { ... }
- * \endcode
+ * @endcode
  * instead of more combersume
- * \code
+ * @code
 Bar* bar = anydsl::scast<Bar>(foo);
 if (Bar* bar = anydsl::dcast<Bar>(foo)) { ... }
- * \endcode
+ * @endcode
  */
 class MagicCast {
 public:
 
     virtual ~MagicCast() {}
 
+    /**
+     * Acts as static cast -- checked for correctness in the debug version.
+     * Use if you \em know that \p this is of type \p T.
+     * It is a program error (an assertion is raised) if this does not hold.
+     */
     template<class T> T* as()  { return anydsl::scast<T>(this); }
+    /** 
+     * @brief Acts as dynamic cast.
+     * 
+     * @return \p this cast to \p T if \p this is a \p T, 0 otherwise.
+     */
     template<class T> T* isa() { return anydsl::dcast<T>(this); }
+    /// const version of @see MagicCast#as
     template<class T> const T* as()  const { return anydsl::scast<T>(this); }
+    /// const version of @see MagicCast#isa
     template<class T> const T* isa() const { return anydsl::dcast<T>(this); }
 };
 

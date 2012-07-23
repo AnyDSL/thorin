@@ -315,7 +315,7 @@ void Call::check(Sema& sema) const {
         for (size_t i = 1; i < args_.size(); ++i)
             argTypes.push_back(args_[i]->type());
 
-        const Pi* pi = sema.types.pi(argTypes.begin().base(), argTypes.end().base(), fpi->retType());
+        const Pi* pi = sema.types.pi(&*argTypes.begin(), &*argTypes.end(), fpi->retType());
 
         if (pi == fpi) {
             type_ = pi->retType();

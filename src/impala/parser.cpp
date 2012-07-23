@@ -277,7 +277,7 @@ const Fct* Parser::parseFct() {
     else
         retType = types.noret();
 
-    const Pi* pi = types.pi(argTypes.begin().base(), argTypes.end().base(), retType);
+    const Pi* pi = types.pi(&*argTypes.begin(), &*argTypes.end(), retType);
     const Decl* decl = new Decl(id, pi, prevLoc_.pos2());
     const ScopeStmt* body = parseScope();
 

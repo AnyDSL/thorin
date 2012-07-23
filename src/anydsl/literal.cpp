@@ -8,14 +8,14 @@ namespace anydsl {
 //------------------------------------------------------------------------------
 
 bool PrimLit::equal(const Def* other) const {
-    if (!Def::equal(other))
+    if (!PrimOp::equal(other))
         return false;
 
     return box() == other->as<PrimLit>()->box();
 }
 
 size_t PrimLit::hash() const {
-    size_t seed = Def::hash();
+    size_t seed = PrimOp::hash();
     boost::hash_combine(seed, bcast<u64, Box>(box()));
 
     return seed;

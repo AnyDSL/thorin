@@ -31,26 +31,28 @@ typedef boost::unordered_set<const Def*, DefHash, DefEqual> DefSet;
 //------------------------------------------------------------------------------
 
 /**
- * The World represents the whole program and manages creation and destruction of AIRNodes.
+ * The World represents the whole program and manages creation and destruction of AIR nodes.
  * In particular, the following things are done by this class:
- *  - Type unification:
- *      There exists only one unique type for PrimType%s, Pi%s and \em unnamed Sigma%s.
- *      These types are hashed into internal maps for fast access.
- *      The getters just calculate a hash and lookup the type, if it is already present, or create a new one otherwise.
- *      There also exists the concept of \em named \p Sigma%s to allow for recursive types.
- *      These types are \em not unified, i.e., each instance is by definition a different type;
- *      thus, two different pointers of the same named sigma are always considered different types.
- *  - Value unification:
+ *
+ *  - \p Type unification: \n
+ *      There exists only one unique \p Type for \p PrimType%s, Pi%s and \em unnamed \p Sigma%s.
+ *      These \p Type%s are hashed into an internal map for fast access.
+ *      The getters just calculate a hash and lookup the \p Type, if it is already present, or create a new one otherwise.
+ *      There also exists the concept of \em named \p Sigma%s to allow for recursive \p Type%s.
+ *      These \p Type%s are \em not unified, i.e., each instance is by definition a different \p Type;
+ *      thus, two different pointers of the same named \p Sigma are always considered different \p Type%s.
+ *  - Value unification: \n
  *      This is a built-in mechanism for the following things:
  *      - constant pooling
  *      - constant folding 
  *      - common subexpression elimination
  *      - canonicalization of expressions
  *      - several local optimizations
- *      PrimOp%s do not explicitly belong to a Lambda.
- *      Instead they either implicitly belong to a Lambda--when 
- *      they (possibly via multiple levels of indirection) depend on a Lambda's Param--or they are dead. 
- *      Use \p cleanup to remove dead code and unreachable code.
+ *
+ *  \p PrimOp%s do not explicitly belong to a Lambda.
+ *  Instead they either implicitly belong to a Lambda--when 
+ *  they (possibly via multiple levels of indirection) depend on a Lambda's Param--or they are dead. 
+ *  Use \p cleanup to remove dead code and unreachable code.
  *
  *  You can create several worlds. 
  *  All worlds are completely independent from each other.
@@ -230,8 +232,8 @@ private:
 
     const Lambda* finalize(Lambda*& lambda);
     void unmark();
+    void destroy(const Def* def);
 
-    DefSet::iterator remove(DefSet::iterator i);
     const Def* findDef(const Def* def);
 
     template<class T> 

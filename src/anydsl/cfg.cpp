@@ -190,7 +190,7 @@ World& BB::world() {
 void BB::emit() {
     switch (succs().size()) {
         case 1:
-            world().jump(curLambda_, (*succs().begin())->topLambda(), out_.begin().base(), out_.end().base());
+            world().jump(curLambda_, (*succs().begin())->topLambda(), &*out_.begin(), &*out_.end());
             break;
         case 2:
             anydsl_assert(out_.empty(), "sth went wrong with critical edge elimination");

@@ -37,9 +37,11 @@ size_t Sigma::hash() const {
 
 bool Sigma::equal(const Def* other) const {
     if (named_)
-        return false;
+        return this == other;
     else
         return CompoundType::equal(other);
 }
+
+//------------------------------------------------------------------------------
 
 } // namespace anydsl

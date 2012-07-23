@@ -73,11 +73,15 @@ World::World()
 }
 
 World::~World() {
+#ifdef NDEBUG
+    for_all (def, defs_)
+        delete def;
+#else
     live_.clear();
     reachable_.clear();
     cleanup();
-
     anydsl_assert(defs_.empty(), "cleanup should catch everything");
+#endif
 }
 
 /*
@@ -244,7 +248,7 @@ void World::dce() {
     while (i != defs_.end()) {
         const Def* def = *i;
         if (!def->flag_) {
-            delete def;
+            destroy(def);
             i = defs_.erase(i);
         } else
             ++i;
@@ -291,7 +295,7 @@ void World::uce() {
     while (i != defs_.end()) {
         if (const Lambda* lambda = (*i)->isa<Lambda>()) {
             if (!lambda->flag_) {
-                delete lambda;
+                destroy(lambda);
                 i = defs_.erase(i);
                 continue;
             }
@@ -321,6 +325,21 @@ void World::cleanup() {
 void World::unmark() {
     for_all (def, defs_)
         def->flag_ = false;
+}
+
+void World::destroy(const Def* def) {
+    Live::iterator i = live_.find(def);
+    if (i != live_.end())
+        live_.erase(i);
+
+    if (const Lambda* lambda = def->isa<Lambda>()) {
+        Reachable::iterator i = reachable_.find(lambda);
+        if (i != reachable_.end())
+            reachable_.erase(i);
+    }
+
+    anydsl_assert(defs_.find(def) != defs_.end(), "def not contained in defs_");
+    delete def;
 }
 
 const Def* World::findDef(const Def* def) {
@@ -355,7 +374,6 @@ void World::dump(bool fancy) {
                 queue.pop();
 
                 cur->dump(fancy);
-                std::cout << std::endl;
 
                 for_all (succ, cur->succ()) {
                     if (!succ->flag_) {

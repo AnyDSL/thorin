@@ -392,7 +392,7 @@ const anydsl::Type* Pi::emit(anydsl::World& world) const {
     if (!retType()->isNoRet())
         types.push_back(world.pi1(retType()->emit(world)));
 
-    return world.pi(types.begin().base(), types.end().base());
+    return world.pi(&*types.begin(), &*types.end());
 }
 
 } // namespace impala

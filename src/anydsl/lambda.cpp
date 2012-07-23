@@ -88,7 +88,7 @@ const Param* Lambda::appendParam(const Type* type) {
 
 
 bool Lambda::equal(const Def* other) const {
-    return other->isa<Lambda>() && this == other->as<Lambda>();
+    return this == other;
 }
 
 size_t Lambda::hash() const {

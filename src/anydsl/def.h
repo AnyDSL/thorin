@@ -134,13 +134,6 @@ public:
 
     virtual void vdump(Printer &printer) const = 0;
 
-    /**
-     * Just do what ever you want with this field.
-     * Perhaps you want to attach file/line/col information in this field.
-     * \p Location provides convenient functionality to achieve this.
-     */
-    mutable std::string debug;
-
     const UseSet& uses() const { return uses_; }
     const Type* type() const { return type_; }
     World& world() const;
@@ -158,6 +151,13 @@ public:
     template<class T> T polyOps(size_t begin, size_t end) const { 
         assert(end <= numOps_); return T(ops_ + begin, end - begin); 
     }
+
+    /**
+     * Just do what ever you want with this field.
+     * Perhaps you want to attach file/line/col information in this field.
+     * \p Location provides convenient functionality to achieve this.
+     */
+    mutable std::string debug;
 
 private:
 

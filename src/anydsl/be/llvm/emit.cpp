@@ -24,7 +24,7 @@ public:
     void findTopLevelFunctions();
 
     llvm::Type* convert(const Type* type);
-    llvm::Value* emit(const AIRNode* n);
+    llvm::Value* emit(const Def* def);
 
 private:
 
@@ -43,17 +43,15 @@ CodeGen::CodeGen(const World& world)
 void CodeGen::findTopLevelFunctions() {
     LambdaSet top;
 
-#if 0
     for_all (def, world.defs()) {
         if (const Lambda* lambda = def->isa<Lambda>()) {
             for_all (param, lambda->params()) {
                 for_all (use, param->uses()) {
-
+                    
                 }
             }
         }
     }
-#endif
 }
 
 void emit(const World& world) {
@@ -107,15 +105,15 @@ llvm::Type* CodeGen::convert(const Type* type) {
     }
 }
 
-llvm::Value* CodeGen::emit(const AIRNode* n) {
-    if (!n->isCoreNode())
+llvm::Value* CodeGen::emit(const Def* def) {
+    if (!def->isCoreNode())
         ANYDSL_NOT_IMPLEMENTED;
 
-    if (const BinOp* bin = n->isa<BinOp>()) {
+    if (const BinOp* bin = def->isa<BinOp>()) {
         llvm::Value* lhs = emit(bin->lhs());
         llvm::Value* rhs = emit(bin->rhs());
 
-        if (const RelOp* rel = n->isa<RelOp>()) {
+        if (const RelOp* rel = def->isa<RelOp>()) {
             switch (rel->relOpKind()) {
                 case RelOp_cmp_eq:   return builder.CreateICmpEQ (lhs, rhs);
                 case RelOp_cmp_ne:   return builder.CreateICmpNE (lhs, rhs);
@@ -151,7 +149,7 @@ llvm::Value* CodeGen::emit(const AIRNode* n) {
             }
         }
 
-        const ArithOp* arith = n->as<ArithOp>();
+        const ArithOp* arith = def->as<ArithOp>();
 
         switch (arith->arithOpKind()) {
             case ArithOp_add:  return builder.CreateAdd (lhs, rhs);
@@ -178,20 +176,20 @@ llvm::Value* CodeGen::emit(const AIRNode* n) {
         }
     }
 
-    if (const TupleOp* tupleop = n->isa<TupleOp>()) {
+    if (const TupleOp* tupleop = def->isa<TupleOp>()) {
         llvm::Value* tuple = emit(tupleop->tuple());
         unsigned idxs[1] = { unsigned(tupleop->index()) };
 
         if (tupleop->indexKind() == Index_Extract)
             return builder.CreateExtractValue(tuple, idxs);
 
-        const Insert* insert = n->as<Insert>();
+        const Insert* insert = def->as<Insert>();
         llvm::Value* value = emit(insert->value());
 
         return builder.CreateInsertValue(tuple, value, idxs);
     }
 
-    if (const Tuple* tuple = n->isa<Tuple>()) {
+    if (const Tuple* tuple = def->isa<Tuple>()) {
         llvm::Value* agg = llvm::UndefValue::get(convert(tuple->type()));
 
         for (unsigned i = 0, e = tuple->numOps(); i != e; ++i) {

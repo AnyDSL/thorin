@@ -38,6 +38,11 @@ void Def::unregisterUse(size_t i, const Def* def) const {
     uses_.erase(use);
 }
 
+bool Def::isType() const { 
+    // don't use enum magic here -- there may be user defined types
+    return !type_;
+}
+
 World& Def::world() const { 
     if (type_)
         return type_->world(); 

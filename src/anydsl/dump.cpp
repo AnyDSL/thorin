@@ -37,8 +37,8 @@ public:
 
     bool fancy() const { return fancy_; }
 
-    Printer& dump(const AIRNode* n);
-    Printer& dumpName(const AIRNode* n);
+    Printer& dump(const Def* def);
+    Printer& dumpName(const Def* def);
 
     Printer& newline();
     Printer& up();
@@ -59,9 +59,9 @@ private:
     int depth_;
 };
 
-Printer& Printer::dump(const AIRNode* n) {
-    if (n)
-        n->vdump(*this);
+Printer& Printer::dump(const Def* def) {
+    if (def)
+        def->vdump(*this);
     else
         o << "<NULL>";
 
@@ -86,9 +86,9 @@ Printer& Printer::down() {
     return newline();
 }
 
-Printer& Printer::dumpName(const AIRNode* n) {
+Printer& Printer::dumpName(const Def* def) {
     if (fancy()) {
-        unsigned i = uintptr_t(n);
+        unsigned i = uintptr_t(def);
         unsigned sum = 0;
 
         while (i) {
@@ -103,10 +103,10 @@ Printer& Printer::dumpName(const AIRNode* n) {
         o << "\33[" << code << "m";
     }
 
-    if (!n->debug.empty())
-        o << n->debug;
+    if (!def->debug.empty())
+        o << def->debug;
     else
-        o << n;
+        o << def;
 
     if (fancy())
         o << "\33[m";
@@ -248,11 +248,11 @@ void Param::vdump(Printer &p) const  {
 
 //------------------------------------------------------------------------------
 
-void AIRNode::dump() const {
+void Def::dump() const {
     dump(false);
 }
 
-void AIRNode::dump(bool fancy) const {
+void Def::dump(bool fancy) const {
     Printer p(std::cout, fancy);
     vdump(p);
     std::cout << std::endl;

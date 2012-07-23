@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "anydsl/def.h"
+#include "anydsl/primop.h"
 #include "anydsl/type.h"
 #include "anydsl/util/box.h"
 
@@ -14,11 +14,11 @@ class World;
 
 //------------------------------------------------------------------------------
 
-class Literal : public Def {
+class Literal : public PrimOp {
 protected:
 
     Literal(IndexKind index, const Type* type)
-        : Def(index, type, 0)
+        : PrimOp(index, type, 0)
     {}
 };
 

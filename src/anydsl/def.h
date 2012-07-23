@@ -9,8 +9,9 @@
 #include <boost/unordered_set.hpp>
 #include <boost/functional/hash.hpp>
 
-#include "anydsl/airnode.h"
+#include "anydsl/enums.h"
 #include "anydsl/util/arrayref.h"
+#include "anydsl/util/cast.h"
 
 namespace anydsl {
 
@@ -18,11 +19,12 @@ namespace anydsl {
 
 class Def;
 class Lambda;
-class Type;
+class Printer;
 class Sigma;
+class Type;
 class World;
-class Jump;
-class World;
+
+//------------------------------------------------------------------------------
 
 class PhiOp {
 public:
@@ -83,7 +85,7 @@ typedef boost::unordered_set<Use> UseSet;
 
 //------------------------------------------------------------------------------
 
-class Def : public AIRNode {
+class Def : public MagicCast {
 private:
 
     /// Do not copy-create a \p Def instance.
@@ -97,7 +99,7 @@ private:
 protected:
 
     Def(int kind, const Type* type, size_t numOps)
-        : AIRNode(kind) 
+        : kind_(kind) 
         , type_(type)
         , numOps_(numOps)
         , ops_(numOps ? new const Def*[numOps] : 0)
@@ -117,86 +119,38 @@ protected:
 
 public:
 
-    typedef ArrayRef<const Def*> Ops;
+    int kind() const { return kind_; }
+    bool isCoreNode() const { return ::anydsl::isCoreNode(kind()); }
+    bool isPrimType() const { return ::anydsl::isPrimType(kind()); }
+    bool isArithOp()  const { return ::anydsl::isArithOp(kind()); }
+    bool isRelOp()    const { return ::anydsl::isRelOp(kind()); }
+    bool isConvOp()   const { return ::anydsl::isConvOp(kind()); }
+    bool isType() const;
 
-    template<class T>
-    class FilteredUses {
-    public:
+    IndexKind indexKind() const { assert(isCoreNode()); return (IndexKind) kind_; }
 
-        class const_iterator {
-        public:
-            typedef UseSet::const_iterator::iterator_category iterator_category;
-            typedef const T* value_type;
-            typedef ptrdiff_t difference_type;
-            typedef const T** pointer;
-            typedef const T*& reference;
+    void dump() const;
+    void dump(bool fancy) const;
 
-            const_iterator(const const_iterator& i)
-                : base_(i.base_)
-                , end_(i.end_)
-            {
-                assert(base_ == end_ || base_->def()->isa<T>());
-            }
-            const_iterator(UseSet::const_iterator base, UseSet::const_iterator end)
-                : base_(base)
-                , end_(end)
-            {
-                skip();
-            }
+    virtual void vdump(Printer &printer) const = 0;
 
-            const_iterator& operator ++ () { ++base_; skip(); return *this; }
-            const_iterator operator ++ (int) { const_iterator i(*this); ++(*this); return i; }
-
-            bool operator == (const const_iterator& i) { return base_ == i.base_; }
-            bool operator != (const const_iterator& i) { return base_ != i.base_; }
-
-            const T* operator *  () { return base_->def()->as<T>(); }
-            const T* operator -> () { return base_->def()->as<T>(); }
-
-        private:
-
-            UseSet::const_iterator base_;
-            UseSet::const_iterator end_;
-
-            void skip() {
-                while (base_ != end_ && !base_->def()->isa<T>())
-                    ++base_;
-            }
-        };
-
-        FilteredUses(const UseSet& uses) : uses_(uses) {}
-
-        const_iterator begin() const { return const_iterator(uses_.begin(), uses_.end()); }
-        const_iterator end() const   { return const_iterator(uses_.end(), uses_.end()); }
-
-        /**
-         * Be carfeull! This has O(n) worst case execution behavior!
-         * Anyway, a node usually has less then 3 uses - so in most cases you can forget about this cost.
-         */
-        size_t size() const {
-            size_t n = 0;
-            for (const_iterator i = begin(), e = end(); i != e; ++i)
-                ++n;
-
-            return n;
-        }
-
-        bool empty() const {
-            return begin() == end();
-        }
-
-    private:
-
-        const UseSet& uses_;
-    };
+    /**
+     * Just do what ever you want with this field.
+     * Perhaps you want to attach file/line/col information in this field.
+     * \p Location provides convenient functionality to achieve this.
+     */
+    mutable std::string debug;
 
     const UseSet& uses() const { return uses_; }
     const Type* type() const { return type_; }
-    size_t numOps() const { return numOps_; }
     World& world() const;
 
+    typedef ArrayRef<const Def*> Ops;
+
+    size_t numOps() const { return numOps_; }
     Ops ops() const { return Ops(ops_, numOps_); }
     Ops ops(size_t begin, size_t end) const { assert(end <= numOps_); return Ops(ops_ + begin, end - begin); }
+    const Def* op(size_t i) const { anydsl_assert(i < numOps_, "index out of bounds"); return ops_[i]; }
 
     template<class T> T polyOps() const { 
         return T(ops_, numOps_); 
@@ -205,10 +159,9 @@ public:
         assert(end <= numOps_); return T(ops_ + begin, end - begin); 
     }
 
-    const Def* op(size_t i) const { anydsl_assert(i < numOps_, "index out of bounds"); return ops_[i]; }
-
 private:
 
+    int kind_;
     const Type* type_;
     size_t numOps_;
     const Def** ops_;

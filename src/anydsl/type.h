@@ -4,7 +4,7 @@
 #include <iterator>
 
 #include "anydsl/def.h"
-#include "anydsl/util/arrayref.h"
+#include "anydsl/util/array.h"
 
 namespace anydsl {
 

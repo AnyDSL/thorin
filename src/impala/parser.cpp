@@ -218,9 +218,29 @@ const Type* Parser::parseType() {
         case Token::TYPE_ ## itype: lex(); return types.type_##itype();
 #include "impala/tokenlist.h"
 
-        case Token::TYPE_int:  lex(); return types.type_int32();
-        case Token::TYPE_uint: lex(); return types.type_uint32();
-        case Token::TYPE_void: lex(); return types.type_void();
+        case Token::TYPE_int:   lex(); return types.type_int32();
+        case Token::TYPE_uint:  lex(); return types.type_uint32();
+        case Token::TYPE_void:  lex(); return types.type_void();
+        case Token::TYPE_noret: lex(); return types.type_noret();
+        case Token::PI: {
+            lex();
+            std::vector<const Type*> elems;
+            expect(Token::L_PAREN, "element types of pi");
+            PARSE_COMMA_LIST
+            (
+                elems.push_back(parseType()),
+                Token::R_PAREN,
+                "closing parenthesis of pi type"
+            )
+
+            const Type* retType;
+            if (accept(Token::ARROW))
+                retType = parseType();
+            else
+                retType = types.type_noret();
+
+            return types.pi(&*elems.begin(), &*elems.end(), retType);
+        }
             
         default: ANYDSL_UNREACHABLE; // TODO
     }
@@ -275,7 +295,7 @@ const Fct* Parser::parseFct() {
     if (accept(Token::ARROW))
         retType = parseType();
     else
-        retType = types.noret();
+        retType = types.type_noret();
 
     const Pi* pi = types.pi(&*argTypes.begin(), &*argTypes.end(), retType);
     const Decl* decl = new Decl(id, pi, prevLoc_.pos2());

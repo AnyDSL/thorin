@@ -123,10 +123,12 @@ public:
 };
 
 class Pi : public Type {
-public:
+private:
 
     Pi(const Type* const* begin, const Type* const* end, const Type* retType);
     virtual ~Pi();
+
+public:
 
     virtual void dump(Printer& p) const;
     virtual const anydsl::Type* emit(anydsl::World& world) const;
@@ -170,7 +172,7 @@ public:
 
     const TypeError* type_error() const { return type_error_; }
     const Void* type_void() const { return type_void_; }
-    const NoRet* noret() const { return noret_; }
+    const NoRet* type_noret() const { return noret_; }
     const Pi* pi(const Type* const* begin, const Type* const* end, const Type* retType);
 
     typedef boost::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;

@@ -394,6 +394,11 @@ void ReturnStmt::check(Sema& sema) const {
 
     const Pi* pi = fct()->pi();
 
+    if (pi->retType()->isNoRet()) {
+        sema.error(this) << "return statement not allowed in continuation function\n";
+        return;
+    }
+
     if (pi->retType() != expr()->type()) {
         sema.error(expr()) << "expected return type '" << pi->retType() 
             << "' but return expression is of type '" << expr()->type() << "'\n";

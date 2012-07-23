@@ -4,6 +4,7 @@
 #include <iterator>
 
 #include "anydsl/def.h"
+#include "anydsl/util/arrayref.h"
 
 namespace anydsl {
 
@@ -60,7 +61,7 @@ class CompoundType : public Type {
 protected:
 
     CompoundType(World& world, IndexKind index, size_t num);
-    CompoundType(World& world, IndexKind index, const Type* const* begin, const Type* const* end);
+    CompoundType(World& world, IndexKind index, ArrayRef<const Type*> elems);
 
 public:
 
@@ -89,8 +90,8 @@ private:
         : CompoundType(world, Index_Sigma, num)
         , named_(true)
     {}
-    Sigma(World& world, const Type* const* begin, const Type* const* end)
-        : CompoundType(world, Index_Sigma, begin, end)
+    Sigma(World& world, ArrayRef<const Type*> elems)
+        : CompoundType(world, Index_Sigma, elems)
         , named_(false)
     {}
 
@@ -115,8 +116,8 @@ private:
 class Pi : public CompoundType {
 private:
 
-    Pi(World& world, const Type* const* begin, const Type* const* end)
-        : CompoundType(world, Index_Pi, begin, end)
+    Pi(World& world, ArrayRef<const Type*> elems)
+        : CompoundType(world, Index_Pi, elems)
     {}
 
     virtual void vdump(Printer& printer) const;

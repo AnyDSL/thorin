@@ -106,13 +106,7 @@ public:
         const Type* types[3] = {t1, t2, t3};
         return sigma(types);
     }
-    const Sigma* sigma(const Type* const* begin, const Type* const* end) { 
-        return find(new Sigma(*this, begin, end)); 
-    }
-    template<size_t N>
-    const Sigma* sigma(const Type* const (&array)[N]) { 
-        return sigma(array, array + N); 
-    }
+    const Sigma* sigma(ArrayRef<const Type*> elems) { return sigma(elems); }
 
     /// Creates a fresh \em named sigma.
     Sigma* namedSigma(size_t num, const std::string& name = "");
@@ -135,13 +129,7 @@ public:
         const Type* types[3] = {t1, t2, t3};
         return pi(types);
     }
-    const Pi* pi(const Type* const* begin, const Type* const* end) { 
-        return find(new Pi(*this, begin, end)); 
-    }
-    template<size_t N>
-    const Pi* pi(const Type* const (&array)[N]) { 
-        return pi(array, array + N); 
-    }
+    const Pi* pi(ArrayRef<const Type*> elems) { return find(new Pi(*this, elems)); } 
 
     /*
      * literals
@@ -174,27 +162,21 @@ public:
     const Def* extract(const Def* tuple, size_t index);
     const Def* insert(const Def* tuple, size_t index, const Def* value);
     const Def* select(const Def* cond, const Def* tdef, const Def* fdef);
-    const Def* tuple(const Def* const* begin, const Def* const* end);
-    template<size_t N>
-    const Def* tuple(const Def* const (&array)[N]) { return createTuple(array, array + N); }
+    const Def* tuple(ArrayRef<const Def*> args);
     const Param* param(const Type* type, const Lambda* parent, size_t index);
 
-    void jump(Lambda*& from, const Def* to, const Def* const* begin, const Def* const* end);
-    template<size_t N>
-    void jump(Lambda*& from, const Def* to, const Def* const (&args)[N]) { 
-        return jump(from, to, args, args + N); 
-    }
+    void jump(Lambda*& from, const Def* to, ArrayRef<const Def*> args);
     void jump1(Lambda*& from, const Def* to, const Def* arg1) { 
         const Def* args[1] = { arg1 };
-        return jump(from, to, args, args + 1); 
+        return jump(from, to, args); 
     }
     void jump2(Lambda*& from, const Def* to, const Def* arg1, const Def* arg2) { 
-        const Def* args[2] = { arg1 };
-        return jump(from, to, args, args + 2); 
+        const Def* args[2] = { arg1, arg2 };
+        return jump(from, to, args);
     }
     void jump3(Lambda*& from, const Def* to, const Def* arg1, const Def* arg2, const Def* arg3) { 
         const Def* args[3] = { arg1, arg2, arg3 };
-        return jump(from, to, args, args + 3); 
+        return jump(from, to, args);
     }
     void branch(Lambda*& lambda, const Def* cond, const Def* tto, const Def* fto);
 

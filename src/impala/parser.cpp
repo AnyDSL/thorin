@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <sstream>
 
+#include "anydsl/util/array.h"
 #include "anydsl/util/assert.h"
 
 #include "impala/ast.h"
@@ -239,7 +240,7 @@ const Type* Parser::parseType() {
             else
                 retType = types.type_noret();
 
-            return types.pi(&*elems.begin(), &*elems.end(), retType);
+            return types.pi(elems, retType);
         }
             
         default: ANYDSL_UNREACHABLE; // TODO
@@ -297,7 +298,7 @@ const Fct* Parser::parseFct() {
     else
         retType = types.type_noret();
 
-    const Pi* pi = types.pi(&*argTypes.begin(), &*argTypes.end(), retType);
+    const Pi* pi = types.pi(argTypes, retType);
     const Decl* decl = new Decl(id, pi, prevLoc_.pos2());
     const ScopeStmt* body = parseScope();
 

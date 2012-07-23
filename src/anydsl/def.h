@@ -10,7 +10,7 @@
 #include <boost/functional/hash.hpp>
 
 #include "anydsl/enums.h"
-#include "anydsl/util/arrayref.h"
+#include "anydsl/util/array.h"
 #include "anydsl/util/cast.h"
 
 namespace anydsl {

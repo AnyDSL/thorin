@@ -1,9 +1,11 @@
 #ifndef IMPALA_TYPE_H
 #define IMPALA_TYPE_H
 
-#include "impala/token.h"
-
 #include <boost/unordered_set.hpp>
+
+#include "anydsl/util/array.h"
+
+#include "impala/token.h"
 
 namespace anydsl {
     class Type;
@@ -125,16 +127,15 @@ public:
 class Pi : public Type {
 private:
 
-    Pi(const Type* const* begin, const Type* const* end, const Type* retType);
-    virtual ~Pi();
+    Pi(anydsl::ArrayRef<const Type*> elems, const Type* retType);
 
 public:
 
     virtual void dump(Printer& p) const;
     virtual const anydsl::Type* emit(anydsl::World& world) const;
 
-    size_t numArgs() const { return numArgs_; }
-    const Type* const* args() const { return args_; }
+    size_t numElems() const { return elems().size(); }
+    const anydsl::Array<const Type*>& elems() const { return elems_; }
     const Type* retType() const { return retType_; }
 
 private:
@@ -142,8 +143,7 @@ private:
     virtual bool equal(const Type* other) const;
     virtual size_t hash() const;
 
-    size_t numArgs_;
-    const Type** args_;
+    anydsl::Array<const Type*> elems_;
     const Type* retType_;
 
     friend class TypeTable;
@@ -173,7 +173,7 @@ public:
     const TypeError* type_error() const { return type_error_; }
     const Void* type_void() const { return type_void_; }
     const NoRet* type_noret() const { return noret_; }
-    const Pi* pi(const Type* const* begin, const Type* const* end, const Type* retType);
+    const Pi* pi(anydsl::ArrayRef<const Type*> elems, const Type* retType);
 
     typedef boost::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;
 

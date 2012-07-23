@@ -8,10 +8,13 @@
 #include "anydsl/literal.h"
 #include "anydsl/type.h"
 #include "anydsl/world.h"
+#include "anydsl/util/array.h"
 #include "anydsl/util/for_all.h"
 
 #include "impala/type.h"
 
+using anydsl::Array;
+using anydsl::ArrayRef;
 using anydsl::BB;
 using anydsl::Def;
 using anydsl::FctParam;
@@ -383,15 +386,16 @@ const anydsl::Type* TypeError::emit(anydsl::World& /*world*/) const {
 }
 
 const anydsl::Type* Pi::emit(anydsl::World& world) const {
-    std::vector<const anydsl::Type*> types;
+    size_t size = numElems();
+    Array<const anydsl::Type*> types(size + 1);
 
-    for (size_t i = 0; i < numArgs(); ++i)
-        types.push_back(args()[i]->emit(world));
+    for (size_t i = 0; i < size; ++i)
+        types[i] = elems()[i]->emit(world);
 
     if (!retType()->isNoRet())
-        types.push_back(world.pi1(retType()->emit(world)));
+        types[size++] = world.pi1(retType()->emit(world));
 
-    return world.pi(&*types.begin(), &*types.end());
+    return world.pi(ArrayRef<const anydsl::Type*>(types.begin(), size));
 }
 
 } // namespace impala

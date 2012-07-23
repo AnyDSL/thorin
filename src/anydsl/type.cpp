@@ -1,6 +1,7 @@
 #include "anydsl/type.h"
 
 #include "anydsl/literal.h"
+#include "anydsl/util/for_all.h"
 
 namespace anydsl {
 
@@ -18,12 +19,12 @@ CompoundType::CompoundType(World& world, IndexKind index, size_t num)
     : Type(world, index, num)
 {}
 
-CompoundType::CompoundType(World& world, IndexKind index, const Type* const* begin, const Type* const* end)
-    : Type(world, index, std::distance(begin, end))
+CompoundType::CompoundType(World& world, IndexKind index, ArrayRef<const Type*> elems)
+    : Type(world, index, elems.size())
 {
     size_t x = 0;
-    for (const Type* const* i = begin; i != end; ++i, ++x)
-        setOp(x, *i);
+    for_all (elem, elems)
+        setOp(x++, elem);
 }
 
 //------------------------------------------------------------------------------

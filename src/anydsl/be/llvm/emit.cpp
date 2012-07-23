@@ -1,7 +1,5 @@
 #include "anydsl/be/llvm/emit.h"
 
-#include <boost/scoped_array.hpp>
-
 #include <llvm/Constant.h>
 #include <llvm/Constants.h>
 #include <llvm/Function.h>
@@ -15,6 +13,7 @@
 #include "anydsl/primop.h"
 #include "anydsl/type.h"
 #include "anydsl/world.h"
+#include "anydsl/util/array.h"
 
 namespace anydsl {
 namespace be_llvm {
@@ -36,6 +35,7 @@ private:
     llvm::LLVMContext context;
     llvm::IRBuilder<> builder;
     llvm::Module* module;
+    LambdaSet top;
 };
 
 CodeGen::CodeGen(const World& world)
@@ -45,8 +45,6 @@ CodeGen::CodeGen(const World& world)
 {}
 
 void CodeGen::emit() {
-    LambdaSet top;
-
     for_all (def, world.defs()) {
         if (const Lambda* lambda = def->isa<Lambda>()) {
             const Pi* pi = lambda->pi();
@@ -78,11 +76,13 @@ void CodeGen::emit(const Lambda* lambda) {
 
     LambdaSet to = lambda->to();
 
+#if 0
     if (to.size() == 2) {
         const Select* select = lambda->todef()->as<Select>();
         llvm::Value* cond = emit(select->cond());
         //builder.CreateCondBr();
     }
+#endif
 
 }
 
@@ -106,7 +106,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
             const Pi* pi = type->as<Pi>();
             llvm::Type* retType = 0;
             size_t i = 0;
-            boost::scoped_array<llvm::Type*> elems(new llvm::Type*[pi->numElems() - 1]);
+            Array<llvm::Type*> elems(pi->numElems() - 1);
 
             for_all (elem, pi->elems()) {
                 if (const Pi* pi = elem->isa<Pi>()) {
@@ -122,7 +122,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
             }
 
             assert(retType);
-            return llvm::FunctionType::get(retType, elems);
+            return llvm::FunctionType::get(retType, llvm::ArrayRef<llvm::Type*>(elems.begin(), elems.end()), false);
         }
 
         case Index_Sigma: {
@@ -130,12 +130,12 @@ llvm::Type* CodeGen::convert(const Type* type) {
 
             const Sigma* sigma = type->as<Sigma>();
 
-            boost::scoped_array<llvm::Type*> elems(new llvm::Type*[sigma->numElems()]);
+            Array<llvm::Type*> elems(sigma->numElems());
             size_t i = 0;
             for_all (t, sigma->elems())
                 elems[i++] = convert(t);
 
-            return llvm::StructType::get(context, elems);
+            return llvm::StructType::get(context, llvm::ArrayRef<llvm::Type*>(elems.begin(), elems.end()));
         }
 
         default: ANYDSL_UNREACHABLE;

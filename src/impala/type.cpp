@@ -45,25 +45,17 @@ size_t NoRet::hash() const {
     return boost::hash_value(Token::TYPE_noret);
 }
 
-Pi::Pi(const Type* const* begin, const Type* const* end, const Type* retType) 
-    : numArgs_(std::distance(begin, end))
-    , args_(new const Type*[numArgs_])
+Pi::Pi(anydsl::ArrayRef<const Type*> elems, const Type* retType) 
+    : elems_(elems)
     , retType_(retType)
-{
-    for (size_t i = 0; i != numArgs_; ++i)
-        args_[i] = begin[i];
-}
-
-Pi::~Pi() {
-    delete[] args_;
-}
+{}
 
 size_t Pi::hash() const {
     size_t seed = 0;
-    boost::hash_combine(seed, numArgs_);
+    boost::hash_combine(seed, numElems());
 
-    for (size_t i = 0; i < numArgs_; ++i)
-        boost::hash_combine(seed, args_[i]);
+    for_all (elem, elems())
+        boost::hash_combine(seed, elem);
 
     boost::hash_combine(seed, retType_);
 
@@ -72,13 +64,13 @@ size_t Pi::hash() const {
 
 bool Pi::equal(const Type* other) const {
     if (const Pi* pi = other->isa<Pi>()) {
-        if (numArgs_ != pi->numArgs() || retType_ != pi->retType())
+        if (numElems() != pi->numElems() || retType_ != pi->retType())
             return false;
 
         bool result = true;
 
-        for (size_t i = 0; i < numArgs_ && result; ++i)
-            result &= args()[i] == pi->args()[i];
+        for (size_t i = 0; i < numElems() && result; ++i)
+            result &= elems()[i] == pi->elems()[i];
 
         return result;
     }
@@ -111,8 +103,8 @@ const PrimType* TypeTable::type(PrimType::Kind kind) {
     }
 }
 
-const Pi* TypeTable::pi(const Type* const* begin, const Type* const* end, const Type* retType) {
-    const Pi* pi = new Pi(begin, end, retType);
+const Pi* TypeTable::pi(anydsl::ArrayRef<const Type*> elems, const Type* retType) {
+    const Pi* pi = new Pi(elems, retType);
     TypeSet::iterator i = types_.find(pi);
 
     if (i == types_.end()) {

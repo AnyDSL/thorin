@@ -3,11 +3,13 @@
 #include <stack>
 #include <boost/unordered_map.hpp>
 
+#include "anydsl/util/array.h"
 #include "anydsl/util/for_all.h"
 
 #include "impala/dump.h"
 #include "impala/type.h"
 
+using anydsl::Array;
 using anydsl::Location;
 using anydsl::Symbol;
 
@@ -310,12 +312,12 @@ void Call::check(Sema& sema) const {
     const Expr* f = args_.front();
 
     if (const Pi* fpi = f->type()->isa<Pi>()) {
-        std::vector<const Type*> argTypes;
+        Array<const Type*> argTypes(args_.size() - 1);
 
         for (size_t i = 1; i < args_.size(); ++i)
-            argTypes.push_back(args_[i]->type());
+            argTypes[i-1] = args_[i]->type();
 
-        const Pi* pi = sema.types.pi(&*argTypes.begin(), &*argTypes.end(), fpi->retType());
+        const Pi* pi = sema.types.pi(argTypes, fpi->retType());
 
         if (pi == fpi) {
             type_ = pi->retType();

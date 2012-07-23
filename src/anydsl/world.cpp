@@ -9,6 +9,7 @@
 #include "anydsl/literal.h"
 #include "anydsl/type.h"
 #include "anydsl/fold.h"
+#include "anydsl/util/array.h"
 
 namespace anydsl {
 
@@ -60,8 +61,8 @@ static void examineDef(const Def* def, FoldValue& v) {
 
 World::World() 
     : defs_(1031)
-    , unit_ (find(new Sigma(*this, (const Type* const*) 0, (const Type* const*) 0)))
-    , pi0_  (find(new Pi   (*this, (const Type* const*) 0, (const Type* const*) 0)))
+    , unit_ (find(new Sigma(*this, Array<const Type*>(0))))
+    , pi0_  (find(new Pi   (*this, Array<const Type*>(0))))
 #define ANYDSL_U_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T)))
 #define ANYDSL_F_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T)))
 #include "anydsl/tables/primtypetable.h"
@@ -122,8 +123,8 @@ const Error* World::error(const Type* type) {
  * create
  */
 
-const Def* World::tuple(const Def* const* begin, const Def* const* end) { 
-    return find(new Tuple(*this, begin, end));
+const Def* World::tuple(ArrayRef<const Def*> args) {
+    return find(new Tuple(*this, args));
 }
 
 const Def* World::tryFold(IndexKind kind, const Def* ldef, const Def* rdef) {
@@ -205,20 +206,20 @@ const Param* World::param(const Type* type, const Lambda* parent, size_t index) 
     return find(new Param(type, parent, index));
 }
 
-void World::jump(Lambda*& lambda, const Def* to, const Def* const* begin, const Def* const* end) { 
-    lambda->alloc(std::distance(begin, end) + 1);
+void World::jump(Lambda*& lambda, const Def* to, ArrayRef<const Def*> args) {
+    lambda->alloc(args.size() + 1);
 
     lambda->setOp(0, to);
 
-    const Def* const* i = begin;
-    for (size_t x = 1; i != end; ++x, ++i)
-        lambda->setOp(x, *i);
+    size_t x = 1;
+    for_all (arg, args)
+        lambda->setOp(x++, arg);
 
     finalize(lambda);
 }
 
 void World::branch(Lambda*& lambda, const Def* cond, const Def* tto, const Def*  fto) {
-    return jump(lambda, select(cond, tto, fto), 0, 0);
+    return jump(lambda, select(cond, tto, fto), Array<const Def*>(0));
 }
 
 

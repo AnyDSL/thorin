@@ -1,10 +1,9 @@
 #include "anydsl/lambda.h"
 
-#include <boost/scoped_array.hpp>
-
 #include "anydsl/type.h"
 #include "anydsl/primop.h"
 #include "anydsl/world.h"
+#include "anydsl/util/array.h"
 #include "anydsl/util/for_all.h"
 
 namespace anydsl {
@@ -74,14 +73,14 @@ const Pi* Lambda::pi() const {
 const Param* Lambda::appendParam(const Type* type) {
     size_t size = pi()->numOps();
 
-    boost::scoped_array<const Type*> types(new const Type*[size + 1]);
+    Array<const Type*> elems(size + 1);
 
     for (size_t i = 0; i < size; ++i)
-        types[i] = pi()->get(i);
+        elems[i] = pi()->get(i);
 
-    types[size] = type;
+    elems[size] = type;
 
-    setType(world().pi(types.get(), types.get() + size + 1));
+    setType(world().pi(elems));
 
     return world().param(type, this, size);
 }

@@ -1,10 +1,9 @@
 #include "anydsl/primop.h"
 
-#include <boost/scoped_array.hpp>
-
 #include "anydsl/literal.h"
 #include "anydsl/type.h"
 #include "anydsl/world.h"
+#include "anydsl/util/array.h"
 
 namespace anydsl {
 
@@ -56,20 +55,18 @@ Insert::Insert(const Def* tuple, uint32_t index, const Def* value)
     anydsl_assert(tuple->type()->as<Sigma>()->get(index) == value->type(), "type error");
 }
 
-Tuple::Tuple(World& world, const Def* const* begin, const Def* const* end) 
-    : PrimOp(Index_Tuple, 0, std::distance(begin, end))
+Tuple::Tuple(World& world, ArrayRef<const Def*> args) 
+    : PrimOp(Index_Tuple, 0, args.size())
 {
     if (numOps() == 0) {
         setType(world.sigma0());
     } else {
-        boost::scoped_array<const Type*> types(new const Type*[numOps()]);
+        Array<const Type*> types(numOps());
         size_t x = 0;
-        for (const Def* const* i = begin; i != end; ++i, ++x) {
-            setOp(x, *i);
-            types[x] = (*i)->type();
-        }
+        for_all (arg, args)
+            types[x++] = arg->type();
 
-        setType(world.sigma(types.get(), types.get() + numOps()));
+        setType(world.sigma(types));
     }
 }
 

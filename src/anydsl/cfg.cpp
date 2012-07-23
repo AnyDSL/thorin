@@ -2,12 +2,12 @@
 
 #include <algorithm>
 #include <iterator>
-#include <boost/scoped_array.hpp>
 
 #include "anydsl/lambda.h"
 #include "anydsl/literal.h"
 #include "anydsl/type.h"
 #include "anydsl/world.h"
+#include "anydsl/util/array.h"
 
 namespace anydsl {
 
@@ -150,9 +150,9 @@ const Def* BB::calls(const Def* to, const Def* const* begin, const Def* const* e
 
     // create jump to this new continuation
     size_t size = std::distance(begin, end) + 1;
-    boost::scoped_array<const Def*> args(new const Def*[size]);
-    *std::copy(begin, end, args.get()) = next;
-    world().jump(curLambda_, to, args.get(), args.get() + size);
+    Array<const Def*> args(size);
+    *std::copy(begin, end, args.begin()) = next;
+    world().jump(curLambda_, to, args);
     curLambda_ = next;
 
     ++id;
@@ -190,7 +190,7 @@ World& BB::world() {
 void BB::emit() {
     switch (succs().size()) {
         case 1:
-            world().jump(curLambda_, (*succs().begin())->topLambda(), &*out_.begin(), &*out_.end());
+            world().jump(curLambda_, (*succs().begin())->topLambda(), out_);
             break;
         case 2:
             anydsl_assert(out_.empty(), "sth went wrong with critical edge elimination");

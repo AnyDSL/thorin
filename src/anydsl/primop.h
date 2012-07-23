@@ -156,7 +156,7 @@ private:
 class Tuple : public PrimOp {
 private:
 
-    Tuple(World& world, const Def* const* begin, const Def* const* end);
+    Tuple(World& world, ArrayRef<const Def*> args);
 
 public:
 

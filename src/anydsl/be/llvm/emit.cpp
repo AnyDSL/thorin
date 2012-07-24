@@ -147,10 +147,14 @@ llvm::Value* CodeGen::emit(const Def* def) {
         ANYDSL_NOT_IMPLEMENTED;
 
     if (const Param* param = def->isa<Param>()) {
-        llvm::Function::arg_iterator args = builder.GetInsertBlock()->getParent()->arg_begin();
-        std::advance(args, param->index());
+        if (top.find(param->lambda()) == top.end()) {
+            // phi function
+        } else {
+            llvm::Function::arg_iterator args = builder.GetInsertBlock()->getParent()->arg_begin();
+            std::advance(args, param->index());
 
-        return args;
+            return args;
+        }
     }
 
     if (const PrimLit* lit = def->isa<PrimLit>()) {

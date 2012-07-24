@@ -38,7 +38,8 @@ public:
         typedef T* pointer;
         typedef value_type& reference;
 
-        iterator_base<U>(const iterator_base<U>& i) : base_(i.base_) {}
+        template<class V>
+        iterator_base<U>(const iterator_base<V>& i) : base_(i.base_) {}
         iterator_base<U>(T* base) : base_(base) {}
 
         iterator_base<U>& operator ++ () { ++base_; return *this; }

@@ -375,6 +375,7 @@ void World::dump(bool fancy) {
                 queue.pop();
 
                 cur->dump(fancy);
+                std::cout << std::endl;
 
                 for_all (succ, cur->succ()) {
                     if (!succ->flag_) {

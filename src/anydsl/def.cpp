@@ -53,6 +53,10 @@ bool Def::equal(const Def* other) const {
     return this->kind() == other->kind() && this->ops_ == other->ops_;
 }
 
+void Def::replace(const Def* def) {
+    representitive_ = def;
+}
+
 size_t Def::hash() const {
     size_t seed = 0;
 

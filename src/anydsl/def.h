@@ -85,6 +85,8 @@ typedef boost::unordered_set<Use> UseSet;
 
 //------------------------------------------------------------------------------
 
+inline const Def* const& representitive(const Def* const* ptr);
+
 class Def : public MagicCast {
 private:
 
@@ -102,9 +104,8 @@ protected:
         : kind_(kind) 
         , type_(type)
         , ops_(numOps)
-    {
-        std::memset(ops_.begin(), 0, sizeof(const Def*) * numOps);
-    }
+        , representitive_(this)
+    {}
 
     virtual ~Def();
 
@@ -137,11 +138,13 @@ public:
     const Type* type() const { return type_; }
     World& world() const;
 
-    typedef ArrayRef<const Def*> Ops;
+    typedef ArrayRef<const Def*, const Def*, representitive> Ops;
 
     Ops ops() const { return Ops(ops_); }
-    Ops ops(size_t begin, size_t end) const { return ops_.slice(begin, end); }
+    Ops ops(size_t begin, size_t end) const { return Ops(ops_.slice(begin, end)); }
     const Def* op(size_t i) const { return ops_[i]; }
+
+    void replace(const Def* def);
 
     /**
      * Just do what ever you want with this field.
@@ -157,11 +160,17 @@ private:
     Array<const Def*> ops_;
     mutable UseSet uses_;
     mutable bool flag_;
+    mutable const Def* representitive_;
 
     friend class World;
     friend class DefHash;
     friend class DefEqual;
+    friend const Def* const& representitive(const Def* const* ptr);
 };
+
+inline const Def* const& representitive(const Def* const* ptr) { 
+    return (*ptr)->representitive_;
+}
 
 //------------------------------------------------------------------------------
 

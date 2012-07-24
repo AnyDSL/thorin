@@ -85,6 +85,21 @@ void BB::seal() {
 
     sealed_ = true;
 
+    // eliminate critical edge
+    if (preds().size() >= 2) {
+        for_all (pred, preds_) {
+            if (pred->succs().size() > 1) {
+                // critical edge -> eliminate
+                BB* empty = fct_->createBB();
+                pred->eraseEdge(this);
+                pred->flowsto(empty);
+                empty->flowsto(this);
+                empty->seal();
+                pred = empty;
+            }
+        }
+    }
+
     for_all (p, todos_)
         fixTodo(p.first, p.second);
 }
@@ -95,17 +110,30 @@ void BB::fixTodo(const Symbol& symbol, Todo todo) {
     size_t index = todo.index;
     const Type* type = todo.type;
 
+    const Param* param = in_[index];
+    const Def* same = 0;
+    bool superfluous = true;
     for_all (pred, preds_) {
-        if (pred->succs().size() > 1) {
-            // critical edge -> eliminate
-            BB* empty = fct_->createBB();
-            pred->eraseEdge(this);
-            pred->flowsto(empty);
-            empty->flowsto(this);
-            empty->seal();
-            pred = empty;
-        }
+        const Def* def = pred->getVar(symbol, type)->def;
 
+        if (def->isa<Undef>()) continue;
+        if (def == param) continue;
+        if (same)
+            if (same == def) 
+                continue;
+            else {
+                superfluous = false;
+                break;
+            }
+        else
+            same = def;
+    }
+
+    if (superfluous)
+        std::cout << "superfluous: " << param->debug << " in block " << param->lambda()->debug << std::endl;
+
+
+    for_all (pred, preds_) {
         anydsl_assert(pred->succs().size() == 1, "ciritical edge elimination did not work");
         Out& out = pred->out_;
 

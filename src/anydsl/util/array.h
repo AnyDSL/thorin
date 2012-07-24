@@ -79,10 +79,6 @@ public:
         : ptr_(&array[0])
         , size_(N)
     {}
-    ArrayRef(std::vector<T>& vector)
-        : ptr_(&*vector.begin())
-        , size_(vector.size())
-    {}
     ArrayRef(const std::vector<T>& vector)
         : ptr_(&*vector.begin())
         , size_(vector.size())
@@ -91,12 +87,13 @@ public:
         : ptr_(ptr) 
         , size_(size)
     {}
-    ArrayRef(Array<T>& array)
+    ArrayRef(const Array<T>& array)
         : ptr_(array.begin()) 
         , size_(array.size())
     {}
-    ArrayRef(const Array<T>& array)
-        : ptr_(array.begin()) 
+    template<class Deref_, Deref const& (*Hook_)(const T*)>
+    ArrayRef(const ArrayRef<T, Deref_, Hook_>& array)
+        : ptr_(array.begin().base()) 
         , size_(array.size())
     {}
 
@@ -135,7 +132,7 @@ class Array {
 public:
 
     explicit Array(size_t size)
-        : ptr_(new T[size])
+        : ptr_(new T[size]())
         , size_(size)
     {}
     explicit Array(ArrayRef<T> ref)

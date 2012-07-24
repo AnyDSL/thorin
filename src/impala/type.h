@@ -134,8 +134,8 @@ public:
     virtual void dump(Printer& p) const;
     virtual const anydsl::Type* emit(anydsl::World& world) const;
 
-    size_t numElems() const { return elems().size(); }
-    const anydsl::Array<const Type*>& elems() const { return elems_; }
+    typedef anydsl::ArrayRef<const Type*> Elems;
+    Elems elems() const { return Elems(elems_); }
     const Type* retType() const { return retType_; }
 
 private:

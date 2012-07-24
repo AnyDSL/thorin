@@ -361,13 +361,13 @@ void TypeError::dump(Printer& p) const {
 void Pi::dump(Printer& p) const {
     p << "pi(";
 
-    if (numElems() != 0) {
-        for (size_t i = 0; i < numElems() - 1; ++i) {
-            elems()[i]->dump(p);
+    if (!elems().empty()) {
+        for_all (elem, elems()) {
+            elem->dump(p);
             p << ", ";
         }
 
-        elems()[numElems() - 1]->dump(p);
+        elems().back()->dump(p);
     }
 
     p << ")";

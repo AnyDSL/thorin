@@ -385,7 +385,7 @@ const anydsl::Type* TypeError::emit(anydsl::World& /*world*/) const {
 }
 
 const anydsl::Type* Pi::emit(anydsl::World& world) const {
-    size_t size = numElems();
+    size_t size = elems().size();
     Array<const anydsl::Type*> types(size + 1);
 
     for (size_t i = 0; i < size; ++i)

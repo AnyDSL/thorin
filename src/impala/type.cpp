@@ -52,28 +52,16 @@ Pi::Pi(anydsl::ArrayRef<const Type*> elems, const Type* retType)
 
 size_t Pi::hash() const {
     size_t seed = 0;
-    boost::hash_combine(seed, numElems());
-
-    for_all (elem, elems())
-        boost::hash_combine(seed, elem);
-
+    boost::hash_combine(seed, Token::PI);
+    boost::hash_combine(seed, elems_);
     boost::hash_combine(seed, retType_);
 
     return seed;
 }
 
 bool Pi::equal(const Type* other) const {
-    if (const Pi* pi = other->isa<Pi>()) {
-        if (numElems() != pi->numElems() || retType_ != pi->retType())
-            return false;
-
-        bool result = true;
-
-        for (size_t i = 0; i < numElems() && result; ++i)
-            result &= elems()[i] == pi->elems()[i];
-
-        return result;
-    }
+    if (const Pi* pi = other->isa<Pi>())
+        return elems_ == pi->elems_;
 
     return false;
 }

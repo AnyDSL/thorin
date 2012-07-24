@@ -394,7 +394,7 @@ const anydsl::Type* Pi::emit(anydsl::World& world) const {
     if (!retType()->isNoRet())
         types[size++] = world.pi1(retType()->emit(world));
 
-    return world.pi(ArrayRef<const anydsl::Type*>(types.begin(), size));
+    return world.pi(types.slice_front(size));
 }
 
 } // namespace impala

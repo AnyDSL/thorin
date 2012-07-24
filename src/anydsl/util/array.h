@@ -12,48 +12,56 @@ namespace anydsl {
 
 template<class T> class Array;
 
+//------------------------------------------------------------------------------
+
 template<class LEFT, class RIGHT>
-inline LEFT& deref_hook(RIGHT* ptr) {
-    return *ptr;
-}
+inline LEFT& deref_hook(RIGHT* ptr) { return *ptr; }
+
+//------------------------------------------------------------------------------
+
+template<class T, class U> struct dep_const { typedef U type; };
+template<class T, class U> struct dep_const<const T, U> { typedef const U type; };
+
+//------------------------------------------------------------------------------
 
 template<class T, class Deref = T, Deref& (*Hook)(T*) = deref_hook<T, T> >
 class ArrayRef {
 public:
 
-    class const_iterator {
+    template<class U>
+    class iterator_base {
     public:
 
         typedef std::random_access_iterator_tag iterator_category;
-        typedef const Deref value_type;
+        typedef typename dep_const<T, Deref>::type value_type;
         typedef ptrdiff_t difference_type;
-        typedef const T* pointer;
-        typedef const Deref& reference;
+        typedef T* pointer;
+        typedef value_type& reference;
 
-        const_iterator(const const_iterator& i) : base_(i.base_) {}
-        const_iterator(T* base) : base_(base) {}
+        iterator_base<U>(const iterator_base<U>& i) : base_(i.base_) {}
+        iterator_base<U>(T* base) : base_(base) {}
 
-        const_iterator& operator ++ () { ++base_; return *this; }
-        const_iterator  operator ++ (int) { const_iterator i(*this); ++(*this); return i; }
+        iterator_base<U>& operator ++ () { ++base_; return *this; }
+        iterator_base<U>  operator ++ (int) { iterator_base<U> i(*this); ++(*this); return i; }
 
-        const_iterator& operator -- () { --base_; return *this; }
-        const_iterator  operator -- (int) { const_iterator i(*this); --(*this); return i; }
+        iterator_base<U>& operator -- () { --base_; return *this; }
+        iterator_base<U>  operator -- (int) { iterator_base<U> i(*this); --(*this); return i; }
 
-        difference_type operator + (const_iterator i) { return difference_type(base_ + i.base()); }
-        difference_type operator - (const_iterator i) { return difference_type(base_ - i.base()); }
+        difference_type operator + (iterator_base<U> i) { return difference_type(base_ + i.base()); }
+        difference_type operator - (iterator_base<U> i) { return difference_type(base_ - i.base()); }
 
-        const_iterator operator + (difference_type d) { return const_iterator(base_ + d); }
-        const_iterator operator - (difference_type d) { return const_iterator(base_ - d); }
+        iterator_base<U> operator + (difference_type d) { return iterator_base<U>(base_ + d); }
+        iterator_base<U> operator - (difference_type d) { return iterator_base<U>(base_ - d); }
 
-        bool operator <  (const const_iterator& i) { return base_ <  i.base_; }
-        bool operator <= (const const_iterator& i) { return base_ <= i.base_; }
-        bool operator >  (const const_iterator& i) { return base_ >  i.base_; }
-        bool operator >= (const const_iterator& i) { return base_ >= i.base_; }
-        bool operator == (const const_iterator& i) { return base_ == i.base_; }
-        bool operator != (const const_iterator& i) { return base_ != i.base_; }
+        bool operator <  (const iterator_base<U>& i) { return base_ <  i.base_; }
+        bool operator <= (const iterator_base<U>& i) { return base_ <= i.base_; }
+        bool operator >  (const iterator_base<U>& i) { return base_ >  i.base_; }
+        bool operator >= (const iterator_base<U>& i) { return base_ >= i.base_; }
+        bool operator == (const iterator_base<U>& i) { return base_ == i.base_; }
+        bool operator != (const iterator_base<U>& i) { return base_ != i.base_; }
 
-        const Deref& operator *  () { return Hook(base_); }
-        const Deref& operator -> () { return Hook(base_); }
+        reference operator *  () { return Hook(base_); }
+        reference operator -> () { return Hook(base_); }
 
         T* base() const { return base_; }
 
@@ -62,6 +70,9 @@ public:
         T* base_;
     };
 
+    typedef iterator_base<T> iterator;
+    typedef iterator_base<const T> const_iterator;
+    typedef std::reverse_iterator<iterator> reverse_iterator;
     typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
     template<size_t N>
@@ -81,6 +92,11 @@ public:
         : ptr_(ptr) 
         , size_(size)
     {}
+
+    iterator begin() { return iterator(ptr_); }
+    iterator end() { return iterator(ptr_ + size_); }
+    reverse_iterator rbegin() { return reverse_iterator(end()); }
+    reverse_iterator rend() { return reverse_iterator(begin()); }
 
     const_iterator begin() const { return ptr_; }
     const_iterator end() const { return ptr_ + size_; }
@@ -110,6 +126,7 @@ private:
     size_t size_;
 };
 
+//------------------------------------------------------------------------------
 
 template<class T>
 class Array {
@@ -171,6 +188,8 @@ private:
     T* ptr_;
     size_t size_;
 };
+
+//------------------------------------------------------------------------------
 
 } // namespace anydsl
 

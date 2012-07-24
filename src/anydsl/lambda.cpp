@@ -13,8 +13,9 @@ namespace anydsl {
 Lambda::Lambda(const Pi* pi)
     : Def(Index_Lambda, pi, 0)
 {
-    for (size_t i = 0, e = pi->numOps(); i != e; ++i)
-        world().param(pi->get(i), this, i);
+    size_t i = 0;
+    for_all (elem, pi->elems())
+        world().param(elem, this, i++);
 }
 
 static void findLambdas(const Def* def, LambdaSet& result) {
@@ -73,11 +74,10 @@ const Pi* Lambda::pi() const {
 }
 
 const Param* Lambda::appendParam(const Type* type) {
-    size_t size = pi()->numOps();
+    size_t size = pi()->elems().size();
 
     Array<const Type*> elems(size + 1);
     *std::copy(pi()->elems().begin(), pi()->elems().end(), elems.begin()) = type;
-
     setType(world().pi(elems));
 
     return world().param(type, this, size);

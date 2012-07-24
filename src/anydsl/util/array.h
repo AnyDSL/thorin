@@ -6,7 +6,10 @@
 #include <iterator>
 #include <vector>
 
+#include <boost/functional/hash.hpp>
+
 #include "anydsl/util/assert.h"
+#include "anydsl/util/for_all.h"
 
 namespace anydsl {
 
@@ -15,7 +18,7 @@ template<class T> class Array;
 //------------------------------------------------------------------------------
 
 template<class LEFT, class RIGHT>
-inline LEFT& deref_hook(RIGHT* ptr) { return *ptr; }
+inline LEFT const& deref_hook(const RIGHT* ptr) { return *ptr; }
 
 //------------------------------------------------------------------------------
 
@@ -24,56 +27,51 @@ template<class T, class U> struct dep_const<const T, U> { typedef const U type; 
 
 //------------------------------------------------------------------------------
 
-template<class T, class Deref = T, Deref& (*Hook)(T*) = deref_hook<T, T> >
+template<class T, class Deref = T, Deref const& (*Hook)(const T*) = deref_hook<T, T> >
 class ArrayRef {
 public:
 
-    template<class U>
-    class iterator_base {
+    class const_iterator {
     public:
 
         typedef std::random_access_iterator_tag iterator_category;
-        typedef typename dep_const<T, Deref>::type value_type;
+        typedef const Deref value_type;
         typedef ptrdiff_t difference_type;
-        typedef T* pointer;
-        typedef value_type& reference;
+        typedef const T* pointer;
+        typedef const Deref& reference;
 
-        template<class V>
-        iterator_base<U>(const iterator_base<V>& i) : base_(i.base_) {}
-        iterator_base<U>(T* base) : base_(base) {}
+        const_iterator(const const_iterator& i) : base_(i.base_) {}
+        const_iterator(pointer base) : base_(base) {}
 
-        iterator_base<U>& operator ++ () { ++base_; return *this; }
-        iterator_base<U>  operator ++ (int) { iterator_base<U> i(*this); ++(*this); return i; }
+        const_iterator& operator ++ () { ++base_; return *this; }
+        const_iterator  operator ++ (int) { const_iterator i(*this); ++(*this); return i; }
 
-        iterator_base<U>& operator -- () { --base_; return *this; }
-        iterator_base<U>  operator -- (int) { iterator_base<U> i(*this); --(*this); return i; }
+        const_iterator& operator -- () { --base_; return *this; }
+        const_iterator  operator -- (int) { const_iterator i(*this); --(*this); return i; }
 
-        difference_type operator + (iterator_base<U> i) { return difference_type(base_ + i.base()); }
-        difference_type operator - (iterator_base<U> i) { return difference_type(base_ - i.base()); }
+        difference_type operator + (const_iterator i) { return difference_type(base_ + i.base()); }
+        difference_type operator - (const_iterator i) { return difference_type(base_ - i.base()); }
 
-        iterator_base<U> operator + (difference_type d) { return iterator_base<U>(base_ + d); }
-        iterator_base<U> operator - (difference_type d) { return iterator_base<U>(base_ - d); }
+        const_iterator operator + (difference_type d) { return const_iterator(base_ + d); }
+        const_iterator operator - (difference_type d) { return const_iterator(base_ - d); }
 
-        bool operator <  (const iterator_base<U>& i) { return base_ <  i.base_; }
-        bool operator <= (const iterator_base<U>& i) { return base_ <= i.base_; }
-        bool operator >  (const iterator_base<U>& i) { return base_ >  i.base_; }
-        bool operator >= (const iterator_base<U>& i) { return base_ >= i.base_; }
-        bool operator == (const iterator_base<U>& i) { return base_ == i.base_; }
-        bool operator != (const iterator_base<U>& i) { return base_ != i.base_; }
+        bool operator <  (const const_iterator& i) { return base_ <  i.base_; }
+        bool operator <= (const const_iterator& i) { return base_ <= i.base_; }
+        bool operator >  (const const_iterator& i) { return base_ >  i.base_; }
+        bool operator >= (const const_iterator& i) { return base_ >= i.base_; }
+        bool operator == (const const_iterator& i) { return base_ == i.base_; }
+        bool operator != (const const_iterator& i) { return base_ != i.base_; }
 
         reference operator *  () { return Hook(base_); }
         reference operator -> () { return Hook(base_); }
 
-        T* base() const { return base_; }
+        pointer base() const { return base_; }
 
     private:
 
-        T* base_;
+        pointer base_;
     };
 
-    typedef iterator_base<T> iterator;
-    typedef iterator_base<const T> const_iterator;
-    typedef std::reverse_iterator<iterator> reverse_iterator;
     typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
     template<size_t N>
@@ -89,15 +87,18 @@ public:
         : ptr_(&*vector.begin())
         , size_(vector.size())
     {}
-    ArrayRef(T* ptr, size_t size)
+    ArrayRef(const T* ptr, size_t size)
         : ptr_(ptr) 
         , size_(size)
     {}
-
-    iterator begin() { return iterator(ptr_); }
-    iterator end() { return iterator(ptr_ + size_); }
-    reverse_iterator rbegin() { return reverse_iterator(end()); }
-    reverse_iterator rend() { return reverse_iterator(begin()); }
+    ArrayRef(Array<T>& array)
+        : ptr_(array.begin()) 
+        , size_(array.size())
+    {}
+    ArrayRef(const Array<T>& array)
+        : ptr_(array.begin()) 
+        , size_(array.size())
+    {}
 
     const_iterator begin() const { return ptr_; }
     const_iterator end() const { return ptr_ + size_; }
@@ -112,8 +113,8 @@ public:
     size_t size() const { return size_; }
     bool empty() const { return size_ == 0; }
 
-    T& front() const { assert(!empty()); return ptr_[0]; }
-    T& back()  const { assert(!empty()); return ptr_[size_ - 1]; }
+    T const& front() const { assert(!empty()); return ptr_[0]; }
+    T const& back()  const { assert(!empty()); return ptr_[size_ - 1]; }
 
     ArrayRef<T> slice(size_t begin, size_t end) const { return ArrayRef<T>(ptr_ + begin, end - begin); }
     ArrayRef<T> slice_front(size_t end) const { return ArrayRef<T>(ptr_, end); }
@@ -123,7 +124,7 @@ public:
 
 private:
 
-    T* ptr_;
+    const T* ptr_;
     size_t size_;
 };
 
@@ -180,7 +181,16 @@ public:
     ArrayRef<T> slice_front(size_t end) const { return ArrayRef<T>(ptr_, end); }
     ArrayRef<T> slice_back(size_t begin) const { return ArrayRef<T>(ptr_ + begin, size_ - begin); }
 
-    operator ArrayRef<T>() { return ArrayRef<T>(ptr_, size_); }
+    bool operator == (const Array<T>& other) const { 
+        if (size() != other.size())
+            return false;
+
+        bool result = true;
+        for (size_t i = 0, e = size(); i != e && result; ++i)
+            result &= ptr_[i] == other[i];
+
+        return result;
+    }
 
 private:
 
@@ -189,6 +199,17 @@ private:
     T* ptr_;
     size_t size_;
 };
+
+template<class T>
+inline size_t hash_value(const Array<T>& array) { 
+    size_t seed = 0;
+    boost::hash_combine(seed, array.size());
+
+    for (size_t i = 0, e = array.size(); i != e; ++i)
+        boost::hash_combine(seed, array[i]);
+
+    return seed;
+}
 
 //------------------------------------------------------------------------------
 

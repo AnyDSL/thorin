@@ -104,17 +104,18 @@ llvm::Type* CodeGen::convert(const Type* type) {
         case Index_Pi: {
             // extract "return" type, collect all other types
             const Pi* pi = type->as<Pi>();
+            size_t num = pi->elems().size();
             llvm::Type* retType = 0;
             size_t i = 0;
-            Array<llvm::Type*> elems(pi->numElems() - 1);
+            Array<llvm::Type*> elems(num - 1);
 
             for_all (elem, pi->elems()) {
                 if (const Pi* pi = elem->isa<Pi>()) {
                     anydsl_assert(retType == 0, "not yet supported");
-                    if (pi->numElems() == 0)
+                    if (num == 0)
                         retType = llvm::Type::getVoidTy(context);
                     else {
-                        anydsl_assert(pi->numElems() == 1, "TODO");
+                        anydsl_assert(num == 1, "TODO");
                         retType = convert(pi->get(0));
                     }
                 } else
@@ -130,7 +131,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
 
             const Sigma* sigma = type->as<Sigma>();
 
-            Array<llvm::Type*> elems(sigma->numElems());
+            Array<llvm::Type*> elems(sigma->elems().size());
             size_t i = 0;
             for_all (t, sigma->elems())
                 elems[i++] = convert(t);
@@ -261,7 +262,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (const Tuple* tuple = def->isa<Tuple>()) {
         llvm::Value* agg = llvm::UndefValue::get(convert(tuple->type()));
 
-        for (unsigned i = 0, e = tuple->numOps(); i != e; ++i) {
+        for (unsigned i = 0, e = tuple->ops().size(); i != e; ++i) {
             unsigned idxs[1] = { unsigned(i) };
             agg = builder.CreateInsertValue(agg, emit(tuple->get(i)), idxs);
         }

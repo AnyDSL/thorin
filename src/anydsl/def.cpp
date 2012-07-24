@@ -13,17 +13,19 @@ namespace anydsl {
 //------------------------------------------------------------------------------
 
 Def::~Def() { 
-    for (size_t i = 0, e = numOps(); i != e; ++i)
-        if (ops_[i])
-            ops_[i]->unregisterUse(i, this);
+    size_t i = 0;
+    for_all (op, ops()) {
+        if (op)
+            op->unregisterUse(i, this);
+
+        ++i;
+    }
 
     for_all (use, uses_) {
         size_t i = use.index();
         anydsl_assert(use.def()->ops()[i] == this, "use points to incorrect def");
         use.def()->delOp(i);
     }
-
-    delete[] ops_;
 }
 
 void Def::registerUse(size_t i, const Def* def) const {
@@ -51,35 +53,22 @@ World& Def::world() const {
 }
 
 bool Def::equal(const Def* other) const {
-    if (this->indexKind() != other->indexKind())
-        return false;
-
-    if (this->numOps() != other->numOps())
-        return false;
-
-    bool result = true;
-    for (size_t i = 0, e = numOps(); i != e && result; ++i)
-        result &= this->ops_[i] == other->ops_[i];
-
-    return result;
+    return this->kind() == other->kind() && this->ops_ == other->ops_;
 }
 
 size_t Def::hash() const {
     size_t seed = 0;
 
     boost::hash_combine(seed, indexKind());
-    boost::hash_combine(seed, numOps());
-
-    for (size_t i = 0, e = numOps(); i != e; ++i)
-        boost::hash_combine(seed, ops_[i]);
+    boost::hash_combine(seed, ops_);
 
     return seed;
 }
 
 void Def::alloc(size_t size) { 
-    assert(ops_ == 0); 
-    numOps_ = size;
-    ops_ = new const Def*[size];
+    anydsl_assert(ops_.empty(), "realloc");
+    ops_.~Array();
+    new (&ops_) Array<const Def*>(size);
 }
 
 //------------------------------------------------------------------------------

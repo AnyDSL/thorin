@@ -391,7 +391,7 @@ Params World::findParams(const Lambda* lambda) {
     Params result;
 
     const Pi* pi = lambda->pi();
-    size_t num = pi->numOps();
+    size_t num = pi->elems().size();
 
     for (size_t i = 0; i < num; ++i) {
         Param param(pi->get(i), lambda, i);

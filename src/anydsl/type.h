@@ -52,9 +52,9 @@ private:
 
 //------------------------------------------------------------------------------
 
-inline const Type*& elem_as_type(const Def** ptr) { 
+inline const Type* const& elem_as_type(const Def* const* ptr) { 
     assert((*ptr)->as<Type>());
-    return *((const Type**) ptr); 
+    return *((const Type* const*) ptr); 
 }
 
 class CompoundType : public Type {
@@ -72,8 +72,7 @@ public:
     }
 
     typedef ArrayRef<const Def*, const Type*, elem_as_type> Elems;
-    Elems elems() const { return polyOps<Elems>(); }
-    size_t numElems() const { return numOps(); }
+    Elems elems() const { return Elems(ops().begin().base(), ops().size()); }
 
 protected:
 

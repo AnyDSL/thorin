@@ -101,10 +101,9 @@ protected:
     Def(int kind, const Type* type, size_t numOps)
         : kind_(kind) 
         , type_(type)
-        , numOps_(numOps)
-        , ops_(numOps ? new const Def*[numOps] : 0)
+        , ops_(numOps)
     {
-        std::memset(ops_, 0, sizeof(const Def*) * numOps);
+        std::memset(ops_.begin(), 0, sizeof(const Def*) * numOps);
     }
 
     virtual ~Def();
@@ -113,7 +112,7 @@ protected:
     virtual size_t hash() const;
 
     void setOp(size_t i, const Def* def) { def->registerUse(i, this); ops_[i] = def; }
-    void delOp(size_t i) const { ops_[i] = 0; }
+    void delOp(size_t i) const { const_cast<Def*>(this)->ops_[i] = 0; }
     void setType(const Type* type) { type_ = type; }
     void alloc(size_t size);
 
@@ -140,17 +139,9 @@ public:
 
     typedef ArrayRef<const Def*> Ops;
 
-    size_t numOps() const { return numOps_; }
-    Ops ops() const { return Ops(ops_, numOps_); }
-    Ops ops(size_t begin, size_t end) const { assert(end <= numOps_); return Ops(ops_ + begin, end - begin); }
-    const Def* op(size_t i) const { anydsl_assert(i < numOps_, "index out of bounds"); return ops_[i]; }
-
-    template<class T> T polyOps() const { 
-        return T(ops_, numOps_); 
-    }
-    template<class T> T polyOps(size_t begin, size_t end) const { 
-        assert(end <= numOps_); return T(ops_ + begin, end - begin); 
-    }
+    Ops ops() const { return Ops(ops_); }
+    Ops ops(size_t begin, size_t end) const { return ops_.slice(begin, end); }
+    const Def* op(size_t i) const { return ops_[i]; }
 
     /**
      * Just do what ever you want with this field.
@@ -163,8 +154,7 @@ private:
 
     int kind_;
     const Type* type_;
-    size_t numOps_;
-    const Def** ops_;
+    Array<const Def*> ops_;
     mutable UseSet uses_;
     mutable bool flag_;
 

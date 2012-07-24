@@ -27,7 +27,7 @@ public:
     Params params() const;
 
     const Def* todef() const { return op(0); };
-    Ops args() const { return ops(1, numOps()); }
+    Ops args() const { return ops().slice_back(1); }
     const Pi* pi() const;
 
     void dump(bool fancy = false) const;

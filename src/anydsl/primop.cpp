@@ -58,10 +58,10 @@ Insert::Insert(const Def* tuple, uint32_t index, const Def* value)
 Tuple::Tuple(World& world, ArrayRef<const Def*> args) 
     : PrimOp(Index_Tuple, 0, args.size())
 {
-    if (numOps() == 0) {
+    if (ops().empty()) {
         setType(world.sigma0());
     } else {
-        Array<const Type*> types(numOps());
+        Array<const Type*> types(ops().size());
         size_t x = 0;
         for_all (arg, args)
             types[x++] = arg->type();

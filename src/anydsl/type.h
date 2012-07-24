@@ -28,6 +28,9 @@ public:
 
 private:
 
+    // hide Def::ops
+    void ops() {}
+
     World& world_;
 };
 
@@ -72,7 +75,7 @@ public:
     }
 
     typedef ArrayRef<const Def*, const Type*, elem_as_type> Elems;
-    Elems elems() const { return Elems(ops().begin().base(), ops().size()); }
+    Elems elems() const { return Elems(Def::ops().begin().base(), Def::ops().size()); }
 
 protected:
 

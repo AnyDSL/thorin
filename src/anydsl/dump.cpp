@@ -208,7 +208,7 @@ void Tuple::vdump(Printer& p) const {
 
 void CompoundType::dumpInner(Printer& p) const  {
 	p << "(";
-	ANYDSL_DUMP_COMMA_LIST(p, ops());
+	ANYDSL_DUMP_COMMA_LIST(p, elems());
 	p << ")";
 }
 

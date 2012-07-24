@@ -13,13 +13,9 @@ namespace anydsl {
 //------------------------------------------------------------------------------
 
 Def::~Def() { 
-    size_t i = 0;
-    for_all (op, ops()) {
-        if (op)
-            op->unregisterUse(i, this);
-
-        ++i;
-    }
+    for (size_t i = 0, e = ops().size(); i != e; ++i)
+        if (ops_[i])
+            ops_[i]->unregisterUse(i, this);
 
     for_all (use, uses_) {
         size_t i = use.index();

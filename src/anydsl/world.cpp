@@ -339,7 +339,6 @@ void World::destroy(const Def* def) {
             reachable_.erase(i);
     }
 
-    anydsl_assert(defs_.find(def) != defs_.end(), "def not contained in defs_");
     delete def;
 }
 

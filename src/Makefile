@@ -1,7 +1,7 @@
 CFG ?= default
 -include config.$(CFG)
 
-BUILDDIR := build/$(CFG)
+BUILDDIR ?= build/$(CFG)
 BIN ?= $(BUILDDIR)/bin
 
 LLVMCONFIG ?= llvm-config

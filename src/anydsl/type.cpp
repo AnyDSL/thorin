@@ -8,19 +8,19 @@ namespace anydsl {
 //------------------------------------------------------------------------------
 
 PrimType::PrimType(World& world, PrimTypeKind kind)
-    : Type(world, (IndexKind) kind, 0)
+    : Type(world, kind, 0)
 {
     debug = kind2str(this->kind());
 }
 
 //------------------------------------------------------------------------------
 
-CompoundType::CompoundType(World& world, IndexKind index, size_t num)
-    : Type(world, index, num)
+CompoundType::CompoundType(World& world, int kind, size_t num)
+    : Type(world, kind, num)
 {}
 
-CompoundType::CompoundType(World& world, IndexKind index, ArrayRef<const Type*> elems)
-    : Type(world, index, elems.size())
+CompoundType::CompoundType(World& world, int kind, ArrayRef<const Type*> elems)
+    : Type(world, kind, elems.size())
 {
     size_t x = 0;
     for_all (elem, elems)

@@ -63,8 +63,8 @@ inline const Type* const& elem_as_type(const Def* const* ptr) {
 class CompoundType : public Type {
 protected:
 
-    CompoundType(World& world, IndexKind index, size_t num);
-    CompoundType(World& world, IndexKind index, ArrayRef<const Type*> elems);
+    CompoundType(World& world, int kind, size_t num);
+    CompoundType(World& world, int kind, ArrayRef<const Type*> elems);
 
 public:
 

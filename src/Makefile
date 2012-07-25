@@ -6,7 +6,7 @@ BIN ?= $(BUILDDIR)/bin
 
 LLVMCONFIG ?= llvm-config
 
-CXXFLAGS += -I . -fPIC `$(LLVMCONFIG) --cxxflags` -fexceptions
+CXXFLAGS += -I . -fPIC `$(LLVMCONFIG) --cxxflags` -fexceptions -frtti
 LDFLAGS += -L $(BIN) `$(LLVMCONFIG) --ldflags`
 
 ANYDSL_LIB  ?= anydsl

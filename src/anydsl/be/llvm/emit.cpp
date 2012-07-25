@@ -52,7 +52,7 @@ void CodeGen::emit() {
             for_all (elem, pi->elems()) {
                 if (elem->isa<Pi>()) {
                     top.insert(lambda);
-                    anydsl_assert(i == pi->numElems() - 1, "TODO");
+                    anydsl_assert(i == pi->elems().size() - 1, "TODO");
                     break;
                 }
                 ++i;

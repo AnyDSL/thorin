@@ -54,7 +54,7 @@ bool Def::equal(const Def* other) const {
 }
 
 void Def::replace(const Def* def) {
-    representitive_ = def;
+    //representitive_ = def;
 }
 
 size_t Def::hash() const {

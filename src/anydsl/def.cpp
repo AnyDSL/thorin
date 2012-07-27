@@ -5,6 +5,7 @@
 #include "anydsl/lambda.h"
 #include "anydsl/primop.h"
 #include "anydsl/type.h"
+#include "anydsl/world.h"
 #include "anydsl/util/for_all.h"
 
 namespace anydsl {
@@ -20,7 +21,7 @@ Def::~Def() {
     for_all (use, uses_) {
         size_t i = use.index();
         anydsl_assert(use.def()->ops()[i] == this, "use points to incorrect def");
-        use.def()->delOp(i);
+        use.def()->ops_[i] = 0;
     }
 }
 
@@ -53,8 +54,47 @@ bool Def::equal(const Def* other) const {
     return this->kind() == other->kind() && this->ops_ == other->ops_;
 }
 
-void Def::replace(const Def* def) {
-    //representitive_ = def;
+void Def::replace(const Def* with) const {
+    if (this == with)
+        return;
+
+    // unregister all uses of this' node's operands
+    for (size_t i = 0, e = ops().size(); i != e; ++i)
+        ops_[i]->unregisterUse(i, this);
+
+    // copy over old use info
+    Array<Use> old_uses(uses_.size());
+    std::copy(uses_.begin(), uses_.end(), old_uses.begin());
+
+    // unregister all uses of this node
+    uses_.clear();
+
+    // update all operands of old uses to point to new node instead 
+    // and erase these nodes from world
+    for_all (use, old_uses) {
+        const Def* udef = use.def();
+        DefSet::iterator i = world().defs_.find(udef);
+        anydsl_assert(i != world().defs_.end(), "must be found");
+        world().defs_.erase(udef);
+        udef->setOp(use.index(), with);
+    }
+
+    // reinsert all operands of old uses into world
+    // don't merge this loop with the loop above
+    for_all (use, old_uses) {
+        const Def* udef = use.def();
+
+        DefSet::iterator i = world().defs_.find(udef);
+        if (i != world().defs_.end()) {
+            const Def* ndef = *i;
+            assert(udef != ndef);
+            udef->replace(ndef);
+            delete udef;
+            continue;
+        }
+
+        world().defs_.insert(udef);
+    }
 }
 
 size_t Def::hash() const {

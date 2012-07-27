@@ -51,6 +51,7 @@ typedef Array<PhiOp> PhiOps;
 class Use {
 public:
 
+    Use() {}
     Use(size_t index, const Def* def)
         : index_(index)
         , def_(def)
@@ -109,8 +110,7 @@ protected:
     virtual bool equal(const Def* other) const;
     virtual size_t hash() const;
 
-    void setOp(size_t i, const Def* def) { def->registerUse(i, this); ops_[i] = def; }
-    void delOp(size_t i) const { const_cast<Def*>(this)->ops_[i] = 0; }
+    void setOp(size_t i, const Def* def) const { def->registerUse(i, this); ops_[i] = def; }
     void setType(const Type* type) { type_ = type; }
     void alloc(size_t size);
 
@@ -141,7 +141,7 @@ public:
     Ops ops(size_t begin, size_t end) const { return Ops(ops_.slice(begin, end)); }
     const Def* op(size_t i) const { return ops_[i]; }
 
-    void replace(const Def* def);
+    void replace(const Def* def) const;
 
     /**
      * Just do what ever you want with this field.
@@ -154,7 +154,7 @@ private:
 
     int kind_;
     const Type* type_;
-    Array<const Def*> ops_;
+    mutable Array<const Def*> ops_;
     mutable UseSet uses_;
     mutable bool flag_;
 

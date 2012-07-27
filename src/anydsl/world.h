@@ -209,6 +209,7 @@ public:
 
     Params findParams(const Lambda* lambda);
     void dump(bool fancy = false);
+    const Def* rehash(const Def* def);
 
 private:
 
@@ -246,6 +247,8 @@ private:
 
         const PrimType* primTypes_[Num_PrimTypes];
     };
+
+    friend void Def::replace(const Def*) const;
 };
 
 //------------------------------------------------------------------------------

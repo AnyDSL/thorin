@@ -52,7 +52,6 @@ static void examineDef(const Def* def, FoldValue& v) {
         v.kind = FoldValue::Valid;
         v.box = lit->box();
     }
-   
 }
 
 /*

@@ -157,8 +157,8 @@ public:
      * create
      */
 
-    const Def* arithOp(ArithOpKind kind, const Def* ldef, const Def* rdef);
-    const Def* relOp(RelOpKind kind, const Def* ldef, const Def* rdef);
+    const Def* arithop(ArithOpKind kind, const Def* ldef, const Def* rdef);
+    const Def* relop(RelOpKind kind, const Def* ldef, const Def* rdef);
     const Def* extract(const Def* tuple, size_t index);
     const Def* insert(const Def* tuple, size_t index, const Def* value);
     const Def* select(const Def* cond, const Def* tdef, const Def* fdef);

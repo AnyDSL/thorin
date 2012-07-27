@@ -147,7 +147,7 @@ const Def* World::tryFold(NodeKind kind, const Def* ldef, const Def* rdef) {
     return 0;
 }
 
-const Def* World::arithOp(ArithOpKind kind, const Def* ldef, const Def* rdef) {
+const Def* World::arithop(ArithOpKind kind, const Def* ldef, const Def* rdef) {
     if (const Def* value = tryFold((NodeKind) kind, ldef, rdef))
         return value;
 
@@ -158,7 +158,7 @@ const Def* World::arithOp(ArithOpKind kind, const Def* ldef, const Def* rdef) {
     return find(new ArithOp(kind, ldef, rdef));
 }
 
-const Def* World::relOp(RelOpKind kind, const Def* ldef, const Def* rdef) {
+const Def* World::relop(RelOpKind kind, const Def* ldef, const Def* rdef) {
     if (const Def* value = tryFold((NodeKind) kind, ldef, rdef))
         return value;
 

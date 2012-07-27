@@ -125,8 +125,8 @@ void Error::vdump(Printer& p) const  {
 }
 
 void PrimLit::vdump(Printer& p) const  {
-	switch(indexKind()) {
-#define ANYDSL_U_TYPE(T) case Index_PrimLit_##T: p.o << box().get_##T(); break;
+	switch (primlit_kind()) {
+#define ANYDSL_U_TYPE(T) case Node_PrimLit_##T: p.o << box().get_##T(); break;
 #define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
 #include "anydsl/tables/primtypetable.h"
 	default:
@@ -148,14 +148,14 @@ static void dumpNameAndType(Printer& p, const Def* def, const char* name) {
 
 void BinOp::vdump(Printer& p) const  {
     const char* name;
-	switch(indexKind()) {
-#define ANYDSL_ARITHOP(op) case Index_##op: name = #op; break;
+	switch (node_kind()) {
+#define ANYDSL_ARITHOP(op) case Node_##op: name = #op; break;
 #include "anydsl/tables/arithoptable.h"
 
-#define ANYDSL_RELOP(op)   case Index_##op: name = #op; break;
+#define ANYDSL_RELOP(op)   case Node_##op: name = #op; break;
 #include "anydsl/tables/reloptable.h"
 
-#define ANYDSL_CONVOP(op) case Index_##op: ANYDSL_NOT_IMPLEMENTED; break;
+#define ANYDSL_CONVOP(op) case Node_##op: ANYDSL_NOT_IMPLEMENTED; break;
 #include "anydsl/tables/convoptable.h"
         
 	default:
@@ -213,8 +213,8 @@ void CompoundType::dumpInner(Printer& p) const  {
 }
 
 void PrimType::vdump(Printer& p) const  {
-	switch(indexKind()) {
-#define ANYDSL_U_TYPE(T) case Index_PrimType_##T: p << #T; return;
+	switch (primtype_kind()) {
+#define ANYDSL_U_TYPE(T) case Node_PrimType_##T: p << #T; return;
 #define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
 #include "anydsl/tables/primtypetable.h"
 	default:

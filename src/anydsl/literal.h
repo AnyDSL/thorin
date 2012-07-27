@@ -17,8 +17,8 @@ class World;
 class Literal : public PrimOp {
 protected:
 
-    Literal(IndexKind index, const Type* type)
-        : PrimOp(index, type, 0)
+    Literal(int kind, const Type* type)
+        : PrimOp(kind, type, 0)
     {}
 };
 
@@ -28,7 +28,7 @@ class Undef : public Literal {
 private:
 
     Undef(const Type* type)
-        : Literal(Index_Undef, type)
+        : Literal(Node_Undef, type)
     {}
 
     virtual void vdump(Printer& printer) const ;
@@ -43,7 +43,7 @@ class Error : public Literal {
 private:
 
     Error(const Type* type)
-        : Literal(Index_Error, type)
+        : Literal(Node_Error, type)
     {}
 
     virtual void vdump(Printer& printer) const ;
@@ -57,13 +57,13 @@ class PrimLit : public Literal {
 private:
 
     PrimLit(const Type* type, Box box)
-        : Literal((IndexKind) type2lit(type->as<PrimType>()->kind()), type)
+        : Literal(type2lit(type->as<PrimType>()->primtype_kind()), type)
         , box_(box)
     {}
 
 public:
 
-    PrimLitKind kind() const { return (PrimLitKind) indexKind(); }
+    PrimLitKind primlit_kind() const { return (PrimLitKind) node_kind(); }
     Box box() const { return box_; }
 
     virtual bool equal(const Def* other) const;

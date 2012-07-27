@@ -1,7 +1,5 @@
 #include "anydsl/def.h"
 
-#include <typeinfo>
-
 #include "anydsl/lambda.h"
 #include "anydsl/primop.h"
 #include "anydsl/type.h"
@@ -94,7 +92,7 @@ void Def::replace(const Def* with) const {
 size_t Def::hash() const {
     size_t seed = 0;
 
-    boost::hash_combine(seed, indexKind());
+    boost::hash_combine(seed, kind());
     boost::hash_combine(seed, ops_);
 
     return seed;
@@ -109,7 +107,7 @@ void Def::alloc(size_t size) {
 //------------------------------------------------------------------------------
 
 Param::Param(const Type* type, const Lambda* lambda, size_t index)
-    : Def(Index_Param, type, 0)
+    : Def(Node_Param, type, 0)
     , lambda_(lambda)
     , index_(index)
 {}

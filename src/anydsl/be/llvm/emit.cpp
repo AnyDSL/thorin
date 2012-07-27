@@ -92,16 +92,16 @@ void emit(const World& world) {
 }
 
 llvm::Type* CodeGen::convert(const Type* type) {
-    switch (type->indexKind()) {
-        case Index_PrimType_u1:  return llvm::IntegerType::get(context, 1);
-        case Index_PrimType_u8:  return llvm::IntegerType::get(context, 8);
-        case Index_PrimType_u16: return llvm::IntegerType::get(context, 16);
-        case Index_PrimType_u32: return llvm::IntegerType::get(context, 32);
-        case Index_PrimType_u64: return llvm::IntegerType::get(context, 64);
-        case Index_PrimType_f32: return llvm::Type::getFloatTy(context);
-        case Index_PrimType_f64: return llvm::Type::getDoubleTy(context);
+    switch (type->node_kind()) {
+        case Node_PrimType_u1:  return llvm::IntegerType::get(context, 1);
+        case Node_PrimType_u8:  return llvm::IntegerType::get(context, 8);
+        case Node_PrimType_u16: return llvm::IntegerType::get(context, 16);
+        case Node_PrimType_u32: return llvm::IntegerType::get(context, 32);
+        case Node_PrimType_u64: return llvm::IntegerType::get(context, 64);
+        case Node_PrimType_f32: return llvm::Type::getFloatTy(context);
+        case Node_PrimType_f64: return llvm::Type::getDoubleTy(context);
 
-        case Index_Pi: {
+        case Node_Pi: {
             // extract "return" type, collect all other types
             const Pi* pi = type->as<Pi>();
             size_t num = pi->elems().size();
@@ -126,7 +126,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
             return llvm::FunctionType::get(retType, llvm::ArrayRef<llvm::Type*>(elems.begin(), elems.end()), false);
         }
 
-        case Index_Sigma: {
+        case Node_Sigma: {
             // TODO watch out for cycles!
 
             const Sigma* sigma = type->as<Sigma>();
@@ -177,7 +177,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         llvm::Value* rhs = emit(bin->rhs());
 
         if (const RelOp* rel = def->isa<RelOp>()) {
-            switch (rel->relOpKind()) {
+            switch (rel->relop_kind()) {
                 case RelOp_cmp_eq:   return builder.CreateICmpEQ (lhs, rhs);
                 case RelOp_cmp_ne:   return builder.CreateICmpNE (lhs, rhs);
 
@@ -214,7 +214,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
         const ArithOp* arith = def->as<ArithOp>();
 
-        switch (arith->arithOpKind()) {
+        switch (arith->arithop_kind()) {
             case ArithOp_add:  return builder.CreateAdd (lhs, rhs);
             case ArithOp_sub:  return builder.CreateSub (lhs, rhs);
             case ArithOp_mul:  return builder.CreateMul (lhs, rhs);
@@ -250,7 +250,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         llvm::Value* tuple = emit(tupleop->tuple());
         unsigned idxs[1] = { unsigned(tupleop->index()) };
 
-        if (tupleop->indexKind() == Index_Extract)
+        if (tupleop->node_kind() == Node_Extract)
             return builder.CreateExtractValue(tuple, idxs);
 
         const Insert* insert = def->as<Insert>();

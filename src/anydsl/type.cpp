@@ -10,7 +10,7 @@ namespace anydsl {
 PrimType::PrimType(World& world, PrimTypeKind kind)
     : Type(world, kind, 0)
 {
-    debug = kind2str(this->kind());
+    debug = kind2str(this->primtype_kind());
 }
 
 //------------------------------------------------------------------------------

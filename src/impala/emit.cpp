@@ -126,7 +126,7 @@ Value Id::emit(CodeGen& cg) const {
 Value PrefixExpr::emit(CodeGen& cg) const {
     Value val = rhs()->emit(cg);
     const Def* def = val.load();
-    const anydsl::PrimType* p = def->type()->as<anydsl::PrimType>();
+    const anydsl::PrimType* pt = def->type()->as<anydsl::PrimType>();
 
     if (kind() == ADD)
         return def; // this is a NOP
@@ -134,12 +134,12 @@ Value PrefixExpr::emit(CodeGen& cg) const {
     switch (kind()) {
         case SUB: {
             // TODO incorrect for f32, f64
-            const anydsl::PrimLit* zero = cg.world.literal(p->kind(), 0u);
+            const anydsl::PrimLit* zero = cg.world.literal(pt->primtype_kind(), 0u);
             return cg.world.arithOp(anydsl::ArithOp_sub, zero, def);
         }
         case INC:
         case DEC: {
-            const anydsl::PrimLit* one = cg.world.literal(p->kind(), 1u);
+            const anydsl::PrimLit* one = cg.world.literal(pt->primtype_kind(), 1u);
             const Def* ndef = cg.world.arithOp(Token::toArithOp((TokenKind) kind()), def, one);
             val.store(ndef);
 
@@ -178,9 +178,9 @@ Value InfixExpr::emit(CodeGen& cg) const {
 Value PostfixExpr::emit(CodeGen& cg) const {
     Value val = lhs()->emit(cg);
     const Def* def = val.load();
-    const anydsl::PrimType* p = def->type()->as<anydsl::PrimType>();
+    const anydsl::PrimType* pt = def->type()->as<anydsl::PrimType>();
 
-    const anydsl::PrimLit* one = cg.world.literal(p->kind(), 1u);
+    const anydsl::PrimLit* one = cg.world.literal(pt->primtype_kind(), 1u);
     const Def* ndef = cg.world.arithOp(Token::toArithOp((TokenKind) kind()), def, one);
     val.store(ndef);
 

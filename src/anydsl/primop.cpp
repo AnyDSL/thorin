@@ -8,11 +8,11 @@
 namespace anydsl {
 
 RelOp::RelOp(RelOpKind kind, const Def* ldef, const Def* rdef)
-    : BinOp((IndexKind) kind, ldef->world().type_u1(), ldef, rdef)
+    : BinOp((NodeKind) kind, ldef->world().type_u1(), ldef, rdef)
 {}
 
 Select::Select(const Def* cond, const Def* t, const Def* f) 
-    : PrimOp(Index_Select, t->type(), 3)
+    : PrimOp(Node_Select, t->type(), 3)
 {
     setOp(0, cond);
     setOp(1, t);
@@ -21,8 +21,8 @@ Select::Select(const Def* cond, const Def* t, const Def* f)
     anydsl_assert(t->type() == f->type(), "types of both values must be equal");
 }
 
-TupleOp::TupleOp(IndexKind indexKind, const Type* type, size_t numOps, const Def* tuple, uint32_t index)
-    : PrimOp(indexKind, type, numOps)
+TupleOp::TupleOp(NodeKind kind, const Type* type, size_t numOps, const Def* tuple, uint32_t index)
+    : PrimOp(kind, type, numOps)
     , index_(index)
 {
     setOp(0, tuple);
@@ -43,20 +43,20 @@ size_t TupleOp::hash() const {
 }
 
 Extract::Extract(const Def* tuple, uint32_t index)
-    : TupleOp(Index_Extract, tuple->type()->as<Sigma>()->get(index), 1, tuple, index)
+    : TupleOp(Node_Extract, tuple->type()->as<Sigma>()->get(index), 1, tuple, index)
 {
     setOp(0, tuple);
 }
 
 Insert::Insert(const Def* tuple, uint32_t index, const Def* value)
-    : TupleOp(Index_Insert, tuple->type(), 2, tuple, index)
+    : TupleOp(Node_Insert, tuple->type(), 2, tuple, index)
 {
     setOp(1, value);
     anydsl_assert(tuple->type()->as<Sigma>()->get(index) == value->type(), "type error");
 }
 
 Tuple::Tuple(World& world, ArrayRef<const Def*> args) 
-    : PrimOp(Index_Tuple, 0, args.size())
+    : PrimOp(Node_Tuple, 0, args.size())
 {
     if (ops().empty()) {
         setType(world.sigma0());

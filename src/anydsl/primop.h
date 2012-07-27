@@ -15,13 +15,9 @@ class PrimLit;
 class PrimOp : public Def {
 protected:
 
-    PrimOp(IndexKind index, const Type* type, size_t numOps)
-        : Def(index, type, numOps)
+    PrimOp(int kind, const Type* type, size_t numOps)
+        : Def(kind, type, numOps)
     {}
-
-public:
-
-    PrimOpKind primOpKind() const { return (PrimOpKind) indexKind(); }
 };
 
 //------------------------------------------------------------------------------
@@ -29,8 +25,8 @@ public:
 class BinOp : public PrimOp {
 protected:
 
-    BinOp(IndexKind index, const Type* type, const Def* lhs, const Def* rhs)
-        : PrimOp(index, type, 2)
+    BinOp(NodeKind kind, const Type* type, const Def* lhs, const Def* rhs)
+        : PrimOp(kind, type, 2)
     {
         anydsl_assert(lhs->type() == rhs->type(), "types are not equal");
         setOp(0, lhs);
@@ -53,12 +49,12 @@ class ArithOp : public BinOp {
 private:
 
     ArithOp(ArithOpKind kind, const Def* lhs, const Def* rhs)
-        : BinOp((IndexKind) kind, lhs->type(), lhs, rhs)
+        : BinOp((NodeKind) kind, lhs->type(), lhs, rhs)
     {}
 
 public:
 
-    ArithOpKind arithOpKind() const { return (ArithOpKind) indexKind(); }
+    ArithOpKind arithop_kind() const { return (ArithOpKind) node_kind(); }
 
     friend class World;
 };
@@ -72,7 +68,7 @@ private:
 
 public:
 
-    RelOpKind relOpKind() const { return (RelOpKind) indexKind(); }
+    RelOpKind relop_kind() const { return (RelOpKind) node_kind(); }
 
     friend class World;
 };
@@ -90,8 +86,6 @@ public:
     const Def* tdef() const { return op(1); }
     const Def* fdef() const { return op(2); }
 
-    RelOpKind kind() { return (RelOpKind) indexKind(); }
-
     virtual void vdump(Printer &printer) const;
 
     friend class World;
@@ -102,7 +96,7 @@ public:
 class TupleOp : public PrimOp {
 protected:
 
-    TupleOp(IndexKind indexKind, const Type* type, size_t numOps, const Def* tuple, uint32_t index);
+    TupleOp(NodeKind kind, const Type* type, size_t numOps, const Def* tuple, uint32_t index);
 
 public:
 

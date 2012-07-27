@@ -228,7 +228,7 @@ private:
     void dce_insert(const Def* def);
     void uce_insert(Reachable& reachable, const Lambda* lambda);
 
-    const Def* tryFold(IndexKind kind, const Def* ldef, const Def* rdef);
+    const Def* tryFold(NodeKind kind, const Def* ldef, const Def* rdef);
 
     DefSet defs_;
 

@@ -119,7 +119,7 @@ public:
     int kind() const { return kind_; }
     bool isCoreNode() const { return ::anydsl::isCoreNode(kind()); }
 
-    IndexKind indexKind() const { assert(isCoreNode()); return (IndexKind) kind_; }
+    NodeKind node_kind() const { assert(isCoreNode()); return (NodeKind) kind_; }
 
     void dump() const;
     void dump(bool fancy) const;

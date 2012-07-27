@@ -8,14 +8,14 @@ namespace anydsl {
 //------------------------------------------------------------------------------
 
 
-enum IndexKind {
+enum NodeKind {
 #define ANYDSL_GLUE(pre, next)
-#define ANYDSL_AIR_NODE(node) Index_##node,
-#define ANYDSL_PRIMTYPE(T) Index_PrimType_##T,
-#define ANYDSL_PRIMLIT(T)  Index_PrimLit_##T,
-#define ANYDSL_ARITHOP(op) Index_##op,
-#define ANYDSL_RELOP(op) Index_##op,
-#define ANYDSL_CONVOP(op) Index_##op,
+#define ANYDSL_AIR_NODE(node) Node_##node,
+#define ANYDSL_PRIMTYPE(T) Node_PrimType_##T,
+#define ANYDSL_PRIMLIT(T)  Node_PrimLit_##T,
+#define ANYDSL_ARITHOP(op) Node_##op,
+#define ANYDSL_RELOP(op) Node_##op,
+#define ANYDSL_CONVOP(op) Node_##op,
 #include "anydsl/tables/allindices.h"
 };
 
@@ -40,7 +40,7 @@ enum Markers {
     End_PrimLit     = End_PrimLit_f,
     End_AllNodes    = End_ConvOp,
 
-    Num_Indexes     = End_AllNodes - Begin_AllNodes,
+    Num_AllNodes    = End_AllNodes   - Begin_AllNodes,
     Num_Nodes       = End_Node       - Begin_Node,
 
     Num_PrimTypes_u = End_PrimType_u - Begin_PrimType_u,
@@ -57,40 +57,29 @@ enum Markers {
 };
 
 enum PrimTypeKind {
-#define ANYDSL_U_TYPE(T) PrimType_##T = Index_PrimType_##T,
-#define ANYDSL_F_TYPE(T) PrimType_##T = Index_PrimType_##T,
+#define ANYDSL_U_TYPE(T) PrimType_##T = Node_PrimType_##T,
+#define ANYDSL_F_TYPE(T) PrimType_##T = Node_PrimType_##T,
 #include "anydsl/tables/primtypetable.h"
 };
 
 enum PrimLitKind {
-#define ANYDSL_U_TYPE(T) PrimLit_##T = Index_PrimLit_##T,
-#define ANYDSL_F_TYPE(T) PrimLit_##T = Index_PrimLit_##T,
+#define ANYDSL_U_TYPE(T) PrimLit_##T = Node_PrimLit_##T,
+#define ANYDSL_F_TYPE(T) PrimLit_##T = Node_PrimLit_##T,
 #include "anydsl/tables/primtypetable.h"
 };
 
-enum PrimOpKind {
-#define ANYDSL_ARITHOP(op) PrimOp_##op = Index_##op,
-#include "anydsl/tables/arithoptable.h"
-
-#define ANYDSL_RELOP(op) PrimOp_##op = Index_##op,
-#include "anydsl/tables/reloptable.h"
-
-#define ANYDSL_CONVOP(op) PrimOp_##op = Index_##op,
-#include "anydsl/tables/convoptable.h"
-};
-
 enum ArithOpKind {
-#define ANYDSL_ARITHOP(op) ArithOp_##op = Index_##op,
+#define ANYDSL_ARITHOP(op) ArithOp_##op = Node_##op,
 #include "anydsl/tables/arithoptable.h"
 };
 
 enum RelOpKind {
-#define ANYDSL_RELOP(op) RelOp_##op = Index_##op,
+#define ANYDSL_RELOP(op) RelOp_##op = Node_##op,
 #include "anydsl/tables/reloptable.h"
 };
 
 enum ConvOpKind {
-#define ANYDSL_CONVOP(op) ConvOp_##op = Index_##op,
+#define ANYDSL_CONVOP(op) ConvOp_##op = Node_##op,
 #include "anydsl/tables/convoptable.h"
 };
 

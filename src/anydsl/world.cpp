@@ -126,16 +126,16 @@ const Def* World::tuple(ArrayRef<const Def*> args) {
     return find(new Tuple(*this, args));
 }
 
-const Def* World::tryFold(IndexKind kind, const Def* ldef, const Def* rdef) {
-    FoldValue a(ldef->type()->as<PrimType>()->kind());
+const Def* World::tryFold(NodeKind kind, const Def* ldef, const Def* rdef) {
+    FoldValue a(ldef->type()->as<PrimType>()->primtype_kind());
     FoldValue b(a.type);
 
     examineDef(ldef, a);
     examineDef(rdef, b);
 
     if (ldef->isa<Literal>() && rdef->isa<Literal>()) {
-        const PrimType* p = ldef->type()->as<PrimType>();
-        FoldValue res = fold_bin(kind, p->kind(), a, b);
+        const PrimType* pt = ldef->type()->as<PrimType>();
+        FoldValue res = fold_bin(kind, pt->primtype_kind(), a, b);
 
         switch (res.kind) {
             case FoldValue::Valid: return literal(res.type, res.box);
@@ -148,7 +148,7 @@ const Def* World::tryFold(IndexKind kind, const Def* ldef, const Def* rdef) {
 }
 
 const Def* World::arithOp(ArithOpKind kind, const Def* ldef, const Def* rdef) {
-    if (const Def* value = tryFold((IndexKind) kind, ldef, rdef))
+    if (const Def* value = tryFold((NodeKind) kind, ldef, rdef))
         return value;
 
     if (isCommutative(kind))
@@ -159,7 +159,7 @@ const Def* World::arithOp(ArithOpKind kind, const Def* ldef, const Def* rdef) {
 }
 
 const Def* World::relOp(RelOpKind kind, const Def* ldef, const Def* rdef) {
-    if (const Def* value = tryFold((IndexKind) kind, ldef, rdef))
+    if (const Def* value = tryFold((NodeKind) kind, ldef, rdef))
         return value;
 
     bool swap;

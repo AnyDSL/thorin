@@ -30,7 +30,7 @@ struct FoldValue {
 
 };
 
-FoldValue fold_bin(IndexKind kind, PrimTypeKind type, FoldValue a, FoldValue b);
+FoldValue fold_bin(NodeKind kind, PrimTypeKind type, FoldValue a, FoldValue b);
 
 } // namespace anydsl
 

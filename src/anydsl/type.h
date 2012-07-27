@@ -44,7 +44,7 @@ private:
 
 public:
 
-    PrimTypeKind kind() const { return (PrimTypeKind) indexKind(); }
+    PrimTypeKind primtype_kind() const { return (PrimTypeKind) node_kind(); }
 
 private:
 
@@ -89,11 +89,11 @@ class Sigma : public CompoundType {
 private:
 
     Sigma(World& world, size_t num)
-        : CompoundType(world, Index_Sigma, num)
+        : CompoundType(world, Node_Sigma, num)
         , named_(true)
     {}
     Sigma(World& world, ArrayRef<const Type*> elems)
-        : CompoundType(world, Index_Sigma, elems)
+        : CompoundType(world, Node_Sigma, elems)
         , named_(false)
     {}
 
@@ -119,7 +119,7 @@ class Pi : public CompoundType {
 private:
 
     Pi(World& world, ArrayRef<const Type*> elems)
-        : CompoundType(world, Index_Pi, elems)
+        : CompoundType(world, Node_Pi, elems)
     {}
 
     virtual void vdump(Printer& printer) const;

@@ -16,7 +16,7 @@ enum NodeKind {
 #define ANYDSL_ARITHOP(op) Node_##op,
 #define ANYDSL_RELOP(op) Node_##op,
 #define ANYDSL_CONVOP(op) Node_##op,
-#include "anydsl/tables/allindices.h"
+#include "anydsl/tables/allnodes.h"
 };
 
 enum Markers {
@@ -30,15 +30,17 @@ enum Markers {
 #define ANYDSL_ARITHOP(op) zzzMarker_##op,
 #define ANYDSL_RELOP(op) zzzMarker_##op,
 #define ANYDSL_CONVOP(op) zzzMarker_##op,
-#include "anydsl/tables/allindices.h"
+#include "anydsl/tables/allnodes.h"
     End_ConvOp,
     Begin_Node = 0,
+    End_AllNodes    = End_ConvOp,
+
     Begin_AllNodes  = Begin_Node,
+
     Begin_PrimType  = Begin_PrimType_u,
     Begin_PrimLit   = Begin_PrimLit_u,
     End_PrimType    = End_PrimType_f,
     End_PrimLit     = End_PrimLit_f,
-    End_AllNodes    = End_ConvOp,
 
     Num_AllNodes    = End_AllNodes   - Begin_AllNodes,
     Num_Nodes       = End_Node       - Begin_Node,

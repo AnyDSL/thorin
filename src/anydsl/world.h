@@ -210,6 +210,7 @@ public:
     Params findParams(const Lambda* lambda);
     void dump(bool fancy = false);
     const Def* rehash(const Def* def);
+    Def* release(const Def* def);
 
 private:
 

@@ -110,7 +110,7 @@ protected:
     virtual bool equal(const Def* other) const;
     virtual size_t hash() const;
 
-    void setOp(size_t i, const Def* def) const { def->registerUse(i, this); ops_[i] = def; }
+    void setOp(size_t i, const Def* def) { def->registerUse(i, this); ops_[i] = def; }
     void setType(const Type* type) { type_ = type; }
     void alloc(size_t size);
 
@@ -149,7 +149,7 @@ private:
 
     int kind_;
     const Type* type_;
-    mutable Array<const Def*> ops_;
+    Array<const Def*> ops_;
     mutable UseSet uses_;
     mutable bool flag_;
 

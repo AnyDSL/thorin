@@ -356,6 +356,10 @@ const Def* World::findDef(const Def* def) {
     return def;
 }
 
+/*
+ * other
+ */
+
 void World::dump(bool fancy) {
     unmark();
 
@@ -401,6 +405,15 @@ Params World::findParams(const Lambda* lambda) {
     }
 
     return result;
+}
+
+Def* World::release(const Def* def) {
+    DefSet::iterator i = defs_.find(def);
+    anydsl_assert(i != defs_.end(), "must be found");
+    assert(def == *i);
+    defs_.erase(i);
+
+    return const_cast<Def*>(*i);
 }
 
 } // namespace anydsl

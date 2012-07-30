@@ -19,7 +19,7 @@ Def::~Def() {
     for_all (use, uses_) {
         size_t i = use.index();
         anydsl_assert(use.def()->ops()[i] == this, "use points to incorrect def");
-        use.def()->ops_[i] = 0;
+        const_cast<Def*>(use.def())->ops_[i] = 0;
     }
 }
 
@@ -64,10 +64,7 @@ void Def::replace(const Def* with) const {
     // update all operands of old uses to point to new node instead 
     // and erase these nodes from world
     for_all (use, old_uses) {
-        const Def* udef = use.def();
-        DefSet::iterator i = world().defs_.find(udef);
-        anydsl_assert(i != world().defs_.end(), "must be found");
-        world().defs_.erase(udef);
+        Def* udef = world().release(use.def());
         udef->setOp(use.index(), with);
     }
 

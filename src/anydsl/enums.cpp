@@ -11,7 +11,7 @@ namespace anydsl {
 #define ANYDSL_ARITHOP(op) BOOST_STATIC_ASSERT(Node_##op == (NodeKind) zzzMarker_##op);
 #define ANYDSL_RELOP(op) BOOST_STATIC_ASSERT(Node_##op == (NodeKind) zzzMarker_##op);
 #define ANYDSL_CONVOP(op) BOOST_STATIC_ASSERT(Node_##op == (NodeKind) zzzMarker_##op);
-#include "anydsl/tables/allindices.h"
+#include "anydsl/tables/allnodes.h"
 
 const char* kind2str(PrimTypeKind kind) {
     switch (kind) {

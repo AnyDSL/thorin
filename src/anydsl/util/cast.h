@@ -47,29 +47,6 @@ inline const LEFT* dcast(const RIGHT* u) {
     return dynamic_cast<const LEFT*>(u);
 }
 
-/// shorthand for \c reinterpret_cast
-template<class LEFT, class RIGHT>
-inline LEFT* rcast(RIGHT* u) {
-    return reinterpret_cast<LEFT*>(u);
-}
-
-/// shorthand for \c reinterpret_cast -- \c const version
-template<class LEFT, class RIGHT>
-inline const LEFT* rcast(const RIGHT* u) {
-    return reinterpret_cast<const LEFT*>(u);
-}
-/// shorthand for \c const_cast -- removes constness
-template<class LEFT, class RIGHT>
-inline LEFT* ccast(const RIGHT* u) {
-    return const_cast<LEFT*>(u);
-}
-
-/// shorthand for \c const_cast -- adds constness
-template<class LEFT, class RIGHT>
-inline const LEFT* ccast(RIGHT* u) {
-    return const_cast<const LEFT*>(u);
-}
-
 /** 
  * @brief A bitcast.
  *

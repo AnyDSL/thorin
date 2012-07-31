@@ -50,7 +50,7 @@ void Def::replace(const Def* with) const {
     if (this == with)
         return;
 
-    // unregister all uses of this' node's operands
+    // unregister all uses of this node's operands
     for (size_t i = 0, e = ops().size(); i != e; ++i)
         ops_[i]->unregisterUse(i, this);
 

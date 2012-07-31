@@ -158,7 +158,13 @@ public:
      */
 
     const Def* arithop(ArithOpKind kind, const Def* ldef, const Def* rdef);
+#define ANYDSL_ARITHOP(OP) const Def* arithop_##OP(const Def* ldef, const Def* rdef) { return arithop(ArithOp_##OP, ldef, rdef); }
+#include "anydsl/tables/arithoptable.h"
+
     const Def* relop(RelOpKind kind, const Def* ldef, const Def* rdef);
+#define ANYDSL_RELOP(OP) const Def* relop_##OP(const Def* ldef, const Def* rdef) { return relop(RelOp_##OP, ldef, rdef); }
+#include "anydsl/tables/reloptable.h"
+
     const Def* extract(const Def* tuple, size_t index);
     const Def* insert(const Def* tuple, size_t index, const Def* value);
     const Def* select(const Def* cond, const Def* tdef, const Def* fdef);

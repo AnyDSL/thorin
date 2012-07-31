@@ -116,7 +116,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
                         retType = llvm::Type::getVoidTy(context);
                     else {
                         anydsl_assert(num == 1, "TODO");
-                        retType = convert(pi->get(0));
+                        retType = convert(pi->elem(0));
                     }
                 } else
                     elems[i++] = convert(elem);

@@ -43,7 +43,7 @@ size_t TupleOp::hash() const {
 }
 
 Extract::Extract(const Def* tuple, uint32_t index)
-    : TupleOp(Node_Extract, tuple->type()->as<Sigma>()->get(index), 1, tuple, index)
+    : TupleOp(Node_Extract, tuple->type()->as<Sigma>()->elem(index), 1, tuple, index)
 {
     setOp(0, tuple);
 }
@@ -52,7 +52,7 @@ Insert::Insert(const Def* tuple, uint32_t index, const Def* value)
     : TupleOp(Node_Insert, tuple->type(), 2, tuple, index)
 {
     setOp(1, value);
-    anydsl_assert(tuple->type()->as<Sigma>()->get(index) == value->type(), "type error");
+    anydsl_assert(tuple->type()->as<Sigma>()->elem(index) == value->type(), "type error");
 }
 
 Tuple::Tuple(World& world, ArrayRef<const Def*> args) 

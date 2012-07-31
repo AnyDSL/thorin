@@ -69,7 +69,7 @@ protected:
 public:
 
     /// Get element type via index.
-    const Type* get(size_t i) const { 
+    const Type* elem(size_t i) const { 
         anydsl_assert(i < elems().size(), "index out of range"); 
         return op(i)->as<Type>();
     }

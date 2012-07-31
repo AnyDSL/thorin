@@ -397,7 +397,7 @@ Params World::findParams(const Lambda* lambda) {
     size_t num = pi->elems().size();
 
     for (size_t i = 0; i < num; ++i) {
-        Param param(pi->get(i), lambda, i);
+        Param param(pi->elem(i), lambda, i);
 
         DefSet::iterator j = defs_.find(&param);
         if (j != defs_.end())

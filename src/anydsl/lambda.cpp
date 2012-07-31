@@ -83,7 +83,6 @@ const Param* Lambda::appendParam(const Type* type) {
     return world().param(type, this, size);
 }
 
-
 bool Lambda::equal(const Def* other) const {
     return this == other;
 }

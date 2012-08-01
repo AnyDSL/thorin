@@ -70,7 +70,13 @@ int main(int argc, char** argv) {
         po::notify(vm);
 
         if (infiles.empty() && !help)
+        {
+#if BOOST_VERSION >= 1050000
             throw po::invalid_syntax(po::invalid_syntax::missing_parameter, "infile");
+#else
+            throw po::invalid_syntax("infile", po::invalid_syntax::missing_parameter);
+#endif
+        }
 
         if (help) {
             desc.print(cout);

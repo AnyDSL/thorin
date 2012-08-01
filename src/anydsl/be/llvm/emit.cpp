@@ -6,6 +6,7 @@
 #include <llvm/Module.h>
 #include <llvm/Type.h>
 #include <llvm/Support/IRBuilder.h>
+#include <llvm/LLVMContext.h>
 
 #include "anydsl/def.h"
 #include "anydsl/lambda.h"

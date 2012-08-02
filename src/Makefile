@@ -43,7 +43,7 @@ DUMMY := $(shell mkdir -p $(BIN) $(sort $(dir $(ANYDSL_OBJS) $(IMPALA_OBJS) $(AN
 
 $(ANYDSL_APP_BIN): $(ANYDSL_APP_OBJS) $(ANYDSL_LIB_FILE) $(IMPALA_LIB_FILE)
 	@echo '===> LD $@'
-	$(Q)$(CXX) $(LDFLAGS) $(ANYDSL_APP_OBJS) -lboost_program_options -l $(IMPALA_LIB) -l $(ANYDSL_LIB) `$(LLVMCONFIG) --libs` -o $@
+	$(Q)$(CXX) $(LDFLAGS) $(ANYDSL_APP_OBJS) -l $(IMPALA_LIB) -l $(ANYDSL_LIB) `$(LLVMCONFIG) --libs` -o $@
 
 $(ANYDSL_LIB_FILE): $(ANYDSL_OBJS)
 	@echo '===> AR $@'

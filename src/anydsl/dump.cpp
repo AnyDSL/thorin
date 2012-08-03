@@ -5,6 +5,7 @@
 #include "anydsl/primop.h"
 #include "anydsl/type.h"
 #include "anydsl/util/for_all.h"
+#include "anydsl/printer.h"
 
 template<class T>
 struct get_clean_type { typedef T type; } ;
@@ -23,95 +24,6 @@ struct get_clean_type<const T&> {typedef T type; };
     }
 
 namespace anydsl {
-
-class Printer {
-public:
-
-    Printer(std::ostream& o, bool fancy)
-        : o(o)
-        , fancy_(fancy)
-        , indent_(0)
-        , depth_(0)
-    {}
-
-    bool fancy() const { return fancy_; }
-
-    Printer& dump(const Def* def);
-    Printer& dumpName(const Def* def);
-
-    Printer& newline();
-    Printer& up();
-    Printer& down();
-
-    template<class T>
-    Printer& operator << (const T& data) {
-    	o << data;
-    	return *this;
-    }
-
-    std::ostream& o;
-
-private:
-
-    bool fancy_;
-    int indent_;
-    int depth_;
-};
-
-Printer& Printer::dump(const Def* def) {
-    if (def)
-        def->vdump(*this);
-    else
-        o << "<NULL>";
-
-    return *this;
-}
-
-Printer& Printer::newline() {
-    o << '\n';
-    for (int i = 0; i < indent_; ++i)
-        o << "    ";
-
-    return *this;
-}
-
-Printer& Printer::up() {
-    ++indent_;
-    return newline();
-}
-
-Printer& Printer::down() {
-    --indent_;
-    return newline();
-}
-
-Printer& Printer::dumpName(const Def* def) {
-    if (fancy()) {
-        unsigned i = uintptr_t(def);
-        unsigned sum = 0;
-
-        while (i) {
-            sum += i & 0x3;
-            i >>= 2;
-        }
-
-        sum += i;
-
-        // elide white = 0 and black = 7
-        int code = (sum % 6) + 30 + 1;
-        o << "\33[" << code << "m";
-    }
-
-    if (!def->debug.empty())
-        o << def->debug;
-    else
-        o << def;
-
-    if (fancy())
-        o << "\33[m";
-
-    return *this;
-}
 
 // Literal
 

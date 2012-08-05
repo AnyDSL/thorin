@@ -156,8 +156,6 @@ public:
     typedef std::reverse_iterator<iterator> reverse_iterator;
     typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
-    void set(int val) { memset(ptr_, val, size() * sizeof(T)); }
-
     iterator begin() { return ptr_; }
     iterator end() { return ptr_ + size_; }
     reverse_iterator rbegin() { return const_reverse_iterator(end()); }

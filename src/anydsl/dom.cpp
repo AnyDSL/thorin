@@ -1,7 +1,9 @@
-#include "anydsl/util/assert.h"
 #include "anydsl/dom.h"
+
 #include "anydsl/lambda.h"
-#include <stdio.h>
+#include "anydsl/util/assert.h"
+
+#include <memory>
 
 namespace anydsl {
 
@@ -20,7 +22,7 @@ Dominators::~Dominators() {
 
 void Dominators::init(const Def* def, const PostOrder& order) {
     Doms doms(order.size());
-    doms.set(-1);
+    std::fill(doms.begin(), doms.end(), -1);
     const int def_index = order[def];
     anydsl_assert(def_index >= 0, "invalid post index for given def");
     doms[def_index] = def_index; // set initial dominator

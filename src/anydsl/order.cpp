@@ -1,5 +1,8 @@
-#include <stack>
 #include "anydsl/order.h"
+
+#include <stack>
+
+#include "anydsl/def.h"
 
 namespace anydsl {
 

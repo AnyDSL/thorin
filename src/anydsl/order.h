@@ -4,9 +4,9 @@
 #include <vector>
 #include <boost/unordered_map.hpp>
 
-#include "anydsl/def.h"
-
 namespace anydsl {
+
+class Def;
 
 class PostOrder {
 public:
@@ -41,12 +41,12 @@ public:
     }
 
 private:
-    typedef boost::unordered_map<const Def*, int> PostOrderMap;
 
     bool visited(const Def* def) const;
 
     void init(const Def* def, int baseIndex);
 
+    typedef boost::unordered_map<const Def*, int> PostOrderMap;
     PostOrderMap indices_;
     PostOrderList list_;
 };

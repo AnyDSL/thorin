@@ -1,26 +1,15 @@
-#include <cstdio>
-#include <cstdlib>
 #include <fstream>
-#include <iostream>
-#include <memory>
-#include <set>
-#include <sstream>
 #include <vector>
 
 #include <boost/program_options.hpp>
-#include <boost/array.hpp>
 
-#include "anydsl/literal.h"
-#include "anydsl/lambda.h"
-#include "anydsl/primop.h"
-#include "anydsl/world.h"
 #include "anydsl/be/llvm/emit.h"
-#include "impala/parser.h"
+
 #include "impala/ast.h"
+#include "impala/parser.h"
 #include "impala/sema.h"
 #include "impala/dump.h"
 #include "impala/emit.h"
-#include "impala/type.h"
 #include "impala/init.h"
 
 //------------------------------------------------------------------------------
@@ -69,8 +58,7 @@ int main(int argc, char** argv) {
         po::store(clp.run(), vm);
         po::notify(vm);
 
-        if (infiles.empty() && !help)
-        {
+        if (infiles.empty() && !help) {
 #if BOOST_VERSION >= 105000
             throw po::invalid_syntax(po::invalid_syntax::missing_parameter, "infile");
 #else
@@ -111,7 +99,6 @@ int main(int argc, char** argv) {
         if (emit_llvm)
             be_llvm::emit(init.world);
             
-        
         return EXIT_SUCCESS;
     } catch (exception const& e) {
         cerr << e.what() << endl;

@@ -74,7 +74,7 @@ private:
     const Def* def_;
 };
 
-inline size_t hash_value(const Use& use) { 
+inline size_t hash_value(const Use& use) {
     size_t seed = 0;
     boost::hash_combine(seed, use.def());
     boost::hash_combine(seed, use.index());
@@ -100,7 +100,7 @@ private:
 protected:
 
     Def(int kind, const Type* type, size_t numOps)
-        : kind_(kind) 
+        : kind_(kind)
         , type_(type)
         , ops_(numOps)
     {}
@@ -135,6 +135,7 @@ public:
     Ops ops() const { return Ops(ops_); }
     Ops ops(size_t begin, size_t end) const { return Ops(ops_.slice(begin, end)); }
     const Def* op(size_t i) const { return ops_[i]; }
+    size_t numops() const { return ops_.size(); }
 
     void replace(const Def* def) const;
 

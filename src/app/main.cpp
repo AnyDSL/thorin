@@ -42,19 +42,22 @@ int main(int argc, char** argv) {
         Names infiles;
         string outfile = "-";
         string emittype;
-        bool help, emit_air, emit_ast, emit_dot, emit_llvm, fancy = false;
+        bool help, emit_air, emit_ast, emit_dot, emit_llvm, post_order, rpost_order, dominators, fancy = false;
 
         // specify options
         po::options_description desc("Usage: " + prgname + " [options] file...");
         desc.add_options()
-        ("help,h",      po::bool_switch(&help),                     "produce this help message")
-        ("emit-air",    po::bool_switch(&emit_air),                 "emit textual AIR representation of impala program")
-        ("emit-ast",    po::bool_switch(&emit_ast),                 "emit AST of impala program")
-        ("emit-dot",    po::bool_switch(&emit_dot),                 "emit dot, arg={air|llvm}")
-        ("emit-llvm",   po::bool_switch(&emit_llvm),                "emit llvm from AIR representation")
-        ("fancy,f",     po::bool_switch(&fancy),                    "use fancy output")
-        ("outfile,o",   po::value(&outfile)->default_value("-"),    "specifies output file")
-        ("infile,i",    po::value(&infiles),                        "input file");
+        ("help,h",          po::bool_switch(&help),                     "produce this help message")
+        ("emit-air",        po::bool_switch(&emit_air),                 "emit textual AIR representation of impala program")
+        ("emit-ast",        po::bool_switch(&emit_ast),                 "emit AST of impala program")
+        ("emit-dot",        po::bool_switch(&emit_dot),                 "emit dot, arg={air|llvm}")
+        ("emit-llvm",       po::bool_switch(&emit_llvm),                "emit llvm from AIR representation")
+        ("fancy,f",         po::bool_switch(&fancy),                    "use fancy output")
+        ("dpost-order",     po::bool_switch(&post_order),               "print post order")
+        ("drpost-order",    po::bool_switch(&rpost_order),              "print reverse post order")
+        ("ddominators",     po::bool_switch(&dominators),               "print dominators")
+        ("outfile,o",       po::value(&outfile)->default_value("-"),    "specifies output file")
+        ("infile,i",        po::value(&infiles),                        "input file");
 
         // positional options, i.e., input files
         po::positional_options_description pos_desc;
@@ -110,8 +113,13 @@ int main(int argc, char** argv) {
             init.world.dump(fancy);
         if (emit_llvm)
             be_llvm::emit(init.world);
-            
-        
+        if (post_order)
+            init.world.printPostOrder();
+        if (rpost_order)
+            init.world.printReversePostOrder();
+        if (dominators)
+            init.world.printDominators();
+
         return EXIT_SUCCESS;
     } catch (exception const& e) {
         cerr << e.what() << endl;

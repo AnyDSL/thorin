@@ -11,6 +11,11 @@
 #include "anydsl/fold.h"
 #include "anydsl/util/array.h"
 
+// debug includes
+#include "anydsl/order.h"
+#include "anydsl/dom.h"
+#include "anydsl/printer.h"
+
 namespace anydsl {
 
 /*
@@ -58,7 +63,7 @@ static void examineDef(const Def* def, FoldValue& v) {
  * constructor and destructor
  */
 
-World::World() 
+World::World()
     : defs_(1031)
     , unit_ (find(new Sigma(*this, Array<const Type*>(0))))
     , pi0_  (find(new Pi   (*this, Array<const Type*>(0))))
@@ -414,6 +419,48 @@ Def* World::release(const Def* def) {
     defs_.erase(i);
 
     return const_cast<Def*>(*i);
+}
+
+/*
+ * debug printing
+ */
+
+void World::printPostOrder() {
+    PostOrder order(*defs_.begin());
+    for(PostOrder::iterator it = order.begin(), e = order.end();
+        it != e; ++it) {
+        const Def* d = *it;
+        if(d->isa<Lambda>()) {
+            d->dump(false);
+        }
+    }
+}
+
+void World::printReversePostOrder() {
+    PostOrder order(*defs_.begin());
+    for(PostOrder::reverse_iterator it = order.rbegin(), e = order.rend();
+        it != e; ++it) {
+        const Def* d = *it;
+        if(d->isa<Lambda>()) {
+            d->dump(false);
+        }
+    }
+}
+
+void World::printDominators() {
+    Dominators doms(*defs_.begin());
+    for(Dominators::iterator it = doms.begin(), e = doms.end();
+        it != e; ++it) {
+        const Def* d = it->first;
+        const Def* t = it->second;
+        if(d->isa<Lambda>()) {
+            Printer p(std::cout, false);
+            t->vdump(p);
+            std::cout << " --> ";
+            d->vdump(p);
+            std::cout << std::endl;
+        }
+    }
 }
 
 } // namespace anydsl

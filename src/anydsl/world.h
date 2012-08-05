@@ -44,17 +44,17 @@ typedef boost::unordered_set<const Def*, DefHash, DefEqual> DefSet;
  *  - Value unification: \n
  *      This is a built-in mechanism for the following things:
  *      - constant pooling
- *      - constant folding 
+ *      - constant folding
  *      - common subexpression elimination
  *      - canonicalization of expressions
  *      - several local optimizations
  *
  *  \p PrimOp%s do not explicitly belong to a Lambda.
- *  Instead they either implicitly belong to a Lambda--when 
- *  they (possibly via multiple levels of indirection) depend on a Lambda's Param--or they are dead. 
+ *  Instead they either implicitly belong to a Lambda--when
+ *  they (possibly via multiple levels of indirection) depend on a Lambda's Param--or they are dead.
  *  Use \p cleanup to remove dead code and unreachable code.
  *
- *  You can create several worlds. 
+ *  You can create several worlds.
  *  All worlds are completely independent from each other.
  *  This is particular useful for multi-threading.
  */
@@ -79,30 +79,30 @@ public:
     // primitive types
 
     /// Get PrimType.
-    const PrimType* type(PrimTypeKind kind) const { 
+    const PrimType* type(PrimTypeKind kind) const {
         size_t i = kind - Begin_PrimType;
-        assert(0 <= i && i < (size_t) Num_PrimTypes); 
+        assert(0 <= i && i < (size_t) Num_PrimTypes);
         return primTypes_[i];
     }
 
     // sigmas
 
-    /// Get unit AKA void AKA (unnamed) sigma(). 
+    /// Get unit AKA void AKA (unnamed) sigma().
     const Sigma* unit() const { return unit_; }
     /// Creates 'sigma()'.
     const Sigma* sigma0() { return unit_; }
     /// Creates 'sigma(t1)'.
-    const Sigma* sigma1(const Type* t1) { 
+    const Sigma* sigma1(const Type* t1) {
         const Type* types[1] = {t1};
-        return sigma(types); 
+        return sigma(types);
     }
     /// Creates 'sigma(t1, t2)'.
-    const Sigma* sigma2(const Type* t1, const Type* t2) { 
+    const Sigma* sigma2(const Type* t1, const Type* t2) {
         const Type* types[2] = {t1, t2};
         return sigma(types);
     }
     /// Creates 'sigma(t1, t2, t3)'.
-    const Sigma* sigma3(const Type* t1, const Type* t2, const Type* t3) { 
+    const Sigma* sigma3(const Type* t1, const Type* t2, const Type* t3) {
         const Type* types[3] = {t1, t2, t3};
         return sigma(types);
     }
@@ -115,21 +115,21 @@ public:
 
     /// Creates 'pi()'.
     const Pi* pi0() { return pi0_; }
-    const Pi* pi1(const Type* t1) { 
+    const Pi* pi1(const Type* t1) {
         const Type* types[1] = {t1};
-        return pi(types); 
+        return pi(types);
     }
     /// Creates 'pi(t1, t2)'.
-    const Pi* pi2(const Type* t1, const Type* t2) { 
+    const Pi* pi2(const Type* t1, const Type* t2) {
         const Type* types[2] = {t1, t2};
         return pi(types);
     }
     /// Creates 'pi(t1, t2, t3)'.
-    const Pi* pi3(const Type* t1, const Type* t2, const Type* t3) { 
+    const Pi* pi3(const Type* t1, const Type* t2, const Type* t3) {
         const Type* types[3] = {t1, t2, t3};
         return pi(types);
     }
-    const Pi* pi(ArrayRef<const Type*> elems) { return find(new Pi(*this, elems)); } 
+    const Pi* pi(ArrayRef<const Type*> elems) { return find(new Pi(*this, elems)); }
 
     /*
      * literals
@@ -172,15 +172,15 @@ public:
     const Param* param(const Type* type, const Lambda* parent, size_t index);
 
     void jump(Lambda*& from, const Def* to, ArrayRef<const Def*> args);
-    void jump1(Lambda*& from, const Def* to, const Def* arg1) { 
+    void jump1(Lambda*& from, const Def* to, const Def* arg1) {
         const Def* args[1] = { arg1 };
-        return jump(from, to, args); 
+        return jump(from, to, args);
     }
-    void jump2(Lambda*& from, const Def* to, const Def* arg1, const Def* arg2) { 
+    void jump2(Lambda*& from, const Def* to, const Def* arg1, const Def* arg2) {
         const Def* args[2] = { arg1, arg2 };
         return jump(from, to, args);
     }
-    void jump3(Lambda*& from, const Def* to, const Def* arg1, const Def* arg2, const Def* arg3) { 
+    void jump3(Lambda*& from, const Def* to, const Def* arg1, const Def* arg2, const Def* arg3) {
         const Def* args[3] = { arg1, arg2, arg3 };
         return jump(from, to, args);
     }
@@ -220,6 +220,14 @@ public:
 
     template<class T>
     const T* find(const T* val) { return (const T*) findDef(val); }
+
+    /*
+     * debug printing
+     */
+
+    void printPostOrder();
+    void printReversePostOrder();
+    void printDominators();
 
 private:
 

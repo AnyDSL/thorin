@@ -75,7 +75,7 @@ public:
     typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
     template<size_t N>
-    ArrayRef(T (&array)[N]) 
+    ArrayRef(T (&array)[N])
         : ptr_(&array[0])
         , size_(N)
     {}
@@ -84,16 +84,16 @@ public:
         , size_(vector.size())
     {}
     ArrayRef(const T* ptr, size_t size)
-        : ptr_(ptr) 
+        : ptr_(ptr)
         , size_(size)
     {}
     ArrayRef(const Array<T>& array)
-        : ptr_(array.begin()) 
+        : ptr_(array.begin())
         , size_(array.size())
     {}
     template<class Deref_, Deref const& (*Hook_)(const T*)>
     ArrayRef(const ArrayRef<T, Deref_, Hook_>& array)
-        : ptr_(array.begin().base()) 
+        : ptr_(array.begin().base())
         , size_(array.size())
     {}
 
@@ -141,7 +141,7 @@ public:
     {
         std::memcpy(ptr_, ref.begin().base(), size() * sizeof(T));
     }
-    Array(const Array<T>& array) 
+    Array(const Array<T>& array)
         : ptr_(new T[array.size()])
         , size_(array.size())
     {
@@ -155,6 +155,8 @@ public:
     typedef const T* const_iterator;
     typedef std::reverse_iterator<iterator> reverse_iterator;
     typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
+
+    void set(int val) { memset(ptr_, val, size() * sizeof(T)); }
 
     iterator begin() { return ptr_; }
     iterator end() { return ptr_ + size_; }
@@ -178,7 +180,7 @@ public:
     ArrayRef<T> slice_front(size_t end) const { return ArrayRef<T>(ptr_, end); }
     ArrayRef<T> slice_back(size_t begin) const { return ArrayRef<T>(ptr_ + begin, size_ - begin); }
 
-    bool operator == (const Array<T>& other) const { 
+    bool operator == (const Array<T>& other) const {
         if (size() != other.size())
             return false;
 
@@ -198,7 +200,7 @@ private:
 };
 
 template<class T>
-inline size_t hash_value(const Array<T>& array) { 
+inline size_t hash_value(const Array<T>& array) {
     size_t seed = 0;
     boost::hash_combine(seed, array.size());
 

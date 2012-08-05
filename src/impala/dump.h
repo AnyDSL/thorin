@@ -6,6 +6,7 @@
 namespace impala {
 
 class ASTNode;
+class Type;
 
 /** 
  * @brief Dumps a human readable representation of the ASTNode \p n to output stream \p o.

@@ -10,10 +10,6 @@
 #error "define ANYDSL_PRIMTYPE before including this file"
 #endif
 
-#ifndef ANYDSL_PRIMLIT
-#error "define ANYDSL_PRIMLIT before including this file"
-#endif
-
 #ifndef ANYDSL_ARITHOP
 #error "define ANYDSL_ARITHOP before including this file"
 #endif
@@ -33,13 +29,7 @@
     ANYDSL_GLUE(PrimType_u, PrimType_f)
 #define ANYDSL_F_TYPE(T) ANYDSL_PRIMTYPE(T)
 #include "anydsl/tables/primtypetable.h"
-    ANYDSL_GLUE(PrimType_f, PrimLit_u)
-#define ANYDSL_U_TYPE(T) ANYDSL_PRIMLIT(T)
-#include "anydsl/tables/primtypetable.h"
-    ANYDSL_GLUE(PrimLit_u, PrimLit_f)
-#define ANYDSL_F_TYPE(T) ANYDSL_PRIMLIT(T)
-#include "anydsl/tables/primtypetable.h"
-    ANYDSL_GLUE(PrimLit_f, ArithOp)
+    ANYDSL_GLUE(PrimType_f, ArithOp)
 #include "anydsl/tables/arithoptable.h"
     ANYDSL_GLUE(ArithOp, RelOp)
 #include "anydsl/tables/reloptable.h"

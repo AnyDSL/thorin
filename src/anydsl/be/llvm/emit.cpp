@@ -162,14 +162,14 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (const PrimLit* lit = def->isa<PrimLit>()) {
         llvm::Type* type = convert(lit->type());
         Box box = lit->box();
-        switch (lit->kind()) {
-            case PrimLit_u1:  return builder.getInt1(box.get_u1().get());
-            case PrimLit_u8:  return builder.getInt8(box.get_u8());
-            case PrimLit_u16: return builder.getInt8(box.get_u16());
-            case PrimLit_u32: return builder.getInt8(box.get_u32());
-            case PrimLit_u64: return builder.getInt8(box.get_u64());
-            case PrimLit_f32: return llvm::ConstantFP::get(type, box.get_f32());
-            case PrimLit_f64: return llvm::ConstantFP::get(type, box.get_f64());
+        switch (lit->primtype_kind()) {
+            case PrimType_u1:  return builder.getInt1(box.get_u1().get());
+            case PrimType_u8:  return builder.getInt8(box.get_u8());
+            case PrimType_u16: return builder.getInt8(box.get_u16());
+            case PrimType_u32: return builder.getInt8(box.get_u32());
+            case PrimType_u64: return builder.getInt8(box.get_u64());
+            case PrimType_f32: return llvm::ConstantFP::get(type, box.get_f32());
+            case PrimType_f64: return llvm::ConstantFP::get(type, box.get_f64());
         }
     }
 

@@ -101,13 +101,13 @@ Value EmptyExpr::emit(CodeGen& cg) const {
 }
 
 Value Literal::emit(CodeGen& cg) const {
-    anydsl::PrimLitKind akind;
+    anydsl::PrimTypeKind akind;
 
     switch (kind()) {
 #define IMPALA_LIT(itype, atype) \
-        case LIT_##itype: akind = anydsl::PrimLit_##atype; break;
+        case LIT_##itype: akind = anydsl::PrimType_##atype; break;
 #include "impala/tokenlist.h"
-        case LIT_bool: akind = anydsl::PrimLit_u1; break;
+        case LIT_bool: akind = anydsl::PrimType_u1; break;
         default: ANYDSL_UNREACHABLE;
     }
 

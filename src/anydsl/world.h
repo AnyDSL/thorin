@@ -143,8 +143,7 @@ public:
     const PrimLit* literal_##T(Box val) { return literal(PrimType_##T, val); }
 #include "anydsl/tables/primtypetable.h"
 
-    const PrimLit* literal(PrimLitKind kind, Box value);
-    const PrimLit* literal(PrimTypeKind kind, Box value) { return literal(type2lit(kind), value); }
+    const PrimLit* literal(PrimTypeKind kind, Box value) { return literal(type(kind), value); }
     const PrimLit* literal(const PrimType* p, Box value);
     template<class T>
     const PrimLit* literal(T value) { return literal(type2kind<T>::kind, Box(value)); }

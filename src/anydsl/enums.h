@@ -12,7 +12,6 @@ enum NodeKind {
 #define ANYDSL_GLUE(pre, next)
 #define ANYDSL_AIR_NODE(node) Node_##node,
 #define ANYDSL_PRIMTYPE(T) Node_PrimType_##T,
-#define ANYDSL_PRIMLIT(T)  Node_PrimLit_##T,
 #define ANYDSL_ARITHOP(op) Node_##op,
 #define ANYDSL_RELOP(op) Node_##op,
 #define ANYDSL_CONVOP(op) Node_##op,
@@ -26,7 +25,6 @@ enum Markers {
     zzz##Begin_##next = Begin_##next - 1,
 #define ANYDSL_AIR_NODE(node) zzzMarker_##node,
 #define ANYDSL_PRIMTYPE(T) zzzMarker_PrimType_##T,
-#define ANYDSL_PRIMLIT(T)  zzzMarker_PrimLit_##T,
 #define ANYDSL_ARITHOP(op) zzzMarker_##op,
 #define ANYDSL_RELOP(op) zzzMarker_##op,
 #define ANYDSL_CONVOP(op) zzzMarker_##op,
@@ -38,35 +36,24 @@ enum Markers {
     Begin_AllNodes  = Begin_Node,
 
     Begin_PrimType  = Begin_PrimType_u,
-    Begin_PrimLit   = Begin_PrimLit_u,
     End_PrimType    = End_PrimType_f,
-    End_PrimLit     = End_PrimLit_f,
 
     Num_AllNodes    = End_AllNodes   - Begin_AllNodes,
     Num_Nodes       = End_Node       - Begin_Node,
 
     Num_PrimTypes_u = End_PrimType_u - Begin_PrimType_u,
     Num_PrimTypes_f = End_PrimType_f - Begin_PrimType_f,
-    Num_PrimLits_u  = End_PrimLit_u  - Begin_PrimLit_u,
-    Num_PrimLits_f  = End_PrimLit_f  - Begin_PrimLit_f,
 
     Num_ArithOps    = End_ArithOp    - Begin_ArithOp,
     Num_RelOps      = End_RelOp      - Begin_RelOp,
     Num_ConvOps     = End_ConvOp     - Begin_ConvOp,
 
     Num_PrimTypes = Num_PrimTypes_u + Num_PrimTypes_f,
-    Num_PrimLits  = Num_PrimTypes,
 };
 
 enum PrimTypeKind {
 #define ANYDSL_U_TYPE(T) PrimType_##T = Node_PrimType_##T,
 #define ANYDSL_F_TYPE(T) PrimType_##T = Node_PrimType_##T,
-#include "anydsl/tables/primtypetable.h"
-};
-
-enum PrimLitKind {
-#define ANYDSL_U_TYPE(T) PrimLit_##T = Node_PrimLit_##T,
-#define ANYDSL_F_TYPE(T) PrimLit_##T = Node_PrimLit_##T,
 #include "anydsl/tables/primtypetable.h"
 };
 
@@ -85,23 +72,7 @@ enum ConvOpKind {
 #include "anydsl/tables/convoptable.h"
 };
 
-inline PrimTypeKind lit2type(PrimLitKind kind) {
-    // it holds: Begin_PrimLit + offset = Begin_PrimType
-    int offset = Begin_PrimType - Begin_PrimLit;
-
-    // it holds: primLit + offset = primType
-    return (PrimTypeKind) (((int) kind) + offset);
-}
-
-inline PrimLitKind type2lit(PrimTypeKind kind) {
-    // it holds: Begin_PrimType + offset = Begin_PrimLit
-    int offset = Begin_PrimLit - Begin_PrimType;
-
-    // it holds: primType + offset = primLit
-    return (PrimLitKind) (((int) kind) + offset);
-}
-
-inline bool isInteger(PrimTypeKind kind) {
+inline bool isInt(PrimTypeKind kind) {
     return (int) Begin_PrimType_u <= (int) kind && (int) kind < (int) End_PrimType_u;
 }
 

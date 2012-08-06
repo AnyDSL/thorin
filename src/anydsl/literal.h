@@ -57,14 +57,15 @@ class PrimLit : public Literal {
 private:
 
     PrimLit(const Type* type, Box box)
-        : Literal(type2lit(type->as<PrimType>()->primtype_kind()), type)
+        : Literal(Node_PrimLit, type)
         , box_(box)
     {}
 
 public:
 
-    PrimLitKind primlit_kind() const { return (PrimLitKind) node_kind(); }
     Box box() const { return box_; }
+    const PrimType* primtype() const { return type()->as<PrimType>(); }
+    PrimTypeKind primtype_kind() const { return primtype()->primtype_kind(); }
 
     virtual bool equal(const Def* other) const;
     virtual size_t hash() const;

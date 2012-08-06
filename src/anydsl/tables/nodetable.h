@@ -6,7 +6,7 @@ ANYDSL_AIR_NODE(Goto)
 // Def
     ANYDSL_AIR_NODE(Lambda)
     // Literal
-        // PrimLit
+        ANYDSL_AIR_NODE(PrimLit)
         ANYDSL_AIR_NODE(Undef)
         ANYDSL_AIR_NODE(Error)
     // Value

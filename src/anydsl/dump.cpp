@@ -37,8 +37,8 @@ void Error::vdump(Printer& p) const  {
 }
 
 void PrimLit::vdump(Printer& p) const  {
-	switch (primlit_kind()) {
-#define ANYDSL_U_TYPE(T) case Node_PrimLit_##T: p.o << box().get_##T(); break;
+	switch (primtype_kind()) {
+#define ANYDSL_U_TYPE(T) case PrimType_##T: p.o << box().get_##T(); break;
 #define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
 #include "anydsl/tables/primtypetable.h"
 	default:

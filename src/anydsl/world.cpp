@@ -107,10 +107,6 @@ Sigma* World::namedSigma(size_t num, const std::string& name /*= ""*/) {
  * literals
  */
 
-const PrimLit* World::literal(PrimLitKind kind, Box value) {
-    return find(new PrimLit(type(lit2type(kind)), value));
-}
-
 const PrimLit* World::literal(const PrimType* p, Box value) {
     return find(new PrimLit(p, value));
 }

@@ -265,7 +265,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
         for (unsigned i = 0, e = tuple->ops().size(); i != e; ++i) {
             unsigned idxs[1] = { unsigned(i) };
-            agg = builder.CreateInsertValue(agg, emit(tuple->get(i)), idxs);
+            agg = builder.CreateInsertValue(agg, emit(tuple->op(i)), idxs);
         }
 
         return agg;
@@ -274,8 +274,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (const Undef* undef = def->isa<Undef>())
         return llvm::UndefValue::get(convert(undef->type()));
 
-    if (const Error* error = def->isa<Error>())
-        return llvm::UndefValue::get(convert(error->type()));
+    if (const Bottom* bottom = def->isa<Bottom>())
+        return llvm::UndefValue::get(convert(bottom->type()));
 
     ANYDSL_UNREACHABLE;
 }

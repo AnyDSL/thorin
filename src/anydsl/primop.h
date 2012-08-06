@@ -83,6 +83,17 @@ public:
     bool isBit()      const { return isBit  (arithop_kind()); }
     bool isShift()    const { return isShift(arithop_kind()); }
     bool isDivOrRem() const { return isDivOrRem(arithop_kind()); }
+    bool isCommutative() const { return isCommutative(arithop_kind()); }
+
+    static bool isCommutative(ArithOpKind kind) {
+        return kind == ArithOp_add
+            || kind == ArithOp_mul
+            || kind == ArithOp_fadd
+            || kind == ArithOp_fmul
+            || kind == ArithOp_and
+            || kind == ArithOp_or
+            || kind == ArithOp_xor;
+    }
 
     friend class World;
 };
@@ -179,10 +190,6 @@ class Tuple : public PrimOp {
 private:
 
     Tuple(World& world, ArrayRef<const Def*> args);
-
-public:
-
-    const Def* get(uint32_t i) const { return op(i); }
 
 private:
 

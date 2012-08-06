@@ -15,7 +15,7 @@
 namespace anydsl {
 
 class Def;
-class Error;
+class Bottom;
 class Lambda;
 class Pi;
 class PrimLit;
@@ -147,14 +147,17 @@ public:
     const PrimLit* literal(PrimTypeKind kind, int value);
     const PrimLit* zero(PrimTypeKind kind) { return literal(kind, 0); }
     const PrimLit* one(PrimTypeKind kind) { return literal(kind, 1); }
-    const PrimLit* allset(PrimTypeKind kind) { return literal(kind, 1); }
+    const PrimLit* allset(PrimTypeKind kind) { 
+        anydsl_assert(isFloat(kind), "must not be a float"); 
+        return literal(kind, -1); 
+    }
 
     template<class T>
     const PrimLit* literal(T value) { return literal(type2kind<T>::kind, Box(value)); }
     const Undef* undef(const Type* type);
     const Undef* undef(PrimTypeKind kind) { return undef(type(kind)); }
-    const Error* error(const Type* type);
-    const Error* error(PrimTypeKind kind) { return error(type(kind)); }
+    const Bottom* bottom(const Type* type);
+    const Bottom* bottom(PrimTypeKind kind) { return bottom(type(kind)); }
 
     /*
      * create
@@ -168,11 +171,11 @@ public:
 #define ANYDSL_RELOP(OP) const Def* relop_##OP(const Def* ldef, const Def* rdef) { return relop(RelOp_##OP, ldef, rdef); }
 #include "anydsl/tables/reloptable.h"
 
-    const Def* extract(const Def* tuple, size_t index);
-    const Def* insert(const Def* tuple, size_t index, const Def* value);
+    const Def* extract(const Def* tuple, uint32_t index);
+    const Def* insert(const Def* tuple, uint32_t index, const Def* value);
     const Def* select(const Def* cond, const Def* tdef, const Def* fdef);
     const Def* tuple(ArrayRef<const Def*> args);
-    const Param* param(const Type* type, const Lambda* parent, size_t index);
+    const Param* param(const Type* type, const Lambda* parent, uint32_t index);
 
     void jump(Lambda*& from, const Def* to, ArrayRef<const Def*> args);
     void jump1(Lambda*& from, const Def* to, const Def* arg1) {

@@ -1,5 +1,6 @@
 #include "anydsl/world.h"
 
+#include <cmath>
 #include <queue>
 #include <boost/unordered_set.hpp>
 
@@ -8,7 +9,6 @@
 #include "anydsl/lambda.h"
 #include "anydsl/literal.h"
 #include "anydsl/type.h"
-#include "anydsl/fold.h"
 #include "anydsl/util/array.h"
 
 // debug includes
@@ -28,47 +28,6 @@
     case PrimType_f64: ANYDSL_UNREACHABLE;
 
 namespace anydsl {
-
-/*
- * helpers
- */
-
-static bool isCommutative(ArithOpKind kind) {
-    switch (kind) {
-        case ArithOp_add:
-        case ArithOp_mul:
-            return true;
-        default:
-            return false;
-    }
-}
-
-static RelOpKind normalizeRel(RelOpKind kind, bool& swap) {
-    swap = false;
-    switch (kind) {
-        case RelOp_cmp_ugt: swap = true; return RelOp_cmp_ult;
-        case RelOp_cmp_uge: swap = true; return RelOp_cmp_ule;
-        case RelOp_cmp_sgt: swap = true; return RelOp_cmp_slt;
-        case RelOp_cmp_sge: swap = true; return RelOp_cmp_sle;
-
-        case RelOp_fcmp_ogt: swap = true; return RelOp_fcmp_olt;
-        case RelOp_fcmp_oge: swap = true; return RelOp_fcmp_ole;
-        case RelOp_fcmp_ugt: swap = true; return RelOp_fcmp_ult;
-        case RelOp_fcmp_uge: swap = true; return RelOp_fcmp_ule;
-        default: return kind;
-    }
-}
-
-static void examineDef(const Def* def, FoldValue& v) {
-    if (def->isa<Undef>())
-        v.kind = FoldValue::Undef;
-    else if (def->isa<Error>())
-        v.kind = FoldValue::Error;
-    if (const PrimLit* lit = def->isa<PrimLit>()) {
-        v.kind = FoldValue::Valid;
-        v.box = lit->box();
-    }
-}
 
 /*
  * constructor and destructor
@@ -134,8 +93,8 @@ const Undef* World::undef(const Type* type) {
     return find(new Undef(type));
 }
 
-const Error* World::error(const Type* type) {
-    return find(new Error(type));
+const Bottom* World::bottom(const Type* type) {
+    return find(new Bottom(type));
 }
 
 /*
@@ -143,38 +102,30 @@ const Error* World::error(const Type* type) {
  */
 
 const Def* World::tuple(ArrayRef<const Def*> args) {
+    Array<const Type*> elems(args.size());
+
+    size_t i = 0;
+    bool bot = false;
+
+    for_all (arg, args) {
+        elems[i++] = arg->type();
+
+        if (arg->isa<Bottom>())
+            bot = true;
+    }
+
+    if (bot)
+        return bottom(sigma(elems));
+
     return find(new Tuple(*this, args));
 }
 
 const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b) {
     PrimTypeKind rtype = a->type()->as<PrimType>()->primtype_kind();
 
-    // error op error -> error
-    if (a->isa<Error>() || b->isa<Error>()) 
-        return error(rtype);
-
-    // a / undef -> error
-    // a % undef -> error
-    if (ArithOp::isDivOrRem(kind) && b->isa<Undef>())
-        return error(rtype);
-
-    // undef op undef -> undef
-    if (a->isa<Undef>() && b->isa<Undef>())
-        return undef(rtype);
-
-    if (a->isa<Undef>() || b->isa<Undef>()) {
-        switch (kind) {
-            // a and undef -> 0
-            // undef and b -> 0
-            case ArithOp_and: return zero(rtype);
-        }
-    }
-
-
-    // a op undef -> undef
-    // undef op b -> undef
-    if (a->isa<Undef>() || b->isa<Undef>())
-        return undef(a->type());
+    // bottom op bottom -> bottom
+    if (a->isa<Bottom>() || b->isa<Bottom>()) 
+        return bottom(rtype);
 
     const PrimLit* llit = a->isa<PrimLit>();
     const PrimLit* rlit = b->isa<PrimLit>();
@@ -219,27 +170,50 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b) {
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
                 }
+            case ArithOp_fadd:
+                switch (type) {
+#define ANYDSL_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())));
+#include "anydsl/tables/primtypetable.h"
+                    ANYDSL_NO_U_TYPE;
+                }
+            case ArithOp_fsub:
+                switch (type) {
+#define ANYDSL_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() - r.get_##T())));
+#include "anydsl/tables/primtypetable.h"
+                    ANYDSL_NO_U_TYPE;
+                }
+            case ArithOp_fmul:
+                switch (type) {
+#define ANYDSL_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())));
+#include "anydsl/tables/primtypetable.h"
+                    ANYDSL_NO_U_TYPE;
+                }
             case ArithOp_fdiv:
                 switch (type) {
 #define ANYDSL_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() / r.get_##T())));
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_U_TYPE;
                 }
+            case ArithOp_frem:
+                switch (type) {
+#define ANYDSL_F_TYPE(T) case PrimType_##T: return literal(type, Box(std::fmod(l.get_##T(), r.get_##T())));
+#include "anydsl/tables/primtypetable.h"
+                    ANYDSL_NO_U_TYPE;
+                }
         }
     }
 
-    if (isCommutative(kind))
-        if (a > b)
+    // normalize -- put literal or smaller pointer to the left
+    if (ArithOp::isCommutative(kind))
+        if ((rlit || a > b) && (!llit))
             std::swap(a, b);
 
     return find(new ArithOp(kind, a, b));
 }
 
 const Def* World::relop(RelOpKind kind, const Def* a, const Def* b) {
-    if (a->isa<Error>() || b->isa<Error>()) 
-        return error(type_u1());
-
-    // TODO undef
+    if (a->isa<Bottom>() || b->isa<Bottom>()) 
+        return bottom(type_u1());
 
     const PrimLit* llit = a->isa<PrimLit>();
     const PrimLit* rlit = b->isa<PrimLit>();
@@ -289,38 +263,46 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b) {
         }
     }
 
-    bool swap;
-    kind = normalizeRel(kind, swap);
-    if (swap)
+    RelOpKind newkind = kind;
+    switch (newkind) {
+        case RelOp_cmp_ugt:  newkind = RelOp_cmp_ult; break;
+        case RelOp_cmp_uge:  newkind = RelOp_cmp_ule; break;
+        case RelOp_cmp_sgt:  newkind = RelOp_cmp_slt; break;
+        case RelOp_cmp_sge:  newkind = RelOp_cmp_sle; break;
+        case RelOp_fcmp_ogt: newkind = RelOp_fcmp_olt; break;
+        case RelOp_fcmp_oge: newkind = RelOp_fcmp_ole; break;
+        case RelOp_fcmp_ugt: newkind = RelOp_fcmp_ult; break;
+        case RelOp_fcmp_uge: newkind = RelOp_fcmp_ule; break;
+    }
+
+    if (newkind != kind)
         std::swap(a, b);
 
-    return find(new RelOp(kind, a, b));
+    return find(new RelOp(newkind, a, b));
 }
 
-const Def* World::extract(const Def* tuple, size_t index) {
-    // TODO folding
-    return find(new Extract(tuple, index));
+const Def* World::extract(const Def* def, uint32_t index) {
+    if (def->isa<Bottom>())
+        return bottom(def->type()->as<Sigma>()->elem(index));
+
+    if (const Tuple* tuple = def->isa<Tuple>())
+        return tuple->op(index);
+
+    return find(new Extract(def, index));
 }
 
-const Def* World::insert(const Def* tuple, size_t index, const Def* value) {
+const Def* World::insert(const Def* def, uint32_t index, const Def* value) {
+    if (def->isa<Bottom>() || value->isa<Bottom>())
+        return bottom(def->type());
+
     // TODO folding
     return find(new Insert(tuple, index, value));
 }
 
 
 const Def* World::select(const Def* cond, const Def* a, const Def* b) {
-    if (cond->isa<Error>() || a->isa<Error>() || b->isa<Error>())
-        return error(a->type());
-
-    if (a->isa<Undef>())
-        if (b->isa<Undef>())
-            return undef(a->type()); // select cond, undef, undef -> undef
-        else
-            return b;                // select cond, undef, b  -> b
-    else if (b->isa<Undef>())
-            return a;                // select cond, a,  undef -> a
-
-    // don't do anything for select undef, a, b
+    if (cond->isa<Bottom>() || a->isa<Bottom>() || b->isa<Bottom>())
+        return bottom(a->type());
 
     if (const PrimLit* lit = cond->isa<PrimLit>())
         return lit->box().get_u1().get() ? a : b;
@@ -341,7 +323,7 @@ const Lambda* World::finalize(Lambda*& lambda) {
     return l;
 }
 
-const Param* World::param(const Type* type, const Lambda* parent, size_t index) {
+const Param* World::param(const Type* type, const Lambda* parent, uint32_t index) {
     return find(new Param(type, parent, index));
 }
 
@@ -360,7 +342,6 @@ void World::jump(Lambda*& lambda, const Def* to, ArrayRef<const Def*> args) {
 void World::branch(Lambda*& lambda, const Def* cond, const Def* tto, const Def*  fto) {
     return jump(lambda, select(cond, tto, fto), Array<const Def*>(0));
 }
-
 
 /*
  * optimizations

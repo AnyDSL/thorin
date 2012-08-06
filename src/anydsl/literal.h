@@ -39,11 +39,11 @@ private:
 
 //------------------------------------------------------------------------------
 
-class Error : public Literal {
+class Bottom : public Literal {
 private:
 
-    Error(const Type* type)
-        : Literal(Node_Error, type)
+    Bottom(const Type* type)
+        : Literal(Node_Bottom, type)
     {}
 
     virtual void vdump(Printer& printer) const ;

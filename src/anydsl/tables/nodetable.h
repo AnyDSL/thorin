@@ -8,7 +8,7 @@ ANYDSL_AIR_NODE(Goto)
     // Literal
         ANYDSL_AIR_NODE(PrimLit)
         ANYDSL_AIR_NODE(Undef)
-        ANYDSL_AIR_NODE(Error)
+        ANYDSL_AIR_NODE(Bottom)
     // Value
         // PrimOp
             //ANYDSL_AIR_NODE(ArithOp)

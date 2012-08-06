@@ -1,7 +1,9 @@
 #include "anydsl/dom.h"
 
-#include "anydsl/lambda.h"
+#include "anydsl/def.h"
+#include "anydsl/order.h"
 #include "anydsl/util/assert.h"
+#include "anydsl/util/for_all.h"
 
 #include <memory>
 

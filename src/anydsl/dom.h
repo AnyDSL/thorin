@@ -3,12 +3,12 @@
 
 #include <boost/unordered_map.hpp>
 
-#include "anydsl/def.h"
-#include "anydsl/util/for_all.h"
-#include "anydsl/order.h"
 #include "anydsl/util/array.h"
 
 namespace anydsl {
+
+class Def;
+class PostOrder;
 
 class Dominators {
 public:

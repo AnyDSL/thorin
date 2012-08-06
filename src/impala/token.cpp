@@ -4,10 +4,12 @@
 #include "anydsl/util/cast.h"
 #include "anydsl/util/stdlib.h"
 
+using anydsl::Box;
 using anydsl::HasLocation;
-using anydsl::Position;
 using anydsl::Location;
+using anydsl::Position;
 using anydsl::Symbol;
+using anydsl::bcast;
 
 namespace impala {
 
@@ -40,18 +42,18 @@ Token::Token(const anydsl::Location& loc, Kind kind, const std::string& str)
     using namespace std;
 
     switch (kind_) {
-        case LIT_int8:   box_.u8_  = anydsl::bcast< uint8_t,  int8_t>( int8_t(strtol  (symbol_.str(), 0, 0))); break;
-        case LIT_int16:  box_.u16_ = anydsl::bcast<uint16_t, int16_t>(int16_t(strtol  (symbol_.str(), 0, 0))); break;
-        case LIT_int32:  box_.u32_ = anydsl::bcast<uint32_t, int32_t>(int32_t(strtol  (symbol_.str(), 0, 0)));  break;
-        case LIT_int64:  box_.u64_ = anydsl::bcast<uint64_t, int64_t>(int64_t(strtoll (symbol_.str(), 0, 0)));  break;
+        case LIT_int8:   box_ = Box(bcast< uint8_t,  int8_t>( int8_t(strtol  (symbol_.str(), 0, 0)))); break;
+        case LIT_int16:  box_ = Box(bcast<uint16_t, int16_t>(int16_t(strtol  (symbol_.str(), 0, 0)))); break;
+        case LIT_int32:  box_ = Box(bcast<uint32_t, int32_t>(int32_t(strtol  (symbol_.str(), 0, 0))));  break;
+        case LIT_int64:  box_ = Box(bcast<uint64_t, int64_t>(int64_t(strtoll (symbol_.str(), 0, 0))));  break;
 
-        case LIT_uint8:  box_. u8_ = uint8_t (strtoul (symbol_.str(), 0, 0)); break;
-        case LIT_uint16: box_.u16_ = uint16_t(strtoul (symbol_.str(), 0, 0)); break;
-        case LIT_uint32: box_.u32_ = uint32_t(strtoul (symbol_.str(), 0, 0)); break;
-        case LIT_uint64: box_.u64_ = uint64_t(strtoull(symbol_.str(), 0, 0)); break;
+        case LIT_uint8:  box_ = Box(uint8_t (strtoul (symbol_.str(), 0, 0))); break;
+        case LIT_uint16: box_ = Box(uint16_t(strtoul (symbol_.str(), 0, 0))); break;
+        case LIT_uint32: box_ = Box(uint32_t(strtoul (symbol_.str(), 0, 0))); break;
+        case LIT_uint64: box_ = Box(uint64_t(strtoull(symbol_.str(), 0, 0))); break;
 
-        case LIT_float:  box_.f32_ = strtof(symbol_.str(), 0); break;
-        case LIT_double: box_.f64_ = strtod(symbol_.str(), 0); break;
+        case LIT_float:  box_ = Box(strtof(symbol_.str(), 0)); break;
+        case LIT_double: box_ = Box(strtod(symbol_.str(), 0)); break;
 
         default: ANYDSL_UNREACHABLE;
     }

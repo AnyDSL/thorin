@@ -143,8 +143,12 @@ public:
     const PrimLit* literal_##T(Box val) { return literal(PrimType_##T, val); }
 #include "anydsl/tables/primtypetable.h"
 
-    const PrimLit* literal(PrimTypeKind kind, Box value) { return literal(type(kind), value); }
-    const PrimLit* literal(const PrimType* p, Box value);
+    const PrimLit* literal(PrimTypeKind kind, Box value);
+    const PrimLit* literal(PrimTypeKind kind, int value);
+    const PrimLit* zero(PrimTypeKind kind) { return literal(kind, 0); }
+    const PrimLit* one(PrimTypeKind kind) { return literal(kind, 1); }
+    const PrimLit* allset(PrimTypeKind kind) { return literal(kind, 1); }
+
     template<class T>
     const PrimLit* literal(T value) { return literal(type2kind<T>::kind, Box(value)); }
     const Undef* undef(const Type* type);
@@ -241,8 +245,6 @@ private:
 
     void dce_insert(const Def* def);
     void uce_insert(Reachable& reachable, const Lambda* lambda);
-
-    const Def* tryFold(NodeKind kind, const Def* ldef, const Def* rdef);
 
     DefSet defs_;
 

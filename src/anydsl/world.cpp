@@ -16,6 +16,17 @@
 #include "anydsl/dom.h"
 #include "anydsl/printer.h"
 
+#define ANYDSL_NO_U_TYPE \
+    case PrimType_u1: \
+    case PrimType_u8: \
+    case PrimType_u16: \
+    case PrimType_u32: \
+    case PrimType_u64: ANYDSL_UNREACHABLE;
+
+#define ANYDSL_NO_F_TYPE \
+    case PrimType_f32: \
+    case PrimType_f64: ANYDSL_UNREACHABLE;
+
 namespace anydsl {
 
 /*
@@ -68,7 +79,7 @@ World::World()
     , unit_ (find(new Sigma(*this, Array<const Type*>(0))))
     , pi0_  (find(new Pi   (*this, Array<const Type*>(0))))
 #define ANYDSL_U_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T)))
-#define ANYDSL_F_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T)))
+#define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
 #include "anydsl/tables/primtypetable.h"
 {
     live_.insert(unit_);
@@ -107,8 +118,16 @@ Sigma* World::namedSigma(size_t num, const std::string& name /*= ""*/) {
  * literals
  */
 
-const PrimLit* World::literal(const PrimType* p, Box value) {
-    return find(new PrimLit(p, value));
+const PrimLit* World::literal(PrimTypeKind kind, Box value) {
+    return find(new PrimLit(type(kind), value));
+}
+
+const PrimLit* World::literal(PrimTypeKind kind, int value) {
+    switch (kind) {
+#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal(T(value));
+#define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
+#include "anydsl/tables/primtypetable.h"
+    }
 }
 
 const Undef* World::undef(const Type* type) {
@@ -127,48 +146,155 @@ const Def* World::tuple(ArrayRef<const Def*> args) {
     return find(new Tuple(*this, args));
 }
 
-const Def* World::tryFold(NodeKind kind, const Def* ldef, const Def* rdef) {
-    FoldValue a(ldef->type()->as<PrimType>()->primtype_kind());
-    FoldValue b(a.type);
+const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b) {
+    PrimTypeKind rtype = a->type()->as<PrimType>()->primtype_kind();
 
-    examineDef(ldef, a);
-    examineDef(rdef, b);
+    // error op error -> error
+    if (a->isa<Error>() || b->isa<Error>()) 
+        return error(rtype);
 
-    if (ldef->isa<Literal>() && rdef->isa<Literal>()) {
-        const PrimType* pt = ldef->type()->as<PrimType>();
-        FoldValue res = fold_bin(kind, pt->primtype_kind(), a, b);
+    // a / undef -> error
+    // a % undef -> error
+    if (ArithOp::isDivOrRem(kind) && b->isa<Undef>())
+        return error(rtype);
 
-        switch (res.kind) {
-            case FoldValue::Valid: return literal(res.type, res.box);
-            case FoldValue::Undef: return undef(res.type);
-            case FoldValue::Error: return error(res.type);
+    // undef op undef -> undef
+    if (a->isa<Undef>() && b->isa<Undef>())
+        return undef(rtype);
+
+    if (a->isa<Undef>() || b->isa<Undef>()) {
+        switch (kind) {
+            // a and undef -> 0
+            // undef and b -> 0
+            case ArithOp_and: return zero(rtype);
         }
     }
 
-    return 0;
-}
 
-const Def* World::arithop(ArithOpKind kind, const Def* ldef, const Def* rdef) {
-    if (const Def* value = tryFold((NodeKind) kind, ldef, rdef))
-        return value;
+    // a op undef -> undef
+    // undef op b -> undef
+    if (a->isa<Undef>() || b->isa<Undef>())
+        return undef(a->type());
+
+    const PrimLit* llit = a->isa<PrimLit>();
+    const PrimLit* rlit = b->isa<PrimLit>();
+
+    if (llit && rlit) {
+        Box l = llit->box();
+        Box r = rlit->box();
+        PrimTypeKind type = llit->primtype_kind();
+
+        switch (kind) {
+            case ArithOp_add:
+                switch (type) {
+#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())));
+#define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
+#include "anydsl/tables/primtypetable.h"
+                }
+            case ArithOp_sub:
+                switch (type) {
+#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() - r.get_##T())));
+#define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
+#include "anydsl/tables/primtypetable.h"
+                }
+            case ArithOp_mul:
+                switch (type) {
+#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())));
+#define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
+#include "anydsl/tables/primtypetable.h"
+                }
+            case ArithOp_udiv:
+                switch (type) {
+#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() / r.get_##T())));
+#include "anydsl/tables/primtypetable.h"
+                    ANYDSL_NO_F_TYPE;
+                }
+            case ArithOp_sdiv:
+                switch (type) {
+#define ANYDSL_U_TYPE(T) \
+                    case PrimType_##T: { \
+                        typedef make_signed<T>::type S; \
+                        return literal(type, Box(bcast<T , S>(bcast<S, T >(l.get_##T()) / bcast<S, T >(r.get_##T())))); \
+                    }
+#include "anydsl/tables/primtypetable.h"
+                    ANYDSL_NO_F_TYPE;
+                }
+            case ArithOp_fdiv:
+                switch (type) {
+#define ANYDSL_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() / r.get_##T())));
+#include "anydsl/tables/primtypetable.h"
+                    ANYDSL_NO_U_TYPE;
+                }
+        }
+    }
 
     if (isCommutative(kind))
-        if (ldef > rdef)
-            std::swap(ldef, rdef);
+        if (a > b)
+            std::swap(a, b);
 
-    return find(new ArithOp(kind, ldef, rdef));
+    return find(new ArithOp(kind, a, b));
 }
 
-const Def* World::relop(RelOpKind kind, const Def* ldef, const Def* rdef) {
-    if (const Def* value = tryFold((NodeKind) kind, ldef, rdef))
-        return value;
+const Def* World::relop(RelOpKind kind, const Def* a, const Def* b) {
+    if (a->isa<Error>() || b->isa<Error>()) 
+        return error(type_u1());
+
+    // TODO undef
+
+    const PrimLit* llit = a->isa<PrimLit>();
+    const PrimLit* rlit = b->isa<PrimLit>();
+
+    if (llit && rlit) {
+        Box l = llit->box();
+        Box r = rlit->box();
+        PrimTypeKind type = llit->primtype_kind();
+
+        switch (kind) {
+            case Node_cmp_eq:
+                switch (type) {
+#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal(type, Box(l.get_##T() == r.get_##T()));
+#include "anydsl/tables/primtypetable.h"
+                    ANYDSL_NO_F_TYPE;
+                }
+            case Node_cmp_ne:
+                switch (type) {
+#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal(type, Box(l.get_##T() != r.get_##T()));
+#include "anydsl/tables/primtypetable.h"
+                    ANYDSL_NO_F_TYPE;
+                }
+            case Node_cmp_ult:
+                switch (type) {
+#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal(type, Box(l.get_##T() <  r.get_##T()));
+#include "anydsl/tables/primtypetable.h"
+                    ANYDSL_NO_F_TYPE;
+                }
+            case Node_cmp_ule:
+                switch (type) {
+#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal(type, Box(l.get_##T() <= r.get_##T()));
+#include "anydsl/tables/primtypetable.h"
+                    ANYDSL_NO_F_TYPE;
+                }
+            case Node_cmp_ugt:
+                switch (type) {
+#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal(type, Box(l.get_##T() >  r.get_##T()));
+#include "anydsl/tables/primtypetable.h"
+                    ANYDSL_NO_F_TYPE;
+                }
+            case Node_cmp_uge:
+                switch (type) {
+#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal(type, Box(l.get_##T() >= r.get_##T()));
+#include "anydsl/tables/primtypetable.h"
+                    ANYDSL_NO_F_TYPE;
+                }
+        }
+    }
 
     bool swap;
     kind = normalizeRel(kind, swap);
     if (swap)
-        std::swap(ldef, rdef);
+        std::swap(a, b);
 
-    return find(new RelOp(kind, ldef, rdef));
+    return find(new RelOp(kind, a, b));
 }
 
 const Def* World::extract(const Def* tuple, size_t index) {
@@ -182,11 +308,24 @@ const Def* World::insert(const Def* tuple, size_t index, const Def* value) {
 }
 
 
-const Def* World::select(const Def* cond, const Def* tdef, const Def* fdef) {
-    if (const PrimLit* lit = cond->isa<PrimLit>())
-        return lit->box().get_u1().get() ? tdef : fdef;
+const Def* World::select(const Def* cond, const Def* a, const Def* b) {
+    if (cond->isa<Error>() || a->isa<Error>() || b->isa<Error>())
+        return error(a->type());
 
-    return find(new Select(cond, tdef, fdef));
+    if (a->isa<Undef>())
+        if (b->isa<Undef>())
+            return undef(a->type()); // select cond, undef, undef -> undef
+        else
+            return b;                // select cond, undef, b  -> b
+    else if (b->isa<Undef>())
+            return a;                // select cond, a,  undef -> a
+
+    // don't do anything for select undef, a, b
+
+    if (const PrimLit* lit = cond->isa<PrimLit>())
+        return lit->box().get_u1().get() ? a : b;
+
+    return find(new Select(cond, a, b));
 }
 
 const Lambda* World::finalize(Lambda*& lambda) {

@@ -139,6 +139,15 @@ public:
 
     void replace(const Def* def) const;
 
+    /*
+     * check for special literals
+     */
+
+    bool isPrimLit(int val) const;
+    bool isZero() const { return isPrimLit(0); }
+    bool isOne() const { return isPrimLit(1); }
+    bool isAllSet() const { return isPrimLit(-1); }
+
     /**
      * Just do what ever you want with this field.
      * Perhaps you want to attach file/line/col information in this field.

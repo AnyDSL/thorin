@@ -76,6 +76,7 @@ public:
 
     typedef ArrayRef<const Def*, const Type*, elem_as_type> Elems;
     Elems elems() const { return Elems(Def::ops().begin().base(), Def::ops().size()); }
+    size_t numelems() const { return numops(); }
 
 protected:
 

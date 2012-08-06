@@ -1,6 +1,7 @@
 #include "anydsl/def.h"
 
 #include "anydsl/lambda.h"
+#include "anydsl/literal.h"
 #include "anydsl/primop.h"
 #include "anydsl/type.h"
 #include "anydsl/world.h"
@@ -84,6 +85,20 @@ void Def::replace(const Def* with) const {
 
         world().defs_.insert(udef);
     }
+}
+
+bool Def::isPrimLit(int val) const {
+    if (const PrimLit* lit = this->isa<PrimLit>()) {
+        Box box = lit->box();
+
+        switch (lit->primtype_kind()) {
+#define ANYDSL_U_TYPE(T) case PrimType_##T: return box.get_##T() == T(val);
+#define ANYDSL_F_TYPE(T) case PrimType_##T: return box.get_##T() == T(val);
+#include "anydsl/tables/primtypetable.h"
+        }
+    }
+
+    return false;
 }
 
 size_t Def::hash() const {

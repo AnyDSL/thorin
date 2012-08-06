@@ -11,17 +11,7 @@ namespace anydsl {
 typedef const char* const_char_ptr;
 
 union Box {
-    u8    u8_;
-    u16  u16_;
-    u32  u32_;
-    u64  u64_;
-    f32  f32_;
-    f64  f64_;
-
-    bool bool_;
-    char  char_;
-    void* ptr_;
-    const_char_ptr const_char_ptr_;
+public:
 
     Box()      { reset(); }
     Box( u1 u) { reset(); bool_ = u.get(); }
@@ -55,6 +45,19 @@ union Box {
 private:
 
     void reset() { memset(this, 0, sizeof(Box)); }
+
+    u8    u8_;
+    u16  u16_;
+    u32  u32_;
+    u64  u64_;
+    f32  f32_;
+    f64  f64_;
+
+    bool bool_;
+    char  char_;
+    void* ptr_;
+    const_char_ptr const_char_ptr_;
+
 };
 
 template <> inline  u1 Box::get< u1>() { return  u1(bool_); }

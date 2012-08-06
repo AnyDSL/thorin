@@ -125,7 +125,7 @@ void Literal::dump(Printer& p) const {
         }
 #include "impala/tokenlist.h"
         case LIT_bool:
-            if (value().bool_) 
+            if (value().get_u1().get()) 
                 p << "true";
             else
                 p << "false";

@@ -56,6 +56,34 @@ public:
 
     ArithOpKind arithop_kind() const { return (ArithOpKind) node_kind(); }
 
+    static bool isDiv(ArithOpKind kind) { 
+        return  kind == ArithOp_sdiv 
+             || kind == ArithOp_udiv
+             || kind == ArithOp_fdiv; 
+    }
+    static bool isRem(ArithOpKind kind) { 
+        return  kind == ArithOp_srem 
+             || kind == ArithOp_urem
+             || kind == ArithOp_frem; 
+    }
+    static bool isBit(ArithOpKind kind) {
+        return  kind == ArithOp_and
+             || kind == ArithOp_or
+             || kind == ArithOp_xor;
+    }
+    static bool isShift(ArithOpKind kind) {
+        return  kind == ArithOp_shl
+             || kind == ArithOp_lshr
+             || kind == ArithOp_ashr;
+    }
+    static bool isDivOrRem(ArithOpKind kind) { return isDiv(kind) || isRem(kind); }
+
+    bool isDiv()      const { return isDiv  (arithop_kind()); }
+    bool isRem()      const { return isRem  (arithop_kind()); }
+    bool isBit()      const { return isBit  (arithop_kind()); }
+    bool isShift()    const { return isShift(arithop_kind()); }
+    bool isDivOrRem() const { return isDivOrRem(arithop_kind()); }
+
     friend class World;
 };
 

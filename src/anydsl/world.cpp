@@ -77,8 +77,8 @@ Sigma* World::namedSigma(size_t num, const std::string& name /*= ""*/) {
  * literals
  */
 
-const PrimLit* World::literal(PrimTypeKind kind, Box value) {
-    return find(new PrimLit(type(kind), value));
+const PrimLit* World::literal(PrimTypeKind kind, Box box) {
+    return find(new PrimLit(type(kind), box));
 }
 
 const PrimLit* World::literal(PrimTypeKind kind, int value) {
@@ -226,37 +226,37 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b) {
         switch (kind) {
             case Node_cmp_eq:
                 switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal(type, Box(l.get_##T() == r.get_##T()));
+#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() == r.get_##T());
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
                 }
             case Node_cmp_ne:
                 switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal(type, Box(l.get_##T() != r.get_##T()));
+#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() != r.get_##T());
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
                 }
             case Node_cmp_ult:
                 switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal(type, Box(l.get_##T() <  r.get_##T()));
+#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <  r.get_##T());
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
                 }
             case Node_cmp_ule:
                 switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal(type, Box(l.get_##T() <= r.get_##T()));
+#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <= r.get_##T());
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
                 }
             case Node_cmp_ugt:
                 switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal(type, Box(l.get_##T() >  r.get_##T()));
+#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() >  r.get_##T());
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
                 }
             case Node_cmp_uge:
                 switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal(type, Box(l.get_##T() >= r.get_##T()));
+#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() >= r.get_##T());
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
                 }

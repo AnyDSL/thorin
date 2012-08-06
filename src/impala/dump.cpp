@@ -120,12 +120,12 @@ void Literal::dump(Printer& p) const {
     switch (kind()) {
 #define IMPALA_LIT(itype, atype) \
         case LIT_##itype: { \
-            p << (anydsl::u64) value().get_##atype(); \
+            p << (anydsl::u64) box().get_##atype(); \
             return; \
         }
 #include "impala/tokenlist.h"
         case LIT_bool:
-            if (value().get_u1().get()) 
+            if (box().get_u1().get()) 
                 p << "true";
             else
                 p << "false";

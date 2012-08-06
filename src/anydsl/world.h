@@ -137,14 +137,17 @@ public:
 
 #define ANYDSL_U_TYPE(T) \
     const PrimLit* literal_##T(T val) { return literal(val); } \
-    const PrimLit* literal_##T(Box val) { return literal(PrimType_##T, val); }
+    const PrimLit* literal_##T(Box box) { return literal(PrimType_##T, box); }
 #define ANYDSL_F_TYPE(T) \
     const PrimLit* literal_##T(T val) { return literal(val); } \
-    const PrimLit* literal_##T(Box val) { return literal(PrimType_##T, val); }
+    const PrimLit* literal_##T(Box box) { return literal(PrimType_##T, box); }
 #include "anydsl/tables/primtypetable.h"
-
-    const PrimLit* literal(PrimTypeKind kind, Box value);
+    const PrimLit* literal_u1(bool val) { return literal(PrimType_u1, Box(val)); }
+    const PrimLit* literal(PrimTypeKind kind, Box boxue);
     const PrimLit* literal(PrimTypeKind kind, int value);
+    template<class T>
+    const PrimLit* literal(T value) { return literal(type2kind<T>::kind, Box(value)); }
+
     const PrimLit* zero(PrimTypeKind kind) { return literal(kind, 0); }
     const PrimLit* one(PrimTypeKind kind) { return literal(kind, 1); }
     const PrimLit* allset(PrimTypeKind kind) { 
@@ -152,8 +155,6 @@ public:
         return literal(kind, -1); 
     }
 
-    template<class T>
-    const PrimLit* literal(T value) { return literal(type2kind<T>::kind, Box(value)); }
     const Undef* undef(const Type* type);
     const Undef* undef(PrimTypeKind kind) { return undef(type(kind)); }
     const Bottom* bottom(const Type* type);

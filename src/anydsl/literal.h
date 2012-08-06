@@ -24,6 +24,13 @@ protected:
 
 //------------------------------------------------------------------------------
 
+/** 
+ * @brief The wish-you-a-value value.
+ *
+ * This literal represents an arbitrary value.
+ * When ever an operation takes an \p Undef value as argument, 
+ * you may literally wish your favorite value instead.
+ */
 class Undef : public Literal {
 private:
 
@@ -39,6 +46,12 @@ private:
 
 //------------------------------------------------------------------------------
 
+/** 
+ * @brief The novalue-value.
+ *
+ * This literal represents literally 'no value'.
+ * Extremely useful for data flow analysis.
+ */
 class Bottom : public Literal {
 private:
 

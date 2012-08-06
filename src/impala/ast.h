@@ -168,10 +168,10 @@ public:
         LIT_bool
     };
 
-    Literal(const anydsl::Location& loc, Kind kind, anydsl::Box value);
+    Literal(const anydsl::Location& loc, Kind kind, anydsl::Box box);
 
     Kind kind() const { return kind_; }
-    anydsl::Box value() const { return value_; }
+    anydsl::Box box() const { return box_; }
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
@@ -180,7 +180,7 @@ public:
 private:
 
     Kind kind_;
-    anydsl::Box value_;
+    anydsl::Box box_;
 };
 
 class Id : public Expr {

@@ -28,7 +28,7 @@ public:
     Box(const_char_ptr s) { reset(); const_char_ptr_ = s; }
 
     bool operator == (const Box& other) const {
-        return memcmp(this, &other, sizeof(Box)) == 0;
+        return bcast<uint64_t, Box>(*this) == bcast<uint64_t, Box>(other);
     }
 
     template <typename T>

@@ -111,7 +111,7 @@ Value Literal::emit(CodeGen& cg) const {
         default: ANYDSL_UNREACHABLE;
     }
 
-    return Value(cg.world.literal(akind, value()));
+    return Value(cg.world.literal(akind, box()));
 }
 
 Value Id::emit(CodeGen& cg) const {

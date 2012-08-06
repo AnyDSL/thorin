@@ -662,7 +662,7 @@ const Expr* Parser::parsePrimaryExpr() {
 
 const Expr* Parser::parseLiteral() {
     Literal::Kind kind;
-    Box value;
+    Box box;
 
     switch (la()) {
         case Token::TRUE:  return new Literal(lex().loc(), Literal::LIT_bool, Box(true));
@@ -670,8 +670,8 @@ const Expr* Parser::parseLiteral() {
 #define IMPALA_LIT(itype, atype) \
         case Token::LIT_##itype: { \
             kind = Literal::LIT_##itype; \
-            Box value = la().box(); \
-            return new Literal(lex().loc(), kind, value); \
+            Box box = la().box(); \
+            return new Literal(lex().loc(), kind, box); \
         }
 #include "impala/tokenlist.h"
         default: ANYDSL_UNREACHABLE;

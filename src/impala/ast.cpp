@@ -5,10 +5,11 @@
 
 #include "impala/type.h"
 
-using anydsl::dcast;
+using anydsl::Box;
 using anydsl::Location;
 using anydsl::Position;
 using anydsl::Symbol;
+using anydsl::dcast;
 
 namespace impala {
 
@@ -51,9 +52,9 @@ anydsl::Symbol Fct::symbol() const {
  * Expr
  */
 
-Literal::Literal(const Location& loc, Kind kind, anydsl::Box value)
+Literal::Literal(const Location& loc, Kind kind, Box box)
     : kind_(kind)
-    , value_(value)
+    , box_(box)
 {
     loc_= loc;
 }

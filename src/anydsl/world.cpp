@@ -281,22 +281,33 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b) {
     return find(new RelOp(newkind, a, b));
 }
 
-const Def* World::extract(const Def* def, uint32_t index) {
-    if (def->isa<Bottom>())
-        return bottom(def->type()->as<Sigma>()->elem(index));
+const Def* World::extract(const Def* agg, uint32_t i) {
+    if (agg->isa<Bottom>())
+        return bottom(agg->type()->as<Sigma>()->elem(i));
 
-    if (const Tuple* tuple = def->isa<Tuple>())
-        return tuple->op(index);
+    if (const Tuple* tuple = agg->isa<Tuple>())
+        return tuple->op(i);
 
-    return find(new Extract(def, index));
+    return find(new Extract(agg, i));
 }
 
-const Def* World::insert(const Def* def, uint32_t index, const Def* value) {
-    if (def->isa<Bottom>() || value->isa<Bottom>())
-        return bottom(def->type());
+const Def* World::insert(const Def* agg, uint32_t index, const Def* value) {
+    if (agg->isa<Bottom>() || value->isa<Bottom>())
+        return bottom(agg->type());
 
-    // TODO folding
-    return find(new Insert(tuple, index, value));
+    if (const Tuple* tup = agg->isa<Tuple>()) {
+        Array<const Def*> args(tup->numops());
+
+        for (size_t i = 0, e = args.size(); i != e; ++i)
+            if (i != index)
+                args[i] = agg->op(i);
+            else
+                args[i] = value;
+
+        return tuple(args);
+    }
+
+    return find(new Insert(agg, index, value));
 }
 
 
@@ -323,8 +334,8 @@ const Lambda* World::finalize(Lambda*& lambda) {
     return l;
 }
 
-const Param* World::param(const Type* type, const Lambda* parent, uint32_t index) {
-    return find(new Param(type, parent, index));
+const Param* World::param(const Type* type, const Lambda* parent, uint32_t i) {
+    return find(new Param(type, parent, i));
 }
 
 void World::jump(Lambda*& lambda, const Def* to, ArrayRef<const Def*> args) {

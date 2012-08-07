@@ -92,8 +92,7 @@ bool Def::isPrimLit(int val) const {
         Box box = lit->box();
 
         switch (lit->primtype_kind()) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return box.get_##T() == T(val);
-#define ANYDSL_F_TYPE(T) case PrimType_##T: return box.get_##T() == T(val);
+#define ANYDSL_UF_TYPE(T) case PrimType_##T: return box.get_##T() == T(val);
 #include "anydsl/tables/primtypetable.h"
         }
     }

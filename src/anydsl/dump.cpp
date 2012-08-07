@@ -33,8 +33,7 @@ void Bottom::vdump(Printer& p) const  {
 
 void PrimLit::vdump(Printer& p) const  {
 	switch (primtype_kind()) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: p.o << box().get_##T(); break;
-#define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
+#define ANYDSL_UF_TYPE(T) case PrimType_##T: p.o << box().get_##T(); break;
 #include "anydsl/tables/primtypetable.h"
 	default:
 		ANYDSL_UNREACHABLE;
@@ -121,8 +120,7 @@ void CompoundType::dumpInner(Printer& p) const  {
 
 void PrimType::vdump(Printer& p) const  {
 	switch (primtype_kind()) {
-#define ANYDSL_U_TYPE(T) case Node_PrimType_##T: p << #T; return;
-#define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
+#define ANYDSL_UF_TYPE(T) case Node_PrimType_##T: p << #T; return;
 #include "anydsl/tables/primtypetable.h"
 	default:
 		ANYDSL_UNREACHABLE;

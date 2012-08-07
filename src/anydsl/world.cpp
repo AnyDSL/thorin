@@ -37,8 +37,7 @@ World::World()
     : defs_(1031)
     , unit_ (find(new Sigma(*this, Array<const Type*>(0))))
     , pi0_  (find(new Pi   (*this, Array<const Type*>(0))))
-#define ANYDSL_U_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T)))
-#define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
+#define ANYDSL_UF_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T)))
 #include "anydsl/tables/primtypetable.h"
 {
     live_.insert(unit_);
@@ -138,20 +137,17 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b) {
         switch (kind) {
             case ArithOp_add:
                 switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())));
-#define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
+#define ANYDSL_UF_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())));
 #include "anydsl/tables/primtypetable.h"
                 }
             case ArithOp_sub:
                 switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() - r.get_##T())));
-#define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
+#define ANYDSL_UF_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() - r.get_##T())));
 #include "anydsl/tables/primtypetable.h"
                 }
             case ArithOp_mul:
                 switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())));
-#define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
+#define ANYDSL_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())));
 #include "anydsl/tables/primtypetable.h"
                 }
             case ArithOp_udiv:

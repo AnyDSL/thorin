@@ -72,8 +72,7 @@ public:
      * types
      */
 
-#define ANYDSL_U_TYPE(T) const PrimType* type_##T() const { return T##_; }
-#define ANYDSL_F_TYPE(T) const PrimType* type_##T() const { return T##_; }
+#define ANYDSL_UF_TYPE(T) const PrimType* type_##T() const { return T##_; }
 #include "anydsl/tables/primtypetable.h"
 
     // primitive types
@@ -135,10 +134,7 @@ public:
      * literals
      */
 
-#define ANYDSL_U_TYPE(T) \
-    const PrimLit* literal_##T(T val) { return literal(val); } \
-    const PrimLit* literal_##T(Box box) { return literal(PrimType_##T, box); }
-#define ANYDSL_F_TYPE(T) \
+#define ANYDSL_UF_TYPE(T) \
     const PrimLit* literal_##T(T val) { return literal(val); } \
     const PrimLit* literal_##T(Box box) { return literal(PrimType_##T, box); }
 #include "anydsl/tables/primtypetable.h"
@@ -260,8 +256,7 @@ private:
 
     union {
         struct {
-#define ANYDSL_U_TYPE(T) const PrimType* T##_;
-#define ANYDSL_F_TYPE(T) const PrimType* T##_;
+#define ANYDSL_UF_TYPE(T) const PrimType* T##_;
 #include "anydsl/tables/primtypetable.h"
         };
 

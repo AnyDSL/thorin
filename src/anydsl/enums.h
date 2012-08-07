@@ -52,8 +52,7 @@ enum Markers {
 };
 
 enum PrimTypeKind {
-#define ANYDSL_U_TYPE(T) PrimType_##T = Node_PrimType_##T,
-#define ANYDSL_F_TYPE(T) PrimType_##T = Node_PrimType_##T,
+#define ANYDSL_UF_TYPE(T) PrimType_##T = Node_PrimType_##T,
 #include "anydsl/tables/primtypetable.h"
 };
 

@@ -86,7 +86,7 @@ void Fct::emit(CodeGen& cg) const {
 }
 
 Var* Decl::emit(CodeGen& cg) const {
-    Var* var = cg.curBB->setVar(symbol(), cg.world.undef(type()->emit(cg.world)));
+    Var* var = cg.curBB->setVar(symbol(), cg.world.bottom(type()->emit(cg.world)));
     var->def->debug = symbol().str();
 
     return var;

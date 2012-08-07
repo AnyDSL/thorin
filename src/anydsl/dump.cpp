@@ -22,13 +22,14 @@ namespace anydsl {
 
 // Literal
 
-void Undef::vdump(Printer& p) const  {
-	p << "<undef> : ";
+void Any::vdump(Printer& p) const  {
+	p << "<any> : ";
     p.dump(type());
 }
 
 void Bottom::vdump(Printer& p) const  {
-	p << "<error>";
+	p << "<bottom> : ";
+    p.dump(type());
 }
 
 void PrimLit::vdump(Printer& p) const  {

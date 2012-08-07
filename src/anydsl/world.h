@@ -23,7 +23,7 @@ class PrimType;
 class Sigma;
 class Type;
 class Def;
-class Undef;
+class Any;
 
 typedef std::vector<const Param*> Params;
 typedef boost::unordered_set<const Def*, DefHash, DefEqual> DefSet;
@@ -151,8 +151,8 @@ public:
         return literal(kind, -1); 
     }
 
-    const Undef* undef(const Type* type);
-    const Undef* undef(PrimTypeKind kind) { return undef(type(kind)); }
+    const Any* any(const Type* type);
+    const Any* any(PrimTypeKind kind) { return any(type(kind)); }
     const Bottom* bottom(const Type* type);
     const Bottom* bottom(PrimTypeKind kind) { return bottom(type(kind)); }
 

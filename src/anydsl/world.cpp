@@ -88,8 +88,8 @@ const PrimLit* World::literal(PrimTypeKind kind, int value) {
     }
 }
 
-const Undef* World::undef(const Type* type) {
-    return find(new Undef(type));
+const Any* World::any(const Type* type) {
+    return find(new Any(type));
 }
 
 const Bottom* World::bottom(const Type* type) {

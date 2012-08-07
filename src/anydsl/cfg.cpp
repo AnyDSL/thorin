@@ -45,7 +45,7 @@ Var* BB::getVar(const Symbol& symbol, const Type* type) {
     if (fct_ == this) {
         // TODO provide hook instead of fixed functionality
         std::cerr << "'" << symbol << "'" << " may be undefined" << std::endl;
-        return setVar(symbol, world().undef(type));
+        return setVar(symbol, world().bottom(type));
     }
 
     // insert a 'phi', i.e., create a param and remember to fix the callers
@@ -109,32 +109,28 @@ void BB::fixTodo(const Symbol& symbol, Todo todo) {
 
     size_t index = todo.index;
     const Type* type = todo.type;
-
     const Param* param = in_[index];
     const Def* same = 0;
-    bool superfluous = true;
+
+    // find Horspool-like phis
     for_all (pred, preds_) {
         const Def* def = pred->getVar(symbol, type)->def;
 
-        if (def->isa<Undef>()) continue;
-        if (def == param) continue;
+        if (def->isa<Undef>() || def == param || same == def)
+            continue;
+
         if (same)
-            if (same == def) 
-                continue;
-            else {
-                superfluous = false;
-                break;
-            }
-        else
-            same = def;
+            goto ok;
+
+        same = def;
     }
 
-    if (superfluous)
-        std::cout << "superfluous: " << param->debug << " in block " << param->lambda()->debug << std::endl;
+    std::cout << "superfluous: " << param->debug << " in block " << param->lambda()->debug << std::endl;
+    // superfluous phi params are not yet eliminated -- for this reason build them nevertheless
 
-
+ok:
     for_all (pred, preds_) {
-        anydsl_assert(pred->succs().size() == 1, "ciritical edge elimination did not work");
+        anydsl_assert(pred->succs().size() == 1, "critical edge elimination did not work");
         Out& out = pred->out_;
 
         // make potentially room for the new arg

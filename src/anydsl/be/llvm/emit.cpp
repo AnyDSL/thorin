@@ -271,11 +271,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return agg;
     }
 
+    // bottom and any
     if (const Undef* undef = def->isa<Undef>())
         return llvm::UndefValue::get(convert(undef->type()));
-
-    if (const Bottom* bottom = def->isa<Bottom>())
-        return llvm::UndefValue::get(convert(bottom->type()));
 
     ANYDSL_UNREACHABLE;
 }

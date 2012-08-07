@@ -24,6 +24,17 @@ protected:
 
 //------------------------------------------------------------------------------
 
+/// Base class for \p Any and \p Bottom.
+class Undef : public Literal {
+protected:
+
+    Undef(int kind, const Type* type)
+        : Literal(kind, type)
+    {}
+};
+
+//------------------------------------------------------------------------------
+
 /** 
  * @brief The wish-you-a-value value.
  *
@@ -31,17 +42,16 @@ protected:
  * When ever an operation takes an \p Undef value as argument, 
  * you may literally wish your favorite value instead.
  */
-class Undef : public Literal {
+class Any : public Undef {
 private:
 
-    Undef(const Type* type)
-        : Literal(Node_Undef, type)
+    Any(const Type* type)
+        : Undef(Node_Undef, type)
     {}
 
     virtual void vdump(Printer& printer) const ;
 
     friend class World;
-
 };
 
 //------------------------------------------------------------------------------
@@ -52,11 +62,11 @@ private:
  * This literal represents literally 'no value'.
  * Extremely useful for data flow analysis.
  */
-class Bottom : public Literal {
+class Bottom : public Undef {
 private:
 
     Bottom(const Type* type)
-        : Literal(Node_Bottom, type)
+        : Undef(Node_Bottom, type)
     {}
 
     virtual void vdump(Printer& printer) const ;

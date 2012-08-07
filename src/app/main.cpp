@@ -90,11 +90,10 @@ int main(int argc, char** argv) {
         anydsl::AutoPtr<const impala::Prg> p(impala::parse(init.types, file, filename, result));
         result &= check(init.types, p);
 
-        if (result)
-            emit(init.world, p);
-
         if (emit_ast)
             dump(p, fancy);
+        if (result)
+            emit(init.world, p);
         if (result && emit_dot)
             ANYDSL_NOT_IMPLEMENTED;
         if (emit_air)

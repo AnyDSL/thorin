@@ -277,6 +277,22 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b) {
     return find(new RelOp(newkind, a, b));
 }
 
+const Def* World::convop(ConvOpKind kind, const Def* from, const Type* to) {
+    if (from->isa<Bottom>())
+        return bottom(to);
+
+#if 0
+    if (const PrimLit* lit = from->isa<PrimLit>())
+        Box box = lit->box();
+        PrimTypeKind type = lit->primtype_kind();
+
+        // TODO folding
+    }
+#endif
+
+    return find(new ConvOp(kind, from, to));
+}
+
 const Def* World::extract(const Def* agg, uint32_t i) {
     if (agg->isa<Bottom>())
         return bottom(agg->type()->as<Sigma>()->elem(i));

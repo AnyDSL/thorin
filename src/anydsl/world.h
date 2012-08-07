@@ -168,6 +168,10 @@ public:
 #define ANYDSL_RELOP(OP) const Def* relop_##OP(const Def* ldef, const Def* rdef) { return relop(RelOp_##OP, ldef, rdef); }
 #include "anydsl/tables/reloptable.h"
 
+    const Def* convop(ConvOpKind kind, const Def* from, const Type* to);
+#define ANYDSL_CONVOP(OP) const Def* convop_##OP(const Def* from, const Type* to) { return convop(ConvOp_##OP, from, to); }
+#include "anydsl/tables/convoptable.h"
+
     const Def* extract(const Def* tuple, uint32_t i);
     const Def* insert(const Def* tuple, uint32_t i, const Def* value);
     const Def* select(const Def* cond, const Def* tdef, const Def* fdef);

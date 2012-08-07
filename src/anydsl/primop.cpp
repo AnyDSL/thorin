@@ -7,9 +7,29 @@
 
 namespace anydsl {
 
-RelOp::RelOp(RelOpKind kind, const Def* ldef, const Def* rdef)
-    : BinOp((NodeKind) kind, ldef->world().type_u1(), ldef, rdef)
+//------------------------------------------------------------------------------
+
+RelOp::RelOp(RelOpKind kind, const Def* lhs, const Def* rhs)
+    : BinOp((NodeKind) kind, lhs->world().type_u1(), lhs, rhs)
 {}
+
+//------------------------------------------------------------------------------
+
+bool ConvOp::equal(const Def* other) const {
+    if (!Def::equal(other))
+        return false;
+
+    return to() == other->as<ConvOp>()->to();
+}
+
+size_t ConvOp::hash() const {
+    size_t seed = Def::hash();
+    boost::hash_combine(seed, to());
+
+    return seed;
+}
+
+//------------------------------------------------------------------------------
 
 Select::Select(const Def* cond, const Def* t, const Def* f) 
     : PrimOp(Node_Select, t->type(), 3)
@@ -20,6 +40,8 @@ Select::Select(const Def* cond, const Def* t, const Def* f)
     anydsl_assert(cond->type() == world().type_u1(), "condition must be of u1 type");
     anydsl_assert(t->type() == f->type(), "types of both values must be equal");
 }
+
+//------------------------------------------------------------------------------
 
 TupleOp::TupleOp(NodeKind kind, const Type* type, size_t numOps, const Def* tuple, uint32_t index)
     : PrimOp(kind, type, numOps)
@@ -42,11 +64,15 @@ size_t TupleOp::hash() const {
     return seed;
 }
 
+//------------------------------------------------------------------------------
+
 Extract::Extract(const Def* tuple, uint32_t index)
     : TupleOp(Node_Extract, tuple->type()->as<Sigma>()->elem(index), 1, tuple, index)
 {
     setOp(0, tuple);
 }
+
+//------------------------------------------------------------------------------
 
 Insert::Insert(const Def* tuple, uint32_t index, const Def* value)
     : TupleOp(Node_Insert, tuple->type(), 2, tuple, index)
@@ -54,6 +80,8 @@ Insert::Insert(const Def* tuple, uint32_t index, const Def* value)
     setOp(1, value);
     anydsl_assert(tuple->type()->as<Sigma>()->elem(index) == value->type(), "type error");
 }
+
+//------------------------------------------------------------------------------
 
 Tuple::Tuple(World& world, ArrayRef<const Def*> args) 
     : PrimOp(Node_Tuple, 0, args.size())
@@ -69,5 +97,7 @@ Tuple::Tuple(World& world, ArrayRef<const Def*> args)
         setType(world.sigma(types));
     }
 }
+
+//------------------------------------------------------------------------------
 
 } // namespace anydsl

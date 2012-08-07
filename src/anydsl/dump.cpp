@@ -58,15 +58,9 @@ void BinOp::vdump(Printer& p) const  {
 	switch (node_kind()) {
 #define ANYDSL_ARITHOP(op) case Node_##op: name = #op; break;
 #include "anydsl/tables/arithoptable.h"
-
 #define ANYDSL_RELOP(op)   case Node_##op: name = #op; break;
 #include "anydsl/tables/reloptable.h"
-
-#define ANYDSL_CONVOP(op) case Node_##op: ANYDSL_NOT_IMPLEMENTED; break;
-#include "anydsl/tables/convoptable.h"
-        
-	default:
-		ANYDSL_UNREACHABLE;
+        default: ANYDSL_UNREACHABLE;
 	}
 
     dumpNameAndType(p, this, name);
@@ -76,6 +70,19 @@ void BinOp::vdump(Printer& p) const  {
 	p << ")";
 }
 
+void ConvOp::vdump(Printer& p) const {
+    const char* name;
+    switch (convop_kind()) {
+#define ANYDSL_CONVOP(op) case Node_##op: name = #op; break;
+#include "anydsl/tables/convoptable.h"
+        default: ANYDSL_UNREACHABLE;
+    }
+
+    dumpNameAndType(p, this, name);
+
+    p.dump(from());
+    p << ')';
+}
 
 void Select::vdump(Printer& p) const  {
     dumpNameAndType(p, this, "select");

@@ -114,6 +114,37 @@ public:
 
 //------------------------------------------------------------------------------
 
+class ConvOp : public PrimOp {
+private:
+
+    ConvOp(ConvOpKind kind, const Def* from, const Type* to)
+        : PrimOp(kind, to, 1)
+        , from_(from)
+        , to_(to)
+    {
+        setOp(0, from);
+    }
+
+public:
+
+    const Def* from() const { return op(0); }
+    const Type* to() const { return to_; }
+    ConvOpKind convop_kind() const { return (ConvOpKind) node_kind(); }
+
+private:
+
+    const Def* from_;
+    const Type* to_;
+
+    virtual bool equal(const Def* other) const;
+    virtual size_t hash() const;
+    virtual void vdump(Printer &printer) const;
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
 class Select : public PrimOp {
 private:
 

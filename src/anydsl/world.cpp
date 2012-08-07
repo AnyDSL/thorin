@@ -220,37 +220,37 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b) {
         PrimTypeKind type = llit->primtype_kind();
 
         switch (kind) {
-            case Node_cmp_eq:
+            case RelOp_cmp_eq:
                 switch (type) {
 #define ANYDSL_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() == r.get_##T());
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
                 }
-            case Node_cmp_ne:
+            case RelOp_cmp_ne:
                 switch (type) {
 #define ANYDSL_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() != r.get_##T());
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
                 }
-            case Node_cmp_ult:
+            case RelOp_cmp_ult:
                 switch (type) {
 #define ANYDSL_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <  r.get_##T());
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
                 }
-            case Node_cmp_ule:
+            case RelOp_cmp_ule:
                 switch (type) {
 #define ANYDSL_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <= r.get_##T());
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
                 }
-            case Node_cmp_ugt:
+            case RelOp_cmp_ugt:
                 switch (type) {
 #define ANYDSL_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() >  r.get_##T());
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
                 }
-            case Node_cmp_uge:
+            case RelOp_cmp_uge:
                 switch (type) {
 #define ANYDSL_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() >= r.get_##T());
 #include "anydsl/tables/primtypetable.h"

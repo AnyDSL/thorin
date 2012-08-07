@@ -43,7 +43,7 @@ Select::Select(const Def* cond, const Def* t, const Def* f)
 
 //------------------------------------------------------------------------------
 
-TupleOp::TupleOp(NodeKind kind, const Type* type, size_t numOps, const Def* tuple, uint32_t index)
+TupleOp::TupleOp(NodeKind kind, const Type* type, size_t numOps, const Def* tuple, u32 index)
     : PrimOp(kind, type, numOps)
     , index_(index)
 {
@@ -66,7 +66,7 @@ size_t TupleOp::hash() const {
 
 //------------------------------------------------------------------------------
 
-Extract::Extract(const Def* tuple, uint32_t index)
+Extract::Extract(const Def* tuple, u32 index)
     : TupleOp(Node_Extract, tuple->type()->as<Sigma>()->elem(index), 1, tuple, index)
 {
     setOp(0, tuple);
@@ -74,7 +74,7 @@ Extract::Extract(const Def* tuple, uint32_t index)
 
 //------------------------------------------------------------------------------
 
-Insert::Insert(const Def* tuple, uint32_t index, const Def* value)
+Insert::Insert(const Def* tuple, u32 index, const Def* value)
     : TupleOp(Node_Insert, tuple->type(), 2, tuple, index)
 {
     setOp(1, value);

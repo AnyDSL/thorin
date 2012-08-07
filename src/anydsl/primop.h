@@ -166,12 +166,12 @@ public:
 class TupleOp : public PrimOp {
 protected:
 
-    TupleOp(NodeKind kind, const Type* type, size_t numOps, const Def* tuple, uint32_t index);
+    TupleOp(NodeKind kind, const Type* type, size_t numOps, const Def* tuple, u32 index);
 
 public:
 
     const Def* tuple() const { return op(0); }
-    uint32_t index() const { return index_; }
+    u32 index() const { return index_; }
 
 private:
 
@@ -188,7 +188,7 @@ private:
 class Extract : public TupleOp {
 private:
 
-    Extract(const Def* tuple, uint32_t index);
+    Extract(const Def* tuple, u32 index);
     
 public:
 
@@ -202,7 +202,7 @@ public:
 class Insert : public TupleOp {
 private:
 
-    Insert(const Def* tuple, uint32_t index, const Def* value);
+    Insert(const Def* tuple, u32 index, const Def* value);
     
 public:
 

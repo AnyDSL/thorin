@@ -293,7 +293,7 @@ const Def* World::convop(ConvOpKind kind, const Def* from, const Type* to) {
     return find(new ConvOp(kind, from, to));
 }
 
-const Def* World::extract(const Def* agg, uint32_t i) {
+const Def* World::extract(const Def* agg, u32 i) {
     if (agg->isa<Bottom>())
         return bottom(agg->type()->as<Sigma>()->elem(i));
 
@@ -303,7 +303,7 @@ const Def* World::extract(const Def* agg, uint32_t i) {
     return find(new Extract(agg, i));
 }
 
-const Def* World::insert(const Def* agg, uint32_t index, const Def* value) {
+const Def* World::insert(const Def* agg, u32 index, const Def* value) {
     if (agg->isa<Bottom>() || value->isa<Bottom>())
         return bottom(agg->type());
 
@@ -346,7 +346,7 @@ const Lambda* World::finalize(Lambda*& lambda) {
     return l;
 }
 
-const Param* World::param(const Type* type, const Lambda* parent, uint32_t i) {
+const Param* World::param(const Type* type, const Lambda* parent, u32 i) {
     return find(new Param(type, parent, i));
 }
 

@@ -172,11 +172,11 @@ public:
 #define ANYDSL_CONVOP(OP) const Def* convop_##OP(const Def* from, const Type* to) { return convop(ConvOp_##OP, from, to); }
 #include "anydsl/tables/convoptable.h"
 
-    const Def* extract(const Def* tuple, uint32_t i);
-    const Def* insert(const Def* tuple, uint32_t i, const Def* value);
+    const Def* extract(const Def* tuple, u32 i);
+    const Def* insert(const Def* tuple, u32 i, const Def* value);
     const Def* select(const Def* cond, const Def* tdef, const Def* fdef);
     const Def* tuple(ArrayRef<const Def*> args);
-    const Param* param(const Type* type, const Lambda* parent, uint32_t i);
+    const Param* param(const Type* type, const Lambda* parent, u32 i);
 
     void jump(Lambda*& from, const Def* to, ArrayRef<const Def*> args);
     void jump1(Lambda*& from, const Def* to, const Def* arg1) {

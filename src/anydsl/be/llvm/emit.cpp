@@ -28,7 +28,8 @@ public:
 
     llvm::Type* convert(const Type* type);
     llvm::Value* emit(const Def* def);
-    void emit(const Lambda* lambda);
+    llvm::Function* emitFct(const Lambda* lambda);
+    llvm::BasicBlock* emitBB(const Lambda* lambda);
 
 private:
 
@@ -46,20 +47,10 @@ CodeGen::CodeGen(const World& world)
 {}
 
 void CodeGen::emit() {
-    for_all (def, world.defs()) {
-        if (const Lambda* lambda = def->isa<Lambda>()) {
-            const Pi* pi = lambda->pi();
-            size_t i = 0;
-            for_all (elem, pi->elems()) {
-                if (elem->isa<Pi>()) {
-                    top.insert(lambda);
-                    anydsl_assert(i == pi->elems().size() - 1, "TODO");
-                    break;
-                }
-                ++i;
-            }
-        }
-    }
+    for_all (def, world.defs())
+        if (const Lambda* lambda = def->isa<Lambda>())
+            if (lambda->pi()->isHigherOrder())
+                top.insert(lambda);
 
     for_all (lambda, top) {
         llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
@@ -69,7 +60,7 @@ void CodeGen::emit() {
     }
 }
 
-void CodeGen::emit(const Lambda* lambda) {
+llvm::BasicBlock* CodeGen::emitBB(const Lambda* lambda) {
     std::vector<llvm::Value*> values;
 
     for_all (arg, lambda->args())
@@ -77,14 +68,13 @@ void CodeGen::emit(const Lambda* lambda) {
 
     LambdaSet to = lambda->to();
 
-#if 0
     if (to.size() == 2) {
         const Select* select = lambda->todef()->as<Select>();
         llvm::Value* cond = emit(select->cond());
-        //builder.CreateCondBr();
+        llvm::BasicBlock* tbb = emitBB(select->tdef()->as<Lambda>());
+        llvm::BasicBlock* fbb = emitBB(select->fdef()->as<Lambda>());
+        builder.CreateCondBr(cond, tbb, fbb);
     }
-#endif
-
 }
 
 void emit(const World& world) {

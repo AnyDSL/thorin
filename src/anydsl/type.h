@@ -123,6 +123,15 @@ private:
         : CompoundType(world, Node_Pi, elems)
     {}
 
+
+public:
+
+    static const size_t npos = -1;
+    size_t nextPi(size_t pos = 0) const;
+    bool isHigherOrder() const { return nextPi() != npos; }
+
+private:
+
     virtual void vdump(Printer& printer) const;
 
     friend class World;

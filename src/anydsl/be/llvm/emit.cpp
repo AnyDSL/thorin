@@ -240,6 +240,23 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
     }
 
+    if (const ConvOp* conv = def->isa<ConvOp>()) {
+        llvm::Value* from = emit(conv->from());
+        llvm::Type* to = convert(conv->to());
+
+        switch (conv->convop_kind()) {
+            case ConvOp_trunc:  return builder.CreateTrunc  (from, to);
+            case ConvOp_zext:   return builder.CreateZExt   (from, to);
+            case ConvOp_sext:   return builder.CreateSExt   (from, to);
+            case ConvOp_stof:   return builder.CreateSIToFP (from, to);
+            case ConvOp_utof:   return builder.CreateSIToFP (from, to);
+            case ConvOp_ftrunc: return builder.CreateFPTrunc(from, to);
+            case ConvOp_ftos:   return builder.CreateFPToSI (from, to);
+            case ConvOp_ftou:   return builder.CreateFPToUI (from, to);
+            case ConvOp_bitcast:return builder.CreateBitCast(from, to);
+        }
+    }
+
     if (const Select* select = def->isa<Select>()) {
         llvm::Value* cond = emit(select->cond());
         llvm::Value* tval = emit(select->tdef());

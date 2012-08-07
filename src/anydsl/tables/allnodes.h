@@ -24,10 +24,10 @@
 
 #include "anydsl/tables/nodetable.h"
     ANYDSL_GLUE(Node, PrimType_u)
-#define ANYDSL_U_TYPE(T) ANYDSL_PRIMTYPE(T)
+#define ANYDSL_JUST_U_TYPE(T) ANYDSL_PRIMTYPE(T)
 #include "anydsl/tables/primtypetable.h"
     ANYDSL_GLUE(PrimType_u, PrimType_f)
-#define ANYDSL_F_TYPE(T) ANYDSL_PRIMTYPE(T)
+#define ANYDSL_JUST_F_TYPE(T) ANYDSL_PRIMTYPE(T)
 #include "anydsl/tables/primtypetable.h"
     ANYDSL_GLUE(PrimType_f, ArithOp)
 #include "anydsl/tables/arithoptable.h"

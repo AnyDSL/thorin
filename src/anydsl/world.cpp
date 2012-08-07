@@ -147,18 +147,18 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b) {
                 }
             case ArithOp_mul:
                 switch (type) {
-#define ANYDSL_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())));
+#define ANYDSL_UF_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())));
 #include "anydsl/tables/primtypetable.h"
                 }
             case ArithOp_udiv:
                 switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() / r.get_##T())));
+#define ANYDSL_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() / r.get_##T())));
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
                 }
             case ArithOp_sdiv:
                 switch (type) {
-#define ANYDSL_U_TYPE(T) \
+#define ANYDSL_JUST_U_TYPE(T) \
                     case PrimType_##T: { \
                         typedef make_signed<T>::type S; \
                         return literal(type, Box(bcast<T , S>(bcast<S, T >(l.get_##T()) / bcast<S, T >(r.get_##T())))); \
@@ -168,31 +168,31 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b) {
                 }
             case ArithOp_fadd:
                 switch (type) {
-#define ANYDSL_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())));
+#define ANYDSL_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())));
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_U_TYPE;
                 }
             case ArithOp_fsub:
                 switch (type) {
-#define ANYDSL_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() - r.get_##T())));
+#define ANYDSL_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() - r.get_##T())));
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_U_TYPE;
                 }
             case ArithOp_fmul:
                 switch (type) {
-#define ANYDSL_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())));
+#define ANYDSL_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())));
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_U_TYPE;
                 }
             case ArithOp_fdiv:
                 switch (type) {
-#define ANYDSL_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() / r.get_##T())));
+#define ANYDSL_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() / r.get_##T())));
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_U_TYPE;
                 }
             case ArithOp_frem:
                 switch (type) {
-#define ANYDSL_F_TYPE(T) case PrimType_##T: return literal(type, Box(std::fmod(l.get_##T(), r.get_##T())));
+#define ANYDSL_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(std::fmod(l.get_##T(), r.get_##T())));
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_U_TYPE;
                 }
@@ -222,37 +222,37 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b) {
         switch (kind) {
             case Node_cmp_eq:
                 switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() == r.get_##T());
+#define ANYDSL_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() == r.get_##T());
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
                 }
             case Node_cmp_ne:
                 switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() != r.get_##T());
+#define ANYDSL_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() != r.get_##T());
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
                 }
             case Node_cmp_ult:
                 switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <  r.get_##T());
+#define ANYDSL_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <  r.get_##T());
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
                 }
             case Node_cmp_ule:
                 switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <= r.get_##T());
+#define ANYDSL_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <= r.get_##T());
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
                 }
             case Node_cmp_ugt:
                 switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() >  r.get_##T());
+#define ANYDSL_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() >  r.get_##T());
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
                 }
             case Node_cmp_uge:
                 switch (type) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() >= r.get_##T());
+#define ANYDSL_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() >= r.get_##T());
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
                 }

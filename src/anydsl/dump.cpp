@@ -1,4 +1,5 @@
 #include <boost/typeof/typeof.hpp>
+#include <boost/type_traits/remove_reference.hpp>
 
 #include "anydsl/lambda.h"
 #include "anydsl/literal.h"
@@ -7,16 +8,10 @@
 #include "anydsl/util/for_all.h"
 #include "anydsl/printer.h"
 
-template<class T>
-struct get_clean_type { typedef T type; } ;
-
-template<class T>
-struct get_clean_type<const T&> {typedef T type; };
-
 #define ANYDSL_DUMP_COMMA_LIST(p, list) \
     const BOOST_TYPEOF((list))& l = (list); \
     if (!l.empty()) { \
-        for (get_clean_type<BOOST_TYPEOF(l)>::type::const_iterator i = l.begin(), e = l.end() - 1; i != e; ++i) { \
+        for (boost::remove_const<BOOST_TYPEOF(l)>::type::const_iterator i = l.begin(), e = l.end() - 1; i != e; ++i) { \
             (p).dump(*i); \
             (p) << ", "; \
         } \

@@ -65,7 +65,6 @@ public:
         : pos1_( Position(filename, line1, col1) )
         , pos2_( Position(filename, line2, col2) )
     {}
-    Location(const std::string& s) { if (!parseLocation(s)) *this = Location(); }
 
     bool operator == (const Location& loc) const;
     bool isSet() const { return pos1_.isSet(); }
@@ -85,8 +84,6 @@ protected:
     Position pos2_;
 
 private:
-
-    bool parseLocation(const std::string& s);
 
     friend class HasLocation;
 };

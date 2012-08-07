@@ -4,7 +4,17 @@
 #include <cstdlib>
 #include <iostream>
 
-#include "anydsl/util/attributes.h"
+#ifdef _MSC_VER
+#define ANYDSL_NORETURN __declspec(noreturn)
+#else
+#ifdef __GNUC__
+#define ANYDSL_NORETURN __attribute__ ((noreturn))
+#else
+#define ANYDSL_NORETURN
+#endif
+#endif
+
+
 
 namespace anydsl {
 

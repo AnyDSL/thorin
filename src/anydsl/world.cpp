@@ -152,7 +152,11 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b) {
                 }
             case ArithOp_udiv:
                 switch (type) {
-#define ANYDSL_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() / r.get_##T())));
+#define ANYDSL_JUST_U_TYPE(T) \
+                    case PrimType_##T: \
+                        return rlit->isZero() \
+                             ? (const Def*) bottom(rtype) \
+                             : (const Def*) literal(type, Box(T(l.get_##T() / r.get_##T())));
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
                 }
@@ -255,6 +259,12 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b) {
 #define ANYDSL_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() >= r.get_##T());
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
+                }
+            case RelOp_fcmp_oeq:
+                switch (type) {
+#define ANYDSL_JUST_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() == r.get_##T());
+#include "anydsl/tables/primtypetable.h"
+                    ANYDSL_NO_U_TYPE;
                 }
         }
     }

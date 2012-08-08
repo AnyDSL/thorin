@@ -248,7 +248,7 @@ private:
     typedef boost::unordered_set<const Lambda*> Reachable;
 
     void dce_insert(const Def* def);
-    void uce_insert(Reachable& reachable, const Lambda* lambda);
+    void uce_insert(const Lambda* lambda);
 
     DefSet defs_;
 

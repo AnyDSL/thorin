@@ -425,14 +425,12 @@ void World::dce_insert(const Def* def) {
 }
 
 void World::uce() {
-    Reachable reachable;
-
     // mark all as unreachable
     unmark();
 
     // find all reachable lambdas
     for_all (lambda, reachable_)
-        uce_insert(reachable, lambda);
+        uce_insert(lambda);
 
     // destroy all unreachable lambdas
     DefSet::iterator i = defs_.begin();
@@ -448,17 +446,19 @@ void World::uce() {
     }
 }
 
-void World::uce_insert(Reachable& reachable, const Lambda* lambda) {
+void World::uce_insert(const Lambda* lambda) {
     assert(defs_.find(lambda) != defs_.end());
 
     if (lambda->flag_)
         return;
 
     lambda->flag_ = true;
-    reachable.insert(lambda);
+
+    if (const Type* type = lambda->type())
+        dce_insert(type);
 
     for_all (succ, lambda->succ())
-        uce_insert(reachable, succ);
+        uce_insert(succ);
 }
 
 void World::cleanup() {

@@ -40,12 +40,12 @@ void Dominators::init(const Def* def, const PostOrder& order) {
             if(b_index == def_index)
                 continue;
             // handle predecessors
-            UseSet::const_iterator b_preds = b->uses().begin();
-            UseSet::const_iterator b_preds_end = b->uses().end();
+            Uses::const_iterator b_preds = b->uses().begin();
+            Uses::const_iterator b_preds_end = b->uses().end();
             int newdom = -1;
             if(b_preds != b_preds_end) {
                 newdom = order[b_preds->def()];
-                for(UseSet::const_iterator b_preds_it = ++b_preds;
+                for(Uses::const_iterator b_preds_it = ++b_preds;
                     b_preds_it != b_preds_end; ++b_preds_it) {
                     const int b_pred_id = order[b_preds->def()];
                     anydsl_assert(b_pred_id >= 0, "invalid post index for given b");

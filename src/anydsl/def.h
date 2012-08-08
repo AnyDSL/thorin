@@ -82,7 +82,7 @@ inline size_t hash_value(const Use& use) {
     return seed;
 }
 
-typedef boost::unordered_set<Use> UseSet;
+typedef boost::unordered_set<Use> Uses;
 
 //------------------------------------------------------------------------------
 
@@ -99,20 +99,15 @@ private:
 
 protected:
 
-    Def(int kind, const Type* type, size_t numOps)
-        : kind_(kind)
-        , type_(type)
-        , ops_(numOps)
-    {}
-
+    Def(int kind, const Type* type, size_t numops);
     virtual ~Def();
+
+    void setOp(size_t i, const Def* def) { def->registerUse(i, this); ops_[i] = def; }
+    void setType(const Type* type);
+    void alloc(size_t size);
 
     virtual bool equal(const Def* other) const;
     virtual size_t hash() const;
-
-    void setOp(size_t i, const Def* def) { def->registerUse(i, this); ops_[i] = def; }
-    void setType(const Type* type) { type_ = type; }
-    void alloc(size_t size);
 
 public:
 
@@ -126,8 +121,9 @@ public:
 
     virtual void vdump(Printer &printer) const = 0;
 
-    const UseSet& uses() const { return uses_; }
+    const Uses& uses() const { return uses_; }
     const Type* type() const { return type_; }
+    bool isType() const { return !type_; }
     World& world() const;
 
     typedef ArrayRef<const Def*> Ops;
@@ -160,13 +156,14 @@ private:
     int kind_;
     const Type* type_;
     Array<const Def*> ops_;
-    mutable UseSet uses_;
+    mutable Uses uses_;
     mutable bool flag_;
 
     friend class World;
     friend class DefHash;
     friend class DefEqual;
     friend const Def* const& representitive(const Def* const* ptr);
+    friend class Type;
 };
 
 //------------------------------------------------------------------------------

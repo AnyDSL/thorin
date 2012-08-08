@@ -12,6 +12,15 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
+Def::Def(int kind, const Type* type, size_t numops)
+    : kind_(kind)
+    , type_(type)
+    , ops_(numops)
+{
+    if (type)
+        type->registerInstance(this);
+}
+
 Def::~Def() { 
     for (size_t i = 0, e = ops().size(); i != e; ++i)
         if (ops_[i])
@@ -22,6 +31,9 @@ Def::~Def() {
         anydsl_assert(use.def()->ops()[i] == this, "use points to incorrect def");
         const_cast<Def*>(use.def())->ops_[i] = 0;
     }
+
+    if (type_)
+        type_->unregisterInstance(this);
 }
 
 void Def::registerUse(size_t i, const Def* def) const {
@@ -34,6 +46,16 @@ void Def::unregisterUse(size_t i, const Def* def) const {
     Use use(i, def);
     anydsl_assert(uses_.find(use) != uses_.end(), "must be inside the use set");
     uses_.erase(use);
+}
+
+void Def::setType(const Type* type) { 
+    if (type_)
+        type_->unregisterInstance(this);
+
+    if (type)
+        type->registerInstance(this);
+
+    type_ = type; 
 }
 
 World& Def::world() const { 

@@ -12,6 +12,8 @@ class PrimLit;
 class Pi;
 class World;
 
+typedef boost::unordered_set<const Def*> Instances;
+
 //------------------------------------------------------------------------------
 
 class Type : public Def {
@@ -21,17 +23,22 @@ protected:
         : Def(kind, 0, num)
         , world_(world)
     {}
+    virtual ~Type();
 
 public:
 
     World& world() const { return world_; }
+    const Instances& instances() const { return instances_; }
 
 private:
 
-    // hide Def::ops
-    void ops() {}
+    void registerInstance(const Def* def) const;
+    void unregisterInstance(const Def* def) const;
 
     World& world_;
+    mutable Instances instances_;
+
+    friend class Def;
 };
 
 //------------------------------------------------------------------------------

@@ -1,5 +1,7 @@
 #include "anydsl/be/llvm/emit.h"
 
+#include <boost/unordered_map.hpp>
+
 #include <llvm/Constant.h>
 #include <llvm/Constants.h>
 #include <llvm/Function.h>
@@ -19,6 +21,8 @@
 namespace anydsl {
 namespace be_llvm {
 
+typedef boost::unordered_map<const Lambda*, llvm::Function*> FctMap;
+
 class CodeGen {
 public:
 
@@ -37,7 +41,7 @@ private:
     llvm::LLVMContext context;
     llvm::IRBuilder<> builder;
     llvm::Module* module;
-    LambdaSet top;
+    FctMap top;
 };
 
 CodeGen::CodeGen(const World& world)
@@ -48,13 +52,16 @@ CodeGen::CodeGen(const World& world)
 
 void CodeGen::emit() {
     for_all (def, world.defs())
-        if (const Lambda* lambda = def->isa<Lambda>())
-            if (lambda->pi()->isHigherOrder())
-                top.insert(lambda);
+        if (const Lambda* lambda = def->isa<Lambda>()) {
+            if (lambda->pi()->isHigherOrder()) {
+                llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
+                llvm::Function* f = llvm::cast<llvm::Function>(module->getOrInsertFunction(lambda->debug, ft));
+                top.insert(std::make_pair(lambda, f));
+            }
 
-    for_all (lambda, top) {
-        llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
-        llvm::Function* f = llvm::cast<llvm::Function>(module->getOrInsertFunction(lambda->debug, ft));
+    for_all (p, top) {
+        const Lambda* lambda = p.first;
+        llvm::Function* f = p.second;
         builder.SetInsertPoint(&f->getEntryBlock());
         emit(lambda);
     }

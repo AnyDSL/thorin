@@ -92,8 +92,8 @@ llvm::BasicBlock* CodeGen::emitBB(const Lambda* lambda) {
     if (to.size() == 2) {
         const Select* select = lambda->todef()->as<Select>();
         llvm::Value* cond = emit(select->cond());
-        llvm::BasicBlock* tbb = emitBB(select->tdef()->as<Lambda>());
-        llvm::BasicBlock* fbb = emitBB(select->fdef()->as<Lambda>());
+        llvm::BasicBlock* tbb = emitBB(select->tval()->as<Lambda>());
+        llvm::BasicBlock* fbb = emitBB(select->fval()->as<Lambda>());
         builder.CreateCondBr(cond, tbb, fbb);
     }
 }
@@ -270,8 +270,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
     if (const Select* select = def->isa<Select>()) {
         llvm::Value* cond = emit(select->cond());
-        llvm::Value* tval = emit(select->tdef());
-        llvm::Value* fval = emit(select->fdef());
+        llvm::Value* tval = emit(select->tval());
+        llvm::Value* fval = emit(select->fval());
         return builder.CreateSelect(cond, tval, fval);
     }
 

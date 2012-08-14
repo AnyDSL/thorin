@@ -88,9 +88,9 @@ void Select::vdump(Printer& p) const  {
     dumpNameAndType(p, this, "select");
 	p.dump(cond());
 	p << ", ";
-	p.dump(tdef());
+	p.dump(tval());
 	p << ", ";
-	p.dump(fdef());
+	p.dump(fval());
 	p << ")";
 }
 

@@ -153,8 +153,8 @@ private:
 public:
 
     const Def* cond() const { return op(0); }
-    const Def* tdef() const { return op(1); }
-    const Def* fdef() const { return op(2); }
+    const Def* tval() const { return op(1); }
+    const Def* fval() const { return op(2); }
 
     virtual void vdump(Printer &printer) const;
 

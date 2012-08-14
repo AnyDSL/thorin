@@ -21,12 +21,12 @@ public:
 
     const Param* appendParam(const Type* type);
 
-    LambdaSet to() const;
+    LambdaSet targets() const;
     LambdaSet succ() const;
     LambdaSet callers() const;
     Params params() const;
 
-    const Def* todef() const { return op(0); };
+    const Def* to() const { return op(0); };
     Ops args() const { return ops().slice_back(1); }
     const Pi* pi() const;
 

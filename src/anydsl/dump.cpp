@@ -181,7 +181,7 @@ void Lambda::dump(bool fancy) const  {
 	p.up();
     {
         p << "jump(";
-        p.dump(todef());
+        p.dump(to());
         p << ", [";
         ANYDSL_DUMP_COMMA_LIST(p, args());
         p  << "])";

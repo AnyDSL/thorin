@@ -87,10 +87,10 @@ llvm::BasicBlock* CodeGen::emitBB(const Lambda* lambda) {
     for_all (arg, lambda->args())
         values.push_back(emit(arg));
 
-    LambdaSet to = lambda->to();
+    LambdaSet to = lambda->targets();
 
     if (to.size() == 2) {
-        const Select* select = lambda->todef()->as<Select>();
+        const Select* select = lambda->to()->as<Select>();
         llvm::Value* cond = emit(select->cond());
         llvm::BasicBlock* tbb = emitBB(select->tval()->as<Lambda>());
         llvm::BasicBlock* fbb = emitBB(select->fval()->as<Lambda>());

@@ -28,9 +28,9 @@ static void findLambdas(const Def* def, LambdaSet& result) {
         findLambdas(op, result);
 }
 
-LambdaSet Lambda::to() const {
+LambdaSet Lambda::targets() const {
     LambdaSet result;
-    findLambdas(todef(), result);
+    findLambdas(to(), result);
 
     return result;
 }

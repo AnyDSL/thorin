@@ -52,7 +52,7 @@ CodeGen::CodeGen(const World& world)
 
 void CodeGen::emit() {
     for_all (def, world.defs())
-        if (const Lambda* lambda = def->isa<Lambda>()) {
+        if (const Lambda* lambda = def->isa<Lambda>())
             if (lambda->pi()->isHigherOrder()) {
                 llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
                 llvm::Function* f = llvm::cast<llvm::Function>(module->getOrInsertFunction(lambda->debug, ft));

@@ -1,6 +1,6 @@
 def f(i : int) -> int
 {   
-    return g(i);
+    return 42;
 }
 
 def g(i : int) -> int

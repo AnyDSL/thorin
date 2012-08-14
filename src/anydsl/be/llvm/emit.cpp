@@ -5,10 +5,11 @@
 #include <llvm/Constant.h>
 #include <llvm/Constants.h>
 #include <llvm/Function.h>
+#include <llvm/LLVMContext.h>
 #include <llvm/Module.h>
 #include <llvm/Type.h>
+#include <llvm/Analysis/Verifier.h>
 #include <llvm/Support/IRBuilder.h>
-#include <llvm/LLVMContext.h>
 
 #include "anydsl/def.h"
 #include "anydsl/lambda.h"
@@ -35,7 +36,7 @@ public:
     llvm::Function* emitFct(const Lambda* lambda);
     llvm::BasicBlock* emitBB(const Lambda* lambda);
 
-private:
+public:
 
     const World& world;
     llvm::LLVMContext context;
@@ -78,6 +79,10 @@ void CodeGen::emit() {
         llvm::Function* f = lf.second;
         builder.SetInsertPoint(&f->getEntryBlock());
         emit(curFct);
+
+#ifndef NDEBUG
+        llvm::verifyFunction(*f);
+#endif
     }
 }
 
@@ -101,6 +106,10 @@ llvm::BasicBlock* CodeGen::emitBB(const Lambda* lambda) {
 void emit(const World& world) {
     CodeGen cg(world);
     cg.emit();
+    cg.module->dump();
+#ifndef NDEBUG
+    llvm::verifyModule(*cg.module);
+#endif
 }
 
 llvm::Type* CodeGen::convert(const Type* type) {

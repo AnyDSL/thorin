@@ -42,6 +42,10 @@ private:
     llvm::IRBuilder<> builder;
     llvm::Module* module;
     FctMap top;
+    const Lambda* curFct;
+    const Lambda* curBB;
+    size_t retPos;
+    const Param* retParam;
 };
 
 CodeGen::CodeGen(const World& world)
@@ -59,11 +63,21 @@ void CodeGen::emit() {
                 top.insert(std::make_pair(lambda, f));
             }
 
-    for_all (p, top) {
-        const Lambda* lambda = p.first;
-        llvm::Function* f = p.second;
+    for_all (lf, top) {
+        curFct = lf.first;
+        size_t retPos = curFct->pi()->nextPi();
+
+        for_all (p, curFct->params()) {
+            if (p->index() == retPos) {
+                retParam = p;
+                break;
+            }
+            anydsl_assert(p->index() <= retPos, "return param dead");
+        }
+
+        llvm::Function* f = lf.second;
         builder.SetInsertPoint(&f->getEntryBlock());
-        emit(lambda);
+        emit(curFct);
     }
 }
 

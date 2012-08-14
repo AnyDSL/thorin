@@ -215,6 +215,21 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b) {
     if (a->isa<Bottom>() || b->isa<Bottom>()) 
         return bottom(type_u1());
 
+    RelOpKind oldkind = kind;
+    switch (kind) {
+        case RelOp_cmp_ugt:  kind = RelOp_cmp_ult; break;
+        case RelOp_cmp_uge:  kind = RelOp_cmp_ule; break;
+        case RelOp_cmp_sgt:  kind = RelOp_cmp_slt; break;
+        case RelOp_cmp_sge:  kind = RelOp_cmp_sle; break;
+        case RelOp_fcmp_ogt: kind = RelOp_fcmp_olt; break;
+        case RelOp_fcmp_oge: kind = RelOp_fcmp_ole; break;
+        case RelOp_fcmp_ugt: kind = RelOp_fcmp_ult; break;
+        case RelOp_fcmp_uge: kind = RelOp_fcmp_ule; break;
+    }
+
+    if (oldkind != kind)
+        std::swap(a, b);
+
     const PrimLit* llit = a->isa<PrimLit>();
     const PrimLit* rlit = b->isa<PrimLit>();
 
@@ -248,15 +263,23 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b) {
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
                 }
-            case RelOp_cmp_ugt:
+            case RelOp_cmp_slt:
                 switch (type) {
-#define ANYDSL_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() >  r.get_##T());
+#define ANYDSL_JUST_U_TYPE(T) \
+                    case PrimType_##T: { \
+                        typedef make_signed< T >::type S; \
+                        return literal_u1(bcast<S, T>(l.get_##T()) <  bcast<S, T>(r.get_##T())); \
+                    }
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
                 }
-            case RelOp_cmp_uge:
+            case RelOp_cmp_sle:
                 switch (type) {
-#define ANYDSL_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() >= r.get_##T());
+#define ANYDSL_JUST_U_TYPE(T) \
+                    case PrimType_##T: { \
+                        typedef make_signed< T >::type S; \
+                        return literal_u1(bcast<S, T>(l.get_##T()) <= bcast<S, T>(r.get_##T())); \
+                    }
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_F_TYPE;
                 }
@@ -266,25 +289,28 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b) {
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_U_TYPE;
                 }
+            case RelOp_fcmp_one:
+                switch (type) {
+#define ANYDSL_JUST_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() != r.get_##T());
+#include "anydsl/tables/primtypetable.h"
+                    ANYDSL_NO_U_TYPE;
+                }
+            case RelOp_fcmp_olt:
+                switch (type) {
+#define ANYDSL_JUST_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <  r.get_##T());
+#include "anydsl/tables/primtypetable.h"
+                    ANYDSL_NO_U_TYPE;
+                }
+            case RelOp_fcmp_ole:
+                switch (type) {
+#define ANYDSL_JUST_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <= r.get_##T());
+#include "anydsl/tables/primtypetable.h"
+                    ANYDSL_NO_U_TYPE;
+                }
         }
     }
 
-    RelOpKind newkind = kind;
-    switch (newkind) {
-        case RelOp_cmp_ugt:  newkind = RelOp_cmp_ult; break;
-        case RelOp_cmp_uge:  newkind = RelOp_cmp_ule; break;
-        case RelOp_cmp_sgt:  newkind = RelOp_cmp_slt; break;
-        case RelOp_cmp_sge:  newkind = RelOp_cmp_sle; break;
-        case RelOp_fcmp_ogt: newkind = RelOp_fcmp_olt; break;
-        case RelOp_fcmp_oge: newkind = RelOp_fcmp_ole; break;
-        case RelOp_fcmp_ugt: newkind = RelOp_fcmp_ult; break;
-        case RelOp_fcmp_uge: newkind = RelOp_fcmp_ule; break;
-    }
-
-    if (newkind != kind)
-        std::swap(a, b);
-
-    return find(new RelOp(newkind, a, b));
+    return find(new RelOp(kind, a, b));
 }
 
 const Def* World::convop(ConvOpKind kind, const Def* from, const Type* to) {

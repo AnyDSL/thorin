@@ -24,6 +24,7 @@ namespace be_llvm {
 
 typedef boost::unordered_map<const Lambda*, llvm::Function*> FctMap;
 typedef boost::unordered_map<const Lambda*, llvm::BasicBlock*> BBMap;
+typedef boost::unordered_map<const Param*, llvm::Value*> ParamMap;
 
 class CodeGen {
 public:
@@ -46,6 +47,7 @@ public:
     llvm::Module* module;
     FctMap top;
     BBMap bbs;
+    ParamMap params;
     const Lambda* curLam;
     llvm::Function* curFct;
     size_t retPos;
@@ -97,15 +99,22 @@ void CodeGen::emitBB(const Lambda* lambda) {
     builder.SetInsertPoint(bb);
     std::vector<llvm::Value*> values;
 
-#if 0
-    // place phis
-    for_all (param, lambda->params()) {
-        llvm::PHINode* phi = builder.CreatePHI(convert(param->type()), param->phiOps().size());
+    if (lambda == curLam) {
+        llvm::Function::arg_iterator arg = curFct->arg_begin();
+        for_all (param, lambda->params())
+            if (!param->type()->isa<Pi>())
+                params[param] = arg++;
+    } else {
+        // place phis
+        for_all (param, lambda->params()) {
+            llvm::PHINode* phi = builder.CreatePHI(convert(param->type()), param->phiOps().size());
 
-        for_all (op, param->phiOps())
-            phi->addIncoming(emit(op.def()), lambda2bb(op.from()));
+            for_all (op, param->phiOps())
+                phi->addIncoming(emit(op.def()), lambda2bb(op.from()));
+
+            params[param] = phi;
+        }
     }
-#endif
 
     for_all (arg, lambda->args())
         values.push_back(emit(arg));
@@ -235,16 +244,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (!def->isCoreNode())
         ANYDSL_NOT_IMPLEMENTED;
 
-    if (const Param* param = def->isa<Param>()) {
-        if (top.find(param->lambda()) == top.end()) {
-            // phi function
-        } else {
-            llvm::Function::arg_iterator args = builder.GetInsertBlock()->getParent()->arg_begin();
-            std::advance(args, param->index());
-
-            return args;
-        }
-    }
+    if (const Param* param = def->isa<Param>())
+        return params[param];
 
     if (const PrimLit* lit = def->isa<PrimLit>()) {
         llvm::Type* type = convert(lit->type());

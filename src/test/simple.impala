@@ -1,4 +1,9 @@
 def f(i : int) -> int
 {   
-    return 42 + 3;
+    a : int := 7;
+    if (a == i)
+        a = 23;
+    else
+        a = 42;
+    return a;
 }

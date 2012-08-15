@@ -83,7 +83,7 @@ void CodeGen::emit() {
         emitBB(curFct);
 
 #ifndef NDEBUG
-        llvm::verifyFunction(*f);
+        ////llvm::verifyFunction(*f);
 #endif
     }
 }
@@ -110,7 +110,7 @@ void emit(const World& world) {
     cg.emit();
     cg.module->dump();
 #ifndef NDEBUG
-    llvm::verifyModule(*cg.module);
+    //llvm::verifyModule(*cg.module);
 #endif
 }
 

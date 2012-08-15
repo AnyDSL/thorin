@@ -97,6 +97,16 @@ void CodeGen::emitBB(const Lambda* lambda) {
     builder.SetInsertPoint(bb);
     std::vector<llvm::Value*> values;
 
+#if 0
+    // place phis
+    for_all (param, lambda->params()) {
+        llvm::PHINode* phi = builder.CreatePHI(convert(param->type()), param->phiOps().size());
+
+        for_all (op, param->phiOps())
+            phi->addIncoming(emit(op.def()), lambda2bb(op.from()));
+    }
+#endif
+
     for_all (arg, lambda->args())
         values.push_back(emit(arg));
 

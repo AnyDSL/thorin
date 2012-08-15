@@ -23,6 +23,7 @@ namespace anydsl {
 namespace be_llvm {
 
 typedef boost::unordered_map<const Lambda*, llvm::Function*> FctMap;
+typedef boost::unordered_map<const Lambda*, llvm::BasicBlock*> BBMap;
 
 class CodeGen {
 public:
@@ -34,7 +35,8 @@ public:
     llvm::Type* convert(const Type* type);
     llvm::Value* emit(const Def* def);
     llvm::Function* emitFct(const Lambda* lambda);
-    llvm::BasicBlock* emitBB(const Lambda* lambda);
+    void emitBB(const Lambda* lambda);
+    llvm::BasicBlock* lambda2bb(const Lambda* lambda);
 
 public:
 
@@ -43,6 +45,7 @@ public:
     llvm::IRBuilder<> builder;
     llvm::Module* module;
     FctMap top;
+    BBMap bbs;
     const Lambda* curLam;
     llvm::Function* curFct;
     size_t retPos;
@@ -60,7 +63,7 @@ void CodeGen::emit() {
         if (const Lambda* lambda = def->isa<Lambda>())
             if (lambda->pi()->isHigherOrder()) {
                 llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
-                llvm::Function* f = llvm::Function::Create(ft, llvm::Function::InternalLinkage, lambda->debug, module);
+                llvm::Function* f = llvm::Function::Create(ft, llvm::Function::PrivateLinkage, lambda->debug, module);
                 top.insert(std::make_pair(lambda, f));
             }
 
@@ -76,22 +79,22 @@ void CodeGen::emit() {
             anydsl_assert(p->index() <= retPos, "return param dead");
         }
 
-        llvm::Function* f = lf.second;
-        // create a new basic block to start insertion into
-        llvm::BasicBlock* entry = llvm::BasicBlock::Create(context, "entry", f);
-        builder.SetInsertPoint(entry);
+        curFct = lf.second;
         emitBB(curLam);
 
 #ifndef NDEBUG
-        ////llvm::verifyFunction(*f);
+        //llvm::verifyFunction(*f);
 #endif
     }
 }
 
-llvm::BasicBlock* CodeGen::emitBB(const Lambda* lambda) {
-    llvm::BasicBlock* curBB = llvm::BasicBlock::Create(context, lambda->debug, curFct);
-    builder.SetInsertPoint(curBB);
+void CodeGen::emitBB(const Lambda* lambda) {
+    llvm::BasicBlock* bb = lambda2bb(lambda);
 
+    if (!bb->empty())
+        return;
+
+    builder.SetInsertPoint(bb);
     std::vector<llvm::Value*> values;
 
     for_all (arg, lambda->args())
@@ -105,26 +108,45 @@ llvm::BasicBlock* CodeGen::emitBB(const Lambda* lambda) {
             assert(to->as<Param>());
             assert(values.size() == 1);
             builder.CreateRet(values[0]);
-            return curBB;
+            return;
         }
         case 1: {
             if (const Lambda* toLambda = to->isa<Lambda>()) {
-                llvm::BasicBlock* bb = emitBB(toLambda);
+                llvm::BasicBlock* bb = lambda2bb(toLambda);
                 builder.CreateBr(bb);
-                return curBB;
+                emitBB(toLambda);
+                return;
             }
         }
         case 2: {
             const Select* select = to->as<Select>();
+            const Lambda* tLambda = select->tval()->as<Lambda>();
+            const Lambda* fLambda = select->fval()->as<Lambda>();
+
             llvm::Value* cond = emit(select->cond());
-            llvm::BasicBlock* tbb = emitBB(select->tval()->as<Lambda>());
-            llvm::BasicBlock* fbb = emitBB(select->fval()->as<Lambda>());
+            llvm::BasicBlock* tbb = lambda2bb(tLambda);
+            llvm::BasicBlock* fbb = lambda2bb(fLambda);
             builder.CreateCondBr(cond, tbb, fbb);
-            return curBB;
+
+            emitBB(tLambda);
+            emitBB(fLambda);
+
+            return;
         }
         default:
             ANYDSL_UNREACHABLE;
     }
+}
+
+llvm::BasicBlock* CodeGen::lambda2bb(const Lambda* lambda) {
+    BBMap::iterator i = bbs.find(lambda);
+    if (i != bbs.end())
+        return i->second;
+
+    llvm::BasicBlock* bb = llvm::BasicBlock::Create(context, lambda->debug, curFct);
+    bbs[lambda] = bb;
+
+    return bb;
 }
 
 void emit(const World& world) {

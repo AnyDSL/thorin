@@ -1,4 +1,4 @@
 def f(i : int) -> int
 {   
-    return 42;
+    return 42 + 5;
 }

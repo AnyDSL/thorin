@@ -43,8 +43,8 @@ public:
     llvm::IRBuilder<> builder;
     llvm::Module* module;
     FctMap top;
-    const Lambda* curFct;
-    const Lambda* curBB;
+    const Lambda* curLam;
+    llvm::Function* curFct;
     size_t retPos;
     const Param* retParam;
 };
@@ -65,10 +65,10 @@ void CodeGen::emit() {
             }
 
     for_all (lf, top) {
-        curFct = lf.first;
-        size_t retPos = curFct->pi()->nextPi();
+        curLam = lf.first;
+        size_t retPos = curLam->pi()->nextPi();
 
-        for_all (p, curFct->params()) {
+        for_all (p, curLam->params()) {
             if (p->index() == retPos) {
                 retParam = p;
                 break;
@@ -80,7 +80,7 @@ void CodeGen::emit() {
         // create a new basic block to start insertion into
         llvm::BasicBlock* entry = llvm::BasicBlock::Create(context, "entry", f);
         builder.SetInsertPoint(entry);
-        emitBB(curFct);
+        emitBB(curLam);
 
 #ifndef NDEBUG
         ////llvm::verifyFunction(*f);
@@ -89,19 +89,41 @@ void CodeGen::emit() {
 }
 
 llvm::BasicBlock* CodeGen::emitBB(const Lambda* lambda) {
+    llvm::BasicBlock* curBB = llvm::BasicBlock::Create(context, lambda->debug, curFct);
+    builder.SetInsertPoint(curBB);
+
     std::vector<llvm::Value*> values;
 
     for_all (arg, lambda->args())
         values.push_back(emit(arg));
 
-    LambdaSet to = lambda->targets();
+    LambdaSet targets = lambda->targets();
+    const Def* to = lambda->to();
 
-    if (to.size() == 2) {
-        const Select* select = lambda->to()->as<Select>();
-        llvm::Value* cond = emit(select->cond());
-        llvm::BasicBlock* tbb = emitBB(select->tval()->as<Lambda>());
-        llvm::BasicBlock* fbb = emitBB(select->fval()->as<Lambda>());
-        builder.CreateCondBr(cond, tbb, fbb);
+    switch (targets.size()) {
+        case 0: {
+            assert(to->as<Param>());
+            assert(values.size() == 1);
+            builder.CreateRet(values[0]);
+            return curBB;
+        }
+        case 1: {
+            if (const Lambda* toLambda = to->isa<Lambda>()) {
+                llvm::BasicBlock* bb = emitBB(toLambda);
+                builder.CreateBr(bb);
+                return curBB;
+            }
+        }
+        case 2: {
+            const Select* select = to->as<Select>();
+            llvm::Value* cond = emit(select->cond());
+            llvm::BasicBlock* tbb = emitBB(select->tval()->as<Lambda>());
+            llvm::BasicBlock* fbb = emitBB(select->fval()->as<Lambda>());
+            builder.CreateCondBr(cond, tbb, fbb);
+            return curBB;
+        }
+        default:
+            ANYDSL_UNREACHABLE;
     }
 }
 

@@ -60,7 +60,7 @@ void CodeGen::emit() {
         if (const Lambda* lambda = def->isa<Lambda>())
             if (lambda->pi()->isHigherOrder()) {
                 llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
-                llvm::Function* f = llvm::cast<llvm::Function>(module->getOrInsertFunction(lambda->debug, ft));
+                llvm::Function* f = llvm::Function::Create(ft, llvm::Function::InternalLinkage, lambda->debug, module);
                 top.insert(std::make_pair(lambda, f));
             }
 
@@ -77,8 +77,10 @@ void CodeGen::emit() {
         }
 
         llvm::Function* f = lf.second;
-        builder.SetInsertPoint(&f->getEntryBlock());
-        emit(curFct);
+        // create a new basic block to start insertion into
+        llvm::BasicBlock* entry = llvm::BasicBlock::Create(context, "entry", f);
+        builder.SetInsertPoint(entry);
+        emitBB(curFct);
 
 #ifndef NDEBUG
         llvm::verifyFunction(*f);
@@ -125,26 +127,37 @@ llvm::Type* CodeGen::convert(const Type* type) {
         case Node_Pi: {
             // extract "return" type, collect all other types
             const Pi* pi = type->as<Pi>();
-            size_t num = pi->elems().size();
             llvm::Type* retType = 0;
             size_t i = 0;
-            Array<llvm::Type*> elems(num - 1);
+            Array<llvm::Type*> elems(pi->numelems() - 1);
 
             for_all (elem, pi->elems()) {
                 if (const Pi* pi = elem->isa<Pi>()) {
-                    anydsl_assert(retType == 0, "not yet supported");
-                    if (num == 0)
-                        retType = llvm::Type::getVoidTy(context);
-                    else {
-                        anydsl_assert(num == 1, "TODO");
-                        retType = convert(pi->elem(0));
+                    switch (pi->numelems()) {
+                        case 0:
+                            retType = llvm::Type::getVoidTy(context);
+                            break;
+                        case 1:
+                            retType = convert(pi->elem(0));
+                            break;
+                        default: {
+                            Array<llvm::Type*> elems(pi->numelems());
+                            size_t i = 0;
+                            for_all (elem, pi->elems())
+                                elems[i++] = convert(elem);
+
+                            llvm::ArrayRef<llvm::Type*> structTypes(elems.begin(), elems.end());
+                            retType = llvm::StructType::get(context, structTypes);
+                            break;
+                        }
                     }
                 } else
                     elems[i++] = convert(elem);
             }
 
             assert(retType);
-            return llvm::FunctionType::get(retType, llvm::ArrayRef<llvm::Type*>(elems.begin(), elems.end()), false);
+            llvm::ArrayRef<llvm::Type*> paramTypes(elems.begin(), elems.end());
+            return llvm::FunctionType::get(retType, paramTypes, false);
         }
 
         case Node_Sigma: {
@@ -312,6 +325,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (const Undef* undef = def->isa<Undef>())
         return llvm::UndefValue::get(convert(undef->type()));
 
+    def->dump();
     ANYDSL_UNREACHABLE;
 }
 

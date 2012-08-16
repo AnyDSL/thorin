@@ -11,11 +11,12 @@
 #define ANYDSL_DUMP_COMMA_LIST(p, list) \
     const BOOST_TYPEOF((list))& l = (list); \
     if (!l.empty()) { \
-        for (boost::remove_const<BOOST_TYPEOF(l)>::type::const_iterator i = l.begin(), e = l.end() - 1; i != e; ++i) { \
+        boost::remove_const<BOOST_TYPEOF(l)>::type::const_iterator i = l.begin(), e = l.end() - 1; \
+        for (; i != e; ++i) { \
             (p).dump(*i); \
             (p) << ", "; \
         } \
-        (p).dump(l.back()); \
+        (p).dump(*i); \
     }
 
 namespace anydsl {

@@ -99,11 +99,16 @@ void Def::alloc(size_t size) {
 
 //------------------------------------------------------------------------------
 
-Param::Param(const Type* type, const Lambda* lambda, size_t index)
+Param::Param(const Type* type, Lambda* lambda, size_t index)
     : Def(Node_Param, type, 0)
     , lambda_(lambda)
     , index_(index)
 {}
+
+Param::~Param() {
+    if (lambda_)
+        lambda_->params_.erase(this);
+}
 
 PhiOps Param::phiOps() const {
     size_t x = index();

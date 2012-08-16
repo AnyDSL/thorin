@@ -179,7 +179,8 @@ struct DefEqual : std::binary_function<const Def*, const Def*, bool> {
 class Param : public Def {
 private:
 
-    Param(const Type* type, const Lambda* parent, size_t index);
+    Param(const Type* type, Lambda* parent, size_t index);
+    virtual ~Param();
 
     virtual bool equal(const Def* other) const;
     virtual size_t hash() const;
@@ -194,10 +195,11 @@ private:
 
     virtual void vdump(Printer& printer) const;
 
-    const Lambda* lambda_;
-    size_t index_;
+    mutable Lambda* lambda_;
+    const size_t index_;
 
     friend class World;
+    friend class Lambda;
 };
 
 //------------------------------------------------------------------------------

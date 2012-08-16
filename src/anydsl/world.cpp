@@ -382,7 +382,7 @@ const Lambda* World::finalize(Lambda*& lambda) {
     return l;
 }
 
-const Param* World::param(const Type* type, const Lambda* parent, u32 i) {
+const Param* World::param(const Type* type, Lambda* parent, u32 i) {
     return find(new Param(type, parent, i));
 }
 
@@ -500,7 +500,7 @@ void World::uce_insert(const Lambda* lambda) {
 void World::cleanup() {
     uce();
     dce();
-    //cfg_simplify();
+    cfg_simplify();
 }
 
 void World::cfg_simplify() {
@@ -522,6 +522,11 @@ void World::cfg_simplify() {
                     Lambda* newl = new Lambda(lambda->pi());
                     newl->debug = lambda->debug + "+" + to->debug;
                     jump(newl, to->to(), to->args());
+
+                    Params::const_iterator i = to->params().begin();
+                    for_all (arg, lambda->args())
+                        replace(*i++, arg);
+
                     replace(lambda, newl);
 
                     lambdas.erase(to);
@@ -598,23 +603,6 @@ void World::dump(bool fancy) {
     }
 }
 
-Params World::findParams(const Lambda* lambda) {
-    Params result;
-
-    const Pi* pi = lambda->pi();
-    size_t num = pi->elems().size();
-
-    for (size_t i = 0; i < num; ++i) {
-        Param param(pi->elem(i), lambda, i);
-
-        DefSet::iterator j = defs_.find(&param);
-        if (j != defs_.end())
-            result.push_back((*j)->as<Param>());
-    }
-
-    return result;
-}
-
 Def* World::release(const Def* def) {
     DefSet::iterator i = defs_.find(def);
     anydsl_assert(i != defs_.end(), "must be found");
@@ -684,8 +672,18 @@ void World::replace(const Def* what, const Def* with) {
     }
 
     if (lambda) {
+        Params::const_iterator i = with->as<Lambda>()->params().begin();
+        for_all (param, lambda->params()) {
+            while ((*i)->index() < param->index())
+                ++i;
 
+            const Param* newparam = *i;
+            newparam->debug = param->debug;
+            replace(param, newparam);
+        }
     }
+
+    destroy(def);
 }
 
 

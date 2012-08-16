@@ -25,7 +25,6 @@ class Type;
 class Def;
 class Any;
 
-typedef std::vector<const Param*> Params;
 typedef boost::unordered_set<const Def*, DefHash, DefEqual> DefSet;
 
 //------------------------------------------------------------------------------
@@ -176,7 +175,7 @@ public:
     const Def* insert(const Def* tuple, u32 i, const Def* value);
     const Def* select(const Def* cond, const Def* tdef, const Def* fdef);
     const Def* tuple(ArrayRef<const Def*> args);
-    const Param* param(const Type* type, const Lambda* parent, u32 i);
+    const Param* param(const Type* type, Lambda* parent, u32 i);
 
     void jump(Lambda*& from, const Def* to, ArrayRef<const Def*> args);
     void jump1(Lambda*& from, const Def* to, const Def* arg1) {
@@ -222,7 +221,6 @@ public:
      * other
      */
 
-    Params findParams(const Lambda* lambda);
     void dump(bool fancy = false);
     const Def* rehash(const Def* def);
     Def* release(const Def* def);

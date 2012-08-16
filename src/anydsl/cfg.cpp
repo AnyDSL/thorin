@@ -169,8 +169,8 @@ const Def* BB::calls(const Def* to, ArrayRef<const Def*> args, const Type* retTy
     next->debug = curLambda_->debug + "_" + to->debug;
     const Param* result = next->appendParam(retType);
     result->debug = make_name(to->debug.c_str(), id);
-    Params params;
-    params.push_back(result);
+    //Params params;
+    //params.push_back(result);
 
     // create jump to this new continuation
     size_t csize = args.size() + 1;

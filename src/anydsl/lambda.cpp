@@ -13,9 +13,17 @@ namespace anydsl {
 Lambda::Lambda(const Pi* pi)
     : Def(Node_Lambda, pi, 0)
 {
+    params_.reserve(pi->numelems());
+
     size_t i = 0;
     for_all (elem, pi->elems())
-        world().param(elem, this, i++);
+        params_.insert(world().param(elem, this, i++));
+}
+
+Lambda::~Lambda() {
+    for_all (param, params())
+        param->lambda_ = 0;
+
 }
 
 static void findLambdas(const Def* def, LambdaSet& result) {
@@ -65,10 +73,6 @@ LambdaSet Lambda::callers() const {
     return result;
 }
 
-Params Lambda::params() const { 
-    return world().findParams(this);
-}
-
 const Pi* Lambda::pi() const {
     return scast<Pi>(type());
 }
@@ -80,7 +84,10 @@ const Param* Lambda::appendParam(const Type* type) {
     *std::copy(pi()->elems().begin(), pi()->elems().end(), elems.begin()) = type;
     setType(world().pi(elems));
 
-    return world().param(type, this, size);
+    const Param* param = world().param(type, this, size);
+    params_.insert(param);
+
+    return param;
 }
 
 bool Lambda::equal(const Def* other) const {

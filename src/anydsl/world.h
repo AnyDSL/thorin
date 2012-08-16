@@ -210,6 +210,7 @@ public:
     void cleanup();
 
     void cfg_simplify();
+    void param_opt();
 
     /*
      * getters

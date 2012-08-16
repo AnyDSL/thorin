@@ -13,7 +13,7 @@ namespace anydsl {
 Lambda::Lambda(const Pi* pi)
     : Def(Node_Lambda, pi, 0)
 {
-    params_.reserve(pi->numelems());
+    params_.reserve(pi->size());
 
     size_t i = 0;
     for_all (elem, pi->elems())

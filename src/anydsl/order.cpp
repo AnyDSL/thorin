@@ -29,7 +29,7 @@ void PostOrder::init(const Def* current, int baseIndex) {
         if(!visited(current)) {
             // insert invalid index
             indices_[current] = -1;
-            const size_t numops = current->numops();
+            const size_t numops = current->size();
             if(numops > 0) {
                 nodeStack.push(current);
                 for(size_t index = 0; index < numops - 1; ++index) {

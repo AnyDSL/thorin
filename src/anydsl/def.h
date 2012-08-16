@@ -131,7 +131,8 @@ public:
     Ops ops() const { return Ops(ops_); }
     Ops ops(size_t begin, size_t end) const { return Ops(ops_.slice(begin, end)); }
     const Def* op(size_t i) const { return ops_[i]; }
-    size_t numops() const { return ops_.size(); }
+    size_t size() const { return ops_.size(); }
+    bool empty() const { return ops_.size() == 0; }
 
     /*
      * check for special literals

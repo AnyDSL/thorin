@@ -65,7 +65,7 @@ bool Sigma::equal(const Def* other) const {
 //------------------------------------------------------------------------------
 
 size_t Pi::nextPi(size_t pos) const {
-    while (pos < numelems())
+    while (pos < size())
         if (elem(pos)->isa<Pi>())
             return pos;
         else

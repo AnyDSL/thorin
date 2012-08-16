@@ -344,7 +344,7 @@ const Def* World::insert(const Def* agg, u32 index, const Def* value) {
         return bottom(agg->type());
 
     if (const Tuple* tup = agg->isa<Tuple>()) {
-        Array<const Def*> args(tup->numops());
+        Array<const Def*> args(tup->size());
 
         for (size_t i = 0, e = args.size(); i != e; ++i)
             if (i != index)
@@ -501,6 +501,7 @@ void World::cleanup() {
     uce();
     dce();
     cfg_simplify();
+    //param_opt();
 }
 
 void World::cfg_simplify() {
@@ -537,6 +538,64 @@ void World::cfg_simplify() {
         lambdas.erase(lambda);
     }
 }
+
+void World::param_opt() {
+    for_all (def, defs_)
+        if (const Lambda* lambda = def->isa<Lambda>()) {
+            const Pi* pi = lambda->pi();
+
+            if (!pi->empty() && reachable_.find(lambda) == reachable_.end()) { // HACK
+                std::vector<size_t> keep;
+
+                for_all (param, lambda->params()) {
+                    const Def* same = 0;
+                    // find Horspool-like phis
+                    for_all (op, param->phiOps()) {
+                        const Def* def = op.def();
+
+                        if (def->isa<Undef>() || def == param || same == def)
+                            continue;
+
+                        if (same) {
+                            keep.push_back(param->index());
+                            break;
+                        }
+
+                        same = def;
+                    }
+                }
+
+                if (keep.size() != pi->size()) {
+                    std::cout << "superfluous in: " << lambda->debug << std::endl;
+                    Array<const Type*> elems(keep.size());
+
+                    size_t i = 0;
+                    for_all (param, lambda->params())
+                        if (param->index() == keep[i])
+                            elems[i++] = param->type();
+
+                    assert(i == keep.size());
+                    const Pi* newpi = this->pi(elems);
+                    Lambda* newl = new Lambda(newpi);
+                    newl->debug = lambda->debug;
+                    jump(newl, lambda->to(), lambda->args());
+                    //replace(lambda, newl);
+                }
+            }
+        }
+#if 0
+        in_.erase(index);
+        for_all (pred, preds_)
+            pred->out_.erase(index);
+
+        Params::const_iterator i = newl->params().begin();
+        for_all (p, topLambda_->params())
+            if (p->index() != index)
+                world().replace(p, *i++);
+    }
+#endif
+}
+
 
 void World::unmark() {
     for_all (def, defs_)

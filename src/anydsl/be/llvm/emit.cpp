@@ -211,11 +211,11 @@ llvm::Type* CodeGen::convert(const Type* type) {
             const Pi* pi = type->as<Pi>();
             llvm::Type* retType = 0;
             size_t i = 0;
-            Array<llvm::Type*> elems(pi->numelems() - 1);
+            Array<llvm::Type*> elems(pi->size() - 1);
 
             for_all (elem, pi->elems()) {
                 if (const Pi* pi = elem->isa<Pi>()) {
-                    switch (pi->numelems()) {
+                    switch (pi->size()) {
                         case 0:
                             retType = llvm::Type::getVoidTy(context_);
                             break;
@@ -223,7 +223,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
                             retType = convert(pi->elem(0));
                             break;
                         default: {
-                            Array<llvm::Type*> elems(pi->numelems());
+                            Array<llvm::Type*> elems(pi->size());
                             size_t i = 0;
                             for_all (elem, pi->elems())
                                 elems[i++] = convert(elem);

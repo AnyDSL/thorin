@@ -112,23 +112,6 @@ void BB::fixTodo(const Symbol& symbol, Todo todo) {
     const Param* param = in_[index];
     const Def* same = 0;
 
-    // find Horspool-like phis
-    for_all (pred, preds_) {
-        const Def* def = pred->getVar(symbol, type)->def;
-
-        if (def->isa<Undef>() || def == param || same == def)
-            continue;
-
-        if (same)
-            goto ok;
-
-        same = def;
-    }
-
-    std::cout << "superfluous: " << param->debug << " in block " << param->lambda()->debug << std::endl;
-    // superfluous phi params are not yet eliminated -- for this reason build them nevertheless
-
-ok:
     for_all (pred, preds_) {
         anydsl_assert(pred->succs().size() == 1, "critical edge elimination did not work");
         Out& out = pred->out_;

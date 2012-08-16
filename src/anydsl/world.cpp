@@ -518,20 +518,21 @@ void World::cfg_simplify() {
 
         if (const Lambda* to = lambda->to()->isa<Lambda>())
             if (to->uses().size() == 1)
-                if (lambda == to->uses().begin()->def()) {
-                    Lambda* newl = new Lambda(lambda->pi());
-                    newl->debug = lambda->debug + "+" + to->debug;
-                    jump(newl, to->to(), to->args());
+                if (reachable_.find(to) == reachable_.end()) // HACK
+                    if (lambda == to->uses().begin()->def()) {
+                        Lambda* newl = new Lambda(lambda->pi());
+                        newl->debug = lambda->debug + "+" + to->debug;
+                        jump(newl, to->to(), to->args());
 
-                    Params::const_iterator i = to->params().begin();
-                    for_all (arg, lambda->args())
-                        replace(*i++, arg);
+                        Params::const_iterator i = to->params().begin();
+                        for_all (arg, lambda->args())
+                            replace(*i++, arg);
 
-                    replace(lambda, newl);
+                        replace(lambda, newl);
 
-                    lambdas.erase(to);
-                    lambdas.insert(newl);
-                }
+                        lambdas.erase(to);
+                        lambdas.insert(newl);
+                    }
 
         lambdas.erase(lambda);
     }

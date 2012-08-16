@@ -65,6 +65,9 @@ void Dominators::init(const Def* def, const PostOrder& order) {
     for(int i = 0, e = doms.size(); i < e; ++i) {
         relation[order[i]] = order[doms[i]];
     }
+
+    for_all (p, relation)
+        children_.insert(std::make_pair(p.second, p.first));
 }
 
 int Dominators::intersect(int first, int second, const Dominators::Doms& doms) {

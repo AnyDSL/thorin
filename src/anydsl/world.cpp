@@ -500,6 +500,36 @@ void World::uce_insert(const Lambda* lambda) {
 void World::cleanup() {
     uce();
     dce();
+    //cfg_simplify();
+}
+
+void World::cfg_simplify() {
+    LambdaSet lambdas;
+
+    for_all (def, defs_)
+        if (const Lambda* lambda = def->isa<Lambda>())
+            if (const Lambda* to = lambda->to()->isa<Lambda>())
+                if (to->uses().size() == 1)
+                    if (lambda == to->uses().begin()->def())
+                        lambdas.insert(lambda);
+
+    while (!lambdas.empty()) {
+        const Lambda* lambda = *lambdas.begin();
+
+        if (const Lambda* to = lambda->to()->isa<Lambda>())
+            if (to->uses().size() == 1)
+                if (lambda == to->uses().begin()->def()) {
+                    Lambda* newl = new Lambda(lambda->pi());
+                    newl->debug = lambda->debug + "+" + to->debug;
+                    jump(newl, to->to(), to->args());
+                    replace(lambda, newl);
+
+                    lambdas.erase(to);
+                    lambdas.insert(newl);
+                }
+
+        lambdas.erase(lambda);
+    }
 }
 
 void World::unmark() {
@@ -543,27 +573,25 @@ const Def* World::findDef(const Def* def) {
 void World::dump(bool fancy) {
     unmark();
 
-    for_all (def, defs_) {
-        if (const Lambda* lambda = def->isa<Lambda>()) {
-            if (lambda->flag_)
-                continue;
+    for_all (lambda, reachable_) {
+        if (lambda->flag_)
+            continue;
 
-            std::queue<const Lambda*> queue;
-            queue.push(lambda);
-            lambda->flag_ = true;
+        std::queue<const Lambda*> queue;
+        queue.push(lambda);
+        lambda->flag_ = true;
 
-            while (!queue.empty()) {
-                const Lambda* cur = queue.front();
-                queue.pop();
+        while (!queue.empty()) {
+            const Lambda* cur = queue.front();
+            queue.pop();
 
-                cur->dump(fancy);
-                std::cout << std::endl;
+            cur->dump(fancy);
+            std::cout << std::endl;
 
-                for_all (succ, cur->succ()) {
-                    if (!succ->flag_) {
-                        succ->flag_ = true;
-                        queue.push(succ);
-                    }
+            for_all (succ, cur->succ()) {
+                if (!succ->flag_) {
+                    succ->flag_ = true;
+                    queue.push(succ);
                 }
             }
         }
@@ -593,8 +621,73 @@ Def* World::release(const Def* def) {
     assert(def == *i);
     defs_.erase(i);
 
-    return const_cast<Def*>(*i);
+    return const_cast<Def*>(def);
 }
+
+void World::replace(const Def* what, const Def* with) {
+    if (what == with)
+        return;
+
+    Def* def = release(what);
+    Lambda* lambda = def->isa<Lambda>();
+
+    if (lambda) {
+        Reachable::iterator i = reachable_.find(lambda);
+        if (i != reachable_.end()) {
+            reachable_.erase(i);
+            reachable_.insert(with->as<Lambda>());
+        }
+    }
+    {
+        Live::iterator i = live_.find(def);
+        if (i != live_.end()) {
+            live_.erase(i);
+            live_.insert(with);
+        }
+    }
+
+    // unregister all uses of this node's operands
+    for (size_t i = 0, e = def->ops().size(); i != e; ++i) {
+        def->ops_[i]->unregisterUse(i, def);
+        def->ops_[i] = 0;
+    }
+
+    // copy over old use info
+    Array<Use> old_uses(def->uses_.size());
+    std::copy(def->uses_.begin(), def->uses_.end(), old_uses.begin());
+
+    // unregister all uses of def
+    def->uses_.clear();
+
+    // update all operands of old uses to point to new node instead 
+    // and erase these nodes from world
+    for_all (use, old_uses) {
+        Def* udef = release(use.def());
+        udef->setOp(use.index(), with);
+    }
+
+    // reinsert all operands of old uses into world
+    // don't merge this loop with the loop above
+    for_all (use, old_uses) {
+        const Def* udef = use.def();
+
+        DefSet::iterator i = defs_.find(udef);
+        if (i != defs_.end()) {
+            const Def* ndef = *i;
+            assert(udef != ndef);
+            replace(udef, ndef);
+            delete udef;
+            continue;
+        }
+
+        defs_.insert(udef);
+    }
+
+    if (lambda) {
+
+    }
+}
+
 
 /*
  * debug printing
@@ -624,7 +717,7 @@ void World::printReversePostOrder() {
 
 void World::printDominators() {
     Dominators doms(*defs_.begin());
-    for(Dominators::iterator it = doms.begin(), e = doms.end();
+    for(Dominators::const_iterator it = doms.begin(), e = doms.end();
         it != e; ++it) {
         const Def* d = it->first;
         const Def* t = it->second;

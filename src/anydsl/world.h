@@ -210,6 +210,8 @@ public:
     /// Performs dead code and unreachable code elimination.
     void cleanup();
 
+    void cfg_simplify();
+
     /*
      * getters
      */
@@ -224,6 +226,7 @@ public:
     void dump(bool fancy = false);
     const Def* rehash(const Def* def);
     Def* release(const Def* def);
+    void replace(const Def* what, const Def* with);
 
     template<class T>
     const T* find(const T* val) { return (const T*) findDef(val); }
@@ -266,8 +269,6 @@ private:
 
         const PrimType* primTypes_[Num_PrimTypes];
     };
-
-    friend void Def::replace(const Def*) const;
 };
 
 //------------------------------------------------------------------------------

@@ -12,6 +12,7 @@
 #include <llvm/Support/IRBuilder.h>
 
 #include "anydsl/def.h"
+#include "anydsl/dom.h"
 #include "anydsl/lambda.h"
 #include "anydsl/literal.h"
 #include "anydsl/primop.h"
@@ -38,56 +39,76 @@ public:
     llvm::Function* emitFct(const Lambda* lambda);
     void emitBB(const Lambda* lambda);
     llvm::BasicBlock* lambda2bb(const Lambda* lambda);
+    void recEmit(Dominators& dom, const Lambda* lambda);
 
-public:
+private:
 
-    const World& world;
-    llvm::LLVMContext context;
-    llvm::IRBuilder<> builder;
-    llvm::Module* module;
-    FctMap top;
-    BBMap bbs;
-    ParamMap params;
-    const Lambda* curLam;
-    llvm::Function* curFct;
-    size_t retPos;
-    const Param* retParam;
+    const World& world_;
+    llvm::LLVMContext context_;
+    llvm::IRBuilder<> builder_;
+    llvm::Module* module_;
+    FctMap top_;
+    BBMap bbs_;
+    ParamMap params_;
+    const Lambda* curLam_;
+    llvm::Function* curFct_;
+    const Param* retParam_;
 };
 
 CodeGen::CodeGen(const World& world)
-    : world(world)
-    , builder(context)
-    , module(new llvm::Module("anydsl", context))
+    : world_(world)
+    , context_()
+    , builder_(context_)
+    , module_(new llvm::Module("anydsl", context_))
 {}
 
+void CodeGen::recEmit(Dominators& dom, const Lambda* lambda) {
+    Dominators::Range range = dom.children().equal_range(lambda);
+    for (Dominators::DomChildren::const_iterator i = range.first, e = range.second; i != e; ++i)
+        if (const Lambda* lchild = i->second->isa<Lambda>())
+            emitBB(lchild);
+
+    for (Dominators::DomChildren::const_iterator i = range.first, e = range.second; i != e; ++i)
+        if (const Lambda* lchild = i->second->isa<Lambda>())
+            recEmit(dom, lchild);
+}
+
 void CodeGen::emit() {
-    for_all (def, world.defs())
+    for_all (def, world_.defs())
         if (const Lambda* lambda = def->isa<Lambda>())
             if (lambda->pi()->isHigherOrder()) {
                 llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
-                llvm::Function* f = llvm::Function::Create(ft, llvm::Function::PrivateLinkage, lambda->debug, module);
-                top.insert(std::make_pair(lambda, f));
+                llvm::Function* f = llvm::Function::Create(ft, llvm::Function::PrivateLinkage, lambda->debug, module_);
+                top_.insert(std::make_pair(lambda, f));
             }
 
-    for_all (lf, top) {
-        curLam = lf.first;
-        size_t retPos = curLam->pi()->nextPi();
+    for_all (lf, top_) {
+        curLam_ = lf.first;
+        size_t retPos = curLam_->pi()->nextPi();
 
-        for_all (p, curLam->params()) {
+        for_all (p, curLam_->params()) {
             if (p->index() == retPos) {
-                retParam = p;
+                retParam_ = p;
                 break;
             }
             anydsl_assert(p->index() <= retPos, "return param dead");
         }
 
-        curFct = lf.second;
-        emitBB(curLam);
+        curFct_ = lf.second;
+        params_.clear();
+
+        Dominators dom(curLam_);
+        recEmit(dom, curLam_);
 
 #ifndef NDEBUG
         //llvm::verifyFunction(*f);
 #endif
     }
+
+    module_->dump();
+#ifndef NDEBUG
+    //llvm::verifyModule(*cg.module);
+#endif
 }
 
 void CodeGen::emitBB(const Lambda* lambda) {
@@ -96,23 +117,23 @@ void CodeGen::emitBB(const Lambda* lambda) {
     if (!bb->empty())
         return;
 
-    builder.SetInsertPoint(bb);
+    builder_.SetInsertPoint(bb);
     std::vector<llvm::Value*> values;
 
-    if (lambda == curLam) {
-        llvm::Function::arg_iterator arg = curFct->arg_begin();
+    if (lambda == curLam_) {
+        llvm::Function::arg_iterator arg = curFct_->arg_begin();
         for_all (param, lambda->params())
             if (!param->type()->isa<Pi>())
-                params[param] = arg++;
+                params_[param] = arg++;
     } else {
         // place phis
         for_all (param, lambda->params()) {
-            llvm::PHINode* phi = builder.CreatePHI(convert(param->type()), param->phiOps().size());
+            llvm::PHINode* phi = builder_.CreatePHI(convert(param->type()), param->phiOps().size());
 
             for_all (op, param->phiOps())
                 phi->addIncoming(emit(op.def()), lambda2bb(op.from()));
 
-            params[param] = phi;
+            params_[param] = phi;
         }
     }
 
@@ -124,16 +145,21 @@ void CodeGen::emitBB(const Lambda* lambda) {
 
     switch (targets.size()) {
         case 0: {
-            assert(to->as<Param>());
-            assert(values.size() == 1);
-            builder.CreateRet(values[0]);
-            return;
+            const Param* param = to->as<Param>();
+
+            if (param = retParam_) {
+                // ret
+                assert(values.size() == 1);
+                builder_.CreateRet(values[0]);
+                return;
+            } else {
+                ANYDSL_UNREACHABLE;
+            }
         }
         case 1: {
             if (const Lambda* toLambda = to->isa<Lambda>()) {
                 llvm::BasicBlock* bb = lambda2bb(toLambda);
-                builder.CreateBr(bb);
-                emitBB(toLambda);
+                builder_.CreateBr(bb);
                 return;
             }
         }
@@ -145,10 +171,7 @@ void CodeGen::emitBB(const Lambda* lambda) {
             llvm::Value* cond = emit(select->cond());
             llvm::BasicBlock* tbb = lambda2bb(tLambda);
             llvm::BasicBlock* fbb = lambda2bb(fLambda);
-            builder.CreateCondBr(cond, tbb, fbb);
-
-            emitBB(tLambda);
-            emitBB(fLambda);
+            builder_.CreateCondBr(cond, tbb, fbb);
 
             return;
         }
@@ -158,12 +181,12 @@ void CodeGen::emitBB(const Lambda* lambda) {
 }
 
 llvm::BasicBlock* CodeGen::lambda2bb(const Lambda* lambda) {
-    BBMap::iterator i = bbs.find(lambda);
-    if (i != bbs.end())
+    BBMap::iterator i = bbs_.find(lambda);
+    if (i != bbs_.end())
         return i->second;
 
-    llvm::BasicBlock* bb = llvm::BasicBlock::Create(context, lambda->debug, curFct);
-    bbs[lambda] = bb;
+    llvm::BasicBlock* bb = llvm::BasicBlock::Create(context_, lambda->debug, curFct_);
+    bbs_[lambda] = bb;
 
     return bb;
 }
@@ -171,21 +194,17 @@ llvm::BasicBlock* CodeGen::lambda2bb(const Lambda* lambda) {
 void emit(const World& world) {
     CodeGen cg(world);
     cg.emit();
-    cg.module->dump();
-#ifndef NDEBUG
-    //llvm::verifyModule(*cg.module);
-#endif
 }
 
 llvm::Type* CodeGen::convert(const Type* type) {
     switch (type->node_kind()) {
-        case Node_PrimType_u1:  return llvm::IntegerType::get(context, 1);
-        case Node_PrimType_u8:  return llvm::IntegerType::get(context, 8);
-        case Node_PrimType_u16: return llvm::IntegerType::get(context, 16);
-        case Node_PrimType_u32: return llvm::IntegerType::get(context, 32);
-        case Node_PrimType_u64: return llvm::IntegerType::get(context, 64);
-        case Node_PrimType_f32: return llvm::Type::getFloatTy(context);
-        case Node_PrimType_f64: return llvm::Type::getDoubleTy(context);
+        case Node_PrimType_u1:  return llvm::IntegerType::get(context_, 1);
+        case Node_PrimType_u8:  return llvm::IntegerType::get(context_, 8);
+        case Node_PrimType_u16: return llvm::IntegerType::get(context_, 16);
+        case Node_PrimType_u32: return llvm::IntegerType::get(context_, 32);
+        case Node_PrimType_u64: return llvm::IntegerType::get(context_, 64);
+        case Node_PrimType_f32: return llvm::Type::getFloatTy(context_);
+        case Node_PrimType_f64: return llvm::Type::getDoubleTy(context_);
 
         case Node_Pi: {
             // extract "return" type, collect all other types
@@ -198,7 +217,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
                 if (const Pi* pi = elem->isa<Pi>()) {
                     switch (pi->numelems()) {
                         case 0:
-                            retType = llvm::Type::getVoidTy(context);
+                            retType = llvm::Type::getVoidTy(context_);
                             break;
                         case 1:
                             retType = convert(pi->elem(0));
@@ -210,7 +229,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
                                 elems[i++] = convert(elem);
 
                             llvm::ArrayRef<llvm::Type*> structTypes(elems.begin(), elems.end());
-                            retType = llvm::StructType::get(context, structTypes);
+                            retType = llvm::StructType::get(context_, structTypes);
                             break;
                         }
                     }
@@ -233,7 +252,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
             for_all (t, sigma->elems())
                 elems[i++] = convert(t);
 
-            return llvm::StructType::get(context, llvm::ArrayRef<llvm::Type*>(elems.begin(), elems.end()));
+            return llvm::StructType::get(context_, llvm::ArrayRef<llvm::Type*>(elems.begin(), elems.end()));
         }
 
         default: ANYDSL_UNREACHABLE;
@@ -244,18 +263,21 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (!def->isCoreNode())
         ANYDSL_NOT_IMPLEMENTED;
 
-    if (const Param* param = def->isa<Param>())
-        return params[param];
+    if (const Param* param = def->isa<Param>()) {
+        ParamMap::iterator i = params_.find(param);
+        anydsl_assert(i != params_.end(), "not found");
+        return i->second;
+    }
 
     if (const PrimLit* lit = def->isa<PrimLit>()) {
         llvm::Type* type = convert(lit->type());
         Box box = lit->box();
         switch (lit->primtype_kind()) {
-            case PrimType_u1:  return builder.getInt1(box.get_u1().get());
-            case PrimType_u8:  return builder.getInt8(box.get_u8());
-            case PrimType_u16: return builder.getInt16(box.get_u16());
-            case PrimType_u32: return builder.getInt32(box.get_u32());
-            case PrimType_u64: return builder.getInt64(box.get_u64());
+            case PrimType_u1:  return builder_.getInt1(box.get_u1().get());
+            case PrimType_u8:  return builder_.getInt8(box.get_u8());
+            case PrimType_u16: return builder_.getInt16(box.get_u16());
+            case PrimType_u32: return builder_.getInt32(box.get_u32());
+            case PrimType_u64: return builder_.getInt64(box.get_u64());
             case PrimType_f32: return llvm::ConstantFP::get(type, box.get_f32());
             case PrimType_f64: return llvm::ConstantFP::get(type, box.get_f64());
         }
@@ -267,64 +289,64 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
         if (const RelOp* rel = def->isa<RelOp>()) {
             switch (rel->relop_kind()) {
-                case RelOp_cmp_eq:   return builder.CreateICmpEQ (lhs, rhs);
-                case RelOp_cmp_ne:   return builder.CreateICmpNE (lhs, rhs);
+                case RelOp_cmp_eq:   return builder_.CreateICmpEQ (lhs, rhs);
+                case RelOp_cmp_ne:   return builder_.CreateICmpNE (lhs, rhs);
 
-                case RelOp_cmp_ugt:  return builder.CreateICmpUGT(lhs, rhs);
-                case RelOp_cmp_uge:  return builder.CreateICmpUGE(lhs, rhs);
-                case RelOp_cmp_ult:  return builder.CreateICmpULT(lhs, rhs);
-                case RelOp_cmp_ule:  return builder.CreateICmpULE(lhs, rhs);
+                case RelOp_cmp_ugt:  return builder_.CreateICmpUGT(lhs, rhs);
+                case RelOp_cmp_uge:  return builder_.CreateICmpUGE(lhs, rhs);
+                case RelOp_cmp_ult:  return builder_.CreateICmpULT(lhs, rhs);
+                case RelOp_cmp_ule:  return builder_.CreateICmpULE(lhs, rhs);
 
-                case RelOp_cmp_sgt:  return builder.CreateICmpSGT(lhs, rhs);
-                case RelOp_cmp_sge:  return builder.CreateICmpSGE(lhs, rhs);
-                case RelOp_cmp_slt:  return builder.CreateICmpSLT(lhs, rhs);
-                case RelOp_cmp_sle:  return builder.CreateICmpSLE(lhs, rhs);
+                case RelOp_cmp_sgt:  return builder_.CreateICmpSGT(lhs, rhs);
+                case RelOp_cmp_sge:  return builder_.CreateICmpSGE(lhs, rhs);
+                case RelOp_cmp_slt:  return builder_.CreateICmpSLT(lhs, rhs);
+                case RelOp_cmp_sle:  return builder_.CreateICmpSLE(lhs, rhs);
 
-                case RelOp_fcmp_oeq: return builder.CreateFCmpOEQ(lhs, rhs);
-                case RelOp_fcmp_one: return builder.CreateFCmpONE(lhs, rhs);
+                case RelOp_fcmp_oeq: return builder_.CreateFCmpOEQ(lhs, rhs);
+                case RelOp_fcmp_one: return builder_.CreateFCmpONE(lhs, rhs);
 
-                case RelOp_fcmp_ogt: return builder.CreateFCmpOGT(lhs, rhs);
-                case RelOp_fcmp_oge: return builder.CreateFCmpOGE(lhs, rhs);
-                case RelOp_fcmp_olt: return builder.CreateFCmpOLT(lhs, rhs);
-                case RelOp_fcmp_ole: return builder.CreateFCmpOLE(lhs, rhs);
+                case RelOp_fcmp_ogt: return builder_.CreateFCmpOGT(lhs, rhs);
+                case RelOp_fcmp_oge: return builder_.CreateFCmpOGE(lhs, rhs);
+                case RelOp_fcmp_olt: return builder_.CreateFCmpOLT(lhs, rhs);
+                case RelOp_fcmp_ole: return builder_.CreateFCmpOLE(lhs, rhs);
 
-                case RelOp_fcmp_ueq: return builder.CreateFCmpUEQ(lhs, rhs);
-                case RelOp_fcmp_une: return builder.CreateFCmpUNE(lhs, rhs);
+                case RelOp_fcmp_ueq: return builder_.CreateFCmpUEQ(lhs, rhs);
+                case RelOp_fcmp_une: return builder_.CreateFCmpUNE(lhs, rhs);
 
-                case RelOp_fcmp_ugt: return builder.CreateFCmpUGT(lhs, rhs);
-                case RelOp_fcmp_uge: return builder.CreateFCmpUGE(lhs, rhs);
-                case RelOp_fcmp_ult: return builder.CreateFCmpULT(lhs, rhs);
-                case RelOp_fcmp_ule: return builder.CreateFCmpULE(lhs, rhs);
+                case RelOp_fcmp_ugt: return builder_.CreateFCmpUGT(lhs, rhs);
+                case RelOp_fcmp_uge: return builder_.CreateFCmpUGE(lhs, rhs);
+                case RelOp_fcmp_ult: return builder_.CreateFCmpULT(lhs, rhs);
+                case RelOp_fcmp_ule: return builder_.CreateFCmpULE(lhs, rhs);
 
-                case RelOp_fcmp_uno: return builder.CreateFCmpUNO(lhs, rhs);
-                case RelOp_fcmp_ord: return builder.CreateFCmpORD(lhs, rhs);
+                case RelOp_fcmp_uno: return builder_.CreateFCmpUNO(lhs, rhs);
+                case RelOp_fcmp_ord: return builder_.CreateFCmpORD(lhs, rhs);
             }
         }
 
         const ArithOp* arith = def->as<ArithOp>();
 
         switch (arith->arithop_kind()) {
-            case ArithOp_add:  return builder.CreateAdd (lhs, rhs);
-            case ArithOp_sub:  return builder.CreateSub (lhs, rhs);
-            case ArithOp_mul:  return builder.CreateMul (lhs, rhs);
-            case ArithOp_udiv: return builder.CreateUDiv(lhs, rhs);
-            case ArithOp_sdiv: return builder.CreateSDiv(lhs, rhs);
-            case ArithOp_urem: return builder.CreateURem(lhs, rhs);
-            case ArithOp_srem: return builder.CreateSRem(lhs, rhs);
+            case ArithOp_add:  return builder_.CreateAdd (lhs, rhs);
+            case ArithOp_sub:  return builder_.CreateSub (lhs, rhs);
+            case ArithOp_mul:  return builder_.CreateMul (lhs, rhs);
+            case ArithOp_udiv: return builder_.CreateUDiv(lhs, rhs);
+            case ArithOp_sdiv: return builder_.CreateSDiv(lhs, rhs);
+            case ArithOp_urem: return builder_.CreateURem(lhs, rhs);
+            case ArithOp_srem: return builder_.CreateSRem(lhs, rhs);
 
-            case ArithOp_fadd: return builder.CreateFAdd(lhs, rhs);
-            case ArithOp_fsub: return builder.CreateFSub(lhs, rhs);
-            case ArithOp_fmul: return builder.CreateFMul(lhs, rhs);
-            case ArithOp_fdiv: return builder.CreateFDiv(lhs, rhs);
-            case ArithOp_frem: return builder.CreateFRem(lhs, rhs);
+            case ArithOp_fadd: return builder_.CreateFAdd(lhs, rhs);
+            case ArithOp_fsub: return builder_.CreateFSub(lhs, rhs);
+            case ArithOp_fmul: return builder_.CreateFMul(lhs, rhs);
+            case ArithOp_fdiv: return builder_.CreateFDiv(lhs, rhs);
+            case ArithOp_frem: return builder_.CreateFRem(lhs, rhs);
 
-            case ArithOp_and:  return builder.CreateAnd (lhs, rhs);
-            case ArithOp_or:   return builder.CreateOr  (lhs, rhs);
-            case ArithOp_xor:  return builder.CreateXor (lhs, rhs);
+            case ArithOp_and:  return builder_.CreateAnd (lhs, rhs);
+            case ArithOp_or:   return builder_.CreateOr  (lhs, rhs);
+            case ArithOp_xor:  return builder_.CreateXor (lhs, rhs);
 
-            case ArithOp_shl:  return builder.CreateShl (lhs, rhs);
-            case ArithOp_lshr: return builder.CreateLShr(lhs, rhs);
-            case ArithOp_ashr: return builder.CreateAShr(lhs, rhs);
+            case ArithOp_shl:  return builder_.CreateShl (lhs, rhs);
+            case ArithOp_lshr: return builder_.CreateLShr(lhs, rhs);
+            case ArithOp_ashr: return builder_.CreateAShr(lhs, rhs);
         }
     }
 
@@ -333,15 +355,15 @@ llvm::Value* CodeGen::emit(const Def* def) {
         llvm::Type* to = convert(conv->to());
 
         switch (conv->convop_kind()) {
-            case ConvOp_trunc:  return builder.CreateTrunc  (from, to);
-            case ConvOp_zext:   return builder.CreateZExt   (from, to);
-            case ConvOp_sext:   return builder.CreateSExt   (from, to);
-            case ConvOp_stof:   return builder.CreateSIToFP (from, to);
-            case ConvOp_utof:   return builder.CreateSIToFP (from, to);
-            case ConvOp_ftrunc: return builder.CreateFPTrunc(from, to);
-            case ConvOp_ftos:   return builder.CreateFPToSI (from, to);
-            case ConvOp_ftou:   return builder.CreateFPToUI (from, to);
-            case ConvOp_bitcast:return builder.CreateBitCast(from, to);
+            case ConvOp_trunc:  return builder_.CreateTrunc  (from, to);
+            case ConvOp_zext:   return builder_.CreateZExt   (from, to);
+            case ConvOp_sext:   return builder_.CreateSExt   (from, to);
+            case ConvOp_stof:   return builder_.CreateSIToFP (from, to);
+            case ConvOp_utof:   return builder_.CreateSIToFP (from, to);
+            case ConvOp_ftrunc: return builder_.CreateFPTrunc(from, to);
+            case ConvOp_ftos:   return builder_.CreateFPToSI (from, to);
+            case ConvOp_ftou:   return builder_.CreateFPToUI (from, to);
+            case ConvOp_bitcast:return builder_.CreateBitCast(from, to);
         }
     }
 
@@ -349,7 +371,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         llvm::Value* cond = emit(select->cond());
         llvm::Value* tval = emit(select->tval());
         llvm::Value* fval = emit(select->fval());
-        return builder.CreateSelect(cond, tval, fval);
+        return builder_.CreateSelect(cond, tval, fval);
     }
 
     if (const TupleOp* tupleop = def->isa<TupleOp>()) {
@@ -357,12 +379,12 @@ llvm::Value* CodeGen::emit(const Def* def) {
         unsigned idxs[1] = { unsigned(tupleop->index()) };
 
         if (tupleop->node_kind() == Node_Extract)
-            return builder.CreateExtractValue(tuple, idxs);
+            return builder_.CreateExtractValue(tuple, idxs);
 
         const Insert* insert = def->as<Insert>();
         llvm::Value* value = emit(insert->value());
 
-        return builder.CreateInsertValue(tuple, value, idxs);
+        return builder_.CreateInsertValue(tuple, value, idxs);
     }
 
     if (const Tuple* tuple = def->isa<Tuple>()) {
@@ -370,7 +392,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
         for (unsigned i = 0, e = tuple->ops().size(); i != e; ++i) {
             unsigned idxs[1] = { unsigned(i) };
-            agg = builder.CreateInsertValue(agg, emit(tuple->op(i)), idxs);
+            agg = builder_.CreateInsertValue(agg, emit(tuple->op(i)), idxs);
         }
 
         return agg;

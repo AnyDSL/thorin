@@ -133,8 +133,6 @@ public:
     const Def* op(size_t i) const { return ops_[i]; }
     size_t numops() const { return ops_.size(); }
 
-    void replace(const Def* def) const;
-
     /*
      * check for special literals
      */

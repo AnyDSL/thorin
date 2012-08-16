@@ -69,46 +69,6 @@ bool Def::equal(const Def* other) const {
     return this->kind() == other->kind() && this->ops_ == other->ops_;
 }
 
-void Def::replace(const Def* with) const {
-    if (this == with)
-        return;
-
-    // unregister all uses of this node's operands
-    for (size_t i = 0, e = ops().size(); i != e; ++i)
-        ops_[i]->unregisterUse(i, this);
-
-    // copy over old use info
-    Array<Use> old_uses(uses_.size());
-    std::copy(uses_.begin(), uses_.end(), old_uses.begin());
-
-    // unregister all uses of this node
-    uses_.clear();
-
-    // update all operands of old uses to point to new node instead 
-    // and erase these nodes from world
-    for_all (use, old_uses) {
-        Def* udef = world().release(use.def());
-        udef->setOp(use.index(), with);
-    }
-
-    // reinsert all operands of old uses into world
-    // don't merge this loop with the loop above
-    for_all (use, old_uses) {
-        const Def* udef = use.def();
-
-        DefSet::iterator i = world().defs_.find(udef);
-        if (i != world().defs_.end()) {
-            const Def* ndef = *i;
-            assert(udef != ndef);
-            udef->replace(ndef);
-            delete udef;
-            continue;
-        }
-
-        world().defs_.insert(udef);
-    }
-}
-
 bool Def::isPrimLit(int val) const {
     if (const PrimLit* lit = this->isa<PrimLit>()) {
         Box box = lit->box();

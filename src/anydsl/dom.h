@@ -17,10 +17,14 @@ public:
     ~Dominators();
 
     typedef boost::unordered_map<const Def*, const Def*> DominatorRelation;
-    typedef DominatorRelation::const_iterator iterator;
+    typedef boost::unordered_multimap<const Def*, const Def*> DomChildren;
+    typedef DominatorRelation::const_iterator const_iterator;
+    typedef std::pair<DomChildren::const_iterator, DomChildren::const_iterator> Range;
 
-    iterator begin() const { return relation.begin(); }
-    iterator end() const { return relation.end(); }
+    const_iterator begin() const { return relation.begin(); }
+    const_iterator end() const { return relation.end(); }
+
+    const DomChildren& children() const { return children_; }
 
     const Def* operator[](const Def* source) const {
         DominatorRelation::const_iterator it = relation.find(source);
@@ -36,6 +40,7 @@ private:
     int intersect(int first, int second, const Doms& doms);
 
     DominatorRelation relation;
+    DomChildren children_;
 };
 
 }

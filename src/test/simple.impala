@@ -1,9 +1,13 @@
 def f(i : int) -> int
 {   
     a : int := 7;
-    if (a == i)
+    if (5 == 6)
         a = 23;
     else
         a = 42;
+
+    // while (i < 42)
+        // ++i;
+
     return a;
 }

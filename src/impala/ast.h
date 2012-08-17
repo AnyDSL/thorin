@@ -18,32 +18,6 @@ namespace anydsl {
 
 namespace impala {
 
-class Value {
-public:
-
-    Value(const anydsl::Def* def)
-        : lvalue_(false)
-        , def_(def)
-    {}
-    Value(anydsl::Var* var)
-        : lvalue_(true)
-        , var_(var)
-    {}
-
-    const anydsl::Def* load() const;
-    void store(const anydsl::Def* def);
-    bool lvalue() const { return lvalue_; }
-
-private:
-
-    bool lvalue_;
-
-    union {
-        const anydsl::Def* def_;
-        anydsl::Var* var_;
-    };
-};
-
 class CodeGen;
 class Decl;
 class Expr;
@@ -137,7 +111,8 @@ public:
 
     bool lvalue() const { return lvalue_; }
     const Type* type() const { return type_; }
-    virtual Value emit(CodeGen& cg) const = 0;
+    virtual anydsl::Var* lemit(CodeGen& cg) const { ANYDSL_UNREACHABLE; }
+    virtual const anydsl::Def* remit(CodeGen& cg) const = 0;
 
 protected:
 
@@ -156,7 +131,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual Value emit(CodeGen& cg) const;
+    virtual const anydsl::Def* remit(CodeGen& cg) const;
 };
 
 class Literal : public Expr {
@@ -175,7 +150,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual Value emit(CodeGen& cg) const;
+    virtual const anydsl::Def* remit(CodeGen& cg) const;
 
 private:
 
@@ -193,7 +168,8 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual Value emit(CodeGen& cg) const;
+    virtual const anydsl::Def* remit(CodeGen& cg) const;
+    virtual anydsl::Var* lemit(CodeGen& cg) const;
 
 private:
 
@@ -217,7 +193,8 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual Value emit(CodeGen& cg) const;
+    virtual const anydsl::Def* remit(CodeGen& cg) const;
+    virtual anydsl::Var* lemit(CodeGen& cg) const;
 
 private:
 
@@ -242,7 +219,8 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual Value emit(CodeGen& cg) const;
+    virtual const anydsl::Def* remit(CodeGen& cg) const;
+    virtual anydsl::Var* lemit(CodeGen& cg) const;
 
 private:
 
@@ -269,7 +247,8 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual Value emit(CodeGen& cg) const;
+    virtual const anydsl::Def* remit(CodeGen& cg) const;
+    virtual anydsl::Var* lemit(CodeGen& cg) const;
 
 private:
 
@@ -286,7 +265,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual Value emit(CodeGen& cg) const;
+    virtual const anydsl::Def* remit(CodeGen& cg) const;
 };
 
 //------------------------------------------------------------------------------

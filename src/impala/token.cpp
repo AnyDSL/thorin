@@ -104,6 +104,27 @@ TokenKind Token::seperateAssign(TokenKind kind) {
     }
 }
 
+int Token::toBinOp(Kind kind) {
+    switch (kind) {
+        case INC:
+        case ADD: return anydsl::ArithOp_add;
+        case DEC:
+        case SUB: return anydsl::ArithOp_sub;
+        case MUL: return anydsl::ArithOp_mul;
+        case DIV: return anydsl::ArithOp_udiv;
+        case AND: return anydsl::ArithOp_and;
+        case  OR: return anydsl::ArithOp_or;
+        case XOR: return anydsl::ArithOp_xor;
+        case  EQ: return anydsl::RelOp_cmp_eq;
+        case  NE: return anydsl::RelOp_cmp_ne;
+        case  LT: return anydsl::RelOp_cmp_ult;
+        case  LE: return anydsl::RelOp_cmp_ule;
+        case  GT: return anydsl::RelOp_cmp_ugt;
+        case  GE: return anydsl::RelOp_cmp_uge;
+        default: ANYDSL_UNREACHABLE;
+    }
+}
+
 anydsl::ArithOpKind Token::toArithOp(Kind kind) {
     switch (kind) {
         case INC:

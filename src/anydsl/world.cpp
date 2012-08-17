@@ -100,6 +100,14 @@ const Bottom* World::bottom(const Type* type) {
  * create
  */
 
+const Def* World::binop(int kind, const Def* lhs, const Def* rhs) {
+    if (isArithOp(kind))
+        return arithop((ArithOpKind) kind, lhs, rhs);
+
+    anydsl_assert(isRelOp(kind), "must be a RelOp");
+    return relop((RelOpKind) kind, lhs, rhs);
+}
+
 const Def* World::tuple(ArrayRef<const Def*> args) {
     Array<const Type*> elems(args.size());
 

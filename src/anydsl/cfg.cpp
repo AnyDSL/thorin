@@ -26,12 +26,18 @@ BB::~BB() {
 }
 
 Var* BB::setVar(const Symbol& symbol, const Def* def) {
-    anydsl_assert(vars_.find(symbol) == vars_.end(), "double insert");
+    VarMap::iterator i = vars_.find(symbol);
 
-    Var* lvar = new Var(symbol, def);
-    vars_[symbol] = lvar;
+    if (i != vars_.end()) {
+        Var* var = i->second;
+        var->store(def);
+        return var;
+    }
 
-    return lvar;
+    Var* var = new Var(symbol, def);
+    vars_[symbol] = var;
+
+    return var;
 }
 
 Var* BB::getVar(const Symbol& symbol, const Type* type) {
@@ -77,7 +83,7 @@ Var* BB::getVar(const Symbol& symbol, const Type* type) {
     Var* lvar = pred->getVar(symbol, type);
 
     // create copy of lvar in this BB
-    return setVar(symbol, lvar->def);
+    return setVar(symbol, lvar->load());
 }
 
 void BB::seal() {
@@ -121,7 +127,7 @@ void BB::fixTodo(const Symbol& symbol, Todo todo) {
             out.resize(index + 1);
 
         anydsl_assert(!pred->out_[index], "already set");
-        out[index] = pred->getVar(symbol, type)->def;
+        out[index] = pred->getVar(symbol, type)->load();
     }
 }
 
@@ -250,7 +256,7 @@ BB* Fct::createBB(const std::string& debug /*= ""*/) {
 void Fct::emit() {
     // exit
     exit()->seal();
-    world().jump1(exit_->topLambda_, retCont(), exit()->getVar(Symbol("<result>"), retType())->def);
+    world().jump1(exit_->topLambda_, retCont(), exit()->getVar(Symbol("<result>"), retType())->load());
 
     world().setLive(exit_->curLambda_);
 

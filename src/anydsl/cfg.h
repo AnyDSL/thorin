@@ -47,15 +47,23 @@ struct Todo {
 
 typedef std::vector<FctParam> FctParams;
 
-struct Var {
-    Symbol symbol;
-    const Def* def;
+class Var {
+public:
 
     Var() {}
     Var(const Symbol& symbol, const Def* def)
-        : symbol(symbol)
-        , def(def)
+        : symbol_(symbol)
+        , def_(def)
     {}
+
+    Symbol symobl() const { return symbol_; }
+    const Def* load() const { return def_; }
+    void store(const Def* def) { def_ = def; }
+
+private:
+
+    Symbol symbol_;
+    const Def* def_;
 };
 
 /** 

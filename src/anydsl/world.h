@@ -159,12 +159,15 @@ public:
      * create
      */
 
-    const Def* arithop(ArithOpKind kind, const Def* ldef, const Def* rdef);
-#define ANYDSL_ARITHOP(OP) const Def* arithop_##OP(const Def* ldef, const Def* rdef) { return arithop(ArithOp_##OP, ldef, rdef); }
+    /// Creates an \p ArithOp or a \p RelOp.
+    const Def* binop(int kind, const Def* lhs, const Def* rhs);
+
+    const Def* arithop(ArithOpKind kind, const Def* lhs, const Def* rhs);
+#define ANYDSL_ARITHOP(OP) const Def* arithop_##OP(const Def* lhs, const Def* rhs) { return arithop(ArithOp_##OP, lhs, rhs); }
 #include "anydsl/tables/arithoptable.h"
 
-    const Def* relop(RelOpKind kind, const Def* ldef, const Def* rdef);
-#define ANYDSL_RELOP(OP) const Def* relop_##OP(const Def* ldef, const Def* rdef) { return relop(RelOp_##OP, ldef, rdef); }
+    const Def* relop(RelOpKind kind, const Def* lhs, const Def* rhs);
+#define ANYDSL_RELOP(OP) const Def* relop_##OP(const Def* lhs, const Def* rhs) { return relop(RelOp_##OP, lhs, rhs); }
 #include "anydsl/tables/reloptable.h"
 
     const Def* convop(ConvOpKind kind, const Def* from, const Type* to);

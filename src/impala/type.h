@@ -22,7 +22,7 @@ public:
     virtual ~Type() {}
 
     virtual void dump(Printer& p) const = 0;
-    virtual const anydsl::Type* emit(anydsl::World& world) const = 0;
+    virtual const anydsl::Type* convert(anydsl::World& world) const = 0;
 
     virtual bool isBool() const { return false; }
     virtual bool isError() const { return false; }
@@ -62,7 +62,7 @@ public:
     Kind kind() const { return kind_; }
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Type* emit(anydsl::World& world) const;
+    virtual const anydsl::Type* convert(anydsl::World& world) const;
     virtual bool isBool() const { return kind_ == TYPE_bool; }
 
 private:
@@ -83,7 +83,7 @@ private:
 public:
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Type* emit(anydsl::World& world) const;
+    virtual const anydsl::Type* convert(anydsl::World& world) const;
     virtual bool isVoid() const { return true; }
 
     friend class TypeTable;
@@ -101,7 +101,7 @@ private:
 public:
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Type* emit(anydsl::World& world) const;
+    virtual const anydsl::Type* convert(anydsl::World& world) const;
     virtual bool isVoid() const { return true; }
 
     friend class TypeTable;
@@ -118,7 +118,7 @@ private:
 public:
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Type* emit(anydsl::World& world) const;
+    virtual const anydsl::Type* convert(anydsl::World& world) const;
     virtual bool isError() const { return true; }
 
     friend class TypeTable;
@@ -132,7 +132,7 @@ private:
 public:
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Type* emit(anydsl::World& world) const;
+    virtual const anydsl::Type* convert(anydsl::World& world) const;
 
     typedef anydsl::ArrayRef<const Type*> Elems;
     Elems elems() const { return Elems(elems_); }

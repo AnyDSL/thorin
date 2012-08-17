@@ -100,6 +100,7 @@ public:
     static bool isRel(Kind kind);
     static Kind seperateAssign(Kind kind);
 
+    static int toBinOp(Kind kind);
     static anydsl::ArithOpKind toArithOp(Kind kind);
     static anydsl::RelOpKind toRelOp(Kind kind);
     static anydsl::PrimTypeKind toPrimType(Kind kind);

@@ -13,14 +13,6 @@ using anydsl::dcast;
 
 namespace impala {
 
-const anydsl::Def* Value::load() const { 
-    return lvalue_ ? var_->def : def_; 
-}
-
-void Value::store(const anydsl::Def* def) { 
-    anydsl_assert(lvalue_, "store to rvalue"); var_->def = def; 
-}
-
 //------------------------------------------------------------------------------
 
 Decl::Decl(const Token& tok, const Type* type, const Position& pos2)

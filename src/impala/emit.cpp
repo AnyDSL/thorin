@@ -36,6 +36,8 @@ public:
 
     bool reachable() const { return curBB; }
 
+    const anydsl::Type* convert(const Type* type) { return type->convert(world); }
+
     anydsl::BB* curBB;
     anydsl::Fct* curFct;
     anydsl::World& world;
@@ -60,12 +62,12 @@ void Prg::emit(CodeGen& cg) const {
 
         size_t i = 0;
         for_all (param, f->params()) {
-            tparams[i] = param->type()->convert(cg.world);
+            tparams[i] = cg.convert(param->type());
             sparams[i] = param->symbol();
             ++i;
         }
 
-        const anydsl::Type* retType = f->pi()->retType()->convert(cg.world);
+        const anydsl::Type* retType = cg.convert(f->pi()->retType());
         cg.fcts[f->symbol()] = new anydsl::Fct(cg.world, tparams, sparams, retType, f->symbol().str());
     }
 
@@ -90,7 +92,7 @@ void Fct::emit(CodeGen& cg) const {
 }
 
 Var* Decl::emit(CodeGen& cg) const {
-    Var* var = cg.curBB->setVar(symbol(), cg.world.bottom(type()->convert(cg.world)));
+    Var* var = cg.curBB->setVar(symbol(), cg.world.bottom(cg.convert(type())));
     var->load()->debug = symbol().str();
 
     return var;
@@ -119,7 +121,7 @@ const Def* Literal::remit(CodeGen& cg) const {
 }
 
 Var* Id::lemit(CodeGen& cg) const {
-    return cg.curBB->getVar(symbol(), type()->convert(cg.world));
+    return cg.curBB->getVar(symbol(), cg.convert(type()));
 }
 
 const Def* Id::remit(CodeGen& cg) const {
@@ -175,7 +177,7 @@ Var* InfixExpr::lemit(CodeGen& cg) const {
 
     // special case for 'a = expr' -> don't use getVar!
     Var* lvar = op == Token::ASGN && id
-              ? cg.curBB->setVar(id->symbol(), cg.world.bottom(id->type()->convert(cg.world)))
+              ? cg.curBB->setVar(id->symbol(), cg.world.bottom(cg.convert(id->type())))
               : lvar = lhs()->lemit(cg);
 
     const Def* ldef = lvar->load();
@@ -227,7 +229,7 @@ const Def* Call::remit(CodeGen& cg) const {
     for_all (arg, args_)
         args[i++] = arg->remit(cg);
 
-    const anydsl::Type* retType = type()->convert(cg.world);
+    const anydsl::Type* retType = cg.convert(type());
 
     return cg.curBB->calls(args[0], args.slice_back(1), retType);
 }

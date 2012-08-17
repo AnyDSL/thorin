@@ -10,6 +10,7 @@
 #include "anydsl/literal.h"
 #include "anydsl/type.h"
 #include "anydsl/util/array.h"
+#include "anydsl/util/for_all.h"
 
 // debug includes
 #include "anydsl/order.h"
@@ -27,6 +28,10 @@
     case PrimType_f32: \
     case PrimType_f64: ANYDSL_UNREACHABLE;
 
+#define for_all_lambdas(l) \
+    for_all (__def, defs_) \
+        if (const Lambda* l =__def->isa<Lambda>())
+
 namespace anydsl {
 
 /*
@@ -35,8 +40,8 @@ namespace anydsl {
 
 World::World()
     : defs_(1031)
-    , unit_ (find(new Sigma(*this, Array<const Type*>(0))))
-    , pi0_  (find(new Pi   (*this, Array<const Type*>(0))))
+    , unit_ (find(new Sigma(*this, ArrayRef<const Type*>(0, 0))))
+    , pi0_  (find(new Pi   (*this, ArrayRef<const Type*>(0, 0))))
 #define ANYDSL_UF_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T)))
 #include "anydsl/tables/primtypetable.h"
 {
@@ -52,7 +57,6 @@ World::~World() {
         delete def;
 #else
     live_.clear();
-    reachable_.clear();
     cleanup();
     anydsl_assert(defs_.empty(), "cleanup should catch everything");
 #endif
@@ -418,11 +422,6 @@ void World::setLive(const Def* def) {
     live_.insert(def);
 }
 
-void World::setReachable(const Lambda* lambda) {
-    assert(defs_.find(lambda) != defs_.end());
-    reachable_.insert(lambda);
-}
-
 void World::dce() {
     // mark all as dead
     unmark();
@@ -435,7 +434,7 @@ void World::dce() {
     DefSet::iterator i = defs_.begin();
     while (i != defs_.end()) {
         const Def* def = *i;
-        if (!def->flag_) {
+        if (!def->marker_) {
             destroy(def);
             i = defs_.erase(i);
         } else
@@ -444,10 +443,10 @@ void World::dce() {
 }
 
 void World::dce_insert(const Def* def) {
-    if (def->flag_)
+    if (def->marker_)
         return;
 
-    def->flag_ = true;
+    def->marker_ = true;
 
     if (const Type* type = def->type())
         dce_insert(type);
@@ -473,14 +472,15 @@ void World::uce() {
     unmark();
 
     // find all reachable lambdas
-    for_all (lambda, reachable_)
-        uce_insert(lambda);
+    for_all_lambdas (lambda)
+        if (lambda->isExtern())
+            uce_insert(lambda);
 
     // destroy all unreachable lambdas
     DefSet::iterator i = defs_.begin();
     while (i != defs_.end()) {
         if (const Lambda* lambda = (*i)->isa<Lambda>()) {
-            if (!lambda->flag_) {
+            if (!lambda->marker_) {
                 destroy(lambda);
                 i = defs_.erase(i);
                 continue;
@@ -493,10 +493,10 @@ void World::uce() {
 void World::uce_insert(const Lambda* lambda) {
     assert(defs_.find(lambda) != defs_.end());
 
-    if (lambda->flag_)
+    if (lambda->marker_)
         return;
 
-    lambda->flag_ = true;
+    lambda->marker_ = true;
 
     if (const Type* type = lambda->type())
         dce_insert(type);
@@ -533,7 +533,7 @@ void World::cfg_simplify() {
 
         if (const Lambda* to = lambda->to()->isa<Lambda>())
             if (to->uses().size() == 1)
-                if (reachable_.find(to) == reachable_.end()) // HACK
+                if (!to->isExtern()) // HACK
                     if (lambda == to->uses().begin()->def()) {
                         Lambda* newl = new Lambda(lambda->pi());
                         newl->debug = lambda->debug + "+" + to->debug;
@@ -548,10 +548,6 @@ void World::cfg_simplify() {
                         if (live_.find(to) != live_.end()) {
                             live_.erase(to);
                             live_.insert(newl);
-                        }
-                        if (reachable_.find(to) != reachable_.end()) {
-                            reachable_.erase(to);
-                            reachable_.insert(newl);
                         }
 
                         lambdas.erase(to);
@@ -639,19 +635,13 @@ void World::param_opt() {
 
 void World::unmark() {
     for_all (def, defs_)
-        def->flag_ = false;
+        def->marker_ = false;
 }
 
 void World::destroy(const Def* def) {
     Live::iterator i = live_.find(def);
     if (i != live_.end())
         live_.erase(i);
-
-    if (const Lambda* lambda = def->isa<Lambda>()) {
-        Reachable::iterator i = reachable_.find(lambda);
-        if (i != reachable_.end())
-            reachable_.erase(i);
-    }
 
     delete def;
 }
@@ -678,13 +668,13 @@ const Def* World::findDef(const Def* def) {
 void World::dump(bool fancy) {
     unmark();
 
-    for_all (lambda, reachable_) {
-        if (lambda->flag_)
+    for_all_lambdas (lambda) {
+        if (!lambda->isExtern() || lambda->marker_)
             continue;
 
         std::queue<const Lambda*> queue;
         queue.push(lambda);
-        lambda->flag_ = true;
+        lambda->marker_ = true;
 
         while (!queue.empty()) {
             const Lambda* cur = queue.front();
@@ -694,8 +684,8 @@ void World::dump(bool fancy) {
             std::cout << std::endl;
 
             for_all (succ, cur->succ()) {
-                if (!succ->flag_) {
-                    succ->flag_ = true;
+                if (!succ->marker_ && !succ->isExtern()) {
+                    succ->marker_ = true;
                     queue.push(succ);
                 }
             }
@@ -719,13 +709,6 @@ void World::replace(const Def* what, const Def* with) {
     Def* def = release(what);
     Lambda* lambda = def->isa<Lambda>();
 
-    if (lambda) {
-        Reachable::iterator i = reachable_.find(lambda);
-        if (i != reachable_.end()) {
-            reachable_.erase(i);
-            reachable_.insert(with->as<Lambda>());
-        }
-    }
     {
         Live::iterator i = live_.find(def);
         if (i != live_.end()) {
@@ -790,7 +773,6 @@ void World::replace(const Def* what, const Def* with) {
 
     destroy(def);
 }
-
 
 /*
  * debug printing

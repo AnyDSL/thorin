@@ -10,8 +10,9 @@
 
 namespace anydsl {
 
-Lambda::Lambda(const Pi* pi)
+Lambda::Lambda(const Pi* pi, uint32_t flags)
     : Def(Node_Lambda, pi, 0)
+    , flags_(flags)
 {
     params_.reserve(pi->size());
 

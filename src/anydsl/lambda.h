@@ -26,7 +26,11 @@ typedef boost::container::flat_set<const Param*, ParamLess> Params;
 class Lambda : public Def {
 public:
 
-    Lambda(const Pi* pi);
+    enum Flags {
+        Extern = 1 << 0,
+    };
+
+    Lambda(const Pi* pi, uint32_t flags = 0);
     virtual ~Lambda();
 
     const Param* appendParam(const Type* type);
@@ -43,6 +47,8 @@ public:
 
     void dump(bool fancy = false) const;
 
+    bool isExtern() const { return flags_ & Extern; }
+
 private:
 
     virtual bool equal(const Def* other) const;
@@ -50,6 +56,7 @@ private:
     virtual void vdump(Printer& printer) const;
 
     Params params_;
+    uint32_t flags_;
 
     friend class World;
     friend class Param;

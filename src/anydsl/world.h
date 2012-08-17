@@ -10,7 +10,6 @@
 #include "anydsl/type.h"
 #include "anydsl/util/autoptr.h"
 #include "anydsl/util/box.h"
-#include "anydsl/util/for_all.h"
 
 namespace anydsl {
 
@@ -201,8 +200,6 @@ public:
 
     /// Tell the world which Def%s are axiomatically live.
     void setLive(const Def* def);
-    /// Tell the world which Lambda%s axiomatically reachable.
-    void setReachable(const Lambda* lambda);
 
     /// Dead code elimination.
     void dce();
@@ -252,7 +249,6 @@ private:
     const Def* findDef(const Def* def);
 
     typedef boost::unordered_set<const Def*> Live;
-    typedef boost::unordered_set<const Lambda*> Reachable;
 
     void dce_insert(const Def* def);
     void uce_insert(const Lambda* lambda);
@@ -260,7 +256,6 @@ private:
     DefSet defs_;
 
     Live live_;
-    Reachable reachable_;
 
     const Sigma* unit_; ///< sigma().
     const Pi* pi0_;     ///< pi().

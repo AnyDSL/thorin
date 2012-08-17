@@ -209,7 +209,7 @@ Fct::Fct(World& world,
     assert(tparams.size() == sparams.size());
     sealed_ = true;
     fct_ = this;
-    curLambda_ = topLambda_ = new Lambda(world.pi(tparams));
+    curLambda_ = topLambda_ = new Lambda(world.pi(tparams), Lambda::Extern);
     topLambda_->debug = debug;
 
     size_t i = 0;
@@ -251,7 +251,6 @@ void Fct::emit() {
 
     // fct
     BB::emit();
-    world().setReachable(topLambda_);
 }
 
 //------------------------------------------------------------------------------

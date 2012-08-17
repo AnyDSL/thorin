@@ -156,7 +156,7 @@ private:
     const Type* type_;
     Array<const Def*> ops_;
     mutable Uses uses_;
-    mutable bool flag_;
+    mutable bool marker_;
 
     friend class World;
     friend class DefHash;

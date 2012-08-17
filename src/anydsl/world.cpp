@@ -504,8 +504,8 @@ void World::cleanup() {
 
 void World::opt() {
     cleanup();
-    cfg_simplify();
-    cleanup();
+    //cfg_simplify();
+    //cleanup();
     param_opt();
     cleanup();
 }

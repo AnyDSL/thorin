@@ -209,6 +209,8 @@ public:
     /// Performs dead code and unreachable code elimination.
     void cleanup();
 
+    void opt();
+
     void cfg_simplify();
     void param_opt();
 

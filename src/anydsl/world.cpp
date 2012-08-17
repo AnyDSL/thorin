@@ -500,8 +500,14 @@ void World::uce_insert(const Lambda* lambda) {
 void World::cleanup() {
     uce();
     dce();
+}
+
+void World::opt() {
+    cleanup();
     cfg_simplify();
-    //param_opt();
+    cleanup();
+    param_opt();
+    cleanup();
 }
 
 void World::cfg_simplify() {
@@ -531,6 +537,15 @@ void World::cfg_simplify() {
 
                         replace(lambda, newl);
 
+                        if (live_.find(to) != live_.end()) {
+                            live_.erase(to);
+                            live_.insert(newl);
+                        }
+                        if (reachable_.find(to) != reachable_.end()) {
+                            reachable_.erase(to);
+                            reachable_.insert(newl);
+                        }
+
                         lambdas.erase(to);
                         lambdas.insert(newl);
                     }
@@ -540,6 +555,23 @@ void World::cfg_simplify() {
 }
 
 void World::param_opt() {
+    for_all (def, defs_)
+        if (const Lambda* lambda = def->isa<Lambda>())
+            if (lambda->pi()->size() != lambda->params().size()) {
+                // find holes
+                size_t i = 0;
+                for_all (param, lambda->params())
+                    if (param->index() == i)
+                        ++i;
+                    else
+                        for (; i < param->index(); ++i)
+                            for_all (use, lambda->uses())
+                                if (const Lambda* caller = use.def()->isa<Lambda>()) {
+                                    const Bottom* bot = bottom(lambda->pi()->elem(i));
+                                    replace(caller->arg(i), bot);
+                                }
+            }
+#if 0
     for_all (def, defs_)
         if (const Lambda* lambda = def->isa<Lambda>()) {
             const Pi* pi = lambda->pi();
@@ -583,7 +615,7 @@ void World::param_opt() {
                 }
             }
         }
-#if 0
+//#if 0
         in_.erase(index);
         for_all (pred, preds_)
             pred->out_.erase(index);
@@ -721,6 +753,7 @@ void World::replace(const Def* what, const Def* with) {
 
         DefSet::iterator i = defs_.find(udef);
         if (i != defs_.end()) {
+            std::cout << "NOT YET TESTED" << std::endl;
             const Def* ndef = *i;
             assert(udef != ndef);
             replace(udef, ndef);
@@ -733,7 +766,11 @@ void World::replace(const Def* what, const Def* with) {
 
     if (lambda) {
         Params::const_iterator i = with->as<Lambda>()->params().begin();
-        for_all (param, lambda->params()) {
+
+        Array<const Param*> params(lambda->params().size());
+        std::copy(lambda->params().begin(), lambda->params().end(), params.begin());
+
+        for_all (param, params) {
             while ((*i)->index() < param->index())
                 ++i;
 

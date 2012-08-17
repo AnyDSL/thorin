@@ -38,6 +38,7 @@ public:
 
     const Def* to() const { return op(0); };
     Ops args() const { return ops().slice_back(1); }
+    const Def* arg(size_t i) const { return args()[i]; }
     const Pi* pi() const;
 
     void dump(bool fancy = false) const;

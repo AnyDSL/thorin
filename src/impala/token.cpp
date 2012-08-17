@@ -198,18 +198,18 @@ void Token::init() {
 #define IMPALA_TYPE(itype, atype)         insertKey(TYPE_ ## itype, #itype );
 #include <impala/tokenlist.h>
 
-    insertKey(TYPE_int, "int");
-    insertKey(TYPE_uint, "uint");
-    insertKey(TYPE_void, "void");
+    insertKey(TYPE_int,   "int");
+    insertKey(TYPE_uint,  "uint");
+    insertKey(TYPE_void,  "void");
     insertKey(TYPE_noret, "noret");
-    insertKey(DEF, "def");
+    insertKey(DEF,        "def");
 
-    tok2str_[TYPE_int]   =  Symbol("int").str();
-    tok2str_[TYPE_uint]  =  Symbol("uint").str();
-    tok2str_[TYPE_noret] =  Symbol("noret").str();
-    tok2str_[DEF] =         Symbol("def").str();
-    tok2str_[ID]  =         Symbol("<identifier>").str();
-    tok2str_[END_OF_FILE] = Symbol("<end of file>").str();
+    tok2str_[TYPE_int]   = Symbol("int").str();
+    tok2str_[TYPE_uint]  = Symbol("uint").str();
+    tok2str_[TYPE_noret] = Symbol("noret").str();
+    tok2str_[DEF]        = Symbol("def").str();
+    tok2str_[ID]         = Symbol("<identifier>").str();
+    tok2str_[END_OF_FILE]= Symbol("<end of file>").str();
 }
 
 /*static*/ void Token::insertKey(TokenKind tok, const char* str) {

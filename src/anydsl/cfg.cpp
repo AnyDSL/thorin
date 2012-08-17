@@ -184,16 +184,13 @@ World& BB::world() {
 }
 
 void BB::emit() {
-    std::cout << topLambda_->debug << ": " << succs().size() << std::endl;
     switch (succs().size()) {
         case 1:
             world().jump(curLambda_, (*succs().begin())->topLambda(), out_);
             break;
         case 2:
             anydsl_assert(out_.empty(), "sth went wrong with critical edge elimination");
-            std::cout << "---" << std::endl;
             world().branch(curLambda_, cond_, tbb_->topLambda(), fbb_->topLambda());
-            std::cout << "===" << std::endl;
             break;
         default: 
             ANYDSL_UNREACHABLE;

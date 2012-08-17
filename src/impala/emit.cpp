@@ -145,10 +145,17 @@ const Def* PrefixExpr::remit(CodeGen& cg) const {
         return rhs()->remit(cg); // this is a NOP
 
     if (kind() == SUB) {
-        // TODO incorrect for f32, f64
         const Def* def = rhs()->remit(cg);
         const anydsl::PrimType* pt = def->type()->as<anydsl::PrimType>();
-        const anydsl::PrimLit* zero = cg.world.literal(pt->primtype_kind(), 0u);
+        const anydsl::PrimLit* zero; 
+
+        switch (pt->primtype_kind()) {
+            case anydsl::PrimType_f32: zero = cg.world.literal_f32(-0.f); break;
+            case anydsl::PrimType_f64: zero = cg.world.literal_f64(-0.0); break;
+            default: 
+                assert(pt->isInt()); 
+                zero = cg.world.literal(pt->primtype_kind(), 0u);
+        }
 
         return cg.world.arithop(anydsl::ArithOp_sub, zero, def);
     }

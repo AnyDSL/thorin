@@ -53,6 +53,9 @@ public:
 
     PrimTypeKind primtype_kind() const { return (PrimTypeKind) node_kind(); }
 
+    bool isInt()   const { return anydsl::isInt(primtype_kind()); }
+    bool isFloat() const { return anydsl::isFloat(primtype_kind()); }
+
 private:
 
     virtual void vdump(Printer& printer) const;

@@ -16,7 +16,8 @@ typedef boost::unordered_set<const Lambda*> LambdaSet;
 
 struct ParamLess {
     bool operator () (const Param* p1, const Param* p2) const {
-        anydsl_assert(p1->lambda() == p2->lambda(), "params belong to different lambdas"); 
+        anydsl_assert(!p1->lambda() || !p2->lambda() || p1->lambda() == p2->lambda(), 
+                "params belong to different lambdas"); 
         return p1->index() < p2->index(); 
     }
 };
@@ -35,10 +36,17 @@ public:
 
     const Param* appendParam(const Type* type);
 
+    // higher order params
+    Params::const_iterator ho_begin() const;
+    Params::const_iterator ho_end() const { return params_.end(); }
+    void ho_next(Params::const_iterator& i) const;
+    bool isHigherOrder() const { return ho_begin() != ho_end(); }
+
     LambdaSet targets() const;
     LambdaSet succ() const;
     LambdaSet callers() const;
     const Params& params() const { return params_; }
+    const Param* param(size_t i) const;
 
     const Def* to() const { return op(0); };
     Ops args() const { return ops().slice_back(1); }

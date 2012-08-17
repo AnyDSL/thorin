@@ -243,8 +243,6 @@ void Fct::emit() {
     exit()->seal();
     world().jump1(exit_->topLambda_, retCont(), exit()->getVar(Symbol("<result>"), retType())->load());
 
-    world().setLive(exit_->curLambda_);
-
     for_all (bb, cfg_)
         if (bb != exit())
             bb->emit();

@@ -198,9 +198,6 @@ public:
      * optimizations
      */
 
-    /// Tell the world which Def%s are axiomatically live.
-    void setLive(const Def* def);
-
     /// Dead code elimination.
     void dce();
     /// Unreachable code elimination.
@@ -244,7 +241,6 @@ private:
 
     const Lambda* finalize(Lambda*& lambda);
     void unmark();
-    void destroy(const Def* def);
 
     const Def* findDef(const Def* def);
 
@@ -254,8 +250,6 @@ private:
     void uce_insert(const Lambda* lambda);
 
     DefSet defs_;
-
-    Live live_;
 
     const Sigma* unit_; ///< sigma().
     const Pi* pi0_;     ///< pi().

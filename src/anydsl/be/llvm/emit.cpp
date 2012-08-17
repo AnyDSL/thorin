@@ -76,7 +76,7 @@ void CodeGen::recEmit(Dominators& dom, const Lambda* lambda) {
 void CodeGen::emit() {
     for_all (def, world_.defs())
         if (const Lambda* lambda = def->isa<Lambda>())
-            if (lambda->pi()->isHigherOrder()) {
+            if (lambda->isHigherOrder()) {
                 llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
                 llvm::Function* f = llvm::Function::Create(ft, llvm::Function::PrivateLinkage, lambda->debug, module_);
                 top_.insert(std::make_pair(lambda, f));
@@ -84,7 +84,7 @@ void CodeGen::emit() {
 
     for_all (lf, top_) {
         curLam_ = lf.first;
-        size_t retPos = curLam_->pi()->nextPi();
+        size_t retPos = curLam_->pi()->beginPi();
 
         for_all (p, curLam_->params()) {
             if (p->index() == retPos) {

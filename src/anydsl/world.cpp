@@ -45,21 +45,11 @@ World::World()
 #define ANYDSL_UF_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T)))
 #include "anydsl/tables/primtypetable.h"
 {
-    live_.insert(unit_);
-    live_.insert(pi0_);
-    for (size_t i = 0; i < Num_PrimTypes; ++i)
-        live_.insert(primTypes_[i]);
 }
 
 World::~World() {
-#ifdef NDEBUG
     for_all (def, defs_)
         delete def;
-#else
-    live_.clear();
-    cleanup();
-    anydsl_assert(defs_.empty(), "cleanup should catch everything");
-#endif
 }
 
 /*
@@ -418,24 +408,32 @@ void World::branch(Lambda*& lambda, const Def* cond, const Def* tto, const Def* 
  * optimizations
  */
 
-void World::setLive(const Def* def) {
-    live_.insert(def);
-}
-
 void World::dce() {
     // mark all as dead
     unmark();
 
-    // find all live values
-    for_all (def, live_)
-        dce_insert(def);
+    dce_insert(unit_);
+    dce_insert(pi0_);
+    for (size_t i = 0; i < Num_PrimTypes; ++i)
+        dce_insert(primTypes_[i]);
+
+    for_all_lambdas (lambda)
+        if (lambda->isExtern()) {
+            const Pi* pi = lambda->pi();
+            for (Params::const_iterator i = lambda->ho_begin(), e = lambda->ho_end(); i != e; lambda->ho_next(i)) {
+                const Param* param = *i;
+                for_all (use, param->uses())
+                    dce_insert(use.def());
+            }
+
+        }
 
     // kill the living dead
     DefSet::iterator i = defs_.begin();
     while (i != defs_.end()) {
         const Def* def = *i;
         if (!def->marker_) {
-            destroy(def);
+            delete def;
             i = defs_.erase(i);
         } else
             ++i;
@@ -481,7 +479,7 @@ void World::uce() {
     while (i != defs_.end()) {
         if (const Lambda* lambda = (*i)->isa<Lambda>()) {
             if (!lambda->marker_) {
-                destroy(lambda);
+                delete lambda;
                 i = defs_.erase(i);
                 continue;
             }
@@ -544,11 +542,6 @@ void World::cfg_simplify() {
                             replace(*i++, arg);
 
                         replace(lambda, newl);
-
-                        if (live_.find(to) != live_.end()) {
-                            live_.erase(to);
-                            live_.insert(newl);
-                        }
 
                         lambdas.erase(to);
                         lambdas.insert(newl);
@@ -638,14 +631,6 @@ void World::unmark() {
         def->marker_ = false;
 }
 
-void World::destroy(const Def* def) {
-    Live::iterator i = live_.find(def);
-    if (i != live_.end())
-        live_.erase(i);
-
-    delete def;
-}
-
 const Def* World::findDef(const Def* def) {
     DefSet::iterator i = defs_.find(def);
     if (i != defs_.end()) {
@@ -709,14 +694,6 @@ void World::replace(const Def* what, const Def* with) {
     Def* def = release(what);
     Lambda* lambda = def->isa<Lambda>();
 
-    {
-        Live::iterator i = live_.find(def);
-        if (i != live_.end()) {
-            live_.erase(i);
-            live_.insert(with);
-        }
-    }
-
     // unregister all uses of this node's operands
     for (size_t i = 0, e = def->ops().size(); i != e; ++i) {
         def->ops_[i]->unregisterUse(i, def);
@@ -771,7 +748,7 @@ void World::replace(const Def* what, const Def* with) {
         }
     }
 
-    destroy(def);
+    delete def;
 }
 
 /*

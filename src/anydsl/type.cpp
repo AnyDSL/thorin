@@ -64,14 +64,26 @@ bool Sigma::equal(const Def* other) const {
 
 //------------------------------------------------------------------------------
 
-size_t Pi::nextPi(size_t pos) const {
-    while (pos < size())
-        if (elem(pos)->isa<Pi>())
-            return pos;
-        else
-            ++pos;
+size_t Pi::ho_begin() const {
+    for (size_t i = 0, e = size(); i != e; ++i)
+        if (elem(i)->isa<Pi>())
+            return i;
 
     return npos;
 }
+
+void Pi::ho_next(size_t& i) const {
+    ++i;
+
+    while (i < size())
+        if (elem(i)->isa<Pi>())
+            return;
+        else
+            ++i;
+
+    i = npos;
+}
+
+//------------------------------------------------------------------------------
 
 } // namespace anydsl

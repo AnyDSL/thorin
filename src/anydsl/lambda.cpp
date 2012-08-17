@@ -99,4 +99,25 @@ size_t Lambda::hash() const {
     return boost::hash_value(this);
 }
 
+const Param* Lambda::param(size_t i) const {
+    Param p(0, 0, i);
+    return *params_.find(&p);
+}
+
+Params::const_iterator Lambda::ho_begin() const {
+    Params::const_iterator result = params_.begin();
+
+    while (result != params_.end() && !(*result)->type()->isa<Pi>())
+        ++result;
+
+    return result;
+}
+
+void Lambda::ho_next(Params::const_iterator& i) const {
+    ++i;
+
+    while (i != params_.end() && !(*i)->type()->isa<Pi>())
+        ++i;
+}
+
 } // namespace anydsl

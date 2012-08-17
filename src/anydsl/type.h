@@ -136,8 +136,10 @@ private:
 public:
 
     static const size_t npos = -1;
-    size_t nextPi(size_t pos = 0) const;
-    bool isHigherOrder() const { return nextPi() != npos; }
+    size_t ho_begin() const;
+    size_t ho_end() const { return npos; }
+    void ho_next(size_t& pos) const;
+    bool isHigherOrder() const { return ho_begin() != npos; }
 
 private:
 

@@ -104,8 +104,8 @@ void BB::seal() {
 void BB::fixTodo(const Symbol& symbol, Todo todo) {
     anydsl_assert(sealed(), "must be sealed");
 
-    size_t index = todo.index;
-    const Type* type = todo.type;
+    size_t index = todo.index();
+    const Type* type = todo.type();
     const Param* param = in_[index];
     const Def* same = 0;
 
@@ -199,26 +199,26 @@ void BB::emit() {
 
 //------------------------------------------------------------------------------
 
-Fct::Fct(World& world, const FctParams& fparams, const Type* retType, const std::string& debug /*= ""*/) 
+Fct::Fct(World& world, ArrayRef<const Type*> tparams, ArrayRef<Symbol> sparams, const Type* retType, const std::string& debug)
     : world_(world)
     , retType_(retType)
     , exit_(0)
 {
+    assert(tparams.size() == sparams.size());
     sealed_ = true;
     fct_ = this;
-    curLambda_ = topLambda_ = new Lambda(world.pi0());
+    curLambda_ = topLambda_ = new Lambda(world.pi(tparams));
     topLambda_->debug = debug;
 
-    for_all (p, fparams) {
-        const Param* param = topLambda_->appendParam(p.type);
-        in_.push_back(param);
-        setVar(p.symbol, param);
-        param->debug = p.symbol.str();
+    size_t i = 0;
+    for_all (param, topLambda_->params()) {
+        Symbol sym = sparams[i];
+        setVar(sym, param);
+        param->debug = sym.str();
     }
 
-    if (retType) {
+    if (retType_) {
         retCont_ = topLambda_->appendParam(world.pi1(retType));
-        in_.push_back(retCont());
         retCont()->debug = "<return>";
         exit_ = createBB('<' + debug + "_exit>");
     }
@@ -251,5 +251,7 @@ void Fct::emit() {
     BB::emit();
     world().setReachable(topLambda_);
 }
+
+//------------------------------------------------------------------------------
 
 } // namespace anydsl

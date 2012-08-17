@@ -16,8 +16,6 @@ using anydsl::Array;
 using anydsl::ArrayRef;
 using anydsl::BB;
 using anydsl::Def;
-using anydsl::FctParam;
-using anydsl::FctParams;
 using anydsl::Var;
 using anydsl::make_name;
 using anydsl::World;
@@ -56,13 +54,19 @@ void emit(anydsl::World& world, const Prg* prg) {
 
 void Prg::emit(CodeGen& cg) const {
     for_all (f, fcts()) {
-        FctParams fparams;
+        size_t size = f->params().size();
+        Array<const anydsl::Type*> tparams(size);
+        Array<anydsl::Symbol>      sparams(size);
 
-        for_all (param, f->params())
-            fparams.push_back(FctParam(param->symbol(), param->type()->convert(cg.world)));
+        size_t i = 0;
+        for_all (param, f->params()) {
+            tparams[i] = param->type()->convert(cg.world);
+            sparams[i] = param->symbol();
+            ++i;
+        }
 
         const anydsl::Type* retType = f->pi()->retType()->convert(cg.world);
-        cg.fcts[f->symbol()] = new anydsl::Fct(cg.world, fparams, retType, f->symbol().str());
+        cg.fcts[f->symbol()] = new anydsl::Fct(cg.world, tparams, sparams, retType, f->symbol().str());
     }
 
     for_all (f, fcts()) {

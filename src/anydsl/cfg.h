@@ -23,29 +23,23 @@ typedef std::vector<const Param*> In;
 typedef std::vector<const Def*> Out;
 typedef boost::unordered_set<BB*> BBs;
 
-struct FctParam {
-    Symbol symbol;
-    const Type* type;
-
-    FctParam() {}
-    FctParam(const Symbol& symbol, const Type* type)
-        : symbol(symbol)
-        , type(type)
-    {}
-};
-
-struct Todo {
-    size_t index;
-    const Type* type;
+class Todo {
+public:
 
     Todo() {}
     Todo(size_t index, const Type* type)
-        : index(index)
-        , type(type)
+        : index_(index)
+        , type_(type)
     {}
-};
 
-typedef std::vector<FctParam> FctParams;
+    size_t index() const { return index_; }
+    const Type* type() const { return type_; }
+
+private:
+
+    size_t index_;
+    const Type* type_;
+};
 
 class Var {
 public:
@@ -139,7 +133,7 @@ private:
 class Fct : public BB {
 public:
 
-    Fct(World& world, const FctParams& fparams, const Type* retType, const std::string& debug = "");
+    Fct(World& world, ArrayRef<const Type*> tparams, ArrayRef<Symbol> sparams, const Type* retType, const std::string& debug = "");
     ~Fct();
 
     BB* createBB(const std::string& debug = "");

@@ -432,7 +432,7 @@ const Stmt* Parser::parseDoWhile() {
     Position pos1 = eat(Token::DO).pos1();
 
     const Loop* oldLoop = curLoop_;
-    DoWhileStmt*  newLoop = new DoWhileStmt();
+    DoWhileStmt* newLoop = new DoWhileStmt();
     curLoop_ = newLoop;
     const Stmt* body = parseStmt();
     curLoop_ = oldLoop;

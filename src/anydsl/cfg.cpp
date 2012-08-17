@@ -91,20 +91,11 @@ void BB::seal() {
 
     sealed_ = true;
 
-    // eliminate critical edge
-    if (preds().size() >= 2) {
-        for_all (pred, preds_) {
-            if (pred->succs().size() > 1) {
-                // critical edge -> eliminate
-                BB* empty = fct_->createBB();
-                pred->eraseEdge(this);
-                pred->flowsto(empty);
-                empty->flowsto(this);
-                empty->seal();
-                pred = empty;
-            }
-        }
-    }
+#ifndef NDEBUG
+    if (preds().size() >= 2)
+        for_all (pred, preds_)
+            anydsl_assert(pred->succs().size() <= 1, "critical edge");
+#endif
 
     for_all (p, todos_)
         fixTodo(p.first, p.second);
@@ -158,8 +149,6 @@ const Def* BB::calls(const Def* to, ArrayRef<const Def*> args, const Type* retTy
     next->debug = curLambda_->debug + "_" + to->debug;
     const Param* result = next->appendParam(retType);
     result->debug = make_name(to->debug.c_str(), id);
-    //Params params;
-    //params.push_back(result);
 
     // create jump to this new continuation
     size_t csize = args.size() + 1;
@@ -183,17 +172,11 @@ void BB::flowsto(BB* to) {
     anydsl_assert(!to->sealed(), "'to' already sealed");
 
     if (i == succs_.end()) {
-        succs_.insert(to);
+        this->succs_.insert(to);
         to->preds_.insert(this);
     } else {
         anydsl_assert(to->preds_.find(this) != to->preds_.end(), "flow out of sync");
-        /* do nothing */
     }
-}
-
-void BB::eraseEdge(BB* to) {
-    to->succs_.erase(this);
-    this->preds_.erase(to);
 }
 
 World& BB::world() {
@@ -201,13 +184,16 @@ World& BB::world() {
 }
 
 void BB::emit() {
+    std::cout << topLambda_->debug << ": " << succs().size() << std::endl;
     switch (succs().size()) {
         case 1:
             world().jump(curLambda_, (*succs().begin())->topLambda(), out_);
             break;
         case 2:
             anydsl_assert(out_.empty(), "sth went wrong with critical edge elimination");
+            std::cout << "---" << std::endl;
             world().branch(curLambda_, cond_, tbb_->topLambda(), fbb_->topLambda());
+            std::cout << "===" << std::endl;
             break;
         default: 
             ANYDSL_UNREACHABLE;

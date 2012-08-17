@@ -115,8 +115,7 @@ const Def* Literal::remit(CodeGen& cg) const {
 }
 
 Var* Id::lemit(CodeGen& cg) const {
-    const Def* bot = cg.world.bottom(type()->convert(cg.world));
-    return cg.curBB->setVar(symbol(), bot);
+    return cg.curBB->getVar(symbol(), type()->convert(cg.world));
 }
 
 const Def* Id::remit(CodeGen& cg) const {
@@ -125,7 +124,7 @@ const Def* Id::remit(CodeGen& cg) const {
         return cg.fcts[symbol()]->topLambda();
     }
 
-    return cg.curBB->getVar(symbol(), type()->convert(cg.world))->load();
+    return lemit(cg)->load();
 }
 
 Var* PrefixExpr::lemit(CodeGen& cg) const {
@@ -161,7 +160,13 @@ Var* InfixExpr::lemit(CodeGen& cg) const {
     TokenKind op = (TokenKind) kind();
     assert(Token::isAsgn(op));
 
-    Var* lvar = lhs()->lemit(cg);
+    const Id* id = lhs()->isa<Id>();
+
+    // special case for 'a = expr' -> don't use getVar!
+    Var* lvar = op == Token::ASGN && id
+              ? cg.curBB->setVar(id->symbol(), cg.world.bottom(id->type()->convert(cg.world)))
+              : lvar = lhs()->lemit(cg);
+
     const Def* ldef = lvar->load();
     const Def* rdef = rhs()->remit(cg);
 
@@ -246,8 +251,8 @@ void IfElseStmt::emit(CodeGen& cg) const {
 
     // condition
     if (cg.reachable()) {
-        const Def* cvar = cond()->remit(cg);
-        cg.curBB->branches(cvar, thenBB, elseBB);
+        const Def* c = cond()->remit(cg);
+        cg.curBB->branches(c, thenBB, elseBB);
     }
 
     thenBB->seal();
@@ -288,8 +293,8 @@ void WhileStmt::emit(CodeGen& cg) const {
     cg.curBB = headBB;
 
     // condition
-    const Def* cvar = cond()->remit(cg);
-    headBB->branches(cvar, bodyBB, nextBB);
+    const Def* c = cond()->remit(cg);
+    headBB->branches(c, bodyBB, nextBB);
     bodyBB->seal();
 
     // body
@@ -304,8 +309,34 @@ void WhileStmt::emit(CodeGen& cg) const {
 }
 
 void DoWhileStmt::emit(CodeGen& cg) const {
+    static int id = 0;
+    int curId = id++;
+
+    // create BBs
+    BB* bodyBB = cg.curFct->createBB(make_name("dowhile-body", curId));
+    BB* condBB = cg.curFct->createBB(make_name("dowhile-cond", curId));
+    BB* critBB = cg.curFct->createBB(make_name("dowhile-crit", curId));
+    BB* nextBB = cg.curFct->createBB(make_name("dowhile-next", curId));
+
+    // body
+    cg.fixto(bodyBB);
+    cg.curBB = bodyBB;
     body()->emit(cg);
-    cond()->remit(cg);
+
+    // condition
+    cg.fixto(condBB);
+    condBB->seal();
+    cg.curBB = condBB;
+    const Def* c = cond()->remit(cg);
+    condBB->branches(c, critBB, nextBB);
+    critBB->seal();
+    cg.curBB = critBB;
+    critBB->goesto(bodyBB);
+    bodyBB->seal();
+
+    // next
+    cg.curBB = nextBB;
+    nextBB->seal();
 }
 
 void ForStmt::emit(CodeGen& cg) const {
@@ -325,8 +356,8 @@ void ForStmt::emit(CodeGen& cg) const {
     cg.curBB = headBB;
 
     // condition
-    const Def* cvar = cond()->remit(cg);
-    headBB->branches(cvar, bodyBB, nextBB);
+    const Def* c = cond()->remit(cg);
+    headBB->branches(c, bodyBB, nextBB);
     bodyBB->seal();
 
     // body

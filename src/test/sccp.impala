@@ -1,0 +1,29 @@
+def foo() -> int {
+    a : int;
+    b : int;
+    c : int;
+    d : int;
+    e : int;
+    f : int;
+    g : int;
+
+    a = 3;
+    d = 2;
+
+    while (true) {
+        f = a + d;
+        g = 5;
+        a = g - d;
+
+        if (f <= g)
+            f = g + 1;
+        else {
+            if (g >= a)
+                return f;
+        }
+
+        d = 2;
+    }
+
+    return 0;
+}

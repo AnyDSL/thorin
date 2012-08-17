@@ -199,7 +199,9 @@ void BB::emit() {
 
 //------------------------------------------------------------------------------
 
-Fct::Fct(World& world, ArrayRef<const Type*> tparams, ArrayRef<Symbol> sparams, const Type* retType, const std::string& debug)
+Fct::Fct(World& world, 
+         ArrayRef<const Type*> tparams, ArrayRef<Symbol> sparams, 
+         const Type* retType, const std::string& debug)
     : world_(world)
     , retType_(retType)
     , exit_(0)
@@ -212,7 +214,7 @@ Fct::Fct(World& world, ArrayRef<const Type*> tparams, ArrayRef<Symbol> sparams, 
 
     size_t i = 0;
     for_all (param, topLambda_->params()) {
-        Symbol sym = sparams[i];
+        Symbol sym = sparams[i++];
         setVar(sym, param);
         param->debug = sym.str();
     }

@@ -133,7 +133,9 @@ private:
 class Fct : public BB {
 public:
 
-    Fct(World& world, ArrayRef<const Type*> tparams, ArrayRef<Symbol> sparams, const Type* retType, const std::string& debug = "");
+    Fct(World& world, 
+        ArrayRef<const Type*> tparams, ArrayRef<Symbol> sparams, 
+        const Type* retType, const std::string& debug = "");
     ~Fct();
 
     BB* createBB(const std::string& debug = "");

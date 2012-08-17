@@ -85,9 +85,9 @@ public:
     // sigmas
 
     /// Get unit AKA void AKA (unnamed) sigma().
-    const Sigma* unit() const { return unit_; }
+    const Sigma* unit() const { return sigma0_; }
     /// Creates 'sigma()'.
-    const Sigma* sigma0() { return unit_; }
+    const Sigma* sigma0() { return sigma0_; }
     /// Creates 'sigma(t1)'.
     const Sigma* sigma1(const Type* t1) {
         const Type* types[1] = {t1};
@@ -251,7 +251,7 @@ private:
 
     DefSet defs_;
 
-    const Sigma* unit_; ///< sigma().
+    const Sigma* sigma0_; ///< sigma().
     const Pi* pi0_;     ///< pi().
 
     union {

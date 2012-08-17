@@ -84,7 +84,7 @@ void CodeGen::emit() {
 
     for_all (lf, top_) {
         curLam_ = lf.first;
-        size_t retPos = curLam_->pi()->beginPi();
+        size_t retPos = curLam_->pi()->ho_begin();
 
         for_all (p, curLam_->params()) {
             if (p->index() == retPos) {

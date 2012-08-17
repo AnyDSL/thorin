@@ -40,7 +40,7 @@ namespace anydsl {
 
 World::World()
     : defs_(1031)
-    , unit_ (find(new Sigma(*this, ArrayRef<const Type*>(0, 0))))
+    , sigma0_ (find(new Sigma(*this, ArrayRef<const Type*>(0, 0))))
     , pi0_  (find(new Pi   (*this, ArrayRef<const Type*>(0, 0))))
 #define ANYDSL_UF_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T)))
 #include "anydsl/tables/primtypetable.h"
@@ -412,7 +412,7 @@ void World::dce() {
     // mark all as dead
     unmark();
 
-    dce_insert(unit_);
+    dce_insert(sigma0_);
     dce_insert(pi0_);
     for (size_t i = 0; i < Num_PrimTypes; ++i)
         dce_insert(primTypes_[i]);

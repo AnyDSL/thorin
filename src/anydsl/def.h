@@ -100,6 +100,19 @@ protected:
     Def(int kind, const Type* type, size_t size);
     Def(const Def&);
     virtual ~Def();
+
+    /** 
+     * @brief: Makes a polymorphic copy.
+     *
+     * All operands and attributes are copied;
+     * all operands register themselves as new uses.
+     * The copy itself does not introduce new uses.
+     * Most likely, you want to update the newly created node.
+     * The return pointer is \em not const.
+     * Thus, you are free to run \p update before inserting this node into the \p world again.
+     * 
+     * @return A modifiable copy of this node.
+     */
     virtual Def* clone() const = 0;
 
     void setOp(size_t i, const Def* def) { def->registerUse(i, this); ops_[i] = def; }
@@ -134,11 +147,15 @@ public:
     size_t size() const { return ops_.size(); }
     bool empty() const { return ops_.size() == 0; }
 
+    /// Updates operand indices \p x to point to the corresponding \p ops instead.
     void update(ArrayRef<size_t> x, ArrayRef<const Def*> ops);
+
+    /// Updates operand \p i to point to \p def instead.
     void update(size_t i, const Def* def) {
         op(i)->unregisterUse(i, this);
         setOp(i, def);
     }
+
     /*
      * check for special literals
      */

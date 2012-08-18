@@ -225,6 +225,18 @@ public:
     const Def* rehash(const Def* def);
     Def* release(const Def* def);
     void replace(const Def* what, const Def* with);
+    const Def* update(const Def* def, size_t i, const Def* op);
+    const Def* update(const Def* def, ArrayRef<size_t> x, ArrayRef<const Def*> ops);
+
+    /** 
+     * @brief Merges \p lambda's to call into the lambda.
+     * This effectively performs inlineing.
+     * 
+     * @param lambda: \p to must be a \p Lambda.
+     * 
+     * @return The updated lambda.
+     */
+    const Lambda* merge(const Lambda* lambda);
 
     template<class T>
     const T* find(const T* val) { return (const T*) findDef(val); }

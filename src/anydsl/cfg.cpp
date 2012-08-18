@@ -92,9 +92,10 @@ void BB::seal() {
     sealed_ = true;
 
 #ifndef NDEBUG
-    if (preds().size() >= 2)
+    if (preds().size() >= 2) {
         for_all (pred, preds_)
             anydsl_assert(pred->succs().size() <= 1, "critical edge");
+    }
 #endif
 
     for_all (p, todos_)
@@ -106,8 +107,6 @@ void BB::fixTodo(const Symbol& symbol, Todo todo) {
 
     size_t index = todo.index();
     const Type* type = todo.type();
-    const Param* param = in_[index];
-    const Def* same = 0;
 
     for_all (pred, preds_) {
         anydsl_assert(pred->succs().size() == 1, "critical edge elimination did not work");

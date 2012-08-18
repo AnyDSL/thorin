@@ -12,8 +12,6 @@ class PrimLit;
 class Pi;
 class World;
 
-typedef boost::unordered_set<const Def*> Instances;
-
 //------------------------------------------------------------------------------
 
 class Type : public Def {
@@ -23,20 +21,14 @@ protected:
         : Def(kind, 0, num)
         , world_(world)
     {}
-    virtual ~Type();
 
 public:
 
     World& world() const { return world_; }
-    const Instances& instances() const { return instances_; }
 
 private:
 
-    void registerInstance(const Def* def) const;
-    void unregisterInstance(const Def* def) const;
-
     World& world_;
-    mutable Instances instances_;
 
     friend class Def;
 };
@@ -48,6 +40,7 @@ class PrimType : public Type {
 private:
 
     PrimType(World& world, PrimTypeKind kind);
+    virtual PrimType* clone() const { return new PrimType(*this); }
 
 public:
 
@@ -106,6 +99,7 @@ private:
         : CompoundType(world, Node_Sigma, elems)
         , named_(false)
     {}
+    virtual Sigma* clone() const { return new Sigma(*this); }
 
 public:
 
@@ -131,6 +125,7 @@ private:
     Pi(World& world, ArrayRef<const Type*> elems)
         : CompoundType(world, Node_Pi, elems)
     {}
+    virtual Pi* clone() const { return new Pi(*this); }
 
 
 public:

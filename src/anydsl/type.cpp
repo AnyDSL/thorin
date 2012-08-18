@@ -7,25 +7,6 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-Type::~Type() {
-    for_all (instance, instances_) {
-        anydsl_assert(instance->type() == this, "instance points to incorrect type");
-        const_cast<Def*>(instance)->setType(0);
-    }
-}
-
-void Type::registerInstance(const Def* def) const {
-    anydsl_assert(instances_.find(def) == instances_.end(), "already in instance set");
-    instances_.insert(def);
-}
-
-void Type::unregisterInstance(const Def* def) const {
-    anydsl_assert(instances_.find(def) != instances_.end(), "must be inside the instance set");
-    instances_.erase(def);
-}
-
-//------------------------------------------------------------------------------
-
 PrimType::PrimType(World& world, PrimTypeKind kind)
     : Type(world, kind, 0)
 {

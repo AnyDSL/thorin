@@ -178,7 +178,7 @@ Var* InfixExpr::lemit(CodeGen& cg) const {
     // special case for 'a = expr' -> don't use getVar!
     Var* lvar = op == Token::ASGN && id
               ? cg.curBB->setVar(id->symbol(), cg.world.bottom(cg.convert(id->type())))
-              : lvar = lhs()->lemit(cg);
+              : lhs()->lemit(cg);
 
     const Def* ldef = lvar->load();
     const Def* rdef = rhs()->remit(cg);

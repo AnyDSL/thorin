@@ -79,6 +79,7 @@ const PrimLit* World::literal(PrimTypeKind kind, int value) {
 #define ANYDSL_U_TYPE(T) case PrimType_##T: return literal(T(value));
 #define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
 #include "anydsl/tables/primtypetable.h"
+        default: ANYDSL_UNREACHABLE;
     }
 }
 
@@ -202,6 +203,8 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b) {
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_U_TYPE;
                 }
+            default: 
+                ANYDSL_UNREACHABLE;
         }
     }
 
@@ -227,6 +230,7 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b) {
         case RelOp_fcmp_oge: kind = RelOp_fcmp_ole; break;
         case RelOp_fcmp_ugt: kind = RelOp_fcmp_ult; break;
         case RelOp_fcmp_uge: kind = RelOp_fcmp_ule; break;
+        default: break;
     }
 
     if (oldkind != kind)
@@ -309,6 +313,8 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b) {
 #include "anydsl/tables/primtypetable.h"
                     ANYDSL_NO_U_TYPE;
                 }
+            default: 
+                ANYDSL_UNREACHABLE;
         }
     }
 
@@ -419,7 +425,6 @@ void World::dce() {
 
     for_all_lambdas (lambda)
         if (lambda->isExtern()) {
-            const Pi* pi = lambda->pi();
             for (Params::const_iterator i = lambda->ho_begin(), e = lambda->ho_end(); i != e; lambda->ho_next(i)) {
                 const Param* param = *i;
                 for_all (use, param->uses())
@@ -510,13 +515,26 @@ void World::cleanup() {
 
 void World::opt() {
     cleanup();
-    //cfg_simplify();
-    //cleanup();
+    cfg_simplify();
+    cleanup();
     param_opt();
     cleanup();
 }
 
 void World::cfg_simplify() {
+#if 0
+    LambdaSet lambdas;
+    for_all_lambdas (lambda)
+        if (const Lambda* to = lambda->to()->isa<Lambda>())
+            if (to->uses().size() == 1) {
+                if (lambda
+                assert(lambda == to->uses().begin()->def());
+                lambdas.insert(lambda);
+                lambdas.erase(to);
+            }
+
+        //if (lambda->pi()->size() != lambda->params().size())
+            //q.push(lambda);
     LambdaSet lambdas;
 
     for_all (def, defs_)
@@ -525,6 +543,8 @@ void World::cfg_simplify() {
                 if (to->uses().size() == 1)
                     if (lambda == to->uses().begin()->def())
                         lambdas.insert(lambda);
+
+//#endif
 
     while (!lambdas.empty()) {
         const Lambda* lambda = *lambdas.begin();
@@ -549,25 +569,30 @@ void World::cfg_simplify() {
 
         lambdas.erase(lambda);
     }
+#endif
 }
 
 void World::param_opt() {
-    for_all (def, defs_)
-        if (const Lambda* lambda = def->isa<Lambda>())
-            if (lambda->pi()->size() != lambda->params().size()) {
-                // find holes
-                size_t i = 0;
-                for_all (param, lambda->params())
-                    if (param->index() == i)
-                        ++i;
-                    else
-                        for (; i < param->index(); ++i)
-                            for_all (use, lambda->uses())
-                                if (const Lambda* caller = use.def()->isa<Lambda>()) {
-                                    const Bottom* bot = bottom(lambda->pi()->elem(i));
-                                    replace(caller->arg(i), bot);
-                                }
-            }
+    std::queue<const Lambda*> q;
+    for_all_lambdas (lambda)
+        if (lambda->pi()->size() != lambda->params().size())
+            q.push(lambda);
+
+    while (!q.empty()) {
+        const Lambda* lambda = q.back();
+        q.pop();
+
+        size_t i = 0;
+        for_all (param, lambda->params())
+            if (param->index() == i)
+                ++i;
+            else
+                for (; i < param->index(); ++i)
+                    for_all (use, lambda->uses())
+                        if (const Lambda* caller = use.def()->isa<Lambda>())
+                            update(caller, i+1, bottom(lambda->pi()->elem(i)));
+    }
+
 #if 0
     for_all (def, defs_)
         if (const Lambda* lambda = def->isa<Lambda>()) {
@@ -715,7 +740,7 @@ void World::replace(const Def* what, const Def* with) {
     }
 
     // reinsert all operands of old uses into world
-    // don't merge this loop with the loop above
+    // don't fuse this loop with the loop above
     for_all (use, old_uses) {
         const Def* udef = use.def();
 
@@ -749,6 +774,59 @@ void World::replace(const Def* what, const Def* with) {
     }
 
     delete def;
+}
+
+const Def* World::update(const Def* cdef, size_t i, const Def* op) {
+    Def* def = release(cdef);
+    def->update(i, op);
+
+    return find(def);
+}
+
+const Def* World::update(const Def* cdef, ArrayRef<size_t> x, ArrayRef<const Def*> ops) {
+    Def* def = release(cdef);
+    def->update(x, ops);
+
+    return find(def);
+}
+
+const Lambda* World::merge(const Lambda* clambda) {
+    Lambda* lambda = release(clambda)->as<Lambda>();
+    const Lambda* to = lambda->to()->as<Lambda>();
+
+    typedef boost::unordered_map<const Def*, const Def*> Old2New;
+    Old2New old2new;
+
+    typedef boost::unordered_set<const Def*> Work;
+    Work work;
+
+    Params::const_iterator i = to->params().begin();
+    for_all (arg, lambda->args()) {
+        const Param* param = *i++;
+        old2new[param] = arg;
+
+        for_all (use, param->uses())
+            work.insert(use.def());
+    }
+
+    while (!work.empty()) {
+        Work::iterator i = work.begin();
+        const Def* cur = *i;
+        work.erase(i);
+        Def* clone = cur->clone();
+
+        for (size_t i = 0, e = clone->size(); i != e; ++i) {
+            const Def* op = clone->op(i);
+            Old2New::iterator iter = old2new.find(op);
+            if (iter != old2new.end()) {
+                clone->update(i, iter->second);
+            }
+        }
+
+        old2new.insert(std::make_pair(cur, clone));
+    }
+
+    return find(lambda);
 }
 
 /*

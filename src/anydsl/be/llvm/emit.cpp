@@ -147,7 +147,7 @@ void CodeGen::emitBB(const Lambda* lambda) {
         case 0: {
             const Param* param = to->as<Param>();
 
-            if (param = retParam_) {
+            if (param == retParam_) {
                 // ret
                 assert(values.size() == 1);
                 builder_.CreateRet(values[0]);
@@ -352,7 +352,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
     if (const ConvOp* conv = def->isa<ConvOp>()) {
         llvm::Value* from = emit(conv->from());
-        llvm::Type* to = convert(conv->to());
+        llvm::Type* to = convert(conv->type());
 
         switch (conv->convop_kind()) {
             case ConvOp_trunc:  return builder_.CreateTrunc  (from, to);
@@ -363,6 +363,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             case ConvOp_ftrunc: return builder_.CreateFPTrunc(from, to);
             case ConvOp_ftos:   return builder_.CreateFPToSI (from, to);
             case ConvOp_ftou:   return builder_.CreateFPToUI (from, to);
+            case ConvOp_fext:   return builder_.CreateFPExt  (from, to);
             case ConvOp_bitcast:return builder_.CreateBitCast(from, to);
         }
     }

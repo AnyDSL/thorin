@@ -89,8 +89,6 @@ typedef boost::unordered_set<Use> Uses;
 class Def : public MagicCast {
 private:
 
-    /// Do not copy-create a \p Def instance.
-    Def(const Def&);
     /// Do not copy-assign a \p Def instance.
     Def& operator = (const Def&);
 
@@ -99,11 +97,13 @@ private:
 
 protected:
 
-    Def(int kind, const Type* type, size_t numops);
+    Def(int kind, const Type* type, size_t size);
+    Def(const Def&);
     virtual ~Def();
+    virtual Def* clone() const = 0;
 
     void setOp(size_t i, const Def* def) { def->registerUse(i, this); ops_[i] = def; }
-    void setType(const Type* type);
+    void setType(const Type* type) { type_ = type; }
     void alloc(size_t size);
 
     virtual bool equal(const Def* other) const;
@@ -134,6 +134,11 @@ public:
     size_t size() const { return ops_.size(); }
     bool empty() const { return ops_.size() == 0; }
 
+    void update(ArrayRef<size_t> x, ArrayRef<const Def*> ops);
+    void update(size_t i, const Def* def) {
+        op(i)->unregisterUse(i, this);
+        setOp(i, def);
+    }
     /*
      * check for special literals
      */
@@ -161,8 +166,6 @@ private:
     friend class World;
     friend class DefHash;
     friend class DefEqual;
-    friend const Def* const& representitive(const Def* const* ptr);
-    friend class Type;
 };
 
 //------------------------------------------------------------------------------
@@ -182,6 +185,7 @@ private:
 
     Param(const Type* type, Lambda* parent, size_t index);
     virtual ~Param();
+    virtual Param* clone() const { ANYDSL_UNREACHABLE; }
 
     virtual bool equal(const Def* other) const;
     virtual size_t hash() const;

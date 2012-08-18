@@ -19,12 +19,12 @@ bool ConvOp::equal(const Def* other) const {
     if (!Def::equal(other))
         return false;
 
-    return to() == other->as<ConvOp>()->to();
+    return type() == other->as<ConvOp>()->type();
 }
 
 size_t ConvOp::hash() const {
     size_t seed = Def::hash();
-    boost::hash_combine(seed, to());
+    boost::hash_combine(seed, type());
 
     return seed;
 }

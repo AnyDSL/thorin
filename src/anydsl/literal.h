@@ -48,6 +48,7 @@ private:
     Any(const Type* type)
         : Undef(Node_Undef, type)
     {}
+    virtual Any* clone() const { return new Any(*this); }
 
     virtual void vdump(Printer& printer) const ;
 
@@ -68,6 +69,7 @@ private:
     Bottom(const Type* type)
         : Undef(Node_Bottom, type)
     {}
+    virtual Bottom* clone() const { return new Bottom(*this); }
 
     virtual void vdump(Printer& printer) const ;
 
@@ -83,6 +85,11 @@ private:
         : Literal(Node_PrimLit, type)
         , box_(box)
     {}
+    PrimLit(const PrimLit& lit)
+        : Literal(lit)
+        , box_(lit.box())
+    {}
+    virtual PrimLit* clone() const { return new PrimLit(*this); }
 
 public:
 

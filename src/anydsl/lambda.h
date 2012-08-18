@@ -33,6 +33,7 @@ public:
 
     Lambda(const Pi* pi, uint32_t flags = 0);
     virtual ~Lambda();
+    virtual Lambda* clone() const { ANYDSL_UNREACHABLE; }
 
     const Param* appendParam(const Type* type);
 

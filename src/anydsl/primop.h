@@ -51,6 +51,7 @@ private:
     ArithOp(ArithOpKind kind, const Def* lhs, const Def* rhs)
         : BinOp((NodeKind) kind, lhs->type(), lhs, rhs)
     {}
+    virtual ArithOp* clone() const { return new ArithOp(*this); }
 
 public:
 
@@ -104,6 +105,7 @@ class RelOp : public BinOp {
 private:
 
     RelOp(RelOpKind kind, const Def* lhs, const Def* rhs);
+    virtual RelOp* clone() const { return new RelOp(*this); }
 
 public:
 
@@ -119,22 +121,17 @@ private:
 
     ConvOp(ConvOpKind kind, const Def* from, const Type* to)
         : PrimOp(kind, to, 1)
-        , from_(from)
-        , to_(to)
     {
         setOp(0, from);
     }
+    virtual ConvOp* clone() const { return new ConvOp(*this); }
 
 public:
 
     const Def* from() const { return op(0); }
-    const Type* to() const { return to_; }
     ConvOpKind convop_kind() const { return (ConvOpKind) node_kind(); }
 
 private:
-
-    const Def* from_;
-    const Type* to_;
 
     virtual bool equal(const Def* other) const;
     virtual size_t hash() const;
@@ -149,6 +146,7 @@ class Select : public PrimOp {
 private:
 
     Select(const Def* cond, const Def* t, const Def* f);
+    virtual Select* clone() const { return new Select(*this); }
 
 public:
 
@@ -167,6 +165,10 @@ class TupleOp : public PrimOp {
 protected:
 
     TupleOp(NodeKind kind, const Type* type, size_t numOps, const Def* tuple, u32 index);
+    TupleOp(const TupleOp& tuple)
+        : PrimOp(tuple)
+        , index_(tuple.index())
+    {}
 
 public:
 
@@ -189,6 +191,7 @@ class Extract : public TupleOp {
 private:
 
     Extract(const Def* tuple, u32 index);
+    virtual Extract* clone() const { return new Extract(*this); }
     
 public:
 
@@ -203,6 +206,7 @@ class Insert : public TupleOp {
 private:
 
     Insert(const Def* tuple, u32 index, const Def* value);
+    virtual Insert* clone() const { return new Insert(*this); }
     
 public:
 
@@ -221,6 +225,7 @@ class Tuple : public PrimOp {
 private:
 
     Tuple(World& world, ArrayRef<const Def*> args);
+    virtual Tuple* clone() const { return new Tuple(*this); }
 
 private:
 

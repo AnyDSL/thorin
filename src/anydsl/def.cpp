@@ -12,13 +12,19 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-Def::Def(int kind, const Type* type, size_t numops)
+Def::Def(int kind, const Type* type, size_t size)
     : kind_(kind)
     , type_(type)
-    , ops_(numops)
+    , ops_(size)
+{}
+
+Def::Def(const Def& def)
+    : kind_(def.kind())
+    , type_(def.type())
+    , ops_(def.size())
 {
-    if (type)
-        type->registerInstance(this);
+    for (size_t i = 0, e = size(); i != e; ++i)
+        setOp(i, def.op(i));
 }
 
 Def::~Def() { 
@@ -31,9 +37,6 @@ Def::~Def() {
         anydsl_assert(use.def()->ops()[i] == this, "use points to incorrect def");
         const_cast<Def*>(use.def())->ops_[i] = 0;
     }
-
-    if (type_)
-        type_->unregisterInstance(this);
 }
 
 void Def::registerUse(size_t i, const Def* def) const {
@@ -48,14 +51,17 @@ void Def::unregisterUse(size_t i, const Def* def) const {
     uses_.erase(use);
 }
 
-void Def::setType(const Type* type) { 
-    if (type_)
-        type_->unregisterInstance(this);
+void Def::update(ArrayRef<size_t> x, ArrayRef<const Def*> ops) {
+    assert(x.size() == ops.size());
+    size_t size = x.size();
 
-    if (type)
-        type->registerInstance(this);
+    for (size_t i = 0; i < size; ++i) {
+        size_t idx = x[i];
+        const Def* def = ops[i];
 
-    type_ = type; 
+        op(idx)->unregisterUse(idx, this);
+        setOp(idx, def);
+    }
 }
 
 World& Def::world() const { 

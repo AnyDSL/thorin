@@ -35,7 +35,7 @@ public:
     }
 
     const Def* operator[](int postorder_index) const {
-        if(postorder_index < 0 && postorder_index >= size())
+        if(postorder_index < 0 && (size_t) postorder_index >= size())
             return 0;
         return list_[postorder_index];
     }

@@ -58,6 +58,13 @@ public:
 
     bool isExtern() const { return flags_ & Extern; }
 
+    /**
+     * @brief Removes the arguments specified in \p drop from the call.
+     * The indices are specified in argument indices \em not in operand inidices,
+     * i.e., arg_index = op_index + 1.
+     */
+    void shrink(ArrayRef<size_t> drop);
+
 private:
 
     virtual bool equal(const Def* other) const;

@@ -71,6 +71,13 @@ World& Def::world() const {
         return as<Type>()->world();
 }
 
+Array<Use> Def::copyUses() const {
+    Array<Use> result(uses().size());
+    std::copy(uses().begin(), uses().end(), result.begin());
+
+    return result;
+}
+
 bool Def::equal(const Def* other) const {
     return this->kind() == other->kind() && this->ops_ == other->ops_;
 }
@@ -101,6 +108,11 @@ void Def::alloc(size_t size) {
     anydsl_assert(ops_.empty(), "realloc");
     ops_.~Array();
     new (&ops_) Array<const Def*>(size);
+}
+
+void Def::realloc(size_t newsize) { 
+    ops_.~Array();
+    new (&ops_) Array<const Def*>(newsize);
 }
 
 //------------------------------------------------------------------------------

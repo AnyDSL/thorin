@@ -20,6 +20,11 @@ protected:
     Literal(int kind, const Type* type)
         : PrimOp(kind, type, 0)
     {}
+
+protected:
+
+    virtual bool equal(const Def* other) const;
+    virtual size_t hash() const;
 };
 
 //------------------------------------------------------------------------------

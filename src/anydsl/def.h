@@ -92,9 +92,6 @@ private:
     /// Do not copy-assign a \p Def instance.
     Def& operator = (const Def&);
 
-    void registerUse(size_t i, const Def* def) const;
-    void unregisterUse(size_t i, const Def* def) const;
-
 protected:
 
     Def(int kind, const Type* type, size_t size);
@@ -102,14 +99,14 @@ protected:
     virtual ~Def();
 
     /** 
-     * @brief: Makes a polymorphic copy.
+     * @brief Makes a polymorphic copy.
      *
      * All operands and attributes are copied;
      * all operands register themselves as new uses.
      * The copy itself does not introduce new uses.
      * Most likely, you want to update the newly created node.
      * The return pointer is \em not const.
-     * Thus, you are free to run \p update before inserting this node into the \p world again.
+     * Thus, you are free to run \p update before inserting this node into the \p World again.
      * 
      * @return A modifiable copy of this node.
      */
@@ -118,11 +115,16 @@ protected:
     void setOp(size_t i, const Def* def) { def->registerUse(i, this); ops_[i] = def; }
     void setType(const Type* type) { type_ = type; }
     void alloc(size_t size);
+    void realloc(size_t size);
+    void shrink(size_t newsize) { ops_.shrink(newsize); }
 
     virtual bool equal(const Def* other) const;
     virtual size_t hash() const;
 
 public:
+
+    void registerUse(size_t i, const Def* def) const;
+    void unregisterUse(size_t i, const Def* def) const;
 
     int kind() const { return kind_; }
     bool isCoreNode() const { return ::anydsl::isCoreNode(kind()); }
@@ -135,6 +137,12 @@ public:
     virtual void vdump(Printer &printer) const = 0;
 
     const Uses& uses() const { return uses_; }
+
+    /**
+     * Copies all use-info into an array.
+     * Useful if you want to modfy users while iterating over all users.
+     */
+    Array<Use> copyUses() const;
     const Type* type() const { return type_; }
     bool isType() const { return !type_; }
     World& world() const;
@@ -148,7 +156,7 @@ public:
     bool empty() const { return ops_.size() == 0; }
 
     /// Updates operand indices \p x to point to the corresponding \p ops instead.
-    void update(ArrayRef<size_t> x, ArrayRef<const Def*> ops);
+    void update(ArrayRef<size_t> idx, ArrayRef<const Def*> ops);
 
     /// Updates operand \p i to point to \p def instead.
     void update(size_t i, const Def* def) {

@@ -107,9 +107,33 @@ void BB::fixTodo(const Symbol& symbol, Todo todo) {
 
     size_t index = todo.index();
     const Type* type = todo.type();
+    const Param* param = in_[index];
+    const Def* same = 0;
 
+    // find Horspool-like phis
     for_all (pred, preds_) {
-        anydsl_assert(pred->succs().size() == 1, "critical edge elimination did not work");
+        const Def* def = pred->getVar(symbol, type)->load();
+
+        if (def->isa<Undef>() || def == param || same == def)
+            continue;
+
+        if (same) {
+            same = 0;
+            goto fix_preds;
+        }
+
+        same = def;
+    }
+    
+    if (!same || same == param)
+        same = world().bottom(param->type());
+
+    for_all (use, param->copyUses())
+        world().update(use.def(), use.index(), same);
+
+fix_preds:
+    for_all (pred, preds_) {
+        anydsl_assert(pred->succs().size() == 1, "critical edge");
         Out& out = pred->out_;
 
         // make potentially room for the new arg
@@ -117,8 +141,11 @@ void BB::fixTodo(const Symbol& symbol, Todo todo) {
             out.resize(index + 1);
 
         anydsl_assert(!pred->out_[index], "already set");
-        out[index] = pred->getVar(symbol, type)->load();
+        out[index] = same ? same : pred->getVar(symbol, type)->load();
     }
+
+    if (same)
+        setVar(symbol, same);
 }
 
 void BB::goesto(BB* to) {

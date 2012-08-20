@@ -126,7 +126,7 @@ public:
         const Type* types[3] = {t1, t2, t3};
         return pi(types);
     }
-    const Pi* pi(ArrayRef<const Type*> elems) { return find(new Pi(*this, elems)); }
+    const Pi* pi(ArrayRef<const Type*> elems) { return find(new Pi(*this, elems))->as<Pi>(); }
 
     /*
      * literals
@@ -180,6 +180,9 @@ public:
     const Param* param(const Type* type, Lambda* parent, u32 i);
 
     void jump(Lambda*& from, const Def* to, ArrayRef<const Def*> args);
+    void jump0(Lambda*& from, const Def* to) {
+        return jump(from, to, ArrayRef<const Def*>(0, 0));
+    }
     void jump1(Lambda*& from, const Def* to, const Def* arg1) {
         const Def* args[1] = { arg1 };
         return jump(from, to, args);
@@ -227,19 +230,9 @@ public:
     void replace(const Def* what, const Def* with);
     const Def* update(const Def* def, size_t i, const Def* op);
     const Def* update(const Def* def, ArrayRef<size_t> x, ArrayRef<const Def*> ops);
+    void drop(const Lambda* where, const Lambda* lambda, ArrayRef<size_t> which, ArrayRef<const Def*> with);
+    const Def* find(const Def* def);
 
-    /** 
-     * @brief Merges \p lambda's to call into the lambda.
-     * This effectively performs inlineing.
-     * 
-     * @param lambda: \p to must be a \p Lambda.
-     * 
-     * @return The updated lambda.
-     */
-    const Lambda* merge(const Lambda* lambda);
-
-    template<class T>
-    const T* find(const T* val) { return (const T*) findDef(val); }
 
     /*
      * debug printing
@@ -253,8 +246,6 @@ private:
 
     const Lambda* finalize(Lambda*& lambda);
     void unmark();
-
-    const Def* findDef(const Def* def);
 
     typedef boost::unordered_set<const Def*> Live;
 

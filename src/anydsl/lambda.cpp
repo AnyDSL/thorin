@@ -120,4 +120,19 @@ void Lambda::ho_next(Params::const_iterator& i) const {
         ++i;
 }
 
+void Lambda::shrink(ArrayRef<size_t> drop) {
+    assert(!drop.empty());
+
+    for (size_t r = drop.front(), w = drop.front(), d = 0, e = args().size(); r != e; ++r) {
+        op(r + 1)->unregisterUse(r + 1, this);
+
+        if (d < drop.size() && drop[d] == r)
+            ++d;
+        else
+            setOp(w + 1, op(r + 1));
+    }
+
+    Def::shrink(size() - drop.size());
+}
+
 } // namespace anydsl

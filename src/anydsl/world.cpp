@@ -1,6 +1,7 @@
 #include "anydsl/world.h"
 
 #include <cmath>
+#include <algorithm>
 #include <queue>
 #include <boost/unordered_set.hpp>
 
@@ -40,9 +41,9 @@ namespace anydsl {
 
 World::World()
     : defs_(1031)
-    , sigma0_ (find(new Sigma(*this, ArrayRef<const Type*>(0, 0))))
-    , pi0_  (find(new Pi   (*this, ArrayRef<const Type*>(0, 0))))
-#define ANYDSL_UF_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T)))
+    , sigma0_ (find(new Sigma(*this, ArrayRef<const Type*>(0, 0)))->as<Sigma>())
+    , pi0_  (find(new Pi   (*this, ArrayRef<const Type*>(0, 0)))->as<Pi>())
+#define ANYDSL_UF_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T))->as<PrimType>())
 #include "anydsl/tables/primtypetable.h"
 {
 }
@@ -71,7 +72,7 @@ Sigma* World::namedSigma(size_t num, const std::string& name /*= ""*/) {
  */
 
 const PrimLit* World::literal(PrimTypeKind kind, Box box) {
-    return find(new PrimLit(type(kind), box));
+    return find(new PrimLit(type(kind), box))->as<PrimLit>();
 }
 
 const PrimLit* World::literal(PrimTypeKind kind, int value) {
@@ -84,11 +85,11 @@ const PrimLit* World::literal(PrimTypeKind kind, int value) {
 }
 
 const Any* World::any(const Type* type) {
-    return find(new Any(type));
+    return find(new Any(type))->as<Any>();
 }
 
 const Bottom* World::bottom(const Type* type) {
-    return find(new Bottom(type));
+    return find(new Bottom(type))->as<Bottom>();
 }
 
 /*
@@ -381,7 +382,7 @@ const Lambda* World::finalize(Lambda*& lambda) {
     anydsl_assert(lambda->type(), "must be set");
     anydsl_assert(lambda->pi(),   "must be a set pi type");
 
-    const Lambda* l = find<Lambda>(lambda);
+    const Lambda* l = find(lambda)->as<Lambda>();
     assert(l == lambda);
     assert(defs_.find(l) != defs_.end());
     // some day...
@@ -391,7 +392,7 @@ const Lambda* World::finalize(Lambda*& lambda) {
 }
 
 const Param* World::param(const Type* type, Lambda* parent, u32 i) {
-    return find(new Param(type, parent, i));
+    return find(new Param(type, parent, i))->as<Param>();
 }
 
 void World::jump(Lambda*& lambda, const Def* to, ArrayRef<const Def*> args) {
@@ -656,7 +657,7 @@ void World::unmark() {
         def->marker_ = false;
 }
 
-const Def* World::findDef(const Def* def) {
+const Def* World::find(const Def* def) {
     DefSet::iterator i = defs_.find(def);
     if (i != defs_.end()) {
         anydsl_assert(!def->isa<Lambda>(), "must not be a lambda");
@@ -719,29 +720,27 @@ void World::replace(const Def* what, const Def* with) {
     Def* def = release(what);
     Lambda* lambda = def->isa<Lambda>();
 
-    // unregister all uses of this node's operands
+    // unregister all uses of def's operands
     for (size_t i = 0, e = def->ops().size(); i != e; ++i) {
         def->ops_[i]->unregisterUse(i, def);
         def->ops_[i] = 0;
     }
 
-    // copy over old use info
-    Array<Use> old_uses(def->uses_.size());
-    std::copy(def->uses_.begin(), def->uses_.end(), old_uses.begin());
+    Array<Use> olduses = def->copyUses();
 
     // unregister all uses of def
     def->uses_.clear();
 
     // update all operands of old uses to point to new node instead 
     // and erase these nodes from world
-    for_all (use, old_uses) {
+    for_all (use, olduses) {
         Def* udef = release(use.def());
-        udef->setOp(use.index(), with);
+        udef->update(use.index(), with);
     }
 
-    // reinsert all operands of old uses into world
+    // update all operands of old uses into world
     // don't fuse this loop with the loop above
-    for_all (use, old_uses) {
+    for_all (use, olduses) {
         const Def* udef = use.def();
 
         DefSet::iterator i = defs_.find(udef);
@@ -752,9 +751,8 @@ void World::replace(const Def* what, const Def* with) {
             replace(udef, ndef);
             delete udef;
             continue;
-        }
-
-        defs_.insert(udef);
+        } else
+            defs_.insert(udef);
     }
 
     if (lambda) {
@@ -790,44 +788,31 @@ const Def* World::update(const Def* cdef, ArrayRef<size_t> x, ArrayRef<const Def
     return find(def);
 }
 
-const Lambda* World::merge(const Lambda* clambda) {
-    Lambda* lambda = release(clambda)->as<Lambda>();
-    const Lambda* to = lambda->to()->as<Lambda>();
+void World::drop(const Lambda* cwhere, const Lambda* lambda, ArrayRef<size_t> which, ArrayRef<const Def*> with) {
+    const Pi* pi = lambda->pi();
 
-    typedef boost::unordered_map<const Def*, const Def*> Old2New;
-    Old2New old2new;
+    Array<const Type*> elems(pi->size() - which.size());
 
-    typedef boost::unordered_set<const Def*> Work;
-    Work work;
-
-    Params::const_iterator i = to->params().begin();
-    for_all (arg, lambda->args()) {
-        const Param* param = *i++;
-        old2new[param] = arg;
-
-        for_all (use, param->uses())
-            work.insert(use.def());
-    }
-
-    while (!work.empty()) {
-        Work::iterator i = work.begin();
-        const Def* cur = *i;
-        work.erase(i);
-        Def* clone = cur->clone();
-
-        for (size_t i = 0, e = clone->size(); i != e; ++i) {
-            const Def* op = clone->op(i);
-            Old2New::iterator iter = old2new.find(op);
-            if (iter != old2new.end()) {
-                clone->update(i, iter->second);
-            }
+    for (size_t r = 0, w = 0, d = 0, e = pi->size(); r != e; ++r) {
+        if (d < which.size() && which[d] == r)
+            ++d;
+        else {
+            assert(w <= r);
+            elems[w] = pi->elem(r);
         }
-
-        old2new.insert(std::make_pair(cur, clone));
     }
 
-    return find(lambda);
+    //Lambda* dropped = new Lambda(this->pi(elems));
+
+    //where->shrink(which);
+    //where->update(0, dropped);
+
+    //Lambda* where = release(cwhere)->as<Lambda>();
+    //const Pi* npi = this->pi(elems);
+    //return dropped;
+    return;
 }
+
 
 /*
  * debug printing

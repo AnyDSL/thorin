@@ -189,6 +189,8 @@ public:
         return result;
     }
 
+    void shrink(size_t newsize) { assert(newsize <= size_); size_ = newsize; }
+
 private:
 
     Array<T>& operator = (const Array<T>& array);

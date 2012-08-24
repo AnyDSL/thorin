@@ -933,13 +933,14 @@ void World::group() {
         }
     }
 
+#if 0
     for_all (p, depmap) {
         std::cout << p.first->debug << std::endl;
 
         for_all (l, *p.second)
             std::cout << "\t" << l->debug << std::endl;
     }
-
+#endif
 
     for_all (p, depmap)
         delete p.second;

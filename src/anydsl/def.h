@@ -45,6 +45,7 @@ private:
 };
 
 typedef Array<PhiOp> PhiOps;
+typedef ArrayRef<const Def*> Ops;
 
 //------------------------------------------------------------------------------
 
@@ -146,8 +147,6 @@ public:
     const Type* type() const { return type_; }
     bool isType() const { return !type_; }
     World& world() const;
-
-    typedef ArrayRef<const Def*> Ops;
 
     Ops ops() const { return Ops(ops_); }
     Ops ops(size_t begin, size_t end) const { return Ops(ops_.slice(begin, end)); }

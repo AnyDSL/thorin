@@ -182,7 +182,10 @@ void Lambda::dump(bool fancy) const  {
     if (isExtern())
         p << " extern ";
 	p.up();
-    {
+
+    if (empty())
+        p << "jump <EMPTY>";
+    else {
         p << "jump(";
         p.dump(to());
         p << ", [";

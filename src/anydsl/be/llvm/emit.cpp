@@ -140,7 +140,7 @@ void CodeGen::emitBB(const Lambda* lambda) {
     for_all (arg, lambda->args())
         values.push_back(emit(arg));
 
-    LambdaSet targets = lambda->targets();
+    Lambdas targets = lambda->targets();
     const Def* to = lambda->to();
 
     switch (targets.size()) {

@@ -167,6 +167,13 @@ void BB::branches(const Def* cond, BB* tbb, BB* fbb) {
     anydsl_assert(succs().size() == 2, "wrong number of succs");
 }
 
+void BB::tailCalls(const Def* to, ArrayRef<const Def*> args) {
+    size_t csize = args.size() + 1;
+    Array<const Def*> tcargs(csize);
+    *std::copy(args.begin(), args.end(), tcargs.begin()) = fct_->retCont();
+    world().jump(curLambda_, to, tcargs);
+}
+
 const Def* BB::calls(const Def* to, ArrayRef<const Def*> args, const Type* retType) {
     static int id = 0;
 
@@ -211,6 +218,9 @@ World& BB::world() {
 
 void BB::emit() {
     switch (succs().size()) {
+        case 0:
+            anydsl_assert(world().defs().find(curLambda_) != world().defs().end(), "tail call not finalized");
+            break;
         case 1:
             world().jump(curLambda_, (*succs().begin())->topLambda(), out_);
             break;

@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include "anydsl/util/array.h"
 #include "anydsl/util/assert.h"
 #include "anydsl/util/autoptr.h"
 #include "anydsl/util/box.h"
@@ -113,6 +114,7 @@ public:
     const Type* type() const { return type_; }
     virtual anydsl::Var* lemit(CodeGen& cg) const { ANYDSL_UNREACHABLE; }
     virtual const anydsl::Def* remit(CodeGen& cg) const = 0;
+    const Exprs& args() const { return args_; }
 
 protected:
 
@@ -262,6 +264,7 @@ public:
 
     void appendArg(const Expr* expr) { args_.push_back(expr); }
     void setLoc(const anydsl::Position& pos2);
+    anydsl::Array<const anydsl::Def*> emitArgs(CodeGen& cg) const;
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;

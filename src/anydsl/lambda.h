@@ -13,6 +13,7 @@ class Lambda;
 class Pi;
 
 typedef boost::unordered_set<const Lambda*> LambdaSet;
+typedef ArrayRef<const Lambda*> Lambdas;
 
 struct ParamLess {
     bool operator () (const Param* p1, const Param* p2) const {
@@ -43,16 +44,20 @@ public:
     void ho_next(Params::const_iterator& i) const;
     bool isHigherOrder() const { return ho_begin() != ho_end(); }
 
-    LambdaSet targets() const;
-    LambdaSet succ() const;
+    void close();
+
+    Lambdas targets() const { return adjacencies_.slice_front(hosBegin_); }
+    Lambdas hos()     const { return adjacencies_.slice_back(hosBegin_); }
+    Lambdas succ()    const { return Lambdas(adjacencies_); }
     LambdaSet callers() const;
     const Params& params() const { return params_; }
     const Param* param(size_t i) const;
-
+    Array<const Param*> copyParams() const;
     const Def* to() const { return op(0); };
     Ops args() const { return ops().slice_back(1); }
     const Def* arg(size_t i) const { return args()[i]; }
     const Pi* pi() const;
+    uint32_t flags() const { return flags_; }
 
     void dump(bool fancy = false) const;
 
@@ -73,6 +78,10 @@ private:
 
     Params params_;
     uint32_t flags_;
+
+    /// targets -- lambda arguments -- callers
+    Array<const Lambda*> adjacencies_;
+    size_t hosBegin_;
 
     friend class World;
     friend class Param;

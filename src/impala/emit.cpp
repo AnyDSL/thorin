@@ -220,7 +220,7 @@ const Def* PostfixExpr::remit(CodeGen& cg) const {
     return lemit(cg)->load();
 }
 
-const Def* Call::remit(CodeGen& cg) const {
+Array<const Def*> Call::emitArgs(CodeGen& cg) const {
     size_t size = args_.size();
     assert(size >= 1);
     Array<const Def*> args(size);
@@ -229,6 +229,11 @@ const Def* Call::remit(CodeGen& cg) const {
     for_all (arg, args_)
         args[i++] = arg->remit(cg);
 
+    return args;
+}
+
+const Def* Call::remit(CodeGen& cg) const {
+    Array<const Def*> args = emitArgs(cg);
     const anydsl::Type* retType = cg.convert(type());
 
     return cg.curBB->calls(args[0], args.slice_back(1), retType);
@@ -399,8 +404,14 @@ void ContinueStmt::emit(CodeGen& cg) const {
 void ReturnStmt::emit(CodeGen& cg) const {
     const Def* def = expr()->remit(cg);
 
-    cg.curBB->setVar(anydsl::Symbol("<result>"), def);
-    cg.curBB->goesto(cg.curFct->exit());
+    if (const Call* call = expr()->isa<Call>()) {
+        Array<const Def*> args = call->emitArgs(cg);
+        cg.curBB->tailCalls(args[0], args.slice_back(1));
+    } else {
+        cg.curBB->setVar(anydsl::Symbol("<result>"), def);
+        cg.curBB->goesto(cg.curFct->exit());
+    }
+
     cg.curBB = 0;
 }
 

@@ -3,7 +3,9 @@
 
 #include <cassert>
 #include <string>
+#include <queue>
 
+#include <boost/unordered_map.hpp>
 #include <boost/unordered_set.hpp>
 
 #include "anydsl/enums.h"
@@ -179,23 +181,23 @@ public:
     const Def* tuple(ArrayRef<const Def*> args);
     const Param* param(const Type* type, Lambda* parent, u32 i);
 
-    void jump(Lambda*& from, const Def* to, ArrayRef<const Def*> args);
-    void jump0(Lambda*& from, const Def* to) {
+    void jump(Lambda* from, const Def* to, ArrayRef<const Def*> args);
+    void jump0(Lambda* from, const Def* to) {
         return jump(from, to, ArrayRef<const Def*>(0, 0));
     }
-    void jump1(Lambda*& from, const Def* to, const Def* arg1) {
+    void jump1(Lambda* from, const Def* to, const Def* arg1) {
         const Def* args[1] = { arg1 };
         return jump(from, to, args);
     }
-    void jump2(Lambda*& from, const Def* to, const Def* arg1, const Def* arg2) {
+    void jump2(Lambda* from, const Def* to, const Def* arg1, const Def* arg2) {
         const Def* args[2] = { arg1, arg2 };
         return jump(from, to, args);
     }
-    void jump3(Lambda*& from, const Def* to, const Def* arg1, const Def* arg2, const Def* arg3) {
+    void jump3(Lambda* from, const Def* to, const Def* arg1, const Def* arg2, const Def* arg3) {
         const Def* args[3] = { arg1, arg2, arg3 };
         return jump(from, to, args);
     }
-    void branch(Lambda*& lambda, const Def* cond, const Def* tto, const Def* fto);
+    void branch(Lambda* lambda, const Def* cond, const Def* tto, const Def* fto);
 
     /*
      * optimizations
@@ -230,9 +232,10 @@ public:
     void replace(const Def* what, const Def* with);
     const Def* update(const Def* def, size_t i, const Def* op);
     const Def* update(const Def* def, ArrayRef<size_t> x, ArrayRef<const Def*> ops);
-    void drop(const Lambda* where, const Lambda* lambda, ArrayRef<size_t> which, ArrayRef<const Def*> with);
+    void group();
+    const Lambda* drop(const Lambda* lambda, ArrayRef<size_t> args, ArrayRef<const Def*> with);
     const Def* find(const Def* def);
-
+    void hack();
 
     /*
      * debug printing
@@ -244,18 +247,19 @@ public:
 
 private:
 
-    const Lambda* finalize(Lambda*& lambda);
     void unmark();
 
-    typedef boost::unordered_set<const Def*> Live;
+    typedef boost::unordered_map<const Def*, const Def*> Old2New;
+    const Def* drop(Old2New& old2new, const Def* def);
+    Old2New::iterator mustDrop(Old2New& old2new, const Def* def);
 
     void dce_insert(const Def* def);
     void uce_insert(const Lambda* lambda);
 
     DefSet defs_;
 
-    const Sigma* sigma0_; ///< sigma().
-    const Pi* pi0_;     ///< pi().
+    const Sigma* sigma0_;///< sigma().
+    const Pi* pi0_;      ///< pi().
 
     union {
         struct {

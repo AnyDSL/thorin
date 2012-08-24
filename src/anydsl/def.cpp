@@ -19,7 +19,8 @@ Def::Def(int kind, const Type* type, size_t size)
 {}
 
 Def::Def(const Def& def)
-    : kind_(def.kind())
+    : debug(def.debug)
+    , kind_(def.kind())
     , type_(def.type())
     , ops_(def.size())
 {

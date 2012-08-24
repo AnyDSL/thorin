@@ -13,6 +13,7 @@ namespace anydsl {
 Lambda::Lambda(const Pi* pi, uint32_t flags)
     : Def(Node_Lambda, pi, 0)
     , flags_(flags)
+    , adjacencies_(0)
 {
     params_.reserve(pi->size());
 
@@ -25,53 +26,6 @@ Lambda::~Lambda() {
     for_all (param, params())
         param->lambda_ = 0;
 
-}
-
-static void findLambdas(const Def* def, LambdaSet& result) {
-    if (const Lambda* lambda = def->isa<Lambda>()) {
-        result.insert(lambda);
-        return;
-    }
-
-    for_all (op, def->ops())
-        findLambdas(op, result);
-}
-
-LambdaSet Lambda::targets() const {
-    LambdaSet result;
-    findLambdas(to(), result);
-
-    return result;
-}
-
-LambdaSet Lambda::succ() const {
-    LambdaSet result;
-
-    for_all (def, ops())
-        findLambdas(def, result);
-
-    return result;
-}
-
-static void findCallers(const Def* def, LambdaSet& result) {
-    if (const Lambda* lambda = def->isa<Lambda>()) {
-        result.insert(lambda);
-        return;
-    }
-
-    anydsl_assert(def->isa<PrimOp>(), "not a PrimOp");
-
-    for_all (use, def->uses())
-        findCallers(use.def(), result);
-}
-
-LambdaSet Lambda::callers() const {
-    LambdaSet result;
-
-    for_all (use, uses())
-        findCallers(use.def(), result);
-
-    return result;
 }
 
 const Pi* Lambda::pi() const {
@@ -104,6 +58,18 @@ const Param* Lambda::param(size_t i) const {
     return *params_.find(&p);
 }
 
+Array<const Param*> Lambda::copyParams() const {
+    Array<const Param*> result(pi()->size());
+
+    size_t i = 0;
+    for_all (param, params()) {
+        result[i] = param->index() == i ? param : 0;
+        ++i;
+    }
+
+    return result;
+}
+
 Params::const_iterator Lambda::ho_begin() const {
     Params::const_iterator result = params_.begin();
 
@@ -123,6 +89,7 @@ void Lambda::ho_next(Params::const_iterator& i) const {
 void Lambda::shrink(ArrayRef<size_t> drop) {
     assert(!drop.empty());
 
+    // r -> read, w -> write, d -> drop
     for (size_t r = drop.front(), w = drop.front(), d = 0, e = args().size(); r != e; ++r) {
         op(r + 1)->unregisterUse(r + 1, this);
 
@@ -133,6 +100,58 @@ void Lambda::shrink(ArrayRef<size_t> drop) {
     }
 
     Def::shrink(size() - drop.size());
+}
+
+static void findLambdas(const Def* def, LambdaSet& result) {
+    if (const Lambda* lambda = def->isa<Lambda>()) {
+        result.insert(lambda);
+        return;
+    }
+
+    for_all (op, def->ops())
+        findLambdas(op, result);
+}
+
+static void findCallers(const Def* def, LambdaSet& result) {
+    if (const Lambda* lambda = def->isa<Lambda>()) {
+        result.insert(lambda);
+        return;
+    }
+
+    anydsl_assert(def->isa<PrimOp>(), "not a PrimOp");
+
+    for_all (use, def->uses())
+        findCallers(use.def(), result);
+}
+
+LambdaSet Lambda::callers() const {
+    LambdaSet result;
+
+    for_all (use, uses())
+        findCallers(use.def(), result);
+
+    return result;
+}
+
+void Lambda::close() {
+    LambdaSet targets, hos;
+
+    findLambdas(to(), targets);
+
+    for_all (def, args())
+        findLambdas(def, hos);
+
+    adjacencies_.~Array();
+    new (&adjacencies_) Array<const Lambda*>(targets.size() + hos.size());
+
+    size_t i = 0;
+    for_all (target, targets)
+        adjacencies_[i++] = target;
+
+    hosBegin_ = i;
+    for_all (ho, hos)
+        adjacencies_[i++] = ho;
+
 }
 
 } // namespace anydsl

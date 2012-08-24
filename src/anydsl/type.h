@@ -63,6 +63,8 @@ inline const Type* const& elem_as_type(const Def* const* ptr) {
     return *((const Type* const*) ptr); 
 }
 
+typedef ArrayRef<const Def*, const Type*, elem_as_type> Elems;
+
 class CompoundType : public Type {
 protected:
 
@@ -77,7 +79,6 @@ public:
         return op(i)->as<Type>();
     }
 
-    typedef ArrayRef<const Def*, const Type*, elem_as_type> Elems;
     Elems elems() const { return Elems(Def::ops().begin().base(), Def::ops().size()); }
 
 protected:

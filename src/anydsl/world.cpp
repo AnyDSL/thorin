@@ -3,7 +3,6 @@
 #include <cmath>
 #include <algorithm>
 #include <queue>
-#include <boost/unordered_set.hpp>
 
 #include "anydsl/def.h"
 #include "anydsl/primop.h"
@@ -45,8 +44,7 @@ World::World()
     , pi0_  (find(new Pi   (*this, ArrayRef<const Type*>(0, 0)))->as<Pi>())
 #define ANYDSL_UF_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T))->as<PrimType>())
 #include "anydsl/tables/primtypetable.h"
-{
-}
+{}
 
 World::~World() {
     for_all (def, defs_)
@@ -378,24 +376,11 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b) {
     return find(new Select(cond, a, b));
 }
 
-const Lambda* World::finalize(Lambda*& lambda) {
-    anydsl_assert(lambda->type(), "must be set");
-    anydsl_assert(lambda->pi(),   "must be a set pi type");
-
-    const Lambda* l = find(lambda)->as<Lambda>();
-    assert(l == lambda);
-    assert(defs_.find(l) != defs_.end());
-    // some day...
-    //lambda = 0;
-
-    return l;
-}
-
 const Param* World::param(const Type* type, Lambda* parent, u32 i) {
     return find(new Param(type, parent, i))->as<Param>();
 }
 
-void World::jump(Lambda*& lambda, const Def* to, ArrayRef<const Def*> args) {
+void World::jump(Lambda* lambda, const Def* to, ArrayRef<const Def*> args) {
     lambda->alloc(args.size() + 1);
 
     lambda->setOp(0, to);
@@ -404,10 +389,12 @@ void World::jump(Lambda*& lambda, const Def* to, ArrayRef<const Def*> args) {
     for_all (arg, args)
         lambda->setOp(x++, arg);
 
-    finalize(lambda);
+    lambda->close();
+
+    find(lambda);
 }
 
-void World::branch(Lambda*& lambda, const Def* cond, const Def* tto, const Def*  fto) {
+void World::branch(Lambda* lambda, const Def* cond, const Def* tto, const Def*  fto) {
     return jump(lambda, select(cond, tto, fto), Array<const Def*>(0));
 }
 
@@ -512,6 +499,7 @@ void World::uce_insert(const Lambda* lambda) {
 void World::cleanup() {
     uce();
     dce();
+    std::cout << "yeah!!!" << std::endl;
 }
 
 void World::opt() {
@@ -788,31 +776,166 @@ const Def* World::update(const Def* cdef, ArrayRef<size_t> x, ArrayRef<const Def
     return find(def);
 }
 
-void World::drop(const Lambda* cwhere, const Lambda* lambda, ArrayRef<size_t> which, ArrayRef<const Def*> with) {
+const Lambda* World::drop(const Lambda* lambda, ArrayRef<size_t> args, ArrayRef<const Def*> with) {
+    // build new type
     const Pi* pi = lambda->pi();
+    Array<const Type*> elems(pi->size() - args.size());
 
-    Array<const Type*> elems(pi->size() - which.size());
+    // r -> read, w -> write, a -> args
+    for (size_t r = 0, w = 0, a = 0, e = pi->size(); r != e; ++r)
+        if (a < args.size() && args[a] == r)
+            ++a;
+        else
+            elems[w++] = pi->elem(r);
 
-    for (size_t r = 0, w = 0, d = 0, e = pi->size(); r != e; ++r) {
-        if (d < which.size() && which[d] == r)
-            ++d;
+    const Pi* npi = this->pi(elems);
+    Lambda* dropped = new Lambda(npi, lambda->flags());
+    dropped->alloc(lambda->size());
+
+    // old2new[def] = not found     -> not yet examined
+    // old2new[def] = def           -> must not be dropped
+    // old2new[def] = ndef          -> must be dropped with ndef
+    Old2New old2new;
+    old2new[lambda] = lambda;       // don't drop
+
+    size_t a = 0;
+    Params::const_iterator d = dropped->params().begin();
+    for_all (param, lambda->params()) {
+        if (param->index() == args[a])
+            old2new[param] = with[a++]; // map old param to replacement
         else {
-            assert(w <= r);
-            elems[w] = pi->elem(r);
+            const Param* dparam = *d;
+            while (dparam->index() < param->index())
+                dparam = *d++;          // skip all dead params
+
+            old2new[param] = dparam;    // map old param to new param
         }
     }
 
-    //Lambda* dropped = new Lambda(this->pi(elems));
+    for (size_t i = 0, e = dropped->size(); i != e; ++i)
+        dropped->setOp(i, drop(old2new, lambda->op(i)));
 
-    //where->shrink(which);
-    //where->update(0, dropped);
-
-    //Lambda* where = release(cwhere)->as<Lambda>();
-    //const Pi* npi = this->pi(elems);
-    //return dropped;
-    return;
+    return find(dropped)->as<Lambda>();
 }
 
+const Def* World::drop(Old2New& old2new, const Def* def) {
+#if 0
+    Old2New::iterator it = old2new.find(def);
+
+    if (res != old2new.end())
+        return res;
+
+    if (it == old2new.end()) {
+        mustDrop(old2new, def);
+        it = old2new.find(def);
+    }
+
+    if (const Def* def = it->second)
+        return def;
+
+    if (const Lambda* lambda = def->isa<Lambda>()) {
+        Lambda* dropped = new Lambda(lambda->pi(), lambda->flags());
+        dropped->alloc(lambda->size());
+
+        for (size_t i = 0, e = dropped->size(); i != e; ++i)
+            dropped->setOp(i, drop(old2new, lambda->op(i)));
+
+        return it->second = find(lambda);
+    }
+
+    Def* clone = def->clone();
+    for (size_t i = 0, e = clone->size(); i != e; ++i)
+        clone->setOp(i, drop(old2new, def->op(i)));
+
+    return it->second = clone;
+#endif
+    return 0;
+}
+
+World::Old2New::iterator World::mustDrop(Old2New& old2new, const Def* def) {
+#if 0
+    Old2New::iterator res = old2new.find(def);
+
+    if (res != old2new.end())
+        return res;
+
+    // optimistically assume that we don't have to drop
+    res = old2new.insert(std::make_pair(def, def)).first;
+
+    if (const Param* param = def->isa<Param>()) {
+        if (mustDrop(old2new, param->lambda()))
+            return true;
+    }
+
+    for_all (op, def->ops()) {
+        if (musDrop(old2new, op)->) {
+            // after all, we must drop
+            old2new[def] = 0;
+            return true;
+        }
+    }
+
+    return false;
+#endif
+    return old2new.begin();
+}
+
+static void depends_simple(const Def* def, LambdaSet* dep) {
+    if (const Param* param = def->isa<Param>())
+        dep->insert(param->lambda());
+    else if (!def->isa<Lambda>()) {
+        for_all (op, def->ops())
+            depends_simple(op, dep);
+    }
+}
+
+void World::group() {
+    std::queue<const Lambda*> queue;
+    LambdaSet inqueue;
+
+    typedef boost::unordered_map<const Lambda*, LambdaSet*> DepMap;
+    DepMap depmap;
+
+    for_all_lambdas (lambda) {
+        LambdaSet* dep = new LambdaSet();
+
+        for_all (op, lambda->ops())
+            depends_simple(op, dep);
+
+        depmap.insert(std::make_pair(lambda, dep));
+
+        queue.push(lambda);
+        inqueue.insert(lambda);
+    }
+
+    while (!queue.empty()) {
+        const Lambda* lambda = queue.front();
+        queue.pop();
+        LambdaSet* dep = depmap[lambda];
+        size_t old = dep->size();
+
+        for_all (succ, lambda->succ()) {
+            LambdaSet* succ_dep = depmap[succ];
+
+            for_all (d, *succ_dep) {
+                if (d != succ)
+                    dep->insert(d);
+            }
+        }
+
+        if (dep->size() != old) {
+            for_all (succ, lambda->succ()) {
+                if (inqueue.find(succ) == inqueue.end()) {
+                    inqueue.insert(succ);
+                    queue.push(succ);
+                }
+            }
+        }
+    }
+
+    for_all (p, depmap)
+        delete p.second;
+}
 
 /*
  * debug printing
@@ -854,6 +977,24 @@ void World::printDominators() {
             std::cout << std::endl;
         }
     }
+}
+
+void World::hack() {
+    group();
+#if 0
+    const Lambda* l;
+    const Def* with;
+
+    for_all (def, defs_)
+        if (def->debug == "fac_tail")
+            l = def->as<Lambda>();
+        else if (def->debug == "fac")
+            with = def->as<Lambda>()->arg(2);
+
+    size_t args[] = {2};
+    const Def* withs[] = {with};
+    drop(l, args, withs);
+#endif
 }
 
 } // namespace anydsl

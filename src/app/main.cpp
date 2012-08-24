@@ -86,7 +86,6 @@ int main(int argc, char** argv) {
         ifstream file(filename);
 
         impala::Init init;
-
         bool result;
         anydsl::AutoPtr<const impala::Prg> p(impala::parse(init.types, file, filename, result));
         result &= check(init.types, p);
@@ -98,6 +97,7 @@ int main(int argc, char** argv) {
 
         if (result) {
             emit(init.world, p);
+            init.world.hack();
 
             if (opt)
                 init.world.opt();

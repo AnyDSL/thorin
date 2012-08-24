@@ -902,8 +902,7 @@ void World::group() {
         for_all (op, lambda->ops())
             depends_simple(op, dep);
 
-        depmap.insert(std::make_pair(lambda, dep));
-
+        depmap[lambda] = dep;
         queue.push(lambda);
         inqueue.insert(lambda);
     }
@@ -911,6 +910,7 @@ void World::group() {
     while (!queue.empty()) {
         const Lambda* lambda = queue.front();
         queue.pop();
+        inqueue.erase(lambda);
         LambdaSet* dep = depmap[lambda];
         size_t old = dep->size();
 
@@ -924,14 +924,22 @@ void World::group() {
         }
 
         if (dep->size() != old) {
-            for_all (succ, lambda->succ()) {
-                if (inqueue.find(succ) == inqueue.end()) {
-                    inqueue.insert(succ);
-                    queue.push(succ);
+            for_all (caller, lambda->callers()) {
+                if (inqueue.find(caller) == inqueue.end()) {
+                    inqueue.insert(caller);
+                    queue.push(caller);
                 }
             }
         }
     }
+
+    for_all (p, depmap) {
+        std::cout << p.first->debug << std::endl;
+
+        for_all (l, *p.second)
+            std::cout << "\t" << l->debug << std::endl;
+    }
+
 
     for_all (p, depmap)
         delete p.second;

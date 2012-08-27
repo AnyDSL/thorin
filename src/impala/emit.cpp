@@ -456,7 +456,7 @@ const anydsl::Type* Pi::convert(anydsl::World& world) const {
     for (size_t i = 0; i < size; ++i)
         types[i] = elems()[i]->convert(world);
 
-    if (!retType()->isNoRet())
+    if (!retType()->is_noret())
         types[size++] = world.pi1(retType()->convert(world));
 
     return world.pi(types.slice_front(size));

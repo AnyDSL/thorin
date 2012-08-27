@@ -70,7 +70,7 @@ public:
     const ScopeStmt* body() const { return body_; }
     const Decls& params() const { return params_; }
     const Pi* pi() const;
-    bool isContinuation() const;
+    bool continuation() const;
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
@@ -276,7 +276,7 @@ public:
 class Stmt : public ASTNode {
 public:
 
-    virtual bool isEmpty() const { return false; }
+    virtual bool empty() const { return false; }
     virtual void emit(CodeGen& cg) const = 0;
 };
 
@@ -469,9 +469,8 @@ public:
     }
 
     const Stmts& stmts() const { return stmts_; }
-    bool empty() const { return stmts_.empty(); }
 
-    virtual bool isEmpty() const { return stmts_.empty(); }
+    virtual bool empty() const { return stmts_.empty(); }
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
     virtual void emit(CodeGen& cg) const;

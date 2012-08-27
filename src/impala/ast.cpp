@@ -28,8 +28,8 @@ void Fct::set(const Decl* decl, const ScopeStmt* body) {
     setLoc(decl->pos1(), body->pos2());
 }
 
-bool Fct::isContinuation() const { 
-    return pi()->retType()->isNoRet(); 
+bool Fct::continuation() const { 
+    return pi()->retType()->is_noret(); 
 }
 
 const Pi* Fct::pi() const { 

@@ -258,7 +258,7 @@ void IfElseStmt::dump(Printer& p) const {
     p << ") ";
     p.dumpBlock(thenStmt());
 
-    if (!elseStmt()->isEmpty()) {
+    if (!elseStmt()->empty()) {
         p << " else ";
         p.dumpBlock(elseStmt());
     }

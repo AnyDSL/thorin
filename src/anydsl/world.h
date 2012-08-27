@@ -108,7 +108,7 @@ public:
     const Sigma* sigma(ArrayRef<const Type*> elems) { return sigma(elems); }
 
     /// Creates a fresh \em named sigma.
-    Sigma* namedSigma(size_t num, const std::string& name = "");
+    Sigma* named_sigma(size_t num, const std::string& name = "");
 
     // pis
 
@@ -210,11 +210,7 @@ public:
 
     /// Performs dead code and unreachable code elimination.
     void cleanup();
-
     void opt();
-
-    void cfg_simplify();
-    void param_opt();
 
     /*
      * getters
@@ -232,10 +228,10 @@ public:
     void replace(const Def* what, const Def* with);
     const Def* update(const Def* def, size_t i, const Def* op);
     const Def* update(const Def* def, ArrayRef<size_t> x, ArrayRef<const Def*> ops);
-    void group();
     const Lambda* drop(const Lambda* lambda, ArrayRef<size_t> args, ArrayRef<const Def*> with);
     const Def* find(const Def* def);
-    void hack();
+    /// Sets all \p Def%s' note.marker field to false.
+    void unmark();
 
     /*
      * debug printing
@@ -246,8 +242,6 @@ public:
     void printDominators();
 
 private:
-
-    void unmark();
 
     typedef boost::unordered_map<const Def*, const Def*> Old2New;
     const Def* drop(Old2New& old2new, const Def* def);

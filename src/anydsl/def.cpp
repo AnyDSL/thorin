@@ -83,7 +83,7 @@ bool Def::equal(const Def* other) const {
     return this->kind() == other->kind() && this->ops_ == other->ops_;
 }
 
-bool Def::isPrimLit(int val) const {
+bool Def::is_primlit(int val) const {
     if (const PrimLit* lit = this->isa<PrimLit>()) {
         Box box = lit->box();
 

@@ -292,7 +292,7 @@ void InfixExpr::check(Sema& sema) const {
         lvalue_ = true;
     }
 
-    if (!lhs()->type()->isError())
+    if (!lhs()->type()->is_error())
         type_ = lhs()->type();
     else
         type_ = rhs()->type();
@@ -350,7 +350,7 @@ void ExprStmt::check(Sema& sema) const {
 static bool checkCond(Sema& sema, const Expr* cond) {
     cond->check(sema);
 
-    if (!cond->type()->isBool()) {
+    if (!cond->type()->is_bool()) {
         sema.error(cond) << "condition not a bool\n";
         return false;
     }
@@ -396,7 +396,7 @@ void ReturnStmt::check(Sema& sema) const {
 
     const Pi* pi = fct()->pi();
 
-    if (pi->retType()->isNoRet()) {
+    if (pi->retType()->is_noret()) {
         sema.error(this) << "return statement not allowed in continuation function\n";
         return;
     }

@@ -55,7 +55,7 @@ World::~World() {
  * types
  */
 
-Sigma* World::namedSigma(size_t num, const std::string& name /*= ""*/) {
+Sigma* World::named_sigma(size_t num, const std::string& name /*= ""*/) {
     Sigma* s = new Sigma(*this, num);
     s->debug = name;
 
@@ -156,7 +156,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b) {
                 switch (type) {
 #define ANYDSL_JUST_U_TYPE(T) \
                     case PrimType_##T: \
-                        return rlit->isZero() \
+                        return rlit->is_zero() \
                              ? (const Def*) bottom(rtype) \
                              : (const Def*) literal(type, Box(T(l.get_##T() / r.get_##T())));
 #include "anydsl/tables/primtypetable.h"
@@ -425,7 +425,7 @@ void World::dce() {
     DefSet::iterator i = defs_.begin();
     while (i != defs_.end()) {
         const Def* def = *i;
-        if (!def->marker_) {
+        if (!def->is_marked()) {
             delete def;
             i = defs_.erase(i);
         } else
@@ -434,10 +434,10 @@ void World::dce() {
 }
 
 void World::dce_insert(const Def* def) {
-    if (def->marker_)
+    if (def->is_marked())
         return;
 
-    def->marker_ = true;
+    def->mark();
 
     if (const Type* type = def->type())
         dce_insert(type);
@@ -471,7 +471,7 @@ void World::uce() {
     DefSet::iterator i = defs_.begin();
     while (i != defs_.end()) {
         if (const Lambda* lambda = (*i)->isa<Lambda>()) {
-            if (!lambda->marker_) {
+            if (!lambda->is_marked()) {
                 delete lambda;
                 i = defs_.erase(i);
                 continue;
@@ -484,10 +484,10 @@ void World::uce() {
 void World::uce_insert(const Lambda* lambda) {
     assert(defs_.find(lambda) != defs_.end());
 
-    if (lambda->marker_)
+    if (lambda->is_marked())
         return;
 
-    lambda->marker_ = true;
+    lambda->mark();
 
     if (const Type* type = lambda->type())
         dce_insert(type);
@@ -504,145 +504,11 @@ void World::cleanup() {
 
 void World::opt() {
     cleanup();
-    cfg_simplify();
-    cleanup();
-    param_opt();
-    cleanup();
 }
-
-void World::cfg_simplify() {
-#if 0
-    LambdaSet lambdas;
-    for_all_lambdas (lambda)
-        if (const Lambda* to = lambda->to()->isa<Lambda>())
-            if (to->uses().size() == 1) {
-                if (lambda
-                assert(lambda == to->uses().begin()->def());
-                lambdas.insert(lambda);
-                lambdas.erase(to);
-            }
-
-        //if (lambda->pi()->size() != lambda->params().size())
-            //q.push(lambda);
-    LambdaSet lambdas;
-
-    for_all (def, defs_)
-        if (const Lambda* lambda = def->isa<Lambda>())
-            if (const Lambda* to = lambda->to()->isa<Lambda>())
-                if (to->uses().size() == 1)
-                    if (lambda == to->uses().begin()->def())
-                        lambdas.insert(lambda);
-
-//#endif
-
-    while (!lambdas.empty()) {
-        const Lambda* lambda = *lambdas.begin();
-
-        if (const Lambda* to = lambda->to()->isa<Lambda>())
-            if (to->uses().size() == 1)
-                if (!to->isExtern()) // HACK
-                    if (lambda == to->uses().begin()->def()) {
-                        Lambda* newl = new Lambda(lambda->pi());
-                        newl->debug = lambda->debug + "+" + to->debug;
-                        jump(newl, to->to(), to->args());
-
-                        Params::const_iterator i = to->params().begin();
-                        for_all (arg, lambda->args())
-                            replace(*i++, arg);
-
-                        replace(lambda, newl);
-
-                        lambdas.erase(to);
-                        lambdas.insert(newl);
-                    }
-
-        lambdas.erase(lambda);
-    }
-#endif
-}
-
-void World::param_opt() {
-    std::queue<const Lambda*> q;
-    for_all_lambdas (lambda)
-        if (lambda->pi()->size() != lambda->params().size())
-            q.push(lambda);
-
-    while (!q.empty()) {
-        const Lambda* lambda = q.back();
-        q.pop();
-
-        size_t i = 0;
-        for_all (param, lambda->params())
-            if (param->index() == i)
-                ++i;
-            else
-                for (; i < param->index(); ++i)
-                    for_all (use, lambda->uses())
-                        if (const Lambda* caller = use.def()->isa<Lambda>())
-                            update(caller, i+1, bottom(lambda->pi()->elem(i)));
-    }
-
-#if 0
-    for_all (def, defs_)
-        if (const Lambda* lambda = def->isa<Lambda>()) {
-            const Pi* pi = lambda->pi();
-
-            if (!pi->empty() && reachable_.find(lambda) == reachable_.end()) { // HACK
-                std::vector<size_t> keep;
-
-                for_all (param, lambda->params()) {
-                    const Def* same = 0;
-                    // find Horspool-like phis
-                    for_all (op, param->phiOps()) {
-                        const Def* def = op.def();
-
-                        if (def->isa<Undef>() || def == param || same == def)
-                            continue;
-
-                        if (same) {
-                            keep.push_back(param->index());
-                            break;
-                        }
-
-                        same = def;
-                    }
-                }
-
-                if (keep.size() != pi->size()) {
-                    std::cout << "superfluous in: " << lambda->debug << std::endl;
-                    Array<const Type*> elems(keep.size());
-
-                    size_t i = 0;
-                    for_all (param, lambda->params())
-                        if (param->index() == keep[i])
-                            elems[i++] = param->type();
-
-                    assert(i == keep.size());
-                    const Pi* newpi = this->pi(elems);
-                    Lambda* newl = new Lambda(newpi);
-                    newl->debug = lambda->debug;
-                    jump(newl, lambda->to(), lambda->args());
-                    //replace(lambda, newl);
-                }
-            }
-        }
-//#if 0
-        in_.erase(index);
-        for_all (pred, preds_)
-            pred->out_.erase(index);
-
-        Params::const_iterator i = newl->params().begin();
-        for_all (p, topLambda_->params())
-            if (p->index() != index)
-                world().replace(p, *i++);
-    }
-#endif
-}
-
 
 void World::unmark() {
     for_all (def, defs_)
-        def->marker_ = false;
+        def->unmark();
 }
 
 const Def* World::find(const Def* def) {
@@ -668,12 +534,12 @@ void World::dump(bool fancy) {
     unmark();
 
     for_all_lambdas (lambda) {
-        if (!lambda->isExtern() || lambda->marker_)
+        if (!lambda->isExtern() || lambda->is_marked())
             continue;
 
         std::queue<const Lambda*> queue;
         queue.push(lambda);
-        lambda->marker_ = true;
+        lambda->mark();
 
         while (!queue.empty()) {
             const Lambda* cur = queue.front();
@@ -683,8 +549,8 @@ void World::dump(bool fancy) {
             std::cout << std::endl;
 
             for_all (succ, cur->succ()) {
-                if (!succ->marker_ && !succ->isExtern()) {
-                    succ->marker_ = true;
+                if (!succ->is_marked() && !succ->isExtern()) {
+                    succ->mark();
                     queue.push(succ);
                 }
             }
@@ -880,72 +746,6 @@ World::Old2New::iterator World::mustDrop(Old2New& old2new, const Def* def) {
     return old2new.begin();
 }
 
-static void depends_simple(const Def* def, LambdaSet* dep) {
-    if (const Param* param = def->isa<Param>())
-        dep->insert(param->lambda());
-    else if (!def->isa<Lambda>()) {
-        for_all (op, def->ops())
-            depends_simple(op, dep);
-    }
-}
-
-void World::group() {
-    std::queue<const Lambda*> queue;
-    LambdaSet inqueue;
-
-    typedef boost::unordered_map<const Lambda*, LambdaSet*> DepMap;
-    DepMap depmap;
-
-    for_all_lambdas (lambda) {
-        LambdaSet* dep = new LambdaSet();
-
-        for_all (op, lambda->ops())
-            depends_simple(op, dep);
-
-        depmap[lambda] = dep;
-        queue.push(lambda);
-        inqueue.insert(lambda);
-    }
-
-    while (!queue.empty()) {
-        const Lambda* lambda = queue.front();
-        queue.pop();
-        inqueue.erase(lambda);
-        LambdaSet* dep = depmap[lambda];
-        size_t old = dep->size();
-
-        for_all (succ, lambda->succ()) {
-            LambdaSet* succ_dep = depmap[succ];
-
-            for_all (d, *succ_dep) {
-                if (d != succ)
-                    dep->insert(d);
-            }
-        }
-
-        if (dep->size() != old) {
-            for_all (caller, lambda->callers()) {
-                if (inqueue.find(caller) == inqueue.end()) {
-                    inqueue.insert(caller);
-                    queue.push(caller);
-                }
-            }
-        }
-    }
-
-#if 0
-    for_all (p, depmap) {
-        std::cout << p.first->debug << std::endl;
-
-        for_all (l, *p.second)
-            std::cout << "\t" << l->debug << std::endl;
-    }
-#endif
-
-    for_all (p, depmap)
-        delete p.second;
-}
-
 /*
  * debug printing
  */
@@ -986,24 +786,6 @@ void World::printDominators() {
             std::cout << std::endl;
         }
     }
-}
-
-void World::hack() {
-    group();
-#if 0
-    const Lambda* l;
-    const Def* with;
-
-    for_all (def, defs_)
-        if (def->debug == "fac_tail")
-            l = def->as<Lambda>();
-        else if (def->debug == "fac")
-            with = def->as<Lambda>()->arg(2);
-
-    size_t args[] = {2};
-    const Def* withs[] = {with};
-    drop(l, args, withs);
-#endif
 }
 
 } // namespace anydsl

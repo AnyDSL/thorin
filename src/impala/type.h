@@ -24,10 +24,10 @@ public:
     virtual void dump(Printer& p) const = 0;
     virtual const anydsl::Type* convert(anydsl::World& world) const = 0;
 
-    virtual bool isBool() const { return false; }
-    virtual bool isError() const { return false; }
-    virtual bool isNoRet() const { return false; }
-    virtual bool isVoid() const { return false; }
+    virtual bool is_bool() const { return false; }
+    virtual bool is_error() const { return false; }
+    virtual bool is_noret() const { return false; }
+    virtual bool is_void() const { return false; }
 
 private:
 
@@ -63,7 +63,7 @@ public:
 
     virtual void dump(Printer& p) const;
     virtual const anydsl::Type* convert(anydsl::World& world) const;
-    virtual bool isBool() const { return kind_ == TYPE_bool; }
+    virtual bool is_bool() const { return kind_ == TYPE_bool; }
 
 private:
 
@@ -84,7 +84,7 @@ public:
 
     virtual void dump(Printer& p) const;
     virtual const anydsl::Type* convert(anydsl::World& world) const;
-    virtual bool isVoid() const { return true; }
+    virtual bool is_void() const { return true; }
 
     friend class TypeTable;
 };
@@ -96,13 +96,13 @@ private:
 
     virtual bool equal(const Type* t) const;
     virtual size_t hash() const;
-    virtual bool isNoRet() const { return true; }
+    virtual bool is_noret() const { return true; }
 
 public:
 
     virtual void dump(Printer& p) const;
     virtual const anydsl::Type* convert(anydsl::World& world) const;
-    virtual bool isVoid() const { return true; }
+    virtual bool is_void() const { return true; }
 
     friend class TypeTable;
 };
@@ -119,7 +119,7 @@ public:
 
     virtual void dump(Printer& p) const;
     virtual const anydsl::Type* convert(anydsl::World& world) const;
-    virtual bool isError() const { return true; }
+    virtual bool is_error() const { return true; }
 
     friend class TypeTable;
 };

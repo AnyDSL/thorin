@@ -167,17 +167,44 @@ public:
      * check for special literals
      */
 
-    bool isPrimLit(int val) const;
-    bool isZero() const { return isPrimLit(0); }
-    bool isOne() const { return isPrimLit(1); }
-    bool isAllSet() const { return isPrimLit(-1); }
+    bool is_primlit(int val) const;
+    bool is_zero() const { return is_primlit(0); }
+    bool is_one() const { return is_primlit(1); }
+    bool is_allset() const { return is_primlit(-1); }
 
-    /**
-     * Just do what ever you want with this field.
-     * Perhaps you want to attach file/line/col information in this field.
-     * \p Location provides convenient functionality to achieve this.
-     */
+    /// Just do what ever you want with this field.
     mutable std::string debug;
+
+    union Note {
+        void*  ptr;
+        size_t index;
+        int    i;
+        bool   marker;
+
+    };
+
+    /** 
+     * Use this field in order to annotate information on this Def.
+     * Various analyses have to memorize different stuff temporally.
+     * Each analysis can use this field for its specific information. 
+     * \attention { 
+     *      Each pass/analysis simply overwrites this field again.
+     *      So keep this in mind and perform copy operations in order to
+     *      save your data before running the next pass/analysis.
+     *      Also, keep in mind to perform clean up operations at the end 
+     *      of your pass/analysis.
+     * }
+     */
+    mutable Note note;
+
+    /*
+     * note operations
+     */
+
+    void mark() const { note.marker = true; }
+    void unmark() const { note.marker = false; }
+    bool is_marked() const { return note.marker; }
+    template<class T> T* noteptr() { return (T*) note.ptr; }
 
 private:
 
@@ -185,7 +212,6 @@ private:
     const Type* type_;
     Array<const Def*> ops_;
     mutable Uses uses_;
-    mutable bool marker_;
 
     friend class World;
     friend class DefHash;

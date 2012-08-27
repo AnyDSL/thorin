@@ -3,6 +3,7 @@
 
 #include <boost/program_options.hpp>
 
+#include "anydsl/lambdatree.h"
 #include "anydsl/be/llvm/emit.h"
 
 #include "impala/ast.h"
@@ -97,7 +98,7 @@ int main(int argc, char** argv) {
 
         if (result) {
             emit(init.world, p);
-            init.world.hack();
+            build_lambda_tree(init.world);
 
             if (opt)
                 init.world.opt();

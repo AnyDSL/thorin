@@ -402,16 +402,16 @@ void ContinueStmt::emit(CodeGen& cg) const {
 }
 
 void ReturnStmt::emit(CodeGen& cg) const {
-    const Def* def = expr()->remit(cg);
-
     if (const Call* call = expr()->isa<Call>()) {
         Array<const Def*> args = call->emitArgs(cg);
         cg.curBB->tailCalls(args[0], args.slice_back(1));
     } else {
+        const Def* def = expr()->remit(cg);
         cg.curBB->setVar(anydsl::Symbol("<result>"), def);
         cg.curBB->goesto(cg.curFct->exit());
     }
 
+    // all statements in the same BB are unreachable
     cg.curBB = 0;
 }
 

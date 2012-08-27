@@ -176,9 +176,9 @@ public:
     mutable std::string debug;
 
     union Note {
-        void*  ptr;
         size_t index;
         int    i;
+        void*  ptr;
         bool   marker;
 
     };
@@ -204,7 +204,8 @@ public:
     void mark() const { note.marker = true; }
     void unmark() const { note.marker = false; }
     bool is_marked() const { return note.marker; }
-    template<class T> T* noteptr() { return (T*) note.ptr; }
+    template<class T> T* noteptr() const { return (T*) note.ptr; }
+    template<class T> void set_noteptr(T* p) const { note.ptr = p; }
 
 private:
 

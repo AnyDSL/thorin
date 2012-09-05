@@ -5,7 +5,7 @@
 #include "anydsl/lambda.h"
 #include "anydsl/world.h"
 
-#include "anydsl/analyses/find_scope.h"
+#include "anydsl/analyses/scope.h"
 
 namespace anydsl {
 

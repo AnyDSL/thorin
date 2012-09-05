@@ -1,4 +1,4 @@
-#include "anydsl/analyses/find_scope.h"
+#include "anydsl/analyses/scope.h"
 
 #include "anydsl/lambda.h"
 

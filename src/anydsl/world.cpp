@@ -12,11 +12,6 @@
 #include "anydsl/util/array.h"
 #include "anydsl/util/for_all.h"
 
-// debug includes
-#include "anydsl/order.h"
-#include "anydsl/dom.h"
-#include "anydsl/printer.h"
-
 #define ANYDSL_NO_U_TYPE \
     case PrimType_u1: \
     case PrimType_u8: \
@@ -750,48 +745,6 @@ World::Old2New::iterator World::mustDrop(Old2New& old2new, const Def* def) {
     return false;
 #endif
     return old2new.begin();
-}
-
-/*
- * debug printing
- */
-
-void World::printPostOrder() {
-    PostOrder order(*defs_.begin());
-    for(PostOrder::iterator it = order.begin(), e = order.end();
-        it != e; ++it) {
-        const Def* d = *it;
-        if(d->isa<Lambda>()) {
-            d->dump(false);
-        }
-    }
-}
-
-void World::printReversePostOrder() {
-    PostOrder order(*defs_.begin());
-    for(PostOrder::reverse_iterator it = order.rbegin(), e = order.rend();
-        it != e; ++it) {
-        const Def* d = *it;
-        if(d->isa<Lambda>()) {
-            d->dump(false);
-        }
-    }
-}
-
-void World::printDominators() {
-    Dominators doms(*defs_.begin());
-    for(Dominators::const_iterator it = doms.begin(), e = doms.end();
-        it != e; ++it) {
-        const Def* d = it->first;
-        const Def* t = it->second;
-        if(d->isa<Lambda>()) {
-            Printer p(std::cout, false);
-            t->vdump(p);
-            std::cout << " --> ";
-            d->vdump(p);
-            std::cout << std::endl;
-        }
-    }
 }
 
 } // namespace anydsl

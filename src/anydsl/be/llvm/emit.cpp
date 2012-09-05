@@ -12,7 +12,6 @@
 #include <llvm/Support/IRBuilder.h>
 
 #include "anydsl/def.h"
-#include "anydsl/dom.h"
 #include "anydsl/lambda.h"
 #include "anydsl/literal.h"
 #include "anydsl/primop.h"
@@ -39,7 +38,7 @@ public:
     llvm::Function* emitFct(const Lambda* lambda);
     void emitBB(const Lambda* lambda);
     llvm::BasicBlock* lambda2bb(const Lambda* lambda);
-    void recEmit(Dominators& dom, const Lambda* lambda);
+    //void recEmit(Dominators& dom, const Lambda* lambda);
 
 private:
 
@@ -62,6 +61,7 @@ CodeGen::CodeGen(const World& world)
     , module_(new llvm::Module("anydsl", context_))
 {}
 
+#if 0
 void CodeGen::recEmit(Dominators& dom, const Lambda* lambda) {
     Dominators::Range range = dom.children().equal_range(lambda);
     for (Dominators::DomChildren::const_iterator i = range.first, e = range.second; i != e; ++i)
@@ -72,6 +72,7 @@ void CodeGen::recEmit(Dominators& dom, const Lambda* lambda) {
         if (const Lambda* lchild = i->second->isa<Lambda>())
             recEmit(dom, lchild);
 }
+#endif
 
 void CodeGen::emit() {
     for_all (def, world_.defs())
@@ -97,8 +98,7 @@ void CodeGen::emit() {
         curFct_ = lf.second;
         params_.clear();
 
-        Dominators dom(curLam_);
-        recEmit(dom, curLam_);
+        //recEmit(dom, curLam_);
 
 #ifndef NDEBUG
         //llvm::verifyFunction(*f);

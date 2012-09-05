@@ -235,14 +235,6 @@ public:
     /// Sets all \p Def%s' note.marker field to false.
     void unmark();
 
-    /*
-     * debug printing
-     */
-
-    void printPostOrder();
-    void printReversePostOrder();
-    void printDominators();
-
 private:
 
     typedef boost::unordered_map<const Def*, const Def*> Old2New;

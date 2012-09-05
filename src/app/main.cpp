@@ -3,7 +3,7 @@
 
 #include <boost/program_options.hpp>
 
-#include "anydsl/lambdatree.h"
+#include "anydsl/analyses/domtree.h"
 #include "anydsl/be/llvm/emit.h"
 
 #include "impala/ast.h"
@@ -98,7 +98,7 @@ int main(int argc, char** argv) {
 
         if (result) {
             emit(init.world, p);
-            build_lambda_tree(init.world);
+            init.world.cleanup();
 
             if (opt)
                 init.world.opt();
@@ -112,6 +112,8 @@ int main(int argc, char** argv) {
                 init.world.printReversePostOrder();
             if (dominators)
                 init.world.printDominators();
+
+            calc_domtree(init.world);
         }
 
         return EXIT_SUCCESS;

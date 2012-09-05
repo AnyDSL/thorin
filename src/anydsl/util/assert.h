@@ -176,7 +176,11 @@ inline Assert& Assert::operator<< <BTEnum>(const BTEnum& message) {
     ::anydsl::detail::Assert()
 #endif
 
+#ifndef NDEBUG
+#define ANYDSL_CALL_ONCE
+#else
 #define ANYDSL_CALL_ONCE do { static bool once = true; anydsl_assert(once,"ANYDSL_CALL_ONCE"); once=false; } while(0)
+#endif
 #define ANYDSL_NOT_IMPLEMENTED do { anydsl_assert_always("Function not implemented"); abort(); } while(0)
 #define ANYDSL_DEPRECATED do { anydsl_warn_assert(false, "Function is deprecated and should not be used"); } while(0)
 #define ANYDSL_DEPRECATED_BT do { anydsl_warn_assert(false, "Function is deprecated and should not be used") << ::anydsl::AssertBacktrace; } while(0)

@@ -28,10 +28,6 @@
     case PrimType_f32: \
     case PrimType_f64: ANYDSL_UNREACHABLE;
 
-#define for_all_lambdas(l) \
-    for_all (__def, defs_) \
-        if (const Lambda* l =__def->isa<Lambda>())
-
 namespace anydsl {
 
 /*
@@ -411,7 +407,7 @@ void World::dce() {
     for (size_t i = 0; i < Num_PrimTypes; ++i)
         dce_insert(primTypes_[i]);
 
-    for_all_lambdas (lambda)
+    for_all (lambda, lambdas())
         if (lambda->isExtern()) {
             for (Params::const_iterator i = lambda->ho_begin(), e = lambda->ho_end(); i != e; lambda->ho_next(i)) {
                 const Param* param = *i;
@@ -463,7 +459,7 @@ void World::uce() {
     unmark();
 
     // find all reachable lambdas
-    for_all_lambdas (lambda)
+    for_all (lambda, lambdas())
         if (lambda->isExtern())
             uce_insert(lambda);
 
@@ -497,9 +493,9 @@ void World::uce_insert(const Lambda* lambda) {
 }
 
 void World::cleanup() {
-    uce();
     dce();
-    std::cout << "yeah!!!" << std::endl;
+    uce();
+    std::cout << "yeah" << std::endl;
 }
 
 void World::opt() {
@@ -530,10 +526,20 @@ const Def* World::find(const Def* def) {
  * other
  */
 
+LambdaSet World::lambdas() const {
+    LambdaSet result;
+
+    for_all (def, defs())
+        if (const Lambda* lambda = def->isa<Lambda>())
+            result.insert(lambda);
+
+    return result;
+}
+
 void World::dump(bool fancy) {
     unmark();
 
-    for_all_lambdas (lambda) {
+    for_all (lambda, lambdas()) {
         if (!lambda->isExtern() || lambda->is_marked())
             continue;
 

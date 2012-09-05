@@ -5,29 +5,34 @@
 
 namespace anydsl {
 
+class Def;
 class Lambda;
 class World;
 
 class LambdaNode;
-typedef boost::unordered_set<const LambdaNode*> NodeSet;
+typedef boost::unordered_set<const Lambda*> LambdaSet;
+typedef boost::unordered_set<const LambdaNode*> LambdaNodes;
 
 class LambdaNode {
 public:
 
+    LambdaNode(const Lambda* lambda);
     ~LambdaNode();
 
     const Lambda* lambda() const { return lambda_; }
-    const NodeSet& children() const { return children_; }
-    const LambdaNode* idom() const { return idom_; }
+    const LambdaNodes& children() const { return children_; }
+    LambdaNode* parent() const { return parent_; }
+    bool top() const { return parent() == this; }
 
-private:
+public:
 
     const Lambda* lambda_;
-    const LambdaNode* idom_;
-    NodeSet children_;
+    LambdaNode* parent_;
+    LambdaNodes children_;
 };
 
-const LambdaNode* build_lambda_tree(const World& world);
+void build_lambda_forest(const World& world);
+void build_lambda_forest(const LambdaSet& lambdas);
 
 } // namespace anydsl
 

@@ -27,6 +27,7 @@ class Def;
 class Any;
 
 typedef boost::unordered_set<const Def*, DefHash, DefEqual> DefSet;
+typedef boost::unordered_set<const Lambda*> LambdaSet;
 
 //------------------------------------------------------------------------------
 
@@ -217,6 +218,7 @@ public:
      */
 
     const DefSet& defs() const { return defs_; }
+    LambdaSet lambdas() const;
 
     /*
      * other

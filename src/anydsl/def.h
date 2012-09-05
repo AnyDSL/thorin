@@ -175,7 +175,7 @@ public:
     /// Just do what ever you want with this field.
     mutable std::string debug;
 
-    union Note {
+    union Scratch {
         size_t index;
         int    i;
         void*  ptr;
@@ -195,17 +195,17 @@ public:
      *      of your pass/analysis.
      * }
      */
-    mutable Note note;
+    mutable Scratch scratch;
 
     /*
-     * note operations
+     * scratch operations
      */
 
-    void mark() const { note.marker = true; }
-    void unmark() const { note.marker = false; }
-    bool is_marked() const { return note.marker; }
-    template<class T> T* noteptr() const { return (T*) note.ptr; }
-    template<class T> void set_noteptr(T* p) const { note.ptr = p; }
+    void mark() const { scratch.marker = true; }
+    void unmark() const { scratch.marker = false; }
+    bool is_marked() const { return scratch.marker; }
+    template<class T> T* scratch_get() const { return (T*) scratch.ptr; }
+    template<class T> void scratch_set(T* t) const { scratch.ptr = (void*) t; }
 
 private:
 

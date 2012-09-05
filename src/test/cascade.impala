@@ -1,0 +1,15 @@
+def test(cond : bool) -> int {
+    a : int;
+
+    if (cond)
+        a = 23;
+    else
+        a = 42;
+
+    if (a == 23)
+        a = 1;
+    else
+        a = 2;
+
+    return a;
+}

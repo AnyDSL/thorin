@@ -62,7 +62,7 @@ const DomNode* calc_domtree(const Lambda* entry, const LambdaSet& scope) {
                     if (contains(scope, caller)) {
                         if (const Lambda* other_idom = idom[caller->scratch.index]) {
                             if (!new_idom)
-                                new_idom = other_idom;// pick first processed predecessor of cur
+                                new_idom = caller;// pick first processed predecessor of cur
                             else
                                 new_idom = index2lambda[intersect(idom, other_idom, new_idom)];
                         }

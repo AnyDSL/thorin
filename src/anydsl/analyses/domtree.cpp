@@ -14,7 +14,7 @@ DomNode::DomNode(const Lambda* lambda)
     : lambda_(lambda) 
     , idom_(0)
 {
-    lambda->scratch_set(this);
+    lambda->scratch.ptr = this;
 }
 
 //------------------------------------------------------------------------------
@@ -33,6 +33,7 @@ public:
 
     size_t num() const { return index2node.size(); }
     bool contains(const Lambda* lambda) { return scope.find(lambda) != scope.end(); }
+    static DomNode* node(const Lambda* lambda) { return (DomNode*) lambda->scratch.ptr; }
 
     DomNode* build();
     DomNode* intersect(DomNode* i, DomNode* j);
@@ -51,40 +52,38 @@ DomNode* DomBuilder::build() {
 
     // mark all nodes in post-order
     size_t num2 = number(entry, 0);
-    DomNode* entry_node = entry->scratch_get<DomNode>();
+    DomNode* entry_node = node(entry);
     anydsl_assert(num2 == num(), "bug in numbering -- maybe scope contains unreachable blocks?");
     anydsl_assert(num() - 1 == entry_node->index(), "bug in numbering");
 
     // map entry to entry, all other are set to 0 by the DomNode constructor
     entry_node->idom_ = entry_node;
 
-    if (num() > 1) {
-        for (bool changed = true; changed;) {
-            changed = false;
+    for (bool changed = true; changed;) {
+        changed = false;
 
-            // for all lambdas in reverse post-order except start node
-            for (size_t i = num() - 1; i --> 0; /* the C++ goes-to operator :) */) {
-                DomNode* cur = index2node[i];
+        // for all lambdas in reverse post-order except start node
+        for (size_t i = num() - 2; i != size_t(-1); --i) {
+            DomNode* cur = index2node[i];
 
-                // for all predecessors of cur
-                DomNode* new_idom = 0;
-                for_all (caller, cur->lambda()->callers()) {
-                    if (contains(caller)) {
-                        if (DomNode* other_idom = caller->scratch_get<DomNode>()->idom_) {
-                            if (!new_idom)
-                                new_idom = caller->scratch_get<DomNode>();// pick first processed predecessor of cur
-                            else
-                                new_idom = intersect(other_idom, new_idom);
-                        }
+            // for all predecessors of cur
+            DomNode* new_idom = 0;
+            for_all (caller, cur->lambda()->callers()) {
+                if (contains(caller)) {
+                    if (DomNode* other_idom = node(caller)->idom_) {
+                        if (!new_idom)
+                            new_idom = node(caller);// pick first processed predecessor of cur
+                        else
+                            new_idom = intersect(other_idom, new_idom);
                     }
                 }
+            }
 
-                assert(new_idom);
+            assert(new_idom);
 
-                if (cur->idom() != new_idom) {
-                    cur->idom_ = new_idom;
-                    changed = true;
-                }
+            if (cur->idom() != new_idom) {
+                cur->idom_ = new_idom;
+                changed = true;
             }
         }
     }

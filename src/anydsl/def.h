@@ -204,8 +204,6 @@ public:
     void mark() const { scratch.marker = true; }
     void unmark() const { scratch.marker = false; }
     bool is_marked() const { return scratch.marker; }
-    template<class T> T* scratch_get() const { return (T*) scratch.ptr; }
-    template<class T> void scratch_set(T* t) const { scratch.ptr = (void*) t; }
 
 private:
 

@@ -6,6 +6,8 @@
 
 namespace anydsl {
 
+static inline LambdaSet* depends(const Lambda* lambda) { return (LambdaSet*) lambda->scratch.ptr; }
+
 static void depends(const Def* def, LambdaSet* dep) {
     if (const Param* param = def->isa<Param>())
         dep->insert(param->lambda());
@@ -29,7 +31,7 @@ LambdaSet find_root_lambdas(const LambdaSet& lambdas) {
         for_all (op, lambda->ops())
             depends(op, dep);
 
-        lambda->scratch_set(dep);
+        lambda->scratch.ptr = dep;
         queue.push(lambda);
         inqueue.insert(lambda);
     }
@@ -38,11 +40,11 @@ LambdaSet find_root_lambdas(const LambdaSet& lambdas) {
         const Lambda* lambda = queue.front();
         queue.pop();
         inqueue.erase(lambda);
-        LambdaSet* dep = lambda->scratch_get<LambdaSet>();
+        LambdaSet* dep = depends(lambda);
         size_t old = dep->size();
 
         for_all (succ, lambda->succ()) {
-            LambdaSet* succ_dep = succ->scratch_get<LambdaSet>();
+            LambdaSet* succ_dep = depends(succ);
 
             for_all (d, *succ_dep) {
                 if (d != succ)
@@ -63,12 +65,10 @@ LambdaSet find_root_lambdas(const LambdaSet& lambdas) {
     LambdaSet roots;
 
     for_all (lambda, lambdas) {
-        LambdaSet* dep = lambda->scratch_get<LambdaSet>();
+        LambdaSet* dep = depends(lambda);
 
-        if (dep->size() == 1 && lambda == *dep->begin()) {
-            std::cout << lambda->debug << std::endl;
+        if (dep->size() == 1 && lambda == *dep->begin())
             roots.insert(lambda);
-        }
 
         delete dep;
     }

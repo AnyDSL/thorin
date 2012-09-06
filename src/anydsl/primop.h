@@ -57,36 +57,36 @@ public:
 
     ArithOpKind arithop_kind() const { return (ArithOpKind) node_kind(); }
 
-    static bool isDiv(ArithOpKind kind) { 
+    static bool is_div(ArithOpKind kind) { 
         return  kind == ArithOp_sdiv 
              || kind == ArithOp_udiv
              || kind == ArithOp_fdiv; 
     }
-    static bool isRem(ArithOpKind kind) { 
+    static bool is_rem(ArithOpKind kind) { 
         return  kind == ArithOp_srem 
              || kind == ArithOp_urem
              || kind == ArithOp_frem; 
     }
-    static bool isBit(ArithOpKind kind) {
+    static bool is_bit(ArithOpKind kind) {
         return  kind == ArithOp_and
              || kind == ArithOp_or
              || kind == ArithOp_xor;
     }
-    static bool isShift(ArithOpKind kind) {
+    static bool is_shift(ArithOpKind kind) {
         return  kind == ArithOp_shl
              || kind == ArithOp_lshr
              || kind == ArithOp_ashr;
     }
-    static bool isDivOrRem(ArithOpKind kind) { return isDiv(kind) || isRem(kind); }
+    static bool is_div_or_rem(ArithOpKind kind) { return is_div(kind) || is_rem(kind); }
 
-    bool isDiv()      const { return isDiv  (arithop_kind()); }
-    bool isRem()      const { return isRem  (arithop_kind()); }
-    bool isBit()      const { return isBit  (arithop_kind()); }
-    bool isShift()    const { return isShift(arithop_kind()); }
-    bool isDivOrRem() const { return isDivOrRem(arithop_kind()); }
-    bool isCommutative() const { return isCommutative(arithop_kind()); }
+    bool is_div()      const { return is_div  (arithop_kind()); }
+    bool is_rem()      const { return is_rem  (arithop_kind()); }
+    bool is_bit()      const { return is_bit  (arithop_kind()); }
+    bool is_shift()    const { return is_shift(arithop_kind()); }
+    bool is_div_or_rem() const { return is_div_or_rem(arithop_kind()); }
+    bool is_commutative() const { return is_commutative(arithop_kind()); }
 
-    static bool isCommutative(ArithOpKind kind) {
+    static bool is_commutative(ArithOpKind kind) {
         return kind == ArithOp_add
             || kind == ArithOp_mul
             || kind == ArithOp_fadd

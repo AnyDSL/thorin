@@ -159,7 +159,7 @@ const Def* PrefixExpr::remit(CodeGen& cg) const {
             case anydsl::PrimType_f32: zero = cg.world.literal_f32(-0.f); break;
             case anydsl::PrimType_f64: zero = cg.world.literal_f64(-0.0); break;
             default: 
-                assert(pt->isInt()); 
+                assert(pt->is_int()); 
                 zero = cg.world.literal(pt->primtype_kind(), 0u);
         }
 

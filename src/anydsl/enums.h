@@ -71,19 +71,19 @@ enum ConvOpKind {
 #include "anydsl/tables/convoptable.h"
 };
 
-inline bool isInt(PrimTypeKind kind) {
+inline bool is_int(PrimTypeKind kind) {
     return (int) Begin_PrimType_u <= (int) kind && (int) kind < (int) End_PrimType_u;
 }
 
-inline bool isFloat(PrimTypeKind kind) {
+inline bool is_float(PrimTypeKind kind) {
     return (int) Begin_PrimType_f <= (int) kind && (int) kind < (int) End_PrimType_f;
 }
 
-inline bool isCoreNode(int kind){ return (int) Begin_AllNodes <= kind && kind < (int) End_AllNodes; }
-inline bool isPrimType(int kind){ return (int) Begin_PrimType <= kind && kind < (int) End_PrimType; }
-inline bool isArithOp(int kind) { return (int) Begin_ArithOp <= kind && kind < (int) End_ArithOp; }
-inline bool isRelOp(int kind)   { return (int) Begin_RelOp   <= kind && kind < (int) End_RelOp; }
-inline bool isConvOp(int kind)  { return (int) Begin_ConvOp  <= kind && kind < (int) End_ConvOp; }
+inline bool is_corenode(int kind){ return (int) Begin_AllNodes <= kind && kind < (int) End_AllNodes; }
+inline bool is_primtype(int kind){ return (int) Begin_PrimType <= kind && kind < (int) End_PrimType; }
+inline bool is_arithop(int kind) { return (int) Begin_ArithOp <= kind && kind < (int) End_ArithOp; }
+inline bool is_relop(int kind)   { return (int) Begin_RelOp   <= kind && kind < (int) End_RelOp; }
+inline bool is_convop(int kind)  { return (int) Begin_ConvOp  <= kind && kind < (int) End_ConvOp; }
 
 template<PrimTypeKind kind> struct kind2type {};
 #define ANYDSL_U_TYPE(T) template<> struct kind2type<PrimType_##T> { typedef T type; };

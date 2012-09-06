@@ -46,8 +46,8 @@ public:
 
     PrimTypeKind primtype_kind() const { return (PrimTypeKind) node_kind(); }
 
-    bool isInt()   const { return anydsl::isInt(primtype_kind()); }
-    bool isFloat() const { return anydsl::isFloat(primtype_kind()); }
+    bool is_int()   const { return anydsl::is_int(primtype_kind()); }
+    bool is_float() const { return anydsl::is_float(primtype_kind()); }
 
 private:
 

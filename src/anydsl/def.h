@@ -128,9 +128,9 @@ public:
     void unregisterUse(size_t i, const Def* def) const;
 
     int kind() const { return kind_; }
-    bool isCoreNode() const { return ::anydsl::isCoreNode(kind()); }
+    bool is_corenode() const { return ::anydsl::is_corenode(kind()); }
 
-    NodeKind node_kind() const { assert(isCoreNode()); return (NodeKind) kind_; }
+    NodeKind node_kind() const { assert(is_corenode()); return (NodeKind) kind_; }
 
     void dump() const;
     void dump(bool fancy) const;

@@ -148,7 +148,7 @@ public:
     const PrimLit* zero(PrimTypeKind kind) { return literal(kind, 0); }
     const PrimLit* one(PrimTypeKind kind) { return literal(kind, 1); }
     const PrimLit* allset(PrimTypeKind kind) { 
-        anydsl_assert(isFloat(kind), "must not be a float"); 
+        anydsl_assert(is_float(kind), "must not be a float"); 
         return literal(kind, -1); 
     }
 

@@ -18,6 +18,7 @@ class DomNode {
 public:
 
     DomNode(const Lambda* lambda);
+    ~DomNode();
 
     const Lambda* lambda() const { return lambda_; }
     /// Returns post-order number of lambda in scope.

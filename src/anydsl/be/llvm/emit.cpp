@@ -35,7 +35,7 @@ public:
 
     llvm::Type* convert(const Type* type);
     llvm::Value* emit(const Def* def);
-    llvm::Function* emitFct(const Lambda* lambda);
+    llvm::Function* emit_fct(const Lambda* lambda);
     void emitBB(const Lambda* lambda);
     llvm::BasicBlock* lambda2bb(const Lambda* lambda);
     //void recEmit(Dominators& dom, const Lambda* lambda);
@@ -61,20 +61,8 @@ CodeGen::CodeGen(const World& world)
     , module_(new llvm::Module("anydsl", context_))
 {}
 
-#if 0
-void CodeGen::recEmit(Dominators& dom, const Lambda* lambda) {
-    Dominators::Range range = dom.children().equal_range(lambda);
-    for (Dominators::DomChildren::const_iterator i = range.first, e = range.second; i != e; ++i)
-        if (const Lambda* lchild = i->second->isa<Lambda>())
-            emitBB(lchild);
-
-    for (Dominators::DomChildren::const_iterator i = range.first, e = range.second; i != e; ++i)
-        if (const Lambda* lchild = i->second->isa<Lambda>())
-            recEmit(dom, lchild);
-}
-#endif
-
 void CodeGen::emit() {
+
     for_all (def, world_.defs())
         if (const Lambda* lambda = def->isa<Lambda>())
             if (lambda->isHigherOrder()) {
@@ -110,6 +98,20 @@ void CodeGen::emit() {
     //llvm::verifyModule(*cg.module);
 #endif
 }
+
+#if 0
+void CodeGen::recEmit(Dominators& dom, const Lambda* lambda) {
+    Dominators::Range range = dom.children().equal_range(lambda);
+    for (Dominators::DomChildren::const_iterator i = range.first, e = range.second; i != e; ++i)
+        if (const Lambda* lchild = i->second->isa<Lambda>())
+            emitBB(lchild);
+
+    for (Dominators::DomChildren::const_iterator i = range.first, e = range.second; i != e; ++i)
+        if (const Lambda* lchild = i->second->isa<Lambda>())
+            recEmit(dom, lchild);
+}
+#endif
+
 
 void CodeGen::emitBB(const Lambda* lambda) {
     llvm::BasicBlock* bb = lambda2bb(lambda);
@@ -260,7 +262,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
 }
 
 llvm::Value* CodeGen::emit(const Def* def) {
-    if (!def->isCoreNode())
+    if (!def->is_corenode())
         ANYDSL_NOT_IMPLEMENTED;
 
     if (const Param* param = def->isa<Param>()) {

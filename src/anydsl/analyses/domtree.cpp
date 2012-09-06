@@ -17,6 +17,11 @@ DomNode::DomNode(const Lambda* lambda)
     lambda->scratch.ptr = this;
 }
 
+DomNode::~DomNode() {
+    for_all (child, children_)
+        delete child;
+}
+
 //------------------------------------------------------------------------------
 
 class DomBuilder {

@@ -86,10 +86,10 @@ const Bottom* World::bottom(const Type* type) {
  */
 
 const Def* World::binop(int kind, const Def* lhs, const Def* rhs) {
-    if (isArithOp(kind))
+    if (is_arithop(kind))
         return arithop((ArithOpKind) kind, lhs, rhs);
 
-    anydsl_assert(isRelOp(kind), "must be a RelOp");
+    anydsl_assert(is_relop(kind), "must be a RelOp");
     return relop((RelOpKind) kind, lhs, rhs);
 }
 
@@ -199,7 +199,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b) {
     }
 
     // normalize -- put literal or smaller pointer to the left
-    if (ArithOp::isCommutative(kind))
+    if (ArithOp::is_commutative(kind))
         if ((rlit || a > b) && (!llit))
             std::swap(a, b);
 

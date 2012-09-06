@@ -1,5 +1,5 @@
-#ifndef ANYDSL_ANALYSES_SCOOPE_H
-#define ANYDSL_ANALYSES_SCOOPE_H
+#ifndef ANYDSL_ANALYSES_SCOPE_H
+#define ANYDSL_ANALYSES_SCOPE_H
 
 #include <boost/unordered_set.hpp>
 

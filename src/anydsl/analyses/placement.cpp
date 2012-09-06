@@ -8,7 +8,9 @@
 
 namespace anydsl {
 
-void insert(std::vector<const PrimOp*>& primops, const Def* def) {
+typedef boost::unordered_set<const PrimOp*> Done;
+
+void insert(Done& done, std::vector<const PrimOp*>& primops, const Def* def) {
     std::queue<const Def*> q;
     q.push(def);
 
@@ -20,8 +22,14 @@ void insert(std::vector<const PrimOp*>& primops, const Def* def) {
         if (def->isa<Lambda>())
             continue;
 
-        if (const PrimOp* primop = def->isa<PrimOp>())
-            primops.push_back(primop);
+        if (const PrimOp* primop = def->isa<PrimOp>()) {
+            if (done.find(primop) != done.end())
+                continue;
+            else {
+                done.insert(primop);
+                primops.push_back(primop);
+            }
+        }
 
         for_all (use, def->uses())
             q.push(use.def());
@@ -30,10 +38,12 @@ void insert(std::vector<const PrimOp*>& primops, const Def* def) {
 
 Places place(const DomTree& tree) {
     Places places(tree.size());
+    Done done;
 
-    for_all (node, tree.bfs()) {
+    for (size_t i = tree.size() - 1; i != size_t(-1); --i) {
+        const DomNode* node = tree.bfs(i);
         for_all (param, node->lambda()->params())
-            insert(places[node->index()], param);
+            insert(done, places[node->index()], param);
     }
 
     return places;

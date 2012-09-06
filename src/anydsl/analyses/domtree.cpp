@@ -46,6 +46,13 @@ DomTree::DomTree(size_t size, const DomNode* root)
     }
 }
 
+bool DomTree::dominates(const DomNode* a, const DomNode* b) {
+    while (a != b && !b->entry()) 
+        b = b->idom();
+
+    return a == b;
+}
+
 //------------------------------------------------------------------------------
 
 class DomBuilder {

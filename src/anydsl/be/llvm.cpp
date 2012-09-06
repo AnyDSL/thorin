@@ -25,9 +25,15 @@
 namespace anydsl {
 namespace be_llvm {
 
+//------------------------------------------------------------------------------
+
 typedef boost::unordered_map<const Lambda*, llvm::Function*> FctMap;
 typedef boost::unordered_map<const Lambda*, llvm::BasicBlock*> BBMap;
 typedef boost::unordered_map<const Param*, llvm::Value*> ParamMap;
+typedef boost::unordered_map<const Param*, llvm::PHINode*> PhiMap;
+typedef boost::unordered_map<const PrimOp*, llvm::Value*> PrimOpMap;
+
+//------------------------------------------------------------------------------
 
 class CodeGen {
 public:
@@ -38,10 +44,8 @@ public:
 
     llvm::Type* convert(const Type* type);
     llvm::Value* emit(const Def* def);
-    llvm::Function* emit_fct(const Lambda* lambda);
-    void emitBB(const Lambda* lambda);
-    llvm::BasicBlock* lambda2bb(const Lambda* lambda);
-    //void recEmit(Dominators& dom, const Lambda* lambda);
+    llvm::Value* literal(const PrimLit* def);
+    llvm::Value* lookup(const Def* def);
 
 private:
 
@@ -52,6 +56,8 @@ private:
     FctMap top_;
     BBMap bbs_;
     ParamMap params_;
+    PhiMap phis_;
+    PrimOpMap primops_;
     const Lambda* curLam_;
     llvm::Function* curFct_;
     const Param* retParam_;
@@ -64,31 +70,43 @@ CodeGen::CodeGen(const World& world)
     , module_(new llvm::Module("anydsl", context_))
 {}
 
+//------------------------------------------------------------------------------
+
 void CodeGen::emit() {
     LambdaSet roots = find_root_lambdas(world_.lambdas());
 
     // map all root-level lambdas to llvm function stubs
     for_all (lambda, roots) {
         llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
-        llvm::Function* f = llvm::Function::Create(ft, llvm::Function::PrivateLinkage, lambda->debug, module_);
+        llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->debug, module_);
         top_.insert(std::make_pair(lambda, f));
     }
 
     // for all top-level functions
     for_all (lf, top_) {
         curLam_ = lf.first;
+        curFct_ = lf.second;
         size_t retPos = curLam_->pi()->ho_begin();
 
-        for_all (p, curLam_->params()) {
-            if (p->index() == retPos) {
-                retParam_ = p;
-                break;
-            }
-            anydsl_assert(p->index() <= retPos, "return param dead");
-        }
+        llvm::Function::arg_iterator arg = curFct_->arg_begin();
 
-        curFct_ = lf.second;
-        params_.clear();
+        size_t i = 0;
+        for_all (param, curLam_->params()) {
+            while (i < param->index()) {
+                ++i;
+                ++arg;
+            }
+
+            if (param->index() == retPos)
+                retParam_ = param;
+            else {
+                params_[param] = arg;
+                arg->setName(param->debug);
+                ++arg;
+            }
+
+            ++i;
+        }
 
         DomTree domtree = calc_domtree(curLam_);
 
@@ -96,225 +114,125 @@ void CodeGen::emit() {
         for_all (node, domtree.bfs())
             bbs_[node->lambda()] = llvm::BasicBlock::Create(context_, node->lambda()->debug, curFct_);
 
-        // create phi node stubs
-        for_all (p, bbs_) {
-            const Lambda* lambda = p.first;
+        // create phi node stubs (for all nodes except entry)
+        for_all (node, domtree.bfs().slice_back(1)) {
+            builder_.SetInsertPoint(bbs_[node->lambda()]);
 
-            if (lambda == domtree.root()->lambda())
-                continue;
-
-            llvm::BasicBlock* bb = p.second;
-
-            builder_.SetInsertPoint(bb);
-
-            for_all (param, lambda->params())
-                builder_.CreatePHI(convert(param->type()), param->phi().size(), param->debug);
+            for_all (param, node->lambda()->params())
+                phis_[param] = builder_.CreatePHI(convert(param->type()), param->phi().size(), param->debug);
         }
 
         Array< std::vector<const PrimOp*> > places = place(domtree);
 
-        //recEmit(dom, curLam_);
+        // emit body for each bb
+        for_all (node, domtree.bfs()) {
+            const Lambda* lambda = node->lambda();
+            builder_.SetInsertPoint(bbs_[node->lambda()]);
+            std::vector<const PrimOp*> primops = places[node->index()];
 
-#ifndef NDEBUG
-        //llvm::verifyFunction(*f);
-#endif
+            for_all (primop, primops) {
+                if (!primop->type()->isa<Pi>())
+                    primops_[primop] = emit(primop);
+            }
+
+            // terminate bb
+            std::vector<llvm::Value*> values;
+            for_all (arg, lambda->args())
+                values.push_back(lookup(arg));
+
+            Lambdas targets = lambda->targets();
+            const Def* to = lambda->to();
+
+            switch (targets.size()) {
+                case 0: {
+                    const Param* param = to->as<Param>();
+
+                    if (param == retParam_) {
+                        // ret
+                        assert(values.size() == 1);
+                        builder_.CreateRet(values[0]);
+                        break;;
+                    } else {
+                        ANYDSL_UNREACHABLE;
+                    }
+                }
+                case 1: {
+                    if (const Lambda* toLambda = to->isa<Lambda>()) {
+                        builder_.CreateBr(bbs_[toLambda]);
+                        break;;
+                    }
+                }
+                case 2: {
+                    const Select* select = to->as<Select>();
+                    const Lambda* tLambda = select->tval()->as<Lambda>();
+                    const Lambda* fLambda = select->fval()->as<Lambda>();
+
+                    llvm::Value* cond = lookup(select->cond());
+                    llvm::BasicBlock* tbb = bbs_[tLambda];
+                    llvm::BasicBlock* fbb = bbs_[fLambda];
+                    builder_.CreateCondBr(cond, tbb, fbb);
+
+                    break;;
+                }
+                default:
+                    ANYDSL_UNREACHABLE;
+            }
+        }
+
+        // fix phis
+        for_all (p, phis_) {
+            const Param* param = p.first;
+            llvm::PHINode* phi = p.second;
+
+            for_all (op, param->phi())
+                phi->addIncoming(lookup(op.def()), bbs_[op.from()]);
+        }
+
+        bbs_.clear();
+        params_.clear();
+        primops_.clear();
+        phis_.clear();
     }
 
     module_->dump();
-#ifndef NDEBUG
-    //llvm::verifyModule(*cg.module);
-#endif
+    llvm::verifyModule(*this->module_);
 }
 
-#if 0
-void CodeGen::recEmit(Dominators& dom, const Lambda* lambda) {
-    Dominators::Range range = dom.children().equal_range(lambda);
-    for (Dominators::DomChildren::const_iterator i = range.first, e = range.second; i != e; ++i)
-        if (const Lambda* lchild = i->second->isa<Lambda>())
-            emitBB(lchild);
+llvm::Value* CodeGen::lookup(const Def* def) {
+    if (const PrimLit* lit = def->isa<PrimLit>())
+        return literal(lit);
 
-    for (Dominators::DomChildren::const_iterator i = range.first, e = range.second; i != e; ++i)
-        if (const Lambda* lchild = i->second->isa<Lambda>())
-            recEmit(dom, lchild);
-}
-#endif
+    if (const PrimOp* primop = def->isa<PrimOp>())
+        return primops_[primop];
 
-
-void CodeGen::emitBB(const Lambda* lambda) {
-    llvm::BasicBlock* bb = lambda2bb(lambda);
-
-    if (!bb->empty())
-        return;
-
-    builder_.SetInsertPoint(bb);
-    std::vector<llvm::Value*> values;
-
-    if (lambda == curLam_) {
-        llvm::Function::arg_iterator arg = curFct_->arg_begin();
-        for_all (param, lambda->params())
-            if (!param->type()->isa<Pi>())
-                params_[param] = arg++;
-    } else {
-        // place phis
-        for_all (param, lambda->params()) {
-            llvm::PHINode* phi = builder_.CreatePHI(convert(param->type()), param->phi().size());
-
-            for_all (op, param->phi())
-                phi->addIncoming(emit(op.def()), lambda2bb(op.from()));
-
-            params_[param] = phi;
-        }
-    }
-
-    for_all (arg, lambda->args())
-        values.push_back(emit(arg));
-
-    Lambdas targets = lambda->targets();
-    const Def* to = lambda->to();
-
-    switch (targets.size()) {
-        case 0: {
-            const Param* param = to->as<Param>();
-
-            if (param == retParam_) {
-                // ret
-                assert(values.size() == 1);
-                builder_.CreateRet(values[0]);
-                return;
-            } else {
-                ANYDSL_UNREACHABLE;
-            }
-        }
-        case 1: {
-            if (const Lambda* toLambda = to->isa<Lambda>()) {
-                llvm::BasicBlock* bb = lambda2bb(toLambda);
-                builder_.CreateBr(bb);
-                return;
-            }
-        }
-        case 2: {
-            const Select* select = to->as<Select>();
-            const Lambda* tLambda = select->tval()->as<Lambda>();
-            const Lambda* fLambda = select->fval()->as<Lambda>();
-
-            llvm::Value* cond = emit(select->cond());
-            llvm::BasicBlock* tbb = lambda2bb(tLambda);
-            llvm::BasicBlock* fbb = lambda2bb(fLambda);
-            builder_.CreateCondBr(cond, tbb, fbb);
-
-            return;
-        }
-        default:
-            ANYDSL_UNREACHABLE;
-    }
-}
-
-llvm::BasicBlock* CodeGen::lambda2bb(const Lambda* lambda) {
-    BBMap::iterator i = bbs_.find(lambda);
-    if (i != bbs_.end())
+    const Param* param = def->as<Param>();
+    ParamMap::iterator i = params_.find(param);
+    if (i != params_.end())
         return i->second;
 
-    llvm::BasicBlock* bb = llvm::BasicBlock::Create(context_, lambda->debug, curFct_);
-    bbs_[lambda] = bb;
-
-    return bb;
+    return phis_[param];
 }
 
-void emit(const World& world) {
-    CodeGen cg(world);
-    cg.emit();
-}
+llvm::Value* CodeGen::literal(const PrimLit* lit) {
+    llvm::Type* type = convert(lit->type());
+    Box box = lit->box();
 
-llvm::Type* CodeGen::convert(const Type* type) {
-    switch (type->node_kind()) {
-        case Node_PrimType_u1:  return llvm::IntegerType::get(context_, 1);
-        case Node_PrimType_u8:  return llvm::IntegerType::get(context_, 8);
-        case Node_PrimType_u16: return llvm::IntegerType::get(context_, 16);
-        case Node_PrimType_u32: return llvm::IntegerType::get(context_, 32);
-        case Node_PrimType_u64: return llvm::IntegerType::get(context_, 64);
-        case Node_PrimType_f32: return llvm::Type::getFloatTy(context_);
-        case Node_PrimType_f64: return llvm::Type::getDoubleTy(context_);
-
-        case Node_Pi: {
-            // extract "return" type, collect all other types
-            const Pi* pi = type->as<Pi>();
-            llvm::Type* retType = 0;
-            size_t i = 0;
-            Array<llvm::Type*> elems(pi->size() - 1);
-
-            for_all (elem, pi->elems()) {
-                if (const Pi* pi = elem->isa<Pi>()) {
-                    switch (pi->size()) {
-                        case 0:
-                            retType = llvm::Type::getVoidTy(context_);
-                            break;
-                        case 1:
-                            retType = convert(pi->elem(0));
-                            break;
-                        default: {
-                            Array<llvm::Type*> elems(pi->size());
-                            size_t i = 0;
-                            for_all (elem, pi->elems())
-                                elems[i++] = convert(elem);
-
-                            llvm::ArrayRef<llvm::Type*> structTypes(elems.begin(), elems.end());
-                            retType = llvm::StructType::get(context_, structTypes);
-                            break;
-                        }
-                    }
-                } else
-                    elems[i++] = convert(elem);
-            }
-
-            assert(retType);
-            llvm::ArrayRef<llvm::Type*> paramTypes(elems.begin(), elems.end());
-            return llvm::FunctionType::get(retType, paramTypes, false);
-        }
-
-        case Node_Sigma: {
-            // TODO watch out for cycles!
-
-            const Sigma* sigma = type->as<Sigma>();
-
-            Array<llvm::Type*> elems(sigma->elems().size());
-            size_t i = 0;
-            for_all (t, sigma->elems())
-                elems[i++] = convert(t);
-
-            return llvm::StructType::get(context_, llvm::ArrayRef<llvm::Type*>(elems.begin(), elems.end()));
-        }
-
+    switch (lit->primtype_kind()) {
+        case PrimType_u1:  return builder_.getInt1(box.get_u1().get());
+        case PrimType_u8:  return builder_.getInt8(box.get_u8());
+        case PrimType_u16: return builder_.getInt16(box.get_u16());
+        case PrimType_u32: return builder_.getInt32(box.get_u32());
+        case PrimType_u64: return builder_.getInt64(box.get_u64());
+        case PrimType_f32: return llvm::ConstantFP::get(type, box.get_f32());
+        case PrimType_f64: return llvm::ConstantFP::get(type, box.get_f64());
         default: ANYDSL_UNREACHABLE;
     }
 }
 
 llvm::Value* CodeGen::emit(const Def* def) {
-    if (!def->is_corenode())
-        ANYDSL_NOT_IMPLEMENTED;
-
-    if (const Param* param = def->isa<Param>()) {
-        ParamMap::iterator i = params_.find(param);
-        anydsl_assert(i != params_.end(), "not found");
-        return i->second;
-    }
-
-    if (const PrimLit* lit = def->isa<PrimLit>()) {
-        llvm::Type* type = convert(lit->type());
-        Box box = lit->box();
-        switch (lit->primtype_kind()) {
-            case PrimType_u1:  return builder_.getInt1(box.get_u1().get());
-            case PrimType_u8:  return builder_.getInt8(box.get_u8());
-            case PrimType_u16: return builder_.getInt16(box.get_u16());
-            case PrimType_u32: return builder_.getInt32(box.get_u32());
-            case PrimType_u64: return builder_.getInt64(box.get_u64());
-            case PrimType_f32: return llvm::ConstantFP::get(type, box.get_f32());
-            case PrimType_f64: return llvm::ConstantFP::get(type, box.get_f64());
-        }
-    }
-
     if (const BinOp* bin = def->isa<BinOp>()) {
-        llvm::Value* lhs = emit(bin->lhs());
-        llvm::Value* rhs = emit(bin->rhs());
+        llvm::Value* lhs = lookup(bin->lhs());
+        llvm::Value* rhs = lookup(bin->rhs());
 
         if (const RelOp* rel = def->isa<RelOp>()) {
             switch (rel->relop_kind()) {
@@ -380,7 +298,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     }
 
     if (const ConvOp* conv = def->isa<ConvOp>()) {
-        llvm::Value* from = emit(conv->from());
+        llvm::Value* from = lookup(conv->from());
         llvm::Type* to = convert(conv->type());
 
         switch (conv->convop_kind()) {
@@ -398,21 +316,21 @@ llvm::Value* CodeGen::emit(const Def* def) {
     }
 
     if (const Select* select = def->isa<Select>()) {
-        llvm::Value* cond = emit(select->cond());
-        llvm::Value* tval = emit(select->tval());
-        llvm::Value* fval = emit(select->fval());
+        llvm::Value* cond = lookup(select->cond());
+        llvm::Value* tval = lookup(select->tval());
+        llvm::Value* fval = lookup(select->fval());
         return builder_.CreateSelect(cond, tval, fval);
     }
 
     if (const TupleOp* tupleop = def->isa<TupleOp>()) {
-        llvm::Value* tuple = emit(tupleop->tuple());
+        llvm::Value* tuple = lookup(tupleop->tuple());
         unsigned idxs[1] = { unsigned(tupleop->index()) };
 
         if (tupleop->node_kind() == Node_Extract)
             return builder_.CreateExtractValue(tuple, idxs);
 
         const Insert* insert = def->as<Insert>();
-        llvm::Value* value = emit(insert->value());
+        llvm::Value* value = lookup(insert->value());
 
         return builder_.CreateInsertValue(tuple, value, idxs);
     }
@@ -422,7 +340,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
         for (unsigned i = 0, e = tuple->ops().size(); i != e; ++i) {
             unsigned idxs[1] = { unsigned(i) };
-            agg = builder_.CreateInsertValue(agg, emit(tuple->op(i)), idxs);
+            agg = builder_.CreateInsertValue(agg, lookup(tuple->op(i)), idxs);
         }
 
         return agg;
@@ -435,6 +353,78 @@ llvm::Value* CodeGen::emit(const Def* def) {
     def->dump();
     ANYDSL_UNREACHABLE;
 }
+
+llvm::Type* CodeGen::convert(const Type* type) {
+    switch (type->node_kind()) {
+        case Node_PrimType_u1:  return llvm::IntegerType::get(context_, 1);
+        case Node_PrimType_u8:  return llvm::IntegerType::get(context_, 8);
+        case Node_PrimType_u16: return llvm::IntegerType::get(context_, 16);
+        case Node_PrimType_u32: return llvm::IntegerType::get(context_, 32);
+        case Node_PrimType_u64: return llvm::IntegerType::get(context_, 64);
+        case Node_PrimType_f32: return llvm::Type::getFloatTy(context_);
+        case Node_PrimType_f64: return llvm::Type::getDoubleTy(context_);
+
+        case Node_Pi: {
+            // extract "return" type, collect all other types
+            const Pi* pi = type->as<Pi>();
+            llvm::Type* retType = 0;
+            size_t i = 0;
+            Array<llvm::Type*> elems(pi->size() - 1);
+
+            for_all (elem, pi->elems()) {
+                if (const Pi* pi = elem->isa<Pi>()) {
+                    switch (pi->size()) {
+                        case 0:
+                            retType = llvm::Type::getVoidTy(context_);
+                            break;
+                        case 1:
+                            retType = convert(pi->elem(0));
+                            break;
+                        default: {
+                            Array<llvm::Type*> elems(pi->size());
+                            size_t i = 0;
+                            for_all (elem, pi->elems())
+                                elems[i++] = convert(elem);
+
+                            llvm::ArrayRef<llvm::Type*> structTypes(elems.begin(), elems.end());
+                            retType = llvm::StructType::get(context_, structTypes);
+                            break;
+                        }
+                    }
+                } else
+                    elems[i++] = convert(elem);
+            }
+
+            assert(retType);
+            llvm::ArrayRef<llvm::Type*> paramTypes(elems.begin(), elems.end());
+            return llvm::FunctionType::get(retType, paramTypes, false);
+        }
+
+        case Node_Sigma: {
+            // TODO watch out for cycles!
+
+            const Sigma* sigma = type->as<Sigma>();
+
+            Array<llvm::Type*> elems(sigma->elems().size());
+            size_t i = 0;
+            for_all (t, sigma->elems())
+                elems[i++] = convert(t);
+
+            return llvm::StructType::get(context_, llvm::ArrayRef<llvm::Type*>(elems.begin(), elems.end()));
+        }
+
+        default: ANYDSL_UNREACHABLE;
+    }
+}
+
+//------------------------------------------------------------------------------
+
+void emit(const World& world) {
+    CodeGen cg(world);
+    cg.emit();
+}
+
+//------------------------------------------------------------------------------
 
 } // namespace anydsl
 } // namespace be_llvm

@@ -8,6 +8,7 @@
 namespace anydsl {
 
 class DomNode;
+class Def;
 class Lambda;
 class World;
 
@@ -42,12 +43,15 @@ public:
 
     DomTree(size_t size, const DomNode* root);
     DomTree(const DomTree& tree) : size_(0), root_(0), bfs_(0) { ANYDSL_UNREACHABLE; }
-
     ~DomTree() { delete root_; }
 
     const DomNode* root() const { return root_; }
     size_t size() const { return size_; }
     ArrayRef<const DomNode*> bfs() const { return bfs_; }
+    const DomNode* bfs(size_t i) const { return bfs_[i]; }
+
+    bool dominates(const DomNode* a, const DomNode* b);
+    bool strictly_dominates(const DomNode* a, const DomNode* b) { return a != b && dominates(a, b); }
 
 private:
 

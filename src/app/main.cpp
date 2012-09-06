@@ -104,7 +104,7 @@ int main(int argc, char** argv) {
             if (emit_llvm)
                 be_llvm::emit(init.world);
 
-            calc_domtree(init.world);
+            //calc_domtree(init.world);
         }
 
         return EXIT_SUCCESS;

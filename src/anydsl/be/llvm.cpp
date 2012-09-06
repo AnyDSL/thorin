@@ -84,18 +84,19 @@ void CodeGen::emit() {
     for_all (lf, fcts) {
         const Lambda* lambda = lf.first;
         llvm::Function* fct = lf.second;
-        size_t ret_pos = lambda->pi()->ho_begin();
         const Param* ret_param;
 
         llvm::Function::arg_iterator arg = fct->arg_begin();
         size_t i = 0;
+        
+        // map params
         for_all (param, lambda->params()) {
             while (i < param->index()) {
                 ++i;
                 ++arg;
             }
 
-            if (param->index() == ret_pos)
+            if (param->type()->isa<Pi>())
                 ret_param = param;
             else {
                 params_[param] = arg;
@@ -116,11 +117,12 @@ void CodeGen::emit() {
         for_all (node, domtree.bfs().slice_back(1)) {
             const Lambda* lambda = node->lambda();
 
-            // deal with special call-lambda-cascade
+            // deal with special call-lambda-cascade:
+            // lambda(...) jump (foo, [..., lambda(...) ..., ...]
             if (lambda->uses().size() == 1) {
                 Use use = *lambda->uses().begin();
                 if (use.def()->isa<Lambda>() && use.index() > 0)
-                    continue;
+                    continue;// do not register a phi, see also case 1c) in 'terminate bb' below
             }
 
             builder_.SetInsertPoint(bbs_[lambda]);
@@ -138,7 +140,7 @@ void CodeGen::emit() {
             std::vector<const PrimOp*> primops = places[node->index()];
 
             for_all (primop, primops) {
-                if (!primop->type()->isa<Pi>())
+                if (!primop->type()->isa<Pi>()) // don't touch higher-order primops
                     primops_[primop] = emit(primop);
             }
 
@@ -152,14 +154,18 @@ void CodeGen::emit() {
                     builder_.CreateRet(lookup(lambda->arg(0)));
                     break;
                 } 
-                case 1: {
+                case 1: { 
+                    // three subcases
                     const Lambda* tolambda = lambda->to()->as<Lambda>();
                     const Pi* topi = tolambda->pi();
-
                     size_t ho = tolambda->pi()->ho_begin();
-                    if (ho != tolambda->pi()->ho_end()) {
+
+                    if (ho == tolambda->pi()->ho_end()) // case a) ordinary jump
+                        builder_.CreateBr(bbs_[tolambda]);
+                    else {
                         // put all first-order args into array
                         Array<llvm::Value*> args(lambda->args().size() - 1);
+
                         for (size_t i = topi->fo_begin(), e = topi->fo_end(), j = 0; i != e; topi->fo_next(i))
                             args[j++] = lookup(lambda->arg(i));
 
@@ -167,9 +173,9 @@ void CodeGen::emit() {
                         llvm::CallInst* call = builder_.CreateCall(fcts[tolambda], ref);
                         
                         const Def* ho_arg = lambda->arg(ho);
-                        if (ho_arg == ret_param) // call + return
+                        if (ho_arg == ret_param)        // case b) call + return
                             builder_.CreateRet(call); 
-                        else { // call + continuation
+                        else {                          // case c) call + continuation
                             const Lambda* succ = lambda->arg(ho)->as<Lambda>();
                             const Param* ho_param = succ->param(0);
                             if (ho_param)
@@ -177,12 +183,11 @@ void CodeGen::emit() {
 
                             builder_.CreateBr(bbs_[succ]);
                         }
-                    } else // ordinary jump
-                        builder_.CreateBr(bbs_[tolambda]);
-
+                    }
                     break;
                 } 
-                case 2: {
+                case 2: { 
+                    // this is a branch
                     const Select* select = lambda->to()->as<Select>();
                     const Lambda* tlambda = select->tval()->as<Lambda>();
                     const Lambda* flambda = select->fval()->as<Lambda>();

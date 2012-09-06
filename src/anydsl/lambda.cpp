@@ -62,7 +62,7 @@ const Param* Lambda::param(size_t i) const {
     return *params_.find(&p);
 }
 
-Array<const Param*> Lambda::copyParams() const {
+Array<const Param*> Lambda::copy_params() const {
     Array<const Param*> result(pi()->size());
 
     size_t i = 0;

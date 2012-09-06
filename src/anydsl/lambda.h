@@ -58,7 +58,7 @@ public:
     LambdaSet callers() const;
     const Params& params() const { return params_; }
     const Param* param(size_t i) const;
-    Array<const Param*> copyParams() const;
+    Array<const Param*> copy_params() const;
     const Def* to() const { return op(0); };
     Ops args() const { return ops().slice_back(1); }
     const Def* arg(size_t i) const { return args()[i]; }

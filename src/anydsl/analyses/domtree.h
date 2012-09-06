@@ -40,18 +40,20 @@ private:
 class DomTree {
 public:
 
-    DomTree(size_t size, const DomNode* root)
-        : size_(size)
-        , root_(root)
-    {}
+    DomTree(size_t size, const DomNode* root);
+    DomTree(const DomTree& tree) : size_(0), root_(0), bfs_(0) { ANYDSL_UNREACHABLE; }
+
+    ~DomTree() { delete root_; }
 
     const DomNode* root() const { return root_; }
     size_t size() const { return size_; }
+    ArrayRef<const DomNode*> bfs() const { return bfs_; }
 
 private:
 
     size_t size_;
     const DomNode* root_;
+    Array<const DomNode*> bfs_;
 };
 
 DomTree calc_domtree(const Lambda* entry, const LambdaSet& scope);

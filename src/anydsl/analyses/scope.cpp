@@ -26,9 +26,10 @@ static void jump_to_param_users(LambdaSet& scope, const Lambda* lambda) {
 static void find_user(LambdaSet& scope, const Def* def) {
     if (const Lambda* lambda = def->isa<Lambda>())
         walk_up(scope, lambda);
-    else
+    else {
         for_all (use, def->uses())
             find_user(scope, use.def());
+    }
 }
 
 static void walk_up(LambdaSet& scope, const Lambda* lambda) {

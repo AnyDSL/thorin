@@ -1,6 +1,7 @@
 #include "anydsl/analyses/domtree.h"
 
 #include <limits>
+#include <queue>
 
 #include "anydsl/lambda.h"
 
@@ -20,6 +21,29 @@ DomNode::DomNode(const Lambda* lambda)
 DomNode::~DomNode() {
     for_all (child, children_)
         delete child;
+}
+
+//------------------------------------------------------------------------------
+
+DomTree::DomTree(size_t size, const DomNode* root)
+    : size_(size)
+    , root_(root)
+    , bfs_(size)
+{
+    size_t i = 0;
+    // perform a breadth-first-traversal of the dom-tree
+    std::queue<const DomNode*> q;
+    q.push(root);
+
+    while (!q.empty()) {
+        const DomNode* node = q.front();
+        q.pop();
+
+        bfs_[i++] = node;
+
+        for_all (child, node->children())
+            q.push(child);
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -48,7 +72,6 @@ public:
     const LambdaSet& scope;
     Array<DomNode*> index2node;
 };
-
 
 DomTree DomBuilder::build() {
     // mark all nodes as unnumbered

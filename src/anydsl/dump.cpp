@@ -182,7 +182,7 @@ void Lambda::dump(bool fancy, int indent) const  {
     ANYDSL_DUMP_COMMA_LIST(p, params());
 	p << ") : ";
     p.dump(type());
-    if (isExtern())
+    if (is_extern())
         p << " extern ";
 	p.up();
 

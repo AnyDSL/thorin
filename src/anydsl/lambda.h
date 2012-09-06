@@ -68,7 +68,7 @@ public:
 
     void dump(bool fancy = false, int indent = 0) const;
 
-    bool isExtern() const { return flags_ & Extern; }
+    bool is_extern() const { return flags_ & Extern; }
 
     /**
      * @brief Removes the arguments specified in \p drop from the call.

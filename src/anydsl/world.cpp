@@ -405,7 +405,7 @@ void World::dce() {
         dce_insert(primTypes_[i]);
 
     for_all (lambda, lambdas())
-        if (lambda->isExtern()) {
+        if (lambda->is_extern()) {
             for (Params::const_iterator i = lambda->ho_begin(), e = lambda->ho_end(); i != e; lambda->ho_next(i)) {
                 const Param* param = *i;
                 for_all (use, param->uses())
@@ -457,7 +457,7 @@ void World::uce() {
 
     // find all reachable lambdas
     for_all (lambda, lambdas())
-        if (lambda->isExtern())
+        if (lambda->is_extern())
             uce_insert(lambda);
 
     // destroy all unreachable lambdas

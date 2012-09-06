@@ -37,8 +37,25 @@ private:
     friend class DomBuilder;
 };
 
-const DomNode* calc_domtree(const Lambda* entry, const LambdaSet& scope);
-const DomNode* calc_domtree(const Lambda* entry);
+class DomTree {
+public:
+
+    DomTree(size_t size, const DomNode* root)
+        : size_(size)
+        , root_(root)
+    {}
+
+    const DomNode* root() const { return root_; }
+    size_t size() const { return size_; }
+
+private:
+
+    size_t size_;
+    const DomNode* root_;
+};
+
+DomTree calc_domtree(const Lambda* entry, const LambdaSet& scope);
+DomTree calc_domtree(const Lambda* entry);
 
 } // namespace anydsl
 

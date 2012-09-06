@@ -1,13 +1,15 @@
 #ifndef ANYDSL_ANALYSES_PLACEMENT_H
 #define ANYDSL_ANALYSES_PLACEMENT_H
 
-#include <boost/unordered_set.hpp>
+#include "anydsl/util/array.h"
 
 namespace anydsl {
 
-class DomNode;
+class DomTree;
+class PrimOp;
 
-void place(const DomNode* root);
+typedef Array< std::vector<const PrimOp*> > Places;
+Places place(const DomTree& tree);
 
 } // namespace anydsl
 

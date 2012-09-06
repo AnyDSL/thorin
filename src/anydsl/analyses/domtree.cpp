@@ -40,7 +40,7 @@ public:
     bool contains(const Lambda* lambda) { return scope.find(lambda) != scope.end(); }
     static DomNode* node(const Lambda* lambda) { return (DomNode*) lambda->scratch.ptr; }
 
-    DomNode* build();
+    DomTree build();
     DomNode* intersect(DomNode* i, DomNode* j);
     size_t number(const Lambda* cur, size_t i);
 
@@ -50,7 +50,7 @@ public:
 };
 
 
-DomNode* DomBuilder::build() {
+DomTree DomBuilder::build() {
     // mark all nodes as unnumbered
     for_all (lambda, scope)
         lambda->scratch.ptr = 0;
@@ -99,7 +99,7 @@ DomNode* DomBuilder::build() {
             node->idom_->children_.insert(node);
     }
 
-    return entry_node;
+    return DomTree(num(), entry_node);
 }
 
 size_t DomBuilder::number(const Lambda* cur, size_t i) {
@@ -130,12 +130,12 @@ DomNode* DomBuilder::intersect(DomNode* i, DomNode* j) {
 
 //------------------------------------------------------------------------------
 
-const DomNode* calc_domtree(const Lambda* entry) {
+DomTree calc_domtree(const Lambda* entry) {
     LambdaSet scope = find_scope(entry);
     return calc_domtree(entry, scope);
 }
 
-const DomNode* calc_domtree(const Lambda* entry, const LambdaSet& scope) {
+DomTree calc_domtree(const Lambda* entry, const LambdaSet& scope) {
     DomBuilder builder(entry, scope);
     return builder.build();
 }

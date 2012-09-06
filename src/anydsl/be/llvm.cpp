@@ -1,4 +1,4 @@
-#include "anydsl/be/llvm/emit.h"
+#include "anydsl/be/llvm.h"
 
 #include <boost/unordered_map.hpp>
 

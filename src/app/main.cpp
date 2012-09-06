@@ -4,7 +4,7 @@
 #include <boost/program_options.hpp>
 
 #include "anydsl/analyses/domtree.h"
-#include "anydsl/be/llvm/emit.h"
+#include "anydsl/be/llvm.h"
 
 #include "impala/ast.h"
 #include "impala/parser.h"

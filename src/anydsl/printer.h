@@ -12,9 +12,8 @@ public:
 
     Printer(std::ostream& o, bool fancy)
         : o(o)
+        , indent(0)
         , fancy_(fancy)
-        , indent_(0)
-        , depth_(0)
     {}
 
     bool fancy() const { return fancy_; }
@@ -33,12 +32,11 @@ public:
     }
 
     std::ostream& o;
+    int indent;
 
 private:
 
     bool fancy_;
-    int indent_;
-    int depth_;
 };
 
 } // namespace anydsl

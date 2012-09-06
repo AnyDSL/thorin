@@ -243,7 +243,7 @@ public:
 
     const Lambda* lambda() const { return lambda_; }
     size_t index() const { return index_; }
-    PhiOps phiOps() const;
+    PhiOps phi() const;
 
 private:
 

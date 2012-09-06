@@ -1,4 +1,4 @@
-#include "anydsl/analyses/find_root_lambdas.h"
+#include "anydsl/analyses/rootlambdas.h"
 
 #include "anydsl/lambda.h"
 #include "anydsl/world.h"

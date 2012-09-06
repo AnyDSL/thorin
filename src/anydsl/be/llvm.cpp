@@ -17,7 +17,7 @@
 #include "anydsl/primop.h"
 #include "anydsl/type.h"
 #include "anydsl/world.h"
-#include "anydsl/analyses/find_root_lambdas.h"
+#include "anydsl/analyses/rootlambdas.h"
 #include "anydsl/analyses/domtree.h"
 #include "anydsl/analyses/placement.h"
 #include "anydsl/util/array.h"
@@ -67,12 +67,14 @@ CodeGen::CodeGen(const World& world)
 void CodeGen::emit() {
     LambdaSet roots = find_root_lambdas(world_.lambdas());
 
+    // map all root-level lambdas to llvm function stubs
     for_all (lambda, roots) {
         llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
         llvm::Function* f = llvm::Function::Create(ft, llvm::Function::PrivateLinkage, lambda->debug, module_);
         top_.insert(std::make_pair(lambda, f));
     }
 
+    // for all top-level functions
     for_all (lf, top_) {
         curLam_ = lf.first;
         size_t retPos = curLam_->pi()->ho_begin();
@@ -87,6 +89,29 @@ void CodeGen::emit() {
 
         curFct_ = lf.second;
         params_.clear();
+
+        DomTree domtree = calc_domtree(curLam_);
+
+        // map all bb-like lambdas to llvm bb stubs
+        for_all (node, domtree.bfs())
+            bbs_[node->lambda()] = llvm::BasicBlock::Create(context_, node->lambda()->debug, curFct_);
+
+        // create phi node stubs
+        for_all (p, bbs_) {
+            const Lambda* lambda = p.first;
+
+            if (lambda == domtree.root()->lambda())
+                continue;
+
+            llvm::BasicBlock* bb = p.second;
+
+            builder_.SetInsertPoint(bb);
+
+            for_all (param, lambda->params())
+                builder_.CreatePHI(convert(param->type()), param->phi().size(), param->debug);
+        }
+
+        Array< std::vector<const PrimOp*> > places = place(domtree);
 
         //recEmit(dom, curLam_);
 
@@ -132,9 +157,9 @@ void CodeGen::emitBB(const Lambda* lambda) {
     } else {
         // place phis
         for_all (param, lambda->params()) {
-            llvm::PHINode* phi = builder_.CreatePHI(convert(param->type()), param->phiOps().size());
+            llvm::PHINode* phi = builder_.CreatePHI(convert(param->type()), param->phi().size());
 
-            for_all (op, param->phiOps())
+            for_all (op, param->phi())
                 phi->addIncoming(emit(op.def()), lambda2bb(op.from()));
 
             params_[param] = phi;

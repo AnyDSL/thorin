@@ -59,7 +59,7 @@ public:
     const Pi* pi() const;
     uint32_t flags() const { return flags_; }
 
-    void dump(bool fancy = false) const;
+    void dump(bool fancy = false, int indent = 0) const;
 
     bool isExtern() const { return flags_ & Extern; }
 

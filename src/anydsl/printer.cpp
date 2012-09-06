@@ -19,19 +19,19 @@ Printer& Printer::dump(const Def* def) {
 
 Printer& Printer::newline() {
     o << '\n';
-    for (int i = 0; i < indent_; ++i)
+    for (int i = 0; i < indent; ++i)
         o << "    ";
 
     return *this;
 }
 
 Printer& Printer::up() {
-    ++indent_;
+    ++indent;
     return newline();
 }
 
 Printer& Printer::down() {
-    --indent_;
+    --indent;
     return newline();
 }
 

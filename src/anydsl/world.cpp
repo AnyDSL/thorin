@@ -9,6 +9,8 @@
 #include "anydsl/lambda.h"
 #include "anydsl/literal.h"
 #include "anydsl/type.h"
+#include "anydsl/analyses/domtree.h"
+#include "anydsl/analyses/rootlambdas.h"
 #include "anydsl/util/array.h"
 #include "anydsl/util/for_all.h"
 
@@ -441,7 +443,7 @@ void World::dce_insert(const Def* def) {
         for_all (caller, lambda->callers())
             dce_insert(caller);
     } else if (const Param* param = def->isa<Param>()) {
-        for_all (op, param->phiOps()) {
+        for_all (op, param->phi()) {
             // look through "phi-args"
             dce_insert(op.def());
             dce_insert(op.from());
@@ -490,7 +492,6 @@ void World::uce_insert(const Lambda* lambda) {
 void World::cleanup() {
     dce();
     uce();
-    std::cout << "yeah" << std::endl;
 }
 
 void World::opt() {
@@ -532,31 +533,22 @@ LambdaSet World::lambdas() const {
 }
 
 void World::dump(bool fancy) {
-    unmark();
+    LambdaSet roots = find_root_lambdas(lambdas());
 
-    for_all (lambda, lambdas()) {
-        if (!lambda->isExtern() || lambda->is_marked())
-            continue;
+    for_all (root, roots) {
+        DomTree domtree = calc_domtree(root);
 
-        std::queue<const Lambda*> queue;
-        queue.push(lambda);
-        lambda->mark();
+        for_all (node, domtree.bfs()) {
+            int indent = 0;
 
-        while (!queue.empty()) {
-            const Lambda* cur = queue.front();
-            queue.pop();
+            for (const DomNode* i = node; i != i->idom(); i = i->idom()) 
+                ++indent;
 
-            cur->dump(fancy);
-            std::cout << std::endl;
-
-            for_all (succ, cur->succ()) {
-                if (!succ->is_marked() && !succ->isExtern()) {
-                    succ->mark();
-                    queue.push(succ);
-                }
-            }
+            node->lambda()->dump(fancy, indent);
         }
     }
+
+    std::cout << std::endl;
 }
 
 Def* World::release(const Def* def) {

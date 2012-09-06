@@ -129,7 +129,7 @@ Param::~Param() {
         lambda_->params_.erase(this);
 }
 
-PhiOps Param::phiOps() const {
+PhiOps Param::phi() const {
     size_t x = index();
     const Lambda* l = lambda();
     LambdaSet callers = l->callers();
@@ -138,7 +138,7 @@ PhiOps Param::phiOps() const {
 
     size_t i = 0;
     for_all (caller, callers)
-        result[i++] = PhiOp(caller->args()[x], caller);
+        result[i++] = PhiOp(caller->arg(x), caller);
 
     return result;
 }

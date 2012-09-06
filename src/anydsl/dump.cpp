@@ -171,8 +171,11 @@ void Def::dump(bool fancy) const {
     std::cout << std::endl;
 }
 
-void Lambda::dump(bool fancy) const  {
+void Lambda::dump(bool fancy, int indent) const  {
     Printer p(std::cout, fancy);
+
+    p.indent += indent;
+    p.newline();
 
 	p.dumpName(this);
 	p << " = lambda(";
@@ -193,6 +196,8 @@ void Lambda::dump(bool fancy) const  {
         p  << "])";
     }
 	p.down();
+
+    p.indent -= indent;
 }
 
 //------------------------------------------------------------------------------

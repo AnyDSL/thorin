@@ -42,7 +42,7 @@ public:
     Params::const_iterator ho_begin() const;
     Params::const_iterator ho_end() const { return params_.end(); }
     void ho_next(Params::const_iterator& i) const;
-    bool isHigherOrder() const { return ho_begin() != ho_end(); }
+    bool is_higher_order() const { return ho_begin() != ho_end(); }
 
     void close();
 
@@ -57,6 +57,7 @@ public:
     Ops args() const { return ops().slice_back(1); }
     const Def* arg(size_t i) const { return args()[i]; }
     const Pi* pi() const;
+    const Pi* to_pi() const;
     uint32_t flags() const { return flags_; }
 
     void dump(bool fancy = false, int indent = 0) const;

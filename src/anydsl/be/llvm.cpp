@@ -116,7 +116,16 @@ void CodeGen::emit() {
 
         // create phi node stubs (for all nodes except entry)
         for_all (node, domtree.bfs().slice_back(1)) {
-            builder_.SetInsertPoint(bbs_[node->lambda()]);
+            const Lambda* lambda = node->lambda();
+
+            // deal with special call-lambda-cascade
+            if (lambda->uses().size() == 1) {
+                Use use = *lambda->uses().begin();
+                if (use.def()->isa<Lambda>() && use.index() > 0)
+                    continue;
+            }
+
+            builder_.SetInsertPoint(bbs_[lambda]);
 
             for_all (param, node->lambda()->params())
                 phis_[param] = builder_.CreatePHI(convert(param->type()), param->phi().size(), param->debug);
@@ -136,43 +145,69 @@ void CodeGen::emit() {
             }
 
             // terminate bb
-            std::vector<llvm::Value*> values;
-            for_all (arg, lambda->args())
-                values.push_back(lookup(arg));
-
             Lambdas targets = lambda->targets();
             const Def* to = lambda->to();
 
             switch (targets.size()) {
                 case 0: {
-                    const Param* param = to->as<Param>();
-
-                    if (param == retParam_) {
-                        // ret
-                        assert(values.size() == 1);
-                        builder_.CreateRet(values[0]);
-                        break;;
-                    } else {
-                        ANYDSL_UNREACHABLE;
+                    if (const Param* param = to->isa<Param>()) {
+                        // emit return
+                        assert(param == retParam_);
+                        assert(lambda->args().size() == 1);
+                        builder_.CreateRet(lookup(lambda->arg(0)));
+                        break;
                     }
                 }
                 case 1: {
-                    if (const Lambda* toLambda = to->isa<Lambda>()) {
-                        builder_.CreateBr(bbs_[toLambda]);
-                        break;;
+                    if (const Lambda* tolambda = to->isa<Lambda>()) {
+                        if (!tolambda->is_higher_order()) {
+                            builder_.CreateBr(bbs_[tolambda]);
+                            break;
+                        } else {
+                            Array<llvm::Value*> args(lambda->args().size() - 1);
+
+                            size_t i = 0;
+                            const Def* ho_arg = 0;
+                            size_t ho_i = 0;
+                            for_all (arg, lambda->args()) {
+                                if (arg->type()->isa<Pi>()) {
+                                    assert(!ho_arg);
+                                    ho_arg = arg;
+                                    ho_i = i;
+                                } else
+                                    args[i] = lookup(arg);
+
+                                ++i;
+                            }
+
+                            llvm::ArrayRef<llvm::Value*> ref(args.begin(), args.end());
+                            llvm::CallInst* call = builder_.CreateCall(top_[tolambda], ref);
+                            
+                            if (ho_arg == retParam_)
+                                builder_.CreateRet(call);
+                            else {
+                                const Lambda* succ = lambda->arg(ho_i)->as<Lambda>();
+                                const Param* ho_param = succ->param(0);
+                                if (ho_param)
+                                    params_[ho_param] = call;
+
+                                builder_.CreateBr(bbs_[succ]);
+                            }
+                            break;
+                        }
                     }
                 }
                 case 2: {
                     const Select* select = to->as<Select>();
-                    const Lambda* tLambda = select->tval()->as<Lambda>();
-                    const Lambda* fLambda = select->fval()->as<Lambda>();
+                    const Lambda* tlambda = select->tval()->as<Lambda>();
+                    const Lambda* flambda = select->fval()->as<Lambda>();
 
                     llvm::Value* cond = lookup(select->cond());
-                    llvm::BasicBlock* tbb = bbs_[tLambda];
-                    llvm::BasicBlock* fbb = bbs_[fLambda];
+                    llvm::BasicBlock* tbb = bbs_[tlambda];
+                    llvm::BasicBlock* fbb = bbs_[flambda];
                     builder_.CreateCondBr(cond, tbb, fbb);
 
-                    break;;
+                    break;
                 }
                 default:
                     ANYDSL_UNREACHABLE;
@@ -209,6 +244,8 @@ llvm::Value* CodeGen::lookup(const Def* def) {
     ParamMap::iterator i = params_.find(param);
     if (i != params_.end())
         return i->second;
+
+    assert(phis_.find(param) != phis_.end());
 
     return phis_[param];
 }

@@ -29,7 +29,11 @@ Lambda::~Lambda() {
 }
 
 const Pi* Lambda::pi() const {
-    return scast<Pi>(type());
+    return type()->as<Pi>();
+}
+
+const Pi* Lambda::to_pi() const {
+    return to()->type()->as<Pi>();
 }
 
 const Param* Lambda::appendParam(const Type* type) {

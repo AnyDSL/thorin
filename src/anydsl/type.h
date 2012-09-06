@@ -135,7 +135,7 @@ public:
     size_t ho_begin() const;
     size_t ho_end() const { return npos; }
     void ho_next(size_t& pos) const;
-    bool isHigherOrder() const { return ho_begin() != npos; }
+    bool is_higher_order() const { return ho_begin() != npos; }
 
 private:
 

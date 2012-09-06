@@ -53,7 +53,6 @@ private:
     llvm::LLVMContext context_;
     llvm::IRBuilder<> builder_;
     llvm::Module* module_;
-    BBMap bbs_;
     ParamMap params_;
     PhiMap phis_;
     PrimOpMap primops_;
@@ -108,10 +107,11 @@ void CodeGen::emit() {
         }
 
         DomTree domtree = calc_domtree(lambda);
+        BBMap bbs;
 
         // map all bb-like lambdas to llvm bb stubs
         for_all (node, domtree.bfs())
-            bbs_[node->lambda()] = llvm::BasicBlock::Create(context_, node->lambda()->debug, fct);
+            bbs[node->lambda()] = llvm::BasicBlock::Create(context_, node->lambda()->debug, fct);
 
         // create phi node stubs (for all nodes except entry)
         for_all (node, domtree.bfs().slice_back(1)) {
@@ -125,7 +125,7 @@ void CodeGen::emit() {
                     continue;// do not register a phi, see also case 1c) in 'terminate bb' below
             }
 
-            builder_.SetInsertPoint(bbs_[lambda]);
+            builder_.SetInsertPoint(bbs[lambda]);
 
             for_all (param, node->lambda()->params())
                 phis_[param] = builder_.CreatePHI(convert(param->type()), param->phi().size(), param->debug);
@@ -136,7 +136,7 @@ void CodeGen::emit() {
         // emit body for each bb
         for_all (node, domtree.bfs()) {
             const Lambda* lambda = node->lambda();
-            builder_.SetInsertPoint(bbs_[node->lambda()]);
+            builder_.SetInsertPoint(bbs[node->lambda()]);
             std::vector<const PrimOp*> primops = places[node->index()];
 
             for_all (primop, primops) {
@@ -161,7 +161,7 @@ void CodeGen::emit() {
                     size_t ho = tolambda->pi()->ho_begin();
 
                     if (ho == tolambda->pi()->ho_end()) // case a) ordinary jump
-                        builder_.CreateBr(bbs_[tolambda]);
+                        builder_.CreateBr(bbs[tolambda]);
                     else {
                         // put all first-order args into array
                         Array<llvm::Value*> args(lambda->args().size() - 1);
@@ -181,7 +181,7 @@ void CodeGen::emit() {
                             if (ho_param)
                                 params_[ho_param] = call;
 
-                            builder_.CreateBr(bbs_[succ]);
+                            builder_.CreateBr(bbs[succ]);
                         }
                     }
                     break;
@@ -193,8 +193,8 @@ void CodeGen::emit() {
                     const Lambda* flambda = select->fval()->as<Lambda>();
 
                     llvm::Value* cond = lookup(select->cond());
-                    llvm::BasicBlock* tbb = bbs_[tlambda];
-                    llvm::BasicBlock* fbb = bbs_[flambda];
+                    llvm::BasicBlock* tbb = bbs[tlambda];
+                    llvm::BasicBlock* fbb = bbs[flambda];
                     builder_.CreateCondBr(cond, tbb, fbb);
                     break;
                 } 
@@ -203,19 +203,18 @@ void CodeGen::emit() {
             }
         }
 
-        // fix phis
+        // add missing arguments to phis
         for_all (p, phis_) {
             const Param* param = p.first;
             llvm::PHINode* phi = p.second;
 
             for_all (op, param->phi())
-                phi->addIncoming(lookup(op.def()), bbs_[op.from()]);
+                phi->addIncoming(lookup(op.def()), bbs[op.from()]);
         }
 
-        bbs_.clear();
         params_.clear();
-        primops_.clear();
         phis_.clear();
+        primops_.clear();
     }
 
     module_->dump();

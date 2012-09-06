@@ -17,6 +17,9 @@
 #include "anydsl/primop.h"
 #include "anydsl/type.h"
 #include "anydsl/world.h"
+#include "anydsl/analyses/find_root_lambdas.h"
+#include "anydsl/analyses/domtree.h"
+#include "anydsl/analyses/placement.h"
 #include "anydsl/util/array.h"
 
 namespace anydsl {
@@ -62,14 +65,13 @@ CodeGen::CodeGen(const World& world)
 {}
 
 void CodeGen::emit() {
+    LambdaSet roots = find_root_lambdas(world_.lambdas());
 
-    for_all (def, world_.defs())
-        if (const Lambda* lambda = def->isa<Lambda>())
-            if (lambda->isHigherOrder()) {
-                llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
-                llvm::Function* f = llvm::Function::Create(ft, llvm::Function::PrivateLinkage, lambda->debug, module_);
-                top_.insert(std::make_pair(lambda, f));
-            }
+    for_all (lambda, roots) {
+        llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
+        llvm::Function* f = llvm::Function::Create(ft, llvm::Function::PrivateLinkage, lambda->debug, module_);
+        top_.insert(std::make_pair(lambda, f));
+    }
 
     for_all (lf, top_) {
         curLam_ = lf.first;

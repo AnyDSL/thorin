@@ -13,7 +13,7 @@ class Lambda;
 class World;
 
 typedef boost::unordered_set<const Lambda*> LambdaSet;
-typedef boost::unordered_set<const DomNode*> DomNodes;
+typedef std::vector<const DomNode*> DomNodes;
 
 class DomNode {
 public:

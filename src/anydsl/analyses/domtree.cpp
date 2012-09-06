@@ -123,10 +123,10 @@ DomTree DomBuilder::build() {
         }
     }
 
-    // add children
-    for_all (node, index2node) {
-        if (!node->entry())
-            node->idom_->children_.insert(node);
+    // add children -- thus iterate over all nodes except entry
+    for (size_t i = 0, e = num() - 1; i != e; ++i) {
+        const DomNode* node = index2node[i];
+        node->idom_->children_.push_back(node);
     }
 
     return DomTree(num(), entry_node);

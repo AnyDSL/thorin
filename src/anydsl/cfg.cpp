@@ -11,7 +11,7 @@
 
 namespace anydsl {
 
-BB::BB(Fct* fct, const std::string& debug /*= ""*/) 
+BB::BB(Fct* fct, const std::string& debug) 
     : sealed_(false)
     , fct_(fct)
     , topLambda_(new Lambda(world().pi0()))

@@ -53,14 +53,10 @@ private:
     llvm::LLVMContext context_;
     llvm::IRBuilder<> builder_;
     llvm::Module* module_;
-    FctMap top_;
     BBMap bbs_;
     ParamMap params_;
     PhiMap phis_;
     PrimOpMap primops_;
-    const Lambda* curLam_;
-    llvm::Function* curFct_;
-    const Param* retParam_;
 };
 
 CodeGen::CodeGen(const World& world)
@@ -75,30 +71,32 @@ CodeGen::CodeGen(const World& world)
 void CodeGen::emit() {
     LambdaSet roots = find_root_lambdas(world_.lambdas());
 
+    FctMap fcts;
+
     // map all root-level lambdas to llvm function stubs
     for_all (lambda, roots) {
         llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
         llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->debug, module_);
-        top_.insert(std::make_pair(lambda, f));
+        fcts.insert(std::make_pair(lambda, f));
     }
 
     // for all top-level functions
-    for_all (lf, top_) {
-        curLam_ = lf.first;
-        curFct_ = lf.second;
-        size_t retPos = curLam_->pi()->ho_begin();
+    for_all (lf, fcts) {
+        const Lambda* lambda = lf.first;
+        llvm::Function* fct = lf.second;
+        size_t ret_pos = lambda->pi()->ho_begin();
+        const Param* ret_param;
 
-        llvm::Function::arg_iterator arg = curFct_->arg_begin();
-
+        llvm::Function::arg_iterator arg = fct->arg_begin();
         size_t i = 0;
-        for_all (param, curLam_->params()) {
+        for_all (param, lambda->params()) {
             while (i < param->index()) {
                 ++i;
                 ++arg;
             }
 
-            if (param->index() == retPos)
-                retParam_ = param;
+            if (param->index() == ret_pos)
+                ret_param = param;
             else {
                 params_[param] = arg;
                 arg->setName(param->debug);
@@ -108,11 +106,11 @@ void CodeGen::emit() {
             ++i;
         }
 
-        DomTree domtree = calc_domtree(curLam_);
+        DomTree domtree = calc_domtree(lambda);
 
         // map all bb-like lambdas to llvm bb stubs
         for_all (node, domtree.bfs())
-            bbs_[node->lambda()] = llvm::BasicBlock::Create(context_, node->lambda()->debug, curFct_);
+            bbs_[node->lambda()] = llvm::BasicBlock::Create(context_, node->lambda()->debug, fct);
 
         // create phi node stubs (for all nodes except entry)
         for_all (node, domtree.bfs().slice_back(1)) {
@@ -145,60 +143,47 @@ void CodeGen::emit() {
             }
 
             // terminate bb
-            Lambdas targets = lambda->targets();
-            const Def* to = lambda->to();
-
-            switch (targets.size()) {
-                case 0: {
-                    if (const Param* param = to->isa<Param>()) {
-                        // emit return
-                        assert(param == retParam_);
-                        assert(lambda->args().size() == 1);
-                        builder_.CreateRet(lookup(lambda->arg(0)));
-                        break;
-                    }
-                }
+            switch (lambda->targets().size()) {
+                case 0: { 
+                    // this is a return
+                    const Param* param = lambda->to()->as<Param>();
+                    assert(param == ret_param);
+                    assert(lambda->args().size() == 1);
+                    builder_.CreateRet(lookup(lambda->arg(0)));
+                    break;
+                } 
                 case 1: {
-                    if (const Lambda* tolambda = to->isa<Lambda>()) {
-                        if (!tolambda->is_higher_order()) {
-                            builder_.CreateBr(bbs_[tolambda]);
-                            break;
-                        } else {
-                            Array<llvm::Value*> args(lambda->args().size() - 1);
+                    const Lambda* tolambda = lambda->to()->as<Lambda>();
+                    const Pi* topi = tolambda->pi();
 
-                            size_t i = 0;
-                            const Def* ho_arg = 0;
-                            size_t ho_i = 0;
-                            for_all (arg, lambda->args()) {
-                                if (arg->type()->isa<Pi>()) {
-                                    assert(!ho_arg);
-                                    ho_arg = arg;
-                                    ho_i = i;
-                                } else
-                                    args[i] = lookup(arg);
+                    size_t ho = tolambda->pi()->ho_begin();
+                    if (ho != tolambda->pi()->ho_end()) {
+                        // put all first-order args into array
+                        Array<llvm::Value*> args(lambda->args().size() - 1);
+                        for (size_t i = topi->fo_begin(), e = topi->fo_end(), j = 0; i != e; topi->fo_next(i))
+                            args[j++] = lookup(lambda->arg(i));
 
-                                ++i;
-                            }
+                        llvm::ArrayRef<llvm::Value*> ref(args.begin(), args.end());
+                        llvm::CallInst* call = builder_.CreateCall(fcts[tolambda], ref);
+                        
+                        const Def* ho_arg = lambda->arg(ho);
+                        if (ho_arg == ret_param) // call + return
+                            builder_.CreateRet(call); 
+                        else { // call + continuation
+                            const Lambda* succ = lambda->arg(ho)->as<Lambda>();
+                            const Param* ho_param = succ->param(0);
+                            if (ho_param)
+                                params_[ho_param] = call;
 
-                            llvm::ArrayRef<llvm::Value*> ref(args.begin(), args.end());
-                            llvm::CallInst* call = builder_.CreateCall(top_[tolambda], ref);
-                            
-                            if (ho_arg == retParam_)
-                                builder_.CreateRet(call);
-                            else {
-                                const Lambda* succ = lambda->arg(ho_i)->as<Lambda>();
-                                const Param* ho_param = succ->param(0);
-                                if (ho_param)
-                                    params_[ho_param] = call;
-
-                                builder_.CreateBr(bbs_[succ]);
-                            }
-                            break;
+                            builder_.CreateBr(bbs_[succ]);
                         }
-                    }
-                }
+                    } else // ordinary jump
+                        builder_.CreateBr(bbs_[tolambda]);
+
+                    break;
+                } 
                 case 2: {
-                    const Select* select = to->as<Select>();
+                    const Select* select = lambda->to()->as<Select>();
                     const Lambda* tlambda = select->tval()->as<Lambda>();
                     const Lambda* flambda = select->fval()->as<Lambda>();
 
@@ -206,9 +191,8 @@ void CodeGen::emit() {
                     llvm::BasicBlock* tbb = bbs_[tlambda];
                     llvm::BasicBlock* fbb = bbs_[flambda];
                     builder_.CreateCondBr(cond, tbb, fbb);
-
                     break;
-                }
+                } 
                 default:
                     ANYDSL_UNREACHABLE;
             }
@@ -231,6 +215,7 @@ void CodeGen::emit() {
 
     module_->dump();
     llvm::verifyModule(*this->module_);
+    delete module_;
 }
 
 llvm::Value* CodeGen::lookup(const Def* def) {

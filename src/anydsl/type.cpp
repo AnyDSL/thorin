@@ -50,7 +50,7 @@ size_t Pi::ho_begin() const {
         if (elem(i)->isa<Pi>())
             return i;
 
-    return npos;
+    return ho_end();
 }
 
 void Pi::ho_next(size_t& i) const {
@@ -61,8 +61,24 @@ void Pi::ho_next(size_t& i) const {
             return;
         else
             ++i;
+}
 
-    i = npos;
+size_t Pi::fo_begin() const {
+    for (size_t i = 0, e = size(); i != e; ++i)
+        if (!elem(i)->isa<Pi>())
+            return i;
+
+    return fo_end();
+}
+
+void Pi::fo_next(size_t& i) const {
+    ++i;
+
+    while (i < size())
+        if (!elem(i)->isa<Pi>())
+            return;
+        else
+            ++i;
 }
 
 //------------------------------------------------------------------------------

@@ -90,6 +90,22 @@ void Lambda::ho_next(Params::const_iterator& i) const {
         ++i;
 }
 
+Params::const_iterator Lambda::fo_begin() const {
+    Params::const_iterator result = params_.begin();
+
+    while (result != params_.end() && (*result)->type()->isa<Pi>())
+        ++result;
+
+    return result;
+}
+
+void Lambda::fo_next(Params::const_iterator& i) const {
+    ++i;
+
+    while (i != params_.end() && (*i)->type()->isa<Pi>())
+        ++i;
+}
+
 void Lambda::shrink(ArrayRef<size_t> drop) {
     assert(!drop.empty());
 

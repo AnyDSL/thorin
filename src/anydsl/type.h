@@ -131,11 +131,14 @@ private:
 
 public:
 
-    static const size_t npos = -1;
     size_t ho_begin() const;
-    size_t ho_end() const { return npos; }
+    size_t ho_end() const { return size(); }
     void ho_next(size_t& pos) const;
-    bool is_higher_order() const { return ho_begin() != npos; }
+    bool is_higher_order() const { return ho_begin() != ho_end(); }
+    size_t fo_begin() const;
+    size_t fo_end() const { return size(); }
+    void fo_next(size_t& pos) const;
+    bool is_first_order() const { return fo_begin() != fo_end(); }
 
 private:
 

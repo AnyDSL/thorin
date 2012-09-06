@@ -44,6 +44,12 @@ public:
     void ho_next(Params::const_iterator& i) const;
     bool is_higher_order() const { return ho_begin() != ho_end(); }
 
+    // first order params
+    Params::const_iterator fo_begin() const;
+    Params::const_iterator fo_end() const { return params_.end(); }
+    void fo_next(Params::const_iterator& i) const;
+    bool is_first_order() const { return fo_begin() != fo_end(); }
+
     void close();
 
     Lambdas targets() const { return adjacencies_.slice_front(hosBegin_); }

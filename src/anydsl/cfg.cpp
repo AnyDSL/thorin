@@ -25,7 +25,7 @@ BB::~BB() {
         delete p.second;
 }
 
-Var* BB::setVar(const Symbol& symbol, const Def* def) {
+Var* BB::insert(const Symbol& symbol, const Def* def) {
     VarMap::iterator i = vars_.find(symbol);
 
     if (i != vars_.end()) {
@@ -40,7 +40,7 @@ Var* BB::setVar(const Symbol& symbol, const Def* def) {
     return var;
 }
 
-Var* BB::getVar(const Symbol& symbol, const Type* type) {
+Var* BB::lookup(const Symbol& symbol, const Type* type) {
     BB::VarMap::iterator i = vars_.find(symbol);
 
     // if var is known -> return current var
@@ -51,7 +51,7 @@ Var* BB::getVar(const Symbol& symbol, const Type* type) {
     if (fct_ == this) {
         // TODO provide hook instead of fixed functionality
         std::cerr << "'" << symbol << "'" << " may be undefined" << std::endl;
-        return setVar(symbol, world().bottom(type));
+        return insert(symbol, world().bottom(type));
     }
 
     // insert a 'phi', i.e., create a param and remember to fix the callers
@@ -59,7 +59,7 @@ Var* BB::getVar(const Symbol& symbol, const Type* type) {
         const Param* param = topLambda_->appendParam(type);
         size_t index = in_.size();
         in_.push_back(param);
-        Var* lvar = setVar(symbol, param);
+        Var* lvar = insert(symbol, param);
         param->debug = symbol.str();
 
         Todo todo(index, type);
@@ -74,16 +74,16 @@ Var* BB::getVar(const Symbol& symbol, const Type* type) {
 
     // unreachable code
     if (preds().empty())
-        return setVar(symbol, world().bottom(type));
+        return insert(symbol, world().bottom(type));
     
     // look in pred if there exists exactly one pred
     assert(preds().size() == 1);
 
     BB* pred = *preds().begin();
-    Var* lvar = pred->getVar(symbol, type);
+    Var* lvar = pred->lookup(symbol, type);
 
     // create copy of lvar in this BB
-    return setVar(symbol, lvar->load());
+    return insert(symbol, lvar->load());
 }
 
 void BB::seal() {
@@ -112,7 +112,7 @@ void BB::fixTodo(const Symbol& symbol, Todo todo) {
 
     // find Horspool-like phis
     for_all (pred, preds_) {
-        const Def* def = pred->getVar(symbol, type)->load();
+        const Def* def = pred->lookup(symbol, type)->load();
 
         if (def->isa<Undef>() || def == param || same == def)
             continue;
@@ -141,20 +141,20 @@ fix_preds:
             out.resize(index + 1);
 
         anydsl_assert(!pred->out_[index], "already set");
-        out[index] = same ? same : pred->getVar(symbol, type)->load();
+        out[index] = same ? same : pred->lookup(symbol, type)->load();
     }
 
     if (same)
-        setVar(symbol, same);
+        insert(symbol, same);
 }
 
-void BB::goesto(BB* to) {
+void BB::jump(BB* to) {
     assert(to);
     this->flowsto(to);
     anydsl_assert(this->succs().size() == 1, "wrong number of succs");
 }
 
-void BB::branches(const Def* cond, BB* tbb, BB* fbb) {
+void BB::branch(const Def* cond, BB* tbb, BB* fbb) {
     assert(tbb);
     assert(fbb);
 
@@ -167,14 +167,21 @@ void BB::branches(const Def* cond, BB* tbb, BB* fbb) {
     anydsl_assert(succs().size() == 2, "wrong number of succs");
 }
 
-void BB::tailCalls(const Def* to, ArrayRef<const Def*> args) {
+void BB::tail_call(const Def* to, ArrayRef<const Def*> args) {
+    size_t csize = args.size();
+    Array<const Def*> tcargs(csize);
+    std::copy(args.begin(), args.end(), tcargs.begin());
+    world().jump(curLambda_, to, tcargs);
+}
+
+void BB::return_call(const Def* to, ArrayRef<const Def*> args) {
     size_t csize = args.size() + 1;
     Array<const Def*> tcargs(csize);
     *std::copy(args.begin(), args.end(), tcargs.begin()) = fct_->retCont();
     world().jump(curLambda_, to, tcargs);
 }
 
-const Def* BB::calls(const Def* to, ArrayRef<const Def*> args, const Type* retType) {
+const Def* BB::call(const Def* to, ArrayRef<const Def*> args, const Type* retType) {
     static int id = 0;
 
     // create next continuation in cascade
@@ -197,7 +204,7 @@ const Def* BB::calls(const Def* to, ArrayRef<const Def*> args, const Type* retTy
 
 void BB::fixto(BB* to) {
     if (succs().empty())
-        this->goesto(to);
+        this->jump(to);
 }
 
 void BB::flowsto(BB* to) {
@@ -251,7 +258,7 @@ Fct::Fct(World& world,
     size_t i = 0;
     for_all (param, topLambda_->params()) {
         Symbol sym = sparams[i++];
-        setVar(sym, param);
+        insert(sym, param);
         param->debug = sym.str();
     }
 
@@ -275,9 +282,11 @@ BB* Fct::createBB(const std::string& debug /*= ""*/) {
 }
 
 void Fct::emit() {
-    // exit
-    exit()->seal();
-    world().jump1(exit_->topLambda_, retCont(), exit()->getVar(Symbol("<result>"), retType())->load());
+    if (retType()) {
+        // exit
+        exit()->seal();
+        world().jump1(exit_->topLambda_, retCont(), exit()->lookup(Symbol("<result>"), retType())->load());
+    }
 
     for_all (bb, cfg_)
         if (bb != exit())

@@ -22,6 +22,8 @@ using anydsl::World;
 
 namespace impala {
 
+typedef boost::unordered_map<anydsl::Symbol, anydsl::Fct*> FctMap;
+
 class CodeGen {
 public:
 
@@ -41,7 +43,7 @@ public:
     anydsl::BB* curBB;
     anydsl::Fct* curFct;
     anydsl::World& world;
-    boost::unordered_map<anydsl::Symbol, anydsl::Fct*> fcts;
+    FctMap fcts;
 };
 
 //------------------------------------------------------------------------------
@@ -83,7 +85,12 @@ void Prg::emit(CodeGen& cg) const {
 void Fct::emit(CodeGen& cg) const {
 
     body()->emit(cg);
-    cg.fixto(cg.curFct->exit());
+
+    if (continuation()) {
+        if (cg.reachable())
+            std::cerr << symbol() << " does not end with a call\n";
+    } else
+        cg.fixto(cg.curFct->exit());
 
     cg.curFct->emit();
 
@@ -92,7 +99,7 @@ void Fct::emit(CodeGen& cg) const {
 }
 
 Var* Decl::emit(CodeGen& cg) const {
-    Var* var = cg.curBB->setVar(symbol(), cg.world.bottom(cg.convert(type())));
+    Var* var = cg.curBB->insert(symbol(), cg.world.bottom(cg.convert(type())));
     var->load()->debug = symbol().str();
 
     return var;
@@ -121,13 +128,16 @@ const Def* Literal::remit(CodeGen& cg) const {
 }
 
 Var* Id::lemit(CodeGen& cg) const {
-    return cg.curBB->getVar(symbol(), cg.convert(type()));
+    return cg.curBB->lookup(symbol(), cg.convert(type()));
 }
 
 const Def* Id::remit(CodeGen& cg) const {
     if (type()->isa<Pi>()) {
-        anydsl_assert(cg.fcts.find(symbol()) != cg.fcts.end(), "function not found");
-        return cg.fcts[symbol()]->topLambda();
+        FctMap::iterator i = cg.fcts.find(symbol());
+        if (i == cg.fcts.end())
+            return lemit(cg)->load();
+
+        return i->second->topLambda();
     }
 
     return lemit(cg)->load();
@@ -175,9 +185,9 @@ Var* InfixExpr::lemit(CodeGen& cg) const {
 
     const Id* id = lhs()->isa<Id>();
 
-    // special case for 'a = expr' -> don't use getVar!
+    // special case for 'a = expr' -> don't use lookup!
     Var* lvar = op == Token::ASGN && id
-              ? cg.curBB->setVar(id->symbol(), cg.world.bottom(cg.convert(id->type())))
+              ? cg.curBB->insert(id->symbol(), cg.world.bottom(cg.convert(id->type())))
               : lhs()->lemit(cg);
 
     const Def* ldef = lvar->load();
@@ -220,7 +230,7 @@ const Def* PostfixExpr::remit(CodeGen& cg) const {
     return lemit(cg)->load();
 }
 
-Array<const Def*> Call::emitArgs(CodeGen& cg) const {
+Array<const Def*> Call::emit_args(CodeGen& cg) const {
     size_t size = args_.size();
     assert(size >= 1);
     Array<const Def*> args(size);
@@ -233,10 +243,16 @@ Array<const Def*> Call::emitArgs(CodeGen& cg) const {
 }
 
 const Def* Call::remit(CodeGen& cg) const {
-    Array<const Def*> args = emitArgs(cg);
+    Array<const Def*> args = emit_args(cg);
     const anydsl::Type* retType = cg.convert(type());
 
-    return cg.curBB->calls(args[0], args.slice_back(1), retType);
+    if (retType)
+        return cg.curBB->call(args[0], args.slice_back(1), retType);
+    else {
+        cg.curBB->tail_call(args[0], args.slice_back(1));
+        cg.curBB = 0;
+        return 0;
+    }
 }
 
 /*
@@ -270,7 +286,7 @@ void IfElseStmt::emit(CodeGen& cg) const {
     // condition
     if (cg.reachable()) {
         const Def* c = cond()->remit(cg);
-        cg.curBB->branches(c, thenBB, elseBB);
+        cg.curBB->branch(c, thenBB, elseBB);
     }
 
     thenBB->seal();
@@ -312,7 +328,7 @@ void WhileStmt::emit(CodeGen& cg) const {
 
     // condition
     const Def* c = cond()->remit(cg);
-    headBB->branches(c, bodyBB, nextBB);
+    headBB->branch(c, bodyBB, nextBB);
     bodyBB->seal();
 
     // body
@@ -346,10 +362,10 @@ void DoWhileStmt::emit(CodeGen& cg) const {
     condBB->seal();
     cg.curBB = condBB;
     const Def* c = cond()->remit(cg);
-    condBB->branches(c, critBB, nextBB);
+    condBB->branch(c, critBB, nextBB);
     critBB->seal();
     cg.curBB = critBB;
-    critBB->goesto(bodyBB);
+    critBB->jump(bodyBB);
     bodyBB->seal();
 
     // next
@@ -375,7 +391,7 @@ void ForStmt::emit(CodeGen& cg) const {
 
     // condition
     const Def* c = cond()->remit(cg);
-    headBB->branches(c, bodyBB, nextBB);
+    headBB->branch(c, bodyBB, nextBB);
     bodyBB->seal();
 
     // body
@@ -403,12 +419,12 @@ void ContinueStmt::emit(CodeGen& cg) const {
 
 void ReturnStmt::emit(CodeGen& cg) const {
     if (const Call* call = expr()->isa<Call>()) {
-        Array<const Def*> args = call->emitArgs(cg);
-        cg.curBB->tailCalls(args[0], args.slice_back(1));
+        Array<const Def*> args = call->emit_args(cg);
+        cg.curBB->return_call(args[0], args.slice_back(1));
     } else {
         const Def* def = expr()->remit(cg);
-        cg.curBB->setVar(anydsl::Symbol("<result>"), def);
-        cg.curBB->goesto(cg.curFct->exit());
+        cg.curBB->insert(anydsl::Symbol("<result>"), def);
+        cg.curBB->jump(cg.curFct->exit());
     }
 
     // all statements in the same BB are unreachable

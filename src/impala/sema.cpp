@@ -392,6 +392,11 @@ void ContinueStmt::check(Sema& sema) const {
 }
 
 void ReturnStmt::check(Sema& sema) const {
+    if (fct()->continuation()) {
+        sema.error(this) << "continuation is not allowed to use 'return'\n";
+        return;
+    }
+
     expr()->check(sema);
 
     const Pi* pi = fct()->pi();

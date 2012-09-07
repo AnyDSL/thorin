@@ -264,7 +264,7 @@ public:
 
     void appendArg(const Expr* expr) { args_.push_back(expr); }
     void setLoc(const anydsl::Position& pos2);
-    anydsl::Array<const anydsl::Def*> emitArgs(CodeGen& cg) const;
+    anydsl::Array<const anydsl::Def*> emit_args(CodeGen& cg) const;
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;

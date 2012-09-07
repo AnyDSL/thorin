@@ -1,2 +1,7 @@
-def f(i : int) {
+def f(i : int, ret : pi(int)) {
+    g(i, ret);
+}
+
+def g(i : int, ret : pi(int)) {
+    f(i, ret);
 }

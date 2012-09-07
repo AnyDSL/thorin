@@ -63,7 +63,7 @@ private:
 /** 
  * This class helps for code generation of imperative languages.
  *
- * SSA/CPS construction is supported via \p getVar and \p setVar.
+ * SSA/CPS construction is supported via \p lookup and \p insert.
  * In order to make this work a \p BB must be aware of the fact whether all predecessors are known
  * or whether there may still be predecessors added.
  * A \em sealed \p BB knows all its predecessors.
@@ -80,15 +80,16 @@ private:
 
 public:
 
-    Var* setVar(const Symbol& symbol, const Def* def);
-    Var* getVar(const Symbol& symbol, const Type* type);
+    Var* insert(const Symbol& symbol, const Def* def);
+    Var* lookup(const Symbol& symbol, const Type* type);
     void seal();
 
-    void goesto(BB* to);
-    void branches(const Def* cond, BB* tbb, BB* fbb);
+    void jump(BB* to);
+    void branch(const Def* cond, BB* tbb, BB* fbb);
     void fixto(BB* to);
-    const Def* calls(const Def* to, ArrayRef<const Def*> args, const Type* retType);
-    void tailCalls(const Def* to, ArrayRef<const Def*> args);
+    const Def* call(const Def* to, ArrayRef<const Def*> args, const Type* retType);
+    void tail_call(const Def* to, ArrayRef<const Def*> args);
+    void return_call(const Def* to, ArrayRef<const Def*> args);
 
     const BBs& preds() const { return preds_; }
     const BBs& succs() const { return succs_; }

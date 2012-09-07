@@ -114,11 +114,11 @@ public:
     const Type* type() const { return type_; }
     virtual anydsl::Var* lemit(CodeGen& cg) const { ANYDSL_UNREACHABLE; }
     virtual const anydsl::Def* remit(CodeGen& cg) const = 0;
-    const Exprs& args() const { return args_; }
+    const Exprs& ops() const { return ops_; }
 
 protected:
 
-    Exprs args_;
+    Exprs ops_;
 
     mutable bool lvalue_;
     mutable const Type* type_;
@@ -189,7 +189,7 @@ public:
 
     PrefixExpr(const anydsl::Position& pos1, Kind kind, const Expr* rhs);
 
-    const Expr* rhs() const { return args_[0]; }
+    const Expr* rhs() const { return ops_[0]; }
 
     Kind kind() const { return kind_; }
 
@@ -214,8 +214,8 @@ public:
 
     InfixExpr(const Expr* lhs, Kind kind, const Expr* rhs);
 
-    const Expr* lhs() const { return args_[0]; }
-    const Expr* rhs() const { return args_[1]; }
+    const Expr* lhs() const { return ops_[0]; }
+    const Expr* rhs() const { return ops_[1]; }
 
     Kind kind() const { return kind_; }
 
@@ -243,7 +243,7 @@ public:
 
     PostfixExpr(const Expr* lhs, Kind kind, const anydsl::Position& pos2);
 
-    const Expr* lhs() const { return args_[0]; }
+    const Expr* lhs() const { return ops_[0]; }
 
     Kind kind() const { return kind_; }
 
@@ -262,9 +262,9 @@ public:
 
     Call(const Expr* fct);
 
-    void appendArg(const Expr* expr) { args_.push_back(expr); }
+    void append_arg(const Expr* expr) { ops_.push_back(expr); }
     void setLoc(const anydsl::Position& pos2);
-    anydsl::Array<const anydsl::Def*> emit_args(CodeGen& cg) const;
+    anydsl::Array<const anydsl::Def*> emit_ops(CodeGen& cg) const;
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;

@@ -306,21 +306,21 @@ void PostfixExpr::check(Sema& sema) const {
 }
 
 void Call::check(Sema& sema) const {
-    for_all (arg, args_)
-        arg->check(sema);
+    for_all (op, ops_)
+        op->check(sema);
 
-    const Expr* f = args_.front();
+    const Expr* f = ops_.front();
 
     if (const Pi* fpi = f->type()->isa<Pi>()) {
-        Array<const Type*> argTypes(args_.size() - 1);
+        Array<const Type*> op_types(ops_.size() - 1);
 
-        for (size_t i = 1; i < args_.size(); ++i)
-            argTypes[i-1] = args_[i]->type();
+        for (size_t i = 1; i < ops_.size(); ++i)
+            op_types[i-1] = ops_[i]->type();
 
-        const Pi* pi = sema.types.pi(argTypes, fpi->retType());
+        const Pi* pi = sema.types.pi(op_types, fpi->rettype());
 
         if (pi == fpi) {
-            type_ = pi->retType();
+            type_ = pi->rettype();
             return;
         }
 
@@ -401,13 +401,13 @@ void ReturnStmt::check(Sema& sema) const {
 
     const Pi* pi = fct()->pi();
 
-    if (pi->retType()->is_noret()) {
+    if (pi->rettype()->is_noret()) {
         sema.error(this) << "return statement not allowed in continuation function\n";
         return;
     }
 
-    if (pi->retType() != expr()->type()) {
-        sema.error(expr()) << "expected return type '" << pi->retType() 
+    if (pi->rettype() != expr()->type()) {
+        sema.error(expr()) << "expected return type '" << pi->rettype() 
             << "' but return expression is of type '" << expr()->type() << "'\n";
     }
 }

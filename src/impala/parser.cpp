@@ -615,7 +615,7 @@ const Expr* Parser::parsePostfixExpr(const Expr* lhs) {
         Call* call = new Call(lhs);
         PARSE_COMMA_LIST
         (
-            call->appendArg(tryExpr()),
+            call->append_arg(tryExpr()),
             Token::R_PAREN,
             "arguments of a function call"
         )
@@ -637,7 +637,7 @@ const Expr* Parser::parsePrimaryExpr() {
             expect(Token::R_PAREN, "primary expression");
             return expr;
         }
-        case Token::ID:     return new Id(lex());
+        case Token::ID:      return new Id(lex());
         //case Token::LAMBDA: return parseLambda();
         //case Token::PI:            return parsePi();
         //case Token::SIGMA:         return parseSigma();

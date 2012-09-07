@@ -87,15 +87,15 @@ public:
     void jump(BB* to);
     void branch(const Def* cond, BB* tbb, BB* fbb);
     void fixto(BB* to);
-    const Def* call(const Def* to, ArrayRef<const Def*> args, const Type* retType);
+    const Def* call(const Def* to, ArrayRef<const Def*> args, const Type* rettype);
     void tail_call(const Def* to, ArrayRef<const Def*> args);
     void return_call(const Def* to, ArrayRef<const Def*> args);
 
     const BBs& preds() const { return preds_; }
     const BBs& succs() const { return succs_; }
 
-    const Lambda* topLambda() const { return topLambda_; }
-    const Lambda* curLambda() const { return curLambda_; }
+    const Lambda* top() const { return top_; }
+    const Lambda* cur() const { return cur_; }
 
     World& world();
     bool sealed() const { return sealed_; }
@@ -120,8 +120,8 @@ private:
     BB* tbb_;
     BB* fbb_;
 
-    Lambda* topLambda_;
-    Lambda* curLambda_;
+    Lambda* top_;
+    Lambda* cur_;
 
     typedef boost::unordered_map<Symbol, Var*> VarMap;
     VarMap vars_;
@@ -137,7 +137,7 @@ public:
 
     Fct(World& world, 
         ArrayRef<const Type*> tparams, ArrayRef<Symbol> sparams, 
-        const Type* retType, const std::string& debug = "");
+        const Type* rettype, const std::string& debug = "");
     ~Fct();
 
     BB* createBB(const std::string& debug = "");
@@ -145,14 +145,14 @@ public:
     World& world() { return world_; }
 
     BB* exit() { return exit_; }
-    const Param* retCont() { return retCont_; }
-    const Type* retType() { return retType_; }
+    const Param* ret() { return ret_; }
+    const Type* rettype() { return rettype_; }
 
 private:
 
     World& world_;
-    const Type* retType_;
-    const Param* retCont_;
+    const Type* rettype_;
+    const Param* ret_;
     BB* exit_;
     BBs cfg_;
 };

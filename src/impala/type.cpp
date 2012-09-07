@@ -45,16 +45,16 @@ size_t NoRet::hash() const {
     return boost::hash_value(Token::TYPE_noret);
 }
 
-Pi::Pi(anydsl::ArrayRef<const Type*> elems, const Type* retType) 
+Pi::Pi(anydsl::ArrayRef<const Type*> elems, const Type* rettype) 
     : elems_(elems)
-    , retType_(retType)
+    , rettype_(rettype)
 {}
 
 size_t Pi::hash() const {
     size_t seed = 0;
     boost::hash_combine(seed, Token::PI);
     boost::hash_combine(seed, elems_);
-    boost::hash_combine(seed, retType_);
+    boost::hash_combine(seed, rettype_);
 
     return seed;
 }
@@ -91,8 +91,8 @@ const PrimType* TypeTable::type(PrimType::Kind kind) {
     }
 }
 
-const Pi* TypeTable::pi(anydsl::ArrayRef<const Type*> elems, const Type* retType) {
-    const Pi* pi = new Pi(elems, retType);
+const Pi* TypeTable::pi(anydsl::ArrayRef<const Type*> elems, const Type* rettype) {
+    const Pi* pi = new Pi(elems, rettype);
     TypeSet::iterator i = types_.find(pi);
 
     if (i == types_.end()) {

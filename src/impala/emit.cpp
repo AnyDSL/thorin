@@ -69,8 +69,8 @@ void Prg::emit(CodeGen& cg) const {
             ++i;
         }
 
-        const anydsl::Type* retType = cg.convert(f->pi()->retType());
-        cg.fcts[f->symbol()] = new anydsl::Fct(cg.world, tparams, sparams, retType, f->symbol().str());
+        const anydsl::Type* rettype = cg.convert(f->pi()->rettype());
+        cg.fcts[f->symbol()] = new anydsl::Fct(cg.world, tparams, sparams, rettype, f->symbol().str());
     }
 
     for_all (f, fcts()) {
@@ -137,7 +137,7 @@ const Def* Id::remit(CodeGen& cg) const {
         if (i == cg.fcts.end())
             return lemit(cg)->load();
 
-        return i->second->topLambda();
+        return i->second->top();
     }
 
     return lemit(cg)->load();
@@ -230,26 +230,26 @@ const Def* PostfixExpr::remit(CodeGen& cg) const {
     return lemit(cg)->load();
 }
 
-Array<const Def*> Call::emit_args(CodeGen& cg) const {
-    size_t size = args_.size();
+Array<const Def*> Call::emit_ops(CodeGen& cg) const {
+    size_t size = ops_.size();
     assert(size >= 1);
-    Array<const Def*> args(size);
+    Array<const Def*> ops(size);
 
     size_t i = 0;
-    for_all (arg, args_)
-        args[i++] = arg->remit(cg);
+    for_all (op, ops_)
+        ops[i++] = op->remit(cg);
 
-    return args;
+    return ops;
 }
 
 const Def* Call::remit(CodeGen& cg) const {
-    Array<const Def*> args = emit_args(cg);
-    const anydsl::Type* retType = cg.convert(type());
+    Array<const Def*> ops = emit_ops(cg);
+    const anydsl::Type* rettype = cg.convert(type());
 
-    if (retType)
-        return cg.curBB->call(args[0], args.slice_back(1), retType);
+    if (rettype)
+        return cg.curBB->call(ops[0], ops.slice_back(1), rettype);
     else {
-        cg.curBB->tail_call(args[0], args.slice_back(1));
+        cg.curBB->tail_call(ops[0], ops.slice_back(1));
         cg.curBB = 0;
         return 0;
     }
@@ -419,8 +419,8 @@ void ContinueStmt::emit(CodeGen& cg) const {
 
 void ReturnStmt::emit(CodeGen& cg) const {
     if (const Call* call = expr()->isa<Call>()) {
-        Array<const Def*> args = call->emit_args(cg);
-        cg.curBB->return_call(args[0], args.slice_back(1));
+        Array<const Def*> ops = call->emit_ops(cg);
+        cg.curBB->return_call(ops[0], ops.slice_back(1));
     } else {
         const Def* def = expr()->remit(cg);
         cg.curBB->insert(anydsl::Symbol("<result>"), def);
@@ -472,8 +472,8 @@ const anydsl::Type* Pi::convert(anydsl::World& world) const {
     for (size_t i = 0; i < size; ++i)
         types[i] = elems()[i]->convert(world);
 
-    if (!retType()->is_noret())
-        types[size++] = world.pi1(retType()->convert(world));
+    if (!rettype()->is_noret())
+        types[size++] = world.pi1(rettype()->convert(world));
 
     return world.pi(types.slice_front(size));
 }

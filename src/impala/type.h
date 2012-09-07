@@ -127,7 +127,7 @@ public:
 class Pi : public Type {
 private:
 
-    Pi(anydsl::ArrayRef<const Type*> elems, const Type* retType);
+    Pi(anydsl::ArrayRef<const Type*> elems, const Type* rettype);
 
 public:
 
@@ -136,7 +136,7 @@ public:
 
     typedef anydsl::ArrayRef<const Type*> Elems;
     Elems elems() const { return Elems(elems_); }
-    const Type* retType() const { return retType_; }
+    const Type* rettype() const { return rettype_; }
 
 private:
 
@@ -144,7 +144,7 @@ private:
     virtual size_t hash() const;
 
     anydsl::Array<const Type*> elems_;
-    const Type* retType_;
+    const Type* rettype_;
 
     friend class TypeTable;
 };
@@ -173,7 +173,7 @@ public:
     const TypeError* type_error() const { return type_error_; }
     const Void* type_void() const { return type_void_; }
     const NoRet* type_noret() const { return noret_; }
-    const Pi* pi(anydsl::ArrayRef<const Type*> elems, const Type* retType);
+    const Pi* pi(anydsl::ArrayRef<const Type*> elems, const Type* rettype);
 
     typedef boost::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;
 

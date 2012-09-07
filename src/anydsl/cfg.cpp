@@ -14,10 +14,10 @@ namespace anydsl {
 BB::BB(Fct* fct, const std::string& debug) 
     : sealed_(false)
     , fct_(fct)
-    , topLambda_(new Lambda(world().pi0()))
-    , curLambda_(topLambda_)
+    , top_(new Lambda(world().pi0()))
+    , cur_(top_)
 {
-    topLambda_->debug = debug;
+    top_->debug = debug;
 }
 
 BB::~BB() {
@@ -56,7 +56,7 @@ Var* BB::lookup(const Symbol& symbol, const Type* type) {
 
     // insert a 'phi', i.e., create a param and remember to fix the callers
     if (!sealed_ || preds_.size() > 1) {
-        const Param* param = topLambda_->appendParam(type);
+        const Param* param = top_->appendParam(type);
         size_t index = in_.size();
         in_.push_back(param);
         Var* lvar = insert(symbol, param);
@@ -168,34 +168,32 @@ void BB::branch(const Def* cond, BB* tbb, BB* fbb) {
 }
 
 void BB::tail_call(const Def* to, ArrayRef<const Def*> args) {
-    size_t csize = args.size();
-    Array<const Def*> tcargs(csize);
+    Array<const Def*> tcargs(args.size());
     std::copy(args.begin(), args.end(), tcargs.begin());
-    world().jump(curLambda_, to, tcargs);
+    world().jump(cur_, to, tcargs);
 }
 
 void BB::return_call(const Def* to, ArrayRef<const Def*> args) {
-    size_t csize = args.size() + 1;
-    Array<const Def*> tcargs(csize);
-    *std::copy(args.begin(), args.end(), tcargs.begin()) = fct_->retCont();
-    world().jump(curLambda_, to, tcargs);
+    Array<const Def*> rargs(args.size() + 1);
+    *std::copy(args.begin(), args.end(), rargs.begin()) = fct_->ret();
+    world().jump(cur_, to, rargs);
 }
 
-const Def* BB::call(const Def* to, ArrayRef<const Def*> args, const Type* retType) {
+const Def* BB::call(const Def* to, ArrayRef<const Def*> args, const Type* rettype) {
     static int id = 0;
 
     // create next continuation in cascade
     Lambda* next = new Lambda(world().pi0());
-    next->debug = curLambda_->debug + "_" + to->debug;
-    const Param* result = next->appendParam(retType);
+    next->debug = cur_->debug + "_" + to->debug;
+    const Param* result = next->appendParam(rettype);
     result->debug = make_name(to->debug.c_str(), id);
 
     // create jump to this new continuation
     size_t csize = args.size() + 1;
     Array<const Def*> cargs(csize);
     *std::copy(args.begin(), args.end(), cargs.begin()) = next;
-    world().jump(curLambda_, to, cargs);
-    curLambda_ = next;
+    world().jump(cur_, to, cargs);
+    cur_ = next;
 
     ++id;
 
@@ -226,14 +224,14 @@ World& BB::world() {
 void BB::emit() {
     switch (succs().size()) {
         case 0:
-            anydsl_assert(world().defs().find(curLambda_) != world().defs().end(), "tail call not finalized");
+            anydsl_assert(world().defs().find(cur_) != world().defs().end(), "tail call not finalized");
             break;
         case 1:
-            world().jump(curLambda_, (*succs().begin())->topLambda(), out_);
+            world().jump(cur_, (*succs().begin())->top(), out_);
             break;
         case 2:
             anydsl_assert(out_.empty(), "sth went wrong with critical edge elimination");
-            world().branch(curLambda_, cond_, tbb_->topLambda(), fbb_->topLambda());
+            world().branch(cur_, cond_, tbb_->top(), fbb_->top());
             break;
         default: 
             ANYDSL_UNREACHABLE;
@@ -244,27 +242,27 @@ void BB::emit() {
 
 Fct::Fct(World& world, 
          ArrayRef<const Type*> tparams, ArrayRef<Symbol> sparams, 
-         const Type* retType, const std::string& debug)
+         const Type* rettype, const std::string& debug)
     : world_(world)
-    , retType_(retType)
+    , rettype_(rettype)
     , exit_(0)
 {
     assert(tparams.size() == sparams.size());
     sealed_ = true;
     fct_ = this;
-    curLambda_ = topLambda_ = new Lambda(world.pi(tparams), Lambda::Extern);
-    topLambda_->debug = debug;
+    cur_ = top_ = new Lambda(world.pi(tparams), Lambda::Extern);
+    top_->debug = debug;
 
     size_t i = 0;
-    for_all (param, topLambda_->params()) {
+    for_all (param, top_->params()) {
         Symbol sym = sparams[i++];
         insert(sym, param);
         param->debug = sym.str();
     }
 
-    if (retType_) {
-        retCont_ = topLambda_->appendParam(world.pi1(retType));
-        retCont()->debug = "<return>";
+    if (rettype_) {
+        ret_ = top_->appendParam(world.pi1(rettype));
+        ret()->debug = "<return>";
         exit_ = createBB('<' + debug + "_exit>");
     }
 }
@@ -282,10 +280,10 @@ BB* Fct::createBB(const std::string& debug /*= ""*/) {
 }
 
 void Fct::emit() {
-    if (retType()) {
+    if (rettype()) {
         // exit
         exit()->seal();
-        world().jump1(exit_->topLambda_, retCont(), exit()->lookup(Symbol("<result>"), retType())->load());
+        world().jump1(exit_->top_, ret(), exit()->lookup(Symbol("<result>"), rettype())->load());
     }
 
     for_all (bb, cfg_)

@@ -95,9 +95,9 @@ void Fct::dump(Printer& p) const {
 
     p << ')';
 
-    if (pi()->retType()) {
+    if (pi()->rettype()) {
         p << " -> ";
-        pi()->retType()->dump(p);
+        pi()->rettype()->dump(p);
         p << ' ';
     }
     p.dumpBlock(body());
@@ -215,18 +215,18 @@ void PostfixExpr::dump(Printer& p) const {
 }
 
 void Call::dump(Printer& p) const {
-    assert(args_.size() >= 1);
+    assert(ops_.size() >= 1);
 
-    args_.front()->dump(p);
+    ops_.front()->dump(p);
     p << '(';
 
-    if (args_.size() != 1) {
-        for (Exprs::const_iterator i = args_.begin() + 1, e = args_.end() - 1; i != e; ++i) {
+    if (ops_.size() != 1) {
+        for (Exprs::const_iterator i = ops_.begin() + 1, e = ops_.end() - 1; i != e; ++i) {
             (*i)->dump(p);
             p << ", ";
         }
 
-        args_.back()->dump(p);
+        ops_.back()->dump(p);
     }
 
     p << ')';
@@ -372,9 +372,9 @@ void Pi::dump(Printer& p) const {
 
     p << ")";
     
-    if (retType()) {
+    if (rettype()) {
         p << " -> ";
-        retType()->dump(p);
+        rettype()->dump(p);
     }
 }
 

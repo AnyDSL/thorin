@@ -29,7 +29,7 @@ void Fct::set(const Decl* decl, const ScopeStmt* body) {
 }
 
 bool Fct::continuation() const { 
-    return pi()->retType()->is_noret(); 
+    return pi()->rettype()->is_noret(); 
 }
 
 const Pi* Fct::pi() const { 
@@ -60,33 +60,33 @@ Id::Id(const Token& tok)
 PrefixExpr::PrefixExpr(const Position& pos1, Kind kind, const Expr* rhs)
     : kind_(kind)
 {
-    args_.push_back(rhs);
+    ops_.push_back(rhs);
     setLoc(pos1, rhs->pos2());
 }
 
 InfixExpr::InfixExpr(const Expr* lhs, Kind kind, const Expr* rhs)
     : kind_(kind)
 {
-    args_.push_back(lhs);
-    args_.push_back(rhs);
+    ops_.push_back(lhs);
+    ops_.push_back(rhs);
     setLoc(lhs->pos1(), rhs->pos2());
 }
 
 PostfixExpr::PostfixExpr(const Expr* lhs, Kind kind, const Position& pos2) 
     : kind_(kind)
 {
-    args_.push_back(lhs);
+    ops_.push_back(lhs);
     setLoc(lhs->pos1(), pos2);
 }
 
 Call::Call(const Expr* fct) {
-    args_.push_back(fct);
+    ops_.push_back(fct);
 }
 
 void Call::setLoc(const Position& pos2) {
-    assert(!args_.empty());
+    assert(!ops_.empty());
 
-    HasLocation::setLoc(args_.front()->pos1(), pos2);
+    HasLocation::setLoc(ops_.front()->pos1(), pos2);
 }
 
 /*

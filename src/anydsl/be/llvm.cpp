@@ -145,61 +145,53 @@ void CodeGen::emit() {
             }
 
             // terminate bb
-            switch (lambda->targets().size()) {
-                case 0: { 
-                    // this is a return
-                    const Param* param = lambda->to()->as<Param>();
-                    assert(param == ret_param);
-                    assert(lambda->args().size() == 1);
-                    builder_.CreateRet(lookup(lambda->arg(0)));
-                    break;
-                } 
-                case 1: { 
-                    // three subcases
-                    const Lambda* tolambda = lambda->to()->as<Lambda>();
-                    const Pi* topi = tolambda->pi();
-                    size_t ho = tolambda->pi()->ho_begin();
+            size_t num_targets = lambda->targets().size();
+            if (num_targets == 0) { 
+                // this is a return
+                assert(lambda->to()->as<Param>() == ret_param);
+                assert(lambda->args().size() == 1);
+                builder_.CreateRet(lookup(lambda->arg(0)));
+            } else if (num_targets == 1) {
+                // three subcases
+                const Lambda* tolambda = lambda->to()->as<Lambda>();
+                const Pi* topi = tolambda->pi();
+                size_t ho = tolambda->pi()->ho_begin();
 
-                    if (ho == tolambda->pi()->ho_end()) // case a) ordinary jump
-                        builder_.CreateBr(bbs[tolambda]);
-                    else {
-                        // put all first-order args into array
-                        Array<llvm::Value*> args(lambda->args().size() - 1);
+                if (ho == tolambda->pi()->ho_end()) // case a) ordinary jump
+                    builder_.CreateBr(bbs[tolambda]);
+                else {
+                    // put all first-order args into array
+                    Array<llvm::Value*> args(lambda->args().size() - 1);
 
-                        for (size_t i = topi->fo_begin(), e = topi->fo_end(), j = 0; i != e; topi->fo_next(i))
-                            args[j++] = lookup(lambda->arg(i));
+                    for (size_t i = topi->fo_begin(), e = topi->fo_end(), j = 0; i != e; topi->fo_next(i))
+                        args[j++] = lookup(lambda->arg(i));
 
-                        llvm::ArrayRef<llvm::Value*> ref(args.begin(), args.end());
-                        llvm::CallInst* call = builder_.CreateCall(fcts[tolambda], ref);
-                        
-                        const Def* ho_arg = lambda->arg(ho);
-                        if (ho_arg == ret_param)        // case b) call + return
-                            builder_.CreateRet(call); 
-                        else {                          // case c) call + continuation
-                            const Lambda* succ = lambda->arg(ho)->as<Lambda>();
-                            const Param* ho_param = succ->param(0);
-                            if (ho_param)
-                                params_[ho_param] = call;
+                    llvm::ArrayRef<llvm::Value*> ref(args.begin(), args.end());
+                    llvm::CallInst* call = builder_.CreateCall(fcts[tolambda], ref);
+                    
+                    const Def* ho_arg = lambda->arg(ho);
+                    if (ho_arg == ret_param)        // case b) call + return
+                        builder_.CreateRet(call); 
+                    else {                          // case c) call + continuation
+                        const Lambda* succ = lambda->arg(ho)->as<Lambda>();
+                        const Param* ho_param = succ->param(0);
+                        if (ho_param)
+                            params_[ho_param] = call;
 
-                            builder_.CreateBr(bbs[succ]);
-                        }
+                        builder_.CreateBr(bbs[succ]);
                     }
-                    break;
-                } 
-                case 2: { 
-                    // this is a branch
-                    const Select* select = lambda->to()->as<Select>();
-                    const Lambda* tlambda = select->tval()->as<Lambda>();
-                    const Lambda* flambda = select->fval()->as<Lambda>();
+                }
+            } else {
+                // this is a branch
+                assert(num_targets == 2);
+                const Select* select = lambda->to()->as<Select>();
+                const Lambda* tlambda = select->tval()->as<Lambda>();
+                const Lambda* flambda = select->fval()->as<Lambda>();
 
-                    llvm::Value* cond = lookup(select->cond());
-                    llvm::BasicBlock* tbb = bbs[tlambda];
-                    llvm::BasicBlock* fbb = bbs[flambda];
-                    builder_.CreateCondBr(cond, tbb, fbb);
-                    break;
-                } 
-                default:
-                    ANYDSL_UNREACHABLE;
+                llvm::Value* cond = lookup(select->cond());
+                llvm::BasicBlock* tbb = bbs[tlambda];
+                llvm::BasicBlock* fbb = bbs[flambda];
+                builder_.CreateCondBr(cond, tbb, fbb);
             }
         }
 
@@ -251,8 +243,13 @@ llvm::Value* CodeGen::literal(const PrimLit* lit) {
         case PrimType_u64: return builder_.getInt64(box.get_u64());
         case PrimType_f32: return llvm::ConstantFP::get(type, box.get_f32());
         case PrimType_f64: return llvm::ConstantFP::get(type, box.get_f64());
-        default: ANYDSL_UNREACHABLE;
     }
+
+    // bottom and any
+    if (const Undef* undef = lit->isa<Undef>())
+        return llvm::UndefValue::get(convert(undef->type()));
+
+    ANYDSL_UNREACHABLE;
 }
 
 llvm::Value* CodeGen::emit(const Def* def) {
@@ -371,10 +368,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
         return agg;
     }
-
-    // bottom and any
-    if (const Undef* undef = def->isa<Undef>())
-        return llvm::UndefValue::get(convert(undef->type()));
 
     def->dump();
     ANYDSL_UNREACHABLE;

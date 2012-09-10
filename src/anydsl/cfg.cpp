@@ -65,7 +65,7 @@ Var* BB::lookup(const Symbol& symbol, const Type* type) {
         Todo todo(index, type);
 
         if (sealed_)
-            fixTodo(symbol, todo);
+            fix(symbol, todo);
         else
             todos_[symbol] = todo;
 
@@ -88,7 +88,6 @@ Var* BB::lookup(const Symbol& symbol, const Type* type) {
 
 void BB::seal() {
     anydsl_assert(!sealed(), "already sealed");
-
     sealed_ = true;
 
 #ifndef NDEBUG
@@ -99,10 +98,10 @@ void BB::seal() {
 #endif
 
     for_all (p, todos_)
-        fixTodo(p.first, p.second);
+        fix(p.first, p.second);
 }
 
-void BB::fixTodo(const Symbol& symbol, Todo todo) {
+void BB::fix(const Symbol& symbol, Todo todo) {
     anydsl_assert(sealed(), "must be sealed");
 
     size_t index = todo.index();
@@ -128,7 +127,7 @@ void BB::fixTodo(const Symbol& symbol, Todo todo) {
     if (!same || same == param)
         same = world().bottom(param->type());
 
-    for_all (use, param->copyUses())
+    for_all (use, param->copy_uses())
         world().update(use.def(), use.index(), same);
 
 fix_preds:
@@ -150,7 +149,7 @@ fix_preds:
 
 void BB::jump(BB* to) {
     assert(to);
-    this->flowsto(to);
+    this->link(to);
     anydsl_assert(this->succs().size() == 1, "wrong number of succs");
 }
 
@@ -161,8 +160,8 @@ void BB::branch(const Def* cond, BB* tbb, BB* fbb) {
     cond_ = cond;
     tbb_ = tbb;
     fbb_ = fbb;
-    this->flowsto(tbb);
-    this->flowsto(fbb);
+    this->link(tbb);
+    this->link(fbb);
 
     anydsl_assert(succs().size() == 2, "wrong number of succs");
 }
@@ -205,7 +204,7 @@ void BB::fixto(BB* to) {
         this->jump(to);
 }
 
-void BB::flowsto(BB* to) {
+void BB::link(BB* to) {
     BBs::iterator i = succs_.find(to);
     anydsl_assert(!to->sealed(), "'to' already sealed");
 
@@ -222,40 +221,37 @@ World& BB::world() {
 }
 
 void BB::emit() {
-    switch (succs().size()) {
-        case 0:
-            anydsl_assert(world().defs().find(cur_) != world().defs().end(), "tail call not finalized");
-            break;
-        case 1:
-            world().jump(cur_, (*succs().begin())->top(), out_);
-            break;
-        case 2:
-            anydsl_assert(out_.empty(), "sth went wrong with critical edge elimination");
-            world().branch(cur_, cond_, tbb_->top(), fbb_->top());
-            break;
-        default: 
-            ANYDSL_UNREACHABLE;
-    }
+    size_t num_succs = succs().size();
+
+    if (num_succs == 0) 
+        anydsl_assert(world().defs().find(cur_) != world().defs().end(), "tail call not finalized");
+    else if (num_succs == 1)
+        world().jump(cur_, (*succs().begin())->top(), out_);
+    else if (num_succs == 2) {
+        anydsl_assert(out_.empty(), "edge is critical");
+        world().branch(cur_, cond_, tbb_->top(), fbb_->top());
+    } else
+        ANYDSL_UNREACHABLE;
 }
 
 //------------------------------------------------------------------------------
 
 Fct::Fct(World& world, 
-         ArrayRef<const Type*> tparams, ArrayRef<Symbol> sparams, 
+         ArrayRef<const Type*> types, ArrayRef<Symbol> symbols, 
          const Type* rettype, const std::string& debug)
     : world_(world)
     , rettype_(rettype)
     , exit_(0)
 {
-    assert(tparams.size() == sparams.size());
+    assert(types.size() == symbols.size());
     sealed_ = true;
     fct_ = this;
-    cur_ = top_ = new Lambda(world.pi(tparams), Lambda::Extern);
+    cur_ = top_ = new Lambda(world.pi(types), Lambda::Extern);
     top_->debug = debug;
 
     size_t i = 0;
     for_all (param, top_->params()) {
-        Symbol sym = sparams[i++];
+        Symbol sym = symbols[i++];
         insert(sym, param);
         param->debug = sym.str();
     }
@@ -274,21 +270,19 @@ Fct::~Fct() {
 
 BB* Fct::createBB(const std::string& debug /*= ""*/) {
     BB* bb = new BB(this, debug);
-    cfg_.insert(bb);
+    cfg_.push_back(bb);
 
     return bb;
 }
 
 void Fct::emit() {
     if (rettype()) {
-        // exit
         exit()->seal();
         world().jump1(exit_->top_, ret(), exit()->lookup(Symbol("<result>"), rettype())->load());
     }
 
     for_all (bb, cfg_)
-        if (bb != exit())
-            bb->emit();
+        bb->emit();
 
     // fct
     BB::emit();

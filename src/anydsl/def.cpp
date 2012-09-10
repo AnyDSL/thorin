@@ -72,7 +72,7 @@ World& Def::world() const {
         return as<Type>()->world();
 }
 
-Array<Use> Def::copyUses() const {
+Array<Use> Def::copy_uses() const {
     Array<Use> result(uses().size());
     std::copy(uses().begin(), uses().end(), result.begin());
 

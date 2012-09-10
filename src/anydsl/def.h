@@ -143,7 +143,7 @@ public:
      * Copies all use-info into an array.
      * Useful if you want to modfy users while iterating over all users.
      */
-    Array<Use> copyUses() const;
+    Array<Use> copy_uses() const;
     const Type* type() const { return type_; }
     bool isType() const { return !type_; }
     World& world() const;

@@ -104,8 +104,8 @@ public:
 
 private:
 
-    void flowsto(BB* to);
-    void fixTodo(const Symbol& symbol, Todo todo);
+    void link(BB* to);
+    void fix(const Symbol& symbol, Todo todo);
 
     bool sealed_;
 
@@ -136,7 +136,7 @@ class Fct : public BB {
 public:
 
     Fct(World& world, 
-        ArrayRef<const Type*> tparams, ArrayRef<Symbol> sparams, 
+        ArrayRef<const Type*> types, ArrayRef<Symbol> symbols, 
         const Type* rettype, const std::string& debug = "");
     ~Fct();
 
@@ -154,7 +154,7 @@ private:
     const Type* rettype_;
     const Param* ret_;
     BB* exit_;
-    BBs cfg_;
+    std::vector<BB*> cfg_;
 };
 
 } // namespace anydsl

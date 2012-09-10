@@ -573,7 +573,7 @@ void World::replace(const Def* what, const Def* with) {
         def->ops_[i] = 0;
     }
 
-    Array<Use> olduses = def->copyUses();
+    Array<Use> olduses = def->copy_uses();
 
     // unregister all uses of def
     def->uses_.clear();

@@ -404,15 +404,14 @@ void World::dce() {
     for (size_t i = 0; i < Num_PrimTypes; ++i)
         dce_insert(primTypes_[i]);
 
-    for_all (lambda, lambdas())
+    for_all (lambda, lambdas()) {
         if (lambda->is_extern()) {
-            for (Params::const_iterator i = lambda->ho_begin(), e = lambda->ho_end(); i != e; lambda->ho_next(i)) {
-                const Param* param = *i;
+            for_all (param, lambda->higher_order_params()) {
                 for_all (use, param->uses())
                     dce_insert(use.def());
             }
-
         }
+    }
 
     // kill the living dead
     DefSet::iterator i = defs_.begin();

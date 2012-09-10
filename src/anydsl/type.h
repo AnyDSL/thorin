@@ -128,20 +128,14 @@ private:
     {}
     virtual Pi* clone() const { return new Pi(*this); }
 
-
 public:
 
-    size_t ho_begin() const;
-    size_t ho_end() const { return size(); }
-    void ho_next(size_t& pos) const;
-    bool is_higher_order() const { return ho_begin() != ho_end(); }
-    size_t fo_begin() const;
-    size_t fo_end() const { return size(); }
-    void fo_next(size_t& pos) const;
-    bool is_first_order() const { return fo_begin() != fo_end(); }
+    bool is_first_order() const;
+    bool is_higher_order() const;
 
 private:
 
+    template<bool first_order> bool classify_order() const;
     virtual void vdump(Printer& printer) const;
 
     friend class World;

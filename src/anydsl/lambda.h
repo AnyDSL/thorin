@@ -29,22 +29,18 @@ public:
 
     const Param* append_param(const Type* type);
 
-    // higher order params
-    Params::const_iterator ho_begin() const;
-    Params::const_iterator ho_end() const { return params_.end(); }
-    void ho_next(Params::const_iterator& i) const;
-    bool is_higher_order() const { return ho_begin() != ho_end(); }
+    Array<const Param*> first_order_params() const;
+    Array<const Param*> higher_order_params() const;
+    Array<const Def*> first_order_args() const;
+    Array<const Def*> higher_order_args() const;
 
-    // first order params
-    Params::const_iterator fo_begin() const;
-    Params::const_iterator fo_end() const { return params_.end(); }
-    void fo_next(Params::const_iterator& i) const;
-    bool is_first_order() const { return fo_begin() != fo_end(); }
+    bool is_first_order() const;
+    bool is_higher_order() const;
 
     void close();
 
-    Lambdas targets() const { return adjacencies_.slice_front(hosBegin_); }
-    Lambdas hos()     const { return adjacencies_.slice_back(hosBegin_); }
+    Lambdas targets() const { return adjacencies_.slice_front(hos_begin_); }
+    Lambdas hos()     const { return adjacencies_.slice_back(hos_begin_); }
     Lambdas succs()    const { return Lambdas(adjacencies_); }
     LambdaSet preds() const;
     const Params& params() const { return params_; }
@@ -65,6 +61,10 @@ public:
 
 private:
 
+    template<bool first_order> Array<const Param*> classify_params() const;
+    template<bool first_order> Array<const Def*> classify_args() const;
+    template<bool first_order> bool classify_order() const;
+
     virtual bool equal(const Def* other) const;
     virtual size_t hash() const;
     virtual void vdump(Printer& printer) const;
@@ -74,7 +74,7 @@ private:
 
     /// targets -- lambda arguments -- callers
     Array<const Lambda*> adjacencies_;
-    size_t hosBegin_;
+    size_t hos_begin_;
 
     friend class World;
     friend class Param;

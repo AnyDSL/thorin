@@ -45,41 +45,17 @@ bool Sigma::equal(const Def* other) const {
 
 //------------------------------------------------------------------------------
 
-size_t Pi::ho_begin() const {
-    for (size_t i = 0, e = size(); i != e; ++i)
-        if (elem(i)->isa<Pi>())
-            return i;
+template<bool first_order>
+bool Pi::classify_order() const {
+    for_all (elem, elems())
+        if (first_order ^ (elem->isa<Pi>() == 0))
+            return false;
 
-    return ho_end();
+    return true;
 }
 
-void Pi::ho_next(size_t& i) const {
-    ++i;
-
-    while (i < size())
-        if (elem(i)->isa<Pi>())
-            return;
-        else
-            ++i;
-}
-
-size_t Pi::fo_begin() const {
-    for (size_t i = 0, e = size(); i != e; ++i)
-        if (!elem(i)->isa<Pi>())
-            return i;
-
-    return fo_end();
-}
-
-void Pi::fo_next(size_t& i) const {
-    ++i;
-
-    while (i < size())
-        if (!elem(i)->isa<Pi>())
-            return;
-        else
-            ++i;
-}
+bool Pi::is_first_order() const { return classify_order<true>(); }
+bool Pi::is_higher_order() const { return classify_order<false>(); }
 
 //------------------------------------------------------------------------------
 

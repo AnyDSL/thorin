@@ -22,13 +22,8 @@ Lambda::Lambda(const Pi* pi, uint32_t flags)
         params_.push_back(world().param(elem, this, i++));
 }
 
-const Pi* Lambda::pi() const {
-    return type()->as<Pi>();
-}
-
-const Pi* Lambda::to_pi() const {
-    return to()->type()->as<Pi>();
-}
+const Pi* Lambda::pi() const { return type()->as<Pi>(); }
+const Pi* Lambda::to_pi() const { return to()->type()->as<Pi>(); }
 
 const Param* Lambda::append_param(const Type* type) {
     size_t size = pi()->elems().size();
@@ -43,45 +38,8 @@ const Param* Lambda::append_param(const Type* type) {
     return param;
 }
 
-bool Lambda::equal(const Def* other) const {
-    return this == other;
-}
-
-size_t Lambda::hash() const {
-    return boost::hash_value(this);
-}
-
-Params::const_iterator Lambda::ho_begin() const {
-    Params::const_iterator result = params_.begin();
-
-    while (result != params_.end() && !(*result)->type()->isa<Pi>())
-        ++result;
-
-    return result;
-}
-
-void Lambda::ho_next(Params::const_iterator& i) const {
-    ++i;
-
-    while (i != params_.end() && !(*i)->type()->isa<Pi>())
-        ++i;
-}
-
-Params::const_iterator Lambda::fo_begin() const {
-    Params::const_iterator result = params_.begin();
-
-    while (result != params_.end() && (*result)->type()->isa<Pi>())
-        ++result;
-
-    return result;
-}
-
-void Lambda::fo_next(Params::const_iterator& i) const {
-    ++i;
-
-    while (i != params_.end() && (*i)->type()->isa<Pi>())
-        ++i;
-}
+bool Lambda::equal(const Def* other) const { return this == other; }
+size_t Lambda::hash() const { return boost::hash_value(this); }
 
 static void find_lambdas(const Def* def, LambdaSet& result) {
     if (const Lambda* lambda = def->isa<Lambda>()) {
@@ -129,11 +87,46 @@ void Lambda::close() {
     for_all (target, targets)
         adjacencies_[i++] = target;
 
-    hosBegin_ = i;
+    hos_begin_ = i;
     for_all (ho, hos)
         adjacencies_[i++] = ho;
 
     anydsl_assert(pi()->size() == params().size(), "type does not honor size of params");
 }
+
+template<bool first_order>
+Array<const Param*> Lambda::classify_params() const {
+    Array<const Param*> res(params().size());
+
+    size_t size = 0;
+    for_all (param, params())
+        if (first_order ^ (param->type()->isa<Pi>() != 0))
+            res[size++] = param;
+
+    res.shrink(size);
+
+    return res;
+}
+
+template<bool first_order>
+Array<const Def*> Lambda::classify_args() const {
+    Array<const Def*> res(args().size());
+
+    size_t size = 0;
+    for_all (arg, args())
+        if (first_order ^ (arg->type()->isa<Pi>() != 0))
+            res[size++] = arg;
+
+    res.shrink(size);
+
+    return res;
+}
+
+Array<const Param*> Lambda::first_order_params() const { return classify_params<true>(); }
+Array<const Param*> Lambda::higher_order_params() const { return classify_params<false>(); }
+Array<const Def*> Lambda::first_order_args() const { return classify_args<true>(); }
+Array<const Def*> Lambda::higher_order_args() const { return classify_args<false>(); }
+bool Lambda::is_first_order() const { return pi()->is_first_order(); }
+bool Lambda::is_higher_order() const { return pi()->is_higher_order(); }
 
 } // namespace anydsl

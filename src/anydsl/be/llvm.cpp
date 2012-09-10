@@ -83,19 +83,16 @@ void CodeGen::emit() {
     for_all (lf, fcts) {
         const Lambda* lambda = lf.first;
         llvm::Function* fct = lf.second;
-        const Param* ret_param;
 
-        llvm::Function::arg_iterator arg = fct->arg_begin();
-        
         // map params
-        for_all (param, lambda->params()) {
-            if (param->type()->isa<Pi>())
-                ret_param = param;
-            else {
-                arg->setName(param->debug);
-                params_[param] = arg++;
-            }
+        llvm::Function::arg_iterator arg = fct->arg_begin();
+        for_all (param, lambda->first_order_params()) {
+            arg->setName(param->debug);
+            params_[param] = arg++;
+            std::cout << "inserting: " << param->debug << " of " << param->lambda()->debug << std::endl;
         }
+
+        const Param* ret_param = lambda->higher_order_params().front();
 
         DomTree domtree = calc_domtree(lambda);
         BBMap bbs;
@@ -113,7 +110,7 @@ void CodeGen::emit() {
             if (lambda->uses().size() == 1) {
                 Use use = *lambda->uses().begin();
                 if (use.def()->isa<Lambda>() && use.index() > 0)
-                    continue;// do not register a phi, see also case 1c) in 'terminate bb' below
+                    continue;// do not register a phi; see also case 1c) in 'terminate bb' below
             }
 
             builder_.SetInsertPoint(bbs[lambda]);
@@ -130,10 +127,9 @@ void CodeGen::emit() {
             builder_.SetInsertPoint(bbs[node->lambda()]);
             std::vector<const PrimOp*> primops = places[node->index()];
 
-            for_all (primop, primops) {
+            for_all (primop, primops)
                 if (!primop->type()->isa<Pi>()) // don't touch higher-order primops
                     primops_[primop] = emit(primop);
-            }
 
             // terminate bb
             size_t num_targets = lambda->targets().size();
@@ -145,30 +141,30 @@ void CodeGen::emit() {
             } else if (num_targets == 1) {
                 // three subcases
                 const Lambda* tolambda = lambda->to()->as<Lambda>();
-                const Pi* topi = tolambda->pi();
-                size_t ho = tolambda->pi()->ho_begin();
+                Array<const Param*> first_order  = tolambda->first_order_params();
+                Array<const Param*> higher_order = tolambda->higher_order_params();
 
-                if (ho == tolambda->pi()->ho_end()) // case a) ordinary jump
+                if (higher_order.empty()) // case a) ordinary jump
                     builder_.CreateBr(bbs[tolambda]);
                 else {
                     // put all first-order args into array
-                    Array<llvm::Value*> args(lambda->args().size() - 1);
+                    assert(lambda->args().size() - 1 == first_order.size());
+                    Array<llvm::Value*> args(first_order.size());
 
-                    for (size_t i = topi->fo_begin(), e = topi->fo_end(), j = 0; i != e; topi->fo_next(i))
-                        args[j++] = lookup(lambda->arg(i));
+                    size_t i = 0;
+                    for_all (arg, lambda->first_order_args())
+                        args[i++] = lookup(arg);
 
                     llvm::ArrayRef<llvm::Value*> ref(args.begin(), args.end());
                     llvm::CallInst* call = builder_.CreateCall(fcts[tolambda], ref);
                     
-                    const Def* ho_arg = lambda->arg(ho);
+                    anydsl_assert(higher_order.size() == 1, "others not (yet) supported");
+                    const Def* ho_arg = lambda->arg(higher_order.front()->index());
                     if (ho_arg == ret_param)        // case b) call + return
                         builder_.CreateRet(call); 
                     else {                          // case c) call + continuation
-                        const Lambda* succ = lambda->arg(ho)->as<Lambda>();
-                        const Param* ho_param = succ->param(0);
-                        if (ho_param)
-                            params_[ho_param] = call;
-
+                        const Lambda* succ = ho_arg->as<Lambda>();
+                        params_[succ->param(0)] = call;
                         builder_.CreateBr(bbs[succ]);
                     }
                 }

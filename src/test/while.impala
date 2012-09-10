@@ -1,0 +1,21 @@
+def while(m    : int,
+          head : pi(int, pi(int, bool)), 
+          body : pi(int, pi(int)), 
+          next : pi(int)) 
+{
+    #(int, bool) bla = head(m, 
+    
+    
+    lambda(m : int, h : bool) {
+        branch(h, 
+            lambda() {
+                body(m, lambda(m : int) {
+                    while(m, head, body, next)
+                })
+            },
+            lambda() {
+                next(m)
+            }
+        )
+    })
+}

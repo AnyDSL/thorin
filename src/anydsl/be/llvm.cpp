@@ -26,9 +26,14 @@
 namespace anydsl {
 namespace be_llvm {
 
-
 template<class T> llvm::ArrayRef<T> llvm_ref(const Array<T>& array) {
     return llvm::ArrayRef<T>(array.begin(), array.end());
+}
+
+#define anydsl_zip(in, out, f) { \
+    size_t i = 0; \
+    for_all (a, in) \
+        out[i++] = f(a); \
 }
 
 //------------------------------------------------------------------------------
@@ -152,11 +157,7 @@ void CodeGen::emit() {
                 else {
                     // put all first-order args into array
                     Array<llvm::Value*> args(lambda->args().size() - 1);
-
-                    size_t i = 0;
-                    for_all (arg, lambda->first_order_args())
-                        args[i++] = lookup(arg);
-
+                    anydsl_zip(lambda->first_order_args(), args, lookup);
                     llvm::CallInst* call = builder_.CreateCall(fcts[tolambda], llvm_ref(args));
                     
                     const Def* ho_arg = lambda->higher_order_args().front();
@@ -385,10 +386,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
                         ret = convert(pi->elem(0));
                     else {
                         Array<llvm::Type*> elems(pi->size());
-                        size_t i = 0;
-                        for_all (elem, pi->elems())
-                            elems[i++] = convert(elem);
-
+                        anydsl_zip(pi->elems(), elems, convert);
                         ret = llvm::StructType::get(context_, llvm_ref(elems));
                     }
                 } else
@@ -405,9 +403,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
             const Sigma* sigma = type->as<Sigma>();
 
             Array<llvm::Type*> elems(sigma->elems().size());
-            size_t i = 0;
-            for_all (t, sigma->elems())
-                elems[i++] = convert(t);
+            anydsl_zip(sigma->elems(), elems, convert);
 
             return llvm::StructType::get(context_, llvm_ref(elems));
         }

@@ -453,17 +453,9 @@ const anydsl::Type* PrimType::convert(anydsl::World& world) const {
     }
 }
 
-const anydsl::Type* Void::convert(anydsl::World& world) const {
-    return world.unit();
-}
-
-const anydsl::Type* NoRet::convert(anydsl::World& /*world*/) const {
-    return 0;
-}
-
-const anydsl::Type* TypeError::convert(anydsl::World& /*world*/) const {
-    ANYDSL_UNREACHABLE;
-}
+const anydsl::Type* Void::convert(anydsl::World& world) const { return world.unit(); }
+const anydsl::Type* NoRet::convert(anydsl::World& /*world*/) const { return 0; }
+const anydsl::Type* TypeError::convert(anydsl::World& /*world*/) const { ANYDSL_UNREACHABLE; }
 
 const anydsl::Type* Pi::convert(anydsl::World& world) const {
     size_t size = elems().size();

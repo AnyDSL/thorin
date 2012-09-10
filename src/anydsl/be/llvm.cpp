@@ -143,16 +143,15 @@ void CodeGen::emit() {
 
             // terminate bb
             size_t num_targets = lambda->targets().size();
-            if (num_targets == 0) { 
+            if (num_targets == 0) {         // case 0: return
                 // this is a return
                 assert(lambda->to()->as<Param>() == ret_param);
                 assert(lambda->args().size() == 1);
                 builder_.CreateRet(lookup(lambda->arg(0)));
-            } else if (num_targets == 1) {
-                // three subcases
+            } else if (num_targets == 1) {  // case 1: three sub-cases
                 const Lambda* tolambda = lambda->to()->as<Lambda>();
 
-                if (tolambda->is_first_order())
+                if (tolambda->is_first_order())     // case a) ordinary jump
                     builder_.CreateBr(bbs[tolambda]);
                 else {
                     // put all first-order args into array
@@ -169,16 +168,12 @@ void CodeGen::emit() {
                         builder_.CreateBr(bbs[succ]);
                     }
                 }
-            } else {
-                // this is a branch
+            } else {                        // case 2: branch
                 assert(num_targets == 2);
                 const Select* select = lambda->to()->as<Select>();
-                const Lambda* tlambda = select->tval()->as<Lambda>();
-                const Lambda* flambda = select->fval()->as<Lambda>();
-
                 llvm::Value* cond = lookup(select->cond());
-                llvm::BasicBlock* tbb = bbs[tlambda];
-                llvm::BasicBlock* fbb = bbs[flambda];
+                llvm::BasicBlock* tbb = bbs[select->tval()->as<Lambda>()];
+                llvm::BasicBlock* fbb = bbs[select->fval()->as<Lambda>()];
                 builder_.CreateCondBr(cond, tbb, fbb);
             }
         }

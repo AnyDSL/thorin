@@ -126,7 +126,7 @@ Array<const Param*> Lambda::first_order_params() const { return classify_params<
 Array<const Param*> Lambda::higher_order_params() const { return classify_params<false>(); }
 Array<const Def*> Lambda::first_order_args() const { return classify_args<true>(); }
 Array<const Def*> Lambda::higher_order_args() const { return classify_args<false>(); }
-bool Lambda::is_first_order() const { return pi()->is_first_order(); }
+bool Lambda::is_first_order()  const { return pi()->is_first_order(); }
 bool Lambda::is_higher_order() const { return pi()->is_higher_order(); }
 
 } // namespace anydsl

@@ -1,5 +1,6 @@
 #include "anydsl/be/llvm.h"
 
+#include <algorithm>
 #include <boost/unordered_map.hpp>
 
 #include <llvm/Constant.h>
@@ -24,6 +25,11 @@
 
 namespace anydsl {
 namespace be_llvm {
+
+
+template<class T> llvm::ArrayRef<T> llvm_ref(const Array<T>& array) {
+    return llvm::ArrayRef<T>(array.begin(), array.end());
+}
 
 //------------------------------------------------------------------------------
 
@@ -83,17 +89,16 @@ void CodeGen::emit() {
     for_all (lf, fcts) {
         const Lambda* lambda = lf.first;
         llvm::Function* fct = lf.second;
+        anydsl_assert(lambda->higher_order_params().size() == 1, "unsupported number of higher order params");
 
         // map params
         llvm::Function::arg_iterator arg = fct->arg_begin();
         for_all (param, lambda->first_order_params()) {
             arg->setName(param->debug);
             params_[param] = arg++;
-            std::cout << "inserting: " << param->debug << " of " << param->lambda()->debug << std::endl;
         }
 
         const Param* ret_param = lambda->higher_order_params().front();
-
         DomTree domtree = calc_domtree(lambda);
         BBMap bbs;
 
@@ -141,25 +146,20 @@ void CodeGen::emit() {
             } else if (num_targets == 1) {
                 // three subcases
                 const Lambda* tolambda = lambda->to()->as<Lambda>();
-                Array<const Param*> first_order  = tolambda->first_order_params();
-                Array<const Param*> higher_order = tolambda->higher_order_params();
 
-                if (higher_order.empty()) // case a) ordinary jump
+                if (tolambda->is_first_order())
                     builder_.CreateBr(bbs[tolambda]);
                 else {
                     // put all first-order args into array
-                    assert(lambda->args().size() - 1 == first_order.size());
-                    Array<llvm::Value*> args(first_order.size());
+                    Array<llvm::Value*> args(lambda->args().size() - 1);
 
                     size_t i = 0;
                     for_all (arg, lambda->first_order_args())
                         args[i++] = lookup(arg);
 
-                    llvm::ArrayRef<llvm::Value*> ref(args.begin(), args.end());
-                    llvm::CallInst* call = builder_.CreateCall(fcts[tolambda], ref);
+                    llvm::CallInst* call = builder_.CreateCall(fcts[tolambda], llvm_ref(args));
                     
-                    anydsl_assert(higher_order.size() == 1, "others not (yet) supported");
-                    const Def* ho_arg = lambda->arg(higher_order.front()->index());
+                    const Def* ho_arg = lambda->higher_order_args().front();
                     if (ho_arg == ret_param)        // case b) call + return
                         builder_.CreateRet(call); 
                     else {                          // case c) call + continuation
@@ -373,37 +373,30 @@ llvm::Type* CodeGen::convert(const Type* type) {
         case Node_Pi: {
             // extract "return" type, collect all other types
             const Pi* pi = type->as<Pi>();
-            llvm::Type* retType = 0;
+            llvm::Type* ret = 0;
             size_t i = 0;
             Array<llvm::Type*> elems(pi->size() - 1);
 
             for_all (elem, pi->elems()) {
                 if (const Pi* pi = elem->isa<Pi>()) {
-                    switch (pi->size()) {
-                        case 0:
-                            retType = llvm::Type::getVoidTy(context_);
-                            break;
-                        case 1:
-                            retType = convert(pi->elem(0));
-                            break;
-                        default: {
-                            Array<llvm::Type*> elems(pi->size());
-                            size_t i = 0;
-                            for_all (elem, pi->elems())
-                                elems[i++] = convert(elem);
+                    if (pi->empty())
+                        ret = llvm::Type::getVoidTy(context_);
+                    else if (pi->size() == 1)
+                        ret = convert(pi->elem(0));
+                    else {
+                        Array<llvm::Type*> elems(pi->size());
+                        size_t i = 0;
+                        for_all (elem, pi->elems())
+                            elems[i++] = convert(elem);
 
-                            llvm::ArrayRef<llvm::Type*> structTypes(elems.begin(), elems.end());
-                            retType = llvm::StructType::get(context_, structTypes);
-                            break;
-                        }
+                        ret = llvm::StructType::get(context_, llvm_ref(elems));
                     }
                 } else
                     elems[i++] = convert(elem);
             }
 
-            assert(retType);
-            llvm::ArrayRef<llvm::Type*> paramTypes(elems.begin(), elems.end());
-            return llvm::FunctionType::get(retType, paramTypes, false);
+            assert(ret);
+            return llvm::FunctionType::get(ret, llvm_ref(elems), false);
         }
 
         case Node_Sigma: {
@@ -416,7 +409,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
             for_all (t, sigma->elems())
                 elems[i++] = convert(t);
 
-            return llvm::StructType::get(context_, llvm::ArrayRef<llvm::Type*>(elems.begin(), elems.end()));
+            return llvm::StructType::get(context_, llvm_ref(elems));
         }
 
         default: ANYDSL_UNREACHABLE;

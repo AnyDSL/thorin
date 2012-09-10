@@ -233,7 +233,6 @@ class Param : public Def {
 private:
 
     Param(const Type* type, Lambda* parent, size_t index);
-    virtual ~Param();
     virtual Param* clone() const { ANYDSL_UNREACHABLE; }
 
     virtual bool equal(const Def* other) const;

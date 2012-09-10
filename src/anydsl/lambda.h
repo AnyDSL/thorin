@@ -1,7 +1,7 @@
 #ifndef ANYDSL_LAMBDA_H
 #define ANYDSL_LAMBDA_H
 
-#include <boost/container/flat_set.hpp>
+#include <vector>
 #include <boost/unordered_set.hpp>
 
 #include "anydsl/def.h"
@@ -15,15 +15,7 @@ class Pi;
 typedef boost::unordered_set<const Lambda*> LambdaSet;
 typedef ArrayRef<const Lambda*> Lambdas;
 
-struct ParamLess {
-    bool operator () (const Param* p1, const Param* p2) const {
-        anydsl_assert(!p1->lambda() || !p2->lambda() || p1->lambda() == p2->lambda(), 
-                "params belong to different lambdas"); 
-        return p1->index() < p2->index(); 
-    }
-};
-
-typedef boost::container::flat_set<const Param*, ParamLess> Params;
+typedef std::vector<const Param*> Params;
 
 class Lambda : public Def {
 public:
@@ -33,10 +25,9 @@ public:
     };
 
     Lambda(const Pi* pi, uint32_t flags = 0);
-    virtual ~Lambda();
     virtual Lambda* clone() const { ANYDSL_UNREACHABLE; }
 
-    const Param* appendParam(const Type* type);
+    const Param* append_param(const Type* type);
 
     // higher order params
     Params::const_iterator ho_begin() const;
@@ -57,8 +48,10 @@ public:
     Lambdas succs()    const { return Lambdas(adjacencies_); }
     LambdaSet preds() const;
     const Params& params() const { return params_; }
-    const Param* param(size_t i) const;
-    Array<const Param*> copy_params() const;
+    const Param* param(size_t i) const { 
+        anydsl_assert(i < params_.size(), "index out of bounds"); 
+        return params_[i]; 
+    }
     const Def* to() const { return op(0); };
     Ops args() const { return ops().slice_back(1); }
     const Def* arg(size_t i) const { return args()[i]; }
@@ -69,13 +62,6 @@ public:
     void dump(bool fancy = false, int indent = 0) const;
 
     bool is_extern() const { return flags_ & Extern; }
-
-    /**
-     * @brief Removes the arguments specified in \p drop from the call.
-     * The indices are specified in argument indices \em not in operand inidices,
-     * i.e., arg_index = op_index + 1.
-     */
-    void shrink(ArrayRef<size_t> drop);
 
 private:
 

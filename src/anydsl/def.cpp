@@ -124,11 +124,6 @@ Param::Param(const Type* type, Lambda* lambda, size_t index)
     , index_(index)
 {}
 
-Param::~Param() {
-    if (lambda_)
-        lambda_->params_.erase(this);
-}
-
 PhiOps Param::phi() const {
     size_t x = index();
     const Lambda* l = lambda();

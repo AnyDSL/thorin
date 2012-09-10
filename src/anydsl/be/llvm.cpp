@@ -86,24 +86,15 @@ void CodeGen::emit() {
         const Param* ret_param;
 
         llvm::Function::arg_iterator arg = fct->arg_begin();
-        size_t i = 0;
         
         // map params
         for_all (param, lambda->params()) {
-            while (i < param->index()) {
-                ++i;
-                ++arg;
-            }
-
             if (param->type()->isa<Pi>())
                 ret_param = param;
             else {
-                params_[param] = arg;
                 arg->setName(param->debug);
-                ++arg;
+                params_[param] = arg++;
             }
-
-            ++i;
         }
 
         DomTree domtree = calc_domtree(lambda);

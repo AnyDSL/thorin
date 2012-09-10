@@ -19,13 +19,7 @@ Lambda::Lambda(const Pi* pi, uint32_t flags)
 
     size_t i = 0;
     for_all (elem, pi->elems())
-        params_.insert(world().param(elem, this, i++));
-}
-
-Lambda::~Lambda() {
-    for_all (param, params())
-        param->lambda_ = 0;
-
+        params_.push_back(world().param(elem, this, i++));
 }
 
 const Pi* Lambda::pi() const {
@@ -36,7 +30,7 @@ const Pi* Lambda::to_pi() const {
     return to()->type()->as<Pi>();
 }
 
-const Param* Lambda::appendParam(const Type* type) {
+const Param* Lambda::append_param(const Type* type) {
     size_t size = pi()->elems().size();
 
     Array<const Type*> elems(size + 1);
@@ -44,7 +38,7 @@ const Param* Lambda::appendParam(const Type* type) {
     setType(world().pi(elems));
 
     const Param* param = world().param(type, this, size);
-    params_.insert(param);
+    params_.push_back(param);
 
     return param;
 }
@@ -55,23 +49,6 @@ bool Lambda::equal(const Def* other) const {
 
 size_t Lambda::hash() const {
     return boost::hash_value(this);
-}
-
-const Param* Lambda::param(size_t i) const {
-    Param p(0, 0, i);
-    return *params_.find(&p);
-}
-
-Array<const Param*> Lambda::copy_params() const {
-    Array<const Param*> result(pi()->size());
-
-    size_t i = 0;
-    for_all (param, params()) {
-        result[i] = param->index() == i ? param : 0;
-        ++i;
-    }
-
-    return result;
 }
 
 Params::const_iterator Lambda::ho_begin() const {
@@ -104,22 +81,6 @@ void Lambda::fo_next(Params::const_iterator& i) const {
 
     while (i != params_.end() && (*i)->type()->isa<Pi>())
         ++i;
-}
-
-void Lambda::shrink(ArrayRef<size_t> drop) {
-    assert(!drop.empty());
-
-    // r -> read, w -> write, d -> drop
-    for (size_t r = drop.front(), w = drop.front(), d = 0, e = args().size(); r != e; ++r) {
-        op(r + 1)->unregisterUse(r + 1, this);
-
-        if (d < drop.size() && drop[d] == r)
-            ++d;
-        else
-            setOp(w + 1, op(r + 1));
-    }
-
-    Def::shrink(size() - drop.size());
 }
 
 static void find_lambdas(const Def* def, LambdaSet& result) {
@@ -172,6 +133,7 @@ void Lambda::close() {
     for_all (ho, hos)
         adjacencies_[i++] = ho;
 
+    anydsl_assert(pi()->size() == params().size(), "type does not honor size of params");
 }
 
 } // namespace anydsl

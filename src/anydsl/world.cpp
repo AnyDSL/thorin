@@ -448,6 +448,10 @@ void World::dce_insert(const Def* def) {
             dce_insert(op.def());
             dce_insert(op.from());
         }
+
+        // always consider all params in the same lambda as live
+        for_all (other, param->lambda()->params())
+            dce_insert(other);
     }
 }
 
@@ -565,7 +569,6 @@ void World::replace(const Def* what, const Def* with) {
         return;
 
     Def* def = release(what);
-    Lambda* lambda = def->isa<Lambda>();
 
     // unregister all uses of def's operands
     for (size_t i = 0, e = def->ops().size(); i != e; ++i) {
@@ -602,19 +605,16 @@ void World::replace(const Def* what, const Def* with) {
             defs_.insert(udef);
     }
 
-    if (lambda) {
-        Params::const_iterator i = with->as<Lambda>()->params().begin();
+    if (const Lambda* olambda = def->isa<Lambda>()) {
+        const Lambda* nlambda = with->as<Lambda>();
+        anydsl_assert(nlambda->params().size() == olambda->params().size(), "number of params does not match");
 
-        Array<const Param*> params(lambda->params().size());
-        std::copy(lambda->params().begin(), lambda->params().end(), params.begin());
+        for (size_t i = 0, e = nlambda->params().size(); i != e; ++i) {
+            const Param* nparam = nlambda->param(i);
+            const Param* oparam = olambda->param(i);
 
-        for_all (param, params) {
-            while ((*i)->index() < param->index())
-                ++i;
-
-            const Param* newparam = *i;
-            newparam->debug = param->debug;
-            replace(param, newparam);
+            replace(oparam, nparam);
+            nparam->debug = oparam->debug;
         }
     }
 
@@ -633,110 +633,6 @@ const Def* World::update(const Def* cdef, ArrayRef<size_t> x, ArrayRef<const Def
     def->update(x, ops);
 
     return find(def);
-}
-
-const Lambda* World::drop(const Lambda* lambda, ArrayRef<size_t> args, ArrayRef<const Def*> with) {
-    // build new type
-    const Pi* pi = lambda->pi();
-    Array<const Type*> elems(pi->size() - args.size());
-
-    // r -> read, w -> write, a -> args
-    for (size_t r = 0, w = 0, a = 0, e = pi->size(); r != e; ++r)
-        if (a < args.size() && args[a] == r)
-            ++a;
-        else
-            elems[w++] = pi->elem(r);
-
-    const Pi* npi = this->pi(elems);
-    Lambda* dropped = new Lambda(npi, lambda->flags());
-    dropped->alloc(lambda->size());
-
-    // old2new[def] = not found     -> not yet examined
-    // old2new[def] = def           -> must not be dropped
-    // old2new[def] = ndef          -> must be dropped with ndef
-    Old2New old2new;
-    old2new[lambda] = lambda;       // don't drop
-
-    size_t a = 0;
-    Params::const_iterator d = dropped->params().begin();
-    for_all (param, lambda->params()) {
-        if (param->index() == args[a])
-            old2new[param] = with[a++]; // map old param to replacement
-        else {
-            const Param* dparam = *d;
-            while (dparam->index() < param->index())
-                dparam = *d++;          // skip all dead params
-
-            old2new[param] = dparam;    // map old param to new param
-        }
-    }
-
-    for (size_t i = 0, e = dropped->size(); i != e; ++i)
-        dropped->setOp(i, drop(old2new, lambda->op(i)));
-
-    return find(dropped)->as<Lambda>();
-}
-
-const Def* World::drop(Old2New& old2new, const Def* def) {
-#if 0
-    Old2New::iterator it = old2new.find(def);
-
-    if (res != old2new.end())
-        return res;
-
-    if (it == old2new.end()) {
-        mustDrop(old2new, def);
-        it = old2new.find(def);
-    }
-
-    if (const Def* def = it->second)
-        return def;
-
-    if (const Lambda* lambda = def->isa<Lambda>()) {
-        Lambda* dropped = new Lambda(lambda->pi(), lambda->flags());
-        dropped->alloc(lambda->size());
-
-        for (size_t i = 0, e = dropped->size(); i != e; ++i)
-            dropped->setOp(i, drop(old2new, lambda->op(i)));
-
-        return it->second = find(lambda);
-    }
-
-    Def* clone = def->clone();
-    for (size_t i = 0, e = clone->size(); i != e; ++i)
-        clone->setOp(i, drop(old2new, def->op(i)));
-
-    return it->second = clone;
-#endif
-    return 0;
-}
-
-World::Old2New::iterator World::mustDrop(Old2New& old2new, const Def* def) {
-#if 0
-    Old2New::iterator res = old2new.find(def);
-
-    if (res != old2new.end())
-        return res;
-
-    // optimistically assume that we don't have to drop
-    res = old2new.insert(std::make_pair(def, def)).first;
-
-    if (const Param* param = def->isa<Param>()) {
-        if (mustDrop(old2new, param->lambda()))
-            return true;
-    }
-
-    for_all (op, def->ops()) {
-        if (musDrop(old2new, op)->) {
-            // after all, we must drop
-            old2new[def] = 0;
-            return true;
-        }
-    }
-
-    return false;
-#endif
-    return old2new.begin();
 }
 
 } // namespace anydsl

@@ -56,7 +56,7 @@ Var* BB::lookup(const Symbol& symbol, const Type* type) {
 
     // insert a 'phi', i.e., create a param and remember to fix the callers
     if (!sealed_ || preds_.size() > 1) {
-        const Param* param = top_->appendParam(type);
+        const Param* param = top_->append_param(type);
         size_t index = in_.size();
         in_.push_back(param);
         Var* lvar = insert(symbol, param);
@@ -184,7 +184,7 @@ const Def* BB::call(const Def* to, ArrayRef<const Def*> args, const Type* rettyp
     // create next continuation in cascade
     Lambda* next = new Lambda(world().pi0());
     next->debug = cur_->debug + "_" + to->debug;
-    const Param* result = next->appendParam(rettype);
+    const Param* result = next->append_param(rettype);
     result->debug = make_name(to->debug.c_str(), id);
 
     // create jump to this new continuation
@@ -257,7 +257,7 @@ Fct::Fct(World& world,
     }
 
     if (rettype_) {
-        ret_ = top_->appendParam(world.pi1(rettype));
+        ret_ = top_->append_param(world.pi1(rettype));
         ret()->debug = "<return>";
         exit_ = createBB('<' + debug + "_exit>");
     }

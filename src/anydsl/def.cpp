@@ -132,13 +132,13 @@ Param::~Param() {
 PhiOps Param::phi() const {
     size_t x = index();
     const Lambda* l = lambda();
-    LambdaSet callers = l->callers();
+    LambdaSet preds = l->preds();
 
-    PhiOps result(callers.size());
+    PhiOps result(preds.size());
 
     size_t i = 0;
-    for_all (caller, callers)
-        result[i++] = PhiOp(caller->arg(x), caller);
+    for_all (pred, preds)
+        result[i++] = PhiOp(pred->arg(x), pred);
 
     return result;
 }

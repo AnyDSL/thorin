@@ -440,8 +440,8 @@ void World::dce_insert(const Def* def) {
 
     if (const Lambda* lambda = def->isa<Lambda>()) {
         // insert control-dependent lambdas
-        for_all (caller, lambda->callers())
-            dce_insert(caller);
+        for_all (pred, lambda->preds())
+            dce_insert(pred);
     } else if (const Param* param = def->isa<Param>()) {
         for_all (op, param->phi()) {
             // look through "phi-args"
@@ -485,7 +485,7 @@ void World::uce_insert(const Lambda* lambda) {
     if (const Type* type = lambda->type())
         dce_insert(type);
 
-    for_all (succ, lambda->succ())
+    for_all (succ, lambda->succs())
         uce_insert(succ);
 }
 

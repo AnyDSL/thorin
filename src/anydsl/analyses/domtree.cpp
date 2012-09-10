@@ -103,11 +103,11 @@ DomTree DomBuilder::build() {
 
             // for all predecessors of cur
             DomNode* new_idom = 0;
-            for_all (caller, cur->lambda()->callers()) {
-                if (contains(caller)) {
-                    if (DomNode* other_idom = node(caller)->idom_) {
+            for_all (pred, cur->lambda()->preds()) {
+                if (contains(pred)) {
+                    if (DomNode* other_idom = node(pred)->idom_) {
                         if (!new_idom)
-                            new_idom = node(caller);// pick first processed predecessor of cur
+                            new_idom = node(pred);// pick first processed predecessor of cur
                         else
                             new_idom = intersect(other_idom, new_idom);
                     }
@@ -136,7 +136,7 @@ size_t DomBuilder::number(const Lambda* cur, size_t i) {
     DomNode* node = new DomNode(cur);
 
     // for each successor in scope
-    for_all (succ, cur->succ()) {
+    for_all (succ, cur->succs()) {
         if (contains(succ) && !succ->scratch.ptr)
             i = number(succ, i);
     }

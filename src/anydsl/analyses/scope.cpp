@@ -39,8 +39,8 @@ static void walk_up(LambdaSet& scope, const Lambda* lambda) {
     scope.insert(lambda);
     jump_to_param_users(scope, lambda);
 
-    for_all (caller, lambda->callers())
-        walk_up(scope, caller);
+    for_all (pred, lambda->preds())
+        walk_up(scope, pred);
 }
 
 } // namespace anydsl

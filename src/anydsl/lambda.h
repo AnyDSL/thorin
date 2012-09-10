@@ -54,8 +54,8 @@ public:
 
     Lambdas targets() const { return adjacencies_.slice_front(hosBegin_); }
     Lambdas hos()     const { return adjacencies_.slice_back(hosBegin_); }
-    Lambdas succ()    const { return Lambdas(adjacencies_); }
-    LambdaSet callers() const;
+    Lambdas succs()    const { return Lambdas(adjacencies_); }
+    LambdaSet preds() const;
     const Params& params() const { return params_; }
     const Param* param(size_t i) const;
     Array<const Param*> copy_params() const;

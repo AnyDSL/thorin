@@ -122,17 +122,17 @@ void Lambda::shrink(ArrayRef<size_t> drop) {
     Def::shrink(size() - drop.size());
 }
 
-static void findLambdas(const Def* def, LambdaSet& result) {
+static void find_lambdas(const Def* def, LambdaSet& result) {
     if (const Lambda* lambda = def->isa<Lambda>()) {
         result.insert(lambda);
         return;
     }
 
     for_all (op, def->ops())
-        findLambdas(op, result);
+        find_lambdas(op, result);
 }
 
-static void findCallers(const Def* def, LambdaSet& result) {
+static void find_preds(const Def* def, LambdaSet& result) {
     if (const Lambda* lambda = def->isa<Lambda>()) {
         result.insert(lambda);
         return;
@@ -141,14 +141,14 @@ static void findCallers(const Def* def, LambdaSet& result) {
     anydsl_assert(def->isa<PrimOp>(), "not a PrimOp");
 
     for_all (use, def->uses())
-        findCallers(use.def(), result);
+        find_preds(use.def(), result);
 }
 
-LambdaSet Lambda::callers() const {
+LambdaSet Lambda::preds() const {
     LambdaSet result;
 
     for_all (use, uses())
-        findCallers(use.def(), result);
+        find_preds(use.def(), result);
 
     return result;
 }
@@ -156,10 +156,10 @@ LambdaSet Lambda::callers() const {
 void Lambda::close() {
     LambdaSet targets, hos;
 
-    findLambdas(to(), targets);
+    find_lambdas(to(), targets);
 
     for_all (def, args())
-        findLambdas(def, hos);
+        find_lambdas(def, hos);
 
     adjacencies_.~Array();
     new (&adjacencies_) Array<const Lambda*>(targets.size() + hos.size());

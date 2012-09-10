@@ -43,7 +43,7 @@ LambdaSet find_root_lambdas(const LambdaSet& lambdas) {
         LambdaSet* dep = depends(lambda);
         size_t old = dep->size();
 
-        for_all (succ, lambda->succ()) {
+        for_all (succ, lambda->succs()) {
             LambdaSet* succ_dep = depends(succ);
 
             for_all (d, *succ_dep) {
@@ -53,10 +53,10 @@ LambdaSet find_root_lambdas(const LambdaSet& lambdas) {
         }
 
         if (dep->size() != old) {
-            for_all (caller, lambda->callers()) {
-                if (inqueue.find(caller) == inqueue.end()) {
-                    inqueue.insert(caller);
-                    queue.push(caller);
+            for_all (pred, lambda->preds()) {
+                if (inqueue.find(pred) == inqueue.end()) {
+                    inqueue.insert(pred);
+                    queue.push(pred);
                 }
             }
         }

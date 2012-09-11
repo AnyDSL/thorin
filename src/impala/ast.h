@@ -38,7 +38,6 @@ typedef anydsl::AutoVector<const Stmt*> Stmts;
 class ASTNode : public anydsl::HasLocation, public anydsl::MagicCast {
 public:
 
-    virtual void check(Sema& sema) const = 0;
     virtual void dump(Printer& p) const = 0;
 
     void dump() const;
@@ -47,7 +46,7 @@ public:
 class Prg : public ASTNode {
 public:
 
-    virtual void check(Sema& sema) const;
+    void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
     void emit(CodeGen& cg) const;
 
@@ -72,7 +71,7 @@ public:
     const Pi* pi() const;
     bool continuation() const;
 
-    virtual void check(Sema& sema) const;
+    void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
     void emit(CodeGen& cg) const;
 
@@ -95,7 +94,7 @@ public:
     anydsl::Symbol symbol() const { return symbol_; }
     const Type* type() const { return type_; }
 
-    virtual void check(Sema& sema) const;
+    void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
     anydsl::Var* emit(CodeGen& cg) const;
 
@@ -110,28 +109,33 @@ private:
 class Expr : public ASTNode {
 public:
 
-    bool lvalue() const { return lvalue_; }
+    virtual bool lvalue() const = 0;
     const Type* type() const { return type_; }
+
+    const Type* check(Sema& sema) const { return type_ = vcheck(sema); }
+
     virtual anydsl::Var* lemit(CodeGen& cg) const { ANYDSL_UNREACHABLE; }
     virtual const anydsl::Def* remit(CodeGen& cg) const = 0;
     const Exprs& ops() const { return ops_; }
+
+private:
+
+    virtual const Type* vcheck(Sema& sema) const = 0;
 
 protected:
 
     Exprs ops_;
 
-    mutable bool lvalue_;
     mutable const Type* type_;
 };
 
 class EmptyExpr : public Expr {
 public:
 
-    EmptyExpr(const anydsl::Location& loc) {
-        loc_ = loc;
-    }
+    EmptyExpr(const anydsl::Location& loc) { loc_ = loc; }
 
-    virtual void check(Sema& sema) const;
+    virtual bool lvalue() const { return false; }
+    virtual const Type* vcheck(Sema& sema) const;
     virtual void dump(Printer& p) const;
     virtual const anydsl::Def* remit(CodeGen& cg) const;
 };
@@ -150,7 +154,8 @@ public:
     Kind kind() const { return kind_; }
     anydsl::Box box() const { return box_; }
 
-    virtual void check(Sema& sema) const;
+    virtual bool lvalue() const { return false; }
+    virtual const Type* vcheck(Sema& sema) const;
     virtual void dump(Printer& p) const;
     virtual const anydsl::Def* remit(CodeGen& cg) const;
 
@@ -165,7 +170,8 @@ public:
 
     Tuple(const anydsl::Position& pos1);
 
-    virtual void check(Sema& sema) const;
+    virtual bool lvalue() const { return false; }
+    virtual const Type* vcheck(Sema& sema) const;
     virtual void dump(Printer& p) const;
     virtual const anydsl::Def* remit(CodeGen& cg) const;
 
@@ -180,7 +186,8 @@ public:
     anydsl::Symbol symbol() const { return symbol_; }
     const Decl* decl() const { return decl_; }
 
-    virtual void check(Sema& sema) const;
+    virtual bool lvalue() const { return true; }
+    virtual const Type* vcheck(Sema& sema) const;
     virtual void dump(Printer& p) const;
     virtual const anydsl::Def* remit(CodeGen& cg) const;
     virtual anydsl::Var* lemit(CodeGen& cg) const;
@@ -205,7 +212,8 @@ public:
 
     Kind kind() const { return kind_; }
 
-    virtual void check(Sema& sema) const;
+    virtual bool lvalue() const { return true; }
+    virtual const Type* vcheck(Sema& sema) const;
     virtual void dump(Printer& p) const;
     virtual const anydsl::Def* remit(CodeGen& cg) const;
     virtual anydsl::Var* lemit(CodeGen& cg) const;
@@ -231,7 +239,8 @@ public:
 
     Kind kind() const { return kind_; }
 
-    virtual void check(Sema& sema) const;
+    virtual bool lvalue() const { return Token::isAsgn((TokenKind) kind()); }
+    virtual const Type* vcheck(Sema& sema) const;
     virtual void dump(Printer& p) const;
     virtual const anydsl::Def* remit(CodeGen& cg) const;
     virtual anydsl::Var* lemit(CodeGen& cg) const;
@@ -259,7 +268,8 @@ public:
 
     Kind kind() const { return kind_; }
 
-    virtual void check(Sema& sema) const;
+    virtual bool lvalue() const { return false; }
+    virtual const Type* vcheck(Sema& sema) const;
     virtual void dump(Printer& p) const;
     virtual const anydsl::Def* remit(CodeGen& cg) const;
     virtual anydsl::Var* lemit(CodeGen& cg) const;
@@ -277,7 +287,8 @@ public:
     const Expr* lhs() const { return ops_[0]; }
     const Expr* index() const { return ops_[1]; }
 
-    virtual void check(Sema& sema) const;
+    virtual bool lvalue() const { return true; }
+    virtual const Type* vcheck(Sema& sema) const;
     virtual void dump(Printer& p) const;
     virtual const anydsl::Def* remit(CodeGen& cg) const;
     virtual anydsl::Var* lemit(CodeGen& cg) const;
@@ -291,8 +302,10 @@ public:
     void append_arg(const Expr* expr) { ops_.push_back(expr); }
     void set_pos2(const anydsl::Position& pos2);
     anydsl::Array<const anydsl::Def*> emit_ops(CodeGen& cg) const;
+    const Expr* to() const { return ops_.front(); }
 
-    virtual void check(Sema& sema) const;
+    virtual bool lvalue() const { return false; }
+    virtual const Type* vcheck(Sema& sema) const;
     virtual void dump(Printer& p) const;
     virtual const anydsl::Def* remit(CodeGen& cg) const;
 };
@@ -303,6 +316,7 @@ class Stmt : public ASTNode {
 public:
 
     virtual bool empty() const { return false; }
+    virtual void check(Sema& sema) const = 0;
     virtual void emit(CodeGen& cg) const = 0;
 };
 

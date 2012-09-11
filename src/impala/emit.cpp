@@ -239,8 +239,8 @@ Var* PostfixExpr::lemit(CodeGen& cg) const {
 const Def* PostfixExpr::remit(CodeGen& cg) const { return lemit(cg)->load(); }
 
 Var* IndexExpr::lemit(CodeGen& cg) const {
-    Var* var = lhs()->lemit(cg);
-    const Def* pos = index()->remit(cg);
+    //Var* var = lhs()->lemit(cg);
+    //const Def* pos = index()->remit(cg);
 
     return 0;
 }

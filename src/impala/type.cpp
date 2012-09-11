@@ -21,14 +21,8 @@ size_t PrimType::hash() const { return boost::hash_value(kind()); }
 
 bool PrimType::is_int() const {
     switch (kind_) {
-        case TYPE_int8:
-        case TYPE_int16:
-        case TYPE_int32:
-        case TYPE_int64:
-        case TYPE_uint8:
-        case TYPE_uint16:
-        case TYPE_uint32:
-        case TYPE_uint64:
+        case  TYPE_int8: case  TYPE_int16: case  TYPE_int32: case  TYPE_int64:
+        case TYPE_uint8: case TYPE_uint16: case TYPE_uint32: case TYPE_uint64:
             return true;
         default:
             return false;

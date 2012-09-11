@@ -222,12 +222,11 @@ void Decl::check(Sema& sema) const {
  * Expr
  */
 
-void EmptyExpr::check(Sema& sema) const {
-    type_ = sema.types.type_void();
-    lvalue_ = false;
+const Type* EmptyExpr::vcheck(Sema& sema) const {
+    return sema.types.type_void();
 }
 
-void Literal::check(Sema& sema) const {
+const Type* Literal::vcheck(Sema& sema) const {
     PrimType::Kind newKind;
 
     switch (kind()) {
@@ -243,86 +242,68 @@ void Literal::check(Sema& sema) const {
             ANYDSL_UNREACHABLE;
     }
 
-    type_ = sema.types.type(newKind);
-    lvalue_ = false;
+    return sema.types.type(newKind);
 }
 
-void Tuple::check(Sema& sema) const {
+const Type* Tuple::vcheck(Sema& sema) const {
     Array<const Type*> elems(ops().size());
 
     size_t i = 0;
-    for_all (op, ops()) {
-        op->check(sema);
-        elems[i++] = op->type();
-    }
+    for_all (op, ops())
+        elems[i++] = op->check(sema);
 
-    type_ = sema.types.sigma(elems);
+    return sema.types.sigma(elems);
 }
 
-void Id::check(Sema& sema) const {
-    lvalue_ = true;
-
+const Type* Id::vcheck(Sema& sema) const {
     if (const Decl* decl = sema.lookup(symbol())) {
-        type_ = decl->type();
         decl_ = decl;
-        return;
+        return decl->type();
     }
 
     sema.error(this) << "symbol '" << symbol() << "' not found in current scope\n";
-    type_ = sema.types.type_error();
+    return sema.types.type_error();
 }
 
-void PrefixExpr::check(Sema& sema) const {
-    rhs()->check(sema);
-    type_ = rhs()->type();
-    lvalue_ = true;
+const Type* PrefixExpr::vcheck(Sema& sema) const {
+    if (!rhs()->lvalue())
+        sema.error(rhs()) << "lvalue required as operand\n";
+
+    return rhs()->check(sema);
 }
 
-void InfixExpr::check(Sema& sema) const {
-    lhs()->check(sema);
-    rhs()->check(sema);
+const Type* InfixExpr::vcheck(Sema& sema) const {
+    if (lhs()->check(sema) == rhs()->check(sema)) {
+        if (Token::isRel((TokenKind) kind()))
+            return sema.types.type_bool();
 
-    Location loc(lhs()->pos1(), rhs()->pos2());
+        if (Token::isAsgn((TokenKind) kind())) {
+            if (!lhs()->lvalue())
+                sema.error(lhs()) << "no lvalue on left-hand side of assignment\n";
+        }
 
-    bool equal = lhs()->type() == rhs()->type();
-
-    if (!equal) {
+        if (lhs()->type()->is_error())
+            return rhs()->type();
+        else
+            return lhs()->type();
+    } else {
         sema.error(this) << "incompatible types in binary expression: '" 
             << lhs()->type() << "' and '" << rhs()->type() << "'\n";
     }
 
-    if (Token::isRel((TokenKind) kind())) {
-        type_ = sema.types.type_bool();
-        lvalue_ = false;
-        return;
-    }
-
-    if (Token::isAsgn((TokenKind) kind())) {
-        if (!lhs()->lvalue())
-            sema.error(lhs()) << "no lvalue on left-hand side of assignment\n";
-
-        lvalue_ = true;
-    }
-
-    if (!lhs()->type()->is_error())
-        type_ = lhs()->type();
-    else
-        type_ = rhs()->type();
+    return sema.types.type_error();
 }
 
-void PostfixExpr::check(Sema& sema) const {
-    lvalue_ = false;
-    lhs()->check(sema);
-    type_ = lhs()->type();
+const Type* PostfixExpr::vcheck(Sema& sema) const {
+    if (!lhs()->lvalue())
+        sema.error(lhs()) << "lvalue required as operand\n";
+
+    return lhs()->check(sema);
 }
 
-void IndexExpr::check(Sema& sema) const {
-    lvalue_ = true;
-    lhs()->check(sema);
-    index()->check(sema);
-
-    if (const Sigma* sigma = lhs()->type()->isa<Sigma>()) {
-        if (index()->type()->is_int()) {
+const Type* IndexExpr::vcheck(Sema& sema) const { lhs()->check(sema);
+    if (const Sigma* sigma = lhs()->check(sema)->isa<Sigma>()) {
+        if (index()->check(sema)->is_int()) {
             if (const Literal* literal = index()->isa<Literal>()) {
                 unsigned pos;
 
@@ -333,10 +314,9 @@ void IndexExpr::check(Sema& sema) const {
                     default: ANYDSL_UNREACHABLE;
                 }
 
-                if (pos < sigma->size()) {
-                    type_ = sigma->elems()[pos];
-                    return;
-                } else
+                if (pos < sigma->size())
+                    return sigma->elems()[pos];
+                else
                     sema.error(index()) << "index (" << pos << ") out of bounds (" << sigma->size() << ")\n";
             } else
                 sema.error(index()) << "indexing expression must be a literal\n";
@@ -345,37 +325,28 @@ void IndexExpr::check(Sema& sema) const {
     } else
         sema.error(lhs()) << "left-hand side of index expression must be of sigma type\n";
 
-    type_ = sema.types.type_error();
+    return sema.types.type_error();
 }
 
-void Call::check(Sema& sema) const {
-    for_all (op, ops_)
-        op->check(sema);
-
-    const Expr* f = ops_.front();
-
-    if (const Pi* fpi = f->type()->isa<Pi>()) {
+const Type* Call::vcheck(Sema& sema) const { 
+    if (const Pi* fpi = to()->check(sema)->isa<Pi>()) {
         Array<const Type*> op_types(ops_.size() - 1);
 
         for (size_t i = 1; i < ops_.size(); ++i)
-            op_types[i-1] = ops_[i]->type();
+            op_types[i-1] = ops_[i]->check(sema);
 
         const Pi* pi = sema.types.pi(op_types, fpi->ret());
 
-        if (pi == fpi) {
-            type_ = pi->ret();
-            return;
+        if (pi == fpi)
+            return pi->ret();
+        else {
+            sema.error(to()) << "'" << to() << "' expects an invocation of type '" << fpi 
+                << "' but an invocation of type '" << pi << "' is given\n";
         }
+    } else
+        sema.error(to()) << "invocation not done on function type but instead type '" << to()->type() << "' is given\n";
 
-        sema.error(f) << "'" << f << "' expects an invocation of type '" << fpi 
-            << "' but an invocation of type '" << pi << "' is given\n";
-        type_ = sema.types.type_error();
-
-        return;
-    }
-
-    sema.error(f) << "invocation not done on function type but instead type '" << f->type() << "' is given\n";
-    type_ = sema.types.type_error();
+    return sema.types.type_error();
 }
 
 /*

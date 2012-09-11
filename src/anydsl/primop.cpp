@@ -84,15 +84,17 @@ Insert::Insert(const Def* tuple, u32 index, const Def* value)
 //------------------------------------------------------------------------------
 
 Tuple::Tuple(World& world, ArrayRef<const Def*> args) 
-    : PrimOp(Node_Tuple, 0, args.size())
+    : PrimOp(Node_Tuple, (const Type*) 0, args.size())
 {
     if (ops().empty()) {
         setType(world.sigma0());
     } else {
         Array<const Type*> types(ops().size());
         size_t x = 0;
-        for_all (arg, args)
+        for_all (arg, args) {
+            setOp(x, args[x]);
             types[x++] = arg->type();
+        }
 
         setType(world.sigma(types));
     }

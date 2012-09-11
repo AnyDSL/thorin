@@ -106,7 +106,7 @@ public:
         const Type* types[3] = {t1, t2, t3};
         return sigma(types);
     }
-    const Sigma* sigma(ArrayRef<const Type*> elems) { return sigma(elems); }
+    const Sigma* sigma(ArrayRef<const Type*> elems) { return find(new Sigma(*this, elems))->as<Sigma>(); }
 
     /// Creates a fresh \em named sigma.
     Sigma* named_sigma(size_t num, const std::string& name = "");

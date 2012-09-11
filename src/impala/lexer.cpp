@@ -182,6 +182,10 @@ Token Lexer::lex() {
         if (accept('~')) return Token(loc_, Token::NOT);
         if (accept('?')) return Token(loc_, Token::QUESTION_MARK);
 
+        // #(
+        if (accept('#') && accept('('))
+            return Token(loc_, Token::L_TUPLE);
+
         // '.', floats
         if (accept('.')) {
             std::string str(1, '.');

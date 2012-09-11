@@ -208,8 +208,10 @@ Token Parser::parseId() {
     Token name;
     if (la() == Token::ID)
         name = lex();
-    else
+    else {
+        error("identifier", "");
         name = Token(la().loc(), make_symbol("error-name", nextId()).str());
+    }
 
     return name;
 }

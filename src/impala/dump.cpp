@@ -255,7 +255,7 @@ void DeclStmt::dump(Printer& p) const {
     decl()->dump(p);
 
     if (init()) {
-        p << " = ";
+        p << " := ";
         init()->dump(p);
     }
 

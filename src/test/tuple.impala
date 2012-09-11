@@ -1,3 +1,5 @@
-def (i : int) -> int {
-    test : #(int, bool);
+def foo(i : int) -> sigma(int, bool) {
+    test : sigma(int, bool) := #(42, true);
+
+    return test;
 }

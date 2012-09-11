@@ -100,7 +100,6 @@ const Def* World::tuple(ArrayRef<const Def*> args) {
 
     size_t i = 0;
     bool bot = false;
-
     for_all (arg, args) {
         elems[i++] = arg->type();
 

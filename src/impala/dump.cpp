@@ -1,5 +1,7 @@
 #include "anydsl/util/for_all.h"
 
+#include "anydsl/printer.h"
+
 #include "impala/ast.h"
 #include "impala/dump.h"
 #include "impala/prec.h"
@@ -7,56 +9,22 @@
 
 namespace impala {
 
-class Printer {
+class Printer : public anydsl::Printer {
 public:
 
     Printer(std::ostream& o, bool fancy)
-        : o(o)
+        : anydsl::Printer(o, fancy)
         , prec(BOTTOM)
-        , fancy_(fancy)
-        , indent_(0)
     {}
 
-    void newline();
-    void up();
-    void down();
+    void dump_block(const Stmt* s);
+    void dump(const ASTNode* n) { return n->dump(*this); }
+    void dump(const Type* t) { return t->dump(*this); }
 
-    bool fancy() const { return fancy_; }
-
-    template<class T>
-    Printer& operator << (const T& data) {
-    	o << data;
-    	return *this;
-    }
-
-    std::ostream& o;
     Prec prec;
-
-    void dumpBlock(const Stmt* s);
-
-private:
-
-    bool fancy_;
-    int indent_;
 };
 
-void Printer::newline() {
-    o << '\n';
-    for (int i = 0; i < indent_; ++i)
-        o << "    ";
-}
-
-void Printer::up() {
-    ++indent_;
-    newline();
-}
-
-void Printer::down() {
-    --indent_;
-    newline();
-}
-
-void Printer::dumpBlock(const Stmt* s) {
+void Printer::dump_block(const Stmt* s) {
     if (s->isa<ScopeStmt>())
         s->dump(*this);
     else {
@@ -83,16 +51,7 @@ void Prg::dump(Printer& p) const {
 
 void Fct::dump(Printer& p) const {
     p << "def " << decl()->symbol() << '(';
-
-    if (!params().empty()) {
-        for (Decls::const_iterator i = params().begin(), e = params().end() - 1; i != e; ++i) {
-            (*i)->dump(p);
-            p << ", ";
-        }
-
-        params().back()->dump(p);
-    }
-
+    ANYDSL_DUMP_COMMA_LIST(p, params());
     p << ')';
 
     if (pi()->ret()) {
@@ -100,7 +59,8 @@ void Fct::dump(Printer& p) const {
         pi()->ret()->dump(p);
         p << ' ';
     }
-    p.dumpBlock(body());
+
+    p.dump_block(body());
 }
 
 void Decl::dump(Printer& p) const {
@@ -135,16 +95,7 @@ void Literal::dump(Printer& p) const {
 
 void Tuple::dump(Printer& p) const {
     p << "#(";
-
-    if (!ops().empty()) {
-        for_all (op, ops()) {
-            op->dump(p);
-            p << ", ";
-        }
-
-        ops().back()->dump(p);
-    }
-
+    ANYDSL_DUMP_COMMA_LIST(p, ops());
     p << ")";
 }
 
@@ -271,11 +222,11 @@ void IfElseStmt::dump(Printer& p) const {
     p << "if (";
     cond()->dump(p);
     p << ") ";
-    p.dumpBlock(thenStmt());
+    p.dump_block(thenStmt());
 
     if (!elseStmt()->empty()) {
         p << " else ";
-        p.dumpBlock(elseStmt());
+        p.dump_block(elseStmt());
     }
 }
 
@@ -284,12 +235,12 @@ void WhileStmt::dump(Printer& p) const {
     cond()->dump(p);
     p << ") ";
 
-    p.dumpBlock(body());
+    p.dump_block(body());
 }
 
 void DoWhileStmt::dump(Printer& p) const {
     p << "do ";
-    p.dumpBlock(body());
+    p.dump_block(body());
     p << " while (";
     cond()->dump(p);
     p << ");";
@@ -310,7 +261,7 @@ void ForStmt::dump(Printer& p) const {
     step()->dump(p);
     p << ") ";
 
-    p.dumpBlock(body());
+    p.dump_block(body());
 }
 
 void BreakStmt::dump(Printer& p) const {
@@ -375,31 +326,13 @@ void TypeError::dump(Printer& p) const {
 
 void Sigma::dump(Printer& p) const {
     p << "sigma(";
-
-    if (!elems().empty()) {
-        for_all (elem, elems()) {
-            elem->dump(p);
-            p << ", ";
-        }
-
-        elems().back()->dump(p);
-    }
-
+    ANYDSL_DUMP_COMMA_LIST(p, elems());
     p << ")";
 }
 
 void Pi::dump(Printer& p) const {
     p << "pi(";
-
-    if (!elems().empty()) {
-        for_all (elem, elems()) {
-            elem->dump(p);
-            p << ", ";
-        }
-
-        elems().back()->dump(p);
-    }
-
+    ANYDSL_DUMP_COMMA_LIST(p, elems());
     p << ")";
     
     if (ret()) {

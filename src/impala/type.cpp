@@ -45,23 +45,42 @@ size_t NoRet::hash() const {
     return boost::hash_value(Token::TYPE_noret);
 }
 
-Pi::Pi(anydsl::ArrayRef<const Type*> elems, const Type* rettype) 
+Pi::Pi(anydsl::ArrayRef<const Type*> elems, const Type* ret) 
     : elems_(elems)
-    , rettype_(rettype)
+    , ret_(ret)
 {}
 
 size_t Pi::hash() const {
     size_t seed = 0;
     boost::hash_combine(seed, Token::PI);
     boost::hash_combine(seed, elems_);
-    boost::hash_combine(seed, rettype_);
+    boost::hash_combine(seed, ret_);
 
     return seed;
 }
 
 bool Pi::equal(const Type* other) const {
     if (const Pi* pi = other->isa<Pi>())
-        return elems_ == pi->elems_;
+        return elems_ == pi->elems_ && ret_ == pi->ret();
+
+    return false;
+}
+
+Sigma::Sigma(anydsl::ArrayRef<const Type*> elems)
+    : elems_(elems)
+{}
+
+size_t Sigma::hash() const {
+    size_t seed = 0;
+    boost::hash_combine(seed, Token::SIGMA);
+    boost::hash_combine(seed, elems_);
+
+    return seed;
+}
+
+bool Sigma::equal(const Type* other) const {
+    if (const Sigma* sigma = other->isa<Sigma>())
+        return elems_ == sigma->elems_;
 
     return false;
 }
@@ -91,8 +110,8 @@ const PrimType* TypeTable::type(PrimType::Kind kind) {
     }
 }
 
-const Pi* TypeTable::pi(anydsl::ArrayRef<const Type*> elems, const Type* rettype) {
-    const Pi* pi = new Pi(elems, rettype);
+const Pi* TypeTable::pi(anydsl::ArrayRef<const Type*> elems, const Type* ret) {
+    const Pi* pi = new Pi(elems, ret);
     TypeSet::iterator i = types_.find(pi);
 
     if (i == types_.end()) {
@@ -102,6 +121,19 @@ const Pi* TypeTable::pi(anydsl::ArrayRef<const Type*> elems, const Type* rettype
 
     delete pi;
     return (*i)->as<Pi>();
+}
+
+const Sigma* TypeTable::sigma(anydsl::ArrayRef<const Type*> elems) {
+    const Sigma* sigma = new Sigma(elems);
+    TypeSet::iterator i = types_.find(sigma);
+
+    if (i == types_.end()) {
+        types_.insert(sigma);
+        return sigma;
+    }
+
+    delete sigma;
+    return (*i)->as<Sigma>();
 }
 
 } // namespace impala

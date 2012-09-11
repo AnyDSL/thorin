@@ -29,7 +29,7 @@ void Fct::set(const Decl* decl, const ScopeStmt* body) {
 }
 
 bool Fct::continuation() const { 
-    return pi()->rettype()->is_noret(); 
+    return pi()->ret()->is_noret(); 
 }
 
 const Pi* Fct::pi() const { 
@@ -49,6 +49,11 @@ Literal::Literal(const Location& loc, Kind kind, Box box)
     , box_(box)
 {
     loc_= loc;
+}
+
+Tuple::Tuple(const Position& pos1)
+{
+    loc_.setPos1(pos1);
 }
 
 Id::Id(const Token& tok) 
@@ -83,9 +88,8 @@ Call::Call(const Expr* fct) {
     ops_.push_back(fct);
 }
 
-void Call::setLoc(const Position& pos2) {
+void Call::set_pos2(const Position& pos2) {
     assert(!ops_.empty());
-
     HasLocation::setLoc(ops_.front()->pos1(), pos2);
 }
 

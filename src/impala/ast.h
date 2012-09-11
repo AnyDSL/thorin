@@ -160,6 +160,18 @@ private:
     anydsl::Box box_;
 };
 
+class Tuple : public Expr {
+public:
+
+    Tuple(const anydsl::Position& pos1);
+
+    virtual void check(Sema& sema) const;
+    virtual void dump(Printer& p) const;
+    virtual const anydsl::Def* remit(CodeGen& cg) const;
+
+    friend class Parser;
+};
+
 class Id : public Expr {
 public:
 
@@ -263,7 +275,7 @@ public:
     Call(const Expr* fct);
 
     void append_arg(const Expr* expr) { ops_.push_back(expr); }
-    void setLoc(const anydsl::Position& pos2);
+    void set_pos2(const anydsl::Position& pos2);
     anydsl::Array<const anydsl::Def*> emit_ops(CodeGen& cg) const;
 
     virtual void check(Sema& sema) const;

@@ -1,5 +1,6 @@
 def f(i : int) -> int
 {   
+
     a : int := 7;
     if (5 == 6)
         a = 23;

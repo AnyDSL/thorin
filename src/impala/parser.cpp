@@ -47,21 +47,22 @@ public:
     // misc
     const Prg* parse();
     Token parseId();
-    const Type* parseType();
+    const Type* parse_type();
     const Decl* parseDecl();
     void parseGlobals();
     const Fct* parseFct();
 
     // expressions
-    bool isExpr();
+    bool is_expr();
     const Expr* tryExpr();
     const Expr* parseExpr(Prec prec);
     const Expr* parseExpr() { return parseExpr(BOTTOM); }
     const Expr* parsePrefixExpr();
     const Expr* parseInfixExpr(const Expr* lhs);
     const Expr* parsePostfixExpr(const Expr* lhs);
-    const Expr* parsePrimaryExpr();
-    const Expr* parseLiteral();
+    const Expr* parse_primary_expr();
+    const Expr* parse_literal();
+    const Expr* parse_tuple();
     const Expr* parseLambda();
 
     // statements
@@ -213,7 +214,7 @@ Token Parser::parseId() {
     return name;
 }
 
-const Type* Parser::parseType() {
+const Type* Parser::parse_type() {
     switch (la()) {
 #define IMPALA_TYPE(itype, atype) \
         case Token::TYPE_ ## itype: lex(); return types.type_##itype();
@@ -229,18 +230,31 @@ const Type* Parser::parseType() {
             expect(Token::L_PAREN, "element types of pi");
             PARSE_COMMA_LIST
             (
-                elems.push_back(parseType()),
+                elems.push_back(parse_type()),
                 Token::R_PAREN,
                 "closing parenthesis of pi type"
             )
 
-            const Type* retType;
+            const Type* ret;
             if (accept(Token::ARROW))
-                retType = parseType();
+                ret = parse_type();
             else
-                retType = types.type_noret();
+                ret = types.type_noret();
 
-            return types.pi(elems, retType);
+            return types.pi(elems, ret);
+        }
+        case Token::SIGMA: {
+            lex();
+            std::vector<const Type*> elems;
+            expect(Token::L_PAREN, "element types of sigma");
+            PARSE_COMMA_LIST
+            (
+                elems.push_back(parse_type()),
+                Token::R_PAREN,
+                "closing parenthesis of sigma type"
+            )
+
+            return types.sigma(elems);
         }
             
         default: ANYDSL_UNREACHABLE; // TODO
@@ -251,7 +265,7 @@ const Decl* Parser::parseDecl() {
     Token tok = la();
     expect(Token::ID, "declaration");
     expect(Token::COLON, "declaration");
-    const Type* type = parseType();
+    const Type* type = parse_type();
 
     return new Decl(tok, type, prevLoc_.pos2());
 }
@@ -276,7 +290,7 @@ const Fct* Parser::parseFct() {
 
     Fct* fct = new Fct();
     curFct_ = fct;
-    const Type* retType = 0;
+    const Type* ret = 0;
 
     std::vector<const Type*> argTypes;
 
@@ -294,11 +308,11 @@ const Fct* Parser::parseFct() {
 
     // return-continuation
     if (accept(Token::ARROW))
-        retType = parseType();
+        ret = parse_type();
     else
-        retType = types.type_noret();
+        ret = types.type_noret();
 
-    const Pi* pi = types.pi(argTypes, retType);
+    const Pi* pi = types.pi(argTypes, ret);
     const Decl* decl = new Decl(id, pi, prevLoc_.pos2());
     const ScopeStmt* body = parseScope();
 
@@ -316,7 +330,7 @@ const ScopeStmt* Parser::parseScope() {
     Stmts& stmts = scope->stmts_;
 
     while (true) {
-        if (isExpr()) {
+        if (is_expr()) {
             stmts.push_back(parseStmt());
             continue;
         }
@@ -349,7 +363,7 @@ const ScopeStmt* Parser::parseScope() {
  */
 
 const Stmt* Parser::parseStmt() {
-    if (isExpr())
+    if (is_expr())
         return parseExprStmt();
 
     Location loc = la().loc();
@@ -459,7 +473,7 @@ const Stmt* Parser::parseFor() {
         newLoop->set(parseDeclStmt());
     else if (accept(Token::SEMICOLON)) { 
         // do nothing: no expr given, semicolon consumed
-    } else if (isExpr()) {
+    } else if (is_expr()) {
         newLoop->set(parseExprStmt());
     } else {
         error("expression or delcaration-statement", 
@@ -473,7 +487,7 @@ const Stmt* Parser::parseFor() {
         // do nothing: no expr given, semicolon consumed
         // but create true cond
         cond = new Literal(prevLoc_, Literal::LIT_bool, Box(true));
-    } else if (isExpr()) {
+    } else if (is_expr()) {
         cond = parseExpr();
         expect(Token::SEMICOLON, "second clause in for-statement");
     } else {
@@ -487,7 +501,7 @@ const Stmt* Parser::parseFor() {
     if (accept(Token::R_PAREN)) { 
         // do nothing: no expr given, semicolon consumed
         inc = new EmptyExpr(prevLoc_);
-    } else if (isExpr()) {
+    } else if (is_expr()) {
         inc = parseExpr();
         expect(Token::R_PAREN, "for-statement");
     } else {
@@ -524,7 +538,7 @@ const Stmt* Parser::parseReturn() {
     const Expr* expr = 0;
 
     if (la() != Token::SEMICOLON) {
-        if (isExpr()) {
+        if (is_expr()) {
             expr = parseExpr();
             expect(Token::SEMICOLON, "return-statement");
         }
@@ -544,7 +558,7 @@ const Expr* Parser::parseCond(const std::string& what) {
     return cond;
 }
 
-bool Parser::isExpr() {
+bool Parser::is_expr() {
     // identifier without a succeeding colon
     if (la() == Token::ID && la2() != Token::COLON)
         return true;
@@ -556,6 +570,7 @@ bool Parser::isExpr() {
 //#define IMPALA_TYPE(itype, atype)    case Token:: TYPE_ ## itype:
 #include <impala/tokenlist.h>
         case Token::L_PAREN:
+        case Token::L_TUPLE:
             return true;
         default:
             return false;
@@ -563,7 +578,7 @@ bool Parser::isExpr() {
 }
 
 const Expr* Parser::tryExpr() {
-    return isExpr() ? parseExpr() : new EmptyExpr(prevLoc_);
+    return is_expr() ? parseExpr() : new EmptyExpr(prevLoc_);
 }
 
 /*
@@ -571,7 +586,7 @@ const Expr* Parser::tryExpr() {
  */
 
 const Expr* Parser::parseExpr(Prec prec) {
-    const Expr* lhs = la().isPrefix() ? parsePrefixExpr() : parsePrimaryExpr();
+    const Expr* lhs = la().isPrefix() ? parsePrefixExpr() : parse_primary_expr();
 
     while (true) {
         /*
@@ -619,7 +634,7 @@ const Expr* Parser::parsePostfixExpr(const Expr* lhs) {
             Token::R_PAREN,
             "arguments of a function call"
         )
-        call->setLoc(prevLoc_.pos2());
+        call->set_pos2(prevLoc_.pos2());
 
         return call;
     } else {
@@ -629,7 +644,7 @@ const Expr* Parser::parsePostfixExpr(const Expr* lhs) {
     }
 }
 
-const Expr* Parser::parsePrimaryExpr() {
+const Expr* Parser::parse_primary_expr() {
     switch (la() ) {
         case Token::L_PAREN: {
             eat(Token::L_PAREN);
@@ -637,21 +652,19 @@ const Expr* Parser::parsePrimaryExpr() {
             expect(Token::R_PAREN, "primary expression");
             return expr;
         }
-        case Token::ID:      return new Id(lex());
+        case Token::ID:         return new Id(lex());
         //case Token::LAMBDA: return parseLambda();
-        //case Token::PI:            return parsePi();
-        //case Token::SIGMA:         return parseSigma();
-        //case Token::MEMORY:        return parseMemory();
 
-#define IMPALA_LIT(itype, atype) case Token:: LIT_##itype:
+#define IMPALA_LIT(itype, atype) \
+        case Token:: LIT_##itype:
 #include <impala/tokenlist.h>
         case Token::TRUE:
-        case Token::FALSE:
-            return parseLiteral();
+        case Token::FALSE:      return parse_literal();
+        case Token::L_TUPLE:    return parse_tuple();
 
 //#define IMPALA_TYPE(itype, atype) case Token:: TYPE_ ## itype:
 //#include <impala/tokenlist.h>
-            //return Value(parseType());
+            //return Value(parse_type());
 
         default: {
             error("expression", "primary expression");
@@ -660,7 +673,7 @@ const Expr* Parser::parsePrimaryExpr() {
     }
 }
 
-const Expr* Parser::parseLiteral() {
+const Expr* Parser::parse_literal() {
     Literal::Kind kind;
     Box box;
 
@@ -676,6 +689,21 @@ const Expr* Parser::parseLiteral() {
 #include "impala/tokenlist.h"
         default: ANYDSL_UNREACHABLE;
     }
+}
+
+const Expr* Parser::parse_tuple() {
+    Tuple* tuple = new Tuple(eat(Token::L_TUPLE).pos1());
+
+    PARSE_COMMA_LIST
+    (
+        tuple->ops_.push_back(parseExpr()),
+        Token::R_PAREN,
+        "closing parenthesis of tuple"
+    )
+
+    tuple->setPos2(prevLoc_.pos2());
+
+    return tuple;
 }
 
 const Expr* Parser::parseLambda() {

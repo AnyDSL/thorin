@@ -69,8 +69,8 @@ void Prg::emit(CodeGen& cg) const {
             ++i;
         }
 
-        const anydsl::Type* rettype = cg.convert(f->pi()->rettype());
-        cg.fcts[f->symbol()] = new anydsl::Fct(cg.world, tparams, sparams, rettype, f->symbol().str());
+        const anydsl::Type* ret = cg.convert(f->pi()->ret());
+        cg.fcts[f->symbol()] = new anydsl::Fct(cg.world, tparams, sparams, ret, f->symbol().str());
     }
 
     for_all (f, fcts()) {
@@ -125,6 +125,16 @@ const Def* Literal::remit(CodeGen& cg) const {
     }
 
     return cg.world.literal(akind, box());
+}
+
+const Def* Tuple::remit(CodeGen& cg) const {
+    Array<const Def*> vals(ops().size());
+
+    size_t i = 0;
+    for_all (op, ops())
+        vals[i++] = op->remit(cg);
+
+    return cg.world.tuple(vals);
 }
 
 Var* Id::lemit(CodeGen& cg) const {
@@ -244,10 +254,10 @@ Array<const Def*> Call::emit_ops(CodeGen& cg) const {
 
 const Def* Call::remit(CodeGen& cg) const {
     Array<const Def*> ops = emit_ops(cg);
-    const anydsl::Type* rettype = cg.convert(type());
+    const anydsl::Type* ret = cg.convert(type());
 
-    if (rettype)
-        return cg.curBB->call(ops[0], ops.slice_back(1), rettype);
+    if (ret)
+        return cg.curBB->call(ops[0], ops.slice_back(1), ret);
     else {
         cg.curBB->tail_call(ops[0], ops.slice_back(1));
         cg.curBB = 0;
@@ -464,10 +474,20 @@ const anydsl::Type* Pi::convert(anydsl::World& world) const {
     for (size_t i = 0; i < size; ++i)
         types[i] = elems()[i]->convert(world);
 
-    if (!rettype()->is_noret())
-        types[size++] = world.pi1(rettype()->convert(world));
+    if (!ret()->is_noret())
+        types[size++] = world.pi1(ret()->convert(world));
 
     return world.pi(types.slice_front(size));
+}
+
+const anydsl::Type* Sigma::convert(anydsl::World& world) const {
+    size_t size = elems().size();
+    Array<const anydsl::Type*> types(size);
+
+    for (size_t i = 0; i < size; ++i)
+        types[i] = elems()[i]->convert(world);
+
+    return world.sigma(types);
 }
 
 } // namespace impala

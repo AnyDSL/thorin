@@ -247,6 +247,18 @@ void Literal::check(Sema& sema) const {
     lvalue_ = false;
 }
 
+void Tuple::check(Sema& sema) const {
+    Array<const Type*> elems(ops().size());
+
+    size_t i = 0;
+    for_all (op, ops()) {
+        op->check(sema);
+        elems[i++] = op->type();
+    }
+
+    type_ = sema.types.sigma(elems);
+}
+
 void Id::check(Sema& sema) const {
     lvalue_ = true;
 
@@ -317,10 +329,10 @@ void Call::check(Sema& sema) const {
         for (size_t i = 1; i < ops_.size(); ++i)
             op_types[i-1] = ops_[i]->type();
 
-        const Pi* pi = sema.types.pi(op_types, fpi->rettype());
+        const Pi* pi = sema.types.pi(op_types, fpi->ret());
 
         if (pi == fpi) {
-            type_ = pi->rettype();
+            type_ = pi->ret();
             return;
         }
 
@@ -401,13 +413,13 @@ void ReturnStmt::check(Sema& sema) const {
 
     const Pi* pi = fct()->pi();
 
-    if (pi->rettype()->is_noret()) {
+    if (pi->ret()->is_noret()) {
         sema.error(this) << "return statement not allowed in continuation function\n";
         return;
     }
 
-    if (pi->rettype() != expr()->type()) {
-        sema.error(expr()) << "expected return type '" << pi->rettype() 
+    if (pi->ret() != expr()->type()) {
+        sema.error(expr()) << "expected return type '" << pi->ret() 
             << "' but return expression is of type '" << expr()->type() << "'\n";
     }
 }

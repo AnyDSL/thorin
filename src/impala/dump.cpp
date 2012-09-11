@@ -95,9 +95,9 @@ void Fct::dump(Printer& p) const {
 
     p << ')';
 
-    if (pi()->rettype()) {
+    if (pi()->ret()) {
         p << " -> ";
-        pi()->rettype()->dump(p);
+        pi()->ret()->dump(p);
         p << ' ';
     }
     p.dumpBlock(body());
@@ -131,6 +131,21 @@ void Literal::dump(Printer& p) const {
                 p << "false";
             return;
     }
+}
+
+void Tuple::dump(Printer& p) const {
+    p << "#(";
+
+    if (!ops().empty()) {
+        for_all (op, ops()) {
+            op->dump(p);
+            p << ", ";
+        }
+
+        ops().back()->dump(p);
+    }
+
+    p << ")";
 }
 
 void Id::dump(Printer& p) const {
@@ -358,6 +373,21 @@ void TypeError::dump(Printer& p) const {
     p << "<type error>";
 }
 
+void Sigma::dump(Printer& p) const {
+    p << "sigma(";
+
+    if (!elems().empty()) {
+        for_all (elem, elems()) {
+            elem->dump(p);
+            p << ", ";
+        }
+
+        elems().back()->dump(p);
+    }
+
+    p << ")";
+}
+
 void Pi::dump(Printer& p) const {
     p << "pi(";
 
@@ -372,9 +402,9 @@ void Pi::dump(Printer& p) const {
 
     p << ")";
     
-    if (rettype()) {
+    if (ret()) {
         p << " -> ";
-        rettype()->dump(p);
+        ret()->dump(p);
     }
 }
 

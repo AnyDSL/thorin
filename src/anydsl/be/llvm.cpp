@@ -55,7 +55,6 @@ public:
 
     llvm::Type* convert(const Type* type);
     llvm::Value* emit(const Def* def);
-    llvm::Value* literal(const PrimLit* def);
     llvm::Value* lookup(const Def* def);
 
 private:
@@ -198,9 +197,6 @@ void CodeGen::emit() {
 }
 
 llvm::Value* CodeGen::lookup(const Def* def) {
-    if (const PrimLit* lit = def->isa<PrimLit>())
-        return literal(lit);
-
     if (const PrimOp* primop = def->isa<PrimOp>())
         return primops_[primop];
 
@@ -212,27 +208,6 @@ llvm::Value* CodeGen::lookup(const Def* def) {
     assert(phis_.find(param) != phis_.end());
 
     return phis_[param];
-}
-
-llvm::Value* CodeGen::literal(const PrimLit* lit) {
-    llvm::Type* type = convert(lit->type());
-    Box box = lit->box();
-
-    switch (lit->primtype_kind()) {
-        case PrimType_u1:  return builder_.getInt1(box.get_u1().get());
-        case PrimType_u8:  return builder_.getInt8(box.get_u8());
-        case PrimType_u16: return builder_.getInt16(box.get_u16());
-        case PrimType_u32: return builder_.getInt32(box.get_u32());
-        case PrimType_u64: return builder_.getInt64(box.get_u64());
-        case PrimType_f32: return llvm::ConstantFP::get(type, box.get_f32());
-        case PrimType_f64: return llvm::ConstantFP::get(type, box.get_f64());
-    }
-
-    // bottom and any
-    if (const Undef* undef = lit->isa<Undef>())
-        return llvm::UndefValue::get(convert(undef->type()));
-
-    ANYDSL_UNREACHABLE;
 }
 
 llvm::Value* CodeGen::emit(const Def* def) {
@@ -352,7 +327,25 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return agg;
     }
 
-    def->dump();
+    if (const PrimLit* primlit = def->isa<PrimLit>()) {
+        llvm::Type* type = convert(primlit->type());
+        Box box = primlit->box();
+
+        switch (primlit->primtype_kind()) {
+            case PrimType_u1:  return builder_.getInt1(box.get_u1().get());
+            case PrimType_u8:  return builder_.getInt8(box.get_u8());
+            case PrimType_u16: return builder_.getInt16(box.get_u16());
+            case PrimType_u32: return builder_.getInt32(box.get_u32());
+            case PrimType_u64: return builder_.getInt64(box.get_u64());
+            case PrimType_f32: return llvm::ConstantFP::get(type, box.get_f32());
+            case PrimType_f64: return llvm::ConstantFP::get(type, box.get_f64());
+        }
+    }
+
+    // bottom and any
+    if (const Undef* undef = def->isa<Undef>())
+        return llvm::UndefValue::get(convert(undef->type()));
+
     ANYDSL_UNREACHABLE;
 }
 

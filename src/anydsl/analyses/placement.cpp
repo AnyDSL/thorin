@@ -3,6 +3,7 @@
 #include <queue>
 
 #include "anydsl/lambda.h"
+#include "anydsl/literal.h"
 #include "anydsl/primop.h"
 #include "anydsl/analyses/domtree.h"
 
@@ -27,6 +28,10 @@ void insert(Done& done, std::vector<const PrimOp*>& primops, const Def* def) {
                 continue;
             else {
                 done.insert(primop);
+                for_all (op, primop->ops())
+                    if (const Literal* lit = op->isa<Literal>())
+                        primops.push_back(lit);
+
                 primops.push_back(primop);
             }
         }
@@ -45,6 +50,11 @@ Places place(const DomTree& tree) {
         for_all (param, node->lambda()->params())
             insert(done, places[node->index()], param);
     }
+
+    // now check all primops which we might have missed because they not depend on params
+    for_all (node, tree.bfs())
+        for_all (arg, node->lambda()->args())
+            insert(done, places[node->index()], arg);
 
     return places;
 }

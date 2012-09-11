@@ -301,7 +301,7 @@ const Type* PostfixExpr::vcheck(Sema& sema) const {
     return lhs()->check(sema);
 }
 
-const Type* IndexExpr::vcheck(Sema& sema) const { lhs()->check(sema);
+const Type* IndexExpr::vcheck(Sema& sema) const {
     if (const Sigma* sigma = lhs()->check(sema)->isa<Sigma>()) {
         if (index()->check(sema)->is_int()) {
             if (const Literal* literal = index()->isa<Literal>()) {

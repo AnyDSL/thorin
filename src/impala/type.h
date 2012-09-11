@@ -26,6 +26,7 @@ public:
 
     virtual bool is_bool() const { return false; }
     virtual bool is_error() const { return false; }
+    virtual bool is_int() const { return false; }
     virtual bool is_noret() const { return false; }
     virtual bool is_void() const { return false; }
 
@@ -64,6 +65,7 @@ public:
     virtual void dump(Printer& p) const;
     virtual const anydsl::Type* convert(anydsl::World& world) const;
     virtual bool is_bool() const { return kind_ == TYPE_bool; }
+    virtual bool is_int() const;
 
 private:
 
@@ -161,6 +163,8 @@ public:
 
     typedef anydsl::ArrayRef<const Type*> Elems;
     Elems elems() const { return Elems(elems_); }
+    size_t size() const { return elems_.size(); }
+    bool empty() const { return elems_.empty(); }
 
 private:
 

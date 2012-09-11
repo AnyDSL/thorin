@@ -243,7 +243,7 @@ private:
 
 /**
  * Just for expr++ and expr--.
- * For indexing and function calls use IndexExpr or Call, respectively.
+ * For indexing and function calls use \p IndexExpr or \p Call, respectively.
  */
 class PostfixExpr : public Expr {
 public:
@@ -267,6 +267,20 @@ public:
 private:
 
     Kind kind_;
+};
+
+class IndexExpr : public Expr {
+public:
+
+    IndexExpr(const anydsl::Position& pos1, const Expr* lhs, const Expr* index, const anydsl::Position& pos2);
+
+    const Expr* lhs() const { return ops_[0]; }
+    const Expr* index() const { return ops_[1]; }
+
+    virtual void check(Sema& sema) const;
+    virtual void dump(Printer& p) const;
+    virtual const anydsl::Def* remit(CodeGen& cg) const;
+    virtual anydsl::Var* lemit(CodeGen& cg) const;
 };
 
 class Call : public Expr {

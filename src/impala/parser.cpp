@@ -639,6 +639,11 @@ const Expr* Parser::parsePostfixExpr(const Expr* lhs) {
         call->set_pos2(prevLoc_.pos2());
 
         return call;
+    } else if (accept(Token::L_BRACKET)) {
+        Position pos1 = prevLoc_.pos1();
+        const Expr* index = parseExpr();
+        expect(Token::R_BRACKET, "index expression");
+        return new IndexExpr(pos1, lhs, index, prevLoc_.pos2());
     } else {
         assert(la() == Token::INC || la() == Token::DEC);
         Token op = lex();

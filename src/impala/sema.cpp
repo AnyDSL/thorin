@@ -312,9 +312,40 @@ void InfixExpr::check(Sema& sema) const {
 
 void PostfixExpr::check(Sema& sema) const {
     lvalue_ = false;
-
     lhs()->check(sema);
     type_ = lhs()->type();
+}
+
+void IndexExpr::check(Sema& sema) const {
+    lvalue_ = true;
+    lhs()->check(sema);
+    index()->check(sema);
+
+    if (const Sigma* sigma = lhs()->type()->isa<Sigma>()) {
+        if (index()->type()->is_int()) {
+            if (const Literal* literal = index()->isa<Literal>()) {
+                unsigned pos;
+
+                switch (literal->kind()) {
+#define IMPALA_LIT(itype, atype) \
+                    case Literal::LIT_##itype: pos = literal->box().get_##atype(); break;
+#include "impala/tokenlist.h"
+                    default: ANYDSL_UNREACHABLE;
+                }
+
+                if (pos < sigma->size()) {
+                    type_ = sigma->elems()[pos];
+                    return;
+                } else
+                    sema.error(index()) << "index (" << pos << ") out of bounds (" << sigma->size() << ")\n";
+            } else
+                sema.error(index()) << "indexing expression must be a literal\n";
+        } else
+            sema.error(index()) << "indexing expression must be of integer type\n";
+    } else
+        sema.error(lhs()) << "left-hand side of index expression must be of sigma type\n";
+
+    type_ = sema.types.type_error();
 }
 
 void Call::check(Sema& sema) const {

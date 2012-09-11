@@ -126,7 +126,6 @@ void InfixExpr::dump(Printer& p) const {
     Prec l = PrecTable::infix_l[kind()];
     Prec r = PrecTable::infix_r[kind()];
     Prec old = p.prec;
-
     bool paren = !p.fancy() || p.prec > l;
 
     if (paren)
@@ -156,7 +155,6 @@ void InfixExpr::dump(Printer& p) const {
 void PostfixExpr::dump(Printer& p) const {
     Prec l = PrecTable::postfix_l[kind()];
     Prec old = p.prec;
-
     bool paren = !p.fancy() || p.prec > l;
 
     if (paren)
@@ -173,6 +171,25 @@ void PostfixExpr::dump(Printer& p) const {
     }
 
     p << op;
+
+    if (paren)
+        p << ')';
+
+    p.prec = old;
+}
+
+void IndexExpr::dump(Printer& p) const {
+    Prec l = PrecTable::postfix_l[Token::L_BRACKET];
+    Prec old = p.prec;
+    bool paren = !p.fancy() || p.prec > l;
+
+    if (paren)
+        p << '(';
+
+    lhs()->dump(p);
+    p << '[';
+    index()->dump();
+    p << ']';
 
     if (paren)
         p << ')';

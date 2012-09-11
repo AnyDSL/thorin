@@ -52,7 +52,7 @@ public:
     const Decl* clash(const anydsl::Symbol sym) const;
 
     /// Open a new scope.
-    void pushScope();
+    void pushScope() { ++depth_; }
     /// Discard current scope.
     void popScope();
 
@@ -175,10 +175,6 @@ void Sema::popScope() {
     --depth_;
 }
 
-void Sema::pushScope() {
-    ++depth_;
-}
-
 //------------------------------------------------------------------------------
 
 bool check(TypeTable& types, const Prg* prg) {
@@ -213,9 +209,8 @@ void Decl::check(Sema& sema) const {
     if (const Decl* decl = sema.clash(symbol())) {
         sema.error(this) << "symbol '" << symbol() << "' already defined\n";
         sema.error(decl) << "previous location here\n";
-    } else {
+    } else
         sema.insert(this);
-    }
 }
 
 /*
@@ -227,22 +222,13 @@ const Type* EmptyExpr::vcheck(Sema& sema) const {
 }
 
 const Type* Literal::vcheck(Sema& sema) const {
-    PrimType::Kind newKind;
-
     switch (kind()) {
 #define IMPALA_LIT(itype, atype) \
-        case Literal::LIT_##itype: \
-            newKind = PrimType::TYPE_##itype; \
-            break;
+        case Literal::LIT_##itype:  return sema.types.type(PrimType::TYPE_##itype);
 #include "impala/tokenlist.h"
-        case Literal::LIT_bool:
-            newKind = PrimType::TYPE_bool;
-            break;
-        default: 
-            ANYDSL_UNREACHABLE;
+        case Literal::LIT_bool:     return sema.types.type(PrimType::TYPE_bool);
+        default:                    ANYDSL_UNREACHABLE;
     }
-
-    return sema.types.type(newKind);
 }
 
 const Type* Tuple::vcheck(Sema& sema) const {

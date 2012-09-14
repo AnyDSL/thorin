@@ -1,4 +1,6 @@
 def foo(i : int) -> int {
     test : sigma(int, bool);
-    return test[0];
+    j : int := 24;
+    k : int := j++;
+    return k;
 }

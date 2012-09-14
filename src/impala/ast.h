@@ -273,7 +273,6 @@ public:
     virtual const Type* vcheck(Sema& sema) const;
     virtual void dump(Printer& p) const;
     virtual const anydsl::Def* remit(CodeGen& cg) const;
-    virtual anydsl::Var* lemit(CodeGen& cg) const;
 
 private:
 

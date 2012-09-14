@@ -220,13 +220,10 @@ const Def* InfixExpr::remit(CodeGen& cg) const {
     if (Token::isAsgn(op))
         return lemit(cg)->load();
         
-    const Def* ldef = lhs()->remit(cg);
-    const Def* rdef = rhs()->remit(cg);
-
-    return cg.world.binop(Token::toBinOp(op), ldef, rdef);
+    return cg.world.binop(Token::toBinOp(op), lhs()->remit(cg), rhs()->remit(cg));
 }
 
-Var* PostfixExpr::lemit(CodeGen& cg) const {
+const Def* PostfixExpr::remit(CodeGen& cg) const {
     Var* var = lhs()->lemit(cg);
     const Def* def = var->load();
     const anydsl::PrimType* pt = def->type()->as<anydsl::PrimType>();
@@ -234,10 +231,8 @@ Var* PostfixExpr::lemit(CodeGen& cg) const {
     const Def* ndef = cg.world.arithop(Token::toArithOp((TokenKind) kind()), def, one);
     var->store(ndef);
 
-    return var;
+    return def;
 }
-
-const Def* PostfixExpr::remit(CodeGen& cg) const { return lemit(cg)->load(); }
 
 //Ref IndexExpr::ref(CodeGen& cg) const {
     //const Literal* lit = index()->as<Literal>();
@@ -263,9 +258,8 @@ const Def* IndexExpr::remit(CodeGen& cg) const {
 }
 
 Array<const Def*> Call::emit_ops(CodeGen& cg) const {
-    size_t size = ops_.size();
-    assert(size >= 1);
-    Array<const Def*> ops(size);
+    assert(ops_.size() >= 1);
+    Array<const Def*> ops(ops_.size());
 
     size_t i = 0;
     for_all (op, ops_)

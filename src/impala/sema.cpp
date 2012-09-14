@@ -341,6 +341,9 @@ const Type* Call::vcheck(Sema& sema) const {
 
 void DeclStmt::check(Sema& sema) const {
     decl()->check(sema);
+
+    if (const Expr* init_expr = init())
+        init_expr->check(sema);
 }
 
 void ExprStmt::check(Sema& sema) const {
@@ -348,14 +351,11 @@ void ExprStmt::check(Sema& sema) const {
 }
 
 static bool checkCond(Sema& sema, const Expr* cond) {
-    cond->check(sema);
+    if (cond->check(sema)->is_bool())
+        return true;
 
-    if (!cond->type()->is_bool()) {
-        sema.error(cond) << "condition not a bool\n";
-        return false;
-    }
-
-    return true;
+    sema.error(cond) << "condition not a bool\n";
+    return false;
 }
 
 void IfElseStmt::check(Sema& sema) const {
@@ -392,24 +392,19 @@ void ContinueStmt::check(Sema& sema) const {
 }
 
 void ReturnStmt::check(Sema& sema) const {
-    if (fct()->continuation()) {
+    if (!fct()->continuation()) {
+        const Pi* pi = fct()->pi();
+
+        if (!pi->ret()->is_noret()) {
+            if (pi->ret() == expr()->check(sema))
+                return;
+            else
+                sema.error(expr()) << "expected return type '" << pi->ret() 
+                    << "' but return expression is of type '" << expr()->type() << "'\n";
+        } else
+            sema.error(this) << "return statement not allowed for calling a continuation\n";
+    } else
         sema.error(this) << "continuation is not allowed to use 'return'\n";
-        return;
-    }
-
-    expr()->check(sema);
-
-    const Pi* pi = fct()->pi();
-
-    if (pi->ret()->is_noret()) {
-        sema.error(this) << "return statement not allowed in continuation function\n";
-        return;
-    }
-
-    if (pi->ret() != expr()->type()) {
-        sema.error(expr()) << "expected return type '" << pi->ret() 
-            << "' but return expression is of type '" << expr()->type() << "'\n";
-    }
 }
 
 void ScopeStmt::check(Sema& sema) const {

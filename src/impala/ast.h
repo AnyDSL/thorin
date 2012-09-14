@@ -9,6 +9,7 @@
 #include "anydsl/util/box.h"
 #include "anydsl/util/cast.h"
 #include "anydsl/util/location.h"
+#include "anydsl/util/types.h"
 
 #include "impala/token.h"
 
@@ -278,6 +279,26 @@ private:
 
     Kind kind_;
 };
+
+//class Ref {
+//public:
+
+    //Ref(anydsl::Var* var, anydsl::u32 pos)
+        //: var_(var)
+        //, pos_(pos)
+    //{}
+
+    //anydsl::Var* var() const { return var_; }
+    //anydsl::u32 pos() const { return pos_; }
+
+    //void load() const;
+    //void store();
+
+//private:
+
+    //anydsl::Var* var_;
+    //anydsl::u32 pos_;
+//};
 
 class IndexExpr : public Expr {
 public:

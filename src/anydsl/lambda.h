@@ -43,10 +43,7 @@ public:
     Lambdas succs()    const { return Lambdas(adjacencies_); }
     LambdaSet preds() const;
     const Params& params() const { return params_; }
-    const Param* param(size_t i) const { 
-        anydsl_assert(i < params_.size(), "index out of bounds"); 
-        return params_[i]; 
-    }
+    const Param* param(size_t i) const { return params_[i]; }
     const Def* to() const { return op(0); };
     Ops args() const { return ops().slice_back(1); }
     const Def* arg(size_t i) const { return args()[i]; }

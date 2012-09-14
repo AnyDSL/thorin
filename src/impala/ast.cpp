@@ -84,6 +84,9 @@ PostfixExpr::PostfixExpr(const Expr* lhs, Kind kind, const Position& pos2)
     setLoc(lhs->pos1(), pos2);
 }
 
+//const Def* Ref::load() const {
+//}
+
 IndexExpr::IndexExpr(const anydsl::Position& pos1, const Expr* lhs, const Expr* index, const anydsl::Position& pos2) {
     ops_.push_back(lhs);
     ops_.push_back(index);

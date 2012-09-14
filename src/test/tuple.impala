@@ -1,5 +1,4 @@
-def foo(i : int) -> sigma(int, bool) {
-    test : sigma(int, bool) := #(42, true);
-
-    return test;
+def foo(i : int) -> int {
+    test : sigma(int, bool);
+    return test[0];
 }

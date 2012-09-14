@@ -7,6 +7,7 @@
 
 #include "anydsl/symbol.h"
 #include "anydsl/util/array.h"
+#include "anydsl/util/types.h"
 
 namespace anydsl {
 
@@ -41,7 +42,15 @@ private:
     const Type* type_;
 };
 
-class Var {
+
+class Ref {
+public:
+
+    virtual const Def* load() const = 0;
+    virtual void store(const Def* def) = 0;
+};
+
+class Var : public Ref {
 public:
 
     Var() {}
@@ -49,12 +58,13 @@ public:
         : symbol_(symbol)
         , def_(def)
     {}
+    virtual ~Var() {}
 
     Symbol symobl() const { return symbol_; }
-    const Def* load() const { return def_; }
-    void store(const Def* def) { def_ = def; }
+    virtual const Def* load() const { return def_; }
+    virtual void store(const Def* def) { def_ = def; }
 
-private:
+protected:
 
     Symbol symbol_;
     const Def* def_;

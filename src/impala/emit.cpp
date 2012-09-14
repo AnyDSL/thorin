@@ -17,8 +17,9 @@ using anydsl::ArrayRef;
 using anydsl::BB;
 using anydsl::Def;
 using anydsl::Var;
-using anydsl::make_name;
 using anydsl::World;
+using anydsl::make_name;
+using anydsl::u32;
 
 namespace impala {
 
@@ -238,14 +239,28 @@ Var* PostfixExpr::lemit(CodeGen& cg) const {
 
 const Def* PostfixExpr::remit(CodeGen& cg) const { return lemit(cg)->load(); }
 
+//Ref IndexExpr::ref(CodeGen& cg) const {
+    //const Literal* lit = index()->as<Literal>();
+    //u32 pos = lit->box().get_u32();
+
+    //return Ref(lhs()->lemit(cg), pos);
+//}
+
 Var* IndexExpr::lemit(CodeGen& cg) const {
-    //Var* var = lhs()->lemit(cg);
+    //if (const IndexExpr* iexpr = lhs->isa<IndexExpr>()) {
+        //Ref ref = iexpr->ref(cg);
+    //}
+
+    Var* var = lhs()->lemit(cg);
     //const Def* pos = index()->remit(cg);
 
+    //return cg.curBB->in
     return 0;
 }
 
-const Def* IndexExpr::remit(CodeGen& cg) const { return lemit(cg)->load(); }
+const Def* IndexExpr::remit(CodeGen& cg) const { 
+    return cg.world.extract(lhs()->remit(cg), index()->as<Literal>()->box().get_u32());
+}
 
 Array<const Def*> Call::emit_ops(CodeGen& cg) const {
     size_t size = ops_.size();
@@ -279,10 +294,8 @@ const Def* Call::remit(CodeGen& cg) const {
 void DeclStmt::emit(CodeGen& cg) const {
     Var* var = decl()->emit(cg);
 
-    if (init()) {
-        const Def* def = init()->remit(cg);
-        var->store(def);
-    }
+    if (const Expr* init_expr = init())
+        var->store(init_expr->remit(cg));
 }
 
 void ExprStmt::emit(CodeGen& cg) const {

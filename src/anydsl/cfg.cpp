@@ -284,7 +284,6 @@ void Fct::emit() {
     for_all (bb, cfg_)
         bb->emit();
 
-    // fct
     BB::emit();
 }
 

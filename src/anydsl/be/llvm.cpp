@@ -153,7 +153,7 @@ void CodeGen::emit() {
                 if (tolambda->is_first_order())     // case a) ordinary jump
                     builder_.CreateBr(bbs[tolambda]);
                 else {
-                    // put all first-order args into array
+                    // put all first-order args into an array
                     Array<llvm::Value*> args(lambda->args().size() - 1);
                     anydsl_zip(lambda->first_order_args(), args, lookup);
                     llvm::CallInst* call = builder_.CreateCall(fcts[tolambda], llvm_ref(args));

@@ -36,7 +36,7 @@ typedef anydsl::AutoVector<const Decl*> Decls;
 typedef anydsl::AutoVector<const Expr*> Exprs;
 typedef anydsl::AutoVector<const Fct*>  Fcts;
 typedef anydsl::AutoVector<const Stmt*> Stmts;
-typedef anydsl::AutoPtr<const anydsl::Ref> RefPtr;
+typedef std::auto_ptr<const anydsl::Ref> RefPtr;
 
 class ASTNode : public anydsl::HasLocation, public anydsl::MagicCast {
 public:

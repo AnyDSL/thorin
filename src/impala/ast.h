@@ -36,6 +36,7 @@ typedef anydsl::AutoVector<const Decl*> Decls;
 typedef anydsl::AutoVector<const Expr*> Exprs;
 typedef anydsl::AutoVector<const Fct*>  Fcts;
 typedef anydsl::AutoVector<const Stmt*> Stmts;
+typedef anydsl::AutoPtr<const anydsl::Ref> RefPtr;
 
 class ASTNode : public anydsl::HasLocation, public anydsl::MagicCast {
 public:
@@ -116,7 +117,7 @@ public:
     const Type* check(Sema& sema) const { return type_ = vcheck(sema); }
     anydsl::Array<const anydsl::Def*> emit_ops(CodeGen& cg) const;
     virtual bool lvalue() const = 0;
-    virtual const anydsl::Ref* emit(CodeGen& cg) const = 0;
+    virtual RefPtr emit(CodeGen& cg) const = 0;
 
 private:
 
@@ -127,7 +128,6 @@ protected:
     Exprs ops_;
 
     mutable const Type* type_;
-    mutable const anydsl::Ref* ref_;
 };
 
 class EmptyExpr : public Expr {
@@ -137,7 +137,7 @@ public:
 
     virtual bool lvalue() const { return false; }
     virtual const Type* vcheck(Sema& sema) const;
-    virtual const anydsl::Ref* emit(CodeGen& cg) const;
+    virtual RefPtr emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
 };
 
@@ -157,7 +157,7 @@ public:
 
     virtual bool lvalue() const { return false; }
     virtual const Type* vcheck(Sema& sema) const;
-    virtual const anydsl::Ref* emit(CodeGen& cg) const;
+    virtual RefPtr emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
 
 private:
@@ -173,7 +173,7 @@ public:
 
     virtual bool lvalue() const { return false; }
     virtual const Type* vcheck(Sema& sema) const;
-    virtual const anydsl::Ref* emit(CodeGen& cg) const;
+    virtual RefPtr emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
 
     friend class Parser;
@@ -189,7 +189,7 @@ public:
 
     virtual bool lvalue() const { return true; }
     virtual const Type* vcheck(Sema& sema) const;
-    virtual const anydsl::Ref* emit(CodeGen& cg) const;
+    virtual RefPtr emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
 
 private:
@@ -214,7 +214,7 @@ public:
 
     virtual bool lvalue() const { return true; }
     virtual const Type* vcheck(Sema& sema) const;
-    virtual const anydsl::Ref* emit(CodeGen& cg) const;
+    virtual RefPtr emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
 
 private:
@@ -240,7 +240,7 @@ public:
 
     virtual bool lvalue() const { return Token::isAsgn((TokenKind) kind()); }
     virtual const Type* vcheck(Sema& sema) const;
-    virtual const anydsl::Ref* emit(CodeGen& cg) const;
+    virtual RefPtr emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
 
 private:
@@ -268,7 +268,7 @@ public:
 
     virtual bool lvalue() const { return false; }
     virtual const Type* vcheck(Sema& sema) const;
-    virtual const anydsl::Ref* emit(CodeGen& cg) const;
+    virtual RefPtr emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
 
 private:
@@ -286,7 +286,7 @@ public:
 
     virtual bool lvalue() const { return true; }
     virtual const Type* vcheck(Sema& sema) const;
-    virtual const anydsl::Ref* emit(CodeGen& cg) const;
+    virtual RefPtr emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
 };
 
@@ -300,7 +300,7 @@ public:
     const Expr* to() const { return ops_.front(); }
 
     virtual bool lvalue() const { return false; }
-    virtual const anydsl::Ref* emit(CodeGen& cg) const;
+    virtual RefPtr emit(CodeGen& cg) const;
     virtual const Type* vcheck(Sema& sema) const;
     virtual void dump(Printer& p) const;
 };

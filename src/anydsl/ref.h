@@ -1,14 +1,20 @@
 #ifndef ANYDSL_REF_H
 #define ANYDSL_REF_H
 
+#include <memory>
+
 #include "anydsl/util/assert.h"
+#include "anydsl/util/autoptr.h"
 #include "anydsl/util/types.h"
 
 namespace anydsl {
 
 class Def;
 class Var;
+class Ref;
 class World;
+
+typedef std::auto_ptr<const Ref> RefPtr;
 
 class Ref {
 public:
@@ -18,6 +24,10 @@ public:
     virtual const Def* load() const = 0;
     virtual void store(const Def* val) const = 0;
     virtual World& world() const = 0;
+
+    static RefPtr create(const Def* def);
+    static RefPtr create(Var* var);
+    static RefPtr create(RefPtr lref, u32 index);
 };
 
 class RVal : public Ref {
@@ -43,8 +53,6 @@ public:
         : var_(var)
     {}
 
-    Var* var() const { return var_; }
-
     virtual const Def* load() const;
     virtual void store(const Def* val) const;
     virtual World& world() const;
@@ -57,21 +65,18 @@ private:
 class TupleRef : public Ref {
 public:
 
-    TupleRef(const Ref* lref, u32 index)
+    TupleRef(RefPtr lref, u32 index)
         : lref_(lref)
         , index_(index)
     {}
 
-    u32 index() const { return index_; }
-    const Ref* lref() const { return lref_; }
-
     virtual const Def* load() const;
     virtual void store(const Def* val) const;
-    virtual World& world() const { return lref()->world(); }
+    virtual World& world() const { return lref_->world(); }
 
 private:
 
-    const Ref* lref_;
+    RefPtr lref_;
     u32 index_;
 };
 

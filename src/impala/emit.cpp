@@ -125,11 +125,11 @@ Array<const Def*> Expr::emit_ops(CodeGen& cg) const {
     return ops;
 }
 
-const Ref* EmptyExpr::emit(CodeGen& cg) const { 
-    return new RVal(cg.world.bottom(cg.world.unit())); 
+RefPtr EmptyExpr::emit(CodeGen& cg) const { 
+    return Ref::create(cg.world.bottom(cg.world.unit())); 
 }
 
-const Ref* Literal::emit(CodeGen& cg) const {
+RefPtr Literal::emit(CodeGen& cg) const {
     anydsl::PrimTypeKind akind;
 
     switch (kind()) {
@@ -140,30 +140,30 @@ const Ref* Literal::emit(CodeGen& cg) const {
         default: ANYDSL_UNREACHABLE;
     }
 
-    return new RVal(cg.world.literal(akind, box()));
+    return Ref::create(cg.world.literal(akind, box()));
 }
 
-const Ref* Tuple::emit(CodeGen& cg) const {
+RefPtr Tuple::emit(CodeGen& cg) const {
     Array<const Def*> vals = emit_ops(cg);
 
-    return new RVal(cg.world.tuple(vals));
+    return Ref::create(cg.world.tuple(vals));
 }
 
-const Ref* Id::emit(CodeGen& cg) const {
+RefPtr Id::emit(CodeGen& cg) const {
     if (type()->isa<Pi>()) {
         FctMap::iterator i = cg.fcts.find(symbol());
         if (i != cg.fcts.end())
-            return new RVal(i->second->top());
+            return Ref::create(i->second->top());
     }
 
-    return new VarRef(cg.curBB->lookup(symbol(), cg.convert(type())));
+    return Ref::create(cg.curBB->lookup(symbol(), cg.convert(type())));
 }
 
-const Ref* PrefixExpr::emit(CodeGen& cg) const {
+RefPtr PrefixExpr::emit(CodeGen& cg) const {
     switch (kind()) {
         case INC:
         case DEC: {
-            const Ref* ref = rhs()->emit(cg);
+            RefPtr ref = rhs()->emit(cg);
             const Def* def = ref->load();
             const anydsl::PrimType* pt = def->type()->as<anydsl::PrimType>();
             const anydsl::PrimLit* one = cg.world.literal(pt->primtype_kind(), 1u);
@@ -176,7 +176,7 @@ const Ref* PrefixExpr::emit(CodeGen& cg) const {
             return rhs()->emit(cg); // this is a NOP
 
         case SUB: {
-            const Ref* ref = rhs()->emit(cg);
+            RefPtr ref = rhs()->emit(cg);
             const Def* def = ref->load();
             const anydsl::PrimType* pt = def->type()->as<anydsl::PrimType>();
             const anydsl::PrimLit* zero; 
@@ -189,21 +189,21 @@ const Ref* PrefixExpr::emit(CodeGen& cg) const {
                     zero = cg.world.literal(pt->primtype_kind(), 0u);
             }
 
-            return new RVal(cg.world.arithop(anydsl::ArithOp_sub, zero, def));
+            return Ref::create(cg.world.arithop(anydsl::ArithOp_sub, zero, def));
         }
         default: ANYDSL_UNREACHABLE;
     }
 }
 
-const Ref* InfixExpr::emit(CodeGen& cg) const {
+RefPtr InfixExpr::emit(CodeGen& cg) const {
     TokenKind op = (TokenKind) kind();
 
     if (Token::isAsgn(op)) {
         const Id* id = lhs()->isa<Id>();
 
         // special case for 'a = expr' -> don't use lookup!
-        const Ref* lref = op == Token::ASGN && id
-                ? new VarRef(cg.curBB->insert(id->symbol(), cg.world.bottom(cg.convert(id->type()))))
+        RefPtr lref = op == Token::ASGN && id
+                ? Ref::create(cg.curBB->insert(id->symbol(), cg.world.bottom(cg.convert(id->type()))))
                 : lhs()->emit(cg);
 
         const Def* ldef = lref->load();
@@ -222,36 +222,36 @@ const Ref* InfixExpr::emit(CodeGen& cg) const {
     const Def* ldef = lhs()->emit(cg)->load();
     const Def* rdef = rhs()->emit(cg)->load();
 
-    return new RVal(cg.world.binop(Token::toBinOp(op), ldef, rdef));
+    return Ref::create(cg.world.binop(Token::toBinOp(op), ldef, rdef));
 }
 
-const Ref* PostfixExpr::emit(CodeGen& cg) const {
-    const Ref* ref = lhs()->emit(cg);
+RefPtr PostfixExpr::emit(CodeGen& cg) const {
+    RefPtr ref = lhs()->emit(cg);
     const Def* def = ref->load();
     const anydsl::PrimType* pt = def->type()->as<anydsl::PrimType>();
     const anydsl::PrimLit* one = cg.world.literal(pt->primtype_kind(), 1u);
     const Def* ndef = cg.world.arithop(Token::toArithOp((TokenKind) kind()), def, one);
     ref->store(ndef);
 
-    return new RVal(def);
+    return Ref::create(def);
 }
 
-const Ref* IndexExpr::emit(CodeGen& cg) const {
+RefPtr IndexExpr::emit(CodeGen& cg) const {
     u32 pos = index()->as<Literal>()->box().get_u32();
 
-    return new TupleRef(lhs()->emit(cg), pos);
+    return Ref::create(lhs()->emit(cg), pos);
 }
 
-const Ref* Call::emit(CodeGen& cg) const {
+RefPtr Call::emit(CodeGen& cg) const {
     Array<const Def*> ops = emit_ops(cg);
     const anydsl::Type* ret = cg.convert(type());
 
     if (ret)
-        return new RVal(cg.curBB->call(ops[0], ops.slice_back(1), ret));
+        return Ref::create(cg.curBB->call(ops[0], ops.slice_back(1), ret));
     else {
         cg.curBB->tail_call(ops[0], ops.slice_back(1));
         cg.curBB = 0;
-        return 0;
+        return RefPtr(0);
     }
 }
 

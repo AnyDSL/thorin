@@ -16,6 +16,7 @@
 namespace anydsl {
     class Def;
     class Var;
+    class Ref;
 }
 
 namespace impala {
@@ -110,14 +111,12 @@ private:
 class Expr : public ASTNode {
 public:
 
-    virtual bool lvalue() const = 0;
-    const Type* type() const { return type_; }
-
-    const Type* check(Sema& sema) const { return type_ = vcheck(sema); }
-
-    virtual anydsl::Var* lemit(CodeGen& cg) const { ANYDSL_UNREACHABLE; }
-    virtual const anydsl::Def* remit(CodeGen& cg) const = 0;
     const Exprs& ops() const { return ops_; }
+    const Type* type() const { return type_; }
+    const Type* check(Sema& sema) const { return type_ = vcheck(sema); }
+    anydsl::Array<const anydsl::Def*> emit_ops(CodeGen& cg) const;
+    virtual bool lvalue() const = 0;
+    virtual const anydsl::Ref* emit(CodeGen& cg) const = 0;
 
 private:
 
@@ -128,6 +127,7 @@ protected:
     Exprs ops_;
 
     mutable const Type* type_;
+    mutable const anydsl::Ref* ref_;
 };
 
 class EmptyExpr : public Expr {
@@ -137,8 +137,8 @@ public:
 
     virtual bool lvalue() const { return false; }
     virtual const Type* vcheck(Sema& sema) const;
+    virtual const anydsl::Ref* emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Def* remit(CodeGen& cg) const;
 };
 
 class Literal : public Expr {
@@ -157,8 +157,8 @@ public:
 
     virtual bool lvalue() const { return false; }
     virtual const Type* vcheck(Sema& sema) const;
+    virtual const anydsl::Ref* emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Def* remit(CodeGen& cg) const;
 
 private:
 
@@ -173,8 +173,8 @@ public:
 
     virtual bool lvalue() const { return false; }
     virtual const Type* vcheck(Sema& sema) const;
+    virtual const anydsl::Ref* emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Def* remit(CodeGen& cg) const;
 
     friend class Parser;
 };
@@ -189,9 +189,8 @@ public:
 
     virtual bool lvalue() const { return true; }
     virtual const Type* vcheck(Sema& sema) const;
+    virtual const anydsl::Ref* emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Def* remit(CodeGen& cg) const;
-    virtual anydsl::Var* lemit(CodeGen& cg) const;
 
 private:
 
@@ -215,9 +214,8 @@ public:
 
     virtual bool lvalue() const { return true; }
     virtual const Type* vcheck(Sema& sema) const;
+    virtual const anydsl::Ref* emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Def* remit(CodeGen& cg) const;
-    virtual anydsl::Var* lemit(CodeGen& cg) const;
 
 private:
 
@@ -242,9 +240,8 @@ public:
 
     virtual bool lvalue() const { return Token::isAsgn((TokenKind) kind()); }
     virtual const Type* vcheck(Sema& sema) const;
+    virtual const anydsl::Ref* emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Def* remit(CodeGen& cg) const;
-    virtual anydsl::Var* lemit(CodeGen& cg) const;
 
 private:
 
@@ -271,33 +268,13 @@ public:
 
     virtual bool lvalue() const { return false; }
     virtual const Type* vcheck(Sema& sema) const;
+    virtual const anydsl::Ref* emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Def* remit(CodeGen& cg) const;
 
 private:
 
     Kind kind_;
 };
-
-//class Ref {
-//public:
-
-    //Ref(anydsl::Var* var, anydsl::u32 pos)
-        //: var_(var)
-        //, pos_(pos)
-    //{}
-
-    //anydsl::Var* var() const { return var_; }
-    //anydsl::u32 pos() const { return pos_; }
-
-    //void load() const;
-    //void store();
-
-//private:
-
-    //anydsl::Var* var_;
-    //anydsl::u32 pos_;
-//};
 
 class IndexExpr : public Expr {
 public:
@@ -309,9 +286,8 @@ public:
 
     virtual bool lvalue() const { return true; }
     virtual const Type* vcheck(Sema& sema) const;
+    virtual const anydsl::Ref* emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Def* remit(CodeGen& cg) const;
-    virtual anydsl::Var* lemit(CodeGen& cg) const;
 };
 
 class Call : public Expr {
@@ -321,13 +297,12 @@ public:
 
     void append_arg(const Expr* expr) { ops_.push_back(expr); }
     void set_pos2(const anydsl::Position& pos2);
-    anydsl::Array<const anydsl::Def*> emit_ops(CodeGen& cg) const;
     const Expr* to() const { return ops_.front(); }
 
     virtual bool lvalue() const { return false; }
+    virtual const anydsl::Ref* emit(CodeGen& cg) const;
     virtual const Type* vcheck(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Def* remit(CodeGen& cg) const;
 };
 
 //------------------------------------------------------------------------------

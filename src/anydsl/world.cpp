@@ -328,14 +328,18 @@ const Def* World::convop(ConvOpKind kind, const Def* from, const Type* to) {
     return find(new ConvOp(kind, from, to));
 }
 
-const Def* World::extract(const Def* agg, u32 i) {
+const Def* World::extract(const Def* agg, u32 index) {
     if (agg->isa<Bottom>())
-        return bottom(agg->type()->as<Sigma>()->elem(i));
+        return bottom(agg->type()->as<Sigma>()->elem(index));
 
     if (const Tuple* tuple = agg->isa<Tuple>())
-        return tuple->op(i);
+        return tuple->op(index);
 
-    return find(new Extract(agg, i));
+    if (const Insert* insert = agg->isa<Insert>())
+        if (index == insert->index())
+            return insert->value();
+
+    return find(new Extract(agg, index));
 }
 
 const Def* World::insert(const Def* agg, u32 index, const Def* value) {
@@ -356,7 +360,6 @@ const Def* World::insert(const Def* agg, u32 index, const Def* value) {
 
     return find(new Insert(agg, index, value));
 }
-
 
 const Def* World::select(const Def* cond, const Def* a, const Def* b) {
     if (cond->isa<Bottom>() || a->isa<Bottom>() || b->isa<Bottom>())

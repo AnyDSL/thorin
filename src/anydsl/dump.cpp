@@ -92,7 +92,6 @@ void Extract::vdump(Printer& p) const  {
 
 void Insert::vdump(Printer& p) const  {
     dumpNameAndType(p, this, "insert");
-    p << '(';
 	p.dump(tuple());
 	p << ", " << index() << ", ";
 	p.dump(value());
@@ -108,7 +107,9 @@ void Tuple::vdump(Printer& p) const {
 	p << "}";
 }
 
-// Types
+/*
+ * Types
+ */
 
 void CompoundType::dumpInner(Printer& p) const  {
 	p << "(";

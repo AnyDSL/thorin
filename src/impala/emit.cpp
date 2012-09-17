@@ -5,6 +5,7 @@
 #include "anydsl/cfg.h"
 #include "anydsl/lambda.h"
 #include "anydsl/literal.h"
+#include "anydsl/ref.h"
 #include "anydsl/type.h"
 #include "anydsl/world.h"
 #include "anydsl/util/array.h"
@@ -16,7 +17,11 @@ using anydsl::Array;
 using anydsl::ArrayRef;
 using anydsl::BB;
 using anydsl::Def;
+using anydsl::RVal;
+using anydsl::Ref;
+using anydsl::TupleRef;
 using anydsl::Var;
+using anydsl::VarRef;
 using anydsl::World;
 using anydsl::make_name;
 using anydsl::u32;
@@ -110,11 +115,21 @@ Var* Decl::emit(CodeGen& cg) const {
  * Expr
  */
 
-const Def* EmptyExpr::remit(CodeGen& cg) const {
-    return cg.world.bottom(cg.world.unit());
+Array<const Def*> Expr::emit_ops(CodeGen& cg) const {
+    Array<const Def*> ops(ops_.size());
+
+    size_t i = 0;
+    for_all (op, ops_)
+        ops[i++] = op->emit(cg)->load();
+
+    return ops;
 }
 
-const Def* Literal::remit(CodeGen& cg) const {
+const Ref* EmptyExpr::emit(CodeGen& cg) const { 
+    return new RVal(cg.world.bottom(cg.world.unit())); 
+}
+
+const Ref* Literal::emit(CodeGen& cg) const {
     anydsl::PrimTypeKind akind;
 
     switch (kind()) {
@@ -125,155 +140,114 @@ const Def* Literal::remit(CodeGen& cg) const {
         default: ANYDSL_UNREACHABLE;
     }
 
-    return cg.world.literal(akind, box());
+    return new RVal(cg.world.literal(akind, box()));
 }
 
-const Def* Tuple::remit(CodeGen& cg) const {
-    Array<const Def*> vals(ops().size());
+const Ref* Tuple::emit(CodeGen& cg) const {
+    Array<const Def*> vals = emit_ops(cg);
 
-    size_t i = 0;
-    for_all (op, ops())
-        vals[i++] = op->remit(cg);
-
-    return cg.world.tuple(vals);
+    return new RVal(cg.world.tuple(vals));
 }
 
-Var* Id::lemit(CodeGen& cg) const {
-    return cg.curBB->lookup(symbol(), cg.convert(type()));
-}
-
-const Def* Id::remit(CodeGen& cg) const {
+const Ref* Id::emit(CodeGen& cg) const {
     if (type()->isa<Pi>()) {
         FctMap::iterator i = cg.fcts.find(symbol());
-        if (i == cg.fcts.end())
-            return lemit(cg)->load();
-
-        return i->second->top();
+        if (i != cg.fcts.end())
+            return new RVal(i->second->top());
     }
 
-    return lemit(cg)->load();
+    return new VarRef(cg.curBB->lookup(symbol(), cg.convert(type())));
 }
 
-Var* PrefixExpr::lemit(CodeGen& cg) const {
-    assert(kind() == INC || kind() == DEC);
+const Ref* PrefixExpr::emit(CodeGen& cg) const {
+    switch (kind()) {
+        case INC:
+        case DEC: {
+            const Ref* ref = rhs()->emit(cg);
+            const Def* def = ref->load();
+            const anydsl::PrimType* pt = def->type()->as<anydsl::PrimType>();
+            const anydsl::PrimLit* one = cg.world.literal(pt->primtype_kind(), 1u);
+            const Def* ndef = cg.world.arithop(Token::toArithOp((TokenKind) kind()), def, one);
+            ref->store(ndef);
 
-    Var* var = rhs()->lemit(cg);
-    const Def* def = var->load();
-    const anydsl::PrimType* pt = def->type()->as<anydsl::PrimType>();
-    const anydsl::PrimLit* one = cg.world.literal(pt->primtype_kind(), 1u);
-    const Def* ndef = cg.world.arithop(Token::toArithOp((TokenKind) kind()), def, one);
-    var->store(ndef);
+            return ref;
+        }
+        case ADD:
+            return rhs()->emit(cg); // this is a NOP
 
-    return var;
+        case SUB: {
+            const Ref* ref = rhs()->emit(cg);
+            const Def* def = ref->load();
+            const anydsl::PrimType* pt = def->type()->as<anydsl::PrimType>();
+            const anydsl::PrimLit* zero; 
+
+            switch (pt->primtype_kind()) {
+                case anydsl::PrimType_f32: zero = cg.world.literal_f32(-0.f); break;
+                case anydsl::PrimType_f64: zero = cg.world.literal_f64(-0.0); break;
+                default: 
+                    assert(pt->is_int()); 
+                    zero = cg.world.literal(pt->primtype_kind(), 0u);
+            }
+
+            return new RVal(cg.world.arithop(anydsl::ArithOp_sub, zero, def));
+        }
+        default: ANYDSL_UNREACHABLE;
+    }
 }
 
-const Def* PrefixExpr::remit(CodeGen& cg) const {
-    if (kind() == ADD)
-        return rhs()->remit(cg); // this is a NOP
+const Ref* InfixExpr::emit(CodeGen& cg) const {
+    TokenKind op = (TokenKind) kind();
 
-    if (kind() == SUB) {
-        const Def* def = rhs()->remit(cg);
-        const anydsl::PrimType* pt = def->type()->as<anydsl::PrimType>();
-        const anydsl::PrimLit* zero; 
+    if (Token::isAsgn(op)) {
+        const Id* id = lhs()->isa<Id>();
 
-        switch (pt->primtype_kind()) {
-            case anydsl::PrimType_f32: zero = cg.world.literal_f32(-0.f); break;
-            case anydsl::PrimType_f64: zero = cg.world.literal_f64(-0.0); break;
-            default: 
-                assert(pt->is_int()); 
-                zero = cg.world.literal(pt->primtype_kind(), 0u);
+        // special case for 'a = expr' -> don't use lookup!
+        const Ref* lref = op == Token::ASGN && id
+                ? new VarRef(cg.curBB->insert(id->symbol(), cg.world.bottom(cg.convert(id->type()))))
+                : lhs()->emit(cg);
+
+        const Def* ldef = lref->load();
+        const Def* rdef = rhs()->emit(cg)->load();
+
+        if (op != Token::ASGN) {
+            TokenKind sop = Token::seperateAssign(op);
+            rdef = cg.world.binop(Token::toBinOp(sop), ldef, rdef);
         }
 
-        return cg.world.arithop(anydsl::ArithOp_sub, zero, def);
+        lref->store(rdef);
+
+        return lref;
     }
 
-    return lemit(cg)->load();
+    const Def* ldef = lhs()->emit(cg)->load();
+    const Def* rdef = rhs()->emit(cg)->load();
+
+    return new RVal(cg.world.binop(Token::toBinOp(op), ldef, rdef));
 }
 
-Var* InfixExpr::lemit(CodeGen& cg) const {
-    TokenKind op = (TokenKind) kind();
-    assert(Token::isAsgn(op));
-
-    const Id* id = lhs()->isa<Id>();
-
-    // special case for 'a = expr' -> don't use lookup!
-    Var* lvar = op == Token::ASGN && id
-              ? cg.curBB->insert(id->symbol(), cg.world.bottom(cg.convert(id->type())))
-              : lhs()->lemit(cg);
-
-    const Def* ldef = lvar->load();
-    const Def* rdef = rhs()->remit(cg);
-
-    if (op != Token::ASGN) {
-        TokenKind sop = Token::seperateAssign(op);
-        rdef = cg.world.binop(Token::toBinOp(sop), ldef, rdef);
-    }
-
-    lvar->store(rdef);
-
-    return lvar;
-}
-
-const Def* InfixExpr::remit(CodeGen& cg) const {
-    TokenKind op = (TokenKind) kind();
-
-    if (Token::isAsgn(op))
-        return lemit(cg)->load();
-        
-    return cg.world.binop(Token::toBinOp(op), lhs()->remit(cg), rhs()->remit(cg));
-}
-
-const Def* PostfixExpr::remit(CodeGen& cg) const {
-    Var* var = lhs()->lemit(cg);
-    const Def* def = var->load();
+const Ref* PostfixExpr::emit(CodeGen& cg) const {
+    const Ref* ref = lhs()->emit(cg);
+    const Def* def = ref->load();
     const anydsl::PrimType* pt = def->type()->as<anydsl::PrimType>();
     const anydsl::PrimLit* one = cg.world.literal(pt->primtype_kind(), 1u);
     const Def* ndef = cg.world.arithop(Token::toArithOp((TokenKind) kind()), def, one);
-    var->store(ndef);
+    ref->store(ndef);
 
-    return def;
+    return new RVal(def);
 }
 
-//Ref IndexExpr::ref(CodeGen& cg) const {
-    //const Literal* lit = index()->as<Literal>();
-    //u32 pos = lit->box().get_u32();
+const Ref* IndexExpr::emit(CodeGen& cg) const {
+    u32 pos = index()->as<Literal>()->box().get_u32();
 
-    //return Ref(lhs()->lemit(cg), pos);
-//}
-
-Var* IndexExpr::lemit(CodeGen& cg) const {
-    //if (const IndexExpr* iexpr = lhs->isa<IndexExpr>()) {
-        //Ref ref = iexpr->ref(cg);
-    //}
-
-    Var* var = lhs()->lemit(cg);
-    //const Def* pos = index()->remit(cg);
-
-    //return cg.curBB->in
-    return 0;
+    return new TupleRef(lhs()->emit(cg), pos);
 }
 
-const Def* IndexExpr::remit(CodeGen& cg) const { 
-    return cg.world.extract(lhs()->remit(cg), index()->as<Literal>()->box().get_u32());
-}
-
-Array<const Def*> Call::emit_ops(CodeGen& cg) const {
-    assert(ops_.size() >= 1);
-    Array<const Def*> ops(ops_.size());
-
-    size_t i = 0;
-    for_all (op, ops_)
-        ops[i++] = op->remit(cg);
-
-    return ops;
-}
-
-const Def* Call::remit(CodeGen& cg) const {
+const Ref* Call::emit(CodeGen& cg) const {
     Array<const Def*> ops = emit_ops(cg);
     const anydsl::Type* ret = cg.convert(type());
 
     if (ret)
-        return cg.curBB->call(ops[0], ops.slice_back(1), ret);
+        return new RVal(cg.curBB->call(ops[0], ops.slice_back(1), ret));
     else {
         cg.curBB->tail_call(ops[0], ops.slice_back(1));
         cg.curBB = 0;
@@ -289,12 +263,12 @@ void DeclStmt::emit(CodeGen& cg) const {
     Var* var = decl()->emit(cg);
 
     if (const Expr* init_expr = init())
-        var->store(init_expr->remit(cg));
+        var->store(init_expr->emit(cg)->load());
 }
 
 void ExprStmt::emit(CodeGen& cg) const {
     if (cg.reachable())
-        expr()->remit(cg);
+        expr()->emit(cg);
 }
 
 void IfElseStmt::emit(CodeGen& cg) const {
@@ -309,7 +283,7 @@ void IfElseStmt::emit(CodeGen& cg) const {
 
     // condition
     if (cg.reachable()) {
-        const Def* c = cond()->remit(cg);
+        const Def* c = cond()->emit(cg)->load();
         cg.curBB->branch(c, thenBB, elseBB);
     }
 
@@ -351,7 +325,7 @@ void WhileStmt::emit(CodeGen& cg) const {
     cg.curBB = headBB;
 
     // condition
-    const Def* c = cond()->remit(cg);
+    const Def* c = cond()->emit(cg)->load();
     headBB->branch(c, bodyBB, nextBB);
     bodyBB->seal();
 
@@ -385,7 +359,7 @@ void DoWhileStmt::emit(CodeGen& cg) const {
     cg.fixto(condBB);
     condBB->seal();
     cg.curBB = condBB;
-    const Def* c = cond()->remit(cg);
+    const Def* c = cond()->emit(cg)->load();
     condBB->branch(c, critBB, nextBB);
     critBB->seal();
     cg.curBB = critBB;
@@ -414,7 +388,7 @@ void ForStmt::emit(CodeGen& cg) const {
     cg.curBB = headBB;
 
     // condition
-    const Def* c = cond()->remit(cg);
+    const Def* c = cond()->emit(cg)->load();
     headBB->branch(c, bodyBB, nextBB);
     bodyBB->seal();
 
@@ -426,7 +400,7 @@ void ForStmt::emit(CodeGen& cg) const {
 
     // step
     cg.curBB = stepBB;
-    step()->remit(cg);
+    step()->emit(cg);
     cg.fixto(headBB);
     headBB->seal();
 
@@ -446,7 +420,7 @@ void ReturnStmt::emit(CodeGen& cg) const {
         Array<const Def*> ops = call->emit_ops(cg);
         cg.curBB->return_call(ops[0], ops.slice_back(1));
     } else {
-        const Def* def = expr()->remit(cg);
+        const Def* def = expr()->emit(cg)->load();
         cg.curBB->insert(anydsl::Symbol("<result>"), def);
         cg.curBB->jump(cg.curFct->exit());
     }

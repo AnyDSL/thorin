@@ -43,14 +43,7 @@ private:
 };
 
 
-class Ref {
-public:
-
-    virtual const Def* load() const = 0;
-    virtual void store(const Def* def) = 0;
-};
-
-class Var : public Ref {
+class Var {
 public:
 
     Var() {}

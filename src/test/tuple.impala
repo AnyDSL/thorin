@@ -1,6 +1,4 @@
-def foo(i : int) -> int {
-    test : sigma(int, bool);
-    j : int := 24;
-    k : int := j++;
-    return k;
+def foo(s : sigma(int, bool)) -> int {
+    s[0]++;
+    return s[0];
 }

@@ -68,9 +68,7 @@ size_t TupleOp::hash() const {
 
 Extract::Extract(const Def* tuple, u32 index)
     : TupleOp(Node_Extract, tuple->type()->as<Sigma>()->elem(index), 1, tuple, index)
-{
-    setOp(0, tuple);
-}
+{}
 
 //------------------------------------------------------------------------------
 

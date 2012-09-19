@@ -72,7 +72,9 @@ LambdaSet Lambda::preds() const {
     return result;
 }
 
-void Lambda::close() {
+void Lambda::close(size_t gid) {
+    gid_ = gid;
+
     LambdaSet targets, hos;
 
     find_lambdas(to(), targets);

@@ -245,7 +245,7 @@ private:
     void uce_insert(const Lambda* lambda);
 
     DefSet defs_;
-
+    size_t gid_counter_;
     const Sigma* sigma0_;///< sigma().
     const Pi* pi0_;      ///< pi().
 

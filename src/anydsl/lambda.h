@@ -36,7 +36,7 @@ public:
     bool is_first_order() const;
     bool is_higher_order() const;
 
-    void close();
+    void close(size_t gid);
 
     Lambdas targets() const { return adjacencies_.slice_front(hos_begin_); }
     Lambdas hos()     const { return adjacencies_.slice_back(hos_begin_); }
@@ -50,10 +50,16 @@ public:
     const Pi* pi() const;
     const Pi* to_pi() const;
     uint32_t flags() const { return flags_; }
+    size_t gid() const { return gid_; }
 
     void dump(bool fancy = false, int indent = 0) const;
 
     bool is_extern() const { return flags_ & Extern; }
+
+    mutable size_t lid; ///< local index
+    bool lid_valid() const { return lid != size_t(-1); }
+    bool lid_invalid() const { return lid == size_t(-1); }
+    void invalidate_lid() const { lid = size_t(-1); }
 
 private:
 
@@ -70,6 +76,7 @@ private:
     /// targets -- lambda arguments -- callers
     Array<const Lambda*> adjacencies_;
     size_t hos_begin_;
+    size_t gid_; ///< global index
 
     friend class World;
     friend class Param;

@@ -33,6 +33,7 @@ namespace anydsl {
 
 World::World()
     : defs_(1031)
+    , gid_counter_(0)
     , sigma0_ (find(new Sigma(*this, ArrayRef<const Type*>(0, 0)))->as<Sigma>())
     , pi0_  (find(new Pi   (*this, ArrayRef<const Type*>(0, 0)))->as<Pi>())
 #define ANYDSL_UF_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T))->as<PrimType>())
@@ -335,9 +336,12 @@ const Def* World::extract(const Def* agg, u32 index) {
     if (const Tuple* tuple = agg->isa<Tuple>())
         return tuple->op(index);
 
-    if (const Insert* insert = agg->isa<Insert>())
+    if (const Insert* insert = agg->isa<Insert>()) {
         if (index == insert->index())
             return insert->value();
+        else
+            return extract(insert->tuple(), index);
+    }
 
     return find(new Extract(agg, index));
 }
@@ -384,7 +388,7 @@ void World::jump(Lambda* lambda, const Def* to, ArrayRef<const Def*> args) {
     for_all (arg, args)
         lambda->setOp(x++, arg);
 
-    lambda->close();
+    lambda->close(gid_counter_++);
 
     find(lambda);
 }

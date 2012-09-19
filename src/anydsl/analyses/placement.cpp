@@ -32,6 +32,7 @@ void insert(Done& done, std::vector<const PrimOp*>& primops, const Def* def) {
                     if (const Literal* lit = op->isa<Literal>())
                         primops.push_back(lit);
 
+                primop->dump();
                 primops.push_back(primop);
             }
         }

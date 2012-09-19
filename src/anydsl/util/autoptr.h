@@ -13,6 +13,8 @@ public:
         : ptr_(ptr)
     {}
     ~AutoPtr() { delete ptr_; }
+    //AutoPtr(const AutoPtr<T>&)
+        //: ptr_(
 
     void release() {
         delete ptr_;
@@ -31,7 +33,6 @@ public:
 private:
 
     // forbid copy constructor and standard assignment operator
-    AutoPtr(const AutoPtr<T>&);
     AutoPtr<T>& operator = (const AutoPtr<T>&);
 
     T* ptr_;

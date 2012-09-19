@@ -98,7 +98,7 @@ DomTree DomBuilder::build() {
         changed = false;
 
         // for all lambdas in reverse post-order except start node
-        for (size_t i = num() - 2; i != size_t(-1); --i) {
+        for (size_t i = num() - 1; i-- != 0;) {
             DomNode* cur = index2node[i];
 
             // for all predecessors of cur

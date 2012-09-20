@@ -4,6 +4,7 @@
 #include <boost/unordered_set.hpp>
 
 #include "anydsl/util/array.h"
+#include "anydsl/analyses/scope.h"
 
 namespace anydsl {
 
@@ -71,6 +72,19 @@ private:
     const Scope& scope_;
     Array<const DomNode*> bfs_;
     Array<DomNode*> nodes_;
+};
+
+class ScopeTree : public Scope, public DomTree {
+public:
+
+    ScopeTree(const Lambda* entry)
+        : Scope(entry)
+        , DomTree(*static_cast<Scope*>(this))
+    {}
+
+    size_t size() const { return Scope::size(); }
+    const Lambda* entry() const { return Scope::entry(); }
+    const DomNode* entry_node() const { return DomTree::entry(); }
 };
 
 } // namespace anydsl

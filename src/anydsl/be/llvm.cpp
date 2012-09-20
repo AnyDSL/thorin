@@ -104,8 +104,7 @@ void CodeGen::emit() {
         }
 
         const Param* ret_param = lambda->higher_order_params().front();
-        Scope scope(lambda);
-        DomTree domtree(scope);
+        ScopeTree scope(lambda);
         BBMap bbs(scope.size());
 
         // map all bb-like lambdas to llvm bb stubs and create phi node stubs (for all nodes except entry)
@@ -128,7 +127,7 @@ void CodeGen::emit() {
             }
         }
 
-        Array< std::vector<const PrimOp*> > places = place(domtree);
+        Array< std::vector<const PrimOp*> > places = place(scope);
 
         // emit body for each bb
         for_all (lambda, scope.rpo()) {

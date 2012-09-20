@@ -59,7 +59,7 @@ public:
     const DomNode* node(size_t sid) const { return nodes_[sid]; }
     const DomNode* node(const Lambda* lambda) const;
     const DomNode* bfs(size_t i) const { return bfs_[i]; }
-
+    int depth(const Lambda* lambda) const { return node(lambda)->depth(); }
     bool dominates(const DomNode* a, const DomNode* b);
     bool strictly_dominates(const DomNode* a, const DomNode* b) { return a != b && dominates(a, b); }
 

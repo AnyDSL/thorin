@@ -549,7 +549,7 @@ void World::dump(bool fancy) {
         ScopeTree scope(root);
 
         for_all (lambda, scope.rpo()) {
-            int indent = scope.node(lambda)->depth();
+            int indent = scope.depth(lambda);
             lambda->dump(fancy, indent);
         }
     }

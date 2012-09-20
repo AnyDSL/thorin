@@ -51,7 +51,7 @@ void DomTree::create() {
 
             // for all predecessors of cur
             DomNode* new_idom = 0;
-            for_all (pred, scope_.preds(lambda)) {
+            for_all (pred, scope().preds(lambda)) {
                 if (DomNode* other_idom = lookup(pred)->idom_) {
                     if (!new_idom)
                         new_idom = lookup(pred);// pick first processed predecessor of cur

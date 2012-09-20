@@ -52,15 +52,15 @@ public:
     const Pi* to_pi() const;
     uint32_t flags() const { return flags_; }
     size_t gid() const { return gid_; }
+    size_t sid() const { return sid_; }
 
     void dump(bool fancy = false, int indent = 0) const;
 
     bool is_extern() const { return flags_ & Extern; }
 
-    mutable size_t sid; ///< local index
-    bool sid_valid() const { return sid != size_t(-1); }
-    bool sid_invalid() const { return sid == size_t(-1); }
-    void invalidate_sid() const { sid = size_t(-1); }
+    bool sid_valid() const { return sid_ != size_t(-1); }
+    bool sid_invalid() const { return sid_ == size_t(-1); }
+    void invalidate_sid() const { sid_ = size_t(-1); }
 
 private:
 
@@ -77,10 +77,12 @@ private:
     /// targets -- lambda arguments -- callers
     Array<const Lambda*> adjacencies_;
     size_t hos_begin_;
-    size_t gid_; ///< global index
+    size_t gid_;        ///< global index
+    mutable size_t sid_; ///< scope index
 
     friend class World;
     friend class Param;
+    friend size_t number(const LambdaSet& lambdas, const Lambda* cur, size_t i);
 };
 
 } // namespace anydsl

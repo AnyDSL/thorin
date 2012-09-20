@@ -18,7 +18,7 @@ public:
 
     typedef Array<const Lambda*> Lambdas;
 
-    Scope(const Lambda* entry);
+    explicit Scope(const Lambda* entry);
 
     bool contains(const Lambda* lambda) const { return lambdas_.find(lambda) != lambdas_.end(); }
     const LambdaSet& lambdas() const { return lambdas_; }

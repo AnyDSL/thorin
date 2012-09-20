@@ -49,13 +49,13 @@ Places place(const DomTree& tree) {
     for (size_t i = tree.size() - 1; i != size_t(-1); --i) {
         const DomNode* node = tree.bfs(i);
         for_all (param, node->lambda()->params())
-            insert(done, places[node->index()], param);
+            insert(done, places[node->sid()], param);
     }
 
     // now check all primops which we might have missed because they not depend on params
     for_all (node, tree.bfs())
         for_all (arg, node->lambda()->args())
-            insert(done, places[node->index()], arg);
+            insert(done, places[node->sid()], arg);
 
     return places;
 }

@@ -3,6 +3,7 @@
 
 #include <boost/unordered_set.hpp>
 
+#include "anydsl/lambda.h"
 #include "anydsl/util/array.h"
 
 namespace anydsl {
@@ -20,36 +21,44 @@ class DomNode {
 public:
 
     DomNode(const Lambda* lambda);
-    ~DomNode();
 
     const Lambda* lambda() const { return lambda_; }
     /// Returns post-order number of lambda in scope.
-    size_t index() const { return index_; }
     const DomNode* idom() const { return idom_; }
     const DomNodes& children() const { return children_; }
     bool entry() const { return idom_ == this; }
     int depth() const;
+    size_t sid() const { return lambda()->sid(); }
+
 
 private:
 
     const Lambda* lambda_;
     DomNode* idom_;
-    size_t index_;
     DomNodes children_;
 
-    friend class DomBuilder;
+    friend class DomTree;
 };
 
 class DomTree {
 public:
 
-    DomTree(size_t size, const DomNode* root);
-    DomTree(const DomTree& tree) : size_(0), root_(0), bfs_(0) { ANYDSL_UNREACHABLE; }
-    ~DomTree() { delete root_; }
+    explicit DomTree(const Scope& scope)
+        : scope_(scope)
+        , bfs_(size())
+        , nodes_(size())
+    {
+        create();
+    }
+    ~DomTree();
 
-    const DomNode* root() const { return root_; }
-    size_t size() const { return size_; }
+    const Scope& scope() const { return scope_; }
+    const DomNode* entry() const;
+    size_t size() const;
     ArrayRef<const DomNode*> bfs() const { return bfs_; }
+    ArrayRef<const DomNode*> nodes() const { return ArrayRef<const DomNode*>(nodes_.begin(), nodes_.size()); }
+    const DomNode* node(size_t sid) const { return nodes_[sid]; }
+    const DomNode* node_(const Lambda* lambda) const { return nodes_[lambda->sid()]; }
     const DomNode* bfs(size_t i) const { return bfs_[i]; }
 
     bool dominates(const DomNode* a, const DomNode* b);
@@ -57,12 +66,14 @@ public:
 
 private:
 
-    size_t size_;
-    const DomNode* root_;
-    Array<const DomNode*> bfs_;
-};
+    void create();
+    DomNode* node(const Lambda* lambda) { return nodes_[lambda->sid()]; }
+    DomNode* intersect(DomNode* i, DomNode* j);
 
-DomTree calc_domtree(const Scope& scope);
+    const Scope& scope_;
+    Array<const DomNode*> bfs_;
+    Array<DomNode*> nodes_;
+};
 
 } // namespace anydsl
 

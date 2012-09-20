@@ -81,22 +81,6 @@ CodeGen::CodeGen(const World& world)
 void CodeGen::emit() {
     LambdaSet roots = find_root_lambdas(world_.lambdas());
 
-    for_all (l, roots) {
-        Scope s(l);
-        for_all (l, s.rpo()) {
-            std::cout << l->debug << std::endl;
-            std::cout << "\tpreds:" << std::endl;
-
-            for_all (pred, s.preds(l))
-                std::cout << "\t\t" << pred->debug << std::endl;
-
-            for_all (succ, s.succs(l))
-                std::cout << "\t\t" << succ->debug << std::endl;
-        }
-
-        std::cout << "---" << std::endl;
-    }
-
     FctMap fcts;
 
     // map all root-level lambdas to llvm function stubs
@@ -120,7 +104,8 @@ void CodeGen::emit() {
         }
 
         const Param* ret_param = lambda->higher_order_params().front();
-        DomTree domtree = calc_domtree(lambda);
+        Scope scope(lambda);
+        DomTree domtree(scope);
         BBMap bbs;
 
         // map all bb-like lambdas to llvm bb stubs
@@ -151,7 +136,7 @@ void CodeGen::emit() {
         for_all (node, domtree.bfs()) {
             const Lambda* lambda = node->lambda();
             builder_.SetInsertPoint(bbs[node->lambda()]);
-            std::vector<const PrimOp*> primops = places[node->index()];
+            std::vector<const PrimOp*> primops = places[node->sid()];
 
             for_all (primop, primops)
                 if (!primop->type()->isa<Pi>()) // don't touch higher-order primops

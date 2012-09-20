@@ -547,15 +547,11 @@ void World::dump(bool fancy) {
 
     for_all (root, roots) {
         Scope scope(root);
-        DomTree domtree = calc_domtree(scope);
+        DomTree domtree(scope);
 
-        for_all (node, domtree.bfs()) {
-            int indent = 0;
-
-            for (const DomNode* i = node; i != i->idom(); i = i->idom()) 
-                ++indent;
-
-            node->lambda()->dump(fancy, indent);
+        for_all (lambda, domtree.scope().rpo()) {
+            int indent = domtree.node_(lambda)->depth();
+            lambda->dump(fancy, indent);
         }
     }
 

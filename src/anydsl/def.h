@@ -176,14 +176,6 @@ public:
     /// Just do what ever you want with this field.
     mutable std::string debug;
 
-    union Scratch {
-        size_t index;
-        int    i;
-        void*  ptr;
-        bool   marker;
-
-    };
-
     /** 
      * Use this field in order to annotate information on this Def.
      * Various analyses have to memorize different stuff temporally.
@@ -196,15 +188,15 @@ public:
      *      of your pass/analysis.
      * }
      */
-    mutable Scratch scratch;
+    mutable void* ptr;
 
     /*
      * scratch operations
      */
 
-    void mark() const { scratch.marker = true; }
-    void unmark() const { scratch.marker = false; }
-    bool is_marked() const { return scratch.marker; }
+    void mark() const { marker_ = true; }
+    void unmark() const { marker_ = false; }
+    bool is_marked() const { return marker_; }
 
 private:
 
@@ -212,6 +204,7 @@ private:
     const Type* type_;
     Array<const Def*> ops_;
     mutable Uses uses_;
+    mutable bool marker_;
 
     friend class World;
     friend class DefHash;

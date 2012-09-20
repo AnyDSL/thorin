@@ -43,9 +43,9 @@ static void walk_up(LambdaSet& scope, const Lambda* lambda) {
         walk_up(scope, pred);
 }
 
-static size_t number(const LambdaSet& lambdas, const Lambda* cur, size_t i) {
+size_t number(const LambdaSet& lambdas, const Lambda* cur, size_t i) {
     // mark as visited
-    cur->sid = 0;
+    cur->sid_ = 0;
 
     // for each successor in scope
     for_all (succ, cur->succs()) {
@@ -53,7 +53,7 @@ static size_t number(const LambdaSet& lambdas, const Lambda* cur, size_t i) {
             i = number(lambdas, succ, i);
     }
 
-    cur->sid = i;
+    cur->sid_ = i;
 
     return i - 1;
 }
@@ -74,7 +74,7 @@ Scope::Scope(const Lambda* entry)
 #endif
 
     for_all (lambda, lambdas_) {
-        size_t sid = lambda->sid;
+        size_t sid = lambda->sid();
         rpo_[sid] = lambda;
 
         {
@@ -104,12 +104,12 @@ Scope::Scope(const Lambda* entry)
 
 const Scope::Lambdas& Scope::preds(const Lambda* lambda) const {
     assert(contains(lambda)); 
-    return preds_[lambda->sid]; 
+    return preds_[lambda->sid()]; 
 }
 
 const Scope::Lambdas& Scope::succs(const Lambda* lambda) const {
     assert(contains(lambda)); 
-    return succs_[lambda->sid]; 
+    return succs_[lambda->sid()]; 
 }
 
 } // namespace anydsl

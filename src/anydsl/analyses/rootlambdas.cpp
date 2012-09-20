@@ -6,7 +6,7 @@
 
 namespace anydsl {
 
-static inline LambdaSet* depends(const Lambda* lambda) { return (LambdaSet*) lambda->scratch.ptr; }
+static inline LambdaSet* depends(const Lambda* lambda) { return (LambdaSet*) lambda->ptr; }
 
 static void depends(const Def* def, LambdaSet* dep) {
     if (const Param* param = def->isa<Param>())
@@ -31,7 +31,7 @@ LambdaSet find_root_lambdas(const LambdaSet& lambdas) {
         for_all (op, lambda->ops())
             depends(op, dep);
 
-        lambda->scratch.ptr = dep;
+        lambda->ptr = dep;
         queue.push(lambda);
         inqueue.insert(lambda);
     }

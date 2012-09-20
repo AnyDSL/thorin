@@ -25,6 +25,8 @@ int DomNode::depth() const {
     return result;
 };
 
+size_t DomNode::sid() const { return lambda()->sid(); }
+
 //------------------------------------------------------------------------------
 
 DomTree::~DomTree() {
@@ -37,7 +39,7 @@ void DomTree::create() {
         nodes_[lambda->sid()] = new DomNode(lambda);
 
     // map entry to entry, all other are set to 0 by the Array constructor
-    DomNode* entry_node = node(scope_.entry());
+    DomNode* entry_node = lookup(scope_.entry());
     entry_node->idom_ = entry_node;
 
     for (bool changed = true; changed;) {
@@ -45,14 +47,14 @@ void DomTree::create() {
 
         // for all lambdas in reverse post-order except entry node
         for_all (lambda, scope_.rpo().slice_back(1)) {
-            DomNode* cur = node(lambda);
+            DomNode* cur = lookup(lambda);
 
             // for all predecessors of cur
             DomNode* new_idom = 0;
             for_all (pred, scope_.preds(lambda)) {
-                if (DomNode* other_idom = node(pred)->idom_) {
+                if (DomNode* other_idom = lookup(pred)->idom_) {
                     if (!new_idom)
-                        new_idom = node(pred);// pick first processed predecessor of cur
+                        new_idom = lookup(pred);// pick first processed predecessor of cur
                     else
                         new_idom = intersect(other_idom, new_idom);
                 }
@@ -69,7 +71,7 @@ void DomTree::create() {
 
     // add children -- thus iterate over all nodes except entry
     for_all (lambda, scope_.rpo().slice_back(1)) {
-        const DomNode* n = node(lambda);
+        const DomNode* n = lookup(lambda);
         n->idom_->children_.push_back(n);
     }
 
@@ -100,8 +102,10 @@ DomNode* DomTree::intersect(DomNode* i, DomNode* j) {
     return i;
 }
 
+const DomNode* DomTree::node(const Lambda* lambda) const { return nodes_[lambda->sid()]; }
+DomNode* DomTree::lookup(const Lambda* lambda) { return nodes_[lambda->sid()]; }
 size_t DomTree::size() const { return scope_.size(); }
-const DomNode* DomTree::entry() const { return node_(scope_.entry()); }
+const DomNode* DomTree::entry() const { return node(scope_.entry()); }
 
 bool DomTree::dominates(const DomNode* a, const DomNode* b) {
     while (a != b && !b->entry()) 

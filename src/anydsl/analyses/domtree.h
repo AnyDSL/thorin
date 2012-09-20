@@ -3,7 +3,6 @@
 
 #include <boost/unordered_set.hpp>
 
-#include "anydsl/lambda.h"
 #include "anydsl/util/array.h"
 
 namespace anydsl {
@@ -28,8 +27,7 @@ public:
     const DomNodes& children() const { return children_; }
     bool entry() const { return idom_ == this; }
     int depth() const;
-    size_t sid() const { return lambda()->sid(); }
-
+    size_t sid() const;
 
 private:
 
@@ -58,7 +56,7 @@ public:
     ArrayRef<const DomNode*> bfs() const { return bfs_; }
     ArrayRef<const DomNode*> nodes() const { return ArrayRef<const DomNode*>(nodes_.begin(), nodes_.size()); }
     const DomNode* node(size_t sid) const { return nodes_[sid]; }
-    const DomNode* node_(const Lambda* lambda) const { return nodes_[lambda->sid()]; }
+    const DomNode* node(const Lambda* lambda) const;
     const DomNode* bfs(size_t i) const { return bfs_[i]; }
 
     bool dominates(const DomNode* a, const DomNode* b);
@@ -67,7 +65,7 @@ public:
 private:
 
     void create();
-    DomNode* node(const Lambda* lambda) { return nodes_[lambda->sid()]; }
+    DomNode* lookup(const Lambda* lambda);
     DomNode* intersect(DomNode* i, DomNode* j);
 
     const Scope& scope_;

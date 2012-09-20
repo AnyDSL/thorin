@@ -550,7 +550,7 @@ void World::dump(bool fancy) {
         DomTree domtree(scope);
 
         for_all (lambda, domtree.scope().rpo()) {
-            int indent = domtree.node_(lambda)->depth();
+            int indent = domtree.node(lambda)->depth();
             lambda->dump(fancy, indent);
         }
     }

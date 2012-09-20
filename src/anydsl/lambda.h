@@ -54,6 +54,14 @@ public:
     size_t gid() const { return gid_; }
     size_t sid() const { return sid_; }
 
+    /**
+     * Is this Lambda part of a call-lambda-cascade? <br>
+     * @code
+lambda(...) jump (foo, [..., lambda(...) ..., ...]
+     * @endcode
+     */
+    bool is_cascading() const;
+
     void dump(bool fancy = false, int indent = 0) const;
 
     bool is_extern() const { return flags_ & Extern; }

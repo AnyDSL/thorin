@@ -122,6 +122,14 @@ Array<const Def*> Lambda::classify_args() const {
     return res;
 }
 
+bool Lambda::is_cascading() const {
+    if (uses().size() != 1)
+        return false;
+
+    Use use = *uses().begin();
+    return !use.def()->isa<Lambda>() || !use.index() > 0;
+}
+
 Array<const Param*> Lambda::first_order_params() const { return classify_params<true>(); }
 Array<const Param*> Lambda::higher_order_params() const { return classify_params<false>(); }
 Array<const Def*> Lambda::first_order_args() const { return classify_args<true>(); }

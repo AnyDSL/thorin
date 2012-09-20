@@ -107,31 +107,24 @@ void CodeGen::emit() {
         ScopeTree scope(lambda);
         BBMap bbs(scope.size());
 
-        // map all bb-like lambdas to llvm bb stubs and create phi node stubs (for all nodes except entry)
-        for_all (lambda, scope.rpo()) {
+        // map all bb-like lambdas to llvm bb stubs 
+        for_all (lambda, scope.rpo())
             bbs[lambda->sid()] = llvm::BasicBlock::Create(context_, lambda->debug, fct);
-
-            if (lambda != scope.entry()) {
-                // deal with special call-lambda-cascade:
-                // lambda(...) jump (foo, [..., lambda(...) ..., ...]
-                if (lambda->uses().size() == 1) {
-                    Use use = *lambda->uses().begin();
-                    if (use.def()->isa<Lambda>() && use.index() > 0)
-                        continue;// do not register a phi; see also case 1c) in 'terminate bb' below
-                }
-
-                builder_.SetInsertPoint(bbs[lambda->sid()]);
-
-                for_all (param, lambda->params())
-                    phis_[param] = builder_.CreatePHI(convert(param->type()), param->phi().size(), param->debug);
-            }
-        }
 
         Array< std::vector<const PrimOp*> > places = place(scope);
 
         // emit body for each bb
         for_all (lambda, scope.rpo()) {
             builder_.SetInsertPoint(bbs[lambda->sid()]);
+
+            // create phi node stubs (for all non-cascading lambdas different from entry)
+            if (lambda != scope.entry()) {
+                if (!lambda->is_cascading()) {
+                    for_all (param, lambda->params())
+                        phis_[param] = builder_.CreatePHI(convert(param->type()), param->phi().size(), param->debug);
+                }
+            }
+
             std::vector<const PrimOp*> primops = places[lambda->sid()];
 
             for_all (primop, primops)

@@ -11,6 +11,7 @@
 #include "anydsl/type.h"
 #include "anydsl/analyses/domtree.h"
 #include "anydsl/analyses/rootlambdas.h"
+#include "anydsl/analyses/scope.h"
 #include "anydsl/util/array.h"
 #include "anydsl/util/for_all.h"
 
@@ -545,7 +546,8 @@ void World::dump(bool fancy) {
     LambdaSet roots = find_root_lambdas(lambdas());
 
     for_all (root, roots) {
-        DomTree domtree = calc_domtree(root);
+        Scope scope(root);
+        DomTree domtree = calc_domtree(scope);
 
         for_all (node, domtree.bfs()) {
             int indent = 0;

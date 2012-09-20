@@ -58,59 +58,47 @@ bool DomTree::dominates(const DomNode* a, const DomNode* b) {
 class DomBuilder {
 public:
 
-    DomBuilder(const Lambda* entry, const LambdaSet& scope)
-        : entry(entry)
-        , scope(scope)
+    DomBuilder(const Scope& scope)
+        : scope(scope)
         , index2node(scope.size())
-    {
-        anydsl_assert(contains(entry), "entry not contained in scope");
-    }
+    {}
 
-
-    size_t num() const { return index2node.size(); }
-    bool contains(const Lambda* lambda) { return scope.find(lambda) != scope.end(); }
+    size_t size() const { return scope.size(); }
     static DomNode* node(const Lambda* lambda) { return (DomNode*) lambda->scratch.ptr; }
 
     DomTree build();
     DomNode* intersect(DomNode* i, DomNode* j);
     size_t number(const Lambda* cur, size_t i);
 
-    const Lambda* entry;
-    const LambdaSet& scope;
+    const Scope& scope;
     Array<DomNode*> index2node;
 };
 
 DomTree DomBuilder::build() {
-    // mark all nodes as unnumbered
-    for_all (lambda, scope)
-        lambda->scratch.ptr = 0;
-
-    // mark all nodes in post-order
-    size_t num2 = number(entry, 0);
-    DomNode* entry_node = node(entry);
-    anydsl_assert(num2 == num(), "bug in numbering -- maybe scope contains unreachable blocks?");
-    anydsl_assert(num() - 1 == entry_node->index(), "bug in numbering");
+    for_all (lambda, scope.rpo()) {
+        index2node[lambda->sid] = new DomNode(lambda);
+        index2node[lambda->sid]->index_ = lambda->sid;
+    }
 
     // map entry to entry, all other are set to 0 by the DomNode constructor
+    DomNode* entry_node = (DomNode*) scope.entry()->scratch.ptr;
     entry_node->idom_ = entry_node;
 
     for (bool changed = true; changed;) {
         changed = false;
 
         // for all lambdas in reverse post-order except start node
-        for (size_t i = num() - 1; i-- != 0;) {
-            DomNode* cur = index2node[i];
+        for_all (lambda, scope.rpo().slice_back(1)) {
+            DomNode* cur = index2node[lambda->sid];
 
             // for all predecessors of cur
             DomNode* new_idom = 0;
-            for_all (pred, cur->lambda()->preds()) {
-                if (contains(pred)) {
-                    if (DomNode* other_idom = node(pred)->idom_) {
-                        if (!new_idom)
-                            new_idom = node(pred);// pick first processed predecessor of cur
-                        else
-                            new_idom = intersect(other_idom, new_idom);
-                    }
+            for_all (pred, scope.preds(cur->lambda())) {
+                if (DomNode* other_idom = node(pred)->idom_) {
+                    if (!new_idom)
+                        new_idom = node(pred);// pick first processed predecessor of cur
+                    else
+                        new_idom = intersect(other_idom, new_idom);
                 }
             }
 
@@ -124,35 +112,20 @@ DomTree DomBuilder::build() {
     }
 
     // add children -- thus iterate over all nodes except entry
-    for (size_t i = 0, e = num() - 1; i != e; ++i) {
-        const DomNode* node = index2node[i];
+    for_all (lambda, scope.rpo().slice_back(1)) {
+        const DomNode* node = index2node[lambda->sid];
         node->idom_->children_.push_back(node);
     }
 
-    return DomTree(num(), entry_node);
-}
-
-size_t DomBuilder::number(const Lambda* cur, size_t i) {
-    DomNode* node = new DomNode(cur);
-
-    // for each successor in scope
-    for_all (succ, cur->succs()) {
-        if (contains(succ) && !succ->scratch.ptr)
-            i = number(succ, i);
-    }
-
-    node->index_ = i;
-    index2node[i] = node;
-
-    return i + 1;
+    return DomTree(size(), entry_node);
 }
 
 DomNode* DomBuilder::intersect(DomNode* i, DomNode* j) {
     while (i->index() != j->index()) {
         while (i->index() < j->index()) 
-            i = i->idom_;
-        while (j->index() < i->index()) 
             j = j->idom_;
+        while (j->index() < i->index()) 
+            i = i->idom_;
     }
 
     return i;
@@ -160,15 +133,19 @@ DomNode* DomBuilder::intersect(DomNode* i, DomNode* j) {
 
 //------------------------------------------------------------------------------
 
-DomTree calc_domtree(const Lambda* entry) {
-    LambdaSet scope = find_scope(entry);
-    return calc_domtree(entry, scope);
-}
-
-DomTree calc_domtree(const Lambda* entry, const LambdaSet& scope) {
-    DomBuilder builder(entry, scope);
+DomTree calc_domtree(const Scope& scope) {
+    DomBuilder builder(scope);
     return builder.build();
 }
+
+int DomNode::depth() const {
+    int result = 0;
+
+    for (const DomNode* i = this; !i->entry(); i = i->idom())
+        ++result;
+
+    return result;
+};
 
 //------------------------------------------------------------------------------
 

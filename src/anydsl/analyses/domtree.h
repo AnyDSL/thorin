@@ -10,6 +10,7 @@ namespace anydsl {
 class DomNode;
 class Def;
 class Lambda;
+class Scope;
 class World;
 
 typedef boost::unordered_set<const Lambda*> LambdaSet;
@@ -27,6 +28,7 @@ public:
     const DomNode* idom() const { return idom_; }
     const DomNodes& children() const { return children_; }
     bool entry() const { return idom_ == this; }
+    int depth() const;
 
 private:
 
@@ -60,8 +62,7 @@ private:
     Array<const DomNode*> bfs_;
 };
 
-DomTree calc_domtree(const Lambda* entry, const LambdaSet& scope);
-DomTree calc_domtree(const Lambda* entry);
+DomTree calc_domtree(const Scope& scope);
 
 } // namespace anydsl
 

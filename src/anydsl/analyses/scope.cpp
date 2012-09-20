@@ -67,7 +67,11 @@ Scope::Scope(const Lambda* entry)
     for_all (lambda, lambdas_)
         lambda->invalidate_sid();
 
+#ifdef DEBUG
+    anydsl_assert(number(lambdas_, entry, size() - 1) == size_t(-1), "bug in numbering");
+#else
     number(lambdas_, entry, size() - 1);
+#endif
 
     for_all (lambda, lambdas_) {
         size_t sid = lambda->sid;
@@ -94,9 +98,18 @@ Scope::Scope(const Lambda* entry)
             preds.shrink(i);
         }
     }
+
+    anydsl_assert(rpo_[0] == entry, "bug in numbering");
 }
 
-const Scope::Lambdas& Scope::preds(const Lambda* lambda) { return preds_[lambda->sid]; }
-const Scope::Lambdas& Scope::succs(const Lambda* lambda) { return succs_[lambda->sid]; }
+const Scope::Lambdas& Scope::preds(const Lambda* lambda) const {
+    assert(contains(lambda)); 
+    return preds_[lambda->sid]; 
+}
+
+const Scope::Lambdas& Scope::succs(const Lambda* lambda) const {
+    assert(contains(lambda)); 
+    return succs_[lambda->sid]; 
+}
 
 } // namespace anydsl

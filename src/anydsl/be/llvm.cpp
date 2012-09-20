@@ -40,10 +40,10 @@ template<class T> llvm::ArrayRef<T> llvm_ref(const Array<T>& array) {
 //------------------------------------------------------------------------------
 
 typedef boost::unordered_map<const Lambda*, llvm::Function*> FctMap;
-typedef boost::unordered_map<const Lambda*, llvm::BasicBlock*> BBMap;
 typedef boost::unordered_map<const Param*, llvm::Value*> ParamMap;
 typedef boost::unordered_map<const Param*, llvm::PHINode*> PhiMap;
 typedef boost::unordered_map<const PrimOp*, llvm::Value*> PrimOpMap;
+typedef Array<llvm::BasicBlock*> BBMap;
 
 //------------------------------------------------------------------------------
 
@@ -106,37 +106,34 @@ void CodeGen::emit() {
         const Param* ret_param = lambda->higher_order_params().front();
         Scope scope(lambda);
         DomTree domtree(scope);
-        BBMap bbs;
+        BBMap bbs(scope.size());
 
-        // map all bb-like lambdas to llvm bb stubs
-        for_all (node, domtree.bfs())
-            bbs[node->lambda()] = llvm::BasicBlock::Create(context_, node->lambda()->debug, fct);
+        // map all bb-like lambdas to llvm bb stubs and create phi node stubs (for all nodes except entry)
+        for_all (lambda, scope.rpo()) {
+            bbs[lambda->sid()] = llvm::BasicBlock::Create(context_, lambda->debug, fct);
 
-        // create phi node stubs (for all nodes except entry)
-        for_all (node, domtree.bfs().slice_back(1)) {
-            const Lambda* lambda = node->lambda();
+            if (lambda != scope.entry()) {
+                // deal with special call-lambda-cascade:
+                // lambda(...) jump (foo, [..., lambda(...) ..., ...]
+                if (lambda->uses().size() == 1) {
+                    Use use = *lambda->uses().begin();
+                    if (use.def()->isa<Lambda>() && use.index() > 0)
+                        continue;// do not register a phi; see also case 1c) in 'terminate bb' below
+                }
 
-            // deal with special call-lambda-cascade:
-            // lambda(...) jump (foo, [..., lambda(...) ..., ...]
-            if (lambda->uses().size() == 1) {
-                Use use = *lambda->uses().begin();
-                if (use.def()->isa<Lambda>() && use.index() > 0)
-                    continue;// do not register a phi; see also case 1c) in 'terminate bb' below
+                builder_.SetInsertPoint(bbs[lambda->sid()]);
+
+                for_all (param, lambda->params())
+                    phis_[param] = builder_.CreatePHI(convert(param->type()), param->phi().size(), param->debug);
             }
-
-            builder_.SetInsertPoint(bbs[lambda]);
-
-            for_all (param, node->lambda()->params())
-                phis_[param] = builder_.CreatePHI(convert(param->type()), param->phi().size(), param->debug);
         }
 
         Array< std::vector<const PrimOp*> > places = place(domtree);
 
         // emit body for each bb
-        for_all (node, domtree.bfs()) {
-            const Lambda* lambda = node->lambda();
-            builder_.SetInsertPoint(bbs[node->lambda()]);
-            std::vector<const PrimOp*> primops = places[node->sid()];
+        for_all (lambda, scope.rpo()) {
+            builder_.SetInsertPoint(bbs[lambda->sid()]);
+            std::vector<const PrimOp*> primops = places[lambda->sid()];
 
             for_all (primop, primops)
                 if (!primop->type()->isa<Pi>()) // don't touch higher-order primops
@@ -153,7 +150,7 @@ void CodeGen::emit() {
                 const Lambda* tolambda = lambda->to()->as<Lambda>();
 
                 if (tolambda->is_first_order())     // case a) ordinary jump
-                    builder_.CreateBr(bbs[tolambda]);
+                    builder_.CreateBr(bbs[tolambda->sid()]);
                 else {
                     // put all first-order args into an array
                     Array<llvm::Value*> args(lambda->args().size() - 1);
@@ -166,15 +163,15 @@ void CodeGen::emit() {
                     else {                          // case c) call + continuation
                         const Lambda* succ = ho_arg->as<Lambda>();
                         params_[succ->param(0)] = call;
-                        builder_.CreateBr(bbs[succ]);
+                        builder_.CreateBr(bbs[succ->sid()]);
                     }
                 }
             } else {                        // case 2: branch
                 assert(num_targets == 2);
                 const Select* select = lambda->to()->as<Select>();
                 llvm::Value* cond = lookup(select->cond());
-                llvm::BasicBlock* tbb = bbs[select->tval()->as<Lambda>()];
-                llvm::BasicBlock* fbb = bbs[select->fval()->as<Lambda>()];
+                llvm::BasicBlock* tbb = bbs[select->tval()->as<Lambda>()->sid()];
+                llvm::BasicBlock* fbb = bbs[select->fval()->as<Lambda>()->sid()];
                 builder_.CreateCondBr(cond, tbb, fbb);
             }
         }
@@ -185,7 +182,7 @@ void CodeGen::emit() {
             llvm::PHINode* phi = p.second;
 
             for_all (op, param->phi())
-                phi->addIncoming(lookup(op.def()), bbs[op.from()]);
+                phi->addIncoming(lookup(op.def()), bbs[op.from()->sid()]);
         }
 
         params_.clear();

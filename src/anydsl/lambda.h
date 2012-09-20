@@ -13,7 +13,6 @@ class Lambda;
 class Pi;
 
 typedef boost::unordered_set<const Lambda*> LambdaSet;
-typedef ArrayRef<const Lambda*> Lambdas;
 
 typedef std::vector<const Param*> Params;
 
@@ -38,6 +37,8 @@ public:
 
     void close(size_t gid);
 
+    typedef ArrayRef<const Lambda*> Lambdas;
+
     Lambdas targets() const { return adjacencies_.slice_front(hos_begin_); }
     Lambdas hos()     const { return adjacencies_.slice_back(hos_begin_); }
     Lambdas succs()    const { return Lambdas(adjacencies_); }
@@ -56,10 +57,10 @@ public:
 
     bool is_extern() const { return flags_ & Extern; }
 
-    mutable size_t lid; ///< local index
-    bool lid_valid() const { return lid != size_t(-1); }
-    bool lid_invalid() const { return lid == size_t(-1); }
-    void invalidate_lid() const { lid = size_t(-1); }
+    mutable size_t sid; ///< local index
+    bool sid_valid() const { return sid != size_t(-1); }
+    bool sid_invalid() const { return sid == size_t(-1); }
+    void invalidate_sid() const { sid = size_t(-1); }
 
 private:
 

@@ -131,6 +131,10 @@ template<class T>
 class Array {
 public:
 
+    Array()
+        : ptr_(0)
+        , size_(0)
+    {}
     explicit Array(size_t size)
         : ptr_(new T[size]())
         , size_(size)
@@ -150,6 +154,11 @@ public:
 
     ~Array() { delete[] ptr_; }
 
+    void alloc(size_t size) {
+        assert(ptr_ == 0 && size_ == 0);
+        ptr_ = new T[size]();
+        size_ = size;
+    };
 
     typedef T* iterator;
     typedef const T* const_iterator;

@@ -12,6 +12,11 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
+Def::Def(int kind, const Type* type)
+    : kind_(kind)
+    , type_(type)
+{}
+
 Def::Def(int kind, const Type* type, size_t size)
     : kind_(kind)
     , type_(type)
@@ -103,17 +108,6 @@ size_t Def::hash() const {
     boost::hash_combine(seed, ops_);
 
     return seed;
-}
-
-void Def::alloc(size_t size) { 
-    anydsl_assert(ops_.empty(), "realloc");
-    ops_.~Array();
-    new (&ops_) Array<const Def*>(size);
-}
-
-void Def::realloc(size_t newsize) { 
-    ops_.~Array();
-    new (&ops_) Array<const Def*>(newsize);
 }
 
 //------------------------------------------------------------------------------

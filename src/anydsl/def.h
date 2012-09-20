@@ -95,6 +95,8 @@ private:
 
 protected:
 
+    /// This variant leaves internal \p ops_ \p Array allocateble via ops_.alloc(size).
+    Def(int kind, const Type* type);
     Def(int kind, const Type* type, size_t size);
     Def(const Def&);
     virtual ~Def();
@@ -115,8 +117,7 @@ protected:
 
     void setOp(size_t i, const Def* def) { def->registerUse(i, this); ops_[i] = def; }
     void setType(const Type* type) { type_ = type; }
-    void alloc(size_t size);
-    void realloc(size_t size);
+    void alloc(size_t size) { ops_.alloc(size); }
     void shrink(size_t newsize) { ops_.shrink(newsize); }
 
     virtual bool equal(const Def* other) const;

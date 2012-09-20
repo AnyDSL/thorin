@@ -11,9 +11,8 @@
 namespace anydsl {
 
 Lambda::Lambda(const Pi* pi, uint32_t flags)
-    : Def(Node_Lambda, pi, 0)
+    : Def(Node_Lambda, pi)
     , flags_(flags)
-    , adjacencies_(0)
 {
     params_.reserve(pi->size());
 
@@ -82,8 +81,7 @@ void Lambda::close(size_t gid) {
     for_all (def, args())
         find_lambdas(def, hos);
 
-    adjacencies_.~Array();
-    new (&adjacencies_) Array<const Lambda*>(targets.size() + hos.size());
+    adjacencies_.alloc(targets.size() + hos.size());
 
     size_t i = 0;
     for_all (target, targets)

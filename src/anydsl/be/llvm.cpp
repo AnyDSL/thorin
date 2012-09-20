@@ -20,6 +20,7 @@
 #include "anydsl/world.h"
 #include "anydsl/analyses/rootlambdas.h"
 #include "anydsl/analyses/domtree.h"
+#include "anydsl/analyses/scope.h"
 #include "anydsl/analyses/placement.h"
 #include "anydsl/util/array.h"
 
@@ -79,6 +80,22 @@ CodeGen::CodeGen(const World& world)
 
 void CodeGen::emit() {
     LambdaSet roots = find_root_lambdas(world_.lambdas());
+
+    for_all (l, roots) {
+        Scope s(l);
+        for_all (l, s.rpo()) {
+            std::cout << l->debug << std::endl;
+            std::cout << "\tpreds:" << std::endl;
+
+            for_all (pred, s.preds(l))
+                std::cout << "\t\t" << pred->debug << std::endl;
+
+            for_all (succ, s.succs(l))
+                std::cout << "\t\t" << succ->debug << std::endl;
+        }
+
+        std::cout << "---" << std::endl;
+    }
 
     FctMap fcts;
 

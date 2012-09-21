@@ -106,7 +106,7 @@ public:
         const Type* types[3] = {t1, t2, t3};
         return sigma(types);
     }
-    const Sigma* sigma(ArrayRef<const Type*> elems) { return find(new Sigma(*this, elems))->as<Sigma>(); }
+    const Sigma* sigma(ArrayRef<const Type*> elems) { return consume(new Sigma(*this, elems))->as<Sigma>(); }
 
     /// Creates a fresh \em named sigma.
     Sigma* named_sigma(size_t num, const std::string& name = "");
@@ -129,7 +129,7 @@ public:
         const Type* types[3] = {t1, t2, t3};
         return pi(types);
     }
-    const Pi* pi(ArrayRef<const Type*> elems) { return find(new Pi(*this, elems))->as<Pi>(); }
+    const Pi* pi(ArrayRef<const Type*> elems) { return consume(new Pi(*this, elems))->as<Pi>(); }
 
     /*
      * literals
@@ -231,7 +231,7 @@ public:
     const Def* update(const Def* def, size_t i, const Def* op);
     const Def* update(const Def* def, ArrayRef<size_t> x, ArrayRef<const Def*> ops);
     const Lambda* drop(const Lambda* lambda, ArrayRef<size_t> args, ArrayRef<const Def*> with);
-    const Def* find(const Def* def);
+    const Def* consume(const Def* def);
     /// Sets all \p Def%s' note.marker field to false.
     void unmark();
 

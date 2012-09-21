@@ -94,16 +94,16 @@ void CodeGen::emit() {
     for_all (lf, fcts) {
         const Lambda* lambda = lf.first;
         llvm::Function* fct = lf.second;
-        anydsl_assert(lambda->higher_order_params().size() == 1, "unsupported number of higher order params");
+        anydsl_assert(lambda->ho_params().size() == 1, "unsupported number of higher order params");
 
         // map params
         llvm::Function::arg_iterator arg = fct->arg_begin();
-        for_all (param, lambda->first_order_params()) {
+        for_all (param, lambda->fo_params()) {
             arg->setName(param->debug);
             params_[param] = arg++;
         }
 
-        const Param* ret_param = lambda->higher_order_params().front();
+        const Param* ret_param = lambda->ho_params().front();
         ScopeTree scope(lambda);
         BBMap bbs(scope.size());
 
@@ -118,11 +118,9 @@ void CodeGen::emit() {
             builder_.SetInsertPoint(bbs[lambda->sid()]);
 
             // create phi node stubs (for all non-cascading lambdas different from entry)
-            if (lambda != scope.entry()) {
-                if (!lambda->is_cascading()) {
-                    for_all (param, lambda->params())
-                        phis_[param] = builder_.CreatePHI(convert(param->type()), param->phi().size(), param->debug);
-                }
+            if (lambda != scope.entry() && !lambda->is_cascading()) {
+                for_all (param, lambda->params())
+                    phis_[param] = builder_.CreatePHI(convert(param->type()), param->phi().size(), param->debug);
             }
 
             std::vector<const PrimOp*> primops = places[lambda->sid()];
@@ -141,15 +139,15 @@ void CodeGen::emit() {
             } else if (num_targets == 1) {  // case 1: three sub-cases
                 const Lambda* tolambda = lambda->to()->as<Lambda>();
 
-                if (tolambda->is_first_order())     // case a) ordinary jump
+                if (tolambda->is_fo())     // case a) ordinary jump
                     builder_.CreateBr(bbs[tolambda->sid()]);
                 else {
                     // put all first-order args into an array
                     Array<llvm::Value*> args(lambda->args().size() - 1);
-                    anydsl_zip(lambda->first_order_args(), args, lookup);
+                    anydsl_zip(lambda->fo_args(), args, lookup);
                     llvm::CallInst* call = builder_.CreateCall(fcts[tolambda], llvm_ref(args));
                     
-                    const Def* ho_arg = lambda->higher_order_args().front();
+                    const Def* ho_arg = lambda->ho_args().front();
                     if (ho_arg == ret_param)        // case b) call + return
                         builder_.CreateRet(call); 
                     else {                          // case c) call + continuation

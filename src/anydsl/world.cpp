@@ -35,9 +35,9 @@ namespace anydsl {
 World::World()
     : defs_(1031)
     , gid_counter_(0)
-    , sigma0_ (find(new Sigma(*this, ArrayRef<const Type*>(0, 0)))->as<Sigma>())
-    , pi0_  (find(new Pi   (*this, ArrayRef<const Type*>(0, 0)))->as<Pi>())
-#define ANYDSL_UF_TYPE(T) ,T##_(find(new PrimType(*this, PrimType_##T))->as<PrimType>())
+    , sigma0_ (consume(new Sigma(*this, ArrayRef<const Type*>(0, 0)))->as<Sigma>())
+    , pi0_  (consume(new Pi   (*this, ArrayRef<const Type*>(0, 0)))->as<Pi>())
+#define ANYDSL_UF_TYPE(T) ,T##_(consume(new PrimType(*this, PrimType_##T))->as<PrimType>())
 #include "anydsl/tables/primtypetable.h"
 {}
 
@@ -50,7 +50,7 @@ World::~World() {
  * types
  */
 
-Sigma* World::named_sigma(size_t num, const std::string& name /*= ""*/) {
+Sigma* World::named_sigma(size_t num, const std::string& name) {
     Sigma* s = new Sigma(*this, num);
     s->debug = name;
 
@@ -65,7 +65,7 @@ Sigma* World::named_sigma(size_t num, const std::string& name /*= ""*/) {
  */
 
 const PrimLit* World::literal(PrimTypeKind kind, Box box) {
-    return find(new PrimLit(type(kind), box))->as<PrimLit>();
+    return consume(new PrimLit(type(kind), box))->as<PrimLit>();
 }
 
 const PrimLit* World::literal(PrimTypeKind kind, int value) {
@@ -78,11 +78,11 @@ const PrimLit* World::literal(PrimTypeKind kind, int value) {
 }
 
 const Any* World::any(const Type* type) {
-    return find(new Any(type))->as<Any>();
+    return consume(new Any(type))->as<Any>();
 }
 
 const Bottom* World::bottom(const Type* type) {
-    return find(new Bottom(type))->as<Bottom>();
+    return consume(new Bottom(type))->as<Bottom>();
 }
 
 /*
@@ -112,7 +112,7 @@ const Def* World::tuple(ArrayRef<const Def*> args) {
     if (bot)
         return bottom(sigma(elems));
 
-    return find(new Tuple(*this, args));
+    return consume(new Tuple(*this, args));
 }
 
 const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b) {
@@ -206,7 +206,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b) {
         if ((rlit || a > b) && (!llit))
             std::swap(a, b);
 
-    return find(new ArithOp(kind, a, b));
+    return consume(new ArithOp(kind, a, b));
 }
 
 const Def* World::relop(RelOpKind kind, const Def* a, const Def* b) {
@@ -311,7 +311,7 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b) {
         }
     }
 
-    return find(new RelOp(kind, a, b));
+    return consume(new RelOp(kind, a, b));
 }
 
 const Def* World::convop(ConvOpKind kind, const Def* from, const Type* to) {
@@ -327,7 +327,7 @@ const Def* World::convop(ConvOpKind kind, const Def* from, const Type* to) {
     }
 #endif
 
-    return find(new ConvOp(kind, from, to));
+    return consume(new ConvOp(kind, from, to));
 }
 
 const Def* World::extract(const Def* agg, u32 index) {
@@ -344,7 +344,7 @@ const Def* World::extract(const Def* agg, u32 index) {
             return extract(insert->tuple(), index);
     }
 
-    return find(new Extract(agg, index));
+    return consume(new Extract(agg, index));
 }
 
 const Def* World::insert(const Def* agg, u32 index, const Def* value) {
@@ -363,7 +363,7 @@ const Def* World::insert(const Def* agg, u32 index, const Def* value) {
         return tuple(args);
     }
 
-    return find(new Insert(agg, index, value));
+    return consume(new Insert(agg, index, value));
 }
 
 const Def* World::select(const Def* cond, const Def* a, const Def* b) {
@@ -373,11 +373,11 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b) {
     if (const PrimLit* lit = cond->isa<PrimLit>())
         return lit->box().get_u1().get() ? a : b;
 
-    return find(new Select(cond, a, b));
+    return consume(new Select(cond, a, b));
 }
 
 const Param* World::param(const Type* type, Lambda* parent, u32 i) {
-    return find(new Param(type, parent, i))->as<Param>();
+    return consume(new Param(type, parent, i))->as<Param>();
 }
 
 void World::jump(Lambda* lambda, const Def* to, ArrayRef<const Def*> args) {
@@ -391,7 +391,7 @@ void World::jump(Lambda* lambda, const Def* to, ArrayRef<const Def*> args) {
 
     lambda->close(gid_counter_++);
 
-    find(lambda);
+    consume(lambda);
 }
 
 void World::branch(Lambda* lambda, const Def* cond, const Def* tto, const Def*  fto) {
@@ -413,7 +413,7 @@ void World::dce() {
 
     for_all (lambda, lambdas()) {
         if (lambda->is_extern()) {
-            for_all (param, lambda->higher_order_params()) {
+            for_all (param, lambda->ho_params()) {
                 for_all (use, param->uses())
                     dce_insert(use.def());
             }
@@ -513,7 +513,7 @@ void World::unmark() {
         def->unmark();
 }
 
-const Def* World::find(const Def* def) {
+const Def* World::consume(const Def* def) {
     DefSet::iterator i = defs_.find(def);
     if (i != defs_.end()) {
         anydsl_assert(!def->isa<Lambda>(), "must not be a lambda");
@@ -627,14 +627,52 @@ const Def* World::update(const Def* cdef, size_t i, const Def* op) {
     Def* def = release(cdef);
     def->update(i, op);
 
-    return find(def);
+    return consume(def);
 }
 
 const Def* World::update(const Def* cdef, ArrayRef<size_t> x, ArrayRef<const Def*> ops) {
     Def* def = release(cdef);
     def->update(x, ops);
 
-    return find(def);
+    return consume(def);
+}
+
+const Lambda* World::drop(const Lambda* olambda, ArrayRef<size_t> args, ArrayRef<const Def*> with) {
+    const Pi* o_pi = olambda->pi();
+
+    size_t o_numargs = o_pi->size();
+    size_t numdrop = args.size();
+    size_t n_numargs = o_numargs - numdrop;
+
+    Array<const Type*> elems(n_numargs);
+
+    for (size_t o = 0, a = 0, e = 0; o < o_numargs; ++o) {
+        if (a < o_numargs && args[a] == o)
+            ++a;
+        else
+            elems[e++] = o_pi->elem(o);
+    }
+
+    const Pi* n_pi = pi(elems);
+    Lambda* nlambda = new Lambda(n_pi);
+
+    typedef boost::unordered_map<const Def*, const Def*> Old2New;
+    Old2New old2new;
+
+    // put in params
+    for (size_t o = 0, a = 0, e = 0; o < o_numargs; ++o) {
+        if (a < o_numargs && args[a] == o)
+            ++a;
+        else
+            old2new[olambda->param(e++)] = nlambda->param(o);
+    }
+
+    Scope scope(olambda);
+
+    for_all (cur, scope.rpo()) {
+    }
+
+    return nlambda;
 }
 
 } // namespace anydsl

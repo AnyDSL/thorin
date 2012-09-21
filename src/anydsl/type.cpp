@@ -54,8 +54,8 @@ bool Pi::classify_order() const {
     return true;
 }
 
-bool Pi::is_first_order() const { return classify_order<true>(); }
-bool Pi::is_higher_order() const { return classify_order<false>(); }
+bool Pi::is_fo() const { return classify_order<true>(); }
+bool Pi::is_ho() const { return classify_order<false>(); }
 
 //------------------------------------------------------------------------------
 

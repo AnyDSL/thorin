@@ -28,12 +28,12 @@ public:
 
     const Param* append_param(const Type* type);
 
-    Array<const Param*> first_order_params() const;
-    Array<const Param*> higher_order_params() const;
-    Array<const Def*> first_order_args() const;
-    Array<const Def*> higher_order_args() const;
-    bool is_first_order() const;
-    bool is_higher_order() const;
+    Array<const Param*> fo_params() const;
+    Array<const Param*> ho_params() const;
+    Array<const Def*> fo_args() const;
+    Array<const Def*> ho_args() const;
+    bool is_fo() const;
+    bool is_ho() const;
 
     void close(size_t gid);
 
@@ -72,8 +72,8 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
 
 private:
 
-    template<bool first_order> Array<const Param*> classify_params() const;
-    template<bool first_order> Array<const Def*> classify_args() const;
+    template<bool fo> Array<const Param*> classify_params() const;
+    template<bool fo> Array<const Def*> classify_args() const;
 
     virtual bool equal(const Def* other) const;
     virtual size_t hash() const;

@@ -130,12 +130,12 @@ private:
 
 public:
 
-    bool is_first_order() const;
-    bool is_higher_order() const;
+    bool is_fo() const;
+    bool is_ho() const;
 
 private:
 
-    template<bool first_order> bool classify_order() const;
+    template<bool fo> bool classify_order() const;
     virtual void vdump(Printer& printer) const;
 
     friend class World;

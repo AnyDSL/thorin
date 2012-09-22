@@ -183,24 +183,6 @@ public:
     const Def* tuple(ArrayRef<const Def*> args);
     const Param* param(const Type* type, Lambda* parent, u32 i);
 
-    void jump(Lambda* from, const Def* to, ArrayRef<const Def*> args);
-    void jump0(Lambda* from, const Def* to) {
-        return jump(from, to, ArrayRef<const Def*>(0, 0));
-    }
-    void jump1(Lambda* from, const Def* to, const Def* arg1) {
-        const Def* args[1] = { arg1 };
-        return jump(from, to, args);
-    }
-    void jump2(Lambda* from, const Def* to, const Def* arg1, const Def* arg2) {
-        const Def* args[2] = { arg1, arg2 };
-        return jump(from, to, args);
-    }
-    void jump3(Lambda* from, const Def* to, const Def* arg1, const Def* arg2, const Def* arg3) {
-        const Def* args[3] = { arg1, arg2, arg3 };
-        return jump(from, to, args);
-    }
-    void branch(Lambda* lambda, const Def* cond, const Def* tto, const Def* fto);
-
     Lambda* lambda(const Pi* pi, uint32_t flags = 0);
     Lambda* lambda(uint32_t flags = 0) { return lambda(pi0()); }
 

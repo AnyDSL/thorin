@@ -148,4 +148,20 @@ Array<const Def*> Lambda::ho_args() const { return classify_args<false>(); }
 bool Lambda::is_fo()  const { return pi()->is_fo(); }
 bool Lambda::is_ho() const { return pi()->is_ho(); }
 
+void Lambda::jump(const Def* to, ArrayRef<const Def*> args) {
+    alloc(args.size() + 1);
+    set_op(0, to);
+
+    size_t x = 1;
+    for_all (arg, args)
+        set_op(x++, arg);
+
+    close();
+}
+
+void Lambda::branch(const Def* cond, const Def* tto, const Def*  fto) {
+    return jump(world().select(cond, tto, fto), ArrayRef<const Def*>(0, 0));
+}
+
+
 } // namespace anydsl

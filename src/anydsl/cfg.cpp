@@ -169,13 +169,13 @@ void BB::branch(const Def* cond, BB* tbb, BB* fbb) {
 void BB::tail_call(const Def* to, ArrayRef<const Def*> args) {
     Array<const Def*> tcargs(args.size());
     std::copy(args.begin(), args.end(), tcargs.begin());
-    world().jump(cur_, to, tcargs);
+    cur_->jump(to, tcargs);
 }
 
 void BB::return_call(const Def* to, ArrayRef<const Def*> args) {
     Array<const Def*> rargs(args.size() + 1);
     *std::copy(args.begin(), args.end(), rargs.begin()) = fct_->ret();
-    world().jump(cur_, to, rargs);
+    cur_->jump(to, rargs);
 }
 
 const Def* BB::call(const Def* to, ArrayRef<const Def*> args, const Type* rettype) {
@@ -191,7 +191,7 @@ const Def* BB::call(const Def* to, ArrayRef<const Def*> args, const Type* rettyp
     size_t csize = args.size() + 1;
     Array<const Def*> cargs(csize);
     *std::copy(args.begin(), args.end(), cargs.begin()) = next;
-    world().jump(cur_, to, cargs);
+    cur_->jump(to, cargs);
     cur_ = next;
 
     ++id;
@@ -226,10 +226,10 @@ void BB::emit() {
     if (num_succs == 0) 
         anydsl_assert(world().defs().find(cur_) != world().defs().end(), "tail call not finalized");
     else if (num_succs == 1)
-        world().jump(cur_, (*succs().begin())->top(), out_);
+        cur_->jump((*succs().begin())->top(), out_);
     else if (num_succs == 2) {
         anydsl_assert(out_.empty(), "edge is critical");
-        world().branch(cur_, cond_, tbb_->top(), fbb_->top());
+        cur_->branch(cond_, tbb_->top(), fbb_->top());
     } else
         ANYDSL_UNREACHABLE;
 }
@@ -278,7 +278,7 @@ BB* Fct::createBB(const std::string& debug /*= ""*/) {
 void Fct::emit() {
     if (rettype()) {
         exit()->seal();
-        world().jump1(exit_->top_, ret(), exit()->lookup(Symbol("<result>"), rettype())->load());
+        exit_->top_->jump1(ret(), exit()->lookup(Symbol("<result>"), rettype())->load());
     }
 
     for_all (bb, cfg_)

@@ -75,6 +75,24 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     bool sid_invalid() const { return sid_ == size_t(-1); }
     void invalidate_sid() const { sid_ = size_t(-1); }
 
+    void jump(const Def* to, ArrayRef<const Def*> args);
+    void jump0(const Def* to) {
+        return jump(to, ArrayRef<const Def*>(0, 0));
+    }
+    void jump1(const Def* to, const Def* arg1) {
+        const Def* args[1] = { arg1 };
+        return jump(to, args);
+    }
+    void jump2(const Def* to, const Def* arg1, const Def* arg2) {
+        const Def* args[2] = { arg1, arg2 };
+        return jump(to, args);
+    }
+    void jump3(const Def* to, const Def* arg1, const Def* arg2, const Def* arg3) {
+        const Def* args[3] = { arg1, arg2, arg3 };
+        return jump(to, args);
+    }
+    void branch(const Def* cond, const Def* tto, const Def* fto);
+
 private:
 
     template<bool fo> Array<const Param*> classify_params() const;

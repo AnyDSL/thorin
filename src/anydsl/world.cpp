@@ -380,21 +380,6 @@ const Param* World::param(const Type* type, Lambda* parent, u32 i) {
     return consume(new Param(type, parent, i))->as<Param>();
 }
 
-void World::jump(Lambda* lambda, const Def* to, ArrayRef<const Def*> args) {
-    lambda->alloc(args.size() + 1);
-    lambda->set_op(0, to);
-
-    size_t x = 1;
-    for_all (arg, args)
-        lambda->set_op(x++, arg);
-
-    lambda->close();
-}
-
-void World::branch(Lambda* lambda, const Def* cond, const Def* tto, const Def*  fto) {
-    return jump(lambda, select(cond, tto, fto), Array<const Def*>(0));
-}
-
 Lambda* World::lambda(const Pi* pi, uint32_t flags) {
     Lambda* l = new Lambda(gid_counter_++, pi, flags);
     defs_.insert(l);
@@ -765,7 +750,7 @@ void World::drop_body(Old2New& old2new, const Lambda* olambda, Lambda* nlambda) 
             args[i] = odef;
     }
 
-    jump(nlambda, drop_to(old2new, olambda->to()), args);
+    nlambda->jump(drop_to(old2new, olambda->to()), args);
 }
 
 void World::drop(Old2New& old2new, const PrimOp* primop) {

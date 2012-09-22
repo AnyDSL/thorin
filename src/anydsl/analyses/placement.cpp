@@ -51,10 +51,10 @@ Places place(const DomTree& tree) {
             insert(done, places[node->sid()], param);
     }
 
-    // now check all primops which we might have missed because they not depend on params
-    for_all (node, tree.bfs())
-        for_all (arg, node->lambda()->args())
-            insert(done, places[node->sid()], arg);
+    //// now check all primops which we might have missed because they not depend on params
+    //for_all (node, tree.bfs())
+        //for_all (arg, node->lambda()->args())
+            //insert(done, places[node->sid()], arg);
 
     return places;
 }

@@ -750,7 +750,7 @@ void World::drop_body(Old2New& old2new, const Lambda* olambda, Lambda* nlambda) 
             args[i] = odef;
     }
 
-    nlambda->jump(drop_to(old2new, olambda->to()), args);
+    nlambda->jump(drop_target(old2new, olambda->to()), args);
 }
 
 void World::drop(Old2New& old2new, const PrimOp* primop) {
@@ -774,7 +774,7 @@ void World::drop(Old2New& old2new, const PrimOp* primop) {
             drop(old2new, primop);
 }
 
-const Def* World::drop_to(Old2New& old2new, const Def* to) {
+const Def* World::drop_target(Old2New& old2new, const Def* to) {
     Old2New::iterator iter = old2new.find(to);
     if (iter != old2new.end())
         return iter->second;
@@ -787,8 +787,10 @@ const Def* World::drop_to(Old2New& old2new, const Def* to) {
             Old2New::iterator iter = old2new.find(op);
             if (iter != old2new.end())
                 ops[i++] = iter->second;
+            else if (op->is_const())
+                ops[i++] = op;
             else
-                ops[i++] = drop_to(old2new, op);
+                ops[i++] = drop_target(old2new, op);
 
         }
 

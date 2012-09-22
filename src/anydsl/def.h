@@ -120,15 +120,14 @@ protected:
     void set_type(const Type* type) { type_ = type; }
     void alloc(size_t size) { ops_.alloc(size); }
     void shrink(size_t newsize) { ops_.shrink(newsize); }
-    bool is_const() const;
+    void unregister_use(size_t i) const;
 
     virtual bool equal(const Def* other) const;
     virtual size_t hash() const;
 
 public:
 
-    void unregister_use(size_t i) const;
-
+    bool is_const() const;
     int kind() const { return kind_; }
     bool is_corenode() const { return ::anydsl::is_corenode(kind()); }
 

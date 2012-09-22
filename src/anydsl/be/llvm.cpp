@@ -186,6 +186,9 @@ void CodeGen::emit() {
 }
 
 llvm::Value* CodeGen::lookup(const Def* def) {
+    if (def->is_const())
+        return emit(def);
+
     if (const PrimOp* primop = def->isa<PrimOp>())
         return primops_[primop];
 

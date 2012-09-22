@@ -228,7 +228,7 @@ private:
     typedef boost::unordered_map<const Def*, const Def*> Old2New;
     void drop_head(Old2New& old2new, const Lambda* olambda);
     void drop_body(Old2New& old2new, const Lambda* olambda, Lambda* nlambda);
-    const Def* drop_to(Old2New& old2new, const Def* to);
+    const Def* drop_target(Old2New& old2new, const Def* to);
     void drop(Old2New& old2new, const PrimOp* primop);
 
     void dce_insert(const Def* def);

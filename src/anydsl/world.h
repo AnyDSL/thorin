@@ -217,8 +217,9 @@ public:
     const Def* update(const Def* def, size_t i, const Def* op);
     const Def* update(const Def* def, ArrayRef<const Def*> ops);
     const Def* update(const Def* def, ArrayRef<size_t> x, ArrayRef<const Def*> ops);
-    const Lambda* drop(const Lambda* lambda, ArrayRef<const Def*> with);
+    const Lambda* drop(const Lambda* lambda, size_t i, const Def* with);
     const Lambda* drop(const Lambda* lambda, ArrayRef<size_t> args, ArrayRef<const Def*> with);
+    const Lambda* drop(const Lambda* lambda, ArrayRef<const Def*> with);
     const Def* consume(const Def* def);
     /// Sets all \p Def%s' note.marker field to false.
     void unmark();

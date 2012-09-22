@@ -511,21 +511,22 @@ void World::opt() {
             fac = lambda;
     }
 
-    const Lambda* dropped = drop(helper, fac->args());
+    const Lambda* dropped = drop(helper, 2, fac->param(1));
     //return;
     Lambda* fac2 = (Lambda*) fac;
     //Lambda* fac2 = release(fac)->as<Lambda>();
 
-    for (size_t i = 1, e = fac->size(); i != e; ++i)
-        fac2->unset_op(i);
+    //for (size_t i = 1, e = fac->size(); i != e; ++i)
+        //fac2->unset_op(i);
 
-    fac2->shrink(1);
+    fac2->unset_op(3);
+    fac2->shrink(3);
     //((Lambda*) helper)->flags_ = 0;
     fac2->update(0, dropped);
     //fac2->reclose();
     //consume(fac2);
 
-    cleanup();
+    //cleanup();
 }
 
 void World::unmark() {
@@ -663,6 +664,13 @@ const Def* World::update(const Def* cdef, ArrayRef<size_t> x, ArrayRef<const Def
     return consume(def);
 }
 
+const Lambda* World::drop(const Lambda* olambda, size_t i, const Def* with) {
+    const Def* awith[] = { with };
+    size_t args[] = { i };
+
+    return drop(olambda, args, awith);
+}
+
 const Lambda* World::drop(const Lambda* olambda, ArrayRef<const Def*> with) {
     if (with.empty())
         return olambda;
@@ -739,6 +747,8 @@ void World::drop_body(Old2New& old2new, const Lambda* olambda, Lambda* nlambda) 
         for_all (use, param->uses())
             if (const PrimOp* primop = use.def()->isa<PrimOp>())
                 drop(old2new, primop);
+
+    // deal with loop
 
     Array<const Def*> args(olambda->args().size());
     for (size_t i = 0; i < args.size(); ++i) {

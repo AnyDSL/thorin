@@ -9,24 +9,24 @@ namespace anydsl {
 
 class Lambda;
 
-typedef boost::unordered_set<const Lambda*> LambdaSet;
+typedef boost::unordered_set<Lambda*> LambdaSet;
 
-LambdaSet find_scope(const Lambda* entry);
+LambdaSet find_scope(Lambda* entry);
 
 class Scope {
 public:
 
-    typedef Array<const Lambda*> Lambdas;
+    typedef Array<Lambda*> Lambdas;
 
-    explicit Scope(const Lambda* entry);
+    explicit Scope(Lambda* entry);
 
-    bool contains(const Lambda* lambda) const { return lambdas_.find(lambda) != lambdas_.end(); }
+    bool contains(Lambda* lambda) const { return lambdas_.find(lambda) != lambdas_.end(); }
     const LambdaSet& lambdas() const { return lambdas_; }
     const Lambdas& rpo() const { return rpo_; }
-    const Lambdas& preds(const Lambda* lambda) const;
-    const Lambdas& succs(const Lambda* lambda) const;
+    const Lambdas& preds(Lambda* lambda) const;
+    const Lambdas& succs(Lambda* lambda) const;
 
-    const Lambda* entry() const { return rpo_[0]; }
+    Lambda* entry() const { return rpo_[0]; }
     size_t size() const { return lambdas_.size(); }
 
 private:

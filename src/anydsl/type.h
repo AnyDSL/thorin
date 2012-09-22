@@ -14,6 +14,14 @@ class World;
 
 //------------------------------------------------------------------------------
 
+inline const Type* const& elem_as_type(const Def* const* ptr) { 
+    assert((*ptr)->as<Type>());
+    return *((const Type* const*) ptr); 
+}
+
+typedef ArrayRef<const Def*, const Type*, elem_as_type> Elems;
+
+
 class Type : public Def {
 protected:
 
@@ -25,6 +33,8 @@ protected:
 public:
 
     World& world() const { return world_; }
+    const Type* elem(size_t i) const { return op(i)->as<Type>(); }
+    Elems elems() const { return Elems(Def::ops().begin().base(), Def::ops().size()); }
 
 private:
 
@@ -58,32 +68,13 @@ private:
 
 //------------------------------------------------------------------------------
 
-inline const Type* const& elem_as_type(const Def* const* ptr) { 
-    assert((*ptr)->as<Type>());
-    return *((const Type* const*) ptr); 
-}
-
-typedef ArrayRef<const Def*, const Type*, elem_as_type> Elems;
-
 class CompoundType : public Type {
 protected:
 
     CompoundType(World& world, int kind, size_t num);
     CompoundType(World& world, int kind, ArrayRef<const Type*> elems);
 
-public:
-
-    /// Get element type via index.
-    const Type* elem(size_t i) const { 
-        anydsl_assert(i < elems().size(), "index out of range"); 
-        return op(i)->as<Type>();
-    }
-
-    Elems elems() const { return Elems(Def::ops().begin().base(), Def::ops().size()); }
-
-protected:
-
-    void dumpInner(Printer& printer) const;
+    void dump_inner(Printer& printer) const;
 };
 
 //------------------------------------------------------------------------------

@@ -8,7 +8,7 @@ namespace anydsl {
 class Lambda;
 class World;
 
-typedef boost::unordered_set<const Lambda*> LambdaSet;
+typedef boost::unordered_set<Lambda*> LambdaSet;
 
 LambdaSet find_root_lambdas(const World& world);
 LambdaSet find_root_lambdas(const LambdaSet& lambdas);

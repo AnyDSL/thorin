@@ -5,6 +5,7 @@
 #include "anydsl/type.h"
 #include "anydsl/primop.h"
 #include "anydsl/world.h"
+#include "anydsl/analyses/scope.h"
 #include "anydsl/util/array.h"
 #include "anydsl/util/for_all.h"
 
@@ -16,6 +17,11 @@ Lambda::Lambda(size_t gid, const Pi* pi, uint32_t flags)
     , flags_(flags)
 {
     params_.reserve(pi->size());
+}
+
+Lambda::~Lambda() {
+    for_all (param, params())
+            delete param;
 }
 
 Lambda* Lambda::stub() const { 
@@ -38,7 +44,7 @@ const Param* Lambda::append_param(const Type* type) {
     *std::copy(pi()->elems().begin(), pi()->elems().end(), elems.begin()) = type;
     set_type(world().pi(elems));
 
-    const Param* param = world().param(type, this, size);
+    const Param* param = new Param(type, this, size);
     params_.push_back(param);
 
     return param;
@@ -48,7 +54,7 @@ bool Lambda::equal(const Def* other) const { return this == other; }
 size_t Lambda::hash() const { return boost::hash_value(this); }
 
 static void find_lambdas(const Def* def, LambdaSet& result) {
-    if (const Lambda* lambda = def->isa<Lambda>()) {
+    if (Lambda* lambda = def->isa_lambda()) {
         result.insert(lambda);
         return;
     }
@@ -58,7 +64,7 @@ static void find_lambdas(const Def* def, LambdaSet& result) {
 }
 
 static void find_preds(const Def* def, LambdaSet& result) {
-    if (const Lambda* lambda = def->isa<Lambda>()) {
+    if (Lambda* lambda = def->isa_lambda()) {
         result.insert(lambda);
         return;
     }
@@ -78,31 +84,26 @@ LambdaSet Lambda::preds() const {
     return result;
 }
 
-void Lambda::close() {
-    LambdaSet targets, hos;
-
-    find_lambdas(to(), targets);
-
-    for_all (def, args())
-        find_lambdas(def, hos);
-
-    adjacencies_.alloc(targets.size() + hos.size());
-
-    size_t i = 0;
-    for_all (target, targets)
-        adjacencies_[i++] = target;
-
-    hos_begin_ = i;
-    for_all (ho, hos)
-        adjacencies_[i++] = ho;
-
-    anydsl_assert(pi()->size() == params().size(), "type does not honor size of params");
+LambdaSet Lambda::targets() const {
+    LambdaSet result;
+    find_lambdas(to(), result);
+    return result;
 }
 
-void Lambda::reclose() {
-    adjacencies_.~Array();
-    new (&adjacencies_) Array<const Lambda*>();
-    close();
+LambdaSet Lambda::hos() const {
+    LambdaSet result;
+    for_all (def, args())
+        find_lambdas(def, result);
+
+    return result;
+}
+
+LambdaSet Lambda::succs() const {
+    LambdaSet result;
+    for_all (def, ops())
+        find_lambdas(def, result);
+
+    return result;
 }
 
 template<bool fo>
@@ -134,7 +135,7 @@ Array<const Def*> Lambda::classify_args() const {
 }
 
 bool Lambda::is_cascading() const {
-    if (uses().size() != 1)
+    if (is_fo() || uses().size() != 1)
         return false;
 
     Use use = *uses().begin();
@@ -155,12 +156,194 @@ void Lambda::jump(const Def* to, ArrayRef<const Def*> args) {
     size_t x = 1;
     for_all (arg, args)
         set_op(x++, arg);
-
-    close();
 }
 
 void Lambda::branch(const Def* cond, const Def* tto, const Def*  fto) {
     return jump(world().select(cond, tto, fto), ArrayRef<const Def*>(0, 0));
+}
+
+Lambda* Lambda::drop(size_t i, const Def* with) {
+    const Def* awith[] = { with };
+    size_t args[] = { i };
+
+    return drop(args, awith);
+}
+
+Lambda* Lambda::drop(ArrayRef<const Def*> with) {
+    if (with.empty())
+        return this;
+
+    Array<size_t> args(with.size());
+    for (size_t i = 0, e = args.size(); i < e; ++i)
+        args[i] = i;
+
+    return drop(args, with);
+}
+
+class Dropper {
+public:
+
+    typedef boost::unordered_map<const Def*, const Def*> Old2New;
+
+    Dropper(Lambda* olambda, ArrayRef<size_t> args, ArrayRef<const Def*> with)
+        : scope(olambda)
+        , args(args)
+        , with(with)
+        , world(olambda->world())
+    {}
+
+    Lambda* drop();
+    void drop_head(Lambda* olambda);
+    void drop_body(Lambda* olambda, Lambda* nlambda);
+    const Def* drop_target(const Def* to);
+    void drop(const PrimOp* primop);
+
+    Scope scope;
+    ArrayRef<size_t> args;
+    ArrayRef<const Def*> with;
+    World& world;
+    Old2New old2new;
+};
+
+Lambda* Lambda::drop(ArrayRef<size_t> args, ArrayRef<const Def*> with) {
+    if (with.empty())
+        return this;
+
+    Dropper dropper(this, args, with);
+    return dropper.drop();
+}
+
+Lambda* Dropper::drop() {
+    Lambda* olambda = scope.entry();
+    const Pi* o_pi = olambda->pi();
+
+    size_t o_numargs = o_pi->size();
+    size_t numdrop = args.size();
+    size_t n_numargs = o_numargs - numdrop;
+
+    Array<const Type*> elems(n_numargs);
+
+    for (size_t i = 0, a = 0, e = 0; i < o_numargs; ++i) {
+        if (a < o_numargs && args[a] == i)
+            ++a;
+        else
+            elems[e++] = o_pi->elem(i);
+    }
+
+    const Pi* n_pi = world.pi(elems);
+    Lambda* nlambda = world.lambda(n_pi);
+    nlambda->debug = olambda->debug + ".dropped";
+
+    // put in params for entry (olambda)
+    for (size_t i = 0, a = 0, n = 0; i < o_numargs; ++i) {
+        const Param* oparam = olambda->param(i);
+        if (a < o_numargs && args[a] == i) {
+            const Def* w = with[a++];
+            old2new[oparam] = w; //with[a++];
+        } else {
+            const Param* nparam = nlambda->param(n++);
+            nparam->debug = oparam->debug + ".dropped";
+            old2new[oparam] = nparam;
+        }
+    }
+
+    //old2new[olambda] = nlambda;
+
+    // create stubs for all other lambdas and put their params into the map
+    for_all (olambda, scope.rpo().slice_back(1)) {
+        Lambda* nlambda = olambda->stub();
+        nlambda->debug += ".dropped";
+        old2new[olambda] = nlambda;
+
+        for (size_t i = 0, e = nlambda->params().size(); i != e; ++i) {
+            old2new[olambda->param(i)] = nlambda->param(i);
+            nlambda->param(i)->debug += ".dropped";
+        }
+    }
+
+    drop_body(olambda, nlambda);
+
+    for_all (cur, scope.rpo().slice_back(1))
+        drop_body(cur, (Lambda*) old2new[cur]);
+
+    return nlambda;
+}
+
+void Dropper::drop_body(Lambda* olambda, Lambda* nlambda) {
+    for_all (param, olambda->params()) {
+        for_all (use, param->uses())
+            if (const PrimOp* primop = use.def()->isa<PrimOp>())
+                drop(primop);
+    }
+
+    Array<const Def*> args(olambda->args().size());
+    for (size_t i = 0; i < args.size(); ++i) {
+        const Def* odef = olambda->arg(i);
+        Old2New::iterator iter = old2new.find(odef);
+        if (iter != old2new.end())
+            args[i] = iter->second;
+        else
+            args[i] = odef;
+    }
+
+    nlambda->jump(drop_target(olambda->to()), args);
+}
+
+void Dropper::drop(const PrimOp* oprimop) {
+    Array<const Def*> ops(oprimop->size());
+
+    size_t i = 0; 
+    for_all (op, oprimop->ops()) {
+        Old2New::iterator iter = old2new.find(op);
+        if (iter != old2new.end())
+            ops[i++] = iter->second;
+        else if (op->is_const())
+            ops[i++] = op;
+        else if (const Param* oparam = op->isa<Param>()) {
+            if (scope.contains(oparam->lambda()))
+                ops[i++] = op;
+        } else if (Lambda* lambda = op->isa_lambda()) {
+            LambdaSet::iterator iter = scope.lambdas().find(lambda);
+            if (iter == scope.lambdas().end())
+                ops[i++] = op;
+        }
+    }
+
+    PrimOp* nprimop = oprimop->clone();
+    nprimop->update(ops);
+    old2new[oprimop] = world.consume(nprimop);
+
+    for_all (use, oprimop->uses())
+        if (const PrimOp* oprimop = use.def()->isa<PrimOp>())
+            drop(oprimop);
+}
+
+const Def* Dropper::drop_target(const Def* to) {
+    Old2New::iterator iter = old2new.find(to);
+    if (iter != old2new.end())
+        return iter->second;
+
+    if (const PrimOp* oprimop = to->isa<PrimOp>()) {
+        Array<const Def*> ops(oprimop->size());
+
+        size_t i = 0; 
+        for_all (op, oprimop->ops()) {
+            Old2New::iterator iter = old2new.find(op);
+            if (iter != old2new.end())
+                ops[i++] = iter->second;
+            else if (op->is_const())
+                ops[i++] = op;
+            else
+                ops[i++] = drop_target(op);
+        }
+
+        PrimOp* nprimop = oprimop->clone();
+        nprimop->update(ops);
+
+        return old2new[oprimop] = world.consume(nprimop);
+    }
+
+    return to;
 }
 
 

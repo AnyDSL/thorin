@@ -20,6 +20,7 @@ namespace anydsl {
 class Def;
 class Lambda;
 class Printer;
+class PrimOp;
 class Sigma;
 class Type;
 class World;
@@ -30,18 +31,18 @@ class PhiOp {
 public:
 
     PhiOp() {}
-    PhiOp(const Def* def, const Lambda* from)
+    PhiOp(const Def* def, Lambda* from)
         : def_(def)
         , from_(from)
     {}
 
     const Def* def() { return def_; }
-    const Lambda* from() { return from_; }
+    Lambda* from() { return from_; }
 
 private:
 
     const Def* def_;
-    const Lambda* from_;
+    Lambda* from_;
 };
 
 typedef Array<PhiOp> PhiOps;
@@ -127,6 +128,9 @@ protected:
 
 public:
 
+    Lambda* as_lambda() const;
+    Lambda* isa_lambda() const;
+
     bool is_const() const;
     int kind() const { return kind_; }
     bool is_corenode() const { return ::anydsl::is_corenode(kind()); }
@@ -156,13 +160,8 @@ public:
     bool empty() const { return ops_.size() == 0; }
 
     /// Updates operand \p i to point to \p def instead.
-    Def* update(size_t i, const Def* def);
-
-    /// Updates operand indices \p x to point to the corresponding \p ops instead.
-    Def* update(ArrayRef<size_t> idx, ArrayRef<const Def*> ops);
-
-    /// Updates all operands to point to the corresponding \p ops instead:
-    Def* update(ArrayRef<const Def*> ops);
+    void update(size_t i, const Def* def);
+    void update(Array<const Def*> defs);
 
     /*
      * check for special literals
@@ -234,7 +233,7 @@ private:
 
 public:
 
-    const Lambda* lambda() const { return lambda_; }
+    Lambda* lambda() const { return lambda_; }
     size_t index() const { return index_; }
     PhiOps phi() const;
 

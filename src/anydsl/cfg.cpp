@@ -224,7 +224,7 @@ void BB::emit() {
     size_t num_succs = succs().size();
 
     if (num_succs == 0) 
-        anydsl_assert(world().defs().find(cur_) != world().defs().end(), "tail call not finalized");
+        anydsl_assert(world().lambdas().find(cur_) != world().lambdas().end(), "tail call not finalized");
     else if (num_succs == 1)
         cur_->jump((*succs().begin())->top(), out_);
     else if (num_succs == 2) {

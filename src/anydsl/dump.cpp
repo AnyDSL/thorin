@@ -22,6 +22,11 @@ void Bottom::vdump(Printer& p) const  {
     p.dump(type());
 }
 
+void TypeHolder::vdump(Printer& p) const  {
+	p << "<typeholder> : ";
+    p.dump(type());
+}
+
 void PrimLit::vdump(Printer& p) const  {
 	switch (primtype_kind()) {
 #define ANYDSL_UF_TYPE(T) case PrimType_##T: p.o << box().get_##T(); break;
@@ -111,7 +116,7 @@ void Tuple::vdump(Printer& p) const {
  * Types
  */
 
-void CompoundType::dumpInner(Printer& p) const  {
+void CompoundType::dump_inner(Printer& p) const  {
 	p << "(";
 	ANYDSL_DUMP_COMMA_LIST(p, elems());
 	p << ")";
@@ -129,12 +134,12 @@ void PrimType::vdump(Printer& p) const  {
 
 void Sigma::vdump(Printer& p) const  {
 	p << "sigma";
-	dumpInner(p);
+	dump_inner(p);
 }
 
 void Pi::vdump(Printer& p) const  {
 	p << "pi";
-	dumpInner(p);
+	dump_inner(p);
 }
 
 void Lambda::vdump(Printer& p) const  {

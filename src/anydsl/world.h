@@ -27,8 +27,9 @@ class Type;
 class Def;
 class Any;
 
-typedef boost::unordered_set<const Def*, DefHash, DefEqual> DefSet;
-typedef boost::unordered_set<const Lambda*> LambdaSet;
+typedef boost::unordered_set<const PrimOp*, DefHash, DefEqual> PrimOpSet;
+typedef boost::unordered_set<Lambda*> LambdaSet;
+typedef boost::unordered_set<const Type*, DefHash, DefEqual> TypeSet;
 
 //------------------------------------------------------------------------------
 
@@ -181,7 +182,7 @@ public:
     const Def* insert(const Def* tuple, u32 i, const Def* value);
     const Def* select(const Def* cond, const Def* tdef, const Def* fdef);
     const Def* tuple(ArrayRef<const Def*> args);
-    const Param* param(const Type* type, Lambda* parent, u32 i);
+    const Def* typeholder(const Type* type);
 
     Lambda* lambda(const Pi* pi, uint32_t flags = 0);
     Lambda* lambda(uint32_t flags = 0) { return lambda(pi0()); }
@@ -190,12 +191,11 @@ public:
      * optimizations
      */
 
-    /// Dead code elimination.
-    void dce();
-    /// Unreachable code elimination.
-    void uce();
+    void dead_code_elimination();
+    void unreachable_code_elimination();
+    void unused_type_elimination();
 
-    /// Performs dead code and unreachable code elimination.
+    /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();
     void opt();
 
@@ -203,39 +203,32 @@ public:
      * getters
      */
 
-    const DefSet& defs() const { return defs_; }
-    LambdaSet lambdas() const;
+    const PrimOpSet& primops() const { return primops_; }
+    LambdaSet lambdas() const { return lambdas_; }
+    TypeSet types() const { return types_; }
 
     /*
      * other
      */
 
     void dump(bool fancy = false);
-    const Def* rehash(const Def* def);
-    Def* release(const Def* def);
-    void replace(const Def* what, const Def* with);
-    const Def* update(const Def* def, size_t i, const Def* op);
-    const Def* update(const Def* def, ArrayRef<const Def*> ops);
-    const Def* update(const Def* def, ArrayRef<size_t> x, ArrayRef<const Def*> ops);
-    const Lambda* drop(const Lambda* lambda, size_t i, const Def* with);
-    const Lambda* drop(const Lambda* lambda, ArrayRef<size_t> args, ArrayRef<const Def*> with);
-    const Lambda* drop(const Lambda* lambda, ArrayRef<const Def*> with);
-    const Def* consume(const Def* def);
-    /// Sets all \p Def%s' note.marker field to false.
-    void unmark();
+    //void replace(const PrimOp* what, const PrimOp* with);
+    const Def* update(const Def* what, size_t i, const Def* op);
+    const Def* update(const Def* what, Array<const Def*> ops);
+    const PrimOp* consume(const PrimOp* primop);
+    const Type* consume(const Type* def);
+    PrimOp* release(const PrimOp* primop);
 
 private:
 
-    typedef boost::unordered_map<const Def*, const Def*> Old2New;
-    void drop_head(Old2New& old2new, const Lambda* olambda);
-    void drop_body(Old2New& old2new, const Lambda* olambda, Lambda* nlambda);
-    const Def* drop_target(Old2New& old2new, const Def* to);
-    void drop(Old2New& old2new, const PrimOp* primop);
-
     void dce_insert(const Def* def);
-    void uce_insert(const Lambda* lambda);
+    void ute_insert(const Type* type);
+    void uce_insert(Lambda* lambda);
 
-    DefSet defs_;
+    PrimOpSet primops_;
+    LambdaSet lambdas_;
+    TypeSet types_;
+
     size_t gid_counter_;
     const Sigma* sigma0_;///< sigma().
     const Pi* pi0_;      ///< pi().

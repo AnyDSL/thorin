@@ -80,48 +80,23 @@ bool Def::is_const() const {
     return result;
 }
 
-Def* Def::update(size_t i, const Def* def) {
-    unset_op(i);
-    set_op(i, def);
-    if (Lambda* lambda = this->isa<Lambda>())
-        lambda->reclose();
-    return this;
-}
-
-Def* Def::update(ArrayRef<size_t> x, ArrayRef<const Def*> with) {
-    assert(x.size() == with.size());
-    size_t size = x.size();
-
-    for (size_t i = 0; i < size; ++i) {
-        size_t idx = x[i];
-        const Def* def = with[i];
-
-        unset_op(idx);
-        set_op(idx, def);
-    }
-    if (Lambda* lambda = this->isa<Lambda>())
-        lambda->reclose();
-    return this;
-}
-
-Def* Def::update(ArrayRef<const Def*> with) {
-    anydsl_assert(size() == with.size(), "sizes do not match");
-
-    for (size_t i = 0, e = size(); i != e; ++i) {
-        unset_op(i);
-        set_op(i, with[i]);
-    }
-    if (Lambda* lambda = this->isa<Lambda>())
-        lambda->reclose();
-
-    return this;
-}
-
 World& Def::world() const { 
     if (type_)
         return type_->world(); 
     else 
         return as<Type>()->world();
+}
+
+void Def::update(size_t i, const Def* def) {
+    unset_op(i);
+    set_op(i, def);
+}
+
+void Def::update(Array<const Def*> defs) {
+    anydsl_assert(size() == defs.size(), "sizes do not match");
+
+    for (size_t i = 0, e = size(); i != e; ++i)
+        update(i, defs[i]);
 }
 
 Array<Use> Def::copy_uses() const {
@@ -157,6 +132,14 @@ size_t Def::hash() const {
     return seed;
 }
 
+Lambda* Def::as_lambda() const {
+    return const_cast<Lambda*>(scast<Lambda>(this)); 
+}
+
+Lambda* Def::isa_lambda() const {
+    return const_cast<Lambda*>(dcast<Lambda>(this)); 
+}
+
 //------------------------------------------------------------------------------
 
 Param::Param(const Type* type, Lambda* lambda, size_t index)
@@ -167,7 +150,7 @@ Param::Param(const Type* type, Lambda* lambda, size_t index)
 
 PhiOps Param::phi() const {
     size_t x = index();
-    const Lambda* l = lambda();
+    Lambda* l = lambda();
     LambdaSet preds = l->preds();
 
     PhiOps result(preds.size());

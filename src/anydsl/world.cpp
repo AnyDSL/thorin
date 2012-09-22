@@ -33,17 +33,28 @@ namespace anydsl {
  */
 
 World::World()
-    : defs_(1031)
+    : primops_(1031)
+    , lambdas_(1031)
+    , types_(1031)
     , gid_counter_(0)
     , sigma0_ (consume(new Sigma(*this, ArrayRef<const Type*>(0, 0)))->as<Sigma>())
     , pi0_  (consume(new Pi   (*this, ArrayRef<const Type*>(0, 0)))->as<Pi>())
 #define ANYDSL_UF_TYPE(T) ,T##_(consume(new PrimType(*this, PrimType_##T))->as<PrimType>())
 #include "anydsl/tables/primtypetable.h"
-{}
+{
+    typeholder(sigma0_);
+    typeholder(pi0_);
+    for (size_t i = 0; i < Num_PrimTypes; ++i)
+        typeholder(primTypes_[i]);
+}
 
 World::~World() {
-    for_all (def, defs_)
-        delete def;
+    for_all (primop, primops_)
+        delete primop;
+    for_all (type, types_)
+        delete type;
+    for_all (lambda, lambdas_)
+        delete lambda;
 }
 
 /*
@@ -54,8 +65,8 @@ Sigma* World::named_sigma(size_t num, const std::string& name) {
     Sigma* s = new Sigma(*this, num);
     s->debug = name;
 
-    anydsl_assert(defs_.find(s) == defs_.end(), "must not be inside");
-    defs_.insert(s);
+    anydsl_assert(types_.find(s) == types_.end(), "must not be inside");
+    types_.insert(s);
 
     return s;
 }
@@ -376,33 +387,39 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b) {
     return consume(new Select(cond, a, b));
 }
 
-const Param* World::param(const Type* type, Lambda* parent, u32 i) {
-    return consume(new Param(type, parent, i))->as<Param>();
-}
-
 Lambda* World::lambda(const Pi* pi, uint32_t flags) {
     Lambda* l = new Lambda(gid_counter_++, pi, flags);
-    defs_.insert(l);
+    lambdas_.insert(l);
 
     size_t i = 0;
     for_all (elem, pi->elems())
-        l->params_.push_back(param(elem, l, i++));
+        l->params_.push_back(new Param(elem, l, i++));
 
     return l;
+}
+
+const Def* World::typeholder(const Type* type) { 
+    return consume(new TypeHolder(type)); 
 }
 
 /*
  * optimizations
  */
 
-void World::dce() {
-    // mark all as dead
-    unmark();
+void World::dead_code_elimination() {
+    for_all (lambda, lambdas()) {
+        lambda->unmark(); 
+        for_all (param, lambda->params())
+            param->unmark();
+    }
 
-    dce_insert(sigma0_);
-    dce_insert(pi0_);
-    for (size_t i = 0; i < Num_PrimTypes; ++i)
-        dce_insert(primTypes_[i]);
+    for_all (primop, primops()) 
+        primop->unmark(); 
+
+    for_all (primop, primops()) {
+        if (const TypeHolder* th = primop->isa<TypeHolder>())
+            dce_insert(th);
+    }
 
     for_all (lambda, lambdas()) {
         if (lambda->is_extern()) {
@@ -413,39 +430,46 @@ void World::dce() {
         }
     }
 
-    // kill the living dead
-    DefSet::iterator i = defs_.begin();
-    while (i != defs_.end()) {
-        const Def* def = *i;
-        if (!def->is_marked()) {
-            delete def;
-            i = defs_.erase(i);
-        } else
+    for (PrimOpSet::iterator i = primops_.begin(); i != primops_.end();) {
+        const PrimOp* primop = *i;
+        if (primop->is_marked()) 
             ++i;
+        else {
+            delete primop;
+            i = primops_.erase(i);
+        }
+    }
+
+    for (LambdaSet::iterator i = lambdas_.begin(); i != lambdas_.end();) {
+        Lambda* lambda = *i;
+        if (lambda->is_marked()) 
+            ++i;
+        else {
+            delete lambda;
+            i = lambdas_.erase(i);
+        }
     }
 }
 
 void World::dce_insert(const Def* def) {
-    anydsl_assert(defs_.find(def) != defs_.end(), "not in map");
+#ifndef NDEBUG
+    if (const PrimOp* primop = def->isa<PrimOp>()) assert(primops_.find(primop)          != primops_.end());
+    if (      Lambda* lambda = def->isa_lambda() ) assert(lambdas_.find(lambda)          != lambdas_.end());
+    if (const Param*  param  = def->isa<Param>() ) assert(lambdas_.find(param->lambda()) != lambdas_.end());
+#endif
 
-    if (def->is_marked())
-        return;
-
+    if (def->is_marked()) return;
     def->mark();
-
-    if (const Type* type = def->type())
-        dce_insert(type);
 
     for_all (op, def->ops())
         dce_insert(op);
 
-    if (const Lambda* lambda = def->isa<Lambda>()) {
+    if (Lambda* lambda = def->isa_lambda()) {
         // insert control-dependent lambdas
         for_all (pred, lambda->preds())
             dce_insert(pred);
     } else if (const Param* param = def->isa<Param>()) {
         for_all (op, param->phi()) {
-            // look through "phi-args"
             dce_insert(op.def());
             dce_insert(op.from());
         }
@@ -456,54 +480,83 @@ void World::dce_insert(const Def* def) {
     }
 }
 
-void World::uce() {
-    // mark all as unreachable
-    unmark();
+void World::unused_type_elimination() {
+    for_all (type, types()) 
+        type->unmark(); 
 
-    // find all reachable lambdas
+    for_all (primop, primops())
+        ute_insert(primop->type());
+
+    for_all (lambda, lambdas()) {
+        ute_insert(lambda->type());
+        for_all (param, lambda->params())
+            ute_insert(param->type());
+    }
+
+    for (TypeSet::iterator i = types_.begin(); i != types_.end();) {
+        const Type* type = *i;
+
+        if (type->is_marked())
+            ++i;
+        else {
+            delete type;
+            i = types_.erase(i);
+        }
+    }
+}
+
+void World::ute_insert(const Type* type) {
+    anydsl_assert(types_.find(type) != types_.end(), "not in map");
+
+    if (type->is_marked()) return;
+    type->mark();
+
+    for_all (elem, type->elems())
+        ute_insert(elem);
+}
+
+
+void World::unreachable_code_elimination() {
+    for_all (lambda, lambdas()) 
+        lambda->unmark(); 
+
     for_all (lambda, lambdas())
         if (lambda->is_extern())
             uce_insert(lambda);
 
-    // destroy all unreachable lambdas
-    DefSet::iterator i = defs_.begin();
-    while (i != defs_.end()) {
-        if (const Lambda* lambda = (*i)->isa<Lambda>()) {
-            if (!lambda->is_marked()) {
-                delete lambda;
-                i = defs_.erase(i);
-                continue;
-            }
+    for (LambdaSet::iterator i = lambdas_.begin(); i != lambdas_.end();) {
+        Lambda* lambda = *i;
+
+        if (lambda->is_marked()) 
+            ++i;
+        else {
+            delete lambda;
+            i = lambdas_.erase(i);
         }
-        ++i;
     }
 }
 
-void World::uce_insert(const Lambda* lambda) {
-    anydsl_assert(defs_.find(lambda) != defs_.end(), "not in map");
+void World::uce_insert(Lambda* lambda) {
+    anydsl_assert(lambdas_.find(lambda) != lambdas_.end(), "not in map");
 
-    if (lambda->is_marked())
-        return;
-
+    if (lambda->is_marked()) return;
     lambda->mark();
-
-    if (const Type* type = lambda->type())
-        dce_insert(type);
 
     for_all (succ, lambda->succs())
         uce_insert(succ);
 }
 
 void World::cleanup() {
-    dce();
-    uce();
+    dead_code_elimination();
+    unreachable_code_elimination();
+    unused_type_elimination();
 }
 
 void World::opt() {
     cleanup();
 
-    const Lambda* helper;
-    const Lambda* fac;
+    Lambda* helper;
+    Lambda* fac;
     for_all (lambda, lambdas()) {
         if (lambda->debug == "helper")
             helper = lambda;
@@ -511,7 +564,7 @@ void World::opt() {
             fac = lambda;
     }
 
-    const Lambda* dropped = drop(helper, 2, fac->param(1));
+    Lambda* dropped = helper->drop(2, fac->param(1));
     //return;
     Lambda* fac2 = (Lambda*) fac;
     //Lambda* fac2 = release(fac)->as<Lambda>();
@@ -526,47 +579,49 @@ void World::opt() {
     //fac2->reclose();
     //consume(fac2);
 
-    //cleanup();
+    cleanup();
 }
 
-void World::unmark() {
-    for_all (def, defs_)
-        def->unmark();
-}
-
-const Def* World::consume(const Def* def) {
-    DefSet::iterator i = defs_.find(def);
-    if (i != defs_.end()) {
-        anydsl_assert(!def->isa<Lambda>(), "must not be a lambda");
-        delete def;
-        anydsl_assert(defs_.find(*i) != defs_.end(), "hash/equal function of def class incorrect");
+const PrimOp* World::consume(const PrimOp* primop) {
+    PrimOpSet::iterator i = primops_.find(primop);
+    if (i != primops_.end()) {
+        delete primop;
+        anydsl_assert(primops_.find(*i) != primops_.end(), "hash/equal function of primop class incorrect");
         return *i;
     }
 
-    defs_.insert(def);
-    anydsl_assert(defs_.find(def) != defs_.end(), "hash/equal function of def class incorrect");
+    primops_.insert(primop);
+    anydsl_assert(primops_.find(primop) != primops_.end(), "hash/equal function of def class incorrect");
 
-    if (const Lambda* lambda = def->isa<Lambda>()) {
-        for_all (param, lambda->params())
-            consume(param);
+    return primop;
+}
+
+const Type* World::consume(const Type* type) {
+    TypeSet::iterator i = types_.find(type);
+    if (i != types_.end()) {
+        delete type;
+        anydsl_assert(types_.find(*i) != types_.end(), "hash/equal function of type class incorrect");
+        return *i;
     }
 
-    return def;
+    types_.insert(type);
+    anydsl_assert(types_.find(type) != types_.end(), "hash/equal function of def class incorrect");
+
+    return type;
+}
+
+PrimOp* World::release(const PrimOp* primop) {
+    PrimOpSet::iterator i = primops_.find(primop);
+    anydsl_assert(i != primops_.end(), "must be found");
+    assert(primop == *i);
+    primops_.erase(i);
+
+    return const_cast<PrimOp*>(primop);
 }
 
 /*
  * other
  */
-
-LambdaSet World::lambdas() const {
-    LambdaSet result;
-
-    for_all (def, defs())
-        if (const Lambda* lambda = def->isa<Lambda>())
-            result.insert(lambda);
-
-    return result;
-}
 
 void World::dump(bool fancy) {
     //for_all (lambda, lambdas())
@@ -586,228 +641,73 @@ void World::dump(bool fancy) {
     std::cout << std::endl;
 }
 
-Def* World::release(const Def* def) {
-    DefSet::iterator i = defs_.find(def);
-    anydsl_assert(i != defs_.end(), "must be found");
-    assert(def == *i);
-    defs_.erase(i);
-
-    if (const Lambda* lambda = def->isa<Lambda>()) {
-        for_all (param, lambda->params())
-            release(param);
-    }
-
-    return const_cast<Def*>(def);
-}
-
-void World::replace(const Def* what, const Def* with) {
+#if 0
+void World::replace(const PrimOp* what, const PrimOp* with) {
     assert(!what->isa<Lambda>());
 
     if (what == with)
         return;
 
-    Def* def = release(what);
+    PrimOp* primop = release(what);
 
-    // unregister all uses of def's operands
-    for (size_t i = 0, e = def->ops().size(); i != e; ++i) {
-        def->unregister_use(i);
-        def->ops_[i] = 0;
+    // unregister all uses of primop's operands
+    for (size_t i = 0, e = primop->ops().size(); i != e; ++i) {
+        primop->unregister_use(i);
+        primop->ops_[i] = 0;
     }
 
-    Array<Use> olduses = def->copy_uses();
+    Array<Use> olduses = primop->copy_uses();
 
-    // unregister all uses of def
-    def->uses_.clear();
+    // unregister all uses of primop
+    primop->uses_.clear();
 
     // update all operands of old uses to point to new node instead 
     // and erase these nodes from world
     for_all (use, olduses) {
-        Def* udef = release(use.def());
-        udef->update(use.index(), with);
+        PrimOp* uprimop = release(use.def());
+        uprimop->update(use.index(), with);
     }
 
     // update all operands of old uses into world
     // don't fuse this loop with the loop above
     for_all (use, olduses) {
-        const Def* udef = use.def();
+        const PrimOp* uprimop = use.def();
+        PrimOpSet::iterator i = primops_.find(uprimop);
 
-        DefSet::iterator i = defs_.find(udef);
-        if (i != defs_.end()) {
+        if (i != primops_.end()) {
             std::cout << "NOT YET TESTED" << std::endl;
-            const Def* ndef = *i;
-            assert(udef != ndef);
-            replace(udef, ndef);
-            delete udef;
-            continue;
+            const PrimOp* nprimop = *i;
+            assert(uprimop != nprimop);
+            replace(uprimop, nprimop);
+            delete uprimop;
         } else
-            defs_.insert(udef);
+            primops_.insert(udef);
     }
 
     delete def;
 }
+#endif
 
-const Def* World::update(const Def* cdef, size_t i, const Def* op) {
-    Def* def = release(cdef);
-    def->update(i, op);
-    return consume(def);
-}
-
-const Def* World::update(const Def* cdef, ArrayRef<const Def*> ops) {
-    Def* def = release(cdef);
-    def->update(ops);
-    return consume(def);
-}
-
-const Def* World::update(const Def* cdef, ArrayRef<size_t> x, ArrayRef<const Def*> ops) {
-    Def* def = release(cdef);
-    def->update(x, ops);
-    return consume(def);
-}
-
-const Lambda* World::drop(const Lambda* olambda, size_t i, const Def* with) {
-    const Def* awith[] = { with };
-    size_t args[] = { i };
-
-    return drop(olambda, args, awith);
-}
-
-const Lambda* World::drop(const Lambda* olambda, ArrayRef<const Def*> with) {
-    if (with.empty())
-        return olambda;
-
-    Array<size_t> args(with.size());
-    for (size_t i = 0, e = args.size(); i < e; ++i)
-        args[i] = i;
-
-    return drop(olambda, args, with);
-}
-
-const Lambda* World::drop(const Lambda* olambda, ArrayRef<size_t> args, ArrayRef<const Def*> with) {
-    if (with.empty())
-        return olambda;
-
-    Scope scope(olambda);
-
-    const Pi* o_pi = olambda->pi();
-
-    size_t o_numargs = o_pi->size();
-    size_t numdrop = args.size();
-    size_t n_numargs = o_numargs - numdrop;
-
-    Array<const Type*> elems(n_numargs);
-
-    for (size_t i = 0, a = 0, e = 0; i < o_numargs; ++i) {
-        if (a < o_numargs && args[a] == i)
-            ++a;
-        else
-            elems[e++] = o_pi->elem(i);
+const Def* World::update(const Def* what, size_t i, const Def* op) {
+    if (Lambda* lambda = what->isa_lambda()) {
+        lambda->update(i, op);
+        return lambda;
     }
 
-    const Pi* n_pi = pi(elems);
-    Lambda* nlambda = this->lambda(n_pi);
-    nlambda->debug = olambda->debug + ".dropped";
-
-    Old2New old2new;
-
-    // put in params for entry (olambda)
-    for (size_t i = 0, a = 0, n = 0; i < o_numargs; ++i) {
-        const Param* oparam = olambda->param(i);
-        if (a < o_numargs && args[a] == i) {
-            const Def* w = with[a++];
-            old2new[oparam] = w; //with[a++];
-        } else {
-            const Param* nparam = nlambda->param(n++);
-            nparam->debug = oparam->debug + ".dropped";
-            old2new[oparam] = nparam;
-        }
-    }
-
-    old2new[olambda] = nlambda;
-
-    // create stubs for all other lambdas and put their params into the map
-    for_all (olambda, scope.rpo().slice_back(1)) {
-        Lambda* nlambda = olambda->stub();
-        nlambda->debug += ".dropped";
-        old2new[olambda] = nlambda;
-
-        for (size_t i = 0, e = nlambda->params().size(); i != e; ++i) {
-            old2new[olambda->param(i)] = nlambda->param(i);
-            nlambda->param(i)->debug = "xxx";
-        }
-    }
-
-    for_all (cur, scope.rpo())
-        drop_body(old2new, cur, (Lambda*) old2new[cur]);
-
-    return nlambda;
+    PrimOp* primop = release(what->as<PrimOp>());
+    primop->update(i, op);
+    return consume(primop);
 }
 
-void World::drop_body(Old2New& old2new, const Lambda* olambda, Lambda* nlambda) {
-    for_all (param, olambda->params())
-        for_all (use, param->uses())
-            if (const PrimOp* primop = use.def()->isa<PrimOp>())
-                drop(old2new, primop);
-
-    // deal with loop
-
-    Array<const Def*> args(olambda->args().size());
-    for (size_t i = 0; i < args.size(); ++i) {
-        const Def* odef = olambda->arg(i);
-        Old2New::iterator iter = old2new.find(odef);
-        if (iter != old2new.end())
-            args[i] = iter->second;
-        else
-            args[i] = odef;
+const Def* World::update(const Def* what, Array<const Def*> ops) {
+    if (Lambda* lambda = what->isa_lambda()) {
+        lambda->update(ops);
+        return lambda;
     }
 
-    nlambda->jump(drop_target(old2new, olambda->to()), args);
-}
-
-void World::drop(Old2New& old2new, const PrimOp* primop) {
-    Array<const Def*> ops(primop->size());
-
-    size_t i = 0; 
-    for_all (op, primop->ops()) {
-        Old2New::iterator iter = old2new.find(op);
-        if (iter != old2new.end())
-            ops[i++] = iter->second;
-        else if (op->is_const())
-            ops[i++] = op;
-        else 
-            return;
-    }
-
-    old2new[primop] = consume(primop->clone()->update(ops));
-
-    for_all (use, primop->uses())
-        if (const PrimOp* primop = use.def()->isa<PrimOp>())
-            drop(old2new, primop);
-}
-
-const Def* World::drop_target(Old2New& old2new, const Def* to) {
-    Old2New::iterator iter = old2new.find(to);
-    if (iter != old2new.end())
-        return iter->second;
-
-    if (const PrimOp* primop = to->isa<PrimOp>()) {
-        Array<const Def*> ops(primop->size());
-
-        size_t i = 0; 
-        for_all (op, primop->ops()) {
-            Old2New::iterator iter = old2new.find(op);
-            if (iter != old2new.end())
-                ops[i++] = iter->second;
-            else if (op->is_const())
-                ops[i++] = op;
-            else
-                ops[i++] = drop_target(old2new, op);
-
-        }
-
-        return old2new[primop] = consume(primop->clone()->update(ops));
-    }
-
-    return to;
+    PrimOp* primop = release(what->as<PrimOp>());
+    primop->update(ops);
+    return consume(primop);
 }
 
 } // namespace anydsl

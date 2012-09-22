@@ -54,7 +54,6 @@ private:
         : Undef(Node_Undef, type)
     {}
     virtual Any* clone() const { return new Any(*this); }
-
     virtual void vdump(Printer& printer) const ;
 
     friend class World;
@@ -75,7 +74,6 @@ private:
         : Undef(Node_Bottom, type)
     {}
     virtual Bottom* clone() const { return new Bottom(*this); }
-
     virtual void vdump(Printer& printer) const ;
 
     friend class World;
@@ -110,6 +108,25 @@ private:
     virtual void vdump(Printer& printer) const ;
 
     Box box_;
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
+/**
+ * The sole purpose of this not is to hold types.
+ * This node is not destroyed by the dead code elimination, and hence,
+ * the held type won't be destroyed in the unused type elimination.
+ */
+class TypeHolder : public Literal {
+private:
+
+    TypeHolder(const Type* type)
+        : Literal(Node_TypeHolder, type)
+    {}
+    virtual TypeHolder* clone() const { return new TypeHolder(*this); }
+    virtual void vdump(Printer& printer) const ;
 
     friend class World;
 };

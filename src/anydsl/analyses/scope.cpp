@@ -6,11 +6,11 @@
 
 namespace anydsl {
 
-static void jump_to_param_users(LambdaSet& scope, const Lambda* lambda);
-static void walk_up(LambdaSet& scope, const Lambda* lambda);
+static void jump_to_param_users(LambdaSet& scope, Lambda* lambda);
+static void walk_up(LambdaSet& scope, Lambda* lambda);
 static void find_user(LambdaSet& scope, const Def* def);
 
-LambdaSet find_scope(const Lambda* lambda) {
+LambdaSet find_scope(Lambda* lambda) {
     LambdaSet scope;
     scope.insert(lambda);
     jump_to_param_users(scope, lambda);
@@ -18,13 +18,13 @@ LambdaSet find_scope(const Lambda* lambda) {
     return scope;
 }
 
-static void jump_to_param_users(LambdaSet& scope, const Lambda* lambda) {
+static void jump_to_param_users(LambdaSet& scope, Lambda* lambda) {
     for_all (param, lambda->params())
         find_user(scope, param);
 }
 
 static void find_user(LambdaSet& scope, const Def* def) {
-    if (const Lambda* lambda = def->isa<Lambda>())
+    if (Lambda* lambda = def->isa_lambda())
         walk_up(scope, lambda);
     else {
         for_all (use, def->uses())
@@ -32,7 +32,7 @@ static void find_user(LambdaSet& scope, const Def* def) {
     }
 }
 
-static void walk_up(LambdaSet& scope, const Lambda* lambda) {
+static void walk_up(LambdaSet& scope, Lambda* lambda) {
     if (scope.find(lambda) != scope.end())
         return;// already inside scope so break
 
@@ -43,7 +43,7 @@ static void walk_up(LambdaSet& scope, const Lambda* lambda) {
         walk_up(scope, pred);
 }
 
-size_t number(const LambdaSet& lambdas, const Lambda* cur, size_t i) {
+size_t number(const LambdaSet& lambdas, Lambda* cur, size_t i) {
     // mark as visited
     cur->sid_ = 0;
 
@@ -58,7 +58,7 @@ size_t number(const LambdaSet& lambdas, const Lambda* cur, size_t i) {
     return i - 1;
 }
 
-Scope::Scope(const Lambda* entry)
+Scope::Scope(Lambda* entry)
     : lambdas_(find_scope(entry))
     , rpo_(lambdas_.size())
     , preds_(lambdas_.size())
@@ -102,12 +102,12 @@ Scope::Scope(const Lambda* entry)
     anydsl_assert(rpo_[0] == entry, "bug in numbering");
 }
 
-const Scope::Lambdas& Scope::preds(const Lambda* lambda) const {
+const Scope::Lambdas& Scope::preds(Lambda* lambda) const {
     assert(contains(lambda)); 
     return preds_[lambda->sid()]; 
 }
 
-const Scope::Lambdas& Scope::succs(const Lambda* lambda) const {
+const Scope::Lambdas& Scope::succs(Lambda* lambda) const {
     assert(contains(lambda)); 
     return succs_[lambda->sid()]; 
 }

@@ -9,6 +9,8 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
+//------------------------------------------------------------------------------
+
 RelOp::RelOp(RelOpKind kind, const Def* lhs, const Def* rhs)
     : BinOp((NodeKind) kind, lhs->world().type_u1(), lhs, rhs)
 {}

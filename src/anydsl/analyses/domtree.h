@@ -14,15 +14,15 @@ class Lambda;
 class Scope;
 class World;
 
-typedef boost::unordered_set<const Lambda*> LambdaSet;
+typedef boost::unordered_set<Lambda*> LambdaSet;
 typedef std::vector<const DomNode*> DomNodes;
 
 class DomNode {
 public:
 
-    DomNode(const Lambda* lambda);
+    DomNode(Lambda* lambda);
 
-    const Lambda* lambda() const { return lambda_; }
+    Lambda* lambda() const { return lambda_; }
     /// Returns post-order number of lambda in scope.
     const DomNode* idom() const { return idom_; }
     const DomNodes& children() const { return children_; }
@@ -32,7 +32,7 @@ public:
 
 private:
 
-    const Lambda* lambda_;
+    Lambda* lambda_;
     DomNode* idom_;
     DomNodes children_;
 
@@ -57,16 +57,16 @@ public:
     ArrayRef<const DomNode*> bfs() const { return bfs_; }
     ArrayRef<const DomNode*> nodes() const { return ArrayRef<const DomNode*>(nodes_.begin(), nodes_.size()); }
     const DomNode* node(size_t sid) const { return nodes_[sid]; }
-    const DomNode* node(const Lambda* lambda) const;
+    const DomNode* node(Lambda* lambda) const;
     const DomNode* bfs(size_t i) const { return bfs_[i]; }
-    int depth(const Lambda* lambda) const { return node(lambda)->depth(); }
+    int depth(Lambda* lambda) const { return node(lambda)->depth(); }
     bool dominates(const DomNode* a, const DomNode* b);
     bool strictly_dominates(const DomNode* a, const DomNode* b) { return a != b && dominates(a, b); }
 
 private:
 
     void create();
-    DomNode* lookup(const Lambda* lambda);
+    DomNode* lookup(Lambda* lambda);
     DomNode* intersect(DomNode* i, DomNode* j);
 
     const Scope& scope_;
@@ -77,13 +77,13 @@ private:
 class ScopeTree : public Scope, public DomTree {
 public:
 
-    ScopeTree(const Lambda* entry)
+    ScopeTree(Lambda* entry)
         : Scope(entry)
         , DomTree(*static_cast<Scope*>(this))
     {}
 
     size_t size() const { return Scope::size(); }
-    const Lambda* entry() const { return Scope::entry(); }
+    Lambda* entry() const { return Scope::entry(); }
     const DomNode* entry_node() const { return DomTree::entry(); }
 };
 

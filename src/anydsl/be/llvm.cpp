@@ -39,7 +39,7 @@ template<class T> llvm::ArrayRef<T> llvm_ref(const Array<T>& array) {
 
 //------------------------------------------------------------------------------
 
-typedef boost::unordered_map<const Lambda*, llvm::Function*> FctMap;
+typedef boost::unordered_map<Lambda*, llvm::Function*> FctMap;
 typedef boost::unordered_map<const Param*, llvm::Value*> ParamMap;
 typedef boost::unordered_map<const Param*, llvm::PHINode*> PhiMap;
 typedef boost::unordered_map<const PrimOp*, llvm::Value*> PrimOpMap;
@@ -92,7 +92,7 @@ void CodeGen::emit() {
 
     // for all top-level functions
     for_all (lf, fcts) {
-        const Lambda* lambda = lf.first;
+        Lambda* lambda = lf.first;
         llvm::Function* fct = lf.second;
         anydsl_assert(lambda->ho_params().size() == 1, "unsupported number of higher order params");
 
@@ -118,7 +118,7 @@ void CodeGen::emit() {
             builder_.SetInsertPoint(bbs[lambda->sid()]);
 
             // create phi node stubs (for all non-cascading lambdas different from entry)
-            if (lambda != scope.entry() && !lambda->is_cascading()) {
+            if (!lambda->is_cascading() && lambda != scope.entry()) {
                 for_all (param, lambda->params())
                     phis_[param] = builder_.CreatePHI(convert(param->type()), param->phi().size(), param->debug);
             }
@@ -137,7 +137,7 @@ void CodeGen::emit() {
                 assert(lambda->args().size() == 1);
                 builder_.CreateRet(lookup(lambda->arg(0)));
             } else if (num_targets == 1) {  // case 1: three sub-cases
-                const Lambda* tolambda = lambda->to()->as<Lambda>();
+                Lambda* tolambda = lambda->to()->as_lambda();
 
                 if (tolambda->is_fo())     // case a) ordinary jump
                     builder_.CreateBr(bbs[tolambda->sid()]);
@@ -151,7 +151,7 @@ void CodeGen::emit() {
                     if (ho_arg == ret_param)        // case b) call + return
                         builder_.CreateRet(call); 
                     else {                          // case c) call + continuation
-                        const Lambda* succ = ho_arg->as<Lambda>();
+                        Lambda* succ = ho_arg->as_lambda();
                         params_[succ->param(0)] = call;
                         builder_.CreateBr(bbs[succ->sid()]);
                     }

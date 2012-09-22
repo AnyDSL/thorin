@@ -382,20 +382,28 @@ const Param* World::param(const Type* type, Lambda* parent, u32 i) {
 
 void World::jump(Lambda* lambda, const Def* to, ArrayRef<const Def*> args) {
     lambda->alloc(args.size() + 1);
-
-    lambda->setOp(0, to);
+    lambda->set_op(0, to);
 
     size_t x = 1;
     for_all (arg, args)
-        lambda->setOp(x++, arg);
+        lambda->set_op(x++, arg);
 
-    lambda->close(gid_counter_++);
-
-    consume(lambda);
+    lambda->close();
 }
 
 void World::branch(Lambda* lambda, const Def* cond, const Def* tto, const Def*  fto) {
     return jump(lambda, select(cond, tto, fto), Array<const Def*>(0));
+}
+
+Lambda* World::lambda(const Pi* pi, uint32_t flags) {
+    Lambda* l = new Lambda(gid_counter_++, pi, flags);
+    defs_.insert(l);
+
+    size_t i = 0;
+    for_all (elem, pi->elems())
+        l->params_.push_back(param(elem, l, i++));
+
+    return l;
 }
 
 /*
@@ -433,6 +441,8 @@ void World::dce() {
 }
 
 void World::dce_insert(const Def* def) {
+    anydsl_assert(defs_.find(def) != defs_.end(), "not in map");
+
     if (def->is_marked())
         return;
 
@@ -485,7 +495,7 @@ void World::uce() {
 }
 
 void World::uce_insert(const Lambda* lambda) {
-    assert(defs_.find(lambda) != defs_.end());
+    anydsl_assert(defs_.find(lambda) != defs_.end(), "not in map");
 
     if (lambda->is_marked())
         return;
@@ -506,6 +516,31 @@ void World::cleanup() {
 
 void World::opt() {
     cleanup();
+
+    const Lambda* helper;
+    const Lambda* fac;
+    for_all (lambda, lambdas()) {
+        if (lambda->debug == "helper")
+            helper = lambda;
+        else if (lambda->debug == "fac")
+            fac = lambda;
+    }
+
+    const Lambda* dropped = drop(helper, fac->args());
+    //return;
+    Lambda* fac2 = (Lambda*) fac;
+    //Lambda* fac2 = release(fac)->as<Lambda>();
+
+    for (size_t i = 1, e = fac->size(); i != e; ++i)
+        fac2->unset_op(i);
+
+    fac2->shrink(1);
+    //((Lambda*) helper)->flags_ = 0;
+    fac2->update(0, dropped);
+    //fac2->reclose();
+    //consume(fac2);
+
+    cleanup();
 }
 
 void World::unmark() {
@@ -525,6 +560,11 @@ const Def* World::consume(const Def* def) {
     defs_.insert(def);
     anydsl_assert(defs_.find(def) != defs_.end(), "hash/equal function of def class incorrect");
 
+    if (const Lambda* lambda = def->isa<Lambda>()) {
+        for_all (param, lambda->params())
+            consume(param);
+    }
+
     return def;
 }
 
@@ -543,6 +583,9 @@ LambdaSet World::lambdas() const {
 }
 
 void World::dump(bool fancy) {
+    //for_all (lambda, lambdas())
+        //lambda->dump(fancy);
+    //return;
     LambdaSet roots = find_root_lambdas(lambdas());
 
     for_all (root, roots) {
@@ -563,10 +606,17 @@ Def* World::release(const Def* def) {
     assert(def == *i);
     defs_.erase(i);
 
+    if (const Lambda* lambda = def->isa<Lambda>()) {
+        for_all (param, lambda->params())
+            release(param);
+    }
+
     return const_cast<Def*>(def);
 }
 
 void World::replace(const Def* what, const Def* with) {
+    assert(!what->isa<Lambda>());
+
     if (what == with)
         return;
 
@@ -574,7 +624,7 @@ void World::replace(const Def* what, const Def* with) {
 
     // unregister all uses of def's operands
     for (size_t i = 0, e = def->ops().size(); i != e; ++i) {
-        def->ops_[i]->unregisterUse(i, def);
+        def->unregister_use(i);
         def->ops_[i] = 0;
     }
 
@@ -607,37 +657,44 @@ void World::replace(const Def* what, const Def* with) {
             defs_.insert(udef);
     }
 
-    if (const Lambda* olambda = def->isa<Lambda>()) {
-        const Lambda* nlambda = with->as<Lambda>();
-        anydsl_assert(nlambda->params().size() == olambda->params().size(), "number of params does not match");
-
-        for (size_t i = 0, e = nlambda->params().size(); i != e; ++i) {
-            const Param* nparam = nlambda->param(i);
-            const Param* oparam = olambda->param(i);
-
-            replace(oparam, nparam);
-            nparam->debug = oparam->debug;
-        }
-    }
-
     delete def;
 }
 
 const Def* World::update(const Def* cdef, size_t i, const Def* op) {
     Def* def = release(cdef);
     def->update(i, op);
+    return consume(def);
+}
 
+const Def* World::update(const Def* cdef, ArrayRef<const Def*> ops) {
+    Def* def = release(cdef);
+    def->update(ops);
     return consume(def);
 }
 
 const Def* World::update(const Def* cdef, ArrayRef<size_t> x, ArrayRef<const Def*> ops) {
     Def* def = release(cdef);
     def->update(x, ops);
-
     return consume(def);
 }
 
+const Lambda* World::drop(const Lambda* olambda, ArrayRef<const Def*> with) {
+    if (with.empty())
+        return olambda;
+
+    Array<size_t> args(with.size());
+    for (size_t i = 0, e = args.size(); i < e; ++i)
+        args[i] = i;
+
+    return drop(olambda, args, with);
+}
+
 const Lambda* World::drop(const Lambda* olambda, ArrayRef<size_t> args, ArrayRef<const Def*> with) {
+    if (with.empty())
+        return olambda;
+
+    Scope scope(olambda);
+
     const Pi* o_pi = olambda->pi();
 
     size_t o_numargs = o_pi->size();
@@ -646,33 +703,114 @@ const Lambda* World::drop(const Lambda* olambda, ArrayRef<size_t> args, ArrayRef
 
     Array<const Type*> elems(n_numargs);
 
-    for (size_t o = 0, a = 0, e = 0; o < o_numargs; ++o) {
-        if (a < o_numargs && args[a] == o)
+    for (size_t i = 0, a = 0, e = 0; i < o_numargs; ++i) {
+        if (a < o_numargs && args[a] == i)
             ++a;
         else
-            elems[e++] = o_pi->elem(o);
+            elems[e++] = o_pi->elem(i);
     }
 
     const Pi* n_pi = pi(elems);
-    Lambda* nlambda = new Lambda(n_pi);
+    Lambda* nlambda = this->lambda(n_pi);
+    nlambda->debug = olambda->debug + ".dropped";
 
-    typedef boost::unordered_map<const Def*, const Def*> Old2New;
     Old2New old2new;
 
-    // put in params
-    for (size_t o = 0, a = 0, e = 0; o < o_numargs; ++o) {
-        if (a < o_numargs && args[a] == o)
-            ++a;
-        else
-            old2new[olambda->param(e++)] = nlambda->param(o);
+    // put in params for entry (olambda)
+    for (size_t i = 0, a = 0, n = 0; i < o_numargs; ++i) {
+        const Param* oparam = olambda->param(i);
+        if (a < o_numargs && args[a] == i) {
+            const Def* w = with[a++];
+            old2new[oparam] = w; //with[a++];
+        } else {
+            const Param* nparam = nlambda->param(n++);
+            nparam->debug = oparam->debug + ".dropped";
+            old2new[oparam] = nparam;
+        }
     }
 
-    Scope scope(olambda);
+    old2new[olambda] = nlambda;
 
-    for_all (cur, scope.rpo()) {
+    // create stubs for all other lambdas and put their params into the map
+    for_all (olambda, scope.rpo().slice_back(1)) {
+        Lambda* nlambda = olambda->stub();
+        nlambda->debug += ".dropped";
+        old2new[olambda] = nlambda;
+
+        for (size_t i = 0, e = nlambda->params().size(); i != e; ++i) {
+            old2new[olambda->param(i)] = nlambda->param(i);
+            nlambda->param(i)->debug = "xxx";
+        }
     }
+
+    for_all (cur, scope.rpo())
+        drop_body(old2new, cur, (Lambda*) old2new[cur]);
 
     return nlambda;
+}
+
+void World::drop_body(Old2New& old2new, const Lambda* olambda, Lambda* nlambda) {
+    for_all (param, olambda->params())
+        for_all (use, param->uses())
+            if (const PrimOp* primop = use.def()->isa<PrimOp>())
+                drop(old2new, primop);
+
+    Array<const Def*> args(olambda->args().size());
+    for (size_t i = 0; i < args.size(); ++i) {
+        const Def* odef = olambda->arg(i);
+        Old2New::iterator iter = old2new.find(odef);
+        if (iter != old2new.end())
+            args[i] = iter->second;
+        else
+            args[i] = odef;
+    }
+
+    jump(nlambda, drop_to(old2new, olambda->to()), args);
+}
+
+void World::drop(Old2New& old2new, const PrimOp* primop) {
+    Array<const Def*> ops(primop->size());
+
+    size_t i = 0; 
+    for_all (op, primop->ops()) {
+        Old2New::iterator iter = old2new.find(op);
+        if (iter != old2new.end())
+            ops[i++] = iter->second;
+        else if (op->is_const())
+            ops[i++] = op;
+        else 
+            return;
+    }
+
+    old2new[primop] = consume(primop->clone()->update(ops));
+
+    for_all (use, primop->uses())
+        if (const PrimOp* primop = use.def()->isa<PrimOp>())
+            drop(old2new, primop);
+}
+
+const Def* World::drop_to(Old2New& old2new, const Def* to) {
+    Old2New::iterator iter = old2new.find(to);
+    if (iter != old2new.end())
+        return iter->second;
+
+    if (const PrimOp* primop = to->isa<PrimOp>()) {
+        Array<const Def*> ops(primop->size());
+
+        size_t i = 0; 
+        for_all (op, primop->ops()) {
+            Old2New::iterator iter = old2new.find(op);
+            if (iter != old2new.end())
+                ops[i++] = iter->second;
+            else
+                ops[i++] = drop_to(old2new, op);
+
+        }
+
+        return old2new[primop] = consume(primop->clone()->update(ops));
+    }
+
+    return to;
 }
 
 } // namespace anydsl

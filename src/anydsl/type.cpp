@@ -24,7 +24,7 @@ CompoundType::CompoundType(World& world, int kind, ArrayRef<const Type*> elems)
 {
     size_t x = 0;
     for_all (elem, elems)
-        setOp(x++, elem);
+        set_op(x++, elem);
 }
 
 //------------------------------------------------------------------------------

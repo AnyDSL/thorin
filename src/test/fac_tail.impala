@@ -1,12 +1,12 @@
-def fac(n : int) -> int 
+def fac(nf : int) -> int 
 {
-    return helper(1, n);
+    return helper(1, nf);
 }
 
-def helper(r : int, n : int) -> int 
+def helper(r : int, nh : int) -> int 
 {
-    if (n == 1) 
+    if (nh == 1) 
         return r;
 
-    return helper(n * r, n - 1);
+    return helper(nh * r, nh - 1);
 }

@@ -25,9 +25,9 @@ public:
     virtual void store(const Def* val) const = 0;
     virtual World& world() const = 0;
 
-    static RefPtr create(const Def* def);
-    static RefPtr create(Var* var);
-    static RefPtr create(RefPtr lref, u32 index);
+    inline static RefPtr create(const Def* def);
+    inline static RefPtr create(Var* var);
+    inline static RefPtr create(RefPtr lref, u32 index);
 };
 
 class RVal : public Ref {
@@ -68,17 +68,25 @@ public:
     TupleRef(RefPtr lref, u32 index)
         : lref_(lref)
         , index_(index)
+        , loaded_(0)
     {}
 
     virtual const Def* load() const;
     virtual void store(const Def* val) const;
-    virtual World& world() const { return lref_->world(); }
+    virtual World& world() const;
 
 private:
 
     RefPtr lref_;
     u32 index_;
+
+    /// Caches loaded value to prevent quadratic blow up in calls.
+    mutable const Def* loaded_;
 };
+
+RefPtr Ref::create(const Def* def) { return RefPtr(new RVal(def)); }
+RefPtr Ref::create(Var* var) { return RefPtr(new VarRef(var)); }
+RefPtr Ref::create(RefPtr lref, u32 index) { return RefPtr(new TupleRef(lref, index)); }
 
 } // namespace anydsl
 

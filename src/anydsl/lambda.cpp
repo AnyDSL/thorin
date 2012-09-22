@@ -10,15 +10,22 @@
 
 namespace anydsl {
 
-Lambda::Lambda(const Pi* pi, uint32_t flags)
+Lambda::Lambda(size_t gid, const Pi* pi, uint32_t flags)
     : Def(Node_Lambda, pi)
+    , gid_(gid)
     , flags_(flags)
 {
     params_.reserve(pi->size());
+}
 
-    size_t i = 0;
-    for_all (elem, pi->elems())
-        params_.push_back(world().param(elem, this, i++));
+Lambda* Lambda::stub() const { 
+    Lambda* result = world().lambda(pi(), flags());
+    result->debug = debug;
+
+    for (size_t i = 0, e = params().size(); i != e; ++i)
+        result->param(i)->debug = param(i)->debug;
+
+    return result;
 }
 
 const Pi* Lambda::pi() const { return type()->as<Pi>(); }
@@ -29,7 +36,7 @@ const Param* Lambda::append_param(const Type* type) {
 
     Array<const Type*> elems(size + 1);
     *std::copy(pi()->elems().begin(), pi()->elems().end(), elems.begin()) = type;
-    setType(world().pi(elems));
+    set_type(world().pi(elems));
 
     const Param* param = world().param(type, this, size);
     params_.push_back(param);
@@ -71,9 +78,7 @@ LambdaSet Lambda::preds() const {
     return result;
 }
 
-void Lambda::close(size_t gid) {
-    gid_ = gid;
-
+void Lambda::close() {
     LambdaSet targets, hos;
 
     find_lambdas(to(), targets);
@@ -92,6 +97,12 @@ void Lambda::close(size_t gid) {
         adjacencies_[i++] = ho;
 
     anydsl_assert(pi()->size() == params().size(), "type does not honor size of params");
+}
+
+void Lambda::reclose() {
+    adjacencies_.~Array();
+    new (&adjacencies_) Array<const Lambda*>();
+    close();
 }
 
 template<bool fo>

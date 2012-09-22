@@ -20,6 +20,7 @@ class Bottom;
 class Lambda;
 class Pi;
 class PrimLit;
+class PrimOp;
 class PrimType;
 class Sigma;
 class Type;
@@ -200,6 +201,9 @@ public:
     }
     void branch(Lambda* lambda, const Def* cond, const Def* tto, const Def* fto);
 
+    Lambda* lambda(const Pi* pi, uint32_t flags = 0);
+    Lambda* lambda(uint32_t flags = 0) { return lambda(pi0()); }
+
     /*
      * optimizations
      */
@@ -229,7 +233,9 @@ public:
     Def* release(const Def* def);
     void replace(const Def* what, const Def* with);
     const Def* update(const Def* def, size_t i, const Def* op);
+    const Def* update(const Def* def, ArrayRef<const Def*> ops);
     const Def* update(const Def* def, ArrayRef<size_t> x, ArrayRef<const Def*> ops);
+    const Lambda* drop(const Lambda* lambda, ArrayRef<const Def*> with);
     const Lambda* drop(const Lambda* lambda, ArrayRef<size_t> args, ArrayRef<const Def*> with);
     const Def* consume(const Def* def);
     /// Sets all \p Def%s' note.marker field to false.
@@ -238,8 +244,10 @@ public:
 private:
 
     typedef boost::unordered_map<const Def*, const Def*> Old2New;
-    const Def* drop(Old2New& old2new, const Def* def);
-    Old2New::iterator mustDrop(Old2New& old2new, const Def* def);
+    void drop_head(Old2New& old2new, const Lambda* olambda);
+    void drop_body(Old2New& old2new, const Lambda* olambda, Lambda* nlambda);
+    const Def* drop_to(Old2New& old2new, const Def* to);
+    void drop(Old2New& old2new, const PrimOp* primop);
 
     void dce_insert(const Def* def);
     void uce_insert(const Lambda* lambda);

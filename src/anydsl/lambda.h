@@ -17,14 +17,18 @@ typedef boost::unordered_set<const Lambda*> LambdaSet;
 typedef std::vector<const Param*> Params;
 
 class Lambda : public Def {
+private:
+
+    Lambda(size_t gid, const Pi* pi, uint32_t flags);
+
 public:
 
     enum Flags {
         Extern = 1 << 0,
     };
 
-    Lambda(const Pi* pi, uint32_t flags = 0);
     virtual Lambda* clone() const { ANYDSL_UNREACHABLE; }
+    Lambda* stub() const;
 
     const Param* append_param(const Type* type);
 
@@ -35,13 +39,14 @@ public:
     bool is_fo() const;
     bool is_ho() const;
 
-    void close(size_t gid);
+    void close();
+    void reclose();
 
     typedef ArrayRef<const Lambda*> Lambdas;
 
     Lambdas targets() const { return adjacencies_.slice_front(hos_begin_); }
-    Lambdas hos()     const { return adjacencies_.slice_back(hos_begin_); }
-    Lambdas succs()    const { return Lambdas(adjacencies_); }
+    Lambdas hos() const { return adjacencies_.slice_back(hos_begin_); }
+    Lambdas succs() const { return Lambdas(adjacencies_); }
     LambdaSet preds() const;
     const Params& params() const { return params_; }
     const Param* param(size_t i) const { return params_[i]; }
@@ -79,13 +84,13 @@ private:
     virtual size_t hash() const;
     virtual void vdump(Printer& printer) const;
 
-    Params params_;
+    size_t gid_;        ///< global index
     uint32_t flags_;
+    Params params_;
 
     /// targets -- lambda arguments -- callers
     Array<const Lambda*> adjacencies_;
     size_t hos_begin_;
-    size_t gid_;        ///< global index
     mutable size_t sid_; ///< scope index
 
     friend class World;

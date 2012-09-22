@@ -115,18 +115,19 @@ protected:
      */
     virtual Def* clone() const = 0;
 
-    void setOp(size_t i, const Def* def) { def->registerUse(i, this); ops_[i] = def; }
-    void setType(const Type* type) { type_ = type; }
+    void set_op(size_t i, const Def* def);
+    void unset_op(size_t i);
+    void set_type(const Type* type) { type_ = type; }
     void alloc(size_t size) { ops_.alloc(size); }
     void shrink(size_t newsize) { ops_.shrink(newsize); }
+    bool is_const() const;
 
     virtual bool equal(const Def* other) const;
     virtual size_t hash() const;
 
 public:
 
-    void registerUse(size_t i, const Def* def) const;
-    void unregisterUse(size_t i, const Def* def) const;
+    void unregister_use(size_t i) const;
 
     int kind() const { return kind_; }
     bool is_corenode() const { return ::anydsl::is_corenode(kind()); }
@@ -155,14 +156,14 @@ public:
     size_t size() const { return ops_.size(); }
     bool empty() const { return ops_.size() == 0; }
 
-    /// Updates operand indices \p x to point to the corresponding \p ops instead.
-    void update(ArrayRef<size_t> idx, ArrayRef<const Def*> ops);
-
     /// Updates operand \p i to point to \p def instead.
-    void update(size_t i, const Def* def) {
-        op(i)->unregisterUse(i, this);
-        setOp(i, def);
-    }
+    Def* update(size_t i, const Def* def);
+
+    /// Updates operand indices \p x to point to the corresponding \p ops instead.
+    Def* update(ArrayRef<size_t> idx, ArrayRef<const Def*> ops);
+
+    /// Updates all operands to point to the corresponding \p ops instead:
+    Def* update(ArrayRef<const Def*> ops);
 
     /*
      * check for special literals

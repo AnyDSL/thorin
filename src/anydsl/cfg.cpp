@@ -14,7 +14,7 @@ namespace anydsl {
 BB::BB(Fct* fct, const std::string& debug) 
     : sealed_(false)
     , fct_(fct)
-    , top_(new Lambda(world().pi0()))
+    , top_(world().lambda())
     , cur_(top_)
 {
     top_->debug = debug;
@@ -182,7 +182,7 @@ const Def* BB::call(const Def* to, ArrayRef<const Def*> args, const Type* rettyp
     static int id = 0;
 
     // create next continuation in cascade
-    Lambda* next = new Lambda(world().pi0());
+    Lambda* next = world().lambda();
     next->debug = cur_->debug + "_" + to->debug;
     const Param* result = next->append_param(rettype);
     result->debug = make_name(to->debug.c_str(), id);
@@ -246,7 +246,7 @@ Fct::Fct(World& world,
     assert(types.size() == symbols.size());
     sealed_ = true;
     fct_ = this;
-    cur_ = top_ = new Lambda(world.pi(types), Lambda::Extern);
+    cur_ = top_ = world.lambda(world.pi(types), Lambda::Extern);
     top_->debug = debug;
 
     size_t i = 0;

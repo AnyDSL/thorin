@@ -30,13 +30,12 @@ Def::Def(const Def& def)
     , ops_(def.size())
 {
     for (size_t i = 0, e = size(); i != e; ++i)
-        setOp(i, def.op(i));
+        set_op(i, def.op(i));
 }
 
 Def::~Def() { 
     for (size_t i = 0, e = ops().size(); i != e; ++i)
-        if (ops_[i])
-            ops_[i]->unregisterUse(i, this);
+        unregister_use(i);
 
     for_all (use, uses_) {
         size_t i = use.index();
@@ -45,29 +44,77 @@ Def::~Def() {
     }
 }
 
-void Def::registerUse(size_t i, const Def* def) const {
-    Use use(i, def);
-    anydsl_assert(uses_.find(use) == uses_.end(), "already in use set");
-    uses_.insert(use);
+void Def::set_op(size_t i, const Def* def) {
+    anydsl_assert(!op(i), "already set");
+    Use use(i, this);
+    anydsl_assert(def->uses_.find(use) == def->uses_.end(), "already in use set");
+    def->uses_.insert(use);
+    ops_[i] = def;
 }
 
-void Def::unregisterUse(size_t i, const Def* def) const {
-    Use use(i, def);
-    anydsl_assert(uses_.find(use) != uses_.end(), "must be inside the use set");
-    uses_.erase(use);
+void Def::unset_op(size_t i) {
+    anydsl_assert(op(i), "must be set");
+    unregister_use(i);
+    ops_[i] = 0;
 }
 
-void Def::update(ArrayRef<size_t> x, ArrayRef<const Def*> ops) {
-    assert(x.size() == ops.size());
+void Def::unregister_use(size_t i) const {
+    if (const Def* def = op(i)) {
+        Use use(i, this);
+        anydsl_assert(def->uses_.find(use) != def->uses_.end(), "must be inside the use set");
+        def->uses_.erase(use);
+    }
+}
+
+bool Def::is_const() const {
+    if (node_kind() == Node_Param)
+        return false;
+
+    if (size() == 0)
+        return true;
+
+    bool result = true;
+    for (size_t i = 0, e = size(); i != e && result; ++i)
+        result &= op(i)->is_const();
+
+    return result;
+}
+
+Def* Def::update(size_t i, const Def* def) {
+    unset_op(i);
+    set_op(i, def);
+    if (Lambda* lambda = this->isa<Lambda>())
+        lambda->reclose();
+    return this;
+}
+
+Def* Def::update(ArrayRef<size_t> x, ArrayRef<const Def*> with) {
+    assert(x.size() == with.size());
     size_t size = x.size();
 
     for (size_t i = 0; i < size; ++i) {
         size_t idx = x[i];
-        const Def* def = ops[i];
+        const Def* def = with[i];
 
-        op(idx)->unregisterUse(idx, this);
-        setOp(idx, def);
+        unset_op(idx);
+        set_op(idx, def);
     }
+    if (Lambda* lambda = this->isa<Lambda>())
+        lambda->reclose();
+    return this;
+}
+
+Def* Def::update(ArrayRef<const Def*> with) {
+    anydsl_assert(size() == with.size(), "sizes do not match");
+
+    for (size_t i = 0, e = size(); i != e; ++i) {
+        unset_op(i);
+        set_op(i, with[i]);
+    }
+    if (Lambda* lambda = this->isa<Lambda>())
+        lambda->reclose();
+
+    return this;
 }
 
 World& Def::world() const { 

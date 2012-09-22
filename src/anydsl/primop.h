@@ -18,6 +18,10 @@ protected:
     PrimOp(int kind, const Type* type, size_t numOps)
         : Def(kind, type, numOps)
     {}
+
+public:
+
+    virtual PrimOp* clone() const = 0;
 };
 
 //------------------------------------------------------------------------------
@@ -29,8 +33,8 @@ protected:
         : PrimOp(kind, type, 2)
     {
         anydsl_assert(lhs->type() == rhs->type(), "types are not equal");
-        setOp(0, lhs);
-        setOp(1, rhs);
+        set_op(0, lhs);
+        set_op(1, rhs);
     }
 
 public:
@@ -122,7 +126,7 @@ private:
     ConvOp(ConvOpKind kind, const Def* from, const Type* to)
         : PrimOp(kind, to, 1)
     {
-        setOp(0, from);
+        set_op(0, from);
     }
     virtual ConvOp* clone() const { return new ConvOp(*this); }
 

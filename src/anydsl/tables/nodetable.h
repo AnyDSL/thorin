@@ -8,7 +8,7 @@
         ANYDSL_AIR_NODE(PrimLit)
         ANYDSL_AIR_NODE(Undef)
         ANYDSL_AIR_NODE(Bottom)
-        ANYDSL_AIR_NODE(TypeHolder)
+        ANYDSL_AIR_NODE(TypeKeeper)
     // Value
         // PrimOp
             //ANYDSL_AIR_NODE(ArithOp)

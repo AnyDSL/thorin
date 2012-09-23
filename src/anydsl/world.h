@@ -182,7 +182,7 @@ public:
     const Def* insert(const Def* tuple, u32 i, const Def* value);
     const Def* select(const Def* cond, const Def* tdef, const Def* fdef);
     const Def* tuple(ArrayRef<const Def*> args);
-    const Def* typeholder(const Type* type);
+    const Def* typekeeper(const Type* type);
 
     Lambda* lambda(const Pi* pi, uint32_t flags = 0);
     Lambda* lambda(uint32_t flags = 0) { return lambda(pi0()); }

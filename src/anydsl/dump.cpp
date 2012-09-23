@@ -22,8 +22,8 @@ void Bottom::vdump(Printer& p) const  {
     p.dump(type());
 }
 
-void TypeHolder::vdump(Printer& p) const  {
-	p << "<typeholder> : ";
+void TypeKeeper::vdump(Printer& p) const  {
+	p << "<typekeeper> : ";
     p.dump(type());
 }
 

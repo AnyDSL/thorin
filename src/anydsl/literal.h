@@ -115,17 +115,17 @@ private:
 //------------------------------------------------------------------------------
 
 /**
- * The sole purpose of this not is to hold types.
+ * The sole purpose of this node is to hold types.
  * This node is not destroyed by the dead code elimination, and hence,
  * the held type won't be destroyed in the unused type elimination.
  */
-class TypeHolder : public Literal {
+class TypeKeeper : public Literal {
 private:
 
-    TypeHolder(const Type* type)
-        : Literal(Node_TypeHolder, type)
+    TypeKeeper(const Type* type)
+        : Literal(Node_TypeKeeper, type)
     {}
-    virtual TypeHolder* clone() const { return new TypeHolder(*this); }
+    virtual TypeKeeper* clone() const { return new TypeKeeper(*this); }
     virtual void vdump(Printer& printer) const ;
 
     friend class World;

@@ -42,10 +42,10 @@ World::World()
 #define ANYDSL_UF_TYPE(T) ,T##_(consume(new PrimType(*this, PrimType_##T))->as<PrimType>())
 #include "anydsl/tables/primtypetable.h"
 {
-    typeholder(sigma0_);
-    typeholder(pi0_);
+    typekeeper(sigma0_);
+    typekeeper(pi0_);
     for (size_t i = 0; i < Num_PrimTypes; ++i)
-        typeholder(primTypes_[i]);
+        typekeeper(primTypes_[i]);
 }
 
 World::~World() {
@@ -398,8 +398,8 @@ Lambda* World::lambda(const Pi* pi, uint32_t flags) {
     return l;
 }
 
-const Def* World::typeholder(const Type* type) { 
-    return consume(new TypeHolder(type)); 
+const Def* World::typekeeper(const Type* type) { 
+    return consume(new TypeKeeper(type)); 
 }
 
 /*
@@ -417,8 +417,8 @@ void World::dead_code_elimination() {
         primop->unmark(); 
 
     for_all (primop, primops()) {
-        if (const TypeHolder* th = primop->isa<TypeHolder>())
-            dce_insert(th);
+        if (const TypeKeeper* tk = primop->isa<TypeKeeper>())
+            dce_insert(tk);
     }
 
     for_all (lambda, lambdas()) {
@@ -565,19 +565,9 @@ void World::opt() {
     }
 
     Lambda* dropped = helper->drop(2, fac->param(1));
-    //return;
-    Lambda* fac2 = (Lambda*) fac;
-    //Lambda* fac2 = release(fac)->as<Lambda>();
-
-    //for (size_t i = 1, e = fac->size(); i != e; ++i)
-        //fac2->unset_op(i);
-
-    fac2->unset_op(3);
-    fac2->shrink(3);
-    //((Lambda*) helper)->flags_ = 0;
-    fac2->update(0, dropped);
-    //fac2->reclose();
-    //consume(fac2);
+    fac->unset_op(3);
+    fac->shrink(3);
+    fac->update(0, dropped);
 
     cleanup();
 }

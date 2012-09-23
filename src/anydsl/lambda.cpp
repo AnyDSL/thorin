@@ -346,5 +346,4 @@ const Def* Dropper::drop_target(const Def* to) {
     return to;
 }
 
-
 } // namespace anydsl

@@ -45,8 +45,8 @@ Select::Select(const Def* cond, const Def* t, const Def* f)
 
 //------------------------------------------------------------------------------
 
-TupleOp::TupleOp(NodeKind kind, const Type* type, size_t numOps, const Def* tuple, u32 index)
-    : PrimOp(kind, type, numOps)
+TupleOp::TupleOp(NodeKind kind, const Type* type, size_t size, const Def* tuple, u32 index)
+    : PrimOp(kind, type, size)
     , index_(index)
 {
     set_op(0, tuple);

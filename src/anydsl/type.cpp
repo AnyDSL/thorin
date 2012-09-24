@@ -37,10 +37,7 @@ size_t Sigma::hash() const {
 }
 
 bool Sigma::equal(const Def* other) const {
-    if (named_)
-        return this == other;
-    else
-        return CompoundType::equal(other);
+    return named_ ? this == other : CompoundType::equal(other);
 }
 
 //------------------------------------------------------------------------------

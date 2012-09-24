@@ -45,6 +45,21 @@ private:
 
 //------------------------------------------------------------------------------
 
+/// The type of the memory monad.
+class Mem : public Type {
+private:
+
+    Mem(World& world)
+        : Type(world, Node_Mem, 0)
+    {}
+    virtual Mem* clone() const { return new Mem(*this); }
+    virtual void vdump(Printer& printer) const;
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
 /// Primitive types -- also known as atomic or scalar types.
 class PrimType : public Type {
 private:
@@ -62,6 +77,27 @@ public:
 private:
 
     virtual void vdump(Printer& printer) const;
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
+class Ptr : public Type {
+private:
+
+    Ptr(const Type* ref)
+        : Type(ref->world(), Node_Ptr, 1)
+    {
+        set_op(0, ref);
+    }
+
+    virtual Ptr* clone() const { return new Ptr(*this); }
+    virtual void vdump(Printer& printer) const;
+
+public:
+
+    const Type* ref() const { return elem(0); }
 
     friend class World;
 };

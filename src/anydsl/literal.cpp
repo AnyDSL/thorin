@@ -8,21 +8,14 @@ namespace anydsl {
 //------------------------------------------------------------------------------
 
 bool Literal::equal(const Def* other) const {
-    if (!PrimOp::equal(other))
-        return false;
-
-    // also consider type
-    return this->type() == other->type();
+    return PrimOp::equal(other) && type() == other->type();
 }
 
 size_t Literal::hash() const {
     size_t seed = PrimOp::hash();
-    // also consider type
     boost::hash_combine(seed, type());
-
     return seed;
 }
-
 
 //------------------------------------------------------------------------------
 

@@ -8,6 +8,7 @@
 #include "anydsl/primop.h"
 #include "anydsl/lambda.h"
 #include "anydsl/literal.h"
+#include "anydsl/memop.h"
 #include "anydsl/type.h"
 #include "anydsl/analyses/domtree.h"
 #include "anydsl/analyses/rootlambdas.h"
@@ -38,12 +39,14 @@ World::World()
     , types_(1031)
     , gid_counter_(0)
     , sigma0_ (consume(new Sigma(*this, ArrayRef<const Type*>(0, 0)))->as<Sigma>())
-    , pi0_  (consume(new Pi   (*this, ArrayRef<const Type*>(0, 0)))->as<Pi>())
+    , pi0_    (consume(new Pi   (*this, ArrayRef<const Type*>(0, 0)))->as<Pi>())
+    , mem_    (consume(new Mem  (*this))->as<Mem>())
 #define ANYDSL_UF_TYPE(T) ,T##_(consume(new PrimType(*this, PrimType_##T))->as<PrimType>())
 #include "anydsl/tables/primtypetable.h"
 {
     typekeeper(sigma0_);
     typekeeper(pi0_);
+    typekeeper(mem_);
     for (size_t i = 0; i < Num_PrimTypes; ++i)
         typekeeper(primTypes_[i]);
 }
@@ -377,6 +380,22 @@ const Def* World::insert(const Def* agg, u32 index, const Def* value) {
     return consume(new Insert(agg, index, value));
 }
 
+const Def* World::load(const Def* mem, const Def* ptr) {
+    return consume(new Load(mem, ptr));
+}
+
+const Def* World::store(const Def* mem, const Def* ptr, const Def* val) {
+    return consume(new Store(mem, ptr, val));
+}
+
+const Enter* World::enter(const Def* mem) {
+    return consume(new Enter(mem))->as<Enter>();
+}
+
+const Leave* World::leave(const Def* mem, const Enter* enter) {
+    return consume(new Leave(mem, enter))->as<Leave>();
+}
+
 const Def* World::select(const Def* cond, const Def* a, const Def* b) {
     if (cond->isa<Bottom>() || a->isa<Bottom>() || b->isa<Bottom>())
         return bottom(a->type());
@@ -385,6 +404,10 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b) {
         return lit->box().get_u1().get() ? a : b;
 
     return consume(new Select(cond, a, b));
+}
+
+const Def* World::typekeeper(const Type* type) { 
+    return consume(new TypeKeeper(type)); 
 }
 
 Lambda* World::lambda(const Pi* pi, uint32_t flags) {
@@ -396,10 +419,6 @@ Lambda* World::lambda(const Pi* pi, uint32_t flags) {
         l->params_.push_back(new Param(elem, l, i++));
 
     return l;
-}
-
-const Def* World::typekeeper(const Type* type) { 
-    return consume(new TypeKeeper(type)); 
 }
 
 /*

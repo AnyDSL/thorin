@@ -19,7 +19,7 @@ public:
     bool fancy() const { return fancy_; }
 
     Printer& dump(const Def* def);
-    Printer& dumpName(const Def* def);
+    Printer& dump_name(const Def* def);
 
     Printer& newline();
     Printer& up();

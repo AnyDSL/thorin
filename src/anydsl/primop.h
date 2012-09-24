@@ -15,8 +15,8 @@ class PrimLit;
 class PrimOp : public Def {
 protected:
 
-    PrimOp(int kind, const Type* type, size_t numOps)
-        : Def(kind, type, numOps)
+    PrimOp(int kind, const Type* type, size_t size)
+        : Def(kind, type, size)
     {}
 
 public:
@@ -168,7 +168,7 @@ public:
 class TupleOp : public PrimOp {
 protected:
 
-    TupleOp(NodeKind kind, const Type* type, size_t numOps, const Def* tuple, u32 index);
+    TupleOp(NodeKind kind, const Type* type, size_t size, const Def* tuple, u32 index);
     TupleOp(const TupleOp& tuple)
         : PrimOp(tuple)
         , index_(tuple.index())

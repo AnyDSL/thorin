@@ -35,7 +35,7 @@ Printer& Printer::down() {
     return newline();
 }
 
-Printer& Printer::dumpName(const Def* def) {
+Printer& Printer::dump_name(const Def* def) {
     if (fancy()) {
         unsigned i = uintptr_t(def);
         unsigned sum = 0;

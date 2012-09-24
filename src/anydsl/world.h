@@ -15,17 +15,18 @@
 
 namespace anydsl {
 
-class Def;
+class Any;
 class Bottom;
+class Def;
+class Enter;
 class Lambda;
+class Leave;
 class Pi;
 class PrimLit;
 class PrimOp;
 class PrimType;
 class Sigma;
 class Type;
-class Def;
-class Any;
 
 typedef boost::unordered_set<const PrimOp*, DefHash, DefEqual> PrimOpSet;
 typedef boost::unordered_set<Lambda*> LambdaSet;
@@ -86,6 +87,9 @@ public:
         assert(0 <= i && i < (size_t) Num_PrimTypes);
         return primTypes_[i];
     }
+
+    const Mem* mem() const { return mem_; }
+    const Ptr* ptr(const Type* ref) { return consume(new Ptr(ref))->as<Ptr>(); }
 
     // sigmas
 
@@ -160,7 +164,7 @@ public:
     const Bottom* bottom(PrimTypeKind kind) { return bottom(type(kind)); }
 
     /*
-     * create
+     * arithop, relop, convop
      */
 
     /// Creates an \p ArithOp or a \p RelOp.
@@ -178,10 +182,28 @@ public:
 #define ANYDSL_CONVOP(OP) const Def* convop_##OP(const Def* from, const Type* to) { return convop(ConvOp_##OP, from, to); }
 #include "anydsl/tables/convoptable.h"
 
+    /*
+     * tuple stuff
+     */
+
     const Def* extract(const Def* tuple, u32 i);
     const Def* insert(const Def* tuple, u32 i, const Def* value);
-    const Def* select(const Def* cond, const Def* tdef, const Def* fdef);
     const Def* tuple(ArrayRef<const Def*> args);
+
+    /*
+     * memops
+     */
+
+    const Def* load(const Def* mem, const Def* ptr);
+    const Def* store(const Def* mem, const Def* ptr, const Def* val);
+    const Enter* enter(const Def* mem);
+    const Leave* leave(const Def* mem, const Enter* enter);
+
+    /*
+     * other stuff
+     */
+
+    const Def* select(const Def* cond, const Def* tdef, const Def* fdef);
     const Def* typekeeper(const Type* type);
 
     Lambda* lambda(const Pi* pi, uint32_t flags = 0);
@@ -232,6 +254,7 @@ private:
     size_t gid_counter_;
     const Sigma* sigma0_;///< sigma().
     const Pi* pi0_;      ///< pi().
+    const Mem* mem_;     ///< \p Mem.
 
     union {
         struct {

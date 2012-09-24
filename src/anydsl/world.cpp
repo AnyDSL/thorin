@@ -396,6 +396,10 @@ const Leave* World::leave(const Def* mem, const Enter* enter) {
     return consume(new Leave(mem, enter))->as<Leave>();
 }
 
+const Slot* World::slot(const Enter* enter, const Type* type) {
+    return consume(new Slot(enter, type))->as<Slot>();
+}
+
 const Def* World::select(const Def* cond, const Def* a, const Def* b) {
     if (cond->isa<Bottom>() || a->isa<Bottom>() || b->isa<Bottom>())
         return bottom(a->type());

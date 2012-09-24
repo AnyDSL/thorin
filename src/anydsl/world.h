@@ -26,6 +26,7 @@ class PrimLit;
 class PrimOp;
 class PrimType;
 class Sigma;
+class Slot;
 class Type;
 
 typedef boost::unordered_set<const PrimOp*, DefHash, DefEqual> PrimOpSet;
@@ -198,6 +199,7 @@ public:
     const Def* store(const Def* mem, const Def* ptr, const Def* val);
     const Enter* enter(const Def* mem);
     const Leave* leave(const Def* mem, const Enter* enter);
+    const Slot* slot(const Enter* enter, const Type* type);
 
     /*
      * other stuff

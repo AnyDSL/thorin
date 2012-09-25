@@ -56,6 +56,11 @@ public:
 
     virtual Load* clone() const { return new Load(*this); }
 
+private:
+
+    mutable const Def* extract_mem_;
+    mutable const Def* extract_val_;
+
     friend class World;
 };
 
@@ -88,7 +93,15 @@ private:
 
 public:
 
+    const Def* extract_mem() const;
+    const Def* extract_frame() const;
+
     virtual Enter* clone() const { return new Enter(*this); }
+
+private:
+
+    mutable const Def* extract_mem_;
+    mutable const Def* extract_frame_;
 
     friend class World;
 };
@@ -98,7 +111,7 @@ public:
 class Leave : public MemOp {
 private:
 
-    Leave(const Def* mem, const Enter* enter);
+    Leave(const Def* mem, const Def* frame);
 
     virtual void vdump(Printer &printer) const;
 
@@ -106,7 +119,7 @@ public:
 
     virtual Leave* clone() const { return new Leave(*this); }
 
-    const Enter* enter() const { return op(1)->as<Enter>(); }
+    const Def* frame() const { return op(1); }
 
     friend class World;
 };

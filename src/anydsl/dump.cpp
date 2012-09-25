@@ -158,10 +158,13 @@ void CompoundType::dump_inner(Printer& p) const {
 	p << ")";
 }
 
-void Mem::vdump(Printer& p) const {
-	p << "mem";
+void Mem::vdump(Printer& p) const { 
+    p << "mem"; 
 }
 
+void Frame::vdump(Printer& p) const { 
+    p << "frame"; 
+}
 
 void Ptr::vdump(Printer& p) const {
     ref()->dump();

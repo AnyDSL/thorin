@@ -29,6 +29,7 @@
     // Type
         // PrimType
         ANYDSL_AIR_NODE(Mem)
+        ANYDSL_AIR_NODE(Frame)
         ANYDSL_AIR_NODE(Ptr)
         ANYDSL_AIR_NODE(Pi)
         ANYDSL_AIR_NODE(Sigma)

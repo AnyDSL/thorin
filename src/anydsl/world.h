@@ -92,6 +92,7 @@ public:
     }
 
     const Mem* mem() const { return mem_; }
+    const Frame* frame() const { return frame_; }
     const Ptr* ptr(const Type* ref) { return consume(new Ptr(ref))->as<Ptr>(); }
 
     // sigmas
@@ -200,7 +201,7 @@ public:
     const Def* load(const Def* mem, const Def* ptr);
     const Def* store(const Def* mem, const Def* ptr, const Def* val);
     const Enter* enter(const Def* mem);
-    const Leave* leave(const Def* mem, const Enter* enter);
+    const Leave* leave(const Def* mem, const Def* frame);
     const Slot* slot(const Enter* enter, const Type* type);
 
     /*
@@ -258,7 +259,8 @@ private:
     size_t gid_counter_;
     const Sigma* sigma0_;///< sigma().
     const Pi* pi0_;      ///< pi().
-    const Mem* mem_;     ///< \p Mem.
+    const Mem* mem_;
+    const Frame* frame_;
 
     union {
         struct {

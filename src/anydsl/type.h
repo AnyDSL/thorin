@@ -60,6 +60,21 @@ private:
 
 //------------------------------------------------------------------------------
 
+/// The type of a stack frame.
+class Frame : public Type {
+private:
+
+    Frame(World& world)
+        : Type(world, Node_Frame, 0)
+    {}
+    virtual Frame* clone() const { return new Frame(*this); }
+    virtual void vdump(Printer& printer) const;
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
 /// Primitive types -- also known as atomic or scalar types.
 class PrimType : public Type {
 private:

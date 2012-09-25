@@ -41,12 +41,14 @@ World::World()
     , sigma0_ (consume(new Sigma(*this, ArrayRef<const Type*>(0, 0)))->as<Sigma>())
     , pi0_    (consume(new Pi   (*this, ArrayRef<const Type*>(0, 0)))->as<Pi>())
     , mem_    (consume(new Mem  (*this))->as<Mem>())
+    , frame_  (consume(new Frame(*this))->as<Frame>())
 #define ANYDSL_UF_TYPE(T) ,T##_(consume(new PrimType(*this, PrimType_##T))->as<PrimType>())
 #include "anydsl/tables/primtypetable.h"
 {
     typekeeper(sigma0_);
     typekeeper(pi0_);
     typekeeper(mem_);
+    typekeeper(frame_);
     for (size_t i = 0; i < Num_PrimTypes; ++i)
         typekeeper(primTypes_[i]);
 }
@@ -392,8 +394,8 @@ const Enter* World::enter(const Def* mem) {
     return consume(new Enter(mem))->as<Enter>();
 }
 
-const Leave* World::leave(const Def* mem, const Enter* enter) {
-    return consume(new Leave(mem, enter))->as<Leave>();
+const Leave* World::leave(const Def* mem, const Def* frame) {
+    return consume(new Leave(mem, frame))->as<Leave>();
 }
 
 const Slot* World::slot(const Enter* enter, const Type* type) {

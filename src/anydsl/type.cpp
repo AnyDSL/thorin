@@ -10,7 +10,7 @@ namespace anydsl {
 PrimType::PrimType(World& world, PrimTypeKind kind)
     : Type(world, kind, 0)
 {
-    debug = kind2str(this->primtype_kind());
+    debug = kind2str(primtype_kind());
 }
 
 //------------------------------------------------------------------------------
@@ -30,10 +30,7 @@ CompoundType::CompoundType(World& world, int kind, ArrayRef<const Type*> elems)
 //------------------------------------------------------------------------------
 
 size_t Sigma::hash() const {
-    if (named_)
-        return boost::hash_value(this);
-    else
-        return CompoundType::hash();
+    return named_ ? boost::hash_value(this) : CompoundType::hash();
 }
 
 bool Sigma::equal(const Def* other) const {

@@ -36,8 +36,8 @@ public:
         , from_(from)
     {}
 
-    const Def* def() { return def_; }
-    Lambda* from() { return from_; }
+    const Def* def() const { return def_; }
+    Lambda* from() const { return from_; }
 
 private:
 
@@ -161,7 +161,7 @@ public:
 
     /// Updates operand \p i to point to \p def instead.
     void update(size_t i, const Def* def);
-    void update(Array<const Def*> defs);
+    void update(ArrayRef<const Def*> defs);
 
     /*
      * check for special literals

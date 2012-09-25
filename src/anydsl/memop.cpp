@@ -7,18 +7,13 @@ namespace anydsl {
 //------------------------------------------------------------------------------
 
 Load::Load(const Def* mem, const Def* ptr)
-    : Access(   Node_Load, 
-                ptr->world().sigma2(ptr->world().mem(), ptr->type()->as<Ptr>()->ref()), 
-                2, mem, ptr)
+    : Access(Node_Load, 
+             ptr->world().sigma2(ptr->world().mem(), ptr->type()->as<Ptr>()->ref()), 
+             2, mem, ptr)
 {}
 
-const Def* Load::extract_mem() const {
-    return world().extract(this, 0);
-}
-
-const Def* Load::extract_val() const {
-    return world().extract(this, 1);
-}
+const Def* Load::extract_mem() const { return world().extract(this, 0); }
+const Def* Load::extract_val() const { return world().extract(this, 1); }
 
 //------------------------------------------------------------------------------
 

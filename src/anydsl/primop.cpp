@@ -9,8 +9,6 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-//------------------------------------------------------------------------------
-
 RelOp::RelOp(RelOpKind kind, const Def* lhs, const Def* rhs)
     : BinOp((NodeKind) kind, lhs->world().type_u1(), lhs, rhs)
 {}
@@ -18,10 +16,7 @@ RelOp::RelOp(RelOpKind kind, const Def* lhs, const Def* rhs)
 //------------------------------------------------------------------------------
 
 bool ConvOp::equal(const Def* other) const {
-    if (!Def::equal(other))
-        return false;
-
-    return type() == other->as<ConvOp>()->type();
+    return Def::equal(other) && type() == other->as<ConvOp>()->type();
 }
 
 size_t ConvOp::hash() const {
@@ -53,10 +48,7 @@ TupleOp::TupleOp(NodeKind kind, const Type* type, size_t size, const Def* tuple,
 }
 
 bool TupleOp::equal(const Def* other) const {
-    if (!Def::equal(other))
-        return false;
-
-    return index() == other->as<TupleOp>()->index();
+    return Def::equal(other) && index() == other->as<TupleOp>()->index();
 }
 
 size_t TupleOp::hash() const {

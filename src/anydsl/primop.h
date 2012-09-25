@@ -55,9 +55,10 @@ private:
     ArithOp(ArithOpKind kind, const Def* lhs, const Def* rhs)
         : BinOp((NodeKind) kind, lhs->type(), lhs, rhs)
     {}
-    virtual ArithOp* clone() const { return new ArithOp(*this); }
 
 public:
+
+    virtual ArithOp* clone() const { return new ArithOp(*this); }
 
     ArithOpKind arithop_kind() const { return (ArithOpKind) node_kind(); }
 
@@ -82,14 +83,6 @@ public:
              || kind == ArithOp_ashr;
     }
     static bool is_div_or_rem(ArithOpKind kind) { return is_div(kind) || is_rem(kind); }
-
-    bool is_div()      const { return is_div  (arithop_kind()); }
-    bool is_rem()      const { return is_rem  (arithop_kind()); }
-    bool is_bit()      const { return is_bit  (arithop_kind()); }
-    bool is_shift()    const { return is_shift(arithop_kind()); }
-    bool is_div_or_rem() const { return is_div_or_rem(arithop_kind()); }
-    bool is_commutative() const { return is_commutative(arithop_kind()); }
-
     static bool is_commutative(ArithOpKind kind) {
         return kind == ArithOp_add
             || kind == ArithOp_mul
@@ -99,6 +92,13 @@ public:
             || kind == ArithOp_or
             || kind == ArithOp_xor;
     }
+
+    bool is_div()      const { return is_div  (arithop_kind()); }
+    bool is_rem()      const { return is_rem  (arithop_kind()); }
+    bool is_bit()      const { return is_bit  (arithop_kind()); }
+    bool is_shift()    const { return is_shift(arithop_kind()); }
+    bool is_div_or_rem() const { return is_div_or_rem(arithop_kind()); }
+    bool is_commutative() const { return is_commutative(arithop_kind()); }
 
     friend class World;
 };
@@ -150,9 +150,10 @@ class Select : public PrimOp {
 private:
 
     Select(const Def* cond, const Def* t, const Def* f);
-    virtual Select* clone() const { return new Select(*this); }
 
 public:
+
+    virtual Select* clone() const { return new Select(*this); }
 
     const Def* cond() const { return op(0); }
     const Def* tval() const { return op(1); }
@@ -195,11 +196,12 @@ class Extract : public TupleOp {
 private:
 
     Extract(const Def* tuple, u32 index);
-    virtual Extract* clone() const { return new Extract(*this); }
     
+    virtual void vdump(Printer& printer) const;
+
 public:
 
-    virtual void vdump(Printer& printer) const;
+    virtual Extract* clone() const { return new Extract(*this); }
 
     friend class World;
 };

@@ -70,7 +70,7 @@ bool Def::is_const() const {
     if (node_kind() == Node_Param)
         return false;
 
-    if (size() == 0)
+    if (empty())
         return true;
 
     bool result = true;
@@ -81,10 +81,7 @@ bool Def::is_const() const {
 }
 
 World& Def::world() const { 
-    if (type_)
-        return type_->world(); 
-    else 
-        return as<Type>()->world();
+    return type_ ? type_->world() : as<Type>()->world();
 }
 
 void Def::update(size_t i, const Def* def) {
@@ -92,7 +89,7 @@ void Def::update(size_t i, const Def* def) {
     set_op(i, def);
 }
 
-void Def::update(Array<const Def*> defs) {
+void Def::update(ArrayRef<const Def*> defs) {
     anydsl_assert(size() == defs.size(), "sizes do not match");
 
     for (size_t i = 0, e = size(); i != e; ++i)
@@ -125,7 +122,6 @@ bool Def::is_primlit(int val) const {
 
 size_t Def::hash() const {
     size_t seed = 0;
-
     boost::hash_combine(seed, kind());
     boost::hash_combine(seed, ops_);
 

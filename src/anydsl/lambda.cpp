@@ -21,7 +21,7 @@ Lambda::Lambda(size_t gid, const Pi* pi, uint32_t flags)
 
 Lambda::~Lambda() {
     for_all (param, params())
-            delete param;
+        delete param;
 }
 
 Lambda* Lambda::stub() const { 
@@ -64,15 +64,14 @@ static void find_lambdas(const Def* def, LambdaSet& result) {
 }
 
 static void find_preds(const Def* def, LambdaSet& result) {
-    if (Lambda* lambda = def->isa_lambda()) {
+    if (Lambda* lambda = def->isa_lambda())
         result.insert(lambda);
-        return;
+    else {
+        anydsl_assert(def->isa<PrimOp>(), "not a PrimOp");
+
+        for_all (use, def->uses())
+            find_preds(use.def(), result);
     }
-
-    anydsl_assert(def->isa<PrimOp>(), "not a PrimOp");
-
-    for_all (use, def->uses())
-        find_preds(use.def(), result);
 }
 
 LambdaSet Lambda::preds() const {
@@ -87,6 +86,7 @@ LambdaSet Lambda::preds() const {
 LambdaSet Lambda::targets() const {
     LambdaSet result;
     find_lambdas(to(), result);
+
     return result;
 }
 

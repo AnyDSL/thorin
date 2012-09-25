@@ -29,6 +29,8 @@ class Sigma;
 class Slot;
 class Type;
 
+// TODO port this stuff to boost::intrusive 
+// -> we can get then rid of all the new-calls!!!
 typedef boost::unordered_set<const PrimOp*, DefHash, DefEqual> PrimOpSet;
 typedef boost::unordered_set<Lambda*> LambdaSet;
 typedef boost::unordered_set<const Type*, DefHash, DefEqual> TypeSet;

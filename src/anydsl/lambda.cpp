@@ -50,7 +50,7 @@ const Param* Lambda::append_param(const Type* type) {
     return param;
 }
 
-bool Lambda::equal(const Def* other) const { return this == other; }
+bool Lambda::equal(const Node* other) const { return this == other; }
 size_t Lambda::hash() const { return boost::hash_value(this); }
 
 static void find_lambdas(const Def* def, LambdaSet& result) {
@@ -286,6 +286,10 @@ void Dropper::drop_body(Lambda* olambda, Lambda* nlambda) {
             args[i] = iter->second;
         else
             args[i] = odef;
+    }
+
+    if (olambda->to() == oentry) {
+        std::cout << "fdjkfjdsl" << std::endl;
     }
 
     nlambda->jump(drop_target(olambda->to()), args);

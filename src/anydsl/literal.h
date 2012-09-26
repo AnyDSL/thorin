@@ -23,7 +23,7 @@ protected:
 
 protected:
 
-    virtual bool equal(const Def* other) const;
+    virtual bool equal(const Node* other) const;
     virtual size_t hash() const;
 };
 
@@ -100,7 +100,7 @@ public:
     const PrimType* primtype() const { return type()->as<PrimType>(); }
     PrimTypeKind primtype_kind() const { return primtype()->primtype_kind(); }
 
-    virtual bool equal(const Def* other) const;
+    virtual bool equal(const Node* other) const;
     virtual size_t hash() const;
 
 private:

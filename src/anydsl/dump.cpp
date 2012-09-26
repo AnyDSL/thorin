@@ -216,6 +216,16 @@ void Def::dump(bool fancy) const {
     std::cout << std::endl;
 }
 
+void Type::dump() const {
+    dump(false);
+}
+
+void Type::dump(bool fancy) const {
+    Printer p(std::cout, fancy);
+    vdump(p);
+    std::cout << std::endl;
+}
+
 void Lambda::dump(bool fancy, int indent) const {
     Printer p(std::cout, fancy);
 

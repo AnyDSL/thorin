@@ -13,21 +13,18 @@ namespace anydsl {
 //------------------------------------------------------------------------------
 
 Def::Def(int kind, const Type* type)
-    : kind_(kind)
+    : Node(kind)
     , type_(type)
 {}
 
 Def::Def(int kind, const Type* type, size_t size)
-    : kind_(kind)
+    : Node(kind, size)
     , type_(type)
-    , ops_(size)
 {}
 
 Def::Def(const Def& def)
-    : debug(def.debug)
-    , kind_(def.kind())
+    : Node(def)
     , type_(def.type())
-    , ops_(def.size())
 {
     for (size_t i = 0, e = size(); i != e; ++i)
         set_op(i, def.op(i));
@@ -40,7 +37,7 @@ Def::~Def() {
     for_all (use, uses_) {
         size_t i = use.index();
         anydsl_assert(use.def()->ops()[i] == this, "use points to incorrect def");
-        const_cast<Def*>(use.def())->ops_[i] = 0;
+        const_cast<Def*>(use.def())->set(i, 0);
     }
 }
 
@@ -49,13 +46,13 @@ void Def::set_op(size_t i, const Def* def) {
     Use use(i, this);
     anydsl_assert(def->uses_.find(use) == def->uses_.end(), "already in use set");
     def->uses_.insert(use);
-    ops_[i] = def;
+    set(i, def);
 }
 
 void Def::unset_op(size_t i) {
     anydsl_assert(op(i), "must be set");
     unregister_use(i);
-    ops_[i] = 0;
+    set(i, 0);
 }
 
 void Def::unregister_use(size_t i) const {
@@ -103,10 +100,6 @@ Array<Use> Def::copy_uses() const {
     return result;
 }
 
-bool Def::equal(const Def* other) const {
-    return this->kind() == other->kind() && this->ops_ == other->ops_;
-}
-
 bool Def::is_primlit(int val) const {
     if (const PrimLit* lit = this->isa<PrimLit>()) {
         Box box = lit->box();
@@ -118,14 +111,6 @@ bool Def::is_primlit(int val) const {
     }
 
     return false;
-}
-
-size_t Def::hash() const {
-    size_t seed = 0;
-    boost::hash_combine(seed, kind());
-    boost::hash_combine(seed, ops_);
-
-    return seed;
 }
 
 Lambda* Def::as_lambda() const {
@@ -158,7 +143,7 @@ PhiOps Param::phi() const {
     return result;
 }
 
-bool Param::equal(const Def* other) const {
+bool Param::equal(const Node* other) const {
     if (!Def::equal(other))
         return false;
 

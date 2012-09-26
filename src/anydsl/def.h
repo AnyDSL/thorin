@@ -10,6 +10,7 @@
 #include <boost/functional/hash.hpp>
 
 #include "anydsl/enums.h"
+#include "anydsl/node.h"
 #include "anydsl/util/array.h"
 #include "anydsl/util/cast.h"
 
@@ -46,7 +47,13 @@ private:
 };
 
 typedef Array<PhiOp> PhiOps;
-typedef ArrayRef<const Def*> Ops;
+
+inline const Def* const& op_as_def(const Node* const* ptr) { 
+    assert( !(*ptr) || (*ptr)->as<Def>());
+    return *((const Def* const*) ptr); 
+}
+
+typedef ArrayRef<const Node*, const Def*, op_as_def> Defs;
 
 //------------------------------------------------------------------------------
 
@@ -88,7 +95,7 @@ typedef boost::unordered_set<Use> Uses;
 
 //------------------------------------------------------------------------------
 
-class Def : public MagicCast {
+class Def : public Node {
 private:
 
     /// Do not copy-assign a \p Def instance.
@@ -98,7 +105,7 @@ protected:
 
     /// This variant leaves internal \p ops_ \p Array allocateble via ops_.alloc(size).
     Def(int kind, const Type* type);
-    Def(int kind, const Type* type, size_t size);
+    Def(int kind, const Type* type, size_t size); // TODO swizzle
     Def(const Def&);
     virtual ~Def();
 
@@ -119,12 +126,7 @@ protected:
     void set_op(size_t i, const Def* def);
     void unset_op(size_t i);
     void set_type(const Type* type) { type_ = type; }
-    void alloc(size_t size) { ops_.alloc(size); }
-    void shrink(size_t newsize) { ops_.shrink(newsize); }
     void unregister_use(size_t i) const;
-
-    virtual bool equal(const Def* other) const;
-    virtual size_t hash() const;
 
 public:
 
@@ -132,10 +134,6 @@ public:
     Lambda* isa_lambda() const;
 
     bool is_const() const;
-    int kind() const { return kind_; }
-    bool is_corenode() const { return ::anydsl::is_corenode(kind()); }
-
-    NodeKind node_kind() const { assert(is_corenode()); return (NodeKind) kind_; }
 
     void dump() const;
     void dump(bool fancy) const;
@@ -153,11 +151,9 @@ public:
     bool isType() const { return !type_; }
     World& world() const;
 
-    Ops ops() const { return Ops(ops_); }
-    Ops ops(size_t begin, size_t end) const { return Ops(ops_.slice(begin, end)); }
-    const Def* op(size_t i) const { return ops_[i]; }
-    size_t size() const { return ops_.size(); }
-    bool empty() const { return ops_.size() == 0; }
+    Defs ops() const { return ops_ref<const Node*, const Def*, op_as_def>(); }
+    Defs ops(size_t begin, size_t end) const { return ops().slice(begin, end); }
+    const Def* op(size_t i) const { return ops()[i]; }
 
     /// Updates operand \p i to point to \p def instead.
     void update(size_t i, const Def* def);
@@ -172,52 +168,10 @@ public:
     bool is_one() const { return is_primlit(1); }
     bool is_allset() const { return is_primlit(-1); }
 
-    /// Just do what ever you want with this field.
-    mutable std::string debug;
-
-    /** 
-     * Use this field in order to annotate information on this Def.
-     * Various analyses have to memorize different stuff temporally.
-     * Each analysis can use this field for its specific information. 
-     * \attention { 
-     *      Each pass/analysis simply overwrites this field again.
-     *      So keep this in mind and perform copy operations in order to
-     *      save your data before running the next pass/analysis.
-     *      Also, keep in mind to perform clean up operations at the end 
-     *      of your pass/analysis.
-     * }
-     */
-    mutable void* ptr;
-
-    /*
-     * scratch operations
-     */
-
-    void mark() const { marker_ = true; }
-    void unmark() const { marker_ = false; }
-    bool is_marked() const { return marker_; }
-
 private:
 
-    int kind_;
     const Type* type_;
-    Array<const Def*> ops_;
     mutable Uses uses_;
-    mutable bool marker_;
-
-    friend class World;
-    friend class DefHash;
-    friend class DefEqual;
-};
-
-//------------------------------------------------------------------------------
-
-struct DefHash : std::unary_function<const Def*, size_t> {
-    size_t operator () (const Def* v) const { return v->hash(); }
-};
-
-struct DefEqual : std::binary_function<const Def*, const Def*, bool> {
-    bool operator () (const Def* v1, const Def* v2) const { return v1->equal(v2); }
 };
 
 //------------------------------------------------------------------------------
@@ -228,7 +182,7 @@ private:
     Param(const Type* type, Lambda* parent, size_t index);
     virtual Param* clone() const { ANYDSL_UNREACHABLE; }
 
-    virtual bool equal(const Def* other) const;
+    virtual bool equal(const Node* other) const;
     virtual size_t hash() const;
 
 public:
@@ -236,10 +190,9 @@ public:
     Lambda* lambda() const { return lambda_; }
     size_t index() const { return index_; }
     PhiOps phi() const;
+    virtual void vdump(Printer& printer) const;
 
 private:
-
-    virtual void vdump(Printer& printer) const;
 
     mutable Lambda* lambda_;
     const size_t index_;

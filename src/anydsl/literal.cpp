@@ -7,8 +7,8 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-bool Literal::equal(const Def* other) const {
-    return PrimOp::equal(other) && type() == other->type();
+bool Literal::equal(const Node* other) const {
+    return PrimOp::equal(other) && type() == other->as<Literal>()->type();
 }
 
 size_t Literal::hash() const {
@@ -19,7 +19,7 @@ size_t Literal::hash() const {
 
 //------------------------------------------------------------------------------
 
-bool PrimLit::equal(const Def* other) const {
+bool PrimLit::equal(const Node* other) const {
     if (!Literal::equal(other))
         return false;
 

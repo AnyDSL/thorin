@@ -47,7 +47,7 @@ public:
     const Params& params() const { return params_; }
     const Param* param(size_t i) const { return params_[i]; }
     const Def* to() const { return op(0); };
-    Ops args() const { return ops().slice_back(1); }
+    Defs args() const { return ops().slice_back(1); }
     const Def* arg(size_t i) const { return args()[i]; }
     const Pi* pi() const;
     const Pi* to_pi() const;
@@ -98,7 +98,7 @@ private:
     template<bool fo> Array<const Param*> classify_params() const;
     template<bool fo> Array<const Def*> classify_args() const;
 
-    virtual bool equal(const Def* other) const;
+    virtual bool equal(const Node* other) const;
     virtual size_t hash() const;
     virtual void vdump(Printer& printer) const;
 

@@ -15,7 +15,7 @@ RelOp::RelOp(RelOpKind kind, const Def* lhs, const Def* rhs)
 
 //------------------------------------------------------------------------------
 
-bool ConvOp::equal(const Def* other) const {
+bool ConvOp::equal(const Node* other) const {
     return Def::equal(other) && type() == other->as<ConvOp>()->type();
 }
 
@@ -47,7 +47,7 @@ TupleOp::TupleOp(NodeKind kind, const Type* type, size_t size, const Def* tuple,
     set_op(0, tuple);
 }
 
-bool TupleOp::equal(const Def* other) const {
+bool TupleOp::equal(const Node* other) const {
     return Def::equal(other) && index() == other->as<TupleOp>()->index();
 }
 

@@ -18,7 +18,16 @@ public:
 
     bool fancy() const { return fancy_; }
 
-    Printer& dump(const Def* def);
+    template<class T>
+    Printer& dump(const T* t) {
+        if (t)
+            t->vdump(*this);
+        else
+            o << "<NULL>";
+
+        return *this;
+    }
+
     Printer& dump_name(const Def* def);
 
     Printer& newline();

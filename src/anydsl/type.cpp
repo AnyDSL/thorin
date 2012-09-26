@@ -29,7 +29,7 @@ CompoundType::CompoundType(World& world, int kind, ArrayRef<const Type*> elems)
 {
     size_t x = 0;
     for_all (elem, elems)
-        set_op(x++, elem);
+        set(x++, elem);
 }
 
 //------------------------------------------------------------------------------
@@ -38,7 +38,7 @@ size_t Sigma::hash() const {
     return named_ ? boost::hash_value(this) : CompoundType::hash();
 }
 
-bool Sigma::equal(const Def* other) const {
+bool Sigma::equal(const Node* other) const {
     return named_ ? this == other : CompoundType::equal(other);
 }
 

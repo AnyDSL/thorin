@@ -137,7 +137,7 @@ public:
 
 private:
 
-    virtual bool equal(const Def* other) const;
+    virtual bool equal(const Node* other) const;
     virtual size_t hash() const;
     virtual void vdump(Printer &printer) const;
 
@@ -182,7 +182,7 @@ public:
 
 private:
 
-    virtual bool equal(const Def* other) const;
+    virtual bool equal(const Node* other) const;
     virtual size_t hash() const;
 
     size_t index_;

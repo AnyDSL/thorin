@@ -8,15 +8,6 @@
 
 namespace anydsl {
 
-Printer& Printer::dump(const Def* def) {
-    if (def)
-        def->vdump(*this);
-    else
-        o << "<NULL>";
-
-    return *this;
-}
-
 Printer& Printer::newline() {
     o << '\n';
     for (int i = 0; i < indent; ++i)

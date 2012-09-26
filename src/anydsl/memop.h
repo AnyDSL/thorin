@@ -133,7 +133,7 @@ private:
 
     virtual void vdump(Printer &printer) const;
 
-    bool equal(const Def* other) const;
+    bool equal(const Node* other) const;
     size_t hash() const;
 
 public:

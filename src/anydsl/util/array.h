@@ -113,11 +113,11 @@ public:
     T const& front() const { assert(!empty()); return ptr_[0]; }
     T const& back()  const { assert(!empty()); return ptr_[size_ - 1]; }
 
-    ArrayRef<T> slice(size_t begin, size_t end) const { return ArrayRef<T>(ptr_ + begin, end - begin); }
-    ArrayRef<T> slice_front(size_t end) const { return ArrayRef<T>(ptr_, end); }
-    ArrayRef<T> slice_back(size_t begin) const { return ArrayRef<T>(ptr_ + begin, size_ - begin); }
+    ArrayRef<T, Deref, Hook> slice(size_t begin, size_t end) const { return ArrayRef<T, Deref, Hook>(ptr_ + begin, end - begin); }
+    ArrayRef<T, Deref, Hook> slice_front(size_t end) const { return ArrayRef<T, Deref, Hook>(ptr_, end); }
+    ArrayRef<T, Deref, Hook> slice_back(size_t begin) const { return ArrayRef<T, Deref, Hook>(ptr_ + begin, size_ - begin); }
 
-    operator ArrayRef<T> () { return ArrayRef<T>(ptr_, size_); }
+    operator ArrayRef<T, Deref, Hook> () { return ArrayRef<T, Deref, Hook>(ptr_, size_); }
 
 private:
 

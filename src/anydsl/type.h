@@ -3,40 +3,45 @@
 
 #include <iterator>
 
-#include "anydsl/def.h"
+#include "anydsl/node.h"
 #include "anydsl/util/array.h"
 
 namespace anydsl {
 
 class PrimLit;
+class Printer;
 class Pi;
 class Ptr;
+class Type;
 class World;
 
 //------------------------------------------------------------------------------
 
-inline const Type* const& elem_as_type(const Def* const* ptr) { 
-    assert((*ptr)->as<Type>());
+inline const Type* const& op_as_type(const Node* const* ptr) { 
+    assert( !(*ptr) || (*ptr)->as<Type>());
     return *((const Type* const*) ptr); 
 }
 
-typedef ArrayRef<const Def*, const Type*, elem_as_type> Elems;
+typedef ArrayRef<const Node*, const Type*, op_as_type> Elems;
 
 
-class Type : public Def {
+class Type : public Node {
 protected:
 
     Type(World& world, int kind, size_t num)
-        : Def(kind, 0, num)
+        : Node(kind, num)
         , world_(world)
     {}
 
 public:
 
+    void dump() const;
+    void dump(bool fancy) const;
     World& world() const { return world_; }
-    const Type* elem(size_t i) const { return op(i)->as<Type>(); }
-    Elems elems() const { return Elems(Def::ops().begin().base(), Def::ops().size()); }
+    Elems elems() const { return ops_ref<const Node*, const Type*, op_as_type>(); }
+    const Type* elem(size_t i) const { return elems()[i]; }
     const Ptr* to_ptr() const;
+    virtual void vdump(Printer &printer) const = 0;
 
 private:
 
@@ -54,7 +59,6 @@ private:
     Mem(World& world)
         : Type(world, Node_Mem, 0)
     {}
-    virtual Mem* clone() const { return new Mem(*this); }
     virtual void vdump(Printer& printer) const;
 
     friend class World;
@@ -69,7 +73,6 @@ private:
     Frame(World& world)
         : Type(world, Node_Frame, 0)
     {}
-    virtual Frame* clone() const { return new Frame(*this); }
     virtual void vdump(Printer& printer) const;
 
     friend class World;
@@ -82,7 +85,6 @@ class PrimType : public Type {
 private:
 
     PrimType(World& world, PrimTypeKind kind);
-    virtual PrimType* clone() const { return new PrimType(*this); }
 
 public:
 
@@ -106,10 +108,9 @@ private:
     Ptr(const Type* ref)
         : Type(ref->world(), Node_Ptr, 1)
     {
-        set_op(0, ref);
+        set(0, ref);
     }
 
-    virtual Ptr* clone() const { return new Ptr(*this); }
     virtual void vdump(Printer& printer) const;
 
 public:
@@ -144,7 +145,6 @@ private:
         : CompoundType(world, Node_Sigma, elems)
         , named_(false)
     {}
-    virtual Sigma* clone() const { return new Sigma(*this); }
 
 public:
 
@@ -154,7 +154,7 @@ private:
 
     virtual void vdump(Printer& printer) const;
     virtual size_t hash() const;
-    virtual bool equal(const Def* other) const;
+    virtual bool equal(const Node* other) const;
 
     bool named_;
 
@@ -170,7 +170,6 @@ private:
     Pi(World& world, ArrayRef<const Type*> elems)
         : CompoundType(world, Node_Pi, elems)
     {}
-    virtual Pi* clone() const { return new Pi(*this); }
 
 public:
 
@@ -187,11 +186,17 @@ private:
 
 //------------------------------------------------------------------------------
 
+#if 0
 class Generic : public Type {
 private:
 
+    Generic(Lambda* lambda)
+        : lambda_(lambda)
+    {}
+
     //Generic
 };
+#endif
 
 //------------------------------------------------------------------------------
 

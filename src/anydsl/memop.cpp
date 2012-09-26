@@ -71,7 +71,7 @@ Slot::Slot(const Def* frame, const Type* type)
     : PrimOp(Node_Slot, type->to_ptr(), 1)
 {}
 
-bool Slot::equal(const Def* other) const { return this == other; }
+bool Slot::equal(const Node* other) const { return this == other; }
 size_t Slot::hash() const { return boost::hash_value(this); }
 
 //------------------------------------------------------------------------------

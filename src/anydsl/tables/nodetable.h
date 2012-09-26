@@ -27,10 +27,11 @@
     ANYDSL_AIR_NODE(Param)
     // Type
         // PrimType
-        ANYDSL_AIR_NODE(Mem)
         ANYDSL_AIR_NODE(Frame)
-        ANYDSL_AIR_NODE(Ptr)
+        ANYDSL_AIR_NODE(Generic)
+        ANYDSL_AIR_NODE(Mem)
         ANYDSL_AIR_NODE(Pi)
+        ANYDSL_AIR_NODE(Ptr)
         ANYDSL_AIR_NODE(Sigma)
 
 #undef ANYDSL_AIR_NODE

@@ -8,9 +8,10 @@
 
 namespace anydsl {
 
+class Lambda;
+class Pi;
 class PrimLit;
 class Printer;
-class Pi;
 class Ptr;
 class Type;
 class World;
@@ -186,17 +187,27 @@ private:
 
 //------------------------------------------------------------------------------
 
-#if 0
 class Generic : public Type {
 private:
 
-    Generic(Lambda* lambda)
-        : lambda_(lambda)
-    {}
+    Generic(Lambda* lambda, size_t index);
 
-    //Generic
+public:
+
+    Lambda* lambda() const { return lambda_; }
+    size_t index() const { return index_; }
+
+private:
+
+    virtual void vdump(Printer& printer) const;
+    virtual size_t hash() const;
+    virtual bool equal(const Node* other) const;
+
+    Lambda* lambda_;
+    size_t index_;
+
+    friend class Lambda;
 };
-#endif
 
 //------------------------------------------------------------------------------
 

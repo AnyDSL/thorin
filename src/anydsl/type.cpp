@@ -1,5 +1,6 @@
 #include "anydsl/type.h"
 
+#include "anydsl/lambda.h"
 #include "anydsl/literal.h"
 #include "anydsl/world.h"
 #include "anydsl/util/for_all.h"
@@ -55,6 +56,17 @@ bool Pi::classify_order() const {
 
 bool Pi::is_fo() const { return classify_order<true>(); }
 bool Pi::is_ho() const { return classify_order<false>(); }
+
+//------------------------------------------------------------------------------
+
+Generic::Generic(Lambda* lambda, size_t index)
+    : Type(lambda->world(), Node_Generic, 0)
+    , lambda_(lambda)
+    , index_(index)
+{}
+
+size_t Generic::hash() const { return boost::hash_value(this); }
+bool Generic::equal(const Node* other) const { return this == other; }
 
 //------------------------------------------------------------------------------
 

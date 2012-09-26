@@ -192,6 +192,15 @@ void Pi::vdump(Printer& p) const {
 	dump_inner(p);
 }
 
+void Generic::vdump(Printer &p) const {
+    p << "generic(";
+    if (debug.empty())
+        p << this;
+    else
+        p << debug;
+    p << ')';
+}
+
 void Lambda::vdump(Printer& p) const {
 	p.dump_name(this);
     p << " : ";

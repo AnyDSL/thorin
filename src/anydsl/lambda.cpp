@@ -22,6 +22,8 @@ Lambda::Lambda(size_t gid, const Pi* pi, uint32_t flags)
 Lambda::~Lambda() {
     for_all (param, params())
         delete param;
+    for_all (generic, generics())
+        delete generic;
 }
 
 Lambda* Lambda::stub() const { 
@@ -48,6 +50,13 @@ const Param* Lambda::append_param(const Type* type) {
     params_.push_back(param);
 
     return param;
+}
+
+const Generic* Lambda::append_generic() {
+    const Generic* generic = new Generic(this, generics_.size());
+    generics_.push_back(generic);
+
+    return generic;
 }
 
 bool Lambda::equal(const Node* other) const { return this == other; }

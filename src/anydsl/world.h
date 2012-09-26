@@ -182,8 +182,8 @@ public:
 #define ANYDSL_RELOP(OP) const Def* relop_##OP(const Def* lhs, const Def* rhs) { return relop(RelOp_##OP, lhs, rhs); }
 #include "anydsl/tables/reloptable.h"
 
-    const Def* convop(ConvOpKind kind, const Def* from, const Type* to);
-#define ANYDSL_CONVOP(OP) const Def* convop_##OP(const Def* from, const Type* to) { return convop(ConvOp_##OP, from, to); }
+    const Def* convop(ConvOpKind kind, const Type* to, const Def* from);
+#define ANYDSL_CONVOP(OP) const Def* convop_##OP(const Type* to, const Def* from) { return convop(ConvOp_##OP, to, from); }
 #include "anydsl/tables/convoptable.h"
 
     /*

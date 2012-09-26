@@ -330,7 +330,7 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b) {
     return consume(new RelOp(kind, a, b));
 }
 
-const Def* World::convop(ConvOpKind kind, const Def* from, const Type* to) {
+const Def* World::convop(ConvOpKind kind, const Type* to, const Def* from) {
     if (from->isa<Bottom>())
         return bottom(to);
 
@@ -343,7 +343,7 @@ const Def* World::convop(ConvOpKind kind, const Def* from, const Type* to) {
     }
 #endif
 
-    return consume(new ConvOp(kind, from, to));
+    return consume(new ConvOp(kind, to, from));
 }
 
 const Def* World::extract(const Def* agg, u32 index) {

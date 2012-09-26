@@ -18,7 +18,7 @@ class Literal : public PrimOp {
 protected:
 
     Literal(int kind, const Type* type)
-        : PrimOp(kind, type, 0)
+        : PrimOp(kind, 0, type)
     {}
 
 protected:

@@ -17,7 +17,7 @@ Def::Def(int kind, const Type* type)
     , type_(type)
 {}
 
-Def::Def(int kind, const Type* type, size_t size)
+Def::Def(int kind, size_t size, const Type* type)
     : Node(kind, size)
     , type_(type)
 {}
@@ -78,7 +78,7 @@ bool Def::is_const() const {
 }
 
 World& Def::world() const { 
-    return type_ ? type_->world() : as<Type>()->world();
+    return type_->world();
 }
 
 void Def::update(size_t i, const Def* def) {
@@ -124,7 +124,7 @@ Lambda* Def::isa_lambda() const {
 //------------------------------------------------------------------------------
 
 Param::Param(const Type* type, Lambda* lambda, size_t index)
-    : Def(Node_Param, type, 0)
+    : Def(Node_Param, 0, type)
     , lambda_(lambda)
     , index_(index)
 {}

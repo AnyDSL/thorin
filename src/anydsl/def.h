@@ -105,7 +105,7 @@ protected:
 
     /// This variant leaves internal \p ops_ \p Array allocateble via ops_.alloc(size).
     Def(int kind, const Type* type);
-    Def(int kind, const Type* type, size_t size); // TODO swizzle
+    Def(int kind, size_t size, const Type* type);
     Def(const Def&);
     virtual ~Def();
 
@@ -148,7 +148,6 @@ public:
      */
     Array<Use> copy_uses() const;
     const Type* type() const { return type_; }
-    bool isType() const { return !type_; }
     World& world() const;
 
     Defs ops() const { return ops_ref<const Node*, const Def*, op_as_def>(); }

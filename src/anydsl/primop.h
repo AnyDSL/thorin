@@ -15,8 +15,8 @@ class PrimLit;
 class PrimOp : public Def {
 protected:
 
-    PrimOp(int kind, const Type* type, size_t size)
-        : Def(kind, type, size)
+    PrimOp(int kind, size_t size, const Type* type)
+        : Def(kind, size, type)
     {}
 
 public:
@@ -30,7 +30,7 @@ class BinOp : public PrimOp {
 protected:
 
     BinOp(NodeKind kind, const Type* type, const Def* lhs, const Def* rhs)
-        : PrimOp(kind, type, 2)
+        : PrimOp(kind, 2, type)
     {
         anydsl_assert(lhs->type() == rhs->type(), "types are not equal");
         set_op(0, lhs);
@@ -123,8 +123,8 @@ public:
 class ConvOp : public PrimOp {
 private:
 
-    ConvOp(ConvOpKind kind, const Def* from, const Type* to)
-        : PrimOp(kind, to, 1)
+    ConvOp(ConvOpKind kind, const Type* to, const Def* from)
+        : PrimOp(kind, 1, to)
     {
         set_op(0, from);
     }
@@ -169,7 +169,7 @@ public:
 class TupleOp : public PrimOp {
 protected:
 
-    TupleOp(NodeKind kind, const Type* type, size_t size, const Def* tuple, u32 index);
+    TupleOp(NodeKind kind, size_t size, const Type* type, const Def* tuple, u32 index);
     TupleOp(const TupleOp& tuple)
         : PrimOp(tuple)
         , index_(tuple.index())

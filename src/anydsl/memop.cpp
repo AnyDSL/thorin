@@ -6,8 +6,8 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-MemOp::MemOp(int kind, const Type* type, size_t size, const Def* mem)
-    : PrimOp(kind, type, size)
+MemOp::MemOp(int kind, size_t size, const Type* type, const Def* mem)
+    : PrimOp(kind, size, type)
 {
     assert(mem->type()->isa<Mem>());
     assert(size >= 1);
@@ -17,7 +17,7 @@ MemOp::MemOp(int kind, const Type* type, size_t size, const Def* mem)
 //------------------------------------------------------------------------------
 
 Load::Load(const Def* mem, const Def* ptr)
-    : Access(Node_Load, 0, 2, mem, ptr)
+    : Access(Node_Load, 2, (const Type*) 0, mem, ptr)
     , extract_mem_(0)
     , extract_val_(0)
 {
@@ -36,7 +36,7 @@ const Def* Load::extract_val() const {
 //------------------------------------------------------------------------------
 
 Store::Store(const Def* mem, const Def* ptr, const Def* val)
-    : Access(Node_Store, ptr->world().mem(), 3, mem, ptr)
+    : Access(Node_Store, 3, ptr->world().mem(), mem, ptr)
 {
     set_op(2, val);
 }
@@ -44,7 +44,7 @@ Store::Store(const Def* mem, const Def* ptr, const Def* val)
 //------------------------------------------------------------------------------
 
 Enter::Enter(const Def* mem)
-    : MemOp(Node_Enter, 0, 1, mem)
+    : MemOp(Node_Enter, 1, (const Type*) 0, mem)
 {
     set_type(world().sigma2(mem->type(), world().frame()));
 }
@@ -60,7 +60,7 @@ const Def* Enter::extract_frame() const {
 //------------------------------------------------------------------------------
 
 Leave::Leave(const Def* mem, const Def* frame)
-    : MemOp(Node_Leave, mem->type(), 2, mem)
+    : MemOp(Node_Leave, 2, mem->type(), mem)
 {
     set_op(1, frame);
 }
@@ -68,7 +68,7 @@ Leave::Leave(const Def* mem, const Def* frame)
 //------------------------------------------------------------------------------
 
 Slot::Slot(const Def* frame, const Type* type)
-    : PrimOp(Node_Slot, type->to_ptr(), 1)
+    : PrimOp(Node_Slot, 1, type->to_ptr())
 {}
 
 bool Slot::equal(const Node* other) const { return this == other; }

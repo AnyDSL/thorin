@@ -29,7 +29,7 @@ size_t ConvOp::hash() const {
 //------------------------------------------------------------------------------
 
 Select::Select(const Def* cond, const Def* t, const Def* f) 
-    : PrimOp(Node_Select, t->type(), 3)
+    : PrimOp(Node_Select, 3, t->type())
 {
     set_op(0, cond);
     set_op(1, t);
@@ -40,8 +40,8 @@ Select::Select(const Def* cond, const Def* t, const Def* f)
 
 //------------------------------------------------------------------------------
 
-TupleOp::TupleOp(NodeKind kind, const Type* type, size_t size, const Def* tuple, u32 index)
-    : PrimOp(kind, type, size)
+TupleOp::TupleOp(NodeKind kind, size_t size, const Type* type, const Def* tuple, u32 index)
+    : PrimOp(kind, size, type)
     , index_(index)
 {
     set_op(0, tuple);
@@ -61,13 +61,13 @@ size_t TupleOp::hash() const {
 //------------------------------------------------------------------------------
 
 Extract::Extract(const Def* tuple, u32 index)
-    : TupleOp(Node_Extract, tuple->type()->as<Sigma>()->elem(index), 1, tuple, index)
+    : TupleOp(Node_Extract, 1, tuple->type()->as<Sigma>()->elem(index), tuple, index)
 {}
 
 //------------------------------------------------------------------------------
 
 Insert::Insert(const Def* tuple, u32 index, const Def* value)
-    : TupleOp(Node_Insert, tuple->type(), 2, tuple, index)
+    : TupleOp(Node_Insert, 2, tuple->type(), tuple, index)
 {
     set_op(1, value);
     anydsl_assert(tuple->type()->as<Sigma>()->elem(index) == value->type(), "type error");
@@ -76,7 +76,7 @@ Insert::Insert(const Def* tuple, u32 index, const Def* value)
 //------------------------------------------------------------------------------
 
 Tuple::Tuple(World& world, ArrayRef<const Def*> args) 
-    : PrimOp(Node_Tuple, (const Type*) 0, args.size())
+    : PrimOp(Node_Tuple, args.size(), (const Type*) 0)
 {
     if (ops().empty()) {
         set_type(world.sigma0());

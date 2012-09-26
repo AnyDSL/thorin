@@ -8,7 +8,7 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
-const Ptr* Type::to_ptr() const { world().ptr(this); }
+const Ptr* Type::to_ptr() const { return world().ptr(this); }
 
 //------------------------------------------------------------------------------
 

@@ -10,12 +10,7 @@ namespace anydsl {
 class MemOp : public PrimOp {
 protected:
 
-    MemOp(int kind, const Type* type, size_t size, const Def* mem)
-        : PrimOp(kind, type, size)
-    {
-        assert(size >= 1);
-        set_op(0, mem);
-    }
+    MemOp(int kind, const Type* type, size_t size, const Def* mem);
 
 public:
 

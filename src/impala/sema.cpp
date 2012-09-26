@@ -58,8 +58,8 @@ public:
 
     bool result() const { return result_; }
 
-    std::ostream& error(const ASTNode* n) { result_ = false; return n->emitError(); }
-    std::ostream& warning(const ASTNode* n) { return n->emitWarning(); }
+    std::ostream& error(const ASTNode* n) { result_ = false; return n->error(); }
+    std::ostream& warning(const ASTNode* n) { return n->warning(); }
 
     TypeTable& types;
 

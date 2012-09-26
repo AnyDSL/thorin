@@ -55,7 +55,7 @@ Lexer::Lexer(std::istream& stream, const std::string& filename)
 
 std::ostream& Lexer::error(const anydsl::Location& loc) {
     result_ = false;
-    return loc.emitError();
+    return loc.error();
 }
 
 /*
@@ -65,13 +65,13 @@ std::ostream& Lexer::error(const anydsl::Location& loc) {
 int Lexer::next() {
     int c = stream_.get();
 
-    loc_.setPos2(pos_);
+    loc_.set_pos2(pos_);
 
     if (c == '\n') {
-        pos_.incLine();
-        pos_.resetCol();
+        pos_.inc_line();
+        pos_.reset_col();
     } else if (c != std::istream::traits_type::eof())
-        pos_.incCol();
+        pos_.inc_col();
 
     return c;
 }
@@ -80,7 +80,7 @@ Token Lexer::lex() {
     while (true) {
         std::string str; // the token string is concatenated here
         bool floating = false;
-        loc_.setPos1(pos_);
+        loc_.set_pos1(pos_);
 
         // end of file
         if (accept(std::istream::traits_type::eof()))

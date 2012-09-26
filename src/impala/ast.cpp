@@ -19,13 +19,13 @@ Decl::Decl(const Token& tok, const Type* type, const Position& pos2)
     : symbol_(tok.symbol())
     , type_(type)
 {
-    setLoc(tok.pos1(), pos2);
+    set_loc(tok.pos1(), pos2);
 }
 
 void Fct::set(const Decl* decl, const ScopeStmt* body) {
     decl_ = decl;
     body_ = body;
-    setLoc(decl->pos1(), body->pos2());
+    set_loc(decl->pos1(), body->pos2());
 }
 
 bool Fct::continuation() const { 
@@ -53,7 +53,7 @@ Literal::Literal(const Location& loc, Kind kind, Box box)
 
 Tuple::Tuple(const Position& pos1)
 {
-    loc_.setPos1(pos1);
+    loc_.set_pos1(pos1);
 }
 
 Id::Id(const Token& tok) 
@@ -66,7 +66,7 @@ PrefixExpr::PrefixExpr(const Position& pos1, Kind kind, const Expr* rhs)
     : kind_(kind)
 {
     ops_.push_back(rhs);
-    setLoc(pos1, rhs->pos2());
+    set_loc(pos1, rhs->pos2());
 }
 
 InfixExpr::InfixExpr(const Expr* lhs, Kind kind, const Expr* rhs)
@@ -74,14 +74,14 @@ InfixExpr::InfixExpr(const Expr* lhs, Kind kind, const Expr* rhs)
 {
     ops_.push_back(lhs);
     ops_.push_back(rhs);
-    setLoc(lhs->pos1(), rhs->pos2());
+    set_loc(lhs->pos1(), rhs->pos2());
 }
 
 PostfixExpr::PostfixExpr(const Expr* lhs, Kind kind, const Position& pos2) 
     : kind_(kind)
 {
     ops_.push_back(lhs);
-    setLoc(lhs->pos1(), pos2);
+    set_loc(lhs->pos1(), pos2);
 }
 
 //const Def* Ref::load() const {
@@ -90,7 +90,7 @@ PostfixExpr::PostfixExpr(const Expr* lhs, Kind kind, const Position& pos2)
 IndexExpr::IndexExpr(const anydsl::Position& pos1, const Expr* lhs, const Expr* index, const anydsl::Position& pos2) {
     ops_.push_back(lhs);
     ops_.push_back(index);
-    setLoc(pos1, pos2);
+    set_loc(pos1, pos2);
 }
 
 Call::Call(const Expr* fct) {
@@ -99,7 +99,7 @@ Call::Call(const Expr* fct) {
 
 void Call::set_pos2(const Position& pos2) {
     assert(!ops_.empty());
-    HasLocation::setLoc(ops_.front()->pos1(), pos2);
+    HasLocation::set_loc(ops_.front()->pos1(), pos2);
 }
 
 /*
@@ -109,14 +109,14 @@ void Call::set_pos2(const Position& pos2) {
 ExprStmt::ExprStmt(const Expr* expr, const Position& pos2)
     : expr_(expr)
 {
-    setLoc(expr->pos1(), pos2);
+    set_loc(expr->pos1(), pos2);
 }
 
 DeclStmt::DeclStmt(const Decl* decl, const Expr* init, const Position& pos2)
     : decl_(decl)
     , init_(init)
 {
-    setLoc(decl->pos1(), pos2);
+    set_loc(decl->pos1(), pos2);
 }
 
 IfElseStmt::IfElseStmt(const Position& pos1, const Expr* cond, const Stmt* thenStmt, const Stmt* elseStmt)
@@ -124,17 +124,17 @@ IfElseStmt::IfElseStmt(const Position& pos1, const Expr* cond, const Stmt* thenS
     , thenStmt_(thenStmt)
     , elseStmt_(elseStmt)
 {
-    setLoc(pos1, elseStmt->pos2());
+    set_loc(pos1, elseStmt->pos2());
 }
 
 void WhileStmt::set(const Position& pos1, const Expr* cond, const Stmt* body) {
     Loop::set(cond, body);
-    setLoc(pos1, body->pos2());
+    set_loc(pos1, body->pos2());
 }
 
 void DoWhileStmt::set(const Position& pos1, const Stmt* body, const Expr* cond, const Position& pos2) {
     Loop::set(cond, body);
-    setLoc(pos1, pos2);
+    set_loc(pos1, pos2);
 }
 
 ForStmt::~ForStmt() {
@@ -147,27 +147,27 @@ ForStmt::~ForStmt() {
 void ForStmt::set(const Position& pos1, const Expr* cond, const Expr* step, const Stmt* body) {
     Loop::set(cond, body);
     step_ = step;
-    setLoc(pos1, body->pos2());
+    set_loc(pos1, body->pos2());
 }
 
 
 BreakStmt::BreakStmt(const Position& pos1, const Position& pos2, const Loop* loop) 
     : loop_(loop)
 {
-    setLoc(pos1, pos2);
+    set_loc(pos1, pos2);
 }
 
 ContinueStmt::ContinueStmt(const Position& pos1, const Position& pos2, const Loop* loop) 
     : loop_(loop)
 {
-    setLoc(pos1, pos2);
+    set_loc(pos1, pos2);
 }
 
 ReturnStmt::ReturnStmt(const Position& pos1, const Expr* expr, const Fct* fct, const Position& pos2)
     : expr_(expr)
     , fct_(fct)
 {
-    setLoc(pos1, pos2);
+    set_loc(pos1, pos2);
 }
 
 } // namespace impala

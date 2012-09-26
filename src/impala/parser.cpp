@@ -180,7 +180,7 @@ bool Parser::expect(TokenKind tok, const std::string& context) {
 void Parser::error(const std::string& what, const std::string& context) {
     result_ = false;
 
-    std::ostream& os = la().emitError() << "expected " << what << ", got '" << la() << "'";
+    std::ostream& os = la().error() << "expected " << what << ", got '" << la() << "'";
 
     if (!context.empty())
         os << " while parsing " << context;
@@ -325,7 +325,7 @@ const Fct* Parser::parseFct() {
 
 const ScopeStmt* Parser::parseScope() {
     ScopeStmt* scope = new ScopeStmt();
-    scope->setPos1(la().pos1());
+    scope->set_pos1(la().pos1());
 
     expect(Token::L_BRACE, "scope-statement");
 
@@ -346,14 +346,14 @@ const ScopeStmt* Parser::parseScope() {
 
             case Token::END_OF_FILE:
             case Token::R_BRACE:
-                scope->setPos2(la().pos2());
+                scope->set_pos2(la().pos2());
                 expect(Token::R_BRACE, "scope-statement");
                 return scope;
 
             // consume token nobody wants to have in order to prevent infinite loop
             default:
                 error("statement", "statement list");
-                scope->setPos2(prevLoc_.pos2());
+                scope->set_pos2(prevLoc_.pos2());
                 lex(); 
                 return scope;
         }
@@ -708,7 +708,7 @@ const Expr* Parser::parse_tuple() {
         "closing parenthesis of tuple"
     )
 
-    tuple->setPos2(prevLoc_.pos2());
+    tuple->set_pos2(prevLoc_.pos2());
 
     return tuple;
 }

@@ -28,15 +28,16 @@ public:
     int line() const { return line_; }
     int col() const { return col_; }
 
-    void incLine(int inc = 1) { line_ += inc; }
-    void decLine(int dec = 1) { line_ -= dec; }
-    void incCol(int inc = 1)  { col_ += inc; }
-    void decCol(int dec = 1)  { col_ -= dec; }
-    void resetCol() { col_ = 1; }
+    void inc_line(int inc = 1) { line_ += inc; }
+    void dec_line(int dec = 1) { line_ -= dec; }
+    void inc_col(int inc = 1)  { col_ += inc; }
+    void dec_col(int dec = 1)  { col_ -= dec; }
+    void reset_col() { col_ = 1; }
+    void reset_line() { line_ = 1; }
 
     std::ostream& line_col(std::ostream& os) const;
-    std::ostream& emitError() const;
-    std::ostream& emitWarning() const;
+    std::ostream& error() const;
+    std::ostream& warning() const;
 
     bool isSet() const { return line_ != -1; }
 
@@ -72,11 +73,11 @@ public:
     const Position& pos1() const { return pos1_; }
     const Position& pos2() const { return pos2_; }
 
-    void setPos1(const Position& pos1) { pos1_ = pos1; }
-    void setPos2(const Position& pos2) { pos2_ = pos2; }
+    void set_pos1(const Position& pos1) { pos1_ = pos1; }
+    void set_pos2(const Position& pos2) { pos2_ = pos2; }
 
-    std::ostream& emitError() const;
-    std::ostream& emitWarning() const;
+    std::ostream& error() const;
+    std::ostream& warning() const;
 
 protected:
 
@@ -107,13 +108,13 @@ public:
     const Location& loc() const  { return loc_; }
     const Position& pos1() const { return loc_.pos1(); }
     const Position& pos2() const { return loc_.pos2(); }
-    void setPos1(const Position& pos1) { loc_.pos1_ = pos1; }
-    void setPos2(const Position& pos2) { loc_.pos2_ = pos2; }
-    void setLoc(const Location& loc) { loc_ = loc; }
-    void setLoc(const Position& pos1, const Position& pos2) { loc_.pos1_ = pos1; loc_.pos2_ = pos2; }
+    void set_pos1(const Position& pos1) { loc_.pos1_ = pos1; }
+    void set_pos2(const Position& pos2) { loc_.pos2_ = pos2; }
+    void set_loc(const Location& loc) { loc_ = loc; }
+    void set_loc(const Position& pos1, const Position& pos2) { loc_.pos1_ = pos1; loc_.pos2_ = pos2; }
 
-    std::ostream& emitError() const;
-    std::ostream& emitWarning() const;
+    std::ostream& error() const;
+    std::ostream& warning() const;
 
 protected:
 

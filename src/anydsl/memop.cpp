@@ -6,13 +6,24 @@ namespace anydsl {
 
 //------------------------------------------------------------------------------
 
+MemOp::MemOp(int kind, const Type* type, size_t size, const Def* mem)
+    : PrimOp(kind, type, size)
+{
+    assert(mem->type()->isa<Mem>());
+    assert(size >= 1);
+    set_op(0, mem);
+}
+
+//------------------------------------------------------------------------------
+
 Load::Load(const Def* mem, const Def* ptr)
-    : Access(Node_Load, 
-             ptr->world().sigma2(ptr->world().mem(), ptr->type()->as<Ptr>()->ref()), 
-             2, mem, ptr)
+    : Access(Node_Load, 0, 2, mem, ptr)
     , extract_mem_(0)
     , extract_val_(0)
-{}
+{
+    set_type(world().sigma2(world().mem(), ptr->type()->as<Ptr>()->ref()));
+    anydsl_assert(ptr->type()->isa<Ptr>(), "must load from pointer");
+}
 
 const Def* Load::extract_mem() const { 
     return extract_mem_ ? extract_mem_ : extract_mem_ = world().extract(this, 0); 
@@ -33,8 +44,10 @@ Store::Store(const Def* mem, const Def* ptr, const Def* val)
 //------------------------------------------------------------------------------
 
 Enter::Enter(const Def* mem)
-    : MemOp(Node_Enter, mem->world().sigma2(mem->type(), mem->world().frame()), 1, mem)
-{}
+    : MemOp(Node_Enter, 0, 1, mem)
+{
+    set_type(world().sigma2(mem->type(), world().frame()));
+}
 
 const Def* Enter::extract_mem() const { 
     return extract_mem_ ? extract_mem_ : extract_mem_ = world().extract(this, 0); 

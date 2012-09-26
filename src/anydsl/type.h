@@ -10,6 +10,7 @@ namespace anydsl {
 
 class PrimLit;
 class Pi;
+class Ptr;
 class World;
 
 //------------------------------------------------------------------------------
@@ -35,6 +36,7 @@ public:
     World& world() const { return world_; }
     const Type* elem(size_t i) const { return op(i)->as<Type>(); }
     Elems elems() const { return Elems(Def::ops().begin().base(), Def::ops().size()); }
+    const Ptr* to_ptr() const;
 
 private:
 

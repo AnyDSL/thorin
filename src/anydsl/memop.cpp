@@ -54,19 +54,12 @@ Leave::Leave(const Def* mem, const Def* frame)
 
 //------------------------------------------------------------------------------
 
-Slot::Slot(const Enter* enter, const Type* type)
-    : PrimOp(Node_Slot, type->world().ptr(type), 1)
+Slot::Slot(const Def* frame, const Type* type)
+    : PrimOp(Node_Slot, type->to_ptr(), 1)
 {}
 
-bool Slot::equal(const Def* other) const {
-    return PrimOp::equal(other) && type() == other->type();
-}
-
-size_t Slot::hash() const {
-    size_t seed = PrimOp::hash();
-    boost::hash_combine(seed, type());
-    return seed;
-}
+bool Slot::equal(const Def* other) const { return this == other; }
+size_t Slot::hash() const { return boost::hash_value(this); }
 
 //------------------------------------------------------------------------------
 

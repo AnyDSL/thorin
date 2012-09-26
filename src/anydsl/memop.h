@@ -134,7 +134,7 @@ public:
 class Slot : public PrimOp {
 private:
 
-    Slot(const Enter* enter, const Type* type);
+    Slot(const Def* frame, const Type* type);
 
     virtual void vdump(Printer &printer) const;
 
@@ -145,7 +145,7 @@ public:
 
     virtual Slot* clone() const { return new Slot(*this); }
 
-    const Enter* enter() const { return op(0)->as<Enter>(); }
+    const Def* frame() const { return op(0); }
 
     friend class World;
 };

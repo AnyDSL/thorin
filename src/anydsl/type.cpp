@@ -1,9 +1,14 @@
 #include "anydsl/type.h"
 
 #include "anydsl/literal.h"
+#include "anydsl/world.h"
 #include "anydsl/util/for_all.h"
 
 namespace anydsl {
+
+//------------------------------------------------------------------------------
+
+const Ptr* Type::to_ptr() const { world().ptr(this); }
 
 //------------------------------------------------------------------------------
 

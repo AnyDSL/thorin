@@ -202,6 +202,8 @@ public:
     ArrayRef<size_t> args;
     ArrayRef<const Def*> with;
     World& world;
+    Lambda* nentry;
+    Lambda* oentry;
     Old2New old2new;
 };
 
@@ -214,8 +216,8 @@ Lambda* Lambda::drop(ArrayRef<size_t> args, ArrayRef<const Def*> with) {
 }
 
 Lambda* Dropper::drop() {
-    Lambda* olambda = scope.entry();
-    const Pi* o_pi = olambda->pi();
+    oentry = scope.entry();
+    const Pi* o_pi = oentry->pi();
 
     size_t o_numargs = o_pi->size();
     size_t numdrop = args.size();
@@ -231,23 +233,23 @@ Lambda* Dropper::drop() {
     }
 
     const Pi* n_pi = world.pi(elems);
-    Lambda* nlambda = world.lambda(n_pi);
-    nlambda->debug = olambda->debug + ".dropped";
+    nentry = world.lambda(n_pi);
+    nentry->debug = oentry->debug + ".dropped";
 
-    // put in params for entry (olambda)
+    // put in params for entry (oentry)
     for (size_t i = 0, a = 0, n = 0; i < o_numargs; ++i) {
-        const Param* oparam = olambda->param(i);
+        const Param* oparam = oentry->param(i);
         if (a < o_numargs && args[a] == i) {
             const Def* w = with[a++];
             old2new[oparam] = w; //with[a++];
         } else {
-            const Param* nparam = nlambda->param(n++);
+            const Param* nparam = nentry->param(n++);
             nparam->debug = oparam->debug + ".dropped";
             old2new[oparam] = nparam;
         }
     }
 
-    //old2new[olambda] = nlambda;
+    //old2new[oentry] = nentry;
 
     // create stubs for all other lambdas and put their params into the map
     for_all (olambda, scope.rpo().slice_back(1)) {
@@ -261,12 +263,12 @@ Lambda* Dropper::drop() {
         }
     }
 
-    drop_body(olambda, nlambda);
+    drop_body(oentry, nentry);
 
     for_all (cur, scope.rpo().slice_back(1))
         drop_body(cur, (Lambda*) old2new[cur]);
 
-    return nlambda;
+    return nentry;
 }
 
 void Dropper::drop_body(Lambda* olambda, Lambda* nlambda) {

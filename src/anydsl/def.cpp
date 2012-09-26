@@ -144,10 +144,9 @@ PhiOps Param::phi() const {
 }
 
 bool Param::equal(const Node* other) const {
-    if (!Def::equal(other))
-        return false;
-
-    return index() == other->as<Param>()->index() && lambda() == other->as<Param>()->lambda();
+    return Def::equal(other) 
+        && index()  == other->as<Param>()->index() 
+        && lambda() == other->as<Param>()->lambda();
 }
 
 size_t Param::hash() const {

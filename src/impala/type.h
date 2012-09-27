@@ -3,6 +3,7 @@
 
 #include <boost/unordered_set.hpp>
 
+#include "anydsl/symbol.h"
 #include "anydsl/util/array.h"
 
 #include "impala/token.h"
@@ -29,6 +30,7 @@ public:
     virtual bool is_int() const { return false; }
     virtual bool is_noret() const { return false; }
     virtual bool is_void() const { return false; }
+    virtual bool is_generic() const { return false; }
 
 private:
 
@@ -176,6 +178,29 @@ private:
     friend class TypeTable;
 };
 
+class Generic : public Type {
+private:
+
+    Generic(anydsl::Symbol id) 
+        : id_(id)
+    {}
+
+    virtual bool equal(const Type* t) const;
+    virtual size_t hash() const;
+
+    anydsl::Symbol id() const { return id_; }
+
+public:
+
+    virtual void dump(Printer& p) const;
+    virtual const anydsl::Type* convert(anydsl::World& world) const { ANYDSL_UNREACHABLE; }
+    virtual bool is_void() const { return true; }
+
+    anydsl::Symbol id_;
+
+    friend class TypeTable;
+};
+
 //------------------------------------------------------------------------------
 
 struct TypeHash : std::unary_function<const Type*, size_t> {
@@ -202,6 +227,7 @@ public:
     const NoRet* type_noret() const { return noret_; }
     const Pi* pi(anydsl::ArrayRef<const Type*> elems, const Type* ret);
     const Sigma* sigma(anydsl::ArrayRef<const Type*> elems);
+    const Generic* generic(anydsl::Symbol id);
 
     typedef boost::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;
 

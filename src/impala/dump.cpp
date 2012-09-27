@@ -50,7 +50,15 @@ void Prg::dump(Printer& p) const {
 }
 
 void Fct::dump(Printer& p) const {
-    p << "def " << decl()->symbol() << '(';
+    p << "def " << decl()->symbol();
+
+    if (!generics().empty()) {
+        p << '<';
+        ANYDSL_DUMP_COMMA_LIST(p, generics());
+        p << '>';
+    }
+    
+    p << '(';
     ANYDSL_DUMP_COMMA_LIST(p, params());
     p << ')';
 
@@ -356,6 +364,10 @@ void Pi::dump(Printer& p) const {
         p << " -> ";
         ret()->dump(p);
     }
+}
+
+void Generic::dump(Printer& p) const {
+    p << id();
 }
 
 //------------------------------------------------------------------------------

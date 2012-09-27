@@ -25,6 +25,7 @@ class CodeGen;
 class Decl;
 class Expr;
 class Fct;
+class Generic;
 class Pi;
 class Printer;
 class ScopeStmt;
@@ -33,6 +34,7 @@ class Stmt;
 class Type;
 
 typedef anydsl::AutoVector<const Decl*> Decls;
+typedef std::vector<const Generic*> Generics;
 typedef anydsl::AutoVector<const Expr*> Exprs;
 typedef anydsl::AutoVector<const Fct*>  Fcts;
 typedef anydsl::AutoVector<const Stmt*> Stmts;
@@ -71,6 +73,7 @@ public:
     anydsl::Symbol symbol() const;
     const ScopeStmt* body() const { return body_; }
     const Decls& params() const { return params_; }
+    const Generics& generics() const { return generics_; }
     const Pi* pi() const;
     bool continuation() const;
 
@@ -83,6 +86,7 @@ private:
     void set(const Decl* decl, const ScopeStmt* body);
 
     anydsl::AutoPtr<const Decl> decl_;
+    Generics generics_;
     Decls params_;
     anydsl::AutoPtr<const ScopeStmt> body_;
 

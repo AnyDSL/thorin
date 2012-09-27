@@ -6,7 +6,7 @@
 #include "anydsl/util/cast.h"
 #include "anydsl/util/for_all.h"
 
-using anydsl::dcast;
+using anydsl::Symbol;
 
 namespace impala {
 
@@ -93,6 +93,9 @@ bool Sigma::equal(const Type* other) const {
     return false;
 }
 
+bool Generic::equal(const Type* t) const { return this == t; }
+size_t Generic::hash() const { return boost::hash_value(this); }
+
 //------------------------------------------------------------------------------
 
 TypeTable::TypeTable() 
@@ -142,6 +145,12 @@ const Sigma* TypeTable::sigma(anydsl::ArrayRef<const Type*> elems) {
 
     delete sigma;
     return (*i)->as<Sigma>();
+}
+
+const Generic* TypeTable::generic(Symbol id) {
+    Generic* generic = new Generic(id);
+    types_.insert(generic);
+    return generic;
 }
 
 } // namespace impala

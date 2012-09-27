@@ -242,7 +242,7 @@ public:
 
     Kind kind() const { return kind_; }
 
-    virtual bool lvalue() const { return Token::isAsgn((TokenKind) kind()); }
+    virtual bool lvalue() const { return Token::is_asgn((TokenKind) kind()); }
     virtual const Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;

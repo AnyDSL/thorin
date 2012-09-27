@@ -260,10 +260,10 @@ const Type* PrefixExpr::vcheck(Sema& sema) const {
 
 const Type* InfixExpr::vcheck(Sema& sema) const {
     if (lhs()->check(sema) == rhs()->check(sema)) {
-        if (Token::isRel((TokenKind) kind()))
+        if (Token::is_rel((TokenKind) kind()))
             return sema.types.type_bool();
 
-        if (Token::isAsgn((TokenKind) kind())) {
+        if (Token::is_asgn((TokenKind) kind())) {
             if (!lhs()->lvalue())
                 sema.error(lhs()) << "no lvalue on left-hand side of assignment\n";
         }

@@ -1,8 +1,10 @@
-def while(m    : int,
-          head : pi(int, pi(int, bool)), 
-          body : pi(int, pi(int)), 
-          next : pi(int)) 
+def my_while<L, O>(l : L,
+                h : pi(L, O, pi(L, O, bool)), 
+                b : pi(L, O, pi(L, O)), 
+                n : pi(O)) 
 {
+
+/*
     #(int, bool) bla = head(m, 
     
     
@@ -18,4 +20,5 @@ def while(m    : int,
             }
         )
     })
+*/
 }

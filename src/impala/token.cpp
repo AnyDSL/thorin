@@ -59,7 +59,7 @@ Token::Token(const anydsl::Location& loc, Kind kind, const std::string& str)
     }
 }
 
-bool Token::isArith(Kind op) {
+bool Token::is_arith(Kind op) {
     switch (op) {
         case ADD:
         case SUB:
@@ -74,7 +74,7 @@ bool Token::isArith(Kind op) {
     }
 }
 
-bool Token::isRel(Kind op) {
+bool Token::is_rel(Kind op) {
     switch (op) {
         case EQ:
         case NE:
@@ -87,7 +87,7 @@ bool Token::isRel(Kind op) {
 }
 
 TokenKind Token::seperateAssign(TokenKind kind) {
-    anydsl_assert(isAsgn(kind), "must be an assignment other than ASGN");
+    anydsl_assert(is_asgn(kind), "must be an assignment other than ASGN");
 
     switch (kind) {
         case ADD_ASGN: return ADD;

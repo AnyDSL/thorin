@@ -198,7 +198,7 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
 RefPtr InfixExpr::emit(CodeGen& cg) const {
     TokenKind op = (TokenKind) kind();
 
-    if (Token::isAsgn(op)) {
+    if (Token::is_asgn(op)) {
         const Id* id = lhs()->isa<Id>();
 
         // special case for 'a = expr' -> don't use lookup!

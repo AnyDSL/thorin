@@ -83,21 +83,21 @@ public:
 
     int op() const { return tok2op_[kind_]; }
 
-    bool isPrefix()  const { return isPrefix(kind_); }
-    bool isInfix()   const { return isInfix(kind_); }
-    bool isPostfix() const { return isPostfix(kind_); }
-    bool isAsgn()    const { return isAsgn(kind_); }
-    bool isOp()      const { return isOp(kind_); }
-    bool isArith()   const { return isArith(kind_); }
-    bool isRel()     const { return isRel(kind_); }
+    bool is_prefix()  const { return is_prefix(kind_); }
+    bool is_infix()   const { return is_infix(kind_); }
+    bool is_postfix() const { return is_postfix(kind_); }
+    bool is_asgn()    const { return is_asgn(kind_); }
+    bool is_op()      const { return is_op(kind_); }
+    bool is_arith()   const { return is_arith(kind_); }
+    bool is_rel()     const { return is_rel(kind_); }
 
-    static bool isPrefix(Kind kind)  { return tok2op_[kind] &  PREFIX; }
-    static bool isInfix(Kind kind)   { return tok2op_[kind] &   INFIX; }
-    static bool isPostfix(Kind kind) { return tok2op_[kind] & POSTFIX; }
-    static bool isAsgn(Kind kind)    { return tok2op_[kind] & ASGN_OP; }
-    static bool isOp(Kind kind)      { return isPrefix(kind) || isInfix(kind) || isPostfix(kind); }
-    static bool isArith(Kind kind);
-    static bool isRel(Kind kind);
+    static bool is_prefix(Kind kind)  { return tok2op_[kind] &  PREFIX; }
+    static bool is_infix(Kind kind)   { return tok2op_[kind] &   INFIX; }
+    static bool is_postfix(Kind kind) { return tok2op_[kind] & POSTFIX; }
+    static bool is_asgn(Kind kind)    { return tok2op_[kind] & ASGN_OP; }
+    static bool is_op(Kind kind)      { return is_prefix(kind) || is_infix(kind) || is_postfix(kind); }
+    static bool is_arith(Kind kind);
+    static bool is_rel(Kind kind);
     static Kind seperateAssign(Kind kind);
 
     static int toBinOp(Kind kind);

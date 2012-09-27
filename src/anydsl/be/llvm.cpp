@@ -19,7 +19,6 @@
 #include "anydsl/type.h"
 #include "anydsl/world.h"
 #include "anydsl/analyses/rootlambdas.h"
-#include "anydsl/analyses/domtree.h"
 #include "anydsl/analyses/scope.h"
 #include "anydsl/analyses/placement.h"
 #include "anydsl/util/array.h"
@@ -104,7 +103,7 @@ void CodeGen::emit() {
         }
 
         const Param* ret_param = lambda->ho_params().front();
-        ScopeTree scope(lambda);
+        Scope scope(lambda);
         BBMap bbs(scope.size());
 
         // map all bb-like lambdas to llvm bb stubs 

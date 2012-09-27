@@ -5,11 +5,11 @@
 
 namespace anydsl {
 
-class DomTree;
+class Scope;
 class PrimOp;
 
 typedef Array< std::vector<const PrimOp*> > Places;
-Places place(const DomTree& tree);
+Places place(const Scope& sceop);
 
 } // namespace anydsl
 

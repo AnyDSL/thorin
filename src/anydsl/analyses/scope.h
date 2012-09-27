@@ -23,6 +23,7 @@ public:
     bool contains(Lambda* lambda) const { return lambdas_.find(lambda) != lambdas_.end(); }
     const LambdaSet& lambdas() const { return lambdas_; }
     const Lambdas& rpo() const { return rpo_; }
+    Lambda* rpo(size_t i) const { return rpo_[i]; }
     const Lambdas& preds(Lambda* lambda) const;
     const Lambdas& succs(Lambda* lambda) const;
 

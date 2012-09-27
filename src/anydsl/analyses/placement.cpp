@@ -5,7 +5,7 @@
 #include "anydsl/lambda.h"
 #include "anydsl/literal.h"
 #include "anydsl/primop.h"
-#include "anydsl/analyses/domtree.h"
+#include "anydsl/analyses/scope.h"
 
 namespace anydsl {
 
@@ -41,14 +41,14 @@ void insert(Done& done, std::vector<const PrimOp*>& primops, const Def* def) {
     }
 }
 
-Places place(const DomTree& tree) {
-    Places places(tree.size());
+Places place(const Scope& scope) {
+    Places places(scope.size());
     Done done;
 
-    for (size_t i = tree.size() - 1; i != size_t(-1); --i) {
-        const DomNode* node = tree.bfs(i);
-        for_all (param, node->lambda()->params())
-            insert(done, places[node->sid()], param);
+    for (size_t i = scope.size() - 1; i != size_t(-1); --i) {
+        Lambda* lambda = scope.rpo(i);
+        for_all (param, lambda->params())
+            insert(done, places[i], param);
     }
 
     return places;

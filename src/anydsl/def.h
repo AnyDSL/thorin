@@ -109,26 +109,13 @@ protected:
     Def(const Def&);
     virtual ~Def();
 
-    /** 
-     * @brief Makes a polymorphic copy.
-     *
-     * All operands and attributes are copied;
-     * all operands register themselves as new uses.
-     * The copy itself does not introduce new uses.
-     * Most likely, you want to update the newly created node.
-     * The return pointer is \em not const.
-     * Thus, you are free to run \p update before inserting this node into the \p World again.
-     * 
-     * @return A modifiable copy of this node.
-     */
-    virtual Def* clone() const = 0;
-
-    void set_op(size_t i, const Def* def);
-    void unset_op(size_t i);
     void set_type(const Type* type) { type_ = type; }
     void unregister_use(size_t i) const;
 
 public:
+
+    void set_op(size_t i, const Def* def);
+    void unset_op(size_t i);
 
     Lambda* as_lambda() const;
     Lambda* isa_lambda() const;

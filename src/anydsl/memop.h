@@ -49,7 +49,7 @@ public:
     const Def* extract_mem() const;
     const Def* extract_val() const;
 
-    virtual Load* clone() const { return new Load(*this); }
+    virtual Load* stub() const { return new Load(*this); }
 
 private:
 
@@ -72,7 +72,7 @@ public:
 
     const Def* val() const { return op(2); }
 
-    virtual Store* clone() const { return new Store(*this); }
+    virtual Store* stub() const { return new Store(*this); }
 
     friend class World;
 };
@@ -91,7 +91,7 @@ public:
     const Def* extract_mem() const;
     const Def* extract_frame() const;
 
-    virtual Enter* clone() const { return new Enter(*this); }
+    virtual Enter* stub() const { return new Enter(*this); }
 
 private:
 
@@ -112,7 +112,7 @@ private:
 
 public:
 
-    virtual Leave* clone() const { return new Leave(*this); }
+    virtual Leave* stub() const { return new Leave(*this); }
 
     const Def* frame() const { return op(1); }
 
@@ -138,7 +138,7 @@ private:
 
 public:
 
-    virtual Slot* clone() const { return new Slot(*this); }
+    virtual Slot* stub() const { return new Slot(*this); }
 
     const Def* frame() const { return op(0); }
 

@@ -21,7 +21,20 @@ protected:
 
 public:
 
-    virtual PrimOp* clone() const = 0;
+    /** 
+     * @brief Makes a polymorphic copy.
+     *
+     * All attributes are copied;
+     * all operands are set to 0.
+     * The copy itself does not introduce new uses.
+     * Most likely, you want to update the newly created node.
+     * The return pointer is \em not const.
+     * Thus, you are free to run \p update before inserting this node into the \p World again.
+     * 
+     * @return A modifiable copy of this node.
+     */
+    virtual PrimOp* stub() const = 0;
+    PrimOp* clone() const;
 };
 
 //------------------------------------------------------------------------------
@@ -58,7 +71,7 @@ private:
 
 public:
 
-    virtual ArithOp* clone() const { return new ArithOp(*this); }
+    virtual ArithOp* stub() const { return new ArithOp(*this); }
 
     ArithOpKind arithop_kind() const { return (ArithOpKind) node_kind(); }
 
@@ -109,7 +122,7 @@ class RelOp : public BinOp {
 private:
 
     RelOp(RelOpKind kind, const Def* lhs, const Def* rhs);
-    virtual RelOp* clone() const { return new RelOp(*this); }
+    virtual RelOp* stub() const { return new RelOp(*this); }
 
 public:
 
@@ -128,7 +141,7 @@ private:
     {
         set_op(0, from);
     }
-    virtual ConvOp* clone() const { return new ConvOp(*this); }
+    virtual ConvOp* stub() const { return new ConvOp(*this); }
 
 public:
 
@@ -153,7 +166,7 @@ private:
 
 public:
 
-    virtual Select* clone() const { return new Select(*this); }
+    virtual Select* stub() const { return new Select(*this); }
 
     const Def* cond() const { return op(0); }
     const Def* tval() const { return op(1); }
@@ -201,7 +214,7 @@ private:
 
 public:
 
-    virtual Extract* clone() const { return new Extract(*this); }
+    virtual Extract* stub() const { return new Extract(*this); }
 
     friend class World;
 };
@@ -212,7 +225,7 @@ class Insert : public TupleOp {
 private:
 
     Insert(const Def* tuple, u32 index, const Def* value);
-    virtual Insert* clone() const { return new Insert(*this); }
+    virtual Insert* stub() const { return new Insert(*this); }
     
 public:
 
@@ -231,7 +244,7 @@ class Tuple : public PrimOp {
 private:
 
     Tuple(World& world, ArrayRef<const Def*> args);
-    virtual Tuple* clone() const { return new Tuple(*this); }
+    virtual Tuple* stub() const { return new Tuple(*this); }
 
 private:
 

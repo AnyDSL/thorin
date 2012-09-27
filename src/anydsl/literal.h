@@ -53,7 +53,7 @@ private:
     Any(const Type* type)
         : Undef(Node_Undef, type)
     {}
-    virtual Any* clone() const { return new Any(*this); }
+    virtual Any* stub() const { return new Any(*this); }
     virtual void vdump(Printer& printer) const ;
 
     friend class World;
@@ -73,7 +73,7 @@ private:
     Bottom(const Type* type)
         : Undef(Node_Bottom, type)
     {}
-    virtual Bottom* clone() const { return new Bottom(*this); }
+    virtual Bottom* stub() const { return new Bottom(*this); }
     virtual void vdump(Printer& printer) const ;
 
     friend class World;
@@ -92,7 +92,7 @@ private:
         : Literal(lit)
         , box_(lit.box())
     {}
-    virtual PrimLit* clone() const { return new PrimLit(*this); }
+    virtual PrimLit* stub() const { return new PrimLit(*this); }
 
 public:
 
@@ -125,7 +125,7 @@ private:
     TypeKeeper(const Type* type)
         : Literal(Node_TypeKeeper, type)
     {}
-    virtual TypeKeeper* clone() const { return new TypeKeeper(*this); }
+    virtual TypeKeeper* stub() const { return new TypeKeeper(*this); }
     virtual void vdump(Printer& printer) const ;
 
     friend class World;

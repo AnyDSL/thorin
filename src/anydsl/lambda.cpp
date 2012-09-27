@@ -305,27 +305,25 @@ void Dropper::drop_body(Lambda* olambda, Lambda* nlambda) {
 }
 
 void Dropper::drop(const PrimOp* oprimop) {
-    Array<const Def*> ops(oprimop->size());
+    PrimOp* nprimop = oprimop->stub();
 
     size_t i = 0; 
     for_all (op, oprimop->ops()) {
         Old2New::iterator iter = old2new.find(op);
         if (iter != old2new.end())
-            ops[i++] = iter->second;
+            nprimop->set_op(i++, iter->second);
         else if (op->is_const())
-            ops[i++] = op;
+            nprimop->set_op(i++, op);
         else if (const Param* oparam = op->isa<Param>()) {
             if (scope.contains(oparam->lambda()))
-                ops[i++] = op;
+                nprimop->set_op(i++, op);
         } else if (Lambda* lambda = op->isa_lambda()) {
             LambdaSet::iterator iter = scope.lambdas().find(lambda);
             if (iter == scope.lambdas().end())
-                ops[i++] = op;
+                nprimop->set_op(i++, op);
         }
     }
 
-    PrimOp* nprimop = oprimop->clone();
-    nprimop->update(ops);
     old2new[oprimop] = world.consume(nprimop);
 
     for_all (use, oprimop->uses())
@@ -352,7 +350,7 @@ const Def* Dropper::drop_target(const Def* to) {
                 ops[i++] = drop_target(op);
         }
 
-        PrimOp* nprimop = oprimop->clone();
+        PrimOp* nprimop = oprimop->stub();
         nprimop->update(ops);
 
         return old2new[oprimop] = world.consume(nprimop);

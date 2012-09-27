@@ -26,8 +26,8 @@ Def::Def(const Def& def)
     : Node(def)
     , type_(def.type())
 {
-    for (size_t i = 0, e = size(); i != e; ++i)
-        set_op(i, def.op(i));
+    //for (size_t i = 0, e = size(); i != e; ++i)
+        //set_op(i, def.op(i));
 }
 
 Def::~Def() { 

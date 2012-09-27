@@ -117,7 +117,17 @@ public:
     ArrayRef<T, Deref, Hook> slice_front(size_t end) const { return ArrayRef<T, Deref, Hook>(ptr_, end); }
     ArrayRef<T, Deref, Hook> slice_back(size_t begin) const { return ArrayRef<T, Deref, Hook>(ptr_ + begin, size_ - begin); }
 
-    operator ArrayRef<T, Deref, Hook> () { return ArrayRef<T, Deref, Hook>(ptr_, size_); }
+    //operator ArrayRef<T, Deref, Hook> () { return ArrayRef<T, Deref, Hook>(ptr_, size_); }
+    bool operator == (ArrayRef<T, Deref, Hook> other) const {
+        if (size() != other.size())
+            return false;
+
+        bool result = true;
+        for (size_t i = 0, e = size(); i != e && result; ++i)
+            result &= ptr_[i] == other[i];
+
+        return result;
+    }
 
 private:
 
@@ -188,16 +198,7 @@ public:
     ArrayRef<T> slice_front(size_t end) const { return ArrayRef<T>(ptr_, end); }
     ArrayRef<T> slice_back(size_t begin) const { return ArrayRef<T>(ptr_ + begin, size_ - begin); }
 
-    bool operator == (const Array<T>& other) const {
-        if (size() != other.size())
-            return false;
-
-        bool result = true;
-        for (size_t i = 0, e = size(); i != e && result; ++i)
-            result &= ptr_[i] == other[i];
-
-        return result;
-    }
+    bool operator == (const Array<T>& other) const { return ArrayRef<T>(*this) == ArrayRef<T>(other); }
 
     void shrink(size_t newsize) { assert(newsize <= size_); size_ = newsize; }
 
@@ -210,15 +211,18 @@ private:
 };
 
 template<class T>
-inline size_t hash_value(const Array<T>& array) {
+inline size_t hash_value(ArrayRef<T> aref) {
     size_t seed = 0;
-    boost::hash_combine(seed, array.size());
+    boost::hash_combine(seed, aref.size());
 
-    for (size_t i = 0, e = array.size(); i != e; ++i)
-        boost::hash_combine(seed, array[i]);
+    for (size_t i = 0, e = aref.size(); i != e; ++i)
+        boost::hash_combine(seed, aref[i]);
 
     return seed;
 }
+
+template<class T>
+inline size_t hash_value(const Array<T>& array) { return hash_value(ArrayRef<T>(array)); }
 
 //------------------------------------------------------------------------------
 

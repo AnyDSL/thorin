@@ -105,7 +105,6 @@ IMPALA_INFIX(        ARROW,  "->",    POSTFIX,         TOP)
 
 IMPALA_KEY_EXPR(TAU,    "tau")
 IMPALA_KEY_EXPR(PI,     "pi")
-IMPALA_KEY_EXPR(SIGMA,  "sigma")
 IMPALA_KEY_EXPR(LAMBDA, "lambda")
 IMPALA_KEY_EXPR(TRUE,   "true")
 IMPALA_KEY_EXPR(FALSE,  "false")

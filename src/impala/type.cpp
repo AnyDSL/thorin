@@ -80,7 +80,7 @@ Sigma::Sigma(anydsl::ArrayRef<const Type*> elems)
 
 size_t Sigma::hash() const {
     size_t seed = 0;
-    boost::hash_combine(seed, Token::SIGMA);
+    boost::hash_combine(seed, Token::L_TUPLE);
     boost::hash_combine(seed, elems_);
 
     return seed;

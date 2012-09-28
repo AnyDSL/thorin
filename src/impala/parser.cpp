@@ -29,6 +29,7 @@ public:
      * helpers
      */
 
+    const Token& la(size_t i) const { return lookahead_[i]; }
     const Token& la () const { return lookahead_[0]; }
     const Token& la2() const { return lookahead_[1]; }
 
@@ -50,7 +51,7 @@ public:
     const Type* try_type(const std::string& what);
     const Expr* try_expr(const std::string& what);
     bool is_expr();
-    bool is_type();
+    bool is_type(size_t lookahead = 0);
     const Prg* parse();
     const Type* parse_type();
     const Decl* parse_decl();
@@ -252,15 +253,14 @@ const Type* Parser::parse_type() {
 
             return types_.pi(elems, ret);
         }
-        case Token::SIGMA: {
+        case Token::L_TUPLE: {
             lex();
             std::vector<const Type*> elems;
-            expect(Token::L_PAREN, "element types of sigma");
             PARSE_COMMA_LIST
             (
-                elems.push_back(try_type("element type of sigma")),
+                elems.push_back(try_type("element of tuple type")),
                 Token::R_PAREN,
-                "closing parenthesis of sigma type"
+                "closing parenthesis of tuple type"
             )
 
             return types_.sigma(elems);
@@ -607,13 +607,13 @@ bool Parser::is_expr() {
     }
 }
 
-bool Parser::is_type() {
+bool Parser::is_type(size_t lookahead) {
     // generics
-    if (la() == Token::ID
+    if (la(lookahead) == Token::ID
             && generics_.find(la().symbol()) != generics_.end())
         return true;
 
-    switch (la()) {
+    switch (la(lookahead)) {
 #define IMPALA_TYPE(itype, atype) \
         case Token:: TYPE_##itype:
 #include <impala/tokenlist.h>
@@ -622,8 +622,10 @@ bool Parser::is_type() {
         case Token::TYPE_void:
         case Token::TYPE_noret:
         case Token::PI:
-        case Token::SIGMA:
             return true;
+        case Token::L_TUPLE:
+            assert(lookahead == 0);
+            return is_type(1);
         default:
             return false;
     }

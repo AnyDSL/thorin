@@ -350,7 +350,7 @@ void TypeError::dump(Printer& p) const {
 }
 
 void Sigma::dump(Printer& p) const {
-    p << "sigma(";
+    p << "#(";
     ANYDSL_DUMP_COMMA_LIST(p, elems());
     p << ")";
 }

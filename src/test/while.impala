@@ -25,32 +25,33 @@ def fac_my_while(n : int) -> int
     r : int := 1;
     i : int := 2;
 
-    letrec 
-        head := lambda(ir : sigma(int, int), ret : pi(sigma(int, int, bool))) {
-            i : int := ir[0];
-            r : int := ir[1];
-            return #(i, r, i <= n);
-        }
-        body := lambda(ir : sigma(int, int), ret : pi(sigma(int, int))) {
-            i : int := ir[0];
-            r : int := ir[1];
-            r *= i;
-            ++i;
-            return #(i, r);
-        }
-        next := lambda(r) -> noret {
-            //...
-        }
-    in
-        my_while(head, body, next);
+    def head(ir : #(int, int), ret : pi(#(int, int, bool))) {
+        i : int := ir[0];
+        r : int := ir[1];
+        return #(i, r, i <= n);
+    }
+    def body(ir : #(int, int), ret : pi(#(int, int))) {
+        i : int := ir[0];
+        r : int := ir[1];
+        r *= i;
+        ++i;
+        return #(i, r);
+    }
+    def next(r) -> noret {
+        //...
+    }
+    my_while(head, body, next);
+
+
+    n = 42;
 }
 
 def my_while<L, O>(l : L,
-                head : pi(L, pi(sigma(L, bool)), 
+                head : pi(L, pi(#(L, bool)), 
                 body : pi(L, pi(L)), 
                 next : pi(O)) 
 {
-    h : sigma(L, bool) := head(l);
+    h : #(L, bool) := head(l);
 
     if (h[1]) {
         b : L := body(l);

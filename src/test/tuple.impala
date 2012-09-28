@@ -1,4 +1,4 @@
-def foo(s : sigma(int, bool)) -> int {
+def foo(s : #(int, bool)) -> int {
     s[0]++;
     return s[0];
 }

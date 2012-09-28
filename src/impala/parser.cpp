@@ -102,8 +102,8 @@ private:
     TypeTable& types_;
     Lexer lexer_;       ///< invoked in order to get next token
     Token lookahead_[2];///< LL(2) look ahead
-    const Loop* curLoop_;
-    const Fct* curFct_;
+    const Loop* cur_loop_;
+    const Fct* cur_fct_;
     Prg* prg_;
     int counter_;
     anydsl::Location prev_loc_;
@@ -138,8 +138,8 @@ const Prg* parse(TypeTable& types, std::istream& i, const std::string& filename,
 Parser::Parser(TypeTable& types, std::istream& stream, const std::string& filename)
     : types_(types)
     , lexer_(stream, filename)
-    , curLoop_(0)
-    , curFct_(0)
+    , cur_loop_(0)
+    , cur_fct_(0)
     , prg_(new Prg())
     , counter_(0)
     , result_(true)
@@ -303,7 +303,7 @@ const Fct* Parser::parse_fct() {
     Token id = try_id("function identifier");
 
     Fct* fct = new Fct();
-    curFct_ = fct;
+    cur_fct_ = fct;
     const Type* ret = 0;
 
     std::vector<const Type*> arg_types;
@@ -313,7 +313,7 @@ const Fct* Parser::parse_fct() {
         (
             {
                 Symbol id = try_id("generic identifier").symbol();
-                const Generic* generic = types_.generic(id);
+                const Generic* generic = types_.generic(id, cur_fct_);
                 Generics::iterator i = generics_.find(id);
                 if (i == generics_.end()) {
                     fct->generics_.push_back(generic);
@@ -463,11 +463,11 @@ const Stmt* Parser::parse_while() {
     Position pos1 = eat(Token::WHILE).pos1();
     const Expr* cond = parse_cond("while-statement");
 
-    const Loop* oldLoop = curLoop_;
+    const Loop* oldLoop = cur_loop_;
     WhileStmt*  newLoop = new WhileStmt();
-    curLoop_ = newLoop;
+    cur_loop_ = newLoop;
     const Stmt* body = parse_stmt();
-    curLoop_ = oldLoop;
+    cur_loop_ = oldLoop;
 
     newLoop->set(pos1, cond, body);
 
@@ -477,11 +477,11 @@ const Stmt* Parser::parse_while() {
 const Stmt* Parser::parse_do_while() {
     Position pos1 = eat(Token::DO).pos1();
 
-    const Loop* oldLoop = curLoop_;
+    const Loop* oldLoop = cur_loop_;
     DoWhileStmt* newLoop = new DoWhileStmt();
-    curLoop_ = newLoop;
+    cur_loop_ = newLoop;
     const Stmt* body = parse_stmt();
-    curLoop_ = oldLoop;
+    cur_loop_ = oldLoop;
 
     expect(Token::WHILE, "do-while-statement");
     const Expr* cond = parse_cond("do-while-statement");
@@ -496,9 +496,9 @@ const Stmt* Parser::parse_for() {
     Position pos1 = eat(Token::FOR).pos1();
     expect(Token::L_PAREN, "for-statement");
 
-    const Loop* oldLoop = curLoop_;
+    const Loop* oldLoop = cur_loop_;
     ForStmt*  newLoop = new ForStmt();
-    curLoop_ = newLoop;
+    cur_loop_ = newLoop;
 
     // clause 1: decl or expr_opt ';'
     if (la2() == Token::COLON)
@@ -543,7 +543,7 @@ const Stmt* Parser::parse_for() {
     }
 
     const Stmt* body = parse_stmt();
-    curLoop_ = oldLoop;
+    cur_loop_ = oldLoop;
 
     newLoop->set(pos1, cond, inc, body);
 
@@ -554,14 +554,14 @@ const Stmt* Parser::parse_break() {
     Position pos1 = eat(Token::BREAK).pos1();
     expect(Token::SEMICOLON, "break-statement");
 
-    return new BreakStmt(pos1, prev_loc_.pos2(), curLoop_);
+    return new BreakStmt(pos1, prev_loc_.pos2(), cur_loop_);
 }
 
 const Stmt* Parser::parse_continue() {
     Position pos1 = eat(Token::CONTINUE).pos1();
     expect(Token::SEMICOLON, "continue-statement");
 
-    return new ContinueStmt(pos1, prev_loc_.pos2(), curLoop_);
+    return new ContinueStmt(pos1, prev_loc_.pos2(), cur_loop_);
 }
 
 const Stmt* Parser::parse_return() {
@@ -576,7 +576,7 @@ const Stmt* Parser::parse_return() {
         eat(Token::SEMICOLON);
     }
 
-    return new ReturnStmt(pos1, expr, curFct_, prev_loc_.pos2());
+    return new ReturnStmt(pos1, expr, cur_fct_, prev_loc_.pos2());
 }
 
 const Expr* Parser::parse_cond(const std::string& what) {

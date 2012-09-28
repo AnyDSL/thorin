@@ -1,24 +1,16 @@
 def my_while<L, O>(l : L,
-                h : pi(L, O, pi(L, O, bool)), 
-                b : pi(L, O, pi(L, O)), 
-                n : pi(O)) 
+                head : pi(L, pi(sigma(L, bool)), 
+                body : pi(L, pi(L)), 
+                next : pi(O)) 
 {
 
-/*
-    #(int, bool) bla = head(m, 
-    
-    
-    lambda(m : int, h : bool) {
-        branch(h, 
-            lambda() {
-                body(m, lambda(m : int) {
-                    while(m, head, body, next)
-                })
-            },
-            lambda() {
-                next(m)
-            }
-        )
-    })
-*/
+
+    h : sigma(L, bool) := head(l);
+
+    if (h[1]) {
+        b : L := body(l);
+        my_while(b, head, body, next);
+    } else {
+        next(l);
+    }
 }

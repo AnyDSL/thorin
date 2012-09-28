@@ -44,8 +44,6 @@ public:
 
     bool reachable() const { return curBB; }
 
-    const anydsl::Type* convert(const Type* type) { return type->convert(world); }
-
     anydsl::BB* curBB;
     anydsl::Fct* curFct;
     anydsl::World& world;
@@ -64,18 +62,20 @@ void emit(anydsl::World& world, const Prg* prg) {
 
 void Prg::emit(CodeGen& cg) const {
     for_all (f, fcts()) {
+        for_all (generic, f->generics()) {
+        }
         size_t size = f->params().size();
         Array<const anydsl::Type*> tparams(size);
         Array<anydsl::Symbol>      sparams(size);
 
         size_t i = 0;
         for_all (param, f->params()) {
-            tparams[i] = cg.convert(param->type());
+            tparams[i] = param->type()->convert(cg);
             sparams[i] = param->symbol();
             ++i;
         }
 
-        const anydsl::Type* ret = cg.convert(f->pi()->ret());
+        const anydsl::Type* ret = f->pi()->ret()->convert(cg);
         cg.fcts[f->symbol()] = new anydsl::Fct(cg.world, tparams, sparams, ret, f->symbol().str());
     }
 
@@ -105,7 +105,7 @@ void Fct::emit(CodeGen& cg) const {
 }
 
 Var* Decl::emit(CodeGen& cg) const {
-    Var* var = cg.curBB->insert(symbol(), cg.world.bottom(cg.convert(type())));
+    Var* var = cg.curBB->insert(symbol(), cg.world.bottom(type()->convert(cg)));
     var->load()->debug = symbol().str();
 
     return var;
@@ -156,7 +156,7 @@ RefPtr Id::emit(CodeGen& cg) const {
             return Ref::create(i->second->top());
     }
 
-    return Ref::create(cg.curBB->lookup(symbol(), cg.convert(type())));
+    return Ref::create(cg.curBB->lookup(symbol(), type()->convert(cg)));
 }
 
 RefPtr PrefixExpr::emit(CodeGen& cg) const {
@@ -203,7 +203,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
 
         // special case for 'a = expr' -> don't use lookup!
         RefPtr lref = op == Token::ASGN && id
-                ? Ref::create(cg.curBB->insert(id->symbol(), cg.world.bottom(cg.convert(id->type()))))
+                ? Ref::create(cg.curBB->insert(id->symbol(), cg.world.bottom(id->type()->convert(cg))))
                 : lhs()->emit(cg);
 
         const Def* ldef = lref->load();
@@ -244,7 +244,7 @@ RefPtr IndexExpr::emit(CodeGen& cg) const {
 
 RefPtr Call::emit(CodeGen& cg) const {
     Array<const Def*> ops = emit_ops(cg);
-    const anydsl::Type* ret = cg.convert(type());
+    const anydsl::Type* ret = type()->convert(cg);
 
     if (ret)
         return Ref::create(cg.curBB->call(ops[0], ops.slice_back(1), ret));
@@ -440,42 +440,46 @@ void ScopeStmt::emit(CodeGen& cg) const {
  * Type
  */
 
-const anydsl::Type* PrimType::convert(anydsl::World& world) const {
+const anydsl::Type* PrimType::convert(CodeGen& cg) const {
     switch (kind()) {
 #define IMPALA_TYPE(itype, atype) \
         case TYPE_##itype: \
-            return world.type_##atype();
+            return cg.world.type_##atype();
 #include "impala/tokenlist.h"
         default:
             ANYDSL_UNREACHABLE;
     }
 }
 
-const anydsl::Type* Void::convert(anydsl::World& world) const { return world.unit(); }
-const anydsl::Type* NoRet::convert(anydsl::World& /*world*/) const { return 0; }
-const anydsl::Type* TypeError::convert(anydsl::World& /*world*/) const { ANYDSL_UNREACHABLE; }
+const anydsl::Type* Void::convert(CodeGen& cg) const { return cg.world.unit(); }
+const anydsl::Type* NoRet::convert(CodeGen&) const { return 0; }
+const anydsl::Type* TypeError::convert(CodeGen&) const { ANYDSL_UNREACHABLE; }
 
-const anydsl::Type* Pi::convert(anydsl::World& world) const {
+const anydsl::Type* Pi::convert(CodeGen& cg) const {
     size_t size = elems().size();
     Array<const anydsl::Type*> types(size + 1);
 
     for (size_t i = 0; i < size; ++i)
-        types[i] = elems()[i]->convert(world);
+        types[i] = elems()[i]->convert(cg);
 
     if (!ret()->is_noret())
-        types[size++] = world.pi1(ret()->convert(world));
+        types[size++] = cg.world.pi1(ret()->convert(cg));
 
-    return world.pi(types.slice_front(size));
+    return cg.world.pi(types.slice_front(size));
 }
 
-const anydsl::Type* Sigma::convert(anydsl::World& world) const {
+const anydsl::Type* Sigma::convert(CodeGen& cg) const {
     size_t size = elems().size();
     Array<const anydsl::Type*> types(size);
 
     for (size_t i = 0; i < size; ++i)
-        types[i] = elems()[i]->convert(world);
+        types[i] = elems()[i]->convert(cg);
 
-    return world.sigma(types);
+    return cg.world.sigma(types);
+}
+
+const anydsl::Type* Generic::convert(CodeGen& cg) const {
+    return cg.fcts[fct()->symbol()]->top_->append_generic();
 }
 
 } // namespace impala

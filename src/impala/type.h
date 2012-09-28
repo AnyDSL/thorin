@@ -15,6 +15,8 @@ namespace anydsl {
 
 namespace impala {
 
+class CodeGen;
+class Fct;
 class Printer;
 
 class Type : public anydsl::MagicCast {
@@ -23,7 +25,7 @@ public:
     virtual ~Type() {}
 
     virtual void dump(Printer& p) const = 0;
-    virtual const anydsl::Type* convert(anydsl::World& world) const = 0;
+    virtual const anydsl::Type* convert(CodeGen&) const = 0;
 
     virtual bool is_bool() const { return false; }
     virtual bool is_error() const { return false; }
@@ -65,7 +67,7 @@ public:
     Kind kind() const { return kind_; }
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Type* convert(anydsl::World& world) const;
+    virtual const anydsl::Type* convert(CodeGen&) const;
     virtual bool is_bool() const { return kind_ == TYPE_bool; }
     virtual bool is_int() const;
 
@@ -87,7 +89,7 @@ private:
 public:
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Type* convert(anydsl::World& world) const;
+    virtual const anydsl::Type* convert(CodeGen&) const;
     virtual bool is_void() const { return true; }
 
     friend class TypeTable;
@@ -105,7 +107,7 @@ private:
 public:
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Type* convert(anydsl::World& world) const;
+    virtual const anydsl::Type* convert(CodeGen&) const;
     virtual bool is_void() const { return true; }
 
     friend class TypeTable;
@@ -122,7 +124,7 @@ private:
 public:
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Type* convert(anydsl::World& world) const;
+    virtual const anydsl::Type* convert(CodeGen&) const;
     virtual bool is_error() const { return true; }
 
     friend class TypeTable;
@@ -136,7 +138,7 @@ private:
 public:
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Type* convert(anydsl::World& world) const;
+    virtual const anydsl::Type* convert(CodeGen&) const;
 
     typedef anydsl::ArrayRef<const Type*> Elems;
     Elems elems() const { return Elems(elems_); }
@@ -161,7 +163,7 @@ private:
 public:
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Type* convert(anydsl::World& world) const;
+    virtual const anydsl::Type* convert(CodeGen&) const;
 
     typedef anydsl::ArrayRef<const Type*> Elems;
     Elems elems() const { return Elems(elems_); }
@@ -181,22 +183,25 @@ private:
 class Generic : public Type {
 private:
 
-    Generic(anydsl::Symbol id) 
+    Generic(anydsl::Symbol id, const Fct* fct) 
         : id_(id)
+        , fct_(fct)
     {}
 
     virtual bool equal(const Type* t) const;
     virtual size_t hash() const;
 
     anydsl::Symbol id() const { return id_; }
+    const Fct* fct() const { return fct_; }
 
 public:
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Type* convert(anydsl::World& world) const { ANYDSL_UNREACHABLE; }
+    virtual const anydsl::Type* convert(CodeGen&) const;
     virtual bool is_void() const { return true; }
 
     anydsl::Symbol id_;
+    const Fct* fct_;
 
     friend class TypeTable;
 };
@@ -227,7 +232,7 @@ public:
     const NoRet* type_noret() const { return noret_; }
     const Pi* pi(anydsl::ArrayRef<const Type*> elems, const Type* ret);
     const Sigma* sigma(anydsl::ArrayRef<const Type*> elems);
-    const Generic* generic(anydsl::Symbol id);
+    const Generic* generic(anydsl::Symbol id, const Fct* fct);
 
     typedef boost::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;
 

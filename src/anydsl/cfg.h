@@ -123,7 +123,9 @@ private:
     BB* tbb_;
     BB* fbb_;
 
+public: // HACK
     Lambda* top_;
+private:
     Lambda* cur_;
 
     typedef boost::unordered_map<Symbol, Var*> VarMap;

@@ -147,8 +147,8 @@ const Sigma* TypeTable::sigma(anydsl::ArrayRef<const Type*> elems) {
     return (*i)->as<Sigma>();
 }
 
-const Generic* TypeTable::generic(Symbol id) {
-    Generic* generic = new Generic(id);
+const Generic* TypeTable::generic(Symbol id, const Fct* fct) {
+    Generic* generic = new Generic(id, fct);
     types_.insert(generic);
     return generic;
 }

@@ -297,10 +297,6 @@ void Dropper::drop_body(Lambda* olambda, Lambda* nlambda) {
             args[i] = odef;
     }
 
-    if (olambda->to() == oentry) {
-        std::cout << "fdjkfjdsl" << std::endl;
-    }
-
     nlambda->jump(drop_target(olambda->to()), args);
 }
 

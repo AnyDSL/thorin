@@ -239,7 +239,7 @@ const Type* Parser::parse_type() {
             expect(Token::L_PAREN, "element types of pi");
             PARSE_COMMA_LIST
             (
-                elems.push_back(parse_type()),
+                elems.push_back(try_type("element type of pi")),
                 Token::R_PAREN,
                 "closing parenthesis of pi type"
             )
@@ -258,7 +258,7 @@ const Type* Parser::parse_type() {
             expect(Token::L_PAREN, "element types of sigma");
             PARSE_COMMA_LIST
             (
-                elems.push_back(parse_type()),
+                elems.push_back(try_type("element type of sigma")),
                 Token::R_PAREN,
                 "closing parenthesis of sigma type"
             )

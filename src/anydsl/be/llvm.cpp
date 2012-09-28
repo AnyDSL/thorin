@@ -18,9 +18,10 @@
 #include "anydsl/primop.h"
 #include "anydsl/type.h"
 #include "anydsl/world.h"
+#include "anydsl/analyses/loopforest.h"
+#include "anydsl/analyses/placement.h"
 #include "anydsl/analyses/rootlambdas.h"
 #include "anydsl/analyses/scope.h"
-#include "anydsl/analyses/placement.h"
 #include "anydsl/util/array.h"
 
 namespace anydsl {
@@ -104,6 +105,7 @@ void CodeGen::emit() {
 
         const Param* ret_param = lambda->ho_params().front();
         Scope scope(lambda);
+        LoopForest loops(scope);
         BBMap bbs(scope.size());
 
         // map all bb-like lambdas to llvm bb stubs 
@@ -378,9 +380,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
 
         case Node_Sigma: {
             // TODO watch out for cycles!
-
             const Sigma* sigma = type->as<Sigma>();
-
             Array<llvm::Type*> elems(sigma->elems().size());
             anydsl_zip(sigma->elems(), elems, convert);
 

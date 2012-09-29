@@ -440,7 +440,7 @@ const DeclStmt* Parser::parse_decl_stmt() {
 
     // initialization
     const Expr* init = 0;
-    if (la() == Token::COLONEQ) {
+    if (la() == Token::ASGN) {
         Token op = Token(lex().loc(), Token::ASGN);
         init = try_expr("right-hand side of an initialization");
     }

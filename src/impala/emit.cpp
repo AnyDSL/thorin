@@ -62,8 +62,8 @@ void emit(anydsl::World& world, const Prg* prg) {
 
 void Prg::emit(CodeGen& cg) const {
     for_all (f, fcts()) {
-        for_all (generic, f->generics()) {
-        }
+        //for_all (generic, f->generics()) {
+        //}
         size_t size = f->params().size();
         Array<const anydsl::Type*> tparams(size);
         Array<anydsl::Symbol>      sparams(size);

@@ -39,13 +39,14 @@ private:
     size_t& lowlink(Lambda* lambda);
     size_t& dfs(Lambda* lambda);
     void push(Lambda* lambda);
-    Lambda*  pop();
+    Lambda* pop();
 
     const Scope& scope_;
 
     Array<Number> numbers_;
     size_t counter_;
     std::vector<Lambda*> stack_;
+    //LambdaSet ignore_;
 };
 
 } // namespace anydsl

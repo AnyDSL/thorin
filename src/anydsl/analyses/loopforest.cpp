@@ -55,10 +55,26 @@ void LoopForest::walk_scc(Lambda* cur) {
     // root of SCC
     if (lowlink(cur) == dfs(cur)) {
         Lambda* popped;
+        LambdaSet scc;
         do {
             popped = pop();
+            scc.insert(popped);
             std::cout << popped->debug << std::endl;
         } while (popped != cur);
+
+        if (scc.size() > 1) {
+            for_all (lambda, scc) {
+                if (lambda == scope_.entry())
+                    std::cout << "header: " << lambda->debug << std::endl;
+                else {
+                    for_all (pred, scope_.preds(lambda)) {
+                        if (scc.find(pred) == scc.end()) {
+                            std::cout << "header: " << pred->debug << " -> " << lambda->debug << std::endl;
+                        }
+                    }
+                }
+            }
+        }
 
         std::cout << "---" << std::endl;
     }

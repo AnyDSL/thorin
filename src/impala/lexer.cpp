@@ -118,7 +118,6 @@ Token Lexer::lex() {
         IMPALA_LEX_OP('^', XOR, XOR_ASGN)
         IMPALA_LEX_OP('=', ASGN, EQ)
         IMPALA_LEX_OP('!', L_N,  NE)
-        IMPALA_LEX_OP(':', COLON,  COLONEQ)
 
         // <, <=, <<, <<=, >, >=, >>, >>=
 #define IMPALA_LEX_REL_SHIFT(op, tok_rel, tok_rel_eq, tok_shift, tok_shift_asgn) \
@@ -170,21 +169,22 @@ Token Lexer::lex() {
         IMPALA_LEX_AND_OR('&', AND, L_A, AND_ASGN)
         IMPALA_LEX_AND_OR('|',  OR, L_O,  OR_ASGN)
 
+        // #(
+        if (accept('#') && accept('('))
+            return Token(loc_, Token::L_TUPLE);
+
         // single character tokens
-        if (accept(',')) return Token(loc_, Token::COMMA);
-        if (accept(';')) return Token(loc_, Token::SEMICOLON);
         if (accept('(')) return Token(loc_, Token::L_PAREN);
         if (accept(')')) return Token(loc_, Token::R_PAREN);
+        if (accept(',')) return Token(loc_, Token::COMMA);
+        if (accept(':')) return Token(loc_, Token::COLON);
+        if (accept(';')) return Token(loc_, Token::SEMICOLON);
+        if (accept('?')) return Token(loc_, Token::QUESTION_MARK);
         if (accept('[')) return Token(loc_, Token::L_BRACKET);
         if (accept(']')) return Token(loc_, Token::R_BRACKET);
         if (accept('{')) return Token(loc_, Token::L_BRACE);
         if (accept('}')) return Token(loc_, Token::R_BRACE);
         if (accept('~')) return Token(loc_, Token::NOT);
-        if (accept('?')) return Token(loc_, Token::QUESTION_MARK);
-
-        // #(
-        if (accept('#') && accept('('))
-            return Token(loc_, Token::L_TUPLE);
 
         // '.', floats
         if (accept('.')) {

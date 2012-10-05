@@ -40,7 +40,7 @@ def fac_my_while(n : int) -> int
     def next(r) -> noret {
         //...
     }
-    my_while(head, body, next);
+    my_while(#(i, r), head, body, next);
 
 
     n = 42;

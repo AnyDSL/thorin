@@ -582,17 +582,20 @@ void World::opt() {
 
     Lambda* helper;
     Lambda* fac;
+    Lambda* ifelse;
     for_all (lambda, lambdas()) {
         if (lambda->debug == "helper")
             helper = lambda;
         else if (lambda->debug == "fac")
             fac = lambda;
+        else if (lambda->debug == "<if-else-01>")
+            ifelse = lambda;
     }
 
-    Lambda* dropped = helper->drop(2, fac->param(1));
-    fac->unset_op(3);
-    fac->shrink(3);
-    fac->update(0, dropped);
+    Lambda* dropped = helper->drop(3, fac->param(1));
+    ifelse->unset_op(4);
+    ifelse->shrink(4);
+    ifelse->update(0, dropped);
 
     cleanup();
 }

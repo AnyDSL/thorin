@@ -10,5 +10,8 @@ def fac(n : int) -> int
 
 def helper(r : int, i : int, n : int) -> int 
 {
-    return helper(r * i, i + 1, n);
+    if (i <= n)
+        return helper(r * i, i + 1, n);
+    else
+        return r;
 }

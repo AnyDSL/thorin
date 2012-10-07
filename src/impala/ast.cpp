@@ -28,17 +28,9 @@ void Fct::set(const Decl* decl, const ScopeStmt* body) {
     set_loc(decl->pos1(), body->pos2());
 }
 
-bool Fct::continuation() const { 
-    return pi()->ret()->is_noret(); 
-}
-
-const Pi* Fct::pi() const { 
-    return decl_->type()->as<Pi>(); 
-}
-
-Symbol Fct::symbol() const { 
-    return decl_->symbol(); 
-}
+bool Fct::continuation() const { return pi()->ret()->is_noret(); }
+const Pi* Fct::pi() const { return decl_->type()->as<Pi>(); }
+Symbol Fct::symbol() const { return decl_->symbol(); }
 
 /*
  * Expr
@@ -51,10 +43,7 @@ Literal::Literal(const Location& loc, Kind kind, Box box)
     loc_= loc;
 }
 
-Tuple::Tuple(const Position& pos1)
-{
-    loc_.set_pos1(pos1);
-}
+Tuple::Tuple(const Position& pos1) { loc_.set_pos1(pos1); }
 
 Id::Id(const Token& tok) 
     : symbol_(tok.symbol())
@@ -84,18 +73,13 @@ PostfixExpr::PostfixExpr(const Expr* lhs, Kind kind, const Position& pos2)
     set_loc(lhs->pos1(), pos2);
 }
 
-//const Def* Ref::load() const {
-//}
-
 IndexExpr::IndexExpr(const Position& pos1, const Expr* lhs, const Expr* index, const Position& pos2) {
     ops_.push_back(lhs);
     ops_.push_back(index);
     set_loc(pos1, pos2);
 }
 
-Call::Call(const Expr* fct) {
-    ops_.push_back(fct);
-}
+Call::Call(const Expr* fct) { ops_.push_back(fct); }
 
 void Call::set_pos2(const Position& pos2) {
     assert(!ops_.empty());

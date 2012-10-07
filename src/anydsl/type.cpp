@@ -5,7 +5,7 @@
 #include "anydsl/world.h"
 #include "anydsl/util/for_all.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
@@ -70,4 +70,4 @@ bool Generic::equal(const Node* other) const { return this == other; }
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl
+} // namespace anydsl2

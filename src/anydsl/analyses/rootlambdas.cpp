@@ -4,7 +4,7 @@
 #include "anydsl/world.h"
 #include "anydsl/util/for_all.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 static inline LambdaSet* depends(Lambda* lambda) { return (LambdaSet*) lambda->ptr; }
 
@@ -76,4 +76,4 @@ LambdaSet find_root_lambdas(const LambdaSet& lambdas) {
     return roots;
 }
 
-} // namespace anydsl
+} // namespace anydsl2

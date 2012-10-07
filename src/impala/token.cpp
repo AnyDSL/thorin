@@ -4,12 +4,12 @@
 #include "anydsl/util/cast.h"
 #include "anydsl/util/stdlib.h"
 
-using anydsl::Box;
-using anydsl::HasLocation;
-using anydsl::Location;
-using anydsl::Position;
-using anydsl::Symbol;
-using anydsl::bcast;
+using anydsl2::Box;
+using anydsl2::HasLocation;
+using anydsl2::Location;
+using anydsl2::Position;
+using anydsl2::Symbol;
+using anydsl2::bcast;
 
 namespace impala {
 
@@ -17,13 +17,13 @@ namespace impala {
  * constructors
  */
 
-Token::Token(const anydsl::Location& loc, Kind tok)
+Token::Token(const Location& loc, Kind tok)
     : HasLocation(loc)
     , symbol_(tok2sym_[tok])
     , kind_(tok)
 {}
 
-Token::Token(const anydsl::Location& loc, const std::string& str)
+Token::Token(const Location& loc, const std::string& str)
     : HasLocation(loc)
     , symbol_(str)
 {
@@ -34,7 +34,7 @@ Token::Token(const anydsl::Location& loc, const std::string& str)
         kind_ = i->second;
 }
 
-Token::Token(const anydsl::Location& loc, Kind kind, const std::string& str)
+Token::Token(const Location& loc, Kind kind, const std::string& str)
     : HasLocation(loc)
     , symbol_(str)
     , kind_(kind) 
@@ -107,55 +107,55 @@ TokenKind Token::seperateAssign(TokenKind kind) {
 int Token::toBinOp(Kind kind) {
     switch (kind) {
         case INC:
-        case ADD: return anydsl::ArithOp_add;
+        case ADD: return anydsl2::ArithOp_add;
         case DEC:
-        case SUB: return anydsl::ArithOp_sub;
-        case MUL: return anydsl::ArithOp_mul;
-        case DIV: return anydsl::ArithOp_udiv;
-        case AND: return anydsl::ArithOp_and;
-        case  OR: return anydsl::ArithOp_or;
-        case XOR: return anydsl::ArithOp_xor;
-        case  EQ: return anydsl::RelOp_cmp_eq;
-        case  NE: return anydsl::RelOp_cmp_ne;
-        case  LT: return anydsl::RelOp_cmp_ult;
-        case  LE: return anydsl::RelOp_cmp_ule;
-        case  GT: return anydsl::RelOp_cmp_ugt;
-        case  GE: return anydsl::RelOp_cmp_uge;
+        case SUB: return anydsl2::ArithOp_sub;
+        case MUL: return anydsl2::ArithOp_mul;
+        case DIV: return anydsl2::ArithOp_udiv;
+        case AND: return anydsl2::ArithOp_and;
+        case  OR: return anydsl2::ArithOp_or;
+        case XOR: return anydsl2::ArithOp_xor;
+        case  EQ: return anydsl2::RelOp_cmp_eq;
+        case  NE: return anydsl2::RelOp_cmp_ne;
+        case  LT: return anydsl2::RelOp_cmp_ult;
+        case  LE: return anydsl2::RelOp_cmp_ule;
+        case  GT: return anydsl2::RelOp_cmp_ugt;
+        case  GE: return anydsl2::RelOp_cmp_uge;
         default: ANYDSL_UNREACHABLE;
     }
 }
 
-anydsl::ArithOpKind Token::toArithOp(Kind kind) {
+anydsl2::ArithOpKind Token::toArithOp(Kind kind) {
     switch (kind) {
         case INC:
-        case ADD: return anydsl::ArithOp_add;
+        case ADD: return anydsl2::ArithOp_add;
         case DEC:
-        case SUB: return anydsl::ArithOp_sub;
-        case MUL: return anydsl::ArithOp_mul;
-        case DIV: return anydsl::ArithOp_udiv;
-        case AND: return anydsl::ArithOp_and;
-        case  OR: return anydsl::ArithOp_or;
-        case XOR: return anydsl::ArithOp_xor;
+        case SUB: return anydsl2::ArithOp_sub;
+        case MUL: return anydsl2::ArithOp_mul;
+        case DIV: return anydsl2::ArithOp_udiv;
+        case AND: return anydsl2::ArithOp_and;
+        case  OR: return anydsl2::ArithOp_or;
+        case XOR: return anydsl2::ArithOp_xor;
         default: ANYDSL_UNREACHABLE;
     }
 }
 
-anydsl::RelOpKind Token::toRelOp(Kind kind) {
+anydsl2::RelOpKind Token::toRelOp(Kind kind) {
     switch (kind) {
-        case EQ: return anydsl::RelOp_cmp_eq;
-        case NE: return anydsl::RelOp_cmp_ne;
-        case LT: return anydsl::RelOp_cmp_ult;
-        case LE: return anydsl::RelOp_cmp_ule;
-        case GT: return anydsl::RelOp_cmp_ugt;
-        case GE: return anydsl::RelOp_cmp_uge;
+        case EQ: return anydsl2::RelOp_cmp_eq;
+        case NE: return anydsl2::RelOp_cmp_ne;
+        case LT: return anydsl2::RelOp_cmp_ult;
+        case LE: return anydsl2::RelOp_cmp_ule;
+        case GT: return anydsl2::RelOp_cmp_ugt;
+        case GE: return anydsl2::RelOp_cmp_uge;
         default: ANYDSL_UNREACHABLE;
     }
 }
 
-anydsl::PrimTypeKind Token::toPrimType(Kind kind) {
+anydsl2::PrimTypeKind Token::toPrimType(Kind kind) {
     switch (kind) {
 #define IMPALA_TYPE(itype, atype) \
-        case Token:: TYPE_ ## itype: return anydsl::PrimType_##atype;
+        case Token:: TYPE_ ## itype: return anydsl2::PrimType_##atype;
 #include "impala/tokenlist.h"
         default: ANYDSL_UNREACHABLE;
     }

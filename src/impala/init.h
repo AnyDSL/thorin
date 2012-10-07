@@ -15,7 +15,7 @@ struct Init {
     ~Init() { destroy(); }
 
     TypeTable types;
-    anydsl::World world;
+    anydsl2::World world;
 };
 
 } // namespace impala

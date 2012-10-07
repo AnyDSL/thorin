@@ -4,7 +4,7 @@
 
 #include "anydsl/util/for_all.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 static void jump_to_param_users(LambdaSet& scope, Lambda* lambda);
 static void walk_up(LambdaSet& scope, Lambda* lambda);
@@ -112,4 +112,4 @@ const Scope::Lambdas& Scope::succs(Lambda* lambda) const {
     return succs_[lambda->sid()]; 
 }
 
-} // namespace anydsl
+} // namespace anydsl2

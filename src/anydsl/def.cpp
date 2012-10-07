@@ -7,7 +7,7 @@
 #include "anydsl/world.h"
 #include "anydsl/util/for_all.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 
 //------------------------------------------------------------------------------
@@ -159,4 +159,4 @@ size_t Param::hash() const {
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl
+} // namespace anydsl2

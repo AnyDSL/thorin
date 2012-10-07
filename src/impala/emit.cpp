@@ -13,27 +13,28 @@
 
 #include "impala/type.h"
 
-using anydsl::Array;
-using anydsl::ArrayRef;
-using anydsl::BB;
-using anydsl::Def;
-using anydsl::RVal;
-using anydsl::Ref;
-using anydsl::TupleRef;
-using anydsl::Var;
-using anydsl::VarRef;
-using anydsl::World;
-using anydsl::make_name;
-using anydsl::u32;
+using anydsl2::Array;
+using anydsl2::ArrayRef;
+using anydsl2::BB;
+using anydsl2::Def;
+using anydsl2::RVal;
+using anydsl2::Ref;
+using anydsl2::Symbol;
+using anydsl2::TupleRef;
+using anydsl2::Var;
+using anydsl2::VarRef;
+using anydsl2::World;
+using anydsl2::make_name;
+using anydsl2::u32;
 
 namespace impala {
 
-typedef boost::unordered_map<anydsl::Symbol, anydsl::Fct*> FctMap;
+typedef boost::unordered_map<Symbol, anydsl2::Fct*> FctMap;
 
 class CodeGen {
 public:
 
-    CodeGen(anydsl::World& world)
+    CodeGen(World& world)
         : world(world)
     {}
 
@@ -44,15 +45,15 @@ public:
 
     bool reachable() const { return curBB; }
 
-    anydsl::BB* curBB;
-    anydsl::Fct* curFct;
-    anydsl::World& world;
+    BB* curBB;
+    anydsl2::Fct* curFct;
+    World& world;
     FctMap fcts;
 };
 
 //------------------------------------------------------------------------------
 
-void emit(anydsl::World& world, const Prg* prg) {
+void emit(World& world, const Prg* prg) {
     CodeGen cg(world);
     prg->emit(cg);
     //cg.world.cleanup();
@@ -65,8 +66,8 @@ void Prg::emit(CodeGen& cg) const {
         //for_all (generic, f->generics()) {
         //}
         size_t size = f->params().size();
-        Array<const anydsl::Type*> tparams(size);
-        Array<anydsl::Symbol>      sparams(size);
+        Array<const anydsl2::Type*> tparams(size);
+        Array<Symbol>      sparams(size);
 
         size_t i = 0;
         for_all (param, f->params()) {
@@ -75,8 +76,8 @@ void Prg::emit(CodeGen& cg) const {
             ++i;
         }
 
-        const anydsl::Type* ret = f->pi()->ret()->convert(cg);
-        cg.fcts[f->symbol()] = new anydsl::Fct(cg.world, tparams, sparams, ret, f->symbol().str());
+        const anydsl2::Type* ret = f->pi()->ret()->convert(cg);
+        cg.fcts[f->symbol()] = new anydsl2::Fct(cg.world, tparams, sparams, ret, f->symbol().str());
     }
 
     for_all (f, fcts()) {
@@ -130,13 +131,13 @@ RefPtr EmptyExpr::emit(CodeGen& cg) const {
 }
 
 RefPtr Literal::emit(CodeGen& cg) const {
-    anydsl::PrimTypeKind akind;
+    anydsl2::PrimTypeKind akind;
 
     switch (kind()) {
 #define IMPALA_LIT(itype, atype) \
-        case LIT_##itype: akind = anydsl::PrimType_##atype; break;
+        case LIT_##itype: akind = anydsl2::PrimType_##atype; break;
 #include "impala/tokenlist.h"
-        case LIT_bool: akind = anydsl::PrimType_u1; break;
+        case LIT_bool: akind = anydsl2::PrimType_u1; break;
         default: ANYDSL_UNREACHABLE;
     }
 
@@ -165,8 +166,8 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
         case DEC: {
             RefPtr ref = rhs()->emit(cg);
             const Def* def = ref->load();
-            const anydsl::PrimType* pt = def->type()->as<anydsl::PrimType>();
-            const anydsl::PrimLit* one = cg.world.literal(pt->primtype_kind(), 1u);
+            const anydsl2::PrimType* pt = def->type()->as<anydsl2::PrimType>();
+            const anydsl2::PrimLit* one = cg.world.literal(pt->primtype_kind(), 1u);
             const Def* ndef = cg.world.arithop(Token::toArithOp((TokenKind) kind()), def, one);
             ref->store(ndef);
 
@@ -178,18 +179,18 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
         case SUB: {
             RefPtr ref = rhs()->emit(cg);
             const Def* def = ref->load();
-            const anydsl::PrimType* pt = def->type()->as<anydsl::PrimType>();
-            const anydsl::PrimLit* zero; 
+            const anydsl2::PrimType* pt = def->type()->as<anydsl2::PrimType>();
+            const anydsl2::PrimLit* zero; 
 
             switch (pt->primtype_kind()) {
-                case anydsl::PrimType_f32: zero = cg.world.literal_f32(-0.f); break;
-                case anydsl::PrimType_f64: zero = cg.world.literal_f64(-0.0); break;
+                case anydsl2::PrimType_f32: zero = cg.world.literal_f32(-0.f); break;
+                case anydsl2::PrimType_f64: zero = cg.world.literal_f64(-0.0); break;
                 default: 
                     assert(pt->is_int()); 
                     zero = cg.world.literal(pt->primtype_kind(), 0u);
             }
 
-            return Ref::create(cg.world.arithop(anydsl::ArithOp_sub, zero, def));
+            return Ref::create(cg.world.arithop(anydsl2::ArithOp_sub, zero, def));
         }
         default: ANYDSL_UNREACHABLE;
     }
@@ -228,8 +229,8 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
 RefPtr PostfixExpr::emit(CodeGen& cg) const {
     RefPtr ref = lhs()->emit(cg);
     const Def* def = ref->load();
-    const anydsl::PrimType* pt = def->type()->as<anydsl::PrimType>();
-    const anydsl::PrimLit* one = cg.world.literal(pt->primtype_kind(), 1u);
+    const anydsl2::PrimType* pt = def->type()->as<anydsl2::PrimType>();
+    const anydsl2::PrimLit* one = cg.world.literal(pt->primtype_kind(), 1u);
     const Def* ndef = cg.world.arithop(Token::toArithOp((TokenKind) kind()), def, one);
     ref->store(ndef);
 
@@ -244,7 +245,7 @@ RefPtr IndexExpr::emit(CodeGen& cg) const {
 
 RefPtr Call::emit(CodeGen& cg) const {
     Array<const Def*> ops = emit_ops(cg);
-    const anydsl::Type* ret = type()->convert(cg);
+    const anydsl2::Type* ret = type()->convert(cg);
 
     if (ret)
         return Ref::create(cg.curBB->call(ops[0], ops.slice_back(1), ret));
@@ -421,7 +422,7 @@ void ReturnStmt::emit(CodeGen& cg) const {
         cg.curBB->return_call(ops[0], ops.slice_back(1));
     } else {
         const Def* def = expr()->emit(cg)->load();
-        cg.curBB->insert(anydsl::Symbol("<result>"), def);
+        cg.curBB->insert(Symbol("<result>"), def);
         cg.curBB->jump(cg.curFct->exit());
     }
 
@@ -440,7 +441,7 @@ void ScopeStmt::emit(CodeGen& cg) const {
  * Type
  */
 
-const anydsl::Type* PrimType::convert(CodeGen& cg) const {
+const anydsl2::Type* PrimType::convert(CodeGen& cg) const {
     switch (kind()) {
 #define IMPALA_TYPE(itype, atype) \
         case TYPE_##itype: \
@@ -451,13 +452,13 @@ const anydsl::Type* PrimType::convert(CodeGen& cg) const {
     }
 }
 
-const anydsl::Type* Void::convert(CodeGen& cg) const { return cg.world.unit(); }
-const anydsl::Type* NoRet::convert(CodeGen&) const { return 0; }
-const anydsl::Type* TypeError::convert(CodeGen&) const { ANYDSL_UNREACHABLE; }
+const anydsl2::Type* Void::convert(CodeGen& cg) const { return cg.world.unit(); }
+const anydsl2::Type* NoRet::convert(CodeGen&) const { return 0; }
+const anydsl2::Type* TypeError::convert(CodeGen&) const { ANYDSL_UNREACHABLE; }
 
-const anydsl::Type* Pi::convert(CodeGen& cg) const {
+const anydsl2::Type* Pi::convert(CodeGen& cg) const {
     size_t size = elems().size();
-    Array<const anydsl::Type*> types(size + 1);
+    Array<const anydsl2::Type*> types(size + 1);
 
     for (size_t i = 0; i < size; ++i)
         types[i] = elems()[i]->convert(cg);
@@ -468,9 +469,9 @@ const anydsl::Type* Pi::convert(CodeGen& cg) const {
     return cg.world.pi(types.slice_front(size));
 }
 
-const anydsl::Type* Sigma::convert(CodeGen& cg) const {
+const anydsl2::Type* Sigma::convert(CodeGen& cg) const {
     size_t size = elems().size();
-    Array<const anydsl::Type*> types(size);
+    Array<const anydsl2::Type*> types(size);
 
     for (size_t i = 0; i < size; ++i)
         types[i] = elems()[i]->convert(cg);
@@ -478,7 +479,7 @@ const anydsl::Type* Sigma::convert(CodeGen& cg) const {
     return cg.world.sigma(types);
 }
 
-const anydsl::Type* Generic::convert(CodeGen& cg) const {
+const anydsl2::Type* Generic::convert(CodeGen& cg) const {
     return cg.fcts[fct()->symbol()]->top_->append_generic();
 }
 

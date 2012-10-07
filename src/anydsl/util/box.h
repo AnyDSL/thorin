@@ -6,7 +6,7 @@
 #include "anydsl/util/assert.h"
 #include "anydsl/util/types.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 typedef const char* const_char_ptr;
 
@@ -72,6 +72,6 @@ template <> inline const_char_ptr Box::get<const_char_ptr>() { return const_char
 template <> inline char Box::get<char>() { return char_; }
 template <> inline void* Box::get<void*>() { return ptr_; }
 
-} // namespace anydsl
+} // namespace anydsl2
 
 #endif // ANYDSL_DSLU_BOX_H

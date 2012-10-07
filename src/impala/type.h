@@ -8,7 +8,7 @@
 
 #include "impala/token.h"
 
-namespace anydsl {
+namespace anydsl2 {
     class Type;
     class World;
 }
@@ -19,13 +19,13 @@ class CodeGen;
 class Fct;
 class Printer;
 
-class Type : public anydsl::MagicCast {
+class Type : public anydsl2::MagicCast {
 public:
 
     virtual ~Type() {}
 
     virtual void dump(Printer& p) const = 0;
-    virtual const anydsl::Type* convert(CodeGen&) const = 0;
+    virtual const anydsl2::Type* convert(CodeGen&) const = 0;
 
     virtual bool is_bool() const { return false; }
     virtual bool is_error() const { return false; }
@@ -67,7 +67,7 @@ public:
     Kind kind() const { return kind_; }
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Type* convert(CodeGen&) const;
+    virtual const anydsl2::Type* convert(CodeGen&) const;
     virtual bool is_bool() const { return kind_ == TYPE_bool; }
     virtual bool is_int() const;
 
@@ -89,7 +89,7 @@ private:
 public:
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Type* convert(CodeGen&) const;
+    virtual const anydsl2::Type* convert(CodeGen&) const;
     virtual bool is_void() const { return true; }
 
     friend class TypeTable;
@@ -107,7 +107,7 @@ private:
 public:
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Type* convert(CodeGen&) const;
+    virtual const anydsl2::Type* convert(CodeGen&) const;
     virtual bool is_void() const { return true; }
 
     friend class TypeTable;
@@ -124,7 +124,7 @@ private:
 public:
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Type* convert(CodeGen&) const;
+    virtual const anydsl2::Type* convert(CodeGen&) const;
     virtual bool is_error() const { return true; }
 
     friend class TypeTable;
@@ -133,14 +133,14 @@ public:
 class Pi : public Type {
 private:
 
-    Pi(anydsl::ArrayRef<const Type*> elems, const Type* ret);
+    Pi(anydsl2::ArrayRef<const Type*> elems, const Type* ret);
 
 public:
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Type* convert(CodeGen&) const;
+    virtual const anydsl2::Type* convert(CodeGen&) const;
 
-    typedef anydsl::ArrayRef<const Type*> Elems;
+    typedef anydsl2::ArrayRef<const Type*> Elems;
     Elems elems() const { return Elems(elems_); }
     const Type* ret() const { return ret_; }
 
@@ -149,7 +149,7 @@ private:
     virtual bool equal(const Type* other) const;
     virtual size_t hash() const;
 
-    anydsl::Array<const Type*> elems_;
+    anydsl2::Array<const Type*> elems_;
     const Type* ret_;
 
     friend class TypeTable;
@@ -158,14 +158,14 @@ private:
 class Sigma : public Type {
 private:
 
-    Sigma(anydsl::ArrayRef<const Type*> elems);
+    Sigma(anydsl2::ArrayRef<const Type*> elems);
 
 public:
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Type* convert(CodeGen&) const;
+    virtual const anydsl2::Type* convert(CodeGen&) const;
 
-    typedef anydsl::ArrayRef<const Type*> Elems;
+    typedef anydsl2::ArrayRef<const Type*> Elems;
     Elems elems() const { return Elems(elems_); }
     size_t size() const { return elems_.size(); }
     bool empty() const { return elems_.empty(); }
@@ -175,7 +175,7 @@ private:
     virtual bool equal(const Type* other) const;
     virtual size_t hash() const;
 
-    anydsl::Array<const Type*> elems_;
+    anydsl2::Array<const Type*> elems_;
 
     friend class TypeTable;
 };
@@ -183,7 +183,7 @@ private:
 class Generic : public Type {
 private:
 
-    Generic(anydsl::Symbol id, const Fct* fct) 
+    Generic(anydsl2::Symbol id, const Fct* fct) 
         : id_(id)
         , fct_(fct)
     {}
@@ -191,16 +191,16 @@ private:
     virtual bool equal(const Type* t) const;
     virtual size_t hash() const;
 
-    anydsl::Symbol id() const { return id_; }
+    anydsl2::Symbol id() const { return id_; }
     const Fct* fct() const { return fct_; }
 
 public:
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl::Type* convert(CodeGen&) const;
+    virtual const anydsl2::Type* convert(CodeGen&) const;
     virtual bool is_void() const { return true; }
 
-    anydsl::Symbol id_;
+    anydsl2::Symbol id_;
     const Fct* fct_;
 
     friend class TypeTable;
@@ -230,9 +230,9 @@ public:
     const TypeError* type_error() const { return type_error_; }
     const Void* type_void() const { return type_void_; }
     const NoRet* type_noret() const { return noret_; }
-    const Pi* pi(anydsl::ArrayRef<const Type*> elems, const Type* ret);
-    const Sigma* sigma(anydsl::ArrayRef<const Type*> elems);
-    const Generic* generic(anydsl::Symbol id, const Fct* fct);
+    const Pi* pi(anydsl2::ArrayRef<const Type*> elems, const Type* ret);
+    const Sigma* sigma(anydsl2::ArrayRef<const Type*> elems);
+    const Generic* generic(anydsl2::Symbol id, const Fct* fct);
 
     typedef boost::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;
 

@@ -6,7 +6,7 @@
 #include "anydsl/enums.h"
 #include "anydsl/def.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 class PrimLit;
 
@@ -255,6 +255,6 @@ private:
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl
+} // namespace anydsl2
 
 #endif

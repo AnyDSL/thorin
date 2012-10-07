@@ -2,7 +2,7 @@
 
 #include <boost/static_assert.hpp>
 
-namespace anydsl {
+namespace anydsl2 {
 
 #define ANYDSL_GLUE(pre, next)
 #define ANYDSL_AIR_NODE(node) BOOST_STATIC_ASSERT(Node_##node == (NodeKind) zzzMarker_##node);
@@ -20,4 +20,4 @@ const char* kind2str(PrimTypeKind kind) {
     }
 }
 
-} // namespace anydsl
+} // namespace anydsl2

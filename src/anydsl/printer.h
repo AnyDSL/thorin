@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-namespace anydsl {
+namespace anydsl2 {
 
 class Def;
 
@@ -59,6 +59,6 @@ private:
         (p).dump(*i); \
     }
 
-} // namespace anydsl
+} // namespace anydsl2
 
 #endif

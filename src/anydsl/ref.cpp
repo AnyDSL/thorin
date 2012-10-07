@@ -4,7 +4,7 @@
 #include "anydsl/cfg.h"
 #include "anydsl/world.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 World& RVal::world() const { return load()->world(); }
 
@@ -27,4 +27,4 @@ World& TupleRef::world() const {
     return loaded_ ? loaded_->world() : lref_->world(); 
 }
 
-} // namespace anydsl
+} // namespace anydsl2

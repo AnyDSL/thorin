@@ -4,7 +4,7 @@
 #ifdef WIN32
 #include <windows.h>
 
-namespace anydsl {
+namespace anydsl2 {
 namespace detail {
 void win32_printDebugString(const char* errorMsg) {
     OutputDebugStringA(errorMsg);
@@ -25,7 +25,7 @@ http://tombarta.wordpress.com/2008/08/01/c-stack-traces-with-gcc/
 #include <unistd.h>
 #endif
 
-namespace anydsl {
+namespace anydsl2 {
 namespace detail {
 void glibc_printBacktrace() {
 #ifdef __GLIBC__

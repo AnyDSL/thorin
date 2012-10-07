@@ -6,7 +6,7 @@
 #include "anydsl/world.h"
 #include "anydsl/util/for_all.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 Printer& Printer::newline() {
     o << '\n';
@@ -54,4 +54,4 @@ Printer& Printer::dump_name(const Def* def) {
     return *this;
 }
 
-} // namespace anydsl
+} // namespace anydsl2

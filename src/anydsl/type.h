@@ -6,7 +6,7 @@
 #include "anydsl/node.h"
 #include "anydsl/util/array.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 class Lambda;
 class Pi;
@@ -91,8 +91,8 @@ public:
 
     PrimTypeKind primtype_kind() const { return (PrimTypeKind) node_kind(); }
 
-    bool is_int()   const { return anydsl::is_int(primtype_kind()); }
-    bool is_float() const { return anydsl::is_float(primtype_kind()); }
+    bool is_int()   const { return anydsl2::is_int(primtype_kind()); }
+    bool is_float() const { return anydsl2::is_float(primtype_kind()); }
 
 private:
 
@@ -211,6 +211,6 @@ private:
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl
+} // namespace anydsl2
 
 #endif

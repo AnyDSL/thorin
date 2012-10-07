@@ -8,7 +8,7 @@
 
 #include "anydsl/util/cast.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 typedef  int8_t  i8;
 typedef int16_t i16;
@@ -104,6 +104,6 @@ template<class T> struct is_f_type { static const bool value = false; };
 
 inline std::ostream& operator << (std::ostream& o, u1 u) { return o << ((unsigned) u.get()); }
 
-} // namespace anydsl
+} // namespace anydsl2
 
 #endif // ANYDSL_UTIL_TYPES_H

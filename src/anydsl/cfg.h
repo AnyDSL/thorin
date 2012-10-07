@@ -9,7 +9,7 @@
 #include "anydsl/util/array.h"
 #include "anydsl/util/types.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 class BB;
 class Def;
@@ -162,6 +162,6 @@ private:
     std::vector<BB*> cfg_;
 };
 
-} // namespace anydsl
+} // namespace anydsl2
 
 #endif

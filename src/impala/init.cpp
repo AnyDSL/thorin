@@ -13,7 +13,7 @@ void init() {
 }
 
 void destroy() {
-    anydsl::Symbol::destroy();
+    anydsl2::Symbol::destroy();
 }
 
 } // namespace impala

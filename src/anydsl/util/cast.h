@@ -5,7 +5,7 @@
 
 #include "anydsl/util/assert.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 /*
  * Watch out for the order of the template parameters in all of these casts.
@@ -85,19 +85,19 @@ public:
      * Use if you \em know that \p this is of type \p T.
      * It is a program error (an assertion is raised) if this does not hold.
      */
-    template<class T> T* as()  { return anydsl::scast<T>(this); }
+    template<class T> T* as()  { return anydsl2::scast<T>(this); }
     /** 
      * @brief Acts as dynamic cast.
      * 
      * @return \p this cast to \p T if \p this is a \p T, 0 otherwise.
      */
-    template<class T> T* isa() { return anydsl::dcast<T>(this); }
+    template<class T> T* isa() { return anydsl2::dcast<T>(this); }
     /// const version of @see MagicCast#as
-    template<class T> const T* as()  const { return anydsl::scast<T>(this); }
+    template<class T> const T* as()  const { return anydsl2::scast<T>(this); }
     /// const version of @see MagicCast#isa
-    template<class T> const T* isa() const { return anydsl::dcast<T>(this); }
+    template<class T> const T* isa() const { return anydsl2::dcast<T>(this); }
 };
 
-} // namespace anydsl
+} // namespace anydsl2
 
 #endif // DSLU_CAST_HEADER

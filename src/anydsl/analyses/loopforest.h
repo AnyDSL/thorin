@@ -5,7 +5,7 @@
 
 #include <vector>
 
-namespace anydsl {
+namespace anydsl2 {
 
 class Lambda;
 class Scope;
@@ -49,6 +49,6 @@ private:
     //LambdaSet ignore_;
 };
 
-} // namespace anydsl
+} // namespace anydsl2
 
 #endif // ANALYSES_LOOPS_H

@@ -7,7 +7,7 @@
 #include "anydsl/util/autoptr.h"
 #include "anydsl/util/types.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 class Def;
 class Var;
@@ -88,6 +88,6 @@ RefPtr Ref::create(const Def* def) { return RefPtr(new RVal(def)); }
 RefPtr Ref::create(Var* var) { return RefPtr(new VarRef(var)); }
 RefPtr Ref::create(RefPtr lref, u32 index) { return RefPtr(new TupleRef(lref, index)); }
 
-} // namespace anydsl
+} // namespace anydsl2
 
 #endif // ANYDSL_REF_H

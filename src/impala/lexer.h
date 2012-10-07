@@ -18,7 +18,7 @@ public:
 
 private:
 
-    std::ostream& error(const anydsl::Location& loc);
+    std::ostream& error(const anydsl2::Location& loc);
 
     /*
      * peek, next and accept
@@ -64,8 +64,8 @@ private:
     }
 
     std::istream& stream_;
-    anydsl::Position pos_;
-    anydsl::Location loc_;
+    anydsl2::Position pos_;
+    anydsl2::Location loc_;
     bool result_;
 };
 

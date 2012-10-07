@@ -5,7 +5,7 @@
 #include "anydsl/util/array.h"
 #include "anydsl/util/cast.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 class Node : public MagicCast {
 private:
@@ -39,7 +39,7 @@ protected:
 public:
 
     int kind() const { return kind_; }
-    bool is_corenode() const { return ::anydsl::is_corenode(kind()); }
+    bool is_corenode() const { return ::anydsl2::is_corenode(kind()); }
     NodeKind node_kind() const { assert(is_corenode()); return (NodeKind) kind_; }
 
     /// Just do what ever you want with this field.
@@ -98,6 +98,6 @@ struct NodeEqual : std::binary_function<const Node*, const Node*, bool> {
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl
+} // namespace anydsl2
 
 #endif // ANYDSL_NODE_H

@@ -12,7 +12,7 @@
 #include "impala/prec.h"
 #include "impala/type.h"
 
-using namespace anydsl;
+using namespace anydsl2;
 
 namespace impala {
 
@@ -107,7 +107,7 @@ private:
     const Fct* cur_fct_;
     Prg* prg_;
     int counter_;
-    anydsl::Location prev_loc_;
+    anydsl2::Location prev_loc_;
     bool result_;
 };
 

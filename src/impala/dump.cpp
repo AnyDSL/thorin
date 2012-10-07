@@ -9,11 +9,11 @@
 
 namespace impala {
 
-class Printer : public anydsl::Printer {
+class Printer : public anydsl2::Printer {
 public:
 
     Printer(std::ostream& o, bool fancy)
-        : anydsl::Printer(o, fancy)
+        : anydsl2::Printer(o, fancy)
         , prec(BOTTOM)
     {}
 
@@ -88,7 +88,7 @@ void Literal::dump(Printer& p) const {
     switch (kind()) {
 #define IMPALA_LIT(itype, atype) \
         case LIT_##itype: { \
-            p << (anydsl::u64) box().get_##atype(); \
+            p << (anydsl2::u64) box().get_##atype(); \
             return; \
         }
 #include "impala/tokenlist.h"

@@ -2,7 +2,7 @@
 
 #include "anydsl/world.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
@@ -76,4 +76,4 @@ size_t Slot::hash() const { return boost::hash_value(this); }
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl
+} // namespace anydsl2

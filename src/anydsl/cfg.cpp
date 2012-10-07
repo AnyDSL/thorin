@@ -9,7 +9,7 @@
 #include "anydsl/world.h"
 #include "anydsl/util/array.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 BB::BB(Fct* fct, const std::string& debug) 
     : sealed_(false)
@@ -289,4 +289,4 @@ void Fct::emit() {
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl
+} // namespace anydsl2

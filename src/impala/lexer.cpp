@@ -6,7 +6,7 @@
 
 #include "anydsl/symbol.h"
 
-using anydsl::Symbol;
+using anydsl2::Symbol;
 
 /*
  * helpers
@@ -53,7 +53,7 @@ Lexer::Lexer(std::istream& stream, const std::string& filename)
     stream_.exceptions(std::istream::badbit);
 }
 
-std::ostream& Lexer::error(const anydsl::Location& loc) {
+std::ostream& Lexer::error(const anydsl2::Location& loc) {
     result_ = false;
     return loc.error();
 }

@@ -3,7 +3,7 @@
 #include "anydsl/type.h"
 #include "anydsl/world.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
@@ -35,4 +35,4 @@ size_t PrimLit::hash() const {
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl
+} // namespace anydsl2

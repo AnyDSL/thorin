@@ -5,11 +5,11 @@
 
 #include "impala/type.h"
 
-using anydsl::Box;
-using anydsl::Location;
-using anydsl::Position;
-using anydsl::Symbol;
-using anydsl::dcast;
+using anydsl2::Box;
+using anydsl2::Location;
+using anydsl2::Position;
+using anydsl2::Symbol;
+using anydsl2::dcast;
 
 namespace impala {
 
@@ -36,7 +36,7 @@ const Pi* Fct::pi() const {
     return decl_->type()->as<Pi>(); 
 }
 
-anydsl::Symbol Fct::symbol() const { 
+Symbol Fct::symbol() const { 
     return decl_->symbol(); 
 }
 
@@ -87,7 +87,7 @@ PostfixExpr::PostfixExpr(const Expr* lhs, Kind kind, const Position& pos2)
 //const Def* Ref::load() const {
 //}
 
-IndexExpr::IndexExpr(const anydsl::Position& pos1, const Expr* lhs, const Expr* index, const anydsl::Position& pos2) {
+IndexExpr::IndexExpr(const Position& pos1, const Expr* lhs, const Expr* index, const Position& pos2) {
     ops_.push_back(lhs);
     ops_.push_back(index);
     set_loc(pos1, pos2);

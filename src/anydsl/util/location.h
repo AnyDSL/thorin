@@ -3,7 +3,7 @@
 
 #include <string>
 
-namespace anydsl {
+namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
@@ -128,6 +128,6 @@ std::ostream& operator << (std::ostream& os, const Location& loc);
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl
+} // namespace anydsl2
 
 #endif // DSLU_LOCATION_H

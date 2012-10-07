@@ -6,7 +6,7 @@
 #include "anydsl/util/cast.h"
 #include "anydsl/util/for_all.h"
 
-using anydsl::Symbol;
+using anydsl2::Symbol;
 
 namespace impala {
 
@@ -53,7 +53,7 @@ size_t NoRet::hash() const {
     return boost::hash_value(Token::TYPE_noret);
 }
 
-Pi::Pi(anydsl::ArrayRef<const Type*> elems, const Type* ret) 
+Pi::Pi(anydsl2::ArrayRef<const Type*> elems, const Type* ret) 
     : elems_(elems)
     , ret_(ret)
 {}
@@ -74,7 +74,7 @@ bool Pi::equal(const Type* other) const {
     return false;
 }
 
-Sigma::Sigma(anydsl::ArrayRef<const Type*> elems)
+Sigma::Sigma(anydsl2::ArrayRef<const Type*> elems)
     : elems_(elems)
 {}
 
@@ -121,7 +121,7 @@ const PrimType* TypeTable::type(PrimType::Kind kind) {
     }
 }
 
-const Pi* TypeTable::pi(anydsl::ArrayRef<const Type*> elems, const Type* ret) {
+const Pi* TypeTable::pi(anydsl2::ArrayRef<const Type*> elems, const Type* ret) {
     const Pi* pi = new Pi(elems, ret);
     TypeSet::iterator i = types_.find(pi);
 
@@ -134,7 +134,7 @@ const Pi* TypeTable::pi(anydsl::ArrayRef<const Type*> elems, const Type* ret) {
     return (*i)->as<Pi>();
 }
 
-const Sigma* TypeTable::sigma(anydsl::ArrayRef<const Type*> elems) {
+const Sigma* TypeTable::sigma(anydsl2::ArrayRef<const Type*> elems) {
     const Sigma* sigma = new Sigma(elems);
     TypeSet::iterator i = types_.find(sigma);
 

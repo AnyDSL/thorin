@@ -3,7 +3,7 @@
 
 #include "anydsl/primop.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
@@ -147,6 +147,6 @@ public:
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl
+} // namespace anydsl2
 
 #endif // ANYDSL_MEMOP_H

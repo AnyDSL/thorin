@@ -1,6 +1,6 @@
 #include "anydsl/node.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 size_t Node::hash() const {
     size_t seed = 0;
@@ -14,4 +14,4 @@ bool Node::equal(const Node* other) const {
     return this->kind() == other->kind() && this->ops_ == other->ops_;
 }
 
-} // namespace anydsl
+} // namespace anydsl2

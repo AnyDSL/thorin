@@ -27,7 +27,7 @@
     case PrimType_f32: \
     case PrimType_f64: ANYDSL_UNREACHABLE;
 
-namespace anydsl {
+namespace anydsl2 {
 
 /*
  * constructor and destructor
@@ -728,4 +728,4 @@ const Def* World::update(const Def* what, Array<const Def*> ops) {
     return consume(primop);
 }
 
-} // namespace anydsl
+} // namespace anydsl2

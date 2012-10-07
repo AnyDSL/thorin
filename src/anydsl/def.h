@@ -14,7 +14,7 @@
 #include "anydsl/util/array.h"
 #include "anydsl/util/cast.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
@@ -189,6 +189,6 @@ private:
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl
+} // namespace anydsl2
 
 #endif

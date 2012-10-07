@@ -6,7 +6,7 @@
 #include "anydsl/util/array.h"
 #include "anydsl/analyses/scope.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 class DomNode;
 class Def;
@@ -87,6 +87,6 @@ public:
     const DomNode* entry_node() const { return DomTree::entry(); }
 };
 
-} // namespace anydsl
+} // namespace anydsl2
 
 #endif

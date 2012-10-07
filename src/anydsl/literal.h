@@ -7,7 +7,7 @@
 #include "anydsl/type.h"
 #include "anydsl/util/box.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 class Type;
 class World;
@@ -133,6 +133,6 @@ private:
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl
+} // namespace anydsl2
 
 #endif

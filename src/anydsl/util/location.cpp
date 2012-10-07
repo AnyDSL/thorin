@@ -5,7 +5,7 @@
 
 #include "anydsl/util/stdlib.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
@@ -75,4 +75,4 @@ std::ostream& HasLocation::warning() const {
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl
+} // namespace anydsl2

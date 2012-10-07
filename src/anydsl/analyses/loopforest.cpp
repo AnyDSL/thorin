@@ -5,7 +5,7 @@
 
 #include <algorithm>
 
-namespace anydsl {
+namespace anydsl2 {
 
 static void on_stack(Lambda* lambda) { lambda->mark(); }
 static void not_on_stack(Lambda* lambda) { lambda->unmark(); }
@@ -80,4 +80,4 @@ void LoopForest::walk_scc(Lambda* cur) {
     }
 }
 
-} // namespace anydsl
+} // namespace anydsl2

@@ -5,7 +5,7 @@
 
 #include "anydsl/util/for_all.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 size_t StrHash::operator () (const char* s) const {
     size_t seed = 0;
@@ -31,7 +31,7 @@ void Symbol::insert(const char* s) {
 }
 
 void Symbol::destroy() {
-    for_all(s, table_)
+    for_all (s, table_)
         free((void*) const_cast<char*>(s));
 }
 
@@ -43,4 +43,4 @@ std::string make_name(const char* cstr, int id) {
     return oss.str();
 }
 
-} // namespace anydsl
+} // namespace anydsl2

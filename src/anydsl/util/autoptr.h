@@ -3,7 +3,7 @@
 
 #include <vector>
 
-namespace anydsl {
+namespace anydsl2 {
 
 template<class T>
 class AutoPtr {

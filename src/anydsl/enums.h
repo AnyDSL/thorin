@@ -3,7 +3,7 @@
 
 #include "anydsl/util/types.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
@@ -98,6 +98,6 @@ template<> struct type2kind<bool> { static const PrimTypeKind kind = PrimType_u1
 
 const char* kind2str(PrimTypeKind kind);
 
-} // namespace anydsl
+} // namespace anydsl2
 
 #endif

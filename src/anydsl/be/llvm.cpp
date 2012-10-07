@@ -24,7 +24,7 @@
 #include "anydsl/analyses/scope.h"
 #include "anydsl/util/array.h"
 
-namespace anydsl {
+namespace anydsl2 {
 namespace be_llvm {
 
 template<class T> llvm::ArrayRef<T> llvm_ref(const Array<T>& array) {

@@ -5,7 +5,7 @@
 #include "anydsl/world.h"
 #include "anydsl/util/array.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
@@ -104,4 +104,4 @@ Tuple::Tuple(World& world, ArrayRef<const Def*> args)
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl
+} // namespace anydsl2

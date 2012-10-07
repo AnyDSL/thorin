@@ -13,7 +13,7 @@
 
 #include "impala/token.h"
 
-namespace anydsl {
+namespace anydsl2 {
     class Def;
     class Var;
     class Ref;
@@ -33,14 +33,14 @@ class Sema;
 class Stmt;
 class Type;
 
-typedef anydsl::AutoVector<const Decl*> Decls;
+typedef anydsl2::AutoVector<const Decl*> Decls;
 typedef std::vector<const Generic*> Generics;
-typedef anydsl::AutoVector<const Expr*> Exprs;
-typedef anydsl::AutoVector<const Fct*>  Fcts;
-typedef anydsl::AutoVector<const Stmt*> Stmts;
-typedef std::auto_ptr<const anydsl::Ref> RefPtr;
+typedef anydsl2::AutoVector<const Expr*> Exprs;
+typedef anydsl2::AutoVector<const Fct*>  Fcts;
+typedef anydsl2::AutoVector<const Stmt*> Stmts;
+typedef std::auto_ptr<const anydsl2::Ref> RefPtr;
 
-class ASTNode : public anydsl::HasLocation, public anydsl::MagicCast {
+class ASTNode : public anydsl2::HasLocation, public anydsl2::MagicCast {
 public:
 
     virtual void dump(Printer& p) const = 0;
@@ -70,7 +70,7 @@ public:
     Fct() {}
 
     const Decl* decl() const { return decl_; }
-    anydsl::Symbol symbol() const;
+    anydsl2::Symbol symbol() const;
     const ScopeStmt* body() const { return body_; }
     const Decls& params() const { return params_; }
     const Generics& generics() const { return generics_; }
@@ -85,10 +85,10 @@ private:
 
     void set(const Decl* decl, const ScopeStmt* body);
 
-    anydsl::AutoPtr<const Decl> decl_;
+    anydsl2::AutoPtr<const Decl> decl_;
     Generics generics_;
     Decls params_;
-    anydsl::AutoPtr<const ScopeStmt> body_;
+    anydsl2::AutoPtr<const ScopeStmt> body_;
 
     friend class Parser;
 };
@@ -96,18 +96,18 @@ private:
 class Decl : public ASTNode {
 public:
 
-    Decl(const Token& tok, const Type* type, const anydsl::Position& pos2);
+    Decl(const Token& tok, const Type* type, const anydsl2::Position& pos2);
 
-    anydsl::Symbol symbol() const { return symbol_; }
+    anydsl2::Symbol symbol() const { return symbol_; }
     const Type* type() const { return type_; }
 
     void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
-    anydsl::Var* emit(CodeGen& cg) const;
+    anydsl2::Var* emit(CodeGen& cg) const;
 
 private:
 
-    anydsl::Symbol symbol_;
+    anydsl2::Symbol symbol_;
     const Type* type_;
 };
 
@@ -119,7 +119,7 @@ public:
     const Exprs& ops() const { return ops_; }
     const Type* type() const { return type_; }
     const Type* check(Sema& sema) const { return type_ = vcheck(sema); }
-    anydsl::Array<const anydsl::Def*> emit_ops(CodeGen& cg) const;
+    anydsl2::Array<const anydsl2::Def*> emit_ops(CodeGen& cg) const;
     virtual bool lvalue() const = 0;
     virtual RefPtr emit(CodeGen& cg) const = 0;
 
@@ -137,7 +137,7 @@ protected:
 class EmptyExpr : public Expr {
 public:
 
-    EmptyExpr(const anydsl::Location& loc) { loc_ = loc; }
+    EmptyExpr(const anydsl2::Location& loc) { loc_ = loc; }
 
     virtual bool lvalue() const { return false; }
     virtual const Type* vcheck(Sema& sema) const;
@@ -154,10 +154,10 @@ public:
         LIT_bool
     };
 
-    Literal(const anydsl::Location& loc, Kind kind, anydsl::Box box);
+    Literal(const anydsl2::Location& loc, Kind kind, anydsl2::Box box);
 
     Kind kind() const { return kind_; }
-    anydsl::Box box() const { return box_; }
+    anydsl2::Box box() const { return box_; }
 
     virtual bool lvalue() const { return false; }
     virtual const Type* vcheck(Sema& sema) const;
@@ -167,13 +167,13 @@ public:
 private:
 
     Kind kind_;
-    anydsl::Box box_;
+    anydsl2::Box box_;
 };
 
 class Tuple : public Expr {
 public:
 
-    Tuple(const anydsl::Position& pos1);
+    Tuple(const anydsl2::Position& pos1);
 
     virtual bool lvalue() const { return false; }
     virtual const Type* vcheck(Sema& sema) const;
@@ -188,7 +188,7 @@ public:
 
     Id(const Token& tok);
 
-    anydsl::Symbol symbol() const { return symbol_; }
+    anydsl2::Symbol symbol() const { return symbol_; }
     const Decl* decl() const { return decl_; }
 
     virtual bool lvalue() const { return true; }
@@ -198,7 +198,7 @@ public:
 
 private:
 
-    anydsl::Symbol symbol_;
+    anydsl2::Symbol symbol_;
     mutable const Decl* decl_; ///< Declaration of the variable in use.
 };
 
@@ -210,7 +210,7 @@ public:
 #include "impala/tokenlist.h"
     };
 
-    PrefixExpr(const anydsl::Position& pos1, Kind kind, const Expr* rhs);
+    PrefixExpr(const anydsl2::Position& pos1, Kind kind, const Expr* rhs);
 
     const Expr* rhs() const { return ops_[0]; }
 
@@ -264,7 +264,7 @@ public:
         DEC = Token::DEC
     };
 
-    PostfixExpr(const Expr* lhs, Kind kind, const anydsl::Position& pos2);
+    PostfixExpr(const Expr* lhs, Kind kind, const anydsl2::Position& pos2);
 
     const Expr* lhs() const { return ops_[0]; }
 
@@ -283,7 +283,7 @@ private:
 class IndexExpr : public Expr {
 public:
 
-    IndexExpr(const anydsl::Position& pos1, const Expr* lhs, const Expr* index, const anydsl::Position& pos2);
+    IndexExpr(const anydsl2::Position& pos1, const Expr* lhs, const Expr* index, const anydsl2::Position& pos2);
 
     const Expr* lhs() const { return ops_[0]; }
     const Expr* index() const { return ops_[1]; }
@@ -300,7 +300,7 @@ public:
     Call(const Expr* fct);
 
     void append_arg(const Expr* expr) { ops_.push_back(expr); }
-    void set_pos2(const anydsl::Position& pos2);
+    void set_pos2(const anydsl2::Position& pos2);
     const Expr* to() const { return ops_.front(); }
 
     virtual bool lvalue() const { return false; }
@@ -322,7 +322,7 @@ public:
 class ExprStmt : public Stmt {
 public:
 
-    ExprStmt(const Expr* expr, const anydsl::Position& pos2);
+    ExprStmt(const Expr* expr, const anydsl2::Position& pos2);
 
     const Expr* expr() const { return expr_; }
 
@@ -332,13 +332,13 @@ public:
 
 private:
 
-    anydsl::AutoPtr<const Expr> expr_;
+    anydsl2::AutoPtr<const Expr> expr_;
 };
 
 class DeclStmt : public Stmt {
 public:
 
-    DeclStmt(const Decl* decl, const Expr* init, const anydsl::Position& pos2);
+    DeclStmt(const Decl* decl, const Expr* init, const anydsl2::Position& pos2);
 
     const Decl* decl() const { return decl_; }
     const Expr* init() const { return init_; }
@@ -349,14 +349,14 @@ public:
 
 private:
 
-    anydsl::AutoPtr<const Decl> decl_;
-    anydsl::AutoPtr<const Expr> init_;
+    anydsl2::AutoPtr<const Decl> decl_;
+    anydsl2::AutoPtr<const Expr> init_;
 };
 
 class IfElseStmt: public Stmt {
 public:
 
-    IfElseStmt(const anydsl::Position& pos1, const Expr* cond, const Stmt* thenStmt, const Stmt* elseStmt);
+    IfElseStmt(const anydsl2::Position& pos1, const Expr* cond, const Stmt* thenStmt, const Stmt* elseStmt);
 
     const Expr* cond() const { return cond_; }
     const Stmt* thenStmt() const { return thenStmt_; }
@@ -368,9 +368,9 @@ public:
 
 private:
 
-    anydsl::AutoPtr<const Expr> cond_;
-    anydsl::AutoPtr<const Stmt> thenStmt_;
-    anydsl::AutoPtr<const Stmt> elseStmt_;
+    anydsl2::AutoPtr<const Expr> cond_;
+    anydsl2::AutoPtr<const Stmt> thenStmt_;
+    anydsl2::AutoPtr<const Stmt> elseStmt_;
 };
 
 class Loop : public Stmt {
@@ -390,8 +390,8 @@ protected:
 
 private:
 
-    anydsl::AutoPtr<const Expr> cond_;
-    anydsl::AutoPtr<const Stmt> body_;
+    anydsl2::AutoPtr<const Expr> cond_;
+    anydsl2::AutoPtr<const Stmt> body_;
 };
 
 class WhileStmt : public Loop {
@@ -399,7 +399,7 @@ public:
 
     WhileStmt() {}
         
-    void set(const anydsl::Position& pos1, const Expr* cond, const Stmt* body);
+    void set(const anydsl2::Position& pos1, const Expr* cond, const Stmt* body);
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
@@ -411,7 +411,7 @@ public:
 
     DoWhileStmt() {}
 
-    void set(const anydsl::Position& pos1, const Stmt* body, const Expr* cond, const anydsl::Position& pos2);
+    void set(const anydsl2::Position& pos1, const Stmt* body, const Expr* cond, const anydsl2::Position& pos2);
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
@@ -424,7 +424,7 @@ public:
     ForStmt() {}
     virtual ~ForStmt();
 
-    void set(const anydsl::Position& pos1, const Expr* cond, const Expr* step, const Stmt* body);
+    void set(const anydsl2::Position& pos1, const Expr* cond, const Expr* step, const Stmt* body);
     void set(const DeclStmt* d) { initDecl_ = d; isDecl_ = true; }
     void set(const ExprStmt* e) { initExpr_ = e; isDecl_ = false; }
 
@@ -446,14 +446,14 @@ private:
         const ExprStmt* initExpr_;
     };
 
-    anydsl::AutoPtr<const Expr> step_;
+    anydsl2::AutoPtr<const Expr> step_;
     bool isDecl_;
 };
 
 class BreakStmt : public Stmt {
 public:
 
-    BreakStmt(const anydsl::Position& pos1, const anydsl::Position& pos2, const Loop* loop);
+    BreakStmt(const anydsl2::Position& pos1, const anydsl2::Position& pos2, const Loop* loop);
 
     const Loop* loop() const { return loop_; }
 
@@ -468,7 +468,7 @@ private:
 class ContinueStmt : public Stmt {
 public:
 
-    ContinueStmt(const anydsl::Position& pos1, const anydsl::Position& pos2, const Loop* loop);
+    ContinueStmt(const anydsl2::Position& pos1, const anydsl2::Position& pos2, const Loop* loop);
 
     const Loop* loop() const { return loop_; }
 
@@ -484,7 +484,7 @@ private:
 class ReturnStmt : public Stmt {
 public:
 
-    ReturnStmt(const anydsl::Position& pos1, const Expr* expr, const Fct* fct, const anydsl::Position& pos2);
+    ReturnStmt(const anydsl2::Position& pos1, const Expr* expr, const Fct* fct, const anydsl2::Position& pos2);
 
     const Expr* expr() const { return expr_; }
     const Fct* fct() const { return fct_; }
@@ -495,7 +495,7 @@ public:
 
 private:
 
-    anydsl::AutoPtr<const Expr> expr_;
+    anydsl2::AutoPtr<const Expr> expr_;
     const Fct* fct_;
 };
 
@@ -503,7 +503,7 @@ class ScopeStmt : public Stmt {
 public:
 
     ScopeStmt() {}
-    ScopeStmt(const anydsl::Location& loc) {
+    ScopeStmt(const anydsl2::Location& loc) {
         loc_ = loc;
     }
 

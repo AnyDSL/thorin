@@ -7,7 +7,7 @@
 
 #include "anydsl/analyses/scope.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
@@ -116,4 +116,4 @@ bool DomTree::dominates(const DomNode* a, const DomNode* b) {
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl
+} // namespace anydsl2

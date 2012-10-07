@@ -7,7 +7,7 @@
 #include "anydsl/def.h"
 #include "anydsl/util/autoptr.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 class Generic;
 class Lambda;
@@ -118,6 +118,6 @@ private:
     friend size_t number(const LambdaSet& lambdas, Lambda* cur, size_t i);
 };
 
-} // namespace anydsl
+} // namespace anydsl2
 
 #endif

@@ -7,7 +7,7 @@
 #include <boost/unordered_set.hpp>
 #include <boost/functional/hash.hpp>
 
-namespace anydsl {
+namespace anydsl2 {
 
 struct StrHash : std::unary_function<const char*, size_t> {
     size_t operator () (const char* s) const;
@@ -52,6 +52,6 @@ inline Symbol make_symbol(const char* cstr, int id) {
 }
 
 
-} // namespace anydsl
+} // namespace anydsl2
 
 #endif

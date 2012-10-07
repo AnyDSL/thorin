@@ -7,7 +7,7 @@
 #include "anydsl/primop.h"
 #include "anydsl/analyses/scope.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 typedef boost::unordered_set<const PrimOp*> Done;
 
@@ -54,4 +54,4 @@ Places place(const Scope& scope) {
     return places;
 }
 
-} // namespace anydsl
+} // namespace anydsl2

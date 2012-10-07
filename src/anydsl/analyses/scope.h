@@ -5,7 +5,7 @@
 
 #include "anydsl/util/array.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 class Lambda;
 
@@ -38,7 +38,7 @@ private:
     Array<Lambdas> succs_;
 };
 
-} // namespace anydsl
+} // namespace anydsl2
 
 #endif
 

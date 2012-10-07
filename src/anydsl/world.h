@@ -13,7 +13,7 @@
 #include "anydsl/util/autoptr.h"
 #include "anydsl/util/box.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 class Any;
 class Bottom;
@@ -272,6 +272,6 @@ private:
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl
+} // namespace anydsl2
 
 #endif

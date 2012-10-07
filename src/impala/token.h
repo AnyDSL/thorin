@@ -14,7 +14,7 @@
 
 namespace impala {
 
-class Token : public anydsl::HasLocation {
+class Token : public anydsl2::HasLocation {
 public:
 
     enum Kind {
@@ -52,20 +52,20 @@ public:
     Token() {}
 
     /// Create a literal operator or special char token
-    Token(const anydsl::Location& loc, Kind tok);
+    Token(const anydsl2::Location& loc, Kind tok);
 
     /// Create an identifier (\p ID) or a keyword
-    Token(const anydsl::Location& loc, const std::string& str);
+    Token(const anydsl2::Location& loc, const std::string& str);
 
     /// Create a literal
-    Token(const anydsl::Location& loc, Kind type, const std::string& str);
+    Token(const anydsl2::Location& loc, Kind type, const std::string& str);
 
     /*
      * getters
      */
 
-    anydsl::Symbol symbol() const { return symbol_; }
-    anydsl::Box box() const { return box_; }
+    anydsl2::Symbol symbol() const { return symbol_; }
+    anydsl2::Box box() const { return box_; }
     Kind kind() const { return kind_; }
     operator Kind () const { return kind_; }
 
@@ -101,9 +101,9 @@ public:
     static Kind seperateAssign(Kind kind);
 
     static int toBinOp(Kind kind);
-    static anydsl::ArithOpKind toArithOp(Kind kind);
-    static anydsl::RelOpKind toRelOp(Kind kind);
-    static anydsl::PrimTypeKind toPrimType(Kind kind);
+    static anydsl2::ArithOpKind toArithOp(Kind kind);
+    static anydsl2::RelOpKind toRelOp(Kind kind);
+    static anydsl2::PrimTypeKind toPrimType(Kind kind);
 
     /*
      * comparisons
@@ -120,18 +120,18 @@ private:
 
     static void init();
 
-    anydsl::Symbol symbol_;
+    anydsl2::Symbol symbol_;
     Kind kind_;
-    anydsl::Box box_;
+    anydsl2::Box box_;
 
     static int tok2op_[NUM_TOKENS];
-    static anydsl::Symbol insert(Kind tok, const char* str);
+    static anydsl2::Symbol insert(Kind tok, const char* str);
     static void insertKey(Kind tok, const char* str);
 
-    typedef boost::unordered_map<Kind, anydsl::Symbol> Tok2Sym;
+    typedef boost::unordered_map<Kind, anydsl2::Symbol> Tok2Sym;
     static Tok2Sym tok2sym_;
 
-    typedef boost::unordered_map<anydsl::Symbol, Kind> Sym2Tok;
+    typedef boost::unordered_map<anydsl2::Symbol, Kind> Sym2Tok;
     static Sym2Tok keywords_;
 
     typedef boost::unordered_map<Kind, const char*> Tok2Str;

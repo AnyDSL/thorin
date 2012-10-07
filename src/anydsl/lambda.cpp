@@ -9,7 +9,7 @@
 #include "anydsl/util/array.h"
 #include "anydsl/util/for_all.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 Lambda::Lambda(size_t gid, const Pi* pi, uint32_t flags)
     : Def(Node_Lambda, pi)
@@ -355,4 +355,4 @@ const Def* Dropper::drop_target(const Def* to) {
     return to;
 }
 
-} // namespace anydsl
+} // namespace anydsl2

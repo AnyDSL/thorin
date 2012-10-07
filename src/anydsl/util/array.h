@@ -11,7 +11,7 @@
 #include "anydsl/util/assert.h"
 #include "anydsl/util/for_all.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 template<class T> class Array;
 
@@ -226,6 +226,6 @@ inline size_t hash_value(const Array<T>& array) { return hash_value(ArrayRef<T>(
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl
+} // namespace anydsl2
 
 #endif

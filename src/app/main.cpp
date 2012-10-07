@@ -15,7 +15,7 @@
 
 //------------------------------------------------------------------------------
 
-using namespace anydsl;
+using namespace anydsl2;
 using namespace std;
 namespace po = boost::program_options;
 
@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
 
         impala::Init init;
         bool result;
-        anydsl::AutoPtr<const impala::Prg> p(impala::parse(init.types, file, filename, result));
+        anydsl2::AutoPtr<const impala::Prg> p(impala::parse(init.types, file, filename, result));
         result &= check(init.types, p);
 
         if (emit_ast)

@@ -5,7 +5,7 @@
 
 #include "anydsl/util/types.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 /*
  * arithops -- integer operations
@@ -180,4 +180,4 @@ inline T arithop_urem(bool bot&, T a, T b) { \
 #endif
 #endif
 
-} // namespace anydsl
+} // namespace anydsl2

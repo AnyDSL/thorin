@@ -9,7 +9,7 @@
 #include "anydsl/util/for_all.h"
 #include "anydsl/printer.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 // Literal
 
@@ -266,4 +266,4 @@ void Lambda::dump(bool fancy, int indent) const {
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl
+} // namespace anydsl2

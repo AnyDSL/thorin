@@ -16,7 +16,7 @@
 
 
 
-namespace anydsl {
+namespace anydsl2 {
 
 enum BTEnum {
     AssertBacktrace
@@ -132,13 +132,13 @@ inline Assert& Assert::operator<< <BTEnum>(const BTEnum& message) {
 
 #ifndef NDEBUG
 #define assert( cond ) \
-    ::anydsl::detail::Assert( cond ) << "Assertion failure at " << __FILE__ << ":" << __LINE__ << " -- " DSLU_STRING(cond)
+    ::anydsl2::detail::Assert( cond ) << "Assertion failure at " << __FILE__ << ":" << __LINE__ << " -- " DSLU_STRING(cond)
 
 #define anydsl_assert( cond , msg ) \
-    ::anydsl::detail::Assert( cond ) << "Assertion failure at " << __FILE__ << ":" << __LINE__ << " -- " << msg
+    ::anydsl2::detail::Assert( cond ) << "Assertion failure at " << __FILE__ << ":" << __LINE__ << " -- " << msg
 
 #define anydsl_assert_always( msg ) \
-    ::anydsl::detail::AlwaysAssert() << "Assertion failure at " << __FILE__ << ":" << __LINE__ << " -- " << msg
+    ::anydsl2::detail::AlwaysAssert() << "Assertion failure at " << __FILE__ << ":" << __LINE__ << " -- " << msg
 
 
 #define warn_assert( cond ) \
@@ -149,7 +149,7 @@ inline Assert& Assert::operator<< <BTEnum>(const BTEnum& message) {
     if (!DSLU_UNIQUE(warn_assert_cond)) \
         DSLU_UNIQUE(warn_assert_once) = false; \
     if (DSLU_UNIQUE(warn_assert_oncelaunch)) \
-        ::anydsl::detail::Assert( DSLU_UNIQUE(warn_assert_cond) , true ) << "Warning assertion at " << __FILE__ << ":" << __LINE__ << " -- " DSLU_STRING(cond); \
+        ::anydsl2::detail::Assert( DSLU_UNIQUE(warn_assert_cond) , true ) << "Warning assertion at " << __FILE__ << ":" << __LINE__ << " -- " DSLU_STRING(cond); \
 }
 
 #define anydsl_warn_assert( cond , msg )\
@@ -160,20 +160,20 @@ inline Assert& Assert::operator<< <BTEnum>(const BTEnum& message) {
     if ( !DSLU_UNIQUE(warn_assert_cond) ) \
         DSLU_UNIQUE(warn_assert_once) = false; \
     if ( DSLU_UNIQUE(warn_assert_oncelaunch) ) \
-        ::anydsl::detail::Assert( DSLU_UNIQUE(warn_assert_cond) , true ) << "Warning assertion at " << __FILE__ << ":" << __LINE__ << " -- " << msg; \
+        ::anydsl2::detail::Assert( DSLU_UNIQUE(warn_assert_cond) , true ) << "Warning assertion at " << __FILE__ << ":" << __LINE__ << " -- " << msg; \
 }
 
 #else
 #define assert( cond ) \
-    ::anydsl::detail::Assert()
+    ::anydsl2::detail::Assert()
 #define anydsl_assert( cond , msg ) \
-    ::anydsl::detail::Assert()
+    ::anydsl2::detail::Assert()
 #define warn_assert( cond ) \
-    ::anydsl::detail::Assert()
+    ::anydsl2::detail::Assert()
 #define anydsl_warn_assert( cond , msg ) \
-    ::anydsl::detail::Assert()
+    ::anydsl2::detail::Assert()
 #define anydsl_assert_always( msg ) \
-    ::anydsl::detail::Assert()
+    ::anydsl2::detail::Assert()
 #endif
 
 #ifndef NDEBUG
@@ -183,13 +183,13 @@ inline Assert& Assert::operator<< <BTEnum>(const BTEnum& message) {
 #endif
 #define ANYDSL_NOT_IMPLEMENTED do { anydsl_assert_always("Function not implemented"); abort(); } while(0)
 #define ANYDSL_DEPRECATED do { anydsl_warn_assert(false, "Function is deprecated and should not be used"); } while(0)
-#define ANYDSL_DEPRECATED_BT do { anydsl_warn_assert(false, "Function is deprecated and should not be used") << ::anydsl::AssertBacktrace; } while(0)
+#define ANYDSL_DEPRECATED_BT do { anydsl_warn_assert(false, "Function is deprecated and should not be used") << ::anydsl2::AssertBacktrace; } while(0)
 
 #ifndef _MSC_VER
 #define ANYDSL_UNREACHABLE do { anydsl_assert_always("unreachable"); abort(); } while(0)
 #else
 inline __declspec(noreturn) void anydsl_dummy_function() { abort(); }
-#define ANYDSL_UNREACHABLE do { anydsl_assert_always("unreachable"); anydsl::anydsl_dummy_function(); } while(0)
+#define ANYDSL_UNREACHABLE do { anydsl_assert_always("unreachable"); anydsl::anydsl2_dummy_function(); } while(0)
 #endif
 
 }

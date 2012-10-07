@@ -9,9 +9,9 @@
 #include "impala/dump.h"
 #include "impala/type.h"
 
-using anydsl::Array;
-using anydsl::Location;
-using anydsl::Symbol;
+using anydsl2::Array;
+using anydsl2::Location;
+using anydsl2::Symbol;
 
 namespace impala {
 
@@ -30,7 +30,7 @@ public:
      * 
      * @return Returns 0 on failure.
      */
-    const Decl* lookup(const anydsl::Symbol sym);
+    const Decl* lookup(const Symbol sym);
 
     /** 
      * @brief Pushes a new Decl on the internal \p DeclStack.
@@ -49,7 +49,7 @@ public:
      * 
      * @return The current mapping if the lookup succeeds, 0 otherwise.
      */
-    const Decl* clash(const anydsl::Symbol sym) const;
+    const Decl* clash(const Symbol sym) const;
 
     /// Open a new scope.
     void pushScope() { ++depth_; }
@@ -77,7 +77,7 @@ private:
     };
 
     typedef std::stack<Slot> SlotStack;
-    typedef boost::unordered_map<const anydsl::Symbol, SlotStack*> Scope;
+    typedef boost::unordered_map<const Symbol, SlotStack*> Scope;
 
     bool result_;
     Scope scope_;

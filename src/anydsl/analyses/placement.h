@@ -3,7 +3,7 @@
 
 #include "anydsl/util/array.h"
 
-namespace anydsl {
+namespace anydsl2 {
 
 class Scope;
 class PrimOp;
@@ -11,6 +11,6 @@ class PrimOp;
 typedef Array< std::vector<const PrimOp*> > Places;
 Places place(const Scope& sceop);
 
-} // namespace anydsl
+} // namespace anydsl2
 
 #endif

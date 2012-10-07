@@ -29,29 +29,14 @@ bool PrimType::is_int() const {
     }
 }
 
-bool TypeError::equal(const Type* t) const {
-    return t->isa<TypeError>();
-}
+bool TypeError::equal(const Type* t) const { return t->isa<TypeError>(); }
+size_t TypeError::hash() const { return boost::hash_value(Token::END_OF_FILE); }
 
-size_t TypeError::hash() const {
-    return boost::hash_value(Token::END_OF_FILE);
-}
+bool Void::equal(const Type* t) const { return t->isa<Void>(); }
+size_t Void::hash() const { return boost::hash_value(Token::TYPE_void); }
 
-bool Void::equal(const Type* t) const {
-    return t->isa<Void>();
-}
-
-size_t Void::hash() const {
-    return boost::hash_value(Token::TYPE_void);
-}
-
-bool NoRet::equal(const Type* t) const {
-    return t->isa<NoRet>();
-}
-
-size_t NoRet::hash() const {
-    return boost::hash_value(Token::TYPE_noret);
-}
+bool NoRet::equal(const Type* t) const { return t->isa<NoRet>(); }
+size_t NoRet::hash() const { return boost::hash_value(Token::TYPE_noret); }
 
 Pi::Pi(anydsl2::ArrayRef<const Type*> elems, const Type* ret) 
     : elems_(elems)
@@ -73,10 +58,6 @@ bool Pi::equal(const Type* other) const {
 
     return false;
 }
-
-Sigma::Sigma(anydsl2::ArrayRef<const Type*> elems)
-    : elems_(elems)
-{}
 
 size_t Sigma::hash() const {
     size_t seed = 0;

@@ -158,7 +158,9 @@ private:
 class Sigma : public Type {
 private:
 
-    Sigma(anydsl2::ArrayRef<const Type*> elems);
+    Sigma(anydsl2::ArrayRef<const Type*> elems)
+        : elems_(elems)
+    {}
 
 public:
 

@@ -24,28 +24,24 @@ namespace anydsl2 {
 /// \c static_cast checked in debug version
 template<class LEFT, class RIGHT>
 inline LEFT* scast(RIGHT* u) {
-    assert( !u || dynamic_cast<LEFT*>(u) && "cast not possible" );
+    assert((!u || dynamic_cast<LEFT*>(u)) && "cast not possible" );
     return static_cast<LEFT*>(u);
 }
 
 /// \c static_cast checked in debug version -- \c const version
 template<class LEFT, class RIGHT>
 inline const LEFT* scast(const RIGHT* u) {
-    assert( (!u || dynamic_cast<const LEFT*>(u)) && "cast not possible" );
+    assert((!u || dynamic_cast<const LEFT*>(u)) && "cast not possible" );
     return static_cast<const LEFT*>(u);
 }
 
 /// shorthand for \c dynamic_cast
 template<class LEFT, class RIGHT>
-inline LEFT* dcast(RIGHT* u) {
-    return dynamic_cast<LEFT*>(u);
-}
+inline LEFT* dcast(RIGHT* u) { return dynamic_cast<LEFT*>(u); }
 
 /// shorthand for \c dynamic_cast -- \c const version
 template<class LEFT, class RIGHT>
-inline const LEFT* dcast(const RIGHT* u) {
-    return dynamic_cast<const LEFT*>(u);
-}
+inline const LEFT* dcast(const RIGHT* u) { return dynamic_cast<const LEFT*>(u); }
 
 /** 
  * @brief A bitcast.

@@ -91,7 +91,7 @@ int main(int argc, char** argv) {
         if (emit_ast)
             dump(p, fancy);
         if (emit_dot)
-            ANYDSL_NOT_IMPLEMENTED;
+            assert(false && "todo");
 
         if (result) {
             emit(init.world, p);

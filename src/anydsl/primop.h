@@ -45,7 +45,7 @@ protected:
     BinOp(NodeKind kind, const Type* type, const Def* lhs, const Def* rhs)
         : PrimOp(kind, 2, type)
     {
-        anydsl_assert(lhs->type() == rhs->type(), "types are not equal");
+        assert(lhs->type() == rhs->type() && "types are not equal");
         set_op(0, lhs);
         set_op(1, rhs);
     }

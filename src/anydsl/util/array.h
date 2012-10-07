@@ -103,7 +103,7 @@ public:
     const_reverse_iterator rend() const { return const_reverse_iterator(begin()); }
 
     Deref const& operator [] (size_t i) const {
-        anydsl_assert(i < size(), "index out of bounds");
+        assert(i < size() && "index out of bounds");
         return Hook(ptr_ + i);
     }
 
@@ -184,8 +184,8 @@ public:
     const_reverse_iterator rbegin() const { return const_reverse_iterator(end()); }
     const_reverse_iterator rend() const { return const_reverse_iterator(begin()); }
 
-    T& operator [] (size_t i) { anydsl_assert(i < size(), "index out of bounds"); return ptr_[i]; }
-    T const& operator [] (size_t i) const { anydsl_assert(i < size(), "index out of bounds"); return ptr_[i]; }
+    T& operator [] (size_t i) { assert(i < size() && "index out of bounds"); return ptr_[i]; }
+    T const& operator [] (size_t i) const { assert(i < size() && "index out of bounds"); return ptr_[i]; }
 
     size_t size() const { return size_; }
     bool empty() const { return size_ == 0; }

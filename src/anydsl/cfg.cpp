@@ -87,13 +87,13 @@ Var* BB::lookup(const Symbol& symbol, const Type* type) {
 }
 
 void BB::seal() {
-    anydsl_assert(!sealed(), "already sealed");
+    assert(!sealed() && "already sealed");
     sealed_ = true;
 
 #ifndef NDEBUG
     if (preds().size() >= 2) {
         for_all (pred, preds_)
-            anydsl_assert(pred->succs().size() <= 1, "critical edge");
+            assert(pred->succs().size() <= 1 && "critical edge");
     }
 #endif
 
@@ -102,7 +102,7 @@ void BB::seal() {
 }
 
 void BB::fix(const Symbol& symbol, Todo todo) {
-    anydsl_assert(sealed(), "must be sealed");
+    assert(sealed() && "must be sealed");
 
     size_t index = todo.index();
     const Type* type = todo.type();
@@ -132,14 +132,14 @@ void BB::fix(const Symbol& symbol, Todo todo) {
 
 fix_preds:
     for_all (pred, preds_) {
-        anydsl_assert(pred->succs().size() == 1, "critical edge");
+        assert(pred->succs().size() == 1 && "critical edge");
         Out& out = pred->out_;
 
         // make potentially room for the new arg
         if (index >= out.size())
             out.resize(index + 1);
 
-        anydsl_assert(!pred->out_[index], "already set");
+        assert(!pred->out_[index] && "already set");
         out[index] = same ? same : pred->lookup(symbol, type)->load();
     }
 
@@ -150,7 +150,7 @@ fix_preds:
 void BB::jump(BB* to) {
     assert(to);
     this->link(to);
-    anydsl_assert(this->succs().size() == 1, "wrong number of succs");
+    assert(this->succs().size() == 1 && "wrong number of succs");
 }
 
 void BB::branch(const Def* cond, BB* tbb, BB* fbb) {
@@ -163,7 +163,7 @@ void BB::branch(const Def* cond, BB* tbb, BB* fbb) {
     this->link(tbb);
     this->link(fbb);
 
-    anydsl_assert(succs().size() == 2, "wrong number of succs");
+    assert(succs().size() == 2 && "wrong number of succs");
 }
 
 void BB::tail_call(const Def* to, ArrayRef<const Def*> args) {
@@ -206,13 +206,13 @@ void BB::fixto(BB* to) {
 
 void BB::link(BB* to) {
     BBs::iterator i = succs_.find(to);
-    anydsl_assert(!to->sealed(), "'to' already sealed");
+    assert(!to->sealed() && "'to' already sealed");
 
     if (i == succs_.end()) {
         this->succs_.insert(to);
         to->preds_.insert(this);
     } else {
-        anydsl_assert(to->preds_.find(this) != to->preds_.end(), "flow out of sync");
+        assert(to->preds_.find(this) != to->preds_.end() && "flow out of sync");
     }
 }
 
@@ -224,11 +224,11 @@ void BB::emit() {
     size_t num_succs = succs().size();
 
     if (num_succs == 0) 
-        anydsl_assert(world().lambdas().find(cur_) != world().lambdas().end(), "tail call not finalized");
+        assert(world().lambdas().find(cur_) != world().lambdas().end() && "tail call not finalized");
     else if (num_succs == 1)
         cur_->jump((*succs().begin())->top(), out_);
     else if (num_succs == 2) {
-        anydsl_assert(out_.empty(), "edge is critical");
+        assert(out_.empty() && "edge is critical");
         cur_->branch(cond_, tbb_->top(), fbb_->top());
     } else
         ANYDSL_UNREACHABLE;

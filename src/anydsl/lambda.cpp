@@ -76,7 +76,7 @@ static void find_preds(const Def* def, LambdaSet& result) {
     if (Lambda* lambda = def->isa_lambda())
         result.insert(lambda);
     else {
-        anydsl_assert(def->isa<PrimOp>(), "not a PrimOp");
+        assert(def->isa<PrimOp>() && "not a PrimOp");
 
         for_all (use, def->uses())
             find_preds(use.def(), result);

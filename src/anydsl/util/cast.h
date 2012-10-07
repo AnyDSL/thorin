@@ -24,14 +24,14 @@ namespace anydsl2 {
 /// \c static_cast checked in debug version
 template<class LEFT, class RIGHT>
 inline LEFT* scast(RIGHT* u) {
-    anydsl_assert( !u || dynamic_cast<LEFT*>(u), "cast not possible" );
+    assert( !u || dynamic_cast<LEFT*>(u) && "cast not possible" );
     return static_cast<LEFT*>(u);
 }
 
 /// \c static_cast checked in debug version -- \c const version
 template<class LEFT, class RIGHT>
 inline const LEFT* scast(const RIGHT* u) {
-    anydsl_assert( !u || dynamic_cast<const LEFT*>(u), "cast not possible" );
+    assert( (!u || dynamic_cast<const LEFT*>(u)) && "cast not possible" );
     return static_cast<const LEFT*>(u);
 }
 
@@ -55,7 +55,7 @@ inline const LEFT* dcast(const RIGHT* u) {
  */
 template<class LEFT, class RIGHT>
 inline LEFT bcast(const RIGHT& from) {
-    anydsl_assert(sizeof(RIGHT) == sizeof(LEFT), "size mismatch for bitcast");
+    assert(sizeof(RIGHT) == sizeof(LEFT) && "size mismatch for bitcast");
     LEFT to;
     memcpy(&to, &from, sizeof(LEFT));
     return to;

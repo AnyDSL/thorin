@@ -22,7 +22,7 @@ Load::Load(const Def* mem, const Def* ptr)
     , extract_val_(0)
 {
     set_type(world().sigma2(world().mem(), ptr->type()->as<Ptr>()->ref()));
-    anydsl_assert(ptr->type()->isa<Ptr>(), "must load from pointer");
+    assert(ptr->type()->isa<Ptr>() && "must load from pointer");
 }
 
 const Def* Load::extract_mem() const { 

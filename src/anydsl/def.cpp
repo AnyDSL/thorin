@@ -36,21 +36,21 @@ Def::~Def() {
 
     for_all (use, uses_) {
         size_t i = use.index();
-        anydsl_assert(use.def()->ops()[i] == this, "use points to incorrect def");
+        assert(use.def()->ops()[i] == this && "use points to incorrect def");
         const_cast<Def*>(use.def())->set(i, 0);
     }
 }
 
 void Def::set_op(size_t i, const Def* def) {
-    anydsl_assert(!op(i), "already set");
+    assert(!op(i) && "already set");
     Use use(i, this);
-    anydsl_assert(def->uses_.find(use) == def->uses_.end(), "already in use set");
+    assert(def->uses_.find(use) == def->uses_.end() && "already in use set");
     def->uses_.insert(use);
     set(i, def);
 }
 
 void Def::unset_op(size_t i) {
-    anydsl_assert(op(i), "must be set");
+    assert(op(i) && "must be set");
     unregister_use(i);
     set(i, 0);
 }
@@ -58,7 +58,7 @@ void Def::unset_op(size_t i) {
 void Def::unregister_use(size_t i) const {
     if (const Def* def = op(i)) {
         Use use(i, this);
-        anydsl_assert(def->uses_.find(use) != def->uses_.end(), "must be inside the use set");
+        assert(def->uses_.find(use) != def->uses_.end() && "must be inside the use set");
         def->uses_.erase(use);
     }
 }
@@ -87,7 +87,7 @@ void Def::update(size_t i, const Def* def) {
 }
 
 void Def::update(ArrayRef<const Def*> defs) {
-    anydsl_assert(size() == defs.size(), "sizes do not match");
+    assert(size() == defs.size() && "sizes do not match");
 
     for (size_t i = 0, e = size(); i != e; ++i)
         update(i, defs[i]);

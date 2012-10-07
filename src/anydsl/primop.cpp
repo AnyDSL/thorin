@@ -44,8 +44,8 @@ Select::Select(const Def* cond, const Def* t, const Def* f)
     set_op(0, cond);
     set_op(1, t);
     set_op(2, f);
-    anydsl_assert(cond->type() == world().type_u1(), "condition must be of u1 type");
-    anydsl_assert(t->type() == f->type(), "types of both values must be equal");
+    assert(cond->type() == world().type_u1() && "condition must be of u1 type");
+    assert(t->type() == f->type() && "types of both values must be equal");
 }
 
 //------------------------------------------------------------------------------
@@ -80,7 +80,7 @@ Insert::Insert(const Def* tuple, u32 index, const Def* value)
     : TupleOp(Node_Insert, 2, tuple->type(), tuple, index)
 {
     set_op(1, value);
-    anydsl_assert(tuple->type()->as<Sigma>()->elem(index) == value->type(), "type error");
+    assert(tuple->type()->as<Sigma>()->elem(index) == value->type() && "type error");
 }
 
 //------------------------------------------------------------------------------

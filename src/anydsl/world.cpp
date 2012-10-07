@@ -70,7 +70,7 @@ Sigma* World::named_sigma(size_t num, const std::string& name) {
     Sigma* s = new Sigma(*this, num);
     s->debug = name;
 
-    anydsl_assert(types_.find(s) == types_.end(), "must not be inside");
+    assert(types_.find(s) == types_.end() && "must not be inside");
     types_.insert(s);
 
     return s;
@@ -109,7 +109,7 @@ const Def* World::binop(int kind, const Def* lhs, const Def* rhs) {
     if (is_arithop(kind))
         return arithop((ArithOpKind) kind, lhs, rhs);
 
-    anydsl_assert(is_relop(kind), "must be a RelOp");
+    assert(is_relop(kind) && "must be a RelOp");
     return relop((RelOpKind) kind, lhs, rhs);
 }
 
@@ -531,7 +531,7 @@ void World::unused_type_elimination() {
 }
 
 void World::ute_insert(const Type* type) {
-    anydsl_assert(types_.find(type) != types_.end(), "not in map");
+    assert(types_.find(type) != types_.end() && "not in map");
 
     if (type->is_marked()) return;
     type->mark();
@@ -562,7 +562,7 @@ void World::unreachable_code_elimination() {
 }
 
 void World::uce_insert(Lambda* lambda) {
-    anydsl_assert(lambdas_.find(lambda) != lambdas_.end(), "not in map");
+    assert(lambdas_.find(lambda) != lambdas_.end() && "not in map");
 
     if (lambda->is_marked()) return;
     lambda->mark();
@@ -604,12 +604,12 @@ const PrimOp* World::consume(const PrimOp* primop) {
     PrimOpSet::iterator i = primops_.find(primop);
     if (i != primops_.end()) {
         delete primop;
-        anydsl_assert(primops_.find(*i) != primops_.end(), "hash/equal function of primop class incorrect");
+        assert(primops_.find(*i) != primops_.end() && "hash/equal function of primop class incorrect");
         return *i;
     }
 
     primops_.insert(primop);
-    anydsl_assert(primops_.find(primop) != primops_.end(), "hash/equal function of def class incorrect");
+    assert(primops_.find(primop) != primops_.end() && "hash/equal function of def class incorrect");
 
     return primop;
 }
@@ -618,19 +618,19 @@ const Type* World::consume(const Type* type) {
     TypeSet::iterator i = types_.find(type);
     if (i != types_.end()) {
         delete type;
-        anydsl_assert(types_.find(*i) != types_.end(), "hash/equal function of type class incorrect");
+        assert(types_.find(*i) != types_.end() && "hash/equal function of type class incorrect");
         return *i;
     }
 
     types_.insert(type);
-    anydsl_assert(types_.find(type) != types_.end(), "hash/equal function of def class incorrect");
+    assert(types_.find(type) != types_.end() && "hash/equal function of def class incorrect");
 
     return type;
 }
 
 PrimOp* World::release(const PrimOp* primop) {
     PrimOpSet::iterator i = primops_.find(primop);
-    anydsl_assert(i != primops_.end(), "must be found");
+    assert(i != primops_.end() && "must be found");
     assert(primop == *i);
     primops_.erase(i);
 

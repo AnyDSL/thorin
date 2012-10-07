@@ -94,7 +94,7 @@ void CodeGen::emit() {
     for_all (lf, fcts) {
         Lambda* lambda = lf.first;
         llvm::Function* fct = lf.second;
-        anydsl_assert(lambda->ho_params().size() == 1, "unsupported number of higher order params");
+        assert(lambda->ho_params().size() == 1 && "unsupported number of higher order params");
 
         // map params
         llvm::Function::arg_iterator arg = fct->arg_begin();

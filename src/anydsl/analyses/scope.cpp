@@ -99,7 +99,7 @@ Scope::Scope(Lambda* entry)
         }
     }
 
-    anydsl_assert(rpo_[0] == entry, "bug in numbering");
+    assert(rpo_[0] == entry && "bug in numbering");
 }
 
 const Scope::Lambdas& Scope::preds(Lambda* lambda) const {

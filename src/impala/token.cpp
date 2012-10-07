@@ -87,7 +87,7 @@ bool Token::is_rel(Kind op) {
 }
 
 TokenKind Token::seperateAssign(TokenKind kind) {
-    anydsl_assert(is_asgn(kind), "must be an assignment other than ASGN");
+    assert(is_asgn(kind) && "must be an assignment other than ASGN");
 
     switch (kind) {
         case ADD_ASGN: return ADD;
@@ -214,7 +214,7 @@ void Token::init() {
 
 /*static*/ void Token::insertKey(TokenKind tok, const char* str) {
     Symbol s = str;
-    anydsl_assert(keywords_.find(s) == keywords_.end(), "already inserted");
+    assert(keywords_.find(s) == keywords_.end() && "already inserted");
     keywords_[s] = tok;
     tok2str_ [tok] = s.str();
 }
@@ -228,7 +228,7 @@ void Token::init() {
     if (!p.second) {
         Kind   oldTok = p.first->first;
         Symbol oldSym = p.first->second;
-        anydsl_assert(s == oldSym && tok == oldTok, "inserted ambigous duplicate");
+        assert(s == oldSym && tok == oldTok && "inserted ambigous duplicate");
     }
 #endif
 
@@ -241,7 +241,7 @@ void Token::init() {
 
 std::ostream& operator << (std::ostream& os, const TokenKind& kind) {
     Token::Tok2Str::iterator i = Token::tok2str_.find(kind);
-    anydsl_assert(i != Token::tok2str_.end(), "must be found");
+    assert(i != Token::tok2str_.end() && "must be found");
     return os << Symbol(i->second).str();
 }
 

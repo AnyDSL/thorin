@@ -9,9 +9,9 @@ LLVMCONFIG ?= llvm-config
 CXXFLAGS += -I . -fPIC `$(LLVMCONFIG) --cxxflags` -fexceptions -frtti -Wno-attributes -Wno-cast-qual
 LDFLAGS += -L $(BIN) `$(LLVMCONFIG) --ldflags`
 
-ANYDSL_LIB  ?= anydsl
+ANYDSL_LIB  ?= anydsl2
 IMPALA_LIB  ?= impala
-ANYDSL_APP_BIN  ?= $(BIN)/anydsl
+ANYDSL_APP_BIN  ?= $(BIN)/anydsl2
 
 ANYDSL_LIB_FILE  ?= $(BIN)/lib$(ANYDSL_LIB).a
 IMPALA_LIB_FILE  ?= $(BIN)/lib$(IMPALA_LIB).a

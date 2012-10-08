@@ -1,5 +1,5 @@
-#ifndef DSLU_AUTOPTR_HEADER
-#define DSLU_AUTOPTR_HEADER
+#ifndef ANYDSL2_AUTOPTR_HEADER
+#define ANYDSL2_AUTOPTR_HEADER
 
 #include <vector>
 

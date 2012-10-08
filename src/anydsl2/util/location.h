@@ -1,5 +1,5 @@
-#ifndef DSLU_LOCATION_H
-#define DSLU_LOCATION_H
+#ifndef ANYDSL2_LOCATION_H
+#define ANYDSL2_LOCATION_H
 
 #include <string>
 

@@ -1,5 +1,5 @@
-#ifndef DSLU_FOREACH_H
-#define DSLU_FOREACH_H
+#ifndef ANYDSL2_FOREACH_H
+#define ANYDSL2_FOREACH_H
 
 #include <cstddef>
 #include <utility>

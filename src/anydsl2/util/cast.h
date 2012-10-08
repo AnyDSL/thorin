@@ -1,5 +1,5 @@
-#ifndef DSLU_CAST_HEADER
-#define DSLU_CAST_HEADER
+#ifndef ANYDSL2_CAST_HEADER
+#define ANYDSL2_CAST_HEADER
 
 #include <cstring>
 

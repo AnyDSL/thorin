@@ -1,16 +1,16 @@
-#ifndef ANYDSL_CONVOP
-#error "define ANYDSL_CONVOP before including this file"
+#ifndef ANYDSL2_CONVOP
+#error "define ANYDSL2_CONVOP before including this file"
 #endif
 
-ANYDSL_CONVOP(trunc)
-ANYDSL_CONVOP(zext)
-ANYDSL_CONVOP(sext)
-ANYDSL_CONVOP(stof)
-ANYDSL_CONVOP(utof)
-ANYDSL_CONVOP(ftrunc)
-ANYDSL_CONVOP(fext)
-ANYDSL_CONVOP(ftos)
-ANYDSL_CONVOP(ftou)
-ANYDSL_CONVOP(bitcast)
+ANYDSL2_CONVOP(trunc)
+ANYDSL2_CONVOP(zext)
+ANYDSL2_CONVOP(sext)
+ANYDSL2_CONVOP(stof)
+ANYDSL2_CONVOP(utof)
+ANYDSL2_CONVOP(ftrunc)
+ANYDSL2_CONVOP(fext)
+ANYDSL2_CONVOP(ftos)
+ANYDSL2_CONVOP(ftou)
+ANYDSL2_CONVOP(bitcast)
 
-#undef ANYDSL_CONVOP
+#undef ANYDSL2_CONVOP

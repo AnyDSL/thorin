@@ -138,7 +138,7 @@ RefPtr Literal::emit(CodeGen& cg) const {
         case LIT_##itype: akind = anydsl2::PrimType_##atype; break;
 #include "impala/tokenlist.h"
         case LIT_bool: akind = anydsl2::PrimType_u1; break;
-        default: ANYDSL_UNREACHABLE;
+        default: ANYDSL2_UNREACHABLE;
     }
 
     return Ref::create(cg.world.literal(akind, box()));
@@ -192,7 +192,7 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
 
             return Ref::create(cg.world.arithop(anydsl2::ArithOp_sub, zero, def));
         }
-        default: ANYDSL_UNREACHABLE;
+        default: ANYDSL2_UNREACHABLE;
     }
 }
 
@@ -448,13 +448,13 @@ const anydsl2::Type* PrimType::convert(CodeGen& cg) const {
             return cg.world.type_##atype();
 #include "impala/tokenlist.h"
         default:
-            ANYDSL_UNREACHABLE;
+            ANYDSL2_UNREACHABLE;
     }
 }
 
 const anydsl2::Type* Void::convert(CodeGen& cg) const { return cg.world.unit(); }
 const anydsl2::Type* NoRet::convert(CodeGen&) const { return 0; }
-const anydsl2::Type* TypeError::convert(CodeGen&) const { ANYDSL_UNREACHABLE; }
+const anydsl2::Type* TypeError::convert(CodeGen&) const { ANYDSL2_UNREACHABLE; }
 
 const anydsl2::Type* Pi::convert(CodeGen& cg) const {
     size_t size = elems().size();

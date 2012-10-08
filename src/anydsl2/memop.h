@@ -1,5 +1,5 @@
-#ifndef ANYDSL_MEMOP_H
-#define ANYDSL_MEMOP_H
+#ifndef ANYDSL2_MEMOP_H
+#define ANYDSL2_MEMOP_H
 
 #include "anydsl2/primop.h"
 
@@ -149,4 +149,4 @@ public:
 
 } // namespace anydsl2
 
-#endif // ANYDSL_MEMOP_H
+#endif // ANYDSL2_MEMOP_H

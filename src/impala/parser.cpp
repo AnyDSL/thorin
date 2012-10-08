@@ -271,7 +271,7 @@ const Type* Parser::parse_type() {
             assert(i != generics_.end());
             return i->second;
         }
-        default: ANYDSL_UNREACHABLE; // TODO
+        default: ANYDSL2_UNREACHABLE; // TODO
     }
 }
 
@@ -424,7 +424,7 @@ const Stmt* Parser::parse_stmt() {
         case Token::RETURN:    return parse_return();
         case Token::L_BRACE:   return parse_scope();
         case Token::SEMICOLON: return new ScopeStmt(lex().loc());
-        default:               ANYDSL_UNREACHABLE;
+        default:               ANYDSL2_UNREACHABLE;
     }
 }
 
@@ -742,7 +742,7 @@ const Expr* Parser::parse_primary_expr() {
         }
         case Token::L_TUPLE:    return parse_tuple();
         case Token::LAMBDA:     return parse_lambda();
-        default:                ANYDSL_UNREACHABLE;
+        default:                ANYDSL2_UNREACHABLE;
     }
 }
 
@@ -760,7 +760,7 @@ const Expr* Parser::parse_literal() {
             return new Literal(lex().loc(), kind, box); \
         }
 #include "impala/tokenlist.h"
-        default: ANYDSL_UNREACHABLE;
+        default: ANYDSL2_UNREACHABLE;
     }
 }
 

@@ -1,9 +1,9 @@
-#ifndef ANYDSL_NODE_H
-#define ANYDSL_NODE_H
+#ifndef ANYDSL2_NODE_H
+#define ANYDSL2_NODE_H
 
 #include "anydsl2/enums.h"
 #include "anydsl2/util/array.h"
-#include "anydsl2/util/cast.h"
+#include <anydsl2/util/cast.h>
 
 namespace anydsl2 {
 
@@ -100,4 +100,4 @@ struct NodeEqual : std::binary_function<const Node*, const Node*, bool> {
 
 } // namespace anydsl2
 
-#endif // ANYDSL_NODE_H
+#endif // ANYDSL2_NODE_H

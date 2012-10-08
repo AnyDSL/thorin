@@ -1,5 +1,5 @@
-#ifndef ANYDSL_ENUMS_H
-#define ANYDSL_ENUMS_H
+#ifndef ANYDSL2_ENUMS_H
+#define ANYDSL2_ENUMS_H
 
 #include "anydsl2/util/types.h"
 
@@ -9,25 +9,25 @@ namespace anydsl2 {
 
 
 enum NodeKind {
-#define ANYDSL_GLUE(pre, next)
-#define ANYDSL_AIR_NODE(node) Node_##node,
-#define ANYDSL_PRIMTYPE(T) Node_PrimType_##T,
-#define ANYDSL_ARITHOP(op) Node_##op,
-#define ANYDSL_RELOP(op) Node_##op,
-#define ANYDSL_CONVOP(op) Node_##op,
+#define ANYDSL2_GLUE(pre, next)
+#define ANYDSL2_AIR_NODE(node) Node_##node,
+#define ANYDSL2_PRIMTYPE(T) Node_PrimType_##T,
+#define ANYDSL2_ARITHOP(op) Node_##op,
+#define ANYDSL2_RELOP(op) Node_##op,
+#define ANYDSL2_CONVOP(op) Node_##op,
 #include "anydsl2/tables/allnodes.h"
 };
 
 enum Markers {
-#define ANYDSL_GLUE(pre, next) \
+#define ANYDSL2_GLUE(pre, next) \
     End_##pre, \
     Begin_##next = End_##pre, \
     zzz##Begin_##next = Begin_##next - 1,
-#define ANYDSL_AIR_NODE(node) zzzMarker_##node,
-#define ANYDSL_PRIMTYPE(T) zzzMarker_PrimType_##T,
-#define ANYDSL_ARITHOP(op) zzzMarker_##op,
-#define ANYDSL_RELOP(op) zzzMarker_##op,
-#define ANYDSL_CONVOP(op) zzzMarker_##op,
+#define ANYDSL2_AIR_NODE(node) zzzMarker_##node,
+#define ANYDSL2_PRIMTYPE(T) zzzMarker_PrimType_##T,
+#define ANYDSL2_ARITHOP(op) zzzMarker_##op,
+#define ANYDSL2_RELOP(op) zzzMarker_##op,
+#define ANYDSL2_CONVOP(op) zzzMarker_##op,
 #include "anydsl2/tables/allnodes.h"
     End_ConvOp,
     Begin_Node = 0,
@@ -52,22 +52,22 @@ enum Markers {
 };
 
 enum PrimTypeKind {
-#define ANYDSL_UF_TYPE(T) PrimType_##T = Node_PrimType_##T,
+#define ANYDSL2_UF_TYPE(T) PrimType_##T = Node_PrimType_##T,
 #include "anydsl2/tables/primtypetable.h"
 };
 
 enum ArithOpKind {
-#define ANYDSL_ARITHOP(op) ArithOp_##op = Node_##op,
+#define ANYDSL2_ARITHOP(op) ArithOp_##op = Node_##op,
 #include "anydsl2/tables/arithoptable.h"
 };
 
 enum RelOpKind {
-#define ANYDSL_RELOP(op) RelOp_##op = Node_##op,
+#define ANYDSL2_RELOP(op) RelOp_##op = Node_##op,
 #include "anydsl2/tables/reloptable.h"
 };
 
 enum ConvOpKind {
-#define ANYDSL_CONVOP(op) ConvOp_##op = Node_##op,
+#define ANYDSL2_CONVOP(op) ConvOp_##op = Node_##op,
 #include "anydsl2/tables/convoptable.h"
 };
 
@@ -86,14 +86,14 @@ inline bool is_relop(int kind)   { return (int) Begin_RelOp   <= kind && kind < 
 inline bool is_convop(int kind)  { return (int) Begin_ConvOp  <= kind && kind < (int) End_ConvOp; }
 
 template<PrimTypeKind kind> struct kind2type {};
-#define ANYDSL_U_TYPE(T) template<> struct kind2type<PrimType_##T> { typedef T type; };
-#define ANYDSL_F_TYPE(T) template<> struct kind2type<PrimType_##T> { typedef T type; };
+#define ANYDSL2_U_TYPE(T) template<> struct kind2type<PrimType_##T> { typedef T type; };
+#define ANYDSL2_F_TYPE(T) template<> struct kind2type<PrimType_##T> { typedef T type; };
 #include "anydsl2/tables/primtypetable.h"
 
 template<class T> struct type2kind {};
 template<> struct type2kind<bool> { static const PrimTypeKind kind = PrimType_u1; };
-#define ANYDSL_U_TYPE(T) template<> struct type2kind<T> { static const PrimTypeKind kind = PrimType_##T; };
-#define ANYDSL_F_TYPE(T) template<> struct type2kind<T> { static const PrimTypeKind kind = PrimType_##T; };
+#define ANYDSL2_U_TYPE(T) template<> struct type2kind<T> { static const PrimTypeKind kind = PrimType_##T; };
+#define ANYDSL2_F_TYPE(T) template<> struct type2kind<T> { static const PrimTypeKind kind = PrimType_##T; };
 #include "anydsl2/tables/primtypetable.h"
 
 const char* kind2str(PrimTypeKind kind);

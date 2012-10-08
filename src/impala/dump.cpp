@@ -54,12 +54,12 @@ void Fct::dump(Printer& p) const {
 
     if (!generics().empty()) {
         p << '<';
-        ANYDSL_DUMP_COMMA_LIST(p, generics());
+        ANYDSL2_DUMP_COMMA_LIST(p, generics());
         p << '>';
     }
     
     p << '(';
-    ANYDSL_DUMP_COMMA_LIST(p, params());
+    ANYDSL2_DUMP_COMMA_LIST(p, params());
     p << ')';
 
     if (pi()->ret()) {
@@ -103,7 +103,7 @@ void Literal::dump(Printer& p) const {
 
 void Tuple::dump(Printer& p) const {
     p << "#(";
-    ANYDSL_DUMP_COMMA_LIST(p, ops());
+    ANYDSL2_DUMP_COMMA_LIST(p, ops());
     p << ")";
 }
 
@@ -119,7 +119,7 @@ void PrefixExpr::dump(Printer& p) const {
     switch (kind()) {
 #define IMPALA_PREFIX(tok, str, rprec) case tok: op = str; break;
 #include "impala/tokenlist.h"
-        default: ANYDSL_UNREACHABLE;
+        default: ANYDSL2_UNREACHABLE;
     }
 
     p << op;
@@ -175,7 +175,7 @@ void PostfixExpr::dump(Printer& p) const {
     switch (kind()) {
         case INC: op = "++"; break;
         case DEC: op = "--"; break;
-        default: ANYDSL_UNREACHABLE;
+        default: ANYDSL2_UNREACHABLE;
     }
 
     p << op;
@@ -351,13 +351,13 @@ void TypeError::dump(Printer& p) const {
 
 void Sigma::dump(Printer& p) const {
     p << "#(";
-    ANYDSL_DUMP_COMMA_LIST(p, elems());
+    ANYDSL2_DUMP_COMMA_LIST(p, elems());
     p << ")";
 }
 
 void Pi::dump(Printer& p) const {
     p << "pi(";
-    ANYDSL_DUMP_COMMA_LIST(p, elems());
+    ANYDSL2_DUMP_COMMA_LIST(p, elems());
     p << ")";
     
     if (ret()) {

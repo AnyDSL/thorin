@@ -1,5 +1,5 @@
-#ifndef ANYDSL_LITERAL_H
-#define ANYDSL_LITERAL_H
+#ifndef ANYDSL2_LITERAL_H
+#define ANYDSL2_LITERAL_H
 
 #include <vector>
 

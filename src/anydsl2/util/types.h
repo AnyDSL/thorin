@@ -1,5 +1,5 @@
-#ifndef ANYDSL_UTIL_TYPES_H
-#define ANYDSL_UTIL_TYPES_H
+#ifndef ANYDSL2_UTIL_TYPES_H
+#define ANYDSL2_UTIL_TYPES_H
 
 #include <cmath>
 #include <ostream>
@@ -94,11 +94,11 @@ template<> struct make_signed<u32> { typedef i32 type; };
 template<> struct make_signed<u64> { typedef i64 type; };
 
 template<class T> struct is_u_type { static const bool value = false; };
-#define ANYDSL_JUST_U_TYPE(T) template<> struct is_u_type<T> { static const bool value = true; };
+#define ANYDSL2_JUST_U_TYPE(T) template<> struct is_u_type<T> { static const bool value = true; };
 #include "anydsl2/tables/primtypetable.h"
 
 template<class T> struct is_f_type { static const bool value = false; };
-#define ANYDSL_JUST_F_TYPE(T) template<> struct is_u_type<T> { static const bool value = true; };
+#define ANYDSL2_JUST_F_TYPE(T) template<> struct is_u_type<T> { static const bool value = true; };
 #include "anydsl2/tables/primtypetable.h"
 
 
@@ -106,4 +106,4 @@ inline std::ostream& operator << (std::ostream& o, u1 u) { return o << ((unsigne
 
 } // namespace anydsl2
 
-#endif // ANYDSL_UTIL_TYPES_H
+#endif // ANYDSL2_UTIL_TYPES_H

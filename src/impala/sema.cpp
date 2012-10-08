@@ -227,7 +227,7 @@ const Type* Literal::vcheck(Sema& sema) const {
         case Literal::LIT_##itype:  return sema.types.type(PrimType::TYPE_##itype);
 #include "impala/tokenlist.h"
         case Literal::LIT_bool:     return sema.types.type(PrimType::TYPE_bool);
-        default:                    ANYDSL_UNREACHABLE;
+        default:                    ANYDSL2_UNREACHABLE;
     }
 }
 
@@ -297,7 +297,7 @@ const Type* IndexExpr::vcheck(Sema& sema) const {
 #define IMPALA_LIT(itype, atype) \
                     case Literal::LIT_##itype: pos = literal->box().get_##atype(); break;
 #include "impala/tokenlist.h"
-                    default: ANYDSL_UNREACHABLE;
+                    default: ANYDSL2_UNREACHABLE;
                 }
 
                 if (pos < sigma->size())

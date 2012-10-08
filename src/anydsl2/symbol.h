@@ -1,5 +1,5 @@
-#ifndef ANYDSL_SYMBOL_H
-#define ANYDSL_SYMBOL_H
+#ifndef ANYDSL2_SYMBOL_H
+#define ANYDSL2_SYMBOL_H
 
 #include <string>
 #include <cstring>

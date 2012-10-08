@@ -1,5 +1,5 @@
-#ifndef ANYDSL_WORLD_H
-#define ANYDSL_WORLD_H
+#ifndef ANYDSL2_WORLD_H
+#define ANYDSL2_WORLD_H
 
 #include <cassert>
 #include <string>
@@ -77,7 +77,7 @@ public:
      * types
      */
 
-#define ANYDSL_UF_TYPE(T) const PrimType* type_##T() const { return T##_; }
+#define ANYDSL2_UF_TYPE(T) const PrimType* type_##T() const { return T##_; }
 #include "anydsl2/tables/primtypetable.h"
 
     // primitive types
@@ -143,7 +143,7 @@ public:
      * literals
      */
 
-#define ANYDSL_UF_TYPE(T) \
+#define ANYDSL2_UF_TYPE(T) \
     const PrimLit* literal_##T(T val) { return literal(val); } \
     const PrimLit* literal_##T(Box box) { return literal(PrimType_##T, box); }
 #include "anydsl2/tables/primtypetable.h"
@@ -173,15 +173,15 @@ public:
     const Def* binop(int kind, const Def* lhs, const Def* rhs);
 
     const Def* arithop(ArithOpKind kind, const Def* lhs, const Def* rhs);
-#define ANYDSL_ARITHOP(OP) const Def* arithop_##OP(const Def* lhs, const Def* rhs) { return arithop(ArithOp_##OP, lhs, rhs); }
+#define ANYDSL2_ARITHOP(OP) const Def* arithop_##OP(const Def* lhs, const Def* rhs) { return arithop(ArithOp_##OP, lhs, rhs); }
 #include "anydsl2/tables/arithoptable.h"
 
     const Def* relop(RelOpKind kind, const Def* lhs, const Def* rhs);
-#define ANYDSL_RELOP(OP) const Def* relop_##OP(const Def* lhs, const Def* rhs) { return relop(RelOp_##OP, lhs, rhs); }
+#define ANYDSL2_RELOP(OP) const Def* relop_##OP(const Def* lhs, const Def* rhs) { return relop(RelOp_##OP, lhs, rhs); }
 #include "anydsl2/tables/reloptable.h"
 
     const Def* convop(ConvOpKind kind, const Type* to, const Def* from);
-#define ANYDSL_CONVOP(OP) const Def* convop_##OP(const Type* to, const Def* from) { return convop(ConvOp_##OP, to, from); }
+#define ANYDSL2_CONVOP(OP) const Def* convop_##OP(const Type* to, const Def* from) { return convop(ConvOp_##OP, to, from); }
 #include "anydsl2/tables/convoptable.h"
 
     /*
@@ -262,7 +262,7 @@ private:
 
     union {
         struct {
-#define ANYDSL_UF_TYPE(T) const PrimType* T##_;
+#define ANYDSL2_UF_TYPE(T) const PrimType* T##_;
 #include "anydsl2/tables/primtypetable.h"
         };
 

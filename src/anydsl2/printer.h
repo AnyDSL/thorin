@@ -1,5 +1,5 @@
-#ifndef ANYDSL_PRINTER_H
-#define ANYDSL_PRINTER_H
+#ifndef ANYDSL2_PRINTER_H
+#define ANYDSL2_PRINTER_H
 
 #include <iostream>
 
@@ -48,7 +48,7 @@ private:
     bool fancy_;
 };
 
-#define ANYDSL_DUMP_COMMA_LIST(p, list) \
+#define ANYDSL2_DUMP_COMMA_LIST(p, list) \
     const BOOST_TYPEOF((list))& l = (list); \
     if (!l.empty()) { \
         boost::remove_const<BOOST_TYPEOF(l)>::type::const_iterator i = l.begin(), e = l.end() - 1; \

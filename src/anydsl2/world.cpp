@@ -16,16 +16,16 @@
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/for_all.h"
 
-#define ANYDSL_NO_U_TYPE \
+#define ANYDSL2_NO_U_TYPE \
     case PrimType_u1: \
     case PrimType_u8: \
     case PrimType_u16: \
     case PrimType_u32: \
-    case PrimType_u64: ANYDSL_UNREACHABLE;
+    case PrimType_u64: ANYDSL2_UNREACHABLE;
 
-#define ANYDSL_NO_F_TYPE \
+#define ANYDSL2_NO_F_TYPE \
     case PrimType_f32: \
-    case PrimType_f64: ANYDSL_UNREACHABLE;
+    case PrimType_f64: ANYDSL2_UNREACHABLE;
 
 namespace anydsl2 {
 
@@ -42,7 +42,7 @@ World::World()
     , pi0_    (consume(new Pi   (*this, ArrayRef<const Type*>(0, 0)))->as<Pi>())
     , mem_    (consume(new Mem  (*this))->as<Mem>())
     , frame_  (consume(new Frame(*this))->as<Frame>())
-#define ANYDSL_UF_TYPE(T) ,T##_(consume(new PrimType(*this, PrimType_##T))->as<PrimType>())
+#define ANYDSL2_UF_TYPE(T) ,T##_(consume(new PrimType(*this, PrimType_##T))->as<PrimType>())
 #include "anydsl2/tables/primtypetable.h"
 {
     typekeeper(sigma0_);
@@ -86,10 +86,10 @@ const PrimLit* World::literal(PrimTypeKind kind, Box box) {
 
 const PrimLit* World::literal(PrimTypeKind kind, int value) {
     switch (kind) {
-#define ANYDSL_U_TYPE(T) case PrimType_##T: return literal(T(value));
-#define ANYDSL_F_TYPE(T) ANYDSL_U_TYPE(T)
+#define ANYDSL2_U_TYPE(T) case PrimType_##T: return literal(T(value));
+#define ANYDSL2_F_TYPE(T) ANYDSL2_U_TYPE(T)
 #include "anydsl2/tables/primtypetable.h"
-        default: ANYDSL_UNREACHABLE;
+        default: ANYDSL2_UNREACHABLE;
     }
 }
 
@@ -149,71 +149,71 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b) {
         switch (kind) {
             case ArithOp_add:
                 switch (type) {
-#define ANYDSL_UF_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())));
+#define ANYDSL2_UF_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())));
 #include "anydsl2/tables/primtypetable.h"
                 }
             case ArithOp_sub:
                 switch (type) {
-#define ANYDSL_UF_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() - r.get_##T())));
+#define ANYDSL2_UF_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() - r.get_##T())));
 #include "anydsl2/tables/primtypetable.h"
                 }
             case ArithOp_mul:
                 switch (type) {
-#define ANYDSL_UF_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())));
+#define ANYDSL2_UF_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())));
 #include "anydsl2/tables/primtypetable.h"
                 }
             case ArithOp_udiv:
                 switch (type) {
-#define ANYDSL_JUST_U_TYPE(T) \
+#define ANYDSL2_JUST_U_TYPE(T) \
                     case PrimType_##T: \
                         return rlit->is_zero() \
                              ? (const Def*) bottom(rtype) \
                              : (const Def*) literal(type, Box(T(l.get_##T() / r.get_##T())));
 #include "anydsl2/tables/primtypetable.h"
-                    ANYDSL_NO_F_TYPE;
+                    ANYDSL2_NO_F_TYPE;
                 }
             case ArithOp_sdiv:
                 switch (type) {
-#define ANYDSL_JUST_U_TYPE(T) \
+#define ANYDSL2_JUST_U_TYPE(T) \
                     case PrimType_##T: { \
                         typedef make_signed<T>::type S; \
                         return literal(type, Box(bcast<T , S>(bcast<S, T >(l.get_##T()) / bcast<S, T >(r.get_##T())))); \
                     }
 #include "anydsl2/tables/primtypetable.h"
-                    ANYDSL_NO_F_TYPE;
+                    ANYDSL2_NO_F_TYPE;
                 }
             case ArithOp_fadd:
                 switch (type) {
-#define ANYDSL_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())));
+#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())));
 #include "anydsl2/tables/primtypetable.h"
-                    ANYDSL_NO_U_TYPE;
+                    ANYDSL2_NO_U_TYPE;
                 }
             case ArithOp_fsub:
                 switch (type) {
-#define ANYDSL_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() - r.get_##T())));
+#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() - r.get_##T())));
 #include "anydsl2/tables/primtypetable.h"
-                    ANYDSL_NO_U_TYPE;
+                    ANYDSL2_NO_U_TYPE;
                 }
             case ArithOp_fmul:
                 switch (type) {
-#define ANYDSL_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())));
+#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())));
 #include "anydsl2/tables/primtypetable.h"
-                    ANYDSL_NO_U_TYPE;
+                    ANYDSL2_NO_U_TYPE;
                 }
             case ArithOp_fdiv:
                 switch (type) {
-#define ANYDSL_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() / r.get_##T())));
+#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() / r.get_##T())));
 #include "anydsl2/tables/primtypetable.h"
-                    ANYDSL_NO_U_TYPE;
+                    ANYDSL2_NO_U_TYPE;
                 }
             case ArithOp_frem:
                 switch (type) {
-#define ANYDSL_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(std::fmod(l.get_##T(), r.get_##T())));
+#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(std::fmod(l.get_##T(), r.get_##T())));
 #include "anydsl2/tables/primtypetable.h"
-                    ANYDSL_NO_U_TYPE;
+                    ANYDSL2_NO_U_TYPE;
                 }
             default: 
-                ANYDSL_UNREACHABLE;
+                ANYDSL2_UNREACHABLE;
         }
     }
 
@@ -256,74 +256,74 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b) {
         switch (kind) {
             case RelOp_cmp_eq:
                 switch (type) {
-#define ANYDSL_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() == r.get_##T());
+#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() == r.get_##T());
 #include "anydsl2/tables/primtypetable.h"
-                    ANYDSL_NO_F_TYPE;
+                    ANYDSL2_NO_F_TYPE;
                 }
             case RelOp_cmp_ne:
                 switch (type) {
-#define ANYDSL_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() != r.get_##T());
+#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() != r.get_##T());
 #include "anydsl2/tables/primtypetable.h"
-                    ANYDSL_NO_F_TYPE;
+                    ANYDSL2_NO_F_TYPE;
                 }
             case RelOp_cmp_ult:
                 switch (type) {
-#define ANYDSL_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <  r.get_##T());
+#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <  r.get_##T());
 #include "anydsl2/tables/primtypetable.h"
-                    ANYDSL_NO_F_TYPE;
+                    ANYDSL2_NO_F_TYPE;
                 }
             case RelOp_cmp_ule:
                 switch (type) {
-#define ANYDSL_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <= r.get_##T());
+#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <= r.get_##T());
 #include "anydsl2/tables/primtypetable.h"
-                    ANYDSL_NO_F_TYPE;
+                    ANYDSL2_NO_F_TYPE;
                 }
             case RelOp_cmp_slt:
                 switch (type) {
-#define ANYDSL_JUST_U_TYPE(T) \
+#define ANYDSL2_JUST_U_TYPE(T) \
                     case PrimType_##T: { \
                         typedef make_signed< T >::type S; \
                         return literal_u1(bcast<S, T>(l.get_##T()) <  bcast<S, T>(r.get_##T())); \
                     }
 #include "anydsl2/tables/primtypetable.h"
-                    ANYDSL_NO_F_TYPE;
+                    ANYDSL2_NO_F_TYPE;
                 }
             case RelOp_cmp_sle:
                 switch (type) {
-#define ANYDSL_JUST_U_TYPE(T) \
+#define ANYDSL2_JUST_U_TYPE(T) \
                     case PrimType_##T: { \
                         typedef make_signed< T >::type S; \
                         return literal_u1(bcast<S, T>(l.get_##T()) <= bcast<S, T>(r.get_##T())); \
                     }
 #include "anydsl2/tables/primtypetable.h"
-                    ANYDSL_NO_F_TYPE;
+                    ANYDSL2_NO_F_TYPE;
                 }
             case RelOp_fcmp_oeq:
                 switch (type) {
-#define ANYDSL_JUST_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() == r.get_##T());
+#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() == r.get_##T());
 #include "anydsl2/tables/primtypetable.h"
-                    ANYDSL_NO_U_TYPE;
+                    ANYDSL2_NO_U_TYPE;
                 }
             case RelOp_fcmp_one:
                 switch (type) {
-#define ANYDSL_JUST_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() != r.get_##T());
+#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() != r.get_##T());
 #include "anydsl2/tables/primtypetable.h"
-                    ANYDSL_NO_U_TYPE;
+                    ANYDSL2_NO_U_TYPE;
                 }
             case RelOp_fcmp_olt:
                 switch (type) {
-#define ANYDSL_JUST_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <  r.get_##T());
+#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <  r.get_##T());
 #include "anydsl2/tables/primtypetable.h"
-                    ANYDSL_NO_U_TYPE;
+                    ANYDSL2_NO_U_TYPE;
                 }
             case RelOp_fcmp_ole:
                 switch (type) {
-#define ANYDSL_JUST_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <= r.get_##T());
+#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <= r.get_##T());
 #include "anydsl2/tables/primtypetable.h"
-                    ANYDSL_NO_U_TYPE;
+                    ANYDSL2_NO_U_TYPE;
                 }
             default: 
-                ANYDSL_UNREACHABLE;
+                ANYDSL2_UNREACHABLE;
         }
     }
 

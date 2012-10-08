@@ -1,5 +1,5 @@
-#ifndef ANYDSL_DEF_H
-#define ANYDSL_DEF_H
+#ifndef ANYDSL2_DEF_H
+#define ANYDSL2_DEF_H
 
 #include <cstring>
 #include <iterator>
@@ -166,7 +166,7 @@ class Param : public Def {
 private:
 
     Param(const Type* type, Lambda* parent, size_t index);
-    virtual Param* clone() const { ANYDSL_UNREACHABLE; }
+    virtual Param* clone() const { ANYDSL2_UNREACHABLE; }
 
     virtual bool equal(const Node* other) const;
     virtual size_t hash() const;

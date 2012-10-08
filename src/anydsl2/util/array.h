@@ -1,5 +1,5 @@
-#ifndef ANYDSL_ARRAY_H
-#define ANYDSL_ARRAY_H
+#ifndef ANYDSL2_ARRAY_H
+#define ANYDSL2_ARRAY_H
 
 #include <cstddef>
 #include <cstring>

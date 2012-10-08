@@ -231,7 +231,7 @@ void BB::emit() {
         assert(out_.empty() && "edge is critical");
         cur_->branch(cond_, tbb_->top(), fbb_->top());
     } else
-        ANYDSL_UNREACHABLE;
+        ANYDSL2_UNREACHABLE;
 }
 
 //------------------------------------------------------------------------------

@@ -1,5 +1,5 @@
-#ifndef ANYDSL_CFG_H
-#define ANYDSL_CFG_H
+#ifndef ANYDSL2_CFG_H
+#define ANYDSL2_CFG_H
 
 #include <string>
 #include <vector>

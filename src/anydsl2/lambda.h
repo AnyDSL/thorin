@@ -1,5 +1,5 @@
-#ifndef ANYDSL_LAMBDA_H
-#define ANYDSL_LAMBDA_H
+#ifndef ANYDSL2_LAMBDA_H
+#define ANYDSL2_LAMBDA_H
 
 #include <vector>
 #include <boost/unordered_set.hpp>
@@ -30,7 +30,7 @@ public:
         Extern = 1 << 0,
     };
 
-    virtual Lambda* clone() const { ANYDSL_UNREACHABLE; }
+    virtual Lambda* clone() const { ANYDSL2_UNREACHABLE; }
     Lambda* stub() const;
 
     const Param* append_param(const Type* type);

@@ -1,37 +1,37 @@
-#ifndef ANYDSL_AIR_NODE
-#error "define ANYDSL_AIR_NODE before including this file"
+#ifndef ANYDSL2_AIR_NODE
+#error "define ANYDSL2_AIR_NODE before including this file"
 #endif
 
 // Def
-    ANYDSL_AIR_NODE(Lambda)
+    ANYDSL2_AIR_NODE(Lambda)
     // PrimOp
         // Literal
-            ANYDSL_AIR_NODE(PrimLit)
-            ANYDSL_AIR_NODE(Undef)
-            ANYDSL_AIR_NODE(Bottom)
-            ANYDSL_AIR_NODE(TypeKeeper)
+            ANYDSL2_AIR_NODE(PrimLit)
+            ANYDSL2_AIR_NODE(Undef)
+            ANYDSL2_AIR_NODE(Bottom)
+            ANYDSL2_AIR_NODE(TypeKeeper)
         // MemOp
-            ANYDSL_AIR_NODE(Load)
-            ANYDSL_AIR_NODE(Store)
-            ANYDSL_AIR_NODE(Enter)
-            ANYDSL_AIR_NODE(Leave)
-            ANYDSL_AIR_NODE(Free)
-        ANYDSL_AIR_NODE(Slot)
-        //ANYDSL_AIR_NODE(ArithOp)
-        //ANYDSL_AIR_NODE(RelOp)
-        //ANYDSL_AIR_NODE(ConvOp)
-        ANYDSL_AIR_NODE(Extract)
-        ANYDSL_AIR_NODE(Insert)
-        ANYDSL_AIR_NODE(Tuple)
-        ANYDSL_AIR_NODE(Select)
-    ANYDSL_AIR_NODE(Param)
+            ANYDSL2_AIR_NODE(Load)
+            ANYDSL2_AIR_NODE(Store)
+            ANYDSL2_AIR_NODE(Enter)
+            ANYDSL2_AIR_NODE(Leave)
+            ANYDSL2_AIR_NODE(Free)
+        ANYDSL2_AIR_NODE(Slot)
+        //ANYDSL2_AIR_NODE(ArithOp)
+        //ANYDSL2_AIR_NODE(RelOp)
+        //ANYDSL2_AIR_NODE(ConvOp)
+        ANYDSL2_AIR_NODE(Extract)
+        ANYDSL2_AIR_NODE(Insert)
+        ANYDSL2_AIR_NODE(Tuple)
+        ANYDSL2_AIR_NODE(Select)
+    ANYDSL2_AIR_NODE(Param)
     // Type
         // PrimType
-        ANYDSL_AIR_NODE(Frame)
-        ANYDSL_AIR_NODE(Generic)
-        ANYDSL_AIR_NODE(Mem)
-        ANYDSL_AIR_NODE(Pi)
-        ANYDSL_AIR_NODE(Ptr)
-        ANYDSL_AIR_NODE(Sigma)
+        ANYDSL2_AIR_NODE(Frame)
+        ANYDSL2_AIR_NODE(Generic)
+        ANYDSL2_AIR_NODE(Mem)
+        ANYDSL2_AIR_NODE(Pi)
+        ANYDSL2_AIR_NODE(Ptr)
+        ANYDSL2_AIR_NODE(Sigma)
 
-#undef ANYDSL_AIR_NODE
+#undef ANYDSL2_AIR_NODE

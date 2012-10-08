@@ -1,5 +1,5 @@
-#ifndef ANYDSL_BE_LLVM_H
-#define ANYDSL_BE_LLVM_H
+#ifndef ANYDSL2_BE_LLVM_H
+#define ANYDSL2_BE_LLVM_H
 
 namespace anydsl2 {
 

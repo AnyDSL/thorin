@@ -339,7 +339,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (const Undef* undef = def->isa<Undef>())
         return llvm::UndefValue::get(convert(undef->type()));
 
-    ANYDSL_UNREACHABLE;
+    ANYDSL2_UNREACHABLE;
 }
 
 llvm::Type* CodeGen::convert(const Type* type) {
@@ -387,7 +387,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
             return llvm::StructType::get(context_, llvm_ref(elems));
         }
 
-        default: ANYDSL_UNREACHABLE;
+        default: ANYDSL2_UNREACHABLE;
     }
 }
 

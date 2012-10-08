@@ -55,7 +55,7 @@ Token::Token(const Location& loc, Kind kind, const std::string& str)
         case LIT_float:  box_ = Box(strtof(symbol_.str(), 0)); break;
         case LIT_double: box_ = Box(strtod(symbol_.str(), 0)); break;
 
-        default: ANYDSL_UNREACHABLE;
+        default: ANYDSL2_UNREACHABLE;
     }
 }
 
@@ -100,7 +100,7 @@ TokenKind Token::seperateAssign(TokenKind kind) {
         case XOR_ASGN: return XOR;
         case SHL_ASGN: return SHL;
         case SHR_ASGN: return SHR;
-        default: ANYDSL_UNREACHABLE;
+        default: ANYDSL2_UNREACHABLE;
     }
 }
 
@@ -121,7 +121,7 @@ int Token::toBinOp(Kind kind) {
         case  LE: return anydsl2::RelOp_cmp_ule;
         case  GT: return anydsl2::RelOp_cmp_ugt;
         case  GE: return anydsl2::RelOp_cmp_uge;
-        default: ANYDSL_UNREACHABLE;
+        default: ANYDSL2_UNREACHABLE;
     }
 }
 
@@ -136,7 +136,7 @@ anydsl2::ArithOpKind Token::toArithOp(Kind kind) {
         case AND: return anydsl2::ArithOp_and;
         case  OR: return anydsl2::ArithOp_or;
         case XOR: return anydsl2::ArithOp_xor;
-        default: ANYDSL_UNREACHABLE;
+        default: ANYDSL2_UNREACHABLE;
     }
 }
 
@@ -148,7 +148,7 @@ anydsl2::RelOpKind Token::toRelOp(Kind kind) {
         case LE: return anydsl2::RelOp_cmp_ule;
         case GT: return anydsl2::RelOp_cmp_ugt;
         case GE: return anydsl2::RelOp_cmp_uge;
-        default: ANYDSL_UNREACHABLE;
+        default: ANYDSL2_UNREACHABLE;
     }
 }
 
@@ -157,7 +157,7 @@ anydsl2::PrimTypeKind Token::toPrimType(Kind kind) {
 #define IMPALA_TYPE(itype, atype) \
         case Token:: TYPE_ ## itype: return anydsl2::PrimType_##atype;
 #include "impala/tokenlist.h"
-        default: ANYDSL_UNREACHABLE;
+        default: ANYDSL2_UNREACHABLE;
     }
 }
 
@@ -175,7 +175,7 @@ Token::Tok2Str Token::tok2str_;
  */
 
 void Token::init() {
-    ANYDSL_CALL_ONCE;
+    ANYDSL2_CALL_ONCE;
 
     /*
      * - set pre-/in-/postfix operators

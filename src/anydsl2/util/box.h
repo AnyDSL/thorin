@@ -1,5 +1,5 @@
-#ifndef ANYDSL_DSLU_BOX_H
-#define ANYDSL_DSLU_BOX_H
+#ifndef ANYDSL2_DSLU_BOX_H
+#define ANYDSL2_DSLU_BOX_H
 
 #include <cstring>
 
@@ -32,7 +32,7 @@ public:
     }
 
     template <typename T>
-    inline T get() { ANYDSL_UNREACHABLE; }
+    inline T get() { ANYDSL2_UNREACHABLE; }
 
      u1  get_u1() const { return u1(bool_); }
      u8  get_u8() const { return u8_; }
@@ -74,4 +74,4 @@ template <> inline void* Box::get<void*>() { return ptr_; }
 
 } // namespace anydsl2
 
-#endif // ANYDSL_DSLU_BOX_H
+#endif // ANYDSL2_DSLU_BOX_H

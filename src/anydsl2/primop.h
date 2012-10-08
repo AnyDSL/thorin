@@ -1,5 +1,5 @@
-#ifndef ANYDSL_PRIMOP_H
-#define ANYDSL_PRIMOP_H
+#ifndef ANYDSL2_PRIMOP_H
+#define ANYDSL2_PRIMOP_H
 
 #include <boost/array.hpp>
 

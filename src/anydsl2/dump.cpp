@@ -30,10 +30,10 @@ void TypeKeeper::vdump(Printer& p) const {
 
 void PrimLit::vdump(Printer& p) const {
 	switch (primtype_kind()) {
-#define ANYDSL_UF_TYPE(T) case PrimType_##T: p.o << box().get_##T(); break;
+#define ANYDSL2_UF_TYPE(T) case PrimType_##T: p.o << box().get_##T(); break;
 #include "anydsl2/tables/primtypetable.h"
 	default:
-		ANYDSL_UNREACHABLE;
+		ANYDSL2_UNREACHABLE;
 		break;
 	}
 
@@ -52,11 +52,11 @@ static void dump_name_and_type(Printer& p, const Def* def, const char* name) {
 void BinOp::vdump(Printer& p) const {
     const char* name;
 	switch (node_kind()) {
-#define ANYDSL_ARITHOP(op) case Node_##op: name = #op; break;
+#define ANYDSL2_ARITHOP(op) case Node_##op: name = #op; break;
 #include "anydsl2/tables/arithoptable.h"
-#define ANYDSL_RELOP(op)   case Node_##op: name = #op; break;
+#define ANYDSL2_RELOP(op)   case Node_##op: name = #op; break;
 #include "anydsl2/tables/reloptable.h"
-        default: ANYDSL_UNREACHABLE;
+        default: ANYDSL2_UNREACHABLE;
 	}
 
     dump_name_and_type(p, this, name);
@@ -69,9 +69,9 @@ void BinOp::vdump(Printer& p) const {
 void ConvOp::vdump(Printer& p) const {
     const char* name;
     switch (convop_kind()) {
-#define ANYDSL_CONVOP(op) case Node_##op: name = #op; break;
+#define ANYDSL2_CONVOP(op) case Node_##op: name = #op; break;
 #include "anydsl2/tables/convoptable.h"
-        default: ANYDSL_UNREACHABLE;
+        default: ANYDSL2_UNREACHABLE;
     }
 
     dump_name_and_type(p, this, name);
@@ -109,42 +109,42 @@ void Tuple::vdump(Printer& p) const {
     p.dump(type());
     p << ')';
 	p << "{";
-	ANYDSL_DUMP_COMMA_LIST(p, ops());
+	ANYDSL2_DUMP_COMMA_LIST(p, ops());
 	p << "}";
 }
 
 void Load::vdump(Printer& p) const {
     dump_name_and_type(p, this, "load");
     p << '(';
-	ANYDSL_DUMP_COMMA_LIST(p, ops());
+	ANYDSL2_DUMP_COMMA_LIST(p, ops());
     p << ')';
 }
 
 void Store::vdump(Printer& p) const {
     dump_name_and_type(p, this, "store");
     p << '(';
-	ANYDSL_DUMP_COMMA_LIST(p, ops());
+	ANYDSL2_DUMP_COMMA_LIST(p, ops());
     p << ')';
 }
 
 void Enter::vdump(Printer& p) const {
     dump_name_and_type(p, this, "enter");
     p << '(';
-	ANYDSL_DUMP_COMMA_LIST(p, ops());
+	ANYDSL2_DUMP_COMMA_LIST(p, ops());
     p << ')';
 }
 
 void Leave::vdump(Printer& p) const {
     dump_name_and_type(p, this, "leave");
     p << '(';
-	ANYDSL_DUMP_COMMA_LIST(p, ops());
+	ANYDSL2_DUMP_COMMA_LIST(p, ops());
     p << ')';
 }
 
 void Slot::vdump(Printer& p) const {
     dump_name_and_type(p, this, "slot");
     p << '(';
-	ANYDSL_DUMP_COMMA_LIST(p, ops());
+	ANYDSL2_DUMP_COMMA_LIST(p, ops());
     p << ')';
 }
 
@@ -154,7 +154,7 @@ void Slot::vdump(Printer& p) const {
 
 void CompoundType::dump_inner(Printer& p) const {
 	p << "(";
-	ANYDSL_DUMP_COMMA_LIST(p, elems());
+	ANYDSL2_DUMP_COMMA_LIST(p, elems());
 	p << ")";
 }
 
@@ -173,10 +173,10 @@ void Ptr::vdump(Printer& p) const {
 
 void PrimType::vdump(Printer& p) const {
 	switch (primtype_kind()) {
-#define ANYDSL_UF_TYPE(T) case Node_PrimType_##T: p << #T; return;
+#define ANYDSL2_UF_TYPE(T) case Node_PrimType_##T: p << #T; return;
 #include "anydsl2/tables/primtypetable.h"
 	default:
-		ANYDSL_UNREACHABLE;
+		ANYDSL2_UNREACHABLE;
 		break;
 	}
 }
@@ -243,7 +243,7 @@ void Lambda::dump(bool fancy, int indent) const {
 
 	p.dump_name(this);
 	p << " = lambda(";
-    ANYDSL_DUMP_COMMA_LIST(p, params());
+    ANYDSL2_DUMP_COMMA_LIST(p, params());
 	p << ") : ";
     p.dump(type());
     if (is_extern())
@@ -256,7 +256,7 @@ void Lambda::dump(bool fancy, int indent) const {
         p << "jump(";
         p.dump(to());
         p << ", [";
-        ANYDSL_DUMP_COMMA_LIST(p, args());
+        ANYDSL2_DUMP_COMMA_LIST(p, args());
         p  << "])";
     }
 	p.down();

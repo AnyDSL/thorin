@@ -1,5 +1,5 @@
-#ifndef ANYDSL_REF_H
-#define ANYDSL_REF_H
+#ifndef ANYDSL2_REF_H
+#define ANYDSL2_REF_H
 
 #include <memory>
 
@@ -38,7 +38,7 @@ public:
     {}
 
     virtual const Def* load() const { return def_; }
-    virtual void store(const Def* val) const { ANYDSL_UNREACHABLE; }
+    virtual void store(const Def* val) const { ANYDSL2_UNREACHABLE; }
     virtual World& world() const;
 
 private:
@@ -90,4 +90,4 @@ RefPtr Ref::create(RefPtr lref, u32 index) { return RefPtr(new TupleRef(lref, in
 
 } // namespace anydsl2
 
-#endif // ANYDSL_REF_H
+#endif // ANYDSL2_REF_H

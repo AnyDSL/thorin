@@ -1,44 +1,44 @@
-#ifndef ANYDSL_GLUE
-#error "define ANYDSL_GLUE before including this file"
+#ifndef ANYDSL2_GLUE
+#error "define ANYDSL2_GLUE before including this file"
 #endif
 
-#ifndef ANYDSL_AIR_NODE
-#error "define ANYDSL_AIR_NODE before including this file"
+#ifndef ANYDSL2_AIR_NODE
+#error "define ANYDSL2_AIR_NODE before including this file"
 #endif
 
-#ifndef ANYDSL_PRIMTYPE
-#error "define ANYDSL_PRIMTYPE before including this file"
+#ifndef ANYDSL2_PRIMTYPE
+#error "define ANYDSL2_PRIMTYPE before including this file"
 #endif
 
-#ifndef ANYDSL_ARITHOP
-#error "define ANYDSL_ARITHOP before including this file"
+#ifndef ANYDSL2_ARITHOP
+#error "define ANYDSL2_ARITHOP before including this file"
 #endif
 
-#ifndef ANYDSL_RELOP
-#error "define ANYDSL_RELOP before including this file"
+#ifndef ANYDSL2_RELOP
+#error "define ANYDSL2_RELOP before including this file"
 #endif
 
-#ifndef ANYDSL_CONVOP
-#error "define ANYDSL_CONVOP before including this file"
+#ifndef ANYDSL2_CONVOP
+#error "define ANYDSL2_CONVOP before including this file"
 #endif
 
 #include "anydsl2/tables/nodetable.h"
-    ANYDSL_GLUE(Node, PrimType_u)
-#define ANYDSL_JUST_U_TYPE(T) ANYDSL_PRIMTYPE(T)
+    ANYDSL2_GLUE(Node, PrimType_u)
+#define ANYDSL2_JUST_U_TYPE(T) ANYDSL2_PRIMTYPE(T)
 #include "anydsl2/tables/primtypetable.h"
-    ANYDSL_GLUE(PrimType_u, PrimType_f)
-#define ANYDSL_JUST_F_TYPE(T) ANYDSL_PRIMTYPE(T)
+    ANYDSL2_GLUE(PrimType_u, PrimType_f)
+#define ANYDSL2_JUST_F_TYPE(T) ANYDSL2_PRIMTYPE(T)
 #include "anydsl2/tables/primtypetable.h"
-    ANYDSL_GLUE(PrimType_f, ArithOp)
+    ANYDSL2_GLUE(PrimType_f, ArithOp)
 #include "anydsl2/tables/arithoptable.h"
-    ANYDSL_GLUE(ArithOp, RelOp)
+    ANYDSL2_GLUE(ArithOp, RelOp)
 #include "anydsl2/tables/reloptable.h"
-    ANYDSL_GLUE(RelOp, ConvOp)
+    ANYDSL2_GLUE(RelOp, ConvOp)
 #include "anydsl2/tables/convoptable.h"
 
-#undef ANYDSL_GLUE
-#undef ANYDSL_AIR_NODE
-#undef ANYDSL_PRIMTYPE
-#undef ANYDSL_ARITHOP
-#undef ANYDSL_RELOP
-#undef ANYDSL_CONVOP
+#undef ANYDSL2_GLUE
+#undef ANYDSL2_AIR_NODE
+#undef ANYDSL2_PRIMTYPE
+#undef ANYDSL2_ARITHOP
+#undef ANYDSL2_RELOP
+#undef ANYDSL2_CONVOP

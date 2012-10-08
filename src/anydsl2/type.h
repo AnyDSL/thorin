@@ -1,5 +1,5 @@
-#ifndef ANYDSL_TYPE_H
-#define ANYDSL_TYPE_H
+#ifndef ANYDSL2_TYPE_H
+#define ANYDSL2_TYPE_H
 
 #include <iterator>
 

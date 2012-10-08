@@ -98,7 +98,7 @@ const PrimType* TypeTable::type(PrimType::Kind kind) {
 #define IMPALA_TYPE(itype, atype) \
         case PrimType::TYPE_##itype: return itype##_;
 #include "impala/tokenlist.h"
-        default: ANYDSL_UNREACHABLE;
+        default: ANYDSL2_UNREACHABLE;
     }
 }
 

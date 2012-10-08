@@ -3,8 +3,8 @@
 
 #include <boost/program_options.hpp>
 
-#include "anydsl/analyses/domtree.h"
-#include "anydsl/be/llvm.h"
+#include "anydsl2/analyses/domtree.h"
+#include "anydsl2/be/llvm.h"
 
 #include "impala/ast.h"
 #include "impala/parser.h"

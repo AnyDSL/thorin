@@ -3,7 +3,7 @@
 
 #include <istream>
 
-#include "anydsl/util/location.h"
+#include "anydsl2/util/location.h"
 #include "impala/token.h"
 
 namespace impala {

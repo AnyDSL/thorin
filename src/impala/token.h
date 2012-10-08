@@ -6,11 +6,11 @@
 
 #include <boost/unordered_map.hpp>
 
-#include "anydsl/enums.h"
-#include "anydsl/symbol.h"
-#include "anydsl/util/box.h"
-#include "anydsl/util/assert.h"
-#include "anydsl/util/location.h"
+#include "anydsl2/enums.h"
+#include "anydsl2/symbol.h"
+#include "anydsl2/util/box.h"
+#include "anydsl2/util/assert.h"
+#include "anydsl2/util/location.h"
 
 namespace impala {
 

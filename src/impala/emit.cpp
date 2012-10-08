@@ -2,14 +2,14 @@
 
 #include <boost/unordered_map.hpp>
 
-#include "anydsl/cfg.h"
-#include "anydsl/lambda.h"
-#include "anydsl/literal.h"
-#include "anydsl/ref.h"
-#include "anydsl/type.h"
-#include "anydsl/world.h"
-#include "anydsl/util/array.h"
-#include "anydsl/util/for_all.h"
+#include "anydsl2/cfg.h"
+#include "anydsl2/lambda.h"
+#include "anydsl2/literal.h"
+#include "anydsl2/ref.h"
+#include "anydsl2/type.h"
+#include "anydsl2/world.h"
+#include "anydsl2/util/array.h"
+#include "anydsl2/util/for_all.h"
 
 #include "impala/type.h"
 

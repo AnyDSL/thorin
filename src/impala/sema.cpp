@@ -3,8 +3,8 @@
 #include <stack>
 #include <boost/unordered_map.hpp>
 
-#include "anydsl/util/array.h"
-#include "anydsl/util/for_all.h"
+#include "anydsl2/util/array.h"
+#include "anydsl2/util/for_all.h"
 
 #include "impala/dump.h"
 #include "impala/type.h"

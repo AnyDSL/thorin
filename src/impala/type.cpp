@@ -3,8 +3,8 @@
 #include <iterator>
 #include <boost/functional/hash.hpp>
 
-#include "anydsl/util/cast.h"
-#include "anydsl/util/for_all.h"
+#include "anydsl2/util/cast.h"
+#include "anydsl2/util/for_all.h"
 
 using anydsl2::Symbol;
 

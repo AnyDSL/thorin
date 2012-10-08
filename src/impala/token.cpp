@@ -1,8 +1,8 @@
 #include <impala/token.h>
 
-#include "anydsl/util/assert.h"
-#include "anydsl/util/cast.h"
-#include "anydsl/util/stdlib.h"
+#include "anydsl2/util/assert.h"
+#include "anydsl2/util/cast.h"
+#include "anydsl2/util/stdlib.h"
 
 using anydsl2::Box;
 using anydsl2::HasLocation;

@@ -1,7 +1,7 @@
 #include "impala/ast.h"
 
-#include "anydsl/cfg.h"
-#include "anydsl/util/cast.h"
+#include "anydsl2/cfg.h"
+#include "anydsl2/util/cast.h"
 
 #include "impala/type.h"
 

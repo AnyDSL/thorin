@@ -3,8 +3,8 @@
 
 #include <boost/unordered_set.hpp>
 
-#include "anydsl/symbol.h"
-#include "anydsl/util/array.h"
+#include "anydsl2/symbol.h"
+#include "anydsl2/util/array.h"
 
 #include "impala/token.h"
 

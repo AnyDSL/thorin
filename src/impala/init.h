@@ -1,7 +1,7 @@
 #ifndef IMPALA_INIT_H
 #define IMPALA_INIT_H
 
-#include "anydsl/world.h"
+#include "anydsl2/world.h"
 
 #include "impala/type.h"
 

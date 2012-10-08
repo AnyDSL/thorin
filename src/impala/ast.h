@@ -3,13 +3,13 @@
 
 #include <vector>
 
-#include "anydsl/util/array.h"
-#include "anydsl/util/assert.h"
-#include "anydsl/util/autoptr.h"
-#include "anydsl/util/box.h"
-#include "anydsl/util/cast.h"
-#include "anydsl/util/location.h"
-#include "anydsl/util/types.h"
+#include "anydsl2/util/array.h"
+#include "anydsl2/util/assert.h"
+#include "anydsl2/util/autoptr.h"
+#include "anydsl2/util/box.h"
+#include "anydsl2/util/cast.h"
+#include "anydsl2/util/location.h"
+#include "anydsl2/util/types.h"
 
 #include "impala/token.h"
 

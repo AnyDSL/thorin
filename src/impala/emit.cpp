@@ -1,6 +1,7 @@
 #include "impala/ast.h"
 
 #include <boost/unordered_map.hpp>
+#include <iostream>
 
 #include "anydsl2/cfg.h"
 #include "anydsl2/lambda.h"

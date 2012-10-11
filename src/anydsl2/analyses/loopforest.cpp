@@ -4,6 +4,7 @@
 #include "anydsl2/analyses/scope.h"
 
 #include <algorithm>
+#include <iostream>
 
 namespace anydsl2 {
 

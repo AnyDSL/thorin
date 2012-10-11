@@ -9,6 +9,8 @@
 #include "anydsl2/world.h"
 #include "anydsl2/util/array.h"
 
+#include <iostream>
+
 namespace anydsl2 {
 
 BB::BB(Fct* fct, const std::string& debug) 

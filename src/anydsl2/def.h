@@ -115,6 +115,7 @@ protected:
 public:
 
     void set_op(size_t i, const Def* def);
+    void set_all(ArrayRef<const Def*> all);
     void unset_op(size_t i);
 
     Lambda* as_lambda() const;

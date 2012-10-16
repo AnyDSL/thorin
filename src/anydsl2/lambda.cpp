@@ -193,6 +193,7 @@ class Dropper {
 public:
 
     typedef boost::unordered_map<const Def*, const Def*> Old2New;
+    typedef boost::unordered_set<const Def*> Cached;
 
     Dropper(Lambda* olambda, ArrayRef<size_t> args, ArrayRef<const Def*> with)
         : scope(olambda)
@@ -202,10 +203,9 @@ public:
     {}
 
     Lambda* drop();
-    void drop_head(Lambda* olambda);
     void drop_body(Lambda* olambda, Lambda* nlambda);
-    const Def* drop_target(const Def* to);
-    void drop(const PrimOp* primop);
+    const Def* drop(const Def* odef);
+    const Def* drop(bool& is_new, const Def* odef);
 
     Scope scope;
     ArrayRef<size_t> args;
@@ -214,6 +214,7 @@ public:
     Lambda* nentry;
     Lambda* oentry;
     Old2New old2new;
+    Cached cached;
 };
 
 Lambda* Lambda::drop(ArrayRef<size_t> args, ArrayRef<const Def*> with) {
@@ -228,14 +229,14 @@ Lambda* Dropper::drop() {
     oentry = scope.entry();
     const Pi* o_pi = oentry->pi();
 
-    size_t o_numargs = o_pi->size();
+    size_t o_numparams = o_pi->size();
     size_t numdrop = args.size();
-    size_t n_numargs = o_numargs - numdrop;
+    size_t n_numparams = o_numparams - numdrop;
 
-    Array<const Type*> elems(n_numargs);
+    Array<const Type*> elems(n_numparams);
 
-    for (size_t i = 0, a = 0, e = 0; i < o_numargs; ++i) {
-        if (a < o_numargs && args[a] == i)
+    for (size_t i = 0, a = 0, e = 0; i < o_numparams; ++i) {
+        if (a < o_numparams && args[a] == i)
             ++a;
         else
             elems[e++] = o_pi->elem(i);
@@ -246,19 +247,19 @@ Lambda* Dropper::drop() {
     nentry->debug = oentry->debug + ".dropped";
 
     // put in params for entry (oentry)
-    for (size_t i = 0, a = 0, n = 0; i < o_numargs; ++i) {
-        const Param* oparam = oentry->param(i);
-        if (a < o_numargs && args[a] == i) {
-            const Def* w = with[a++];
-            old2new[oparam] = w; //with[a++];
-        } else {
-            const Param* nparam = nentry->param(n++);
+    // op -> iterates over old params
+    // np -> iterates over new params
+    //  a -> iterates over args
+    for (size_t op = 0, np = 0, a = 0; op < o_numparams; ++op) {
+        const Param* oparam = oentry->param(op);
+        if (a < args.size() && args[a] == op)
+            old2new[oparam] = with[a++];
+        else {
+            const Param* nparam = nentry->param(np++);
             nparam->debug = oparam->debug + ".dropped";
             old2new[oparam] = nparam;
         }
     }
-
-    //old2new[oentry] = nentry;
 
     // create stubs for all other lambdas and put their params into the map
     for_all (olambda, scope.rpo().slice_back(1)) {
@@ -275,84 +276,64 @@ Lambda* Dropper::drop() {
     drop_body(oentry, nentry);
 
     for_all (cur, scope.rpo().slice_back(1))
-        drop_body(cur, (Lambda*) old2new[cur]);
+        drop_body(cur, old2new[cur]->as_lambda());
 
     return nentry;
 }
 
 void Dropper::drop_body(Lambda* olambda, Lambda* nlambda) {
-    for_all (param, olambda->params()) {
-        for_all (use, param->uses())
-            if (const PrimOp* primop = use.def()->isa<PrimOp>())
-                drop(primop);
-    }
+    Array<const Def*> ops(olambda->ops().size());
+    for (size_t i = 0, e = ops.size(); i != e; ++i)
+        ops[i] = drop(olambda->op(i));
 
-    Array<const Def*> args(olambda->args().size());
-    for (size_t i = 0; i < args.size(); ++i) {
-        const Def* odef = olambda->arg(i);
-        Old2New::iterator iter = old2new.find(odef);
-        if (iter != old2new.end())
-            args[i] = iter->second;
-        else
-            args[i] = odef;
-    }
-
-    nlambda->jump(drop_target(olambda->to()), args);
+    nlambda->jump(ops.front(), ops.slice_back(1));
 }
 
-void Dropper::drop(const PrimOp* oprimop) {
-    PrimOp* nprimop = oprimop->stub();
+const Def* Dropper::drop(const Def* odef) {
+    bool ignore;
+    return drop(ignore, odef);
+}
 
-    size_t i = 0; 
+const Def* Dropper::drop(bool& is_new, const Def* odef) {
+    Old2New::iterator o_iter = old2new.find(odef);
+    if (o_iter != old2new.end()) {
+        is_new = true;
+        return o_iter->second;
+    }
+
+    Cached::iterator c_iter = cached.find(odef);
+    if (c_iter != cached.end()) {
+        assert(odef == *c_iter);
+        is_new = false;
+        return odef;
+    }
+
+    if (odef->isa<Lambda>() || odef->isa<Param>()) {
+        cached.insert(odef);
+        is_new = false;
+        return odef;
+    }
+
+    const PrimOp* oprimop = odef->as<PrimOp>();
+
+    Array<const Def*> nops(oprimop->size());
+    size_t i = 0;
+    is_new = false;
     for_all (op, oprimop->ops()) {
-        Old2New::iterator iter = old2new.find(op);
-        if (iter != old2new.end())
-            nprimop->set_op(i++, iter->second);
-        else if (op->is_const())
-            nprimop->set_op(i++, op);
-        else if (const Param* oparam = op->isa<Param>()) {
-            if (scope.contains(oparam->lambda()))
-                nprimop->set_op(i++, op);
-        } else if (Lambda* lambda = op->isa_lambda()) {
-            LambdaSet::iterator iter = scope.lambdas().find(lambda);
-            if (iter == scope.lambdas().end())
-                nprimop->set_op(i++, op);
-        }
+        bool op_is_new;
+        nops[i++] = drop(op_is_new, op);
+        is_new |= op_is_new;
     }
 
-    old2new[oprimop] = world.consume(nprimop);
-
-    for_all (use, oprimop->uses())
-        if (const PrimOp* oprimop = use.def()->isa<PrimOp>())
-            drop(oprimop);
-}
-
-const Def* Dropper::drop_target(const Def* to) {
-    Old2New::iterator iter = old2new.find(to);
-    if (iter != old2new.end())
-        return iter->second;
-
-    if (const PrimOp* oprimop = to->isa<PrimOp>()) {
-        Array<const Def*> ops(oprimop->size());
-
-        size_t i = 0; 
-        for_all (op, oprimop->ops()) {
-            Old2New::iterator iter = old2new.find(op);
-            if (iter != old2new.end())
-                ops[i++] = iter->second;
-            else if (op->is_const())
-                ops[i++] = op;
-            else
-                ops[i++] = drop_target(op);
-        }
-
+    if (is_new) {
         PrimOp* nprimop = oprimop->stub();
-        nprimop->update(ops);
-
-        return old2new[oprimop] = world.consume(nprimop);
+        nprimop->set_all(nops);
+        old2new[oprimop] = nprimop;
+        return world.consume(nprimop);
     }
 
-    return to;
+    cached.insert(oprimop);
+    return odef;
 }
 
 } // namespace anydsl2

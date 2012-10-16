@@ -41,6 +41,12 @@ Def::~Def() {
     }
 }
 
+void Def::set_all(ArrayRef<const Def*> all) {
+    assert(size() == all.size());
+    for (size_t i = 0, e = all.size(); i != e; ++i)
+        set_op(i, all[i]);
+}
+
 void Def::set_op(size_t i, const Def* def) {
     assert(!op(i) && "already set");
     Use use(i, this);

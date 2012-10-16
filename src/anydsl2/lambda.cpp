@@ -171,22 +171,19 @@ void Lambda::branch(const Def* cond, const Def* tto, const Def*  fto) {
     return jump(world().select(cond, tto, fto), ArrayRef<const Def*>(0, 0));
 }
 
-Lambda* Lambda::drop(size_t i, const Def* with) {
+Lambda* Lambda::drop(size_t i, const Def* with, bool self) {
     const Def* awith[] = { with };
     size_t args[] = { i };
 
-    return drop(args, awith);
+    return drop(args, awith, self);
 }
 
-Lambda* Lambda::drop(ArrayRef<const Def*> with) {
-    if (with.empty())
-        return this;
-
+Lambda* Lambda::drop(ArrayRef<const Def*> with, bool self) {
     Array<size_t> args(with.size());
     for (size_t i = 0, e = args.size(); i < e; ++i)
         args[i] = i;
 
-    return drop(args, with);
+    return drop(args, with, self);
 }
 
 class Dropper {
@@ -195,11 +192,12 @@ public:
     typedef boost::unordered_map<const Def*, const Def*> Old2New;
     typedef boost::unordered_set<const Def*> Cached;
 
-    Dropper(Lambda* olambda, ArrayRef<size_t> args, ArrayRef<const Def*> with)
+    Dropper(Lambda* olambda, ArrayRef<size_t> args, ArrayRef<const Def*> with, bool self)
         : scope(olambda)
         , args(args)
         , with(with)
         , world(olambda->world())
+        , self(self)
     {}
 
     Lambda* drop();
@@ -211,17 +209,15 @@ public:
     ArrayRef<size_t> args;
     ArrayRef<const Def*> with;
     World& world;
+    bool self;
     Lambda* nentry;
     Lambda* oentry;
     Old2New old2new;
     Cached cached;
 };
 
-Lambda* Lambda::drop(ArrayRef<size_t> args, ArrayRef<const Def*> with) {
-    if (with.empty())
-        return this;
-
-    Dropper dropper(this, args, with);
+Lambda* Lambda::drop(ArrayRef<size_t> args, ArrayRef<const Def*> with, bool self) {
+    Dropper dropper(this, args, with, self);
     return dropper.drop();
 }
 
@@ -286,7 +282,35 @@ void Dropper::drop_body(Lambda* olambda, Lambda* nlambda) {
     for (size_t i = 0, e = ops.size(); i != e; ++i)
         ops[i] = drop(olambda->op(i));
 
-    nlambda->jump(ops.front(), ops.slice_back(1));
+    ArrayRef<const Def*> nargs(ops.slice_back(1));  // new args of nlambda
+    const Def* ntarget = ops.front();               // new target of nlambda
+
+    // check whether we can optimize tail recursion
+    if (self && ntarget == oentry) {
+        bool substitute = true;
+        for (size_t i = 0, e = args.size(); i != e && substitute; ++i)
+            substitute &= nargs[args[i]] == with[i];
+
+        if (substitute) {                           // yes, we can
+            // sargs -> substituted args for tail call optimization
+            Array<const Def*> sargs(nargs.size() - args.size());
+
+            // na -> iterates over nargs
+            // sa -> iterates over sargs
+            //  a -> iterates over  args
+            for (size_t na = 0, sa = 0, a = 0, e = nargs.size(); na != e; ++na) {
+                if (a < args.size() && args[a] == na)
+                    ++a;
+                else
+                    sargs[sa++] = nargs[na];
+            }
+
+            nlambda->jump(nentry, sargs);
+            return;
+        }
+    }
+
+    nlambda->jump(ntarget, nargs);
 }
 
 const Def* Dropper::drop(const Def* odef) {

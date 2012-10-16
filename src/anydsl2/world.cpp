@@ -593,7 +593,7 @@ void World::opt() {
             ifelse = lambda;
     }
 
-    Lambda* dropped = helper->drop(3, fac->param(1));
+    Lambda* dropped = helper->drop(3, fac->param(1), true);
     ifelse->unset_op(4);
     ifelse->shrink(4);
     ifelse->update(0, dropped);

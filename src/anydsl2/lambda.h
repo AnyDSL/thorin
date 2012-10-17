@@ -95,7 +95,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     void branch(const Def* cond, const Def* tto, const Def* fto);
 
     Lambda* drop(size_t i, const Def* with, bool self);
-    Lambda* drop(ArrayRef<size_t> args, ArrayRef<const Def*> with, bool self);
+    Lambda* drop(ArrayRef<size_t> indices, ArrayRef<const Def*> with, bool self);
     Lambda* drop(ArrayRef<const Def*> with, bool self);
 
 private:

@@ -65,7 +65,10 @@ public:
      *      of your pass/analysis.
      * }
      */
-    mutable void* ptr;
+    union {
+        mutable void* ptr;
+        mutable const void* cptr;
+    };
 
     /*
      * scratch operations

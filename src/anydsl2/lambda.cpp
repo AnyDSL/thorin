@@ -173,17 +173,17 @@ void Lambda::branch(const Def* cond, const Def* tto, const Def*  fto) {
 
 Lambda* Lambda::drop(size_t i, const Def* with, bool self) {
     const Def* awith[] = { with };
-    size_t args[] = { i };
+    size_t indices[] = { i };
 
-    return drop(args, awith, self);
+    return drop(indices, awith, self);
 }
 
 Lambda* Lambda::drop(ArrayRef<const Def*> with, bool self) {
-    Array<size_t> args(with.size());
-    for (size_t i = 0, e = args.size(); i < e; ++i)
-        args[i] = i;
+    Array<size_t> indices(with.size());
+    for (size_t i = 0, e = indices.size(); i < e; ++i)
+        indices[i] = i;
 
-    return drop(args, with, self);
+    return drop(indices, with, self);
 }
 
 class Dropper {
@@ -192,9 +192,9 @@ public:
     typedef boost::unordered_map<const Def*, const Def*> Old2New;
     typedef boost::unordered_set<const Def*> Cached;
 
-    Dropper(Lambda* olambda, ArrayRef<size_t> args, ArrayRef<const Def*> with, bool self)
+    Dropper(Lambda* olambda, ArrayRef<size_t> indices, ArrayRef<const Def*> with, bool self)
         : scope(olambda)
-        , args(args)
+        , indices(indices)
         , with(with)
         , world(olambda->world())
         , self(self)
@@ -206,7 +206,7 @@ public:
     const Def* drop(bool& is_new, const Def* odef);
 
     Scope scope;
-    ArrayRef<size_t> args;
+    ArrayRef<size_t> indices;
     ArrayRef<const Def*> with;
     World& world;
     bool self;
@@ -216,8 +216,8 @@ public:
     Cached cached;
 };
 
-Lambda* Lambda::drop(ArrayRef<size_t> args, ArrayRef<const Def*> with, bool self) {
-    Dropper dropper(this, args, with, self);
+Lambda* Lambda::drop(ArrayRef<size_t> indices, ArrayRef<const Def*> with, bool self) {
+    Dropper dropper(this, indices, with, self);
     return dropper.drop();
 }
 
@@ -226,30 +226,30 @@ Lambda* Dropper::drop() {
     const Pi* o_pi = oentry->pi();
 
     size_t o_numparams = o_pi->size();
-    size_t numdrop = args.size();
+    size_t numdrop = indices.size();
     size_t n_numparams = o_numparams - numdrop;
 
-    Array<const Type*> elems(n_numparams);
+    Array<const Type*> nelems(n_numparams);
 
-    for (size_t i = 0, a = 0, e = 0; i < o_numparams; ++i) {
-        if (a < o_numparams && args[a] == i)
-            ++a;
+    for (size_t oe = 0, i = 0, ne = 0; oe < o_numparams; ++oe) {
+        if (i < o_numparams && indices[i] == oe)
+            ++i;
         else
-            elems[e++] = o_pi->elem(i);
+            nelems[ne++] = o_pi->elem(oe);
     }
 
-    const Pi* n_pi = world.pi(elems);
+    const Pi* n_pi = world.pi(nelems);
     nentry = world.lambda(n_pi);
     nentry->debug = oentry->debug + ".dropped";
 
     // put in params for entry (oentry)
     // op -> iterates over old params
     // np -> iterates over new params
-    //  a -> iterates over args
-    for (size_t op = 0, np = 0, a = 0; op < o_numparams; ++op) {
+    //  a -> iterates over indices
+    for (size_t op = 0, np = 0, i = 0; op < o_numparams; ++op) {
         const Param* oparam = oentry->param(op);
-        if (a < args.size() && args[a] == op)
-            old2new[oparam] = with[a++];
+        if (i < indices.size() && indices[i] == op)
+            old2new[oparam] = with[i++];
         else {
             const Param* nparam = nentry->param(np++);
             nparam->debug = oparam->debug + ".dropped";
@@ -288,19 +288,19 @@ void Dropper::drop_body(Lambda* olambda, Lambda* nlambda) {
     // check whether we can optimize tail recursion
     if (self && ntarget == oentry) {
         bool substitute = true;
-        for (size_t i = 0, e = args.size(); i != e && substitute; ++i)
-            substitute &= nargs[args[i]] == with[i];
+        for (size_t i = 0, e = indices.size(); i != e && substitute; ++i)
+            substitute &= nargs[indices[i]] == with[i];
 
         if (substitute) {                           // yes, we can
             // sargs -> substituted args for tail call optimization
-            Array<const Def*> sargs(nargs.size() - args.size());
+            Array<const Def*> sargs(nargs.size() - indices.size());
 
             // na -> iterates over nargs
             // sa -> iterates over sargs
-            //  a -> iterates over  args
-            for (size_t na = 0, sa = 0, a = 0, e = nargs.size(); na != e; ++na) {
-                if (a < args.size() && args[a] == na)
-                    ++a;
+            //  a -> iterates over  indices
+            for (size_t na = 0, sa = 0, i = 0, e = nargs.size(); na != e; ++na) {
+                if (i < indices.size() && indices[i] == na)
+                    ++i;
                 else
                     sargs[sa++] = nargs[na];
             }

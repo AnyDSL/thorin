@@ -46,18 +46,34 @@ def fac_my_while(n : int) -> int
     n = 42;
 }
 
-def my_while<L, O>(l : L,
-                head : pi(L, pi(#(L, bool)), 
-                body : pi(L, pi(L)), 
-                next : pi(O)) 
+def my_while<L, B>(l : L,
+                   head : pi(L, pi(B, bool)), 
+                   body : pi(B, pi(L)), 
+                   next : pi(B)) 
 {
-    h : #(L, bool) := head(l);
+    b : B, cond : bool = := head(l);
 
-    if (h[1]) {
-        b : L := body(l);
-        my_while(b, head, body, next);
-    } else {
-        next(l);
-    }
+    if (cond)
+        my_while(body(b), head, body, next);
+    else
+        next(b);
 }
 
+
+monadic
+def my_while<O>(head : pi(pi(bool)), 
+                body : pi(pi()), 
+                next : pi(O)) 
+{
+    if (head())
+        my_while(body(), head, body, next);
+    else
+        next();
+}
+
+
+
+
+def monadic<mem> f(i : int) -> int {
+    j : var(int) = 42;
+}

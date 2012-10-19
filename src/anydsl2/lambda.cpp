@@ -245,7 +245,7 @@ Lambda* Dropper::drop() {
     // put in params for entry (oentry)
     // op -> iterates over old params
     // np -> iterates over new params
-    //  a -> iterates over indices
+    //  i -> iterates over indices
     for (size_t op = 0, np = 0, i = 0; op < o_numparams; ++op) {
         const Param* oparam = oentry->param(op);
         if (i < indices.size() && indices[i] == op)
@@ -297,7 +297,7 @@ void Dropper::drop_body(Lambda* olambda, Lambda* nlambda) {
 
             // na -> iterates over nargs
             // sa -> iterates over sargs
-            //  a -> iterates over  indices
+            //  i -> iterates over  indices
             for (size_t na = 0, sa = 0, i = 0, e = nargs.size(); na != e; ++na) {
                 if (i < indices.size() && indices[i] == na)
                     ++i;

@@ -28,7 +28,7 @@ void Fct::set(const Decl* decl, const ScopeStmt* body) {
     set_loc(decl->pos1(), body->pos2());
 }
 
-bool Fct::continuation() const { return pi()->ret()->is_noret(); }
+bool Fct::continuation() const { return pi()->ret()->isa<NoRet>(); }
 const Pi* Fct::pi() const { return decl_->type()->as<Pi>(); }
 Symbol Fct::symbol() const { return decl_->symbol(); }
 

@@ -268,7 +268,7 @@ const Type* InfixExpr::vcheck(Sema& sema) const {
                 sema.error(lhs()) << "no lvalue on left-hand side of assignment\n";
         }
 
-        if (lhs()->type()->is_error())
+        if (lhs()->type()->isa<TypeError>())
             return rhs()->type();
         else
             return lhs()->type();
@@ -395,7 +395,7 @@ void ReturnStmt::check(Sema& sema) const {
     if (!fct()->continuation()) {
         const Pi* pi = fct()->pi();
 
-        if (!pi->ret()->is_noret()) {
+        if (!pi->ret()->isa<NoRet>()) {
             if (pi->ret() == expr()->check(sema))
                 return;
             else

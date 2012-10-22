@@ -464,7 +464,7 @@ const anydsl2::Type* Pi::convert(CodeGen& cg) const {
     for (size_t i = 0; i < size; ++i)
         types[i] = elems()[i]->convert(cg);
 
-    if (!ret()->is_noret())
+    if (!ret()->isa<NoRet>())
         types[size++] = cg.world.pi1(ret()->convert(cg));
 
     return cg.world.pi(types.slice_front(size));

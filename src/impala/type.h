@@ -28,11 +28,7 @@ public:
     virtual const anydsl2::Type* convert(CodeGen&) const = 0;
 
     virtual bool is_bool() const { return false; }
-    virtual bool is_error() const { return false; }
     virtual bool is_int() const { return false; }
-    virtual bool is_noret() const { return false; }
-    virtual bool is_void() const { return false; }
-    virtual bool is_generic() const { return false; }
 
 private:
 
@@ -90,7 +86,6 @@ public:
 
     virtual void dump(Printer& p) const;
     virtual const anydsl2::Type* convert(CodeGen&) const;
-    virtual bool is_void() const { return true; }
 
     friend class TypeTable;
 };
@@ -102,13 +97,11 @@ private:
 
     virtual bool equal(const Type* t) const;
     virtual size_t hash() const;
-    virtual bool is_noret() const { return true; }
 
 public:
 
     virtual void dump(Printer& p) const;
     virtual const anydsl2::Type* convert(CodeGen&) const;
-    virtual bool is_void() const { return true; }
 
     friend class TypeTable;
 };
@@ -125,7 +118,6 @@ public:
 
     virtual void dump(Printer& p) const;
     virtual const anydsl2::Type* convert(CodeGen&) const;
-    virtual bool is_error() const { return true; }
 
     friend class TypeTable;
 };
@@ -200,7 +192,6 @@ public:
 
     virtual void dump(Printer& p) const;
     virtual const anydsl2::Type* convert(CodeGen&) const;
-    virtual bool is_void() const { return true; }
 
     anydsl2::Symbol id_;
     const Fct* fct_;

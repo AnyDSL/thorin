@@ -28,7 +28,6 @@ public:
         Extern = 1 << 0,
     };
 
-    virtual Lambda* clone() const { ANYDSL2_UNREACHABLE; }
     Lambda* stub() const;
 
     const Param* append_param(const Type* type);

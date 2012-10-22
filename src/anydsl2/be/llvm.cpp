@@ -121,7 +121,7 @@ void CodeGen::emit() {
             // create phi node stubs (for all non-cascading lambdas different from entry)
             if (!lambda->is_cascading() && lambda != scope.entry()) {
                 for_all (param, lambda->params())
-                    phis_[param] = builder_.CreatePHI(convert(param->type()), param->phi().size(), param->debug);
+                    phis_[param] = builder_.CreatePHI(convert(param->type()), param->peek().size(), param->debug);
             }
 
             std::vector<const PrimOp*> primops = places[lambda->sid()];
@@ -172,8 +172,8 @@ void CodeGen::emit() {
             const Param* param = p.first;
             llvm::PHINode* phi = p.second;
 
-            for_all (op, param->phi())
-                phi->addIncoming(lookup(op.def()), bbs[op.from()->sid()]);
+            for_all (peek, param->peek())
+                phi->addIncoming(lookup(peek.def()), bbs[peek.from()->sid()]);
         }
 
         params_.clear();

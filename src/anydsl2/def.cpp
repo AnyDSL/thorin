@@ -135,16 +135,16 @@ Param::Param(const Type* type, Lambda* lambda, size_t index)
     , index_(index)
 {}
 
-PhiOps Param::phi() const {
+Peeks Param::peek() const {
     size_t x = index();
     Lambda* l = lambda();
     LambdaSet preds = l->preds();
 
-    PhiOps result(preds.size());
+    Peeks result(preds.size());
 
     size_t i = 0;
     for_all (pred, preds)
-        result[i++] = PhiOp(pred->arg(x), pred);
+        result[i++] = Peek(pred->arg(x), pred);
 
     return result;
 }

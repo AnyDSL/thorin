@@ -28,11 +28,11 @@ class World;
 
 //------------------------------------------------------------------------------
 
-class PhiOp {
+class Peek {
 public:
 
-    PhiOp() {}
-    PhiOp(const Def* def, Lambda* from)
+    Peek() {}
+    Peek(const Def* def, Lambda* from)
         : def_(def)
         , from_(from)
     {}
@@ -46,7 +46,7 @@ private:
     Lambda* from_;
 };
 
-typedef Array<PhiOp> PhiOps;
+typedef Array<Peek> Peeks;
 
 inline const Def* const& op_as_def(const Node* const* ptr) { 
     assert( !(*ptr) || (*ptr)->as<Def>());
@@ -176,7 +176,7 @@ public:
 
     Lambda* lambda() const { return lambda_; }
     size_t index() const { return index_; }
-    PhiOps phi() const;
+    Peeks peek() const;
     virtual void vdump(Printer& printer) const;
 
 private:

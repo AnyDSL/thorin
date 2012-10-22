@@ -495,9 +495,9 @@ void World::dce_insert(const Def* def) {
         for_all (pred, lambda->preds())
             dce_insert(pred);
     } else if (const Param* param = def->isa<Param>()) {
-        for_all (op, param->phi()) {
-            dce_insert(op.def());
-            dce_insert(op.from());
+        for_all (peek, param->peek()) {
+            dce_insert(peek.def());
+            dce_insert(peek.from());
         }
 
         // always consider all params in the same lambda as live

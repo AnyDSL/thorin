@@ -45,8 +45,8 @@ public:
     /// Just do what ever you want with this field.
     mutable std::string debug;
 
-    template<class T, class U, U const& (*Hook)(const T*)>
-    ArrayRef<T, U, Hook> ops_ref() const { return ArrayRef<T, U, Hook>(ops_); }
+    template<class T>
+    ArrayRef<T> ops_ref() const { return ops_.cast<T>(); }
 
     void alloc(size_t size) { ops_.alloc(size); }
     void shrink(size_t newsize) { ops_.shrink(newsize); }

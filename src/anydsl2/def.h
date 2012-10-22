@@ -53,7 +53,7 @@ inline const Def* const& op_as_def(const Node* const* ptr) {
     return *((const Def* const*) ptr); 
 }
 
-typedef ArrayRef<const Node*, const Def*, op_as_def> Defs;
+typedef ArrayRef<const Def*> Defs;
 
 //------------------------------------------------------------------------------
 
@@ -138,7 +138,7 @@ public:
     const Type* type() const { return type_; }
     World& world() const;
 
-    Defs ops() const { return ops_ref<const Node*, const Def*, op_as_def>(); }
+    Defs ops() const { return ops_ref<const Def*>(); }
     Defs ops(size_t begin, size_t end) const { return ops().slice(begin, end); }
     const Def* op(size_t i) const { return ops()[i]; }
 

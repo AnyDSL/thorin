@@ -39,12 +39,12 @@ protected:
 
 public:
 
-    typedef ArrayRef<const Node*, const Type*, op_as_type> Args;
+    typedef ArrayRef<const Type*> Args;
 
     void dump() const;
     void dump(bool fancy) const;
     World& world() const { return world_; }
-    Args args() const { return ops_ref<const Node*, const Type*, op_as_type>(); }
+    Args args() const { return ops_ref<const Type*>(); }
     const Type* arg(size_t i) const { return args()[i]; }
     const Ptr* to_ptr() const;
     virtual void vdump(Printer &printer) const = 0;
@@ -140,17 +140,21 @@ protected:
 
 public:
 
-    typedef ArrayRef<const Node*, const Type*, op_as_type> Elems;
-    typedef ArrayRef<const Node*, const Generic*, op_as_generic> Generics;
+    typedef ArrayRef<const Type*> Elems;
+    typedef ArrayRef<const Generic*> Generics;
 
-    Elems elems() const { return ops_ref<const Node*, const Type*, op_as_type>(); }
+    Elems elems() const { return ops_ref<const Type*>().slice_back(num_generics_); }
     const Type* elem(size_t i) const { return elems()[i]; }
-    Generics generics() const { return ops_ref<const Node*, const Generic*, op_as_generic>(); }
+
+    Generics generics() const { return ops_ref<const Generic*>().slice_front(num_generics_); }
     const Generic* generic(size_t i) const { return generics()[i]; }
+
+    size_t num_generics() const { return num_generics_; }
+    size_t num_elems() const { return size() - num_generics(); }
 
 private:
 
-    size_t begin_elems_;
+    size_t num_generics_;
 };
 
 //------------------------------------------------------------------------------

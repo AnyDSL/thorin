@@ -481,7 +481,9 @@ const anydsl2::Type* Sigma::convert(CodeGen& cg) const {
 }
 
 const anydsl2::Type* Generic::convert(CodeGen& cg) const {
-    return cg.fcts[fct()->symbol()]->top_->append_generic();
+    // TODO
+    return 0;
+    //return cg.fcts[fct()->symbol()]->top_->append_generic();
 }
 
 } // namespace impala

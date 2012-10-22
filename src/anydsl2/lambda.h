@@ -9,14 +9,12 @@
 
 namespace anydsl2 {
 
-class Generic;
 class Lambda;
 class Pi;
 
 typedef boost::unordered_set<Lambda*> LambdaSet;
 
 typedef std::vector<const Param*> Params;
-typedef std::vector<const Generic*> Generics;
 
 class Lambda : public Def {
 private:
@@ -34,7 +32,6 @@ public:
     Lambda* stub() const;
 
     const Param* append_param(const Type* type);
-    const Generic* append_generic();
 
     Array<const Param*> fo_params() const;
     Array<const Param*> ho_params() const;
@@ -49,8 +46,6 @@ public:
     LambdaSet preds() const;
     const Params& params() const { return params_; }
     const Param* param(size_t i) const { return params_[i]; }
-    const Generics& generics() const { return generics_; }
-    const Generic* generic(size_t i) const { return generics_[i]; }
     const Def* to() const { return op(0); };
     Defs args() const { return ops().slice_back(1); }
     const Def* arg(size_t i) const { return args()[i]; }
@@ -110,7 +105,6 @@ private:
     size_t gid_; ///< global index
     uint32_t flags_;
     Params params_;
-    Generics generics_;;
     size_t sid_; ///< scope index
 
     friend class World;

@@ -115,6 +115,9 @@ public:
         return sigma(types);
     }
     const Sigma* sigma(ArrayRef<const Type*> elems) { return consume(new Sigma(*this, elems))->as<Sigma>(); }
+    const Sigma* sigma(ArrayRef<const Generic*> generics, ArrayRef<const Type*> elems) { 
+        return consume(new Sigma(*this, generics, elems))->as<Sigma>(); 
+    }
 
     /// Creates a fresh \em named sigma.
     Sigma* named_sigma(size_t num_elems, size_t num_generics, const std::string& name = "");
@@ -141,6 +144,9 @@ public:
         return pi(types);
     }
     const Pi* pi(ArrayRef<const Type*> elems) { return consume(new Pi(*this, elems))->as<Pi>(); }
+    const Pi* pi(ArrayRef<const Generic*> generics, ArrayRef<const Type*> elems) { 
+        return consume(new Pi(*this, generics, elems))->as<Pi>(); 
+    }
 
     /*
      * literals

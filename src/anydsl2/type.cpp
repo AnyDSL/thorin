@@ -23,12 +23,26 @@ PrimType::PrimType(World& world, PrimTypeKind kind)
 
 CompoundType::CompoundType(World& world, int kind, size_t num_generics, size_t num_elems)
     : Type(world, kind, num_generics + num_elems)
+    , num_generics_(num_generics)
 {}
 
 CompoundType::CompoundType(World& world, int kind, ArrayRef<const Type*> elems)
     : Type(world, kind, elems.size())
+    , num_generics_(0)
 {
     size_t x = 0;
+    for_all (elem, elems)
+        set(x++, elem);
+}
+
+CompoundType::CompoundType(World& world, int kind, ArrayRef<const Generic*> generics, 
+                                                   ArrayRef<const Type*> elems)
+    : Type(world, kind, generics.size() + elems.size())
+    , num_generics_(generics.size())
+{
+    size_t x = 0;
+    for_all (generic, generics)
+        set(x++, generic);
     for_all (elem, elems)
         set(x++, elem);
 }

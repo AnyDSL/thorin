@@ -19,16 +19,6 @@ class World;
 
 //------------------------------------------------------------------------------
 
-inline const Type* const& op_as_type(const Node* const* ptr) { 
-    assert( !(*ptr) || (*ptr)->as<Type>());
-    return *((const Type* const*) ptr); 
-}
-
-inline const Generic* const& op_as_generic(const Node* const* ptr) { 
-    assert( !(*ptr) || (*ptr)->as<Generic>());
-    return *((const Generic* const*) ptr); 
-}
-
 class Type : public Node {
 protected:
 
@@ -225,9 +215,10 @@ public:
     Lambda* lambda() const { return lambda_; }
     size_t index() const { return index_; }
 
+    virtual void vdump(Printer& printer) const;
+
 private:
 
-    virtual void vdump(Printer& printer) const;
     virtual size_t hash() const;
     virtual bool equal(const Node* other) const;
 

@@ -32,7 +32,6 @@ bool ConvOp::equal(const Node* other) const {
 size_t ConvOp::hash() const {
     size_t seed = Def::hash();
     boost::hash_combine(seed, type());
-
     return seed;
 }
 
@@ -64,7 +63,6 @@ bool TupleOp::equal(const Node* other) const {
 size_t TupleOp::hash() const {
     size_t seed = Def::hash();
     boost::hash_combine(seed, index());
-
     return seed;
 }
 
@@ -88,9 +86,9 @@ Insert::Insert(const Def* tuple, u32 index, const Def* value)
 Tuple::Tuple(World& world, ArrayRef<const Def*> args) 
     : PrimOp(Node_Tuple, args.size(), (const Type*) 0)
 {
-    if (ops().empty()) {
+    if (ops().empty())
         set_type(world.sigma0());
-    } else {
+    else {
         Array<const Type*> types(ops().size());
         size_t x = 0;
         for_all (arg, args) {

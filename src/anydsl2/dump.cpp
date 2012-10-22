@@ -153,9 +153,15 @@ void Slot::vdump(Printer& p) const {
  */
 
 void CompoundType::dump_inner(Printer& p) const {
-	p << "(";
+    if (num_generics()) {
+        p << '<';
+        ANYDSL2_DUMP_COMMA_LIST(p, generics());
+        p << '>';
+    }
+
+	p << '(';
 	ANYDSL2_DUMP_COMMA_LIST(p, elems());
-	p << ")";
+	p << ')';
 }
 
 void Mem::vdump(Printer& p) const { 
@@ -193,12 +199,10 @@ void Pi::vdump(Printer& p) const {
 }
 
 void Generic::vdump(Printer &p) const {
-    p << "generic(";
     if (debug.empty())
         p << this;
     else
         p << debug;
-    p << ')';
 }
 
 void Lambda::vdump(Printer& p) const {

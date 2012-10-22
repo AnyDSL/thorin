@@ -133,7 +133,7 @@ const Prg* parse(TypeTable& types, std::istream& i, const std::string& filename,
 
 
 /*
- * constructor and destructor
+ * constructor
  */
 
 Parser::Parser(TypeTable& types, std::istream& stream, const std::string& filename)

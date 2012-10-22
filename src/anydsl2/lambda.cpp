@@ -38,12 +38,15 @@ const Pi* Lambda::pi() const { return type()->as<Pi>(); }
 const Pi* Lambda::to_pi() const { return to()->type()->as<Pi>(); }
 
 const Param* Lambda::append_param(const Type* type) {
-    size_t size = pi()->elems().size();
+    size_t size = pi()->num_elems();
 
     Array<const Type*> elems(size + 1);
     *std::copy(pi()->elems().begin(), pi()->elems().end(), elems.begin()) = type;
+
+    // update type
     set_type(world().pi(pi()->generics(), elems));
 
+    // append new param
     const Param* param = new Param(type, this, size);
     params_.push_back(param);
 

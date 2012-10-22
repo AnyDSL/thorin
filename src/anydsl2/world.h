@@ -114,7 +114,9 @@ public:
         const Type* types[3] = {t1, t2, t3};
         return sigma(types);
     }
-    const Sigma* sigma(ArrayRef<const Type*> elems) { return consume(new Sigma(*this, elems))->as<Sigma>(); }
+    const Sigma* sigma(ArrayRef<const Type*> elems) { 
+        return consume(new Sigma(*this, ArrayRef<const Generic*>(), elems))->as<Sigma>(); 
+    }
     const Sigma* sigma(ArrayRef<const Generic*> generics, ArrayRef<const Type*> elems) { 
         return consume(new Sigma(*this, generics, elems))->as<Sigma>(); 
     }
@@ -143,7 +145,9 @@ public:
         const Type* types[3] = {t1, t2, t3};
         return pi(types);
     }
-    const Pi* pi(ArrayRef<const Type*> elems) { return consume(new Pi(*this, elems))->as<Pi>(); }
+    const Pi* pi(ArrayRef<const Type*> elems) { 
+        return consume(new Pi(*this, ArrayRef<const Generic*>(), elems))->as<Pi>(); 
+    }
     const Pi* pi(ArrayRef<const Generic*> generics, ArrayRef<const Type*> elems) { 
         return consume(new Pi(*this, generics, elems))->as<Pi>(); 
     }

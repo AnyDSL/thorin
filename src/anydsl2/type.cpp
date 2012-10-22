@@ -26,15 +26,6 @@ CompoundType::CompoundType(World& world, int kind, size_t num_generics, size_t n
     , num_generics_(num_generics)
 {}
 
-CompoundType::CompoundType(World& world, int kind, ArrayRef<const Type*> elems)
-    : Type(world, kind, elems.size())
-    , num_generics_(0)
-{
-    size_t x = 0;
-    for_all (elem, elems)
-        set(x++, elem);
-}
-
 CompoundType::CompoundType(World& world, int kind, ArrayRef<const Generic*> generics, 
                                                    ArrayRef<const Type*> elems)
     : Type(world, kind, generics.size() + elems.size())
@@ -45,6 +36,16 @@ CompoundType::CompoundType(World& world, int kind, ArrayRef<const Generic*> gene
         set(x++, generic);
     for_all (elem, elems)
         set(x++, elem);
+}
+
+size_t CompoundType::hash() const {
+    size_t seed = Type::hash();
+    boost::hash_combine(seed, num_generics_);
+    return seed;
+}
+
+bool CompoundType::equal(const Node* other) const {
+    return Type::equal(other) && num_generics() == other->as<CompoundType>()->num_generics();
 }
 
 //------------------------------------------------------------------------------

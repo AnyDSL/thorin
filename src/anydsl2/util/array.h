@@ -24,6 +24,14 @@ public:
     typedef const T* const_iterator;
     typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
+    ArrayRef()
+        : ptr_(0)
+        , size_(0)
+    {}
+    ArrayRef(const ArrayRef<T>& ref)
+        : ptr_(ref.ptr_)
+        , size_(ref.size_)
+    {}
     template<size_t N>
     ArrayRef(T (&array)[N])
         : ptr_(&array[0])
@@ -74,7 +82,7 @@ public:
     }
 
     template<class U>
-    ArrayRef<U> cast() const { return ArrayRef<U>(static_cast<const U*>(ptr_), size_); }
+    ArrayRef<U> cast() const { return ArrayRef<U>((const U*) ptr_, size_); }
 
 private:
 
@@ -149,8 +157,7 @@ public:
 
     void shrink(size_t newsize) { assert(newsize <= size_); size_ = newsize; }
 
-    template<class U>
-    ArrayRef<U> cast() const { return ArrayRef<U>(((const U*) ptr_), size_); }
+    ArrayRef<T> ref() const { return ArrayRef<T>(ptr_, size_); }
 
 private:
 

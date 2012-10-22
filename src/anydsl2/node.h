@@ -46,7 +46,7 @@ public:
     mutable std::string debug;
 
     template<class T>
-    ArrayRef<T> ops_ref() const { return ops_.cast<T>(); }
+    ArrayRef<T> ops_ref() const { return ops_.ref().cast<T>(); }
 
     void alloc(size_t size) { ops_.alloc(size); }
     void shrink(size_t newsize) { ops_.shrink(newsize); }

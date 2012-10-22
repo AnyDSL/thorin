@@ -132,9 +132,10 @@ class CompoundType : public Type {
 protected:
 
     CompoundType(World& world, int kind, size_t num_generics, size_t num_elems);
-    CompoundType(World& world, int kind, ArrayRef<const Type*> elems);
     CompoundType(World& world, int kind, ArrayRef<const Generic*> generics, 
                                          ArrayRef<const Type*> elems);
+    virtual size_t hash() const;
+    virtual bool equal(const Node* other) const;
 
     void dump_inner(Printer& printer) const;
 
@@ -167,11 +168,8 @@ private:
         : CompoundType(world, Node_Sigma, num_elems, num_generics)
         , named_(true)
     {}
-    Sigma(World& world, ArrayRef<const Type*> elems)
-        : CompoundType(world, Node_Sigma, elems)
-        , named_(false)
-    {}
-    Sigma(World& world, ArrayRef<const Generic*> generics, ArrayRef<const Type*> elems)
+    Sigma(World& world, ArrayRef<const Generic*> generics, 
+                        ArrayRef<const Type*> elems)
         : CompoundType(world, Node_Sigma, generics, elems)
         , named_(false)
     {}
@@ -197,10 +195,8 @@ private:
 class Pi : public CompoundType {
 private:
 
-    Pi(World& world, ArrayRef<const Type*> elems)
-        : CompoundType(world, Node_Pi, elems)
-    {}
-    Pi(World& world, ArrayRef<const Generic*> generics, ArrayRef<const Type*> elems)
+    Pi(World& world, ArrayRef<const Generic*> generics, 
+                     ArrayRef<const Type*> elems)
         : CompoundType(world, Node_Pi, generics, elems)
     {}
 

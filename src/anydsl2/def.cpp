@@ -12,24 +12,6 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
-Def::Def(int kind, const Type* type)
-    : Node(kind)
-    , type_(type)
-{}
-
-Def::Def(int kind, size_t size, const Type* type)
-    : Node(kind, size)
-    , type_(type)
-{}
-
-Def::Def(const Def& def)
-    : Node(def)
-    , type_(def.type())
-{
-    //for (size_t i = 0, e = size(); i != e; ++i)
-        //set_op(i, def.op(i));
-}
-
 Def::~Def() { 
     for (size_t i = 0, e = ops().size(); i != e; ++i)
         unregister_use(i);

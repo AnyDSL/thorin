@@ -104,9 +104,19 @@ private:
 protected:
 
     /// This variant leaves internal \p ops_ \p Array allocateble via ops_.alloc(size).
-    Def(int kind, const Type* type);
-    Def(int kind, size_t size, const Type* type);
-    Def(const Def&);
+    Def(int kind, const Type* type)
+        : Node(kind)
+        , type_(type)
+    {}
+    Def(int kind, size_t size, const Type* type)
+        : Node(kind, size)
+        , type_(type)
+    {}
+    /// Used by \p stub. Does not introduce any ops, i.e., they remain unset.
+    Def(const Def& def)
+        : Node(def)
+        , type_(def.type())
+    {}
     virtual ~Def();
 
     void set_type(const Type* type) { type_ = type; }

@@ -21,8 +21,8 @@ PrimType::PrimType(World& world, PrimTypeKind kind)
 
 //------------------------------------------------------------------------------
 
-CompoundType::CompoundType(World& world, int kind, size_t num)
-    : Type(world, kind, num)
+CompoundType::CompoundType(World& world, int kind, size_t num_generics, size_t num_elems)
+    : Type(world, kind, num_generics + num_elems)
 {}
 
 CompoundType::CompoundType(World& world, int kind, ArrayRef<const Type*> elems)

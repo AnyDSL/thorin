@@ -8,6 +8,7 @@
 
 namespace anydsl2 {
 
+class Generic;
 class Lambda;
 class Pi;
 class PrimLit;
@@ -21,6 +22,11 @@ class World;
 inline const Type* const& op_as_type(const Node* const* ptr) { 
     assert( !(*ptr) || (*ptr)->as<Type>());
     return *((const Type* const*) ptr); 
+}
+
+inline const Generic* const& op_as_generic(const Node* const* ptr) { 
+    assert( !(*ptr) || (*ptr)->as<Generic>());
+    return *((const Generic* const*) ptr); 
 }
 
 class Type : public Node {
@@ -125,17 +131,26 @@ public:
 class CompoundType : public Type {
 protected:
 
-    CompoundType(World& world, int kind, size_t num);
+    CompoundType(World& world, int kind, size_t num_generics, size_t num_elems);
     CompoundType(World& world, int kind, ArrayRef<const Type*> elems);
+    CompoundType(World& world, int kind, ArrayRef<const Generic*> generics, 
+                                         ArrayRef<const Type*> elems);
 
     void dump_inner(Printer& printer) const;
 
 public:
 
     typedef ArrayRef<const Node*, const Type*, op_as_type> Elems;
+    typedef ArrayRef<const Node*, const Generic*, op_as_generic> Generics;
 
     Elems elems() const { return ops_ref<const Node*, const Type*, op_as_type>(); }
     const Type* elem(size_t i) const { return elems()[i]; }
+    Generics generics() const { return ops_ref<const Node*, const Generic*, op_as_generic>(); }
+    const Generic* generic(size_t i) const { return generics()[i]; }
+
+private:
+
+    size_t begin_elems_;
 };
 
 //------------------------------------------------------------------------------
@@ -144,12 +159,16 @@ public:
 class Sigma : public CompoundType {
 private:
 
-    Sigma(World& world, size_t num)
-        : CompoundType(world, Node_Sigma, num)
+    Sigma(World& world, size_t num_elems, size_t num_generics)
+        : CompoundType(world, Node_Sigma, num_elems, num_generics)
         , named_(true)
     {}
     Sigma(World& world, ArrayRef<const Type*> elems)
         : CompoundType(world, Node_Sigma, elems)
+        , named_(false)
+    {}
+    Sigma(World& world, ArrayRef<const Generic*> generics, ArrayRef<const Type*> elems)
+        : CompoundType(world, Node_Sigma, generics, elems)
         , named_(false)
     {}
 
@@ -176,6 +195,9 @@ private:
 
     Pi(World& world, ArrayRef<const Type*> elems)
         : CompoundType(world, Node_Pi, elems)
+    {}
+    Pi(World& world, ArrayRef<const Generic*> generics, ArrayRef<const Type*> elems)
+        : CompoundType(world, Node_Pi, generics, elems)
     {}
 
 public:

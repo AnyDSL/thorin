@@ -117,7 +117,10 @@ public:
     const Sigma* sigma(ArrayRef<const Type*> elems) { return consume(new Sigma(*this, elems))->as<Sigma>(); }
 
     /// Creates a fresh \em named sigma.
-    Sigma* named_sigma(size_t num, const std::string& name = "");
+    Sigma* named_sigma(size_t num_elems, size_t num_generics, const std::string& name = "");
+    Sigma* named_sigma(size_t num_elems, const std::string& name = "") { 
+        return named_sigma(num_elems, 0, name); 
+    }
 
     // pis
 

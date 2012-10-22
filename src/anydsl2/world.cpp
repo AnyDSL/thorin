@@ -67,8 +67,8 @@ World::~World() {
  * types
  */
 
-Sigma* World::named_sigma(size_t num, const std::string& name) {
-    Sigma* s = new Sigma(*this, num);
+Sigma* World::named_sigma(size_t num_elems, size_t num_generics, const std::string& name) {
+    Sigma* s = new Sigma(*this, num_elems, num_generics);
     s->debug = name;
 
     assert(types_.find(s) == types_.end() && "must not be inside");

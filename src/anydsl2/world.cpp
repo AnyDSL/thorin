@@ -537,8 +537,8 @@ void World::ute_insert(const Type* type) {
     if (type->is_marked()) return;
     type->mark();
 
-    for_all (elem, type->elems())
-        ute_insert(elem);
+    for_all (arg, type->args())
+        ute_insert(arg);
 }
 
 
@@ -581,9 +581,9 @@ void World::cleanup() {
 void World::opt() {
     cleanup();
 
-    Lambda* helper;
-    Lambda* fac;
-    Lambda* ifelse;
+    Lambda* helper = 0;
+    Lambda* fac = 0;
+    Lambda* ifelse = 0;
     for_all (lambda, lambdas()) {
         if (lambda->debug == "helper")
             helper = lambda;

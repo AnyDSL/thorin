@@ -23,9 +23,6 @@ inline const Type* const& op_as_type(const Node* const* ptr) {
     return *((const Type* const*) ptr); 
 }
 
-typedef ArrayRef<const Node*, const Type*, op_as_type> Elems;
-
-
 class Type : public Node {
 protected:
 
@@ -36,11 +33,13 @@ protected:
 
 public:
 
+    typedef ArrayRef<const Node*, const Type*, op_as_type> Args;
+
     void dump() const;
     void dump(bool fancy) const;
     World& world() const { return world_; }
-    Elems elems() const { return ops_ref<const Node*, const Type*, op_as_type>(); }
-    const Type* elem(size_t i) const { return elems()[i]; }
+    Args args() const { return ops_ref<const Node*, const Type*, op_as_type>(); }
+    const Type* arg(size_t i) const { return args()[i]; }
     const Ptr* to_ptr() const;
     virtual void vdump(Printer &printer) const = 0;
 
@@ -116,7 +115,7 @@ private:
 
 public:
 
-    const Type* ref() const { return elem(0); }
+    const Type* ref() const { return arg(0); }
 
     friend class World;
 };
@@ -130,6 +129,13 @@ protected:
     CompoundType(World& world, int kind, ArrayRef<const Type*> elems);
 
     void dump_inner(Printer& printer) const;
+
+public:
+
+    typedef ArrayRef<const Node*, const Type*, op_as_type> Elems;
+
+    Elems elems() const { return ops_ref<const Node*, const Type*, op_as_type>(); }
+    const Type* elem(size_t i) const { return elems()[i]; }
 };
 
 //------------------------------------------------------------------------------

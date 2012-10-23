@@ -1,0 +1,8 @@
+def f() -> int {
+    i : int = 22;
+    j : int = 22;
+    b : bool = i == 23;
+
+    g : pi(int) -> bool = lambda(i : int) -> bool { return i == j; };
+    return 43;
+}

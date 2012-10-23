@@ -46,6 +46,7 @@ public:
     }
 
     bool reachable() const { return curBB; }
+    anydsl2::Fct* create_fct(const Lambda& lambda, const char* name);
 
     BB* curBB;
     anydsl2::Fct* curFct;
@@ -63,25 +64,26 @@ void emit(World& world, const Prg* prg) {
 
 //------------------------------------------------------------------------------
 
-void Prg::emit(CodeGen& cg) const {
-    for_all (f, fcts()) {
-        //for_all (generic, f->generics()) {
-        //}
-        size_t size = f->lambda().params().size();
-        Array<const anydsl2::Type*> tparams(size);
-        Array<Symbol>      sparams(size);
+anydsl2::Fct* CodeGen::create_fct(const Lambda& lambda, const char* name) {
+    size_t size = lambda.params().size();
+    Array<const anydsl2::Type*> tparams(size);
+    Array<Symbol> sparams(size);
 
-        size_t i = 0;
-        for_all (param, f->lambda().params()) {
-            tparams[i] = param->type();
-            sparams[i] = param->symbol();
-            ++i;
-        }
-
-        // TODO
-        const anydsl2::Type* ret = return_type(f->lambda().pi());
-        cg.fcts[f->symbol()] = new anydsl2::Fct(cg.world, tparams, sparams, ret, f->symbol().str());
+    size_t i = 0;
+    for_all (param, lambda.params()) {
+        tparams[i] = param->type();
+        sparams[i] = param->symbol();
+        ++i;
     }
+
+    // TODO
+    const anydsl2::Type* ret = return_type(lambda.pi());
+    return new anydsl2::Fct(world, tparams, sparams, ret, curBB, name);
+}
+
+void Prg::emit(CodeGen& cg) const {
+    for_all (f, fcts())
+        cg.fcts[f->symbol()] = cg.create_fct(f->lambda(), f->symbol().str());
 
     for_all (f, fcts()) {
         cg.curBB = cg.curFct = cg.fcts[f->symbol()];
@@ -92,7 +94,11 @@ void Prg::emit(CodeGen& cg) const {
         delete p.second;
 }
 
-void Lambda::emit(CodeGen& cg, const char* what) const {
+const anydsl2::Lambda* Lambda::emit(CodeGen& cg, anydsl2::Fct* fct, const char* what) const {
+    BB* oldBB = cg.curBB;
+    anydsl2::Fct* oldFct = cg.curFct;
+    cg.curBB = cg.curFct = fct;
+
     body()->emit(cg);
 
     if (is_continuation()) {
@@ -103,12 +109,14 @@ void Lambda::emit(CodeGen& cg, const char* what) const {
 
     cg.curFct->emit();
 
-    cg.curFct = 0;
-    cg.curBB = 0;
+    cg.curBB  = oldBB;
+    cg.curFct = oldFct;
+
+    return fct->top();
 }
 
 void Fct::emit(CodeGen& cg) const {
-    lambda().emit(cg, symbol().str());
+    lambda().emit(cg, cg.fcts[symbol()], symbol().str());
 }
 
 Var* Decl::emit(CodeGen& cg) const {
@@ -151,8 +159,7 @@ RefPtr Literal::emit(CodeGen& cg) const {
 }
 
 RefPtr LambdaExpr::emit(CodeGen& cg) const {
-    lambda().emit(cg, "anonymous lambda expression");
-    return Ref::create((const Def*) 0);
+    return Ref::create(lambda().emit(cg, cg.create_fct(lambda(), "<lambda>"), "anonymous lambda expression"));
 }
 
 RefPtr Tuple::emit(CodeGen& cg) const {

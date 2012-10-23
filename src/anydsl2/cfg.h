@@ -111,6 +111,7 @@ private:
     void fix(const Symbol& symbol, Todo todo);
 
     bool sealed_;
+    bool visited_;
 
     Fct* fct_;
 
@@ -123,9 +124,7 @@ private:
     BB* tbb_;
     BB* fbb_;
 
-public: // HACK
     Lambda* top_;
-private:
     Lambda* cur_;
 
     typedef boost::unordered_map<Symbol, Var*> VarMap;
@@ -142,21 +141,23 @@ public:
 
     Fct(World& world, 
         ArrayRef<const Type*> types, ArrayRef<Symbol> symbols, 
-        const Type* rettype, const std::string& debug = "");
+        const Type* rettype, BB* parent, const std::string& debug);
     ~Fct();
 
     BB* createBB(const std::string& debug = "");
     void emit();
     World& world() { return world_; }
 
-    BB* exit() { return exit_; }
-    const Param* ret() { return ret_; }
-    const Type* rettype() { return rettype_; }
+    BB* exit() const { return exit_; }
+    BB* parent() const { return parent_; }
+    const Param* ret() const { return ret_; }
+    const Type* rettype() const { return rettype_; }
 
 private:
 
     World& world_;
     const Type* rettype_;
+    BB* parent_;
     const Param* ret_;
     BB* exit_;
     std::vector<BB*> cfg_;

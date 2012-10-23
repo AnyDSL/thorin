@@ -12,13 +12,6 @@
 #include "impala/prec.h"
 #include "impala/type.h"
 
-#define IMPALA_PUSH(what, with) \
-    BOOST_TYPEOF(what) old_##what = what; \
-    what  = with;
-
-#define IMPALA_POP(what) \
-    what = old_##what;
-
 using namespace anydsl2;
 
 namespace impala {

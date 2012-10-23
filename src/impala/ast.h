@@ -14,10 +14,18 @@
 
 #include "impala/token.h"
 
+#define IMPALA_PUSH(what, with) \
+    BOOST_TYPEOF(what) old_##what = what; \
+    what  = with;
+
+#define IMPALA_POP(what) \
+    what = old_##what;
+
 namespace anydsl2 {
     class Def;
-    class Var;
+    class Fct;
     class Ref;
+    class Var;
 }
 
 namespace impala {
@@ -73,7 +81,7 @@ public:
 
     void dump(Printer& p) const;
     void check(Sema& sema) const;
-    void emit(CodeGen& cg, const char* what) const;
+    const anydsl2::Lambda* emit(CodeGen& cg, anydsl2::Fct* fct, const char* what) const;
 
 private:
 

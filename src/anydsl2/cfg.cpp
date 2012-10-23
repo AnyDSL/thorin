@@ -15,6 +15,7 @@ namespace anydsl2 {
 
 BB::BB(Fct* fct, const std::string& debug) 
     : sealed_(false)
+    , visited_(false)
     , fct_(fct)
     , top_(world().lambda())
     , cur_(top_)
@@ -51,9 +52,13 @@ Var* BB::lookup(const Symbol& symbol, const Type* type) {
 
     // value is undefined
     if (fct_ == this) {
-        // TODO provide hook instead of fixed functionality
-        std::cerr << "'" << symbol << "'" << " may be undefined" << std::endl;
-        return insert(symbol, world().bottom(type));
+        if (fct_->parent())
+            return fct_->parent()->lookup(symbol, type);
+        else {
+            // TODO provide hook instead of fixed functionality
+            std::cerr << "'" << symbol << "'" << " may be undefined" << std::endl;
+            return insert(symbol, world().bottom(type));
+        }
     }
 
     // insert a 'phi', i.e., create a param and remember to fix the callers
@@ -240,9 +245,10 @@ void BB::emit() {
 
 Fct::Fct(World& world, 
          ArrayRef<const Type*> types, ArrayRef<Symbol> symbols, 
-         const Type* rettype, const std::string& debug)
+         const Type* rettype, BB* parent, const std::string& debug)
     : world_(world)
     , rettype_(rettype)
+    , parent_(parent)
     , exit_(0)
 {
     assert(types.size() == symbols.size());

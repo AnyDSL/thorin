@@ -30,7 +30,7 @@ public:
      * constructor
      */
 
-    Parser(TypeTable&, std::istream& stream, const std::string& filename);
+    Parser(World& world, std::istream& stream, const std::string& filename);
 
     /*
      * helpers
@@ -108,7 +108,7 @@ private:
 
     typedef boost::unordered_map<Symbol, const Generic*> Generics;
     Generics generics_;
-    TypeTable& types_;
+    World& world;
     Lexer lexer_;       ///< invoked in order to get next token
     Token lookahead_[2];///< LL(2) look ahead
     const Loop* cur_loop_;
@@ -121,8 +121,8 @@ private:
 
 //------------------------------------------------------------------------------
 
-const Prg* parse(TypeTable& types, std::istream& i, const std::string& filename, bool& result) {
-    Parser p(types, i, filename);
+const Prg* parse(World& world, std::istream& i, const std::string& filename, bool& result) {
+    Parser p(world, i, filename);
     const Prg* prg = p.parse();
     result = p.result();
 
@@ -144,8 +144,8 @@ const Prg* parse(TypeTable& types, std::istream& i, const std::string& filename,
  * constructor
  */
 
-Parser::Parser(TypeTable& types, std::istream& stream, const std::string& filename)
-    : types_(types)
+Parser::Parser(World& world, std::istream& stream, const std::string& filename)
+    : world(world)
     , lexer_(stream, filename)
     , cur_loop_(0)
     , cur_lambda_(0)
@@ -235,13 +235,12 @@ Token Parser::try_id(const std::string& what) {
 const Type* Parser::parse_type() {
     switch (la()) {
 #define IMPALA_TYPE(itype, atype) \
-        case Token::TYPE_ ## itype: lex(); return types_.type_##itype();
+        case Token::TYPE_##itype: lex(); return world.type_##atype();
 #include "impala/tokenlist.h"
 
-        case Token::TYPE_int:   lex(); return types_.type_int32();
-        case Token::TYPE_uint:  lex(); return types_.type_uint32();
-        case Token::TYPE_void:  lex(); return types_.type_void();
-        case Token::TYPE_noret: lex(); return types_.type_noret();
+        case Token::TYPE_int:   lex(); return world.type_u32();
+        case Token::TYPE_void:  lex(); return world.unit();
+        case Token::TYPE_noret: lex(); return world.noret();
         case Token::PI: {
             lex();
             std::vector<const Type*> elems;
@@ -253,13 +252,10 @@ const Type* Parser::parse_type() {
                 "closing parenthesis of pi type"
             )
 
-            const Type* ret;
             if (accept(Token::ARROW))
-                ret = parse_type();
-            else
-                ret = types_.type_noret();
+                elems.push_back(world.pi1(parse_type()));
 
-            return types_.pi(elems, ret);
+            return world.pi(elems);
         }
         case Token::L_TUPLE: {
             lex();
@@ -271,7 +267,7 @@ const Type* Parser::parse_type() {
                 "closing parenthesis of tuple type"
             )
 
-            return types_.sigma(elems);
+            return world.sigma(elems);
         }
         case Token::ID: {
             Symbol id = lex().symbol();
@@ -309,15 +305,15 @@ void Parser::parse_globals() {
 void Parser::parse_lambda(Lambda* lambda) {
     IMPALA_PUSH(cur_lambda_, lambda);
 
-    const Type* ret = 0;
     std::vector<const Type*> arg_types;
 
+#if 0
     if (accept(Token::LT))
         PARSE_COMMA_LIST
         (
             {
                 Symbol id = try_id("generic identifier").symbol();
-                const Generic* generic = types_.generic(id, cur_lambda_);
+                const Generic* generic = world.generic(id, cur_lambda_);
                 Generics::iterator i = generics_.find(id);
                 if (i == generics_.end()) {
                     lambda->generics_.push_back(generic);
@@ -328,6 +324,7 @@ void Parser::parse_lambda(Lambda* lambda) {
             Token::GT,
             "generics list"
         )
+#endif
 
     expect(Token::L_PAREN, "function head");
     PARSE_COMMA_LIST
@@ -343,11 +340,9 @@ void Parser::parse_lambda(Lambda* lambda) {
 
     // return-continuation
     if (accept(Token::ARROW))
-        ret = try_type("return type of function definition");
-    else
-        ret = types_.type_noret();
+        arg_types.push_back(world.pi1(try_type("return type of function definition")));
 
-    const Pi* pi = types_.pi(arg_types, ret);
+    const Pi* pi = world.pi(arg_types);
     const ScopeStmt* body = parse_scope();
 
     lambda->set(pi, body);
@@ -662,7 +657,7 @@ const Type* Parser::try_type(const std::string& what) {
         type = parse_type();
     else {
         error("type", what);
-        type = types_.type_error();
+        type = world.type_error();
     }
 
     return type;

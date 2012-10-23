@@ -9,7 +9,7 @@ namespace impala {
 
 class Prg;
 
-void emit(anydsl2::World& world, const Prg* prg);
+void emit(World& world, const Prg* prg);
 
 } // namespace impala
 

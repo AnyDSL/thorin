@@ -9,6 +9,7 @@ using anydsl2::Box;
 using anydsl2::Location;
 using anydsl2::Position;
 using anydsl2::Symbol;
+using anydsl2::Type;
 using anydsl2::dcast;
 
 namespace impala {
@@ -22,7 +23,7 @@ Decl::Decl(const Token& tok, const Type* type, const Position& pos2)
     set_loc(tok.pos1(), pos2);
 }
 
-bool Lambda::continuation() const { return pi()->ret()->isa<NoRet>(); }
+bool Lambda::is_continuation() const { return return_type(pi())->isa<NoRet>(); }
 
 void Fct::set(const Decl* decl) {
     decl_ = decl;

@@ -230,6 +230,26 @@ private:
 
 //------------------------------------------------------------------------------
 
+inline bool is_u1(const Type* type) { 
+    if (const PrimType* p = type->isa<PrimType>())
+        return p->primtype_kind() == PrimType_u1;
+    return false;
+}
+
+inline bool is_int(const Type* type) { 
+    if (const PrimType* p = type->isa<PrimType>())
+        return is_int(p->primtype_kind());
+    return false;
+}
+
+inline bool is_float(const Type* type) { 
+    if (const PrimType* p = type->isa<PrimType>())
+        return is_float(p->primtype_kind());
+    return false;
+}
+
+//------------------------------------------------------------------------------
+
 } // namespace anydsl2
 
 #endif

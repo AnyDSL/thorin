@@ -47,10 +47,10 @@ Token::Token(const Location& loc, Kind kind, const std::string& str)
         case LIT_int32:  box_ = Box(bcast<uint32_t, int32_t>(int32_t(strtol  (symbol_.str(), 0, 0))));  break;
         case LIT_int64:  box_ = Box(bcast<uint64_t, int64_t>(int64_t(strtoll (symbol_.str(), 0, 0))));  break;
 
-        case LIT_uint8:  box_ = Box(uint8_t (strtoul (symbol_.str(), 0, 0))); break;
-        case LIT_uint16: box_ = Box(uint16_t(strtoul (symbol_.str(), 0, 0))); break;
-        case LIT_uint32: box_ = Box(uint32_t(strtoul (symbol_.str(), 0, 0))); break;
-        case LIT_uint64: box_ = Box(uint64_t(strtoull(symbol_.str(), 0, 0))); break;
+        //case LIT_uint8:  box_ = Box(uint8_t (strtoul (symbol_.str(), 0, 0))); break;
+        //case LIT_uint16: box_ = Box(uint16_t(strtoul (symbol_.str(), 0, 0))); break;
+        //case LIT_uint32: box_ = Box(uint32_t(strtoul (symbol_.str(), 0, 0))); break;
+        //case LIT_uint64: box_ = Box(uint64_t(strtoull(symbol_.str(), 0, 0))); break;
 
         case LIT_float:  box_ = Box(strtof(symbol_.str(), 0)); break;
         case LIT_double: box_ = Box(strtod(symbol_.str(), 0)); break;
@@ -161,6 +161,17 @@ anydsl2::PrimTypeKind Token::toPrimType(Kind kind) {
     }
 }
 
+anydsl2::PrimTypeKind Token::literal2type(Kind kind) {
+    switch (kind) {
+#define IMPALA_LIT(itype, atype) \
+        case LIT_##itype:   return anydsl2::PrimType_##atype;
+#include "impala/tokenlist.h"
+        case TRUE:
+        case FALSE:         return anydsl2::PrimType_u1;
+        default: ANYDSL2_UNREACHABLE;
+    }
+}
+
 /*
  * static member variables
  */
@@ -199,13 +210,12 @@ void Token::init() {
 #include <impala/tokenlist.h>
 
     insertKey(TYPE_int,   "int");
-    insertKey(TYPE_uint,  "uint");
     insertKey(TYPE_void,  "void");
     insertKey(TYPE_noret, "noret");
     insertKey(DEF,        "def");
 
     tok2str_[TYPE_int]   = Symbol("int").str();
-    tok2str_[TYPE_uint]  = Symbol("uint").str();
+    tok2str_[TYPE_void]  = Symbol("void").str();
     tok2str_[TYPE_noret] = Symbol("noret").str();
     tok2str_[DEF]        = Symbol("def").str();
     tok2str_[ID]         = Symbol("<identifier>").str();

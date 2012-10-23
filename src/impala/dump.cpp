@@ -1,11 +1,14 @@
 #include "anydsl2/util/for_all.h"
 
 #include "anydsl2/printer.h"
+#include "anydsl2/type.h"
 
 #include "impala/ast.h"
 #include "impala/dump.h"
 #include "impala/prec.h"
 #include "impala/type.h"
+
+using anydsl2::Type;
 
 namespace impala {
 
@@ -19,7 +22,7 @@ public:
 
     void dump_block(const Stmt* s);
     void dump(const ASTNode* n) { return n->dump(*this); }
-    void dump(const Type* t) { return t->dump(*this); }
+    void dump(const anydsl2::Type* t);
 
     Prec prec;
 };
@@ -60,9 +63,10 @@ void Lambda::dump(Printer& p) const {
     ANYDSL2_DUMP_COMMA_LIST(p, params());
     p << ')';
 
-    if (pi()->ret()) {
+    const Type* ret_type = return_type(pi());
+    if (!ret_type->isa<NoRet>()) {
         p << " -> ";
-        pi()->ret()->dump(p);
+        p.dump(ret_type);
         p << ' ';
     }
 
@@ -76,7 +80,7 @@ void Fct::dump(Printer& p) const {
 
 void Decl::dump(Printer& p) const {
     p << symbol() << " : ";
-    type()->dump(p);
+    p.dump(type());
 }
 
 /*
@@ -334,48 +338,34 @@ void ScopeStmt::dump(Printer& p) const {
 
 //------------------------------------------------------------------------------
 
-/*
- * Type
- */
+void Printer::dump(const anydsl2::Type* t) { 
+    if (t->isa<anydsl2::PrimType>()) {
+        t->vdump(*this);
+    } else if (const anydsl2::Sigma* sigma = t->isa<anydsl2::Sigma>()) {
+        o << "#(";
+        ANYDSL2_DUMP_COMMA_LIST(*this, sigma->elems());
+        o << ")";
+    } else if (const anydsl2::Pi* pi = t->isa<anydsl2::Pi>()) {
+        o << "pi(";
 
-void PrimType::dump(Printer& p) const {
-    switch (kind()) {
-#define IMPALA_TYPE(itype, atype) case TYPE_##itype: p << #itype; return;
-#include "impala/tokenlist.h"
+        const Type* ret_type = return_type(pi);
+        if (ret_type->isa<NoRet>()) {
+            ANYDSL2_DUMP_COMMA_LIST(*this, pi->elems());
+            o << ")";
+        } else {
+            ANYDSL2_DUMP_COMMA_LIST(*this, pi->elems().slice_front(pi->num_elems()-1));
+            o << ") -> ";
+            dump(ret_type);
+        }
+    } else if (const anydsl2::Generic* generic = t->isa<anydsl2::Generic>()) {
+        o << generic->debug;
+    } else if (t->isa<NoRet>()) {
+        o << "noret";
+    } else if (t->isa<TypeError>()) {
+        o << "<type error>";
+    } else {
+        ANYDSL2_UNREACHABLE;
     }
-}
-
-void Void::dump(Printer& p) const {
-    p << "void";
-}
-
-void NoRet::dump(Printer& p) const {
-    p << "noret";
-}
-
-void TypeError::dump(Printer& p) const {
-    p << "<type error>";
-}
-
-void Sigma::dump(Printer& p) const {
-    p << "#(";
-    ANYDSL2_DUMP_COMMA_LIST(p, elems());
-    p << ")";
-}
-
-void Pi::dump(Printer& p) const {
-    p << "pi(";
-    ANYDSL2_DUMP_COMMA_LIST(p, elems());
-    p << ")";
-    
-    if (ret()) {
-        p << " -> ";
-        ret()->dump(p);
-    }
-}
-
-void Generic::dump(Printer& p) const {
-    p << id();
 }
 
 //------------------------------------------------------------------------------
@@ -387,7 +377,7 @@ void dump(const ASTNode* n, bool fancy /*= false*/, std::ostream& o /*= std::cou
 
 void dump(const Type* t, bool fancy /*= false*/, std::ostream& o /*= std::cout*/) {
     Printer p(o, fancy);
-    t->dump(p);
+    p.dump(t);
 }
 
 std::ostream& operator << (std::ostream& o, const ASTNode* n) {

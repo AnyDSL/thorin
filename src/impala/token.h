@@ -101,9 +101,10 @@ public:
     static Kind seperateAssign(Kind kind);
 
     static int toBinOp(Kind kind);
-    static anydsl2::ArithOpKind toArithOp(Kind kind);
-    static anydsl2::RelOpKind toRelOp(Kind kind);
+    static anydsl2::ArithOpKind  toArithOp(Kind kind);
+    static anydsl2::RelOpKind    toRelOp(Kind kind);
     static anydsl2::PrimTypeKind toPrimType(Kind kind);
+    static anydsl2::PrimTypeKind literal2type(Kind kind);
 
     /*
      * comparisons

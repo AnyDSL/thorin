@@ -1,8 +1,6 @@
 #ifndef IMPALA_INIT_H
 #define IMPALA_INIT_H
 
-#include "anydsl2/world.h"
-
 #include "impala/type.h"
 
 namespace impala {
@@ -14,8 +12,7 @@ struct Init {
     Init() { init(); }
     ~Init() { destroy(); }
 
-    TypeTable types;
-    anydsl2::World world;
+    World world;
 };
 
 } // namespace impala

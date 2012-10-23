@@ -7,9 +7,9 @@
 namespace impala {
 
 class Prg;
-class TypeTable;
+class World;
 
-const Prg* parse(TypeTable& types, std::istream& i, const std::string& filename, bool& result);
+const Prg* parse(World& world, std::istream& i, const std::string& filename, bool& result);
 
 } // namespace impala
 

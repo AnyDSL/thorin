@@ -12,6 +12,9 @@
 using anydsl2::Array;
 using anydsl2::Location;
 using anydsl2::Symbol;
+using anydsl2::Type;
+using anydsl2::Sigma;
+using anydsl2::Pi;
 
 namespace impala {
 
@@ -20,7 +23,7 @@ namespace impala {
 class Sema {
 public:
 
-    Sema(TypeTable& typetable);
+    Sema(World& world);
     ~Sema();
 
     /** 
@@ -61,7 +64,7 @@ public:
     std::ostream& error(const ASTNode* n) { result_ = false; return n->error(); }
     std::ostream& warning(const ASTNode* n) { return n->warning(); }
 
-    TypeTable& types;
+    World& world;
 
 private:
 
@@ -90,8 +93,8 @@ private:
 
 //------------------------------------------------------------------------------
 
-Sema::Sema(TypeTable& types)
-    : types(types)
+Sema::Sema(World& world)
+    : world(world)
     , result_(true)
     , depth_(0)
 #ifndef NDEBUG
@@ -177,8 +180,8 @@ void Sema::popScope() {
 
 //------------------------------------------------------------------------------
 
-bool check(TypeTable& types, const Prg* prg) {
-    Sema sema(types);
+bool check(World& world, const Prg* prg) {
+    Sema sema(world);
     prg->check(sema);
     return sema.result();
 }
@@ -222,17 +225,11 @@ void Decl::check(Sema& sema) const {
  */
 
 const Type* EmptyExpr::vcheck(Sema& sema) const {
-    return sema.types.type_void();
+    return sema.world.unit();
 }
 
 const Type* Literal::vcheck(Sema& sema) const {
-    switch (kind()) {
-#define IMPALA_LIT(itype, atype) \
-        case Literal::LIT_##itype:  return sema.types.type(PrimType::TYPE_##itype);
-#include "impala/tokenlist.h"
-        case Literal::LIT_bool:     return sema.types.type(PrimType::TYPE_bool);
-        default:                    ANYDSL2_UNREACHABLE;
-    }
+    return sema.world.type(Token::literal2type((Token::Kind) kind()));
 }
 
 const Type* LambdaExpr::vcheck(Sema& sema) const {
@@ -247,7 +244,7 @@ const Type* Tuple::vcheck(Sema& sema) const {
     for_all (op, ops())
         elems[i++] = op->check(sema);
 
-    return sema.types.sigma(elems);
+    return sema.world.sigma(elems);
 }
 
 const Type* Id::vcheck(Sema& sema) const {
@@ -257,7 +254,7 @@ const Type* Id::vcheck(Sema& sema) const {
     }
 
     sema.error(this) << "symbol '" << symbol() << "' not found in current scope\n";
-    return sema.types.type_error();
+    return sema.world.type_error();
 }
 
 const Type* PrefixExpr::vcheck(Sema& sema) const {
@@ -270,7 +267,7 @@ const Type* PrefixExpr::vcheck(Sema& sema) const {
 const Type* InfixExpr::vcheck(Sema& sema) const {
     if (lhs()->check(sema) == rhs()->check(sema)) {
         if (Token::is_rel((TokenKind) kind()))
-            return sema.types.type_bool();
+            return sema.world.type_u1();
 
         if (Token::is_asgn((TokenKind) kind())) {
             if (!lhs()->lvalue())
@@ -286,7 +283,7 @@ const Type* InfixExpr::vcheck(Sema& sema) const {
             << lhs()->type() << "' and '" << rhs()->type() << "'\n";
     }
 
-    return sema.types.type_error();
+    return sema.world.type_error();
 }
 
 const Type* PostfixExpr::vcheck(Sema& sema) const {
@@ -298,7 +295,7 @@ const Type* PostfixExpr::vcheck(Sema& sema) const {
 
 const Type* IndexExpr::vcheck(Sema& sema) const {
     if (const Sigma* sigma = lhs()->check(sema)->isa<Sigma>()) {
-        if (index()->check(sema)->is_int()) {
+        if (is_int(index()->check(sema))) {
             if (const Literal* literal = index()->isa<Literal>()) {
                 unsigned pos;
 
@@ -309,10 +306,10 @@ const Type* IndexExpr::vcheck(Sema& sema) const {
                     default: ANYDSL2_UNREACHABLE;
                 }
 
-                if (pos < sigma->size())
+                if (pos < sigma->num_elems())
                     return sigma->elems()[pos];
                 else
-                    sema.error(index()) << "index (" << pos << ") out of bounds (" << sigma->size() << ")\n";
+                    sema.error(index()) << "index (" << pos << ") out of bounds (" << sigma->num_elems() << ")\n";
             } else
                 sema.error(index()) << "indexing expression must be a literal\n";
         } else
@@ -320,20 +317,27 @@ const Type* IndexExpr::vcheck(Sema& sema) const {
     } else
         sema.error(lhs()) << "left-hand side of index expression must be of sigma type\n";
 
-    return sema.types.type_error();
+    return sema.world.type_error();
 }
 
 const Type* Call::vcheck(Sema& sema) const { 
     if (const Pi* fpi = to()->check(sema)->isa<Pi>()) {
-        Array<const Type*> op_types(ops_.size() - 1);
+        Array<const Type*> op_types(ops_.size() - 1 + 1); // peel 'to', add return type
 
         for (size_t i = 1; i < ops_.size(); ++i)
             op_types[i-1] = ops_[i]->check(sema);
 
-        const Pi* pi = sema.types.pi(op_types, fpi->ret());
+        const Type* ret_type = return_type(fpi);
+        const Pi* pi;
+        if (ret_type->isa<NoRet>())
+            pi = sema.world.pi(op_types.slice_front(op_types.size()-1));
+        else {
+            op_types.back() = sema.world.pi1(ret_type);
+            pi = sema.world.pi(op_types);
+        }
 
         if (pi == fpi)
-            return pi->ret();
+            return ret_type;
         else {
             sema.error(to()) << "'" << to() << "' expects an invocation of type '" << fpi 
                 << "' but an invocation of type '" << pi << "' is given\n";
@@ -341,7 +345,7 @@ const Type* Call::vcheck(Sema& sema) const {
     } else
         sema.error(to()) << "invocation not done on function type but instead type '" << to()->type() << "' is given\n";
 
-    return sema.types.type_error();
+    return sema.world.type_error();
 }
 
 /*
@@ -360,7 +364,7 @@ void ExprStmt::check(Sema& sema) const {
 }
 
 static bool checkCond(Sema& sema, const Expr* cond) {
-    if (cond->check(sema)->is_bool())
+    if (is_u1(cond->check(sema)))
         return true;
 
     sema.error(cond) << "condition not a bool\n";
@@ -401,14 +405,14 @@ void ContinueStmt::check(Sema& sema) const {
 }
 
 void ReturnStmt::check(Sema& sema) const {
-    if (!lambda()->continuation()) {
+    if (!lambda()->is_continuation()) {
         const Pi* pi = lambda()->pi();
 
-        if (!pi->ret()->isa<NoRet>()) {
-            if (pi->ret() == expr()->check(sema))
+        if (!return_type(pi)->isa<NoRet>()) {
+            if (return_type(pi) == expr()->check(sema))
                 return;
             else
-                sema.error(expr()) << "expected return type '" << pi->ret() 
+                sema.error(expr()) << "expected return type '" << return_type(pi) 
                     << "' but return expression is of type '" << expr()->type() << "'\n";
         } else
             sema.error(this) << "return statement not allowed for calling a continuation\n";

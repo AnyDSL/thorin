@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include "anydsl2/type.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/assert.h"
 #include "anydsl2/util/autoptr.h"
@@ -25,16 +26,13 @@ class CodeGen;
 class Decl;
 class Expr;
 class Fct;
-class Generic;
-class Pi;
 class Printer;
 class ScopeStmt;
 class Sema;
 class Stmt;
-class Type;
 
 typedef anydsl2::AutoVector<const Decl*> Decls;
-typedef std::vector<const Generic*> Generics;
+typedef std::vector<const anydsl2::Generic*> Generics;
 typedef anydsl2::AutoVector<const Expr*> Exprs;
 typedef anydsl2::AutoVector<const Fct*>  Fcts;
 typedef anydsl2::AutoVector<const Stmt*> Stmts;
@@ -70,8 +68,8 @@ public:
     const ScopeStmt* body() const { return body_; }
     const Decls& params() const { return params_; }
     const Generics& generics() const { return generics_; }
-    const Pi* pi() const { return pi_; }
-    bool continuation() const;
+    const anydsl2::Pi* pi() const { return pi_; }
+    bool is_continuation() const;
 
     void dump(Printer& p) const;
     void check(Sema& sema) const;
@@ -79,12 +77,12 @@ public:
 
 private:
 
-    void set(const Pi* pi, const ScopeStmt* body) { pi_ = pi; body_ = body; }
+    void set(const anydsl2::Pi* pi, const ScopeStmt* body) { pi_ = pi; body_ = body; }
 
     Generics generics_;
     Decls params_;
     anydsl2::AutoPtr<const ScopeStmt> body_;
-    const Pi* pi_;
+    const anydsl2::Pi* pi_;
 
     friend class Fct;
     friend class LambdaExpr;
@@ -115,10 +113,10 @@ private:
 class Decl : public ASTNode {
 public:
 
-    Decl(const Token& tok, const Type* type, const anydsl2::Position& pos2);
+    Decl(const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2);
 
     anydsl2::Symbol symbol() const { return symbol_; }
-    const Type* type() const { return type_; }
+    const anydsl2::Type* type() const { return type_; }
 
     void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
@@ -127,7 +125,7 @@ public:
 private:
 
     anydsl2::Symbol symbol_;
-    const Type* type_;
+    const anydsl2::Type* type_;
 };
 
 //------------------------------------------------------------------------------
@@ -136,21 +134,21 @@ class Expr : public ASTNode {
 public:
 
     const Exprs& ops() const { return ops_; }
-    const Type* type() const { return type_; }
-    const Type* check(Sema& sema) const { return type_ = vcheck(sema); }
+    const anydsl2::Type* type() const { return type_; }
+    const anydsl2::Type* check(Sema& sema) const { return type_ = vcheck(sema); }
     anydsl2::Array<const anydsl2::Def*> emit_ops(CodeGen& cg) const;
     virtual bool lvalue() const = 0;
     virtual RefPtr emit(CodeGen& cg) const = 0;
 
 private:
 
-    virtual const Type* vcheck(Sema& sema) const = 0;
+    virtual const anydsl2::Type* vcheck(Sema& sema) const = 0;
 
 protected:
 
     Exprs ops_;
 
-    mutable const Type* type_;
+    mutable const anydsl2::Type* type_;
 };
 
 class EmptyExpr : public Expr {
@@ -159,7 +157,7 @@ public:
     EmptyExpr(const anydsl2::Location& loc) { loc_ = loc; }
 
     virtual bool lvalue() const { return false; }
-    virtual const Type* vcheck(Sema& sema) const;
+    virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
 };
@@ -179,7 +177,7 @@ public:
     anydsl2::Box box() const { return box_; }
 
     virtual bool lvalue() const { return false; }
-    virtual const Type* vcheck(Sema& sema) const;
+    virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
 
@@ -195,7 +193,7 @@ public:
     const Lambda& lambda() const { return lambda_; }
 
     virtual bool lvalue() const { return false; }
-    virtual const Type* vcheck(Sema& sema) const;
+    virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
 
@@ -212,7 +210,7 @@ public:
     Tuple(const anydsl2::Position& pos1);
 
     virtual bool lvalue() const { return false; }
-    virtual const Type* vcheck(Sema& sema) const;
+    virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
 
@@ -228,7 +226,7 @@ public:
     const Decl* decl() const { return decl_; }
 
     virtual bool lvalue() const { return true; }
-    virtual const Type* vcheck(Sema& sema) const;
+    virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
 
@@ -253,7 +251,7 @@ public:
     Kind kind() const { return kind_; }
 
     virtual bool lvalue() const { return true; }
-    virtual const Type* vcheck(Sema& sema) const;
+    virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
 
@@ -279,7 +277,7 @@ public:
     Kind kind() const { return kind_; }
 
     virtual bool lvalue() const { return Token::is_asgn((TokenKind) kind()); }
-    virtual const Type* vcheck(Sema& sema) const;
+    virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
 
@@ -307,7 +305,7 @@ public:
     Kind kind() const { return kind_; }
 
     virtual bool lvalue() const { return false; }
-    virtual const Type* vcheck(Sema& sema) const;
+    virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
 
@@ -325,7 +323,7 @@ public:
     const Expr* index() const { return ops_[1]; }
 
     virtual bool lvalue() const { return true; }
-    virtual const Type* vcheck(Sema& sema) const;
+    virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void dump(Printer& p) const;
 };
@@ -341,7 +339,7 @@ public:
 
     virtual bool lvalue() const { return false; }
     virtual RefPtr emit(CodeGen& cg) const;
-    virtual const Type* vcheck(Sema& sema) const;
+    virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual void dump(Printer& p) const;
 };
 

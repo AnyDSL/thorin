@@ -353,9 +353,10 @@ llvm::Type* CodeGen::map(const Type* type) {
         case Node_Pi: {
             // extract "return" type, collect all other types
             const Pi* pi = type->as<Pi>();
+            assert(pi->generics().empty());
             llvm::Type* ret = 0;
             size_t i = 0;
-            Array<llvm::Type*> elems(pi->size() - 1);
+            Array<llvm::Type*> elems(pi->num_elems() - 1);
 
             for_all (elem, pi->elems()) {
                 if (const Pi* pi = elem->isa<Pi>()) {

@@ -18,6 +18,7 @@ using anydsl2::Array;
 using anydsl2::ArrayRef;
 using anydsl2::BB;
 using anydsl2::Def;
+using anydsl2::Pi;
 using anydsl2::RVal;
 using anydsl2::Ref;
 using anydsl2::Symbol;
@@ -72,12 +73,13 @@ void Prg::emit(CodeGen& cg) const {
 
         size_t i = 0;
         for_all (param, f->lambda().params()) {
-            tparams[i] = param->type()->map(cg);
+            tparams[i] = param->type();
             sparams[i] = param->symbol();
             ++i;
         }
 
-        const anydsl2::Type* ret = f->lambda().pi()->ret()->map(cg);
+        // TODO
+        const anydsl2::Type* ret = return_type(f->lambda().pi());
         cg.fcts[f->symbol()] = new anydsl2::Fct(cg.world, tparams, sparams, ret, f->symbol().str());
     }
 
@@ -93,7 +95,7 @@ void Prg::emit(CodeGen& cg) const {
 void Lambda::emit(CodeGen& cg, const char* what) const {
     body()->emit(cg);
 
-    if (continuation()) {
+    if (is_continuation()) {
         if (cg.reachable())
             std::cerr << what << " does not end with a call\n";
     } else
@@ -110,7 +112,7 @@ void Fct::emit(CodeGen& cg) const {
 }
 
 Var* Decl::emit(CodeGen& cg) const {
-    Var* var = cg.curBB->insert(symbol(), cg.world.bottom(type()->map(cg)));
+    Var* var = cg.curBB->insert(symbol(), cg.world.bottom(type()));
     var->load()->debug = symbol().str();
 
     return var;
@@ -166,7 +168,7 @@ RefPtr Id::emit(CodeGen& cg) const {
             return Ref::create(i->second->top());
     }
 
-    return Ref::create(cg.curBB->lookup(symbol(), type()->map(cg)));
+    return Ref::create(cg.curBB->lookup(symbol(), type()));
 }
 
 RefPtr PrefixExpr::emit(CodeGen& cg) const {
@@ -213,7 +215,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
 
         // special case for 'a = expr' -> don't use lookup!
         RefPtr lref = op == Token::ASGN && id
-                ? Ref::create(cg.curBB->insert(id->symbol(), cg.world.bottom(id->type()->map(cg))))
+                ? Ref::create(cg.curBB->insert(id->symbol(), cg.world.bottom(id->type())))
                 : lhs()->emit(cg);
 
         const Def* ldef = lref->load();
@@ -254,7 +256,7 @@ RefPtr IndexExpr::emit(CodeGen& cg) const {
 
 RefPtr Call::emit(CodeGen& cg) const {
     Array<const Def*> ops = emit_ops(cg);
-    const anydsl2::Type* ret = type()->map(cg);
+    const anydsl2::Type* ret = type();
 
     if (ret)
         return Ref::create(cg.curBB->call(ops[0], ops.slice_back(1), ret));
@@ -442,56 +444,6 @@ void ReturnStmt::emit(CodeGen& cg) const {
 void ScopeStmt::emit(CodeGen& cg) const {
     for_all (const &s, stmts())
         s->emit(cg);
-}
-
-//------------------------------------------------------------------------------
-
-/*
- * Type
- */
-
-const anydsl2::Type* PrimType::map(CodeGen& cg) const {
-    switch (kind()) {
-#define IMPALA_TYPE(itype, atype) \
-        case TYPE_##itype: \
-            return cg.world.type_##atype();
-#include "impala/tokenlist.h"
-        default:
-            ANYDSL2_UNREACHABLE;
-    }
-}
-
-const anydsl2::Type* Void::map(CodeGen& cg) const { return cg.world.unit(); }
-const anydsl2::Type* NoRet::map(CodeGen&) const { return 0; }
-const anydsl2::Type* TypeError::map(CodeGen&) const { ANYDSL2_UNREACHABLE; }
-
-const anydsl2::Type* Pi::map(CodeGen& cg) const {
-    size_t size = elems().size();
-    Array<const anydsl2::Type*> types(size + 1);
-
-    for (size_t i = 0; i < size; ++i)
-        types[i] = elems()[i]->map(cg);
-
-    if (!ret()->isa<NoRet>())
-        types[size++] = cg.world.pi1(ret()->map(cg));
-
-    return cg.world.pi(types.slice_front(size));
-}
-
-const anydsl2::Type* Sigma::map(CodeGen& cg) const {
-    size_t size = elems().size();
-    Array<const anydsl2::Type*> types(size);
-
-    for (size_t i = 0; i < size; ++i)
-        types[i] = elems()[i]->map(cg);
-
-    return cg.world.sigma(types);
-}
-
-const anydsl2::Type* Generic::map(CodeGen& cg) const {
-    // TODO
-    return 0;
-    //return cg.fcts[fct()->symbol()]->top_->append_generic();
 }
 
 } // namespace impala

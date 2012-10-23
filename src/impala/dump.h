@@ -3,10 +3,13 @@
 
 #include <iostream>
 
+namespace anydsl2 {
+    class Type;
+}
+
 namespace impala {
 
 class ASTNode;
-class Type;
 
 /** 
  * @brief Dumps a human readable representation of the ASTNode \p n to output stream \p o.
@@ -17,10 +20,10 @@ class Type;
  * @param o The output stream where the dump is directed to.
  */
 void dump(const ASTNode* n, bool fancy = false, std::ostream& o = std::cout);
-void dump(const Type* t, bool fancy = false, std::ostream& o = std::cout);
+void dump(const anydsl2::Type* t, bool fancy = false, std::ostream& o = std::cout);
 
 std::ostream& operator << (std::ostream& o, const ASTNode* n);
-std::ostream& operator << (std::ostream& o, const Type* t);
+std::ostream& operator << (std::ostream& o, const anydsl2::Type* t);
 
 } // namespace impala
 

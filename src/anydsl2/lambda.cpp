@@ -16,7 +16,7 @@ Lambda::Lambda(size_t gid, const Pi* pi, uint32_t flags)
     , gid_(gid)
     , flags_(flags)
 {
-    params_.reserve(pi->size());
+    params_.reserve(pi->num_elems());
 }
 
 Lambda::~Lambda() {
@@ -219,12 +219,13 @@ Lambda* Dropper::drop() {
     oentry = scope.entry();
     const Pi* o_pi = oentry->pi();
 
-    size_t o_numparams = o_pi->size();
+    size_t o_numparams = o_pi->num_elems();
     size_t numdrop = indices.size();
     size_t n_numparams = o_numparams - numdrop;
 
     Array<const Type*> nelems(n_numparams);
 
+    // TODO generics
     for (size_t oe = 0, i = 0, ne = 0; oe < o_numparams; ++oe) {
         if (i < o_numparams && indices[i] == oe)
             ++i;

@@ -85,8 +85,8 @@ int main(int argc, char** argv) {
 
         impala::Init init;
         bool result;
-        anydsl2::AutoPtr<const impala::Prg> p(impala::parse(init.types, file, filename, result));
-        result &= check(init.types, p);
+        anydsl2::AutoPtr<const impala::Prg> p(impala::parse(init.world, file, filename, result));
+        result &= check(init.world, p);
 
         if (emit_ast)
             dump(p, fancy);

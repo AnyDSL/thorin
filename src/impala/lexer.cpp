@@ -284,15 +284,15 @@ l_out:
             if (accept(str, fF))
                 tok = Token::LIT_float;
         } else {
-            if (accept(str, uU)) {
-                     if (accept(str, bB)) tok = Token:: LIT_uint8;
-                else if (accept(str, sS)) tok = Token::LIT_uint16;
-                else if (accept(str, lL)) tok = Token::LIT_uint64;
-            } else {
+            //if (accept(str, uU)) {
+                     //if (accept(str, bB)) tok = Token:: LIT_uint8;
+                //else if (accept(str, sS)) tok = Token::LIT_uint16;
+                //else if (accept(str, lL)) tok = Token::LIT_uint64;
+            //} else {
                      if (accept(str, bB)) tok = Token:: LIT_int8;
                 else if (accept(str, sS)) tok = Token::LIT_int16;
                 else if (accept(str, lL)) tok = Token::LIT_int64;
-            }
+            //}
         }
 
         // eat up erroneous trailing suffixing chars

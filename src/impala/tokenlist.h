@@ -160,11 +160,6 @@ IMPALA_LIT(int16,  u16)
 IMPALA_LIT(int32,  u32)
 IMPALA_LIT(int64,  u64)
 
-IMPALA_LIT(uint8,   u8)
-IMPALA_LIT(uint16, u16)
-IMPALA_LIT(uint32, u32)
-IMPALA_LIT(uint64, u64)
-
 IMPALA_LIT(float,  f32)
 IMPALA_LIT(double, f64)
 
@@ -178,11 +173,6 @@ IMPALA_TYPE(  int8,  u8)
 IMPALA_TYPE( int16, u16)
 IMPALA_TYPE( int32, u32)
 IMPALA_TYPE( int64, u64)
-
-IMPALA_TYPE( uint8,  u8)
-IMPALA_TYPE(uint16, u16)
-IMPALA_TYPE(uint32, u32)
-IMPALA_TYPE(uint64, u64)
 
 IMPALA_TYPE(float,  f32)
 IMPALA_TYPE(double, f64)

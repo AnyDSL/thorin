@@ -365,6 +365,7 @@ const ScopeStmt* Parser::parse_scope() {
     expect(Token::L_BRACE, "scope-statement");
 
     Stmts& stmts = scope->stmts_;
+    Fcts& fcts = scope->fcts_;
 
     while (true) {
         if (is_expr()) {
@@ -372,9 +373,16 @@ const ScopeStmt* Parser::parse_scope() {
             continue;
         }
 
+        if (accept(Token::DEF)) {
+            const FctStmt* fct_stmt = new FctStmt(parse_fct());
+            stmts.push_back(fct_stmt);
+            fcts.push_back(fct_stmt->fct());
+            continue;
+        }
+
         switch (la()) {
 #define IMPALA_KEY_STMT(tok, t_str) case Token:: tok:
-#include <impala/tokenlist.h>
+#include "impala/tokenlist.h"
             case Token::L_PAREN:
             case Token::L_BRACE:  
             case Token::ID:          stmts.push_back(parse_stmt()); continue;
@@ -599,7 +607,7 @@ bool Parser::is_expr() {
 #define IMPALA_PREFIX(tok, t_str, r) case Token:: tok:
 #define IMPALA_KEY_EXPR(tok, t_str)  case Token:: tok:
 #define IMPALA_LIT(itype, atype)     case Token:: LIT_##itype:
-#include <impala/tokenlist.h>
+#include "impala/tokenlist.h"
         case Token::L_PAREN:
         case Token::L_TUPLE:
             return true;
@@ -617,7 +625,7 @@ bool Parser::is_type(size_t lookahead) {
     switch (la(lookahead)) {
 #define IMPALA_TYPE(itype, atype) \
         case Token:: TYPE_##itype:
-#include <impala/tokenlist.h>
+#include "impala/tokenlist.h"
         case Token::TYPE_int:
         case Token::TYPE_uint:
         case Token::TYPE_void:
@@ -728,7 +736,7 @@ const Expr* Parser::parse_primary_expr() {
     switch (la() ) {
 #define IMPALA_LIT(itype, atype) \
         case Token::LIT_##itype:
-#include <impala/tokenlist.h>
+#include "impala/tokenlist.h"
         case Token::TRUE:
         case Token::FALSE:      return parse_literal();
         case Token::ID: {

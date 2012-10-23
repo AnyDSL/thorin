@@ -18,6 +18,7 @@ using anydsl2::Array;
 using anydsl2::ArrayRef;
 using anydsl2::BB;
 using anydsl2::Def;
+using anydsl2::LetRec;
 using anydsl2::Pi;
 using anydsl2::RVal;
 using anydsl2::Ref;
@@ -31,13 +32,13 @@ using anydsl2::u32;
 
 namespace impala {
 
-typedef boost::unordered_map<Symbol, anydsl2::Fct*> FctMap;
-
 class CodeGen {
 public:
 
     CodeGen(World& world)
         : world(world)
+        , curBB(0)
+        , curFct(0)
     {}
 
     void fixto(BB* to) {
@@ -46,12 +47,12 @@ public:
     }
 
     bool reachable() const { return curBB; }
-    anydsl2::Fct* create_fct(const Lambda& lambda, const char* name);
+    anydsl2::Fct* create_fct(const Lambda& lambda, const LetRec* siblings, const char* name);
 
+    World& world;
     BB* curBB;
     anydsl2::Fct* curFct;
-    World& world;
-    FctMap fcts;
+    LetRec letrec;
 };
 
 //------------------------------------------------------------------------------
@@ -64,7 +65,7 @@ void emit(World& world, const Prg* prg) {
 
 //------------------------------------------------------------------------------
 
-anydsl2::Fct* CodeGen::create_fct(const Lambda& lambda, const char* name) {
+anydsl2::Fct* CodeGen::create_fct(const Lambda& lambda, const LetRec* siblings, const char* name) {
     size_t size = lambda.params().size();
     Array<const anydsl2::Type*> tparams(size);
     Array<Symbol> sparams(size);
@@ -78,26 +79,27 @@ anydsl2::Fct* CodeGen::create_fct(const Lambda& lambda, const char* name) {
 
     // TODO
     const anydsl2::Type* ret = return_type(lambda.pi());
-    return new anydsl2::Fct(world, tparams, sparams, ret, curBB, name);
+    return new anydsl2::Fct(world, tparams, sparams, ret, curBB, siblings, name);
 }
 
 void Prg::emit(CodeGen& cg) const {
     for_all (f, fcts())
-        cg.fcts[f->symbol()] = cg.create_fct(f->lambda(), f->symbol().str());
+        cg.letrec[f->symbol()] = cg.create_fct(f->lambda(), &cg.letrec, f->symbol().str());
 
-    for_all (f, fcts()) {
-        cg.curBB = cg.curFct = cg.fcts[f->symbol()];
+    for_all (f, fcts())
         f->emit(cg);
-    }
 
-    for_all (p, cg.fcts)
+    for_all (p, cg.letrec)
         delete p.second;
 }
 
-const anydsl2::Lambda* Lambda::emit(CodeGen& cg, anydsl2::Fct* fct, const char* what) const {
+const anydsl2::Lambda* Lambda::emit(CodeGen& cg, anydsl2::Fct* parent, const char* what) const {
+    for_all (f, body()->fcts())
+        parent->nest(f->symbol(), cg.create_fct(f->lambda(), &parent->letrec(), f->symbol().str()));
+
     BB* oldBB = cg.curBB;
     anydsl2::Fct* oldFct = cg.curFct;
-    cg.curBB = cg.curFct = fct;
+    cg.curBB = cg.curFct = parent;
 
     body()->emit(cg);
 
@@ -112,11 +114,11 @@ const anydsl2::Lambda* Lambda::emit(CodeGen& cg, anydsl2::Fct* fct, const char* 
     cg.curBB  = oldBB;
     cg.curFct = oldFct;
 
-    return fct->top();
+    return parent->top();
 }
 
 void Fct::emit(CodeGen& cg) const {
-    lambda().emit(cg, cg.fcts[symbol()], symbol().str());
+    lambda().emit(cg, cg.letrec[symbol()], symbol().str());
 }
 
 Var* Decl::emit(CodeGen& cg) const {
@@ -159,7 +161,7 @@ RefPtr Literal::emit(CodeGen& cg) const {
 }
 
 RefPtr LambdaExpr::emit(CodeGen& cg) const {
-    return Ref::create(lambda().emit(cg, cg.create_fct(lambda(), "<lambda>"), "anonymous lambda expression"));
+    return Ref::create(lambda().emit(cg, cg.create_fct(lambda(), 0, "<lambda>"), "anonymous lambda expression"));
 }
 
 RefPtr Tuple::emit(CodeGen& cg) const {
@@ -169,12 +171,6 @@ RefPtr Tuple::emit(CodeGen& cg) const {
 }
 
 RefPtr Id::emit(CodeGen& cg) const {
-    if (type()->isa<Pi>()) {
-        FctMap::iterator i = cg.fcts.find(symbol());
-        if (i != cg.fcts.end())
-            return Ref::create(i->second->top());
-    }
-
     return Ref::create(cg.curBB->lookup(symbol(), type()));
 }
 
@@ -446,6 +442,10 @@ void ReturnStmt::emit(CodeGen& cg) const {
 
     // all statements in the same BB are unreachable
     cg.curBB = 0;
+}
+
+void FctStmt::emit(CodeGen& cg) const {
+    //lambda().emit(cg, cg.letrec[symbol()], symbol().str());
 }
 
 void ScopeStmt::emit(CodeGen& cg) const {

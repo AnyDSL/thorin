@@ -134,7 +134,6 @@ void ForStmt::set(const Position& pos1, const Expr* cond, const Expr* step, cons
     set_loc(pos1, body->pos2());
 }
 
-
 BreakStmt::BreakStmt(const Position& pos1, const Position& pos2, const Loop* loop) 
     : loop_(loop)
 {

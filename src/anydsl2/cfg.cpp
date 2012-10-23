@@ -51,15 +51,8 @@ Var* BB::lookup(const Symbol& symbol, const Type* type) {
         return i->second;
 
     // value is undefined
-    if (fct_ == this) {
-        if (fct_->parent())
-            return fct_->parent()->lookup(symbol, type);
-        else {
-            // TODO provide hook instead of fixed functionality
-            std::cerr << "'" << symbol << "'" << " may be undefined" << std::endl;
-            return insert(symbol, world().bottom(type));
-        }
-    }
+    if (fct_ == this)
+        return fct_->lookup_top(symbol, type);
 
     // insert a 'phi', i.e., create a param and remember to fix the callers
     if (!sealed_ || preds_.size() > 1) {
@@ -245,10 +238,11 @@ void BB::emit() {
 
 Fct::Fct(World& world, 
          ArrayRef<const Type*> types, ArrayRef<Symbol> symbols, 
-         const Type* rettype, BB* parent, const std::string& debug)
+         const Type* rettype, BB* parent, const LetRec* siblings, const std::string& debug)
     : world_(world)
     , rettype_(rettype)
     , parent_(parent)
+    , siblings_(siblings)
     , exit_(0)
 {
     assert(types.size() == symbols.size());
@@ -283,6 +277,22 @@ BB* Fct::createBB(const std::string& debug /*= ""*/) {
     return bb;
 }
 
+Var* Fct::lookup_top(const Symbol& symbol, const Type* type) {
+    if (siblings_) {
+        // is symbol a sibling?
+        LetRec::const_iterator i = siblings_->find(symbol);
+        if (i != siblings_->end())
+            return insert(symbol, i->second->top());
+    }
+
+    if (parent())
+        return parent()->lookup(symbol, type);
+
+    // TODO provide hook instead of fixed functionality
+    std::cerr << "'" << symbol << "'" << " may be undefined" << std::endl;
+    return insert(symbol, world().bottom(type));
+}
+
 void Fct::emit() {
     if (rettype()) {
         exit()->seal();
@@ -293,6 +303,11 @@ void Fct::emit() {
         bb->emit();
 
     BB::emit();
+}
+
+void Fct::nest(const Symbol& symbol, Fct* fct) {
+    assert(letrec_.find(symbol) == letrec_.end());
+    letrec_[symbol] = fct;
 }
 
 //------------------------------------------------------------------------------

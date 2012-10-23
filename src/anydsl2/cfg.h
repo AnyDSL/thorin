@@ -23,6 +23,7 @@ class World;
 typedef std::vector<const Param*> In;
 typedef std::vector<const Def*> Out;
 typedef boost::unordered_set<BB*> BBs;
+typedef boost::unordered_map<Symbol, Fct*> LetRec;
 
 class Todo {
 public:
@@ -141,26 +142,32 @@ public:
 
     Fct(World& world, 
         ArrayRef<const Type*> types, ArrayRef<Symbol> symbols, 
-        const Type* rettype, BB* parent, const std::string& debug);
+        const Type* rettype, BB* parent, const LetRec* siblings, const std::string& debug);
     ~Fct();
 
     BB* createBB(const std::string& debug = "");
     void emit();
     World& world() { return world_; }
+    Var* lookup_top(const Symbol& symbol, const Type* type);
+    void nest(const Symbol& symbol, Fct* fct);
 
     BB* exit() const { return exit_; }
     BB* parent() const { return parent_; }
+    const LetRec* siblings() const { return siblings_; }
     const Param* ret() const { return ret_; }
     const Type* rettype() const { return rettype_; }
+    const LetRec& letrec() const { return letrec_; }
 
 private:
 
     World& world_;
     const Type* rettype_;
     BB* parent_;
+    const LetRec* siblings_;
     const Param* ret_;
     BB* exit_;
     std::vector<BB*> cfg_;
+    LetRec letrec_;
 };
 
 } // namespace anydsl2

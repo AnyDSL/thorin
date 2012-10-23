@@ -320,6 +320,8 @@ void ReturnStmt::dump(Printer& p) const {
     p << ';';
 }
 
+void FctStmt::dump(Printer& p) const { fct()->dump(p); }
+
 void ScopeStmt::dump(Printer& p) const {
     p << "{";
     p.up();

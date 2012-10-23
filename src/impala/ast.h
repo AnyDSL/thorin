@@ -42,7 +42,7 @@ class Stmt;
 typedef anydsl2::AutoVector<const Decl*> Decls;
 typedef std::vector<const anydsl2::Generic*> Generics;
 typedef anydsl2::AutoVector<const Expr*> Exprs;
-typedef anydsl2::AutoVector<const Fct*>  Fcts;
+typedef std::vector<const Fct*> Fcts;
 typedef anydsl2::AutoVector<const Stmt*> Stmts;
 typedef std::auto_ptr<const anydsl2::Ref> RefPtr;
 
@@ -65,7 +65,7 @@ public:
 
 private:
 
-    Fcts fcts_;
+    anydsl2::AutoVector<const Fct*> fcts_;
 
     friend class Parser;
 };
@@ -541,6 +541,24 @@ private:
     const Lambda* lambda_;
 };
 
+class FctStmt : public Stmt {
+public:
+
+    FctStmt(const Fct* fct)
+        : fct_(fct)
+    {}
+
+    const Fct* fct() const { return fct_; }
+
+    virtual void check(Sema& sema) const;
+    virtual void dump(Printer& p) const;
+    virtual void emit(CodeGen& cg) const;
+
+private:
+
+    anydsl2::AutoPtr<const Fct> fct_;
+};
+
 class ScopeStmt : public Stmt {
 public:
 
@@ -550,6 +568,7 @@ public:
     }
 
     const Stmts& stmts() const { return stmts_; }
+    const Fcts& fcts() const { return fcts_; }
 
     virtual bool empty() const { return stmts_.empty(); }
     virtual void check(Sema& sema) const;
@@ -559,6 +578,7 @@ public:
 private:
 
     Stmts stmts_;
+    Fcts fcts_;
 
     friend class Parser;
 };

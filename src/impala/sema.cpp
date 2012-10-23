@@ -355,8 +355,11 @@ const Type* Call::vcheck(Sema& sema) const {
 void DeclStmt::check(Sema& sema) const {
     decl()->check(sema);
 
-    if (const Expr* init_expr = init())
-        init_expr->check(sema);
+    if (const Expr* init_expr = init()) {
+        if (decl()->type() != init_expr->check(sema))
+            sema.error(this) << "initializing expression of type '" << init_expr->type() << "' but '" 
+                << decl()->symbol() << "' declared of type '" << decl()->type() << '\n';
+    }
 }
 
 void ExprStmt::check(Sema& sema) const {
@@ -419,6 +422,8 @@ void ReturnStmt::check(Sema& sema) const {
     } else
         sema.error(this) << "continuation is not allowed to use 'return'\n";
 }
+
+void FctStmt::check(Sema& sema) const { fct()->check(sema); }
 
 void ScopeStmt::check(Sema& sema) const {
     sema.pushScope();

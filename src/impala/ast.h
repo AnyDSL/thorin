@@ -190,6 +190,20 @@ private:
 };
 
 class LambdaExpr : public Expr {
+public:
+
+    const Lambda& lambda() const { return lambda_; }
+
+    virtual bool lvalue() const { return false; }
+    virtual const Type* vcheck(Sema& sema) const;
+    virtual RefPtr emit(CodeGen& cg) const;
+    virtual void dump(Printer& p) const;
+
+private:
+
+    Lambda lambda_;
+
+    friend class Parser;
 };
 
 class Tuple : public Expr {

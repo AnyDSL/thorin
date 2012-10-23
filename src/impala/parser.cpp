@@ -788,29 +788,12 @@ const Expr* Parser::parse_tuple() {
 }
 
 const Expr* Parser::parse_lambda_expr() {
-    return 0;
-}
-#if 0
-    eat(Token::LAMBDA);
+    Position pos1 = eat(Token::LAMBDA).pos1();
     expect(Token::L_PAREN, "lambda expression");
-    PARSE_COMMA_LIST
-    (
-        {
-            const Decl* param = parse_decl();
-            fct->params_.push_back(param);
-            arg_types.push_back(param->type());
-        }
-        Token::R_PAREN,
-        "lambda parameters"
-    )
-    expect(Token::ARROW, "lambda");
-    parse_scopeBody();
+    LambdaExpr* lambda = new LambdaExpr();
+    //parse_lambda(&lambda->l
 
-    emit.popScope();
-
-    return Value() /*TODO*/;
-    return 0;
+    return lambda;
 }
-#endif
 
 } // namespace impala

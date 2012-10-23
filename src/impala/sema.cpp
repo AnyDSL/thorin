@@ -235,6 +235,11 @@ const Type* Literal::vcheck(Sema& sema) const {
     }
 }
 
+const Type* LambdaExpr::vcheck(Sema& sema) const {
+    lambda().check(sema);
+    return lambda().pi();
+}
+
 const Type* Tuple::vcheck(Sema& sema) const {
     Array<const Type*> elems(ops().size());
 

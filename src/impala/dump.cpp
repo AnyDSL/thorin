@@ -104,6 +104,11 @@ void Literal::dump(Printer& p) const {
     }
 }
 
+void LambdaExpr::dump(Printer& p) const {
+    p << "lambda";
+    lambda_.dump(p);
+}
+
 void Tuple::dump(Printer& p) const {
     p << "#(";
     ANYDSL2_DUMP_COMMA_LIST(p, ops());

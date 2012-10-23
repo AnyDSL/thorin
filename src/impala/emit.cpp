@@ -148,6 +148,11 @@ RefPtr Literal::emit(CodeGen& cg) const {
     return Ref::create(cg.world.literal(akind, box()));
 }
 
+RefPtr LambdaExpr::emit(CodeGen& cg) const {
+    lambda().emit(cg, "anonymous lambda expression");
+    return Ref::create((const Def*) 0);
+}
+
 RefPtr Tuple::emit(CodeGen& cg) const {
     Array<const Def*> vals = emit_ops(cg);
 

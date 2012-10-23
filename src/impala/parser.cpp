@@ -373,7 +373,7 @@ const ScopeStmt* Parser::parse_scope() {
             continue;
         }
 
-        if (accept(Token::DEF)) {
+        if (la() == Token::DEF) {
             const FctStmt* fct_stmt = new FctStmt(parse_fct());
             stmts.push_back(fct_stmt);
             fcts.push_back(fct_stmt->fct());

@@ -12,6 +12,13 @@
 #include "impala/prec.h"
 #include "impala/type.h"
 
+#define IMPALA_PUSH(what, with) \
+    BOOST_TYPEOF(what) old_##what = what; \
+    what  = with;
+
+#define IMPALA_POP(what) \
+    what = old_##what;
+
 using namespace anydsl2;
 
 namespace impala {
@@ -300,9 +307,9 @@ void Parser::parse_globals() {
 }
 
 void Parser::parse_lambda(Lambda* lambda) {
-    cur_lambda_ = lambda;
-    const Type* ret = 0;
+    IMPALA_PUSH(cur_lambda_, lambda);
 
+    const Type* ret = 0;
     std::vector<const Type*> arg_types;
 
     if (accept(Token::LT))
@@ -345,6 +352,8 @@ void Parser::parse_lambda(Lambda* lambda) {
 
     lambda->set(pi, body);
     generics_.clear();
+
+    IMPALA_POP(cur_lambda_);
 }
 
 const Fct* Parser::parse_fct() {
@@ -471,54 +480,51 @@ const Stmt* Parser::parse_while() {
     Position pos1 = eat(Token::WHILE).pos1();
     const Expr* cond = parse_cond("while-statement");
 
-    const Loop* oldLoop = cur_loop_;
-    WhileStmt*  newLoop = new WhileStmt();
-    cur_loop_ = newLoop;
-    const Stmt* body = parse_stmt();
-    cur_loop_ = oldLoop;
+    WhileStmt*  new_loop = new WhileStmt();
+    IMPALA_PUSH(cur_loop_, new_loop);
+        const Stmt* body = parse_stmt();
+    IMPALA_POP(cur_loop_);
 
-    newLoop->set(pos1, cond, body);
+    new_loop->set(pos1, cond, body);
 
-    return newLoop;
+    return new_loop;
 }
 
 const Stmt* Parser::parse_do_while() {
     Position pos1 = eat(Token::DO).pos1();
 
-    const Loop* oldLoop = cur_loop_;
-    DoWhileStmt* newLoop = new DoWhileStmt();
-    cur_loop_ = newLoop;
-    const Stmt* body = parse_stmt();
-    cur_loop_ = oldLoop;
+    DoWhileStmt* new_loop = new DoWhileStmt();
+    IMPALA_PUSH(cur_loop_, new_loop);
+        const Stmt* body = parse_stmt();
+    IMPALA_POP(cur_loop_);
 
     expect(Token::WHILE, "do-while-statement");
     const Expr* cond = parse_cond("do-while-statement");
     expect(Token::SEMICOLON, "do-while-statement");
 
-    newLoop->set(pos1, body, cond, prev_loc_.pos2());
+    new_loop->set(pos1, body, cond, prev_loc_.pos2());
 
-    return newLoop;
+    return new_loop;
 }
 
 const Stmt* Parser::parse_for() {
     Position pos1 = eat(Token::FOR).pos1();
     expect(Token::L_PAREN, "for-statement");
 
-    const Loop* oldLoop = cur_loop_;
-    ForStmt*  newLoop = new ForStmt();
-    cur_loop_ = newLoop;
+    ForStmt*  new_loop = new ForStmt();
+    IMPALA_PUSH(cur_loop_, new_loop);
 
     // clause 1: decl or expr_opt ';'
     if (la2() == Token::COLON)
-        newLoop->set(parse_decl_stmt());
+        new_loop->set(parse_decl_stmt());
     else if (accept(Token::SEMICOLON)) { 
         // do nothing: no expr given, semicolon consumed
     } else if (is_expr()) {
-        newLoop->set(parse_expr_stmt());
+        new_loop->set(parse_expr_stmt());
     } else {
         error("expression or delcaration-statement", 
                 "first clause in for-statement");
-        newLoop->set(new ExprStmt(new EmptyExpr(prev_loc_), prev_loc_.pos2()));
+        new_loop->set(new ExprStmt(new EmptyExpr(prev_loc_), prev_loc_.pos2()));
     }
 
     // clause 2: expr_opt ';'
@@ -551,11 +557,10 @@ const Stmt* Parser::parse_for() {
     }
 
     const Stmt* body = parse_stmt();
-    cur_loop_ = oldLoop;
+    new_loop->set(pos1, cond, inc, body);
+    IMPALA_POP(cur_loop_);
 
-    newLoop->set(pos1, cond, inc, body);
-
-    return newLoop;
+    return new_loop;
 }
 
 const Stmt* Parser::parse_break() {
@@ -789,11 +794,10 @@ const Expr* Parser::parse_tuple() {
 
 const Expr* Parser::parse_lambda_expr() {
     Position pos1 = eat(Token::LAMBDA).pos1();
-    expect(Token::L_PAREN, "lambda expression");
-    LambdaExpr* lambda = new LambdaExpr();
-    //parse_lambda(&lambda->l
+    LambdaExpr* lambda_expr = new LambdaExpr();
+    parse_lambda(&lambda_expr->lambda_);
 
-    return lambda;
+    return lambda_expr;
 }
 
 } // namespace impala

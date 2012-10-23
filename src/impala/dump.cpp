@@ -49,9 +49,7 @@ void Prg::dump(Printer& p) const {
     }
 }
 
-void Fct::dump(Printer& p) const {
-    p << "def " << decl()->symbol();
-
+void Lambda::dump(Printer& p) const {
     if (!generics().empty()) {
         p << '<';
         ANYDSL2_DUMP_COMMA_LIST(p, generics());
@@ -69,6 +67,11 @@ void Fct::dump(Printer& p) const {
     }
 
     p.dump_block(body());
+}
+
+void Fct::dump(Printer& p) const {
+    p << "def " << decl()->symbol();
+    lambda_.dump(p);
 }
 
 void Decl::dump(Printer& p) const {

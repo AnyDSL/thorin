@@ -16,7 +16,7 @@ namespace anydsl2 {
 namespace impala {
 
 class CodeGen;
-class Fct;
+class Lambda;
 class Printer;
 
 class Type : public anydsl2::MagicCast {
@@ -177,16 +177,16 @@ private:
 class Generic : public Type {
 private:
 
-    Generic(anydsl2::Symbol id, const Fct* fct) 
+    Generic(anydsl2::Symbol id, const Lambda* lambda) 
         : id_(id)
-        , fct_(fct)
+        , lambda_(lambda)
     {}
 
     virtual bool equal(const Type* t) const;
     virtual size_t hash() const;
 
     anydsl2::Symbol id() const { return id_; }
-    const Fct* fct() const { return fct_; }
+    const Lambda* lambda() const { return lambda_; }
 
 public:
 
@@ -194,7 +194,7 @@ public:
     virtual const anydsl2::Type* convert(CodeGen&) const;
 
     anydsl2::Symbol id_;
-    const Fct* fct_;
+    const Lambda* lambda_;
 
     friend class TypeTable;
 };
@@ -225,7 +225,7 @@ public:
     const NoRet* type_noret() const { return noret_; }
     const Pi* pi(anydsl2::ArrayRef<const Type*> elems, const Type* ret);
     const Sigma* sigma(anydsl2::ArrayRef<const Type*> elems);
-    const Generic* generic(anydsl2::Symbol id, const Fct* fct);
+    const Generic* generic(anydsl2::Symbol id, const Lambda* lambda);
 
     typedef boost::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;
 

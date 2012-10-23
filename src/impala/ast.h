@@ -64,31 +64,50 @@ private:
     friend class Parser;
 };
 
-class Fct : public ASTNode {
+class Lambda {
 public:
 
-    Fct() {}
-
-    const Decl* decl() const { return decl_; }
-    anydsl2::Symbol symbol() const;
     const ScopeStmt* body() const { return body_; }
     const Decls& params() const { return params_; }
     const Generics& generics() const { return generics_; }
-    const Pi* pi() const;
+    const Pi* pi() const { return pi_; }
     bool continuation() const;
+
+    void dump(Printer& p) const;
+    void check(Sema& sema) const;
+    void emit(CodeGen& cg, const char* what) const;
+
+private:
+
+    void set(const Pi* pi, const ScopeStmt* body) { pi_ = pi; body_ = body; }
+
+    Generics generics_;
+    Decls params_;
+    anydsl2::AutoPtr<const ScopeStmt> body_;
+    const Pi* pi_;
+
+    friend class Fct;
+    friend class LambdaExpr;
+    friend class Parser;
+};
+
+class Fct : public ASTNode {
+public:
+
+    const Decl* decl() const { return decl_; }
+    anydsl2::Symbol symbol() const;
 
     void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
     void emit(CodeGen& cg) const;
+    const Lambda& lambda() const { return lambda_; }
 
 private:
 
-    void set(const Decl* decl, const ScopeStmt* body);
+    void set(const Decl* decl);
 
     anydsl2::AutoPtr<const Decl> decl_;
-    Generics generics_;
-    Decls params_;
-    anydsl2::AutoPtr<const ScopeStmt> body_;
+    Lambda lambda_;
 
     friend class Parser;
 };
@@ -168,6 +187,9 @@ private:
 
     Kind kind_;
     anydsl2::Box box_;
+};
+
+class LambdaExpr : public Expr {
 };
 
 class Tuple : public Expr {
@@ -484,10 +506,10 @@ private:
 class ReturnStmt : public Stmt {
 public:
 
-    ReturnStmt(const anydsl2::Position& pos1, const Expr* expr, const Fct* fct, const anydsl2::Position& pos2);
+    ReturnStmt(const anydsl2::Position& pos1, const Expr* expr, const Lambda* lambda, const anydsl2::Position& pos2);
 
     const Expr* expr() const { return expr_; }
-    const Fct* fct() const { return fct_; }
+    const Lambda* lambda() const { return lambda_; }
 
     virtual void check(Sema& sema) const;
     virtual void dump(Printer& p) const;
@@ -496,7 +518,7 @@ public:
 private:
 
     anydsl2::AutoPtr<const Expr> expr_;
-    const Fct* fct_;
+    const Lambda* lambda_;
 };
 
 class ScopeStmt : public Stmt {

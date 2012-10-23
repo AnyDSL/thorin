@@ -66,18 +66,18 @@ void Prg::emit(CodeGen& cg) const {
     for_all (f, fcts()) {
         //for_all (generic, f->generics()) {
         //}
-        size_t size = f->params().size();
+        size_t size = f->lambda().params().size();
         Array<const anydsl2::Type*> tparams(size);
         Array<Symbol>      sparams(size);
 
         size_t i = 0;
-        for_all (param, f->params()) {
+        for_all (param, f->lambda().params()) {
             tparams[i] = param->type()->convert(cg);
             sparams[i] = param->symbol();
             ++i;
         }
 
-        const anydsl2::Type* ret = f->pi()->ret()->convert(cg);
+        const anydsl2::Type* ret = f->lambda().pi()->ret()->convert(cg);
         cg.fcts[f->symbol()] = new anydsl2::Fct(cg.world, tparams, sparams, ret, f->symbol().str());
     }
 
@@ -90,13 +90,12 @@ void Prg::emit(CodeGen& cg) const {
         delete p.second;
 }
 
-void Fct::emit(CodeGen& cg) const {
-
+void Lambda::emit(CodeGen& cg, const char* what) const {
     body()->emit(cg);
 
     if (continuation()) {
         if (cg.reachable())
-            std::cerr << symbol() << " does not end with a call\n";
+            std::cerr << what << " does not end with a call\n";
     } else
         cg.fixto(cg.curFct->exit());
 
@@ -104,6 +103,10 @@ void Fct::emit(CodeGen& cg) const {
 
     cg.curFct = 0;
     cg.curBB = 0;
+}
+
+void Fct::emit(CodeGen& cg) const {
+    lambda().emit(cg, symbol().str());
 }
 
 Var* Decl::emit(CodeGen& cg) const {

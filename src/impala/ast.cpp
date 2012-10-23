@@ -22,14 +22,13 @@ Decl::Decl(const Token& tok, const Type* type, const Position& pos2)
     set_loc(tok.pos1(), pos2);
 }
 
-void Fct::set(const Decl* decl, const ScopeStmt* body) {
+bool Lambda::continuation() const { return pi()->ret()->isa<NoRet>(); }
+
+void Fct::set(const Decl* decl) {
     decl_ = decl;
-    body_ = body;
-    set_loc(decl->pos1(), body->pos2());
+    set_loc(decl->pos1(), lambda().body()->pos2());
 }
 
-bool Fct::continuation() const { return pi()->ret()->isa<NoRet>(); }
-const Pi* Fct::pi() const { return decl_->type()->as<Pi>(); }
 Symbol Fct::symbol() const { return decl_->symbol(); }
 
 /*
@@ -147,9 +146,9 @@ ContinueStmt::ContinueStmt(const Position& pos1, const Position& pos2, const Loo
     set_loc(pos1, pos2);
 }
 
-ReturnStmt::ReturnStmt(const Position& pos1, const Expr* expr, const Fct* fct, const Position& pos2)
+ReturnStmt::ReturnStmt(const Position& pos1, const Expr* expr, const Lambda* lambda, const Position& pos2)
     : expr_(expr)
-    , fct_(fct)
+    , lambda_(lambda)
 {
     set_loc(pos1, pos2);
 }

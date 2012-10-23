@@ -193,7 +193,7 @@ void Prg::check(Sema& sema) const {
         f->check(sema);
 }
 
-void Fct::check(Sema& sema) const {
+void Lambda::check(Sema& sema) const {
     sema.pushScope();
 
     for_all (p, params())
@@ -203,6 +203,10 @@ void Fct::check(Sema& sema) const {
         s->check(sema);
 
     sema.popScope();
+}
+
+void Fct::check(Sema& sema) const {
+    lambda().check(sema);
 }
 
 void Decl::check(Sema& sema) const {
@@ -392,8 +396,8 @@ void ContinueStmt::check(Sema& sema) const {
 }
 
 void ReturnStmt::check(Sema& sema) const {
-    if (!fct()->continuation()) {
-        const Pi* pi = fct()->pi();
+    if (!lambda()->continuation()) {
+        const Pi* pi = lambda()->pi();
 
         if (!pi->ret()->isa<NoRet>()) {
             if (pi->ret() == expr()->check(sema))

@@ -56,6 +56,7 @@ public:
     const Type* parse_type();
     const Decl* parse_decl();
     void parse_globals();
+    void parse_lambda(Lambda* lambda);
     const Fct* parse_fct();
 
     // expressions
@@ -67,7 +68,7 @@ public:
     const Expr* parse_primary_expr();
     const Expr* parse_literal();
     const Expr* parse_tuple();
-    const Expr* parse_lambda();
+    const Expr* parse_lambda_expr();
 
     // statements
     const Stmt* parse_stmt();
@@ -104,7 +105,7 @@ private:
     Lexer lexer_;       ///< invoked in order to get next token
     Token lookahead_[2];///< LL(2) look ahead
     const Loop* cur_loop_;
-    const Fct* cur_fct_;
+    const Lambda* cur_lambda_;
     Prg* prg_;
     int counter_;
     anydsl2::Location prev_loc_;
@@ -140,7 +141,7 @@ Parser::Parser(TypeTable& types, std::istream& stream, const std::string& filena
     : types_(types)
     , lexer_(stream, filename)
     , cur_loop_(0)
-    , cur_fct_(0)
+    , cur_lambda_(0)
     , prg_(new Prg())
     , counter_(0)
     , result_(true)
@@ -298,12 +299,8 @@ void Parser::parse_globals() {
     }
 }
 
-const Fct* Parser::parse_fct() {
-    Position pos1 = eat(Token::DEF).pos1();
-    Token id = try_id("function identifier");
-
-    Fct* fct = new Fct();
-    cur_fct_ = fct;
+void Parser::parse_lambda(Lambda* lambda) {
+    cur_lambda_ = lambda;
     const Type* ret = 0;
 
     std::vector<const Type*> arg_types;
@@ -313,10 +310,10 @@ const Fct* Parser::parse_fct() {
         (
             {
                 Symbol id = try_id("generic identifier").symbol();
-                const Generic* generic = types_.generic(id, cur_fct_);
+                const Generic* generic = types_.generic(id, cur_lambda_);
                 Generics::iterator i = generics_.find(id);
                 if (i == generics_.end()) {
-                    fct->generics_.push_back(generic);
+                    lambda->generics_.push_back(generic);
                     generics_[id] = generic;
                 } else
                     sema_error() << "generic " << id << " defined twice\n";
@@ -330,11 +327,11 @@ const Fct* Parser::parse_fct() {
     (
         {
             const Decl* param = parse_decl();
-            fct->params_.push_back(param);
+            lambda->params_.push_back(param);
             arg_types.push_back(param->type());
         },
         Token::R_PAREN,
-        "arguments of a function call"
+        "parameter list"
     )
 
     // return-continuation
@@ -344,11 +341,22 @@ const Fct* Parser::parse_fct() {
         ret = types_.type_noret();
 
     const Pi* pi = types_.pi(arg_types, ret);
-    const Decl* decl = new Decl(id, pi, prev_loc_.pos2());
     const ScopeStmt* body = parse_scope();
 
-    fct->set(decl, body);
+    lambda->set(pi, body);
     generics_.clear();
+}
+
+const Fct* Parser::parse_fct() {
+    Position pos1 = eat(Token::DEF).pos1();
+    Token id = try_id("function identifier");
+
+    Fct* fct = new Fct();
+    parse_lambda(&fct->lambda_);
+
+    const Decl* decl = new Decl(id, fct->lambda().pi(), prev_loc_.pos2());
+
+    fct->set(decl);
 
     return fct;
 }
@@ -576,7 +584,7 @@ const Stmt* Parser::parse_return() {
         eat(Token::SEMICOLON);
     }
 
-    return new ReturnStmt(pos1, expr, cur_fct_, prev_loc_.pos2());
+    return new ReturnStmt(pos1, expr, cur_lambda_, prev_loc_.pos2());
 }
 
 const Expr* Parser::parse_cond(const std::string& what) {
@@ -741,7 +749,7 @@ const Expr* Parser::parse_primary_expr() {
             return expr;
         }
         case Token::L_TUPLE:    return parse_tuple();
-        case Token::LAMBDA:     return parse_lambda();
+        case Token::LAMBDA:     return parse_lambda_expr();
         default:                ANYDSL2_UNREACHABLE;
     }
 }
@@ -779,15 +787,19 @@ const Expr* Parser::parse_tuple() {
     return tuple;
 }
 
-const Expr* Parser::parse_lambda() {
+const Expr* Parser::parse_lambda_expr() {
+    return 0;
+}
 #if 0
-    emit.pushScope();
-
     eat(Token::LAMBDA);
-    expect(Token::L_PAREN, "lambda");
+    expect(Token::L_PAREN, "lambda expression");
     PARSE_COMMA_LIST
     (
-        parse_decl(),
+        {
+            const Decl* param = parse_decl();
+            fct->params_.push_back(param);
+            arg_types.push_back(param->type());
+        }
         Token::R_PAREN,
         "lambda parameters"
     )
@@ -797,8 +809,8 @@ const Expr* Parser::parse_lambda() {
     emit.popScope();
 
     return Value() /*TODO*/;
-#endif
     return 0;
 }
+#endif
 
 } // namespace impala

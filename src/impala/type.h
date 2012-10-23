@@ -25,7 +25,7 @@ public:
     virtual ~Type() {}
 
     virtual void dump(Printer& p) const = 0;
-    virtual const anydsl2::Type* convert(CodeGen&) const = 0;
+    virtual const anydsl2::Type* map(CodeGen&) const = 0;
 
     virtual bool is_bool() const { return false; }
     virtual bool is_int() const { return false; }
@@ -63,7 +63,7 @@ public:
     Kind kind() const { return kind_; }
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl2::Type* convert(CodeGen&) const;
+    virtual const anydsl2::Type* map(CodeGen&) const;
     virtual bool is_bool() const { return kind_ == TYPE_bool; }
     virtual bool is_int() const;
 
@@ -85,7 +85,7 @@ private:
 public:
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl2::Type* convert(CodeGen&) const;
+    virtual const anydsl2::Type* map(CodeGen&) const;
 
     friend class TypeTable;
 };
@@ -101,7 +101,7 @@ private:
 public:
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl2::Type* convert(CodeGen&) const;
+    virtual const anydsl2::Type* map(CodeGen&) const;
 
     friend class TypeTable;
 };
@@ -117,7 +117,7 @@ private:
 public:
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl2::Type* convert(CodeGen&) const;
+    virtual const anydsl2::Type* map(CodeGen&) const;
 
     friend class TypeTable;
 };
@@ -130,7 +130,7 @@ private:
 public:
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl2::Type* convert(CodeGen&) const;
+    virtual const anydsl2::Type* map(CodeGen&) const;
 
     typedef anydsl2::ArrayRef<const Type*> Elems;
     Elems elems() const { return Elems(elems_); }
@@ -157,7 +157,7 @@ private:
 public:
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl2::Type* convert(CodeGen&) const;
+    virtual const anydsl2::Type* map(CodeGen&) const;
 
     typedef anydsl2::ArrayRef<const Type*> Elems;
     Elems elems() const { return Elems(elems_); }
@@ -191,7 +191,7 @@ private:
 public:
 
     virtual void dump(Printer& p) const;
-    virtual const anydsl2::Type* convert(CodeGen&) const;
+    virtual const anydsl2::Type* map(CodeGen&) const;
 
     anydsl2::Symbol id_;
     const Lambda* lambda_;

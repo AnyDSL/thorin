@@ -53,7 +53,7 @@ public:
 
     void emit();
 
-    llvm::Type* convert(const Type* type);
+    llvm::Type* map(const Type* type);
     llvm::Value* emit(const Def* def);
     llvm::Value* lookup(const Def* def);
 
@@ -84,7 +84,7 @@ void CodeGen::emit() {
 
     // map all root-level lambdas to llvm function stubs
     for_all (lambda, roots) {
-        llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
+        llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
         llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->debug, module_);
         fcts.insert(std::make_pair(lambda, f));
     }
@@ -119,7 +119,7 @@ void CodeGen::emit() {
             // create phi node stubs (for all non-cascading lambdas different from entry)
             if (!lambda->is_cascading() && lambda != scope.entry()) {
                 for_all (param, lambda->params())
-                    phis_[param] = builder_.CreatePHI(convert(param->type()), param->peek().size(), param->debug);
+                    phis_[param] = builder_.CreatePHI(map(param->type()), param->peek().size(), param->debug);
             }
 
             std::vector<const PrimOp*> primops = places[lambda->sid()];
@@ -271,7 +271,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
     if (const ConvOp* conv = def->isa<ConvOp>()) {
         llvm::Value* from = lookup(conv->from());
-        llvm::Type* to = convert(conv->type());
+        llvm::Type* to = map(conv->type());
 
         switch (conv->convop_kind()) {
             case ConvOp_trunc:  return builder_.CreateTrunc  (from, to);
@@ -308,7 +308,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     }
 
     if (const Tuple* tuple = def->isa<Tuple>()) {
-        llvm::Value* agg = llvm::UndefValue::get(convert(tuple->type()));
+        llvm::Value* agg = llvm::UndefValue::get(map(tuple->type()));
 
         for (unsigned i = 0, e = tuple->ops().size(); i != e; ++i) {
             unsigned idxs[1] = { unsigned(i) };
@@ -319,7 +319,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     }
 
     if (const PrimLit* primlit = def->isa<PrimLit>()) {
-        llvm::Type* type = convert(primlit->type());
+        llvm::Type* type = map(primlit->type());
         Box box = primlit->box();
 
         switch (primlit->primtype_kind()) {
@@ -335,12 +335,12 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
     // bottom and any
     if (const Undef* undef = def->isa<Undef>())
-        return llvm::UndefValue::get(convert(undef->type()));
+        return llvm::UndefValue::get(map(undef->type()));
 
     ANYDSL2_UNREACHABLE;
 }
 
-llvm::Type* CodeGen::convert(const Type* type) {
+llvm::Type* CodeGen::map(const Type* type) {
     switch (type->node_kind()) {
         case Node_PrimType_u1:  return llvm::IntegerType::get(context_, 1);
         case Node_PrimType_u8:  return llvm::IntegerType::get(context_, 8);
@@ -362,14 +362,14 @@ llvm::Type* CodeGen::convert(const Type* type) {
                     if (pi->empty())
                         ret = llvm::Type::getVoidTy(context_);
                     else if (pi->size() == 1)
-                        ret = convert(pi->elem(0));
+                        ret = map(pi->elem(0));
                     else {
                         Array<llvm::Type*> elems(pi->size());
-                        anydsl_zip(pi->elems(), elems, convert);
+                        anydsl_zip(pi->elems(), elems, map);
                         ret = llvm::StructType::get(context_, llvm_ref(elems));
                     }
                 } else
-                    elems[i++] = convert(elem);
+                    elems[i++] = map(elem);
             }
 
             assert(ret);
@@ -380,7 +380,7 @@ llvm::Type* CodeGen::convert(const Type* type) {
             // TODO watch out for cycles!
             const Sigma* sigma = type->as<Sigma>();
             Array<llvm::Type*> elems(sigma->elems().size());
-            anydsl_zip(sigma->elems(), elems, convert);
+            anydsl_zip(sigma->elems(), elems, map);
 
             return llvm::StructType::get(context_, llvm_ref(elems));
         }

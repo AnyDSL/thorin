@@ -8,6 +8,7 @@
 #include "impala/prec.h"
 #include "impala/type.h"
 
+using anydsl2::ArrayRef;
 using anydsl2::Type;
 
 namespace impala {
@@ -59,11 +60,15 @@ void Lambda::dump(Printer& p) const {
         p << '>';
     }
     
+    const Type* ret_type = return_type(pi());
+    ArrayRef<const Decl*> params_ref = ret_type->isa<NoRet>() 
+                                     ? params() 
+                                     : ArrayRef<const Decl*>(&params().front(), params().size() - 1);
+
     p << '(';
-    ANYDSL2_DUMP_COMMA_LIST(p, params());
+    ANYDSL2_DUMP_COMMA_LIST(p, params_ref);
     p << ')';
 
-    const Type* ret_type = return_type(pi());
     if (!ret_type->isa<NoRet>()) {
         p << " -> ";
         p.dump(ret_type);

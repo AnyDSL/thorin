@@ -167,9 +167,7 @@ RefPtr LambdaExpr::emit(CodeGen& cg) const {
 }
 
 RefPtr Tuple::emit(CodeGen& cg) const {
-    Array<const Def*> vals = emit_ops(cg);
-
-    return Ref::create(cg.world.tuple(vals));
+    return Ref::create(cg.world.tuple(emit_ops(cg)));
 }
 
 RefPtr Id::emit(CodeGen& cg) const {
@@ -261,15 +259,13 @@ RefPtr IndexExpr::emit(CodeGen& cg) const {
 
 RefPtr Call::emit(CodeGen& cg) const {
     Array<const Def*> ops = emit_ops(cg);
-    const anydsl2::Type* ret = type();
 
-    if (ret)
-        return Ref::create(cg.curBB->call(ops[0], ops.slice_back(1), ret));
-    else {
+    if (is_continuation_call()) {
         cg.curBB->tail_call(ops[0], ops.slice_back(1));
         cg.curBB = 0;
         return RefPtr(0);
-    }
+    } else 
+        return Ref::create(cg.curBB->call(ops[0], ops.slice_back(1), type()));
 }
 
 /*

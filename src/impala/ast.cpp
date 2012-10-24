@@ -80,6 +80,7 @@ IndexExpr::IndexExpr(const Position& pos1, const Expr* lhs, const Expr* index, c
 }
 
 Call::Call(const Expr* fct) { ops_.push_back(fct); }
+bool Call::is_continuation_call() const { return type()->isa<NoRet>(); }
 
 void Call::set_pos2(const Position& pos2) {
     assert(!ops_.empty());

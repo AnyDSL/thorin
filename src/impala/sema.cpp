@@ -324,14 +324,15 @@ const Type* IndexExpr::vcheck(Sema& sema) const {
 }
 
 const Type* Call::vcheck(Sema& sema) const { 
-    if (const Pi* fpi = to()->check(sema)->isa<Pi>()) {
-        Array<const Type*> op_types(ops_.size() - 1 + 1); // peel 'to', add return type
+    if (const Pi* to_pi = to()->check(sema)->isa<Pi>()) {
+        Array<const Type*> op_types(num_args() + 1); // reserve one more for return type
 
-        for (size_t i = 1; i < ops_.size(); ++i)
-            op_types[i-1] = ops_[i]->check(sema);
+        for (size_t i = 0, e = num_args(); i != e; ++i)
+            op_types[i] = arg(i)->check(sema);
 
-        const Type* ret_type = return_type(fpi);
         const Pi* pi;
+        const Type* ret_type = to_pi->num_elems() == num_args() ? sema.world.noret() : return_type(to_pi);
+
         if (ret_type->isa<NoRet>())
             pi = sema.world.pi(op_types.slice_front(op_types.size()-1));
         else {
@@ -339,10 +340,10 @@ const Type* Call::vcheck(Sema& sema) const {
             pi = sema.world.pi(op_types);
         }
 
-        if (pi == fpi)
+        if (pi == to_pi)
             return ret_type;
         else {
-            sema.error(to()) << "'" << to() << "' expects an invocation of type '" << fpi 
+            sema.error(to()) << "'" << to() << "' expects an invocation of type '" << to_pi 
                 << "' but an invocation of type '" << pi << "' is given\n";
         }
     } else

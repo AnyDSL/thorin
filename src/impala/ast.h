@@ -145,6 +145,9 @@ class Expr : public ASTNode {
 public:
 
     const Exprs& ops() const { return ops_; }
+    const Expr* op(size_t i) const { return ops_[i]; }
+    size_t size() const { return ops_.size(); }
+    bool empty() const { return size() == 0; }
     const anydsl2::Type* type() const { return type_; }
     const anydsl2::Type* check(Sema& sema) const { return type_ = vcheck(sema); }
     anydsl2::Array<const anydsl2::Def*> emit_ops(CodeGen& cg) const;
@@ -346,11 +349,15 @@ public:
     void append_arg(const Expr* expr) { ops_.push_back(expr); }
     void set_pos2(const anydsl2::Position& pos2);
     const Expr* to() const { return ops_.front(); }
+    size_t num_args() const { return size() - 1; }
+    const Expr* arg(size_t i) const { return op(i+1); }
 
     virtual bool lvalue() const { return false; }
     virtual RefPtr emit(CodeGen& cg) const;
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual void vdump(Printer& p) const;
+
+    bool is_continuation_call() const;
 };
 
 //------------------------------------------------------------------------------

@@ -97,12 +97,12 @@ public:
 
     const BBs& preds() const { return preds_; }
     const BBs& succs() const { return succs_; }
-
     const Lambda* top() const { return top_; }
     const Lambda* cur() const { return cur_; }
 
     World& world();
     bool sealed() const { return sealed_; }
+    std::string debug() const;
 
     void emit();
 
@@ -140,9 +140,14 @@ private:
 class Fct : public BB {
 public:
 
+    Fct(World& world)
+        : world_(world) 
+    {
+        fct_ = this;
+    }
     Fct(World& world, 
         ArrayRef<const Type*> types, ArrayRef<Symbol> symbols, 
-        const Type* rettype, BB* parent, const LetRec* siblings, const std::string& debug);
+        const Type* rettype, const std::string& debug);
     ~Fct();
 
     BB* createBB(const std::string& debug = "");
@@ -153,17 +158,16 @@ public:
 
     BB* exit() const { return exit_; }
     BB* parent() const { return parent_; }
-    const LetRec* siblings() const { return siblings_; }
+    void set_parent(BB* parent) { parent_ = parent; }
     const Param* ret() const { return ret_; }
     const Type* rettype() const { return rettype_; }
-    const LetRec& letrec() const { return letrec_; }
+    LetRec& letrec() { return letrec_; }
 
 private:
 
     World& world_;
     const Type* rettype_;
     BB* parent_;
-    const LetRec* siblings_;
     const Param* ret_;
     BB* exit_;
     std::vector<BB*> cfg_;

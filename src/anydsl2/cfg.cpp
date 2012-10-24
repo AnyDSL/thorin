@@ -234,21 +234,22 @@ void BB::emit() {
         ANYDSL2_UNREACHABLE;
 }
 
+std::string BB::debug() const { return top() ? top()->debug : std::string(); }
+
 //------------------------------------------------------------------------------
 
 Fct::Fct(World& world, 
          ArrayRef<const Type*> types, ArrayRef<Symbol> symbols, 
-         const Type* rettype, BB* parent, const LetRec* siblings, const std::string& debug)
+         const Type* rettype, const std::string& debug)
     : world_(world)
     , rettype_(rettype)
-    , parent_(parent)
-    , siblings_(siblings)
+    , parent_(0)
     , exit_(0)
 {
     assert(types.size() == symbols.size());
     sealed_ = true;
     fct_ = this;
-    cur_ = top_ = world.lambda(world.pi(types), Lambda::Extern);
+    cur_ = top_ = world.lambda(world.pi(types));
     top_->debug = debug;
 
     size_t i = 0;
@@ -268,6 +269,9 @@ Fct::Fct(World& world,
 Fct::~Fct() {
     for_all (bb, cfg_)
         delete bb;
+
+    for_all (p, letrec_)
+        delete p.second;
 }
 
 BB* Fct::createBB(const std::string& debug /*= ""*/) {
@@ -278,12 +282,9 @@ BB* Fct::createBB(const std::string& debug /*= ""*/) {
 }
 
 Var* Fct::lookup_top(const Symbol& symbol, const Type* type) {
-    if (siblings_) {
-        // is symbol a sibling?
-        LetRec::const_iterator i = siblings_->find(symbol);
-        if (i != siblings_->end())
-            return insert(symbol, i->second->top());
-    }
+    LetRec::const_iterator i = letrec_.find(symbol);
+    if (i != letrec_.end())
+        return insert(symbol, i->second->top());
 
     if (parent())
         return parent()->lookup(symbol, type);

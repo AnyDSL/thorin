@@ -199,6 +199,9 @@ void Prg::check(Sema& sema) const {
 void Lambda::check(Sema& sema) const {
     sema.pushScope();
 
+    for_all (f, body()->fcts())
+        sema.insert(f->decl());
+
     for_all (p, params())
         p->check(sema);
 

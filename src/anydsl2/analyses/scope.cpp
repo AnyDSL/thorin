@@ -67,8 +67,8 @@ Scope::Scope(Lambda* entry)
     for_all (lambda, lambdas_)
         lambda->invalidate_sid();
 
-#ifdef DEBUG
-    anydsl_assert(number(lambdas_, entry, size() - 1) == size_t(-1), "bug in numbering");
+#ifndef NDEBUG
+    assert(number(lambdas_, entry, size() - 1) == size_t(-1) && "bug in numbering");
 #else
     number(lambdas_, entry, size() - 1);
 #endif

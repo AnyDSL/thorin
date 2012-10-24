@@ -65,6 +65,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     void dump(bool fancy = false, int indent = 0) const;
 
     bool is_extern() const { return flags_ & Extern; }
+    void set_extern() const { flags_ |= Extern; }
 
     bool sid_valid() { return sid_ != size_t(-1); }
     bool sid_invalid() { return sid_ == size_t(-1); }
@@ -102,7 +103,7 @@ private:
     virtual void vdump(Printer& printer) const;
 
     size_t gid_; ///< global index
-    uint32_t flags_;
+    mutable uint32_t flags_;
     Params params_;
     size_t sid_; ///< scope index
 

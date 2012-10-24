@@ -18,7 +18,6 @@ using anydsl2::Array;
 using anydsl2::ArrayRef;
 using anydsl2::BB;
 using anydsl2::Def;
-using anydsl2::LetRec;
 using anydsl2::Pi;
 using anydsl2::RVal;
 using anydsl2::Ref;
@@ -37,8 +36,9 @@ public:
 
     CodeGen(World& world)
         : world(world)
-        , curBB(0)
-        , curFct(0)
+        , root(new anydsl2::Fct(world))
+        , curBB(root)
+        , curFct(root)
     {}
 
     void fixto(BB* to) {
@@ -47,12 +47,12 @@ public:
     }
 
     bool reachable() const { return curBB; }
-    anydsl2::Fct* create_fct(const Lambda& lambda, const LetRec* siblings, const char* name);
+    anydsl2::Fct* create_fct(const Lambda& lambda, const Symbol& symbol);
 
     World& world;
+    anydsl2::AutoPtr<anydsl2::Fct> root;
     BB* curBB;
     anydsl2::Fct* curFct;
-    LetRec letrec;
 };
 
 //------------------------------------------------------------------------------
@@ -60,12 +60,12 @@ public:
 void emit(World& world, const Prg* prg) {
     CodeGen cg(world);
     prg->emit(cg);
-    //cg.world.cleanup();
+    cg.world.cleanup();
 }
 
 //------------------------------------------------------------------------------
 
-anydsl2::Fct* CodeGen::create_fct(const Lambda& lambda, const LetRec* siblings, const char* name) {
+anydsl2::Fct* CodeGen::create_fct(const Lambda& lambda, const Symbol& symbol) {
     size_t size = lambda.params().size();
     Array<const anydsl2::Type*> tparams(size);
     Array<Symbol> sparams(size);
@@ -77,29 +77,30 @@ anydsl2::Fct* CodeGen::create_fct(const Lambda& lambda, const LetRec* siblings, 
         ++i;
     }
 
-    // TODO
     const anydsl2::Type* ret = return_type(lambda.pi());
-    return new anydsl2::Fct(world, tparams, sparams, ret, curBB, siblings, name);
+    lambda.air_fct_ = new anydsl2::Fct(world, tparams, sparams, ret, symbol.str());
+
+    return lambda.air_fct_;
 }
 
 void Prg::emit(CodeGen& cg) const {
-    for_all (f, fcts())
-        cg.letrec[f->symbol()] = cg.create_fct(f->lambda(), &cg.letrec, f->symbol().str());
+    for_all (f, fcts()) {
+        cg.create_fct(f->lambda(), f->symbol())->top()->set_extern();
+        cg.root->nest(f->symbol(), f->lambda().air_fct());
+    }
 
     for_all (f, fcts())
         f->emit(cg);
-
-    for_all (p, cg.letrec)
-        delete p.second;
 }
 
-const anydsl2::Lambda* Lambda::emit(CodeGen& cg, anydsl2::Fct* parent, const char* what) const {
+const anydsl2::Lambda* Lambda::emit(CodeGen& cg, BB* parent, const char* what) const {
     for_all (f, body()->fcts())
-        parent->nest(f->symbol(), cg.create_fct(f->lambda(), &parent->letrec(), f->symbol().str()));
+        air_fct()->nest(f->symbol(), cg.create_fct(f->lambda(), f->symbol()));
 
+    air_fct()->set_parent(parent);
     BB* oldBB = cg.curBB;
     anydsl2::Fct* oldFct = cg.curFct;
-    cg.curBB = cg.curFct = parent;
+    cg.curBB = cg.curFct = air_fct();
 
     body()->emit(cg);
 
@@ -114,11 +115,11 @@ const anydsl2::Lambda* Lambda::emit(CodeGen& cg, anydsl2::Fct* parent, const cha
     cg.curBB  = oldBB;
     cg.curFct = oldFct;
 
-    return parent->top();
+    return air_fct()->top();
 }
 
 void Fct::emit(CodeGen& cg) const {
-    lambda().emit(cg, cg.letrec[symbol()], symbol().str());
+    lambda().emit(cg, cg.curBB, symbol().str());
 }
 
 Var* Decl::emit(CodeGen& cg) const {
@@ -161,7 +162,8 @@ RefPtr Literal::emit(CodeGen& cg) const {
 }
 
 RefPtr LambdaExpr::emit(CodeGen& cg) const {
-    return Ref::create(lambda().emit(cg, cg.create_fct(lambda(), 0, "<lambda>"), "anonymous lambda expression"));
+    cg.create_fct(lambda(), "<lambda>");
+    return Ref::create(lambda().emit(cg, cg.curBB, "anonymous lambda expression"));
 }
 
 RefPtr Tuple::emit(CodeGen& cg) const {
@@ -445,7 +447,7 @@ void ReturnStmt::emit(CodeGen& cg) const {
 }
 
 void FctStmt::emit(CodeGen& cg) const {
-    //lambda().emit(cg, cg.letrec[symbol()], symbol().str());
+    fct()->emit(cg);
 }
 
 void ScopeStmt::emit(CodeGen& cg) const {

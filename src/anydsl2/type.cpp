@@ -39,7 +39,7 @@ CompoundType::CompoundType(World& world, int kind, ArrayRef<const Generic*> gene
 }
 
 const Type* CompoundType::elem_via_lit(const Def* def) const {
-    return elem(def->as<PrimLit>()->get_u64());
+    return elem(def->primlit_value<size_t>());
 }
 
 size_t CompoundType::hash() const {

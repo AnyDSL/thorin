@@ -371,7 +371,7 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value) {
     if (const Tuple* tup = agg->isa<Tuple>()) {
         Array<const Def*> args(tup->size());
         std::copy(agg->ops().begin(), agg->ops().end(), args.begin());
-        args[index->as<PrimLit>()->get_u64()] = value;
+        args[index->primlit_value<size_t>()] = value;
 
         return tuple(args);
     }

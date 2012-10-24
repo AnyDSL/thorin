@@ -169,6 +169,9 @@ public:
     bool is_one() const { return is_primlit(1); }
     bool is_allset() const { return is_primlit(-1); }
 
+    // implementation in literal.h
+    template<class T> inline T primlit_value() const;
+
 private:
 
     const Type* type_;

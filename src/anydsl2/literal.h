@@ -94,7 +94,6 @@ public:
     Box box() const { return box_; }
     const PrimType* primtype() const { return type()->as<PrimType>(); }
     PrimTypeKind primtype_kind() const { return primtype()->primtype_kind(); }
-    size_t get_u64() const;
 
     virtual bool equal(const Node* other) const;
     virtual size_t hash() const;
@@ -128,6 +127,16 @@ private:
 };
 
 //------------------------------------------------------------------------------
+
+template<class T>
+T Def::primlit_value() const {
+    const PrimLit* lit = this->as<PrimLit>();
+    switch (lit->primtype_kind()) {
+#define ANYDSL2_UF_TYPE(T) case PrimType_##T: return lit->box().get_##T();
+#include "anydsl2/tables/primtypetable.h"
+        default: ANYDSL2_UNREACHABLE;
+    }
+}
 
 } // namespace anydsl2
 

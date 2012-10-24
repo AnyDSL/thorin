@@ -98,7 +98,7 @@ bool Def::is_primlit(int val) const {
 }
 
 World& Def::world() const { return type_->world(); }
-const Def* Def::op_via_lit(const Def* def) const { return op(def->as<PrimLit>()->get_u64()); }
+const Def* Def::op_via_lit(const Def* def) const { return op(def->primlit_value<size_t>()); }
 Lambda* Def::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(this)); }
 Lambda* Def::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(this)); }
 

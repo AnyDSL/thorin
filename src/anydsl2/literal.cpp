@@ -21,14 +21,6 @@ size_t PrimLit::hash() const {
     return seed;
 }
 
-u64 PrimLit::get_u64() const {
-    switch (primtype_kind()) {
-#define ANYDSL2_UF_TYPE(T) case PrimType_##T: return box().get_##T();
-#include "anydsl2/tables/primtypetable.h"
-        default: ANYDSL2_UNREACHABLE;
-    }
-}
-
 //------------------------------------------------------------------------------
 
 } // namespace anydsl2

@@ -67,10 +67,10 @@ void Lambda::dump(Printer& p) const {
 
     p << '(';
     ANYDSL2_DUMP_COMMA_LIST(p, params_ref);
-    p << ')';
+    p << ") ";
 
     if (!ret_type->isa<NoRet>()) {
-        p << " -> ";
+        p << "-> ";
         p.dump(ret_type);
         p << ' ';
     }

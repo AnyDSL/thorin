@@ -18,23 +18,6 @@ protected:
     PrimOp(int kind, size_t size, const Type* type)
         : Def(kind, size, type)
     {}
-
-public:
-
-    /** 
-     * @brief Makes a polymorphic copy.
-     *
-     * All attributes are copied;
-     * all operands are set to 0.
-     * The copy itself does not introduce new uses.
-     * Most likely, you want to update the newly created node.
-     * The return pointer is \em not const.
-     * Thus, you are free to run \p update before inserting this node into the \p World again.
-     * 
-     * @return A modifiable copy of this node.
-     */
-    virtual PrimOp* stub() const = 0;
-    PrimOp* clone() const;
 };
 
 //------------------------------------------------------------------------------
@@ -70,8 +53,6 @@ private:
     {}
 
 public:
-
-    virtual ArithOp* stub() const { return new ArithOp(*this); }
 
     ArithOpKind arithop_kind() const { return (ArithOpKind) node_kind(); }
 
@@ -122,7 +103,6 @@ class RelOp : public BinOp {
 private:
 
     RelOp(RelOpKind kind, const Def* lhs, const Def* rhs);
-    virtual RelOp* stub() const { return new RelOp(*this); }
 
 public:
 
@@ -141,7 +121,6 @@ private:
     {
         set_op(0, from);
     }
-    virtual ConvOp* stub() const { return new ConvOp(*this); }
 
 public:
 
@@ -163,8 +142,6 @@ private:
     Select(const Def* cond, const Def* t, const Def* f);
 
 public:
-
-    virtual Select* stub() const { return new Select(*this); }
 
     const Def* cond() const { return op(0); }
     const Def* tval() const { return op(1); }
@@ -204,8 +181,6 @@ private:
 
 public:
 
-    virtual Extract* stub() const { return new Extract(*this); }
-
     friend class World;
 };
 
@@ -215,7 +190,6 @@ class Insert : public TupleOp {
 private:
 
     Insert(const Def* tuple, const Def* index, const Def* value);
-    virtual Insert* stub() const { return new Insert(*this); }
     
 public:
 
@@ -234,7 +208,6 @@ class Tuple : public PrimOp {
 private:
 
     Tuple(World& world, ArrayRef<const Def*> args);
-    virtual Tuple* stub() const { return new Tuple(*this); }
 
 private:
 

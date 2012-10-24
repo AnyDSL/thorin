@@ -9,16 +9,6 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
-PrimOp* PrimOp::clone() const {
-    PrimOp* result = stub();
-    for (size_t i = 0, e = size(); i != e; ++i)
-        result->set_op(i, op(i));
-
-    return result;
-}
-
-//------------------------------------------------------------------------------
-
 RelOp::RelOp(RelOpKind kind, const Def* lhs, const Def* rhs)
     : BinOp((NodeKind) kind, lhs->world().type_u1(), lhs, rhs)
 {}

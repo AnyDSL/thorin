@@ -49,8 +49,6 @@ public:
     const Def* extract_mem() const;
     const Def* extract_val() const;
 
-    virtual Load* stub() const { return new Load(*this); }
-
 private:
 
     mutable const Def* extract_mem_;
@@ -72,8 +70,6 @@ public:
 
     const Def* val() const { return op(2); }
 
-    virtual Store* stub() const { return new Store(*this); }
-
     friend class World;
 };
 
@@ -90,8 +86,6 @@ public:
 
     const Def* extract_mem() const;
     const Def* extract_frame() const;
-
-    virtual Enter* stub() const { return new Enter(*this); }
 
 private:
 
@@ -111,8 +105,6 @@ private:
     virtual void vdump(Printer &printer) const;
 
 public:
-
-    virtual Leave* stub() const { return new Leave(*this); }
 
     const Def* frame() const { return op(1); }
 
@@ -137,8 +129,6 @@ private:
     size_t hash() const;
 
 public:
-
-    virtual Slot* stub() const { return new Slot(*this); }
 
     const Def* frame() const { return op(0); }
 

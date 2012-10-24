@@ -344,12 +344,8 @@ const Def* Dropper::drop(bool& is_new, const Def* odef) {
         is_new |= op_is_new;
     }
 
-    if (is_new) {
-        PrimOp* nprimop = oprimop->stub();
-        nprimop->set_all(nops);
-        old2new[oprimop] = nprimop;
-        return world.consume(nprimop);
-    }
+    if (is_new)
+        return old2new[oprimop] = world.primop(oprimop->kind(), oprimop->type(), nops);
 
     cached.insert(oprimop);
     return odef;

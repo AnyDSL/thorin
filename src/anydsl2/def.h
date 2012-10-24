@@ -112,11 +112,6 @@ protected:
         : Node(kind, size)
         , type_(type)
     {}
-    /// Used by \p stub. Does not introduce any ops, i.e., they remain unset.
-    Def(const Def& def)
-        : Node(def)
-        , type_(def.type())
-    {}
     virtual ~Def();
 
     virtual bool equal(const Node* other) const;

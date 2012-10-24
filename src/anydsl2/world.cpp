@@ -658,20 +658,21 @@ PrimOp* World::release(const PrimOp* primop) {
  */
 
 void World::dump(bool fancy) {
-    //for_all (lambda, lambdas())
-        //lambda->dump(fancy);
-    //return;
-    LambdaSet roots = find_root_lambdas(lambdas());
+    if (fancy) {
+        LambdaSet roots = find_root_lambdas(lambdas());
 
-    for_all (root, roots) {
-        ScopeTree scope(root);
+        for_all (root, roots) {
+            ScopeTree scope(root);
 
-        for_all (lambda, scope.rpo()) {
-            int indent = scope.depth(lambda);
-            lambda->dump(fancy, indent);
+            for_all (lambda, scope.rpo()) {
+                int indent = scope.depth(lambda);
+                lambda->dump(fancy, indent);
+            }
         }
+    } else {
+        for_all (lambda, lambdas())
+            lambda->dump(fancy);
     }
-
     std::cout << std::endl;
 }
 

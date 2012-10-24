@@ -274,10 +274,11 @@ RefPtr Call::emit(CodeGen& cg) const {
  */
 
 void DeclStmt::emit(CodeGen& cg) const {
-    Var* var = decl()->emit(cg);
-
-    if (const Expr* init_expr = init())
-        var->store(init_expr->emit(cg)->load());
+    if (cg.reachable()) {
+        Var* var = decl()->emit(cg);
+        if (const Expr* init_expr = init())
+            var->store(init_expr->emit(cg)->load());
+    }
 }
 
 void ExprStmt::emit(CodeGen& cg) const {
@@ -430,18 +431,20 @@ void ContinueStmt::emit(CodeGen& cg) const {
 }
 
 void ReturnStmt::emit(CodeGen& cg) const {
-    if (const Call* call = expr()->isa<Call>()) {
-        Array<const Def*> ops = call->emit_ops(cg);
-        cg.curBB->return_tail_call(ops[0], ops.slice_back(1));
-    } else {
-        if (expr())
-            cg.curBB->return_value(expr()->emit(cg)->load());
-        else
-            cg.curBB->return_void();
-    }
+    if (cg.reachable()) {
+        if (const Call* call = expr()->isa<Call>()) {
+            Array<const Def*> ops = call->emit_ops(cg);
+            cg.curBB->return_tail_call(ops[0], ops.slice_back(1));
+        } else {
+            if (expr())
+                cg.curBB->return_value(expr()->emit(cg)->load());
+            else
+                cg.curBB->return_void();
+        }
 
-    // all other statements in the same BB are unreachable
-    cg.curBB = 0;
+        // all other statements in the same BB are unreachable
+        cg.curBB = 0;
+    }
 }
 
 void FctStmt::emit(CodeGen& cg) const {

@@ -296,7 +296,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
     if (const TupleOp* tupleop = def->isa<TupleOp>()) {
         llvm::Value* tuple = lookup(tupleop->tuple());
-        unsigned idxs[1] = { unsigned(tupleop->index()) };
+        unsigned idxs[1] = { tupleop->index()->as<PrimLit>()->get_u64() };
 
         if (tupleop->node_kind() == Node_Extract)
             return builder_.CreateExtractValue(tuple, idxs);

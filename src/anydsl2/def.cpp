@@ -65,10 +65,6 @@ bool Def::is_const() const {
     return result;
 }
 
-World& Def::world() const { 
-    return type_->world();
-}
-
 void Def::update(size_t i, const Def* def) {
     unset_op(i);
     set_op(i, def);
@@ -101,12 +97,19 @@ bool Def::is_primlit(int val) const {
     return false;
 }
 
-Lambda* Def::as_lambda() const {
-    return const_cast<Lambda*>(scast<Lambda>(this)); 
+World& Def::world() const { return type_->world(); }
+const Def* Def::op_via_lit(const Def* def) const { return op(def->as<PrimLit>()->get_u64()); }
+Lambda* Def::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(this)); }
+Lambda* Def::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(this)); }
+
+bool Def::equal(const Node* other) const { 
+    return Node::equal(other) && type() == other->as<Def>()->type(); 
 }
 
-Lambda* Def::isa_lambda() const {
-    return const_cast<Lambda*>(dcast<Lambda>(this)); 
+size_t Def::hash() const {
+    size_t seed = Node::hash();
+    boost::hash_combine(seed, type());
+    return seed;
 }
 
 //------------------------------------------------------------------------------

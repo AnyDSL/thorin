@@ -347,12 +347,12 @@ const Def* World::convop(ConvOpKind kind, const Type* to, const Def* from) {
     return consume(new ConvOp(kind, to, from));
 }
 
-const Def* World::extract(const Def* agg, u32 index) {
+const Def* World::extract(const Def* agg, const Def* index) {
     if (agg->isa<Bottom>())
-        return bottom(agg->type()->as<Sigma>()->elem(index));
+        return bottom(agg->type()->as<Sigma>()->elem_via_lit(index));
 
     if (const Tuple* tuple = agg->isa<Tuple>())
-        return tuple->op(index);
+        return tuple->op_via_lit(index);
 
     if (const Insert* insert = agg->isa<Insert>()) {
         if (index == insert->index())
@@ -364,18 +364,14 @@ const Def* World::extract(const Def* agg, u32 index) {
     return consume(new Extract(agg, index));
 }
 
-const Def* World::insert(const Def* agg, u32 index, const Def* value) {
+const Def* World::insert(const Def* agg, const Def* index, const Def* value) {
     if (agg->isa<Bottom>() || value->isa<Bottom>())
         return bottom(agg->type());
 
     if (const Tuple* tup = agg->isa<Tuple>()) {
         Array<const Def*> args(tup->size());
-
-        for (size_t i = 0, e = args.size(); i != e; ++i)
-            if (i != index)
-                args[i] = agg->op(i);
-            else
-                args[i] = value;
+        std::copy(agg->ops().begin(), agg->ops().end(), args.begin());
+        args[index->as<PrimLit>()->get_u64()] = value;
 
         return tuple(args);
     }

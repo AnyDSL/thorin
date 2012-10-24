@@ -38,6 +38,10 @@ CompoundType::CompoundType(World& world, int kind, ArrayRef<const Generic*> gene
         set(x++, elem);
 }
 
+const Type* CompoundType::elem_via_lit(const Def* def) const {
+    return elem(def->as<PrimLit>()->get_u64());
+}
+
 size_t CompoundType::hash() const {
     size_t seed = Type::hash();
     boost::hash_combine(seed, num_generics_);

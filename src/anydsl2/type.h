@@ -8,6 +8,7 @@
 
 namespace anydsl2 {
 
+class Def;
 class Generic;
 class Lambda;
 class Pi;
@@ -136,6 +137,7 @@ public:
 
     Elems elems() const { return ops_ref<const Type*>().slice_back(num_generics_); }
     const Type* elem(size_t i) const { return elems()[i]; }
+    const Type* elem_via_lit(const Def* def) const;
 
     Generics generics() const { return ops_ref<const Generic*>().slice_front(num_generics_); }
     const Generic* generic(size_t i) const { return generics()[i]; }

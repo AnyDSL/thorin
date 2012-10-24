@@ -25,18 +25,6 @@ RelOp::RelOp(RelOpKind kind, const Def* lhs, const Def* rhs)
 
 //------------------------------------------------------------------------------
 
-bool ConvOp::equal(const Node* other) const {
-    return Def::equal(other) && type() == other->as<ConvOp>()->type();
-}
-
-size_t ConvOp::hash() const {
-    size_t seed = Def::hash();
-    boost::hash_combine(seed, type());
-    return seed;
-}
-
-//------------------------------------------------------------------------------
-
 Select::Select(const Def* cond, const Def* t, const Def* f) 
     : PrimOp(Node_Select, 3, t->type())
 {
@@ -49,36 +37,26 @@ Select::Select(const Def* cond, const Def* t, const Def* f)
 
 //------------------------------------------------------------------------------
 
-TupleOp::TupleOp(NodeKind kind, size_t size, const Type* type, const Def* tuple, u32 index)
+TupleOp::TupleOp(NodeKind kind, size_t size, const Type* type, const Def* tuple, const Def* index)
     : PrimOp(kind, size, type)
-    , index_(index)
 {
     set_op(0, tuple);
-}
-
-bool TupleOp::equal(const Node* other) const {
-    return Def::equal(other) && index() == other->as<TupleOp>()->index();
-}
-
-size_t TupleOp::hash() const {
-    size_t seed = Def::hash();
-    boost::hash_combine(seed, index());
-    return seed;
+    set_op(1, index);
 }
 
 //------------------------------------------------------------------------------
 
-Extract::Extract(const Def* tuple, u32 index)
-    : TupleOp(Node_Extract, 1, tuple->type()->as<Sigma>()->elem(index), tuple, index)
+Extract::Extract(const Def* tuple, const Def* index)
+    : TupleOp(Node_Extract, 2, tuple->type()->as<Sigma>()->elem_via_lit(index), tuple, index)
 {}
 
 //------------------------------------------------------------------------------
 
-Insert::Insert(const Def* tuple, u32 index, const Def* value)
-    : TupleOp(Node_Insert, 2, tuple->type(), tuple, index)
+Insert::Insert(const Def* tuple, const Def* index, const Def* value)
+    : TupleOp(Node_Insert, 3, tuple->type(), tuple, index)
 {
-    set_op(1, value);
-    assert(tuple->type()->as<Sigma>()->elem(index) == value->type() && "type error");
+    set_op(2, value);
+    assert(tuple->type()->as<Sigma>()->elem_via_lit(index) == value->type() && "type error");
 }
 
 //------------------------------------------------------------------------------

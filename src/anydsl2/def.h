@@ -119,6 +119,9 @@ protected:
     {}
     virtual ~Def();
 
+    virtual bool equal(const Node* other) const;
+    virtual size_t hash() const;
+
     void set_type(const Type* type) { type_ = type; }
     void unregister_use(size_t i) const;
 
@@ -146,15 +149,16 @@ public:
      */
     Array<Use> copy_uses() const;
     const Type* type() const { return type_; }
-    World& world() const;
-
-    Defs ops() const { return ops_ref<const Def*>(); }
-    Defs ops(size_t begin, size_t end) const { return ops().slice(begin, end); }
-    const Def* op(size_t i) const { return ops()[i]; }
 
     /// Updates operand \p i to point to \p def instead.
     void update(size_t i, const Def* def);
     void update(ArrayRef<const Def*> defs);
+
+    World& world() const;
+    Defs ops() const { return ops_ref<const Def*>(); }
+    Defs ops(size_t begin, size_t end) const { return ops().slice(begin, end); }
+    const Def* op(size_t i) const { return ops()[i]; }
+    const Def* op_via_lit(const Def* def) const;
 
     /*
      * check for special literals

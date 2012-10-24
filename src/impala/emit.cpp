@@ -255,9 +255,7 @@ RefPtr PostfixExpr::emit(CodeGen& cg) const {
 }
 
 RefPtr IndexExpr::emit(CodeGen& cg) const {
-    uint32_t pos = index()->as<Literal>()->box().get_u32();
-
-    return Ref::create(lhs()->emit(cg), pos);
+    return Ref::create(lhs()->emit(cg), index()->emit(cg)->load());
 }
 
 RefPtr Call::emit(CodeGen& cg) const {

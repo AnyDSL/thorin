@@ -93,13 +93,17 @@ void Select::vdump(Printer& p) const {
 void Extract::vdump(Printer& p) const {
     dump_name_and_type(p, this, "extract");
 	p.dump(tuple());
-	p << ", " << index() << ")";
+	p << ", "; 
+    p.dump(index());
+    p << ")";
 }
 
 void Insert::vdump(Printer& p) const {
     dump_name_and_type(p, this, "insert");
 	p.dump(tuple());
-	p << ", " << index() << ", ";
+	p << ", " ;
+    p.dump(index());
+    p << ", ";
 	p.dump(value());
 	p << ")";
 }

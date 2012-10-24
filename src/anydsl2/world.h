@@ -201,8 +201,8 @@ public:
      * tuple stuff
      */
 
-    const Def* extract(const Def* tuple, u32 i);
-    const Def* insert(const Def* tuple, u32 i, const Def* value);
+    const Def* extract(const Def* tuple, const Def* index);
+    const Def* insert(const Def* tuple, const Def* index, const Def* value);
     const Def* tuple(ArrayRef<const Def*> args);
 
     /*

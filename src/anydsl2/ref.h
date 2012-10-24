@@ -27,7 +27,7 @@ public:
 
     inline static RefPtr create(const Def* def);
     inline static RefPtr create(Var* var);
-    inline static RefPtr create(RefPtr lref, u32 index);
+    inline static RefPtr create(RefPtr lref, const Def* index);
 };
 
 class RVal : public Ref {
@@ -65,7 +65,7 @@ private:
 class TupleRef : public Ref {
 public:
 
-    TupleRef(RefPtr lref, u32 index)
+    TupleRef(RefPtr lref, const Def* index)
         : lref_(lref)
         , index_(index)
         , loaded_(0)
@@ -78,7 +78,7 @@ public:
 private:
 
     RefPtr lref_;
-    u32 index_;
+    const Def* index_;
 
     /// Caches loaded value to prevent quadratic blow up in calls.
     mutable const Def* loaded_;
@@ -86,7 +86,7 @@ private:
 
 RefPtr Ref::create(const Def* def) { return RefPtr(new RVal(def)); }
 RefPtr Ref::create(Var* var) { return RefPtr(new VarRef(var)); }
-RefPtr Ref::create(RefPtr lref, u32 index) { return RefPtr(new TupleRef(lref, index)); }
+RefPtr Ref::create(RefPtr lref, const Def* index) { return RefPtr(new TupleRef(lref, index)); }
 
 } // namespace anydsl2
 

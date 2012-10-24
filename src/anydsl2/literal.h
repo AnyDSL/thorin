@@ -20,11 +20,6 @@ protected:
     Literal(int kind, const Type* type)
         : PrimOp(kind, 0, type)
     {}
-
-protected:
-
-    virtual bool equal(const Node* other) const;
-    virtual size_t hash() const;
 };
 
 //------------------------------------------------------------------------------
@@ -99,6 +94,7 @@ public:
     Box box() const { return box_; }
     const PrimType* primtype() const { return type()->as<PrimType>(); }
     PrimTypeKind primtype_kind() const { return primtype()->primtype_kind(); }
+    size_t get_u64() const;
 
     virtual bool equal(const Node* other) const;
     virtual size_t hash() const;

@@ -150,8 +150,6 @@ public:
 
 private:
 
-    virtual bool equal(const Node* other) const;
-    virtual size_t hash() const;
     virtual void vdump(Printer &printer) const;
 
     friend class World;
@@ -182,23 +180,15 @@ public:
 class TupleOp : public PrimOp {
 protected:
 
-    TupleOp(NodeKind kind, size_t size, const Type* type, const Def* tuple, u32 index);
+    TupleOp(NodeKind kind, size_t size, const Type* type, const Def* tuple, const Def* index);
     TupleOp(const TupleOp& tuple)
         : PrimOp(tuple)
-        , index_(tuple.index())
     {}
 
 public:
 
     const Def* tuple() const { return op(0); }
-    u32 index() const { return index_; }
-
-private:
-
-    virtual bool equal(const Node* other) const;
-    virtual size_t hash() const;
-
-    size_t index_;
+    const Def* index() const { return op(1); }
 
     friend class World;
 };
@@ -208,7 +198,7 @@ private:
 class Extract : public TupleOp {
 private:
 
-    Extract(const Def* tuple, u32 index);
+    Extract(const Def* tuple, const Def* index);
     
     virtual void vdump(Printer& printer) const;
 
@@ -224,12 +214,12 @@ public:
 class Insert : public TupleOp {
 private:
 
-    Insert(const Def* tuple, u32 index, const Def* value);
+    Insert(const Def* tuple, const Def* index, const Def* value);
     virtual Insert* stub() const { return new Insert(*this); }
     
 public:
 
-    const Def* value() const { return op(1); }
+    const Def* value() const { return op(2); }
 
 private:
 

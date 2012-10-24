@@ -7,18 +7,6 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
-bool Literal::equal(const Node* other) const {
-    return PrimOp::equal(other) && type() == other->as<Literal>()->type();
-}
-
-size_t Literal::hash() const {
-    size_t seed = PrimOp::hash();
-    boost::hash_combine(seed, type());
-    return seed;
-}
-
-//------------------------------------------------------------------------------
-
 bool PrimLit::equal(const Node* other) const {
     if (!Literal::equal(other))
         return false;
@@ -31,6 +19,14 @@ size_t PrimLit::hash() const {
     boost::hash_combine(seed, bcast<u64, Box>(box()));
 
     return seed;
+}
+
+u64 PrimLit::get_u64() const {
+    switch (primtype_kind()) {
+#define ANYDSL2_UF_TYPE(T) case PrimType_##T: return box().get_##T();
+#include "anydsl2/tables/primtypetable.h"
+        default: ANYDSL2_UNREACHABLE;
+    }
 }
 
 //------------------------------------------------------------------------------

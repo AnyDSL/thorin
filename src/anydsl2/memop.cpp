@@ -1,5 +1,6 @@
 #include "anydsl2/memop.h"
 
+#include "anydsl2/literal.h"
 #include "anydsl2/world.h"
 
 namespace anydsl2 {
@@ -26,11 +27,11 @@ Load::Load(const Def* mem, const Def* ptr)
 }
 
 const Def* Load::extract_mem() const { 
-    return extract_mem_ ? extract_mem_ : extract_mem_ = world().extract(this, 0); 
+    return extract_mem_ ? extract_mem_ : extract_mem_ = world().extract(this, world().literal_u32(0)); 
 }
 
 const Def* Load::extract_val() const { 
-    return extract_val_ ? extract_val_ : extract_val_ = world().extract(this, 1); 
+    return extract_val_ ? extract_val_ : extract_val_ = world().extract(this, world().literal_u32(1)); 
 }
 
 //------------------------------------------------------------------------------
@@ -50,11 +51,11 @@ Enter::Enter(const Def* mem)
 }
 
 const Def* Enter::extract_mem() const { 
-    return extract_mem_ ? extract_mem_ : extract_mem_ = world().extract(this, 0); 
+    return extract_mem_ ? extract_mem_ : extract_mem_ = world().extract(this, world().literal_u32(0)); 
 }
 
 const Def* Enter::extract_frame() const { 
-    return extract_frame_ ? extract_frame_ : extract_frame_ = world().extract(this, 1); 
+    return extract_frame_ ? extract_frame_ : extract_frame_ = world().extract(this, world().literal_u32(1)); 
 }
 
 //------------------------------------------------------------------------------

@@ -78,6 +78,8 @@ public:
 
     bool get() const { return b_; }
 
+    operator uint32_t() { return b_; }
+
 private:
 
     bool b_;

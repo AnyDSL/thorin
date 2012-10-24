@@ -225,6 +225,9 @@ public:
     Lambda* lambda(const Pi* pi, uint32_t flags = 0);
     Lambda* lambda(uint32_t flags = 0) { return lambda(pi0()); }
 
+    /// Generic \p PrimOp constructor.
+    const Def* primop(int kind, const Type* type, ArrayRef<const Def*> ops);
+
     /*
      * optimizations
      */

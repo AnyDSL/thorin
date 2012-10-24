@@ -424,6 +424,25 @@ Lambda* World::lambda(const Pi* pi, uint32_t flags) {
     return l;
 }
 
+const Def* World::primop(int kind, const Type* type, ArrayRef<const Def*> ops) {
+    if (is_arithop(kind)) { assert(ops.size() == 2); return arithop((ArithOpKind) kind, ops[0], ops[1]); }
+    if (is_relop  (kind)) { assert(ops.size() == 2); return relop(  (RelOpKind  ) kind, ops[0], ops[1]); }
+    if (is_convop (kind)) { assert(ops.size() == 1); return convop( (ConvOpKind ) kind, type,   ops[0]); }
+
+    switch (kind) {
+        case Node_Enter:   assert(ops.size() == 1); return enter(  ops[0]);
+        case Node_Extract: assert(ops.size() == 2); return extract(ops[0], ops[1]);
+        case Node_Insert:  assert(ops.size() == 3); return insert( ops[0], ops[1], ops[2]);
+        case Node_Leave:   assert(ops.size() == 2); return leave(  ops[0], ops[1]);
+        case Node_Load:    assert(ops.size() == 2); return load(   ops[0], ops[1]);
+        case Node_Select:  assert(ops.size() == 3); return select( ops[0], ops[1], ops[2]);
+        case Node_Slot:    assert(ops.size() == 1); return slot(   ops[0]->as<Enter>(), type);
+        case Node_Store:   assert(ops.size() == 3); return store(  ops[0], ops[1], ops[2]);
+        case Node_Tuple:                            return tuple(  ops);
+        default: ANYDSL2_UNREACHABLE;
+    }
+}
+
 /*
  * optimizations
  */

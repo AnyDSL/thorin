@@ -190,7 +190,7 @@ bool check(World& world, const Prg* prg) {
 
 void Prg::check(Sema& sema) const {
     for_all (f, fcts())
-        sema.insert(f->decl());
+        f->decl()->check(sema);
 
     for_all (f, fcts())
         f->check(sema);
@@ -200,7 +200,7 @@ void Lambda::check(Sema& sema) const {
     sema.pushScope();
 
     for_all (f, body()->fcts())
-        sema.insert(f->decl());
+        f->decl()->check(sema);
 
     for_all (p, params())
         p->check(sema);

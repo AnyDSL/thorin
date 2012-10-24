@@ -69,13 +69,8 @@ public:
     size_t index() const { return index_; }
     const Def* def() const { return def_; }
 
-    bool operator == (const Use& use) const {
-        return def() == use.def() && index() == use.index();
-    }
-
-    bool operator != (const Use& use) const {
-        return def() != use.def() || index() != use.index();
-    }
+    bool operator == (Use use) const { return def() == use.def() && index() == use.index(); }
+    bool operator != (Use use) const { return def() != use.def() || index() != use.index(); }
 
 private:
 
@@ -83,7 +78,7 @@ private:
     const Def* def_;
 };
 
-inline size_t hash_value(const Use& use) {
+inline size_t hash_value(Use use) {
     size_t seed = 0;
     boost::hash_combine(seed, use.def());
     boost::hash_combine(seed, use.index());

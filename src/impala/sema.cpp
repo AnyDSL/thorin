@@ -33,7 +33,7 @@ public:
      * 
      * @return Returns 0 on failure.
      */
-    const Decl* lookup(const Symbol sym);
+    const Decl* lookup(Symbol symbol);
 
     /** 
      * @brief Pushes a new Decl on the internal \p DeclStack.
@@ -52,7 +52,7 @@ public:
      * 
      * @return The current mapping if the lookup succeeds, 0 otherwise.
      */
-    const Decl* clash(const Symbol sym) const;
+    const Decl* clash(Symbol symbol) const;
 
     /// Open a new scope.
     void pushScope() { ++depth_; }
@@ -80,7 +80,7 @@ private:
     };
 
     typedef std::stack<Slot> SlotStack;
-    typedef boost::unordered_map<const Symbol, SlotStack*> Scope;
+    typedef boost::unordered_map<Symbol, SlotStack*> Scope;
 
     bool result_;
     Scope scope_;
@@ -113,7 +113,7 @@ Sema::~Sema() {
 #endif
 }
 
-const Decl* Sema::lookup(const Symbol sym) {
+const Decl* Sema::lookup(Symbol sym) {
     Scope::iterator i = scope_.find(sym);
     if (i != scope_.end())
         return i->second->top().decl;
@@ -122,29 +122,29 @@ const Decl* Sema::lookup(const Symbol sym) {
 }
 
 void Sema::insert(const Decl* decl) {
-    const Symbol sym = decl->symbol();
+    Symbol symbol = decl->symbol();
 
-    assert(clash(sym) == 0 && "must not be found");
+    assert(clash(symbol) == 0 && "must not be found");
 
     // create stack if necessary
-    Scope::iterator i = scope_.find(sym);
+    Scope::iterator i = scope_.find(symbol);
     if (i == scope_.end()) {
         // isn't C++ beautiful? We should switch to C++11 just because of auto
         std::pair<Scope::iterator, bool> p =
-            scope_.insert(std::make_pair(sym, new SlotStack()));
+            scope_.insert(std::make_pair(symbol, new SlotStack()));
 #ifndef NDEBUG
         ++refcounter_;
 #endif
         i = p.first;
     }
 
-    // get pointer to stack linked to sym and push new Decl
+    // get pointer to stack linked to symbol and push new Decl
     SlotStack* stack = i->second;
     stack->push(Slot(decl, depth_));
 }
 
-const Decl* Sema::clash(const Symbol sym) const {
-    Scope::const_iterator i = scope_.find(sym);
+const Decl* Sema::clash(Symbol symbol) const {
+    Scope::const_iterator i = scope_.find(symbol);
     if (i != scope_.end() && i->second->top().depth == depth_)
         return i->second->top().decl;
     else

@@ -43,7 +43,7 @@ public:
     }
 
     bool reachable() const { return curBB; }
-    anydsl2::Fct* create_fct(const Lambda& lambda, const Symbol& symbol);
+    anydsl2::Fct* create_fct(const Lambda& lambda, Symbol symbol);
 
     World& world;
     anydsl2::AutoPtr<anydsl2::Fct> root;
@@ -61,7 +61,7 @@ void emit(World& world, const Prg* prg) {
 
 //------------------------------------------------------------------------------
 
-anydsl2::Fct* CodeGen::create_fct(const Lambda& lambda, const Symbol& symbol) {
+anydsl2::Fct* CodeGen::create_fct(const Lambda& lambda, Symbol symbol) {
     size_t size = lambda.params().size();
     Array<const Type*> tparams(size);
     Array<Symbol> sparams(size);

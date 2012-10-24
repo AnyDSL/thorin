@@ -48,7 +48,7 @@ class Var {
 public:
 
     Var() {}
-    Var(const Symbol& symbol, const Def* def)
+    Var(Symbol symbol, const Def* def)
         : symbol_(symbol)
         , def_(def)
     {}
@@ -84,8 +84,8 @@ private:
 
 public:
 
-    Var* insert(const Symbol& symbol, const Def* def);
-    Var* lookup(const Symbol& symbol, const Type* type);
+    Var* insert(Symbol symbol, const Def* def);
+    Var* lookup(Symbol symbol, const Type* type);
     void seal();
 
     void jump(BB* to);
@@ -111,7 +111,7 @@ public:
 private:
 
     void link(BB* to);
-    void fix(const Symbol& symbol, Todo todo);
+    void fix(Symbol symbol, Todo todo);
 
     bool sealed_;
     bool visited_;
@@ -154,8 +154,8 @@ public:
     BB* createBB(const std::string& debug = "");
     void emit();
     World& world() { return world_; }
-    Var* lookup_top(const Symbol& symbol, const Type* type);
-    void nest(const Symbol& symbol, Fct* fct);
+    Var* lookup_top(Symbol symbol, const Type* type);
+    void nest(Symbol symbol, Fct* fct);
     const Param* ret() const { return ret_; }
 
     BB* parent() const { return parent_; }

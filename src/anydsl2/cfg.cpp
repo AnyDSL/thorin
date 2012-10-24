@@ -28,7 +28,7 @@ BB::~BB() {
         delete p.second;
 }
 
-Var* BB::insert(const Symbol& symbol, const Def* def) {
+Var* BB::insert(Symbol symbol, const Def* def) {
     VarMap::iterator i = vars_.find(symbol);
 
     if (i != vars_.end()) {
@@ -43,7 +43,7 @@ Var* BB::insert(const Symbol& symbol, const Def* def) {
     return var;
 }
 
-Var* BB::lookup(const Symbol& symbol, const Type* type) {
+Var* BB::lookup(Symbol symbol, const Type* type) {
     BB::VarMap::iterator i = vars_.find(symbol);
 
     // if var is known -> return current var
@@ -101,7 +101,7 @@ void BB::seal() {
         fix(p.first, p.second);
 }
 
-void BB::fix(const Symbol& symbol, Todo todo) {
+void BB::fix(Symbol symbol, Todo todo) {
     assert(sealed() && "must be sealed");
 
     size_t index = todo.index();
@@ -276,7 +276,7 @@ BB* Fct::createBB(const std::string& debug /*= ""*/) {
     return bb;
 }
 
-Var* Fct::lookup_top(const Symbol& symbol, const Type* type) {
+Var* Fct::lookup_top(Symbol symbol, const Type* type) {
     LetRec::const_iterator i = letrec_.find(symbol);
     if (i != letrec_.end())
         return insert(symbol, i->second->top());
@@ -296,7 +296,7 @@ void Fct::emit() {
     BB::emit();
 }
 
-void Fct::nest(const Symbol& symbol, Fct* fct) {
+void Fct::nest(Symbol symbol, Fct* fct) {
     assert(letrec_.find(symbol) == letrec_.end());
     letrec_[symbol] = fct;
 }

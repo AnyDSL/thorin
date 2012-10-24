@@ -43,6 +43,7 @@ public:
     LambdaSet hos() const;
     LambdaSet succs() const;
     LambdaSet preds() const;
+    LambdaSet direct_preds() const;
     const Params& params() const { return params_; }
     const Param* param(size_t i) const { return params_[i]; }
     const Def* to() const { return op(0); };

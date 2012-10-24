@@ -123,8 +123,7 @@ Param::Param(const Type* type, Lambda* lambda, size_t index)
 Peeks Param::peek() const {
     size_t x = index();
     Lambda* l = lambda();
-    LambdaSet preds = l->preds();
-
+    LambdaSet preds = l->direct_preds();
     Peeks result(preds.size());
 
     size_t i = 0;

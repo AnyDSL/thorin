@@ -66,14 +66,17 @@ static void find_lambdas(const Def* def, LambdaSet& result) {
         find_lambdas(op, result);
 }
 
-static void find_preds(const Def* def, LambdaSet& result) {
-    if (Lambda* lambda = def->isa_lambda())
-        result.insert(lambda);
-    else {
+template<bool direct>
+inline static void find_preds(Use use, LambdaSet& result) {
+    const Def* def = use.def();
+    if (Lambda* lambda = def->isa_lambda()) {
+        if (!direct || use.index() == 0)
+            result.insert(lambda);
+    } else {
         assert(def->isa<PrimOp>() && "not a PrimOp");
 
         for_all (use, def->uses())
-            find_preds(use.def(), result);
+            find_preds<direct>(use, result);
     }
 }
 
@@ -81,7 +84,16 @@ LambdaSet Lambda::preds() const {
     LambdaSet result;
 
     for_all (use, uses())
-        find_preds(use.def(), result);
+        find_preds<false>(use, result);
+
+    return result;
+}
+
+LambdaSet Lambda::direct_preds() const {
+    LambdaSet result;
+
+    for_all (use, uses())
+        find_preds<true>(use, result);
 
     return result;
 }

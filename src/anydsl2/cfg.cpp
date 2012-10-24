@@ -244,7 +244,6 @@ std::string BB::debug() const { return top() ? top()->debug : std::string(); }
 Fct::Fct(World& world, ArrayRef<const Type*> types, ArrayRef<Symbol> symbols, 
          size_t return_index, const std::string& debug)
     : world_(world)
-    //, ret_(return_index != size_t(-1) ? top()->param(return_index) : 0)
     , parent_(0)
 {
     assert(types.size() == symbols.size());

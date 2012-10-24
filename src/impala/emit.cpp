@@ -18,16 +18,12 @@ using anydsl2::Array;
 using anydsl2::ArrayRef;
 using anydsl2::BB;
 using anydsl2::Def;
-using anydsl2::Pi;
-using anydsl2::RVal;
 using anydsl2::Ref;
 using anydsl2::Symbol;
-using anydsl2::TupleRef;
+using anydsl2::Type;
 using anydsl2::Var;
-using anydsl2::VarRef;
 using anydsl2::World;
 using anydsl2::make_name;
-using anydsl2::u32;
 
 namespace impala {
 
@@ -67,7 +63,7 @@ void emit(World& world, const Prg* prg) {
 
 anydsl2::Fct* CodeGen::create_fct(const Lambda& lambda, const Symbol& symbol) {
     size_t size = lambda.params().size();
-    Array<const anydsl2::Type*> tparams(size);
+    Array<const Type*> tparams(size);
     Array<Symbol> sparams(size);
 
     size_t i = 0;
@@ -77,10 +73,8 @@ anydsl2::Fct* CodeGen::create_fct(const Lambda& lambda, const Symbol& symbol) {
         ++i;
     }
 
-    const anydsl2::Type* ret = return_type(lambda.pi());
-    lambda.air_fct_ = new anydsl2::Fct(world, tparams, sparams, ret, symbol.str());
-
-    return lambda.air_fct_;
+    size_t return_index = return_type(lambda.pi())->isa<NoRet>() ? size_t(-1) : lambda.pi()->num_elems()-1;
+    return lambda.air_fct_ = new anydsl2::Fct(world, tparams, sparams, return_index, symbol.str());
 }
 
 void Prg::emit(CodeGen& cg) const {
@@ -104,11 +98,20 @@ const anydsl2::Lambda* Lambda::emit(CodeGen& cg, BB* parent, const char* what) c
 
     body()->emit(cg);
 
-    if (is_continuation()) {
-        if (cg.reachable())
+    if (cg.reachable()) {
+        if (is_continuation()) {
             std::cerr << what << " does not end with a call\n";
-    } else
-        cg.fixto(cg.curFct->exit());
+            cg.curBB->tail_call(cg.world.bottom(cg.world.pi0()), ArrayRef<const Def*>());
+        } else {
+            const Type* ret_type = return_type(pi());
+            if (ret_type->isa<Void>())
+                cg.curBB->return_void();
+            else {
+                std::cerr << what << " does not end with 'return'\n";
+                cg.curBB->return_value(cg.world.bottom(ret_type));
+            }
+        }
+    }
 
     cg.curFct->emit();
 
@@ -252,7 +255,7 @@ RefPtr PostfixExpr::emit(CodeGen& cg) const {
 }
 
 RefPtr IndexExpr::emit(CodeGen& cg) const {
-    u32 pos = index()->as<Literal>()->box().get_u32();
+    uint32_t pos = index()->as<Literal>()->box().get_u32();
 
     return Ref::create(lhs()->emit(cg), pos);
 }
@@ -431,14 +434,15 @@ void ContinueStmt::emit(CodeGen& cg) const {
 void ReturnStmt::emit(CodeGen& cg) const {
     if (const Call* call = expr()->isa<Call>()) {
         Array<const Def*> ops = call->emit_ops(cg);
-        cg.curBB->return_call(ops[0], ops.slice_back(1));
+        cg.curBB->return_tail_call(ops[0], ops.slice_back(1));
     } else {
-        const Def* def = expr()->emit(cg)->load();
-        cg.curBB->insert(Symbol("<result>"), def);
-        cg.curBB->jump(cg.curFct->exit());
+        if (expr())
+            cg.curBB->return_value(expr()->emit(cg)->load());
+        else
+            cg.curBB->return_void();
     }
 
-    // all statements in the same BB are unreachable
+    // all other statements in the same BB are unreachable
     cg.curBB = 0;
 }
 

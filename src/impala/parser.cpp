@@ -54,6 +54,7 @@ public:
     bool is_type(size_t lookahead = 0);
     const Prg* parse();
     const Type* parse_type();
+    const Type* parse_return_type();
     const Decl* parse_decl();
     void parse_globals();
     void parse_lambda(Lambda* lambda);
@@ -232,7 +233,7 @@ const Type* Parser::parse_type() {
 #include "impala/tokenlist.h"
 
         case Token::TYPE_int:   lex(); return world.type_u32();
-        case Token::TYPE_void:  lex(); return world.unit();
+        case Token::TYPE_void:  lex(); return world.type_void();
         case Token::TYPE_noret: lex(); return world.noret();
         case Token::PI: {
             lex();
@@ -246,7 +247,7 @@ const Type* Parser::parse_type() {
             )
 
             if (accept(Token::ARROW))
-                elems.push_back(world.pi1(parse_type()));
+                elems.push_back(parse_return_type());
 
             return world.pi(elems);
         }
@@ -270,6 +271,14 @@ const Type* Parser::parse_type() {
         }
         default: ANYDSL2_UNREACHABLE; // TODO
     }
+}
+
+const Type* Parser::parse_return_type() {
+    const Type* ret_type = try_type("return type");
+    if (ret_type->isa<Void>())
+        return world.pi0();
+    else
+        return world.pi1(ret_type);
 }
 
 const Decl* Parser::parse_decl() {
@@ -332,8 +341,12 @@ void Parser::parse_lambda(Lambda* lambda) {
     )
 
     // return-continuation
-    if (accept(Token::ARROW))
-        arg_types.push_back(world.pi1(try_type("return type of function definition")));
+    if (accept(Token::ARROW)) {
+        Position pos1 = prev_loc_.pos1();
+        arg_types.push_back(parse_return_type());
+        Position pos2 = prev_loc_.pos2();
+        lambda->params_.push_back(new Decl(Token(pos1, "<return>"), arg_types.back(), pos2));
+    }
 
     const Pi* pi = world.pi(arg_types);
     const ScopeStmt* body = parse_scope();
@@ -581,7 +594,7 @@ const Stmt* Parser::parse_return() {
         expr = try_expr("return-statement");
         expect(Token::SEMICOLON, "return-statement");
     } else {
-        expr = new EmptyExpr(la().loc());
+        expr = 0;
         eat(Token::SEMICOLON);
     }
 

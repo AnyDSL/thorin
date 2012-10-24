@@ -15,7 +15,20 @@ class World;
 
 enum {
     Type_NoRet = anydsl2::End_AllNodes,
+    Type_Void,
     Type_Error,
+};
+
+class Void : public anydsl2::Type {
+private:
+
+    Void(anydsl2::World& world) 
+        : anydsl2::Type(world, Type_Void, 0)
+    {}
+
+    virtual void vdump(anydsl2::Printer& printer) const { ANYDSL2_UNREACHABLE; }
+
+    friend class World;
 };
 
 class NoRet : public anydsl2::Type {
@@ -48,12 +61,14 @@ public:
     World();
 
     const NoRet* noret() { return noret_; }
-    const TypeError* type_error() { return error_; }
+    const Void* type_void() { return type_void_; }
+    const TypeError* type_error() { return type_error_; }
 
 private:
 
     const NoRet* noret_;
-    const TypeError* error_;
+    const Void* type_void_;
+    const TypeError* type_error_;
 };
 
 const anydsl2::Type* return_type(const anydsl2::Pi* pi);

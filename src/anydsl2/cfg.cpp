@@ -172,11 +172,14 @@ void BB::tail_call(const Def* to, ArrayRef<const Def*> args) {
     cur_->jump(to, tcargs);
 }
 
-void BB::return_call(const Def* to, ArrayRef<const Def*> args) {
+void BB::return_tail_call(const Def* to, ArrayRef<const Def*> args) {
     Array<const Def*> rargs(args.size() + 1);
     *std::copy(args.begin(), args.end(), rargs.begin()) = fct_->ret();
     cur_->jump(to, rargs);
 }
+
+void BB::return_value(const Def* result) { cur_->jump1(fct_->ret(), result); }
+void BB::return_void() { cur_->jump0(fct_->ret()); }
 
 const Def* BB::call(const Def* to, ArrayRef<const Def*> args, const Type* rettype) {
     static int id = 0;
@@ -238,31 +241,24 @@ std::string BB::debug() const { return top() ? top()->debug : std::string(); }
 
 //------------------------------------------------------------------------------
 
-Fct::Fct(World& world, 
-         ArrayRef<const Type*> types, ArrayRef<Symbol> symbols, 
-         const Type* rettype, const std::string& debug)
+Fct::Fct(World& world, ArrayRef<const Type*> types, ArrayRef<Symbol> symbols, 
+         size_t return_index, const std::string& debug)
     : world_(world)
-    , rettype_(rettype)
+    //, ret_(return_index != size_t(-1) ? top()->param(return_index) : 0)
     , parent_(0)
-    , exit_(0)
 {
     assert(types.size() == symbols.size());
     sealed_ = true;
     fct_ = this;
     cur_ = top_ = world.lambda(world.pi(types));
     top_->debug = debug;
+    ret_ = (return_index != size_t(-1) ? top()->param(return_index) : 0);
 
     size_t i = 0;
     for_all (param, top_->params()) {
         Symbol sym = symbols[i++];
         insert(sym, param);
         param->debug = sym.str();
-    }
-
-    if (rettype_) {
-        ret_ = top_->append_param(world.pi1(rettype));
-        ret()->debug = "<return>";
-        exit_ = createBB('<' + debug + "_exit>");
     }
 }
 
@@ -295,11 +291,6 @@ Var* Fct::lookup_top(const Symbol& symbol, const Type* type) {
 }
 
 void Fct::emit() {
-    if (rettype()) {
-        exit()->seal();
-        exit_->top_->jump1(ret(), exit()->lookup(Symbol("<result>"), rettype())->load());
-    }
-
     for_all (bb, cfg_)
         bb->emit();
 

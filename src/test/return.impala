@@ -1,0 +1,11 @@
+def f() -> void {
+}
+
+def g() -> int {
+}
+
+def h() {
+}
+
+def i(a : int) {
+}

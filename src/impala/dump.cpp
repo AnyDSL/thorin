@@ -366,6 +366,8 @@ void Printer::dump(const anydsl2::Type* t) {
         }
     } else if (const anydsl2::Generic* generic = t->isa<anydsl2::Generic>()) {
         o << generic->debug;
+    } else if (t->isa<Void>()) {
+        o << "void";
     } else if (t->isa<NoRet>()) {
         o << "noret";
     } else if (t->isa<TypeError>()) {

@@ -93,7 +93,9 @@ public:
     void fixto(BB* to);
     const Def* call(const Def* to, ArrayRef<const Def*> args, const Type* rettype);
     void tail_call(const Def* to, ArrayRef<const Def*> args);
-    void return_call(const Def* to, ArrayRef<const Def*> args);
+    void return_tail_call(const Def* to, ArrayRef<const Def*> args);
+    void return_void();
+    void return_value(const Def* result);
 
     const BBs& preds() const { return preds_; }
     const BBs& succs() const { return succs_; }
@@ -145,9 +147,8 @@ public:
     {
         fct_ = this;
     }
-    Fct(World& world, 
-        ArrayRef<const Type*> types, ArrayRef<Symbol> symbols, 
-        const Type* rettype, const std::string& debug);
+    Fct(World& world, ArrayRef<const Type*> types, ArrayRef<Symbol> symbols, 
+        size_t return_index, const std::string& debug);
     ~Fct();
 
     BB* createBB(const std::string& debug = "");
@@ -155,21 +156,17 @@ public:
     World& world() { return world_; }
     Var* lookup_top(const Symbol& symbol, const Type* type);
     void nest(const Symbol& symbol, Fct* fct);
+    const Param* ret() const { return ret_; }
 
-    BB* exit() const { return exit_; }
     BB* parent() const { return parent_; }
     void set_parent(BB* parent) { parent_ = parent; }
-    const Param* ret() const { return ret_; }
-    const Type* rettype() const { return rettype_; }
     LetRec& letrec() { return letrec_; }
 
 private:
 
     World& world_;
-    const Type* rettype_;
-    BB* parent_;
     const Param* ret_;
-    BB* exit_;
+    BB* parent_;
     std::vector<BB*> cfg_;
     LetRec letrec_;
 };

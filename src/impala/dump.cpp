@@ -55,9 +55,9 @@ void Prg::vdump(Printer& p) const {
 
 void Lambda::dump(Printer& p) const {
     if (!generics().empty()) {
-        p << '<';
+        p << "[[";
         ANYDSL2_DUMP_COMMA_LIST(p, generics());
-        p << '>';
+        p << "]]";
     }
     
     const Type* ret_type = return_type(pi());
@@ -365,7 +365,10 @@ void Printer::dump(const anydsl2::Type* t) {
             dump(ret_type);
         }
     } else if (const anydsl2::Generic* generic = t->isa<anydsl2::Generic>()) {
-        o << generic->debug;
+        if (generic->debug.empty())
+            o << (void*) generic;
+        else 
+            o << generic->debug;
     } else if (t->isa<Void>()) {
         o << "void";
     } else if (t->isa<NoRet>()) {

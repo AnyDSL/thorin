@@ -152,6 +152,8 @@ public:
         return consume(new Pi(*this, generics, elems))->as<Pi>(); 
     }
 
+    const Generic* generic() { return consume(new Generic(*this))->as<Generic>(); }
+
     /*
      * literals
      */

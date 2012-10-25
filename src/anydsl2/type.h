@@ -210,12 +210,11 @@ private:
 class Generic : public Type {
 private:
 
-    Generic(Lambda* lambda, size_t index);
+    Generic(World& world)
+        : Type(world, Node_Generic, 0)
+    {}
 
 public:
-
-    Lambda* lambda() const { return lambda_; }
-    size_t index() const { return index_; }
 
     virtual void vdump(Printer& printer) const;
 
@@ -224,10 +223,7 @@ private:
     virtual size_t hash() const;
     virtual bool equal(const Node* other) const;
 
-    Lambda* lambda_;
-    size_t index_;
-
-    friend class Lambda;
+    friend class World;
 };
 
 //------------------------------------------------------------------------------

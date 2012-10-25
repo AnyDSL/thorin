@@ -41,7 +41,6 @@ class Sema;
 class Stmt;
 
 typedef anydsl2::AutoVector<const Decl*> Decls;
-typedef std::vector<const anydsl2::Generic*> Generics;
 typedef anydsl2::AutoVector<const Expr*> Exprs;
 typedef std::vector<const Fct*> Fcts;
 typedef anydsl2::AutoVector<const Stmt*> Stmts;
@@ -75,7 +74,7 @@ public:
 
     const ScopeStmt* body() const { return body_; }
     const Decls& params() const { return params_; }
-    const Generics& generics() const { return generics_; }
+    anydsl2::ArrayRef<const anydsl2::Generic*> generics() const { return pi()->generics(); }
     const anydsl2::Pi* pi() const { return pi_; }
     bool is_continuation() const;
     anydsl2::Fct* air_fct() const { return air_fct_; }
@@ -88,7 +87,6 @@ private:
 
     void set(const anydsl2::Pi* pi, const ScopeStmt* body) { pi_ = pi; body_ = body; }
 
-    Generics generics_;
     Decls params_;
     anydsl2::AutoPtr<const ScopeStmt> body_;
     const anydsl2::Pi* pi_;
@@ -193,6 +191,8 @@ public:
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void vdump(Printer& p) const;
+
+    anydsl2::PrimTypeKind literal2type() const;
 
 private:
 

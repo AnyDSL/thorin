@@ -232,7 +232,7 @@ const Type* EmptyExpr::vcheck(Sema& sema) const {
 }
 
 const Type* Literal::vcheck(Sema& sema) const {
-    return sema.world.type(Token::literal2type((Token::Kind) kind()));
+    return sema.world.type(literal2type());
 }
 
 const Type* LambdaExpr::vcheck(Sema& sema) const {

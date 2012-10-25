@@ -43,6 +43,16 @@ Literal::Literal(const Location& loc, Kind kind, Box box)
     loc_= loc;
 }
 
+anydsl2::PrimTypeKind Literal::literal2type() const {
+    switch (kind()) {
+#define IMPALA_LIT(itype, atype) \
+        case LIT_##itype: return anydsl2::PrimType_##atype;
+#include "impala/tokenlist.h"
+        case LIT_bool:    return anydsl2::PrimType_u1;
+        default: ANYDSL2_UNREACHABLE;
+    }
+}
+
 Tuple::Tuple(const Position& pos1) { loc_.set_pos1(pos1); }
 
 Id::Id(const Token& tok) 

@@ -43,7 +43,7 @@ public:
 
     bool expect(TokenKind tok, const std::string& context);
     void error(const std::string& what, const std::string& context);
-    std::ostream& sema_error();
+    std::ostream& sema_error(Token token);
     bool result() const { return result_; }
 
     // misc
@@ -100,13 +100,60 @@ private:
      * data
      */
 
-    typedef boost::unordered_map<Symbol, const Generic*> Generics;
-    Generics generics_;
+    typedef boost::unordered_map<Symbol, const Generic*> GenericsMap;
+    class Generics {
+    public:
+        Generics(Generics* parent)
+            : parent_(parent)
+        {}
+
+        Generics* parent() const { return parent_; }
+
+        const Generic* lookup(Symbol symbol) {
+            GenericsMap::iterator i = generics_.find(symbol);
+            if (i == generics_.end()) {
+                if (parent_)
+                    return parent_->lookup(symbol);
+                else
+                    return 0;
+            }
+
+            return i->second;
+        }
+
+        const Generic* insert(World& world, Symbol symbol) { 
+            const Generic* generic = world.generic(); 
+            generic->debug = symbol.str();
+            return generics_[symbol] = generic;
+        }
+
+    private:
+
+        Generics* parent_;
+        GenericsMap generics_;
+    };
+
+    const Generic* generic_lookup(Symbol symbol) {
+        return cur_generics_ ? cur_generics_->lookup(symbol) : 0;
+    }
+
+
+    const Generic* generic_insert(Token token) {
+        Symbol symbol = token.symbol();
+        assert(cur_generics_);
+        if (cur_generics_->lookup(symbol)) {
+            sema_error(token) << "generic '" << symbol << "' defined twice\n";
+            return world.generic();
+        } else
+            return cur_generics_->insert(world, symbol);
+    }
+
     World& world;
     Lexer lexer_;       ///< invoked in order to get next token
     Token lookahead_[2];///< LL(2) look ahead
     const Loop* cur_loop_;
     const Lambda* cur_lambda_;
+    Generics* cur_generics_;
     Prg* prg_;
     int counter_;
     anydsl2::Location prev_loc_;
@@ -143,6 +190,7 @@ Parser::Parser(World& world, std::istream& stream, const std::string& filename)
     , lexer_(stream, filename)
     , cur_loop_(0)
     , cur_lambda_(0)
+    , cur_generics_(0)
     , prg_(new Prg())
     , counter_(0)
     , result_(true)
@@ -193,9 +241,9 @@ void Parser::error(const std::string& what, const std::string& context) {
     os << "\n";
 }
 
-std::ostream& Parser::sema_error() {
+std::ostream& Parser::sema_error(Token token) {
     result_ = false;
-    return la().error();
+    return token.error();
 }
 
 int Parser::next_id() {
@@ -263,13 +311,9 @@ const Type* Parser::parse_type() {
 
             return world.sigma(elems);
         }
-        case Token::ID: {
-            Symbol id = lex().symbol();
-            Generics::iterator i = generics_.find(id);
-            assert(i != generics_.end());
-            return i->second;
-        }
-        default: ANYDSL2_UNREACHABLE; // TODO
+        case Token::ID:
+            return cur_generics_->lookup(lex().symbol());
+        default: ANYDSL2_UNREACHABLE;
     }
 }
 
@@ -306,27 +350,20 @@ void Parser::parse_globals() {
 
 void Parser::parse_lambda(Lambda* lambda) {
     IMPALA_PUSH(cur_lambda_, lambda);
+    Generics generics(cur_generics_);
+    cur_generics_ = &generics;
 
     std::vector<const Type*> arg_types;
+    std::vector<const Generic*> arg_generics;
 
-#if 0
-    if (accept(Token::LT))
+    if (accept(Token::L_DBRACKET)) {
         PARSE_COMMA_LIST
         (
-            {
-                Symbol id = try_id("generic identifier").symbol();
-                const Generic* generic = world.generic(id, cur_lambda_);
-                Generics::iterator i = generics_.find(id);
-                if (i == generics_.end()) {
-                    lambda->generics_.push_back(generic);
-                    generics_[id] = generic;
-                } else
-                    sema_error() << "generic " << id << " defined twice\n";
-            },
-            Token::GT,
+            arg_generics.push_back(generic_insert(try_id("generic identifier"))),
+            Token::R_DBRACKET,
             "generics list"
         )
-#endif
+    }
 
     expect(Token::L_PAREN, "function head");
     PARSE_COMMA_LIST
@@ -348,12 +385,11 @@ void Parser::parse_lambda(Lambda* lambda) {
         lambda->params_.push_back(new Decl(Token(pos1, "<return>"), arg_types.back(), pos2));
     }
 
-    const Pi* pi = world.pi(arg_types);
+    const Pi* pi = world.pi(arg_generics, arg_types);
     const ScopeStmt* body = parse_scope();
-
     lambda->set(pi, body);
-    generics_.clear();
 
+    cur_generics_ = generics.parent();
     IMPALA_POP(cur_lambda_);
 }
 
@@ -611,9 +647,7 @@ const Expr* Parser::parse_cond(const std::string& what) {
 
 bool Parser::is_expr() {
     // identifier without a succeeding colon which is not a generic
-    if (la() == Token::ID 
-            && la2() != Token::COLON 
-            && generics_.find(la().symbol()) == generics_.end())
+    if (la() == Token::ID && la2() != Token::COLON && !generic_lookup(la().symbol()))
         return true;
 
     switch (la()) {
@@ -630,9 +664,7 @@ bool Parser::is_expr() {
 }
 
 bool Parser::is_type(size_t lookahead) {
-    // generics
-    if (la(lookahead) == Token::ID
-            && generics_.find(la().symbol()) != generics_.end())
+    if (la(lookahead) == Token::ID && generic_lookup(la().symbol()))
         return true;
 
     switch (la(lookahead)) {
@@ -753,7 +785,7 @@ const Expr* Parser::parse_primary_expr() {
         case Token::TRUE:
         case Token::FALSE:      return parse_literal();
         case Token::ID: {
-            assert(generics_.find(la().symbol()) == generics_.end());
+            assert(!generic_lookup(la().symbol()));
             return new Id(lex());
         }
         case Token::L_PAREN: {

@@ -161,17 +161,6 @@ anydsl2::PrimTypeKind Token::toPrimType(Kind kind) {
     }
 }
 
-anydsl2::PrimTypeKind Token::literal2type(Kind kind) {
-    switch (kind) {
-#define IMPALA_LIT(itype, atype) \
-        case LIT_##itype:   return anydsl2::PrimType_##atype;
-#include "impala/tokenlist.h"
-        case TRUE:
-        case FALSE:         return anydsl2::PrimType_u1;
-        default: ANYDSL2_UNREACHABLE;
-    }
-}
-
 /*
  * static member variables
  */

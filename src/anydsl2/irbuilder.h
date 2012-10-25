@@ -1,5 +1,5 @@
-#ifndef ANYDSL2_CFG_H
-#define ANYDSL2_CFG_H
+#ifndef ANYDSL2_IRBUILDER_H
+#define ANYDSL2_IRBUILDER_H
 
 #include <string>
 #include <vector>

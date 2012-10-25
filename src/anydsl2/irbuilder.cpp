@@ -1,4 +1,4 @@
-#include "anydsl2/cfg.h"
+#include "anydsl2/irbuilder.h"
 
 #include <algorithm>
 #include <iterator>

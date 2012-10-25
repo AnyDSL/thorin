@@ -74,7 +74,6 @@ public:
 
     const ScopeStmt* body() const { return body_; }
     const Decls& params() const { return params_; }
-    anydsl2::ArrayRef<const anydsl2::Generic*> generics() const { return pi()->generics(); }
     const anydsl2::Pi* pi() const { return pi_; }
     bool is_continuation() const;
     anydsl2::Fct* air_fct() const { return air_fct_; }

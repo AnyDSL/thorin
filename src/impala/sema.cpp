@@ -309,10 +309,10 @@ const Type* IndexExpr::vcheck(Sema& sema) const {
                     default: ANYDSL2_UNREACHABLE;
                 }
 
-                if (pos < sigma->num_elems())
+                if (pos < sigma->size())
                     return sigma->elems()[pos];
                 else
-                    sema.error(index()) << "index (" << pos << ") out of bounds (" << sigma->num_elems() << ")\n";
+                    sema.error(index()) << "index (" << pos << ") out of bounds (" << sigma->size() << ")\n";
             } else
                 sema.error(index()) << "indexing expression must be a literal\n";
         } else
@@ -331,7 +331,7 @@ const Type* Call::vcheck(Sema& sema) const {
             op_types[i] = arg(i)->check(sema);
 
         const Pi* pi;
-        const Type* ret_type = to_pi->num_elems() == num_args() ? sema.world.noret() : return_type(to_pi);
+        const Type* ret_type = to_pi->size() == num_args() ? sema.world.noret() : return_type(to_pi);
 
         if (ret_type->isa<NoRet>())
             pi = sema.world.pi(op_types.slice_front(op_types.size()-1));

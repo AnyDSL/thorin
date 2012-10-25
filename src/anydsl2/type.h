@@ -9,7 +9,6 @@
 namespace anydsl2 {
 
 class Def;
-class Generic;
 class Lambda;
 class Pi;
 class PrimLit;
@@ -17,6 +16,8 @@ class Printer;
 class Ptr;
 class Type;
 class World;
+
+typedef ArrayRef<const Type*> Elems;
 
 //------------------------------------------------------------------------------
 
@@ -30,13 +31,12 @@ protected:
 
 public:
 
-    typedef ArrayRef<const Type*> Args;
-
     void dump() const;
     void dump(bool fancy) const;
     World& world() const { return world_; }
-    Args args() const { return ops_ref<const Type*>(); }
-    const Type* arg(size_t i) const { return args()[i]; }
+    Elems elems() const { return ops_ref<const Type*>(); }
+    const Type* elem(size_t i) const { return elems()[i]; }
+    const Type* elem_via_lit(const Def* def) const;
     const Ptr* to_ptr() const;
     virtual void vdump(Printer &printer) const = 0;
 
@@ -112,7 +112,7 @@ private:
 
 public:
 
-    const Type* ref() const { return arg(0); }
+    const Type* ref() const { return elem(0); }
 
     friend class World;
 };
@@ -122,32 +122,10 @@ public:
 class CompoundType : public Type {
 protected:
 
-    CompoundType(World& world, int kind, size_t num_generics, size_t num_elems);
-    CompoundType(World& world, int kind, ArrayRef<const Generic*> generics, 
-                                         ArrayRef<const Type*> elems);
-    virtual size_t hash() const;
-    virtual bool equal(const Node* other) const;
+    CompoundType(World& world, int kind, size_t num_elems);
+    CompoundType(World& world, int kind, ArrayRef<const Type*> elems);
 
     void dump_inner(Printer& printer) const;
-
-public:
-
-    typedef ArrayRef<const Type*> Elems;
-    typedef ArrayRef<const Generic*> Generics;
-
-    Elems elems() const { return ops_ref<const Type*>().slice_back(num_generics_); }
-    const Type* elem(size_t i) const { return elems()[i]; }
-    const Type* elem_via_lit(const Def* def) const;
-
-    Generics generics() const { return ops_ref<const Generic*>().slice_front(num_generics_); }
-    const Generic* generic(size_t i) const { return generics()[i]; }
-
-    size_t num_generics() const { return num_generics_; }
-    size_t num_elems() const { return size() - num_generics(); }
-
-private:
-
-    size_t num_generics_;
 };
 
 //------------------------------------------------------------------------------
@@ -156,13 +134,12 @@ private:
 class Sigma : public CompoundType {
 private:
 
-    Sigma(World& world, size_t num_elems, size_t num_generics)
-        : CompoundType(world, Node_Sigma, num_elems, num_generics)
+    Sigma(World& world, size_t size)
+        : CompoundType(world, Node_Sigma, size)
         , named_(true)
     {}
-    Sigma(World& world, ArrayRef<const Generic*> generics, 
-                        ArrayRef<const Type*> elems)
-        : CompoundType(world, Node_Sigma, generics, elems)
+    Sigma(World& world, ArrayRef<const Type*> elems)
+        : CompoundType(world, Node_Sigma, elems)
         , named_(false)
     {}
 
@@ -187,9 +164,8 @@ private:
 class Pi : public CompoundType {
 private:
 
-    Pi(World& world, ArrayRef<const Generic*> generics, 
-                     ArrayRef<const Type*> elems)
-        : CompoundType(world, Node_Pi, generics, elems)
+    Pi(World& world, ArrayRef<const Type*> elems)
+        : CompoundType(world, Node_Pi, elems)
     {}
 
 public:
@@ -210,18 +186,22 @@ private:
 class Generic : public Type {
 private:
 
-    Generic(World& world)
+    Generic(World& world, size_t depth)
         : Type(world, Node_Generic, 0)
+        , depth_(depth)
     {}
 
 public:
 
     virtual void vdump(Printer& printer) const;
+    size_t depth() const { return depth_; }
 
 private:
 
     virtual size_t hash() const;
     virtual bool equal(const Node* other) const;
+
+    size_t depth_;
 
     friend class World;
 };

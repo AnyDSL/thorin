@@ -16,7 +16,7 @@ Lambda::Lambda(size_t gid, const Pi* pi, uint32_t flags)
     , gid_(gid)
     , flags_(flags)
 {
-    params_.reserve(pi->num_elems());
+    params_.reserve(pi->size());
 }
 
 Lambda::~Lambda() {
@@ -38,13 +38,13 @@ const Pi* Lambda::pi() const { return type()->as<Pi>(); }
 const Pi* Lambda::to_pi() const { return to()->type()->as<Pi>(); }
 
 const Param* Lambda::append_param(const Type* type) {
-    size_t size = pi()->num_elems();
+    size_t size = pi()->size();
 
     Array<const Type*> elems(size + 1);
     *std::copy(pi()->elems().begin(), pi()->elems().end(), elems.begin()) = type;
 
     // update type
-    set_type(world().pi(pi()->generics(), elems));
+    set_type(world().pi(elems));
 
     // append new param
     const Param* param = new Param(type, this, size);
@@ -150,11 +150,11 @@ Array<const Def*> Lambda::classify_args() const {
 }
 
 bool Lambda::is_cascading() const {
-    if (is_fo() || uses().size() != 1)
+    if (uses().size() != 1)
         return false;
 
     Use use = *uses().begin();
-    return !use.def()->isa<Lambda>() || !use.index() > 0;
+    return use.def()->isa<Lambda>() && use.index() > 0;
 }
 
 Array<const Param*> Lambda::fo_params() const { return classify_params<true>(); }
@@ -231,7 +231,7 @@ Lambda* Dropper::drop() {
     oentry = scope.entry();
     const Pi* o_pi = oentry->pi();
 
-    size_t o_numparams = o_pi->num_elems();
+    size_t o_numparams = o_pi->size();
     size_t numdrop = indices.size();
     size_t n_numparams = o_numparams - numdrop;
 

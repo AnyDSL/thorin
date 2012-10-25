@@ -246,7 +246,7 @@ Fct::Fct(World& world, const Pi* pi, ArrayRef<Symbol> symbols,
     : world_(world)
     , parent_(0)
 {
-    assert(pi->num_elems() == symbols.size());
+    assert(pi->size() == symbols.size());
     sealed_ = true;
     fct_ = this;
     cur_ = top_ = world.lambda(pi);

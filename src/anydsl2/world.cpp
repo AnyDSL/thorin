@@ -39,8 +39,8 @@ World::World()
     , lambdas_(1031)
     , types_(1031)
     , gid_counter_(0)
-    , sigma0_ (consume(new Sigma(*this, ArrayRef<const Generic*>(), ArrayRef<const Type*>()))->as<Sigma>())
-    , pi0_    (consume(new Pi   (*this, ArrayRef<const Generic*>(), ArrayRef<const Type*>()))->as<Pi>())
+    , sigma0_ (consume(new Sigma(*this, ArrayRef<const Type*>()))->as<Sigma>())
+    , pi0_    (consume(new Pi   (*this, ArrayRef<const Type*>()))->as<Pi>())
     , mem_    (consume(new Mem  (*this))->as<Mem>())
     , frame_  (consume(new Frame(*this))->as<Frame>())
 #define ANYDSL2_UF_TYPE(T) ,T##_(consume(new PrimType(*this, PrimType_##T))->as<PrimType>())
@@ -67,8 +67,8 @@ World::~World() {
  * types
  */
 
-Sigma* World::named_sigma(size_t num_elems, size_t num_generics, const std::string& name) {
-    Sigma* s = new Sigma(*this, num_elems, num_generics);
+Sigma* World::named_sigma(size_t size, const std::string& name) {
+    Sigma* s = new Sigma(*this, size);
     s->debug = name;
 
     assert(types_.find(s) == types_.end() && "must not be inside");
@@ -562,8 +562,8 @@ void World::ute_insert(const Type* type) {
     if (type->is_marked()) return;
     type->mark();
 
-    for_all (arg, type->args())
-        ute_insert(arg);
+    for_all (elem, type->elems())
+        ute_insert(elem);
 }
 
 

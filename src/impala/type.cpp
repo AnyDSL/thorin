@@ -17,9 +17,9 @@ World::World()
 const anydsl2::Type* return_type(const anydsl2::Pi* pi) {
     if (!pi->empty()) {
         if (const Pi* ret = pi->elems().back()->isa<Pi>()) {
-            if (ret->num_elems() == 1)
+            if (ret->size() == 1)
                 return ret->elem(0);
-            if (ret->num_elems() == 0)
+            if (ret->size() == 0)
                 return ((impala::World&) pi->world()).type_void();
         }
     }

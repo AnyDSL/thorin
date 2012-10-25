@@ -11,6 +11,10 @@ namespace anydsl2 {
 
 const Ptr* Type::to_ptr() const { return world().ptr(this); }
 
+const Type* Type::elem_via_lit(const Def* def) const {
+    return elem(def->primlit_value<size_t>());
+}
+
 //------------------------------------------------------------------------------
 
 PrimType::PrimType(World& world, PrimTypeKind kind)
@@ -21,35 +25,16 @@ PrimType::PrimType(World& world, PrimTypeKind kind)
 
 //------------------------------------------------------------------------------
 
-CompoundType::CompoundType(World& world, int kind, size_t num_generics, size_t num_elems)
-    : Type(world, kind, num_generics + num_elems)
-    , num_generics_(num_generics)
+CompoundType::CompoundType(World& world, int kind, size_t size)
+    : Type(world, kind, size)
 {}
 
-CompoundType::CompoundType(World& world, int kind, ArrayRef<const Generic*> generics, 
-                                                   ArrayRef<const Type*> elems)
-    : Type(world, kind, generics.size() + elems.size())
-    , num_generics_(generics.size())
+CompoundType::CompoundType(World& world, int kind, Elems elems)
+    : Type(world, kind, elems.size())
 {
     size_t x = 0;
-    for_all (generic, generics)
-        set(x++, generic);
     for_all (elem, elems)
         set(x++, elem);
-}
-
-const Type* CompoundType::elem_via_lit(const Def* def) const {
-    return elem(def->primlit_value<size_t>());
-}
-
-size_t CompoundType::hash() const {
-    size_t seed = Type::hash();
-    boost::hash_combine(seed, num_generics_);
-    return seed;
-}
-
-bool CompoundType::equal(const Node* other) const {
-    return Type::equal(other) && num_generics() == other->as<CompoundType>()->num_generics();
 }
 
 //------------------------------------------------------------------------------
@@ -78,8 +63,16 @@ bool Pi::is_ho() const { return classify_order<false>(); }
 
 //------------------------------------------------------------------------------
 
-size_t Generic::hash() const { return boost::hash_value(this); }
-bool Generic::equal(const Node* other) const { return this == other; }
+size_t Generic::hash() const { 
+    size_t seed = 0;
+    boost::hash_combine(seed, Node_Generic);
+    boost::hash_combine(seed, depth_);
+    return seed;
+}
+
+bool Generic::equal(const Node* other) const { 
+    return other->kind() == Node_Generic && depth_ == other->as<Generic>()->depth();
+}
 
 //------------------------------------------------------------------------------
 

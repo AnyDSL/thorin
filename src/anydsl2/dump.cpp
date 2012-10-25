@@ -157,11 +157,13 @@ void Slot::vdump(Printer& p) const {
  */
 
 void CompoundType::dump_inner(Printer& p) const {
-    if (num_generics()) {
+#if 0
+    if (size()) {
         p << '<';
         ANYDSL2_DUMP_COMMA_LIST(p, generics());
         p << '>';
     }
+#endif
 
 	p << '(';
 	ANYDSL2_DUMP_COMMA_LIST(p, elems());
@@ -249,15 +251,15 @@ void Lambda::dump(bool fancy, int indent) const {
     p.indent += indent;
     p.newline();
 
-    std::cout << pi()->generics().size() << std::endl;
-
 	p.dump_name(this);
 	p << " = lambda";
+#if 0
     if (!pi()->generics().empty()) {
         p << "<";
         ANYDSL2_DUMP_COMMA_LIST(p, pi()->generics());
         p << ">";
     }
+#endif
     p << "(";
     ANYDSL2_DUMP_COMMA_LIST(p, params());
 	p << ") : ";

@@ -69,7 +69,7 @@ anydsl2::Fct* CodeGen::create_fct(const Lambda& lambda, Symbol symbol) {
     for_all (param, lambda.params())
         sparams[i++] = param->symbol();
 
-    size_t return_index = return_type(lambda.pi())->isa<NoRet>() ? size_t(-1) : lambda.pi()->num_elems()-1;
+    size_t return_index = return_type(lambda.pi())->isa<NoRet>() ? size_t(-1) : lambda.pi()->size()-1;
     return lambda.air_fct_ = new anydsl2::Fct(world, lambda.pi(), sparams, return_index, symbol.str());
 }
 

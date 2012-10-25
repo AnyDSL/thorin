@@ -54,11 +54,13 @@ void Prg::vdump(Printer& p) const {
 }
 
 void Lambda::dump(Printer& p) const {
+#if 0
     if (!generics().empty()) {
         p << "[[";
         ANYDSL2_DUMP_COMMA_LIST(p, generics());
         p << "]]";
     }
+#endif
     
     const Type* ret_type = return_type(pi());
     ArrayRef<const Decl*> params_ref = ret_type->isa<NoRet>() 
@@ -360,7 +362,7 @@ void Printer::dump(const anydsl2::Type* t) {
             ANYDSL2_DUMP_COMMA_LIST(*this, pi->elems());
             o << ")";
         } else {
-            ANYDSL2_DUMP_COMMA_LIST(*this, pi->elems().slice_front(pi->num_elems()-1));
+            ANYDSL2_DUMP_COMMA_LIST(*this, pi->elems().slice_front(pi->size()-1));
             o << ") -> ";
             dump(ret_type);
         }

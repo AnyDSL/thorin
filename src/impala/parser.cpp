@@ -103,6 +103,7 @@ private:
     typedef boost::unordered_map<Symbol, const Generic*> GenericsMap;
     class Generics {
     public:
+
         Generics(Generics* parent)
             : parent_(parent)
         {}
@@ -121,8 +122,8 @@ private:
             return i->second;
         }
 
-        const Generic* insert(World& world, Symbol symbol) { 
-            const Generic* generic = world.generic(); 
+        const Generic* insert(World& world, Symbol symbol, size_t depth) { 
+            const Generic* generic = world.generic(depth); 
             generic->debug = symbol.str();
             return generics_[symbol] = generic;
         }
@@ -137,15 +138,14 @@ private:
         return cur_generics_ ? cur_generics_->lookup(symbol) : 0;
     }
 
-
     const Generic* generic_insert(Token token) {
         Symbol symbol = token.symbol();
         assert(cur_generics_);
         if (cur_generics_->lookup(symbol)) {
             sema_error(token) << "generic '" << symbol << "' defined twice\n";
-            return world.generic();
+            return world.generic(generic_counter_++);
         } else
-            return cur_generics_->insert(world, symbol);
+            return cur_generics_->insert(world, symbol, generic_counter_++);
     }
 
     World& world;
@@ -154,6 +154,7 @@ private:
     const Loop* cur_loop_;
     const Lambda* cur_lambda_;
     Generics* cur_generics_;
+    size_t generic_counter_;
     Prg* prg_;
     int counter_;
     anydsl2::Location prev_loc_;
@@ -191,6 +192,7 @@ Parser::Parser(World& world, std::istream& stream, const std::string& filename)
     , cur_loop_(0)
     , cur_lambda_(0)
     , cur_generics_(0)
+    , generic_counter_(0)
     , prg_(new Prg())
     , counter_(0)
     , result_(true)
@@ -355,6 +357,7 @@ void Parser::parse_lambda(Lambda* lambda) {
 
     std::vector<const Type*> arg_types;
     std::vector<const Generic*> arg_generics;
+    size_t old_counter = generic_counter_;
 
     if (accept(Token::L_DBRACKET)) {
         PARSE_COMMA_LIST
@@ -364,6 +367,8 @@ void Parser::parse_lambda(Lambda* lambda) {
             "generics list"
         )
     }
+
+    generic_counter_ = old_counter;
 
     expect(Token::L_PAREN, "function head");
     PARSE_COMMA_LIST
@@ -385,7 +390,7 @@ void Parser::parse_lambda(Lambda* lambda) {
         lambda->params_.push_back(new Decl(Token(pos1, "<return>"), arg_types.back(), pos2));
     }
 
-    const Pi* pi = world.pi(arg_generics, arg_types);
+    const Pi* pi = world.pi(arg_types);
     const ScopeStmt* body = parse_scope();
     lambda->set(pi, body);
 

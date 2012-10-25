@@ -14,6 +14,7 @@ namespace anydsl2 {
 class BB;
 class Def;
 class Fct;
+class Generic;
 class Lambda;
 class Param;
 class Pi;
@@ -24,6 +25,8 @@ typedef std::vector<const Param*> In;
 typedef std::vector<const Def*> Out;
 typedef boost::unordered_set<BB*> BBs;
 typedef boost::unordered_map<Symbol, Fct*> LetRec;
+
+//------------------------------------------------------------------------------
 
 class Todo {
 public:
@@ -43,6 +46,7 @@ private:
     const Type* type_;
 };
 
+//------------------------------------------------------------------------------
 
 class Var {
 public:
@@ -63,6 +67,8 @@ protected:
     Symbol symbol_;
     const Def* def_;
 };
+
+//------------------------------------------------------------------------------
 
 /** 
  * This class helps for code generation of imperative languages.
@@ -139,6 +145,8 @@ private:
     friend class Fct;
 };
 
+//------------------------------------------------------------------------------
+
 class Fct : public BB {
 public:
 
@@ -170,6 +178,29 @@ private:
     std::vector<BB*> cfg_;
     LetRec letrec_;
 };
+
+//------------------------------------------------------------------------------
+
+class GenericBuilder {
+public:
+
+    GenericBuilder(World& world)
+        : world_(world)
+        , index_(0)
+    {}
+
+    size_t new_def();
+    const Generic* use(size_t handle);
+
+private:
+
+    World& world_;
+    size_t index_;
+    typedef std::vector<const Generic*> Index2Generic;
+    Index2Generic index2generic_;
+};
+
+//------------------------------------------------------------------------------
 
 } // namespace anydsl2
 

@@ -186,22 +186,22 @@ private:
 class Generic : public Type {
 private:
 
-    Generic(World& world, size_t depth)
+    Generic(World& world, size_t index)
         : Type(world, Node_Generic, 0)
-        , depth_(depth)
+        , index_(index)
     {}
 
 public:
 
     virtual void vdump(Printer& printer) const;
-    size_t depth() const { return depth_; }
+    size_t index() const { return index_; }
 
 private:
 
     virtual size_t hash() const;
     virtual bool equal(const Node* other) const;
 
-    size_t depth_;
+    size_t index_;
 
     friend class World;
 };

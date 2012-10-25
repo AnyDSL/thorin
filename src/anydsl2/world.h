@@ -141,7 +141,7 @@ public:
     }
     const Pi* pi(ArrayRef<const Type*> elems) { return consume(new Pi(*this, elems))->as<Pi>(); }
 
-    const Generic* generic(size_t depth) { return consume(new Generic(*this, depth))->as<Generic>(); }
+    const Generic* generic(size_t index) { return consume(new Generic(*this, index))->as<Generic>(); }
 
     /*
      * literals

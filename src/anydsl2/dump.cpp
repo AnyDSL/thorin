@@ -208,7 +208,7 @@ void Generic::vdump(Printer &p) const {
     if (debug.empty())
         p << this;
     else
-        p << debug;
+        p << '_' << index();
 }
 
 void Lambda::vdump(Printer& p) const {

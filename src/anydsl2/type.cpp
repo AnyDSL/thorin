@@ -66,12 +66,12 @@ bool Pi::is_ho() const { return classify_order<false>(); }
 size_t Generic::hash() const { 
     size_t seed = 0;
     boost::hash_combine(seed, Node_Generic);
-    boost::hash_combine(seed, depth_);
+    boost::hash_combine(seed, index_);
     return seed;
 }
 
 bool Generic::equal(const Node* other) const { 
-    return other->kind() == Node_Generic && depth_ == other->as<Generic>()->depth();
+    return other->kind() == Node_Generic && index_ == other->as<Generic>()->index();
 }
 
 //------------------------------------------------------------------------------

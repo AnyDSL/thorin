@@ -1,5 +1,5 @@
 def f(i : int, ret : pi(int)) {
-    g(i, ret);
+    //g(i, ret);
     return g(3) + 5;
 }
 

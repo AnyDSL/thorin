@@ -223,6 +223,16 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b) {
         if ((rlit || a > b) && (!llit))
             std::swap(a, b);
 
+#if 0
+    typedef boost::tuple<int, const Type*, const Def*, const Def*> XXX;
+    PrimOpSet::iterator i = primops_.find(boost::make_tuple(kind, a->type(), a, b),
+                                          std::ptr_fun<XXX, size_t>(hash_value),
+                                          std::ptr_fun<XXX, const Def*, bool>(equal));
+
+    if (i != primops_.end())
+        std::cout << "found!!!!" << std::endl;
+#endif
+
     return consume(new ArithOp(kind, a, b));
 }
 

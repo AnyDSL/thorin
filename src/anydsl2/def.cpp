@@ -112,6 +112,49 @@ size_t Def::hash() const {
     return seed;
 }
 
+size_t hash_value(boost::tuple<int, const Type*, Defs> tuple) {
+    size_t seed = 0;
+    boost::hash_combine(seed, tuple.get<0>());
+    boost::hash_combine(seed, tuple.get<2>());
+    boost::hash_combine(seed, tuple.get<1>());
+    return seed;
+}
+
+size_t hash_value(boost::tuple<int, const Type*, const Def*> tuple) {
+    size_t seed = 0;
+    boost::hash_combine(seed, tuple.get<0>());
+    boost::hash_combine(seed, 1);
+    boost::hash_combine(seed, tuple.get<2>());
+    boost::hash_combine(seed, tuple.get<1>());
+    return seed;
+}
+
+size_t hash_value(boost::tuple<int, const Type*, const Def*, const Def*> tuple) {
+    size_t seed = 0;
+    boost::hash_combine(seed, tuple.get<0>());
+    boost::hash_combine(seed, 2);
+    boost::hash_combine(seed, tuple.get<2>());
+    boost::hash_combine(seed, tuple.get<3>());
+    boost::hash_combine(seed, tuple.get<1>());
+    return seed;
+}
+
+size_t hash_value(boost::tuple<int, const Type*, const Def*, const Def*, const Def*> tuple) {
+    size_t seed = 0;
+    boost::hash_combine(seed, tuple.get<0>());
+    boost::hash_combine(seed, 3);
+    boost::hash_combine(seed, tuple.get<2>());
+    boost::hash_combine(seed, tuple.get<3>());
+    boost::hash_combine(seed, tuple.get<4>());
+    boost::hash_combine(seed, tuple.get<1>());
+    return seed;
+}
+
+bool equal(boost::tuple<int, const Type*, const Def*, const Def*> tuple, const Def* def) {
+    return tuple.get<0>() == def->kind() && tuple.get<1>() == def->type() 
+        && tuple.get<2>() == def->op(0)  && tuple.get<3>() == def->op(1);
+}
+
 //------------------------------------------------------------------------------
 
 Param::Param(const Type* type, Lambda* lambda, size_t index)

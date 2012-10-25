@@ -6,8 +6,9 @@
 #include <string>
 
 #include <boost/cstdint.hpp>
-#include <boost/unordered_set.hpp>
 #include <boost/functional/hash.hpp>
+#include <boost/tuple/tuple.hpp>
+#include <boost/unordered_set.hpp>
 
 #include "anydsl2/enums.h"
 #include "anydsl2/node.h"
@@ -167,6 +168,16 @@ private:
     const Type* type_;
     mutable Uses uses_;
 };
+
+size_t hash_value(boost::tuple<int, const Type*, Defs>);
+size_t hash_value(boost::tuple<int, const Type*, const Def*>);
+size_t hash_value(boost::tuple<int, const Type*, const Def*, const Def*>);
+size_t hash_value(boost::tuple<int, const Type*, const Def*, const Def*, const Def*>);
+
+//bool equal(boost::tuple<int, const Type*, Defs>, const Def*);
+//bool equal(boost::tuple<int, const Type*, const Def*>, const Def*);
+bool equal(boost::tuple<int, const Type*, const Def*, const Def*>, const Def*);
+//bool equal(boost::tuple<int, const Type*, const Def*, const Def*, const Def*>, const Def*);
 
 //------------------------------------------------------------------------------
 

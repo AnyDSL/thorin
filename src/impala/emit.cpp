@@ -63,18 +63,14 @@ void emit(World& world, const Prg* prg) {
 
 anydsl2::Fct* CodeGen::create_fct(const Lambda& lambda, Symbol symbol) {
     size_t size = lambda.params().size();
-    Array<const Type*> tparams(size);
     Array<Symbol> sparams(size);
 
     size_t i = 0;
-    for_all (param, lambda.params()) {
-        tparams[i] = param->type();
-        sparams[i] = param->symbol();
-        ++i;
-    }
+    for_all (param, lambda.params())
+        sparams[i++] = param->symbol();
 
     size_t return_index = return_type(lambda.pi())->isa<NoRet>() ? size_t(-1) : lambda.pi()->num_elems()-1;
-    return lambda.air_fct_ = new anydsl2::Fct(world, tparams, sparams, return_index, symbol.str());
+    return lambda.air_fct_ = new anydsl2::Fct(world, lambda.pi(), sparams, return_index, symbol.str());
 }
 
 void Prg::emit(CodeGen& cg) const {

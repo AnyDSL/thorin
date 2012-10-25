@@ -1,6 +1,3 @@
-def foo[[A, B, C]](i : int, f : float) -> bool {
-    def foox[[A, B, C, D]](i : int, f : float) -> bool {
-        return true;
-    }
+def foo[[A, B, C]](a : A, f : float) -> bool {
     return true;
 }

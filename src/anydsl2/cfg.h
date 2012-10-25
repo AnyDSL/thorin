@@ -147,7 +147,7 @@ public:
     {
         fct_ = this;
     }
-    Fct(World& world, ArrayRef<const Type*> types, ArrayRef<Symbol> symbols, 
+    Fct(World& world, const Pi* pi, ArrayRef<Symbol> symbols, 
         size_t return_index, const std::string& debug);
     ~Fct();
 

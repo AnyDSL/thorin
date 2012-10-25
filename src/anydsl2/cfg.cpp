@@ -241,15 +241,15 @@ std::string BB::debug() const { return top() ? top()->debug : std::string(); }
 
 //------------------------------------------------------------------------------
 
-Fct::Fct(World& world, ArrayRef<const Type*> types, ArrayRef<Symbol> symbols, 
+Fct::Fct(World& world, const Pi* pi, ArrayRef<Symbol> symbols, 
          size_t return_index, const std::string& debug)
     : world_(world)
     , parent_(0)
 {
-    assert(types.size() == symbols.size());
+    assert(pi->num_elems() == symbols.size());
     sealed_ = true;
     fct_ = this;
-    cur_ = top_ = world.lambda(world.pi(types));
+    cur_ = top_ = world.lambda(pi);
     top_->debug = debug;
     ret_ = (return_index != size_t(-1) ? top()->param(return_index) : 0);
 

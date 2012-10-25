@@ -249,8 +249,16 @@ void Lambda::dump(bool fancy, int indent) const {
     p.indent += indent;
     p.newline();
 
+    std::cout << pi()->generics().size() << std::endl;
+
 	p.dump_name(this);
-	p << " = lambda(";
+	p << " = lambda";
+    if (!pi()->generics().empty()) {
+        p << "<";
+        ANYDSL2_DUMP_COMMA_LIST(p, pi()->generics());
+        p << ">";
+    }
+    p << "(";
     ANYDSL2_DUMP_COMMA_LIST(p, params());
 	p << ") : ";
     p.dump(type());

@@ -723,8 +723,8 @@ const Expr* Parser::parse_expr(Prec prec) {
 
     while (true) {
         /*
-         * (aval  op  LA) op ...  on break  (current prec > aval prec of LA)  -->  reduce
-         *  aval  op (LA  op ...) otherwise                                   -->  shift
+         * (lhs  op  LA) op ...  on break  (current prec > lhs prec of LA)  -->  reduce
+         *  lhs  op (LA  op ...) otherwise                                  -->  shift
          */
 
         if (la().is_infix()) {

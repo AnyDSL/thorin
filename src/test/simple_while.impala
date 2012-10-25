@@ -1,0 +1,14 @@
+def my_while(i : int,
+                head : pi(int, pi(float, bool)), 
+                body : pi(float, pi(int)), 
+                next : pi(float)) 
+{
+    head(i, 
+        lambda(f : float, cond : bool) {
+            if (cond)
+                my_while(body(f), head, body, next);
+            else
+                next(f);
+        }
+    );
+}

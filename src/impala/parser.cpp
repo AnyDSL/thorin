@@ -104,37 +104,39 @@ private:
     class Generics {
     public:
 
-        Generics(GenericBuilder* builder)
-            : parent_(0)
-            , builder_(builder)
-        {}
-        Generics(Generics* parent)
+        Generics(Generics* parent, GenericBuilder& builder)
             : parent_(parent)
-            , builder_(parent->builder_)
+            , builder_(builder)
+            , counter_(0)
         {}
+        ~Generics() {
+            for (; counter_; --counter_)
+                builder_.pop();
+        }
 
         Generics* parent() const { return parent_; }
 
         const Generic* lookup(Symbol symbol) {
             Symbol2Handle::iterator i = symbol2handle_.find(symbol);
-            if (i == symbol2handle_.end()) {
-                if (parent_)
-                    return parent_->lookup(symbol);
-                else
-                    return 0;
-            }
+            if (i != symbol2handle_.end()) 
+                return builder_.use(i->second);
 
-            return builder_->use(i->second);
+            if (parent_)
+                return parent_->lookup(symbol);
+
+            return 0;
         }
 
         void insert(Symbol symbol) { 
-            symbol2handle_[symbol] = builder_->new_def();
+            ++counter_;
+            symbol2handle_[symbol] = builder_.new_def();
         }
 
     private:
 
         Generics* parent_;
-        GenericBuilder* builder_;
+        GenericBuilder& builder_;
+        int counter_;
         Symbol2Handle symbol2handle_;
     };
 
@@ -162,6 +164,7 @@ private:
     int counter_;
     anydsl2::Location prev_loc_;
     bool result_;
+    GenericBuilder builder_;
 };
 
 //------------------------------------------------------------------------------
@@ -199,6 +202,7 @@ Parser::Parser(World& world, std::istream& stream, const std::string& filename)
     , prg_(new Prg())
     , counter_(0)
     , result_(true)
+    , builder_(world)
 {
     // init 2 lookahead
     lookahead_[0] = lexer_.lex();
@@ -355,8 +359,7 @@ void Parser::parse_globals() {
 
 void Parser::parse_lambda(Lambda* lambda) {
     IMPALA_PUSH(cur_lambda_, lambda);
-    GenericBuilder builder(world);
-    Generics generics(&builder);
+    Generics generics(cur_generics_, builder_);
     cur_generics_ = &generics;
     std::vector<const Type*> arg_types;
 
@@ -393,7 +396,7 @@ void Parser::parse_lambda(Lambda* lambda) {
     const ScopeStmt* body = parse_scope();
     lambda->set(pi, body);
 
-    cur_generics_ = 0;
+    cur_generics_ = generics.parent();
     IMPALA_POP(cur_lambda_);
 }
 

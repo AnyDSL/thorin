@@ -1,3 +1,6 @@
-def foo[[A, B, C]](a : A, b : pi(A, int), f : float) -> bool {
+def foo[[A, B, C, X]](a : A, b : pi(A, int), f : float) -> bool {
+    def bar[[D, E, F]](e : E) -> bool {
+        return true;
+    }
     return true;
 }

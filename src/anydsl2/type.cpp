@@ -77,8 +77,9 @@ bool Generic::equal(const Node* other) const {
 //------------------------------------------------------------------------------
 
 size_t GenericBuilder::new_def() {
+    size_t handle = index2generic_.size();
     index2generic_.push_back(0);
-    return index2generic_.size();
+    return handle;
 }
 
 const Generic* GenericBuilder::use(size_t handle) {
@@ -88,6 +89,14 @@ const Generic* GenericBuilder::use(size_t handle) {
         return generic;
 
     return ref = world_.generic(index_++);
+}
+
+void GenericBuilder::pop() { 
+    if (const Generic* generic = index2generic_.back()) {
+        --index_;
+        assert(generic->index() == index_);
+    }
+    index2generic_.pop_back(); 
 }
 
 //------------------------------------------------------------------------------

@@ -238,6 +238,7 @@ public:
 
     size_t new_def();
     const Generic* use(size_t handle);
+    void pop();
 
 private:
 

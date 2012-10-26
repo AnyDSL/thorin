@@ -169,10 +169,6 @@ Token Lexer::lex() {
         IMPALA_LEX_AND_OR('&', AND, L_A, AND_ASGN)
         IMPALA_LEX_AND_OR('|',  OR, L_O,  OR_ASGN)
 
-        // #(
-        if (accept('#') && accept('('))
-            return Token(loc_, Token::L_TUPLE);
-
         if (accept('[')) {
             if (accept('['))
                 return Token(loc_, Token::L_DBRACKET);
@@ -188,6 +184,8 @@ Token Lexer::lex() {
         }
 
         // single character tokens
+        if (accept('#')) 
+            return Token(loc_, Token::HASH);
         if (accept('(')) return Token(loc_, Token::L_PAREN);
         if (accept(')')) return Token(loc_, Token::R_PAREN);
         if (accept(',')) return Token(loc_, Token::COMMA);

@@ -14,13 +14,6 @@
 
 #include "impala/token.h"
 
-#define IMPALA_PUSH(what, with) \
-    BOOST_TYPEOF(what) old_##what = what; \
-    what  = with;
-
-#define IMPALA_POP(what) \
-    what = old_##what;
-
 namespace anydsl2 {
     class BB;
     class Def;

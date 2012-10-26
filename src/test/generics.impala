@@ -1,4 +1,6 @@
 def foo[[A, B, C, X]](a : A, b : pi(A, int), f : float) -> bool {
+    bla : sigma[[Z, Z]](Z, int);
+    blub : sigma(int, float);
     def bar[[D, E, F]](e : E) -> bool {
         return true;
     }

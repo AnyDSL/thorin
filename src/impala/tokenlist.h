@@ -103,7 +103,7 @@ IMPALA_INFIX(        ARROW,  "->",    POSTFIX,         TOP)
 #define IMPALA_KEY_EXPR(tok, str)
 #endif
 
-IMPALA_KEY_EXPR(LAMBDA,   "lambda")
+IMPALA_KEY_EXPR(LAMBDA, "lambda")
 IMPALA_KEY_EXPR(TRUE,   "true")
 IMPALA_KEY_EXPR(FALSE,  "false")
 
@@ -141,10 +141,11 @@ IMPALA_MISC(R_BRACKET,  "]")
 IMPALA_MISC(COMMA,      ",")
 IMPALA_MISC(SEMICOLON,  ";")
 IMPALA_MISC(COLON,      ":")
-IMPALA_MISC(L_TUPLE,    "#(")
-IMPALA_MISC(PI,         "pi")
+IMPALA_MISC(HASH,       "#")
 IMPALA_MISC(L_DBRACKET, "[[")
 IMPALA_MISC(R_DBRACKET, "]]")
+IMPALA_MISC(PI,         "pi")
+IMPALA_MISC(SIGMA,      "sigma")
 
 #undef IMPALA_MISC
 

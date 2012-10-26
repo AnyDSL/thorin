@@ -181,7 +181,7 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
             const Def* def = ref->load();
             const anydsl2::PrimType* pt = def->type()->as<anydsl2::PrimType>();
             const anydsl2::PrimLit* one = cg.world.literal(pt->primtype_kind(), 1u);
-            const Def* ndef = cg.world.arithop(Token::toArithOp((TokenKind) kind()), def, one);
+            const Def* ndef = cg.world.arithop(Token::to_arithop((TokenKind) kind()), def, one);
             ref->store(ndef);
 
             return ref;
@@ -225,7 +225,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
 
         if (op != Token::ASGN) {
             TokenKind sop = Token::seperateAssign(op);
-            rdef = cg.world.binop(Token::toBinOp(sop), ldef, rdef);
+            rdef = cg.world.binop(Token::to_binop(sop), ldef, rdef);
         }
 
         lref->store(rdef);
@@ -236,7 +236,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
     const Def* ldef = lhs()->emit(cg)->load();
     const Def* rdef = rhs()->emit(cg)->load();
 
-    return Ref::create(cg.world.binop(Token::toBinOp(op), ldef, rdef));
+    return Ref::create(cg.world.binop(Token::to_binop(op), ldef, rdef));
 }
 
 RefPtr PostfixExpr::emit(CodeGen& cg) const {
@@ -244,7 +244,7 @@ RefPtr PostfixExpr::emit(CodeGen& cg) const {
     const Def* def = ref->load();
     const anydsl2::PrimType* pt = def->type()->as<anydsl2::PrimType>();
     const anydsl2::PrimLit* one = cg.world.literal(pt->primtype_kind(), 1u);
-    const Def* ndef = cg.world.arithop(Token::toArithOp((TokenKind) kind()), def, one);
+    const Def* ndef = cg.world.arithop(Token::to_arithop((TokenKind) kind()), def, one);
     ref->store(ndef);
 
     return Ref::create(def);

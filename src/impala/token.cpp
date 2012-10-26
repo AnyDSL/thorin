@@ -104,7 +104,7 @@ TokenKind Token::seperateAssign(TokenKind kind) {
     }
 }
 
-int Token::toBinOp(Kind kind) {
+int Token::to_binop(Kind kind) {
     switch (kind) {
         case INC:
         case ADD: return anydsl2::ArithOp_add;
@@ -125,7 +125,7 @@ int Token::toBinOp(Kind kind) {
     }
 }
 
-anydsl2::ArithOpKind Token::toArithOp(Kind kind) {
+anydsl2::ArithOpKind Token::to_arithop(Kind kind) {
     switch (kind) {
         case INC:
         case ADD: return anydsl2::ArithOp_add;
@@ -140,7 +140,7 @@ anydsl2::ArithOpKind Token::toArithOp(Kind kind) {
     }
 }
 
-anydsl2::RelOpKind Token::toRelOp(Kind kind) {
+anydsl2::RelOpKind Token::to_relop(Kind kind) {
     switch (kind) {
         case EQ: return anydsl2::RelOp_cmp_eq;
         case NE: return anydsl2::RelOp_cmp_ne;
@@ -148,15 +148,6 @@ anydsl2::RelOpKind Token::toRelOp(Kind kind) {
         case LE: return anydsl2::RelOp_cmp_ule;
         case GT: return anydsl2::RelOp_cmp_ugt;
         case GE: return anydsl2::RelOp_cmp_uge;
-        default: ANYDSL2_UNREACHABLE;
-    }
-}
-
-anydsl2::PrimTypeKind Token::toPrimType(Kind kind) {
-    switch (kind) {
-#define IMPALA_TYPE(itype, atype) \
-        case Token:: TYPE_ ## itype: return anydsl2::PrimType_##atype;
-#include "impala/tokenlist.h"
         default: ANYDSL2_UNREACHABLE;
     }
 }
@@ -193,22 +184,23 @@ void Token::init() {
 #define IMPALA_INFIX_ASGN(tok, str, r, l) insert(tok, str); tok2op_[tok] |= INFIX | ASGN_OP;
 #define IMPALA_MISC(      tok, str)       insert(tok, str);
 #define IMPALA_LIT(       tok, atype)     tok2str_[LIT_##tok] = Symbol("<literal>").str();
-#define IMPALA_KEY_EXPR(  tok, str)       insertKey(tok, str);
-#define IMPALA_KEY_STMT(  tok, str)       insertKey(tok, str);
-#define IMPALA_TYPE(itype, atype)         insertKey(TYPE_ ## itype, #itype );
+#define IMPALA_KEY_EXPR(  tok, str)       insert_key(tok, str);
+#define IMPALA_KEY_STMT(  tok, str)       insert_key(tok, str);
+#define IMPALA_TYPE(itype, atype)         insert_key(TYPE_ ## itype, #itype );
 #include <impala/tokenlist.h>
 
-    insertKey(TYPE_int,   "int");
-    insertKey(TYPE_void,  "void");
-    insertKey(TYPE_noret, "noret");
-    insertKey(DEF,        "def");
-    insertKey(PI,         "pi");
+    insert_key(TYPE_int,   "int");
+    insert_key(TYPE_void,  "void");
+    insert_key(TYPE_noret, "noret");
+    insert_key(DEF,        "def");
+    insert_key(PI,         "pi");
+    insert_key(SIGMA,      "sigma");
 
     tok2str_[ID]         = Symbol("<identifier>").str();
     tok2str_[END_OF_FILE]= Symbol("<end of file>").str();
 }
 
-/*static*/ void Token::insertKey(TokenKind tok, const char* str) {
+/*static*/ void Token::insert_key(TokenKind tok, const char* str) {
     Symbol s = str;
     assert(keywords_.find(s) == keywords_.end() && "already inserted");
     keywords_[s] = tok;

@@ -12,6 +12,13 @@
 #include "impala/prec.h"
 #include "impala/type.h"
 
+#define IMPALA_PUSH(what, with) \
+    BOOST_TYPEOF(what) old_##what = what; \
+    what  = with;
+
+#define IMPALA_POP(what) \
+    what = old_##what;
+
 using namespace anydsl2;
 
 namespace impala {
@@ -53,6 +60,7 @@ public:
     bool is_expr();
     bool is_type(size_t lookahead = 0);
     const Prg* parse();
+    void parse_generic_list();
     const Type* parse_type();
     const Type* parse_return_type();
     const Decl* parse_decl();
@@ -294,6 +302,10 @@ const Type* Parser::parse_type() {
         case Token::TYPE_noret: lex(); return world.noret();
         case Token::PI: {
             lex();
+            Generics generics(cur_generics_, builder_);
+            cur_generics_ = &generics;
+            parse_generic_list();
+
             std::vector<const Type*> elems;
             expect(Token::L_PAREN, "element types of pi");
             PARSE_COMMA_LIST
@@ -306,17 +318,27 @@ const Type* Parser::parse_type() {
             if (accept(Token::ARROW))
                 elems.push_back(parse_return_type());
 
+            cur_generics_ = generics.parent();
+
             return world.pi(elems);
         }
-        case Token::L_TUPLE: {
+        case Token::SIGMA: {
             lex();
+
+            Generics generics(cur_generics_, builder_);
+            cur_generics_ = &generics;
+            parse_generic_list();
+
             std::vector<const Type*> elems;
+            expect(Token::L_PAREN, "element tpyes of tuple type");
             PARSE_COMMA_LIST
             (
                 elems.push_back(try_type("element of tuple type")),
                 Token::R_PAREN,
                 "closing parenthesis of tuple type"
             )
+
+            cur_generics_ = generics.parent();
 
             return world.sigma(elems);
         }
@@ -357,12 +379,7 @@ void Parser::parse_globals() {
     }
 }
 
-void Parser::parse_lambda(Lambda* lambda) {
-    IMPALA_PUSH(cur_lambda_, lambda);
-    Generics generics(cur_generics_, builder_);
-    cur_generics_ = &generics;
-    std::vector<const Type*> arg_types;
-
+void Parser::parse_generic_list() {
     if (accept(Token::L_DBRACKET)) {
         PARSE_COMMA_LIST
         (
@@ -371,7 +388,16 @@ void Parser::parse_lambda(Lambda* lambda) {
             "generics list"
         )
     }
+}
 
+void Parser::parse_lambda(Lambda* lambda) {
+    IMPALA_PUSH(cur_lambda_, lambda);
+
+    Generics generics(cur_generics_, builder_);
+    cur_generics_ = &generics;
+    parse_generic_list();
+
+    std::vector<const Type*> arg_types;
     expect(Token::L_PAREN, "function head");
     PARSE_COMMA_LIST
     (
@@ -663,7 +689,6 @@ bool Parser::is_expr() {
 #define IMPALA_LIT(itype, atype)     case Token:: LIT_##itype:
 #include "impala/tokenlist.h"
         case Token::L_PAREN:
-        case Token::L_TUPLE:
             return true;
         default:
             return false;
@@ -683,10 +708,8 @@ bool Parser::is_type(size_t lookahead) {
         case Token::TYPE_void:
         case Token::TYPE_noret:
         case Token::PI:
+        case Token::SIGMA:
             return true;
-        case Token::L_TUPLE:
-            assert(lookahead == 0);
-            return is_type(1);
         default:
             return false;
     }
@@ -801,7 +824,7 @@ const Expr* Parser::parse_primary_expr() {
             expect(Token::R_PAREN, "primary expression");
             return expr;
         }
-        case Token::L_TUPLE:    return parse_tuple();
+        case Token::HASH:       return parse_tuple();
         case Token::LAMBDA:     return parse_lambda_expr();
         default:                ANYDSL2_UNREACHABLE;
     }
@@ -826,7 +849,7 @@ const Expr* Parser::parse_literal() {
 }
 
 const Expr* Parser::parse_tuple() {
-    Tuple* tuple = new Tuple(eat(Token::L_TUPLE).pos1());
+    Tuple* tuple = new Tuple(eat(Token::HASH).pos1());
 
     PARSE_COMMA_LIST
     (

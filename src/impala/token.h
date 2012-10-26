@@ -100,10 +100,9 @@ public:
     static bool is_rel(Kind kind);
     static Kind seperateAssign(Kind kind);
 
-    static int toBinOp(Kind kind);
-    static anydsl2::ArithOpKind  toArithOp(Kind kind);
-    static anydsl2::RelOpKind    toRelOp(Kind kind);
-    static anydsl2::PrimTypeKind toPrimType(Kind kind);
+    static int to_binop(Kind kind);
+    static anydsl2::ArithOpKind  to_arithop(Kind kind);
+    static anydsl2::RelOpKind    to_relop(Kind kind);
 
     /*
      * comparisons
@@ -126,7 +125,7 @@ private:
 
     static int tok2op_[NUM_TOKENS];
     static anydsl2::Symbol insert(Kind tok, const char* str);
-    static void insertKey(Kind tok, const char* str);
+    static void insert_key(Kind tok, const char* str);
 
     typedef boost::unordered_map<Kind, anydsl2::Symbol> Tok2Sym;
     static Tok2Sym tok2sym_;

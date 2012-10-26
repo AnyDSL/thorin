@@ -1,4 +1,4 @@
-def my_while(i : int,
+def simple_while(i : int,
                 head : pi(int, pi(float, bool)), 
                 body : pi(float, pi(int)), 
                 next : pi(float)) 
@@ -6,9 +6,25 @@ def my_while(i : int,
     head(i, 
         lambda(f : float, cond : bool) {
             if (cond)
-                my_while(body(f), head, body, next);
+                simple_while(body(f), head, body, next);
             else
                 next(f);
         }
     );
 }
+
+def generic_while[[L, B]](l : L,
+                          head : pi(L, pi(B, bool)), 
+                          body : pi(B, pi(L)), 
+                          next : pi(B)) 
+{
+    head(l,
+        lambda(b : B, cond : bool) {
+            if (cond)
+                generic_while(body(b), head, body, next);
+            else
+                next(b);
+        }
+    );
+}
+

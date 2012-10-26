@@ -19,6 +19,14 @@
 #define IMPALA_POP(what) \
     what = old_##what;
 
+#define PARSE_COMMA_LIST(stmnt, delimiter, context) { \
+        if (la() != delimiter) { \
+            do { stmnt; } \
+            while ( accept(Token::COMMA) ); \
+        } \
+        expect(delimiter, context); \
+    }
+
 using namespace anydsl2;
 
 namespace impala {
@@ -62,6 +70,7 @@ public:
     const Prg* parse();
     void parse_generic_list();
     const Type* parse_type();
+    const Type* parse_compound_type();
     const Type* parse_return_type();
     const Decl* parse_decl();
     void parse_globals();
@@ -187,15 +196,6 @@ const Prg* parse(World& world, std::istream& i, const std::string& filename, boo
 
 //------------------------------------------------------------------------------
 
-#define PARSE_COMMA_LIST(stmnt, delimiter, context) { \
-        if (la() != delimiter) { \
-            do { stmnt; } \
-            while ( accept(Token::COMMA) ); \
-        } \
-        expect(delimiter, context); \
-    }
-
-
 /*
  * constructor
  */
@@ -300,52 +300,39 @@ const Type* Parser::parse_type() {
         case Token::TYPE_int:   lex(); return world.type_u32();
         case Token::TYPE_void:  lex(); return world.type_void();
         case Token::TYPE_noret: lex(); return world.noret();
-        case Token::PI: {
-            lex();
-            Generics generics(cur_generics_, builder_);
-            cur_generics_ = &generics;
-            parse_generic_list();
-
-            std::vector<const Type*> elems;
-            expect(Token::L_PAREN, "element types of pi");
-            PARSE_COMMA_LIST
-            (
-                elems.push_back(try_type("element type of pi")),
-                Token::R_PAREN,
-                "closing parenthesis of pi type"
-            )
-
-            if (accept(Token::ARROW))
-                elems.push_back(parse_return_type());
-
-            cur_generics_ = generics.parent();
-
-            return world.pi(elems);
-        }
-        case Token::SIGMA: {
-            lex();
-
-            Generics generics(cur_generics_, builder_);
-            cur_generics_ = &generics;
-            parse_generic_list();
-
-            std::vector<const Type*> elems;
-            expect(Token::L_PAREN, "element tpyes of tuple type");
-            PARSE_COMMA_LIST
-            (
-                elems.push_back(try_type("element of tuple type")),
-                Token::R_PAREN,
-                "closing parenthesis of tuple type"
-            )
-
-            cur_generics_ = generics.parent();
-
-            return world.sigma(elems);
-        }
+        case Token::PI:
+        case Token::SIGMA:             return parse_compound_type();
         case Token::ID:
             return cur_generics_->lookup(lex().symbol());
         default: ANYDSL2_UNREACHABLE;
     }
+}
+
+const Type* Parser::parse_compound_type() {
+    bool pi = lex().kind() == Token::PI;
+
+    Generics generics(cur_generics_, builder_);
+    cur_generics_ = &generics;
+    parse_generic_list();
+
+    std::vector<const Type*> elems;
+    const char* error_str = pi ? "element types of pi" : "element types of sigma";
+    expect(Token::L_PAREN, error_str);
+    PARSE_COMMA_LIST
+    (
+        elems.push_back(try_type(error_str)),
+        Token::R_PAREN,
+        pi ?  "closing parenthesis of pi type" : "closing parenthesis of sigma type"
+    )
+
+    if (pi && accept(Token::ARROW))
+        elems.push_back(parse_return_type());
+
+    cur_generics_ = generics.parent();
+
+    if (pi) 
+        return world.pi(elems);
+    return world.sigma(elems);
 }
 
 const Type* Parser::parse_return_type() {
@@ -722,6 +709,7 @@ const Expr* Parser::try_expr(const std::string& what) {
     else {
         error("expression", what);
         expr = new EmptyExpr(prev_loc_);
+        lex(); // eat away erroneous token
     }
 
     return expr;
@@ -734,6 +722,7 @@ const Type* Parser::try_type(const std::string& what) {
     else {
         error("type", what);
         type = world.type_error();
+        lex(); // eat away erroneous token
     }
 
     return type;

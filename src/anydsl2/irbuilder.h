@@ -181,27 +181,6 @@ private:
 
 //------------------------------------------------------------------------------
 
-class GenericBuilder {
-public:
-
-    GenericBuilder(World& world)
-        : world_(world)
-        , index_(0)
-    {}
-
-    size_t new_def();
-    const Generic* use(size_t handle);
-
-private:
-
-    World& world_;
-    size_t index_;
-    typedef std::vector<const Generic*> Index2Generic;
-    Index2Generic index2generic_;
-};
-
-//------------------------------------------------------------------------------
-
 } // namespace anydsl2
 
 #endif

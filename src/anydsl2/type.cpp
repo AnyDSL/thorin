@@ -76,4 +76,20 @@ bool Generic::equal(const Node* other) const {
 
 //------------------------------------------------------------------------------
 
+size_t GenericBuilder::new_def() {
+    index2generic_.push_back(0);
+    return index2generic_.size();
+}
+
+const Generic* GenericBuilder::use(size_t handle) {
+    assert(handle < index2generic_.size());
+    const Generic*& ref = index2generic_[handle];
+    if (const Generic* generic = ref)
+        return generic;
+
+    return ref = world_.generic(index_++);
+}
+
+//------------------------------------------------------------------------------
+
 } // namespace anydsl2

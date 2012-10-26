@@ -205,8 +205,8 @@ void Pi::vdump(Printer& p) const {
 }
 
 void Generic::vdump(Printer &p) const {
-    if (debug.empty())
-        p << this;
+    if (!debug.empty())
+        p << debug;
     else
         p << '_' << index();
 }

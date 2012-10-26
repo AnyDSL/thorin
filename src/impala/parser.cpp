@@ -100,52 +100,55 @@ private:
      * data
      */
 
-    typedef boost::unordered_map<Symbol, const Generic*> GenericsMap;
+    typedef boost::unordered_map<Symbol, size_t> Symbol2Handle;
     class Generics {
     public:
 
+        Generics(GenericBuilder* builder)
+            : parent_(0)
+            , builder_(builder)
+        {}
         Generics(Generics* parent)
             : parent_(parent)
+            , builder_(parent->builder_)
         {}
 
         Generics* parent() const { return parent_; }
 
         const Generic* lookup(Symbol symbol) {
-            GenericsMap::iterator i = generics_.find(symbol);
-            if (i == generics_.end()) {
+            Symbol2Handle::iterator i = symbol2handle_.find(symbol);
+            if (i == symbol2handle_.end()) {
                 if (parent_)
                     return parent_->lookup(symbol);
                 else
                     return 0;
             }
 
-            return i->second;
+            return builder_->use(i->second);
         }
 
-        const Generic* insert(World& world, Symbol symbol, size_t depth) { 
-            const Generic* generic = world.generic(depth); 
-            generic->debug = symbol.str();
-            return generics_[symbol] = generic;
+        void insert(Symbol symbol) { 
+            symbol2handle_[symbol] = builder_->new_def();
         }
 
     private:
 
         Generics* parent_;
-        GenericsMap generics_;
+        GenericBuilder* builder_;
+        Symbol2Handle symbol2handle_;
     };
 
     const Generic* generic_lookup(Symbol symbol) {
         return cur_generics_ ? cur_generics_->lookup(symbol) : 0;
     }
 
-    const Generic* generic_insert(Token token) {
+    void generic_insert(Token token) {
         Symbol symbol = token.symbol();
         assert(cur_generics_);
-        if (cur_generics_->lookup(symbol)) {
+        if (cur_generics_->lookup(symbol))
             sema_error(token) << "generic '" << symbol << "' defined twice\n";
-            return world.generic(generic_counter_++);
-        } else
-            return cur_generics_->insert(world, symbol, generic_counter_++);
+        else
+            cur_generics_->insert(symbol);
     }
 
     World& world;
@@ -352,23 +355,19 @@ void Parser::parse_globals() {
 
 void Parser::parse_lambda(Lambda* lambda) {
     IMPALA_PUSH(cur_lambda_, lambda);
-    Generics generics(cur_generics_);
+    GenericBuilder builder(world);
+    Generics generics(&builder);
     cur_generics_ = &generics;
-
     std::vector<const Type*> arg_types;
-    std::vector<const Generic*> arg_generics;
-    size_t old_counter = generic_counter_;
 
     if (accept(Token::L_DBRACKET)) {
         PARSE_COMMA_LIST
         (
-            arg_generics.push_back(generic_insert(try_id("generic identifier"))),
+            generic_insert(try_id("generic identifier")),
             Token::R_DBRACKET,
             "generics list"
         )
     }
-
-    generic_counter_ = old_counter;
 
     expect(Token::L_PAREN, "function head");
     PARSE_COMMA_LIST
@@ -394,7 +393,7 @@ void Parser::parse_lambda(Lambda* lambda) {
     const ScopeStmt* body = parse_scope();
     lambda->set(pi, body);
 
-    cur_generics_ = generics.parent();
+    cur_generics_ = 0;
     IMPALA_POP(cur_lambda_);
 }
 

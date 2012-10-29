@@ -3,6 +3,7 @@
 
 #include <cstring>
 #include <iterator>
+#include <ostream>
 #include <string>
 
 #include <boost/cstdint.hpp>
@@ -178,6 +179,8 @@ size_t hash_value(boost::tuple<int, const Type*, const Def*, const Def*, const D
 //bool equal(boost::tuple<int, const Type*, const Def*>, const Def*);
 bool equal(boost::tuple<int, const Type*, const Def*, const Def*>, const Def*);
 //bool equal(boost::tuple<int, const Type*, const Def*, const Def*, const Def*>, const Def*);
+
+std::ostream& operator << (std::ostream& o, const Def* def);
 
 //------------------------------------------------------------------------------
 

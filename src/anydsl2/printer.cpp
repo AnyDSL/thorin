@@ -1,10 +1,8 @@
 #include "anydsl2/printer.h"
 
-#include "anydsl2/lambda.h"
-#include "anydsl2/primop.h"
-#include "anydsl2/type.h"
-#include "anydsl2/world.h"
-#include "anydsl2/util/for_all.h"
+#include <boost/cstdint.hpp>
+
+#include "anydsl2/def.h"
 
 namespace anydsl2 {
 

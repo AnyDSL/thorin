@@ -26,7 +26,7 @@ private:
         : anydsl2::Type(world, Type_Void, 0)
     {}
 
-    virtual void vdump(anydsl2::Printer& printer) const { ANYDSL2_UNREACHABLE; }
+    virtual void vdump(anydsl2::Printer& printer) const;
 
     friend class World;
 };
@@ -38,7 +38,7 @@ private:
         : anydsl2::Type(world, Type_NoRet, 0)
     {}
 
-    virtual void vdump(anydsl2::Printer& printer) const { ANYDSL2_UNREACHABLE; }
+    virtual void vdump(anydsl2::Printer& printer) const;
 
     friend class World;
 };
@@ -50,7 +50,7 @@ private:
         : anydsl2::Type(world, Type_Error, 0)
     {}
 
-    virtual void vdump(anydsl2::Printer& printer) const { ANYDSL2_UNREACHABLE; }
+    virtual void vdump(anydsl2::Printer& printer) const;
 
     friend class World;
 };

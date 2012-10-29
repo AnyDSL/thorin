@@ -2,10 +2,49 @@
 
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
+#include "anydsl2/printer.h"
 #include "anydsl2/world.h"
 #include "anydsl2/util/for_all.h"
 
 namespace anydsl2 {
+
+//------------------------------------------------------------------------------
+
+const char* type_error::what() const throw() {
+    std::ostringstream o;
+    o << "types '"  << type1() << "' and '" << type2() << "' are incompatible";
+    return o.str().c_str();
+}
+
+const char* inference_exception::what() const throw() {
+    return "TODO";
+}
+
+//------------------------------------------------------------------------------
+
+const Type*& GenericMap::operator [] (const Generic* generic) {
+    size_t i = generic->index();
+    if (i >= size())
+        resize(i+1, 0);
+    return get(i);
+}
+
+bool GenericMap::is_empty() const {
+    bool result = true;
+    for (size_t i = 0, e = size(); i != e && result; ++i)
+        result &= !get(i);
+
+    return result;
+}
+
+const char* GenericMap::to_string() const {
+    std::ostringstream o;
+    for (size_t i = 0, e = size(); i != e; ++i)
+        if (const Type* type = get(i))
+            o << '_' << i << " = " << type;
+
+    return o.str().c_str();
+}
 
 //------------------------------------------------------------------------------
 
@@ -14,6 +53,35 @@ const Ptr* Type::to_ptr() const { return world().ptr(this); }
 const Type* Type::elem_via_lit(const Def* def) const {
     return elem(def->primlit_value<size_t>());
 }
+
+void Type::infer(GenericMap& map, const Type* other) const {
+    size_t num_elems = this->size();
+    if (num_elems != other->size() || this->kind() != other->kind())
+        throw type_error(this, other);
+
+    for (size_t i = 0; i < num_elems; ++i) {
+        const Type* elem1 =  this->elem(i);
+        const Type* elem2 = other->elem(i);
+
+        if (elem1 == elem2)
+            continue;
+
+        if (const Generic* generic = elem1->isa<Generic>()) {
+            const Type*& mapped = map[generic];
+            if (!mapped)
+                mapped = elem2;
+            else {
+                if (mapped != elem2)
+                    throw inference_exception(mapped, elem2);
+            }
+        }
+
+        // recurse into subtypes
+        if (!elem1->empty())
+            elem1->infer(map, elem2);
+    }
+}
+
 
 //------------------------------------------------------------------------------
 
@@ -101,23 +169,10 @@ void GenericBuilder::pop() {
 
 //------------------------------------------------------------------------------
 
-bool check(const Type* t1, const Type* t2) {
-    if (t1 == t2)
-        return true;
-
-    size_t size = t1->size();
-    if (t1->kind() == t2->kind() && size == t2->size()) {
-        bool result = true;
-        for (size_t i = 0; i < size && result; ++i) {
-            const Type* elem1 = t1->elem(i);
-            const Type* elem2 = t2->elem(i);
-            result = elem1 == elem2 || elem1->isa<Generic>() || elem2->isa<Generic>();
-        }
-
-        return result;
-    }
-
-    return false;
+std::ostream& operator << (std::ostream& o, const Type* type) {
+    Printer p(o, false);
+    type->vdump(p);
+    return p.o;
 }
 
 //------------------------------------------------------------------------------

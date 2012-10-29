@@ -10,6 +10,7 @@
 #include "impala/type.h"
 
 using anydsl2::Array;
+using anydsl2::Generic;
 using anydsl2::Location;
 using anydsl2::Symbol;
 using anydsl2::Type;
@@ -343,8 +344,23 @@ const Type* Call::vcheck(Sema& sema) const {
         if (pi == to_pi)
             return ret_type;
         else {
-            sema.error(to()) << "'" << to() << "' expects an invocation of type '" << to_pi 
-                << "' but an invocation of type '" << pi << "' is given\n";
+            anydsl2::GenericMap map;
+            try {
+                to_pi->infer(map, pi);
+
+                if (const Generic* generic = ret_type->isa<Generic>())
+                    return map[generic];
+                else
+                    return ret_type;
+            } catch (anydsl2::type_error type_error) {
+                sema.error(to()) << "'" << to() << "' expects an invocation of type '" << to_pi 
+                    << "' but an invocation of type '" << pi << "' is given\n";
+
+                if (!map.is_empty())
+                    sema.error(to()) << type_error.what() << " with '" << map << "'\n";
+            } catch (anydsl2::inference_exception inf) {
+                std::cout << "karpott" << std::endl;
+            }
         }
     } else
         sema.error(to()) << "invocation not done on function type but instead type '" << to()->type() << "' is given\n";

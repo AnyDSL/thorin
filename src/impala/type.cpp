@@ -1,5 +1,7 @@
 #include "impala/type.h"
 
+#include "anydsl2/printer.h"
+
 using anydsl2::Pi;
 
 namespace impala {
@@ -26,5 +28,9 @@ const anydsl2::Type* return_type(const anydsl2::Pi* pi) {
 
     return ((impala::World&) pi->world()).noret();
 }
+
+void NoRet::vdump(anydsl2::Printer& p) const { p << "noret"; }
+void TypeError::vdump(anydsl2::Printer& p) const { p << "<type error>"; }
+void Void::vdump(anydsl2::Printer& p) const { p << "void"; }
 
 } // namespace impala

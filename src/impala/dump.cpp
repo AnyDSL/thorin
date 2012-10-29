@@ -396,11 +396,6 @@ std::ostream& operator << (std::ostream& o, const ASTNode* n) {
     return o;
 }
 
-std::ostream& operator << (std::ostream& o, const Type* t) {
-    dump(t, true, o);
-    return o;
-}
-
 //------------------------------------------------------------------------------
 
 } // namespace impala

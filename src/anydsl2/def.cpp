@@ -3,6 +3,7 @@
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
 #include "anydsl2/primop.h"
+#include "anydsl2/printer.h"
 #include "anydsl2/type.h"
 #include "anydsl2/world.h"
 #include "anydsl2/util/for_all.h"
@@ -153,6 +154,12 @@ size_t hash_value(boost::tuple<int, const Type*, const Def*, const Def*, const D
 bool equal(boost::tuple<int, const Type*, const Def*, const Def*> tuple, const Def* def) {
     return tuple.get<0>() == def->kind() && tuple.get<1>() == def->type() 
         && tuple.get<2>() == def->op(0)  && tuple.get<3>() == def->op(1);
+}
+
+std::ostream& operator << (std::ostream& o, const anydsl2::Def* def) {
+    Printer p(o, false);
+    def->vdump(p);
+    return p.o;
 }
 
 //------------------------------------------------------------------------------

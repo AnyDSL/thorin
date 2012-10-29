@@ -27,3 +27,11 @@ def generic_while[[L, B]](l : L,
         }
     );
 }
+
+def main(ret_main : pi(int))
+{
+    return generic_while(
+        0, // counter
+        lambda(i : int, ret : pi(int, int, bool)) { ret(i, i < 42); },
+        lambda(i : int) -> int { return i + 1; });
+}

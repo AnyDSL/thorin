@@ -1,6 +1,7 @@
 #ifndef ANYDSL2_TYPE_H
 #define ANYDSL2_TYPE_H
 
+#include <exception>
 #include <iterator>
 
 #include "anydsl2/node.h"
@@ -9,6 +10,7 @@
 namespace anydsl2 {
 
 class Def;
+class Generic;
 class Lambda;
 class Pi;
 class PrimLit;
@@ -18,6 +20,62 @@ class Type;
 class World;
 
 typedef ArrayRef<const Type*> Elems;
+
+//------------------------------------------------------------------------------
+
+class type_error : public std::exception {
+public:
+
+    type_error(const Type* type1, const Type* type2)
+        : type1_(type1)
+        , type2_(type2)
+    {}
+
+    const Type* type1() const { return type1_; }
+    const Type* type2() const { return type2_; }
+    virtual const char* what() const throw();
+
+private:
+
+    const Type* type1_;
+    const Type* type2_;
+};
+
+class inference_exception : public std::exception {
+public:
+
+    inference_exception(const Type* expected, const Type* found)
+        : expected_(expected)
+        , found_(found)
+    {}
+
+    const Type* expected() const { return expected_; }
+    const Type* found() const { return found_; }
+    virtual const char* what() const throw();
+
+private:
+
+    const Type* expected_;
+    const Type* found_;
+};
+
+class GenericMap : protected std::vector<const Type*> {
+public:
+
+    GenericMap() {}
+
+    const Type*& operator [] (const Generic* generic);
+    bool is_empty() const;
+    const char* to_string() const;
+
+private:
+    const Type*& get(size_t i) { return std::vector<const Type*>::operator[](i); }
+    const Type* const & get(size_t i) const { return std::vector<const Type*>::operator[](i); }
+};
+
+inline std::ostream& operator << (std::ostream& o, const GenericMap& map) { 
+    o << map.to_string(); return o; 
+}
 
 //------------------------------------------------------------------------------
 
@@ -39,6 +97,12 @@ public:
     const Type* elem_via_lit(const Def* def) const;
     const Ptr* to_ptr() const;
     virtual void vdump(Printer &printer) const = 0;
+    void infer(GenericMap& map, const Type* type) const;
+    GenericMap infer(const Type* type) const {
+        GenericMap map;
+        infer(map, type);
+        return map;
+    }
 
 private:
 
@@ -46,6 +110,8 @@ private:
 
     friend class Def;
 };
+
+std::ostream& operator << (std::ostream& o, const anydsl2::Type* type);
 
 //------------------------------------------------------------------------------
 

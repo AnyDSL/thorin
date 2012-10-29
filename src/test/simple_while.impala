@@ -27,4 +27,3 @@ def generic_while[[L, B]](l : L,
         }
     );
 }
-

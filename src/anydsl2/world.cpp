@@ -434,7 +434,9 @@ Lambda* World::lambda(const Pi* pi, uint32_t flags) {
     return l;
 }
 
-const Def* World::primop(int kind, const Type* type, ArrayRef<const Def*> ops) {
+const Def* World::primop(const PrimOp* in, ArrayRef<const Def*> ops) {
+    int kind = in->kind();
+    const Type* type = in->type();
     if (is_arithop(kind)) { assert(ops.size() == 2); return arithop((ArithOpKind) kind, ops[0], ops[1]); }
     if (is_relop  (kind)) { assert(ops.size() == 2); return relop(  (RelOpKind  ) kind, ops[0], ops[1]); }
     if (is_convop (kind)) { assert(ops.size() == 1); return convop( (ConvOpKind ) kind, type,   ops[0]); }
@@ -449,6 +451,9 @@ const Def* World::primop(int kind, const Type* type, ArrayRef<const Def*> ops) {
         case Node_Slot:    assert(ops.size() == 1); return slot(   ops[0]->as<Enter>(), type);
         case Node_Store:   assert(ops.size() == 3); return store(  ops[0], ops[1], ops[2]);
         case Node_Tuple:                            return tuple(  ops);
+        case Node_Bottom:  assert(ops.empty());     return bottom(type);
+        case Node_Any:     assert(ops.empty());     return any(type);
+        case Node_PrimLit: assert(ops.empty());     return literal((PrimTypeKind) kind, in->as<PrimLit>()->box());
         default: ANYDSL2_UNREACHABLE;
     }
 }

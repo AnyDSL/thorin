@@ -2,6 +2,7 @@
 #define ANYDSL2_UTIL_ASSERT_H
 
 #include <cassert>
+#include <cstdlib>
 
 #ifndef _MSC_VER
 #define ANYDSL2_UNREACHABLE do { assert(true && "unreachable"); abort(); } while(0)

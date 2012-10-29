@@ -49,7 +49,7 @@ typedef Array<llvm::BasicBlock*> BBMap;
 class CodeGen {
 public:
 
-    CodeGen(const World& world);
+    CodeGen(const World& world, EmitHook& hook);
 
     void emit();
 
@@ -60,6 +60,7 @@ public:
 private:
 
     const World& world_;
+    EmitHook& hook_;
     llvm::LLVMContext context_;
     llvm::IRBuilder<> builder_;
     llvm::Module* module_;
@@ -68,8 +69,9 @@ private:
     PrimOpMap primops_;
 };
 
-CodeGen::CodeGen(const World& world)
+CodeGen::CodeGen(const World& world, EmitHook& hook)
     : world_(world)
+    , hook_(hook)
     , context_()
     , builder_(context_)
     , module_(new llvm::Module("anydsl", context_))
@@ -337,13 +339,14 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (const Undef* undef = def->isa<Undef>())
         return llvm::UndefValue::get(map(undef->type()));
 
-    ANYDSL2_UNREACHABLE;
+    assert(!def->is_corenode());
+    return hook_.emit(def);
 }
 
 llvm::Type* CodeGen::map(const Type* type) {
     switch (type->node_kind()) {
-        case Node_PrimType_u1:  return llvm::IntegerType::get(context_, 1);
-        case Node_PrimType_u8:  return llvm::IntegerType::get(context_, 8);
+        case Node_PrimType_u1:  return llvm::IntegerType::get(context_,  1);
+        case Node_PrimType_u8:  return llvm::IntegerType::get(context_,  8);
         case Node_PrimType_u16: return llvm::IntegerType::get(context_, 16);
         case Node_PrimType_u32: return llvm::IntegerType::get(context_, 32);
         case Node_PrimType_u64: return llvm::IntegerType::get(context_, 64);
@@ -385,14 +388,16 @@ llvm::Type* CodeGen::map(const Type* type) {
             return llvm::StructType::get(context_, llvm_ref(elems));
         }
 
-        default: ANYDSL2_UNREACHABLE;
+        default: 
+            assert(!type->is_corenode());
+            return hook_.map(type);
     }
 }
 
 //------------------------------------------------------------------------------
 
-void emit(const World& world) {
-    CodeGen cg(world);
+void emit(const World& world, EmitHook& hook) {
+    CodeGen cg(world, hook);
     cg.emit();
 }
 

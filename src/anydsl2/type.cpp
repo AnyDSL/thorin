@@ -101,4 +101,25 @@ void GenericBuilder::pop() {
 
 //------------------------------------------------------------------------------
 
+bool check(const Type* t1, const Type* t2) {
+    if (t1 == t2)
+        return true;
+
+    size_t size = t1->size();
+    if (t1->kind() == t2->kind() && size == t2->size()) {
+        bool result = true;
+        for (size_t i = 0; i < size && result; ++i) {
+            const Type* elem1 = t1->elem(i);
+            const Type* elem2 = t2->elem(i);
+            result = elem1 == elem2 || elem1->isa<Generic>() || elem2->isa<Generic>();
+        }
+
+        return result;
+    }
+
+    return false;
+}
+
+//------------------------------------------------------------------------------
+
 } // namespace anydsl2

@@ -7,7 +7,7 @@
     // PrimOp
         // Literal
             ANYDSL2_AIR_NODE(PrimLit)
-            ANYDSL2_AIR_NODE(Undef)
+            ANYDSL2_AIR_NODE(Any)
             ANYDSL2_AIR_NODE(Bottom)
             ANYDSL2_AIR_NODE(TypeKeeper)
         // MemOp

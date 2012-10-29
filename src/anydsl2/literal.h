@@ -46,7 +46,7 @@ class Any : public Undef {
 private:
 
     Any(const Type* type)
-        : Undef(Node_Undef, type)
+        : Undef(Node_Any, type)
     {}
     virtual void vdump(Printer& printer) const ;
 

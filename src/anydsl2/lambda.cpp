@@ -177,7 +177,13 @@ bool Lambda::is_ho() const {
 }
 
 void Lambda::jump(const Def* to, ArrayRef<const Def*> args) {
-    alloc(args.size() + 1);
+    if (valid()) {
+        for (size_t i = 0, e = size(); i != e; ++i)
+            unset_op(i);
+        realloc(args.size() + 1);
+    } else
+        alloc(args.size() + 1);
+
     set_op(0, to);
 
     size_t x = 1;

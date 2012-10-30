@@ -39,9 +39,14 @@ void CFGBuilder::transform() {
                         with[num++]  = ulambda->arg(i);
                     }
                 }
+                ArrayRef<size_t> cur_indices  = indices.slice_front(num);
+                ArrayRef<const Def*> cur_with =    with.slice_front(num);
 
-                Lambda* dropped = lambda->drop(indices.slice_front(num), with.slice_front(num), true);
-                ulambda->update(0, dropped);
+                Lambda* dropped = lambda->drop(cur_indices, cur_with, true);
+                Array<const Def*> nargs = ulambda->args().cut(cur_indices);
+                ulambda->jump(dropped, nargs);
+                //ulambda->update(0, dropped);
+                //Array<const Def*> defs = 
             }
         }
     }

@@ -610,8 +610,7 @@ void World::cleanup() {
 }
 
 void World::opt() {
-
-#if 1
+#if 0
     cleanup();
     Lambda* helper = 0;
     Lambda* fac = 0;

@@ -49,9 +49,15 @@ public:
     ArrayRef<T> ops_ref() const { return ops_.ref().cast<T>(); }
 
     void alloc(size_t size) { ops_.alloc(size); }
+    void realloc(size_t size) { 
+        ops_.~Array<const Node*>(); 
+        new (&ops_) Array<const Node*>();
+        alloc(size); 
+    }
     void shrink(size_t newsize) { ops_.shrink(newsize); }
     size_t size() const { return ops_.size(); }
-    bool empty() const { return ops_.size() == 0; }
+    bool empty() const { return ops_.empty(); }
+    bool valid() const { return ops_.valid(); }
 
     /** 
      * Use this field in order to annotate information on this Def.

@@ -675,6 +675,7 @@ bool Parser::is_expr() {
 #define IMPALA_KEY_EXPR(tok, t_str)  case Token:: tok:
 #define IMPALA_LIT(itype, atype)     case Token:: LIT_##itype:
 #include "impala/tokenlist.h"
+        case Token::HASH:
         case Token::L_PAREN:
             return true;
         default:
@@ -839,6 +840,7 @@ const Expr* Parser::parse_literal() {
 
 const Expr* Parser::parse_tuple() {
     Tuple* tuple = new Tuple(eat(Token::HASH).pos1());
+    expect(Token::L_PAREN, "tuple");
 
     PARSE_COMMA_LIST
     (

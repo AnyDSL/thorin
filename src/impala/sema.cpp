@@ -359,7 +359,7 @@ const Type* Call::vcheck(Sema& sema) const {
                 if (!map.is_empty())
                     sema.error(to()) << type_error.what() << " with '" << map << "'\n";
             } catch (anydsl2::inference_exception inf) {
-                std::cout << "karpott" << std::endl;
+                sema.error(to()) << inf.what() << " with '" << map << "'\n";
             }
         }
     } else

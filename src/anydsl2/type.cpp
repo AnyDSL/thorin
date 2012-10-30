@@ -17,7 +17,10 @@ const char* type_error::what() const throw() {
 }
 
 const char* inference_exception::what() const throw() {
-    return "TODO";
+    std::ostringstream oss;
+    oss << "expected '_" << generic()->index() << "' to be of type '" << expected() 
+        << "' but got '" << found() << "'";
+    return oss.str().c_str();
 }
 
 //------------------------------------------------------------------------------
@@ -39,9 +42,15 @@ bool GenericMap::is_empty() const {
 
 const char* GenericMap::to_string() const {
     std::ostringstream o;
+    bool first = true;
     for (size_t i = 0, e = size(); i != e; ++i)
-        if (const Type* type = get(i))
+        if (const Type* type = get(i)) {
+            if (first)
+                first = false;
+            else
+                o << ", ";
             o << '_' << i << " = " << type;
+        }
 
     return o.str().c_str();
 }
@@ -72,7 +81,7 @@ void Type::infer(GenericMap& map, const Type* other) const {
                 mapped = elem2;
             else {
                 if (mapped != elem2)
-                    throw inference_exception(mapped, elem2);
+                    throw inference_exception(generic, mapped, elem2);
             }
         }
 

@@ -1,9 +1,7 @@
-def foo[[A, B, C, X]](a : A, b : pi(A, int), f : float) -> bool {
-    bla : sigma[[Z]](Z, int);
-    bla2 : sigma(C, 3, int);
-    blub : sigma(int, float);
-    def bar[[D, E, F]](e : E) -> bool {
-        return true;
-    }
-    return true;
+def f[[A, B]](a1 : A, a2 : A, b1 : B, b2 : B, bla : sigma(int, int)) -> int {
+    return 42;
+}
+
+def g() -> int {
+    return f(1, 2, 3.f, 4, #(1));
 }

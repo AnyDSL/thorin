@@ -44,17 +44,20 @@ private:
 class inference_exception : public std::exception {
 public:
 
-    inference_exception(const Type* expected, const Type* found)
-        : expected_(expected)
+    inference_exception(const Generic* generic, const Type* expected, const Type* found)
+        : generic_(generic)
+        , expected_(expected)
         , found_(found)
     {}
 
+    const Generic* generic() const { return generic_; }
     const Type* expected() const { return expected_; }
     const Type* found() const { return found_; }
     virtual const char* what() const throw();
 
 private:
 
+    const Generic* generic_;
     const Type* expected_;
     const Type* found_;
 };

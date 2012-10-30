@@ -296,23 +296,8 @@ void Dropper::drop_body(Lambda* olambda, Lambda* nlambda) {
         for (size_t i = 0, e = indices.size(); i != e && substitute; ++i)
             substitute &= nargs[indices[i]] == with[i];
 
-        if (substitute) {                           // yes, we can
-            // sargs -> substituted args for tail call optimization
-            Array<const Def*> sargs(nargs.size() - indices.size());
-
-            // na -> iterates over nargs
-            // sa -> iterates over sargs
-            //  i -> iterates over  indices
-            for (size_t na = 0, sa = 0, i = 0, e = nargs.size(); na != e; ++na) {
-                if (i < indices.size() && indices[i] == na)
-                    ++i;
-                else
-                    sargs[sa++] = nargs[na];
-            }
-
-            nlambda->jump(nentry, sargs);
-            return;
-        }
+        if (substitute)
+            return nlambda->jump(nentry, nargs.cut(indices));
     }
 
     nlambda->jump(ntarget, nargs);

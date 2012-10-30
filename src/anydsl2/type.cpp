@@ -10,21 +10,6 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
-const char* type_error::what() const throw() {
-    std::ostringstream o;
-    o << "types '"  << type1() << "' and '" << type2() << "' are incompatible";
-    return o.str().c_str();
-}
-
-const char* inference_exception::what() const throw() {
-    std::ostringstream oss;
-    oss << "expected '_" << generic()->index() << "' to be of type '" << expected() 
-        << "' but got '" << found() << "'";
-    return oss.str().c_str();
-}
-
-//------------------------------------------------------------------------------
-
 const Type*& GenericMap::operator [] (const Generic* generic) {
     size_t i = generic->index();
     if (i >= size())
@@ -63,34 +48,43 @@ const Type* Type::elem_via_lit(const Def* def) const {
     return elem(def->primlit_value<size_t>());
 }
 
-void Type::infer(GenericMap& map, const Type* other) const {
-    size_t num_elems = this->size();
-    if (num_elems != other->size() || this->kind() != other->kind())
-        throw type_error(this, other);
+bool Type::check_with(const Type* other) const {
+    if (this == other || this->isa<Generic>())
+        return true;
 
-    for (size_t i = 0; i < num_elems; ++i) {
-        const Type* elem1 =  this->elem(i);
-        const Type* elem2 = other->elem(i);
+    if (this->kind() != other->kind() || this->size() != other->size())
+        return false;
 
-        if (elem1 == elem2)
-            continue;
+    bool result = true;
+    for (size_t i = 0, e = size(); i != e && result; ++i)
+        result &= this->elem(i)->check_with(other->elem(i));
 
-        if (const Generic* generic = elem1->isa<Generic>()) {
-            const Type*& mapped = map[generic];
-            if (!mapped)
-                mapped = elem2;
-            else {
-                if (mapped != elem2)
-                    throw inference_exception(generic, mapped, elem2);
-            }
-        }
-
-        // recurse into subtypes
-        if (!elem1->empty())
-            elem1->infer(map, elem2);
-    }
+    return result;
 }
 
+bool Type::infer_with(GenericMap& map, const Type* other) const {
+    size_t num_elems = this->size();
+    assert(num_elems == other->size());
+    assert(this->isa<Generic>() || this->kind() == other->kind());
+
+    if (this == other)
+        return true;
+
+    if (const Generic* generic = this->isa<Generic>()) {
+        const Type*& mapped = map[generic];
+        if (!mapped) {
+            mapped = other;
+            return true;
+        } else
+            return mapped == other;
+    }
+
+    bool result = true;
+    for (size_t i = 0; i < num_elems && result; ++i)
+        result &= this->elem(i)->infer_with(map, other->elem(i));
+
+    return result;
+}
 
 //------------------------------------------------------------------------------
 

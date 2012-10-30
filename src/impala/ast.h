@@ -134,12 +134,16 @@ private:
 class Expr : public ASTNode {
 public:
 
+    Expr() 
+        : type_(0) 
+    {}
+
     const Exprs& ops() const { return ops_; }
     const Expr* op(size_t i) const { return ops_[i]; }
     size_t size() const { return ops_.size(); }
     bool empty() const { return size() == 0; }
     const anydsl2::Type* type() const { return type_; }
-    const anydsl2::Type* check(Sema& sema) const { return type_ = vcheck(sema); }
+    const anydsl2::Type* check(Sema& sema) const { assert(!type_); return type_ = vcheck(sema); }
     anydsl2::Array<const anydsl2::Def*> emit_ops(CodeGen& cg) const;
     virtual bool lvalue() const = 0;
     virtual RefPtr emit(CodeGen& cg) const = 0;
@@ -343,6 +347,7 @@ public:
     const Expr* to() const { return ops_.front(); }
     size_t num_args() const { return size() - 1; }
     const Expr* arg(size_t i) const { return op(i+1); }
+    anydsl2::Location args_location() const;
 
     virtual bool lvalue() const { return false; }
     virtual RefPtr emit(CodeGen& cg) const;

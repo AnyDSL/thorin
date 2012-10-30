@@ -96,6 +96,12 @@ void Call::set_pos2(const Position& pos2) {
     HasLocation::set_loc(ops_.front()->pos1(), pos2);
 }
 
+Location Call::args_location() const {
+    if (ops().size() == 1)
+        return Location(pos2());
+    return Location(op(1)->pos1(), ops_.back()->pos2());
+}
+
 /*
  * Stmt
  */

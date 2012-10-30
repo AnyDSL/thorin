@@ -11,6 +11,7 @@
 
 using anydsl2::Array;
 using anydsl2::Generic;
+using anydsl2::GenericMap;;
 using anydsl2::Location;
 using anydsl2::Symbol;
 using anydsl2::Type;
@@ -63,9 +64,13 @@ public:
     bool result() const { return result_; }
 
     std::ostream& error(const ASTNode* n) { result_ = false; return n->error(); }
-    std::ostream& warning(const ASTNode* n) { return n->warning(); }
+    std::ostream& error(const Location& loc) { result_ = false; return loc.error(); }
 
     World& world;
+    GenericMap fill_map();
+
+    void push(const Generic* generic) { bound_generics_.back().insert(generic); }
+    std::vector< boost::unordered_set<const Generic*> > bound_generics_;
 
 private:
 
@@ -197,8 +202,27 @@ void Prg::check(Sema& sema) const {
         f->check(sema);
 }
 
+static void propagate_set(const Type* type, boost::unordered_set<const Generic*>& bound) {
+    for_all (elem, type->elems())
+        if (const Generic* generic = elem->isa<Generic>())
+            bound.insert(generic);
+        else 
+            propagate_set(elem, bound);
+}
+
+GenericMap Sema::fill_map() {
+    GenericMap map;
+    for_all (set, bound_generics_)
+        for_all (generic, set)
+            map[generic] = generic;
+    return map;
+}
+
 void Lambda::check(Sema& sema) const {
     sema.pushScope();
+    boost::unordered_set<const Generic*> bound;
+    propagate_set(pi(), bound);
+    sema.bound_generics_.push_back(bound);
 
     for_all (f, body()->fcts())
         f->decl()->check(sema);
@@ -209,6 +233,7 @@ void Lambda::check(Sema& sema) const {
     for_all (s, body()->stmts())
         s->check(sema);
 
+    sema.bound_generics_.pop_back();
     sema.popScope();
 }
 
@@ -269,23 +294,29 @@ const Type* PrefixExpr::vcheck(Sema& sema) const {
 }
 
 const Type* InfixExpr::vcheck(Sema& sema) const {
-    if (lhs()->check(sema) == rhs()->check(sema)) {
-        if (Token::is_rel((TokenKind) kind()))
-            return sema.world.type_u1();
+    if (anydsl2::is_primtype(lhs()->check(sema))) {
+        if (anydsl2::is_primtype(rhs()->check(sema))) {
+            if (lhs()->type() == rhs()->type()) {
+                if (Token::is_rel((TokenKind) kind()))
+                    return sema.world.type_u1();
 
-        if (Token::is_asgn((TokenKind) kind())) {
-            if (!lhs()->lvalue())
-                sema.error(lhs()) << "no lvalue on left-hand side of assignment\n";
-        }
+                if (Token::is_asgn((TokenKind) kind())) {
+                    if (!lhs()->lvalue())
+                        sema.error(lhs()) << "no lvalue on left-hand side of assignment\n";
+                }
 
-        if (lhs()->type()->isa<TypeError>())
-            return rhs()->type();
-        else
-            return lhs()->type();
-    } else {
-        sema.error(this) << "incompatible types in binary expression: '" 
-            << lhs()->type() << "' and '" << rhs()->type() << "'\n";
-    }
+                if (lhs()->type()->isa<TypeError>())
+                    return rhs()->type();
+                else
+                    return lhs()->type();
+            } else {
+                sema.error(this) << "incompatible types in binary expression: '" 
+                    << lhs()->type() << "' and '" << rhs()->type() << "'\n";
+            }
+        } else
+            sema.error(lhs()) << "primitive type expected on right-hand side of binary expressions\n";
+    } else
+        sema.error(lhs()) << "primitive type expected on left-hand side of binary expressions\n";
 
     return sema.world.type_error();
 }
@@ -331,36 +362,30 @@ const Type* Call::vcheck(Sema& sema) const {
         for (size_t i = 0, e = num_args(); i != e; ++i)
             op_types[i] = arg(i)->check(sema);
 
-        const Pi* pi;
+        const Pi* call_pi;
         const Type* ret_type = to_pi->size() == num_args() ? sema.world.noret() : return_type(to_pi);
 
         if (ret_type->isa<NoRet>())
-            pi = sema.world.pi(op_types.slice_front(op_types.size()-1));
+            call_pi = sema.world.pi(op_types.slice_front(op_types.size()-1));
         else {
             op_types.back() = sema.world.pi1(ret_type);
-            pi = sema.world.pi(op_types);
+            call_pi = sema.world.pi(op_types);
         }
 
-        if (pi == to_pi)
-            return ret_type;
-        else {
-            anydsl2::GenericMap map;
-            try {
-                to_pi->infer(map, pi);
-
+        if (to_pi->check_with(call_pi)) {
+            GenericMap map = sema.fill_map();
+            if (to_pi->infer_with(map, call_pi)) {
                 if (const Generic* generic = ret_type->isa<Generic>())
                     return map[generic];
                 else
                     return ret_type;
-            } catch (anydsl2::type_error type_error) {
-                sema.error(to()) << "'" << to() << "' expects an invocation of type '" << to_pi 
-                    << "' but an invocation of type '" << pi << "' is given\n";
-
-                if (!map.is_empty())
-                    sema.error(to()) << type_error.what() << " with '" << map << "'\n";
-            } catch (anydsl2::inference_exception inf) {
-                sema.error(to()) << inf.what() << " with '" << map << "'\n";
+            } else {
+                sema.error(this->args_location()) << "cannot infer type '" << call_pi << "' induced by arguments\n";
+                sema.error(to()) << "to invocation type '" << to_pi << "' with '" << map << "'\n";
             }
+        } else {
+            sema.error(to()) << "'" << to() << "' expects an invocation of type '" << to_pi 
+                << "' but the invocation type '" << call_pi << "' is structural different\n";
         }
     } else
         sema.error(to()) << "invocation not done on function type but instead type '" << to()->type() << "' is given\n";
@@ -376,9 +401,18 @@ void DeclStmt::check(Sema& sema) const {
     decl()->check(sema);
 
     if (const Expr* init_expr = init()) {
-        if (decl()->type() != init_expr->check(sema))
+        if (decl()->type()->check_with(init_expr->check(sema))) {
+            GenericMap map = sema.fill_map();
+            if (decl()->type()->infer_with(map, init_expr->type()))
+                return;
+            else {
+                sema.error(init_expr) << "cannot infer initializing type '" << init_expr->type() << "'\n";
+                sema.error(decl()) << "to declared type '" << decl()->type() << "' with '" << map << "'\n";
+            }
+        } else {
             sema.error(this) << "initializing expression of type '" << init_expr->type() << "' but '" 
                 << decl()->symbol() << "' declared of type '" << decl()->type() << '\n';
+        }
     }
 }
 
@@ -430,12 +464,18 @@ void ContinueStmt::check(Sema& sema) const {
 void ReturnStmt::check(Sema& sema) const {
     if (!lambda()->is_continuation()) {
         const Pi* pi = lambda()->pi();
+        const Type* ret_type = return_type(pi);
 
-        if (!return_type(pi)->isa<NoRet>()) {
-            if (return_type(pi) == expr()->check(sema))
-                return;
-            else
-                sema.error(expr()) << "expected return type '" << return_type(pi) 
+        if (!ret_type->isa<NoRet>()) {
+            if (ret_type->check_with(expr()->check(sema))) {
+                GenericMap map = sema.fill_map();
+                if (ret_type->infer_with(map, expr()->type()))
+                    return;
+                else
+                    sema.error(expr()) << "cannot infer type '" << expr()->type() 
+                        << "' of return expression to return type '" << ret_type << "' with '" << map << "'\n";
+            } else 
+                sema.error(expr()) << "expected return type '" << ret_type 
                     << "' but return expression is of type '" << expr()->type() << "'\n";
         } else
             sema.error(this) << "return statement not allowed for calling a continuation\n";

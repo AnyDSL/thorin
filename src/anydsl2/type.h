@@ -23,45 +23,6 @@ typedef ArrayRef<const Type*> Elems;
 
 //------------------------------------------------------------------------------
 
-class type_error : public std::exception {
-public:
-
-    type_error(const Type* type1, const Type* type2)
-        : type1_(type1)
-        , type2_(type2)
-    {}
-
-    const Type* type1() const { return type1_; }
-    const Type* type2() const { return type2_; }
-    virtual const char* what() const throw();
-
-private:
-
-    const Type* type1_;
-    const Type* type2_;
-};
-
-class inference_exception : public std::exception {
-public:
-
-    inference_exception(const Generic* generic, const Type* expected, const Type* found)
-        : generic_(generic)
-        , expected_(expected)
-        , found_(found)
-    {}
-
-    const Generic* generic() const { return generic_; }
-    const Type* expected() const { return expected_; }
-    const Type* found() const { return found_; }
-    virtual const char* what() const throw();
-
-private:
-
-    const Generic* generic_;
-    const Type* expected_;
-    const Type* found_;
-};
-
 class GenericMap : protected std::vector<const Type*> {
 public:
 
@@ -100,12 +61,8 @@ public:
     const Type* elem_via_lit(const Def* def) const;
     const Ptr* to_ptr() const;
     virtual void vdump(Printer &printer) const = 0;
-    void infer(GenericMap& map, const Type* type) const;
-    GenericMap infer(const Type* type) const {
-        GenericMap map;
-        infer(map, type);
-        return map;
-    }
+    bool check_with(const Type* type) const;
+    bool infer_with(GenericMap& map, const Type* type) const;
 
 private:
 
@@ -319,7 +276,7 @@ private:
 
 //------------------------------------------------------------------------------
 
-bool check(const Type* t1, const Type* t2);
+inline bool is_primtype(const Type* type) { return is_primtype(type->kind()); }
 
 //------------------------------------------------------------------------------
 

@@ -30,23 +30,21 @@ void CFGBuilder::transform() {
             Array<const Def*> with(size);
 
             for_all (use, lambda->uses()) {
-                assert(use.index() == 0 && "TODO -- the evil case");
-                Lambda* ulambda = use.def()->as_lambda(); // evil case otherwise
-                size_t num = 0;
-                for (size_t i = 0; i != size; ++i) {
-                    if (lambda->param(i)->type()->is_ho()) {
-                        indices[num] = i;
-                        with[num++]  = ulambda->arg(i);
+                if (use.index() != 0)
+                    continue;
+                if (Lambda* ulambda = use.def()->isa_lambda()) {
+                    size_t num = 0;
+                    for (size_t i = 0; i != size; ++i) {
+                        if (lambda->param(i)->type()->is_ho()) {
+                            indices[num] = i;
+                            with[num++]  = ulambda->arg(i);
+                        }
                     }
-                }
-                ArrayRef<size_t> cur_indices  = indices.slice_front(num);
-                ArrayRef<const Def*> cur_with =    with.slice_front(num);
 
-                Lambda* dropped = lambda->drop(cur_indices, cur_with, true);
-                Array<const Def*> nargs = ulambda->args().cut(cur_indices);
-                ulambda->jump(dropped, nargs);
-                //ulambda->update(0, dropped);
-                //Array<const Def*> defs = 
+                    Lambda* dropped = lambda->drop(indices.slice_front(num), with.slice_front(num), true);
+                    ulambda->jump(dropped, ulambda->args().cut(indices.slice_front(num)));
+                    scope.reassign_sids();
+                }
             }
         }
     }

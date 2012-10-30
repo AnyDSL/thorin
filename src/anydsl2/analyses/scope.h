@@ -29,8 +29,11 @@ public:
 
     Lambda* entry() const { return rpo_[0]; }
     size_t size() const { return lambdas_.size(); }
+    void reassign_sids();
 
 private:
+
+    static size_t number(const LambdaSet& lambdas, Lambda* cur, size_t i);
 
     LambdaSet lambdas_;
     Lambdas rpo_;

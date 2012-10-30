@@ -112,7 +112,7 @@ private:
 
     friend class World;
     friend class Param;
-    friend size_t number(const LambdaSet& lambdas, Lambda* cur, size_t i);
+    friend class Scope;
 };
 
 } // namespace anydsl2

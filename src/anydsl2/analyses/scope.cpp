@@ -43,7 +43,7 @@ static void walk_up(LambdaSet& scope, Lambda* lambda) {
         walk_up(scope, pred);
 }
 
-size_t number(const LambdaSet& lambdas, Lambda* cur, size_t i) {
+size_t Scope::number(const LambdaSet& lambdas, Lambda* cur, size_t i) {
     // mark as visited
     cur->sid_ = 0;
 
@@ -110,6 +110,12 @@ const Scope::Lambdas& Scope::preds(Lambda* lambda) const {
 const Scope::Lambdas& Scope::succs(Lambda* lambda) const {
     assert(contains(lambda)); 
     return succs_[lambda->sid()]; 
+}
+
+
+void Scope::reassign_sids() {
+    for (size_t i = 0, e = rpo().size(); i != e; ++i)
+        rpo_[i]->sid_ = i;
 }
 
 } // namespace anydsl2

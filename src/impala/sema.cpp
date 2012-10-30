@@ -467,7 +467,9 @@ void ReturnStmt::check(Sema& sema) const {
         const Type* ret_type = return_type(pi);
 
         if (!ret_type->isa<NoRet>()) {
-            if (ret_type->check_with(expr()->check(sema))) {
+            if (expr()->check(sema)->isa<TypeError>())
+                return;
+            if (ret_type->check_with(expr()->type())) {
                 GenericMap map = sema.fill_map();
                 if (ret_type->infer_with(map, expr()->type()))
                     return;

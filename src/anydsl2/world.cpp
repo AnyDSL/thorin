@@ -14,6 +14,7 @@
 #include "anydsl2/analyses/domtree.h"
 #include "anydsl2/analyses/rootlambdas.h"
 #include "anydsl2/analyses/scope.h"
+#include "anydsl2/transform/cfg_builder.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/for_all.h"
 
@@ -609,8 +610,9 @@ void World::cleanup() {
 }
 
 void World::opt() {
-    cleanup();
 
+#if 1
+    cleanup();
     Lambda* helper = 0;
     Lambda* fac = 0;
     Lambda* ifelse = 0;
@@ -627,7 +629,12 @@ void World::opt() {
     ifelse->unset_op(4);
     ifelse->shrink(4);
     ifelse->update(0, dropped);
+#else
 
+    LambdaSet roots = find_root_lambdas(lambdas());
+    for_all (lambda, roots)
+        cfg_transform(lambda);
+#endif
     cleanup();
 }
 
@@ -691,53 +698,6 @@ void World::dump(bool fancy) {
     std::cout << std::endl;
 }
 
-#if 0
-void World::replace(const PrimOp* what, const PrimOp* with) {
-    assert(!what->isa<Lambda>());
-
-    if (what == with)
-        return;
-
-    PrimOp* primop = release(what);
-
-    // unregister all uses of primop's operands
-    for (size_t i = 0, e = primop->ops().size(); i != e; ++i) {
-        primop->unregister_use(i);
-        primop->ops_[i] = 0;
-    }
-
-    Array<Use> olduses = primop->copy_uses();
-
-    // unregister all uses of primop
-    primop->uses_.clear();
-
-    // update all operands of old uses to point to new node instead 
-    // and erase these nodes from world
-    for_all (use, olduses) {
-        PrimOp* uprimop = release(use.def());
-        uprimop->update(use.index(), with);
-    }
-
-    // update all operands of old uses into world
-    // don't fuse this loop with the loop above
-    for_all (use, olduses) {
-        const PrimOp* uprimop = use.def();
-        PrimOpSet::iterator i = primops_.find(uprimop);
-
-        if (i != primops_.end()) {
-            std::cout << "NOT YET TESTED" << std::endl;
-            const PrimOp* nprimop = *i;
-            assert(uprimop != nprimop);
-            replace(uprimop, nprimop);
-            delete uprimop;
-        } else
-            primops_.insert(udef);
-    }
-
-    delete def;
-}
-#endif
-
 const Def* World::update(const Def* what, size_t i, const Def* op) {
     if (Lambda* lambda = what->isa_lambda()) {
         lambda->update(i, op);
@@ -758,6 +718,51 @@ const Def* World::update(const Def* what, Array<const Def*> ops) {
     PrimOp* primop = release(what->as<PrimOp>());
     primop->update(ops);
     return consume(primop);
+}
+
+void World::replace(const Def* cwhat, const Def* with) {
+    Def* what;
+    if (const PrimOp* primop = cwhat->isa<PrimOp>())
+        what = release(primop);
+    else {
+        Lambda* lambda = cwhat->as_lambda();
+        what = lambda;
+        lambdas_.erase(lambda);
+    }
+
+    replace(what, with);
+    delete what;
+}
+
+void World::replace(Def* what, const Def* with) {
+    assert(!what->isa<Param>());
+    assert(!with->isa<PrimOp>() || primops_.find(with->as<PrimOp>()) == primops_.end());
+    assert(what != with);
+
+    // unregister all uses of what's operands
+    for (size_t i = 0, e = what->size(); i != e; ++i)
+        what->unset_op(i);
+
+    for_all (use, what->uses()) {
+        if (Lambda* lambda = use.def()->isa_lambda())
+            lambda->update(use.index(), with);
+        else {
+            PrimOp* uprimop = release(use.def()->as<PrimOp>());
+            uprimop->update(use.index(), with);
+
+            PrimOpSet::iterator i = primops_.find(uprimop);
+            if (i != primops_.end())
+                replace(uprimop, *i);
+            else {
+                PrimOpSet::iterator i = primops_.insert(uprimop).first;
+                const Def* new_def = primop(uprimop, uprimop->ops());
+                if (uprimop != new_def) {
+                    primops_.erase(i);
+                    replace(uprimop, new_def);
+                }
+            }
+        }
+    }
 }
 
 } // namespace anydsl2

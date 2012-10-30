@@ -56,7 +56,7 @@ public:
 void emit(World& world, const Prg* prg) {
     CodeGen cg(world);
     prg->emit(cg);
-    cg.world.cleanup();
+    //cg.world.cleanup();
 }
 
 //------------------------------------------------------------------------------

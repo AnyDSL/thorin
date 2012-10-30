@@ -42,7 +42,22 @@ const char* GenericMap::to_string() const {
 
 //------------------------------------------------------------------------------
 
+template<bool first_order>
+static bool classify_order(const Type* type) {
+    if (type->isa<Ptr>()) return true;
+    if (type->isa<Pi >()) return false;
+
+    for_all (elem, type->elems()) {
+        if (first_order ^ classify_order<first_order>(elem))
+            return false;
+    }
+
+    return true;
+}
+
 const Ptr* Type::to_ptr() const { return world().ptr(this); }
+bool Type::is_fo() const { return  classify_order< true>(this); }
+bool Type::is_ho() const { return !classify_order<false>(this); }
 
 const Type* Type::elem_via_lit(const Def* def) const {
     return elem(def->primlit_value<size_t>());
@@ -89,7 +104,7 @@ bool Type::infer_with(GenericMap& map, const Type* other) const {
 //------------------------------------------------------------------------------
 
 PrimType::PrimType(World& world, PrimTypeKind kind)
-    : Type(world, kind, 0)
+    : Type(world, kind, 0, false)
 {
     debug = kind2str(primtype_kind());
 }
@@ -97,15 +112,18 @@ PrimType::PrimType(World& world, PrimTypeKind kind)
 //------------------------------------------------------------------------------
 
 CompoundType::CompoundType(World& world, int kind, size_t size)
-    : Type(world, kind, size)
+    : Type(world, kind, size, false /*TODO named sigma*/)
 {}
 
 CompoundType::CompoundType(World& world, int kind, Elems elems)
-    : Type(world, kind, elems.size())
+    : Type(world, kind, elems.size(), false)
 {
     size_t x = 0;
-    for_all (elem, elems)
+    for_all (elem, elems) {
+        if (elem->is_generic())
+            is_generic_ = true;
         set(x++, elem);
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -117,20 +135,6 @@ size_t Sigma::hash() const {
 bool Sigma::equal(const Node* other) const {
     return named_ ? this == other : CompoundType::equal(other);
 }
-
-//------------------------------------------------------------------------------
-
-template<bool first_order>
-bool Pi::classify_order() const {
-    for_all (elem, elems())
-        if (first_order ^ (elem->isa<Pi>() == 0))
-            return false;
-
-    return true;
-}
-
-bool Pi::is_fo() const { return classify_order<true>(); }
-bool Pi::is_ho() const { return classify_order<false>(); }
 
 //------------------------------------------------------------------------------
 

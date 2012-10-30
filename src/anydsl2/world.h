@@ -244,9 +244,10 @@ public:
      */
 
     void dump(bool fancy = false);
-    //void replace(const PrimOp* what, const PrimOp* with);
     const Def* update(const Def* what, size_t i, const Def* op);
     const Def* update(const Def* what, Array<const Def*> ops);
+    void replace(Def* what, const Def* with);
+    void replace(const Def* what, const Def* with);
     const PrimOp* consume(const PrimOp* primop);
     const Type* consume(const Type* def);
     PrimOp* release(const PrimOp* primop);

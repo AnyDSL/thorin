@@ -23,7 +23,7 @@ class Void : public anydsl2::Type {
 private:
 
     Void(anydsl2::World& world) 
-        : anydsl2::Type(world, Type_Void, 0)
+        : anydsl2::Type(world, Type_Void, 0, false)
     {}
 
     virtual void vdump(anydsl2::Printer& printer) const;
@@ -35,7 +35,7 @@ class NoRet : public anydsl2::Type {
 private:
 
     NoRet(anydsl2::World& world) 
-        : anydsl2::Type(world, Type_NoRet, 0)
+        : anydsl2::Type(world, Type_NoRet, 0, false)
     {}
 
     virtual void vdump(anydsl2::Printer& printer) const;
@@ -47,7 +47,7 @@ class TypeError : public anydsl2::Type {
 private:
 
     TypeError(anydsl2::World& world) 
-        : anydsl2::Type(world, Type_Error, 0)
+        : anydsl2::Type(world, Type_Error, 0, false)
     {}
 
     virtual void vdump(anydsl2::Printer& printer) const;

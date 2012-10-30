@@ -109,7 +109,6 @@ protected:
         : Node(kind, size)
         , type_(type)
     {}
-    virtual ~Def();
 
     virtual bool equal(const Node* other) const;
     virtual size_t hash() const;
@@ -119,6 +118,7 @@ protected:
 
 public:
 
+    virtual ~Def();
     void set_op(size_t i, const Def* def);
     void set_all(ArrayRef<const Def*> all);
     void unset_op(size_t i);

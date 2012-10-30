@@ -54,6 +54,8 @@ public:
     uint32_t flags() const { return flags_; }
     size_t gid() const { return gid_; }
     size_t sid() const { return sid_; }
+    size_t num_args() const { return args().size(); }
+    size_t num_params() const { return params().size(); }
 
     /**
      * Is this Lambda part of a call-lambda-cascade? <br>

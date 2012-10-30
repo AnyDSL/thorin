@@ -3,7 +3,7 @@ def f(a : int) -> int {
     j : int = 22;
     b : bool = i == 23;
 
-    g : pi(int) -> int = lambda(a : int) -> int { return i + j + a; };
+    g : pi(int) -> int = lambda(k : int) -> int { return i + j + a + k; };
 
     return g(23);
 }

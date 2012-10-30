@@ -97,7 +97,6 @@ int main(int argc, char** argv) {
 
         if (result) {
             emit(init.world, p);
-            init.world.cleanup();
 
             if (opt)
                 init.world.opt();

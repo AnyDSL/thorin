@@ -46,9 +46,10 @@ inline std::ostream& operator << (std::ostream& o, const GenericMap& map) {
 class Type : public Node {
 protected:
 
-    Type(World& world, int kind, size_t num)
+    Type(World& world, int kind, size_t num, bool is_generic)
         : Node(kind, num)
         , world_(world)
+        , is_generic_(is_generic)
     {}
 
 public:
@@ -63,15 +64,24 @@ public:
     virtual void vdump(Printer &printer) const = 0;
     bool check_with(const Type* type) const;
     bool infer_with(GenericMap& map, const Type* type) const;
+    bool is_generic() const { return is_generic_; }
+    bool is_fo() const;
+    bool is_ho() const;
 
 private:
 
     World& world_;
 
+protected:
+
+    bool is_generic_;
+
     friend class Def;
 };
 
 std::ostream& operator << (std::ostream& o, const anydsl2::Type* type);
+
+bool is_generic(ArrayRef<const Type*> elems);
 
 //------------------------------------------------------------------------------
 
@@ -80,7 +90,7 @@ class Mem : public Type {
 private:
 
     Mem(World& world)
-        : Type(world, Node_Mem, 0)
+        : Type(world, Node_Mem, 0, false)
     {}
     virtual void vdump(Printer& printer) const;
 
@@ -94,7 +104,7 @@ class Frame : public Type {
 private:
 
     Frame(World& world)
-        : Type(world, Node_Frame, 0)
+        : Type(world, Node_Frame, 0, false)
     {}
     virtual void vdump(Printer& printer) const;
 
@@ -129,7 +139,7 @@ class Ptr : public Type {
 private:
 
     Ptr(const Type* ref)
-        : Type(ref->world(), Node_Ptr, 1)
+        : Type(ref->world(), Node_Ptr, 1, ref->is_generic())
     {
         set(0, ref);
     }
@@ -172,6 +182,7 @@ private:
 public:
 
     bool named() const { return named_; }
+    // TODO build setter for named sigmas which sets is_generic_
 
 private:
 
@@ -194,14 +205,6 @@ private:
         : CompoundType(world, Node_Pi, elems)
     {}
 
-public:
-
-    bool is_fo() const;
-    bool is_ho() const;
-
-private:
-
-    template<bool fo> bool classify_order() const;
     virtual void vdump(Printer& printer) const;
 
     friend class World;
@@ -213,7 +216,7 @@ class Generic : public Type {
 private:
 
     Generic(World& world, size_t index)
-        : Type(world, Node_Generic, 0)
+        : Type(world, Node_Generic, 0, true)
         , index_(index)
     {}
 
@@ -252,6 +255,8 @@ inline bool is_float(const Type* type) {
     return false;
 }
 
+inline bool is_primtype(const Type* type) { return is_primtype(type->kind()); }
+
 //------------------------------------------------------------------------------
 
 class GenericBuilder {
@@ -273,10 +278,6 @@ private:
     typedef std::vector<const Generic*> Index2Generic;
     Index2Generic index2generic_;
 };
-
-//------------------------------------------------------------------------------
-
-inline bool is_primtype(const Type* type) { return is_primtype(type->kind()); }
 
 //------------------------------------------------------------------------------
 

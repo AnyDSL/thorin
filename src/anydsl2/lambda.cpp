@@ -135,6 +135,7 @@ Array<const Param*> Lambda::classify_params() const {
     return res;
 }
 
+// TODO buggy
 template<bool fo>
 Array<const Def*> Lambda::classify_args() const {
     Array<const Def*> res(args().size());
@@ -161,8 +162,19 @@ Array<const Param*> Lambda::fo_params() const { return classify_params<true>(); 
 Array<const Param*> Lambda::ho_params() const { return classify_params<false>(); }
 Array<const Def*> Lambda::fo_args() const { return classify_args<true>(); }
 Array<const Def*> Lambda::ho_args() const { return classify_args<false>(); }
-bool Lambda::is_fo()  const { return pi()->is_fo(); }
-bool Lambda::is_ho() const { return pi()->is_ho(); }
+bool Lambda::is_fo() const { 
+    for_all (elem, pi()->elems())
+        if (elem->is_ho())
+            return false;
+    return true;
+}
+
+bool Lambda::is_ho() const { 
+    for_all (elem, pi()->elems())
+        if (elem->is_ho())
+            return true;
+    return false;
+}
 
 void Lambda::jump(const Def* to, ArrayRef<const Def*> args) {
     alloc(args.size() + 1);
@@ -231,21 +243,7 @@ Lambda* Dropper::drop() {
     oentry = scope.entry();
     const Pi* o_pi = oentry->pi();
 
-    size_t o_numparams = o_pi->size();
-    size_t numdrop = indices.size();
-    size_t n_numparams = o_numparams - numdrop;
-
-    Array<const Type*> nelems(n_numparams);
-
-    // TODO generics
-    for (size_t oe = 0, i = 0, ne = 0; oe < o_numparams; ++oe) {
-        if (i < o_numparams && indices[i] == oe)
-            ++i;
-        else
-            nelems[ne++] = o_pi->elem(oe);
-    }
-
-    const Pi* n_pi = world.pi(nelems);
+    const Pi* n_pi = world.pi(o_pi->elems().cut(indices));
     nentry = world.lambda(n_pi);
     nentry->debug = oentry->debug + ".dropped";
 
@@ -253,7 +251,7 @@ Lambda* Dropper::drop() {
     // op -> iterates over old params
     // np -> iterates over new params
     //  i -> iterates over indices
-    for (size_t op = 0, np = 0, i = 0; op < o_numparams; ++op) {
+    for (size_t op = 0, np = 0, i = 0, e = o_pi->size(); op != e; ++op) {
         const Param* oparam = oentry->param(op);
         if (i < indices.size() && indices[i] == op)
             old2new[oparam] = with[i++];

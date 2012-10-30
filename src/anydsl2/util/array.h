@@ -69,6 +69,7 @@ public:
     ArrayRef<T> slice(size_t begin, size_t end) const { return ArrayRef<T>(ptr_ + begin, end - begin); }
     ArrayRef<T> slice_front(size_t end) const { return ArrayRef<T>(ptr_, end); }
     ArrayRef<T> slice_back(size_t begin) const { return ArrayRef<T>(ptr_ + begin, size_ - begin); }
+    Array<T> cut(ArrayRef<size_t> indices) const;
 
     bool operator == (ArrayRef<T> other) const {
         if (size() != other.size())
@@ -152,6 +153,7 @@ public:
     ArrayRef<T> slice(size_t begin, size_t end) const { return ArrayRef<T>(ptr_ + begin, end - begin); }
     ArrayRef<T> slice_front(size_t end) const { return ArrayRef<T>(ptr_, end); }
     ArrayRef<T> slice_back(size_t begin) const { return ArrayRef<T>(ptr_ + begin, size_ - begin); }
+    Array<T> cut(ArrayRef<size_t> indices) const { return ArrayRef<T>(*this).cut(indices); }
 
     bool operator == (const Array<T>& other) const { return ArrayRef<T>(*this) == ArrayRef<T>(other); }
 
@@ -166,6 +168,24 @@ private:
     T* ptr_;
     size_t size_;
 };
+
+template<class T>
+Array<T> ArrayRef<T>::cut(ArrayRef<size_t> indices) const {
+    size_t num_old = size();
+    size_t num_idx = indices.size();
+    size_t num_res = num_old - num_idx;
+
+    Array<T> result(num_res);
+
+    for (size_t o = 0, i = 0, r = 0; o < num_old; ++o) {
+        if (i < num_idx && indices[i] == o)
+            ++i;
+        else
+            result[r++] = (*this)[o];
+    }
+
+    return result;
+}
 
 template<class T>
 inline size_t hash_value(ArrayRef<T> aref) {

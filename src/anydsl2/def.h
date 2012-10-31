@@ -134,6 +134,7 @@ public:
     virtual void vdump(Printer &printer) const = 0;
 
     const Uses& uses() const { return uses_; }
+    size_t num_uses() const { return uses_.size(); }
 
     /**
      * Copies all use-info into an array.

@@ -630,9 +630,8 @@ void World::opt() {
     ifelse->update(0, dropped);
 #else
 
-    LambdaSet roots = find_root_lambdas(lambdas());
-    for_all (lambda, roots)
-        cfg_transform(lambda);
+    cfg_transform(*this);
+    
 #endif
     cleanup();
 }

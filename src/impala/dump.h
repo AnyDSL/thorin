@@ -1,7 +1,7 @@
 #ifndef IMPALA_DUMP_H
 #define IMPALA_DUMP_H
 
-#include <ostream>
+#include <iostream>
 
 namespace anydsl2 {
     class Type;

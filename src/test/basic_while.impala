@@ -1,0 +1,22 @@
+def simple_while(i : int,
+                head : pi(int, pi(int, bool)), 
+                body : pi(int, pi(int)), 
+                next : pi(int)) 
+{
+    head(i, 
+        lambda(f : int, cond : bool) {
+            if (cond)
+                simple_while(body(f), head, body, next);
+            else
+                next(f);
+        }
+    );
+}
+
+def main(ret_main : pi(int))
+{
+    return simple_while(
+        0, // counter
+        lambda(i : int, ret : pi(int, bool)) { ret(i, i < 42); },
+        lambda(i : int) -> int { return i + 1; });
+}

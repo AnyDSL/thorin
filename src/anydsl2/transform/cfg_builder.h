@@ -3,9 +3,9 @@
 
 namespace anydsl2 {
 
-class Lambda;
+class World;
 
-void cfg_transform(Lambda* entry);
+void cfg_transform(World& world);
 
 }
 

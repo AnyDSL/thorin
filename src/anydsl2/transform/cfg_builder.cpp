@@ -1,5 +1,7 @@
 #include "anydsl2/transform/cfg_builder.h"
 
+#include <boost/unordered_set.hpp>
+
 #include "anydsl2/lambda.h"
 #include "anydsl2/world.h"
 #include "anydsl2/type.h"
@@ -7,6 +9,15 @@
 #include "anydsl2/analyses/scope.h"
 
 namespace anydsl2 {
+
+struct Done {
+    Array<const Def*> with;
+    Lambda* lambda;
+
+    bool operator == (const Done& done) { return with == done.with; }
+};
+
+size_t hash_value(const Done& done) { return hash_value(done.with); }
 
 class CFGBuilder {
 public:
@@ -20,6 +31,7 @@ public:
 private:
 
     Scope scope;
+    boost::unordered_set<Done> done;
 };
 
 void CFGBuilder::transform() {

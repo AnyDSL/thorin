@@ -103,17 +103,10 @@ void CFGBuilder::transform(LambdaSet& to_handle) {
 }
 
 void cfg_transform(World& world) {
-    LambdaSet to_transform;
-    // perform initial dropping operation on all root lambdas
-    LambdaSet roots = find_root_lambdas(world.lambdas());
-    for_all (lambda, roots) {
-        CFGBuilder builder(lambda);
-        builder.transform(to_transform);
-    }
+    LambdaSet to_transform = find_root_lambdas(world.lambdas());
     while(to_transform.size() > 0) {
         // we need to drop an additional lambda
         Lambda* lambda = *to_transform.begin();
-        lambda->dump();
         // remove from todo list
         to_transform.erase(lambda);
         // transform required lambda

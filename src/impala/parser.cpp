@@ -415,14 +415,12 @@ void Parser::parse_lambda(Lambda* lambda) {
 
 const Fct* Parser::parse_fct() {
     Position pos1 = eat(Token::DEF).pos1();
+    bool ext = accept(Token::EXTERN);
     Token id = try_id("function identifier");
 
     Fct* fct = new Fct();
     parse_lambda(&fct->lambda_);
-
-    const Decl* decl = new Decl(id, fct->lambda().pi(), prev_loc_.pos2());
-
-    fct->set(decl);
+    fct->set(new Decl(id, fct->lambda().pi(), prev_loc_.pos2()), ext);
 
     return fct;
 }

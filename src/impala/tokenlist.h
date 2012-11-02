@@ -146,6 +146,7 @@ IMPALA_MISC(L_DBRACKET, "[[")
 IMPALA_MISC(R_DBRACKET, "]]")
 IMPALA_MISC(PI,         "pi")
 IMPALA_MISC(SIGMA,      "sigma")
+IMPALA_MISC(EXTERN,     "extern")
 
 #undef IMPALA_MISC
 

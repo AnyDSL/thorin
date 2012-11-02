@@ -103,10 +103,11 @@ public:
 
 private:
 
-    void set(const Decl* decl);
+    void set(const Decl* decl, bool ext);
 
     anydsl2::AutoPtr<const Decl> decl_;
     Lambda lambda_;
+    bool extern_;
 
     friend class Parser;
 };

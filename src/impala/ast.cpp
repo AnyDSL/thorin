@@ -24,8 +24,9 @@ Decl::Decl(const Token& tok, const Type* type, const Position& pos2)
 
 bool Lambda::is_continuation() const { return return_type(pi())->isa<NoRet>(); }
 
-void Fct::set(const Decl* decl) {
+void Fct::set(const Decl* decl, bool ext) {
     decl_ = decl;
+    extern_ = ext;
     set_loc(decl->pos1(), lambda().body()->pos2());
 }
 

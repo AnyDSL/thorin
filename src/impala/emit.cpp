@@ -56,7 +56,7 @@ public:
 void emit(World& world, const Prg* prg) {
     CodeGen cg(world);
     prg->emit(cg);
-    //cg.world.cleanup();
+    cg.world.cleanup();
 }
 
 //------------------------------------------------------------------------------
@@ -122,6 +122,8 @@ const anydsl2::Lambda* Lambda::emit(CodeGen& cg, BB* parent, const char* what) c
 
 void Fct::emit(CodeGen& cg) const {
     lambda().emit(cg, cg.curBB, symbol().str());
+    if (extern_)
+        lambda().air_fct()->top()->set_extern();
 }
 
 Var* Decl::emit(CodeGen& cg) const {

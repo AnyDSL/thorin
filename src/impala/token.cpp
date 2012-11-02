@@ -195,6 +195,7 @@ void Token::init() {
     insert_key(DEF,        "def");
     insert_key(PI,         "pi");
     insert_key(SIGMA,      "sigma");
+    insert_key(EXTERN,     "extern");
 
     tok2str_[ID]         = Symbol("<identifier>").str();
     tok2str_[END_OF_FILE]= Symbol("<end of file>").str();

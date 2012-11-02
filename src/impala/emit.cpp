@@ -75,7 +75,10 @@ anydsl2::Fct* CodeGen::create_fct(const Lambda& lambda, Symbol symbol) {
 
 void Prg::emit(CodeGen& cg) const {
     for_all (f, fcts()) {
-        cg.create_fct(f->lambda(), f->symbol())->top()->set_extern();
+        anydsl2::Lambda* lambda = cg.create_fct(f->lambda(), f->symbol())->top();
+        if (f->symbol() == Symbol("main"))
+            lambda->set_extern();
+            
         cg.root->nest(f->symbol(), f->lambda().air_fct());
     }
 

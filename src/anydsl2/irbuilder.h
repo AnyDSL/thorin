@@ -105,8 +105,8 @@ public:
 
     const BBs& preds() const { return preds_; }
     const BBs& succs() const { return succs_; }
-    const Lambda* top() const { return top_; }
-    const Lambda* cur() const { return cur_; }
+    Lambda* top() const { return top_; }
+    Lambda* cur() const { return cur_; }
 
     World& world();
     bool sealed() const { return sealed_; }

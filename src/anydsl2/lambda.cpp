@@ -210,11 +210,6 @@ Lambda* Lambda::drop(ArrayRef<const Def*> with, bool self) {
     return drop(indices, with, self);
 }
 
-Lambda* Lambda::drop(ArrayRef<size_t> indices, ArrayRef<const Def*> with, bool self) {
-    Dropper dropper(this, indices, with, self);
-    return dropper.drop();
-}
-
 //------------------------------------------------------------------------------
 
 class Dropper {
@@ -246,6 +241,11 @@ public:
     Old2New old2new;
     Cached cached;
 };
+
+Lambda* Lambda::drop(ArrayRef<size_t> indices, ArrayRef<const Def*> with, bool self) {
+    Dropper dropper(this, indices, with, self);
+    return dropper.drop();
+}
 
 Lambda* Dropper::drop() {
     oentry = scope.entry();

@@ -1,0 +1,37 @@
+def genericRange[[T]](nextElem : pi(int, pi(T)),
+                      c : pi(T, pi()),
+                      count : int,
+                      next : pi()) {
+  def innerRange(i : int) {
+    if(i < count) {
+      c(nextElem(i), lambda() {
+          innerRange(++i);
+        });
+    } else 
+      next();
+  }
+  innerRange(0);
+}
+
+def intRange(start : int,
+             count : int,
+             iter : pi(int, pi()),
+             next : pi()) {
+  genericRange(
+    lambda(i : int, c : pi(int)) {
+      c(i);
+    }, iter, count, next);
+}
+
+def main(p : pi(int)){
+  // use int range
+  // for each(int e in range(2, 10)) { ... }
+  intRange(2, 10,
+    lambda(e : int, c : pi()) {
+      // body
+      c();
+    },
+    lambda() {
+      p(42);
+    } );
+}

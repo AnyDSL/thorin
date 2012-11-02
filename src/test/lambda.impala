@@ -3,10 +3,17 @@ def f(a : int) -> int {
     j : int = 22;
     b : bool = i == 23;
 
-    g : pi(int) -> int = lambda(k : int) -> int { return i + j + a + k; };
+    g : pi(int) -> int = lambda(k : int) -> int { 
+        def z(x : int) -> int { return x; }
+        return i + j + a + z(k); 
+    };
 
     if (a == 0)
         return g(23);
     else
-        return g(42);
+        return g(g(42));
+}
+
+def g(i : int) -> int {
+    return lambda(j : int) -> int { return j + 42 + i; }(23);
 }

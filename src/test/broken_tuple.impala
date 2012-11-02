@@ -1,4 +1,4 @@
-def head(ir : #(int, int)) -> #(int, int, bool) {
+def extern head(ir : #(int, int)) -> #(int, int, bool) {
     i : int = ir[0];
     r : int = ir[1];
     n : int = 42;

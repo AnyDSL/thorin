@@ -1,4 +1,4 @@
-def f(i : int) -> int {
+def extern f(i : int) -> int {
     do {
         ++i;
     } while (i < 42);

@@ -1,8 +1,8 @@
-def f(i : int, dead : int) -> int {
+def extern f(i : int, dead : int) -> int {
     return i;
 }
 
-def g(i : int) -> int {
+def extern g(i : int) -> int {
     return f(i, 42);
 }
 

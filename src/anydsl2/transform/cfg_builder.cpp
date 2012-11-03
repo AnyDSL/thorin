@@ -58,7 +58,7 @@ void CFGBuilder::transform(LambdaSet& todo) {
             //bool full_mode = lambda->num_uses() == 1;
             bool full_mode = false;
 
-            for_all (use, lambda->uses()) {
+            for_all (use, lambda->copy_uses()) {
                 if (use.index() != 0 || !use.def()->isa<Lambda>())
                     continue;
 

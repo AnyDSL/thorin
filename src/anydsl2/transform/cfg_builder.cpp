@@ -48,7 +48,6 @@ private:
 };
 
 void CFGBuilder::transform(LambdaSet& todo) {
-    std::cout << "entering: " << scope.entry()->debug << std::endl;
     for_all (lambda, scope.rpo()) {
         if (lambda->is_ho()) {
             size_t size = lambda->num_params();
@@ -72,15 +71,11 @@ void CFGBuilder::transform(LambdaSet& todo) {
                 GenericMap generic_map;
                 bool res = lambda->type()->infer_with(generic_map, ulambda->arg_pi());
                 assert(res);
-                std::cout << generic_map << std::endl;
                 
-                std::cout << "---" << std::endl;
                 size_t num = 0;
                 for (size_t i = 0; i != size; ++i) {
                     if (full_mode || lambda->param(i)->type()->is_ho()) {
-                        std::cout << "dropping: " << lambda->param(i)  << " : " <<  lambda->param(i)->type() << std::endl;
                         const Def* arg = ulambda->arg(i);
-                        std::cout << "    with: " << arg  << " : " <<  arg->type() << std::endl;
                         indices[num] = i;
                         done.with[num++] = arg;
                         // verify argument: do we have to perform an additional drop operation?
@@ -100,7 +95,6 @@ void CFGBuilder::transform(LambdaSet& todo) {
                     // use already dropped version as jump target
                     target = de->lambda;
                 } else {
-                    std::cout << "!!!dropping " << lambda->debug << std::endl;
                     target = lambda->drop(indices.slice_front(num), done.with.slice_front(num), generic_map, true);
                     scope.reassign_sids();
                     // store dropped entry with the specified arguments
@@ -117,10 +111,6 @@ void CFGBuilder::transform(LambdaSet& todo) {
 }
 
 void cfg_transform(World& world) {
-    world.dump(true);
-    std::cout << "---" << std::endl;
-    std::cout << "---" << std::endl;
-    std::cout << "---" << std::endl;
     LambdaSet todo = find_root_lambdas(world.lambdas());
     while (todo.size() > 0) {
         // we need to drop an additional lambda
@@ -130,10 +120,6 @@ void cfg_transform(World& world) {
         // transform required lambda
         CFGBuilder builder(lambda);
         builder.transform(todo);
-        world.dump(true);
-        std::cout << "---" << std::endl;
-        std::cout << "---" << std::endl;
-        std::cout << "---" << std::endl;
     }
 }
 

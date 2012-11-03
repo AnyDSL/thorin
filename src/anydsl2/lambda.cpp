@@ -262,7 +262,6 @@ Lambda* Dropper::drop() {
     }
 
     const Pi* n_pi = world.pi(o_pi->elems().cut(indices))->specialize(generic_map)->as<Pi>();
-    std::cout << n_pi << std::endl;
     nentry = world.lambda(n_pi);
     nentry->debug = oentry->debug + ".dropped";
 
@@ -286,7 +285,6 @@ Lambda* Dropper::drop() {
         Lambda* nlambda = olambda->stub(generic_map);
         nlambda->debug += ".dropped";
         old2new[olambda] = nlambda;
-        std::cout << nlambda->debug << ": " << nlambda->pi() << std::endl;
 
         for (size_t i = 0, e = nlambda->params().size(); i != e; ++i) {
             old2new[olambda->param(i)] = nlambda->param(i);

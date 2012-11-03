@@ -24,8 +24,8 @@ Lambda::~Lambda() {
         delete param;
 }
 
-Lambda* Lambda::stub() const { 
-    Lambda* result = world().lambda(pi(), flags());
+Lambda* Lambda::stub(const GenericMap& generic_map) const { 
+    Lambda* result = world().lambda(pi()->specialize(generic_map)->as<Pi>(), flags());
     result->debug = debug;
 
     for (size_t i = 0, e = params().size(); i != e; ++i)
@@ -36,6 +36,15 @@ Lambda* Lambda::stub() const {
 
 const Pi* Lambda::pi() const { return type()->as<Pi>(); }
 const Pi* Lambda::to_pi() const { return to()->type()->as<Pi>(); }
+
+const Pi* Lambda::arg_pi() const {
+    Array<const Type*> elems(num_args());
+    size_t i = 0;
+    for_all (arg, args()) 
+        elems[i++] = arg->type();
+
+    return world().pi(elems);
+}
 
 const Param* Lambda::append_param(const Type* type) {
     size_t size = pi()->size();
@@ -195,21 +204,6 @@ void Lambda::branch(const Def* cond, const Def* tto, const Def*  fto) {
     return jump(world().select(cond, tto, fto), ArrayRef<const Def*>(0, 0));
 }
 
-Lambda* Lambda::drop(size_t i, const Def* with, bool self) {
-    const Def* awith[] = { with };
-    size_t indices[] = { i };
-
-    return drop(indices, awith, self);
-}
-
-Lambda* Lambda::drop(ArrayRef<const Def*> with, bool self) {
-    Array<size_t> indices(with.size());
-    for (size_t i = 0, e = indices.size(); i < e; ++i)
-        indices[i] = i;
-
-    return drop(indices, with, self);
-}
-
 //------------------------------------------------------------------------------
 
 class Dropper {
@@ -218,10 +212,12 @@ public:
     typedef boost::unordered_map<const Def*, const Def*> Old2New;
     typedef boost::unordered_set<const Def*> Cached;
 
-    Dropper(Lambda* olambda, ArrayRef<size_t> indices, ArrayRef<const Def*> with, bool self)
+    Dropper(Lambda* olambda, ArrayRef<size_t> indices, ArrayRef<const Def*> with, 
+            const GenericMap& generic_map, bool self)
         : scope(olambda)
         , indices(indices)
         , with(with)
+        , generic_map(generic_map)
         , world(olambda->world())
         , self(self)
     {}
@@ -234,6 +230,7 @@ public:
     Scope scope;
     ArrayRef<size_t> indices;
     ArrayRef<const Def*> with;
+    GenericMap generic_map;
     World& world;
     bool self;
     Lambda* nentry;
@@ -243,7 +240,13 @@ public:
 };
 
 Lambda* Lambda::drop(ArrayRef<size_t> indices, ArrayRef<const Def*> with, bool self) {
-    Dropper dropper(this, indices, with, self);
+    GenericMap generic_map;
+    return drop(indices, with, generic_map, self);
+}
+
+Lambda* Lambda::drop(ArrayRef<size_t> indices, ArrayRef<const Def*> with, 
+                     const GenericMap& generic_map, bool self) {
+    Dropper dropper(this, indices, with, generic_map, self);
     return dropper.drop();
 }
 
@@ -251,7 +254,15 @@ Lambda* Dropper::drop() {
     oentry = scope.entry();
     const Pi* o_pi = oentry->pi();
 
-    const Pi* n_pi = world.pi(o_pi->elems().cut(indices));
+    Array<const Type*> elems = o_pi->elems().cut(indices);
+    for_all (&elem, elems) {
+        if (const Generic* generic = elem->isa<Generic>())
+            if (const Type* substitute = generic_map[generic])
+                elem = substitute;
+    }
+
+    const Pi* n_pi = world.pi(o_pi->elems().cut(indices))->specialize(generic_map)->as<Pi>();
+    std::cout << n_pi << std::endl;
     nentry = world.lambda(n_pi);
     nentry->debug = oentry->debug + ".dropped";
 
@@ -272,9 +283,10 @@ Lambda* Dropper::drop() {
 
     // create stubs for all other lambdas and put their params into the map
     for_all (olambda, scope.rpo().slice_back(1)) {
-        Lambda* nlambda = olambda->stub();
+        Lambda* nlambda = olambda->stub(generic_map);
         nlambda->debug += ".dropped";
         old2new[olambda] = nlambda;
+        std::cout << nlambda->debug << ": " << nlambda->pi() << std::endl;
 
         for (size_t i = 0, e = nlambda->params().size(); i != e; ++i) {
             old2new[olambda->param(i)] = nlambda->param(i);

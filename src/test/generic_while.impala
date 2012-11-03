@@ -1,0 +1,22 @@
+def generic_while[[L, B]](l : L,
+                          head : pi(L, pi(B, bool)), 
+                          body : pi(B, pi(L)), 
+                          next : pi(B)) 
+{
+    head(l,
+        lambda(b : B, cond : bool) {
+            if (cond)
+                generic_while(body(b), head, body, next);
+            else
+                next(b);
+        }
+    );
+}
+
+def main(ret_main : pi(int))
+{
+    return generic_while(
+        0, // counter
+        lambda(i : int, ret : pi(int, bool)) { ret(i, i < 42); },
+        lambda(i : int) -> int { return i + 1; });
+}

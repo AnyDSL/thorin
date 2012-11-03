@@ -23,18 +23,18 @@ typedef ArrayRef<const Type*> Elems;
 
 //------------------------------------------------------------------------------
 
-class GenericMap : protected std::vector<const Type*> {
+class GenericMap {
 public:
 
     GenericMap() {}
 
-    const Type*& operator [] (const Generic* generic);
+    const Type*& operator [] (const Generic* generic) const;
     bool is_empty() const;
     const char* to_string() const;
 
 private:
-    const Type*& get(size_t i) { return std::vector<const Type*>::operator[](i); }
-    const Type* const & get(size_t i) const { return std::vector<const Type*>::operator[](i); }
+
+    mutable std::vector<const Type*> types_;
 };
 
 inline std::ostream& operator << (std::ostream& o, const GenericMap& map) { 
@@ -64,6 +64,7 @@ public:
     virtual void vdump(Printer &printer) const = 0;
     bool check_with(const Type* type) const;
     bool infer_with(GenericMap& map, const Type* type) const;
+    const Type* specialize(const GenericMap& generic_map) const;
     bool is_generic() const { return is_generic_; }
     bool is_fo() const;
     bool is_ho() const;

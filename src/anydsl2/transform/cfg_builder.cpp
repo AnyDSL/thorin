@@ -16,12 +16,14 @@ struct Done {
     Lambda* lambda;
 
     Done(size_t size)
-        : with(size), lambda(0)
-    { }
+        : with(size)
+        , lambda(0)
+    {}
 
     Done(const Done& other)
-        : with(other.with), lambda(other.lambda)
-    { }
+        : with(other.with)
+        , lambda(other.lambda)
+    {}
 
     bool operator == (const Done& done) const { return with == done.with; }
 };
@@ -32,7 +34,7 @@ class CFGBuilder {
 public:
     CFGBuilder(Lambda* entry)
         : scope(entry)
-    { }
+    {}
 
     void transform(LambdaSet& todo);
     Lambda* entry() const { return scope.entry(); }
@@ -46,6 +48,7 @@ private:
 };
 
 void CFGBuilder::transform(LambdaSet& todo) {
+    std::cout << "entering: " << scope.entry()->debug << std::endl;
     for_all (lambda, scope.rpo()) {
         if (lambda->is_ho()) {
             size_t size = lambda->num_params();
@@ -53,7 +56,8 @@ void CFGBuilder::transform(LambdaSet& todo) {
             Array<size_t>  indices(size);
 
             // if there is only one use -> drop all parameters
-            bool full_mode = lambda->num_uses() == 1;
+            //bool full_mode = lambda->num_uses() == 1;
+            bool full_mode = false;
 
             for_all (use, lambda->uses()) {
                 if (use.index() != 0 || !use.def()->isa<Lambda>())
@@ -64,11 +68,19 @@ void CFGBuilder::transform(LambdaSet& todo) {
                 bool is_nested = scope.lambdas().find(ulambda) != scope.lambdas().end();
                 if (ulambda->to() == entry() && is_nested)
                     continue;
+
+                GenericMap generic_map;
+                bool res = lambda->type()->infer_with(generic_map, ulambda->arg_pi());
+                assert(res);
+                std::cout << generic_map << std::endl;
                 
+                std::cout << "---" << std::endl;
                 size_t num = 0;
                 for (size_t i = 0; i != size; ++i) {
                     if (full_mode || lambda->param(i)->type()->is_ho()) {
+                        std::cout << "dropping: " << lambda->param(i)  << " : " <<  lambda->param(i)->type() << std::endl;
                         const Def* arg = ulambda->arg(i);
+                        std::cout << "    with: " << arg  << " : " <<  arg->type() << std::endl;
                         indices[num] = i;
                         done.with[num++] = arg;
                         // verify argument: do we have to perform an additional drop operation?
@@ -84,11 +96,12 @@ void CFGBuilder::transform(LambdaSet& todo) {
                 // check whether we can reuse an existing version
                 DoneSet::iterator de = done_entries.find(done);
                 Lambda* target;
-                if(de != done_entries.end()) {
+                if (de != done_entries.end()) {
                     // use already dropped version as jump target
                     target = de->lambda;
                 } else {
-                    target = lambda->drop(indices.slice_front(num), done.with.slice_front(num), true);
+                    std::cout << "!!!dropping " << lambda->debug << std::endl;
+                    target = lambda->drop(indices.slice_front(num), done.with.slice_front(num), generic_map, true);
                     scope.reassign_sids();
                     // store dropped entry with the specified arguments
                     done.lambda = target;
@@ -104,6 +117,10 @@ void CFGBuilder::transform(LambdaSet& todo) {
 }
 
 void cfg_transform(World& world) {
+    world.dump(true);
+    std::cout << "---" << std::endl;
+    std::cout << "---" << std::endl;
+    std::cout << "---" << std::endl;
     LambdaSet todo = find_root_lambdas(world.lambdas());
     while (todo.size() > 0) {
         // we need to drop an additional lambda
@@ -113,6 +130,10 @@ void cfg_transform(World& world) {
         // transform required lambda
         CFGBuilder builder(lambda);
         builder.transform(todo);
+        world.dump(true);
+        std::cout << "---" << std::endl;
+        std::cout << "---" << std::endl;
+        std::cout << "---" << std::endl;
     }
 }
 

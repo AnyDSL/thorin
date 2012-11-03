@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <queue>
 #include <iostream>
+#include <boost/unordered_map.hpp>
 
 #include "anydsl2/def.h"
 #include "anydsl2/primop.h"

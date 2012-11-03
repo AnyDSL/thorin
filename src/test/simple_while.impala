@@ -1,10 +1,10 @@
 def simple_while(i : int,
-                head : pi(int, pi(float, bool)), 
-                body : pi(float, pi(int)), 
-                next : pi(float)) 
+                head : pi(int, pi(int, bool)), 
+                body : pi(int, pi(int)), 
+                next : pi(int)) 
 {
     head(i, 
-        lambda(f : float, cond : bool) {
+        lambda(f : int, cond : bool) {
             if (cond)
                 simple_while(body(f), head, body, next);
             else
@@ -13,24 +13,9 @@ def simple_while(i : int,
     );
 }
 
-def generic_while[[L, B]](l : L,
-                          head : pi(L, pi(B, bool)), 
-                          body : pi(B, pi(L)), 
-                          next : pi(B)) 
-{
-    head(l,
-        lambda(b : B, cond : bool) {
-            if (cond)
-                generic_while(body(b), head, body, next);
-            else
-                next(b);
-        }
-    );
-}
-
 def main(ret_main : pi(int))
 {
-    return generic_while(
+    return simple_while(
         0, // counter
         lambda(i : int, ret : pi(int, bool)) { ret(i, i < 42); },
         lambda(i : int) -> int { return i + 1; });

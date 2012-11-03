@@ -10,17 +10,17 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
-const Type*& GenericMap::operator [] (const Generic* generic) {
+const Type*& GenericMap::operator [] (const Generic* generic) const {
     size_t i = generic->index();
-    if (i >= size())
-        resize(i+1, 0);
-    return get(i);
+    if (i >= types_.size())
+        types_.resize(i+1, 0);
+    return types_[i];
 }
 
 bool GenericMap::is_empty() const {
     bool result = true;
-    for (size_t i = 0, e = size(); i != e && result; ++i)
-        result &= !get(i);
+    for (size_t i = 0, e = types_.size(); i != e && result; ++i)
+        result &= !types_[i];
 
     return result;
 }
@@ -28,8 +28,8 @@ bool GenericMap::is_empty() const {
 const char* GenericMap::to_string() const {
     std::ostringstream o;
     bool first = true;
-    for (size_t i = 0, e = size(); i != e; ++i)
-        if (const Type* type = get(i)) {
+    for (size_t i = 0, e = types_.size(); i != e; ++i)
+        if (const Type* type = types_[i]) {
             if (first)
                 first = false;
             else
@@ -99,6 +99,26 @@ bool Type::infer_with(GenericMap& map, const Type* other) const {
         result &= this->elem(i)->infer_with(map, other->elem(i));
 
     return result;
+}
+
+const Type* Type::specialize(const GenericMap& generic_map) const {
+    if (const Generic* generic = this->isa<Generic>()) {
+        if (const Type* substitute = generic_map[generic])
+            return substitute;
+    } else if (empty())
+        return this;
+
+    Array<const Type*> new_elems(size());
+    for (size_t i = 0, e = size(); i != e; ++i)
+        new_elems[i] = elem(i)->specialize(generic_map);
+
+    // TODO better OO here
+    switch (kind()) {
+        case Node_Pi:    return world().pi(new_elems);
+        case Node_Sigma: return world().sigma(new_elems);
+        case Node_Ptr:   assert(new_elems.size() == 1); return world().ptr(new_elems.front());
+        default: ANYDSL2_UNREACHABLE;
+    }
 }
 
 //------------------------------------------------------------------------------

@@ -9,6 +9,7 @@
 
 namespace anydsl2 {
 
+class GenericMap;
 class Lambda;
 class Pi;
 
@@ -28,7 +29,7 @@ public:
         Extern = 1 << 0,
     };
 
-    Lambda* stub() const;
+    Lambda* stub(const GenericMap& generic_map) const;
 
     const Param* append_param(const Type* type);
 
@@ -51,6 +52,7 @@ public:
     const Def* arg(size_t i) const { return args()[i]; }
     const Pi* pi() const;
     const Pi* to_pi() const;
+    const Pi* arg_pi() const;
     uint32_t flags() const { return flags_; }
     size_t gid() const { return gid_; }
     size_t sid() const { return sid_; }
@@ -68,7 +70,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     void dump(bool fancy = false, int indent = 0) const;
 
     bool is_extern() const { return flags_ & Extern; }
-    void set_extern() const { flags_ |= Extern; }
+    void set_extern() { flags_ |= Extern; }
 
     bool sid_valid() { return sid_ != size_t(-1); }
     bool sid_invalid() { return sid_ == size_t(-1); }
@@ -92,9 +94,8 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     }
     void branch(const Def* cond, const Def* tto, const Def* fto);
 
-    Lambda* drop(size_t i, const Def* with, bool self);
     Lambda* drop(ArrayRef<size_t> indices, ArrayRef<const Def*> with, bool self);
-    Lambda* drop(ArrayRef<const Def*> with, bool self);
+    Lambda* drop(ArrayRef<size_t> indices, ArrayRef<const Def*> with, const GenericMap& generic_map, bool self);
 
 private:
 
@@ -106,7 +107,7 @@ private:
     virtual void vdump(Printer& printer) const;
 
     size_t gid_; ///< global index
-    mutable uint32_t flags_;
+    uint32_t flags_;
     Params params_;
     size_t sid_; ///< scope index
 

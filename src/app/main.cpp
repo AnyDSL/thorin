@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
         Names infiles;
         string outfile = "-";
         string emittype;
-        bool help, emit_air, emit_ast, emit_dot, emit_llvm, fancy, opt = false;
+        bool help, emit_all, emit_air, emit_ast, emit_dot, emit_llvm, fancy, opt = false;
 
         // specify options
         po::options_description desc("Usage: " + prgname + " [options] file...");
@@ -40,6 +40,7 @@ int main(int argc, char** argv) {
         ("help,h",          po::bool_switch(&help),                     "produce this help message")
         ("outfile,o",       po::value(&outfile)->default_value("-"),    "specifies output file")
         ("infile,i",        po::value(&infiles),                        "input file")
+        ("emit-all",        po::bool_switch(&emit_all),                 "emit AST, AIR and LLVM")
         ("emit-air",        po::bool_switch(&emit_air),                 "emit textual AIR representation of impala program")
         ("emit-ast",        po::bool_switch(&emit_ast),                 "emit AST of impala program")
         ("emit-dot",        po::bool_switch(&emit_dot),                 "emit dot, arg={air|llvm}")
@@ -56,9 +57,11 @@ int main(int argc, char** argv) {
         clp.options(desc);
         clp.positional(pos_desc);
         po::variables_map vm;
-
         po::store(clp.run(), vm);
         po::notify(vm);
+
+        if (emit_all)
+            emit_air = emit_ast = emit_llvm = true;
 
         if (infiles.empty() && !help) {
 #if BOOST_VERSION >= 105000

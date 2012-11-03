@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include "anydsl2/irbuilder.h"
 #include "anydsl2/type.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/assert.h"
@@ -82,7 +83,7 @@ private:
     Decls params_;
     anydsl2::AutoPtr<const ScopeStmt> body_;
     const anydsl2::Pi* pi_;
-    mutable anydsl2::Fct* air_fct_;
+    mutable anydsl2::AutoPtr<anydsl2::Fct> air_fct_;
 
     friend class Fct;
     friend class LambdaExpr;

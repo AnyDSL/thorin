@@ -264,9 +264,6 @@ Fct::Fct(World& world, const Pi* pi, ArrayRef<Symbol> symbols,
 Fct::~Fct() {
     for_all (bb, cfg_)
         delete bb;
-
-    for_all (p, letrec_)
-        delete p.second;
 }
 
 BB* Fct::createBB(const std::string& debug /*= ""*/) {

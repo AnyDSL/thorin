@@ -111,16 +111,17 @@ int Token::to_binop(Kind kind) {
         case DEC:
         case SUB: return anydsl2::ArithOp_sub;
         case MUL: return anydsl2::ArithOp_mul;
-        case DIV: return anydsl2::ArithOp_udiv;
+        case DIV: return anydsl2::ArithOp_sdiv;
+        case MOD: return anydsl2::ArithOp_srem;
         case AND: return anydsl2::ArithOp_and;
         case  OR: return anydsl2::ArithOp_or;
         case XOR: return anydsl2::ArithOp_xor;
         case  EQ: return anydsl2::RelOp_cmp_eq;
         case  NE: return anydsl2::RelOp_cmp_ne;
-        case  LT: return anydsl2::RelOp_cmp_ult;
-        case  LE: return anydsl2::RelOp_cmp_ule;
-        case  GT: return anydsl2::RelOp_cmp_ugt;
-        case  GE: return anydsl2::RelOp_cmp_uge;
+        case  LT: return anydsl2::RelOp_cmp_slt;
+        case  LE: return anydsl2::RelOp_cmp_sle;
+        case  GT: return anydsl2::RelOp_cmp_sgt;
+        case  GE: return anydsl2::RelOp_cmp_sge;
         default: ANYDSL2_UNREACHABLE;
     }
 }

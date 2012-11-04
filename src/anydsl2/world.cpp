@@ -16,6 +16,7 @@
 #include "anydsl2/analyses/rootlambdas.h"
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/transform/cfg_builder.h"
+#include "anydsl2/transform/merge_lambdas.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/for_all.h"
 
@@ -632,6 +633,7 @@ void World::opt() {
 #else
 
     cfg_transform(*this);
+    merge_lambdas(*this);
     
 #endif
     cleanup();

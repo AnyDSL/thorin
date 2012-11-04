@@ -44,7 +44,7 @@ Printer& Printer::dump_name(const Def* def) {
     if (!def->debug.empty())
         o << def->debug;
     else
-        o << def;
+        o << (void*)def;
 
     if (fancy())
         o << "\33[m";

@@ -185,6 +185,14 @@ bool Lambda::is_ho() const {
     return false;
 }
 
+size_t Lambda::num_ho_args() const {
+    size_t count = 0;
+    for_all (elem, pi()->elems())
+        if (elem->is_ho())
+            ++count;
+    return count;
+}
+
 void Lambda::jump(const Def* to, ArrayRef<const Def*> args) {
     if (valid()) {
         for (size_t i = 0, e = size(); i != e; ++i)

@@ -55,8 +55,8 @@ void CFGBuilder::transform(LambdaSet& todo) {
             Array<size_t>  indices(size);
 
             // if there is only one use -> drop all parameters
-            //bool full_mode = lambda->num_uses() == 1;
-            bool full_mode = false;
+            bool full_mode = lambda->num_uses() == 1;
+            //bool full_mode = false;
 
             for_all (use, lambda->copy_uses()) {
                 if (use.index() != 0 || !use.def()->isa<Lambda>())

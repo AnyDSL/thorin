@@ -6,41 +6,51 @@
 
 namespace anydsl2 {
 
-static void jump_to_param_users(LambdaSet& scope, Lambda* lambda);
-static void walk_up(LambdaSet& scope, Lambda* lambda);
-static void find_user(LambdaSet& scope, const Def* def);
+static void jump_to_param_users(LambdaSet& scope, LambdaSet& done, Lambda* lambda);
+static void walk_up(LambdaSet& scope, LambdaSet& done, LambdaSet& collected, Lambda* lambda);
+static void find_user(LambdaSet& scope, LambdaSet& done, const Def* def);
 
 LambdaSet find_scope(Lambda* lambda) {
     LambdaSet scope;
+    LambdaSet done;
     scope.insert(lambda);
-    jump_to_param_users(scope, lambda);
+    jump_to_param_users(scope, done, lambda);
 
     return scope;
 }
 
-static void jump_to_param_users(LambdaSet& scope, Lambda* lambda) {
+static void jump_to_param_users(LambdaSet& scope, LambdaSet& done, Lambda* lambda) {
     for_all (param, lambda->params())
-        find_user(scope, param);
+        find_user(scope, done, param);
 }
 
-static void find_user(LambdaSet& scope, const Def* def) {
-    if (Lambda* lambda = def->isa_lambda())
-        walk_up(scope, lambda);
-    else {
+static void find_user(LambdaSet& scope, LambdaSet& done, const Def* def) {
+    if (Lambda* lambda = def->isa_lambda()) {
+        LambdaSet collected;
+        walk_up(scope, done, collected, lambda);
+    } else {
         for_all (use, def->uses())
-            find_user(scope, use.def());
+            find_user(scope, done, use.def());
     }
 }
 
-static void walk_up(LambdaSet& scope, Lambda* lambda) {
-    if (scope.find(lambda) != scope.end())
-        return;// already inside scope so break
+static void walk_up(LambdaSet& scope, LambdaSet& done, LambdaSet& collected, Lambda* lambda) {
+    if (scope.find(lambda) != scope.end()) {
+        // already inside scope so merge colleted into scope and break
+        scope.insert(collected.begin(), collected.end());
+        return;
+    }
 
-    scope.insert(lambda);
-    jump_to_param_users(scope, lambda);
+    if (done.find(lambda) != done.end())
+        return; // break loops;
+
+    collected.insert(lambda);
+    done.insert(lambda);
 
     for_all (pred, lambda->preds())
-        walk_up(scope, pred);
+        walk_up(scope, done, collected, pred);
+
+    jump_to_param_users(scope, done, lambda);
 }
 
 size_t Scope::number(const LambdaSet& lambdas, Lambda* cur, size_t i) {

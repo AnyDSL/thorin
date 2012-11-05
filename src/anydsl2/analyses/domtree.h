@@ -3,6 +3,7 @@
 
 #include <boost/unordered_set.hpp>
 
+#include "anydsl2/lambda.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/analyses/scope.h"
 
@@ -14,7 +15,6 @@ class Lambda;
 class Scope;
 class World;
 
-typedef boost::unordered_set<Lambda*> LambdaSet;
 typedef std::vector<const DomNode*> DomNodes;
 
 class DomNode {

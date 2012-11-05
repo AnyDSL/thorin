@@ -49,7 +49,7 @@ private:
 
 void CFGBuilder::transform(LambdaSet& todo) {
     for_all (lambda, scope.rpo()) {
-        if (lambda->is_ho() > 1) {
+        if (lambda->is_ho()) {
             size_t size = lambda->num_params();
             Done done(size);
             Array<size_t>  indices(size);

@@ -1,8 +1,9 @@
 #ifndef ANYDSL2_LAMBDA_H
 #define ANYDSL2_LAMBDA_H
 
+#include <set>
 #include <vector>
-#include <boost/unordered_set.hpp>
+#include <functional>
 
 #include "anydsl2/def.h"
 #include "anydsl2/util/autoptr.h"
@@ -13,7 +14,11 @@ class GenericMap;
 class Lambda;
 class Pi;
 
-typedef boost::unordered_set<Lambda*> LambdaSet;
+struct LambdaLT : public std::binary_function<Lambda*, Lambda*, bool> {
+    inline bool operator () (Lambda* l1, Lambda* l2) const;
+};
+
+typedef std::set<Lambda*, LambdaLT> LambdaSet;
 
 typedef std::vector<const Param*> Params;
 
@@ -116,6 +121,8 @@ private:
     friend class Param;
     friend class Scope;
 };
+
+bool LambdaLT::operator () (Lambda* l1, Lambda* l2) const { return l1->gid() < l2->gid(); };
 
 } // namespace anydsl2
 

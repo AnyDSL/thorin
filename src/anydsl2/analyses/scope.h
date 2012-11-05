@@ -3,13 +3,12 @@
 
 #include <boost/unordered_set.hpp>
 
+#include "anydsl2/lambda.h"
 #include "anydsl2/util/array.h"
 
 namespace anydsl2 {
 
 class Lambda;
-
-typedef boost::unordered_set<Lambda*> LambdaSet;
 
 LambdaSet find_scope(Lambda* entry);
 

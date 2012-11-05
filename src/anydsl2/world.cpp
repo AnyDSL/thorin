@@ -15,6 +15,7 @@
 #include "anydsl2/analyses/domtree.h"
 #include "anydsl2/analyses/rootlambdas.h"
 #include "anydsl2/analyses/scope.h"
+#include "anydsl2/analyses/unreachable_code_elimination.h"
 #include "anydsl2/transform/cfg_builder.h"
 #include "anydsl2/transform/merge_lambdas.h"
 #include "anydsl2/util/array.h"
@@ -39,7 +40,6 @@ namespace anydsl2 {
 
 World::World()
     : primops_(1031)
-    , lambdas_(1031)
     , types_(1031)
     , gid_counter_(0)
     , sigma0_ (consume(new Sigma(*this, ArrayRef<const Type*>()))->as<Sigma>())
@@ -499,13 +499,11 @@ void World::dead_code_elimination() {
         }
     }
 
-    for (LambdaSet::iterator i = lambdas_.begin(); i != lambdas_.end();) {
+    for (LambdaSet::iterator i = lambdas_.begin(); i != lambdas_.end(); ++i) {
         Lambda* lambda = *i;
-        if (lambda->is_marked()) 
-            ++i;
-        else {
+        if (!lambda->is_marked()) {
             delete lambda;
-            i = lambdas_.erase(i);
+            lambdas_.erase(i);
         }
     }
 }
@@ -575,6 +573,7 @@ void World::ute_insert(const Type* type) {
 }
 
 
+// TODO merge code with anydsl2/analyses/unreachable_code_elimination.h
 void World::unreachable_code_elimination() {
     for_all (lambda, lambdas()) 
         lambda->unmark(); 
@@ -583,14 +582,11 @@ void World::unreachable_code_elimination() {
         if (lambda->is_extern())
             uce_insert(lambda);
 
-    for (LambdaSet::iterator i = lambdas_.begin(); i != lambdas_.end();) {
+    for (LambdaSet::iterator i = lambdas_.begin(); i != lambdas_.end(); ++i) {
         Lambda* lambda = *i;
-
-        if (lambda->is_marked()) 
-            ++i;
-        else {
+        if (!lambda->is_marked()) {
             delete lambda;
-            i = lambdas_.erase(i);
+            lambdas_.erase(i);
         }
     }
 }

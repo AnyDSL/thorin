@@ -1,4 +1,4 @@
-def f(a : int) -> int {
+def extern f(a : int) -> int {
     i : int = 22;
     j : int = 22;
     b : bool = i == 23;
@@ -14,6 +14,17 @@ def f(a : int) -> int {
         return g(g(42));
 }
 
-def g(i : int) -> int {
+def extern g(i : int) -> int {
     return lambda(j : int) -> int { return j + 42 + i; }(23);
+}
+
+def foo(h : pi(int, pi(int))) -> int {
+    return h(24);
+}
+
+def extern bar(a : int) -> int {
+    k : pi(int) -> int = lambda(b : int) -> int {
+        return a + b;
+    };
+    return foo(k);
 }

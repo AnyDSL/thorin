@@ -1,4 +1,4 @@
-def fac(n : int) -> int 
+def extern fac(n : int) -> int 
 {
     def helper(r : int, i : int) -> int 
     {

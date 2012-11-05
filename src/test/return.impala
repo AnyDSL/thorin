@@ -1,7 +1,7 @@
-def f() -> void {
+def extern f() -> void {
 }
 
-def g() -> int {
+def extern g() -> int {
 }
 
 def h() {

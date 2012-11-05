@@ -1,4 +1,4 @@
-def foo(s : #(int, bool)) -> int {
+def extern foo(s : #(int, bool)) -> int {
     s[0]++;
     return s[0];
 }

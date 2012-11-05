@@ -1,3 +1,3 @@
-def f(a : int) -> pi(int) -> int {
+def extern f(a : int) -> pi(int) -> int {
     return lambda(i : int) -> int { return i + a; };
 }

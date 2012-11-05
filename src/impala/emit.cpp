@@ -166,7 +166,8 @@ RefPtr Literal::emit(CodeGen& cg) const {
 }
 
 RefPtr LambdaExpr::emit(CodeGen& cg) const {
-    cg.create_fct(lambda(), "<lambda>");
+    static int id = 0;
+    cg.create_fct(lambda(), make_name("lambda", id++));
     return Ref::create(lambda().emit(cg, cg.curBB, "anonymous lambda expression"));
 }
 
@@ -289,13 +290,13 @@ void ExprStmt::emit(CodeGen& cg) const {
 
 void IfElseStmt::emit(CodeGen& cg) const {
     static int id = 0;
-    int curId = id++;
+    int cur_id = id++;
 
     // always create elseBB -- the edge from headBB to nextBB would be crtical anyway
 
     // create BBs
-    BB* thenBB = cg.curFct->createBB(make_name("if-then", curId));
-    BB* elseBB = cg.curFct->createBB(make_name("if-else", curId));
+    BB* thenBB = cg.curFct->createBB(make_name("if-then", cur_id));
+    BB* elseBB = cg.curFct->createBB(make_name("if-else", cur_id));
 
     // condition
     if (cg.reachable()) {
@@ -319,7 +320,7 @@ void IfElseStmt::emit(CodeGen& cg) const {
     if (!elseCur) {
         cg.curBB = thenCur;
     } else if (thenCur) {
-        BB* nextBB = cg.curFct->createBB(make_name("if-next", curId));
+        BB* nextBB = cg.curFct->createBB(make_name("if-next", cur_id));
         thenCur->fixto(nextBB);
         elseCur->fixto(nextBB);
         nextBB->seal();
@@ -329,12 +330,12 @@ void IfElseStmt::emit(CodeGen& cg) const {
 
 void WhileStmt::emit(CodeGen& cg) const {
     static int id = 0;
-    int curId = id++;
+    int cur_id = id++;
 
     // create BBs
-    BB* headBB = cg.curFct->createBB(make_name("while-head", curId));
-    BB* bodyBB = cg.curFct->createBB(make_name("while-body", curId));
-    BB* nextBB = cg.curFct->createBB(make_name("while-next", curId));
+    BB* headBB = cg.curFct->createBB(make_name("while-head", cur_id));
+    BB* bodyBB = cg.curFct->createBB(make_name("while-body", cur_id));
+    BB* nextBB = cg.curFct->createBB(make_name("while-next", cur_id));
 
     // head
     cg.fixto(headBB);
@@ -358,13 +359,13 @@ void WhileStmt::emit(CodeGen& cg) const {
 
 void DoWhileStmt::emit(CodeGen& cg) const {
     static int id = 0;
-    int curId = id++;
+    int cur_id = id++;
 
     // create BBs
-    BB* bodyBB = cg.curFct->createBB(make_name("dowhile-body", curId));
-    BB* condBB = cg.curFct->createBB(make_name("dowhile-cond", curId));
-    BB* critBB = cg.curFct->createBB(make_name("dowhile-crit", curId));
-    BB* nextBB = cg.curFct->createBB(make_name("dowhile-next", curId));
+    BB* bodyBB = cg.curFct->createBB(make_name("dowhile-body", cur_id));
+    BB* condBB = cg.curFct->createBB(make_name("dowhile-cond", cur_id));
+    BB* critBB = cg.curFct->createBB(make_name("dowhile-crit", cur_id));
+    BB* nextBB = cg.curFct->createBB(make_name("dowhile-next", cur_id));
 
     // body
     cg.fixto(bodyBB);
@@ -389,15 +390,15 @@ void DoWhileStmt::emit(CodeGen& cg) const {
 
 void ForStmt::emit(CodeGen& cg) const {
     static int id = 0;
-    int curId = id++;
+    int cur_id = id++;
 
     init()->emit(cg);
 
     // create BBs
-    BB* headBB = cg.curFct->createBB(make_name("for-head", curId));
-    BB* bodyBB = cg.curFct->createBB(make_name("for-body", curId));
-    BB* stepBB = cg.curFct->createBB(make_name("for-step", curId));
-    BB* nextBB = cg.curFct->createBB(make_name("for-next", curId));
+    BB* headBB = cg.curFct->createBB(make_name("for-head", cur_id));
+    BB* bodyBB = cg.curFct->createBB(make_name("for-body", cur_id));
+    BB* stepBB = cg.curFct->createBB(make_name("for-step", cur_id));
+    BB* nextBB = cg.curFct->createBB(make_name("for-next", cur_id));
 
     // head
     cg.fixto(headBB);

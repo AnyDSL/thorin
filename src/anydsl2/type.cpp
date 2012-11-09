@@ -158,15 +158,15 @@ bool Sigma::equal(const Node* other) const {
 
 //------------------------------------------------------------------------------
 
-size_t Generic::hash() const { 
+size_t IndexType::hash() const { 
     size_t seed = 0;
-    boost::hash_combine(seed, Node_Generic);
+    boost::hash_combine(seed, kind());
     boost::hash_combine(seed, index_);
     return seed;
 }
 
-bool Generic::equal(const Node* other) const { 
-    return other->kind() == Node_Generic && index_ == other->as<Generic>()->index();
+bool IndexType::equal(const Node* other) const { 
+    return other->kind() == other->kind() && index_ == other->as<IndexType>()->index();
 }
 
 //------------------------------------------------------------------------------

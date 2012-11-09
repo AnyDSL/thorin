@@ -30,6 +30,7 @@
         ANYDSL2_AIR_NODE(Frame)
         ANYDSL2_AIR_NODE(Generic)
         ANYDSL2_AIR_NODE(Mem)
+        ANYDSL2_AIR_NODE(Opaque)
         ANYDSL2_AIR_NODE(Pi)
         ANYDSL2_AIR_NODE(Ptr)
         ANYDSL2_AIR_NODE(Sigma)

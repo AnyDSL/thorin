@@ -213,17 +213,16 @@ private:
 
 //------------------------------------------------------------------------------
 
-class Generic : public Type {
-private:
+class IndexType : public Type {
+protected:
 
-    Generic(World& world, size_t index)
-        : Type(world, Node_Generic, 0, true)
+    IndexType(World& world, int kind, size_t index, bool is_generic)
+        : Type(world, kind, 0, is_generic)
         , index_(index)
     {}
 
 public:
 
-    virtual void vdump(Printer& printer) const;
     size_t index() const { return index_; }
 
 private:
@@ -232,6 +231,38 @@ private:
     virtual bool equal(const Node* other) const;
 
     size_t index_;
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
+class Generic : public IndexType {
+private:
+
+    Generic(World& world, size_t index)
+        : IndexType(world, Node_Generic, index, true)
+    {}
+
+public:
+
+    virtual void vdump(Printer& printer) const;
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
+class Opaque : public IndexType {
+private:
+
+    Opaque(World& world, size_t index)
+        : IndexType(world, Node_Opaque, index, true)
+    {}
+
+public:
+
+    virtual void vdump(Printer& printer) const;
 
     friend class World;
 };

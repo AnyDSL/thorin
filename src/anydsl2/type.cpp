@@ -6,6 +6,7 @@
 #include "anydsl2/world.h"
 #include "anydsl2/util/for_all.h"
 
+#include <sstream>
 namespace anydsl2 {
 
 //------------------------------------------------------------------------------

@@ -106,6 +106,8 @@ const Type* Type::specialize(const GenericMap& generic_map) const {
     if (const Generic* generic = this->isa<Generic>()) {
         if (const Type* substitute = generic_map[generic])
             return substitute;
+        else
+            return this;
     } else if (empty())
         return this;
 

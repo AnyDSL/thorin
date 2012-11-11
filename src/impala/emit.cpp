@@ -220,6 +220,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
 
     if (Token::is_asgn(op)) {
         const Id* id = lhs()->isa<Id>();
+        const Def* rdef = rhs()->emit(cg)->load();
 
         // special case for 'a = expr' -> don't use lookup!
         RefPtr lref = op == Token::ASGN && id
@@ -227,7 +228,6 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
                 : lhs()->emit(cg);
 
         const Def* ldef = lref->load();
-        const Def* rdef = rhs()->emit(cg)->load();
 
         if (op != Token::ASGN) {
             TokenKind sop = Token::seperateAssign(op);

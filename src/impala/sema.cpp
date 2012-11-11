@@ -294,15 +294,21 @@ const Type* PrefixExpr::vcheck(Sema& sema) const {
 }
 
 const Type* InfixExpr::vcheck(Sema& sema) const {
-    if (anydsl2::is_primtype(lhs()->check(sema))) {
+    if (Token::is_asgn((TokenKind) kind())) {
+        if (!lhs()->lvalue())
+            sema.error(lhs()) << "no lvalue on left-hand side of assignment\n";
+        else if (lhs()->check(sema) == rhs()->check(sema))
+            return lhs()->type();
+        else
+            sema.error(this) << "incompatible types in assignment: '" 
+                << lhs()->type() << "' and '" << rhs()->type() << "'\n";
+    } else if (anydsl2::is_primtype(lhs()->check(sema))) {
         if (anydsl2::is_primtype(rhs()->check(sema))) {
             if (lhs()->type() == rhs()->type()) {
                 if (Token::is_rel((TokenKind) kind()))
                     return sema.world.type_u1();
 
                 if (Token::is_asgn((TokenKind) kind())) {
-                    if (!lhs()->lvalue())
-                        sema.error(lhs()) << "no lvalue on left-hand side of assignment\n";
                 }
 
                 if (lhs()->type()->isa<TypeError>())

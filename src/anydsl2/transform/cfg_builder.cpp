@@ -59,12 +59,7 @@ void CFGBuilder::transform() {
         if (use.index() != 0 || !use.def()->isa<Lambda>())
             continue;
 
-        std::cout << "def: " << lambda->debug << std::endl;
-        std::cout << "\t"; 
-        use.def()->dump();
-
         Lambda* ulambda = use.def()->as_lambda();
-
         GenericMap generic_map;
         bool res = lambda->type()->infer_with(generic_map, ulambda->arg_pi());
         assert(res);
@@ -109,7 +104,6 @@ void cfg_transform(World& world) {
     }
 
     for_all (lambda, todo) {
-        std::cout << lambda->debug << std::endl;
         CFGBuilder builder(lambda);
         builder.transform();
     }

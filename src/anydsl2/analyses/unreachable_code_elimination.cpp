@@ -22,11 +22,12 @@ void unreachable_code_elimination(LambdaSet& lambdas, ArrayRef<Lambda*> reachabl
     for_all (lambda, reachable)
         uce_insert(lambdas, lambda);
 
-    for (LambdaSet::iterator i = lambdas.begin(); i != lambdas.end(); ++i) {
-        Lambda* lambda = *i;
+    for (LambdaSet::iterator i = lambdas.begin(); i != lambdas.end();) {
+        LambdaSet::iterator j = i++;
+        Lambda* lambda = *j;
 
         if (!lambda->is_marked())
-            lambdas.erase(i);
+            lambdas.erase(j);
     }
 }
 

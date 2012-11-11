@@ -42,9 +42,8 @@ public:
     Array<const Param*> ho_params() const;
     Array<const Def*> fo_args() const;
     Array<const Def*> ho_args() const;
-    bool is_fo() const;
-    bool is_ho() const;
-    size_t num_ho_args() const;
+    bool is_returning() const;
+    bool is_bb() const;
 
     LambdaSet targets() const;
     LambdaSet hos() const;

@@ -102,6 +102,7 @@ World& Def::world() const { return type_->world(); }
 const Def* Def::op_via_lit(const Def* def) const { return op(def->primlit_value<size_t>()); }
 Lambda* Def::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(this)); }
 Lambda* Def::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(this)); }
+int Def::order() const { return type()->order(); }
 
 bool Def::equal(const Node* other) const { 
     return Node::equal(other) && type() == other->as<Def>()->type(); 

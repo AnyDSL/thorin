@@ -32,94 +32,110 @@ size_t hash_value(const Done& done) { return hash_value(done.with); }
 
 class CFGBuilder {
 public:
-    CFGBuilder(Lambda* entry)
-        : scope(entry)
+    CFGBuilder(Lambda* lambda)
+        : lambda(lambda)
     {}
 
-    void transform(LambdaSet& todo);
-    Lambda* entry() const { return scope.entry(); }
+    void transform();
 
 private:
 
-    Scope scope;
+    Lambda* lambda;
 
     typedef boost::unordered_set<Done> DoneSet;
     DoneSet done_entries;
 };
 
-void CFGBuilder::transform(LambdaSet& todo) {
-    for_all (lambda, scope.rpo()) {
-        if (lambda->is_ho()) {
-            size_t size = lambda->num_params();
-            Done done(size);
-            Array<size_t>  indices(size);
+void CFGBuilder::transform() {
+    size_t size = lambda->num_params();
+    Done done(size);
+    Array<size_t>  indices(size);
 
-            // if there is only one use -> drop all parameters
-            bool full_mode = lambda->num_uses() == 1;
-            //bool full_mode = false;
+    // if there is only one use -> drop all parameters
+    //bool full_mode = lambda->num_uses() == 1;
+    bool full_mode = false;
 
-            for_all (use, lambda->copy_uses()) {
-                if (use.index() != 0 || !use.def()->isa<Lambda>())
-                    continue;
+    for_all (use, lambda->copy_uses()) {
+        if (use.index() != 0 || !use.def()->isa<Lambda>())
+            continue;
 
-                Lambda* ulambda = use.def()->as_lambda();
-                // we are not allowed to modify our own recursive calls
-                bool is_nested = scope.lambdas().find(ulambda) != scope.lambdas().end();
-                if (ulambda->to() == entry() && is_nested)
-                    continue;
+        std::cout << "def: " << lambda->debug << std::endl;
+        std::cout << "\t"; 
+        use.def()->dump();
 
-                GenericMap generic_map;
-                bool res = lambda->type()->infer_with(generic_map, ulambda->arg_pi());
-                assert(res);
-                
-                size_t num = 0;
-                for (size_t i = 0; i != size; ++i) {
-                    if (full_mode || lambda->param(i)->type()->is_ho()) {
-                        const Def* arg = ulambda->arg(i);
-                        indices[num] = i;
-                        done.with[num++] = arg;
-                        // verify argument: do we have to perform an additional drop operation?
-                        if (Lambda* argLambda = arg->isa_lambda()) {
-                            if (argLambda->is_ho()) {
-                                // we need to drop this lambda as well
-                                todo.insert(argLambda);
-                            }
-                        }
-                    }
-                }
+        Lambda* ulambda = use.def()->as_lambda();
 
-                // check whether we can reuse an existing version
-                DoneSet::iterator de = done_entries.find(done);
-                Lambda* target;
-                if (de != done_entries.end()) {
-                    // use already dropped version as jump target
-                    target = de->lambda;
-                } else {
-                    target = lambda->drop(indices.slice_front(num), done.with.slice_front(num), generic_map, true);
-                    scope.reassign_sids();
-                    // store dropped entry with the specified arguments
-                    done.lambda = target;
-                    done_entries.insert(done);
-                }
-                ulambda->jump(target, ulambda->args().cut(indices.slice_front(num)));
-
-                // remove from the todo list
-                todo.erase(lambda);
+        GenericMap generic_map;
+        bool res = lambda->type()->infer_with(generic_map, ulambda->arg_pi());
+        assert(res);
+        
+        size_t num = 0;
+        for (size_t i = 0; i != size; ++i) {
+            if (full_mode || lambda->param(i)->order() >= 1) {
+                const Def* arg = ulambda->arg(i);
+                indices[num] = i;
+                done.with[num++] = arg;
             }
         }
+
+        // check whether we can reuse an existing version
+        DoneSet::iterator de = done_entries.find(done);
+        Lambda* target;
+        if (de != done_entries.end()) {
+            // use already dropped version as jump target
+            target = de->lambda;
+        } else {
+            target = lambda->drop(indices.slice_front(num), done.with.slice_front(num), generic_map, true);
+            // store dropped entry with the specified arguments
+            done.lambda = target;
+            done_entries.insert(done);
+        }
+        ulambda->jump(target, ulambda->args().cut(indices.slice_front(num)));
     }
 }
 
 void cfg_transform(World& world) {
-    LambdaSet todo = find_root_lambdas(world.lambdas());
-    while (todo.size() > 0) {
-        // we need to drop an additional lambda
-        Lambda* lambda = *todo.begin();
-        // remove from todo list
-        todo.erase(lambda);
-        // transform required lambda
+    LambdaSet top = find_root_lambdas(world.lambdas());
+    LambdaSet todo;
+    for_all (lambda, world.lambdas()) {
+        //if (lambda->num_uses() == 1) {
+            //todo.insert(lambda);
+            //continue;
+        //}
+        if (lambda->is_bb())
+            continue;
+        if (lambda->is_returning()) {
+            if (top.find(lambda) == todo.end())
+                todo.insert(lambda);
+            continue;
+        } else {
+            todo.insert(lambda);
+        }
+    }
+
+    std::cout << "todos: " << std::endl;
+    for_all (l, todo)
+        std::cout << l->debug << std::endl;
+    std::cout << "---" << std::endl;
+
+    for_all (lambda, todo) {
         CFGBuilder builder(lambda);
-        builder.transform(todo);
+        builder.transform();
+        for_all (lambda, world.lambdas()) {
+            //if (lambda->num_uses() == 1) {
+                //todo.insert(lambda);
+                //continue;
+            //}
+            if (lambda->is_bb())
+                continue;
+            if (lambda->is_returning()) {
+                if (top.find(lambda) == todo.end())
+                    todo.insert(lambda);
+                continue;
+            } else {
+                todo.insert(lambda);
+            }
+        }
     }
 }
 

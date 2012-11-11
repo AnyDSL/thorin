@@ -43,22 +43,21 @@ const char* GenericMap::to_string() const {
 
 //------------------------------------------------------------------------------
 
-template<bool first_order>
-static bool classify_order(const Type* type) {
-    if (type->isa<Ptr>()) return true;
-    if (type->isa<Pi >()) return false;
+int Type::order() const {
+    if (kind() == Node_Ptr)
+        return 0;
 
-    for_all (elem, type->elems()) {
-        if (first_order ^ classify_order<first_order>(elem))
-            return false;
-    }
+    int sub = 0;
+    for_all (elem, elems())
+        sub = std::max(sub, elem->order());
 
-    return true;
+    if (kind() == Node_Pi)
+        return sub + 1;
+
+    return sub;
 }
 
 const Ptr* Type::to_ptr() const { return world().ptr(this); }
-bool Type::is_fo() const { return  classify_order< true>(this); }
-bool Type::is_ho() const { return !classify_order<false>(this); }
 
 const Type* Type::elem_via_lit(const Def* def) const {
     return elem(def->primlit_value<size_t>());

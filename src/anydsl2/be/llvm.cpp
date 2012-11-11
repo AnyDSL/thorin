@@ -94,6 +94,7 @@ void CodeGen::emit() {
     // for all top-level functions
     for_all (lf, fcts) {
         Lambda* lambda = lf.first;
+        assert(lambda->is_returning());
         llvm::Function* fct = lf.second;
         assert(lambda->ho_params().size() == 1 && "unsupported number of higher order params");
 
@@ -116,6 +117,7 @@ void CodeGen::emit() {
 
         // emit body for each bb
         for_all (lambda, scope.rpo()) {
+            assert(lambda == scope.entry() || lambda->is_bb());
             builder_.SetInsertPoint(bbs[lambda->sid()]);
 
             // create phi node stubs (for all non-cascading lambdas different from entry)
@@ -140,7 +142,7 @@ void CodeGen::emit() {
             } else if (num_targets == 1) {  // case 1: three sub-cases
                 Lambda* tolambda = lambda->to()->as_lambda();
 
-                if (tolambda->is_fo())     // case a) ordinary jump
+                if (tolambda->is_bb())      // case a) ordinary jump
                     builder_.CreateBr(bbs[tolambda->sid()]);
                 else {
                     // put all first-order args into an array

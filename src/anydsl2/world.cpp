@@ -499,11 +499,12 @@ void World::dead_code_elimination() {
         }
     }
 
-    for (LambdaSet::iterator i = lambdas_.begin(); i != lambdas_.end(); ++i) {
-        Lambda* lambda = *i;
+    for (LambdaSet::iterator i = lambdas_.begin(); i != lambdas_.end();) {
+        LambdaSet::iterator j = i++;
+        Lambda* lambda = *j;
         if (!lambda->is_marked()) {
             delete lambda;
-            lambdas_.erase(i);
+            lambdas_.erase(j);
         }
     }
 }
@@ -582,11 +583,12 @@ void World::unreachable_code_elimination() {
         if (lambda->is_extern())
             uce_insert(lambda);
 
-    for (LambdaSet::iterator i = lambdas_.begin(); i != lambdas_.end(); ++i) {
-        Lambda* lambda = *i;
+    for (LambdaSet::iterator i = lambdas_.begin(); i != lambdas_.end();) {
+        LambdaSet::iterator j = i++;
+        Lambda* lambda = *j;
         if (!lambda->is_marked()) {
             delete lambda;
-            lambdas_.erase(i);
+            lambdas_.erase(j);
         }
     }
 }
@@ -608,30 +610,8 @@ void World::cleanup() {
 }
 
 void World::opt() {
-#if 0
-    cleanup();
-    Lambda* helper = 0;
-    Lambda* fac = 0;
-    Lambda* ifelse = 0;
-    for_all (lambda, lambdas()) {
-        if (lambda->debug == "helper")
-            helper = lambda;
-        else if (lambda->debug == "fac")
-            fac = lambda;
-        else if (lambda->debug == "<if-else-01>")
-            ifelse = lambda;
-    }
-
-    Lambda* dropped = helper->drop(3, fac->param(1), true);
-    ifelse->unset_op(4);
-    ifelse->shrink(4);
-    ifelse->update(0, dropped);
-#else
-
     cfg_transform(*this);
     merge_lambdas(*this);
-    
-#endif
     cleanup();
 }
 

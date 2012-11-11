@@ -167,31 +167,29 @@ bool Lambda::is_cascading() const {
     return use.def()->isa<Lambda>() && use.index() > 0;
 }
 
+bool Lambda::is_bb() const { return order() == 1; }
+
+bool Lambda::is_returning() const {
+    bool ret = false;
+    for_all (param, params()) {
+        switch (param->type()->order()) {
+            case 0: continue;
+            case 1: 
+                if (!ret) {
+                    ret = true;
+                    continue;
+                }
+            default:
+                return false;
+        }
+    }
+    return true;
+}
+
 Array<const Param*> Lambda::fo_params() const { return classify_params<true>(); }
 Array<const Param*> Lambda::ho_params() const { return classify_params<false>(); }
 Array<const Def*> Lambda::fo_args() const { return classify_args<true>(); }
 Array<const Def*> Lambda::ho_args() const { return classify_args<false>(); }
-bool Lambda::is_fo() const { 
-    for_all (elem, pi()->elems())
-        if (elem->is_ho())
-            return false;
-    return true;
-}
-
-bool Lambda::is_ho() const { 
-    for_all (elem, pi()->elems())
-        if (elem->is_ho())
-            return true;
-    return false;
-}
-
-size_t Lambda::num_ho_args() const {
-    size_t count = 0;
-    for_all (elem, pi()->elems())
-        if (elem->is_ho())
-            ++count;
-    return count;
-}
 
 void Lambda::jump(const Def* to, ArrayRef<const Def*> args) {
     if (valid()) {

@@ -142,6 +142,7 @@ public:
      */
     Array<Use> copy_uses() const;
     const Type* type() const { return type_; }
+    int order() const;
 
     /// Updates operand \p i to point to \p def instead.
     void update(size_t i, const Def* def);

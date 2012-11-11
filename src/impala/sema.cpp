@@ -451,10 +451,18 @@ void DoWhileStmt::check(Sema& sema) const {
 }
 
 void ForStmt::check(Sema& sema) const {
+    sema.pushScope();
     init()->check(sema);
     checkCond(sema, cond());
     step()->check(sema);
-    body()->check(sema);
+
+    if (const ScopeStmt* scope = body()->isa<ScopeStmt>()) {
+        for_all (const &s, scope->stmts())
+            s->check(sema);
+    } else
+        body()->check(sema);
+
+    sema.popScope();
 }
 
 void BreakStmt::check(Sema& sema) const {

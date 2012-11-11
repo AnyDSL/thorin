@@ -66,8 +66,7 @@ public:
     bool infer_with(GenericMap& map, const Type* type) const;
     const Type* specialize(const GenericMap& generic_map) const;
     bool is_generic() const { return is_generic_; }
-    bool is_fo() const;
-    bool is_ho() const;
+    int order() const;
 
 private:
 

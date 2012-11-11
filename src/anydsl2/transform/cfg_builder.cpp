@@ -95,47 +95,23 @@ void CFGBuilder::transform() {
 }
 
 void cfg_transform(World& world) {
+    std::vector<Lambda*> todo;
     LambdaSet top = find_root_lambdas(world.lambdas());
-    LambdaSet todo;
-    for_all (lambda, world.lambdas()) {
-        //if (lambda->num_uses() == 1) {
-            //todo.insert(lambda);
-            //continue;
-        //}
-        if (lambda->is_bb())
-            continue;
-        if (lambda->is_returning()) {
-            if (top.find(lambda) == todo.end())
-                todo.insert(lambda);
-            continue;
-        } else {
-            todo.insert(lambda);
+    for_all (top_lambda, top) {
+        Scope scope(top_lambda);
+        for (size_t i = scope.size()-1; i != size_t(-1); --i) {
+            Lambda* lambda = scope.rpo(i);
+            if (lambda->num_uses() == 1 
+                    || (!lambda->is_bb() 
+                        && (!lambda->is_returning() || top.find(lambda) == top.end())))
+                todo.push_back(lambda);
         }
     }
 
-    std::cout << "todos: " << std::endl;
-    for_all (l, todo)
-        std::cout << l->debug << std::endl;
-    std::cout << "---" << std::endl;
-
     for_all (lambda, todo) {
+        std::cout << lambda->debug << std::endl;
         CFGBuilder builder(lambda);
         builder.transform();
-        for_all (lambda, world.lambdas()) {
-            //if (lambda->num_uses() == 1) {
-                //todo.insert(lambda);
-                //continue;
-            //}
-            if (lambda->is_bb())
-                continue;
-            if (lambda->is_returning()) {
-                if (top.find(lambda) == todo.end())
-                    todo.insert(lambda);
-                continue;
-            } else {
-                todo.insert(lambda);
-            }
-        }
     }
 }
 

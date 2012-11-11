@@ -269,7 +269,7 @@ Lambda* Dropper::drop() {
 
     const Pi* n_pi = world.pi(o_pi->elems().cut(indices))->specialize(generic_map)->as<Pi>();
     nentry = world.lambda(n_pi);
-    nentry->debug = oentry->debug + ".dropped";
+    nentry->debug = oentry->debug + ".d";
 
     // put in params for entry (oentry)
     // op -> iterates over old params
@@ -281,7 +281,7 @@ Lambda* Dropper::drop() {
             old2new[oparam] = with[i++];
         else {
             const Param* nparam = nentry->param(np++);
-            nparam->debug = oparam->debug + ".dropped";
+            nparam->debug = oparam->debug + ".d";
             old2new[oparam] = nparam;
         }
     }
@@ -289,12 +289,12 @@ Lambda* Dropper::drop() {
     // create stubs for all other lambdas and put their params into the map
     for_all (olambda, scope.rpo().slice_back(1)) {
         Lambda* nlambda = olambda->stub(generic_map);
-        nlambda->debug += ".dropped";
+        nlambda->debug += ".d";
         old2new[olambda] = nlambda;
 
         for (size_t i = 0, e = nlambda->params().size(); i != e; ++i) {
             old2new[olambda->param(i)] = nlambda->param(i);
-            nlambda->param(i)->debug += ".dropped";
+            nlambda->param(i)->debug += ".d";
         }
     }
 

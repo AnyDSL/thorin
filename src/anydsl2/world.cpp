@@ -572,8 +572,6 @@ void World::ute_insert(const Type* type) {
         ute_insert(elem);
 }
 
-
-// TODO merge code with anydsl2/analyses/unreachable_code_elimination.h
 void World::unreachable_code_elimination() {
     for_all (lambda, lambdas()) 
         lambda->unmark(); 

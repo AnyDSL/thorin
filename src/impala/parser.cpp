@@ -525,12 +525,13 @@ const Stmt* Parser::parse_while() {
     Position pos1 = eat(Token::WHILE).pos1();
     const Expr* cond = parse_cond("while statement");
 
-    WhileStmt*  new_loop = new WhileStmt();
+    ForStmt* new_loop = new ForStmt();
     IMPALA_PUSH(cur_loop_, new_loop);
         const Stmt* body = try_stmt("loop body");
     IMPALA_POP(cur_loop_);
 
-    new_loop->set(pos1, cond, body);
+    new_loop->set(pos1, cond, new EmptyExpr(pos1), body);
+    new_loop->set_empty_init(pos1);
 
     return new_loop;
 }

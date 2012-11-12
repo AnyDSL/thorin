@@ -128,11 +128,6 @@ IfElseStmt::IfElseStmt(const Position& pos1, const Expr* cond, const Stmt* thenS
     set_loc(pos1, elseStmt->pos2());
 }
 
-void WhileStmt::set(const Position& pos1, const Expr* cond, const Stmt* body) {
-    Loop::set(cond, body);
-    set_loc(pos1, body->pos2());
-}
-
 void DoWhileStmt::set(const Position& pos1, const Stmt* body, const Expr* cond, const Position& pos2) {
     Loop::set(cond, body);
     set_loc(pos1, pos2);
@@ -142,6 +137,12 @@ void ForStmt::set(const Position& pos1, const Expr* cond, const Expr* step, cons
     Loop::set(cond, body);
     step_ = step;
     set_loc(pos1, body->pos2());
+}
+
+bool ForStmt::is_while() const { 
+    if (const ExprStmt* expr_stmt = init()->isa<ExprStmt>())
+        return expr_stmt->expr()->isa<EmptyExpr>() && step()->isa<EmptyExpr>();
+    return false;
 }
 
 void ForStmt::set_empty_init(const Position& pos) {

@@ -444,18 +444,6 @@ private:
     anydsl2::AutoPtr<const Stmt> body_;
 };
 
-class WhileStmt : public Loop {
-public:
-
-    WhileStmt() {}
-        
-    void set(const anydsl2::Position& pos1, const Expr* cond, const Stmt* body);
-
-    virtual void check(Sema& sema) const;
-    virtual void vdump(Printer& p) const;
-    virtual void emit(CodeGen& cg) const;
-};
-
 class DoWhileStmt : public Loop {
 public:
 
@@ -482,6 +470,7 @@ public:
     const ExprStmt* init_expr() const { return init_expr_; }
     const Stmt* init() const { return (const Stmt*) ((uintptr_t) init_decl_.get() | (uintptr_t) init_expr_.get()); }
     const Expr* step() const { return step_; }
+    bool is_while() const;
 
     virtual void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;

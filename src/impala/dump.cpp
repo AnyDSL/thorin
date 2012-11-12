@@ -274,14 +274,6 @@ void IfElseStmt::vdump(Printer& p) const {
     }
 }
 
-void WhileStmt::vdump(Printer& p) const {
-    p << "while (";
-    cond()->vdump(p);
-    p << ") ";
-
-    p.dump_block(body());
-}
-
 void DoWhileStmt::vdump(Printer& p) const {
     p << "do ";
     p.dump_block(body());
@@ -291,17 +283,18 @@ void DoWhileStmt::vdump(Printer& p) const {
 }
 
 void ForStmt::vdump(Printer& p) const {
-    p << "for (";
-
-    init()->vdump(p);
-
-    p << ' ';
-    cond()->vdump(p);
-    p << "; ";
-
-    step()->vdump(p);
+    if (is_while()) {
+        p << "while (";
+        cond()->vdump(p);
+    } else {
+        p << "for (";
+        init()->vdump(p);
+        p << ' ';
+        cond()->vdump(p);
+        p << "; ";
+        step()->vdump(p);
+    }
     p << ") ";
-
     p.dump_block(body());
 }
 

@@ -440,11 +440,6 @@ void IfElseStmt::check(Sema& sema) const {
     elseStmt()->check(sema);
 }
 
-void WhileStmt::check(Sema& sema) const {
-    check_cond(sema, cond());
-    body()->check(sema);
-}
-
 void DoWhileStmt::check(Sema& sema) const {
     body()->check(sema);
     check_cond(sema, cond());

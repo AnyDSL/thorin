@@ -328,35 +328,6 @@ void IfElseStmt::emit(CodeGen& cg) const {
     }
 }
 
-void WhileStmt::emit(CodeGen& cg) const {
-    static int id = 0;
-    int cur_id = id++;
-
-    // create BBs
-    BB* headBB = cg.curFct->createBB(make_name("while-head", cur_id));
-    BB* bodyBB = cg.curFct->createBB(make_name("while-body", cur_id));
-    BB* nextBB = cg.curFct->createBB(make_name("while-next", cur_id));
-
-    // head
-    cg.fixto(headBB);
-    cg.curBB = headBB;
-
-    // condition
-    const Def* c = cond()->emit(cg)->load();
-    headBB->branch(c, bodyBB, nextBB);
-    bodyBB->seal();
-
-    // body
-    cg.curBB = bodyBB;
-    body()->emit(cg);
-    cg.fixto(headBB);
-    headBB->seal();
-
-    // next
-    cg.curBB = nextBB;
-    nextBB->seal();
-}
-
 void DoWhileStmt::emit(CodeGen& cg) const {
     static int id = 0;
     int cur_id = id++;

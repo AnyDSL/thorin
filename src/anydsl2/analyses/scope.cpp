@@ -1,8 +1,6 @@
 #include "anydsl2/analyses/scope.h"
 
 #include "anydsl2/lambda.h"
-
-#include "anydsl2/analyses/unreachable_code_elimination.h"
 #include "anydsl2/util/for_all.h"
 
 namespace anydsl2 {
@@ -54,29 +52,27 @@ size_t Scope::number(const LambdaSet& lambdas, Lambda* cur, size_t i) {
             i = number(lambdas, succ, i);
     }
 
-    cur->sid_ = i;
-
-    return i - 1;
+    return (cur->sid_ = i) + 1;
 }
 
 Scope::Scope(Lambda* entry) {
     lambdas_ = find_scope(entry);
-    unreachable_code_elimination(lambdas_, entry);
-    rpo_.alloc(lambdas_.size());
-    preds_.alloc(lambdas_.size());
-    succs_.alloc(lambdas_.size());
 
     for_all (lambda, lambdas_)
         lambda->invalidate_sid();
 
-#ifndef NDEBUG
-    assert(number(lambdas_, entry, size() - 1) == size_t(-1) && "bug in numbering");
-#else
-    number(lambdas_, entry, size() - 1);
-#endif
+    size_t num = number(lambdas_, entry, 0);
+
+    rpo_.alloc(num);
+    preds_.alloc(num);
+    succs_.alloc(num);
 
     for_all (lambda, lambdas_) {
-        size_t sid = lambda->sid();
+        if (lambda->sid() >= num)
+            continue; // lambda is unreachable
+
+        size_t sid = num - 1 - lambda->sid_;
+        lambda->sid_ = sid;
         rpo_[sid] = lambda;
 
         {

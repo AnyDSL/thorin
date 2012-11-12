@@ -57,9 +57,9 @@ public:
     const Decl* clash(Symbol symbol) const;
 
     /// Open a new scope.
-    void pushScope() { ++depth_; }
+    void push_scope() { ++depth_; }
     /// Discard current scope.
-    void popScope();
+    void pop_scope();
 
     bool result() const { return result_; }
 
@@ -107,12 +107,12 @@ Sema::Sema(World& world)
     , refcounter_(0)
 #endif
 {
-    pushScope();
+    push_scope();
 }
 
 Sema::~Sema() {
     assert(depth_ == 1 && "root scope must be 1");
-    popScope();
+    pop_scope();
 
 #ifndef NDEBUG
     assert(refcounter_ == 0 && "memory leak");
@@ -157,7 +157,7 @@ const Decl* Sema::clash(Symbol symbol) const {
         return 0;
 }
 
-void Sema::popScope() {
+void Sema::pop_scope() {
     assert(depth_ > 0 && "illegal depth value");
 
     Scope::iterator i = scope_.begin(); 
@@ -219,7 +219,7 @@ GenericMap Sema::fill_map() {
 }
 
 void Lambda::check(Sema& sema) const {
-    sema.pushScope();
+    sema.push_scope();
     boost::unordered_set<const Generic*> bound;
     propagate_set(pi(), bound);
     sema.bound_generics_.push_back(bound);
@@ -234,7 +234,7 @@ void Lambda::check(Sema& sema) const {
         s->check(sema);
 
     sema.bound_generics_.pop_back();
-    sema.popScope();
+    sema.pop_scope();
 }
 
 void Fct::check(Sema& sema) const {
@@ -426,7 +426,7 @@ void ExprStmt::check(Sema& sema) const {
     expr()->check(sema);
 }
 
-static bool checkCond(Sema& sema, const Expr* cond) {
+static bool check_cond(Sema& sema, const Expr* cond) {
     if (is_u1(cond->check(sema)))
         return true;
 
@@ -435,34 +435,33 @@ static bool checkCond(Sema& sema, const Expr* cond) {
 }
 
 void IfElseStmt::check(Sema& sema) const {
-    checkCond(sema, cond());
+    check_cond(sema, cond());
     thenStmt()->check(sema);
     elseStmt()->check(sema);
 }
 
 void WhileStmt::check(Sema& sema) const {
-    checkCond(sema, cond());
+    check_cond(sema, cond());
     body()->check(sema);
 }
 
 void DoWhileStmt::check(Sema& sema) const {
     body()->check(sema);
-    checkCond(sema, cond());
+    check_cond(sema, cond());
 }
 
 void ForStmt::check(Sema& sema) const {
-    sema.pushScope();
+    sema.push_scope();
     init()->check(sema);
-    checkCond(sema, cond());
+    check_cond(sema, cond());
     step()->check(sema);
 
-    if (const ScopeStmt* scope = body()->isa<ScopeStmt>()) {
-        for_all (const &s, scope->stmts())
-            s->check(sema);
-    } else
+    if (const ScopeStmt* scope = body()->isa<ScopeStmt>())
+        scope->check_stmts(sema);
+    else
         body()->check(sema);
 
-    sema.popScope();
+    sema.pop_scope();
 }
 
 void BreakStmt::check(Sema& sema) const {
@@ -501,13 +500,17 @@ void ReturnStmt::check(Sema& sema) const {
 
 void FctStmt::check(Sema& sema) const { fct()->check(sema); }
 
-void ScopeStmt::check(Sema& sema) const {
-    sema.pushScope();
 
+void ScopeStmt::check(Sema& sema) const {
+    sema.push_scope();
+    check_stmts(sema);
+    sema.pop_scope();
+}
+
+void ScopeStmt::check_stmts(Sema& sema) const {
     for_all (const &s, stmts())
         s->check(sema);
 
-    sema.popScope();
 }
 
 } // namespace impala

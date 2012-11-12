@@ -65,8 +65,10 @@ public:
     Token try_id(const std::string& what);
     const Type* try_type(const std::string& what);
     const Expr* try_expr(const std::string& what);
-    bool is_expr();
+    const Stmt* try_stmt(const std::string& what);
     bool is_type(size_t lookahead = 0);
+    bool is_expr();
+    bool is_stmt();
     const Prg* parse();
     void parse_generic_list();
     const Type* parse_type();
@@ -429,45 +431,25 @@ const ScopeStmt* Parser::parse_scope() {
     ScopeStmt* scope = new ScopeStmt();
     scope->set_pos1(la().pos1());
 
-    expect(Token::L_BRACE, "scope-statement");
+    expect(Token::L_BRACE, "scope statement");
 
     Stmts& stmts = scope->stmts_;
     Fcts& fcts = scope->fcts_;
 
     while (true) {
-        if (is_expr()) {
-            stmts.push_back(parse_stmt());
-            continue;
-        }
-
         if (la() == Token::DEF) {
             const FctStmt* fct_stmt = new FctStmt(parse_fct());
             stmts.push_back(fct_stmt);
             fcts.push_back(fct_stmt->fct());
-            continue;
-        }
-
-        switch (la()) {
-#define IMPALA_KEY_STMT(tok, t_str) case Token:: tok:
-#include "impala/tokenlist.h"
-            case Token::L_PAREN:
-            case Token::L_BRACE:  
-            case Token::ID:          stmts.push_back(parse_stmt()); continue;
-
-            case Token::END_OF_FILE:
-            case Token::R_BRACE:
-                scope->set_pos2(la().pos2());
-                expect(Token::R_BRACE, "scope-statement");
-                return scope;
-
-            // consume token nobody wants to have in order to prevent infinite loop
-            default:
-                error("statement", "statement list");
-                scope->set_pos2(prev_loc_.pos2());
-                lex(); 
-                return scope;
-        }
+        } else if (is_stmt())
+            stmts.push_back(parse_stmt());
+        else
+            break;
     }
+
+    expect(Token::R_BRACE, "scope statement");
+
+    return scope;
 }
 
 /*
@@ -532,20 +514,20 @@ const DeclStmt* Parser::parse_decl_stmt() {
 
 const Stmt* Parser::parse_if_else() {
     Position pos1 = eat(Token::IF).pos1();
-    const Expr* cond = parse_cond("if-statement");
-    const Stmt* ifStmt = parse_stmt();
-    const Stmt* elseStmt = accept(Token::ELSE) ? parse_stmt() : new ScopeStmt(prev_loc_);
+    const Expr* cond = parse_cond("if statement");
+    const Stmt* ifStmt = try_stmt("if clause");
+    const Stmt* elseStmt = accept(Token::ELSE) ? try_stmt("else clause") : new ScopeStmt(prev_loc_);
 
     return new IfElseStmt(pos1, cond, ifStmt, elseStmt);
 }
 
 const Stmt* Parser::parse_while() {
     Position pos1 = eat(Token::WHILE).pos1();
-    const Expr* cond = parse_cond("while-statement");
+    const Expr* cond = parse_cond("while statement");
 
     WhileStmt*  new_loop = new WhileStmt();
     IMPALA_PUSH(cur_loop_, new_loop);
-        const Stmt* body = parse_stmt();
+        const Stmt* body = try_stmt("loop body");
     IMPALA_POP(cur_loop_);
 
     new_loop->set(pos1, cond, body);
@@ -558,7 +540,7 @@ const Stmt* Parser::parse_do_while() {
 
     DoWhileStmt* new_loop = new DoWhileStmt();
     IMPALA_PUSH(cur_loop_, new_loop);
-        const Stmt* body = parse_stmt();
+    const Stmt* body = try_stmt("loop body");
     IMPALA_POP(cur_loop_);
 
     expect(Token::WHILE, "do-while-statement");
@@ -580,14 +562,12 @@ const Stmt* Parser::parse_for() {
     // clause 1: decl or expr_opt ';'
     if (la2() == Token::COLON)
         new_loop->set(parse_decl_stmt());
-    else if (accept(Token::SEMICOLON)) { 
-        // do nothing: no expr given, semicolon consumed
-    } else if (is_expr()) {
+    else if (is_expr())
         new_loop->set(parse_expr_stmt());
-    } else {
-        error("expression or delcaration-statement", 
-                "first clause in for-statement");
-        new_loop->set(new ExprStmt(new EmptyExpr(prev_loc_), prev_loc_.pos2()));
+    else  {
+        if (!accept(Token::SEMICOLON))
+            error("expression or delcaration-statement", "first clause in for-statement");
+        new_loop->set_empty_init(prev_loc_.pos2());
     }
 
     // clause 2: expr_opt ';'
@@ -619,7 +599,7 @@ const Stmt* Parser::parse_for() {
         inc = new EmptyExpr(prev_loc_);
     }
 
-    const Stmt* body = parse_stmt();
+    const Stmt* body = try_stmt("loop body");
     new_loop->set(pos1, cond, inc, body);
     IMPALA_POP(cur_loop_);
 
@@ -663,24 +643,6 @@ const Expr* Parser::parse_cond(const std::string& what) {
     return cond;
 }
 
-bool Parser::is_expr() {
-    // identifier without a succeeding colon which is not a generic
-    if (la() == Token::ID && la2() != Token::COLON && !generic_lookup(la().symbol()))
-        return true;
-
-    switch (la()) {
-#define IMPALA_PREFIX(tok, t_str, r) case Token:: tok:
-#define IMPALA_KEY_EXPR(tok, t_str)  case Token:: tok:
-#define IMPALA_LIT(itype, atype)     case Token:: LIT_##itype:
-#include "impala/tokenlist.h"
-        case Token::HASH:
-        case Token::L_PAREN:
-            return true;
-        default:
-            return false;
-    }
-}
-
 bool Parser::is_type(size_t lookahead) {
     if (la(lookahead) == Token::ID && generic_lookup(la().symbol()))
         return true;
@@ -701,17 +663,37 @@ bool Parser::is_type(size_t lookahead) {
     }
 }
 
-const Expr* Parser::try_expr(const std::string& what) {
-    const Expr* expr;
-    if (is_expr())
-        expr = parse_expr();
-    else {
-        error("expression", what);
-        expr = new EmptyExpr(prev_loc_);
-        lex(); // eat away erroneous token
-    }
+bool Parser::is_expr() {
+    // identifier without a succeeding colon which is not a generic
+    if (la() == Token::ID && la2() != Token::COLON && !generic_lookup(la().symbol()))
+        return true;
 
-    return expr;
+    switch (la()) {
+#define IMPALA_PREFIX(tok, t_str, r) case Token:: tok:
+#define IMPALA_KEY_EXPR(tok, t_str)  case Token:: tok:
+#define IMPALA_LIT(itype, atype)     case Token:: LIT_##itype:
+#include "impala/tokenlist.h"
+        case Token::HASH:
+        case Token::L_PAREN:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool Parser::is_stmt() {
+    if (is_expr())
+        return true;
+
+    switch (la()) {
+#define IMPALA_KEY_STMT(tok, t_str) case Token:: tok:
+#include "impala/tokenlist.h"
+        case Token::L_BRACE:  
+        case Token::ID:
+            return true;
+        default:
+            return false;
+    }
 }
 
 const Type* Parser::try_type(const std::string& what) {
@@ -725,6 +707,32 @@ const Type* Parser::try_type(const std::string& what) {
     }
 
     return type;
+}
+
+const Expr* Parser::try_expr(const std::string& what) {
+    const Expr* expr;
+    if (is_expr())
+        expr = parse_expr();
+    else {
+        error("expression", what);
+        expr = new EmptyExpr(prev_loc_);
+        lex(); // eat away erroneous token
+    }
+
+    return expr;
+}
+
+const Stmt* Parser::try_stmt(const std::string& what) {
+    const Stmt* stmt;
+    if (is_stmt())
+        stmt = parse_stmt();
+    else {
+        error("statement", what);
+        stmt = new ExprStmt(new EmptyExpr(prev_loc_), prev_loc_.pos2());
+        lex(); // eat away erroneous token
+    }
+
+    return stmt;
 }
 
 /*

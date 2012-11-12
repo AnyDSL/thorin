@@ -472,18 +472,16 @@ class ForStmt : public Loop {
 public:
 
     ForStmt() {}
-    virtual ~ForStmt();
 
     void set(const anydsl2::Position& pos1, const Expr* cond, const Expr* step, const Stmt* body);
-    void set(const DeclStmt* d) { initDecl_ = d; isDecl_ = true; }
-    void set(const ExprStmt* e) { initExpr_ = e; isDecl_ = false; }
+    void set(const DeclStmt* d) { init_decl_ = d; }
+    void set(const ExprStmt* e) { init_expr_ = e; }
+    void set_empty_init(const anydsl2::Position& pos);
 
-    const DeclStmt* initDecl() const { return initDecl_; }
-    const ExprStmt* initExpr() const { return initExpr_; }
-    const Stmt* init() const { return isDecl_ ? (const Stmt*) initDecl_ : (const Stmt*) initExpr_; }
+    const DeclStmt* init_decl() const { return init_decl_; }
+    const ExprStmt* init_expr() const { return init_expr_; }
+    const Stmt* init() const { return (const Stmt*) ((uintptr_t) init_decl_.get() | (uintptr_t) init_expr_.get()); }
     const Expr* step() const { return step_; }
-
-    bool isDecl() const { return isDecl_; }
 
     virtual void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
@@ -491,13 +489,9 @@ public:
 
 private:
 
-    union {
-        const DeclStmt* initDecl_;
-        const ExprStmt* initExpr_;
-    };
-
+    anydsl2::AutoPtr<const DeclStmt> init_decl_;
+    anydsl2::AutoPtr<const ExprStmt> init_expr_;
     anydsl2::AutoPtr<const Expr> step_;
-    bool isDecl_;
 };
 
 class BreakStmt : public Stmt {
@@ -577,6 +571,7 @@ public:
 
     const Stmts& stmts() const { return stmts_; }
     const Fcts& fcts() const { return fcts_; }
+    void check_stmts(Sema& sema) const;
 
     virtual bool empty() const { return stmts_.empty(); }
     virtual void check(Sema& sema) const;

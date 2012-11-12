@@ -138,17 +138,14 @@ void DoWhileStmt::set(const Position& pos1, const Stmt* body, const Expr* cond, 
     set_loc(pos1, pos2);
 }
 
-ForStmt::~ForStmt() {
-    if (isDecl())
-        delete initDecl_;
-    else
-        delete initExpr_;
-}
-
 void ForStmt::set(const Position& pos1, const Expr* cond, const Expr* step, const Stmt* body) {
     Loop::set(cond, body);
     step_ = step;
     set_loc(pos1, body->pos2());
+}
+
+void ForStmt::set_empty_init(const Position& pos) {
+    set(new ExprStmt(new EmptyExpr(pos), pos));
 }
 
 BreakStmt::BreakStmt(const Position& pos1, const Position& pos2, const Loop* loop) 

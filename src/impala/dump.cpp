@@ -293,10 +293,7 @@ void DoWhileStmt::vdump(Printer& p) const {
 void ForStmt::vdump(Printer& p) const {
     p << "for (";
 
-    if (isDecl())
-        initDecl()->vdump(p);
-    else
-        initExpr()->vdump(p);
+    init()->vdump(p);
 
     p << ' ';
     cond()->vdump(p);

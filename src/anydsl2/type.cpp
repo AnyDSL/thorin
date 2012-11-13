@@ -94,11 +94,12 @@ bool Type::infer_with(GenericMap& map, const Type* other) const {
             return mapped == other;
     }
 
-    bool result = true;
-    for (size_t i = 0; i < num_elems && result; ++i)
-        result &= this->elem(i)->infer_with(map, other->elem(i));
+    for (size_t i = 0; i < num_elems; ++i) {
+        if (!this->elem(i)->infer_with(map, other->elem(i)))
+            return false;
+    }
 
-    return result;
+    return true;
 }
 
 const Type* Type::specialize(const GenericMap& generic_map) const {

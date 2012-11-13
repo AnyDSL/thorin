@@ -39,9 +39,8 @@ const Pi* Lambda::to_pi() const { return to()->type()->as<Pi>(); }
 
 const Pi* Lambda::arg_pi() const {
     Array<const Type*> elems(num_args());
-    size_t i = 0;
-    for_all (arg, args()) 
-        elems[i++] = arg->type();
+    for_all2 (&elem, elems, arg, args())
+        elem = arg->type();
 
     return world().pi(elems);
 }
@@ -259,14 +258,6 @@ Lambda* Lambda::drop(ArrayRef<size_t> indices, ArrayRef<const Def*> with,
 Lambda* Dropper::drop() {
     oentry = scope.entry();
     const Pi* o_pi = oentry->pi();
-
-    Array<const Type*> elems = o_pi->elems().cut(indices);
-    for_all (&elem, elems) {
-        if (const Generic* generic = elem->isa<Generic>())
-            if (const Type* substitute = generic_map[generic])
-                elem = substitute;
-    }
-
     const Pi* n_pi = world.pi(o_pi->elems().cut(indices))->specialize(generic_map)->as<Pi>();
     nentry = world.lambda(n_pi);
     nentry->debug = oentry->debug + ".d";

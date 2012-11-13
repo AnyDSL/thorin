@@ -2,8 +2,6 @@ def range_xy[[L]](l : L,
                   xn : int, yn : int,
                   body : pi(L, int, int) -> L) -> L
 {
-    x : int = 1;
-    y : int = 2;
     for (y : int = 0; y < yn; ++y)
         for (x : int = 0; x < xn; ++x)
             l = body(l, x, y);

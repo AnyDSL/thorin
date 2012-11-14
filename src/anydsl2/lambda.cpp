@@ -346,11 +346,10 @@ const Def* Dropper::drop(bool& is_new, const Def* odef) {
     const PrimOp* oprimop = odef->as<PrimOp>();
 
     Array<const Def*> nops(oprimop->size());
-    size_t i = 0;
     is_new = false;
-    for_all (op, oprimop->ops()) {
+    for_all2 (&nop, nops, op, oprimop->ops()) {
         bool op_is_new;
-        nops[i++] = drop(op_is_new, op);
+        nop = drop(op_is_new, op);
         is_new |= op_is_new;
     }
 

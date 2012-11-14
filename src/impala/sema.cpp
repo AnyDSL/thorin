@@ -268,10 +268,8 @@ const Type* LambdaExpr::vcheck(Sema& sema) const {
 
 const Type* Tuple::vcheck(Sema& sema) const {
     Array<const Type*> elems(ops().size());
-
-    size_t i = 0;
-    for_all (op, ops())
-        elems[i++] = op->check(sema);
+    for_all2 (&elem, elems, op, ops())
+        elem = op->check(sema);
 
     return sema.world.sigma(elems);
 }
@@ -505,7 +503,6 @@ void ScopeStmt::check(Sema& sema) const {
 void ScopeStmt::check_stmts(Sema& sema) const {
     for_all (const &s, stmts())
         s->check(sema);
-
 }
 
 } // namespace impala

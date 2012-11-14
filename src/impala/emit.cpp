@@ -63,14 +63,13 @@ void emit(World& world, const Prg* prg) {
 
 anydsl2::Fct* CodeGen::create_fct(const Lambda& lambda, Symbol symbol) {
     size_t size = lambda.params().size();
-    Array<Symbol> sparams(size);
+    Array<Symbol> symbols(size);
 
-    size_t i = 0;
-    for_all (param, lambda.params())
-        sparams[i++] = param->symbol();
+    for_all2 (&sym, symbols, param, lambda.params())
+        sym = param->symbol();
 
     size_t return_index = return_type(lambda.pi())->isa<NoRet>() ? size_t(-1) : lambda.pi()->size()-1;
-    return lambda.air_fct_ = new anydsl2::Fct(world, lambda.pi(), sparams, return_index, symbol.str());
+    return lambda.air_fct_ = new anydsl2::Fct(world, lambda.pi(), symbols, return_index, symbol.str());
 }
 
 void Prg::emit(CodeGen& cg) const {
@@ -138,13 +137,11 @@ Var* Decl::emit(CodeGen& cg) const {
  */
 
 Array<const Def*> Expr::emit_ops(CodeGen& cg) const {
-    Array<const Def*> ops(ops_.size());
+    Array<const Def*> defs(ops_.size());
+    for_all2 (&def, defs, op, ops())
+        def = op->emit(cg)->load();
 
-    size_t i = 0;
-    for_all (op, ops_)
-        ops[i++] = op->emit(cg)->load();
-
-    return ops;
+    return defs;
 }
 
 RefPtr EmptyExpr::emit(CodeGen& cg) const { 

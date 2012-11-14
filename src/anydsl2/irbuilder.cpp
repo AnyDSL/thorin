@@ -253,12 +253,8 @@ Fct::Fct(World& world, const Pi* pi, ArrayRef<Symbol> symbols,
     top_->debug = debug;
     ret_ = (return_index != size_t(-1) ? top()->param(return_index) : 0);
 
-    size_t i = 0;
-    for_all (param, top_->params()) {
-        Symbol sym = symbols[i++];
-        insert(sym, param);
-        param->debug = sym.str();
-    }
+    for_all2 (param, top_->params(), sym, symbols)
+        param->debug = insert(sym, param)->symobl().str();
 }
 
 Fct::~Fct() {

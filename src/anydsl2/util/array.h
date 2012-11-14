@@ -118,6 +118,15 @@ public:
         std::memcpy(ptr_, array.ptr_, size() * sizeof(T));
     }
 
+    template<class C>
+    Array(const C& container)
+        : ptr_(new T[container.size()])
+        , size_(container.size())
+    {
+        typename C::const_iterator it = container.begin();
+        for (size_t i = 0, e = size_; i != e; ++i, ++it)
+            ptr_[i] = *it;
+    }
     ~Array() { delete[] ptr_; }
 
     void alloc(size_t size) {

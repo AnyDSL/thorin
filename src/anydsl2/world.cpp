@@ -119,10 +119,9 @@ const Def* World::binop(int kind, const Def* lhs, const Def* rhs) {
 const Def* World::tuple(ArrayRef<const Def*> args) {
     Array<const Type*> elems(args.size());
 
-    size_t i = 0;
     bool bot = false;
-    for_all (arg, args) {
-        elems[i++] = arg->type();
+    for_all2 (&elem, elems, arg, args) {
+        elem = arg->type();
 
         if (arg->isa<Bottom>())
             bot = true;
@@ -601,8 +600,8 @@ void World::uce_insert(Lambda* lambda) {
 }
 
 void World::cleanup() {
-    dead_code_elimination();
     unreachable_code_elimination();
+    dead_code_elimination();
     unused_type_elimination();
 }
 

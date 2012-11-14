@@ -30,12 +30,6 @@ template<class T> llvm::ArrayRef<T> llvm_ref(const Array<T>& array) {
     return llvm::ArrayRef<T>(array.begin(), array.end());
 }
 
-#define anydsl_zip(in, out, f) { \
-    size_t i = 0; \
-    for_all (a, in) \
-        out[i++] = f(a); \
-}
-
 //------------------------------------------------------------------------------
 
 typedef boost::unordered_map<Lambda*, llvm::Function*> FctMap;
@@ -147,7 +141,8 @@ void CodeGen::emit() {
                 else {
                     // put all first-order args into an array
                     Array<llvm::Value*> args(lambda->args().size() - 1);
-                    anydsl_zip(lambda->fo_args(), args, lookup);
+                    for_all2 (&arg, args, fo_arg, lambda->fo_args())
+                        arg = lookup(fo_arg);
                     llvm::CallInst* call = builder_.CreateCall(fcts[tolambda], llvm_ref(args));
                     
                     const Def* ho_arg = lambda->ho_args().front();
@@ -370,7 +365,8 @@ llvm::Type* CodeGen::map(const Type* type) {
                         ret = map(pi->elem(0));
                     else {
                         Array<llvm::Type*> elems(pi->size());
-                        anydsl_zip(pi->elems(), elems, map);
+                        for_all2 (&elem, elems, pi_elem, pi->elems())
+                            elem = map(pi_elem);
                         ret = llvm::StructType::get(context_, llvm_ref(elems));
                     }
                 } else
@@ -385,7 +381,8 @@ llvm::Type* CodeGen::map(const Type* type) {
             // TODO watch out for cycles!
             const Sigma* sigma = type->as<Sigma>();
             Array<llvm::Type*> elems(sigma->elems().size());
-            anydsl_zip(sigma->elems(), elems, map);
+            for_all2 (&elem, elems, sigma_elem, sigma->elems())
+                elem = map(sigma_elem);
 
             return llvm::StructType::get(context_, llvm_ref(elems));
         }

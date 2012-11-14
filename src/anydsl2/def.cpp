@@ -81,7 +81,6 @@ void Def::update(ArrayRef<const Def*> defs) {
 Array<Use> Def::copy_uses() const {
     Array<Use> result(uses().size());
     std::copy(uses().begin(), uses().end(), result.begin());
-
     return result;
 }
 
@@ -176,10 +175,8 @@ Peeks Param::peek() const {
     Lambda* l = lambda();
     LambdaSet preds = l->direct_preds();
     Peeks result(preds.size());
-
-    size_t i = 0;
-    for_all (pred, preds)
-        result[i++] = Peek(pred->arg(x), pred);
+    for_all2 (&res, result, pred, preds)
+        res = Peek(pred->arg(x), pred);
 
     return result;
 }

@@ -67,6 +67,7 @@ Scope::Scope(Lambda* entry) {
     preds_.alloc(num);
     succs_.alloc(num);
 
+    // remove unreachable lambdas from set and fix numbering
     for (LambdaSet::iterator i = lambdas_.begin(); i != lambdas_.end();) {
         LambdaSet::iterator j = i++;
         Lambda* lambda = *j;
@@ -75,8 +76,11 @@ Scope::Scope(Lambda* entry) {
             continue; 
         }
 
-        size_t sid = num - 1 - lambda->sid_;
-        lambda->sid_ = sid;
+        lambda->sid_ = num - 1 - lambda->sid_;
+    }
+
+    for_all (lambda, lambdas_) {
+        size_t sid = lambda->sid();
         rpo_[sid] = lambda;
 
         {

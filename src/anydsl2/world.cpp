@@ -41,6 +41,7 @@ World::World()
     : primops_(1031)
     , types_(1031)
     , gid_counter_(0)
+    , pass_counter_(1)
     , sigma0_ (consume(new Sigma(*this, ArrayRef<const Type*>()))->as<Sigma>())
     , pi0_    (consume(new Pi   (*this, ArrayRef<const Type*>()))->as<Pi>())
     , mem_    (consume(new Mem  (*this))->as<Mem>())
@@ -464,32 +465,25 @@ const Def* World::primop(const PrimOp* in, ArrayRef<const Def*> ops) {
  */
 
 void World::dead_code_elimination() {
-    for_all (lambda, lambdas()) {
-        lambda->unmark(); 
-        for_all (param, lambda->params())
-            param->unmark();
-    }
-
-    for_all (primop, primops()) 
-        primop->unmark(); 
+    size_t pass = new_pass();
 
     for_all (primop, primops()) {
         if (const TypeKeeper* tk = primop->isa<TypeKeeper>())
-            dce_insert(tk);
+            dce_insert(pass, tk);
     }
 
     for_all (lambda, lambdas()) {
         if (lambda->is_extern()) {
             for_all (param, lambda->ho_params()) {
                 for_all (use, param->uses())
-                    dce_insert(use.def());
+                    dce_insert(pass, use.def());
             }
         }
     }
 
     for (PrimOpSet::iterator i = primops_.begin(); i != primops_.end();) {
         const PrimOp* primop = *i;
-        if (primop->is_marked()) 
+        if (primop->is_visited(pass))
             ++i;
         else {
             delete primop;
@@ -500,59 +494,57 @@ void World::dead_code_elimination() {
     for (LambdaSet::iterator i = lambdas_.begin(); i != lambdas_.end();) {
         LambdaSet::iterator j = i++;
         Lambda* lambda = *j;
-        if (!lambda->is_marked()) {
+        if (!lambda->is_visited(pass)) {
             delete lambda;
             lambdas_.erase(j);
         }
     }
 }
 
-void World::dce_insert(const Def* def) {
+void World::dce_insert(size_t pass, const Def* def) {
 #ifndef NDEBUG
     if (const PrimOp* primop = def->isa<PrimOp>()) assert(primops_.find(primop)          != primops_.end());
     if (      Lambda* lambda = def->isa_lambda() ) assert(lambdas_.find(lambda)          != lambdas_.end());
     if (const Param*  param  = def->isa<Param>() ) assert(lambdas_.find(param->lambda()) != lambdas_.end());
 #endif
 
-    if (def->is_marked()) return;
-    def->mark();
+    if (def->visit(pass)) return;
 
     for_all (op, def->ops())
-        dce_insert(op);
+        dce_insert(pass, op);
 
     if (Lambda* lambda = def->isa_lambda()) {
         // insert control-dependent lambdas
         for_all (pred, lambda->preds())
-            dce_insert(pred);
+            dce_insert(pass, pred);
     } else if (const Param* param = def->isa<Param>()) {
         for_all (peek, param->peek()) {
-            dce_insert(peek.def());
-            dce_insert(peek.from());
+            dce_insert(pass, peek.def());
+            dce_insert(pass, peek.from());
         }
 
         // always consider all params in the same lambda as live
         for_all (other, param->lambda()->params())
-            dce_insert(other);
+            dce_insert(pass, other);
     }
 }
 
 void World::unused_type_elimination() {
-    for_all (type, types()) 
-        type->unmark(); 
+    size_t pass = new_pass();
 
     for_all (primop, primops())
-        ute_insert(primop->type());
+        ute_insert(pass, primop->type());
 
     for_all (lambda, lambdas()) {
-        ute_insert(lambda->type());
+        ute_insert(pass, lambda->type());
         for_all (param, lambda->params())
-            ute_insert(param->type());
+            ute_insert(pass, param->type());
     }
 
     for (TypeSet::iterator i = types_.begin(); i != types_.end();) {
         const Type* type = *i;
 
-        if (type->is_marked())
+        if (type->is_visited(pass))
             ++i;
         else {
             delete type;
@@ -561,42 +553,39 @@ void World::unused_type_elimination() {
     }
 }
 
-void World::ute_insert(const Type* type) {
+void World::ute_insert(size_t pass, const Type* type) {
     assert(types_.find(type) != types_.end() && "not in map");
 
-    if (type->is_marked()) return;
-    type->mark();
+    if (type->visit(pass)) return;
 
     for_all (elem, type->elems())
-        ute_insert(elem);
+        ute_insert(pass, elem);
 }
 
 void World::unreachable_code_elimination() {
-    for_all (lambda, lambdas()) 
-        lambda->unmark(); 
+    size_t pass = new_pass();
 
     for_all (lambda, lambdas())
         if (lambda->is_extern())
-            uce_insert(lambda);
+            uce_insert(pass, lambda);
 
     for (LambdaSet::iterator i = lambdas_.begin(); i != lambdas_.end();) {
         LambdaSet::iterator j = i++;
         Lambda* lambda = *j;
-        if (!lambda->is_marked()) {
+        if (!lambda->is_visited(pass)) {
             delete lambda;
             lambdas_.erase(j);
         }
     }
 }
 
-void World::uce_insert(Lambda* lambda) {
+void World::uce_insert(size_t pass, Lambda* lambda) {
     assert(lambdas_.find(lambda) != lambdas_.end() && "not in map");
 
-    if (lambda->is_marked()) return;
-    lambda->mark();
+    if (lambda->visit(pass)) return;
 
     for_all (succ, lambda->succs())
-        uce_insert(succ);
+        uce_insert(pass, succ);
 }
 
 void World::cleanup() {

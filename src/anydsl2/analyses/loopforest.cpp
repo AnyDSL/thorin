@@ -8,6 +8,7 @@
 
 namespace anydsl2 {
 
+#if 0
 static void on_stack(Lambda* lambda) { lambda->mark(); }
 static void not_on_stack(Lambda* lambda) { lambda->unmark(); }
 static bool is_on_stack(Lambda* lambda) { return lambda->is_marked(); }
@@ -80,5 +81,6 @@ void LoopForest::walk_scc(Lambda* cur) {
         std::cout << "---" << std::endl;
     }
 }
+#endif
 
 } // namespace anydsl2

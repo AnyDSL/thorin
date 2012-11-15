@@ -1,6 +1,8 @@
 #ifndef ANYDSL2_NODE_H
 #define ANYDSL2_NODE_H
 
+#include <cassert>
+
 #include "anydsl2/enums.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/cast.h"
@@ -19,15 +21,18 @@ protected:
     /// This variant leaves internal \p ops_ \p Array allocateble via ops_.alloc(size).
     Node(int kind) 
         : kind_(kind) 
+        , cur_pass_(0)
     {}
     Node(int kind, size_t size)
         : kind_(kind)
         , ops_(size)
+        , cur_pass_(0)
     {}
     Node(const Node& node)
         : debug(node.debug)
         , kind_(node.kind())
         , ops_(node.ops_.size())
+        , cur_pass_(0)
     {}
     virtual ~Node() {}
 
@@ -80,15 +85,22 @@ public:
      * scratch operations
      */
 
-    void mark() const { marker_ = true; }
-    void unmark() const { marker_ = false; }
-    bool is_marked() const { return marker_; }
+    size_t cur_pass() const { return cur_pass_; }
+    bool visit(size_t pass) const { 
+        assert(cur_pass_ <= pass); 
+        if (cur_pass_ != pass) { 
+            cur_pass_ = pass; 
+            return false; 
+        } 
+        return true; 
+    }
+    bool is_visited(size_t pass) const { assert(cur_pass_ <= pass); return cur_pass_ == pass; }
 
 private:
 
     int kind_;
     Array<const Node*> ops_;
-    mutable bool marker_;
+    mutable size_t cur_pass_;
 
     friend class World;
     friend class NodeHash;

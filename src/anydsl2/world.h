@@ -251,18 +251,20 @@ public:
     const PrimOp* consume(const PrimOp* primop);
     const Type* consume(const Type* def);
     PrimOp* release(const PrimOp* primop);
+    size_t new_pass() { return pass_counter_++; }
 
 private:
 
-    void dce_insert(const Def* def);
-    void ute_insert(const Type* type);
-    void uce_insert(Lambda* lambda);
+    void dce_insert(size_t pass, const Def* def);
+    void ute_insert(size_t pass, const Type* type);
+    void uce_insert(size_t pass, Lambda* lambda);
 
     PrimOpSet primops_;
     LambdaSet lambdas_;
     TypeSet types_;
 
     size_t gid_counter_;
+    size_t pass_counter_;
     const Sigma* sigma0_;///< sigma().
     const Pi* pi0_;      ///< pi().
     const Mem* mem_;

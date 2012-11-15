@@ -46,6 +46,7 @@ private:
     Array<Number> numbers_;
     size_t counter_;
     std::vector<Lambda*> stack_;
+    size_t pass_;
     //LambdaSet ignore_;
 };
 

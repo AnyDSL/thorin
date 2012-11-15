@@ -224,6 +224,7 @@ public:
         , with(with)
         , generic_map(generic_map)
         , world(olambda->world())
+        , pass(world.new_pass())
         , self(self)
     {}
 
@@ -232,15 +233,25 @@ public:
     const Def* drop(const Def* odef);
     const Def* drop(bool& is_new, const Def* odef);
 
+    const Def* map(const Def* def, const Def* to) {
+        def->visit(pass);
+        def->cptr = to;
+        return to;
+    }
+    const Def* lookup(const Def* def) {
+        assert(def->is_visited(pass));
+        return (const Def*) def->cptr;
+    }
+
     Scope scope;
     ArrayRef<size_t> indices;
     ArrayRef<const Def*> with;
     GenericMap generic_map;
     World& world;
+    size_t pass;
     bool self;
     Lambda* nentry;
     Lambda* oentry;
-    Old2New old2new;
     Cached cached;
 };
 
@@ -269,11 +280,11 @@ Lambda* Dropper::drop() {
     for (size_t op = 0, np = 0, i = 0, e = o_pi->size(); op != e; ++op) {
         const Param* oparam = oentry->param(op);
         if (i < indices.size() && indices[i] == op)
-            old2new[oparam] = with[i++];
+            map(oparam, with[i++]);
         else {
             const Param* nparam = nentry->param(np++);
             nparam->debug = oparam->debug + ".d";
-            old2new[oparam] = nparam;
+            map(oparam, nparam);
         }
     }
 
@@ -281,10 +292,10 @@ Lambda* Dropper::drop() {
     for_all (olambda, scope.rpo().slice_back(1)) {
         Lambda* nlambda = olambda->stub(generic_map);
         nlambda->debug += ".d";
-        old2new[olambda] = nlambda;
+        map(olambda, nlambda);
 
         for (size_t i = 0, e = nlambda->params().size(); i != e; ++i) {
-            old2new[olambda->param(i)] = nlambda->param(i);
+            map(olambda->param(i), nlambda->param(i));
             nlambda->param(i)->debug += ".d";
         }
     }
@@ -292,7 +303,7 @@ Lambda* Dropper::drop() {
     drop_body(oentry, nentry);
 
     for_all (cur, scope.rpo().slice_back(1))
-        drop_body(cur, old2new[cur]->as_lambda());
+        drop_body(cur, lookup(cur)->as_lambda());
 
     return nentry;
 }
@@ -324,10 +335,9 @@ const Def* Dropper::drop(const Def* odef) {
 }
 
 const Def* Dropper::drop(bool& is_new, const Def* odef) {
-    Old2New::iterator o_iter = old2new.find(odef);
-    if (o_iter != old2new.end()) {
+    if (odef->is_visited(pass)) {
         is_new = true;
-        return o_iter->second;
+        return lookup(odef);
     }
 
     Cached::iterator c_iter = cached.find(odef);
@@ -354,7 +364,7 @@ const Def* Dropper::drop(bool& is_new, const Def* odef) {
     }
 
     if (is_new)
-        return old2new[oprimop] = world.primop(oprimop, nops);
+        return map(oprimop, world.primop(oprimop, nops));
 
     cached.insert(oprimop);
     return odef;

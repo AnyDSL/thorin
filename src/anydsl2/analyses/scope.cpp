@@ -106,6 +106,7 @@ Scope::Scope(Lambda* entry) {
     }
 
     assert(rpo_[0] == entry && "bug in numbering");
+    assert(rpo_.size() == lambdas_.size());
 }
 
 const Scope::Lambdas& Scope::preds(Lambda* lambda) const {

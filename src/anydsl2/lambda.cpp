@@ -227,8 +227,10 @@ public:
 
     Lambda* drop();
     void drop_body(Lambda* olambda, Lambda* nlambda);
+    Lambda* drop_head(Lambda* olambda);
     const Def* drop(const Def* odef);
     const Def* map(const Def* def, const Def* to) {
+        assert(!def->is_visited(pass));
         def->visit(pass);
         def->cptr = to;
         return to;
@@ -282,24 +284,36 @@ Lambda* Dropper::drop() {
         }
     }
 
-    // create stubs for all other lambdas and put their params into the map
-    for_all (olambda, scope.rpo().slice_back(1)) {
-        Lambda* nlambda = olambda->stub(generic_map);
-        nlambda->debug += ".d";
-        map(olambda, nlambda);
+    map(oentry, oentry);
 
-        for (size_t i = 0, e = nlambda->params().size(); i != e; ++i) {
-            map(olambda->param(i), nlambda->param(i));
-            nlambda->param(i)->debug += ".d";
-        }
-    }
+    // create stubs for all other lambdas and put their params into the map
+    //for_all (olambda, scope.rpo().slice_back(1)) {
+        //drop_head(olambda);
+    //}
 
     drop_body(oentry, nentry);
 
-    for_all (cur, scope.rpo().slice_back(1))
+    for_all (cur, scope.rpo().slice_back(1)) {
+        if (!cur->is_visited(pass))
+            drop_head(cur);
         drop_body(cur, lookup(cur)->as_lambda());
+    }
 
     return nentry;
+}
+
+Lambda* Dropper::drop_head(Lambda* olambda) {
+    assert(!olambda->is_visited(pass));
+    Lambda* nlambda = olambda->stub(generic_map);
+    nlambda->debug += ".d";
+    map(olambda, nlambda);
+
+    for (size_t i = 0, e = nlambda->params().size(); i != e; ++i) {
+        map(olambda->param(i), nlambda->param(i));
+        nlambda->param(i)->debug += ".d";
+    }
+
+    return nlambda;
 }
 
 void Dropper::drop_body(Lambda* olambda, Lambda* nlambda) {
@@ -327,8 +341,15 @@ const Def* Dropper::drop(const Def* odef) {
     if (odef->is_visited(pass))
         return lookup(odef);
 
-    if (odef->isa<Lambda>() || odef->isa<Param>())
+    if (Lambda* olambda = odef->isa_lambda()) {
+        if (scope.contains(olambda)) {
+            assert(scope.lambdas().size() == scope.rpo().size());
+            return drop_head(olambda);
+        } else
+            return map(odef, odef);
+    } else if (odef->isa<Param>()) {
         return map(odef, odef);
+    }
 
     bool is_new = false;
     const PrimOp* oprimop = odef->as<PrimOp>();

@@ -230,9 +230,8 @@ public:
 
     Lambda* drop();
     void drop_body(Lambda* olambda, Lambda* nlambda);
-    const Def* drop(const Def* odef);
+    const Def* drop(const Def* odef) { bool ignore; return drop(ignore, odef); }
     const Def* drop(bool& is_new, const Def* odef);
-
     const Def* map(const Def* def, const Def* to) {
         def->visit(pass);
         def->cptr = to;
@@ -249,10 +248,9 @@ public:
     GenericMap generic_map;
     World& world;
     size_t pass;
-    bool self;
     Lambda* nentry;
     Lambda* oentry;
-    Cached cached;
+    bool self;
 };
 
 Lambda* Lambda::drop(ArrayRef<size_t> indices, ArrayRef<const Def*> with, bool self) {
@@ -329,45 +327,26 @@ void Dropper::drop_body(Lambda* olambda, Lambda* nlambda) {
     nlambda->jump(ntarget, nargs);
 }
 
-const Def* Dropper::drop(const Def* odef) {
-    bool ignore;
-    return drop(ignore, odef);
-}
-
 const Def* Dropper::drop(bool& is_new, const Def* odef) {
     if (odef->is_visited(pass)) {
-        is_new = true;
-        return lookup(odef);
+        const Def* ndef = lookup(odef);
+        is_new = ndef != odef;
+        return ndef;
     }
 
-    Cached::iterator c_iter = cached.find(odef);
-    if (c_iter != cached.end()) {
-        assert(odef == *c_iter);
-        is_new = false;
-        return odef;
-    }
-
-    if (odef->isa<Lambda>() || odef->isa<Param>()) {
-        cached.insert(odef);
-        is_new = false;
-        return odef;
-    }
+    is_new = false;
+    if (odef->isa<Lambda>() || odef->isa<Param>())
+        return map(odef, odef);
 
     const PrimOp* oprimop = odef->as<PrimOp>();
-
     Array<const Def*> nops(oprimop->size());
-    is_new = false;
     for_all2 (&nop, nops, op, oprimop->ops()) {
         bool op_is_new;
         nop = drop(op_is_new, op);
         is_new |= op_is_new;
     }
 
-    if (is_new)
-        return map(oprimop, world.primop(oprimop, nops));
-
-    cached.insert(oprimop);
-    return odef;
+    return map(oprimop, is_new ? world.primop(oprimop, nops) : oprimop);
 }
 
 } // namespace anydsl2

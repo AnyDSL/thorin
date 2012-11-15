@@ -230,8 +230,7 @@ public:
 
     Lambda* drop();
     void drop_body(Lambda* olambda, Lambda* nlambda);
-    const Def* drop(const Def* odef) { bool ignore; return drop(ignore, odef); }
-    const Def* drop(bool& is_new, const Def* odef);
+    const Def* drop(const Def* odef);
     const Def* map(const Def* def, const Def* to) {
         def->visit(pass);
         def->cptr = to;
@@ -327,23 +326,19 @@ void Dropper::drop_body(Lambda* olambda, Lambda* nlambda) {
     nlambda->jump(ntarget, nargs);
 }
 
-const Def* Dropper::drop(bool& is_new, const Def* odef) {
-    if (odef->is_visited(pass)) {
-        const Def* ndef = lookup(odef);
-        is_new = ndef != odef;
-        return ndef;
-    }
+const Def* Dropper::drop(const Def* odef) {
+    if (odef->is_visited(pass))
+        return lookup(odef);
 
-    is_new = false;
     if (odef->isa<Lambda>() || odef->isa<Param>())
         return map(odef, odef);
 
+    bool is_new = false;
     const PrimOp* oprimop = odef->as<PrimOp>();
     Array<const Def*> nops(oprimop->size());
     for_all2 (&nop, nops, op, oprimop->ops()) {
-        bool op_is_new;
-        nop = drop(op_is_new, op);
-        is_new |= op_is_new;
+        nop = drop(op);
+        is_new |= nop != op;
     }
 
     return map(oprimop, is_new ? world.primop(oprimop, nops) : oprimop);

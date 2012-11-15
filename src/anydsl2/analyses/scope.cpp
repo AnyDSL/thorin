@@ -67,9 +67,13 @@ Scope::Scope(Lambda* entry) {
     preds_.alloc(num);
     succs_.alloc(num);
 
-    for_all (lambda, lambdas_) {
-        if (lambda->sid() >= num)
-            continue; // lambda is unreachable
+    for (LambdaSet::iterator i = lambdas_.begin(); i != lambdas_.end();) {
+        LambdaSet::iterator j = i++;
+        Lambda* lambda = *j;
+        if (lambda->sid() >= num) { // lambda is unreachable
+            lambdas_.erase(j);
+            continue; 
+        }
 
         size_t sid = num - 1 - lambda->sid_;
         lambda->sid_ = sid;

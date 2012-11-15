@@ -211,23 +211,24 @@ void Lambda::branch(const Def* cond, const Def* tto, const Def*  fto) {
 
 //------------------------------------------------------------------------------
 
-class Dropper {
+class Mapper {
 public:
 
-    Dropper(Lambda* olambda, ArrayRef<size_t> indices, ArrayRef<const Def*> with, 
-            const GenericMap& generic_map, bool self)
+    Mapper(Lambda* olambda, ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
+           ArrayRef<const Def*> to_lift, const GenericMap& generic_map, bool self)
         : scope(olambda)
-        , indices(indices)
-        , with(with)
+        , to_drop(to_drop)
+        , drop_with(drop_with)
+        , to_lift(to_lift)
         , generic_map(generic_map)
         , world(olambda->world())
         , pass(world.new_pass())
         , self(self)
     {}
 
-    Lambda* drop();
-    void drop_body(Lambda* olambda, Lambda* nlambda);
-    Lambda* drop_head(Lambda* olambda);
+    Lambda* mangle();
+    void map_body(Lambda* olambda, Lambda* nlambda);
+    Lambda* map_head(Lambda* olambda);
     const Def* drop(const Def* odef);
     const Def* map(const Def* def, const Def* to) {
         assert(!def->is_visited(pass));
@@ -241,8 +242,9 @@ public:
     }
 
     Scope scope;
-    ArrayRef<size_t> indices;
-    ArrayRef<const Def*> with;
+    ArrayRef<size_t> to_drop;
+    ArrayRef<const Def*> drop_with;
+    ArrayRef<const Def*> to_lift;
     GenericMap generic_map;
     World& world;
     size_t pass;
@@ -251,32 +253,44 @@ public:
     bool self;
 };
 
-Lambda* Lambda::drop(ArrayRef<size_t> indices, ArrayRef<const Def*> with, bool self) {
-    GenericMap generic_map;
-    return drop(indices, with, generic_map, self);
-}
-
-Lambda* Lambda::drop(ArrayRef<size_t> indices, ArrayRef<const Def*> with, 
+Lambda* Lambda::drop(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
                      const GenericMap& generic_map, bool self) {
-    Dropper dropper(this, indices, with, generic_map, self);
-    return dropper.drop();
+    return mangle(to_drop, drop_with, Array<const Def*>(), generic_map, self);
 }
 
-Lambda* Dropper::drop() {
+Lambda* Lambda::lift(ArrayRef<const Def*> to_lift) {
+    Mapper mapper(this, Array<size_t>(), Array<const Def*>(), to_lift, GenericMap(), false);
+    return mapper.mangle();
+}
+
+Lambda* Lambda::mangle(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
+                       ArrayRef<const Def*> to_lift, const GenericMap& generic_map, bool self) {
+    Mapper mapper(this, to_drop, drop_with, to_lift, generic_map, self);
+    return mapper.mangle();
+}
+
+Lambda* Mapper::mangle() {
     oentry = scope.entry();
     const Pi* o_pi = oentry->pi();
-    const Pi* n_pi = world.pi(o_pi->elems().cut(indices))->specialize(generic_map)->as<Pi>();
+    Array<const Type*> nelems = o_pi->elems().cut(to_drop, to_lift.size());
+    size_t offset = o_pi->elems().size() - to_drop.size();
+
+    for (size_t i = offset, e = nelems.size(), x = 0; i != e; ++i, ++x)
+        nelems[i] = to_lift[x]->type();
+
+    const Pi* n_pi = world.pi(nelems)->specialize(generic_map)->as<Pi>();
+
     nentry = world.lambda(n_pi);
     nentry->debug = oentry->debug + ".d";
 
     // put in params for entry (oentry)
     // op -> iterates over old params
     // np -> iterates over new params
-    //  i -> iterates over indices
+    //  i -> iterates over to_drop
     for (size_t op = 0, np = 0, i = 0, e = o_pi->size(); op != e; ++op) {
         const Param* oparam = oentry->param(op);
-        if (i < indices.size() && indices[i] == op)
-            map(oparam, with[i++]);
+        if (i < to_drop.size() && to_drop[i] == op)
+            map(oparam, drop_with[i++]);
         else {
             const Param* nparam = nentry->param(np++);
             nparam->debug = oparam->debug + ".d";
@@ -284,25 +298,24 @@ Lambda* Dropper::drop() {
         }
     }
 
+    for (size_t i = offset, e = nelems.size(), x = 0; i != e; ++i, ++x) {
+        map(to_lift[x], nentry->param(i));
+        nentry->param(i)->debug = to_lift[x]->debug;
+    }
+
     map(oentry, oentry);
-
-    // create stubs for all other lambdas and put their params into the map
-    //for_all (olambda, scope.rpo().slice_back(1)) {
-        //drop_head(olambda);
-    //}
-
-    drop_body(oentry, nentry);
+    map_body(oentry, nentry);
 
     for_all (cur, scope.rpo().slice_back(1)) {
         if (!cur->is_visited(pass))
-            drop_head(cur);
-        drop_body(cur, lookup(cur)->as_lambda());
+            map_head(cur);
+        map_body(cur, lookup(cur)->as_lambda());
     }
 
     return nentry;
 }
 
-Lambda* Dropper::drop_head(Lambda* olambda) {
+Lambda* Mapper::map_head(Lambda* olambda) {
     assert(!olambda->is_visited(pass));
     Lambda* nlambda = olambda->stub(generic_map);
     nlambda->debug += ".d";
@@ -316,7 +329,7 @@ Lambda* Dropper::drop_head(Lambda* olambda) {
     return nlambda;
 }
 
-void Dropper::drop_body(Lambda* olambda, Lambda* nlambda) {
+void Mapper::map_body(Lambda* olambda, Lambda* nlambda) {
     Array<const Def*> ops(olambda->ops().size());
     for (size_t i = 0, e = ops.size(); i != e; ++i)
         ops[i] = drop(olambda->op(i));
@@ -327,24 +340,24 @@ void Dropper::drop_body(Lambda* olambda, Lambda* nlambda) {
     // check whether we can optimize tail recursion
     if (self && ntarget == oentry) {
         bool substitute = true;
-        for (size_t i = 0, e = indices.size(); i != e && substitute; ++i)
-            substitute &= nargs[indices[i]] == with[i];
+        for (size_t i = 0, e = to_drop.size(); i != e && substitute; ++i)
+            substitute &= nargs[to_drop[i]] == drop_with[i];
 
         if (substitute)
-            return nlambda->jump(nentry, nargs.cut(indices));
+            return nlambda->jump(nentry, nargs.cut(to_drop));
     }
 
     nlambda->jump(ntarget, nargs);
 }
 
-const Def* Dropper::drop(const Def* odef) {
+const Def* Mapper::drop(const Def* odef) {
     if (odef->is_visited(pass))
         return lookup(odef);
 
     if (Lambda* olambda = odef->isa_lambda()) {
         if (scope.contains(olambda)) {
             assert(scope.lambdas().size() == scope.rpo().size());
-            return drop_head(olambda);
+            return map_head(olambda);
         } else
             return map(odef, odef);
     } else if (odef->isa<Param>()) {

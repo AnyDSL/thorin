@@ -32,28 +32,28 @@ size_t hash_value(const Done& done) { return hash_value(done.with); }
 
 class CFGBuilder {
 public:
-    CFGBuilder(Lambda* lambda)
-        : lambda(lambda)
+    CFGBuilder(World& world)
+        : world(world)
     {}
 
-    void transform();
+    void transform(Lambda* lambda);
+    void process();
 
 private:
 
-    Lambda* lambda;
-
-    typedef boost::unordered_set<Done> DoneSet;
-    DoneSet done_entries;
+    World& world;
 };
 
-void CFGBuilder::transform() {
+void CFGBuilder::transform(Lambda* lambda) {
+    typedef boost::unordered_set<Done> DoneSet;
+    DoneSet done_entries;
+
     size_t size = lambda->num_params();
     Done done(size);
     Array<size_t>  indices(size);
 
     // if there is only one use -> drop all parameters
-    //bool full_mode = lambda->num_uses() == 1;
-    bool full_mode = false;
+    bool full_mode = lambda->num_uses() == 1;
 
     for_all (use, lambda->copy_uses()) {
         if (use.index() != 0 || !use.def()->isa<Lambda>())
@@ -89,7 +89,7 @@ void CFGBuilder::transform() {
     }
 }
 
-void cfg_transform(World& world) {
+void CFGBuilder::process() {
     std::vector<Lambda*> todo;
     LambdaSet top = find_root_lambdas(world.lambdas());
     for_all (top_lambda, top) {
@@ -105,10 +105,13 @@ void cfg_transform(World& world) {
         }
     }
 
-    for_all (lambda, todo) {
-        CFGBuilder builder(lambda);
-        builder.transform();
-    }
+    for_all (lambda, todo)
+        transform(lambda);
+}
+
+void cfg_transform(World& world) {
+    CFGBuilder builder(world);
+    builder.process();
 }
 
 } // namespace anydsl2

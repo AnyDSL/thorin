@@ -80,7 +80,10 @@ void CFGBuilder::transform() {
             // use already dropped version as jump target
             target = de->lambda;
         } else {
+            lambda->world().dump(true);
             target = lambda->drop(indices.slice_front(num), done.with.slice_front(num), generic_map, true);
+            target->dump(true, 0);
+            std::cout << "-------------------------------" << std::endl;
             // store dropped entry with the specified arguments
             done.lambda = target;
             done_entries.insert(done);
@@ -96,9 +99,11 @@ void cfg_transform(World& world) {
         Scope scope(top_lambda);
         for (size_t i = scope.size()-1; i != size_t(-1); --i) {
             Lambda* lambda = scope.rpo(i);
-            if (lambda->num_uses() == 1 
-                    || (!lambda->is_bb() 
-                        && (!lambda->is_returning() || top.find(lambda) == top.end())))
+            if (lambda->num_params()                                // is there sth to drop?
+                    && (lambda->num_uses() == 1                     // just 1 user -- always drop
+                        || (!lambda->is_bb()                        // don't drop basic blocks
+                            && (!lambda->is_returning()             // drop non-returning lambdas
+                                || top.find(lambda) == top.end()))))// drop returning non top-level lambdas
                 todo.push_back(lambda);
         }
     }

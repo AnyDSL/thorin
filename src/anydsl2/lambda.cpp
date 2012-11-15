@@ -214,9 +214,6 @@ void Lambda::branch(const Def* cond, const Def* tto, const Def*  fto) {
 class Dropper {
 public:
 
-    typedef boost::unordered_map<const Def*, const Def*> Old2New;
-    typedef boost::unordered_set<const Def*> Cached;
-
     Dropper(Lambda* olambda, ArrayRef<size_t> indices, ArrayRef<const Def*> with, 
             const GenericMap& generic_map, bool self)
         : scope(olambda)

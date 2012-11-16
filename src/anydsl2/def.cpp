@@ -56,7 +56,7 @@ bool Def::is_const() const {
     if (node_kind() == Node_Param)
         return false;
 
-    if (empty())
+    if (empty() || node_kind() == Node_Lambda)
         return true;
 
     bool result = true;

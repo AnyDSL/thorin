@@ -209,4 +209,17 @@ void Lambda::branch(const Def* cond, const Def* tto, const Def*  fto) {
     return jump(world().select(cond, tto, fto), ArrayRef<const Def*>(0, 0));
 }
 
+Lambda* Lambda::drop(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, bool self, const GenericMap& generic_map) {
+    return mangle(to_drop, drop_with, Array<const Def*>(), self, generic_map);
+}
+
+Lambda* Lambda::lift(ArrayRef<const Def*> to_lift, bool self, const GenericMap& generic_map) {
+    return mangle(Array<size_t>(), Array<const Def*>(), to_lift, self, generic_map);
+}
+
+Lambda* Lambda::mangle(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
+                       ArrayRef<const Def*> to_lift, bool self, const GenericMap& generic_map) {
+    return Scope(this).mangle(to_drop, drop_with, to_lift, self, generic_map);
+}
+
 } // namespace anydsl2

@@ -79,6 +79,7 @@ public:
     union {
         mutable void* ptr;
         mutable const void* cptr;
+        mutable bool flags[sizeof(void*)/sizeof(bool)];
     };
 
     /*

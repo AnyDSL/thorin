@@ -34,6 +34,7 @@ class CFGBuilder {
 public:
     CFGBuilder(World& world)
         : world(world)
+        , top(find_root_lambdas(world.lambdas()))
     {}
 
     void transform(Lambda* lambda);
@@ -42,12 +43,13 @@ public:
 private:
 
     World& world;
+    LambdaSet top;
 };
 
 void CFGBuilder::transform(Lambda* lambda) {
     typedef boost::unordered_set<Done> DoneSet;
     DoneSet done_entries;
-
+    Scope scope(lambda);
     size_t size = lambda->num_params();
     Done done(size);
     Array<size_t>  indices(size);
@@ -80,7 +82,22 @@ void CFGBuilder::transform(Lambda* lambda) {
             // use already dropped version as jump target
             target = de->lambda;
         } else {
-            target = lambda->drop(indices.slice_front(num), done.with.slice_front(num), true, generic_map);
+#if 0
+            if (lambda->num_uses() > 1 && lambda->is_returning() && top.find(lambda) == top.end()) {
+                FreeVariables fv = scope.free_variables();
+                for_all (def, fv) {
+                    if (def->order() > 0)
+                        goto do_dropping;
+                }
+
+                target = scope.lift(fv);
+                ulambda->jump(target, Array<const Def*>(ulambda->args(), fv));
+                return;
+            }
+
+do_dropping:
+#endif
+            target = scope.drop(indices.slice_front(num), done.with.slice_front(num), true, generic_map);
             // store dropped entry with the specified arguments
             done.lambda = target;
             done_entries.insert(done);
@@ -91,7 +108,6 @@ void CFGBuilder::transform(Lambda* lambda) {
 
 void CFGBuilder::process() {
     std::vector<Lambda*> todo;
-    LambdaSet top = find_root_lambdas(world.lambdas());
     for_all (top_lambda, top) {
         Scope scope(top_lambda);
         for (size_t i = scope.size()-1; i != size_t(-1); --i) {
@@ -100,7 +116,7 @@ void CFGBuilder::process() {
                     && (lambda->num_uses() == 1                     // just 1 user -- always drop
                         || (!lambda->is_bb()                        // don't drop basic blocks
                             && (!lambda->is_returning()             // drop non-returning lambdas
-                                || top.find(lambda) == top.end()))))// drop returning non top-level lambdas
+                                || top.find(lambda) == top.end()))))// lift/drop returning non top-level lambdas
                 todo.push_back(lambda);
         }
     }

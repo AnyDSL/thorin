@@ -1,14 +1,14 @@
 #ifndef ANYDSL2_ANALYSES_SCOPE_H
 #define ANYDSL2_ANALYSES_SCOPE_H
 
-#include <boost/unordered_set.hpp>
+#include <vector>
 
 #include "anydsl2/lambda.h"
 #include "anydsl2/util/array.h"
 
 namespace anydsl2 {
 
-class Lambda;
+typedef std::vector<const Def*> FreeVariables;
 
 LambdaSet find_scope(Lambda* entry);
 
@@ -16,7 +16,6 @@ class Scope {
 public:
 
     typedef Array<Lambda*> Lambdas;
-    typedef std::vector<const Def*> FreeVariables;
 
     explicit Scope(Lambda* entry);
 
@@ -31,6 +30,13 @@ public:
     void reassign_sids();
     World& world() const { return entry()->world(); }
     FreeVariables free_variables() const;
+    Lambda* drop(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
+                 bool self = true, const GenericMap& generic_map = GenericMap());
+    Lambda* lift(ArrayRef<const Def*> to_lift, 
+                 bool self = true, const GenericMap& generic_map = GenericMap());
+    Lambda* mangle(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
+                   ArrayRef<const Def*> to_lift, 
+                   bool self = true, const GenericMap& generic_map = GenericMap());
 
 private:
 

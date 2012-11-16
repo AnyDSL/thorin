@@ -122,16 +122,86 @@ const Scope::Lambdas& Scope::succs(Lambda* lambda) const {
     return succs_[lambda->sid()]; 
 }
 
-
 void Scope::reassign_sids() {
     for (size_t i = 0, e = rpo().size(); i != e; ++i)
         rpo_[i]->sid_ = i;
 }
 
-Scope::FreeVariables Scope::free_variables() const {
-    FreeVariables result;
-    return result;
+//------------------------------------------------------------------------------
+
+class FVFinder {
+public:
+
+    FVFinder(const Scope& scope, FreeVariables& fv)
+        : scope(scope)
+        , fv(fv)
+        , world(scope.world())
+        , pass(world.new_pass())
+    {}
+
+    bool map(const Def* def, bool within) {
+        assert(!def->is_visited(pass));
+        def->visit(pass);
+        def->flags[0] = within;
+        def->flags[1] = false;
+        return within;
+    }
+    bool is_within(const Def* def) { assert(def->is_visited(pass)); return def->flags[0]; } 
+    bool is_queued(const Def* def) { assert(def->is_visited(pass)); return def->flags[1]; }
+    void queue(const Def* def) { assert(def->is_visited(pass)); def->flags[1] = true; fv.push_back(def); }
+    void find();
+    void find(const Lambda* lambda);
+    bool find(const Def* def);
+
+private:
+
+    const Scope& scope;
+    FreeVariables& fv;
+    World& world;
+    size_t pass;
+};
+
+FreeVariables Scope::free_variables() const { 
+    FreeVariables fv; 
+    FVFinder(*this, fv).find();
+    return fv;
 }
+
+void FVFinder::find() {
+    for_all (lambda, scope.rpo())
+        find(lambda);
+}
+
+void FVFinder::find(const Lambda* lambda) {
+    for_all (op, lambda->ops())
+        find(op);
+}
+
+bool FVFinder::find(const Def* def) {
+    if (def->is_visited(pass))
+        return is_within(def);
+
+    if (def->is_const())
+        return map(def, true);
+
+    if (const Param* param = def->isa<Param>())
+        return map(param, scope.contains(param->lambda()));
+
+
+    bool within = false;
+    for_all (op, def->ops())
+        within |= find(op);
+
+    if (within) {
+        for_all (op, def->ops())
+            if (!is_within(op) && !is_queued(op))
+                queue(op);
+    }
+
+    return map(def, within);
+}
+
+//------------------------------------------------------------------------------
 
 class Mapper {
 public:
@@ -177,17 +247,17 @@ public:
 
 //------------------------------------------------------------------------------
 
-Lambda* Lambda::drop(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, bool self, const GenericMap& generic_map) {
+Lambda* Scope::drop(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, bool self, const GenericMap& generic_map) {
     return mangle(to_drop, drop_with, Array<const Def*>(), self, generic_map);
 }
 
-Lambda* Lambda::lift(ArrayRef<const Def*> to_lift, bool self, const GenericMap& generic_map) {
+Lambda* Scope::lift(ArrayRef<const Def*> to_lift, bool self, const GenericMap& generic_map) {
     return mangle(Array<size_t>(), Array<const Def*>(), to_lift, self, generic_map);
 }
 
-Lambda* Lambda::mangle(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
+Lambda* Scope::mangle(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
                        ArrayRef<const Def*> to_lift, bool self, const GenericMap& generic_map) {
-    return Mapper(Scope(this), to_drop, drop_with, to_lift, self, generic_map).mangle();
+    return Mapper(*this, to_drop, drop_with, to_lift, self, generic_map).mangle();
 }
 
 //------------------------------------------------------------------------------
@@ -244,9 +314,9 @@ Lambda* Mapper::map_head(Lambda* olambda) {
     nlambda->debug += ".d";
     map(olambda, nlambda);
 
-    for (size_t i = 0, e = nlambda->params().size(); i != e; ++i) {
-        map(olambda->param(i), nlambda->param(i));
-        nlambda->param(i)->debug += ".d";
+    for_all2 (oparam, olambda->params(), nparam, nlambda->params()) {
+        map(oparam, nparam);
+        nparam->debug += ".d";
     }
 
     return nlambda;

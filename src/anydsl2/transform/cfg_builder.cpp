@@ -80,7 +80,7 @@ void CFGBuilder::transform(Lambda* lambda) {
             // use already dropped version as jump target
             target = de->lambda;
         } else {
-            target = lambda->drop(indices.slice_front(num), done.with.slice_front(num), generic_map, true);
+            target = lambda->drop(indices.slice_front(num), done.with.slice_front(num), true, generic_map);
             // store dropped entry with the specified arguments
             done.lambda = target;
             done_entries.insert(done);

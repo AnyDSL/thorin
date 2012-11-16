@@ -16,6 +16,7 @@ class Scope {
 public:
 
     typedef Array<Lambda*> Lambdas;
+    typedef std::vector<const Def*> FreeVariables;
 
     explicit Scope(Lambda* entry);
 
@@ -25,10 +26,11 @@ public:
     Lambda* rpo(size_t i) const { return rpo_[i]; }
     const Lambdas& preds(Lambda* lambda) const;
     const Lambdas& succs(Lambda* lambda) const;
-
     Lambda* entry() const { return rpo_[0]; }
     size_t size() const { return lambdas_.size(); }
     void reassign_sids();
+    World& world() const { return entry()->world(); }
+    FreeVariables free_variables() const;
 
 private:
 

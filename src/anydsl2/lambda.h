@@ -6,6 +6,7 @@
 #include <functional>
 
 #include "anydsl2/def.h"
+#include "anydsl2/type.h"
 #include "anydsl2/util/autoptr.h"
 
 namespace anydsl2 {
@@ -99,10 +100,13 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     }
     void branch(const Def* cond, const Def* tto, const Def* fto);
 
-    Lambda* drop(ArrayRef<size_t> indices, ArrayRef<const Def*> with, const GenericMap& generic_map, bool self);
-    Lambda* lift(ArrayRef<const Def*> to_lift);
+    Lambda* drop(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
+                 bool self = true, const GenericMap& generic_map = GenericMap());
+    Lambda* lift(ArrayRef<const Def*> to_lift, 
+                 bool self = true, const GenericMap& generic_map = GenericMap());
     Lambda* mangle(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
-                   ArrayRef<const Def*> to_lift, const GenericMap& generic_map, bool self);
+                   ArrayRef<const Def*> to_lift, 
+                   bool self = true, const GenericMap& generic_map = GenericMap());
 
 private:
 

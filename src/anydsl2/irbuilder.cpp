@@ -120,7 +120,6 @@ void BB::fix(Symbol symbol, Todo todo) {
             same = 0;
             goto fix_preds;
         }
-
         same = def;
     }
     
@@ -198,7 +197,6 @@ const Def* BB::call(const Def* to, ArrayRef<const Def*> args, const Type* rettyp
     cur_ = next;
 
     ++id;
-
     return result;
 }
 
@@ -214,9 +212,8 @@ void BB::link(BB* to) {
     if (i == succs_.end()) {
         this->succs_.insert(to);
         to->preds_.insert(this);
-    } else {
+    } else
         assert(to->preds_.find(this) != to->preds_.end() && "flow out of sync");
-    }
 }
 
 World& BB::world() {

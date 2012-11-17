@@ -137,6 +137,28 @@ public:
 
 //------------------------------------------------------------------------------
 
+class CCall : public MemOp {
+public:
+
+    CCall(const Def* mem, ArrayRef<const Def*> args, const Type* type);
+
+    virtual void vdump(Printer &printer) const;
+
+public:
+
+    const Def* extract_mem() const;
+    const Def* extract_retval() const;
+
+private:
+
+    mutable const Def* extract_mem_;
+    mutable const Def* extract_retval_;
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
 } // namespace anydsl2
 
 #endif // ANYDSL2_MEMOP_H

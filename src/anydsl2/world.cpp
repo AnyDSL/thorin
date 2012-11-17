@@ -411,6 +411,10 @@ const Slot* World::slot(const Enter* enter, const Type* type) {
     return consume(new Slot(enter, type))->as<Slot>();
 }
 
+const CCall* World::ccall(const Def* mem, ArrayRef<const Def*> args, const Type* rettype) {
+    return consume(new CCall(mem, args, rettype))->as<CCall>();
+}
+
 const Def* World::select(const Def* cond, const Def* a, const Def* b) {
     if (cond->isa<Bottom>() || a->isa<Bottom>() || b->isa<Bottom>())
         return bottom(a->type());

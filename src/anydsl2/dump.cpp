@@ -138,6 +138,13 @@ void Enter::vdump(Printer& p) const {
     p << ')';
 }
 
+void CCall::vdump(Printer& p) const {
+    dump_name_and_type(p, this, "ccall");
+    p << '(';
+	ANYDSL2_DUMP_COMMA_LIST(p, ops());
+    p << ')';
+}
+
 void Leave::vdump(Printer& p) const {
     dump_name_and_type(p, this, "leave");
     p << '(';
@@ -157,14 +164,6 @@ void Slot::vdump(Printer& p) const {
  */
 
 void CompoundType::dump_inner(Printer& p) const {
-#if 0
-    if (size()) {
-        p << '<';
-        ANYDSL2_DUMP_COMMA_LIST(p, generics());
-        p << '>';
-    }
-#endif
-
 	p << '(';
 	ANYDSL2_DUMP_COMMA_LIST(p, elems());
 	p << ')';

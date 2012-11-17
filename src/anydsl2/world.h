@@ -18,6 +18,7 @@ namespace anydsl2 {
 
 class Any;
 class Bottom;
+class CCall;
 class Def;
 class Enter;
 class Lambda;
@@ -205,6 +206,7 @@ public:
     const Enter* enter(const Def* mem);
     const Leave* leave(const Def* mem, const Def* frame);
     const Slot* slot(const Enter* enter, const Type* type);
+    const CCall* ccall(const Def* mem, ArrayRef<const Def*> args, const Type* rettype);
 
     /*
      * other stuff

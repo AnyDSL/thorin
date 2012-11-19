@@ -125,8 +125,8 @@ private:
 
     virtual void vdump(Printer &printer) const;
 
-    bool equal(const Node* other) const;
-    size_t hash() const;
+    virtual bool equal(const Node* other) const;
+    virtual size_t hash() const;
 
 public:
 
@@ -138,20 +138,34 @@ public:
 //------------------------------------------------------------------------------
 
 class CCall : public MemOp {
-public:
+private:
 
-    CCall(const Def* mem, ArrayRef<const Def*> args, const Type* rettype);
+    CCall(const Def* mem, const std::string& callee, 
+          ArrayRef<const Def*> args, const Type* rettype, bool vararg);
 
     virtual void vdump(Printer &printer) const;
+
+public:
 
     bool returns_void() const;
     const Def* extract_mem() const;
     const Def* extract_retval() const;
+    const std::string& callee() const { return callee_; }
+    bool vararg() const { return vararg_; }
+    const Type* rettype() const;
+    ArrayRef<const Def*> args() const { return ops().slice_back(1); }
+    size_t num_args() const { return args().size(); }
 
 private:
 
+    virtual bool equal(const Node* other) const;
+    virtual size_t hash() const;
+
     mutable const Def* extract_mem_;
     mutable const Def* extract_retval_;
+
+    const std::string& callee_;
+    bool vararg_;
 
     friend class World;
 };

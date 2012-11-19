@@ -77,8 +77,11 @@ size_t Slot::hash() const { return boost::hash_value(this); }
 
 //------------------------------------------------------------------------------
 
-CCall::CCall(const Def* mem, ArrayRef<const Def*> args, const Type* rettype)
+CCall::CCall(const Def* mem, const std::string& callee, 
+             ArrayRef<const Def*> args, const Type* rettype, bool vararg)
     : MemOp(Node_CCall, args.size() + 1, (const Type*) 0, mem)
+    , callee_(callee)
+    , vararg_(vararg)
 {
     if (rettype)
         set_type(world().sigma2(mem->type(), rettype));
@@ -104,7 +107,27 @@ const Def* CCall::extract_retval() const {
     return extract_retval_ ? extract_retval_ : extract_retval_ = world().extract(this, world().literal_u32(1)); 
 }
 
+const Type* CCall::rettype() const {
+    assert(!returns_void());
+    return type()->as<Sigma>()->elem(1);
+}
+
 bool CCall::returns_void() const { return type()->isa<Mem>(); }
+
+bool CCall::equal(const Node* other) const { 
+    if (this->MemOp::equal(other)) {
+        const CCall* cother = other->as<CCall>();
+        return this->callee() == cother->callee() && this->vararg() == cother->vararg();
+    }
+    return false;
+}
+
+size_t CCall::hash() const { 
+    size_t seed = MemOp::hash();
+    boost::hash_combine(seed, callee());
+    boost::hash_combine(seed, vararg());
+    return seed;
+}
 
 //------------------------------------------------------------------------------
 

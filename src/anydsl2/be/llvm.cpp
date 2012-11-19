@@ -15,6 +15,7 @@
 #include "anydsl2/def.h"
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
+#include "anydsl2/memop.h"
 #include "anydsl2/primop.h"
 #include "anydsl2/type.h"
 #include "anydsl2/world.h"
@@ -27,6 +28,10 @@ namespace anydsl2 {
 namespace be_llvm {
 
 template<class T> llvm::ArrayRef<T> llvm_ref(const Array<T>& array) {
+    return llvm::ArrayRef<T>(array.begin(), array.end());
+}
+
+template<class T> llvm::ArrayRef<T> llvm_ref(const ArrayRef<T>& array) {
     return llvm::ArrayRef<T>(array.begin(), array.end());
 }
 
@@ -335,6 +340,33 @@ llvm::Value* CodeGen::emit(const Def* def) {
     // bottom and any
     if (const Undef* undef = def->isa<Undef>())
         return llvm::UndefValue::get(map(undef->type()));
+
+    if (const Load* load = def->isa<Load>())
+        return builder_.CreateLoad(lookup(load->ptr()));
+
+    if (const Store* store = def->isa<Store>())
+        return builder_.CreateStore(lookup(store->val()), lookup(store->ptr()));
+
+    if (const Slot* slot = def->isa<Slot>())
+        return builder_.CreateAlloca(map(slot->type()));
+
+    if (const CCall* ccall = def->isa<CCall>()) {
+        size_t num_args = ccall->num_args();
+
+        Array<llvm::Type*> arg_types(num_args);
+        for_all2 (&arg_type, arg_types, arg, ccall->args())
+            arg_type = map(arg->type());
+
+        Array<llvm::Value*> arg_vals(num_args);
+        for_all2 (&arg_val, arg_vals, arg, ccall->args())
+            arg_val = lookup(arg);
+
+        llvm::FunctionType* ft = llvm::FunctionType::get(
+                ccall->returns_void() ? llvm::Type::getVoidTy(context_) : map(ccall->rettype()),
+                llvm_ref(arg_types), ccall->vararg());
+        llvm::Function* callee = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, ccall->callee(), module_);
+        return builder_.CreateCall(callee, llvm_ref(arg_vals));
+    }
 
     assert(!def->is_corenode());
     return hook_.emit(def);

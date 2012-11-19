@@ -78,11 +78,10 @@ void CFGBuilder::transform(Lambda* lambda) {
         // check whether we can reuse an existing version
         DoneSet::iterator de = done_entries.find(done);
         Lambda* target;
-        if (de != done_entries.end()) {
-            // use already dropped version as jump target
+        if (de != done_entries.end()) // use already dropped version as jump target
             target = de->lambda;
-        } else {
-//#if 0
+        else {
+#if 0
             if (lambda->num_uses() > 1 && lambda->is_returning() && top.find(lambda) == top.end()) {
                 FreeVariables fv = scope.free_variables();
                 for_all (def, fv) {
@@ -96,7 +95,7 @@ void CFGBuilder::transform(Lambda* lambda) {
             }
 
 do_dropping:
-//#endif
+#endif
             target = scope.drop(indices.slice_front(num), done.with.slice_front(num), true, generic_map);
             // store dropped entry with the specified arguments
             done.lambda = target;

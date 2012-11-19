@@ -353,9 +353,8 @@ const Def* Mapper::drop(const Def* odef) {
             return map_head(olambda);
         } else
             return map(odef, odef);
-    } else if (odef->isa<Param>()) {
+    } else if (odef->isa<Param>())
         return map(odef, odef);
-    }
 
     bool is_new = false;
     const PrimOp* oprimop = odef->as<PrimOp>();

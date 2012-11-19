@@ -50,6 +50,7 @@ void CFGBuilder::transform(Lambda* lambda) {
     typedef boost::unordered_set<Done> DoneSet;
     DoneSet done_entries;
     Scope scope(lambda);
+
     size_t size = lambda->num_params();
     Done done(size);
     Array<size_t>  indices(size);

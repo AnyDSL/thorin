@@ -19,6 +19,7 @@
 #include "anydsl2/primop.h"
 #include "anydsl2/type.h"
 #include "anydsl2/world.h"
+#include "anydsl2/analyses/loopforest.h"
 #include "anydsl2/analyses/placement.h"
 #include "anydsl2/analyses/rootlambdas.h"
 #include "anydsl2/analyses/scope.h"
@@ -106,6 +107,7 @@ void CodeGen::emit() {
 
         const Param* ret_param = lambda->ho_params().front();
         Scope scope(lambda);
+        create_loop_forest(scope);
         BBMap bbs(scope.size());
 
         // map all bb-like lambdas to llvm bb stubs 

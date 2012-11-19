@@ -11,10 +11,10 @@
 
 namespace anydsl2 {
 
-Lambda::Lambda(size_t gid, const Pi* pi, uint32_t flags)
+Lambda::Lambda(size_t gid, const Pi* pi, uint32_t attributes)
     : Def(Node_Lambda, pi)
     , gid_(gid)
-    , flags_(flags)
+    , attributes_(attributes)
 {
     params_.reserve(pi->size());
 }
@@ -25,7 +25,7 @@ Lambda::~Lambda() {
 }
 
 Lambda* Lambda::stub(const GenericMap& generic_map) const { 
-    Lambda* result = world().lambda(pi()->specialize(generic_map)->as<Pi>(), flags());
+    Lambda* result = world().lambda(pi()->specialize(generic_map)->as<Pi>(), attributes());
     result->debug = debug;
 
     for (size_t i = 0, e = params().size(); i != e; ++i)

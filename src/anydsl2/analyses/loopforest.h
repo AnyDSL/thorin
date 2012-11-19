@@ -1,7 +1,9 @@
 #ifndef ANALYSES_LOOPS_H
 #define ANALYSES_LOOPS_H
 
+#include "anydsl2/analyses/scope.h"
 #include "anydsl2/util/array.h"
+#include "anydsl2/util/autoptr.h"
 
 #include <vector>
 
@@ -9,46 +11,30 @@ namespace anydsl2 {
 
 class Lambda;
 class Scope;
+class World;
 
-class LoopForest {
+class LoopForestNode {
 public:
 
-    LoopForest(const Scope& scope);
+    LoopForestNode(int depth, ArrayRef<Lambda*> lambdas)
+        : depth_(depth)
+        , lambdas_(lambdas)
+    {}
 
-    const Scope& scope() const { return scope_; }
+    int depth() const { return depth_; }
+    ArrayRef<Lambda*> lambdas() const { return lambdas_; }
+    ArrayRef<LoopForestNode*> children() const { return children_; }
 
 private:
 
-    struct Number {
-        Number() 
-            : dfs(-1)
-            , low(-1)
-        {}
-        Number(size_t i)
-            : dfs(i)
-            , low(i)
-        {}
+    int depth_;
+    Array<Lambda*> lambdas_;
+    AutoVector<LoopForestNode*> children_;
 
-        size_t dfs;
-        size_t low;
-    };
-
-    void walk_scc(Lambda* cur);
-    bool visited(Lambda* lambda);
-    Number& number(Lambda* lambda);
-    size_t& lowlink(Lambda* lambda);
-    size_t& dfs(Lambda* lambda);
-    void push(Lambda* lambda);
-    Lambda* pop();
-
-    const Scope& scope_;
-
-    Array<Number> numbers_;
-    size_t counter_;
-    std::vector<Lambda*> stack_;
-    size_t pass_;
-    //LambdaSet ignore_;
+    friend class LFBuilder;
 };
+
+LoopForestNode* create_loop_forest(const Scope& scope);
 
 } // namespace anydsl2
 

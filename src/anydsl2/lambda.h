@@ -26,12 +26,12 @@ typedef std::vector<const Param*> Params;
 class Lambda : public Def {
 private:
 
-    Lambda(size_t gid, const Pi* pi, uint32_t flags);
+    Lambda(size_t gid, const Pi* pi, uint32_t attributes);
     virtual ~Lambda();
 
 public:
 
-    enum Flags {
+    enum Attributes {
         Extern = 1 << 0,
     };
 
@@ -59,7 +59,7 @@ public:
     const Pi* pi() const;
     const Pi* to_pi() const;
     const Pi* arg_pi() const;
-    uint32_t flags() const { return flags_; }
+    uint32_t attributes() const { return attributes_; }
     size_t gid() const { return gid_; }
     size_t sid() const { return sid_; }
     size_t num_args() const { return args().size(); }
@@ -75,8 +75,8 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
 
     void dump(bool fancy = false, int indent = 0) const;
 
-    bool is_extern() const { return flags_ & Extern; }
-    void set_extern() { flags_ |= Extern; }
+    bool is_extern() const { return attributes_ & Extern; }
+    void set_extern() { attributes_ |= Extern; }
 
     bool sid_valid() { return sid_ != size_t(-1); }
     bool sid_invalid() { return sid_ == size_t(-1); }
@@ -118,7 +118,7 @@ private:
     virtual void vdump(Printer& printer) const;
 
     size_t gid_; ///< global index
-    uint32_t flags_;
+    uint32_t attributes_;
     Params params_;
     size_t sid_; ///< scope index
 

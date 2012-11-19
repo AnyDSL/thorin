@@ -95,6 +95,7 @@ public:
         } 
         return true; 
     }
+    void unvisit(size_t pass) const { assert(cur_pass_ == pass); --cur_pass_; }
     bool is_visited(size_t pass) const { assert(cur_pass_ <= pass); return cur_pass_ == pass; }
 
 private:

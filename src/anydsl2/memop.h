@@ -140,12 +140,11 @@ public:
 class CCall : public MemOp {
 public:
 
-    CCall(const Def* mem, ArrayRef<const Def*> args, const Type* type);
+    CCall(const Def* mem, ArrayRef<const Def*> args, const Type* rettype);
 
     virtual void vdump(Printer &printer) const;
 
-public:
-
+    bool returns_void() const;
     const Def* extract_mem() const;
     const Def* extract_retval() const;
 

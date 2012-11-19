@@ -80,19 +80,31 @@ size_t Slot::hash() const { return boost::hash_value(this); }
 CCall::CCall(const Def* mem, ArrayRef<const Def*> args, const Type* rettype)
     : MemOp(Node_CCall, args.size() + 1, (const Type*) 0, mem)
 {
-    set_type(world().sigma2(mem->type(), rettype));
+    if (rettype)
+        set_type(world().sigma2(mem->type(), rettype));
+    else
+        set_type(mem->type());
+
     size_t x = 1;
     for_all (arg, args)
         set_op(x, arg);
 }
 
 const Def* CCall::extract_mem() const { 
-    return extract_mem_ ? extract_mem_ : extract_mem_ = world().extract(this, world().literal_u32(0)); 
+    return extract_mem_ 
+         ? extract_mem_ 
+         : extract_mem_ = 
+              returns_void() 
+            ? this
+            : world().extract(this, world().literal_u32(0)); 
 }
 
 const Def* CCall::extract_retval() const { 
+    assert(!returns_void());
     return extract_retval_ ? extract_retval_ : extract_retval_ = world().extract(this, world().literal_u32(1)); 
 }
+
+bool CCall::returns_void() const { return type()->isa<Mem>(); }
 
 //------------------------------------------------------------------------------
 

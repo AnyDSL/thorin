@@ -1,0 +1,11 @@
+def main(i : int) -> int  {
+    if (true)
+        return i;
+    f : float;
+    d : double;
+    s0 : sigma(int, float) = #(42, 23.f);
+    s1 : sigma(int8, float) = #(42b, 23.f);
+    s2 : sigma(int16, float) = #(42s, 23.f);
+    s3 : sigma(int64, float) = #(42l, 23.f);
+    return 1;
+}

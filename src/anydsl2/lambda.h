@@ -23,21 +23,33 @@ typedef std::set<Lambda*, LambdaLT> LambdaSet;
 
 typedef std::vector<const Param*> Params;
 
+struct LambdaAttr {
+    enum Attr {
+        Extern = 1 << 0,
+    };
+
+    explicit LambdaAttr(uint32_t attr)
+        : attr(attr)
+    {}
+
+    bool is_extern() const { return attr & Extern; }
+    void set_extern() { attr |= Extern; }
+
+private:
+    uint32_t attr;
+};
+
 class Lambda : public Def {
 private:
 
-    Lambda(size_t gid, const Pi* pi, uint32_t attributes);
+    Lambda(size_t gid, const Pi* pi, LambdaAttr attr, const std::string& name);
     virtual ~Lambda();
 
 public:
 
-    enum Attributes {
-        Extern = 1 << 0,
-    };
-
     Lambda* stub(const GenericMap& generic_map) const;
 
-    const Param* append_param(const Type* type);
+    const Param* append_param(const Type* type, const std::string& name = "");
 
     Array<const Param*> fo_params() const;
     Array<const Param*> ho_params() const;
@@ -59,11 +71,12 @@ public:
     const Pi* pi() const;
     const Pi* to_pi() const;
     const Pi* arg_pi() const;
-    uint32_t attributes() const { return attributes_; }
     size_t gid() const { return gid_; }
     size_t sid() const { return sid_; }
     size_t num_args() const { return args().size(); }
     size_t num_params() const { return params().size(); }
+    LambdaAttr& attr() { return attr_; }
+    const LambdaAttr& attr() const { return attr_; }
 
     /**
      * Is this Lambda part of a call-lambda-cascade? <br>
@@ -74,9 +87,6 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     bool is_cascading() const;
 
     void dump(bool fancy = false, int indent = 0) const;
-
-    bool is_extern() const { return attributes_ & Extern; }
-    void set_extern() { attributes_ |= Extern; }
 
     bool sid_valid() { return sid_ != size_t(-1); }
     bool sid_invalid() { return sid_ == size_t(-1); }
@@ -118,7 +128,7 @@ private:
     virtual void vdump(Printer& printer) const;
 
     size_t gid_; ///< global index
-    uint32_t attributes_;
+    LambdaAttr attr_;
     Params params_;
     size_t sid_; ///< scope index
 

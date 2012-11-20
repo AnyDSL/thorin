@@ -10,7 +10,7 @@ namespace anydsl2 {
 class MemOp : public PrimOp {
 protected:
 
-    MemOp(int kind, size_t size, const Type* type, const Def* mem);
+    MemOp(int kind, size_t size, const Type* type, const Def* mem, const std::string& name);
 
 public:
 
@@ -22,8 +22,8 @@ public:
 class Access : public MemOp {
 protected:
 
-    Access(int kind, size_t size, const Type* type, const Def* mem, const Def* ptr)
-        : MemOp(kind, size, type, mem)
+    Access(int kind, size_t size, const Type* type, const Def* mem, const Def* ptr, const std::string& name)
+        : MemOp(kind, size, type, mem, name)
     {
         assert(size >= 2);
         set_op(1, ptr);
@@ -39,7 +39,7 @@ public:
 class Load : public Access {
 private:
 
-    Load(const Def* mem, const Def* ptr);
+    Load(const Def* mem, const Def* ptr, const std::string& name);
 
     virtual void vdump(Printer &printer) const;
 
@@ -62,7 +62,7 @@ private:
 class Store : public Access {
 private:
 
-    Store(const Def* mem, const Def* ptr, const Def* val);
+    Store(const Def* mem, const Def* ptr, const Def* val, const std::string& name);
 
     virtual void vdump(Printer &printer) const;
 
@@ -78,7 +78,7 @@ public:
 class Enter : public MemOp {
 private:
 
-    Enter(const Def* mem);
+    Enter(const Def* mem, const std::string& name);
 
     virtual void vdump(Printer &printer) const;
 
@@ -100,7 +100,7 @@ private:
 class Leave : public MemOp {
 private:
 
-    Leave(const Def* mem, const Def* frame);
+    Leave(const Def* mem, const Def* frame, const std::string& name);
 
     virtual void vdump(Printer &printer) const;
 
@@ -121,7 +121,7 @@ public:
 class Slot : public PrimOp {
 private:
 
-    Slot(const Def* frame, const Type* type);
+    Slot(const Def* frame, const Type* type, const std::string& name);
 
     virtual void vdump(Printer &printer) const;
 
@@ -141,7 +141,7 @@ class CCall : public MemOp {
 private:
 
     CCall(const Def* mem, const std::string& callee, 
-          ArrayRef<const Def*> args, const Type* rettype, bool vararg);
+          ArrayRef<const Def*> args, const Type* rettype, bool vararg, const std::string& name);
 
     virtual void vdump(Printer &printer) const;
 

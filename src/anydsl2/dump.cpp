@@ -204,15 +204,15 @@ void Pi::vdump(Printer& p) const {
 }
 
 void Generic::vdump(Printer &p) const {
-    if (!debug.empty())
-        p << debug;
+    if (!name.empty())
+        p << name;
     else
         p << '_' << index();
 }
 
 void Opaque::vdump(Printer &p) const {
-    if (!debug.empty())
-        p << debug;
+    if (!name.empty())
+        p << name;
     else
         p << '@' << index();
 }
@@ -270,7 +270,7 @@ void Lambda::dump(bool fancy, int indent) const {
     ANYDSL2_DUMP_COMMA_LIST(p, params());
 	p << ") : ";
     p.dump(type());
-    if (is_extern())
+    if (attr().is_extern())
         p << " extern ";
 	p.up();
 

@@ -72,7 +72,7 @@ World::~World() {
 
 Sigma* World::named_sigma(size_t size, const std::string& name) {
     Sigma* s = new Sigma(*this, size);
-    s->debug = name;
+    s->name = name;
 
     assert(types_.find(s) == types_.end() && "must not be inside");
     types_.insert(s);
@@ -109,7 +109,7 @@ const Bottom* World::bottom(const Type* type) {
  * create
  */
 
-const Def* World::binop(int kind, const Def* lhs, const Def* rhs) {
+const Def* World::binop(int kind, const Def* lhs, const Def* rhs, const std::string& name) {
     if (is_arithop(kind))
         return arithop((ArithOpKind) kind, lhs, rhs);
 
@@ -117,7 +117,7 @@ const Def* World::binop(int kind, const Def* lhs, const Def* rhs) {
     return relop((RelOpKind) kind, lhs, rhs);
 }
 
-const Def* World::tuple(ArrayRef<const Def*> args) {
+const Def* World::tuple(ArrayRef<const Def*> args, const std::string& name) {
     Array<const Type*> elems(args.size());
 
     bool bot = false;
@@ -131,10 +131,10 @@ const Def* World::tuple(ArrayRef<const Def*> args) {
     if (bot)
         return bottom(sigma(elems));
 
-    return consume(new Tuple(*this, args));
+    return consume(new Tuple(*this, args, name));
 }
 
-const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b) {
+const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const std::string& name) {
     PrimTypeKind rtype = a->type()->as<PrimType>()->primtype_kind();
 
     // bottom op bottom -> bottom
@@ -235,10 +235,10 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b) {
         std::cout << "found!!!!" << std::endl;
 #endif
 
-    return consume(new ArithOp(kind, a, b));
+    return consume(new ArithOp(kind, a, b, name));
 }
 
-const Def* World::relop(RelOpKind kind, const Def* a, const Def* b) {
+const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::string& name) {
     if (a->isa<Bottom>() || b->isa<Bottom>()) 
         return bottom(type_u1());
 
@@ -340,10 +340,10 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b) {
         }
     }
 
-    return consume(new RelOp(kind, a, b));
+    return consume(new RelOp(kind, a, b, name));
 }
 
-const Def* World::convop(ConvOpKind kind, const Type* to, const Def* from) {
+const Def* World::convop(ConvOpKind kind, const Type* to, const Def* from, const std::string& name) {
     if (from->isa<Bottom>())
         return bottom(to);
 
@@ -356,10 +356,10 @@ const Def* World::convop(ConvOpKind kind, const Type* to, const Def* from) {
     }
 #endif
 
-    return consume(new ConvOp(kind, to, from));
+    return consume(new ConvOp(kind, to, from, name));
 }
 
-const Def* World::extract(const Def* agg, const Def* index) {
+const Def* World::extract(const Def* agg, const Def* index, const std::string& name) {
     if (agg->isa<Bottom>())
         return bottom(agg->type()->as<Sigma>()->elem_via_lit(index));
 
@@ -373,10 +373,10 @@ const Def* World::extract(const Def* agg, const Def* index) {
             return extract(insert->tuple(), index);
     }
 
-    return consume(new Extract(agg, index));
+    return consume(new Extract(agg, index, name));
 }
 
-const Def* World::insert(const Def* agg, const Def* index, const Def* value) {
+const Def* World::insert(const Def* agg, const Def* index, const Def* value, const std::string& name) {
     if (agg->isa<Bottom>() || value->isa<Bottom>())
         return bottom(agg->type());
 
@@ -388,76 +388,78 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value) {
         return tuple(args);
     }
 
-    return consume(new Insert(agg, index, value));
+    return consume(new Insert(agg, index, value, name));
 }
 
-const Def* World::load(const Def* mem, const Def* ptr) {
-    return consume(new Load(mem, ptr));
+const Def* World::load(const Def* mem, const Def* ptr, const std::string& name) {
+    return consume(new Load(mem, ptr, name));
 }
 
-const Def* World::store(const Def* mem, const Def* ptr, const Def* val) {
-    return consume(new Store(mem, ptr, val));
+const Def* World::store(const Def* mem, const Def* ptr, const Def* val, const std::string& name) {
+    return consume(new Store(mem, ptr, val, name));
 }
 
-const Enter* World::enter(const Def* mem) {
-    return consume(new Enter(mem))->as<Enter>();
+const Enter* World::enter(const Def* mem, const std::string& name) {
+    return consume(new Enter(mem, name))->as<Enter>();
 }
 
-const Leave* World::leave(const Def* mem, const Def* frame) {
-    return consume(new Leave(mem, frame))->as<Leave>();
+const Leave* World::leave(const Def* mem, const Def* frame, const std::string& name) {
+    return consume(new Leave(mem, frame, name))->as<Leave>();
 }
 
-const Slot* World::slot(const Enter* enter, const Type* type) {
-    return consume(new Slot(enter, type))->as<Slot>();
+const Slot* World::slot(const Enter* enter, const Type* type, const std::string& name) {
+    return consume(new Slot(enter, type, name))->as<Slot>();
 }
 
 const CCall* World::ccall(const Def* mem, const std::string& callee, 
-                          ArrayRef<const Def*> args, const Type* rettype, bool vararg) {
-    return consume(new CCall(mem, callee, args, rettype, vararg))->as<CCall>();
+                          ArrayRef<const Def*> args, const Type* rettype, bool vararg, const std::string& name) {
+    return consume(new CCall(mem, callee, args, rettype, vararg, name))->as<CCall>();
 }
 
-const Def* World::select(const Def* cond, const Def* a, const Def* b) {
+const Def* World::select(const Def* cond, const Def* a, const Def* b, const std::string& name) {
     if (cond->isa<Bottom>() || a->isa<Bottom>() || b->isa<Bottom>())
         return bottom(a->type());
 
     if (const PrimLit* lit = cond->isa<PrimLit>())
         return lit->box().get_u1().get() ? a : b;
 
-    return consume(new Select(cond, a, b));
+    return consume(new Select(cond, a, b, name));
 }
 
-const Def* World::typekeeper(const Type* type) { 
-    return consume(new TypeKeeper(type)); 
+const Def* World::typekeeper(const Type* type, const std::string& name) { 
+    return consume(new TypeKeeper(type, name)); 
 }
 
-Lambda* World::lambda(const Pi* pi, uint32_t flags) {
-    Lambda* l = new Lambda(gid_counter_++, pi, flags);
+Lambda* World::lambda(const Pi* pi, LambdaAttr attr, const std::string& name) {
+    Lambda* l = new Lambda(gid_counter_++, pi, attr, name);
     lambdas_.insert(l);
 
     size_t i = 0;
     for_all (elem, pi->elems())
-        l->params_.push_back(new Param(elem, l, i++));
+        l->params_.push_back(new Param(elem, l, i++, "TODO"));
 
     return l;
 }
 
-const Def* World::primop(const PrimOp* in, ArrayRef<const Def*> ops) {
+const Def* World::primop(const PrimOp* in, ArrayRef<const Def*> ops) { return primop(in, ops, in->name); }
+
+const Def* World::primop(const PrimOp* in, ArrayRef<const Def*> ops, const std::string& name) {
     int kind = in->kind();
     const Type* type = in->type();
-    if (is_arithop(kind)) { assert(ops.size() == 2); return arithop((ArithOpKind) kind, ops[0], ops[1]); }
-    if (is_relop  (kind)) { assert(ops.size() == 2); return relop(  (RelOpKind  ) kind, ops[0], ops[1]); }
-    if (is_convop (kind)) { assert(ops.size() == 1); return convop( (ConvOpKind ) kind, type,   ops[0]); }
+    if (is_arithop(kind)) { assert(ops.size() == 2); return arithop((ArithOpKind) kind, ops[0], ops[1], name); }
+    if (is_relop  (kind)) { assert(ops.size() == 2); return relop(  (RelOpKind  ) kind, ops[0], ops[1], name); }
+    if (is_convop (kind)) { assert(ops.size() == 1); return convop( (ConvOpKind ) kind, type,   ops[0], name); }
 
     switch (kind) {
-        case Node_Enter:   assert(ops.size() == 1); return enter(  ops[0]);
-        case Node_Extract: assert(ops.size() == 2); return extract(ops[0], ops[1]);
-        case Node_Insert:  assert(ops.size() == 3); return insert( ops[0], ops[1], ops[2]);
-        case Node_Leave:   assert(ops.size() == 2); return leave(  ops[0], ops[1]);
-        case Node_Load:    assert(ops.size() == 2); return load(   ops[0], ops[1]);
-        case Node_Select:  assert(ops.size() == 3); return select( ops[0], ops[1], ops[2]);
-        case Node_Slot:    assert(ops.size() == 1); return slot(   ops[0]->as<Enter>(), type);
-        case Node_Store:   assert(ops.size() == 3); return store(  ops[0], ops[1], ops[2]);
-        case Node_Tuple:                            return tuple(  ops);
+        case Node_Enter:   assert(ops.size() == 1); return enter(  ops[0], name);
+        case Node_Extract: assert(ops.size() == 2); return extract(ops[0], ops[1], name);
+        case Node_Insert:  assert(ops.size() == 3); return insert( ops[0], ops[1], ops[2], name);
+        case Node_Leave:   assert(ops.size() == 2); return leave(  ops[0], ops[1], name);
+        case Node_Load:    assert(ops.size() == 2); return load(   ops[0], ops[1], name);
+        case Node_Select:  assert(ops.size() == 3); return select( ops[0], ops[1], ops[2], name);
+        case Node_Slot:    assert(ops.size() == 1); return slot(   ops[0]->as<Enter>(), type, name);
+        case Node_Store:   assert(ops.size() == 3); return store(  ops[0], ops[1], ops[2], name);
+        case Node_Tuple:                            return tuple(  ops, name);
         case Node_Bottom:  assert(ops.empty());     return bottom(type);
         case Node_Any:     assert(ops.empty());     return any(type);
         case Node_PrimLit: assert(ops.empty());     return literal((PrimTypeKind) kind, in->as<PrimLit>()->box());
@@ -478,7 +480,7 @@ void World::dead_code_elimination() {
     }
 
     for_all (lambda, lambdas()) {
-        if (lambda->is_extern()) {
+        if (lambda->attr().is_extern()) {
             for_all (param, lambda->ho_params()) {
                 for_all (use, param->uses())
                     dce_insert(pass, use.def());
@@ -571,7 +573,7 @@ void World::unreachable_code_elimination() {
     size_t pass = new_pass();
 
     for_all (lambda, lambdas())
-        if (lambda->is_extern())
+        if (lambda->attr().is_extern())
             uce_insert(pass, lambda);
 
     for (LambdaSet::iterator i = lambdas_.begin(); i != lambdas_.end();) {

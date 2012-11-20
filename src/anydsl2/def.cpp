@@ -164,8 +164,8 @@ std::ostream& operator << (std::ostream& o, const anydsl2::Def* def) {
 
 //------------------------------------------------------------------------------
 
-Param::Param(const Type* type, Lambda* lambda, size_t index)
-    : Def(Node_Param, 0, type)
+Param::Param(const Type* type, Lambda* lambda, size_t index, const std::string& name)
+    : Def(Node_Param, 0, type, name)
     , lambda_(lambda)
     , index_(index)
 {}

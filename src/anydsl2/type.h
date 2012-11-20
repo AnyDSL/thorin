@@ -47,7 +47,7 @@ class Type : public Node {
 protected:
 
     Type(World& world, int kind, size_t num, bool is_generic)
-        : Node(kind, num)
+        : Node(kind, num, "")
         , world_(world)
         , is_generic_(is_generic)
     {}

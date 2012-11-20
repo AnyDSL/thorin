@@ -175,51 +175,63 @@ public:
      */
 
     /// Creates an \p ArithOp or a \p RelOp.
-    const Def* binop(int kind, const Def* lhs, const Def* rhs);
+    const Def* binop(int kind, const Def* lhs, const Def* rhs, const std::string& name = "");
 
-    const Def* arithop(ArithOpKind kind, const Def* lhs, const Def* rhs);
-#define ANYDSL2_ARITHOP(OP) const Def* arithop_##OP(const Def* lhs, const Def* rhs) { return arithop(ArithOp_##OP, lhs, rhs); }
+    const Def* arithop(ArithOpKind kind, const Def* lhs, const Def* rhs, const std::string& name = "");
+#define ANYDSL2_ARITHOP(OP) \
+    const Def* arithop_##OP(const Def* lhs, const Def* rhs, const std::string& name = "") { \
+        return arithop(ArithOp_##OP, lhs, rhs, name); \
+    }
 #include "anydsl2/tables/arithoptable.h"
 
-    const Def* relop(RelOpKind kind, const Def* lhs, const Def* rhs);
-#define ANYDSL2_RELOP(OP) const Def* relop_##OP(const Def* lhs, const Def* rhs) { return relop(RelOp_##OP, lhs, rhs); }
+    const Def* relop(RelOpKind kind, const Def* lhs, const Def* rhs, const std::string& name = "");
+#define ANYDSL2_RELOP(OP) \
+    const Def* relop_##OP(const Def* lhs, const Def* rhs, const std::string& name = "") { \
+        return relop(RelOp_##OP, lhs, rhs, name);  \
+    }
 #include "anydsl2/tables/reloptable.h"
 
-    const Def* convop(ConvOpKind kind, const Type* to, const Def* from);
-#define ANYDSL2_CONVOP(OP) const Def* convop_##OP(const Type* to, const Def* from) { return convop(ConvOp_##OP, to, from); }
+    const Def* convop(ConvOpKind kind, const Type* to, const Def* from, const std::string& name = "");
+#define ANYDSL2_CONVOP(OP) \
+    const Def* convop_##OP(const Type* to, const Def* from, const std::string& name) { \
+        return convop(ConvOp_##OP, to, from, name); \
+    }
 #include "anydsl2/tables/convoptable.h"
 
     /*
      * tuple stuff
      */
 
-    const Def* extract(const Def* tuple, const Def* index);
-    const Def* insert(const Def* tuple, const Def* index, const Def* value);
-    const Def* tuple(ArrayRef<const Def*> args);
+    const Def* extract(const Def* tuple, const Def* index, const std::string& name = "");
+    const Def* insert(const Def* tuple, const Def* index, const Def* value, const std::string& name = "");
+    const Def* tuple(ArrayRef<const Def*> args, const std::string& name = "");
 
     /*
      * memops
      */
 
-    const Def* load(const Def* mem, const Def* ptr);
-    const Def* store(const Def* mem, const Def* ptr, const Def* val);
-    const Enter* enter(const Def* mem);
-    const Leave* leave(const Def* mem, const Def* frame);
-    const Slot* slot(const Enter* enter, const Type* type);
+    const Def* load(const Def* mem, const Def* ptr, const std::string& name = "");
+    const Def* store(const Def* mem, const Def* ptr, const Def* val, const std::string& name = "");
+    const Enter* enter(const Def* mem, const std::string& name = "");
+    const Leave* leave(const Def* mem, const Def* frame, const std::string& name = "");
+    const Slot* slot(const Enter* enter, const Type* type, const std::string& name = "");
     const CCall* ccall(const Def* mem, const std::string& callee, 
-                       ArrayRef<const Def*> args, const Type* rettype, bool vararg = false);
+                       ArrayRef<const Def*> args, const Type* rettype, bool vararg = false, const std::string& name = "");
 
     /*
      * other stuff
      */
 
-    const Def* select(const Def* cond, const Def* tdef, const Def* fdef);
-    const Def* typekeeper(const Type* type);
+    const Def* select(const Def* cond, const Def* a, const Def* b, const std::string& name = "");
+    const Def* typekeeper(const Type* type, const std::string& name = "");
 
-    Lambda* lambda(const Pi* pi, uint32_t flags = 0);
-    Lambda* lambda(uint32_t flags = 0) { return lambda(pi0()); }
+    Lambda* lambda(const Pi* pi, LambdaAttr attr = LambdaAttr(0), const std::string& name = "");
+    Lambda* lambda(const Pi* pi, const std::string& name) { return lambda(pi0(), LambdaAttr(0), name); }
+    Lambda* lambda(const std::string& name) { return lambda(pi0(), LambdaAttr(0), name); }
 
     /// Generic \p PrimOp constructor.
+    const Def* primop(const PrimOp* in, ArrayRef<const Def*> ops, const std::string& name);
+    /// Generic \p PrimOp constructor; inherits name from \p in.
     const Def* primop(const PrimOp* in, ArrayRef<const Def*> ops);
 
     /*

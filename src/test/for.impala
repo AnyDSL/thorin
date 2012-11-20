@@ -1,0 +1,6 @@
+def extern foo(a : int) -> int {
+    for (i : int = 0; a < 42; ++a)
+        ++a;
+
+    return a;
+}

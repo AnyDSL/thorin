@@ -17,8 +17,8 @@ class World;
 class Literal : public PrimOp {
 protected:
 
-    Literal(int kind, const Type* type)
-        : PrimOp(kind, 0, type)
+    Literal(int kind, const Type* type, const std::string& name)
+        : PrimOp(kind, 0, type, name)
     {}
 };
 
@@ -28,8 +28,8 @@ protected:
 class Undef : public Literal {
 protected:
 
-    Undef(int kind, const Type* type)
-        : Literal(kind, type)
+    Undef(int kind, const Type* type, const std::string& name)
+        : Literal(kind, type, name)
     {}
 };
 
@@ -46,7 +46,7 @@ class Any : public Undef {
 private:
 
     Any(const Type* type)
-        : Undef(Node_Any, type)
+        : Undef(Node_Any, type, "<any>")
     {}
     virtual void vdump(Printer& printer) const ;
 
@@ -65,7 +65,7 @@ class Bottom : public Undef {
 private:
 
     Bottom(const Type* type)
-        : Undef(Node_Bottom, type)
+        : Undef(Node_Bottom, type, "<bottom>")
     {}
     virtual void vdump(Printer& printer) const ;
 
@@ -78,12 +78,8 @@ class PrimLit : public Literal {
 private:
 
     PrimLit(const Type* type, Box box)
-        : Literal(Node_PrimLit, type)
+        : Literal(Node_PrimLit, type, "")
         , box_(box)
-    {}
-    PrimLit(const PrimLit& lit)
-        : Literal(lit)
-        , box_(lit.box())
     {}
 
 public:
@@ -114,8 +110,8 @@ private:
 class TypeKeeper : public Literal {
 private:
 
-    TypeKeeper(const Type* type)
-        : Literal(Node_TypeKeeper, type)
+    TypeKeeper(const Type* type, const std::string& name)
+        : Literal(Node_TypeKeeper, type, name)
     {}
     virtual void vdump(Printer& printer) const ;
 

@@ -87,7 +87,7 @@ void CodeGen::emit() {
     // map all root-level lambdas to llvm function stubs
     for_all (lambda, roots) {
         llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
-        llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->debug, module_);
+        llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->name, module_);
         fcts.insert(std::make_pair(lambda, f));
     }
 
@@ -101,7 +101,7 @@ void CodeGen::emit() {
         // map params
         llvm::Function::arg_iterator arg = fct->arg_begin();
         for_all (param, lambda->fo_params()) {
-            arg->setName(param->debug);
+            arg->setName(param->name);
             params_[param] = arg++;
         }
 
@@ -111,7 +111,7 @@ void CodeGen::emit() {
 
         // map all bb-like lambdas to llvm bb stubs 
         for_all (lambda, scope.rpo())
-            bbs[lambda->sid()] = llvm::BasicBlock::Create(context_, lambda->debug, fct);
+            bbs[lambda->sid()] = llvm::BasicBlock::Create(context_, lambda->name, fct);
 
         Array< std::vector<const PrimOp*> > places = place(scope);
 
@@ -123,7 +123,7 @@ void CodeGen::emit() {
             // create phi node stubs (for all non-cascading lambdas different from entry)
             if (!lambda->is_cascading() && lambda != scope.entry()) {
                 for_all (param, lambda->params())
-                    phis_[param] = builder_.CreatePHI(map(param->type()), param->peek().size(), param->debug);
+                    phis_[param] = builder_.CreatePHI(map(param->type()), param->peek().size(), param->name);
             }
 
             std::vector<const PrimOp*> primops = places[lambda->sid()];

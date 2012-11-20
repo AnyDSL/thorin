@@ -130,7 +130,7 @@ const Type* Type::specialize(const GenericMap& generic_map) const {
 PrimType::PrimType(World& world, PrimTypeKind kind)
     : Type(world, kind, 0, false)
 {
-    debug = kind2str(primtype_kind());
+    name = kind2str(primtype_kind());
 }
 
 //------------------------------------------------------------------------------

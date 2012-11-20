@@ -11,10 +11,10 @@
 
 namespace anydsl2 {
 
-Lambda::Lambda(size_t gid, const Pi* pi, uint32_t attributes)
-    : Def(Node_Lambda, pi)
+Lambda::Lambda(size_t gid, const Pi* pi, LambdaAttr attr, const std::string& name)
+    : Def(Node_Lambda, pi, name)
     , gid_(gid)
-    , attributes_(attributes)
+    , attr_(attr)
 {
     params_.reserve(pi->size());
 }
@@ -25,11 +25,11 @@ Lambda::~Lambda() {
 }
 
 Lambda* Lambda::stub(const GenericMap& generic_map) const { 
-    Lambda* result = world().lambda(pi()->specialize(generic_map)->as<Pi>(), attributes());
-    result->debug = debug;
+    Lambda* result = world().lambda(pi()->specialize(generic_map)->as<Pi>(), attr());
+    result->name = name;
 
     for (size_t i = 0, e = params().size(); i != e; ++i)
-        result->param(i)->debug = param(i)->debug;
+        result->param(i)->name = param(i)->name;
 
     return result;
 }
@@ -45,7 +45,7 @@ const Pi* Lambda::arg_pi() const {
     return world().pi(elems);
 }
 
-const Param* Lambda::append_param(const Type* type) {
+const Param* Lambda::append_param(const Type* type, const std::string& name) {
     size_t size = pi()->size();
 
     Array<const Type*> elems(size + 1);
@@ -55,7 +55,7 @@ const Param* Lambda::append_param(const Type* type) {
     set_type(world().pi(elems));
 
     // append new param
-    const Param* param = new Param(type, this, size);
+    const Param* param = new Param(type, this, size, name);
     params_.push_back(param);
 
     return param;

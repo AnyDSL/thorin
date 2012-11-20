@@ -7,8 +7,8 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
-MemOp::MemOp(int kind, size_t size, const Type* type, const Def* mem)
-    : PrimOp(kind, size, type)
+MemOp::MemOp(int kind, size_t size, const Type* type, const Def* mem, const std::string& name)
+    : PrimOp(kind, size, type, name)
 {
     assert(mem->type()->isa<Mem>());
     assert(size >= 1);
@@ -17,8 +17,8 @@ MemOp::MemOp(int kind, size_t size, const Type* type, const Def* mem)
 
 //------------------------------------------------------------------------------
 
-Load::Load(const Def* mem, const Def* ptr)
-    : Access(Node_Load, 2, (const Type*) 0, mem, ptr)
+Load::Load(const Def* mem, const Def* ptr, const std::string& name)
+    : Access(Node_Load, 2, (const Type*) 0, mem, ptr, name)
     , extract_mem_(0)
     , extract_val_(0)
 {
@@ -36,16 +36,16 @@ const Def* Load::extract_val() const {
 
 //------------------------------------------------------------------------------
 
-Store::Store(const Def* mem, const Def* ptr, const Def* val)
-    : Access(Node_Store, 3, ptr->world().mem(), mem, ptr)
+Store::Store(const Def* mem, const Def* ptr, const Def* val, const std::string& name)
+    : Access(Node_Store, 3, ptr->world().mem(), mem, ptr, name)
 {
     set_op(2, val);
 }
 
 //------------------------------------------------------------------------------
 
-Enter::Enter(const Def* mem)
-    : MemOp(Node_Enter, 1, (const Type*) 0, mem)
+Enter::Enter(const Def* mem, const std::string& name)
+    : MemOp(Node_Enter, 1, (const Type*) 0, mem, name)
 {
     set_type(world().sigma2(mem->type(), world().frame()));
 }
@@ -60,16 +60,16 @@ const Def* Enter::extract_frame() const {
 
 //------------------------------------------------------------------------------
 
-Leave::Leave(const Def* mem, const Def* frame)
-    : MemOp(Node_Leave, 2, mem->type(), mem)
+Leave::Leave(const Def* mem, const Def* frame, const std::string& name)
+    : MemOp(Node_Leave, 2, mem->type(), mem, name)
 {
     set_op(1, frame);
 }
 
 //------------------------------------------------------------------------------
 
-Slot::Slot(const Def* frame, const Type* type)
-    : PrimOp(Node_Slot, 1, type->to_ptr())
+Slot::Slot(const Def* frame, const Type* type, const std::string& name)
+    : PrimOp(Node_Slot, 1, type->to_ptr(), name)
 {}
 
 bool Slot::equal(const Node* other) const { return this == other; }
@@ -78,8 +78,8 @@ size_t Slot::hash() const { return boost::hash_value(this); }
 //------------------------------------------------------------------------------
 
 CCall::CCall(const Def* mem, const std::string& callee, 
-             ArrayRef<const Def*> args, const Type* rettype, bool vararg)
-    : MemOp(Node_CCall, args.size() + 1, (const Type*) 0, mem)
+             ArrayRef<const Def*> args, const Type* rettype, bool vararg, const std::string& name)
+    : MemOp(Node_CCall, args.size() + 1, (const Type*) 0, mem, name)
     , callee_(callee)
     , vararg_(vararg)
 {

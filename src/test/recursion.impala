@@ -1,0 +1,7 @@
+def extern f(i : int, ret : pi(int), bla : pi(int)) {
+    g(i, ret, bla);
+}
+
+def extern g(i : int, ret : pi(int), bla : pi(int)) {
+    f(i, ret, bla);
+}

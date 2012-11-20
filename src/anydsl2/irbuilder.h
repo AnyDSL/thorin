@@ -84,7 +84,7 @@ protected:
 class BB {
 private:
 
-    BB(Fct* fct, const std::string& debug = "");
+    BB(Fct* fct, const std::string& name = "");
     BB() {}
     ~BB();
 
@@ -110,7 +110,7 @@ public:
 
     World& world();
     bool sealed() const { return sealed_; }
-    std::string debug() const;
+    std::string name() const;
 
     void emit();
 
@@ -156,10 +156,10 @@ public:
         fct_ = this;
     }
     Fct(World& world, const Pi* pi, ArrayRef<Symbol> symbols, 
-        size_t return_index, const std::string& debug);
+        size_t return_index, const std::string& name);
     ~Fct();
 
-    BB* createBB(const std::string& debug = "");
+    BB* createBB(const std::string& name = "");
     void emit();
     World& world() { return world_; }
     Var* lookup_top(Symbol symbol, const Type* type);

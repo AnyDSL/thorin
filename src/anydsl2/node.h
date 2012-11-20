@@ -17,22 +17,23 @@ private:
 
 protected:
 
-
     /// This variant leaves internal \p ops_ \p Array allocateble via ops_.alloc(size).
-    Node(int kind) 
+    Node(int kind, const std::string& name)
         : kind_(kind) 
         , cur_pass_(0)
+        , name(name)
     {}
-    Node(int kind, size_t size)
+    Node(int kind, size_t size, const std::string& name)
         : kind_(kind)
         , ops_(size)
         , cur_pass_(0)
+        , name(name)
     {}
     Node(const Node& node)
-        : debug(node.debug)
-        , kind_(node.kind())
+        : kind_(node.kind())
         , ops_(node.ops_.size())
         , cur_pass_(0)
+        , name(node.name)
     {}
     virtual ~Node() {}
 
@@ -47,9 +48,6 @@ public:
     bool is_corenode() const { return ::anydsl2::is_corenode(kind()); }
     NodeKind node_kind() const { assert(is_corenode()); return (NodeKind) kind_; }
 
-    /// Just do what ever you want with this field.
-    mutable std::string debug;
-
     template<class T>
     ArrayRef<T> ops_ref() const { return ops_.ref().cast<T>(); }
 
@@ -63,24 +61,6 @@ public:
     size_t size() const { return ops_.size(); }
     bool empty() const { return ops_.empty(); }
     bool valid() const { return ops_.valid(); }
-
-    /** 
-     * Use this field in order to annotate information on this Def.
-     * Various analyses have to memorize different stuff temporally.
-     * Each analysis can use this field for its specific information. 
-     * \attention { 
-     *      Each pass/analysis simply overwrites this field again.
-     *      So keep this in mind and perform copy operations in order to
-     *      save your data before running the next pass/analysis.
-     *      Also, keep in mind to perform clean up operations at the end 
-     *      of your pass/analysis.
-     * }
-     */
-    union {
-        mutable void* ptr;
-        mutable const void* cptr;
-        mutable bool flags[sizeof(void*)/sizeof(bool)];
-    };
 
     /*
      * scratch operations
@@ -103,6 +83,30 @@ private:
     int kind_;
     Array<const Node*> ops_;
     mutable size_t cur_pass_;
+
+public:
+
+    /// Just do what ever you want with this field.
+    mutable std::string name;
+
+    /** 
+     * Use this field in order to annotate information on this Def.
+     * Various analyses have to memorize different stuff temporally.
+     * Each analysis can use this field for its specific information. 
+     * \attention { 
+     *      Each pass/analysis simply overwrites this field again.
+     *      So keep this in mind and perform copy operations in order to
+     *      save your data before running the next pass/analysis.
+     *      Also, keep in mind to perform clean up operations at the end 
+     *      of your pass/analysis.
+     * }
+     */
+    union {
+        mutable void* ptr;
+        mutable const void* cptr;
+        mutable bool flags[sizeof(void*)/sizeof(bool)];
+    };
+
 
     friend class World;
     friend class NodeHash;

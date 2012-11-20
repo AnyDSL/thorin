@@ -76,7 +76,7 @@ void Prg::emit(CodeGen& cg) const {
     for_all (f, fcts()) {
         anydsl2::Lambda* lambda = cg.create_fct(f->lambda(), f->symbol())->top();
         if (f->symbol() == Symbol("main"))
-            lambda->set_extern();
+            lambda->attr().set_extern();
             
         cg.root->nest(f->symbol(), f->lambda().air_fct());
     }
@@ -122,12 +122,12 @@ const anydsl2::Lambda* Lambda::emit(CodeGen& cg, BB* parent, const char* what) c
 void Fct::emit(CodeGen& cg) const {
     lambda().emit(cg, cg.curBB, symbol().str());
     if (extern_)
-        lambda().air_fct()->top()->set_extern();
+        lambda().air_fct()->top()->attr().set_extern();
 }
 
 Var* Decl::emit(CodeGen& cg) const {
     Var* var = cg.curBB->insert(symbol(), cg.world.bottom(type()));
-    var->load()->debug = symbol().str();
+    var->load()->name = symbol().str();
 
     return var;
 }

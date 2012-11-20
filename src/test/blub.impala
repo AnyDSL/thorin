@@ -1,0 +1,6 @@
+def extern f[[A]](a : A) -> A {
+    def g[[B]](b : B) -> B { 
+        return a; 
+    }
+    return g(a);
+}

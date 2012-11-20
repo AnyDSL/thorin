@@ -15,8 +15,8 @@ class PrimLit;
 class PrimOp : public Def {
 protected:
 
-    PrimOp(int kind, size_t size, const Type* type)
-        : Def(kind, size, type)
+    PrimOp(int kind, size_t size, const Type* type, const std::string& name)
+        : Def(kind, size, type, name)
     {}
 };
 
@@ -25,8 +25,8 @@ protected:
 class BinOp : public PrimOp {
 protected:
 
-    BinOp(NodeKind kind, const Type* type, const Def* lhs, const Def* rhs)
-        : PrimOp(kind, 2, type)
+    BinOp(NodeKind kind, const Type* type, const Def* lhs, const Def* rhs, const std::string& name)
+        : PrimOp(kind, 2, type, name)
     {
         assert(lhs->type() == rhs->type() && "types are not equal");
         set_op(0, lhs);
@@ -48,8 +48,8 @@ private:
 class ArithOp : public BinOp {
 private:
 
-    ArithOp(ArithOpKind kind, const Def* lhs, const Def* rhs)
-        : BinOp((NodeKind) kind, lhs->type(), lhs, rhs)
+    ArithOp(ArithOpKind kind, const Def* lhs, const Def* rhs, const std::string& name)
+        : BinOp((NodeKind) kind, lhs->type(), lhs, rhs, name)
     {}
 
 public:
@@ -102,7 +102,7 @@ public:
 class RelOp : public BinOp {
 private:
 
-    RelOp(RelOpKind kind, const Def* lhs, const Def* rhs);
+    RelOp(RelOpKind kind, const Def* lhs, const Def* rhs, const std::string& name);
 
 public:
 
@@ -116,8 +116,8 @@ public:
 class ConvOp : public PrimOp {
 private:
 
-    ConvOp(ConvOpKind kind, const Type* to, const Def* from)
-        : PrimOp(kind, 1, to)
+    ConvOp(ConvOpKind kind, const Type* to, const Def* from, const std::string& name)
+        : PrimOp(kind, 1, to, name)
     {
         set_op(0, from);
     }
@@ -139,7 +139,7 @@ private:
 class Select : public PrimOp {
 private:
 
-    Select(const Def* cond, const Def* t, const Def* f);
+    Select(const Def* cond, const Def* t, const Def* f, const std::string& name);
 
 public:
 
@@ -157,10 +157,7 @@ public:
 class TupleOp : public PrimOp {
 protected:
 
-    TupleOp(NodeKind kind, size_t size, const Type* type, const Def* tuple, const Def* index);
-    TupleOp(const TupleOp& tuple)
-        : PrimOp(tuple)
-    {}
+    TupleOp(NodeKind kind, size_t size, const Type* type, const Def* tuple, const Def* index, const std::string& name);
 
 public:
 
@@ -175,7 +172,7 @@ public:
 class Extract : public TupleOp {
 private:
 
-    Extract(const Def* tuple, const Def* index);
+    Extract(const Def* tuple, const Def* index, const std::string& name);
     
     virtual void vdump(Printer& printer) const;
 
@@ -189,7 +186,7 @@ public:
 class Insert : public TupleOp {
 private:
 
-    Insert(const Def* tuple, const Def* index, const Def* value);
+    Insert(const Def* tuple, const Def* index, const Def* value, const std::string& name);
     
 public:
 
@@ -207,7 +204,7 @@ private:
 class Tuple : public PrimOp {
 private:
 
-    Tuple(World& world, ArrayRef<const Def*> args);
+    Tuple(World& world, ArrayRef<const Def*> args, const std::string& name);
 
 private:
 

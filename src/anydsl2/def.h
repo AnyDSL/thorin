@@ -101,12 +101,12 @@ private:
 protected:
 
     /// This variant leaves internal \p ops_ \p Array allocateble via ops_.alloc(size).
-    Def(int kind, const Type* type)
-        : Node(kind)
+    Def(int kind, const Type* type, const std::string& name)
+        : Node(kind, name)
         , type_(type)
     {}
-    Def(int kind, size_t size, const Type* type)
-        : Node(kind, size)
+    Def(int kind, size_t size, const Type* type, const std::string& name)
+        : Node(kind, size, name)
         , type_(type)
     {}
 
@@ -189,7 +189,7 @@ std::ostream& operator << (std::ostream& o, const Def* def);
 class Param : public Def {
 private:
 
-    Param(const Type* type, Lambda* parent, size_t index);
+    Param(const Type* type, Lambda* parent, size_t index, const std::string& name);
 
     virtual bool equal(const Node* other) const;
     virtual size_t hash() const;

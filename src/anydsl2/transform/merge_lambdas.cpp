@@ -22,7 +22,7 @@ private:
 
 void Merger::merge() {
     for_all (lambda, world.lambdas()) {
-        if (lambda->num_uses() == 1 && !lambda->is_extern() && lambda->num_params() == 0) {
+        if (lambda->num_uses() == 1 && !lambda->attr().is_extern() && lambda->num_params() == 0) {
             Use use = *lambda->uses().begin();
             if (use.index() == 0) {
                 Lambda* ulambda = use.def()->as_lambda();

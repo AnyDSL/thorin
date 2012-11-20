@@ -274,7 +274,7 @@ Lambda* Mapper::mangle() {
     const Pi* n_pi = world.pi(nelems)->specialize(generic_map)->as<Pi>();
 
     nentry = world.lambda(n_pi);
-    nentry->debug = oentry->debug + ".d";
+    nentry->name = oentry->name + ".d";
 
     // put in params for entry (oentry)
     // op -> iterates over old params
@@ -286,14 +286,14 @@ Lambda* Mapper::mangle() {
             map(oparam, drop_with[i++]);
         else {
             const Param* nparam = nentry->param(np++);
-            nparam->debug = oparam->debug + ".d";
+            nparam->name = oparam->name + ".d";
             map(oparam, nparam);
         }
     }
 
     for (size_t i = offset, e = nelems.size(), x = 0; i != e; ++i, ++x) {
         map(to_lift[x], nentry->param(i));
-        nentry->param(i)->debug = to_lift[x]->debug;
+        nentry->param(i)->name = to_lift[x]->name;
     }
 
     map(oentry, oentry);
@@ -311,12 +311,12 @@ Lambda* Mapper::mangle() {
 Lambda* Mapper::map_head(Lambda* olambda) {
     assert(!olambda->is_visited(pass));
     Lambda* nlambda = olambda->stub(generic_map);
-    nlambda->debug += ".d";
+    nlambda->name += ".d";
     map(olambda, nlambda);
 
     for_all2 (oparam, olambda->params(), nparam, nlambda->params()) {
         map(oparam, nparam);
-        nparam->debug += ".d";
+        nparam->name += ".d";
     }
 
     return nlambda;

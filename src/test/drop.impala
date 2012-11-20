@@ -1,0 +1,8 @@
+def main(i : int) -> int {
+    def g(j : int) -> int { return i*i+j; }
+
+    if (i == 0)
+        return g(i);
+    else
+        return g(-i);
+}

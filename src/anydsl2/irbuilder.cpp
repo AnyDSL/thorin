@@ -13,14 +13,13 @@
 
 namespace anydsl2 {
 
-BB::BB(Fct* fct, const std::string& debug) 
+BB::BB(Fct* fct, const std::string& name) 
     : sealed_(false)
     , visited_(false)
     , fct_(fct)
-    , top_(world().lambda())
+    , top_(world().lambda(name))
     , cur_(top_)
 {
-    top_->debug = debug;
 }
 
 BB::~BB() {
@@ -56,11 +55,10 @@ Var* BB::lookup(Symbol symbol, const Type* type) {
 
     // insert a 'phi', i.e., create a param and remember to fix the callers
     if (!sealed_ || preds_.size() > 1) {
-        const Param* param = top_->append_param(type);
+        const Param* param = top_->append_param(type, symbol.str());
         size_t index = in_.size();
         in_.push_back(param);
         Var* lvar = insert(symbol, param);
-        param->debug = symbol.str();
 
         Todo todo(index, type);
 
@@ -184,10 +182,8 @@ const Def* BB::call(const Def* to, ArrayRef<const Def*> args, const Type* rettyp
     static int id = 0;
 
     // create next continuation in cascade
-    Lambda* next = world().lambda();
-    next->debug = cur_->debug + "_" + to->debug;
-    const Param* result = next->append_param(rettype);
-    result->debug = make_name(to->debug.c_str(), id);
+    Lambda* next = world().lambda(cur_->name + "_" + to->name);
+    const Param* result = next->append_param(rettype, make_name(to->name.c_str(), id));
 
     // create jump to this new continuation
     size_t csize = args.size() + 1;
@@ -234,12 +230,12 @@ void BB::emit() {
         ANYDSL2_UNREACHABLE;
 }
 
-std::string BB::debug() const { return top() ? top()->debug : std::string(); }
+std::string BB::name() const { return top() ? top()->name : std::string(); }
 
 //------------------------------------------------------------------------------
 
 Fct::Fct(World& world, const Pi* pi, ArrayRef<Symbol> symbols, 
-         size_t return_index, const std::string& debug)
+         size_t return_index, const std::string& name)
     : world_(world)
     , parent_(0)
 {
@@ -247,11 +243,11 @@ Fct::Fct(World& world, const Pi* pi, ArrayRef<Symbol> symbols,
     sealed_ = true;
     fct_ = this;
     cur_ = top_ = world.lambda(pi);
-    top_->debug = debug;
+    top_->name = name;
     ret_ = (return_index != size_t(-1) ? top()->param(return_index) : 0);
 
     for_all2 (param, top_->params(), sym, symbols)
-        param->debug = insert(sym, param)->symobl().str();
+        param->name = insert(sym, param)->symobl().str();
 }
 
 Fct::~Fct() {
@@ -259,8 +255,8 @@ Fct::~Fct() {
         delete bb;
 }
 
-BB* Fct::createBB(const std::string& debug /*= ""*/) {
-    BB* bb = new BB(this, debug);
+BB* Fct::createBB(const std::string& name /*= ""*/) {
+    BB* bb = new BB(this, name);
     cfg_.push_back(bb);
 
     return bb;

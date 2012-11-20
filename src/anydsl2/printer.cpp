@@ -41,8 +41,8 @@ Printer& Printer::dump_name(const Def* def) {
         o << "\33[" << code << "m";
     }
 
-    if (!def->debug.empty())
-        o << def->debug;
+    if (!def->name.empty())
+        o << def->name;
     else
         o << (void*)def;
 

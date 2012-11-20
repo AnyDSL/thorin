@@ -16,19 +16,24 @@ class World;
 class LoopForestNode {
 public:
 
-    LoopForestNode(int depth, ArrayRef<Lambda*> lambdas)
-        : depth_(depth)
-        , lambdas_(lambdas)
-    {}
+    LoopForestNode(LoopForestNode* parent)
+        : parent_(parent)
+        , depth_(0)
+    {
+        if (parent_)
+            parent_->children_.push_back(this);
+    }
 
     int depth() const { return depth_; }
-    ArrayRef<Lambda*> lambdas() const { return lambdas_; }
+    ArrayRef<Lambda*> headers() const { return headers_; }
     ArrayRef<LoopForestNode*> children() const { return children_; }
+    LoopForestNode* parent() const { return parent_; }
 
 private:
 
+    LoopForestNode* parent_;
     int depth_;
-    Array<Lambda*> lambdas_;
+    std::vector<Lambda*> headers_;
     AutoVector<LoopForestNode*> children_;
 
     friend class LFBuilder;

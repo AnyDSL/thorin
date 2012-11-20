@@ -107,7 +107,6 @@ void CodeGen::emit() {
 
         const Param* ret_param = lambda->ho_params().front();
         Scope scope(lambda);
-        create_loop_forest(scope);
         BBMap bbs(scope.size());
 
         // map all bb-like lambdas to llvm bb stubs 

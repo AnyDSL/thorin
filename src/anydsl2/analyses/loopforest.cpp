@@ -5,7 +5,9 @@
 #include "anydsl2/analyses/scope.h"
 
 #include <algorithm>
+#include <limits>
 #include <iostream>
+#include <stack>
 
 namespace anydsl2 {
 
@@ -97,7 +99,7 @@ private:
 };
 
 LoopForestNode* LFBuilder::build() {
-    LoopForestNode* root = new LoopForestNode(0);
+    LoopForestNode* root = new LoopForestNode(0, -1);
     root->headers_.push_back(scope.entry());
     recurse(root);
     root->headers_.clear();
@@ -105,7 +107,6 @@ LoopForestNode* LFBuilder::build() {
 }
 
 void LFBuilder::recurse(LoopForestNode* parent) {
-    std::cout << "recurse node: " << parent->headers().front()->debug << std::endl;
     pass = world().new_pass();
     if (first_pass == size_t(-1))
         first_pass = pass;
@@ -114,16 +115,15 @@ void LFBuilder::recurse(LoopForestNode* parent) {
     walk_scc(parent->headers().front() /* pick one */, parent);
 
     for_all (node, parent->children()) {
-        for_all (header, node->headers()) {
-            std::cout << "mark as header: " << header->debug << std::endl;
+        for_all (header, node->headers())
             header->flags[IsHeader] = true;
-        }
     }
 
     for_all (node, parent->children()) {
-        if (node->depth() != -1) {
+        if (node->depth() < -1)
+            node->depth_ -= std::numeric_limits<int>::min();
+        else
             recurse(node);
-        }
     }
 }
 
@@ -142,37 +142,35 @@ void LFBuilder::walk_scc(Lambda* cur, LoopForestNode* parent) {
 
     // root of SCC
     if (lowlink(cur) == dfs(cur)) {
-        LoopForestNode* node = new LoopForestNode(parent);
+        LoopForestNode* node = new LoopForestNode(parent, (int) (pass - first_pass));
         std::vector<Lambda*>& headers = node->headers_;
 
-        std::cout << "root: " << cur->debug << std::endl;
-
-        size_t num = 0;
-        size_t e = stack.size();
-        size_t b = e - 1;
+        size_t num = 0, e = stack.size(), b = e - 1;
         do {
             stack[b]->flags[InSCC] = true;
             ++num;
-            std::cout << '\t' << stack[b]->debug << std::endl;
         } while (stack[b--] != cur);
 
-        if (num == 1)
-            node->depth_ = -1;
-
+        if (num == 1) {
+            for_all (succ, scope.succs(cur)) {
+                if (!is_header(succ) && cur == succ)
+                    goto self_loop;
+            }
+            node->depth_ = std::numeric_limits<int>::min() + node->depth_;
+        }
+self_loop:
         for (size_t i = ++b; i != e; ++i) {
             Lambda* lambda = stack[i];
             if (lambda == scope.entry())
-                goto set_header;
+                headers.push_back(lambda);
             else {
                 for_all (pred, scope.preds(lambda)) {
-                    if (!pred->flags[InSCC])
-                        goto set_header;
+                    if (!pred->flags[InSCC]) {
+                        headers.push_back(lambda);
+                        break;
+                    }
                 }
-                continue;
             }
-set_header:
-            std::cout << "header: " << lambda->debug << std::endl;
-            headers.push_back(lambda);
         }
 
         // reset InSCC flag
@@ -189,5 +187,20 @@ LoopForestNode* create_loop_forest(const Scope& scope) {
     LFBuilder builder(scope);
     return builder.build();
 }
+
+//------------------------------------------------------------------------------
+
+std::ostream& operator << (std::ostream& o, const LoopForestNode* node) {
+    for (int i = 0; i < node->depth(); ++i)
+        o << '\t';
+    for_all (header, node->headers())
+        o << header->debug << " ";
+    o << std::endl;
+    for_all (child, node->children())
+        o << child;
+    return o;
+}
+
+//------------------------------------------------------------------------------
 
 } // namespace anydsl2

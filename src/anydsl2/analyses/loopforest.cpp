@@ -50,6 +50,12 @@ private:
     size_t& lowlink(Lambda* lambda) { return number(lambda).low; }
     size_t& dfs(Lambda* lambda) { return number(lambda).dfs; }
 
+    void new_pass() {
+        pass = world().new_pass();
+        if (first_pass == size_t(-1))
+            first_pass = pass;
+    }
+
     void push(Lambda* lambda) { 
         assert(is_visited(lambda) && !lambda->flags[OnStack]);
         stack.push_back(lambda);
@@ -75,7 +81,7 @@ private:
         return false;
     }
 
-    void visit(Lambda* lambda) {
+    int visit(Lambda* lambda, int counter) {
         assert(!lambda->is_visited(pass));
         lambda->visit(pass);
         lambda->flags[OnStack] = false;
@@ -84,57 +90,54 @@ private:
             lambda->flags[IsHeader] = false;
         numbers[lambda->sid()] = Number(counter++);
         push(lambda);
+        return counter;
     }
     bool is_visited(Lambda* lambda) { return lambda->is_visited(pass); }
 
-    void recurse(LoopForestNode* node);
-    void walk_scc(Lambda* cur, LoopForestNode* node);
+    void recurse(LoopForestNode* node, int depth);
+    int walk_scc(Lambda* cur, LoopForestNode* node, int depth, int counter);
 
     const Scope& scope;
     Array<Number> numbers;
     size_t pass;
     size_t first_pass;
-    size_t counter;
     std::vector<Lambda*> stack;
 };
 
 LoopForestNode* LFBuilder::build() {
     LoopForestNode* root = new LoopForestNode(0, -1);
     root->headers_.push_back(scope.entry());
-    recurse(root);
+    recurse(root, 0);
     root->headers_.clear();
     return root;
 }
 
-void LFBuilder::recurse(LoopForestNode* parent) {
-    pass = world().new_pass();
-    if (first_pass == size_t(-1))
-        first_pass = pass;
-
-    counter = 0;
-    walk_scc(parent->headers().front() /* pick one */, parent);
-
-    for_all (node, parent->children()) {
-        for_all (header, node->headers())
-            header->flags[IsHeader] = true;
+void LFBuilder::recurse(LoopForestNode* parent, int depth) {
+    for_all (header, parent->headers()) {
+        new_pass();
+        walk_scc(header, parent, depth, 0);
+        for_all (node, parent->children()) {
+            for_all (header, node->headers())
+                header->flags[IsHeader] = true;
+        }
     }
 
     for_all (node, parent->children()) {
         if (node->depth() < -1)
             node->depth_ -= std::numeric_limits<int>::min();
         else
-            recurse(node);
+            recurse(node, depth + 1);
     }
 }
 
-void LFBuilder::walk_scc(Lambda* cur, LoopForestNode* parent) {
-    visit(cur);
+int LFBuilder::walk_scc(Lambda* cur, LoopForestNode* parent, int depth, int counter) {
+    counter = visit(cur, counter);
 
     for_all (succ, scope.succs(cur)) {
         if (is_header(succ))
             continue; // this is a backedge
         if (!is_visited(succ)) {
-            walk_scc(succ, parent);
+            counter = walk_scc(succ, parent, depth, counter);
             lowlink(cur) = std::min(lowlink(cur), lowlink(succ));
         } else if (on_stack(succ))
             lowlink(cur) = std::min(lowlink(cur), dfs(succ));
@@ -142,7 +145,7 @@ void LFBuilder::walk_scc(Lambda* cur, LoopForestNode* parent) {
 
     // root of SCC
     if (lowlink(cur) == dfs(cur)) {
-        LoopForestNode* node = new LoopForestNode(parent, (int) (pass - first_pass));
+        LoopForestNode* node = new LoopForestNode(parent, depth);
         std::vector<Lambda*>& headers = node->headers_;
 
         size_t num = 0, e = stack.size(), b = e - 1;
@@ -181,6 +184,8 @@ self_loop:
         stack.resize(b);
         assert(num != 1 || (node->headers().size() == 1 && node->headers().front() == cur));
     }
+
+    return counter;
 }
 
 LoopForestNode* create_loop_forest(const Scope& scope) {

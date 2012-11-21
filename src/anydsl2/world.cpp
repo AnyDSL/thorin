@@ -436,7 +436,7 @@ Lambda* World::lambda(const Pi* pi, LambdaAttr attr, const std::string& name) {
 
     size_t i = 0;
     for_all (elem, pi->elems())
-        l->params_.push_back(new Param(elem, l, i++, "TODO"));
+        l->params_.push_back(new Param(elem, l, i++, ""));
 
     return l;
 }

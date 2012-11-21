@@ -59,11 +59,11 @@ bool Def::is_const() const {
     if (empty() || node_kind() == Node_Lambda)
         return true;
 
-    bool result = true;
-    for (size_t i = 0, e = size(); i != e && result; ++i)
-        result &= op(i)->is_const();
+    for (size_t i = 0, e = size(); i != e; ++i)
+        if (!op(i)->is_const())
+            return false;
 
-    return result;
+    return true;
 }
 
 void Def::update(size_t i, const Def* def) {

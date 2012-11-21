@@ -75,11 +75,11 @@ public:
         if (size() != other.size())
             return false;
 
-        bool result = true;
-        for (size_t i = 0, e = size(); i != e && result; ++i)
-            result &= ptr_[i] == other[i];
+        for (size_t i = 0, e = size(); i != e; ++i)
+            if (!(ptr_[i] == other[i]))
+                return false;
 
-        return result;
+        return true;
     }
 
     template<class U>

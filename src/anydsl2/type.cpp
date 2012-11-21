@@ -20,11 +20,11 @@ const Type*& GenericMap::operator [] (const Generic* generic) const {
 }
 
 bool GenericMap::is_empty() const {
-    bool result = true;
-    for (size_t i = 0, e = types_.size(); i != e && result; ++i)
-        result &= !types_[i];
+    for (size_t i = 0, e = types_.size(); i != e; ++i)
+        if (!types_[i])
+            return false;
 
-    return result;
+    return true;
 }
 
 const char* GenericMap::to_string() const {
@@ -71,11 +71,11 @@ bool Type::check_with(const Type* other) const {
     if (this->kind() != other->kind() || this->size() != other->size())
         return false;
 
-    bool result = true;
-    for (size_t i = 0, e = size(); i != e && result; ++i)
-        result &= this->elem(i)->check_with(other->elem(i));
+    for (size_t i = 0, e = size(); i != e; ++i)
+        if (!this->elem(i)->check_with(other->elem(i)))
+            return false;
 
-    return result;
+    return true;
 }
 
 bool Type::infer_with(GenericMap& map, const Type* other) const {

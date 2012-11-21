@@ -24,9 +24,8 @@ Lambda::~Lambda() {
         delete param;
 }
 
-Lambda* Lambda::stub(const GenericMap& generic_map) const { 
-    Lambda* result = world().lambda(pi()->specialize(generic_map)->as<Pi>(), attr());
-    result->name = name;
+Lambda* Lambda::stub(const GenericMap& generic_map, const std::string& name) const { 
+    Lambda* result = world().lambda(pi()->specialize(generic_map)->as<Pi>(), attr(), name);
 
     for (size_t i = 0, e = params().size(); i != e; ++i)
         result->param(i)->name = param(i)->name;

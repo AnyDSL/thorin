@@ -153,6 +153,7 @@ public:
     Defs ops(size_t begin, size_t end) const { return ops().slice(begin, end); }
     const Def* op(size_t i) const { return ops()[i]; }
     const Def* op_via_lit(const Def* def) const;
+    void replace(const Def* with) const;
 
     /*
      * check for special literals

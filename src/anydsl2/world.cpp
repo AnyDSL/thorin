@@ -704,15 +704,15 @@ void World::replace(const Def* cwhat, const Def* with) {
 }
 
 void World::replace(Def* what, const Def* with) {
-    assert(!what->isa<Param>());
-    assert(!with->isa<PrimOp>() || primops_.find(with->as<PrimOp>()) == primops_.end());
+    assert(!what->isa<Param>()  || primops_.find(what->as<PrimOp>()) == primops_.end());
+    assert(!with->isa<PrimOp>() || primops_.find(with->as<PrimOp>()) != primops_.end());
     assert(what != with);
 
     // unregister all uses of what's operands
     for (size_t i = 0, e = what->size(); i != e; ++i)
         what->unset_op(i);
 
-    for_all (use, what->uses()) {
+    for_all (use, what->copy_uses()) {
         if (Lambda* lambda = use.def()->isa_lambda())
             lambda->update(use.index(), with);
         else {

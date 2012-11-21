@@ -653,10 +653,11 @@ void World::dump(bool fancy) {
         LambdaSet roots = find_root_lambdas(lambdas());
 
         for_all (root, roots) {
-            ScopeTree scope(root);
+            Scope scope(root);
+            DomTree dom_tree(scope);
 
             for_all (lambda, scope.rpo()) {
-                int indent = scope.depth(lambda);
+                int indent = dom_tree.depth(lambda);
                 lambda->dump(fancy, indent);
             }
         }

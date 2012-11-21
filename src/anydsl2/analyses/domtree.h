@@ -75,19 +75,6 @@ private:
     Array<DomNode*> nodes_;
 };
 
-class ScopeTree : public Scope, public DomTree {
-public:
-
-    ScopeTree(Lambda* entry)
-        : Scope(entry)
-        , DomTree(*static_cast<Scope*>(this))
-    {}
-
-    size_t size() const { return Scope::size(); }
-    Lambda* entry() const { return Scope::entry(); }
-    const DomNode* entry_node() const { return DomTree::entry(); }
-};
-
 } // namespace anydsl2
 
 #endif

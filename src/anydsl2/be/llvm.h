@@ -6,6 +6,8 @@
 namespace llvm {
     class Type;
     class Value;
+    class Module;
+    class LLVMContext;
 }
 
 namespace anydsl2 {
@@ -20,6 +22,8 @@ namespace be_llvm {
 class EmitHook {
 public:
     virtual ~EmitHook() {}
+
+    virtual void assign(llvm::LLVMContext& context, llvm::Module* module) { }
 
     virtual llvm::Value* emit(const Def*) { ANYDSL2_UNREACHABLE; }
     virtual llvm::Type* map(const Type*) { ANYDSL2_UNREACHABLE; }

@@ -75,7 +75,10 @@ CodeGen::CodeGen(const World& world, EmitHook& hook)
     , context_()
     , builder_(context_)
     , module_(new llvm::Module("anydsl", context_))
-{}
+{
+    // assign module and context
+    hook.assign(context_, module_);
+}
 
 //------------------------------------------------------------------------------
 

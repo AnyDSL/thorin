@@ -110,7 +110,7 @@ void CFGBuilder::process() {
     std::vector<Lambda*> todo;
     for_all (top_lambda, top) {
         Scope scope(top_lambda);
-        for (size_t i = scope.size()-1; i != size_t(-1); --i) {
+        for (size_t i = scope.size(); i-- != 0;) {
             Lambda* lambda = scope.rpo(i);
             if (lambda->num_params()                                // is there sth to drop?
                     && (lambda->num_uses() == 1                     // just 1 user -- always drop

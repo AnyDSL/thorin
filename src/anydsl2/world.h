@@ -226,7 +226,7 @@ public:
     const Def* typekeeper(const Type* type, const std::string& name = "");
 
     Lambda* lambda(const Pi* pi, LambdaAttr attr = LambdaAttr(0), const std::string& name = "");
-    Lambda* lambda(const Pi* pi, const std::string& name) { return lambda(pi0(), LambdaAttr(0), name); }
+    Lambda* lambda(const Pi* pi, const std::string& name) { return lambda(pi, LambdaAttr(0), name); }
     Lambda* lambda(const std::string& name) { return lambda(pi0(), LambdaAttr(0), name); }
 
     /// Generic \p PrimOp constructor.

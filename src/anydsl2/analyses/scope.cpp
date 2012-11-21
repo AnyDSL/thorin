@@ -308,7 +308,7 @@ Lambda* Mapper::mangle() {
 
 Lambda* Mapper::map_head(Lambda* olambda) {
     assert(!olambda->is_visited(pass));
-    Lambda* nlambda = olambda->stub(generic_map, nlambda->name + ".d");
+    Lambda* nlambda = olambda->stub(generic_map, olambda->name + ".d");
     map(olambda, nlambda);
 
     for_all2 (oparam, olambda->params(), nparam, nlambda->params()) {

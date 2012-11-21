@@ -5,53 +5,69 @@
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
 #include "anydsl2/primop.h"
+#include "anydsl2/world.h"
 #include "anydsl2/analyses/scope.h"
 
 namespace anydsl2 {
 
-typedef boost::unordered_set<const PrimOp*> Done;
+class Placer {
+public:
 
-void insert(Done& done, std::vector<const PrimOp*>& primops, const Def* def) {
-    std::queue<const Def*> q;
-    q.push(def);
+    Placer(const Scope& scope)
+        : scope(scope)
+        , pass(world().new_pass())
+    {}
 
-    // perform a breadth-first-traversal of the uses
-    while (!q.empty()) {
-        const Def* def = q.front();
-        q.pop();
+    World& world() const { return scope.world(); }
+    Places place();
+    void visit(Schedule& schedule, Lambda* lambda);
+    void place(Schedule& schedule, const Def* def);
+    void mark(const Def* def) { def->visit(pass); }
+    bool defined(const Def* def) { return def->is_const() || def->is_visited(pass); }
 
-        if (def->isa<Lambda>())
-            continue;
+private:
 
-        if (const PrimOp* primop = def->isa<PrimOp>()) {
-            if (done.find(primop) != done.end())
-                continue;
-            else {
-                done.insert(primop);
-                for_all (op, primop->ops())
-                    if (const Literal* lit = op->isa<Literal>())
-                        primops.push_back(lit);
+    const Scope& scope;
+    size_t pass;
+};
 
-                primops.push_back(primop);
-            }
+Places Placer::place() {
+    Places places(scope.size());
+
+    for_all (lambda, scope.rpo())
+        visit(places[lambda->sid()], lambda);
+
+    return places;
+}
+
+void Placer::visit(Schedule& schedule, Lambda* lambda) {
+    for_all (param, lambda->params()) mark(param);
+    for_all (param, lambda->params()) place(schedule, param);
+}
+
+void Placer::place(Schedule& schedule, const Def* def) {
+    assert(defined(def));
+
+    for_all (use, def->uses()) {
+        const Def* udef = use.def();
+
+        if (udef->isa<Param>() || udef->isa<Lambda>())
+            continue; // do not descent into lambdas -- it is handled by the RPO run
+
+        for_all (op, udef->ops()) {
+            if (!defined(op))
+                goto outer_loop;
         }
-
-        for_all (use, def->uses())
-            q.push(use.def());
+        mark(udef);
+        schedule.push_back(udef->as<PrimOp>());
+        place(schedule, udef);
+outer_loop: ;
     }
 }
 
 Places place(const Scope& scope) {
-    Places places(scope.size());
-    Done done;
-
-    for (size_t i = scope.size() - 1; i != size_t(-1); --i) {
-        Lambda* lambda = scope.rpo(i);
-        for_all (param, lambda->params())
-            insert(done, places[i], param);
-    }
-
-    return places;
+    Placer placer(scope);
+    return placer.place();
 }
 
 } // namespace anydsl2

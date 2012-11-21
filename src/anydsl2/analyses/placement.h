@@ -8,8 +8,9 @@ namespace anydsl2 {
 class Scope;
 class PrimOp;
 
-typedef Array< std::vector<const PrimOp*> > Places;
-Places place(const Scope& sceop);
+typedef std::vector<const PrimOp*> Schedule;
+typedef Array<Schedule> Places;
+Places place(const Scope& scope);
 
 } // namespace anydsl2
 

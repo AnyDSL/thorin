@@ -56,7 +56,7 @@ void DomTree::create() {
                     if (!new_idom)
                         new_idom = lookup(pred);// pick first processed predecessor of cur
                     else
-                        new_idom = intersect(other_idom, new_idom);
+                        new_idom = lca(other_idom, new_idom);
                 }
             }
 
@@ -74,24 +74,9 @@ void DomTree::create() {
         const DomNode* n = lookup(lambda);
         n->idom_->children_.push_back(n);
     }
-
-    size_t i = 0;
-    // perform a breadth-first-traversal of the dom-tree
-    std::queue<const DomNode*> q;
-    q.push(entry_node);
-
-    while (!q.empty()) {
-        const DomNode* node = q.front();
-        q.pop();
-
-        bfs_[i++] = node;
-
-        for_all (child, node->children())
-            q.push(child);
-    }
 }
 
-DomNode* DomTree::intersect(DomNode* i, DomNode* j) {
+DomNode* DomTree::lca(DomNode* i, DomNode* j) {
     while (i->sid() != j->sid()) {
         while (i->sid() < j->sid()) 
             j = j->idom_;
@@ -100,6 +85,15 @@ DomNode* DomTree::intersect(DomNode* i, DomNode* j) {
     }
 
     return i;
+}
+
+const DomNode* DomTree::lca(ArrayRef<const DomNode*> nodes) {
+    assert(!nodes.empty());
+    const DomNode* lca_node = nodes.front();
+    for_all (n, nodes.slice_back(1))
+        lca_node = lca(lca_node, n);
+
+    return lca_node;
 }
 
 const DomNode* DomTree::node(Lambda* lambda) const { return nodes_[lambda->sid()]; }

@@ -44,7 +44,6 @@ public:
 
     explicit DomTree(const Scope& scope)
         : scope_(scope)
-        , bfs_(size())
         , nodes_(size())
     {
         create();
@@ -54,23 +53,25 @@ public:
     const Scope& scope() const { return scope_; }
     const DomNode* entry() const;
     size_t size() const;
-    ArrayRef<const DomNode*> bfs() const { return bfs_; }
     ArrayRef<const DomNode*> nodes() const { return ArrayRef<const DomNode*>(nodes_.begin(), nodes_.size()); }
     const DomNode* node(size_t sid) const { return nodes_[sid]; }
     const DomNode* node(Lambda* lambda) const;
-    const DomNode* bfs(size_t i) const { return bfs_[i]; }
     int depth(Lambda* lambda) const { return node(lambda)->depth(); }
     bool dominates(const DomNode* a, const DomNode* b);
     bool strictly_dominates(const DomNode* a, const DomNode* b) { return a != b && dominates(a, b); }
+    Lambda* lca(Lambda* i, Lambda* j) { return lca(lookup(i), lookup(j))->lambda(); }
+    static const DomNode* lca(const DomNode* i, const DomNode* j) { 
+        return lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j)); 
+    }
+    static const DomNode* lca(ArrayRef<const DomNode*> nodes);
 
 private:
 
+    static DomNode* lca(DomNode* i, DomNode* j);
     void create();
     DomNode* lookup(Lambda* lambda);
-    DomNode* intersect(DomNode* i, DomNode* j);
 
     const Scope& scope_;
-    Array<const DomNode*> bfs_;
     Array<DomNode*> nodes_;
 };
 

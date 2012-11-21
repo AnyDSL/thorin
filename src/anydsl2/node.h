@@ -105,6 +105,7 @@ public:
         mutable void* ptr;
         mutable const void* cptr;
         mutable bool flags[sizeof(void*)/sizeof(bool)];
+        mutable size_t counter;
     };
 
 

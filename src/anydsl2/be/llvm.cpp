@@ -99,7 +99,6 @@ void CodeGen::emit() {
         Lambda* lambda = lf.first;
         assert(lambda->is_returning());
         llvm::Function* fct = lf.second;
-        assert(lambda->ho_params().size() == 1 && "unsupported number of higher order params");
 
         // map params
         llvm::Function::arg_iterator arg = fct->arg_begin();

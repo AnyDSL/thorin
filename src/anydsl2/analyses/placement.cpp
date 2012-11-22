@@ -8,85 +8,26 @@
 #include "anydsl2/primop.h"
 #include "anydsl2/world.h"
 #include "anydsl2/analyses/domtree.h"
+#include "anydsl2/analyses/loopforest.h"
 #include "anydsl2/analyses/scope.h"
 
 namespace anydsl2 {
 
-//------------------------------------------------------------------------------
-
-class EarlyPlacement {
-public:
-
-    EarlyPlacement(const Scope& scope)
-        : scope(scope)
-        , pass(world().new_pass())
-    {}
-
-    World& world() const { return scope.world(); }
-    Places place();
-    void visit(Schedule& schedule, Lambda* lambda);
-    void place(Schedule& schedule, const Def* def);
-    void mark(const Def* def) { def->visit(pass); }
-    bool defined(const Def* def) { return def->is_const() || def->is_visited(pass); }
-
-private:
-
-    const Scope& scope;
-    size_t pass;
-};
-
-Places EarlyPlacement::place() {
-    Places places(scope.size());
-
-    for_all (lambda, scope.rpo())
-        visit(places[lambda->sid()], lambda);
-
-    return places;
-}
-
-void EarlyPlacement::visit(Schedule& schedule, Lambda* lambda) {
-    for_all (param, lambda->params()) mark(param);
-    for_all (param, lambda->params()) place(schedule, param);
-}
-
-void EarlyPlacement::place(Schedule& schedule, const Def* def) {
-    assert(defined(def));
-
-    for_all (use, def->uses()) {
-        const Def* udef = use.def();
-
-        if (udef->isa<Param>() || udef->isa<Lambda>())
-            continue; // do not descent into lambdas -- it is handled by the RPO run
-
-        for_all (op, udef->ops()) {
-            if (!defined(op))
-                goto outer_loop;
-        }
-        mark(udef);
-        schedule.push_back(udef->as<PrimOp>());
-        place(schedule, udef);
-outer_loop: ;
-    }
-}
-
-Places place_early(const Scope& scope) {
-    EarlyPlacement placer(scope);
-    return placer.place();
-}
+typedef boost::unordered_map<const PrimOp*, Lambda*> PrimOp2Lambda;
 
 //------------------------------------------------------------------------------
 
 class LatePlacement {
 public:
 
-    LatePlacement(const Scope& scope)
+    LatePlacement(const Scope& scope, const DomTree& domtree)
         : scope(scope)
-        , domtree(scope)
+        , domtree(domtree)
         , pass(world().new_pass())
     {}
 
     World& world() const { return scope.world(); }
-    Places place();
+    PrimOp2Lambda place();
     void visit(Lambda* lambda);
     void place(Lambda* lambda, const Def* def);
     void inc(const Def* def) { 
@@ -97,31 +38,21 @@ public:
     }
     size_t num_placed(const Def* def) { return def->is_visited(pass) ? def->counter : 0; }
     bool all_uses_placed(const Def* def) { return num_placed(def) == def->num_uses(); }
-    Places& places() { return *places_; }
 
 private:
 
     const Scope& scope;
-    DomTree domtree;
+    const DomTree& domtree;
     size_t pass;
-    Places* places_;
-
-    typedef boost::unordered_map<const PrimOp*, Lambda*> PrimOp2Lambda;
     PrimOp2Lambda primop2lambda;
 };
 
-Places LatePlacement::place() {
+PrimOp2Lambda LatePlacement::place() {
     size_t size = scope.size();
-    Places result(size);
-    places_ = &result;
-
     for (size_t i = size; i-- != 0;)
         visit(scope.rpo(i));
 
-    for_all (&schedule, result)
-        std::reverse(schedule.begin(), schedule.end());
-
-    return result;
+    return primop2lambda;
 }
 
 void LatePlacement::visit(Lambda* lambda) {
@@ -138,7 +69,6 @@ void LatePlacement::place(Lambda* lambda, const Def* def) {
     primop2lambda[primop] = lca;
 
     if (all_uses_placed(primop)) {
-        places()[lca->sid()].push_back(primop);
         for_all (op, primop->ops()) {
             inc(op);
             place(lambda, op);
@@ -146,9 +76,89 @@ void LatePlacement::place(Lambda* lambda, const Def* def) {
     }
 }
 
-Places place_late(const Scope& scope) {
-    LatePlacement placer(scope);
+static PrimOp2Lambda place_late(const Scope& scope, const DomTree& domtree) {
+    LatePlacement placer(scope, domtree);
     return placer.place();
 }
+
+//------------------------------------------------------------------------------
+
+class Placement {
+public:
+
+    Placement(const Scope& scope)
+        : domtree(scope)
+        , late(place_late(scope, domtree))
+        , loopinfo(scope)
+        , pass(world().new_pass())
+    {}
+
+    const Scope& scope() const { return loopinfo.scope(); }
+    World& world() const { return scope().world(); }
+    Places place();
+    void visit(Places& places, Lambda* lambda);
+    void place(Places& places, Lambda* early, const Def* def);
+    void mark(const Def* def) { def->visit(pass); }
+    bool defined(const Def* def) { return def->is_const() || def->is_visited(pass); }
+
+private:
+
+    DomTree domtree;
+    PrimOp2Lambda late;
+    LoopInfo loopinfo;
+    size_t pass;
+};
+
+Places Placement::place() {
+    Places places(scope().size());
+
+    for_all (lambda, scope().rpo())
+        visit(places, lambda);
+
+    return places;
+}
+
+void Placement::visit(Places& places, Lambda* lambda) {
+    for_all (param, lambda->params()) mark(param);
+    for_all (param, lambda->params()) place(places, lambda, param);
+}
+
+void Placement::place(Places& places, Lambda* early, const Def* def) {
+    assert(defined(def));
+
+    for_all (use, def->uses()) {
+        const Def* udef = use.def();
+        if (udef->isa<Param>() || udef->isa<Lambda>())
+            continue; // do not descent into lambdas -- it is handled by the RPO run
+        const PrimOp* primop = udef->as<PrimOp>();
+
+        for_all (op, primop->ops()) {
+            if (!defined(op))
+                goto outer_loop;
+        }
+        {
+            mark(primop);
+            Lambda* best = late[primop];
+            int depth = std::numeric_limits<int>::max();
+            for (Lambda* i = best; i != early; i = domtree.idom(i)) {
+                int cur_depth = loopinfo.depth(i);
+                if (cur_depth < depth) {
+                    best = i;
+                    depth = cur_depth;
+                }
+            }
+            places[best->sid()].push_back(primop);
+            place(places, early, primop);
+        }
+outer_loop: ;
+    }
+}
+
+Places place(const Scope& scope) {
+    Placement placer(scope);
+    return placer.place();
+}
+
+//------------------------------------------------------------------------------
 
 } // namespace anydsl2

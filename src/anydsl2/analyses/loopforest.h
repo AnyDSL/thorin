@@ -1,11 +1,12 @@
 #ifndef ANALYSES_LOOPS_H
 #define ANALYSES_LOOPS_H
 
+#include <memory>
+#include <vector>
+
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/autoptr.h"
-
-#include <vector>
 
 namespace anydsl2 {
 
@@ -46,6 +47,35 @@ private:
 LoopForestNode* create_loop_forest(const Scope& scope);
 
 std::ostream& operator << (std::ostream& o, const LoopForestNode* node);
+
+class LoopInfo {
+public:
+
+    LoopInfo(const Scope& scope)
+        : scope_(scope)
+        , depth_(scope.size())
+        , root_(create_loop_forest(scope))
+    {
+        build_infos();
+    }
+
+    const Scope& scope() const { return scope_; }
+    LoopForestNode* root() const { return root_.get(); }
+    int depth(size_t sid) const { return depth_[sid]; }
+    int depth(Lambda* lambda) const { 
+        assert(scope_.contains(lambda)); 
+        return depth(lambda->sid()); 
+    }
+
+private:
+
+    void build_infos();
+    void visit(LoopForestNode* n);
+
+    const Scope& scope_;
+    Array<int> depth_;
+    std::auto_ptr<LoopForestNode> root_;
+};
 
 } // namespace anydsl2
 

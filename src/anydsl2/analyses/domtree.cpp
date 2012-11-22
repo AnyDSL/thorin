@@ -93,7 +93,7 @@ const DomNode* DomTree::lca(ArrayRef<const DomNode*> nodes) {
 }
 
 const DomNode* DomTree::node(Lambda* lambda) const { return nodes_[lambda->sid()]; }
-DomNode* DomTree::lookup(Lambda* lambda) { return nodes_[lambda->sid()]; }
+DomNode* DomTree::lookup(Lambda* lambda) const { return nodes_[lambda->sid()]; }
 size_t DomTree::size() const { return scope_.size(); }
 const DomNode* DomTree::entry() const { return node(scope_.entry()); }
 

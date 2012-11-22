@@ -208,4 +208,21 @@ std::ostream& operator << (std::ostream& o, const LoopForestNode* node) {
 
 //------------------------------------------------------------------------------
 
+void LoopInfo::build_infos() {
+    visit(root_.get());
+}
+
+void LoopInfo::visit(LoopForestNode* n) {
+    if (n->num_children() == 0) {
+        assert(n->headers().size() == 1);
+        Lambda* lambda = n->headers().front();
+        depth_[lambda->sid()] = n->depth();
+    } else {
+        for_all (child, n->children())
+            visit(child);
+    }
+}
+
+//------------------------------------------------------------------------------
+
 } // namespace anydsl2

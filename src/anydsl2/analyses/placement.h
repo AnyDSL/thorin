@@ -10,8 +10,7 @@ class PrimOp;
 
 typedef std::vector<const PrimOp*> Schedule;
 typedef Array<Schedule> Places;
-Places place_early(const Scope& scope);
-Places place_late(const Scope& scope);
+Places place(const Scope& scope);
 
 } // namespace anydsl2
 

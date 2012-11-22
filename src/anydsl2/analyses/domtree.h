@@ -59,17 +59,18 @@ public:
     int depth(Lambda* lambda) const { return node(lambda)->depth(); }
     bool dominates(const DomNode* a, const DomNode* b);
     bool strictly_dominates(const DomNode* a, const DomNode* b) { return a != b && dominates(a, b); }
-    Lambda* lca(Lambda* i, Lambda* j) { return lca(lookup(i), lookup(j))->lambda(); }
+    Lambda* lca(Lambda* i, Lambda* j) const { return lca(lookup(i), lookup(j))->lambda(); }
     static const DomNode* lca(const DomNode* i, const DomNode* j) { 
         return lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j)); 
     }
     static const DomNode* lca(ArrayRef<const DomNode*> nodes);
+    Lambda* idom(Lambda* lambda) const { return lookup(lambda)->idom()->lambda(); }
 
 private:
 
     static DomNode* lca(DomNode* i, DomNode* j);
     void create();
-    DomNode* lookup(Lambda* lambda);
+    DomNode* lookup(Lambda* lambda) const;
 
     const Scope& scope_;
     Array<DomNode*> nodes_;

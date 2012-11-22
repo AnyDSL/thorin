@@ -141,6 +141,7 @@ void Enter::vdump(Printer& p) const {
 void CCall::vdump(Printer& p) const {
     dump_name_and_type(p, this, "ccall");
     p << '(';
+    p << callee_ << ", ";
 	ANYDSL2_DUMP_COMMA_LIST(p, ops());
     p << ')';
 }

@@ -164,7 +164,7 @@ private:
     mutable const Def* extract_mem_;
     mutable const Def* extract_retval_;
 
-    const std::string& callee_;
+    std::string callee_;
     bool vararg_;
 
     friend class World;

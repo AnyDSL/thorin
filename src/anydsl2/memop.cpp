@@ -67,6 +67,7 @@ const Def* Enter::extract_frame() const {
 Leave::Leave(const Def* mem, const Def* frame, const std::string& name)
     : MemOp(Node_Leave, 2, mem->type(), mem, name)
 {
+    assert( frame->type()->isa<Frame>() );
     set_op(1, frame);
 }
 
@@ -84,6 +85,8 @@ size_t Slot::hash() const { return boost::hash_value(this); }
 CCall::CCall(const Def* mem, const std::string& callee, 
              ArrayRef<const Def*> args, const Type* rettype, bool vararg, const std::string& name)
     : MemOp(Node_CCall, args.size() + 1, (const Type*) 0, mem, name)
+    , extract_mem_(0)
+    , extract_retval_(0)
     , callee_(callee)
     , vararg_(vararg)
 {

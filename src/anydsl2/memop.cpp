@@ -46,8 +46,12 @@ Store::Store(const Def* mem, const Def* ptr, const Def* val, const std::string& 
 
 Enter::Enter(const Def* mem, const std::string& name)
     : MemOp(Node_Enter, 1, (const Type*) 0, mem, name)
+    , extract_mem_(0)
+    , extract_frame_(0)
 {
-    set_type(world().sigma2(mem->type(), world().frame()));
+    // world is zero -> take the world from the type of the memory
+    World& world = mem->world();
+    set_type(world.sigma2(mem->type(), world.frame()));
 }
 
 const Def* Enter::extract_mem() const { 
@@ -84,7 +88,7 @@ CCall::CCall(const Def* mem, const std::string& callee,
     , vararg_(vararg)
 {
     if (rettype)
-        set_type(world().sigma2(mem->type(), rettype));
+        set_type(mem->world().sigma2(mem->type(), rettype));
     else
         set_type(mem->type());
 

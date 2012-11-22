@@ -59,9 +59,7 @@ void DomTree::create() {
                         new_idom = lca(other_idom, new_idom);
                 }
             }
-
             assert(new_idom);
-
             if (cur->idom() != new_idom) {
                 cur->idom_ = new_idom;
                 changed = true;
@@ -78,10 +76,8 @@ void DomTree::create() {
 
 DomNode* DomTree::lca(DomNode* i, DomNode* j) {
     while (i->sid() != j->sid()) {
-        while (i->sid() < j->sid()) 
-            j = j->idom_;
-        while (j->sid() < i->sid()) 
-            i = i->idom_;
+        while (i->sid() < j->sid()) j = j->idom_;
+        while (j->sid() < i->sid()) i = i->idom_;
     }
 
     return i;

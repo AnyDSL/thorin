@@ -1,7 +1,6 @@
 #include "impala/parser.h"
 
 #include <algorithm>
-#include <iomanip>
 #include <sstream>
 
 #include "anydsl2/util/array.h"
@@ -44,9 +43,9 @@ public:
      * helpers
      */
 
-    const Token& la(size_t i) const { return lookahead_[i]; }
-    const Token& la () const { return lookahead_[0]; }
-    const Token& la2() const { return lookahead_[1]; }
+    const Token& la(size_t i) const { return lookahead[i]; }
+    const Token& la () const { return lookahead[0]; }
+    const Token& la2() const { return lookahead[1]; }
 
 #ifdef NDEBUG
     Token eat(TokenKind /*what*/) { return lex(); }
@@ -125,12 +124,12 @@ private:
 
         Generics(Generics* parent, GenericBuilder& builder)
             : parent_(parent)
-            , builder_(builder)
-            , counter_(0)
+            , builder(builder)
+            , counter(0)
         {}
         ~Generics() {
-            for (; counter_; --counter_)
-                builder_.pop();
+            for (; counter; --counter)
+                builder.pop();
         }
 
         Generics* parent() const { return parent_; }
@@ -138,7 +137,7 @@ private:
         const Generic* lookup(Symbol symbol) {
             Symbol2Handle::iterator i = symbol2handle_.find(symbol);
             if (i != symbol2handle_.end()) 
-                return builder_.use(i->second);
+                return builder.use(i->second);
 
             if (parent_)
                 return parent_->lookup(symbol);
@@ -147,43 +146,43 @@ private:
         }
 
         void insert(Symbol symbol) { 
-            ++counter_;
-            symbol2handle_[symbol] = builder_.new_def();
+            ++counter;
+            symbol2handle_[symbol] = builder.new_def();
         }
 
     private:
 
         Generics* parent_;
-        GenericBuilder& builder_;
-        int counter_;
+        GenericBuilder& builder;
+        int counter;
         Symbol2Handle symbol2handle_;
     };
 
     const Generic* generic_lookup(Symbol symbol) {
-        return cur_generics_ ? cur_generics_->lookup(symbol) : 0;
+        return cur_generics ? cur_generics->lookup(symbol) : 0;
     }
 
     void generic_insert(Token token) {
         Symbol symbol = token.symbol();
-        assert(cur_generics_);
-        if (cur_generics_->lookup(symbol))
+        assert(cur_generics);
+        if (cur_generics->lookup(symbol))
             sema_error(token) << "generic '" << symbol << "' defined twice\n";
         else
-            cur_generics_->insert(symbol);
+            cur_generics->insert(symbol);
     }
 
     World& world;
-    Lexer lexer_;       ///< invoked in order to get next token
-    Token lookahead_[2];///< LL(2) look ahead
-    const Loop* cur_loop_;
-    const Lambda* cur_lambda_;
-    Generics* cur_generics_;
-    size_t generic_counter_;
-    Prg* prg_;
-    int counter_;
-    anydsl2::Location prev_loc_;
+    Lexer lexer;       ///< invoked in order to get next token
+    Token lookahead[2];///< LL(2) look ahead
+    const Loop* cur_loop;
+    const Lambda* cur_lambda;
+    Generics* cur_generics;
+    size_t generic_counter;
+    Prg* prg;
+    int counter;
+    anydsl2::Location prev_loc;
     bool result_;
-    GenericBuilder builder_;
+    GenericBuilder builder;
 };
 
 //------------------------------------------------------------------------------
@@ -204,19 +203,19 @@ const Prg* parse(World& world, std::istream& i, const std::string& filename, boo
 
 Parser::Parser(World& world, std::istream& stream, const std::string& filename)
     : world(world)
-    , lexer_(stream, filename)
-    , cur_loop_(0)
-    , cur_lambda_(0)
-    , cur_generics_(0)
-    , generic_counter_(0)
-    , prg_(new Prg())
-    , counter_(0)
+    , lexer(stream, filename)
+    , cur_loop(0)
+    , cur_lambda(0)
+    , cur_generics(0)
+    , generic_counter(0)
+    , prg(new Prg())
+    , counter(0)
     , result_(true)
-    , builder_(world)
+    , builder(world)
 {
     // init 2 lookahead
-    lookahead_[0] = lexer_.lex();
-    lookahead_[1] = lexer_.lex();
+    lookahead[0] = lexer.lex();
+    lookahead[1] = lexer.lex();
 }
 
 /*
@@ -224,20 +223,19 @@ Parser::Parser(World& world, std::istream& stream, const std::string& filename)
  */
 
 Token Parser::lex() {
-    Token result  = lookahead_[0]; // remember result
-    lookahead_[0] = lookahead_[1]; // copy over LA2 to LA1
-    lookahead_[1] = lexer_.lex();  // fill new LA2
-    prev_loc_ = result.loc();       // remember previous location
+    Token result  = lookahead[0]; // remember result
+    lookahead[0] = lookahead[1]; // copy over LA2 to LA1
+    lookahead[1] = lexer.lex();  // fill new LA2
+    prev_loc = result.loc();       // remember previous location
 
     return result;
 }
 
 bool Parser::accept(TokenKind type) {
-    if (type == la()) {
-        lex();
-        return true;
-    } else
+    if (type != la())
         return false;
+    lex();
+    return true;
 }
 
 bool Parser::expect(TokenKind tok, const std::string& context) {
@@ -266,8 +264,8 @@ std::ostream& Parser::sema_error(Token token) {
 }
 
 int Parser::next_id() {
-    int id = counter_++;
-    counter_ %= 0x100;
+    int id = counter++;
+    counter %= 0x100;
 
     return id;
 }
@@ -278,7 +276,7 @@ int Parser::next_id() {
 
 const Prg* Parser::parse() {
     parse_globals();
-    return prg_;
+    return prg;
 }
 
 Token Parser::try_id(const std::string& what) {
@@ -305,7 +303,7 @@ const Type* Parser::parse_type() {
         case Token::PI:
         case Token::SIGMA:             return parse_compound_type();
         case Token::ID:
-            return cur_generics_->lookup(lex().symbol());
+            return cur_generics->lookup(lex().symbol());
         default: ANYDSL2_UNREACHABLE;
     }
 }
@@ -313,8 +311,8 @@ const Type* Parser::parse_type() {
 const Type* Parser::parse_compound_type() {
     bool pi = lex().kind() == Token::PI;
 
-    Generics generics(cur_generics_, builder_);
-    cur_generics_ = &generics;
+    Generics generics(cur_generics, builder);
+    cur_generics = &generics;
     parse_generic_list();
 
     std::vector<const Type*> elems;
@@ -330,7 +328,7 @@ const Type* Parser::parse_compound_type() {
     if (pi && accept(Token::ARROW))
         elems.push_back(parse_return_type());
 
-    cur_generics_ = generics.parent();
+    cur_generics = generics.parent();
 
     if (pi) 
         return world.pi(elems);
@@ -351,13 +349,13 @@ const Decl* Parser::parse_decl() {
     expect(Token::COLON, "declaration");
     const Type* type = try_type("declaration");
 
-    return new Decl(tok, type, prev_loc_.pos2());
+    return new Decl(tok, type, prev_loc.pos2());
 }
 
 void Parser::parse_globals() {
     while (true) {
         switch (la()) {
-            case Token::DEF:         prg_->fcts_.push_back(parse_fct()); continue;
+            case Token::DEF:         prg->fcts_.push_back(parse_fct()); continue;
             case Token::END_OF_FILE: return;
 
             // consume token nobody wants to have in order to prevent infinite loop
@@ -380,10 +378,10 @@ void Parser::parse_generic_list() {
 }
 
 void Parser::parse_lambda(Lambda* lambda) {
-    IMPALA_PUSH(cur_lambda_, lambda);
+    IMPALA_PUSH(cur_lambda, lambda);
 
-    Generics generics(cur_generics_, builder_);
-    cur_generics_ = &generics;
+    Generics generics(cur_generics, builder);
+    cur_generics = &generics;
     parse_generic_list();
 
     std::vector<const Type*> arg_types;
@@ -401,9 +399,9 @@ void Parser::parse_lambda(Lambda* lambda) {
 
     // return-continuation
     if (accept(Token::ARROW)) {
-        Position pos1 = prev_loc_.pos1();
+        Position pos1 = prev_loc.pos1();
         arg_types.push_back(parse_return_type());
-        Position pos2 = prev_loc_.pos2();
+        Position pos2 = prev_loc.pos2();
         lambda->params_.push_back(new Decl(Token(pos1, "<return>"), arg_types.back(), pos2));
     }
 
@@ -411,8 +409,8 @@ void Parser::parse_lambda(Lambda* lambda) {
     const ScopeStmt* body = parse_scope();
     lambda->set(pi, body);
 
-    cur_generics_ = generics.parent();
-    IMPALA_POP(cur_lambda_);
+    cur_generics = generics.parent();
+    IMPALA_POP(cur_lambda);
 }
 
 const Fct* Parser::parse_fct() {
@@ -422,7 +420,7 @@ const Fct* Parser::parse_fct() {
 
     Fct* fct = new Fct();
     parse_lambda(&fct->lambda_);
-    fct->set(new Decl(id, fct->lambda().pi(), prev_loc_.pos2()), ext);
+    fct->set(new Decl(id, fct->lambda().pi(), prev_loc.pos2()), ext);
 
     return fct;
 }
@@ -494,7 +492,7 @@ const ExprStmt* Parser::parse_expr_stmt() {
     const Expr* expr = parse_expr(); // discard val
     expect(Token::SEMICOLON, "the end of an expression statement");
 
-    return new ExprStmt(expr, prev_loc_.pos2());
+    return new ExprStmt(expr, prev_loc.pos2());
 }
 
 const DeclStmt* Parser::parse_decl_stmt() {
@@ -509,14 +507,14 @@ const DeclStmt* Parser::parse_decl_stmt() {
 
     expect(Token::SEMICOLON, "the end of an declaration statement");
 
-    return new DeclStmt(decl, init, prev_loc_.pos2());
+    return new DeclStmt(decl, init, prev_loc.pos2());
 }
 
 const Stmt* Parser::parse_if_else() {
     Position pos1 = eat(Token::IF).pos1();
     const Expr* cond = parse_cond("if statement");
     const Stmt* ifStmt = try_stmt("if clause");
-    const Stmt* elseStmt = accept(Token::ELSE) ? try_stmt("else clause") : new ScopeStmt(prev_loc_);
+    const Stmt* elseStmt = accept(Token::ELSE) ? try_stmt("else clause") : new ScopeStmt(prev_loc);
 
     return new IfElseStmt(pos1, cond, ifStmt, elseStmt);
 }
@@ -526,9 +524,9 @@ const Stmt* Parser::parse_while() {
     const Expr* cond = parse_cond("while statement");
 
     ForStmt* new_loop = new ForStmt();
-    IMPALA_PUSH(cur_loop_, new_loop);
+    IMPALA_PUSH(cur_loop, new_loop);
         const Stmt* body = try_stmt("loop body");
-    IMPALA_POP(cur_loop_);
+    IMPALA_POP(cur_loop);
 
     new_loop->set(pos1, cond, new EmptyExpr(pos1), body);
     new_loop->set_empty_init(pos1);
@@ -540,15 +538,15 @@ const Stmt* Parser::parse_do_while() {
     Position pos1 = eat(Token::DO).pos1();
 
     DoWhileStmt* new_loop = new DoWhileStmt();
-    IMPALA_PUSH(cur_loop_, new_loop);
+    IMPALA_PUSH(cur_loop, new_loop);
     const Stmt* body = try_stmt("loop body");
-    IMPALA_POP(cur_loop_);
+    IMPALA_POP(cur_loop);
 
     expect(Token::WHILE, "do-while-statement");
     const Expr* cond = parse_cond("do-while-statement");
     expect(Token::SEMICOLON, "do-while-statement");
 
-    new_loop->set(pos1, body, cond, prev_loc_.pos2());
+    new_loop->set(pos1, body, cond, prev_loc.pos2());
 
     return new_loop;
 }
@@ -558,7 +556,7 @@ const Stmt* Parser::parse_for() {
     expect(Token::L_PAREN, "for-statement");
 
     ForStmt*  new_loop = new ForStmt();
-    IMPALA_PUSH(cur_loop_, new_loop);
+    IMPALA_PUSH(cur_loop, new_loop);
 
     // clause 1: decl or expr_opt ';'
     if (la2() == Token::COLON)
@@ -568,7 +566,7 @@ const Stmt* Parser::parse_for() {
     else  {
         if (!accept(Token::SEMICOLON))
             error("expression or delcaration-statement", "first clause in for-statement");
-        new_loop->set_empty_init(prev_loc_.pos2());
+        new_loop->set_empty_init(prev_loc.pos2());
     }
 
     // clause 2: expr_opt ';'
@@ -576,33 +574,33 @@ const Stmt* Parser::parse_for() {
     if (accept(Token::SEMICOLON)) { 
         // do nothing: no expr given, semicolon consumed
         // but create true cond
-        cond = new Literal(prev_loc_, Literal::LIT_bool, Box(true));
+        cond = new Literal(prev_loc, Literal::LIT_bool, Box(true));
     } else if (is_expr()) {
         cond = parse_expr();
         expect(Token::SEMICOLON, "second clause in for-statement");
     } else {
         error("expression or nothing", 
                 "second clause in for-statement");
-        cond = new Literal(prev_loc_, Literal::LIT_bool, Box(true));
+        cond = new Literal(prev_loc, Literal::LIT_bool, Box(true));
     }
 
     const Expr* inc;
     // clause 3: expr_opt ';'
     if (accept(Token::R_PAREN)) { 
         // do nothing: no expr given, semicolon consumed
-        inc = new EmptyExpr(prev_loc_);
+        inc = new EmptyExpr(prev_loc);
     } else if (is_expr()) {
         inc = parse_expr();
         expect(Token::R_PAREN, "for-statement");
     } else {
         error("expression or nothing",
                 "third clause in for-statement");
-        inc = new EmptyExpr(prev_loc_);
+        inc = new EmptyExpr(prev_loc);
     }
 
     const Stmt* body = try_stmt("loop body");
     new_loop->set(pos1, cond, inc, body);
-    IMPALA_POP(cur_loop_);
+    IMPALA_POP(cur_loop);
 
     return new_loop;
 }
@@ -611,14 +609,14 @@ const Stmt* Parser::parse_break() {
     Position pos1 = eat(Token::BREAK).pos1();
     expect(Token::SEMICOLON, "break-statement");
 
-    return new BreakStmt(pos1, prev_loc_.pos2(), cur_loop_);
+    return new BreakStmt(pos1, prev_loc.pos2(), cur_loop);
 }
 
 const Stmt* Parser::parse_continue() {
     Position pos1 = eat(Token::CONTINUE).pos1();
     expect(Token::SEMICOLON, "continue-statement");
 
-    return new ContinueStmt(pos1, prev_loc_.pos2(), cur_loop_);
+    return new ContinueStmt(pos1, prev_loc.pos2(), cur_loop);
 }
 
 const Stmt* Parser::parse_return() {
@@ -633,7 +631,7 @@ const Stmt* Parser::parse_return() {
         eat(Token::SEMICOLON);
     }
 
-    return new ReturnStmt(pos1, expr, cur_lambda_, prev_loc_.pos2());
+    return new ReturnStmt(pos1, expr, cur_lambda, prev_loc.pos2());
 }
 
 const Expr* Parser::parse_cond(const std::string& what) {
@@ -716,7 +714,7 @@ const Expr* Parser::try_expr(const std::string& what) {
         expr = parse_expr();
     else {
         error("expression", what);
-        expr = new EmptyExpr(prev_loc_);
+        expr = new EmptyExpr(prev_loc);
         lex(); // eat away erroneous token
     }
 
@@ -729,7 +727,7 @@ const Stmt* Parser::try_stmt(const std::string& what) {
         stmt = parse_stmt();
     else {
         error("statement", what);
-        stmt = new ExprStmt(new EmptyExpr(prev_loc_), prev_loc_.pos2());
+        stmt = new ExprStmt(new EmptyExpr(prev_loc), prev_loc.pos2());
         lex(); // eat away erroneous token
     }
 
@@ -789,14 +787,14 @@ const Expr* Parser::parse_postfix_expr(const Expr* lhs) {
             Token::R_PAREN,
             "arguments of a function call"
         )
-        call->set_pos2(prev_loc_.pos2());
+        call->set_pos2(prev_loc.pos2());
 
         return call;
     } else if (accept(Token::L_BRACKET)) {
-        Position pos1 = prev_loc_.pos1();
+        Position pos1 = prev_loc.pos1();
         const Expr* index = try_expr("indexing expression");
         expect(Token::R_BRACKET, "index expression");
-        return new IndexExpr(pos1, lhs, index, prev_loc_.pos2());
+        return new IndexExpr(pos1, lhs, index, prev_loc.pos2());
     } else {
         assert(la() == Token::INC || la() == Token::DEC);
         Token op = lex();
@@ -856,7 +854,7 @@ const Expr* Parser::parse_tuple() {
         "closing parenthesis of tuple"
     )
 
-    tuple->set_pos2(prev_loc_.pos2());
+    tuple->set_pos2(prev_loc.pos2());
 
     return tuple;
 }

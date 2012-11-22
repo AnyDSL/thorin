@@ -65,7 +65,6 @@ Scope::Scope(Lambda* entry) {
         lambda->invalidate_sid();
 
     size_t num = number(lambdas_, entry, 0);
-
     rpo_.alloc(num);
     preds_.alloc(num);
     succs_.alloc(num);
@@ -363,5 +362,7 @@ const Def* Mapper::drop(const Def* odef) {
 
     return map(oprimop, is_new ? world.primop(oprimop, nops) : oprimop);
 }
+
+//------------------------------------------------------------------------------
 
 } // namespace anydsl2

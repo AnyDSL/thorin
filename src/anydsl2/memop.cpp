@@ -97,7 +97,7 @@ CCall::CCall(const Def* mem, const std::string& callee,
 
     size_t x = 1;
     for_all (arg, args)
-        set_op(x, arg);
+        set_op(x++, arg);
 }
 
 const Def* CCall::extract_mem() const { 

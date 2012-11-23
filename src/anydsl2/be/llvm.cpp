@@ -25,8 +25,6 @@
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/util/array.h"
 
-#include <iostream>
-
 namespace anydsl2 {
 namespace be_llvm {
 

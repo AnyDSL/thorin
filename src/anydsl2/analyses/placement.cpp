@@ -30,14 +30,6 @@ public:
     PrimOp2Lambda place();
     void visit(Lambda* lambda);
     void place(Lambda* lambda, const Def* def);
-    void inc(const Def* def) { 
-        if (def->visit(pass))
-            ++def->counter;
-        else
-            def->counter = 1;
-    }
-    size_t num_placed(const Def* def) { return def->is_visited(pass) ? def->counter : 0; }
-    bool all_uses_placed(const Def* def) { return num_placed(def) == def->num_uses(); }
 
 private:
 
@@ -56,7 +48,6 @@ PrimOp2Lambda LatePlacement::place() {
 }
 
 void LatePlacement::visit(Lambda* lambda) {
-    for_all (op, lambda->ops()) inc(op);
     for_all (op, lambda->ops()) place(lambda, op);
 }
 
@@ -67,13 +58,8 @@ void LatePlacement::place(Lambda* lambda, const Def* def) {
     PrimOp2Lambda::const_iterator i = primop2lambda.find(primop);
     Lambda* lca = i == primop2lambda.end() ? lambda : domtree.lca(i->second, lambda);
     primop2lambda[primop] = lca;
-
-    if (all_uses_placed(primop)) {
-        for_all (op, primop->ops()) {
-            inc(op);
-            place(lambda, op);
-        }
-    }
+    for_all (op, primop->ops())
+        place(lambda, op);
 }
 
 static PrimOp2Lambda place_late(const Scope& scope, const DomTree& domtree) {

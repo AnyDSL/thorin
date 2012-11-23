@@ -61,7 +61,7 @@ void LatePlacement::visit(Lambda* lambda) {
 }
 
 void LatePlacement::place(Lambda* lambda, const Def* def) {
-    if (def->isa<Param>() || def->isa<Lambda>())
+    if (def->isa<Param>() || def->is_const())
         return;
     const PrimOp* primop = def->as<PrimOp>();
     PrimOp2Lambda::const_iterator i = primop2lambda.find(primop);
@@ -128,8 +128,8 @@ void Placement::place(Places& places, Lambda* early, const Def* def) {
 
     for_all (use, def->uses()) {
         const Def* udef = use.def();
-        if (udef->isa<Param>() || udef->isa<Lambda>())
-            continue; // do not descent into lambdas -- it is handled by the RPO run
+        if (defined(udef))
+            continue;
         const PrimOp* primop = udef->as<PrimOp>();
 
         for_all (op, primop->ops()) {
@@ -150,7 +150,7 @@ void Placement::place(Places& places, Lambda* early, const Def* def) {
             places[best->sid()].push_back(primop);
             place(places, early, primop);
         }
-outer_loop: ;
+outer_loop:;
     }
 }
 

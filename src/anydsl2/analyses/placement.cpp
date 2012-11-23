@@ -1,7 +1,6 @@
 #include "anydsl2/analyses/placement.h"
 
 #include <queue>
-#include <boost/unordered_map.hpp>
 
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
@@ -13,8 +12,6 @@
 
 namespace anydsl2 {
 
-typedef boost::unordered_map<const PrimOp*, Lambda*> PrimOp2Lambda;
-
 //------------------------------------------------------------------------------
 
 class LatePlacement {
@@ -24,47 +21,40 @@ public:
         : scope(scope)
         , domtree(domtree)
         , pass(world().new_pass())
-    {}
+    {
+        size_t size = scope.size();
+        for (size_t i = size; i-- != 0;)
+            up(scope.rpo(i));
+    }
 
     World& world() const { return scope.world(); }
-    PrimOp2Lambda place();
-    void visit(Lambda* lambda);
+    void place();
+    void up(Lambda* lambda);
     void place(Lambda* lambda, const Def* def);
+    bool is_visited(const PrimOp* primop) { return primop->is_visited(pass); }
+    Lambda*& late(const PrimOp* primop) const { return (Lambda*&) primop->ptr; }
 
 private:
 
     const Scope& scope;
     const DomTree& domtree;
     size_t pass;
-    PrimOp2Lambda primop2lambda;
 };
 
-PrimOp2Lambda LatePlacement::place() {
-    size_t size = scope.size();
-    for (size_t i = size; i-- != 0;)
-        visit(scope.rpo(i));
-
-    return primop2lambda;
-}
-
-void LatePlacement::visit(Lambda* lambda) {
-    for_all (op, lambda->ops()) place(lambda, op);
+void LatePlacement::up(Lambda* lambda) {
+    for_all (op, lambda->ops()) 
+        place(lambda, op);
 }
 
 void LatePlacement::place(Lambda* lambda, const Def* def) {
     if (def->isa<Param>() || def->is_const())
         return;
+
     const PrimOp* primop = def->as<PrimOp>();
-    PrimOp2Lambda::const_iterator i = primop2lambda.find(primop);
-    Lambda* lca = i == primop2lambda.end() ? lambda : domtree.lca(i->second, lambda);
-    primop2lambda[primop] = lca;
+    late(primop) = is_visited(primop) ? domtree.lca(late(primop), lambda) : (primop->visit(pass), lambda);
+
     for_all (op, primop->ops())
         place(lambda, op);
-}
-
-static PrimOp2Lambda place_late(const Scope& scope, const DomTree& domtree) {
-    LatePlacement placer(scope, domtree);
-    return placer.place();
 }
 
 //------------------------------------------------------------------------------
@@ -74,7 +64,7 @@ public:
 
     Placement(const Scope& scope)
         : domtree(scope)
-        , late(place_late(scope, domtree))
+        , late_placement(scope, domtree)
         , loopinfo(scope)
         , pass(world().new_pass())
     {}
@@ -82,15 +72,16 @@ public:
     const Scope& scope() const { return loopinfo.scope(); }
     World& world() const { return scope().world(); }
     Places place();
-    void visit(Places& places, Lambda* lambda);
+    void down(Places& places, Lambda* lambda);
     void place(Places& places, Lambda* early, const Def* def);
     void mark(const Def* def) { def->visit(pass); }
     bool defined(const Def* def) { return def->is_const() || def->is_visited(pass); }
+    Lambda* late(const PrimOp* primop) const { return (Lambda*) primop->ptr; }
 
 private:
 
     DomTree domtree;
-    PrimOp2Lambda late;
+    LatePlacement late_placement;
     LoopInfo loopinfo;
     size_t pass;
 };
@@ -99,12 +90,12 @@ Places Placement::place() {
     Places places(scope().size());
 
     for_all (lambda, scope().rpo())
-        visit(places, lambda);
+        down(places, lambda);
 
     return places;
 }
 
-void Placement::visit(Places& places, Lambda* lambda) {
+void Placement::down(Places& places, Lambda* lambda) {
     for_all (param, lambda->params()) mark(param);
     for_all (param, lambda->params()) place(places, lambda, param);
 }
@@ -124,7 +115,7 @@ void Placement::place(Places& places, Lambda* early, const Def* def) {
         }
         {
             mark(primop);
-            Lambda* best = late[primop];
+            Lambda* best = late(primop);
             int depth = std::numeric_limits<int>::max();
             for (Lambda* i = best; i != early; i = domtree.idom(i)) {
                 int cur_depth = loopinfo.depth(i);

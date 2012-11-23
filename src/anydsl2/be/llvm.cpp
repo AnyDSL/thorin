@@ -140,15 +140,9 @@ void CodeGen::emit() {
             if (num_targets == 0) {         // case 0: return
                 // this is a return
                 assert(lambda->to()->as<Param>() == ret_param);
-                const size_t num_args = lambda->args().size();
-                assert(num_args <= 1);
-                if(num_args == 0) {
-                    // void return
-                    builder.CreateRetVoid();
-                } else {
-                    // return a value
-                    builder.CreateRet(lookup(lambda->arg(0)));
-                }
+                assert(lambda->args().size() == 1);
+                // return a value
+                builder.CreateRet(lookup(lambda->arg(0)));
             } else if (num_targets == 1) {  // case 1: three sub-cases
                 Lambda* tolambda = lambda->to()->as_lambda();
 

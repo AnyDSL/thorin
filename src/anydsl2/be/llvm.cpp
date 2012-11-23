@@ -25,6 +25,8 @@
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/util/array.h"
 
+#include <iostream>
+
 namespace anydsl2 {
 namespace be_llvm {
 
@@ -138,8 +140,15 @@ void CodeGen::emit() {
             if (num_targets == 0) {         // case 0: return
                 // this is a return
                 assert(lambda->to()->as<Param>() == ret_param);
-                assert(lambda->args().size() == 1);
-                builder.CreateRet(lookup(lambda->arg(0)));
+                const size_t num_args = lambda->args().size();
+                assert(num_args <= 1);
+                if(num_args == 0) {
+                    // void return
+                    builder.CreateRetVoid();
+                } else {
+                    // return a value
+                    builder.CreateRet(lookup(lambda->arg(0)));
+                }
             } else if (num_targets == 1) {  // case 1: three sub-cases
                 Lambda* tolambda = lambda->to()->as_lambda();
 

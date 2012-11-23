@@ -54,13 +54,11 @@ public:
     LoopInfo(const Scope& scope)
         : scope_(scope)
         , depth_(scope.size())
-        , root_(create_loop_forest(scope))
     {
         build_infos();
     }
 
     const Scope& scope() const { return scope_; }
-    LoopForestNode* root() const { return root_.get(); }
     int depth(size_t sid) const { return depth_[sid]; }
     int depth(Lambda* lambda) const { 
         assert(scope_.contains(lambda)); 
@@ -70,11 +68,10 @@ public:
 private:
 
     void build_infos();
-    void visit(LoopForestNode* n);
+    void visit(const LoopForestNode* n);
 
     const Scope& scope_;
     Array<int> depth_;
-    std::auto_ptr<LoopForestNode> root_;
 };
 
 } // namespace anydsl2

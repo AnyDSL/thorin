@@ -4,6 +4,8 @@
 #include "anydsl2/primop.h"
 #include "anydsl2/type.h"
 #include "anydsl2/world.h"
+#include "anydsl2/analyses/domtree.h"
+#include "anydsl2/analyses/loopforest.h"
 #include "anydsl2/util/for_all.h"
 
 namespace anydsl2 {
@@ -44,6 +46,8 @@ static void walk_up(LambdaSet& scope, Lambda* lambda) {
     for_all (pred, lambda->preds())
         walk_up(scope, pred);
 }
+
+Scope::~Scope() {}
 
 size_t Scope::number(const LambdaSet& lambdas, Lambda* cur, size_t i) {
     // mark as visited
@@ -139,8 +143,7 @@ public:
     {}
 
     bool map(const Def* def, bool within) {
-        assert(!def->is_visited(pass));
-        def->visit(pass);
+        def->visit_first(pass);
         def->flags[0] = within;
         def->flags[1] = false;
         return within;
@@ -222,8 +225,7 @@ public:
     Lambda* map_head(Lambda* olambda);
     const Def* drop(const Def* odef);
     const Def* map(const Def* def, const Def* to) {
-        assert(!def->is_visited(pass));
-        def->visit(pass);
+        def->visit_first(pass);
         def->cptr = to;
         return to;
     }
@@ -245,6 +247,10 @@ public:
 };
 
 //------------------------------------------------------------------------------
+
+Lambda* Scope::clone(bool self, const GenericMap& generic_map) { 
+    return mangle(Array<size_t>(), Array<const Def*>(), Array<const Def*>(), self, generic_map);
+}
 
 Lambda* Scope::drop(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, bool self, const GenericMap& generic_map) {
     return mangle(to_drop, drop_with, Array<const Def*>(), self, generic_map);
@@ -361,6 +367,20 @@ const Def* Mapper::drop(const Def* odef) {
     }
 
     return map(oprimop, is_new ? world.primop(oprimop, nops) : oprimop);
+}
+
+//------------------------------------------------------------------------------
+
+const DomTree& Scope::domtree() const { 
+    return domtree_ ? *domtree_ : *(domtree_ = new DomTree(*this));
+}
+
+const LoopForestNode* Scope::loopforest() const { 
+    return loopforest_ ? loopforest_ : loopforest_ = create_loop_forest(*this);
+}
+
+const LoopInfo& Scope::loopinfo() const { 
+    return loopinfo_ ? *loopinfo_ : *(loopinfo_ = new LoopInfo(*this));
 }
 
 //------------------------------------------------------------------------------

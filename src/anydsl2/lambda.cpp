@@ -14,6 +14,8 @@ namespace anydsl2 {
 Lambda::Lambda(size_t gid, const Pi* pi, LambdaAttr attr, const std::string& name)
     : Def(Node_Lambda, pi, name)
     , gid_(gid)
+    , sid_(size_t(-1))
+    , scope_(0)
     , attr_(attr)
 {
     params_.reserve(pi->size());
@@ -170,7 +172,7 @@ bool Lambda::is_bb() const { return order() == 1; }
 bool Lambda::is_returning() const {
     bool ret = false;
     for_all (param, params()) {
-        switch (param->type()->order()) {
+        switch (param->order()) {
             case 0: continue;
             case 1: 
                 if (!ret) {
@@ -206,19 +208,6 @@ void Lambda::jump(const Def* to, ArrayRef<const Def*> args) {
 
 void Lambda::branch(const Def* cond, const Def* tto, const Def*  fto) {
     return jump(world().select(cond, tto, fto), ArrayRef<const Def*>(0, 0));
-}
-
-Lambda* Lambda::drop(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, bool self, const GenericMap& generic_map) {
-    return mangle(to_drop, drop_with, Array<const Def*>(), self, generic_map);
-}
-
-Lambda* Lambda::lift(ArrayRef<const Def*> to_lift, bool self, const GenericMap& generic_map) {
-    return mangle(Array<size_t>(), Array<const Def*>(), to_lift, self, generic_map);
-}
-
-Lambda* Lambda::mangle(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
-                       ArrayRef<const Def*> to_lift, bool self, const GenericMap& generic_map) {
-    return Scope(this).mangle(to_drop, drop_with, to_lift, self, generic_map);
 }
 
 } // namespace anydsl2

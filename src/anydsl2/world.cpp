@@ -654,12 +654,8 @@ void World::dump(bool fancy) {
 
         for_all (root, roots) {
             Scope scope(root);
-            DomTree dom_tree(scope);
-
-            for_all (lambda, scope.rpo()) {
-                int indent = dom_tree.depth(lambda);
-                lambda->dump(fancy, indent);
-            }
+            for_all (lambda, scope.rpo())
+                lambda->dump(fancy, scope.domtree().depth(lambda));
         }
     } else {
         for_all (lambda, lambdas())

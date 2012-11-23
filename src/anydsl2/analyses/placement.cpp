@@ -16,21 +16,17 @@ class Placement {
 public:
 
     Placement(const Scope& scope)
-        : domtree(scope)
-        , loopinfo(scope)
-        , pass(world().new_pass())
+        : scope(scope)
+        , pass(scope.world().new_pass())
     {}
 
     Places place() { 
         place_late(); 
-        pass = world().new_pass();
+        pass = scope.world().new_pass();
         return place_early(); 
     }
 
 private:
-
-    const Scope& scope() const { return loopinfo.scope(); }
-    World& world() const { return scope().world(); }
 
     void place_late();
     void up(Lambda* lambda);
@@ -44,14 +40,13 @@ private:
     void mark(const Def* def) { def->visit(pass); }
     bool defined(const Def* def) { return def->is_const() || def->is_visited(pass); }
 
-    DomTree domtree;
-    LoopInfo loopinfo;
+    const Scope& scope;
     size_t pass;
 };
 
 void Placement::place_late() {
-    for (size_t i = scope().size(); i-- != 0;)
-        up(scope().rpo(i));
+    for (size_t i = scope.size(); i-- != 0;)
+        up(scope.rpo(i));
 }
 
 void Placement::up(Lambda* lambda) {
@@ -66,7 +61,7 @@ void Placement::place_late(Lambda* lambda, const Def* def) {
     const PrimOp* primop = def->as<PrimOp>();
 
     if (is_visited(primop))
-        late(primop) = domtree.lca(late(primop), lambda);
+        late(primop) = scope.domtree().lca(late(primop), lambda);
     else {
         primop->visit(pass);
         late(primop) = lambda;
@@ -77,9 +72,9 @@ void Placement::place_late(Lambda* lambda, const Def* def) {
 }
 
 Places Placement::place_early() {
-    Places places(scope().size());
+    Places places(scope.size());
 
-    for_all (lambda, scope().rpo())
+    for_all (lambda, scope.rpo())
         down(places, lambda);
 
     return places;
@@ -107,8 +102,8 @@ void Placement::place_early(Places& places, Lambda* early, const Def* def) {
             mark(primop);
             Lambda* best = late(primop);
             int depth = std::numeric_limits<int>::max();
-            for (Lambda* i = best; i != early; i = domtree.idom(i)) {
-                int cur_depth = loopinfo.depth(i);
+            for (Lambda* i = best; i != early; i = scope.domtree().idom(i)) {
+                int cur_depth = scope.loopinfo().depth(i);
                 if (cur_depth < depth) {
                     best = i;
                     depth = cur_depth;

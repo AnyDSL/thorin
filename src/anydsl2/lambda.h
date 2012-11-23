@@ -14,6 +14,7 @@ namespace anydsl2 {
 class GenericMap;
 class Lambda;
 class Pi;
+class Scope;
 
 struct LambdaLT : public std::binary_function<Lambda*, Lambda*, bool> {
     inline bool operator () (Lambda* l1, Lambda* l2) const;
@@ -74,6 +75,8 @@ public:
     const Pi* arg_pi() const;
     size_t gid() const { return gid_; }
     size_t sid() const { return sid_; }
+    Scope* scope() { return scope_; }
+    const Scope* scope() const { return scope_; }
     size_t num_args() const { return args().size(); }
     size_t num_params() const { return params().size(); }
     LambdaAttr& attr() { return attr_; }
@@ -111,14 +114,6 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     }
     void branch(const Def* cond, const Def* tto, const Def* fto);
 
-    Lambda* drop(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
-                 bool self = true, const GenericMap& generic_map = GenericMap());
-    Lambda* lift(ArrayRef<const Def*> to_lift, 
-                 bool self = true, const GenericMap& generic_map = GenericMap());
-    Lambda* mangle(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
-                   ArrayRef<const Def*> to_lift, 
-                   bool self = true, const GenericMap& generic_map = GenericMap());
-
 private:
 
     template<bool fo> Array<const Param*> classify_params() const;
@@ -129,9 +124,10 @@ private:
     virtual void vdump(Printer& printer) const;
 
     size_t gid_; ///< global index
+    size_t sid_; ///< scope index
+    Scope* scope_;
     LambdaAttr attr_;
     Params params_;
-    size_t sid_; ///< scope index
 
     friend class World;
     friend class Param;

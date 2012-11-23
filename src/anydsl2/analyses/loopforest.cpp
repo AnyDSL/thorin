@@ -82,8 +82,7 @@ private:
     }
 
     int visit(Lambda* lambda, int counter) {
-        assert(!lambda->is_visited(pass));
-        lambda->visit(pass);
+        lambda->visit_first(pass);
         lambda->flags[OnStack] = false;
         lambda->flags[InSCC]   = false;
         if (pass == first_pass)
@@ -209,10 +208,10 @@ std::ostream& operator << (std::ostream& o, const LoopForestNode* node) {
 //------------------------------------------------------------------------------
 
 void LoopInfo::build_infos() {
-    visit(root_.get());
+    visit(scope_.loopforest());
 }
 
-void LoopInfo::visit(LoopForestNode* n) {
+void LoopInfo::visit(const LoopForestNode* n) {
     if (n->num_children() == 0) {
         assert(n->headers().size() == 1);
         Lambda* lambda = n->headers().front();

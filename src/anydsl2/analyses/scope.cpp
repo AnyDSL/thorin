@@ -1,5 +1,7 @@
 #include "anydsl2/analyses/scope.h"
 
+#include <algorithm>
+
 #include "anydsl2/lambda.h"
 #include "anydsl2/primop.h"
 #include "anydsl2/type.h"
@@ -10,101 +12,122 @@
 
 namespace anydsl2 {
 
-static void jump_to_param_users(LambdaSet& scope, Lambda* lambda);
-static void walk_up(LambdaSet& scope, Lambda* lambda);
-static void find_user(LambdaSet& scope, const Def* def);
+class ScopeBuilder {
+public:
 
-LambdaSet find_scope(Lambda* lambda) {
-    LambdaSet scope;
-    scope.insert(lambda);
-    jump_to_param_users(scope, lambda);
+    ScopeBuilder(Lambda* entry, Scope* scope);
 
-    return scope;
+    bool is_visited(Lambda* lambda) { return lambda->is_visited(pass); }
+    bool contains(Lambda* lambda) { return lambda->scope() == scope; }
+    void insert(Lambda* lambda) { lambda->visit_first(pass); lambda->scope_ = scope; scope->rpo_.push_back(lambda); }
+
+    void jump_to_param_users(Lambda* lambda);
+    void up(Lambda* lambda);
+    void find_user(const Def* def);
+    size_t number(Lambda* cur, size_t i);
+
+private:
+
+    Scope* scope;
+    size_t pass;
+};
+
+struct ScopeLess {
+    bool operator () (const Lambda* l1, const Lambda* l2) const { return l1->sid() < l2->sid(); }
+};
+
+ScopeBuilder::ScopeBuilder(Lambda* entry, Scope* scope)
+    : scope(scope)
+    , pass(entry->world().new_pass())
+{
+    scope->rpo_.reserve(scope->size());
+    insert(entry);
+    jump_to_param_users(entry);
+    pass = entry->world().new_pass();
+    size_t num = number(entry, 0);
+    assert(num <= scope->rpo_.size());
+
+    for_all (lambda, scope->rpo_) {
+        if (lambda->is_visited(pass)) {
+            lambda->sid_ = num - 1 - lambda->sid_;
+        } else {
+            lambda->scope_ = 0;
+            lambda->sid_ = size_t(-1);
+        }
+    }
+    
+    std::sort(scope->rpo_.begin(), scope->rpo_.end(), ScopeLess());
+    scope->rpo_.resize(num);
 }
 
-static void jump_to_param_users(LambdaSet& scope, Lambda* lambda) {
+void ScopeBuilder::jump_to_param_users(Lambda* lambda) {
     for_all (param, lambda->params())
-        find_user(scope, param);
+        find_user(param);
 }
 
-static void find_user(LambdaSet& scope, const Def* def) {
+void ScopeBuilder::find_user(const Def* def) {
     if (Lambda* lambda = def->isa_lambda())
-        walk_up(scope, lambda);
+        up(lambda);
     else {
         for_all (use, def->uses())
-            find_user(scope, use.def());
+            find_user(use.def());
     }
 }
 
-static void walk_up(LambdaSet& scope, Lambda* lambda) {
-    if (scope.find(lambda) != scope.end())
-        return;// already inside scope so break
+void ScopeBuilder::up(Lambda* lambda) {
+    if (is_visited(lambda))
+        return;
 
-    scope.insert(lambda);
-    jump_to_param_users(scope, lambda);
+    insert(lambda);
+    jump_to_param_users(lambda);
 
     for_all (pred, lambda->preds())
-        walk_up(scope, pred);
+        up(pred);
 }
 
-Scope::~Scope() {}
-
-size_t Scope::number(const LambdaSet& lambdas, Lambda* cur, size_t i) {
-    // mark as visited
-    cur->sid_ = 0;
+size_t ScopeBuilder::number(Lambda* cur, size_t i) {
+    cur->visit_first(pass);
 
     // for each successor in scope
     for_all (succ, cur->succs()) {
-        if (lambdas.find(succ) != lambdas.end() && succ->sid_invalid())
-            i = number(lambdas, succ, i);
+        if (contains(succ) && !succ->is_visited(pass))
+            i = number(succ, i);
     }
 
     return (cur->sid_ = i) + 1;
 }
 
+Scope::~Scope() {
+    for_all (lambda, rpo_)
+        lambda->scope_ = 0;
+}
+
 Scope::Scope(Lambda* entry) {
-    lambdas_ = find_scope(entry);
-
-    for_all (lambda, lambdas_)
-        lambda->invalidate_sid();
-
-    size_t num = number(lambdas_, entry, 0);
-    rpo_.alloc(num);
+    ScopeBuilder(entry, this);
+    size_t num = rpo_.size();
     preds_.alloc(num);
     succs_.alloc(num);
 
-    // remove unreachable lambdas from set and fix numbering
-    for (LambdaSet::iterator i = lambdas_.begin(); i != lambdas_.end();) {
-        LambdaSet::iterator j = i++;
-        Lambda* lambda = *j;
-        if (lambda->sid() >= num) { // lambda is unreachable
-            lambdas_.erase(j);
-            continue; 
-        }
-
-        lambda->sid_ = num - 1 - lambda->sid_;
-    }
-
-    for_all (lambda, lambdas_) {
+    for_all (lambda, rpo_) {
         size_t sid = lambda->sid();
         rpo_[sid] = lambda;
 
         {
-            Lambdas& succs = succs_[sid];
+            Array<Lambda*>& succs = succs_[sid];
             succs.alloc(lambda->succs().size());
             size_t i = 0;
             for_all (succ, lambda->succs()) {
-                if (lambdas_.find(succ) != lambdas_.end())
+                if (contains(succ))
                     succs[i++] = succ;
             }
             succs.shrink(i);
         }
         {
-            Lambdas& preds = preds_[sid];
+            Array<Lambda*>& preds = preds_[sid];
             preds.alloc(lambda->preds().size());
             size_t i = 0;
             for_all (pred, lambda->preds()) {
-                if (lambdas_.find(pred) != lambdas_.end())
+                if (contains(pred))
                     preds[i++] = pred;
             }
             preds.shrink(i);
@@ -112,15 +135,14 @@ Scope::Scope(Lambda* entry) {
     }
 
     assert(rpo_[0] == entry && "bug in numbering");
-    assert(rpo_.size() == lambdas_.size());
 }
 
-const Scope::Lambdas& Scope::preds(Lambda* lambda) const {
+ArrayRef<Lambda*> Scope::preds(Lambda* lambda) const {
     assert(contains(lambda)); 
     return preds_[lambda->sid()]; 
 }
 
-const Scope::Lambdas& Scope::succs(Lambda* lambda) const {
+ArrayRef<Lambda*> Scope::succs(Lambda* lambda) const {
     assert(contains(lambda)); 
     return succs_[lambda->sid()]; 
 }
@@ -248,25 +270,6 @@ public:
 
 //------------------------------------------------------------------------------
 
-Lambda* Scope::clone(bool self, const GenericMap& generic_map) { 
-    return mangle(Array<size_t>(), Array<const Def*>(), Array<const Def*>(), self, generic_map);
-}
-
-Lambda* Scope::drop(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, bool self, const GenericMap& generic_map) {
-    return mangle(to_drop, drop_with, Array<const Def*>(), self, generic_map);
-}
-
-Lambda* Scope::lift(ArrayRef<const Def*> to_lift, bool self, const GenericMap& generic_map) {
-    return mangle(Array<size_t>(), Array<const Def*>(), to_lift, self, generic_map);
-}
-
-Lambda* Scope::mangle(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
-                       ArrayRef<const Def*> to_lift, bool self, const GenericMap& generic_map) {
-    return Mapper(*this, to_drop, drop_with, to_lift, self, generic_map).mangle();
-}
-
-//------------------------------------------------------------------------------
-
 Lambda* Mapper::mangle() {
     oentry = scope.entry();
     const Pi* o_pi = oentry->pi();
@@ -350,10 +353,9 @@ const Def* Mapper::drop(const Def* odef) {
         return lookup(odef);
 
     if (Lambda* olambda = odef->isa_lambda()) {
-        if (scope.contains(olambda)) {
-            assert(scope.lambdas().size() == scope.rpo().size());
+        if (scope.contains(olambda))
             return map_head(olambda);
-        } else
+        else
             return map(odef, odef);
     } else if (odef->isa<Param>())
         return map(odef, odef);
@@ -367,6 +369,25 @@ const Def* Mapper::drop(const Def* odef) {
     }
 
     return map(oprimop, is_new ? world.primop(oprimop, nops) : oprimop);
+}
+
+//------------------------------------------------------------------------------
+
+Lambda* Scope::clone(bool self, const GenericMap& generic_map) { 
+    return mangle(Array<size_t>(), Array<const Def*>(), Array<const Def*>(), self, generic_map);
+}
+
+Lambda* Scope::drop(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, bool self, const GenericMap& generic_map) {
+    return mangle(to_drop, drop_with, Array<const Def*>(), self, generic_map);
+}
+
+Lambda* Scope::lift(ArrayRef<const Def*> to_lift, bool self, const GenericMap& generic_map) {
+    return mangle(Array<size_t>(), Array<const Def*>(), to_lift, self, generic_map);
+}
+
+Lambda* Scope::mangle(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
+                       ArrayRef<const Def*> to_lift, bool self, const GenericMap& generic_map) {
+    return Mapper(*this, to_drop, drop_with, to_lift, self, generic_map).mangle();
 }
 
 //------------------------------------------------------------------------------

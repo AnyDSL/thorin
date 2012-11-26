@@ -132,6 +132,7 @@ private:
     friend class World;
     friend class Param;
     friend class Scope;
+    friend class ScopeBuilder;
 };
 
 bool LambdaLT::operator () (Lambda* l1, Lambda* l2) const { return l1->gid() < l2->gid(); };

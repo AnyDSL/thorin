@@ -15,24 +15,19 @@ class LoopInfo;
 
 typedef std::vector<const Def*> FreeVariables;
 
-LambdaSet find_scope(Lambda* entry);
-
 class Scope {
 public:
-
-    typedef Array<Lambda*> Lambdas;
 
     explicit Scope(Lambda* entry);
     ~Scope();
 
-    bool contains(Lambda* lambda) const { return lambdas_.find(lambda) != lambdas_.end(); }
-    const LambdaSet& lambdas() const { return lambdas_; }
-    const Lambdas& rpo() const { return rpo_; }
+    bool contains(Lambda* lambda) const { return lambda->scope() == this; }
+    ArrayRef<Lambda*> rpo() const { return rpo_; }
     Lambda* rpo(size_t i) const { return rpo_[i]; }
-    const Lambdas& preds(Lambda* lambda) const;
-    const Lambdas& succs(Lambda* lambda) const;
+    ArrayRef<Lambda*> preds(Lambda* lambda) const;
+    ArrayRef<Lambda*> succs(Lambda* lambda) const;
     Lambda* entry() const { return rpo_[0]; }
-    size_t size() const { return lambdas_.size(); }
+    size_t size() const { return rpo_.size(); }
     void reassign_sids();
     World& world() const { return entry()->world(); }
     FreeVariables free_variables() const;
@@ -52,18 +47,16 @@ public:
 
 private:
 
-    static size_t number(const LambdaSet& lambdas, Lambda* cur, size_t i);
-
-    LambdaSet lambdas_;
-    Lambdas rpo_;
-    Array<Lambdas> preds_;
-    Array<Lambdas> succs_;
+    std::vector<Lambda*> rpo_;
+    Array< Array<Lambda*> > preds_;
+    Array< Array<Lambda*> > succs_;
     mutable AutoPtr<DomTree> domtree_;
     mutable AutoPtr<LoopForestNode> loopforest_;
     mutable AutoPtr<LoopInfo> loopinfo_;
+
+    friend class ScopeBuilder;
 };
 
 } // namespace anydsl2
 
 #endif
-

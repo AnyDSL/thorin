@@ -12,106 +12,44 @@
 
 namespace anydsl2 {
 
-class ScopeBuilder {
-public:
-
-    ScopeBuilder(Lambda* entry, Scope* scope);
-
-    bool is_visited(Lambda* lambda) { return lambda->is_visited(pass); }
-    bool contains(Lambda* lambda) { return lambda->scope() == scope; }
-    void insert(Lambda* lambda) { lambda->visit_first(pass); lambda->scope_ = scope; scope->rpo_.push_back(lambda); }
-
-    void jump_to_param_users(Lambda* lambda);
-    void up(Lambda* lambda);
-    void find_user(const Def* def);
-    size_t number(Lambda* cur, size_t i);
-
-private:
-
-    Scope* scope;
-    size_t pass;
-};
-
 struct ScopeLess {
     bool operator () (const Lambda* l1, const Lambda* l2) const { return l1->sid() < l2->sid(); }
 };
 
-ScopeBuilder::ScopeBuilder(Lambda* entry, Scope* scope)
-    : scope(scope)
-    , pass(entry->world().new_pass())
-{
-    scope->rpo_.reserve(scope->size());
-    insert(entry);
-    jump_to_param_users(entry);
-    pass = entry->world().new_pass();
-    size_t num = number(entry, 0);
-    assert(num <= scope->rpo_.size());
+Scope::Scope(Lambda* entry) {
+    // identify all lambdas depending on entry
+    size_t pass = entry->world().new_pass();
+    insert(pass, entry);
+    jump_to_param_users(pass, entry);
 
-    for_all (lambda, scope->rpo_) {
+    // number all lambdas in postorder
+    pass = entry->world().new_pass();
+    size_t num = number(pass, entry, 0);
+    assert(num <= rpo().size());
+    assert(num >= 1);
+
+    // convert postorder number to reverse postorder number
+    for_all (lambda, rpo()) {
         if (lambda->is_visited(pass)) {
             lambda->sid_ = num - 1 - lambda->sid_;
-        } else {
+        } else { // lambda is unreachable
             lambda->scope_ = 0;
             lambda->sid_ = size_t(-1);
         }
     }
     
-    std::sort(scope->rpo_.begin(), scope->rpo_.end(), ScopeLess());
-    scope->rpo_.resize(num);
-}
+    // sort rpo according to rpo
+    std::sort(rpo_.begin(), rpo_.end(), ScopeLess());
+    assert(rpo_[0] == entry && "bug in numbering");
 
-void ScopeBuilder::jump_to_param_users(Lambda* lambda) {
-    for_all (param, lambda->params())
-        find_user(param);
-}
+    // discard unreachable lambdas;
+    rpo_.resize(num);
 
-void ScopeBuilder::find_user(const Def* def) {
-    if (Lambda* lambda = def->isa_lambda())
-        up(lambda);
-    else {
-        for_all (use, def->uses())
-            find_user(use.def());
-    }
-}
-
-void ScopeBuilder::up(Lambda* lambda) {
-    if (is_visited(lambda))
-        return;
-
-    insert(lambda);
-    jump_to_param_users(lambda);
-
-    for_all (pred, lambda->preds())
-        up(pred);
-}
-
-size_t ScopeBuilder::number(Lambda* cur, size_t i) {
-    cur->visit_first(pass);
-
-    // for each successor in scope
-    for_all (succ, cur->succs()) {
-        if (contains(succ) && !succ->is_visited(pass))
-            i = number(succ, i);
-    }
-
-    return (cur->sid_ = i) + 1;
-}
-
-Scope::~Scope() {
-    for_all (lambda, rpo_)
-        lambda->scope_ = 0;
-}
-
-Scope::Scope(Lambda* entry) {
-    ScopeBuilder(entry, this);
-    size_t num = rpo_.size();
+    // cache preds and succs
     preds_.alloc(num);
     succs_.alloc(num);
-
     for_all (lambda, rpo_) {
         size_t sid = lambda->sid();
-        rpo_[sid] = lambda;
-
         {
             Array<Lambda*>& succs = succs_[sid];
             succs.alloc(lambda->succs().size());
@@ -133,8 +71,48 @@ Scope::Scope(Lambda* entry) {
             preds.shrink(i);
         }
     }
+}
 
-    assert(rpo_[0] == entry && "bug in numbering");
+Scope::~Scope() {
+    for_all (lambda, rpo_)
+        lambda->scope_ = 0;
+}
+
+void Scope::jump_to_param_users(size_t pass, Lambda* lambda) {
+    for_all (param, lambda->params())
+        find_user(pass, param);
+}
+
+void Scope::find_user(size_t pass, const Def* def) {
+    if (Lambda* lambda = def->isa_lambda())
+        up(pass, lambda);
+    else {
+        for_all (use, def->uses())
+            find_user(pass, use.def());
+    }
+}
+
+void Scope::up(size_t pass, Lambda* lambda) {
+    if (lambda->is_visited(pass))
+        return;
+
+    insert(pass, lambda);
+    jump_to_param_users(pass, lambda);
+
+    for_all (pred, lambda->preds())
+        up(pass, pred);
+}
+
+size_t Scope::number(size_t pass, Lambda* cur, size_t i) {
+    cur->visit_first(pass);
+
+    // for each successor in scope
+    for_all (succ, cur->succs()) {
+        if (contains(succ) && !succ->is_visited(pass))
+            i = number(pass, succ, i);
+    }
+
+    return (cur->sid_ = i) + 1;
 }
 
 ArrayRef<Lambda*> Scope::preds(Lambda* lambda) const {

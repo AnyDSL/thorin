@@ -47,6 +47,16 @@ public:
 
 private:
 
+    void jump_to_param_users(size_t pass, Lambda* lambda);
+    void up(size_t pass, Lambda* lambda);
+    void find_user(size_t pass, const Def* def);
+    size_t number(size_t pass, Lambda* cur, size_t i);
+    void insert(size_t pass, Lambda* lambda) { 
+        lambda->visit_first(pass); 
+        lambda->scope_ = this; 
+        rpo_.push_back(lambda); 
+    }
+
     std::vector<Lambda*> rpo_;
     Array< Array<Lambda*> > preds_;
     Array< Array<Lambda*> > succs_;

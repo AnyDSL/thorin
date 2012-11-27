@@ -5,8 +5,7 @@ namespace anydsl2 {
 size_t Node::hash() const {
     size_t seed = 0;
     boost::hash_combine(seed, kind());
-    boost::hash_combine(seed, ops_);
-
+    hash_combine(seed, ops_);
     return seed;
 }
 

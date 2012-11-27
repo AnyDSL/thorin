@@ -55,8 +55,6 @@ inline const Def* const& op_as_def(const Node* const* ptr) {
     return *((const Def* const*) ptr); 
 }
 
-typedef ArrayRef<const Def*> Defs;
-
 //------------------------------------------------------------------------------
 
 class Use {
@@ -84,6 +82,38 @@ typedef std::vector<Use> Uses;
 
 //------------------------------------------------------------------------------
 
+typedef boost::tuple<int, const Type*> DefTuple0;
+typedef boost::tuple<int, const Type*, const Def*> DefTuple1;
+typedef boost::tuple<int, const Type*, const Def*, const Def*> DefTuple2;
+typedef boost::tuple<int, const Type*, const Def*, const Def*, const Def*> DefTuple3;
+typedef boost::tuple<int, const Type*, ArrayRef<const Def*> > DefTupleN;
+
+template<class T>
+inline size_t hash_kind_type_size(const T& tuple, size_t size) {
+    size_t seed = 0;
+    boost::hash_combine(seed, size);
+    boost::hash_combine(seed, tuple.template get<0>());
+    boost::hash_combine(seed, tuple.template get<1>());
+    return seed;
+}
+size_t hash_def(const DefTuple0&);
+size_t hash_def(const DefTuple1&);
+size_t hash_def(const DefTuple2&);
+size_t hash_def(const DefTuple3&);
+size_t hash_def(const DefTupleN&);
+
+bool equal_def(const DefTuple0&, const Def*);
+bool equal_def(const DefTuple1&, const Def*);
+bool equal_def(const DefTuple2&, const Def*);
+bool equal_def(const DefTuple3&, const Def*);
+bool equal_def(const DefTupleN&, const Def*);
+
+#define ANYDSL2_HASH_EQUAL \
+    virtual bool equal(const Node* other) const { return equal_def(tuple(), other->as<Def>()); } \
+    virtual size_t hash() const { return hash_def(tuple()); }
+
+//------------------------------------------------------------------------------
+
 class Def : public Node {
 private:
 
@@ -102,8 +132,7 @@ protected:
         , type_(type)
     {}
 
-    virtual bool equal(const Node* other) const;
-    virtual size_t hash() const;
+    ANYDSL2_HASH_EQUAL
 
     void set_type(const Type* type) { type_ = type; }
     void unregister_use(size_t i) const;
@@ -113,6 +142,7 @@ public:
     virtual ~Def();
     void set_op(size_t i, const Def* def);
     void unset_op(size_t i);
+    DefTupleN tuple() const { return DefTupleN(kind(), type(), ops()); }
 
     Lambda* as_lambda() const;
     Lambda* isa_lambda() const;
@@ -140,8 +170,8 @@ public:
     void update(ArrayRef<const Def*> defs);
 
     World& world() const;
-    Defs ops() const { return ops_ref<const Def*>(); }
-    Defs ops(size_t begin, size_t end) const { return ops().slice(begin, end); }
+    ArrayRef<const Def*> ops() const { return ops_ref<const Def*>(); }
+    ArrayRef<const Def*> ops(size_t begin, size_t end) const { return ops().slice(begin, end); }
     const Def* op(size_t i) const { return ops()[i]; }
     const Def* op_via_lit(const Def* def) const;
     void replace(const Def* with) const;
@@ -164,15 +194,10 @@ private:
     mutable Uses uses_;
 };
 
-size_t hash_value(boost::tuple<int, const Type*, Defs>);
-size_t hash_value(boost::tuple<int, const Type*, const Def*>);
-size_t hash_value(boost::tuple<int, const Type*, const Def*, const Def*>);
-size_t hash_value(boost::tuple<int, const Type*, const Def*, const Def*, const Def*>);
-
-//bool equal(boost::tuple<int, const Type*, Defs>, const Def*);
-//bool equal(boost::tuple<int, const Type*, const Def*>, const Def*);
-bool equal(boost::tuple<int, const Type*, const Def*, const Def*>, const Def*);
-//bool equal(boost::tuple<int, const Type*, const Def*, const Def*, const Def*>, const Def*);
+template<class T>
+inline bool equal_kind_type_size(const T& tuple, size_t size, const Def* def) {
+    return size == def->size() && tuple.template get<0>() == def->kind() && tuple.template get<1>() == def->type();
+}
 
 std::ostream& operator << (std::ostream& o, const Def* def);
 

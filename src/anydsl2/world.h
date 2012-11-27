@@ -270,6 +270,9 @@ public:
 
 private:
 
+    template<class T> const Def* find(const T& tuple);
+    template<class T> const T* new_consume(const T* def);
+
     void dce_insert(size_t pass, const Def* def);
     void ute_insert(size_t pass, const Type* type);
     void uce_insert(size_t pass, Lambda* lambda);

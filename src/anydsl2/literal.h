@@ -74,6 +74,10 @@ private:
 
 //------------------------------------------------------------------------------
 
+typedef boost::tuple<int, const Type*, Box> PrimLitTuple;
+size_t hash_def(const PrimLitTuple& tuple);
+bool equal_def(const PrimLitTuple& tuple, const Def* other);
+
 class PrimLit : public Literal {
 private:
 
@@ -87,14 +91,15 @@ public:
     Box box() const { return box_; }
     const PrimType* primtype() const { return type()->as<PrimType>(); }
     PrimTypeKind primtype_kind() const { return primtype()->primtype_kind(); }
-
-    virtual bool equal(const Node* other) const;
-    virtual size_t hash() const;
+    PrimLitTuple ptuple() const { return PrimLitTuple(kind(), type(), box()); }
 
 private:
 
     virtual void vdump(Printer& printer) const ;
+    //ANYDSL2_HASH_EQUAL
 
+    virtual bool equal(const Node* other) const { return equal_def(ptuple(), other->as<Def>()); } \
+    virtual size_t hash() const { return hash_def(ptuple()); }
     Box box_;
 
     friend class World;

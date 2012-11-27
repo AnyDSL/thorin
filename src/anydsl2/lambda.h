@@ -68,7 +68,7 @@ public:
     const Params& params() const { return params_; }
     const Param* param(size_t i) const { return params_[i]; }
     const Def* to() const { return op(0); };
-    Defs args() const { return ops().slice_back(1); }
+    ArrayRef<const Def*> args() const { return ops().slice_back(1); }
     const Def* arg(size_t i) const { return args()[i]; }
     const Pi* pi() const;
     const Pi* to_pi() const;

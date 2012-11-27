@@ -66,6 +66,22 @@ World::~World() {
         delete lambda;
 }
 
+
+template<class T>
+inline const Def* World::find(const T& tuple) {
+    PrimOpSet::iterator i = primops_.find(tuple, 
+            std::ptr_fun<const T&, size_t>(hash_def),
+            std::ptr_fun<const T&, const Def*, bool>(equal_def));
+    return i == primops_.end() ? 0 : *i;
+}
+
+template<class T>
+inline const T* World::new_consume(const T* def) {
+    std::pair<PrimOpSet::iterator, bool> p = primops_.insert(def);
+    assert(p.second && "hash/equal broken");
+    return (*p.first)->as<T>();
+}
+
 /*
  * types
  */
@@ -85,7 +101,10 @@ Sigma* World::named_sigma(size_t size, const std::string& name) {
  */
 
 const PrimLit* World::literal(PrimTypeKind kind, Box box) {
-    return consume(new PrimLit(type(kind), box))->as<PrimLit>();
+    const Type* ptype = type(kind);
+    if (const Def* def = find(PrimLitTuple(Node_PrimLit, ptype, box)))
+        return def->as<PrimLit>();
+    return new_consume(new PrimLit(ptype, box));
 }
 
 const PrimLit* World::literal(PrimTypeKind kind, int value) {
@@ -98,11 +117,15 @@ const PrimLit* World::literal(PrimTypeKind kind, int value) {
 }
 
 const Any* World::any(const Type* type) {
-    return consume(new Any(type))->as<Any>();
+    if (const Def* def = find(DefTuple0(Node_Any, type)))
+        return def->as<Any>();
+    return new_consume(new Any(type));
 }
 
 const Bottom* World::bottom(const Type* type) {
-    return consume(new Bottom(type))->as<Bottom>();
+    if (const Def* def = find(DefTuple0(Node_Bottom, type)))
+        return def->as<Bottom>();
+    return new_consume(new Bottom(type));
 }
 
 /*
@@ -225,17 +248,10 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
         if ((rlit || a > b) && (!llit))
             std::swap(a, b);
 
-#if 0
-    typedef boost::tuple<int, const Type*, const Def*, const Def*> XXX;
-    PrimOpSet::iterator i = primops_.find(boost::make_tuple(kind, a->type(), a, b),
-                                          std::ptr_fun<XXX, size_t>(hash_value),
-                                          std::ptr_fun<XXX, const Def*, bool>(equal));
+    if (const Def* def = find(DefTuple2(kind, a->type(), a, b)))
+        return def;
 
-    if (i != primops_.end())
-        std::cout << "found!!!!" << std::endl;
-#endif
-
-    return consume(new ArithOp(kind, a, b, name));
+    return new_consume(new ArithOp(kind, a, b, name));
 }
 
 const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::string& name) {

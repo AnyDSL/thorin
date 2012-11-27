@@ -5,22 +5,14 @@
 
 namespace anydsl2 {
 
-//------------------------------------------------------------------------------
-
-bool PrimLit::equal(const Node* other) const {
-    if (!Literal::equal(other))
-        return false;
-
-    return box() == other->as<PrimLit>()->box();
-}
-
-size_t PrimLit::hash() const {
-    size_t seed = Literal::hash();
-    boost::hash_combine(seed, bcast<u64, Box>(box()));
-
+size_t hash_def(const PrimLitTuple& tuple) {
+    size_t seed = hash_kind_type_size(tuple, 0);
+    boost::hash_combine(seed, bcast<u64, Box>(tuple.get<2>()));
     return seed;
 }
 
-//------------------------------------------------------------------------------
+bool equal_def(const PrimLitTuple& tuple, const Def* other) {
+    return equal_kind_type_size(tuple, 0, other) && tuple.get<2>() == other->as<PrimLit>()->box();
+}
 
 } // namespace anydsl2

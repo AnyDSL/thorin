@@ -1,5 +1,7 @@
 #include "anydsl2/def.h"
 
+#include <algorithm>
+
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
 #include "anydsl2/primop.h"
@@ -9,7 +11,6 @@
 #include "anydsl2/util/for_all.h"
 
 namespace anydsl2 {
-
 
 //------------------------------------------------------------------------------
 
@@ -24,17 +25,10 @@ Def::~Def() {
     }
 }
 
-void Def::set_all(ArrayRef<const Def*> all) {
-    assert(size() == all.size());
-    for (size_t i = 0, e = all.size(); i != e; ++i)
-        set_op(i, all[i]);
-}
-
 void Def::set_op(size_t i, const Def* def) {
     assert(!op(i) && "already set");
-    Use use(i, this);
-    assert(def->uses_.find(use) == def->uses_.end() && "already in use set");
-    def->uses_.insert(use);
+    assert(std::find(def->uses_.begin(), def->uses_.end(), Use(i, this)) == def->uses_.end() && "already in use set");
+    def->uses_.push_back(Use(i, this));
     set(i, def);
 }
 
@@ -46,9 +40,8 @@ void Def::unset_op(size_t i) {
 
 void Def::unregister_use(size_t i) const {
     if (const Def* def = op(i)) {
-        Use use(i, this);
-        assert(def->uses_.find(use) != def->uses_.end() && "must be inside the use set");
-        def->uses_.erase(use);
+        assert(std::find(def->uses_.begin(), def->uses_.end(), Use(i, this)) != def->uses_.end() && "must be in use set");
+        def->uses_.erase(std::find(def->uses_.begin(), def->uses_.end(), Use(i, this)));
     }
 }
 
@@ -69,6 +62,9 @@ bool Def::is_const() const {
 void Def::update(size_t i, const Def* def) {
     unset_op(i);
     set_op(i, def);
+    //Uses::iterator it = def->uses_.erase(std::find(def->uses_.begin(), def->uses_.end(), Use(this, i)));
+    //*it = Use(def, i);
+    //set(i, def);
 }
 
 void Def::update(ArrayRef<const Def*> defs) {

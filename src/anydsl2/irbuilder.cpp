@@ -124,7 +124,7 @@ void BB::fix(Symbol symbol, Todo todo) {
     if (!same || same == param)
         same = world().bottom(param->type());
 
-    for_all (use, param->copy_uses())
+    for_all (use, param->uses())
         world().update(use.def(), use.index(), same);
 
 fix_preds:

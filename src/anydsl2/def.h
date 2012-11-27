@@ -5,11 +5,11 @@
 #include <iterator>
 #include <ostream>
 #include <string>
+#include <vector>
 
 #include <boost/cstdint.hpp>
 #include <boost/functional/hash.hpp>
 #include <boost/tuple/tuple.hpp>
-#include <boost/unordered_set.hpp>
 
 #include "anydsl2/enums.h"
 #include "anydsl2/node.h"
@@ -80,15 +80,7 @@ private:
     const Def* def_;
 };
 
-inline size_t hash_value(Use use) {
-    size_t seed = 0;
-    boost::hash_combine(seed, use.def());
-    boost::hash_combine(seed, use.index());
-
-    return seed;
-}
-
-typedef boost::unordered_set<Use> Uses;
+typedef std::vector<Use> Uses;
 
 //------------------------------------------------------------------------------
 
@@ -120,7 +112,6 @@ public:
 
     virtual ~Def();
     void set_op(size_t i, const Def* def);
-    void set_all(ArrayRef<const Def*> all);
     void unset_op(size_t i);
 
     Lambda* as_lambda() const;

@@ -7,6 +7,10 @@
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/cast.h"
 
+#define ANYDSL2_HASH_EQUAL \
+    virtual bool equal(const Node* other) const { return equal_node(tuple(), other); } \
+    virtual size_t hash() const { return hash_node(tuple()); }
+
 namespace anydsl2 {
 
 class Node : public MagicCast {

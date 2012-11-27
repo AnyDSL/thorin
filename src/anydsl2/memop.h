@@ -138,8 +138,8 @@ public:
 //------------------------------------------------------------------------------
 
 typedef boost::tuple<int, const Type*, const std::string&, const Def*, ArrayRef<const Def*>, bool> CCallTuple;
-size_t hash_def(const CCallTuple& tuple);
-bool equal_def(const CCallTuple& tuple, const Def* other);
+size_t hash_node(const CCallTuple& tuple);
+bool equal_node(const CCallTuple& tuple, const Node* other);
 
 class CCall : public MemOp {
 private:

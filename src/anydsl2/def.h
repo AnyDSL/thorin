@@ -50,11 +50,6 @@ private:
 
 typedef Array<Peek> Peeks;
 
-inline const Def* const& op_as_def(const Node* const* ptr) { 
-    assert( !(*ptr) || (*ptr)->as<Def>());
-    return *((const Def* const*) ptr); 
-}
-
 //------------------------------------------------------------------------------
 
 class Use {
@@ -96,21 +91,17 @@ inline size_t hash_kind_type_size(const T& tuple, size_t size) {
     boost::hash_combine(seed, tuple.template get<1>());
     return seed;
 }
-size_t hash_def(const DefTuple0&);
-size_t hash_def(const DefTuple1&);
-size_t hash_def(const DefTuple2&);
-size_t hash_def(const DefTuple3&);
-size_t hash_def(const DefTupleN&);
+size_t hash_node(const DefTuple0&);
+size_t hash_node(const DefTuple1&);
+size_t hash_node(const DefTuple2&);
+size_t hash_node(const DefTuple3&);
+size_t hash_node(const DefTupleN&);
 
-bool equal_def(const DefTuple0&, const Def*);
-bool equal_def(const DefTuple1&, const Def*);
-bool equal_def(const DefTuple2&, const Def*);
-bool equal_def(const DefTuple3&, const Def*);
-bool equal_def(const DefTupleN&, const Def*);
-
-#define ANYDSL2_HASH_EQUAL \
-    virtual bool equal(const Node* other) const { return equal_def(tuple(), other->as<Def>()); } \
-    virtual size_t hash() const { return hash_def(tuple()); }
+bool equal_node(const DefTuple0&, const Node*);
+bool equal_node(const DefTuple1&, const Node*);
+bool equal_node(const DefTuple2&, const Node*);
+bool equal_node(const DefTuple3&, const Node*);
+bool equal_node(const DefTupleN&, const Node*);
 
 //------------------------------------------------------------------------------
 
@@ -195,7 +186,8 @@ private:
 };
 
 template<class T>
-inline bool equal_kind_type_size(const T& tuple, size_t size, const Def* def) {
+inline bool equal_kind_type_size(const T& tuple, size_t size, const Node* node) {
+    const Def* def = node->as<Def>();
     return size == def->size() && tuple.template get<0>() == def->kind() && tuple.template get<1>() == def->type();
 }
 

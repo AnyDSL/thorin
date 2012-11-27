@@ -12,6 +12,51 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
+size_t hash_type(const TypeTuple0& tuple) { 
+    size_t seed = 0;
+    boost::hash_combine(seed, 0);
+    boost::hash_combine(seed, tuple.get<0>()); 
+    return seed;
+}
+size_t hash_type(const TypeTuple1& tuple) { 
+    size_t seed = 0;
+    boost::hash_combine(seed, 1);
+    boost::hash_combine(seed, tuple.get<0>()); 
+    boost::hash_combine(seed, tuple.get<1>()); 
+    return seed;
+}
+size_t hash_type(const TypeTupleN& tuple) { 
+    size_t seed = 0;
+    ArrayRef<const Type*> elems = tuple.get<1>();
+    boost::hash_combine(seed, tuple.get<0>()); 
+    boost::hash_combine(seed, elems.size());
+    for_all (elem, elems)
+        boost::hash_combine(seed, elem);
+    return seed;
+}
+size_t hash_type(const GenericTuple& tuple) { 
+    size_t seed = 0;
+    boost::hash_combine(seed, 0);
+    boost::hash_combine(seed, tuple.get<0>()); 
+    boost::hash_combine(seed, tuple.get<1>()); 
+    return seed;
+}
+
+bool equal_type(const TypeTuple0& tuple, const Type* other) {
+    return tuple.get<0>() == other->kind();
+}
+bool equal_type(const TypeTuple1& tuple, const Type* other) {
+    return tuple.get<0>() == other->kind() && tuple.get<1>() == other->elem(0);
+}
+bool equal_type(const TypeTupleN& tuple, const Type* other) {
+    return tuple.get<0>() == other->kind() && tuple.get<1>() == other->elems();
+}
+bool equal_type(const GenericTuple& tuple, const Type* other) {
+    return tuple.get<0>() == other->kind() && tuple.get<1>() == other->as<Generic>()->index();
+}
+
+//------------------------------------------------------------------------------
+
 const Type*& GenericMap::operator [] (const Generic* generic) const {
     size_t i = generic->index();
     if (i >= types_.size())

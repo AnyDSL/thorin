@@ -74,8 +74,8 @@ World::~World() {
 template<class T>
 inline const Def* World::find(const T& tuple) {
     PrimOpSet::iterator i = primops_.find(tuple, 
-            std::ptr_fun<const T&, size_t>(hash_def),
-            std::ptr_fun<const T&, const Def*, bool>(equal_def));
+            std::ptr_fun<const T&, size_t>(hash_node),
+            std::ptr_fun<const T&, const Node*, bool>(equal_node));
     return i == primops_.end() ? 0 : *i;
 }
 

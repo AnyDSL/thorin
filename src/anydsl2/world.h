@@ -215,8 +215,8 @@ public:
     const Enter* enter(const Def* mem, const std::string& name = "");
     const Leave* leave(const Def* mem, const Def* frame, const std::string& name = "");
     const Slot* slot(const Enter* enter, const Type* type, const std::string& name = "");
-    const CCall* ccall(const Def* mem, const std::string& callee, 
-                       ArrayRef<const Def*> args, const Type* rettype, bool vararg = false, const std::string& name = "");
+    const CCall* c_call(const std::string& callee, const Def* mem, ArrayRef<const Def*> args, 
+                        const Type* rettype, bool vararg = false, const std::string& name = "");
 
     /*
      * other stuff

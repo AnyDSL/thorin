@@ -82,8 +82,8 @@ size_t Slot::hash() const { return boost::hash_value(this); }
 
 //------------------------------------------------------------------------------
 
-CCall::CCall(const Def* mem, const std::string& callee, 
-             ArrayRef<const Def*> args, const Type* rettype, bool vararg, const std::string& name)
+CCall::CCall(const std::string& callee, const Def* mem, ArrayRef<const Def*> args, 
+             const Type* rettype, bool vararg, const std::string& name)
     : MemOp(Node_CCall, args.size() + 1, (const Type*) 0, mem, name)
     , extract_mem_(0)
     , extract_retval_(0)
@@ -121,19 +121,23 @@ const Type* CCall::rettype() const {
 
 bool CCall::returns_void() const { return type()->isa<Mem>(); }
 
-bool CCall::equal(const Node* other) const { 
-    if (this->MemOp::equal(other)) {
-        const CCall* cother = other->as<CCall>();
-        return this->callee() == cother->callee() && this->vararg() == cother->vararg();
-    }
-    return false;
+size_t hash_def(const CCallTuple& tuple) { 
+    ArrayRef<const Def*> args = tuple.get<4>();
+    size_t seed = hash_kind_type_size(tuple, args.size() + 1);
+    boost::hash_combine(seed, tuple.get<3>());
+    for_all (arg, args)
+        boost::hash_combine(seed, arg);
+    boost::hash_combine(seed, tuple.get<2>());
+    boost::hash_combine(seed, tuple.get<5>());
+    return seed;
 }
 
-size_t CCall::hash() const { 
-    size_t seed = MemOp::hash();
-    boost::hash_combine(seed, callee());
-    boost::hash_combine(seed, vararg());
-    return seed;
+bool equal_def(const CCallTuple& tuple, const Def* other) { 
+    return equal_kind_type_size(tuple, tuple.get<4>().size() + 1, other) 
+        && tuple.get<2>() == other->as<CCall>()->callee()
+        && tuple.get<3>() == other->as<CCall>()->mem()
+        && tuple.get<4>() == other->as<CCall>()->args()
+        && tuple.get<5>() == other->as<CCall>()->vararg();
 }
 
 //------------------------------------------------------------------------------

@@ -83,13 +83,11 @@ Array<Use> Def::copy_uses() const {
 bool Def::is_primlit(int val) const {
     if (const PrimLit* lit = this->isa<PrimLit>()) {
         Box box = lit->box();
-
         switch (lit->primtype_kind()) {
 #define ANYDSL2_UF_TYPE(T) case PrimType_##T: return box.get_##T() == T(val);
 #include "anydsl2/tables/primtypetable.h"
         }
     }
-
     return false;
 }
 

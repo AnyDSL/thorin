@@ -137,12 +137,17 @@ public:
 
 //------------------------------------------------------------------------------
 
+typedef boost::tuple<int, const Type*, const std::string&, const Def*, ArrayRef<const Def*>, bool> CCallTuple;
+size_t hash_def(const CCallTuple& tuple);
+bool equal_def(const CCallTuple& tuple, const Def* other);
+
 class CCall : public MemOp {
 private:
 
-    CCall(const Def* mem, const std::string& callee, 
-          ArrayRef<const Def*> args, const Type* rettype, bool vararg, const std::string& name);
+    CCall(const std::string& callee, const Def* mem, ArrayRef<const Def*> args, 
+          const Type* rettype, bool vararg, const std::string& name);
 
+    ANYDSL2_HASH_EQUAL
     virtual void vdump(Printer &printer) const;
 
 public:
@@ -155,11 +160,12 @@ public:
     const Type* rettype() const;
     ArrayRef<const Def*> args() const { return ops().slice_back(1); }
     size_t num_args() const { return args().size(); }
+    CCallTuple tuple() const { 
+        return CCallTuple(kind(), type(), callee(), 
+                          ops().front(), ops().slice_back(1), vararg()); 
+    }
 
 private:
-
-    virtual bool equal(const Node* other) const;
-    virtual size_t hash() const;
 
     mutable const Def* extract_mem_;
     mutable const Def* extract_retval_;

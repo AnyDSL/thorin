@@ -31,6 +31,11 @@
     case PrimType_f32: \
     case PrimType_f64: ANYDSL2_UNREACHABLE;
 
+#define ANYDSL2_CONSUME(tuple, type, args) \
+    if (const Def* def = find(tuple)) \
+        return def->as<type>(); \
+    return new_consume(new type args);
+
 namespace anydsl2 {
 
 /*
@@ -66,7 +71,6 @@ World::~World() {
         delete lambda;
 }
 
-
 template<class T>
 inline const Def* World::find(const T& tuple) {
     PrimOpSet::iterator i = primops_.find(tuple, 
@@ -99,11 +103,6 @@ Sigma* World::named_sigma(size_t size, const std::string& name) {
 /*
  * literals
  */
-
-#define ANYDSL2_CONSUME(tuple, type, args) \
-    if (const Def* def = find(tuple)) \
-        return def->as<type>(); \
-    return new_consume(new type args);
 
 const PrimLit* World::literal(PrimTypeKind kind, Box box) {
     const Type* ptype = type(kind);
@@ -140,15 +139,14 @@ const Def* World::tuple(ArrayRef<const Def*> args, const std::string& name) {
     bool bot = false;
     for_all2 (&elem, elems, arg, args) {
         elem = arg->type();
-
-        if (arg->isa<Bottom>())
-            bot = true;
+        bot |= arg->node_kind() == Node_Bottom;
     }
 
+    const Type* type = sigma(elems);
     if (bot)
-        return bottom(sigma(elems));
+        return bottom(type);
 
-    return consume(new Tuple(*this, args, name));
+    ANYDSL2_CONSUME(DefTupleN(Node_Tuple, type, args), Tuple, (*this, args, name))
 }
 
 const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const std::string& name) {
@@ -417,9 +415,11 @@ const Slot* World::slot(const Enter* enter, const Type* type, const std::string&
     ANYDSL2_CONSUME(DefTuple1(Node_Slot, type->to_ptr(), enter), Slot, (enter, type, name))
 }
 
-const CCall* World::ccall(const Def* mem, const std::string& callee, 
-                          ArrayRef<const Def*> args, const Type* rettype, bool vararg, const std::string& name) {
-    return consume(new CCall(mem, callee, args, rettype, vararg, name))->as<CCall>();
+const CCall* World::c_call(const std::string& callee, const Def* m, ArrayRef<const Def*> args, 
+                           const Type* rettype, bool vararg, const std::string& name) {
+    const Type* type = rettype ? (const Type*) sigma2(mem(), rettype) : (const Type*) mem();
+    ANYDSL2_CONSUME(CCallTuple(Node_CCall, type, callee, m, args, vararg), 
+                    CCall, (callee, m, args, rettype, vararg, name))
 }
 
 const Def* World::select(const Def* cond, const Def* a, const Def* b, const std::string& name) {

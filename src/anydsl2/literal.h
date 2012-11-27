@@ -91,15 +91,13 @@ public:
     Box box() const { return box_; }
     const PrimType* primtype() const { return type()->as<PrimType>(); }
     PrimTypeKind primtype_kind() const { return primtype()->primtype_kind(); }
-    PrimLitTuple ptuple() const { return PrimLitTuple(kind(), type(), box()); }
+    PrimLitTuple tuple() const { return PrimLitTuple(kind(), type(), box()); }
 
 private:
 
     virtual void vdump(Printer& printer) const ;
-    //ANYDSL2_HASH_EQUAL
+    ANYDSL2_HASH_EQUAL
 
-    virtual bool equal(const Node* other) const { return equal_def(ptuple(), other->as<Def>()); } \
-    virtual size_t hash() const { return hash_def(ptuple()); }
     Box box_;
 
     friend class World;

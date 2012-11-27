@@ -67,7 +67,7 @@ const Def* Enter::extract_frame() const {
 Leave::Leave(const Def* mem, const Def* frame, const std::string& name)
     : MemOp(Node_Leave, 2, mem->type(), mem, name)
 {
-    assert( frame->type()->isa<Frame>() );
+    assert(frame->type()->isa<Frame>());
     set_op(1, frame);
 }
 

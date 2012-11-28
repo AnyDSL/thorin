@@ -6,10 +6,8 @@
 #include <iterator>
 #include <vector>
 
-#include <boost/functional/hash.hpp>
-#include <boost/tuple/tuple.hpp>
-
 #include "anydsl2/util/assert.h"
+#include "anydsl2/util/hash.h"
 #include "anydsl2/util/for_all.h"
 
 namespace anydsl2 {
@@ -265,30 +263,15 @@ bool t_smart_eq(TH th, null_type, ArrayRef<TH> array, size_t i, null_type) {
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl2
-
-namespace boost {
-    template<class T>
-    inline void hash_combine(size_t& seed, anydsl2::ArrayRef<T> aref) {
-        for (size_t i = 0, e = aref.size(); i != e; ++i)
-            boost::hash_combine(seed, aref[i]);
-    }
-}
-
-namespace anydsl2 {
-
 template<class T>
-inline size_t hash_value(ArrayRef<T> aref) {
-    size_t seed = 0;
-    boost::hash_combine(seed, aref);
+inline size_t hash_combine(size_t seed, anydsl2::ArrayRef<T> aref) {
+    for (size_t i = 0, e = aref.size(); i != e; ++i)
+        seed = hash_combine(seed, aref[i]);
     return seed;
 }
 
-template<class T>
-inline size_t hash_value(const Array<T>& array) { return hash_value(ArrayRef<T>(array)); }
-
-template<class T>
-inline void hash_combine(size_t& seed, const Array<T>& array) { return hash_combine(seed, ArrayRef<T>(array)); }
+template<class T> inline size_t hash_value(ArrayRef<T> aref) { return hash_combine(0, aref); }
+template<class T> inline size_t hash_value(const Array<T>& array) { return hash_value(array.ref()); }
 
 } // namespace anydsl2
 

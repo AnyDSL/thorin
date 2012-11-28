@@ -31,10 +31,15 @@
     case PrimType_f32: \
     case PrimType_f64: ANYDSL2_UNREACHABLE;
 
-#define ANYDSL2_CONSUME(tuple, type, args) \
-    if (const Def* def = find(tuple)) \
-        return def->as<type>(); \
-    return new_consume(new type args);
+#define ANYDSL2_CSE(tuple, T, args) \
+    if (const Def* def = find_op(tuple)) \
+        return def->as<T>(); \
+    return consume_op(new T args);
+
+#define ANYDSL2_UNIFY(tuple, T, args) \
+    if (const Type* type = find_type(tuple)) \
+        return type->as<T>(); \
+    return consume_type(new T args); \
 
 namespace anydsl2 {
 
@@ -72,7 +77,22 @@ World::~World() {
 }
 
 template<class T>
-inline const Def* World::find(const T& tuple) {
+inline const Type* World::find_type(const T& tuple) {
+    TypeSet::iterator i = types_.find(tuple, 
+            std::ptr_fun<const T&, size_t>(hash_type),
+            std::ptr_fun<const T&, const Type*, bool>(equal_type));
+    return i == types_.end() ? 0 : *i;
+}
+
+template<class T>
+inline const T* World::consume_type(const T* def) {
+    std::pair<TypeSet::iterator, bool> p = types_.insert(def);
+    assert(p.second && "hash/equal broken");
+    return (*p.first)->as<T>();
+}
+
+template<class T>
+inline const Def* World::find_op(const T& tuple) {
     PrimOpSet::iterator i = primops_.find(tuple, 
             std::ptr_fun<const T&, size_t>(hash_op),
             std::ptr_fun<const T&, const PrimOp*, bool>(equal_op));
@@ -80,7 +100,7 @@ inline const Def* World::find(const T& tuple) {
 }
 
 template<class T>
-inline const T* World::new_consume(const T* def) {
+inline const T* World::consume_op(const T* def) {
     std::pair<PrimOpSet::iterator, bool> p = primops_.insert(def);
     assert(p.second && "hash/equal broken");
     return (*p.first)->as<T>();
@@ -91,13 +111,14 @@ inline const T* World::new_consume(const T* def) {
  */
 
 Sigma* World::named_sigma(size_t size, const std::string& name) {
-    Sigma* s = new Sigma(*this, size);
-    s->name = name;
-
+    Sigma* s = new Sigma(*this, size, name);
     assert(types_.find(s) == types_.end() && "must not be inside");
-    types_.insert(s);
-
+    types_.insert(s).first;
     return s;
+}
+
+const Pi* World::pi(ArrayRef<const Type*> elems) {
+    ANYDSL2_UNIFY(TypeTupleN(Node_Pi, elems), Pi, (*this, elems))
 }
 
 /*
@@ -106,7 +127,7 @@ Sigma* World::named_sigma(size_t size, const std::string& name) {
 
 const PrimLit* World::literal(PrimTypeKind kind, Box box) {
     const Type* ptype = type(kind);
-    ANYDSL2_CONSUME(PrimLitTuple(Node_PrimLit, ptype, box), PrimLit, (ptype, box))
+    ANYDSL2_CSE(PrimLitTuple(Node_PrimLit, ptype, box), PrimLit, (ptype, box))
 }
 
 const PrimLit* World::literal(PrimTypeKind kind, int value) {
@@ -118,8 +139,8 @@ const PrimLit* World::literal(PrimTypeKind kind, int value) {
     }
 }
 
-const Any*    World::any   (const Type* type) { ANYDSL2_CONSUME(DefTuple0(Node_Any,    type), Any,    (type)) }
-const Bottom* World::bottom(const Type* type) { ANYDSL2_CONSUME(DefTuple0(Node_Bottom, type), Bottom, (type)) }
+const Any*    World::any   (const Type* type) { ANYDSL2_CSE(DefTuple0(Node_Any,    type), Any,    (type)) }
+const Bottom* World::bottom(const Type* type) { ANYDSL2_CSE(DefTuple0(Node_Bottom, type), Bottom, (type)) }
 
 /*
  * create
@@ -146,7 +167,7 @@ const Def* World::tuple(ArrayRef<const Def*> args, const std::string& name) {
     if (bot)
         return bottom(type);
 
-    ANYDSL2_CONSUME(DefTupleN(Node_Tuple, type, args), Tuple, (*this, args, name))
+    ANYDSL2_CSE(DefTupleN(Node_Tuple, type, args), Tuple, (*this, args, name))
 }
 
 const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const std::string& name) {
@@ -240,7 +261,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
         if ((rlit || a > b) && (!llit))
             std::swap(a, b);
 
-    ANYDSL2_CONSUME(DefTuple2(kind, a->type(), a, b), ArithOp, (kind, a, b, name))
+    ANYDSL2_CSE(DefTuple2(kind, a->type(), a, b), ArithOp, (kind, a, b, name))
 }
 
 const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::string& name) {
@@ -345,7 +366,7 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::s
         }
     }
 
-    ANYDSL2_CONSUME(DefTuple2(kind, type_u1(), a, b), RelOp, (kind, a, b, name))
+    ANYDSL2_CSE(DefTuple2(kind, type_u1(), a, b), RelOp, (kind, a, b, name))
 }
 
 const Def* World::convop(ConvOpKind kind, const Type* to, const Def* from, const std::string& name) {
@@ -361,7 +382,7 @@ const Def* World::convop(ConvOpKind kind, const Type* to, const Def* from, const
     }
 #endif
 
-    ANYDSL2_CONSUME(DefTuple1(kind, to, from), ConvOp, (kind, to, from, name))
+    ANYDSL2_CSE(DefTuple1(kind, to, from), ConvOp, (kind, to, from, name))
 }
 
 const Def* World::extract(const Def* agg, const Def* index, const std::string& name) {
@@ -379,7 +400,7 @@ const Def* World::extract(const Def* agg, const Def* index, const std::string& n
     }
 
     const Type* type = agg->type()->as<Sigma>()->elem_via_lit(index);
-    ANYDSL2_CONSUME(DefTuple2(Node_Extract, type, agg, index), Extract, (agg, index, name))
+    ANYDSL2_CSE(DefTuple2(Node_Extract, type, agg, index), Extract, (agg, index, name))
 }
 
 const Def* World::insert(const Def* agg, const Def* index, const Def* value, const std::string& name) {
@@ -394,31 +415,31 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, con
         return tuple(args);
     }
 
-    ANYDSL2_CONSUME(DefTuple3(Node_Insert, agg->type(), agg, index, value), Insert, (agg, index, value, name))
+    ANYDSL2_CSE(DefTuple3(Node_Insert, agg->type(), agg, index, value), Insert, (agg, index, value, name))
 }
 
 const Def* World::load(const Def* m, const Def* ptr, const std::string& name) {
     const Type* type = sigma2(mem(), ptr->type()->as<Ptr>()->ref());
-    ANYDSL2_CONSUME(DefTuple2(Node_Load, type, m, ptr), Load, (m, ptr, name))
+    ANYDSL2_CSE(DefTuple2(Node_Load, type, m, ptr), Load, (m, ptr, name))
 }
 const Def* World::store(const Def* m, const Def* ptr, const Def* val, const std::string& name) {
-    ANYDSL2_CONSUME(DefTuple3(Node_Store, mem(), m, ptr, val), Store, (m, ptr, val, name))
+    ANYDSL2_CSE(DefTuple3(Node_Store, mem(), m, ptr, val), Store, (m, ptr, val, name))
 }
 const Enter* World::enter(const Def* m, const std::string& name) {
     const Type* type = sigma2(mem(), frame());
-    ANYDSL2_CONSUME(DefTuple1(Node_Enter, type, m), Enter, (m, name))
+    ANYDSL2_CSE(DefTuple1(Node_Enter, type, m), Enter, (m, name))
 }
 const Leave* World::leave(const Def* m, const Def* frame, const std::string& name) {
-    ANYDSL2_CONSUME(DefTuple2(Node_Leave, mem(), m, frame), Leave, (m, frame, name))
+    ANYDSL2_CSE(DefTuple2(Node_Leave, mem(), m, frame), Leave, (m, frame, name))
 }
 const Slot* World::slot(const Enter* enter, const Type* type, const std::string& name) {
-    ANYDSL2_CONSUME(DefTuple1(Node_Slot, type->to_ptr(), enter), Slot, (enter, type, name))
+    ANYDSL2_CSE(DefTuple1(Node_Slot, type->to_ptr(), enter), Slot, (enter, type, name))
 }
 
 const CCall* World::c_call(const std::string& callee, const Def* m, ArrayRef<const Def*> args, 
                            const Type* rettype, bool vararg, const std::string& name) {
     const Type* type = rettype ? (const Type*) sigma2(mem(), rettype) : (const Type*) mem();
-    ANYDSL2_CONSUME(CCallTuple(Node_CCall, type, callee, m, args, vararg), 
+    ANYDSL2_CSE(CCallTuple(Node_CCall, type, callee, m, args, vararg), 
                     CCall, (callee, m, args, rettype, vararg, name))
 }
 
@@ -429,11 +450,11 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b, const std:
     if (const PrimLit* lit = cond->isa<PrimLit>())
         return lit->box().get_u1().get() ? a : b;
 
-    ANYDSL2_CONSUME(DefTuple3(Node_Select, a->type(), cond, a, b), Select, (cond, a, b, name))
+    ANYDSL2_CSE(DefTuple3(Node_Select, a->type(), cond, a, b), Select, (cond, a, b, name))
 }
 
 const Def* World::typekeeper(const Type* type, const std::string& name) { 
-    ANYDSL2_CONSUME(DefTuple0(Node_TypeKeeper, type), TypeKeeper, (type, name))
+    ANYDSL2_CSE(DefTuple0(Node_TypeKeeper, type), TypeKeeper, (type, name))
 }
 
 Lambda* World::lambda(const Pi* pi, LambdaAttr attr, const std::string& name) {

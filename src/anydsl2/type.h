@@ -200,10 +200,12 @@ protected:
 class Sigma : public CompoundType {
 private:
 
-    Sigma(World& world, size_t size)
+    Sigma(World& world, size_t size, const std::string& sigma_name)
         : CompoundType(world, Node_Sigma, size)
         , named_(true)
-    {}
+    {
+        name = sigma_name;
+    }
     Sigma(World& world, ArrayRef<const Type*> elems)
         : CompoundType(world, Node_Sigma, elems)
         , named_(false)

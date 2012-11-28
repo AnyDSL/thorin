@@ -141,7 +141,7 @@ public:
         const Type* types[3] = {t1, t2, t3};
         return pi(types);
     }
-    const Pi* pi(ArrayRef<const Type*> elems) { return consume(new Pi(*this, elems))->as<Pi>(); }
+    const Pi* pi(ArrayRef<const Type*> elems);
 
     const Generic* generic(size_t index) { return consume(new Generic(*this, index))->as<Generic>(); }
 
@@ -271,8 +271,10 @@ public:
 
 private:
 
-    template<class T> const Def* find(const T& tuple);
-    template<class T> const T* new_consume(const T* def);
+    template<class T> const Def* find_op(const T& tuple);
+    template<class T> const Type* find_type(const T& tuple);
+    template<class T> const T* consume_op(const T* def);
+    template<class T> const T* consume_type(const T* type);
 
     void dce_insert(size_t pass, const Def* def);
     void ute_insert(size_t pass, const Type* type);

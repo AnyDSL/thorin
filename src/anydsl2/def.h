@@ -153,12 +153,6 @@ private:
     friend class World;
 };
 
-template<class T>
-inline bool equal_kind_type_size(const T& tuple, size_t size, const Def* node) {
-    const Def* def = node->as<Def>();
-    return size == def->size() && tuple.template get<0>() == def->kind() && tuple.template get<1>() == def->type();
-}
-
 std::ostream& operator << (std::ostream& o, const Def* def);
 
 //------------------------------------------------------------------------------

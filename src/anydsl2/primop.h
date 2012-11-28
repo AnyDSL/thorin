@@ -1,15 +1,18 @@
 #ifndef ANYDSL2_PRIMOP_H
 #define ANYDSL2_PRIMOP_H
 
-#include <boost/functional/hash.hpp>
-#include <boost/tuple/tuple.hpp>
+#include <boost/tuple/tuple_comparison.hpp>
 
 #include "anydsl2/enums.h"
 #include "anydsl2/def.h"
+#include "anydsl2/util/hash.h"
 
 #define ANYDSL2_HASH_EQUAL \
-    virtual bool equal(const PrimOp* other) const { return equal_op(tuple(), other); } \
-    virtual size_t hash() const { return hash_op(tuple()); }
+    virtual bool equal(const PrimOp* other) const { \
+        typedef BOOST_TYPEOF(*this) T; \
+        return other->isa<T>() && this->tuple() == other->as<T>()->tuple(); \
+    } \
+    virtual size_t hash() const { return hash_tuple(tuple()); }
 
 namespace anydsl2 {
 
@@ -24,18 +27,10 @@ typedef boost::tuple<int, const Type*, const Def*, const Def*, const Def*> DefTu
 typedef boost::tuple<int, const Type*, ArrayRef<const Def*> > DefTupleN;
 
 template<class T>
-inline size_t hash_kind_type_size(const T& tuple, size_t size) {
-    size_t seed = 0;
-    boost::hash_combine(seed, size);
-    boost::hash_combine(seed, tuple.template get<0>());
-    boost::hash_combine(seed, tuple.template get<1>());
-    return seed;
+inline bool equal_kind_type(const T& tuple, size_t size, const Def* node) {
+    const Def* def = node->as<Def>();
+    return size == def->size() && tuple.template get<0>() == def->kind() && tuple.template get<1>() == def->type();
 }
-size_t hash_op(const DefTuple0&);
-size_t hash_op(const DefTuple1&);
-size_t hash_op(const DefTuple2&);
-size_t hash_op(const DefTuple3&);
-size_t hash_op(const DefTupleN&);
 
 bool equal_op(const DefTuple0&, const PrimOp*);
 bool equal_op(const DefTuple1&, const PrimOp*);

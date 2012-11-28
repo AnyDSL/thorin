@@ -203,17 +203,24 @@ Array<T> ArrayRef<T>::cut(ArrayRef<size_t> indices, size_t reserve) const {
     return result;
 }
 
-template<class T>
-inline void hash_combine(size_t& seed, ArrayRef<T> aref) {
-    boost::hash_combine(seed, aref.size());
-    for (size_t i = 0, e = aref.size(); i != e; ++i)
-        boost::hash_combine(seed, aref[i]);
+//------------------------------------------------------------------------------
+
+} // namespace anydsl2
+
+namespace boost {
+    template<class T>
+    inline void hash_combine(size_t& seed, anydsl2::ArrayRef<T> aref) {
+        for (size_t i = 0, e = aref.size(); i != e; ++i)
+            boost::hash_combine(seed, aref[i]);
+    }
 }
+
+namespace anydsl2 {
 
 template<class T>
 inline size_t hash_value(ArrayRef<T> aref) {
     size_t seed = 0;
-    anydsl2::hash_combine(seed, aref);
+    boost::hash_combine(seed, aref);
     return seed;
 }
 
@@ -222,8 +229,6 @@ inline size_t hash_value(const Array<T>& array) { return hash_value(ArrayRef<T>(
 
 template<class T>
 inline void hash_combine(size_t& seed, const Array<T>& array) { return hash_combine(seed, ArrayRef<T>(array)); }
-
-//------------------------------------------------------------------------------
 
 } // namespace anydsl2
 

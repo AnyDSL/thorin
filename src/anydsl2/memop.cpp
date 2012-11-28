@@ -121,24 +121,14 @@ const Type* CCall::rettype() const {
 
 bool CCall::returns_void() const { return type()->isa<Mem>(); }
 
-size_t hash_op(const CCallTuple& tuple) { 
-    ArrayRef<const Def*> args = tuple.get<4>();
-    size_t seed = hash_kind_type_size(tuple, args.size() + 1);
-    boost::hash_combine(seed, tuple.get<3>());
-    for_all (arg, args)
-        boost::hash_combine(seed, arg);
-    boost::hash_combine(seed, tuple.get<2>());
-    boost::hash_combine(seed, tuple.get<5>());
-    return seed;
-}
-
 bool equal_op(const CCallTuple& tuple, const PrimOp* other) { 
-    return equal_kind_type_size(tuple, tuple.get<4>().size() + 1, other) 
+    return equal_kind_type(tuple, tuple.get<4>().size() + 1, other) 
         && tuple.get<2>() == other->as<CCall>()->callee()
         && tuple.get<3>() == other->as<CCall>()->mem()
         && tuple.get<4>() == other->as<CCall>()->args()
         && tuple.get<5>() == other->as<CCall>()->vararg();
 }
+
 
 //------------------------------------------------------------------------------
 

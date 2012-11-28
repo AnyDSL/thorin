@@ -19,6 +19,7 @@
 #include "anydsl2/transform/merge_lambdas.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/for_all.h"
+#include "anydsl2/util/hash.h"
 
 #define ANYDSL2_NO_U_TYPE \
     case PrimType_u1: \
@@ -87,7 +88,7 @@ inline const T* World::consume_type(const T* def) {
 template<class T>
 inline const Def* World::find_op(const T& tuple) {
     PrimOpSet::iterator i = primops_.find(tuple, 
-            std::ptr_fun<const T&, size_t>(hash_op),
+            std::ptr_fun<const T&, size_t>(hash_tuple),
             std::ptr_fun<const T&, const PrimOp*, bool>(equal_op));
     return i == primops_.end() ? 0 : *i;
 }
@@ -588,11 +589,15 @@ void World::unreachable_code_elimination() {
             primop->visit(pass);
 
     // unregister uses
-    for_all (primop, primops_)
+    for_all (primop, primops_) {
         if (!primop->is_visited(pass)) {
-            for (size_t i = 0, e = primop->size(); i != e; ++i)
-                primop->unregister_use(i);
+            for (size_t i = 0, e = primop->size(); i != e; ++i) {
+                if (primop->op(i)->is_visited(pass)) {
+                    primop->unregister_use(i);
+                }
+            }
         }
+    }
 
     for_all (lambda, lambdas())
         if (!lambda->is_visited(pass)) {

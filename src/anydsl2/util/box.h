@@ -72,6 +72,8 @@ template <> inline const_char_ptr Box::get<const_char_ptr>() { return const_char
 template <> inline char Box::get<char>() { return char_; }
 template <> inline void* Box::get<void*>() { return ptr_; }
 
+inline size_t hash_value(Box box) { return boost::hash_value(bcast<u64, Box>(box)); }
+
 } // namespace anydsl2
 
 #endif // ANYDSL2_DSLU_BOX_H

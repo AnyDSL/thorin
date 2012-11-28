@@ -139,8 +139,6 @@ public:
 //------------------------------------------------------------------------------
 
 typedef boost::tuple<int, const Type*, const std::string&, const Def*, ArrayRef<const Def*>, bool> CCallTuple;
-size_t hash_op(const CCallTuple&);
-bool equal_op(const CCallTuple&, const PrimOp*);
 
 class CCall : public MemOp {
 private:
@@ -161,7 +159,7 @@ public:
     const Type* rettype() const;
     ArrayRef<const Def*> args() const { return ops().slice_back(1); }
     size_t num_args() const { return args().size(); }
-    CCallTuple tuple() const { 
+    CCallTuple as_tuple() const { 
         return CCallTuple(kind(), type(), callee(), 
                           ops().front(), ops().slice_back(1), vararg()); 
     }

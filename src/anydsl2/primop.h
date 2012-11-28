@@ -10,9 +10,9 @@
 #define ANYDSL2_HASH_EQUAL \
     virtual bool equal(const PrimOp* other) const { \
         typedef BOOST_TYPEOF(*this) T; \
-        return other->isa<T>() && this->tuple() == other->as<T>()->tuple(); \
+        return other->isa<T>() && this->as_tuple() == other->as<T>()->as_tuple(); \
     } \
-    virtual size_t hash() const { return hash_tuple(tuple()); }
+    virtual size_t hash() const { return hash_tuple(as_tuple()); }
 
 namespace anydsl2 {
 
@@ -26,17 +26,6 @@ typedef boost::tuple<int, const Type*, const Def*, const Def*> DefTuple2;
 typedef boost::tuple<int, const Type*, const Def*, const Def*, const Def*> DefTuple3;
 typedef boost::tuple<int, const Type*, ArrayRef<const Def*> > DefTupleN;
 
-template<class T>
-inline bool equal_kind_type(const T& tuple, size_t size, const Def* node) {
-    const Def* def = node->as<Def>();
-    return size == def->size() && tuple.template get<0>() == def->kind() && tuple.template get<1>() == def->type();
-}
-
-bool equal_op(const DefTuple0&, const PrimOp*);
-bool equal_op(const DefTuple1&, const PrimOp*);
-bool equal_op(const DefTuple2&, const PrimOp*);
-bool equal_op(const DefTuple3&, const PrimOp*);
-bool equal_op(const DefTupleN&, const PrimOp*);
 
 //------------------------------------------------------------------------------
 
@@ -47,12 +36,17 @@ protected:
         : Def(kind, size, type, name)
     {}
 
-    DefTupleN tuple() const { return DefTupleN(kind(), type(), ops()); }
+public:
+
+    DefTupleN as_tuple() const { return DefTupleN(kind(), type(), ops()); }
     ANYDSL2_HASH_EQUAL
 
     friend class PrimOpHash;
     friend class PrimOpEqual;
 };
+
+template<class T, class D> inline
+bool smart_eq(const T& t, const PrimOp* primop) { return t_smart_eq(t, primop->as<D>()->as_tuple()); }
 
 struct PrimOpHash : std::unary_function<const PrimOp*, size_t> {
     size_t operator () (const PrimOp* o) const { return o->hash(); }

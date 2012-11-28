@@ -121,15 +121,6 @@ const Type* CCall::rettype() const {
 
 bool CCall::returns_void() const { return type()->isa<Mem>(); }
 
-bool equal_op(const CCallTuple& tuple, const PrimOp* other) { 
-    return equal_kind_type(tuple, tuple.get<4>().size() + 1, other) 
-        && tuple.get<2>() == other->as<CCall>()->callee()
-        && tuple.get<3>() == other->as<CCall>()->mem()
-        && tuple.get<4>() == other->as<CCall>()->args()
-        && tuple.get<5>() == other->as<CCall>()->vararg();
-}
-
-
 //------------------------------------------------------------------------------
 
 } // namespace anydsl2

@@ -33,7 +33,7 @@
     case PrimType_f64: ANYDSL2_UNREACHABLE;
 
 #define ANYDSL2_CSE(tuple, T, args) \
-    if (const Def* def = find_op(tuple)) \
+    if (const Def* def = find_op<BOOST_TYPEOF(tuple), T>(tuple)) \
         return def->as<T>(); \
     return consume_op(new T args);
 
@@ -85,11 +85,11 @@ inline const T* World::consume_type(const T* def) {
     return (*p.first)->as<T>();
 }
 
-template<class T>
+template<class T, class D>
 inline const Def* World::find_op(const T& tuple) {
     PrimOpSet::iterator i = primops_.find(tuple, 
             std::ptr_fun<const T&, size_t>(hash_tuple),
-            std::ptr_fun<const T&, const PrimOp*, bool>(equal_op));
+            std::ptr_fun<const T&, const PrimOp*, bool>(smart_eq<T, D>));
     return i == primops_.end() ? 0 : *i;
 }
 

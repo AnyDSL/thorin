@@ -75,8 +75,6 @@ private:
 //------------------------------------------------------------------------------
 
 typedef boost::tuple<int, const Type*, Box> PrimLitTuple;
-size_t hash_op(const PrimLitTuple& );
-bool equal_op(const PrimLitTuple&, const PrimOp*);
 
 class PrimLit : public Literal {
 private:
@@ -91,7 +89,7 @@ public:
     Box box() const { return box_; }
     const PrimType* primtype() const { return type()->as<PrimType>(); }
     PrimTypeKind primtype_kind() const { return primtype()->primtype_kind(); }
-    PrimLitTuple tuple() const { return PrimLitTuple(kind(), type(), box()); }
+    PrimLitTuple as_tuple() const { return PrimLitTuple(kind(), type(), box()); }
 
 private:
 

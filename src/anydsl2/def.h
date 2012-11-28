@@ -87,18 +87,22 @@ protected:
     Def(int kind, const Type* type, const std::string& name)
         : Node(kind, name)
         , type_(type)
-    {}
+    {
+        uses_.reserve(4);
+    }
     Def(int kind, size_t size, const Type* type, const std::string& name)
         : Node(kind, size, name)
         , type_(type)
-    {}
+    {
+        uses_.reserve(4);
+    }
 
     void set_type(const Type* type) { type_ = type; }
     void unregister_use(size_t i) const;
 
 public:
 
-    virtual ~Def();
+    virtual ~Def() {}
     void set_op(size_t i, const Def* def);
     void unset_op(size_t i);
 

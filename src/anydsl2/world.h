@@ -267,21 +267,22 @@ public:
 
 protected:
 
-
     template<class T>
     const T* keep(const T* type) { return keep_nocast(type)->template as<T>(); }
-private:
 
-    const Type* keep_nocast(const Type* type);
+private:
 
     template<class T> const Def* find_op(const T& tuple);
     template<class T> const Type* find_type(const T& tuple);
     template<class T> const T* consume_op(const T* def);
     template<class T> const T* consume_type(const T* type);
+    const Type* keep_nocast(const Type* type);
 
     void dce_insert(size_t pass, const Def* def);
     void ute_insert(size_t pass, const Type* type);
-    void uce_insert(size_t pass, Lambda* lambda);
+    void uce_insert(size_t pass, const Def*);
+    void destroy(LambdaSet::iterator i);
+    void destroy(const Def* def);
 
     PrimOpSet primops_;
     LambdaSet lambdas_;

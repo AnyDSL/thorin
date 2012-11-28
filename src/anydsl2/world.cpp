@@ -522,6 +522,7 @@ void World::dead_code_elimination() {
     for_all (lambda, lambdas()) {
         if (lambda->attr().is_extern()) {
             for_all (param, lambda->ho_params()) {
+                std::cout << param->name << "/" << param->lambda()->name << std::endl;
                 for_all (use, param->uses())
                     dce_insert(pass, use.def());
             }
@@ -616,23 +617,86 @@ void World::unreachable_code_elimination() {
         if (lambda->attr().is_extern())
             uce_insert(pass, lambda);
 
+    for_all (primop, primops_)
+        if (primop->is_const())
+            primop->visit(pass);
+
+    std::cout << "-- destroy --" << std::endl;
+    for_all (primop, primops_)
+        if (!primop->is_visited(pass))
+            primop->dump();
+    std::cout << "-- --- --" << std::endl;
+
     for (LambdaSet::iterator i = lambdas_.begin(); i != lambdas_.end();) {
         LambdaSet::iterator j = i++;
         Lambda* lambda = *j;
         if (!lambda->is_visited(pass)) {
+            //lambda->dump();
+            //destroy(j);
             delete lambda;
             lambdas_.erase(j);
         }
     }
+
+    for (PrimOpSet::iterator i = primops_.begin(); i != primops_.end();) {
+        const PrimOp* primop = *i;
+        if (primop->is_visited(pass))
+            ++i;
+        else {
+            delete primop;
+            i = primops_.erase(i);
+        }
+    }
 }
 
-void World::uce_insert(size_t pass, Lambda* lambda) {
-    assert(lambdas_.find(lambda) != lambdas_.end() && "not in map");
+void World::uce_insert(size_t pass, const Def* def) {
+    if (def->visit(pass)) return;
 
-    if (lambda->visit(pass)) return;
+    def->dump();
 
-    for_all (succ, lambda->succs())
-        uce_insert(pass, succ);
+    if (Lambda* lambda = def->isa_lambda()) {
+        for_all (param, lambda->params()) {
+            param->visit_first(pass);
+            for_all (use, param->uses())
+                uce_insert(pass, use.def());
+        }
+        for_all (succ, lambda->succs())
+            uce_insert(pass, succ);
+    } else {
+        const PrimOp* primop = def->as<PrimOp>();
+        for_all (use, primop->uses())
+            uce_insert(pass, use.def());
+    }
+}
+
+void World::destroy(LambdaSet::iterator i) {
+    Lambda* lambda = *i;
+    std::cout << "destroy: " << lambda->name << std::endl;
+    for_all (param, lambda->params()) {
+        std::cout << "destroy: " << param->name << "/" << param->lambda()->name << std::endl;
+        for_all (use, param->copy_uses())
+            destroy(use.def());
+    }
+    lambdas_.erase(i);
+    delete lambda;
+}
+
+void World::destroy(const Def* def) {
+    bool yo = false;
+    for_all (p, primops_)
+        if (p == def)
+            yo = true;
+
+    if (!yo)
+        return;
+    PrimOpSet::iterator i = primops_.find(static_cast<const PrimOp*>(def));
+    primops_.erase(i);
+    def->dump();
+
+    for_all (use, def->uses())
+        destroy(use.def());
+
+    delete def;
 }
 
 void World::cleanup() {

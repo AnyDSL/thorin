@@ -14,17 +14,6 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
-Def::~Def() { 
-    for (size_t i = 0, e = ops().size(); i != e; ++i)
-        unregister_use(i);
-
-    for_all (use, uses_) {
-        size_t i = use.index();
-        assert(use.def()->ops()[i] == this && "use points to incorrect def");
-        const_cast<Def*>(use.def())->set(i, 0);
-    }
-}
-
 void Def::set_op(size_t i, const Def* def) {
     assert(!op(i) && "already set");
     assert(std::find(def->uses_.begin(), def->uses_.end(), Use(i, this)) == def->uses_.end() && "already in use set");

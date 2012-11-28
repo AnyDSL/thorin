@@ -125,8 +125,9 @@ private:
 
     virtual void vdump(Printer &printer) const;
 
-    virtual bool equal(const Node* other) const;
-    virtual size_t hash() const;
+    // TODO
+    //virtual bool equal(const Node* other) const;
+    //virtual size_t hash() const;
 
 public:
 
@@ -138,8 +139,8 @@ public:
 //------------------------------------------------------------------------------
 
 typedef boost::tuple<int, const Type*, const std::string&, const Def*, ArrayRef<const Def*>, bool> CCallTuple;
-size_t hash_node(const CCallTuple& tuple);
-bool equal_node(const CCallTuple& tuple, const Node* other);
+size_t hash_op(const CCallTuple&);
+bool equal_op(const CCallTuple&, const PrimOp*);
 
 class CCall : public MemOp {
 private:

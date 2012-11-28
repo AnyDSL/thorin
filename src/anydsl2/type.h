@@ -95,11 +95,21 @@ protected:
     bool is_generic_;
 
     friend class Def;
+    friend class TypeHash;
+    friend class TypeEqual;
 };
 
 std::ostream& operator << (std::ostream& o, const anydsl2::Type* type);
 
 bool is_generic(ArrayRef<const Type*> elems);
+
+struct TypeHash : std::unary_function<const Type*, size_t> {
+    size_t operator () (const Type* t) const { return t->hash(); }
+};
+
+struct TypeEqual : std::binary_function<const Type*, const Type*, bool> {
+    bool operator () (const Type* t1, const Type* t2) const { return t1->equal(t2); }
+};
 
 //------------------------------------------------------------------------------
 

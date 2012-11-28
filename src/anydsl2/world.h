@@ -10,6 +10,7 @@
 
 #include "anydsl2/enums.h"
 #include "anydsl2/lambda.h"
+#include "anydsl2/primop.h"
 #include "anydsl2/type.h"
 #include "anydsl2/util/autoptr.h"
 #include "anydsl2/util/box.h"
@@ -31,8 +32,8 @@ class Sigma;
 class Slot;
 class Type;
 
-typedef boost::unordered_set<const PrimOp*, NodeHash, NodeEqual> PrimOpSet;
-typedef boost::unordered_set<const Type*, NodeHash, NodeEqual> TypeSet;
+typedef boost::unordered_set<const PrimOp*, PrimOpHash, PrimOpEqual> PrimOpSet;
+typedef boost::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;
 
 //------------------------------------------------------------------------------
 

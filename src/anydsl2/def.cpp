@@ -98,56 +98,6 @@ Lambda* Def::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(this)
 int Def::order() const { return type()->order(); }
 void Def::replace(const Def* with) const { world().replace(this, with); }
 
-size_t hash_node(const DefTuple0& tuple) { return hash_kind_type_size(tuple, 0); }
-size_t hash_node(const DefTuple1& tuple) {
-    size_t seed = hash_kind_type_size(tuple, 1);
-    boost::hash_combine(seed, tuple.get<2>());
-    return seed;
-}
-size_t hash_node(const DefTuple2& tuple) {
-    size_t seed = hash_kind_type_size(tuple, 2);
-    boost::hash_combine(seed, tuple.get<2>());
-    boost::hash_combine(seed, tuple.get<3>());
-    return seed;
-}
-size_t hash_node(const DefTuple3& tuple) {
-    size_t seed = hash_kind_type_size(tuple, 3);
-    boost::hash_combine(seed, tuple.get<2>());
-    boost::hash_combine(seed, tuple.get<3>());
-    boost::hash_combine(seed, tuple.get<4>());
-    return seed;
-}
-size_t hash_node(const DefTupleN& tuple) {
-    ArrayRef<const Def*> ops = tuple.get<2>();
-    size_t seed = hash_kind_type_size(tuple, ops.size());
-    for_all (op, ops)
-        boost::hash_combine(seed, op);
-    return seed;
-}
-
-bool equal_node(const DefTuple0& tuple, const Node* node) {
-    const Def* def = node->as<Def>();
-    return equal_kind_type_size(tuple, 0, def);
-}
-bool equal_node(const DefTuple1& tuple, const Node* node) {
-    const Def* def = node->as<Def>();
-    return equal_kind_type_size(tuple, 1, def) && tuple.get<2>() == def->op(0);
-}
-bool equal_node(const DefTuple2& tuple, const Node* node) {
-    const Def* def = node->as<Def>();
-    return equal_kind_type_size(tuple, 2, def) 
-        && tuple.get<2>() == def->op(0) && tuple.get<3>() == def->op(1);
-}
-bool equal_node(const DefTuple3& tuple, const Node* node) {
-    const Def* def = node->as<Def>();
-    return equal_kind_type_size(tuple, 3, def) 
-        && tuple.get<2>() == def->op(0) && tuple.get<3>() == def->op(1) && tuple.get<4>() == def->op(2);
-}
-bool equal_node(const DefTupleN& tuple, const Node* node) {
-    const Def* def = node->as<Def>();
-    return equal_kind_type_size(tuple, tuple.get<2>().size(), def) && tuple.get<2>() == def->ops();
-}
-
 std::ostream& operator << (std::ostream& o, const anydsl2::Def* def) {
     Printer p(o, false);
     def->vdump(p);
@@ -171,19 +121,6 @@ Peeks Param::peek() const {
         res = Peek(pred->arg(x), pred);
 
     return result;
-}
-
-bool Param::equal(const Node* other) const {
-    return Def::equal(other) 
-        && index()  == other->as<Param>()->index() 
-        && lambda() == other->as<Param>()->lambda();
-}
-
-size_t Param::hash() const {
-    size_t seed = Def::hash();
-    boost::hash_combine(seed, index());
-    boost::hash_combine(seed, lambda());
-    return seed;
 }
 
 //------------------------------------------------------------------------------

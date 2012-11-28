@@ -8,8 +8,6 @@
 #include <vector>
 
 #include <boost/cstdint.hpp>
-#include <boost/functional/hash.hpp>
-#include <boost/tuple/tuple.hpp>
 
 #include "anydsl2/enums.h"
 #include "anydsl2/node.h"
@@ -77,34 +75,6 @@ typedef std::vector<Use> Uses;
 
 //------------------------------------------------------------------------------
 
-typedef boost::tuple<int, const Type*> DefTuple0;
-typedef boost::tuple<int, const Type*, const Def*> DefTuple1;
-typedef boost::tuple<int, const Type*, const Def*, const Def*> DefTuple2;
-typedef boost::tuple<int, const Type*, const Def*, const Def*, const Def*> DefTuple3;
-typedef boost::tuple<int, const Type*, ArrayRef<const Def*> > DefTupleN;
-
-template<class T>
-inline size_t hash_kind_type_size(const T& tuple, size_t size) {
-    size_t seed = 0;
-    boost::hash_combine(seed, size);
-    boost::hash_combine(seed, tuple.template get<0>());
-    boost::hash_combine(seed, tuple.template get<1>());
-    return seed;
-}
-size_t hash_node(const DefTuple0&);
-size_t hash_node(const DefTuple1&);
-size_t hash_node(const DefTuple2&);
-size_t hash_node(const DefTuple3&);
-size_t hash_node(const DefTupleN&);
-
-bool equal_node(const DefTuple0&, const Node*);
-bool equal_node(const DefTuple1&, const Node*);
-bool equal_node(const DefTuple2&, const Node*);
-bool equal_node(const DefTuple3&, const Node*);
-bool equal_node(const DefTupleN&, const Node*);
-
-//------------------------------------------------------------------------------
-
 class Def : public Node {
 private:
 
@@ -123,8 +93,6 @@ protected:
         , type_(type)
     {}
 
-    ANYDSL2_HASH_EQUAL
-
     void set_type(const Type* type) { type_ = type; }
     void unregister_use(size_t i) const;
 
@@ -133,7 +101,6 @@ public:
     virtual ~Def();
     void set_op(size_t i, const Def* def);
     void unset_op(size_t i);
-    DefTupleN tuple() const { return DefTupleN(kind(), type(), ops()); }
 
     Lambda* as_lambda() const;
     Lambda* isa_lambda() const;
@@ -186,7 +153,7 @@ private:
 };
 
 template<class T>
-inline bool equal_kind_type_size(const T& tuple, size_t size, const Node* node) {
+inline bool equal_kind_type_size(const T& tuple, size_t size, const Def* node) {
     const Def* def = node->as<Def>();
     return size == def->size() && tuple.template get<0>() == def->kind() && tuple.template get<1>() == def->type();
 }
@@ -199,9 +166,6 @@ class Param : public Def {
 private:
 
     Param(const Type* type, Lambda* parent, size_t index, const std::string& name);
-
-    virtual bool equal(const Node* other) const;
-    virtual size_t hash() const;
 
 public:
 

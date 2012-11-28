@@ -9,6 +9,53 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
+size_t hash_op(const DefTuple0& tuple) { return hash_kind_type_size(tuple, 0); }
+size_t hash_op(const DefTuple1& tuple) {
+    size_t seed = hash_kind_type_size(tuple, 1);
+    boost::hash_combine(seed, tuple.get<2>());
+    return seed;
+}
+size_t hash_op(const DefTuple2& tuple) {
+    size_t seed = hash_kind_type_size(tuple, 2);
+    boost::hash_combine(seed, tuple.get<2>());
+    boost::hash_combine(seed, tuple.get<3>());
+    return seed;
+}
+size_t hash_op(const DefTuple3& tuple) {
+    size_t seed = hash_kind_type_size(tuple, 3);
+    boost::hash_combine(seed, tuple.get<2>());
+    boost::hash_combine(seed, tuple.get<3>());
+    boost::hash_combine(seed, tuple.get<4>());
+    return seed;
+}
+size_t hash_op(const DefTupleN& tuple) {
+    ArrayRef<const Def*> ops = tuple.get<2>();
+    size_t seed = hash_kind_type_size(tuple, ops.size());
+    for_all (op, ops)
+        boost::hash_combine(seed, op);
+    return seed;
+}
+
+bool equal_op(const DefTuple0& tuple, const PrimOp* def) {
+    return equal_kind_type_size(tuple, 0, def);
+}
+bool equal_op(const DefTuple1& tuple, const PrimOp* def) {
+    return equal_kind_type_size(tuple, 1, def) && tuple.get<2>() == def->op(0);
+}
+bool equal_op(const DefTuple2& tuple, const PrimOp* def) {
+    return equal_kind_type_size(tuple, 2, def) 
+        && tuple.get<2>() == def->op(0) && tuple.get<3>() == def->op(1);
+}
+bool equal_op(const DefTuple3& tuple, const PrimOp* def) {
+    return equal_kind_type_size(tuple, 3, def) 
+        && tuple.get<2>() == def->op(0) && tuple.get<3>() == def->op(1) && tuple.get<4>() == def->op(2);
+}
+bool equal_op(const DefTupleN& tuple, const PrimOp* def) {
+    return equal_kind_type_size(tuple, tuple.get<2>().size(), def) && tuple.get<2>() == def->ops();
+}
+
+//------------------------------------------------------------------------------
+
 RelOp::RelOp(RelOpKind kind, const Def* lhs, const Def* rhs, const std::string& name)
     : BinOp((NodeKind) kind, lhs->world().type_u1(), lhs, rhs, name)
 {}

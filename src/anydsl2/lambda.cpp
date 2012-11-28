@@ -62,9 +62,6 @@ const Param* Lambda::append_param(const Type* type, const std::string& name) {
     return param;
 }
 
-bool Lambda::equal(const Node* other) const { return this == other; }
-size_t Lambda::hash() const { return boost::hash_value(this); }
-
 static void find_lambdas(const Def* def, LambdaSet& result) {
     if (Lambda* lambda = def->isa_lambda()) {
         result.insert(lambda);

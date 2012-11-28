@@ -7,10 +7,6 @@
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/cast.h"
 
-#define ANYDSL2_HASH_EQUAL \
-    virtual bool equal(const Node* other) const { return equal_node(tuple(), other); } \
-    virtual size_t hash() const { return hash_node(tuple()); }
-
 namespace anydsl2 {
 
 class Node : public MagicCast {
@@ -42,9 +38,6 @@ protected:
     virtual ~Node() {}
 
     void set(size_t i, const Node* n) { ops_[i] = n; }
-
-    virtual bool equal(const Node* other) const;
-    virtual size_t hash() const;
 
 public:
 
@@ -115,19 +108,9 @@ public:
 
 
     friend class World;
-    friend class NodeHash;
-    friend class NodeEqual;
 };
 
 //------------------------------------------------------------------------------
-
-struct NodeHash : std::unary_function<const Node*, size_t> {
-    size_t operator () (const Node* n) const { return n->hash(); }
-};
-
-struct NodeEqual : std::binary_function<const Node*, const Node*, bool> {
-    bool operator () (const Node* n1, const Node* n2) const { return n1->equal(n2); }
-};
 
 //------------------------------------------------------------------------------
 

@@ -77,8 +77,8 @@ Slot::Slot(const Def* frame, const Type* type, const std::string& name)
     : PrimOp(Node_Slot, 1, type->to_ptr(), name)
 {}
 
-bool Slot::equal(const Node* other) const { return this == other; }
-size_t Slot::hash() const { return boost::hash_value(this); }
+//bool Slot::equal(const Node* other) const { return this == other; }
+//size_t Slot::hash() const { return boost::hash_value(this); }
 
 //------------------------------------------------------------------------------
 
@@ -121,7 +121,7 @@ const Type* CCall::rettype() const {
 
 bool CCall::returns_void() const { return type()->isa<Mem>(); }
 
-size_t hash_node(const CCallTuple& tuple) { 
+size_t hash_op(const CCallTuple& tuple) { 
     ArrayRef<const Def*> args = tuple.get<4>();
     size_t seed = hash_kind_type_size(tuple, args.size() + 1);
     boost::hash_combine(seed, tuple.get<3>());
@@ -132,7 +132,7 @@ size_t hash_node(const CCallTuple& tuple) {
     return seed;
 }
 
-bool equal_node(const CCallTuple& tuple, const Node* other) { 
+bool equal_op(const CCallTuple& tuple, const PrimOp* other) { 
     return equal_kind_type_size(tuple, tuple.get<4>().size() + 1, other) 
         && tuple.get<2>() == other->as<CCall>()->callee()
         && tuple.get<3>() == other->as<CCall>()->mem()

@@ -1,14 +1,47 @@
 #ifndef ANYDSL2_PRIMOP_H
 #define ANYDSL2_PRIMOP_H
 
-#include <boost/array.hpp>
+#include <boost/functional/hash.hpp>
+#include <boost/tuple/tuple.hpp>
 
 #include "anydsl2/enums.h"
 #include "anydsl2/def.h"
 
+#define ANYDSL2_HASH_EQUAL \
+    virtual bool equal(const PrimOp* other) const { return equal_op(tuple(), other); } \
+    virtual size_t hash() const { return hash_op(tuple()); }
+
 namespace anydsl2 {
 
 class PrimLit;
+
+//------------------------------------------------------------------------------
+
+typedef boost::tuple<int, const Type*> DefTuple0;
+typedef boost::tuple<int, const Type*, const Def*> DefTuple1;
+typedef boost::tuple<int, const Type*, const Def*, const Def*> DefTuple2;
+typedef boost::tuple<int, const Type*, const Def*, const Def*, const Def*> DefTuple3;
+typedef boost::tuple<int, const Type*, ArrayRef<const Def*> > DefTupleN;
+
+template<class T>
+inline size_t hash_kind_type_size(const T& tuple, size_t size) {
+    size_t seed = 0;
+    boost::hash_combine(seed, size);
+    boost::hash_combine(seed, tuple.template get<0>());
+    boost::hash_combine(seed, tuple.template get<1>());
+    return seed;
+}
+size_t hash_op(const DefTuple0&);
+size_t hash_op(const DefTuple1&);
+size_t hash_op(const DefTuple2&);
+size_t hash_op(const DefTuple3&);
+size_t hash_op(const DefTupleN&);
+
+bool equal_op(const DefTuple0&, const PrimOp*);
+bool equal_op(const DefTuple1&, const PrimOp*);
+bool equal_op(const DefTuple2&, const PrimOp*);
+bool equal_op(const DefTuple3&, const PrimOp*);
+bool equal_op(const DefTupleN&, const PrimOp*);
 
 //------------------------------------------------------------------------------
 
@@ -18,6 +51,20 @@ protected:
     PrimOp(int kind, size_t size, const Type* type, const std::string& name)
         : Def(kind, size, type, name)
     {}
+
+    DefTupleN tuple() const { return DefTupleN(kind(), type(), ops()); }
+    ANYDSL2_HASH_EQUAL
+
+    friend class PrimOpHash;
+    friend class PrimOpEqual;
+};
+
+struct PrimOpHash : std::unary_function<const PrimOp*, size_t> {
+    size_t operator () (const PrimOp* o) const { return o->hash(); }
+};
+
+struct PrimOpEqual : std::binary_function<const PrimOp*, const PrimOp*, bool> {
+    bool operator () (const PrimOp* o1, const PrimOp* o2) const { return o1->equal(o2); }
 };
 
 //------------------------------------------------------------------------------

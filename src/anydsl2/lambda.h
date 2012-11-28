@@ -119,8 +119,6 @@ private:
     template<bool fo> Array<const Param*> classify_params() const;
     template<bool fo> Array<const Def*> classify_args() const;
 
-    virtual bool equal(const Node* other) const;
-    virtual size_t hash() const;
     virtual void vdump(Printer& printer) const;
 
     size_t gid_; ///< global index

@@ -75,8 +75,8 @@ private:
 //------------------------------------------------------------------------------
 
 typedef boost::tuple<int, const Type*, Box> PrimLitTuple;
-size_t hash_node(const PrimLitTuple& tuple);
-bool equal_node(const PrimLitTuple& tuple, const Node* other);
+size_t hash_op(const PrimLitTuple& );
+bool equal_op(const PrimLitTuple&, const PrimOp*);
 
 class PrimLit : public Literal {
 private:

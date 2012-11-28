@@ -8,7 +8,7 @@
 #include "anydsl2/util/array.h"
 
 #define ANYDSL2_TYPE_HASH_EQUAL \
-    virtual bool equal(const Node* other) const { return equal_type(tuple(), other->as<Type>()); } \
+    virtual bool equal(const Type* other) const { return equal_type(tuple(), other); } \
     virtual size_t hash() const { return hash_type(tuple()); }
 
 namespace anydsl2 {
@@ -192,6 +192,9 @@ protected:
     CompoundType(World& world, int kind, ArrayRef<const Type*> elems);
 
     void dump_inner(Printer& printer) const;
+
+    TypeTupleN tuple() const { return TypeTupleN(kind(), elems()); }
+    ANYDSL2_TYPE_HASH_EQUAL
 };
 
 //------------------------------------------------------------------------------
@@ -220,7 +223,7 @@ private:
 
     virtual void vdump(Printer& printer) const;
     virtual size_t hash() const;
-    virtual bool equal(const Node* other) const;
+    virtual bool equal(const Type* other) const;
 
     bool named_;
 
@@ -236,8 +239,6 @@ private:
     Pi(World& world, ArrayRef<const Type*> elems)
         : CompoundType(world, Node_Pi, elems)
     {}
-    TypeTupleN tuple() const { return TypeTupleN(kind(), elems()); }
-    ANYDSL2_TYPE_HASH_EQUAL
 
     virtual void vdump(Printer& printer) const;
 
@@ -260,8 +261,10 @@ public:
 
 private:
 
+#if 0
     virtual size_t hash() const;
     virtual bool equal(const Node* other) const;
+#endif
 
     size_t index_;
 

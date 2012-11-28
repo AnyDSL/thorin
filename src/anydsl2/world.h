@@ -93,7 +93,7 @@ public:
 
     const Mem* mem() const { return mem_; }
     const Frame* frame() const { return frame_; }
-    const Ptr* ptr(const Type* ref) { return consume(new Ptr(ref))->as<Ptr>(); }
+    const Ptr* ptr(const Type* ref);
 
     // sigmas
 
@@ -116,9 +116,7 @@ public:
         const Type* types[3] = {t1, t2, t3};
         return sigma(types);
     }
-    const Sigma* sigma(ArrayRef<const Type*> elems) { 
-        return consume(new Sigma(*this, elems))->as<Sigma>(); 
-    }
+    const Sigma* sigma(ArrayRef<const Type*> elems);
 
     /// Creates a fresh \em named sigma.
     Sigma* named_sigma(size_t size, const std::string& name = "");
@@ -143,7 +141,7 @@ public:
     }
     const Pi* pi(ArrayRef<const Type*> elems);
 
-    const Generic* generic(size_t index) { return consume(new Generic(*this, index))->as<Generic>(); }
+    const Generic* generic(size_t index);
 
     /*
      * literals

@@ -110,6 +110,14 @@ inline const T* World::consume_op(const T* def) {
  * types
  */
 
+const Ptr* World::ptr(const Type* ref) { 
+    ANYDSL2_UNIFY(TypeTuple1(Node_Ptr, ref), Ptr, (ref))
+}
+
+const Sigma* World::sigma(ArrayRef<const Type*> elems) {
+    ANYDSL2_UNIFY(TypeTupleN(Node_Sigma, elems), Sigma, (*this, elems))
+}
+
 Sigma* World::named_sigma(size_t size, const std::string& name) {
     Sigma* s = new Sigma(*this, size, name);
     assert(types_.find(s) == types_.end() && "must not be inside");
@@ -119,6 +127,10 @@ Sigma* World::named_sigma(size_t size, const std::string& name) {
 
 const Pi* World::pi(ArrayRef<const Type*> elems) {
     ANYDSL2_UNIFY(TypeTupleN(Node_Pi, elems), Pi, (*this, elems))
+}
+
+const Generic* World::generic(size_t index) { 
+    ANYDSL2_UNIFY(GenericTuple(Node_Generic, index), Generic, (*this, index))
 }
 
 /*

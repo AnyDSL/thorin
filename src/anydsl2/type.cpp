@@ -201,12 +201,13 @@ size_t Sigma::hash() const {
     return named_ ? boost::hash_value(this) : CompoundType::hash();
 }
 
-bool Sigma::equal(const Node* other) const {
+bool Sigma::equal(const Type* other) const {
     return named_ ? this == other : CompoundType::equal(other);
 }
 
 //------------------------------------------------------------------------------
 
+#if 0
 size_t IndexType::hash() const { 
     size_t seed = 0;
     boost::hash_combine(seed, kind());
@@ -217,6 +218,7 @@ size_t IndexType::hash() const {
 bool IndexType::equal(const Node* other) const { 
     return other->kind() == other->kind() && index_ == other->as<IndexType>()->index();
 }
+#endif
 
 //------------------------------------------------------------------------------
 

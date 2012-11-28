@@ -150,6 +150,7 @@ private:
 
     const Type* type_;
     mutable Uses uses_;
+    friend class World;
 };
 
 template<class T>

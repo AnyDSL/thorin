@@ -53,7 +53,7 @@ void CFGBuilder::transform(Lambda* lambda) {
 
     size_t size = lambda->num_params();
     Done done(size);
-    Array<size_t>  indices(size);
+    Array<size_t> indices(size);
 
     // if there is only one use -> drop all parameters
     bool full_mode = lambda->num_uses() == 1;
@@ -75,6 +75,8 @@ void CFGBuilder::transform(Lambda* lambda) {
                 done.with[num++] = arg;
             }
         }
+        done.with.shrink(num);
+        indices.shrink(num);
 
         // check whether we can reuse an existing version
         DoneSet::iterator de = done_entries.find(done);
@@ -97,7 +99,8 @@ void CFGBuilder::transform(Lambda* lambda) {
 
 do_dropping:
 #endif
-            target = scope.drop(indices.slice_front(num), done.with.slice_front(num), true, generic_map);
+            std::cout << "dropping: " << scope.entry()->name << std::endl;
+            target = scope.drop(indices, done.with, true, generic_map);
             // store dropped entry with the specified arguments
             done.lambda = target;
             done_entries.insert(done);
@@ -121,8 +124,11 @@ void CFGBuilder::process() {
         }
     }
 
-    for_all (lambda, todo)
+    for_all (lambda, todo) {
+        lambda->world().dump(true);
         transform(lambda);
+    }
+    world.dump(true);
 }
 
 void cfg_transform(World& world) {

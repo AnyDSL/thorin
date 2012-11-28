@@ -281,8 +281,6 @@ private:
     void dce_insert(size_t pass, const Def* def);
     void ute_insert(size_t pass, const Type* type);
     void uce_insert(size_t pass, const Def*);
-    void destroy(LambdaSet::iterator i);
-    void destroy(const Def* def);
 
     PrimOpSet primops_;
     LambdaSet lambdas_;

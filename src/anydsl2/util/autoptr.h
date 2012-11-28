@@ -9,7 +9,7 @@ template<class T>
 class AutoPtr {
 public:
 
-    explicit AutoPtr(T* ptr = 0)
+    AutoPtr(T* ptr = 0)
         : ptr_(ptr)
     {}
     ~AutoPtr() { delete ptr_; }

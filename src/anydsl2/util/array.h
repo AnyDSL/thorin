@@ -206,60 +206,42 @@ Array<T> ArrayRef<T>::cut(ArrayRef<size_t> indices, size_t reserve) const {
 
 typedef boost::tuples::null_type null_type;
 
-                  inline bool t_is_empty(null_type) { return true; }
-template<class T> inline bool t_is_empty(const T& t) { return is_empty(t.get_head()) && t_is_empty(t.get_tail()); }
 template<class T> inline bool is_empty(T) { return false; }
 template<class T> inline bool is_empty(ArrayRef<T> array) { return array.empty(); }
 
-template<class T, class U> inline
-bool t_smart_eq(const T& t, const U& u) { return t_smart_eq(t.get_head(), t.get_tail(), u.get_head(), u.get_tail()); }
+                  inline bool t_is_empty(null_type) { return true; }
+template<class T> inline bool t_is_empty(const T& t) { return is_empty(t.get_head()) && t_is_empty(t.get_tail()); }
 
-template<class TH, class UH, class UT> inline
-bool t_smart_eq(TH th, null_type, UH uh, const UT& ut) { 
-    return th == uh && t_is_empty(ut);
-}
+template<class TH, class UH, class UT>           inline bool t_smart_eq(TH th,    null_type, UH uh, const UT& ut) { return th == uh && t_is_empty(ut); } 
+template<class TH, class TT, class UH>           inline bool t_smart_eq(TH th, const TT& tt, UH uh,    null_type) { return false; }
+template<class TH>                               inline bool t_smart_eq(TH th,    null_type, TH uh,    null_type) { return th == uh; } 
+template<class TH, class TT, class UH, class UT> inline bool t_smart_eq(TH th, const TT& tt, UH uh, const UT& ut) { return th == uh && t_smart_eq(tt.get_head(), tt.get_tail(), ut.get_head(), ut.get_tail()); }
 
-template<class TH, class TT, class UH> inline
-bool t_smart_eq(TH th, const TT& tt, UH uh, null_type) { return false; }
-template<class T> inline
-bool t_smart_eq(T t, null_type, T u, null_type) { return t == u; }
+template<class TH, class TT, class UT> inline bool t_smart_eq(TH th, const TT& tt, ArrayRef<TH> array, const UT& ut) { return a_smart_eq(th, tt, array, 0, ut); }
+template<class TH, class TT>           inline bool t_smart_eq(TH th, const TT& tt, ArrayRef<TH> array,    null_type) { return a_smart_eq(th, tt, array, 0, null_type()); }
+template<class TH>                     inline bool t_smart_eq(TH th,    null_type, ArrayRef<TH> array,    null_type) { return a_smart_eq(th, null_type(), array, 0, null_type()); }
 
-template<class TH, class TT, class UH, class UT> inline
-bool t_smart_eq(TH th, const TT& tt, UH uh, const UT& ut) {
-    return th == uh && t_smart_eq(tt.get_head(), tt.get_tail(), ut.get_head(), ut.get_tail());
-}
-
-template<class TH, class TT, class UT> inline
-bool t_smart_eq(TH th, const TT& tt, ArrayRef<TH> array, const UT& ut) {
-    return t_smart_eq(th, tt, array, 0, ut);
-}
-template<class TH, class TT> inline
-bool t_smart_eq(TH th, const TT& tt, ArrayRef<TH> array, null_type) {
-    return t_smart_eq(th, tt, array, 0, null_type());
-}
-template<class TH> inline
-bool t_smart_eq(TH th, null_type, ArrayRef<TH> array, null_type) {
-    return t_smart_eq(th, null_type(), array, 0, null_type());
-}
-
-template<class TH, class TT, class UH, class UT> inline
-bool t_smart_eq(TH th, const TT& tt, ArrayRef<TH> array, size_t i, const UT& ut) {
+template<class TH, class TT, class UH, class UT> inline bool
+a_smart_eq(TH th, const TT& tt, ArrayRef<TH> array, size_t i, const UT& ut) {
     if (i < array.size())
-        return th == array[i] && t_smart_eq(tt.get_head(), tt.get_tail(), array, i+1, ut);
+        return th == array[i] && a_smart_eq(tt.get_head(), tt.get_tail(), array, i+1, ut);
     else
         return t_smart_eq(th, tt, ut.get_head(), ut.get_tail());
 }
-template<class TH, class TT> inline
-bool t_smart_eq(TH th, const TT& tt, ArrayRef<TH> array, size_t i, null_type) {
+template<class TH, class TT> inline bool
+a_smart_eq(TH th, const TT& tt, ArrayRef<TH> array, size_t i, null_type) {
     if (i < array.size())
-        return th == array[i] && t_smart_eq(tt.get_head(), tt.get_tail(), array, i+1, null_type());
+        return th == array[i] && a_smart_eq(tt.get_head(), tt.get_tail(), array, i+1, null_type());
     else
         return false;
 }
-template<class TH> inline
-bool t_smart_eq(TH th, null_type, ArrayRef<TH> array, size_t i, null_type) {
+template<class TH> inline bool
+a_smart_eq(TH th, null_type, ArrayRef<TH> array, size_t i, null_type) {
     return i+1 == array.size() ? th == array[i] : false;
 }
+
+template<class T, class U> inline bool
+smart_eq(const T& t, const U& u) { return t_smart_eq(t.get_head(), t.get_tail(), u.get_head(), u.get_tail()); }
 
 //------------------------------------------------------------------------------
 

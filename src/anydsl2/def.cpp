@@ -59,21 +59,6 @@ bool Def::is_const() const {
     return true;
 }
 
-void Def::update(size_t i, const Def* def) {
-    unset_op(i);
-    set_op(i, def);
-    //Uses::iterator it = def->uses_.erase(std::find(def->uses_.begin(), def->uses_.end(), Use(this, i)));
-    //*it = Use(def, i);
-    //set(i, def);
-}
-
-void Def::update(ArrayRef<const Def*> defs) {
-    assert(size() == defs.size() && "sizes do not match");
-
-    for (size_t i = 0, e = size(); i != e; ++i)
-        update(i, defs[i]);
-}
-
 Array<Use> Def::copy_uses() const {
     Array<Use> result(uses().size());
     std::copy(uses().begin(), uses().end(), result.begin());
@@ -96,7 +81,7 @@ const Def* Def::op_via_lit(const Def* def) const { return op(def->primlit_value<
 Lambda* Def::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(this)); }
 Lambda* Def::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(this)); }
 int Def::order() const { return type()->order(); }
-void Def::replace(const Def* with) const { world().replace(this, with); }
+//void Def::replace(const Def* with) const { world().replace(this, with); }
 
 std::ostream& operator << (std::ostream& o, const anydsl2::Def* def) {
     Printer p(o, false);

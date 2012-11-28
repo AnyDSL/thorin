@@ -35,6 +35,11 @@ Lambda* Lambda::stub(const GenericMap& generic_map, const std::string& name) con
     return result;
 }
 
+void Lambda::update(size_t i, const Def* def) {
+    unset_op(i);
+    set_op(i, def);
+}
+
 const Pi* Lambda::pi() const { return type()->as<Pi>(); }
 const Pi* Lambda::to_pi() const { return to()->type()->as<Pi>(); }
 

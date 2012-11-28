@@ -50,6 +50,7 @@ public:
 
     Lambda* stub(const GenericMap& generic_map) const { return stub(generic_map, name); }
     Lambda* stub(const GenericMap& generic_map, const std::string& name) const;
+    void update(size_t i, const Def* def);
 
     const Param* append_param(const Type* type, const std::string& name = "");
 

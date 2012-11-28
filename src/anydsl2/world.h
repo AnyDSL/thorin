@@ -258,16 +258,21 @@ public:
      */
 
     void dump(bool fancy = false);
-    const Def* update(const Def* what, size_t i, const Def* op);
-    const Def* update(const Def* what, Array<const Def*> ops);
+    const Def* update(const Def* what, size_t x, const Def* op);
     void replace(Def* what, const Def* with);
     void replace(const Def* what, const Def* with);
-    const PrimOp* consume(const PrimOp* primop);
-    const Type* consume(const Type* def);
+    const Type* insert_type(const Type* def);
     PrimOp* release(const PrimOp* primop);
     size_t new_pass() { return pass_counter_++; }
 
+protected:
+
+
+    template<class T>
+    const T* keep(const T* type) { return keep_nocast(type)->template as<T>(); }
 private:
+
+    const Type* keep_nocast(const Type* type);
 
     template<class T> const Def* find_op(const T& tuple);
     template<class T> const Type* find_type(const T& tuple);

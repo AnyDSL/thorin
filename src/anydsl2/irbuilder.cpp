@@ -121,6 +121,7 @@ void BB::fix(Symbol symbol, Todo todo) {
         same = def;
     }
     
+goto fix_preds; // HACK fix cond_
     if (!same || same == param)
         same = world().bottom(param->type());
 

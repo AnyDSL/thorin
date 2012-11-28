@@ -52,20 +52,13 @@ World::World()
     , types_(1031)
     , gid_counter_(0)
     , pass_counter_(1)
-    , sigma0_ (consume(new Sigma(*this, ArrayRef<const Type*>()))->as<Sigma>())
-    , pi0_    (consume(new Pi   (*this, ArrayRef<const Type*>()))->as<Pi>())
-    , mem_    (consume(new Mem  (*this))->as<Mem>())
-    , frame_  (consume(new Frame(*this))->as<Frame>())
-#define ANYDSL2_UF_TYPE(T) ,T##_(consume(new PrimType(*this, PrimType_##T))->as<PrimType>())
+    , sigma0_ (keep(new Sigma(*this, ArrayRef<const Type*>())))
+    , pi0_    (keep(new Pi   (*this, ArrayRef<const Type*>())))
+    , mem_    (keep(new Mem  (*this))->as<Mem>())
+    , frame_  (keep(new Frame(*this))->as<Frame>())
+#define ANYDSL2_UF_TYPE(T) ,T##_(keep(new PrimType(*this, PrimType_##T)))
 #include "anydsl2/tables/primtypetable.h"
-{
-    typekeeper(sigma0_);
-    typekeeper(pi0_);
-    typekeeper(mem_);
-    typekeeper(frame_);
-    for (size_t i = 0; i < Num_PrimTypes; ++i)
-        typekeeper(primTypes_[i]);
-}
+{}
 
 World::~World() {
     for_all (primop, primops_)
@@ -104,6 +97,14 @@ inline const T* World::consume_op(const T* def) {
     std::pair<PrimOpSet::iterator, bool> p = primops_.insert(def);
     assert(p.second && "hash/equal broken");
     return (*p.first)->as<T>();
+}
+
+const Type* World::keep_nocast(const Type* type) {
+    std::pair<TypeSet::iterator, bool> tp = types_.insert(type);
+    assert(tp.second);
+    std::pair<PrimOpSet::iterator, bool> pp = primops_.insert(new TypeKeeper(type, ""));
+    assert(pp.second);
+    return type;
 }
 
 /*
@@ -646,34 +647,6 @@ void World::opt() {
     cleanup();
 }
 
-const PrimOp* World::consume(const PrimOp* primop) {
-    PrimOpSet::iterator i = primops_.find(primop);
-    if (i != primops_.end()) {
-        delete primop;
-        assert(primops_.find(*i) != primops_.end() && "hash/equal function of primop class incorrect");
-        return *i;
-    }
-
-    primops_.insert(primop);
-    assert(primops_.find(primop) != primops_.end() && "hash/equal function of def class incorrect");
-
-    return primop;
-}
-
-const Type* World::consume(const Type* type) {
-    TypeSet::iterator i = types_.find(type);
-    if (i != types_.end()) {
-        delete type;
-        assert(types_.find(*i) != types_.end() && "hash/equal function of type class incorrect");
-        return *i;
-    }
-
-    types_.insert(type);
-    assert(types_.find(type) != types_.end() && "hash/equal function of def class incorrect");
-
-    return type;
-}
-
 PrimOp* World::release(const PrimOp* primop) {
     PrimOpSet::iterator i = primops_.find(primop);
     assert(i != primops_.end() && "must be found");
@@ -703,28 +676,33 @@ void World::dump(bool fancy) {
     std::cout << std::endl;
 }
 
-const Def* World::update(const Def* what, size_t i, const Def* op) {
+const Def* World::update(const Def* what, size_t x, const Def* op) {
     if (Lambda* lambda = what->isa_lambda()) {
-        lambda->update(i, op);
+        lambda->update(x, op);
         return lambda;
     }
 
-    PrimOp* primop = release(what->as<PrimOp>());
-    primop->update(i, op);
-    return consume(primop);
-}
-
-const Def* World::update(const Def* what, Array<const Def*> ops) {
-    if (Lambda* lambda = what->isa_lambda()) {
-        lambda->update(ops);
-        return lambda;
+    PrimOp* oprimop = release(what->as<PrimOp>());
+    size_t num = oprimop->size();
+    Array<const Def*> nops(num);
+    for (size_t i = 0; i != num; ++i) {
+        if (i == x) {
+            nops[i] = op;
+        } else
+            nops[i] = oprimop->op(i);
+        oprimop->unset_op(i);
     }
 
-    PrimOp* primop = release(what->as<PrimOp>());
-    primop->update(ops);
-    return consume(primop);
+    const Def* ndef = primop(oprimop, nops);
+
+    for_all (use, oprimop->copy_uses())
+        update(use.def(), use.index(), ndef);
+    delete oprimop;
+
+    return ndef;
 }
 
+#if 0
 void World::replace(const Def* cwhat, const Def* with) {
     Def* what;
     if (const PrimOp* primop = cwhat->isa<PrimOp>())
@@ -769,5 +747,6 @@ void World::replace(Def* what, const Def* with) {
         }
     }
 }
+#endif 
 
 } // namespace anydsl2

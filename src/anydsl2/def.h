@@ -123,16 +123,12 @@ public:
     const Type* type() const { return type_; }
     int order() const;
 
-    /// Updates operand \p i to point to \p def instead.
-    void update(size_t i, const Def* def);
-    void update(ArrayRef<const Def*> defs);
-
     World& world() const;
     ArrayRef<const Def*> ops() const { return ops_ref<const Def*>(); }
     ArrayRef<const Def*> ops(size_t begin, size_t end) const { return ops().slice(begin, end); }
     const Def* op(size_t i) const { return ops()[i]; }
     const Def* op_via_lit(const Def* def) const;
-    void replace(const Def* with) const;
+    //void replace(const Def* with) const;
 
     /*
      * check for special literals

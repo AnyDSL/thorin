@@ -438,11 +438,8 @@ const Enter* World::enter(const Def* m, const std::string& name) {
 const Leave* World::leave(const Def* m, const Def* frame, const std::string& name) {
     return cse<DefTuple2, Leave>(DefTuple2(Node_Leave, mem(), m, frame), name);
 }
-const Slot* World::slot(const Type* type, const Enter* enter, u32 index, const std::string& name) {
-    return slot(type, enter, literal_u32(index), name);
-}
-const Slot* World::slot(const Type* type, const Enter* enter, const Def* index, const std::string& name) {
-    return cse<DefTuple2, Slot>(DefTuple2(Node_Slot, type->to_ptr(), enter, index), name);
+const Slot* World::slot(const Type* type, size_t index, const Def* frame, const std::string& name) {
+    return cse<SlotTuple, Slot>(SlotTuple(Node_Slot, type->to_ptr(), index, frame), name);
 }
 
 const CCall* World::c_call(const std::string& callee, const Def* m, ArrayRef<const Def*> args, 
@@ -492,7 +489,7 @@ const Def* World::primop(const PrimOp* in, ArrayRef<const Def*> ops, const std::
         case Node_Leave:   assert(ops.size() == 2); return leave(  ops[0], ops[1], name);
         case Node_Load:    assert(ops.size() == 2); return load(   ops[0], ops[1], name);
         case Node_Select:  assert(ops.size() == 3); return select( ops[0], ops[1], ops[2], name);
-        case Node_Slot:    assert(ops.size() == 2); return slot(   type, ops[0]->as<Enter>(), ops[1], name);
+        case Node_Slot:    assert(ops.size() == 2); return slot(   type->as<Ptr>()->ref(), in->as<Slot>()->index(), ops[0], name);
         case Node_Store:   assert(ops.size() == 3); return store(  ops[0], ops[1], ops[2], name);
         case Node_Tuple:                            return tuple(  ops, name);
         case Node_Bottom:  assert(ops.empty());     return bottom(type);

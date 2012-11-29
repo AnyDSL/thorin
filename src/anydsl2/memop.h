@@ -129,6 +129,8 @@ public:
 
 //------------------------------------------------------------------------------
 
+typedef boost::tuple<int, const Type*, size_t, const Def*> SlotTuple;
+
 /**
  * This represents a slot in a stack frame opend via \p Enter.
  * Loads from this address yield \p Bottom if the frame has already been closed via \p Leave.
@@ -137,18 +139,25 @@ public:
 class Slot : public PrimOp {
 private:
 
-    Slot(const DefTuple2& args, const std::string& name) 
-        : PrimOp(2, args.get<0>(), args.get<1>(), name)
+    Slot(const SlotTuple& args, const std::string& name) 
+        : PrimOp(1, args.get<0>(), args.get<1>(), name)
+        , index_(args.get<2>())
     {
-        set_op(0, args.get<2>());
-        set_op(1, args.get<3>());
+        set_op(0, args.get<3>());
     }
 
     virtual void vdump(Printer &printer) const;
 
 public:
 
+    size_t index() const { return index_; }
     const Def* frame() const { return op(0); }
+    ANYDSL2_HASH_EQUAL
+    SlotTuple as_tuple() const { return SlotTuple(kind(), type(), index(), frame()); }
+
+private:
+
+    size_t index_;
 
     friend class World;
 };

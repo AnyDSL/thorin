@@ -39,7 +39,11 @@ public:
 class Load : public Access {
 private:
 
-    Load(const Def* mem, const Def* ptr, const std::string& name);
+    Load(const DefTuple2& args, const std::string& name)
+        : Access(2, args.get<0>(), args.get<1>(), args.get<2>(), args.get<3>(), name)
+        , extract_mem_(0)
+        , extract_val_(0)
+    {}
 
     virtual void vdump(Printer &printer) const;
 
@@ -62,7 +66,11 @@ private:
 class Store : public Access {
 private:
 
-    Store(const Def* mem, const Def* ptr, const Def* val, const std::string& name);
+    Store(const DefTuple3& args, const std::string& name)
+        : Access(2, args.get<0>(), args.get<1>(), args.get<2>(), args.get<3>(), name)
+    {
+        set_op(2, args.get<4>());
+    }
 
     virtual void vdump(Printer &printer) const;
 
@@ -78,7 +86,11 @@ public:
 class Enter : public MemOp {
 private:
 
-    Enter(const Def* mem, const std::string& name);
+    Enter(const DefTuple1& args, const std::string& name)
+        : MemOp(1, args.get<0>(), args.get<1>(), args.get<2>(), name)
+        , extract_mem_(0)
+        , extract_frame_(0)
+    {}
 
     virtual void vdump(Printer &printer) const;
 
@@ -100,7 +112,11 @@ private:
 class Leave : public MemOp {
 private:
 
-    Leave(const Def* mem, const Def* frame, const std::string& name);
+    Leave(const DefTuple2& args, const std::string& name)
+        : MemOp(2, args.get<0>(), args.get<1>(), args.get<2>(), name)
+    {
+        set_op(1, args.get<3>());
+    }
 
     virtual void vdump(Printer &printer) const;
 
@@ -121,13 +137,14 @@ public:
 class Slot : public PrimOp {
 private:
 
-    Slot(const Def* frame, const Type* type, const std::string& name);
+    Slot(const DefTuple2& args, const std::string& name) 
+        : PrimOp(2, args.get<0>(), args.get<1>(), name)
+    {
+        set_op(0, args.get<2>());
+        set_op(1, args.get<3>());
+    }
 
     virtual void vdump(Printer &printer) const;
-
-    // TODO
-    //virtual bool equal(const Node* other) const;
-    //virtual size_t hash() const;
 
 public:
 
@@ -143,10 +160,18 @@ typedef boost::tuple<int, const Type*, const std::string&, const Def*, ArrayRef<
 class CCall : public MemOp {
 private:
 
-    CCall(const std::string& callee, const Def* mem, ArrayRef<const Def*> args, 
-          const Type* rettype, bool vararg, const std::string& name);
+    CCall(const CCallTuple& args, const std::string& name)
+        : MemOp(args.get<4>().size() + 1, args.get<0>(), args.get<1>(), args.get<3>(), name)
+        , extract_mem_(0)
+        , extract_retval_(0)
+        , callee_(args.get<2>())
+        , vararg_(args.get<5>())
+    {
+        size_t x = 1;
+        for_all (arg, args.get<4>())
+            set_op(x++, arg);
+    }
 
-    ANYDSL2_HASH_EQUAL
     virtual void vdump(Printer &printer) const;
 
 public:
@@ -160,14 +185,14 @@ public:
     ArrayRef<const Def*> args() const { return ops().slice_back(1); }
     size_t num_args() const { return args().size(); }
     CCallTuple as_tuple() const { 
-        return CCallTuple(kind(), type(), callee(), 
-                          ops().front(), ops().slice_back(1), vararg()); 
+        return CCallTuple(kind(), type(), callee(), ops().front(), ops().slice_back(1), vararg()); 
     }
 
 private:
 
     mutable const Def* extract_mem_;
     mutable const Def* extract_retval_;
+    ANYDSL2_HASH_EQUAL
 
     std::string callee_;
     bool vararg_;

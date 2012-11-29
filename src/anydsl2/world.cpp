@@ -407,6 +407,10 @@ const Def* World::convop(ConvOpKind kind, const Type* to, const Def* from, const
     return cse<DefTuple1, ConvOp>(DefTuple1(kind, to, from), name);
 }
 
+const Def* World::extract(const Def* tuple, u32 index, const std::string& name) {
+    return extract(tuple, literal_u32(index), name);
+}
+
 const Def* World::extract(const Def* agg, const Def* index, const std::string& name) {
     if (agg->isa<Bottom>())
         return bottom(agg->type()->as<Sigma>()->elem_via_lit(index));
@@ -425,6 +429,10 @@ const Def* World::extract(const Def* agg, const Def* index, const std::string& n
     return cse<DefTuple2, Extract>(DefTuple2(Node_Extract, type, agg, index), name);
 }
 
+const Def* World::insert(const Def* tuple, u32 index, const Def* value, const std::string& name) {
+    return insert(tuple, literal_u32(index), value, name);
+}
+
 const Def* World::insert(const Def* agg, const Def* index, const Def* value, const std::string& name) {
     if (agg->isa<Bottom>() || value->isa<Bottom>())
         return bottom(agg->type());
@@ -441,28 +449,28 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, con
 }
 
 const Def* World::load(const Def* m, const Def* ptr, const std::string& name) {
-    const Type* type = sigma2(mem(), ptr->type()->as<Ptr>()->ref());
-    ANYDSL2_CSE(DefTuple2(Node_Load, type, m, ptr), Load, (m, ptr, name))
+    return cse<DefTuple2, Load>(DefTuple2(Node_Load, sigma2(mem(), ptr->type()->as<Ptr>()->ref()), m, ptr), name);
 }
 const Def* World::store(const Def* m, const Def* ptr, const Def* val, const std::string& name) {
-    ANYDSL2_CSE(DefTuple3(Node_Store, mem(), m, ptr, val), Store, (m, ptr, val, name))
+    return cse<DefTuple3, Store>(DefTuple3(Node_Store, mem(), m, ptr, val), name);
 }
 const Enter* World::enter(const Def* m, const std::string& name) {
-    const Type* type = sigma2(mem(), frame());
-    ANYDSL2_CSE(DefTuple1(Node_Enter, type, m), Enter, (m, name))
+    return cse<DefTuple1, Enter>(DefTuple1(Node_Enter, sigma2(mem(), frame()), m), name);
 }
 const Leave* World::leave(const Def* m, const Def* frame, const std::string& name) {
-    ANYDSL2_CSE(DefTuple2(Node_Leave, mem(), m, frame), Leave, (m, frame, name))
+    return cse<DefTuple2, Leave>(DefTuple2(Node_Leave, mem(), m, frame), name);
 }
-const Slot* World::slot(const Enter* enter, const Type* type, const std::string& name) {
-    ANYDSL2_CSE(DefTuple1(Node_Slot, type->to_ptr(), enter), Slot, (enter, type, name))
+const Slot* World::slot(const Type* type, const Enter* enter, u32 index, const std::string& name) {
+    return slot(type, enter, literal_u32(index), name);
+}
+const Slot* World::slot(const Type* type, const Enter* enter, const Def* index, const std::string& name) {
+    return cse<DefTuple2, Slot>(DefTuple2(Node_Slot, type->to_ptr(), enter, index), name);
 }
 
 const CCall* World::c_call(const std::string& callee, const Def* m, ArrayRef<const Def*> args, 
                            const Type* rettype, bool vararg, const std::string& name) {
     const Type* type = rettype ? (const Type*) sigma2(mem(), rettype) : (const Type*) mem();
-    ANYDSL2_CSE(CCallTuple(Node_CCall, type, callee, m, args, vararg), 
-                    CCall, (callee, m, args, rettype, vararg, name))
+    return cse<CCallTuple, CCall>(CCallTuple(Node_CCall, type, callee, m, args, vararg), name);
 }
 
 const Def* World::select(const Def* cond, const Def* a, const Def* b, const std::string& name) {
@@ -506,7 +514,7 @@ const Def* World::primop(const PrimOp* in, ArrayRef<const Def*> ops, const std::
         case Node_Leave:   assert(ops.size() == 2); return leave(  ops[0], ops[1], name);
         case Node_Load:    assert(ops.size() == 2); return load(   ops[0], ops[1], name);
         case Node_Select:  assert(ops.size() == 3); return select( ops[0], ops[1], ops[2], name);
-        case Node_Slot:    assert(ops.size() == 1); return slot(   ops[0]->as<Enter>(), type, name);
+        case Node_Slot:    assert(ops.size() == 2); return slot(   type, ops[0]->as<Enter>(), ops[1], name);
         case Node_Store:   assert(ops.size() == 3); return store(  ops[0], ops[1], ops[2], name);
         case Node_Tuple:                            return tuple(  ops, name);
         case Node_Bottom:  assert(ops.empty());     return bottom(type);

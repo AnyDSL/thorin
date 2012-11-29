@@ -203,7 +203,9 @@ public:
      */
 
     const Def* extract(const Def* tuple, const Def* index, const std::string& name = "");
+    const Def* extract(const Def* tuple, u32 index, const std::string& name = "");
     const Def* insert(const Def* tuple, const Def* index, const Def* value, const std::string& name = "");
+    const Def* insert(const Def* tuple, u32 index, const Def* value, const std::string& name = "");
     const Def* tuple(ArrayRef<const Def*> args, const std::string& name = "");
 
     /*
@@ -214,7 +216,8 @@ public:
     const Def* store(const Def* mem, const Def* ptr, const Def* val, const std::string& name = "");
     const Enter* enter(const Def* mem, const std::string& name = "");
     const Leave* leave(const Def* mem, const Def* frame, const std::string& name = "");
-    const Slot* slot(const Enter* enter, const Type* type, const std::string& name = "");
+    const Slot* slot(const Type* type, const Enter* enter, const Def* index, const std::string& name = "");
+    const Slot* slot(const Type* type, const Enter* enter, u32 index, const std::string& name = "");
     const CCall* c_call(const std::string& callee, const Def* mem, ArrayRef<const Def*> args, 
                         const Type* rettype, bool vararg = false, const std::string& name = "");
 

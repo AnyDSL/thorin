@@ -38,7 +38,7 @@
     return consume_op(new T args);
 
 #define ANYDSL2_UNIFY(tuple, T, args) \
-    if (const Type* type = find_type(tuple)) \
+    if (const Type* type = find_type<BOOST_TYPEOF(tuple), T>(tuple)) \
         return type->as<T>(); \
     return consume_type(new T args); \
 
@@ -70,11 +70,11 @@ World::~World() {
         delete lambda;
 }
 
-template<class T>
+template<class T, class U>
 inline const Type* World::find_type(const T& tuple) {
     TypeSet::iterator i = types_.find(tuple, 
-            std::ptr_fun<const T&, size_t>(hash_type),
-            std::ptr_fun<const T&, const Type*, bool>(equal_type));
+            std::ptr_fun<const T&, size_t>(hash_tuple),
+            std::ptr_fun<const T&, const Type*, bool>(type_smart_eq<T, U>));
     return i == types_.end() ? 0 : *i;
 }
 

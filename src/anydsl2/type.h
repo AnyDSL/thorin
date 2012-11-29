@@ -1,15 +1,18 @@
 #ifndef ANYDSL2_TYPE_H
 #define ANYDSL2_TYPE_H
 
-#include <boost/functional/hash.hpp>
-#include <boost/tuple/tuple.hpp>
+#include <boost/tuple/tuple_comparison.hpp>
 
 #include "anydsl2/node.h"
 #include "anydsl2/util/array.h"
+#include "anydsl2/util/hash.h"
 
 #define ANYDSL2_TYPE_HASH_EQUAL \
-    virtual bool equal(const Type* other) const { return equal_type(tuple(), other); } \
-    virtual size_t hash() const { return hash_type(tuple()); }
+    virtual bool equal(const Type* other) const { \
+        typedef BOOST_TYPEOF(*this) T; \
+        return other->isa<T>() && this->as_tuple() == other->as<T>()->as_tuple(); \
+    } \
+    virtual size_t hash() const { return hash_tuple(as_tuple()); }
 
 namespace anydsl2 {
 
@@ -51,14 +54,6 @@ typedef boost::tuple<int> TypeTuple0;
 typedef boost::tuple<int, const Type*> TypeTuple1;
 typedef boost::tuple<int, ArrayRef<const Type*> > TypeTupleN;
 
-size_t hash_type(const TypeTuple0& tuple);
-size_t hash_type(const TypeTuple1& tuple);
-size_t hash_type(const TypeTupleN& tuple);
-
-bool equal_type(const TypeTuple0&, const Type*);
-bool equal_type(const TypeTuple1&, const Type*);
-bool equal_type(const TypeTupleN&, const Type*);
-
 class Type : public Node {
 protected:
 
@@ -83,7 +78,7 @@ public:
     const Type* specialize(const GenericMap& generic_map) const;
     bool is_generic() const { return is_generic_; }
     int order() const;
-    TypeTuple0 tuple() const { return TypeTuple0(kind()); }
+    TypeTuple0 as_tuple() const { return TypeTuple0(kind()); }
 
 private:
 
@@ -98,6 +93,9 @@ protected:
     friend class TypeHash;
     friend class TypeEqual;
 };
+
+template<class T, class U> inline
+bool type_smart_eq(const T& t, const Type* type) { return smart_eq(t, type->as<U>()->as_tuple()); }
 
 std::ostream& operator << (std::ostream& o, const anydsl2::Type* type);
 
@@ -193,7 +191,9 @@ protected:
 
     void dump_inner(Printer& printer) const;
 
-    TypeTupleN tuple() const { return TypeTupleN(kind(), elems()); }
+public:
+
+    TypeTupleN as_tuple() const { return TypeTupleN(kind(), elems()); }
     ANYDSL2_TYPE_HASH_EQUAL
 };
 
@@ -261,11 +261,6 @@ public:
 
 private:
 
-#if 0
-    virtual size_t hash() const;
-    virtual bool equal(const Node* other) const;
-#endif
-
     size_t index_;
 
     friend class World;
@@ -274,8 +269,6 @@ private:
 //------------------------------------------------------------------------------
 
 typedef boost::tuple<int, size_t> GenericTuple;
-size_t hash_type(const GenericTuple& tuple);
-bool equal_type(const GenericTuple&, const Type*);
 
 class Generic : public IndexType {
 private:
@@ -287,7 +280,7 @@ private:
 
 public:
 
-    GenericTuple tuple() const { return GenericTuple(kind(), index()); }
+    GenericTuple as_tuple() const { return GenericTuple(kind(), index()); }
     virtual void vdump(Printer& printer) const;
 
     friend class World;

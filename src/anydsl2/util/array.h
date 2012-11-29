@@ -224,8 +224,9 @@ template<class T> inline bool is_empty(ArrayRef<T> array) { return array.empty()
                   inline bool t_is_empty(bo_null_type) { return true; }
 template<class T> inline bool t_is_empty(const T& t) { return is_empty(t.get_head()) && t_is_empty(t.get_tail()); }
 
-template<class TH, class UH, class UT>           inline bool t_smart_eq(TH th, bo_null_type, UH uh, const UT& ut) { return th == uh && t_is_empty(ut); } 
-template<class TH>                               inline bool t_smart_eq(TH th, bo_null_type, TH uh, bo_null_type) { return th == uh; } 
+template<class TH,           class UH, class UT> inline bool t_smart_eq(TH th, bo_null_type, UH uh, const UT& ut) { return th == uh && t_is_empty(ut); } 
+template<class TH, class TT, class UH          > inline bool t_smart_eq(TH th, const TT& tt, UH uh, bo_null_type) { return false; }
+template<class TH                              > inline bool t_smart_eq(TH th, bo_null_type, TH uh, bo_null_type) { return th == uh; } 
 template<class TH, class TT, class UH, class UT> inline bool t_smart_eq(TH th, const TT& tt, UH uh, const UT& ut) { return th == uh && t_smart_eq(tt.get_head(), tt.get_tail(), ut.get_head(), ut.get_tail()); }
 
 template<class TH, class TT, class UT> inline bool t_smart_eq(TH th, const TT& tt, ArrayRef<TH> array, const UT& ut) { return a_smart_eq(th, tt, array, 0, ut); }

@@ -273,7 +273,7 @@ protected:
 private:
 
     template<class T, class D> const Def* find_op(const T& tuple);
-    template<class T> const Type* find_type(const T& tuple);
+    template<class T, class U> const Type* find_type(const T& tuple);
     template<class T> const T* consume_op(const T* def);
     template<class T> const T* consume_type(const T* type);
     const Type* keep_nocast(const Type* type);

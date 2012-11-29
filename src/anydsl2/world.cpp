@@ -506,6 +506,66 @@ const Def* World::primop(const PrimOp* in, ArrayRef<const Def*> ops, const std::
  * optimizations
  */
 
+template<class S>
+void World::unregister_uses(size_t pass, S& set) {
+    for (typename S::iterator i = set.begin(), e = set.end(); i != e; ++i) {
+        const Def* def = *i;
+        if (!def->is_visited(pass)) {
+            for (size_t i = 0, e = def->size(); i != e; ++i) {
+                if (def->op(i)->is_visited(pass))
+                    def->unregister_use(i);
+            }
+        }
+    }
+}
+
+template<class S>
+void World::wipe_out(size_t pass, S& set) {
+    for (typename S::iterator i = set.begin(); i != set.end();) {
+        typename S::iterator j = i++;
+        const Def* def = *j;
+        if (!def->is_visited(pass)) {
+            delete def;
+            set.erase(j);
+        }
+    }
+}
+
+void World::unreachable_code_elimination() {
+    size_t pass = new_pass();
+
+    for_all (lambda, lambdas())
+        if (lambda->attr().is_extern())
+            uce_insert(pass, lambda);
+
+    for_all (primop, primops_)
+        if (primop->is_const())
+            primop->visit(pass);
+
+    unregister_uses(pass, primops_);
+    unregister_uses(pass, lambdas_);
+    wipe_out(pass, primops_);
+    wipe_out(pass, lambdas_);
+}
+
+void World::uce_insert(size_t pass, const Def* def) {
+    if (def->visit(pass)) return;
+
+    if (Lambda* lambda = def->isa_lambda()) {
+        for_all (param, lambda->params()) {
+            param->visit_first(pass);
+            for_all (use, param->uses())
+                uce_insert(pass, use.def());
+        }
+        for_all (succ, lambda->succs())
+            uce_insert(pass, succ);
+    } else {
+        const PrimOp* primop = def->as<PrimOp>();
+        for_all (use, primop->uses())
+            uce_insert(pass, use.def());
+    }
+}
+
 void World::dead_code_elimination() {
     size_t pass = new_pass();
 
@@ -552,66 +612,6 @@ void World::dce_insert(size_t pass, const Def* def) {
         // always consider all params in the same lambda as live
         for_all (other, param->lambda()->params())
             dce_insert(pass, other);
-    }
-}
-
-template<class S>
-void World::unregister_uses(size_t pass, S& set) {
-    for (typename S::iterator i = set.begin(), e = set.end(); i != e; ++i) {
-        const Def* def = *i;
-        if (!def->is_visited(pass)) {
-            for (size_t i = 0, e = def->size(); i != e; ++i) {
-                if (def->op(i)->is_visited(pass))
-                    def->unregister_use(i);
-            }
-        }
-    }
-}
-
-void World::unreachable_code_elimination() {
-    size_t pass = new_pass();
-
-    for_all (lambda, lambdas())
-        if (lambda->attr().is_extern())
-            uce_insert(pass, lambda);
-
-    for_all (primop, primops_)
-        if (primop->is_const())
-            primop->visit(pass);
-
-    unregister_uses(pass, primops_);
-    unregister_uses(pass, lambdas_);
-    wipe_out(pass, primops_);
-    wipe_out(pass, lambdas_);
-}
-
-void World::uce_insert(size_t pass, const Def* def) {
-    if (def->visit(pass)) return;
-
-    if (Lambda* lambda = def->isa_lambda()) {
-        for_all (param, lambda->params()) {
-            param->visit_first(pass);
-            for_all (use, param->uses())
-                uce_insert(pass, use.def());
-        }
-        for_all (succ, lambda->succs())
-            uce_insert(pass, succ);
-    } else {
-        const PrimOp* primop = def->as<PrimOp>();
-        for_all (use, primop->uses())
-            uce_insert(pass, use.def());
-    }
-}
-
-template<class S>
-void World::wipe_out(size_t pass, S& set) {
-    for (typename S::iterator i = set.begin(); i != set.end();) {
-        typename S::iterator j = i++;
-        const Def* def = *j;
-        if (!def->is_visited(pass)) {
-            delete def;
-            set.erase(j);
-        }
     }
 }
 

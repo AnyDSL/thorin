@@ -56,6 +56,8 @@ private:
         lambda->scope_ = this; 
         rpo_.push_back(lambda); 
     }
+    template<class T>
+    void fill_succ_pred(const LambdaSet& lsp, T& sp);
 
     std::vector<Lambda*> rpo_;
     Array< Array<Lambda*> > preds_;

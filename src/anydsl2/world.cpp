@@ -523,7 +523,8 @@ void World::dead_code_elimination() {
         }
     }
 
-    wipe_out(pass);
+    wipe_out(pass, primops_);
+    wipe_out(pass, lambdas_);
 }
 
 void World::dce_insert(size_t pass, const Def* def) {
@@ -580,8 +581,8 @@ void World::unreachable_code_elimination() {
 
     unregister_uses(pass, primops_);
     unregister_uses(pass, lambdas_);
-
-    wipe_out(pass);
+    wipe_out(pass, primops_);
+    wipe_out(pass, lambdas_);
 }
 
 void World::uce_insert(size_t pass, const Def* def) {
@@ -602,22 +603,14 @@ void World::uce_insert(size_t pass, const Def* def) {
     }
 }
 
-void World::wipe_out(size_t pass) {
-    for (LambdaSet::iterator i = lambdas_.begin(); i != lambdas_.end();) {
-        LambdaSet::iterator j = i++;
-        Lambda* lambda = *j;
-        if (!lambda->is_visited(pass)) {
-            delete lambda;
-            lambdas_.erase(j);
-        }
-    }
-    for (PrimOpSet::iterator i = primops_.begin(); i != primops_.end();) {
-        const PrimOp* primop = *i;
-        if (primop->is_visited(pass))
-            ++i;
-        else {
-            delete primop;
-            i = primops_.erase(i);
+template<class S>
+void World::wipe_out(size_t pass, S& set) {
+    for (typename S::iterator i = set.begin(); i != set.end();) {
+        typename S::iterator j = i++;
+        const Def* def = *j;
+        if (!def->is_visited(pass)) {
+            delete def;
+            set.erase(j);
         }
     }
 }

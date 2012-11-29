@@ -52,47 +52,33 @@ World::World()
 {}
 
 World::~World() {
-    for_all (primop, primops_)
-        delete primop;
-    for_all (type, types_)
-        delete type;
-    for_all (lambda, lambdas_)
-        delete lambda;
+    for_all (primop, primops_) delete primop;
+    for_all (type,   types_  ) delete type;
+    for_all (lambda, lambdas_) delete lambda;
+}
+
+template<class S, class T, class U, class A, class B> 
+inline const U* World::consume(S& set, const T& tuple, A a, B b) {
+    typename S::iterator i = set.find(tuple, 
+            std::ptr_fun<const T&, size_t>(hash_tuple),
+            std::ptr_fun<const T&, const Node*, bool>(smart_eq<T, U>));
+
+    if (i != set.end())
+        return (*i)->template as<U>();
+
+    std::pair<typename S::iterator, bool> p = set.insert(new U(a, b));
+    assert(p.second && "hash/equal broken");
+    return (*p.first)->template as<U>();
 }
 
 template<class T, class U> 
 const U* World::unify(const T& tuple) {
-    TypeSet::iterator i = types_.find(tuple, 
-            std::ptr_fun<const T&, size_t>(hash_tuple),
-            std::ptr_fun<const T&, const Type*, bool>(type_smart_eq<T, U>));
-
-    if (i != types_.end())
-        return (*i)->as<U>();
-
-    std::pair<TypeSet::iterator, bool> p = types_.insert(new U(*this, tuple));
-    assert(p.second && "hash/equal broken");
-    return (*p.first)->as<U>();
+    return consume<TypeSet, T, U, World&, T>(types_, tuple, *this, tuple);
 }
 
 template<class T, class U> 
 const U* World::cse(const T& tuple, const std::string& name) {
-    PrimOpSet::iterator i = primops_.find(tuple, 
-            std::ptr_fun<const T&, size_t>(hash_tuple),
-            std::ptr_fun<const T&, const PrimOp*, bool>(smart_eq<T, U>));
-
-    if (i != primops_.end())
-        return (*i)->as<U>();
-
-    std::pair<PrimOpSet::iterator, bool> p = primops_.insert(new U(tuple, name));
-    assert(p.second && "hash/equal broken");
-    return (*p.first)->as<U>();
-}
-
-const Type* World::keep_nocast(const Type* type) {
-    std::pair<TypeSet::iterator, bool> tp = types_.insert(type);
-    assert(tp.second);
-    typekeeper(type);
-    return type;
+    return consume<PrimOpSet, T, U, T, const std::string&>(primops_, tuple, tuple, name);
 }
 
 /*

@@ -45,9 +45,6 @@ public:
     friend class PrimOpEqual;
 };
 
-template<class T, class D> inline
-bool smart_eq(const T& t, const PrimOp* primop) { return smart_eq(t, primop->as<D>()->as_tuple()); }
-
 struct PrimOpHash : std::unary_function<const PrimOp*, size_t> {
     size_t operator () (const PrimOp* o) const { return o->hash(); }
 };

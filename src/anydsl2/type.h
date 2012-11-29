@@ -94,9 +94,6 @@ protected:
     friend class TypeEqual;
 };
 
-template<class T, class U> inline
-bool type_smart_eq(const T& t, const Type* type) { return smart_eq(t, type->as<U>()->as_tuple()); }
-
 std::ostream& operator << (std::ostream& o, const anydsl2::Type* type);
 
 struct TypeHash : std::unary_function<const Type*, size_t> {

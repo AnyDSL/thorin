@@ -112,6 +112,9 @@ public:
 
 //------------------------------------------------------------------------------
 
+template<class T, class U> inline
+bool smart_eq(const T& t, const Node* other) { return smart_eq(t, other->as<U>()->as_tuple()); }
+
 //------------------------------------------------------------------------------
 
 } // namespace anydsl2

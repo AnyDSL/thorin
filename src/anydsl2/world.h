@@ -271,13 +271,19 @@ public:
 protected:
 
     template<class T>
-    const T* keep(const T* type) { return keep_nocast(type)->template as<T>(); }
+    const T* keep(const T* type) {
+        std::pair<TypeSet::iterator, bool> tp = types_.insert(type);
+        assert(tp.second);
+        typekeeper(type);
+        return type->template as<T>();
+    }
 
 private:
 
+    template<class S, class T, class U, class A, class B> const U* consume(S& s, const T& tuple, A a, B b);
     template<class T, class U> const U* unify(const T& tuple);
     template<class T, class U> const U* cse(const T& tuple, const std::string& name);
-    const Type* keep_nocast(const Type* type);
+
 
     void dce_insert(size_t pass, const Def* def);
     void ute_insert(size_t pass, const Type* type);

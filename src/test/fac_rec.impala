@@ -1,4 +1,4 @@
-def fac_rec(n : int) -> int 
+def extern fac_rec(n : int) -> int 
 {
     if (n == 0) 
         return 1;

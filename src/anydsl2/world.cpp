@@ -37,11 +37,6 @@
         return def->as<T>(); \
     return consume_op(new T args);
 
-#define ANYDSL2_UNIFY(tuple, T, args) \
-    if (const Type* type = find_type<BOOST_TYPEOF(tuple), T>(tuple)) \
-        return type->as<T>(); \
-    return consume_type(new T args); \
-
 namespace anydsl2 {
 
 /*
@@ -53,11 +48,11 @@ World::World()
     , types_(1031)
     , gid_counter_(0)
     , pass_counter_(1)
-    , sigma0_ (keep(new Sigma(*this, ArrayRef<const Type*>())))
-    , pi0_    (keep(new Pi   (*this, ArrayRef<const Type*>())))
-    , mem_    (keep(new Mem  (*this))->as<Mem>())
-    , frame_  (keep(new Frame(*this))->as<Frame>())
-#define ANYDSL2_UF_TYPE(T) ,T##_(keep(new PrimType(*this, PrimType_##T)))
+    , sigma0_ (keep(new Sigma(*this, TypeTupleN(Node_Sigma, ArrayRef<const Type*>()))))
+    , pi0_    (keep(new Pi   (*this, TypeTupleN(Node_Pi,    ArrayRef<const Type*>()))))
+    , mem_    (keep(new Mem  (*this)))
+    , frame_  (keep(new Frame(*this)))
+#define ANYDSL2_UF_TYPE(T) ,T##_(keep(new PrimType(*this, TypeTuple0(PrimType_##T))))
 #include "anydsl2/tables/primtypetable.h"
 {}
 
@@ -70,19 +65,18 @@ World::~World() {
         delete lambda;
 }
 
-template<class T, class U>
-inline const Type* World::find_type(const T& tuple) {
+template<class T, class U> 
+const U* World::unify(const T& tuple) {
     TypeSet::iterator i = types_.find(tuple, 
             std::ptr_fun<const T&, size_t>(hash_tuple),
             std::ptr_fun<const T&, const Type*, bool>(type_smart_eq<T, U>));
-    return i == types_.end() ? 0 : *i;
-}
 
-template<class T>
-inline const T* World::consume_type(const T* def) {
-    std::pair<TypeSet::iterator, bool> p = types_.insert(def);
+    if (i != types_.end())
+        return (*i)->as<U>();
+
+    std::pair<TypeSet::iterator, bool> p = types_.insert(new U(*this, tuple));
     assert(p.second && "hash/equal broken");
-    return (*p.first)->as<T>();
+    return (*p.first)->as<U>();
 }
 
 template<class T, class D>
@@ -113,11 +107,11 @@ const Type* World::keep_nocast(const Type* type) {
  */
 
 const Ptr* World::ptr(const Type* ref) { 
-    ANYDSL2_UNIFY(TypeTuple1(Node_Ptr, ref), Ptr, (ref))
+    return unify<TypeTuple1, Ptr>(TypeTuple1(Node_Ptr, ref));
 }
 
 const Sigma* World::sigma(ArrayRef<const Type*> elems) {
-    ANYDSL2_UNIFY(TypeTupleN(Node_Sigma, elems), Sigma, (*this, elems))
+    return unify<TypeTupleN, Sigma>(TypeTupleN(Node_Sigma, elems));
 }
 
 Sigma* World::named_sigma(size_t size, const std::string& name) {
@@ -128,11 +122,11 @@ Sigma* World::named_sigma(size_t size, const std::string& name) {
 }
 
 const Pi* World::pi(ArrayRef<const Type*> elems) {
-    ANYDSL2_UNIFY(TypeTupleN(Node_Pi, elems), Pi, (*this, elems))
+    return unify<TypeTupleN, Pi>(TypeTupleN(Node_Pi, elems));
 }
 
 const Generic* World::generic(size_t index) { 
-    ANYDSL2_UNIFY(GenericTuple(Node_Generic, index), Generic, (*this, index))
+    return unify<GenericTuple, Generic>(GenericTuple(Node_Generic, index));
 }
 
 /*

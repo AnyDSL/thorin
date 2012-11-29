@@ -127,14 +127,6 @@ const Type* Type::specialize(const GenericMap& generic_map) const {
 
 //------------------------------------------------------------------------------
 
-PrimType::PrimType(World& world, PrimTypeKind kind)
-    : Type(world, kind, 0, false)
-{
-    name = kind2str(primtype_kind());
-}
-
-//------------------------------------------------------------------------------
-
 CompoundType::CompoundType(World& world, int kind, size_t size)
     : Type(world, kind, size, false /*TODO named sigma*/)
 {}

@@ -273,9 +273,8 @@ protected:
 private:
 
     template<class T, class D> const Def* find_op(const T& tuple);
-    template<class T, class U> const Type* find_type(const T& tuple);
     template<class T> const T* consume_op(const T* def);
-    template<class T> const T* consume_type(const T* type);
+    template<class T, class U> const U* unify(const T& tuple);
     const Type* keep_nocast(const Type* type);
 
     void dce_insert(size_t pass, const Def* def);

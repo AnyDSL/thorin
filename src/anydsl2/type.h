@@ -143,7 +143,9 @@ private:
 class PrimType : public Type {
 private:
 
-    PrimType(World& world, PrimTypeKind kind);
+    PrimType(World& world, const TypeTuple0& tuple)
+        : Type(world, tuple.get<0>(), 0, false)
+    {}
 
 public:
 
@@ -164,10 +166,10 @@ private:
 class Ptr : public Type {
 private:
 
-    Ptr(const Type* ref)
-        : Type(ref->world(), Node_Ptr, 1, ref->is_generic())
+    Ptr(World& world, const TypeTuple1& tuple)
+        : Type(world, tuple.get<0>(), 1, tuple.get<1>()->is_generic())
     {
-        set(0, ref);
+        set(0, tuple.get<1>());
     }
 
     virtual void vdump(Printer& printer) const;
@@ -209,8 +211,8 @@ private:
     {
         name = sigma_name;
     }
-    Sigma(World& world, ArrayRef<const Type*> elems)
-        : CompoundType(world, Node_Sigma, elems)
+    Sigma(World& world, const TypeTupleN& tuple)
+        : CompoundType(world, tuple.get<0>(), tuple.get<1>())
         , named_(false)
     {}
 
@@ -236,8 +238,8 @@ private:
 class Pi : public CompoundType {
 private:
 
-    Pi(World& world, ArrayRef<const Type*> elems)
-        : CompoundType(world, Node_Pi, elems)
+    Pi(World& world, const TypeTupleN& tuple)
+        : CompoundType(world, tuple.get<0>(), tuple.get<1>())
     {}
 
     virtual void vdump(Printer& printer) const;
@@ -273,8 +275,8 @@ typedef boost::tuple<int, size_t> GenericTuple;
 class Generic : public IndexType {
 private:
 
-    Generic(World& world, size_t index)
-        : IndexType(world, Node_Generic, index, true)
+    Generic(World& world, const GenericTuple& tuple)
+        : IndexType(world, tuple.get<0>(), tuple.get<1>(), true)
     {}
     ANYDSL2_TYPE_HASH_EQUAL
 

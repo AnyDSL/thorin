@@ -283,6 +283,7 @@ private:
     void dce_insert(size_t pass, const Def* def);
     void ute_insert(size_t pass, const Type* type);
     void uce_insert(size_t pass, const Def*);
+    void wipe_out(size_t pass);
 
     PrimOpSet primops_;
     LambdaSet lambdas_;

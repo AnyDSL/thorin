@@ -523,24 +523,7 @@ void World::dead_code_elimination() {
         }
     }
 
-    for (PrimOpSet::iterator i = primops_.begin(); i != primops_.end();) {
-        const PrimOp* primop = *i;
-        if (primop->is_visited(pass))
-            ++i;
-        else {
-            delete primop;
-            i = primops_.erase(i);
-        }
-    }
-
-    for (LambdaSet::iterator i = lambdas_.begin(); i != lambdas_.end();) {
-        LambdaSet::iterator j = i++;
-        Lambda* lambda = *j;
-        if (!lambda->is_visited(pass)) {
-            delete lambda;
-            lambdas_.erase(j);
-        }
-    }
+    wipe_out(pass);
 }
 
 void World::dce_insert(size_t pass, const Def* def) {
@@ -586,37 +569,20 @@ void World::unreachable_code_elimination() {
     for_all (primop, primops_) {
         if (!primop->is_visited(pass)) {
             for (size_t i = 0, e = primop->size(); i != e; ++i) {
-                if (primop->op(i)->is_visited(pass)) {
+                if (primop->op(i)->is_visited(pass))
                     primop->unregister_use(i);
-                }
             }
         }
     }
 
-    for_all (lambda, lambdas())
+    for_all (lambda, lambdas()) {
         if (!lambda->is_visited(pass)) {
             for (size_t i = 0, e = lambda->size(); i != e; ++i)
                 lambda->unregister_use(i);
         }
-
-    for (LambdaSet::iterator i = lambdas_.begin(); i != lambdas_.end();) {
-        LambdaSet::iterator j = i++;
-        Lambda* lambda = *j;
-        if (!lambda->is_visited(pass)) {
-            delete lambda;
-            lambdas_.erase(j);
-        }
     }
 
-    for (PrimOpSet::iterator i = primops_.begin(); i != primops_.end();) {
-        const PrimOp* primop = *i;
-        if (primop->is_visited(pass))
-            ++i;
-        else {
-            delete primop;
-            i = primops_.erase(i);
-        }
-    }
+    wipe_out(pass);
 }
 
 void World::uce_insert(size_t pass, const Def* def) {
@@ -634,6 +600,26 @@ void World::uce_insert(size_t pass, const Def* def) {
         const PrimOp* primop = def->as<PrimOp>();
         for_all (use, primop->uses())
             uce_insert(pass, use.def());
+    }
+}
+
+void World::wipe_out(size_t pass) {
+    for (LambdaSet::iterator i = lambdas_.begin(); i != lambdas_.end();) {
+        LambdaSet::iterator j = i++;
+        Lambda* lambda = *j;
+        if (!lambda->is_visited(pass)) {
+            delete lambda;
+            lambdas_.erase(j);
+        }
+    }
+    for (PrimOpSet::iterator i = primops_.begin(); i != primops_.end();) {
+        const PrimOp* primop = *i;
+        if (primop->is_visited(pass))
+            ++i;
+        else {
+            delete primop;
+            i = primops_.erase(i);
+        }
     }
 }
 

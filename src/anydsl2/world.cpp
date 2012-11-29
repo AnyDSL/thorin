@@ -79,6 +79,21 @@ const U* World::unify(const T& tuple) {
     return (*p.first)->as<U>();
 }
 
+template<class T, class U> 
+const U* World::cse(const T& tuple, const std::string& name) {
+    PrimOpSet::iterator i = primops_.find(tuple, 
+            std::ptr_fun<const T&, size_t>(hash_tuple),
+            std::ptr_fun<const T&, const PrimOp*, bool>(smart_eq<T, U>));
+
+    if (i != primops_.end())
+        return (*i)->as<U>();
+
+    std::pair<PrimOpSet::iterator, bool> p = primops_.insert(new U(tuple, name));
+    assert(p.second && "hash/equal broken");
+    return (*p.first)->as<U>();
+}
+
+
 template<class T, class D>
 inline const Def* World::find_op(const T& tuple) {
     PrimOpSet::iterator i = primops_.find(tuple, 
@@ -269,7 +284,8 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
         if ((rlit || a > b) && (!llit))
             std::swap(a, b);
 
-    ANYDSL2_CSE(DefTuple2(kind, a->type(), a, b), ArithOp, (kind, a, b, name))
+    return cse<DefTuple2, ArithOp>(DefTuple2(kind, a->type(), a, b), name);
+    //ANYDSL2_CSE(DefTuple2(kind, a->type(), a, b), ArithOp, (kind, a, b, name))
 }
 
 const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::string& name) {

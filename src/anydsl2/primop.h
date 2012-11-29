@@ -84,8 +84,8 @@ private:
 class ArithOp : public BinOp {
 private:
 
-    ArithOp(ArithOpKind kind, const Def* lhs, const Def* rhs, const std::string& name)
-        : BinOp((NodeKind) kind, lhs->type(), lhs, rhs, name)
+    ArithOp(const DefTuple2& tuple, const std::string& name)
+        : BinOp((NodeKind) tuple.get<0>(), tuple.get<1>(), tuple.get<2>(), tuple.get<3>(), name)
     {}
 
 public:

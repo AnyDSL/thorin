@@ -84,8 +84,8 @@ private:
 class ArithOp : public BinOp {
 private:
 
-    ArithOp(const DefTuple2& tuple, const std::string& name)
-        : BinOp((NodeKind) tuple.get<0>(), tuple.get<1>(), tuple.get<2>(), tuple.get<3>(), name)
+    ArithOp(const DefTuple2& args, const std::string& name)
+        : BinOp((NodeKind) args.get<0>(), args.get<1>(), args.get<2>(), args.get<3>(), name)
     {}
 
 public:
@@ -138,8 +138,8 @@ public:
 class RelOp : public BinOp {
 private:
 
-    RelOp(const DefTuple2& tuple, const std::string& name)
-        : BinOp((NodeKind) tuple.get<0>(), tuple.get<1>(), tuple.get<2>(), tuple.get<3>(), name)
+    RelOp(const DefTuple2& args, const std::string& name)
+        : BinOp((NodeKind) args.get<0>(), args.get<1>(), args.get<2>(), args.get<3>(), name)
     {}
 
 public:
@@ -154,10 +154,10 @@ public:
 class ConvOp : public PrimOp {
 private:
 
-    ConvOp(const DefTuple1& tuple, const std::string& name)
-        : PrimOp(1, (NodeKind) tuple.get<0>(), tuple.get<1>(), name)
+    ConvOp(const DefTuple1& args, const std::string& name)
+        : PrimOp(1, (NodeKind) args.get<0>(), args.get<1>(), name)
     {
-        set_op(0, tuple.get<2>());
+        set_op(0, args.get<2>());
     }
 
 public:
@@ -177,7 +177,7 @@ private:
 class Select : public PrimOp {
 private:
 
-    Select(const DefTuple3& tuple, const std::string& name);
+    Select(const DefTuple3& args, const std::string& name);
 
 public:
 
@@ -215,8 +215,8 @@ public:
 class Extract : public TupleOp {
 private:
 
-    Extract(const DefTuple2& tuple, const std::string& name)
-        : TupleOp(2, tuple.get<0>(), tuple.get<1>(), tuple.get<2>(), tuple.get<3>(), name)
+    Extract(const DefTuple2& args, const std::string& name)
+        : TupleOp(2, args.get<0>(), args.get<1>(), args.get<2>(), args.get<3>(), name)
     {}
     
     virtual void vdump(Printer& printer) const;
@@ -231,7 +231,11 @@ public:
 class Insert : public TupleOp {
 private:
 
-    Insert(const Def* tuple, const Def* index, const Def* value, const std::string& name);
+    Insert(const DefTuple3& args, const std::string& name)
+        : TupleOp(3, args.get<0>(), args.get<1>(), args.get<2>(), args.get<3>(), name)
+    {
+        set_op(2, args.get<4>());
+    }
     
 public:
 
@@ -249,7 +253,7 @@ private:
 class Tuple : public PrimOp {
 private:
 
-    Tuple(World& world, ArrayRef<const Def*> args, const std::string& name);
+    Tuple(const DefTupleN& args, const std::string& name);
 
 private:
 

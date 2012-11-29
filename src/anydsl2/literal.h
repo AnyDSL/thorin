@@ -111,8 +111,8 @@ private:
 class TypeKeeper : public Literal {
 private:
 
-    TypeKeeper(const DefTuple0& tuple, const std::string& name)
-        : Literal(tuple.get<0>(), tuple.get<1>(), name)
+    TypeKeeper(const DefTuple0& args, const std::string& name)
+        : Literal(args.get<0>(), args.get<1>(), name)
     {}
     virtual void vdump(Printer& printer) const ;
 

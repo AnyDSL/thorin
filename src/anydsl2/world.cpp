@@ -189,7 +189,7 @@ const Def* World::tuple(ArrayRef<const Def*> args, const std::string& name) {
     if (bot)
         return bottom(type);
 
-    ANYDSL2_CSE(DefTupleN(Node_Tuple, type, args), Tuple, (*this, args, name))
+    return cse<DefTupleN, Tuple>(DefTupleN(Node_Tuple, type, args), name);
 }
 
 const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const std::string& name) {
@@ -437,7 +437,7 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, con
         return tuple(args);
     }
 
-    ANYDSL2_CSE(DefTuple3(Node_Insert, agg->type(), agg, index, value), Insert, (agg, index, value, name))
+    return cse<DefTuple3, Insert>(DefTuple3(Node_Extract, agg->type(), agg, index, value), name);
 }
 
 const Def* World::load(const Def* m, const Def* ptr, const std::string& name) {

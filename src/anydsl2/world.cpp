@@ -693,7 +693,7 @@ const Def* World::update(const Def* what, size_t x, const Def* op) {
     size_t num = oprimop->size();
 
     Array<const Def*> nops(num);
-    for (size_t i = 0; i != num; oprimop->unset_op(i), ++i)
+    for (size_t i = 0; i != num; oprimop->unregister_use(i), ++i)
         nops[i] = i == x ? op : oprimop->op(i);
 
     const Def* ndef = primop(oprimop, nops);

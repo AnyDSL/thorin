@@ -28,10 +28,10 @@ void Def::unset_op(size_t i) {
 }
 
 void Def::unregister_use(size_t i) const {
-    if (const Def* def = op(i)) {
-        assert(std::find(def->uses_.begin(), def->uses_.end(), Use(i, this)) != def->uses_.end() && "must be in use set");
-        def->uses_.erase(std::find(def->uses_.begin(), def->uses_.end(), Use(i, this)));
-    }
+    const Def* def = op(i);
+    Uses::iterator it = std::find(def->uses_.begin(), def->uses_.end(), Use(i, this));
+    assert(it != def->uses_.end() && "must be in use set");
+    def->uses_.erase(it);
 }
 
 bool Def::is_const() const {

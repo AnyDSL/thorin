@@ -554,6 +554,19 @@ void World::dce_insert(size_t pass, const Def* def) {
     }
 }
 
+template<class S>
+void World::unregister_uses(size_t pass, S& set) {
+    for (typename S::iterator i = set.begin(), e = set.end(); i != e; ++i) {
+        const Def* def = *i;
+        if (!def->is_visited(pass)) {
+            for (size_t i = 0, e = def->size(); i != e; ++i) {
+                if (def->op(i)->is_visited(pass))
+                    def->unregister_use(i);
+            }
+        }
+    }
+}
+
 void World::unreachable_code_elimination() {
     size_t pass = new_pass();
 
@@ -565,22 +578,8 @@ void World::unreachable_code_elimination() {
         if (primop->is_const())
             primop->visit(pass);
 
-    // unregister uses
-    for_all (primop, primops_) {
-        if (!primop->is_visited(pass)) {
-            for (size_t i = 0, e = primop->size(); i != e; ++i) {
-                if (primop->op(i)->is_visited(pass))
-                    primop->unregister_use(i);
-            }
-        }
-    }
-
-    for_all (lambda, lambdas()) {
-        if (!lambda->is_visited(pass)) {
-            for (size_t i = 0, e = lambda->size(); i != e; ++i)
-                lambda->unregister_use(i);
-        }
-    }
+    unregister_uses(pass, primops_);
+    unregister_uses(pass, lambdas_);
 
     wipe_out(pass);
 }
@@ -637,7 +636,6 @@ void World::unused_type_elimination() {
 
     for (TypeSet::iterator i = types_.begin(); i != types_.end();) {
         const Type* type = *i;
-
         if (type->is_visited(pass))
             ++i;
         else {

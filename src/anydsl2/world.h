@@ -284,6 +284,7 @@ private:
     void ute_insert(size_t pass, const Type* type);
     void uce_insert(size_t pass, const Def*);
     void wipe_out(size_t pass);
+    template<class S> static void unregister_uses(size_t pass, S& set);
 
     PrimOpSet primops_;
     LambdaSet lambdas_;

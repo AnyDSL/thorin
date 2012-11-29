@@ -4,6 +4,7 @@
 #include <sstream>
 
 #include "anydsl2/util/for_all.h"
+#include "anydsl2/util/hash.h"
 
 namespace anydsl2 {
 
@@ -12,11 +13,9 @@ size_t StrHash::operator () (const char* s) const {
     const char* i = s;
 
     while (*i != '\0')
-        boost::hash_combine(seed, *i++);
+        seed = hash_combine(seed, *i++);
 
-    boost::hash_combine(seed, i-s);
-
-    return seed;
+    return hash_combine(seed, i-s);
 }
 
 Symbol::Table Symbol::table_(1031);

@@ -99,8 +99,6 @@ bool type_smart_eq(const T& t, const Type* type) { return smart_eq(t, type->as<U
 
 std::ostream& operator << (std::ostream& o, const anydsl2::Type* type);
 
-bool is_generic(ArrayRef<const Type*> elems);
-
 struct TypeHash : std::unary_function<const Type*, size_t> {
     size_t operator () (const Type* t) const { return t->hash(); }
 };

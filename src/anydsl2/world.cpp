@@ -32,11 +32,6 @@
     case PrimType_f32: \
     case PrimType_f64: ANYDSL2_UNREACHABLE;
 
-#define ANYDSL2_CSE(tuple, T, args) \
-    if (const Def* def = find_op<BOOST_TYPEOF(tuple), T>(tuple)) \
-        return def->as<T>(); \
-    return consume_op(new T args);
-
 namespace anydsl2 {
 
 /*
@@ -93,22 +88,6 @@ const U* World::cse(const T& tuple, const std::string& name) {
     return (*p.first)->as<U>();
 }
 
-
-template<class T, class D>
-inline const Def* World::find_op(const T& tuple) {
-    PrimOpSet::iterator i = primops_.find(tuple, 
-            std::ptr_fun<const T&, size_t>(hash_tuple),
-            std::ptr_fun<const T&, const PrimOp*, bool>(smart_eq<T, D>));
-    return i == primops_.end() ? 0 : *i;
-}
-
-template<class T>
-inline const T* World::consume_op(const T* def) {
-    std::pair<PrimOpSet::iterator, bool> p = primops_.insert(def);
-    assert(p.second && "hash/equal broken");
-    return (*p.first)->as<T>();
-}
-
 const Type* World::keep_nocast(const Type* type) {
     std::pair<TypeSet::iterator, bool> tp = types_.insert(type);
     assert(tp.second);
@@ -148,8 +127,7 @@ const Generic* World::generic(size_t index) {
  */
 
 const PrimLit* World::literal(PrimTypeKind kind, Box box) {
-    const Type* ptype = type(kind);
-    ANYDSL2_CSE(PrimLitTuple(Node_PrimLit, ptype, box), PrimLit, (ptype, box))
+    return cse<PrimLitTuple, PrimLit>(PrimLitTuple(Node_PrimLit, type(kind), box), "");
 }
 
 const PrimLit* World::literal(PrimTypeKind kind, int value) {
@@ -161,8 +139,8 @@ const PrimLit* World::literal(PrimTypeKind kind, int value) {
     }
 }
 
-const Any*    World::any   (const Type* type) { ANYDSL2_CSE(DefTuple0(Node_Any,    type), Any,    (type)) }
-const Bottom* World::bottom(const Type* type) { ANYDSL2_CSE(DefTuple0(Node_Bottom, type), Bottom, (type)) }
+const Any*    World::any   (const Type* type) { return cse<DefTuple0, Any   >(DefTuple0(Node_Any,    type), ""); }
+const Bottom* World::bottom(const Type* type) { return cse<DefTuple0, Bottom>(DefTuple0(Node_Bottom, type), ""); }
 
 /*
  * create

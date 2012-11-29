@@ -45,8 +45,8 @@ protected:
 class Any : public Undef {
 private:
 
-    Any(const Type* type)
-        : Undef(Node_Any, type, "<any>")
+    Any(const DefTuple0& args, const std::string& name)
+        : Undef(args.get<0>(), args.get<1>(), name)
     {}
     virtual void vdump(Printer& printer) const ;
 
@@ -64,8 +64,8 @@ private:
 class Bottom : public Undef {
 private:
 
-    Bottom(const Type* type)
-        : Undef(Node_Bottom, type, "<bottom>")
+    Bottom(const DefTuple0& args, const std::string& name)
+        : Undef(args.get<0>(), args.get<1>(), name)
     {}
     virtual void vdump(Printer& printer) const ;
 
@@ -79,9 +79,9 @@ typedef boost::tuple<int, const Type*, Box> PrimLitTuple;
 class PrimLit : public Literal {
 private:
 
-    PrimLit(const Type* type, Box box)
-        : Literal(Node_PrimLit, type, "")
-        , box_(box)
+    PrimLit(const PrimLitTuple& args, const std::string& name)
+        : Literal(args.get<0>(), args.get<1>(), name)
+        , box_(args.get<2>())
     {}
 
 public:

@@ -276,8 +276,6 @@ protected:
 
 private:
 
-    template<class T, class D> const Def* find_op(const T& tuple);
-    template<class T> const T* consume_op(const T* def);
     template<class T, class U> const U* unify(const T& tuple);
     template<class T, class U> const U* cse(const T& tuple, const std::string& name);
     const Type* keep_nocast(const Type* type);

@@ -31,6 +31,7 @@ class PrimType;
 class Sigma;
 class Slot;
 class Type;
+class TypeKeeper;
 
 typedef boost::unordered_set<const PrimOp*, PrimOpHash, PrimOpEqual> PrimOpSet;
 typedef boost::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;
@@ -222,7 +223,7 @@ public:
      */
 
     const Def* select(const Def* cond, const Def* a, const Def* b, const std::string& name = "");
-    const Def* typekeeper(const Type* type, const std::string& name = "");
+    const TypeKeeper* typekeeper(const Type* type, const std::string& name = "");
 
     Lambda* lambda(const Pi* pi, LambdaAttr attr = LambdaAttr(0), const std::string& name = "");
     Lambda* lambda(const Pi* pi, const std::string& name) { return lambda(pi, LambdaAttr(0), name); }

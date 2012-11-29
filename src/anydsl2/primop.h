@@ -32,7 +32,7 @@ typedef boost::tuple<int, const Type*, ArrayRef<const Def*> > DefTupleN;
 class PrimOp : public Def {
 protected:
 
-    PrimOp(int kind, size_t size, const Type* type, const std::string& name)
+    PrimOp(size_t size, int kind, const Type* type, const std::string& name)
         : Def(kind, size, type, name)
     {}
 
@@ -62,7 +62,7 @@ class BinOp : public PrimOp {
 protected:
 
     BinOp(NodeKind kind, const Type* type, const Def* lhs, const Def* rhs, const std::string& name)
-        : PrimOp(kind, 2, type, name)
+        : PrimOp(2, kind, type, name)
     {
         assert(lhs->type() == rhs->type() && "types are not equal");
         set_op(0, lhs);
@@ -138,7 +138,9 @@ public:
 class RelOp : public BinOp {
 private:
 
-    RelOp(RelOpKind kind, const Def* lhs, const Def* rhs, const std::string& name);
+    RelOp(const DefTuple2& tuple, const std::string& name)
+        : BinOp((NodeKind) tuple.get<0>(), tuple.get<1>(), tuple.get<2>(), tuple.get<3>(), name)
+    {}
 
 public:
 
@@ -152,10 +154,10 @@ public:
 class ConvOp : public PrimOp {
 private:
 
-    ConvOp(ConvOpKind kind, const Type* to, const Def* from, const std::string& name)
-        : PrimOp(kind, 1, to, name)
+    ConvOp(const DefTuple1& tuple, const std::string& name)
+        : PrimOp(1, (NodeKind) tuple.get<0>(), tuple.get<1>(), name)
     {
-        set_op(0, from);
+        set_op(0, tuple.get<2>());
     }
 
 public:
@@ -175,7 +177,7 @@ private:
 class Select : public PrimOp {
 private:
 
-    Select(const Def* cond, const Def* t, const Def* f, const std::string& name);
+    Select(const DefTuple3& tuple, const std::string& name);
 
 public:
 
@@ -193,7 +195,12 @@ public:
 class TupleOp : public PrimOp {
 protected:
 
-    TupleOp(NodeKind kind, size_t size, const Type* type, const Def* tuple, const Def* index, const std::string& name);
+    TupleOp(size_t size, int kind, const Type* type, const Def* agg, const Def* index, const std::string& name)
+        : PrimOp(size, kind, type, name)
+    {
+        set_op(0, agg);
+        set_op(1, index);
+    }
 
 public:
 
@@ -208,7 +215,9 @@ public:
 class Extract : public TupleOp {
 private:
 
-    Extract(const Def* tuple, const Def* index, const std::string& name);
+    Extract(const DefTuple2& tuple, const std::string& name)
+        : TupleOp(2, tuple.get<0>(), tuple.get<1>(), tuple.get<2>(), tuple.get<3>(), name)
+    {}
     
     virtual void vdump(Printer& printer) const;
 

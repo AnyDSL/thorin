@@ -112,8 +112,7 @@ inline const T* World::consume_op(const T* def) {
 const Type* World::keep_nocast(const Type* type) {
     std::pair<TypeSet::iterator, bool> tp = types_.insert(type);
     assert(tp.second);
-    std::pair<PrimOpSet::iterator, bool> pp = primops_.insert(new TypeKeeper(type, ""));
-    assert(pp.second);
+    typekeeper(type);
     return type;
 }
 
@@ -285,7 +284,6 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
             std::swap(a, b);
 
     return cse<DefTuple2, ArithOp>(DefTuple2(kind, a->type(), a, b), name);
-    //ANYDSL2_CSE(DefTuple2(kind, a->type(), a, b), ArithOp, (kind, a, b, name))
 }
 
 const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::string& name) {
@@ -390,7 +388,7 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::s
         }
     }
 
-    ANYDSL2_CSE(DefTuple2(kind, type_u1(), a, b), RelOp, (kind, a, b, name))
+    return cse<DefTuple2, RelOp>(DefTuple2(kind, type_u1(), a, b), name);
 }
 
 const Def* World::convop(ConvOpKind kind, const Type* to, const Def* from, const std::string& name) {
@@ -406,7 +404,7 @@ const Def* World::convop(ConvOpKind kind, const Type* to, const Def* from, const
     }
 #endif
 
-    ANYDSL2_CSE(DefTuple1(kind, to, from), ConvOp, (kind, to, from, name))
+    return cse<DefTuple1, ConvOp>(DefTuple1(kind, to, from), name);
 }
 
 const Def* World::extract(const Def* agg, const Def* index, const std::string& name) {
@@ -424,7 +422,7 @@ const Def* World::extract(const Def* agg, const Def* index, const std::string& n
     }
 
     const Type* type = agg->type()->as<Sigma>()->elem_via_lit(index);
-    ANYDSL2_CSE(DefTuple2(Node_Extract, type, agg, index), Extract, (agg, index, name))
+    return cse<DefTuple2, Extract>(DefTuple2(Node_Extract, type, agg, index), name);
 }
 
 const Def* World::insert(const Def* agg, const Def* index, const Def* value, const std::string& name) {
@@ -474,11 +472,11 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b, const std:
     if (const PrimLit* lit = cond->isa<PrimLit>())
         return lit->box().get_u1().get() ? a : b;
 
-    ANYDSL2_CSE(DefTuple3(Node_Select, a->type(), cond, a, b), Select, (cond, a, b, name))
+    return cse<DefTuple3, Select>(DefTuple3(Node_Select, a->type(), cond, a, b), name);
 }
 
-const Def* World::typekeeper(const Type* type, const std::string& name) { 
-    ANYDSL2_CSE(DefTuple0(Node_TypeKeeper, type), TypeKeeper, (type, name))
+const TypeKeeper* World::typekeeper(const Type* type, const std::string& name) { 
+    return cse<DefTuple0, TypeKeeper>(DefTuple0(Node_TypeKeeper, type), name)->as<TypeKeeper>();
 }
 
 Lambda* World::lambda(const Pi* pi, LambdaAttr attr, const std::string& name) {

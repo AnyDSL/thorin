@@ -124,11 +124,8 @@ void CFGBuilder::process() {
         }
     }
 
-    for_all (lambda, todo) {
-        lambda->world().dump(true);
+    for_all (lambda, todo)
         transform(lambda);
-    }
-    world.dump(true);
 }
 
 void cfg_transform(World& world) {

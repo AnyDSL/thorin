@@ -10,7 +10,7 @@ namespace anydsl2 {
 class MemOp : public PrimOp {
 protected:
 
-    MemOp(int kind, size_t size, const Type* type, const Def* mem, const std::string& name);
+    MemOp(size_t size, int kind, const Type* type, const Def* mem, const std::string& name);
 
 public:
 
@@ -22,8 +22,8 @@ public:
 class Access : public MemOp {
 protected:
 
-    Access(int kind, size_t size, const Type* type, const Def* mem, const Def* ptr, const std::string& name)
-        : MemOp(kind, size, type, mem, name)
+    Access(size_t size, int kind, const Type* type, const Def* mem, const Def* ptr, const std::string& name)
+        : MemOp(size, kind, type, mem, name)
     {
         assert(size >= 2);
         set_op(1, ptr);

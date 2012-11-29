@@ -18,7 +18,7 @@ class Literal : public PrimOp {
 protected:
 
     Literal(int kind, const Type* type, const std::string& name)
-        : PrimOp(kind, 0, type, name)
+        : PrimOp(0, kind, type, name)
     {}
 };
 
@@ -111,8 +111,8 @@ private:
 class TypeKeeper : public Literal {
 private:
 
-    TypeKeeper(const Type* type, const std::string& name)
-        : Literal(Node_TypeKeeper, type, name)
+    TypeKeeper(const DefTuple0& tuple, const std::string& name)
+        : Literal(tuple.get<0>(), tuple.get<1>(), name)
     {}
     virtual void vdump(Printer& printer) const ;
 

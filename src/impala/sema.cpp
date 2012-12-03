@@ -68,8 +68,6 @@ public:
 
     World& world;
     GenericMap fill_map();
-
-    void push(const Generic* generic) { bound_generics_.back().insert(generic); }
     std::vector< boost::unordered_set<const Generic*> > bound_generics_;
 
 private:

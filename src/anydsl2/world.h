@@ -278,12 +278,32 @@ protected:
         return type->template as<T>();
     }
 
+    template<class T, class U> 
+        const U* unify(const T& tuple) { 
+        return consume<TypeSet, T, U, World&, T>(types_, tuple, *this, tuple); 
+    }
+    template<class T, class U> 
+        const U* cse(const T& tuple, const std::string& name) { 
+        return consume<PrimOpSet, T, U, T, const std::string&>(primops_, tuple, tuple, name); 
+    }
+
 private:
 
-    template<class S, class T, class U, class A, class B> const U* consume(S& s, const T& tuple, A a, B b);
-    template<class T, class U> const U* unify(const T& tuple);
-    template<class T, class U> const U* cse(const T& tuple, const std::string& name);
+    template<class S, class T, class U, class A, class B> 
+    inline const U* consume(S& set, const T& tuple, A a, B b) {
+        typename S::iterator i = set.find(tuple, 
+                std::ptr_fun<const T&, size_t>(hash_tuple),
+                std::ptr_fun<const T&, const Node*, bool>(smart_eq<T, U>));
 
+        if (i != set.end())
+            return (*i)->template as<U>();
+
+        std::pair<typename S::iterator, bool> p = set.insert(new U(a, b));
+        assert(p.second && "hash/equal broken");
+        return (*p.first)->template as<U>();
+    }
+
+    const Type* keep_nocast(const Type* type);
 
     void dce_insert(size_t pass, const Def* def);
     void ute_insert(size_t pass, const Type* type);

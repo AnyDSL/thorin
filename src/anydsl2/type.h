@@ -176,7 +176,7 @@ private:
 public:
 
     const Type* ref() const { return elem(0); }
-    TypeTuple1 tulpe() const { return TypeTuple1(kind(), ref()); }
+    TypeTuple1 as_tuple() const { return TypeTuple1(kind(), ref()); }
 
     friend class World;
 };

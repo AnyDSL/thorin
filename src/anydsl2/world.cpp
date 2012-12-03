@@ -74,20 +74,6 @@ const U* World::unify(const T& tuple) {
     return (*p.first)->as<U>();
 }
 
-template<class T, class U> 
-const U* World::cse(const T& tuple, const std::string& name) {
-    PrimOpSet::iterator i = primops_.find(tuple, 
-            std::ptr_fun<const T&, size_t>(hash_tuple),
-            std::ptr_fun<const T&, const PrimOp*, bool>(smart_eq<T, U>));
-
-    if (i != primops_.end())
-        return (*i)->as<U>();
-
-    std::pair<PrimOpSet::iterator, bool> p = primops_.insert(new U(tuple, name));
-    assert(p.second && "hash/equal broken");
-    return (*p.first)->as<U>();
-}
-
 const Type* World::keep_nocast(const Type* type) {
     std::pair<TypeSet::iterator, bool> tp = types_.insert(type);
     assert(tp.second);

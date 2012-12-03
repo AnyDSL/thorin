@@ -273,10 +273,23 @@ protected:
     template<class T>
     const T* keep(const T* type) { return keep_nocast(type)->template as<T>(); }
 
+    template<class T, class U>
+    const U* cse(const T& tuple, const std::string& name) {
+        PrimOpSet::iterator i = primops_.find(tuple,
+              std::ptr_fun<const T&, size_t>(hash_tuple),
+              std::ptr_fun<const T&, const PrimOp*, bool>(smart_eq<T, U>));
+
+        if (i != primops_.end())
+            return (*i)->as<U>();
+
+        std::pair<PrimOpSet::iterator, bool> p = primops_.insert(new U(tuple, name));
+        assert(p.second && "hash/equal broken");
+        return (*p.first)->as<U>();
+    }
+
 private:
 
     template<class T, class U> const U* unify(const T& tuple);
-    template<class T, class U> const U* cse(const T& tuple, const std::string& name);
     const Type* keep_nocast(const Type* type);
 
     void dce_insert(size_t pass, const Def* def);

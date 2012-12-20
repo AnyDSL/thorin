@@ -35,10 +35,10 @@ void Def::unregister_use(size_t i) const {
 }
 
 bool Def::is_const() const {
-    if (node_kind() == Node_Param)
+    if (isa<Param>())
         return false;
 
-    if (empty() || node_kind() == Node_Lambda)
+    if (empty() || isa<Lambda>())
         return true;
 
     for (size_t i = 0, e = size(); i != e; ++i)

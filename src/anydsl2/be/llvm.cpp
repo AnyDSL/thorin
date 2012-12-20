@@ -353,6 +353,12 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
     if (const CCall* ccall = def->isa<CCall>()) {
         size_t num_args = ccall->num_args();
+        std::cout << num_args << std::endl;
+        for_all (op, ccall->ops())
+            op->dump();
+        std::cout << "---" << std::endl;
+        for_all (op, ccall->args())
+            op->dump();
 
         Array<llvm::Type*> arg_types(num_args);
         for_all2 (&arg_type, arg_types, arg, ccall->args())
@@ -374,6 +380,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
 }
 
 llvm::Type* CodeGen::map(const Type* type) {
+    assert(!type->isa<Mem>());
     switch (type->node_kind()) {
         case Node_PrimType_u1:  return llvm::IntegerType::get(context,  1);
         case Node_PrimType_u8:  return llvm::IntegerType::get(context,  8);
@@ -382,21 +389,34 @@ llvm::Type* CodeGen::map(const Type* type) {
         case Node_PrimType_u64: return llvm::IntegerType::get(context, 64);
         case Node_PrimType_f32: return llvm::Type::getFloatTy(context);
         case Node_PrimType_f64: return llvm::Type::getDoubleTy(context);
+        case Node_Ptr:          return llvm::PointerType::get(map(type->as<Ptr>()->ref()), 0);
 
         case Node_Pi: {
             // extract "return" type, collect all other types
             const Pi* pi = type->as<Pi>();
+            pi->dump();
             llvm::Type* ret = 0;
             size_t i = 0;
             Array<llvm::Type*> elems(pi->size() - 1);
-
             for_all (elem, pi->elems()) {
+                if (elem->isa<Mem>())
+                    continue;
                 if (const Pi* pi = elem->isa<Pi>()) {
+                    assert(!ret && "only one 'return' supported");
                     if (pi->empty())
                         ret = llvm::Type::getVoidTy(context);
                     else if (pi->size() == 1)
-                        ret = map(pi->elem(0));
-                    else {
+                        ret = pi->elem(0)->isa<Mem>() ? llvm::Type::getVoidTy(context) : map(pi->elem(0));
+                    else if (pi->size() == 2) {
+                        if (pi->elem(0)->isa<Mem>())
+                            ret = map(pi->elem(1));
+                        else if (pi->elem(1)->isa<Mem>())
+                            ret = map(pi->elem(0));
+                        else
+                            goto multiple;
+                    } else {
+multiple:
+                        assert(true && "TODO");
                         Array<llvm::Type*> elems(pi->size());
                         for_all2 (&elem, elems, pi_elem, pi->elems())
                             elem = map(pi_elem);
@@ -405,6 +425,7 @@ llvm::Type* CodeGen::map(const Type* type) {
                 } else
                     elems[i++] = map(elem);
             }
+            elems.shrink(i);
 
             assert(ret);
             return llvm::FunctionType::get(ret, llvm_ref(elems), false);

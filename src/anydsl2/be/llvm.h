@@ -4,10 +4,10 @@
 #include "anydsl2/util/assert.h"
 
 namespace llvm {
+    class IRBuilderBase;
     class Type;
     class Value;
     class Module;
-    class LLVMContext;
 }
 
 namespace anydsl2 {
@@ -24,7 +24,7 @@ public:
 
     virtual ~EmitHook() {}
 
-    virtual void assign(llvm::LLVMContext& context, llvm::Module* module) {}
+    virtual void assign(llvm::IRBuilderBase* builder, llvm::Module* module) {}
     virtual llvm::Value* emit(const Def*) { ANYDSL2_UNREACHABLE; }
     virtual llvm::Type* map(const Type*) { ANYDSL2_UNREACHABLE; }
 };

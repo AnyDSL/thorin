@@ -77,8 +77,7 @@ CodeGen::CodeGen(const World& world, EmitHook& hook)
     , builder(context)
     , module(new llvm::Module("anydsl", context))
 {
-    // assign module and context
-    hook.assign(context, module);
+    hook.assign(&builder, module);
 }
 
 //------------------------------------------------------------------------------
@@ -126,12 +125,13 @@ void CodeGen::emit() {
             // create phi node stubs (for all non-cascading lambdas different from entry)
             if (!lambda->is_cascading() && lambda != scope.entry()) {
                 for_all (param, lambda->params())
-                    phis[param] = builder.CreatePHI(map(param->type()), param->peek().size(), param->name);
+                    if (!param->type()->isa<Mem>())
+                        phis[param] = builder.CreatePHI(map(param->type()), param->peek().size(), param->name);
             }
 
             std::vector<const PrimOp*> schedule = places[lambda->sid()];
             for_all (primop, schedule)
-                if (!primop->type()->isa<Pi>()) // don't touch higher-order primops
+                if (!primop->type()->isa<Pi>() && !primop->type()->isa<Mem>() && !primop->type()->isa<Frame>())
                     primops[primop] = emit(primop);
 
             // terminate bb
@@ -139,7 +139,7 @@ void CodeGen::emit() {
             if (num_targets == 0) {         // case 0: return
                 // this is a return
                 assert(lambda->to()->as<Param>() == ret_param);
-                assert(lambda->args().size() == 1);
+                //assert(lambda->args().size() == 1);
                 // return a value
                 builder.CreateRet(lookup(lambda->arg(0)));
             } else if (num_targets == 1) {  // case 1: three sub-cases
@@ -150,8 +150,11 @@ void CodeGen::emit() {
                 else {
                     // put all first-order args into an array
                     Array<llvm::Value*> args(lambda->args().size() - 1);
-                    for_all2 (&arg, args, fo_arg, lambda->fo_args())
-                        arg = lookup(fo_arg);
+                    size_t i = 0;
+                    for_all (fo_arg, lambda->fo_args())
+                        if (!fo_arg->type()->isa<Mem>())
+                            args[i++] = lookup(fo_arg);
+                    args.shrink(i);
                     llvm::CallInst* call = builder.CreateCall(fcts[tolambda], llvm_ref(args));
                     
                     const Def* ho_arg = lambda->ho_args().front();
@@ -354,12 +357,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
     if (const CCall* ccall = def->isa<CCall>()) {
         size_t num_args = ccall->num_args();
-        std::cout << num_args << std::endl;
-        for_all (op, ccall->ops())
-            op->dump();
-        std::cout << "---" << std::endl;
-        for_all (op, ccall->args())
-            op->dump();
 
         Array<llvm::Type*> arg_types(num_args);
         for_all2 (&arg_type, arg_types, arg, ccall->args())
@@ -376,6 +373,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return builder.CreateCall(callee, llvm_ref(arg_vals));
     }
 
+    if (def->isa<Enter>() || def->isa<Leave>())
+        return 0;
+
     assert(!def->is_corenode());
     return hook.emit(def);
 }
@@ -390,7 +390,12 @@ llvm::Type* CodeGen::map(const Type* type) {
         case Node_PrimType_u64: return llvm::IntegerType::get(context, 64);
         case Node_PrimType_f32: return llvm::Type::getFloatTy(context);
         case Node_PrimType_f64: return llvm::Type::getDoubleTy(context);
-        case Node_Ptr:          return llvm::PointerType::get(map(type->as<Ptr>()->ref()), 0);
+        case Node_Ptr:          {
+                                //return llvm::PointerType::getUnqual(map(type->as<Ptr>()->ref()));
+                                    llvm::Type* ltype =llvm::PointerType::getUnqual(map(type->as<Ptr>()->ref()));
+                                    ltype->dump();
+                                    return ltype;
+        }
 
         case Node_Pi: {
             // extract "return" type, collect all other types

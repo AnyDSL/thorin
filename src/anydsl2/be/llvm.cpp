@@ -1,6 +1,7 @@
 #include "anydsl2/be/llvm.h"
 
 #include <algorithm>
+#include <iostream>
 #include <boost/unordered_map.hpp>
 
 #include <llvm/Constant.h>

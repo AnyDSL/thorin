@@ -279,18 +279,18 @@ protected:
     }
 
     template<class T, class U> 
-        const U* unify(const T& tuple) { 
+    const U* unify(const T& tuple) { 
         return consume<TypeSet, T, U, World&, T>(types_, tuple, *this, tuple); 
     }
     template<class T, class U> 
-        const U* cse(const T& tuple, const std::string& name) { 
-        return consume<PrimOpSet, T, U, T, const std::string&>(primops_, tuple, tuple, name); 
+    const U* cse(const T& tuple, const std::string& name) { 
+        return consume<PrimOpSet, T, U, T, std::string>(primops_, tuple, tuple, name); 
     }
 
 private:
 
     template<class S, class T, class U, class A, class B> 
-    inline const U* consume(S& set, const T& tuple, A a, B b) {
+    inline const U* consume(S& set, const T& tuple, const A& a, const B& b) {
         typename S::iterator i = set.find(tuple, 
                 std::ptr_fun<const T&, size_t>(hash_tuple),
                 std::ptr_fun<const T&, const Node*, bool>(smart_eq<T, U>));

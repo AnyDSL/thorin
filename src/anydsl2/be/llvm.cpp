@@ -390,17 +390,11 @@ llvm::Type* CodeGen::map(const Type* type) {
         case Node_PrimType_u64: return llvm::IntegerType::get(context, 64);
         case Node_PrimType_f32: return llvm::Type::getFloatTy(context);
         case Node_PrimType_f64: return llvm::Type::getDoubleTy(context);
-        case Node_Ptr:          {
-                                //return llvm::PointerType::getUnqual(map(type->as<Ptr>()->ref()));
-                                    llvm::Type* ltype =llvm::PointerType::getUnqual(map(type->as<Ptr>()->ref()));
-                                    ltype->dump();
-                                    return ltype;
-        }
+        case Node_Ptr:          return llvm::PointerType::getUnqual(map(type->as<Ptr>()->ref()));
 
         case Node_Pi: {
             // extract "return" type, collect all other types
             const Pi* pi = type->as<Pi>();
-            pi->dump();
             llvm::Type* ret = 0;
             size_t i = 0;
             Array<llvm::Type*> elems(pi->size() - 1);

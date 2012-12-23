@@ -276,6 +276,7 @@ Lambda* Mapper::mangle() {
     map(oentry, oentry);
     map_body(oentry, nentry);
 
+    // TODO omit unreachable lambdas
     for_all (cur, scope.rpo().slice_back(1)) {
         if (!cur->is_visited(pass))
             map_head(cur);

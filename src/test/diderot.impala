@@ -10,7 +10,7 @@ def range_xy[[L]](l : L,
 }
 
 
-def initially[[G,T,R]](g : G, xn: int, yn : int, make_strand : pi(G) -> T, write_result : pi(int, int, G, R) -> G, update : pi(G, T, int, int, /*loop*/ pi(T), /*stabalize*/ pi(R), /*die*/ pi())) -> G {
+def initially[[G,T,R]](g : G, xn: int, yn : int, make_strand : pi(G) -> T, write_result : pi(int, int, G, R) -> G, update : pi(G, T, int, int, /*loop*/ pi(T), /*stabilize*/ pi(R), /*die*/ pi())) -> G {
     return range_xy(g, xn, yn, lambda(g : G, x : int, y : int, ret : pi(G)) { 
         def loop(strand : T) {
             update(g, strand, x, y, 
@@ -28,11 +28,11 @@ def initially[[G,T,R]](g : G, xn: int, yn : int, make_strand : pi(G) -> T, write
 }
 
 def main(j : int) -> int64 {
-    def update(g : int64, t : int16, xn : int, yn : int, loop : pi(int16), stabalize : pi(int16), die : pi()) {
+    def update(g : int64, t : int16, xn : int, yn : int, loop : pi(int16), stabilize : pi(int16), die : pi()) {
         if (xn + yn < 42)
             die();
         if (t == 23s)
-            stabalize(t);
+            stabilize(t);
         loop(t + 1s);
     }
 

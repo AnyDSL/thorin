@@ -1,0 +1,5 @@
+def extern f() -> int {
+    i : int;
+    j : int;
+    return i + j;
+}

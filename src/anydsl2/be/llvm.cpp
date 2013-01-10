@@ -140,14 +140,20 @@ void CodeGen::emit() {
                     primops[primop] = emit(primop);
 
             // terminate bb
-            if (lambda->to() == ret_param) {
+            if (lambda->to() == ret_param) { // return
                 switch (lambda->args().size()) {
                     case 0: builder.CreateRetVoid(); break;
-                    case 1: builder.CreateRet(lookup(lambda->arg(0)));
+                    case 1: builder.CreateRet(lookup(lambda->arg(0))); break;
                     default: assert(false && "TODO");
                 }
-            } else if (Lambda* to_lambda = lambda->to()->isa_lambda()) {
-                if (to_lambda->is_bb())      // case a) ordinary jump
+            } else if (const Select* select = lambda->to()->isa<Select>()) { // conditional branch
+                llvm::Value* cond = lookup(select->cond());
+                llvm::BasicBlock* tbb = bbs[select->tval()->as<Lambda>()->sid()];
+                llvm::BasicBlock* fbb = bbs[select->fval()->as<Lambda>()->sid()];
+                builder.CreateCondBr(cond, tbb, fbb);
+            } else {
+                Lambda* to_lambda = lambda->to()->as_lambda();
+                if (to_lambda->is_bb())      // ordinary jump
                     builder.CreateBr(bbs[to_lambda->sid()]);
                 else {
                     // put all first-order args into an array
@@ -165,20 +171,14 @@ void CodeGen::emit() {
                     args.shrink(i);
                     llvm::CallInst* call = builder.CreateCall(fcts[to_lambda], llvm_ref(args));
                     
-                    if (ret_arg == ret_param)       // case b) call + return
+                    if (ret_arg == ret_param)       // call + return
                         builder.CreateRet(call); 
-                    else {                          // case c) call + continuation
+                    else {                          // call + continuation
                         Lambda* succ = ret_arg->as_lambda();
                         params[succ->param(0)] = call;
                         builder.CreateBr(bbs[succ->sid()]);
                     }
                 }
-            } else {                        // case 2: branch
-                const Select* select = lambda->to()->as<Select>();
-                llvm::Value* cond = lookup(select->cond());
-                llvm::BasicBlock* tbb = bbs[select->tval()->as<Lambda>()->sid()];
-                llvm::BasicBlock* fbb = bbs[select->fval()->as<Lambda>()->sid()];
-                builder.CreateCondBr(cond, tbb, fbb);
             }
         }
 

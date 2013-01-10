@@ -99,7 +99,7 @@ void CFGBuilder::transform(Lambda* lambda) {
 
 do_dropping:
 #endif
-            target = scope.drop(indices, done.with, true, generic_map);
+            target = scope.drop(indices, done.with, generic_map);
             // store dropped entry with the specified arguments
             done.lambda = target;
             done_entries.insert(done);

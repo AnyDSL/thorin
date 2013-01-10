@@ -57,7 +57,6 @@ public:
     bool is_returning() const;
     bool is_bb() const;
 
-    LambdaSet targets() const;
     LambdaSet succs() const;
     LambdaSet preds() const;
     LambdaSet direct_preds() const;

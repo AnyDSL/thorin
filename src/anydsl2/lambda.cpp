@@ -110,13 +110,6 @@ LambdaSet Lambda::direct_preds() const {
     return result;
 }
 
-LambdaSet Lambda::targets() const {
-    LambdaSet result;
-    find_lambdas(to(), result);
-
-    return result;
-}
-
 LambdaSet Lambda::succs() const {
     LambdaSet result;
     for_all (def, ops())

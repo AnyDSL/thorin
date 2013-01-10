@@ -32,14 +32,14 @@ public:
     World& world() const { return entry()->world(); }
     FreeVariables free_variables() const;
 
-    Lambda* clone(bool self = true, const GenericMap& generic_map = GenericMap());
+    Lambda* clone(const GenericMap& generic_map = GenericMap());
     Lambda* drop(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
-                 bool self = true, const GenericMap& generic_map = GenericMap());
+                 const GenericMap& generic_map = GenericMap());
     Lambda* lift(ArrayRef<const Def*> to_lift, 
-                 bool self = true, const GenericMap& generic_map = GenericMap());
+                 const GenericMap& generic_map = GenericMap());
     Lambda* mangle(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
                    ArrayRef<const Def*> to_lift, 
-                   bool self = true, const GenericMap& generic_map = GenericMap());
+                   const GenericMap& generic_map = GenericMap());
 
     const DomTree& domtree() const;
     const LoopForestNode* loopforest() const;

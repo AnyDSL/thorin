@@ -202,7 +202,7 @@ class Mapper {
 public:
 
     Mapper(const Scope& scope, ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
-           ArrayRef<const Def*> to_lift, bool self, const GenericMap& generic_map)
+           ArrayRef<const Def*> to_lift, const GenericMap& generic_map)
         : scope(scope)
         , to_drop(to_drop)
         , drop_with(drop_with)
@@ -210,7 +210,6 @@ public:
         , generic_map(generic_map)
         , world(scope.world())
         , pass(world.new_pass())
-        , self(self)
     {}
 
     Lambda* mangle();
@@ -236,7 +235,6 @@ public:
     size_t pass;
     Lambda* nentry;
     Lambda* oentry;
-    bool self;
 };
 
 //------------------------------------------------------------------------------
@@ -308,7 +306,7 @@ void Mapper::map_body(Lambda* olambda, Lambda* nlambda) {
     const Def* ntarget = ops.front();               // new target of nlambda
 
     // check whether we can optimize tail recursion
-    if (self && ntarget == oentry) {
+    if (ntarget == oentry) {
         bool substitute = true;
         for (size_t i = 0, e = to_drop.size(); i != e && substitute; ++i)
             substitute &= nargs[to_drop[i]] == drop_with[i];
@@ -345,21 +343,21 @@ const Def* Mapper::drop(const Def* odef) {
 
 //------------------------------------------------------------------------------
 
-Lambda* Scope::clone(bool self, const GenericMap& generic_map) { 
-    return mangle(Array<size_t>(), Array<const Def*>(), Array<const Def*>(), self, generic_map);
+Lambda* Scope::clone(const GenericMap& generic_map) { 
+    return mangle(Array<size_t>(), Array<const Def*>(), Array<const Def*>(), generic_map);
 }
 
-Lambda* Scope::drop(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, bool self, const GenericMap& generic_map) {
-    return mangle(to_drop, drop_with, Array<const Def*>(), self, generic_map);
+Lambda* Scope::drop(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, const GenericMap& generic_map) {
+    return mangle(to_drop, drop_with, Array<const Def*>(), generic_map);
 }
 
-Lambda* Scope::lift(ArrayRef<const Def*> to_lift, bool self, const GenericMap& generic_map) {
-    return mangle(Array<size_t>(), Array<const Def*>(), to_lift, self, generic_map);
+Lambda* Scope::lift(ArrayRef<const Def*> to_lift, const GenericMap& generic_map) {
+    return mangle(Array<size_t>(), Array<const Def*>(), to_lift, generic_map);
 }
 
 Lambda* Scope::mangle(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
-                       ArrayRef<const Def*> to_lift, bool self, const GenericMap& generic_map) {
-    return Mapper(*this, to_drop, drop_with, to_lift, self, generic_map).mangle();
+                       ArrayRef<const Def*> to_lift, const GenericMap& generic_map) {
+    return Mapper(*this, to_drop, drop_with, to_lift, generic_map).mangle();
 }
 
 //------------------------------------------------------------------------------

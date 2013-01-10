@@ -54,9 +54,6 @@ public:
 
     const Param* append_param(const Type* type, const std::string& name = "");
 
-    bool is_returning() const;
-    bool is_bb() const;
-
     LambdaSet succs() const;
     LambdaSet preds() const;
     LambdaSet direct_preds() const;
@@ -84,6 +81,8 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
      * @endcode
      */
     bool is_cascading() const;
+    bool is_returning() const;
+    bool is_bb() const;
 
     void dump(bool fancy = false, int indent = 0) const;
 
@@ -110,9 +109,6 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     void branch(const Def* cond, const Def* tto, const Def* fto);
 
 private:
-
-    template<bool fo> Array<const Param*> classify_params() const;
-    template<bool fo> Array<const Def*> classify_args() const;
 
     virtual void vdump(Printer& printer) const;
 

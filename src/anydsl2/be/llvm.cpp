@@ -101,13 +101,18 @@ void CodeGen::emit() {
         llvm::Function* fct = lf.second;
 
         // map params
+        const Param* ret_param = 0;
         llvm::Function::arg_iterator arg = fct->arg_begin();
-        for_all (param, lambda->fo_params()) {
-            arg->setName(param->name);
-            params[param] = arg++;
+        for_all (param, lambda->params()) {
+            if (param->order() == 0) {
+                arg->setName(param->name);
+                params[param] = arg++;
+            } else {
+                assert(!ret_param);
+                ret_param = param;
+            }
         }
 
-        const Param* ret_param = lambda->ho_params().front();
         Scope scope(lambda);
         BBMap bbs(scope.size());
 
@@ -135,39 +140,40 @@ void CodeGen::emit() {
                     primops[primop] = emit(primop);
 
             // terminate bb
-            size_t num_targets = lambda->targets().size();
-            if (num_targets == 0) {         // case 0: return
-                // this is a return
-                assert(lambda->to()->as<Param>() == ret_param);
-                //assert(lambda->args().size() == 1);
-                // return a value
-                builder.CreateRet(lookup(lambda->arg(0)));
-            } else if (num_targets == 1) {  // case 1: three sub-cases
-                Lambda* tolambda = lambda->to()->as_lambda();
-
-                if (tolambda->is_bb())      // case a) ordinary jump
-                    builder.CreateBr(bbs[tolambda->sid()]);
+            if (lambda->to() == ret_param) {
+                switch (lambda->args().size()) {
+                    case 0: builder.CreateRetVoid(); break;
+                    case 1: builder.CreateRet(lookup(lambda->arg(0)));
+                    default: assert(false && "TODO");
+                }
+            } else if (Lambda* to_lambda = lambda->to()->isa_lambda()) {
+                if (to_lambda->is_bb())      // case a) ordinary jump
+                    builder.CreateBr(bbs[to_lambda->sid()]);
                 else {
                     // put all first-order args into an array
                     Array<llvm::Value*> args(lambda->args().size() - 1);
                     size_t i = 0;
-                    for_all (fo_arg, lambda->fo_args())
-                        if (!fo_arg->type()->isa<Mem>())
-                            args[i++] = lookup(fo_arg);
+                    const Def* ret_arg = 0;
+                    for_all (arg, lambda->args())
+                        if (arg->order() == 0) {
+                            if (!arg->type()->isa<Mem>())
+                                args[i++] = lookup(arg);
+                        } else {
+                            assert(!ret_arg);
+                            ret_arg = arg;
+                        }
                     args.shrink(i);
-                    llvm::CallInst* call = builder.CreateCall(fcts[tolambda], llvm_ref(args));
+                    llvm::CallInst* call = builder.CreateCall(fcts[to_lambda], llvm_ref(args));
                     
-                    const Def* ho_arg = lambda->ho_args().front();
-                    if (ho_arg == ret_param)        // case b) call + return
+                    if (ret_arg == ret_param)       // case b) call + return
                         builder.CreateRet(call); 
                     else {                          // case c) call + continuation
-                        Lambda* succ = ho_arg->as_lambda();
+                        Lambda* succ = ret_arg->as_lambda();
                         params[succ->param(0)] = call;
                         builder.CreateBr(bbs[succ->sid()]);
                     }
                 }
             } else {                        // case 2: branch
-                assert(num_targets == 2);
                 const Select* select = lambda->to()->as<Select>();
                 llvm::Value* cond = lookup(select->cond());
                 llvm::BasicBlock* tbb = bbs[select->tval()->as<Lambda>()->sid()];

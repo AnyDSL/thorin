@@ -550,9 +550,11 @@ void World::dead_code_elimination() {
 
     for_all (lambda, lambdas()) {
         if (lambda->attr().is_extern()) {
-            for_all (param, lambda->ho_params()) {
-                for_all (use, param->uses())
-                    dce_insert(pass, use.def());
+            for_all (param, lambda->params()) {
+                if (param->order() >= 1) {
+                    for_all (use, param->uses())
+                        dce_insert(pass, use.def());
+                }
             }
         }
     }

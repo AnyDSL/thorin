@@ -470,7 +470,12 @@ void ReturnStmt::check(Sema& sema) const {
         const Pi* pi = lambda()->pi();
         const Type* ret_type = return_type(pi);
 
-        if (!ret_type->isa<NoRet>()) {
+        if (ret_type->isa<Void>()) {
+            if (!expr())
+                return;
+            else
+                sema.error(expr()) << "return expression in a function returning 'void'\n";
+        } else if (!ret_type->isa<NoRet>()) {
             if (expr()->check(sema)->isa<TypeError>())
                 return;
             if (ret_type->check_with(expr()->type())) {

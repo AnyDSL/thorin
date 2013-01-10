@@ -54,15 +54,10 @@ public:
 
     const Param* append_param(const Type* type, const std::string& name = "");
 
-    Array<const Param*> fo_params() const;
-    Array<const Param*> ho_params() const;
-    Array<const Def*> fo_args() const;
-    Array<const Def*> ho_args() const;
     bool is_returning() const;
     bool is_bb() const;
 
     LambdaSet targets() const;
-    LambdaSet hos() const;
     LambdaSet succs() const;
     LambdaSet preds() const;
     LambdaSet direct_preds() const;

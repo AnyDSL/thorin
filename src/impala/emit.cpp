@@ -75,10 +75,9 @@ anydsl2::Fct* CodeGen::create_fct(const Lambda& lambda, Symbol symbol) {
 void Prg::emit(CodeGen& cg) const {
     for_all (f, fcts()) {
         anydsl2::Lambda* lambda = cg.create_fct(f->lambda(), f->symbol())->top();
+        cg.root->insert(f->symbol(), f->lambda().air_fct()->top());
         if (f->symbol() == Symbol("main"))
             lambda->attr().set_extern();
-            
-        cg.root->nest(f->symbol(), f->lambda().air_fct());
     }
 
     for_all (f, fcts())
@@ -87,7 +86,7 @@ void Prg::emit(CodeGen& cg) const {
 
 const anydsl2::Lambda* Lambda::emit(CodeGen& cg, BB* parent, const char* what) const {
     for_all (f, body()->fcts())
-        air_fct()->nest(f->symbol(), cg.create_fct(f->lambda(), f->symbol()));
+        air_fct()->insert(f->symbol(), cg.create_fct(f->lambda(), f->symbol())->top());
 
     air_fct()->set_parent(parent);
     BB* oldBB = cg.curBB;

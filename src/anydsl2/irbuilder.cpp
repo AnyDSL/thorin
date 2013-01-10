@@ -264,10 +264,6 @@ BB* Fct::createBB(const std::string& name /*= ""*/) {
 }
 
 Var* Fct::lookup_top(Symbol symbol, const Type* type) {
-    LetRec::const_iterator i = letrec_.find(symbol);
-    if (i != letrec_.end())
-        return insert(symbol, i->second->top());
-
     if (parent())
         return parent()->lookup(symbol, type);
 
@@ -281,11 +277,6 @@ void Fct::emit() {
         bb->emit();
 
     BB::emit();
-}
-
-void Fct::nest(Symbol symbol, Fct* fct) {
-    assert(letrec_.find(symbol) == letrec_.end());
-    letrec_[symbol] = fct;
 }
 
 //------------------------------------------------------------------------------

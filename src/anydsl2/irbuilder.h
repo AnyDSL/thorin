@@ -24,7 +24,6 @@ class World;
 typedef std::vector<const Param*> In;
 typedef std::vector<const Def*> Out;
 typedef boost::unordered_set<BB*> BBs;
-typedef boost::unordered_map<Symbol, Fct*> LetRec;
 
 //------------------------------------------------------------------------------
 
@@ -163,12 +162,10 @@ public:
     void emit();
     World& world() { return world_; }
     Var* lookup_top(Symbol symbol, const Type* type);
-    void nest(Symbol symbol, Fct* fct);
     const Param* ret() const { return ret_; }
 
     BB* parent() const { return parent_; }
     void set_parent(BB* parent) { parent_ = parent; }
-    LetRec& letrec() { return letrec_; }
 
 private:
 
@@ -176,7 +173,6 @@ private:
     const Param* ret_;
     BB* parent_;
     std::vector<BB*> cfg_;
-    LetRec letrec_;
 };
 
 //------------------------------------------------------------------------------

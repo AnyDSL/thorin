@@ -1,0 +1,9 @@
+def main(i : int) -> int {
+    a : int;
+    if (i == 0)
+        a = 23;
+    else
+        a = 42;
+
+    return a;
+}

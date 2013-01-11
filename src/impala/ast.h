@@ -113,17 +113,18 @@ protected:
 class VarDecl : public Decl {
 public:
 
-    VarDecl(const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2)
+    VarDecl(size_t index, const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2)
         : Decl(tok, type, pos2)
+        , index_(index)
     {}
 
+    size_t index() const { return index_; }
     virtual void vdump(Printer& p) const;
     anydsl2::Var* emit(CodeGen& cg) const;
 
 protected:
 
-    anydsl2::Symbol symbol_;
-    const anydsl2::Type* type_;
+    size_t index_;
 };
 
 class NamedFct : public Decl {

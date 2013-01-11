@@ -76,7 +76,7 @@ public:
     const Decl* parse_decl();
     void parse_globals();
     void parse_lambda(Lambda* lambda);
-    const Fct* parse_fct();
+    const NamedFct* parse_named_fct();
 
     // expressions
     const Expr* parse_expr(Prec prec);
@@ -355,7 +355,7 @@ const Decl* Parser::parse_decl() {
 void Parser::parse_globals() {
     while (true) {
         switch (la()) {
-            case Token::DEF:         prg->fcts_.push_back(parse_fct()); continue;
+            case Token::DEF:         prg->named_fcts_.push_back(parse_named_fct()); continue;
             case Token::END_OF_FILE: return;
 
             // consume token nobody wants to have in order to prevent infinite loop
@@ -413,16 +413,16 @@ void Parser::parse_lambda(Lambda* lambda) {
     IMPALA_POP(cur_lambda);
 }
 
-const Fct* Parser::parse_fct() {
+const NamedFct* Parser::parse_named_fct() {
     Position pos1 = eat(Token::DEF).pos1();
     bool ext = accept(Token::EXTERN);
     Token id = try_id("function identifier");
 
-    Fct* fct = new Fct();
-    parse_lambda(&fct->lambda_);
-    fct->set(new Decl(id, fct->lambda().pi(), prev_loc.pos2()), ext);
+    NamedFct* f = new NamedFct(ext);
+    parse_lambda(&f->lambda_);
+    f->set(id, f->lambda().pi(), prev_loc.pos2());
 
-    return fct;
+    return f;
 }
 
 const ScopeStmt* Parser::parse_scope() {
@@ -432,13 +432,14 @@ const ScopeStmt* Parser::parse_scope() {
     expect(Token::L_BRACE, "scope statement");
 
     Stmts& stmts = scope->stmts_;
-    Fcts& fcts = scope->fcts_;
+    NamedFcts& named_fcts = scope->named_fcts_;
 
     while (true) {
         if (la() == Token::DEF) {
-            const FctStmt* fct_stmt = new FctStmt(parse_fct());
-            stmts.push_back(fct_stmt);
-            fcts.push_back(fct_stmt->fct());
+            const NamedFct* named_fct = parse_named_fct();
+            const NamedFctStmt* named_fct_stmt = new NamedFctStmt(named_fct);
+            stmts.push_back(named_fct_stmt);
+            named_fcts.push_back(named_fct);
         } else if (is_stmt())
             stmts.push_back(parse_stmt());
         else

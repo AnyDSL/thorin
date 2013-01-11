@@ -193,10 +193,10 @@ bool check(World& world, const Prg* prg) {
 //------------------------------------------------------------------------------
 
 void Prg::check(Sema& sema) const {
-    for_all (f, fcts())
-        f->decl()->check(sema);
+    for_all (f, named_fcts())
+        f->as<Decl>()->check(sema);
 
-    for_all (f, fcts())
+    for_all (f, named_fcts())
         f->check(sema);
 }
 
@@ -222,8 +222,8 @@ void Lambda::check(Sema& sema) const {
     propagate_set(pi(), bound);
     sema.bound_generics_.push_back(bound);
 
-    for_all (f, body()->fcts())
-        f->decl()->check(sema);
+    for_all (f, body()->named_fcts())
+        f->as<Decl>()->check(sema);
 
     for_all (p, params())
         p->check(sema);
@@ -235,7 +235,7 @@ void Lambda::check(Sema& sema) const {
     sema.pop_scope();
 }
 
-void Fct::check(Sema& sema) const {
+void NamedFct::check(Sema& sema) const {
     lambda().check(sema);
 }
 
@@ -494,7 +494,7 @@ void ReturnStmt::check(Sema& sema) const {
         sema.error(this) << "continuation is not allowed to use 'return'\n";
 }
 
-void FctStmt::check(Sema& sema) const { fct()->check(sema); }
+void NamedFctStmt::check(Sema& sema) const { named_fct()->check(sema); }
 
 
 void ScopeStmt::check(Sema& sema) const {

@@ -18,7 +18,7 @@
 namespace anydsl2 {
     class BB;
     class Def;
-    class Fct;
+    class NamedFct;
     class Ref;
     class Var;
 }
@@ -28,7 +28,7 @@ namespace impala {
 class CodeGen;
 class Decl;
 class Expr;
-class Fct;
+class NamedFct;
 class Printer;
 class ScopeStmt;
 class Sema;
@@ -36,7 +36,7 @@ class Stmt;
 
 typedef anydsl2::AutoVector<const Decl*> Decls;
 typedef anydsl2::AutoVector<const Expr*> Exprs;
-typedef std::vector<const Fct*> Fcts;
+typedef std::vector<const NamedFct*> NamedFcts;
 typedef anydsl2::AutoVector<const Stmt*> Stmts;
 typedef std::auto_ptr<const anydsl2::Ref> RefPtr;
 
@@ -54,11 +54,11 @@ public:
     virtual void vdump(Printer& p) const;
     void emit(CodeGen& cg) const;
 
-    const Fcts& fcts() const { return fcts_; }
+    const NamedFcts& named_fcts() const { return named_fcts_; }
 
 private:
 
-    anydsl2::AutoVector<const Fct*> fcts_;
+    anydsl2::AutoVector<const NamedFct*> named_fcts_;
 
     friend class Parser;
 };
@@ -85,35 +85,17 @@ private:
     const anydsl2::Pi* pi_;
     mutable anydsl2::AutoPtr<anydsl2::Fct> air_fct_;
 
-    friend class Fct;
+    friend class NamedFct;
     friend class LambdaExpr;
     friend class Parser;
     friend class CodeGen;
 };
 
-class Fct : public ASTNode {
-public:
-
-    const Decl* decl() const { return decl_; }
-    anydsl2::Symbol symbol() const;
-
-    void check(Sema& sema) const;
-    virtual void vdump(Printer& p) const;
-    void emit(CodeGen& cg) const;
-    const Lambda& lambda() const { return lambda_; }
-
-private:
-
-    void set(const Decl* decl, bool ext);
-
-    anydsl2::AutoPtr<const Decl> decl_;
-    Lambda lambda_;
-    bool extern_;
-
-    friend class Parser;
-};
-
 class Decl : public ASTNode {
+protected:
+
+    Decl() {}
+
 public:
 
     Decl(const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2);
@@ -125,10 +107,34 @@ public:
     virtual void vdump(Printer& p) const;
     anydsl2::Var* emit(CodeGen& cg) const;
 
-private:
+protected:
 
     anydsl2::Symbol symbol_;
     const anydsl2::Type* type_;
+};
+
+class NamedFct : public Decl {
+public:
+
+    NamedFct(bool ext)
+        : extern_(ext)
+    {}
+
+    void set(const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2);
+
+    void check(Sema& sema) const;
+    virtual void vdump(Printer& p) const;
+    void emit(CodeGen& cg) const;
+    const Lambda& lambda() const { return lambda_; }
+
+private:
+
+    void set(const Decl* decl, bool ext);
+
+    Lambda lambda_;
+    bool extern_;
+
+    friend class Parser;
 };
 
 //------------------------------------------------------------------------------
@@ -532,14 +538,14 @@ private:
     const Lambda* lambda_;
 };
 
-class FctStmt : public Stmt {
+class NamedFctStmt : public Stmt {
 public:
 
-    FctStmt(const Fct* fct)
-        : fct_(fct)
+    NamedFctStmt(const NamedFct* named_fct)
+        : named_fct_(named_fct)
     {}
 
-    const Fct* fct() const { return fct_; }
+    const NamedFct* named_fct() const { return named_fct_; }
 
     virtual void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
@@ -547,7 +553,7 @@ public:
 
 private:
 
-    anydsl2::AutoPtr<const Fct> fct_;
+    anydsl2::AutoPtr<const NamedFct> named_fct_;
 };
 
 class ScopeStmt : public Stmt {
@@ -559,7 +565,7 @@ public:
     }
 
     const Stmts& stmts() const { return stmts_; }
-    const Fcts& fcts() const { return fcts_; }
+    const NamedFcts& named_fcts() const { return named_fcts_; }
     void check_stmts(Sema& sema) const;
 
     virtual bool empty() const { return stmts_.empty(); }
@@ -570,7 +576,7 @@ public:
 private:
 
     Stmts stmts_;
-    Fcts fcts_;
+    NamedFcts named_fcts_;
 
     friend class Parser;
 };

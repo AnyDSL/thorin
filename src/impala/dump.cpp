@@ -47,7 +47,7 @@ void ASTNode::dump() const {
 }
 
 void Prg::vdump(Printer& p) const {
-    for_all (f, fcts()) {
+    for_all (f, named_fcts()) {
         f->vdump(p);
         p.newline();
     }
@@ -80,8 +80,8 @@ void Lambda::dump(Printer& p) const {
     p.dump_block(body());
 }
 
-void Fct::vdump(Printer& p) const {
-    p << "def " << decl()->symbol();
+void NamedFct::vdump(Printer& p) const {
+    p << "def " << symbol();
     lambda_.dump(p);
 }
 
@@ -317,7 +317,7 @@ void ReturnStmt::vdump(Printer& p) const {
     p << ';';
 }
 
-void FctStmt::vdump(Printer& p) const { fct()->vdump(p); }
+void NamedFctStmt::vdump(Printer& p) const { named_fct()->vdump(p); }
 
 void ScopeStmt::vdump(Printer& p) const {
     p << "{";

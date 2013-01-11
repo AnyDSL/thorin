@@ -24,13 +24,11 @@ Decl::Decl(const Token& tok, const Type* type, const Position& pos2)
 
 bool Lambda::is_continuation() const { return return_type(pi())->isa<NoRet>(); }
 
-void Fct::set(const Decl* decl, bool ext) {
-    decl_ = decl;
-    extern_ = ext;
-    set_loc(decl->pos1(), lambda().body()->pos2());
+void NamedFct::set(const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2) {
+    symbol_ = tok.symbol();
+    type_ = type;
+    set_loc(tok.pos1(), pos2);
 }
-
-Symbol Fct::symbol() const { return decl_->symbol(); }
 
 /*
  * Expr

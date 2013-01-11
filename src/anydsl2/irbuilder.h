@@ -51,19 +51,19 @@ class Var {
 public:
 
     Var() {}
-    Var(Symbol symbol, const Def* def)
-        : symbol_(symbol)
+    Var(size_t handle, const Def* def)
+        : handle_(handle)
         , def_(def)
     {}
     virtual ~Var() {}
 
-    Symbol symobl() const { return symbol_; }
+    size_t handle() const { return handle_; }
     virtual const Def* load() const { return def_; }
     virtual void store(const Def* def) { def_ = def; }
 
 protected:
 
-    Symbol symbol_;
+    size_t handle_;
     const Def* def_;
 };
 
@@ -89,8 +89,8 @@ private:
 
 public:
 
-    Var* insert(Symbol symbol, const Def* def);
-    Var* lookup(Symbol symbol, const Type* type);
+    Var* insert(size_t handle, const Def* def);
+    Var* lookup(size_t handle, const Type* type, const std::string& name = "");
     void seal();
 
     void jump(BB* to);
@@ -116,7 +116,7 @@ public:
 private:
 
     void link(BB* to);
-    void fix(Symbol symbol, Todo todo);
+    void fix(size_t handle, Todo todo);
 
     bool sealed_;
     bool visited_;
@@ -135,10 +135,10 @@ private:
     Lambda* top_;
     Lambda* cur_;
 
-    typedef boost::unordered_map<Symbol, Var*> VarMap;
+    typedef boost::unordered_map<size_t, Var*> VarMap;
     VarMap vars_;
 
-    typedef boost::unordered_map<Symbol, Todo> Todos;
+    typedef boost::unordered_map<size_t, Todo> Todos;
     Todos todos_;
 
     friend class Fct;
@@ -154,14 +154,14 @@ public:
     {
         fct_ = this;
     }
-    Fct(World& world, const Pi* pi, ArrayRef<Symbol> symbols, 
+    Fct(World& world, const Pi* pi, ArrayRef<size_t> handles, ArrayRef<Symbol> symbols, 
         size_t return_index, const std::string& name);
     ~Fct();
 
     BB* createBB(const std::string& name = "");
     void emit();
     World& world() { return world_; }
-    Var* lookup_top(Symbol symbol, const Type* type);
+    Var* lookup_top(size_t handle, const Type* type, const std::string& name);
     const Param* ret() const { return ret_; }
 
     BB* parent() const { return parent_; }

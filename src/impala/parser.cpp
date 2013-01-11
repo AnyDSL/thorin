@@ -177,7 +177,7 @@ private:
     const Loop* cur_loop;
     const Lambda* cur_lambda;
     Generics* cur_generics;
-    size_t cur_var_index;
+    size_t cur_var_handle;
     size_t generic_counter;
     Prg* prg;
     int counter;
@@ -208,7 +208,7 @@ Parser::Parser(World& world, std::istream& stream, const std::string& filename)
     , cur_loop(0)
     , cur_lambda(0)
     , cur_generics(0)
-    , cur_var_index(0)
+    , cur_var_handle(0)
     , generic_counter(0)
     , prg(new Prg())
     , counter(0)
@@ -351,7 +351,7 @@ const VarDecl* Parser::parse_var_decl() {
     expect(Token::COLON, "declaration");
     const Type* type = try_type("declaration");
 
-    return new VarDecl(cur_var_index++, tok, type, prev_loc.pos2());
+    return new VarDecl(cur_var_handle++, tok, type, prev_loc.pos2());
 }
 
 void Parser::parse_globals() {
@@ -381,7 +381,7 @@ void Parser::parse_generic_list() {
 
 void Parser::parse_lambda(Lambda* lambda) {
     IMPALA_PUSH(cur_lambda, lambda);
-    IMPALA_PUSH(cur_var_index, cur_var_index);
+    IMPALA_PUSH(cur_var_handle, cur_var_handle);
 
     Generics generics(cur_generics, builder);
     cur_generics = &generics;
@@ -392,7 +392,7 @@ void Parser::parse_lambda(Lambda* lambda) {
     PARSE_COMMA_LIST
     (
         {
-            const Decl* param = parse_var_decl();
+            const VarDecl* param = parse_var_decl();
             lambda->params_.push_back(param);
             arg_types.push_back(param->type());
         },
@@ -405,7 +405,7 @@ void Parser::parse_lambda(Lambda* lambda) {
         Position pos1 = prev_loc.pos1();
         arg_types.push_back(parse_return_type());
         Position pos2 = prev_loc.pos2();
-        lambda->params_.push_back(new VarDecl(cur_var_index++, Token(pos1, "<return>"), arg_types.back(), pos2));
+        lambda->params_.push_back(new VarDecl(cur_var_handle++, Token(pos1, "<return>"), arg_types.back(), pos2));
     }
 
     const Pi* pi = world.pi(arg_types);
@@ -413,7 +413,7 @@ void Parser::parse_lambda(Lambda* lambda) {
     lambda->set(pi, body);
 
     cur_generics = generics.parent();
-    IMPALA_POP(cur_var_index);
+    IMPALA_POP(cur_var_handle);
     IMPALA_POP(cur_lambda);
 }
 

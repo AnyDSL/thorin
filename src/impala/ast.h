@@ -26,7 +26,7 @@ namespace anydsl2 {
 namespace impala {
 
 class CodeGen;
-class Decl;
+class VarDecl;
 class Expr;
 class NamedFct;
 class Printer;
@@ -34,7 +34,7 @@ class ScopeStmt;
 class Sema;
 class Stmt;
 
-typedef anydsl2::AutoVector<const Decl*> Decls;
+typedef anydsl2::AutoVector<const VarDecl*> VarDecls;
 typedef anydsl2::AutoVector<const Expr*> Exprs;
 typedef std::vector<const NamedFct*> NamedFcts;
 typedef anydsl2::AutoVector<const Stmt*> Stmts;
@@ -67,7 +67,8 @@ class Lambda {
 public:
 
     const ScopeStmt* body() const { return body_; }
-    const Decls& params() const { return params_; }
+    const VarDecl* param(size_t i) const { return params_[i]; }
+    const VarDecls& params() const { return params_; }
     const anydsl2::Pi* pi() const { return pi_; }
     bool is_continuation() const;
     anydsl2::Fct* air_fct() const { return air_fct_; }
@@ -80,7 +81,7 @@ private:
 
     void set(const anydsl2::Pi* pi, const ScopeStmt* body) { pi_ = pi; body_ = body; }
 
-    Decls params_;
+    VarDecls params_;
     anydsl2::AutoPtr<const ScopeStmt> body_;
     const anydsl2::Pi* pi_;
     mutable anydsl2::AutoPtr<anydsl2::Fct> air_fct_;
@@ -113,18 +114,18 @@ protected:
 class VarDecl : public Decl {
 public:
 
-    VarDecl(size_t index, const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2)
+    VarDecl(size_t handle, const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2)
         : Decl(tok, type, pos2)
-        , index_(index)
+        , handle_(handle)
     {}
 
-    size_t index() const { return index_; }
+    size_t handle() const { return handle_; }
     virtual void vdump(Printer& p) const;
     anydsl2::Var* emit(CodeGen& cg) const;
 
 protected:
 
-    size_t index_;
+    size_t handle_;
 };
 
 class NamedFct : public Decl {

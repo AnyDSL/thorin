@@ -63,9 +63,8 @@ void Lambda::dump(Printer& p) const {
 #endif
     
     const Type* ret_type = return_type(pi());
-    ArrayRef<const Decl*> params_ref = ret_type->isa<NoRet>() 
-                                     ? params() 
-                                     : ArrayRef<const Decl*>(&params().front(), params().size() - 1);
+    ArrayRef<const VarDecl*> params_ref = 
+        ret_type->isa<NoRet>() ? params() : ArrayRef<const VarDecl*>(&params().front(), params().size() - 1);
 
     p << '(';
     ANYDSL2_DUMP_COMMA_LIST(p, params_ref);

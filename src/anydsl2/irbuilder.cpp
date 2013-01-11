@@ -27,8 +27,8 @@ BB::~BB() {
         delete p.second;
 }
 
-Var* BB::insert(Symbol symbol, const Def* def) {
-    VarMap::iterator i = vars_.find(symbol);
+Var* BB::insert(size_t handle, const Def* def) {
+    VarMap::iterator i = vars_.find(handle);
 
     if (i != vars_.end()) {
         Var* var = i->second;
@@ -36,14 +36,14 @@ Var* BB::insert(Symbol symbol, const Def* def) {
         return var;
     }
 
-    Var* var = new Var(symbol, def);
-    vars_[symbol] = var;
+    Var* var = new Var(handle, def);
+    vars_[handle] = var;
 
     return var;
 }
 
-Var* BB::lookup(Symbol symbol, const Type* type) {
-    BB::VarMap::iterator i = vars_.find(symbol);
+Var* BB::lookup(size_t handle, const Type* type, const std::string& name) {
+    BB::VarMap::iterator i = vars_.find(handle);
 
     // if var is known -> return current var
     if (i != vars_.end())
@@ -51,37 +51,37 @@ Var* BB::lookup(Symbol symbol, const Type* type) {
 
     // value is undefined
     if (fct_ == this)
-        return fct_->lookup_top(symbol, type);
+        return fct_->lookup_top(handle, type, name);
 
     // insert a 'phi', i.e., create a param and remember to fix the callers
     if (!sealed_ || preds_.size() > 1) {
-        const Param* param = top_->append_param(type, symbol.str());
+        const Param* param = top_->append_param(type, name);
         size_t index = in_.size();
         in_.push_back(param);
-        Var* lvar = insert(symbol, param);
+        Var* lvar = insert(handle, param);
 
         Todo todo(index, type);
 
         if (sealed_)
-            fix(symbol, todo);
+            fix(handle, todo);
         else
-            todos_[symbol] = todo;
+            todos_[handle] = todo;
 
         return lvar;
     }
 
     // unreachable code
     if (preds().empty())
-        return insert(symbol, world().bottom(type));
+        return insert(handle, world().bottom(type));
     
     // look in pred if there exists exactly one pred
     assert(preds().size() == 1);
 
     BB* pred = *preds().begin();
-    Var* lvar = pred->lookup(symbol, type);
+    Var* lvar = pred->lookup(handle, type);
 
     // create copy of lvar in this BB
-    return insert(symbol, lvar->load());
+    return insert(handle, lvar->load());
 }
 
 void BB::seal() {
@@ -99,17 +99,17 @@ void BB::seal() {
         fix(p.first, p.second);
 }
 
-void BB::fix(Symbol symbol, Todo todo) {
+void BB::fix(size_t handle, Todo todo) {
     assert(sealed() && "must be sealed");
 
-    size_t index = todo.index();
+    size_t todo_index = todo.index();
     const Type* type = todo.type();
-    const Param* param = in_[index];
+    const Param* param = in_[todo_index];
     const Def* same = 0;
 
     // find Horspool-like phis
     for_all (pred, preds_) {
-        const Def* def = pred->lookup(symbol, type)->load();
+        const Def* def = pred->lookup(handle, type)->load();
 
         if (def->isa<Undef>() || def == param || same == def)
             continue;
@@ -134,15 +134,15 @@ fix_preds:
         Out& out = pred->out_;
 
         // make potentially room for the new arg
-        if (index >= out.size())
-            out.resize(index + 1);
+        if (todo_index >= out.size())
+            out.resize(todo_index + 1);
 
-        assert(!pred->out_[index] && "already set");
-        out[index] = same ? same : pred->lookup(symbol, type)->load();
+        assert(!pred->out_[todo_index] && "already set");
+        out[todo_index] = same ? same : pred->lookup(handle, type)->load();
     }
 
     if (same)
-        insert(symbol, same);
+        insert(handle, same);
 }
 
 void BB::jump(BB* to) {
@@ -235,20 +235,25 @@ std::string BB::name() const { return top() ? top()->name : std::string(); }
 
 //------------------------------------------------------------------------------
 
-Fct::Fct(World& world, const Pi* pi, ArrayRef<Symbol> symbols, 
+Fct::Fct(World& world, const Pi* pi, ArrayRef<size_t> handles, ArrayRef<Symbol> symbols, 
          size_t return_index, const std::string& name)
     : world_(world)
     , parent_(0)
 {
-    assert(pi->size() == symbols.size());
+    size_t num = pi->size();
+    assert(pi->size() == num);
+    assert(handles.size() == num);
+    assert(symbols.size() == num);
     sealed_ = true;
     fct_ = this;
     cur_ = top_ = world.lambda(pi);
     top_->name = name;
     ret_ = (return_index != size_t(-1) ? top()->param(return_index) : 0);
 
-    for_all2 (param, top_->params(), sym, symbols)
-        param->name = insert(sym, param)->symobl().str();
+    for (size_t i = 0; i < num; ++i) {
+        insert(handles[i], top_->param(i));
+        top_->param(i)->name = symbols[i].str();
+    }
 }
 
 Fct::~Fct() {
@@ -263,13 +268,13 @@ BB* Fct::createBB(const std::string& name /*= ""*/) {
     return bb;
 }
 
-Var* Fct::lookup_top(Symbol symbol, const Type* type) {
+Var* Fct::lookup_top(size_t handle, const Type* type, const std::string& name) {
     if (parent())
-        return parent()->lookup(symbol, type);
+        return parent()->lookup(handle, type, name);
 
     // TODO provide hook instead of fixed functionality
-    std::cerr << "'" << symbol << "'" << " may be undefined" << std::endl;
-    return insert(symbol, world().bottom(type));
+    std::cerr << "'" << name << "'" << " may be undefined" << std::endl;
+    return insert(handle, world().bottom(type));
 }
 
 void Fct::emit() {

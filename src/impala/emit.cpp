@@ -62,14 +62,17 @@ void emit(World& world, const Prg* prg) {
 //------------------------------------------------------------------------------
 
 anydsl2::Fct* CodeGen::create_fct(const Lambda& lambda, Symbol symbol) {
-    size_t size = lambda.params().size();
-    Array<Symbol> symbols(size);
+    size_t num = lambda.params().size();
+    Array<size_t> handles(num);
+    Array<Symbol> symbols(num);
 
-    for_all2 (&sym, symbols, param, lambda.params())
-        sym = param->symbol();
+    for (size_t i = 0; i < num; ++i) {
+        handles[i] = lambda.param(i)->handle();
+        symbols[i] = lambda.param(i)->symbol();
+    }
 
     size_t return_index = return_type(lambda.pi())->isa<NoRet>() ? size_t(-1) : lambda.pi()->size()-1;
-    return lambda.air_fct_ = new anydsl2::Fct(world, lambda.pi(), symbols, return_index, symbol.str());
+    return lambda.air_fct_ = new anydsl2::Fct(world, lambda.pi(), handles, symbols, return_index, symbol.str());
 }
 
 void Prg::emit(CodeGen& cg) const {
@@ -125,7 +128,7 @@ void NamedFct::emit(CodeGen& cg) const {
 }
 
 Var* VarDecl::emit(CodeGen& cg) const {
-    Var* var = cg.curBB->insert(symbol(), cg.world.bottom(type()));
+    Var* var = cg.curBB->insert(handle(), cg.world.bottom(type()));
     var->load()->name = symbol().str();
 
     return var;
@@ -174,7 +177,7 @@ RefPtr Tuple::emit(CodeGen& cg) const {
 RefPtr Id::emit(CodeGen& cg) const {
     if (const NamedFct* named_fct = decl()->isa<NamedFct>())
         return Ref::create(named_fct->lambda().air_fct()->top());
-    return Ref::create(cg.curBB->lookup(symbol(), type()));
+    return Ref::create(cg.curBB->lookup(decl()->as<VarDecl>()->handle(), type(), symbol().str()));
 }
 
 RefPtr PrefixExpr::emit(CodeGen& cg) const {
@@ -222,7 +225,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
 
         // special case for 'a = expr' -> don't use lookup!
         RefPtr lref = op == Token::ASGN && id
-                ? Ref::create(cg.curBB->insert(id->symbol(), cg.world.bottom(id->type())))
+                ? Ref::create(cg.curBB->insert(id->decl()->as<VarDecl>()->handle(), cg.world.bottom(id->type())))
                 : lhs()->emit(cg);
 
         const Def* ldef = lref->load();

@@ -124,7 +124,7 @@ void NamedFct::emit(CodeGen& cg) const {
         lambda().air_fct()->top()->attr().set_extern();
 }
 
-Var* Decl::emit(CodeGen& cg) const {
+Var* VarDecl::emit(CodeGen& cg) const {
     Var* var = cg.curBB->insert(symbol(), cg.world.bottom(type()));
     var->load()->name = symbol().str();
 
@@ -275,7 +275,7 @@ RefPtr Call::emit(CodeGen& cg) const {
 
 void DeclStmt::emit(CodeGen& cg) const {
     if (cg.reachable()) {
-        Var* var = decl()->emit(cg);
+        Var* var = var_decl()->emit(cg);
         if (const Expr* init_expr = init())
             var->store(init_expr->emit(cg)->load());
     }

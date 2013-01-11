@@ -400,20 +400,20 @@ const Type* Call::vcheck(Sema& sema) const {
  */
 
 void DeclStmt::check(Sema& sema) const {
-    decl()->insert(sema);
+    var_decl()->insert(sema);
 
     if (const Expr* init_expr = init()) {
-        if (decl()->type()->check_with(init_expr->check(sema))) {
+        if (var_decl()->type()->check_with(init_expr->check(sema))) {
             GenericMap map = sema.fill_map();
-            if (decl()->type()->infer_with(map, init_expr->type()))
+            if (var_decl()->type()->infer_with(map, init_expr->type()))
                 return;
             else {
                 sema.error(init_expr) << "cannot infer initializing type '" << init_expr->type() << "'\n";
-                sema.error(decl()) << "to declared type '" << decl()->type() << "' with '" << map << "'\n";
+                sema.error(var_decl()) << "to declared type '" << var_decl()->type() << "' with '" << map << "'\n";
             }
         } else {
             sema.error(this) << "initializing expression of type '" << init_expr->type() << "' but '" 
-                << decl()->symbol() << "' declared of type '" << decl()->type() << '\n';
+                << var_decl()->symbol() << "' declared of type '" << var_decl()->type() << '\n';
         }
     }
 }

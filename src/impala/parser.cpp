@@ -73,7 +73,7 @@ public:
     const Type* parse_type();
     const Type* parse_compound_type();
     const Type* parse_return_type();
-    const Decl* parse_decl();
+    const VarDecl* parse_var_decl();
     void parse_globals();
     void parse_lambda(Lambda* lambda);
     const NamedFct* parse_named_fct();
@@ -343,13 +343,13 @@ const Type* Parser::parse_return_type() {
         return world.pi1(ret_type);
 }
 
-const Decl* Parser::parse_decl() {
+const VarDecl* Parser::parse_var_decl() {
     Token tok = la();
     expect(Token::ID, "declaration");
     expect(Token::COLON, "declaration");
     const Type* type = try_type("declaration");
 
-    return new Decl(tok, type, prev_loc.pos2());
+    return new VarDecl(tok, type, prev_loc.pos2());
 }
 
 void Parser::parse_globals() {
@@ -389,7 +389,7 @@ void Parser::parse_lambda(Lambda* lambda) {
     PARSE_COMMA_LIST
     (
         {
-            const Decl* param = parse_decl();
+            const Decl* param = parse_var_decl();
             lambda->params_.push_back(param);
             arg_types.push_back(param->type());
         },
@@ -402,7 +402,7 @@ void Parser::parse_lambda(Lambda* lambda) {
         Position pos1 = prev_loc.pos1();
         arg_types.push_back(parse_return_type());
         Position pos2 = prev_loc.pos2();
-        lambda->params_.push_back(new Decl(Token(pos1, "<return>"), arg_types.back(), pos2));
+        lambda->params_.push_back(new VarDecl(Token(pos1, "<return>"), arg_types.back(), pos2));
     }
 
     const Pi* pi = world.pi(arg_types);
@@ -497,7 +497,7 @@ const ExprStmt* Parser::parse_expr_stmt() {
 }
 
 const DeclStmt* Parser::parse_decl_stmt() {
-    const Decl* decl = parse_decl();
+    const VarDecl* var_decl = parse_var_decl();
 
     // initialization
     const Expr* init = 0;
@@ -508,7 +508,7 @@ const DeclStmt* Parser::parse_decl_stmt() {
 
     expect(Token::SEMICOLON, "the end of an declaration statement");
 
-    return new DeclStmt(decl, init, prev_loc.pos2());
+    return new DeclStmt(var_decl, init, prev_loc.pos2());
 }
 
 const Stmt* Parser::parse_if_else() {

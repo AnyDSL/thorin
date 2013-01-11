@@ -102,8 +102,21 @@ public:
 
     anydsl2::Symbol symbol() const { return symbol_; }
     const anydsl2::Type* type() const { return type_; }
-
     void insert(Sema& sema) const;
+
+protected:
+
+    anydsl2::Symbol symbol_;
+    const anydsl2::Type* type_;
+};
+
+class VarDecl : public Decl {
+public:
+
+    VarDecl(const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2)
+        : Decl(tok, type, pos2)
+    {}
+
     virtual void vdump(Printer& p) const;
     anydsl2::Var* emit(CodeGen& cg) const;
 
@@ -120,12 +133,11 @@ public:
         : extern_(ext)
     {}
 
+    const Lambda& lambda() const { return lambda_; }
     void set(const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2);
-
     void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
     void emit(CodeGen& cg) const;
-    const Lambda& lambda() const { return lambda_; }
 
 private:
 
@@ -394,9 +406,9 @@ private:
 class DeclStmt : public Stmt {
 public:
 
-    DeclStmt(const Decl* decl, const Expr* init, const anydsl2::Position& pos2);
+    DeclStmt(const VarDecl* var_decl, const Expr* init, const anydsl2::Position& pos2);
 
-    const Decl* decl() const { return decl_; }
+    const VarDecl* var_decl() const { return var_decl_; }
     const Expr* init() const { return init_; }
 
     virtual void check(Sema& sema) const;
@@ -405,7 +417,7 @@ public:
 
 private:
 
-    anydsl2::AutoPtr<const Decl> decl_;
+    anydsl2::AutoPtr<const VarDecl> var_decl_;
     anydsl2::AutoPtr<const Expr> init_;
 };
 

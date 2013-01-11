@@ -85,7 +85,7 @@ void NamedFct::vdump(Printer& p) const {
     lambda_.dump(p);
 }
 
-void Decl::vdump(Printer& p) const {
+void VarDecl::vdump(Printer& p) const {
     p << symbol() << " : ";
     p.dump(type());
 }
@@ -247,7 +247,7 @@ void Call::vdump(Printer& p) const {
  */
 
 void DeclStmt::vdump(Printer& p) const {
-    decl()->vdump(p);
+    var_decl()->vdump(p);
 
     if (init()) {
         p << " = ";

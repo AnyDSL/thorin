@@ -111,11 +111,11 @@ ExprStmt::ExprStmt(const Expr* expr, const Position& pos2)
     set_loc(expr->pos1(), pos2);
 }
 
-DeclStmt::DeclStmt(const Decl* decl, const Expr* init, const Position& pos2)
-    : decl_(decl)
+DeclStmt::DeclStmt(const VarDecl* var_decl, const Expr* init, const Position& pos2)
+    : var_decl_(var_decl)
     , init_(init)
 {
-    set_loc(decl->pos1(), pos2);
+    set_loc(var_decl->pos1(), pos2);
 }
 
 IfElseStmt::IfElseStmt(const Position& pos1, const Expr* cond, const Stmt* thenStmt, const Stmt* elseStmt)

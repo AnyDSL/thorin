@@ -68,58 +68,40 @@ const Param* Lambda::append_param(const Type* type, const std::string& name) {
     return param;
 }
 
-static void find_lambdas(const Def* def, LambdaSet& result) {
-    if (Lambda* lambda = def->isa_lambda()) {
-        result.insert(lambda);
-        return;
-    }
-
-    for_all (op, def->ops())
-        find_lambdas(op, result);
-}
-
 template<bool direct>
-inline static void find_preds(Use use, LambdaSet& result) {
-    const Def* def = use.def();
-    if (Lambda* lambda = def->isa_lambda()) {
-        if (!direct || use.index() == 0)
-            result.insert(lambda);
-    } else {
-        assert(def->isa<PrimOp>() && "not a PrimOp");
+static Lambdas find_preds(const Lambda* lambda) {
+    Lambdas result;
 
-        for_all (use, def->uses())
-            find_preds<direct>(use, result);
+    for_all (use, lambda->uses()) {
+        const Def* udef = use.def();
+        if (const Select* select = udef->isa<Select>()) {
+            for_all (use, select->uses()) {
+                assert(use.index() == 0);
+                result.push_back(use.def()->as_lambda());
+            }
+        } else {
+            if (!direct || use.index() == 0)
+                result.push_back(udef->as_lambda());
+        }
     }
-}
-
-LambdaSet Lambda::preds() const {
-    LambdaSet result;
-
-    for_all (use, uses())
-        find_preds<false>(use, result);
 
     return result;
 }
 
-LambdaSet Lambda::direct_preds() const {
-    LambdaSet result;
+Lambdas Lambda::preds() const { return find_preds<false>(this); }
+Lambdas Lambda::direct_preds() const { return find_preds<true>(this); }
 
-    for_all (use, uses())
-        find_preds<true>(use, result);
-
-    return result;
-}
-
-Array<Lambda*> Lambda::direct_succs() const {
+Lambdas Lambda::direct_succs() const {
+    Lambdas result;
+    result.reserve(2);
     if (Lambda* succ = to()->isa_lambda()) {
-        Array<Lambda*> result(1);
-        result[0] = succ;
+        result.push_back(succ);
         return result;
     } else if (to()->isa<Param>())
-        return Array<Lambda*>(0);
+        return result;
 
     const Select* select = to()->as<Select>();
-    Array<Lambda*> result(2);
+    result.resize(2);
     result[0] = select->tval()->as_lambda();
     result[1] = select->fval()->as_lambda();
     return result;

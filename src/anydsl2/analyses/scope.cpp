@@ -50,24 +50,13 @@ Scope::Scope(Lambda* entry) {
     succs_.alloc(num);
     for_all (lambda, rpo_) {
         size_t sid = lambda->sid();
-        //fill_succ_pred(lambda->succs(), succs_[sid]);
-
-        Lambdas l_succs = lambda->succs();
-        Array<Lambda*>& succs = succs_[sid];
-        succs.alloc(l_succs.size());
-        size_t i = 0;
-        for_all (item, l_succs) {
-            if (contains(item))
-                succs[i++] = item;
-        }
-        succs.shrink(i);
-
+        fill_succ_pred(lambda->succs(), succs_[sid]);
         fill_succ_pred(lambda->preds(), preds_[sid]);
     }
 }
 
 template<class T>
-inline void Scope::fill_succ_pred(const LambdaSet& l_succs_preds, T& succs_preds) {
+inline void Scope::fill_succ_pred(const Lambdas& l_succs_preds, T& succs_preds) {
     succs_preds.alloc(l_succs_preds.size());
     size_t i = 0;
     for_all (item, l_succs_preds) {

@@ -56,9 +56,9 @@ public:
     const Param* append_param(const Type* type, const std::string& name = "");
 
     Lambdas succs() const;
-    LambdaSet preds() const;
-    LambdaSet direct_preds() const;
-    Array<Lambda*> direct_succs() const;
+    Lambdas direct_succs() const;
+    Lambdas preds() const;
+    Lambdas direct_preds() const;
     const Params& params() const { return params_; }
     const Param* param(size_t i) const { return params_[i]; }
     const Def* to() const { return op(0); };

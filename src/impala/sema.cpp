@@ -194,7 +194,7 @@ bool check(World& world, const Prg* prg) {
 
 void Prg::check(Sema& sema) const {
     for_all (f, named_fcts())
-        f->as<Decl>()->check(sema);
+        f->insert(sema);
 
     for_all (f, named_fcts())
         f->check(sema);
@@ -223,10 +223,10 @@ void Lambda::check(Sema& sema) const {
     sema.bound_generics_.push_back(bound);
 
     for_all (f, body()->named_fcts())
-        f->as<Decl>()->check(sema);
+        f->insert(sema);
 
     for_all (p, params())
-        p->check(sema);
+        p->insert(sema);
 
     for_all (s, body()->stmts())
         s->check(sema);
@@ -239,7 +239,7 @@ void NamedFct::check(Sema& sema) const {
     lambda().check(sema);
 }
 
-void Decl::check(Sema& sema) const {
+void Decl::insert(Sema& sema) const {
     if (const Decl* decl = sema.clash(symbol())) {
         sema.error(this) << "symbol '" << symbol() << "' already defined\n";
         sema.error(decl) << "previous location here\n";
@@ -400,7 +400,7 @@ const Type* Call::vcheck(Sema& sema) const {
  */
 
 void DeclStmt::check(Sema& sema) const {
-    decl()->check(sema);
+    decl()->insert(sema);
 
     if (const Expr* init_expr = init()) {
         if (decl()->type()->check_with(init_expr->check(sema))) {

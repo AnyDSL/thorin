@@ -103,7 +103,7 @@ public:
     anydsl2::Symbol symbol() const { return symbol_; }
     const anydsl2::Type* type() const { return type_; }
 
-    void check(Sema& sema) const;
+    void insert(Sema& sema) const;
     virtual void vdump(Printer& p) const;
     anydsl2::Var* emit(CodeGen& cg) const;
 

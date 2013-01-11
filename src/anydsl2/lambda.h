@@ -21,6 +21,7 @@ struct LambdaLT : public std::binary_function<Lambda*, Lambda*, bool> {
 };
 
 typedef std::set<Lambda*, LambdaLT> LambdaSet;
+typedef std::vector<Lambda*> Lambdas;
 
 typedef std::vector<const Param*> Params;
 
@@ -54,9 +55,10 @@ public:
 
     const Param* append_param(const Type* type, const std::string& name = "");
 
-    LambdaSet succs() const;
+    Lambdas succs() const;
     LambdaSet preds() const;
     LambdaSet direct_preds() const;
+    Array<Lambda*> direct_succs() const;
     const Params& params() const { return params_; }
     const Param* param(size_t i) const { return params_[i]; }
     const Def* to() const { return op(0); };

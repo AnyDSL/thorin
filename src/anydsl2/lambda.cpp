@@ -110,10 +110,30 @@ LambdaSet Lambda::direct_preds() const {
     return result;
 }
 
-LambdaSet Lambda::succs() const {
-    LambdaSet result;
-    for_all (def, ops())
-        find_lambdas(def, result);
+Array<Lambda*> Lambda::direct_succs() const {
+    if (Lambda* succ = to()->isa_lambda()) {
+        Array<Lambda*> result(1);
+        result[0] = succ;
+        return result;
+    } else if (to()->isa<Param>())
+        return Array<Lambda*>(0);
+
+    const Select* select = to()->as<Select>();
+    Array<Lambda*> result(2);
+    result[0] = select->tval()->as_lambda();
+    result[1] = select->fval()->as_lambda();
+    return result;
+}
+
+Lambdas Lambda::succs() const {
+    Lambdas result;
+
+    for_all (succ, direct_succs())
+        result.push_back(succ);
+
+    for_all (arg, args())
+        if (Lambda* succ = arg->isa_lambda())
+            result.push_back(succ);
 
     return result;
 }

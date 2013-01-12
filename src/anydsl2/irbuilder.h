@@ -8,6 +8,7 @@
 #include "anydsl2/symbol.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/types.h"
+#include "anydsl2/util/indexmap.h"
 
 namespace anydsl2 {
 
@@ -85,7 +86,6 @@ private:
 
     BB(Fct* fct, const std::string& name = "");
     BB() {}
-    ~BB();
 
 public:
 
@@ -135,7 +135,8 @@ private:
     Lambda* top_;
     Lambda* cur_;
 
-    typedef boost::unordered_map<size_t, Var*> VarMap;
+    //typedef boost::unordered_map<size_t, Var*> VarMap;
+    typedef IndexMap<Var> VarMap;
     VarMap vars_;
 
     typedef boost::unordered_map<size_t, Todo> Todos;

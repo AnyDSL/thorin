@@ -19,35 +19,20 @@ BB::BB(Fct* fct, const std::string& name)
     , fct_(fct)
     , top_(world().lambda(name))
     , cur_(top_)
-{
-}
-
-BB::~BB() {
-    for_all (p, vars_)
-        delete p.second;
-}
+{}
 
 Var* BB::insert(size_t handle, const Def* def) {
-    VarMap::iterator i = vars_.find(handle);
-
-    if (i != vars_.end()) {
-        Var* var = i->second;
-        var->store(def);
+    if (Var* var = vars_.find(handle))
         return var;
-    }
 
     Var* var = new Var(handle, def);
     vars_[handle] = var;
-
     return var;
 }
 
 Var* BB::lookup(size_t handle, const Type* type, const std::string& name) {
-    BB::VarMap::iterator i = vars_.find(handle);
-
-    // if var is known -> return current var
-    if (i != vars_.end())
-        return i->second;
+    if (Var* var = vars_.find(handle))
+        return var;
 
     // value is undefined
     if (fct_ == this)

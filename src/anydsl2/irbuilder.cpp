@@ -45,12 +45,12 @@ Var* BB::lookup(size_t handle, const Type* type, const std::string& name) {
         in_.push_back(param);
         Var* lvar = insert(handle, param);
 
-        Todo todo(index, type);
+        Todo todo(handle, index, type);
 
         if (sealed_)
-            fix(handle, todo);
+            fix(todo);
         else
-            todos_[handle] = todo;
+            todos_.push_back(todo);
 
         return lvar;
     }
@@ -80,16 +80,17 @@ void BB::seal() {
     }
 #endif
 
-    for_all (p, todos_)
-        fix(p.first, p.second);
+    for_all (todo, todos_)
+        fix(todo);
 }
 
-void BB::fix(size_t handle, Todo todo) {
+void BB::fix(Todo todo) {
     assert(sealed() && "must be sealed");
 
-    size_t todo_index = todo.index();
+    size_t handle = todo.handle();
+    size_t index = todo.index();
     const Type* type = todo.type();
-    const Param* param = in_[todo_index];
+    const Param* param = in_[index];
     const Def* same = 0;
 
     // find Horspool-like phis
@@ -119,11 +120,11 @@ fix_preds:
         Out& out = pred->out_;
 
         // make potentially room for the new arg
-        if (todo_index >= out.size())
-            out.resize(todo_index + 1);
+        if (index >= out.size())
+            out.resize(index + 1);
 
-        assert(!pred->out_[todo_index] && "already set");
-        out[todo_index] = same ? same : pred->lookup(handle, type)->load();
+        assert(!pred->out_[index] && "already set");
+        out[index] = same ? same : pred->lookup(handle, type)->load();
     }
 
     if (same)

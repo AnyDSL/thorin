@@ -32,16 +32,19 @@ class Todo {
 public:
 
     Todo() {}
-    Todo(size_t index, const Type* type)
-        : index_(index)
+    Todo(size_t handle, size_t index, const Type* type)
+        : handle_(handle)
+        , index_(index)
         , type_(type)
     {}
 
+    size_t handle() const { return handle_; }
     size_t index() const { return index_; }
     const Type* type() const { return type_; }
 
 private:
 
+    size_t handle_;
     size_t index_;
     const Type* type_;
 };
@@ -116,7 +119,7 @@ public:
 private:
 
     void link(BB* to);
-    void fix(size_t handle, Todo todo);
+    void fix(Todo todo);
 
     bool sealed_;
     bool visited_;
@@ -135,11 +138,10 @@ private:
     Lambda* top_;
     Lambda* cur_;
 
-    //typedef boost::unordered_map<size_t, Var*> VarMap;
     typedef IndexMap<Var> VarMap;
     VarMap vars_;
 
-    typedef boost::unordered_map<size_t, Todo> Todos;
+    typedef std::vector<Todo> Todos;
     Todos todos_;
 
     friend class Fct;

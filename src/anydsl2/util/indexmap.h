@@ -17,18 +17,16 @@ public:
     }
 
     T*& operator [] (size_t handle) {
-        if (handle >= vector_.size()) vector_.resize(handle + 1, 0);
+        if (handle >= vector_.size()) vector_.resize(handle + 1, (T*) 0);
         return vector_[handle];
     }
 
     const T*& operator [] (size_t handle) const {
-        if (handle >= vector_.size()) vector_.resize(handle + 1, 0);
-        return vector_[handle];
+        return (*static_cast<const IndexMap*>(this))[handle];
     }
 
-    bool empty() const { return vector_.empty(); }
-
     T* find(size_t handle) const { return handle < vector_.size() ? vector_[handle] : 0; }
+    bool empty() const { return vector_.empty(); }
 
 private:
 

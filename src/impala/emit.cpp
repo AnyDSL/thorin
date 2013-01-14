@@ -128,7 +128,7 @@ void NamedFct::emit(CodeGen& cg) const {
 }
 
 Var* VarDecl::emit(CodeGen& cg) const {
-    Var* var = cg.curBB->insert(handle(), cg.world.bottom(type()));
+    Var* var = cg.curBB->set_value(handle(), cg.world.bottom(type()));
     var->load()->name = symbol().str();
 
     return var;
@@ -177,7 +177,7 @@ RefPtr Tuple::emit(CodeGen& cg) const {
 RefPtr Id::emit(CodeGen& cg) const {
     if (const NamedFct* named_fct = decl()->isa<NamedFct>())
         return Ref::create(named_fct->lambda().air_fct()->top());
-    return Ref::create(cg.curBB->lookup(decl()->as<VarDecl>()->handle(), type(), symbol().str()));
+    return Ref::create(cg.curBB->get_value(decl()->as<VarDecl>()->handle(), type(), symbol().str()));
 }
 
 RefPtr PrefixExpr::emit(CodeGen& cg) const {
@@ -223,9 +223,9 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
         const Id* id = lhs()->isa<Id>();
         const Def* rdef = rhs()->emit(cg)->load();
 
-        // special case for 'a = expr' -> don't use lookup!
+        // special case for 'a = expr' -> don't use get_value!
         RefPtr lref = op == Token::ASGN && id
-                ? Ref::create(cg.curBB->insert(id->decl()->as<VarDecl>()->handle(), cg.world.bottom(id->type())))
+                ? Ref::create(cg.curBB->set_value(id->decl()->as<VarDecl>()->handle(), cg.world.bottom(id->type())))
                 : lhs()->emit(cg);
 
         const Def* ldef = lref->load();

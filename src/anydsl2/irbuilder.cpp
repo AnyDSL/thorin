@@ -21,7 +21,7 @@ BB::BB(Fct* fct, const std::string& name)
     , cur_(top_)
 {}
 
-Var* BB::insert(size_t handle, const Def* def) {
+Var* BB::set_value(size_t handle, const Def* def) {
     if (Var* var = vars_.find(handle))
         return var;
 
@@ -30,20 +30,20 @@ Var* BB::insert(size_t handle, const Def* def) {
     return var;
 }
 
-Var* BB::lookup(size_t handle, const Type* type, const std::string& name) {
+Var* BB::get_value(size_t handle, const Type* type, const std::string& name) {
     if (Var* var = vars_.find(handle))
         return var;
 
     // value is undefined
     if (fct_ == this)
-        return fct_->lookup_top(handle, type, name);
+        return fct_->get_value_top(handle, type, name);
 
     // insert a 'phi', i.e., create a param and remember to fix the callers
     if (!sealed_ || preds_.size() > 1) {
         const Param* param = top_->append_param(type, name);
         size_t index = in_.size();
         in_.push_back(param);
-        Var* lvar = insert(handle, param);
+        Var* lvar = set_value(handle, param);
 
         Todo todo(handle, index, type);
 
@@ -57,16 +57,16 @@ Var* BB::lookup(size_t handle, const Type* type, const std::string& name) {
 
     // unreachable code
     if (preds().empty())
-        return insert(handle, world().bottom(type));
+        return set_value(handle, world().bottom(type));
     
     // look in pred if there exists exactly one pred
     assert(preds().size() == 1);
 
     BB* pred = *preds().begin();
-    Var* lvar = pred->lookup(handle, type);
+    Var* lvar = pred->get_value(handle, type);
 
     // create copy of lvar in this BB
-    return insert(handle, lvar->load());
+    return set_value(handle, lvar->load());
 }
 
 void BB::seal() {
@@ -95,7 +95,7 @@ void BB::fix(Todo todo) {
 
     // find Horspool-like phis
     for_all (pred, preds_) {
-        const Def* def = pred->lookup(handle, type)->load();
+        const Def* def = pred->get_value(handle, type)->load();
 
         if (def->isa<Undef>() || def == param || same == def)
             continue;
@@ -124,11 +124,11 @@ fix_preds:
             out.resize(index + 1);
 
         assert(!pred->out_[index] && "already set");
-        out[index] = same ? same : pred->lookup(handle, type)->load();
+        out[index] = same ? same : pred->get_value(handle, type)->load();
     }
 
     if (same)
-        insert(handle, same);
+        set_value(handle, same);
 }
 
 void BB::jump(BB* to) {
@@ -237,7 +237,7 @@ Fct::Fct(World& world, const Pi* pi, ArrayRef<size_t> handles, ArrayRef<Symbol> 
     ret_ = (return_index != size_t(-1) ? top()->param(return_index) : 0);
 
     for (size_t i = 0; i < num; ++i) {
-        insert(handles[i], top_->param(i));
+        set_value(handles[i], top_->param(i));
         top_->param(i)->name = symbols[i].str();
     }
 }
@@ -254,13 +254,13 @@ BB* Fct::createBB(const std::string& name /*= ""*/) {
     return bb;
 }
 
-Var* Fct::lookup_top(size_t handle, const Type* type, const std::string& name) {
+Var* Fct::get_value_top(size_t handle, const Type* type, const std::string& name) {
     if (parent())
-        return parent()->lookup(handle, type, name);
+        return parent()->get_value(handle, type, name);
 
     // TODO provide hook instead of fixed functionality
     std::cerr << "'" << name << "'" << " may be undefined" << std::endl;
-    return insert(handle, world().bottom(type));
+    return set_value(handle, world().bottom(type));
 }
 
 void Fct::emit() {

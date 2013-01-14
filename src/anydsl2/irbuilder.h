@@ -76,7 +76,7 @@ protected:
 /** 
  * This class helps for code generation of imperative languages.
  *
- * SSA/CPS construction is supported via \p lookup and \p insert.
+ * SSA/CPS construction is supported via \p get_value and \p set_value.
  * In order to make this work a \p BB must be aware of the fact whether all predecessors are known
  * or whether there may still be predecessors added.
  * A \em sealed \p BB knows all its predecessors.
@@ -92,8 +92,8 @@ private:
 
 public:
 
-    Var* insert(size_t handle, const Def* def);
-    Var* lookup(size_t handle, const Type* type, const std::string& name = "");
+    Var* set_value(size_t handle, const Def* def);
+    Var* get_value(size_t handle, const Type* type, const std::string& name = "");
     void seal();
 
     void jump(BB* to);
@@ -164,7 +164,7 @@ public:
     BB* createBB(const std::string& name = "");
     void emit();
     World& world() { return world_; }
-    Var* lookup_top(size_t handle, const Type* type, const std::string& name);
+    Var* get_value_top(size_t handle, const Type* type, const std::string& name);
     const Param* ret() const { return ret_; }
 
     BB* parent() const { return parent_; }

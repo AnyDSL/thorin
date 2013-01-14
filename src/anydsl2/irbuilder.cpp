@@ -21,8 +21,8 @@ BB::BB(Fct* fct, const std::string& name)
     , cur_(top_)
 {}
 
-void BB::set_value(size_t handle, const Def* def) {
-    defs_[handle] = def;
+const Def* BB::set_value(size_t handle, const Def* def) {
+    return defs_[handle] = def;
 }
 
 const Def* BB::get_value(size_t handle, const Type* type, const std::string& name) {
@@ -50,11 +50,8 @@ const Def* BB::get_value(size_t handle, const Type* type, const std::string& nam
     }
 
     // unreachable code
-    if (preds().empty()) {
-        const Def* def = world().bottom(type);
-        set_value(handle, def);
-        return def;
-    }
+    if (preds().empty())
+        return set_value(handle, world().bottom(type));
     
     // look in pred if there exists exactly one pred
     assert(preds().size() == 1);
@@ -63,8 +60,7 @@ const Def* BB::get_value(size_t handle, const Type* type, const std::string& nam
     const Def* def = pred->get_value(handle, type);
 
     // create copy of lvar in this BB
-    set_value(handle, def);
-    return def;
+    return set_value(handle, def);
 }
 
 void BB::seal() {
@@ -258,9 +254,7 @@ const Def* Fct::get_value_top(size_t handle, const Type* type, const std::string
 
     // TODO provide hook instead of fixed functionality
     std::cerr << "'" << name << "'" << " may be undefined" << std::endl;
-    const Def* def = world().bottom(type);
-    set_value(handle, def);
-    return def;
+    return set_value(handle, world().bottom(type));
 }
 
 void Fct::emit() {

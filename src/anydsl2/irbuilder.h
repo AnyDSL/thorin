@@ -70,7 +70,7 @@ private:
 
 public:
 
-    void set_value(size_t handle, const Def* def);
+    const Def* set_value(size_t handle, const Def* def);
     const Def* get_value(size_t handle, const Type* type, const std::string& name = "");
     void seal();
 

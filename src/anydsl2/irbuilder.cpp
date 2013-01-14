@@ -53,9 +53,7 @@ const Def* BB::get_value(size_t handle, const Type* type, const std::string& nam
     if (preds().empty())
         return set_value(handle, world().bottom(type));
     
-    // look in pred if there exists exactly one pred
-    assert(preds().size() == 1);
-
+    assert(preds().size() == 1 && "there can only be one");
     BB* pred = *preds().begin();
     const Def* def = pred->get_value(handle, type);
 

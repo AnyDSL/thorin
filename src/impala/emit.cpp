@@ -21,7 +21,6 @@ using anydsl2::Def;
 using anydsl2::Ref;
 using anydsl2::Symbol;
 using anydsl2::Type;
-using anydsl2::Var;
 using anydsl2::World;
 using anydsl2::make_name;
 
@@ -127,11 +126,8 @@ void NamedFct::emit(CodeGen& cg) const {
         lambda().air_fct()->top()->attr().set_extern();
 }
 
-Var* VarDecl::emit(CodeGen& cg) const {
-    Var* var = cg.curBB->set_value(handle(), cg.world.bottom(type()));
-    var->load()->name = symbol().str();
-
-    return var;
+RefPtr VarDecl::emit(CodeGen& cg) const {
+    return Ref::create(cg.curBB, handle(), type());
 }
 
 /*
@@ -177,7 +173,7 @@ RefPtr Tuple::emit(CodeGen& cg) const {
 RefPtr Id::emit(CodeGen& cg) const {
     if (const NamedFct* named_fct = decl()->isa<NamedFct>())
         return Ref::create(named_fct->lambda().air_fct()->top());
-    return Ref::create(cg.curBB->get_value(decl()->as<VarDecl>()->handle(), type(), symbol().str()));
+    return Ref::create(cg.curBB, decl()->as<VarDecl>()->handle(), type());
 }
 
 RefPtr PrefixExpr::emit(CodeGen& cg) const {
@@ -225,7 +221,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
 
         // special case for 'a = expr' -> don't use get_value!
         RefPtr lref = op == Token::ASGN && id
-                ? Ref::create(cg.curBB->set_value(id->decl()->as<VarDecl>()->handle(), cg.world.bottom(id->type())))
+                ? Ref::create(cg.curBB, id->decl()->as<VarDecl>()->handle(), id->type())
                 : lhs()->emit(cg);
 
         const Def* ldef = lref->load();
@@ -235,6 +231,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
             rdef = cg.world.binop(Token::to_binop(sop), ldef, rdef);
         }
 
+        this->dump();
         lref->store(rdef);
 
         return lref;
@@ -278,9 +275,9 @@ RefPtr Call::emit(CodeGen& cg) const {
 
 void DeclStmt::emit(CodeGen& cg) const {
     if (cg.reachable()) {
-        Var* var = var_decl()->emit(cg);
+        RefPtr ref = var_decl()->emit(cg);
         if (const Expr* init_expr = init())
-            var->store(init_expr->emit(cg)->load());
+            ref->store(init_expr->emit(cg)->load());
     }
 }
 

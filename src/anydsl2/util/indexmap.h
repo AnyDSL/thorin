@@ -11,11 +11,6 @@ template<class T>
 class IndexMap {
 public:
     
-    ~IndexMap() {
-        for (size_t i = 0, e = vector_.size(); i != e; ++i)
-            delete vector_[i];
-    }
-
     T*& operator [] (size_t handle) {
         if (handle >= vector_.size()) vector_.resize(handle + 1, (T*) 0);
         return vector_[handle];

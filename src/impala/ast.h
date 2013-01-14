@@ -20,7 +20,6 @@ namespace anydsl2 {
     class Def;
     class NamedFct;
     class Ref;
-    class Var;
 }
 
 namespace impala {
@@ -121,7 +120,7 @@ public:
 
     size_t handle() const { return handle_; }
     virtual void vdump(Printer& p) const;
-    anydsl2::Var* emit(CodeGen& cg) const;
+    RefPtr emit(CodeGen& cg) const;
 
 protected:
 

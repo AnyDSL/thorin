@@ -21,18 +21,13 @@ BB::BB(Fct* fct, const std::string& name)
     , cur_(top_)
 {}
 
-Var* BB::set_value(size_t handle, const Def* def) {
-    if (Var* var = vars_.find(handle))
-        return var;
-
-    Var* var = new Var(handle, def);
-    vars_[handle] = var;
-    return var;
+void BB::set_value(size_t handle, const Def* def) {
+    defs_[handle] = def;
 }
 
-Var* BB::get_value(size_t handle, const Type* type, const std::string& name) {
-    if (Var* var = vars_.find(handle))
-        return var;
+const Def* BB::get_value(size_t handle, const Type* type, const std::string& name) {
+    if (const Def* def = defs_.find(handle))
+        return def;
 
     // value is undefined
     if (fct_ == this)
@@ -43,30 +38,33 @@ Var* BB::get_value(size_t handle, const Type* type, const std::string& name) {
         const Param* param = top_->append_param(type, name);
         size_t index = in_.size();
         in_.push_back(param);
-        Var* lvar = set_value(handle, param);
+        set_value(handle, param);
 
         Todo todo(handle, index, type);
-
         if (sealed_)
             fix(todo);
         else
             todos_.push_back(todo);
 
-        return lvar;
+        return param;
     }
 
     // unreachable code
-    if (preds().empty())
-        return set_value(handle, world().bottom(type));
+    if (preds().empty()) {
+        const Def* def = world().bottom(type);
+        set_value(handle, def);
+        return def;
+    }
     
     // look in pred if there exists exactly one pred
     assert(preds().size() == 1);
 
     BB* pred = *preds().begin();
-    Var* lvar = pred->get_value(handle, type);
+    const Def* def = pred->get_value(handle, type);
 
     // create copy of lvar in this BB
-    return set_value(handle, lvar->load());
+    set_value(handle, def);
+    return def;
 }
 
 void BB::seal() {
@@ -95,7 +93,7 @@ void BB::fix(Todo todo) {
 
     // find Horspool-like phis
     for_all (pred, preds_) {
-        const Def* def = pred->get_value(handle, type)->load();
+        const Def* def = pred->get_value(handle, type);
 
         if (def->isa<Undef>() || def == param || same == def)
             continue;
@@ -124,7 +122,7 @@ fix_preds:
             out.resize(index + 1);
 
         assert(!pred->out_[index] && "already set");
-        out[index] = same ? same : pred->get_value(handle, type)->load();
+        out[index] = same ? same : pred->get_value(handle, type);
     }
 
     if (same)
@@ -254,13 +252,15 @@ BB* Fct::createBB(const std::string& name /*= ""*/) {
     return bb;
 }
 
-Var* Fct::get_value_top(size_t handle, const Type* type, const std::string& name) {
+const Def* Fct::get_value_top(size_t handle, const Type* type, const std::string& name) {
     if (parent())
         return parent()->get_value(handle, type, name);
 
     // TODO provide hook instead of fixed functionality
     std::cerr << "'" << name << "'" << " may be undefined" << std::endl;
-    return set_value(handle, world().bottom(type));
+    const Def* def = world().bottom(type);
+    set_value(handle, def);
+    return def;
 }
 
 void Fct::emit() {

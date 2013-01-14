@@ -51,28 +51,6 @@ private:
 
 //------------------------------------------------------------------------------
 
-class Var {
-public:
-
-    Var() {}
-    Var(size_t handle, const Def* def)
-        : handle_(handle)
-        , def_(def)
-    {}
-    virtual ~Var() {}
-
-    size_t handle() const { return handle_; }
-    virtual const Def* load() const { return def_; }
-    virtual void store(const Def* def) { def_ = def; }
-
-protected:
-
-    size_t handle_;
-    const Def* def_;
-};
-
-//------------------------------------------------------------------------------
-
 /** 
  * This class helps for code generation of imperative languages.
  *
@@ -92,8 +70,8 @@ private:
 
 public:
 
-    Var* set_value(size_t handle, const Def* def);
-    Var* get_value(size_t handle, const Type* type, const std::string& name = "");
+    void set_value(size_t handle, const Def* def);
+    const Def* get_value(size_t handle, const Type* type, const std::string& name = "");
     void seal();
 
     void jump(BB* to);
@@ -138,8 +116,8 @@ private:
     Lambda* top_;
     Lambda* cur_;
 
-    typedef IndexMap<Var> VarMap;
-    VarMap vars_;
+    typedef IndexMap<const Def> DefMap;
+    DefMap defs_;
 
     typedef std::vector<Todo> Todos;
     Todos todos_;
@@ -164,7 +142,7 @@ public:
     BB* createBB(const std::string& name = "");
     void emit();
     World& world() { return world_; }
-    Var* get_value_top(size_t handle, const Type* type, const std::string& name);
+    const Def* get_value_top(size_t handle, const Type* type, const std::string& name);
     const Param* ret() const { return ret_; }
 
     BB* parent() const { return parent_; }

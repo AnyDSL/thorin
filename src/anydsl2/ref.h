@@ -9,9 +9,10 @@
 
 namespace anydsl2 {
 
+class BB;
 class Def;
-class Var;
 class Ref;
+class Type;
 class World;
 
 typedef std::auto_ptr<const Ref> RefPtr;
@@ -26,7 +27,7 @@ public:
     virtual World& world() const = 0;
 
     inline static RefPtr create(const Def* def);
-    inline static RefPtr create(Var* var);
+    inline static RefPtr create(BB* bb, size_t handle, const Type*);
     inline static RefPtr create(RefPtr lref, const Def* index);
 };
 
@@ -49,17 +50,21 @@ private:
 class VarRef : public Ref {
 public:
 
-    VarRef(Var* var)
-        : var_(var)
+    VarRef(BB* bb, size_t handle, const Type* type)
+        : bb_(bb)
+        , handle_(handle)
+        , type_(type)
     {}
 
     virtual const Def* load() const;
-    virtual void store(const Def* val) const;
+    virtual void store(const Def* def) const;
     virtual World& world() const;
 
 private:
 
-    Var* var_;
+    BB* bb_;
+    size_t handle_;
+    const Type* type_;
 };
 
 class TupleRef : public Ref {
@@ -85,7 +90,7 @@ private:
 };
 
 RefPtr Ref::create(const Def* def) { return RefPtr(new RVal(def)); }
-RefPtr Ref::create(Var* var) { return RefPtr(new VarRef(var)); }
+RefPtr Ref::create(BB* bb, size_t handle, const Type* type) { return RefPtr(new VarRef(bb, handle, type)); }
 RefPtr Ref::create(RefPtr lref, const Def* index) { return RefPtr(new TupleRef(lref, index)); }
 
 } // namespace anydsl2

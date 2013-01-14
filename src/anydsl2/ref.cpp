@@ -8,9 +8,9 @@ namespace anydsl2 {
 
 World& RVal::world() const { return load()->world(); }
 
-World& VarRef::world() const { return var_->load()->world(); }
-const Def* VarRef::load() const { return var_->load(); }
-void VarRef::store(const Def* val) const { var_->store(val); }
+World& VarRef::world() const { return type_->world(); }
+const Def* VarRef::load() const { return bb_->get_value(handle_, type_); }
+void VarRef::store(const Def* def) const { bb_->set_value(handle_, def); }
 
 const Def* TupleRef::load() const { 
     if (loaded_)

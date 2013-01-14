@@ -127,7 +127,7 @@ void NamedFct::emit(CodeGen& cg) const {
 }
 
 RefPtr VarDecl::emit(CodeGen& cg) const {
-    return Ref::create(cg.curBB, handle(), type());
+    return Ref::create(cg.curBB, handle(), type(), symbol().str());
 }
 
 /*
@@ -173,7 +173,7 @@ RefPtr Tuple::emit(CodeGen& cg) const {
 RefPtr Id::emit(CodeGen& cg) const {
     if (const NamedFct* named_fct = decl()->isa<NamedFct>())
         return Ref::create(named_fct->lambda().air_fct()->top());
-    return Ref::create(cg.curBB, decl()->as<VarDecl>()->handle(), type());
+    return Ref::create(cg.curBB, decl()->as<VarDecl>()->handle(), type(), symbol().str());
 }
 
 RefPtr PrefixExpr::emit(CodeGen& cg) const {
@@ -221,7 +221,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
 
         // special case for 'a = expr' -> don't use get_value!
         RefPtr lref = op == Token::ASGN && id
-                ? Ref::create(cg.curBB, id->decl()->as<VarDecl>()->handle(), id->type())
+                ? Ref::create(cg.curBB, id->decl()->as<VarDecl>()->handle(), id->type(), id->symbol().str())
                 : lhs()->emit(cg);
 
         const Def* ldef = lref->load();
@@ -231,9 +231,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
             rdef = cg.world.binop(Token::to_binop(sop), ldef, rdef);
         }
 
-        this->dump();
         lref->store(rdef);
-
         return lref;
     }
 

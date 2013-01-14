@@ -27,7 +27,7 @@ public:
     virtual World& world() const = 0;
 
     inline static RefPtr create(const Def* def);
-    inline static RefPtr create(BB* bb, size_t handle, const Type*);
+    inline static RefPtr create(BB* bb, size_t handle, const Type*, const char* name);
     inline static RefPtr create(RefPtr lref, const Def* index);
 };
 
@@ -50,10 +50,11 @@ private:
 class VarRef : public Ref {
 public:
 
-    VarRef(BB* bb, size_t handle, const Type* type)
+    VarRef(BB* bb, size_t handle, const Type* type, const char* name)
         : bb_(bb)
         , handle_(handle)
         , type_(type)
+        , name_(name)
     {}
 
     virtual const Def* load() const;
@@ -65,6 +66,7 @@ private:
     BB* bb_;
     size_t handle_;
     const Type* type_;
+    const char* name_;
 };
 
 class TupleRef : public Ref {
@@ -90,8 +92,10 @@ private:
 };
 
 RefPtr Ref::create(const Def* def) { return RefPtr(new RVal(def)); }
-RefPtr Ref::create(BB* bb, size_t handle, const Type* type) { return RefPtr(new VarRef(bb, handle, type)); }
 RefPtr Ref::create(RefPtr lref, const Def* index) { return RefPtr(new TupleRef(lref, index)); }
+RefPtr Ref::create(BB* bb, size_t handle, const Type* type, const char* name) { 
+    return RefPtr(new VarRef(bb, handle, type, name)); 
+}
 
 } // namespace anydsl2
 

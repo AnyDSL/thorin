@@ -32,21 +32,24 @@ class Todo {
 public:
 
     Todo() {}
-    Todo(size_t handle, size_t index, const Type* type)
+    Todo(size_t handle, size_t index, const Type* type, const char* name)
         : handle_(handle)
         , index_(index)
         , type_(type)
+        , name_(name)
     {}
 
     size_t handle() const { return handle_; }
     size_t index() const { return index_; }
     const Type* type() const { return type_; }
+    const char* name() const { return name_; }
 
 private:
 
     size_t handle_;
     size_t index_;
     const Type* type_;
+    const char* name_;
 };
 
 //------------------------------------------------------------------------------
@@ -71,7 +74,7 @@ private:
 public:
 
     const Def* set_value(size_t handle, const Def* def);
-    const Def* get_value(size_t handle, const Type* type, const std::string& name = "");
+    const Def* get_value(size_t handle, const Type* type, const char* name = "");
     void seal();
 
     void jump(BB* to);
@@ -90,7 +93,7 @@ public:
 
     World& world();
     bool sealed() const { return sealed_; }
-    std::string name() const;
+    const std::string name() const;
 
     void emit();
 
@@ -142,7 +145,7 @@ public:
     BB* createBB(const std::string& name = "");
     void emit();
     World& world() { return world_; }
-    const Def* get_value_top(size_t handle, const Type* type, const std::string& name);
+    const Def* get_value_top(size_t handle, const Type* type, const char* name);
     const Param* ret() const { return ret_; }
 
     BB* parent() const { return parent_; }

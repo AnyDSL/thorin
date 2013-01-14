@@ -25,7 +25,8 @@ const Def* BB::set_value(size_t handle, const Def* def) {
     return defs_[handle] = def;
 }
 
-const Def* BB::get_value(size_t handle, const Type* type, const std::string& name) {
+const Def* BB::get_value(size_t handle, const Type* type, const char* name) {
+    assert(strcmp(name, ""));
     if (const Def* def = defs_.find(handle))
         return def;
 
@@ -40,7 +41,7 @@ const Def* BB::get_value(size_t handle, const Type* type, const std::string& nam
         in_.push_back(param);
         set_value(handle, param);
 
-        Todo todo(handle, index, type);
+        Todo todo(handle, index, type, name);
         if (sealed_)
             fix(todo);
         else
@@ -55,7 +56,7 @@ const Def* BB::get_value(size_t handle, const Type* type, const std::string& nam
     
     assert(preds().size() == 1 && "there can only be one");
     BB* pred = *preds().begin();
-    const Def* def = pred->get_value(handle, type);
+    const Def* def = pred->get_value(handle, type, name);
 
     // create copy of lvar in this BB
     return set_value(handle, def);
@@ -82,12 +83,13 @@ void BB::fix(Todo todo) {
     size_t handle = todo.handle();
     size_t index = todo.index();
     const Type* type = todo.type();
+    const char* name = todo.name();
     const Param* param = in_[index];
     const Def* same = 0;
 
     // find Horspool-like phis
     for_all (pred, preds_) {
-        const Def* def = pred->get_value(handle, type);
+        const Def* def = pred->get_value(handle, type, name);
 
         if (def->isa<Undef>() || def == param || same == def)
             continue;
@@ -116,7 +118,7 @@ fix_preds:
             out.resize(index + 1);
 
         assert(!pred->out_[index] && "already set");
-        out[index] = same ? same : pred->get_value(handle, type);
+        out[index] = same ? same : pred->get_value(handle, type, name);
     }
 
     if (same)
@@ -209,7 +211,7 @@ void BB::emit() {
         ANYDSL2_UNREACHABLE;
 }
 
-std::string BB::name() const { return top() ? top()->name : std::string(); }
+const std::string BB::name() const { return top() ? top()->name : ""; }
 
 //------------------------------------------------------------------------------
 
@@ -246,7 +248,7 @@ BB* Fct::createBB(const std::string& name /*= ""*/) {
     return bb;
 }
 
-const Def* Fct::get_value_top(size_t handle, const Type* type, const std::string& name) {
+const Def* Fct::get_value_top(size_t handle, const Type* type, const char* name) {
     if (parent())
         return parent()->get_value(handle, type, name);
 

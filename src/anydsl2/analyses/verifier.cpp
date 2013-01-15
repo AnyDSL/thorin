@@ -12,9 +12,6 @@ public:
     { }
 
     bool verify() {
-        // reset visit information
-        for_all(lambda, world_.lambdas())
-            lambda->visit(pass_);
         // loop over all lambdas and check them
         for_all(lambda, world_.lambdas()) {
             if(!verify(lambda))
@@ -24,22 +21,9 @@ public:
     }
 
 private:
-    bool visit(const Def* def) {
-        if(def->is_visited(pass_))
-            return false;
-        def->visit(pass_);
-        return true;
-    }
-
     bool verify(const Def* def) {
-        if(def->isa<Param>())
+        if(def->isa<Param>() || def->isa_lambda())
             return true;
-        if(Lambda* lambda = def->isa_lambda()) {
-            // already visited lambdas are fine per definition
-            if(lambda->cur_pass() <= pass_)
-                return true;
-            return verify(lambda);
-        }
         else
             return verify(def->as<PrimOp>());
     }
@@ -47,8 +31,6 @@ private:
     bool verify(Lambda* lambda) {
         // check the "body" of this lambda
         for_all(op, lambda->ops()) {
-            // update the current pass
-            pass_ = world_.new_pass();
             // -> check the current element for cycles
             if(!verify(op))
                 return false;
@@ -58,13 +40,15 @@ private:
 
     bool verify(const PrimOp* primop) {
         // if we have detected a cycle -> invalid
-        if(!visit(primop) && !primop->is_const())
+        if(primop->is_visited(pass_) && !primop->is_const())
             return false;
+        primop->visit(pass_);
         // check all operands recursively
         for_all(op, primop->ops()) {
             if(!verify(op))
                 return false;
         }
+        primop->unvisit(pass_);
         return true;
     }
 

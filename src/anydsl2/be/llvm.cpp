@@ -116,7 +116,7 @@ void CodeGen::emit() {
         Scope scope(lambda);
         BBMap bbs(scope.size());
 
-        // map all bb-like lambdas to llvm bb stubs 
+        // map all bb-like lambdas to llvm bb stubs
         for_all (lambda, scope.rpo())
             bbs[lambda->sid()] = llvm::BasicBlock::Create(context, lambda->name, fct);
 
@@ -136,7 +136,11 @@ void CodeGen::emit() {
 
             std::vector<const PrimOp*> schedule = places[lambda->sid()];
             for_all (primop, schedule)
-                if (!primop->type()->isa<Pi>() && !primop->type()->isa<Mem>() && !primop->type()->isa<Frame>())
+                // if this primop is not a function, not a memory argument and not a frame
+                // we have to skip it; however, CCall nodes have to be emitted.
+                if (!primop->type()->isa<Pi>() &&
+                   (!primop->type()->isa<Mem>() || primop->isa<CCall>()) &&
+                    !primop->type()->isa<Frame>())
                     primops[primop] = emit(primop);
 
             // terminate bb
@@ -144,6 +148,16 @@ void CodeGen::emit() {
                 switch (lambda->args().size()) {
                     case 0: builder.CreateRetVoid(); break;
                     case 1: builder.CreateRet(lookup(lambda->arg(0))); break;
+                    case 2: {
+                        // one argument needs to be the mem arg
+                        const Def* retVal = lambda->arg(0);
+                        if(retVal->type()->isa<Mem>())
+                            retVal = lambda->arg(1);
+                        assert( !retVal->type()->isa<Mem>() );
+                        // create simple return with the non-mem value
+                        builder.CreateRet(lookup(retVal));
+                        break;
+                    }
                     default: assert(false && "TODO");
                 }
             } else if (const Select* select = lambda->to()->isa<Select>()) { // conditional branch
@@ -170,9 +184,9 @@ void CodeGen::emit() {
                         }
                     args.shrink(i);
                     llvm::CallInst* call = builder.CreateCall(fcts[to_lambda], llvm_ref(args));
-                    
+
                     if (ret_arg == ret_param)       // call + return
-                        builder.CreateRet(call); 
+                        builder.CreateRet(call);
                     else {                          // call + continuation
                         Lambda* succ = ret_arg->as_lambda();
                         params[succ->param(0)] = call;
@@ -447,7 +461,7 @@ multiple:
             return llvm::StructType::get(context, llvm_ref(elems));
         }
 
-        default: 
+        default:
             assert(!type->is_corenode());
             return hook.map(type);
     }

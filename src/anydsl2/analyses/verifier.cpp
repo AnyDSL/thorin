@@ -15,11 +15,8 @@ public:
         // reset visit information
         for_all(lambda, world_.lambdas())
             lambda->visit(pass_);
-
         // loop over all lambdas and check them
         for_all(lambda, world_.lambdas()) {
-            // update the current pass
-            pass_ = world_.new_pass();
             if(!verify(lambda))
                 invalid_.push_back(lambda);
         }
@@ -50,6 +47,9 @@ private:
     bool verify(Lambda* lambda) {
         // check the "body" of this lambda
         for_all(op, lambda->ops()) {
+            // update the current pass
+            pass_ = world_.new_pass();
+            // -> check the current element for cycles
             if(!verify(op))
                 return false;
         }

@@ -73,7 +73,7 @@ private:
 
 public:
 
-    const Def* set_value(size_t handle, const Def* def);
+    const Def* set_value(size_t handle, const Def* def) { return defs_[handle] = def; }
     const Def* get_value(size_t handle, const Type* type, const char* name = "");
     void seal();
 
@@ -103,7 +103,6 @@ private:
     void fix(Todo todo);
 
     bool sealed_;
-    bool visited_;
 
     Fct* fct_;
 

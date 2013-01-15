@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "anydsl2/type.h"
+#include "anydsl2/literal.h"
 #include "anydsl2/primop.h"
 #include "anydsl2/world.h"
 #include "anydsl2/analyses/scope.h"
@@ -128,8 +129,6 @@ bool Lambda::is_cascading() const {
     return use.def()->isa<Lambda>() && use.index() > 0;
 }
 
-bool Lambda::is_bb() const { return order() == 1; }
-
 bool Lambda::is_returning() const {
     bool ret = false;
     for_all (param, params()) {
@@ -146,6 +145,10 @@ bool Lambda::is_returning() const {
     }
     return true;
 }
+
+/*
+ * terminate
+ */
 
 void Lambda::jump(const Def* to, ArrayRef<const Def*> args) {
     if (valid()) {
@@ -165,5 +168,119 @@ void Lambda::jump(const Def* to, ArrayRef<const Def*> args) {
 void Lambda::branch(const Def* cond, const Def* tto, const Def*  fto) {
     return jump(world().select(cond, tto, fto), ArrayRef<const Def*>(0, 0));
 }
+
+/*
+ * CPS construction
+ */
+
+const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) {
+    if (const Def* def = defs_.find(handle))
+        return def;
+
+    if (parent())
+        return parent()->get_value(handle, type, name);
+
+    if (/*is function*/ false) {
+        // value is undefined
+        // TODO provide hook instead of fixed functionality
+        std::cerr << "'" << name << "'" << " may be undefined" << std::endl;
+        return set_value(handle, world().bottom(type));
+    }
+
+#if 0
+    // insert a 'phi', i.e., create a param and remember to fix the callers
+    if (!sealed_ || preds_.size() > 1) {
+        const Param* param = top_->append_param(type, name);
+        size_t index = in_.size();
+        in_.push_back(param);
+        set_value(handle, param);
+
+        Todo todo(handle, index, type, name);
+        if (sealed_)
+            fix(todo);
+        else
+            todos_.push_back(todo);
+
+        return param;
+    }
+
+    // unreachable code
+    if (preds().empty())
+        return set_value(handle, world().bottom(type));
+    
+    assert(preds().size() == 1 && "there can only be one");
+#endif
+    Lambda* pred = *preds().begin();
+    const Def* def = pred->get_value(handle, type, name);
+
+    // create copy of lvar in this Lambda
+    return set_value(handle, def);
+}
+
+void Lambda::seal() {
+    assert(!sealed() && "already sealed");
+    sealed_ = true;
+
+#if 0
+    if (preds().size() >= 2) {
+        for_all (pred, preds_)
+            assert(pred->succs().size() <= 1 && "critical edge");
+    }
+#endif
+
+    for_all (todo, todos_)
+        fix(todo);
+}
+
+void Lambda::fix(Todo todo) {
+    assert(sealed() && "must be sealed");
+
+    size_t handle = todo.handle();
+    size_t index = todo.index();
+    const Type* type = todo.type();
+    const char* name = todo.name();
+    const Param* p = param(index);
+    const Def* same = 0;
+
+    // find Horspool-like phis
+    for_all (pred, preds()) {
+        const Def* def = pred->get_value(handle, type, name);
+
+        if (def->isa<Undef>() || def == p || same == def)
+            continue;
+
+        if (same) {
+            same = 0;
+            goto fix_preds;
+        }
+        same = def;
+    }
+    
+goto fix_preds; // HACK fix cond_
+    if (!same || same == p)
+        same = world().bottom(p->type());
+
+    for_all (use, p->uses())
+        world().update(use.def(), use.index(), same);
+
+fix_preds:
+#if 0
+    for_all (pred, preds()) {
+        assert(pred->succs().size() == 1 && "critical edge");
+        Out& out = pred->out_;
+
+        // make potentially room for the new arg
+        if (index >= out.size())
+            out.resize(index + 1);
+
+        assert(!pred->out_[index] && "already set");
+        out[index] = same ? same : pred->get_value(handle, type, name);
+    }
+#endif
+
+    if (same)
+        set_value(handle, same);
+}
+
 
 } // namespace anydsl2

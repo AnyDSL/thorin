@@ -219,7 +219,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
         const Id* id = lhs()->isa<Id>();
         const Def* rdef = rhs()->emit(cg)->load();
 
-        // special case for 'a = expr' -> don't use get_value!
+        // special case for 'id = expr' -> don't use get_value!
         RefPtr lref = op == Token::ASGN && id
                 ? Ref::create(cg.curBB, id->decl()->as<VarDecl>()->handle(), id->type(), id->symbol().str())
                 : lhs()->emit(cg);

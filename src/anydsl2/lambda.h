@@ -8,6 +8,7 @@
 #include "anydsl2/def.h"
 #include "anydsl2/type.h"
 #include "anydsl2/util/autoptr.h"
+#include "anydsl2/util/indexmap.h"
 
 namespace anydsl2 {
 
@@ -52,12 +53,10 @@ public:
     Lambda* stub(const GenericMap& generic_map) const { return stub(generic_map, name); }
     Lambda* stub(const GenericMap& generic_map, const std::string& name) const;
     Lambda* update(size_t i, const Def* def);
-
     const Param* append_param(const Type* type, const std::string& name = "");
-
     Lambdas succs() const;
-    Lambdas direct_succs() const;
     Lambdas preds() const;
+    Lambdas direct_succs() const;
     Lambdas direct_preds() const;
     const Params& params() const { return params_; }
     const Param* param(size_t i) const { return params_[i]; }
@@ -75,7 +74,6 @@ public:
     size_t num_params() const { return params().size(); }
     LambdaAttr& attr() { return attr_; }
     const LambdaAttr& attr() const { return attr_; }
-
     /**
      * Is this Lambda part of a call-lambda-cascade? <br>
      * @code
@@ -84,13 +82,13 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
      */
     bool is_cascading() const;
     bool is_returning() const;
-    bool is_bb() const;
-
-    void dump(bool fancy = false, int indent = 0) const;
-
+    bool is_bb() const { return order() == 1; }
     bool sid_valid() { return sid_ != size_t(-1); }
     bool sid_invalid() { return sid_ == size_t(-1); }
     void invalidate_sid() { sid_ = size_t(-1); }
+    void dump(bool fancy = false, int indent = 0) const;
+
+    // terminate
 
     void jump(const Def* to, ArrayRef<const Def*> args);
     void jump0(const Def* to) {
@@ -110,20 +108,61 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     }
     void branch(const Def* cond, const Def* tto, const Def* fto);
 
+    // cps construction
+
+    const Def* set_value(size_t handle, const Def* def) { return defs_[handle] = def; }
+    const Def* get_value(size_t handle, const Type* type, const char* name = "");
+    Lambda* parent() const { return parent_; }
+    void set_parent(Lambda* parent) { parent_ = parent; }
+    void seal();
+    bool sealed() const { return sealed_; }
+
 private:
 
     virtual void vdump(Printer& printer) const;
+
+    class Todo {
+    public:
+
+        Todo() {}
+        Todo(size_t handle, size_t index, const Type* type, const char* name)
+            : handle_(handle)
+            , index_(index)
+            , type_(type)
+            , name_(name)
+        {}
+
+        size_t handle() const { return handle_; }
+        size_t index() const { return index_; }
+        const Type* type() const { return type_; }
+        const char* name() const { return name_; }
+
+    private:
+
+        size_t handle_;
+        size_t index_;
+        const Type* type_;
+        const char* name_;
+    };
+
+    void fix(Todo todo);
 
     size_t gid_; ///< global index
     size_t sid_; ///< scope index
     Scope* scope_;
     LambdaAttr attr_;
     Params params_;
+    Lambda* parent_;
+    bool sealed_;
+
+    typedef IndexMap<const Def> DefMap;
+    DefMap defs_;
+
+    typedef std::vector<Todo> Todos;
+    Todos todos_;
 
     friend class World;
-    friend class Param;
     friend class Scope;
-    friend class ScopeBuilder;
 };
 
 bool LambdaLT::operator () (Lambda* l1, Lambda* l2) const { return l1->gid() < l2->gid(); };

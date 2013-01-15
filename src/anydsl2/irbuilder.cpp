@@ -15,18 +15,12 @@ namespace anydsl2 {
 
 BB::BB(Fct* fct, const std::string& name) 
     : sealed_(false)
-    , visited_(false)
     , fct_(fct)
     , top_(world().lambda(name))
     , cur_(top_)
 {}
 
-const Def* BB::set_value(size_t handle, const Def* def) {
-    return defs_[handle] = def;
-}
-
 const Def* BB::get_value(size_t handle, const Type* type, const char* name) {
-    assert(strcmp(name, ""));
     if (const Def* def = defs_.find(handle))
         return def;
 

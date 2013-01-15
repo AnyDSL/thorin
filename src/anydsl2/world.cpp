@@ -15,6 +15,7 @@
 #include "anydsl2/analyses/domtree.h"
 #include "anydsl2/analyses/rootlambdas.h"
 #include "anydsl2/analyses/scope.h"
+#include "anydsl2/analyses/verifier.h"
 #include "anydsl2/transform/cfg_builder.h"
 #include "anydsl2/transform/merge_lambdas.h"
 #include "anydsl2/util/array.h"
@@ -68,7 +69,7 @@ const Type* World::keep_nocast(const Type* type) {
  * types
  */
 
-const Ptr* World::ptr(const Type* ref) { 
+const Ptr* World::ptr(const Type* ref) {
     return unify<TypeTuple1, Ptr>(TypeTuple1(Node_Ptr, ref));
 }
 
@@ -87,7 +88,7 @@ const Pi* World::pi(ArrayRef<const Type*> elems) {
     return unify<TypeTupleN, Pi>(TypeTupleN(Node_Pi, elems));
 }
 
-const Generic* World::generic(size_t index) { 
+const Generic* World::generic(size_t index) {
     return unify<GenericTuple, Generic>(GenericTuple(Node_Generic, index));
 }
 
@@ -143,7 +144,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
     PrimTypeKind rtype = a->type()->as<PrimType>()->primtype_kind();
 
     // bottom op bottom -> bottom
-    if (a->isa<Bottom>() || b->isa<Bottom>()) 
+    if (a->isa<Bottom>() || b->isa<Bottom>())
         return bottom(rtype);
 
     const PrimLit* llit = a->isa<PrimLit>();
@@ -220,7 +221,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
 #include "anydsl2/tables/primtypetable.h"
                     ANYDSL2_NO_U_TYPE;
                 }
-            default: 
+            default:
                 ANYDSL2_UNREACHABLE;
         }
     }
@@ -234,7 +235,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
 }
 
 const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::string& name) {
-    if (a->isa<Bottom>() || b->isa<Bottom>()) 
+    if (a->isa<Bottom>() || b->isa<Bottom>())
         return bottom(type_u1());
 
     RelOpKind oldkind = kind;
@@ -330,7 +331,7 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::s
 #include "anydsl2/tables/primtypetable.h"
                     ANYDSL2_NO_U_TYPE;
                 }
-            default: 
+            default:
                 ANYDSL2_UNREACHABLE;
         }
     }
@@ -411,7 +412,7 @@ const Slot* World::slot(const Type* type, size_t index, const Def* frame, const 
     return cse<SlotTuple, Slot>(SlotTuple(Node_Slot, type->to_ptr(), index, frame), name);
 }
 
-const CCall* World::c_call(const std::string& callee, const Def* m, ArrayRef<const Def*> args, 
+const CCall* World::c_call(const std::string& callee, const Def* m, ArrayRef<const Def*> args,
                            const Type* rettype, bool vararg, const std::string& name) {
     const Type* type = rettype && !rettype->isa<Mem>() ? (const Type*) sigma2(mem(), rettype) : (const Type*) mem();
     return cse<CCallTuple, CCall>(CCallTuple(Node_CCall, type, callee, m, args, vararg), name);
@@ -427,7 +428,7 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b, const std:
     return cse<DefTuple3, Select>(DefTuple3(Node_Select, a->type(), cond, a, b), name);
 }
 
-const TypeKeeper* World::typekeeper(const Type* type, const std::string& name) { 
+const TypeKeeper* World::typekeeper(const Type* type, const std::string& name) {
     return cse<DefTuple0, TypeKeeper>(DefTuple0(Node_TypeKeeper, type), name)->as<TypeKeeper>();
 }
 
@@ -630,9 +631,15 @@ void World::cleanup() {
 }
 
 void World::opt() {
+    // perform a debug verification step after each step
+    const bool debugDump = true;
+    assert( verify<debugDump>(*this) );
     cfg_transform(*this);
+    assert( verify<debugDump>(*this) );
     merge_lambdas(*this);
+    assert( verify<debugDump>(*this) );
     cleanup();
+    assert( verify<debugDump>(*this) );
 }
 
 PrimOp* World::release(const PrimOp* primop) {
@@ -727,6 +734,6 @@ void World::replace(Def* what, const Def* with) {
         }
     }
 }
-#endif 
+#endif
 
 } // namespace anydsl2

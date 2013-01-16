@@ -11,8 +11,6 @@
 #include "anydsl2/enums.h"
 #include "anydsl2/lambda.h"
 #include "anydsl2/primop.h"
-#include "anydsl2/type.h"
-#include "anydsl2/util/autoptr.h"
 #include "anydsl2/util/box.h"
 
 namespace anydsl2 {

@@ -236,9 +236,7 @@ RefPtr PostfixExpr::emit(CodeGen& cg) const {
     const Def* def = ref->load();
     const PrimType* pt = def->type()->as<PrimType>();
     const PrimLit* one = cg.world.literal(pt->primtype_kind(), 1u);
-    const Def* ndef = cg.world.arithop(Token::to_arithop((TokenKind) kind()), def, one);
-    ref->store(ndef);
-
+    ref->store(cg.world.arithop(Token::to_arithop((TokenKind) kind()), def, one));
     return Ref::create(def);
 }
 
@@ -254,9 +252,8 @@ RefPtr Call::emit(CodeGen& cg) const {
         cg.curBB = 0;
         return RefPtr(0);
     } else {
-        Lambda* next = cg.curBB->call(ops[0], ops.slice_back(1), type());
-        cg.curBB = next;
-        return Ref::create(next->param(0));
+        cg.curBB = cg.curBB->call(ops[0], ops.slice_back(1), type());
+        return Ref::create(cg.curBB->param(0));
     }
 }
 

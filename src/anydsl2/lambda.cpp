@@ -274,11 +274,11 @@ fix_preds:
         //Out& out = pred->out_;
 
         // make potentially room for the new arg
-        if (index >= pred->size() - 1)
-            pred->resize(index + 1);
+        if (index >= pred->num_args())
+            pred->resize(index+2);
 
         assert(!pred->arg(index) && "already set");
-        pred->set_op(index, same ? same : pred->get_value(todo.handle(), todo.type(), todo.name()));
+        pred->set_op(index+1, same ? same : pred->get_value(todo.handle(), todo.type(), todo.name()));
     }
 
     if (same)

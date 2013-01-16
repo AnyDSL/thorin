@@ -9,14 +9,7 @@
 #include "impala/dump.h"
 #include "impala/type.h"
 
-using anydsl2::Array;
-using anydsl2::Generic;
-using anydsl2::GenericMap;;
-using anydsl2::Location;
-using anydsl2::Symbol;
-using anydsl2::Type;
-using anydsl2::Sigma;
-using anydsl2::Pi;
+using namespace anydsl2;
 
 namespace impala {
 
@@ -298,8 +291,8 @@ const Type* InfixExpr::vcheck(Sema& sema) const {
         else
             sema.error(this) << "incompatible types in assignment: '" 
                 << lhs()->type() << "' and '" << rhs()->type() << "'\n";
-    } else if (anydsl2::is_primtype(lhs()->check(sema))) {
-        if (anydsl2::is_primtype(rhs()->check(sema))) {
+    } else if (is_primtype(lhs()->check(sema))) {
+        if (is_primtype(rhs()->check(sema))) {
             if (lhs()->type() == rhs()->type()) {
                 if (Token::is_rel((TokenKind) kind()))
                     return sema.world.type_u1();

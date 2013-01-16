@@ -4,12 +4,7 @@
 #include "anydsl2/util/cast.h"
 #include "anydsl2/util/stdlib.h"
 
-using anydsl2::Box;
-using anydsl2::HasLocation;
-using anydsl2::Location;
-using anydsl2::Position;
-using anydsl2::Symbol;
-using anydsl2::bcast;
+using namespace anydsl2;
 
 namespace impala {
 
@@ -107,48 +102,48 @@ TokenKind Token::seperateAssign(TokenKind kind) {
 int Token::to_binop(Kind kind) {
     switch (kind) {
         case INC:
-        case ADD: return anydsl2::ArithOp_add;
+        case ADD: return ArithOp_add;
         case DEC:
-        case SUB: return anydsl2::ArithOp_sub;
-        case MUL: return anydsl2::ArithOp_mul;
-        case DIV: return anydsl2::ArithOp_sdiv;
-        case MOD: return anydsl2::ArithOp_srem;
-        case AND: return anydsl2::ArithOp_and;
-        case  OR: return anydsl2::ArithOp_or;
-        case XOR: return anydsl2::ArithOp_xor;
-        case  EQ: return anydsl2::RelOp_cmp_eq;
-        case  NE: return anydsl2::RelOp_cmp_ne;
-        case  LT: return anydsl2::RelOp_cmp_slt;
-        case  LE: return anydsl2::RelOp_cmp_sle;
-        case  GT: return anydsl2::RelOp_cmp_sgt;
-        case  GE: return anydsl2::RelOp_cmp_sge;
+        case SUB: return ArithOp_sub;
+        case MUL: return ArithOp_mul;
+        case DIV: return ArithOp_sdiv;
+        case MOD: return ArithOp_srem;
+        case AND: return ArithOp_and;
+        case  OR: return ArithOp_or;
+        case XOR: return ArithOp_xor;
+        case  EQ: return RelOp_cmp_eq;
+        case  NE: return RelOp_cmp_ne;
+        case  LT: return RelOp_cmp_slt;
+        case  LE: return RelOp_cmp_sle;
+        case  GT: return RelOp_cmp_sgt;
+        case  GE: return RelOp_cmp_sge;
         default: ANYDSL2_UNREACHABLE;
     }
 }
 
-anydsl2::ArithOpKind Token::to_arithop(Kind kind) {
+ArithOpKind Token::to_arithop(Kind kind) {
     switch (kind) {
         case INC:
-        case ADD: return anydsl2::ArithOp_add;
+        case ADD: return ArithOp_add;
         case DEC:
-        case SUB: return anydsl2::ArithOp_sub;
-        case MUL: return anydsl2::ArithOp_mul;
-        case DIV: return anydsl2::ArithOp_udiv;
-        case AND: return anydsl2::ArithOp_and;
-        case  OR: return anydsl2::ArithOp_or;
-        case XOR: return anydsl2::ArithOp_xor;
+        case SUB: return ArithOp_sub;
+        case MUL: return ArithOp_mul;
+        case DIV: return ArithOp_udiv;
+        case AND: return ArithOp_and;
+        case  OR: return ArithOp_or;
+        case XOR: return ArithOp_xor;
         default: ANYDSL2_UNREACHABLE;
     }
 }
 
-anydsl2::RelOpKind Token::to_relop(Kind kind) {
+RelOpKind Token::to_relop(Kind kind) {
     switch (kind) {
-        case EQ: return anydsl2::RelOp_cmp_eq;
-        case NE: return anydsl2::RelOp_cmp_ne;
-        case LT: return anydsl2::RelOp_cmp_ult;
-        case LE: return anydsl2::RelOp_cmp_ule;
-        case GT: return anydsl2::RelOp_cmp_ugt;
-        case GE: return anydsl2::RelOp_cmp_uge;
+        case EQ: return RelOp_cmp_eq;
+        case NE: return RelOp_cmp_ne;
+        case LT: return RelOp_cmp_ult;
+        case LE: return RelOp_cmp_ule;
+        case GT: return RelOp_cmp_ugt;
+        case GE: return RelOp_cmp_uge;
         default: ANYDSL2_UNREACHABLE;
     }
 }

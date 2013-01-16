@@ -13,15 +13,7 @@
 
 #include "impala/type.h"
 
-using anydsl2::Array;
-using anydsl2::Def;
-using anydsl2::Lambda;
-using anydsl2::Param;
-using anydsl2::Ref;
-using anydsl2::Symbol;
-using anydsl2::Type;
-using anydsl2::World;
-using anydsl2::make_name;
+using namespace anydsl2;
 
 namespace impala {
 
@@ -153,13 +145,13 @@ RefPtr EmptyExpr::emit(CodeGen& cg) const {
 }
 
 RefPtr Literal::emit(CodeGen& cg) const {
-    anydsl2::PrimTypeKind akind;
+    PrimTypeKind akind;
 
     switch (kind()) {
 #define IMPALA_LIT(itype, atype) \
-        case LIT_##itype: akind = anydsl2::PrimType_##atype; break;
+        case LIT_##itype: akind = PrimType_##atype; break;
 #include "impala/tokenlist.h"
-        case LIT_bool: akind = anydsl2::PrimType_u1; break;
+        case LIT_bool: akind = PrimType_u1; break;
         default: ANYDSL2_UNREACHABLE;
     }
 
@@ -188,8 +180,8 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
         case DEC: {
             RefPtr ref = rhs()->emit(cg);
             const Def* def = ref->load();
-            const anydsl2::PrimType* pt = def->type()->as<anydsl2::PrimType>();
-            const anydsl2::PrimLit* one = cg.world.literal(pt->primtype_kind(), 1u);
+            const PrimType* pt = def->type()->as<PrimType>();
+            const PrimLit* one = cg.world.literal(pt->primtype_kind(), 1u);
             const Def* ndef = cg.world.arithop(Token::to_arithop((TokenKind) kind()), def, one);
             ref->store(ndef);
 
@@ -201,18 +193,18 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
         case SUB: {
             RefPtr ref = rhs()->emit(cg);
             const Def* def = ref->load();
-            const anydsl2::PrimType* pt = def->type()->as<anydsl2::PrimType>();
-            const anydsl2::PrimLit* zero; 
+            const PrimType* pt = def->type()->as<PrimType>();
+            const PrimLit* zero; 
 
             switch (pt->primtype_kind()) {
-                case anydsl2::PrimType_f32: zero = cg.world.literal_f32(-0.f); break;
-                case anydsl2::PrimType_f64: zero = cg.world.literal_f64(-0.0); break;
+                case PrimType_f32: zero = cg.world.literal_f32(-0.f); break;
+                case PrimType_f64: zero = cg.world.literal_f64(-0.0); break;
                 default: 
                     assert(pt->is_int()); 
                     zero = cg.world.literal(pt->primtype_kind(), 0u);
             }
 
-            return Ref::create(cg.world.arithop(anydsl2::ArithOp_sub, zero, def));
+            return Ref::create(cg.world.arithop(ArithOp_sub, zero, def));
         }
         default: ANYDSL2_UNREACHABLE;
     }
@@ -248,8 +240,8 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
 RefPtr PostfixExpr::emit(CodeGen& cg) const {
     RefPtr ref = lhs()->emit(cg);
     const Def* def = ref->load();
-    const anydsl2::PrimType* pt = def->type()->as<anydsl2::PrimType>();
-    const anydsl2::PrimLit* one = cg.world.literal(pt->primtype_kind(), 1u);
+    const PrimType* pt = def->type()->as<PrimType>();
+    const PrimLit* one = cg.world.literal(pt->primtype_kind(), 1u);
     const Def* ndef = cg.world.arithop(Token::to_arithop((TokenKind) kind()), def, one);
     ref->store(ndef);
 

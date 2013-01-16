@@ -4,12 +4,7 @@
 
 #include "impala/type.h"
 
-using anydsl2::Box;
-using anydsl2::Location;
-using anydsl2::Position;
-using anydsl2::Symbol;
-using anydsl2::Type;
-using anydsl2::dcast;
+using namespace anydsl2;
 
 namespace impala {
 
@@ -24,7 +19,7 @@ Decl::Decl(const Token& tok, const Type* type, const Position& pos2)
 
 bool Fct::is_continuation() const { return return_type(pi())->isa<NoRet>(); }
 
-void NamedFct::set(const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2) {
+void NamedFct::set(const Token& tok, const Type* type, const Position& pos2) {
     symbol_ = tok.symbol();
     type_ = type;
     set_loc(tok.pos1(), pos2);
@@ -41,12 +36,12 @@ Literal::Literal(const Location& loc, Kind kind, Box box)
     loc_= loc;
 }
 
-anydsl2::PrimTypeKind Literal::literal2type() const {
+PrimTypeKind Literal::literal2type() const {
     switch (kind()) {
 #define IMPALA_LIT(itype, atype) \
-        case LIT_##itype: return anydsl2::PrimType_##atype;
+        case LIT_##itype: return PrimType_##atype;
 #include "impala/tokenlist.h"
-        case LIT_bool:    return anydsl2::PrimType_u1;
+        case LIT_bool:    return PrimType_u1;
         default: ANYDSL2_UNREACHABLE;
     }
 }

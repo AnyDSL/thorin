@@ -16,8 +16,6 @@
 
 namespace anydsl2 {
     class Def;
-    class Fct;
-    class NamedFct;
     class Param;
     class Ref;
 }
@@ -73,13 +71,13 @@ public:
     uintptr_t group() const { return group_; }
     anydsl2::Lambda* air_lambda() const { return air_lambda_; }
     const anydsl2::Param* ret_param() const { return ret_param_; }
-    void dump(Printer& p) const;
-    void check(Sema& sema) const;
-    const anydsl2::Lambda* emit(CodeGen& cg, anydsl2::Lambda* parent, const char* what) const;
+    void fct_dump(Printer& p) const;
+    void fct_check(Sema& sema) const;
+    const anydsl2::Lambda* fct_emit(CodeGen& cg, anydsl2::Lambda* parent, const char* what) const;
 
 private:
 
-    void set(const anydsl2::Pi* pi, const ScopeStmt* body) { 
+    void fct_set(const anydsl2::Pi* pi, const ScopeStmt* body) { 
         static uintptr_t group = 1; 
         group_ = group++; 
         pi_ = pi; 
@@ -135,14 +133,13 @@ protected:
     size_t handle_;
 };
 
-class NamedFct : public Decl {
+class NamedFct : public Decl, public Fct {
 public:
 
     NamedFct(bool ext)
         : extern_(ext)
     {}
 
-    const Fct& fct() const { return fct_; }
     void set(const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2);
     void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
@@ -152,7 +149,6 @@ private:
 
     void set(const Decl* decl, bool ext);
 
-    Fct fct_;
     bool extern_;
 
     friend class Parser;
@@ -225,10 +221,8 @@ private:
     anydsl2::Box box_;
 };
 
-class FctExpr : public Expr {
+class FctExpr : public Expr, public Fct {
 public:
-
-    const Fct& fct() const { return fct_; }
 
     virtual bool lvalue() const { return false; }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
@@ -236,8 +230,6 @@ public:
     virtual void vdump(Printer& p) const;
 
 private:
-
-    Fct fct_;
 
     friend class Parser;
 };

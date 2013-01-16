@@ -410,7 +410,7 @@ void Parser::parse_fct(Fct* fct) {
 
     const Pi* pi = world.pi(arg_types);
     const ScopeStmt* body = parse_scope();
-    fct->set(pi, body);
+    fct->fct_set(pi, body);
 
     cur_generics = generics.parent();
     IMPALA_POP(cur_var_handle);
@@ -423,8 +423,8 @@ const NamedFct* Parser::parse_named_fct() {
     Token id = try_id("function identifier");
 
     NamedFct* f = new NamedFct(ext);
-    parse_fct(&f->fct_);
-    f->set(id, f->fct().pi(), prev_loc.pos2());
+    parse_fct(f);
+    f->set(id, f->pi(), prev_loc.pos2());
 
     return f;
 }
@@ -867,7 +867,7 @@ const Expr* Parser::parse_tuple() {
 const Expr* Parser::parse_fct_expr() {
     Position pos1 = eat(Token::LAMBDA).pos1();
     FctExpr* fct_expr = new FctExpr();
-    parse_fct(&fct_expr->fct_);
+    parse_fct(fct_expr);
 
     return fct_expr;
 }

@@ -408,9 +408,6 @@ void ReturnStmt::emit(CodeGen& cg) const {
     }
 }
 
-void NamedFctStmt::emit(CodeGen& cg) const {
-    named_fct()->emit(cg);
-}
 
 void ScopeStmt::emit(CodeGen& cg) const {
     for_all (const &s, stmts())

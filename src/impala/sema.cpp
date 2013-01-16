@@ -483,9 +483,6 @@ void ReturnStmt::check(Sema& sema) const {
         sema.error(this) << "continuation is not allowed to use 'return'\n";
 }
 
-void NamedFctStmt::check(Sema& sema) const { named_fct()->check(sema); }
-
-
 void ScopeStmt::check(Sema& sema) const {
     sema.push_scope();
     check_stmts(sema);

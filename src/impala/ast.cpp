@@ -1,7 +1,5 @@
 #include "impala/ast.h"
 
-#include "anydsl2/util/cast.h"
-
 #include "impala/type.h"
 
 using namespace anydsl2;

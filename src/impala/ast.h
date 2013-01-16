@@ -561,9 +561,9 @@ public:
 
     const NamedFct* named_fct() const { return named_fct_; }
 
-    virtual void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
-    virtual void emit(CodeGen& cg) const;
+    virtual void check(Sema& sema) const { named_fct()->check(sema); }
+    virtual void emit(CodeGen& cg) const { return named_fct()->emit(cg); }
 
 private:
 

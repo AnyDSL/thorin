@@ -3,7 +3,6 @@
 
 #include <vector>
 
-#include "anydsl2/irbuilder.h"
 #include "anydsl2/type.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/assert.h"
@@ -16,9 +15,10 @@
 #include "impala/token.h"
 
 namespace anydsl2 {
-    class BB;
     class Def;
+    class Fct;
     class NamedFct;
+    class Param;
     class Ref;
 }
 
@@ -62,7 +62,7 @@ private:
     friend class Parser;
 };
 
-class Lambda {
+class Fct {
 public:
 
     const ScopeStmt* body() const { return body_; }
@@ -70,23 +70,31 @@ public:
     const VarDecls& params() const { return params_; }
     const anydsl2::Pi* pi() const { return pi_; }
     bool is_continuation() const;
-    anydsl2::Fct* air_fct() const { return air_fct_; }
-
+    uintptr_t group() const { return group_; }
+    anydsl2::Lambda* air_lambda() const { return air_lambda_; }
+    const anydsl2::Param* ret_param() const { return ret_param_; }
     void dump(Printer& p) const;
     void check(Sema& sema) const;
-    const anydsl2::Lambda* emit(CodeGen& cg, anydsl2::BB* parent, const char* what) const;
+    const anydsl2::Lambda* emit(CodeGen& cg, anydsl2::Lambda* parent, const char* what) const;
 
 private:
 
-    void set(const anydsl2::Pi* pi, const ScopeStmt* body) { pi_ = pi; body_ = body; }
+    void set(const anydsl2::Pi* pi, const ScopeStmt* body) { 
+        static uintptr_t group = 1; 
+        group_ = group++; 
+        pi_ = pi; 
+        body_ = body; 
+    }
 
     VarDecls params_;
     anydsl2::AutoPtr<const ScopeStmt> body_;
+    uintptr_t group_;
     const anydsl2::Pi* pi_;
-    mutable anydsl2::AutoPtr<anydsl2::Fct> air_fct_;
+    mutable anydsl2::Lambda* air_lambda_;
+    mutable const anydsl2::Param* ret_param_;
 
     friend class NamedFct;
-    friend class LambdaExpr;
+    friend class FctExpr;
     friend class Parser;
     friend class CodeGen;
 };
@@ -134,7 +142,7 @@ public:
         : extern_(ext)
     {}
 
-    const Lambda& lambda() const { return lambda_; }
+    const Fct& fct() const { return fct_; }
     void set(const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2);
     void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
@@ -144,7 +152,7 @@ private:
 
     void set(const Decl* decl, bool ext);
 
-    Lambda lambda_;
+    Fct fct_;
     bool extern_;
 
     friend class Parser;
@@ -217,10 +225,10 @@ private:
     anydsl2::Box box_;
 };
 
-class LambdaExpr : public Expr {
+class FctExpr : public Expr {
 public:
 
-    const Lambda& lambda() const { return lambda_; }
+    const Fct& fct() const { return fct_; }
 
     virtual bool lvalue() const { return false; }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
@@ -229,7 +237,7 @@ public:
 
 private:
 
-    Lambda lambda_;
+    Fct fct_;
 
     friend class Parser;
 };
@@ -536,10 +544,10 @@ private:
 class ReturnStmt : public Stmt {
 public:
 
-    ReturnStmt(const anydsl2::Position& pos1, const Expr* expr, const Lambda* lambda, const anydsl2::Position& pos2);
+    ReturnStmt(const anydsl2::Position& pos1, const Expr* expr, const Fct* fct, const anydsl2::Position& pos2);
 
     const Expr* expr() const { return expr_; }
-    const Lambda* lambda() const { return lambda_; }
+    const Fct* fct() const { return fct_; }
 
     virtual void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
@@ -548,7 +556,7 @@ public:
 private:
 
     anydsl2::AutoPtr<const Expr> expr_;
-    const Lambda* lambda_;
+    const Fct* fct_;
 };
 
 class NamedFctStmt : public Stmt {

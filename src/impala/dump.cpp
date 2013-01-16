@@ -53,7 +53,7 @@ void Prg::vdump(Printer& p) const {
     }
 }
 
-void Lambda::dump(Printer& p) const {
+void Fct::dump(Printer& p) const {
 #if 0
     if (!generics().empty()) {
         p << "[[";
@@ -81,7 +81,7 @@ void Lambda::dump(Printer& p) const {
 
 void NamedFct::vdump(Printer& p) const {
     p << "def " << symbol();
-    lambda_.dump(p);
+    fct().dump(p);
 }
 
 void VarDecl::vdump(Printer& p) const {
@@ -114,9 +114,9 @@ void Literal::vdump(Printer& p) const {
     }
 }
 
-void LambdaExpr::vdump(Printer& p) const {
+void FctExpr::vdump(Printer& p) const {
     p << "lambda";
-    lambda_.dump(p);
+    fct_.dump(p);
 }
 
 void Tuple::vdump(Printer& p) const {

@@ -2,9 +2,10 @@
 
 #include <algorithm>
 
-#include "anydsl2/type.h"
 #include "anydsl2/literal.h"
 #include "anydsl2/primop.h"
+#include "anydsl2/symbol.h"
+#include "anydsl2/type.h"
 #include "anydsl2/world.h"
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/util/array.h"
@@ -18,7 +19,7 @@ Lambda::Lambda(size_t gid, const Pi* pi, LambdaAttr attr, uintptr_t group, bool 
     , sid_(size_t(-1))
     , group_(group)
     , attr_(attr)
-    , parent_(0)
+    , parent_((Lambda*) -1)
     , sealed_(sealed)
 {
     params_.reserve(pi->size());
@@ -107,7 +108,7 @@ Lambdas Lambda::direct_succs() const {
     if (Lambda* succ = to()->isa_lambda()) {
         result.push_back(succ);
         return result;
-    } else if (to()->isa<Param>())
+    } else if (to()->isa<Param>() || to()->isa<Undef>())
         return result;
 
     const Select* select = to()->as<Select>();
@@ -171,8 +172,32 @@ void Lambda::jump(const Def* to, ArrayRef<const Def*> args) {
         set_op(x++, arg);
 }
 
+void Lambda::jump(const Def* to, ArrayRef<const Def*> args, const Def* arg) {
+    Array<const Def*> rargs(args.size() + 1);
+    *std::copy(args.begin(), args.end(), rargs.begin()) = arg;
+    jump(to, rargs);
+}
+
 void Lambda::branch(const Def* cond, const Def* tto, const Def*  fto) {
     return jump(world().select(cond, tto, fto), ArrayRef<const Def*>(0, 0));
+}
+
+Lambda* Lambda::call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
+    static int id = 0;
+    // create next continuation in cascade
+    Lambda* next = world().lambda(world().pi1(ret_type), name + "_" + to->name);
+    next->set_group(group());
+    const Param* result = next->param(0);
+    result->name = make_name(to->name.c_str(), id);
+
+    // create jump to this new continuation
+    size_t csize = args.size() + 1;
+    Array<const Def*> cargs(csize);
+    *std::copy(args.begin(), args.end(), cargs.begin()) = next;
+    jump(to, cargs);
+
+    ++id;
+    return next;
 }
 
 /*
@@ -183,19 +208,16 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
     if (const Def* def = defs_.find(handle))
         return def;
 
-    Lambdas preds = group_preds();
-
     if (parent()) {
-        assert(preds.empty());
-        return parent()->get_value(handle, type, name);
-    }
+        if (parent() != (Lambda*) -1)
+            return parent()->get_value(handle, type, name);
 
-    if (preds.empty()) { // is function
-        // value is undefined
         // TODO provide hook instead of fixed functionality
         std::cerr << "'" << name << "'" << " may be undefined" << std::endl;
         return set_value(handle, world().bottom(type));
     }
+
+    Lambdas preds = group_preds();
 
     // insert a 'phi', i.e., create a param and remember to fix the callers
     if (!sealed_ || preds.size() > 1) {

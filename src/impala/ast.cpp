@@ -22,7 +22,7 @@ Decl::Decl(const Token& tok, const Type* type, const Position& pos2)
     set_loc(tok.pos1(), pos2);
 }
 
-bool Lambda::is_continuation() const { return return_type(pi())->isa<NoRet>(); }
+bool Fct::is_continuation() const { return return_type(pi())->isa<NoRet>(); }
 
 void NamedFct::set(const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2) {
     symbol_ = tok.symbol();
@@ -159,9 +159,9 @@ ContinueStmt::ContinueStmt(const Position& pos1, const Position& pos2, const Loo
     set_loc(pos1, pos2);
 }
 
-ReturnStmt::ReturnStmt(const Position& pos1, const Expr* expr, const Lambda* lambda, const Position& pos2)
+ReturnStmt::ReturnStmt(const Position& pos1, const Expr* expr, const Fct* fct, const Position& pos2)
     : expr_(expr)
-    , lambda_(lambda)
+    , fct_(fct)
 {
     set_loc(pos1, pos2);
 }

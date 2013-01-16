@@ -3,7 +3,6 @@
 #include <boost/unordered_map.hpp>
 #include <iostream>
 
-#include "anydsl2/irbuilder.h"
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
 #include "anydsl2/ref.h"
@@ -15,9 +14,9 @@
 #include "impala/type.h"
 
 using anydsl2::Array;
-using anydsl2::ArrayRef;
-using anydsl2::BB;
 using anydsl2::Def;
+using anydsl2::Lambda;
+using anydsl2::Param;
 using anydsl2::Ref;
 using anydsl2::Symbol;
 using anydsl2::Type;
@@ -31,23 +30,25 @@ public:
 
     CodeGen(World& world)
         : world(world)
-        , root(new anydsl2::Fct(world))
-        , curBB(root)
-        , curFct(root)
+        , curBB(0)
+        , curFct(0)
     {}
 
-    void fixto(BB* to) {
+    void fixto(Lambda* to) {
         if (reachable())
-            curBB->fixto(to);
+            curBB->jump0(to);
+    }
+    void fixto(Lambda* from, Lambda* to) {
+        if (from)
+            from->jump0(to);
     }
 
     bool reachable() const { return curBB; }
-    anydsl2::Fct* create_fct(const Lambda& lambda, Symbol symbol);
+    Lambda* create_fct(const Fct& fct, Symbol symbol);
 
     World& world;
-    anydsl2::AutoPtr<anydsl2::Fct> root;
-    BB* curBB;
-    anydsl2::Fct* curFct;
+    Lambda* curBB;
+    Lambda* curFct;
 };
 
 //------------------------------------------------------------------------------
@@ -60,23 +61,30 @@ void emit(World& world, const Prg* prg) {
 
 //------------------------------------------------------------------------------
 
-anydsl2::Fct* CodeGen::create_fct(const Lambda& lambda, Symbol symbol) {
-    size_t num = lambda.params().size();
-    Array<size_t> handles(num);
-    Array<Symbol> symbols(num);
+Lambda* CodeGen::create_fct(const Fct& fct, Symbol symbol) {
+    Lambda* f = world.lambda(fct.pi(), symbol.str());
+    size_t num = fct.params().size();
+    const Type* ret_type = return_type(fct.pi());
+    if (!ret_type->isa<NoRet>()) {
+        fct.ret_param_ = f->param(num-1);
+    } else
+        fct.ret_param_ = 0;
+
+
+    f->set_group(fct.group());
 
     for (size_t i = 0; i < num; ++i) {
-        handles[i] = lambda.param(i)->handle();
-        symbols[i] = lambda.param(i)->symbol();
+        const Param* param = f->param(i);
+        param->name = fct.param(i)->symbol().str();
+        f->set_value(fct.param(i)->handle(), f->param(i));
     }
 
-    size_t return_index = return_type(lambda.pi())->isa<NoRet>() ? size_t(-1) : lambda.pi()->size()-1;
-    return lambda.air_fct_ = new anydsl2::Fct(world, lambda.pi(), handles, symbols, return_index, symbol.str());
+    return fct.air_lambda_ = f;
 }
 
 void Prg::emit(CodeGen& cg) const {
     for_all (f, named_fcts()) {
-        anydsl2::Lambda* lambda = cg.create_fct(f->lambda(), f->symbol())->top();
+        Lambda* lambda = cg.create_fct(f->fct(), f->symbol());
 
         if (f->symbol() == Symbol("main"))
             lambda->attr().set_extern();
@@ -86,44 +94,42 @@ void Prg::emit(CodeGen& cg) const {
         f->emit(cg);
 }
 
-const anydsl2::Lambda* Lambda::emit(CodeGen& cg, BB* parent, const char* what) const {
+const Lambda* Fct::emit(CodeGen& cg, Lambda* parent, const char* what) const {
     for_all (f, body()->named_fcts())
-        cg.create_fct(f->lambda(), f->symbol())->top();
+        cg.create_fct(f->fct(), f->symbol());
 
-    air_fct()->set_parent(parent);
-    BB* oldBB = cg.curBB;
-    anydsl2::Fct* oldFct = cg.curFct;
-    cg.curBB = cg.curFct = air_fct();
+    air_lambda()->set_parent(parent);
+    Lambda* oldBB = cg.curBB;
+    Lambda* oldFct = cg.curFct;
+    cg.curBB = cg.curFct = air_lambda();
 
     body()->emit(cg);
 
     if (cg.reachable()) {
         if (is_continuation()) {
             std::cerr << what << " does not end with a call\n";
-            cg.curBB->tail_call(cg.world.bottom(cg.world.pi0()), ArrayRef<const Def*>());
+            cg.curBB->jump0(cg.world.bottom(cg.world.pi0()));
         } else {
             const Type* ret_type = return_type(pi());
             if (ret_type->isa<Void>())
-                cg.curBB->return_void();
+                cg.curBB->jump0(ret_param());
             else {
                 std::cerr << what << " does not end with 'return'\n";
-                cg.curBB->return_value(cg.world.bottom(ret_type));
+                cg.curBB->jump0(cg.world.bottom(cg.world.pi1(ret_type)));
             }
         }
     }
 
-    cg.curFct->emit();
-
     cg.curBB  = oldBB;
     cg.curFct = oldFct;
 
-    return air_fct()->top();
+    return air_lambda();
 }
 
 void NamedFct::emit(CodeGen& cg) const {
-    lambda().emit(cg, cg.curBB, symbol().str());
+    fct().emit(cg, cg.curBB, symbol().str());
     if (extern_)
-        lambda().air_fct()->top()->attr().set_extern();
+        fct().air_lambda()->attr().set_extern();
 }
 
 RefPtr VarDecl::emit(CodeGen& cg) const {
@@ -160,10 +166,10 @@ RefPtr Literal::emit(CodeGen& cg) const {
     return Ref::create(cg.world.literal(akind, box()));
 }
 
-RefPtr LambdaExpr::emit(CodeGen& cg) const {
+RefPtr FctExpr::emit(CodeGen& cg) const {
     static int id = 0;
-    cg.create_fct(lambda(), make_name("lambda", id++));
-    return Ref::create(lambda().emit(cg, cg.curBB, "anonymous lambda expression"));
+    cg.create_fct(fct(), make_name("lambda", id++));
+    return Ref::create(fct().emit(cg, cg.curBB, "anonymous lambda expression"));
 }
 
 RefPtr Tuple::emit(CodeGen& cg) const {
@@ -172,7 +178,7 @@ RefPtr Tuple::emit(CodeGen& cg) const {
 
 RefPtr Id::emit(CodeGen& cg) const {
     if (const NamedFct* named_fct = decl()->isa<NamedFct>())
-        return Ref::create(named_fct->lambda().air_fct()->top());
+        return Ref::create(named_fct->fct().air_lambda());
     return Ref::create(cg.curBB, decl()->as<VarDecl>()->handle(), type(), symbol().str());
 }
 
@@ -224,11 +230,9 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
                 ? Ref::create(cg.curBB, id->decl()->as<VarDecl>()->handle(), id->type(), id->symbol().str())
                 : lhs()->emit(cg);
 
-        const Def* ldef = lref->load();
-
         if (op != Token::ASGN) {
             TokenKind sop = Token::seperateAssign(op);
-            rdef = cg.world.binop(Token::to_binop(sop), ldef, rdef);
+            rdef = cg.world.binop(Token::to_binop(sop), lref->load(), rdef);
         }
 
         lref->store(rdef);
@@ -260,11 +264,14 @@ RefPtr Call::emit(CodeGen& cg) const {
     Array<const Def*> ops = emit_ops(cg);
 
     if (is_continuation_call()) {
-        cg.curBB->tail_call(ops[0], ops.slice_back(1));
+        cg.curBB->jump(ops[0], ops.slice_back(1));
         cg.curBB = 0;
         return RefPtr(0);
-    } else 
-        return Ref::create(cg.curBB->call(ops[0], ops.slice_back(1), type()));
+    } else {
+        Lambda* next = cg.curBB->call(ops[0], ops.slice_back(1), type());
+        cg.curBB = next;
+        return Ref::create(next->param(0));
+    }
 }
 
 /*
@@ -291,8 +298,8 @@ void IfElseStmt::emit(CodeGen& cg) const {
     // always create elseBB -- the edge from headBB to nextBB would be crtical anyway
 
     // create BBs
-    BB* thenBB = cg.curFct->createBB(make_name("if-then", cur_id));
-    BB* elseBB = cg.curFct->createBB(make_name("if-else", cur_id));
+    Lambda* thenBB = cg.world.basicblock(cg.curFct->group(), make_name("if-then", cur_id));
+    Lambda* elseBB = cg.world.basicblock(cg.curFct->group(), make_name("if-else", cur_id));
 
     // condition
     if (cg.reachable()) {
@@ -306,19 +313,19 @@ void IfElseStmt::emit(CodeGen& cg) const {
     // then
     cg.curBB = thenBB;
     thenStmt()->emit(cg);
-    BB* thenCur = cg.curBB;
+    Lambda* thenCur = cg.curBB;
 
     // else
     cg.curBB = elseBB;
     elseStmt()->emit(cg);
-    BB* elseCur = cg.curBB;
+    Lambda* elseCur = cg.curBB;
 
     if (!elseCur) {
         cg.curBB = thenCur;
     } else if (thenCur) {
-        BB* nextBB = cg.curFct->createBB(make_name("if-next", cur_id));
-        thenCur->fixto(nextBB);
-        elseCur->fixto(nextBB);
+        Lambda* nextBB = cg.world.basicblock(cg.curFct->group(), make_name("if-next", cur_id));
+        cg.fixto(thenCur, nextBB);
+        cg.fixto(elseCur, nextBB);
         nextBB->seal();
         cg.curBB = nextBB;
     }
@@ -329,10 +336,10 @@ void DoWhileStmt::emit(CodeGen& cg) const {
     int cur_id = id++;
 
     // create BBs
-    BB* bodyBB = cg.curFct->createBB(make_name("dowhile-body", cur_id));
-    BB* condBB = cg.curFct->createBB(make_name("dowhile-cond", cur_id));
-    BB* critBB = cg.curFct->createBB(make_name("dowhile-crit", cur_id));
-    BB* nextBB = cg.curFct->createBB(make_name("dowhile-next", cur_id));
+    Lambda* bodyBB = cg.world.basicblock(cg.curFct->group(), make_name("dowhile-body", cur_id));
+    Lambda* condBB = cg.world.basicblock(cg.curFct->group(), make_name("dowhile-cond", cur_id));
+    Lambda* critBB = cg.world.basicblock(cg.curFct->group(), make_name("dowhile-crit", cur_id));
+    Lambda* nextBB = cg.world.basicblock(cg.curFct->group(), make_name("dowhile-next", cur_id));
 
     // body
     cg.fixto(bodyBB);
@@ -347,7 +354,7 @@ void DoWhileStmt::emit(CodeGen& cg) const {
     condBB->branch(c, critBB, nextBB);
     critBB->seal();
     cg.curBB = critBB;
-    critBB->jump(bodyBB);
+    critBB->jump0(bodyBB);
     bodyBB->seal();
 
     // next
@@ -362,10 +369,10 @@ void ForStmt::emit(CodeGen& cg) const {
     init()->emit(cg);
 
     // create BBs
-    BB* headBB = cg.curFct->createBB(make_name("for-head", cur_id));
-    BB* bodyBB = cg.curFct->createBB(make_name("for-body", cur_id));
-    BB* stepBB = cg.curFct->createBB(make_name("for-step", cur_id));
-    BB* nextBB = cg.curFct->createBB(make_name("for-next", cur_id));
+    Lambda* headBB = cg.world.basicblock(cg.curFct->group(), make_name("for-head", cur_id));
+    Lambda* bodyBB = cg.world.basicblock(cg.curFct->group(), make_name("for-body", cur_id));
+    Lambda* stepBB = cg.world.basicblock(cg.curFct->group(), make_name("for-step", cur_id));
+    Lambda* nextBB = cg.world.basicblock(cg.curFct->group(), make_name("for-next", cur_id));
 
     // head
     cg.fixto(headBB);
@@ -401,14 +408,15 @@ void ContinueStmt::emit(CodeGen& cg) const {
 
 void ReturnStmt::emit(CodeGen& cg) const {
     if (cg.reachable()) {
+        const Param* ret_param = fct()->ret_param();
         if (const Call* call = expr()->isa<Call>()) {
             Array<const Def*> ops = call->emit_ops(cg);
-            cg.curBB->return_tail_call(ops[0], ops.slice_back(1));
+            cg.curBB->jump(ops[0], ops.slice_back(1), ret_param);
         } else {
-            if (expr())
-                cg.curBB->return_value(expr()->emit(cg)->load());
+            if (expr()) 
+                cg.curBB->jump1(ret_param, expr()->emit(cg)->load());
             else
-                cg.curBB->return_void();
+                cg.curBB->jump0(ret_param); // return void
         }
 
         // all other statements in the same BB are unreachable

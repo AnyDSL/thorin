@@ -22,13 +22,13 @@ def primes[[T]](n : int, t : T, yield : pi(int, T, pi(T)), ret : pi(T)) {
     });
 }
 
-def main(ret : pi(int)) {
+def main(main_ret : pi(int)) {
     primes(100, 0,
         lambda(p : int, result : int, next : pi(int)) {
             next(result + p);
         },
         lambda(result: int) {
-            ret(result);
+            main_ret(result);
         }
     );
 }

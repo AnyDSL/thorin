@@ -216,7 +216,7 @@ GenericMap Sema::fill_map() {
     return map;
 }
 
-void Lambda::check(Sema& sema) const {
+void Fct::check(Sema& sema) const {
     sema.push_scope();
     boost::unordered_set<const Generic*> bound;
     propagate_set(pi(), bound);
@@ -236,7 +236,7 @@ void Lambda::check(Sema& sema) const {
 }
 
 void NamedFct::check(Sema& sema) const {
-    lambda().check(sema);
+    fct().check(sema);
 }
 
 void Decl::insert(Sema& sema) const {
@@ -259,9 +259,9 @@ const Type* Literal::vcheck(Sema& sema) const {
     return sema.world.type(literal2type());
 }
 
-const Type* LambdaExpr::vcheck(Sema& sema) const {
-    lambda().check(sema);
-    return lambda().pi();
+const Type* FctExpr::vcheck(Sema& sema) const {
+    fct().check(sema);
+    return fct().pi();
 }
 
 const Type* Tuple::vcheck(Sema& sema) const {
@@ -466,8 +466,8 @@ void ContinueStmt::check(Sema& sema) const {
 }
 
 void ReturnStmt::check(Sema& sema) const {
-    if (!lambda()->is_continuation()) {
-        const Pi* pi = lambda()->pi();
+    if (!fct()->is_continuation()) {
+        const Pi* pi = fct()->pi();
         const Type* ret_type = return_type(pi);
 
         if (ret_type->isa<Void>()) {

@@ -92,6 +92,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     // terminate
 
     void jump(const Def* to, ArrayRef<const Def*> args);
+    void jump(const Def* to, ArrayRef<const Def*> args, const Def* arg);
     void jump0(const Def* to) {
         return jump(to, ArrayRef<const Def*>(0, 0));
     }
@@ -108,6 +109,22 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
         return jump(to, args);
     }
     void branch(const Def* cond, const Def* tto, const Def* fto);
+    Lambda* call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type);
+    Lambda* call0(const Def* to, const Type* ret_type) {
+        return call(to, ArrayRef<const Def*>(0, 0), ret_type);
+    }
+    Lambda* call1(const Def* to, const Def* arg1, const Type* ret_type) {
+        const Def* args[1] = { arg1 };
+        return call(to, args, ret_type);
+    }
+    Lambda* call2(const Def* to, const Def* arg1, const Def* arg2, const Type* ret_type) {
+        const Def* args[2] = { arg1, arg2 };
+        return call(to, args, ret_type);
+    }
+    Lambda* call3(const Def* to, const Def* arg1, const Def* arg2, const Def* arg3, const Type* ret_type) {
+        const Def* args[3] = { arg1, arg2, arg3 };
+        return call(to, args, ret_type);
+    }
 
     // cps construction
 
@@ -118,6 +135,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     void seal();
     bool sealed() const { return sealed_; }
     uintptr_t group() const { return group_; }
+    void set_group(uintptr_t group) { group_ = group; }
 
 private:
 

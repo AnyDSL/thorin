@@ -160,13 +160,10 @@ bool Lambda::is_returning() const {
  */
 
 void Lambda::jump(const Def* to, ArrayRef<const Def*> args) {
-    if (valid()) {
-        for (size_t i = 0, e = size(); i != e; ++i)
-            unset_op(i);
-        realloc(args.size() + 1);
-    } else
-        alloc(args.size() + 1);
+    for (size_t i = 0, e = size(); i != e; ++i)
+        unset_op(i);
 
+    resize(args.size()+1);
     set_op(0, to);
 
     size_t x = 1;

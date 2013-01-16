@@ -2,6 +2,7 @@
 #define ANYDSL2_NODE_H
 
 #include <cassert>
+#include <vector>
 
 #include "anydsl2/enums.h"
 #include "anydsl2/util/array.h"
@@ -38,26 +39,17 @@ protected:
     virtual ~Node() {}
 
     void set(size_t i, const Node* n) { ops_[i] = n; }
+    void resize(size_t n) { ops_.resize(n, 0); }
 
 public:
 
     int kind() const { return kind_; }
     bool is_corenode() const { return ::anydsl2::is_corenode(kind()); }
     NodeKind node_kind() const { assert(is_corenode()); return (NodeKind) kind_; }
-
     template<class T>
-    ArrayRef<T> ops_ref() const { return ops_.ref().cast<T>(); }
-
-    void alloc(size_t size) { ops_.alloc(size); }
-    void realloc(size_t size) { 
-        ops_.~Array<const Node*>(); 
-        new (&ops_) Array<const Node*>();
-        alloc(size); 
-    }
-    void shrink(size_t newsize) { ops_.shrink(newsize); }
+    ArrayRef<T> ops_ref() const { return ArrayRef<T>((T*) &ops_.front(), ops_.size()); }
     size_t size() const { return ops_.size(); }
     bool empty() const { return ops_.empty(); }
-    bool valid() const { return ops_.valid(); }
 
     /*
      * scratch operations
@@ -79,7 +71,7 @@ public:
 private:
 
     int kind_;
-    Array<const Node*> ops_;
+    std::vector<const Node*> ops_;
     mutable size_t cur_pass_;
 
 public:

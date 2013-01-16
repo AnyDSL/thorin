@@ -148,7 +148,7 @@ bool Lambda::is_returning() const {
                 if (!ret) {
                     ret = true;
                     continue;
-                }
+                } // else fall-through
             default:
                 return false;
         }
@@ -170,12 +170,6 @@ void Lambda::jump(const Def* to, ArrayRef<const Def*> args) {
     size_t x = 1;
     for_all (arg, args)
         set_op(x++, arg);
-}
-
-void Lambda::jump(const Def* to, ArrayRef<const Def*> args, const Def* arg) {
-    Array<const Def*> rargs(args.size() + 1);
-    *std::copy(args.begin(), args.end(), rargs.begin()) = arg;
-    jump(to, rargs);
 }
 
 void Lambda::branch(const Def* cond, const Def* tto, const Def*  fto) {

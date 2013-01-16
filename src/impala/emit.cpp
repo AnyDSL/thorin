@@ -125,10 +125,11 @@ RefPtr VarDecl::emit(CodeGen& cg) const {
  * Expr
  */
 
-Array<const Def*> Expr::emit_ops(CodeGen& cg) const {
-    Array<const Def*> defs(ops_.size());
-    for_all2 (&def, defs, op, ops())
-        def = op->emit(cg)->load();
+Array<const Def*> Expr::emit_ops(CodeGen& cg, size_t additional_size) const {
+    size_t num = ops_.size();
+    Array<const Def*> defs(num + additional_size);
+    for (size_t i = 0; i < num; ++i)
+        defs[i] = op(i)->emit(cg)->load();
 
     return defs;
 }
@@ -395,8 +396,9 @@ void ReturnStmt::emit(CodeGen& cg) const {
     if (cg.reachable()) {
         const Param* ret_param = fct()->ret_param();
         if (const Call* call = expr()->isa<Call>()) {
-            Array<const Def*> ops = call->emit_ops(cg);
-            cg.curBB->jump(ops[0], ops.slice_back(1), ret_param);
+            Array<const Def*> ops = call->emit_ops(cg, 1);
+            ops.back() = ret_param;
+            cg.curBB->jump(ops[0], ops.slice_back(1));
         } else {
             if (expr()) 
                 cg.curBB->jump1(ret_param, expr()->emit(cg)->load());

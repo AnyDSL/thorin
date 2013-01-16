@@ -92,7 +92,6 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     // terminate
 
     void jump(const Def* to, ArrayRef<const Def*> args);
-    void jump(const Def* to, ArrayRef<const Def*> args, const Def* arg);
     void jump0(const Def* to) {
         return jump(to, ArrayRef<const Def*>(0, 0));
     }

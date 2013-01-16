@@ -170,7 +170,7 @@ public:
     bool empty() const { return size() == 0; }
     const anydsl2::Type* type() const { return type_; }
     const anydsl2::Type* check(Sema& sema) const { assert(!type_); return type_ = vcheck(sema); }
-    anydsl2::Array<const anydsl2::Def*> emit_ops(CodeGen& cg) const;
+    anydsl2::Array<const anydsl2::Def*> emit_ops(CodeGen& cg, size_t additional_size = 0) const;
     virtual bool lvalue() const = 0;
     virtual RefPtr emit(CodeGen& cg) const = 0;
 

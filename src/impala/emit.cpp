@@ -26,15 +26,10 @@ public:
         , curFct(0)
     {}
 
-    void fixto(Lambda* to) {
-        if (reachable())
-            curBB->jump0(to);
-    }
-    void fixto(Lambda* from, Lambda* to) {
-        if (from)
-            from->jump0(to);
-    }
+    Lambda* basicblock(const char* name, int id) { return world.basicblock(curFct->group(), make_name(name, id)); }
     bool reachable() const { return curBB; }
+    void fixto(Lambda* to) { if (reachable()) curBB->jump0(to); }
+    void fixto(Lambda* from, Lambda* to) { if (from) from->jump0(to); }
 
     World& world;
     Lambda* curBB;
@@ -70,23 +65,12 @@ Lambda* Fct::stub(CodeGen& cg, Symbol symbol) const {
     return lambda_;
 }
 
-void Prg::emit(CodeGen& cg) const {
-    for_all (f, named_fcts()) {
-        Lambda* lambda = f->stub(cg, f->symbol());
-
-        if (f->symbol() == Symbol("main"))
-            lambda->attr().set_extern();
-    }
-
-    for_all (f, named_fcts())
-        f->emit(cg);
-}
-
 const Lambda* Fct::fct_emit(CodeGen& cg, Lambda* parent, const char* what) const {
     for_all (f, body()->named_fcts())
         f->stub(cg, f->symbol());
 
     lambda()->set_parent(parent);
+
     Lambda* oldBB = cg.curBB;
     Lambda* oldFct = cg.curFct;
     cg.curBB = cg.curFct = lambda();
@@ -112,6 +96,20 @@ const Lambda* Fct::fct_emit(CodeGen& cg, Lambda* parent, const char* what) const
     cg.curFct = oldFct;
 
     return lambda();
+}
+
+//------------------------------------------------------------------------------
+
+void Prg::emit(CodeGen& cg) const {
+    for_all (f, named_fcts()) {
+        Lambda* lambda = f->stub(cg, f->symbol());
+
+        if (f->symbol() == Symbol("main"))
+            lambda->attr().set_extern();
+    }
+
+    for_all (f, named_fcts())
+        f->emit(cg);
 }
 
 void NamedFct::emit(CodeGen& cg) const {
@@ -286,8 +284,8 @@ void IfElseStmt::emit(CodeGen& cg) const {
     // always create elseBB -- the edge from headBB to nextBB would be crtical anyway
 
     // create BBs
-    Lambda* thenBB = cg.world.basicblock(cg.curFct->group(), make_name("if-then", cur_id));
-    Lambda* elseBB = cg.world.basicblock(cg.curFct->group(), make_name("if-else", cur_id));
+    Lambda* thenBB = cg.basicblock("if-then", cur_id);
+    Lambda* elseBB = cg.basicblock("if-else", cur_id);
 
     // condition
     if (cg.reachable()) {
@@ -311,7 +309,7 @@ void IfElseStmt::emit(CodeGen& cg) const {
     if (!elseCur) {
         cg.curBB = thenCur;
     } else if (thenCur) {
-        Lambda* nextBB = cg.world.basicblock(cg.curFct->group(), make_name("if-next", cur_id));
+        Lambda* nextBB = cg.basicblock("if-next", cur_id);
         cg.fixto(thenCur, nextBB);
         cg.fixto(elseCur, nextBB);
         nextBB->seal();
@@ -324,10 +322,10 @@ void DoWhileStmt::emit(CodeGen& cg) const {
     int cur_id = id++;
 
     // create BBs
-    Lambda* bodyBB = cg.world.basicblock(cg.curFct->group(), make_name("dowhile-body", cur_id));
-    Lambda* condBB = cg.world.basicblock(cg.curFct->group(), make_name("dowhile-cond", cur_id));
-    Lambda* critBB = cg.world.basicblock(cg.curFct->group(), make_name("dowhile-crit", cur_id));
-    Lambda* nextBB = cg.world.basicblock(cg.curFct->group(), make_name("dowhile-next", cur_id));
+    Lambda* bodyBB = cg.basicblock("dowhile-body", cur_id);
+    Lambda* condBB = cg.basicblock("dowhile-cond", cur_id);
+    Lambda* critBB = cg.basicblock("dowhile-crit", cur_id);
+    Lambda* nextBB = cg.basicblock("dowhile-next", cur_id);
 
     // body
     cg.fixto(bodyBB);
@@ -357,10 +355,10 @@ void ForStmt::emit(CodeGen& cg) const {
     init()->emit(cg);
 
     // create BBs
-    Lambda* headBB = cg.world.basicblock(cg.curFct->group(), make_name("for-head", cur_id));
-    Lambda* bodyBB = cg.world.basicblock(cg.curFct->group(), make_name("for-body", cur_id));
-    Lambda* stepBB = cg.world.basicblock(cg.curFct->group(), make_name("for-step", cur_id));
-    Lambda* nextBB = cg.world.basicblock(cg.curFct->group(), make_name("for-next", cur_id));
+    Lambda* headBB = cg.basicblock("for-head", cur_id);
+    Lambda* bodyBB = cg.basicblock("for-body", cur_id);
+    Lambda* stepBB = cg.basicblock("for-step", cur_id);
+    Lambda* nextBB = cg.basicblock("for-next", cur_id);
 
     // head
     cg.fixto(headBB);

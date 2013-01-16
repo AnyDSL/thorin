@@ -165,7 +165,8 @@ private:
         const char* name_;
     };
 
-    void fix(Todo todo);
+    void fix(const Todo& todo);
+    const Def* get_value(const Todo& todo) { return get_value(todo.handle(), todo.type(), todo.name()); }
 
     size_t gid_; ///< global index
     size_t sid_; ///< scope index

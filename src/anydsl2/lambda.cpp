@@ -258,7 +258,7 @@ void Lambda::seal() {
     todos_.clear();
 }
 
-void Lambda::fix(Todo todo) {
+void Lambda::fix(const Todo& todo) {
     assert(sealed() && "must be sealed");
 
     size_t index = todo.index();
@@ -270,7 +270,7 @@ void Lambda::fix(Todo todo) {
     // find Horspool-like phis
     const Def* same = 0;
     for_all (pred, preds) {
-        const Def* def = pred->get_value(todo.handle(), todo.type(), todo.name());
+        const Def* def = pred->get_value(todo);
 
         if (def->isa<Undef>() || def == p || same == def)
             continue;
@@ -281,8 +281,7 @@ void Lambda::fix(Todo todo) {
         }
         same = def;
     }
-    
-goto fix_preds; // HACK fix cond_
+    goto fix_preds;
     if (!same || same == p)
         same = world().bottom(p->type());
 
@@ -293,19 +292,17 @@ fix_preds:
     for_all (pred, preds) {
         assert(!pred->empty());
         assert(pred->succs().size() == 1 && "critical edge");
-        //Out& out = pred->out_;
 
         // make potentially room for the new arg
         if (index >= pred->num_args())
             pred->resize(index+2);
 
         assert(!pred->arg(index) && "already set");
-        pred->set_op(index+1, same ? same : pred->get_value(todo.handle(), todo.type(), todo.name()));
+        pred->set_op(index+1, same ? same : pred->get_value(todo));
     }
 
     if (same)
         set_value(todo.handle(), same);
 }
-
 
 } // namespace anydsl2

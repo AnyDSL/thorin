@@ -226,6 +226,7 @@ void Lambda::vdump(Printer& p) const {
 
 void Param::vdump(Printer &p) const {
 	p.dump_name(this);
+    p << '_' << (void*) this;
     p << " : ";
     p.dump(type());
 }

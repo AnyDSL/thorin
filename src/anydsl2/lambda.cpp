@@ -1,13 +1,9 @@
 #include "anydsl2/lambda.h"
 
-#include <algorithm>
-
 #include "anydsl2/literal.h"
-#include "anydsl2/primop.h"
 #include "anydsl2/symbol.h"
 #include "anydsl2/type.h"
 #include "anydsl2/world.h"
-#include "anydsl2/analyses/scope.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/for_all.h"
 

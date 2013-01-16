@@ -71,10 +71,10 @@ public:
     uintptr_t group() const { return group_; }
     anydsl2::Lambda* lambda() const { return lambda_; }
     const anydsl2::Param* ret_param() const { return ret_param_; }
-    void fct_dump(Printer& p) const;
-    void fct_check(Sema& sema) const;
-    const anydsl2::Lambda* fct_emit(CodeGen& cg, anydsl2::Lambda* parent, const char* what) const;
-    anydsl2::Lambda* stub(CodeGen& cg, anydsl2::Symbol symbol) const;
+    void dump_fct(Printer& p) const;
+    void check_fct(Sema& sema) const;
+    const anydsl2::Lambda* emit_body(CodeGen& cg, anydsl2::Lambda* parent, const char* what) const;
+    anydsl2::Lambda* emit_head(CodeGen& cg, anydsl2::Symbol symbol) const;
 
 private:
 
@@ -142,7 +142,7 @@ public:
     {}
 
     void set(const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2);
-    void check(Sema& sema) const;
+    void check(Sema& sema) const { return check_fct(sema); }
     virtual void vdump(Printer& p) const;
     void emit(CodeGen& cg) const;
 

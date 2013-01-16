@@ -2,10 +2,10 @@
 #define ANYDSL2_WORLD_H
 
 #include <cassert>
-#include <string>
+#include <functional>
 #include <queue>
+#include <string>
 
-#include <boost/unordered_map.hpp>
 #include <boost/unordered_set.hpp>
 
 #include "anydsl2/enums.h"
@@ -35,6 +35,12 @@ class TypeKeeper;
 
 typedef boost::unordered_set<const PrimOp*, PrimOpHash, PrimOpEqual> PrimOpSet;
 typedef boost::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;
+
+struct LambdaLT : public std::binary_function<Lambda*, Lambda*, bool> {
+    bool operator () (Lambda* l1, Lambda* l2) const { return l1->gid() < l2->gid(); };
+};
+
+typedef std::set<Lambda*, LambdaLT> LambdaSet;
 
 //------------------------------------------------------------------------------
 

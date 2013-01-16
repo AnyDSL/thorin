@@ -209,7 +209,7 @@ GenericMap Sema::fill_map() {
     return map;
 }
 
-void Fct::fct_check(Sema& sema) const {
+void Fct::check_fct(Sema& sema) const {
     sema.push_scope();
     boost::unordered_set<const Generic*> bound;
     propagate_set(pi(), bound);
@@ -226,10 +226,6 @@ void Fct::fct_check(Sema& sema) const {
 
     sema.bound_generics_.pop_back();
     sema.pop_scope();
-}
-
-void NamedFct::check(Sema& sema) const {
-    fct_check(sema);
 }
 
 void Decl::insert(Sema& sema) const {
@@ -253,7 +249,7 @@ const Type* Literal::vcheck(Sema& sema) const {
 }
 
 const Type* FctExpr::vcheck(Sema& sema) const {
-    fct_check(sema);
+    check_fct(sema);
     return pi();
 }
 

@@ -233,22 +233,22 @@ void Lambda::seal() {
 
     for_all (todo, todos_)
         fix(todo);
+    todos_.clear();
 }
 
 void Lambda::fix(Todo todo) {
     assert(sealed() && "must be sealed");
 
-    size_t handle = todo.handle();
     size_t index = todo.index();
-    const Type* type = todo.type();
-    const char* name = todo.name();
     const Param* p = param(index);
-    const Def* same = 0;
+    assert(todo.index() == p->index());
+
     Lambdas preds = group_preds();
 
     // find Horspool-like phis
+    const Def* same = 0;
     for_all (pred, preds) {
-        const Def* def = pred->get_value(handle, type, name);
+        const Def* def = pred->get_value(todo.handle(), todo.type(), todo.name());
 
         if (def->isa<Undef>() || def == p || same == def)
             continue;
@@ -269,21 +269,20 @@ goto fix_preds; // HACK fix cond_
 
 fix_preds:
     for_all (pred, preds) {
+        assert(!pred->empty());
         assert(pred->succs().size() == 1 && "critical edge");
-#if 0
-        Out& out = pred->out_;
+        //Out& out = pred->out_;
 
         // make potentially room for the new arg
-        if (index >= out.size())
-            out.resize(index + 1);
+        if (index >= pred->size() - 1)
+            pred->resize(index + 1);
 
-        assert(!pred->out_[index] && "already set");
-        out[index] = same ? same : pred->get_value(handle, type, name);
-#endif
+        assert(!pred->arg(index) && "already set");
+        pred->set_op(index, same ? same : pred->get_value(todo.handle(), todo.type(), todo.name()));
     }
 
     if (same)
-        set_value(handle, same);
+        set_value(todo.handle(), same);
 }
 
 

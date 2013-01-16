@@ -69,11 +69,12 @@ public:
     const anydsl2::Pi* pi() const { return pi_; }
     bool is_continuation() const;
     uintptr_t group() const { return group_; }
-    anydsl2::Lambda* air_lambda() const { return air_lambda_; }
+    anydsl2::Lambda* lambda() const { return lambda_; }
     const anydsl2::Param* ret_param() const { return ret_param_; }
     void fct_dump(Printer& p) const;
     void fct_check(Sema& sema) const;
     const anydsl2::Lambda* fct_emit(CodeGen& cg, anydsl2::Lambda* parent, const char* what) const;
+    anydsl2::Lambda* stub(CodeGen& cg, anydsl2::Symbol symbol) const;
 
 private:
 
@@ -88,7 +89,7 @@ private:
     anydsl2::AutoPtr<const ScopeStmt> body_;
     uintptr_t group_;
     const anydsl2::Pi* pi_;
-    mutable anydsl2::Lambda* air_lambda_;
+    mutable anydsl2::Lambda* lambda_;
     mutable const anydsl2::Param* ret_param_;
 
     friend class NamedFct;

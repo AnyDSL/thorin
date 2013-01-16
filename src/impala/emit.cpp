@@ -34,9 +34,7 @@ public:
         if (from)
             from->jump0(to);
     }
-
     bool reachable() const { return curBB; }
-    Lambda* create_fct(const Fct* fct, Symbol symbol);
 
     World& world;
     Lambda* curBB;
@@ -53,30 +51,28 @@ void emit(World& world, const Prg* prg) {
 
 //------------------------------------------------------------------------------
 
-Lambda* CodeGen::create_fct(const Fct* fct, Symbol symbol) {
-    Lambda* f = world.lambda(fct->pi(), symbol.str());
-    size_t num = fct->params().size();
-    const Type* ret_type = return_type(fct->pi());
+Lambda* Fct::stub(CodeGen& cg, Symbol symbol) const {
+    lambda_ = cg.world.lambda(pi(), symbol.str());
+    lambda_->set_group(group());
+    size_t num = params().size();
+    const Type* ret_type = return_type(pi());
     if (!ret_type->isa<NoRet>()) {
-        fct->ret_param_ = f->param(num-1);
+        ret_param_ = lambda_->param(num-1);
     } else
-        fct->ret_param_ = 0;
-
-
-    f->set_group(fct->group());
+        ret_param_ = 0;
 
     for (size_t i = 0; i < num; ++i) {
-        const Param* param = f->param(i);
-        param->name = fct->param(i)->symbol().str();
-        f->set_value(fct->param(i)->handle(), f->param(i));
+        const Param* p = lambda_->param(i);
+        p->name = param(i)->symbol().str();
+        lambda_->set_value(param(i)->handle(), lambda_->param(i));
     }
 
-    return fct->air_lambda_ = f;
+    return lambda_;
 }
 
 void Prg::emit(CodeGen& cg) const {
     for_all (f, named_fcts()) {
-        Lambda* lambda = cg.create_fct(f, f->symbol());
+        Lambda* lambda = f->stub(cg, f->symbol());
 
         if (f->symbol() == Symbol("main"))
             lambda->attr().set_extern();
@@ -88,12 +84,12 @@ void Prg::emit(CodeGen& cg) const {
 
 const Lambda* Fct::fct_emit(CodeGen& cg, Lambda* parent, const char* what) const {
     for_all (f, body()->named_fcts())
-        cg.create_fct(f, f->symbol());
+        f->stub(cg, f->symbol());
 
-    air_lambda()->set_parent(parent);
+    lambda()->set_parent(parent);
     Lambda* oldBB = cg.curBB;
     Lambda* oldFct = cg.curFct;
-    cg.curBB = cg.curFct = air_lambda();
+    cg.curBB = cg.curFct = lambda();
 
     body()->emit(cg);
 
@@ -115,13 +111,13 @@ const Lambda* Fct::fct_emit(CodeGen& cg, Lambda* parent, const char* what) const
     cg.curBB  = oldBB;
     cg.curFct = oldFct;
 
-    return air_lambda();
+    return lambda();
 }
 
 void NamedFct::emit(CodeGen& cg) const {
     fct_emit(cg, cg.curBB, symbol().str());
     if (extern_)
-        air_lambda()->attr().set_extern();
+        lambda()->attr().set_extern();
 }
 
 RefPtr VarDecl::emit(CodeGen& cg) const {
@@ -160,7 +156,7 @@ RefPtr Literal::emit(CodeGen& cg) const {
 
 RefPtr FctExpr::emit(CodeGen& cg) const {
     static int id = 0;
-    cg.create_fct(this, make_name("lambda", id++));
+    stub(cg, make_name("lambda", id++));
     return Ref::create(fct_emit(cg, cg.curBB, "anonymous lambda expression"));
 }
 
@@ -170,7 +166,7 @@ RefPtr Tuple::emit(CodeGen& cg) const {
 
 RefPtr Id::emit(CodeGen& cg) const {
     if (const NamedFct* named_fct = decl()->isa<NamedFct>())
-        return Ref::create(named_fct->air_lambda());
+        return Ref::create(named_fct->lambda());
     return Ref::create(cg.curBB, decl()->as<VarDecl>()->handle(), type(), symbol().str());
 }
 

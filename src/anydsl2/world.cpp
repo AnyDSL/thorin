@@ -445,7 +445,6 @@ Lambda* World::lambda(const Pi* pi, LambdaAttr attr, const std::string& name) {
 
 Lambda* World::basicblock(uintptr_t group, const std::string& name) {
     Lambda* bb = new Lambda(gid_counter_++, pi0(), LambdaAttr(0), group, false, name);
-    bb->set_parent(0);
     lambdas_.insert(bb);
     return bb;
 }

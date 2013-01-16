@@ -19,7 +19,7 @@ Lambda::Lambda(size_t gid, const Pi* pi, LambdaAttr attr, uintptr_t group, bool 
     , sid_(size_t(-1))
     , group_(group)
     , attr_(attr)
-    , parent_((Lambda*) -1)
+    , parent_(this)
     , sealed_(sealed)
 {
     params_.reserve(pi->size());
@@ -100,7 +100,7 @@ static Lambdas find_preds(const Lambda* lambda) {
 
 Lambdas Lambda::preds() const { return find_preds<false, false>(this); }
 Lambdas Lambda::direct_preds() const { return find_preds<true, false>(this); }
-Lambdas Lambda::group_preds() const { return find_preds<true, true>(this); }
+Lambdas Lambda::group_preds() const { return find_preds<false, true>(this); }
 
 Lambdas Lambda::direct_succs() const {
     Lambdas result;
@@ -208,8 +208,8 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
     if (const Def* def = defs_.find(handle))
         return def;
 
-    if (parent()) {
-        if (parent() != (Lambda*) -1)
+    if (parent() != this) {
+        if (parent())
             return parent()->get_value(handle, type, name);
 
         // TODO provide hook instead of fixed functionality

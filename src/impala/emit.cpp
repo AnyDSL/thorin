@@ -70,7 +70,6 @@ const Lambda* Fct::fct_emit(CodeGen& cg, Lambda* parent, const char* what) const
         f->stub(cg, f->symbol());
 
     lambda()->set_parent(parent);
-
     Lambda* oldBB = cg.curBB;
     Lambda* oldFct = cg.curFct;
     cg.curBB = cg.curFct = lambda();

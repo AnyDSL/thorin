@@ -25,7 +25,12 @@ Printer& Printer::down() {
 }
 
 Printer& Printer::dump_name(const Def* def) {
-    if (fancy()) {
+    dump_name(o, def, fancy());
+    return *this;
+}
+
+void Printer::dump_name(std::ostream& o, const Def* def, bool fancy) {
+    if (fancy) {
         unsigned i = uintptr_t(def);
         unsigned sum = 0;
 
@@ -46,10 +51,8 @@ Printer& Printer::dump_name(const Def* def) {
     else
         o << (void*)def;
 
-    if (fancy())
+    if (fancy)
         o << "\33[m";
-
-    return *this;
 }
 
 } // namespace anydsl2

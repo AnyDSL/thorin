@@ -12,12 +12,14 @@
 
 namespace anydsl2 {
 
-Lambda::Lambda(size_t gid, const Pi* pi, LambdaAttr attr, const std::string& name)
+Lambda::Lambda(size_t gid, const Pi* pi, LambdaAttr attr, uintptr_t group, bool sealed, const std::string& name)
     : Def(Node_Lambda, pi, name)
     , gid_(gid)
     , sid_(size_t(-1))
-    , scope_(0)
+    , group_(group)
     , attr_(attr)
+    , parent_(0)
+    , sealed_(sealed)
 {
     params_.reserve(pi->size());
 }
@@ -69,28 +71,35 @@ const Param* Lambda::append_param(const Type* type, const std::string& name) {
     return param;
 }
 
-template<bool direct>
+template<bool direct, bool grouped_only>
 static Lambdas find_preds(const Lambda* lambda) {
     Lambdas result;
+    uintptr_t group = lambda->group();
 
     for_all (use, lambda->uses()) {
         const Def* udef = use.def();
         if (const Select* select = udef->isa<Select>()) {
             for_all (use, select->uses()) {
                 assert(use.index() == 0);
-                result.push_back(use.def()->as_lambda());
+                Lambda* pred = use.def()->as_lambda();
+                if (!grouped_only || group == pred->group())
+                    result.push_back(pred);
             }
         } else {
-            if (!direct || use.index() == 0)
-                result.push_back(udef->as_lambda());
+            if (!direct || use.index() == 0) {
+                Lambda* pred = udef->as_lambda();
+                if (!grouped_only || group == pred->group())
+                    result.push_back(pred);
+            }
         }
     }
 
     return result;
 }
 
-Lambdas Lambda::preds() const { return find_preds<false>(this); }
-Lambdas Lambda::direct_preds() const { return find_preds<true>(this); }
+Lambdas Lambda::preds() const { return find_preds<false, false>(this); }
+Lambdas Lambda::direct_preds() const { return find_preds<true, false>(this); }
+Lambdas Lambda::group_preds() const { return find_preds<true, true>(this); }
 
 Lambdas Lambda::direct_succs() const {
     Lambdas result;
@@ -177,25 +186,26 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
     if (const Def* def = defs_.find(handle))
         return def;
 
-    if (parent())
-        return parent()->get_value(handle, type, name);
+    Lambdas preds = group_preds();
 
-    if (/*is function*/ false) {
+    if (parent()) {
+        assert(preds.empty());
+        return parent()->get_value(handle, type, name);
+    }
+
+    if (preds.empty()) { // is function
         // value is undefined
         // TODO provide hook instead of fixed functionality
         std::cerr << "'" << name << "'" << " may be undefined" << std::endl;
         return set_value(handle, world().bottom(type));
     }
 
-#if 0
     // insert a 'phi', i.e., create a param and remember to fix the callers
-    if (!sealed_ || preds_.size() > 1) {
-        const Param* param = top_->append_param(type, name);
-        size_t index = in_.size();
-        in_.push_back(param);
+    if (!sealed_ || preds.size() > 1) {
+        const Param* param = append_param(type, name);
         set_value(handle, param);
 
-        Todo todo(handle, index, type, name);
+        Todo todo(handle, param->index(), type, name);
         if (sealed_)
             fix(todo);
         else
@@ -204,13 +214,8 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
         return param;
     }
 
-    // unreachable code
-    if (preds().empty())
-        return set_value(handle, world().bottom(type));
-    
-    assert(preds().size() == 1 && "there can only be one");
-#endif
-    Lambda* pred = *preds().begin();
+    assert(preds.size() == 1 && "there can only be one");
+    Lambda* pred = *preds.begin();
     const Def* def = pred->get_value(handle, type, name);
 
     // create copy of lvar in this Lambda
@@ -221,9 +226,10 @@ void Lambda::seal() {
     assert(!sealed() && "already sealed");
     sealed_ = true;
 
-#if 0
-    if (preds().size() >= 2) {
-        for_all (pred, preds_)
+#ifndef NDEBUG
+    Lambdas preds = group_preds();
+    if (preds.size() >= 2) {
+        for_all (pred, preds)
             assert(pred->succs().size() <= 1 && "critical edge");
     }
 #endif
@@ -241,9 +247,10 @@ void Lambda::fix(Todo todo) {
     const char* name = todo.name();
     const Param* p = param(index);
     const Def* same = 0;
+    Lambdas preds = group_preds();
 
     // find Horspool-like phis
-    for_all (pred, preds()) {
+    for_all (pred, preds) {
         const Def* def = pred->get_value(handle, type, name);
 
         if (def->isa<Undef>() || def == p || same == def)
@@ -264,9 +271,9 @@ goto fix_preds; // HACK fix cond_
         world().update(use.def(), use.index(), same);
 
 fix_preds:
-#if 0
-    for_all (pred, preds()) {
+    for_all (pred, preds) {
         assert(pred->succs().size() == 1 && "critical edge");
+#if 0
         Out& out = pred->out_;
 
         // make potentially room for the new arg
@@ -275,8 +282,8 @@ fix_preds:
 
         assert(!pred->out_[index] && "already set");
         out[index] = same ? same : pred->get_value(handle, type, name);
-    }
 #endif
+    }
 
     if (same)
         set_value(handle, same);

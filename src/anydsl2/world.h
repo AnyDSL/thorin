@@ -230,6 +230,7 @@ public:
     Lambda* lambda(const Pi* pi, LambdaAttr attr = LambdaAttr(0), const std::string& name = "");
     Lambda* lambda(const Pi* pi, const std::string& name) { return lambda(pi, LambdaAttr(0), name); }
     Lambda* lambda(const std::string& name) { return lambda(pi0(), LambdaAttr(0), name); }
+    Lambda* basicblock(uintptr_t group, const std::string& name);
 
     /// Generic \p PrimOp constructor.
     const Def* primop(const PrimOp* in, ArrayRef<const Def*> ops, const std::string& name);

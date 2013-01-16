@@ -433,7 +433,7 @@ const TypeKeeper* World::typekeeper(const Type* type, const std::string& name) {
 }
 
 Lambda* World::lambda(const Pi* pi, LambdaAttr attr, const std::string& name) {
-    Lambda* l = new Lambda(gid_counter_++, pi, attr, name);
+    Lambda* l = new Lambda(gid_counter_++, pi, attr, 0, true, name);
     lambdas_.insert(l);
 
     size_t i = 0;
@@ -441,6 +441,12 @@ Lambda* World::lambda(const Pi* pi, LambdaAttr attr, const std::string& name) {
         l->params_.push_back(new Param(elem, l, i++, ""));
 
     return l;
+}
+
+Lambda* World::basicblock(uintptr_t group, const std::string& name) {
+    Lambda* bb = new Lambda(gid_counter_++, pi0(), LambdaAttr(0), group, false, name);
+    lambdas_.insert(bb);
+    return bb;
 }
 
 const Def* World::primop(const PrimOp* in, ArrayRef<const Def*> ops) { return primop(in, ops, in->name); }

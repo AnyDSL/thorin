@@ -45,7 +45,7 @@ private:
 class Lambda : public Def {
 private:
 
-    Lambda(size_t gid, const Pi* pi, LambdaAttr attr, const std::string& name);
+    Lambda(size_t gid, const Pi* pi, LambdaAttr attr, uintptr_t group, bool sealed, const std::string& name);
     virtual ~Lambda();
 
 public:
@@ -58,6 +58,7 @@ public:
     Lambdas preds() const;
     Lambdas direct_succs() const;
     Lambdas direct_preds() const;
+    Lambdas group_preds() const;
     const Params& params() const { return params_; }
     const Param* param(size_t i) const { return params_[i]; }
     const Def* to() const { return op(0); };
@@ -116,6 +117,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     void set_parent(Lambda* parent) { parent_ = parent; }
     void seal();
     bool sealed() const { return sealed_; }
+    uintptr_t group() const { return group_; }
 
 private:
 
@@ -149,7 +151,10 @@ private:
 
     size_t gid_; ///< global index
     size_t sid_; ///< scope index
-    Scope* scope_;
+    union {
+        Scope* scope_;
+        uintptr_t group_;
+    };
     LambdaAttr attr_;
     Params params_;
     Lambda* parent_;

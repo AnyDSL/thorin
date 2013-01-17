@@ -186,10 +186,10 @@ bool check(World& world, const Prg* prg) {
 //------------------------------------------------------------------------------
 
 void Prg::check(Sema& sema) const {
-    for_all (f, named_fcts())
+    for_all (f, named_funs())
         f->insert(sema);
 
-    for_all (f, named_fcts())
+    for_all (f, named_funs())
         f->check(sema);
 }
 
@@ -209,13 +209,13 @@ GenericMap Sema::fill_map() {
     return map;
 }
 
-void Fct::check_fct(Sema& sema) const {
+void Fun::fun_check(Sema& sema) const {
     sema.push_scope();
     boost::unordered_set<const Generic*> bound;
     propagate_set(pi(), bound);
     sema.bound_generics_.push_back(bound);
 
-    for_all (f, body()->named_fcts())
+    for_all (f, body()->named_funs())
         f->insert(sema);
 
     for_all (p, params())
@@ -248,8 +248,8 @@ const Type* Literal::vcheck(Sema& sema) const {
     return sema.world.type(literal2type());
 }
 
-const Type* FctExpr::vcheck(Sema& sema) const {
-    check_fct(sema);
+const Type* FunExpr::vcheck(Sema& sema) const {
+    fun_check(sema);
     return pi();
 }
 
@@ -455,8 +455,8 @@ void ContinueStmt::check(Sema& sema) const {
 }
 
 void ReturnStmt::check(Sema& sema) const {
-    if (!fct()->is_continuation()) {
-        const Pi* pi = fct()->pi();
+    if (!fun()->is_continuation()) {
+        const Pi* pi = fun()->pi();
         const Type* ret_type = return_type(pi);
 
         if (ret_type->isa<Void>()) {

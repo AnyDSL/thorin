@@ -15,9 +15,9 @@ Decl::Decl(const Token& tok, const Type* type, const Position& pos2)
     set_loc(tok.pos1(), pos2);
 }
 
-bool Fct::is_continuation() const { return return_type(pi())->isa<NoRet>(); }
+bool Fun::is_continuation() const { return return_type(pi())->isa<NoRet>(); }
 
-void NamedFct::set(const Token& tok, const Type* type, const Position& pos2) {
+void NamedFun::set(const Token& tok, const Type* type, const Position& pos2) {
     symbol_ = tok.symbol();
     type_ = type;
     set_loc(tok.pos1(), pos2);
@@ -80,7 +80,7 @@ IndexExpr::IndexExpr(const Position& pos1, const Expr* lhs, const Expr* index, c
     set_loc(pos1, pos2);
 }
 
-Call::Call(const Expr* fct) { ops_.push_back(fct); }
+Call::Call(const Expr* fun) { ops_.push_back(fun); }
 bool Call::is_continuation_call() const { return type()->isa<NoRet>(); }
 
 void Call::set_pos2(const Position& pos2) {
@@ -152,9 +152,9 @@ ContinueStmt::ContinueStmt(const Position& pos1, const Position& pos2, const Loo
     set_loc(pos1, pos2);
 }
 
-ReturnStmt::ReturnStmt(const Position& pos1, const Expr* expr, const Fct* fct, const Position& pos2)
+ReturnStmt::ReturnStmt(const Position& pos1, const Expr* expr, const Fun* fun, const Position& pos2)
     : expr_(expr)
-    , fct_(fct)
+    , fun_(fun)
 {
     set_loc(pos1, pos2);
 }

@@ -75,8 +75,8 @@ public:
     const Type* parse_return_type();
     const VarDecl* parse_var_decl();
     void parse_globals();
-    void parse_fct(Fct* fct);
-    const NamedFct* parse_named_fct();
+    void parse_fun(Fun* fun);
+    const NamedFun* parse_named_fun();
 
     // expressions
     const Expr* parse_expr(Prec prec);
@@ -87,7 +87,7 @@ public:
     const Expr* parse_primary_expr();
     const Expr* parse_literal();
     const Expr* parse_tuple();
-    const Expr* parse_fct_expr();
+    const Expr* parse_fun_expr();
 
     // statements
     const Stmt* parse_stmt();
@@ -175,7 +175,7 @@ private:
     Lexer lexer;       ///< invoked in order to get next token
     Token lookahead[2];///< LL(2) look ahead
     const Loop* cur_loop;
-    const Fct* cur_fct;
+    const Fun* cur_fun;
     Generics* cur_generics;
     size_t cur_var_handle;
     size_t generic_counter;
@@ -206,7 +206,7 @@ Parser::Parser(World& world, std::istream& stream, const std::string& filename)
     : world(world)
     , lexer(stream, filename)
     , cur_loop(0)
-    , cur_fct(0)
+    , cur_fun(0)
     , cur_generics(0)
     , cur_var_handle(0)
     , generic_counter(0)
@@ -357,7 +357,7 @@ const VarDecl* Parser::parse_var_decl() {
 void Parser::parse_globals() {
     while (true) {
         switch (la()) {
-            case Token::DEF:         prg->named_fcts_.push_back(parse_named_fct()); continue;
+            case Token::DEF:         prg->named_funs_.push_back(parse_named_fun()); continue;
             case Token::END_OF_FILE: return;
 
             // consume token nobody wants to have in order to prevent infinite loop
@@ -379,8 +379,8 @@ void Parser::parse_generic_list() {
     }
 }
 
-void Parser::parse_fct(Fct* fct) {
-    IMPALA_PUSH(cur_fct, fct);
+void Parser::parse_fun(Fun* fun) {
+    IMPALA_PUSH(cur_fun, fun);
     IMPALA_PUSH(cur_var_handle, cur_var_handle);
 
     Generics generics(cur_generics, builder);
@@ -393,7 +393,7 @@ void Parser::parse_fct(Fct* fct) {
     (
         {
             const VarDecl* param = parse_var_decl();
-            fct->params_.push_back(param);
+            fun->params_.push_back(param);
             arg_types.push_back(param->type());
         },
         Token::R_PAREN,
@@ -405,25 +405,25 @@ void Parser::parse_fct(Fct* fct) {
         Position pos1 = prev_loc.pos1();
         arg_types.push_back(parse_return_type());
         Position pos2 = prev_loc.pos2();
-        fct->params_.push_back(new VarDecl(cur_var_handle++, Token(pos1, "<return>"), arg_types.back(), pos2));
+        fun->params_.push_back(new VarDecl(cur_var_handle++, Token(pos1, "<return>"), arg_types.back(), pos2));
     }
 
     const Pi* pi = world.pi(arg_types);
     const ScopeStmt* body = parse_scope();
-    fct->fct_set(pi, body);
+    fun->fun_set(pi, body);
 
     cur_generics = generics.parent();
     IMPALA_POP(cur_var_handle);
-    IMPALA_POP(cur_fct);
+    IMPALA_POP(cur_fun);
 }
 
-const NamedFct* Parser::parse_named_fct() {
+const NamedFun* Parser::parse_named_fun() {
     Position pos1 = eat(Token::DEF).pos1();
     bool ext = accept(Token::EXTERN);
     Token id = try_id("function identifier");
 
-    NamedFct* f = new NamedFct(ext);
-    parse_fct(f);
+    NamedFun* f = new NamedFun(ext);
+    parse_fun(f);
     f->set(id, f->pi(), prev_loc.pos2());
 
     return f;
@@ -436,14 +436,14 @@ const ScopeStmt* Parser::parse_scope() {
     expect(Token::L_BRACE, "scope statement");
 
     Stmts& stmts = scope->stmts_;
-    NamedFcts& named_fcts = scope->named_fcts_;
+    NamedFuns& named_funs = scope->named_funs_;
 
     while (true) {
         if (la() == Token::DEF) {
-            const NamedFct* named_fct = parse_named_fct();
-            const NamedFctStmt* named_fct_stmt = new NamedFctStmt(named_fct);
-            stmts.push_back(named_fct_stmt);
-            named_fcts.push_back(named_fct);
+            const NamedFun* named_fun = parse_named_fun();
+            const NamedFunStmt* named_fun_stmt = new NamedFunStmt(named_fun);
+            stmts.push_back(named_fun_stmt);
+            named_funs.push_back(named_fun);
         } else if (is_stmt())
             stmts.push_back(parse_stmt());
         else
@@ -636,7 +636,7 @@ const Stmt* Parser::parse_return() {
         eat(Token::SEMICOLON);
     }
 
-    return new ReturnStmt(pos1, expr, cur_fct, prev_loc.pos2());
+    return new ReturnStmt(pos1, expr, cur_fun, prev_loc.pos2());
 }
 
 const Expr* Parser::parse_cond(const std::string& what) {
@@ -825,7 +825,7 @@ const Expr* Parser::parse_primary_expr() {
             return expr;
         }
         case Token::HASH:       return parse_tuple();
-        case Token::LAMBDA:     return parse_fct_expr();
+        case Token::LAMBDA:     return parse_fun_expr();
         default:                ANYDSL2_UNREACHABLE;
     }
 }
@@ -864,12 +864,12 @@ const Expr* Parser::parse_tuple() {
     return tuple;
 }
 
-const Expr* Parser::parse_fct_expr() {
+const Expr* Parser::parse_fun_expr() {
     Position pos1 = eat(Token::LAMBDA).pos1();
-    FctExpr* fct_expr = new FctExpr();
-    parse_fct(fct_expr);
+    FunExpr* fun_expr = new FunExpr();
+    parse_fun(fun_expr);
 
-    return fct_expr;
+    return fun_expr;
 }
 
 } // namespace impala

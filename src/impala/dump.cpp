@@ -47,13 +47,13 @@ void ASTNode::dump() const {
 }
 
 void Prg::vdump(Printer& p) const {
-    for_all (f, named_fcts()) {
+    for_all (f, named_funs()) {
         f->vdump(p);
         p.newline();
     }
 }
 
-void Fct::dump_fct(Printer& p) const {
+void Fun::fun_dump(Printer& p) const {
 #if 0
     if (!generics().empty()) {
         p << "[[";
@@ -79,9 +79,9 @@ void Fct::dump_fct(Printer& p) const {
     p.dump_block(body());
 }
 
-void NamedFct::vdump(Printer& p) const {
+void NamedFun::vdump(Printer& p) const {
     p << "def " << symbol();
-    dump_fct(p);
+    fun_dump(p);
 }
 
 void VarDecl::vdump(Printer& p) const {
@@ -114,9 +114,9 @@ void Literal::vdump(Printer& p) const {
     }
 }
 
-void FctExpr::vdump(Printer& p) const {
+void FunExpr::vdump(Printer& p) const {
     p << "lambda";
-    dump_fct(p);
+    fun_dump(p);
 }
 
 void Tuple::vdump(Printer& p) const {
@@ -316,7 +316,7 @@ void ReturnStmt::vdump(Printer& p) const {
     p << ';';
 }
 
-void NamedFctStmt::vdump(Printer& p) const { named_fct()->vdump(p); }
+void NamedFunStmt::vdump(Printer& p) const { named_fun()->vdump(p); }
 
 void ScopeStmt::vdump(Printer& p) const {
     p << "{";

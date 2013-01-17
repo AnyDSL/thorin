@@ -25,7 +25,7 @@ namespace impala {
 class CodeGen;
 class VarDecl;
 class Expr;
-class NamedFct;
+class NamedFun;
 class Printer;
 class ScopeStmt;
 class Sema;
@@ -33,7 +33,7 @@ class Stmt;
 
 typedef anydsl2::AutoVector<const VarDecl*> VarDecls;
 typedef anydsl2::AutoVector<const Expr*> Exprs;
-typedef std::vector<const NamedFct*> NamedFcts;
+typedef std::vector<const NamedFun*> NamedFuns;
 typedef anydsl2::AutoVector<const Stmt*> Stmts;
 typedef std::auto_ptr<const anydsl2::Ref> RefPtr;
 
@@ -51,16 +51,16 @@ public:
     virtual void vdump(Printer& p) const;
     void emit(CodeGen& cg) const;
 
-    const NamedFcts& named_fcts() const { return named_fcts_; }
+    const NamedFuns& named_funs() const { return named_funs_; }
 
 private:
 
-    anydsl2::AutoVector<const NamedFct*> named_fcts_;
+    anydsl2::AutoVector<const NamedFun*> named_funs_;
 
     friend class Parser;
 };
 
-class Fct {
+class Fun {
 public:
 
     const ScopeStmt* body() const { return body_; }
@@ -71,14 +71,14 @@ public:
     uintptr_t group() const { return group_; }
     anydsl2::Lambda* lambda() const { return lambda_; }
     const anydsl2::Param* ret_param() const { return ret_param_; }
-    void dump_fct(Printer& p) const;
-    void check_fct(Sema& sema) const;
+    void fun_dump(Printer& p) const;
+    void fun_check(Sema& sema) const;
     const anydsl2::Lambda* emit_body(CodeGen& cg, anydsl2::Lambda* parent, const char* what) const;
     anydsl2::Lambda* emit_head(CodeGen& cg, anydsl2::Symbol symbol) const;
 
 private:
 
-    void fct_set(const anydsl2::Pi* pi, const ScopeStmt* body) { 
+    void fun_set(const anydsl2::Pi* pi, const ScopeStmt* body) { 
         static uintptr_t group = 1; 
         group_ = group++; 
         pi_ = pi; 
@@ -92,8 +92,8 @@ private:
     mutable anydsl2::Lambda* lambda_;
     mutable const anydsl2::Param* ret_param_;
 
-    friend class NamedFct;
-    friend class FctExpr;
+    friend class NamedFun;
+    friend class FunExpr;
     friend class Parser;
     friend class CodeGen;
 };
@@ -134,15 +134,15 @@ protected:
     size_t handle_;
 };
 
-class NamedFct : public Decl, public Fct {
+class NamedFun : public Decl, public Fun {
 public:
 
-    NamedFct(bool ext)
+    NamedFun(bool ext)
         : extern_(ext)
     {}
 
     void set(const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2);
-    void check(Sema& sema) const { return check_fct(sema); }
+    void check(Sema& sema) const { return fun_check(sema); }
     virtual void vdump(Printer& p) const;
     void emit(CodeGen& cg) const;
 
@@ -222,7 +222,7 @@ private:
     anydsl2::Box box_;
 };
 
-class FctExpr : public Expr, public Fct {
+class FunExpr : public Expr, public Fun {
 public:
 
     virtual bool lvalue() const { return false; }
@@ -362,7 +362,7 @@ public:
 class Call : public Expr {
 public:
 
-    Call(const Expr* fct);
+    Call(const Expr* fun);
 
     void append_arg(const Expr* expr) { ops_.push_back(expr); }
     void set_pos2(const anydsl2::Position& pos2);
@@ -537,10 +537,10 @@ private:
 class ReturnStmt : public Stmt {
 public:
 
-    ReturnStmt(const anydsl2::Position& pos1, const Expr* expr, const Fct* fct, const anydsl2::Position& pos2);
+    ReturnStmt(const anydsl2::Position& pos1, const Expr* expr, const Fun* fun, const anydsl2::Position& pos2);
 
     const Expr* expr() const { return expr_; }
-    const Fct* fct() const { return fct_; }
+    const Fun* fun() const { return fun_; }
 
     virtual void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
@@ -549,25 +549,25 @@ public:
 private:
 
     anydsl2::AutoPtr<const Expr> expr_;
-    const Fct* fct_;
+    const Fun* fun_;
 };
 
-class NamedFctStmt : public Stmt {
+class NamedFunStmt : public Stmt {
 public:
 
-    NamedFctStmt(const NamedFct* named_fct)
-        : named_fct_(named_fct)
+    NamedFunStmt(const NamedFun* named_fun)
+        : named_fun_(named_fun)
     {}
 
-    const NamedFct* named_fct() const { return named_fct_; }
+    const NamedFun* named_fun() const { return named_fun_; }
 
     virtual void vdump(Printer& p) const;
-    virtual void check(Sema& sema) const { named_fct()->check(sema); }
-    virtual void emit(CodeGen& cg) const { return named_fct()->emit(cg); }
+    virtual void check(Sema& sema) const { named_fun()->check(sema); }
+    virtual void emit(CodeGen& cg) const { return named_fun()->emit(cg); }
 
 private:
 
-    anydsl2::AutoPtr<const NamedFct> named_fct_;
+    anydsl2::AutoPtr<const NamedFun> named_fun_;
 };
 
 class ScopeStmt : public Stmt {
@@ -579,7 +579,7 @@ public:
     }
 
     const Stmts& stmts() const { return stmts_; }
-    const NamedFcts& named_fcts() const { return named_fcts_; }
+    const NamedFuns& named_funs() const { return named_funs_; }
     void check_stmts(Sema& sema) const;
 
     virtual bool empty() const { return stmts_.empty(); }
@@ -590,7 +590,7 @@ public:
 private:
 
     Stmts stmts_;
-    NamedFcts named_fcts_;
+    NamedFuns named_funs_;
 
     friend class Parser;
 };

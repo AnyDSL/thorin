@@ -23,17 +23,17 @@ public:
     CodeGen(World& world)
         : world(world)
         , curBB(0)
-        , curFct(0)
+        , curFun(0)
     {}
 
-    Lambda* basicblock(const char* name, int id) { return world.basicblock(curFct->group(), make_name(name, id)); }
+    Lambda* basicblock(const char* name, int id) { return world.basicblock(curFun->group(), make_name(name, id)); }
     bool reachable() const { return curBB; }
     void fixto(Lambda* to) { if (reachable()) curBB->jump0(to); }
     void fixto(Lambda* from, Lambda* to) { if (from) from->jump0(to); }
 
     World& world;
     Lambda* curBB;
-    Lambda* curFct;
+    Lambda* curFun;
 };
 
 //------------------------------------------------------------------------------
@@ -46,7 +46,7 @@ void emit(World& world, const Prg* prg) {
 
 //------------------------------------------------------------------------------
 
-Lambda* Fct::emit_head(CodeGen& cg, Symbol symbol) const {
+Lambda* Fun::emit_head(CodeGen& cg, Symbol symbol) const {
     lambda_ = cg.world.lambda(pi(), symbol.str());
     lambda_->set_group(group());
     size_t num = params().size();
@@ -65,14 +65,14 @@ Lambda* Fct::emit_head(CodeGen& cg, Symbol symbol) const {
     return lambda_;
 }
 
-const Lambda* Fct::emit_body(CodeGen& cg, Lambda* parent, const char* what) const {
-    for_all (f, body()->named_fcts())
+const Lambda* Fun::emit_body(CodeGen& cg, Lambda* parent, const char* what) const {
+    for_all (f, body()->named_funs())
         f->emit_head(cg, f->symbol());
 
     lambda()->set_parent(parent);
     Lambda* oldBB = cg.curBB;
-    Lambda* oldFct = cg.curFct;
-    cg.curBB = cg.curFct = lambda();
+    Lambda* oldFun = cg.curFun;
+    cg.curBB = cg.curFun = lambda();
 
     body()->emit(cg);
 
@@ -92,7 +92,7 @@ const Lambda* Fct::emit_body(CodeGen& cg, Lambda* parent, const char* what) cons
     }
 
     cg.curBB  = oldBB;
-    cg.curFct = oldFct;
+    cg.curFun = oldFun;
 
     return lambda();
 }
@@ -100,18 +100,18 @@ const Lambda* Fct::emit_body(CodeGen& cg, Lambda* parent, const char* what) cons
 //------------------------------------------------------------------------------
 
 void Prg::emit(CodeGen& cg) const {
-    for_all (f, named_fcts()) {
+    for_all (f, named_funs()) {
         Lambda* lambda = f->emit_head(cg, f->symbol());
 
         if (f->symbol() == Symbol("main"))
             lambda->attr().set_extern();
     }
 
-    for_all (f, named_fcts())
+    for_all (f, named_funs())
         f->emit(cg);
 }
 
-void NamedFct::emit(CodeGen& cg) const {
+void NamedFun::emit(CodeGen& cg) const {
     emit_body(cg, cg.curBB, symbol().str());
     if (extern_)
         lambda()->attr().set_extern();
@@ -152,7 +152,7 @@ RefPtr Literal::emit(CodeGen& cg) const {
     return Ref::create(cg.world.literal(akind, box()));
 }
 
-RefPtr FctExpr::emit(CodeGen& cg) const {
+RefPtr FunExpr::emit(CodeGen& cg) const {
     static int id = 0;
     emit_head(cg, make_name("lambda", id++));
     return Ref::create(emit_body(cg, cg.curBB, "anonymous lambda expression"));
@@ -163,8 +163,8 @@ RefPtr Tuple::emit(CodeGen& cg) const {
 }
 
 RefPtr Id::emit(CodeGen& cg) const {
-    if (const NamedFct* named_fct = decl()->isa<NamedFct>())
-        return Ref::create(named_fct->lambda());
+    if (const NamedFun* named_fun = decl()->isa<NamedFun>())
+        return Ref::create(named_fun->lambda());
     return Ref::create(cg.curBB, decl()->as<VarDecl>()->handle(), type(), symbol().str());
 }
 
@@ -391,7 +391,7 @@ void ContinueStmt::emit(CodeGen& cg) const {
 
 void ReturnStmt::emit(CodeGen& cg) const {
     if (cg.reachable()) {
-        const Param* ret_param = fct()->ret_param();
+        const Param* ret_param = fun()->ret_param();
         if (const Call* call = expr()->isa<Call>()) {
             Array<const Def*> ops = call->emit_ops(cg, 1);
             ops.back() = ret_param;

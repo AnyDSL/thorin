@@ -638,14 +638,13 @@ void World::cleanup() {
 
 void World::opt() {
     // perform a debug verification step after each step
-    const bool debugDump = true;
-    assert( verify<debugDump>(*this) );
+    assert( verify(*this) );
     cfg_transform(*this);
-    assert( verify<debugDump>(*this) );
+    assert( verify(*this) );
     merge_lambdas(*this);
-    assert( verify<debugDump>(*this) );
+    assert( verify(*this) );
     cleanup();
-    assert( verify<debugDump>(*this) );
+    assert( verify(*this) );
 }
 
 PrimOp* World::release(const PrimOp* primop) {

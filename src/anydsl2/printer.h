@@ -43,8 +43,6 @@ public:
     std::ostream& o;
     int indent;
 
-    static void dump_name(std::ostream& o, const Def* def, bool fancy);
-
 private:
 
     bool fancy_;

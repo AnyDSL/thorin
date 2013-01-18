@@ -93,7 +93,7 @@ void Select::vdump(Printer& p) const {
 void Extract::vdump(Printer& p) const {
     dump_name_and_type(p, this, "extract");
 	p.dump(tuple());
-	p << ", "; 
+	p << ", ";
     p.dump(index());
     p << ")";
 }
@@ -170,12 +170,12 @@ void CompoundType::dump_inner(Printer& p) const {
 	p << ')';
 }
 
-void Mem::vdump(Printer& p) const { 
-    p << "mem"; 
+void Mem::vdump(Printer& p) const {
+    p << "mem";
 }
 
-void Frame::vdump(Printer& p) const { 
-    p << "frame"; 
+void Frame::vdump(Printer& p) const {
+    p << "frame";
 }
 
 void Ptr::vdump(Printer& p) const {
@@ -253,8 +253,8 @@ void Type::dump(bool fancy) const {
     std::cout << std::endl;
 }
 
-void Lambda::dump(bool fancy, int indent) const {
-    Printer p(std::cout, fancy);
+void Lambda::dump(bool fancy, int indent, std::ostream& out) const {
+    Printer p(out, fancy);
 
     p.indent += indent;
     p.newline();

@@ -72,7 +72,7 @@ private:
             p->unvisit(pass_);
 
         if(!result)
-            INVALID_CE(param, plambda)
+            INVALID_CE(plambda, param)
 
         VALID
     }

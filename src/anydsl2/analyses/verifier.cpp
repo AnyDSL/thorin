@@ -24,20 +24,60 @@ public:
         // loop over all lambdas and check them
         bool result = true;
         for_all(lambda, world_.lambdas()) {
-            result &= verify(lambda);
+            result &= verifyBody(lambda);
         }
         return result;
     }
 
 private:
-    bool verify(const Def* def) {
-        if(def->isa<Param>() || def->isa_lambda())
+    bool verify(Lambda* current, const Def* def) {
+        if(const Param* param = def->isa<Param>())
+            return verifyParam(current, param);
+        else if(def->isa_lambda())
             VALID
         else
-            return verify(def->as<PrimOp>());
+            return verifyPrimop(current, def->as<PrimOp>());
     }
 
-    bool verify(Lambda* lambda) {
+    bool verifyParam(Lambda* current, const Param* param) {
+        Lambda* plambda = param->lambda();
+
+        const LambdaSet& lambdas = world_.lambdas();
+        if(lambdas.find(plambda) == lambdas.end())
+            INVALID(plambda,  "lambda not contained in the world")
+
+        // is plambda in the history or the current one?
+        if(plambda == current)
+            VALID
+        // param must not be visited in this case
+        if(param->is_visited(pass_))
+            INVALID(param, "invalid cyclic dependencies")
+
+        if(plambda->is_visited(pass_))
+            VALID
+
+        // push current lambda into the history and continue with plambda
+        current->visit(pass_);
+        // we have to mark all params of this lambda as visited
+        // since we have to check whether a single one occurs in the history
+        for_all(p, current->params())
+            p->visit(pass_);
+
+        // continue with the body
+        bool result = verifyBody(plambda);
+
+        // unmark everything
+        current->unvisit(pass_);
+        for_all(p, current->params())
+            p->unvisit(pass_);
+
+        if(!result)
+            INVALID_CE(param, plambda)
+
+        VALID
+    }
+
+    bool verifyBody(Lambda* lambda) {
         // check whether the lambda is stored in the world
         const LambdaSet& lambdas = world_.lambdas();
         if(lambdas.find(lambda) == lambdas.end())
@@ -45,7 +85,7 @@ private:
         // check the "body" of this lambda
         for_all(op, lambda->ops()) {
             // -> check the current element structure
-            if(!verify(op)) INVALID_CE(lambda, op)
+            if(!verify(lambda, op)) INVALID_CE(lambda, op)
         }
         // there are no cycles in this body
         // => thus, we can verfiy types
@@ -81,7 +121,7 @@ private:
         return true;
     }
 
-    bool verify(const PrimOp* primop) {
+    bool verifyPrimop(Lambda* current, const PrimOp* primop) {
         // check whether the current primop is stored in the world
         const PrimOpSet& pset = world_.primops();
         if(pset.find(primop) == pset.end())
@@ -92,7 +132,7 @@ private:
         primop->visit(pass_);
         // check all operands recursively
         for_all(op, primop->ops()) {
-            if(!verify(op)) INVALID_CE(primop, op)
+            if(!verify(current, op)) INVALID_CE(primop, op)
         }
         primop->unvisit(pass_);
         // the primop seems to be cycle free

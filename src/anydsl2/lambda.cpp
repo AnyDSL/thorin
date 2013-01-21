@@ -62,7 +62,7 @@ const Param* Lambda::append_param(const Type* type, const std::string& name) {
     set_type(world().pi(elems));
 
     // append new param
-    const Param* param = new Param(type, this, size, name);
+    const Param* param = new Param(world().param_gid_++, type, this, size, name);
     params_.push_back(param);
 
     return param;
@@ -173,12 +173,11 @@ void Lambda::branch(const Def* cond, const Def* tto, const Def*  fto) {
 }
 
 Lambda* Lambda::call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
-    static int id = 0;
     // create next continuation in cascade
     Lambda* next = world().lambda(world().pi1(ret_type), name + "_" + to->name);
     next->set_group(group());
     const Param* result = next->param(0);
-    result->name = make_name(to->name.c_str(), id);
+    result->name = to->name;
 
     // create jump to this new continuation
     size_t csize = args.size() + 1;
@@ -186,7 +185,6 @@ Lambda* Lambda::call(const Def* to, ArrayRef<const Def*> args, const Type* ret_t
     *std::copy(args.begin(), args.end(), cargs.begin()) = next;
     jump(to, cargs);
 
-    ++id;
     return next;
 }
 

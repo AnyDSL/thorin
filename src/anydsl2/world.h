@@ -289,7 +289,9 @@ protected:
     }
     template<class T, class U> 
     const U* cse(const T& tuple, const std::string& name) { 
-        return consume<PrimOpSet, T, U, T, std::string>(primops_, tuple, tuple, name); 
+        const U* primop = consume<PrimOpSet, T, U, T, std::string>(primops_, tuple, tuple, name); 
+        primop->set_gid(primop_gid_++);
+        return primop;
     }
 
 private:
@@ -320,7 +322,9 @@ private:
     LambdaSet lambdas_;
     TypeSet types_;
 
-    size_t gid_counter_;
+    size_t primop_gid_;
+    size_t param_gid_;
+    size_t lambda_gid_;
     size_t pass_counter_;
     const Sigma* sigma0_;///< sigma().
     const Pi* pi0_;      ///< pi().
@@ -335,6 +339,8 @@ private:
 
         const PrimType* primTypes_[Num_PrimTypes];
     };
+
+    friend class Lambda;
 };
 
 //------------------------------------------------------------------------------

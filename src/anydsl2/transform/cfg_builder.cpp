@@ -116,7 +116,7 @@ void CFGBuilder::process() {
             Lambda* lambda = scope.rpo(i);
             if (lambda->num_params()                                // is there sth to drop?
                     && (lambda->num_uses() == 1                     // just 1 user -- always drop
-                        || (!lambda->is_bb()                        // don't drop basic blocks
+                        || (!lambda->is_basicblock()                // don't drop basic blocks
                             && (!lambda->is_returning()             // drop non-returning lambdas
                                 || top.find(lambda) == top.end()))))// lift/drop returning non top-level lambdas
                 todo.push_back(lambda);

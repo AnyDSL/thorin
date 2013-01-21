@@ -25,29 +25,13 @@ Printer& Printer::down() {
 }
 
 Printer& Printer::dump_name(const Def* def) {
-    if (fancy_) {
-        unsigned i = uintptr_t(def);
-        unsigned sum = 0;
-
-        while (i) {
-            sum += i & 0x3;
-            i >>= 2;
-        }
-
-        sum += i;
-
-        // elide white = 0 and black = 7
-        int code = (sum % 6) + 30 + 1;
-        o << "\33[" << code << "m";
-    }
-
-    if (!def->name.empty())
-        o << def->name;
-    else
-        o << (void*)def;
+    if (fancy_) // elide white = 0 and black = 7
+        o << "\33[" << (def->gid() % 6 + 30 + 1) << "m";
+    o << def->name << '_' << def->delimiter() << def->gid();
 
     if (fancy_)
         o << "\33[m";
+
     return *this;
 }
 

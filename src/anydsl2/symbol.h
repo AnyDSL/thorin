@@ -42,8 +42,6 @@ private:
 
 inline std::ostream& operator << (std::ostream& o, Symbol s) { return o << s.str(); }
 inline size_t hash_value(Symbol symbol) { return boost::hash_value(symbol.str()); }
-std::string make_name(const char* cstr, int id);
-inline Symbol make_symbol(const char* cstr, int id) { return Symbol(make_name(cstr, id)); }
 
 } // namespace anydsl2
 

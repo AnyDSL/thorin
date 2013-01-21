@@ -105,19 +105,16 @@ public:
     virtual ~Def() {}
     void set_op(size_t i, const Def* def);
     void unset_op(size_t i);
-
     Lambda* as_lambda() const;
     Lambda* isa_lambda() const;
-
     bool is_const() const;
-
     void dump() const;
     void dump(bool fancy) const;
-
     virtual void vdump(Printer &printer) const = 0;
-
     const Uses& uses() const { return uses_; }
     size_t num_uses() const { return uses_.size(); }
+    virtual size_t gid() const = 0;
+    virtual char delimiter() const = 0;
 
     /**
      * Copies all use-info into an array.
@@ -126,7 +123,6 @@ public:
     Array<Use> copy_uses() const;
     const Type* type() const { return type_; }
     int order() const;
-
     World& world() const;
     ArrayRef<const Def*> ops() const { return ops_ref<const Def*>(); }
     ArrayRef<const Def*> ops(size_t begin, size_t end) const { return ops().slice(begin, end); }
@@ -160,16 +156,23 @@ std::ostream& operator << (std::ostream& o, const Def* def);
 class Param : public Def {
 private:
 
-    Param(const Type* type, Lambda* parent, size_t index, const std::string& name);
+    Param(size_t gid, const Type* type, Lambda* parent, size_t index, const std::string& name);
 
 public:
 
+    virtual size_t gid() const { return gid_; }
+    virtual char delimiter() const { return 'p'; }
     Lambda* lambda() const { return lambda_; }
     size_t index() const { return index_; }
     Peeks peek() const;
     virtual void vdump(Printer& printer) const;
 
 private:
+
+    void set_gid(size_t gid) const { gid_ = gid; }
+
+    mutable size_t gid_;
+
 
     mutable Lambda* lambda_;
     const size_t index_;

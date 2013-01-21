@@ -38,11 +38,20 @@ protected:
 
 public:
 
+    virtual size_t gid() const { return gid_; }
+    virtual char delimiter() const { return 'o'; }
     DefTupleN as_tuple() const { return DefTupleN(kind(), type(), ops()); }
     ANYDSL2_HASH_EQUAL
 
+private:
+
+    void set_gid(size_t gid) const { gid_ = gid; }
+
+    mutable size_t gid_;
+
     friend class PrimOpHash;
     friend class PrimOpEqual;
+    friend class World;
 };
 
 struct PrimOpHash : std::unary_function<const PrimOp*, size_t> {

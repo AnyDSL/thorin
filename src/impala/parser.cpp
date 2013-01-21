@@ -287,7 +287,7 @@ Token Parser::try_id(const std::string& what) {
         name = lex();
     else {
         error("identifier", what);
-        name = Token(la().loc(), make_symbol("error-name", next_id()).str());
+        name = Token(la().loc(), "<error_id>");
     }
 
     return name;

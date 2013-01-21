@@ -26,7 +26,7 @@ public:
         , curFun(0)
     {}
 
-    Lambda* basicblock(const char* name, int id) { return world.basicblock(curFun->group(), make_name(name, id)); }
+    Lambda* basicblock(const char* name) { return world.basicblock(curFun->group(), name); }
     bool reachable() const { return curBB; }
     void fixto(Lambda* to) { if (reachable()) curBB->jump0(to); }
     void fixto(Lambda* from, Lambda* to) { if (from) from->jump0(to); }
@@ -153,8 +153,7 @@ RefPtr Literal::emit(CodeGen& cg) const {
 }
 
 RefPtr FunExpr::emit(CodeGen& cg) const {
-    static int id = 0;
-    emit_head(cg, make_name("lambda", id++));
+    emit_head(cg, "lambda");
     return Ref::create(emit_body(cg, cg.curBB, "anonymous lambda expression"));
 }
 
@@ -275,14 +274,8 @@ void ExprStmt::emit(CodeGen& cg) const {
 }
 
 void IfElseStmt::emit(CodeGen& cg) const {
-    static int id = 0;
-    int cur_id = id++;
-
-    // always create elseBB -- the edge from headBB to nextBB would be crtical anyway
-
-    // create BBs
-    Lambda* thenBB = cg.basicblock("if-then", cur_id);
-    Lambda* elseBB = cg.basicblock("if-else", cur_id);
+    Lambda* thenBB = cg.basicblock("if-then");
+    Lambda* elseBB = cg.basicblock("if-else");// always create -- the edge from headBB to nextBB is crtical
 
     // condition
     if (cg.reachable()) {
@@ -306,7 +299,7 @@ void IfElseStmt::emit(CodeGen& cg) const {
     if (!elseCur) {
         cg.curBB = thenCur;
     } else if (thenCur) {
-        Lambda* nextBB = cg.basicblock("if-next", cur_id);
+        Lambda* nextBB = cg.basicblock("if-next");
         cg.fixto(thenCur, nextBB);
         cg.fixto(elseCur, nextBB);
         nextBB->seal();
@@ -315,14 +308,10 @@ void IfElseStmt::emit(CodeGen& cg) const {
 }
 
 void DoWhileStmt::emit(CodeGen& cg) const {
-    static int id = 0;
-    int cur_id = id++;
-
-    // create BBs
-    Lambda* bodyBB = cg.basicblock("dowhile-body", cur_id);
-    Lambda* condBB = cg.basicblock("dowhile-cond", cur_id);
-    Lambda* critBB = cg.basicblock("dowhile-crit", cur_id);
-    Lambda* nextBB = cg.basicblock("dowhile-next", cur_id);
+    Lambda* bodyBB = cg.basicblock("dowhile-body");
+    Lambda* condBB = cg.basicblock("dowhile-cond");
+    Lambda* critBB = cg.basicblock("dowhile-crit");
+    Lambda* nextBB = cg.basicblock("dowhile-next");
 
     // body
     cg.fixto(bodyBB);
@@ -346,16 +335,12 @@ void DoWhileStmt::emit(CodeGen& cg) const {
 }
 
 void ForStmt::emit(CodeGen& cg) const {
-    static int id = 0;
-    int cur_id = id++;
-
     init()->emit(cg);
 
-    // create BBs
-    Lambda* headBB = cg.basicblock("for-head", cur_id);
-    Lambda* bodyBB = cg.basicblock("for-body", cur_id);
-    Lambda* stepBB = cg.basicblock("for-step", cur_id);
-    Lambda* nextBB = cg.basicblock("for-next", cur_id);
+    Lambda* headBB = cg.basicblock("for-head");
+    Lambda* bodyBB = cg.basicblock("for-body");
+    Lambda* stepBB = cg.basicblock("for-step");
+    Lambda* nextBB = cg.basicblock("for-next");
 
     // head
     cg.fixto(headBB);

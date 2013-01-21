@@ -60,7 +60,8 @@ public:
     const Pi* pi() const;
     const Pi* to_pi() const;
     const Pi* arg_pi() const;
-    size_t gid() const { return gid_; }
+    virtual char delimiter() const { return 'l'; }
+    virtual size_t gid() const { return gid_; }
     size_t sid() const { return sid_; }
     Scope* scope() { return scope_; }
     const Scope* scope() const { return scope_; }
@@ -76,7 +77,6 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
      */
     bool is_cascading() const;
     bool is_returning() const;
-    bool is_bb() const { return order() == 1; }
     bool sid_valid() { return sid_ != size_t(-1); }
     bool sid_invalid() { return sid_ == size_t(-1); }
     void invalidate_sid() { sid_ = size_t(-1); }

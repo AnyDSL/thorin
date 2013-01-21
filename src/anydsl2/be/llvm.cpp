@@ -124,7 +124,7 @@ void CodeGen::emit() {
 
         // emit body for each bb
         for_all (lambda, scope.rpo()) {
-            assert(lambda == scope.entry() || lambda->is_bb());
+            assert(lambda == scope.entry() || lambda->is_basicblock());
             builder.SetInsertPoint(bbs[lambda->sid()]);
 
             // create phi node stubs (for all non-cascading lambdas different from entry)
@@ -167,7 +167,7 @@ void CodeGen::emit() {
                 builder.CreateCondBr(cond, tbb, fbb);
             } else {
                 Lambda* to_lambda = lambda->to()->as_lambda();
-                if (to_lambda->is_bb())      // ordinary jump
+                if (to_lambda->is_basicblock())      // ordinary jump
                     builder.CreateBr(bbs[to_lambda->sid()]);
                 else {
                     // put all first-order args into an array

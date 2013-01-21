@@ -34,12 +34,4 @@ void Symbol::destroy() {
         free((void*) const_cast<char*>(s));
 }
 
-std::string make_name(const char* cstr, int id) {
-    std::ostringstream oss;
-    oss << '<' << cstr << '-';
-    oss << std::setw(2) << std::setfill('0') << id << '>';
-
-    return oss.str();
-}
-
 } // namespace anydsl2

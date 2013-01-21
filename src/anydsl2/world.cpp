@@ -42,7 +42,9 @@ namespace anydsl2 {
 World::World()
     : primops_(1031)
     , types_(1031)
-    , gid_counter_(0)
+    , primop_gid_(0)
+    , param_gid_(0)
+    , lambda_gid_(0)
     , pass_counter_(1)
     , sigma0_ (keep(new Sigma(*this, TypeTupleN(Node_Sigma, ArrayRef<const Type*>()))))
     , pi0_    (keep(new Pi   (*this, TypeTupleN(Node_Pi,    ArrayRef<const Type*>()))))
@@ -433,18 +435,18 @@ const TypeKeeper* World::typekeeper(const Type* type, const std::string& name) {
 }
 
 Lambda* World::lambda(const Pi* pi, LambdaAttr attr, const std::string& name) {
-    Lambda* l = new Lambda(gid_counter_++, pi, attr, 0, true, name);
+    Lambda* l = new Lambda(lambda_gid_++, pi, attr, 0, true, name);
     lambdas_.insert(l);
 
     size_t i = 0;
     for_all (elem, pi->elems())
-        l->params_.push_back(new Param(elem, l, i++, ""));
+        l->params_.push_back(new Param(param_gid_++, elem, l, i++, ""));
 
     return l;
 }
 
 Lambda* World::basicblock(uintptr_t group, const std::string& name) {
-    Lambda* bb = new Lambda(gid_counter_++, pi0(), LambdaAttr(0), group, false, name);
+    Lambda* bb = new Lambda(lambda_gid_++, pi0(), LambdaAttr(0), group, false, name);
     lambdas_.insert(bb);
     return bb;
 }

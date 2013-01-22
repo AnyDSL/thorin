@@ -83,16 +83,17 @@ private:
 
 protected:
 
-    /// This variant leaves internal \p ops_ \p Array allocateble via ops_.alloc(size).
-    Def(int kind, const Type* type, const std::string& name)
+    Def(size_t gid, int kind, const Type* type, const std::string& name)
         : Node(kind, name)
         , type_(type)
+        , gid_(gid)
     {
         uses_.reserve(4);
     }
-    Def(int kind, size_t size, const Type* type, const std::string& name)
+    Def(size_t gid, int kind, size_t size, const Type* type, const std::string& name)
         : Node(kind, size, name)
         , type_(type)
+        , gid_(gid)
     {
         uses_.reserve(4);
     }
@@ -113,7 +114,7 @@ public:
     virtual void vdump(Printer &printer) const = 0;
     const Uses& uses() const { return uses_; }
     size_t num_uses() const { return uses_.size(); }
-    virtual size_t gid() const = 0;
+    size_t gid() const { return gid_; }
     virtual char delimiter() const = 0;
 
     /**
@@ -146,6 +147,9 @@ private:
 
     const Type* type_;
     mutable Uses uses_;
+    const size_t gid_;
+
+    friend class PrimOp;
     friend class World;
 };
 
@@ -160,7 +164,6 @@ private:
 
 public:
 
-    virtual size_t gid() const { return gid_; }
     virtual char delimiter() const { return 'p'; }
     Lambda* lambda() const { return lambda_; }
     size_t index() const { return index_; }
@@ -168,11 +171,6 @@ public:
     virtual void vdump(Printer& printer) const;
 
 private:
-
-    void set_gid(size_t gid) const { gid_ = gid; }
-
-    mutable size_t gid_;
-
 
     mutable Lambda* lambda_;
     const size_t index_;

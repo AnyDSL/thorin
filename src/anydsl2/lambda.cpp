@@ -10,8 +10,7 @@
 namespace anydsl2 {
 
 Lambda::Lambda(size_t gid, const Pi* pi, LambdaAttr attr, uintptr_t group, bool sealed, const std::string& name)
-    : Def(Node_Lambda, pi, name)
-    , gid_(gid)
+    : Def(gid, Node_Lambda, pi, name)
     , sid_(size_t(-1))
     , group_(group)
     , attr_(attr)

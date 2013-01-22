@@ -60,8 +60,8 @@ public:
     const Pi* pi() const;
     const Pi* to_pi() const;
     const Pi* arg_pi() const;
+    bool is_basicblock() const { return order() == 1; }
     virtual char delimiter() const { return 'l'; }
-    virtual size_t gid() const { return gid_; }
     size_t sid() const { return sid_; }
     Scope* scope() { return scope_; }
     const Scope* scope() const { return scope_; }
@@ -160,7 +160,6 @@ private:
     void fix(const Todo& todo);
     const Def* get_value(const Todo& todo) { return get_value(todo.handle(), todo.type(), todo.name()); }
 
-    size_t gid_; ///< global index
     size_t sid_; ///< scope index
     union {
         Scope* scope_;

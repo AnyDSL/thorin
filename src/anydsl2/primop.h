@@ -33,21 +33,18 @@ class PrimOp : public Def {
 protected:
 
     PrimOp(size_t size, int kind, const Type* type, const std::string& name)
-        : Def(kind, size, type, name)
+        : Def(-1, kind, size, type, name)
     {}
 
 public:
 
-    virtual size_t gid() const { return gid_; }
     virtual char delimiter() const { return 'o'; }
     DefTupleN as_tuple() const { return DefTupleN(kind(), type(), ops()); }
     ANYDSL2_HASH_EQUAL
 
 private:
 
-    void set_gid(size_t gid) const { gid_ = gid; }
-
-    mutable size_t gid_;
+    void set_gid(size_t gid) const { const_cast<size_t&>(const_cast<PrimOp*>(this)->gid_) = gid; }
 
     friend class PrimOpHash;
     friend class PrimOpEqual;

@@ -160,7 +160,7 @@ std::ostream& operator << (std::ostream& o, const Def* def);
 class Param : public Def {
 private:
 
-    Param(size_t gid, const Type* type, Lambda* parent, size_t index, const std::string& name);
+    Param(size_t gid, const Type* type, Lambda* lambda, size_t index, const std::string& name);
 
 public:
 

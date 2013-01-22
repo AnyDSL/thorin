@@ -30,6 +30,9 @@ int main(int argc, char** argv) {
 
         string prgname = argv[0];
         Names infiles;
+#ifndef NDEBUG
+        Names breakpoints;
+#endif
         string outfile = "-";
         string emittype;
         bool help, emit_all, emit_air, emit_ast, emit_dot, emit_llvm, fancy, opt = false;
@@ -40,6 +43,9 @@ int main(int argc, char** argv) {
         ("help,h",          po::bool_switch(&help),                     "produce this help message")
         ("outfile,o",       po::value(&outfile)->default_value("-"),    "specifies output file")
         ("infile,i",        po::value(&infiles),                        "input file")
+#ifndef NDEBUG
+        ("break,b",         po::value(&breakpoints),                    "breakpoint at primop/lambda/param generation, arg={o#|l#|p#}")
+#endif
         ("emit-all",        po::bool_switch(&emit_all),                 "emit AST, AIR and LLVM")
         ("emit-air",        po::bool_switch(&emit_air),                 "emit textual AIR representation of impala program")
         ("emit-ast",        po::bool_switch(&emit_ast),                 "emit AST of impala program")
@@ -87,6 +93,28 @@ int main(int argc, char** argv) {
         ifstream file(filename);
 
         impala::Init init;
+#ifndef NDEBUG
+        for_all (b, breakpoints) {
+            size_t size = b.size();
+            if (b.size() < 2)
+                throw po::error("invalid breakpoint '" + b + "'");
+
+            char first = b[0];
+            if (first != 'o' && first != 'l' && first != 'p')
+                throw po::error("invalid breakpoint '" + b + "'");
+
+            size_t num = 0;
+            for (size_t i = 1; i < size; ++i) {
+                char c = b[i];
+                if (!std::isdigit(c))
+                    throw po::error("invalid breakpoint '" + b + "'");
+                num = num*10 + c - '0';
+            }
+
+            init.world.breakpoint(first, num);
+        }
+#endif
+
         bool result;
         anydsl2::AutoPtr<const impala::Prg> p(impala::parse(init.world, file, filename, result));
 

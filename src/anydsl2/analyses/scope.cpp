@@ -338,7 +338,7 @@ const Def* Mapper::drop(const Def* odef) {
         is_new |= nop != op;
     }
 
-    return map(oprimop, is_new ? world.primop(oprimop, nops) : oprimop);
+    return map(oprimop, is_new ? world.rebuild(oprimop, nops) : oprimop);
 }
 
 //------------------------------------------------------------------------------

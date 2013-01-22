@@ -33,6 +33,20 @@
     case PrimType_f32: \
     case PrimType_f64: ANYDSL2_UNREACHABLE;
 
+#if (defined(__clang__) || defined(__GNUC__)) && (defined(__x86_64__) || defined(__i386__))
+#define ANYDSL2_BREAK asm("int3");
+#else
+#define ANYDSL2_BREAK { int* __p__ = 0; *__p__ = 42; }
+#endif
+
+#ifndef NDEBUG
+#define ANYDSL2_CHECK_BREAK(what) \
+    if (break_##what##s_.find(what##_gid_) != break_##what##s_.end()) \
+        ANYDSL2_BREAK;
+#else
+#define ANYDSL2_CHECK_BREAK(what)
+#endif
+
 namespace anydsl2 {
 
 /*
@@ -435,25 +449,27 @@ const TypeKeeper* World::typekeeper(const Type* type, const std::string& name) {
 }
 
 Lambda* World::lambda(const Pi* pi, LambdaAttr attr, const std::string& name) {
+    ANYDSL2_CHECK_BREAK(lambda)
     Lambda* l = new Lambda(lambda_gid_++, pi, attr, 0, true, name);
     lambdas_.insert(l);
 
     size_t i = 0;
     for_all (elem, pi->elems())
-        l->params_.push_back(new Param(param_gid_++, elem, l, i++, ""));
+        l->params_.push_back(param(elem, l, i++));
 
     return l;
 }
 
 Lambda* World::basicblock(uintptr_t group, const std::string& name) {
+    ANYDSL2_CHECK_BREAK(lambda)
     Lambda* bb = new Lambda(lambda_gid_++, pi0(), LambdaAttr(0), group, false, name);
     lambdas_.insert(bb);
     return bb;
 }
 
-const Def* World::primop(const PrimOp* in, ArrayRef<const Def*> ops) { return primop(in, ops, in->name); }
+const Def* World::rebuild(const PrimOp* in, ArrayRef<const Def*> ops) { return rebuild(in, ops, in->name); }
 
-const Def* World::primop(const PrimOp* in, ArrayRef<const Def*> ops, const std::string& name) {
+const Def* World::rebuild(const PrimOp* in, ArrayRef<const Def*> ops, const std::string& name) {
     int kind = in->kind();
     const Type* type = in->type();
     if (is_arithop(kind)) { assert(ops.size() == 2); return arithop((ArithOpKind) kind, ops[0], ops[1], name); }
@@ -485,6 +501,10 @@ const Def* World::primop(const PrimOp* in, ArrayRef<const Def*> ops, const std::
     }
 }
 
+const Param* World::param(const Type* type, Lambda* lambda, size_t index, const std::string& name) {
+    ANYDSL2_CHECK_BREAK(param)
+    return new Param(param_gid_++, type, lambda, index, name);
+}
 /*
  * optimizations
  */
@@ -689,7 +709,7 @@ const Def* World::update(const Def* what, size_t x, const Def* op) {
     for (size_t i = 0; i != num; oprimop->unregister_use(i), ++i)
         nops[i] = i == x ? op : oprimop->op(i);
 
-    const Def* ndef = primop(oprimop, nops);
+    const Def* ndef = rebuild(oprimop, nops);
     for_all (use, oprimop->uses())
         update(use.def(), use.index(), ndef);
 
@@ -739,6 +759,17 @@ void World::replace(Def* what, const Def* with) {
                 }
             }
         }
+    }
+}
+#endif
+
+#ifndef NDEBUG
+void World::breakpoint(char what, size_t number) {
+    switch (what) {
+        case 'o': break_primops_.insert(number); return;
+        case 'l': break_lambdas_.insert(number); return;
+        case 'p': break_params_ .insert(number); return;
+        default: ANYDSL2_UNREACHABLE;
     }
 }
 #endif

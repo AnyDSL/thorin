@@ -237,9 +237,9 @@ public:
     Lambda* basicblock(uintptr_t group, const std::string& name);
 
     /// Generic \p PrimOp constructor.
-    const Def* primop(const PrimOp* in, ArrayRef<const Def*> ops, const std::string& name);
+    const Def* rebuild(const PrimOp* in, ArrayRef<const Def*> ops, const std::string& name);
     /// Generic \p PrimOp constructor; inherits name from \p in.
-    const Def* primop(const PrimOp* in, ArrayRef<const Def*> ops);
+    const Def* rebuild(const PrimOp* in, ArrayRef<const Def*> ops);
 
     /*
      * optimizations
@@ -273,6 +273,8 @@ public:
     PrimOp* release(const PrimOp* primop);
     size_t new_pass() { return pass_counter_++; }
 
+    void breakpoint(char what, size_t number);
+
 protected:
 
     template<class T>
@@ -295,6 +297,8 @@ protected:
     }
 
 private:
+
+    const Param* param(const Type* type, Lambda* lambda, size_t index, const std::string& name = "");
 
     template<class S, class T, class U, class A, class B> 
     inline const U* consume(S& set, const T& tuple, const A& a, const B& b) {
@@ -339,6 +343,12 @@ private:
 
         const PrimType* primTypes_[Num_PrimTypes];
     };
+
+#ifndef NDEBUG
+    boost::unordered_set<size_t> break_primops_;
+    boost::unordered_set<size_t> break_params_;
+    boost::unordered_set<size_t> break_lambdas_;
+#endif
 
     friend class Lambda;
 };

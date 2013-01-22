@@ -61,7 +61,7 @@ const Param* Lambda::append_param(const Type* type, const std::string& name) {
     set_type(world().pi(elems));
 
     // append new param
-    const Param* param = new Param(world().param_gid_++, type, this, size, name);
+    const Param* param = world().param(type, this, size, name);
     params_.push_back(param);
 
     return param;

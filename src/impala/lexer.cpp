@@ -205,7 +205,7 @@ Token Lexer::lex() {
 
         // identifiers/keywords
         if (accept(str, sym)) {
-            while ( accept(str, sym) || accept(str, dec) ) {}
+            while (accept(str, sym) || accept(str, dec)) {}
 
             return Token(loc_, str);
         }

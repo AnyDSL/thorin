@@ -640,13 +640,13 @@ void World::cleanup() {
 
 void World::opt() {
     // perform a debug verification step after each step
-    assert( verify(*this) );
+    assert( verify(*this) && "initial verification phase" );
     cfg_transform(*this);
-    assert( verify(*this) );
+    assert( verify(*this) && "invalid cfg transform" );
     merge_lambdas(*this);
-    assert( verify(*this) );
+    assert( verify(*this) && "invalid merge lambda transform" );
     cleanup();
-    assert( verify(*this) );
+    assert( verify(*this) && "after optimizations" );
 }
 
 PrimOp* World::release(const PrimOp* primop) {

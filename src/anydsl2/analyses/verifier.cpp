@@ -23,41 +23,39 @@ public:
     bool verify() {
         // loop over all lambdas and check them
         bool result = true;
-        for_all(lambda, world_.lambdas()) {
+        for_all(lambda, world_.lambdas())
             result &= verifyBody(lambda);
-        }
         return result;
     }
 
 private:
-    bool verify(Lambda* current, const Def* def) {
+    bool verify(Lambda* current, const Def* def, PrimOpSet& primops) {
         if(const Param* param = def->isa<Param>())
             return verifyParam(current, param);
         else if(def->isa_lambda())
             VALID
         else
-            return verifyPrimop(current, def->as<PrimOp>());
+            return verifyPrimop(current, def->as<PrimOp>(), primops);
     }
 
     bool verifyParam(Lambda* current, const Param* param) {
         Lambda* plambda = param->lambda();
-
         const LambdaSet& lambdas = world_.lambdas();
         if(lambdas.find(plambda) == lambdas.end())
             INVALID(plambda,  "lambda not contained in the world")
-
         // is plambda in the history or the current one?
         if(plambda == current)
             VALID
         // param must not be visited in this case
         if(param->is_visited(pass_))
-            INVALID(param, "invalid cyclic dependencies")
-
+            INVALID(param, "invalid cyclic dependencies due to parameters")
+        // if the current lambda was already visited
         if(plambda->is_visited(pass_))
             VALID
 
         // push current lambda into the history and continue with plambda
         current->visit(pass_);
+
         // we have to mark all params of this lambda as visited
         // since we have to check whether a single one occurs in the history
         for_all(p, current->params())
@@ -78,6 +76,7 @@ private:
     }
 
     bool verifyBody(Lambda* lambda) {
+        PrimOpSet primops;
         // check whether the lambda is stored in the world
         const LambdaSet& lambdas = world_.lambdas();
         if(lambdas.find(lambda) == lambdas.end())
@@ -85,7 +84,7 @@ private:
         // check the "body" of this lambda
         for_all(op, lambda->ops()) {
             // -> check the current element structure
-            if(!verify(lambda, op)) INVALID_CE(lambda, op)
+            if(!verify(lambda, op, primops)) INVALID_CE(lambda, op)
         }
         // there are no cycles in this body
         // => thus, we can verfiy types
@@ -118,26 +117,34 @@ private:
         if(!ttype->infer_with(generics, lambda->arg_pi()))
             INVALID(lambda, "type inference not possible")
         // all checks passed => seems to be a valid lambda
-        return true;
+        VALID
     }
 
-    bool verifyPrimop(Lambda* current, const PrimOp* primop) {
+    bool verifyPrimop(Lambda* current, const PrimOp* primop, PrimOpSet& primops) {
         // check whether the current primop is stored in the world
         const PrimOpSet& pset = world_.primops();
         if(pset.find(primop) == pset.end())
             INVALID(primop,  "primop not contained in the world")
+        if(primop->is_const())
+            VALID
         // if we have detected a cycle -> invalid
-        if(primop->is_visited(pass_) && !primop->is_const())
-            INVALID(primop, "invalid cyclic dependencies")
-        primop->visit(pass_);
+        if(primops.find(primop) != primops.end())
+            INVALID(primop, "invalid cyclic primops")
+        primops.insert(primop);
+
         // check all operands recursively
+        const Def* errorSource = 0;
         for_all(op, primop->ops()) {
-            if(!verify(current, op)) INVALID_CE(primop, op)
+            if(!verify(current, op, primops)) errorSource = op;
         }
-        primop->unvisit(pass_);
+
+        primops.erase(primop);
+
+        if(errorSource)
+            INVALID_CE(primop, errorSource)
         // the primop seems to be cycle free
         // => TODO: verify types
-        return true;
+        VALID
     }
 
     bool reportInvalidEntry(const Def* def, const Def* source, const char* msg = 0) {
@@ -163,7 +170,7 @@ private:
 
 private:
     World& world_;
-    size_t pass_;
+    const size_t pass_;
 };
 
 bool verify(World& world) {

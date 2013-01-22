@@ -221,8 +221,7 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
     }
 
     assert(preds.size() == 1 && "there can only be one");
-    Lambda* pred = *preds.begin();
-    const Def* def = pred->get_value(handle, type, name);
+    const Def* def = preds.front()->get_value(handle, type, name);
 
     // create copy of lvar in this Lambda
     return set_value(handle, def);
@@ -258,8 +257,7 @@ void Lambda::fix(const Todo& todo) {
     const Def* same = 0;
     for_all (pred, preds) {
         const Def* def = pred->get_value(todo);
-
-        if (def->isa<Undef>() || def == p || same == def)
+        if (def == p || same == def)
             continue;
 
         if (same) {
@@ -268,8 +266,8 @@ void Lambda::fix(const Todo& todo) {
         }
         same = def;
     }
-    goto fix_preds;
-    if (!same || same == p)
+
+    if (!same)
         same = world().bottom(p->type());
 
     for_all (use, p->uses())
@@ -287,9 +285,6 @@ fix_preds:
         assert(!pred->arg(index) && "already set");
         pred->set_op(index+1, same ? same : pred->get_value(todo));
     }
-
-    if (same)
-        set_value(todo.handle(), same);
 }
 
 } // namespace anydsl2

@@ -40,11 +40,11 @@
 #endif
 
 #ifndef NDEBUG
-#define ANYDSL2_CHECK_BREAK(what) \
-    if (break_##what##s_.find(what##_gid_) != break_##what##s_.end()) \
+#define ANYDSL2_CHECK_BREAK \
+    if (breakpoints_.find(gid_) != breakpoints_.end()) \
         ANYDSL2_BREAK;
 #else
-#define ANYDSL2_CHECK_BREAK(what)
+#define ANYDSL2_CHECK_BREAK {}
 #endif
 
 namespace anydsl2 {
@@ -56,9 +56,7 @@ namespace anydsl2 {
 World::World()
     : primops_(1031)
     , types_(1031)
-    , primop_gid_(0)
-    , param_gid_(0)
-    , lambda_gid_(0)
+    , gid_(0)
     , pass_counter_(1)
     , sigma0_ (keep(new Sigma(*this, TypeTupleN(Node_Sigma, ArrayRef<const Type*>()))))
     , pi0_    (keep(new Pi   (*this, TypeTupleN(Node_Pi,    ArrayRef<const Type*>()))))
@@ -449,8 +447,8 @@ const TypeKeeper* World::typekeeper(const Type* type, const std::string& name) {
 }
 
 Lambda* World::lambda(const Pi* pi, LambdaAttr attr, const std::string& name) {
-    ANYDSL2_CHECK_BREAK(lambda)
-    Lambda* l = new Lambda(lambda_gid_++, pi, attr, 0, true, name);
+    ANYDSL2_CHECK_BREAK
+    Lambda* l = new Lambda(gid_++, pi, attr, 0, true, name);
     lambdas_.insert(l);
 
     size_t i = 0;
@@ -461,8 +459,8 @@ Lambda* World::lambda(const Pi* pi, LambdaAttr attr, const std::string& name) {
 }
 
 Lambda* World::basicblock(uintptr_t group, const std::string& name) {
-    ANYDSL2_CHECK_BREAK(lambda)
-    Lambda* bb = new Lambda(lambda_gid_++, pi0(), LambdaAttr(0), group, false, name);
+    ANYDSL2_CHECK_BREAK
+    Lambda* bb = new Lambda(gid_++, pi0(), LambdaAttr(0), group, false, name);
     lambdas_.insert(bb);
     return bb;
 }
@@ -502,8 +500,8 @@ const Def* World::rebuild(const PrimOp* in, ArrayRef<const Def*> ops, const std:
 }
 
 const Param* World::param(const Type* type, Lambda* lambda, size_t index, const std::string& name) {
-    ANYDSL2_CHECK_BREAK(param)
-    return new Param(param_gid_++, type, lambda, index, name);
+    ANYDSL2_CHECK_BREAK
+    return new Param(gid_++, type, lambda, index, name);
 }
 /*
  * optimizations
@@ -759,17 +757,6 @@ void World::replace(Def* what, const Def* with) {
                 }
             }
         }
-    }
-}
-#endif
-
-#ifndef NDEBUG
-void World::breakpoint(char what, size_t number) {
-    switch (what) {
-        case 'o': break_primops_.insert(number); return;
-        case 'l': break_lambdas_.insert(number); return;
-        case 'p': break_params_ .insert(number); return;
-        default: ANYDSL2_UNREACHABLE;
     }
 }
 #endif

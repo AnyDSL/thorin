@@ -115,7 +115,6 @@ public:
     const Uses& uses() const { return uses_; }
     size_t num_uses() const { return uses_.size(); }
     size_t gid() const { return gid_; }
-    virtual char delimiter() const = 0;
 
     /**
      * Copies all use-info into an array.
@@ -164,7 +163,6 @@ private:
 
 public:
 
-    virtual char delimiter() const { return 'p'; }
     Lambda* lambda() const { return lambda_; }
     size_t index() const { return index_; }
     Peeks peek() const;

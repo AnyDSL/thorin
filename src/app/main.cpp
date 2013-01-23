@@ -95,23 +95,16 @@ int main(int argc, char** argv) {
         impala::Init init;
 #ifndef NDEBUG
         for_all (b, breakpoints) {
-            size_t size = b.size();
-            if (b.size() < 2)
-                throw po::error("invalid breakpoint '" + b + "'");
-
-            char first = b[0];
-            if (first != 'o' && first != 'l' && first != 'p')
-                throw po::error("invalid breakpoint '" + b + "'");
-
+            assert(b.size() > 0);
             size_t num = 0;
-            for (size_t i = 1; i < size; ++i) {
+            for (size_t i = 0, e = b.size(); i != e; ++i) {
                 char c = b[i];
                 if (!std::isdigit(c))
                     throw po::error("invalid breakpoint '" + b + "'");
                 num = num*10 + c - '0';
             }
 
-            init.world.breakpoint(first, num);
+            init.world.breakpoint(num);
         }
 #endif
 

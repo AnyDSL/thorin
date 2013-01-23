@@ -38,7 +38,6 @@ protected:
 
 public:
 
-    virtual char delimiter() const { return 'o'; }
     DefTupleN as_tuple() const { return DefTupleN(kind(), type(), ops()); }
     ANYDSL2_HASH_EQUAL
 

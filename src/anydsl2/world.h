@@ -273,7 +273,9 @@ public:
     PrimOp* release(const PrimOp* primop);
     size_t new_pass() { return pass_counter_++; }
 
-    void breakpoint(char what, size_t number);
+#ifndef NDEBUG
+    void breakpoint(size_t number) { breakpoints_.insert(number); return; }
+#endif
 
 protected:
 
@@ -292,7 +294,7 @@ protected:
     template<class T, class U> 
     const U* cse(const T& tuple, const std::string& name) { 
         const U* primop = consume<PrimOpSet, T, U, T, std::string>(primops_, tuple, tuple, name); 
-        primop->set_gid(primop_gid_++);
+        primop->set_gid(gid_++);
         return primop;
     }
 
@@ -326,9 +328,7 @@ private:
     LambdaSet lambdas_;
     TypeSet types_;
 
-    size_t primop_gid_;
-    size_t param_gid_;
-    size_t lambda_gid_;
+    size_t gid_;
     size_t pass_counter_;
     const Sigma* sigma0_;///< sigma().
     const Pi* pi0_;      ///< pi().
@@ -345,9 +345,7 @@ private:
     };
 
 #ifndef NDEBUG
-    boost::unordered_set<size_t> break_primops_;
-    boost::unordered_set<size_t> break_params_;
-    boost::unordered_set<size_t> break_lambdas_;
+    boost::unordered_set<size_t> breakpoints_;
 #endif
 
     friend class Lambda;

@@ -274,7 +274,7 @@ public:
     size_t new_pass() { return pass_counter_++; }
 
 #ifndef NDEBUG
-    void breakpoint(size_t number) { breakpoints_.insert(number); return; }
+    void breakpoint(size_t number) { breakpoints_.insert(number); }
 #endif
 
 protected:
@@ -286,35 +286,12 @@ protected:
         typekeeper(type);
         return type->template as<T>();
     }
-
-    template<class T, class U> 
-    const U* unify(const T& tuple) { 
-        return consume<TypeSet, T, U, World&, T>(types_, tuple, *this, tuple); 
-    }
-    template<class T, class U> 
-    const U* cse(const T& tuple, const std::string& name) { 
-        const U* primop = consume<PrimOpSet, T, U, T, std::string>(primops_, tuple, tuple, name); 
-        primop->set_gid(gid_++);
-        return primop;
-    }
+    template<class T, class U> const U* unify(const T& tuple);
+    template<class T, class U> const U* cse(const T& tuple, const std::string& name);
 
 private:
 
     const Param* param(const Type* type, Lambda* lambda, size_t index, const std::string& name = "");
-
-    template<class S, class T, class U, class A, class B> 
-    inline const U* consume(S& set, const T& tuple, const A& a, const B& b) {
-        typename S::iterator i = set.find(tuple, 
-                std::ptr_fun<const T&, size_t>(hash_tuple),
-                std::ptr_fun<const T&, const Node*, bool>(smart_eq<T, U>));
-
-        if (i != set.end())
-            return (*i)->template as<U>();
-
-        std::pair<typename S::iterator, bool> p = set.insert(new U(a, b));
-        assert(p.second && "hash/equal broken");
-        return (*p.first)->template as<U>();
-    }
 
     const Type* keep_nocast(const Type* type);
 
@@ -327,6 +304,9 @@ private:
     PrimOpSet primops_;
     LambdaSet lambdas_;
     TypeSet types_;
+#ifndef NDEBUG
+    boost::unordered_set<size_t> breakpoints_;
+#endif
 
     size_t gid_;
     size_t pass_counter_;
@@ -343,10 +323,6 @@ private:
 
         const PrimType* primTypes_[Num_PrimTypes];
     };
-
-#ifndef NDEBUG
-    boost::unordered_set<size_t> breakpoints_;
-#endif
 
     friend class Lambda;
 };

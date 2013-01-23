@@ -83,10 +83,6 @@ const Type* World::keep_nocast(const Type* type) {
  * types
  */
 
-const Ptr* World::ptr(const Type* ref) {
-    return unify<TypeTuple1, Ptr>(TypeTuple1(Node_Ptr, ref));
-}
-
 const Sigma* World::sigma(ArrayRef<const Type*> elems) {
     return unify<TypeTupleN, Sigma>(TypeTupleN(Node_Sigma, elems));
 }
@@ -105,6 +101,8 @@ const Pi* World::pi(ArrayRef<const Type*> elems) {
 const Generic* World::generic(size_t index) {
     return unify<GenericTuple, Generic>(GenericTuple(Node_Generic, index));
 }
+
+const Ptr* World::ptr(const Type* ref) { return unify<TypeTuple1, Ptr>(TypeTuple1(Node_Ptr, ref)); }
 
 /*
  * literals
@@ -503,6 +501,36 @@ const Param* World::param(const Type* type, Lambda* lambda, size_t index, const 
     ANYDSL2_CHECK_BREAK
     return new Param(gid_++, type, lambda, index, name);
 }
+
+/*
+ * cse + unify
+ */
+
+template<class T, class U> 
+const U* World::cse(const T& tuple, const std::string& name) { 
+    PrimOpSet::iterator i = primops_.find(tuple, std::ptr_fun<const T&, size_t>(hash_tuple),
+                                                 std::ptr_fun<const T&, const Node*, bool>(smart_eq<T, U>));
+    if (i != primops_.end()) return (*i)->as<U>();
+
+    std::pair<PrimOpSet::iterator, bool> p = primops_.insert(new U(tuple, name));
+    assert(p.second && "hash/equal broken");
+    const U* u = (*p.first)->as<U>();
+    if (breakpoints_.find(gid_) != breakpoints_.end()) ANYDSL2_CHECK_BREAK
+    u->set_gid(gid_++);
+    return u;
+}
+
+template<class T, class U> 
+const U* World::unify(const T& tuple) { 
+    TypeSet::iterator i = types_.find(tuple, std::ptr_fun<const T&, size_t>(hash_tuple),
+                                             std::ptr_fun<const T&, const Node*, bool>(smart_eq<T, U>));
+    if (i != types_.end()) return (*i)->as<U>();
+
+    std::pair<TypeSet::iterator, bool> p = types_.insert(new U(*this, tuple));
+    assert(p.second && "hash/equal broken");
+    return (*p.first)->as<U>();
+}
+
 /*
  * optimizations
  */

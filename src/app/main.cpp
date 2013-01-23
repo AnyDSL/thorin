@@ -44,7 +44,7 @@ int main(int argc, char** argv) {
         ("outfile,o",       po::value(&outfile)->default_value("-"),    "specifies output file")
         ("infile,i",        po::value(&infiles),                        "input file")
 #ifndef NDEBUG
-        ("break,b",         po::value(&breakpoints),                    "breakpoint at primop/lambda/param generation, arg={o#|l#|p#}")
+        ("break,b",         po::value(&breakpoints),                    "breakpoint at definition generation of number arg")
 #endif
         ("emit-all",        po::bool_switch(&emit_all),                 "emit AST, AIR and LLVM")
         ("emit-air",        po::bool_switch(&emit_air),                 "emit textual AIR representation of impala program")

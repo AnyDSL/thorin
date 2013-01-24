@@ -506,22 +506,13 @@ const Param* World::param(const Type* type, Lambda* lambda, size_t index, const 
  * cse + unify
  */
 
-template<class T, class U> 
-const U* World::cse(const T& tuple, const std::string& name) { 
-    PrimOpSet::iterator i = primops_.find(tuple, std::ptr_fun<const T&, size_t>(hash_tuple),
-                                                 std::ptr_fun<const T&, const Node*, bool>(smart_eq<T, U>));
-    if (i != primops_.end()) return (*i)->as<U>();
-
-    std::pair<PrimOpSet::iterator, bool> p = primops_.insert(new U(tuple, name));
-    assert(p.second && "hash/equal broken");
-    const U* u = (*p.first)->as<U>();
+void World::cse_break(const PrimOp* primop) {
     if (breakpoints_.find(gid_) != breakpoints_.end()) ANYDSL2_CHECK_BREAK
-    u->set_gid(gid_++);
-    return u;
+    primop->set_gid(gid_++);
 }
 
-template<class T, class U> 
-const U* World::unify(const T& tuple) { 
+template<class T, class U>
+const U* World::unify(const T& tuple) {
     TypeSet::iterator i = types_.find(tuple, std::ptr_fun<const T&, size_t>(hash_tuple),
                                              std::ptr_fun<const T&, const Node*, bool>(smart_eq<T, U>));
     if (i != types_.end()) return (*i)->as<U>();
@@ -692,6 +683,8 @@ void World::opt() {
     merge_lambdas(*this);
     assert( verify(*this) && "invalid merge lambda transform" );
     cleanup();
+    dump(true);
+    dump(false);
     assert( verify(*this) && "after optimizations" );
 }
 

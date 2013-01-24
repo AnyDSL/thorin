@@ -164,9 +164,9 @@ public:
 
     const PrimLit* zero(PrimTypeKind kind) { return literal(kind, 0); }
     const PrimLit* one(PrimTypeKind kind) { return literal(kind, 1); }
-    const PrimLit* allset(PrimTypeKind kind) { 
-        assert(is_float(kind) && "must not be a float"); 
-        return literal(kind, -1); 
+    const PrimLit* allset(PrimTypeKind kind) {
+        assert(is_float(kind) && "must not be a float");
+        return literal(kind, -1);
     }
 
     const Any* any(const Type* type);
@@ -221,7 +221,7 @@ public:
     const Enter* enter(const Def* mem, const std::string& name = "");
     const Leave* leave(const Def* mem, const Def* frame, const std::string& name = "");
     const Slot* slot(const Type* type, size_t index, const Def* frame, const std::string& name = "");
-    const CCall* c_call(const std::string& callee, const Def* mem, ArrayRef<const Def*> args, 
+    const CCall* c_call(const std::string& callee, const Def* mem, ArrayRef<const Def*> args,
                         const Type* rettype, bool vararg = false, const std::string& name = "");
 
     /*
@@ -287,7 +287,21 @@ protected:
         return type->template as<T>();
     }
     template<class T, class U> const U* unify(const T& tuple);
-    template<class T, class U> const U* cse(const T& tuple, const std::string& name);
+
+    template<class T, class U>
+    const U* cse(const T& tuple, const std::string& name) {
+        PrimOpSet::iterator i = primops_.find(tuple, std::ptr_fun<const T&, size_t>(hash_tuple),
+                                                     std::ptr_fun<const T&, const Node*, bool>(smart_eq<T, U>));
+        if (i != primops_.end()) return (*i)->as<U>();
+
+        std::pair<PrimOpSet::iterator, bool> p = primops_.insert(new U(tuple, name));
+        assert(p.second && "hash/equal broken");
+        const U* u = (*p.first)->as<U>();
+        cse_break(u);
+        return u;
+    }
+
+    void cse_break(const PrimOp* primop);
 
 private:
 

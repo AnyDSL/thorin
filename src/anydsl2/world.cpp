@@ -683,8 +683,6 @@ void World::opt() {
     merge_lambdas(*this);
     assert( verify(*this) && "invalid merge lambda transform" );
     cleanup();
-    dump(true);
-    dump(false);
     assert( verify(*this) && "after optimizations" );
 }
 

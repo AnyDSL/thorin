@@ -126,7 +126,7 @@ public:
     World& world() const;
     ArrayRef<const Def*> ops() const { return ops_ref<const Def*>(); }
     ArrayRef<const Def*> ops(size_t begin, size_t end) const { return ops().slice(begin, end); }
-    const Def* op(size_t i) const { return ops()[i]; }
+    const Def* op(size_t i) const { assert(i < ops().size()); return ops()[i]; }
     const Def* op_via_lit(const Def* def) const;
     //void replace(const Def* with) const;
 

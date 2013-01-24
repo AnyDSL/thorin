@@ -1,0 +1,11 @@
+def combine(i : int, x : int) -> int {
+    return i + x;
+}
+
+def main(xn : int) -> int {
+    result : int = 0;
+    for (x : int = 0; x < xn; ++x)
+        result = combine(result, x);
+
+    return result;
+}

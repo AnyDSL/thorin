@@ -198,33 +198,35 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
     if (parent() != this) {
         if (parent())
             return parent()->get_value(handle, type, name);
+        goto return_bottom;
+    } else {
+        Lambdas preds = group_preds();
+        if (preds.empty())
+            goto return_bottom;
 
-        // TODO provide hook instead of fixed functionality
-        std::cerr << "'" << name << "'" << " may be undefined" << std::endl;
-        return set_value(handle, world().bottom(type));
+        // insert a 'phi', i.e., create a param and remember to fix the callers
+        if (!sealed_ || preds.size() > 1) {
+            const Param* param = append_param(type, name);
+            set_value(handle, param);
+
+            Todo todo(handle, param->index(), type, name);
+            if (sealed_)
+                fix(todo);
+            else
+                todos_.push_back(todo);
+
+            return param;
+        }
+
+        assert(preds.size() == 1 && "there can only be one");
+        // create copy of lvar in this Lambda
+        return set_value(handle, preds.front()->get_value(handle, type, name));
     }
 
-    Lambdas preds = group_preds();
-
-    // insert a 'phi', i.e., create a param and remember to fix the callers
-    if (!sealed_ || preds.size() > 1) {
-        const Param* param = append_param(type, name);
-        set_value(handle, param);
-
-        Todo todo(handle, param->index(), type, name);
-        if (sealed_)
-            fix(todo);
-        else
-            todos_.push_back(todo);
-
-        return param;
-    }
-
-    assert(preds.size() == 1 && "there can only be one");
-    const Def* def = preds.front()->get_value(handle, type, name);
-
-    // create copy of lvar in this Lambda
-    return set_value(handle, def);
+return_bottom:
+    // TODO provide hook instead of fixed functionality
+    std::cerr << "'" << name << "'" << " may be undefined" << std::endl;
+    return set_value(handle, world().bottom(type));
 }
 
 void Lambda::seal() {

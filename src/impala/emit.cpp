@@ -364,8 +364,8 @@ void ForStmt::emit(CodeGen& cg) const {
     headBB->seal();
 
     // next
-    cg.curBB = nextBB;
     nextBB->seal();
+    cg.curBB = nextBB->num_uses() ? nextBB : 0;
 }
 
 void BreakStmt::emit(CodeGen& cg) const {

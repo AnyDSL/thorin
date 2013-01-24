@@ -3,6 +3,7 @@
 #include <boost/unordered_map.hpp>
 #include <iostream>
 
+#include "anydsl2/jumptarget.h"
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
 #include "anydsl2/ref.h"
@@ -29,6 +30,7 @@ public:
     Lambda* basicblock(const char* name) { return world.basicblock(name); }
     bool reachable() const { return curBB; }
     void fixto(Lambda* to) { if (reachable()) curBB->jump0(to); }
+    void fixto(JumpTarget& jt) { if (reachable()) curBB->jump(jt); }
     void fixto(Lambda* from, Lambda* to) { if (from) from->jump0(to); }
 
     World& world;
@@ -338,7 +340,7 @@ void ForStmt::emit(CodeGen& cg) const {
 
     Lambda* headBB = cg.basicblock("for-head");
     Lambda* bodyBB = cg.basicblock("for-body");
-    Lambda* stepBB = cg.basicblock("for-step");
+    JumpTarget stepBB = JumpTarget("for-step");
     Lambda* nextBB = cg.basicblock("for-next");
 
     // head
@@ -354,10 +356,9 @@ void ForStmt::emit(CodeGen& cg) const {
     cg.curBB = bodyBB;
     body()->emit(cg);
     cg.fixto(stepBB);
-    stepBB->seal();
 
     // step
-    cg.curBB = stepBB;
+    cg.curBB = stepBB.enter();
     step()->emit(cg);
     cg.fixto(headBB);
     headBB->seal();

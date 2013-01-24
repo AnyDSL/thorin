@@ -1,5 +1,6 @@
 #include "anydsl2/lambda.h"
 
+#include "anydsl2/jumptarget.h"
 #include "anydsl2/literal.h"
 #include "anydsl2/symbol.h"
 #include "anydsl2/type.h"
@@ -147,6 +148,7 @@ bool Lambda::is_returning() const {
  * terminate
  */
 
+void Lambda::jump(JumpTarget& jt) { jt.target_by(this); }
 void Lambda::jump(const Def* to, ArrayRef<const Def*> args) {
     for (size_t i = 0, e = size(); i != e; ++i)
         unset_op(i);

@@ -9,10 +9,9 @@
 
 namespace anydsl2 {
 
-Lambda::Lambda(size_t gid, const Pi* pi, LambdaAttr attr, uintptr_t group, bool sealed, const std::string& name)
+Lambda::Lambda(size_t gid, const Pi* pi, LambdaAttr attr, bool sealed, const std::string& name)
     : Def(gid, Node_Lambda, pi, name)
     , sid_(size_t(-1))
-    , group_(group)
     , attr_(attr)
     , parent_(this)
     , sealed_(sealed)
@@ -67,25 +66,19 @@ const Param* Lambda::append_param(const Type* type, const std::string& name) {
     return param;
 }
 
-template<bool direct, bool grouped_only>
+template<bool direct>
 static Lambdas find_preds(const Lambda* lambda) {
     Lambdas result;
-    uintptr_t group = lambda->group();
-
     for_all (use, lambda->uses()) {
-        const Def* udef = use.def();
-        if (const Select* select = udef->isa<Select>()) {
-            for_all (use, select->uses()) {
-                assert(use.index() == 0);
-                Lambda* pred = use.def()->as_lambda();
-                if (!grouped_only || group == pred->group())
-                    result.push_back(pred);
+        const Def* luse = use.def();
+        if (const Select* select = luse->isa<Select>()) {
+            for_all (suse, select->uses()) {
+                assert(suse.index() == 0);
+                result.push_back(suse.def()->as_lambda());
             }
         } else {
             if (!direct || use.index() == 0) {
-                Lambda* pred = udef->as_lambda();
-                if (!grouped_only || group == pred->group())
-                    result.push_back(pred);
+                result.push_back(luse->as_lambda());
             }
         }
     }
@@ -93,9 +86,8 @@ static Lambdas find_preds(const Lambda* lambda) {
     return result;
 }
 
-Lambdas Lambda::preds() const { return find_preds<false, false>(this); }
-Lambdas Lambda::direct_preds() const { return find_preds<true, false>(this); }
-Lambdas Lambda::group_preds() const { return find_preds<false, true>(this); }
+Lambdas Lambda::preds() const { return find_preds<false>(this); }
+Lambdas Lambda::direct_preds() const { return find_preds<true>(this); }
 
 Lambdas Lambda::direct_succs() const {
     Lambdas result;
@@ -174,7 +166,6 @@ void Lambda::branch(const Def* cond, const Def* tto, const Def*  fto) {
 Lambda* Lambda::call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
     // create next continuation in cascade
     Lambda* next = world().lambda(world().pi1(ret_type), name + "_" + to->name);
-    next->set_group(group());
     const Param* result = next->param(0);
     result->name = to->name;
 
@@ -195,12 +186,12 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
     if (const Def* def = defs_.find(handle))
         return def;
 
-    if (parent() != this) {
+    if (parent() != this) { // is a function head?
         if (parent())
             return parent()->get_value(handle, type, name);
         goto return_bottom;
     } else {
-        Lambdas preds = group_preds();
+        Lambdas preds = this->preds();
         if (preds.empty())
             goto return_bottom;
 
@@ -234,7 +225,7 @@ void Lambda::seal() {
     sealed_ = true;
 
 #ifndef NDEBUG
-    Lambdas preds = group_preds();
+    Lambdas preds = this->preds();
     if (preds.size() >= 2) {
         for_all (pred, preds)
             assert(pred->succs().size() <= 1 && "critical edge");
@@ -253,7 +244,7 @@ void Lambda::fix(const Todo& todo) {
     const Param* p = param(index);
     assert(todo.index() == p->index());
 
-    Lambdas preds = group_preds();
+    Lambdas preds = this->preds();
 
     // find Horspool-like phis
     const Def* same = 0;

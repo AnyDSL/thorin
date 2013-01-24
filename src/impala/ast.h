@@ -68,7 +68,6 @@ public:
     const VarDecls& params() const { return params_; }
     const anydsl2::Pi* pi() const { return pi_; }
     bool is_continuation() const;
-    uintptr_t group() const { return group_; }
     anydsl2::Lambda* lambda() const { return lambda_; }
     const anydsl2::Param* ret_param() const { return ret_param_; }
     void fun_dump(Printer& p) const;
@@ -79,15 +78,12 @@ public:
 private:
 
     void fun_set(const anydsl2::Pi* pi, const ScopeStmt* body) { 
-        static uintptr_t group = 1; 
-        group_ = group++; 
         pi_ = pi; 
         body_ = body; 
     }
 
     VarDecls params_;
     anydsl2::AutoPtr<const ScopeStmt> body_;
-    uintptr_t group_;
     const anydsl2::Pi* pi_;
     mutable anydsl2::Lambda* lambda_;
     mutable const anydsl2::Param* ret_param_;

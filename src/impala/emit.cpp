@@ -26,7 +26,7 @@ public:
         , curFun(0)
     {}
 
-    Lambda* basicblock(const char* name) { return world.basicblock(curFun->group(), name); }
+    Lambda* basicblock(const char* name) { return world.basicblock(name); }
     bool reachable() const { return curBB; }
     void fixto(Lambda* to) { if (reachable()) curBB->jump0(to); }
     void fixto(Lambda* from, Lambda* to) { if (from) from->jump0(to); }
@@ -48,7 +48,6 @@ void emit(World& world, const Prg* prg) {
 
 Lambda* Fun::emit_head(CodeGen& cg, Symbol symbol) const {
     lambda_ = cg.world.lambda(pi(), symbol.str());
-    lambda_->set_group(group());
     size_t num = params().size();
     const Type* ret_type = return_type(pi());
     if (!ret_type->isa<NoRet>()) {

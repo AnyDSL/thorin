@@ -446,7 +446,7 @@ const TypeKeeper* World::typekeeper(const Type* type, const std::string& name) {
 
 Lambda* World::lambda(const Pi* pi, LambdaAttr attr, const std::string& name) {
     ANYDSL2_CHECK_BREAK
-    Lambda* l = new Lambda(gid_++, pi, attr, 0, true, name);
+    Lambda* l = new Lambda(gid_++, pi, attr, true, name);
     lambdas_.insert(l);
 
     size_t i = 0;
@@ -456,9 +456,9 @@ Lambda* World::lambda(const Pi* pi, LambdaAttr attr, const std::string& name) {
     return l;
 }
 
-Lambda* World::basicblock(uintptr_t group, const std::string& name) {
+Lambda* World::basicblock(const std::string& name) {
     ANYDSL2_CHECK_BREAK
-    Lambda* bb = new Lambda(gid_++, pi0(), LambdaAttr(0), group, false, name);
+    Lambda* bb = new Lambda(gid_++, pi0(), LambdaAttr(0), false, name);
     lambdas_.insert(bb);
     return bb;
 }

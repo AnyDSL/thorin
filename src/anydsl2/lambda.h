@@ -2,6 +2,7 @@
 #define ANYDSL2_LAMBDA_H
 
 #include <vector>
+#include <iostream>
 
 #include "anydsl2/def.h"
 #include "anydsl2/type.h"

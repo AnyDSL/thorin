@@ -11,13 +11,6 @@
 #include "impala/prec.h"
 #include "impala/type.h"
 
-#define IMPALA_PUSH(what, with) \
-    BOOST_TYPEOF(what) old_##what = what; \
-    what  = with;
-
-#define IMPALA_POP(what) \
-    what = old_##what;
-
 #define PARSE_COMMA_LIST(stmnt, delimiter, context) { \
         if (la() != delimiter) { \
             do { stmnt; } \
@@ -380,8 +373,8 @@ void Parser::parse_generic_list() {
 }
 
 void Parser::parse_fun(Fun* fun) {
-    IMPALA_PUSH(cur_fun, fun);
-    IMPALA_PUSH(cur_var_handle, cur_var_handle);
+    Push<const Fun*> push1(cur_fun, fun);
+    Push<size_t>     push2(cur_var_handle, cur_var_handle);
 
     Generics generics(cur_generics, builder);
     cur_generics = &generics;
@@ -413,8 +406,6 @@ void Parser::parse_fun(Fun* fun) {
     fun->fun_set(pi, body);
 
     cur_generics = generics.parent();
-    IMPALA_POP(cur_var_handle);
-    IMPALA_POP(cur_fun);
 }
 
 const NamedFun* Parser::parse_named_fun() {
@@ -529,9 +520,8 @@ const Stmt* Parser::parse_while() {
     const Expr* cond = parse_cond("while statement");
 
     ForStmt* new_loop = new ForStmt();
-    IMPALA_PUSH(cur_loop, new_loop);
-        const Stmt* body = try_stmt("loop body");
-    IMPALA_POP(cur_loop);
+    Push<const Loop*> push(cur_loop, new_loop);
+    const Stmt* body = try_stmt("loop body");
 
     new_loop->set(pos1, cond, new EmptyExpr(pos1), body);
     new_loop->set_empty_init(pos1);
@@ -543,9 +533,8 @@ const Stmt* Parser::parse_do_while() {
     Position pos1 = eat(Token::DO).pos1();
 
     DoWhileStmt* new_loop = new DoWhileStmt();
-    IMPALA_PUSH(cur_loop, new_loop);
+    Push<const Loop*> push(cur_loop, new_loop);
     const Stmt* body = try_stmt("loop body");
-    IMPALA_POP(cur_loop);
 
     expect(Token::WHILE, "do-while-statement");
     const Expr* cond = parse_cond("do-while-statement");
@@ -561,7 +550,7 @@ const Stmt* Parser::parse_for() {
     expect(Token::L_PAREN, "for-statement");
 
     ForStmt*  new_loop = new ForStmt();
-    IMPALA_PUSH(cur_loop, new_loop);
+    Push<const Loop*> push(cur_loop, new_loop);
 
     // clause 1: decl or expr_opt ';'
     if (la2() == Token::COLON)
@@ -605,7 +594,6 @@ const Stmt* Parser::parse_for() {
 
     const Stmt* body = try_stmt("loop body");
     new_loop->set(pos1, cond, inc, body);
-    IMPALA_POP(cur_loop);
 
     return new_loop;
 }

@@ -14,13 +14,6 @@
 
 #include "impala/type.h"
 
-#define IMPALA_PUSH(what, with) \
-    BOOST_TYPEOF(what) old_##what = what; \
-    what  = with;
-
-#define IMPALA_POP(what) \
-    what = old_##what;
-
 using namespace anydsl2;
 
 namespace impala {
@@ -92,9 +85,9 @@ const Lambda* Fun::emit_body(CodeGen& cg, Lambda* parent, const char* what) cons
         f->emit_head(cg, f->symbol());
 
     lambda()->set_parent(parent);
-    Lambda* old_bb = cg.cur_bb;
-    Lambda* oldFun = cg.cur_fun;
-    cg.cur_bb = cg.cur_fun = lambda();
+
+    Push<Lambda*> push1(cg.cur_bb,  lambda());
+    Push<Lambda*> push2(cg.cur_fun, lambda());
 
     body()->emit(cg);
 
@@ -112,9 +105,6 @@ const Lambda* Fun::emit_body(CodeGen& cg, Lambda* parent, const char* what) cons
             }
         }
     }
-
-    cg.cur_bb  = old_bb;
-    cg.cur_fun = oldFun;
 
     return lambda();
 }
@@ -318,10 +308,8 @@ void DoWhileStmt::emit(CodeGen& cg) const {
     JumpTarget cond_bb("dowhile-cond");
     JumpTarget next_bb("dowhile-next");
 
-    JumpTarget* old_break    = cg.break_target;
-    JumpTarget* old_continue = cg.continue_target;
-    cg.break_target = &next_bb;
-    cg.continue_target = &cond_bb;
+    Push<JumpTarget*> push1(cg.break_target, &next_bb);
+    Push<JumpTarget*> push2(cg.continue_target, &cond_bb);
 
     cg.enter_unsealed(body_bb);
     body()->emit(cg);
@@ -329,9 +317,6 @@ void DoWhileStmt::emit(CodeGen& cg) const {
     cg.enter(cond_bb);
     cg.branch(cond()->emit(cg)->load(), body_bb, next_bb);
     body_bb.seal();
-
-    cg.break_target    = old_break;
-    cg.continue_target = old_continue;
 
     cg.enter(next_bb);
 }
@@ -344,10 +329,8 @@ void ForStmt::emit(CodeGen& cg) const {
     JumpTarget step_bb("for-step");
     JumpTarget next_bb("for-next");
 
-    JumpTarget* old_break    = cg.break_target;
-    JumpTarget* old_continue = cg.continue_target;
-    cg.break_target = &next_bb;
-    cg.continue_target = &step_bb;
+    Push<JumpTarget*> push1(cg.break_target, &next_bb);
+    Push<JumpTarget*> push2(cg.continue_target, &step_bb);
 
     cg.enter_unsealed(head_bb);
     cg.branch(cond()->emit(cg)->load(), body_bb, next_bb);
@@ -359,9 +342,6 @@ void ForStmt::emit(CodeGen& cg) const {
     step()->emit(cg);
     cg.jump(head_bb);
     head_bb.seal();
-
-    cg.break_target    = old_break;
-    cg.continue_target = old_continue;
 
     cg.enter(next_bb);
 }

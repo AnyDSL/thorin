@@ -22,6 +22,15 @@ namespace anydsl2 {
 
 namespace impala {
 
+template<class T>
+struct Push {
+    Push(T& t, T new_val) : old(t) , ref(t) { t = new_val; }
+    ~Push()  { ref = old; }
+
+    T old;
+    T& ref;
+};
+
 class CodeGen;
 class VarDecl;
 class Expr;

@@ -322,8 +322,6 @@ void DoWhileStmt::emit(CodeGen& cg) const {
 }
 
 void ForStmt::emit(CodeGen& cg) const {
-    init()->emit(cg);
-
     JumpTarget head_bb("for-head");
     JumpTarget body_bb("for-body");
     JumpTarget step_bb("for-step");
@@ -331,6 +329,8 @@ void ForStmt::emit(CodeGen& cg) const {
 
     Push<JumpTarget*> push1(cg.break_target, &next_bb);
     Push<JumpTarget*> push2(cg.continue_target, &step_bb);
+
+    init()->emit(cg);
 
     cg.enter_unsealed(head_bb);
     cg.branch(cond()->emit(cg)->load(), body_bb, next_bb);

@@ -1,8 +1,6 @@
 #ifndef ANYDSL2_INDEXMAP_H
 #define ANYDSL2_INDEXMAP_H
 
-#include "anydsl2/util/for_all.h"
-
 #include <vector>
 
 namespace anydsl2 {
@@ -15,7 +13,6 @@ public:
         if (handle >= vector_.size()) vector_.resize(handle + 1, (T*) 0);
         return vector_[handle];
     }
-
     const T*& operator [] (size_t handle) const {
         return (*static_cast<const IndexMap*>(this))[handle];
     }

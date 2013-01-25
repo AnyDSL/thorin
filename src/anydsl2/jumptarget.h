@@ -15,6 +15,9 @@ public:
         , first_(false)
         , name_(name)
     {}
+#ifndef NDEBUG
+    ~JumpTarget();
+#endif
 
     Lambda* enter();
     Lambda* enter_unsealed(World& world);

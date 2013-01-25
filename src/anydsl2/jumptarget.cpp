@@ -5,6 +5,10 @@
 
 namespace anydsl2 {
 
+#ifndef NDEBUG
+JumpTarget::~JumpTarget() { if (lambda_) assert(lambda_->sealed() && "JumpTarget not sealed"); }
+#endif
+
 World& JumpTarget::world() const { assert(lambda_); return lambda_->world(); }
 void JumpTarget::seal() { assert(lambda_); lambda_->seal(); }
 

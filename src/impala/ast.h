@@ -24,11 +24,16 @@ namespace impala {
 
 template<class T>
 struct Push {
-    Push(T& t, T new_val) : old(t) , ref(t) { t = new_val; }
-    ~Push()  { ref = old; }
-
-    T old;
-    T& ref;
+    Push(T& t, T new_val) 
+        : old_(t) 
+        , ref_(t) 
+    { 
+        t = new_val; 
+    }
+    ~Push() { ref_ = old_; }
+private:
+    T old_;
+    T& ref_;
 };
 
 class CodeGen;

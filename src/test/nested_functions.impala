@@ -1,4 +1,4 @@
-def f(i : int) -> int {
+def extern f(i : int) -> int {
     
     b : int = 7;
 

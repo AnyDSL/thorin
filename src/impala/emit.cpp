@@ -36,11 +36,22 @@ public:
         , continue_target(0)
     {}
 
-    Lambda* basicblock(const char* name) { return world.basicblock(name); }
     bool reachable() const { return curBB; }
-    void fixto(Lambda* to) { if (reachable()) curBB->jump0(to); }
-    void fixto(JumpTarget& jt) { if (reachable()) curBB->jump(jt); }
-    void fixto(Lambda* from, Lambda* to) { if (from) from->jump0(to); }
+    void enter(JumpTarget& jt) { jump(jt); curBB = jt.enter(); }
+    void enter_unsealed(JumpTarget& jt) { jump(jt); curBB = jt.enter_unsealed(world); }
+
+    void jump(JumpTarget& jt) {
+        if (curBB) {
+            curBB->jump(jt);
+            curBB = 0;
+        }
+    }
+    void branch(const Def* cond, JumpTarget& t, JumpTarget& f) {
+        if (curBB) {
+            curBB->branch(cond, t, f);
+            curBB = 0;
+        }
+    }
 
     World& world;
     Lambda* curBB;
@@ -54,7 +65,6 @@ public:
 void emit(World& world, const Prg* prg) {
     CodeGen cg(world);
     prg->emit(cg);
-    cg.world.cleanup();
 }
 
 //------------------------------------------------------------------------------
@@ -291,49 +301,38 @@ void IfElseStmt::emit(CodeGen& cg) const {
     JumpTarget nextBB("if-next");
 
     // condition
-    if (cg.reachable()) {
-        const Def* c = cond()->emit(cg)->load();
-        cg.curBB->branch(c, thenBB, elseBB);
-    }
+    cg.branch(cond()->emit(cg)->load(), thenBB, elseBB);
 
     // then
-    cg.curBB = thenBB.enter();
+    cg.enter(thenBB);
     thenStmt()->emit(cg);
-    cg.fixto(nextBB);
+    cg.jump(nextBB);
 
     // else
-    cg.curBB = elseBB.enter();
+    cg.enter(elseBB);
     elseStmt()->emit(cg);
-    cg.fixto(nextBB);
+    cg.jump(nextBB);
 
-    cg.curBB = nextBB.enter();
+    // next
+    cg.enter(nextBB);
 }
 
 void DoWhileStmt::emit(CodeGen& cg) const {
-    Lambda* bodyBB = cg.basicblock("dowhile-body");
-    Lambda* condBB = cg.basicblock("dowhile-cond");
-    Lambda* critBB = cg.basicblock("dowhile-crit");
-    Lambda* nextBB = cg.basicblock("dowhile-next");
+    JumpTarget bodyBB("dowhile-body");
+    JumpTarget condBB("dowhile-cond");
+    JumpTarget nextBB("dowhile-next");
 
     // body
-    cg.fixto(bodyBB);
-    cg.curBB = bodyBB;
+    cg.enter_unsealed(bodyBB);
     body()->emit(cg);
 
     // condition
-    cg.fixto(condBB);
-    condBB->seal();
-    cg.curBB = condBB;
-    const Def* c = cond()->emit(cg)->load();
-    condBB->branch(c, critBB, nextBB);
-    critBB->seal();
-    cg.curBB = critBB;
-    critBB->jump0(bodyBB);
-    bodyBB->seal();
+    cg.enter(condBB);
+    cg.branch(cond()->emit(cg)->load(), bodyBB, nextBB);
+    bodyBB.seal();
 
     // next
-    cg.curBB = nextBB;
-    nextBB->seal();
+    cg.enter(nextBB);
 }
 
 void ForStmt::emit(CodeGen& cg) const {
@@ -349,34 +348,29 @@ void ForStmt::emit(CodeGen& cg) const {
     cg.break_target = &nextBB;
     cg.continue_target = &stepBB;
 
-    // head
-    cg.fixto(headBB);
-
     // condition
-    cg.curBB = headBB.enter_unsealed(cg.world);
-    const Def* c = cond()->emit(cg)->load();
-    headBB.branch(c, bodyBB, nextBB);
+    cg.enter_unsealed(headBB);
+    cg.branch(cond()->emit(cg)->load(), bodyBB, nextBB);
 
     // body
-    cg.curBB = bodyBB.enter();
+    cg.enter(bodyBB);
     body()->emit(cg);
-    cg.fixto(stepBB);
 
     // step
-    cg.curBB = stepBB.enter();
+    cg.enter(stepBB);
     step()->emit(cg);
-    cg.fixto(headBB);
+    cg.jump(headBB);
     headBB.seal();
 
     cg.break_target    = old_break;
     cg.continue_target = old_continue;
 
     //  next
-    cg.curBB = nextBB.enter();
+    cg.enter(nextBB);
 }
 
-void BreakStmt::emit(CodeGen& cg) const { cg.fixto(*cg.break_target); }
-void ContinueStmt::emit(CodeGen& cg) const { cg.fixto(*cg.continue_target); }
+void BreakStmt::emit(CodeGen& cg) const { cg.jump(*cg.break_target); }
+void ContinueStmt::emit(CodeGen& cg) const { cg.jump(*cg.continue_target); }
 
 void ReturnStmt::emit(CodeGen& cg) const {
     if (cg.reachable()) {
@@ -397,9 +391,8 @@ void ReturnStmt::emit(CodeGen& cg) const {
     }
 }
 
-
 void ScopeStmt::emit(CodeGen& cg) const {
-    for_all (const &s, stmts())
+    for_all (const& s, stmts())
         s->emit(cg);
 }
 

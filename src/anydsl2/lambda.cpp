@@ -166,9 +166,7 @@ void Lambda::branch(const Def* cond, JumpTarget& tjt, JumpTarget& fjt) {
         else
             jump(fjt);
     } else {
-        if (!tjt.lambda_) tjt.new_lambda(world());
-        if (!fjt.lambda_) fjt.new_lambda(world());
-        branch(cond, tjt.lambda_, fjt.lambda_);
+        branch(cond, tjt.get(world()), fjt.get(world()));
     }
 }
 

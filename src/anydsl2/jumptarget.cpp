@@ -10,15 +10,25 @@ void JumpTarget::seal() { assert(lambda_); lambda_->seal(); }
 
 void JumpTarget::untangle_first() {
     assert(first_ && lambda_);
-    Lambda* new_lambda = world().basicblock(name_);
-    lambda_->jump0(new_lambda);
-    lambda_ = new_lambda;
+    Lambda* bb = world().basicblock(name_);
+    lambda_->jump0(bb);
+    lambda_ = bb;
     first_ = false;
 }
 
-void JumpTarget::new_lambda(World& world) {
+Lambda* JumpTarget::new_lambda(World& world) {
     assert(!first_ && !lambda_);
-    lambda_ = world.basicblock(name_);
+    return lambda_ = world.basicblock(name_);
+}
+
+Lambda* JumpTarget::get(World& world) {
+    if (!lambda_)
+        return new_lambda(world);
+    
+    Lambda* bb = world.basicblock(std::string(name_) + ".crit");
+    bb->seal();
+    bb->jump0(lambda_);
+    return bb;
 }
 
 Lambda* JumpTarget::enter() {
@@ -29,21 +39,11 @@ Lambda* JumpTarget::enter() {
 
 Lambda* JumpTarget::enter_unsealed(World& world) {
 	if (!lambda_)
-        new_lambda(world);
-    else if (first_) 
+        return new_lambda(world);
+    if (first_) 
         untangle_first();
 
     return lambda_;
-}
-
-void JumpTarget::jump(JumpTarget& to) {
-    if (lambda_)
-        lambda_->jump(to);
-}
-
-void JumpTarget::branch(const Def* cond, JumpTarget& tto, JumpTarget& fto) {
-    if (lambda_)
-        lambda_->branch(cond, tto, fto);
 }
 
 } // namespace anydsl2

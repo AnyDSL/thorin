@@ -490,7 +490,7 @@ void ScopeStmt::check(Sema& sema) const {
 }
 
 void ScopeStmt::check_stmts(Sema& sema) const {
-    for_all (const &s, stmts())
+    for_all (const& s, stmts())
         s->check(sema);
 }
 

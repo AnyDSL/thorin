@@ -3,7 +3,7 @@
 
 #include <boost/program_options.hpp>
 
-#include "anydsl2/analyses/domtree.h"
+#include "anydsl2/analyses/verifier.h"
 #include "anydsl2/be/llvm.h"
 
 #include "impala/ast.h"
@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
 #endif
         string outfile = "-";
         string emittype;
-        bool help, emit_all, emit_air, emit_ast, emit_dot, emit_llvm, fancy, opt = false;
+        bool help, emit_all, emit_air, emit_ast, emit_dot, emit_llvm, fancy, opt, verify, nocleanup = false;
 
         // specify options
         po::options_description desc("Usage: " + prgname + " [options] file...");
@@ -52,6 +52,8 @@ int main(int argc, char** argv) {
         ("emit-dot",        po::bool_switch(&emit_dot),                 "emit dot, arg={air|llvm}")
         ("emit-llvm",       po::bool_switch(&emit_llvm),                "emit llvm from AIR representation")
         ("fancy,f",         po::bool_switch(&fancy),                    "use fancy output")
+        ("verify,v",        po::bool_switch(&verify),                   "run verifier")
+        ("nocleanup",       po::bool_switch(&nocleanup),                "no clean-up phase")
         (",O",              po::bool_switch(&opt),                      "optimize");
 
         // positional options, i.e., input files
@@ -122,6 +124,10 @@ int main(int argc, char** argv) {
         if (result) {
             emit(init.world, p);
 
+            if (!nocleanup)
+                init.world.cleanup();
+            if (verify)
+                anydsl2::verify(init.world);
             if (opt)
                 init.world.opt();
             if (emit_air)

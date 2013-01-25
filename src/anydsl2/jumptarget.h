@@ -20,13 +20,12 @@ public:
     Lambda* enter_unsealed(World& world);
     World& world() const;
     void seal();
-    void jump(JumpTarget& to);
-    void branch(const Def* cond, JumpTarget& tto, JumpTarget& fto);
 
 private:
 
+    Lambda* get(World& world);
     void untangle_first();
-    void new_lambda(World& world);
+    Lambda* new_lambda(World& world);
 
     Lambda* lambda_;
     bool first_;

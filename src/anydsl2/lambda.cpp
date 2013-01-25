@@ -148,7 +148,30 @@ bool Lambda::is_returning() const {
  * terminate
  */
 
-void Lambda::jump(JumpTarget& jt) { jt.target_by(this); }
+void Lambda::jump(JumpTarget& jt) {
+	if (!jt.lambda_) {
+		jt.lambda_ = this;
+		jt.first_ = true;
+		return;
+	} else if (jt.first_)
+        jt.untangle_first();
+
+    jump0(jt.lambda_);
+}
+
+void Lambda::branch(const Def* cond, JumpTarget& tjt, JumpTarget& fjt) {
+    if (const PrimLit* lit = cond->isa<PrimLit>()) {
+        if (lit->box().get_u1().get())
+            jump(tjt);
+        else
+            jump(fjt);
+    } else {
+        if (!tjt.lambda_) tjt.new_lambda(world());
+        if (!fjt.lambda_) fjt.new_lambda(world());
+        branch(cond, tjt.lambda_, fjt.lambda_);
+    }
+}
+
 void Lambda::jump(const Def* to, ArrayRef<const Def*> args) {
     for (size_t i = 0, e = size(); i != e; ++i)
         unset_op(i);

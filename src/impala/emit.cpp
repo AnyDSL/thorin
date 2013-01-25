@@ -14,6 +14,13 @@
 
 #include "impala/type.h"
 
+#define IMPALA_PUSH(what, with) \
+    BOOST_TYPEOF(what) old_##what = what; \
+    what  = with;
+
+#define IMPALA_POP(what) \
+    what = old_##what;
+
 using namespace anydsl2;
 
 namespace impala {
@@ -25,6 +32,8 @@ public:
         : world(world)
         , curBB(0)
         , curFun(0)
+        , break_target(0)
+        , continue_target(0)
     {}
 
     Lambda* basicblock(const char* name) { return world.basicblock(name); }
@@ -36,6 +45,8 @@ public:
     World& world;
     Lambda* curBB;
     Lambda* curFun;
+    JumpTarget* break_target;
+    JumpTarget* continue_target;
 };
 
 //------------------------------------------------------------------------------
@@ -275,8 +286,9 @@ void ExprStmt::emit(CodeGen& cg) const {
 }
 
 void IfElseStmt::emit(CodeGen& cg) const {
-    Lambda* thenBB = cg.basicblock("if-then");
-    Lambda* elseBB = cg.basicblock("if-else");// always create -- the edge from headBB to nextBB is crtical
+    JumpTarget thenBB("if-then");
+    JumpTarget elseBB("if-else");
+    JumpTarget nextBB("if-next");
 
     // condition
     if (cg.reachable()) {
@@ -284,28 +296,17 @@ void IfElseStmt::emit(CodeGen& cg) const {
         cg.curBB->branch(c, thenBB, elseBB);
     }
 
-    thenBB->seal();
-    elseBB->seal();
-
     // then
-    cg.curBB = thenBB;
+    cg.curBB = thenBB.enter();
     thenStmt()->emit(cg);
-    Lambda* thenCur = cg.curBB;
+    cg.fixto(nextBB);
 
     // else
-    cg.curBB = elseBB;
+    cg.curBB = elseBB.enter();
     elseStmt()->emit(cg);
-    Lambda* elseCur = cg.curBB;
+    cg.fixto(nextBB);
 
-    if (!elseCur) {
-        cg.curBB = thenCur;
-    } else if (thenCur) {
-        Lambda* nextBB = cg.basicblock("if-next");
-        cg.fixto(thenCur, nextBB);
-        cg.fixto(elseCur, nextBB);
-        nextBB->seal();
-        cg.curBB = nextBB;
-    }
+    cg.curBB = nextBB.enter();
 }
 
 void DoWhileStmt::emit(CodeGen& cg) const {
@@ -338,22 +339,26 @@ void DoWhileStmt::emit(CodeGen& cg) const {
 void ForStmt::emit(CodeGen& cg) const {
     init()->emit(cg);
 
-    Lambda* headBB = cg.basicblock("for-head");
-    Lambda* bodyBB = cg.basicblock("for-body");
-    JumpTarget stepBB = JumpTarget("for-step");
-    Lambda* nextBB = cg.basicblock("for-next");
+    JumpTarget headBB("for-head");
+    JumpTarget bodyBB("for-body");
+    JumpTarget stepBB("for-step");
+    JumpTarget nextBB("for-next");
+
+    JumpTarget* old_break    = cg.break_target;
+    JumpTarget* old_continue = cg.continue_target;
+    cg.break_target = &nextBB;
+    cg.continue_target = &stepBB;
 
     // head
     cg.fixto(headBB);
-    cg.curBB = headBB;
 
     // condition
+    cg.curBB = headBB.enter_unsealed(cg.world);
     const Def* c = cond()->emit(cg)->load();
-    headBB->branch(c, bodyBB, nextBB);
-    bodyBB->seal();
+    headBB.branch(c, bodyBB, nextBB);
 
     // body
-    cg.curBB = bodyBB;
+    cg.curBB = bodyBB.enter();
     body()->emit(cg);
     cg.fixto(stepBB);
 
@@ -361,18 +366,17 @@ void ForStmt::emit(CodeGen& cg) const {
     cg.curBB = stepBB.enter();
     step()->emit(cg);
     cg.fixto(headBB);
-    headBB->seal();
+    headBB.seal();
 
-    // next
-    nextBB->seal();
-    cg.curBB = nextBB->num_uses() ? nextBB : 0;
+    cg.break_target    = old_break;
+    cg.continue_target = old_continue;
+
+    //  next
+    cg.curBB = nextBB.enter();
 }
 
-void BreakStmt::emit(CodeGen& cg) const {
-}
-
-void ContinueStmt::emit(CodeGen& cg) const {
-}
+void BreakStmt::emit(CodeGen& cg) const { cg.fixto(*cg.break_target); }
+void ContinueStmt::emit(CodeGen& cg) const { cg.fixto(*cg.continue_target); }
 
 void ReturnStmt::emit(CodeGen& cg) const {
     if (cg.reachable()) {

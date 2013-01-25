@@ -3,6 +3,7 @@
 
 namespace anydsl2 {
 
+class Def;
 class Lambda;
 class World;
 
@@ -15,12 +16,17 @@ public:
         , name_(name)
     {}
 
-    void target_by(Lambda* lambda);
     Lambda* enter();
     Lambda* enter_unsealed(World& world);
     World& world() const;
+    void seal();
+    void jump(JumpTarget& to);
+    void branch(const Def* cond, JumpTarget& tto, JumpTarget& fto);
 
 private:
+
+    void untangle_first();
+    void new_lambda(World& world);
 
     Lambda* lambda_;
     bool first_;

@@ -30,32 +30,32 @@ public:
 
     CodeGen(World& world)
         : world(world)
-        , curBB(0)
-        , curFun(0)
+        , cur_bb(0)
+        , cur_fun(0)
         , break_target(0)
         , continue_target(0)
     {}
 
-    bool reachable() const { return curBB; }
-    void enter(JumpTarget& jt) { jump(jt); curBB = jt.enter(); }
-    void enter_unsealed(JumpTarget& jt) { jump(jt); curBB = jt.enter_unsealed(world); }
+    bool reachable() const { return cur_bb; }
+    void enter(JumpTarget& jt) { jump(jt); cur_bb = jt.enter(); }
+    void enter_unsealed(JumpTarget& jt) { jump(jt); cur_bb = jt.enter_unsealed(world); }
 
     void jump(JumpTarget& jt) {
-        if (curBB) {
-            curBB->jump(jt);
-            curBB = 0;
+        if (cur_bb) {
+            cur_bb->jump(jt);
+            cur_bb = 0;
         }
     }
     void branch(const Def* cond, JumpTarget& t, JumpTarget& f) {
-        if (curBB) {
-            curBB->branch(cond, t, f);
-            curBB = 0;
+        if (cur_bb) {
+            cur_bb->branch(cond, t, f);
+            cur_bb = 0;
         }
     }
 
     World& world;
-    Lambda* curBB;
-    Lambda* curFun;
+    Lambda* cur_bb;
+    Lambda* cur_fun;
     JumpTarget* break_target;
     JumpTarget* continue_target;
 };
@@ -92,29 +92,29 @@ const Lambda* Fun::emit_body(CodeGen& cg, Lambda* parent, const char* what) cons
         f->emit_head(cg, f->symbol());
 
     lambda()->set_parent(parent);
-    Lambda* oldBB = cg.curBB;
-    Lambda* oldFun = cg.curFun;
-    cg.curBB = cg.curFun = lambda();
+    Lambda* old_bb = cg.cur_bb;
+    Lambda* oldFun = cg.cur_fun;
+    cg.cur_bb = cg.cur_fun = lambda();
 
     body()->emit(cg);
 
     if (cg.reachable()) {
         if (is_continuation()) {
             std::cerr << what << " does not end with a call\n";
-            cg.curBB->jump0(cg.world.bottom(cg.world.pi0()));
+            cg.cur_bb->jump0(cg.world.bottom(cg.world.pi0()));
         } else {
             const Type* ret_type = return_type(pi());
             if (ret_type->isa<Void>())
-                cg.curBB->jump0(ret_param());
+                cg.cur_bb->jump0(ret_param());
             else {
                 std::cerr << what << " does not end with 'return'\n";
-                cg.curBB->jump0(cg.world.bottom(cg.world.pi1(ret_type)));
+                cg.cur_bb->jump0(cg.world.bottom(cg.world.pi1(ret_type)));
             }
         }
     }
 
-    cg.curBB  = oldBB;
-    cg.curFun = oldFun;
+    cg.cur_bb  = old_bb;
+    cg.cur_fun = oldFun;
 
     return lambda();
 }
@@ -134,13 +134,13 @@ void Prg::emit(CodeGen& cg) const {
 }
 
 void NamedFun::emit(CodeGen& cg) const {
-    emit_body(cg, cg.curBB, symbol().str());
+    emit_body(cg, cg.cur_bb, symbol().str());
     if (extern_)
         lambda()->attr().set_extern();
 }
 
 RefPtr VarDecl::emit(CodeGen& cg) const {
-    return Ref::create(cg.curBB, handle(), type(), symbol().str());
+    return Ref::create(cg.cur_bb, handle(), type(), symbol().str());
 }
 
 /*
@@ -176,7 +176,7 @@ RefPtr Literal::emit(CodeGen& cg) const {
 
 RefPtr FunExpr::emit(CodeGen& cg) const {
     emit_head(cg, "lambda");
-    return Ref::create(emit_body(cg, cg.curBB, "anonymous lambda expression"));
+    return Ref::create(emit_body(cg, cg.cur_bb, "anonymous lambda expression"));
 }
 
 RefPtr Tuple::emit(CodeGen& cg) const {
@@ -186,7 +186,7 @@ RefPtr Tuple::emit(CodeGen& cg) const {
 RefPtr Id::emit(CodeGen& cg) const {
     if (const NamedFun* named_fun = decl()->isa<NamedFun>())
         return Ref::create(named_fun->lambda());
-    return Ref::create(cg.curBB, decl()->as<VarDecl>()->handle(), type(), symbol().str());
+    return Ref::create(cg.cur_bb, decl()->as<VarDecl>()->handle(), type(), symbol().str());
 }
 
 RefPtr PrefixExpr::emit(CodeGen& cg) const {
@@ -234,7 +234,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
 
         // special case for 'id = expr' -> don't use get_value!
         RefPtr lref = op == Token::ASGN && id
-                ? Ref::create(cg.curBB, id->decl()->as<VarDecl>()->handle(), id->type(), id->symbol().str())
+                ? Ref::create(cg.cur_bb, id->decl()->as<VarDecl>()->handle(), id->type(), id->symbol().str())
                 : lhs()->emit(cg);
 
         if (op != Token::ASGN) {
@@ -269,12 +269,12 @@ RefPtr Call::emit(CodeGen& cg) const {
     Array<const Def*> ops = emit_ops(cg);
 
     if (is_continuation_call()) {
-        cg.curBB->jump(ops[0], ops.slice_back(1));
-        cg.curBB = 0;
+        cg.cur_bb->jump(ops[0], ops.slice_back(1));
+        cg.cur_bb = 0;
         return RefPtr(0);
     } else {
-        cg.curBB = cg.curBB->call(ops[0], ops.slice_back(1), type());
-        return Ref::create(cg.curBB->param(0));
+        cg.cur_bb = cg.cur_bb->call(ops[0], ops.slice_back(1), type());
+        return Ref::create(cg.cur_bb->param(0));
     }
 }
 
@@ -296,77 +296,74 @@ void ExprStmt::emit(CodeGen& cg) const {
 }
 
 void IfElseStmt::emit(CodeGen& cg) const {
-    JumpTarget thenBB("if-then");
-    JumpTarget elseBB("if-else");
-    JumpTarget nextBB("if-next");
+    JumpTarget then_bb("if-then");
+    JumpTarget else_bb("if-else");
+    JumpTarget next_bb("if-next");
 
-    // condition
-    cg.branch(cond()->emit(cg)->load(), thenBB, elseBB);
+    cg.branch(cond()->emit(cg)->load(), then_bb, else_bb);
 
-    // then
-    cg.enter(thenBB);
-    thenStmt()->emit(cg);
-    cg.jump(nextBB);
+    cg.enter(then_bb);
+    then_stmt()->emit(cg);
+    cg.jump(next_bb);
 
-    // else
-    cg.enter(elseBB);
-    elseStmt()->emit(cg);
-    cg.jump(nextBB);
+    cg.enter(else_bb);
+    else_stmt()->emit(cg);
+    cg.jump(next_bb);
 
-    // next
-    cg.enter(nextBB);
+    cg.enter(next_bb);
 }
 
 void DoWhileStmt::emit(CodeGen& cg) const {
-    JumpTarget bodyBB("dowhile-body");
-    JumpTarget condBB("dowhile-cond");
-    JumpTarget nextBB("dowhile-next");
+    JumpTarget body_bb("dowhile-body");
+    JumpTarget cond_bb("dowhile-cond");
+    JumpTarget next_bb("dowhile-next");
 
-    // body
-    cg.enter_unsealed(bodyBB);
+    JumpTarget* old_break    = cg.break_target;
+    JumpTarget* old_continue = cg.continue_target;
+    cg.break_target = &next_bb;
+    cg.continue_target = &cond_bb;
+
+    cg.enter_unsealed(body_bb);
     body()->emit(cg);
 
-    // condition
-    cg.enter(condBB);
-    cg.branch(cond()->emit(cg)->load(), bodyBB, nextBB);
-    bodyBB.seal();
+    cg.enter(cond_bb);
+    cg.branch(cond()->emit(cg)->load(), body_bb, next_bb);
+    body_bb.seal();
 
-    // next
-    cg.enter(nextBB);
+    cg.break_target    = old_break;
+    cg.continue_target = old_continue;
+
+    cg.enter(next_bb);
 }
 
 void ForStmt::emit(CodeGen& cg) const {
     init()->emit(cg);
 
-    JumpTarget headBB("for-head");
-    JumpTarget bodyBB("for-body");
-    JumpTarget stepBB("for-step");
-    JumpTarget nextBB("for-next");
+    JumpTarget head_bb("for-head");
+    JumpTarget body_bb("for-body");
+    JumpTarget step_bb("for-step");
+    JumpTarget next_bb("for-next");
 
     JumpTarget* old_break    = cg.break_target;
     JumpTarget* old_continue = cg.continue_target;
-    cg.break_target = &nextBB;
-    cg.continue_target = &stepBB;
+    cg.break_target = &next_bb;
+    cg.continue_target = &step_bb;
 
-    // condition
-    cg.enter_unsealed(headBB);
-    cg.branch(cond()->emit(cg)->load(), bodyBB, nextBB);
+    cg.enter_unsealed(head_bb);
+    cg.branch(cond()->emit(cg)->load(), body_bb, next_bb);
 
-    // body
-    cg.enter(bodyBB);
+    cg.enter(body_bb);
     body()->emit(cg);
 
-    // step
-    cg.enter(stepBB);
+    cg.enter(step_bb);
     step()->emit(cg);
-    cg.jump(headBB);
-    headBB.seal();
+    cg.jump(head_bb);
+    head_bb.seal();
 
     cg.break_target    = old_break;
     cg.continue_target = old_continue;
 
-    //  next
-    cg.enter(nextBB);
+    cg.enter(next_bb);
 }
 
 void BreakStmt::emit(CodeGen& cg) const { cg.jump(*cg.break_target); }
@@ -378,16 +375,16 @@ void ReturnStmt::emit(CodeGen& cg) const {
         if (const Call* call = expr()->isa<Call>()) {
             Array<const Def*> ops = call->emit_ops(cg, 1);
             ops.back() = ret_param;
-            cg.curBB->jump(ops[0], ops.slice_back(1));
+            cg.cur_bb->jump(ops[0], ops.slice_back(1));
         } else {
             if (expr()) 
-                cg.curBB->jump1(ret_param, expr()->emit(cg)->load());
+                cg.cur_bb->jump1(ret_param, expr()->emit(cg)->load());
             else
-                cg.curBB->jump0(ret_param); // return void
+                cg.cur_bb->jump0(ret_param); // return void
         }
 
-        // all other statements in the same BB are unreachable
-        cg.curBB = 0;
+        // all other statements in the same bb are unreachable
+        cg.cur_bb = 0;
     }
 }
 

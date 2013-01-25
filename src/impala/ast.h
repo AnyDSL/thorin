@@ -425,8 +425,8 @@ public:
     IfElseStmt(const anydsl2::Position& pos1, const Expr* cond, const Stmt* thenStmt, const Stmt* elseStmt);
 
     const Expr* cond() const { return cond_; }
-    const Stmt* thenStmt() const { return thenStmt_; }
-    const Stmt* elseStmt() const { return elseStmt_; }
+    const Stmt* then_stmt() const { return thenStmt_; }
+    const Stmt* else_stmt() const { return elseStmt_; }
 
     virtual void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;

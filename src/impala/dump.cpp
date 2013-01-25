@@ -265,11 +265,11 @@ void IfElseStmt::vdump(Printer& p) const {
     p << "if (";
     cond()->vdump(p);
     p << ") ";
-    p.dump_block(thenStmt());
+    p.dump_block(then_stmt());
 
-    if (!elseStmt()->empty()) {
+    if (!else_stmt()->empty()) {
         p << " else ";
-        p.dump_block(elseStmt());
+        p.dump_block(else_stmt());
     }
 }
 

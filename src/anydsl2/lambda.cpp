@@ -165,9 +165,8 @@ void Lambda::branch(const Def* cond, JumpTarget& tjt, JumpTarget& fjt) {
             jump(tjt);
         else
             jump(fjt);
-    } else {
+    } else
         branch(cond, tjt.get(world()), fjt.get(world()));
-    }
 }
 
 void Lambda::jump(const Def* to, ArrayRef<const Def*> args) {

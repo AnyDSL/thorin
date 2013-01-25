@@ -421,8 +421,8 @@ static bool check_cond(Sema& sema, const Expr* cond) {
 
 void IfElseStmt::check(Sema& sema) const {
     check_cond(sema, cond());
-    thenStmt()->check(sema);
-    elseStmt()->check(sema);
+    then_stmt()->check(sema);
+    else_stmt()->check(sema);
 }
 
 void DoWhileStmt::check(Sema& sema) const {

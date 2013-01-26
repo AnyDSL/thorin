@@ -1,0 +1,6 @@
+def main(i : int) -> int {
+    if (i == 0)
+        return 42;
+
+    return i + 1;
+}

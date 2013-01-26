@@ -1,9 +1,12 @@
 #include "anydsl2/jumptarget.h"
 
 #include "anydsl2/lambda.h"
+#include "anydsl2/literal.h"
 #include "anydsl2/world.h"
 
 namespace anydsl2 {
+
+//------------------------------------------------------------------------------
 
 #ifndef NDEBUG
 JumpTarget::~JumpTarget() { if (lambda_) assert(lambda_->sealed() && "JumpTarget not sealed"); }
@@ -49,5 +52,40 @@ Lambda* JumpTarget::enter_unsealed(World& world) {
 
     return lambda_;
 }
+
+//------------------------------------------------------------------------------
+
+void Builder::jump(JumpTarget& jt) {
+    if (cur_bb && cur_bb != jt.lambda_) {
+        if (!jt.lambda_) {
+            jt.lambda_ = cur_bb;
+            jt.first_ = true;
+        } else {
+            if (jt.first_)
+                jt.untangle_first();
+
+            cur_bb->jump0(jt.lambda_);
+        }
+
+        cur_bb = 0;
+    }
+}
+
+void Builder::branch(const Def* cond, JumpTarget& t, JumpTarget& f) {
+    if (cur_bb) {
+        if (const PrimLit* lit = cond->isa<PrimLit>())
+            jump(lit->box().get_u1().get() ? t : f);
+        else
+            cur_bb->branch(cond, t.get(world()), f.get(world()));
+
+        cur_bb = 0;
+    }
+}
+
+void Builder::call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
+    cur_bb = cur_bb->call(to, args, ret_type);
+}
+
+//------------------------------------------------------------------------------
 
 } // namespace anydsl2

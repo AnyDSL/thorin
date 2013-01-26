@@ -18,36 +18,16 @@ using namespace anydsl2;
 
 namespace impala {
 
-class CodeGen {
+class CodeGen : public anydsl2::Builder {
 public:
 
     CodeGen(World& world)
-        : world(world)
-        , cur_bb(0)
+        : Builder(world)
         , cur_fun(0)
         , break_target(0)
         , continue_target(0)
     {}
 
-    bool reachable() const { return cur_bb; }
-    void enter(JumpTarget& jt) { jump(jt); cur_bb = jt.enter(); }
-    void enter_unsealed(JumpTarget& jt) { jump(jt); cur_bb = jt.enter_unsealed(world); }
-
-    void jump(JumpTarget& jt) {
-        if (cur_bb) {
-            cur_bb->jump(jt);
-            cur_bb = 0;
-        }
-    }
-    void branch(const Def* cond, JumpTarget& t, JumpTarget& f) {
-        if (cur_bb) {
-            cur_bb->branch(cond, t, f);
-            cur_bb = 0;
-        }
-    }
-
-    World& world;
-    Lambda* cur_bb;
     Lambda* cur_fun;
     JumpTarget* break_target;
     JumpTarget* continue_target;
@@ -63,7 +43,7 @@ void emit(World& world, const Prg* prg) {
 //------------------------------------------------------------------------------
 
 Lambda* Fun::emit_head(CodeGen& cg, Symbol symbol) const {
-    lambda_ = cg.world.lambda(pi(), symbol.str());
+    lambda_ = cg.world().lambda(pi(), symbol.str());
     size_t num = params().size();
     const Type* ret_type = return_type(pi());
     if (!ret_type->isa<NoRet>()) {
@@ -94,14 +74,14 @@ const Lambda* Fun::emit_body(CodeGen& cg, Lambda* parent, const char* what) cons
     if (cg.reachable()) {
         if (is_continuation()) {
             std::cerr << what << " does not end with a call\n";
-            cg.cur_bb->jump0(cg.world.bottom(cg.world.pi0()));
+            cg.cur_bb->jump0(cg.world().bottom(cg.world().pi0()));
         } else {
             const Type* ret_type = return_type(pi());
             if (ret_type->isa<Void>())
                 cg.cur_bb->jump0(ret_param());
             else {
                 std::cerr << what << " does not end with 'return'\n";
-                cg.cur_bb->jump0(cg.world.bottom(cg.world.pi1(ret_type)));
+                cg.cur_bb->jump0(cg.world().bottom(cg.world().pi1(ret_type)));
             }
         }
     }
@@ -147,7 +127,7 @@ Array<const Def*> Expr::emit_ops(CodeGen& cg, size_t additional_size) const {
 }
 
 RefPtr EmptyExpr::emit(CodeGen& cg) const { 
-    return Ref::create(cg.world.bottom(cg.world.unit())); 
+    return Ref::create(cg.world().bottom(cg.world().unit())); 
 }
 
 RefPtr Literal::emit(CodeGen& cg) const {
@@ -161,7 +141,7 @@ RefPtr Literal::emit(CodeGen& cg) const {
         default: ANYDSL2_UNREACHABLE;
     }
 
-    return Ref::create(cg.world.literal(akind, box()));
+    return Ref::create(cg.world().literal(akind, box()));
 }
 
 RefPtr FunExpr::emit(CodeGen& cg) const {
@@ -170,7 +150,7 @@ RefPtr FunExpr::emit(CodeGen& cg) const {
 }
 
 RefPtr Tuple::emit(CodeGen& cg) const {
-    return Ref::create(cg.world.tuple(emit_ops(cg)));
+    return Ref::create(cg.world().tuple(emit_ops(cg)));
 }
 
 RefPtr Id::emit(CodeGen& cg) const {
@@ -186,8 +166,8 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
             RefPtr ref = rhs()->emit(cg);
             const Def* def = ref->load();
             const PrimType* pt = def->type()->as<PrimType>();
-            const PrimLit* one = cg.world.literal(pt->primtype_kind(), 1u);
-            const Def* ndef = cg.world.arithop(Token::to_arithop((TokenKind) kind()), def, one);
+            const PrimLit* one = cg.world().literal(pt->primtype_kind(), 1u);
+            const Def* ndef = cg.world().arithop(Token::to_arithop((TokenKind) kind()), def, one);
             ref->store(ndef);
 
             return ref;
@@ -202,14 +182,14 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
             const PrimLit* zero; 
 
             switch (pt->primtype_kind()) {
-                case PrimType_f32: zero = cg.world.literal_f32(-0.f); break;
-                case PrimType_f64: zero = cg.world.literal_f64(-0.0); break;
+                case PrimType_f32: zero = cg.world().literal_f32(-0.f); break;
+                case PrimType_f64: zero = cg.world().literal_f64(-0.0); break;
                 default: 
                     assert(pt->is_int()); 
-                    zero = cg.world.literal(pt->primtype_kind(), 0u);
+                    zero = cg.world().literal(pt->primtype_kind(), 0u);
             }
 
-            return Ref::create(cg.world.arithop(ArithOp_sub, zero, def));
+            return Ref::create(cg.world().arithop(ArithOp_sub, zero, def));
         }
         default: ANYDSL2_UNREACHABLE;
     }
@@ -229,7 +209,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
 
         if (op != Token::ASGN) {
             TokenKind sop = Token::seperateAssign(op);
-            rdef = cg.world.binop(Token::to_binop(sop), lref->load(), rdef);
+            rdef = cg.world().binop(Token::to_binop(sop), lref->load(), rdef);
         }
 
         lref->store(rdef);
@@ -239,15 +219,15 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
     const Def* ldef = lhs()->emit(cg)->load();
     const Def* rdef = rhs()->emit(cg)->load();
 
-    return Ref::create(cg.world.binop(Token::to_binop(op), ldef, rdef));
+    return Ref::create(cg.world().binop(Token::to_binop(op), ldef, rdef));
 }
 
 RefPtr PostfixExpr::emit(CodeGen& cg) const {
     RefPtr ref = lhs()->emit(cg);
     const Def* def = ref->load();
     const PrimType* pt = def->type()->as<PrimType>();
-    const PrimLit* one = cg.world.literal(pt->primtype_kind(), 1u);
-    ref->store(cg.world.arithop(Token::to_arithop((TokenKind) kind()), def, one));
+    const PrimLit* one = cg.world().literal(pt->primtype_kind(), 1u);
+    ref->store(cg.world().arithop(Token::to_arithop((TokenKind) kind()), def, one));
     return Ref::create(def);
 }
 
@@ -263,7 +243,7 @@ RefPtr Call::emit(CodeGen& cg) const {
         cg.cur_bb = 0;
         return RefPtr(0);
     } else {
-        cg.cur_bb = cg.cur_bb->call(ops[0], ops.slice_back(1), type());
+        cg.call(ops[0], ops.slice_back(1), type());
         return Ref::create(cg.cur_bb->param(0));
     }
 }

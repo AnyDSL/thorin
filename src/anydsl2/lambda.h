@@ -12,7 +12,6 @@
 namespace anydsl2 {
 
 class GenericMap;
-class JumpTarget; 
 class Lambda;
 class Pi;
 class Scope;
@@ -85,7 +84,6 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
 
     // terminate
 
-    void jump(JumpTarget& jt);
     void jump(const Def* to, ArrayRef<const Def*> args);
     void jump0(const Def* to) {
         return jump(to, ArrayRef<const Def*>(0, 0));
@@ -102,7 +100,6 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
         const Def* args[3] = { arg1, arg2, arg3 };
         return jump(to, args);
     }
-    void branch(const Def* cond, JumpTarget& tjt, JumpTarget& fjt);
     void branch(const Def* cond, const Def* tto, const Def* fto);
     Lambda* call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type);
     Lambda* call0(const Def* to, const Type* ret_type) {

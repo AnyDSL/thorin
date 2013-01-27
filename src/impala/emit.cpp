@@ -3,7 +3,7 @@
 #include <boost/unordered_map.hpp>
 #include <iostream>
 
-#include "anydsl2/jumptarget.h"
+#include "anydsl2/irbuilder.h"
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
 #include "anydsl2/ref.h"
@@ -18,11 +18,11 @@ using namespace anydsl2;
 
 namespace impala {
 
-class CodeGen : public anydsl2::Builder {
+class CodeGen : public IRBuilder {
 public:
 
     CodeGen(World& world)
-        : Builder(world)
+        : IRBuilder(world)
         , cur_fun(0)
         , break_target(0)
         , continue_target(0)

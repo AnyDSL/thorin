@@ -39,15 +39,15 @@ private:
     bool first_;
     const char* name_;
 
-    friend class Builder;
+    friend class IRBuilder;
 };
 
 //------------------------------------------------------------------------------
 
-class Builder {
+class IRBuilder {
 public:
 
-    Builder(World& world)
+    IRBuilder(World& world)
         : cur_bb(0)
         , world_(world)
     {}

@@ -1,4 +1,4 @@
-#include "anydsl2/jumptarget.h"
+#include "anydsl2/irbuilder.h"
 
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
@@ -55,7 +55,7 @@ Lambda* JumpTarget::enter_unsealed(World& world) {
 
 //------------------------------------------------------------------------------
 
-void Builder::jump(JumpTarget& jt) {
+void IRBuilder::jump(JumpTarget& jt) {
     if (cur_bb && cur_bb != jt.lambda_) {
         if (!jt.lambda_) {
             jt.lambda_ = cur_bb;
@@ -71,7 +71,7 @@ void Builder::jump(JumpTarget& jt) {
     }
 }
 
-void Builder::branch(const Def* cond, JumpTarget& t, JumpTarget& f) {
+void IRBuilder::branch(const Def* cond, JumpTarget& t, JumpTarget& f) {
     if (cur_bb) {
         if (const PrimLit* lit = cond->isa<PrimLit>())
             jump(lit->box().get_u1().get() ? t : f);
@@ -82,7 +82,7 @@ void Builder::branch(const Def* cond, JumpTarget& t, JumpTarget& f) {
     }
 }
 
-void Builder::call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
+void IRBuilder::call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
     cur_bb = cur_bb->call(to, args, ret_type);
 }
 

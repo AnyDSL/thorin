@@ -115,6 +115,7 @@ public:
     const Uses& uses() const { return uses_; }
     size_t num_uses() const { return uses_.size(); }
     size_t gid() const { return gid_; }
+    virtual const Def* representative() const { return this; }
 
     /**
      * Copies all use-info into an array.
@@ -167,11 +168,13 @@ public:
     size_t index() const { return index_; }
     Peeks peek() const;
     virtual void vdump(Printer& printer) const;
+    virtual const Def* representative() const;
 
 private:
 
     mutable Lambda* lambda_;
     const size_t index_;
+    mutable const Def* representative_;
 
     friend class World;
     friend class Lambda;

@@ -186,7 +186,7 @@ Lambda* Lambda::call(const Def* to, ArrayRef<const Def*> args, const Type* ret_t
 
 const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) {
     if (const Def* def = defs_.find(handle))
-        return def;
+        return def->representative();
 
     if (parent() != this) { // is a function head?
         if (parent())
@@ -280,6 +280,9 @@ fix_preds:
         assert(!pred->arg(index) && "already set");
         pred->set_op(index+1, same ? same : pred->get_value(todo));
     }
+
+    //if (same)
+        //p->representative_ = same;
 }
 
 } // namespace anydsl2

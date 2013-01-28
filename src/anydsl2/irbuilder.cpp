@@ -16,25 +16,30 @@ World& JumpTarget::world() const { assert(lambda_); return lambda_->world(); }
 void JumpTarget::seal() { assert(lambda_); lambda_->seal(); }
 
 void JumpTarget::untangle_first() {
-    assert(first_ && lambda_);
+    if (!first_)
+        return;
+    assert(lambda_);
     Lambda* bb = world().basicblock(name_);
     lambda_->jump0(bb);
     lambda_ = bb;
     first_ = false;
 }
 
-Lambda* JumpTarget::new_lambda(World& world) {
-    assert(!first_ && !lambda_);
-    return lambda_ = world.basicblock(name_);
+void JumpTarget::jump_from(Lambda* bb) {
+        if (!lambda_) {
+            lambda_ = bb;
+            first_ = true;
+        } else {
+            untangle_first();
+
+            bb->jump0(lambda_);
+        }
 }
 
 Lambda* JumpTarget::get(World& world) {
-    if (!lambda_)
-        return new_lambda(world);
-    
     Lambda* bb = world.basicblock(std::string(name_) + ".crit");
+    jump_from(bb);
     bb->seal();
-    bb->jump0(lambda_);
     return bb;
 }
 
@@ -46,9 +51,8 @@ Lambda* JumpTarget::enter() {
 
 Lambda* JumpTarget::enter_unsealed(World& world) {
 	if (!lambda_)
-        return new_lambda(world);
-    if (first_) 
-        untangle_first();
+        return lambda_ = world.basicblock(name_);
+    untangle_first();
 
     return lambda_;
 }
@@ -57,15 +61,7 @@ Lambda* JumpTarget::enter_unsealed(World& world) {
 
 void IRBuilder::jump(JumpTarget& jt) {
     if (cur_bb && cur_bb != jt.lambda_) {
-        if (!jt.lambda_) {
-            jt.lambda_ = cur_bb;
-            jt.first_ = true;
-        } else {
-            if (jt.first_)
-                jt.untangle_first();
-
-            cur_bb->jump0(jt.lambda_);
-        }
+        jt.jump_from(cur_bb);
 
         cur_bb = 0;
     }

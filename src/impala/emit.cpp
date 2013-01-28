@@ -291,8 +291,11 @@ void DoWhileStmt::emit(CodeGen& cg) const {
     Push<JumpTarget*> push1(cg.break_target, &next_bb);
     Push<JumpTarget*> push2(cg.continue_target, &cond_bb);
 
+    cg.jump(body_bb);
+
     cg.enter_unsealed(body_bb);
     body()->emit(cg);
+    cg.jump(cond_bb);
 
     cg.enter(cond_bb);
     cg.branch(cond()->emit(cg)->load(), body_bb, next_bb);
@@ -311,12 +314,14 @@ void ForStmt::emit(CodeGen& cg) const {
     Push<JumpTarget*> push2(cg.continue_target, &step_bb);
 
     init()->emit(cg);
+    cg.jump(head_bb);
 
     cg.enter_unsealed(head_bb);
     cg.branch(cond()->emit(cg)->load(), body_bb, next_bb);
 
     cg.enter(body_bb);
     body()->emit(cg);
+    cg.jump(step_bb);
 
     cg.enter(step_bb);
     step()->emit(cg);
@@ -342,8 +347,6 @@ void ReturnStmt::emit(CodeGen& cg) const {
             else
                 cg.cur_bb->jump0(ret_param); // return void
         }
-
-        // all other statements in the same bb are unreachable
         cg.cur_bb = 0;
     }
 }

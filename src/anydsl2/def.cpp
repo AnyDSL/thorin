@@ -102,7 +102,6 @@ const Def* Param::representative() const {
     // TODO path compression
     for (const Param* param = this;;) {
         if (param->representative_) {
-            std::cout << "asdfasdf" << std::endl;
             if (param->representative_->isa<Param>())
                 param = param->representative_->as<Param>();
             else {

@@ -9,31 +9,28 @@ namespace anydsl2 {
 //------------------------------------------------------------------------------
 
 #ifndef NDEBUG
-JumpTarget::~JumpTarget() { if (lambda_) assert(lambda_->sealed() && "JumpTarget not sealed"); }
+JumpTarget::~JumpTarget() { assert((!lambda_ || lambda_->sealed()) && "JumpTarget not sealed"); }
 #endif
 
 World& JumpTarget::world() const { assert(lambda_); return lambda_->world(); }
 void JumpTarget::seal() { assert(lambda_); lambda_->seal(); }
 
-void JumpTarget::untangle_first() {
+Lambda* JumpTarget::untangle() {
     if (!first_)
-        return;
+        return lambda_;
     assert(lambda_);
     Lambda* bb = world().basicblock(name_);
     lambda_->jump0(bb);
-    lambda_ = bb;
     first_ = false;
+    return lambda_ = bb;
 }
 
 void JumpTarget::jump_from(Lambda* bb) {
-        if (!lambda_) {
-            lambda_ = bb;
-            first_ = true;
-        } else {
-            untangle_first();
-
-            bb->jump0(lambda_);
-        }
+    if (!lambda_) {
+        lambda_ = bb;
+        first_ = true;
+    } else
+        bb->jump0(untangle());
 }
 
 Lambda* JumpTarget::get(World& world) {
@@ -50,19 +47,14 @@ Lambda* JumpTarget::enter() {
 }
 
 Lambda* JumpTarget::enter_unsealed(World& world) {
-	if (!lambda_)
-        return lambda_ = world.basicblock(name_);
-    untangle_first();
-
-    return lambda_;
+    return lambda_ ? untangle() : lambda_ = world.basicblock(name_);
 }
 
 //------------------------------------------------------------------------------
 
 void IRBuilder::jump(JumpTarget& jt) {
-    if (cur_bb && cur_bb != jt.lambda_) {
+    if (cur_bb) {
         jt.jump_from(cur_bb);
-
         cur_bb = 0;
     }
 }
@@ -71,10 +63,10 @@ void IRBuilder::branch(const Def* cond, JumpTarget& t, JumpTarget& f) {
     if (cur_bb) {
         if (const PrimLit* lit = cond->isa<PrimLit>())
             jump(lit->box().get_u1().get() ? t : f);
-        else
+        else {
             cur_bb->branch(cond, t.get(world()), f.get(world()));
-
-        cur_bb = 0;
+            cur_bb = 0;
+        }
     }
 }
 

@@ -24,7 +24,7 @@ Lambda::~Lambda() {
         delete param;
 }
 
-Lambda* Lambda::stub(const GenericMap& generic_map, const std::string& name) const { 
+Lambda* Lambda::stub(const GenericMap& generic_map, const std::string& name) const {
     Lambda* result = world().lambda(pi()->specialize(generic_map)->as<Pi>(), attr(), name);
 
     for (size_t i = 0, e = params().size(); i != e; ++i)
@@ -99,9 +99,11 @@ Lambdas Lambda::direct_succs() const {
         return result;
 
     const Select* select = to()->as<Select>();
-    result.resize(2);
-    result[0] = select->tval()->as_lambda();
-    result[1] = select->fval()->as_lambda();
+    if(Lambda* succ1 = select->tval()->isa_lambda())
+        result.push_back(succ1);
+
+    if(Lambda* succ2 = select->fval()->isa_lambda())
+        result.push_back(succ2);
     return result;
 }
 
@@ -131,7 +133,7 @@ bool Lambda::is_returning() const {
     for_all (param, params()) {
         switch (param->order()) {
             case 0: continue;
-            case 1: 
+            case 1:
                 if (!ret) {
                     ret = true;
                     continue;

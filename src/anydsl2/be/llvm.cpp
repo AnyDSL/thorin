@@ -436,18 +436,23 @@ llvm::Type* CodeGen::map(const Type* type) {
                             goto multiple;
                     } else {
 multiple:
-                        assert(true && "TODO");
                         Array<llvm::Type*> elems(pi->size());
-                        for_all2 (&elem, elems, pi_elem, pi->elems())
+                        size_t j = 0;
+                        for_all2 (&elem, elems, pi_elem, pi->elems()) {
+                            if(pi_elem->isa<Mem>())
+                                continue;
+                            ++j;
                             elem = map(pi_elem);
+                        }
+                        elems.shrink(j);
                         ret = llvm::StructType::get(context, llvm_ref(elems));
                     }
                 } else
                     elems[i++] = map(elem);
             }
             elems.shrink(i);
-
             assert(ret);
+
             return llvm::FunctionType::get(ret, llvm_ref(elems), false);
         }
 

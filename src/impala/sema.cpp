@@ -272,7 +272,7 @@ const Type* Id::vcheck(Sema& sema) const {
 }
 
 const Type* PrefixExpr::vcheck(Sema& sema) const {
-    if (!rhs()->lvalue())
+    if (!rhs()->is_lvalue())
         sema.error(rhs()) << "lvalue required as operand\n";
 
     return rhs()->check(sema);
@@ -280,7 +280,7 @@ const Type* PrefixExpr::vcheck(Sema& sema) const {
 
 const Type* InfixExpr::vcheck(Sema& sema) const {
     if (Token::is_asgn((TokenKind) kind())) {
-        if (!lhs()->lvalue())
+        if (!lhs()->is_lvalue())
             sema.error(lhs()) << "no lvalue on left-hand side of assignment\n";
         else if (lhs()->check(sema) == rhs()->check(sema))
             return lhs()->type();
@@ -313,7 +313,7 @@ const Type* InfixExpr::vcheck(Sema& sema) const {
 }
 
 const Type* PostfixExpr::vcheck(Sema& sema) const {
-    if (!lhs()->lvalue())
+    if (!lhs()->is_lvalue())
         sema.error(lhs()) << "lvalue required as operand\n";
 
     return lhs()->check(sema);

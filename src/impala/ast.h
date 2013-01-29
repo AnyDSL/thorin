@@ -181,7 +181,7 @@ public:
     const anydsl2::Type* type() const { return type_; }
     const anydsl2::Type* check(Sema& sema) const { assert(!type_); return type_ = vcheck(sema); }
     anydsl2::Array<const anydsl2::Def*> emit_ops(CodeGen& cg, size_t additional_size = 0) const;
-    virtual bool lvalue() const = 0;
+    virtual bool is_lvalue() const = 0;
     virtual RefPtr emit(CodeGen& cg) const = 0;
 
 private:
@@ -199,7 +199,7 @@ public:
 
     EmptyExpr(const anydsl2::Location& loc) { loc_ = loc; }
 
-    virtual bool lvalue() const { return false; }
+    virtual bool is_lvalue() const { return false; }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void vdump(Printer& p) const;
@@ -219,7 +219,7 @@ public:
     Kind kind() const { return kind_; }
     anydsl2::Box box() const { return box_; }
 
-    virtual bool lvalue() const { return false; }
+    virtual bool is_lvalue() const { return false; }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void vdump(Printer& p) const;
@@ -235,7 +235,7 @@ private:
 class FunExpr : public Expr, public Fun {
 public:
 
-    virtual bool lvalue() const { return false; }
+    virtual bool is_lvalue() const { return false; }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void vdump(Printer& p) const;
@@ -250,7 +250,7 @@ public:
 
     Tuple(const anydsl2::Position& pos1);
 
-    virtual bool lvalue() const { return false; }
+    virtual bool is_lvalue() const { return false; }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void vdump(Printer& p) const;
@@ -266,7 +266,7 @@ public:
     anydsl2::Symbol symbol() const { return symbol_; }
     const Decl* decl() const { return decl_; }
 
-    virtual bool lvalue() const { return true; }
+    virtual bool is_lvalue() const { return true; }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void vdump(Printer& p) const;
@@ -291,7 +291,7 @@ public:
 
     Kind kind() const { return kind_; }
 
-    virtual bool lvalue() const { return true; }
+    virtual bool is_lvalue() const { return true; }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void vdump(Printer& p) const;
@@ -317,7 +317,7 @@ public:
 
     Kind kind() const { return kind_; }
 
-    virtual bool lvalue() const { return Token::is_asgn((TokenKind) kind()); }
+    virtual bool is_lvalue() const { return Token::is_asgn((TokenKind) kind()); }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void vdump(Printer& p) const;
@@ -345,7 +345,7 @@ public:
 
     Kind kind() const { return kind_; }
 
-    virtual bool lvalue() const { return false; }
+    virtual bool is_lvalue() const { return false; }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void vdump(Printer& p) const;
@@ -363,7 +363,7 @@ public:
     const Expr* lhs() const { return ops_[0]; }
     const Expr* index() const { return ops_[1]; }
 
-    virtual bool lvalue() const { return true; }
+    virtual bool is_lvalue() const { return true; }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void vdump(Printer& p) const;
@@ -381,7 +381,7 @@ public:
     const Expr* arg(size_t i) const { return op(i+1); }
     anydsl2::Location args_location() const;
 
-    virtual bool lvalue() const { return false; }
+    virtual bool is_lvalue() const { return false; }
     virtual RefPtr emit(CodeGen& cg) const;
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual void vdump(Printer& p) const;

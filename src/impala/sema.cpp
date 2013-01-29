@@ -272,10 +272,15 @@ const Type* Id::vcheck(Sema& sema) const {
 }
 
 const Type* PrefixExpr::vcheck(Sema& sema) const {
-    if (!rhs()->is_lvalue())
-        sema.error(rhs()) << "lvalue required as operand\n";
-
-    return rhs()->check(sema);
+    switch (kind()) {
+        case INC:
+        case DEC:
+            if (!rhs()->is_lvalue())
+                sema.error(rhs()) << "lvalue required as operand\n";
+            // FALLTHROUGH
+        default:
+            return rhs()->check(sema);
+    }
 }
 
 const Type* InfixExpr::vcheck(Sema& sema) const {

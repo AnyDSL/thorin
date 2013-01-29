@@ -9,7 +9,7 @@ namespace anydsl2 {
 //------------------------------------------------------------------------------
 
 #ifndef NDEBUG
-JumpTarget::~JumpTarget() { assert((!lambda_ || lambda_->sealed()) && "JumpTarget not sealed"); }
+JumpTarget::~JumpTarget() { assert((!lambda_ || first_ || lambda_->sealed()) && "JumpTarget not sealed"); }
 #endif
 
 World& JumpTarget::world() const { assert(lambda_); return lambda_->world(); }

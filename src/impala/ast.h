@@ -18,6 +18,7 @@ namespace anydsl2 {
     class Def;
     class Param;
     class Ref;
+    class JumpTarget;
 }
 
 namespace impala {
@@ -291,7 +292,7 @@ public:
 
     Kind kind() const { return kind_; }
 
-    virtual bool is_lvalue() const { return true; }
+    virtual bool is_lvalue() const { return false; }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void vdump(Printer& p) const;
@@ -396,7 +397,7 @@ public:
 
     virtual bool empty() const { return false; }
     virtual void check(Sema& sema) const = 0;
-    virtual void emit(CodeGen& cg) const = 0;
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const = 0;
 };
 
 class ExprStmt : public Stmt {
@@ -408,7 +409,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
-    virtual void emit(CodeGen& cg) const;
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
 private:
 
@@ -425,7 +426,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
-    virtual void emit(CodeGen& cg) const;
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
 private:
 
@@ -444,7 +445,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
-    virtual void emit(CodeGen& cg) const;
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
 private:
 
@@ -483,7 +484,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
-    virtual void emit(CodeGen& cg) const;
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 };
 
 class ForStmt : public Loop {
@@ -504,7 +505,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
-    virtual void emit(CodeGen& cg) const;
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
 private:
 
@@ -522,7 +523,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
-    virtual void emit(CodeGen& cg) const;
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 private:
 
     const Loop* loop_;
@@ -537,7 +538,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
-    virtual void emit(CodeGen& cg) const;
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
 private:
 
@@ -554,7 +555,7 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
-    virtual void emit(CodeGen& cg) const;
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
 private:
 
@@ -573,7 +574,7 @@ public:
 
     virtual void vdump(Printer& p) const;
     virtual void check(Sema& sema) const { named_fun()->check(sema); }
-    virtual void emit(CodeGen& cg) const { return named_fun()->emit(cg); }
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
 private:
 
@@ -595,7 +596,7 @@ public:
     virtual bool empty() const { return stmts_.empty(); }
     virtual void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
-    virtual void emit(CodeGen& cg) const;
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
 private:
 

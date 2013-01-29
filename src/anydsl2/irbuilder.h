@@ -24,8 +24,6 @@ public:
     ~JumpTarget();
 #endif
 
-    Lambda* enter();
-    Lambda* enter_unsealed(World& world);
     World& world() const;
     void seal();
     void jump_from(Lambda* bb);
@@ -34,6 +32,8 @@ private:
 
     Lambda* get(World& world);
     Lambda* untangle();
+    Lambda* enter();
+    Lambda* enter_unsealed(World& world);
 
     Lambda* lambda_;
     bool first_;

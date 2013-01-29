@@ -1,3 +1,2 @@
 def extern f(i : int) -> void {
-    return;
 }

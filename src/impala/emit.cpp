@@ -69,7 +69,9 @@ const Lambda* Fun::emit_body(CodeGen& cg, Lambda* parent, const char* what) cons
     Push<Lambda*> push1(cg.cur_bb,  lambda());
     Push<Lambda*> push2(cg.cur_fun, lambda());
 
-    body()->emit(cg);
+    JumpTarget exit;
+    body()->emit(cg, exit);
+    cg.enter(exit);
 
     if (cg.reachable()) {
         if (is_continuation()) {
@@ -252,89 +254,78 @@ RefPtr Call::emit(CodeGen& cg) const {
  * Stmt
  */
 
-void DeclStmt::emit(CodeGen& cg) const {
+void DeclStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     if (cg.reachable()) {
         RefPtr ref = var_decl()->emit(cg);
         if (const Expr* init_expr = init())
             ref->store(init_expr->emit(cg)->load());
+        cg.jump(exit_bb);
     }
 }
 
-void ExprStmt::emit(CodeGen& cg) const {
-    if (cg.reachable())
+void ExprStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
+    if (cg.reachable()) {
         expr()->emit(cg);
+        cg.jump(exit_bb);
+    }
 }
 
-void IfElseStmt::emit(CodeGen& cg) const {
+void IfElseStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     JumpTarget then_bb("if-then");
     JumpTarget else_bb("if-else");
-    JumpTarget next_bb("if-next");
 
     cg.branch(cond()->emit(cg)->load(), then_bb, else_bb);
 
     cg.enter(then_bb);
-    then_stmt()->emit(cg);
-    cg.jump(next_bb);
+    then_stmt()->emit(cg, exit_bb);
 
     cg.enter(else_bb);
-    else_stmt()->emit(cg);
-    cg.jump(next_bb);
-
-    cg.enter(next_bb);
+    else_stmt()->emit(cg, exit_bb);
 }
 
-void DoWhileStmt::emit(CodeGen& cg) const {
+void DoWhileStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     JumpTarget body_bb("dowhile-body");
     JumpTarget cond_bb("dowhile-cond");
-    JumpTarget next_bb("dowhile-next");
 
-    Push<JumpTarget*> push1(cg.break_target, &next_bb);
+    Push<JumpTarget*> push1(cg.break_target, &exit_bb);
     Push<JumpTarget*> push2(cg.continue_target, &cond_bb);
 
     cg.jump(body_bb);
 
     cg.enter_unsealed(body_bb);
-    body()->emit(cg);
-    cg.jump(cond_bb);
+    body()->emit(cg, cond_bb);
 
     cg.enter(cond_bb);
-    cg.branch(cond()->emit(cg)->load(), body_bb, next_bb);
+    cg.branch(cond()->emit(cg)->load(), body_bb, exit_bb);
     body_bb.seal();
-
-    cg.enter(next_bb);
 }
 
-void ForStmt::emit(CodeGen& cg) const {
+void ForStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     JumpTarget head_bb("for-head");
     JumpTarget body_bb("for-body");
     JumpTarget step_bb("for-step");
-    JumpTarget next_bb("for-next");
 
-    Push<JumpTarget*> push1(cg.break_target, &next_bb);
+    Push<JumpTarget*> push1(cg.break_target, &exit_bb);
     Push<JumpTarget*> push2(cg.continue_target, &step_bb);
 
-    init()->emit(cg);
-    cg.jump(head_bb);
+    init()->emit(cg, head_bb);
 
     cg.enter_unsealed(head_bb);
-    cg.branch(cond()->emit(cg)->load(), body_bb, next_bb);
+    cg.branch(cond()->emit(cg)->load(), body_bb, exit_bb);
 
     cg.enter(body_bb);
-    body()->emit(cg);
-    cg.jump(step_bb);
+    body()->emit(cg, step_bb);
 
     cg.enter(step_bb);
     step()->emit(cg);
     cg.jump(head_bb);
     head_bb.seal();
-
-    cg.enter(next_bb);
 }
 
-void BreakStmt::emit(CodeGen& cg) const { cg.jump(*cg.break_target); }
-void ContinueStmt::emit(CodeGen& cg) const { cg.jump(*cg.continue_target); }
+void BreakStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.jump(*cg.break_target); }
+void ContinueStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.jump(*cg.continue_target); }
 
-void ReturnStmt::emit(CodeGen& cg) const {
+void ReturnStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     if (cg.reachable()) {
         const Param* ret_param = fun()->ret_param();
         if (const Call* call = expr()->isa<Call>()) {
@@ -351,9 +342,18 @@ void ReturnStmt::emit(CodeGen& cg) const {
     }
 }
 
-void ScopeStmt::emit(CodeGen& cg) const {
-    for_all (const& s, stmts())
-        s->emit(cg);
+void ScopeStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
+    for_all (const& s, stmts()) {
+        JumpTarget stmt_exit_bb("next");
+        s->emit(cg, stmt_exit_bb);
+        cg.enter(stmt_exit_bb);
+    }
+    cg.jump(exit_bb);
+}
+
+void NamedFunStmt::emit(CodeGen& cg, anydsl2::JumpTarget& exit_bb) const { 
+    named_fun()->emit(cg); 
+    cg.jump(exit_bb);
 }
 
 } // namespace impala

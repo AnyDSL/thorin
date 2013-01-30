@@ -343,12 +343,18 @@ void ReturnStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 }
 
 void ScopeStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
-    for_all (const& s, stmts()) {
-        JumpTarget stmt_exit_bb("next");
-        s->emit(cg, stmt_exit_bb);
-        cg.enter(stmt_exit_bb);
+    size_t size = stmts().size();
+    if (size == 0)
+        cg.jump(exit_bb);
+    else {
+        size_t i = 0;
+        for (; i != size - 1; ++i) {
+            JumpTarget stmt_exit_bb("next");
+            stmts()[i]->emit(cg, stmt_exit_bb);
+            cg.enter(stmt_exit_bb);
+        }
+        stmts()[i]->emit(cg, exit_bb);
     }
-    cg.jump(exit_bb);
 }
 
 void NamedFunStmt::emit(CodeGen& cg, anydsl2::JumpTarget& exit_bb) const { 

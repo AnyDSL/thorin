@@ -1,0 +1,12 @@
+def main(i : int) -> int {
+    do  {
+        if (i == 42)
+            continue;
+        if (i == 23)
+            ++i;
+        else
+            --i;
+    } while (i < 0);
+
+    return i;
+}

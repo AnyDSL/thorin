@@ -558,31 +558,19 @@ void World::unreachable_code_elimination() {
         if (lambda->attr().is_extern())
             uce_insert(pass, lambda);
 
-    for_all (primop, primops_)
-        if (primop->is_const())
-            primop->visit(pass);
-
-    unregister_uses(pass, primops_);
-    unregister_uses(pass, lambdas_);
-    wipe_out(pass, primops_);
-    wipe_out(pass, lambdas_);
+    for_all (lambda, lambdas()) {
+        if (!lambda->is_visited(pass)) { // destroy body
+            for (size_t i = 0, e = lambda->size(); i != e; ++i)
+                lambda->unset_op(i);
+            lambda->resize(0);
+        }
+    }
 }
 
-void World::uce_insert(size_t pass, const Def* def) {
-    if (def->visit(pass)) return;
-
-    if (Lambda* lambda = def->isa_lambda()) {
-        for_all (param, lambda->params()) {
-            param->visit_first(pass);
-            for_all (use, param->uses())
-                uce_insert(pass, use.def());
-        }
+void World::uce_insert(size_t pass, Lambda* lambda) {
+    if (!lambda->visit(pass)) {
         for_all (succ, lambda->succs())
             uce_insert(pass, succ);
-    } else {
-        const PrimOp* primop = def->as<PrimOp>();
-        for_all (use, primop->uses())
-            uce_insert(pass, use.def());
     }
 }
 
@@ -598,8 +586,16 @@ void World::dead_code_elimination() {
         if (lambda->attr().is_extern()) {
             for_all (param, lambda->params()) {
                 if (param->order() >= 1) {
-                    for_all (use, param->uses())
+                    for_all (use, param->uses()) {
                         dce_insert(pass, use.def());
+                    //for_all (use, param->uses()) {
+                        //if (Lambda* caller = use.def()->isa_lambda()) {
+                            //if (use.index() == 0) {
+                                //for_all (op, caller->ops())
+                                    //dce_insert(pass, op);
+                            //}
+                        //}
+                    }
                 }
             }
         }
@@ -663,10 +659,10 @@ void World::unused_type_elimination() {
 void World::ute_insert(size_t pass, const Type* type) {
     assert(types_.find(type) != types_.end() && "not in map");
 
-    if (type->visit(pass)) return;
-
-    for_all (elem, type->elems())
-        ute_insert(pass, elem);
+    if (!type->visit(pass)) {
+        for_all (elem, type->elems())
+            ute_insert(pass, elem);
+    }
 }
 
 void World::cleanup() {

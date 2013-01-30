@@ -311,7 +311,7 @@ private:
 
     void dce_insert(size_t pass, const Def* def);
     void ute_insert(size_t pass, const Type* type);
-    void uce_insert(size_t pass, const Def*);
+    void uce_insert(size_t pass, Lambda*);
     template<class S> static void unregister_uses(size_t pass, S& set);
     template<class S> static void wipe_out(size_t pass, S& set);
 

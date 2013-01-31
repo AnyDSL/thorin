@@ -149,6 +149,12 @@ bool Lambda::is_returning() const {
     return true;
 }
 
+void Lambda::destroy_body() {
+    for (size_t i = 0, e = size(); i != e; ++i)
+        unset_op(i);
+    resize(0);
+}
+
 /*
  * terminate
  */

@@ -596,11 +596,9 @@ void World::dead_code_elimination() {
     }
 
     for_all (lambda, lambdas()) {
-        if (!lambda->is_visited(pass)) { // destroy body
-            for (size_t i = 0, e = lambda->size(); i != e; ++i)
-                lambda->unset_op(i);
-            lambda->resize(0);
-        } else {
+        if (!lambda->is_visited(pass))
+            lambda->destroy_body();
+        else {
             for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
                 const Def* arg = lambda->arg(i);
                 if (!arg->is_visited(pass)) {
@@ -612,8 +610,8 @@ void World::dead_code_elimination() {
         }
     }
 
-    //wipe_out(pass, primops_);
-    //wipe_out(pass, lambdas_);
+    wipe_out(pass, primops_);
+    wipe_out(pass, lambdas_);
 }
 
 void World::dce_insert(size_t pass, const Def* def) {

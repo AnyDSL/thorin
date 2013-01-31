@@ -82,6 +82,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     bool sid_invalid() { return sid_ == size_t(-1); }
     void invalidate_sid() { sid_ = size_t(-1); }
     void dump(bool fancy = false, int indent = 0, std::ostream& out = std::cout) const;
+    void destroy_body();
 
     // terminate
 

@@ -27,10 +27,7 @@ void Merger::merge() {
             if (use.index() == 0) {
                 Lambda* ulambda = use.def()->as_lambda();
                 ulambda->jump(lambda->to(), lambda->args());
-
-                for (size_t i = 0, e = lambda->size(); i != e; ++i) {
-                    lambda->update_op(i, world.bottom(lambda->op(i)->type()));
-                }
+                lambda->destroy_body();
             }
         }
     }

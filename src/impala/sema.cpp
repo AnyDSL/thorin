@@ -277,7 +277,11 @@ const Type* PrefixExpr::vcheck(Sema& sema) const {
         case DEC:
             if (!rhs()->is_lvalue())
                 sema.error(rhs()) << "lvalue required as operand\n";
-            // FALLTHROUGH
+            return rhs()->check(sema);
+        case L_N:
+            if (!is_u1(rhs()->check(sema)))
+                sema.error(rhs()) << "logical not expects 'bool'\n";
+            return sema.world.type_u1();
         default:
             return rhs()->check(sema);
     }
@@ -298,7 +302,10 @@ const Type* InfixExpr::vcheck(Sema& sema) const {
                 if (Token::is_rel((TokenKind) kind()))
                     return sema.world.type_u1();
 
-                if (Token::is_asgn((TokenKind) kind())) {
+                if (kind() == L_A || kind() == L_O) {
+                    if (is_u1(lhs()->type()))
+                        sema.error(this) << "logical binary expression expects 'bool'\n";
+                    return sema.world.type_u1();
                 }
 
                 if (lhs()->type()->isa<TypeError>())

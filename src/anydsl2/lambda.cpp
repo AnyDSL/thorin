@@ -12,6 +12,7 @@ namespace anydsl2 {
 Lambda::Lambda(size_t gid, const Pi* pi, LambdaAttr attr, bool sealed, const std::string& name)
     : Def(gid, Node_Lambda, pi, name)
     , sid_(size_t(-1))
+    , scope_(0)
     , attr_(attr)
     , parent_(this)
     , sealed_(sealed)
@@ -33,7 +34,7 @@ Lambda* Lambda::stub(const GenericMap& generic_map, const std::string& name) con
     return result;
 }
 
-Lambda* Lambda::update(size_t i, const Def* def) {
+Lambda* Lambda::update_op(size_t i, const Def* def) {
     unset_op(i);
     set_op(i, def);
     return this;
@@ -91,6 +92,9 @@ Lambdas Lambda::direct_preds() const { return find_preds<true>(this); }
 
 Lambdas Lambda::direct_succs() const {
     Lambdas result;
+    if (empty())
+        return result;
+
     result.reserve(2);
     if (Lambda* succ = to()->isa_lambda()) {
         result.push_back(succ);

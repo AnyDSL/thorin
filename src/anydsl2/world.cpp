@@ -568,10 +568,10 @@ void World::unreachable_code_elimination() {
 }
 
 void World::uce_insert(size_t pass, Lambda* lambda) {
-    if (!lambda->visit(pass)) {
-        for_all (succ, lambda->succs())
-            uce_insert(pass, succ);
-    }
+    if (lambda->visit(pass)) return;
+
+    for_all (succ, lambda->succs())
+        uce_insert(pass, succ);
 }
 
 void World::dead_code_elimination() {
@@ -587,22 +587,33 @@ void World::dead_code_elimination() {
             for_all (param, lambda->params()) {
                 if (param->order() >= 1) {
                     for_all (use, param->uses()) {
-                        dce_insert(pass, use.def());
-                    //for_all (use, param->uses()) {
-                        //if (Lambda* caller = use.def()->isa_lambda()) {
-                            //if (use.index() == 0) {
-                                //for_all (op, caller->ops())
-                                    //dce_insert(pass, op);
-                            //}
-                        //}
+                        if (Lambda* caller = use.def()->isa_lambda())
+                            dce_insert(pass, caller);
                     }
                 }
             }
         }
     }
 
-    wipe_out(pass, primops_);
-    wipe_out(pass, lambdas_);
+    for_all (lambda, lambdas()) {
+        if (!lambda->is_visited(pass)) { // destroy body
+            for (size_t i = 0, e = lambda->size(); i != e; ++i)
+                lambda->unset_op(i);
+            lambda->resize(0);
+        } else {
+            for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
+                const Def* arg = lambda->arg(i);
+                if (!arg->is_visited(pass)) {
+                    const Bottom* bot = bottom(arg->type());
+                    bot->visit(pass);
+                    lambda->update_arg(i, bot);
+                }
+            }
+        }
+    }
+
+    //wipe_out(pass, primops_);
+    //wipe_out(pass, lambdas_);
 }
 
 void World::dce_insert(size_t pass, const Def* def) {
@@ -614,22 +625,24 @@ void World::dce_insert(size_t pass, const Def* def) {
 
     if (def->visit(pass)) return;
 
-    for_all (op, def->ops())
-        dce_insert(pass, op);
-
-    if (Lambda* lambda = def->isa_lambda()) {
-        // insert control-dependent lambdas
-        for_all (pred, lambda->preds())
-            dce_insert(pass, pred);
+    if (const PrimOp* primop = def->isa<PrimOp>()) {
+        for_all (op, primop->ops())
+            dce_insert(pass, op);
     } else if (const Param* param = def->isa<Param>()) {
-        for_all (peek, param->peek()) {
+        for_all (peek, param->peek())
             dce_insert(pass, peek.def());
-            dce_insert(pass, peek.from());
+    } else {
+        Lambda* lambda = def->as_lambda();
+        dce_insert(pass, lambda);
+        for_all (pred, lambda->preds()) // insert control-dependent lambdas
+            dce_insert(pass, pred);
+        if (!lambda->empty()) {
+            dce_insert(pass, lambda->to());
+            if (lambda->to()->isa<Param>()) {
+                for_all (arg, lambda->args())
+                    dce_insert(pass, arg);
+            }
         }
-
-        // always consider all params in the same lambda as live
-        for_all (other, param->lambda()->params())
-            dce_insert(pass, other);
     }
 }
 
@@ -659,10 +672,10 @@ void World::unused_type_elimination() {
 void World::ute_insert(size_t pass, const Type* type) {
     assert(types_.find(type) != types_.end() && "not in map");
 
-    if (!type->visit(pass)) {
-        for_all (elem, type->elems())
-            ute_insert(pass, elem);
-    }
+    if (type->visit(pass)) return;
+
+    for_all (elem, type->elems())
+        ute_insert(pass, elem);
 }
 
 void World::cleanup() {
@@ -713,7 +726,7 @@ void World::dump(bool fancy) {
 
 const Def* World::update(const Def* what, size_t x, const Def* op) {
     if (Lambda* lambda = what->isa_lambda())
-        return lambda->update(x, op);
+        return lambda->update_op(x, op);
 
     AutoPtr<PrimOp> oprimop = release(what->as<PrimOp>());
     size_t num = oprimop->size();

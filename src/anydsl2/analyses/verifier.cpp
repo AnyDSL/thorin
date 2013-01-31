@@ -24,7 +24,7 @@ public:
         // loop over all lambdas and check them
         bool result = true;
         for_all(lambda, world_.lambdas())
-            result &= verifyBody(lambda);
+                result &= verifyBody(lambda);
         return result;
     }
 
@@ -76,6 +76,9 @@ private:
     }
 
     bool verifyBody(Lambda* lambda) {
+        if (lambda->empty()) 
+            return true;
+
         PrimOpSet primops;
         // check whether the lambda is stored in the world
         const LambdaSet& lambdas = world_.lambdas();
@@ -99,7 +102,7 @@ private:
                 INVALID(lambda, "incompatible parameter types")
 
         // verifiy the actual call
-        const Pi* ttype = lambda->to()->type()->isa<Pi>();
+        const Pi* ttype = lambda->to_pi();
         const size_t num_args = lambda->num_args();
         // sanity check: number arguments for call site
         if(!ttype || num_args != ttype->size())

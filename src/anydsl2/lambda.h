@@ -46,7 +46,8 @@ public:
 
     Lambda* stub(const GenericMap& generic_map) const { return stub(generic_map, name); }
     Lambda* stub(const GenericMap& generic_map, const std::string& name) const;
-    Lambda* update(size_t i, const Def* def);
+    Lambda* update_op(size_t i, const Def* def);
+    Lambda* update_arg(size_t i, const Def* def) { return update_op(i+1, def); }
     const Param* append_param(const Type* type, const std::string& name = "");
     Lambdas succs() const;
     Lambdas preds() const;
@@ -55,7 +56,7 @@ public:
     const Params& params() const { return params_; }
     const Param* param(size_t i) const { return params_[i]; }
     const Def* to() const { return op(0); };
-    ArrayRef<const Def*> args() const { return ops().slice_back(1); }
+    ArrayRef<const Def*> args() const { return empty() ? ArrayRef<const Def*>(0, 0) : ops().slice_back(1); }
     const Def* arg(size_t i) const { return args()[i]; }
     const Pi* pi() const;
     const Pi* to_pi() const;

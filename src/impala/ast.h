@@ -184,6 +184,7 @@ public:
     anydsl2::Array<const anydsl2::Def*> emit_ops(CodeGen& cg, size_t additional_size = 0) const;
     virtual bool is_lvalue() const = 0;
     virtual RefPtr emit(CodeGen& cg) const = 0;
+    virtual void emit_cf(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const;
 
 private:
 
@@ -295,6 +296,7 @@ public:
     virtual bool is_lvalue() const { return false; }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
+    virtual void emit_cf(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const;
     virtual void vdump(Printer& p) const;
 
 private:
@@ -321,6 +323,7 @@ public:
     virtual bool is_lvalue() const { return Token::is_asgn((TokenKind) kind()); }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
+    virtual void emit_cf(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const;
     virtual void vdump(Printer& p) const;
 
 private:

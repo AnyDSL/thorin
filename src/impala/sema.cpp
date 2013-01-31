@@ -303,7 +303,7 @@ const Type* InfixExpr::vcheck(Sema& sema) const {
                     return sema.world.type_u1();
 
                 if (kind() == L_A || kind() == L_O) {
-                    if (is_u1(lhs()->type()))
+                    if (!is_u1(lhs()->type()))
                         sema.error(this) << "logical binary expression expects 'bool'\n";
                     return sema.world.type_u1();
                 }

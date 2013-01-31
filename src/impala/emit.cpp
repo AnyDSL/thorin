@@ -116,7 +116,7 @@ RefPtr VarDecl::emit(CodeGen& cg) const {
 }
 
 /*
- * Expr
+ * Expr -- emit
  */
 
 Array<const Def*> Expr::emit_ops(CodeGen& cg, size_t additional_size) const {
@@ -216,6 +216,17 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
 
         lref->store(rdef);
         return lref;
+    } else if (kind() == L_O || kind() == L_A) {
+        // TODO
+#if 0
+        JumpTarget t("true");
+        JumpTarget f("false");
+        JumpTarget x("exit");
+        emit_cf(cg, t, f);
+        t.enter();
+        cg.cur_bb->jump1(
+        f.enter();
+#endif
     }
 
     const Def* ldef = lhs()->emit(cg)->load();
@@ -251,6 +262,41 @@ RefPtr Call::emit(CodeGen& cg) const {
 }
 
 /*
+ * Expr -- emit_cf
+ */
+
+void Expr::emit_cf(CodeGen& cg, JumpTarget& t, JumpTarget& f) const {
+    cg.branch(emit(cg)->load(), t, f);
+}
+
+void PrefixExpr::emit_cf(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const {
+    if (kind() == L_N)
+        return rhs()->emit_cf(cg, f, t);
+    cg.branch(emit(cg)->load(), t, f);
+}
+
+void InfixExpr::emit_cf(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const {
+    switch (kind()) {
+        case L_A: {
+            JumpTarget and_bb("l_and");
+            lhs()->emit_cf(cg, and_bb, f);
+            if (cg.enter(and_bb))
+                rhs()->emit_cf(cg, t, f);
+            return;
+        }
+        case L_O: {
+            JumpTarget or_bb("l_or");
+            lhs()->emit_cf(cg, t, or_bb);
+            if (cg.enter(or_bb))
+                rhs()->emit_cf(cg, t, f);
+            return;
+        }
+        default:
+            Expr::emit_cf(cg, t, f);
+    }
+}
+
+/*
  * Stmt
  */
 
@@ -274,7 +320,7 @@ void IfElseStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     JumpTarget then_bb("if-then");
     JumpTarget else_bb("if-else");
 
-    cg.branch(cond()->emit(cg)->load(), then_bb, else_bb);
+    cond()->emit_cf(cg, then_bb, else_bb);
 
     cg.enter(then_bb);
     then_stmt()->emit(cg, exit_bb);

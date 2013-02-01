@@ -67,6 +67,12 @@ const Param* Lambda::append_param(const Type* type, const std::string& name) {
     return param;
 }
 
+
+const Def* Lambda::append_arg(const Def* arg) {
+    ops_.push_back(arg);
+    return arg;
+}
+
 template<bool direct>
 static Lambdas find_preds(const Lambda* lambda) {
     Lambdas result;

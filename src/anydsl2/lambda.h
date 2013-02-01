@@ -49,6 +49,7 @@ public:
     Lambda* update_op(size_t i, const Def* def);
     Lambda* update_arg(size_t i, const Def* def) { return update_op(i+1, def); }
     const Param* append_param(const Type* type, const std::string& name = "");
+    const Def* append_arg(const Def* arg);
     Lambdas succs() const;
     Lambdas preds() const;
     Lambdas direct_succs() const;

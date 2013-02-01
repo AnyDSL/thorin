@@ -216,16 +216,22 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
         lref->store(rdef);
         return lref;
     } else if (kind() == L_O || kind() == L_A) {
-        // TODO
-#if 0
         JumpTarget t("true");
         JumpTarget f("false");
         JumpTarget x("exit");
         emit_cf(cg, t, f);
-        t.enter();
-        cg.cur_bb->jump1(
-        f.enter();
-#endif
+
+        Lambda* tl = cg.enter(t);
+        cg.jump(x);
+
+        Lambda* fl = cg.enter(f);
+        cg.jump(x);
+
+        Lambda* xl = cg.enter(x);
+        
+        tl->append_arg(cg.world().literal_u1(true));
+        fl->append_arg(cg.world().literal_u1(false));
+        return Ref::create(xl->append_param(cg.world().type_u1()));
     }
 
     const Def* ldef = lhs()->emit(cg)->load();

@@ -69,9 +69,10 @@ public:
     bool is_visited(size_t pass) const { assert(cur_pass_ <= pass); return cur_pass_ == pass; }
 
 private:
-
     int kind_;
+protected:
     std::vector<const Node*> ops_;
+private:
     mutable size_t cur_pass_;
 
 public:

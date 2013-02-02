@@ -175,7 +175,6 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
         }
         case ADD:
             return rhs()->emit(cg); // this is a NOP
-
         case SUB: {
             RefPtr ref = rhs()->emit(cg);
             const Def* def = ref->load();
@@ -192,12 +191,35 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
 
             return Ref::create(cg.world().arithop(ArithOp_sub, zero, def));
         }
+        case L_N:
+            return Ref::create(cg.world().arithop_xor(rhs()->emit(cg)->load(), cg.world().literal_u1(true)));
         default: ANYDSL2_UNREACHABLE;
     }
 }
 
 RefPtr InfixExpr::emit(CodeGen& cg) const {
     TokenKind op = (TokenKind) kind();
+
+    if (kind() == L_O || kind() == L_A) {
+        JumpTarget t("true");
+        JumpTarget f("false");
+        JumpTarget x("exit");
+        lhs()->emit_cf(cg, t, f);
+
+        if (Lambda* tl = cg.enter(t)) {
+            tl->set_value(0, kind() == L_O ? cg.world().literal_u1(true) : rhs()->emit(cg)->load());
+            cg.jump(x);
+        }
+
+        if (Lambda* fl = cg.enter(f)) {
+            fl->set_value(0, kind() == L_O ? rhs()->emit(cg)->load() : cg.world().literal_u1(false));
+            cg.jump(x);
+        }
+
+        if (Lambda* xl = cg.enter(x))
+            return Ref::create(xl->get_value(0, cg.world().type_u1(), L_O ? "or" : "and"));
+        return Ref::create(0);
+    }
 
     if (Token::is_asgn(op)) {
         const Id* id = lhs()->isa<Id>();
@@ -215,25 +237,8 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
 
         lref->store(rdef);
         return lref;
-    } else if (kind() == L_O || kind() == L_A) {
-        JumpTarget t("true");
-        JumpTarget f("false");
-        JumpTarget x("exit");
-        emit_cf(cg, t, f);
-
-        Lambda* tl = cg.enter(t);
-        cg.jump(x);
-
-        Lambda* fl = cg.enter(f);
-        cg.jump(x);
-
-        Lambda* xl = cg.enter(x);
-        
-        tl->append_arg(cg.world().literal_u1(true));
-        fl->append_arg(cg.world().literal_u1(false));
-        return Ref::create(xl->append_param(cg.world().type_u1()));
     }
-
+        
     const Def* ldef = lhs()->emit(cg)->load();
     const Def* rdef = rhs()->emit(cg)->load();
 
@@ -347,7 +352,7 @@ void DoWhileStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     body()->emit(cg, cond_bb);
 
     cg.enter(cond_bb);
-    cg.branch(cond()->emit(cg)->load(), body_bb, exit_bb);
+    cond()->emit_cf(cg, body_bb, exit_bb);
     body_bb.seal();
 }
 
@@ -362,7 +367,7 @@ void ForStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     init()->emit(cg, head_bb);
 
     cg.enter_unsealed(head_bb);
-    cg.branch(cond()->emit(cg)->load(), body_bb, exit_bb);
+    cond()->emit_cf(cg, body_bb, exit_bb);
 
     cg.enter(body_bb);
     body()->emit(cg, step_bb);

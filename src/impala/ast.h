@@ -65,8 +65,7 @@ public:
     void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
     void emit(CodeGen& cg) const;
-
-    const NamedFuns& named_funs() const { return named_funs_; }
+    const anydsl2::AutoVector<const NamedFun*>& named_funs() const { return named_funs_; }
 
 private:
 

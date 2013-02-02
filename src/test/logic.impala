@@ -1,0 +1,9 @@
+def main(i : int) -> bool {
+    //result : int;
+    //if (i == 0 || i == 1)
+    //    result = 23;
+    //else
+    //    result = 43;
+    //return result;
+    return !((i == 0 && i == 23) || i == 1);
+}

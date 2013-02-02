@@ -1,4 +1,4 @@
-def extern nested(a : int, b : int, c : int) -> int {
+def main(a : int, b : int, c : int) -> int {
     result : int = 0;
 
     while (!(a < 42 && a != b))

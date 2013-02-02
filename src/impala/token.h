@@ -30,7 +30,7 @@ public:
 #define IMPALA_MISC(      tok, t_str)       tok,
 #define IMPALA_LIT(       tok, t)           LIT_##tok,
 #define IMPALA_TYPE(itype, atype)           TYPE_##itype,
-#include <impala/tokenlist.h>
+#include "impala/tokenlist.h"
 
         // manually insert missing unary prefix/postfix types
         NOT, L_N, INC, DEC,

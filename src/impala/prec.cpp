@@ -12,7 +12,7 @@ void PrecTable::init() {
 #define IMPALA_POSTFIX(   tok, t_str, l   ) PrecTable::postfix_l[Token:: tok] = l;
 #define IMPALA_INFIX(     tok, t_str, l, r)   PrecTable::infix_l[Token:: tok] = l; PrecTable::infix_r[Token:: tok] = r;
 #define IMPALA_INFIX_ASGN(tok, t_str, l, r)   PrecTable::infix_l[Token:: tok] = l; PrecTable::infix_r[Token:: tok] = r;
-#include <impala/tokenlist.h>
+#include "impala/tokenlist.h"
 }
 
 } // namespace impala

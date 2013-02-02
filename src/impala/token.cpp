@@ -1,4 +1,4 @@
-#include <impala/token.h>
+#include "impala/token.h"
 
 #include "anydsl2/util/assert.h"
 #include "anydsl2/util/cast.h"
@@ -183,7 +183,7 @@ void Token::init() {
 #define IMPALA_KEY_EXPR(  tok, str)       insert_key(tok, str);
 #define IMPALA_KEY_STMT(  tok, str)       insert_key(tok, str);
 #define IMPALA_TYPE(itype, atype)         insert_key(TYPE_ ## itype, #itype );
-#include <impala/tokenlist.h>
+#include "impala/tokenlist.h"
 
     insert_key(TYPE_int,   "int");
     insert_key(TYPE_void,  "void");

@@ -201,9 +201,9 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
 
     if (kind() == L_O || kind() == L_A) {
         const bool is_or = kind() == L_O;
-        JumpTarget t(is_or ? "l_or_true" : "l_and_true");
-        JumpTarget f(is_or ? "l_or_false" : "l_and_false");
-        JumpTarget x("exit");
+        JumpTarget t(is_or ? "l_or_t" : "l_and_t");
+        JumpTarget f(is_or ? "l_or_f" : "l_and_f");
+        JumpTarget x(is_or ? "l_or_x" : "l_and_x");
         lhs()->emit_cf(cg, t, f);
 
         if (Lambda* tl = cg.enter(t)) {
@@ -288,7 +288,7 @@ void PrefixExpr::emit_cf(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarge
 void InfixExpr::emit_cf(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const {
     if (kind() == L_O || kind() == L_A) {
         bool is_or = kind() == L_O;
-        JumpTarget extra(is_or ? "l_or_extra" : "l_and_extra");
+        JumpTarget extra(is_or ? "l_or_e" : "l_and_e");
         lhs()->emit_cf(cg, is_or ? t : extra, is_or ? extra : f);
         if (cg.enter(extra))
             rhs()->emit_cf(cg, t, f);

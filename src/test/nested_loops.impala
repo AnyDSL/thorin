@@ -1,7 +1,7 @@
 def extern nested(a : int, b : int, c : int) -> int {
     result : int = 0;
 
-    while (a < 42)
+    while (!(a < 42 && a != b))
         while (b < 23)
             do 
                 if (a + b > 9) {
@@ -9,6 +9,7 @@ def extern nested(a : int, b : int, c : int) -> int {
                     b -= 3;
                     c -= 3;
                     result += a*b + c;
+                    continue;
                 } else {
                     a -= 1;
                     b -= 1;

@@ -208,12 +208,12 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
         lhs()->emit_cf(cg, t, f);
 
         if (Lambda* tl = cg.enter(t)) {
-            tl->set_value(0, kind() == is_or ? cg.world().literal_u1(true) : rhs()->emit(cg)->load());
+            tl->set_value(0, is_or ? cg.world().literal_u1(true) : rhs()->emit(cg)->load());
             cg.jump(x);
         }
 
         if (Lambda* fl = cg.enter(f)) {
-            fl->set_value(0, kind() == is_or ? rhs()->emit(cg)->load() : cg.world().literal_u1(false));
+            fl->set_value(0, is_or ? rhs()->emit(cg)->load() : cg.world().literal_u1(false));
             cg.jump(x);
         }
 

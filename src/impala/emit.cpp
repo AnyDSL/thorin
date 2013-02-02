@@ -201,23 +201,24 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
     TokenKind op = (TokenKind) kind();
 
     if (kind() == L_O || kind() == L_A) {
+        bool is_or = kind() == L_O;
         JumpTarget t("true");
         JumpTarget f("false");
         JumpTarget x("exit");
         lhs()->emit_cf(cg, t, f);
 
         if (Lambda* tl = cg.enter(t)) {
-            tl->set_value(0, kind() == L_O ? cg.world().literal_u1(true) : rhs()->emit(cg)->load());
+            tl->set_value(0, kind() == is_or ? cg.world().literal_u1(true) : rhs()->emit(cg)->load());
             cg.jump(x);
         }
 
         if (Lambda* fl = cg.enter(f)) {
-            fl->set_value(0, kind() == L_O ? rhs()->emit(cg)->load() : cg.world().literal_u1(false));
+            fl->set_value(0, kind() == is_or ? rhs()->emit(cg)->load() : cg.world().literal_u1(false));
             cg.jump(x);
         }
 
         if (Lambda* xl = cg.enter(x))
-            return Ref::create(xl->get_value(0, cg.world().type_u1(), L_O ? "or" : "and"));
+            return Ref::create(xl->get_value(0, cg.world().type_u1(), is_or ? "l_or" : "l_and"));
         return Ref::create(0);
     }
 
@@ -286,24 +287,14 @@ void PrefixExpr::emit_cf(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarge
 }
 
 void InfixExpr::emit_cf(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const {
-    switch (kind()) {
-        case L_A: {
-            JumpTarget and_bb("l_and");
-            lhs()->emit_cf(cg, and_bb, f);
-            if (cg.enter(and_bb))
-                rhs()->emit_cf(cg, t, f);
-            return;
-        }
-        case L_O: {
-            JumpTarget or_bb("l_or");
-            lhs()->emit_cf(cg, t, or_bb);
-            if (cg.enter(or_bb))
-                rhs()->emit_cf(cg, t, f);
-            return;
-        }
-        default:
-            Expr::emit_cf(cg, t, f);
-    }
+    if (kind() == L_O || kind() == L_A) {
+        bool is_or = kind() == L_O;
+        JumpTarget extra(is_or ? "l_or" : "l_and");
+        lhs()->emit_cf(cg, is_or ? t : extra, is_or ? extra : f);
+        if (cg.enter(extra))
+            rhs()->emit_cf(cg, t, f);
+    } else
+        Expr::emit_cf(cg, t, f);
 }
 
 /*

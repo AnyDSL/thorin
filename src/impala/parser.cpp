@@ -5,6 +5,7 @@
 
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/assert.h"
+#include "anydsl2/util/push.h"
 
 #include "impala/ast.h"
 #include "impala/lexer.h"

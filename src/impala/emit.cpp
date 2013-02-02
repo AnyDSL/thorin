@@ -9,6 +9,7 @@
 #include "anydsl2/type.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/for_all.h"
+#include "anydsl2/util/push.h"
 #include "anydsl2/world.h"
 
 #include "impala/type.h"

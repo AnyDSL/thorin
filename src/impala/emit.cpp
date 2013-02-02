@@ -45,10 +45,7 @@ Lambda* Fun::emit_head(CodeGen& cg, Symbol symbol) const {
     lambda_ = cg.world().lambda(pi(), symbol.str());
     size_t num = params().size();
     const Type* ret_type = return_type(pi());
-    if (!ret_type->isa<NoRet>()) {
-        ret_param_ = lambda_->param(num-1);
-    } else
-        ret_param_ = 0;
+    ret_param_ = ret_type->isa<NoRet>() ? 0 : lambda_->param(num-1);
 
     for (size_t i = 0; i < num; ++i) {
         const Param* p = lambda_->param(i);

@@ -2,7 +2,6 @@
 #define IMPALA_PARSER_H
 
 #include <istream>
-#include <fstream>
 
 namespace impala {
 

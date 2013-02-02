@@ -200,9 +200,9 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
     TokenKind op = (TokenKind) kind();
 
     if (kind() == L_O || kind() == L_A) {
-        bool is_or = kind() == L_O;
-        JumpTarget t("true");
-        JumpTarget f("false");
+        const bool is_or = kind() == L_O;
+        JumpTarget t(is_or ? "l_or_true" : "l_and_true");
+        JumpTarget f(is_or ? "l_or_false" : "l_and_false");
         JumpTarget x("exit");
         lhs()->emit_cf(cg, t, f);
 
@@ -288,7 +288,7 @@ void PrefixExpr::emit_cf(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarge
 void InfixExpr::emit_cf(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const {
     if (kind() == L_O || kind() == L_A) {
         bool is_or = kind() == L_O;
-        JumpTarget extra(is_or ? "l_or" : "l_and");
+        JumpTarget extra(is_or ? "l_or_extra" : "l_and_extra");
         lhs()->emit_cf(cg, is_or ? t : extra, is_or ? extra : f);
         if (cg.enter(extra))
             rhs()->emit_cf(cg, t, f);
@@ -317,8 +317,8 @@ void ExprStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 }
 
 void IfElseStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
-    JumpTarget then_bb("if-then");
-    JumpTarget else_bb("if-else");
+    JumpTarget then_bb("then");
+    JumpTarget else_bb("else");
 
     cond()->emit_cf(cg, then_bb, else_bb);
 
@@ -330,8 +330,8 @@ void IfElseStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 }
 
 void DoWhileStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
-    JumpTarget body_bb("dowhile-body");
-    JumpTarget cond_bb("dowhile-cond");
+    JumpTarget body_bb("do_while-body");
+    JumpTarget cond_bb("do_while-cond");
 
     Push<JumpTarget*> push1(cg.break_target, &exit_bb);
     Push<JumpTarget*> push2(cg.continue_target, &cond_bb);

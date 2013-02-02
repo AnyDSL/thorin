@@ -57,7 +57,7 @@ void JumpTarget::jump_from(Lambda* bb) {
 }
 
 Lambda* JumpTarget::get(World& world) {
-    Lambda* bb = world.basicblock(name_);
+    Lambda* bb = world.basicblock(lambda_ ? (name_ + std::string(".crit")) : name_);
     jump_from(bb);
     bb->seal();
     return bb;

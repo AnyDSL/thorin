@@ -176,8 +176,7 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
         case ADD:
             return rhs()->emit(cg); // this is a NOP
         case SUB: {
-            RefPtr ref = rhs()->emit(cg);
-            const Def* def = ref->load();
+            const Def* def = rhs()->emit(cg)->load();
             const PrimType* pt = def->type()->as<PrimType>();
             const PrimLit* zero; 
 

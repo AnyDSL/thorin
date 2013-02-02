@@ -71,14 +71,8 @@ enum ConvOpKind {
 #include "anydsl2/tables/convoptable.h"
 };
 
-inline bool is_int(PrimTypeKind kind) {
-    return (int) Begin_PrimType_u <= (int) kind && (int) kind < (int) End_PrimType_u;
-}
-
-inline bool is_float(PrimTypeKind kind) {
-    return (int) Begin_PrimType_f <= (int) kind && (int) kind < (int) End_PrimType_f;
-}
-
+inline bool is_int(int kind) { return (int) Begin_PrimType_u <= kind && kind < (int) End_PrimType_u; }
+inline bool is_float(int kind) { return (int) Begin_PrimType_f <= kind && kind < (int) End_PrimType_f; }
 inline bool is_corenode(int kind){ return (int) Begin_AllNodes <= kind && kind < (int) End_AllNodes; }
 inline bool is_primtype(int kind){ return (int) Begin_PrimType <= kind && kind < (int) End_PrimType; }
 inline bool is_arithop(int kind) { return (int) Begin_ArithOp <= kind && kind < (int) End_ArithOp; }

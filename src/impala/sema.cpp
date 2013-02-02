@@ -279,7 +279,7 @@ const Type* PrefixExpr::vcheck(Sema& sema) const {
                 sema.error(rhs()) << "lvalue required as operand\n";
             return rhs()->check(sema);
         case L_N:
-            if (!is_u1(rhs()->check(sema)))
+            if (!rhs()->check(sema)->is_u1())
                 sema.error(rhs()) << "logical not expects 'bool'\n";
             return sema.world.type_u1();
         default:
@@ -296,14 +296,14 @@ const Type* InfixExpr::vcheck(Sema& sema) const {
         else
             sema.error(this) << "incompatible types in assignment: '" 
                 << lhs()->type() << "' and '" << rhs()->type() << "'\n";
-    } else if (is_primtype(lhs()->check(sema))) {
-        if (is_primtype(rhs()->check(sema))) {
+    } else if (lhs()->check(sema)->is_primtype()) {
+        if (rhs()->check(sema)->is_primtype()) {
             if (lhs()->type() == rhs()->type()) {
                 if (Token::is_rel((TokenKind) kind()))
                     return sema.world.type_u1();
 
                 if (kind() == L_A || kind() == L_O) {
-                    if (!is_u1(lhs()->type()))
+                    if (!lhs()->type()->is_u1())
                         sema.error(this) << "logical binary expression expects 'bool'\n";
                     return sema.world.type_u1();
                 }
@@ -333,7 +333,7 @@ const Type* PostfixExpr::vcheck(Sema& sema) const {
 
 const Type* IndexExpr::vcheck(Sema& sema) const {
     if (const Sigma* sigma = lhs()->check(sema)->isa<Sigma>()) {
-        if (is_int(index()->check(sema))) {
+        if (index()->check(sema)->is_int()) {
             if (const Literal* literal = index()->isa<Literal>()) {
                 unsigned pos;
 
@@ -424,7 +424,7 @@ void ExprStmt::check(Sema& sema) const {
 }
 
 static bool check_cond(Sema& sema, const Expr* cond) {
-    if (is_u1(cond->check(sema)))
+    if (cond->check(sema)->is_u1())
         return true;
 
     sema.error(cond) << "condition not a bool\n";

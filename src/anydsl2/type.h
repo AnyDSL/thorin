@@ -80,6 +80,13 @@ public:
     int order() const;
     TypeTuple0 as_tuple() const { return TypeTuple0(kind()); }
 
+    bool is_u1() const { return kind() == PrimType_u1; }
+    bool is_int() const { return anydsl2::is_int(kind()); }
+    bool is_float() const { return anydsl2::is_float(kind()); }
+    bool is_primtype() const { return anydsl2::is_primtype(kind()); }
+
+//------------------------------------------------------------------------------
+
 private:
 
     World& world_;
@@ -145,9 +152,6 @@ private:
 public:
 
     PrimTypeKind primtype_kind() const { return (PrimTypeKind) node_kind(); }
-
-    bool is_int()   const { return anydsl2::is_int(primtype_kind()); }
-    bool is_float() const { return anydsl2::is_float(primtype_kind()); }
 
 private:
 
@@ -298,28 +302,6 @@ public:
 
     friend class World;
 };
-
-//------------------------------------------------------------------------------
-
-inline bool is_u1(const Type* type) { 
-    if (const PrimType* p = type->isa<PrimType>())
-        return p->primtype_kind() == PrimType_u1;
-    return false;
-}
-
-inline bool is_int(const Type* type) { 
-    if (const PrimType* p = type->isa<PrimType>())
-        return is_int(p->primtype_kind());
-    return false;
-}
-
-inline bool is_float(const Type* type) { 
-    if (const PrimType* p = type->isa<PrimType>())
-        return is_float(p->primtype_kind());
-    return false;
-}
-
-inline bool is_primtype(const Type* type) { return is_primtype(type->kind()); }
 
 //------------------------------------------------------------------------------
 

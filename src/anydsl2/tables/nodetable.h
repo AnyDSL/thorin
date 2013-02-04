@@ -15,7 +15,6 @@
             ANYDSL2_AIR_NODE(Store)
             ANYDSL2_AIR_NODE(Enter)
             ANYDSL2_AIR_NODE(Leave)
-            ANYDSL2_AIR_NODE(Free)
             ANYDSL2_AIR_NODE(CCall)
         ANYDSL2_AIR_NODE(Slot)
         //ANYDSL2_AIR_NODE(ArithOp)

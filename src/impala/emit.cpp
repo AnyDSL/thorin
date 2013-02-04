@@ -199,9 +199,9 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
 
     if (kind() == L_O || kind() == L_A) {
         const bool is_or = kind() == L_O;
-        JumpTarget t(is_or ? "l_or_t" : "l_and_t");
-        JumpTarget f(is_or ? "l_or_f" : "l_and_f");
-        JumpTarget x(is_or ? "l_or_x" : "l_and_x");
+        JumpTarget t(is_or ? "l_or_true"  : "l_and_true");
+        JumpTarget f(is_or ? "l_or_false" : "l_and_false");
+        JumpTarget x(is_or ? "l_or_exit"  : "l_and_exit");
         lhs()->emit_cf(cg, t, f);
 
         if (Lambda* tl = cg.enter(t)) {
@@ -286,7 +286,7 @@ void PrefixExpr::emit_cf(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarge
 void InfixExpr::emit_cf(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const {
     if (kind() == L_O || kind() == L_A) {
         bool is_or = kind() == L_O;
-        JumpTarget extra(is_or ? "l_or_e" : "l_and_e");
+        JumpTarget extra(is_or ? "l_or_extra" : "l_and_extra");
         lhs()->emit_cf(cg, is_or ? t : extra, is_or ? extra : f);
         if (cg.enter(extra))
             rhs()->emit_cf(cg, t, f);
@@ -315,8 +315,8 @@ void ExprStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 }
 
 void IfElseStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
-    JumpTarget then_bb("then");
-    JumpTarget else_bb("else");
+    JumpTarget then_bb("if_then");
+    JumpTarget else_bb("if_else");
 
     cond()->emit_cf(cg, then_bb, else_bb);
 
@@ -328,8 +328,8 @@ void IfElseStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 }
 
 void DoWhileStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
-    JumpTarget body_bb("do_while-body");
-    JumpTarget cond_bb("do_while-cond");
+    JumpTarget body_bb("do_while_body");
+    JumpTarget cond_bb("do_while_cond");
 
     Push<JumpTarget*> push1(cg.break_target, &exit_bb);
     Push<JumpTarget*> push2(cg.continue_target, &cond_bb);
@@ -345,9 +345,9 @@ void DoWhileStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 }
 
 void ForStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
-    JumpTarget head_bb("for-head");
-    JumpTarget body_bb("for-body");
-    JumpTarget step_bb("for-step");
+    JumpTarget head_bb("for_head");
+    JumpTarget body_bb("for_body");
+    JumpTarget step_bb("for_step");
 
     Push<JumpTarget*> push1(cg.break_target, &exit_bb);
     Push<JumpTarget*> push2(cg.continue_target, &step_bb);

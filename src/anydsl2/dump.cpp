@@ -278,11 +278,11 @@ void Lambda::dump(bool fancy, int indent, std::ostream& out) const {
     if (empty())
         p << "jump <EMPTY>";
     else {
-        p << "jump(";
+        p << "jump ";
         p.dump(to());
-        p << ", [";
+        p << " [";
         ANYDSL2_DUMP_COMMA_LIST(p, args());
-        p  << "])";
+        p  << "]";
     }
 	p.down();
 

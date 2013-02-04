@@ -1,4 +1,4 @@
-def f[[A,B]](x : A, y : B) -> A {
+def f<A,B>(x : A, y : B) -> A {
     def g(x : A) -> pi(A) -> A {
         return lambda(s : A) -> A { return s; };
     }

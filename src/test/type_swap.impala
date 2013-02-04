@@ -1,3 +1,3 @@
-def main[[T, U]](t : T, u : U) -> int {
+def main<T, U>(t : T, u : U) -> int {
     return main(u, t);
 }

@@ -1,4 +1,4 @@
-def generic_while[[L, B]](l : L,
+def generic_while<L, B>(l : L,
                           head : pi(L, pi(B, bool)), 
                           body : pi(B, pi(L)), 
                           next : pi(B)) 

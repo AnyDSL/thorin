@@ -1,5 +1,5 @@
-def f[[A, B]](a1 : A, a2 : A, b1 : B, b2 : B, i : int) -> A {
-    s : sigma[[C]](A, int, C) = #(1, 42, true);
+def f<A, B>(a1 : A, a2 : A, b1 : B, b2 : B, i : int) -> A {
+    s : sigma<C>(A, int, C) = #(1, 42, true);
     return 42;
 }
 

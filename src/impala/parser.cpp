@@ -363,11 +363,11 @@ void Parser::parse_globals() {
 }
 
 void Parser::parse_generic_list() {
-    if (accept(Token::L_DBRACKET)) {
+    if (accept(Token::LT)) {
         PARSE_COMMA_LIST
         (
             generic_insert(try_id("generic identifier")),
-            Token::R_DBRACKET,
+            Token::GT,
             "generics list"
         )
     }

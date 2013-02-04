@@ -1,4 +1,4 @@
-def range_xy[[L]](l : L,
+def range_xy<L>(l : L,
                   xn : int, yn : int,
                   body : pi(L, int, int) -> L) -> L
 {
@@ -10,7 +10,7 @@ def range_xy[[L]](l : L,
 }
 
 
-def initially[[G,T,R]](g : G, xn: int, yn : int, make_strand : pi(G) -> T, write_result : pi(int, int, G, R) -> G, update : pi(G, T, int, int, /*loop*/ pi(T), /*stabilize*/ pi(R), /*die*/ pi())) -> G {
+def initially<G,T,R>(g : G, xn: int, yn : int, make_strand : pi(G) -> T, write_result : pi(int, int, G, R) -> G, update : pi(G, T, int, int, /*loop*/ pi(T), /*stabilize*/ pi(R), /*die*/ pi())) -> G {
     return range_xy(g, xn, yn, lambda(g : G, x : int, y : int, ret : pi(G)) { 
         def loop(strand : T) {
             update(g, strand, x, y, 

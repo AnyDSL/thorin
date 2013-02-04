@@ -1,4 +1,4 @@
-def primes[[T]](n : int, t : T, yield : pi(int, T, pi(T)), ret : pi(T)) {
+def primes<T>(n : int, t : T, yield : pi(int, T, pi(T)), ret : pi(T)) {
     if (n < 2) 
         ret(t);
 

@@ -1,4 +1,4 @@
-def genericRange[[T]](nextElem : pi(int, pi(T)),
+def genericRange<T>(nextElem : pi(int, pi(T)),
                       c : pi(T, pi()),
                       count : int,
                       next : pi()) {

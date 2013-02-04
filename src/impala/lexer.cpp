@@ -169,25 +169,13 @@ Token Lexer::lex() {
         IMPALA_LEX_AND_OR('&', AND, L_A, AND_ASGN)
         IMPALA_LEX_AND_OR('|',  OR, L_O,  OR_ASGN)
 
-        if (accept('[')) {
-            if (accept('['))
-                return Token(loc_, Token::L_DBRACKET);
-            else
-                return Token(loc_, Token::L_BRACKET);
-        }
-
-        if (accept(']')) {
-            if (accept(']')) 
-                return Token(loc_, Token::R_DBRACKET);
-            else
-                return Token(loc_, Token::R_BRACKET);
-        }
-
         // single character tokens
         if (accept('#')) 
             return Token(loc_, Token::HASH);
         if (accept('(')) return Token(loc_, Token::L_PAREN);
         if (accept(')')) return Token(loc_, Token::R_PAREN);
+        if (accept('[')) return Token(loc_, Token::L_BRACKET);
+        if (accept(']')) return Token(loc_, Token::R_BRACKET);
         if (accept(',')) return Token(loc_, Token::COMMA);
         if (accept(':')) return Token(loc_, Token::COLON);
         if (accept(';')) return Token(loc_, Token::SEMICOLON);

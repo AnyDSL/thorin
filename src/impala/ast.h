@@ -106,11 +106,18 @@ public:
     anydsl2::Symbol symbol() const { return symbol_; }
     const anydsl2::Type* type() const { return type_; }
     void insert(Sema& sema) const;
+    size_t depth() const { return depth_; }
 
 protected:
 
     anydsl2::Symbol symbol_;
     const anydsl2::Type* type_;
+
+private:
+
+    mutable size_t depth_;
+
+    friend class Sema;
 };
 
 class VarDecl : public Decl {

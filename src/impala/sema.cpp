@@ -62,18 +62,23 @@ private:
 
     struct Entry {
         Entry() {}
-        Entry(Symbol symbol, const Decl* decl, size_t depth)
-            : symbol(symbol)
-            , decl(decl)
-            , depth(depth)
+        Entry(Symbol symbol)
+            : symbol_(symbol)
+            , decl_(0)
         {}
-        Symbol symbol;
-        const Decl* decl;
-        size_t depth;
+        Entry(const Decl* decl)
+            : symbol_(decl->symbol())
+            , decl_(decl)
+        {}
+        Symbol symbol() const { return symbol_; }
+        const Decl* decl() const { return decl_; }
+    private:
+        Symbol symbol_;
+        const Decl* decl_;
     };
 
-    typedef boost::unordered_map<Symbol, Entry> Sym2Entries;
-    Sym2Entries sym2entries_;
+    typedef boost::unordered_map<Symbol, const Decl*> Sym2Decl;
+    Sym2Decl sym2decl_;
     std::vector<Entry> scope_;
     std::vector<size_t> levels_;
 };
@@ -81,28 +86,33 @@ private:
 //------------------------------------------------------------------------------
 
 const Decl* Sema::lookup(Symbol sym) {
-    Sym2Entries::iterator i = sym2entries_.find(sym);
-    return i != sym2entries_.end() ? i->second.decl : 0;
+    Sym2Decl::iterator i = sym2decl_.find(sym);
+    return i != sym2decl_.end() ? i->second : 0;
 }
 
 void Sema::insert(const Decl* decl) {
-    Symbol sym = decl->symbol();
-    assert(clash(sym) == 0 && "must not be found");
-    Sym2Entries::iterator i = sym2entries_.find(sym);
-    scope_.push_back(i == sym2entries_.end() ? Entry(sym, 0, -1) : i->second);
-    sym2entries_[sym] = Entry(sym, decl, depth());
+    Symbol symbol = decl->symbol();
+    decl->depth_ = depth();
+    assert(clash(symbol) == 0 && "must not be found");
+    Sym2Decl::iterator i = sym2decl_.find(symbol);
+    const Decl* old_decl = i != sym2decl_.end() ? i->second : 0;
+    scope_.push_back(old_decl ? old_decl : Entry(symbol));
+    sym2decl_[symbol] = decl;
 }
 
 const Decl* Sema::clash(Symbol symbol) const {
-    Sym2Entries::const_iterator i = sym2entries_.find(symbol);
-    return (i != sym2entries_.end() && i->second.depth == depth()) ? i->second.decl : 0;
+    Sym2Decl::const_iterator i = sym2decl_.find(symbol);
+    if (i == sym2decl_.end())
+        return 0;
+    const Decl* decl = i->second;
+    return (decl && decl->depth() == depth()) ? decl : 0;
 }
 
 void Sema::pop_scope() {
     size_t level = levels_.back();
     for (size_t i = level, e = scope_.size(); i != e; ++i) {
         const Entry& entry = scope_[i];
-        sym2entries_[entry.symbol] = entry;
+        sym2decl_[entry.symbol()] = entry.decl();
     }
 
     scope_.resize(level);

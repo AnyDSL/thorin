@@ -99,7 +99,6 @@ public:
         mutable size_t counter;
     };
 
-
     friend class World;
 };
 

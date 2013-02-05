@@ -89,13 +89,7 @@ void Sema::insert(const Decl* decl) {
     Symbol sym = decl->symbol();
     assert(clash(sym) == 0 && "must not be found");
     Sym2Entries::iterator i = sym2entries_.find(sym);
-
-    if (i == sym2entries_.end()) {
-        scope_.push_back(Entry(sym, 0, -1));
-    } else {
-        scope_.push_back(i->second);
-    }
-
+    scope_.push_back(i == sym2entries_.end() ? Entry(sym, 0, -1) : i->second);
     sym2entries_[sym] = Entry(sym, decl, depth());
 }
 

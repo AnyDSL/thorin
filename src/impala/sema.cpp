@@ -1,6 +1,6 @@
 #include "impala/ast.h"
 
-#include <stack>
+#include <vector>
 #include <boost/unordered_map.hpp>
 
 #include "anydsl2/util/array.h"
@@ -18,161 +18,101 @@ namespace impala {
 class Sema {
 public:
 
-    Sema(World& world);
-    ~Sema();
+    Sema(World& world)
+        : world_(world)
+        , result_(true)
+    {}
 
     /** 
      * @brief Looks up the current definition of \p sym.
-     * 
-     * @param sym The \p Symbol to look up.
-     * 
      * @return Returns 0 on failure.
      */
     const Decl* lookup(Symbol symbol);
 
     /** 
-     * @brief Pushes a new Decl on the internal \p DeclStack.
+     * @brief Maps \p decl's symbol to \p decl.
      * 
      * If sym already has a definition in this scope an assertion is raised.
      * use \p clash in order to check this.
-     *
-     * @param decl The \p decl to insert.
      */
     void insert(const Decl* decl);
 
     /** 
      * @brief Checks whether there already exists a \p Symbol \p sym in the \em current scope.
-     * 
      * @param sym The \p Symbol to check.
-     * 
      * @return The current mapping if the lookup succeeds, 0 otherwise.
      */
     const Decl* clash(Symbol symbol) const;
 
-    /// Open a new scope.
-    void push_scope() { ++depth_; }
-    /// Discard current scope.
+    void push_scope() { levels_.push_back(scope_.size()); }
     void pop_scope();
-
+    size_t depth() const { return levels_.size(); }
     bool result() const { return result_; }
-
     std::ostream& error(const ASTNode* n) { result_ = false; return n->error(); }
     std::ostream& error(const Location& loc) { result_ = false; return loc.error(); }
-
-    World& world;
     GenericMap fill_map();
+    World& world() { return world_; }
+
     std::vector< boost::unordered_set<const Generic*> > bound_generics_;
 
 private:
 
-    struct Slot {
-        Slot(const Decl* decl, int depth)
-            : decl(decl)
+    World& world_;
+    bool result_;
+
+    struct Entry {
+        Entry() {}
+        Entry(Symbol symbol, const Decl* decl, size_t depth)
+            : symbol(symbol)
+            , decl(decl)
             , depth(depth)
         {}
-        Slot() {}
-
+        Symbol symbol;
         const Decl* decl;
-        int depth;
+        size_t depth;
     };
 
-    typedef std::stack<Slot> SlotStack;
-    typedef boost::unordered_map<Symbol, SlotStack*> Scope;
-
-    bool result_;
-    Scope scope_;
-    int depth_;
-
-#ifndef NDEBUG
-    int refcounter_;
-#endif
+    typedef boost::unordered_map<Symbol, Entry> Sym2Entries;
+    Sym2Entries sym2entries_;
+    std::vector<Entry> scope_;
+    std::vector<size_t> levels_;
 };
 
 //------------------------------------------------------------------------------
 
-Sema::Sema(World& world)
-    : world(world)
-    , result_(true)
-    , depth_(0)
-#ifndef NDEBUG
-    , refcounter_(0)
-#endif
-{
-    push_scope();
-}
-
-Sema::~Sema() {
-    assert(depth_ == 1 && "root scope must be 1");
-    pop_scope();
-
-#ifndef NDEBUG
-    assert(refcounter_ == 0 && "memory leak");
-#endif
-}
-
 const Decl* Sema::lookup(Symbol sym) {
-    Scope::iterator i = scope_.find(sym);
-    if (i != scope_.end())
-        return i->second->top().decl;
-    else
-        return 0;
+    Sym2Entries::iterator i = sym2entries_.find(sym);
+    return i != sym2entries_.end() ? i->second.decl : 0;
 }
 
 void Sema::insert(const Decl* decl) {
-    Symbol symbol = decl->symbol();
+    Symbol sym = decl->symbol();
+    assert(clash(sym) == 0 && "must not be found");
+    Sym2Entries::iterator i = sym2entries_.find(sym);
 
-    assert(clash(symbol) == 0 && "must not be found");
-
-    // create stack if necessary
-    Scope::iterator i = scope_.find(symbol);
-    if (i == scope_.end()) {
-        // isn't C++ beautiful? We should switch to C++11 just because of auto
-        std::pair<Scope::iterator, bool> p =
-            scope_.insert(std::make_pair(symbol, new SlotStack()));
-#ifndef NDEBUG
-        ++refcounter_;
-#endif
-        i = p.first;
+    if (i == sym2entries_.end()) {
+        scope_.push_back(Entry(sym, 0, -1));
+    } else {
+        scope_.push_back(i->second);
     }
 
-    // get pointer to stack linked to symbol and push new Decl
-    SlotStack* stack = i->second;
-    stack->push(Slot(decl, depth_));
+    sym2entries_[sym] = Entry(sym, decl, depth());
 }
 
 const Decl* Sema::clash(Symbol symbol) const {
-    Scope::const_iterator i = scope_.find(symbol);
-    if (i != scope_.end() && i->second->top().depth == depth_)
-        return i->second->top().decl;
-    else
-        return 0;
+    Sym2Entries::const_iterator i = sym2entries_.find(symbol);
+    return (i != sym2entries_.end() && i->second.depth == depth()) ? i->second.decl : 0;
 }
 
 void Sema::pop_scope() {
-    assert(depth_ > 0 && "illegal depth value");
-
-    Scope::iterator i = scope_.begin(); 
-    while (i != scope_.end()) {
-        SlotStack* stack = i->second;
-        assert(!stack->empty() && "must have at least on element");
-        
-        if (depth_ == stack->top().depth) {
-            stack->pop();
-
-            if (stack->empty()) {
-                i = scope_.erase(i);
-                delete stack;
-#ifndef NDEBUG
-                --refcounter_;
-#endif
-                continue;
-            }
-        }
-
-         ++i;
+    size_t level = levels_.back();
+    for (size_t i = level, e = scope_.size(); i != e; ++i) {
+        const Entry& entry = scope_[i];
+        sym2entries_[entry.symbol] = entry;
     }
 
-    --depth_;
+    scope_.resize(level);
+    levels_.pop_back();
 }
 
 //------------------------------------------------------------------------------
@@ -241,11 +181,11 @@ void Decl::insert(Sema& sema) const {
  */
 
 const Type* EmptyExpr::vcheck(Sema& sema) const {
-    return sema.world.unit();
+    return sema.world().unit();
 }
 
 const Type* Literal::vcheck(Sema& sema) const {
-    return sema.world.type(literal2type());
+    return sema.world().type(literal2type());
 }
 
 const Type* FunExpr::vcheck(Sema& sema) const {
@@ -258,7 +198,7 @@ const Type* Tuple::vcheck(Sema& sema) const {
     for_all2 (&elem, elems, op, ops())
         elem = op->check(sema);
 
-    return sema.world.sigma(elems);
+    return sema.world().sigma(elems);
 }
 
 const Type* Id::vcheck(Sema& sema) const {
@@ -268,7 +208,7 @@ const Type* Id::vcheck(Sema& sema) const {
     }
 
     sema.error(this) << "symbol '" << symbol() << "' not found in current scope\n";
-    return sema.world.type_error();
+    return sema.world().type_error();
 }
 
 const Type* PrefixExpr::vcheck(Sema& sema) const {
@@ -281,7 +221,7 @@ const Type* PrefixExpr::vcheck(Sema& sema) const {
         case L_N:
             if (!rhs()->check(sema)->is_u1())
                 sema.error(rhs()) << "logical not expects 'bool'\n";
-            return sema.world.type_u1();
+            return sema.world().type_u1();
         default:
             return rhs()->check(sema);
     }
@@ -300,12 +240,12 @@ const Type* InfixExpr::vcheck(Sema& sema) const {
         if (rhs()->check(sema)->is_primtype()) {
             if (lhs()->type() == rhs()->type()) {
                 if (Token::is_rel((TokenKind) kind()))
-                    return sema.world.type_u1();
+                    return sema.world().type_u1();
 
                 if (kind() == L_A || kind() == L_O) {
                     if (!lhs()->type()->is_u1())
                         sema.error(this) << "logical binary expression expects 'bool'\n";
-                    return sema.world.type_u1();
+                    return sema.world().type_u1();
                 }
 
                 if (lhs()->type()->isa<TypeError>())
@@ -321,7 +261,7 @@ const Type* InfixExpr::vcheck(Sema& sema) const {
     } else
         sema.error(lhs()) << "primitive type expected on left-hand side of binary expressions\n";
 
-    return sema.world.type_error();
+    return sema.world().type_error();
 }
 
 const Type* PostfixExpr::vcheck(Sema& sema) const {
@@ -355,7 +295,7 @@ const Type* IndexExpr::vcheck(Sema& sema) const {
     } else
         sema.error(lhs()) << "left-hand side of index expression must be of sigma type\n";
 
-    return sema.world.type_error();
+    return sema.world().type_error();
 }
 
 const Type* Call::vcheck(Sema& sema) const { 
@@ -366,13 +306,13 @@ const Type* Call::vcheck(Sema& sema) const {
             op_types[i] = arg(i)->check(sema);
 
         const Pi* call_pi;
-        const Type* ret_type = to_pi->size() == num_args() ? sema.world.noret() : return_type(to_pi);
+        const Type* ret_type = to_pi->size() == num_args() ? sema.world().noret() : return_type(to_pi);
 
         if (ret_type->isa<NoRet>())
-            call_pi = sema.world.pi(op_types.slice_front(op_types.size()-1));
+            call_pi = sema.world().pi(op_types.slice_front(op_types.size()-1));
         else {
-            op_types.back() = sema.world.pi1(ret_type);
-            call_pi = sema.world.pi(op_types);
+            op_types.back() = sema.world().pi1(ret_type);
+            call_pi = sema.world().pi(op_types);
         }
 
         if (to_pi->check_with(call_pi)) {
@@ -393,7 +333,7 @@ const Type* Call::vcheck(Sema& sema) const {
     } else
         sema.error(to()) << "invocation not done on function type but instead type '" << to()->type() << "' is given\n";
 
-    return sema.world.type_error();
+    return sema.world().type_error();
 }
 
 /*

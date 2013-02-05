@@ -60,26 +60,9 @@ private:
     World& world_;
     bool result_;
 
-    struct Entry {
-        Entry() {}
-        Entry(Symbol symbol)
-            : symbol_(symbol)
-            , decl_(0)
-        {}
-        Entry(const Decl* decl)
-            : symbol_(decl->symbol())
-            , decl_(decl)
-        {}
-        Symbol symbol() const { return symbol_; }
-        const Decl* decl() const { return decl_; }
-    private:
-        Symbol symbol_;
-        const Decl* decl_;
-    };
-
     typedef boost::unordered_map<Symbol, const Decl*> Sym2Decl;
     Sym2Decl sym2decl_;
-    std::vector<Entry> scope_;
+    std::vector<const Decl*> scope_;
     std::vector<size_t> levels_;
 };
 
@@ -92,11 +75,13 @@ const Decl* Sema::lookup(Symbol sym) {
 
 void Sema::insert(const Decl* decl) {
     Symbol symbol = decl->symbol();
-    decl->depth_ = depth();
     assert(clash(symbol) == 0 && "must not be found");
+
     Sym2Decl::iterator i = sym2decl_.find(symbol);
-    const Decl* old_decl = i != sym2decl_.end() ? i->second : 0;
-    scope_.push_back(old_decl ? old_decl : Entry(symbol));
+    decl->shadows_ = i != sym2decl_.end() ? i->second : 0;
+    decl->depth_ = depth();
+
+    scope_.push_back(decl);
     sym2decl_[symbol] = decl;
 }
 
@@ -104,6 +89,7 @@ const Decl* Sema::clash(Symbol symbol) const {
     Sym2Decl::const_iterator i = sym2decl_.find(symbol);
     if (i == sym2decl_.end())
         return 0;
+
     const Decl* decl = i->second;
     return (decl && decl->depth() == depth()) ? decl : 0;
 }
@@ -111,8 +97,8 @@ const Decl* Sema::clash(Symbol symbol) const {
 void Sema::pop_scope() {
     size_t level = levels_.back();
     for (size_t i = level, e = scope_.size(); i != e; ++i) {
-        const Entry& entry = scope_[i];
-        sym2decl_[entry.symbol()] = entry.decl();
+        const Decl* decl = scope_[i];
+        sym2decl_[decl->symbol()] = decl->shadows();
     }
 
     scope_.resize(level);

@@ -77,10 +77,7 @@ public:
 
 private:
 
-    void fun_set(const anydsl2::Pi* pi, const ScopeStmt* body) { 
-        pi_ = pi; 
-        body_ = body; 
-    }
+    void fun_set(const anydsl2::Pi* pi, const ScopeStmt* body) { pi_ = pi; body_ = body; }
 
     VarDecls params_;
     anydsl2::AutoPtr<const ScopeStmt> body_;
@@ -101,12 +98,18 @@ protected:
 
 public:
 
-    Decl(const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2);
+    Decl(const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2)
+        : symbol_(tok.symbol())
+        , type_(type)
+    {
+        set_loc(tok.pos1(), pos2);
+    }
 
     anydsl2::Symbol symbol() const { return symbol_; }
     const anydsl2::Type* type() const { return type_; }
     void insert(Sema& sema) const;
     size_t depth() const { return depth_; }
+    const Decl* shadows() const { return shadows_; }
 
 protected:
 
@@ -115,6 +118,7 @@ protected:
 
 private:
 
+    mutable const Decl* shadows_;
     mutable size_t depth_;
 
     friend class Sema;
@@ -144,7 +148,12 @@ public:
         : extern_(ext)
     {}
 
-    void set(const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2);
+    void set(const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2) {
+        symbol_ = tok.symbol();
+        type_ = type;
+        set_loc(tok.pos1(), pos2);
+    }
+
     void check(Sema& sema) const { return fun_check(sema); }
     virtual void vdump(Printer& p) const;
     void emit(CodeGen& cg) const;
@@ -208,7 +217,12 @@ public:
         LIT_bool
     };
 
-    Literal(const anydsl2::Location& loc, Kind kind, anydsl2::Box box);
+    Literal(const anydsl2::Location& loc, Kind kind, anydsl2::Box box)
+        : kind_(kind)
+        , box_(box)
+    {
+        loc_= loc;
+    }
 
     Kind kind() const { return kind_; }
     anydsl2::Box box() const { return box_; }
@@ -242,7 +256,7 @@ private:
 class Tuple : public Expr {
 public:
 
-    Tuple(const anydsl2::Position& pos1);
+    Tuple(const anydsl2::Position& pos1) { loc_.set_pos1(pos1); }
 
     virtual bool is_lvalue() const { return false; }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
@@ -255,7 +269,11 @@ public:
 class Id : public Expr {
 public:
 
-    Id(const Token& tok);
+    Id(const Token& tok)
+        : symbol_(tok.symbol())
+    {
+        loc_ = tok.loc();
+    }
 
     anydsl2::Symbol symbol() const { return symbol_; }
     const Decl* decl() const { return decl_; }
@@ -279,7 +297,12 @@ public:
 #include "impala/tokenlist.h"
     };
 
-    PrefixExpr(const anydsl2::Position& pos1, Kind kind, const Expr* rhs);
+    PrefixExpr(const anydsl2::Position& pos1, Kind kind, const Expr* rhs)
+        : kind_(kind)
+    {
+        ops_.push_back(rhs);
+        set_loc(pos1, rhs->pos2());
+    }
 
     const Expr* rhs() const { return ops_[0]; }
 
@@ -305,7 +328,13 @@ public:
 #include "impala/tokenlist.h"
     };
 
-    InfixExpr(const Expr* lhs, Kind kind, const Expr* rhs);
+    InfixExpr(const Expr* lhs, Kind kind, const Expr* rhs)
+        : kind_(kind)
+    {
+        ops_.push_back(lhs);
+        ops_.push_back(rhs);
+        set_loc(lhs->pos1(), rhs->pos2());
+    }
 
     const Expr* lhs() const { return ops_[0]; }
     const Expr* rhs() const { return ops_[1]; }
@@ -335,7 +364,12 @@ public:
         DEC = Token::DEC
     };
 
-    PostfixExpr(const Expr* lhs, Kind kind, const anydsl2::Position& pos2);
+    PostfixExpr(const Expr* lhs, Kind kind, const anydsl2::Position& pos2)
+        : kind_(kind)
+    {
+        ops_.push_back(lhs);
+        set_loc(lhs->pos1(), pos2);
+    }
 
     const Expr* lhs() const { return ops_[0]; }
 
@@ -354,7 +388,11 @@ private:
 class IndexExpr : public Expr {
 public:
 
-    IndexExpr(const anydsl2::Position& pos1, const Expr* lhs, const Expr* index, const anydsl2::Position& pos2);
+    IndexExpr(const anydsl2::Position& pos1, const Expr* lhs, const Expr* index, const anydsl2::Position& pos2) {
+        ops_.push_back(lhs);
+        ops_.push_back(index);
+        set_loc(pos1, pos2);
+    }
 
     const Expr* lhs() const { return ops_[0]; }
     const Expr* index() const { return ops_[1]; }
@@ -368,10 +406,13 @@ public:
 class Call : public Expr {
 public:
 
-    Call(const Expr* fun);
+    Call(const Expr* fun) { ops_.push_back(fun); }
 
     void append_arg(const Expr* expr) { ops_.push_back(expr); }
-    void set_pos2(const anydsl2::Position& pos2);
+    void set_pos2(const anydsl2::Position& pos2) {
+        assert(!ops_.empty());
+        HasLocation::set_loc(ops_.front()->pos1(), pos2);
+    }
     const Expr* to() const { return ops_.front(); }
     size_t num_args() const { return size() - 1; }
     const Expr* arg(size_t i) const { return op(i+1); }
@@ -398,7 +439,11 @@ public:
 class ExprStmt : public Stmt {
 public:
 
-    ExprStmt(const Expr* expr, const anydsl2::Position& pos2);
+    ExprStmt(const Expr* expr, const anydsl2::Position& pos2)
+        : expr_(expr)
+    {
+        set_loc(expr->pos1(), pos2);
+    }
 
     const Expr* expr() const { return expr_; }
 
@@ -414,7 +459,12 @@ private:
 class DeclStmt : public Stmt {
 public:
 
-    DeclStmt(const VarDecl* var_decl, const Expr* init, const anydsl2::Position& pos2);
+    DeclStmt(const VarDecl* var_decl, const Expr* init, const anydsl2::Position& pos2)
+        : var_decl_(var_decl)
+        , init_(init)
+    {
+        set_loc(var_decl->pos1(), pos2);
+    }
 
     const VarDecl* var_decl() const { return var_decl_; }
     const Expr* init() const { return init_; }
@@ -432,7 +482,13 @@ private:
 class IfElseStmt: public Stmt {
 public:
 
-    IfElseStmt(const anydsl2::Position& pos1, const Expr* cond, const Stmt* thenStmt, const Stmt* elseStmt);
+    IfElseStmt(const anydsl2::Position& pos1, const Expr* cond, const Stmt* thenStmt, const Stmt* elseStmt)
+        : cond_(cond)
+        , thenStmt_(thenStmt)
+        , elseStmt_(elseStmt)
+    {
+        set_loc(pos1, elseStmt->pos2());
+    }
 
     const Expr* cond() const { return cond_; }
     const Stmt* then_stmt() const { return thenStmt_; }
@@ -459,10 +515,7 @@ public:
 
 protected:
 
-    void set(const Expr* cond, const Stmt* body) {
-        cond_ = cond;
-        body_ = body;
-    }
+    void set(const Expr* cond, const Stmt* body) { cond_ = cond; body_ = body; }
 
 private:
 
@@ -475,7 +528,10 @@ public:
 
     DoWhileStmt() {}
 
-    void set(const anydsl2::Position& pos1, const Stmt* body, const Expr* cond, const anydsl2::Position& pos2);
+    void set(const anydsl2::Position& pos1, const Stmt* body, const Expr* cond, const anydsl2::Position& pos2) {
+        Loop::set(cond, body);
+        set_loc(pos1, pos2);
+    }
 
     virtual void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
@@ -487,10 +543,14 @@ public:
 
     ForStmt() {}
 
-    void set(const anydsl2::Position& pos1, const Expr* cond, const Expr* step, const Stmt* body);
+    void set(const anydsl2::Position& pos1, const Expr* cond, const Expr* step, const Stmt* body) {
+        Loop::set(cond, body);
+        step_ = step;
+        set_loc(pos1, body->pos2());
+    }
     void set(const DeclStmt* d) { init_decl_ = d; }
     void set(const ExprStmt* e) { init_expr_ = e; }
-    void set_empty_init(const anydsl2::Position& pos);
+    void set_empty_init(const anydsl2::Position& pos) { set(new ExprStmt(new EmptyExpr(pos), pos)); }
 
     const DeclStmt* init_decl() const { return init_decl_; }
     const ExprStmt* init_expr() const { return init_expr_; }
@@ -512,7 +572,11 @@ private:
 class BreakStmt : public Stmt {
 public:
 
-    BreakStmt(const anydsl2::Position& pos1, const anydsl2::Position& pos2, const Loop* loop);
+    BreakStmt(const anydsl2::Position& pos1, const anydsl2::Position& pos2, const Loop* loop)
+        : loop_(loop)
+    {
+        set_loc(pos1, pos2);
+    }
 
     const Loop* loop() const { return loop_; }
 
@@ -527,7 +591,11 @@ private:
 class ContinueStmt : public Stmt {
 public:
 
-    ContinueStmt(const anydsl2::Position& pos1, const anydsl2::Position& pos2, const Loop* loop);
+    ContinueStmt(const anydsl2::Position& pos1, const anydsl2::Position& pos2, const Loop* loop)
+        : loop_(loop)
+    {
+        set_loc(pos1, pos2);
+    }
 
     const Loop* loop() const { return loop_; }
 
@@ -543,7 +611,12 @@ private:
 class ReturnStmt : public Stmt {
 public:
 
-    ReturnStmt(const anydsl2::Position& pos1, const Expr* expr, const Fun* fun, const anydsl2::Position& pos2);
+    ReturnStmt(const anydsl2::Position& pos1, const Expr* expr, const Fun* fun, const anydsl2::Position& pos2)
+        : expr_(expr)
+        , fun_(fun)
+    {
+        set_loc(pos1, pos2);
+    }
 
     const Expr* expr() const { return expr_; }
     const Fun* fun() const { return fun_; }
@@ -580,9 +653,7 @@ class ScopeStmt : public Stmt {
 public:
 
     ScopeStmt() {}
-    ScopeStmt(const anydsl2::Location& loc) {
-        loc_ = loc;
-    }
+    ScopeStmt(const anydsl2::Location& loc) { loc_ = loc; }
 
     const Stmts& stmts() const { return stmts_; }
     const NamedFuns& named_funs() const { return named_funs_; }

@@ -218,7 +218,7 @@ const Type* PrefixExpr::vcheck(Sema& sema) const {
 }
 
 const Type* InfixExpr::vcheck(Sema& sema) const {
-    if (Token::is_asgn((TokenKind) kind())) {
+    if (Token::is_assign((TokenKind) kind())) {
         if (!lhs()->is_lvalue())
             sema.error(lhs()) << "no lvalue on left-hand side of assignment\n";
         else if (lhs()->check(sema) == rhs()->check(sema))

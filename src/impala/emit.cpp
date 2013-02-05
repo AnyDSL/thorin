@@ -219,7 +219,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
         return Ref::create(0);
     }
 
-    if (Token::is_asgn(op)) {
+    if (Token::is_assign(op)) {
         const Id* id = lhs()->isa<Id>();
         const Def* rdef = rhs()->emit(cg)->load();
 
@@ -229,7 +229,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
                 : lhs()->emit(cg);
 
         if (op != Token::ASGN) {
-            TokenKind sop = Token::seperateAssign(op);
+            TokenKind sop = Token::separate_assign(op);
             rdef = cg.world().binop(Token::to_binop(sop), lref->load(), rdef);
         }
 

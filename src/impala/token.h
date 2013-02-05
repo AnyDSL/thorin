@@ -48,13 +48,12 @@ public:
      * constructors
      */
 
-    /// Empty default constructor; needed for c++ maps etc
     Token() {}
 
     /// Create a literal operator or special char token
     Token(const anydsl2::Location& loc, Kind tok);
 
-    /// Create an identifier (\p ID) or a keyword
+    /// Create an identifier or a keyword (depends on \p str)
     Token(const anydsl2::Location& loc, const std::string& str);
 
     /// Create a literal
@@ -86,7 +85,7 @@ public:
     bool is_prefix()  const { return is_prefix(kind_); }
     bool is_infix()   const { return is_infix(kind_); }
     bool is_postfix() const { return is_postfix(kind_); }
-    bool is_asgn()    const { return is_asgn(kind_); }
+    bool is_assign()  const { return is_assign(kind_); }
     bool is_op()      const { return is_op(kind_); }
     bool is_arith()   const { return is_arith(kind_); }
     bool is_rel()     const { return is_rel(kind_); }
@@ -94,11 +93,11 @@ public:
     static bool is_prefix(Kind kind)  { return tok2op_[kind] &  PREFIX; }
     static bool is_infix(Kind kind)   { return tok2op_[kind] &   INFIX; }
     static bool is_postfix(Kind kind) { return tok2op_[kind] & POSTFIX; }
-    static bool is_asgn(Kind kind)    { return tok2op_[kind] & ASGN_OP; }
+    static bool is_assign(Kind kind)  { return tok2op_[kind] & ASGN_OP; }
     static bool is_op(Kind kind)      { return is_prefix(kind) || is_infix(kind) || is_postfix(kind); }
     static bool is_arith(Kind kind);
     static bool is_rel(Kind kind);
-    static Kind seperateAssign(Kind kind);
+    static Kind separate_assign(Kind kind);
 
     static int to_binop(Kind kind);
     static anydsl2::ArithOpKind  to_arithop(Kind kind);

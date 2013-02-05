@@ -81,8 +81,8 @@ bool Token::is_rel(Kind op) {
     }
 }
 
-TokenKind Token::seperateAssign(TokenKind kind) {
-    assert(is_asgn(kind) && "must be an assignment other than ASGN");
+TokenKind Token::separate_assign(TokenKind kind) {
+    assert(is_assign(kind) && "must be an assignment other than ASGN");
 
     switch (kind) {
         case ADD_ASGN: return ADD;

@@ -341,7 +341,7 @@ public:
 
     Kind kind() const { return kind_; }
 
-    virtual bool is_lvalue() const { return Token::is_asgn((TokenKind) kind()); }
+    virtual bool is_lvalue() const { return Token::is_assign((TokenKind) kind()); }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void emit_cf(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const;

@@ -165,7 +165,7 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
             RefPtr ref = rhs()->emit(cg);
             const Def* def = ref->load();
             const PrimLit* one = cg.world().one(def->type());
-            const Def* ndef = cg.world().arithop(Token::to_arithop((TokenKind) kind()), def, one);
+            const Def* ndef = cg.world().arithop(Token::to_arithop((TokenKind) kind(), type()->is_float()), def, one);
             ref->store(ndef);
             return ref;
         }
@@ -228,7 +228,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
 
         if (op != Token::ASGN) {
             TokenKind sop = Token::separate_assign(op);
-            rdef = cg.world().binop(Token::to_binop(sop), lref->load(), rdef);
+            rdef = cg.world().binop(Token::to_binop(sop, type()->is_float()), lref->load(), rdef);
         }
 
         lref->store(rdef);
@@ -238,14 +238,14 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
     const Def* ldef = lhs()->emit(cg)->load();
     const Def* rdef = rhs()->emit(cg)->load();
 
-    return Ref::create(cg.world().binop(Token::to_binop(op), ldef, rdef));
+    return Ref::create(cg.world().binop(Token::to_binop(op, ldef->type()->is_float()), ldef, rdef));
 }
 
 RefPtr PostfixExpr::emit(CodeGen& cg) const {
     RefPtr ref = lhs()->emit(cg);
     const Def* def = ref->load();
     const PrimLit* one = cg.world().one(def->type());
-    ref->store(cg.world().arithop(Token::to_arithop((TokenKind) kind()), def, one));
+    ref->store(cg.world().arithop(Token::to_arithop((TokenKind) kind(), type()->is_float()), def, one));
     return Ref::create(def);
 }
 

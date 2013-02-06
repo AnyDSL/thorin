@@ -99,51 +99,51 @@ TokenKind Token::separate_assign(TokenKind kind) {
     }
 }
 
-int Token::to_binop(Kind kind) {
+int Token::to_binop(Kind kind, bool is_float) {
     switch (kind) {
         case INC:
-        case ADD: return ArithOp_add;
+        case ADD: return is_float ? ArithOp_fadd : ArithOp_add;
         case DEC:
-        case SUB: return ArithOp_sub;
-        case MUL: return ArithOp_mul;
-        case DIV: return ArithOp_sdiv;
-        case MOD: return ArithOp_srem;
-        case AND: return ArithOp_and;
-        case  OR: return ArithOp_or;
-        case XOR: return ArithOp_xor;
-        case  EQ: return RelOp_cmp_eq;
-        case  NE: return RelOp_cmp_ne;
-        case  LT: return RelOp_cmp_slt;
-        case  LE: return RelOp_cmp_sle;
-        case  GT: return RelOp_cmp_sgt;
-        case  GE: return RelOp_cmp_sge;
+        case SUB: return is_float ? ArithOp_fsub : ArithOp_sub ;
+        case MUL: return is_float ? ArithOp_fmul : ArithOp_mul ;
+        case DIV: return is_float ? ArithOp_fdiv : ArithOp_sdiv;
+        case MOD: return is_float ? ArithOp_frem : ArithOp_srem;
+        case  EQ: return is_float ? RelOp_fcmp_oeq : RelOp_cmp_eq ;
+        case  NE: return is_float ? RelOp_fcmp_one : RelOp_cmp_ne ;
+        case  LT: return is_float ? RelOp_fcmp_olt : RelOp_cmp_slt;
+        case  LE: return is_float ? RelOp_fcmp_ole : RelOp_cmp_sle;
+        case  GT: return is_float ? RelOp_fcmp_ogt : RelOp_cmp_sgt;
+        case  GE: return is_float ? RelOp_fcmp_oge : RelOp_cmp_sge;
+        case AND: assert(!is_float); return ArithOp_and;
+        case  OR: assert(!is_float); return ArithOp_or;
+        case XOR: assert(!is_float); return ArithOp_xor;
         default: ANYDSL2_UNREACHABLE;
     }
 }
 
-ArithOpKind Token::to_arithop(Kind kind) {
+ArithOpKind Token::to_arithop(Kind kind, bool is_float) {
     switch (kind) {
         case INC:
-        case ADD: return ArithOp_add;
+        case ADD: return is_float ? ArithOp_fadd : ArithOp_add ;
         case DEC:
-        case SUB: return ArithOp_sub;
-        case MUL: return ArithOp_mul;
-        case DIV: return ArithOp_udiv;
-        case AND: return ArithOp_and;
-        case  OR: return ArithOp_or;
-        case XOR: return ArithOp_xor;
+        case SUB: return is_float ? ArithOp_fsub : ArithOp_sub ;
+        case MUL: return is_float ? ArithOp_fmul : ArithOp_mul ;
+        case DIV: return is_float ? ArithOp_fdiv : ArithOp_udiv;
+        case AND: assert(!is_float); return ArithOp_and;
+        case  OR: assert(!is_float); return ArithOp_or;
+        case XOR: assert(!is_float); return ArithOp_xor;
         default: ANYDSL2_UNREACHABLE;
     }
 }
 
-RelOpKind Token::to_relop(Kind kind) {
+RelOpKind Token::to_relop(Kind kind, bool is_float) {
     switch (kind) {
-        case EQ: return RelOp_cmp_eq;
-        case NE: return RelOp_cmp_ne;
-        case LT: return RelOp_cmp_ult;
-        case LE: return RelOp_cmp_ule;
-        case GT: return RelOp_cmp_ugt;
-        case GE: return RelOp_cmp_uge;
+        case EQ: return is_float ? RelOp_fcmp_oeq : RelOp_cmp_eq ;
+        case NE: return is_float ? RelOp_fcmp_one : RelOp_cmp_ne ;
+        case LT: return is_float ? RelOp_fcmp_olt : RelOp_cmp_ult;
+        case LE: return is_float ? RelOp_fcmp_ole : RelOp_cmp_ule;
+        case GT: return is_float ? RelOp_fcmp_ogt : RelOp_cmp_ugt;
+        case GE: return is_float ? RelOp_fcmp_oge : RelOp_cmp_uge;
         default: ANYDSL2_UNREACHABLE;
     }
 }

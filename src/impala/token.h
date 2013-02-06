@@ -99,9 +99,9 @@ public:
     static bool is_rel(Kind kind);
     static Kind separate_assign(Kind kind);
 
-    static int to_binop(Kind kind);
-    static anydsl2::ArithOpKind  to_arithop(Kind kind);
-    static anydsl2::RelOpKind    to_relop(Kind kind);
+    static int to_binop(Kind kind, bool is_float);
+    static anydsl2::ArithOpKind to_arithop(Kind kind, bool is_float);
+    static anydsl2::RelOpKind to_relop(Kind kind, bool is_float);
 
     /*
      * comparisons

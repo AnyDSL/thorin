@@ -93,7 +93,6 @@ private:
     friend class Sema;
 };
 
-
 class Fun {
 public:
 

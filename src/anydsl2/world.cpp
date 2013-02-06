@@ -121,8 +121,11 @@ const PrimLit* World::literal(PrimTypeKind kind, int value) {
     }
 }
 
-const Any*    World::any   (const Type* type) { return cse<DefTuple0, Any   >(DefTuple0(Node_Any,    type), ""); }
-const Bottom* World::bottom(const Type* type) { return cse<DefTuple0, Bottom>(DefTuple0(Node_Bottom, type), ""); }
+const Any*    World::any   (const Type* type)  { return cse<DefTuple0, Any   >(DefTuple0(Node_Any,    type), ""); }
+const Bottom* World::bottom(const Type* type)  { return cse<DefTuple0, Bottom>(DefTuple0(Node_Bottom, type), ""); }
+const PrimLit* World::zero(const Type* type)   { return zero  (type->as<PrimType>()->primtype_kind()); }
+const PrimLit* World::one(const Type* type)    { return one   (type->as<PrimType>()->primtype_kind()); }
+const PrimLit* World::allset(const Type* type) { return allset(type->as<PrimType>()->primtype_kind()); }
 
 /*
  * create
@@ -246,9 +249,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
     return cse<DefTuple2, ArithOp>(DefTuple2(kind, a->type(), a, b), name);
 }
 
-const Def* World::arithop_not(const Def* def) { 
-    return arithop_xor(def, allset(def->type()->as<PrimType>()->primtype_kind())); 
-}
+const Def* World::arithop_not(const Def* def) { return arithop_xor(def, allset(def->type())); }
 
 const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::string& name) {
     if (a->isa<Bottom>() || b->isa<Bottom>())

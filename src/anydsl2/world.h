@@ -163,11 +163,14 @@ public:
     const PrimLit* literal(T value) { return literal(type2kind<T>::kind, Box(value)); }
 
     const PrimLit* zero(PrimTypeKind kind) { return literal(kind, 0); }
+    const PrimLit* zero(const Type*);
     const PrimLit* one(PrimTypeKind kind) { return literal(kind, 1); }
+    const PrimLit* one(const Type*);
     const PrimLit* allset(PrimTypeKind kind) {
         assert(is_float(kind) && "must not be a float");
         return literal(kind, -1);
     }
+    const PrimLit* allset(const Type*);
 
     const Any* any(const Type* type);
     const Any* any(PrimTypeKind kind) { return any(type(kind)); }

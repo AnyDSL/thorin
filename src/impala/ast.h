@@ -60,37 +60,6 @@ private:
     friend class Parser;
 };
 
-class Fun {
-public:
-
-    const ScopeStmt* body() const { return body_; }
-    const VarDecl* param(size_t i) const { return params_[i]; }
-    const VarDecls& params() const { return params_; }
-    const anydsl2::Pi* pi() const { return pi_; }
-    bool is_continuation() const;
-    anydsl2::Lambda* lambda() const { return lambda_; }
-    const anydsl2::Param* ret_param() const { return ret_param_; }
-    void fun_dump(Printer& p) const;
-    void fun_check(Sema& sema) const;
-    const anydsl2::Lambda* emit_body(CodeGen& cg, anydsl2::Lambda* parent, const char* what) const;
-    anydsl2::Lambda* emit_head(CodeGen& cg, anydsl2::Symbol symbol) const;
-
-private:
-
-    void fun_set(const anydsl2::Pi* pi, const ScopeStmt* body) { pi_ = pi; body_ = body; }
-
-    VarDecls params_;
-    anydsl2::AutoPtr<const ScopeStmt> body_;
-    const anydsl2::Pi* pi_;
-    mutable anydsl2::Lambda* lambda_;
-    mutable const anydsl2::Param* ret_param_;
-
-    friend class NamedFun;
-    friend class FunExpr;
-    friend class Parser;
-    friend class CodeGen;
-};
-
 class Decl : public ASTNode {
 protected:
 
@@ -122,6 +91,38 @@ private:
     mutable size_t depth_;
 
     friend class Sema;
+};
+
+
+class Fun {
+public:
+
+    const ScopeStmt* body() const { return body_; }
+    const VarDecl* param(size_t i) const { return params_[i]; }
+    const VarDecls& params() const { return params_; }
+    const anydsl2::Pi* pi() const { return pi_; }
+    bool is_continuation() const;
+    anydsl2::Lambda* lambda() const { return lambda_; }
+    const anydsl2::Param* ret_param() const { return ret_param_; }
+    void fun_dump(Printer& p) const;
+    void fun_check(Sema& sema) const;
+    const anydsl2::Lambda* emit_body(CodeGen& cg, anydsl2::Lambda* parent, const char* what) const;
+    anydsl2::Lambda* emit_head(CodeGen& cg, anydsl2::Symbol symbol) const;
+
+private:
+
+    void fun_set(const anydsl2::Pi* pi, const ScopeStmt* body) { pi_ = pi; body_ = body; }
+
+    VarDecls params_;
+    anydsl2::AutoPtr<const ScopeStmt> body_;
+    const anydsl2::Pi* pi_;
+    mutable anydsl2::Lambda* lambda_;
+    mutable const anydsl2::Param* ret_param_;
+
+    friend class NamedFun;
+    friend class FunExpr;
+    friend class Parser;
+    friend class CodeGen;
 };
 
 class VarDecl : public Decl {

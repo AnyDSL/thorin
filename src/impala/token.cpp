@@ -54,29 +54,10 @@ Token::Token(const Location& loc, Kind kind, const std::string& str)
     }
 }
 
-bool Token::is_arith(Kind op) {
+/*static */ bool Token::is_rel(Kind op) {
     switch (op) {
-        case ADD:
-        case SUB:
-        case MUL:
-        case DIV:
-        case MOD: 
-        case AND:
-        case  OR:
-        case XOR:
-            return true;
-        default:  return false;
-    }
-}
-
-bool Token::is_rel(Kind op) {
-    switch (op) {
-        case EQ:
-        case NE:
-        case LT: 
-        case LE: 
-        case GT: 
-        case GE: return true;
+        case EQ: case LT: case LE: 
+        case NE: case GT: case GE: return true;
         default: return false;
     }
 }
@@ -117,33 +98,6 @@ int Token::to_binop(Kind kind, bool is_float) {
         case AND: assert(!is_float); return ArithOp_and;
         case  OR: assert(!is_float); return ArithOp_or;
         case XOR: assert(!is_float); return ArithOp_xor;
-        default: ANYDSL2_UNREACHABLE;
-    }
-}
-
-ArithOpKind Token::to_arithop(Kind kind, bool is_float) {
-    switch (kind) {
-        case INC:
-        case ADD: return is_float ? ArithOp_fadd : ArithOp_add ;
-        case DEC:
-        case SUB: return is_float ? ArithOp_fsub : ArithOp_sub ;
-        case MUL: return is_float ? ArithOp_fmul : ArithOp_mul ;
-        case DIV: return is_float ? ArithOp_fdiv : ArithOp_udiv;
-        case AND: assert(!is_float); return ArithOp_and;
-        case  OR: assert(!is_float); return ArithOp_or;
-        case XOR: assert(!is_float); return ArithOp_xor;
-        default: ANYDSL2_UNREACHABLE;
-    }
-}
-
-RelOpKind Token::to_relop(Kind kind, bool is_float) {
-    switch (kind) {
-        case EQ: return is_float ? RelOp_fcmp_oeq : RelOp_cmp_eq ;
-        case NE: return is_float ? RelOp_fcmp_one : RelOp_cmp_ne ;
-        case LT: return is_float ? RelOp_fcmp_olt : RelOp_cmp_ult;
-        case LE: return is_float ? RelOp_fcmp_ole : RelOp_cmp_ule;
-        case GT: return is_float ? RelOp_fcmp_ogt : RelOp_cmp_ugt;
-        case GE: return is_float ? RelOp_fcmp_oge : RelOp_cmp_uge;
         default: ANYDSL2_UNREACHABLE;
     }
 }

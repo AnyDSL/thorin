@@ -59,18 +59,10 @@ public:
     /// Create a literal
     Token(const anydsl2::Location& loc, Kind type, const std::string& str);
 
-    /*
-     * getters
-     */
-
     anydsl2::Symbol symbol() const { return symbol_; }
     anydsl2::Box box() const { return box_; }
     Kind kind() const { return kind_; }
     operator Kind () const { return kind_; }
-
-    /*
-     * operator/literal stuff
-     */
 
     enum Op {
         NONE    = 0,
@@ -80,39 +72,25 @@ public:
         ASGN_OP = 8
     };
 
-    int op() const { return tok2op_[kind_]; }
-
     bool is_prefix()  const { return is_prefix(kind_); }
     bool is_infix()   const { return is_infix(kind_); }
     bool is_postfix() const { return is_postfix(kind_); }
     bool is_assign()  const { return is_assign(kind_); }
     bool is_op()      const { return is_op(kind_); }
-    bool is_arith()   const { return is_arith(kind_); }
-    bool is_rel()     const { return is_rel(kind_); }
 
     static bool is_prefix(Kind kind)  { return tok2op_[kind] &  PREFIX; }
     static bool is_infix(Kind kind)   { return tok2op_[kind] &   INFIX; }
     static bool is_postfix(Kind kind) { return tok2op_[kind] & POSTFIX; }
     static bool is_assign(Kind kind)  { return tok2op_[kind] & ASGN_OP; }
     static bool is_op(Kind kind)      { return is_prefix(kind) || is_infix(kind) || is_postfix(kind); }
-    static bool is_arith(Kind kind);
     static bool is_rel(Kind kind);
     static Kind separate_assign(Kind kind);
-
     static int to_binop(Kind kind, bool is_float);
-    static anydsl2::ArithOpKind to_arithop(Kind kind, bool is_float);
-    static anydsl2::RelOpKind to_relop(Kind kind, bool is_float);
-
-    /*
-     * comparisons
-     */
+    static anydsl2::ArithOpKind to_arithop(Kind kind, bool is_float) { return (anydsl2::ArithOpKind) to_binop(kind, is_float); }
+    static anydsl2::RelOpKind   to_relop  (Kind kind, bool is_float) { return (anydsl2::RelOpKind)   to_binop(kind, is_float); }
 
     bool operator == (const Token& t) const { return kind_ == t; }
     bool operator != (const Token& t) const { return kind_ != t; }
-
-    /*
-     * statics
-     */
 
 private:
 

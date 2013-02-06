@@ -252,6 +252,28 @@ RefPtr PostfixExpr::emit(CodeGen& cg) const {
     return Ref::create(def);
 }
 
+RefPtr ConditionalExpr::emit(CodeGen& cg) const {
+    JumpTarget t("cond_true");
+    JumpTarget f("cond_false");
+    JumpTarget x("cond_exit");
+
+    cond()->emit_cf(cg, t, f);
+
+    if (Lambda* tl = cg.enter(t)) {
+        tl->set_value(0, t_expr()->emit(cg)->load());
+        cg.jump(x);
+    }
+
+    if (Lambda* fl = cg.enter(f)) {
+        fl->set_value(0, f_expr()->emit(cg)->load());
+        cg.jump(x);
+    }
+
+    if (Lambda* xl = cg.enter(x))
+        return Ref::create(xl->get_value(0, t_expr()->type(), "cond"));
+    return Ref::create(0);
+}
+
 RefPtr IndexExpr::emit(CodeGen& cg) const {
     return Ref::create(lhs()->emit(cg), index()->emit(cg)->load());
 }
@@ -277,13 +299,13 @@ void Expr::emit_cf(CodeGen& cg, JumpTarget& t, JumpTarget& f) const {
     cg.branch(emit(cg)->load(), t, f);
 }
 
-void PrefixExpr::emit_cf(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const {
+void PrefixExpr::emit_cf(CodeGen& cg, JumpTarget& t, JumpTarget& f) const {
     if (kind() == L_N)
         return rhs()->emit_cf(cg, f, t);
     cg.branch(emit(cg)->load(), t, f);
 }
 
-void InfixExpr::emit_cf(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const {
+void InfixExpr::emit_cf(CodeGen& cg, JumpTarget& t, JumpTarget& f) const {
     if (kind() == L_O || kind() == L_A) {
         bool is_or = kind() == L_O;
         JumpTarget extra(is_or ? "l_or_extra" : "l_and_extra");
@@ -401,7 +423,7 @@ void ScopeStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     }
 }
 
-void NamedFunStmt::emit(CodeGen& cg, anydsl2::JumpTarget& exit_bb) const { 
+void NamedFunStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { 
     named_fun()->emit(cg); 
     cg.jump(exit_bb);
 }

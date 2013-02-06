@@ -204,6 +204,29 @@ void PostfixExpr::vdump(Printer& p) const {
     p.prec = old;
 }
 
+void ConditionalExpr::vdump(Printer& p) const {
+    Prec l = PrecTable::infix_l[Token::QUESTION_MARK];
+    Prec r = PrecTable::infix_r[Token::QUESTION_MARK];
+    Prec old = p.prec;
+    bool paren = !p.fancy() || p.prec > l;
+
+    if (paren)
+        p << '(';
+
+    p.prec = l;
+    cond()->vdump(p);
+    p << " ? ";
+    t_expr()->vdump(p);
+    p << " : ";
+    p.prec = r;
+    f_expr()->vdump(p);
+
+    if (paren)
+        p << ')';
+
+    p.prec = old;
+}
+
 void IndexExpr::vdump(Printer& p) const {
     Prec l = PrecTable::postfix_l[Token::L_BRACKET];
     Prec old = p.prec;

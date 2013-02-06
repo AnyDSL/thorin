@@ -385,6 +385,26 @@ private:
     Kind kind_;
 };
 
+class ConditionalExpr : public Expr {
+public:
+
+    ConditionalExpr(const Expr* cond, const Expr* t_expr, const Expr* f_expr) {
+        ops_.push_back(cond);
+        ops_.push_back(t_expr);
+        ops_.push_back(f_expr);
+        set_loc(cond->pos1(), f_expr->pos2());
+    }
+
+    const Expr* cond()   const { return ops_[0]; }
+    const Expr* t_expr() const { return ops_[1]; }
+    const Expr* f_expr() const { return ops_[2]; }
+
+    virtual bool is_lvalue() const { return false; }
+    virtual const anydsl2::Type* vcheck(Sema& sema) const;
+    virtual RefPtr emit(CodeGen& cg) const;
+    virtual void vdump(Printer& p) const;
+};
+
 class IndexExpr : public Expr {
 public:
 

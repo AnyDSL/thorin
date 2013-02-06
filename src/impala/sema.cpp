@@ -261,6 +261,18 @@ const Type* PostfixExpr::vcheck(Sema& sema) const {
     return lhs()->check(sema);
 }
 
+const Type* ConditionalExpr::vcheck(Sema& sema) const {
+    if (cond()->check(sema)->is_u1()) {
+        if (t_expr()->check(sema) == f_expr()->check(sema))
+            return t_expr()->type();
+        else
+            sema.error(this) << "incompatible types in conditional expression\n";
+    } else
+        sema.error(cond()) << "condition not a bool\n";
+
+    return t_expr()->type()->isa<TypeError>() ? f_expr()->type() : t_expr()->type();
+}
+
 const Type* IndexExpr::vcheck(Sema& sema) const {
     if (const Sigma* sigma = lhs()->check(sema)->isa<Sigma>()) {
         if (index()->check(sema)->is_int()) {

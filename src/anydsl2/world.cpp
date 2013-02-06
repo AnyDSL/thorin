@@ -246,6 +246,10 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
     return cse<DefTuple2, ArithOp>(DefTuple2(kind, a->type(), a, b), name);
 }
 
+const Def* World::arithop_not(const Def* def) { 
+    return arithop_xor(def, allset(def->type()->as<PrimType>()->primtype_kind())); 
+}
+
 const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::string& name) {
     if (a->isa<Bottom>() || b->isa<Bottom>())
         return bottom(type_u1());

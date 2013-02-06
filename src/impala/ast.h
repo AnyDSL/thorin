@@ -656,6 +656,7 @@ public:
     ScopeStmt(const anydsl2::Location& loc) { loc_ = loc; }
 
     const Stmts& stmts() const { return stmts_; }
+    const Stmt* stmt(size_t i) const { return stmts_[i]; }
     const NamedFuns& named_funs() const { return named_funs_; }
     void check_stmts(Sema& sema) const;
 

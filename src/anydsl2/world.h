@@ -202,6 +202,7 @@ public:
     }
 #include "anydsl2/tables/convoptable.h"
 
+    const Def* arithop_not(const Def* def);
     /*
      * tuple stuff
      */

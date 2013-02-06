@@ -44,7 +44,7 @@ public:
      */
     const Decl* clash(Symbol symbol) const;
 
-    void push_scope() { levels_.push_back(scope_.size()); }
+    void push_scope() { levels_.push_back(decl_stack_.size()); }
     void pop_scope();
     size_t depth() const { return levels_.size(); }
     bool result() const { return result_; }
@@ -62,7 +62,7 @@ private:
 
     typedef boost::unordered_map<Symbol, const Decl*> Sym2Decl;
     Sym2Decl sym2decl_;
-    std::vector<const Decl*> scope_;
+    std::vector<const Decl*> decl_stack_;
     std::vector<size_t> levels_;
 };
 
@@ -81,7 +81,7 @@ void Sema::insert(const Decl* decl) {
     decl->shadows_ = i != sym2decl_.end() ? i->second : 0;
     decl->depth_ = depth();
 
-    scope_.push_back(decl);
+    decl_stack_.push_back(decl);
     sym2decl_[symbol] = decl;
 }
 
@@ -96,12 +96,12 @@ const Decl* Sema::clash(Symbol symbol) const {
 
 void Sema::pop_scope() {
     size_t level = levels_.back();
-    for (size_t i = level, e = scope_.size(); i != e; ++i) {
-        const Decl* decl = scope_[i];
+    for (size_t i = level, e = decl_stack_.size(); i != e; ++i) {
+        const Decl* decl = decl_stack_[i];
         sym2decl_[decl->symbol()] = decl->shadows();
     }
 
-    scope_.resize(level);
+    decl_stack_.resize(level);
     levels_.pop_back();
 }
 
@@ -432,7 +432,7 @@ void ScopeStmt::check(Sema& sema) const {
 }
 
 void ScopeStmt::check_stmts(Sema& sema) const {
-    for_all (const& s, stmts())
+    for_all (s, stmts())
         s->check(sema);
 }
 

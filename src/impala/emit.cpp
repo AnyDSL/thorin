@@ -165,7 +165,7 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
             RefPtr ref = rhs()->emit(cg);
             const Def* def = ref->load();
             const PrimType* pt = def->type()->as<PrimType>();
-            const PrimLit* one = cg.world().literal(pt->primtype_kind(), 1u);
+            const PrimLit* one = cg.world().one(pt->primtype_kind());
             const Def* ndef = cg.world().arithop(Token::to_arithop((TokenKind) kind()), def, one);
             ref->store(ndef);
 
@@ -189,7 +189,7 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
             return Ref::create(cg.world().arithop(ArithOp_sub, zero, def));
         }
         case L_N:
-            return Ref::create(cg.world().arithop_xor(rhs()->emit(cg)->load(), cg.world().literal_u1(true)));
+            return Ref::create(cg.world().arithop_not(rhs()->emit(cg)->load()));
         default: ANYDSL2_UNREACHABLE;
     }
 }
@@ -394,10 +394,10 @@ void ScopeStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
         size_t i = 0;
         for (; i != size - 1; ++i) {
             JumpTarget stmt_exit_bb("next");
-            stmts()[i]->emit(cg, stmt_exit_bb);
+            stmt(i)->emit(cg, stmt_exit_bb);
             cg.enter(stmt_exit_bb);
         }
-        stmts()[i]->emit(cg, exit_bb);
+        stmt(i)->emit(cg, exit_bb);
     }
 }
 

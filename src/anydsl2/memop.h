@@ -41,8 +41,6 @@ private:
 
     Load(const DefTuple2& args, const std::string& name)
         : Access(2, args.get<0>(), args.get<1>(), args.get<2>(), args.get<3>(), name)
-        , extract_mem_(0)
-        , extract_val_(0)
     {}
 
     virtual void vdump(Printer &printer) const;
@@ -52,11 +50,6 @@ public:
     const Def* ptr() const { return op(1); }
     const Def* extract_mem() const;
     const Def* extract_val() const;
-
-private:
-
-    mutable const Def* extract_mem_;
-    mutable const Def* extract_val_;
 
     friend class World;
 };
@@ -88,8 +81,6 @@ private:
 
     Enter(const DefTuple1& args, const std::string& name)
         : MemOp(1, args.get<0>(), args.get<1>(), args.get<2>(), name)
-        , extract_mem_(0)
-        , extract_frame_(0)
     {}
 
     virtual void vdump(Printer &printer) const;
@@ -98,11 +89,6 @@ public:
 
     const Def* extract_mem() const;
     const Def* extract_frame() const;
-
-private:
-
-    mutable const Def* extract_mem_;
-    mutable const Def* extract_frame_;
 
     friend class World;
 };
@@ -171,8 +157,6 @@ private:
 
     CCall(const CCallTuple& args, const std::string& name)
         : MemOp(args.get<4>().size() + 1, args.get<0>(), args.get<1>(), args.get<3>(), name)
-        , extract_mem_(0)
-        , extract_retval_(0)
         , callee_(args.get<2>())
         , vararg_(args.get<5>())
     {
@@ -199,8 +183,6 @@ public:
 
 private:
 
-    mutable const Def* extract_mem_;
-    mutable const Def* extract_retval_;
     ANYDSL2_HASH_EQUAL
 
     std::string callee_;

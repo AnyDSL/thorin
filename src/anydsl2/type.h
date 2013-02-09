@@ -248,17 +248,22 @@ private:
 
 //------------------------------------------------------------------------------
 
-class IndexType : public Type {
-protected:
+typedef boost::tuple<int, size_t> GenericTuple;
 
-    IndexType(World& world, int kind, size_t index, bool is_generic)
-        : Type(world, kind, 0, is_generic)
-        , index_(index)
+class Generic : public Type {
+private:
+
+    Generic(World& world, const GenericTuple& args)
+        : Type(world, args.get<0>(), 0, true)
+        , index_(args.get<1>())
     {}
+    ANYDSL2_TYPE_HASH_EQUAL
 
 public:
 
     size_t index() const { return index_; }
+    GenericTuple as_tuple() const { return GenericTuple(kind(), index()); }
+    virtual void vdump(Printer& printer) const;
 
 private:
 
@@ -269,26 +274,7 @@ private:
 
 //------------------------------------------------------------------------------
 
-typedef boost::tuple<int, size_t> GenericTuple;
-
-class Generic : public IndexType {
-private:
-
-    Generic(World& world, const GenericTuple& args)
-        : IndexType(world, args.get<0>(), args.get<1>(), true)
-    {}
-    ANYDSL2_TYPE_HASH_EQUAL
-
-public:
-
-    GenericTuple as_tuple() const { return GenericTuple(kind(), index()); }
-    virtual void vdump(Printer& printer) const;
-
-    friend class World;
-};
-
-//------------------------------------------------------------------------------
-
+#if 0
 class Opaque : public IndexType {
 private:
 
@@ -302,6 +288,7 @@ public:
 
     friend class World;
 };
+#endif
 
 //------------------------------------------------------------------------------
 

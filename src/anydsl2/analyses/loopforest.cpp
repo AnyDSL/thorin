@@ -18,7 +18,6 @@ enum {
 class LFBuilder {
 public:
 
-
     LFBuilder(const Scope& scope) 
         : scope(scope)
         , numbers(scope.size())

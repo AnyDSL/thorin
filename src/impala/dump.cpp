@@ -378,8 +378,10 @@ void Printer::dump(const anydsl2::Type* t) {
             o << ") -> ";
             dump(ret_type);
         }
+#if 0
     } else if (const anydsl2::Opaque* opaque = t->isa<anydsl2::Opaque>()) {
         opaque->vdump(*this);
+#endif
     } else if (const anydsl2::Generic* generic = t->isa<anydsl2::Generic>()) {
         generic->vdump(*this);
     } else if (t->isa<Void>()) {

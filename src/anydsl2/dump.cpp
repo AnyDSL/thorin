@@ -211,12 +211,14 @@ void Generic::vdump(Printer &p) const {
         p << '_' << index();
 }
 
+#if 0
 void Opaque::vdump(Printer &p) const {
     if (!name.empty())
         p << name;
     else
         p << '@' << index();
 }
+#endif
 
 void Lambda::vdump(Printer& p) const {
 	p.dump_name(this);

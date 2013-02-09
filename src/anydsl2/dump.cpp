@@ -164,24 +164,12 @@ void Slot::vdump(Printer& p) const {
  * Types
  */
 
-void CompoundType::dump_inner(Printer& p) const {
-	p << '(';
-	ANYDSL2_DUMP_COMMA_LIST(p, elems());
-	p << ')';
-}
-
-void Mem::vdump(Printer& p) const {
-    p << "mem";
-}
-
-void Frame::vdump(Printer& p) const {
-    p << "frame";
-}
-
-void Ptr::vdump(Printer& p) const {
-    ref()->dump();
-    p << '*';
-}
+void CompoundType::dump_inner(Printer& p) const { p << '('; ANYDSL2_DUMP_COMMA_LIST(p, elems()); p << ')'; }
+void Frame::vdump(Printer& p) const { p << "frame"; }
+void Mem::vdump(Printer& p) const { p << "mem"; }
+void Opaque::vdump(Printer &p) const { p << '@'; dump_inner(p); }
+void Pi::vdump(Printer& p) const { p << "pi"; dump_inner(p); }
+void Ptr::vdump(Printer& p) const { ref()->dump(); p << '*'; }
 
 void PrimType::vdump(Printer& p) const {
 	switch (primtype_kind()) {
@@ -199,26 +187,12 @@ void Sigma::vdump(Printer& p) const {
 	dump_inner(p);
 }
 
-void Pi::vdump(Printer& p) const {
-	p << "pi";
-	dump_inner(p);
-}
-
 void Generic::vdump(Printer &p) const {
     if (!name.empty())
         p << name;
     else
         p << '_' << index();
 }
-
-#if 0
-void Opaque::vdump(Printer &p) const {
-    if (!name.empty())
-        p << name;
-    else
-        p << '@' << index();
-}
-#endif
 
 void Lambda::vdump(Printer& p) const {
 	p.dump_name(this);
@@ -254,7 +228,7 @@ void Type::dump(bool fancy) const {
     std::cout << std::endl;
 }
 
-void Lambda::dump(bool fancy, int indent, std::ostream& out) const {
+void Lambda::dump_body(bool fancy, int indent, std::ostream& out) const {
     Printer p(out, fancy);
 
     p.indent += indent;
@@ -262,13 +236,6 @@ void Lambda::dump(bool fancy, int indent, std::ostream& out) const {
 
 	p.dump_name(this);
 	p << " = lambda";
-#if 0
-    if (!pi()->generics().empty()) {
-        p << "<";
-        ANYDSL2_DUMP_COMMA_LIST(p, pi()->generics());
-        p << ">";
-    }
-#endif
     p << "(";
     ANYDSL2_DUMP_COMMA_LIST(p, params());
 	p << ") : ";
@@ -277,9 +244,7 @@ void Lambda::dump(bool fancy, int indent, std::ostream& out) const {
         p << " extern ";
 	p.up();
 
-    if (empty())
-        p << "jump <EMPTY>";
-    else {
+    if (!empty()) {
         p << "jump ";
         p.dump(to());
         p << " [";

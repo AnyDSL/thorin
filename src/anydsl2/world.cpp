@@ -720,7 +720,7 @@ void World::dump(bool fancy) {
         for_all (root, roots) {
             Scope scope(root);
             for_all (lambda, scope.rpo())
-                lambda->dump(fancy, scope.domtree().depth(lambda));
+                lambda->dump_body(fancy, scope.domtree().depth(lambda));
         }
     } else {
         for_all (lambda, lambdas())

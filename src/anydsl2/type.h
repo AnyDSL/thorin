@@ -274,21 +274,24 @@ private:
 
 //------------------------------------------------------------------------------
 
-#if 0
-class Opaque : public IndexType {
+typedef boost::tuple< int, ArrayRef<const Type*>, ArrayRef<const Def*> > OpaqueTuple;
+
+class Opaque : public CompoundType {
 private:
 
-    Opaque(World& world, size_t index)
-        : IndexType(world, Node_Opaque, index, true)
+    Opaque(World& world, const OpaqueTuple& args)
+        : CompoundType(world, args.get<0>(), args.get<1>())
+        , defs_(args.get<2>())
     {}
 
 public:
+
+    Array<const Def*> defs_;
 
     virtual void vdump(Printer& printer) const;
 
     friend class World;
 };
-#endif
 
 //------------------------------------------------------------------------------
 

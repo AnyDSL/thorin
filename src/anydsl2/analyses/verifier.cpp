@@ -164,7 +164,7 @@ private:
         }
         o << std::endl;
         if(Lambda* lambda = def->isa_lambda())
-            lambda->dump(true, 0, o);
+            lambda->dump_body(true, 0, o);
         else
             printer.dump(def);
         o << std::endl;

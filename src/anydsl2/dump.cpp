@@ -1,5 +1,4 @@
 #include <boost/typeof/typeof.hpp>
-#include <boost/type_traits/remove_reference.hpp>
 
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
@@ -164,11 +163,10 @@ void Slot::vdump(Printer& p) const {
  * Types
  */
 
-void CompoundType::dump_inner(Printer& p) const { p << '('; ANYDSL2_DUMP_COMMA_LIST(p, elems()); p << ')'; }
+void CompoundType::dump_inner(Printer& p) const { ANYDSL2_DUMP_COMMA_LIST(p, elems()); }
 void Frame::vdump(Printer& p) const { p << "frame"; }
 void Mem::vdump(Printer& p) const { p << "mem"; }
-void Opaque::vdump(Printer &p) const { p << '@'; dump_inner(p); }
-void Pi::vdump(Printer& p) const { p << "pi"; dump_inner(p); }
+void Pi::vdump(Printer& p) const { p << "pi("; dump_inner(p); p << ')'; }
 void Ptr::vdump(Printer& p) const { ref()->dump(); p << '*'; }
 
 void PrimType::vdump(Printer& p) const {
@@ -183,8 +181,9 @@ void PrimType::vdump(Printer& p) const {
 
 void Sigma::vdump(Printer& p) const {
     // TODO cycles
-	p << "sigma";
+	p << "sigma(";
 	dump_inner(p);
+    p << ")";
 }
 
 void Generic::vdump(Printer &p) const {
@@ -192,6 +191,13 @@ void Generic::vdump(Printer &p) const {
         p << name;
     else
         p << '_' << index();
+}
+
+void Opaque::vdump(Printer &p) const { 
+    p << "opaque(";
+    for_all (f, flags()) p << f << " ";
+    for_all (t,elems())  p << t << " ";
+    p << ")";
 }
 
 void Lambda::vdump(Printer& p) const {

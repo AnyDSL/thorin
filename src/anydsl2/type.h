@@ -274,21 +274,29 @@ private:
 
 //------------------------------------------------------------------------------
 
-typedef boost::tuple< int, ArrayRef<const Type*>, ArrayRef<const Def*> > OpaqueTuple;
+typedef boost::tuple< int, ArrayRef<const Type*>, ArrayRef<uint32_t> > OpaqueTuple;
 
 class Opaque : public CompoundType {
 private:
 
     Opaque(World& world, const OpaqueTuple& args)
         : CompoundType(world, args.get<0>(), args.get<1>())
-        , defs_(args.get<2>())
+        , flags_(args.get<2>())
     {}
 
 public:
 
-    Array<const Def*> defs_;
+    ArrayRef<uint32_t> flags() const { return flags_; }
+    uint32_t flag(size_t i) const { return flags_[i]; }
+    size_t num_flags() const { return flags_.size(); }
+    OpaqueTuple as_tuple() const { return OpaqueTuple(kind(), elems(), flags()); }
+    ANYDSL2_TYPE_HASH_EQUAL
+
+private:
 
     virtual void vdump(Printer& printer) const;
+
+    Array<uint32_t> flags_;
 
     friend class World;
 };

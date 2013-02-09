@@ -102,6 +102,10 @@ const Generic* World::generic(size_t index) {
     return unify<GenericTuple, Generic>(GenericTuple(Node_Generic, index));
 }
 
+const Opaque* World::opaque(ArrayRef<const Type*> types, ArrayRef<uint32_t> flags) {
+    return unify<OpaqueTuple, Opaque>(OpaqueTuple(Node_Opaque, types, flags));
+}
+
 const Ptr* World::ptr(const Type* ref) { return unify<TypeTuple1, Ptr>(TypeTuple1(Node_Ptr, ref)); }
 
 /*

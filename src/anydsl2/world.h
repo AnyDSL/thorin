@@ -22,6 +22,7 @@ class Def;
 class Enter;
 class Lambda;
 class Leave;
+class Opaque;
 class Pi;
 class PrimLit;
 class PrimOp;
@@ -147,6 +148,23 @@ public:
     const Pi* pi(ArrayRef<const Type*> elems);
 
     const Generic* generic(size_t index);
+    const Opaque* opaque(ArrayRef<const Type*> elems, ArrayRef<uint32_t> flags);
+    const Opaque* opaque(const Type* type, ArrayRef<uint32_t> flags) {
+        const Type* types[1] = { type }; 
+        return opaque(types, flags);
+    }
+    const Opaque* opaque1(const Type* type, uint32_t flag1) { 
+        uint32_t flags[1] = { flag1 };
+        return opaque(type, flags);
+    }
+    const Opaque* opaque2(const Type* type, uint32_t flag1, uint32_t flag2) { 
+        uint32_t flags[2] = { flag1, flag2 };
+        return opaque(type, flags);
+    }
+    const Opaque* opaque3(const Type* type, uint32_t flag1, uint32_t flag2, uint32_t flag3) { 
+        uint32_t flags[3] = { flag1, flag2, flag3 };
+        return opaque(type, flags);
+    }
 
     /*
      * literals

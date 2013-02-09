@@ -260,7 +260,7 @@ const Def* World::arithop_minus(const Def* def) {
     switch (PrimTypeKind kind = def->type()->as<PrimType>()->primtype_kind()) {
         case PrimType_f32: zero = literal_f32(-0.f); break;
         case PrimType_f64: zero = literal_f64(-0.0); break;
-        default: zero = this->zero(kind);
+        default: assert(is_int(kind)); zero = this->zero(kind);
     }
     return arithop_sub(zero, def);
 }

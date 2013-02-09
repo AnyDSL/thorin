@@ -209,6 +209,9 @@ public:
     }
 #include "anydsl2/tables/arithoptable.h"
 
+    const Def* arithop_not(const Def* def);
+    const Def* arithop_minus(const Def* def);
+
     const Def* relop(RelOpKind kind, const Def* lhs, const Def* rhs, const std::string& name = "");
 #define ANYDSL2_RELOP(OP) \
     const Def* relop_##OP(const Def* lhs, const Def* rhs, const std::string& name = "") { \
@@ -223,8 +226,6 @@ public:
     }
 #include "anydsl2/tables/convoptable.h"
 
-    const Def* arithop_not(const Def* def);
-    const Def* arithop_minus(const Def* def);
     /*
      * tuple stuff
      */

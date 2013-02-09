@@ -109,8 +109,8 @@ public:
     Lambda* as_lambda() const;
     Lambda* isa_lambda() const;
     bool is_const() const;
-    void dump() const;
     void dump(bool fancy) const;
+    void dump() const { dump(false); }
     virtual void vdump(Printer &printer) const = 0;
     const Uses& uses() const { return uses_; }
     size_t num_uses() const { return uses_.size(); }

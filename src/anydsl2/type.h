@@ -65,8 +65,8 @@ protected:
 
 public:
 
-    void dump() const;
     void dump(bool fancy) const;
+    void dump() const { dump(false); }
     World& world() const { return world_; }
     Elems elems() const { return ops_ref<const Type*>(); }
     const Type* elem(size_t i) const { return elems()[i]; }

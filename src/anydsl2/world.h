@@ -94,7 +94,7 @@ public:
     const PrimType* type(PrimTypeKind kind) const {
         size_t i = kind - Begin_PrimType;
         assert(0 <= i && i < (size_t) Num_PrimTypes);
-        return primTypes_[i];
+        return primtypes_[i];
     }
 
     const Mem* mem() const { return mem_; }
@@ -224,6 +224,7 @@ public:
 #include "anydsl2/tables/convoptable.h"
 
     const Def* arithop_not(const Def* def);
+    const Def* arithop_minus(const Def* def);
     /*
      * tuple stuff
      */
@@ -357,7 +358,7 @@ private:
 #include "anydsl2/tables/primtypetable.h"
         };
 
-        const PrimType* primTypes_[Num_PrimTypes];
+        const PrimType* primtypes_[Num_PrimTypes];
     };
 
     friend class Lambda;

@@ -255,6 +255,16 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
 
 const Def* World::arithop_not(const Def* def) { return arithop_xor(def, allset(def->type())); }
 
+const Def* World::arithop_minus(const Def* def) {
+    const Def* zero;
+    switch (PrimTypeKind kind = def->type()->as<PrimType>()->primtype_kind()) {
+        case PrimType_f32: zero = literal_f32(-0.f); break;
+        case PrimType_f64: zero = literal_f64(-0.0); break;
+        default: zero = this->zero(kind);
+    }
+    return arithop_sub(zero, def);
+}
+
 const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::string& name) {
     if (a->isa<Bottom>() || b->isa<Bottom>())
         return bottom(type_u1());

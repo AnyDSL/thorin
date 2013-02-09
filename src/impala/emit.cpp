@@ -169,25 +169,9 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
             ref->store(ndef);
             return ref;
         }
-        case ADD:
-            return rhs()->emit(cg); // this is a NOP
-        case SUB: {
-            const Def* def = rhs()->emit(cg)->load();
-            const PrimType* pt = def->type()->as<PrimType>();
-            const PrimLit* zero; 
-
-            switch (pt->primtype_kind()) {
-                case PrimType_f32: zero = cg.world().literal_f32(-0.f); break;
-                case PrimType_f64: zero = cg.world().literal_f64(-0.0); break;
-                default: 
-                    assert(pt->is_int()); 
-                    zero = cg.world().literal(pt->primtype_kind(), 0u);
-            }
-
-            return Ref::create(cg.world().arithop(ArithOp_sub, zero, def));
-        }
-        case L_N:
-            return Ref::create(cg.world().arithop_not(rhs()->emit(cg)->load()));
+        case ADD: return rhs()->emit(cg); // this is a NOP
+        case SUB: return Ref::create(cg.world().arithop_minus(rhs()->emit(cg)->load()));
+        case L_N: return Ref::create(cg.world().arithop_not(rhs()->emit(cg)->load()));
         default: ANYDSL2_UNREACHABLE;
     }
 }

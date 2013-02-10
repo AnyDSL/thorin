@@ -110,7 +110,7 @@ Lambdas Lambda::direct_succs() const {
     const Select* select = to()->as<Select>();
     result.resize(2);
     result[0] = select->tval()->as_lambda();
-    result[1] = select->tval()->as_lambda();
+    result[1] = select->fval()->as_lambda();
 
     return result;
 }

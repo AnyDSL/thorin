@@ -333,11 +333,11 @@ private:
 
     const Type* keep_nocast(const Type* type);
 
-    void dce_insert(size_t pass, const Def* def);
-    void ute_insert(size_t pass, const Type* type);
-    void uce_insert(size_t pass, Lambda*);
-    template<class S> static void unregister_uses(size_t pass, S& set);
-    template<class S> static void wipe_out(size_t pass, S& set);
+    void dce_insert(const size_t pass, const Def* def);
+    void ute_insert(const size_t pass, const Type* type);
+    void uce_insert(const size_t pass, Lambda*);
+    template<class S> static void unregister_uses(const size_t pass, S& set);
+    template<class S> static void wipe_out(const size_t pass, S& set);
 
     PrimOpSet primops_;
     LambdaSet lambdas_;

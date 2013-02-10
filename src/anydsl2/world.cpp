@@ -548,7 +548,7 @@ const U* World::unify(const T& tuple) {
  */
 
 template<class S>
-void World::unregister_uses(size_t pass, S& set) {
+void World::unregister_uses(const size_t pass, S& set) {
     for (typename S::iterator i = set.begin(), e = set.end(); i != e; ++i) {
         const Def* def = *i;
         if (!def->is_visited(pass)) {
@@ -561,7 +561,7 @@ void World::unregister_uses(size_t pass, S& set) {
 }
 
 template<class S>
-void World::wipe_out(size_t pass, S& set) {
+void World::wipe_out(const size_t pass, S& set) {
     for (typename S::iterator i = set.begin(); i != set.end();) {
         typename S::iterator j = i++;
         const Def* def = *j;
@@ -573,7 +573,7 @@ void World::wipe_out(size_t pass, S& set) {
 }
 
 void World::unreachable_code_elimination() {
-    size_t pass = new_pass();
+    const size_t pass = new_pass();
 
     for_all (lambda, lambdas())
         if (lambda->attr().is_extern())
@@ -588,7 +588,7 @@ void World::unreachable_code_elimination() {
     }
 }
 
-void World::uce_insert(size_t pass, Lambda* lambda) {
+void World::uce_insert(const size_t pass, Lambda* lambda) {
     if (lambda->visit(pass)) return;
 
     for_all (succ, lambda->succs())
@@ -596,7 +596,7 @@ void World::uce_insert(size_t pass, Lambda* lambda) {
 }
 
 void World::dead_code_elimination() {
-    size_t pass = new_pass();
+    const size_t pass = new_pass();
 
     for_all (primop, primops()) {
         if (const TypeKeeper* tk = primop->isa<TypeKeeper>())
@@ -635,7 +635,7 @@ void World::dead_code_elimination() {
     wipe_out(pass, lambdas_);
 }
 
-void World::dce_insert(size_t pass, const Def* def) {
+void World::dce_insert(const size_t pass, const Def* def) {
 #ifndef NDEBUG
     if (const PrimOp* primop = def->isa<PrimOp>()) assert(primops_.find(primop)          != primops_.end());
     if (      Lambda* lambda = def->isa_lambda() ) assert(lambdas_.find(lambda)          != lambdas_.end());
@@ -666,7 +666,7 @@ void World::dce_insert(size_t pass, const Def* def) {
 }
 
 void World::unused_type_elimination() {
-    size_t pass = new_pass();
+    const size_t pass = new_pass();
 
     for_all (primop, primops())
         ute_insert(pass, primop->type());
@@ -688,7 +688,7 @@ void World::unused_type_elimination() {
     }
 }
 
-void World::ute_insert(size_t pass, const Type* type) {
+void World::ute_insert(const size_t pass, const Type* type) {
     assert(types_.find(type) != types_.end() && "not in map");
 
     if (type->visit(pass)) return;

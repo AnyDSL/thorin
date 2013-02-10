@@ -155,7 +155,7 @@ bool Verifier::verify_primop(Lambda* current, const PrimOp* primop, PrimOpSet& p
     } else if (const RelOp* op = primop->isa<RelOp>()) {
         if (op->lhs()->type() != op->rhs()->type())
             return invalid(op, "'relop' on unequal types");
-        if (op->type()->is_u1())
+        if (!op->type()->is_u1())
             return invalid(op, "'relop' must yield 'u1'");
     }
 

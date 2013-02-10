@@ -71,12 +71,12 @@ Scope::~Scope() {
         lambda->scope_ = 0;
 }
 
-void Scope::jump_to_param_users(size_t pass, Lambda* lambda) {
+void Scope::jump_to_param_users(const size_t pass, Lambda* lambda) {
     for_all (param, lambda->params())
         find_user(pass, param);
 }
 
-void Scope::find_user(size_t pass, const Def* def) {
+void Scope::find_user(const size_t pass, const Def* def) {
     if (Lambda* lambda = def->isa_lambda())
         up(pass, lambda);
     else {
@@ -85,7 +85,7 @@ void Scope::find_user(size_t pass, const Def* def) {
     }
 }
 
-void Scope::up(size_t pass, Lambda* lambda) {
+void Scope::up(const size_t pass, Lambda* lambda) {
     if (lambda->is_visited(pass))
         return;
 
@@ -96,7 +96,7 @@ void Scope::up(size_t pass, Lambda* lambda) {
         up(pass, pred);
 }
 
-size_t Scope::number(size_t pass, Lambda* cur, size_t i) {
+size_t Scope::number(const size_t pass, Lambda* cur, size_t i) {
     cur->visit_first(pass);
 
     // for each successor in scope
@@ -153,7 +153,7 @@ private:
     const Scope& scope;
     FreeVariables& fv;
     World& world;
-    size_t pass;
+    const size_t pass;
 };
 
 FreeVariables Scope::free_variables() const { 
@@ -232,7 +232,7 @@ public:
     ArrayRef<const Def*> to_lift;
     GenericMap generic_map;
     World& world;
-    size_t pass;
+    const size_t pass;
     Lambda* nentry;
     Lambda* oentry;
 };

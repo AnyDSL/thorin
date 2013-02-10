@@ -56,7 +56,7 @@ public:
      */
 
     size_t cur_pass() const { return cur_pass_; }
-    bool visit(size_t pass) const { 
+    bool visit(const size_t pass) const { 
         assert(cur_pass_ <= pass); 
         if (cur_pass_ != pass) { 
             cur_pass_ = pass; 
@@ -64,9 +64,9 @@ public:
         } 
         return true; 
     }
-    void visit_first(size_t pass) const { assert(!is_visited(pass)); cur_pass_ = pass; }
-    void unvisit(size_t pass) const { assert(cur_pass_ == pass); --cur_pass_; }
-    bool is_visited(size_t pass) const { assert(cur_pass_ <= pass); return cur_pass_ == pass; }
+    void visit_first(const size_t pass) const { assert(!is_visited(pass)); cur_pass_ = pass; }
+    void unvisit(const size_t pass) const { assert(cur_pass_ == pass); --cur_pass_; }
+    bool is_visited(const size_t pass) const { assert(cur_pass_ <= pass); return cur_pass_ == pass; }
 
 private:
     int kind_;

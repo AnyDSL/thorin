@@ -67,7 +67,6 @@ const Param* Lambda::append_param(const Type* type, const std::string& name) {
     return param;
 }
 
-
 const Def* Lambda::append_arg(const Def* arg) {
     ops_.push_back(arg);
     return arg;
@@ -109,11 +108,10 @@ Lambdas Lambda::direct_succs() const {
         return result;
 
     const Select* select = to()->as<Select>();
-    if(Lambda* succ1 = select->tval()->isa_lambda())
-        result.push_back(succ1);
+    result.resize(2);
+    result[0] = select->tval()->as_lambda();
+    result[1] = select->tval()->as_lambda();
 
-    if(Lambda* succ2 = select->fval()->isa_lambda())
-        result.push_back(succ2);
     return result;
 }
 

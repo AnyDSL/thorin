@@ -271,14 +271,14 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::s
 
     RelOpKind oldkind = kind;
     switch (kind) {
-        case RelOp_cmp_ugt:  kind = RelOp_cmp_ult; break;
-        case RelOp_cmp_uge:  kind = RelOp_cmp_ule; break;
-        case RelOp_cmp_sgt:  kind = RelOp_cmp_slt; break;
-        case RelOp_cmp_sge:  kind = RelOp_cmp_sle; break;
-        case RelOp_fcmp_ogt: kind = RelOp_fcmp_olt; break;
-        case RelOp_fcmp_oge: kind = RelOp_fcmp_ole; break;
-        case RelOp_fcmp_ugt: kind = RelOp_fcmp_ult; break;
-        case RelOp_fcmp_uge: kind = RelOp_fcmp_ule; break;
+        case RelOp_cmp_ugt:  kind = RelOp_cmp_ule; break;
+        case RelOp_cmp_uge:  kind = RelOp_cmp_ult; break;
+        case RelOp_cmp_sgt:  kind = RelOp_cmp_sle; break;
+        case RelOp_cmp_sge:  kind = RelOp_cmp_slt; break;
+        case RelOp_fcmp_ogt: kind = RelOp_fcmp_ole; break;
+        case RelOp_fcmp_oge: kind = RelOp_fcmp_olt; break;
+        case RelOp_fcmp_ugt: kind = RelOp_fcmp_ule; break;
+        case RelOp_fcmp_uge: kind = RelOp_fcmp_ult; break;
         default: break;
     }
 

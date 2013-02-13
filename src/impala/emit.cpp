@@ -177,10 +177,9 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
 }
 
 RefPtr InfixExpr::emit(CodeGen& cg) const {
-    TokenKind op = (TokenKind) kind();
+    const bool is_or = kind() == L_O;
 
-    if (kind() == L_O || kind() == L_A) {
-        const bool is_or = kind() == L_O;
+    if (is_or || kind() == L_A) {
         JumpTarget t(is_or ? "l_or_true"  : "l_and_true");
         JumpTarget f(is_or ? "l_or_false" : "l_and_false");
         JumpTarget x(is_or ? "l_or_exit"  : "l_and_exit");
@@ -200,6 +199,8 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
             return Ref::create(xl->get_value(0, cg.world().type_u1(), is_or ? "l_or" : "l_and"));
         return Ref::create(0);
     }
+
+    const TokenKind op = (TokenKind) kind();
 
     if (Token::is_assign(op)) {
         const Id* id = lhs()->isa<Id>();
@@ -276,9 +277,7 @@ RefPtr Call::emit(CodeGen& cg) const {
  * Expr -- emit_cf
  */
 
-void Expr::emit_cf(CodeGen& cg, JumpTarget& t, JumpTarget& f) const {
-    cg.branch(emit(cg)->load(), t, f);
-}
+void Expr::emit_cf(CodeGen& cg, JumpTarget& t, JumpTarget& f) const { cg.branch(emit(cg)->load(), t, f); }
 
 void PrefixExpr::emit_cf(CodeGen& cg, JumpTarget& t, JumpTarget& f) const {
     if (kind() == L_N)

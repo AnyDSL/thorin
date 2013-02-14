@@ -116,9 +116,6 @@ outer_loop:;
     }
 }
 
-Places place(const Scope& scope) {
-    Placement placer(scope);
-    return placer.place();
-}
+Places place(const Scope& scope) { return Placement(scope).place(); }
 
 } // namespace anydsl2

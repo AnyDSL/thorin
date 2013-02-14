@@ -319,11 +319,11 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::s
 
     const PrimLit* llit = a->isa<PrimLit>();
     const PrimLit* rlit = b->isa<PrimLit>();
-    PrimTypeKind type = llit->primtype_kind();
 
     if (llit && rlit) {
         Box l = llit->box();
         Box r = rlit->box();
+        PrimTypeKind type = llit->primtype_kind();
 
         switch (kind) {
             case RelOp_cmp_eq:

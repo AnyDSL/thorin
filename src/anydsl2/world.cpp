@@ -125,11 +125,12 @@ const PrimLit* World::literal(PrimTypeKind kind, int value) {
     }
 }
 
-const Any*    World::any   (const Type* type)  { return cse<DefTuple0, Any   >(DefTuple0(Node_Any,    type), ""); }
-const Bottom* World::bottom(const Type* type)  { return cse<DefTuple0, Bottom>(DefTuple0(Node_Bottom, type), ""); }
-const PrimLit* World::zero(const Type* type)   { return zero  (type->as<PrimType>()->primtype_kind()); }
-const PrimLit* World::one(const Type* type)    { return one   (type->as<PrimType>()->primtype_kind()); }
-const PrimLit* World::allset(const Type* type) { return allset(type->as<PrimType>()->primtype_kind()); }
+const PrimLit* World::literal(const Type* type, int value) { return literal(type->as<PrimType>()->primtype_kind(), value); }
+const Any*     World::any    (const Type* type) { return cse<DefTuple0, Any   >(DefTuple0(Node_Any,    type), ""); }
+const Bottom*  World::bottom (const Type* type) { return cse<DefTuple0, Bottom>(DefTuple0(Node_Bottom, type), ""); }
+const PrimLit* World::zero   (const Type* type) { return zero  (type->as<PrimType>()->primtype_kind()); }
+const PrimLit* World::one    (const Type* type) { return one   (type->as<PrimType>()->primtype_kind()); }
+const PrimLit* World::allset (const Type* type) { return allset(type->as<PrimType>()->primtype_kind()); }
 
 /*
  * create
@@ -168,6 +169,25 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
 
     const PrimLit* llit = a->isa<PrimLit>();
     const PrimLit* rlit = b->isa<PrimLit>();
+
+    if (a == b) {
+        switch (kind) {
+            case ArithOp_add:  return arithop_mul(literal(rtype, 2), a);
+
+            case ArithOp_sub:
+            case ArithOp_srem:
+            case ArithOp_urem:
+            case ArithOp_xor:  return zero(rtype);
+
+            case ArithOp_sdiv:
+            case ArithOp_udiv: return one(rtype);
+
+            case ArithOp_and:
+            case ArithOp_or:   return a;
+
+            default: { /* FALLTHROUGH */ }
+        }
+    }
 
     if (llit && rlit) {
         Box l = llit->box();

@@ -161,31 +161,31 @@ const Def* World::tuple(ArrayRef<const Def*> args, const std::string& name) {
 }
 
 const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const std::string& name) {
-    PrimTypeKind rtype = a->type()->as<PrimType>()->primtype_kind();
+    PrimTypeKind type = a->type()->as<PrimType>()->primtype_kind();
 
     // bottom op bottom -> bottom
     if (a->isa<Bottom>() || b->isa<Bottom>())
-        return bottom(rtype);
+        return bottom(type);
 
     const PrimLit* llit = a->isa<PrimLit>();
     const PrimLit* rlit = b->isa<PrimLit>();
 
     if (a == b) {
         switch (kind) {
-            case ArithOp_add:  return arithop_mul(literal(rtype, 2), a);
+            case ArithOp_add:  return arithop_mul(literal(type, 2), a);
 
             case ArithOp_sub:
             case ArithOp_srem:
             case ArithOp_urem:
-            case ArithOp_xor:  return zero(rtype);
+            case ArithOp_xor:  return zero(type);
 
             case ArithOp_sdiv:
-            case ArithOp_udiv: return one(rtype);
+            case ArithOp_udiv: return one(type);
 
             case ArithOp_and:
             case ArithOp_or:   return a;
 
-            default: { /* FALLTHROUGH */ }
+            default: break;
         }
     }
 
@@ -215,7 +215,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
 #define ANYDSL2_JUST_U_TYPE(T) \
                     case PrimType_##T: \
                         return rlit->is_zero() \
-                             ? (const Def*) bottom(rtype) \
+                             ? (const Def*) bottom(type) \
                              : (const Def*) literal(type, Box(T(l.get_##T() / r.get_##T())));
 #include "anydsl2/tables/primtypetable.h"
                     ANYDSL2_NO_F_TYPE;
@@ -305,13 +305,25 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::s
     if (oldkind != kind)
         std::swap(a, b);
 
+    if (a == b) {
+        switch (kind) {
+            case RelOp_cmp_ult:
+            case RelOp_cmp_slt: 
+            case RelOp_cmp_eq:  return zero(u1_);
+            case RelOp_cmp_ule:
+            case RelOp_cmp_sle:
+            case RelOp_cmp_ne:  return one(u1_);
+            default: break;
+        }
+    }
+
     const PrimLit* llit = a->isa<PrimLit>();
     const PrimLit* rlit = b->isa<PrimLit>();
+    PrimTypeKind type = llit->primtype_kind();
 
     if (llit && rlit) {
         Box l = llit->box();
         Box r = rlit->box();
-        PrimTypeKind type = llit->primtype_kind();
 
         switch (kind) {
             case RelOp_cmp_eq:

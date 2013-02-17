@@ -1,5 +1,6 @@
 #include "anydsl2/world.h"
 #include "anydsl2/type.h"
+#include "anydsl2/literal.h"
 #include "anydsl2/printer.h"
 #include "verifier.h"
 
@@ -81,7 +82,6 @@ bool Verifier::verify(Lambda* current, const Def* def, PrimOpSet& primops) {
 bool Verifier::verify_body(Lambda* lambda) {
     if (lambda->empty()) 
         return true;
-
     PrimOpSet primops;
     // check whether the lambda is stored in the world
     const LambdaSet& lambdas = world_.lambdas();
@@ -144,7 +144,7 @@ bool Verifier::verify_primop(Lambda* current, const PrimOp* primop, PrimOpSet& p
         if (select->order() > 0) {
             if (!select->tval()->isa_lambda() || !select->fval()->isa_lambda())
                 return invalid(select, "higher-order 'select' not on lambda");
-            if (select->type() != world_.pi0())
+            if (select->type() != world_.pi0() && select->type() != world_.pi1(world_.mem()))
                 return invalid(select, "higher-order 'select' must be of type 'pi()'");
         }
     } else if (const ArithOp* op = primop->isa<ArithOp>()) {
@@ -157,6 +157,15 @@ bool Verifier::verify_primop(Lambda* current, const PrimOp* primop, PrimOpSet& p
             return invalid(op, "'relop' on unequal types");
         if (!op->type()->is_u1())
             return invalid(op, "'relop' must yield 'u1'");
+    } else if (const TupleOp* op = primop->isa<TupleOp>()) {
+        if(!op->index()->isa<PrimLit>())
+            return invalid(op, "'tupleop' needs a constant extraction index");
+        unsigned index = op->index()->primlit_value<unsigned>();
+        const Sigma* tupleType = op->tuple()->type()->isa<Sigma>();
+        if(!tupleType)
+            return invalid(op, "'tupleop' can only work on a tuple");
+        if(index >= tupleType->size())
+            return invalid(op, "'tupleop' index out of bounds");
     }
 
     // check all operands recursively

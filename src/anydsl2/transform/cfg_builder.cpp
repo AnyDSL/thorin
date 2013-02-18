@@ -28,6 +28,7 @@ private:
 };
 
 void CFGBuilder::transform(Lambda* lambda) {
+    Scope scope(lambda);
     typedef boost::unordered_map<Array<const Def*>, Lambda*> Args2Lambda;
     Args2Lambda args2lambda;
 
@@ -44,7 +45,6 @@ void CFGBuilder::transform(Lambda* lambda) {
             continue;
 
         Lambda* ulambda = use.def()->as_lambda();
-        Scope scope(lambda);
         if (scope.contains(ulambda))
             continue;
 

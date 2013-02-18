@@ -116,6 +116,7 @@ public:
     size_t num_uses() const { return uses_.size(); }
     size_t gid() const { return gid_; }
     virtual const Def* representative() const { return this; }
+    std::string unique_name() const;
 
     /**
      * Copies all use-info into an array.

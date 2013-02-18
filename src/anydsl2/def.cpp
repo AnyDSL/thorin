@@ -1,6 +1,7 @@
 #include "anydsl2/def.h"
 
 #include <algorithm>
+#include <sstream>
 
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
@@ -46,6 +47,12 @@ bool Def::is_const() const {
             return false;
 
     return true;
+}
+
+std::string Def::unique_name() const {
+    std::ostringstream oss;
+    oss << name << '_' << gid();
+    return oss.str();
 }
 
 Array<Use> Def::copy_uses() const {

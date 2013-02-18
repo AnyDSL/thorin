@@ -27,7 +27,7 @@ Printer& Printer::down() {
 Printer& Printer::dump_name(const Def* def) {
     if (fancy_) // elide white = 0 and black = 7
         o << "\33[" << (def->gid() % 6 + 30 + 1) << "m";
-    o << def->name << '_' << def->gid();
+    o << def->unique_name();
 
     if (fancy_)
         o << "\33[m";

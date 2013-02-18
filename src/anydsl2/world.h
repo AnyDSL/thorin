@@ -337,7 +337,6 @@ private:
     void dce_insert(const size_t pass, const Def* def);
     void ute_insert(const size_t pass, const Type* type);
     void uce_insert(const size_t pass, Lambda*);
-    template<class S> static void unregister_uses(const size_t pass, S& set);
     template<class S> static void wipe_out(const size_t pass, S& set);
 
     PrimOpSet primops_;

@@ -580,24 +580,14 @@ const U* World::unify(const T& tuple) {
  */
 
 template<class S>
-void World::unregister_uses(const size_t pass, S& set) {
-    for (typename S::iterator i = set.begin(), e = set.end(); i != e; ++i) {
-        const Def* def = *i;
-        if (!def->is_visited(pass)) {
-            for (size_t i = 0, e = def->size(); i != e; ++i) {
-                if (def->op(i)->is_visited(pass))
-                    def->unregister_use(i);
-            }
-        }
-    }
-}
-
-template<class S>
 void World::wipe_out(const size_t pass, S& set) {
     for (typename S::iterator i = set.begin(); i != set.end();) {
         typename S::iterator j = i++;
         const Def* def = *j;
         if (!def->is_visited(pass)) {
+            for (size_t i = 0, e = def->size(); i != e; ++i)
+                def->unregister_use(i);
+
             delete def;
             set.erase(j);
         }
@@ -612,11 +602,8 @@ void World::unreachable_code_elimination() {
             uce_insert(pass, lambda);
 
     for_all (lambda, lambdas()) {
-        if (!lambda->is_visited(pass)) { // destroy body
-            for (size_t i = 0, e = lambda->size(); i != e; ++i)
-                lambda->unset_op(i);
-            lambda->resize(0);
-        }
+        if (!lambda->is_visited(pass))
+            lambda->destroy_body();
     }
 }
 

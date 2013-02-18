@@ -770,7 +770,7 @@ void World::dump(bool fancy) {
         }
     } else {
         for_all (lambda, lambdas())
-            lambda->dump(fancy);
+            lambda->dump_body(false, 0);
     }
     std::cout << std::endl;
 }

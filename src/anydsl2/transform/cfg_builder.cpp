@@ -1,7 +1,7 @@
 #include "anydsl2/transform/cfg_builder.h"
 
 #include <iostream>
-#include <boost/unordered_set.hpp>
+#include <boost/unordered_map.hpp>
 
 #include "anydsl2/lambda.h"
 #include "anydsl2/world.h"
@@ -10,25 +10,6 @@
 #include "anydsl2/analyses/scope.h"
 
 namespace anydsl2 {
-
-struct Done {
-    Array<const Def*> with;
-    Lambda* lambda;
-
-    Done(size_t size)
-        : with(size)
-        , lambda(0)
-    {}
-
-    Done(const Done& other)
-        : with(other.with)
-        , lambda(other.lambda)
-    {}
-
-    bool operator == (const Done& done) const { return with == done.with; }
-};
-
-size_t hash_value(const Done& done) { return hash_value(done.with); }
 
 class CFGBuilder {
 public:
@@ -47,13 +28,13 @@ private:
 };
 
 void CFGBuilder::transform(Lambda* lambda) {
-    typedef boost::unordered_set<Done> DoneSet;
-    DoneSet done_entries;
-    Scope scope(lambda);
+    typedef boost::unordered_map<Array<const Def*>, Lambda*> Args2Lambda;
+    Args2Lambda args2lambda;
 
     size_t size = lambda->num_params();
-    Done done(size);
     Array<size_t> indices(size);
+    Array<const Def*> with(size);
+    Array<const Def*> args(size);
 
     // if there is only one use -> drop all parameters
     bool full_mode = lambda->num_uses() == 1;
@@ -63,6 +44,10 @@ void CFGBuilder::transform(Lambda* lambda) {
             continue;
 
         Lambda* ulambda = use.def()->as_lambda();
+        Scope scope(lambda);
+        if (scope.contains(ulambda))
+            continue;
+
         GenericMap generic_map;
         bool res = lambda->type()->infer_with(generic_map, ulambda->arg_pi());
         assert(res);
@@ -72,38 +57,22 @@ void CFGBuilder::transform(Lambda* lambda) {
             if (full_mode || lambda->param(i)->order() >= 1) {
                 const Def* arg = ulambda->arg(i);
                 indices[num] = i;
-                done.with[num++] = arg;
-            }
+                with[num++] = arg;
+                args[i] = arg;
+            } else
+                args[i] = 0;
         }
-        done.with.shrink(num);
+        with.shrink(num);
         indices.shrink(num);
 
         // check whether we can reuse an existing version
-        DoneSet::iterator de = done_entries.find(done);
+        Args2Lambda::iterator args_i = args2lambda.find(args);
         Lambda* target;
-        if (de != done_entries.end()) // use already dropped version as jump target
-            target = de->lambda;
-        else {
-#if 0
-            if (lambda->num_uses() > 1 && lambda->is_returning() && top.find(lambda) == top.end()) {
-                FreeVariables fv = scope.free_variables();
-                for_all (def, fv) {
-                    if (def->order() > 0)
-                        goto do_dropping;
-                }
+        if (args_i != args2lambda.end()) 
+            target = args_i->second; // use already dropped version as jump target 
+        else
+            args2lambda[args] = target = scope.drop(indices, with, generic_map);
 
-                target = scope.lift(fv);
-                ulambda->jump(target, Array<const Def*>(ulambda->args(), fv));
-                return;
-            }
-
-do_dropping:
-#endif
-            target = scope.drop(indices, done.with, generic_map);
-            // store dropped entry with the specified arguments
-            done.lambda = target;
-            done_entries.insert(done);
-        }
         ulambda->jump(target, ulambda->args().cut(indices.slice_front(num)));
     }
 }

@@ -585,11 +585,21 @@ void World::wipe_out(const size_t pass, S& set) {
         typename S::iterator j = i++;
         const Def* def = *j;
         if (!def->is_visited(pass)) {
-            for (size_t i = 0, e = def->size(); i != e; ++i)
-                def->unregister_use(i);
-
             delete def;
             set.erase(j);
+        }
+    }
+}
+
+template<class S>
+void World::unregister_uses(const size_t pass, S& set) {
+    for (typename S::iterator i = set.begin(), e = set.end(); i != e; ++i) {
+        const Def* def = *i;
+        if (!def->is_visited(pass)) {
+            for (size_t i = 0, e = def->size(); i != e; ++i) {
+                if (def->op(i)->is_visited(pass))
+                    def->unregister_use(i);
+            }
         }
     }
 }
@@ -650,6 +660,8 @@ void World::dead_code_elimination() {
         }
     }
 
+    unregister_uses(pass, primops_);
+    unregister_uses(pass, lambdas_);
     wipe_out(pass, primops_);
     wipe_out(pass, lambdas_);
 }

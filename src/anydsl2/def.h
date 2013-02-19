@@ -125,6 +125,7 @@ public:
     Array<Use> copy_uses() const;
     const Type* type() const { return type_; }
     int order() const;
+    bool is_generic() const;
     World& world() const;
     ArrayRef<const Def*> ops() const { return ops_ref<const Def*>(); }
     ArrayRef<const Def*> ops(size_t begin, size_t end) const { return ops().slice(begin, end); }

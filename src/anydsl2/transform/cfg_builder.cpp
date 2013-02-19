@@ -32,11 +32,6 @@ void CFGBuilder::transform(Lambda* lambda) {
     typedef boost::unordered_map<Array<const Def*>, Lambda*> Args2Lambda;
     Args2Lambda args2lambda;
 
-    size_t size = lambda->num_params();
-    Array<size_t> indices(size);
-    Array<const Def*> with(size);
-    Array<const Def*> args(size);
-
     // if there is only one use -> drop all parameters
     bool full_mode = lambda->num_uses() == 1;
 
@@ -52,6 +47,11 @@ void CFGBuilder::transform(Lambda* lambda) {
         bool res = lambda->type()->infer_with(generic_map, ulambda->arg_pi());
         assert(res);
         
+        size_t size = lambda->num_params();
+        Array<size_t> indices(size);
+        Array<const Def*> with(size);
+        Array<const Def*> args(size);
+
         size_t num = 0;
         for (size_t i = 0; i != size; ++i) {
             if (full_mode || lambda->param(i)->order() >= 1) {
@@ -85,6 +85,7 @@ void CFGBuilder::process() {
             Lambda* lambda = scope.rpo(i);
             if (lambda->num_params()                                // is there sth to drop?
                     && (lambda->num_uses() == 1                     // just 1 user -- always drop
+                        || lambda->is_generic() == 1                // drop generic stuff
                         || (!lambda->is_basicblock()                // don't drop basic blocks
                             && (!lambda->is_returning()             // drop non-returning lambdas
                                 || top.find(lambda) == top.end()))))// lift/drop returning non top-level lambdas

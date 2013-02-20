@@ -327,8 +327,12 @@ llvm::Value* CodeGen::emit(const Def* def) {
         llvm::Value* tuple = lookup(tupleop->tuple());
         unsigned idxs[1] = { tupleop->index()->primlit_value<unsigned>() };
 
-        if (tupleop->node_kind() == Node_Extract)
+        if (tupleop->node_kind() == Node_Extract) {
+            // check for CCall result
+            if(tupleop->tuple()->isa<CCall>())
+                return tuple;
             return builder.CreateExtractValue(tuple, idxs);
+        }
 
         const Insert* insert = def->as<Insert>();
         llvm::Value* value = lookup(insert->value());
@@ -460,9 +464,10 @@ multiple:
             // TODO watch out for cycles!
             const Sigma* sigma = type->as<Sigma>();
             Array<llvm::Type*> elems(sigma->elems().size());
-            for_all2 (&elem, elems, sigma_elem, sigma->elems())
-                elem = map(sigma_elem);
-
+            size_t num = 0;
+            for_all (elem, sigma->elems())
+                elems[num++] = map(elem);
+            elems.shrink(num);
             return llvm::StructType::get(context, llvm_ref(elems));
         }
 

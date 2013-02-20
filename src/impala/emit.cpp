@@ -183,7 +183,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
         JumpTarget t(is_or ? "l_or_true"  : "l_and_true");
         JumpTarget f(is_or ? "l_or_false" : "l_and_false");
         JumpTarget x(is_or ? "l_or_exit"  : "l_and_exit");
-        lhs()->emit_cf(cg, t, f);
+        lhs()->emit_branch(cg, t, f);
 
         if (Lambda* tl = cg.enter(t)) {
             tl->set_value(0, is_or ? cg.world().literal_u1(true) : rhs()->emit(cg)->load());
@@ -239,7 +239,7 @@ RefPtr ConditionalExpr::emit(CodeGen& cg) const {
     JumpTarget f("cond_false");
     JumpTarget x("cond_exit");
 
-    cond()->emit_cf(cg, t, f);
+    cond()->emit_branch(cg, t, f);
 
     if (Lambda* tl = cg.enter(t)) {
         tl->set_value(0, t_expr()->emit(cg)->load());
@@ -274,26 +274,26 @@ RefPtr Call::emit(CodeGen& cg) const {
 }
 
 /*
- * Expr -- emit_cf
+ * Expr -- emit_branch
  */
 
-void Expr::emit_cf(CodeGen& cg, JumpTarget& t, JumpTarget& f) const { cg.branch(emit(cg)->load(), t, f); }
+void Expr::emit_branch(CodeGen& cg, JumpTarget& t, JumpTarget& f) const { cg.branch(emit(cg)->load(), t, f); }
 
-void PrefixExpr::emit_cf(CodeGen& cg, JumpTarget& t, JumpTarget& f) const {
+void PrefixExpr::emit_branch(CodeGen& cg, JumpTarget& t, JumpTarget& f) const {
     if (kind() == L_N)
-        return rhs()->emit_cf(cg, f, t);
+        return rhs()->emit_branch(cg, f, t);
     cg.branch(emit(cg)->load(), t, f);
 }
 
-void InfixExpr::emit_cf(CodeGen& cg, JumpTarget& t, JumpTarget& f) const {
+void InfixExpr::emit_branch(CodeGen& cg, JumpTarget& t, JumpTarget& f) const {
     if (kind() == L_O || kind() == L_A) {
         bool is_or = kind() == L_O;
         JumpTarget extra(is_or ? "l_or_extra" : "l_and_extra");
-        lhs()->emit_cf(cg, is_or ? t : extra, is_or ? extra : f);
+        lhs()->emit_branch(cg, is_or ? t : extra, is_or ? extra : f);
         if (cg.enter(extra))
-            rhs()->emit_cf(cg, t, f);
+            rhs()->emit_branch(cg, t, f);
     } else
-        Expr::emit_cf(cg, t, f);
+        Expr::emit_branch(cg, t, f);
 }
 
 /*
@@ -320,7 +320,7 @@ void IfElseStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     JumpTarget then_bb("if_then");
     JumpTarget else_bb("if_else");
 
-    cond()->emit_cf(cg, then_bb, else_bb);
+    cond()->emit_branch(cg, then_bb, else_bb);
 
     cg.enter(then_bb);
     then_stmt()->emit(cg, exit_bb);
@@ -342,7 +342,7 @@ void DoWhileStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     body()->emit(cg, cond_bb);
 
     cg.enter(cond_bb);
-    cond()->emit_cf(cg, body_bb, exit_bb);
+    cond()->emit_branch(cg, body_bb, exit_bb);
     body_bb.seal();
 }
 
@@ -357,7 +357,7 @@ void ForStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     init()->emit(cg, head_bb);
 
     cg.enter_unsealed(head_bb);
-    cond()->emit_cf(cg, body_bb, exit_bb);
+    cond()->emit_branch(cg, body_bb, exit_bb);
 
     cg.enter(body_bb);
     body()->emit(cg, step_bb);

@@ -57,7 +57,8 @@ public:
     // misc
     Token try_id(const std::string& what);
     const Type* try_type(const std::string& what);
-    const Expr* try_expr(const std::string& what);
+    const Expr* try_expr(Prec prec, const std::string& what);
+    const Expr* try_expr(const std::string& what) { return try_expr(BOTTOM, what); }
     const Stmt* try_stmt(const std::string& what);
     bool is_type(size_t lookahead = 0);
     bool is_expr();
@@ -702,10 +703,10 @@ const Type* Parser::try_type(const std::string& what) {
     return type;
 }
 
-const Expr* Parser::try_expr(const std::string& what) {
+const Expr* Parser::try_expr(Prec prec, const std::string& what) {
     const Expr* expr;
     if (is_expr())
-        expr = parse_expr();
+        expr = parse_expr(prec);
     else {
         error("expression", what);
         expr = new EmptyExpr(prev_loc);
@@ -760,7 +761,7 @@ const Expr* Parser::parse_expr(Prec prec) {
 
 const Expr* Parser::parse_prefix_expr() {
     Token op = lex();
-    const Expr* rhs = parse_expr(PrecTable::prefix_r[op]);
+    const Expr* rhs = try_expr(PrecTable::prefix_r[op], "prefix expression");
 
     return new PrefixExpr(op.pos1(), (PrefixExpr::Kind) op.kind(), rhs);
 }
@@ -768,13 +769,13 @@ const Expr* Parser::parse_prefix_expr() {
 const Expr* Parser::parse_infix_expr(const Expr* lhs) {
     Token op = lex();
     if (op == Token::QUESTION_MARK) {
-        const Expr* t_expr = parse_expr();
+        const Expr* t_expr = try_expr("infix expression");
         expect(Token::COLON, "conditional expression");
-        const Expr* f_expr = parse_expr(PrecTable::infix_r[op]);
+        const Expr* f_expr = try_expr(PrecTable::infix_r[op], "conditional expression");
         return new ConditionalExpr(lhs, t_expr, f_expr);
     }
 
-    const Expr* rhs = parse_expr(PrecTable::infix_r[op]);
+    const Expr* rhs = try_expr(PrecTable::infix_r[op], "infix expression");
 
     return new InfixExpr(lhs, (InfixExpr::Kind) op.kind(), rhs);
 }

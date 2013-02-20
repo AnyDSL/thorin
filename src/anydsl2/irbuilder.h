@@ -9,6 +9,7 @@ namespace anydsl2 {
 
 class Def;
 class Lambda;
+class Param;
 class Ref;
 class Type;
 class World;
@@ -141,12 +142,16 @@ public:
     {}
 
     World& world() const { return world_; }
-    bool reachable() const { return cur_bb; }
+    bool is_reachable() const { return cur_bb; }
+    void set_unreachable() { cur_bb = 0; }
     Lambda* enter(JumpTarget& jt) { return cur_bb = jt.enter(); }
     Lambda* enter_unsealed(JumpTarget& jt) { return cur_bb = jt.enter_unsealed(world_); }
     void jump(JumpTarget& jt);
     void branch(const Def* cond, JumpTarget& t, JumpTarget& f);
     void call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type);
+    void tail_call(const Def* to, ArrayRef<const Def*> args);
+    void return_void(const Param* ret_param);
+    void return_value(const Param* ret_param, const Def* def);
 
     Lambda* cur_bb;
 

@@ -70,7 +70,7 @@ const Lambda* Fun::emit_body(CodeGen& cg, Lambda* parent, const char* what) cons
     body()->emit(cg, exit);
     cg.enter(exit);
 
-    if (cg.reachable()) {
+    if (cg.is_reachable()) {
         if (is_continuation()) {
             std::cerr << what << " does not end with a call\n";
             cg.cur_bb->jump0(cg.world().bottom(cg.world().pi0()));
@@ -301,7 +301,7 @@ void InfixExpr::emit_branch(CodeGen& cg, JumpTarget& t, JumpTarget& f) const {
  */
 
 void DeclStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
-    if (cg.reachable()) {
+    if (cg.is_reachable()) {
         RefPtr ref = var_decl()->emit(cg);
         if (const Expr* init_expr = init())
             ref->store(init_expr->emit(cg)->load());
@@ -310,7 +310,7 @@ void DeclStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 }
 
 void ExprStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
-    if (cg.reachable()) {
+    if (cg.is_reachable()) {
         expr()->emit(cg);
         cg.jump(exit_bb);
     }
@@ -372,19 +372,18 @@ void BreakStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.jump(*cg.break
 void ContinueStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.jump(*cg.continue_target); }
 
 void ReturnStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
-    if (cg.reachable()) {
+    if (cg.is_reachable()) {
         const Param* ret_param = fun()->ret_param();
         if (const Call* call = expr()->isa<Call>()) {
             Array<const Def*> ops = call->emit_ops(cg, 1);
             ops.back() = ret_param;
-            cg.cur_bb->jump(ops[0], ops.slice_back(1));
+            cg.tail_call(ops[0], ops.slice_back(1));
         } else {
             if (expr()) 
-                cg.cur_bb->jump1(ret_param, expr()->emit(cg)->load());
+                cg.return_value(ret_param, expr()->emit(cg)->load());
             else
-                cg.cur_bb->jump0(ret_param); // return void
+                cg.return_void(ret_param);
         }
-        cg.cur_bb = 0;
     }
 }
 

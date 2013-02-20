@@ -76,25 +76,47 @@ Lambda* JumpTarget::enter_unsealed(World& world) {
 //------------------------------------------------------------------------------
 
 void IRBuilder::jump(JumpTarget& jt) {
-    if (cur_bb) {
+    if (is_reachable()) {
         jt.jump_from(cur_bb);
-        cur_bb = 0;
+        set_unreachable();
     }
 }
 
 void IRBuilder::branch(const Def* cond, JumpTarget& t, JumpTarget& f) {
-    if (cur_bb) {
+    if (is_reachable()) {
         if (const PrimLit* lit = cond->isa<PrimLit>())
             jump(lit->box().get_u1().get() ? t : f);
         else {
             cur_bb->branch(cond, t.get(world()), f.get(world()));
-            cur_bb = 0;
+            set_unreachable();
         }
     }
 }
 
 void IRBuilder::call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
-    cur_bb = cur_bb->call(to, args, ret_type);
+    if (is_reachable())
+        cur_bb = cur_bb->call(to, args, ret_type);
+}
+
+void IRBuilder::tail_call(const Def* to, ArrayRef<const Def*> args) {
+    if (is_reachable()) {
+        cur_bb->jump(to, args);
+        set_unreachable();
+    }
+}
+
+void IRBuilder::return_value(const Param* ret_param, const Def* def) {
+    if (is_reachable()) {
+        cur_bb->jump1(ret_param, def);
+        set_unreachable();
+    }
+}
+
+void IRBuilder::return_void(const Param* ret_param) {
+    if (is_reachable()) {
+        cur_bb->jump0(ret_param);
+        set_unreachable();
+    }
 }
 
 //------------------------------------------------------------------------------

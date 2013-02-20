@@ -33,9 +33,6 @@ void Merger::merge() {
     }
 }
 
-void merge_lambdas(World& world) {
-    Merger merger(world);
-    merger.merge();
-}
+void merge_lambdas(World& world) { Merger(world).merge(); }
 
 } // namespace anydsl2

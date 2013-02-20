@@ -8,6 +8,8 @@
 #include "anydsl2/type.h"
 #include "anydsl2/analyses/rootlambdas.h"
 #include "anydsl2/analyses/scope.h"
+#include "anydsl2/analyses/verifier.h"
+#include "anydsl2/transform/merge_lambdas.h"
 
 namespace anydsl2 {
 
@@ -19,7 +21,7 @@ public:
     {}
 
     void transform(Lambda* lambda);
-    void process();
+    size_t process();
 
 private:
 
@@ -77,7 +79,7 @@ void CFGBuilder::transform(Lambda* lambda) {
     }
 }
 
-void CFGBuilder::process() {
+size_t CFGBuilder::process() {
     std::vector<Lambda*> todo;
     for_all (top_lambda, top) {
         Scope scope(top_lambda);
@@ -95,11 +97,21 @@ void CFGBuilder::process() {
 
     for_all (lambda, todo)
         transform(lambda);
+
+    return todo.size();
 }
 
 void cfg_transform(World& world) {
-    CFGBuilder builder(world);
-    builder.process();
+    size_t todo;
+    do {
+        CFGBuilder builder(world);
+        todo = builder.process();
+        assert(verify(world) && "invalid cfg transform");
+        merge_lambdas(world);
+        assert(verify(world) && "invalid merge lambda transform");
+        world.cleanup();
+        assert(verify(world) && "after cleanup");
+    } while (todo);
 }
 
 } // namespace anydsl2

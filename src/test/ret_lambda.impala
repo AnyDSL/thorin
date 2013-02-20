@@ -3,5 +3,5 @@ def f(a : int) -> pi(int) -> int {
 }
 
 def main(i : int) -> int {
-    return f(i)(i+1);
+    return f(i)(i);
 }

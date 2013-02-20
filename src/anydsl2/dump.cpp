@@ -167,7 +167,7 @@ void CompoundType::dump_inner(Printer& p) const { ANYDSL2_DUMP_COMMA_LIST(p, ele
 void Frame::vdump(Printer& p) const { p << "frame"; }
 void Mem::vdump(Printer& p) const { p << "mem"; }
 void Pi::vdump(Printer& p) const { p << "pi("; dump_inner(p); p << ')'; }
-void Ptr::vdump(Printer& p) const { ref()->dump(); p << '*'; }
+void Ptr::vdump(Printer& p) const { ref()->vdump(p); p << '*'; }
 
 void PrimType::vdump(Printer& p) const {
 	switch (primtype_kind()) {
@@ -193,7 +193,7 @@ void Generic::vdump(Printer &p) const {
         p << '_' << index();
 }
 
-void Opaque::vdump(Printer &p) const { 
+void Opaque::vdump(Printer &p) const {
     p << "opaque(";
     for_all (f, flags()) p << f << " ";
     for_all (t,elems())  p << t << " ";

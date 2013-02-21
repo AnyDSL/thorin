@@ -34,9 +34,6 @@ void CFGBuilder::transform(Lambda* lambda) {
     typedef boost::unordered_map<Array<const Def*>, Lambda*> Args2Lambda;
     Args2Lambda args2lambda;
 
-    // if there is only one use -> drop all parameters
-    bool full_mode = lambda->num_uses() == 1;
-
     for_all (use, lambda->copy_uses()) {
         if (use.index() != 0 || !use.def()->isa<Lambda>())
             continue;
@@ -56,7 +53,7 @@ void CFGBuilder::transform(Lambda* lambda) {
 
         size_t num = 0;
         for (size_t i = 0; i != size; ++i) {
-            if (full_mode || lambda->param(i)->order() >= 1) {
+            if (lambda->param(i)->order() >= 1) {
                 const Def* arg = ulambda->arg(i);
                 indices[num] = i;
                 with[num++] = arg;
@@ -86,11 +83,10 @@ size_t CFGBuilder::process() {
         for (size_t i = scope.size(); i-- != 0;) {
             Lambda* lambda = scope.rpo(i);
             if (lambda->num_params()                                // is there sth to drop?
-                    && (lambda->num_uses() == 1                     // just 1 user -- always drop
-                        || lambda->is_generic()                     // drop generic stuff
-                        || (!lambda->is_basicblock()                // don't drop basic blocks
-                            && (!lambda->is_returning()             // drop non-returning lambdas
-                                || top.find(lambda) == top.end()))))// lift/drop returning non top-level lambdas
+                && (lambda->is_generic()                     // drop generic stuff
+                    || (!lambda->is_basicblock()                // don't drop basic blocks
+                        && (!lambda->is_returning()             // drop non-returning lambdas
+                            || top.find(lambda) == top.end()))))// lift/drop returning non top-level lambdas
                 todo.push_back(lambda);
         }
     }
@@ -106,7 +102,6 @@ void cfg_transform(World& world) {
     do {
         CFGBuilder builder(world);
         todo = builder.process();
-        //builder.process();
         assert(verify(world) && "invalid cfg transform");
         merge_lambdas(world);
         assert(verify(world) && "invalid merge lambda transform");

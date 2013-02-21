@@ -91,8 +91,8 @@ const DomNode* DomTree::lca(ArrayRef<const DomNode*> nodes) {
     return lca_node;
 }
 
-const DomNode* DomTree::node(Lambda* lambda) const { return nodes_[lambda->sid()]; }
-DomNode* DomTree::lookup(Lambda* lambda) const { return nodes_[lambda->sid()]; }
+const DomNode* DomTree::node(Lambda* lambda) const { assert(scope().contains(lambda)); return nodes_[lambda->sid()]; }
+DomNode* DomTree::lookup(Lambda* lambda) const { assert(scope().contains(lambda)); return nodes_[lambda->sid()]; }
 size_t DomTree::size() const { return scope_.size(); }
 const DomNode* DomTree::entry() const { return node(scope_.entry()); }
 

@@ -33,13 +33,8 @@ void Merger::merge() {
                 Use use = *lambda->uses().begin();
                 if (use.index() == 0) {
                     Lambda* ulambda = use.def()->as_lambda();
-                    if (dt.dominates(ulambda, lambda)) {
+                    if (scope.contains(ulambda) && dt.dominates(ulambda, lambda))
                         todo.push_back(lambda);
-                        std::cout << ulambda->unique_name() << " > " << lambda->unique_name() << std::endl;
-
-                    }
-                    //ulambda->jump(lambda->to(), lambda->args());
-                    //lambda->destroy_body();
                 }
             }
         }

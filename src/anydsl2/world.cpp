@@ -596,7 +596,7 @@ void World::unregister_uses(const size_t pass, S& set) {
         const Def* def = *i;
         if (!def->is_visited(pass)) {
             for (size_t i = 0, e = def->size(); i != e; ++i) {
-                if (!def->op(i)->is_visited(pass))
+                //if (!def->op(i)->is_visited(pass))
                     def->unregister_use(i);
             }
         }

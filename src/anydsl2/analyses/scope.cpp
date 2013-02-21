@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "anydsl2/lambda.h"
+#include "anydsl2/literal.h"
 #include "anydsl2/primop.h"
 #include "anydsl2/type.h"
 #include "anydsl2/world.h"
@@ -274,11 +275,9 @@ Lambda* Mapper::mangle() {
     map(oentry, oentry);
     map_body(oentry, nentry);
 
-    // TODO omit unreachable lambdas
     for_all (cur, scope.rpo().slice_back(1)) {
-        if (!cur->is_visited(pass))
-            map_head(cur);
-        map_body(cur, lookup(cur)->as_lambda());
+        if (cur->is_visited(pass))
+            map_body(cur, lookup(cur)->as_lambda());
     }
 
     return nentry;
@@ -286,6 +285,7 @@ Lambda* Mapper::mangle() {
 
 Lambda* Mapper::map_head(Lambda* olambda) {
     assert(!olambda->is_visited(pass));
+
     Lambda* nlambda = olambda->stub(generic_map, olambda->name);
     map(olambda, nlambda);
 
@@ -297,8 +297,18 @@ Lambda* Mapper::map_head(Lambda* olambda) {
 
 void Mapper::map_body(Lambda* olambda, Lambda* nlambda) {
     Array<const Def*> ops(olambda->ops().size());
-    for (size_t i = 0, e = ops.size(); i != e; ++i)
+    for (size_t i = 1, e = ops.size(); i != e; ++i)
         ops[i] = drop(olambda->op(i));
+
+    // fold branch if possible
+    if (const Select* select = olambda->to()->isa<Select>()) {
+        const Def* cond = drop(select->cond());
+        if (const PrimLit* lit = cond->isa<PrimLit>())
+            ops[0] = drop(lit->box().get_u1().get() ? select->tval() : select->fval());
+        else
+            ops[0] = world.select(cond, drop(select->tval()), drop(select->fval()));
+    } else
+        ops[0] = drop(olambda->to());
 
     ArrayRef<const Def*> nargs(ops.slice_back(1));  // new args of nlambda
     const Def* ntarget = ops.front();               // new target of nlambda

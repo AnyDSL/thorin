@@ -28,7 +28,14 @@ def main(main_ret : pi(int)) {
             next(result + p);
         },
         lambda(result: int) {
-            main_ret(result);
+            primes(100, 0,
+                lambda(p : int, result : int, next : pi(int)) {
+                    next(result + p);
+                },
+                lambda(result: int) {
+                    main_ret(result);
+                }
+            );
         }
     );
 }

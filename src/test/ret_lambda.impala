@@ -3,7 +3,7 @@ def f(a : int) -> pi(int) -> int {
         if (i == a)
             return i + a; 
         else
-            return i + i;
+            return i + 42;
     };
 }
 

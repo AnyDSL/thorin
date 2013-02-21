@@ -102,17 +102,18 @@ size_t CFGBuilder::process() {
 }
 
 void cfg_transform(World& world) {
-    //size_t todo;
-    //do {
+    size_t todo;
+    do {
         CFGBuilder builder(world);
-        //todo = builder.process();
-        builder.process();
+        todo = builder.process();
+        //builder.process();
         assert(verify(world) && "invalid cfg transform");
         merge_lambdas(world);
         assert(verify(world) && "invalid merge lambda transform");
         world.cleanup();
         assert(verify(world) && "after cleanup");
-    //} while (todo);
+        std::cout << todo << std::endl;
+    } while (todo);
 }
 
 } // namespace anydsl2

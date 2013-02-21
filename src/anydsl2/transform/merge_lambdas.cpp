@@ -52,6 +52,7 @@ void Merger::merge(const DomNode* n) {
 }
 
 void merge_lambdas(World& world) {
+    return;
     for_all (top, find_root_lambdas(world))
         Merger merger(top);
 }

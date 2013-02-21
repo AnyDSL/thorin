@@ -229,6 +229,26 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
 #include "anydsl2/tables/primtypetable.h"
                     ANYDSL2_NO_F_TYPE;
                 }
+            case ArithOp_urem:
+                switch (type) {
+#define ANYDSL2_JUST_U_TYPE(T) \
+                    case PrimType_##T: \
+                        return rlit->is_zero() \
+                             ? (const Def*) bottom(type) \
+                             : (const Def*) literal(type, Box(T(l.get_##T() % r.get_##T())));
+#include "anydsl2/tables/primtypetable.h"
+                    ANYDSL2_NO_F_TYPE;
+                }
+            case ArithOp_srem:
+                switch (type) {
+#define ANYDSL2_JUST_U_TYPE(T) \
+                    case PrimType_##T: { \
+                        typedef make_signed<T>::type S; \
+                        return literal(type, Box(bcast<T , S>(bcast<S, T >(l.get_##T()) % bcast<S, T >(r.get_##T())))); \
+                    }
+#include "anydsl2/tables/primtypetable.h"
+                    ANYDSL2_NO_F_TYPE;
+                }
             case ArithOp_fadd:
                 switch (type) {
 #define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())));

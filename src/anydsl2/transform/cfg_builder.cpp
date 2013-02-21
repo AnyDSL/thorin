@@ -107,7 +107,6 @@ void cfg_transform(World& world) {
         assert(verify(world) && "invalid merge lambda transform");
         world.cleanup();
         assert(verify(world) && "after cleanup");
-        std::cout << todo << std::endl;
     } while (todo);
 }
 

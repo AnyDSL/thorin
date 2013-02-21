@@ -29,15 +29,21 @@ public:
 const DomNode* Merger::dom_succ(const DomNode* n) { 
     ArrayRef<Lambda*> succs = scope.succs(n->lambda());
     const DomNodes& children = n->children();
-    return succs.size() == 1 && children.size() == 1 && succs.front() == children.front()->lambda() && n->lambda()->to() == succs.front() ? children.front() : 0;
+    return succs.size() == 1 && children.size() == 1 
+        && succs.front() == children.front()->lambda() 
+        && n->lambda()->to() == succs.front() 
+        //&& n->lambda()->num_uses() == 1
+        ? children.front() : 0;
 }
 
 void Merger::merge(const DomNode* n) {
     const DomNode* i = n;
     for (const DomNode* next = dom_succ(i); next != 0; i = next, next = dom_succ(next)) {
         assert(i->lambda()->num_args() == next->lambda()->num_params());
-        for_all2 (arg, i->lambda()->args(), param, next->lambda()->params())
+        for_all2 (arg, i->lambda()->args(), param, next->lambda()->params()) {
+            std::cout << "replacing: " << param->unique_name() << std::endl;
             param->replace_all_uses_with(arg);
+        }
     }
 
     if (i != n)
@@ -48,6 +54,7 @@ void Merger::merge(const DomNode* n) {
 }
 
 void merge_lambdas(World& world) {
+    return;
     for_all (top, find_root_lambdas(world)) {
         Merger merger(top);
     }

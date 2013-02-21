@@ -8,30 +8,48 @@
 
 namespace anydsl2 {
 
-void merge_lambdas(World& world) {
-    std::vector<Lambda*> todo;
-    for_all (top, find_root_lambdas(world)) {
-        Scope scope(top);
-        for (size_t i = scope.size(); i-- != 0;) {
-            Lambda* lambda = scope.rpo(i);
-            if (lambda->num_uses() == 1 && !lambda->attr().is_extern()) {
-                Use use = *lambda->uses().begin();
-                if (use.index() == 0) {
-                    Lambda* ulambda = use.def()->as_lambda();
-                    if (scope.contains(ulambda) && scope.domtree().dominates(ulambda, lambda))
-                        todo.push_back(lambda);
-                }
-            }
-        }
+class Merger {
+public:
+
+    Merger(Lambda* entry)
+        : scope(entry)
+        , domtree(scope.domtree())
+    {
+        merge(domtree.entry());
     }
 
-    for_all (lambda, todo) {
-        Scope scope(lambda);
-        Lambda* ulambda = lambda->uses().front().def()->as_lambda();
-        Lambda* dropped = scope.drop(ulambda->args());
-        ulambda->jump(dropped->to(), dropped->args());
-        dropped->destroy_body();
-        lambda->destroy_body();
+    void merge(const DomNode* n);
+    const DomNode* dom_succ(const DomNode* n);
+    World& world() { return scope.world(); }
+
+    Scope scope;
+    const DomTree& domtree;
+};
+
+const DomNode* Merger::dom_succ(const DomNode* n) { 
+    ArrayRef<Lambda*> succs = scope.succs(n->lambda());
+    const DomNodes& children = n->children();
+    return succs.size() == 1 && children.size() == 1 && succs.front() == children.front()->lambda() && n->lambda()->to() == succs.front() ? children.front() : 0;
+}
+
+void Merger::merge(const DomNode* n) {
+    const DomNode* i = n;
+    for (const DomNode* next = dom_succ(i); next != 0; i = next, next = dom_succ(next)) {
+        assert(i->lambda()->num_args() == next->lambda()->num_params());
+        for_all2 (arg, i->lambda()->args(), param, next->lambda()->params())
+            param->replace_all_uses_with(arg);
+    }
+
+    if (i != n)
+        n->lambda()->jump(i->lambda()->to(), i->lambda()->args());
+
+    for_all (child, i->children())
+        merge(child);
+}
+
+void merge_lambdas(World& world) {
+    for_all (top, find_root_lambdas(world)) {
+        Merger merger(top);
     }
 }
 

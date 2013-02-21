@@ -72,6 +72,19 @@ bool Def::is_primlit(int val) const {
     return false;
 }
 
+void Def::replace_all_uses_with(const Def* with) const {
+    for_all (use, this->copy_uses()) {
+        if (Lambda* lambda = use.def()->isa_lambda())
+            lambda->update_op(use.index(), with);
+        else {
+            const PrimOp* oprimop = use.def()->as<PrimOp>();
+            Array<const Def*> ops(oprimop->ops());
+            ops[use.index()] = with;
+            oprimop->replace_all_uses_with(world().rebuild(oprimop, ops, oprimop->name));
+        }
+    }
+}
+
 World& Def::world() const { return type_->world(); }
 const Def* Def::op_via_lit(const Def* def) const { return op(def->primlit_value<size_t>()); }
 Lambda* Def::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(this)); }

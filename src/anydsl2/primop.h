@@ -39,6 +39,7 @@ protected:
 public:
 
     DefTupleN as_tuple() const { return DefTupleN(kind(), type(), ops()); }
+    void update(size_t i, const Def* def) { unset_op(i); set_op(i, def); }
     ANYDSL2_HASH_EQUAL
 
 private:

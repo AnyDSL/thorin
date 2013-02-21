@@ -355,6 +355,15 @@ Lambda* Scope::clone(const GenericMap& generic_map) {
     return mangle(Array<size_t>(), Array<const Def*>(), Array<const Def*>(), generic_map);
 }
 
+Lambda* Scope::drop(ArrayRef<const Def*> with) {
+    size_t size = with.size();
+    Array<size_t> to_drop(size);
+    for (size_t i = 0; i != size; ++i)
+        to_drop[i] = i;
+
+    return mangle(to_drop, with, Array<const Def*>());
+}
+
 Lambda* Scope::drop(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, const GenericMap& generic_map) {
     return mangle(to_drop, drop_with, Array<const Def*>(), generic_map);
 }

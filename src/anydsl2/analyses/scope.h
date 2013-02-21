@@ -33,6 +33,7 @@ public:
     FreeVariables free_variables() const;
 
     Lambda* clone(const GenericMap& generic_map = GenericMap());
+    Lambda* drop(ArrayRef<const Def*> with);
     Lambda* drop(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
                  const GenericMap& generic_map = GenericMap());
     Lambda* lift(ArrayRef<const Def*> to_lift, 

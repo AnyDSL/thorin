@@ -96,7 +96,7 @@ DomNode* DomTree::lookup(Lambda* lambda) const { return nodes_[lambda->sid()]; }
 size_t DomTree::size() const { return scope_.size(); }
 const DomNode* DomTree::entry() const { return node(scope_.entry()); }
 
-bool DomTree::dominates(const DomNode* a, const DomNode* b) {
+bool DomTree::dominates(const DomNode* a, const DomNode* b) const {
     while (a != b && !b->entry()) 
         b = b->idom();
 

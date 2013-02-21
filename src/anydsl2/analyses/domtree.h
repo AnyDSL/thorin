@@ -57,8 +57,9 @@ public:
     const DomNode* node(size_t sid) const { return nodes_[sid]; }
     const DomNode* node(Lambda* lambda) const;
     int depth(Lambda* lambda) const { return node(lambda)->depth(); }
-    bool dominates(const DomNode* a, const DomNode* b);
-    bool strictly_dominates(const DomNode* a, const DomNode* b) { return a != b && dominates(a, b); }
+    bool dominates(const DomNode* a, const DomNode* b) const;
+    bool dominates(Lambda* a, Lambda* b) const { return dominates(lookup(a), lookup(b)); }
+    bool strictly_dominates(const DomNode* a, const DomNode* b) const { return a != b && dominates(a, b); }
     Lambda* lca(Lambda* i, Lambda* j) const { return lca(lookup(i), lookup(j))->lambda(); }
     static const DomNode* lca(const DomNode* i, const DomNode* j) { 
         return lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j)); 

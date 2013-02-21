@@ -42,6 +42,7 @@ void Merger::merge(const DomNode* n) {
         assert(i->lambda()->num_args() == next->lambda()->num_params());
         for_all2 (arg, i->lambda()->args(), param, next->lambda()->params())
             param->replace_all_uses_with(arg);
+        i->lambda()->destroy_body();
     }
 
     if (i != n)
@@ -52,7 +53,6 @@ void Merger::merge(const DomNode* n) {
 }
 
 void merge_lambdas(World& world) {
-    return;
     for_all (top, find_root_lambdas(world))
         Merger merger(top);
 }

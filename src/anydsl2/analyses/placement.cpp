@@ -37,7 +37,7 @@ private:
     Places place_early();
     void down(Places& places, Lambda* lambda);
     void place_early(Places& places, Lambda* early, const Def* def);
-    void mark(const Def* def) { def->visit(pass); }
+    void mark(const Def* def) { def->visit_first(pass); }
     bool defined(const Def* def) { return def->is_const() || def->is_visited(pass); }
 
     const Scope& scope;

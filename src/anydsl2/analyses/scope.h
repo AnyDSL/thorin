@@ -45,6 +45,7 @@ public:
     const DomTree& domtree() const;
     const LoopForestNode* loopforest() const;
     const LoopInfo& loopinfo() const;
+    void dump() const;
 
 private:
 

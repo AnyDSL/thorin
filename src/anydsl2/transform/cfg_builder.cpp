@@ -6,6 +6,7 @@
 #include "anydsl2/lambda.h"
 #include "anydsl2/world.h"
 #include "anydsl2/type.h"
+#include "anydsl2/analyses/placement.h"
 #include "anydsl2/analyses/rootlambdas.h"
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/analyses/verifier.h"
@@ -72,7 +73,7 @@ void CFGBuilder::transform(Lambda* lambda) {
         else
             args2lambda[args] = target = scope.drop(indices, with, generic_map);
 
-        ulambda->jump(target, ulambda->args().cut(indices.slice_front(num)));
+        ulambda->jump(target, ulambda->args().cut(indices));
     }
 }
 
@@ -80,6 +81,7 @@ size_t CFGBuilder::process() {
     std::vector<Lambda*> todo;
     for_all (top_lambda, top) {
         Scope scope(top_lambda);
+        place(scope);
         for (size_t i = scope.size(); i-- != 0;) {
             Lambda* lambda = scope.rpo(i);
             if (lambda->num_params()                                // is there sth to drop?
@@ -102,8 +104,8 @@ void cfg_transform(World& world) {
     do {
         CFGBuilder builder(world);
         todo = builder.process();
-        //assert(verify(world) && "invalid cfg transform");
-        //merge_lambdas(world);
+        assert(verify(world) && "invalid cfg transform");
+        merge_lambdas(world);
         assert(verify(world) && "invalid merge lambda transform");
         world.cleanup();
         assert(verify(world) && "after cleanup");

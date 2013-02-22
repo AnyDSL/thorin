@@ -104,8 +104,6 @@ void cfg_transform(World& world) {
         todo = builder.process();
         assert(verify(world) && "invalid cfg transform");
         merge_lambdas(world);
-        //world.dump();
-        //std::cout << "------" << std::endl;
         assert(verify(world) && "invalid merge lambda transform");
         world.cleanup();
         assert(verify(world) && "after cleanup");

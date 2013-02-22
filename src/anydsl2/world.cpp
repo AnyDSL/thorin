@@ -17,6 +17,8 @@
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/analyses/verifier.h"
 #include "anydsl2/transform/cfg_builder.h"
+#include "anydsl2/transform/inliner.h"
+#include "anydsl2/transform/merge_lambdas.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/for_all.h"
 #include "anydsl2/util/hash.h"
@@ -754,8 +756,10 @@ void World::cleanup() {
 }
 
 void World::opt() {
-    assert(verify(*this) && "initial verification phase");
-    cfg_transform(*this);
+    cleanup();
+    assert(verify(*this)); cfg_transform(*this); cleanup();
+    assert(verify(*this)); inliner(*this);       cleanup();
+    assert(verify(*this)); merge_lambdas(*this); cleanup();
 }
 
 PrimOp* World::release(const PrimOp* primop) {

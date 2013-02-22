@@ -145,20 +145,45 @@ void CodeGen::emit() {
 
             // terminate bb
             if (lambda->to() == ret_param) { // return
-                switch (lambda->args().size()) {
+                size_t num_args = lambda->num_args();
+                switch (num_args) {
                     case 0: builder.CreateRetVoid(); break;
                     case 1: builder.CreateRet(lookup(lambda->arg(0))); break;
                     case 2: {
-                        // one argument needs to be the mem arg
-                        const Def* retVal = lambda->arg(0);
-                        if(retVal->type()->isa<Mem>())
-                            retVal = lambda->arg(1);
-                        assert( !retVal->type()->isa<Mem>() );
-                        // create simple return with the non-mem value
-                        builder.CreateRet(lookup(retVal));
+                        if (lambda->arg(0)->type()->isa<Mem>()) {
+                            builder.CreateRet(lookup(lambda->arg(1)));
+                            break;
+                        } else if (lambda->arg(1)->type()->isa<Mem>()) {
+                            builder.CreateRet(lookup(lambda->arg(0)));
+                            break;
+                        }
+                        // FALLTHROUGH
+                    }
+                    default: {
+                        Array<llvm::Value*> values(num_args);
+                        Array<llvm::Type*> elems(num_args);
+
+                        size_t n = 0;
+                        for (size_t a = 0; a < num_args; ++a) {
+                            if (!lambda->arg(n)->type()->isa<Mem>()) {
+                                llvm::Value* val = lookup(lambda->arg(a));
+                                values[n] = val;
+                                elems[n++] = val->getType();
+                            }
+                        }
+
+                        assert(n == num_args || n+1 == num_args);
+                        values.shrink(n);
+                        elems.shrink(n);
+                        llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context, llvm_ref(elems)));
+
+                        for (size_t i = 0; i != n; ++i) {
+                            unsigned idxs[1] = { unsigned(i) };
+                            agg = builder.CreateInsertValue(agg, values[i], idxs);
+                        }
+                        builder.CreateRet(agg);
                         break;
                     }
-                    default: assert(false && "TODO");
                 }
             } else if (const Select* select = lambda->to()->isa<Select>()) { // conditional branch
                 llvm::Value* cond = lookup(select->cond());
@@ -189,7 +214,16 @@ void CodeGen::emit() {
                         builder.CreateRet(call);
                     else {                          // call + continuation
                         Lambda* succ = ret_arg->as_lambda();
-                        params[succ->param(0)] = call;
+
+                        if (llvm::StructType* st = llvm::dyn_cast<llvm::StructType>(call->getType())) {
+                            // extract multiple return values from struct
+                            for (unsigned i = 0, e = st->getNumElements(); i != e; ++i) {
+                                unsigned idxs[1] = { i };
+                                params[succ->param(i)] = builder.CreateExtractValue(call, idxs);
+                            }
+                        } else
+                            params[succ->param(0)] = call;
+
                         builder.CreateBr(bbs[succ->sid()]);
                     }
                 }
@@ -463,7 +497,7 @@ multiple:
         case Node_Sigma: {
             // TODO watch out for cycles!
             const Sigma* sigma = type->as<Sigma>();
-            Array<llvm::Type*> elems(sigma->elems().size());
+            Array<llvm::Type*> elems(sigma->size());
             size_t num = 0;
             for_all (elem, sigma->elems())
                 elems[num++] = map(elem);

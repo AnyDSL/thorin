@@ -142,9 +142,10 @@ bool Verifier::verify_primop(Lambda* current, const PrimOp* primop, PrimOpSet& p
         if (select->tval()->type() != select->fval()->type())
             return invalid(primop, "'select' on unequal types");
         if (select->order() > 0) {
+            // I'm pretty sure these are all valid higher-order patterns -- so don't add new ones
             if (!select->tval()->isa_lambda() || !select->fval()->isa_lambda())
                 return invalid(select, "higher-order 'select' not on lambda");
-            if (select->type() != world_.pi0() && select->type() != world_.pi1(world_.mem()))
+            if (select->type() != world_.pi0())
                 return invalid(select, "higher-order 'select' must be of type 'pi()'");
         }
     } else if (const ArithOp* op = primop->isa<ArithOp>()) {

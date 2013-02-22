@@ -1,8 +1,9 @@
+#include "anydsl2/analyses/verifier.h"
+
 #include "anydsl2/world.h"
 #include "anydsl2/type.h"
 #include "anydsl2/literal.h"
 #include "anydsl2/printer.h"
-#include "verifier.h"
 
 namespace anydsl2 {
 
@@ -31,6 +32,7 @@ bool Verifier::verify() {
     bool result = true;
     for_all (lambda, world_.lambdas())
             result &= verify_body(lambda);
+
     return result;
 }
 

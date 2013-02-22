@@ -26,6 +26,8 @@ public:
     Lambda* rpo(size_t i) const { return rpo_[i]; }
     ArrayRef<Lambda*> preds(Lambda* lambda) const;
     ArrayRef<Lambda*> succs(Lambda* lambda) const;
+    size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
+    size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
     Lambda* entry() const { return rpo_[0]; }
     size_t size() const { return rpo_.size(); }
     void reassign_sids();

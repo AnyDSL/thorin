@@ -102,8 +102,8 @@ void cfg_transform(World& world) {
     do {
         CFGBuilder builder(world);
         todo = builder.process();
-        assert(verify(world) && "invalid cfg transform");
-        merge_lambdas(world);
+        //assert(verify(world) && "invalid cfg transform");
+        //merge_lambdas(world);
         assert(verify(world) && "invalid merge lambda transform");
         world.cleanup();
         assert(verify(world) && "after cleanup");

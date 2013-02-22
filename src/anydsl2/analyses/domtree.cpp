@@ -82,15 +82,6 @@ DomNode* DomTree::lca(DomNode* i, DomNode* j) {
     return i;
 }
 
-const DomNode* DomTree::lca(ArrayRef<const DomNode*> nodes) {
-    assert(!nodes.empty());
-    const DomNode* lca_node = nodes.front();
-    for_all (n, nodes.slice_back(1))
-        lca_node = lca(lca_node, n);
-
-    return lca_node;
-}
-
 const DomNode* DomTree::node(Lambda* lambda) const { assert(scope().contains(lambda)); return nodes_[lambda->sid()]; }
 DomNode* DomTree::lookup(Lambda* lambda) const { assert(scope().contains(lambda)); return nodes_[lambda->sid()]; }
 size_t DomTree::size() const { return scope_.size(); }

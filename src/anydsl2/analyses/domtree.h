@@ -64,7 +64,6 @@ public:
     static const DomNode* lca(const DomNode* i, const DomNode* j) { 
         return lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j)); 
     }
-    static const DomNode* lca(ArrayRef<const DomNode*> nodes);
     Lambda* idom(Lambda* lambda) const { return lookup(lambda)->idom()->lambda(); }
 
 private:

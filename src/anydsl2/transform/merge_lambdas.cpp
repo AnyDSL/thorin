@@ -32,7 +32,7 @@ const DomNode* Merger::dom_succ(const DomNode* n) {
     return succs.size() == 1 && children.size() == 1 
         && succs.front() == children.front()->lambda() 
         && succs.front()->num_uses() == 1
-        && n->lambda()->to() == succs.front() 
+        && succs.front() == n->lambda()->to()
         ? children.front() : 0;
 }
 

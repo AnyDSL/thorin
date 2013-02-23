@@ -291,7 +291,6 @@ public:
      */
 
     void dump(bool fancy = false);
-    const Def* update(const Def* what, size_t x, const Def* op);
     const Type* insert_type(const Type* def);
     PrimOp* release(const PrimOp* primop);
     size_t new_pass() { return pass_counter_++; }

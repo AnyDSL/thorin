@@ -279,8 +279,7 @@ void Lambda::fix(const Todo& todo) {
     if (!same)
         same = world().bottom(p->type());
 
-    for_all (use, p->uses())
-        world().update(use.def(), use.index(), same);
+    p->replace_all_uses_with(same);
 
 fix_preds:
     for_all (pred, preds) {

@@ -791,22 +791,4 @@ void World::dump(bool fancy) {
     std::cout << std::endl;
 }
 
-const Def* World::update(const Def* what, size_t x, const Def* op) {
-    if (Lambda* lambda = what->isa_lambda())
-        return lambda->update_op(x, op);
-
-    AutoPtr<PrimOp> oprimop = release(what->as<PrimOp>());
-    size_t num = oprimop->size();
-
-    Array<const Def*> nops(num);
-    for (size_t i = 0; i != num; oprimop->unregister_use(i), ++i)
-        nops[i] = i == x ? op : oprimop->op(i);
-
-    const Def* ndef = rebuild(oprimop, nops);
-    for_all (use, oprimop->uses())
-        update(use.def(), use.index(), ndef);
-
-    return ndef;
-}
-
 } // namespace anydsl2

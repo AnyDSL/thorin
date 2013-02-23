@@ -37,7 +37,8 @@ void DomTree::create() {
     for_all (lambda, scope_.rpo())
         nodes_[lambda->sid()] = new DomNode(lambda);
 
-    // map entry to entry, all other are set to the first dominating pred
+    // map entry's initial idom to entry,
+    // all others' idoms are set to their first found dominating pred
     DomNode* entry_node = lookup(scope_.entry());
     entry_node->idom_ = entry_node;
 

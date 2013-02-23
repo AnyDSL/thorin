@@ -37,30 +37,38 @@ void DomTree::create() {
     for_all (lambda, scope_.rpo())
         nodes_[lambda->sid()] = new DomNode(lambda);
 
-    // map entry to entry, all other are set to 0 by the Array constructor
+    // map entry to entry, all other are set to the first dominating pred
     DomNode* entry_node = lookup(scope_.entry());
     entry_node->idom_ = entry_node;
+
+    for_all (lambda, scope_.rpo().slice_back(1)) {
+        for_all (pred, scope().preds(lambda)) {
+            if (pred->sid() < lambda->sid()) {
+                lookup(lambda)->idom_ = lookup(pred);
+                goto outer_loop;
+            }
+        }
+        ANYDSL2_UNREACHABLE;
+outer_loop:;
+    }
 
     for (bool changed = true; changed;) {
         changed = false;
 
         // for all lambdas in reverse post-order except entry node
         for_all (lambda, scope_.rpo().slice_back(1)) {
-            DomNode* cur = lookup(lambda);
+            DomNode* lambda_node = lookup(lambda);
 
-            // for all predecessors of cur
+            // for all predecessors of lambda
             DomNode* new_idom = 0;
             for_all (pred, scope().preds(lambda)) {
-                if (DomNode* other_idom = lookup(pred)->idom_) {
-                    if (!new_idom)
-                        new_idom = lookup(pred);// pick first processed predecessor of cur
-                    else
-                        new_idom = lca(other_idom, new_idom);
-                }
+                DomNode* pred_node = lookup(pred);
+                assert(pred_node);
+                new_idom = new_idom ?  lca(new_idom, pred_node) : pred_node;
             }
             assert(new_idom);
-            if (cur->idom() != new_idom) {
-                cur->idom_ = new_idom;
+            if (lambda_node->idom() != new_idom) {
+                lambda_node->idom_ = new_idom;
                 changed = true;
             }
         }

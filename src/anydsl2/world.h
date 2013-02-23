@@ -186,7 +186,7 @@ public:
     const PrimLit* one(PrimTypeKind kind) { return literal(kind, 1); }
     const PrimLit* one(const Type*);
     const PrimLit* allset(PrimTypeKind kind) {
-        assert(is_float(kind) && "must not be a float");
+        assert(is_int(kind) && "must not be a float");
         return literal(kind, -1);
     }
     const PrimLit* allset(const Type*);

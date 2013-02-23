@@ -257,8 +257,8 @@ void Lambda::fix(const Todo& todo) {
     assert(sealed() && "must be sealed");
 
     size_t index = todo.index();
-    const Param* p = param(index);
-    assert(todo.index() == p->index());
+    const Param* param = this->param(index);
+    assert(todo.index() == param->index());
 
     Lambdas preds = this->preds();
 
@@ -266,7 +266,7 @@ void Lambda::fix(const Todo& todo) {
     const Def* same = 0;
     for_all (pred, preds) {
         const Def* def = pred->get_value(todo);
-        if (def == p || same == def)
+        if (def == param || same == def)
             continue;
 
         if (same) {
@@ -276,10 +276,8 @@ void Lambda::fix(const Todo& todo) {
         same = def;
     }
 
-    if (!same)
-        same = world().bottom(p->type());
-
-    p->replace_all_uses_with(same);
+    same = same ? same : world().bottom(param->type());
+    param->replace_all_uses_with(same);
 
 fix_preds:
     for_all (pred, preds) {

@@ -4,20 +4,21 @@ def extern foo() -> int {
     c : int;
     d : int;
     e : int;
-    f : int;
+    f : int = 0;
     g : int;
 
     a = 3;
     d = 2;
 
-    while (true) {
+    while (a != d) {
         f = a + d;
         g = 5;
         a = g - d;
 
-        if (f <= g)
+        if (f <= g) {
             f = g + 1;
-        else {
+            break;
+        } else {
             if (g >= a)
                 return f;
         }
@@ -25,5 +26,5 @@ def extern foo() -> int {
         d = 2;
     }
 
-    return 0;
+    return f;
 }

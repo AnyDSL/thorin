@@ -435,6 +435,7 @@ public:
     }
     const Expr* to() const { return ops_.front(); }
     size_t num_args() const { return size() - 1; }
+    anydsl2::ArrayRef<const Expr*> args() const { return anydsl2::ArrayRef<const Expr*>(&*ops_.begin() + 1, num_args()); }
     const Expr* arg(size_t i) const { return op(i+1); }
     anydsl2::Location args_location() const;
 

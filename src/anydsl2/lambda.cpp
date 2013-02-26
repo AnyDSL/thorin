@@ -136,22 +136,8 @@ bool Lambda::is_cascading() const {
     return use.def()->isa<Lambda>() && use.index() > 0;
 }
 
-bool Lambda::is_returning() const {
-    bool ret = false;
-    for_all (param, params()) {
-        switch (param->order()) {
-            case 0: continue;
-            case 1:
-                if (!ret) {
-                    ret = true;
-                    continue;
-                } // else fall-through
-            default:
-                return false;
-        }
-    }
-    return true;
-}
+bool Lambda::is_basicblock() const { return pi()->is_basicblock(); }
+bool Lambda::is_returning() const { return pi()->is_returning(); }
 
 void Lambda::destroy_body() {
     for (size_t i = 0, e = size(); i != e; ++i)

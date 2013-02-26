@@ -154,6 +154,25 @@ bool Sigma::equal(const Type* other) const {
 
 //------------------------------------------------------------------------------
 
+bool Pi::is_returning() const {
+    bool ret = false;
+    for_all (elem, elems()) {
+        switch (elem->order()) {
+            case 0: continue;
+            case 1:
+                if (!ret) {
+                    ret = true;
+                    continue;
+                } // else fall-through
+            default:
+                return false;
+        }
+    }
+    return true;
+}
+
+//------------------------------------------------------------------------------
+
 size_t GenericBuilder::new_def() {
     size_t handle = index2generic_.size();
     index2generic_.push_back(0);

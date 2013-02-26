@@ -241,6 +241,11 @@ private:
         : CompoundType(world, args.get<0>(), args.get<1>())
     {}
 
+public:
+
+    bool is_basicblock() const { return order() == 1; }
+    bool is_returning() const;
+
     virtual void vdump(Printer& printer) const;
 
     friend class World;

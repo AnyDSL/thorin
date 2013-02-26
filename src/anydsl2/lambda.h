@@ -62,7 +62,6 @@ public:
     const Pi* pi() const;
     const Pi* to_pi() const;
     const Pi* arg_pi() const;
-    bool is_basicblock() const { return order() == 1; }
     virtual char delimiter() const { return 'l'; }
     size_t sid() const { return sid_; }
     Scope* scope() { return scope_; }
@@ -78,6 +77,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
      * @endcode
      */
     bool is_cascading() const;
+    bool is_basicblock() const;
     bool is_returning() const;
     void invalidate_sid() { sid_ = size_t(-1); }
     void dump_body(bool fancy, int indent, std::ostream& out = std::cout) const;

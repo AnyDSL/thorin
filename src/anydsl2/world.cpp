@@ -704,7 +704,6 @@ void World::dce_insert(const size_t pass, const Def* def) {
             dce_insert(pass, peek.def());
     } else {
         Lambda* lambda = def->as_lambda();
-        dce_insert(pass, lambda);
         for_all (pred, lambda->preds()) // insert control-dependent lambdas
             dce_insert(pass, pred);
         if (!lambda->empty()) {

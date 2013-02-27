@@ -95,43 +95,25 @@ public:
 
     ArithOpKind arithop_kind() const { return (ArithOpKind) node_kind(); }
 
-    static bool is_div(ArithOpKind kind) { 
-        return  kind == ArithOp_sdiv 
-             || kind == ArithOp_udiv
-             || kind == ArithOp_fdiv; 
-    }
-    static bool is_rem(ArithOpKind kind) { 
-        return  kind == ArithOp_srem 
-             || kind == ArithOp_urem
-             || kind == ArithOp_frem; 
-    }
-    static bool is_bit(ArithOpKind kind) {
-        return  kind == ArithOp_and
-             || kind == ArithOp_or
-             || kind == ArithOp_xor;
-    }
-    static bool is_shift(ArithOpKind kind) {
-        return  kind == ArithOp_shl
-             || kind == ArithOp_lshr
-             || kind == ArithOp_ashr;
-    }
+    static bool is_div(ArithOpKind kind) { return  kind == ArithOp_sdiv || kind == ArithOp_udiv || kind == ArithOp_fdiv; }
+    static bool is_rem(ArithOpKind kind) { return  kind == ArithOp_srem || kind == ArithOp_urem || kind == ArithOp_frem; }
+    static bool is_bitop(ArithOpKind kind) { return  kind == ArithOp_and || kind == ArithOp_or || kind == ArithOp_xor; }
+    static bool is_shift(ArithOpKind kind) { return  kind == ArithOp_shl || kind == ArithOp_lshr || kind == ArithOp_ashr; }
     static bool is_div_or_rem(ArithOpKind kind) { return is_div(kind) || is_rem(kind); }
-    static bool is_commutative(ArithOpKind kind) {
-        return kind == ArithOp_add
-            || kind == ArithOp_mul
-            || kind == ArithOp_fadd
-            || kind == ArithOp_fmul
-            || kind == ArithOp_and
-            || kind == ArithOp_or
-            || kind == ArithOp_xor;
-    }
+    static bool is_commutative(ArithOpKind kind) { return kind == ArithOp_add  || kind == ArithOp_mul 
+                                                       || kind == ArithOp_fadd || kind == ArithOp_fmul 
+                                                       || kind == ArithOp_and  || kind == ArithOp_or || kind == ArithOp_xor; }
+    static bool is_associative(ArithOpKind kind) { return kind == ArithOp_add || kind == ArithOp_mul
+                                                       || kind == ArithOp_and || kind == ArithOp_or || kind == ArithOp_xor; }
 
-    bool is_div()      const { return is_div  (arithop_kind()); }
-    bool is_rem()      const { return is_rem  (arithop_kind()); }
-    bool is_bit()      const { return is_bit  (arithop_kind()); }
-    bool is_shift()    const { return is_shift(arithop_kind()); }
-    bool is_div_or_rem() const { return is_div_or_rem(arithop_kind()); }
+    bool is_div()         const { return is_div  (arithop_kind()); }
+    bool is_rem()         const { return is_rem  (arithop_kind()); }
+    bool is_bitop()       const { return is_bitop(arithop_kind()); }
+    bool is_shift()       const { return is_shift(arithop_kind()); }
+    bool is_not()         const { return kind() == ArithOp_xor && lhs()->is_zero(); }
+    bool is_div_or_rem()  const { return is_div_or_rem(arithop_kind()); }
     bool is_commutative() const { return is_commutative(arithop_kind()); }
+    bool is_associative() const { return is_associative(arithop_kind()); }
 
     friend class World;
 };

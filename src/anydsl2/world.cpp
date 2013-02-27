@@ -171,18 +171,21 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
         switch (kind) {
             case ArithOp_add:
                 switch (type) {
-#define ANYDSL2_UF_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())));
+#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())));
 #include "anydsl2/tables/primtypetable.h"
+                    ANYDSL2_NO_F_TYPE;
                 }
             case ArithOp_sub:
                 switch (type) {
-#define ANYDSL2_UF_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() - r.get_##T())));
+#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() - r.get_##T())));
 #include "anydsl2/tables/primtypetable.h"
+                    ANYDSL2_NO_F_TYPE;
                 }
             case ArithOp_mul:
                 switch (type) {
-#define ANYDSL2_UF_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())));
+#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())));
 #include "anydsl2/tables/primtypetable.h"
+                    ANYDSL2_NO_F_TYPE;
                 }
             case ArithOp_udiv:
                 switch (type) {
@@ -224,6 +227,46 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
 #include "anydsl2/tables/primtypetable.h"
                     ANYDSL2_NO_F_TYPE;
                 }
+            case ArithOp_and:
+                switch (type) {
+#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() & r.get_##T())));
+#include "anydsl2/tables/primtypetable.h"
+                    ANYDSL2_NO_F_TYPE;
+                }
+            case ArithOp_or:
+                switch (type) {
+#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() | r.get_##T())));
+#include "anydsl2/tables/primtypetable.h"
+                    ANYDSL2_NO_F_TYPE;
+                }
+            case ArithOp_xor:
+                switch (type) {
+#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() ^ r.get_##T())));
+#include "anydsl2/tables/primtypetable.h"
+                    ANYDSL2_NO_F_TYPE;
+                }
+            case ArithOp_shl:
+                switch (type) {
+#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() << r.get_##T())));
+#include "anydsl2/tables/primtypetable.h"
+                    ANYDSL2_NO_F_TYPE;
+                }
+            case ArithOp_lshr:
+                switch (type) {
+#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() >> r.get_##T())));
+#include "anydsl2/tables/primtypetable.h"
+                    ANYDSL2_NO_F_TYPE;
+                }
+            case ArithOp_ashr:
+                switch (type) {
+#define ANYDSL2_JUST_U_TYPE(T) \
+                    case PrimType_##T: { \
+                        typedef make_signed<T>::type S; \
+                        return literal(type, Box(bcast<T , S>(bcast<S, T >(l.get_##T()) >> bcast<S, T >(r.get_##T())))); \
+                    }
+#include "anydsl2/tables/primtypetable.h"
+                    ANYDSL2_NO_F_TYPE;
+                }
             case ArithOp_fadd:
                 switch (type) {
 #define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())));
@@ -254,8 +297,6 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
 #include "anydsl2/tables/primtypetable.h"
                     ANYDSL2_NO_U_TYPE;
                 }
-            default:
-                ANYDSL2_UNREACHABLE;
         }
     }
 

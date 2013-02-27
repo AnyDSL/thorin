@@ -131,7 +131,7 @@ public:
     ArrayRef<const Def*> ops(size_t begin, size_t end) const { return ops().slice(begin, end); }
     const Def* op(size_t i) const { assert(i < ops().size()); return ops()[i]; }
     const Def* op_via_lit(const Def* def) const;
-    void replace_all_uses_with(const Def*) const;
+    void replace(const Def*) const;
 
     /*
      * check for special literals

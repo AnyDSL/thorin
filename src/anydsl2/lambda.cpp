@@ -263,7 +263,7 @@ void Lambda::fix(const Todo& todo) {
     }
 
     same = same ? same : world().bottom(param->type());
-    param->replace_all_uses_with(same);
+    param->replace(same);
 
 fix_preds:
     for_all (pred, preds) {
@@ -275,11 +275,8 @@ fix_preds:
             pred->resize(index+2);
 
         assert(!pred->arg(index) && "already set");
-        pred->set_op(index+1, same ? same : pred->get_value(todo));
+        pred->set_op(index + 1, same ? same : pred->get_value(todo));
     }
-
-    //if (same)
-        //p->representative_ = same;
 }
 
 } // namespace anydsl2

@@ -98,6 +98,8 @@ int Token::to_binop(Kind kind, bool is_float) {
         case AND: assert(!is_float); return ArithOp_and;
         case  OR: assert(!is_float); return ArithOp_or;
         case XOR: assert(!is_float); return ArithOp_xor;
+        case SHL: assert(!is_float); return ArithOp_shl;
+        case SHR: assert(!is_float); return ArithOp_ashr;
         default: ANYDSL2_UNREACHABLE;
     }
 }

@@ -171,25 +171,6 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
     const PrimLit* llit = a->isa<PrimLit>();
     const PrimLit* rlit = b->isa<PrimLit>();
 
-    if (a == b) {
-        switch (kind) {
-            case ArithOp_add:  return arithop_mul(literal(type, 2), a);
-
-            case ArithOp_sub:
-            case ArithOp_srem:
-            case ArithOp_urem:
-            case ArithOp_xor:  return zero(type);
-
-            case ArithOp_sdiv:
-            case ArithOp_udiv: return one(type);
-
-            case ArithOp_and:
-            case ArithOp_or:   return a;
-
-            default: break;
-        }
-    }
-
     if (llit && rlit) {
         Box l = llit->box();
         Box r = rlit->box();
@@ -286,6 +267,25 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
         }
     }
 
+    if (a == b) {
+        switch (kind) {
+            case ArithOp_add:  return arithop_mul(literal(type, 2), a);
+
+            case ArithOp_sub:
+            case ArithOp_srem:
+            case ArithOp_urem:
+            case ArithOp_xor:  return zero(type);
+
+            case ArithOp_sdiv:
+            case ArithOp_udiv: return one(type);
+
+            case ArithOp_and:
+            case ArithOp_or:   return a;
+
+            default: break;
+        }
+    }
+
     // normalize -- put literal or smaller pointer to the left
     if (ArithOp::is_commutative(kind))
         if ((rlit || a > b) && (!llit))
@@ -325,18 +325,6 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::s
 
     if (oldkind != kind)
         std::swap(a, b);
-
-    if (a == b) {
-        switch (kind) {
-            case RelOp_cmp_ult:
-            case RelOp_cmp_slt: 
-            case RelOp_cmp_eq:  return zero(u1_);
-            case RelOp_cmp_ule:
-            case RelOp_cmp_sle:
-            case RelOp_cmp_ne:  return one(u1_);
-            default: break;
-        }
-    }
 
     const PrimLit* llit = a->isa<PrimLit>();
     const PrimLit* rlit = b->isa<PrimLit>();
@@ -417,6 +405,18 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::s
                 }
             default:
                 ANYDSL2_UNREACHABLE;
+        }
+    }
+
+    if (a == b) {
+        switch (kind) {
+            case RelOp_cmp_ult:
+            case RelOp_cmp_slt: 
+            case RelOp_cmp_eq:  return zero(u1_);
+            case RelOp_cmp_ule:
+            case RelOp_cmp_sle:
+            case RelOp_cmp_ne:  return one(u1_);
+            default: break;
         }
     }
 

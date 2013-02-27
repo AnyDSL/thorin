@@ -148,17 +148,10 @@ const Def* World::binop(int kind, const Def* lhs, const Def* rhs, const std::str
 const Def* World::tuple(ArrayRef<const Def*> args, const std::string& name) {
     Array<const Type*> elems(args.size());
 
-    bool bot = false;
-    for_all2 (&elem, elems, arg, args) {
+    for_all2 (&elem, elems, arg, args)
         elem = arg->type();
-        bot |= arg->node_kind() == Node_Bottom;
-    }
 
-    const Type* type = sigma(elems);
-    if (bot)
-        return bottom(type);
-
-    return cse<DefTupleN, Tuple>(DefTupleN(Node_Tuple, type, args), name);
+    return cse<DefTupleN, Tuple>(DefTupleN(Node_Tuple, sigma(elems), args), name);
 }
 
 const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const std::string& name) {

@@ -597,11 +597,11 @@ Lambda* World::basicblock(const std::string& name) {
     return bb;
 }
 
-const Def* World::rebuild(const PrimOp* in, ArrayRef<const Def*> ops) { return rebuild(in, ops, in->name); }
-
-const Def* World::rebuild(const PrimOp* in, ArrayRef<const Def*> ops, const std::string& name) {
+const Def* World::rebuild(const PrimOp* in, ArrayRef<const Def*> ops) {
     int kind = in->kind();
     const Type* type = in->type();
+    const std::string& name = in->name;
+
     if (is_arithop(kind)) { assert(ops.size() == 2); return arithop((ArithOpKind) kind, ops[0], ops[1], name); }
     if (is_relop  (kind)) { assert(ops.size() == 2); return relop(  (RelOpKind  ) kind, ops[0], ops[1], name); }
     if (is_convop (kind)) { assert(ops.size() == 1); return convop( (ConvOpKind ) kind, type,   ops[0], name); }

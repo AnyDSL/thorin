@@ -80,7 +80,7 @@ void Def::replace(const Def* with) const {
             const PrimOp* oprimop = use.def()->as<PrimOp>();
             Array<const Def*> ops(oprimop->ops());
             ops[use.index()] = with;
-            oprimop->replace(world().rebuild(oprimop, ops, oprimop->name));
+            oprimop->replace(world().rebuild(oprimop, ops));
         }
     }
 }

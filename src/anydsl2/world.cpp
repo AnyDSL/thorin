@@ -377,14 +377,16 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
         const PrimLit* a_lhs_lit = a_same && a_same->lhs()->isa<PrimLit>() ? a_same->lhs()->as<PrimLit>() : 0;
         const PrimLit* b_lhs_lit = b_same && b_same->lhs()->isa<PrimLit>() ? b_same->lhs()->as<PrimLit>() : 0;
 
-        if (a_lhs_lit && b_lhs_lit)
-            return binop(kind, binop(kind, a_lhs_lit, b_lhs_lit), binop(kind, a_same->rhs(), b_same->rhs()));
-        if (llit && b_lhs_lit)
-            return binop(kind, binop(kind, llit, b_lhs_lit), b_same->rhs());
+        if (ArithOp::is_commutative(kind)) {
+            if (a_lhs_lit && b_lhs_lit)
+                return binop(kind, binop(kind, a_lhs_lit, b_lhs_lit), binop(kind, a_same->rhs(), b_same->rhs()));
+            if (llit && b_lhs_lit)
+                return binop(kind, binop(kind, llit, b_lhs_lit), b_same->rhs());
+            if (b_lhs_lit)
+                return binop(kind, b_lhs_lit, binop(kind, a, b_same->rhs()));
+        }
         if (a_lhs_lit)
             return binop(kind, a_lhs_lit, binop(kind, a_same->rhs(), b));
-        if (b_lhs_lit)
-            return binop(kind, b_lhs_lit, binop(kind, a, b_same->rhs()));
     }
 
     return cse<DefTuple2, ArithOp>(DefTuple2(kind, a->type(), a, b), name);

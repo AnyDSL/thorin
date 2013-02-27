@@ -91,6 +91,7 @@ template<> struct type2kind<bool> { static const PrimTypeKind kind = PrimType_u1
 #include "anydsl2/tables/primtypetable.h"
 
 const char* kind2str(PrimTypeKind kind);
+int num_bits(PrimTypeKind);
 
 } // namespace anydsl2
 

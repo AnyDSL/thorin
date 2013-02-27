@@ -320,24 +320,47 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
     }
 
     if (rlit) {
-        if (rlit->is_one()) {
+        if (rlit->is_zero()) {
+            switch (kind) {
+                case ArithOp_sdiv:
+                case ArithOp_udiv:
+                case ArithOp_srem:
+                case ArithOp_urem: return bottom(type);
+
+                case ArithOp_shl:
+                case ArithOp_ashr:
+                case ArithOp_lshr: return a;
+
+                default: break;
+            }
+        } else if (rlit->is_one()) {
             switch (kind) {
                 case ArithOp_sdiv:
                 case ArithOp_udiv: return a;
+
                 case ArithOp_srem:
-                case ArithOp_urem: return one(type);
+                case ArithOp_urem: return zero(type);
+
+                default: break;
+            }
+        } else if (rlit->primlit_value<uint64_t>() >= num_bits(type)) {
+            switch (kind) {
+                case ArithOp_shl:
+                case ArithOp_ashr:
+                case ArithOp_lshr: return bottom(type);
+
                 default: break;
             }
         }
     }
 
-    if (kind == ArithOp_sub) {
-        if (!a->is_zero()) {
-            rlit = (b = arithop_minus(b))->isa<PrimLit>();
-            kind = ArithOp_add;
-        }
+    // normalize: a - b = a + -b
+    if ((kind == ArithOp_sub || kind == ArithOp_fsub) && !a->is_minus_zero()) { 
+        rlit = (b = arithop_minus(b))->isa<PrimLit>();
+        kind = kind == ArithOp_sub ? ArithOp_add : ArithOp_fadd;
     }
 
+    // normalize: swap literal to the left
     if (ArithOp::is_commutative(kind) && rlit) {
         std::swap(a, b);
         std::swap(llit, rlit);
@@ -362,15 +385,21 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
 
                 default: break;
             }
-        }
-        if (llit->is_one()) {
+        } else if (llit->is_one()) {
             switch (kind) {
                 case ArithOp_mul: return b;
+                default: break;
+            }
+        } else if (llit->is_allset()) {
+            switch (kind) {
+                case ArithOp_and: return b;
+                case ArithOp_or:  return llit; // allset
                 default: break;
             }
         }
     }
 
+    // normalize: try to reorder same ops to have the literal on the left-most side
     if (ArithOp::is_associative(kind)) {
         const ArithOp* a_same = a->isa<ArithOp>() && a->as<ArithOp>()->arithop_kind() == kind ? a->as<ArithOp>() : 0;
         const ArithOp* b_same = b->isa<ArithOp>() && b->as<ArithOp>()->arithop_kind() == kind ? b->as<ArithOp>() : 0;

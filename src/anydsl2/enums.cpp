@@ -20,4 +20,17 @@ const char* kind2str(PrimTypeKind kind) {
     }
 }
 
+int num_bits(PrimTypeKind kind) {
+    switch (kind) {
+        case PrimType_u1:  return 1;
+        case PrimType_u8:  return 8;
+        case PrimType_u16: return 16;
+        case PrimType_u32: return 32;
+        case PrimType_u64: return 64;
+        case PrimType_f32: return 32;
+        case PrimType_f64: return 64;
+    }
+    ANYDSL2_UNREACHABLE;
+}
+
 } // namespace anydsl2

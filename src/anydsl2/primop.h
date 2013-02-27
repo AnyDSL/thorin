@@ -111,6 +111,7 @@ public:
     bool is_bitop()       const { return is_bitop(arithop_kind()); }
     bool is_shift()       const { return is_shift(arithop_kind()); }
     bool is_not()         const { return kind() == ArithOp_xor && lhs()->is_zero(); }
+    bool is_minus()       const { return (kind() == ArithOp_sub || kind() == ArithOp_fsub) && lhs()->is_minus_zero(); }
     bool is_div_or_rem()  const { return is_div_or_rem(arithop_kind()); }
     bool is_commutative() const { return is_commutative(arithop_kind()); }
     bool is_associative() const { return is_associative(arithop_kind()); }

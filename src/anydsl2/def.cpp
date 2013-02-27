@@ -72,6 +72,19 @@ bool Def::is_primlit(int val) const {
     return false;
 }
 
+bool Def::is_minus_zero() const {
+    if (const PrimLit* lit = this->isa<PrimLit>()) {
+        Box box = lit->box();
+        switch (lit->primtype_kind()) {
+#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return box.get_##T() == T(0);
+#include "anydsl2/tables/primtypetable.h"
+            case PrimType_f32: return box.get_f32() == -0.f;
+            case PrimType_f64: return box.get_f64() == -0.0;
+        }
+    }
+    return false;
+}
+
 void Def::replace(const Def* with) const {
     for_all (use, this->copy_uses()) {
         if (Lambda* lambda = use.def()->isa_lambda())

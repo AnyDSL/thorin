@@ -139,6 +139,7 @@ public:
 
     bool is_primlit(int val) const;
     bool is_zero() const { return is_primlit(0); }
+    bool is_minus_zero() const;
     bool is_one() const { return is_primlit(1); }
     bool is_allset() const { return is_primlit(-1); }
 

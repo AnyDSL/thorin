@@ -174,7 +174,6 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
     if (llit && rlit) {
         Box l = llit->box();
         Box r = rlit->box();
-        PrimTypeKind type = llit->primtype_kind();
 
         switch (kind) {
             case ArithOp_add:
@@ -286,10 +285,73 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
         }
     }
 
-    // normalize -- put literal or smaller pointer to the left
-    if (ArithOp::is_commutative(kind))
-        if ((rlit || a > b) && (!llit))
-            std::swap(a, b);
+    if (rlit) {
+        if (rlit->is_one()) {
+            switch (kind) {
+                case ArithOp_sdiv:
+                case ArithOp_udiv: return a;
+                case ArithOp_srem:
+                case ArithOp_urem: return one(type);
+                default: break;
+            }
+        }
+    }
+
+    if (kind == ArithOp_sub) {
+        if (!a->is_zero()) {
+            rlit = (b = arithop_minus(b))->isa<PrimLit>();
+            kind = ArithOp_add;
+        }
+    }
+
+    if (ArithOp::is_commutative(kind) && rlit) {
+        std::swap(a, b);
+        std::swap(llit, rlit);
+    }
+
+    if (llit) {
+        if (llit->is_zero()) {
+            switch (kind) {
+                case ArithOp_mul:
+                case ArithOp_sdiv:
+                case ArithOp_udiv:
+                case ArithOp_srem:
+                case ArithOp_urem:
+                case ArithOp_and:
+                case ArithOp_shl:
+                case ArithOp_lshr:
+                case ArithOp_ashr: return zero(type);
+
+                case ArithOp_add: 
+                case ArithOp_or:
+                case ArithOp_xor:  return b;
+
+                default: break;
+            }
+        }
+        if (llit->is_one()) {
+            switch (kind) {
+                case ArithOp_mul: return b;
+                default: break;
+            }
+        }
+    }
+
+    if (kind == ArithOp_add) {
+        const ArithOp* a_add = a->isa<ArithOp>() && a->as<ArithOp>()->arithop_kind() == ArithOp_add ? a->as<ArithOp>() : 0;
+        const ArithOp* b_add = b->isa<ArithOp>() && b->as<ArithOp>()->arithop_kind() == ArithOp_add ? b->as<ArithOp>() : 0;
+        const PrimLit* a_lhs_lit = a_add && a_add->lhs()->isa<PrimLit>() ? a_add->lhs()->as<PrimLit>() : 0;
+        const PrimLit* b_lhs_lit = b_add && b_add->lhs()->isa<PrimLit>() ? b_add->lhs()->as<PrimLit>() : 0;
+
+        if (a_lhs_lit && b_lhs_lit)
+            return arithop_add(arithop_add(a_lhs_lit, b_lhs_lit), arithop_add(a_add->rhs(), b_add->rhs()));
+        if (llit && b_lhs_lit)
+            return arithop_add(arithop_add(llit, b_lhs_lit), b_add->rhs());
+        if (a_lhs_lit)
+            return arithop_add(a_lhs_lit, arithop_add(a_add->rhs(), b));
+        if (b_lhs_lit)
+            return arithop_add(b_lhs_lit, arithop_add(a, b_add->rhs()));
+    }
 
     return cse<DefTuple2, ArithOp>(DefTuple2(kind, a->type(), a, b), name);
 }

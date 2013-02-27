@@ -91,6 +91,7 @@ Lambda* Def::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(this))
 Lambda* Def::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(this)); }
 int Def::order() const { return type()->order(); }
 bool Def::is_generic() const { return type()->is_generic(); }
+void Def::dump() const { dump(false); }
 
 std::ostream& operator << (std::ostream& o, const anydsl2::Def* def) {
     Printer p(o, false);

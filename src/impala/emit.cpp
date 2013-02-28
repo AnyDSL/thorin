@@ -268,10 +268,8 @@ RefPtr Call::emit(CodeGen& cg) const {
         cg.cur_bb->jump(ops[0], ops.slice_back(1));
         cg.cur_bb = 0;
         return RefPtr(0);
-    } else {
-        cg.call(ops[0], ops.slice_back(1), type());
-        return Ref::create(cg.cur_bb->param(0));
-    }
+    } else
+        return Ref::create(cg.call(ops[0], ops.slice_back(1), type()));
 }
 
 /*

@@ -93,9 +93,10 @@ void IRBuilder::branch(const Def* cond, JumpTarget& t, JumpTarget& f) {
     }
 }
 
-void IRBuilder::call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
+const Param* IRBuilder::call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
     if (is_reachable())
-        cur_bb = cur_bb->call(to, args, ret_type);
+        return (cur_bb = cur_bb->call(to, args, ret_type))->param(0);
+    return 0;
 }
 
 void IRBuilder::tail_call(const Def* to, ArrayRef<const Def*> args) {

@@ -71,13 +71,24 @@ enum ConvOpKind {
 #include "anydsl2/tables/convoptable.h"
 };
 
-inline bool is_int(int kind) { return (int) Begin_PrimType_u <= kind && kind < (int) End_PrimType_u; }
-inline bool is_float(int kind) { return (int) Begin_PrimType_f <= kind && kind < (int) End_PrimType_f; }
+inline bool is_int(int kind)     { return (int) Begin_PrimType_u <= kind && kind < (int) End_PrimType_u; }
+inline bool is_float(int kind)   { return (int) Begin_PrimType_f <= kind && kind < (int) End_PrimType_f; }
 inline bool is_corenode(int kind){ return (int) Begin_AllNodes <= kind && kind < (int) End_AllNodes; }
 inline bool is_primtype(int kind){ return (int) Begin_PrimType <= kind && kind < (int) End_PrimType; }
 inline bool is_arithop(int kind) { return (int) Begin_ArithOp <= kind && kind < (int) End_ArithOp; }
 inline bool is_relop(int kind)   { return (int) Begin_RelOp   <= kind && kind < (int) End_RelOp; }
 inline bool is_convop(int kind)  { return (int) Begin_ConvOp  <= kind && kind < (int) End_ConvOp; }
+
+inline bool is_div(int kind) { return  kind == ArithOp_sdiv || kind == ArithOp_udiv || kind == ArithOp_fdiv; }
+inline bool is_rem(int kind) { return  kind == ArithOp_srem || kind == ArithOp_urem || kind == ArithOp_frem; }
+inline bool is_bitop(int kind) { return  kind == ArithOp_and || kind == ArithOp_or || kind == ArithOp_xor; }
+inline bool is_shift(int kind) { return  kind == ArithOp_shl || kind == ArithOp_lshr || kind == ArithOp_ashr; }
+inline bool is_div_or_rem(int kind) { return is_div(kind) || is_rem(kind); }
+inline bool is_commutative(int kind) { return kind == ArithOp_add  || kind == ArithOp_mul 
+                                           || kind == ArithOp_fadd || kind == ArithOp_fmul 
+                                           || kind == ArithOp_and  || kind == ArithOp_or || kind == ArithOp_xor; }
+inline bool is_associative(int kind) { return kind == ArithOp_add || kind == ArithOp_mul
+                                           || kind == ArithOp_and || kind == ArithOp_or || kind == ArithOp_xor; }
 
 template<PrimTypeKind kind> struct kind2type {};
 #define ANYDSL2_U_TYPE(T) template<> struct kind2type<PrimType_##T> { typedef T type; };

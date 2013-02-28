@@ -171,6 +171,7 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
         }
         case ADD: return rhs()->emit(cg); // this is a NOP
         case SUB: return Ref::create(cg.world().arithop_minus(rhs()->emit(cg)->load()));
+        case NOT:
         case L_N: return Ref::create(cg.world().arithop_not(rhs()->emit(cg)->load()));
         default: ANYDSL2_UNREACHABLE;
     }

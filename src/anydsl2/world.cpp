@@ -343,7 +343,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
 
                 default: break;
             }
-        } else if (rlit->primlit_value<uint64_t>() >= num_bits(type)) {
+        } else if (rlit->primlit_value<uint64_t>() >= uint64_t(num_bits(type))) {
             switch (kind) {
                 case ArithOp_shl:
                 case ArithOp_ashr:
@@ -354,6 +354,10 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
         }
     }
 
+    // do we have ~~x?
+    if (kind == ArithOp_xor && a->is_allset() && b->is_not())
+        return b->as<ArithOp>()->rhs();
+
     // normalize: a - b = a + -b
     if ((kind == ArithOp_sub || kind == ArithOp_fsub) && !a->is_minus_zero()) { 
         rlit = (b = arithop_minus(b))->isa<PrimLit>();
@@ -361,7 +365,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
     }
 
     // normalize: swap literal to the left
-    if (ArithOp::is_commutative(kind) && rlit) {
+    if (is_commutative(kind) && rlit) {
         std::swap(a, b);
         std::swap(llit, rlit);
     }
@@ -400,13 +404,13 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
     }
 
     // normalize: try to reorder same ops to have the literal on the left-most side
-    if (ArithOp::is_associative(kind)) {
+    if (is_associative(kind)) {
         const ArithOp* a_same = a->isa<ArithOp>() && a->as<ArithOp>()->arithop_kind() == kind ? a->as<ArithOp>() : 0;
         const ArithOp* b_same = b->isa<ArithOp>() && b->as<ArithOp>()->arithop_kind() == kind ? b->as<ArithOp>() : 0;
         const PrimLit* a_lhs_lit = a_same && a_same->lhs()->isa<PrimLit>() ? a_same->lhs()->as<PrimLit>() : 0;
         const PrimLit* b_lhs_lit = b_same && b_same->lhs()->isa<PrimLit>() ? b_same->lhs()->as<PrimLit>() : 0;
 
-        if (ArithOp::is_commutative(kind)) {
+        if (is_commutative(kind)) {
             if (a_lhs_lit && b_lhs_lit)
                 return binop(kind, binop(kind, a_lhs_lit, b_lhs_lit), binop(kind, a_same->rhs(), b_same->rhs()));
             if (llit && b_lhs_lit)
@@ -421,7 +425,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
     return cse<DefTuple2, ArithOp>(DefTuple2(kind, a->type(), a, b), name);
 }
 
-const Def* World::arithop_not(const Def* def) { return arithop_xor(def, allset(def->type())); }
+const Def* World::arithop_not(const Def* def) { return arithop_xor(allset(def->type()), def); }
 
 const Def* World::arithop_minus(const Def* def) {
     const Def* zero;
@@ -635,6 +639,11 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b, const std:
 
     if (const PrimLit* lit = cond->isa<PrimLit>())
         return lit->box().get_u1().get() ? a : b;
+
+    if (cond->is_not()) {
+        cond = cond->as<ArithOp>()->rhs();
+        std::swap(a, b);
+    }
 
     return cse<DefTuple3, Select>(DefTuple3(Node_Select, a->type(), cond, a, b), name);
 }

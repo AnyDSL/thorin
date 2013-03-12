@@ -611,10 +611,10 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, con
     return cse<DefTuple3, Insert>(DefTuple3(Node_Extract, agg->type(), agg, index, value), name);
 }
 
-const Def* World::load(const Def* m, const Def* ptr, const std::string& name) {
+const Load* World::load(const Def* m, const Def* ptr, const std::string& name) {
     return cse<DefTuple2, Load>(DefTuple2(Node_Load, sigma2(mem(), ptr->type()->as<Ptr>()->ref()), m, ptr), name);
 }
-const Def* World::store(const Def* m, const Def* ptr, const Def* val, const std::string& name) {
+const Store* World::store(const Def* m, const Def* ptr, const Def* val, const std::string& name) {
     return cse<DefTuple3, Store>(DefTuple3(Node_Store, mem(), m, ptr, val), name);
 }
 const Enter* World::enter(const Def* m, const std::string& name) {

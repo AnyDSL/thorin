@@ -22,6 +22,7 @@ class Def;
 class Enter;
 class Lambda;
 class Leave;
+class Load;
 class Opaque;
 class Pi;
 class PrimLit;
@@ -29,6 +30,7 @@ class PrimOp;
 class PrimType;
 class Sigma;
 class Slot;
+class Store;
 class Type;
 class TypeKeeper;
 
@@ -241,8 +243,8 @@ public:
      * memops
      */
 
-    const Def* load(const Def* mem, const Def* ptr, const std::string& name = "");
-    const Def* store(const Def* mem, const Def* ptr, const Def* val, const std::string& name = "");
+    const Load* load(const Def* mem, const Def* ptr, const std::string& name = "");
+    const Store* store(const Def* mem, const Def* ptr, const Def* val, const std::string& name = "");
     const Enter* enter(const Def* mem, const std::string& name = "");
     const Leave* leave(const Def* mem, const Def* frame, const std::string& name = "");
     const Slot* slot(const Type* type, size_t index, const Def* frame, const std::string& name = "");

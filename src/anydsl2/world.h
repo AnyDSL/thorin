@@ -224,7 +224,7 @@ public:
 
     const Def* convop(ConvOpKind kind, const Type* to, const Def* from, const std::string& name = "");
 #define ANYDSL2_CONVOP(OP) \
-    const Def* convop_##OP(const Type* to, const Def* from, const std::string& name) { \
+    const Def* convop_##OP(const Type* to, const Def* from, const std::string& name = "") { \
         return convop(ConvOp_##OP, to, from, name); \
     }
 #include "anydsl2/tables/convoptable.h"

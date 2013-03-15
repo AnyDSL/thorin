@@ -337,16 +337,18 @@ llvm::Value* CodeGen::emit(const Def* def) {
         llvm::Type* to = map(conv->type());
 
         switch (conv->convop_kind()) {
-            case ConvOp_trunc:  return builder.CreateTrunc  (from, to);
-            case ConvOp_zext:   return builder.CreateZExt   (from, to);
-            case ConvOp_sext:   return builder.CreateSExt   (from, to);
-            case ConvOp_stof:   return builder.CreateSIToFP (from, to);
-            case ConvOp_utof:   return builder.CreateSIToFP (from, to);
-            case ConvOp_ftrunc: return builder.CreateFPTrunc(from, to);
-            case ConvOp_ftos:   return builder.CreateFPToSI (from, to);
-            case ConvOp_ftou:   return builder.CreateFPToUI (from, to);
-            case ConvOp_fext:   return builder.CreateFPExt  (from, to);
-            case ConvOp_bitcast:return builder.CreateBitCast(from, to);
+            case ConvOp_trunc:    return builder.CreateTrunc   (from, to);
+            case ConvOp_zext:     return builder.CreateZExt    (from, to);
+            case ConvOp_sext:     return builder.CreateSExt    (from, to);
+            case ConvOp_stof:     return builder.CreateSIToFP  (from, to);
+            case ConvOp_utof:     return builder.CreateSIToFP  (from, to);
+            case ConvOp_ftrunc:   return builder.CreateFPTrunc (from, to);
+            case ConvOp_ftos:     return builder.CreateFPToSI  (from, to);
+            case ConvOp_ftou:     return builder.CreateFPToUI  (from, to);
+            case ConvOp_fext:     return builder.CreateFPExt   (from, to);
+            case ConvOp_bitcast:  return builder.CreateBitCast (from, to);
+            case ConvOp_inttoptr: return builder.CreateIntToPtr(from, to);
+            case ConvOp_ptrtoint: return builder.CreatePtrToInt(from, to);
         }
     }
 

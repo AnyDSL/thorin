@@ -98,7 +98,6 @@ RefPtr Ref::create(Lambda* bb, size_t handle, const Type* type, const char* name
     return RefPtr(new VarRef(bb, handle, type, name)); 
 }
 
-
 //------------------------------------------------------------------------------
 
 class JumpTarget {

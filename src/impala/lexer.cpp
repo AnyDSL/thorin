@@ -123,6 +123,7 @@ Token Lexer::lex() {
 #define IMPALA_LEX_REL_SHIFT(op, tok_rel, tok_rel_eq, tok_shift, tok_shift_asgn) \
         if (accept( op )) { \
             if ( accept('=') ) return Token(loc_, Token:: tok_rel_eq); \
+            if ( op == '<' && accept('-') ) return Token(loc_, Token::LARROW); \
             if ( accept(op) ) \
             {  \
                 if ( accept('=') ) return Token(loc_, Token:: tok_shift_asgn); \

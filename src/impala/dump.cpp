@@ -320,6 +320,15 @@ void ForStmt::vdump(Printer& p) const {
     p.dump_block(body());
 }
 
+void ForeachStmt::vdump(Printer& p) const {
+    p << "foreach (";
+    init()->vdump(p);
+    p << " <- ";
+    call()->vdump(p);
+    p << ") ";
+    p.dump_block(body());
+}
+
 void BreakStmt::vdump(Printer& p) const {
     p << "break;";
 }

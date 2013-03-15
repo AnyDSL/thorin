@@ -92,6 +92,7 @@ public:
     const Stmt* parse_while();
     const Stmt* parse_do_while();
     const Stmt* parse_for();
+    const Stmt* parse_foreach();
     const Stmt* parse_break();
     const Stmt* parse_continue();
     const Stmt* parse_return();
@@ -477,6 +478,7 @@ const Stmt* Parser::parse_stmt() {
         case Token::WHILE:     return parse_while();
         case Token::DO:        return parse_do_while();
         case Token::FOR:       return parse_for();
+        case Token::FOREACH:   return parse_foreach();
         case Token::BREAK:     return parse_break();
         case Token::CONTINUE:  return parse_continue();
         case Token::RETURN:    return parse_return();
@@ -598,6 +600,46 @@ const Stmt* Parser::parse_for() {
     new_loop->set(pos1, cond, inc, body);
 
     return new_loop;
+}
+
+// TODO
+const Stmt* Parser::parse_foreach() {
+    Position pos1 = eat(Token::FOREACH).pos1();
+    expect(Token::L_PAREN, "foreach-statement");
+
+    ForeachStmt*  new_foreach = new ForeachStmt();
+    //Push<const Loop*> push(cur_loop, new_loop);
+
+    if (la2() == Token::COLON) {
+        // parse only 'x : int' and no further assignment
+        const VarDecl* var_decl = parse_var_decl();
+        const DeclStmt* decl_stmt = new DeclStmt(var_decl, 0, prev_loc.pos2());
+        new_foreach->set(decl_stmt);
+    } else if (is_expr()) {
+        const Expr* expr = parse_primary_expr();
+        const ExprStmt* expr_stmt = new ExprStmt(expr, prev_loc.pos2());
+        new_foreach->set(expr_stmt);
+    } else {
+        error("expression or delcaration-statement", "first clause in foreach-statement");
+    }
+    
+    expect(Token::LARROW, "foreach-statement");
+
+    const Expr* inc = parse_expr();
+    if (const Call* call = inc->isa<Call>()) {
+        new_foreach->set(call);
+    } else {
+        error("expected generator", "foreach-statement");
+    }
+
+    if (!accept(Token::R_PAREN)) {
+        error(") expected", "foreach-statement");
+    }
+
+    const Stmt* body = try_stmt("loop body");
+    new_foreach->set(pos1, body);
+
+    return new_foreach;
 }
 
 const Stmt* Parser::parse_break() {

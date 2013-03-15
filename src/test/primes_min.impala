@@ -1,0 +1,22 @@
+def count<T>(n : int, t : T, yield : pi(int, T, pi(T)), ret : pi(T)) {
+    yield(1, t, lambda(t : T) {
+        def loop(i : int, t : T) {
+            if (i < n)
+                yield(i, t, lambda(t : T) { loop(i+1, t); });
+            else
+                ret(t);
+        }
+        loop(2, t);
+    });
+}
+
+def main(main_ret : pi(int)) {
+    count(100, 0,
+        lambda(p : int, result : int, next : pi(int)) {
+            next(result + p);
+        },
+        lambda(result : int) {
+            main_ret(result);
+        }
+    );
+}

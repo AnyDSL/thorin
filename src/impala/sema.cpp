@@ -398,6 +398,19 @@ void ForStmt::check(Sema& sema) const {
     sema.pop_scope();
 }
 
+void ForeachStmt::check(Sema& sema) const {
+    // TODO
+    sema.push_scope();
+    init()->check(sema);
+
+    if (const ScopeStmt* scope = body()->isa<ScopeStmt>())
+        scope->check_stmts(sema);
+    else
+        body()->check(sema);
+
+    sema.pop_scope();
+}
+
 void BreakStmt::check(Sema& sema) const {
     if (!loop())
         sema.error(this) << "break statement not within a loop\n";

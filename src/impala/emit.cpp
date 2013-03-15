@@ -3,6 +3,8 @@
 #include <boost/unordered_map.hpp>
 #include <iostream>
 
+#include <cstdio> // TODO remove
+
 #include "anydsl2/irbuilder.h"
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
@@ -365,6 +367,52 @@ void ForStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     step()->emit(cg);
     cg.jump(head_bb);
     head_bb.seal();
+}
+
+void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
+    /*JumpTarget head_bb("foreach_head");
+    JumpTarget body_bb("foreach_body");
+    JumpTarget step_bb("foreach_step");
+
+    Push<JumpTarget*> push1(cg.break_target, &exit_bb);
+    Push<JumpTarget*> push2(cg.continue_target, &step_bb);
+
+    init()->emit(cg, head_bb);
+
+    cg.enter_unsealed(head_bb);
+    cond()->emit_branch(cg, body_bb, exit_bb);*/
+
+
+    // #
+    FunExpr* fun_expr = new FunExpr();
+    
+    std::vector<const Type*> arg_types;
+    arg_types.push_back(cg.world().type_u32());
+    
+    std::vector<const Type*> elems;
+    elems.push_back(cg.world().type_u32());
+    arg_types.push_back(cg.world().pi(elems));
+    
+    
+    const Pi* pi = cg.world().pi(arg_types);
+    const ScopeStmt* fun_body = (ScopeStmt*) body();
+    fun_expr->fun_set(pi, fun_body);
+    //fun_expr->emit(cg);
+    
+    printf("here\n");
+    // TODO ugly!
+    Call* nc_call = const_cast<Call*>(call_.get());
+    nc_call->append_arg(fun_expr);
+    // #
+
+    // put into lambda
+    /*cg.enter(body_bb);
+    body()->emit(cg, step_bb);
+
+    cg.enter(step_bb);
+    step()->emit(cg);
+    cg.jump(head_bb);
+    head_bb.seal();*/
 }
 
 void BreakStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.jump(*cg.break_target); }

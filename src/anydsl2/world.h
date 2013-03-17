@@ -222,10 +222,10 @@ public:
     }
 #include "anydsl2/tables/reloptable.h"
 
-    const Def* convop(ConvOpKind kind, const Type* to, const Def* from, const std::string& name = "");
+    const Def* convop(ConvOpKind kind, const Def* from, const Type* to, const std::string& name = "");
 #define ANYDSL2_CONVOP(OP) \
-    const Def* convop_##OP(const Type* to, const Def* from, const std::string& name = "") { \
-        return convop(ConvOp_##OP, to, from, name); \
+    const Def* convop_##OP(const Def* from, const Type* to, const std::string& name = "") { \
+        return convop(ConvOp_##OP, from, to, name); \
     }
 #include "anydsl2/tables/convoptable.h"
 

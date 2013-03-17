@@ -554,7 +554,7 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::s
     return cse<DefTuple2, RelOp>(DefTuple2(kind, type_u1(), a, b), name);
 }
 
-const Def* World::convop(ConvOpKind kind, const Type* to, const Def* from, const std::string& name) {
+const Def* World::convop(ConvOpKind kind, const Def* from, const Type* to, const std::string& name) {
     if (from->isa<Bottom>())
         return bottom(to);
 
@@ -678,7 +678,7 @@ const Def* World::rebuild(const PrimOp* in, ArrayRef<const Def*> ops) {
 
     if (is_arithop(kind)) { assert(ops.size() == 2); return arithop((ArithOpKind) kind, ops[0], ops[1], name); }
     if (is_relop  (kind)) { assert(ops.size() == 2); return relop(  (RelOpKind  ) kind, ops[0], ops[1], name); }
-    if (is_convop (kind)) { assert(ops.size() == 1); return convop( (ConvOpKind ) kind, type,   ops[0], name); }
+    if (is_convop (kind)) { assert(ops.size() == 1); return convop( (ConvOpKind ) kind, ops[0],   type, name); }
 
     switch (kind) {
         case Node_Enter:   assert(ops.size() == 1); return enter(  ops[0], name);

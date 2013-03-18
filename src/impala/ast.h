@@ -631,8 +631,8 @@ public:
         body_ = body;
         set_loc(pos1, body->pos2());
     }
-    void set(const DeclStmt* d) { init_decl_ = d; }
-    void set(const ExprStmt* e) { init_expr_ = e; }
+    void set(const VarDecl* d) { init_decl_ = d; }
+    void set(const Expr* e) { init_expr_ = e; }
 
     // generator call
     const Expr* to() const { return ops_.front(); }
@@ -646,9 +646,9 @@ public:
     size_t size() const { return ops_.size(); }
 
     const Stmt* body() const { return body_; }
-    const DeclStmt* init_decl() const { return init_decl_; }
-    const ExprStmt* init_expr() const { return init_expr_; }
-    const Stmt* init() const { return (const Stmt*) ((uintptr_t) init_decl_.get() | (uintptr_t) init_expr_.get()); }
+    const VarDecl* init_decl() const { return init_decl_; }
+    const Expr* init_expr() const { return init_expr_; }
+    const ASTNode* init() const { return (const ASTNode*) ((uintptr_t) init_decl_.get() | (uintptr_t) init_expr_.get()); }
 
     virtual void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
@@ -657,8 +657,8 @@ public:
 private:
 
     anydsl2::AutoPtr<const Stmt> body_;
-    anydsl2::AutoPtr<const DeclStmt> init_decl_;
-    anydsl2::AutoPtr<const ExprStmt> init_expr_;
+    anydsl2::AutoPtr<const VarDecl> init_decl_;
+    anydsl2::AutoPtr<const Expr> init_expr_;
     Exprs ops_;
 };
 

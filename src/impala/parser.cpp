@@ -613,13 +613,13 @@ const Stmt* Parser::parse_foreach() {
 
     if (la2() == Token::COLON) {
         // parse only 'x : int' and no further assignment
-        const VarDecl* var_decl = parse_var_decl();
-        const DeclStmt* decl_stmt = new DeclStmt(var_decl, 0, prev_loc.pos2());
-        new_foreach->set(decl_stmt);
+        const VarDecl* decl = parse_var_decl();
+        //const DeclStmt* decl_stmt = new DeclStmt(decl, 0, prev_loc.pos2());
+        new_foreach->set(decl);
     } else if (is_expr()) {
         const Expr* expr = parse_primary_expr();
-        const ExprStmt* expr_stmt = new ExprStmt(expr, prev_loc.pos2());
-        new_foreach->set(expr_stmt);
+        //const ExprStmt* expr_stmt = new ExprStmt(expr, prev_loc.pos2());
+        new_foreach->set(expr);
     } else {
         error("expression or delcaration-statement", "foreach-statement");
     }

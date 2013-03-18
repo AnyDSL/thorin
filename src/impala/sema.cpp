@@ -399,34 +399,34 @@ void ForStmt::check(Sema& sema) const {
 }
 
 void ForeachStmt::check(Sema& sema) const {
-    // TODO
     sema.push_scope();
-    init()->check(sema);
+    
+    const anydsl2::Type* left_type;
+    if (init_decl() != NULL) {
+        init_decl()->insert(sema);
+        left_type = init_decl()->type();
+    } else {
+        left_type = init_expr()->check(sema);
+    }
     
     // generator call
     if (const Pi* to_pi = to()->check(sema)->isa<Pi>()) {
-        Array<const Type*> op_types(num_args() + 1 + 2); // reserve one more for return type
+        Array<const Type*> op_types(num_args() + 1 + 2); // reserve one for the return type and two for the generator
 
         for (size_t i = 0, e = num_args(); i != e; ++i)
             op_types[i] = arg(i)->check(sema);
             
-        // add stuff
+        // construct: t: T
         op_types[num_args()] = sema.world().generic(0);
         
+        // construct: pi(..., t: T, pi(T))
         std::vector<const Type*> elems;
-        elems.push_back(sema.world().type_u32());
+        elems.push_back(left_type);
         elems.push_back(sema.world().generic(0));
         std::vector<const Type*> inner_elems;
         inner_elems.push_back(sema.world().generic(0));
         elems.push_back(sema.world().pi(inner_elems));
         op_types[num_args() + 1] = sema.world().pi(elems);
-        
-        //op_types[num_args() + 1] = to_pi->elem(num_args() + 1);
-        
-        /*std::vector<const Type*> elems;
-        elems.push_back(cg.world().type_u32());
-        op_types[num_args() + 1] = cg.world().pi(elems);*/
-        //
 
         const Pi* call_pi;
         const Type* ret_type = to_pi->size() == num_args() ? sema.world().noret() : return_type(to_pi);

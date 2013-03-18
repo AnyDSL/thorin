@@ -24,11 +24,13 @@ public:
     CodeGen(World& world)
         : IRBuilder(world)
         , cur_fun(0)
+        , cur_mem(0)
         , break_target(0)
         , continue_target(0)
     {}
 
     Lambda* cur_fun;
+    const Def* cur_mem;
     JumpTarget* break_target;
     JumpTarget* continue_target;
 };
@@ -46,12 +48,13 @@ Lambda* Fun::emit_head(CodeGen& cg, Symbol symbol) const {
     lambda_ = cg.world().lambda(pi(), symbol.str());
     size_t num = params().size();
     const Type* ret_type = return_type(pi());
-    ret_param_ = ret_type->isa<NoRet>() ? 0 : lambda_->param(num-1);
+    ret_param_ = ret_type->isa<NoRet>() ? 0 : lambda_->param(num-1+1);
+    cg.cur_mem = lambda_->param(0);
 
     for (size_t i = 0; i < num; ++i) {
-        const Param* p = lambda_->param(i);
+        const Param* p = lambda_->param(i+1);
         p->name = param(i)->symbol().str();
-        lambda_->set_value(param(i)->handle(), lambda_->param(i));
+        lambda_->set_value(param(i)->handle(), lambda_->param(i+1));
     }
 
     return lambda_;
@@ -77,10 +80,10 @@ const Lambda* Fun::emit_body(CodeGen& cg, Lambda* parent, const char* what) cons
         } else {
             const Type* ret_type = return_type(pi());
             if (ret_type->isa<Void>())
-                cg.cur_bb->jump0(ret_param());
+                cg.cur_bb->jump1(ret_param(), cg.cur_mem);
             else {
                 std::cerr << what << " does not end with 'return'\n";
-                cg.cur_bb->jump0(cg.world().bottom(cg.world().pi1(ret_type)));
+                cg.cur_bb->jump1(cg.world().bottom(cg.world().pi1(ret_type)), cg.cur_mem);
             }
         }
     }

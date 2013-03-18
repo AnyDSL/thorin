@@ -383,6 +383,7 @@ void Parser::parse_fun(Fun* fun) {
     parse_generic_list();
 
     std::vector<const Type*> arg_types;
+    arg_types.push_back(world.mem());
     expect(Token::L_PAREN, "function head");
     PARSE_COMMA_LIST
     (

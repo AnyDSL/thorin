@@ -591,6 +591,36 @@ private:
     anydsl2::AutoPtr<const Expr> step_;
 };
 
+/*
+
+class Expr : public ASTNode {
+public:
+
+    Expr() 
+        : type_(0) 
+    {}
+
+    const Exprs& ops() const { return ops_; }
+    const Expr* op(size_t i) const { return ops_[i]; }
+    size_t size() const { return ops_.size(); }
+    bool empty() const { return size() == 0; }
+    const anydsl2::Type* type() const { return type_; }
+    const anydsl2::Type* check(Sema& sema) const { assert(!type_); return type_ = vcheck(sema); }
+    anydsl2::Array<const anydsl2::Def*> emit_ops(CodeGen& cg, size_t additional_size = 0) const;
+    virtual bool is_lvalue() const = 0;
+    virtual RefPtr emit(CodeGen& cg) const = 0;
+    virtual void emit_branch(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const;
+
+private:
+
+    virtual const anydsl2::Type* vcheck(Sema& sema) const = 0;
+
+protected:
+
+    Exprs ops_;
+    mutable const anydsl2::Type* type_;
+};
+*/
 
 class ForeachStmt : public Stmt {
 public:
@@ -603,15 +633,22 @@ public:
     }
     void set(const DeclStmt* d) { init_decl_ = d; }
     void set(const ExprStmt* e) { init_expr_ = e; }
-    void set(const Call* c) { call_ = c; }
-    
-    //void append_arg(const Expr* e) const { const_cast<Call*>(call_)->append_arg(e); }
+
+    // generator call
+    const Expr* to() const { return ops_.front(); }
+    size_t num_args() const { return size() - 1; }
+    anydsl2::ArrayRef<const Expr*> args() const { return anydsl2::ArrayRef<const Expr*>(&*ops_.begin() + 1, num_args()); }
+    const Expr* arg(size_t i) const { return op(i+1); }
+    anydsl2::Location args_location() const;
+    void append_arg(const Expr* expr) { ops_.push_back(expr); }
+    const Exprs& ops() const { return ops_; }
+    const Expr* op(size_t i) const { return ops_[i]; }
+    size_t size() const { return ops_.size(); }
 
     const Stmt* body() const { return body_; }
     const DeclStmt* init_decl() const { return init_decl_; }
     const ExprStmt* init_expr() const { return init_expr_; }
     const Stmt* init() const { return (const Stmt*) ((uintptr_t) init_decl_.get() | (uintptr_t) init_expr_.get()); }
-    const Call* call() const { return call_; }
 
     virtual void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
@@ -622,7 +659,7 @@ private:
     anydsl2::AutoPtr<const Stmt> body_;
     anydsl2::AutoPtr<const DeclStmt> init_decl_;
     anydsl2::AutoPtr<const ExprStmt> init_expr_;
-    anydsl2::AutoPtr<const Call> call_;
+    Exprs ops_;
 };
 
 class BreakStmt : public Stmt {

@@ -402,6 +402,61 @@ void ForeachStmt::check(Sema& sema) const {
     // TODO
     sema.push_scope();
     init()->check(sema);
+    
+    // generator call
+    if (const Pi* to_pi = to()->check(sema)->isa<Pi>()) {
+        Array<const Type*> op_types(num_args() + 1 + 2); // reserve one more for return type
+
+        for (size_t i = 0, e = num_args(); i != e; ++i)
+            op_types[i] = arg(i)->check(sema);
+            
+        // add stuff
+        op_types[num_args()] = sema.world().generic(0);
+        
+        std::vector<const Type*> elems;
+        elems.push_back(sema.world().type_u32());
+        elems.push_back(sema.world().generic(0));
+        std::vector<const Type*> inner_elems;
+        inner_elems.push_back(sema.world().generic(0));
+        elems.push_back(sema.world().pi(inner_elems));
+        op_types[num_args() + 1] = sema.world().pi(elems);
+        
+        //op_types[num_args() + 1] = to_pi->elem(num_args() + 1);
+        
+        /*std::vector<const Type*> elems;
+        elems.push_back(cg.world().type_u32());
+        op_types[num_args() + 1] = cg.world().pi(elems);*/
+        //
+
+        const Pi* call_pi;
+        const Type* ret_type = to_pi->size() == num_args() ? sema.world().noret() : return_type(to_pi);
+
+        if (ret_type->isa<NoRet>())
+            call_pi = sema.world().pi(op_types.slice_front(op_types.size()-1));
+        else {
+            op_types.back() = sema.world().pi1(ret_type);
+            call_pi = sema.world().pi(op_types);
+        }
+
+        if (to_pi->check_with(call_pi)) {
+            GenericMap map = sema.fill_map();
+            if (to_pi->infer_with(map, call_pi)) {
+                /*if (const Generic* generic = ret_type->isa<Generic>())
+                    return map[generic];
+                else
+                    return ret_type;*/
+            } else {
+                sema.error(this->args_location()) << "cannot infer type '" << call_pi << "' induced by arguments\n";
+                sema.error(to()) << "to invocation type '" << to_pi << "' with '" << map << "'\n";
+            }
+        } else {
+            sema.error(to()) << "'" << to() << "' expects an invocation of type '" << to_pi 
+                << "' but the invocation type '" << call_pi << "' is structural different\n";
+        }
+    } else
+        sema.error(to()) << "invocation not done on function type but instead type '" << to()->type() << "' is given\n";
+    //
+    
 
     if (const ScopeStmt* scope = body()->isa<ScopeStmt>())
         scope->check_stmts(sema);

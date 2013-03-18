@@ -603,6 +603,7 @@ const Stmt* Parser::parse_for() {
 }
 
 // TODO
+// break or continue does not work
 const Stmt* Parser::parse_foreach() {
     Position pos1 = eat(Token::FOREACH).pos1();
     expect(Token::L_PAREN, "foreach-statement");
@@ -620,23 +621,31 @@ const Stmt* Parser::parse_foreach() {
         const ExprStmt* expr_stmt = new ExprStmt(expr, prev_loc.pos2());
         new_foreach->set(expr_stmt);
     } else {
-        error("expression or delcaration-statement", "first clause in foreach-statement");
+        error("expression or delcaration-statement", "foreach-statement");
     }
     
     expect(Token::LARROW, "foreach-statement");
-
-    const Expr* inc = parse_expr();
-    if (const Call* call = inc->isa<Call>()) {
-        new_foreach->set(call);
+    
+    // TODO accept/expect
+    if (la() == Token::ID) {
+        assert(!generic_lookup(la().symbol())); // needed?
+        new_foreach->append_arg(new Id(lex()));
     } else {
-        error("expected generator", "foreach-statement");
+        error("generator name", "foreach-statement");
     }
 
-    if (!accept(Token::R_PAREN)) {
-        error(") expected", "foreach-statement");
-    }
+    PARSE_COMMA_LIST
+    (
+        new_foreach->append_arg(try_expr("argument of generator call")),
+        Token::R_PAREN,
+        "arguments of a generator call"
+    )
 
-    const Stmt* body = try_stmt("loop body");
+    /*if (!accept(Token::R_PAREN)) {
+        error(")", "foreach-statement");
+    }*/
+
+    const Stmt* body = try_stmt("foreach body");
     new_foreach->set(pos1, body);
 
     return new_foreach;

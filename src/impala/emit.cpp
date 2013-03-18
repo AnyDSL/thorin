@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include <cstdio> // TODO remove
+#include <vector>
 
 #include "anydsl2/irbuilder.h"
 #include "anydsl2/lambda.h"
@@ -384,7 +385,7 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 
 
     // #
-    FunExpr* fun_expr = new FunExpr();
+    /*FunExpr* fun_expr = new FunExpr();
     
     std::vector<const Type*> arg_types;
     arg_types.push_back(cg.world().type_u32());
@@ -396,14 +397,38 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     
     const Pi* pi = cg.world().pi(arg_types);
     const ScopeStmt* fun_body = (ScopeStmt*) body();
-    fun_expr->fun_set(pi, fun_body);
+    fun_expr->fun_set(pi, fun_body);*/
     //fun_expr->emit(cg);
     
-    printf("here\n");
+    //printf("here\n");
     // TODO ugly!
-    Call* nc_call = const_cast<Call*>(call_.get());
-    nc_call->append_arg(fun_expr);
+    //Call* nc_call = const_cast<Call*>(call_.get());
+    //nc_call->append_arg(fun_expr); // BUGGY
     // #
+    
+    // ##
+    /*
+    //anydsl2::AutoVector<const Expr*> ops_;
+    std::vector<const Expr*> ops_;
+    
+    for (size_t i = 0; i < call()->size(); ++i)
+        ops_.push_back(call()->op(i));
+    
+    size_t num = ops_.size();
+    Array<const Def*> defs(num);
+    for (size_t i = 0; i < num; ++i)
+        defs[i] = ops_[i]->emit(cg)->load();
+
+    Array<const Def*> ops = defs;
+
+    //if (is_continuation_call()) {
+        cg.cur_bb->jump(ops[0], ops.slice_back(1));
+        cg.cur_bb = 0;
+        //return RefPtr(0);
+    //} else
+    //    return Ref::create(cg.call(ops[0], ops.slice_back(1), type()));
+    */
+    // ##
 
     // put into lambda
     /*cg.enter(body_bb);
@@ -413,6 +438,8 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     step()->emit(cg);
     cg.jump(head_bb);
     head_bb.seal();*/
+    
+    cg.jump(exit_bb);
 }
 
 void BreakStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.jump(*cg.break_target); }

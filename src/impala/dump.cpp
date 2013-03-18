@@ -324,8 +324,20 @@ void ForeachStmt::vdump(Printer& p) const {
     p << "foreach (";
     init()->vdump(p);
     p << " <- ";
-    call()->vdump(p);
-    p << ") ";
+
+    assert(ops_.size() >= 1);
+    ops_.front()->vdump(p);
+    p << '(';
+
+    if (ops_.size() != 1) {
+        for (Exprs::const_iterator i = ops_.begin() + 1, e = ops_.end() - 1; i != e; ++i) {
+            (*i)->vdump(p);
+            p << ", ";
+        }
+
+        ops_.back()->vdump(p);
+    }
+    p << ")) ";
     p.dump_block(body());
 }
 

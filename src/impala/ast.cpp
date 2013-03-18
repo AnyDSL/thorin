@@ -26,6 +26,12 @@ Location Call::args_location() const {
     return Location(op(1)->pos1(), ops_.back()->pos2());
 }
 
+Location ForeachStmt::args_location() const {
+    if (ops_.size() == 1)
+        return Location(pos2());
+    return Location(ops_[1]->pos1(), ops_.back()->pos2());
+}
+
 bool ForStmt::is_while() const { 
     if (const ExprStmt* expr_stmt = init()->isa<ExprStmt>())
         return expr_stmt->expr()->isa<EmptyExpr>() && step()->isa<EmptyExpr>();

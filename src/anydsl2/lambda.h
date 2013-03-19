@@ -104,6 +104,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     }
     void branch(const Def* cond, const Def* tto, const Def* fto);
     Lambda* call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type);
+    Lambda* mem_call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type);
     Lambda* call0(const Def* to, const Type* ret_type) {
         return call(to, ArrayRef<const Def*>(0, 0), ret_type);
     }

@@ -2,7 +2,7 @@
 
 #include "anydsl2/printer.h"
 
-using anydsl2::Pi;
+using namespace anydsl2;
 
 namespace impala {
 
@@ -12,7 +12,7 @@ World::World()
     , type_error_(keep(new TypeError(*this)))
 {}
 
-const anydsl2::Type* return_type(const anydsl2::Pi* pi) {
+const Type* return_type(const Pi* pi) {
     if (!pi->empty()) {
         if (const Pi* ret = pi->elems().back()->isa<Pi>()) {
             if (ret->size() == 1)
@@ -25,8 +25,22 @@ const anydsl2::Type* return_type(const anydsl2::Pi* pi) {
     return ((impala::World&) pi->world()).noret();
 }
 
-void NoRet::vdump(anydsl2::Printer& p) const { p << "noret"; }
-void TypeError::vdump(anydsl2::Printer& p) const { p << "<type error>"; }
-void Void::vdump(anydsl2::Printer& p) const { p << "void"; }
+void NoRet::vdump(Printer& p) const { p << "noret"; }
+void TypeError::vdump(Printer& p) const { p << "<type error>"; }
+void Void::vdump(Printer& p) const { p << "void"; }
+
+const Type* convert_type(const Type* type) {
+    if (const Pi* pi = type->isa<Pi>()) {
+        Array<const Type*> elems(pi->size() + 1);
+        elems[0] = type->world().mem();
+
+        for (size_t i = 1, e = elems.size(); i != e; ++i)
+            elems[i] = convert(pi->elem(i-1));
+
+        return type->world().pi(elems);
+    }
+
+    return type;
+}
 
 } // namespace impala

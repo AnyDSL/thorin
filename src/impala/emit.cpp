@@ -24,14 +24,15 @@ public:
     CodeGen(World& world)
         : IRBuilder(world)
         , cur_fun(0)
-        , cur_mem(0)
         , cur_frame(0)
         , break_target(0)
         , continue_target(0)
     {}
 
+    const Def* get_mem() { return cur_bb->get_value(1, world().mem(), "mem"); }
+    void set_mem(const Def* def) { if (is_reachable()) cur_bb->set_value(1, def); }
+
     Lambda* cur_fun;
-    const Def* cur_mem;
     const Def* cur_frame;
 
     JumpTarget* break_target;
@@ -48,16 +49,17 @@ void emit(World& world, const Prg* prg) {
 //------------------------------------------------------------------------------
 
 Lambda* Fun::emit_head(CodeGen& cg, Symbol symbol) const {
-    lambda_ = cg.world().lambda(pi(), symbol.str());
+    lambda_ = cg.world().lambda(convert(pi()), symbol.str());
     size_t num = params().size();
     const Type* ret_type = return_type(pi());
     ret_param_ = ret_type->isa<NoRet>() ? 0 : lambda_->param(num-1+1);
-    cg.cur_mem = lambda_->param(0);
+    lambda()->param(0)->name = "mem";
+    lambda()->set_value(1, lambda()->param(0));
 
     for (size_t i = 0; i < num; ++i) {
         const Param* p = lambda_->param(i+1);
         p->name = param(i)->symbol().str();
-        lambda_->set_value(param(i)->handle(), lambda_->param(i+1));
+        lambda_->set_value(param(i)->handle(), p);
     }
 
     return lambda_;
@@ -83,10 +85,10 @@ const Lambda* Fun::emit_body(CodeGen& cg, Lambda* parent, const char* what) cons
         } else {
             const Type* ret_type = return_type(pi());
             if (ret_type->isa<Void>())
-                cg.cur_bb->jump1(ret_param(), cg.cur_mem);
+                cg.cur_bb->jump1(ret_param(), cg.get_mem());
             else {
                 std::cerr << what << " does not end with 'return'\n";
-                cg.cur_bb->jump1(cg.world().bottom(cg.world().pi1(ret_type)), cg.cur_mem);
+                cg.cur_bb->jump1(cg.world().bottom(cg.world().pi1(ret_type)), cg.get_mem());
             }
         }
     }
@@ -115,7 +117,7 @@ void NamedFun::emit(CodeGen& cg) const {
 }
 
 RefPtr VarDecl::emit(CodeGen& cg) const {
-    return Ref::create(cg.cur_bb, handle(), type(), symbol().str());
+    return Ref::create(cg.cur_bb, handle(), convert(type()), symbol().str());
 }
 
 /*
@@ -163,11 +165,13 @@ RefPtr Id::emit(CodeGen& cg) const {
         return Ref::create(named_fun->lambda());
 
     const VarDecl* vardecl = decl()->as<VarDecl>();
+    const Type* air_type = convert(type());
 
+    const Def* hack;
     if (vardecl->is_address_taken())
-        return Ref::create(cg.world().slot(type(), vardecl->handle(), cg.cur_frame, symbol().str()), cg.cur_mem);
+        return Ref::create(cg.world().slot(air_type, vardecl->handle(), cg.cur_frame, symbol().str()), hack);
 
-    return Ref::create(cg.cur_bb, vardecl->handle(), type(), symbol().str());
+    return Ref::create(cg.cur_bb, vardecl->handle(), air_type, symbol().str());
 }
 
 RefPtr PrefixExpr::emit(CodeGen& cg) const {
@@ -176,7 +180,7 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
         case DEC: {
             RefPtr ref = rhs()->emit(cg);
             const Def* def = ref->load();
-            const PrimLit* one = cg.world().one(def->type());
+            const PrimLit* one = cg.world().one(convert(def->type()));
             const Def* ndef = cg.world().arithop(Token::to_arithop((TokenKind) kind(), type()->is_float()), def, one);
             ref->store(ndef);
             return ref;
@@ -221,7 +225,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
 
         // special case for 'id = expr' -> don't use get_value!
         RefPtr lref = op == Token::ASGN && id
-                ? Ref::create(cg.cur_bb, id->decl()->as<VarDecl>()->handle(), id->type(), id->symbol().str())
+                ? Ref::create(cg.cur_bb, id->decl()->as<VarDecl>()->handle(), convert(id->type()), id->symbol().str())
                 : lhs()->emit(cg);
 
         if (op != Token::ASGN) {
@@ -242,7 +246,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
 RefPtr PostfixExpr::emit(CodeGen& cg) const {
     RefPtr ref = lhs()->emit(cg);
     const Def* def = ref->load();
-    const PrimLit* one = cg.world().one(def->type());
+    const PrimLit* one = cg.world().one(convert(def->type()));
     ref->store(cg.world().arithop(Token::to_arithop((TokenKind) kind(), type()->is_float()), def, one));
     return Ref::create(def);
 }
@@ -265,7 +269,7 @@ RefPtr ConditionalExpr::emit(CodeGen& cg) const {
     }
 
     if (Lambda* xl = cg.enter(x))
-        return Ref::create(xl->get_value(0, t_expr()->type(), "cond"));
+        return Ref::create(xl->get_value(0, convert(t_expr()->type()), "cond"));
     return Ref::create(0);
 }
 
@@ -275,13 +279,20 @@ RefPtr IndexExpr::emit(CodeGen& cg) const {
 
 RefPtr Call::emit(CodeGen& cg) const {
     Array<const Def*> ops = emit_ops(cg);
+    Array<const Def*> args(num_args() + 1);
+    std::copy(ops.begin() + 1, ops.end(), args.begin() + 1);
+    args[0] = cg.get_mem();
 
     if (is_continuation_call()) {
-        cg.cur_bb->jump(ops[0], ops.slice_back(1));
+        cg.cur_bb->jump(ops[0], args);
         cg.cur_bb = 0;
         return RefPtr(0);
-    } else
-        return Ref::create(cg.call(ops[0], ops.slice_back(1), type()));
+    }
+
+    RefPtr ref = Ref::create(cg.mem_call(ops[0], args, type()));
+    cg.set_mem(cg.cur_bb->param(0));
+
+    return ref;
 }
 
 /*
@@ -386,14 +397,17 @@ void ReturnStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     if (cg.is_reachable()) {
         const Param* ret_param = fun()->ret_param();
         if (const Call* call = expr()->isa<Call>()) {
-            Array<const Def*> ops = call->emit_ops(cg, 1);
-            ops.back() = ret_param;
-            cg.tail_call(ops[0], ops.slice_back(1));
+            Array<const Def*> ops = call->emit_ops(cg);
+            Array<const Def*> args(call->num_args() + 2);
+            std::copy(ops.begin() + 1, ops.end(), args.begin() + 1);
+            args[0] = cg.get_mem();
+            args.back() = ret_param;
+            cg.tail_call(ops[0], args);
         } else {
             if (expr()) 
-                cg.return_value(ret_param, expr()->emit(cg)->load());
+                cg.return2(ret_param, cg.get_mem(), expr()->emit(cg)->load());
             else
-                cg.return_void(ret_param);
+                cg.return1(ret_param, cg.get_mem());
         }
     }
 }

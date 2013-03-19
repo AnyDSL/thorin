@@ -172,10 +172,12 @@ public:
     Lambda* enter_unsealed(JumpTarget& jt) { return cur_bb = jt.enter_unsealed(world_); }
     void jump(JumpTarget& jt);
     void branch(const Def* cond, JumpTarget& t, JumpTarget& f);
+    const Param* mem_call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type);
     const Param* call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type);
     void tail_call(const Def* to, ArrayRef<const Def*> args);
-    void return_void(const Param* ret_param);
-    void return_value(const Param* ret_param, const Def* def);
+    void return0(const Param* ret_param);
+    void return1(const Param* ret_param, const Def*);
+    void return2(const Param* ret_param, const Def*, const Def*);
 
     Lambda* cur_bb;
 

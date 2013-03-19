@@ -203,7 +203,7 @@ Parser::Parser(World& world, std::istream& stream, const std::string& filename)
     , cur_loop(0)
     , cur_fun(0)
     , cur_generics(0)
-    , cur_var_handle(1) // reserve 0
+    , cur_var_handle(2) // reserve 0 for conditionals, 1 for mem
     , generic_counter(0)
     , prg(new Prg())
     , counter(0)
@@ -383,7 +383,6 @@ void Parser::parse_fun(Fun* fun) {
     parse_generic_list();
 
     std::vector<const Type*> arg_types;
-    arg_types.push_back(world.mem());
     expect(Token::L_PAREN, "function head");
     PARSE_COMMA_LIST
     (

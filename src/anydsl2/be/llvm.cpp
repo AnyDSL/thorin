@@ -104,6 +104,8 @@ void CodeGen::emit() {
         const Param* ret_param = 0;
         llvm::Function::arg_iterator arg = fct->arg_begin();
         for_all (param, lambda->params()) {
+            if (param->type()->isa<Mem>())
+                continue;
             if (param->order() == 0) {
                 arg->setName(param->name);
                 params[param] = arg++;
@@ -222,7 +224,7 @@ void CodeGen::emit() {
                                 params[succ->param(i)] = builder.CreateExtractValue(call, idxs);
                             }
                         } else
-                            params[succ->param(0)] = call;
+                            params[succ->param(0)->type()->isa<Mem>() ? succ->param(1) : succ->param(0)] = call;
 
                         builder.CreateBr(bbs[succ->sid()]);
                     }

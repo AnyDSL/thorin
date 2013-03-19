@@ -106,6 +106,12 @@ const Param* IRBuilder::call(const Def* to, ArrayRef<const Def*> args, const Typ
     return 0;
 }
 
+const Param* IRBuilder::mem_call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
+    if (is_reachable())
+        return (cur_bb = cur_bb->mem_call(to, args, ret_type))->param(1);
+    return 0;
+}
+
 void IRBuilder::tail_call(const Def* to, ArrayRef<const Def*> args) {
     if (is_reachable()) {
         cur_bb->jump(to, args);
@@ -113,16 +119,23 @@ void IRBuilder::tail_call(const Def* to, ArrayRef<const Def*> args) {
     }
 }
 
-void IRBuilder::return_value(const Param* ret_param, const Def* def) {
+void IRBuilder::return0(const Param* ret_param) {
+    if (is_reachable()) {
+        cur_bb->jump0(ret_param);
+        set_unreachable();
+    }
+}
+
+void IRBuilder::return1(const Param* ret_param, const Def* def) {
     if (is_reachable()) {
         cur_bb->jump1(ret_param, def);
         set_unreachable();
     }
 }
 
-void IRBuilder::return_void(const Param* ret_param) {
+void IRBuilder::return2(const Param* ret_param, const Def* def1, const Def* def2) {
     if (is_reachable()) {
-        cur_bb->jump0(ret_param);
+        cur_bb->jump2(ret_param, def1, def2);
         set_unreachable();
     }
 }

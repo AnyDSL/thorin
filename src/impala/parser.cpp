@@ -335,9 +335,9 @@ const Type* Parser::parse_compound_type() {
 const Type* Parser::parse_return_type() {
     const Type* ret_type = try_type("return type");
     if (ret_type->isa<Void>())
-        return world.pi1(world.mem());
+        return world.pi0();
     else
-        return world.pi2(world.mem(), ret_type);
+        return world.pi1(ret_type);
 }
 
 const VarDecl* Parser::parse_var_decl() {

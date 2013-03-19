@@ -623,6 +623,11 @@ const Enter* World::enter(const Def* m, const std::string& name) {
 const Leave* World::leave(const Def* m, const Def* frame, const std::string& name) {
     return cse<DefTuple2, Leave>(DefTuple2(Node_Leave, mem(), m, frame), name);
 }
+const LEA* World::lea(const Def* ptr, const Def* index, const std::string& name) {
+    const Type* type = this->ptr(ptr->type()->as<Ptr>()->ref()->as<Sigma>()->elem_via_lit(index));
+    return cse<DefTuple2, LEA>(DefTuple2(Node_LEA, type, ptr, index), name);
+}
+
 const Slot* World::slot(const Type* type, size_t index, const Def* frame, const std::string& name) {
     return cse<SlotTuple, Slot>(SlotTuple(Node_Slot, type->to_ptr(), index, frame), name);
 }

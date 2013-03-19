@@ -152,6 +152,13 @@ void Leave::vdump(Printer& p) const {
     p << ')';
 }
 
+void LEA::vdump(Printer& p) const {
+    dump_name_and_type(p, this, "lea");
+    p << '(';
+	ANYDSL2_DUMP_COMMA_LIST(p, ops());
+    p << ')';
+}
+
 void Slot::vdump(Printer& p) const {
     dump_name_and_type(p, this, "slot");
     p << '(';

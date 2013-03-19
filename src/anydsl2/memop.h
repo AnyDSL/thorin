@@ -150,6 +150,28 @@ private:
 
 //------------------------------------------------------------------------------
 
+class LEA : public PrimOp {
+private:
+
+    LEA(const DefTuple2& args, const std::string& name)
+        : PrimOp(2, args.get<0>(), args.get<1>(), name)
+    {
+        set_op(0, args.get<2>());
+        set_op(0, args.get<3>());
+    }
+
+    virtual void vdump(Printer &printer) const;
+
+public:
+
+    const Def* ptr() const { return op(0); }
+    const Def* index() const { return op(1); }
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
 typedef boost::tuple<int, const Type*, const std::string&, const Def*, ArrayRef<const Def*>, bool> CCallTuple;
 
 class CCall : public MemOp {

@@ -2,23 +2,22 @@
 
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
+#include "anydsl2/memop.h"
 #include "anydsl2/world.h"
 
 namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
-World& RVal::world() const { return load()->world(); }
-
+World& RVal::world() const { return def_->world(); }
 World& VarRef::world() const { return type_->world(); }
+World& SlotRef::world() const { return slot_->world(); }
+
 const Def* VarRef::load() const { return bb_->get_value(handle_, type_, name_); }
 void VarRef::store(const Def* def) const { bb_->set_value(handle_, def); }
 
 const Def* TupleRef::load() const { 
-    if (loaded_)
-        return loaded_;
-
-    return loaded_ = world().extract(lref_->load(), index_);
+    return loaded_ ? loaded_ : loaded_ = world().extract(lref_->load(), index_);
 }
 
 void TupleRef::store(const Def* val) const { 
@@ -28,6 +27,14 @@ void TupleRef::store(const Def* val) const {
 World& TupleRef::world() const { 
     return loaded_ ? loaded_->world() : lref_->world(); 
 }
+
+const Def* SlotRef::load() const { 
+    const Load* load = world().load(mem_, slot_); 
+    mem_ = load->extract_mem(); 
+    return load->extract_val(); 
+}
+
+void SlotRef::store(const Def* val) const { mem_ = world().store(mem_, slot_, val); }
 
 //------------------------------------------------------------------------------
 

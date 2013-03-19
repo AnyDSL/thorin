@@ -11,6 +11,7 @@ class Def;
 class Lambda;
 class Param;
 class Ref;
+class Slot;
 class Type;
 class World;
 
@@ -27,9 +28,14 @@ public:
     virtual void store(const Def* val) const = 0;
     virtual World& world() const = 0;
 
+    /// Create \p RVal.
     inline static RefPtr create(const Def* def);
+    /// Create \p VarRef.
     inline static RefPtr create(Lambda* bb, size_t handle, const Type*, const char* name);
+    /// Create \p TupleRef.
     inline static RefPtr create(RefPtr lref, const Def* index);
+    /// Create \p SlotRef.
+    inline static RefPtr create(const Slot* slot, const Def*& mem);
 };
 
 class RVal : public Ref {
@@ -92,11 +98,30 @@ private:
     mutable const Def* loaded_;
 };
 
+class SlotRef : public Ref {
+public:
+
+    SlotRef(const Slot* slot, const Def*& mem)
+        : slot_(slot)
+        , mem_(mem)
+    {}
+
+    virtual const Def* load() const;
+    virtual void store(const Def* val) const;
+    virtual World& world() const;
+
+private:
+
+    const Slot* slot_;
+    const Def*& mem_;
+};
+
 RefPtr Ref::create(const Def* def) { return RefPtr(new RVal(def)); }
 RefPtr Ref::create(RefPtr lref, const Def* index) { return RefPtr(new TupleRef(lref, index)); }
 RefPtr Ref::create(Lambda* bb, size_t handle, const Type* type, const char* name) { 
     return RefPtr(new VarRef(bb, handle, type, name)); 
 }
+RefPtr Ref::create(const Slot* slot, const Def*& mem) { return RefPtr(new SlotRef(slot, mem)); }
 
 //------------------------------------------------------------------------------
 

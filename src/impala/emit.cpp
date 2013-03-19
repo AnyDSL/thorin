@@ -6,6 +6,7 @@
 #include "anydsl2/irbuilder.h"
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
+#include "anydsl2/memop.h"
 #include "anydsl2/type.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/for_all.h"
@@ -54,7 +55,6 @@ Lambda* Fun::emit_head(CodeGen& cg, Symbol symbol) const {
     const Type* ret_type = return_type(pi());
     ret_param_ = ret_type->isa<NoRet>() ? 0 : lambda_->param(num-1+1);
     lambda()->param(0)->name = "mem";
-    lambda()->set_value(1, lambda()->param(0));
 
     for (size_t i = 0; i < num; ++i) {
         const Param* p = lambda_->param(i+1);
@@ -73,6 +73,10 @@ const Lambda* Fun::emit_body(CodeGen& cg, Lambda* parent, const char* what) cons
 
     Push<Lambda*> push1(cg.cur_bb,  lambda());
     Push<Lambda*> push2(cg.cur_fun, lambda());
+
+    const Enter* enter = cg.world().enter(lambda()->param(0));
+    cg.set_mem(enter->extract_mem());
+    Push<const Def*> push3(cg.cur_frame, enter->extract_frame());
 
     JumpTarget exit;
     body()->emit(cg, exit);
@@ -405,9 +409,9 @@ void ReturnStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
             cg.tail_call(ops[0], args);
         } else {
             if (expr()) 
-                cg.return2(ret_param, cg.get_mem(), expr()->emit(cg)->load());
+                cg.return2(ret_param, cg.world().leave(cg.get_mem(), cg.cur_frame), expr()->emit(cg)->load());
             else
-                cg.return1(ret_param, cg.get_mem());
+                cg.return1(ret_param, cg.world().leave(cg.get_mem(), cg.cur_frame));
         }
     }
 }

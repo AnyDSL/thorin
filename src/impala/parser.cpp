@@ -221,9 +221,9 @@ Parser::Parser(World& world, std::istream& stream, const std::string& filename)
 
 Token Parser::lex() {
     Token result  = lookahead[0]; // remember result
-    lookahead[0] = lookahead[1]; // copy over LA2 to LA1
-    lookahead[1] = lexer.lex();  // fill new LA2
-    prev_loc = result.loc();       // remember previous location
+    lookahead[0] = lookahead[1];  // copy over LA2 to LA1
+    lookahead[1] = lexer.lex();   // fill new LA2
+    prev_loc = result.loc();      // remember previous location
 
     return result;
 }
@@ -335,9 +335,9 @@ const Type* Parser::parse_compound_type() {
 const Type* Parser::parse_return_type() {
     const Type* ret_type = try_type("return type");
     if (ret_type->isa<Void>())
-        return world.pi0();
+        return world.pi1(world.mem());
     else
-        return world.pi1(ret_type);
+        return world.pi2(world.mem(), ret_type);
 }
 
 const VarDecl* Parser::parse_var_decl() {

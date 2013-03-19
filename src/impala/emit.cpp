@@ -25,12 +25,15 @@ public:
         : IRBuilder(world)
         , cur_fun(0)
         , cur_mem(0)
+        , cur_frame(0)
         , break_target(0)
         , continue_target(0)
     {}
 
     Lambda* cur_fun;
     const Def* cur_mem;
+    const Def* cur_frame;
+
     JumpTarget* break_target;
     JumpTarget* continue_target;
 };
@@ -158,7 +161,13 @@ RefPtr Tuple::emit(CodeGen& cg) const {
 RefPtr Id::emit(CodeGen& cg) const {
     if (const NamedFun* named_fun = decl()->isa<NamedFun>())
         return Ref::create(named_fun->lambda());
-    return Ref::create(cg.cur_bb, decl()->as<VarDecl>()->handle(), type(), symbol().str());
+
+    const VarDecl* vardecl = decl()->as<VarDecl>();
+
+    if (vardecl->is_address_taken())
+        return Ref::create(cg.world().slot(type(), vardecl->handle(), cg.cur_frame, symbol().str()), cg.cur_mem);
+
+    return Ref::create(cg.cur_bb, vardecl->handle(), type(), symbol().str());
 }
 
 RefPtr PrefixExpr::emit(CodeGen& cg) const {

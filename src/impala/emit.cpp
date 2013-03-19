@@ -30,9 +30,6 @@ public:
         , continue_target(0)
     {}
 
-    const Def* get_mem() { return cur_bb->get_value(1, world().mem(), "mem"); }
-    void set_mem(const Def* def) { if (is_reachable()) cur_bb->set_value(1, def); }
-
     Lambda* cur_fun;
     const Def* cur_frame;
 
@@ -56,12 +53,6 @@ Lambda* Fun::emit_head(CodeGen& cg, Symbol symbol) const {
     ret_param_ = ret_type->isa<NoRet>() ? 0 : lambda_->param(num-1+1);
     lambda()->param(0)->name = "mem";
 
-    for (size_t i = 0; i < num; ++i) {
-        const Param* p = lambda_->param(i+1);
-        p->name = param(i)->symbol().str();
-        lambda_->set_value(param(i)->handle(), p);
-    }
-
     return lambda_;
 }
 
@@ -77,6 +68,13 @@ const Lambda* Fun::emit_body(CodeGen& cg, Lambda* parent, const char* what) cons
     const Enter* enter = cg.world().enter(lambda()->param(0));
     cg.set_mem(enter->extract_mem());
     Push<const Def*> push3(cg.cur_frame, enter->extract_frame());
+
+    size_t num = params().size();
+    for (size_t i = 0; i < num; ++i) {
+        const Param* p = lambda_->param(i+1);
+        p->name = param(i)->symbol().str();
+        param(i)->emit(cg)->store(p);
+    }
 
     JumpTarget exit;
     body()->emit(cg, exit);
@@ -121,7 +119,11 @@ void NamedFun::emit(CodeGen& cg) const {
 }
 
 RefPtr VarDecl::emit(CodeGen& cg) const {
-    return Ref::create(cg.cur_bb, handle(), convert(type()), symbol().str());
+    const Type* air_type = convert(type());
+    if (is_address_taken())
+        return Ref::create(cg.world().slot(air_type, handle(), cg.cur_frame, symbol().str()), cg);
+
+    return Ref::create(cg.cur_bb, handle(), air_type, symbol().str());
 }
 
 /*
@@ -171,9 +173,8 @@ RefPtr Id::emit(CodeGen& cg) const {
     const VarDecl* vardecl = decl()->as<VarDecl>();
     const Type* air_type = convert(type());
 
-    const Def* hack;
     if (vardecl->is_address_taken())
-        return Ref::create(cg.world().slot(air_type, vardecl->handle(), cg.cur_frame, symbol().str()), hack);
+        return Ref::create(cg.world().slot(air_type, vardecl->handle(), cg.cur_frame, symbol().str()), cg);
 
     return Ref::create(cg.cur_bb, vardecl->handle(), air_type, symbol().str());
 }
@@ -224,13 +225,14 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
     const TokenKind op = (TokenKind) kind();
 
     if (Token::is_assign(op)) {
-        const Id* id = lhs()->isa<Id>();
+        //const Id* id = lhs()->isa<Id>();
         const Def* rdef = rhs()->emit(cg)->load();
 
         // special case for 'id = expr' -> don't use get_value!
-        RefPtr lref = op == Token::ASGN && id
-                ? Ref::create(cg.cur_bb, id->decl()->as<VarDecl>()->handle(), convert(id->type()), id->symbol().str())
-                : lhs()->emit(cg);
+        //RefPtr lref = op == Token::ASGN && id
+                //? Ref::create(cg.cur_bb, id->decl()->as<VarDecl>()->handle(), convert(id->type()), id->symbol().str())
+                //: lhs()->emit(cg);
+        RefPtr lref = lhs()->emit(cg);
 
         if (op != Token::ASGN) {
             TokenKind sop = Token::separate_assign(op);

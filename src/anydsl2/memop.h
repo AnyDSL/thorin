@@ -60,7 +60,7 @@ class Store : public Access {
 private:
 
     Store(const DefTuple3& args, const std::string& name)
-        : Access(2, args.get<0>(), args.get<1>(), args.get<2>(), args.get<3>(), name)
+        : Access(3, args.get<0>(), args.get<1>(), args.get<2>(), args.get<3>(), name)
     {
         set_op(2, args.get<4>());
     }

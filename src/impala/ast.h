@@ -142,6 +142,8 @@ private:
 
     size_t handle_;
     mutable bool is_address_taken_;
+
+    friend class Id;
 };
 
 class NamedFun : public Decl, public Fun {

@@ -140,9 +140,8 @@ void CodeGen::emit() {
             for_all (primop, schedule)
                 // if this primop is not a function, not a memory argument and not a frame
                 // we have to skip it; however, CCall nodes have to be emitted.
-                if (!primop->type()->isa<Pi>() &&
-                   (!primop->type()->isa<Mem>() || primop->isa<CCall>()) &&
-                    !primop->type()->isa<Frame>())
+                if (!primop->type()->isa<Pi>() && !primop->type()->isa<Frame>() 
+                        && (!primop->type()->isa<Mem>() || primop->isa<CCall>() || primop->isa<Store>()))
                     primops[primop] = emit(primop);
 
             // terminate bb
@@ -367,7 +366,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
         if (tupleop->node_kind() == Node_Extract) {
             // check for CCall result
-            if(tupleop->tuple()->isa<CCall>())
+            if (tupleop->tuple()->isa<CCall>() || tupleop->tuple()->isa<Load>())
                 return tuple;
             return builder.CreateExtractValue(tuple, idxs);
         }
@@ -415,7 +414,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return builder.CreateStore(lookup(store->val()), lookup(store->ptr()));
 
     if (const Slot* slot = def->isa<Slot>())
-        return builder.CreateAlloca(map(slot->type()));
+        return builder.CreateAlloca(map(slot->type()->as<Ptr>()->ref()));
 
     if (const CCall* ccall = def->isa<CCall>()) {
         size_t num_args = ccall->num_args();

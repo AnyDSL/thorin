@@ -11,6 +11,7 @@ namespace anydsl2 {
 
 World& RVal::world() const { return def_->world(); }
 World& VarRef::world() const { return type_->world(); }
+World& TupleRef::world() const { return loaded_ ? loaded_->world() : lref_->world(); }
 World& SlotRef::world() const { return slot_->world(); }
 
 const Def* VarRef::load() const { return bb_->get_value(handle_, type_, name_); }
@@ -24,17 +25,15 @@ void TupleRef::store(const Def* val) const {
     lref_->store(world().insert(lref_->load(), index_, val)); 
 }
 
-World& TupleRef::world() const { 
-    return loaded_ ? loaded_->world() : lref_->world(); 
-}
-
 const Def* SlotRef::load() const { 
-    const Load* load = world().load(mem_, slot_); 
-    mem_ = load->extract_mem(); 
+    const Load* load = world().load(builder_.get_mem(), slot_); 
+    builder_.set_mem(load->extract_mem());
     return load->extract_val(); 
 }
 
-void SlotRef::store(const Def* val) const { mem_ = world().store(mem_, slot_, val); }
+void SlotRef::store(const Def* val) const { 
+    builder_.set_mem(world().store(builder_.get_mem(), slot_, val)); 
+}
 
 //------------------------------------------------------------------------------
 
@@ -139,6 +138,9 @@ void IRBuilder::return2(const Param* ret_param, const Def* def1, const Def* def2
         set_unreachable();
     }
 }
+
+const Def* IRBuilder::get_mem() { return cur_bb->get_value(1, world().mem(), "mem"); }
+void IRBuilder::set_mem(const Def* def) { if (is_reachable()) cur_bb->set_value(1, def); }
 
 //------------------------------------------------------------------------------
 

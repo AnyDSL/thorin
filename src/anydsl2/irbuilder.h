@@ -8,6 +8,7 @@
 namespace anydsl2 {
 
 class Def;
+class IRBuilder;
 class Lambda;
 class Param;
 class Ref;
@@ -35,7 +36,7 @@ public:
     /// Create \p TupleRef.
     inline static RefPtr create(RefPtr lref, const Def* index);
     /// Create \p SlotRef.
-    inline static RefPtr create(const Slot* slot, const Def*& mem);
+    inline static RefPtr create(const Slot* slot, IRBuilder& builder);
 };
 
 class RVal : public Ref {
@@ -101,9 +102,9 @@ private:
 class SlotRef : public Ref {
 public:
 
-    SlotRef(const Slot* slot, const Def*& mem)
+    SlotRef(const Slot* slot, IRBuilder& builder)
         : slot_(slot)
-        , mem_(mem)
+        , builder_(builder)
     {}
 
     virtual const Def* load() const;
@@ -113,7 +114,7 @@ public:
 private:
 
     const Slot* slot_;
-    const Def*& mem_;
+    IRBuilder& builder_;
 };
 
 RefPtr Ref::create(const Def* def) { return RefPtr(new RVal(def)); }
@@ -121,7 +122,7 @@ RefPtr Ref::create(RefPtr lref, const Def* index) { return RefPtr(new TupleRef(l
 RefPtr Ref::create(Lambda* bb, size_t handle, const Type* type, const char* name) { 
     return RefPtr(new VarRef(bb, handle, type, name)); 
 }
-RefPtr Ref::create(const Slot* slot, const Def*& mem) { return RefPtr(new SlotRef(slot, mem)); }
+RefPtr Ref::create(const Slot* slot, IRBuilder& builder) { return RefPtr(new SlotRef(slot, builder)); }
 
 //------------------------------------------------------------------------------
 
@@ -178,6 +179,8 @@ public:
     void return0(const Param* ret_param);
     void return1(const Param* ret_param, const Def*);
     void return2(const Param* ret_param, const Def*, const Def*);
+    const Def* get_mem();
+    void set_mem(const Def* def);
 
     Lambda* cur_bb;
 

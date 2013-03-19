@@ -621,6 +621,7 @@ const Enter* World::enter(const Def* m, const std::string& name) {
     return cse<DefTuple1, Enter>(DefTuple1(Node_Enter, sigma2(mem(), frame()), m), name);
 }
 const Leave* World::leave(const Def* m, const Def* frame, const std::string& name) {
+    assert(frame->type()->isa<Frame>());
     return cse<DefTuple2, Leave>(DefTuple2(Node_Leave, mem(), m, frame), name);
 }
 const LEA* World::lea(const Def* ptr, const Def* index, const std::string& name) {

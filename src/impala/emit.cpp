@@ -439,6 +439,52 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     cg.jump(head_bb);
     head_bb.seal();*/
     
+    //
+    size_t num = ops_.size();
+    Array<const Def*> defs(num + 3);
+    for (size_t i = 0; i < num; ++i)
+        defs[i] = op(i)->emit(cg)->load();
+    
+    // T
+    defs[num] = Ref::create(cg.world().literal(PrimType_u32, Box(bcast<uint32_t, int32_t>(int32_t(42)))))->load();
+    
+    // pi(..., t: T, pi(T))
+    std::vector<const Type*> elems;
+    elems.push_back(cg.world().type_u32()); // left_type
+    elems.push_back(cg.world().type_u32());
+    std::vector<const Type*> inner_elems;
+    inner_elems.push_back(cg.world().type_u32());
+    elems.push_back(cg.world().pi(inner_elems));
+    const Pi* pi = cg.world().pi(elems);
+    FunExpr* fun = new FunExpr();
+    if (const ScopeStmt* scope = body()->isa<ScopeStmt>())
+        fun->fun_set(pi, scope);
+    // else TODO ...
+    defs[num + 1] = fun->emit(cg)->load();
+    
+    // pi(T)
+    std::vector<const Type*> elems2;
+    elems2.push_back(cg.world().type_u32());
+    const Pi* pi2 = cg.world().pi(elems2);
+    FunExpr* fun2 = new FunExpr();
+    if (const ScopeStmt* scope = body()->isa<ScopeStmt>()) // TODO wrong body
+        fun->fun_set(pi2, scope);
+    // else TODO ...
+    defs[num + 2] = fun2->emit(cg)->load();
+        
+    Array<const Def*> ops = defs;
+    RefPtr call_ref = Ref::create(cg.call(ops[0], ops.slice_back(1), call_type()));
+    
+    
+    RefPtr ref;
+    if (init_decl()) {
+        ref = init_decl()->emit(cg);
+    } else {
+        ref = init_expr()->emit(cg);
+    }
+    ref->store(call_ref->load());
+    //
+    
     cg.jump(exit_bb);
 }
 

@@ -649,6 +649,7 @@ public:
     const VarDecl* init_decl() const { return init_decl_; }
     const Expr* init_expr() const { return init_expr_; }
     const ASTNode* init() const { return (const ASTNode*) ((uintptr_t) init_decl_.get() | (uintptr_t) init_expr_.get()); }
+    const anydsl2::Type* call_type() const { return call_type_; }
 
     virtual void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
@@ -660,6 +661,8 @@ private:
     anydsl2::AutoPtr<const VarDecl> init_decl_;
     anydsl2::AutoPtr<const Expr> init_expr_;
     Exprs ops_;
+    
+    mutable const anydsl2::Type* call_type_;
 };
 
 class BreakStmt : public Stmt {

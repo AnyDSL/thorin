@@ -21,8 +21,10 @@ def extern foo(n : int) -> int {
 
     //x : int = 42;
     // x as expression fails
-    foreach (x : int <- count(10))
-        a += x;
+    b : int = 2;
+    foreach (x : int  <- count(10)) {
+        b += x;
+    }
 
     return a;
 }

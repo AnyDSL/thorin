@@ -3,6 +3,8 @@
 #include <vector>
 #include <boost/unordered_map.hpp>
 
+#include <cstdio> // remove
+
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/for_all.h"
 
@@ -422,9 +424,9 @@ void ForeachStmt::check(Sema& sema) const {
         // construct: pi(..., t: T, pi(T))
         std::vector<const Type*> elems;
         elems.push_back(left_type);
-        elems.push_back(sema.world().generic(0));
+        elems.push_back(sema.world().type_u32());
         std::vector<const Type*> inner_elems;
-        inner_elems.push_back(sema.world().generic(0));
+        inner_elems.push_back(sema.world().type_u32());
         elems.push_back(sema.world().pi(inner_elems));
         op_types[num_args() + 1] = sema.world().pi(elems);
 
@@ -441,10 +443,15 @@ void ForeachStmt::check(Sema& sema) const {
         if (to_pi->check_with(call_pi)) {
             GenericMap map = sema.fill_map();
             if (to_pi->infer_with(map, call_pi)) {
-                /*if (const Generic* generic = ret_type->isa<Generic>())
-                    return map[generic];
-                else
-                    return ret_type;*/
+                if (const Generic* generic = ret_type->isa<Generic>()) {
+                    call_type_ = map[generic];
+                    printf("generic\n");
+                    to_pi->dump();
+                    call_pi->dump();
+                } else {
+                    call_type_ = ret_type;
+                    printf("ret_type\n");
+                }
             } else {
                 sema.error(this->args_location()) << "cannot infer type '" << call_pi << "' induced by arguments\n";
                 sema.error(to()) << "to invocation type '" << to_pi << "' with '" << map << "'\n";
@@ -455,8 +462,10 @@ void ForeachStmt::check(Sema& sema) const {
         }
     } else
         sema.error(to()) << "invocation not done on function type but instead type '" << to()->type() << "' is given\n";
-    //
     
+    // TODO remove?
+    if (call_type_ == NULL)
+        sema.error(this->args_location()) << "bum\n";
 
     if (const ScopeStmt* scope = body()->isa<ScopeStmt>())
         scope->check_stmts(sema);

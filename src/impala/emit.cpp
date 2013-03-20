@@ -399,109 +399,16 @@ void ForStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     head_bb.seal();
 }
 
-void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
-    /*JumpTarget head_bb("foreach_head");
-    JumpTarget body_bb("foreach_body");
-    JumpTarget step_bb("foreach_step");
-
-    Push<JumpTarget*> push1(cg.break_target, &exit_bb);
-    Push<JumpTarget*> push2(cg.continue_target, &step_bb);
-
-    init()->emit(cg, head_bb);
-
-    cg.enter_unsealed(head_bb);
-    cond()->emit_branch(cg, body_bb, exit_bb);*/
-
-
-    // #
-    /*FunExpr* fun_expr = new FunExpr();
-    
-    std::vector<const Type*> arg_types;
-    arg_types.push_back(cg.world().type_u32());
-    
-    std::vector<const Type*> elems;
-    elems.push_back(cg.world().type_u32());
-    arg_types.push_back(cg.world().pi(elems));
-    
-    
-    const Pi* pi = cg.world().pi(arg_types);
-    const ScopeStmt* fun_body = (ScopeStmt*) body();
-    fun_expr->fun_set(pi, fun_body);*/
-    //fun_expr->emit(cg);
-    
-    //printf("here\n");
-    // TODO ugly!
-    //Call* nc_call = const_cast<Call*>(call_.get());
-    //nc_call->append_arg(fun_expr); // BUGGY
-    // #
-    
-    // ##
-    /*
-    //anydsl2::AutoVector<const Expr*> ops_;
-    std::vector<const Expr*> ops_;
-    
-    for (size_t i = 0; i < call()->size(); ++i)
-        ops_.push_back(call()->op(i));
-    
-    size_t num = ops_.size();
-    Array<const Def*> defs(num);
-    for (size_t i = 0; i < num; ++i)
-        defs[i] = ops_[i]->emit(cg)->load();
-
-    Array<const Def*> ops = defs;
-
-    //if (is_continuation_call()) {
-        cg.cur_bb->jump(ops[0], ops.slice_back(1));
-        cg.cur_bb = 0;
-        //return RefPtr(0);
-    //} else
-    //    return Ref::create(cg.call(ops[0], ops.slice_back(1), type()));
-    */
-    // ##
-
-    // put into lambda
-    /*cg.enter(body_bb);
-    body()->emit(cg, step_bb);
-
-    cg.enter(step_bb);
-    step()->emit(cg);
-    cg.jump(head_bb);
-    head_bb.seal();*/
-    
-    //
-    size_t num = ops_.size();
-    Array<const Def*> defs(num + 2);
-    for (size_t i = 0; i < num; ++i)
-        defs[i] = op(i)->emit(cg)->load();
-    
-    // pi(..., pi())
-    std::vector<const Type*> elems;
-    elems.push_back(cg.world().type_u32()); // left_type
-    std::vector<const Type*> inner_elems;
-    elems.push_back(cg.world().pi(inner_elems));
-    const Pi* pi = cg.world().pi(elems);
-    FunExpr* fun = new FunExpr();
-    if (const ScopeStmt* scope = body()->isa<ScopeStmt>())
-        fun->fun_set(pi, scope);
-    // else TODO ...
-    defs[num] = fun->emit(cg)->load();
-    
-    // pi()
+const Lambda* ForeachStmt::emit_ret(CodeGen& cg, Lambda* parent, JumpTarget& exit_bb) const {
     std::vector<const Type*> ret_elems;
-    const Pi* ret_pi = cg.world().pi(ret_elems);
-    //RefPtr FunExpr::emit(CodeGen& cg) const {
-    //emit_head(cg, "lambda");
-    //return Ref::create(emit_body(cg, cg.cur_bb, "anonymous lambda expression"));
+    const Pi* ret_type = cg.world().pi(ret_elems);
     
-    // emit_head
-    anydsl2::Lambda* lambda_ = cg.world().lambda(convert(ret_pi), "foreach_ret");
-    //size_t num = params().size();
-    //const Type* ret_type = return_type(ret_pi);
-    //const anydsl2::Param* ret_param_ = ret_type->isa<NoRet>() ? 0 : lambda_->param(0);
+    // emit head
+    anydsl2::Lambda* lambda_ = cg.world().lambda(convert(ret_type), "foreach_ret");
     lambda_->param(0)->name = "mem";
     
-    // emit_body
-    lambda_->set_parent(cg.cur_bb);
+    // emit body
+    lambda_->set_parent(parent);
 
     Push<Lambda*> push1(cg.cur_bb,  lambda_);
     Push<Lambda*> push2(cg.cur_fun, lambda_);
@@ -510,34 +417,37 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     cg.set_mem(enter->extract_mem());
     Push<const Def*> push3(cg.cur_frame, enter->extract_frame());
 
-    /*size_t num = params().size();
-    for (size_t i = 0; i < num; ++i) {
-        const Param* p = lambda_->param(i+1);
-        p->name = param(i)->symbol().str();
-        param(i)->emit(cg)->store(p);
-    }*/
-
     JumpTarget exit;
-    //body()->emit(cg, exit);
-    // TODO
-    //cg.jump(exit_bb);
+    // body of the lambda: just a jump out of the foreach
+    cg.jump(exit_bb);
     
     cg.jump(exit);
-    
-    // cg.cur_bb->jump1(ret_param(), cg.get_mem());
-    
     cg.enter(exit);
+    return lambda_;
+}
+
+void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
+    size_t num = ops_.size();
+    Array<const Def*> defs(num + 2);
+    for (size_t i = 0; i < num; ++i)
+        defs[i] = op(i)->emit(cg)->load();
     
-    // end
-    defs[num + 1] = Ref::create(lambda_)->load();
-
-
-    // old
-    /*FunExpr* ret_fun = new FunExpr();
-    if (const ScopeStmt* scope = body()->isa<ScopeStmt>()) // TODO wrong body
-        fun->fun_set(ret_pi, scope);
+    // TODO store value to lhs in each iteration
+    // TODO call 'next'
+    // lambda (..., step : pi()) { lhs = val; body; next(); }
+    std::vector<const Type*> elems;
+    elems.push_back(cg.world().type_u32()); // TODO this has to be the left hand side type
+    std::vector<const Type*> inner_elems;
+    elems.push_back(cg.world().pi(inner_elems));
+    const Pi* pi = cg.world().pi(elems);
+    FunExpr* fun = new FunExpr();
+    if (const ScopeStmt* scope = body()->isa<ScopeStmt>())
+        fun->fun_set(pi, scope);
     // else TODO ...
-    defs[num + 2] = ret_fun->emit(cg)->load();*/
+    defs[num] = fun->emit(cg)->load();
+
+    // lambda() { jump exit_bb }
+    defs[num + 1] = Ref::create(emit_ret(cg, cg.cur_bb, exit_bb))->load();
         
     Array<const Def*> ops = defs;
     Array<const Def*> args(num + 2);
@@ -546,6 +456,7 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     RefPtr call_ref = Ref::create(cg.mem_call(ops[0], args, call_type()));
     cg.set_mem(cg.cur_bb->param(0));
     
+    // TODO remove this hack
     RefPtr ref;
     if (init_decl()) {
         ref = init_decl()->emit(cg);
@@ -553,8 +464,6 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
         ref = init_expr()->emit(cg);
     }
     ref->store(call_ref->load());
-    //
-    
     cg.jump(exit_bb);
 }
 

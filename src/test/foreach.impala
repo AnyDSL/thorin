@@ -2,15 +2,15 @@ def primes(n : int, ret : pi(int)) {
     ret(n);
 }
 
-def count<T>(n : int, t : T, yield : pi(int, T, pi(T)), ret : pi(T)) {
-    yield(1, t, lambda(t : T) {
-        def loop(i : int, t : T) {
+def count(n : int, yield : pi(int, pi()), ret : pi()) {
+    yield(1, lambda() {
+        def loop(i : int) {
             if (i < n)
-                yield(i, t, lambda(t : T) { loop(i+1, t); });
+                yield(i, lambda() { loop(i+1); });
             else
-                ret(t);
+                ret();
         }
-        loop(2, t);
+        loop(2);
     });
 }
 
@@ -18,6 +18,8 @@ def extern foo(n : int) -> int {
     a : int = 0;
     for (i : int = 0; i < n; ++i)
         ++a;
+
+    //count(10, lambda(i : int, next: pi()) { next(); }, lambda() {});
 
     //x : int = 42;
     // x as expression fails

@@ -470,40 +470,81 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     
     //
     size_t num = ops_.size();
-    Array<const Def*> defs(num + 3);
+    Array<const Def*> defs(num + 2);
     for (size_t i = 0; i < num; ++i)
         defs[i] = op(i)->emit(cg)->load();
     
-    // T
-    defs[num] = Ref::create(cg.world().literal(PrimType_u32, Box(bcast<uint32_t, int32_t>(int32_t(42)))))->load();
-    
-    // pi(..., t: T, pi(T))
+    // pi(..., pi())
     std::vector<const Type*> elems;
     elems.push_back(cg.world().type_u32()); // left_type
-    elems.push_back(cg.world().type_u32());
     std::vector<const Type*> inner_elems;
-    inner_elems.push_back(cg.world().type_u32());
     elems.push_back(cg.world().pi(inner_elems));
     const Pi* pi = cg.world().pi(elems);
     FunExpr* fun = new FunExpr();
     if (const ScopeStmt* scope = body()->isa<ScopeStmt>())
         fun->fun_set(pi, scope);
     // else TODO ...
-    defs[num + 1] = fun->emit(cg)->load();
+    defs[num] = fun->emit(cg)->load();
     
-    // pi(T)
-    std::vector<const Type*> elems2;
-    elems2.push_back(cg.world().type_u32());
-    const Pi* pi2 = cg.world().pi(elems2);
-    FunExpr* fun2 = new FunExpr();
+    // pi()
+    std::vector<const Type*> ret_elems;
+    const Pi* ret_pi = cg.world().pi(ret_elems);
+    //RefPtr FunExpr::emit(CodeGen& cg) const {
+    //emit_head(cg, "lambda");
+    //return Ref::create(emit_body(cg, cg.cur_bb, "anonymous lambda expression"));
+    
+    // emit_head
+    anydsl2::Lambda* lambda_ = cg.world().lambda(convert(ret_pi), "foreach_ret");
+    //size_t num = params().size();
+    //const Type* ret_type = return_type(ret_pi);
+    //const anydsl2::Param* ret_param_ = ret_type->isa<NoRet>() ? 0 : lambda_->param(0);
+    lambda_->param(0)->name = "mem";
+    
+    // emit_body
+    lambda_->set_parent(cg.cur_bb);
+
+    Push<Lambda*> push1(cg.cur_bb,  lambda_);
+    Push<Lambda*> push2(cg.cur_fun, lambda_);
+
+    const Enter* enter = cg.world().enter(lambda_->param(0));
+    cg.set_mem(enter->extract_mem());
+    Push<const Def*> push3(cg.cur_frame, enter->extract_frame());
+
+    /*size_t num = params().size();
+    for (size_t i = 0; i < num; ++i) {
+        const Param* p = lambda_->param(i+1);
+        p->name = param(i)->symbol().str();
+        param(i)->emit(cg)->store(p);
+    }*/
+
+    JumpTarget exit;
+    //body()->emit(cg, exit);
+    // TODO
+    //cg.jump(exit_bb);
+    
+    cg.jump(exit);
+    
+    // cg.cur_bb->jump1(ret_param(), cg.get_mem());
+    
+    cg.enter(exit);
+    
+    // end
+    defs[num + 1] = Ref::create(lambda_)->load();
+
+
+    // old
+    /*FunExpr* ret_fun = new FunExpr();
     if (const ScopeStmt* scope = body()->isa<ScopeStmt>()) // TODO wrong body
-        fun->fun_set(pi2, scope);
+        fun->fun_set(ret_pi, scope);
     // else TODO ...
-    defs[num + 2] = fun2->emit(cg)->load();
+    defs[num + 2] = ret_fun->emit(cg)->load();*/
         
     Array<const Def*> ops = defs;
-    RefPtr call_ref = Ref::create(cg.call(ops[0], ops.slice_back(1), call_type()));
-    
+    Array<const Def*> args(num + 2);
+    std::copy(ops.begin() + 1, ops.end(), args.begin() + 1);
+    args[0] = cg.get_mem();
+    RefPtr call_ref = Ref::create(cg.mem_call(ops[0], args, call_type()));
+    cg.set_mem(cg.cur_bb->param(0));
     
     RefPtr ref;
     if (init_decl()) {

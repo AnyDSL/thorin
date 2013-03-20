@@ -197,12 +197,12 @@ const Type* Id::vcheck(Sema& sema) const {
     if (const Decl* decl = sema.lookup(symbol())) {
         decl_ = decl;
 
-#if 0
+//#if 0
         if (const VarDecl* vardecl = decl->isa<VarDecl>()) {
             if (!vardecl->type()->isa<Pi>() && !vardecl->type()->is_generic())
                 vardecl->is_address_taken_ = true;
         }
-#endif
+//#endif
         return decl->type();
     }
 
@@ -420,44 +420,47 @@ void ForeachStmt::check(Sema& sema) const {
     
     // generator call
     if (const Pi* to_pi = to()->check(sema)->isa<Pi>()) {
-        Array<const Type*> op_types(num_args() + 1 + 2); // reserve one for the return type and two for the generator
+        Array<const Type*> op_types(num_args() + 1 + 1); // reserve one for the return type and two for the generator
 
         for (size_t i = 0, e = num_args(); i != e; ++i)
             op_types[i] = arg(i)->check(sema);
-            
-        // construct: t: T
-        op_types[num_args()] = sema.world().generic(0);
         
-        // construct: pi(..., t: T, pi(T))
+        // construct: pi(..., pi())
         std::vector<const Type*> elems;
         elems.push_back(left_type);
-        elems.push_back(sema.world().type_u32());
+        //elems.push_back(sema.world().type_u32());
         std::vector<const Type*> inner_elems;
-        inner_elems.push_back(sema.world().type_u32());
+        //inner_elems.push_back(sema.world().type_u32());
         elems.push_back(sema.world().pi(inner_elems));
-        op_types[num_args() + 1] = sema.world().pi(elems);
+        op_types[num_args()] = sema.world().pi(elems);
 
         const Pi* call_pi;
         const Type* ret_type = to_pi->size() == num_args() ? sema.world().noret() : return_type(to_pi);
 
-        if (ret_type->isa<NoRet>())
+        if (ret_type->isa<NoRet>()) {
+            // TODO check this case
             call_pi = sema.world().pi(op_types.slice_front(op_types.size()-1));
-        else {
-            op_types.back() = sema.world().pi1(ret_type);
+        } else {
+            //op_types.back() = sema.world().pi1(ret_type);
+            
+            std::vector<const Type*> ret_elems;
+            op_types.back() = sema.world().pi(ret_elems);
+            
             call_pi = sema.world().pi(op_types);
         }
 
+        // ret_type case
         if (to_pi->check_with(call_pi)) {
             GenericMap map = sema.fill_map();
             if (to_pi->infer_with(map, call_pi)) {
                 if (const Generic* generic = ret_type->isa<Generic>()) {
                     call_type_ = map[generic];
-                    printf("generic\n");
-                    to_pi->dump();
-                    call_pi->dump();
+                    //printf("generic\n");
+                    //to_pi->dump();
+                    //call_pi->dump();
                 } else {
                     call_type_ = ret_type;
-                    printf("ret_type\n");
+                    //printf("ret_type\n");
                 }
             } else {
                 sema.error(this->args_location()) << "cannot infer type '" << call_pi << "' induced by arguments\n";

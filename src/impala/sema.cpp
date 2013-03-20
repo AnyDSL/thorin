@@ -410,12 +410,11 @@ void ForStmt::check(Sema& sema) const {
 void ForeachStmt::check(Sema& sema) const {
     sema.push_scope();
     
-    const anydsl2::Type* left_type;
     if (init_decl() != NULL) {
         init_decl()->insert(sema);
-        left_type = init_decl()->type();
+        left_type_ = init_decl()->type();
     } else {
-        left_type = init_expr()->check(sema);
+        left_type_ = init_expr()->check(sema);
     }
     
     // generator call
@@ -427,12 +426,12 @@ void ForeachStmt::check(Sema& sema) const {
         
         // construct: pi(..., pi())
         std::vector<const Type*> elems;
-        elems.push_back(left_type);
-        //elems.push_back(sema.world().type_u32());
+        elems.push_back(left_type_);
         std::vector<const Type*> inner_elems;
-        //inner_elems.push_back(sema.world().type_u32());
-        elems.push_back(sema.world().pi(inner_elems));
-        op_types[num_args()] = sema.world().pi(elems);
+        inner_fun_type_ = sema.world().pi(inner_elems);
+        elems.push_back(inner_fun_type_);
+        fun_type_ = sema.world().pi(elems);
+        op_types[num_args()] = fun_type_;
 
         const Pi* call_pi;
         const Type* ret_type = to_pi->size() == num_args() ? sema.world().noret() : return_type(to_pi);

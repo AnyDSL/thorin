@@ -608,8 +608,9 @@ const Stmt* Parser::parse_foreach() {
     Position pos1 = eat(Token::FOREACH).pos1();
     expect(Token::L_PAREN, "foreach-statement");
 
-    ForeachStmt*  new_foreach = new ForeachStmt();
-    //Push<const Loop*> push(cur_loop, new_loop);
+    ForeachStmt* new_foreach = new ForeachStmt();
+    new_foreach->set(cur_var_handle);
+    cur_var_handle += 2;
 
     if (la2() == Token::COLON) {
         // parse only 'x : int' and no further assignment

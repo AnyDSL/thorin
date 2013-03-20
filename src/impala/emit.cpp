@@ -435,14 +435,15 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     // TODO store value to lhs in each iteration
     // TODO call 'next'
     // lambda (..., step : pi()) { lhs = val; body; next(); }
-    std::vector<const Type*> elems;
-    elems.push_back(cg.world().type_u32()); // TODO this has to be the left hand side type
-    std::vector<const Type*> inner_elems;
-    elems.push_back(cg.world().pi(inner_elems));
-    const Pi* pi = cg.world().pi(elems);
     FunExpr* fun = new FunExpr();
+    
+    //
+    //new VarDecl(var_handle(), tok, type, prev_loc.pos2())
+    //fun->params_.push_back(param);
+    //
+    
     if (const ScopeStmt* scope = body()->isa<ScopeStmt>())
-        fun->fun_set(pi, scope);
+        fun->fun_set(fun_type_, scope);
     // else TODO ...
     defs[num] = fun->emit(cg)->load();
 

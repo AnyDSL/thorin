@@ -596,42 +596,13 @@ private:
     anydsl2::AutoPtr<const Expr> step_;
 };
 
-/*
-
-class Expr : public ASTNode {
-public:
-
-    Expr() 
-        : type_(0) 
-    {}
-
-    const Exprs& ops() const { return ops_; }
-    const Expr* op(size_t i) const { return ops_[i]; }
-    size_t size() const { return ops_.size(); }
-    bool empty() const { return size() == 0; }
-    const anydsl2::Type* type() const { return type_; }
-    const anydsl2::Type* check(Sema& sema) const { assert(!type_); return type_ = vcheck(sema); }
-    anydsl2::Array<const anydsl2::Def*> emit_ops(CodeGen& cg, size_t additional_size = 0) const;
-    virtual bool is_lvalue() const = 0;
-    virtual RefPtr emit(CodeGen& cg) const = 0;
-    virtual void emit_branch(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const;
-
-private:
-
-    virtual const anydsl2::Type* vcheck(Sema& sema) const = 0;
-
-protected:
-
-    Exprs ops_;
-    mutable const anydsl2::Type* type_;
-};
-*/
 
 class ForeachStmt : public Stmt {
 public:
 
     ForeachStmt() {}
 
+    void set(size_t var_handle) { var_handle_ = var_handle; }
     void set(const anydsl2::Position& pos1, const Stmt* body) {
         body_ = body;
         set_loc(pos1, body->pos2());
@@ -650,6 +621,7 @@ public:
     const Expr* op(size_t i) const { return ops_[i]; }
     size_t size() const { return ops_.size(); }
 
+    const size_t var_handle() const { return var_handle_; }
     const Stmt* body() const { return body_; }
     const VarDecl* init_decl() const { return init_decl_; }
     const Expr* init_expr() const { return init_expr_; }
@@ -667,7 +639,11 @@ private:
     anydsl2::AutoPtr<const VarDecl> init_decl_;
     anydsl2::AutoPtr<const Expr> init_expr_;
     Exprs ops_;
+    size_t var_handle_;
     
+    mutable const anydsl2::Type* left_type_;
+    mutable const anydsl2::Type* inner_fun_type_;
+    mutable const anydsl2::Pi* fun_type_;
     mutable const anydsl2::Type* call_type_;
 };
 
@@ -773,6 +749,7 @@ private:
     NamedFuns named_funs_;
 
     friend class Parser;
+    friend class ForeachStmt;
 };
 
 //------------------------------------------------------------------------------

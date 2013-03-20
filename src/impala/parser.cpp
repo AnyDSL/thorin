@@ -204,7 +204,7 @@ Parser::Parser(World& world, std::istream& stream, const std::string& filename)
     , cur_loop(0)
     , cur_fun(0)
     , cur_generics(0)
-    , cur_var_handle(1) // reserve 0
+    , cur_var_handle(2) // reserve 0 for conditionals, 1 for mem
     , generic_counter(0)
     , prg(new Prg())
     , counter(0)
@@ -222,9 +222,9 @@ Parser::Parser(World& world, std::istream& stream, const std::string& filename)
 
 Token Parser::lex() {
     Token result  = lookahead[0]; // remember result
-    lookahead[0] = lookahead[1]; // copy over LA2 to LA1
-    lookahead[1] = lexer.lex();  // fill new LA2
-    prev_loc = result.loc();       // remember previous location
+    lookahead[0] = lookahead[1];  // copy over LA2 to LA1
+    lookahead[1] = lexer.lex();   // fill new LA2
+    prev_loc = result.loc();      // remember previous location
 
     return result;
 }

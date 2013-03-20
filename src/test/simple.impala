@@ -1,9 +1,9 @@
-def main(i : int) -> int {
-    a : int;
-    if (i == 0)
-        a = 23;
+def main(xi : int) -> int {
+    x : int;
+    if (xi == 0)
+        x = 23;
     else
-        a = 42;
+        x = 42;
 
-    return a;
+    return x;
 }

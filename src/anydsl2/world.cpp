@@ -554,7 +554,7 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::s
     return cse<DefTuple2, RelOp>(DefTuple2(kind, type_u1(), a, b), name);
 }
 
-const Def* World::convop(ConvOpKind kind, const Type* to, const Def* from, const std::string& name) {
+const Def* World::convop(ConvOpKind kind, const Def* from, const Type* to, const std::string& name) {
     if (from->isa<Bottom>())
         return bottom(to);
 
@@ -621,8 +621,14 @@ const Enter* World::enter(const Def* m, const std::string& name) {
     return cse<DefTuple1, Enter>(DefTuple1(Node_Enter, sigma2(mem(), frame()), m), name);
 }
 const Leave* World::leave(const Def* m, const Def* frame, const std::string& name) {
+    assert(frame->type()->isa<Frame>());
     return cse<DefTuple2, Leave>(DefTuple2(Node_Leave, mem(), m, frame), name);
 }
+const LEA* World::lea(const Def* ptr, const Def* index, const std::string& name) {
+    const Type* type = this->ptr(ptr->type()->as<Ptr>()->ref()->as<Sigma>()->elem_via_lit(index));
+    return cse<DefTuple2, LEA>(DefTuple2(Node_LEA, type, ptr, index), name);
+}
+
 const Slot* World::slot(const Type* type, size_t index, const Def* frame, const std::string& name) {
     return cse<SlotTuple, Slot>(SlotTuple(Node_Slot, type->to_ptr(), index, frame), name);
 }
@@ -678,7 +684,7 @@ const Def* World::rebuild(const PrimOp* in, ArrayRef<const Def*> ops) {
 
     if (is_arithop(kind)) { assert(ops.size() == 2); return arithop((ArithOpKind) kind, ops[0], ops[1], name); }
     if (is_relop  (kind)) { assert(ops.size() == 2); return relop(  (RelOpKind  ) kind, ops[0], ops[1], name); }
-    if (is_convop (kind)) { assert(ops.size() == 1); return convop( (ConvOpKind ) kind, type,   ops[0], name); }
+    if (is_convop (kind)) { assert(ops.size() == 1); return convop( (ConvOpKind ) kind, ops[0],   type, name); }
 
     switch (kind) {
         case Node_Enter:   assert(ops.size() == 1); return enter(  ops[0], name);

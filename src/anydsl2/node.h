@@ -105,7 +105,11 @@ public:
 //------------------------------------------------------------------------------
 
 template<class T, class U> inline
-bool smart_eq(const T& t, const Node* other) { return smart_eq(t, other->as<U>()->as_tuple()); }
+bool smart_eq(const T& t, const Node* other) { 
+    if (const U* u = other->isa<U>()) 
+        return smart_eq(t, u->as_tuple()); 
+    return false;
+}
 
 //------------------------------------------------------------------------------
 

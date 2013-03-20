@@ -71,7 +71,10 @@ private:
     const TypeError* type_error_;
 };
 
-const anydsl2::Type* return_type(const anydsl2::Pi* pi);
+const anydsl2::Type* return_type(const anydsl2::Pi*);
+const anydsl2::Type* convert_type(const anydsl2::Type*);
+template<class T>
+const T* convert(const T* type) { return convert_type(type)->template as<T>(); }
 
 } // namespace impala
 

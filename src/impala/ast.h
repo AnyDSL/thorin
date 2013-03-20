@@ -131,15 +131,20 @@ public:
     VarDecl(size_t handle, const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2)
         : Decl(tok, type, pos2)
         , handle_(handle)
+        , is_address_taken_(false)
     {}
 
     size_t handle() const { return handle_; }
+    bool is_address_taken() const { return is_address_taken_; }
     virtual void vdump(Printer& p) const;
     RefPtr emit(CodeGen& cg) const;
 
-protected:
+private:
 
     size_t handle_;
+    mutable bool is_address_taken_;
+
+    friend class Id;
 };
 
 class NamedFun : public Decl, public Fun {

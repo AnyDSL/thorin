@@ -180,6 +180,21 @@ Lambda* Lambda::call(const Def* to, ArrayRef<const Def*> args, const Type* ret_t
     return next;
 }
 
+Lambda* Lambda::mem_call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
+    // create next continuation in cascade
+    Lambda* next = world().lambda(world().pi2(world().mem(), ret_type), name + "_" + to->name);
+    next->param(0)->name = "mem";
+    next->param(1)->name = to->name;
+
+    // create jump to this new continuation
+    size_t csize = args.size() + 1;
+    Array<const Def*> cargs(csize);
+    *std::copy(args.begin(), args.end(), cargs.begin()) = next;
+    jump(to, cargs);
+
+    return next;
+}
+
 /*
  * CPS construction
  */

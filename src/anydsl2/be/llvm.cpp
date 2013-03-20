@@ -104,6 +104,8 @@ void CodeGen::emit() {
         const Param* ret_param = 0;
         llvm::Function::arg_iterator arg = fct->arg_begin();
         for_all (param, lambda->params()) {
+            if (param->type()->isa<Mem>())
+                continue;
             if (param->order() == 0) {
                 arg->setName(param->name);
                 params[param] = arg++;
@@ -138,9 +140,8 @@ void CodeGen::emit() {
             for_all (primop, schedule)
                 // if this primop is not a function, not a memory argument and not a frame
                 // we have to skip it; however, CCall nodes have to be emitted.
-                if (!primop->type()->isa<Pi>() &&
-                   (!primop->type()->isa<Mem>() || primop->isa<CCall>()) &&
-                    !primop->type()->isa<Frame>())
+                if (!primop->type()->isa<Pi>() && !primop->type()->isa<Frame>() 
+                        && (!primop->type()->isa<Mem>() || primop->isa<CCall>() || primop->isa<Store>()))
                     primops[primop] = emit(primop);
 
             // terminate bb
@@ -222,7 +223,7 @@ void CodeGen::emit() {
                                 params[succ->param(i)] = builder.CreateExtractValue(call, idxs);
                             }
                         } else
-                            params[succ->param(0)] = call;
+                            params[succ->param(0)->type()->isa<Mem>() ? succ->param(1) : succ->param(0)] = call;
 
                         builder.CreateBr(bbs[succ->sid()]);
                     }
@@ -337,16 +338,18 @@ llvm::Value* CodeGen::emit(const Def* def) {
         llvm::Type* to = map(conv->type());
 
         switch (conv->convop_kind()) {
-            case ConvOp_trunc:  return builder.CreateTrunc  (from, to);
-            case ConvOp_zext:   return builder.CreateZExt   (from, to);
-            case ConvOp_sext:   return builder.CreateSExt   (from, to);
-            case ConvOp_stof:   return builder.CreateSIToFP (from, to);
-            case ConvOp_utof:   return builder.CreateSIToFP (from, to);
-            case ConvOp_ftrunc: return builder.CreateFPTrunc(from, to);
-            case ConvOp_ftos:   return builder.CreateFPToSI (from, to);
-            case ConvOp_ftou:   return builder.CreateFPToUI (from, to);
-            case ConvOp_fext:   return builder.CreateFPExt  (from, to);
-            case ConvOp_bitcast:return builder.CreateBitCast(from, to);
+            case ConvOp_trunc:    return builder.CreateTrunc   (from, to);
+            case ConvOp_zext:     return builder.CreateZExt    (from, to);
+            case ConvOp_sext:     return builder.CreateSExt    (from, to);
+            case ConvOp_stof:     return builder.CreateSIToFP  (from, to);
+            case ConvOp_utof:     return builder.CreateSIToFP  (from, to);
+            case ConvOp_ftrunc:   return builder.CreateFPTrunc (from, to);
+            case ConvOp_ftos:     return builder.CreateFPToSI  (from, to);
+            case ConvOp_ftou:     return builder.CreateFPToUI  (from, to);
+            case ConvOp_fext:     return builder.CreateFPExt   (from, to);
+            case ConvOp_bitcast:  return builder.CreateBitCast (from, to);
+            case ConvOp_inttoptr: return builder.CreateIntToPtr(from, to);
+            case ConvOp_ptrtoint: return builder.CreatePtrToInt(from, to);
         }
     }
 
@@ -363,7 +366,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
         if (tupleop->node_kind() == Node_Extract) {
             // check for CCall result
-            if(tupleop->tuple()->isa<CCall>())
+            if (tupleop->tuple()->isa<CCall>() || tupleop->tuple()->isa<Load>())
                 return tuple;
             return builder.CreateExtractValue(tuple, idxs);
         }
@@ -411,7 +414,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return builder.CreateStore(lookup(store->val()), lookup(store->ptr()));
 
     if (const Slot* slot = def->isa<Slot>())
-        return builder.CreateAlloca(map(slot->type()));
+        return builder.CreateAlloca(map(slot->type()->as<Ptr>()->ref()));
 
     if (const CCall* ccall = def->isa<CCall>()) {
         size_t num_args = ccall->num_args();

@@ -8,9 +8,11 @@
 namespace anydsl2 {
 
 class Def;
+class IRBuilder;
 class Lambda;
 class Param;
 class Ref;
+class Slot;
 class Type;
 class World;
 
@@ -27,9 +29,14 @@ public:
     virtual void store(const Def* val) const = 0;
     virtual World& world() const = 0;
 
+    /// Create \p RVal.
     inline static RefPtr create(const Def* def);
+    /// Create \p VarRef.
     inline static RefPtr create(Lambda* bb, size_t handle, const Type*, const char* name);
+    /// Create \p TupleRef.
     inline static RefPtr create(RefPtr lref, const Def* index);
+    /// Create \p SlotRef.
+    inline static RefPtr create(const Slot* slot, IRBuilder& builder);
 };
 
 class RVal : public Ref {
@@ -92,12 +99,30 @@ private:
     mutable const Def* loaded_;
 };
 
+class SlotRef : public Ref {
+public:
+
+    SlotRef(const Slot* slot, IRBuilder& builder)
+        : slot_(slot)
+        , builder_(builder)
+    {}
+
+    virtual const Def* load() const;
+    virtual void store(const Def* val) const;
+    virtual World& world() const;
+
+private:
+
+    const Slot* slot_;
+    IRBuilder& builder_;
+};
+
 RefPtr Ref::create(const Def* def) { return RefPtr(new RVal(def)); }
 RefPtr Ref::create(RefPtr lref, const Def* index) { return RefPtr(new TupleRef(lref, index)); }
 RefPtr Ref::create(Lambda* bb, size_t handle, const Type* type, const char* name) { 
     return RefPtr(new VarRef(bb, handle, type, name)); 
 }
-
+RefPtr Ref::create(const Slot* slot, IRBuilder& builder) { return RefPtr(new SlotRef(slot, builder)); }
 
 //------------------------------------------------------------------------------
 
@@ -148,10 +173,14 @@ public:
     Lambda* enter_unsealed(JumpTarget& jt) { return cur_bb = jt.enter_unsealed(world_); }
     void jump(JumpTarget& jt);
     void branch(const Def* cond, JumpTarget& t, JumpTarget& f);
+    const Param* mem_call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type);
     const Param* call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type);
     void tail_call(const Def* to, ArrayRef<const Def*> args);
-    void return_void(const Param* ret_param);
-    void return_value(const Param* ret_param, const Def* def);
+    void return0(const Param* ret_param);
+    void return1(const Param* ret_param, const Def*);
+    void return2(const Param* ret_param, const Def*, const Def*);
+    const Def* get_mem();
+    void set_mem(const Def* def);
 
     Lambda* cur_bb;
 

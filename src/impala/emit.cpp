@@ -9,6 +9,7 @@
 #include "anydsl2/irbuilder.h"
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
+#include "anydsl2/memop.h"
 #include "anydsl2/type.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/for_all.h"
@@ -27,11 +28,14 @@ public:
     CodeGen(World& world)
         : IRBuilder(world)
         , cur_fun(0)
+        , cur_frame(0)
         , break_target(0)
         , continue_target(0)
     {}
 
     Lambda* cur_fun;
+    const Def* cur_frame;
+
     JumpTarget* break_target;
     JumpTarget* continue_target;
 };
@@ -46,16 +50,11 @@ void emit(World& world, const Prg* prg) {
 //------------------------------------------------------------------------------
 
 Lambda* Fun::emit_head(CodeGen& cg, Symbol symbol) const {
-    lambda_ = cg.world().lambda(pi(), symbol.str());
+    lambda_ = cg.world().lambda(convert(pi()), symbol.str());
     size_t num = params().size();
     const Type* ret_type = return_type(pi());
-    ret_param_ = ret_type->isa<NoRet>() ? 0 : lambda_->param(num-1);
-
-    for (size_t i = 0; i < num; ++i) {
-        const Param* p = lambda_->param(i);
-        p->name = param(i)->symbol().str();
-        lambda_->set_value(param(i)->handle(), lambda_->param(i));
-    }
+    ret_param_ = ret_type->isa<NoRet>() ? 0 : lambda_->param(num-1+1);
+    lambda()->param(0)->name = "mem";
 
     return lambda_;
 }
@@ -69,6 +68,17 @@ const Lambda* Fun::emit_body(CodeGen& cg, Lambda* parent, const char* what) cons
     Push<Lambda*> push1(cg.cur_bb,  lambda());
     Push<Lambda*> push2(cg.cur_fun, lambda());
 
+    const Enter* enter = cg.world().enter(lambda()->param(0));
+    cg.set_mem(enter->extract_mem());
+    Push<const Def*> push3(cg.cur_frame, enter->extract_frame());
+
+    size_t num = params().size();
+    for (size_t i = 0; i < num; ++i) {
+        const Param* p = lambda_->param(i+1);
+        p->name = param(i)->symbol().str();
+        param(i)->emit(cg)->store(p);
+    }
+
     JumpTarget exit;
     body()->emit(cg, exit);
     cg.enter(exit);
@@ -80,10 +90,10 @@ const Lambda* Fun::emit_body(CodeGen& cg, Lambda* parent, const char* what) cons
         } else {
             const Type* ret_type = return_type(pi());
             if (ret_type->isa<Void>())
-                cg.cur_bb->jump0(ret_param());
+                cg.cur_bb->jump1(ret_param(), cg.get_mem());
             else {
                 std::cerr << what << " does not end with 'return'\n";
-                cg.cur_bb->jump0(cg.world().bottom(cg.world().pi1(ret_type)));
+                cg.cur_bb->jump1(cg.world().bottom(cg.world().pi1(ret_type)), cg.get_mem());
             }
         }
     }
@@ -112,7 +122,11 @@ void NamedFun::emit(CodeGen& cg) const {
 }
 
 RefPtr VarDecl::emit(CodeGen& cg) const {
-    return Ref::create(cg.cur_bb, handle(), type(), symbol().str());
+    const Type* air_type = convert(type());
+    if (is_address_taken())
+        return Ref::create(cg.world().slot(air_type, handle(), cg.cur_frame, symbol().str()), cg);
+
+    return Ref::create(cg.cur_bb, handle(), air_type, symbol().str());
 }
 
 /*
@@ -158,7 +172,14 @@ RefPtr Tuple::emit(CodeGen& cg) const {
 RefPtr Id::emit(CodeGen& cg) const {
     if (const NamedFun* named_fun = decl()->isa<NamedFun>())
         return Ref::create(named_fun->lambda());
-    return Ref::create(cg.cur_bb, decl()->as<VarDecl>()->handle(), type(), symbol().str());
+
+    const VarDecl* vardecl = decl()->as<VarDecl>();
+    const Type* air_type = convert(type());
+
+    if (vardecl->is_address_taken())
+        return Ref::create(cg.world().slot(air_type, vardecl->handle(), cg.cur_frame, symbol().str()), cg);
+
+    return Ref::create(cg.cur_bb, vardecl->handle(), air_type, symbol().str());
 }
 
 RefPtr PrefixExpr::emit(CodeGen& cg) const {
@@ -167,7 +188,7 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
         case DEC: {
             RefPtr ref = rhs()->emit(cg);
             const Def* def = ref->load();
-            const PrimLit* one = cg.world().one(def->type());
+            const PrimLit* one = cg.world().one(convert(def->type()));
             const Def* ndef = cg.world().arithop(Token::to_arithop((TokenKind) kind(), type()->is_float()), def, one);
             ref->store(ndef);
             return ref;
@@ -207,13 +228,14 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
     const TokenKind op = (TokenKind) kind();
 
     if (Token::is_assign(op)) {
-        const Id* id = lhs()->isa<Id>();
+        //const Id* id = lhs()->isa<Id>();
         const Def* rdef = rhs()->emit(cg)->load();
 
         // special case for 'id = expr' -> don't use get_value!
-        RefPtr lref = op == Token::ASGN && id
-                ? Ref::create(cg.cur_bb, id->decl()->as<VarDecl>()->handle(), id->type(), id->symbol().str())
-                : lhs()->emit(cg);
+        //RefPtr lref = op == Token::ASGN && id
+                //? Ref::create(cg.cur_bb, id->decl()->as<VarDecl>()->handle(), convert(id->type()), id->symbol().str())
+                //: lhs()->emit(cg);
+        RefPtr lref = lhs()->emit(cg);
 
         if (op != Token::ASGN) {
             TokenKind sop = Token::separate_assign(op);
@@ -233,7 +255,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
 RefPtr PostfixExpr::emit(CodeGen& cg) const {
     RefPtr ref = lhs()->emit(cg);
     const Def* def = ref->load();
-    const PrimLit* one = cg.world().one(def->type());
+    const PrimLit* one = cg.world().one(convert(def->type()));
     ref->store(cg.world().arithop(Token::to_arithop((TokenKind) kind(), type()->is_float()), def, one));
     return Ref::create(def);
 }
@@ -256,7 +278,7 @@ RefPtr ConditionalExpr::emit(CodeGen& cg) const {
     }
 
     if (Lambda* xl = cg.enter(x))
-        return Ref::create(xl->get_value(0, t_expr()->type(), "cond"));
+        return Ref::create(xl->get_value(0, convert(t_expr()->type()), "cond"));
     return Ref::create(0);
 }
 
@@ -266,13 +288,20 @@ RefPtr IndexExpr::emit(CodeGen& cg) const {
 
 RefPtr Call::emit(CodeGen& cg) const {
     Array<const Def*> ops = emit_ops(cg);
+    Array<const Def*> args(num_args() + 1);
+    std::copy(ops.begin() + 1, ops.end(), args.begin() + 1);
+    args[0] = cg.get_mem();
 
     if (is_continuation_call()) {
-        cg.cur_bb->jump(ops[0], ops.slice_back(1));
+        cg.cur_bb->jump(ops[0], args);
         cg.cur_bb = 0;
         return RefPtr(0);
-    } else
-        return Ref::create(cg.call(ops[0], ops.slice_back(1), type()));
+    }
+
+    RefPtr ref = Ref::create(cg.mem_call(ops[0], args, type()));
+    cg.set_mem(cg.cur_bb->param(0));
+
+    return ref;
 }
 
 /*
@@ -495,14 +524,17 @@ void ReturnStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     if (cg.is_reachable()) {
         const Param* ret_param = fun()->ret_param();
         if (const Call* call = expr()->isa<Call>()) {
-            Array<const Def*> ops = call->emit_ops(cg, 1);
-            ops.back() = ret_param;
-            cg.tail_call(ops[0], ops.slice_back(1));
+            Array<const Def*> ops = call->emit_ops(cg);
+            Array<const Def*> args(call->num_args() + 2);
+            std::copy(ops.begin() + 1, ops.end(), args.begin() + 1);
+            args[0] = cg.get_mem();
+            args.back() = ret_param;
+            cg.tail_call(ops[0], args);
         } else {
             if (expr()) 
-                cg.return_value(ret_param, expr()->emit(cg)->load());
+                cg.return2(ret_param, cg.world().leave(cg.get_mem(), cg.cur_frame), expr()->emit(cg)->load());
             else
-                cg.return_void(ret_param);
+                cg.return1(ret_param, cg.world().leave(cg.get_mem(), cg.cur_frame));
         }
     }
 }

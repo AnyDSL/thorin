@@ -60,7 +60,7 @@ class Store : public Access {
 private:
 
     Store(const DefTuple3& args, const std::string& name)
-        : Access(2, args.get<0>(), args.get<1>(), args.get<2>(), args.get<3>(), name)
+        : Access(3, args.get<0>(), args.get<1>(), args.get<2>(), args.get<3>(), name)
     {
         set_op(2, args.get<4>());
     }
@@ -144,6 +144,28 @@ public:
 private:
 
     size_t index_;
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
+class LEA : public PrimOp {
+private:
+
+    LEA(const DefTuple2& args, const std::string& name)
+        : PrimOp(2, args.get<0>(), args.get<1>(), name)
+    {
+        set_op(0, args.get<2>());
+        set_op(0, args.get<3>());
+    }
+
+    virtual void vdump(Printer &printer) const;
+
+public:
+
+    const Def* ptr() const { return op(0); }
+    const Def* index() const { return op(1); }
 
     friend class World;
 };

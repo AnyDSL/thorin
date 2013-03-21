@@ -399,61 +399,6 @@ void ForStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     head_bb.seal();
 }
 
-/*
-Lambda* Fun::emit_head(CodeGen& cg, Symbol symbol) const {
-    lambda_ = cg.world().lambda(convert(pi()), symbol.str());
-    size_t num = params().size();
-    const Type* ret_type = return_type(pi());
-    ret_param_ = ret_type->isa<NoRet>() ? 0 : lambda_->param(num-1+1);
-    lambda()->param(0)->name = "mem";
-
-    return lambda_;
-}
-*/
-
-/*
-const Lambda* Fun::emit_body(CodeGen& cg, Lambda* parent, const char* what) const {
-    for_all (f, body()->named_funs())
-        f->emit_head(cg, f->symbol());
-
-    lambda()->set_parent(parent);
-
-    Push<Lambda*> push1(cg.cur_bb,  lambda());
-    Push<Lambda*> push2(cg.cur_fun, lambda());
-
-    const Enter* enter = cg.world().enter(lambda()->param(0));
-    cg.set_mem(enter->extract_mem());
-    Push<const Def*> push3(cg.cur_frame, enter->extract_frame());
-
-    size_t num = params().size();
-    for (size_t i = 0; i < num; ++i) {
-        const Param* p = lambda_->param(i+1);
-        p->name = param(i)->symbol().str();
-        param(i)->emit(cg)->store(p);
-    }
-
-    JumpTarget exit;
-    body()->emit(cg, exit);
-    cg.enter(exit);
-
-    if (cg.is_reachable()) {
-        if (is_continuation()) {
-            std::cerr << what << " does not end with a call\n";
-            cg.cur_bb->jump0(cg.world().bottom(cg.world().pi0()));
-        } else {
-            const Type* ret_type = return_type(pi());
-            if (ret_type->isa<Void>())
-                cg.cur_bb->jump1(ret_param(), cg.get_mem());
-            else {
-                std::cerr << what << " does not end with 'return'\n";
-                cg.cur_bb->jump1(cg.world().bottom(cg.world().pi1(ret_type)), cg.get_mem());
-            }
-        }
-    }
-
-    return lambda();
-}*/
-
 const Lambda* ForeachStmt::emit_ret(CodeGen& cg, Lambda* parent, JumpTarget& exit_bb) const {
     std::vector<const Type*> elems;
     // TODO check

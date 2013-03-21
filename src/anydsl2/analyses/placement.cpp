@@ -89,10 +89,9 @@ void Placement::place_early(Places& places, Lambda* early, const Def* def) {
     assert(defined(def));
 
     for_all (use, def->uses()) {
-        const Def* udef = use.def();
-        if (defined(udef))
+        if (defined(use))
             continue;
-        const PrimOp* primop = udef->as<PrimOp>();
+        const PrimOp* primop = use->as<PrimOp>();
 
         for_all (op, primop->ops()) {
             if (!defined(op))

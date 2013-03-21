@@ -36,10 +36,10 @@ void CFGBuilder::transform(Lambda* lambda) {
     Args2Lambda args2lambda;
 
     for_all (use, lambda->copy_uses()) {
-        if (use.index() != 0 || !use.def()->isa<Lambda>())
+        if (use.index() != 0 || !use->isa<Lambda>())
             continue;
 
-        Lambda* ulambda = use.def()->as_lambda();
+        Lambda* ulambda = use->as_lambda();
         if (scope.contains(ulambda))
             continue;
 

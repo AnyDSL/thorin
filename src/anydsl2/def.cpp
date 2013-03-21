@@ -15,6 +15,23 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
+void Tracker::set(const Def* def) {
+    release();
+    def_ = def;
+    assert(std::find(def->trackers_.begin(), def->trackers_.end(), this) == def->trackers_.end() && "already in trackers set");
+    def->trackers_.push_back(this);
+}
+
+void Tracker::release() {
+    if (def_) {
+        Trackers::iterator i = std::find(def_->trackers_.begin(), def_->trackers_.end(), this);
+        assert(i != def_->trackers_.end() && "must be in trackers set");
+        def_->trackers_.erase(i);
+    }
+}
+
+//------------------------------------------------------------------------------
+
 void Def::set_op(size_t i, const Def* def) {
     assert(!op(i) && "already set");
     assert(std::find(def->uses_.begin(), def->uses_.end(), Use(i, this)) == def->uses_.end() && "already in use set");
@@ -61,6 +78,15 @@ Array<Use> Def::copy_uses() const {
     return result;
 }
 
+TrackedUses Def::tracked_uses() const {
+    TrackedUses result(num_uses());
+
+    for_all2 (&tracked_use, result, use, uses())
+        tracked_use = use;
+
+    return result;
+}
+
 bool Def::is_primlit(int val) const {
     if (const PrimLit* lit = this->isa<PrimLit>()) {
         Box box = lit->box();
@@ -86,14 +112,18 @@ bool Def::is_minus_zero() const {
 }
 
 void Def::replace(const Def* with) const {
-    for_all (use, this->copy_uses()) {
-        if (Lambda* lambda = use.def()->isa_lambda())
+    for_all (const& use, tracked_uses()) {
+        if (Lambda* lambda = use->isa_lambda())
             lambda->update_op(use.index(), with);
         else {
-            const PrimOp* oprimop = use.def()->as<PrimOp>();
+            const PrimOp* oprimop = use->as<PrimOp>();
             Array<const Def*> ops(oprimop->ops());
             ops[use.index()] = with;
-            oprimop->replace(world().rebuild(oprimop, ops));
+            const Def* ndef = world().rebuild(oprimop, ops);
+            for_all (tracker, oprimop->trackers())
+                *tracker = ndef;
+
+            oprimop->replace(ndef);
         }
     }
 }

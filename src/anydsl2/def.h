@@ -23,6 +23,7 @@ class Lambda;
 class Printer;
 class PrimOp;
 class Sigma;
+class Tracker;
 class Type;
 class World;
 
@@ -65,13 +66,69 @@ public:
     bool operator == (Use use) const { return def() == use.def() && index() == use.index(); }
     bool operator != (Use use) const { return def() != use.def() || index() != use.index(); }
 
+    operator const Def*() const { return def_; }
+    const Def* operator -> () const { return def_; }
+
 private:
 
     size_t index_;
     const Def* def_;
 };
 
+class Tracker {
+private:
+
+    /// Do not copy-construct a \p Tracker.
+    Tracker(const Tracker&);
+
+public:
+
+    Tracker()
+        : def_(0)
+    {}
+    Tracker(const Def* def) { set(def); }
+    ~Tracker() { release(); }
+
+    const Def* operator = (const Def* def) { set(def); return def_; }
+    void set(const Def*);
+    void release();
+    const Def* def() const { return def_; }
+    operator const Def*() const { return def_; }
+    const Def* operator -> () const { return def_; }
+
+private:
+
+    const Def* def_;
+};
+
+class TrackedUse {
+public:
+
+    TrackedUse() {}
+    TrackedUse(size_t index, const Def* def)
+        : index_(index)
+        , tracker_(def)
+    {}
+    TrackedUse(Use use)
+        : index_(use.index())
+        , tracker_(use)
+    {}
+
+    size_t index() const { return index_; }
+    const Def* def() const { return tracker_; }
+
+    operator const Def*() const { return tracker_; }
+    const Def* operator -> () const { return tracker_; }
+    const Def* operator = (Use use) { index_ = use.index(); return tracker_ = use; }
+private:
+
+    size_t index_;
+    Tracker tracker_;
+};
+
 typedef std::vector<Use> Uses;
+typedef std::vector<Tracker*> Trackers;
+typedef Array<TrackedUse> TrackedUses;
 
 //------------------------------------------------------------------------------
 
@@ -113,6 +170,7 @@ public:
     void dump() const;
     virtual void vdump(Printer &printer) const = 0;
     const Uses& uses() const { return uses_; }
+    const Trackers& trackers() const { return trackers_; }
     size_t num_uses() const { return uses_.size(); }
     size_t gid() const { return gid_; }
     virtual const Def* representative() const { return this; }
@@ -123,6 +181,7 @@ public:
      * Useful if you want to modfy users while iterating over all users.
      */
     Array<Use> copy_uses() const;
+    TrackedUses tracked_uses() const;
     const Type* type() const { return type_; }
     int order() const;
     bool is_generic() const;
@@ -158,8 +217,10 @@ private:
 
     const Type* type_;
     mutable Uses uses_;
+    mutable Trackers trackers_;
     const size_t gid_;
 
+    friend class Tracker;
     friend class PrimOp;
     friend class World;
 };

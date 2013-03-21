@@ -800,7 +800,7 @@ void World::dead_code_elimination() {
             for_all (param, lambda->params()) {
                 if (param->order() >= 1) {
                     for_all (use, param->uses()) {
-                        if (Lambda* caller = use.def()->isa_lambda())
+                        if (Lambda* caller = use->isa_lambda())
                             dce_insert(pass, caller);
                     }
                 }

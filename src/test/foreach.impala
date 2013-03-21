@@ -1,7 +1,3 @@
-def primes(n : int, ret : pi(int)) {
-    ret(n);
-}
-
 def count(n : int, yield : pi(int, pi()), ret : pi()) {
     yield(1, lambda() {
         def loop(i : int) {
@@ -14,17 +10,14 @@ def count(n : int, yield : pi(int, pi()), ret : pi()) {
     });
 }
 
-def extern foo(n : int) -> int {
-    /*a : int = 0;
-    for (i : int = 0; i < n; ++i)
-        ++a;*/
-
-    //count(10, lambda(i : int, next: pi()) { next(); }, lambda() {});
-
-    //x : int = 42;
-    // x as expression fails
+def main(n : int) -> int {
     b : int = 2;
     foreach (x : int  <- count(10)) {
+        b += x;
+    }
+
+    x : int = 42;
+    foreach (x  <- count(10)) {
         b += x;
     }
 

@@ -471,10 +471,6 @@ void ForeachStmt::check(Sema& sema) const {
         }
     } else
         sema.error(to()) << "invocation not done on function type but instead type '" << to()->type() << "' is given\n";
-    
-    // TODO remove?
-    if (call_type_ == NULL)
-        sema.error(this->args_location()) << "bum\n";
 
     if (const ScopeStmt* scope = body()->isa<ScopeStmt>())
         scope->check_stmts(sema);

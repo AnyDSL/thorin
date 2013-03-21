@@ -431,20 +431,39 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     Array<const Def*> defs(num + 2);
     for (size_t i = 0; i < num; ++i)
         defs[i] = op(i)->emit(cg)->load();
-    
-    // TODO store value to lhs in each iteration
-    // TODO call 'next'
+
     // lambda (..., step : pi()) { lhs = val; body; next(); }
     FunExpr* fun = new FunExpr();
+
+    std::string param1_str = "foreach_param2_next";
+    const VarDecl* param0 = new VarDecl(var_handle(), Token(init()->loc(), "foreach_param1_x"), left_type_, init()->pos1());
+    const VarDecl* param1 = new VarDecl(var_handle()+1, Token(init()->loc(), param1_str), inner_fun_type_, init()->pos1());
+    fun->params_.push_back(param0);
+    fun->params_.push_back(param1);
     
-    //
-    //new VarDecl(var_handle(), tok, type, prev_loc.pos2())
-    //fun->params_.push_back(param);
-    //
+    if (const ScopeStmt* scope = body()->isa<ScopeStmt>()) {
+        Id* lhs = new Id(Token(init()->loc(), param1_str));
+        if (init_expr()) {
+            if (const Id* id = init_expr()->isa<Id>()) {
+                lhs->decl_ = id->decl();
+            } else {
+                // TODO bug
+            }
+        } else {
+            lhs->decl_ = init_decl();
+        }
+        lhs->type_ = lhs->decl_->type();
+        Id* rhs = new Id(Token(init()->loc(), param1_str));
+        rhs->decl_ = param0;
+        rhs->type_ = rhs->decl_->type(); 
+        const InfixExpr* assign = new InfixExpr(lhs, (InfixExpr::Kind) Token::ASGN, rhs);
+        ExprStmt* assign_stmt = new ExprStmt(assign, init()->pos1());
+        scope->stmts_.insert(scope->stmts_.begin(), assign_stmt);
     
-    if (const ScopeStmt* scope = body()->isa<ScopeStmt>())
         fun->fun_set(fun_type_, scope);
-    // else TODO ...
+    } else {
+        // TODO
+    }
     defs[num] = fun->emit(cg)->load();
 
     // lambda() { jump exit_bb }
@@ -458,13 +477,13 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     cg.set_mem(cg.cur_bb->param(0));
     
     // TODO remove this hack
-    RefPtr ref;
+    /*RefPtr ref;
     if (init_decl()) {
         ref = init_decl()->emit(cg);
     } else {
         ref = init_expr()->emit(cg);
     }
-    ref->store(call_ref->load());
+    ref->store(call_ref->load());*/
     cg.jump(exit_bb);
 }
 

@@ -1,0 +1,25 @@
+def count(n : f64, yield : pi(f64, pi()), ret : pi()) {
+    yield(1.0, lambda() {
+        def loop(i : f64) {
+            if (i < n)
+                yield(i, lambda() { loop(i+1.0); });
+            else
+                ret();
+        }
+        loop(2.0);
+    });
+}
+
+def main(n : int) -> f64 {
+    b : f64 = 2.0;
+    foreach (x : f64  <- count(10)) {
+        b += x;
+    }
+
+    x : f64 = 42.0;
+    foreach (x  <- count(10)) {
+        b += x;
+    }
+
+    return b;
+}

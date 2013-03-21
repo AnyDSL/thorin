@@ -627,7 +627,7 @@ const Stmt* Parser::parse_foreach() {
     
     expect(Token::LARROW, "foreach-statement");
     
-    // TODO accept/expect
+    // TODO accept/expect?
     if (la() == Token::ID) {
         assert(!generic_lookup(la().symbol())); // needed?
         new_foreach->append_arg(new Id(lex()));
@@ -641,10 +641,6 @@ const Stmt* Parser::parse_foreach() {
         Token::R_PAREN,
         "arguments of a generator call"
     )
-
-    /*if (!accept(Token::R_PAREN)) {
-        error(")", "foreach-statement");
-    }*/
 
     const Stmt* body = try_stmt("foreach body");
     new_foreach->set(pos1, body);

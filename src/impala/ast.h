@@ -201,6 +201,8 @@ protected:
 
     Exprs ops_;
     mutable const anydsl2::Type* type_;
+    
+    friend class ForeachStmt;
 };
 
 class EmptyExpr : public Expr {
@@ -293,6 +295,8 @@ private:
 
     anydsl2::Symbol symbol_;
     mutable const Decl* decl_; ///< Declaration of the variable in use.
+    
+    friend class ForeachStmt;
 };
 
 class PrefixExpr : public Expr {
@@ -745,7 +749,7 @@ public:
 
 private:
 
-    Stmts stmts_;
+    mutable Stmts stmts_;
     NamedFuns named_funs_;
 
     friend class Parser;

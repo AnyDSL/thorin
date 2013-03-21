@@ -45,6 +45,11 @@ void Def::unset_op(size_t i) {
     set(i, 0);
 }
 
+void Def::unset_ops() {
+    for (size_t i = 0, e = size(); i != e; ++i)
+        unset_op(i);
+}
+
 void Def::unregister_use(size_t i) const {
     const Def* def = op(i);
     Uses::iterator it = std::find(def->uses_.begin(), def->uses_.end(), Use(i, this));
@@ -120,6 +125,32 @@ void Def::replace(const Def* with) const {
             Array<const Def*> ops(oprimop->ops());
             ops[use.index()] = with;
             const Def* ndef = world().rebuild(oprimop, ops);
+
+            if (oprimop->kind() == ndef->kind()) {
+                assert(oprimop->size() == ndef->size());
+
+                for (size_t i = 0, e = oprimop->size(); i != e; ++i) {
+                    if (i != use.index() && oprimop->op(i) != ndef->op(i))
+                        goto recurse;
+                }
+
+                // nothing exciting happened by rebuilding 
+                // -> reuse the old chunk of memory and save recursive updates
+                PrimOp* oreleased = world().release(oprimop);
+                AutoPtr<PrimOp> nreleased = world().release(ndef->as<PrimOp>());
+                nreleased->unset_ops();
+
+                // update operand
+                oreleased->unset_op(use.index());
+                oreleased->set_op(use.index(), with);
+
+                // reinsert
+                world().reinsert(oprimop);
+
+                continue;
+            }
+recurse:
+            // update trackers to point to new defintion ndef
             for_all (tracker, oprimop->trackers())
                 *tracker = ndef;
 

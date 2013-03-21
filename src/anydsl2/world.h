@@ -293,8 +293,9 @@ public:
      */
 
     void dump(bool fancy = false);
-    const Type* insert_type(const Type* def);
-    PrimOp* release(const PrimOp* primop);
+    const Type* insert_type(const Type*);
+    PrimOp* release(const PrimOp*);
+    void reinsert(const PrimOp*);
     size_t new_pass() { return pass_counter_++; }
 
 #ifndef NDEBUG

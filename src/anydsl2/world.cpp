@@ -912,6 +912,11 @@ PrimOp* World::release(const PrimOp* primop) {
     return const_cast<PrimOp*>(primop);
 }
 
+void World::reinsert(const PrimOp* primop) {
+    assert(primops_.find(primop) == primops_.end() && "must not be found");
+    primops_.insert(primop);
+}
+
 /*
  * other
  */

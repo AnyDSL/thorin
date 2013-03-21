@@ -163,6 +163,7 @@ public:
     virtual ~Def() {}
     void set_op(size_t i, const Def* def);
     void unset_op(size_t i);
+    void unset_ops();
     Lambda* as_lambda() const;
     Lambda* isa_lambda() const;
     bool is_const() const;

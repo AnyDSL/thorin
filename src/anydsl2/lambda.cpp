@@ -137,20 +137,12 @@ bool Lambda::is_cascading() const {
 bool Lambda::is_basicblock() const { return pi()->is_basicblock(); }
 bool Lambda::is_returning() const { return pi()->is_returning(); }
 
-void Lambda::destroy_body() {
-    for (size_t i = 0, e = size(); i != e; ++i)
-        unset_op(i);
-    resize(0);
-}
-
 /*
  * terminate
  */
 
 void Lambda::jump(const Def* to, ArrayRef<const Def*> args) {
-    for (size_t i = 0, e = size(); i != e; ++i)
-        unset_op(i);
-
+    unset_ops();
     resize(args.size()+1);
     set_op(0, to);
 

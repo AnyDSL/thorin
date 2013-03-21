@@ -465,11 +465,11 @@ void ForeachStmt::check(Sema& sema) const {
             if (to_pi->infer_with(map, call_pi)) {
                 // TODO
                 if (const Generic* generic = ret_type->isa<Generic>()) {
-                    //call_type_ = map[generic];
+                    call_type_ = map[generic];
                 } else {
-                    //call_type_ = ret_type;
+                    call_type_ = ret_type;
                 }
-                call_type_ = call_pi;
+                //call_type_ = call_pi;
             } else {
                 sema.error(this->args_location()) << "cannot infer type '" << call_pi << "' induced by arguments\n";
                 sema.error(to()) << "to invocation type '" << to_pi << "' with '" << map << "'\n";

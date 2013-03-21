@@ -401,9 +401,6 @@ void ForStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 
 const Lambda* ForeachStmt::emit_ret(CodeGen& cg, Lambda* parent, JumpTarget& exit_bb) const {
     std::vector<const Type*> elems;
-    // TODO check
-    std::vector<const Type*> inner_elems;
-    elems.push_back(cg.world().pi(inner_elems));
     const Pi* lambda_pi = cg.world().pi(elems);
     
     // emit head
@@ -434,9 +431,11 @@ const Lambda* ForeachStmt::emit_ret(CodeGen& cg, Lambda* parent, JumpTarget& exi
 
 void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     size_t num = ops_.size();
-    Array<const Def*> defs(num + 2);
-    for (size_t i = 0; i < num; ++i)
+    Array<const Def*> defs(num + 1);
+    for (size_t i = 0; i < num; ++i) {
         defs[i] = op(i)->emit(cg)->load();
+        op(i)->type()->dump();
+    }
 
     // lambda (..., step : pi()) { lhs = val; body; next(); }
     FunExpr* fun = new FunExpr();
@@ -473,13 +472,13 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     defs[num] = fun->emit(cg)->load();
 
     // lambda() { jump exit_bb }
-    defs[num + 1] = Ref::create(emit_ret(cg, cg.cur_bb, exit_bb))->load();
+    //defs[num + 1] = Ref::create(emit_ret(cg, cg.cur_bb, exit_bb))->load();
         
     Array<const Def*> ops = defs;
-    Array<const Def*> args(num + 2);
+    Array<const Def*> args(num + 1); // + 2
     std::copy(ops.begin() + 1, ops.end(), args.begin() + 1);
     args[0] = cg.get_mem();
-    RefPtr call_ref = Ref::create(cg.mem_call(ops[0], args, call_type()));
+    RefPtr call_ref = Ref::create(cg.mem_call(ops[0], args, 0)); // call_type()));
     cg.set_mem(cg.cur_bb->param(0));
 
     cg.jump(exit_bb);

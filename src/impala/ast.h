@@ -145,6 +145,7 @@ private:
     mutable bool is_address_taken_;
 
     friend class Id;
+    friend class ForeachStmt;
 };
 
 class NamedFun : public Decl, public Fun {

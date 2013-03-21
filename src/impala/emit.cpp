@@ -452,6 +452,9 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
         } else {
             lhs->decl_ = init_decl();
         }
+        if (const VarDecl* vardecl = lhs->decl_->isa<VarDecl>()) {
+            vardecl->is_address_taken_ = true;
+        }
         lhs->type_ = lhs->decl_->type();
         Id* rhs = new Id(Token(init()->loc(), param1_str));
         rhs->decl_ = param0;
@@ -475,15 +478,7 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     args[0] = cg.get_mem();
     RefPtr call_ref = Ref::create(cg.mem_call(ops[0], args, call_type()));
     cg.set_mem(cg.cur_bb->param(0));
-    
-    // TODO remove this hack
-    /*RefPtr ref;
-    if (init_decl()) {
-        ref = init_decl()->emit(cg);
-    } else {
-        ref = init_expr()->emit(cg);
-    }
-    ref->store(call_ref->load());*/
+
     cg.jump(exit_bb);
 }
 

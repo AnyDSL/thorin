@@ -21,7 +21,8 @@ class Sema {
 public:
 
     Sema(World& world)
-        : world_(world)
+        : in_foreach_(false)
+        , world_(world)
         , result_(true)
     {}
 
@@ -56,6 +57,8 @@ public:
     World& world() { return world_; }
 
     std::vector< boost::unordered_set<const Generic*> > bound_generics_;
+    
+    bool in_foreach_;
 
 private:
 
@@ -196,13 +199,21 @@ const Type* Tuple::vcheck(Sema& sema) const {
 const Type* Id::vcheck(Sema& sema) const {
     if (const Decl* decl = sema.lookup(symbol())) {
         decl_ = decl;
+        
+        if (sema.in_foreach_) {
+            if (const VarDecl* vardecl = decl->isa<VarDecl>()) {
+                if (!vardecl->type()->isa<Pi>() && !vardecl->type()->is_generic())
+                    vardecl->is_address_taken_ = true;
+            }
+        }
+     
 
-//#if 0
+#if 0
         if (const VarDecl* vardecl = decl->isa<VarDecl>()) {
             if (!vardecl->type()->isa<Pi>() && !vardecl->type()->is_generic())
                 vardecl->is_address_taken_ = true;
         }
-//#endif
+#endif
         return decl->type();
     }
 
@@ -472,10 +483,14 @@ void ForeachStmt::check(Sema& sema) const {
     } else
         sema.error(to()) << "invocation not done on function type but instead type '" << to()->type() << "' is given\n";
 
+    bool already_in_foreach = sema.in_foreach_;
+    sema.in_foreach_ = true;
     if (const ScopeStmt* scope = body()->isa<ScopeStmt>())
         scope->check_stmts(sema);
     else
         body()->check(sema);
+    if (!already_in_foreach)
+        sema.in_foreach_ = false;
 
     sema.pop_scope();
 }

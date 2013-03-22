@@ -1,0 +1,19 @@
+def count(n : int, yield : pi(int, pi()), ret : pi()) {
+    yield(1, lambda() {
+        def loop(i : int) {
+            if (i < n)
+                yield(i, lambda() { loop(i+1); });
+            else
+                ret();
+        }
+        loop(2);
+    });
+}
+
+def main() -> int {
+    b : int = 42;
+    foreach (x : int  <- count(10)) {
+        b += x;
+    }
+    return b;
+}

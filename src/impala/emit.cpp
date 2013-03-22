@@ -399,36 +399,6 @@ void ForStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     head_bb.seal();
 }
 
-const Lambda* ForeachStmt::emit_ret(CodeGen& cg, Lambda* parent, JumpTarget& exit_bb) const {
-    std::vector<const Type*> elems;
-    const Pi* lambda_pi = cg.world().pi(elems);
-    
-    // emit head
-    anydsl2::Lambda* lambda_ = cg.world().lambda(convert(lambda_pi), "foreach_ret");
-    lambda_->param(0)->name = "mem";
-    
-    // emit body
-    lambda_->set_parent(parent);
-
-    Push<Lambda*> push1(cg.cur_bb,  lambda_);
-    Push<Lambda*> push2(cg.cur_fun, lambda_);
-
-    const Enter* enter = cg.world().enter(lambda_->param(0));
-    cg.set_mem(enter->extract_mem());
-    Push<const Def*> push3(cg.cur_frame, enter->extract_frame());
-
-    JumpTarget exit;
-    // body of the lambda: just a jump out of the foreach
-    cg.jump(exit_bb);
-    
-    cg.jump(exit);
-    cg.enter(exit);
-    
-    //lambda_->pi()->dump();
-
-    return lambda_;
-}
-
 void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     size_t num = ops_.size();
     Array<const Def*> defs(num + 1);
@@ -470,12 +440,9 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
         // TODO
     }
     defs[num] = fun->emit(cg)->load();
-
-    // lambda() { jump exit_bb }
-    //defs[num + 1] = Ref::create(emit_ret(cg, cg.cur_bb, exit_bb))->load();
         
     Array<const Def*> ops = defs;
-    Array<const Def*> args(num + 1); // + 2
+    Array<const Def*> args(num + 1);
     std::copy(ops.begin() + 1, ops.end(), args.begin() + 1);
     args[0] = cg.get_mem();
     RefPtr call_ref = Ref::create(cg.mem_call(ops[0], args, 0)); // call_type()));

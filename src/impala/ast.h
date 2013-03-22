@@ -636,7 +636,6 @@ public:
     virtual void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
-    virtual const anydsl2::Lambda* emit_ret(CodeGen& cg, anydsl2::Lambda* parent, anydsl2::JumpTarget& exit_bb) const;
 
 private:
 

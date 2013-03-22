@@ -722,9 +722,8 @@ const Param* World::param(const Type* type, Lambda* lambda, size_t index, const 
 
 void World::cse_break(const PrimOp* primop) {
 #ifndef NDEBUG
-    if (breakpoints_.find(gid_) != breakpoints_.end()) ANYDSL2_CHECK_BREAK
+    if (breakpoints_.find(primop->gid()) != breakpoints_.end()) ANYDSL2_BREAK
 #endif
-    primop->set_gid(gid_++);
 }
 
 template<class T, class U>

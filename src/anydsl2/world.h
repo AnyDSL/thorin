@@ -317,11 +317,15 @@ protected:
     const U* cse(const T& tuple, const std::string& name) {
         PrimOpSet::iterator i = primops_.find(tuple, std::ptr_fun<const T&, size_t>(hash_tuple),
                                                      std::ptr_fun<const T&, const Node*, bool>(smart_eq<T, U>));
-        if (i != primops_.end()) return (*i)->as<U>();
+        if (i != primops_.end()) {
+            cse_break(*i);
+            return (*i)->as<U>();
+        }
 
         std::pair<PrimOpSet::iterator, bool> p = primops_.insert(new U(tuple, name));
         assert(p.second && "hash/equal broken");
         const U* u = (*p.first)->as<U>();
+        u->set_gid(gid_++);
         cse_break(u);
         return u;
     }

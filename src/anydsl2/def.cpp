@@ -134,20 +134,22 @@ void Def::replace(const Def* with) const {
                         goto recurse;
                 }
 
-                // nothing exciting happened by rebuilding 
-                // -> reuse the old chunk of memory and save recursive updates
-                PrimOp* oreleased = world().release(oprimop);
-                AutoPtr<PrimOp> nreleased = world().release(ndef->as<PrimOp>());
-                nreleased->unset_ops();
+                if (ndef->num_uses() == 0) { // only consider fresh (non-CSEd) primop
+                    // nothing exciting happened by rebuilding 
+                    // -> reuse the old chunk of memory and save recursive updates
+                    PrimOp* oreleased = world().release(oprimop);
+                    AutoPtr<PrimOp> nreleased = world().release(ndef->as<PrimOp>());
+                    nreleased->unset_ops();
 
-                // update operand
-                oreleased->unset_op(use.index());
-                oreleased->set_op(use.index(), with);
+                    // update operand
+                    oreleased->unset_op(use.index());
+                    oreleased->set_op(use.index(), with);
 
-                // reinsert
-                world().reinsert(oprimop);
+                    // reinsert
+                    world().reinsert(oprimop);
 
-                continue;
+                    continue;
+                }
             }
 recurse:
             // update trackers to point to new defintion ndef

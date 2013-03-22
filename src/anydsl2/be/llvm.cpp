@@ -414,7 +414,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return builder.CreateStore(lookup(store->val()), lookup(store->ptr()));
 
     if (const Slot* slot = def->isa<Slot>())
-        return builder.CreateAlloca(map(slot->type()->as<Ptr>()->ref()));
+        return builder.CreateAlloca(map(slot->type()->as<Ptr>()->ref()), 0, slot->unique_name());
 
     if (const CCall* ccall = def->isa<CCall>()) {
         size_t num_args = ccall->num_args();

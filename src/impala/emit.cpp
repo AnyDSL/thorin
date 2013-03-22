@@ -419,11 +419,11 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     FunExpr* fun = new FunExpr();
     fun->pi_ = fun_type_;
 
-    std::string param1_str = "foreach_param2_next";
-    const VarDecl* param0 = new VarDecl(var_handle(), Token(init()->loc(), "foreach_param1_x"), left_type_, init()->pos1());
-    const VarDecl* param1 = new VarDecl(var_handle()+1, Token(init()->loc(), param1_str), inner_fun_type_, init()->pos1());
-    fun->params_.push_back(param0);
+    std::string param1_str = "foreach_param1_x";
+    const VarDecl* param1 = new VarDecl(var_handle(), Token(init()->loc(), param1_str), left_type_, init()->pos1());
+    const VarDecl* param2 = new VarDecl(var_handle()+1, Token(init()->loc(), "foreach_param2_next"), inner_fun_type_, init()->pos1());
     fun->params_.push_back(param1);
+    fun->params_.push_back(param2);
     
     if (const ScopeStmt* scope = body()->isa<ScopeStmt>()) {
         Id* lhs = new Id(Token(init()->loc(), param1_str));
@@ -437,7 +437,7 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
         vardecl->is_address_taken_ = true;
         lhs->type_ = lhs->decl_->type();
         Id* rhs = new Id(Token(init()->loc(), param1_str));
-        rhs->decl_ = param0;
+        rhs->decl_ = param1;
         rhs->type_ = rhs->decl_->type(); 
         const InfixExpr* assign = new InfixExpr(lhs, (InfixExpr::Kind) Token::ASGN, rhs);
         ExprStmt* assign_stmt = new ExprStmt(assign, init()->pos1());

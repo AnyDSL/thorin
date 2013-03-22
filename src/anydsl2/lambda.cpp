@@ -76,16 +76,14 @@ template<bool direct>
 static Lambdas find_preds(const Lambda* lambda) {
     Lambdas result;
     for_all (use, lambda->uses()) {
-        const Def* luse = use.def();
-        if (const Select* select = luse->isa<Select>()) {
-            for_all (suse, select->uses()) {
-                assert(suse.index() == 0);
-                result.push_back(suse.def()->as_lambda());
+        if (const Select* select = use->isa<Select>()) {
+            for_all (select_user, select->uses()) {
+                assert(select_user.index() == 0);
+                result.push_back(select_user->as_lambda());
             }
         } else {
-            if (!direct || use.index() == 0) {
-                result.push_back(luse->as_lambda());
-            }
+            if (!direct || use.index() == 0)
+                result.push_back(use->as_lambda());
         }
     }
 
@@ -133,26 +131,18 @@ bool Lambda::is_cascading() const {
         return false;
 
     Use use = *uses().begin();
-    return use.def()->isa<Lambda>() && use.index() > 0;
+    return use->isa<Lambda>() && use.index() > 0;
 }
 
 bool Lambda::is_basicblock() const { return pi()->is_basicblock(); }
 bool Lambda::is_returning() const { return pi()->is_returning(); }
-
-void Lambda::destroy_body() {
-    for (size_t i = 0, e = size(); i != e; ++i)
-        unset_op(i);
-    resize(0);
-}
 
 /*
  * terminate
  */
 
 void Lambda::jump(const Def* to, ArrayRef<const Def*> args) {
-    for (size_t i = 0, e = size(); i != e; ++i)
-        unset_op(i);
-
+    unset_ops();
     resize(args.size()+1);
     set_op(0, to);
 

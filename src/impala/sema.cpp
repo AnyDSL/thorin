@@ -208,7 +208,7 @@ const Type* Id::vcheck(Sema& sema) const {
         }
      
 
-#if 0
+#if 1
         if (const VarDecl* vardecl = decl->isa<VarDecl>()) {
             if (!vardecl->type()->isa<Pi>() && !vardecl->type()->is_generic())
                 vardecl->is_address_taken_ = true;

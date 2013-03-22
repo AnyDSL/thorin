@@ -15,6 +15,23 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
+void Tracker::set(const Def* def) {
+    release();
+    def_ = def;
+    assert(std::find(def->trackers_.begin(), def->trackers_.end(), this) == def->trackers_.end() && "already in trackers set");
+    def->trackers_.push_back(this);
+}
+
+void Tracker::release() {
+    if (def_) {
+        Trackers::iterator i = std::find(def_->trackers_.begin(), def_->trackers_.end(), this);
+        assert(i != def_->trackers_.end() && "must be in trackers set");
+        def_->trackers_.erase(i);
+    }
+}
+
+//------------------------------------------------------------------------------
+
 void Def::set_op(size_t i, const Def* def) {
     assert(!op(i) && "already set");
     assert(std::find(def->uses_.begin(), def->uses_.end(), Use(i, this)) == def->uses_.end() && "already in use set");
@@ -26,6 +43,11 @@ void Def::unset_op(size_t i) {
     assert(op(i) && "must be set");
     unregister_use(i);
     set(i, 0);
+}
+
+void Def::unset_ops() {
+    for (size_t i = 0, e = size(); i != e; ++i)
+        unset_op(i);
 }
 
 void Def::unregister_use(size_t i) const {
@@ -61,6 +83,15 @@ Array<Use> Def::copy_uses() const {
     return result;
 }
 
+TrackedUses Def::tracked_uses() const {
+    TrackedUses result(num_uses());
+
+    for_all2 (&tracked_use, result, use, uses())
+        tracked_use = use;
+
+    return result;
+}
+
 bool Def::is_primlit(int val) const {
     if (const PrimLit* lit = this->isa<PrimLit>()) {
         Box box = lit->box();
@@ -86,14 +117,46 @@ bool Def::is_minus_zero() const {
 }
 
 void Def::replace(const Def* with) const {
-    for_all (use, this->copy_uses()) {
-        if (Lambda* lambda = use.def()->isa_lambda())
+    for_all (const& use, tracked_uses()) {
+        if (Lambda* lambda = use->isa_lambda())
             lambda->update_op(use.index(), with);
         else {
-            const PrimOp* oprimop = use.def()->as<PrimOp>();
+            const PrimOp* oprimop = use->as<PrimOp>();
             Array<const Def*> ops(oprimop->ops());
             ops[use.index()] = with;
-            oprimop->replace(world().rebuild(oprimop, ops));
+            const Def* ndef = world().rebuild(oprimop, ops);
+
+            if (oprimop->kind() == ndef->kind()) {
+                assert(oprimop->size() == ndef->size());
+
+                for (size_t i = 0, e = oprimop->size(); i != e; ++i) {
+                    if (i != use.index() && oprimop->op(i) != ndef->op(i))
+                        goto recurse;
+                }
+
+                if (ndef->num_uses() == 0) { // only consider fresh (non-CSEd) primop
+                    // nothing exciting happened by rebuilding 
+                    // -> reuse the old chunk of memory and save recursive updates
+                    PrimOp* oreleased = world().release(oprimop);
+                    AutoPtr<PrimOp> nreleased = world().release(ndef->as<PrimOp>());
+                    nreleased->unset_ops();
+
+                    // update operand
+                    oreleased->unset_op(use.index());
+                    oreleased->set_op(use.index(), with);
+
+                    // reinsert
+                    world().reinsert(oprimop);
+
+                    continue;
+                }
+            }
+recurse:
+            // update trackers to point to new defintion ndef
+            for_all (tracker, oprimop->trackers())
+                *tracker = ndef;
+
+            oprimop->replace(ndef);
         }
     }
 }

@@ -722,9 +722,8 @@ const Param* World::param(const Type* type, Lambda* lambda, size_t index, const 
 
 void World::cse_break(const PrimOp* primop) {
 #ifndef NDEBUG
-    if (breakpoints_.find(gid_) != breakpoints_.end()) ANYDSL2_CHECK_BREAK
+    if (breakpoints_.find(primop->gid()) != breakpoints_.end()) ANYDSL2_BREAK
 #endif
-    primop->set_gid(gid_++);
 }
 
 template<class T, class U>
@@ -800,7 +799,7 @@ void World::dead_code_elimination() {
             for_all (param, lambda->params()) {
                 if (param->order() >= 1) {
                     for_all (use, param->uses()) {
-                        if (Lambda* caller = use.def()->isa_lambda())
+                        if (Lambda* caller = use->isa_lambda())
                             dce_insert(pass, caller);
                     }
                 }
@@ -910,6 +909,11 @@ PrimOp* World::release(const PrimOp* primop) {
     primops_.erase(i);
 
     return const_cast<PrimOp*>(primop);
+}
+
+void World::reinsert(const PrimOp* primop) {
+    assert(primops_.find(primop) == primops_.end() && "must not be found");
+    primops_.insert(primop);
 }
 
 /*

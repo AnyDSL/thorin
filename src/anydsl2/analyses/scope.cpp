@@ -82,7 +82,7 @@ void Scope::find_user(const size_t pass, const Def* def) {
         up(pass, lambda);
     else {
         for_all (use, def->uses())
-            find_user(pass, use.def());
+            find_user(pass, use);
     }
 }
 

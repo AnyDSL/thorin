@@ -68,9 +68,14 @@ const Lambda* Fun::emit_body(CodeGen& cg, Lambda* parent, const char* what) cons
     Push<Lambda*> push1(cg.cur_bb,  lambda());
     Push<Lambda*> push2(cg.cur_fun, lambda());
 
-    const Enter* enter = cg.world().enter(lambda()->param(0));
-    cg.set_mem(enter->extract_mem());
-    Push<const Def*> push3(cg.cur_frame, enter->extract_frame());
+    bool new_frame = false;
+    if (!cg.cur_frame) {
+        const Enter* enter = cg.world().enter(lambda()->param(0));
+        cg.set_mem(enter->extract_mem());
+        cg.cur_frame = enter->extract_frame();
+        new_frame = true;
+    } else
+        cg.set_mem(lambda()->param(0));
 
     size_t num = params().size();
     for (size_t i = 0; i < num; ++i) {
@@ -97,6 +102,9 @@ const Lambda* Fun::emit_body(CodeGen& cg, Lambda* parent, const char* what) cons
             }
         }
     }
+
+    if (new_frame)
+        cg.cur_frame = 0;
 
     return lambda();
 }

@@ -12,7 +12,7 @@ void inliner(World& world) {
         if (top->num_uses() <= 2) {
             for_all (use, top->uses()) {
                 if (use.index() == 0) {
-                    if (Lambda* ulambda = use.def()->isa_lambda()) {
+                    if (Lambda* ulambda = use->isa_lambda()) {
                         Scope scope(top);
                         if (!scope.contains(ulambda))
                             ulambda->jump0(scope.drop(ulambda->args()));

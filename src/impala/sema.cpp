@@ -39,8 +39,8 @@ public:
     void insert(const Decl* decl);
 
     /** 
-     * @brief Checks whether there already exists a \p Symbol \p sym in the \em current scope.
-     * @param sym The \p Symbol to check.
+     * @brief Checks whether there already exists a \p Symbol \p symbol in the \em current scope.
+     * @param symbol The \p Symbol to check.
      * @return The current mapping if the lookup succeeds, 0 otherwise.
      */
     const Decl* clash(Symbol symbol) const;

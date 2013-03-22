@@ -188,7 +188,7 @@ class CompoundType : public Type {
 protected:
 
     CompoundType(World& world, int kind, size_t num_elems);
-    CompoundType(World& world, int kind, ArrayRef<const Type*> elems);
+    CompoundType(World& world, int kind, Elems elems);
 
     void dump_inner(Printer& printer) const;
 

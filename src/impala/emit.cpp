@@ -410,12 +410,10 @@ void ForStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     size_t num = ops_.size();
     Array<const Def*> defs(num + 1);
-    for (size_t i = 0; i < num; ++i) {
+    for (size_t i = 0; i < num; ++i)
         defs[i] = op(i)->emit(cg)->load();
-        op(i)->type()->dump();
-    }
 
-    // lambda (..., step : pi()) { lhs = val; body; next(); }
+    // lambda (..., step : pi()) { lhs = val; body... }
     FunExpr* fun = new FunExpr();
     fun->pi_ = fun_type_;
 

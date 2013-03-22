@@ -18,10 +18,11 @@ namespace impala {
 class Sema {
 public:
 
-    Sema(World& world)
+    Sema(World& world, bool nossa)
         : in_foreach_(false)
         , world_(world)
         , result_(true)
+        , nossa_(nossa)
     {}
 
     /** 
@@ -39,8 +40,8 @@ public:
     void insert(const Decl* decl);
 
     /** 
-     * @brief Checks whether there already exists a \p Symbol \p sym in the \em current scope.
-     * @param sym The \p Symbol to check.
+     * @brief Checks whether there already exists a \p Symbol \p symbol in the \em current scope.
+     * @param symbol The \p Symbol to check.
      * @return The current mapping if the lookup succeeds, 0 otherwise.
      */
     const Decl* clash(Symbol symbol) const;
@@ -49,6 +50,7 @@ public:
     void pop_scope();
     size_t depth() const { return levels_.size(); }
     bool result() const { return result_; }
+    bool nossa() const { return nossa_; }
     std::ostream& error(const ASTNode* n) { result_ = false; return n->error(); }
     std::ostream& error(const Location& loc) { result_ = false; return loc.error(); }
     GenericMap fill_map();
@@ -62,6 +64,7 @@ private:
 
     World& world_;
     bool result_;
+    bool nossa_;
 
     typedef boost::unordered_map<Symbol, const Decl*> Sym2Decl;
     Sym2Decl sym2decl_;
@@ -110,8 +113,8 @@ void Sema::pop_scope() {
 
 //------------------------------------------------------------------------------
 
-bool check(World& world, const Prg* prg) {
-    Sema sema(world);
+bool check(World& world, const Prg* prg, bool nossa) {
+    Sema sema(world, nossa);
     prg->check(sema);
     return sema.result();
 }
@@ -206,12 +209,13 @@ const Type* Id::vcheck(Sema& sema) const {
         }
      
 
-#if 1
-        if (const VarDecl* vardecl = decl->isa<VarDecl>()) {
-            if (!vardecl->type()->isa<Pi>() && !vardecl->type()->is_generic())
-                vardecl->is_address_taken_ = true;
+        if (sema.nossa()) {
+            if (const VarDecl* vardecl = decl->isa<VarDecl>()) {
+                if (!vardecl->type()->isa<Pi>() && !vardecl->type()->is_generic())
+                    vardecl->is_address_taken_ = true;
+            }
         }
-#endif
+
         return decl->type();
     }
 

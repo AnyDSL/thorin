@@ -51,30 +51,7 @@ typedef Array<Peek> Peeks;
 
 //------------------------------------------------------------------------------
 
-class Use {
-public:
-
-    Use() {}
-    Use(size_t index, const Def* def)
-        : index_(index)
-        , def_(def)
-    {}
-
-    size_t index() const { return index_; }
-    const Def* def() const { return def_; }
-
-    bool operator == (Use use) const { return def() == use.def() && index() == use.index(); }
-    bool operator != (Use use) const { return def() != use.def() || index() != use.index(); }
-
-    operator const Def*() const { return def_; }
-    const Def* operator -> () const { return def_; }
-
-private:
-
-    size_t index_;
-    const Def* def_;
-};
-
+/// References a \p Def but updates its reference after a \p Def::replace with the replaced \p Def.
 class Tracker {
 private:
 
@@ -101,6 +78,39 @@ private:
     const Def* def_;
 };
 
+//------------------------------------------------------------------------------
+
+/// References a user, i.e., a \p Def using the referenced \p Def in question as \p index_'s operand.
+class Use {
+public:
+
+    Use() {}
+    Use(size_t index, const Def* def)
+        : index_(index)
+        , def_(def)
+    {}
+
+    size_t index() const { return index_; }
+    const Def* def() const { return def_; }
+
+    bool operator == (Use use) const { return def() == use.def() && index() == use.index(); }
+    bool operator != (Use use) const { return def() != use.def() || index() != use.index(); }
+
+    operator const Def*() const { return def_; }
+    const Def* operator -> () const { return def_; }
+
+private:
+
+    size_t index_;
+    const Def* def_;
+};
+
+//------------------------------------------------------------------------------
+
+/**
+ * Works like a \p Use but the referenced \p Def is in fact a \p Tracker.
+ * This means, a \p TrackedUse updates it's referenced \p Def after a \p Def::replace.
+ */
 class TrackedUse {
 public:
 
@@ -120,6 +130,7 @@ public:
     operator const Def*() const { return tracker_; }
     const Def* operator -> () const { return tracker_; }
     const Def* operator = (Use use) { index_ = use.index(); return tracker_ = use; }
+
 private:
 
     size_t index_;
@@ -132,6 +143,13 @@ typedef Array<TrackedUse> TrackedUses;
 
 //------------------------------------------------------------------------------
 
+/**
+ * The base class for all three kinds of Definitions in AnyDSL.
+ * These are:
+ * - \p PrimOp%s
+ * - \p Param%s and
+ * - \p Lambda%s.
+ */
 class Def : public Node {
 private:
 

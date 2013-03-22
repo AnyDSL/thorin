@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
 #endif
         string outfile = "-";
         string emittype;
-        bool help, emit_all, emit_air, emit_ast, emit_dot, emit_llvm, fancy, opt, verify, nocleanup = false;
+        bool help, emit_all, emit_air, emit_ast, emit_dot, emit_llvm, fancy, opt, verify, nocleanup, nossa = false;
 
         // specify options
         po::options_description desc("Usage: " + prgname + " [options] file...");
@@ -46,14 +46,15 @@ int main(int argc, char** argv) {
 #ifndef NDEBUG
         ("break,b",         po::value(&breakpoints),                    "breakpoint at definition generation of number arg")
 #endif
-        ("emit-all",        po::bool_switch(&emit_all),                 "emit AST, AIR and LLVM")
         ("emit-air",        po::bool_switch(&emit_air),                 "emit textual AIR representation of impala program")
+        ("emit-all",        po::bool_switch(&emit_all),                 "emit AST, AIR and LLVM")
         ("emit-ast",        po::bool_switch(&emit_ast),                 "emit AST of impala program")
         ("emit-dot",        po::bool_switch(&emit_dot),                 "emit dot, arg={air|llvm}")
         ("emit-llvm",       po::bool_switch(&emit_llvm),                "emit llvm from AIR representation")
         ("fancy,f",         po::bool_switch(&fancy),                    "use fancy output")
-        ("verify,v",        po::bool_switch(&verify),                   "run verifier")
         ("nocleanup",       po::bool_switch(&nocleanup),                "no clean-up phase")
+        ("nossa",           po::bool_switch(&nossa),                    "use slots + load/store instead of SSA construction")
+        ("verify,v",        po::bool_switch(&verify),                   "run verifier")
         (",O",              po::bool_switch(&opt),                      "optimize");
 
         // positional options, i.e., input files
@@ -116,7 +117,7 @@ int main(int argc, char** argv) {
         if (emit_ast)
             dump(p, fancy);
 
-        result &= check(init.world, p);
+        result &= check(init.world, p, nossa);
 
         if (emit_dot)
             assert(false && "todo");

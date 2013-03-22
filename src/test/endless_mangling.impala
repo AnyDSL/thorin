@@ -1,0 +1,10 @@
+def f(a : int, ret1 : pi(int), ret2 : pi(int)) {
+    if (a < 42)
+        f(a + 1, ret2, ret1);
+    else
+        ret1(a+2);
+}
+
+def main(i : int, ret : pi(int)) {
+    f(i, ret, lambda(i : int) { ret(i); });
+}

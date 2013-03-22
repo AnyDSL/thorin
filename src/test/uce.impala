@@ -1,0 +1,7 @@
+def f(i : int) -> int {
+    return g(i);
+}
+
+def g(i : int) -> int {
+    return f(i);
+}

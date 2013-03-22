@@ -1,0 +1,7 @@
+def id<T>(t : T) -> T {
+    return t;
+}
+
+def main(i : int) -> int {
+    return id(id(i));
+}

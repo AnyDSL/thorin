@@ -1,0 +1,31 @@
+def primes(n : int, yield : pi(int, pi()), ret : pi()) {
+    if (n < 2) 
+        ret();
+
+    yield(2, lambda() {
+        def loop(i : int) {
+            def inner_loop(j : int) {
+                if (j < i) {
+                    if (i % j == 0)
+                        loop(i + 1);
+                    else
+                        inner_loop(j + 1);
+                }
+                yield(i, lambda() { loop(i+1); });
+            }
+            if (i < n)
+                inner_loop(2);
+            else
+                ret();
+        }
+        loop(3);
+    });
+}
+
+def main() -> int {
+    result : int = 0;
+    foreach(p : int <- primes(100)) {
+        result += p;
+    }
+    return result;
+}

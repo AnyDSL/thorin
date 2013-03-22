@@ -5,7 +5,7 @@ namespace impala {
 
 class World;
 
-bool check(World& world, const Prg* prg);
+bool check(World& world, const Prg* prg, bool nossa = false);
 
 } // namespace impala
 

@@ -628,11 +628,9 @@ const LEA* World::lea(const Def* ptr, const Def* index, const std::string& name)
     const Type* type = this->ptr(ptr->type()->as<Ptr>()->ref()->as<Sigma>()->elem_via_lit(index));
     return cse<DefTuple2, LEA>(DefTuple2(Node_LEA, type, ptr, index), name);
 }
-
 const Slot* World::slot(const Type* type, size_t index, const Def* frame, const std::string& name) {
     return cse<SlotTuple, Slot>(SlotTuple(Node_Slot, type->to_ptr(), index, frame), name);
 }
-
 const CCall* World::c_call(const std::string& callee, const Def* m, ArrayRef<const Def*> args,
                            const Type* rettype, bool vararg, const std::string& name) {
     const Type* type = rettype && !rettype->isa<Mem>() ? (const Type*) sigma2(mem(), rettype) : (const Type*) mem();

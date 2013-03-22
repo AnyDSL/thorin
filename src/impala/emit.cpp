@@ -430,7 +430,6 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
             lhs->decl_ = init_decl();
         }
         const VarDecl* vardecl = lhs->decl_->as<VarDecl>();
-        vardecl->is_address_taken_ = true;
         lhs->type_ = lhs->decl_->type();
         Id* rhs = new Id(Token(init()->loc(), param1_str));
         rhs->decl_ = param1;

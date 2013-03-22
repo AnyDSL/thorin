@@ -423,7 +423,7 @@ void ForStmt::check(Sema& sema) const {
 void ForeachStmt::check(Sema& sema) const {
     sema.push_scope();
     
-    if (init_decl() != NULL) {
+    if (init_decl()) {
         init_decl()->insert(sema);
         left_type_ = init_decl()->type();
     } else {
@@ -471,6 +471,9 @@ void ForeachStmt::check(Sema& sema) const {
         body()->check(sema);
     if (!already_in_foreach)
         sema.in_foreach_ = false;
+        
+    if (init_decl())
+        init_decl()->is_address_taken_ = false;
 
     sema.pop_scope();
 }

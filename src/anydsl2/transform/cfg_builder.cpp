@@ -6,7 +6,6 @@
 #include "anydsl2/lambda.h"
 #include "anydsl2/world.h"
 #include "anydsl2/type.h"
-#include "anydsl2/analyses/placement.h"
 #include "anydsl2/analyses/rootlambdas.h"
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/analyses/verifier.h"
@@ -81,7 +80,6 @@ size_t CFGBuilder::process() {
     std::vector<Lambda*> todo;
     for_all (top_lambda, top) {
         Scope scope(top_lambda);
-        place(scope);
         for (size_t i = scope.size(); i-- != 0;) {
             Lambda* lambda = scope.rpo(i);
             if (lambda->num_params()                                // is there sth to drop?

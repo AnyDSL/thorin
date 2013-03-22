@@ -4,6 +4,7 @@
 
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
+#include "anydsl2/memop.h"
 #include "anydsl2/primop.h"
 #include "anydsl2/world.h"
 #include "anydsl2/analyses/domtree.h"
@@ -100,12 +101,17 @@ void Placement::place_early(Places& places, Lambda* early, const Def* def) {
         {
             mark(primop);
             Lambda* best = late(primop);
-            int depth = std::numeric_limits<int>::max();
-            for (Lambda* i = best; i != early; i = scope.domtree().idom(i)) {
-                int cur_depth = scope.loopinfo().depth(i);
-                if (cur_depth < depth) {
-                    best = i;
-                    depth = cur_depth;
+            if (primop->isa<Slot>() || primop->isa<Enter>())
+                best = early;                 // place these guys always early
+            else if (!primop->isa<Leave>()) { // place this guy always late
+                // all other guys are placed as late as possible but out of loops if possible
+                int depth = std::numeric_limits<int>::max();
+                for (Lambda* i = best; i != early; i = scope.domtree().idom(i)) {
+                    int cur_depth = scope.loopinfo().depth(i);
+                    if (cur_depth < depth) {
+                        best = i;
+                        depth = cur_depth;
+                    }
                 }
             }
             places[best->sid()].push_back(primop);

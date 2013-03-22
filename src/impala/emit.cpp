@@ -2,8 +2,6 @@
 
 #include <boost/unordered_map.hpp>
 #include <iostream>
-
-#include <cstdio> // TODO remove
 #include <vector>
 
 #include "anydsl2/irbuilder.h"
@@ -451,7 +449,7 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     Array<const Def*> args(num + 1);
     std::copy(ops.begin() + 1, ops.end(), args.begin() + 1);
     args[0] = cg.get_mem();
-    RefPtr call_ref = Ref::create(cg.mem_call(ops[0], args, 0)); // call_type()));
+    RefPtr call_ref = Ref::create(cg.mem_call(ops[0], args, 0));
     cg.set_mem(cg.cur_bb->param(0));
 
     cg.jump(exit_bb);

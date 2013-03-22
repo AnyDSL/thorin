@@ -3,8 +3,6 @@
 #include <vector>
 #include <boost/unordered_map.hpp>
 
-#include <cstdio> // remove
-
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/for_all.h"
 
@@ -444,33 +442,13 @@ void ForeachStmt::check(Sema& sema) const {
         fun_type_ = sema.world().pi(elems);
         op_types[num_args()] = fun_type_;
 
-        const Pi* call_pi;
-        const Type* ret_type = to_pi->size() == num_args() ? sema.world().noret() : return_type(to_pi);
+        std::vector<const Type*> ret_elems;
+        op_types.back() = sema.world().pi(ret_elems);    
+        const Pi* call_pi = sema.world().pi(op_types);
 
-        if (ret_type->isa<NoRet>()) {
-            // TODO check this case
-            call_pi = sema.world().pi(op_types.slice_front(op_types.size()-1));
-        } else {
-            //op_types.back() = sema.world().pi1(ret_type);
-            
-            std::vector<const Type*> ret_elems;
-            op_types.back() = sema.world().pi(ret_elems);
-            
-            call_pi = sema.world().pi(op_types);
-        }
-
-        // ret_type case
         if (to_pi->check_with(call_pi)) {
             GenericMap map = sema.fill_map();
-            if (to_pi->infer_with(map, call_pi)) {
-                // TODO
-                if (const Generic* generic = ret_type->isa<Generic>()) {
-                    call_type_ = map[generic];
-                } else {
-                    call_type_ = ret_type;
-                }
-                //call_type_ = call_pi;
-            } else {
+            if (!to_pi->infer_with(map, call_pi)) {
                 sema.error(this->args_location()) << "cannot infer type '" << call_pi << "' induced by arguments\n";
                 sema.error(to()) << "to invocation type '" << to_pi << "' with '" << map << "'\n";
             }

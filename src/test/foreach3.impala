@@ -1,13 +1,11 @@
 def count<T>(n : T, yield : pi(T, pi()), ret : pi()) {
-    yield(n, lambda() {
-        def loop(i : T) {
-            if (true)
-                yield(i, lambda() { loop(i); });
-            else
-                ret();
-        }
-        loop(n);
-    });
+    def loop(i : T) {
+        if (true)
+            yield(i, lambda() { loop(); });
+        else
+            ret();
+    }
+    loop(n);
 }
 
 def main(n : int) -> float {

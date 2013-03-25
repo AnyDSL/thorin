@@ -8,16 +8,16 @@ def count(n : int, yield : pi(int, pi()), ret : pi()) {
     loop(0);
 }
 
-def main(n : int) -> int {
-    b : int = 2;
+def main() -> int {
+    b : int = 0;
     foreach (x : int  <- count(10)) {
         b += x;
+        foreach (y : int  <- count(x)) {
+            b += y;
+            foreach (z : int  <- count(y)) {
+                b += z;
+            }
+        }
     }
-
-    x : int = 42;
-    foreach (x  <- count(10)) {
-        b += x;
-    }
-
     return b;
 }

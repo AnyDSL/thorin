@@ -20,6 +20,25 @@ using namespace anydsl2;
 
 namespace impala {
 
+class ContinueTarget {
+public:
+    ContinueTarget(JumpTarget* t)
+        : is_jump(true)
+        , target(t)
+    {}
+    
+    ContinueTarget(const VarDecl* vd)
+        : is_jump(false)
+        , var_decl(vd)
+    {} 
+
+    bool is_jump;
+    union {
+        JumpTarget* target;
+        const VarDecl* var_decl;
+    };
+};
+
 class CodeGen : public IRBuilder {
 public:
 
@@ -35,7 +54,7 @@ public:
     const Def* cur_frame;
 
     JumpTarget* break_target;
-    JumpTarget* continue_target;
+    ContinueTarget* continue_target;
 };
 
 //------------------------------------------------------------------------------
@@ -373,7 +392,7 @@ void DoWhileStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     JumpTarget cond_bb("do_while_cond");
 
     Push<JumpTarget*> push1(cg.break_target, &exit_bb);
-    Push<JumpTarget*> push2(cg.continue_target, &cond_bb);
+    Push<ContinueTarget*> push2(cg.continue_target, new ContinueTarget(&cond_bb));
 
     cg.jump(body_bb);
 
@@ -391,7 +410,7 @@ void ForStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     JumpTarget step_bb("for_step");
 
     Push<JumpTarget*> push1(cg.break_target, &exit_bb);
-    Push<JumpTarget*> push2(cg.continue_target, &step_bb);
+    Push<ContinueTarget*> push2(cg.continue_target, new ContinueTarget(&step_bb));
 
     init()->emit(cg, head_bb);
 
@@ -408,8 +427,6 @@ void ForStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 }
 
 void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
-    Push<JumpTarget*> push1(cg.break_target, &exit_bb);
-
     size_t num = ops_.size();
     Array<const Def*> defs(num + 1);
     for (size_t i = 0; i < num; ++i)
@@ -424,6 +441,9 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     const VarDecl* param2 = new VarDecl(var_handle()+1, Token(init()->loc(), "foreach_param2_next"), inner_fun_type_, init()->pos1());
     fun->params_.push_back(param1);
     fun->params_.push_back(param2);
+    
+    Push<JumpTarget*> push1(cg.break_target, &exit_bb);
+    Push<ContinueTarget*> push2(cg.continue_target, new ContinueTarget(param2));
     
     if (const ScopeStmt* scope = body()->isa<ScopeStmt>()) {
         Id* lhs = new Id(Token(init()->loc(), param1_str));
@@ -451,14 +471,27 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     Array<const Def*> args(num + 1);
     std::copy(ops.begin() + 1, ops.end(), args.begin() + 1);
     args[0] = cg.get_mem();
-    RefPtr call_ref = Ref::create(cg.mem_call(ops[0], args, 0));
+    cg.mem_call(ops[0], args, 0);
     cg.set_mem(cg.cur_bb->param(0));
 
     cg.jump(exit_bb);
 }
 
 void BreakStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.jump(*cg.break_target); }
-void ContinueStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.jump(*cg.continue_target); }
+
+void ContinueStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
+    if (cg.continue_target->is_jump) {
+        cg.jump(*cg.continue_target->target);
+    } else {
+        const VarDecl* vardecl = cg.continue_target->var_decl;
+        const Type* air_type = convert(vardecl->type());
+        const Def* fun = Ref::create(cg.cur_bb, vardecl->handle(), air_type, vardecl->symbol().str())->load();
+        Array<const Def*> args(1);
+        args[0] = cg.get_mem();
+        cg.mem_call(fun, args, 0);
+        cg.set_mem(cg.cur_bb->param(0));
+    }
+}
 
 void ReturnStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     if (cg.is_reachable()) {

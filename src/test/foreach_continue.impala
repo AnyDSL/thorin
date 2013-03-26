@@ -11,9 +11,9 @@ def count(n : int, yield : pi(int, pi()), ret : pi()) {
 def main() -> int {
     b : int = 0;
     foreach (x : int  <- count(10)) {
-        b += x;
         if (b > 10)
-            break;
+            continue;
+        b += x;
     }
     return b;
 }

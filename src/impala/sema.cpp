@@ -489,7 +489,7 @@ void BreakStmt::check(Sema& sema) const {
 }
 
 void ContinueStmt::check(Sema& sema) const {
-    if (!loop())
+    if (!loop() && !sema.in_foreach_)
         sema.error(this) << "continue statement not within a loop\n";
 }
 

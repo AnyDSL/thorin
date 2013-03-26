@@ -9,17 +9,19 @@ def count(n : int, yield : pi(int, pi()), ret : pi()) {
 }
 
 def main() -> int {
-    a : int = 0;
     b : int = 0;
     foreach (x : int  <- count(10)) {
         b += x;
         foreach (y : int  <- count(x)) {
             b += y;
-            /*foreach (z : int  <- count(y)) {
+            if (y > 3)
+                continue;
+            foreach (z : int  <- count(y)) {
                 b += z;
-            }*/
+                if (z > 5)
+                    break;
+            }
         }
-        a += 2;
     }
-    return b + a;
+    return b;
 }

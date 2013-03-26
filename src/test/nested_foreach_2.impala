@@ -9,6 +9,7 @@ def count(n : int, yield : pi(int, pi()), ret : pi()) {
 }
 
 def main() -> int {
+    a : int = 0;
     b : int = 0;
     foreach (x : int  <- count(10)) {
         b += x;
@@ -18,6 +19,7 @@ def main() -> int {
                 b += z;
             }*/
         }
+        a += 2;
     }
-    return b;
+    return b + a;
 }

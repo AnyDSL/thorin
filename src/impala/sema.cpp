@@ -5,6 +5,7 @@
 
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/for_all.h"
+#include "anydsl2/util/push.h"
 
 #include "impala/dump.h"
 #include "impala/type.h"
@@ -463,14 +464,18 @@ void ForeachStmt::check(Sema& sema) const {
     } else
         sema.error(to()) << "invocation not done on function type but instead type '" << to()->type() << "' is given\n";
 
-    bool already_in_foreach = sema.in_foreach_;
-    sema.in_foreach_ = true;
+    //bool already_in_foreach = sema.in_foreach_;
+    //sema.in_foreach_ = true;
+    
+    //Push<ForeachStmt*> push1(sema.foreach_stmt, this);
+    Push<bool> push1(sema.in_foreach_, true);
+    
     if (const ScopeStmt* scope = body()->isa<ScopeStmt>())
         scope->check_stmts(sema);
     else
         body()->check(sema);
-    if (!already_in_foreach)
-        sema.in_foreach_ = false;
+    //if (!already_in_foreach)
+    //    sema.in_foreach_ = false;
         
     if (init_decl())
         init_decl()->is_address_taken_ = false;
@@ -479,7 +484,7 @@ void ForeachStmt::check(Sema& sema) const {
 }
 
 void BreakStmt::check(Sema& sema) const {
-    if (!loop())
+    if (!loop() && !sema.in_foreach_)
         sema.error(this) << "break statement not within a loop\n";
 }
 

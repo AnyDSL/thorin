@@ -9,9 +9,11 @@ def count(n : int, yield : pi(int, pi()), ret : pi()) {
 }
 
 def main() -> int {
-    b : int = 42;
+    b : int = 2;
     foreach (x : int  <- count(10)) {
         b += x;
+        if (b > 10)
+            break;
     }
     return b;
 }

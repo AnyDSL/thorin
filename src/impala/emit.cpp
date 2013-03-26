@@ -113,8 +113,10 @@ void Prg::emit(CodeGen& cg) const {
     for_all (f, named_funs()) {
         Lambda* lambda = f->emit_head(cg, f->symbol());
 
-        if (f->symbol() == Symbol("main"))
+        if (f->symbol() == Symbol("main")) {
+            lambda->name += "_impala";
             lambda->attr().set_extern();
+        }
     }
 
     for_all (f, named_funs())
@@ -406,6 +408,8 @@ void ForStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 }
 
 void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
+    Push<JumpTarget*> push1(cg.break_target, &exit_bb);
+
     size_t num = ops_.size();
     Array<const Def*> defs(num + 1);
     for (size_t i = 0; i < num; ++i)
@@ -429,7 +433,6 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
         } else {
             lhs->decl_ = init_decl();
         }
-        const VarDecl* vardecl = lhs->decl_->as<VarDecl>();
         lhs->type_ = lhs->decl_->type();
         Id* rhs = new Id(Token(init()->loc(), param1_str));
         rhs->decl_ = param1;

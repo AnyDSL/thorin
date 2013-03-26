@@ -8,7 +8,7 @@ def count(n : float, yield : pi(float, pi()), ret : pi()) {
     loop(0.0f);
 }
 
-def main(n : int) -> float {
+def main() -> float {
     b : float = 2.0f;
     foreach (x : float  <- count(10.0f)) {
         b += x;

@@ -124,6 +124,7 @@ void Def::replace(const Def* with) const {
             const PrimOp* oprimop = use->as<PrimOp>();
             Array<const Def*> ops(oprimop->ops());
             ops[use.index()] = with;
+            size_t old_gid = world().gid();
             const Def* ndef = world().rebuild(oprimop, ops);
 
             if (oprimop->kind() == ndef->kind()) {
@@ -134,7 +135,7 @@ void Def::replace(const Def* with) const {
                         goto recurse;
                 }
 
-                if (ndef->num_uses() == 0) { // only consider fresh (non-CSEd) primop
+                if (ndef->gid() == old_gid) { // only consider fresh (non-CSEd) primop
                     // nothing exciting happened by rebuilding 
                     // -> reuse the old chunk of memory and save recursive updates
                     PrimOp* oreleased = world().release(oprimop);

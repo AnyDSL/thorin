@@ -303,10 +303,10 @@ RefPtr Call::emit(CodeGen& cg) const {
         return RefPtr(0);
     }
 
-    RefPtr ref = Ref::create(cg.mem_call(ops[0], args, type()));
+    cg.mem_call(ops[0], args, type());
     cg.set_mem(cg.cur_bb->param(0));
 
-    return ref;
+    return Ref::create(cg.cur_bb->param(1));
 }
 
 /*
@@ -415,7 +415,8 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     Lambda* lambda = cg.world().lambda(convert(fun_type_));
     args[num] = lambda;
 
-    Lambda* next = cg.mem_call(op(0)->emit(cg)->load(), args, 0)->lambda();
+    cg.mem_call(op(0)->emit(cg)->load(), args, 0);
+    Lambda* next = cg.cur_bb;
     cg.set_mem(cg.cur_bb->param(0));
 
     // go into the lambda

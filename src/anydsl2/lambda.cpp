@@ -172,17 +172,12 @@ Lambda* Lambda::call(const Def* to, ArrayRef<const Def*> args, const Type* ret_t
 
 Lambda* Lambda::mem_call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
     // create next continuation in cascade
-    const Pi* pi;
-    if (ret_type) {
-        pi = world().pi2(world().mem(), ret_type);
-    } else {
-        pi = world().pi1(world().mem());
-    }
+    const Pi* pi = ret_type ? world().pi2(world().mem(), ret_type) : world().pi1(world().mem());
     Lambda* next = world().lambda(pi, name + "_" + to->name);
     next->param(0)->name = "mem";
-    if (ret_type) {
+
+    if (ret_type)
         next->param(1)->name = to->name;
-    }
 
     // create jump to this new continuation
     size_t csize = args.size() + 1;

@@ -105,10 +105,9 @@ const Param* IRBuilder::call(const Def* to, ArrayRef<const Def*> args, const Typ
     return 0;
 }
 
-const Param* IRBuilder::mem_call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
+void IRBuilder::mem_call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
     if (is_reachable())
-        return (cur_bb = cur_bb->mem_call(to, args, ret_type))->param(0);
-    return 0;
+        (cur_bb = cur_bb->mem_call(to, args, ret_type));
 }
 
 void IRBuilder::tail_call(const Def* to, ArrayRef<const Def*> args) {

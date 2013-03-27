@@ -611,20 +611,12 @@ public:
     }
     void set(const VarDecl* d) { init_decl_ = d; }
     void set(const Expr* e) { init_expr_ = e; }
-
-    const Expr* to() const { return ops_.front(); }
-    size_t num_args() const { return size() - 1; }
-    anydsl2::ArrayRef<const Expr*> args() const { return anydsl2::ArrayRef<const Expr*>(&*ops_.begin() + 1, num_args()); }
-    const Expr* arg(size_t i) const { return op(i+1); }
-    anydsl2::Location args_location() const;
-    void append_arg(const Expr* expr) { ops_.push_back(expr); }
-    const Exprs& ops() const { return ops_; }
-    const Expr* op(size_t i) const { return ops_[i]; }
-    size_t size() const { return ops_.size(); }
+    void set(const Call* call) { call_ = call; }
 
     const Stmt* body() const { return body_; }
     const VarDecl* init_decl() const { return init_decl_; }
     const Expr* init_expr() const { return init_expr_; }
+    const Call* call() const { return call_; }
     const ASTNode* init() const { return (const ASTNode*) ((uintptr_t) init_decl_.get() | (uintptr_t) init_expr_.get()); }
 
     virtual void check(Sema& sema) const;
@@ -636,7 +628,7 @@ private:
     anydsl2::AutoPtr<const Stmt> body_;
     anydsl2::AutoPtr<const VarDecl> init_decl_;
     anydsl2::AutoPtr<const Expr> init_expr_;
-    Exprs ops_;
+    anydsl2::AutoPtr<const Call> call_;
     
     mutable const anydsl2::Pi* fun_type_;
 };

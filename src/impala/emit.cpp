@@ -406,16 +406,16 @@ void ForStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 
 void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     // construct a call to the generator
-    size_t num = ops_.size();
+    size_t num = call()->ops().size();
     Array<const Def*> args(num + 1);
     args[0] = cg.get_mem();
     for (size_t i = 1; i < num; ++i)
-        args[i] = op(i)->emit(cg)->load();
+        args[i] = call()->op(i)->emit(cg)->load();
     // construct a lambda for the body, see below
     Lambda* lambda = cg.world().lambda(convert(fun_type_));
     args[num] = lambda;
 
-    cg.mem_call(op(0)->emit(cg)->load(), args, 0);
+    cg.mem_call(call()->op(0)->emit(cg)->load(), args, 0);
     Lambda* next = cg.cur_bb;
     cg.set_mem(cg.cur_bb->param(0));
 

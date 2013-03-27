@@ -425,30 +425,31 @@ void ForeachStmt::check(Sema& sema) const {
     }
 
     // generator call
-    if (const Pi* to_pi = to()->check(sema)->isa<Pi>()) {
-        Array<const Type*> op_types(num_args() + 1 + 1); // reserve one for the return type and two for the generator
+    if (const Pi* to_pi = call()->to()->check(sema)->isa<Pi>()) {
+        Array<const Type*> op_types(call()->num_args() + 1 + 1); // reserve one for the return type and two for the generator
 
-        for (size_t i = 0, e = num_args(); i != e; ++i)
-            op_types[i] = arg(i)->check(sema);
+        for (size_t i = 0, e = call()->num_args(); i != e; ++i)
+            op_types[i] = call()->arg(i)->check(sema);
         
         // construct: pi(lhs, pi())
         const Type* elems[2] = { left_type_, sema.world().pi0() };
-        op_types[num_args()] = fun_type_ = sema.world().pi(elems);
+        op_types[call()->num_args()] = fun_type_ = sema.world().pi(elems);
         op_types.back() = sema.world().pi0();    
         const Pi* call_pi = sema.world().pi(op_types);
 
         if (to_pi->check_with(call_pi)) {
             GenericMap map = sema.fill_map();
             if (!to_pi->infer_with(map, call_pi)) {
-                sema.error(this->args_location()) << "cannot infer type '" << call_pi << "' induced by arguments\n";
-                sema.error(to()) << "to invocation type '" << to_pi << "' with '" << map << "'\n";
+                sema.error(call()->args_location()) << "cannot infer type '" << call_pi << "' induced by arguments\n";
+                sema.error(call()->to()) << "to invocation type '" << to_pi << "' with '" << map << "'\n";
             }
         } else {
-            sema.error(to()) << "'" << to() << "' expects an invocation of type '" << to_pi 
+            sema.error(call()->to()) << "'" << call()->to() << "' expects an invocation of type '" << to_pi 
                 << "' but the invocation type '" << call_pi << "' is structural different\n";
         }
     } else
-        sema.error(to()) << "invocation not done on function type but instead type '" << to()->type() << "' is given\n";
+        sema.error(call()->to()) << "invocation not done on function type but instead type '" 
+            << call()->to()->type() << "' is given\n";
 
     Push<bool> push(sema.in_foreach_, true);
 

@@ -621,18 +621,12 @@ const Stmt* Parser::parse_foreach() {
         error("expression or delcaration statement", "for-each statement");
 
     expect(Token::LARROW, "for-each statement");
-    foreach->append_arg(new Id(try_id("generator name in for-each statement")));
-    //foreach->append_arg(try_expr("generator call in for-each statement"));
+    const Expr* expr = try_expr("generator call in for-each statement");
+    foreach->set(expr->isa<Call>());
+    if (!foreach->call())
+        error("generator call", " for-each statement");
 
-    expect(Token::L_PAREN, "generator call in for-each statement");
-    PARSE_COMMA_LIST
-    (
-        foreach->append_arg(try_expr("argument of generator call")),
-        Token::R_PAREN,
-        "arguments of a generator call"
-    )
-    expect(Token::R_PAREN, "generator call in for-each statement");
-
+    expect(Token::R_PAREN, "for-each statement");
     foreach->set(pos1, try_stmt("for-each body"));
 
     return foreach;

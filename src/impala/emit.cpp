@@ -20,41 +20,20 @@ using namespace anydsl2;
 
 namespace impala {
 
-class ContinueTarget {
-public:
-    ContinueTarget(JumpTarget* t)
-        : is_jump(true)
-        , target(t)
-    {}
-    
-    ContinueTarget(const VarDecl* vd)
-        : is_jump(false)
-        , var_decl(vd)
-    {} 
-
-    bool is_jump;
-    union {
-        JumpTarget* target;
-        const VarDecl* var_decl;
-    };
-};
-
 class CodeGen : public IRBuilder {
 public:
 
     CodeGen(World& world)
         : IRBuilder(world)
-        , cur_fun(0)
         , cur_frame(0)
         , break_target(0)
         , continue_target((JumpTarget*) 0)
     {}
 
-    Lambda* cur_fun;
     const Def* cur_frame;
 
     JumpTarget* break_target;
-    ContinueTarget continue_target;
+    JumpTarget* continue_target;
 };
 
 //------------------------------------------------------------------------------
@@ -83,7 +62,6 @@ const Lambda* Fun::emit_body(CodeGen& cg, Lambda* parent, const char* what) cons
     lambda()->set_parent(parent);
 
     Push<Lambda*> push1(cg.cur_bb,  lambda());
-    Push<Lambda*> push2(cg.cur_fun, lambda());
 
     bool new_frame = false;
     if (!cg.cur_frame) {
@@ -392,7 +370,7 @@ void DoWhileStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     JumpTarget cond_bb("do_while_cond");
 
     Push<JumpTarget*> push1(cg.break_target, &exit_bb);
-    Push<ContinueTarget> push2(cg.continue_target, ContinueTarget(&cond_bb));
+    Push<JumpTarget*> push2(cg.continue_target, &cond_bb);
 
     cg.jump(body_bb);
 
@@ -410,7 +388,7 @@ void ForStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     JumpTarget step_bb("for_step");
 
     Push<JumpTarget*> push1(cg.break_target, &exit_bb);
-    Push<ContinueTarget> push2(cg.continue_target, ContinueTarget(&step_bb));
+    Push<JumpTarget*> push2(cg.continue_target, &step_bb);
 
     init()->emit(cg, head_bb);
 
@@ -427,77 +405,47 @@ void ForStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 }
 
 void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
+    // construct a call to the generator
     size_t num = ops_.size();
-    Array<const Def*> defs(num + 1);
-    for (size_t i = 0; i < num; ++i)
-        defs[i] = op(i)->emit(cg)->load();
-
-    // lambda (..., step : pi()) { lhs = val; body... }
-    FunExpr* fun = new FunExpr();
-    fun->pi_ = fun_type_;
-
-    std::string param1_str = "foreach_param1_x";
-    const VarDecl* param1 = new VarDecl(var_handle(), Token(init()->loc(), param1_str), left_type_, init()->pos1());
-    const VarDecl* param2 = new VarDecl(var_handle()+1, Token(init()->loc(), "foreach_param2_next"), inner_fun_type_, init()->pos1());
-    fun->params_.push_back(param1);
-    fun->params_.push_back(param2);
-    
-    Push<JumpTarget*> push1(cg.break_target, &exit_bb);
-    Push<ContinueTarget> push2(cg.continue_target, ContinueTarget(param2));
-    
-    const ScopeStmt* scope;
-    if (!(scope = body()->isa<ScopeStmt>())) {
-        // create scope if there is none, becaue we need to add a statement
-        ScopeStmt* new_scope = new ScopeStmt();
-        new_scope->set_pos1(body()->pos1());
-        new_scope->stmts_.push_back(body());
-        scope = new_scope;
-    }
-    
-    // add "lhs = param1;" statement to connect them; is later optimized away
-    Id* lhs = new Id(Token(init()->loc(), param1_str));
-    if (init_expr()) {
-        const Id* id = init_expr()->as<Id>();
-        lhs->decl_ = id->decl();
-    } else {
-        lhs->decl_ = init_decl();
-    }
-    lhs->type_ = lhs->decl_->type();
-    Id* rhs = new Id(Token(init()->loc(), param1_str));
-    rhs->decl_ = param1;
-    rhs->type_ = rhs->decl_->type(); 
-    const InfixExpr* assign = new InfixExpr(lhs, (InfixExpr::Kind) Token::ASGN, rhs);
-    ExprStmt* assign_stmt = new ExprStmt(assign, init()->pos1());
-    scope->stmts_.insert(scope->stmts_.begin(), assign_stmt);
-
-    fun->fun_set(fun_type_, scope);
-    defs[num] = fun->emit(cg)->load();
-
-    Array<const Def*> ops = defs;
     Array<const Def*> args(num + 1);
-    std::copy(ops.begin() + 1, ops.end(), args.begin() + 1);
     args[0] = cg.get_mem();
-    cg.mem_call(ops[0], args, 0);
+    for (size_t i = 1; i < num; ++i)
+        args[i] = op(i)->emit(cg)->load();
+    // construct a lambda for the body, see below
+    Lambda* lambda = cg.world().lambda(convert(fun_type_));
+    args[num] = lambda;
+
+    Lambda* next = cg.mem_call(op(0)->emit(cg)->load(), args, 0)->lambda();
     cg.set_mem(cg.cur_bb->param(0));
 
+    // go into the lambda
+    lambda->set_parent(cg.cur_bb);
+    cg.cur_bb = lambda;
+    cg.set_mem(lambda->param(0));
+
+    JumpTarget continue_bb("continue_bb");
+    Push<JumpTarget*> push1(cg.break_target, &exit_bb);
+    Push<JumpTarget*> push2(cg.continue_target, &continue_bb);
+
+    const VarDecl* var_decl;
+    if (init_decl()) {
+        var_decl = init_decl();
+    } else {
+        var_decl = init_expr()->as<Id>()->decl()->as<VarDecl>();
+    }
+    var_decl->emit(cg)->store(lambda->param(1));
+
+    body()->emit(cg, continue_bb);
+    cg.enter(continue_bb);
+    cg.return1(lambda->params().back(), cg.get_mem());
+
+    // go out of the lambda
+    cg.cur_bb = next;
     cg.jump(exit_bb);
 }
 
 void BreakStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.jump(*cg.break_target); }
-
-void ContinueStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
-    if (cg.continue_target.is_jump) {
-        cg.jump(*cg.continue_target.target);
-    } else {
-        const VarDecl* vardecl = cg.continue_target.var_decl;
-        const Type* air_type = convert(vardecl->type());
-        const Def* fun = Ref::create(cg.cur_bb, vardecl->handle(), air_type, vardecl->symbol().str())->load();
-        Array<const Def*> args(1);
-        args[0] = cg.get_mem();
-        cg.mem_call(fun, args, 0);
-        cg.set_mem(cg.cur_bb->param(0));
-    }
-}
+void ContinueStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.jump(*cg.continue_target); }
 
 void ReturnStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     if (cg.is_reachable()) {

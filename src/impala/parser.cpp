@@ -523,48 +523,48 @@ const Stmt* Parser::parse_while() {
     Position pos1 = eat(Token::WHILE).pos1();
     const Expr* cond = parse_cond("while statement");
 
-    ForStmt* new_loop = new ForStmt();
-    Push<const Loop*> push(cur_loop, new_loop);
+    ForStmt* loop = new ForStmt();
+    Push<const Loop*> push(cur_loop, loop);
     const Stmt* body = try_stmt("loop body");
 
-    new_loop->set(pos1, cond, new EmptyExpr(pos1), body);
-    new_loop->set_empty_init(pos1);
+    loop->set(pos1, cond, new EmptyExpr(pos1), body);
+    loop->set_empty_init(pos1);
 
-    return new_loop;
+    return loop;
 }
 
 const Stmt* Parser::parse_do_while() {
     Position pos1 = eat(Token::DO).pos1();
 
-    DoWhileStmt* new_loop = new DoWhileStmt();
-    Push<const Loop*> push(cur_loop, new_loop);
+    DoWhileStmt* loop = new DoWhileStmt();
+    Push<const Loop*> push(cur_loop, loop);
     const Stmt* body = try_stmt("loop body");
 
     expect(Token::WHILE, "do-while statement");
     const Expr* cond = parse_cond("do-while statement");
     expect(Token::SEMICOLON, "do-while statement");
 
-    new_loop->set(pos1, body, cond, prev_loc.pos2());
+    loop->set(pos1, body, cond, prev_loc.pos2());
 
-    return new_loop;
+    return loop;
 }
 
 const Stmt* Parser::parse_for() {
     Position pos1 = eat(Token::FOR).pos1();
     expect(Token::L_PAREN, "for statement");
 
-    ForStmt*  new_loop = new ForStmt();
-    Push<const Loop*> push(cur_loop, new_loop);
+    ForStmt*  loop = new ForStmt();
+    Push<const Loop*> push(cur_loop, loop);
 
     // clause 1: decl or expr_opt ';'
     if (la2() == Token::COLON)
-        new_loop->set(parse_decl_stmt());
+        loop->set(parse_decl_stmt());
     else if (is_expr())
-        new_loop->set(parse_expr_stmt());
+        loop->set(parse_expr_stmt());
     else  {
         if (!accept(Token::SEMICOLON))
             error("expression or delcaration statement", "first clause in for statement");
-        new_loop->set_empty_init(prev_loc.pos2());
+        loop->set_empty_init(prev_loc.pos2());
     }
 
     // clause 2: expr_opt ';'
@@ -597,9 +597,9 @@ const Stmt* Parser::parse_for() {
     }
 
     const Stmt* body = try_stmt("loop body");
-    new_loop->set(pos1, cond, inc, body);
+    loop->set(pos1, cond, inc, body);
 
-    return new_loop;
+    return loop;
 }
 
 const Stmt* Parser::parse_foreach() {

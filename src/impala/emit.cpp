@@ -47,14 +47,14 @@ public:
         , cur_fun(0)
         , cur_frame(0)
         , break_target(0)
-        , continue_target(0)
+        , continue_target((JumpTarget*) 0)
     {}
 
     Lambda* cur_fun;
     const Def* cur_frame;
 
     JumpTarget* break_target;
-    ContinueTarget* continue_target;
+    ContinueTarget continue_target;
 };
 
 //------------------------------------------------------------------------------
@@ -392,7 +392,7 @@ void DoWhileStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     JumpTarget cond_bb("do_while_cond");
 
     Push<JumpTarget*> push1(cg.break_target, &exit_bb);
-    Push<ContinueTarget*> push2(cg.continue_target, new ContinueTarget(&cond_bb));
+    Push<ContinueTarget> push2(cg.continue_target, ContinueTarget(&cond_bb));
 
     cg.jump(body_bb);
 
@@ -410,7 +410,7 @@ void ForStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     JumpTarget step_bb("for_step");
 
     Push<JumpTarget*> push1(cg.break_target, &exit_bb);
-    Push<ContinueTarget*> push2(cg.continue_target, new ContinueTarget(&step_bb));
+    Push<ContinueTarget> push2(cg.continue_target, ContinueTarget(&step_bb));
 
     init()->emit(cg, head_bb);
 
@@ -443,7 +443,7 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     fun->params_.push_back(param2);
     
     Push<JumpTarget*> push1(cg.break_target, &exit_bb);
-    Push<ContinueTarget*> push2(cg.continue_target, new ContinueTarget(param2));
+    Push<ContinueTarget> push2(cg.continue_target, ContinueTarget(param2));
     
     const ScopeStmt* scope;
     if (!(scope = body()->isa<ScopeStmt>())) {
@@ -486,10 +486,10 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 void BreakStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.jump(*cg.break_target); }
 
 void ContinueStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
-    if (cg.continue_target->is_jump) {
-        cg.jump(*cg.continue_target->target);
+    if (cg.continue_target.is_jump) {
+        cg.jump(*cg.continue_target.target);
     } else {
-        const VarDecl* vardecl = cg.continue_target->var_decl;
+        const VarDecl* vardecl = cg.continue_target.var_decl;
         const Type* air_type = convert(vardecl->type());
         const Def* fun = Ref::create(cg.cur_bb, vardecl->handle(), air_type, vardecl->symbol().str())->load();
         Array<const Def*> args(1);

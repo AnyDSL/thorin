@@ -602,8 +602,6 @@ const Stmt* Parser::parse_for() {
     return new_loop;
 }
 
-// TODO
-// break or continue does not work
 const Stmt* Parser::parse_foreach() {
     Position pos1 = eat(Token::FOREACH).pos1();
     expect(Token::L_PAREN, "foreach-statement");
@@ -624,12 +622,10 @@ const Stmt* Parser::parse_foreach() {
     } else {
         error("expression or delcaration-statement", "foreach-statement");
     }
-    
+
     expect(Token::LARROW, "foreach-statement");
-    
-    // TODO accept/expect?
+
     if (la() == Token::ID) {
-        assert(!generic_lookup(la().symbol())); // needed?
         new_foreach->append_arg(new Id(lex()));
     } else {
         error("generator name", "foreach-statement");
@@ -644,7 +640,6 @@ const Stmt* Parser::parse_foreach() {
 
     const Stmt* body = try_stmt("foreach body");
     new_foreach->set(pos1, body);
-
     return new_foreach;
 }
 

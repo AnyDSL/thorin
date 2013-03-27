@@ -445,28 +445,34 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     Push<JumpTarget*> push1(cg.break_target, &exit_bb);
     Push<ContinueTarget*> push2(cg.continue_target, new ContinueTarget(param2));
     
-    if (const ScopeStmt* scope = body()->isa<ScopeStmt>()) {
-        Id* lhs = new Id(Token(init()->loc(), param1_str));
-        if (init_expr()) {
-            const Id* id = init_expr()->as<Id>();
-            lhs->decl_ = id->decl();
-        } else {
-            lhs->decl_ = init_decl();
-        }
-        lhs->type_ = lhs->decl_->type();
-        Id* rhs = new Id(Token(init()->loc(), param1_str));
-        rhs->decl_ = param1;
-        rhs->type_ = rhs->decl_->type(); 
-        const InfixExpr* assign = new InfixExpr(lhs, (InfixExpr::Kind) Token::ASGN, rhs);
-        ExprStmt* assign_stmt = new ExprStmt(assign, init()->pos1());
-        scope->stmts_.insert(scope->stmts_.begin(), assign_stmt);
-    
-        fun->fun_set(fun_type_, scope);
-    } else {
-        // TODO
+    const ScopeStmt* scope;
+    if (!(scope = body()->isa<ScopeStmt>())) {
+        // create scope if there is none, becaue we need to add a statement
+        ScopeStmt* new_scope = new ScopeStmt();
+        new_scope->set_pos1(body()->pos1());
+        new_scope->stmts_.push_back(body());
+        scope = new_scope;
     }
+    
+    // add "lhs = param1;" statement to connect them; is later optimized away
+    Id* lhs = new Id(Token(init()->loc(), param1_str));
+    if (init_expr()) {
+        const Id* id = init_expr()->as<Id>();
+        lhs->decl_ = id->decl();
+    } else {
+        lhs->decl_ = init_decl();
+    }
+    lhs->type_ = lhs->decl_->type();
+    Id* rhs = new Id(Token(init()->loc(), param1_str));
+    rhs->decl_ = param1;
+    rhs->type_ = rhs->decl_->type(); 
+    const InfixExpr* assign = new InfixExpr(lhs, (InfixExpr::Kind) Token::ASGN, rhs);
+    ExprStmt* assign_stmt = new ExprStmt(assign, init()->pos1());
+    scope->stmts_.insert(scope->stmts_.begin(), assign_stmt);
+
+    fun->fun_set(fun_type_, scope);
     defs[num] = fun->emit(cg)->load();
-        
+
     Array<const Def*> ops = defs;
     Array<const Def*> args(num + 1);
     std::copy(ops.begin() + 1, ops.end(), args.begin() + 1);

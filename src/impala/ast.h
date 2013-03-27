@@ -202,8 +202,6 @@ protected:
 
     Exprs ops_;
     mutable const anydsl2::Type* type_;
-    
-    friend class ForeachStmt;
 };
 
 class EmptyExpr : public Expr {
@@ -615,7 +613,6 @@ public:
     void set(const VarDecl* d) { init_decl_ = d; }
     void set(const Expr* e) { init_expr_ = e; }
 
-    // generator call
     const Expr* to() const { return ops_.front(); }
     size_t num_args() const { return size() - 1; }
     anydsl2::ArrayRef<const Expr*> args() const { return anydsl2::ArrayRef<const Expr*>(&*ops_.begin() + 1, num_args()); }

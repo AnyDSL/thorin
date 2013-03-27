@@ -1,0 +1,17 @@
+/* foreach without an explicit scope */
+def count(n : int, yield : pi(int, pi()), ret : pi()) {
+    def loop(i : int) {
+        if (i < n)
+            yield(i, lambda() { loop(i+1); });
+        else
+            ret();
+    }
+    loop(0);
+}
+
+def main(n : int) -> int {
+    b : int = 0;
+    foreach (x : int  <- count(10))
+        b += x;
+    return b;
+}

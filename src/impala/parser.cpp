@@ -540,9 +540,9 @@ const Stmt* Parser::parse_do_while() {
     Push<const Loop*> push(cur_loop, new_loop);
     const Stmt* body = try_stmt("loop body");
 
-    expect(Token::WHILE, "do-while-statement");
-    const Expr* cond = parse_cond("do-while-statement");
-    expect(Token::SEMICOLON, "do-while-statement");
+    expect(Token::WHILE, "do-while statement");
+    const Expr* cond = parse_cond("do-while statement");
+    expect(Token::SEMICOLON, "do-while statement");
 
     new_loop->set(pos1, body, cond, prev_loc.pos2());
 
@@ -551,7 +551,7 @@ const Stmt* Parser::parse_do_while() {
 
 const Stmt* Parser::parse_for() {
     Position pos1 = eat(Token::FOR).pos1();
-    expect(Token::L_PAREN, "for-statement");
+    expect(Token::L_PAREN, "for statement");
 
     ForStmt*  new_loop = new ForStmt();
     Push<const Loop*> push(cur_loop, new_loop);
@@ -563,7 +563,7 @@ const Stmt* Parser::parse_for() {
         new_loop->set(parse_expr_stmt());
     else  {
         if (!accept(Token::SEMICOLON))
-            error("expression or delcaration-statement", "first clause in for-statement");
+            error("expression or delcaration statement", "first clause in for statement");
         new_loop->set_empty_init(prev_loc.pos2());
     }
 
@@ -575,10 +575,10 @@ const Stmt* Parser::parse_for() {
         cond = new Literal(prev_loc, Literal::LIT_bool, Box(true));
     } else if (is_expr()) {
         cond = parse_expr();
-        expect(Token::SEMICOLON, "second clause in for-statement");
+        expect(Token::SEMICOLON, "second clause in for statement");
     } else {
         error("expression or nothing", 
-                "second clause in for-statement");
+                "second clause in for statement");
         cond = new Literal(prev_loc, Literal::LIT_bool, Box(true));
     }
 
@@ -589,10 +589,10 @@ const Stmt* Parser::parse_for() {
         inc = new EmptyExpr(prev_loc);
     } else if (is_expr()) {
         inc = parse_expr();
-        expect(Token::R_PAREN, "for-statement");
+        expect(Token::R_PAREN, "for statement");
     } else {
         error("expression or nothing",
-                "third clause in for-statement");
+                "third clause in for statement");
         inc = new EmptyExpr(prev_loc);
     }
 
@@ -604,57 +604,50 @@ const Stmt* Parser::parse_for() {
 
 const Stmt* Parser::parse_foreach() {
     Position pos1 = eat(Token::FOREACH).pos1();
-    expect(Token::L_PAREN, "foreach-statement");
+    expect(Token::L_PAREN, "foreach statement");
 
-    ForeachStmt* new_foreach = new ForeachStmt();
-    new_foreach->set(cur_var_handle);
-    cur_var_handle += 2;
+    ForeachStmt* foreach = new ForeachStmt();
+    foreach->set(cur_var_handle);
 
     if (la2() == Token::COLON) {
         // parse only 'x : int' and no further assignment
         const VarDecl* decl = parse_var_decl();
         //const DeclStmt* decl_stmt = new DeclStmt(decl, 0, prev_loc.pos2());
-        new_foreach->set(decl);
+        foreach->set(decl);
     } else if (is_expr()) {
         const Expr* expr = parse_primary_expr();
         //const ExprStmt* expr_stmt = new ExprStmt(expr, prev_loc.pos2());
-        new_foreach->set(expr);
-    } else {
-        error("expression or delcaration-statement", "foreach-statement");
-    }
+        foreach->set(expr);
+    } else
+        error("expression or delcaration statement", "for-each statement");
 
-    expect(Token::LARROW, "foreach-statement");
+    expect(Token::LARROW, "for-each statement");
+    foreach->append_arg(new Id(try_id("generator name in for-each statement")));
 
-    if (la() == Token::ID) {
-        new_foreach->append_arg(new Id(lex()));
-    } else {
-        error("generator name", "foreach-statement");
-    }
-
-    expect(Token::L_PAREN, "foreach generator");
+    expect(Token::L_PAREN, "generator call in for-each statement");
     PARSE_COMMA_LIST
     (
-        new_foreach->append_arg(try_expr("argument of generator call")),
+        foreach->append_arg(try_expr("argument of generator call")),
         Token::R_PAREN,
         "arguments of a generator call"
     )
-    expect(Token::R_PAREN, "foreach head");
+    expect(Token::R_PAREN, "generator call in for-each statement");
 
-    const Stmt* body = try_stmt("foreach body");
-    new_foreach->set(pos1, body);
-    return new_foreach;
+    foreach->set(pos1, try_stmt("for-each body"));
+
+    return foreach;
 }
 
 const Stmt* Parser::parse_break() {
     Position pos1 = eat(Token::BREAK).pos1();
-    expect(Token::SEMICOLON, "break-statement");
+    expect(Token::SEMICOLON, "break statement");
 
     return new BreakStmt(pos1, prev_loc.pos2(), cur_loop);
 }
 
 const Stmt* Parser::parse_continue() {
     Position pos1 = eat(Token::CONTINUE).pos1();
-    expect(Token::SEMICOLON, "continue-statement");
+    expect(Token::SEMICOLON, "continue statement");
 
     return new ContinueStmt(pos1, prev_loc.pos2(), cur_loop);
 }
@@ -664,8 +657,8 @@ const Stmt* Parser::parse_return() {
     const Expr* expr;
 
     if (la() != Token::SEMICOLON) {
-        expr = try_expr("return-statement");
-        expect(Token::SEMICOLON, "return-statement");
+        expr = try_expr("return statement");
+        expect(Token::SEMICOLON, "return statement");
     } else {
         expr = 0;
         eat(Token::SEMICOLON);

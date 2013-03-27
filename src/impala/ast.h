@@ -605,7 +605,6 @@ public:
 
     ForeachStmt() {}
 
-    void set(size_t var_handle) { var_handle_ = var_handle; }
     void set(const anydsl2::Position& pos1, const Stmt* body) {
         body_ = body;
         set_loc(pos1, body->pos2());
@@ -623,12 +622,10 @@ public:
     const Expr* op(size_t i) const { return ops_[i]; }
     size_t size() const { return ops_.size(); }
 
-    const size_t var_handle() const { return var_handle_; }
     const Stmt* body() const { return body_; }
     const VarDecl* init_decl() const { return init_decl_; }
     const Expr* init_expr() const { return init_expr_; }
     const ASTNode* init() const { return (const ASTNode*) ((uintptr_t) init_decl_.get() | (uintptr_t) init_expr_.get()); }
-    const anydsl2::Type* call_type() const { return call_type_; }
 
     virtual void check(Sema& sema) const;
     virtual void vdump(Printer& p) const;
@@ -640,12 +637,8 @@ private:
     anydsl2::AutoPtr<const VarDecl> init_decl_;
     anydsl2::AutoPtr<const Expr> init_expr_;
     Exprs ops_;
-    size_t var_handle_;
     
-    mutable const anydsl2::Type* left_type_;
-    mutable const anydsl2::Type* inner_fun_type_;
     mutable const anydsl2::Pi* fun_type_;
-    mutable const anydsl2::Type* call_type_;
 };
 
 class BreakStmt : public Stmt {

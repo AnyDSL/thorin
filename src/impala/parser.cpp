@@ -607,7 +607,6 @@ const Stmt* Parser::parse_foreach() {
     expect(Token::L_PAREN, "foreach statement");
 
     ForeachStmt* foreach = new ForeachStmt();
-    foreach->set(cur_var_handle);
 
     if (la2() == Token::COLON) {
         // parse only 'x : int' and no further assignment

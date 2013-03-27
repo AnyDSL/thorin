@@ -416,6 +416,7 @@ void ForStmt::check(Sema& sema) const {
 void ForeachStmt::check(Sema& sema) const {
     sema.push_scope();
 
+    const Type* left_type_;
     if (init_decl()) {
         init_decl()->insert(sema);
         left_type_ = init_decl()->type();

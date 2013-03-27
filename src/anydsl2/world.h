@@ -287,6 +287,7 @@ public:
     const PrimOpSet& primops() const { return primops_; }
     LambdaSet lambdas() const { return lambdas_; }
     TypeSet types() const { return types_; }
+    size_t gid() const { return gid_; }
 
     /*
      * other

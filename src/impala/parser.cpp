@@ -623,6 +623,7 @@ const Stmt* Parser::parse_foreach() {
 
     expect(Token::LARROW, "for-each statement");
     foreach->append_arg(new Id(try_id("generator name in for-each statement")));
+    //foreach->append_arg(try_expr("generator call in for-each statement"));
 
     expect(Token::L_PAREN, "generator call in for-each statement");
     PARSE_COMMA_LIST

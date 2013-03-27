@@ -431,16 +431,9 @@ void ForeachStmt::check(Sema& sema) const {
             op_types[i] = arg(i)->check(sema);
         
         // construct: pi(lhs, pi())
-        std::vector<const Type*> elems;
-        elems.push_back(left_type_);
-        std::vector<const Type*> inner_elems;
-        inner_fun_type_ = sema.world().pi(inner_elems);
-        elems.push_back(inner_fun_type_);
-        fun_type_ = sema.world().pi(elems);
-        op_types[num_args()] = fun_type_;
-
-        std::vector<const Type*> ret_elems;
-        op_types.back() = sema.world().pi(ret_elems);    
+        const Type* elems[2] = { left_type_, sema.world().pi0() };
+        op_types[num_args()] = fun_type_ = sema.world().pi(elems);
+        op_types.back() = sema.world().pi0();    
         const Pi* call_pi = sema.world().pi(op_types);
 
         if (to_pi->check_with(call_pi)) {
@@ -456,7 +449,7 @@ void ForeachStmt::check(Sema& sema) const {
     } else
         sema.error(to()) << "invocation not done on function type but instead type '" << to()->type() << "' is given\n";
 
-    Push<bool> push1(sema.in_foreach_, true);
+    Push<bool> push(sema.in_foreach_, true);
 
     if (const ScopeStmt* scope = body()->isa<ScopeStmt>())
         scope->check_stmts(sema);

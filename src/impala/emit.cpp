@@ -405,6 +405,11 @@ void ForStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 }
 
 void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
+    JumpTarget continue_bb("continue_bb");
+
+    Push<JumpTarget*> push1(cg.break_target, &exit_bb);
+    Push<JumpTarget*> push2(cg.continue_target, &continue_bb);
+
     // construct a call to the generator
     size_t num = call()->ops().size();
     Array<const Def*> args(num + 1);
@@ -424,16 +429,7 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     cg.cur_bb = lambda;
     cg.set_mem(lambda->param(0));
 
-    JumpTarget continue_bb("continue_bb");
-    Push<JumpTarget*> push1(cg.break_target, &exit_bb);
-    Push<JumpTarget*> push2(cg.continue_target, &continue_bb);
-
-    const VarDecl* var_decl;
-    if (init_decl()) {
-        var_decl = init_decl();
-    } else {
-        var_decl = init_expr()->as<Id>()->decl()->as<VarDecl>();
-    }
+    const VarDecl* var_decl = init_decl() ? init_decl() : init_expr()->as<Id>()->decl()->as<VarDecl>();
     var_decl->emit(cg)->store(lambda->param(1));
 
     body()->emit(cg, continue_bb);

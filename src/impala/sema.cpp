@@ -426,12 +426,12 @@ void ForeachStmt::check(Sema& sema) const {
 
     // generator call
     if (const Pi* to_pi = call()->to()->check(sema)->isa<Pi>()) {
-        Array<const Type*> op_types(call()->num_args() + 1 + 1); // reserve one for the return type and two for the generator
+        // reserve one for the body type and one for the next continuation type
+        Array<const Type*> op_types(call()->num_args() + 1 + 1);
 
         for (size_t i = 0, e = call()->num_args(); i != e; ++i)
             op_types[i] = call()->arg(i)->check(sema);
         
-        // construct: pi(lhs, pi())
         const Type* elems[2] = { left_type_, sema.world().pi0() };
         op_types[call()->num_args()] = fun_type_ = sema.world().pi(elems);
         op_types.back() = sema.world().pi0();    

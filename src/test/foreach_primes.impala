@@ -1,3 +1,7 @@
+/*
+foreach that adds all primes smaller than 100
+expected result: 1060
+*/
 def primes(n : int, yield : pi(int, pi()), ret : pi()) {
     if (n < 2) 
         ret();

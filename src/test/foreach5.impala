@@ -1,0 +1,33 @@
+/*
+foreach with a generators that takes no initial argument
++ foreach with a generators that takes two initial arguments
+expected result: 45
+*/
+def to5(yield : pi(int, pi()), ret : pi()) {
+    def loop(i : int) {
+        if (i < 5)
+            yield(i, lambda() { loop(i+1); });
+        else
+            ret();
+    }
+    loop(0);
+}
+
+def count(n : int, m : int, yield : pi(int, pi()), ret : pi()) {
+    def loop(i : int) {
+        if (i < m)
+            yield(i, lambda() { loop(i+1); });
+        else
+            ret();
+    }
+    loop(n);
+}
+
+def main(n : int) -> int {
+    b : int = 0;
+    foreach (x : int  <- to5())
+        b += x;
+    foreach (x : int  <- count(5, 10))
+        b += x;
+    return b;
+}

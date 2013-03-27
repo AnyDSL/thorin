@@ -1,4 +1,7 @@
-/* foreach without an explicit scope */
+/*
+foreach without an explicit scope
+expected result: 45
+*/
 def count(n : int, yield : pi(int, pi()), ret : pi()) {
     def loop(i : int) {
         if (i < n)

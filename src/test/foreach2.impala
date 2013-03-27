@@ -1,3 +1,6 @@
+/*
+foreach without float
+*/
 def count(n : float, yield : pi(float, pi()), ret : pi()) {
     def loop(i : float) {
         if (i < n)

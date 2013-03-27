@@ -631,12 +631,14 @@ const Stmt* Parser::parse_foreach() {
         error("generator name", "foreach-statement");
     }
 
+    expect(Token::L_PAREN, "foreach generator");
     PARSE_COMMA_LIST
     (
         new_foreach->append_arg(try_expr("argument of generator call")),
         Token::R_PAREN,
         "arguments of a generator call"
     )
+    expect(Token::R_PAREN, "foreach head");
 
     const Stmt* body = try_stmt("foreach body");
     new_foreach->set(pos1, body);

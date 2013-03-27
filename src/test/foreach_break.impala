@@ -1,3 +1,7 @@
+/*
+foreach with a break
+expected result: 15
+*/
 def count(n : int, yield : pi(int, pi()), ret : pi()) {
     def loop(i : int) {
         if (i < n)

@@ -201,16 +201,8 @@ const Type* Tuple::vcheck(Sema& sema) const {
 const Type* Id::vcheck(Sema& sema) const {
     if (const Decl* decl = sema.lookup(symbol())) {
         decl_ = decl;
-        
-        if (sema.in_foreach_) {
-            if (const VarDecl* vardecl = decl->isa<VarDecl>()) {
-                if (!vardecl->type()->isa<Pi>() && !vardecl->type()->is_generic())
-                    vardecl->is_address_taken_ = true;
-            }
-        }
-     
 
-        if (sema.nossa()) {
+        if (sema.nossa() || sema.in_foreach_) {
             if (const VarDecl* vardecl = decl->isa<VarDecl>()) {
                 if (!vardecl->type()->isa<Pi>() && !vardecl->type()->is_generic())
                     vardecl->is_address_taken_ = true;
@@ -423,14 +415,14 @@ void ForStmt::check(Sema& sema) const {
 
 void ForeachStmt::check(Sema& sema) const {
     sema.push_scope();
-    
+
     if (init_decl()) {
         init_decl()->insert(sema);
         left_type_ = init_decl()->type();
     } else {
         left_type_ = init_expr()->check(sema);
     }
-    
+
     // generator call
     if (const Pi* to_pi = to()->check(sema)->isa<Pi>()) {
         Array<const Type*> op_types(num_args() + 1 + 1); // reserve one for the return type and two for the generator
@@ -438,7 +430,7 @@ void ForeachStmt::check(Sema& sema) const {
         for (size_t i = 0, e = num_args(); i != e; ++i)
             op_types[i] = arg(i)->check(sema);
         
-        // construct: pi(..., pi())
+        // construct: pi(lhs, pi())
         std::vector<const Type*> elems;
         elems.push_back(left_type_);
         std::vector<const Type*> inner_elems;
@@ -464,19 +456,13 @@ void ForeachStmt::check(Sema& sema) const {
     } else
         sema.error(to()) << "invocation not done on function type but instead type '" << to()->type() << "' is given\n";
 
-    //bool already_in_foreach = sema.in_foreach_;
-    //sema.in_foreach_ = true;
-    
-    //Push<ForeachStmt*> push1(sema.foreach_stmt, this);
     Push<bool> push1(sema.in_foreach_, true);
-    
+
     if (const ScopeStmt* scope = body()->isa<ScopeStmt>())
         scope->check_stmts(sema);
     else
         body()->check(sema);
-    //if (!already_in_foreach)
-    //    sema.in_foreach_ = false;
-        
+
     if (init_decl())
         init_decl()->is_address_taken_ = false;
 

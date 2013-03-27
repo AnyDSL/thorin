@@ -1,3 +1,6 @@
+/*
+foreach a parameterized generator
+*/
 def count<T>(n : T, yield : pi(T, pi()), ret : pi()) {
     def loop(i : T) {
         if (true)

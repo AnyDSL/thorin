@@ -122,7 +122,6 @@ private:
     friend class FunExpr;
     friend class Parser;
     friend class CodeGen;
-    friend class ForeachStmt;
 };
 
 class VarDecl : public Decl {
@@ -294,8 +293,6 @@ private:
 
     anydsl2::Symbol symbol_;
     mutable const Decl* decl_; ///< Declaration of the variable in use.
-    
-    friend class ForeachStmt;
 };
 
 class PrefixExpr : public Expr {
@@ -735,7 +732,6 @@ private:
     NamedFuns named_funs_;
 
     friend class Parser;
-    friend class ForeachStmt;
 };
 
 //------------------------------------------------------------------------------

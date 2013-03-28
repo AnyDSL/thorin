@@ -233,13 +233,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
     const TokenKind op = (TokenKind) kind();
 
     if (Token::is_assign(op)) {
-        //const Id* id = lhs()->isa<Id>();
         const Def* rdef = rhs()->emit(cg)->load();
-
-        // special case for 'id = expr' -> don't use get_value!
-        //RefPtr lref = op == Token::ASGN && id
-                //? Ref::create(cg.cur_bb, id->decl()->as<VarDecl>()->handle(), convert(id->type()), id->symbol().str())
-                //: lhs()->emit(cg);
         RefPtr lref = lhs()->emit(cg);
 
         if (op != Token::ASGN) {

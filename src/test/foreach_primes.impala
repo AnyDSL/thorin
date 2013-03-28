@@ -28,7 +28,7 @@ def primes(n : int, yield : pi(int, pi()), ret : pi()) {
 
 def main() -> int {
     result : int = 0;
-    foreach(p : int <- primes(100)) {
+    foreach (p : int <- primes(100)) {
         result += p;
     }
     return result;

@@ -13,10 +13,10 @@ def simple_while(i : int,
     );
 }
 
-def main(ret_main : pi(int))
+def main(N : int, ret_main : pi(int))
 {
     return simple_while(
         0, // counter
-        lambda(i : int, ret : pi(int, bool)) { ret(i, i < 42); },
+        lambda(i : int, ret : pi(int, bool)) { ret(i, i < N); },
         lambda(i : int) -> int { return i + 1; });
 }

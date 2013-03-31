@@ -118,28 +118,24 @@ void Tuple::vdump(Printer& p) const {
 
 void Load::vdump(Printer& p) const {
     dump_name_and_type(p, this, "load");
-    p << '(';
 	ANYDSL2_DUMP_COMMA_LIST(p, ops());
     p << ')';
 }
 
 void Store::vdump(Printer& p) const {
     dump_name_and_type(p, this, "store");
-    p << '(';
 	ANYDSL2_DUMP_COMMA_LIST(p, ops());
     p << ')';
 }
 
 void Enter::vdump(Printer& p) const {
     dump_name_and_type(p, this, "enter");
-    p << '(';
 	ANYDSL2_DUMP_COMMA_LIST(p, ops());
     p << ')';
 }
 
 void CCall::vdump(Printer& p) const {
     dump_name_and_type(p, this, "ccall");
-    p << '(';
     p << callee_ << ", ";
 	ANYDSL2_DUMP_COMMA_LIST(p, ops());
     p << ')';
@@ -147,21 +143,18 @@ void CCall::vdump(Printer& p) const {
 
 void Leave::vdump(Printer& p) const {
     dump_name_and_type(p, this, "leave");
-    p << '(';
 	ANYDSL2_DUMP_COMMA_LIST(p, ops());
     p << ')';
 }
 
 void LEA::vdump(Printer& p) const {
     dump_name_and_type(p, this, "lea");
-    p << '(';
 	ANYDSL2_DUMP_COMMA_LIST(p, ops());
     p << ')';
 }
 
 void Slot::vdump(Printer& p) const {
     dump_name_and_type(p, this, "slot");
-    p << '(';
 	ANYDSL2_DUMP_COMMA_LIST(p, ops());
     p << ')';
 }

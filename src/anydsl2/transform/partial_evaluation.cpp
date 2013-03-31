@@ -44,7 +44,10 @@ void PartialEvaluator::eval() {
                 if (x) {
                     indices.shrink(x);
                     with.shrink(x);
-                    lambda->jump(Scope(to).drop(indices, with), args);
+                    GenericMap generic_map;
+                    bool res = to->type()->infer_with(generic_map, lambda->arg_pi());
+                    assert(res);
+                    lambda->jump(Scope(to).drop(indices, with, generic_map), args);
                     todo = true;
                 }
             }

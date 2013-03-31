@@ -6,74 +6,51 @@
 
 namespace anydsl2 {
 
-static inline LambdaSet* depends(Lambda* lambda) { return (LambdaSet*) lambda->ptr; }
+static void find_user(const size_t pass, Lambda* entry, const Def* def);
+static void up(const size_t pass, Lambda* entry, Lambda* lambda);
+static void jump_to_param_users(const size_t pass, Lambda* entry, Lambda* lambda);
 
-static void depends(const Def* def, LambdaSet* dep) {
-    if (const Param* param = def->isa<Param>())
-        dep->insert(param->lambda());
-    else if (!def->isa<Lambda>()) {
-        for_all (op, def->ops())
-            depends(op, dep);
+std::vector<Lambda*> find_root_lambdas(World& world) { 
+    std::vector<Lambda*> result;
+    size_t pass = world.new_pass();
+
+    for_all (lambda, world.lambdas()) {
+        if (!lambda->is_visited(pass))
+            jump_to_param_users(pass, lambda, lambda);
+    }
+
+    for_all (lambda, world.lambdas())
+        if (!lambda->is_visited(pass))
+            result.push_back(lambda);
+
+    return result;
+}
+
+static void jump_to_param_users(const size_t pass, Lambda* entry, Lambda* lambda) {
+    for_all (param, lambda->params())
+        find_user(pass, entry, param);
+}
+
+static void find_user(const size_t pass, Lambda* entry, const Def* def) {
+    if (Lambda* lambda = def->isa_lambda())
+        up(pass, entry, lambda);
+    else {
+        if (def->visit(pass))
+            return;
+
+        for_all (use, def->uses())
+            find_user(pass, entry, use);
     }
 }
 
-LambdaSet find_root_lambdas(const World& world) {
-    return find_root_lambdas(world.lambdas());
-}
+static void up(const size_t pass, Lambda* entry, Lambda* lambda) {
+    if (lambda == entry || lambda->visit(pass))
+        return;
 
-LambdaSet find_root_lambdas(const LambdaSet& lambdas) {
-    std::queue<Lambda*> queue;
-    LambdaSet inqueue;
+    jump_to_param_users(pass, entry, lambda);
 
-    for_all (lambda, lambdas) {
-        LambdaSet* dep = new LambdaSet();
-
-        for_all (op, lambda->ops())
-            depends(op, dep);
-
-        lambda->ptr = dep;
-        queue.push(lambda);
-        inqueue.insert(lambda);
-    }
-
-    while (!queue.empty()) {
-        Lambda* lambda = queue.front();
-        queue.pop();
-        inqueue.erase(lambda);
-        LambdaSet* dep = depends(lambda);
-        size_t old = dep->size();
-
-        for_all (succ, lambda->succs()) {
-            LambdaSet* succ_dep = depends(succ);
-
-            for_all (d, *succ_dep) {
-                if (d != succ)
-                    dep->insert(d);
-            }
-        }
-
-        if (dep->size() != old) {
-            for_all (pred, lambda->preds()) {
-                if (inqueue.find(pred) == inqueue.end()) {
-                    inqueue.insert(pred);
-                    queue.push(pred);
-                }
-            }
-        }
-    }
-
-    LambdaSet roots;
-
-    for_all (lambda, lambdas) {
-        LambdaSet* dep = depends(lambda);
-
-        if (dep->size() == 1 && lambda == *dep->begin())
-            roots.insert(lambda);
-
-        delete dep;
-    }
-
-    return roots;
+    for_all (pred, lambda->preds())
+        up(pass, entry, pred);
 }
 
 } // namespace anydsl2

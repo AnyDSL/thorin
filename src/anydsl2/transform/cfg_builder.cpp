@@ -17,8 +17,10 @@ class CFGBuilder {
 public:
     CFGBuilder(World& world)
         : world(world)
-        , top(find_root_lambdas(world.lambdas()))
-    {}
+    {
+        std::vector<Lambda*> lambdas = find_root_lambdas(world);
+        top.insert(lambdas.begin(), lambdas.end());
+    }
 
     void transform(Lambda* lambda);
     size_t process();

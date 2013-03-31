@@ -19,6 +19,7 @@ public:
 
     T* find(size_t handle) const { return handle < vector_.size() ? vector_[handle] : 0; }
     bool empty() const { return vector_.empty(); }
+    void clear() { vector_.clear(); }
 
 private:
 

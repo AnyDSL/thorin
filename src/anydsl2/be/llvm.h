@@ -29,8 +29,8 @@ public:
     virtual llvm::Type* map(const Type*) { ANYDSL2_UNREACHABLE; }
 };
 
-void emit(const World& world, EmitHook& hook);
-inline void emit(const World& world) { EmitHook hook; emit(world, hook); }
+void emit(World& world, EmitHook& hook);
+inline void emit(World& world) { EmitHook hook; emit(world, hook); }
 
 } // namespace anydsl2
 } // namespace be_llvm

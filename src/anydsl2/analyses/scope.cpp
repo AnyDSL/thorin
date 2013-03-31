@@ -77,10 +77,13 @@ void Scope::jump_to_param_users(const size_t pass, Lambda* lambda) {
         find_user(pass, param);
 }
 
-void Scope::find_user(const size_t pass, const Def* def) {
+inline void Scope::find_user(const size_t pass, const Def* def) {
     if (Lambda* lambda = def->isa_lambda())
         up(pass, lambda);
     else {
+        if (def->visit(pass))
+            return;
+
         for_all (use, def->uses())
             find_user(pass, use);
     }

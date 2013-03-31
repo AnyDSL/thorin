@@ -37,6 +37,8 @@ void Def::set_op(size_t i, const Def* def) {
     assert(std::find(def->uses_.begin(), def->uses_.end(), Use(i, this)) == def->uses_.end() && "already in use set");
     def->uses_.push_back(Use(i, this));
     set(i, def);
+    if (isa<PrimOp>())
+        is_const_ &= def->is_const();
 }
 
 void Def::unset_op(size_t i) {
@@ -57,19 +59,19 @@ void Def::unregister_use(size_t i) const {
     def->uses_.erase(it);
 }
 
-bool Def::is_const() const {
-    if (isa<Param>())
-        return false;
+//bool Def::is_const() const {
+    //if (isa<Param>() || type()->isa<Mem>() || node_kind() == Node_Enter || node_kind() == Node_Leave || node_kind() == Node_Load || node_kind() == Node_Store || node_kind() == Node_Slot)
+        //return false;
 
-    if (empty() || isa<Lambda>())
-        return true;
+    //if (empty() || isa<Lambda>())
+        //return true;
 
-    for (size_t i = 0, e = size(); i != e; ++i)
-        if (!op(i)->is_const())
-            return false;
+    //for (size_t i = 0, e = size(); i != e; ++i)
+        //if (!op(i)->is_const())
+            //return false;
 
-    return true;
-}
+    //return true;
+//}
 
 std::string Def::unique_name() const {
     std::ostringstream oss;
@@ -80,15 +82,6 @@ std::string Def::unique_name() const {
 Array<Use> Def::copy_uses() const {
     Array<Use> result(uses().size());
     std::copy(uses().begin(), uses().end(), result.begin());
-    return result;
-}
-
-TrackedUses Def::tracked_uses() const {
-    TrackedUses result(num_uses());
-
-    for_all2 (&tracked_use, result, use, uses())
-        tracked_use = use;
-
     return result;
 }
 
@@ -117,11 +110,16 @@ bool Def::is_minus_zero() const {
 }
 
 void Def::replace(const Def* with) const {
-    for_all (const& use, tracked_uses()) {
+    Array<Use> uses = copy_uses();
+    for_all (use, uses) {
         if (Lambda* lambda = use->isa_lambda())
             lambda->update_op(use.index(), with);
-        else {
-            const PrimOp* oprimop = use->as<PrimOp>();
+        else
+            world().release(use->as<PrimOp>())->update(use.index(), with);
+    }
+
+    for_all (use, uses) {
+        if (PrimOp* oprimop = (PrimOp*) use->isa<PrimOp>()) {
             Array<const Def*> ops(oprimop->ops());
             ops[use.index()] = with;
             size_t old_gid = world().gid();
@@ -138,17 +136,9 @@ void Def::replace(const Def* with) const {
                 if (ndef->gid() == old_gid) { // only consider fresh (non-CSEd) primop
                     // nothing exciting happened by rebuilding 
                     // -> reuse the old chunk of memory and save recursive updates
-                    PrimOp* oreleased = world().release(oprimop);
                     AutoPtr<PrimOp> nreleased = world().release(ndef->as<PrimOp>());
                     nreleased->unset_ops();
-
-                    // update operand
-                    oreleased->unset_op(use.index());
-                    oreleased->set_op(use.index(), with);
-
-                    // reinsert
                     world().reinsert(oprimop);
-
                     continue;
                 }
             }
@@ -158,6 +148,8 @@ recurse:
                 *tracker = ndef;
 
             oprimop->replace(ndef);
+            oprimop->unset_ops();
+            delete oprimop;
         }
     }
 }
@@ -179,7 +171,7 @@ std::ostream& operator << (std::ostream& o, const anydsl2::Def* def) {
 //------------------------------------------------------------------------------
 
 Param::Param(size_t gid, const Type* type, Lambda* lambda, size_t index, const std::string& name)
-    : Def(gid, Node_Param, 0, type, name)
+    : Def(gid, Node_Param, 0, type, false, name)
     , lambda_(lambda)
     , index_(index)
     , representative_(0)

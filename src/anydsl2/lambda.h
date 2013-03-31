@@ -56,6 +56,7 @@ public:
     Lambdas direct_preds() const;
     const Params& params() const { return params_; }
     const Param* param(size_t i) const { return params_[i]; }
+    const Param* mem_param() const;
     const Def* to() const { return op(0); };
     ArrayRef<const Def*> args() const { return empty() ? ArrayRef<const Def*>(0, 0) : ops().slice_back(1); }
     const Def* arg(size_t i) const { return args()[i]; }
@@ -129,6 +130,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     void set_parent(Lambda* parent) { parent_ = parent; }
     void seal();
     bool sealed() const { return sealed_; }
+    void clear() { defs_.clear(); }
 
 private:
 

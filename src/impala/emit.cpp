@@ -118,6 +118,10 @@ void Prg::emit(CodeGen& cg) const {
 
     for_all (f, named_funs())
         f->emit(cg);
+
+    // clear get/set value stuff
+    for_all (lambda, cg.world().lambdas())
+        lambda->clear();
 }
 
 void NamedFun::emit(CodeGen& cg) const {

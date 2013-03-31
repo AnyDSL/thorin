@@ -18,6 +18,7 @@
 #include "anydsl2/analyses/verifier.h"
 #include "anydsl2/transform/cfg_builder.h"
 #include "anydsl2/transform/inliner.h"
+#include "anydsl2/transform/mem2reg.h"
 #include "anydsl2/transform/merge_lambdas.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/for_all.h"
@@ -904,6 +905,7 @@ void World::cleanup() {
 
 void World::opt() {
     cleanup();
+    assert(verify(*this)); mem2reg(*this); cleanup();
     assert(verify(*this)); cfg_transform(*this); cleanup();
     assert(verify(*this)); inliner(*this);       cleanup();
     assert(verify(*this)); merge_lambdas(*this); cleanup();
@@ -929,9 +931,7 @@ void World::reinsert(const PrimOp* primop) {
 
 void World::dump(bool fancy) {
     if (fancy) {
-        LambdaSet roots = find_root_lambdas(lambdas());
-
-        for_all (root, roots) {
+        for_all (root, find_root_lambdas(*this)) {
             Scope scope(root);
             for_all (lambda, scope.rpo())
                 lambda->dump_body(fancy, scope.domtree().depth(lambda));

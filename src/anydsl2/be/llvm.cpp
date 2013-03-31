@@ -50,7 +50,7 @@ typedef Array<llvm::BasicBlock*> BBMap;
 class CodeGen {
 public:
 
-    CodeGen(const World& world, EmitHook& hook);
+    CodeGen(World& world, EmitHook& hook);
 
     void emit();
 
@@ -60,7 +60,7 @@ public:
 
 private:
 
-    const World& world;
+    World& world;
     EmitHook& hook;
     llvm::LLVMContext context;
     llvm::IRBuilder<> builder;
@@ -70,7 +70,7 @@ private:
     PrimOpMap primops;
 };
 
-CodeGen::CodeGen(const World& world, EmitHook& hook)
+CodeGen::CodeGen(World& world, EmitHook& hook)
     : world(world)
     , hook(hook)
     , context()
@@ -83,12 +83,10 @@ CodeGen::CodeGen(const World& world, EmitHook& hook)
 //------------------------------------------------------------------------------
 
 void CodeGen::emit() {
-    LambdaSet roots = find_root_lambdas(world.lambdas());
-
     FctMap fcts;
 
     // map all root-level lambdas to llvm function stubs
-    for_all (lambda, roots) {
+    for_all (lambda, find_root_lambdas(world)) {
         llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
         llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->name, module);
         fcts.insert(std::make_pair(lambda, f));
@@ -516,7 +514,7 @@ multiple:
 
 //------------------------------------------------------------------------------
 
-void emit(const World& world, EmitHook& hook) {
+void emit(World& world, EmitHook& hook) {
     CodeGen cg(world, hook);
     cg.emit();
 }

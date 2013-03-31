@@ -10,7 +10,7 @@
 namespace anydsl2 {
 
 Lambda::Lambda(size_t gid, const Pi* pi, LambdaAttr attr, bool sealed, const std::string& name)
-    : Def(gid, Node_Lambda, pi, name)
+    : Def(gid, Node_Lambda, pi, true, name)
     , sid_(size_t(-1))
     , scope_(0)
     , attr_(attr)
@@ -65,6 +65,14 @@ const Param* Lambda::append_param(const Type* type, const std::string& name) {
     params_.push_back(param);
 
     return param;
+}
+
+const Param* Lambda::mem_param() const {
+    for_all (param, params())
+        if (param->type()->isa<Mem>())
+            return param;
+
+    return 0;
 }
 
 const Def* Lambda::append_arg(const Def* arg) {

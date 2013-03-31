@@ -33,13 +33,13 @@ class PrimOp : public Def {
 protected:
 
     PrimOp(size_t size, int kind, const Type* type, const std::string& name)
-        : Def(-1, kind, size, type, name)
+        : Def(-1, kind, size, type, true, name)
     {}
 
 public:
 
     DefTupleN as_tuple() const { return DefTupleN(kind(), type(), ops()); }
-    void update(size_t i, const Def* def) { unset_op(i); set_op(i, def); }
+    void update(size_t i, const Def* with);
     ANYDSL2_HASH_EQUAL
 
 private:

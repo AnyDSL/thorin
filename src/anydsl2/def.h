@@ -107,39 +107,8 @@ private:
 
 //------------------------------------------------------------------------------
 
-/**
- * Works like a \p Use but the referenced \p Def is in fact a \p Tracker.
- * This means, a \p TrackedUse updates it's referenced \p Def after a \p Def::replace.
- */
-class TrackedUse {
-public:
-
-    TrackedUse() {}
-    TrackedUse(size_t index, const Def* def)
-        : index_(index)
-        , tracker_(def)
-    {}
-    TrackedUse(Use use)
-        : index_(use.index())
-        , tracker_(use)
-    {}
-
-    size_t index() const { return index_; }
-    const Def* def() const { return tracker_; }
-
-    operator const Def*() const { return tracker_; }
-    const Def* operator -> () const { return tracker_; }
-    const Def* operator = (Use use) { index_ = use.index(); return tracker_ = use; }
-
-private:
-
-    size_t index_;
-    Tracker tracker_;
-};
-
 typedef std::vector<Use> Uses;
 typedef std::vector<Tracker*> Trackers;
-typedef Array<TrackedUse> TrackedUses;
 
 //------------------------------------------------------------------------------
 
@@ -158,17 +127,19 @@ private:
 
 protected:
 
-    Def(size_t gid, int kind, const Type* type, const std::string& name)
+    Def(size_t gid, int kind, const Type* type, bool is_const, const std::string& name)
         : Node(kind, name)
         , type_(type)
         , gid_(gid)
+        , is_const_(is_const)
     {
         uses_.reserve(4);
     }
-    Def(size_t gid, int kind, size_t size, const Type* type, const std::string& name)
+    Def(size_t gid, int kind, size_t size, const Type* type, bool is_const, const std::string& name)
         : Node(kind, size, name)
         , type_(type)
         , gid_(gid)
+        , is_const_(is_const)
     {
         uses_.reserve(4);
     }
@@ -184,7 +155,7 @@ public:
     void unset_ops();
     Lambda* as_lambda() const;
     Lambda* isa_lambda() const;
-    bool is_const() const;
+    bool is_const() const { return is_const_; }
     void dump(bool fancy) const;
     void dump() const;
     virtual void vdump(Printer &printer) const = 0;
@@ -200,7 +171,6 @@ public:
      * Useful if you want to modfy users while iterating over all users.
      */
     Array<Use> copy_uses() const;
-    TrackedUses tracked_uses() const;
     const Type* type() const { return type_; }
     int order() const;
     bool is_generic() const;
@@ -238,6 +208,10 @@ private:
     mutable Uses uses_;
     mutable Trackers trackers_;
     const size_t gid_;
+
+protected:
+
+    bool is_const_;
 
     friend class Tracker;
     friend class PrimOp;

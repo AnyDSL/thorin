@@ -10,6 +10,16 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
+void PrimOp::update(size_t i, const Def* with) { 
+    unset_op(i); 
+    set_op(i, with); 
+
+    is_const_ = true;
+    for_all (op, ops())
+        if (op)
+            is_const_ &= op->is_const();
+}
+
 Select::Select(const DefTuple3& args, const std::string& name)
     : PrimOp(3, args.get<0>(), args.get<1>(), name)
 {

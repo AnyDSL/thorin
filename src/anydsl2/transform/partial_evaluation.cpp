@@ -6,20 +6,7 @@
 
 namespace anydsl2 {
 
-class PartialEvaluator {
-public:
-
-    PartialEvaluator(World& world)
-        : world(world)
-    {}
-
-    void eval();
-
-    World& world;
-};
-
-
-void PartialEvaluator::eval() {
+void partial_evaluation(World& world) {
     bool todo = true;
 
     while (todo) {
@@ -53,13 +40,11 @@ void PartialEvaluator::eval() {
             }
         }
 
+        //std::cout << world.lambdas().size() << std::endl;
+
         merge_lambdas(world);
         world.cleanup();
     }
-}
-
-void partial_evaluation(World& world) {
-    PartialEvaluator(world).eval();
 }
 
 }

@@ -56,17 +56,12 @@ void Placement::up(Lambda* lambda) {
 }
 
 void Placement::place_late(Lambda* lambda, const Def* def) {
+    // TODO this is slow -- the number of visted primops explodes
     if (def->isa<Param>() || def->is_const())
         return;
 
     const PrimOp* primop = def->as<PrimOp>();
-
-    if (is_visited(primop))
-        late(primop) = scope.domtree().lca(late(primop), lambda);
-    else {
-        primop->visit(pass);
-        late(primop) = lambda;
-    }
+    late(primop) = primop->visit(pass) ? scope.domtree().lca(late(primop), lambda) : lambda;
 
     for_all (op, primop->ops())
         place_late(lambda, op);

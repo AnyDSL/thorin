@@ -4,6 +4,7 @@
 #include <boost/program_options.hpp>
 
 #include "anydsl2/analyses/verifier.h"
+#include "anydsl2/transform/partial_evaluation.h"
 #include "anydsl2/be/llvm.h"
 
 #include "impala/ast.h"
@@ -35,7 +36,7 @@ int main(int argc, char** argv) {
 #endif
         string outfile = "-";
         string emittype;
-        bool help, emit_all, emit_air, emit_ast, emit_dot, emit_llvm, fancy, opt, verify, nocleanup, nossa = false;
+        bool help, emit_all, emit_air, emit_ast, emit_dot, emit_llvm, fancy, opt, verify, nocleanup, nossa, pe = false;
 
         // specify options
         po::options_description desc("Usage: " + prgname + " [options] file...");
@@ -54,6 +55,7 @@ int main(int argc, char** argv) {
         ("fancy,f",         po::bool_switch(&fancy),                    "use fancy output")
         ("nocleanup",       po::bool_switch(&nocleanup),                "no clean-up phase")
         ("nossa",           po::bool_switch(&nossa),                    "use slots + load/store instead of SSA construction")
+        ("pe",              po::bool_switch(&pe),                       "perform partial evaluation")
         ("verify,v",        po::bool_switch(&verify),                   "run verifier")
         (",O",              po::bool_switch(&opt),                      "optimize");
 
@@ -131,6 +133,8 @@ int main(int argc, char** argv) {
                 anydsl2::verify(init.world);
             if (opt)
                 init.world.opt();
+            if (pe)
+                partial_evaluation(init.world);
             if (emit_air)
                 init.world.dump(fancy);
             if (emit_llvm)

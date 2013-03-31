@@ -47,7 +47,7 @@ private:
 
 void Placement::place_late() {
     for (size_t i = scope.size(); i-- != 0;)
-        up(scope.rpo(i));
+        up(scope[i]);
 }
 
 void Placement::up(Lambda* lambda) {

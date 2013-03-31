@@ -81,9 +81,9 @@ size_t CFGBuilder::process() {
     for_all (top_lambda, top) {
         Scope scope(top_lambda);
         for (size_t i = scope.size(); i-- != 0;) {
-            Lambda* lambda = scope.rpo(i);
-            if (lambda->num_params()                                // is there sth to drop?
-                && (lambda->is_generic()                     // drop generic stuff
+            Lambda* lambda = scope[i];
+            if (lambda->num_params()                            // is there sth to drop?
+                && (lambda->is_generic()                        // drop generic stuff
                     || (!lambda->is_basicblock()                // don't drop basic blocks
                         && (!lambda->is_returning()             // drop non-returning lambdas
                             || top.find(lambda) == top.end()))))// lift/drop returning non top-level lambdas

@@ -24,6 +24,7 @@ public:
     bool contains(Lambda* lambda) const { return lambda->scope() == this; }
     ArrayRef<Lambda*> rpo() const { return rpo_; }
     Lambda* rpo(size_t i) const { return rpo_[i]; }
+    Lambda* operator [] (size_t i) const { return rpo(i); }
     ArrayRef<Lambda*> preds(Lambda* lambda) const;
     ArrayRef<Lambda*> succs(Lambda* lambda) const;
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }

@@ -618,6 +618,11 @@ const Store* World::store(const Def* m, const Def* ptr, const Def* val, const st
     return cse<DefTuple3, Store>(DefTuple3(Node_Store, mem(), m, ptr, val), name);
 }
 const Enter* World::enter(const Def* m, const std::string& name) {
+    if (const Leave* leave = m->isa<Leave>())
+        if (const Extract* extract = leave->frame()->isa<Extract>())
+            if (const Enter* old_enter = extract->tuple()->isa<Enter>())
+                return old_enter;
+
     return cse<DefTuple1, Enter>(DefTuple1(Node_Enter, sigma2(mem(), frame()), m), name);
 }
 const Leave* World::leave(const Def* m, const Def* frame, const std::string& name) {

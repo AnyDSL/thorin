@@ -43,8 +43,6 @@ private:
         : Access(2, args.get<0>(), args.get<1>(), args.get<2>(), args.get<3>(), name)
     {}
 
-    virtual void vdump(Printer &printer) const;
-
 public:
 
     const Def* ptr() const { return op(1); }
@@ -65,8 +63,6 @@ private:
         set_op(2, args.get<4>());
     }
 
-    virtual void vdump(Printer &printer) const;
-
 public:
 
     const Def* val() const { return op(2); }
@@ -82,8 +78,6 @@ private:
     Enter(const DefTuple1& args, const std::string& name)
         : MemOp(1, args.get<0>(), args.get<1>(), args.get<2>(), name)
     {}
-
-    virtual void vdump(Printer &printer) const;
 
 public:
 
@@ -103,8 +97,6 @@ private:
     {
         set_op(1, args.get<3>());
     }
-
-    virtual void vdump(Printer &printer) const;
 
 public:
 
@@ -132,8 +124,6 @@ private:
         set_op(0, args.get<3>());
     }
 
-    virtual void vdump(Printer &printer) const;
-
 public:
 
     size_t index() const { return index_; }
@@ -160,8 +150,6 @@ private:
         set_op(0, args.get<3>());
     }
 
-    virtual void vdump(Printer &printer) const;
-
 public:
 
     const Def* ptr() const { return op(0); }
@@ -186,8 +174,6 @@ private:
         for_all (arg, args.get<4>())
             set_op(x++, arg);
     }
-
-    virtual void vdump(Printer &printer) const;
 
 public:
 

@@ -40,6 +40,8 @@ public:
 
     DefTupleN as_tuple() const { return DefTupleN(kind(), type(), ops()); }
     void update(size_t i, const Def* with);
+    virtual void vdump(Printer &printer) const;
+    virtual const char* op_name() const;
     ANYDSL2_HASH_EQUAL
 
 private:
@@ -76,10 +78,6 @@ public:
 
     const Def* lhs() const { return op(0); }
     const Def* rhs() const { return op(1); }
-
-private:
-
-    virtual void vdump(Printer &printer) const;
 };
 
 //------------------------------------------------------------------------------
@@ -94,6 +92,7 @@ private:
 public:
 
     ArithOpKind arithop_kind() const { return (ArithOpKind) node_kind(); }
+    virtual const char* op_name() const;
 
     friend class World;
 };
@@ -110,6 +109,7 @@ private:
 public:
 
     RelOpKind relop_kind() const { return (RelOpKind) node_kind(); }
+    virtual const char* op_name() const;
 
     friend class World;
 };
@@ -129,10 +129,7 @@ public:
 
     const Def* from() const { return op(0); }
     ConvOpKind convop_kind() const { return (ConvOpKind) node_kind(); }
-
-private:
-
-    virtual void vdump(Printer &printer) const;
+    virtual const char* op_name() const;
 
     friend class World;
 };
@@ -149,8 +146,6 @@ public:
     const Def* cond() const { return op(0); }
     const Def* tval() const { return op(1); }
     const Def* fval() const { return op(2); }
-
-    virtual void vdump(Printer &printer) const;
 
     friend class World;
 };
@@ -184,10 +179,6 @@ private:
         : TupleOp(2, args.get<0>(), args.get<1>(), args.get<2>(), args.get<3>(), name)
     {}
     
-    virtual void vdump(Printer& printer) const;
-
-public:
-
     friend class World;
 };
 
@@ -206,10 +197,6 @@ public:
 
     const Def* value() const { return op(2); }
 
-private:
-
-    virtual void vdump(Printer& printer) const;
-
     friend class World;
 };
 
@@ -219,10 +206,6 @@ class Tuple : public PrimOp {
 private:
 
     Tuple(const DefTupleN& args, const std::string& name);
-
-private:
-
-    virtual void vdump(Printer& printer) const;
 
     friend class World;
 };

@@ -1,5 +1,6 @@
 #include <boost/typeof/typeof.hpp>
 
+
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
 #include "anydsl2/memop.h"
@@ -9,6 +10,8 @@
 #include "anydsl2/printer.h"
 
 namespace anydsl2 {
+
+#if 0
 
 // Literal
 
@@ -159,6 +162,9 @@ void Slot::vdump(Printer& p) const {
     p << ')';
 }
 
+#endif
+
+
 /*
  * Types
  */
@@ -252,6 +258,46 @@ void Lambda::dump_body(bool fancy, int indent, std::ostream& out) const {
 	p.down();
 
     p.indent -= indent;
+}
+
+//------------------------------------------------------------------------------
+
+const char* PrimOp::op_name() const {
+    switch (kind()) {
+#define ANYDSL2_AIR_NODE(op) case Node_##op: return #op;
+#include "anydsl2/tables/nodetable.h"
+        default: ANYDSL2_UNREACHABLE;
+    }
+}
+
+const char* ArithOp::op_name() const {
+    switch (kind()) {
+#define ANYDSL2_ARITHOP(op) case ArithOp_##op: return #op;
+#include "anydsl2/tables/nodetable.h"
+        default: ANYDSL2_UNREACHABLE;
+    }
+}
+
+const char* PrimOp::op_name() const {
+    switch (kind()) {
+#define ANYDSL2_AIR_NODE(op) case Node_##op: return #op;
+#include "anydsl2/tables/nodetable.h"
+        default: ANYDSL2_UNREACHABLE;
+    }
+}
+
+const char* PrimOp::op_name() const {
+    switch (kind()) {
+#define ANYDSL2_AIR_NODE(op) case Node_##op: return #op;
+#include "anydsl2/tables/nodetable.h"
+        default: ANYDSL2_UNREACHABLE;
+    }
+}
+
+
+void PrimOp::vdump(Printer &printer) const {
+    printer << op_name() << " : ";
+    printer.dump(type());
 }
 
 //------------------------------------------------------------------------------

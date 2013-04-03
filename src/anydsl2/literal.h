@@ -48,7 +48,6 @@ private:
     Any(const DefTuple0& args, const std::string& name)
         : Undef(args.get<0>(), args.get<1>(), name)
     {}
-    virtual void vdump(Printer& printer) const ;
 
     friend class World;
 };
@@ -67,7 +66,6 @@ private:
     Bottom(const DefTuple0& args, const std::string& name)
         : Undef(args.get<0>(), args.get<1>(), name)
     {}
-    virtual void vdump(Printer& printer) const ;
 
     friend class World;
 };
@@ -93,7 +91,6 @@ public:
 
 private:
 
-    virtual void vdump(Printer& printer) const ;
     ANYDSL2_HASH_EQUAL
 
     Box box_;
@@ -114,7 +111,6 @@ private:
     TypeKeeper(const DefTuple0& args, const std::string& name)
         : Literal(args.get<0>(), args.get<1>(), name)
     {}
-    virtual void vdump(Printer& printer) const ;
 
     friend class World;
 };

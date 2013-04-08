@@ -97,8 +97,8 @@ protected:
     bool is_generic_;
 
     friend class Def;
-    friend class TypeHash;
-    friend class TypeEqual;
+    friend struct TypeHash;
+    friend struct TypeEqual;
 };
 
 std::ostream& operator << (std::ostream& o, const anydsl2::Type* type);

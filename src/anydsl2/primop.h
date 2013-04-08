@@ -46,8 +46,8 @@ private:
 
     void set_gid(size_t gid) const { const_cast<size_t&>(const_cast<PrimOp*>(this)->gid_) = gid; }
 
-    friend class PrimOpHash;
-    friend class PrimOpEqual;
+    friend struct PrimOpHash;
+    friend struct PrimOpEqual;
     friend class World;
 };
 

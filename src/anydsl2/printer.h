@@ -19,12 +19,12 @@ public:
     bool is_fancy() const { return fancy_; }
 
     Printer& newline();
-    Printer& up() { ++indent; return newline(); }
+    Printer& up()   { ++indent; return newline(); }
     Printer& down() { --indent; return newline(); }
-
-    template<class T>
-    Printer& operator << (const T& data) { o << data; return *this; }
     Printer& operator << (const Node* def);
+    Printer& operator << (const char* data) { o << data; return *this; }
+    Printer& operator << (const std::string& data) { o << data; return *this; }
+    Printer& operator << (size_t data) { o << data; return *this; }
 
     std::ostream& o;
     int indent;

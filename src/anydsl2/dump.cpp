@@ -23,10 +23,10 @@ namespace anydsl2 {
 void Type::dump() const { Printer p(std::cout, false); print(p); }
 
 Printer& Frame::print(Printer& p) const { p << "frame"; return p; }
-Printer& Mem::print(Printer& p) const { p << "mem"; return p; }
-Printer& Pi   ::print(Printer& p) const { ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p,    "pi(", elems(), ')'); return p; }
-Printer& Sigma::print(Printer& p) const { ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "sigma(", elems(), ')'); return p; }
-Printer& Ptr::print(Printer& p) const { ref()->print(p); p << '*'; return p; }
+Printer& Mem::  print(Printer& p) const { p << "mem"; return p; }
+Printer& Pi   ::print(Printer& p) const { ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p,    "pi(", elems(), ")"); return p; }
+Printer& Sigma::print(Printer& p) const { ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "sigma(", elems(), ")"); return p; }
+Printer& Ptr::  print(Printer& p) const { ref()->print(p); p << "*"; return p; }
 
 Printer& PrimType::print(Printer& p) const {
 	switch (primtype_kind()) {
@@ -40,7 +40,7 @@ Printer& Generic::print(Printer& p) const {
     if (!name.empty())
         p << name;
     else
-        p << '_' << index();
+        p << "_" << index();
     return p;
 }
 
@@ -59,9 +59,25 @@ std::ostream& operator << (std::ostream& o, const Type* type) {
 
 //------------------------------------------------------------------------------
 
+/*
+ * Defs
+ */
+
 void Def::dump() const { Printer p(std::cout, false); print(p); }
 std::ostream& operator << (std::ostream& o, const anydsl2::Def* def) { Printer p(o, false); def->print(p); return p.o; }
 Printer& Def::print(Printer& p) const { return print_name(p); }
+
+Printer& Def::print_name(Printer& p) const {
+    if (p.is_fancy()) // elide white = 0 and black = 7
+        p << "\33[" << (gid() % 6 + 30 + 1) << "m";
+
+    p << unique_name();
+
+    if (p.is_fancy())
+        p << "\33[m";
+
+    return p;
+}
 
 Printer& Lambda::print_head(Printer& p) const {
     print_name(p);
@@ -82,20 +98,6 @@ Printer& Lambda::print_jump(Printer& p) const {
 
     return p;
 }
-
-Printer& Def::print_name(Printer& p) const {
-    if (p.is_fancy()) // elide white = 0 and black = 7
-        p << "\33[" << (gid() % 6 + 30 + 1) << "m";
-
-    p << unique_name();
-
-    if (p.is_fancy())
-        p << "\33[m";
-
-    return p;
-}
-
-//------------------------------------------------------------------------------
 
 const char* PrimOp::op_name() const {
     switch (kind()) {
@@ -131,23 +133,15 @@ const char* ConvOp::op_name() const {
 
 Printer& PrimOp::print(Printer& p) const {
     if (const PrimLit* primlit = this->isa<PrimLit>()) {
-        type()->print(p) << ' ';
+        type()->print(p) << " ";
         switch (primlit->primtype_kind()) {
 #define ANYDSL2_UF_TYPE(T) case PrimType_##T: p.o << primlit->box().get_##T(); break;
 #include "anydsl2/tables/primtypetable.h"
             default: ANYDSL2_UNREACHABLE; break;
         }
     } else if (is_const()) {
-        print_name(p); 
-        p << ' ';
-        type()->print(p);
-        p << ' ';
-
-        const char* sep = "";
-        for_all (op, ops()) {
-            op->print(p) << sep;
-            sep = ", ";
-        }
+        print_name(p) << " " << type() << " ";
+        ANYDSL2_DUMP_COMMA_LIST(p, ops());
     } else
         print_name(p);
 
@@ -156,21 +150,12 @@ Printer& PrimOp::print(Printer& p) const {
 
 Printer& PrimOp::print_assignment(Printer& p) const {
     type()->print(p) << " ";
-    print_name(p);
-    p << " = " << op_name() << ' ';
-    p << ' ';
-
-    if (size_t num = size()) {
-        for (size_t i = 0; i != num-1; ++i) {
-            op(i)->print(p);
-            p << ", ";
-        }
-        op(num-1)->print(p);
-    }
-    p.newline();
-
-    return p;
+    print_name(p) << " = " << op_name() << " ";
+    ANYDSL2_DUMP_COMMA_LIST(p, ops());
+    return p.newline();
 }
+
+//------------------------------------------------------------------------------
 
 void World::dump(bool fancy) {
     Printer p(std::cout, fancy);
@@ -194,5 +179,7 @@ void World::dump(bool fancy) {
     }
     p.newline();
 }
+
+//------------------------------------------------------------------------------
 
 } // namespace anydsl2

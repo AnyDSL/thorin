@@ -27,7 +27,6 @@ public:
     Printer& operator << (const Type* type);
     Printer& operator << (const char* str) { o << str; return *this; }
     Printer& operator << (Symbol sym) { o << sym; return *this; }
-    //Printer& operator << (anydsl2::u64 i) { o << i; return *this; }
 
     Prec prec;
 };

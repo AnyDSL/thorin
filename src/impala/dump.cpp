@@ -22,7 +22,7 @@ public:
     {}
 
     void dump_block(const Stmt* s);
-    void dump(const ASTNode* n) { return n->vdump(*this); }
+    void dump(const ASTNode* n) { n->print(*this); }
     void dump(const anydsl2::Type* t);
 
     Prec prec;
@@ -30,11 +30,11 @@ public:
 
 void Printer::dump_block(const Stmt* s) {
     if (s->isa<ScopeStmt>())
-        s->vdump(*this);
+        s->print(*this);
     else {
         o << "{";
         up();
-        s->vdump(*this);
+        s->print(*this);
         down();
         o << "}";
     }
@@ -46,14 +46,16 @@ void ASTNode::dump() const {
     ::impala::dump(this);
 }
 
-void Prg::vdump(Printer& p) const {
+Printer& Prg::print(Printer& p) const {
     for_all (f, named_funs()) {
-        f->vdump(p);
+        f->print(p);
         p.newline();
     }
+
+    return p;
 }
 
-void Fun::fun_dump(Printer& p) const {
+Printer& Fun::fun_print(Printer& p) const {
 #if 0
     if (!generics().empty()) {
         p << "[[";
@@ -77,32 +79,40 @@ void Fun::fun_dump(Printer& p) const {
     }
 
     p.dump_block(body());
+
+    return p;
 }
 
-void NamedFun::vdump(Printer& p) const {
+Printer& NamedFun::print(Printer& p) const {
     p << "def " << symbol();
-    fun_dump(p);
+    fun_print(p);
+
+    return p;
 }
 
-void VarDecl::vdump(Printer& p) const {
+Printer& VarDecl::print(Printer& p) const {
     p << symbol() << " : ";
     p.dump(type());
+
+    return p;
 }
 
 /*
  * Expr
  */
 
-void EmptyExpr::vdump(Printer& p) const {
+Printer& EmptyExpr::print(Printer& p) const {
     p << "/*empty*/";
+
+    return p;
 }
 
-void Literal::vdump(Printer& p) const {
+Printer& Literal::print(Printer& p) const {
     switch (kind()) {
 #define IMPALA_LIT(itype, atype) \
         case LIT_##itype: { \
             p << (anydsl2::u64) box().get_##atype(); \
-            return; \
+            return p; \
         }
 #include "impala/tokenlist.h"
         case LIT_bool:
@@ -110,26 +120,31 @@ void Literal::vdump(Printer& p) const {
                 p << "true";
             else
                 p << "false";
-            return;
+            return p;
     }
+
+    return p;
 }
 
-void FunExpr::vdump(Printer& p) const {
+Printer& FunExpr::print(Printer& p) const {
     p << "lambda";
-    fun_dump(p);
+    fun_print(p);
+    return p;
 }
 
-void Tuple::vdump(Printer& p) const {
+Printer& Tuple::print(Printer& p) const {
     p << "#(";
     ANYDSL2_DUMP_COMMA_LIST(p, ops());
     p << ")";
+    return p;
 }
 
-void Id::vdump(Printer& p) const {
+Printer& Id::print(Printer& p) const {
     p << symbol();
+    return p;
 }
 
-void PrefixExpr::vdump(Printer& p) const {
+Printer& PrefixExpr::print(Printer& p) const {
     Prec r = PrecTable::prefix_r[kind()];
     Prec old = p.prec;
 
@@ -143,12 +158,13 @@ void PrefixExpr::vdump(Printer& p) const {
     p << op;
 
     p.prec = r;
-    rhs()->vdump(p);
+    rhs()->print(p);
 
     p.prec = old;
+    return p;
 }
 
-void InfixExpr::vdump(Printer& p) const {
+Printer& InfixExpr::print(Printer& p) const {
     Prec l = PrecTable::infix_l[kind()];
     Prec r = PrecTable::infix_r[kind()];
     Prec old = p.prec;
@@ -158,7 +174,7 @@ void InfixExpr::vdump(Printer& p) const {
         p << '(';
 
     p.prec = l;
-    lhs()->vdump(p);
+    lhs()->print(p);
 
     const char* op;
     switch (kind()) {
@@ -170,15 +186,16 @@ void InfixExpr::vdump(Printer& p) const {
     p << ' ' << op << ' ';
 
     p.prec = r;
-    rhs()->vdump(p);
+    rhs()->print(p);
 
     if (paren)
         p << ')';
 
     p.prec = old;
+    return p;
 }
 
-void PostfixExpr::vdump(Printer& p) const {
+Printer& PostfixExpr::print(Printer& p) const {
     Prec l = PrecTable::postfix_l[kind()];
     Prec old = p.prec;
     bool paren = !p.fancy() || p.prec > l;
@@ -187,7 +204,7 @@ void PostfixExpr::vdump(Printer& p) const {
         p << '(';
 
     p.prec = l;
-    lhs()->vdump(p);
+    lhs()->print(p);
 
     const char* op;
     switch (kind()) {
@@ -202,9 +219,10 @@ void PostfixExpr::vdump(Printer& p) const {
         p << ')';
 
     p.prec = old;
+    return p;
 }
 
-void ConditionalExpr::vdump(Printer& p) const {
+Printer& ConditionalExpr::print(Printer& p) const {
     Prec l = PrecTable::infix_l[Token::QUESTION_MARK];
     Prec r = PrecTable::infix_r[Token::QUESTION_MARK];
     Prec old = p.prec;
@@ -214,20 +232,21 @@ void ConditionalExpr::vdump(Printer& p) const {
         p << '(';
 
     p.prec = l;
-    cond()->vdump(p);
+    cond()->print(p);
     p << " ? ";
-    t_expr()->vdump(p);
+    t_expr()->print(p);
     p << " : ";
     p.prec = r;
-    f_expr()->vdump(p);
+    f_expr()->print(p);
 
     if (paren)
         p << ')';
 
     p.prec = old;
+    return p;
 }
 
-void IndexExpr::vdump(Printer& p) const {
+Printer& IndexExpr::print(Printer& p) const {
     Prec l = PrecTable::postfix_l[Token::L_BRACKET];
     Prec old = p.prec;
     bool paren = !p.fancy() || p.prec > l;
@@ -235,58 +254,63 @@ void IndexExpr::vdump(Printer& p) const {
     if (paren)
         p << '(';
 
-    lhs()->vdump(p);
+    lhs()->print(p);
     p << '[';
-    index()->vdump(p);
+    index()->print(p);
     p << ']';
 
     if (paren)
         p << ')';
 
     p.prec = old;
+
+    return p;
 }
 
-void Call::vdump(Printer& p) const {
+Printer& Call::print(Printer& p) const {
     assert(ops_.size() >= 1);
 
-    ops_.front()->vdump(p);
+    ops_.front()->print(p);
     p << '(';
 
     if (ops_.size() != 1) {
         for (Exprs::const_iterator i = ops_.begin() + 1, e = ops_.end() - 1; i != e; ++i) {
-            (*i)->vdump(p);
+            (*i)->print(p);
             p << ", ";
         }
 
-        ops_.back()->vdump(p);
+        ops_.back()->print(p);
     }
 
     p << ')';
+    return p;
 }
 
 /*
  * Stmt
  */
 
-void DeclStmt::vdump(Printer& p) const {
-    var_decl()->vdump(p);
+Printer& DeclStmt::print(Printer& p) const {
+    var_decl()->print(p);
 
     if (init()) {
         p << " = ";
-        init()->vdump(p);
+        init()->print(p);
     }
 
     p << ';';
+    return p;
 }
 
-void ExprStmt::vdump(Printer& p) const {
-    expr()->vdump(p);
+Printer& ExprStmt::print(Printer& p) const {
+    expr()->print(p);
     p << ';';
+    return p;
 }
 
-void IfElseStmt::vdump(Printer& p) const {
+Printer& IfElseStmt::print(Printer& p) const {
     p << "if (";
-    cond()->vdump(p);
+    cond()->print(p);
     p << ") ";
     p.dump_block(then_stmt());
 
@@ -294,78 +318,90 @@ void IfElseStmt::vdump(Printer& p) const {
         p << " else ";
         p.dump_block(else_stmt());
     }
+
+    return p;
 }
 
-void DoWhileStmt::vdump(Printer& p) const {
+Printer& DoWhileStmt::print(Printer& p) const {
     p << "do ";
     p.dump_block(body());
     p << " while (";
-    cond()->vdump(p);
+    cond()->print(p);
     p << ");";
+
+    return p;
 }
 
-void ForStmt::vdump(Printer& p) const {
+Printer& ForStmt::print(Printer& p) const {
     if (is_while()) {
         p << "while (";
-        cond()->vdump(p);
+        cond()->print(p);
     } else {
         p << "for (";
-        init()->vdump(p);
+        init()->print(p);
         p << ' ';
-        cond()->vdump(p);
+        cond()->print(p);
         p << "; ";
-        step()->vdump(p);
+        step()->print(p);
     }
     p << ") ";
     p.dump_block(body());
+
+    return p;
 }
 
-void ForeachStmt::vdump(Printer& p) const {
+Printer& ForeachStmt::print(Printer& p) const {
     p << "foreach (";
-    init()->vdump(p);
+    init()->print(p);
     p << " <- ";
-    call()->vdump(p);
+    call()->print(p);
     p << ')';
     p.dump_block(body());
+
+    return p;
 }
 
-void BreakStmt::vdump(Printer& p) const { p << "break;"; }
-void ContinueStmt::vdump(Printer& p) const { p << "continue;"; }
+Printer& BreakStmt::print(Printer& p) const { p << "break;"; return p; }
+Printer& ContinueStmt::print(Printer& p) const { p << "continue;"; return p; }
 
-void ReturnStmt::vdump(Printer& p) const {
+Printer& ReturnStmt::print(Printer& p) const {
     p << "return";
 
     if (expr()) {
         p << ' ';
-        expr()->vdump(p);
+        expr()->print(p);
     }
 
     p << ';';
+
+    return p;
 }
 
-void NamedFunStmt::vdump(Printer& p) const { named_fun()->vdump(p); }
+Printer& NamedFunStmt::print(Printer& p) const { named_fun()->print(p); return p; }
 
-void ScopeStmt::vdump(Printer& p) const {
+Printer& ScopeStmt::print(Printer& p) const {
     p << "{";
     p.up();
 
     if (!stmts().empty()) {
         for (Stmts::const_iterator i = stmts().begin(), e = stmts().end() - 1; i != e; ++i) {
-            (*i)->vdump(p);
+            (*i)->print(p);
             p.newline();
         }
 
-        stmts().back()->vdump(p);
+        stmts().back()->print(p);
     }
     p.down();
     p << "}";
+
+    return p;
 }
 
 //------------------------------------------------------------------------------
 
 void Printer::dump(const anydsl2::Type* t) { 
     if (t->isa<anydsl2::PrimType>()) {
-        t->vdump(*this);
+        t->print(*this);
     } else if (const anydsl2::Sigma* sigma = t->isa<anydsl2::Sigma>()) {
         o << "#(";
         ANYDSL2_DUMP_COMMA_LIST(*this, sigma->elems());
@@ -389,7 +425,7 @@ void Printer::dump(const anydsl2::Type* t) {
     } else if (t->isa<TypeError>()) {
       o << "<type error>";
     } else {
-        t->vdump(*this);
+        t->print(*this);
     }
 }
 
@@ -397,7 +433,7 @@ void Printer::dump(const anydsl2::Type* t) {
 
 void dump(const ASTNode* n, bool fancy, std::ostream& o) {
     Printer p(o, fancy);
-    n->vdump(p);
+    n->print(p);
 }
 
 void dump(const Type* t, bool fancy, std::ostream& o) {

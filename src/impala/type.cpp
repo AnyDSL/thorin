@@ -25,9 +25,9 @@ const Type* return_type(const Pi* pi) {
     return ((impala::World&) pi->world()).noret();
 }
 
-void NoRet::vdump(Printer& p) const { p << "noret"; }
-void TypeError::vdump(Printer& p) const { p << "<type error>"; }
-void Void::vdump(Printer& p) const { p << "void"; }
+Printer& NoRet::print(Printer& p) const { p << "noret"; return p; }
+Printer& TypeError::print(Printer& p) const { p << "<type error>"; return p; }
+Printer& Void::print(Printer& p) const { p << "void"; return p; }
 
 const Type* convert_type(const Type* type) {
     if (const Pi* pi = type->isa<Pi>()) {

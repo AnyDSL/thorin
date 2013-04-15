@@ -193,23 +193,22 @@ bool Verifier::verify_primop(Lambda* current, const PrimOp* primop, PrimOpSet& p
 }
 
 bool Verifier::invalid(const Def* def, const Def* source, const char* msg) {
-    std::ostream& o = std::cerr;
-    Printer printer(o, true);
-    o << "Invalid entry [";
-    printer.dump_name(def);
-    o << "]: ";
+    Printer p(std::cerr, true);
+    p << "Invalid entry [";
+    p.print_name(def);
+    p << "]: ";
     if (source != def) {
-        o << "caused by ";
-        printer.dump_name(source);
+        p << "caused by ";
+        p.print_name(source);
     } else if (msg)
-        o << msg;
+        p << msg;
 
-    o << std::endl;
+    p.newline();
     if (Lambda* lambda = def->isa_lambda())
-        lambda->dump_body(true, 0, o);
+        lambda->print_head(p);
     else
-        printer.dump(def);
-    o << std::endl;
+        def->print(p);
+    p.newline();
     return false;
 }
 

@@ -127,11 +127,6 @@ void Scope::reassign_sids() {
         rpo_[i]->sid_ = i;
 }
 
-void Scope::dump() const {
-    for_all (lambda, rpo())
-        lambda->dump_body();
-}
-
 //------------------------------------------------------------------------------
 
 class FVFinder {

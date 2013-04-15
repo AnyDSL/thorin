@@ -12,9 +12,6 @@
 #include "anydsl2/literal.h"
 #include "anydsl2/memop.h"
 #include "anydsl2/type.h"
-#include "anydsl2/analyses/domtree.h"
-#include "anydsl2/analyses/rootlambdas.h"
-#include "anydsl2/analyses/scope.h"
 #include "anydsl2/analyses/verifier.h"
 #include "anydsl2/transform/cfg_builder.h"
 #include "anydsl2/transform/inliner.h"
@@ -923,24 +920,6 @@ PrimOp* World::release(const PrimOp* primop) {
 void World::reinsert(const PrimOp* primop) {
     assert(primops_.find(primop) == primops_.end() && "must not be found");
     primops_.insert(primop);
-}
-
-/*
- * other
- */
-
-void World::dump(bool fancy) {
-    if (fancy) {
-        for_all (root, find_root_lambdas(*this)) {
-            Scope scope(root);
-            for_all (lambda, scope.rpo())
-                lambda->dump_body(fancy, scope.domtree().depth(lambda));
-        }
-    } else {
-        for_all (lambda, lambdas())
-            lambda->dump_body(false, 0);
-    }
-    std::cout << std::endl;
 }
 
 } // namespace anydsl2

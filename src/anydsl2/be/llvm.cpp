@@ -120,7 +120,7 @@ void CodeGen::emit() {
         for_all (lambda, scope.rpo())
             bbs[lambda->sid()] = llvm::BasicBlock::Create(context, lambda->name, fct);
 
-        Array< std::vector<const PrimOp*> > places = place(scope);
+        Places places = place(scope);
 
         // emit body for each bb
         for_all (lambda, scope.rpo()) {

@@ -40,7 +40,8 @@ public:
 
     DefTupleN as_tuple() const { return DefTupleN(kind(), type(), ops()); }
     void update(size_t i, const Def* with);
-    virtual void vdump(Printer &printer) const;
+    virtual Printer& print(Printer&) const;
+    virtual Printer& print_assignment(Printer &printer) const;
     virtual const char* op_name() const;
     ANYDSL2_HASH_EQUAL
 

@@ -18,21 +18,11 @@ public:
 
     bool fancy() const { return fancy_; }
 
-    template<class T>
-    Printer& dump(const T* t) {
-        if (t)
-            t->vdump(*this);
-        else
-            o << "<NULL>";
-
-        return *this;
-    }
-
-    Printer& dump_name(const Def* def);
+    Printer& print_name(const Def* def);
 
     Printer& newline();
-    Printer& up();
-    Printer& down();
+    Printer& up() { ++indent; return newline(); }
+    Printer& down() { --indent; return newline(); }
 
     template<class T>
     Printer& operator << (const T& data) {
@@ -48,15 +38,25 @@ private:
     bool fancy_;
 };
 
+template<class P, class T>
+P& checked_print(P& p, const T* t) {
+    if (t)
+        t->print(p);
+    else
+        p << "<NULL>";
+
+    return p;
+}
+
 #define ANYDSL2_DUMP_COMMA_LIST(p, list) \
     const BOOST_TYPEOF((list))& l = (list); \
     if (!l.empty()) { \
         boost::remove_const<BOOST_TYPEOF(l)>::type::const_iterator i = l.begin(), e = l.end() - 1; \
         for (; i != e; ++i) { \
-            (p).dump(*i); \
+            checked_print((p), (*i)); \
             (p) << ", "; \
         } \
-        (p).dump(*i); \
+        checked_print((p), (*i)); \
     }
 
 } // namespace anydsl2

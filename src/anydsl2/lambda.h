@@ -81,8 +81,10 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     bool is_basicblock() const;
     bool is_returning() const;
     void invalidate_sid() { sid_ = size_t(-1); }
-    void dump_body(bool fancy, int indent, std::ostream& out = std::cout) const;
-    void dump_body() const { dump_body(false, 0); }
+    Printer& print_jump(Printer&) const;
+    Printer& print_head(Printer&) const;
+    void dump_jump() const;
+    void dump_head() const;
     void destroy_body() { unset_ops(); resize(0); }
 
     // terminate
@@ -133,8 +135,6 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     void clear() { defs_.clear(); }
 
 private:
-
-    virtual void vdump(Printer& printer) const;
 
     class Todo {
     public:

@@ -4,6 +4,7 @@
 #include "anydsl2/symbol.h"
 #include "anydsl2/type.h"
 #include "anydsl2/world.h"
+#include "anydsl2/printer.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/for_all.h"
 
@@ -144,6 +145,8 @@ bool Lambda::is_cascading() const {
 
 bool Lambda::is_basicblock() const { return pi()->is_basicblock(); }
 bool Lambda::is_returning() const { return pi()->is_returning(); }
+void Lambda::dump_jump() const { Printer p(std::cout, false); print_jump(p); }
+void Lambda::dump_head() const { Printer p(std::cout, false); print_head(p); }
 
 /*
  * terminate

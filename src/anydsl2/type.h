@@ -65,14 +65,13 @@ protected:
 
 public:
 
-    void dump(bool fancy) const;
     void dump() const;
     World& world() const { return world_; }
     Elems elems() const { return ops_ref<const Type*>(); }
     const Type* elem(size_t i) const { return elems()[i]; }
     const Type* elem_via_lit(const Def* def) const;
     const Ptr* to_ptr() const;
-    virtual void vdump(Printer &printer) const = 0;
+    virtual Printer& print(Printer &printer) const = 0;
     bool check_with(const Type* type) const;
     bool infer_with(GenericMap& map, const Type* type) const;
     const Type* specialize(const GenericMap& generic_map) const;
@@ -120,7 +119,7 @@ private:
     Mem(World& world)
         : Type(world, Node_Mem, 0, false)
     {}
-    virtual void vdump(Printer& printer) const;
+    virtual Printer& print(Printer& printer) const;
 
     friend class World;
 };
@@ -134,7 +133,7 @@ private:
     Frame(World& world)
         : Type(world, Node_Frame, 0, false)
     {}
-    virtual void vdump(Printer& printer) const;
+    virtual Printer& print(Printer& printer) const;
 
     friend class World;
 };
@@ -155,7 +154,7 @@ public:
 
 private:
 
-    virtual void vdump(Printer& printer) const;
+    virtual Printer& print(Printer& printer) const;
 
     friend class World;
 };
@@ -171,7 +170,7 @@ private:
         set(0, args.get<1>());
     }
 
-    virtual void vdump(Printer& printer) const;
+    virtual Printer& print(Printer& printer) const;
     ANYDSL2_TYPE_HASH_EQUAL
 
 public:
@@ -190,7 +189,7 @@ protected:
     CompoundType(World& world, int kind, size_t num_elems);
     CompoundType(World& world, int kind, Elems elems);
 
-    void dump_inner(Printer& printer) const;
+    Printer& print_inner(Printer&) const;
 
 public:
 
@@ -222,7 +221,7 @@ public:
 
 private:
 
-    virtual void vdump(Printer& printer) const;
+    virtual Printer& print(Printer& printer) const;
     virtual size_t hash() const;
     virtual bool equal(const Type* other) const;
 
@@ -246,7 +245,7 @@ public:
     bool is_basicblock() const { return order() == 1; }
     bool is_returning() const;
 
-    virtual void vdump(Printer& printer) const;
+    virtual Printer& print(Printer& printer) const;
 
     friend class World;
 };
@@ -268,7 +267,7 @@ public:
 
     size_t index() const { return index_; }
     GenericTuple as_tuple() const { return GenericTuple(kind(), index()); }
-    virtual void vdump(Printer& printer) const;
+    virtual Printer& print(Printer& printer) const;
 
 private:
 
@@ -299,7 +298,7 @@ public:
 
 private:
 
-    virtual void vdump(Printer& printer) const;
+    virtual Printer& print(Printer& printer) const;
 
     Array<uint32_t> flags_;
 

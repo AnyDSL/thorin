@@ -156,9 +156,8 @@ public:
     Lambda* as_lambda() const;
     Lambda* isa_lambda() const;
     bool is_const() const { return is_const_; }
-    void dump(bool fancy) const;
     void dump() const;
-    virtual void vdump(Printer &printer) const = 0;
+    virtual Printer& print(Printer&) const;
     const Uses& uses() const { return uses_; }
     const Trackers& trackers() const { return trackers_; }
     size_t num_uses() const { return uses_.size(); }
@@ -232,7 +231,6 @@ public:
     Lambda* lambda() const { return lambda_; }
     size_t index() const { return index_; }
     Peeks peek() const;
-    virtual void vdump(Printer& printer) const;
     virtual const Def* representative() const;
 
 private:

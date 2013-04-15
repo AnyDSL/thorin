@@ -5,7 +5,7 @@
 namespace anydsl2 {
 
 #define ANYDSL2_GLUE(pre, next)
-#define ANYDSL2_AIR_NODE(node) BOOST_STATIC_ASSERT(Node_##node == (NodeKind) zzzMarker_##node);
+#define ANYDSL2_AIR_NODE(node, abbr) BOOST_STATIC_ASSERT(Node_##node == (NodeKind) zzzMarker_##node);
 #define ANYDSL2_PRIMTYPE(T) BOOST_STATIC_ASSERT(Node_PrimType_##T == (NodeKind) zzzMarker_PrimType_##T);
 #define ANYDSL2_ARITHOP(op) BOOST_STATIC_ASSERT(Node_##op == (NodeKind) zzzMarker_##op);
 #define ANYDSL2_RELOP(op) BOOST_STATIC_ASSERT(Node_##op == (NodeKind) zzzMarker_##op);

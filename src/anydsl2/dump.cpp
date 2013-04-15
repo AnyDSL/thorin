@@ -52,8 +52,7 @@ Printer& Opaque::print(Printer& p) const {
     p << "opaque(";
     for_all (f, flags()) p << f << " ";
     for_all (t,elems())  p << t << " ";
-    p << ")";
-    return p;
+    return p << ")";
 }
 
 void Type::dump() const { Printer p(std::cout, false); print(p); }
@@ -62,16 +61,14 @@ std::ostream& operator << (std::ostream& o, const anydsl2::Def* def) { Printer p
 Printer& Def::print(Printer& p) const { p.print_name(this); return p; }
 
 Printer& Lambda::print_head(Printer& p) const {
-	p.print_name(this);
-    p << "(";
+	p.print_name(this) << "(";
     ANYDSL2_DUMP_COMMA_LIST(p, params());
 	p << ") : ";
     type()->print(p);
     if (attr().is_extern())
         p << " extern ";
-    p.up();
 
-    return p;
+    return p.up();
 }
 
 Printer& Lambda::print_jump(Printer& p) const {
@@ -90,7 +87,7 @@ Printer& Lambda::print_jump(Printer& p) const {
 
 const char* PrimOp::op_name() const {
     switch (kind()) {
-#define ANYDSL2_AIR_NODE(op) case Node_##op: return #op;
+#define ANYDSL2_AIR_NODE(op, abbr) case Node_##op: return #abbr;
 #include "anydsl2/tables/nodetable.h"
         default: ANYDSL2_UNREACHABLE;
     }
@@ -122,14 +119,12 @@ const char* ConvOp::op_name() const {
 
 Printer& PrimOp::print(Printer& p) const {
     if (const PrimLit* primlit = this->isa<PrimLit>()) {
+        type()->print(p) << ' ';
         switch (primlit->primtype_kind()) {
 #define ANYDSL2_UF_TYPE(T) case PrimType_##T: p.o << primlit->box().get_##T(); break;
 #include "anydsl2/tables/primtypetable.h"
             default: ANYDSL2_UNREACHABLE; break;
         }
-
-        p << " : ";
-        type()->print(p);
     } else if (is_const()) {
         p.print_name(this); 
         p << ' ';
@@ -150,9 +145,9 @@ Printer& PrimOp::print(Printer& p) const {
 }
 
 Printer& PrimOp::print_assignment(Printer& p) const {
+    type()->print(p) << " ";
     p.print_name(this);
-    p << " = " << op_name() << " : ";
-    type()->print(p);
+    p << " = " << op_name() << ' ';
     p << ' ';
 
     if (size_t num = size()) {

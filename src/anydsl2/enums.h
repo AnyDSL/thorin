@@ -10,7 +10,7 @@ namespace anydsl2 {
 
 enum NodeKind {
 #define ANYDSL2_GLUE(pre, next)
-#define ANYDSL2_AIR_NODE(node) Node_##node,
+#define ANYDSL2_AIR_NODE(node, abbr) Node_##node,
 #define ANYDSL2_PRIMTYPE(T) Node_PrimType_##T,
 #define ANYDSL2_ARITHOP(op) Node_##op,
 #define ANYDSL2_RELOP(op) Node_##op,
@@ -23,7 +23,7 @@ enum Markers {
     End_##pre, \
     Begin_##next = End_##pre, \
     zzz##Begin_##next = Begin_##next - 1,
-#define ANYDSL2_AIR_NODE(node) zzzMarker_##node,
+#define ANYDSL2_AIR_NODE(node, abbr) zzzMarker_##node,
 #define ANYDSL2_PRIMTYPE(T) zzzMarker_PrimType_##T,
 #define ANYDSL2_ARITHOP(op) zzzMarker_##op,
 #define ANYDSL2_RELOP(op) zzzMarker_##op,

@@ -10,6 +10,7 @@
 
 using anydsl2::ArrayRef;
 using anydsl2::Type;
+using anydsl2::Symbol;
 
 namespace impala {
 
@@ -22,10 +23,11 @@ public:
     {}
 
     Printer& print_block(const Stmt* s);
-    Printer& print(const ASTNode* n) { return n->print(*this); }
-    Printer& print(const anydsl2::Type* t);
-    template<class T>
-    Printer& operator << (const T& data) { o << data; return *this; }
+    Printer& operator << (const ASTNode* n) { return n->print(*this); }
+    Printer& operator << (const Type* type);
+    Printer& operator << (const char* str) { o << str; return *this; }
+    Printer& operator << (Symbol sym) { o << sym; return *this; }
+    //Printer& operator << (anydsl2::u64 i) { o << i; return *this; }
 
     Prec prec;
 };
@@ -68,7 +70,7 @@ Printer& Fun::fun_print(Printer& p) const {
     ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "(", params_ref, ")");
 
     if (!ret_type->isa<NoRet>())
-        p << "-> " << ret_type << ' ';
+        p << "-> " << ret_type << " ";
 
     return p.print_block(body());
 }
@@ -79,43 +81,28 @@ Printer& NamedFun::print(Printer& p) const {
 }
 
 Printer& VarDecl::print(Printer& p) const {
-    p << symbol() << " : " << type();
-    return p;
+    return p << symbol() << " : " << type();
 }
 
 /*
  * Expr
  */
 
-Printer& EmptyExpr::print(Printer& p) const {
-    p << "/*empty*/";
-
-    return p;
-}
+Printer& EmptyExpr::print(Printer& p) const { return p << "/*empty*/"; }
 
 Printer& Literal::print(Printer& p) const {
     switch (kind()) {
 #define IMPALA_LIT(itype, atype) \
-        case LIT_##itype: { \
-            p << (anydsl2::u64) box().get_##atype(); \
-            return p; \
-        }
+        case LIT_##itype: p.o << (anydsl2::u64) box().get_##atype(); return p;
 #include "impala/tokenlist.h"
-        case LIT_bool:
-            if (box().get_u1().get()) 
-                p << "true";
-            else
-                p << "false";
-            return p;
+        case LIT_bool: return p << (box().get_u1().get() ? "true" : "false");
+        default: ANYDSL2_UNREACHABLE;
     }
-
-    return p;
 }
 
 Printer& FunExpr::print(Printer& p) const {
     p << "lambda";
-    fun_print(p);
-    return p;
+    return fun_print(p);
 }
 
 Printer& Tuple::print(Printer& p) const {
@@ -139,11 +126,10 @@ Printer& PrefixExpr::print(Printer& p) const {
     }
 
     p << op;
-
     p.prec = r;
     rhs()->print(p);
-
     p.prec = old;
+
     return p;
 }
 
@@ -153,8 +139,7 @@ Printer& InfixExpr::print(Printer& p) const {
     Prec old = p.prec;
     bool paren = !p.is_fancy() || p.prec > l;
 
-    if (paren)
-        p << '(';
+    if (paren) p << "(";
 
     p.prec = l;
     lhs()->print(p);
@@ -166,15 +151,14 @@ Printer& InfixExpr::print(Printer& p) const {
 #include "impala/tokenlist.h"
     }
 
-    p << ' ' << op << ' ';
+    p << " " << op << " ";
 
     p.prec = r;
     rhs()->print(p);
-
-    if (paren)
-        p << ')';
-
     p.prec = old;
+
+    if (paren) p << ")";
+
     return p;
 }
 
@@ -183,8 +167,7 @@ Printer& PostfixExpr::print(Printer& p) const {
     Prec old = p.prec;
     bool paren = !p.is_fancy() || p.prec > l;
 
-    if (paren)
-        p << '(';
+    if (paren) p << "(";
 
     p.prec = l;
     lhs()->print(p);
@@ -197,11 +180,10 @@ Printer& PostfixExpr::print(Printer& p) const {
     }
 
     p << op;
-
-    if (paren)
-        p << ')';
-
     p.prec = old;
+
+    if (paren) p << ")";
+
     return p;
 }
 
@@ -211,21 +193,16 @@ Printer& ConditionalExpr::print(Printer& p) const {
     Prec old = p.prec;
     bool paren = !p.is_fancy() || p.prec > l;
 
-    if (paren)
-        p << '(';
+    if (paren) p << "(";
 
     p.prec = l;
-    cond()->print(p);
-    p << " ? ";
-    t_expr()->print(p);
-    p << " : ";
+    cond()->print(p) << " ? " << t_expr() << " : ";
     p.prec = r;
     f_expr()->print(p);
-
-    if (paren)
-        p << ')';
-
     p.prec = old;
+
+    if (paren) p << ")";
+
     return p;
 }
 
@@ -234,18 +211,15 @@ Printer& IndexExpr::print(Printer& p) const {
     Prec old = p.prec;
     bool paren = !p.is_fancy() || p.prec > l;
 
-    if (paren)
-        p << '(';
+    if (paren) p << "(";
 
     lhs()->print(p);
-    p << '[';
+    p << "[";
     index()->print(p);
-    p << ']';
-
-    if (paren)
-        p << ')';
-
+    p << "]";
     p.prec = old;
+
+    if (paren) p << ")";
 
     return p;
 }
@@ -254,7 +228,7 @@ Printer& Call::print(Printer& p) const {
     assert(ops_.size() >= 1);
 
     ops_.front()->print(p);
-    p << '(';
+    p << "(";
 
     if (ops_.size() != 1) {
         for (Exprs::const_iterator i = ops_.begin() + 1, e = ops_.end() - 1; i != e; ++i) {
@@ -265,8 +239,7 @@ Printer& Call::print(Printer& p) const {
         ops_.back()->print(p);
     }
 
-    p << ')';
-    return p;
+    return p << ")";
 }
 
 /*
@@ -281,20 +254,16 @@ Printer& DeclStmt::print(Printer& p) const {
         init()->print(p);
     }
 
-    p << ';';
-    return p;
+    return p << ";";
 }
 
 Printer& ExprStmt::print(Printer& p) const {
     expr()->print(p);
-    p << ';';
-    return p;
+    return p << ";";
 }
 
 Printer& IfElseStmt::print(Printer& p) const {
-    p << "if (";
-    cond()->print(p);
-    p << ") ";
+    p << "if (" << cond() << ") ";
     p.print_block(then_stmt());
 
     if (!else_stmt()->empty()) {
@@ -322,7 +291,7 @@ Printer& ForStmt::print(Printer& p) const {
     } else {
         p << "for (";
         init()->print(p);
-        p << ' ';
+        p << " ";
         cond()->print(p);
         p << "; ";
         step()->print(p);
@@ -338,7 +307,7 @@ Printer& ForeachStmt::print(Printer& p) const {
     init()->print(p);
     p << " <- ";
     call()->print(p);
-    p << ')';
+    p << ")";
     p.print_block(body());
 
     return p;
@@ -351,11 +320,11 @@ Printer& ReturnStmt::print(Printer& p) const {
     p << "return";
 
     if (expr()) {
-        p << ' ';
+        p << " ";
         expr()->print(p);
     }
 
-    p << ';';
+    p << ";";
 
     return p;
 }
@@ -382,7 +351,7 @@ Printer& ScopeStmt::print(Printer& p) const {
 
 //------------------------------------------------------------------------------
 
-Printer& Printer::print(const anydsl2::Type* t) { 
+Printer& Printer::operator << (const anydsl2::Type* t) { 
     if (t->isa<anydsl2::PrimType>()) {
         t->print(*this);
     } else if (const anydsl2::Sigma* sigma = t->isa<anydsl2::Sigma>()) {
@@ -416,8 +385,7 @@ void dump(const ASTNode* n, bool fancy, std::ostream& o) {
 }
 
 void dump(const Type* t, bool fancy, std::ostream& o) {
-    Printer p(o, fancy);
-    p.print(t);
+    Printer(o, fancy) << t;
 }
 
 std::ostream& operator << (std::ostream& o, const ASTNode* n) {

@@ -35,7 +35,8 @@ private:
 };
 
 #define ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, begin, list, end) { \
-        const char* sep = (begin); \
+        (p) << (begin); \
+        const char* sep = ""; \
         for_all (elem, (list)) { \
             (p) << sep << elem; \
             sep = ", "; \

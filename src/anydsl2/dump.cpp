@@ -64,7 +64,8 @@ std::ostream& operator << (std::ostream& o, const anydsl2::Def* def) { Printer p
 Printer& Def::print(Printer& p) const { return print_name(p); }
 
 Printer& Lambda::print_head(Printer& p) const {
-    ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "(", params(), ")");
+    print_name(p);
+    ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "(", params(), ") : ");
     type()->print(p);
     if (attr().is_extern())
         p << " extern ";

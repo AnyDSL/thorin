@@ -129,10 +129,10 @@ void Scope::reassign_sids() {
 
 //------------------------------------------------------------------------------
 
-class Mapper {
+class Mangler {
 public:
 
-    Mapper(const Scope& scope, ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
+    Mangler(const Scope& scope, ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
            ArrayRef<const Def*> to_lift, const GenericMap& generic_map)
         : scope(scope)
         , to_drop(to_drop)
@@ -144,9 +144,9 @@ public:
     {}
 
     Lambda* mangle();
-    void map_body(Lambda* olambda, Lambda* nlambda);
-    Lambda* map_head(Lambda* olambda);
-    const Def* drop(const Def* odef);
+    void mangle_body(Lambda* olambda, Lambda* nlambda);
+    Lambda* mangle_head(Lambda* olambda);
+    const Def* mangle(const Def* odef);
     const Def* map(const Def* def, const Def* to) {
         def->visit_first(pass);
         def->cptr = to;
@@ -170,7 +170,7 @@ public:
 
 //------------------------------------------------------------------------------
 
-Lambda* Mapper::mangle() {
+Lambda* Mangler::mangle() {
     oentry = scope.entry();
     const Pi* o_pi = oentry->pi();
     Array<const Type*> nelems = o_pi->elems().cut(to_drop, to_lift.size());
@@ -203,17 +203,17 @@ Lambda* Mapper::mangle() {
     }
 
     map(oentry, oentry);
-    map_body(oentry, nentry);
+    mangle_body(oentry, nentry);
 
     for_all (cur, scope.rpo().slice_back(1)) {
         if (cur->is_visited(pass))
-            map_body(cur, lookup(cur)->as_lambda());
+            mangle_body(cur, lookup(cur)->as_lambda());
     }
 
     return nentry;
 }
 
-Lambda* Mapper::map_head(Lambda* olambda) {
+Lambda* Mangler::mangle_head(Lambda* olambda) {
     assert(!olambda->is_visited(pass));
 
     Lambda* nlambda = olambda->stub(generic_map, olambda->name);
@@ -225,20 +225,20 @@ Lambda* Mapper::map_head(Lambda* olambda) {
     return nlambda;
 }
 
-void Mapper::map_body(Lambda* olambda, Lambda* nlambda) {
+void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
     Array<const Def*> ops(olambda->ops().size());
     for (size_t i = 1, e = ops.size(); i != e; ++i)
-        ops[i] = drop(olambda->op(i));
+        ops[i] = mangle(olambda->op(i));
 
     // fold branch if possible
     if (const Select* select = olambda->to()->isa<Select>()) {
-        const Def* cond = drop(select->cond());
+        const Def* cond = mangle(select->cond());
         if (const PrimLit* lit = cond->isa<PrimLit>())
-            ops[0] = drop(lit->box().get_u1().get() ? select->tval() : select->fval());
+            ops[0] = mangle(lit->box().get_u1().get() ? select->tval() : select->fval());
         else
-            ops[0] = world.select(cond, drop(select->tval()), drop(select->fval()));
+            ops[0] = world.select(cond, mangle(select->tval()), mangle(select->fval()));
     } else
-        ops[0] = drop(olambda->to());
+        ops[0] = mangle(olambda->to());
 
     ArrayRef<const Def*> nargs(ops.slice_back(1));  // new args of nlambda
     const Def* ntarget = ops.front();               // new target of nlambda
@@ -256,13 +256,13 @@ void Mapper::map_body(Lambda* olambda, Lambda* nlambda) {
     nlambda->jump(ntarget, nargs);
 }
 
-const Def* Mapper::drop(const Def* odef) {
+const Def* Mangler::mangle(const Def* odef) {
     if (odef->is_visited(pass))
         return lookup(odef);
 
     if (Lambda* olambda = odef->isa_lambda()) {
         if (scope.contains(olambda))
-            return map_head(olambda);
+            return mangle_head(olambda);
         else
             return map(odef, odef);
     } else if (odef->isa<Param>())
@@ -272,7 +272,7 @@ const Def* Mapper::drop(const Def* odef) {
     const PrimOp* oprimop = odef->as<PrimOp>();
     Array<const Def*> nops(oprimop->size());
     for_all2 (&nop, nops, op, oprimop->ops()) {
-        nop = drop(op);
+        nop = mangle(op);
         is_new |= nop != op;
     }
 
@@ -304,7 +304,7 @@ Lambda* Scope::lift(ArrayRef<const Def*> to_lift, const GenericMap& generic_map)
 
 Lambda* Scope::mangle(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
                        ArrayRef<const Def*> to_lift, const GenericMap& generic_map) {
-    return Mapper(*this, to_drop, drop_with, to_lift, generic_map).mangle();
+    return Mangler(*this, to_drop, drop_with, to_lift, generic_map).mangle();
 }
 
 //------------------------------------------------------------------------------

@@ -198,12 +198,4 @@ void GenericBuilder::pop() {
 
 //------------------------------------------------------------------------------
 
-std::ostream& operator << (std::ostream& o, const Type* type) {
-    Printer p(o, false);
-    type->print(p);
-    return p.o;
-}
-
-//------------------------------------------------------------------------------
-
 } // namespace anydsl2

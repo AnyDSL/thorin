@@ -21,14 +21,16 @@ public:
         , prec(BOTTOM)
     {}
 
-    void dump_block(const Stmt* s);
-    void dump(const ASTNode* n) { n->print(*this); }
-    void dump(const anydsl2::Type* t);
+    Printer& print_block(const Stmt* s);
+    Printer& print(const ASTNode* n) { return n->print(*this); }
+    Printer& print(const anydsl2::Type* t);
+    template<class T>
+    Printer& operator << (const T& data) { o << data; return *this; }
 
     Prec prec;
 };
 
-void Printer::dump_block(const Stmt* s) {
+Printer& Printer::print_block(const Stmt* s) {
     if (s->isa<ScopeStmt>())
         s->print(*this);
     else {
@@ -38,6 +40,8 @@ void Printer::dump_block(const Stmt* s) {
         down();
         o << "}";
     }
+
+    return *this;
 }
 
 //------------------------------------------------------------------------------
@@ -56,44 +60,26 @@ Printer& Prg::print(Printer& p) const {
 }
 
 Printer& Fun::fun_print(Printer& p) const {
-#if 0
-    if (!generics().empty()) {
-        p << "[[";
-        ANYDSL2_DUMP_COMMA_LIST(p, generics());
-        p << "]]";
-    }
-#endif
-    
+    // TODO generics
     const Type* ret_type = return_type(pi());
     ArrayRef<const VarDecl*> params_ref = 
         ret_type->isa<NoRet>() ? params() : ArrayRef<const VarDecl*>(&params().front(), params().size() - 1);
 
-    p << '(';
-    ANYDSL2_DUMP_COMMA_LIST(p, params_ref);
-    p << ") ";
+    ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "(", params_ref, ")");
 
-    if (!ret_type->isa<NoRet>()) {
-        p << "-> ";
-        p.dump(ret_type);
-        p << ' ';
-    }
+    if (!ret_type->isa<NoRet>())
+        p << "-> " << ret_type << ' ';
 
-    p.dump_block(body());
-
-    return p;
+    return p.print_block(body());
 }
 
 Printer& NamedFun::print(Printer& p) const {
     p << "def " << symbol();
-    fun_print(p);
-
-    return p;
+    return fun_print(p);
 }
 
 Printer& VarDecl::print(Printer& p) const {
-    p << symbol() << " : ";
-    p.dump(type());
-
+    p << symbol() << " : " << type();
     return p;
 }
 
@@ -133,15 +119,12 @@ Printer& FunExpr::print(Printer& p) const {
 }
 
 Printer& Tuple::print(Printer& p) const {
-    p << "#(";
-    ANYDSL2_DUMP_COMMA_LIST(p, ops());
-    p << ")";
+    ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "#(", ops(), ")");
     return p;
 }
 
 Printer& Id::print(Printer& p) const {
-    p << symbol();
-    return p;
+    return p << symbol();
 }
 
 Printer& PrefixExpr::print(Printer& p) const {
@@ -168,7 +151,7 @@ Printer& InfixExpr::print(Printer& p) const {
     Prec l = PrecTable::infix_l[kind()];
     Prec r = PrecTable::infix_r[kind()];
     Prec old = p.prec;
-    bool paren = !p.fancy() || p.prec > l;
+    bool paren = !p.is_fancy() || p.prec > l;
 
     if (paren)
         p << '(';
@@ -198,7 +181,7 @@ Printer& InfixExpr::print(Printer& p) const {
 Printer& PostfixExpr::print(Printer& p) const {
     Prec l = PrecTable::postfix_l[kind()];
     Prec old = p.prec;
-    bool paren = !p.fancy() || p.prec > l;
+    bool paren = !p.is_fancy() || p.prec > l;
 
     if (paren)
         p << '(';
@@ -226,7 +209,7 @@ Printer& ConditionalExpr::print(Printer& p) const {
     Prec l = PrecTable::infix_l[Token::QUESTION_MARK];
     Prec r = PrecTable::infix_r[Token::QUESTION_MARK];
     Prec old = p.prec;
-    bool paren = !p.fancy() || p.prec > l;
+    bool paren = !p.is_fancy() || p.prec > l;
 
     if (paren)
         p << '(';
@@ -249,7 +232,7 @@ Printer& ConditionalExpr::print(Printer& p) const {
 Printer& IndexExpr::print(Printer& p) const {
     Prec l = PrecTable::postfix_l[Token::L_BRACKET];
     Prec old = p.prec;
-    bool paren = !p.fancy() || p.prec > l;
+    bool paren = !p.is_fancy() || p.prec > l;
 
     if (paren)
         p << '(';
@@ -312,11 +295,11 @@ Printer& IfElseStmt::print(Printer& p) const {
     p << "if (";
     cond()->print(p);
     p << ") ";
-    p.dump_block(then_stmt());
+    p.print_block(then_stmt());
 
     if (!else_stmt()->empty()) {
         p << " else ";
-        p.dump_block(else_stmt());
+        p.print_block(else_stmt());
     }
 
     return p;
@@ -324,7 +307,7 @@ Printer& IfElseStmt::print(Printer& p) const {
 
 Printer& DoWhileStmt::print(Printer& p) const {
     p << "do ";
-    p.dump_block(body());
+    p.print_block(body());
     p << " while (";
     cond()->print(p);
     p << ");";
@@ -345,7 +328,7 @@ Printer& ForStmt::print(Printer& p) const {
         step()->print(p);
     }
     p << ") ";
-    p.dump_block(body());
+    p.print_block(body());
 
     return p;
 }
@@ -356,7 +339,7 @@ Printer& ForeachStmt::print(Printer& p) const {
     p << " <- ";
     call()->print(p);
     p << ')';
-    p.dump_block(body());
+    p.print_block(body());
 
     return p;
 }
@@ -399,23 +382,17 @@ Printer& ScopeStmt::print(Printer& p) const {
 
 //------------------------------------------------------------------------------
 
-void Printer::dump(const anydsl2::Type* t) { 
+Printer& Printer::print(const anydsl2::Type* t) { 
     if (t->isa<anydsl2::PrimType>()) {
         t->print(*this);
     } else if (const anydsl2::Sigma* sigma = t->isa<anydsl2::Sigma>()) {
-        o << "#(";
-        ANYDSL2_DUMP_COMMA_LIST(*this, sigma->elems());
-        o << ")";
+        ANYDSL2_DUMP_EMBRACING_COMMA_LIST(*this, "#(", sigma->elems(), ")");
     } else if (const anydsl2::Pi* pi = t->isa<anydsl2::Pi>()) {
-        o << "pi(";
-
         const Type* ret_type = return_type(pi);
         if (ret_type->isa<NoRet>()) {
-            ANYDSL2_DUMP_COMMA_LIST(*this, pi->elems());
-            o << ")";
+            ANYDSL2_DUMP_EMBRACING_COMMA_LIST(*this, "pi(", pi->elems(), ")");
         } else {
-            ANYDSL2_DUMP_COMMA_LIST(*this, pi->elems().slice_front(pi->size()-1));
-            o << ") -> ";
+            ANYDSL2_DUMP_EMBRACING_COMMA_LIST(*this, "pi(", pi->elems().slice_front(pi->size()-1), ") -> ");
             dump(ret_type);
         }
     } else if (t->isa<Void>()) {
@@ -427,6 +404,8 @@ void Printer::dump(const anydsl2::Type* t) {
     } else {
         t->print(*this);
     }
+
+    return *this;
 }
 
 //------------------------------------------------------------------------------
@@ -438,7 +417,7 @@ void dump(const ASTNode* n, bool fancy, std::ostream& o) {
 
 void dump(const Type* t, bool fancy, std::ostream& o) {
     Printer p(o, fancy);
-    p.dump(t);
+    p.print(t);
 }
 
 std::ostream& operator << (std::ostream& o, const ASTNode* n) {

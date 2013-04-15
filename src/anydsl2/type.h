@@ -71,7 +71,6 @@ public:
     const Type* elem(size_t i) const { return elems()[i]; }
     const Type* elem_via_lit(const Def* def) const;
     const Ptr* to_ptr() const;
-    virtual Printer& print(Printer &printer) const = 0;
     bool check_with(const Type* type) const;
     bool infer_with(GenericMap& map, const Type* type) const;
     const Type* specialize(const GenericMap& generic_map) const;
@@ -188,8 +187,6 @@ protected:
 
     CompoundType(World& world, int kind, size_t num_elems);
     CompoundType(World& world, int kind, Elems elems);
-
-    Printer& print_inner(Printer&) const;
 
 public:
 

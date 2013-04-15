@@ -5,7 +5,7 @@
 
 namespace anydsl2 {
 
-class Def;
+class Node;
 
 class Printer {
 public:
@@ -16,19 +16,15 @@ public:
         , fancy_(fancy)
     {}
 
-    bool fancy() const { return fancy_; }
-
-    Printer& print_name(const Def* def);
+    bool is_fancy() const { return fancy_; }
 
     Printer& newline();
     Printer& up() { ++indent; return newline(); }
     Printer& down() { --indent; return newline(); }
 
     template<class T>
-    Printer& operator << (const T& data) {
-        o << data;
-        return *this;
-    }
+    Printer& operator << (const T& data) { o << data; return *this; }
+    Printer& operator << (const Node* def);
 
     std::ostream& o;
     int indent;
@@ -38,26 +34,16 @@ private:
     bool fancy_;
 };
 
-template<class P, class T>
-P& checked_print(P& p, const T* t) {
-    if (t)
-        t->print(p);
-    else
-        p << "<NULL>";
-
-    return p;
-}
-
-#define ANYDSL2_DUMP_COMMA_LIST(p, list) \
-    const BOOST_TYPEOF((list))& l = (list); \
-    if (!l.empty()) { \
-        boost::remove_const<BOOST_TYPEOF(l)>::type::const_iterator i = l.begin(), e = l.end() - 1; \
-        for (; i != e; ++i) { \
-            checked_print((p), (*i)); \
-            (p) << ", "; \
+#define ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, begin, list, end) { \
+        const char* sep = (begin); \
+        for_all (elem, (list)) { \
+            (p) << sep << elem; \
+            sep = ", "; \
         } \
-        checked_print((p), (*i)); \
+        (p) << (end); \
     }
+
+#define ANYDSL2_DUMP_COMMA_LIST(p, list) ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "", list, "")
 
 } // namespace anydsl2
 

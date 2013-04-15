@@ -14,14 +14,18 @@
 
 namespace anydsl2 {
 
+//------------------------------------------------------------------------------
+
 /*
  * Types
  */
 
-Printer& CompoundType::print_inner(Printer& p) const { ANYDSL2_DUMP_COMMA_LIST(p, elems()); return p; }
+void Type::dump() const { Printer p(std::cout, false); print(p); }
+
 Printer& Frame::print(Printer& p) const { p << "frame"; return p; }
 Printer& Mem::print(Printer& p) const { p << "mem"; return p; }
-Printer& Pi::print(Printer& p) const { p << "pi("; print_inner(p); p << ')'; return p; }
+Printer& Pi   ::print(Printer& p) const { ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p,    "pi(", elems(), ')'); return p; }
+Printer& Sigma::print(Printer& p) const { ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "sigma(", elems(), ')'); return p; }
 Printer& Ptr::print(Printer& p) const { ref()->print(p); p << '*'; return p; }
 
 Printer& PrimType::print(Printer& p) const {
@@ -30,14 +34,6 @@ Printer& PrimType::print(Printer& p) const {
 #include "anydsl2/tables/primtypetable.h"
 	default: ANYDSL2_UNREACHABLE;
 	}
-}
-
-Printer& Sigma::print(Printer& p) const {
-    // TODO cycles
-	p << "sigma(";
-	print_inner(p);
-    p << ")";
-    return p;
 }
 
 Printer& Generic::print(Printer& p) const {
@@ -55,15 +51,20 @@ Printer& Opaque::print(Printer& p) const {
     return p << ")";
 }
 
-void Type::dump() const { Printer p(std::cout, false); print(p); }
+std::ostream& operator << (std::ostream& o, const Type* type) {
+    Printer p(o, false);
+    type->print(p);
+    return p.o;
+}
+
+//------------------------------------------------------------------------------
+
 void Def::dump() const { Printer p(std::cout, false); print(p); }
 std::ostream& operator << (std::ostream& o, const anydsl2::Def* def) { Printer p(o, false); def->print(p); return p.o; }
-Printer& Def::print(Printer& p) const { p.print_name(this); return p; }
+Printer& Def::print(Printer& p) const { return print_name(p); }
 
 Printer& Lambda::print_head(Printer& p) const {
-	p.print_name(this) << "(";
-    ANYDSL2_DUMP_COMMA_LIST(p, params());
-	p << ") : ";
+    ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "(", params(), ")");
     type()->print(p);
     if (attr().is_extern())
         p << " extern ";
@@ -74,11 +75,21 @@ Printer& Lambda::print_head(Printer& p) const {
 Printer& Lambda::print_jump(Printer& p) const {
     if (!empty()) {
         to()->print(p);
-        p << "(";
-        ANYDSL2_DUMP_COMMA_LIST(p, args());
-        p  << ")";
+        ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "(", args(), ")");
     }
     p.down();
+
+    return p;
+}
+
+Printer& Def::print_name(Printer& p) const {
+    if (p.is_fancy()) // elide white = 0 and black = 7
+        p << "\33[" << (gid() % 6 + 30 + 1) << "m";
+
+    p << unique_name();
+
+    if (p.is_fancy())
+        p << "\33[m";
 
     return p;
 }
@@ -126,27 +137,25 @@ Printer& PrimOp::print(Printer& p) const {
             default: ANYDSL2_UNREACHABLE; break;
         }
     } else if (is_const()) {
-        p.print_name(this); 
+        print_name(p); 
         p << ' ';
         type()->print(p);
         p << ' ';
 
-        if (size_t num = size()) {
-            for (size_t i = 0; i != num-1; ++i) {
-                op(i)->print(p);
-                p << ", ";
-            }
-            op(num-1)->print(p);
+        const char* sep = "";
+        for_all (op, ops()) {
+            op->print(p) << sep;
+            sep = ", ";
         }
     } else
-        p.print_name(this);
+        print_name(p);
 
     return p;
 }
 
 Printer& PrimOp::print_assignment(Printer& p) const {
     type()->print(p) << " ";
-    p.print_name(this);
+    print_name(p);
     p << " = " << op_name() << ' ';
     p << ' ';
 

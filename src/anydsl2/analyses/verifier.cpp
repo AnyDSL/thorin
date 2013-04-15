@@ -195,11 +195,11 @@ bool Verifier::verify_primop(Lambda* current, const PrimOp* primop, PrimOpSet& p
 bool Verifier::invalid(const Def* def, const Def* source, const char* msg) {
     Printer p(std::cerr, true);
     p << "Invalid entry [";
-    p.print_name(def);
+    def->print_name(p);
     p << "]: ";
     if (source != def) {
         p << "caused by ";
-        p.print_name(source);
+        source->print_name(p);
     } else if (msg)
         p << msg;
 

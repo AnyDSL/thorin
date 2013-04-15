@@ -158,6 +158,8 @@ public:
     bool is_const() const { return is_const_; }
     void dump() const;
     virtual Printer& print(Printer&) const;
+    Printer& print_name(Printer&) const;
+
     const Uses& uses() const { return uses_; }
     const Trackers& trackers() const { return trackers_; }
     size_t num_uses() const { return uses_.size(); }

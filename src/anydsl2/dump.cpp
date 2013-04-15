@@ -185,5 +185,4 @@ void World::dump(bool fancy) {
     p.newline();
 }
 
-
 } // namespace anydsl2

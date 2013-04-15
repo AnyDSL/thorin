@@ -1,0 +1,8 @@
+def get<T>() -> T {
+    tuple : sigma(T, T);
+    return tuple[0];
+}
+
+def main() -> int {
+    return get();
+}

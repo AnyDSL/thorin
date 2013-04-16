@@ -401,7 +401,7 @@ void Parser::parse_fun(Fun* fun) {
         Position pos1 = prev_loc.pos1();
         arg_types.push_back(parse_return_type());
         Position pos2 = prev_loc.pos2();
-        fun->params_.push_back(new VarDecl(cur_var_handle++, Token(pos1, "<return>"), arg_types.back(), pos2));
+        fun->params_.push_back(new VarDecl(cur_var_handle++, Token(pos1, "return"), arg_types.back(), pos2));
     }
 
     const Pi* pi = world.pi(arg_types);

@@ -59,20 +59,6 @@ void Def::unregister_use(size_t i) const {
     def->uses_.erase(it);
 }
 
-//bool Def::is_const() const {
-    //if (isa<Param>() || type()->isa<Mem>() || node_kind() == Node_Enter || node_kind() == Node_Leave || node_kind() == Node_Load || node_kind() == Node_Store || node_kind() == Node_Slot)
-        //return false;
-
-    //if (empty() || isa<Lambda>())
-        //return true;
-
-    //for (size_t i = 0, e = size(); i != e; ++i)
-        //if (!op(i)->is_const())
-            //return false;
-
-    //return true;
-//}
-
 std::string Def::unique_name() const {
     std::ostringstream oss;
     oss << name << '_' << gid();

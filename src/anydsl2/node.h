@@ -98,7 +98,9 @@ public:
     union {
         mutable void* ptr;
         mutable const void* cptr;
-        mutable bool flags[sizeof(void*)/sizeof(bool)];
+    };
+    union {
+        mutable bool flags[sizeof(size_t)/sizeof(bool)];
         mutable size_t counter;
     };
 

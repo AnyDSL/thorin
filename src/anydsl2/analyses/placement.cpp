@@ -32,7 +32,6 @@ private:
     void place_late();
     void up(Lambda* lambda);
     void place_late(Lambda* lambda, const Def* def);
-    bool is_visited(const PrimOp* primop) { return primop->is_visited(pass); }
     Lambda*& late(const PrimOp* primop) const { return (Lambda*&) primop->ptr; }
 
     Places place_early();
@@ -49,20 +48,38 @@ void Placement::place_late() {
 }
 
 void Placement::up(Lambda* lambda) {
-    for_all (op, lambda->ops()) 
+    for_all (op, lambda->ops()) {
+        if (!op->isa<Param>() && !op->is_const()) {
+            const PrimOp* primop = op->as<PrimOp>();
+            if (!primop->visit(pass)) {
+                late(primop) = 0;
+                primop->counter = 0;
+                for_all (use, op->uses()) {
+                    if (use->isa<PrimOp>())
+                        ++op->counter;
+                }
+            }
+        }
         place_late(lambda, op);
+    }
 }
 
 void Placement::place_late(Lambda* lambda, const Def* def) {
     if (def->isa<Param>() || def->is_const())
         return;
 
-    for_all (op, def->ops()) {
-        if (def->isa<Param>() || op->is_const())
+    const PrimOp* primop = def->as<PrimOp>();
+    late(primop) = late(primop) ? scope.domtree().lca(lambda, late(primop)) : lambda;
+
+    for_all (op, primop->ops()) {
+        if (op->isa<Param>() || op->is_const())
             continue;
-        if (op->visit(pass))
+        if (op->visit(pass)) {
+            if (op->counter == 0)
+                continue;
             --op->counter;
-        else {
+        } else {
+            op->ptr = 0;
             op->counter = -1;
             for_all (use, op->uses()) {
                 if (use->isa<PrimOp>())
@@ -71,12 +88,8 @@ void Placement::place_late(Lambda* lambda, const Def* def) {
         }
         assert(op->counter != size_t(-1));
 
-        if (op->counter == 0) {
-            const PrimOp* primop = op->as<PrimOp>();
-            //late(primop) = primop->visit(pass) ? scope.domtree().lca(late(primop), lambda) : lambda;
-            late(primop) = lambda;
+        if (op->counter == 0)
             place_late(lambda, op);
-        }
     }
 }
 

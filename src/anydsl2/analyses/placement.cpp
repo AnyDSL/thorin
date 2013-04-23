@@ -31,8 +31,16 @@ private:
 
     void place_late();
     void up(Lambda* lambda);
-    void place_late(Lambda* lambda, const Def* def);
+    void place_late(Lambda* lambda, const PrimOp* primop);
     Lambda*& late(const PrimOp* primop) const { return (Lambda*&) primop->ptr; }
+    void init(const PrimOp* primop) const {
+        primop->ptr = 0;
+        primop->counter = 0;
+        for_all (use, primop->uses()) {
+            if (use->isa<PrimOp>())
+                ++primop->counter;
+        }
+    }
 
     Places place_early();
     void down(Places& places, Lambda* lambda);
@@ -49,47 +57,28 @@ void Placement::place_late() {
 
 void Placement::up(Lambda* lambda) {
     for_all (op, lambda->ops()) {
-        if (!op->isa<Param>() && !op->is_const()) {
-            const PrimOp* primop = op->as<PrimOp>();
-            if (!primop->visit(pass)) {
-                late(primop) = 0;
-                primop->counter = 0;
-                for_all (use, op->uses()) {
-                    if (use->isa<PrimOp>())
-                        ++op->counter;
-                }
-            }
+        if (const PrimOp* primop = op->is_non_const_primop()) {
+            if (!primop->visit(pass))
+                init(primop);
+
+            place_late(lambda, primop);
         }
-        place_late(lambda, op);
     }
 }
 
-void Placement::place_late(Lambda* lambda, const Def* def) {
-    if (def->isa<Param>() || def->is_const())
-        return;
-
-    const PrimOp* primop = def->as<PrimOp>();
+void Placement::place_late(Lambda* lambda, const PrimOp* primop) {
     late(primop) = late(primop) ? scope.domtree().lca(lambda, late(primop)) : lambda;
 
     for_all (op, primop->ops()) {
-        if (op->isa<Param>() || op->is_const())
-            continue;
-        if (op->visit(pass)) {
-            if (op->counter == 0)
-                continue;
-            --op->counter;
-        } else {
-            op->ptr = 0;
-            op->counter = -1;
-            for_all (use, op->uses()) {
-                if (use->isa<PrimOp>())
-                    ++op->counter;
-            }
+        if (const PrimOp* cur = op->is_non_const_primop()) {
+            if (!cur->visit(pass))      
+                init(cur);              // init unseen primops
+            if (cur->counter == 0)      
+                continue;               // skip branches which have already been processed
+            if (--cur->counter == 0)    
+                place_late(lambda, cur);// decrement and visit branch if all users have been processed
+            assert(cur->counter != size_t(-1));
         }
-        assert(op->counter != size_t(-1));
-
-        if (op->counter == 0)
-            place_late(lambda, op);
     }
 }
 
@@ -128,7 +117,7 @@ void Placement::place_early(Places& places, Lambda* early, const Def* def) {
                 if (primop->isa<Slot>() || primop->isa<Enter>())
                     best = early;                 // place these guys always early
                 else if (!primop->isa<Leave>()) { // place this guy always late
-                    // all other guys are placed as late as possible but out of loops if possible
+                    // all other guys are placed as late as possible but keep them out of loops please
                     int depth = std::numeric_limits<int>::max();
                     for (Lambda* i = best; i != early; i = scope.domtree().idom(i)) {
                         int cur_depth = scope.loopinfo().depth(i);

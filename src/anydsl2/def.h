@@ -159,6 +159,7 @@ public:
     void dump() const;
     virtual Printer& print(Printer&) const;
     Printer& print_name(Printer&) const;
+    const PrimOp* is_non_const_primop() const;
 
     const Uses& uses() const { return uses_; }
     const Trackers& trackers() const { return trackers_; }

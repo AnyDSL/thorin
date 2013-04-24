@@ -30,14 +30,13 @@ public:
 private:
 
     void place_late();
-    void up(Lambda* lambda);
-    void place_late(Lambda* lambda, const PrimOp* primop);
+    void place_late(Lambda* lambda, const Def* def);
     Lambda*& late(const PrimOp* primop) const { return (Lambda*&) primop->ptr; }
     void init(const PrimOp* primop) const {
         primop->ptr = 0;
         primop->counter = 0;
         for_all (use, primop->uses()) {
-            if (use->isa<PrimOp>())
+            if (use->isa<PrimOp>() || use->isa<Lambda>())
                 ++primop->counter;
         }
     }
@@ -52,32 +51,28 @@ private:
 
 void Placement::place_late() {
     for (size_t i = scope.size(); i-- != 0;)
-        up(scope[i]);
+        place_late(scope[i], scope[i]);
 }
 
-void Placement::up(Lambda* lambda) {
-    for_all (op, lambda->ops()) {
+void Placement::place_late(Lambda* lambda, const Def* def) {
+    //std::cout << "place late in: " << lambda->unique_name() << std::endl;
+    //def->dump();
+    //std::cout << std::endl;
+
+    for_all (op, def->ops()) {
         if (const PrimOp* primop = op->is_non_const_primop()) {
-            if (!primop->visit(pass))
-                init(primop);
+            //std::cout << "\top: "; op->dump();
+            if (!primop->visit(pass))      
+                init(primop);              // init unseen primops
 
-            place_late(lambda, primop);
-        }
-    }
-}
+            late(primop) = late(primop) ? scope.domtree().lca(lambda, late(primop)) : lambda;
 
-void Placement::place_late(Lambda* lambda, const PrimOp* primop) {
-    late(primop) = late(primop) ? scope.domtree().lca(lambda, late(primop)) : lambda;
-
-    for_all (op, primop->ops()) {
-        if (const PrimOp* cur = op->is_non_const_primop()) {
-            if (!cur->visit(pass))      
-                init(cur);              // init unseen primops
-            if (cur->counter == 0)      
+            if (primop->counter == 0)      
                 continue;               // skip branches which have already been processed
-            if (--cur->counter == 0)    
-                place_late(lambda, cur);// decrement and visit branch if all users have been processed
-            assert(cur->counter != size_t(-1));
+            if (--primop->counter == 0)    
+                //place_late(lambda, primop);// decrement and visit branch if all users have been processed
+                place_late(late(primop), primop);// decrement and visit branch if all users have been processed
+            assert(primop->counter != size_t(-1));
         }
     }
 }
@@ -113,6 +108,10 @@ void Placement::place_early(Places& places, Lambda* early, const Def* def) {
 
         if (use->counter == 0) {
             if (const PrimOp* primop = use->isa<PrimOp>()) {
+                //std::cout << "placing: " 
+                    //<< early->unique_name() <<  " - " 
+                    //<< late(primop)->unique_name() << std::endl;
+                //primop->dump();
                 Lambda* best = late(primop);
                 if (primop->isa<Slot>() || primop->isa<Enter>())
                     best = early;                 // place these guys always early

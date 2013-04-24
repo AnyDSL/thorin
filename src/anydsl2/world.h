@@ -263,7 +263,7 @@ public:
     Lambda* lambda(const Pi* pi, LambdaAttr attr = LambdaAttr(0), const std::string& name = "");
     Lambda* lambda(const Pi* pi, const std::string& name) { return lambda(pi, LambdaAttr(0), name); }
     Lambda* lambda(const std::string& name) { return lambda(pi0(), LambdaAttr(0), name); }
-    Lambda* basicblock(const std::string& name);
+    Lambda* basicblock(const std::string& name = "");
 
     /// Generic \p PrimOp constructor; inherits name from \p in.
     const Def* rebuild(const PrimOp* in, ArrayRef<const Def*> ops);

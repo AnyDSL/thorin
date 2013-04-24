@@ -203,6 +203,7 @@ public:
      * Useful if you want to modfy users while iterating over all users.
      */
     Array<Use> copy_uses() const;
+    std::vector<MultiUse> multi_uses() const;
     const Type* type() const { return type_; }
     int order() const;
     bool is_generic() const;

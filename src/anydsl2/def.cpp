@@ -71,6 +71,23 @@ Array<Use> Def::copy_uses() const {
     return result;
 }
 
+std::vector<MultiUse> Def::multi_uses() const {
+    std::vector<MultiUse> result;
+    Array<Use> uses = copy_uses();
+    std::sort(uses.begin(), uses.end());
+
+    const Def* cur = 0;
+    for_all (use, uses) {
+        if (cur != use.def()) {
+            result.push_back(use);
+            cur = use.def();
+        } else
+            result.back().append_user(use.index());
+    }
+
+    return result;
+}
+
 bool Def::is_primlit(int val) const {
     if (const PrimLit* lit = this->isa<PrimLit>()) {
         Box box = lit->box();

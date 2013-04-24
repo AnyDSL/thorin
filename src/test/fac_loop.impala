@@ -6,10 +6,8 @@ def extern fac(n : int) -> int
         return 1;
 
     r : int = 1;
-    for (i : int = 2; i <= n; ++i) {
-        //r *= i + (n * n);
+    for (i : int = 2; i <= n; ++i)
         r *= i;
-    }
 
     return r;
 }

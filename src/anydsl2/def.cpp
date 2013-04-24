@@ -113,27 +113,37 @@ bool Def::is_minus_zero() const {
 }
 
 void Def::replace(const Def* with) const {
-    Array<Use> uses = copy_uses();
+    std::vector<MultiUse> uses = multi_uses();
+
     for_all (use, uses) {
-        if (Lambda* lambda = use->isa_lambda())
-            lambda->update_op(use.index(), with);
-        else
-            world().release(use->as<PrimOp>())->update(use.index(), with);
+        if (Lambda* lambda = use->isa_lambda()) {
+            for_all (index, use.indices())
+                lambda->update_op(index, with);
+        } else {
+            PrimOp* released = world().release(use->as<PrimOp>());
+            for_all (index, use.indices())
+                released->update(index, with);
+        }
     }
 
     for_all (use, uses) {
         if (PrimOp* oprimop = (PrimOp*) use->isa<PrimOp>()) {
             Array<const Def*> ops(oprimop->ops());
-            ops[use.index()] = with;
+            for_all (index, use.indices())
+                ops[index] = with;
             size_t old_gid = world().gid();
             const Def* ndef = world().rebuild(oprimop, ops);
 
             if (oprimop->kind() == ndef->kind()) {
                 assert(oprimop->size() == ndef->size());
 
+                size_t j = 0;
+                size_t index = use.index(j);
                 for (size_t i = 0, e = oprimop->size(); i != e; ++i) {
-                    if (i != use.index() && oprimop->op(i) != ndef->op(i))
+                    if (i != index && oprimop->op(i) != ndef->op(i))
                         goto recurse;
+                    if (i == index && j < use.num_indices())
+                        index = use.index(j++);
                 }
 
                 if (ndef->gid() == old_gid) { // only consider fresh (non-CSEd) primop

@@ -95,6 +95,7 @@ public:
 
     bool operator == (Use use) const { return def() == use.def() && index() == use.index(); }
     bool operator != (Use use) const { return def() != use.def() || index() != use.index(); }
+    bool operator < (Use) const;
 
     operator const Def*() const { return def_; }
     const Def* operator -> () const { return def_; }
@@ -102,6 +103,35 @@ public:
 private:
 
     size_t index_;
+    const Def* def_;
+};
+
+//------------------------------------------------------------------------------
+
+/// References a user which may use the \p Def in question multiple times.
+class MultiUse {
+public:
+
+    MultiUse() {}
+    MultiUse(Use use)
+        : indices_(1)
+        , def_(use.def())
+    {
+        indices_[0] = use.index();
+    }
+
+    size_t index(size_t i) const { return indices_[i]; }
+    size_t num_indices() const { return indices_.size(); }
+    const std::vector<size_t>& indices() const { return indices_; }
+    const Def* def() const { return def_; }
+    void append_user(size_t index) { indices_.push_back(index); }
+
+    operator const Def*() const { return def_; }
+    const Def* operator -> () const { return def_; }
+
+private:
+
+    std::vector<size_t> indices_;
     const Def* def_;
 };
 
@@ -221,6 +251,7 @@ protected:
 };
 
 std::ostream& operator << (std::ostream& o, const Def* def);
+inline bool Use::operator < (Use use) const { return def()->gid() < use.def()->gid() && index() < use.index(); }
 
 //------------------------------------------------------------------------------
 

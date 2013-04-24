@@ -39,7 +39,7 @@ private:
 class Lambda : public Def {
 private:
 
-    Lambda(size_t gid, const Pi* pi, LambdaAttr attr, bool sealed, const std::string& name);
+    Lambda(size_t gid, const Pi* pi, LambdaAttr attr, bool is_sealed, const std::string& name);
     virtual ~Lambda();
 
 public:
@@ -131,7 +131,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     Lambda* parent() const { return parent_; }
     void set_parent(Lambda* parent) { parent_ = parent; }
     void seal();
-    bool sealed() const { return sealed_; }
+    bool is_sealed() const { return is_sealed_; }
     void clear() { defs_.clear(); }
 
 private:
@@ -168,7 +168,7 @@ private:
     LambdaAttr attr_;
     Params params_;
     Lambda* parent_;
-    bool sealed_;
+    bool is_sealed_;
 
     typedef IndexMap<const Def> DefMap;
     DefMap defs_;

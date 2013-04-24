@@ -10,13 +10,13 @@
 
 namespace anydsl2 {
 
-Lambda::Lambda(size_t gid, const Pi* pi, LambdaAttr attr, bool sealed, const std::string& name)
+Lambda::Lambda(size_t gid, const Pi* pi, LambdaAttr attr, bool is_sealed, const std::string& name)
     : Def(gid, Node_Lambda, pi, true, name)
     , sid_(size_t(-1))
     , scope_(0)
     , attr_(attr)
     , parent_(this)
-    , sealed_(sealed)
+    , is_sealed_(is_sealed)
 {
     params_.reserve(pi->size());
 }
@@ -217,12 +217,12 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
             goto return_bottom;
 
         // insert a 'phi', i.e., create a param and remember to fix the callers
-        if (!sealed_ || preds.size() > 1) {
+        if (!is_sealed_ || preds.size() > 1) {
             const Param* param = append_param(type, name);
             set_value(handle, param);
 
             Todo todo(handle, param->index(), type, name);
-            if (sealed_)
+            if (is_sealed_)
                 fix(todo);
             else
                 todos_.push_back(todo);
@@ -242,8 +242,8 @@ return_bottom:
 }
 
 void Lambda::seal() {
-    assert(!sealed() && "already sealed");
-    sealed_ = true;
+    assert(!is_sealed() && "already sealed");
+    is_sealed_ = true;
 
 #ifndef NDEBUG
     Lambdas preds = this->preds();
@@ -259,7 +259,7 @@ void Lambda::seal() {
 }
 
 void Lambda::fix(const Todo& todo) {
-    assert(sealed() && "must be sealed");
+    assert(is_sealed() && "must be sealed");
 
     size_t index = todo.index();
     const Param* param = this->param(index);

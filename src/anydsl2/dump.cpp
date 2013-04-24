@@ -73,7 +73,6 @@ void Def::dump() const {
     p.newline(); 
 }
 
-void PrimOp::dump_assignment() const { Printer p(std::cout, false); print_assignment(p); p.newline(); }
 std::ostream& operator << (std::ostream& o, const anydsl2::Def* def) { Printer p(o, false); def->print(p); return p.o; }
 Printer& Def::print(Printer& p) const { return print_name(p); }
 

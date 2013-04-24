@@ -42,7 +42,6 @@ public:
     void update(size_t i, const Def* with);
     virtual Printer& print(Printer&) const;
     virtual Printer& print_assignment(Printer &printer) const;
-    void dump_assignment() const;
     virtual const char* op_name() const;
     ANYDSL2_HASH_EQUAL
 

@@ -5,6 +5,7 @@
 #include <functional>
 #include <queue>
 #include <string>
+#include <set>
 
 #include <boost/unordered_set.hpp>
 

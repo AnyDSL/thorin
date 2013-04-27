@@ -99,12 +99,13 @@ int main(int argc, char** argv) {
 
         impala::Init init;
 #ifndef NDEBUG
+        std::locale loc;
         for_all (b, breakpoints) {
             assert(b.size() > 0);
             size_t num = 0;
             for (size_t i = 0, e = b.size(); i != e; ++i) {
                 char c = b[i];
-                if (!std::isdigit(c))
+                if (!std::isdigit(c, loc))
                     throw po::error("invalid breakpoint '" + b + "'");
                 num = num*10 + c - '0';
             }

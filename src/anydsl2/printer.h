@@ -1,7 +1,10 @@
 #ifndef ANYDSL2_PRINTER_H
 #define ANYDSL2_PRINTER_H
 
+
 #include <iostream>
+#include <string>
+
 
 namespace anydsl2 {
 
@@ -46,6 +49,8 @@ private:
 
 #define ANYDSL2_DUMP_COMMA_LIST(p, list) ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "", list, "")
 
+
 } // namespace anydsl2
 
-#endif
+
+#endif // ANYDSL2_PRINTER_H

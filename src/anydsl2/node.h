@@ -48,8 +48,12 @@ public:
     int kind() const { return kind_; }
     bool is_corenode() const { return ::anydsl2::is_corenode(kind()); }
     NodeKind node_kind() const { assert(is_corenode()); return (NodeKind) kind_; }
+
     template<class T>
-    ArrayRef<T> ops_ref() const { return ArrayRef<T>((T*) &ops_.front(), ops_.size()); }
+    ArrayRef<T> ops_ref() const { return ArrayRef<T>((T*) ops_.data(), ops_.size()); }
+    //ArrayRef<T> ops_ref() const { return ArrayRef<T>((T*) &ops_.front(), ops_.size()); }
+    //ArrayRef<T> ops_ref() const { return size() ? ArrayRef<T>((T*) &ops_.front(), ops_.size()) : ArrayRef<T>(); }
+
     size_t size() const { return ops_.size(); }
     bool empty() const { return ops_.empty(); }
     virtual Printer& print(Printer&) const = 0;

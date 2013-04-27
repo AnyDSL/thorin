@@ -6,7 +6,7 @@
 
 #include <boost/cstdint.hpp>
 
-#include "anydsl2/util/cast.h"
+#include <anydsl2/util/cast.h>
 
 namespace anydsl2 {
 
@@ -22,6 +22,12 @@ typedef uint64_t u64;
 
 typedef float    f32;
 typedef double   f64;
+
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning (disable: 4804)
+#endif // _MSC_VER
 
 class u1 {
 public:
@@ -40,8 +46,8 @@ public:
     u1 operator + (u1 u) { return u1(get() + u.get()); }
     u1 operator - (u1 u) { return u1(get() - u.get()); }
     u1 operator * (u1 u) { return u1(get() * u.get()); }
-    u1 operator / (u1 u) { return u1(get() / u.get()); }
-    u1 operator % (u1 u) { return u1(get() % u.get()); }
+    u1 operator / (u1 u) { return u1(get() / u.get()); } // TODO correct? - what is the definition
+    u1 operator % (u1 u) { return u1(get() % u.get()); } // TODO correct? - what is the definition
     u1 operator & (u1 u) { return u1(get() & u.get()); }
     u1 operator | (u1 u) { return u1(get() | u.get()); }
     u1 operator ^ (u1 u) { return u1(get() ^ u.get()); }
@@ -85,6 +91,12 @@ private:
     bool b_;
 };
 
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif // _MSC_VER
+
+
 // TODO
 typedef u1 i1;
 
@@ -100,7 +112,9 @@ template<class T> struct is_u_type { static const bool value = false; };
 #include "anydsl2/tables/primtypetable.h"
 
 template<class T> struct is_f_type { static const bool value = false; };
-#define ANYDSL2_JUST_F_TYPE(T) template<> struct is_u_type<T> { static const bool value = true; };
+// TODO: copy'n'paste fault?
+//#define ANYDSL2_JUST_F_TYPE(T) template<> struct is_u_type<T> { static const bool value = true; };
+#define ANYDSL2_JUST_F_TYPE(T) template<> struct is_f_type<T> { static const bool value = true; };
 #include "anydsl2/tables/primtypetable.h"
 
 

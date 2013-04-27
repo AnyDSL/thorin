@@ -36,8 +36,12 @@ public:
         : ptr_(&array[0])
         , size_(N)
     {}
+    //ArrayRef(const std::vector<T>& vector)
+    //    : ptr_(vector.size() > 0 ? &*vector.begin() : 0)
+    //    , size_(vector.size())
+    //{}
     ArrayRef(const std::vector<T>& vector)
-        : ptr_(&*vector.begin())
+        : ptr_(vector.data())
         , size_(vector.size())
     {}
     ArrayRef(const T* ptr, size_t size)
@@ -117,11 +121,14 @@ public:
         std::memcpy(ptr_,               ref1.begin(), ref1.size() * sizeof(T));
         std::memcpy(ptr_ + ref1.size(), ref2.begin(), ref2.size() * sizeof(T));
     }
+
     Array(const Array<T>& array)
         : ptr_(new T[array.size()])
         , size_(array.size())
     {
-        std::memcpy(ptr_, array.ptr_, size() * sizeof(T));
+        // TODO: profile the copy operation - perhaps use the boost one
+        //std::memcpy(ptr_, array.ptr_, size() * sizeof(T));
+        std::copy(array.begin(), array.end(), begin());
     }
 
     ~Array() { delete[] ptr_; }

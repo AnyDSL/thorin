@@ -29,11 +29,11 @@ Printer& Sigma::print(Printer& p) const { ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "
 Printer& Ptr::  print(Printer& p) const { ref()->print(p); p << "*"; return p; }
 
 Printer& PrimType::print(Printer& p) const {
-	switch (primtype_kind()) {
+    switch (primtype_kind()) {
 #define ANYDSL2_UF_TYPE(T) case Node_PrimType_##T: p << #T; return p;
 #include "anydsl2/tables/primtypetable.h"
-	default: ANYDSL2_UNREACHABLE;
-	}
+    default: ANYDSL2_UNREACHABLE;
+    }
 }
 
 Printer& Generic::print(Printer& p) const {

@@ -110,21 +110,12 @@ public:
     {
         std::copy(ref.begin(), ref.end(), begin());
     }
-    Array(ArrayRef<T> ref1, ArrayRef<T> ref2)
-        : ptr_(new T[ref1.size() + ref2.size()])
-        , size_(ref1.size() + ref2.size())
-    {
-        std::memcpy(ptr_,               ref1.begin(), ref1.size() * sizeof(T));
-        std::memcpy(ptr_ + ref1.size(), ref2.begin(), ref2.size() * sizeof(T));
-    }
-
-    Array(const Array<T>& array)
+    explicit Array(const Array<T>& array)
         : ptr_(new T[array.size()])
         , size_(array.size())
     {
         std::copy(array.begin(), array.end(), begin());
     }
-
     ~Array() { delete[] ptr_; }
 
     void alloc(size_t size) {

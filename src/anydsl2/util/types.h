@@ -24,11 +24,6 @@ typedef float    f32;
 typedef double   f64;
 
 
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning (disable: 4804)
-#endif // _MSC_VER
-
 class u1 {
 public:
 
@@ -90,11 +85,6 @@ private:
 
     bool b_;
 };
-
-
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif // _MSC_VER
 
 
 // TODO

@@ -55,7 +55,7 @@ public:
            1 | 1 || 1
     \endverbatim
     */
-    u1 operator / (u1 u) { assert(!u.get()); return u1(this->get()); }
+    u1 operator / (u1 u) { assert(u.get()); return u1(this->get()); }
 
     /**
      * \verbatim
@@ -67,7 +67,7 @@ public:
            1 | 1 || 0
     \endverbatim
     */
-    u1 operator % (u1 u) { assert(!u.get()); return u1(0); }
+    u1 operator % (u1 u) { assert(u.get()); return u1(0); }
 
     /**
      * \verbatim

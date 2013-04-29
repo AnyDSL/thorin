@@ -131,7 +131,7 @@ void CodeGen::emit() {
             if (!lambda->is_cascading() && lambda != scope.entry()) {
                 for_all (param, lambda->params())
                     if (!param->type()->isa<Mem>())
-                        phis[param] = builder.CreatePHI(map(param->type()), param->peek().size(), param->name);
+                        phis[param] = builder.CreatePHI(map(param->type()), (unsigned) param->peek().size(), param->name);
             }
 
             std::vector<const PrimOp*> schedule = places[lambda->sid()];

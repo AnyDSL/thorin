@@ -108,7 +108,7 @@ public:
         : ptr_(new T[ref.size()])
         , size_(ref.size())
     {
-        std::memcpy(ptr_, ref.begin(), size() * sizeof(T));
+        std::copy(ref.begin(), ref.end(), begin());
     }
     Array(ArrayRef<T> ref1, ArrayRef<T> ref2)
         : ptr_(new T[ref1.size() + ref2.size()])
@@ -122,8 +122,6 @@ public:
         : ptr_(new T[array.size()])
         , size_(array.size())
     {
-        // TODO: profile the copy operation - perhaps use the boost one
-        //std::memcpy(ptr_, array.ptr_, size() * sizeof(T));
         std::copy(array.begin(), array.end(), begin());
     }
 

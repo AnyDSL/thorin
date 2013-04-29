@@ -36,13 +36,9 @@ public:
         : ptr_(&array[0])
         , size_(N)
     {}
-    //ArrayRef(const std::vector<T>& vector)
-    //    : ptr_(vector.size() > 0 ? &*vector.begin() : 0)
-    //    , size_(vector.size())
-    //{}
     ArrayRef(const std::vector<T>& vector)
-        : ptr_(vector.data())
-        , size_(vector.size())
+       : ptr_(vector.empty() ? 0 : &vector.front())
+       , size_(vector.size())
     {}
     ArrayRef(const T* ptr, size_t size)
         : ptr_(ptr)

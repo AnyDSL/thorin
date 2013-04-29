@@ -200,7 +200,9 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
 #define ANYDSL2_JUST_U_TYPE(T) \
                     case PrimType_##T: { \
                         typedef make_signed<T>::type S; \
-                        return literal(type, Box(bcast<T , S>(bcast<S, T >(l.get_##T()) / bcast<S, T >(r.get_##T())))); \
+                        return rlit->is_zero() \
+                            ? (const Def*) bottom(type) \
+                            : literal(type, Box(bcast<T , S>(bcast<S, T >(l.get_##T()) / bcast<S, T >(r.get_##T())))); \
                     }
 #include "anydsl2/tables/primtypetable.h"
                     ANYDSL2_NO_F_TYPE;

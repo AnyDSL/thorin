@@ -41,14 +41,57 @@ public:
     u1 operator + (u1 u) { return u1(get() + u.get()); }
     u1 operator - (u1 u) { return u1(get() - u.get()); }
     u1 operator * (u1 u) { return u1(get() * u.get()); }
-    u1 operator / (u1 u) { return u1(get() / u.get()); }
-    u1 operator % (u1 u) { return u1(get() % u.get()); }
     u1 operator & (u1 u) { return u1(get() & u.get()); }
     u1 operator | (u1 u) { return u1(get() | u.get()); }
     u1 operator ^ (u1 u) { return u1(get() ^ u.get()); }
 
-    u1 operator >>(u1 u) { return u1(get() >> u.get()); }
-    u1 operator <<(u1 u) { return u1(get() << u.get()); }
+    /**
+     * \verbatim
+        this | u || result
+        ------------------
+           0 | 0 || assert
+           0 | 1 || 0
+           1 | 0 || assert
+           1 | 1 || 1
+    \endverbatim
+    */
+    u1 operator / (u1 u) { assert(!u.get()); return u1(this->get()); }
+
+    /**
+     * \verbatim
+        this | u || result
+        ------------------
+           0 | 0 || assert
+           0 | 1 || 0
+           1 | 0 || assert
+           1 | 1 || 0
+    \endverbatim
+    */
+    u1 operator % (u1 u) { assert(!u.get()); return u1(0); }
+
+    /**
+     * \verbatim
+        this | u || result
+        ------------------
+           0 | 0 || 0
+           0 | 1 || 0
+           1 | 0 || 1
+           1 | 1 || 0
+    \endverbatim
+    */
+    u1 operator >> (u1 u) { return u1(this->get() & ~u.get()); }
+    
+    /**
+     * \verbatim
+        this | u || result
+        ------------------
+           0 | 0 || 0
+           0 | 1 || 0
+           1 | 0 || 1
+           1 | 1 || 0
+    \endverbatim
+    */
+    u1 operator << (u1 u) { return u1(this->get() & ~u.get()); }
 
     bool operator == (u1 u) { return get() == u.get(); }
     bool operator != (u1 u) { return get() != u.get(); }

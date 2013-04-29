@@ -191,7 +191,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
                     case PrimType_##T: \
                         return rlit->is_zero() \
                              ? (const Def*) bottom(type) \
-                             : (const Def*) literal(type, Box(T(l.get_##T() / r.get_##T())));
+                             : literal(type, Box(T(l.get_##T() / r.get_##T())));
 #include "anydsl2/tables/primtypetable.h"
                     ANYDSL2_NO_F_TYPE;
                 }
@@ -213,7 +213,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
                     case PrimType_##T: \
                         return rlit->is_zero() \
                              ? (const Def*) bottom(type) \
-                             : (const Def*) literal(type, Box(T(l.get_##T() % r.get_##T())));
+                             : literal(type, Box(T(l.get_##T() % r.get_##T())));
 #include "anydsl2/tables/primtypetable.h"
                     ANYDSL2_NO_F_TYPE;
                 }

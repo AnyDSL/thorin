@@ -46,14 +46,14 @@ public:
     u1 operator + (u1 u) { return u1(get() + u.get()); }
     u1 operator - (u1 u) { return u1(get() - u.get()); }
     u1 operator * (u1 u) { return u1(get() * u.get()); }
-    u1 operator / (u1 u) { return u1(get() / u.get()); } // TODO correct? - what is the definition
-    u1 operator % (u1 u) { return u1(get() % u.get()); } // TODO correct? - what is the definition
+    u1 operator / (u1 u) { return u1(get() / u.get()); }
+    u1 operator % (u1 u) { return u1(get() % u.get()); }
     u1 operator & (u1 u) { return u1(get() & u.get()); }
     u1 operator | (u1 u) { return u1(get() | u.get()); }
     u1 operator ^ (u1 u) { return u1(get() ^ u.get()); }
 
-    u1 operator >>(u1 u) { return u1(get() >> u.get()); } // TODO correct?
-    u1 operator <<(u1 u) { return u1(get() << u.get()); } // TODO correct?
+    u1 operator >>(u1 u) { return u1(get() >> u.get()); }
+    u1 operator <<(u1 u) { return u1(get() << u.get()); }
 
     bool operator == (u1 u) { return get() == u.get(); }
     bool operator != (u1 u) { return get() != u.get(); }

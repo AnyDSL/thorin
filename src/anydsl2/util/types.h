@@ -79,7 +79,7 @@ public:
            1 | 1 || 0
     \endverbatim
     */
-    u1 operator >> (u1 u) { return u1(this->get() & ~u.get()); }
+    u1 operator >> (u1 u) { return u1(this->get() && !u.get()); }
     
     /**
      * \verbatim
@@ -91,7 +91,7 @@ public:
            1 | 1 || 0
     \endverbatim
     */
-    u1 operator << (u1 u) { return u1(this->get() & ~u.get()); }
+    u1 operator << (u1 u) { return u1(this->get() && !u.get()); }
 
     bool operator == (u1 u) { return get() == u.get(); }
     bool operator != (u1 u) { return get() != u.get(); }

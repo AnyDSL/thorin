@@ -104,13 +104,13 @@ public:
         : ptr_(new T[size]())
         , size_(size)
     {}
-    explicit Array(ArrayRef<T> ref)
+    Array(ArrayRef<T> ref)
         : ptr_(new T[ref.size()])
         , size_(ref.size())
     {
         std::copy(ref.begin(), ref.end(), begin());
     }
-    explicit Array(const Array<T>& array)
+    Array(const Array<T>& array)
         : ptr_(new T[array.size()])
         , size_(array.size())
     {

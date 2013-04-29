@@ -107,17 +107,6 @@ template<> struct make_signed<u16> { typedef i16 type; };
 template<> struct make_signed<u32> { typedef i32 type; };
 template<> struct make_signed<u64> { typedef i64 type; };
 
-template<class T> struct is_u_type { static const bool value = false; };
-#define ANYDSL2_JUST_U_TYPE(T) template<> struct is_u_type<T> { static const bool value = true; };
-#include "anydsl2/tables/primtypetable.h"
-
-template<class T> struct is_f_type { static const bool value = false; };
-// TODO: copy'n'paste fault?
-//#define ANYDSL2_JUST_F_TYPE(T) template<> struct is_u_type<T> { static const bool value = true; };
-#define ANYDSL2_JUST_F_TYPE(T) template<> struct is_f_type<T> { static const bool value = true; };
-#include "anydsl2/tables/primtypetable.h"
-
-
 inline std::ostream& operator << (std::ostream& o, u1 u) { return o << ((unsigned) u.get()); }
 
 } // namespace anydsl2

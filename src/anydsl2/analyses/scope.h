@@ -13,12 +13,11 @@ class DomTree;
 class LoopForestNode;
 class LoopInfo;
 
-typedef std::vector<const Def*> FreeVariables;
-
 class Scope {
 public:
 
     explicit Scope(Lambda* entry);
+    explicit Scope(ArrayRef<Lambda*> entries);
     ~Scope();
 
     bool contains(Lambda* lambda) const { return lambda->scope() == this; }
@@ -30,10 +29,10 @@ public:
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
     Lambda* entry() const { return rpo_[0]; }
+    ArrayRef<Lambda*> entries() const { return entries_; }
     size_t size() const { return rpo_.size(); }
     void reassign_sids();
     World& world() const { return entry()->world(); }
-    FreeVariables free_variables() const;
 
     Lambda* clone(const GenericMap& generic_map = GenericMap());
     Lambda* drop(ArrayRef<const Def*> with);
@@ -51,6 +50,7 @@ public:
 
 private:
 
+    void process();
     void jump_to_param_users(const size_t pass, Lambda* lambda);
     void up(const size_t pass, Lambda* lambda);
     void find_user(const size_t pass, const Def* def);
@@ -63,6 +63,7 @@ private:
     template<class T>
     void fill_succ_pred(const Lambdas& lsp, T& sp);
 
+    Array<Lambda*> entries_;
     std::vector<Lambda*> rpo_;
     Array< Array<Lambda*> > preds_;
     Array< Array<Lambda*> > succs_;

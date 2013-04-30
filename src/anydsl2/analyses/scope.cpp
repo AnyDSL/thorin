@@ -17,7 +17,21 @@ struct ScopeLess {
     bool operator () (const Lambda* l1, const Lambda* l2) const { return l1->sid() < l2->sid(); }
 };
 
-Scope::Scope(Lambda* entry) {
+Scope::Scope(Lambda* entry)
+    : entries_(1)
+{
+    entries_[0] = entry;
+    process();
+}
+
+Scope::Scope(ArrayRef<Lambda*> entries)
+    : entries_(entries)
+{
+    process();
+}
+
+void Scope::process() {
+    Lambda* entry = entries_[0];
     // identify all lambdas depending on entry
     size_t pass = entry->world().new_pass();
     insert(pass, entry);

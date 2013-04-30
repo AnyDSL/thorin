@@ -169,22 +169,20 @@ Printer& PrimOp::print_assignment(Printer& p) const {
 void World::dump(bool fancy) {
     Printer p(std::cout, fancy);
 
-    for_all (root, find_root_lambdas(*this)) {
-        Scope scope(root);
-        Places places = place(scope);
+    Scope scope(*this);
+    Places places = place(scope);
 
-        for_all (lambda, scope.rpo()) {
-            int depth = fancy ? scope.domtree().depth(lambda) : 0;
-            p.indent += depth;
-            p.newline();
-            lambda->print_head(p);
+    for_all (lambda, scope.rpo()) {
+        int depth = fancy ? scope.domtree().depth(lambda) : 0;
+        p.indent += depth;
+        p.newline();
+        lambda->print_head(p);
 
-            for_all (op, places[lambda->sid()])
-                op->print_assignment(p);
+        for_all (op, places[lambda->sid()])
+            op->print_assignment(p);
 
-            lambda->print_jump(p);
-            p.indent -= depth;
-        }
+        lambda->print_jump(p);
+        p.indent -= depth;
     }
     p.newline();
 }

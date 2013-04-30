@@ -11,11 +11,12 @@ namespace anydsl2 {
 class Merger {
 public:
 
-    Merger(Lambda* entry)
-        : scope(entry)
+    Merger(World& world)
+        : scope(world)
         , domtree(scope.domtree())
     {
-        merge(domtree.entry());
+        for_all (entry, domtree.entries())
+            merge(entry);
     }
 
     void merge(const DomNode* n);
@@ -52,9 +53,6 @@ void Merger::merge(const DomNode* n) {
         merge(child);
 }
 
-void merge_lambdas(World& world) {
-    for_all (top, find_root_lambdas(world))
-        Merger merger(top);
-}
+void merge_lambdas(World& world) { Merger merger(world); }
 
 } // namespace anydsl2

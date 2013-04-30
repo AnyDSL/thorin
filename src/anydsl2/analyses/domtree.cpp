@@ -37,12 +37,14 @@ void DomTree::create() {
     for_all (lambda, scope_.rpo())
         nodes_[lambda->sid()] = new DomNode(lambda);
 
-    // map entry's initial idom to entry,
+    // map entry's initial idoms their entry,
     // all others' idoms are set to their first found dominating pred
-    DomNode* entry_node = lookup(scope_.entry());
-    entry_node->idom_ = entry_node;
+    for_all (entry, scope_.entries()) {
+        DomNode* entry_node = lookup(entry);
+        entry_node->idom_ = entry_node;
+    }
 
-    for_all (lambda, scope_.rpo().slice_back(1)) {
+    for_all (lambda, scope_.body()) {
         for_all (pred, scope().preds(lambda)) {
             if (pred->sid() < lambda->sid()) {
                 lookup(lambda)->idom_ = lookup(pred);
@@ -57,7 +59,7 @@ outer_loop:;
         changed = false;
 
         // for all lambdas in reverse post-order except entry node
-        for_all (lambda, scope_.rpo().slice_back(1)) {
+        for_all (lambda, scope_.body()) {
             DomNode* lambda_node = lookup(lambda);
 
             // for all predecessors of lambda
@@ -75,8 +77,8 @@ outer_loop:;
         }
     }
 
-    // add children -- thus iterate over all nodes except entry
-    for_all (lambda, scope_.rpo().slice_back(1)) {
+    // add children
+    for_all (lambda, scope_.body()) {
         const DomNode* n = lookup(lambda);
         n->idom_->children_.push_back(n);
     }
@@ -94,7 +96,16 @@ DomNode* DomTree::lca(DomNode* i, DomNode* j) {
 const DomNode* DomTree::node(Lambda* lambda) const { assert(scope().contains(lambda)); return nodes_[lambda->sid()]; }
 DomNode* DomTree::lookup(Lambda* lambda) const { assert(scope().contains(lambda)); return nodes_[lambda->sid()]; }
 size_t DomTree::size() const { return scope_.size(); }
-const DomNode* DomTree::entry() const { return node(scope_.entry()); }
+
+ArrayRef<const DomNode*> DomTree::entries() const {
+    if (!entries_) {
+        entries_ = new Array<const DomNode*>(scope().num_entries());
+        for_all2 (&dom_entry, *entries_, entry, scope().entries())
+            dom_entry = node(entry);
+    }
+
+    return *entries_;
+}
 
 bool DomTree::dominates(const DomNode* a, const DomNode* b) const {
     while (a != b && !b->entry()) 

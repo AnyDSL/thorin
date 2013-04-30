@@ -19,18 +19,42 @@ struct ScopeLess {
 
 Scope::Scope(Lambda* entry)
     : entries_(1)
+    , hack_(0)
 {
     entries_[0] = entry;
+    analyze();
     process();
 }
 
 Scope::Scope(ArrayRef<Lambda*> entries)
-    : entries_(entries)
+    : entries_(entries.begin(), entries.end())
+    , hack_(0)
 {
+    analyze();
     process();
 }
 
-void Scope::process() {
+Scope::Scope(World& world) {
+    size_t pass = world.new_pass();
+
+    for_all (lambda, world.lambdas()) {
+        if (!lambda->is_visited(pass)) {
+            hack_ = lambda;
+            jump_to_param_users(pass, lambda);
+        }
+    }
+
+    for_all (lambda, world.lambdas()) {
+        if (!lambda->is_visited(pass)) {
+            insert(pass, lambda);
+            entries_.push_back(lambda);
+        }
+    }
+
+    process();
+}
+
+void Scope::analyze() {
     // identify all lambdas depending on entry
     World& world = entries_[0]->world();
     size_t pass = world.new_pass();
@@ -38,12 +62,27 @@ void Scope::process() {
         insert(pass, entry);
         jump_to_param_users(pass, entry);
     }
+}
 
+void Scope::process() {
     // number all lambdas in postorder
-    pass = world.new_pass();
-    size_t num = 0;
+    World& world = entries_[0]->world();
+    size_t pass = world.new_pass();
+
     for_all (entry, entries())
-        num = number(pass, entry, num);
+        entry->visit_first(pass);
+
+    size_t num = 0;
+    for_all (entry, entries()) {
+        for_all (succ, entry->succs()) {
+            if (contains(succ) && !succ->is_visited(pass))
+                num = number(pass, succ, num);
+        }
+    }
+
+    for_all (entry, entries())
+        entry->sid_ = num++;
+
     assert(num <= rpo().size());
     assert(num >= 1);
 
@@ -59,7 +98,6 @@ void Scope::process() {
     
     // sort rpo according to rpo
     std::sort(rpo_.begin(), rpo_.end(), ScopeLess());
-    //assert(rpo_[0] == entry && "bug in numbering");
 
     // discard unreachable lambdas;
     rpo_.resize(num);
@@ -108,7 +146,7 @@ inline void Scope::find_user(const size_t pass, const Def* def) {
 }
 
 void Scope::up(const size_t pass, Lambda* lambda) {
-    if (lambda->is_visited(pass))
+    if (lambda->is_visited(pass) || (hack_ && hack_ == lambda))
         return;
 
     insert(pass, lambda);

@@ -45,13 +45,14 @@ public:
     explicit DomTree(const Scope& scope)
         : scope_(scope)
         , nodes_(size())
+        , entries_(0)
     {
         create();
     }
     ~DomTree();
 
     const Scope& scope() const { return scope_; }
-    const DomNode* entry() const;
+    ArrayRef<const DomNode*> entries() const;
     size_t size() const;
     ArrayRef<const DomNode*> nodes() const { return ArrayRef<const DomNode*>(nodes_.begin(), nodes_.size()); }
     const DomNode* node(size_t sid) const { return nodes_[sid]; }
@@ -74,6 +75,7 @@ private:
 
     const Scope& scope_;
     Array<DomNode*> nodes_;
+    mutable AutoPtr< Array<const DomNode*> > entries_;
 };
 
 } // namespace anydsl2

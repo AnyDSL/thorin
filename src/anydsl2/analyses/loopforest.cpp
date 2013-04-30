@@ -104,7 +104,7 @@ private:
 
 LoopForestNode* LFBuilder::build() {
     LoopForestNode* root = new LoopForestNode(0, -1);
-    root->headers_.push_back(scope.entry());
+    root->headers_.insert(root->headers_.begin(), scope.entries().begin(), scope.entries().end());
     recurse(root, 0);
     root->headers_.clear();
     return root;
@@ -162,7 +162,16 @@ int LFBuilder::walk_scc(Lambda* cur, LoopForestNode* parent, int depth, int coun
 self_loop:
         for (size_t i = ++b; i != e; ++i) {
             Lambda* lambda = stack[i];
-            if (lambda == scope.entry())
+
+            bool is_header = false;
+            for_all (entry, scope.entries()) {
+                if (lambda == entry) {
+                    is_header = true;
+                    break;
+                }
+            }
+
+            if (is_header)
                 headers.push_back(lambda);
             else {
                 for_all (pred, scope.preds(lambda)) {

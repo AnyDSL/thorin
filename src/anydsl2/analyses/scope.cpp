@@ -31,15 +31,19 @@ Scope::Scope(ArrayRef<Lambda*> entries)
 }
 
 void Scope::process() {
-    Lambda* entry = entries_[0];
     // identify all lambdas depending on entry
-    size_t pass = entry->world().new_pass();
-    insert(pass, entry);
-    jump_to_param_users(pass, entry);
+    World& world = entries_[0]->world();
+    size_t pass = world.new_pass();
+    for_all (entry, entries()) {
+        insert(pass, entry);
+        jump_to_param_users(pass, entry);
+    }
 
     // number all lambdas in postorder
-    pass = entry->world().new_pass();
-    size_t num = number(pass, entry, 0);
+    pass = world.new_pass();
+    size_t num = 0;
+    for_all (entry, entries())
+        num = number(pass, entry, num);
     assert(num <= rpo().size());
     assert(num >= 1);
 
@@ -55,7 +59,7 @@ void Scope::process() {
     
     // sort rpo according to rpo
     std::sort(rpo_.begin(), rpo_.end(), ScopeLess());
-    assert(rpo_[0] == entry && "bug in numbering");
+    //assert(rpo_[0] == entry && "bug in numbering");
 
     // discard unreachable lambdas;
     rpo_.resize(num);

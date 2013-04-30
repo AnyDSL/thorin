@@ -18,7 +18,8 @@ struct ScopeLess {
 };
 
 Scope::Scope(Lambda* entry)
-    : entries_(1)
+    : world_(entry->world())
+    , entries_(1)
     , hack_(0)
 {
     entries_[0] = entry;
@@ -26,15 +27,18 @@ Scope::Scope(Lambda* entry)
     process();
 }
 
-Scope::Scope(ArrayRef<Lambda*> entries)
-    : entries_(entries.begin(), entries.end())
+Scope::Scope(World& world, ArrayRef<Lambda*> entries)
+    : world_(world)
+    , entries_(entries.begin(), entries.end())
     , hack_(0)
 {
     analyze();
     process();
 }
 
-Scope::Scope(World& world) {
+Scope::Scope(World& world) 
+    : world_(world)
+{
     size_t pass = world.new_pass();
 
     for_all (lambda, world.lambdas()) {
@@ -56,8 +60,7 @@ Scope::Scope(World& world) {
 
 void Scope::analyze() {
     // identify all lambdas depending on entry
-    World& world = entries_[0]->world();
-    size_t pass = world.new_pass();
+    size_t pass = world().new_pass();
     for_all (entry, entries()) {
         insert(pass, entry);
         jump_to_param_users(pass, entry);
@@ -66,8 +69,7 @@ void Scope::analyze() {
 
 void Scope::process() {
     // number all lambdas in postorder
-    World& world = entries_[0]->world();
-    size_t pass = world.new_pass();
+    size_t pass = world().new_pass();
 
     for_all (entry, entries())
         entry->visit_first(pass);
@@ -222,7 +224,8 @@ public:
 //------------------------------------------------------------------------------
 
 Lambda* Mangler::mangle() {
-    oentry = scope.entry();
+    assert(scope.num_entries() == 1 && "TODO");
+    oentry = scope.entries()[0];
     const Pi* o_pi = oentry->pi();
     Array<const Type*> nelems = o_pi->elems().cut(to_drop, to_lift.size());
     size_t offset = o_pi->elems().size() - to_drop.size();

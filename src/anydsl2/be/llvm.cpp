@@ -124,11 +124,11 @@ void CodeGen::emit() {
 
         // emit body for each bb
         for_all (lambda, scope.rpo()) {
-            assert(lambda == scope.entry() || lambda->is_basicblock());
+            assert(scope.is_entry(lambda) || lambda->is_basicblock());
             builder.SetInsertPoint(bbs[lambda->sid()]);
 
             // create phi node stubs (for all non-cascading lambdas different from entry)
-            if (!lambda->is_cascading() && lambda != scope.entry()) {
+            if (!lambda->is_cascading() && !scope.is_entry(lambda)) {
                 for_all (param, lambda->params())
                     if (!param->type()->isa<Mem>())
                         phis[param] = builder.CreatePHI(map(param->type()), (unsigned) param->peek().size(), param->name);

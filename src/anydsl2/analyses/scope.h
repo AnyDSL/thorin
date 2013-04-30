@@ -17,7 +17,7 @@ class Scope {
 public:
 
     explicit Scope(Lambda* entry);
-    explicit Scope(ArrayRef<Lambda*> entries);
+    explicit Scope(World& world, ArrayRef<Lambda*> entries);
     explicit Scope(World& world);
     ~Scope();
 
@@ -33,10 +33,10 @@ public:
     ArrayRef<Lambda*> succs(Lambda* lambda) const;
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
-    Lambda* entry() const { return rpo_[0]; }
     size_t num_entries() const { return entries().size(); }
     size_t size() const { return rpo_.size(); }
-    World& world() const { return entry()->world(); }
+    World& world() const { return world_; }
+    bool is_entry(Lambda* lambda) const { assert(contains(lambda)); return lambda->sid() < num_entries(); }
 
     Lambda* clone(const GenericMap& generic_map = GenericMap());
     Lambda* drop(ArrayRef<const Def*> with);
@@ -68,6 +68,7 @@ private:
     template<class T>
     void fill_succ_pred(const Lambdas& lsp, T& sp);
 
+    World& world_;
     std::vector<Lambda*> entries_;
     std::vector<Lambda*> rpo_;
     Array< Array<Lambda*> > preds_;

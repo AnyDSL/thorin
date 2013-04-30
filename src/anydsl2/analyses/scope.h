@@ -31,7 +31,6 @@ public:
     Lambda* entry() const { return rpo_[0]; }
     ArrayRef<Lambda*> entries() const { return entries_; }
     size_t size() const { return rpo_.size(); }
-    void reassign_sids();
     World& world() const { return entry()->world(); }
 
     Lambda* clone(const GenericMap& generic_map = GenericMap());

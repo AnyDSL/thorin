@@ -140,11 +140,6 @@ ArrayRef<Lambda*> Scope::succs(Lambda* lambda) const {
     return succs_[lambda->sid()]; 
 }
 
-void Scope::reassign_sids() {
-    for (size_t i = 0, e = rpo().size(); i != e; ++i)
-        rpo_[i]->sid_ = i;
-}
-
 //------------------------------------------------------------------------------
 
 class Mangler {

@@ -9,7 +9,6 @@
 #include "anydsl2/analyses/domtree.h"
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/analyses/placement.h"
-#include "anydsl2/analyses/rootlambdas.h"
 #include "anydsl2/util/for_all.h"
 
 namespace anydsl2 {

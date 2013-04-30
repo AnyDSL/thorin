@@ -3,7 +3,6 @@
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
 #include "anydsl2/world.h"
-#include "anydsl2/analyses/rootlambdas.h"
 #include "anydsl2/analyses/domtree.h"
 
 namespace anydsl2 {

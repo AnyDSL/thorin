@@ -22,7 +22,6 @@
 #include "anydsl2/world.h"
 #include "anydsl2/analyses/loopforest.h"
 #include "anydsl2/analyses/placement.h"
-#include "anydsl2/analyses/rootlambdas.h"
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/util/array.h"
 
@@ -86,7 +85,7 @@ void CodeGen::emit() {
     FctMap fcts;
 
     // map all root-level lambdas to llvm function stubs
-    for_all (lambda, find_root_lambdas(world)) {
+    for_all (lambda, Scope(world).copy_entries()) {
         llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
         llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->name, module);
         fcts.insert(std::make_pair(lambda, f));

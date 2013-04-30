@@ -6,7 +6,6 @@
 #include "anydsl2/lambda.h"
 #include "anydsl2/world.h"
 #include "anydsl2/type.h"
-#include "anydsl2/analyses/rootlambdas.h"
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/analyses/verifier.h"
 #include "anydsl2/transform/merge_lambdas.h"
@@ -18,8 +17,8 @@ public:
     CFGBuilder(World& world)
         : world(world)
     {
-        std::vector<Lambda*> lambdas = find_root_lambdas(world);
-        top.insert(lambdas.begin(), lambdas.end());
+        Scope scope(world);
+        top.insert(scope.entries().begin(), scope.entries().end());
     }
 
     void transform(Lambda* lambda);

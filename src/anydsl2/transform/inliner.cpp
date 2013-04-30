@@ -2,13 +2,12 @@
 
 #include "anydsl2/lambda.h"
 #include "anydsl2/world.h"
-#include "anydsl2/analyses/rootlambdas.h"
 #include "anydsl2/analyses/scope.h"
 
 namespace anydsl2 {
 
 void inliner(World& world) {
-    for_all (top, find_root_lambdas(world)) {
+    for_all (top, Scope(world).copy_entries()) {
         if (top->num_uses() <= 2) {
             for_all (use, top->uses()) {
                 if (use.index() == 0) {

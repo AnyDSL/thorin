@@ -25,6 +25,7 @@ public:
     /// All bodies with this scope in reverse postorder.
     ArrayRef<Lambda*> rpo() const { return rpo_; }
     const std::vector<Lambda*>& entries() const { return entries_; }
+    Array<Lambda*> copy_entries() const { return Array<Lambda*>(entries_); }
     /// Like \p rpo() but without \p entries().
     ArrayRef<Lambda*> body() const { return rpo().slice_back(num_entries()); }
     Lambda* rpo(size_t i) const { return rpo_[i]; }

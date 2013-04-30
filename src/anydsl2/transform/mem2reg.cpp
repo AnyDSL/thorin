@@ -1,6 +1,5 @@
 #include "anydsl2/memop.h"
 #include "anydsl2/world.h"
-#include "anydsl2/analyses/rootlambdas.h"
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/transform/cfg_builder.h"
 #include "anydsl2/transform/inliner.h"
@@ -10,7 +9,7 @@ namespace anydsl2 {
 
 void mem2reg(World& world) {
     return;
-    for_all (root, find_root_lambdas(world)) {
+    for_all (root, Scope(world).copy_entries()) {
         Scope scope(root);
 
         size_t pass = world.new_pass();

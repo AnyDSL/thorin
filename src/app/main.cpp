@@ -3,6 +3,8 @@
 
 #include <boost/program_options.hpp>
 
+#include "anydsl2/analyses/loopforest.h"
+#include "anydsl2/analyses/scope.h"
 #include "anydsl2/analyses/verifier.h"
 #include "anydsl2/transform/partial_evaluation.h"
 #include "anydsl2/be/llvm.h"
@@ -36,7 +38,7 @@ int main(int argc, char** argv) {
 #endif
         string outfile = "-";
         string emittype;
-        bool help, emit_all, emit_air, emit_ast, emit_dot, emit_llvm, fancy, opt, verify, nocleanup, nossa, pe = false;
+        bool help, emit_all, emit_air, emit_ast, emit_dot, emit_llvm, emit_loopforest, fancy, opt, verify, nocleanup, nossa, pe = false;
 
         // specify options
         po::options_description desc("Usage: " + prgname + " [options] file...");
@@ -51,6 +53,7 @@ int main(int argc, char** argv) {
         ("emit-all",        po::bool_switch(&emit_all),                 "emit AST, AIR and LLVM")
         ("emit-ast",        po::bool_switch(&emit_ast),                 "emit AST of impala program")
         ("emit-dot",        po::bool_switch(&emit_dot),                 "emit dot, arg={air|llvm}")
+        ("emit-loopforest", po::bool_switch(&emit_loopforest),          "emit loop forest")
         ("emit-llvm",       po::bool_switch(&emit_llvm),                "emit llvm from AIR representation")
         ("fancy,f",         po::bool_switch(&fancy),                    "use fancy output")
         ("nocleanup",       po::bool_switch(&nocleanup),                "no clean-up phase")
@@ -72,7 +75,7 @@ int main(int argc, char** argv) {
         po::notify(vm);
 
         if (emit_all)
-            emit_air = emit_ast = emit_llvm = true;
+            emit_air = emit_loopforest = emit_ast = emit_llvm = true;
 
         if (infiles.empty() && !help) {
 #if BOOST_VERSION >= 105000
@@ -137,6 +140,9 @@ int main(int argc, char** argv) {
                 partial_evaluation(init.world);
             if (emit_air)
                 init.world.dump(fancy);
+            if (emit_loopforest)
+                std::cout << Scope(init.world).loopforest() << std::endl;
+
             if (emit_llvm)
                 be_llvm::emit(init.world);
         }

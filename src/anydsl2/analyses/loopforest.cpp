@@ -206,7 +206,7 @@ std::ostream& operator << (std::ostream& o, const LoopForestNode* node) {
     for (int i = 0; i < node->depth(); ++i)
         o << '\t';
     for_all (header, node->headers())
-        o << header->name << " ";
+        o << header->unique_name() << " ";
     o << std::endl;
     for_all (child, node->children())
         o << child;

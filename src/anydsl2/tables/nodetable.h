@@ -8,7 +8,7 @@
         // Literal
             ANYDSL2_AIR_NODE(PrimLit, primlit)
             ANYDSL2_AIR_NODE(Any, any)
-            ANYDSL2_AIR_NODE(Bottom, bot)
+            ANYDSL2_AIR_NODE(Bottom, bottom)
             ANYDSL2_AIR_NODE(TypeKeeper, keep)
         // MemOp
             ANYDSL2_AIR_NODE(Load, load)

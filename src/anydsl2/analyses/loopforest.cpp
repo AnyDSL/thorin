@@ -9,10 +9,22 @@
 #include <iostream>
 #include <stack>
 
+/*
+ * The implementation is based on Steensgard's algorithm to find loops in irreducible CFGs.
+ *
+ * In short, Steensgard's algorithm recursively applies Tarjan's SCC algorithm to find nested SCCs.
+ * In the next recursion, backedges from the prior run are ignored.
+ * Please, check out
+ * http://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm
+ * for more details on Tarjan's SCC algorithm
+ */
+
 namespace anydsl2 {
 
 enum {
-    OnStack, InSCC, IsHeader
+    InSCC,  // is in current walk_scc run?
+    OnStack,// is in current SCC stack?
+    IsHeader// all headers are marked, so subsequent runs can ignore backedges when searching for SCCs
 };
 
 class LFBuilder {
@@ -41,8 +53,8 @@ private:
             , low(i)
         {}
 
-        size_t dfs;
-        size_t low;
+        size_t dfs;// depth-first-search number
+        size_t low;// low link (see Tarjan's SCC algo)
     };
 
     Number& number(Lambda* lambda) { return numbers[lambda->sid()]; }
@@ -90,6 +102,7 @@ private:
         push(lambda);
         return counter;
     }
+
     bool is_visited(Lambda* lambda) { return lambda->is_visited(pass); }
 
     void recurse(LoopForestNode* node, int depth);
@@ -111,11 +124,14 @@ LoopForestNode* LFBuilder::build() {
 }
 
 void LFBuilder::recurse(LoopForestNode* parent, int depth) {
+    size_t cur_new_child = 0;
     for_all (header, parent->headers()) {
         new_pass();
         walk_scc(header, parent, depth, 0);
-        for_all (node, parent->children()) {
-            for_all (header, node->headers())
+
+        // now mark all new found headers globally as header
+        for (size_t e = parent->num_children(); cur_new_child != e; ++cur_new_child) {
+            for_all (header, parent->child(cur_new_child)->headers())
                 header->flags[IsHeader] = true;
         }
     }
@@ -146,6 +162,7 @@ int LFBuilder::walk_scc(Lambda* cur, LoopForestNode* parent, int depth, int coun
         LoopForestNode* node = new LoopForestNode(parent, depth);
         std::vector<Lambda*>& headers = node->headers_;
 
+        // mark all lambdas in current SCC (all lambdas from back to cur on the stack) as 'InSCC'
         size_t num = 0, e = stack.size(), b = e - 1;
         do {
             stack[b]->flags[InSCC] = true;
@@ -159,22 +176,18 @@ int LFBuilder::walk_scc(Lambda* cur, LoopForestNode* parent, int depth, int coun
             }
             node->depth_ = std::numeric_limits<int>::min() + node->depth_;
         }
+
 self_loop:
+        // for all lambdas in current SCC
         for (size_t i = ++b; i != e; ++i) {
             Lambda* lambda = stack[i];
 
-            bool is_header = false;
-            for_all (entry, scope.entries()) {
-                if (lambda == entry) {
-                    is_header = true;
-                    break;
-                }
-            }
-
-            if (is_header)
-                headers.push_back(lambda);
+            if (scope.is_entry(lambda)) 
+                headers.push_back(lambda); // entries are axiomatically headers
             else {
                 for_all (pred, scope.preds(lambda)) {
+                    // all backedges are also inducing headers
+                    // but do not yet mark them globally as header -- we are still running through the SCC
                     if (!pred->flags[InSCC]) {
                         headers.push_back(lambda);
                         break;

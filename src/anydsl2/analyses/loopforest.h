@@ -37,6 +37,7 @@ public:
     const LoopForestNode* parent() const { return parent_; }
     ArrayRef<Lambda*> headers() const { return headers_; }
     ArrayRef<LoopForestNode*> children() const { return children_; }
+    const LoopForestNode* child(size_t i) const { return children_[i]; }
     bool is_root() const { return !parent_; }
     size_t num_headers() const { return headers().size(); }
     size_t num_children() const { return children().size(); }

@@ -143,7 +143,6 @@ public:
 
     size_t size() const { return size_; }
     bool empty() const { return size_ == 0; }
-    bool valid() const { return ptr_; }
 
     T& front() const { assert(!empty()); return ptr_[0]; }
     T& back()  const { assert(!empty()); return ptr_[size_ - 1]; }

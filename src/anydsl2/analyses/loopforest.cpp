@@ -93,11 +93,11 @@ private:
     }
 
     int visit(Lambda* lambda, int counter) {
+        if (lambda->cur_pass() < first_pass)
+            lambda->flags[IsHeader] = false; // only set the very first time
         lambda->visit_first(pass);
         lambda->flags[OnStack] = false;
         lambda->flags[InSCC]   = false;
-        if (pass == first_pass)
-            lambda->flags[IsHeader] = false;
         numbers[lambda->sid()] = Number(counter++);
         push(lambda);
         return counter;

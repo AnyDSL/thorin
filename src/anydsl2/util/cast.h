@@ -12,10 +12,10 @@ namespace anydsl2 {
  * All the casts use the order <LEFT, RIGHT>. 
  * This order may seem irritating at first glance, as you read <TO, FROM>.
  * This is solely for the reason, that C++ type deduction does not work the other way round.
- * However, for these kind of cast you won't have to specify the template parameters explicitly anyway.
- * Thus you do not have to care except for the bitcast -- so be warned.
+ * However, for these kinds of cast you won't have to specify the template parameters explicitly anyway.
+ * Thus, you do not have to care except for the bitcast -- so be warned.
  * Just read as <LEFT, RIGHT> instead, i.e., 
- * LEFT is the thing which is return (the left-hand side of the function call),
+ * LEFT is the thing which is returned (the left-hand side of the function call),
  * RIGHT is the thing which goes in (the right-hand side of a call).
  *
  * NOTE: inline hint seems to be necessary -- at least on my current version of gcc

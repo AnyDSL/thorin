@@ -1,0 +1,22 @@
+def main(i : int, ret : pi(int)) {
+    def branch(cond : bool, t : pi(), f : pi()) {
+        (cond ? (t) : f)();
+    }
+
+    def switch(i : int, a : pi(), b : pi(), c : pi()) {
+        if (i == 0)
+            a();
+        else if (i == 1)
+            b();
+        else
+            c();
+    }
+
+    def  b() { d(); }
+    def  c() { e(); }
+    def  d() { switch(i, b, e, f); }
+    def  e() { switch(i, d, c, f); }
+    def  f() { ret(23); }
+
+    branch(i == 0, b, c);
+}

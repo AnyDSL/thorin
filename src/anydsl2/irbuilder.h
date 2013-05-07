@@ -167,7 +167,7 @@ public:
     {}
 
     World& world() const { return world_; }
-    bool is_reachable() const { return cur_bb; }
+    bool is_reachable() const { return cur_bb != 0; }
     void set_unreachable() { cur_bb = 0; }
     Lambda* enter(JumpTarget& jt) { return cur_bb = jt.enter(); }
     Lambda* enter_unsealed(JumpTarget& jt) { return cur_bb = jt.enter_unsealed(world_); }

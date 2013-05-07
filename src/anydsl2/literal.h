@@ -121,7 +121,7 @@ template<class T>
 T Def::primlit_value() const {
     const PrimLit* lit = this->as<PrimLit>();
     switch (lit->primtype_kind()) {
-#define ANYDSL2_UF_TYPE(T) case PrimType_##T: return (T) lit->box().get_##T();
+#define ANYDSL2_UF_TYPE(U) case PrimType_##U: return (T) lit->box().get_##U();
 #include "anydsl2/tables/primtypetable.h"
         default: ANYDSL2_UNREACHABLE;
     }

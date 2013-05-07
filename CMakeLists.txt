@@ -79,7 +79,7 @@ SET(CMAKE_DEBUG_POSTFIX             "d")
 
 # add_build_mp_option(${PROJ_PREFIX})
 
-
+add_definitions(-D_SCL_SECURE_NO_WARNINGS)
 
 # ADD_SUBDIRECTORY(${PROJ_3RDPARTY_DIR})
 ADD_SUBDIRECTORY(${PROJ_SOURCE_DIR})

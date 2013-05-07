@@ -1,5 +1,6 @@
 #include <fstream>
 #include <vector>
+#include <cctype>
 
 #include <boost/program_options.hpp>
 

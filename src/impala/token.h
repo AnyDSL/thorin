@@ -78,10 +78,10 @@ public:
     bool is_assign()  const { return is_assign(kind_); }
     bool is_op()      const { return is_op(kind_); }
 
-    static bool is_prefix(Kind kind)  { return tok2op_[kind] &  PREFIX; }
-    static bool is_infix(Kind kind)   { return tok2op_[kind] &   INFIX; }
-    static bool is_postfix(Kind kind) { return tok2op_[kind] & POSTFIX; }
-    static bool is_assign(Kind kind)  { return tok2op_[kind] & ASGN_OP; }
+    static bool is_prefix(Kind kind)  { return (tok2op_[kind] &  PREFIX) != 0; }
+    static bool is_infix(Kind kind)   { return (tok2op_[kind] &   INFIX) != 0; }
+    static bool is_postfix(Kind kind) { return (tok2op_[kind] & POSTFIX) != 0; }
+    static bool is_assign(Kind kind)  { return (tok2op_[kind] & ASGN_OP) != 0; }
     static bool is_op(Kind kind)      { return is_prefix(kind) || is_infix(kind) || is_postfix(kind); }
     static bool is_rel(Kind kind);
     static Kind separate_assign(Kind kind);

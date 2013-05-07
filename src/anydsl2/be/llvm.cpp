@@ -377,7 +377,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (const Tuple* tuple = def->isa<Tuple>()) {
         llvm::Value* agg = llvm::UndefValue::get(map(tuple->type()));
 
-        for (unsigned i = 0, e = tuple->ops().size(); i != e; ++i) {
+        for (size_t i = 0, e = tuple->ops().size(); i != e; ++i) {
             unsigned idxs[1] = { unsigned(i) };
             agg = builder.CreateInsertValue(agg, lookup(tuple->op(i)), idxs);
         }

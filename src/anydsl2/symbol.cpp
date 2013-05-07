@@ -20,11 +20,17 @@ size_t StrHash::operator () (const char* s) const {
 
 Symbol::Table Symbol::table_(1031);
 
+#ifdef _MSC_VER
+static const char* duplicate(const char* s) { return _strdup(s); }
+#else // _MSC_VER
+static const char* duplicate(const char* s) { return strdup(s); }
+#endif // _MSC_VER
+
 void Symbol::insert(const char* s) {
     Table::iterator i = table_.find(s);
 
     if (i == table_.end())
-        i = table_.insert(strdup(s)).first;
+        i = table_.insert(duplicate(s)).first;
 
     str_ = *i;
 }

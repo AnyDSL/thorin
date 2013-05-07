@@ -15,11 +15,11 @@ using anydsl2::Symbol;
 namespace {
 
 inline bool sym(int c) { return std::isalpha(c) || c == '_'; }
-inline bool dec(int c) { return std::isdigit(c); }
+inline bool dec(int c) { return std::isdigit(c) != 0; }
 inline bool dec_nonzero(int c) { return c >= '1' && c <= '9'; }
-inline bool space(int c) { return std::isspace(c); }
+inline bool space(int c) { return std::isspace(c) != 0; }
 inline bool oct(int c) { return '0' <= c && c <= '7'; }
-inline bool hex(int c) { return std::isxdigit(c); }
+inline bool hex(int c) { return std::isxdigit(c) != 0; }
 
 inline bool bB(int c) { return c == 'b' || c == 'B'; }
 inline bool eE(int c) { return c == 'e' || c == 'E'; }

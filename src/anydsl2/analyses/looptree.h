@@ -19,13 +19,13 @@ class World;
  * Please refer to G. Ramalingam, "On Loops, Dominators, and Dominance Frontiers", 1999
  * for an introduction to loop nesting forests.
  *
- * A \p LoopForestNode consists of a set of header \p Lambda%s and \p LoopForestNode%s as children.
- * The root node is a \p LoopForestNode without any headers but further \p LoopForestNode children.
+ * A \p LoopTreeNode consists of a set of header \p Lambda%s and \p LoopTreeNode%s as children.
+ * The root node is a \p LoopTreeNode without any headers but further \p LoopTreeNode children.
  */
-class LoopForestNode {
+class LoopTreeNode {
 public:
 
-    LoopForestNode(LoopForestNode* parent, int depth)
+    LoopTreeNode(LoopTreeNode* parent, int depth)
         : parent_(parent)
         , depth_(depth)
     {
@@ -34,33 +34,33 @@ public:
     }
 
     int depth() const { return depth_; }
-    const LoopForestNode* parent() const { return parent_; }
+    const LoopTreeNode* parent() const { return parent_; }
     ArrayRef<Lambda*> headers() const { return headers_; }
-    ArrayRef<LoopForestNode*> children() const { return children_; }
-    const LoopForestNode* child(size_t i) const { return children_[i]; }
+    ArrayRef<LoopTreeNode*> children() const { return children_; }
+    const LoopTreeNode* child(size_t i) const { return children_[i]; }
     bool is_root() const { return !parent_; }
     size_t num_headers() const { return headers().size(); }
     size_t num_children() const { return children().size(); }
 
 private:
 
-    LoopForestNode* parent_;
+    LoopTreeNode* parent_;
     int depth_;
     std::vector<Lambda*> headers_;
-    AutoVector<LoopForestNode*> children_;
+    AutoVector<LoopTreeNode*> children_;
 
     friend class LFBuilder;
 };
 
 /**
- * Calculates a loop nesting forest rooted at the returned \p LoopForestNode.
+ * Calculates a loop nesting forest rooted at the returned \p LoopTreeNode.
  * You will manually have to delete this returned node in order to free memory again.
  * The implementation uses Steensgard's algorithm.
  * Check out G. Ramalingam, "On Loops, Dominators, and Dominance Frontiers", 1999, for more information.
  */
-LoopForestNode* create_loop_forest(const Scope& scope);
+LoopTreeNode* create_loop_forest(const Scope& scope);
 
-std::ostream& operator << (std::ostream& o, const LoopForestNode* node);
+std::ostream& operator << (std::ostream& o, const LoopTreeNode* node);
 
 class LoopInfo {
 public:
@@ -82,7 +82,7 @@ public:
 private:
 
     void build_infos();
-    void visit(const LoopForestNode* n);
+    void visit(const LoopTreeNode* n);
 
     const Scope& scope_;
     Array<int> depth_;

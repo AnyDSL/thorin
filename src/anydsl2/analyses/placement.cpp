@@ -8,7 +8,7 @@
 #include "anydsl2/primop.h"
 #include "anydsl2/world.h"
 #include "anydsl2/analyses/domtree.h"
-#include "anydsl2/analyses/loopforest.h"
+#include "anydsl2/analyses/looptree.h"
 #include "anydsl2/analyses/scope.h"
 
 namespace anydsl2 {

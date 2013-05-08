@@ -12,11 +12,11 @@ def main(i : int, ret : pi(int)) {
             c();
     }
 
-    def  b() { d(); }
-    def  c() { e(); }
-    def  d() { switch(i, b, e, f); }
-    def  e() { switch(i, d, c, f); }
-    def  f() { ret(23); }
+    def b() { d(); }
+    def c() { e(); }
+    def d() { switch(i, b, e, f); }
+    def e() { switch(i, d, c, f); }
+    def f() { ret(23); }
 
     branch(i == 0, b, c);
 }

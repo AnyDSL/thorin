@@ -1,4 +1,4 @@
-#include "anydsl2/analyses/loopforest.h"
+#include "anydsl2/analyses/looptree.h"
 
 #include "anydsl2/lambda.h"
 #include "anydsl2/world.h"
@@ -38,7 +38,7 @@ public:
         stack.reserve(scope.size());
     }
 
-    LoopForestNode* build();
+    LoopTreeNode* build();
     World& world() const { return scope.world(); }
 
 private:
@@ -76,14 +76,6 @@ private:
         lambda->flags[OnStack] = true;
     }
 
-    Lambda* pop() { 
-        Lambda* lambda = stack.back();
-        assert(is_visited(lambda) && lambda->flags[OnStack]);
-        lambda->flags[OnStack] = false;
-        stack.pop_back();
-        return lambda;
-    }
-
     int visit(Lambda* lambda, int counter) {
         if (lambda->cur_pass() < first_pass)
             lambda->flags[IsHeader] = false; // only set the very first time
@@ -95,8 +87,8 @@ private:
         return counter;
     }
 
-    void recurse(LoopForestNode* node, int depth);
-    int walk_scc(Lambda* cur, LoopForestNode* node, int depth, int counter);
+    void recurse(LoopTreeNode* node, int depth);
+    int walk_scc(Lambda* cur, LoopTreeNode* node, int depth, int counter);
 
     const Scope& scope;
     Array<Number> numbers;
@@ -105,37 +97,34 @@ private:
     std::vector<Lambda*> stack;
 };
 
-LoopForestNode* LFBuilder::build() {
-    LoopForestNode* root = new LoopForestNode(0, -1);
+LoopTreeNode* LFBuilder::build() {
+    LoopTreeNode* root = new LoopTreeNode(0, -1);
 
-    //size_t cur_new_child = 0;
-    //for_all (entry, scope.entries()) {
-        //if (entry->cur_pass() >= first_pass)
-            //continue;
-        //new_pass();
-        //walk_scc(entry, root, 0, 0);
+    size_t cur_new_child = 0;
+    for_all (header, scope.entries()) {
+        new_pass();
+        if (header->cur_pass() >= first_pass)
+            continue;
+        walk_scc(header, root, 0, 0);
 
-        //// now mark all newly found headers globally as header
-        //for (size_t e = root->num_children(); cur_new_child != e; ++cur_new_child) {
-            //for_all (header, root->child(cur_new_child)->headers())
-                //header->flags[IsHeader] = true;
-        //}
-    //}
+        // now mark all newly found headers globally as header
+        for (size_t e = root->num_children(); cur_new_child != e; ++cur_new_child) {
+            for_all (header, root->child(cur_new_child)->headers())
+                header->flags[IsHeader] = true;
+        }
+    }
 
-    //for_all (node, root->children()) {
-        //if (node->depth() < 0) // do not recurse on finished nodes (see below)
-            //node->depth_ -= std::numeric_limits<int>::min();
-        //else
-            //recurse(node, 1);
-    //}
+    for_all (node, root->children()) {
+        if (node->depth() < 0) // do not recurse into finished nodes (see below)
+            node->depth_ -= std::numeric_limits<int>::min();
+        else
+            recurse(node, 1);
+    }
 
-    root->headers_.insert(root->headers_.begin(), scope.entries().begin(), scope.entries().end());
-    recurse(root, 0);
-    root->headers_.clear();
     return root;
 }
 
-void LFBuilder::recurse(LoopForestNode* parent, int depth) {
+void LFBuilder::recurse(LoopTreeNode* parent, int depth) {
     size_t cur_new_child = 0;
     for_all (header, parent->headers()) {
         new_pass();
@@ -149,14 +138,14 @@ void LFBuilder::recurse(LoopForestNode* parent, int depth) {
     }
 
     for_all (node, parent->children()) {
-        if (node->depth() < 0) // do not recurse on finished nodes (see below)
+        if (node->depth() < 0) // do not recurse into finished nodes (see below)
             node->depth_ -= std::numeric_limits<int>::min();
         else
             recurse(node, depth + 1);
     }
 }
 
-int LFBuilder::walk_scc(Lambda* cur, LoopForestNode* parent, int depth, int counter) {
+int LFBuilder::walk_scc(Lambda* cur, LoopTreeNode* parent, int depth, int counter) {
     counter = visit(cur, counter);
 
     for_all (succ, scope.succs(cur)) {
@@ -166,12 +155,12 @@ int LFBuilder::walk_scc(Lambda* cur, LoopForestNode* parent, int depth, int coun
             counter = walk_scc(succ, parent, depth, counter);
             lowlink(cur) = std::min(lowlink(cur), lowlink(succ));
         } else if (on_stack(succ))
-            lowlink(cur) = std::min(lowlink(cur), dfs(succ));
+            lowlink(cur) = std::min(lowlink(cur), lowlink(succ));
     }
 
     // root of SCC
     if (lowlink(cur) == dfs(cur)) {
-        LoopForestNode* node = new LoopForestNode(parent, depth);
+        LoopTreeNode* node = new LoopTreeNode(parent, depth);
         std::vector<Lambda*>& headers = node->headers_;
 
         // mark all lambdas in current SCC (all lambdas from back to cur on the stack) as 'InSCC'
@@ -210,9 +199,9 @@ self_loop:
             }
         }
 
-        // reset InSCC flag
+        // reset InSCC and OnStack flag
         for (size_t i = b; i != e; ++i)
-            stack[i]->flags[InSCC] = false;
+            stack[i]->flags[OnStack] = stack[i]->flags[InSCC] = false;
 
         // pop whole SCC
         stack.resize(b);
@@ -222,14 +211,14 @@ self_loop:
     return counter;
 }
 
-LoopForestNode* create_loop_forest(const Scope& scope) {
+LoopTreeNode* create_loop_forest(const Scope& scope) {
     LFBuilder builder(scope);
     return builder.build();
 }
 
 //------------------------------------------------------------------------------
 
-std::ostream& operator << (std::ostream& o, const LoopForestNode* node) {
+std::ostream& operator << (std::ostream& o, const LoopTreeNode* node) {
     for (int i = 0; i < node->depth(); ++i)
         o << '\t';
     for_all (header, node->headers())
@@ -243,10 +232,10 @@ std::ostream& operator << (std::ostream& o, const LoopForestNode* node) {
 //------------------------------------------------------------------------------
 
 void LoopInfo::build_infos() {
-    visit(scope_.loopforest());
+    visit(scope_.looptree());
 }
 
-void LoopInfo::visit(const LoopForestNode* n) {
+void LoopInfo::visit(const LoopTreeNode* n) {
     if (n->num_children() == 0) {
         assert(n->headers().size() == 1);
         Lambda* lambda = n->headers().front();

@@ -4,7 +4,7 @@
 
 #include <boost/program_options.hpp>
 
-#include "anydsl2/analyses/loopforest.h"
+#include "anydsl2/analyses/looptree.h"
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/analyses/verifier.h"
 #include "anydsl2/transform/partial_evaluation.h"
@@ -142,7 +142,7 @@ int main(int argc, char** argv) {
             if (emit_air)
                 init.world.dump(fancy);
             if (emit_loopforest)
-                std::cout << Scope(init.world).loopforest() << std::endl;
+                std::cout << Scope(init.world).looptree() << std::endl;
 
             if (emit_llvm)
                 be_llvm::emit(init.world);

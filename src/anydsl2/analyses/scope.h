@@ -10,7 +10,7 @@
 namespace anydsl2 {
 
 class DomTree;
-class LoopForestNode;
+class LoopTreeNode;
 class LoopInfo;
 
 class Scope {
@@ -50,7 +50,7 @@ public:
                    const GenericMap& generic_map = GenericMap());
 
     const DomTree& domtree() const;
-    const LoopForestNode* loopforest() const;
+    const LoopTreeNode* looptree() const;
     const LoopInfo& loopinfo() const;
 
 private:
@@ -75,7 +75,7 @@ private:
     Array< Array<Lambda*> > preds_;
     Array< Array<Lambda*> > succs_;
     mutable AutoPtr<DomTree> domtree_;
-    mutable AutoPtr<LoopForestNode> loopforest_;
+    mutable AutoPtr<LoopTreeNode> looptree_;
     mutable AutoPtr<LoopInfo> loopinfo_;
     Lambda* hack_;
 };

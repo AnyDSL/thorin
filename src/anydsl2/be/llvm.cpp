@@ -20,7 +20,7 @@
 #include "anydsl2/primop.h"
 #include "anydsl2/type.h"
 #include "anydsl2/world.h"
-#include "anydsl2/analyses/loopforest.h"
+#include "anydsl2/analyses/looptree.h"
 #include "anydsl2/analyses/placement.h"
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/util/array.h"

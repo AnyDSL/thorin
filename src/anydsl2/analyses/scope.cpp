@@ -8,7 +8,7 @@
 #include "anydsl2/type.h"
 #include "anydsl2/world.h"
 #include "anydsl2/analyses/domtree.h"
-#include "anydsl2/analyses/loopforest.h"
+#include "anydsl2/analyses/looptree.h"
 #include "anydsl2/util/for_all.h"
 
 namespace anydsl2 {
@@ -82,8 +82,10 @@ void Scope::process() {
         }
     }
 
-    for_all (entry, entries())
-        entry->sid_ = num++;
+    for (size_t i = num_entries(); i-- != 0;)
+        entries_[i]->sid_ = num++;
+    //for_all (entry, entries())
+        //entry->sid_ = num++;
 
     assert(num <= rpo().size());
     assert(num >= 1);
@@ -367,8 +369,8 @@ const DomTree& Scope::domtree() const {
     return domtree_ ? *domtree_ : *(domtree_ = new DomTree(*this));
 }
 
-const LoopForestNode* Scope::loopforest() const { 
-    return loopforest_ ? loopforest_ : loopforest_ = create_loop_forest(*this);
+const LoopTreeNode* Scope::looptree() const { 
+    return looptree_ ? looptree_ : looptree_ = create_loop_forest(*this);
 }
 
 const LoopInfo& Scope::loopinfo() const { 

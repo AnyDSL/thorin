@@ -60,6 +60,9 @@ private:
     Number& number(Lambda* lambda) { return numbers[lambda->sid()]; }
     size_t& lowlink(Lambda* lambda) { return number(lambda).low; }
     size_t& dfs(Lambda* lambda) { return number(lambda).dfs; }
+    bool on_stack(Lambda* lambda) { assert(is_visited(lambda)); return lambda->flags[OnStack]; }
+    bool is_header(Lambda* lambda) { return lambda->cur_pass() >= first_pass ? lambda->flags[IsHeader] : false; }
+    bool is_visited(Lambda* lambda) { return lambda->is_visited(pass); }
 
     void new_pass() {
         pass = world().new_pass();
@@ -81,17 +84,6 @@ private:
         return lambda;
     }
 
-    bool on_stack(Lambda* lambda) {
-        assert(is_visited(lambda));
-        return lambda->flags[OnStack];
-    }
-
-    bool is_header(Lambda* lambda) {
-        if (lambda->cur_pass() >= first_pass)
-            return lambda->flags[IsHeader];
-        return false;
-    }
-
     int visit(Lambda* lambda, int counter) {
         if (lambda->cur_pass() < first_pass)
             lambda->flags[IsHeader] = false; // only set the very first time
@@ -102,8 +94,6 @@ private:
         push(lambda);
         return counter;
     }
-
-    bool is_visited(Lambda* lambda) { return lambda->is_visited(pass); }
 
     void recurse(LoopForestNode* node, int depth);
     int walk_scc(Lambda* cur, LoopForestNode* node, int depth, int counter);

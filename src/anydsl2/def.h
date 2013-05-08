@@ -157,14 +157,6 @@ private:
 
 protected:
 
-    Def(size_t gid, int kind, const Type* type, bool is_const, const std::string& name)
-        : Node(kind, name)
-        , type_(type)
-        , gid_(gid)
-        , is_const_(is_const)
-    {
-        uses_.reserve(4);
-    }
     Def(size_t gid, int kind, size_t size, const Type* type, bool is_const, const std::string& name)
         : Node(kind, size, name)
         , type_(type)

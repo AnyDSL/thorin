@@ -53,8 +53,8 @@ private:
             , low(i)
         {}
 
-        size_t dfs;// depth-first-search number
-        size_t low;// low link (see Tarjan's SCC algo)
+        size_t dfs; // depth-first-search number
+        size_t low; // low link (see Tarjan's SCC algo)
     };
 
     Number& number(Lambda* lambda) { return numbers[lambda->sid()]; }

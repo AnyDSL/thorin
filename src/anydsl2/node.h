@@ -17,26 +17,16 @@ private:
 
     /// Do not copy-assign a \p Node instance.
     Node& operator = (const Node&);
+    /// Do not copy-construct a \p Node.
+    Node(const Node& node);
 
 protected:
 
-    /// This variant leaves internal \p ops_ \p Array allocateble via ops_.alloc(size).
-    Node(int kind, const std::string& name)
-        : kind_(kind) 
-        , cur_pass_(0)
-        , name(name)
-    {}
     Node(int kind, size_t size, const std::string& name)
         : kind_(kind)
         , ops_(size)
         , cur_pass_(0)
         , name(name)
-    {}
-    Node(const Node& node)
-        : kind_(node.kind())
-        , ops_(node.ops_.size())
-        , cur_pass_(0)
-        , name(node.name)
     {}
     virtual ~Node() {}
 

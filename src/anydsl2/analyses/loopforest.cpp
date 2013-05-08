@@ -22,9 +22,9 @@
 namespace anydsl2 {
 
 enum {
-    InSCC,  // is in current walk_scc run?
-    OnStack,// is in current SCC stack?
-    IsHeader// all headers are marked, so subsequent runs can ignore backedges when searching for SCCs
+    InSCC,   // is in current walk_scc run?
+    OnStack, // is in current SCC stack?
+    IsHeader,// all headers are marked, so subsequent runs can ignore backedges when searching for SCCs
 };
 
 class LFBuilder {
@@ -129,7 +129,7 @@ void LFBuilder::recurse(LoopForestNode* parent, int depth) {
         new_pass();
         walk_scc(header, parent, depth, 0);
 
-        // now mark all new found headers globally as header
+        // now mark all newly found headers globally as header
         for (size_t e = parent->num_children(); cur_new_child != e; ++cur_new_child) {
             for_all (header, parent->child(cur_new_child)->headers())
                 header->flags[IsHeader] = true;

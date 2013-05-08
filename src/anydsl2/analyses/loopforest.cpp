@@ -107,6 +107,28 @@ private:
 
 LoopForestNode* LFBuilder::build() {
     LoopForestNode* root = new LoopForestNode(0, -1);
+
+    //size_t cur_new_child = 0;
+    //for_all (entry, scope.entries()) {
+        //if (entry->cur_pass() >= first_pass)
+            //continue;
+        //new_pass();
+        //walk_scc(entry, root, 0, 0);
+
+        //// now mark all newly found headers globally as header
+        //for (size_t e = root->num_children(); cur_new_child != e; ++cur_new_child) {
+            //for_all (header, root->child(cur_new_child)->headers())
+                //header->flags[IsHeader] = true;
+        //}
+    //}
+
+    //for_all (node, root->children()) {
+        //if (node->depth() < 0) // do not recurse on finished nodes (see below)
+            //node->depth_ -= std::numeric_limits<int>::min();
+        //else
+            //recurse(node, 1);
+    //}
+
     root->headers_.insert(root->headers_.begin(), scope.entries().begin(), scope.entries().end());
     recurse(root, 0);
     root->headers_.clear();

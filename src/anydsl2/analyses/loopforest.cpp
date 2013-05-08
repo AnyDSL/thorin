@@ -127,7 +127,7 @@ void LFBuilder::recurse(LoopForestNode* parent, int depth) {
     }
 
     for_all (node, parent->children()) {
-        if (node->depth() < -1)
+        if (node->depth() < 0) // do not recurse on finished nodes (see below)
             node->depth_ -= std::numeric_limits<int>::min();
         else
             recurse(node, depth + 1);
@@ -164,7 +164,9 @@ int LFBuilder::walk_scc(Lambda* cur, LoopForestNode* parent, int depth, int coun
                 if (!is_header(succ) && cur == succ)
                     goto self_loop;
             }
-            node->depth_ = std::numeric_limits<int>::min() + node->depth_;
+
+            // mark node as done by setting its depth temporarily to (min + depth) < 0
+            node->depth_ += std::numeric_limits<int>::min();
         }
 
 self_loop:
@@ -190,7 +192,7 @@ self_loop:
         for (size_t i = b; i != e; ++i)
             stack[i]->flags[InSCC] = false;
 
-        // pop whole scc
+        // pop whole SCC
         stack.resize(b);
         assert(num != 1 || (node->headers().size() == 1 && node->headers().front() == cur));
     }

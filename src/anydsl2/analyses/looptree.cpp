@@ -87,6 +87,7 @@ private:
         return counter;
     }
 
+    void descent(LoopTreeNode* node, int depth);
     void recurse(LoopTreeNode* node, int depth);
     int walk_scc(Lambda* cur, LoopTreeNode* node, int depth, int counter);
 
@@ -114,14 +115,18 @@ LoopTreeNode* LFBuilder::build() {
         }
     }
 
-    for_all (node, root->children()) {
+    descent(root, 1);
+
+    return root;
+}
+
+void LFBuilder::descent(LoopTreeNode* parent, int depth) {
+    for_all (node, parent->children()) {
         if (node->depth() < 0) // do not recurse into finished nodes (see below)
             node->depth_ -= std::numeric_limits<int>::min();
         else
-            recurse(node, 1);
+            recurse(node, depth);
     }
-
-    return root;
 }
 
 void LFBuilder::recurse(LoopTreeNode* parent, int depth) {
@@ -137,12 +142,7 @@ void LFBuilder::recurse(LoopTreeNode* parent, int depth) {
         }
     }
 
-    for_all (node, parent->children()) {
-        if (node->depth() < 0) // do not recurse into finished nodes (see below)
-            node->depth_ -= std::numeric_limits<int>::min();
-        else
-            recurse(node, depth + 1);
-    }
+    descent(parent, depth + 1);
 }
 
 int LFBuilder::walk_scc(Lambda* cur, LoopTreeNode* parent, int depth, int counter) {

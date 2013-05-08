@@ -22,9 +22,9 @@
 namespace anydsl2 {
 
 enum {
-    InSCC,   // is in current walk_scc run?
-    OnStack, // is in current SCC stack?
-    IsHeader,// all headers are marked, so subsequent runs can ignore backedges when searching for SCCs
+    InSCC    = 1, // is in current walk_scc run?
+    OnStack  = 2, // is in current SCC stack?
+    IsHeader = 4, // all headers are marked, so subsequent runs can ignore backedges when searching for SCCs
 };
 
 class LFBuilder {
@@ -60,8 +60,9 @@ private:
     Number& number(Lambda* lambda) { return numbers[lambda->sid()]; }
     size_t& lowlink(Lambda* lambda) { return number(lambda).low; }
     size_t& dfs(Lambda* lambda) { return number(lambda).dfs; }
-    bool on_stack(Lambda* lambda) { assert(is_visited(lambda)); return lambda->flags[OnStack]; }
-    bool is_header(Lambda* lambda) { return lambda->cur_pass() >= first_pass ? lambda->flags[IsHeader] : false; }
+    bool on_stack(Lambda* lambda) { assert(is_visited(lambda)); return (lambda->counter & OnStack) != 0; }
+    bool in_scc(Lambda* lambda) { return (lambda->counter & InSCC) != 0; }
+    bool is_header(Lambda* lambda) { return lambda->cur_pass() >= first_pass ? (lambda->counter & IsHeader) != 0 : false; }
     bool is_visited(Lambda* lambda) { return lambda->is_visited(pass); }
 
     void new_pass() {
@@ -71,17 +72,15 @@ private:
     }
 
     void push(Lambda* lambda) { 
-        assert(is_visited(lambda) && !lambda->flags[OnStack]);
+        assert(is_visited(lambda) && (lambda->counter & OnStack) == 0);
         stack.push_back(lambda);
-        lambda->flags[OnStack] = true;
+        lambda->counter |= OnStack;
     }
 
     int visit(Lambda* lambda, int counter) {
         if (lambda->cur_pass() < first_pass)
-            lambda->flags[IsHeader] = false; // only set the very first time
+            lambda->counter = 0; // clear flags
         lambda->visit_first(pass);
-        lambda->flags[OnStack] = false;
-        lambda->flags[InSCC]   = false;
         numbers[lambda->sid()] = Number(counter++);
         push(lambda);
         return counter;
@@ -116,7 +115,7 @@ void LFBuilder::recurse(LoopTreeNode* parent, ArrayRef<Lambda*> headers, int dep
         // now mark all newly found headers globally as header
         for (size_t e = parent->num_children(); cur_new_child != e; ++cur_new_child) {
             for_all (header, parent->child(cur_new_child)->headers())
-                header->flags[IsHeader] = true;
+                header->counter |= IsHeader;
         }
     }
 
@@ -149,7 +148,7 @@ int LFBuilder::walk_scc(Lambda* cur, LoopTreeNode* parent, int depth, int counte
         // mark all lambdas in current SCC (all lambdas from back to cur on the stack) as 'InSCC'
         size_t num = 0, e = stack.size(), b = e - 1;
         do {
-            stack[b]->flags[InSCC] = true;
+            stack[b]->counter |= InSCC;
             ++num;
         } while (stack[b--] != cur);
 
@@ -174,7 +173,7 @@ self_loop:
                 for_all (pred, scope.preds(lambda)) {
                     // all backedges are also inducing headers
                     // but do not yet mark them globally as header -- we are still running through the SCC
-                    if (!pred->flags[InSCC]) {
+                    if (!in_scc(pred)) {
                         headers.push_back(lambda);
                         break;
                     }
@@ -182,9 +181,9 @@ self_loop:
             }
         }
 
-        // reset InSCC and OnStack flag
+        // reset InSCC and OnStack flags
         for (size_t i = b; i != e; ++i)
-            stack[i]->flags[OnStack] = stack[i]->flags[InSCC] = false;
+            stack[i]->counter &= ~(OnStack | InSCC);
 
         // pop whole SCC
         stack.resize(b);

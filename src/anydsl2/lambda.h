@@ -22,18 +22,19 @@ typedef std::vector<const Param*> Params;
 
 struct LambdaAttr {
     enum Attr {
-        Extern = 1 << 0,
+        Extern = 1 << 0, ///< Is the function visible in other translation units?
     };
 
     explicit LambdaAttr(uint32_t attr)
-        : attr(attr)
+        : attr_(attr)
     {}
 
-    bool is_extern() const { return attr & Extern; }
-    void set_extern() { attr |= Extern; }
+    bool is_extern() const { return attr_ & Extern; }
+    void set_extern() { attr_ |= Extern; }
 
 private:
-    uint32_t attr;
+
+    uint32_t attr_;
 };
 
 class Lambda : public Def {

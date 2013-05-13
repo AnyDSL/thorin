@@ -125,6 +125,21 @@ IMPALA_KEY_STMT(RETURN,   "return")
 
 #undef IMPALA_KEY_STMT
 
+#ifndef IMPALA_KEY_MISC
+#define IMPALA_KEY_MISC(tok, str)
+#endif
+
+IMPALA_KEY_MISC(DEF,        "def")
+IMPALA_KEY_MISC(EXTERN,     "extern")
+IMPALA_KEY_MISC(PI,         "pi")
+IMPALA_KEY_MISC(SIGMA,      "sigma")
+IMPALA_KEY_MISC(TYPE_int,   "int")
+IMPALA_KEY_MISC(TYPE_noret, "noret")
+IMPALA_KEY_MISC(TYPE_uint,  "uint")
+IMPALA_KEY_MISC(TYPE_void,  "void")
+
+#undef IMPALA_KEY_MISC
+
 /*
  * other miscellaneous tokens
  */
@@ -144,9 +159,6 @@ IMPALA_MISC(SEMICOLON,  ";")
 IMPALA_MISC(COLON,      ":")
 IMPALA_MISC(LARROW,     "<-")
 IMPALA_MISC(HASH,       "#")
-IMPALA_MISC(PI,         "pi")
-IMPALA_MISC(SIGMA,      "sigma")
-IMPALA_MISC(EXTERN,     "extern")
 
 #undef IMPALA_MISC
 

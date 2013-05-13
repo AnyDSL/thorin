@@ -27,6 +27,7 @@ public:
 #define IMPALA_INFIX_ASGN(tok, t_str, r, l) tok,
 #define IMPALA_KEY_EXPR(  tok, t_str)       tok,
 #define IMPALA_KEY_STMT(  tok, t_str)       tok,
+#define IMPALA_KEY_MISC(  tok, t_str)       tok,
 #define IMPALA_MISC(      tok, t_str)       tok,
 #define IMPALA_LIT(       tok, t)           LIT_##tok,
 #define IMPALA_TYPE(itype, atype)           TYPE_##itype,
@@ -35,12 +36,8 @@ public:
         // manually insert missing unary prefix/postfix types
         NOT, L_N, INC, DEC,
 
-        // types that need special handling
-        TYPE_int, TYPE_uint, TYPE_void, TYPE_noret,
-
-
         // these do ont appear in impala/tokenlist.h -- they are too special
-        ID, END_OF_FILE, DEF,
+        ID, END_OF_FILE,
         NUM_TOKENS
     };
 

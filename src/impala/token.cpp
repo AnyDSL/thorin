@@ -138,16 +138,9 @@ void Token::init() {
 #define IMPALA_LIT(       tok, atype)     tok2str_[LIT_##tok] = Symbol("<literal>").str();
 #define IMPALA_KEY_EXPR(  tok, str)       insert_key(tok, str);
 #define IMPALA_KEY_STMT(  tok, str)       insert_key(tok, str);
+#define IMPALA_KEY_MISC(  tok, str)       insert_key(tok, str);
 #define IMPALA_TYPE(itype, atype)         insert_key(TYPE_ ## itype, #itype );
 #include "impala/tokenlist.h"
-
-    insert_key(TYPE_int,   "int");
-    insert_key(TYPE_void,  "void");
-    insert_key(TYPE_noret, "noret");
-    insert_key(DEF,        "def");
-    insert_key(PI,         "pi");
-    insert_key(SIGMA,      "sigma");
-    insert_key(EXTERN,     "extern");
 
     tok2str_[ID]         = Symbol("<identifier>").str();
     tok2str_[END_OF_FILE]= Symbol("<end of file>").str();

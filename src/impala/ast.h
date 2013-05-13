@@ -27,6 +27,7 @@ class CodeGen;
 class VarDecl;
 class Expr;
 class NamedFun;
+class Proto;
 class Printer;
 class ScopeStmt;
 class Sema;
@@ -56,6 +57,7 @@ public:
 private:
 
     anydsl2::AutoVector<const NamedFun*> named_funs_;
+    anydsl2::AutoVector<const Proto*> protos_;
 
     friend class Parser;
 };
@@ -137,6 +139,26 @@ private:
 
     friend class Id;
     friend class ForeachStmt;
+};
+
+class Proto : public Decl {
+public:
+
+    Proto(anydsl2::Symbol symbol) {
+        symbol_ = symbol;
+    }
+
+    const std::vector<const anydsl2::Type*>& types() const { return types_; }
+    const anydsl2::Type* ret_type() const { return ret_type_; }
+
+    virtual Printer& print(Printer& p) const;
+
+private:
+
+    std::vector<const anydsl2::Type*> types_;
+    const anydsl2::Type* ret_type_;
+
+    friend class Parser;
 };
 
 class NamedFun : public Decl, public Fun {

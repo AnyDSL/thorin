@@ -60,6 +60,14 @@ Printer& Prg::print(Printer& p) const {
     return p;
 }
 
+Printer& Proto::print(Printer& p) const {
+    p << "extern " << symbol_ << " ";
+    ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "(", types_, ")");
+    p << " -> " << ret_type_;
+
+    return p;
+}
+
 Printer& Fun::fun_print(Printer& p) const {
     // TODO generics
     const Type* ret_type = return_type(pi());

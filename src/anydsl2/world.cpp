@@ -640,11 +640,6 @@ const LEA* World::lea(const Def* ptr, const Def* index, const std::string& name)
 const Slot* World::slot(const Type* type, size_t index, const Def* frame, const std::string& name) {
     return cse<SlotTuple, Slot>(SlotTuple(Node_Slot, type->to_ptr(), index, frame), name);
 }
-const CCall* World::c_call(const std::string& callee, const Def* m, ArrayRef<const Def*> args,
-                           const Type* rettype, bool vararg, const std::string& name) {
-    const Type* type = rettype && !rettype->isa<Mem>() ? (const Type*) sigma2(mem(), rettype) : (const Type*) mem();
-    return cse<CCallTuple, CCall>(CCallTuple(Node_CCall, type, callee, m, args, vararg), name);
-}
 
 const Def* World::select(const Def* cond, const Def* a, const Def* b, const std::string& name) {
     if (cond->isa<Bottom>() || a->isa<Bottom>() || b->isa<Bottom>())
@@ -699,14 +694,6 @@ const Def* World::rebuild(const PrimOp* in, ArrayRef<const Def*> ops) {
         case Node_Insert:  assert(ops.size() == 3); return insert( ops[0], ops[1], ops[2], name);
         case Node_Leave:   assert(ops.size() == 2); return leave(  ops[0], ops[1], name);
         case Node_Load:    assert(ops.size() == 2); return load(   ops[0], ops[1], name);
-        case Node_CCall: {
-            assert(ops.size() >= 1);
-            const CCall* ocall = in->as<CCall>();
-            // extract the internal type of this call or avoid an explicit return type
-            const Type* ctype = ocall->returns_void() ? (const Type*)0 :
-                ocall->type()->as<Sigma>()->elem(1);
-            return c_call(ocall->callee(), ops[0], ops.slice_back(1), ctype, ocall->vararg(), ocall->name);
-        }
         case Node_Select:  assert(ops.size() == 3); return select( ops[0], ops[1], ops[2], name);
         case Node_Slot:    assert(ops.size() == 1); return slot(   type->as<Ptr>()->ref(), in->as<Slot>()->index(), ops[0], name);
         case Node_Store:   assert(ops.size() == 3); return store(  ops[0], ops[1], ops[2], name);
@@ -766,8 +753,7 @@ void World::unregister_uses(const size_t pass, S& set) {
         const Def* def = *i;
         if (!def->is_visited(pass)) {
             for (size_t i = 0, e = def->size(); i != e; ++i) {
-                //if (!def->op(i)->is_visited(pass))
-                    def->unregister_use(i);
+                def->unregister_use(i);
             }
         }
     }

@@ -18,7 +18,6 @@ namespace anydsl2 {
 
 class Any;
 class Bottom;
-class CCall;
 class Def;
 class Enter;
 class Lambda;
@@ -251,8 +250,6 @@ public:
     const Leave* leave(const Def* mem, const Def* frame, const std::string& name = "");
     const Slot* slot(const Type* type, size_t index, const Def* frame, const std::string& name = "");
     const LEA* lea(const Def* ptr, const Def* index, const std::string& name = "");
-    const CCall* c_call(const std::string& callee, const Def* mem, ArrayRef<const Def*> args,
-                        const Type* rettype, bool vararg = false, const std::string& name = "");
 
     /*
      * other stuff

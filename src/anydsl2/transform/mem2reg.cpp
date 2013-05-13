@@ -36,8 +36,6 @@ void mem2reg(World& world) {
                     }
                 } else if (const Enter* enter = def->isa<Enter>()) {
                     def = enter->extract_mem();
-                } else if (const CCall* ccall = def->isa<CCall>()) {
-                    def = ccall->extract_mem();
                 }
 
                 size_t num = 0;

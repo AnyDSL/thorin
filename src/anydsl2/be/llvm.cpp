@@ -135,10 +135,9 @@ void CodeGen::emit() {
 
             std::vector<const PrimOp*> schedule = places[lambda->sid()];
             for_all (primop, schedule)
-                // if this primop is not a function, not a memory argument and not a frame
-                // we have to skip it; however, CCall nodes have to be emitted.
+                // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
                 if (!primop->type()->isa<Pi>() && !primop->type()->isa<Frame>() 
-                        && (!primop->type()->isa<Mem>() || primop->isa<CCall>() || primop->isa<Store>()))
+                        && (!primop->type()->isa<Mem>() || primop->isa<Store>()))
                     primops[primop] = emit(primop);
 
             // terminate bb
@@ -362,9 +361,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
         unsigned idxs[1] = { tupleop->index()->primlit_value<unsigned>() };
 
         if (tupleop->node_kind() == Node_Extract) {
-            // check for CCall result
-            if (tupleop->tuple()->isa<CCall>() || tupleop->tuple()->isa<Load>())
-                return tuple;
+            if (tupleop->tuple()->isa<Load>())
+                return tuple; // bypass artificial extract
             return builder.CreateExtractValue(tuple, idxs);
         }
 
@@ -413,6 +411,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (const Slot* slot = def->isa<Slot>())
         return builder.CreateAlloca(map(slot->type()->as<Ptr>()->ref()), 0, slot->unique_name());
 
+    // TODO
+#if 0
     if (const CCall* ccall = def->isa<CCall>()) {
         size_t num_args = ccall->num_args();
 
@@ -430,6 +430,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         llvm::Function* callee = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, ccall->callee(), module);
         return builder.CreateCall(callee, llvm_ref(arg_vals));
     }
+#endif
 
     if (def->isa<Enter>() || def->isa<Leave>())
         return 0;

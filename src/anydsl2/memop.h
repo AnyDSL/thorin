@@ -160,47 +160,6 @@ public:
 
 //------------------------------------------------------------------------------
 
-typedef boost::tuple<int, const Type*, const std::string&, const Def*, ArrayRef<const Def*>, bool> CCallTuple;
-
-class CCall : public MemOp {
-private:
-
-    CCall(const CCallTuple& args, const std::string& name)
-        : MemOp(args.get<4>().size() + 1, args.get<0>(), args.get<1>(), args.get<3>(), name)
-        , callee_(args.get<2>())
-        , vararg_(args.get<5>())
-    {
-        size_t x = 1;
-        for_all (arg, args.get<4>())
-            set_op(x++, arg);
-    }
-
-public:
-
-    bool returns_void() const;
-    const Def* extract_mem() const;
-    const Def* extract_retval() const;
-    const std::string& callee() const { return callee_; }
-    bool vararg() const { return vararg_; }
-    const Type* rettype() const;
-    ArrayRef<const Def*> args() const { return ops().slice_back(1); }
-    size_t num_args() const { return args().size(); }
-    CCallTuple as_tuple() const { 
-        return CCallTuple(kind(), type(), callee(), ops().front(), ops().slice_back(1), vararg()); 
-    }
-
-private:
-
-    ANYDSL2_HASH_EQUAL
-
-    std::string callee_;
-    bool vararg_;
-
-    friend class World;
-};
-
-//------------------------------------------------------------------------------
-
 } // namespace anydsl2
 
 #endif // ANYDSL2_MEMOP_H

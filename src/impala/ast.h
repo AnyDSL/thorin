@@ -61,10 +61,6 @@ private:
 };
 
 class Decl : public ASTNode {
-protected:
-
-    Decl() {}
-
 public:
 
     anydsl2::Symbol symbol() const { return symbol_; }

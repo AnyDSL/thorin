@@ -67,13 +67,6 @@ protected:
 
 public:
 
-    Decl(const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2)
-        : symbol_(tok.symbol())
-        , type_(type)
-    {
-        set_loc(tok.pos1(), pos2);
-    }
-
     anydsl2::Symbol symbol() const { return symbol_; }
     const anydsl2::Type* type() const { return type_; }
     void insert(Sema& sema) const;
@@ -128,10 +121,13 @@ class VarDecl : public Decl {
 public:
 
     VarDecl(size_t handle, const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2)
-        : Decl(tok, type, pos2)
-        , handle_(handle)
+        : handle_(handle)
         , is_address_taken_(false)
-    {}
+    {
+        symbol_ = tok.symbol();
+        type_ = type;
+        set_loc(tok.pos1(), pos2);
+    }
 
     size_t handle() const { return handle_; }
     bool is_address_taken() const { return is_address_taken_; }

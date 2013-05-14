@@ -102,7 +102,7 @@ public:
 
     const Mem* mem() const { return mem_; }
     const Frame* frame() const { return frame_; }
-    const Ptr* ptr(const Type* referenced_type);
+    const Ptr* ptr(const Type* referenced_type) { return unify(new Ptr(*this, referenced_type)); }
 
     // sigmas
 
@@ -125,7 +125,7 @@ public:
         const Type* types[3] = {t1, t2, t3};
         return sigma(types);
     }
-    const Sigma* sigma(ArrayRef<const Type*> elems);
+    const Sigma* sigma(ArrayRef<const Type*> elems) { return unify(new Sigma(*this, elems)); }
 
     /// Creates a fresh \em named sigma.
     Sigma* named_sigma(size_t size, const std::string& name = "");
@@ -148,9 +148,9 @@ public:
         const Type* types[3] = {t1, t2, t3};
         return pi(types);
     }
-    const Pi* pi(ArrayRef<const Type*> elems);
+    const Pi* pi(ArrayRef<const Type*> elems) { return unify(new Pi(*this, elems)); }
 
-    const Generic* generic(size_t index);
+    const Generic* generic(size_t index) { return unify(new Generic(*this, index)); }
     const Opaque* opaque(ArrayRef<const Type*> elems, ArrayRef<uint32_t> flags);
     const Opaque* opaque(const Type* type, ArrayRef<uint32_t> flags) {
         const Type* types[1] = { type }; 
@@ -235,28 +235,36 @@ public:
      */
 
     const Def* extract(const Def* tuple, const Def* index, const std::string& name = "");
-    const Def* extract(const Def* tuple, u32 index, const std::string& name = "");
+    const Def* extract(const Def* tuple, u32 index, const std::string& name = "") { 
+        return extract(tuple, literal_u32(index), name); 
+    }
     const Def* insert(const Def* tuple, const Def* index, const Def* value, const std::string& name = "");
-    const Def* insert(const Def* tuple, u32 index, const Def* value, const std::string& name = "");
-    const Def* tuple(ArrayRef<const Def*> args, const std::string& name = "");
+    const Def* insert(const Def* tuple, u32 index, const Def* value, const std::string& name = "") { 
+        return insert(tuple, literal_u32(index), value, name); 
+    }
+    const Def* tuple(ArrayRef<const Def*> args, const std::string& name = "") { return cse(new Tuple(*this, args, name)); }
 
     /*
      * memops
      */
 
-    const Load* load(const Def* mem, const Def* ptr, const std::string& name = "");
-    const Store* store(const Def* mem, const Def* ptr, const Def* val, const std::string& name = "");
+    const Load* load(const Def* mem, const Def* ptr, const std::string& name = "") { return cse(new Load(mem, ptr, name)); }
+    const Store* store(const Def* mem, const Def* ptr, const Def* val, const std::string& name = "") {
+        return cse(new Store(mem, ptr, value, name));
+    }
     const Enter* enter(const Def* mem, const std::string& name = "");
-    const Leave* leave(const Def* mem, const Def* frame, const std::string& name = "");
-    const Slot* slot(const Type* type, const Def* frame, size_t index, const std::string& name = "");
-    const LEA* lea(const Def* ptr, const Def* index, const std::string& name = "");
+    const Leave* leave(const Def* mem, const Def* frame, const std::string& name = "") { return cse(new Leave(mem, frame, name)); }
+    const Slot* slot(const Type* type, const Def* frame, size_t index, const std::string& name = "") {
+        return cse(new Slot(type, frame, index, name));
+    }
+    const LEA* lea(const Def* ptr, const Def* index, const std::string& name = "") { return cse(new LEA(ptr, index, name)); }
 
     /*
      * other stuff
      */
 
     const Def* select(const Def* cond, const Def* a, const Def* b, const std::string& name = "");
-    const TypeKeeper* typekeeper(const Type* type, const std::string& name = "");
+    const TypeKeeper* typekeeper(const Type* type, const std::string& name = "") { return cse(new TypeKeeper(type, name)); }
 
     Lambda* lambda(const Pi* pi, LambdaAttr attr = LambdaAttr(0), const std::string& name = "");
     Lambda* lambda(const Pi* pi, const std::string& name) { return lambda(pi, LambdaAttr(0), name); }

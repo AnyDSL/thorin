@@ -89,19 +89,11 @@ Sigma* World::named_sigma(size_t size, const std::string& name) {
     return s;
 }
 
-const Sigma* World::sigma(ArrayRef<const Type*> elems) { return unify(new Sigma(*this, elems)); }
-const Pi* World::pi(ArrayRef<const Type*> elems) { return unify(new Pi(*this, elems)); }
-const Generic* World::generic(size_t index) { return unify(new Generic(*this, index)); }
 const Opaque* World::opaque(ArrayRef<const Type*> types, ArrayRef<uint32_t> flags) { return unify(new Opaque(*this, types, flags)); }
-const Ptr* World::ptr(const Type* referenced_type) { return unify(new Ptr(*this, referenced_type)); }
 
 /*
  * literals
  */
-
-const PrimLit* World::literal(PrimTypeKind kind, Box box) {
-    return cse(new PrimLit(*this, kind, box, ""));
-}
 
 const PrimLit* World::literal(PrimTypeKind kind, int value) {
     switch (kind) {
@@ -112,6 +104,7 @@ const PrimLit* World::literal(PrimTypeKind kind, int value) {
     }
 }
 
+const PrimLit* World::literal(PrimTypeKind kind, Box box) { return cse(new PrimLit(*this, kind, box, "")); }
 const PrimLit* World::literal(const Type* type, int value) { return literal(type->as<PrimType>()->primtype_kind(), value); }
 const Any*     World::any    (const Type* type) { return cse(new Any(type, "")); }
 const Bottom*  World::bottom (const Type* type) { return cse(new Bottom(type, "")); }
@@ -130,8 +123,6 @@ const Def* World::binop(int kind, const Def* lhs, const Def* rhs, const std::str
     assert(is_relop(kind) && "must be a RelOp");
     return relop((RelOpKind) kind, lhs, rhs);
 }
-
-const Def* World::tuple(ArrayRef<const Def*> args, const std::string& name) { return cse(new Tuple(*this, args, name)); }
 
 const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const std::string& name) {
     PrimTypeKind type = a->type()->as<PrimType>()->primtype_kind();
@@ -551,10 +542,6 @@ const Def* World::convop(ConvOpKind kind, const Def* from, const Type* to, const
     return cse(new ConvOp(kind, from, to, name));
 }
 
-const Def* World::extract(const Def* tuple, u32 index, const std::string& name) {
-    return extract(tuple, literal_u32(index), name);
-}
-
 const Def* World::extract(const Def* agg, const Def* index, const std::string& name) {
     if (agg->isa<Bottom>())
         return bottom(agg->type()->as<Sigma>()->elem_via_lit(index));
@@ -572,10 +559,6 @@ const Def* World::extract(const Def* agg, const Def* index, const std::string& n
     return cse(new Extract(agg, index, name));
 }
 
-const Def* World::insert(const Def* tuple, u32 index, const Def* value, const std::string& name) {
-    return insert(tuple, literal_u32(index), value, name);
-}
-
 const Def* World::insert(const Def* agg, const Def* index, const Def* value, const std::string& name) {
     if (agg->isa<Bottom>() || value->isa<Bottom>())
         return bottom(agg->type());
@@ -591,12 +574,6 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, con
     return cse(new Insert(agg, index, value, name));
 }
 
-const Load* World::load(const Def* mem, const Def* ptr, const std::string& name) {
-    return cse(new Load(mem, ptr, name));
-}
-const Store* World::store(const Def* mem, const Def* ptr, const Def* value, const std::string& name) {
-    return cse(new Store(mem, ptr, value, name));
-}
 const Enter* World::enter(const Def* mem, const std::string& name) {
     if (const Leave* leave = mem->isa<Leave>())
         if (const Extract* extract = leave->frame()->isa<Extract>())
@@ -608,15 +585,6 @@ const Enter* World::enter(const Def* mem, const std::string& name) {
             return old_enter;
 
     return cse(new Enter(mem, name));
-}
-const Leave* World::leave(const Def* mem, const Def* frame, const std::string& name) {
-    return cse(new Leave(mem, frame, name));
-}
-const LEA* World::lea(const Def* ptr, const Def* index, const std::string& name) {
-    return cse(new LEA(ptr, index, name));
-}
-const Slot* World::slot(const Type* type, const Def* frame, size_t index, const std::string& name) {
-    return cse(new Slot(type, frame, index, name));
 }
 
 const Def* World::select(const Def* cond, const Def* a, const Def* b, const std::string& name) {
@@ -632,9 +600,6 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b, const std:
     }
 
     return cse(new Select(cond, a, b, name));
-}
-const TypeKeeper* World::typekeeper(const Type* type, const std::string& name) {
-    return cse(new TypeKeeper(type, name));
 }
 
 Lambda* World::lambda(const Pi* pi, LambdaAttr attr, const std::string& name) {

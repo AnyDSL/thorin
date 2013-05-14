@@ -235,36 +235,28 @@ public:
      */
 
     const Def* extract(const Def* tuple, const Def* index, const std::string& name = "");
-    const Def* extract(const Def* tuple, u32 index, const std::string& name = "") { 
-        return extract(tuple, literal_u32(index), name); 
-    }
+    const Def* extract(const Def* tuple, u32 index, const std::string& name = "");
     const Def* insert(const Def* tuple, const Def* index, const Def* value, const std::string& name = "");
-    const Def* insert(const Def* tuple, u32 index, const Def* value, const std::string& name = "") { 
-        return insert(tuple, literal_u32(index), value, name); 
-    }
+    const Def* insert(const Def* tuple, u32 index, const Def* value, const std::string& name = "");
     const Def* tuple(ArrayRef<const Def*> args, const std::string& name = "") { return cse(new Tuple(*this, args, name)); }
 
     /*
      * memops
      */
 
-    const Load* load(const Def* mem, const Def* ptr, const std::string& name = "") { return cse(new Load(mem, ptr, name)); }
-    const Store* store(const Def* mem, const Def* ptr, const Def* val, const std::string& name = "") {
-        return cse(new Store(mem, ptr, value, name));
-    }
+    const Load* load(const Def* mem, const Def* ptr, const std::string& name = "");
+    const Store* store(const Def* mem, const Def* ptr, const Def* val, const std::string& name = "");
     const Enter* enter(const Def* mem, const std::string& name = "");
-    const Leave* leave(const Def* mem, const Def* frame, const std::string& name = "") { return cse(new Leave(mem, frame, name)); }
-    const Slot* slot(const Type* type, const Def* frame, size_t index, const std::string& name = "") {
-        return cse(new Slot(type, frame, index, name));
-    }
-    const LEA* lea(const Def* ptr, const Def* index, const std::string& name = "") { return cse(new LEA(ptr, index, name)); }
+    const Leave* leave(const Def* mem, const Def* frame, const std::string& name = "");
+    const Slot* slot(const Type* type, const Def* frame, size_t index, const std::string& name = "");
+    const LEA* lea(const Def* ptr, const Def* index, const std::string& name = "");
 
     /*
      * other stuff
      */
 
     const Def* select(const Def* cond, const Def* a, const Def* b, const std::string& name = "");
-    const TypeKeeper* typekeeper(const Type* type, const std::string& name = "") { return cse(new TypeKeeper(type, name)); }
+    const TypeKeeper* typekeeper(const Type* type, const std::string& name = "");
 
     Lambda* lambda(const Pi* pi, LambdaAttr attr = LambdaAttr(0), const std::string& name = "");
     Lambda* lambda(const Pi* pi, const std::string& name) { return lambda(pi, LambdaAttr(0), name); }

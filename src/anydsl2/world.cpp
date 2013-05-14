@@ -111,6 +111,7 @@ const Bottom*  World::bottom (const Type* type) { return cse(new Bottom(type, ""
 const PrimLit* World::zero   (const Type* type) { return zero  (type->as<PrimType>()->primtype_kind()); }
 const PrimLit* World::one    (const Type* type) { return one   (type->as<PrimType>()->primtype_kind()); }
 const PrimLit* World::allset (const Type* type) { return allset(type->as<PrimType>()->primtype_kind()); }
+const TypeKeeper* World::typekeeper(const Type* type, const std::string& name) { return cse(new TypeKeeper(type, name)); }
 
 /*
  * create
@@ -574,6 +575,13 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, con
     return cse(new Insert(agg, index, value, name));
 }
 
+const Def* World::extract(const Def* tuple, u32 index, const std::string& name) { 
+    return extract(tuple, literal_u32(index), name); 
+}
+const Def* World::insert(const Def* tuple, u32 index, const Def* value, const std::string& name) { 
+    return insert(tuple, literal_u32(index), value, name); 
+}
+
 const Enter* World::enter(const Def* mem, const std::string& name) {
     if (const Leave* leave = mem->isa<Leave>())
         if (const Extract* extract = leave->frame()->isa<Extract>())
@@ -601,6 +609,19 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b, const std:
 
     return cse(new Select(cond, a, b, name));
 }
+
+const Load* World::load(const Def* mem, const Def* ptr, const std::string& name) { 
+    return cse(new Load(mem, ptr, name)); 
+}
+const Store* World::store(const Def* mem, const Def* ptr, const Def* value, const std::string& name) {
+    return cse(new Store(mem, ptr, value, name));
+}
+const Leave* World::leave(const Def* mem, const Def* frame, const std::string& name) { 
+    return cse(new Leave(mem, frame, name)); }
+const Slot* World::slot(const Type* type, const Def* frame, size_t index, const std::string& name) {
+    return cse(new Slot(type, frame, index, name));
+}
+const LEA* World::lea(const Def* ptr, const Def* index, const std::string& name) { return cse(new LEA(ptr, index, name)); }
 
 Lambda* World::lambda(const Pi* pi, LambdaAttr attr, const std::string& name) {
     ANYDSL2_CHECK_BREAK

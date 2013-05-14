@@ -57,11 +57,11 @@ World::World()
     , types_(1031)
     , gid_(0)
     , pass_counter_(1)
-    , sigma0_ (keep(new Sigma(*this, TypeTupleN(Node_Sigma, ArrayRef<const Type*>()))))
-    , pi0_    (keep(new Pi   (*this, TypeTupleN(Node_Pi,    ArrayRef<const Type*>()))))
+    , sigma0_ (keep(new Sigma(*this, ArrayRef<const Type*>())))
+    , pi0_    (keep(new Pi   (*this, ArrayRef<const Type*>())))
     , mem_    (keep(new Mem  (*this)))
     , frame_  (keep(new Frame(*this)))
-#define ANYDSL2_UF_TYPE(T) ,T##_(keep(new PrimType(*this, TypeTuple0(PrimType_##T))))
+#define ANYDSL2_UF_TYPE(T) ,T##_(keep(new PrimType(*this, PrimType_##T)))
 #include "anydsl2/tables/primtypetable.h"
 {}
 
@@ -82,10 +82,6 @@ const Type* World::keep_nocast(const Type* type) {
  * types
  */
 
-const Sigma* World::sigma(ArrayRef<const Type*> elems) {
-    return unify<TypeTupleN, Sigma>(TypeTupleN(Node_Sigma, elems));
-}
-
 Sigma* World::named_sigma(size_t size, const std::string& name) {
     Sigma* s = new Sigma(*this, size, name);
     assert(types_.find(s) == types_.end() && "must not be inside");
@@ -93,19 +89,11 @@ Sigma* World::named_sigma(size_t size, const std::string& name) {
     return s;
 }
 
-const Pi* World::pi(ArrayRef<const Type*> elems) {
-    return unify<TypeTupleN, Pi>(TypeTupleN(Node_Pi, elems));
-}
-
-const Generic* World::generic(size_t index) {
-    return unify<GenericTuple, Generic>(GenericTuple(Node_Generic, index));
-}
-
-const Opaque* World::opaque(ArrayRef<const Type*> types, ArrayRef<uint32_t> flags) {
-    return unify<OpaqueTuple, Opaque>(OpaqueTuple(Node_Opaque, types, flags));
-}
-
-const Ptr* World::ptr(const Type* ref) { return unify<TypeTuple1, Ptr>(TypeTuple1(Node_Ptr, ref)); }
+const Sigma* World::sigma(ArrayRef<const Type*> elems) { return unify(new Sigma(*this, elems)); }
+const Pi* World::pi(ArrayRef<const Type*> elems) { return unify(new Pi(*this, elems)); }
+const Generic* World::generic(size_t index) { return unify(new Generic(*this, index)); }
+const Opaque* World::opaque(ArrayRef<const Type*> types, ArrayRef<uint32_t> flags) { return unify(new Opaque(*this, types, flags)); }
+const Ptr* World::ptr(const Type* referenced_type) { return unify(new Ptr(*this, referenced_type)); }
 
 /*
  * literals
@@ -612,7 +600,7 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, con
 }
 
 const Load* World::load(const Def* m, const Def* ptr, const std::string& name) {
-    return cse<DefTuple2, Load>(DefTuple2(Node_Load, sigma2(mem(), ptr->type()->as<Ptr>()->ref()), m, ptr), name);
+    return cse<DefTuple2, Load>(DefTuple2(Node_Load, sigma2(mem(), ptr->type()->as<Ptr>()->referenced_type()), m, ptr), name);
 }
 const Store* World::store(const Def* m, const Def* ptr, const Def* val, const std::string& name) {
     return cse<DefTuple3, Store>(DefTuple3(Node_Store, mem(), m, ptr, val), name);
@@ -634,7 +622,7 @@ const Leave* World::leave(const Def* m, const Def* frame, const std::string& nam
     return cse<DefTuple2, Leave>(DefTuple2(Node_Leave, mem(), m, frame), name);
 }
 const LEA* World::lea(const Def* ptr, const Def* index, const std::string& name) {
-    const Type* type = this->ptr(ptr->type()->as<Ptr>()->ref()->as<Sigma>()->elem_via_lit(index));
+    const Type* type = this->ptr(ptr->type()->as<Ptr>()->referenced_type()->as<Sigma>()->elem_via_lit(index));
     return cse<DefTuple2, LEA>(DefTuple2(Node_LEA, type, ptr, index), name);
 }
 const Slot* World::slot(const Type* type, size_t index, const Def* frame, const std::string& name) {
@@ -695,7 +683,7 @@ const Def* World::rebuild(const PrimOp* in, ArrayRef<const Def*> ops) {
         case Node_Leave:   assert(ops.size() == 2); return leave(  ops[0], ops[1], name);
         case Node_Load:    assert(ops.size() == 2); return load(   ops[0], ops[1], name);
         case Node_Select:  assert(ops.size() == 3); return select( ops[0], ops[1], ops[2], name);
-        case Node_Slot:    assert(ops.size() == 1); return slot(   type->as<Ptr>()->ref(), in->as<Slot>()->index(), ops[0], name);
+        case Node_Slot:    assert(ops.size() == 1); return slot(   type->as<Ptr>()->referenced_type(), in->as<Slot>()->index(), ops[0], name);
         case Node_Store:   assert(ops.size() == 3); return store(  ops[0], ops[1], ops[2], name);
         case Node_Tuple:                            return tuple(  ops, name);
         case Node_Bottom:  assert(ops.empty());     return bottom(type);
@@ -720,15 +708,16 @@ void World::cse_break(const PrimOp* primop) {
 #endif
 }
 
-template<class T, class U>
-const U* World::unify(const T& tuple) {
-    TypeSet::iterator i = types_.find(tuple, std::ptr_fun<const T&, size_t>(hash_tuple),
-                                             std::ptr_fun<const T&, const Node*, bool>(smart_eq<T, U>));
-    if (i != types_.end()) return (*i)->as<U>();
+const Type* World::unify_base(const Type* type) {
+    TypeSet::iterator i = types_.find(type);
+    if (i != types_.end()) {
+        delete type;
+        return *i;
+    }
 
-    std::pair<TypeSet::iterator, bool> p = types_.insert(new U(*this, tuple));
+    std::pair<TypeSet::iterator, bool> p = types_.insert(type);
     assert(p.second && "hash/equal broken");
-    return (*p.first)->as<U>();
+    return type;
 }
 
 /*

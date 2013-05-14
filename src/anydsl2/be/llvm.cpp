@@ -412,7 +412,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return builder.CreateStore(lookup(store->val()), lookup(store->ptr()));
 
     if (const Slot* slot = def->isa<Slot>())
-        return builder.CreateAlloca(map(slot->type()->as<Ptr>()->ref()), 0, slot->unique_name());
+        return builder.CreateAlloca(map(slot->type()->as<Ptr>()->referenced_type()), 0, slot->unique_name());
 
     // TODO
 #if 0
@@ -452,7 +452,7 @@ llvm::Type* CodeGen::map(const Type* type) {
         case Node_PrimType_u64: return llvm::IntegerType::get(context, 64);
         case Node_PrimType_f32: return llvm::Type::getFloatTy(context);
         case Node_PrimType_f64: return llvm::Type::getDoubleTy(context);
-        case Node_Ptr:          return llvm::PointerType::getUnqual(map(type->as<Ptr>()->ref()));
+        case Node_Ptr:          return llvm::PointerType::getUnqual(map(type->as<Ptr>()->referenced_type()));
 
         case Node_Pi: {
             // extract "return" type, collect all other types

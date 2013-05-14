@@ -102,7 +102,7 @@ public:
 
     const Mem* mem() const { return mem_; }
     const Frame* frame() const { return frame_; }
-    const Ptr* ptr(const Type* ref);
+    const Ptr* ptr(const Type* referenced_type);
 
     // sigmas
 
@@ -310,7 +310,8 @@ protected:
         typekeeper(type);
         return type->template as<T>();
     }
-    template<class T, class U> const U* unify(const T& tuple);
+    const Type* unify_base(const Type* type);
+    template<class T> const T* unify(const T* type) { return unify_base(type)->template as<T>(); }
 
     template<class T, class U>
     const U* cse(const T& tuple, const std::string& name) {

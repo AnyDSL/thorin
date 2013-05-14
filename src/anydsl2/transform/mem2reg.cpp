@@ -30,7 +30,7 @@ void mem2reg(World& world) {
                     def = load->extract_mem();
 
                     if (const Slot* slot = load->ptr()->isa<Slot>()) {
-                        const Type* type = slot->type()->as<Ptr>()->ref();
+                        const Type* type = slot->type()->as<Ptr>()->referenced_type();
                         load->extract_val()->replace(lambda->get_value(slot->index(), type, slot->name.c_str()));
                         load->extract_mem()->replace(load->mem());
                     }

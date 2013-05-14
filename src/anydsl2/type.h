@@ -1,18 +1,9 @@
 #ifndef ANYDSL2_TYPE_H
 #define ANYDSL2_TYPE_H
 
-#include <boost/tuple/tuple_comparison.hpp>
-
 #include "anydsl2/node.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/hash.h"
-
-#define ANYDSL2_TYPE_HASH_EQUAL \
-    virtual bool equal(const Type* other) const { \
-        typedef BOOST_TYPEOF(*this) T; \
-        return other->isa<T>() && this->as_tuple() == other->as<T>()->as_tuple(); \
-    } \
-    virtual size_t hash() const { return hash_tuple(as_tuple()); }
 
 namespace anydsl2 {
 
@@ -50,10 +41,6 @@ inline std::ostream& operator << (std::ostream& o, const GenericMap& map) {
 
 //------------------------------------------------------------------------------
 
-typedef boost::tuple<int> TypeTuple0;
-typedef boost::tuple<int, const Type*> TypeTuple1;
-typedef boost::tuple<int, ArrayRef<const Type*> > TypeTupleN;
-
 class Type : public Node {
 protected:
 
@@ -76,12 +63,14 @@ public:
     const Type* specialize(const GenericMap& generic_map) const;
     bool is_generic() const { return is_generic_; }
     int order() const;
-    TypeTuple0 as_tuple() const { return TypeTuple0(kind()); }
 
     bool is_u1() const { return kind() == PrimType_u1; }
     bool is_int() const { return anydsl2::is_int(kind()); }
     bool is_float() const { return anydsl2::is_float(kind()); }
     bool is_primtype() const { return anydsl2::is_primtype(kind()); }
+
+    virtual size_t hash() const;
+    virtual bool equal(const Type*) const;
 
 //------------------------------------------------------------------------------
 
@@ -91,7 +80,6 @@ private:
 
 protected:
 
-    ANYDSL2_TYPE_HASH_EQUAL
     bool is_generic_;
 
     friend class Def;
@@ -143,8 +131,8 @@ private:
 class PrimType : public Type {
 private:
 
-    PrimType(World& world, const TypeTuple0& args)
-        : Type(world, args.get<0>(), 0, false)
+    PrimType(World& world, PrimTypeKind kind)
+        : Type(world, (int) kind, 0, false)
     {}
 
 public:
@@ -163,19 +151,17 @@ private:
 class Ptr : public Type {
 private:
 
-    Ptr(World& world, const TypeTuple1& args)
-        : Type(world, args.get<0>(), 1, args.get<1>()->is_generic())
+    Ptr(World& world, const Type* referenced_type)
+        : Type(world, Node_Ptr, 1, referenced_type->is_generic())
     {
-        set(0, args.get<1>());
+        set(0, referenced_type);
     }
 
     virtual Printer& print(Printer& printer) const;
-    ANYDSL2_TYPE_HASH_EQUAL
 
 public:
 
-    const Type* ref() const { return elem(0); }
-    TypeTuple1 as_tuple() const { return TypeTuple1(kind(), ref()); }
+    const Type* referenced_type() const { return elem(0); }
 
     friend class World;
 };
@@ -187,11 +173,6 @@ protected:
 
     CompoundType(World& world, int kind, size_t num_elems);
     CompoundType(World& world, int kind, Elems elems);
-
-public:
-
-    TypeTupleN as_tuple() const { return TypeTupleN(kind(), elems()); }
-    ANYDSL2_TYPE_HASH_EQUAL
 };
 
 //------------------------------------------------------------------------------
@@ -206,8 +187,8 @@ private:
     {
         name = sigma_name;
     }
-    Sigma(World& world, const TypeTupleN& args)
-        : CompoundType(world, args.get<0>(), args.get<1>())
+    Sigma(World& world, Elems elems)
+        : CompoundType(world, Node_Sigma, elems)
         , named_(false)
     {}
 
@@ -233,8 +214,8 @@ private:
 class Pi : public CompoundType {
 private:
 
-    Pi(World& world, const TypeTupleN& args)
-        : CompoundType(world, args.get<0>(), args.get<1>())
+    Pi(World& world, Elems elems)
+        : CompoundType(world, Node_Pi, elems)
     {}
 
 public:
@@ -249,21 +230,20 @@ public:
 
 //------------------------------------------------------------------------------
 
-typedef boost::tuple<int, size_t> GenericTuple;
-
 class Generic : public Type {
 private:
 
-    Generic(World& world, const GenericTuple& args)
-        : Type(world, args.get<0>(), 0, true)
-        , index_(args.get<1>())
+    Generic(World& world, size_t index)
+        : Type(world, Node_Generic, 0, true)
+        , index_(index)
     {}
-    ANYDSL2_TYPE_HASH_EQUAL
+
+    virtual size_t hash() const;
+    virtual bool equal(const Type* other) const;
 
 public:
 
     size_t index() const { return index_; }
-    GenericTuple as_tuple() const { return GenericTuple(kind(), index()); }
     virtual Printer& print(Printer& printer) const;
 
 private:
@@ -275,14 +255,12 @@ private:
 
 //------------------------------------------------------------------------------
 
-typedef boost::tuple< int, ArrayRef<const Type*>, ArrayRef<uint32_t> > OpaqueTuple;
-
 class Opaque : public CompoundType {
 private:
 
-    Opaque(World& world, const OpaqueTuple& args)
-        : CompoundType(world, args.get<0>(), args.get<1>())
-        , flags_(args.get<2>())
+    Opaque(World& world, Elems elems, ArrayRef<uint32_t> flags)
+        : CompoundType(world, Node_Opaque, elems.size())
+        , flags_(flags)
     {}
 
 public:
@@ -290,8 +268,9 @@ public:
     ArrayRef<uint32_t> flags() const { return flags_; }
     uint32_t flag(size_t i) const { return flags_[i]; }
     size_t num_flags() const { return flags_.size(); }
-    OpaqueTuple as_tuple() const { return OpaqueTuple(kind(), elems(), flags()); }
-    ANYDSL2_TYPE_HASH_EQUAL
+
+    virtual size_t hash() const;
+    virtual bool equal(const Type* other) const;
 
 private:
 

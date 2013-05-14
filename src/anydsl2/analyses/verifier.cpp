@@ -171,7 +171,7 @@ bool Verifier::verify_primop(Lambda* current, const PrimOp* primop, PrimOpSet& p
             return invalid(op, "'tupleop' index out of bounds");
     } else if (const Store* op = primop->isa<Store>()) {
         if(const Ptr* ptrType = op->ptr()->type()->isa<Ptr>()) {
-            if(ptrType->ref() != op->val()->type())
+            if(ptrType->referenced_type() != op->val()->type())
                 return invalid(op, "ptr must point to the type of the provided value");
         } else
             return invalid(op, "ptr requires a pointer type");

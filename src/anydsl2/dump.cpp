@@ -26,7 +26,7 @@ Printer& Frame::print(Printer& p) const { p << "frame"; return p; }
 Printer& Mem::  print(Printer& p) const { p << "mem"; return p; }
 Printer& Pi   ::print(Printer& p) const { ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p,    "pi(", elems(), ")"); return p; }
 Printer& Sigma::print(Printer& p) const { ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "sigma(", elems(), ")"); return p; }
-Printer& Ptr::  print(Printer& p) const { ref()->print(p); p << "*"; return p; }
+Printer& Ptr::  print(Printer& p) const { referenced_type()->print(p); p << "*"; return p; }
 
 Printer& PrimType::print(Printer& p) const {
     switch (primtype_kind()) {

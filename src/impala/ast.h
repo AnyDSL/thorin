@@ -176,8 +176,6 @@ public:
 
 private:
 
-    void set(const Decl* decl, bool ext);
-
     bool extern_;
 
     friend class Parser;

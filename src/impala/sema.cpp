@@ -123,6 +123,9 @@ bool check(World& world, const Prg* prg, bool nossa) {
 //------------------------------------------------------------------------------
 
 void Prg::check(Sema& sema) const {
+    for_all (proto, protos())
+        proto->insert(sema);
+
     for_all (f, named_funs())
         f->insert(sema);
 

@@ -181,6 +181,8 @@ RefPtr Tuple::emit(CodeGen& cg) const {
 RefPtr Id::emit(CodeGen& cg) const {
     if (const NamedFun* named_fun = decl()->isa<NamedFun>())
         return Ref::create(named_fun->lambda());
+    if (const Proto* proto = decl()->isa<Proto>())
+        return Ref::create(cg.world().lambda(convert(proto->pi()), LambdaAttr(LambdaAttr::Extern), proto->symbol().str()));
 
     const VarDecl* vardecl = decl()->as<VarDecl>();
     const Type* air_type = convert(type());

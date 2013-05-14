@@ -94,6 +94,9 @@ void CodeGen::emit() {
     // for all top-level functions
     for_all (lf, fcts) {
         Lambda* lambda = lf.first;
+        if (lambda->empty())
+            continue;
+
         assert(lambda->is_returning());
         llvm::Function* fct = lf.second;
 

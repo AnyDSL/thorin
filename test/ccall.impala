@@ -1,0 +1,6 @@
+extern println(int) -> int;
+
+def main(i : int) -> int {
+    println(i);
+    return 0;
+}

@@ -53,6 +53,7 @@ public:
     virtual Printer& print(Printer& p) const;
     void emit(CodeGen& cg) const;
     const anydsl2::AutoVector<const NamedFun*>& named_funs() const { return named_funs_; }
+    const anydsl2::AutoVector<const Proto*>& protos() const { return protos_; }
 
 private:
 
@@ -148,15 +149,10 @@ public:
         symbol_ = symbol;
     }
 
-    const std::vector<const anydsl2::Type*>& types() const { return types_; }
-    const anydsl2::Type* ret_type() const { return ret_type_; }
-
+    const anydsl2::Pi* pi() const { return type_->as<anydsl2::Pi>(); }
     virtual Printer& print(Printer& p) const;
 
 private:
-
-    std::vector<const anydsl2::Type*> types_;
-    const anydsl2::Type* ret_type_;
 
     friend class Parser;
 };

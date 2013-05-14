@@ -371,18 +371,25 @@ const Proto* Parser::parse_proto() {
     Position pos1 = la().pos1();
     eat(Token::EXTERN);
     Proto* proto = new Proto(try_id("prototype").symbol());
+    std::vector<const Type*> types;
     expect(Token::L_PAREN, "prototype");
     PARSE_COMMA_LIST
     (
-        {
-            proto->types_.push_back(try_type("type list of prototype function"));
-        },
+        types.push_back(try_type("type list of prototype function")),
         Token::R_PAREN,
         "type list of prototype"
     )
 
     expect(Token::ARROW, "prototype");
-    proto->ret_type_ = try_type("return type of prototype");
+
+    const Type* ret_type = try_type("return type of prototype");
+    if (ret_type->isa<Void>())
+        types.push_back(world.pi0());
+    else
+        types.push_back(world.pi1(ret_type));
+
+    proto->type_ = world.pi(types);
+    proto->set_loc(pos1, prev_loc.pos2());
 
     return proto;
 }

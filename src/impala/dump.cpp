@@ -62,8 +62,8 @@ Printer& Prg::print(Printer& p) const {
 
 Printer& Proto::print(Printer& p) const {
     p << "extern " << symbol_ << " ";
-    ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "(", types_, ")");
-    p << " -> " << ret_type_;
+    ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "(", pi()->elems().slice_front(pi()->size() - 1), ")");
+    p << " -> " << pi()->elems().back();
 
     return p;
 }

@@ -789,11 +789,16 @@ void World::dead_code_elimination() {
 
     for_all (lambda, lambdas()) {
         if (lambda->attr().is_extern()) {
-            for_all (param, lambda->params()) {
-                if (param->order() >= 1) {
-                    for_all (use, param->uses()) {
-                        if (Lambda* caller = use->isa_lambda())
-                            dce_insert(pass, caller);
+            if (lambda->empty()) {
+                for_all (param, lambda->params())
+                    dce_insert(pass, param);
+            } else {
+                for_all (param, lambda->params()) {
+                    if (param->order() >= 1) {
+                        for_all (use, param->uses()) {
+                            if (Lambda* caller = use->isa_lambda())
+                                dce_insert(pass, caller);
+                        }
                     }
                 }
             }

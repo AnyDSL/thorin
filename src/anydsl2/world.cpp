@@ -100,7 +100,7 @@ const Ptr* World::ptr(const Type* referenced_type) { return unify(new Ptr(*this,
  */
 
 const PrimLit* World::literal(PrimTypeKind kind, Box box) {
-    return cse<PrimLitTuple, PrimLit>(PrimLitTuple(Node_PrimLit, type(kind), box), "");
+    return cse(new PrimLit(*this, kind, box, ""));
 }
 
 const PrimLit* World::literal(PrimTypeKind kind, int value) {
@@ -113,8 +113,8 @@ const PrimLit* World::literal(PrimTypeKind kind, int value) {
 }
 
 const PrimLit* World::literal(const Type* type, int value) { return literal(type->as<PrimType>()->primtype_kind(), value); }
-const Any*     World::any    (const Type* type) { return cse<DefTuple0, Any   >(DefTuple0(Node_Any,    type), ""); }
-const Bottom*  World::bottom (const Type* type) { return cse<DefTuple0, Bottom>(DefTuple0(Node_Bottom, type), ""); }
+const Any*     World::any    (const Type* type) { return cse(new Any(type, "")); }
+const Bottom*  World::bottom (const Type* type) { return cse(new Bottom(type, "")); }
 const PrimLit* World::zero   (const Type* type) { return zero  (type->as<PrimType>()->primtype_kind()); }
 const PrimLit* World::one    (const Type* type) { return one   (type->as<PrimType>()->primtype_kind()); }
 const PrimLit* World::allset (const Type* type) { return allset(type->as<PrimType>()->primtype_kind()); }
@@ -131,14 +131,7 @@ const Def* World::binop(int kind, const Def* lhs, const Def* rhs, const std::str
     return relop((RelOpKind) kind, lhs, rhs);
 }
 
-const Def* World::tuple(ArrayRef<const Def*> args, const std::string& name) {
-    Array<const Type*> elems(args.size());
-
-    for_all2 (&elem, elems, arg, args)
-        elem = arg->type();
-
-    return cse<DefTupleN, Tuple>(DefTupleN(Node_Tuple, sigma(elems), args), name);
-}
+const Def* World::tuple(ArrayRef<const Def*> args, const std::string& name) { return cse(new Tuple(*this, args, name)); }
 
 const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const std::string& name) {
     PrimTypeKind type = a->type()->as<PrimType>()->primtype_kind();
@@ -410,7 +403,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
             return binop(kind, a_lhs_lit, binop(kind, a_same->rhs(), b));
     }
 
-    return cse<DefTuple2, ArithOp>(DefTuple2(kind, a->type(), a, b), name);
+    return cse(new ArithOp(kind, a, b, name));
 }
 
 const Def* World::arithop_not(const Def* def) { return arithop_xor(allset(def->type()), def); }
@@ -539,7 +532,7 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::s
         }
     }
 
-    return cse<DefTuple2, RelOp>(DefTuple2(kind, type_u1(), a, b), name);
+    return cse(new RelOp(kind, a, b, name));
 }
 
 const Def* World::convop(ConvOpKind kind, const Def* from, const Type* to, const std::string& name) {
@@ -555,7 +548,7 @@ const Def* World::convop(ConvOpKind kind, const Def* from, const Type* to, const
     }
 #endif
 
-    return cse<DefTuple1, ConvOp>(DefTuple1(kind, to, from), name);
+    return cse(new ConvOp(kind, from, to, name));
 }
 
 const Def* World::extract(const Def* tuple, u32 index, const std::string& name) {
@@ -576,8 +569,7 @@ const Def* World::extract(const Def* agg, const Def* index, const std::string& n
             return extract(insert->tuple(), index);
     }
 
-    const Type* type = agg->type()->as<Sigma>()->elem_via_lit(index);
-    return cse<DefTuple2, Extract>(DefTuple2(Node_Extract, type, agg, index), name);
+    return cse(new Extract(agg, index, name));
 }
 
 const Def* World::insert(const Def* tuple, u32 index, const Def* value, const std::string& name) {
@@ -596,37 +588,35 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, con
         return tuple(args);
     }
 
-    return cse<DefTuple3, Insert>(DefTuple3(Node_Extract, agg->type(), agg, index, value), name);
+    return cse(new Insert(agg, index, value, name));
 }
 
-const Load* World::load(const Def* m, const Def* ptr, const std::string& name) {
-    return cse<DefTuple2, Load>(DefTuple2(Node_Load, sigma2(mem(), ptr->type()->as<Ptr>()->referenced_type()), m, ptr), name);
+const Load* World::load(const Def* mem, const Def* ptr, const std::string& name) {
+    return cse(new Load(mem, ptr, name));
 }
-const Store* World::store(const Def* m, const Def* ptr, const Def* val, const std::string& name) {
-    return cse<DefTuple3, Store>(DefTuple3(Node_Store, mem(), m, ptr, val), name);
+const Store* World::store(const Def* mem, const Def* ptr, const Def* value, const std::string& name) {
+    return cse(new Store(mem, ptr, value, name));
 }
-const Enter* World::enter(const Def* m, const std::string& name) {
-    if (const Leave* leave = m->isa<Leave>())
+const Enter* World::enter(const Def* mem, const std::string& name) {
+    if (const Leave* leave = mem->isa<Leave>())
         if (const Extract* extract = leave->frame()->isa<Extract>())
             if (const Enter* old_enter = extract->tuple()->isa<Enter>())
                 return old_enter;
 
-    if (const Extract* extract = m->isa<Extract>())
+    if (const Extract* extract = mem->isa<Extract>())
         if (const Enter* old_enter = extract->tuple()->isa<Enter>())
             return old_enter;
 
-    return cse<DefTuple1, Enter>(DefTuple1(Node_Enter, sigma2(mem(), frame()), m), name);
+    return cse(new Enter(mem, name));
 }
-const Leave* World::leave(const Def* m, const Def* frame, const std::string& name) {
-    assert(frame->type()->isa<Frame>());
-    return cse<DefTuple2, Leave>(DefTuple2(Node_Leave, mem(), m, frame), name);
+const Leave* World::leave(const Def* mem, const Def* frame, const std::string& name) {
+    return cse(new Leave(mem, frame, name));
 }
 const LEA* World::lea(const Def* ptr, const Def* index, const std::string& name) {
-    const Type* type = this->ptr(ptr->type()->as<Ptr>()->referenced_type()->as<Sigma>()->elem_via_lit(index));
-    return cse<DefTuple2, LEA>(DefTuple2(Node_LEA, type, ptr, index), name);
+    return cse(new LEA(ptr, index, name));
 }
-const Slot* World::slot(const Type* type, size_t index, const Def* frame, const std::string& name) {
-    return cse<SlotTuple, Slot>(SlotTuple(Node_Slot, type->to_ptr(), index, frame), name);
+const Slot* World::slot(const Type* type, const Def* frame, size_t index, const std::string& name) {
+    return cse(new Slot(type, frame, index, name));
 }
 
 const Def* World::select(const Def* cond, const Def* a, const Def* b, const std::string& name) {
@@ -641,11 +631,10 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b, const std:
         std::swap(a, b);
     }
 
-    return cse<DefTuple3, Select>(DefTuple3(Node_Select, a->type(), cond, a, b), name);
+    return cse(new Select(cond, a, b, name));
 }
-
 const TypeKeeper* World::typekeeper(const Type* type, const std::string& name) {
-    return cse<DefTuple0, TypeKeeper>(DefTuple0(Node_TypeKeeper, type), name)->as<TypeKeeper>();
+    return cse(new TypeKeeper(type, name));
 }
 
 Lambda* World::lambda(const Pi* pi, LambdaAttr attr, const std::string& name) {
@@ -683,7 +672,7 @@ const Def* World::rebuild(const PrimOp* in, ArrayRef<const Def*> ops) {
         case Node_Leave:   assert(ops.size() == 2); return leave(  ops[0], ops[1], name);
         case Node_Load:    assert(ops.size() == 2); return load(   ops[0], ops[1], name);
         case Node_Select:  assert(ops.size() == 3); return select( ops[0], ops[1], ops[2], name);
-        case Node_Slot:    assert(ops.size() == 1); return slot(   type->as<Ptr>()->referenced_type(), in->as<Slot>()->index(), ops[0], name);
+        case Node_Slot:    assert(ops.size() == 1); return slot(   type->as<Ptr>()->referenced_type(), ops[0], in->as<Slot>()->index(), name);
         case Node_Store:   assert(ops.size() == 3); return store(  ops[0], ops[1], ops[2], name);
         case Node_Tuple:                            return tuple(  ops, name);
         case Node_Bottom:  assert(ops.empty());     return bottom(type);
@@ -702,12 +691,6 @@ const Param* World::param(const Type* type, Lambda* lambda, size_t index, const 
  * cse + unify
  */
 
-void World::cse_break(const PrimOp* primop) {
-#ifndef NDEBUG
-    if (breakpoints_.find(primop->gid()) != breakpoints_.end()) ANYDSL2_BREAK
-#endif
-}
-
 const Type* World::unify_base(const Type* type) {
     TypeSet::iterator i = types_.find(type);
     if (i != types_.end()) {
@@ -718,6 +701,26 @@ const Type* World::unify_base(const Type* type) {
     std::pair<TypeSet::iterator, bool> p = types_.insert(type);
     assert(p.second && "hash/equal broken");
     return type;
+}
+
+const Def* World::cse_base(const PrimOp* primop) {
+    PrimOpSet::iterator i = primops_.find(primop);
+    if (i != primops_.end()) {
+        for (size_t x = 0, e = primop->size(); x != e; ++x)
+            primop->unregister_use(x);
+
+        delete primop;
+        primop = *i;
+    } else {
+        std::pair<PrimOpSet::iterator, bool> p = primops_.insert(primop);
+        assert(p.second && "hash/equal broken");
+        primop->set_gid(gid_++);
+    }
+
+    if (breakpoints_.find(primop->gid()) != breakpoints_.end()) 
+        ANYDSL2_BREAK
+
+    return primop;
 }
 
 /*

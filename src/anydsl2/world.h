@@ -248,7 +248,7 @@ public:
     const Store* store(const Def* mem, const Def* ptr, const Def* val, const std::string& name = "");
     const Enter* enter(const Def* mem, const std::string& name = "");
     const Leave* leave(const Def* mem, const Def* frame, const std::string& name = "");
-    const Slot* slot(const Type* type, size_t index, const Def* frame, const std::string& name = "");
+    const Slot* slot(const Type* type, const Def* frame, size_t index, const std::string& name = "");
     const LEA* lea(const Def* ptr, const Def* index, const std::string& name = "");
 
     /*
@@ -312,25 +312,8 @@ protected:
     }
     const Type* unify_base(const Type* type);
     template<class T> const T* unify(const T* type) { return unify_base(type)->template as<T>(); }
-
-    template<class T, class U>
-    const U* cse(const T& tuple, const std::string& name) {
-        PrimOpSet::iterator i = primops_.find(tuple, std::ptr_fun<const T&, size_t>(hash_tuple),
-                                                     std::ptr_fun<const T&, const Node*, bool>(smart_eq<T, U>));
-        if (i != primops_.end()) {
-            cse_break(*i);
-            return (*i)->as<U>();
-        }
-
-        std::pair<PrimOpSet::iterator, bool> p = primops_.insert(new U(tuple, name));
-        assert(p.second && "hash/equal broken");
-        const U* u = (*p.first)->as<U>();
-        u->set_gid(gid_++);
-        cse_break(u);
-        return u;
-    }
-
-    void cse_break(const PrimOp* primop);
+    const Def* cse_base(const PrimOp*);
+    template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
 
 private:
 

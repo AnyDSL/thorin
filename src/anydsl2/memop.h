@@ -39,9 +39,7 @@ public:
 class Load : public Access {
 private:
 
-    Load(const DefTuple2& args, const std::string& name)
-        : Access(2, args.get<0>(), args.get<1>(), args.get<2>(), args.get<3>(), name)
-    {}
+    Load(const Def* mem, const Def* ptr, const std::string& name);
 
 public:
 
@@ -57,11 +55,7 @@ public:
 class Store : public Access {
 private:
 
-    Store(const DefTuple3& args, const std::string& name)
-        : Access(3, args.get<0>(), args.get<1>(), args.get<2>(), args.get<3>(), name)
-    {
-        set_op(2, args.get<4>());
-    }
+    Store(const Def* mem, const Def* ptr, const Def* value, const std::string& name);
 
 public:
 
@@ -75,9 +69,7 @@ public:
 class Enter : public MemOp {
 private:
 
-    Enter(const DefTuple1& args, const std::string& name)
-        : MemOp(1, args.get<0>(), args.get<1>(), args.get<2>(), name)
-    {}
+    Enter(const Def* mem, const std::string& name);
 
 public:
 
@@ -92,11 +84,7 @@ public:
 class Leave : public MemOp {
 private:
 
-    Leave(const DefTuple2& args, const std::string& name)
-        : MemOp(2, args.get<0>(), args.get<1>(), args.get<2>(), name)
-    {
-        set_op(1, args.get<3>());
-    }
+    Leave(const Def* mem, const Def* frame, const std::string& name);
 
 public:
 
@@ -107,8 +95,6 @@ public:
 
 //------------------------------------------------------------------------------
 
-typedef boost::tuple<int, const Type*, size_t, const Def*> SlotTuple;
-
 /**
  * This represents a slot in a stack frame opend via \p Enter.
  * Loads from this address yield \p Bottom if the frame has already been closed via \p Leave.
@@ -117,19 +103,17 @@ typedef boost::tuple<int, const Type*, size_t, const Def*> SlotTuple;
 class Slot : public PrimOp {
 private:
 
-    Slot(const SlotTuple& args, const std::string& name) 
-        : PrimOp(1, args.get<0>(), args.get<1>(), name)
-        , index_(args.get<2>())
-    {
-        set_op(0, args.get<3>());
-    }
+    Slot(const Type* type, const Def* frame, size_t index, const std::string& name);
 
 public:
 
-    size_t index() const { return index_; }
     const Def* frame() const { return op(0); }
-    ANYDSL2_HASH_EQUAL
-    SlotTuple as_tuple() const { return SlotTuple(kind(), type(), index(), frame()); }
+    size_t index() const { return index_; }
+
+    virtual size_t hash() const { return hash_combine(PrimOp::hash(), index()); }
+    virtual bool equal(const Node* other) const {
+        return PrimOp::equal(other) ? this->index() == other->as<Slot>()->index() : false;
+    }
 
 private:
 
@@ -143,11 +127,11 @@ private:
 class LEA : public PrimOp {
 private:
 
-    LEA(const DefTuple2& args, const std::string& name)
-        : PrimOp(2, args.get<0>(), args.get<1>(), name)
+    LEA(const Def* ptr, const Def* index, const std::string& name)
+        : PrimOp(2, Node_LEA, ptr->type(), name)
     {
-        set_op(0, args.get<2>());
-        set_op(0, args.get<3>());
+        set_op(0, ptr);
+        set_op(1, index);
     }
 
 public:

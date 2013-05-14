@@ -1,31 +1,13 @@
 #ifndef ANYDSL2_PRIMOP_H
 #define ANYDSL2_PRIMOP_H
 
-#include <boost/tuple/tuple_comparison.hpp>
-
 #include "anydsl2/enums.h"
 #include "anydsl2/def.h"
 #include "anydsl2/util/hash.h"
 
-#define ANYDSL2_HASH_EQUAL \
-    virtual bool equal(const Node* other) const { \
-        typedef BOOST_TYPEOF(*this) T; \
-        return other->isa<T>() && this->as_tuple() == other->as<T>()->as_tuple(); \
-    } \
-    virtual size_t hash() const { return hash_tuple(as_tuple()); }
-
 namespace anydsl2 {
 
 class PrimLit;
-
-//------------------------------------------------------------------------------
-
-typedef boost::tuple<int, const Type*> DefTuple0;
-typedef boost::tuple<int, const Type*, const Def*> DefTuple1;
-typedef boost::tuple<int, const Type*, const Def*, const Def*> DefTuple2;
-typedef boost::tuple<int, const Type*, const Def*, const Def*, const Def*> DefTuple3;
-typedef boost::tuple<int, const Type*, ArrayRef<const Def*> > DefTupleN;
-
 
 //------------------------------------------------------------------------------
 
@@ -38,12 +20,10 @@ protected:
 
 public:
 
-    DefTupleN as_tuple() const { return DefTupleN(kind(), type(), ops()); }
     void update(size_t i, const Def* with);
     virtual Printer& print(Printer&) const;
     virtual Printer& print_assignment(Printer &printer) const;
     virtual const char* op_name() const;
-    ANYDSL2_HASH_EQUAL
 
 private:
 
@@ -86,8 +66,8 @@ public:
 class ArithOp : public BinOp {
 private:
 
-    ArithOp(const DefTuple2& args, const std::string& name)
-        : BinOp((NodeKind) args.get<0>(), args.get<1>(), args.get<2>(), args.get<3>(), name)
+    ArithOp(ArithOpKind kind, const Def* lhs, const Def* rhs, const std::string& name)
+        : BinOp((NodeKind) kind, lhs->type(), lhs, rhs, name)
     {}
 
 public:
@@ -103,9 +83,7 @@ public:
 class RelOp : public BinOp {
 private:
 
-    RelOp(const DefTuple2& args, const std::string& name)
-        : BinOp((NodeKind) args.get<0>(), args.get<1>(), args.get<2>(), args.get<3>(), name)
-    {}
+    RelOp(RelOpKind kind, const Def* lhs, const Def* rhs, const std::string& name);
 
 public:
 
@@ -120,10 +98,10 @@ public:
 class ConvOp : public PrimOp {
 private:
 
-    ConvOp(const DefTuple1& args, const std::string& name)
-        : PrimOp(1, (NodeKind) args.get<0>(), args.get<1>(), name)
+    ConvOp(ConvOpKind kind, const Def* from, const Type* to, const std::string& name)
+        : PrimOp(1, (NodeKind) kind, to, name)
     {
-        set_op(0, args.get<2>());
+        set_op(0, from);
     }
 
 public:
@@ -140,7 +118,7 @@ public:
 class Select : public PrimOp {
 private:
 
-    Select(const DefTuple3& args, const std::string& name);
+    Select(const Def* cond, const Def* tval, const Def* fval, const std::string& name);
 
 public:
 
@@ -156,10 +134,10 @@ public:
 class TupleOp : public PrimOp {
 protected:
 
-    TupleOp(size_t size, int kind, const Type* type, const Def* agg, const Def* index, const std::string& name)
+    TupleOp(size_t size, int kind, const Type* type, const Def* tuple, const Def* index, const std::string& name)
         : PrimOp(size, kind, type, name)
     {
-        set_op(0, agg);
+        set_op(0, tuple);
         set_op(1, index);
     }
 
@@ -176,9 +154,7 @@ public:
 class Extract : public TupleOp {
 private:
 
-    Extract(const DefTuple2& args, const std::string& name)
-        : TupleOp(2, args.get<0>(), args.get<1>(), args.get<2>(), args.get<3>(), name)
-    {}
+    Extract(const Def* tuple, const Def* index, const std::string& name);
     
     friend class World;
 };
@@ -188,12 +164,8 @@ private:
 class Insert : public TupleOp {
 private:
 
-    Insert(const DefTuple3& args, const std::string& name)
-        : TupleOp(3, args.get<0>(), args.get<1>(), args.get<2>(), args.get<3>(), name)
-    {
-        set_op(2, args.get<4>());
-    }
-    
+    Insert(const Def* tuple, const Def* index, const Def* value, const std::string& name);
+
 public:
 
     const Def* value() const { return op(2); }
@@ -206,7 +178,7 @@ public:
 class Tuple : public PrimOp {
 private:
 
-    Tuple(const DefTupleN& args, const std::string& name);
+    Tuple(World& world, ArrayRef<const Def*> args, const std::string& name);
 
     friend class World;
 };

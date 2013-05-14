@@ -137,7 +137,7 @@ void NamedFun::emit(CodeGen& cg) const {
 RefPtr VarDecl::emit(CodeGen& cg) const {
     const Type* air_type = convert(type());
     if (is_address_taken())
-        return Ref::create(cg.world().slot(air_type, handle(), cg.cur_frame, symbol().str()), cg);
+        return Ref::create(cg.world().slot(air_type, cg.cur_frame, handle(), symbol().str()), cg);
 
     return Ref::create(cg.cur_bb, handle(), air_type, symbol().str());
 }
@@ -192,7 +192,7 @@ RefPtr Id::emit(CodeGen& cg) const {
     const Type* air_type = convert(type());
 
     if (vardecl->is_address_taken())
-        return Ref::create(cg.world().slot(air_type, vardecl->handle(), cg.cur_frame, symbol().str()), cg);
+        return Ref::create(cg.world().slot(air_type, cg.cur_frame, vardecl->handle(), symbol().str()), cg);
 
     return Ref::create(cg.cur_bb, vardecl->handle(), air_type, symbol().str());
 }

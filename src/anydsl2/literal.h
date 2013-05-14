@@ -45,8 +45,8 @@ protected:
 class Any : public Undef {
 private:
 
-    Any(const DefTuple0& args, const std::string& name)
-        : Undef(args.get<0>(), args.get<1>(), name)
+    Any(const Type* type, const std::string& name)
+        : Undef(Node_Any, type, name)
     {}
 
     friend class World;
@@ -63,8 +63,8 @@ private:
 class Bottom : public Undef {
 private:
 
-    Bottom(const DefTuple0& args, const std::string& name)
-        : Undef(args.get<0>(), args.get<1>(), name)
+    Bottom(const Type* type, const std::string& name)
+        : Undef(Node_Bottom, type, name)
     {}
 
     friend class World;
@@ -72,26 +72,25 @@ private:
 
 //------------------------------------------------------------------------------
 
-typedef boost::tuple<int, const Type*, Box> PrimLitTuple;
-
 class PrimLit : public Literal {
 private:
 
-    PrimLit(const PrimLitTuple& args, const std::string& name)
-        : Literal(args.get<0>(), args.get<1>(), name)
-        , box_(args.get<2>())
-    {}
+    PrimLit(World& world, PrimTypeKind kind, Box box, const std::string& name);
 
 public:
 
     Box box() const { return box_; }
     const PrimType* primtype() const { return type()->as<PrimType>(); }
     PrimTypeKind primtype_kind() const { return primtype()->primtype_kind(); }
-    PrimLitTuple as_tuple() const { return PrimLitTuple(kind(), type(), box()); }
+
+    virtual size_t hash() const {
+        return hash_combine(Literal::hash(), bcast<uint64_t, Box>(box()));
+    }
+    bool equal(const Node* other) const {
+        return Literal::equal(other) ? box() == other->as<PrimLit>()->box() : false; 
+    }
 
 private:
-
-    ANYDSL2_HASH_EQUAL
 
     Box box_;
 
@@ -108,8 +107,8 @@ private:
 class TypeKeeper : public Literal {
 private:
 
-    TypeKeeper(const DefTuple0& args, const std::string& name)
-        : Literal(args.get<0>(), args.get<1>(), name)
+    TypeKeeper(const Type* type, const std::string& name)
+        : Literal(Node_TypeKeeper, type, name)
     {}
 
     friend class World;

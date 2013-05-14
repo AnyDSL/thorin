@@ -414,27 +414,6 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (const Slot* slot = def->isa<Slot>())
         return builder.CreateAlloca(map(slot->type()->as<Ptr>()->referenced_type()), 0, slot->unique_name());
 
-    // TODO
-#if 0
-    if (const CCall* ccall = def->isa<CCall>()) {
-        size_t num_args = ccall->num_args();
-
-        Array<llvm::Type*> arg_types(num_args);
-        for_all2 (&arg_type, arg_types, arg, ccall->args())
-            arg_type = map(arg->type());
-
-        Array<llvm::Value*> arg_vals(num_args);
-        for_all2 (&arg_val, arg_vals, arg, ccall->args())
-            arg_val = lookup(arg);
-
-        llvm::FunctionType* ft = llvm::FunctionType::get(
-                ccall->returns_void() ? llvm::Type::getVoidTy(context) : map(ccall->rettype()),
-                llvm_ref(arg_types), ccall->vararg());
-        llvm::Function* callee = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, ccall->callee(), module);
-        return builder.CreateCall(callee, llvm_ref(arg_vals));
-    }
-#endif
-
     if (def->isa<Enter>() || def->isa<Leave>())
         return 0;
 

@@ -69,11 +69,6 @@ public:
     bool is_float() const { return anydsl2::is_float(kind()); }
     bool is_primtype() const { return anydsl2::is_primtype(kind()); }
 
-    virtual size_t hash() const;
-    virtual bool equal(const Type*) const;
-
-//------------------------------------------------------------------------------
-
 private:
 
     World& world_;
@@ -201,7 +196,7 @@ private:
 
     virtual Printer& print(Printer& printer) const;
     virtual size_t hash() const;
-    virtual bool equal(const Type* other) const;
+    virtual bool equal(const Node* other) const;
 
     bool named_;
 
@@ -239,7 +234,7 @@ private:
     {}
 
     virtual size_t hash() const;
-    virtual bool equal(const Type* other) const;
+    virtual bool equal(const Node* other) const;
 
 public:
 
@@ -270,7 +265,7 @@ public:
     size_t num_flags() const { return flags_.size(); }
 
     virtual size_t hash() const;
-    virtual bool equal(const Type* other) const;
+    virtual bool equal(const Node* other) const;
 
 private:
 

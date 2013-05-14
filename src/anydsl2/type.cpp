@@ -1,7 +1,6 @@
 #include "anydsl2/type.h"
 
 #include <sstream>
-#include <typeinfo>
 
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
@@ -44,27 +43,6 @@ const char* GenericMap::to_string() const {
 }
 
 //------------------------------------------------------------------------------
-
-size_t Type::hash() const {
-    size_t seed = 0;
-    boost::hash_combine(seed, kind());
-    boost::hash_combine(seed, size());
-    for_all (elem, elems())
-        boost::hash_combine(seed, elem);
-
-    return seed;
-}
-
-bool Type::equal(const Type* other) const {
-    if (typeid(*this) == typeid(*other) && this->size() == other->size()) {
-        for_all2 (this_elem, this->elems(), other_elem, other->elems()) {
-            if (this_elem != other_elem)
-                return false;
-        }
-        return true;
-    }
-    return false;
-}
 
 int Type::order() const {
     if (kind() == Node_Ptr)
@@ -170,7 +148,7 @@ size_t Sigma::hash() const {
     return named_ ? boost::hash_value(this) : CompoundType::hash();
 }
 
-bool Sigma::equal(const Type* other) const {
+bool Sigma::equal(const Node* other) const {
     return named_ ? this == other : CompoundType::equal(other);
 }
 
@@ -201,7 +179,7 @@ size_t Generic::hash() const {
     return seed; 
 }
 
-bool Generic::equal(const Type* other) const {
+bool Generic::equal(const Node* other) const {
     return Type::equal(other) ? index() == other->as<Generic>()->index() : false;
 }
 
@@ -214,7 +192,7 @@ size_t Opaque::hash() const {
     return seed; 
 }
 
-bool Opaque::equal(const Type* other) const {
+bool Opaque::equal(const Node* other) const {
     return Type::equal(other) ? flags() == other->as<Opaque>()->flags() : false;
 }
 

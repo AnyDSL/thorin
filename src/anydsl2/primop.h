@@ -8,7 +8,7 @@
 #include "anydsl2/util/hash.h"
 
 #define ANYDSL2_HASH_EQUAL \
-    virtual bool equal(const PrimOp* other) const { \
+    virtual bool equal(const Node* other) const { \
         typedef BOOST_TYPEOF(*this) T; \
         return other->isa<T>() && this->as_tuple() == other->as<T>()->as_tuple(); \
     } \

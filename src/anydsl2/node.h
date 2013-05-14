@@ -43,6 +43,8 @@ public:
     size_t size() const { return ops_.size(); }
     bool empty() const { return ops_.empty(); }
     virtual Printer& print(Printer&) const = 0;
+    virtual size_t hash() const;
+    virtual bool equal(const Node*) const;
 
     /*
      * scratch operations

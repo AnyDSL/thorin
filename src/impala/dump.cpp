@@ -52,8 +52,9 @@ void ASTNode::dump() const {
 }
 
 Printer& Prg::print(Printer& p) const {
-    for_all (f, named_funs()) {
-        f->print(p);
+    for_all (global, globals()) {
+        p.newline();
+        global->print(p);
         p.newline();
     }
 

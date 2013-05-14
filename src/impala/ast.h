@@ -24,14 +24,14 @@ namespace anydsl2 {
 namespace impala {
 
 class CodeGen;
-class VarDecl;
 class Expr;
+class Global;
 class NamedFun;
-class Proto;
 class Printer;
 class ScopeStmt;
 class Sema;
 class Stmt;
+class VarDecl;
 
 typedef anydsl2::AutoVector<const VarDecl*> VarDecls;
 typedef anydsl2::AutoVector<const Expr*> Exprs;
@@ -52,13 +52,11 @@ public:
     void check(Sema& sema) const;
     virtual Printer& print(Printer& p) const;
     void emit(CodeGen& cg) const;
-    const anydsl2::AutoVector<const NamedFun*>& named_funs() const { return named_funs_; }
-    const anydsl2::AutoVector<const Proto*>& protos() const { return protos_; }
+    const anydsl2::AutoVector<const Global*>& globals() const { return globals_; }
 
 private:
 
-    anydsl2::AutoVector<const NamedFun*> named_funs_;
-    anydsl2::AutoVector<const Proto*> protos_;
+    anydsl2::AutoVector<const Global*> globals_;
 
     friend class Parser;
 };
@@ -142,7 +140,9 @@ private:
     friend class ForeachStmt;
 };
 
-class Proto : public Decl {
+class Global : public Decl {};
+
+class Proto : public Global {
 public:
 
     Proto(anydsl2::Symbol symbol) {
@@ -157,7 +157,7 @@ private:
     friend class Parser;
 };
 
-class NamedFun : public Decl, public Fun {
+class NamedFun : public Global, public Fun {
 public:
 
     NamedFun(bool ext)

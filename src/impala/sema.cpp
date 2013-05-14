@@ -123,14 +123,13 @@ bool check(World& world, const Prg* prg, bool nossa) {
 //------------------------------------------------------------------------------
 
 void Prg::check(Sema& sema) const {
-    for_all (proto, protos())
-        proto->insert(sema);
+    for_all (global, globals())
+        global->insert(sema);
 
-    for_all (f, named_funs())
-        f->insert(sema);
-
-    for_all (f, named_funs())
+    for_all (global, globals()) {
+        if (const NamedFun* f = global->isa<NamedFun>())
         f->check(sema);
+    }
 }
 
 static void propagate_set(const Type* type, boost::unordered_set<const Generic*>& bound) {

@@ -355,8 +355,8 @@ void Parser::parse_globals() {
     while (true) {
         switch (la()) {
             case Token::SEMICOLON:   lex(); continue; // ignore semicolon in global list
-            case Token::DEF:         prg->named_funs_.push_back(parse_named_fun()); continue;
-            case Token::EXTERN:      prg->protos_.push_back(parse_proto()); continue;
+            case Token::DEF:         prg->globals_.push_back(parse_named_fun()); continue;
+            case Token::EXTERN:      prg->globals_.push_back(parse_proto()); continue;
             case Token::END_OF_FILE: return;
 
             // consume token nobody wants to have in order to prevent infinite loop

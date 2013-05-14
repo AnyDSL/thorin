@@ -107,17 +107,21 @@ const Lambda* Fun::emit_body(CodeGen& cg, Lambda* parent, const char* what) cons
 //------------------------------------------------------------------------------
 
 void Prg::emit(CodeGen& cg) const {
-    for_all (f, named_funs()) {
-        Lambda* lambda = f->emit_head(cg, f->symbol());
+    for_all (global, globals()) {
+        if (const NamedFun* f = global->isa<NamedFun>()) {
+            Lambda* lambda = f->emit_head(cg, f->symbol());
 
-        if (f->symbol() == Symbol("main")) {
-            lambda->name += "_impala";
-            lambda->attr().set_extern();
+            if (f->symbol() == Symbol("main")) {
+                lambda->name += "_impala";
+                lambda->attr().set_extern();
+            }
         }
     }
 
-    for_all (f, named_funs())
-        f->emit(cg);
+    for_all (global, globals()) {
+        if (const NamedFun* f = global->isa<NamedFun>())
+            f->emit(cg);
+    }
 
     // clear get/set value stuff
     for_all (lambda, cg.world().lambdas())

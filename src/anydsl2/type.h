@@ -233,8 +233,10 @@ private:
         , index_(index)
     {}
 
-    virtual size_t hash() const;
-    virtual bool equal(const Node* other) const;
+    virtual size_t hash() const { return hash_combine(Type::hash(), index()); }
+    virtual bool equal(const Node* other) const { 
+        return Type::equal(other) ? index() == other->as<Generic>()->index() : false; 
+    }
 
 public:
 
@@ -265,7 +267,9 @@ public:
     size_t num_flags() const { return flags_.size(); }
 
     virtual size_t hash() const;
-    virtual bool equal(const Node* other) const;
+    virtual bool equal(const Node* other) const {
+        return Type::equal(other) ? flags() == other->as<Opaque>()->flags() : false;
+    }
 
 private:
 

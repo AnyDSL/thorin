@@ -173,27 +173,11 @@ bool Pi::is_returning() const {
 
 //------------------------------------------------------------------------------
 
-size_t Generic::hash() const { 
-    size_t seed = Type::hash(); 
-    boost::hash_combine(seed, index()); 
-    return seed; 
-}
-
-bool Generic::equal(const Node* other) const {
-    return Type::equal(other) ? index() == other->as<Generic>()->index() : false;
-}
-
-//------------------------------------------------------------------------------
-
 size_t Opaque::hash() const { 
     size_t seed = Type::hash(); 
     for_all (flag, flags_)
         boost::hash_combine(seed, flag); 
     return seed; 
-}
-
-bool Opaque::equal(const Node* other) const {
-    return Type::equal(other) ? flags() == other->as<Opaque>()->flags() : false;
 }
 
 //------------------------------------------------------------------------------

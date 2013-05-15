@@ -166,7 +166,7 @@ public:
 class CompoundType : public Type {
 protected:
 
-    CompoundType(World& world, int kind, size_t num_elems);
+    CompoundType(World& world, int kind, size_t num_subtypes);
     CompoundType(World& world, int kind, Elems elems);
 };
 

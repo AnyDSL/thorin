@@ -96,7 +96,7 @@ public:
     // primitive types
 
     /// Get PrimType.
-    const PrimType* type(PrimTypeKind kind, size_t num_elems = 1) const {
+    const PrimType* type(PrimTypeKind kind, size_t num_elems = 1) {
         size_t i = kind - Begin_PrimType;
         assert(0 <= i && i < (size_t) Num_PrimTypes);
         return num_elems == 1 ? primtypes_[i] : unify(new PrimType(*this, kind, num_elems));

@@ -26,14 +26,25 @@ Printer& Frame::print(Printer& p) const { p << "frame"; return p; }
 Printer& Mem::  print(Printer& p) const { p << "mem"; return p; }
 Printer& Pi   ::print(Printer& p) const { ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p,    "pi(", elems(), ")"); return p; }
 Printer& Sigma::print(Printer& p) const { ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "sigma(", elems(), ")"); return p; }
-Printer& Ptr::  print(Printer& p) const { referenced_type()->print(p); p << "*"; return p; }
+
+Printer& Ptr::print(Printer& p) const { 
+    if (is_vector())
+        p << "< " << num_elems() << " x ";
+    referenced_type()->print(p); p << "*"; return p; 
+    if (is_vector())
+        p << ">";
+}
 
 Printer& PrimType::print(Printer& p) const {
+    if (is_vector())
+        p << "< " << num_elems() << " x ";
     switch (primtype_kind()) {
 #define ANYDSL2_UF_TYPE(T) case Node_PrimType_##T: p << #T; return p;
 #include "anydsl2/tables/primtypetable.h"
     default: ANYDSL2_UNREACHABLE;
     }
+    if (is_vector())
+        p << ">";
 }
 
 Printer& Generic::print(Printer& p) const {

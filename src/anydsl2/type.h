@@ -177,6 +177,7 @@ public:
 
     const Type* referenced_type() const { return elem(0); }
     size_t num_elems() const { return num_elems_; }
+    bool is_vector() const { return num_elems_ != 1; }
 
 private:
 

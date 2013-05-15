@@ -88,16 +88,18 @@ public:
      * types
      */
 
-#define ANYDSL2_UF_TYPE(T) const PrimType* type_##T() const { return T##_; }
+#define ANYDSL2_UF_TYPE(T) const PrimType* type_##T(size_t num_elems = 1) { \
+    return num_elems == 1 ? T##_ : unify(new PrimType(*this, PrimType_##T, num_elems)); \
+}
 #include "anydsl2/tables/primtypetable.h"
 
     // primitive types
 
     /// Get PrimType.
-    const PrimType* type(PrimTypeKind kind) const {
+    const PrimType* type(PrimTypeKind kind, size_t num_elems = 1) const {
         size_t i = kind - Begin_PrimType;
         assert(0 <= i && i < (size_t) Num_PrimTypes);
-        return primtypes_[i];
+        return num_elems == 1 ? primtypes_[i] : unify(new PrimType(*this, kind, num_elems));
     }
 
     const Mem* mem() const { return mem_; }

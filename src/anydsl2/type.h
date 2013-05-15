@@ -101,6 +101,7 @@ private:
     Mem(World& world)
         : Type(world, Node_Mem, 0, false)
     {}
+
     virtual Printer& print(Printer& printer) const;
 
     friend class World;
@@ -115,6 +116,7 @@ private:
     Frame(World& world)
         : Type(world, Node_Frame, 0, false)
     {}
+
     virtual Printer& print(Printer& printer) const;
 
     friend class World;
@@ -126,17 +128,20 @@ private:
 class PrimType : public Type {
 private:
 
-    PrimType(World& world, PrimTypeKind kind)
+    PrimType(World& world, PrimTypeKind kind, size_t num_elems)
         : Type(world, (int) kind, 0, false)
     {}
 
+    virtual Printer& print(Printer& printer) const;
+
 public:
 
+    size_t num_elems() const { return num_elems_; }
     PrimTypeKind primtype_kind() const { return (PrimTypeKind) node_kind(); }
 
 private:
 
-    virtual Printer& print(Printer& printer) const;
+    size_t num_elems_;
 
     friend class World;
 };
@@ -187,16 +192,16 @@ private:
         , named_(false)
     {}
 
+    virtual Printer& print(Printer& printer) const;
+    virtual size_t hash() const;
+    virtual bool equal(const Node* other) const;
+
 public:
 
     bool named() const { return named_; }
     // TODO build setter for named sigmas which sets is_generic_
 
 private:
-
-    virtual Printer& print(Printer& printer) const;
-    virtual size_t hash() const;
-    virtual bool equal(const Node* other) const;
 
     bool named_;
 
@@ -213,12 +218,12 @@ private:
         : CompoundType(world, Node_Pi, elems)
     {}
 
+    virtual Printer& print(Printer& printer) const;
+
 public:
 
     bool is_basicblock() const { return order() == 1; }
     bool is_returning() const;
-
-    virtual Printer& print(Printer& printer) const;
 
     friend class World;
 };
@@ -233,6 +238,7 @@ private:
         , index_(index)
     {}
 
+    virtual Printer& print(Printer& printer) const;
     virtual size_t hash() const { return hash_combine(Type::hash(), index()); }
     virtual bool equal(const Node* other) const { 
         return Type::equal(other) ? index() == other->as<Generic>()->index() : false; 
@@ -241,7 +247,6 @@ private:
 public:
 
     size_t index() const { return index_; }
-    virtual Printer& print(Printer& printer) const;
 
 private:
 
@@ -260,20 +265,19 @@ private:
         , flags_(flags)
     {}
 
+    virtual Printer& print(Printer& printer) const;
+    virtual size_t hash() const;
+    virtual bool equal(const Node* other) const {
+        return Type::equal(other) ? flags() == other->as<Opaque>()->flags() : false;
+    }
+
 public:
 
     ArrayRef<uint32_t> flags() const { return flags_; }
     uint32_t flag(size_t i) const { return flags_[i]; }
     size_t num_flags() const { return flags_.size(); }
 
-    virtual size_t hash() const;
-    virtual bool equal(const Node* other) const {
-        return Type::equal(other) ? flags() == other->as<Opaque>()->flags() : false;
-    }
-
 private:
-
-    virtual Printer& print(Printer& printer) const;
 
     Array<uint32_t> flags_;
 

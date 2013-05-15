@@ -61,7 +61,7 @@ World::World()
     , pi0_    (keep(new Pi   (*this, ArrayRef<const Type*>())))
     , mem_    (keep(new Mem  (*this)))
     , frame_  (keep(new Frame(*this)))
-#define ANYDSL2_UF_TYPE(T) ,T##_(keep(new PrimType(*this, PrimType_##T)))
+#define ANYDSL2_UF_TYPE(T) ,T##_(keep(new PrimType(*this, PrimType_##T, 1)))
 #include "anydsl2/tables/primtypetable.h"
 {}
 

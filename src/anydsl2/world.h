@@ -104,7 +104,9 @@ public:
 
     const Mem* mem() const { return mem_; }
     const Frame* frame() const { return frame_; }
-    const Ptr* ptr(const Type* referenced_type) { return unify(new Ptr(*this, referenced_type)); }
+    const Ptr* ptr(const Type* referenced_type, size_t num_elems = 1) { 
+        return unify(new Ptr(*this, referenced_type, num_elems)); 
+    }
 
     // sigmas
 

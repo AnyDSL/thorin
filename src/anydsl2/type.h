@@ -159,17 +159,28 @@ private:
 class Ptr : public Type {
 private:
 
-    Ptr(World& world, const Type* referenced_type)
+    Ptr(World& world, const Type* referenced_type, size_t num_elems)
         : Type(world, Node_Ptr, 1, referenced_type->is_generic())
+        , num_elems_(num_elems)
     {
         set(0, referenced_type);
+        assert(num_elems == 1);
     }
 
     virtual Printer& print(Printer& printer) const;
+    virtual size_t hash() const { return hash_combine(Type::hash(), num_elems()); }
+    virtual bool equal(const Node* other) const { 
+        return Type::equal(other) ? this->num_elems() == other->as<Ptr>()->num_elems() : false;
+    }
 
 public:
 
     const Type* referenced_type() const { return elem(0); }
+    size_t num_elems() const { return num_elems_; }
+
+private:
+
+    size_t num_elems_;
 
     friend class World;
 };

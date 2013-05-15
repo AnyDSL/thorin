@@ -90,7 +90,7 @@ std::vector<MultiUse> Def::multi_uses() const {
 
 bool Def::is_primlit(int val) const {
     if (const PrimLit* lit = this->isa<PrimLit>()) {
-        Box box = lit->box();
+        Box box = lit->value(); // TODO
         switch (lit->primtype_kind()) {
 #define ANYDSL2_UF_TYPE(T) case PrimType_##T: return box.get_##T() == T(val);
 #include "anydsl2/tables/primtypetable.h"
@@ -101,7 +101,7 @@ bool Def::is_primlit(int val) const {
 
 bool Def::is_minus_zero() const {
     if (const PrimLit* lit = this->isa<PrimLit>()) {
-        Box box = lit->box();
+        Box box = lit->value();
         switch (lit->primtype_kind()) {
 #define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return box.get_##T() == T(0);
 #include "anydsl2/tables/primtypetable.h"

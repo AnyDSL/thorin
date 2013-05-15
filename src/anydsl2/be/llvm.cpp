@@ -388,7 +388,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
     if (const PrimLit* primlit = def->isa<PrimLit>()) {
         llvm::Type* type = map(primlit->type());
-        Box box = primlit->box();
+        Box box = primlit->value();
 
         switch (primlit->primtype_kind()) {
             case PrimType_u1:  return builder.getInt1(box.get_u1().get());

@@ -130,13 +130,21 @@ private:
 
     PrimType(World& world, PrimTypeKind kind, size_t num_elems)
         : Type(world, (int) kind, 0, false)
-    {}
+        , num_elems_(num_elems)
+    {
+        assert(num_elems == 1);
+    }
 
     virtual Printer& print(Printer& printer) const;
+    virtual size_t hash() const { return hash_combine(Type::hash(), num_elems()); }
+    virtual bool equal(const Node* other) const { 
+        return Type::equal(other) ? this->num_elems() == other->as<PrimType>()->num_elems() : false;
+    }
 
 public:
 
     size_t num_elems() const { return num_elems_; }
+    bool is_vector() const { return num_elems_ != 1; }
     PrimTypeKind primtype_kind() const { return (PrimTypeKind) node_kind(); }
 
 private:

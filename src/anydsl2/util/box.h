@@ -41,6 +41,7 @@ public:
     u64 get_u64() const { return u64_; }
     f32 get_f32() const { return f32_; }
     f64 get_f64() const { return f64_; }
+    void* get_ptr() const { return ptr_; }
 
 private:
 

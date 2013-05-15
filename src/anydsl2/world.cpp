@@ -136,8 +136,8 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
     const PrimLit* rlit = b->isa<PrimLit>();
 
     if (llit && rlit) {
-        Box l = llit->box();
-        Box r = rlit->box();
+        Box l = llit->value();
+        Box r = rlit->value();
 
         switch (kind) {
             case ArithOp_add:
@@ -434,8 +434,8 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::s
     const PrimLit* rlit = b->isa<PrimLit>();
 
     if (llit && rlit) {
-        Box l = llit->box();
-        Box r = rlit->box();
+        Box l = llit->value();
+        Box r = rlit->value();
         PrimTypeKind type = llit->primtype_kind();
 
         switch (kind) {
@@ -600,7 +600,7 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b, const std:
         return bottom(a->type());
 
     if (const PrimLit* lit = cond->isa<PrimLit>())
-        return lit->box().get_u1().get() ? a : b;
+        return lit->value().get_u1().get() ? a : b;
 
     if (cond->is_not()) {
         cond = cond->as<ArithOp>()->rhs();
@@ -663,7 +663,7 @@ const Def* World::rebuild(const PrimOp* in, ArrayRef<const Def*> ops) {
         case Node_Tuple:                            return tuple(  ops, name);
         case Node_Bottom:  assert(ops.empty());     return bottom(type);
         case Node_Any:     assert(ops.empty());     return any(type);
-        case Node_PrimLit: assert(ops.empty());     return literal((PrimTypeKind) kind, in->as<PrimLit>()->box());
+        case Node_PrimLit: assert(ops.empty());     return literal((PrimTypeKind) kind, in->as<PrimLit>()->value());
         default: ANYDSL2_UNREACHABLE;
     }
 }

@@ -225,7 +225,7 @@ public:
     bool is_associative() const { return anydsl2::is_associative(kind()); }
 
     // implementation in literal.h
-    template<class T> inline T primlit_value() const;
+    template<class T> inline T primlit_value(size_t i = 0) const;
 
 private:
 

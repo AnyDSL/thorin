@@ -79,15 +79,16 @@ private:
 
 public:
 
-    Box box() const { return box_; }
+    Box value(size_t i = 0) const;
+    ArrayRef<Box> values() const;
     const PrimType* primtype() const { return type()->as<PrimType>(); }
     PrimTypeKind primtype_kind() const { return primtype()->primtype_kind(); }
+    size_t num_elems() const { return primtype()->num_elems(); }
+    bool is_vector() const { return primtype()->is_vector(); }
 
-    virtual size_t hash() const {
-        return hash_combine(Literal::hash(), bcast<uint64_t, Box>(box()));
-    }
+    virtual size_t hash() const;
     bool equal(const Node* other) const {
-        return Literal::equal(other) ? box() == other->as<PrimLit>()->box() : false; 
+        return Literal::equal(other) ? value() == other->as<PrimLit>()->value() : false; 
     }
 
 private:
@@ -117,10 +118,10 @@ private:
 //------------------------------------------------------------------------------
 
 template<class T>
-T Def::primlit_value() const {
+T Def::primlit_value(size_t i) const {
     const PrimLit* lit = this->as<PrimLit>();
     switch (lit->primtype_kind()) {
-#define ANYDSL2_UF_TYPE(U) case PrimType_##U: return (T) lit->box().get_##U();
+#define ANYDSL2_UF_TYPE(U) case PrimType_##U: return (T) lit->value(i).get_##U();
 #include "anydsl2/tables/primtypetable.h"
         default: ANYDSL2_UNREACHABLE;
     }

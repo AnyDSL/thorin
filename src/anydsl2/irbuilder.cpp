@@ -91,7 +91,7 @@ void IRBuilder::jump(JumpTarget& jt) {
 void IRBuilder::branch(const Def* cond, JumpTarget& t, JumpTarget& f) {
     if (is_reachable()) {
         if (const PrimLit* lit = cond->isa<PrimLit>())
-            jump(lit->box().get_u1().get() ? t : f);
+            jump(lit->value().get_u1().get() ? t : f);
         else {
             cur_bb->branch(cond, t.get(world()), f.get(world()));
             set_unreachable();

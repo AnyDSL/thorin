@@ -35,9 +35,7 @@ private:
     mutable std::vector<const Type*> types_;
 };
 
-inline std::ostream& operator << (std::ostream& o, const GenericMap& map) { 
-    o << map.to_string(); return o; 
-}
+inline std::ostream& operator << (std::ostream& o, const GenericMap& map) { o << map.to_string(); return o; }
 
 //------------------------------------------------------------------------------
 

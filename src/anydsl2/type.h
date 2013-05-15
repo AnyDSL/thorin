@@ -55,7 +55,7 @@ public:
     Elems elems() const { return ops_ref<const Type*>(); }
     const Type* elem(size_t i) const { return elems()[i]; }
     const Type* elem_via_lit(const Def* def) const;
-    const Ptr* to_ptr() const;
+    const Ptr* to_ptr(size_t num_elems = 1) const;
     bool check_with(const Type* type) const;
     bool infer_with(GenericMap& map, const Type* type) const;
     const Type* specialize(const GenericMap& generic_map) const;

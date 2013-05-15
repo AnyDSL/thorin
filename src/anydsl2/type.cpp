@@ -58,7 +58,7 @@ int Type::order() const {
     return sub;
 }
 
-const Ptr* Type::to_ptr() const { return world().ptr(this); }
+const Ptr* Type::to_ptr(size_t num_elems) const { return world().ptr(this, num_elems); }
 
 const Type* Type::elem_via_lit(const Def* def) const {
     return elem(def->primlit_value<size_t>());

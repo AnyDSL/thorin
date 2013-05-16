@@ -14,14 +14,10 @@ Box PrimLit::value(size_t i) const {
     return box_;
 }
 
-ArrayRef<Box> PrimLit::values() const {
-    return is_vector() ? ArrayRef<Box>((Box*) box_.get_ptr(), num_elems()) : ArrayRef<Box>(&box_, 1);
-}
-
 size_t PrimLit::hash() const {
     size_t seed = Literal::hash();
-    for_all (value, values())
-        boost::hash_combine(seed, bcast<uint64_t, Box>(value));
+    for (size_t i = 0, e = num_elems(); i != e; ++i)
+        boost::hash_combine(seed, bcast<uint64_t, Box>(value(i)));
     return seed;
 }
 

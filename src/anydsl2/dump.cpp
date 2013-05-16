@@ -163,8 +163,9 @@ Printer& PrimOp::print(Printer& p) const {
     if (const PrimLit* primlit = this->isa<PrimLit>()) {
         type()->print(p) << " ";
         if (primlit->is_vector()) p << "<";
-        const char* sep = ""; \
-        for_all (value, primlit->values()) {
+        const char* sep = "";
+        for (size_t i = 0, e = primlit->num_elems(); i != e; ++i) {
+            Box value = primlit->value();
             p << sep;
             dump_box(p, primlit->primtype_kind(), value);
             sep = ", ";

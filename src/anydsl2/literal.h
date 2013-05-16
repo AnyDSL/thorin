@@ -80,7 +80,17 @@ private:
 public:
 
     Box value(size_t i = 0) const;
-    ArrayRef<Box> values() const;
+#define ANYDSL2_U_TYPE(T) \
+    ArrayRef<T> T##_values() const { \
+        assert(primtype_kind() == PrimType_##T); \
+        return is_vector() \
+            ? ArrayRef<T>((const T*) box_.get_ptr(), num_elems()) \
+            : ArrayRef<T>(reinterpret_cast<const T*>(&box_), 1); \
+    } \
+    T T##_value(size_t i = 0) const { return T##_values()[i]; }
+#define ANYDSL2_F_TYPE(T) ANYDSL2_U_TYPE(T)
+#include "anydsl2/tables/primtypetable.h"
+    
     const PrimType* primtype() const { return type()->as<PrimType>(); }
     PrimTypeKind primtype_kind() const { return primtype()->primtype_kind(); }
     size_t num_elems() const { return primtype()->num_elems(); }

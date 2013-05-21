@@ -445,6 +445,16 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::s
 
     const PrimLit* llit = a->isa<PrimLit>();
     const PrimLit* rlit = b->isa<PrimLit>();
+    const Vector*  lvec = b->isa<Vector>();
+    const Vector*  rvec = b->isa<Vector>();
+
+    if (lvec && rvec) {
+        size_t num = lvec->type()->as<PrimType>()->num_elems();
+        Array<const Def*> ops(num);
+        for (size_t i = 0; i != num; ++i)
+            ops[i] = relop(kind, lvec->op(i), rvec->op(i));
+        return vector(ops, name);
+    }
 
     if (llit && rlit) {
         Box l = llit->value();

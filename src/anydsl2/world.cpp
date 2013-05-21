@@ -136,6 +136,16 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
 
     const PrimLit* llit = a->isa<PrimLit>();
     const PrimLit* rlit = b->isa<PrimLit>();
+    const Vector*  lvec = a->isa<Vector>();
+    const Vector*  rvec = b->isa<Vector>();
+
+    if (lvec && rvec) {
+        size_t num = lvec->type()->as<PrimType>()->num_elems();
+        Array<const Def*> ops(num);
+        for (size_t i = 0; i != num; ++i)
+            ops[i] = arithop(kind, lvec->op(i), rvec->op(i));
+        return vector(ops, name);
+    }
 
     if (llit && rlit) {
         Box l = llit->value();
@@ -339,10 +349,11 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
         kind = kind == ArithOp_sub ? ArithOp_add : ArithOp_fadd;
     }
 
-    // normalize: swap literal to the left
-    if (is_commutative(kind) && rlit) {
+    // normalize: swap literal/vector to the left
+    if (is_commutative(kind) && (rlit || rvec)) {
         std::swap(a, b);
         std::swap(llit, rlit);
+        std::swap(lvec, rvec);
     }
 
     if (llit) {
@@ -378,23 +389,23 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
         }
     }
 
-    // normalize: try to reorder same ops to have the literal on the left-most side
+    // normalize: try to reorder same ops to have the literal/vector on the left-most side
     if (is_associative(kind)) {
         const ArithOp* a_same = a->isa<ArithOp>() && a->as<ArithOp>()->arithop_kind() == kind ? a->as<ArithOp>() : 0;
         const ArithOp* b_same = b->isa<ArithOp>() && b->as<ArithOp>()->arithop_kind() == kind ? b->as<ArithOp>() : 0;
-        const PrimLit* a_lhs_lit = a_same && a_same->lhs()->isa<PrimLit>() ? a_same->lhs()->as<PrimLit>() : 0;
-        const PrimLit* b_lhs_lit = b_same && b_same->lhs()->isa<PrimLit>() ? b_same->lhs()->as<PrimLit>() : 0;
+        const Def* a_lhs_lv = a_same && (a_same->lhs()->isa<PrimLit>() || a_same->lhs()->isa<Vector>()) ? a_same->lhs() : 0;
+        const Def* b_lhs_lv = b_same && (b_same->lhs()->isa<PrimLit>() || b_same->lhs()->isa<Vector>()) ? b_same->lhs() : 0;
 
         if (is_commutative(kind)) {
-            if (a_lhs_lit && b_lhs_lit)
-                return binop(kind, binop(kind, a_lhs_lit, b_lhs_lit), binop(kind, a_same->rhs(), b_same->rhs()));
-            if (llit && b_lhs_lit)
-                return binop(kind, binop(kind, llit, b_lhs_lit), b_same->rhs());
-            if (b_lhs_lit)
-                return binop(kind, b_lhs_lit, binop(kind, a, b_same->rhs()));
+            if (a_lhs_lv && b_lhs_lv)
+                return arithop(kind, arithop(kind, a_lhs_lv, b_lhs_lv), arithop(kind, a_same->rhs(), b_same->rhs()));
+            if (llit && b_lhs_lv)
+                return arithop(kind, arithop(kind, llit, b_lhs_lv), b_same->rhs());
+            if (b_lhs_lv)
+                return arithop(kind, b_lhs_lv, arithop(kind, a, b_same->rhs()));
         }
-        if (a_lhs_lit)
-            return binop(kind, a_lhs_lit, binop(kind, a_same->rhs(), b));
+        if (a_lhs_lv)
+            return arithop(kind, a_lhs_lv, arithop(kind, a_same->rhs(), b));
     }
 
     return cse(new ArithOp(kind, a, b, name));

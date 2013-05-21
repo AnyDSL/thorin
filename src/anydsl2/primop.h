@@ -151,20 +151,20 @@ public:
 
 //------------------------------------------------------------------------------
 
-class Extract : public TupleOp {
+class TupleExtract : public TupleOp {
 private:
 
-    Extract(const Def* tuple, const Def* index, const std::string& name);
+    TupleExtract(const Def* tuple, const Def* index, const std::string& name);
     
     friend class World;
 };
 
 //------------------------------------------------------------------------------
 
-class Insert : public TupleOp {
+class TupleInsert : public TupleOp {
 private:
 
-    Insert(const Def* tuple, const Def* index, const Def* value, const std::string& name);
+    TupleInsert(const Def* tuple, const Def* index, const Def* value, const std::string& name);
 
 public:
 
@@ -179,6 +179,16 @@ class Tuple : public PrimOp {
 private:
 
     Tuple(World& world, ArrayRef<const Def*> args, const std::string& name);
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
+class Vector : public PrimOp {
+private:
+
+    Vector(World& world, ArrayRef<const Def*> args, const std::string& name);
 
     friend class World;
 };

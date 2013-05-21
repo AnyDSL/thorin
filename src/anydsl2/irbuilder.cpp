@@ -18,11 +18,11 @@ const Def* VarRef::load() const { return bb_->get_value(handle_, type_, name_); 
 void VarRef::store(const Def* def) const { bb_->set_value(handle_, def); }
 
 const Def* TupleRef::load() const { 
-    return loaded_ ? loaded_ : loaded_ = world().extract(lref_->load(), index_);
+    return loaded_ ? loaded_ : loaded_ = world().tuple_extract(lref_->load(), index_);
 }
 
 void TupleRef::store(const Def* val) const { 
-    lref_->store(world().insert(lref_->load(), index_, val)); 
+    lref_->store(world().tuple_insert(lref_->load(), index_, val)); 
 }
 
 const Def* SlotRef::load() const { 

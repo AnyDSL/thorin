@@ -545,24 +545,24 @@ const Def* World::convop(ConvOpKind kind, const Def* from, const Type* to, const
     return cse(new ConvOp(kind, from, to, name));
 }
 
-const Def* World::extract(const Def* agg, const Def* index, const std::string& name) {
+const Def* World::tuple_extract(const Def* agg, const Def* index, const std::string& name) {
     if (agg->isa<Bottom>())
         return bottom(agg->type()->as<Sigma>()->elem_via_lit(index));
 
     if (const Tuple* tuple = agg->isa<Tuple>())
         return tuple->op_via_lit(index);
 
-    if (const Insert* insert = agg->isa<Insert>()) {
+    if (const TupleInsert* insert = agg->isa<TupleInsert>()) {
         if (index == insert->index())
             return insert->value();
         else
-            return extract(insert->tuple(), index);
+            return tuple_extract(insert->tuple(), index);
     }
 
-    return cse(new Extract(agg, index, name));
+    return cse(new TupleExtract(agg, index, name));
 }
 
-const Def* World::insert(const Def* agg, const Def* index, const Def* value, const std::string& name) {
+const Def* World::tuple_insert(const Def* agg, const Def* index, const Def* value, const std::string& name) {
     if (agg->isa<Bottom>() || value->isa<Bottom>())
         return bottom(agg->type());
 
@@ -574,23 +574,23 @@ const Def* World::insert(const Def* agg, const Def* index, const Def* value, con
         return tuple(args);
     }
 
-    return cse(new Insert(agg, index, value, name));
+    return cse(new TupleInsert(agg, index, value, name));
 }
 
-const Def* World::extract(const Def* tuple, u32 index, const std::string& name) { 
-    return extract(tuple, literal_u32(index), name); 
+const Def* World::tuple_extract(const Def* tuple, u32 index, const std::string& name) { 
+    return tuple_extract(tuple, literal_u32(index), name); 
 }
-const Def* World::insert(const Def* tuple, u32 index, const Def* value, const std::string& name) { 
-    return insert(tuple, literal_u32(index), value, name); 
+const Def* World::tuple_insert(const Def* tuple, u32 index, const Def* value, const std::string& name) { 
+    return tuple_insert(tuple, literal_u32(index), value, name); 
 }
 
 const Enter* World::enter(const Def* mem, const std::string& name) {
     if (const Leave* leave = mem->isa<Leave>())
-        if (const Extract* extract = leave->frame()->isa<Extract>())
+        if (const TupleExtract* extract = leave->frame()->isa<TupleExtract>())
             if (const Enter* old_enter = extract->tuple()->isa<Enter>())
                 return old_enter;
 
-    if (const Extract* extract = mem->isa<Extract>())
+    if (const TupleExtract* extract = mem->isa<TupleExtract>())
         if (const Enter* old_enter = extract->tuple()->isa<Enter>())
             return old_enter;
 
@@ -655,8 +655,8 @@ const Def* World::rebuild(const PrimOp* in, ArrayRef<const Def*> ops) {
 
     switch (kind) {
         case Node_Enter:   assert(ops.size() == 1); return enter(  ops[0], name);
-        case Node_Extract: assert(ops.size() == 2); return extract(ops[0], ops[1], name);
-        case Node_Insert:  assert(ops.size() == 3); return insert( ops[0], ops[1], ops[2], name);
+        case Node_Extract: assert(ops.size() == 2); return tuple_extract(ops[0], ops[1], name);
+        case Node_Insert:  assert(ops.size() == 3); return tuple_insert( ops[0], ops[1], ops[2], name);
         case Node_Leave:   assert(ops.size() == 2); return leave(  ops[0], ops[1], name);
         case Node_Load:    assert(ops.size() == 2); return load(   ops[0], ops[1], name);
         case Node_Select:  assert(ops.size() == 3); return select( ops[0], ops[1], ops[2], name);

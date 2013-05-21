@@ -36,15 +36,17 @@ Select::Select(const Def* cond, const Def* tval, const Def* fval, const std::str
 
 //------------------------------------------------------------------------------
 
-Extract::Extract(const Def* tuple, const Def* index, const std::string& name)
+TupleExtract::TupleExtract(const Def* tuple, const Def* index, const std::string& name)
     : TupleOp(2, Node_Extract, tuple->type()->as<Sigma>()->elem_via_lit(index), tuple, index, name)
 {}
 
-Insert::Insert(const Def* tuple, const Def* index, const Def* value, const std::string& name)
+TupleInsert::TupleInsert(const Def* tuple, const Def* index, const Def* value, const std::string& name)
     : TupleOp(2, Node_Insert, tuple->type()->as<Sigma>()->elem_via_lit(index), tuple, index, name)
 {
     set_op(2, value);
 }
+
+//------------------------------------------------------------------------------
 
 Tuple::Tuple(World& world, ArrayRef<const Def*> args, const std::string& name)
     : PrimOp(args.size(), Node_Tuple, /*type: set later*/ 0, name)
@@ -57,6 +59,25 @@ Tuple::Tuple(World& world, ArrayRef<const Def*> args, const std::string& name)
     }
 
     set_type(world.sigma(elems));
+}
+
+//------------------------------------------------------------------------------
+
+Vector::Vector(World& world, ArrayRef<const Def*> args, const std::string& name)
+    : PrimOp(args.size(), Node_Tuple, /*type: set later*/ 0, name)
+{
+    size_t i = 0;
+    for_all (arg, args)
+        set_op(i++, arg);
+
+    if (const PrimType* primtype = args.front()->type()->isa<PrimType>()) {
+        assert(primtype->num_elems() == 1);
+        set_type(world.type(primtype->primtype_kind(), args.size()));
+    } else {
+        const Ptr* ptr = args.front()->type()->as<Ptr>();
+        assert(ptr->num_elems() == 1);
+        set_type(world.ptr(ptr->referenced_type(), args.size()));
+    }
 }
 
 //------------------------------------------------------------------------------

@@ -369,7 +369,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
             return builder.CreateExtractValue(tuple, idxs);
         }
 
-        const Insert* insert = def->as<Insert>();
+        const TupleInsert* insert = def->as<TupleInsert>();
         llvm::Value* value = lookup(insert->value());
 
         return builder.CreateInsertValue(tuple, value, idxs);

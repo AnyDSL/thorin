@@ -235,14 +235,15 @@ public:
 #include "anydsl2/tables/convoptable.h"
 
     /*
-     * tuple stuff
+     * aggregate stuff
      */
 
-    const Def* extract(const Def* tuple, const Def* index, const std::string& name = "");
-    const Def* extract(const Def* tuple, u32 index, const std::string& name = "");
-    const Def* insert(const Def* tuple, const Def* index, const Def* value, const std::string& name = "");
-    const Def* insert(const Def* tuple, u32 index, const Def* value, const std::string& name = "");
+    const Def* tuple_extract(const Def* tuple, const Def* index, const std::string& name = "");
+    const Def* tuple_extract(const Def* tuple, u32 index, const std::string& name = "");
+    const Def* tuple_insert(const Def* tuple, const Def* index, const Def* value, const std::string& name = "");
+    const Def* tuple_insert(const Def* tuple, u32 index, const Def* value, const std::string& name = "");
     const Def* tuple(ArrayRef<const Def*> args, const std::string& name = "") { return cse(new Tuple(*this, args, name)); }
+    const Def* vector(ArrayRef<const Def*> args, const std::string& name = "") { return cse(new Vector(*this, args, name)); }
 
     /*
      * memops

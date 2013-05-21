@@ -140,9 +140,6 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
     const Vector*  rvec = b->isa<Vector>();
 
     if (lvec && rvec) {
-        //lvec->dump();
-        //rvec->dump();
-        lvec->op(0)->dump();
         size_t num = lvec->type()->as<PrimType>()->num_elems();
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)

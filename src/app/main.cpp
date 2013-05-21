@@ -4,10 +4,6 @@
 
 #include <boost/program_options.hpp>
 
-#include "anydsl2/primop.h"
-#include "anydsl2/literal.h"
-#include "anydsl2/lambda.h"
-
 #include "anydsl2/analyses/looptree.h"
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/analyses/verifier.h"
@@ -123,21 +119,6 @@ int main(int argc, char** argv) {
 
         bool result;
         anydsl2::AutoPtr<const impala::Prg> p(impala::parse(init.world, file, filename, result));
-
-        World& w = init.world;
-        Lambda* lambda = w.lambda(w.pi1(w.type_u32(2)));
-        const Def* def = w.arithop_add(w.vector2(w.literal_u32(1), w.literal_u32(2)), w.arithop_add(lambda->param(0), w.vector2(w.literal_u32(3), w.literal_u32(4))));
-        def->dump();
-        lambda->jump1(lambda, def);
-        lambda->dump_head();
-        lambda->dump_jump();
-        w.dump();
-        //const Def* def = w.vector2(w.literal_f32(1), w.literal_f32(2));
-        //const Def* def = w.literal_f32(1);
-        //def->dump();
-        //def->op(0)->dump();
-        //def->op(1)->dump();
-        return 0;
 
         if (emit_ast)
             dump(p, fancy);

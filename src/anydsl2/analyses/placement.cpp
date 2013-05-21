@@ -96,6 +96,7 @@ void Placement::place_early(Places& places, Lambda* early, const Def* def) {
         if (use->counter == 0) {
             if (const PrimOp* primop = use->isa<PrimOp>()) {
                 Lambda* best = get_late(primop);
+                assert(best);
                 if (primop->isa<Slot>() || primop->isa<Enter>())
                     best = early;                 // place these guys always early
                 else if (!primop->isa<Leave>()) { // place this guy always late

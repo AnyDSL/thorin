@@ -37,14 +37,15 @@ Printer& Ptr::print(Printer& p) const {
 
 Printer& PrimType::print(Printer& p) const {
     if (is_vector())
-        p << "< " << num_elems() << " x ";
+        p << "<" << num_elems() << " x ";
     switch (primtype_kind()) {
-#define ANYDSL2_UF_TYPE(T) case Node_PrimType_##T: p << #T; return p;
+#define ANYDSL2_UF_TYPE(T) case Node_PrimType_##T: p << #T; break;
 #include "anydsl2/tables/primtypetable.h"
     default: ANYDSL2_UNREACHABLE;
     }
     if (is_vector())
         p << ">";
+    return p;
 }
 
 Printer& Generic::print(Printer& p) const {
@@ -76,7 +77,8 @@ std::ostream& operator << (std::ostream& o, const Type* type) {
 
 void Def::dump() const { 
     Printer p(std::cout, false); 
-    if (const PrimOp* primop = this->isa<PrimOp>())
+    const PrimOp* primop = this->isa<PrimOp>();
+    if (primop && !primop->is_const())
         primop->print_assignment(p);
     else
         print(p); 

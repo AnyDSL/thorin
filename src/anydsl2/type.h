@@ -129,9 +129,7 @@ private:
     PrimType(World& world, PrimTypeKind kind, size_t num_elems)
         : Type(world, (int) kind, 0, false)
         , num_elems_(num_elems)
-    {
-        assert(num_elems == 1);
-    }
+    {}
 
     virtual Printer& print(Printer& printer) const;
     virtual size_t hash() const { return hash_combine(Type::hash(), num_elems()); }

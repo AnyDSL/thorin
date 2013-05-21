@@ -64,7 +64,7 @@ Tuple::Tuple(World& world, ArrayRef<const Def*> args, const std::string& name)
 //------------------------------------------------------------------------------
 
 Vector::Vector(World& world, ArrayRef<const Def*> args, const std::string& name)
-    : PrimOp(args.size(), Node_Tuple, /*type: set later*/ 0, name)
+    : PrimOp(args.size(), Node_Vector, /*type: set later*/ 0, name)
 {
     size_t i = 0;
     for_all (arg, args)

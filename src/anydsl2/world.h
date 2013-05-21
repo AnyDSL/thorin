@@ -243,7 +243,16 @@ public:
     const Def* tuple_insert(const Def* tuple, const Def* index, const Def* value, const std::string& name = "");
     const Def* tuple_insert(const Def* tuple, u32 index, const Def* value, const std::string& name = "");
     const Def* tuple(ArrayRef<const Def*> args, const std::string& name = "") { return cse(new Tuple(*this, args, name)); }
-    const Def* vector(ArrayRef<const Def*> args, const std::string& name = "") { return cse(new Vector(*this, args, name)); }
+    const Def* vector(ArrayRef<const Def*> args, const std::string& name = "") {
+        if (args.size() == 1) return args[0];
+        return cse(new Vector(*this, args, name)); 
+    }
+    const Def* vector2(const Def* arg1, const Def* arg2, const std::string& name = "") {
+        const Def* args[] = { arg1, arg2 }; return vector(args, name);
+    }
+    const Def* vector4(const Def* arg1, const Def* arg2, const Def* arg3, const Def* arg4, const std::string& name = "") {
+        const Def* args[] = { arg1, arg2, arg3, arg4 }; return vector(args, name);
+    }
 
     /*
      * memops

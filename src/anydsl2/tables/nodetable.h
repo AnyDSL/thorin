@@ -25,6 +25,7 @@
         ANYDSL2_AIR_NODE(TupleExtract, tuple_extract)
         ANYDSL2_AIR_NODE(TupleInsert, tuple_insert)
         ANYDSL2_AIR_NODE(Select, select)
+        ANYDSL2_AIR_NODE(Vector, vector)
     ANYDSL2_AIR_NODE(Param, param)
     // Type
         // PrimType

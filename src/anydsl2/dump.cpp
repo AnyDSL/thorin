@@ -162,10 +162,11 @@ Printer& PrimOp::print(Printer& p) const {
             default: ANYDSL2_UNREACHABLE; break;
         }
     } else if (is_const()) {
-        p << op_name() << " " << type();
-        if (!empty()) {
-            p << " ";
-            ANYDSL2_DUMP_COMMA_LIST(p, ops());
+        if (empty()) 
+            p << op_name() << " " << type();
+        else {
+            p << type();
+            ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "(", this->ops(), ")");
         }
     } else
         print_name(p);

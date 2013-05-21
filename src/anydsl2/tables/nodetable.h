@@ -21,9 +21,9 @@
         //ANYDSL2_AIR_NODE(ArithOp)
         //ANYDSL2_AIR_NODE(RelOp)
         //ANYDSL2_AIR_NODE(ConvOp)
-        ANYDSL2_AIR_NODE(Extract, extract)
-        ANYDSL2_AIR_NODE(Insert, insert)
         ANYDSL2_AIR_NODE(Tuple, tuple)
+        ANYDSL2_AIR_NODE(TupleExtract, tuple_extract)
+        ANYDSL2_AIR_NODE(TupleInsert, tuple_insert)
         ANYDSL2_AIR_NODE(Select, select)
     ANYDSL2_AIR_NODE(Param, param)
     // Type

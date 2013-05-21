@@ -363,7 +363,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         llvm::Value* tuple = lookup(tupleop->tuple());
         unsigned idxs[1] = { tupleop->index()->primlit_value<unsigned>() };
 
-        if (tupleop->node_kind() == Node_Extract) {
+        if (tupleop->node_kind() == Node_TupleExtract) {
             if (tupleop->tuple()->isa<Load>())
                 return tuple; // bypass artificial extract
             return builder.CreateExtractValue(tuple, idxs);

@@ -655,17 +655,18 @@ const Def* World::rebuild(const PrimOp* in, ArrayRef<const Def*> ops) {
 
     switch (kind) {
         case Node_Enter:   assert(ops.size() == 1); return enter(  ops[0], name);
-        case Node_Extract: assert(ops.size() == 2); return tuple_extract(ops[0], ops[1], name);
-        case Node_Insert:  assert(ops.size() == 3); return tuple_insert( ops[0], ops[1], ops[2], name);
         case Node_Leave:   assert(ops.size() == 2); return leave(  ops[0], ops[1], name);
         case Node_Load:    assert(ops.size() == 2); return load(   ops[0], ops[1], name);
         case Node_Select:  assert(ops.size() == 3); return select( ops[0], ops[1], ops[2], name);
-        case Node_Slot:    assert(ops.size() == 1); return slot(   type->as<Ptr>()->referenced_type(), ops[0], in->as<Slot>()->index(), name);
         case Node_Store:   assert(ops.size() == 3); return store(  ops[0], ops[1], ops[2], name);
-        case Node_Tuple:                            return tuple(  ops, name);
         case Node_Bottom:  assert(ops.empty());     return bottom(type);
         case Node_Any:     assert(ops.empty());     return any(type);
         case Node_PrimLit: assert(ops.empty());     return literal((PrimTypeKind) kind, in->as<PrimLit>()->value());
+        case Node_Tuple:                            return tuple(  ops, name);
+        case Node_TupleExtract: assert(ops.size() == 2); return tuple_extract(ops[0], ops[1], name);
+        case Node_TupleInsert:  assert(ops.size() == 3); return tuple_insert( ops[0], ops[1], ops[2], name);
+        case Node_Slot:    assert(ops.size() == 1); 
+            return slot(type->as<Ptr>()->referenced_type(), ops[0], in->as<Slot>()->index(), name);
         default: ANYDSL2_UNREACHABLE;
     }
 }

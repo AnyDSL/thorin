@@ -37,11 +37,11 @@ Select::Select(const Def* cond, const Def* tval, const Def* fval, const std::str
 //------------------------------------------------------------------------------
 
 TupleExtract::TupleExtract(const Def* tuple, const Def* index, const std::string& name)
-    : TupleOp(2, Node_Extract, tuple->type()->as<Sigma>()->elem_via_lit(index), tuple, index, name)
+    : TupleOp(2, Node_TupleExtract, tuple->type()->as<Sigma>()->elem_via_lit(index), tuple, index, name)
 {}
 
 TupleInsert::TupleInsert(const Def* tuple, const Def* index, const Def* value, const std::string& name)
-    : TupleOp(2, Node_Insert, tuple->type()->as<Sigma>()->elem_via_lit(index), tuple, index, name)
+    : TupleOp(2, Node_TupleInsert, tuple->type()->as<Sigma>()->elem_via_lit(index), tuple, index, name)
 {
     set_op(2, value);
 }

@@ -95,23 +95,23 @@ void Placement::place_early(Places& places, Lambda* early, const Def* def) {
 
         if (use->counter == 0) {
             if (const PrimOp* primop = use->isa<PrimOp>()) {
-                Lambda* best = get_late(primop);
-                assert(best);
-                if (primop->isa<Slot>() || primop->isa<Enter>())
-                    best = early;                 // place these guys always early
-                else if (!primop->isa<Leave>()) { // place this guy always late
-                    // all other guys are placed as late as possible but keep them out of loops please
-                    int depth = std::numeric_limits<int>::max();
-                    for (Lambda* i = best; i != early; i = scope.domtree().idom(i)) {
-                        int cur_depth = scope.loopinfo().depth(i);
-                        if (cur_depth < depth) {
-                            best = i;
-                            depth = cur_depth;
+                if (Lambda* best = get_late(primop)) {  // else: primop is dead
+                    if (primop->isa<Slot>() || primop->isa<Enter>())
+                        best = early;                   // place these guys always early
+                    else if (!primop->isa<Leave>()) {   // place this guy always late
+                        // all other guys are placed as late as possible but keep them out of loops please
+                        int depth = std::numeric_limits<int>::max();
+                        for (Lambda* i = best; i != early; i = scope.domtree().idom(i)) {
+                            int cur_depth = scope.loopinfo().depth(i);
+                            if (cur_depth < depth) {
+                                best = i;
+                                depth = cur_depth;
+                            }
                         }
                     }
+                    places[best->sid()].push_back(primop);
+                    place_early(places, early, primop);
                 }
-                places[best->sid()].push_back(primop);
-                place_early(places, early, primop);
             }
         }
     }

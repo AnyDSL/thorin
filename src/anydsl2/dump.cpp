@@ -151,26 +151,14 @@ const char* ConvOp::op_name() const {
     }
 }
 
-static void dump_box(Printer& p, PrimTypeKind kind, Box box) {
-    switch (kind) {
-#define ANYDSL2_UF_TYPE(T) case PrimType_##T: p.o << box.get_##T(); break;
-#include "anydsl2/tables/primtypetable.h"
-        default: ANYDSL2_UNREACHABLE; break;
-    }
-}
-
 Printer& PrimOp::print(Printer& p) const {
     if (const PrimLit* primlit = this->isa<PrimLit>()) {
         type()->print(p) << " ";
-        if (primlit->is_vector()) p << "<";
-        const char* sep = "";
-        for (size_t i = 0, e = primlit->num_elems(); i != e; ++i) {
-            Box value = primlit->value();
-            p << sep;
-            dump_box(p, primlit->primtype_kind(), value);
-            sep = ", ";
+        switch (primlit->primtype_kind()) {
+#define ANYDSL2_UF_TYPE(T) case PrimType_##T: p.o << primlit->T##_value(); break;
+#include "anydsl2/tables/primtypetable.h"
+            default: ANYDSL2_UNREACHABLE; break;
         }
-        if (primlit->is_vector()) p << ">";
     } else if (is_const()) {
         p << op_name() << " " << type();
         if (!empty()) {

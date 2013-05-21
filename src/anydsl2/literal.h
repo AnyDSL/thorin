@@ -79,27 +79,16 @@ private:
 
 public:
 
-    Box value(size_t i = 0) const;
+    Box value() const { return box_; }
 #define ANYDSL2_U_TYPE(T) \
-    ArrayRef<T> T##_values() const { \
-        assert(primtype_kind() == PrimType_##T); \
-        return is_vector() \
-            ? ArrayRef<T>((const T*) box_.get_ptr(), num_elems()) \
-            : ArrayRef<T>(reinterpret_cast<const T*>(&box_), 1); \
-    } \
-    T T##_value(size_t i = 0) const { return T##_values()[i]; }
+    T T##_value() const { return value().get_##T(); }
 #define ANYDSL2_F_TYPE(T) ANYDSL2_U_TYPE(T)
 #include "anydsl2/tables/primtypetable.h"
     
     const PrimType* primtype() const { return type()->as<PrimType>(); }
     PrimTypeKind primtype_kind() const { return primtype()->primtype_kind(); }
-    size_t num_elems() const { return primtype()->num_elems(); }
-    bool is_vector() const { return primtype()->is_vector(); }
-
-    virtual size_t hash() const;
-    bool equal(const Node* other) const {
-        return Literal::equal(other) ? value() == other->as<PrimLit>()->value() : false; 
-    }
+    virtual size_t hash() const { return hash_combine(Literal::hash(), bcast<uint64_t, Box>(value())); }
+    bool equal(const Node* other) const { return Literal::equal(other) ? this->value() == other->as<PrimLit>()->value() : false; }
 
 private:
 
@@ -128,10 +117,10 @@ private:
 //------------------------------------------------------------------------------
 
 template<class T>
-T Def::primlit_value(size_t i) const {
+T Def::primlit_value() const {
     const PrimLit* lit = this->as<PrimLit>();
     switch (lit->primtype_kind()) {
-#define ANYDSL2_UF_TYPE(U) case PrimType_##U: return (T) lit->value(i).get_##U();
+#define ANYDSL2_UF_TYPE(U) case PrimType_##U: return (T) lit->value().get_##U();
 #include "anydsl2/tables/primtypetable.h"
         default: ANYDSL2_UNREACHABLE;
     }

@@ -126,6 +126,8 @@ const Def* World::binop(int kind, const Def* lhs, const Def* rhs, const std::str
 }
 
 const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const std::string& name) {
+    assert(a->type() == b->type());
+    assert(a->type()->as<PrimType>()->num_elems() == b->type()->as<PrimType>()->num_elems());
     PrimTypeKind type = a->type()->as<PrimType>()->primtype_kind();
 
     // bottom op bottom -> bottom

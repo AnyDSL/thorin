@@ -58,12 +58,11 @@ public:
     bool infer_with(GenericMap& map, const Type* type) const;
     const Type* specialize(const GenericMap& generic_map) const;
     bool is_generic() const { return is_generic_; }
-    int order() const;
-
     bool is_u1() const { return kind() == PrimType_u1; }
     bool is_int() const { return anydsl2::is_int(kind()); }
     bool is_float() const { return anydsl2::is_float(kind()); }
     bool is_primtype() const { return anydsl2::is_primtype(kind()); }
+    int order() const;
 
 private:
 

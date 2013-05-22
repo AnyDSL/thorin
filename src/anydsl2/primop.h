@@ -47,18 +47,13 @@ struct PrimOpEqual : std::binary_function<const PrimOp*, const PrimOp*, bool> {
 class BinOp : public PrimOp {
 protected:
 
-    BinOp(NodeKind kind, const Type* type, const Def* lhs, const Def* rhs, const std::string& name)
-        : PrimOp(2, kind, type, name)
-    {
-        assert(lhs->type() == rhs->type() && "types are not equal");
-        set_op(0, lhs);
-        set_op(1, rhs);
-    }
+    BinOp(NodeKind kind, const Type* type, const Def* cond, const Def* lhs, const Def* rhs, const std::string& name);
 
 public:
 
-    const Def* lhs() const { return op(0); }
-    const Def* rhs() const { return op(1); }
+    const Def* cond() const { return op(0); }
+    const Def* lhs() const { return op(1); }
+    const Def* rhs() const { return op(2); }
 };
 
 //------------------------------------------------------------------------------
@@ -66,8 +61,8 @@ public:
 class ArithOp : public BinOp {
 private:
 
-    ArithOp(ArithOpKind kind, const Def* lhs, const Def* rhs, const std::string& name)
-        : BinOp((NodeKind) kind, lhs->type(), lhs, rhs, name)
+    ArithOp(ArithOpKind kind, const Def* cond, const Def* lhs, const Def* rhs, const std::string& name)
+        : BinOp((NodeKind) kind, lhs->type(), cond, lhs, rhs, name)
     {}
 
 public:
@@ -83,7 +78,7 @@ public:
 class RelOp : public BinOp {
 private:
 
-    RelOp(RelOpKind kind, const Def* lhs, const Def* rhs, const std::string& name);
+    RelOp(RelOpKind kind, const Def* cond, const Def* lhs, const Def* rhs, const std::string& name);
 
 public:
 

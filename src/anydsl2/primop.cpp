@@ -20,8 +20,18 @@ void PrimOp::update(size_t i, const Def* with) {
             is_const_ &= op->is_const();
 }
 
-RelOp::RelOp(RelOpKind kind, const Def* lhs, const Def* rhs, const std::string& name)
-    : BinOp((NodeKind) kind, lhs->world().type_u1(), lhs, rhs, name)
+BinOp::BinOp(NodeKind kind, const Type* type, const Def* cond, const Def* lhs, const Def* rhs, const std::string& name)
+    : PrimOp(3, kind, type, name)
+{
+    assert(lhs->type() == rhs->type() && "types are not equal");
+    assert(cond->type()->is_u1());
+    set_op(0, cond);
+    set_op(1, lhs);
+    set_op(2, rhs);
+}
+
+RelOp::RelOp(RelOpKind kind, const Def* cond, const Def* lhs, const Def* rhs, const std::string& name)
+    : BinOp((NodeKind) kind, lhs->world().type_u1(lhs->type()->as<PrimType>()->length()), cond, lhs, rhs, name)
 {}
 
 Select::Select(const Def* cond, const Def* tval, const Def* fval, const std::string& name)

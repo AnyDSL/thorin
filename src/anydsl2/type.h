@@ -159,7 +159,6 @@ private:
         , length_(length)
     {
         set(0, referenced_type);
-        assert(length == 1);
     }
 
     virtual Printer& print(Printer& printer) const;

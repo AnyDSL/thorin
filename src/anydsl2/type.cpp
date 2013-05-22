@@ -113,8 +113,8 @@ const Type* Type::specialize(const GenericMap& generic_map) const {
         return this;
 
     Array<const Type*> new_elems(size());
-    for (size_t i = 0, e = size(); i != e; ++i)
-        new_elems[i] = elem(i)->specialize(generic_map);
+    for_all2 (&new_elem, new_elems, elem, elems())
+        new_elem = elem->specialize(generic_map);
 
     return world().rebuild(this, new_elems);
 }

@@ -125,7 +125,7 @@ CompoundType::CompoundType(World& world, int kind, size_t size)
     : Type(world, kind, size, false /*TODO named sigma*/)
 {}
 
-CompoundType::CompoundType(World& world, int kind, Elems elems)
+CompoundType::CompoundType(World& world, int kind, ArrayRef<const Type*> elems)
     : Type(world, kind, elems.size(), false)
 {
     size_t x = 0;

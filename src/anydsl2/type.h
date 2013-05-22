@@ -17,8 +17,6 @@ class Ptr;
 class Type;
 class World;
 
-typedef ArrayRef<const Type*> Elems;
-
 //------------------------------------------------------------------------------
 
 class GenericMap {
@@ -52,7 +50,7 @@ public:
 
     void dump() const;
     World& world() const { return world_; }
-    Elems elems() const { return ops_ref<const Type*>(); }
+    ArrayRef<const Type*> elems() const { return ops_ref<const Type*>(); }
     const Type* elem(size_t i) const { return elems()[i]; }
     const Type* elem_via_lit(const Def* def) const;
     const Ptr* to_ptr(size_t num_elems = 1) const;
@@ -188,7 +186,7 @@ class CompoundType : public Type {
 protected:
 
     CompoundType(World& world, int kind, size_t num_subtypes);
-    CompoundType(World& world, int kind, Elems elems);
+    CompoundType(World& world, int kind, ArrayRef<const Type*> elems);
 };
 
 //------------------------------------------------------------------------------
@@ -203,7 +201,7 @@ private:
     {
         name = sigma_name;
     }
-    Sigma(World& world, Elems elems)
+    Sigma(World& world, ArrayRef<const Type*> elems)
         : CompoundType(world, Node_Sigma, elems)
         , named_(false)
     {}
@@ -230,7 +228,7 @@ private:
 class Pi : public CompoundType {
 private:
 
-    Pi(World& world, Elems elems)
+    Pi(World& world, ArrayRef<const Type*> elems)
         : CompoundType(world, Node_Pi, elems)
     {}
 
@@ -276,7 +274,7 @@ private:
 class Opaque : public CompoundType {
 private:
 
-    Opaque(World& world, Elems elems, ArrayRef<uint32_t> flags)
+    Opaque(World& world, ArrayRef<const Type*> elems, ArrayRef<uint32_t> flags)
         : CompoundType(world, Node_Opaque, elems.size())
         , flags_(flags)
     {}

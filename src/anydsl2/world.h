@@ -280,6 +280,9 @@ public:
     /// Generic \p PrimOp constructor; inherits name from \p in.
     const Def* rebuild(const PrimOp* in, ArrayRef<const Def*> ops);
 
+    /// Generic \p Type constructor.
+    const Type* rebuild(const Type* in, ArrayRef<const Type*> subtypes);
+
     /*
      * optimizations
      */

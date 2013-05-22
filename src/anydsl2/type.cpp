@@ -112,17 +112,11 @@ const Type* Type::specialize(const GenericMap& generic_map) const {
     } else if (empty())
         return this;
 
-    Array<const Type*> new_elems(size());
+    Array<const Type*> new_subtypes(size());
     for (size_t i = 0, e = size(); i != e; ++i)
-        new_elems[i] = elem(i)->specialize(generic_map);
+        new_subtypes[i] = elem(i)->specialize(generic_map);
 
-    // TODO better OO here
-    switch (kind()) {
-        case Node_Pi:    return world().pi(new_elems);
-        case Node_Sigma: return world().sigma(new_elems);
-        case Node_Ptr:   assert(new_elems.size() == 1); return world().ptr(new_elems.front());
-        default: ANYDSL2_UNREACHABLE;
-    }
+    return world().rebuild(this, new_subtypes);
 }
 
 //------------------------------------------------------------------------------

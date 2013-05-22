@@ -670,6 +670,7 @@ const Def* World::rebuild(const PrimOp* in, ArrayRef<const Def*> ops) {
     const Type* type = in->type();
     const std::string& name = in->name;
 
+    if (ops.empty()) return in;
     if (is_arithop(kind)) { assert(ops.size() == 2); return arithop((ArithOpKind) kind, ops[0], ops[1], name); }
     if (is_relop  (kind)) { assert(ops.size() == 2); return relop(  (RelOpKind  ) kind, ops[0], ops[1], name); }
     if (is_convop (kind)) { assert(ops.size() == 1); return convop( (ConvOpKind ) kind, ops[0],   type, name); }
@@ -680,14 +681,22 @@ const Def* World::rebuild(const PrimOp* in, ArrayRef<const Def*> ops) {
         case Node_Load:    assert(ops.size() == 2); return load(   ops[0], ops[1], name);
         case Node_Select:  assert(ops.size() == 3); return select( ops[0], ops[1], ops[2], name);
         case Node_Store:   assert(ops.size() == 3); return store(  ops[0], ops[1], ops[2], name);
-        case Node_Bottom:  assert(ops.empty());     return bottom(type);
-        case Node_Any:     assert(ops.empty());     return any(type);
-        case Node_PrimLit: assert(ops.empty());     return literal((PrimTypeKind) kind, in->as<PrimLit>()->value());
         case Node_Tuple:                            return tuple(  ops, name);
         case Node_TupleExtract: assert(ops.size() == 2); return tuple_extract(ops[0], ops[1], name);
         case Node_TupleInsert:  assert(ops.size() == 3); return tuple_insert( ops[0], ops[1], ops[2], name);
         case Node_Slot:    assert(ops.size() == 1); 
             return slot(type->as<Ptr>()->referenced_type(), ops[0], in->as<Slot>()->index(), name);
+        default: ANYDSL2_UNREACHABLE;
+    }
+}
+
+const Type* World::rebuild(const Type* type, ArrayRef<const Type*> subtypes) {
+    if (subtypes.empty()) return type;
+
+    switch (type->kind()) {
+        case Node_Pi:    return pi(subtypes);
+        case Node_Sigma: return sigma(subtypes);
+        case Node_Ptr:   assert(subtypes.size() == 1); return ptr(subtypes.front());
         default: ANYDSL2_UNREACHABLE;
     }
 }

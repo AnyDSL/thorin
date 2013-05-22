@@ -127,7 +127,7 @@ const Def* World::binop(int kind, const Def* lhs, const Def* rhs, const std::str
 
 const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const std::string& name) {
     assert(a->type() == b->type());
-    assert(a->type()->as<PrimType>()->num_elems() == b->type()->as<PrimType>()->num_elems());
+    assert(a->type()->as<PrimType>()->length() == b->type()->as<PrimType>()->length());
     PrimTypeKind type = a->type()->as<PrimType>()->primtype_kind();
 
     // bottom op bottom -> bottom
@@ -140,7 +140,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
     const Vector*  rvec = b->isa<Vector>();
 
     if (lvec && rvec) {
-        size_t num = lvec->type()->as<PrimType>()->num_elems();
+        size_t num = lvec->type()->as<PrimType>()->length();
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
             ops[i] = arithop(kind, lvec->op(i), rvec->op(i));
@@ -449,7 +449,7 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::s
     const Vector*  rvec = b->isa<Vector>();
 
     if (lvec && rvec) {
-        size_t num = lvec->type()->as<PrimType>()->num_elems();
+        size_t num = lvec->type()->as<PrimType>()->length();
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
             ops[i] = relop(kind, lvec->op(i), rvec->op(i));
@@ -690,13 +690,13 @@ const Def* World::rebuild(const PrimOp* in, ArrayRef<const Def*> ops) {
     }
 }
 
-const Type* World::rebuild(const Type* type, ArrayRef<const Type*> subtypes) {
-    if (subtypes.empty()) return type;
+const Type* World::rebuild(const Type* type, ArrayRef<const Type*> elems) {
+    if (elems.empty()) return type;
 
     switch (type->kind()) {
-        case Node_Pi:    return pi(subtypes);
-        case Node_Sigma: return sigma(subtypes);
-        case Node_Ptr:   assert(subtypes.size() == 1); return ptr(subtypes.front());
+        case Node_Pi:    return pi(elems);
+        case Node_Sigma: return sigma(elems);
+        case Node_Ptr:   assert(elems.size() == 1); return ptr(elems.front());
         default: ANYDSL2_UNREACHABLE;
     }
 }

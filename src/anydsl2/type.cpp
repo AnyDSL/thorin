@@ -58,7 +58,7 @@ int Type::order() const {
     return sub;
 }
 
-const Ptr* Type::to_ptr(size_t num_elems) const { return world().ptr(this, num_elems); }
+const Ptr* Type::to_ptr(size_t length) const { return world().ptr(this, length); }
 
 const Type* Type::elem_via_lit(const Def* def) const {
     return elem(def->primlit_value<size_t>());
@@ -79,8 +79,8 @@ bool Type::check_with(const Type* other) const {
 }
 
 bool Type::infer_with(GenericMap& map, const Type* other) const {
-    size_t num_subtypes = this->size();
-    assert(num_subtypes == other->size());
+    size_t num_elems = this->size();
+    assert(num_elems == other->size());
     assert(this->isa<Generic>() || this->kind() == other->kind());
 
     if (this == other)
@@ -95,7 +95,7 @@ bool Type::infer_with(GenericMap& map, const Type* other) const {
             return mapped == other;
     }
 
-    for (size_t i = 0; i < num_subtypes; ++i) {
+    for (size_t i = 0; i < num_elems; ++i) {
         if (!this->elem(i)->infer_with(map, other->elem(i)))
             return false;
     }
@@ -112,11 +112,11 @@ const Type* Type::specialize(const GenericMap& generic_map) const {
     } else if (empty())
         return this;
 
-    Array<const Type*> new_subtypes(size());
+    Array<const Type*> new_elems(size());
     for (size_t i = 0, e = size(); i != e; ++i)
-        new_subtypes[i] = elem(i)->specialize(generic_map);
+        new_elems[i] = elem(i)->specialize(generic_map);
 
-    return world().rebuild(this, new_subtypes);
+    return world().rebuild(this, new_elems);
 }
 
 //------------------------------------------------------------------------------

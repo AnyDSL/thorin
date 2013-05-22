@@ -71,11 +71,11 @@ Vector::Vector(World& world, ArrayRef<const Def*> args, const std::string& name)
         set_op(i++, arg);
 
     if (const PrimType* primtype = args.front()->type()->isa<PrimType>()) {
-        assert(primtype->num_elems() == 1);
+        assert(primtype->length() == 1);
         set_type(world.type(primtype->primtype_kind(), args.size()));
     } else {
         const Ptr* ptr = args.front()->type()->as<Ptr>();
-        assert(ptr->num_elems() == 1);
+        assert(ptr->length() == 1);
         set_type(world.ptr(ptr->referenced_type(), args.size()));
     }
 }

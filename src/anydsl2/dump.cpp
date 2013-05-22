@@ -29,7 +29,7 @@ Printer& Sigma::print(Printer& p) const { ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "
 
 Printer& Ptr::print(Printer& p) const { 
     if (is_vector())
-        p << "< " << num_elems() << " x ";
+        p << "< " << length() << " x ";
     referenced_type()->print(p); p << "*"; return p; 
     if (is_vector())
         p << ">";
@@ -37,7 +37,7 @@ Printer& Ptr::print(Printer& p) const {
 
 Printer& PrimType::print(Printer& p) const {
     if (is_vector())
-        p << "<" << num_elems() << " x ";
+        p << "<" << length() << " x ";
     switch (primtype_kind()) {
 #define ANYDSL2_UF_TYPE(T) case Node_PrimType_##T: p << #T; break;
 #include "anydsl2/tables/primtypetable.h"

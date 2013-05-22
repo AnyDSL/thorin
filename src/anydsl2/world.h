@@ -88,24 +88,24 @@ public:
      * types
      */
 
-#define ANYDSL2_UF_TYPE(T) const PrimType* type_##T(size_t num_elems = 1) { \
-    return num_elems == 1 ? T##_ : unify(new PrimType(*this, PrimType_##T, num_elems)); \
+#define ANYDSL2_UF_TYPE(T) const PrimType* type_##T(size_t length = 1) { \
+    return length == 1 ? T##_ : unify(new PrimType(*this, PrimType_##T, length)); \
 }
 #include "anydsl2/tables/primtypetable.h"
 
     // primitive types
 
     /// Get PrimType.
-    const PrimType* type(PrimTypeKind kind, size_t num_elems = 1) {
+    const PrimType* type(PrimTypeKind kind, size_t length = 1) {
         size_t i = kind - Begin_PrimType;
         assert(0 <= i && i < (size_t) Num_PrimTypes);
-        return num_elems == 1 ? primtypes_[i] : unify(new PrimType(*this, kind, num_elems));
+        return length == 1 ? primtypes_[i] : unify(new PrimType(*this, kind, length));
     }
 
     const Mem* mem() const { return mem_; }
     const Frame* frame() const { return frame_; }
-    const Ptr* ptr(const Type* referenced_type, size_t num_elems = 1) { 
-        return unify(new Ptr(*this, referenced_type, num_elems)); 
+    const Ptr* ptr(const Type* referenced_type, size_t length = 1) { 
+        return unify(new Ptr(*this, referenced_type, length)); 
     }
 
     // sigmas
@@ -281,7 +281,7 @@ public:
     const Def* rebuild(const PrimOp* in, ArrayRef<const Def*> ops);
 
     /// Generic \p Type constructor.
-    const Type* rebuild(const Type* in, ArrayRef<const Type*> subtypes);
+    const Type* rebuild(const Type* in, ArrayRef<const Type*> elems);
 
     /*
      * optimizations

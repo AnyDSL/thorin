@@ -53,7 +53,7 @@ public:
     ArrayRef<const Type*> elems() const { return ops_ref<const Type*>(); }
     const Type* elem(size_t i) const { return elems()[i]; }
     const Type* elem_via_lit(const Def* def) const;
-    const Ptr* to_ptr(size_t num_elems = 1) const;
+    const Ptr* to_ptr(size_t length = 1) const;
     bool check_with(const Type* type) const;
     bool infer_with(GenericMap& map, const Type* type) const;
     const Type* specialize(const GenericMap& generic_map) const;
@@ -124,26 +124,27 @@ private:
 class PrimType : public Type {
 private:
 
-    PrimType(World& world, PrimTypeKind kind, size_t num_elems)
+    PrimType(World& world, PrimTypeKind kind, size_t length)
         : Type(world, (int) kind, 0, false)
-        , num_elems_(num_elems)
+        , length_(length)
     {}
 
     virtual Printer& print(Printer& printer) const;
-    virtual size_t hash() const { return hash_combine(Type::hash(), num_elems()); }
+    virtual size_t hash() const { return hash_combine(Type::hash(), length()); }
     virtual bool equal(const Node* other) const { 
-        return Type::equal(other) ? this->num_elems() == other->as<PrimType>()->num_elems() : false;
+        return Type::equal(other) ? this->length() == other->as<PrimType>()->length() : false;
     }
 
 public:
 
-    size_t num_elems() const { return num_elems_; }
-    bool is_vector() const { return num_elems_ != 1; }
+    /// The number of vector elements - the vector length.
+    size_t length() const { return length_; }
+    bool is_vector() const { return length_ != 1; }
     PrimTypeKind primtype_kind() const { return (PrimTypeKind) node_kind(); }
 
 private:
 
-    size_t num_elems_;
+    size_t length_;
 
     friend class World;
 };
@@ -153,29 +154,30 @@ private:
 class Ptr : public Type {
 private:
 
-    Ptr(World& world, const Type* referenced_type, size_t num_elems)
+    Ptr(World& world, const Type* referenced_type, size_t length)
         : Type(world, Node_Ptr, 1, referenced_type->is_generic())
-        , num_elems_(num_elems)
+        , length_(length)
     {
         set(0, referenced_type);
-        assert(num_elems == 1);
+        assert(length == 1);
     }
 
     virtual Printer& print(Printer& printer) const;
-    virtual size_t hash() const { return hash_combine(Type::hash(), num_elems()); }
+    virtual size_t hash() const { return hash_combine(Type::hash(), length()); }
     virtual bool equal(const Node* other) const { 
-        return Type::equal(other) ? this->num_elems() == other->as<Ptr>()->num_elems() : false;
+        return Type::equal(other) ? this->length() == other->as<Ptr>()->length() : false;
     }
 
 public:
 
     const Type* referenced_type() const { return elem(0); }
-    size_t num_elems() const { return num_elems_; }
-    bool is_vector() const { return num_elems_ != 1; }
+    /// The number of vector elements - the vector length.
+    size_t length() const { return length_; }
+    bool is_vector() const { return length_ != 1; }
 
 private:
 
-    size_t num_elems_;
+    size_t length_;
 
     friend class World;
 };
@@ -185,7 +187,7 @@ private:
 class CompoundType : public Type {
 protected:
 
-    CompoundType(World& world, int kind, size_t num_subtypes);
+    CompoundType(World& world, int kind, size_t num_elems);
     CompoundType(World& world, int kind, ArrayRef<const Type*> elems);
 };
 

@@ -7,6 +7,7 @@
 #include "anydsl2/analyses/looptree.h"
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/analyses/verifier.h"
+#include "anydsl2/transform/vectorize.h"
 #include "anydsl2/transform/partial_evaluation.h"
 #include "anydsl2/be/llvm.h"
 
@@ -39,7 +40,7 @@ int main(int argc, char** argv) {
 #endif
         string outfile = "-";
         string emittype;
-        bool help, emit_all, emit_air, emit_ast, emit_dot, emit_llvm, emit_loopforest, fancy, opt, verify, nocleanup, nossa, pe = false;
+        bool help, emit_all, emit_air, emit_ast, emit_dot, emit_llvm, emit_loopforest, fancy, opt, verify, vectorize, nocleanup, nossa, pe = false;
 
         // specify options
         po::options_description desc("Usage: " + prgname + " [options] file...");
@@ -61,6 +62,7 @@ int main(int argc, char** argv) {
         ("nossa",           po::bool_switch(&nossa),                    "use slots + load/store instead of SSA construction")
         ("pe",              po::bool_switch(&pe),                       "perform partial evaluation")
         ("verify,v",        po::bool_switch(&verify),                   "run verifier")
+        ("vectorize",       po::bool_switch(&vectorize),                "run vectorizer on main (debugging stuff going...)")
         (",O",              po::bool_switch(&opt),                      "optimize");
 
         // positional options, i.e., input files
@@ -133,6 +135,11 @@ int main(int argc, char** argv) {
 
             if (!nocleanup)
                 init.world.cleanup();
+            if (vectorize) {
+                Lambda* impala_main = Scope(init.world).copy_entries()[0];
+                Scope scope(impala_main);
+                anydsl2::vectorize(scope, 1);
+            }
             if (verify)
                 anydsl2::verify(init.world);
             if (opt)

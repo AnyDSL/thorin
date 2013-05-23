@@ -344,9 +344,34 @@ const Def* World::arithop(ArithOpKind kind, const Def* cond, const Def* a, const
         }
     }
 
-    // do we have ~~x?
-    if (kind == ArithOp_xor && a->is_allset() && b->is_not())
-        return b->as<ArithOp>()->rhs();
+    if (kind == ArithOp_xor && a->is_allset()) {    // is this a NOT
+        if (b->is_not())                            // do we have ~~x?
+            return b->as<ArithOp>()->rhs();
+        if (const RelOp* relop = b->isa<RelOp>()) { // do we have ~(a cmp b)?
+            RelOpKind new_relopkind;
+            switch (relop->relop_kind()) {
+                case RelOp_cmp_eq:   new_relopkind = RelOp_cmp_ne; break;
+                case RelOp_cmp_ne:   new_relopkind = RelOp_cmp_eq; break;
+                case RelOp_cmp_ult:  new_relopkind = RelOp_cmp_uge; break;
+                case RelOp_cmp_ule:  new_relopkind = RelOp_cmp_ugt; break;
+                case RelOp_cmp_slt:  new_relopkind = RelOp_cmp_sge; break;
+                case RelOp_cmp_sle:  new_relopkind = RelOp_cmp_sgt; break;
+                case RelOp_fcmp_oeq: new_relopkind = RelOp_fcmp_une; break;
+                case RelOp_fcmp_one: new_relopkind = RelOp_fcmp_ueq; break;
+                case RelOp_fcmp_olt: new_relopkind = RelOp_fcmp_uge; break;
+                case RelOp_fcmp_ole: new_relopkind = RelOp_fcmp_ugt; break;
+                case RelOp_fcmp_ueq: new_relopkind = RelOp_fcmp_one; break;
+                case RelOp_fcmp_une: new_relopkind = RelOp_fcmp_oeq; break;
+                case RelOp_fcmp_ult: new_relopkind = RelOp_fcmp_oge; break;
+                case RelOp_fcmp_ule: new_relopkind = RelOp_fcmp_ogt; break;
+                case RelOp_fcmp_uno: new_relopkind = RelOp_fcmp_ord; break;
+                case RelOp_fcmp_ord: new_relopkind = RelOp_fcmp_uno; break;
+                default: ANYDSL2_UNREACHABLE;
+            }
+
+            return this->relop(new_relopkind, cond, relop->lhs(), relop->rhs());
+        }
+    }
 
     // normalize: a - b = a + -b
     if ((kind == ArithOp_sub || kind == ArithOp_fsub) && !a->is_minus_zero()) { 
@@ -380,12 +405,14 @@ const Def* World::arithop(ArithOpKind kind, const Def* cond, const Def* a, const
 
                 default: break;
             }
-        } else if (llit->is_one()) {
+        } 
+        if (llit->is_one()) {
             switch (kind) {
                 case ArithOp_mul: return b;
                 default: break;
             }
-        } else if (llit->is_allset()) {
+        } 
+        if (llit->is_allset()) {
             switch (kind) {
                 case ArithOp_and: return b;
                 case ArithOp_or:  return llit; // allset

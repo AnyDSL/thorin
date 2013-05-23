@@ -202,6 +202,7 @@ public:
 
     /// Creates a vector of all true while the length is derived from @p def.
     const Def* true_mask(const Def* def) { return literal(true, def->length()); }
+    const Def* true_mask(size_t length) { return literal(true, length); }
 
     /*
      * arithop, relop, convop

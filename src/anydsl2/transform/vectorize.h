@@ -5,11 +5,10 @@
 
 namespace anydsl2 {
 
-class Def;
-class Type;
+class Scope;
+class Lambda;
 
-const Type* vectorize(const Type* type, size_t length);
-const Def* vectorize(const Def* cond, const Def* def);
+Lambda* vectorize(Scope& scope, size_t length);
 
 }
 

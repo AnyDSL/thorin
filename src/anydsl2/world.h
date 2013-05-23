@@ -178,30 +178,27 @@ public:
      */
 
 #define ANYDSL2_UF_TYPE(T) \
-    const PrimLit* literal_##T(T val) { return literal(val); } \
-    const PrimLit* literal_##T(Box box) { return literal(PrimType_##T, box); }
+    const Def* literal_##T(T val, size_t length = 1) { return literal(val, length); }
 #include "anydsl2/tables/primtypetable.h"
-    const PrimLit* literal_u1(bool val) { return literal(PrimType_u1, Box(val)); }
-    const PrimLit* literal(PrimTypeKind kind, Box value);
-    const PrimLit* literal(PrimTypeKind kind, int value);
-    const PrimLit* literal(const Type* type, int value);
+    const Def* literal(PrimTypeKind kind, Box value, size_t length = 1);
+    const Def* literal(PrimTypeKind kind, int value, size_t length = 1);
     template<class T>
-    const PrimLit* literal(T value) { return literal(type2kind<T>::kind, Box(value)); }
+    const Def* literal(T value, size_t length = 1) { return literal(type2kind<T>::kind, Box(value), length); }
 
-    const PrimLit* zero(PrimTypeKind kind) { return literal(kind, 0); }
-    const PrimLit* zero(const Type*);
-    const PrimLit* one(PrimTypeKind kind) { return literal(kind, 1); }
-    const PrimLit* one(const Type*);
-    const PrimLit* allset(PrimTypeKind kind) {
+    const Def* zero(PrimTypeKind kind, size_t length = 1) { return literal(kind, 0, length); }
+    const Def* zero(const Type*, size_t length = 1);
+    const Def* one(PrimTypeKind kind, size_t length = 1) { return literal(kind, 1, length); }
+    const Def* one(const Type*, size_t length = 1);
+    const Def* allset(PrimTypeKind kind, size_t length = 1) {
         assert(is_int(kind) && "must not be a float");
-        return literal(kind, -1);
+        return literal(kind, -1, length);
     }
-    const PrimLit* allset(const Type*);
+    const Def* allset(const Type*, size_t length = 1);
 
-    const Any* any(const Type* type);
-    const Any* any(PrimTypeKind kind) { return any(type(kind)); }
-    const Bottom* bottom(const Type* type);
-    const Bottom* bottom(PrimTypeKind kind) { return bottom(type(kind)); }
+    const Def* any(const Type* type, size_t length = 1);
+    const Def* any(PrimTypeKind kind, size_t length = 1) { return any(type(kind), length); }
+    const Def* bottom(const Type* type, size_t length = 1);
+    const Def* bottom(PrimTypeKind kind, size_t length = 1) { return bottom(type(kind), length); }
 
     /*
      * arithop, relop, convop
@@ -253,6 +250,7 @@ public:
     const Def* vector4(const Def* arg1, const Def* arg2, const Def* arg3, const Def* arg4, const std::string& name = "") {
         const Def* args[] = { arg1, arg2, arg3, arg4 }; return vector(args, name);
     }
+    const Def* vector(const Def* arg, size_t length = 1, const std::string& name = "");
 
     /*
      * memops

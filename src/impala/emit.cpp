@@ -203,7 +203,7 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
         case DEC: {
             RefPtr ref = rhs()->emit(cg);
             const Def* def = ref->load();
-            const PrimLit* one = cg.world().one(convert(def->type()));
+            const Def* one = cg.world().one(convert(def->type()));
             const Def* ndef = cg.world().arithop(Token::to_arithop((TokenKind) kind(), type()->is_float()), def, one);
             ref->store(ndef);
             return ref;
@@ -264,7 +264,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
 RefPtr PostfixExpr::emit(CodeGen& cg) const {
     RefPtr ref = lhs()->emit(cg);
     const Def* def = ref->load();
-    const PrimLit* one = cg.world().one(convert(def->type()));
+    const Def* one = cg.world().one(convert(def->type()));
     ref->store(cg.world().arithop(Token::to_arithop((TokenKind) kind(), type()->is_float()), def, one));
     return Ref::create(def);
 }

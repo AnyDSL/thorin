@@ -95,22 +95,26 @@ const Opaque* World::opaque(ArrayRef<const Type*> types, ArrayRef<uint32_t> flag
  * literals
  */
 
-const PrimLit* World::literal(PrimTypeKind kind, int value) {
-    switch (kind) {
-#define ANYDSL2_U_TYPE(T) case PrimType_##T: return literal(T(value));
+const Def* World::literal(PrimTypeKind kind, int value, size_t length) {
+    const Def* lit;
+    if (length == 1) {
+        switch (kind) {
+#define ANYDSL2_U_TYPE(T) case PrimType_##T: lit = literal(T(value), 1); break;
 #define ANYDSL2_F_TYPE(T) ANYDSL2_U_TYPE(T)
 #include "anydsl2/tables/primtypetable.h"
-        default: ANYDSL2_UNREACHABLE;
+            default: ANYDSL2_UNREACHABLE;
+        }
     }
+
+    return vector(lit, length);
 }
 
-const PrimLit* World::literal(PrimTypeKind kind, Box box) { return cse(new PrimLit(*this, kind, box, "")); }
-const PrimLit* World::literal(const Type* type, int value) { return literal(type->as<PrimType>()->primtype_kind(), value); }
-const Any*     World::any    (const Type* type) { return cse(new Any(type, "")); }
-const Bottom*  World::bottom (const Type* type) { return cse(new Bottom(type, "")); }
-const PrimLit* World::zero   (const Type* type) { return zero  (type->as<PrimType>()->primtype_kind()); }
-const PrimLit* World::one    (const Type* type) { return one   (type->as<PrimType>()->primtype_kind()); }
-const PrimLit* World::allset (const Type* type) { return allset(type->as<PrimType>()->primtype_kind()); }
+const Def* World::literal(PrimTypeKind kind, Box box, size_t length) { return vector(cse(new PrimLit(*this, kind, box, "")), length); }
+const Def* World::any    (const Type* type, size_t length) { return vector(cse(new Any(type, "")), length); }
+const Def* World::bottom (const Type* type, size_t length) { return vector(cse(new Bottom(type, "")), length); }
+const Def* World::zero   (const Type* type, size_t length) { return zero  (type->as<PrimType>()->primtype_kind(), length); }
+const Def* World::one    (const Type* type, size_t length) { return one   (type->as<PrimType>()->primtype_kind(), length); }
+const Def* World::allset (const Type* type, size_t length) { return allset(type->as<PrimType>()->primtype_kind(), length); }
 const TypeKeeper* World::typekeeper(const Type* type, const std::string& name) { return cse(new TypeKeeper(type, name)); }
 
 /*
@@ -605,6 +609,15 @@ const Def* World::tuple_insert(const Def* tuple, u32 index, const Def* value, co
     return tuple_insert(tuple, literal_u32(index), value, name); 
 }
 
+const Def* World::vector(const Def* arg, size_t length, const std::string& name) {
+    if (length == 1) 
+        return arg;
+
+    Array<const Def*> args(length);
+    std::fill(args.begin(), args.end(), arg);
+    return vector(args, name);
+}
+
 const Enter* World::enter(const Def* mem, const std::string& name) {
     if (const Leave* leave = mem->isa<Leave>())
         if (const TupleExtract* extract = leave->frame()->isa<TupleExtract>())
@@ -823,7 +836,7 @@ void World::dead_code_elimination() {
             for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
                 const Def* arg = lambda->arg(i);
                 if (!arg->is_visited(pass)) {
-                    const Bottom* bot = bottom(arg->type());
+                    const Def* bot = bottom(arg->type());
                     bot->visit(pass);
                     lambda->update_arg(i, bot);
                 }

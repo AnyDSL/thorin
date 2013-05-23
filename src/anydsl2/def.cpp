@@ -174,6 +174,7 @@ Lambda* Def::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(this)
 const PrimOp* Def::is_non_const_primop() const { return is_const() ? 0 : isa<PrimOp>(); }
 int Def::order() const { return type()->order(); }
 bool Def::is_generic() const { return type()->is_generic(); }
+size_t Def::length() const { return type()->as<VectorType>()->length(); }
 
 //------------------------------------------------------------------------------
 

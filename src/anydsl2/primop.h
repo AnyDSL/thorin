@@ -44,14 +44,41 @@ struct PrimOpEqual : std::binary_function<const PrimOp*, const PrimOp*, bool> {
 
 //------------------------------------------------------------------------------
 
-class BinOp : public PrimOp {
+class VectorOp : public PrimOp {
+protected:
+
+    VectorOp(size_t size, NodeKind kind, const Type* type, const Def* cond, const std::string& name);
+
+public:
+
+    const Def* cond() const { return op(0); }
+};
+
+//------------------------------------------------------------------------------
+
+class Select : public VectorOp {
+private:
+
+    Select(const Def* cond, const Def* tval, const Def* fval, const std::string& name);
+
+public:
+
+    const Def* tval() const { return op(1); }
+    const Def* fval() const { return op(2); }
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
+
+class BinOp : public VectorOp {
 protected:
 
     BinOp(NodeKind kind, const Type* type, const Def* cond, const Def* lhs, const Def* rhs, const std::string& name);
 
 public:
 
-    const Def* cond() const { return op(0); }
     const Def* lhs() const { return op(1); }
     const Def* rhs() const { return op(2); }
 };
@@ -90,36 +117,20 @@ public:
 
 //------------------------------------------------------------------------------
 
-class ConvOp : public PrimOp {
+class ConvOp : public VectorOp {
 private:
 
-    ConvOp(ConvOpKind kind, const Def* from, const Type* to, const std::string& name)
-        : PrimOp(1, (NodeKind) kind, to, name)
+    ConvOp(ConvOpKind kind, const Def* cond, const Def* from, const Type* to, const std::string& name)
+        : VectorOp(1, (NodeKind) kind, to, cond, name)
     {
-        set_op(0, from);
+        set_op(1, from);
     }
 
 public:
 
-    const Def* from() const { return op(0); }
+    const Def* from() const { return op(1); }
     ConvOpKind convop_kind() const { return (ConvOpKind) node_kind(); }
     virtual const char* op_name() const;
-
-    friend class World;
-};
-
-//------------------------------------------------------------------------------
-
-class Select : public PrimOp {
-private:
-
-    Select(const Def* cond, const Def* tval, const Def* fval, const std::string& name);
-
-public:
-
-    const Def* cond() const { return op(0); }
-    const Def* tval() const { return op(1); }
-    const Def* fval() const { return op(2); }
 
     friend class World;
 };

@@ -121,15 +121,15 @@ const TypeKeeper* World::typekeeper(const Type* type, const std::string& name) {
  * create
  */
 
-const Def* World::binop(int kind, const Def* lhs, const Def* rhs, const std::string& name) {
+const Def* World::binop(int kind, const Def* cond, const Def* lhs, const Def* rhs, const std::string& name) {
     if (is_arithop(kind))
-        return arithop((ArithOpKind) kind, lhs, rhs);
+        return arithop((ArithOpKind) kind, cond, lhs, rhs);
 
     assert(is_relop(kind) && "must be a RelOp");
-    return relop((RelOpKind) kind, lhs, rhs);
+    return relop((RelOpKind) kind, cond, lhs, rhs);
 }
 
-const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const std::string& name) {
+const Def* World::arithop(ArithOpKind kind, const Def* cond, const Def* a, const Def* b, const std::string& name) {
     assert(a->type() == b->type());
     assert(a->type()->as<PrimType>()->length() == b->type()->as<PrimType>()->length());
     PrimTypeKind type = a->type()->as<PrimType>()->primtype_kind();
@@ -144,10 +144,11 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
     const Vector*  rvec = b->isa<Vector>();
 
     if (lvec && rvec) {
+        const Vector* cvec = cond->isa<Vector>();
         size_t num = lvec->type()->as<PrimType>()->length();
         Array<const Def*> ops(num);
         for (size_t i = 0; i != num; ++i)
-            ops[i] = arithop(kind, lvec->op(i), rvec->op(i));
+            ops[i] = cvec && cvec->op(i)->is_zero() ? bottom(type, 1) :  arithop(kind, lvec->op(i), rvec->op(i));
         return vector(ops, name);
     }
 
@@ -291,7 +292,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
 
     if (a == b) {
         switch (kind) {
-            case ArithOp_add:  return arithop_mul(literal(type, 2), a);
+            case ArithOp_add:  return arithop_mul(cond, literal(type, 2), a);
 
             case ArithOp_sub:
             case ArithOp_srem:
@@ -412,22 +413,22 @@ const Def* World::arithop(ArithOpKind kind, const Def* a, const Def* b, const st
             return arithop(kind, a_lhs_lv, arithop(kind, a_same->rhs(), b));
     }
 
-    return cse(new ArithOp(kind, a, b, name));
+    return cse(new ArithOp(kind, cond, a, b, name));
 }
 
-const Def* World::arithop_not(const Def* def) { return arithop_xor(allset(def->type()), def); }
+const Def* World::arithop_not(const Def* cond, const Def* def) { return arithop_xor(cond, allset(def->type()), def); }
 
-const Def* World::arithop_minus(const Def* def) {
+const Def* World::arithop_minus(const Def* cond, const Def* def) {
     const Def* zero;
     switch (PrimTypeKind kind = def->type()->as<PrimType>()->primtype_kind()) {
         case PrimType_f32: zero = literal_f32(-0.f); break;
         case PrimType_f64: zero = literal_f64(-0.0); break;
         default: assert(is_int(kind)); zero = this->zero(kind);
     }
-    return arithop_sub(zero, def);
+    return arithop_sub(cond, zero, def);
 }
 
-const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::string& name) {
+const Def* World::relop(RelOpKind kind, const Def* cond, const Def* a, const Def* b, const std::string& name) {
     if (a->isa<Bottom>() || b->isa<Bottom>())
         return bottom(type_u1());
 
@@ -551,23 +552,14 @@ const Def* World::relop(RelOpKind kind, const Def* a, const Def* b, const std::s
         }
     }
 
-    return cse(new RelOp(kind, a, b, name));
+    return cse(new RelOp(kind, cond, a, b, name));
 }
 
-const Def* World::convop(ConvOpKind kind, const Def* from, const Type* to, const std::string& name) {
+const Def* World::convop(ConvOpKind kind, const Def* cond, const Def* from, const Type* to, const std::string& name) {
     if (from->isa<Bottom>())
         return bottom(to);
 
-#if 0
-    if (const PrimLit* lit = from->isa<PrimLit>())
-        Box box = lit->box();
-        PrimTypeKind type = lit->primtype_kind();
-
-        // TODO folding
-    }
-#endif
-
-    return cse(new ConvOp(kind, from, to, name));
+    return cse(new ConvOp(kind, cond, from, to, name));
 }
 
 const Def* World::tuple_extract(const Def* agg, const Def* index, const std::string& name) {
@@ -684,8 +676,8 @@ const Def* World::rebuild(const PrimOp* in, ArrayRef<const Def*> ops) {
     const std::string& name = in->name;
 
     if (ops.empty()) return in;
-    if (is_arithop(kind)) { assert(ops.size() == 2); return arithop((ArithOpKind) kind, ops[0], ops[1], name); }
-    if (is_relop  (kind)) { assert(ops.size() == 2); return relop(  (RelOpKind  ) kind, ops[0], ops[1], name); }
+    if (is_arithop(kind)) { assert(ops.size() == 3); return arithop((ArithOpKind) kind, ops[0], ops[1], ops[2], name); }
+    if (is_relop  (kind)) { assert(ops.size() == 3); return relop(  (RelOpKind  ) kind, ops[0], ops[1], ops[2], name); }
     if (is_convop (kind)) { assert(ops.size() == 1); return convop( (ConvOpKind ) kind, ops[0],   type, name); }
 
     switch (kind) {

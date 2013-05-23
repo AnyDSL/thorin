@@ -20,12 +20,17 @@ void PrimOp::update(size_t i, const Def* with) {
             is_const_ &= op->is_const();
 }
 
-BinOp::BinOp(NodeKind kind, const Type* type, const Def* cond, const Def* lhs, const Def* rhs, const std::string& name)
-    : PrimOp(3, kind, type, name)
+VectorOp::VectorOp(size_t size, NodeKind kind, const Type* type, const Def* cond, const std::string& name)
+    : PrimOp(size, kind, type, name)
 {
-    assert(lhs->type() == rhs->type() && "types are not equal");
     assert(cond->type()->is_u1());
     set_op(0, cond);
+}
+
+BinOp::BinOp(NodeKind kind, const Type* type, const Def* cond, const Def* lhs, const Def* rhs, const std::string& name)
+    : VectorOp(3, kind, type, cond, name)
+{
+    assert(lhs->type() == rhs->type() && "types are not equal");
     set_op(1, lhs);
     set_op(2, rhs);
 }
@@ -35,12 +40,10 @@ RelOp::RelOp(RelOpKind kind, const Def* cond, const Def* lhs, const Def* rhs, co
 {}
 
 Select::Select(const Def* cond, const Def* tval, const Def* fval, const std::string& name)
-    : PrimOp(3, Node_Select, tval->type(), name)
+    : VectorOp(3, Node_Select, tval->type(), cond, name)
 {
-    set_op(0, cond);
     set_op(1, tval);
     set_op(2, fval);
-    assert(cond->type() == world().type_u1() && "condition must be of u1 type");
     assert(tval->type() == fval->type() && "types of both values must be equal");
 }
 

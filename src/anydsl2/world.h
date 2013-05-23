@@ -200,34 +200,60 @@ public:
     const Def* bottom(const Type* type, size_t length = 1);
     const Def* bottom(PrimTypeKind kind, size_t length = 1) { return bottom(type(kind), length); }
 
+    /// Creates a vector of all true while the length is derived from @p def.
+    const Def* true_mask(const Def* def) { return literal(true, def->length()); }
+
     /*
      * arithop, relop, convop
      */
 
     /// Creates an \p ArithOp or a \p RelOp.
-    const Def* binop(int kind, const Def* lhs, const Def* rhs, const std::string& name = "");
+    const Def* binop(int kind, const Def* cond, const Def* lhs, const Def* rhs, const std::string& name = "");
+    const Def* binop(int kind, const Def* lhs, const Def* rhs, const std::string& name = "") {
+        return binop(kind, true_mask(lhs), lhs, rhs, name);
+    }
 
-    const Def* arithop(ArithOpKind kind, const Def* lhs, const Def* rhs, const std::string& name = "");
+    const Def* arithop(ArithOpKind kind, const Def* cond, const Def* lhs, const Def* rhs, const std::string& name = "");
+    const Def* arithop(ArithOpKind kind, const Def* lhs, const Def* rhs, const std::string& name = "") {
+        return arithop(kind, true_mask(lhs), lhs, rhs, name);
+    }
 #define ANYDSL2_ARITHOP(OP) \
+    const Def* arithop_##OP(const Def* cond, const Def* lhs, const Def* rhs, const std::string& name = "") { \
+        return arithop(ArithOp_##OP, cond, lhs, rhs, name); \
+    } \
     const Def* arithop_##OP(const Def* lhs, const Def* rhs, const std::string& name = "") { \
-        return arithop(ArithOp_##OP, lhs, rhs, name); \
+        return arithop(ArithOp_##OP, true_mask(lhs), lhs, rhs, name); \
     }
 #include "anydsl2/tables/arithoptable.h"
 
-    const Def* arithop_not(const Def* def);
-    const Def* arithop_minus(const Def* def);
+    const Def* arithop_not(const Def* cond, const Def* def);
+    const Def* arithop_not(const Def* def) { return arithop_not(true_mask(def), def); }
+    const Def* arithop_minus(const Def* cond, const Def* def);
+    const Def* arithop_minus(const Def* def) { return arithop_minus(true_mask(def), def); }
 
-    const Def* relop(RelOpKind kind, const Def* lhs, const Def* rhs, const std::string& name = "");
+    const Def* relop(RelOpKind kind, const Def* cond, const Def* lhs, const Def* rhs, const std::string& name = "");
+    const Def* relop(RelOpKind kind, const Def* lhs, const Def* rhs, const std::string& name = "") {
+        return relop(kind, true_mask(lhs), lhs, rhs, name);
+    }
 #define ANYDSL2_RELOP(OP) \
+    const Def* relop_##OP(const Def* cond, const Def* lhs, const Def* rhs, const std::string& name = "") { \
+        return relop(RelOp_##OP, cond, lhs, rhs, name);  \
+    } \
     const Def* relop_##OP(const Def* lhs, const Def* rhs, const std::string& name = "") { \
-        return relop(RelOp_##OP, lhs, rhs, name);  \
+        return relop(RelOp_##OP, true_mask(lhs), lhs, rhs, name);  \
     }
 #include "anydsl2/tables/reloptable.h"
 
-    const Def* convop(ConvOpKind kind, const Def* from, const Type* to, const std::string& name = "");
+    const Def* convop(ConvOpKind kind, const Def* cond, const Def* from, const Type* to, const std::string& name = "");
+    const Def* convop(ConvOpKind kind, const Def* from, const Type* to, const std::string& name = "") {
+        return convop(kind, true_mask(from), from, to, name);
+    }
 #define ANYDSL2_CONVOP(OP) \
+    const Def* convop_##OP(const Def* from, const Def* cond, const Type* to, const std::string& name = "") { \
+        return convop(ConvOp_##OP, cond, from, to, name); \
+    } \
     const Def* convop_##OP(const Def* from, const Type* to, const std::string& name = "") { \
-        return convop(ConvOp_##OP, from, to, name); \
+        return convop(ConvOp_##OP, true_mask(from), from, to, name); \
     }
 #include "anydsl2/tables/convoptable.h"
 

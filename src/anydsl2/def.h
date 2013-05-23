@@ -205,6 +205,11 @@ public:
     const Def* op(size_t i) const { assert(i < ops().size()); return ops()[i]; }
     const Def* op_via_lit(const Def* def) const;
     void replace(const Def*) const;
+    /**
+     * Returns the vector length.
+     * Raises an assertion if type of this is not a \p VectorType.
+     */
+    size_t length() const;
 
     // check for special literals
 

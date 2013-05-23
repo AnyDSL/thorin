@@ -5,9 +5,11 @@
 
 namespace anydsl2 {
 
+class Def;
 class Type;
 
 const Type* vectorize(const Type* type, size_t length);
+const Def* vectorize(const Def* cond, const Def* def);
 
 }
 

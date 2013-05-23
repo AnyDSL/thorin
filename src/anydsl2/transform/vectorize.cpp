@@ -25,4 +25,32 @@ const Type* vectorize(const Type* type, size_t length) {
     return world.rebuild(type, new_elems);
 }
 
+const Def* vectorize(const Def* cond, const Def* def) {
+    World& world = cond->world();
+
+    if (const PrimOp* primop = def->isa<PrimOp>()) {
+        size_t size = primop->size();
+
+        Array<const Def*> nops(primop->size());
+        size_t i = 0;
+
+        switch (size) {
+            case 0: 
+                break;
+            case 1: 
+                if (primop->isa<VectorOp>()) {
+                    nops[i++] = cond;
+                    break;
+                } // else FALLTHROUGH
+            default:
+                for (; i != size; ++i)
+                    nops[i] = vectorize(cond, primop->op(i));
+        }
+
+        return world.rebuild(primop, nops, vectorize(primop->type(), cond->length()));
+    }
+
+    return 0;
+}
+
 }

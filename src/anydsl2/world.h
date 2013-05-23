@@ -302,7 +302,8 @@ public:
     Lambda* basicblock(const std::string& name = "");
 
     /// Generic \p PrimOp constructor; inherits name from \p in.
-    const Def* rebuild(const PrimOp* in, ArrayRef<const Def*> ops);
+    const Def* rebuild(const PrimOp* in, ArrayRef<const Def*> ops, const Type* type);
+    const Def* rebuild(const PrimOp* in, ArrayRef<const Def*> ops) { return rebuild(in, ops, in->type()); }
 
     /// Generic \p Type constructor.
     const Type* rebuild(const Type* in, ArrayRef<const Type*> elems);

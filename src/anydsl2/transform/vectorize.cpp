@@ -6,17 +6,14 @@
 namespace anydsl2 {
 
 const Type* vectorize(const Type* type, size_t length) {
+    assert(!type->isa<VectorType>() || type->length() == 1);
     World& world = type->world();
 
-    if (const PrimType* primtype = type->isa<PrimType>()) {
-        assert(primtype->length() == 1);
+    if (const PrimType* primtype = type->isa<PrimType>())
         return world.type(primtype->primtype_kind(), length);
-    }
 
-    if (const Ptr* ptr = type->isa<Ptr>()) {
-        assert(ptr->length() == 1);
+    if (const Ptr* ptr = type->isa<Ptr>())
         return world.ptr(ptr->referenced_type(), length);
-    }
 
     Array<const Type*> new_elems(type->size());
     for_all2 (&new_elem, new_elems, elem, type->elems())

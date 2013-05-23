@@ -63,6 +63,11 @@ public:
     bool is_float() const { return anydsl2::is_float(kind()); }
     bool is_primtype() const { return anydsl2::is_primtype(kind()); }
     int order() const;
+    /**
+     * Returns the vector length.
+     * Raises an assertion if type of this is not a \p VectorType.
+     */
+    size_t length() const;
 
 private:
 

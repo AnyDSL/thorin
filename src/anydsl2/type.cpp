@@ -59,6 +59,7 @@ int Type::order() const {
 }
 
 const Ptr* Type::to_ptr(size_t length) const { return world().ptr(this, length); }
+size_t Type::length() const { return as<VectorType>()->length(); }
 
 const Type* Type::elem_via_lit(const Def* def) const {
     return elem(def->primlit_value<size_t>());

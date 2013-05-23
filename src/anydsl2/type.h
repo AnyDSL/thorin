@@ -120,19 +120,17 @@ private:
 
 //------------------------------------------------------------------------------
 
-/// Primitive types -- also known as atomic or scalar types.
-class PrimType : public Type {
-private:
+class VectorType : public Type {
+protected:
 
-    PrimType(World& world, PrimTypeKind kind, size_t length)
-        : Type(world, (int) kind, 0, false)
+    VectorType(World& world, int kind, size_t num_elems, size_t length, bool is_generic)
+        : Type(world, kind, num_elems, is_generic)
         , length_(length)
     {}
 
-    virtual Printer& print(Printer& printer) const;
     virtual size_t hash() const { return hash_combine(Type::hash(), length()); }
     virtual bool equal(const Node* other) const { 
-        return Type::equal(other) ? this->length() == other->as<PrimType>()->length() : false;
+        return Type::equal(other) ? this->length() == other->as<VectorType>()->length() : false;
     }
 
 public:
@@ -140,6 +138,26 @@ public:
     /// The number of vector elements - the vector length.
     size_t length() const { return length_; }
     bool is_vector() const { return length_ != 1; }
+
+private:
+
+    size_t length_;
+};
+
+//------------------------------------------------------------------------------
+
+/// Primitive types -- also known as atomic or scalar types.
+class PrimType : public VectorType {
+private:
+
+    PrimType(World& world, PrimTypeKind kind, size_t length)
+        : VectorType(world, (int) kind, 0, length, false)
+    {}
+
+    virtual Printer& print(Printer& printer) const;
+
+public:
+
     PrimTypeKind primtype_kind() const { return (PrimTypeKind) node_kind(); }
 
 private:
@@ -151,32 +169,20 @@ private:
 
 //------------------------------------------------------------------------------
 
-class Ptr : public Type {
+class Ptr : public VectorType {
 private:
 
     Ptr(World& world, const Type* referenced_type, size_t length)
-        : Type(world, Node_Ptr, 1, referenced_type->is_generic())
-        , length_(length)
+        : VectorType(world, (int) Node_Ptr, 1, length, referenced_type->is_generic())
     {
         set(0, referenced_type);
     }
 
     virtual Printer& print(Printer& printer) const;
-    virtual size_t hash() const { return hash_combine(Type::hash(), length()); }
-    virtual bool equal(const Node* other) const { 
-        return Type::equal(other) ? this->length() == other->as<Ptr>()->length() : false;
-    }
 
 public:
 
     const Type* referenced_type() const { return elem(0); }
-    /// The number of vector elements - the vector length.
-    size_t length() const { return length_; }
-    bool is_vector() const { return length_ != 1; }
-
-private:
-
-    size_t length_;
 
     friend class World;
 };

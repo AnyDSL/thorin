@@ -365,17 +365,10 @@ Lambda* Scope::mangle(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with,
 
 //------------------------------------------------------------------------------
 
-const DomTree& Scope::domtree() const { 
-    return domtree_ ? *domtree_ : *(domtree_ = new DomTree(*this));
-}
-
-const LoopTreeNode* Scope::looptree() const { 
-    return looptree_ ? looptree_ : looptree_ = create_loop_forest(*this);
-}
-
-const LoopInfo& Scope::loopinfo() const { 
-    return loopinfo_ ? *loopinfo_ : *(loopinfo_ = new LoopInfo(*this));
-}
+const DomTree& Scope::domtree() const { return domtree_ ? *domtree_ : *(domtree_ = new DomTree(*this, false)); }
+const DomTree& Scope::postdomtree() const { return postdomtree_ ? *postdomtree_ : *(postdomtree_ = new DomTree(*this, true)); }
+const LoopTreeNode* Scope::looptree() const { return looptree_ ? looptree_ : looptree_ = create_loop_forest(*this); }
+const LoopInfo& Scope::loopinfo() const { return loopinfo_ ? *loopinfo_ : *(loopinfo_ = new LoopInfo(*this)); }
 
 //------------------------------------------------------------------------------
 

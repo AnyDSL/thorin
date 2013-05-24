@@ -42,12 +42,7 @@ private:
 class DomTree {
 public:
 
-    explicit DomTree(const Scope& scope)
-        : scope_(scope)
-        , nodes_(size())
-    {
-        create();
-    }
+    DomTree(const Scope& scope, bool post);
     ~DomTree();
 
     const Scope& scope() const { return scope_; }
@@ -65,7 +60,7 @@ public:
 private:
 
     static DomNode* lca(DomNode* i, DomNode* j);
-    void create();
+    template<bool post> void create();
     DomNode* lookup(Lambda* lambda) const;
 
     const Scope& scope_;

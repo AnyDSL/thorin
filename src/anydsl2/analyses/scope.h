@@ -51,6 +51,7 @@ public:
                    const GenericMap& generic_map = GenericMap());
 
     const DomTree& domtree() const;
+    const DomTree& postdomtree() const;
     const LoopTreeNode* looptree() const;
     const LoopInfo& loopinfo() const;
 
@@ -75,6 +76,7 @@ private:
     mutable Array< Array<Lambda*> > preds_;
     mutable Array< Array<Lambda*> > succs_;
     mutable AutoPtr<DomTree> domtree_;
+    mutable AutoPtr<DomTree> postdomtree_;
     mutable AutoPtr<LoopTreeNode> looptree_;
     mutable AutoPtr<LoopInfo> loopinfo_;
 };

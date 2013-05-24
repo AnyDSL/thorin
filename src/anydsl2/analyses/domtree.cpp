@@ -28,11 +28,22 @@ size_t DomNode::sid() const { return lambda()->sid(); }
 
 //------------------------------------------------------------------------------
 
+DomTree::DomTree(const Scope& scope, bool post)
+    : scope_(scope)
+    , nodes_(size())
+{
+    if (post)
+        create<true>();
+    else
+        create<false>();
+}
+
 DomTree::~DomTree() {
     for_all (node, nodes_)
         delete node;
 }
 
+template<bool post>
 void DomTree::create() {
     for_all (lambda, scope_.rpo())
         nodes_[lambda->sid()] = new DomNode(lambda);

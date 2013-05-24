@@ -20,7 +20,6 @@ struct ScopeLess {
 Scope::Scope(Lambda* entry)
     : world_(entry->world())
     , entries_(1)
-    , hack_(0)
 {
     entries_[0] = entry;
     analyze();
@@ -30,7 +29,6 @@ Scope::Scope(Lambda* entry)
 Scope::Scope(World& world, ArrayRef<Lambda*> entries)
     : world_(world)
     , entries_(entries.begin(), entries.end())
-    , hack_(0)
 {
     analyze();
     process();
@@ -42,10 +40,8 @@ Scope::Scope(World& world)
     size_t pass = world.new_pass();
 
     for_all (lambda, world.lambdas()) {
-        if (!lambda->is_visited(pass)) {
-            hack_ = lambda;
-            jump_to_param_users(pass, lambda);
-        }
+        if (!lambda->is_visited(pass))
+            jump_to_param_users(pass, lambda, lambda);
     }
 
     for_all (lambda, world.lambdas()) {
@@ -63,7 +59,7 @@ void Scope::analyze() {
     size_t pass = world().new_pass();
     for_all (entry, entries()) {
         insert(pass, entry);
-        jump_to_param_users(pass, entry);
+        jump_to_param_users(pass, entry, 0);
     }
 }
 
@@ -132,32 +128,32 @@ Scope::~Scope() {
         lambda->scope_ = 0;
 }
 
-void Scope::jump_to_param_users(const size_t pass, Lambda* lambda) {
+void Scope::jump_to_param_users(const size_t pass, Lambda* lambda, Lambda* limit) {
     for_all (param, lambda->params())
-        find_user(pass, param);
+        find_user(pass, param, limit);
 }
 
-inline void Scope::find_user(const size_t pass, const Def* def) {
+inline void Scope::find_user(const size_t pass, const Def* def, Lambda* limit) {
     if (Lambda* lambda = def->isa_lambda())
-        up(pass, lambda);
+        up(pass, lambda, limit);
     else {
         if (def->visit(pass))
             return;
 
         for_all (use, def->uses())
-            find_user(pass, use);
+            find_user(pass, use, limit);
     }
 }
 
-void Scope::up(const size_t pass, Lambda* lambda) {
-    if (lambda->is_visited(pass) || (hack_ && hack_ == lambda))
+void Scope::up(const size_t pass, Lambda* lambda, Lambda* limit) {
+    if (lambda->is_visited(pass) || (limit && limit == lambda))
         return;
 
     insert(pass, lambda);
-    jump_to_param_users(pass, lambda);
+    jump_to_param_users(pass, lambda, limit);
 
     for_all (pred, lambda->preds())
-        up(pass, pred);
+        up(pass, pred, limit);
 }
 
 size_t Scope::number(const size_t pass, Lambda* cur, size_t i) {

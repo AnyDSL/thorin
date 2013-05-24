@@ -25,6 +25,7 @@ public:
     /// All bodies with this scope in reverse postorder.
     ArrayRef<Lambda*> rpo() const { return rpo_; }
     const std::vector<Lambda*>& entries() const { return entries_; }
+    const std::vector<Lambda*>& exits() const;
     Array<Lambda*> copy_entries() const { return Array<Lambda*>(entries_); }
     /// Like \p rpo() but without \p entries().
     ArrayRef<Lambda*> body() const { return rpo().slice_back(num_entries()); }
@@ -57,9 +58,9 @@ private:
 
     void analyze();
     void process();
-    void jump_to_param_users(const size_t pass, Lambda* lambda);
-    void up(const size_t pass, Lambda* lambda);
-    void find_user(const size_t pass, const Def* def);
+    void jump_to_param_users(const size_t pass, Lambda* lambda, Lambda* limit);
+    void up(const size_t pass, Lambda* lambda, Lambda* limit);
+    void find_user(const size_t pass, const Def* def, Lambda* limit);
     size_t number(const size_t pass, Lambda* cur, size_t i);
     void insert(const size_t pass, Lambda* lambda) { 
         lambda->visit_first(pass); 
@@ -71,13 +72,13 @@ private:
 
     World& world_;
     std::vector<Lambda*> entries_;
+    mutable AutoPtr< std::vector<Lambda*> > exists_;
     std::vector<Lambda*> rpo_;
     Array< Array<Lambda*> > preds_;
     Array< Array<Lambda*> > succs_;
     mutable AutoPtr<DomTree> domtree_;
     mutable AutoPtr<LoopTreeNode> looptree_;
     mutable AutoPtr<LoopInfo> loopinfo_;
-    Lambda* hack_;
 };
 
 } // namespace anydsl2

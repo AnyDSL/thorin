@@ -14,8 +14,8 @@ public:
         : scope(world)
         , domtree(scope.domtree())
     {
-        for_all (entry, domtree.entries())
-            merge(entry);
+        for_all (entry, scope.entries())
+            merge(scope.domtree().node(entry));
     }
 
     void merge(const DomNode* n);

@@ -67,7 +67,7 @@ outer_loop:;
             for_all (pred, scope().preds(lambda)) {
                 DomNode* pred_node = lookup(pred);
                 assert(pred_node);
-                new_idom = new_idom ?  lca(new_idom, pred_node) : pred_node;
+                new_idom = new_idom ? lca(new_idom, pred_node) : pred_node;
             }
             assert(new_idom);
             if (lambda_node->idom() != new_idom) {
@@ -96,24 +96,5 @@ DomNode* DomTree::lca(DomNode* i, DomNode* j) {
 const DomNode* DomTree::node(Lambda* lambda) const { assert(scope().contains(lambda)); return nodes_[lambda->sid()]; }
 DomNode* DomTree::lookup(Lambda* lambda) const { assert(scope().contains(lambda)); return nodes_[lambda->sid()]; }
 size_t DomTree::size() const { return scope_.size(); }
-
-ArrayRef<const DomNode*> DomTree::entries() const {
-    if (!entries_) {
-        entries_ = new Array<const DomNode*>(scope().num_entries());
-        for_all2 (&dom_entry, *entries_, entry, scope().entries())
-            dom_entry = node(entry);
-    }
-
-    return *entries_;
-}
-
-bool DomTree::dominates(const DomNode* a, const DomNode* b) const {
-    while (a != b && !b->entry()) 
-        b = b->idom();
-
-    return a == b;
-}
-
-//------------------------------------------------------------------------------
 
 } // namespace anydsl2

@@ -45,22 +45,17 @@ public:
     explicit DomTree(const Scope& scope)
         : scope_(scope)
         , nodes_(size())
-        , entries_(0)
     {
         create();
     }
     ~DomTree();
 
     const Scope& scope() const { return scope_; }
-    ArrayRef<const DomNode*> entries() const;
     size_t size() const;
     ArrayRef<const DomNode*> nodes() const { return ArrayRef<const DomNode*>(nodes_.begin(), nodes_.size()); }
     const DomNode* node(size_t sid) const { return nodes_[sid]; }
     const DomNode* node(Lambda* lambda) const;
     int depth(Lambda* lambda) const { return node(lambda)->depth(); }
-    bool dominates(const DomNode* a, const DomNode* b) const;
-    bool dominates(Lambda* a, Lambda* b) const { return dominates(lookup(a), lookup(b)); }
-    bool strictly_dominates(const DomNode* a, const DomNode* b) const { return a != b && dominates(a, b); }
     Lambda* lca(Lambda* i, Lambda* j) const { return lca(lookup(i), lookup(j))->lambda(); }
     static const DomNode* lca(const DomNode* i, const DomNode* j) { 
         return lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j)); 
@@ -75,7 +70,6 @@ private:
 
     const Scope& scope_;
     Array<DomNode*> nodes_;
-    mutable AutoPtr< Array<const DomNode*> > entries_;
 };
 
 } // namespace anydsl2

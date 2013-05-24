@@ -104,6 +104,8 @@ template<> struct type2kind<bool> { static const PrimTypeKind kind = PrimType_u1
 const char* kind2str(PrimTypeKind kind);
 int num_bits(PrimTypeKind);
 
+RelOpKind negate(RelOpKind kind);
+
 } // namespace anydsl2
 
 #endif

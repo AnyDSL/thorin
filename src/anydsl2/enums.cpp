@@ -33,4 +33,34 @@ int num_bits(PrimTypeKind kind) {
     ANYDSL2_UNREACHABLE;
 }
 
+RelOpKind negate(RelOpKind kind) {
+    switch (kind) {
+        case RelOp_cmp_eq:   return RelOp_cmp_ne;
+        case RelOp_cmp_ne:   return RelOp_cmp_eq;
+        case RelOp_cmp_ult:  return RelOp_cmp_uge;
+        case RelOp_cmp_ule:  return RelOp_cmp_ugt;
+        case RelOp_cmp_ugt:  return RelOp_cmp_ule;
+        case RelOp_cmp_uge:  return RelOp_cmp_ult;
+        case RelOp_cmp_slt:  return RelOp_cmp_sge;
+        case RelOp_cmp_sle:  return RelOp_cmp_sgt;
+        case RelOp_cmp_sgt:  return RelOp_cmp_sle;
+        case RelOp_cmp_sge:  return RelOp_cmp_slt;
+        case RelOp_fcmp_oeq: return RelOp_fcmp_une;
+        case RelOp_fcmp_one: return RelOp_fcmp_ueq;
+        case RelOp_fcmp_olt: return RelOp_fcmp_uge;
+        case RelOp_fcmp_ole: return RelOp_fcmp_ugt;
+        case RelOp_fcmp_ogt: return RelOp_fcmp_ule;
+        case RelOp_fcmp_oge: return RelOp_fcmp_ult;
+        case RelOp_fcmp_ueq: return RelOp_fcmp_one;
+        case RelOp_fcmp_une: return RelOp_fcmp_oeq;
+        case RelOp_fcmp_ult: return RelOp_fcmp_oge;
+        case RelOp_fcmp_ule: return RelOp_fcmp_ogt;
+        case RelOp_fcmp_ugt: return RelOp_fcmp_ole;
+        case RelOp_fcmp_uge: return RelOp_fcmp_olt;
+        case RelOp_fcmp_uno: return RelOp_fcmp_ord;
+        case RelOp_fcmp_ord: return RelOp_fcmp_uno;
+    }
+    ANYDSL2_UNREACHABLE;
+}
+
 } // namespace anydsl2

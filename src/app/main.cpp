@@ -133,13 +133,13 @@ int main(int argc, char** argv) {
         if (result) {
             emit(init.world, p);
 
-            if (!nocleanup)
-                init.world.cleanup();
             if (vectorize) {
                 Lambda* impala_main = Scope(init.world).copy_entries()[0];
                 Scope scope(impala_main);
                 anydsl2::vectorize(scope, 1);
             }
+            if (!nocleanup)
+                init.world.cleanup();
             if (verify)
                 anydsl2::verify(init.world);
             if (opt)

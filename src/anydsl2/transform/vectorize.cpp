@@ -40,17 +40,10 @@ Lambda* Vectorizer::vectorize() {
 }
 
 void Vectorizer::create_conditions(const Def* cond, Lambda* lambda) {
-    if (lambda->visit(pass)) return;
-
-    if (scope.num_preds(lambda) > 1) {
-        Lambda* lca = lambda;
-        for_all (pred, scope.preds(lambda))
-            lca = scope.domtree().lca(lca, pred);
-
-        cond = get_cond(lca);
-    }
-
-    get_cond(lambda) = cond;
+    if (lambda->visit(pass))
+        get_cond(lambda) = world().arithop_or(get_cond(lambda), cond);
+    else
+        get_cond(lambda) = cond;
 
     if (Lambda* to = lambda->to()->isa_lambda()) {
         assert(scope.num_succs(lambda) == 1);

@@ -347,29 +347,82 @@ const Def* World::arithop(ArithOpKind kind, const Def* cond, const Def* a, const
     if (kind == ArithOp_xor && a->is_allset()) {    // is this a NOT
         if (b->is_not())                            // do we have ~~x?
             return b->as<ArithOp>()->rhs();
-        if (const RelOp* relop = b->isa<RelOp>()) { // do we have ~(a cmp b)?
-            RelOpKind new_relopkind;
-            switch (relop->relop_kind()) {
-                case RelOp_cmp_eq:   new_relopkind = RelOp_cmp_ne; break;
-                case RelOp_cmp_ne:   new_relopkind = RelOp_cmp_eq; break;
-                case RelOp_cmp_ult:  new_relopkind = RelOp_cmp_uge; break;
-                case RelOp_cmp_ule:  new_relopkind = RelOp_cmp_ugt; break;
-                case RelOp_cmp_slt:  new_relopkind = RelOp_cmp_sge; break;
-                case RelOp_cmp_sle:  new_relopkind = RelOp_cmp_sgt; break;
-                case RelOp_fcmp_oeq: new_relopkind = RelOp_fcmp_une; break;
-                case RelOp_fcmp_one: new_relopkind = RelOp_fcmp_ueq; break;
-                case RelOp_fcmp_olt: new_relopkind = RelOp_fcmp_uge; break;
-                case RelOp_fcmp_ole: new_relopkind = RelOp_fcmp_ugt; break;
-                case RelOp_fcmp_ueq: new_relopkind = RelOp_fcmp_one; break;
-                case RelOp_fcmp_une: new_relopkind = RelOp_fcmp_oeq; break;
-                case RelOp_fcmp_ult: new_relopkind = RelOp_fcmp_oge; break;
-                case RelOp_fcmp_ule: new_relopkind = RelOp_fcmp_ogt; break;
-                case RelOp_fcmp_uno: new_relopkind = RelOp_fcmp_ord; break;
-                case RelOp_fcmp_ord: new_relopkind = RelOp_fcmp_uno; break;
-                default: ANYDSL2_UNREACHABLE;
-            }
+        if (const RelOp* relop = b->isa<RelOp>())   // do we have ~(a cmp b)?
+            return this->relop(negate(relop->relop_kind()), cond, relop->lhs(), relop->rhs());
+    }
 
-            return this->relop(new_relopkind, cond, relop->lhs(), relop->rhs());
+    const RelOp* lrel = a->isa<RelOp>();
+    const RelOp* rrel = b->isa<RelOp>();
+
+    if (kind == ArithOp_or && lrel && rrel && lrel->lhs() == rrel->lhs() && lrel->rhs() == rrel->rhs() 
+            && lrel->relop_kind() == negate(rrel->relop_kind()))
+            return literal_u1(true);
+
+    if (kind == ArithOp_and && lrel && rrel && lrel->lhs() == rrel->lhs() && lrel->rhs() == rrel->rhs() 
+            && lrel->relop_kind() == negate(rrel->relop_kind()))
+            return literal_u1(false);
+
+    const ArithOp* land = a->kind() == ArithOp_and ? a->as<ArithOp>() : 0;
+    const ArithOp* rand = b->kind() == ArithOp_and ? b->as<ArithOp>() : 0;
+
+    // distributivity (a and b) or (a and c)
+    if (kind == ArithOp_or && land && rand) {
+        if (land->lhs() == rand->lhs())
+            return arithop_and(cond, land->lhs(), arithop_or(cond, land->rhs(), rand->rhs()));
+        if (land->rhs() == rand->rhs())
+            return arithop_and(cond, land->rhs(), arithop_or(cond, land->lhs(), rand->lhs()));
+    }
+
+    const ArithOp* lor = a->kind() == ArithOp_or ? a->as<ArithOp>() : 0;
+    const ArithOp* ror = b->kind() == ArithOp_or ? b->as<ArithOp>() : 0;
+
+    // distributivity (a or b) and (a or c)
+    if (kind == ArithOp_and && lor && ror) {
+        if (lor->lhs() == ror->lhs())
+            return arithop_or(cond, lor->lhs(), arithop_and(cond, lor->rhs(), ror->rhs()));
+        if (lor->rhs() == ror->rhs())
+            return arithop_or(cond, lor->rhs(), arithop_and(cond, lor->lhs(), ror->lhs()));
+    }
+
+    // absorption
+    if (kind == ArithOp_and) {
+        if (ror) {
+            if (a == ror->lhs()) return ror->rhs();
+            if (a == ror->rhs()) return ror->lhs();
+        }
+        if (lor) {
+            if (a == lor->lhs()) return lor->rhs();
+            if (a == lor->rhs()) return lor->lhs();
+        }
+    }
+
+    // absorption
+    if (kind == ArithOp_or) {
+        if (rand) {
+            if (a == rand->lhs()) return rand->rhs();
+            if (a == rand->rhs()) return rand->lhs();
+        }
+        if (land) {
+            if (a == land->lhs()) return land->rhs();
+            if (a == land->rhs()) return land->lhs();
+        }
+    }
+
+    if (kind == ArithOp_or) {
+        if (lor && ror) {
+            if (lor->lhs() == ror->lhs())
+                return arithop_or(lor->rhs(), ror->rhs());
+            if (lor->rhs() == ror->rhs())
+                return arithop_or(lor->lhs(), ror->lhs());
+        }
+    }
+
+    if (kind == ArithOp_and) {
+        if (land && rand) {
+            if (land->lhs() == rand->lhs())
+                return arithop_and(land->rhs(), rand->rhs());
+            if (land->rhs() == rand->rhs())
+                return arithop_and(land->lhs(), rand->lhs());
         }
     }
 

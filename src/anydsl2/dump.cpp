@@ -82,10 +82,10 @@ void Def::dump() const {
     const PrimOp* primop = this->isa<PrimOp>();
     if (primop && !primop->is_const())
         primop->print_assignment(p);
-    else
+    else {
         print(p); 
-
-    p.newline(); 
+        p.newline(); 
+    }
 }
 
 std::ostream& operator << (std::ostream& o, const anydsl2::Def* def) { Printer p(o, false); def->print(p); return p.o; }

@@ -39,11 +39,9 @@ Lambda* Vectorizer::vectorize() {
     return scope[0];
 }
 
-void Vectorizer::create_conditions(const Def* cond, Lambda* lambda) {
-    if (lambda->visit(pass))
-        get_cond(lambda) = world().arithop_or(get_cond(lambda), cond);
-    else
-        get_cond(lambda) = cond;
+void Vectorizer::create_conditions(const Def* new_cond, Lambda* lambda) {
+    const Def*& cond = get_cond(lambda);
+    cond = lambda->visit(pass) ? world().arithop_or(cond, new_cond) : new_cond;
 
     if (Lambda* to = lambda->to()->isa_lambda()) {
         assert(scope.num_succs(lambda) == 1);

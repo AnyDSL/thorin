@@ -33,7 +33,7 @@ DomTree::DomTree(const Scope& scope, bool post)
     , nodes_(size())
 {
     if (post)
-        create<true>();
+        create_postdom();
     else
         create<false>();
 }
@@ -50,7 +50,7 @@ void DomTree::create() {
 
     // map entry's initial idoms their entry,
     // all others' idoms are set to their first found dominating pred
-    for_all (entry, scope_.entries()) {
+    for_all (entry,  scope_.entries()) {
         DomNode* entry_node = lookup(entry);
         entry_node->idom_ = entry_node;
     }
@@ -69,7 +69,6 @@ outer_loop:;
     for (bool changed = true; changed;) {
         changed = false;
 
-        // for all lambdas in reverse post-order except entry node
         for_all (lambda, scope_.body()) {
             DomNode* lambda_node = lookup(lambda);
 
@@ -95,10 +94,73 @@ outer_loop:;
     }
 }
 
+void DomTree::create_postdom() {
+    for_all (lambda, scope_.rpo())
+        nodes_[lambda->sid()] = new DomNode(lambda);
+
+    // map entry's initial idoms their entry,
+    // all others' idoms are set to their first found dominating pred
+    for_all (entry,  scope_.exits()) {
+        DomNode* entry_node = lookup(entry);
+        entry_node->idom_ = entry_node;
+    }
+
+    for (ArrayRef<Lambda*>::const_reverse_iterator i_lambda = scope_.reverse_body().rbegin(), 
+            e_lambda = scope_.reverse_body().rend(); i_lambda != e_lambda; ++i_lambda) {
+        Lambda* lambda = *i_lambda;
+        for_all (succ, scope().succs(lambda)) {
+            if (succ->sid() > lambda->sid()) {
+                lookup(lambda)->idom_ = lookup(succ);
+                goto outer_loop;
+            }
+        }
+        ANYDSL2_UNREACHABLE;
+outer_loop:;
+    }
+
+    for (bool changed = true; changed;) {
+        changed = false;
+
+        for (ArrayRef<Lambda*>::const_reverse_iterator i_lambda = scope_.reverse_body().rbegin(), 
+                e_lambda = scope_.reverse_body().rend(); i_lambda != e_lambda; ++i_lambda) {
+            Lambda* lambda = *i_lambda;
+            DomNode* lambda_node = lookup(lambda);
+
+            // for all predecessors of lambda
+            DomNode* new_idom = 0;
+            for_all (succ, scope().succs(lambda)) {
+                DomNode* succ_node = lookup(succ);
+                assert(succ_node);
+                new_idom = new_idom ? post_lca(new_idom, succ_node) : succ_node;
+            }
+            assert(new_idom);
+            if (lambda_node->idom() != new_idom) {
+                lambda_node->idom_ = new_idom;
+                changed = true;
+            }
+        }
+    }
+
+    // add children
+    for_all (lambda, scope_.body()) {
+        const DomNode* n = lookup(lambda);
+        n->idom_->children_.push_back(n);
+    }
+}
+
 DomNode* DomTree::lca(DomNode* i, DomNode* j) {
     while (i->sid() != j->sid()) {
         while (i->sid() < j->sid()) j = j->idom_;
         while (j->sid() < i->sid()) i = i->idom_;
+    }
+
+    return i;
+}
+
+DomNode* DomTree::post_lca(DomNode* i, DomNode* j) {
+    while (i->sid() != j->sid()) {
+        while (i->sid() > j->sid()) j = j->idom_;
+        while (j->sid() > i->sid()) i = i->idom_;
     }
 
     return i;

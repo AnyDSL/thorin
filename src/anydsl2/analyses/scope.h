@@ -22,13 +22,15 @@ public:
     ~Scope();
 
     bool contains(Lambda* lambda) const { return lambda->scope() == this; }
-    /// All bodies with this scope in reverse postorder.
+    /// All lambdas within this scope in reverse postorder.
     ArrayRef<Lambda*> rpo() const { return rpo_; }
     const std::vector<Lambda*>& entries() const { return entries_; }
     const std::vector<Lambda*>& exits() const;
     Array<Lambda*> copy_entries() const { return Array<Lambda*>(entries_); }
     /// Like \p rpo() but without \p entries().
     ArrayRef<Lambda*> body() const { return rpo().slice_back(num_entries()); }
+    /// Like \p rpo() but without \p exits().
+    ArrayRef<Lambda*> reverse_body() const { return rpo().slice_front(size() - num_exits()); }
     Lambda* rpo(size_t i) const { return rpo_[i]; }
     Lambda* operator [] (size_t i) const { return rpo(i); }
     ArrayRef<Lambda*> preds(Lambda* lambda) const;
@@ -36,6 +38,7 @@ public:
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
     size_t num_entries() const { return entries().size(); }
+    size_t num_exits() const { return exits().size(); }
     size_t size() const { return rpo_.size(); }
     World& world() const { return world_; }
     bool is_entry(Lambda* lambda) const { assert(contains(lambda)); return lambda->sid() < num_entries(); }

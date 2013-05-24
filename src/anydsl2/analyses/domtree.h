@@ -60,7 +60,9 @@ public:
 private:
 
     static DomNode* lca(DomNode* i, DomNode* j);
+    static DomNode* post_lca(DomNode* i, DomNode* j);
     template<bool post> void create();
+    void create_postdom();
     DomNode* lookup(Lambda* lambda) const;
 
     const Scope& scope_;

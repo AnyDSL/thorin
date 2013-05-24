@@ -80,8 +80,6 @@ void Scope::process() {
 
     for (size_t i = num_entries(); i-- != 0;)
         entries_[i]->sid_ = num++;
-    //for_all (entry, entries())
-        //entry->sid_ = num++;
 
     assert(num <= rpo().size());
     assert(num >= 1);

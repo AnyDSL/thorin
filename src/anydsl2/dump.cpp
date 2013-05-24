@@ -192,7 +192,7 @@ void World::dump(bool fancy) {
         Scope scope(top);
         Places places = place(scope);
         for_all (lambda, scope.rpo()) {
-            int depth = fancy ? scope.domtree().depth(lambda) : 0;
+            int depth = fancy ? scope.postdomtree().depth(lambda) : 0;
             p.indent += depth;
             p.newline();
             lambda->print_head(p);

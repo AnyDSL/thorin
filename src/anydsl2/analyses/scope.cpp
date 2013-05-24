@@ -101,26 +101,6 @@ void Scope::process() {
 
     // discard unreachable lambdas;
     rpo_.resize(num);
-
-    // cache preds and succs
-    preds_.alloc(num);
-    succs_.alloc(num);
-    for_all (lambda, rpo_) {
-        size_t sid = lambda->sid();
-        fill_succ_pred(lambda->succs(), succs_[sid]);
-        fill_succ_pred(lambda->preds(), preds_[sid]);
-    }
-}
-
-template<class T>
-inline void Scope::fill_succ_pred(const Lambdas& l_succs_preds, T& succs_preds) {
-    succs_preds.alloc(l_succs_preds.size());
-    size_t i = 0;
-    for_all (item, l_succs_preds) {
-        if (contains(item))
-            succs_preds[i++] = item;
-    }
-    succs_preds.shrink(i);
 }
 
 Scope::~Scope() {
@@ -168,15 +148,28 @@ size_t Scope::number(const size_t pass, Lambda* cur, size_t i) {
     return (cur->sid_ = i) + 1;
 }
 
-ArrayRef<Lambda*> Scope::preds(Lambda* lambda) const {
-    assert(contains(lambda)); 
-    return preds_[lambda->sid()]; 
+#define ANYDSL2_SCOPE_SUCC_PRED(succ) \
+ArrayRef<Lambda*> Scope::succ##s(Lambda* lambda) const { \
+    assert(contains(lambda));  \
+    if (succ##s_.data() == 0) { \
+        succ##s_.alloc(size()); \
+        for_all (lambda, rpo_) { \
+            Lambdas all_succ##s = lambda->succ##s(); \
+            Array<Lambda*>& succ##s = succ##s_[lambda->sid()]; \
+            succ##s.alloc(all_succ##s.size()); \
+            size_t i = 0; \
+            for_all (succ, all_succ##s) { \
+                if (contains(succ)) \
+                    succ##s[i++] = succ; \
+            } \
+            succ##s.shrink(i); \
+        } \
+    } \
+    return succ##s_[lambda->sid()];  \
 }
 
-ArrayRef<Lambda*> Scope::succs(Lambda* lambda) const {
-    assert(contains(lambda)); 
-    return succs_[lambda->sid()]; 
-}
+ANYDSL2_SCOPE_SUCC_PRED(succ)
+ANYDSL2_SCOPE_SUCC_PRED(pred)
 
 //------------------------------------------------------------------------------
 

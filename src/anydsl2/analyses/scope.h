@@ -67,15 +67,13 @@ private:
         lambda->scope_ = this; 
         rpo_.push_back(lambda); 
     }
-    template<class T>
-    void fill_succ_pred(const Lambdas& lsp, T& sp);
 
     World& world_;
     std::vector<Lambda*> entries_;
     mutable AutoPtr< std::vector<Lambda*> > exists_;
     std::vector<Lambda*> rpo_;
-    Array< Array<Lambda*> > preds_;
-    Array< Array<Lambda*> > succs_;
+    mutable Array< Array<Lambda*> > preds_;
+    mutable Array< Array<Lambda*> > succs_;
     mutable AutoPtr<DomTree> domtree_;
     mutable AutoPtr<LoopTreeNode> looptree_;
     mutable AutoPtr<LoopInfo> loopinfo_;

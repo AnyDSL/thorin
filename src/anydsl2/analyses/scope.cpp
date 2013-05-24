@@ -171,6 +171,17 @@ ArrayRef<Lambda*> Scope::succ##s(Lambda* lambda) const { \
 ANYDSL2_SCOPE_SUCC_PRED(succ)
 ANYDSL2_SCOPE_SUCC_PRED(pred)
 
+const std::vector<Lambda*>& Scope::exits() const {
+    if (!exits_) {
+        exits_ = new std::vector<Lambda*>();
+        for_all (lambda, rpo()) {
+            if (num_succs(lambda) == 0)
+                exits_->push_back(lambda);
+        }
+    }
+    return *exits_;
+}
+
 //------------------------------------------------------------------------------
 
 class Mangler {

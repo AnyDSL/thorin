@@ -70,8 +70,8 @@ private:
 
     World& world_;
     std::vector<Lambda*> entries_;
-    mutable AutoPtr< std::vector<Lambda*> > exists_;
     std::vector<Lambda*> rpo_;
+    mutable AutoPtr< std::vector<Lambda*> > exits_;
     mutable Array< Array<Lambda*> > preds_;
     mutable Array< Array<Lambda*> > succs_;
     mutable AutoPtr<DomTree> domtree_;

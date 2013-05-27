@@ -81,7 +81,7 @@ void Scope::process() {
     for (size_t i = num_entries(); i-- != 0;)
         entries_[i]->sid_ = num++;
 
-    assert(num <= rpo().size());
+    assert(num <= size());
     assert(num >= 1);
 
     // convert postorder number to reverse postorder number
@@ -94,10 +94,10 @@ void Scope::process() {
         }
     }
     
-    // sort rpo according to rpo
+    // sort rpo_ according to sid_ which now holds the rpo number
     std::sort(rpo_.begin(), rpo_.end(), ScopeLess());
 
-    // discard unreachable lambdas;
+    // discard unreachable lambdas
     rpo_.resize(num);
 }
 

@@ -18,9 +18,9 @@ class World;
  * Represents a node of a loop nesting forest.
  * Please refer to G. Ramalingam, "On Loops, Dominators, and Dominance Frontiers", 1999
  * for an introduction to loop nesting forests.
- *
  * A \p LoopTreeNode consists of a set of header \p Lambda%s and \p LoopTreeNode%s as children.
  * The root node is a \p LoopTreeNode without any headers but further \p LoopTreeNode children.
+ * Thus, the forest is pooled into a tree.
  */
 class LoopTreeNode {
 public:

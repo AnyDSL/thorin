@@ -51,6 +51,7 @@ public:
     const DomNode* node(size_t sid) const { return nodes_[sid]; }
     const DomNode* node(Lambda* lambda) const;
     int depth(Lambda* lambda) const { return node(lambda)->depth(); }
+    /// Returns the least common ancestor of \p i and \p j.
     Lambda* lca(Lambda* i, Lambda* j) const { return lca(lookup(i), lookup(j))->lambda(); }
     static const DomNode* lca(const DomNode* i, const DomNode* j) { 
         return lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j)); 

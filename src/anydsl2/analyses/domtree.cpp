@@ -31,10 +31,8 @@ DomTree::DomTree(const Scope& scope, bool is_postdomtree)
     , nodes_(size())
     , is_postdomtree_(is_postdomtree)
 {
-    if (is_postdomtree) {
-        std::cout << "asdfsdadfsa" << std::endl;
+    if (is_postdomtree)
         create<true>();
-    }
     else
         create<false>();
 }
@@ -49,13 +47,13 @@ void DomTree::create() {
     for_all (lambda, scope_.rpo())
         nodes_[index(lambda)] = new DomNode(lambda);
 
-    // map entry's initial idoms their entry,
-    // all others' idoms are set to their first found dominating pred
+    // Map entries' initial idoms to themselves.
     for_all (entry,  post ? scope_.exits() : scope_.entries()) {
         DomNode* entry_node = lookup(entry);
         entry_node->idom_ = entry_node;
     }
 
+    // All others' idoms are set to their first found dominating pred
     for_all (lambda, post ? scope_.backwards_body() : scope_.body()) {
         for_all (pred, post ? scope_.succs(lambda) : scope_.preds(lambda)) {
             if (index(pred) < index(lambda)) {
@@ -73,7 +71,6 @@ outer_loop:;
         for_all (lambda, post ? scope_.backwards_body() : scope_.body()) {
             DomNode* lambda_node = lookup(lambda);
 
-            // for all predecessors of lambda
             DomNode* new_idom = 0;
             for_all (pred, post ? scope_.succs(lambda) : scope_.preds(lambda)) {
                 DomNode* pred_node = lookup(pred);

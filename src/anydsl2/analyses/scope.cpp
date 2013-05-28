@@ -79,7 +79,7 @@ void Scope::process(ArrayRef<Lambda*> entries) {
     for_all (entry, entries) {
         for_all (succ, entry->succs()) {
             if (contains(succ) && !succ->is_visited(pass))
-                num = number(pass, succ, num);
+                num = number(true, pass, succ, num);
         }
     }
 
@@ -139,13 +139,13 @@ void Scope::up(const size_t pass, Lambda* lambda, Lambda* limit) {
         up(pass, pred, limit);
 }
 
-size_t Scope::number(const size_t pass, Lambda* cur, size_t i) {
+size_t Scope::number(bool forwards, const size_t pass, Lambda* cur, size_t i) {
     cur->visit_first(pass);
 
     // for each successor in scope
-    for_all (succ, cur->succs()) {
+    for_all (succ, forwards ? cur->succs() : cur->preds()) {
         if (contains(succ) && !succ->is_visited(pass))
-            i = number(pass, succ, i);
+            i = number(forwards, pass, succ, i);
     }
 
     return (cur->sid_ = i) + 1;
@@ -374,8 +374,8 @@ Lambda* Scope::mangle(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with,
 
 //------------------------------------------------------------------------------
 
-const DomTree& Scope::domtree() const { return domtree_ ? *domtree_ : *(domtree_ = new DomTree(*this, false)); }
-//const DomTree& Scope::postdomtree() const { return postdomtree_ ? *postdomtree_ : *(postdomtree_ = new DomTree(*this, true)); }
+const DomTree& Scope::domtree() const { return domtree_ ? *domtree_ : *(domtree_ = new DomTree(*this, true)); }
+const DomTree& Scope::postdomtree() const { return postdomtree_ ? *postdomtree_ : *(postdomtree_ = new DomTree(*this, false)); }
 const LoopTreeNode* Scope::looptree() const { return looptree_ ? looptree_ : looptree_ = create_loop_forest(*this); }
 const LoopInfo& Scope::loopinfo() const { return loopinfo_ ? *loopinfo_ : *(loopinfo_ = new LoopInfo(*this)); }
 

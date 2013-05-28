@@ -41,11 +41,12 @@ private:
 class DomTree {
 public:
 
-    DomTree(const Scope& scope, bool is_postdomtree);
+    DomTree(const Scope& scope, bool forwards);
     ~DomTree();
 
     const Scope& scope() const { return scope_; }
-    bool is_postdomtree() const { return is_postdomtree_; }
+    bool forwards() const { return forwards_; }
+    bool is_postdomtree() const { return !forwards_; }
     ArrayRef<const DomNode*> nodes() const { return ArrayRef<const DomNode*>(nodes_.begin(), nodes_.size()); }
     size_t size() const;
     const DomNode* node(Lambda* lambda) const { assert(scope().contains(lambda)); return nodes_[index(lambda)]; }
@@ -57,18 +58,18 @@ public:
     size_t index(DomNode* n) const { return index(n->lambda()); }
     /// Returns \p lambda%'s \p backwards_sid() in the case this a postdomtree 
     /// or \p lambda%'s sid() if this is an ordinary domtree.
-    size_t index(Lambda* lambda) const { return is_postdomtree_ ? lambda->backwards_sid() : lambda->sid(); }
+    size_t index(Lambda* lambda) const { return forwards_ ? lambda->sid() : lambda->backwards_sid(); }
 
 private:
 
+    void create();
     DomNode* lca(DomNode* i, DomNode* j);
-    template<bool post> void create();
     DomNode* lookup(Lambda* lambda) { assert(scope().contains(lambda)); return nodes_[index(lambda)]; }
     const DomNode* lookup(Lambda* lambda) const { return const_cast<DomTree*>(this)->lookup(lambda); }
 
     const Scope& scope_;
     Array<DomNode*> nodes_;
-    bool is_postdomtree_;
+    bool forwards_;
 };
 
 } // namespace anydsl2

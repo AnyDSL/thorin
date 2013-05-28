@@ -55,7 +55,7 @@ public:
                    const GenericMap& generic_map = GenericMap());
 
     const DomTree& domtree() const;
-    //const DomTree& postdomtree() const;
+    const DomTree& postdomtree() const;
     const LoopTreeNode* looptree() const;
     const LoopInfo& loopinfo() const;
 
@@ -66,7 +66,7 @@ private:
     void jump_to_param_users(const size_t pass, Lambda* lambda, Lambda* limit);
     void up(const size_t pass, Lambda* lambda, Lambda* limit);
     void find_user(const size_t pass, const Def* def, Lambda* limit);
-    size_t number(const size_t pass, Lambda* cur, size_t i);
+    size_t number(bool forwards, const size_t pass, Lambda* cur, size_t i);
     void insert(const size_t pass, Lambda* lambda) { 
         lambda->visit_first(pass); 
         lambda->scope_ = this; 
@@ -81,7 +81,7 @@ private:
     mutable Array< Array<Lambda*> > preds_;
     mutable Array< Array<Lambda*> > succs_;
     mutable AutoPtr<DomTree> domtree_;
-    //mutable AutoPtr<DomTree> postdomtree_;
+    mutable AutoPtr<DomTree> postdomtree_;
     mutable AutoPtr<LoopTreeNode> looptree_;
     mutable AutoPtr<LoopInfo> loopinfo_;
 };

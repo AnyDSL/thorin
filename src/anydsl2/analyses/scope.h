@@ -28,6 +28,10 @@ public:
     Array<Lambda*> copy_entries() const { return Array<Lambda*>(entries()); }
     /// Like \p rpo() but without \p entries().
     ArrayRef<Lambda*> body() const { return rpo().slice_back(num_entries()); }
+    ArrayRef<Lambda*> backwards_rpo() const;
+    ArrayRef<Lambda*> exits() const { return backwards_rpo().slice_front(num_exits()); }
+    /// Like \p backwards_rpo() but without \p exits().
+    ArrayRef<Lambda*> backwards_body() const { return backwards_rpo().slice_back(num_exits()); }
     Lambda* rpo(size_t i) const { return rpo_[i]; }
     Lambda* operator [] (size_t i) const { return rpo(i); }
     ArrayRef<Lambda*> preds(Lambda* lambda) const;
@@ -35,6 +39,7 @@ public:
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
     size_t num_entries() const { return num_entries_; }
+    size_t num_exits() const { backwards_rpo(); return num_exits_; }
     size_t size() const { return rpo_.size(); }
     World& world() const { return world_; }
     bool is_entry(Lambda* lambda) const { assert(contains(lambda)); return lambda->sid() < num_entries(); }
@@ -71,6 +76,8 @@ private:
     World& world_;
     std::vector<Lambda*> rpo_;
     size_t num_entries_;
+    mutable size_t num_exits_;
+    mutable AutoPtr< Array<Lambda*> > backwards_rpo_;
     mutable Array< Array<Lambda*> > preds_;
     mutable Array< Array<Lambda*> > succs_;
     mutable AutoPtr<DomTree> domtree_;

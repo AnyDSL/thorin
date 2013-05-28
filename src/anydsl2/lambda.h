@@ -66,7 +66,7 @@ public:
     const Pi* arg_pi() const;
     virtual char delimiter() const { return 'l'; }
     size_t sid() const { return sid_; }
-    size_t reverse_sid() const { return reverse_sid_; }
+    size_t backwards_sid() const { return backwards_sid_; }
     Scope* scope() { return scope_; }
     const Scope* scope() const { return scope_; }
     size_t num_args() const { return args().size(); }
@@ -164,8 +164,8 @@ private:
     void fix(const Todo& todo);
     const Def* get_value(const Todo& todo) { return get_value(todo.handle(), todo.type(), todo.name()); }
 
-    size_t sid_;         ///< \p Scope index, i.e., reverse post-order number.
-    size_t reverse_sid_; ///< \p Scope index, i.e., reverse post-order number, while reverting control-flow beginning with the exits.
+    size_t sid_;           ///< \p Scope index, i.e., reverse post-order number.
+    size_t backwards_sid_; ///< \p Scope index, i.e., reverse post-order number, while reverting control-flow beginning with the exits.
     Scope* scope_;
     LambdaAttr attr_;
     Params params_;

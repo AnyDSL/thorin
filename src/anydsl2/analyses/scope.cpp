@@ -20,6 +20,7 @@ struct ScopeLess {
 Scope::Scope(Lambda* entry)
     : world_(entry->world())
     , num_entries_(1)
+    , num_exits_(-1)
 {
     Lambda* entries[1] = { entry };
     analyze(entries);
@@ -173,16 +174,22 @@ ArrayRef<Lambda*> Scope::succ##s(Lambda* lambda) const { \
 ANYDSL2_SCOPE_SUCC_PRED(succ)
 ANYDSL2_SCOPE_SUCC_PRED(pred)
 
-//const std::vector<Lambda*>& Scope::exits() const {
-    //if (!exits_) {
-        //exits_ = new std::vector<Lambda*>();
-        //for_all (lambda, rpo()) {
-            //if (num_succs(lambda) == 0)
-                //exits_->push_back(lambda);
-        //}
-    //}
-    //return *exits_;
-//}
+ArrayRef<Lambda*> Scope::backwards_rpo() const {
+    if (!backwards_rpo_) {
+        backwards_rpo_ = new Array<Lambda*>(size());
+
+        std::vector<Lambda*> exits;
+
+        for_all (lambda, rpo()) {
+            if (num_succs(lambda) == 0)
+                exits.push_back(lambda);
+        }
+
+        num_exits_ = exits.size();
+    }
+
+    return *backwards_rpo_;
+}
 
 //------------------------------------------------------------------------------
 

@@ -24,16 +24,17 @@ int DomNode::depth() const {
     return result;
 };
 
-size_t DomNode::sid() const { return lambda()->sid(); }
-
 //------------------------------------------------------------------------------
 
-DomTree::DomTree(const Scope& scope, bool post)
+DomTree::DomTree(const Scope& scope, bool is_postdomtree)
     : scope_(scope)
     , nodes_(size())
+    , is_postdomtree_(is_postdomtree)
 {
-    if (post)
-        create_postdom();
+    if (is_postdomtree) {
+        std::cout << "asdfsdadfsa" << std::endl;
+        create<true>();
+    }
     else
         create<false>();
 }
@@ -46,18 +47,18 @@ DomTree::~DomTree() {
 template<bool post>
 void DomTree::create() {
     for_all (lambda, scope_.rpo())
-        nodes_[lambda->sid()] = new DomNode(lambda);
+        nodes_[index(lambda)] = new DomNode(lambda);
 
     // map entry's initial idoms their entry,
     // all others' idoms are set to their first found dominating pred
-    for_all (entry,  scope_.entries()) {
+    for_all (entry,  post ? scope_.exits() : scope_.entries()) {
         DomNode* entry_node = lookup(entry);
         entry_node->idom_ = entry_node;
     }
 
-    for_all (lambda, scope_.body()) {
-        for_all (pred, scope().preds(lambda)) {
-            if (pred->sid() < lambda->sid()) {
+    for_all (lambda, post ? scope_.backwards_body() : scope_.body()) {
+        for_all (pred, post ? scope_.succs(lambda) : scope_.preds(lambda)) {
+            if (index(pred) < index(lambda)) {
                 lookup(lambda)->idom_ = lookup(pred);
                 goto outer_loop;
             }
@@ -69,12 +70,12 @@ outer_loop:;
     for (bool changed = true; changed;) {
         changed = false;
 
-        for_all (lambda, scope_.body()) {
+        for_all (lambda, post ? scope_.backwards_body() : scope_.body()) {
             DomNode* lambda_node = lookup(lambda);
 
             // for all predecessors of lambda
             DomNode* new_idom = 0;
-            for_all (pred, scope().preds(lambda)) {
+            for_all (pred, post ? scope_.succs(lambda) : scope_.preds(lambda)) {
                 DomNode* pred_node = lookup(pred);
                 assert(pred_node);
                 new_idom = new_idom ? lca(new_idom, pred_node) : pred_node;
@@ -88,88 +89,21 @@ outer_loop:;
     }
 
     // add children
-    for_all (lambda, scope_.body()) {
+    for_all (lambda, post ? scope_.backwards_body() : scope_.body()) {
         const DomNode* n = lookup(lambda);
         n->idom_->children_.push_back(n);
     }
-}
-
-void DomTree::create_postdom() {
-#if 0
-    for_all (lambda, scope_.rpo())
-        nodes_[lambda->sid()] = new DomNode(lambda);
-
-    // map entry's initial idoms their entry,
-    // all others' idoms are set to their first found dominating pred
-    for_all (entry,  scope_.exits()) {
-        DomNode* entry_node = lookup(entry);
-        entry_node->idom_ = entry_node;
-    }
-
-    for (ArrayRef<Lambda*>::const_reverse_iterator i_lambda = scope_.reverse_body().rbegin(), 
-            e_lambda = scope_.reverse_body().rend(); i_lambda != e_lambda; ++i_lambda) {
-        Lambda* lambda = *i_lambda;
-        for_all (succ, scope().succs(lambda)) {
-            if (succ->sid() > lambda->sid()) {
-                lookup(lambda)->idom_ = lookup(succ);
-                goto outer_loop;
-            }
-        }
-        ANYDSL2_UNREACHABLE;
-outer_loop:;
-    }
-
-    for (bool changed = true; changed;) {
-        changed = false;
-
-        for (ArrayRef<Lambda*>::const_reverse_iterator i_lambda = scope_.reverse_body().rbegin(), 
-                e_lambda = scope_.reverse_body().rend(); i_lambda != e_lambda; ++i_lambda) {
-            Lambda* lambda = *i_lambda;
-            DomNode* lambda_node = lookup(lambda);
-
-            // for all predecessors of lambda
-            DomNode* new_idom = 0;
-            for_all (succ, scope().succs(lambda)) {
-                DomNode* succ_node = lookup(succ);
-                assert(succ_node);
-                new_idom = new_idom ? post_lca(new_idom, succ_node) : succ_node;
-            }
-            assert(new_idom);
-            if (lambda_node->idom() != new_idom) {
-                lambda_node->idom_ = new_idom;
-                changed = true;
-            }
-        }
-    }
-
-    // add children
-    for_all (lambda, scope_.body()) {
-        const DomNode* n = lookup(lambda);
-        n->idom_->children_.push_back(n);
-    }
-#endif
 }
 
 DomNode* DomTree::lca(DomNode* i, DomNode* j) {
-    while (i->sid() != j->sid()) {
-        while (i->sid() < j->sid()) j = j->idom_;
-        while (j->sid() < i->sid()) i = i->idom_;
+    while (index(i) != index(j)) {
+        while (index(i) < index(j)) j = j->idom_;
+        while (index(j) < index(i)) i = i->idom_;
     }
 
     return i;
 }
 
-DomNode* DomTree::post_lca(DomNode* i, DomNode* j) {
-    while (i->sid() != j->sid()) {
-        while (i->sid() > j->sid()) j = j->idom_;
-        while (j->sid() > i->sid()) i = i->idom_;
-    }
-
-    return i;
-}
-
-const DomNode* DomTree::node(Lambda* lambda) const { assert(scope().contains(lambda)); return nodes_[lambda->sid()]; }
-DomNode* DomTree::lookup(Lambda* lambda) const { assert(scope().contains(lambda)); return nodes_[lambda->sid()]; }
 size_t DomTree::size() const { return scope_.size(); }
 
 } // namespace anydsl2

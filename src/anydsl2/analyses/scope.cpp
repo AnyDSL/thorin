@@ -17,6 +17,10 @@ struct ScopeLess {
     bool operator () (const Lambda* l1, const Lambda* l2) const { return l1->sid() < l2->sid(); }
 };
 
+struct ScopeLessBackwards {
+    bool operator () (const Lambda* l1, const Lambda* l2) const { return l1->backwards_sid() < l2->backwards_sid(); }
+};
+
 Scope::Scope(Lambda* entry)
     : world_(entry->world())
     , num_entries_(1)
@@ -79,7 +83,7 @@ void Scope::process(ArrayRef<Lambda*> entries) {
     for_all (entry, entries) {
         for_all (succ, entry->succs()) {
             if (contains(succ) && !succ->is_visited(pass))
-                num = number(true, pass, succ, num);
+                num = number<true>(pass, succ, num);
         }
     }
 
@@ -139,16 +143,17 @@ void Scope::up(const size_t pass, Lambda* lambda, Lambda* limit) {
         up(pass, pred, limit);
 }
 
-size_t Scope::number(bool forwards, const size_t pass, Lambda* cur, size_t i) {
+template<bool forwards>
+size_t Scope::number(const size_t pass, Lambda* cur, size_t i) const {
     cur->visit_first(pass);
 
     // for each successor in scope
     for_all (succ, forwards ? cur->succs() : cur->preds()) {
         if (contains(succ) && !succ->is_visited(pass))
-            i = number(forwards, pass, succ, i);
+            i = number<forwards>(pass, succ, i);
     }
 
-    return (cur->sid_ = i) + 1;
+    return forwards ? (cur->sid_ = i) + 1 : (cur->backwards_sid_ = i) - 1;
 }
 
 #define ANYDSL2_SCOPE_SUCC_PRED(succ) \
@@ -186,6 +191,28 @@ ArrayRef<Lambda*> Scope::backwards_rpo() const {
         }
 
         num_exits_ = exits.size();
+
+        // number all lambdas in postorder
+        size_t pass = world().new_pass();
+
+        size_t num = 0;
+        for_all (exit, exits) {
+            exit->visit_first(pass);
+            exit->backwards_sid_ = num++;
+        }
+
+        num = size() - 1;
+        for_all (exit, exits) {
+            for_all (pred, exit->preds()) {
+                if (contains(pred) && !pred->is_visited(pass))
+                    num = number<false>(pass, pred, num);
+            }
+        }
+
+        assert(num + 1 == num_exits());
+
+        std::copy(rpo_.begin(), rpo_.end(), backwards_rpo_->begin());
+        std::sort(backwards_rpo_->begin(), backwards_rpo_->end(), ScopeLessBackwards());
     }
 
     return *backwards_rpo_;

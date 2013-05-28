@@ -53,12 +53,22 @@ public:
     int depth(Lambda* lambda) const { return node(lambda)->depth(); }
     /// Returns the least common ancestor of \p i and \p j.
     Lambda* lca(Lambda* i, Lambda* j) const { return lca(lookup(i), lookup(j))->lambda(); }
-    const DomNode* lca(const DomNode* i, const DomNode* j) const { return lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j)); }
+    const DomNode* lca(const DomNode* i, const DomNode* j) const { 
+        return const_cast<DomTree*>(this)->lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j)); 
+    }
     Lambda* idom(Lambda* lambda) const { return lookup(lambda)->idom()->lambda(); }
     size_t index(DomNode* n) const { return index(n->lambda()); }
     /// Returns \p lambda%'s \p backwards_sid() in the case this a postdomtree 
     /// or \p lambda%'s sid() if this is an ordinary domtree.
     size_t index(Lambda* lambda) const { return forwards_ ? lambda->sid() : lambda->backwards_sid(); }
+    ArrayRef<Lambda*> rpo() const { return forwards_ ? scope_.rpo() : scope_.backwards_rpo(); }
+    ArrayRef<Lambda*> entries() const { return forwards_ ? scope_.entries() : scope_.exits(); }
+    ArrayRef<Lambda*> body() const { return forwards_ ? scope_.body() : scope_.backwards_body(); }
+    ArrayRef<Lambda*> preds(Lambda* lambda) const { return forwards_ ? scope_.preds(lambda) : scope_.succs(lambda); }
+    ArrayRef<Lambda*> succs(Lambda* lambda) const { return forwards_ ? scope_.succs(lambda) : scope_.preds(lambda); }
+    bool is_entry(DomNode* i, DomNode* j) const { return forwards_ 
+        ? (scope_.is_entry(i->lambda()) && scope_.is_entry(j->lambda()))
+        : (scope_.is_exit (i->lambda()) && scope_.is_exit (j->lambda())); }
 
 private:
 

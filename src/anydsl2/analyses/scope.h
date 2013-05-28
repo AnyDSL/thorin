@@ -39,10 +39,11 @@ public:
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
     size_t num_entries() const { return num_entries_; }
-    size_t num_exits() const { backwards_rpo(); return num_exits_; }
+    size_t num_exits() const { if (num_exits_ == size_t(-1)) backwards_rpo(); return num_exits_; }
     size_t size() const { return rpo_.size(); }
     World& world() const { return world_; }
     bool is_entry(Lambda* lambda) const { assert(contains(lambda)); return lambda->sid() < num_entries(); }
+    bool is_exit(Lambda* lambda) const { assert(contains(lambda)); return lambda->backwards_sid() < num_exits(); }
 
     Lambda* clone(const GenericMap& generic_map = GenericMap());
     Lambda* drop(ArrayRef<const Def*> with);
@@ -66,7 +67,7 @@ private:
     void jump_to_param_users(const size_t pass, Lambda* lambda, Lambda* limit);
     void up(const size_t pass, Lambda* lambda, Lambda* limit);
     void find_user(const size_t pass, const Def* def, Lambda* limit);
-    size_t number(bool forwards, const size_t pass, Lambda* cur, size_t i);
+    template<bool forwards> size_t number(const size_t pass, Lambda* cur, size_t i) const;
     void insert(const size_t pass, Lambda* lambda) { 
         lambda->visit_first(pass); 
         lambda->scope_ = this; 

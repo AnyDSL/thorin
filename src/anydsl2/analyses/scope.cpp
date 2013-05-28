@@ -19,23 +19,24 @@ struct ScopeLess {
 
 Scope::Scope(Lambda* entry)
     : world_(entry->world())
-    , entries_(1)
+    , num_entries_(1)
 {
-    entries_[0] = entry;
-    analyze();
-    process();
+    Lambda* entries[1] = { entry };
+    analyze(entries);
+    process(entries);
 }
 
 Scope::Scope(World& world, ArrayRef<Lambda*> entries)
     : world_(world)
-    , entries_(entries.begin(), entries.end())
+    , num_entries_(entries.size())
 {
-    analyze();
-    process();
+    analyze(entries);
+    process(entries);
 }
 
 Scope::Scope(World& world) 
     : world_(world)
+    , num_entries_(0)
 {
     size_t pass = world.new_pass();
 
@@ -44,42 +45,45 @@ Scope::Scope(World& world)
             jump_to_param_users(pass, lambda, lambda);
     }
 
+    std::vector<Lambda*> entries;
+
     for_all (lambda, world.lambdas()) {
         if (!lambda->is_visited(pass)) {
             insert(pass, lambda);
-            entries_.push_back(lambda);
+            entries.push_back(lambda);
         }
     }
 
-    process();
+    num_entries_ = entries.size();
+    process(entries);
 }
 
-void Scope::analyze() {
+void Scope::analyze(ArrayRef<Lambda*> entries) {
     // identify all lambdas depending on entry
     size_t pass = world().new_pass();
-    for_all (entry, entries()) {
+    for_all (entry, entries) {
         insert(pass, entry);
         jump_to_param_users(pass, entry, 0);
     }
 }
 
-void Scope::process() {
+void Scope::process(ArrayRef<Lambda*> entries) {
     // number all lambdas in postorder
     size_t pass = world().new_pass();
 
-    for_all (entry, entries())
+    for_all (entry, entries)
         entry->visit_first(pass);
 
     size_t num = 0;
-    for_all (entry, entries()) {
+    for_all (entry, entries) {
         for_all (succ, entry->succs()) {
             if (contains(succ) && !succ->is_visited(pass))
                 num = number(pass, succ, num);
         }
     }
 
-    for (size_t i = num_entries(); i-- != 0;)
-        entries_[i]->sid_ = num++;
+    for (size_t i = entries.size(); i-- != 0;)
+        entries[i]->sid_ = num++;
 
     assert(num <= size());
     assert(num >= 1);
@@ -169,16 +173,16 @@ ArrayRef<Lambda*> Scope::succ##s(Lambda* lambda) const { \
 ANYDSL2_SCOPE_SUCC_PRED(succ)
 ANYDSL2_SCOPE_SUCC_PRED(pred)
 
-const std::vector<Lambda*>& Scope::exits() const {
-    if (!exits_) {
-        exits_ = new std::vector<Lambda*>();
-        for_all (lambda, rpo()) {
-            if (num_succs(lambda) == 0)
-                exits_->push_back(lambda);
-        }
-    }
-    return *exits_;
-}
+//const std::vector<Lambda*>& Scope::exits() const {
+    //if (!exits_) {
+        //exits_ = new std::vector<Lambda*>();
+        //for_all (lambda, rpo()) {
+            //if (num_succs(lambda) == 0)
+                //exits_->push_back(lambda);
+        //}
+    //}
+    //return *exits_;
+//}
 
 //------------------------------------------------------------------------------
 
@@ -364,7 +368,7 @@ Lambda* Scope::mangle(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with,
 //------------------------------------------------------------------------------
 
 const DomTree& Scope::domtree() const { return domtree_ ? *domtree_ : *(domtree_ = new DomTree(*this, false)); }
-const DomTree& Scope::postdomtree() const { return postdomtree_ ? *postdomtree_ : *(postdomtree_ = new DomTree(*this, true)); }
+//const DomTree& Scope::postdomtree() const { return postdomtree_ ? *postdomtree_ : *(postdomtree_ = new DomTree(*this, true)); }
 const LoopTreeNode* Scope::looptree() const { return looptree_ ? looptree_ : looptree_ = create_loop_forest(*this); }
 const LoopInfo& Scope::loopinfo() const { return loopinfo_ ? *loopinfo_ : *(loopinfo_ = new LoopInfo(*this)); }
 

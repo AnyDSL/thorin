@@ -24,21 +24,17 @@ public:
     bool contains(Lambda* lambda) const { return lambda->scope() == this; }
     /// All lambdas within this scope in reverse postorder.
     ArrayRef<Lambda*> rpo() const { return rpo_; }
-    const std::vector<Lambda*>& entries() const { return entries_; }
-    const std::vector<Lambda*>& exits() const;
-    Array<Lambda*> copy_entries() const { return Array<Lambda*>(entries_); }
+    ArrayRef<Lambda*> entries() const { return ArrayRef<Lambda*>(rpo_).slice_front(num_entries()); }
+    Array<Lambda*> copy_entries() const { return Array<Lambda*>(entries()); }
     /// Like \p rpo() but without \p entries().
     ArrayRef<Lambda*> body() const { return rpo().slice_back(num_entries()); }
-    /// Like \p rpo() but without \p exits().
-    ArrayRef<Lambda*> reverse_body() const { return rpo().slice_front(size() - num_exits()); }
     Lambda* rpo(size_t i) const { return rpo_[i]; }
     Lambda* operator [] (size_t i) const { return rpo(i); }
     ArrayRef<Lambda*> preds(Lambda* lambda) const;
     ArrayRef<Lambda*> succs(Lambda* lambda) const;
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
-    size_t num_entries() const { return entries().size(); }
-    size_t num_exits() const { return exits().size(); }
+    size_t num_entries() const { return num_entries_; }
     size_t size() const { return rpo_.size(); }
     World& world() const { return world_; }
     bool is_entry(Lambda* lambda) const { assert(contains(lambda)); return lambda->sid() < num_entries(); }
@@ -54,14 +50,14 @@ public:
                    const GenericMap& generic_map = GenericMap());
 
     const DomTree& domtree() const;
-    const DomTree& postdomtree() const;
+    //const DomTree& postdomtree() const;
     const LoopTreeNode* looptree() const;
     const LoopInfo& loopinfo() const;
 
 private:
 
-    void analyze();
-    void process();
+    void analyze(ArrayRef<Lambda*> entries);
+    void process(ArrayRef<Lambda*> entries);
     void jump_to_param_users(const size_t pass, Lambda* lambda, Lambda* limit);
     void up(const size_t pass, Lambda* lambda, Lambda* limit);
     void find_user(const size_t pass, const Def* def, Lambda* limit);
@@ -73,13 +69,12 @@ private:
     }
 
     World& world_;
-    std::vector<Lambda*> entries_;
     std::vector<Lambda*> rpo_;
-    mutable AutoPtr< std::vector<Lambda*> > exits_;
+    size_t num_entries_;
     mutable Array< Array<Lambda*> > preds_;
     mutable Array< Array<Lambda*> > succs_;
     mutable AutoPtr<DomTree> domtree_;
-    mutable AutoPtr<DomTree> postdomtree_;
+    //mutable AutoPtr<DomTree> postdomtree_;
     mutable AutoPtr<LoopTreeNode> looptree_;
     mutable AutoPtr<LoopInfo> loopinfo_;
 };

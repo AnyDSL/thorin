@@ -66,6 +66,7 @@ public:
     const Pi* arg_pi() const;
     virtual char delimiter() const { return 'l'; }
     size_t sid() const { return sid_; }
+    size_t reverse_sid() const { return reverse_sid_; }
     Scope* scope() { return scope_; }
     const Scope* scope() const { return scope_; }
     size_t num_args() const { return args().size(); }
@@ -81,7 +82,6 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     bool is_cascading() const;
     bool is_basicblock() const;
     bool is_returning() const;
-    void invalidate_sid() { sid_ = size_t(-1); }
     Printer& print_jump(Printer&) const;
     Printer& print_head(Printer&) const;
     void dump_jump() const;
@@ -164,7 +164,8 @@ private:
     void fix(const Todo& todo);
     const Def* get_value(const Todo& todo) { return get_value(todo.handle(), todo.type(), todo.name()); }
 
-    size_t sid_; ///< scope index
+    size_t sid_;         ///< \p Scope index, i.e., reverse post-order number.
+    size_t reverse_sid_; ///< \p Scope index, i.e., reverse post-order number, while reverting control-flow beginning with the exits.
     Scope* scope_;
     LambdaAttr attr_;
     Params params_;

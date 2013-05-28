@@ -95,6 +95,7 @@ outer_loop:;
 }
 
 void DomTree::create_postdom() {
+#if 0
     for_all (lambda, scope_.rpo())
         nodes_[lambda->sid()] = new DomNode(lambda);
 
@@ -146,6 +147,7 @@ outer_loop:;
         const DomNode* n = lookup(lambda);
         n->idom_->children_.push_back(n);
     }
+#endif
 }
 
 DomNode* DomTree::lca(DomNode* i, DomNode* j) {

@@ -13,6 +13,7 @@ namespace anydsl2 {
 Lambda::Lambda(size_t gid, const Pi* pi, LambdaAttr attr, bool is_sealed, const std::string& name)
     : Def(gid, Node_Lambda, 0, pi, true, name)
     , sid_(size_t(-1))
+    , reverse_sid_(size_t(-1))
     , scope_(0)
     , attr_(attr)
     , parent_(this)

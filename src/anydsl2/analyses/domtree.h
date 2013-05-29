@@ -44,6 +44,8 @@ template<bool forwards>
 class DomTreeBase {
 public:
 
+    typedef DomNodeBase<forwards> DomNode;
+
     explicit DomTreeBase(const Scope& scope)
         : scope_(scope)
         , nodes_(size())
@@ -54,17 +56,17 @@ public:
     ~DomTreeBase();
 
     const Scope& scope() const { return scope_; }
-    ArrayRef<const DomNodeBase<forwards>*> nodes() const { return ArrayRef<const DomNodeBase<forwards>*>(nodes_.begin(), nodes_.size()); }
+    ArrayRef<const DomNode*> nodes() const { return ArrayRef<const DomNode*>(nodes_.begin(), nodes_.size()); }
     size_t size() const;
-    const DomNodeBase<forwards>* node(Lambda* lambda) const { assert(scope().contains(lambda)); return nodes_[index(lambda)]; }
+    const DomNode* node(Lambda* lambda) const { assert(scope().contains(lambda)); return nodes_[index(lambda)]; }
     int depth(Lambda* lambda) const { return node(lambda)->depth(); }
     /// Returns the least common ancestor of \p i and \p j.
     Lambda* lca(Lambda* i, Lambda* j) const { return lca(lookup(i), lookup(j))->lambda(); }
-    const DomNodeBase<forwards>* lca(const DomNodeBase<forwards>* i, const DomNodeBase<forwards>* j) const { 
-        return const_cast<DomTreeBase*>(this)->lca(const_cast<DomNodeBase<forwards>*>(i), const_cast<DomNodeBase<forwards>*>(j)); 
+    const DomNode* lca(const DomNode* i, const DomNode* j) const { 
+        return const_cast<DomTreeBase*>(this)->lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j)); 
     }
     Lambda* idom(Lambda* lambda) const { return lookup(lambda)->idom()->lambda(); }
-    size_t index(DomNodeBase<forwards>* n) const { return index(n->lambda()); }
+    size_t index(DomNode* n) const { return index(n->lambda()); }
     /// Returns \p lambda%'s \p backwards_sid() in the case this a postdomtree 
     /// or \p lambda%'s sid() if this is an ordinary domtree.
     size_t index(Lambda* lambda) const { return forwards ? lambda->sid() : lambda->backwards_sid(); }
@@ -73,19 +75,19 @@ public:
     ArrayRef<Lambda*> body() const { return forwards ? scope_.body() : scope_.backwards_body(); }
     ArrayRef<Lambda*> preds(Lambda* lambda) const { return forwards ? scope_.preds(lambda) : scope_.succs(lambda); }
     ArrayRef<Lambda*> succs(Lambda* lambda) const { return forwards ? scope_.succs(lambda) : scope_.preds(lambda); }
-    bool is_entry(DomNodeBase<forwards>* i, DomNodeBase<forwards>* j) const { return forwards 
+    bool is_entry(DomNode* i, DomNode* j) const { return forwards 
         ? (scope_.is_entry(i->lambda()) && scope_.is_entry(j->lambda()))
         : (scope_.is_exit (i->lambda()) && scope_.is_exit (j->lambda())); }
 
 private:
 
     void create();
-    DomNodeBase<forwards>* lca(DomNodeBase<forwards>* i, DomNodeBase<forwards>* j);
-    DomNodeBase<forwards>* lookup(Lambda* lambda) { assert(scope().contains(lambda)); return nodes_[index(lambda)]; }
-    const DomNodeBase<forwards>* lookup(Lambda* lambda) const { return const_cast<DomTreeBase*>(this)->lookup(lambda); }
+    DomNode* lca(DomNode* i, DomNode* j);
+    DomNode* lookup(Lambda* lambda) { assert(scope().contains(lambda)); return nodes_[index(lambda)]; }
+    const DomNode* lookup(Lambda* lambda) const { return const_cast<DomTreeBase*>(this)->lookup(lambda); }
 
     const Scope& scope_;
-    Array<DomNodeBase<forwards>*> nodes_;
+    Array<DomNode*> nodes_;
 };
 
 typedef DomNodeBase< true>      DomNode;

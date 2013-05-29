@@ -14,7 +14,7 @@ template<bool forwards>
 int DomNodeBase<forwards>::depth() const {
     int result = 0;
 
-    for (const DomNodeBase<forwards>* i = this; !i->entry(); i = i->idom())
+    for (const DomNodeBase* i = this; !i->entry(); i = i->idom())
         ++result;
 
     return result;
@@ -31,14 +31,14 @@ DomTreeBase<forwards>::~DomTreeBase() {
 template<bool forwards>
 void DomTreeBase<forwards>::create() {
     t_for_all (lambda, rpo())
-        nodes_[index(lambda)] = new DomNodeBase<forwards>(lambda);
+        nodes_[index(lambda)] = new DomNode(lambda);
 
     for (size_t i = 0; i < size(); ++i)
         assert(i == index(nodes_[i]));
 
     // map entries' initial idoms to themselves
     t_for_all (entry,  entries()) {
-        DomNodeBase<forwards>* entry_node = lookup(entry);
+        DomNode* entry_node = lookup(entry);
         entry_node->idom_ = entry_node;
     }
 
@@ -58,11 +58,11 @@ outer_loop:;
         changed = false;
 
         t_for_all (lambda, body()) {
-            DomNodeBase<forwards>* lambda_node = lookup(lambda);
+            DomNode* lambda_node = lookup(lambda);
 
-            DomNodeBase<forwards>* new_idom = 0;
+            DomNode* new_idom = 0;
             t_for_all (pred, preds(lambda)) {
-                DomNodeBase<forwards>* pred_node = lookup(pred);
+                DomNode* pred_node = lookup(pred);
                 assert(pred_node);
                 new_idom = new_idom ? lca(new_idom, pred_node) : pred_node;
             }
@@ -75,13 +75,13 @@ outer_loop:;
     }
 
     t_for_all (lambda, body()) {
-        const DomNodeBase<forwards>* n = lookup(lambda);
+        const DomNode* n = lookup(lambda);
         n->idom_->children_.push_back(n);
     }
 }
 
 template<bool forwards>
-DomNodeBase<forwards>* DomTreeBase<forwards>::lca(DomNodeBase<forwards>* i, DomNodeBase<forwards>* j) {
+DomNodeBase<forwards>* DomTreeBase<forwards>::lca(DomNode* i, DomNode* j) {
     while (!is_entry(i, j) && index(i) != index(j)) {
         while (!is_entry(i, j) && index(i) < index(j)) 
             j = j->idom_;
@@ -95,9 +95,7 @@ DomNodeBase<forwards>* DomTreeBase<forwards>::lca(DomNodeBase<forwards>* i, DomN
 template<bool forwards> size_t DomTreeBase<forwards>::size() const { return scope_.size(); }
 
 // export templates
-template class DomTreeBase<true>;
-template class DomTreeBase<false>;
-template class DomNodeBase<true>;
-template class DomNodeBase<false>;
+template class DomTreeBase<true>;   template class DomNodeBase<true>;
+template class DomTreeBase<false>;  template class DomNodeBase<false>;
 
 } // namespace anydsl2

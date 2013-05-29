@@ -9,7 +9,7 @@
 
 namespace anydsl2 {
 
-class DomTree;
+template<bool> class DomTreeBase;
 class LoopTreeNode;
 class LoopInfo;
 
@@ -55,8 +55,8 @@ public:
                    ArrayRef<const Def*> to_lift, 
                    const GenericMap& generic_map = GenericMap());
 
-    const DomTree& domtree() const;
-    const DomTree& postdomtree() const;
+    const DomTreeBase<true>& domtree() const;
+    const DomTreeBase<false>& postdomtree() const;
     const LoopTreeNode* looptree() const;
     const LoopInfo& loopinfo() const;
 
@@ -81,8 +81,8 @@ private:
     mutable AutoPtr< Array<Lambda*> > backwards_rpo_;
     mutable Array< Array<Lambda*> > preds_;
     mutable Array< Array<Lambda*> > succs_;
-    mutable AutoPtr<DomTree> domtree_;
-    mutable AutoPtr<DomTree> postdomtree_;
+    mutable AutoPtr< DomTreeBase<true> > domtree_;
+    mutable AutoPtr< DomTreeBase<false> > postdomtree_;
     mutable AutoPtr<LoopTreeNode> looptree_;
     mutable AutoPtr<LoopInfo> loopinfo_;
 };

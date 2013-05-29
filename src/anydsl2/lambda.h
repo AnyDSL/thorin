@@ -64,7 +64,6 @@ public:
     const Pi* pi() const;
     const Pi* to_pi() const;
     const Pi* arg_pi() const;
-    virtual char delimiter() const { return 'l'; }
     size_t sid() const { return sid_; }
     size_t backwards_sid() const { return backwards_sid_; }
     Scope* scope() { return scope_; }

@@ -95,7 +95,7 @@ DomNodeBase<forwards>* DomTreeBase<forwards>::lca(DomNode* i, DomNode* j) {
 template<bool forwards> size_t DomTreeBase<forwards>::size() const { return scope_.size(); }
 
 // export templates
-template class DomTreeBase<true>;   template class DomNodeBase<true>;
-template class DomTreeBase<false>;  template class DomNodeBase<false>;
+template class DomNodeBase< true>; template class DomTreeBase< true>;   
+template class DomNodeBase<false>; template class DomTreeBase<false>;  
 
 } // namespace anydsl2

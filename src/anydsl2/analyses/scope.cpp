@@ -80,12 +80,8 @@ void Scope::process(ArrayRef<Lambda*> entries) {
         entry->visit_first(pass);
 
     size_t num = 0;
-    for_all (entry, entries) {
-        for_all (succ, entry->succs()) {
-            if (contains(succ) && !succ->is_visited(pass))
-                num = number<true>(pass, succ, num);
-        }
-    }
+    for_all (entry, entries)
+        num = just_number<true>(pass, entry, num);
 
     for (size_t i = entries.size(); i-- != 0;)
         entries[i]->sid_ = num++;
@@ -144,15 +140,18 @@ void Scope::up(const size_t pass, Lambda* lambda, Lambda* limit) {
 }
 
 template<bool forwards>
-size_t Scope::number(const size_t pass, Lambda* cur, size_t i) const {
-    cur->visit_first(pass);
-
-    // for each successor in scope
+size_t Scope::just_number(const size_t pass, Lambda* cur, size_t i) const {
     for_all (succ, forwards ? cur->succs() : cur->preds()) {
         if (contains(succ) && !succ->is_visited(pass))
             i = number<forwards>(pass, succ, i);
     }
+    return i;
+}
 
+template<bool forwards>
+size_t Scope::number(const size_t pass, Lambda* cur, size_t i) const {
+    cur->visit_first(pass);
+    i = just_number<forwards>(pass, cur, i);
     return forwards ? (cur->sid_ = i) + 1 : (cur->backwards_sid_ = i) - 1;
 }
 
@@ -202,12 +201,8 @@ ArrayRef<Lambda*> Scope::backwards_rpo() const {
         }
 
         num = size() - 1;
-        for_all (exit, exits) {
-            for_all (pred, exit->preds()) {
-                if (contains(pred) && !pred->is_visited(pass))
-                    num = number<false>(pass, pred, num);
-            }
-        }
+        for_all (exit, exits)
+            num = just_number<false>(pass, exit, num);
 
         assert(num + 1 == num_exits());
 

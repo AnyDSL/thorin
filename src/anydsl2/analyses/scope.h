@@ -67,6 +67,7 @@ private:
     void jump_to_param_users(const size_t pass, Lambda* lambda, Lambda* limit);
     void up(const size_t pass, Lambda* lambda, Lambda* limit);
     void find_user(const size_t pass, const Def* def, Lambda* limit);
+    template<bool forwards> size_t just_number(const size_t pass, Lambda* cur, size_t i) const;
     template<bool forwards> size_t number(const size_t pass, Lambda* cur, size_t i) const;
     void insert(const size_t pass, Lambda* lambda) { 
         lambda->visit_first(pass); 

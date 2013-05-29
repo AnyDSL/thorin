@@ -90,8 +90,10 @@ private:
     Array<DomNode*> nodes_;
 };
 
-typedef DomNodeBase< true>      DomNode; typedef DomTreeBase< true>      DomTree;
-typedef DomNodeBase<false>  PostDomNode; typedef DomTreeBase<false>  PostDomTree;
+typedef DomNodeBase< true>      DomNode;
+typedef DomNodeBase<false>  PostDomNode;
+typedef DomTreeBase< true>      DomTree;
+typedef DomTreeBase<false>  PostDomTree;
 
 } // namespace anydsl2
 

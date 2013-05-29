@@ -26,7 +26,6 @@ public:
     {}
 
     Lambda* lambda() const { return lambda_; }
-    /// Returns post-order number of lambda in scope.
     const DomNodeBase* idom() const { return idom_; }
     const std::vector<const DomNodeBase*>& children() const { return children_; }
     bool entry() const { return idom_ == this; }

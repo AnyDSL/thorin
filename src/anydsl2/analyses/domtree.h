@@ -9,74 +9,91 @@
 
 namespace anydsl2 {
 
-class DomNode;
+template<bool> class DomNodeBase;
+template<bool> class DomTreeBase;
 class Def;
 class Lambda;
 class Scope;
 class World;
 
-typedef std::vector<const DomNode*> DomNodes;
-
-class DomNode {
+template<bool forwards>
+class DomNodeBase {
 public:
 
-    DomNode(Lambda* lambda);
+    explicit DomNodeBase(Lambda* lambda) 
+        : lambda_(lambda) 
+        , idom_(0)
+    {}
 
     Lambda* lambda() const { return lambda_; }
-    /// Returns post-order number of lambda in scope.
-    const DomNode* idom() const { return idom_; }
-    const DomNodes& children() const { return children_; }
+    const DomNodeBase* idom() const { return idom_; }
+    const std::vector<const DomNodeBase*>& children() const { return children_; }
     bool entry() const { return idom_ == this; }
     int depth() const;
-    size_t sid() const;
 
 private:
 
     Lambda* lambda_;
-    DomNode* idom_;
-    DomNodes children_;
+    DomNodeBase* idom_;
+    std::vector<const DomNodeBase*> children_;
 
-    friend class DomTree;
+    friend class DomTreeBase<forwards>;
 };
 
-class DomTree {
+template<bool forwards>
+class DomTreeBase {
 public:
 
-    explicit DomTree(const Scope& scope)
+    typedef DomNodeBase<forwards> DomNode;
+
+    explicit DomTreeBase(const Scope& scope)
         : scope_(scope)
         , nodes_(size())
-        , entries_(0)
     {
         create();
     }
-    ~DomTree();
+
+    ~DomTreeBase();
 
     const Scope& scope() const { return scope_; }
-    ArrayRef<const DomNode*> entries() const;
-    size_t size() const;
     ArrayRef<const DomNode*> nodes() const { return ArrayRef<const DomNode*>(nodes_.begin(), nodes_.size()); }
-    const DomNode* node(size_t sid) const { return nodes_[sid]; }
-    const DomNode* node(Lambda* lambda) const;
+    size_t size() const;
+    const DomNode* node(Lambda* lambda) const { assert(scope().contains(lambda)); return nodes_[index(lambda)]; }
     int depth(Lambda* lambda) const { return node(lambda)->depth(); }
-    bool dominates(const DomNode* a, const DomNode* b) const;
-    bool dominates(Lambda* a, Lambda* b) const { return dominates(lookup(a), lookup(b)); }
-    bool strictly_dominates(const DomNode* a, const DomNode* b) const { return a != b && dominates(a, b); }
+    /// Returns the least common ancestor of \p i and \p j.
     Lambda* lca(Lambda* i, Lambda* j) const { return lca(lookup(i), lookup(j))->lambda(); }
-    static const DomNode* lca(const DomNode* i, const DomNode* j) { 
-        return lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j)); 
+    const DomNode* lca(const DomNode* i, const DomNode* j) const { 
+        return const_cast<DomTreeBase*>(this)->lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j)); 
     }
     Lambda* idom(Lambda* lambda) const { return lookup(lambda)->idom()->lambda(); }
+    size_t index(DomNode* n) const { return index(n->lambda()); }
+    /// Returns \p lambda%'s \p backwards_sid() in the case this a postdomtree 
+    /// or \p lambda%'s sid() if this is an ordinary domtree.
+    size_t index(Lambda* lambda) const { return forwards ? lambda->sid() : lambda->backwards_sid(); }
+    ArrayRef<Lambda*> rpo() const { return forwards ? scope_.rpo() : scope_.backwards_rpo(); }
+    ArrayRef<Lambda*> entries() const { return forwards ? scope_.entries() : scope_.exits(); }
+    ArrayRef<Lambda*> body() const { return forwards ? scope_.body() : scope_.backwards_body(); }
+    ArrayRef<Lambda*> preds(Lambda* lambda) const { return forwards ? scope_.preds(lambda) : scope_.succs(lambda); }
+    ArrayRef<Lambda*> succs(Lambda* lambda) const { return forwards ? scope_.succs(lambda) : scope_.preds(lambda); }
+    bool is_entry(DomNode* i, DomNode* j) const { return forwards 
+        ? (scope_.is_entry(i->lambda()) && scope_.is_entry(j->lambda()))
+        : (scope_.is_exit (i->lambda()) && scope_.is_exit (j->lambda())); }
 
 private:
 
-    static DomNode* lca(DomNode* i, DomNode* j);
     void create();
-    DomNode* lookup(Lambda* lambda) const;
+    DomNode* lca(DomNode* i, DomNode* j);
+    DomNode* lookup(Lambda* lambda) { assert(scope().contains(lambda)); return nodes_[index(lambda)]; }
+    const DomNode* lookup(Lambda* lambda) const { return const_cast<DomTreeBase*>(this)->lookup(lambda); }
 
     const Scope& scope_;
     Array<DomNode*> nodes_;
-    mutable AutoPtr< Array<const DomNode*> > entries_;
 };
+
+typedef DomNodeBase< true>      DomNode;
+typedef DomNodeBase<false>  PostDomNode;
+typedef DomTreeBase< true>      DomTree;
+typedef DomTreeBase<false>  PostDomTree;
 
 } // namespace anydsl2
 

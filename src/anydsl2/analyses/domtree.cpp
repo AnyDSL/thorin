@@ -10,43 +10,42 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
-DomNode::DomNode(Lambda* lambda) 
-    : lambda_(lambda) 
-    , idom_(0)
-{}
-
-int DomNode::depth() const {
+template<bool forwards>
+int DomNodeBase<forwards>::depth() const {
     int result = 0;
 
-    for (const DomNode* i = this; !i->entry(); i = i->idom())
+    for (const DomNodeBase* i = this; !i->entry(); i = i->idom())
         ++result;
 
     return result;
 };
 
-size_t DomNode::sid() const { return lambda()->sid(); }
-
 //------------------------------------------------------------------------------
 
-DomTree::~DomTree() {
-    for_all (node, nodes_)
+template<bool forwards>
+DomTreeBase<forwards>::~DomTreeBase() {
+    t_for_all (node, nodes_)
         delete node;
 }
 
-void DomTree::create() {
-    for_all (lambda, scope_.rpo())
-        nodes_[lambda->sid()] = new DomNode(lambda);
+template<bool forwards>
+void DomTreeBase<forwards>::create() {
+    t_for_all (lambda, rpo())
+        nodes_[index(lambda)] = new DomNode(lambda);
 
-    // map entry's initial idoms their entry,
-    // all others' idoms are set to their first found dominating pred
-    for_all (entry, scope_.entries()) {
+    for (size_t i = 0; i < size(); ++i)
+        assert(i == index(nodes_[i]));
+
+    // map entries' initial idoms to themselves
+    t_for_all (entry,  entries()) {
         DomNode* entry_node = lookup(entry);
         entry_node->idom_ = entry_node;
     }
 
-    for_all (lambda, scope_.body()) {
-        for_all (pred, scope().preds(lambda)) {
-            if (pred->sid() < lambda->sid()) {
+    // all others' idoms are set to their first found dominating pred
+    t_for_all (lambda, body()) {
+        t_for_all (pred, preds(lambda)) {
+            if (index(pred) < index(lambda)) {
                 lookup(lambda)->idom_ = lookup(pred);
                 goto outer_loop;
             }
@@ -58,16 +57,14 @@ outer_loop:;
     for (bool changed = true; changed;) {
         changed = false;
 
-        // for all lambdas in reverse post-order except entry node
-        for_all (lambda, scope_.body()) {
+        t_for_all (lambda, body()) {
             DomNode* lambda_node = lookup(lambda);
 
-            // for all predecessors of lambda
             DomNode* new_idom = 0;
-            for_all (pred, scope().preds(lambda)) {
+            t_for_all (pred, preds(lambda)) {
                 DomNode* pred_node = lookup(pred);
                 assert(pred_node);
-                new_idom = new_idom ?  lca(new_idom, pred_node) : pred_node;
+                new_idom = new_idom ? lca(new_idom, pred_node) : pred_node;
             }
             assert(new_idom);
             if (lambda_node->idom() != new_idom) {
@@ -77,43 +74,30 @@ outer_loop:;
         }
     }
 
-    // add children
-    for_all (lambda, scope_.body()) {
+    t_for_all (lambda, body()) {
         const DomNode* n = lookup(lambda);
         n->idom_->children_.push_back(n);
     }
 }
 
-DomNode* DomTree::lca(DomNode* i, DomNode* j) {
-    while (i->sid() != j->sid()) {
-        while (i->sid() < j->sid()) j = j->idom_;
-        while (j->sid() < i->sid()) i = i->idom_;
+template<bool forwards>
+DomNodeBase<forwards>* DomTreeBase<forwards>::lca(DomNode* i, DomNode* j) {
+    while (!is_entry(i, j) && index(i) != index(j)) {
+        while (!is_entry(i, j) && index(i) < index(j)) 
+            j = j->idom_;
+        while (!is_entry(i, j) && index(j) < index(i)) 
+            i = i->idom_;
     }
 
     return i;
 }
 
-const DomNode* DomTree::node(Lambda* lambda) const { assert(scope().contains(lambda)); return nodes_[lambda->sid()]; }
-DomNode* DomTree::lookup(Lambda* lambda) const { assert(scope().contains(lambda)); return nodes_[lambda->sid()]; }
-size_t DomTree::size() const { return scope_.size(); }
+template<bool forwards> size_t DomTreeBase<forwards>::size() const { return scope_.size(); }
 
-ArrayRef<const DomNode*> DomTree::entries() const {
-    if (!entries_) {
-        entries_ = new Array<const DomNode*>(scope().num_entries());
-        for_all2 (&dom_entry, *entries_, entry, scope().entries())
-            dom_entry = node(entry);
-    }
-
-    return *entries_;
-}
-
-bool DomTree::dominates(const DomNode* a, const DomNode* b) const {
-    while (a != b && !b->entry()) 
-        b = b->idom();
-
-    return a == b;
-}
-
-//------------------------------------------------------------------------------
+// export templates
+template class DomNodeBase< true>;
+template class DomNodeBase<false>;
+template class DomTreeBase< true>;
+template class DomTreeBase<false>;
 
 } // namespace anydsl2

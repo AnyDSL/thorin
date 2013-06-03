@@ -14,8 +14,8 @@ public:
         : scope(world)
         , domtree(scope.domtree())
     {
-        for_all (entry, domtree.entries())
-            merge(entry);
+        for_all (entry, scope.entries())
+            merge(scope.domtree().node(entry));
     }
 
     void merge(const DomNode* n);
@@ -28,7 +28,7 @@ public:
 
 const DomNode* Merger::dom_succ(const DomNode* n) { 
     ArrayRef<Lambda*> succs = scope.succs(n->lambda());
-    const DomNodes& children = n->children();
+    const std::vector<const DomNode*>& children = n->children();
     return succs.size() == 1 && children.size() == 1 
         && succs.front() == children.front()->lambda() 
         && succs.front()->num_uses() == 1

@@ -153,10 +153,10 @@ public:
     Array<T> cut(ArrayRef<size_t> indices, size_t reserve = 0) const { return ArrayRef<T>(*this).cut(indices, reserve); }
 
     bool operator == (const Array<T>& other) const { return ArrayRef<T>(*this) == ArrayRef<T>(other); }
-
     void shrink(size_t newsize) { assert(newsize <= size_); size_ = newsize; }
-
     ArrayRef<T> ref() const { return ArrayRef<T>(ptr_, size_); }
+    T* data() { return ptr_; }
+    const T* data() const { return ptr_; }
 
 private:
 

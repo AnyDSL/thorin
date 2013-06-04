@@ -8,9 +8,6 @@
 
 namespace anydsl2 {
 
-class TopoSorter {
-};
-
 std::vector<const Def*> topo_sort(const Scope& scope) {
     std::vector<const Def*> result;
     size_t pass = scope.world().new_pass();

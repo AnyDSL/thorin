@@ -1,4 +1,4 @@
-#include "anydsl2/transform/cfg_builder.h"
+#include "anydsl2/transform/lower2cff.h"
 
 #include <iostream>
 #include <boost/unordered_map.hpp>
@@ -8,13 +8,14 @@
 #include "anydsl2/type.h"
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/analyses/verifier.h"
+#include "anydsl2/transform/mangle.h"
 #include "anydsl2/transform/merge_lambdas.h"
 
 namespace anydsl2 {
 
-class CFGBuilder {
+class CFFLowering {
 public:
-    CFGBuilder(World& world)
+    CFFLowering(World& world)
         : world(world)
     {
         Scope scope(world);
@@ -30,7 +31,7 @@ private:
     LambdaSet top;
 };
 
-void CFGBuilder::transform(Lambda* lambda) {
+void CFFLowering::transform(Lambda* lambda) {
     Scope scope(lambda);
     typedef boost::unordered_map<Array<const Def*>, Lambda*> Args2Lambda;
     Args2Lambda args2lambda;
@@ -71,13 +72,13 @@ void CFGBuilder::transform(Lambda* lambda) {
         if (args_i != args2lambda.end()) 
             target = args_i->second; // use already dropped version as jump target 
         else
-            args2lambda[args] = target = scope.drop(indices, with, generic_map);
+            args2lambda[args] = target = drop(scope, indices, with, generic_map);
 
         ulambda->jump(target, ulambda->args().cut(indices));
     }
 }
 
-size_t CFGBuilder::process() {
+size_t CFFLowering::process() {
     std::vector<Lambda*> todo;
     for_all (top_lambda, top) {
         Scope scope(top_lambda);
@@ -98,11 +99,11 @@ size_t CFGBuilder::process() {
     return todo.size();
 }
 
-void cfg_transform(World& world) {
+void lower2cff(World& world) {
     size_t todo;
     do {
-        CFGBuilder builder(world);
-        todo = builder.process();
+        CFFLowering lowering(world);
+        todo = lowering.process();
         assert(verify(world) && "invalid cfg transform");
         merge_lambdas(world);
         assert(verify(world) && "invalid merge lambda transform");

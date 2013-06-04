@@ -1,5 +1,8 @@
+#include "anydsl2/transform/partial_evaluation.h"
+
 #include "anydsl2/world.h"
 #include "anydsl2/analyses/scope.h"
+#include "anydsl2/transform/mangle.h"
 #include "anydsl2/transform/merge_lambdas.h"
 
 namespace anydsl2 {
@@ -7,7 +10,6 @@ namespace anydsl2 {
 void partial_evaluation(World& world) {
     bool todo = true;
 
-    //for (int count = 0; count < 2; ++count) {
     while (todo) {
         todo = false;
         LambdaSet lambdas = world.lambdas();
@@ -33,19 +35,11 @@ void partial_evaluation(World& world) {
                     GenericMap generic_map;
                     bool res = to->type()->infer_with(generic_map, lambda->arg_pi());
                     assert(res);
-                    lambda->jump(Scope(to).drop(indices, with, generic_map), args);
+                    lambda->jump(drop(Scope(to), indices, with, generic_map), args);
                     todo = true;
-                    //std::cout << "dropping: " << to->unique_name() << " -> " << lambda->to()->unique_name() << " in " << lambda->unique_name() << std::endl;
-                    //for_all (arg, with)
-                        //arg->dump();
                 }
             }
         }
-
-        //int i;
-        //std::cin >> i;
-        //world.dump(true);
-        //std::cout << world.lambdas().size() << std::endl;
 
         merge_lambdas(world);
         world.cleanup();

@@ -45,16 +45,6 @@ public:
     bool is_entry(Lambda* lambda) const { assert(contains(lambda)); return lambda->sid() < num_entries(); }
     bool is_exit(Lambda* lambda) const { assert(contains(lambda)); return lambda->backwards_sid() < num_exits(); }
 
-    Lambda* clone(const GenericMap& generic_map = GenericMap());
-    Lambda* drop(ArrayRef<const Def*> with);
-    Lambda* drop(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
-                 const GenericMap& generic_map = GenericMap());
-    Lambda* lift(ArrayRef<const Def*> to_lift, 
-                 const GenericMap& generic_map = GenericMap());
-    Lambda* mangle(ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
-                   ArrayRef<const Def*> to_lift, 
-                   const GenericMap& generic_map = GenericMap());
-
     const DomTreeBase<true>& domtree() const;
     const DomTreeBase<false>& postdomtree() const;
     const LoopTreeNode* looptree() const;
@@ -62,8 +52,8 @@ public:
 
 private:
 
-    void analyze(ArrayRef<Lambda*> entries);
-    void process(ArrayRef<Lambda*> entries);
+    void identify_scope(ArrayRef<Lambda*> entries);
+    void rpo_numbering(ArrayRef<Lambda*> entries);
     void jump_to_param_users(const size_t pass, Lambda* lambda, Lambda* limit);
     void up(const size_t pass, Lambda* lambda, Lambda* limit);
     void find_user(const size_t pass, const Def* def, Lambda* limit);

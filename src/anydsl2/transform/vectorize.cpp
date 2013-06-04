@@ -1,5 +1,7 @@
 #include "anydsl2/transform/vectorize.h"
 
+#include <sstream>
+
 #include "anydsl2/type.h"
 #include "anydsl2/world.h"
 #include "anydsl2/analyses/domtree.h"
@@ -18,6 +20,8 @@ public:
 
     Lambda* vectorize();
     void create_conditions(Lambda* lambda);
+    const Type* vectorize_type(const Type* type);
+    const Def* vectorize_def(const Def* cond, const Def* def);
 
     World& world() { return scope.world(); }
     const Def*& get_cond(Lambda* lambda) const { return (const Def*&) lambda->ptr; }
@@ -25,7 +29,46 @@ public:
     const Scope& scope;
     size_t pass;
     const size_t length;
+    Lambda* vlambda;
 };
+
+const Type* Vectorizer::vectorize_type(const Type* type) {
+    assert(!type->isa<VectorType>() || type->length() == 1);
+    World& world = type->world();
+
+    if (const PrimType* primtype = type->isa<PrimType>())
+        return world.type(primtype->primtype_kind(), length);
+
+    if (const Ptr* ptr = type->isa<Ptr>())
+        return world.ptr(ptr->referenced_type(), length);
+
+    Array<const Type*> new_elems(type->size());
+    for_all2 (&new_elem, new_elems, elem, type->elems())
+        new_elem = vectorize_type(elem);
+
+    return world.rebuild(type, new_elems);
+}
+
+const Def* Vectorizer::vectorize_def(const Def* cond, const Def* def) {
+    World& world = cond->world();
+
+    if (const PrimOp* primop = def->isa<PrimOp>()) {
+        size_t size = primop->size();
+
+        Array<const Def*> nops(primop->size());
+        size_t i = 0;
+
+        if (primop->isa<VectorOp>())
+            nops[i++] = cond;
+
+        for (; i != size; ++i)
+            nops[i] = vectorize_def(cond, primop->op(i));
+
+        return world.rebuild(primop, nops, vectorize_type(primop->type()));
+    }
+
+    return 0;
+}
 
 Lambda* Vectorizer::vectorize() {
     for_all (entry, scope.entries())
@@ -34,13 +77,12 @@ Lambda* Vectorizer::vectorize() {
     for_all (lambda, scope.body())
         create_conditions(lambda);
 
-    for_all (lambda, scope.rpo()) {
-        lambda->dump_head();
-        std::cout << "cond: ";
-        get_cond(lambda)->dump();
-    }
+    std::ostringstream oss;
+    oss << scope[0]->name << "_x" << length;
+    vlambda = world().lambda(vectorize_type(scope[0]->pi())->as<Pi>(), oss.str());
+    vlambda->dump_head();
 
-    return scope[0];
+    return vlambda;
 }
 
 void Vectorizer::create_conditions(Lambda* lambda) {
@@ -71,44 +113,6 @@ void Vectorizer::create_conditions(Lambda* lambda) {
             cond = world().arithop_or(cond, pred_cond);
         }
     }
-}
-
-const Type* vectorize(const Type* type, size_t length) {
-    assert(!type->isa<VectorType>() || type->length() == 1);
-    World& world = type->world();
-
-    if (const PrimType* primtype = type->isa<PrimType>())
-        return world.type(primtype->primtype_kind(), length);
-
-    if (const Ptr* ptr = type->isa<Ptr>())
-        return world.ptr(ptr->referenced_type(), length);
-
-    Array<const Type*> new_elems(type->size());
-    for_all2 (&new_elem, new_elems, elem, type->elems())
-        new_elem = vectorize(elem, length);
-
-    return world.rebuild(type, new_elems);
-}
-
-const Def* vectorize(const Def* cond, const Def* def) {
-    World& world = cond->world();
-
-    if (const PrimOp* primop = def->isa<PrimOp>()) {
-        size_t size = primop->size();
-
-        Array<const Def*> nops(primop->size());
-        size_t i = 0;
-
-        if (primop->isa<VectorOp>())
-            nops[i++] = cond;
-
-        for (; i != size; ++i)
-            nops[i] = vectorize(cond, primop->op(i));
-
-        return world.rebuild(primop, nops, vectorize(primop->type(), cond->length()));
-    }
-
-    return 0;
 }
 
 Lambda* vectorize(Scope& scope, size_t length) { return Vectorizer(scope, length).vectorize(); }

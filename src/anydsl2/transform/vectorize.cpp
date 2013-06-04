@@ -12,8 +12,6 @@ public:
 
     Vectorizer(const Scope& scope, size_t length)
         : scope(scope)
-        , domtree(scope.domtree())
-        , postdomtree(scope.postdomtree())
         , pass(world().new_pass())
         , length(length)
     {}
@@ -25,8 +23,6 @@ public:
     const Def*& get_cond(Lambda* lambda) const { return (const Def*&) lambda->ptr; }
 
     const Scope& scope;
-    const DomTree& domtree;
-    const PostDomTree& postdomtree;
     size_t pass;
     const size_t length;
 };
@@ -50,8 +46,8 @@ Lambda* Vectorizer::vectorize() {
 void Vectorizer::create_conditions(Lambda* lambda) {
     const Def*& cond = get_cond(lambda);
 
-    Lambda* dom = domtree.idom(lambda);
-    if (postdomtree.idom(dom) == lambda)
+    Lambda* dom = scope.domtree().idom(lambda);
+    if (scope.postdomtree().idom(dom) == lambda)
         cond = get_cond(dom);
     else {
         cond = world().literal(false);

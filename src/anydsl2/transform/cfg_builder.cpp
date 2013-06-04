@@ -8,6 +8,7 @@
 #include "anydsl2/type.h"
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/analyses/verifier.h"
+#include "anydsl2/transform/mangle.h"
 #include "anydsl2/transform/merge_lambdas.h"
 
 namespace anydsl2 {
@@ -71,7 +72,7 @@ void CFGBuilder::transform(Lambda* lambda) {
         if (args_i != args2lambda.end()) 
             target = args_i->second; // use already dropped version as jump target 
         else
-            args2lambda[args] = target = scope.drop(indices, with, generic_map);
+            args2lambda[args] = target = drop(scope, indices, with, generic_map);
 
         ulambda->jump(target, ulambda->args().cut(indices));
     }

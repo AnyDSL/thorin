@@ -12,23 +12,31 @@ public:
 
     Vectorizer(const Scope& scope, size_t length)
         : scope(scope)
+        , domtree(scope.domtree())
+        , postdomtree(scope.postdomtree())
         , pass(world().new_pass())
         , length(length)
     {}
 
     Lambda* vectorize();
-    void create_conditions(const Def* cond, Lambda* lambda);
+    void create_conditions(Lambda* lambda);
 
     World& world() { return scope.world(); }
     const Def*& get_cond(Lambda* lambda) const { return (const Def*&) lambda->ptr; }
 
     const Scope& scope;
+    const DomTree& domtree;
+    const PostDomTree& postdomtree;
     size_t pass;
     const size_t length;
 };
 
 Lambda* Vectorizer::vectorize() {
-    create_conditions(world().true_mask(length), scope[0]);
+    for_all (entry, scope.entries())
+        get_cond(entry) = world().literal(true);
+
+    for_all (lambda, scope.body())
+        create_conditions(lambda);
 
     for_all (lambda, scope.rpo()) {
         lambda->dump_head();
@@ -39,17 +47,33 @@ Lambda* Vectorizer::vectorize() {
     return scope[0];
 }
 
-void Vectorizer::create_conditions(const Def* new_cond, Lambda* lambda) {
+void Vectorizer::create_conditions(Lambda* lambda) {
     const Def*& cond = get_cond(lambda);
-    cond = lambda->visit(pass) ? world().arithop_or(cond, new_cond) : new_cond;
 
-    if (Lambda* to = lambda->to()->isa_lambda()) {
-        assert(scope.num_succs(lambda) == 1);
-        create_conditions(cond, to);
-    } else if (const Select* select = lambda->to()->isa<Select>()) { // conditional branch
-        assert(scope.num_succs(lambda) == 2);
-        create_conditions(world().arithop_and(cond,                     select->cond() ), select->tval()->as_lambda());
-        create_conditions(world().arithop_and(cond, world().arithop_not(select->cond())), select->fval()->as_lambda());
+    Lambda* dom = domtree.idom(lambda);
+    if (postdomtree.idom(dom) == lambda)
+        cond = get_cond(dom);
+    else {
+        cond = world().literal(false);
+
+        for_all (pred, scope.preds(lambda)) {
+            const Def* pred_cond = get_cond(pred);
+
+            if (Lambda* to = pred->to()->isa_lambda()) {
+                assert(scope.num_succs(pred) == 1 && lambda == to);
+            } else {
+                const Select* select = pred->to()->as<Select>(); // conditional branch
+                assert(scope.num_succs(pred) == 2);
+                if (select->tval() == lambda)
+                    pred_cond = world().arithop_and(pred_cond, select->cond());
+                else {
+                    assert(select->fval() == lambda);
+                    pred_cond = world().arithop_and(pred_cond, world().arithop_not(select->cond()));
+                }
+            }
+
+            cond = world().arithop_or(cond, pred_cond);
+        }
     }
 }
 

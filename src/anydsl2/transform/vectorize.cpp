@@ -25,6 +25,7 @@ public:
 
     World& world() { return scope.world(); }
     const Def*& get_cond(Lambda* lambda) const { return (const Def*&) lambda->ptr; }
+    const Def*& map(const Def* def) const { return (const Def*&) def->ptr; }
 
     const Scope& scope;
     size_t pass;
@@ -50,7 +51,7 @@ const Type* Vectorizer::vectorize_type(const Type* type) {
 }
 
 const Def* Vectorizer::vectorize_def(const Def* cond, const Def* def) {
-    World& world = cond->world();
+    if (def->isa_lambda()) return 0;
 
     if (const PrimOp* primop = def->isa<PrimOp>()) {
         size_t size = primop->size();
@@ -97,10 +98,7 @@ void Vectorizer::create_conditions(Lambda* lambda) {
         for_all (pred, scope.preds(lambda)) {
             const Def* pred_cond = get_cond(pred);
 
-            if (Lambda* to = pred->to()->isa_lambda()) {
-                assert(scope.num_succs(pred) == 1 && lambda == to);
-            } else {
-                const Select* select = pred->to()->as<Select>(); // conditional branch
+            if (const Select* select = pred->to()->isa<Select>()) { // conditional branch
                 assert(scope.num_succs(pred) == 2);
                 if (select->tval() == lambda)
                     pred_cond = world().arithop_and(pred_cond, select->cond());

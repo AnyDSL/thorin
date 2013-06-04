@@ -24,16 +24,16 @@ Scope::Scope(Lambda* entry)
     , num_exits_(-1)
 {
     Lambda* entries[1] = { entry };
-    analyze(entries);
-    process(entries);
+    identify_scope(entries);
+    rpo_numbering(entries);
 }
 
 Scope::Scope(World& world, ArrayRef<Lambda*> entries)
     : world_(world)
     , num_entries_(entries.size())
 {
-    analyze(entries);
-    process(entries);
+    identify_scope(entries);
+    rpo_numbering(entries);
 }
 
 Scope::Scope(World& world) 
@@ -57,7 +57,7 @@ Scope::Scope(World& world)
     }
 
     num_entries_ = entries.size();
-    process(entries);
+    rpo_numbering(entries);
 }
 
 Scope::~Scope() {
@@ -65,7 +65,7 @@ Scope::~Scope() {
         lambda->scope_ = 0;
 }
 
-void Scope::analyze(ArrayRef<Lambda*> entries) {
+void Scope::identify_scope(ArrayRef<Lambda*> entries) {
     // identify all lambdas depending on entry
     size_t pass = world().new_pass();
     for_all (entry, entries) {
@@ -74,8 +74,7 @@ void Scope::analyze(ArrayRef<Lambda*> entries) {
     }
 }
 
-void Scope::process(ArrayRef<Lambda*> entries) {
-    // number all lambdas in postorder
+void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {
     size_t pass = world().new_pass();
 
     for_all (entry, entries)

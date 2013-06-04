@@ -52,8 +52,8 @@ public:
 
 private:
 
-    void analyze(ArrayRef<Lambda*> entries);
-    void process(ArrayRef<Lambda*> entries);
+    void identify_scope(ArrayRef<Lambda*> entries);
+    void rpo_numbering(ArrayRef<Lambda*> entries);
     void jump_to_param_users(const size_t pass, Lambda* lambda, Lambda* limit);
     void up(const size_t pass, Lambda* lambda, Lambda* limit);
     void find_user(const size_t pass, const Def* def, Lambda* limit);

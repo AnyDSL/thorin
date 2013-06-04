@@ -9,6 +9,7 @@ class Def;
 class Scope;
 
 std::vector<const Def*> topo_sort(const Scope&);
+
 }
 
 #endif

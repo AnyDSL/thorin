@@ -65,7 +65,7 @@ const Def* Vectorizer::vectorize_def(const Def* cond, const Def* def) {
         for (; i != size; ++i)
             nops[i] = vectorize_def(cond, primop->op(i));
 
-        return world.rebuild(primop, nops, vectorize_type(primop->type()));
+        return world().rebuild(primop, nops, vectorize_type(primop->type()));
     }
 
     return 0;

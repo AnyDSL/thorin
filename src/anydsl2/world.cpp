@@ -13,7 +13,7 @@
 #include "anydsl2/memop.h"
 #include "anydsl2/type.h"
 #include "anydsl2/analyses/verifier.h"
-#include "anydsl2/transform/cfg_builder.h"
+#include "anydsl2/transform/lower2cff.h"
 #include "anydsl2/transform/inliner.h"
 #include "anydsl2/transform/mem2reg.h"
 #include "anydsl2/transform/merge_lambdas.h"
@@ -919,8 +919,8 @@ void World::cleanup() {
 
 void World::opt() {
     cleanup();
-    assert(verify(*this)); mem2reg(*this); cleanup();
-    assert(verify(*this)); cfg_transform(*this); cleanup();
+    assert(verify(*this)); mem2reg(*this);       cleanup();
+    assert(verify(*this)); lower2cff(*this);     cleanup();
     assert(verify(*this)); inliner(*this);       cleanup();
     assert(verify(*this)); merge_lambdas(*this); cleanup();
 }

@@ -142,10 +142,8 @@ void Vectorizer::vectorize_primop(const Def* cond, const PrimOp* primop) {
 }
 
 const Def* Vectorizer::vectorize(const Def* def, size_t length) {
-    if (const Param* param = def->isa<Param>())
-        return map(param);
-    if (const PrimOp* primop = def->is_non_const_primop())
-        return map(primop);
+    if (def->isa<Param>() || def->is_non_const_primop())
+        return map(def);
     if (const PrimLit* primlit = def->isa<PrimLit>())
         return world().literal(primlit->primtype_kind(), primlit->value(), length);
     if (def->isa<Bottom>())

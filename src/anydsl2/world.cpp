@@ -97,13 +97,11 @@ const Opaque* World::opaque(ArrayRef<const Type*> types, ArrayRef<uint32_t> flag
 
 const Def* World::literal(PrimTypeKind kind, int value, size_t length) {
     const Def* lit;
-    if (length == 1) {
-        switch (kind) {
+    switch (kind) {
 #define ANYDSL2_U_TYPE(T) case PrimType_##T: lit = literal(T(value), 1); break;
 #define ANYDSL2_F_TYPE(T) ANYDSL2_U_TYPE(T)
 #include "anydsl2/tables/primtypetable.h"
             default: ANYDSL2_UNREACHABLE;
-        }
     }
 
     return vector(lit, length);
@@ -496,7 +494,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* cond, const Def* a, const
     return cse(new ArithOp(kind, cond, a, b, name));
 }
 
-const Def* World::arithop_not(const Def* cond, const Def* def) { return arithop_xor(cond, allset(def->type()), def); }
+const Def* World::arithop_not(const Def* cond, const Def* def) { return arithop_xor(cond, allset(def->type(), def->length()), def); }
 
 const Def* World::arithop_minus(const Def* cond, const Def* def) {
     const Def* zero;

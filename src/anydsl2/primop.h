@@ -24,6 +24,10 @@ public:
     virtual Printer& print(Printer&) const;
     virtual Printer& print_assignment(Printer &printer) const;
     virtual const char* op_name() const;
+    virtual size_t hash() const { return hash_combine(Def::hash(), type()); }
+    virtual bool equal(const Node* other) const { 
+        return Def::equal(other) ? type() == other->as<PrimOp>()->type() : false; 
+    }
 
 private:
 

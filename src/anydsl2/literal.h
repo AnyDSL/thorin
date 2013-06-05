@@ -88,7 +88,9 @@ public:
     const PrimType* primtype() const { return type()->as<PrimType>(); }
     PrimTypeKind primtype_kind() const { return primtype()->primtype_kind(); }
     virtual size_t hash() const { return hash_combine(Literal::hash(), bcast<uint64_t, Box>(value())); }
-    bool equal(const Node* other) const { return Literal::equal(other) ? this->value() == other->as<PrimLit>()->value() : false; }
+    virtual bool equal(const Node* other) const { 
+        return Literal::equal(other) ? this->value() == other->as<PrimLit>()->value() : false; 
+    }
 
 private:
 

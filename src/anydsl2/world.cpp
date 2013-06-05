@@ -70,13 +70,6 @@ World::~World() {
     for_all (lambda, lambdas_) delete lambda;
 }
 
-const Type* World::keep_nocast(const Type* type) {
-    std::pair<TypeSet::iterator, bool> tp = types_.insert(type);
-    assert(tp.second);
-    typekeeper(type);
-    return type;
-}
-
 /*
  * types
  */
@@ -961,8 +954,6 @@ void World::unused_type_elimination() {
         if (type->is_visited(pass))
             ++i;
         else {
-            std::cout << "deleting: " << std::endl;
-            type->dump();
             delete type;
             i = types_.erase(i);
         }

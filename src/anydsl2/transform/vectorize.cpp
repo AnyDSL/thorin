@@ -60,8 +60,10 @@ Lambda* Vectorizer::vectorize() {
     Lambda* vlambda = world().lambda(vectorize_type(entry->pi(), length)->as<Pi>(), LambdaAttr(LambdaAttr::Extern), oss.str());
     map_cond(entry) = world().literal(true, length);
 
-    for_all2 (param, entry->params(), vparam, vlambda->params())
+    for_all2 (param, entry->params(), vparam, vlambda->params()) {
         map(param) = vparam;
+        vparam->name = param->name;
+    }
 
     // for all other stuff in topological order
     Lambda* cur = entry;
@@ -134,6 +136,7 @@ void Vectorizer::param2select(const Param* param) {
     }
 
     map(param) = select;
+    select->name = param->name;
 }
 
 void Vectorizer::vectorize_primop(const Def* cond, const PrimOp* primop) {

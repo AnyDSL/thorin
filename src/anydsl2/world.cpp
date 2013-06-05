@@ -528,7 +528,7 @@ const Def* World::relop(RelOpKind kind, const Def* cond, const Def* a, const Def
 
     const PrimLit* llit = a->isa<PrimLit>();
     const PrimLit* rlit = b->isa<PrimLit>();
-    const Vector*  lvec = b->isa<Vector>();
+    const Vector*  lvec = a->isa<Vector>();
     const Vector*  rvec = b->isa<Vector>();
 
     if (lvec && rvec) {

@@ -433,14 +433,14 @@ llvm::Type* CodeGen::map(const Type* type) {
     assert(!type->isa<Mem>());
     llvm::Type* llvm_type;
     switch (type->node_kind()) {
-        case Node_PrimType_u1:  llvm_type = llvm::IntegerType::get(context,  1); goto vector_type;
-        case Node_PrimType_u8:  llvm_type = llvm::IntegerType::get(context,  8); goto vector_type;
-        case Node_PrimType_u16: llvm_type = llvm::IntegerType::get(context, 16); goto vector_type;
-        case Node_PrimType_u32: llvm_type = llvm::IntegerType::get(context, 32); goto vector_type;
-        case Node_PrimType_u64: llvm_type = llvm::IntegerType::get(context, 64); goto vector_type;
-        case Node_PrimType_f32: llvm_type = llvm::Type::getFloatTy(context);     goto vector_type;
-        case Node_PrimType_f64: llvm_type = llvm::Type::getDoubleTy(context);    goto vector_type;
-        case Node_Ptr:          llvm_type = llvm::PointerType::getUnqual(map(type->as<Ptr>()->referenced_type())); goto vector_type;
+        case Node_PrimType_u1:  llvm_type = llvm::IntegerType::get(context,  1); break;
+        case Node_PrimType_u8:  llvm_type = llvm::IntegerType::get(context,  8); break;
+        case Node_PrimType_u16: llvm_type = llvm::IntegerType::get(context, 16); break;
+        case Node_PrimType_u32: llvm_type = llvm::IntegerType::get(context, 32); break;
+        case Node_PrimType_u64: llvm_type = llvm::IntegerType::get(context, 64); break;
+        case Node_PrimType_f32: llvm_type = llvm::Type::getFloatTy(context);     break;
+        case Node_PrimType_f64: llvm_type = llvm::Type::getDoubleTy(context);    break;
+        case Node_Ptr:          llvm_type = llvm::PointerType::getUnqual(map(type->as<Ptr>()->referenced_type())); break;
 
         case Node_Pi: {
             // extract "return" type, collect all other types
@@ -502,7 +502,6 @@ multiple:
             return hook.map(type);
     }
 
-vector_type:
     if (type->length() == 1)
         return llvm_type;
     return llvm::VectorType::get(llvm_type, type->length());

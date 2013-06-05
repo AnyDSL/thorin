@@ -417,21 +417,30 @@ llvm::Value* CodeGen::emit(const Def* def) {
     if (def->isa<Enter>() || def->isa<Leave>())
         return 0;
 
+    if (const Vector* vector = def->isa<Vector>()) {
+        llvm::Value* vec = llvm::UndefValue::get(map(vector->type()));
+        for (size_t i = 0, e = vector->size(); i != e; ++i)
+            vec = builder.CreateInsertElement(vec, lookup(vector->op(i)), lookup(world.literal_u32(i)));
+
+        return vec;
+    }
+
     assert(!def->is_corenode());
     return hook.emit(def);
 }
 
 llvm::Type* CodeGen::map(const Type* type) {
     assert(!type->isa<Mem>());
+    llvm::Type* llvm_type;
     switch (type->node_kind()) {
-        case Node_PrimType_u1:  return llvm::IntegerType::get(context,  1);
-        case Node_PrimType_u8:  return llvm::IntegerType::get(context,  8);
-        case Node_PrimType_u16: return llvm::IntegerType::get(context, 16);
-        case Node_PrimType_u32: return llvm::IntegerType::get(context, 32);
-        case Node_PrimType_u64: return llvm::IntegerType::get(context, 64);
-        case Node_PrimType_f32: return llvm::Type::getFloatTy(context);
-        case Node_PrimType_f64: return llvm::Type::getDoubleTy(context);
-        case Node_Ptr:          return llvm::PointerType::getUnqual(map(type->as<Ptr>()->referenced_type()));
+        case Node_PrimType_u1:  llvm_type = llvm::IntegerType::get(context,  1); goto vector_type;
+        case Node_PrimType_u8:  llvm_type = llvm::IntegerType::get(context,  8); goto vector_type;
+        case Node_PrimType_u16: llvm_type = llvm::IntegerType::get(context, 16); goto vector_type;
+        case Node_PrimType_u32: llvm_type = llvm::IntegerType::get(context, 32); goto vector_type;
+        case Node_PrimType_u64: llvm_type = llvm::IntegerType::get(context, 64); goto vector_type;
+        case Node_PrimType_f32: llvm_type = llvm::Type::getFloatTy(context);     goto vector_type;
+        case Node_PrimType_f64: llvm_type = llvm::Type::getDoubleTy(context);    goto vector_type;
+        case Node_Ptr:          llvm_type = llvm::PointerType::getUnqual(map(type->as<Ptr>()->referenced_type())); goto vector_type;
 
         case Node_Pi: {
             // extract "return" type, collect all other types
@@ -492,6 +501,11 @@ multiple:
             assert(!type->is_corenode());
             return hook.map(type);
     }
+
+vector_type:
+    if (type->length() == 1)
+        return llvm_type;
+    return llvm::VectorType::get(llvm_type, type->length());
 }
 
 //------------------------------------------------------------------------------

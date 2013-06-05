@@ -5,5 +5,5 @@ def main(i : int) -> int {
     else
         a = 42;
 
-    return a;
+    return a * a;
 }

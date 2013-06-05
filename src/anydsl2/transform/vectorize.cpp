@@ -24,7 +24,7 @@ public:
     void infer_condition(Lambda* lambda);
     void param2select(const Param* param);
     const Type* vectorize_type(const Type* type, size_t length);
-    const Def* vectorize_primop(const Def* cond, const PrimOp* primop);
+    void vectorize_primop(const Def* cond, const PrimOp* primop);
     const Def* vectorize(const Def* def, size_t length);
 
     World& world() { return scope.world(); }
@@ -114,11 +114,6 @@ void Vectorizer::infer_condition(Lambda* lambda) {
             cond = world().arithop_or(cond, pred_cond);
         }
     }
-
-    std::cout << "---" << std::endl;
-    lambda->dump_head();
-    cond->dump();
-    std::cout << "---" << std::endl;
 }
 
 void Vectorizer::param2select(const Param* param) {
@@ -131,9 +126,7 @@ void Vectorizer::param2select(const Param* param) {
     map(param) = select;
 }
 
-const Def* Vectorizer::vectorize_primop(const Def* cond, const PrimOp* primop) {
-    std::cout << "vectorize_primop:" << std::endl;
-    primop->dump();
+void Vectorizer::vectorize_primop(const Def* cond, const PrimOp* primop) {
     size_t size = primop->size();
     Array<const Def*> vops(size);
     size_t i = 0;
@@ -145,10 +138,7 @@ const Def* Vectorizer::vectorize_primop(const Def* cond, const PrimOp* primop) {
     for (; i != size; ++i)
         vops[i] = vectorize(primop->op(i), is_vector_op ? length : 1);
 
-    //return map(primop) = world().rebuild(primop, vops, vectorize_type(primop->type(), is_vector_op ? length : 1));
     map(primop) = world().rebuild(primop, vops, vectorize_type(primop->type(), is_vector_op ? length : 1));
-    map(primop)->dump();
-    return map(primop);
 }
 
 const Def* Vectorizer::vectorize(const Def* def, size_t length) {

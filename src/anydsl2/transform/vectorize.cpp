@@ -138,8 +138,6 @@ const Def* Vectorizer::vectorize_primop(const Def* cond, const PrimOp* primop) {
     Array<const Def*> vops(size);
     size_t i = 0;
     bool is_vector_op = primop->isa<VectorOp>();
-    if (primop->isa<RelOp>())
-        cond = world().literal(true, length);
 
     if (is_vector_op)
         vops[i++] = cond;

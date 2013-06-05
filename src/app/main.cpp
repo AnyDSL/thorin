@@ -134,11 +134,6 @@ int main(int argc, char** argv) {
         if (result) {
             emit(init.world, p);
 
-            if (vectorlength != 0) {
-                Lambda* impala_main = Scope(init.world).copy_entries()[0];
-                Scope scope(impala_main);
-                anydsl2::vectorize(scope, vectorlength);
-            }
             if (!nocleanup)
                 init.world.cleanup();
             if (verify)
@@ -147,6 +142,11 @@ int main(int argc, char** argv) {
                 init.world.opt();
             if (pe)
                 partial_evaluation(init.world);
+            if (vectorlength != 0) {
+                Lambda* impala_main = Scope(init.world).copy_entries()[0];
+                Scope scope(impala_main);
+                anydsl2::vectorize(scope, vectorlength);
+            }
             if (emit_air)
                 init.world.dump(fancy);
             if (emit_loopforest)

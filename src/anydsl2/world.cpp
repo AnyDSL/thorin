@@ -961,6 +961,8 @@ void World::unused_type_elimination() {
         if (type->is_visited(pass))
             ++i;
         else {
+            std::cout << "deleting: " << std::endl;
+            type->dump();
             delete type;
             i = types_.erase(i);
         }

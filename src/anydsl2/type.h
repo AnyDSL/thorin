@@ -166,8 +166,6 @@ public:
 
 private:
 
-    size_t length_;
-
     friend class World;
 };
 

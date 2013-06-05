@@ -10,11 +10,11 @@
 
 namespace anydsl2 {
 
-struct ScopeLess {
+struct ScopeLess : public std::binary_function<const Lambda*, const Lambda*, bool> {
     bool operator () (const Lambda* l1, const Lambda* l2) const { return l1->sid() < l2->sid(); }
 };
 
-struct ScopeLessBackwards {
+struct ScopeLessBackwards : public std::binary_function<const Lambda*, const Lambda*, bool> {
     bool operator () (const Lambda* l1, const Lambda* l2) const { return l1->backwards_sid() < l2->backwards_sid(); }
 };
 

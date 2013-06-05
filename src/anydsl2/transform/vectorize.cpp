@@ -28,8 +28,8 @@ public:
     const Def* vectorize(const Def* def, size_t length);
 
     World& world() { return scope.world(); }
-    const Def*& map_cond(Lambda* lambda) const { return (const Def*&) lambda->ptr; }
-    const Def*& map(const Def* def) const { return (const Def*&) def->ptr; }
+    static const Def*& map_cond(Lambda* lambda) { return (const Def*&) lambda->ptr; }
+    static const Def*& map(const Def* def) { return (const Def*&) def->ptr; }
 
     const Scope& scope;
     size_t pass;
@@ -116,9 +116,19 @@ void Vectorizer::infer_condition(Lambda* lambda) {
     }
 }
 
+struct PredLess : public std::binary_function<const Lambda*, const Lambda*, bool> {
+    bool operator () (const Lambda* l1, const Lambda* l2) const { 
+        return Vectorizer::map(l1)->non_const_depth() > Vectorizer::map(l2)->non_const_depth();
+    }
+};
+
 void Vectorizer::param2select(const Param* param) {
     const Def* select = 0;
-    for_all (pred, scope.preds(param->lambda())) {
+    Array<Lambda*> preds = scope.preds(param->lambda());
+    // begin with pred with the most expensive condition (non_const_depth) - this keeps select chains simpler
+    std::sort(preds.begin(), preds.end(), PredLess());
+
+    for_all (pred, preds) {
         const Def* peek = vectorize(pred->arg(param->index()), length);
         select = select ? world().select(map_cond(pred), peek, select) : peek;
     }

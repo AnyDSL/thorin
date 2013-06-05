@@ -178,6 +178,12 @@ public:
     Lambda* as_lambda() const;
     Lambda* isa_lambda() const;
     bool is_const() const { return is_const_; }
+    /**
+     * Returns the maximum depth of this \p Def%s depdency tree (induced by the \p ops).
+     * \em const dependences are consideres leaves in this tree.
+     * Thus, those dependences are not further propagted to determine the depth.
+     */
+    int non_const_depth() const;
     void dump() const;
     virtual Printer& print(Printer&) const;
     Printer& print_name(Printer&) const;

@@ -177,6 +177,20 @@ recurse:
     }
 }
 
+int Def::non_const_depth() const {
+    if (this->is_const() || this->isa<Param>()) 
+        return 0;
+
+    const PrimOp* primop = this->as<PrimOp>();
+    int max = 0;
+    for_all (op, primop->ops()) {
+        int d = op->non_const_depth();
+        max = d > max ? d : max;
+    }
+
+    return max + 1;
+}
+
 World& Def::world() const { return type()->world(); }
 const Def* Def::op_via_lit(const Def* def) const { return op(def->primlit_value<size_t>()); }
 Lambda* Def::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(this)); }

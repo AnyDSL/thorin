@@ -211,14 +211,11 @@ public:
      */
     size_t length() const;
 
-    // check for special literals
-
     bool is_primlit(int val) const;
     bool is_zero() const { return is_primlit(0); }
     bool is_minus_zero() const;
     bool is_one() const { return is_primlit(1); }
     bool is_allset() const { return is_primlit(-1); }
-
     bool is_div()         const { return anydsl2::is_div  (kind()); }
     bool is_rem()         const { return anydsl2::is_rem  (kind()); }
     bool is_bitop()       const { return anydsl2::is_bitop(kind()); }

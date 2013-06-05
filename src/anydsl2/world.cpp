@@ -39,11 +39,10 @@
 #endif
 
 #ifndef NDEBUG
-#define ANYDSL2_CHECK_BREAK \
-    if (breakpoints_.find(gid_) != breakpoints_.end()) \
-        ANYDSL2_BREAK;
+#define ANYDSL2_CHECK_BREAK(gid) \
+    if (breakpoints_.find((gid)) != breakpoints_.end()) { ANYDSL2_BREAK }
 #else
-#define ANYDSL2_CHECK_BREAK {}
+#define ANYDSL2_CHECK_BREAK(gid) {}
 #endif
 
 namespace anydsl2 {
@@ -307,38 +306,36 @@ const Def* World::arithop(ArithOpKind kind, const Def* cond, const Def* a, const
         }
     }
 
-    if (rlit) {
-        if (rlit->is_zero()) {
-            switch (kind) {
-                case ArithOp_sdiv:
-                case ArithOp_udiv:
-                case ArithOp_srem:
-                case ArithOp_urem: return bottom(type);
+    if (a->is_zero()) {
+        switch (kind) {
+            case ArithOp_sdiv:
+            case ArithOp_udiv:
+            case ArithOp_srem:
+            case ArithOp_urem: return bottom(type);
 
-                case ArithOp_shl:
-                case ArithOp_ashr:
-                case ArithOp_lshr: return a;
+            case ArithOp_shl:
+            case ArithOp_ashr:
+            case ArithOp_lshr: return a;
 
-                default: break;
-            }
-        } else if (rlit->is_one()) {
-            switch (kind) {
-                case ArithOp_sdiv:
-                case ArithOp_udiv: return a;
+            default: break;
+        }
+    } else if (a->is_one()) {
+        switch (kind) {
+            case ArithOp_sdiv:
+            case ArithOp_udiv: return a;
 
-                case ArithOp_srem:
-                case ArithOp_urem: return zero(type);
+            case ArithOp_srem:
+            case ArithOp_urem: return zero(type);
 
-                default: break;
-            }
-        } else if (rlit->primlit_value<uint64_t>() >= uint64_t(num_bits(type))) {
-            switch (kind) {
-                case ArithOp_shl:
-                case ArithOp_ashr:
-                case ArithOp_lshr: return bottom(type);
+            default: break;
+        }
+    } else if (rlit && rlit->primlit_value<uint64_t>() >= uint64_t(num_bits(type))) {
+        switch (kind) {
+            case ArithOp_shl:
+            case ArithOp_ashr:
+            case ArithOp_lshr: return bottom(type);
 
-                default: break;
-            }
+            default: break;
         }
     }
 
@@ -437,38 +434,36 @@ const Def* World::arithop(ArithOpKind kind, const Def* cond, const Def* a, const
         std::swap(lvec, rvec);
     }
 
-    if (llit) {
-        if (llit->is_zero()) {
-            switch (kind) {
-                case ArithOp_mul:
-                case ArithOp_sdiv:
-                case ArithOp_udiv:
-                case ArithOp_srem:
-                case ArithOp_urem:
-                case ArithOp_and:
-                case ArithOp_shl:
-                case ArithOp_lshr:
-                case ArithOp_ashr: return zero(type);
+    if (a->is_zero()) {
+        switch (kind) {
+            case ArithOp_mul:
+            case ArithOp_sdiv:
+            case ArithOp_udiv:
+            case ArithOp_srem:
+            case ArithOp_urem:
+            case ArithOp_and:
+            case ArithOp_shl:
+            case ArithOp_lshr:
+            case ArithOp_ashr: return zero(type);
 
-                case ArithOp_add: 
-                case ArithOp_or:
-                case ArithOp_xor:  return b;
+            case ArithOp_add: 
+            case ArithOp_or:
+            case ArithOp_xor:  return b;
 
-                default: break;
-            }
-        } 
-        if (llit->is_one()) {
-            switch (kind) {
-                case ArithOp_mul: return b;
-                default: break;
-            }
-        } 
-        if (llit->is_allset()) {
-            switch (kind) {
-                case ArithOp_and: return b;
-                case ArithOp_or:  return llit; // allset
-                default: break;
-            }
+            default: break;
+        }
+    } 
+    if (a->is_one()) {
+        switch (kind) {
+            case ArithOp_mul: return b;
+            default: break;
+        }
+    } 
+    if (a->is_allset()) {
+        switch (kind) {
+            case ArithOp_and: return b;
+            case ArithOp_or:  return llit; // allset
+            default: break;
         }
     }
 
@@ -730,7 +725,7 @@ const Slot* World::slot(const Type* type, const Def* frame, size_t index, const 
 const LEA* World::lea(const Def* ptr, const Def* index, const std::string& name) { return cse(new LEA(ptr, index, name)); }
 
 Lambda* World::lambda(const Pi* pi, LambdaAttr attr, const std::string& name) {
-    ANYDSL2_CHECK_BREAK
+    ANYDSL2_CHECK_BREAK(gid_)
     Lambda* l = new Lambda(gid_++, pi, attr, true, name);
     lambdas_.insert(l);
 
@@ -742,7 +737,7 @@ Lambda* World::lambda(const Pi* pi, LambdaAttr attr, const std::string& name) {
 }
 
 Lambda* World::basicblock(const std::string& name) {
-    ANYDSL2_CHECK_BREAK
+    ANYDSL2_CHECK_BREAK(gid_)
     Lambda* bb = new Lambda(gid_++, pi0(), LambdaAttr(0), false, name);
     lambdas_.insert(bb);
     return bb;
@@ -784,7 +779,7 @@ const Type* World::rebuild(const Type* type, ArrayRef<const Type*> elems) {
 }
 
 const Param* World::param(const Type* type, Lambda* lambda, size_t index, const std::string& name) {
-    ANYDSL2_CHECK_BREAK
+    ANYDSL2_CHECK_BREAK(gid_)
     return new Param(gid_++, type, lambda, index, name);
 }
 
@@ -818,9 +813,7 @@ const Def* World::cse_base(const PrimOp* primop) {
         primop->set_gid(gid_++);
     }
 
-    if (breakpoints_.find(primop->gid()) != breakpoints_.end()) 
-        ANYDSL2_BREAK
-
+    ANYDSL2_CHECK_BREAK(primop->gid())
     return primop;
 }
 

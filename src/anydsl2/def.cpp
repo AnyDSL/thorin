@@ -96,6 +96,16 @@ bool Def::is_primlit(int val) const {
 #include "anydsl2/tables/primtypetable.h"
         }
     }
+
+    if (const Vector* vector = this->isa<Vector>()) {
+        for_all (op, vector->ops()) {
+            if (!op->is_primlit(val))
+                return false;
+        }
+
+        return true;
+    }
+
     return false;
 }
 

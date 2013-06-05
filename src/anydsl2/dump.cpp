@@ -178,8 +178,18 @@ Printer& PrimOp::print(Printer& p) const {
 
 Printer& PrimOp::print_assignment(Printer& p) const {
     type()->print(p) << " ";
-    print_name(p) << " = " << op_name() << " ";
-    ANYDSL2_DUMP_COMMA_LIST(p, ops());
+    print_name(p) << " = ";
+    ArrayRef<const Def*> ops = this->ops();
+
+    if (const VectorOp* vectorop = this->isa<VectorOp>()) {
+        if (!vectorop->cond()->is_allset()) {
+            p << "@ " << vectorop->cond() << " ";
+        }
+        ops = ops.slice_back(1);
+    }
+
+    p << op_name() << " ";
+    ANYDSL2_DUMP_COMMA_LIST(p, ops);
     return p.newline();
 }
 

@@ -63,8 +63,8 @@ Lambda* Vectorizer::vectorize() {
     for_all2 (param, entry->params(), vparam, vlambda->params())
         map(param) = vparam;
 
-    Lambda* cur = entry;
     // for all other stuff in topological order
+    Lambda* cur = entry;
     std::vector<const Def*> topo = topo_sort(scope);
     for_all (def, ArrayRef<const Def*>(topo).slice_back(entry->num_params() + 1)) {
         if (Lambda* lambda = def->isa_lambda())

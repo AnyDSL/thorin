@@ -708,6 +708,9 @@ const Def* World::select(const Def* cond, const Def* a, const Def* b, const std:
         std::swap(a, b);
     }
 
+    if (a == b)
+        return a;
+
     return cse(new Select(cond, a, b, name));
 }
 

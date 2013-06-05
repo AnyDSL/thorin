@@ -88,7 +88,7 @@ void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {
         entries[i]->sid_ = num++;
 
     assert(num <= size());
-    assert(num >= 1);
+    assert(num >= 0);
 
     // convert postorder number to reverse postorder number
     for_all (lambda, rpo()) {

@@ -19,7 +19,7 @@ public:
 
     Placement(const Scope& scope)
         : scope(scope)
-        , topo(topo_sort(scope))
+        , topo_order(topo_sort(scope))
     {}
 
     Places place() { 
@@ -38,7 +38,7 @@ private:
     void place_early(Places& places, Lambda* early, const Def* def);
 
     const Scope& scope;
-    std::vector<const Def*> topo;
+    std::vector<const Def*> topo_order;
     size_t pass;
 };
 
@@ -73,7 +73,7 @@ Places Placement::place_early() {
     Places places(scope.size());
     Lambda* early = 0;
 
-    for_all (def, topo) {
+    for_all (def, topo_order) {
         if (Lambda* lambda = def->isa_lambda())
             early = lambda;
         else if (const PrimOp* primop = def->isa<PrimOp>()) {

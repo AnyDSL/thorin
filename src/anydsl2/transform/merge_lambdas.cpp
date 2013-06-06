@@ -1,5 +1,3 @@
-#include "anydsl2/transform/merge_lambdas.h"
-
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
 #include "anydsl2/world.h"

@@ -1,5 +1,3 @@
-#include "anydsl2/transform/mangle.h"
-
 #include "anydsl2/literal.h"
 #include "anydsl2/primop.h"
 #include "anydsl2/type.h"
@@ -159,18 +157,18 @@ const Def* Mangler::mangle(const Def* odef) {
 
 //------------------------------------------------------------------------------
 
+Lambda* mangle(const Scope& scope, ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
+                       ArrayRef<const Def*> to_lift, const GenericMap& generic_map) {
+    return Mangler(scope, to_drop, drop_with, to_lift, generic_map).mangle();
+}
+
 Lambda* drop(const Scope& scope, ArrayRef<const Def*> with) {
     size_t size = with.size();
     Array<size_t> to_drop(size);
     for (size_t i = 0; i != size; ++i)
         to_drop[i] = i;
 
-    return mangle(scope, to_drop, with, Array<const Def*>());
-}
-
-Lambda* mangle(const Scope& scope, ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
-                       ArrayRef<const Def*> to_lift, const GenericMap& generic_map) {
-    return Mangler(scope, to_drop, drop_with, to_lift, generic_map).mangle();
+    return mangle(scope, to_drop, with, Array<const Def*>(), GenericMap());
 }
 
 //------------------------------------------------------------------------------

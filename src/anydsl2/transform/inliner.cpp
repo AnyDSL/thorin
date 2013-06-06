@@ -1,5 +1,3 @@
-#include "anydsl2/transform/inliner.h"
-
 #include "anydsl2/lambda.h"
 #include "anydsl2/world.h"
 #include "anydsl2/analyses/scope.h"

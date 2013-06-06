@@ -143,7 +143,7 @@ int main(int argc, char** argv) {
             if (pe)
                 partial_evaluation(init.world);
             if (vectorlength != 0) {
-                Lambda* impala_main = Scope(init.world).copy_entries()[0];
+                Lambda* impala_main = top_level_lambdas(init.world)[0];
                 Scope scope(impala_main);
                 anydsl2::vectorize(scope, vectorlength);
             }

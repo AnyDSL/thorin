@@ -15,11 +15,9 @@ namespace anydsl2 {
 
 class CFFLowering {
 public:
-    CFFLowering(World& world)
-        : world(world)
-    {
-        Scope scope(world);
-        top.insert(scope.entries().begin(), scope.entries().end());
+    CFFLowering(World& world) {
+        Array<Lambda*> top = top_level_lambdas(world);
+        top_.insert(top.begin(), top.end());
     }
 
     void transform(Lambda* lambda);
@@ -27,8 +25,7 @@ public:
 
 private:
 
-    World& world;
-    LambdaSet top;
+    LambdaSet top_;
 };
 
 void CFFLowering::transform(Lambda* lambda) {
@@ -80,15 +77,15 @@ void CFFLowering::transform(Lambda* lambda) {
 
 size_t CFFLowering::process() {
     std::vector<Lambda*> todo;
-    for_all (top_lambda, top) {
-        Scope scope(top_lambda);
+    for_all (top, top_) {
+        Scope scope(top);
         for (size_t i = scope.size(); i-- != 0;) {
             Lambda* lambda = scope[i];
             if (lambda->num_params()                            // is there sth to drop?
                 && (lambda->is_generic()                        // drop generic stuff
                     || (!lambda->is_basicblock()                // don't drop basic blocks
                         && (!lambda->is_returning()             // drop non-returning lambdas
-                            || top.find(lambda) == top.end()))))// lift/drop returning non top-level lambdas
+                            || top_.find(lambda) == top_.end()))))// lift/drop returning non top-level lambdas
                 todo.push_back(lambda);
         }
     }

@@ -8,7 +8,7 @@ namespace anydsl2 {
 
 void mem2reg(World& world) {
     return;
-    for_all (root, Scope(world).copy_entries()) {
+    for_all (root, top_level_lambdas(world)) {
         Scope scope(root);
 
         size_t pass = world.new_pass();

@@ -25,7 +25,6 @@ public:
     /// All lambdas within this scope in reverse postorder.
     ArrayRef<Lambda*> rpo() const { return rpo_; }
     ArrayRef<Lambda*> entries() const { return ArrayRef<Lambda*>(rpo_).slice_front(num_entries()); }
-    Array<Lambda*> copy_entries() const { return Array<Lambda*>(entries()); }
     /// Like \p rpo() but without \p entries().
     ArrayRef<Lambda*> body() const { return rpo().slice_back(num_entries()); }
     ArrayRef<Lambda*> backwards_rpo() const;
@@ -77,6 +76,8 @@ private:
     mutable AutoPtr<LoopTreeNode> looptree_;
     mutable AutoPtr<LoopInfo> loopinfo_;
 };
+
+inline Array<Lambda*> top_level_lambdas(World& world) { return Scope(world).entries(); }
 
 } // namespace anydsl2
 

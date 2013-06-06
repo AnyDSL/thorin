@@ -85,7 +85,7 @@ void CodeGen::emit() {
     FctMap fcts;
 
     // map all root-level lambdas to llvm function stubs
-    for_all (lambda, Scope(world).copy_entries()) {
+    for_all (lambda, top_level_lambdas(world)) {
         llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
         llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->name, module);
         fcts.insert(std::make_pair(lambda, f));

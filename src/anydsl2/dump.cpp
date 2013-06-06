@@ -198,7 +198,7 @@ Printer& PrimOp::print_assignment(Printer& p) const {
 void World::dump(bool fancy) {
     Printer p(std::cout, fancy);
 
-    for_all (top, Scope(*this).copy_entries()) {
+    for_all (top, top_level_lambdas(*this)) {
         Scope scope(top);
         Places places = place(scope);
         for_all (lambda, scope.rpo()) {

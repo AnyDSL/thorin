@@ -105,8 +105,14 @@ Printer& Def::print_name(Printer& p) const {
 
 Printer& Lambda::print_head(Printer& p) const {
     print_name(p);
-    ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "(", params(), ") : ");
-    type()->print(p);
+    p << "(";
+    const char* sep = "";
+    for_all (param, params()) { \
+        p << sep << param << " : " << param->type();
+        sep = ", ";
+    }
+    p << ")";
+
     if (attr().is_extern())
         p << " extern ";
 

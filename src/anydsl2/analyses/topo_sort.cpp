@@ -10,8 +10,8 @@ namespace anydsl2 {
 
 std::vector<const Def*> topo_sort(const Scope& scope) {
     std::vector<const Def*> result;
-    size_t pass = scope.world().new_pass();
     std::queue<const Def*> queue;
+    const size_t pass = scope.world().new_pass();
 
     for_all (lambda, scope.rpo()) {
         result.push_back(lambda);

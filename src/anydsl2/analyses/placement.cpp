@@ -52,11 +52,7 @@ void Placement::place_late(Lambda* lambda, const Def* def) {
         if (const PrimOp* primop = op->is_non_const_primop()) {
             if (!primop->visit(pass)) {     // init unseen primops
                 primop->ptr = 0;
-                primop->counter = 0;
-                for_all (use, primop->uses()) {
-                    if (use->isa<PrimOp>() || use->isa<Lambda>())
-                        ++primop->counter;
-                }
+                primop->counter = primop->num_uses();
             }
 
             Lambda*& late = get_late(primop);

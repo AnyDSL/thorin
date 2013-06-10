@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
 #endif
         string outfile = "-";
         string emittype;
-        bool help, emit_all, emit_air, emit_ast, emit_dot, emit_llvm, emit_loopforest, fancy, opt, verify, nocleanup, nossa, pe = false;
+        bool help, emit_all, emit_air, emit_ast, emit_dot, emit_llvm, emit_looptree, fancy, opt, verify, nocleanup, nossa, pe = false;
         int vectorlength = 0;
 
         // specify options
@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
         ("emit-all",        po::bool_switch(&emit_all),                 "emit AST, AIR and LLVM")
         ("emit-ast",        po::bool_switch(&emit_ast),                 "emit AST of impala program")
         ("emit-dot",        po::bool_switch(&emit_dot),                 "emit dot, arg={air|llvm}")
-        ("emit-loopforest", po::bool_switch(&emit_loopforest),          "emit loop forest")
+        ("emit-looptree",   po::bool_switch(&emit_looptree),            "emit loop tree")
         ("emit-llvm",       po::bool_switch(&emit_llvm),                "emit llvm from AIR representation")
         ("fancy,f",         po::bool_switch(&fancy),                    "use fancy output")
         ("nocleanup",       po::bool_switch(&nocleanup),                "no clean-up phase")
@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
         po::notify(vm);
 
         if (emit_all)
-            emit_air = emit_loopforest = emit_ast = emit_llvm = true;
+            emit_air = emit_looptree = emit_ast = emit_llvm = true;
 
         if (infiles.empty() && !help) {
 #if BOOST_VERSION >= 105000
@@ -149,7 +149,7 @@ int main(int argc, char** argv) {
             }
             if (emit_air)
                 init.world.dump(fancy);
-            if (emit_loopforest)
+            if (emit_looptree)
                 std::cout << Scope(init.world).looptree() << std::endl;
 
             if (emit_llvm)

@@ -1,5 +1,3 @@
-#include <boost/typeof/typeof.hpp>
-
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
 #include "anydsl2/primop.h"
@@ -219,8 +217,13 @@ void World::dump(bool fancy) {
             lambda->print_jump(p);
             p.indent -= depth;
         }
+
         p.newline();
     }
+
+    for_all (top, top_level_lambdas(*this))
+        for_all (def, visit_late(Scope(top)))
+            def->dump();
 }
 
 //------------------------------------------------------------------------------

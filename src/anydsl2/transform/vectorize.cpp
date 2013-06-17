@@ -5,7 +5,7 @@
 #include "anydsl2/world.h"
 #include "anydsl2/analyses/domtree.h"
 #include "anydsl2/analyses/scope.h"
-#include "anydsl2/analyses/topo_sort.h"
+#include "anydsl2/analyses/placement.h"
 
 namespace anydsl2 {
 
@@ -63,10 +63,10 @@ Lambda* Vectorizer::vectorize() {
         vparam->name = param->name;
     }
 
-    // for all other stuff in topological order
+    // for all other stuff in early topological order
     Lambda* cur = entry;
-    std::vector<const Def*> topo = topo_sort(scope);
-    for_all (def, ArrayRef<const Def*>(topo).slice_back(entry->num_params() + 1)) {
+    std::vector<const Def*> early = visit_early(scope);
+    for_all (def, ArrayRef<const Def*>(early).slice_back(entry->num_params() + 1)) {
         if (Lambda* lambda = def->isa_lambda())
             infer_condition(cur = lambda);
         else if (const Param* param = def->isa<Param>())

@@ -307,7 +307,7 @@ RefPtr Call::emit(CodeGen& cg) const {
         return RefPtr(0);
     }
 
-    cg.mem_call(ops[0], args, type());
+    cg.mem_call(ops[0], args, convert(type()));
     cg.set_mem(cg.cur_bb->param(0));
 
     return Ref::create(cg.cur_bb->param(1));

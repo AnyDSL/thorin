@@ -742,8 +742,9 @@ bool Parser::is_stmt() {
     switch (la()) {
 #define IMPALA_KEY_STMT(tok, t_str) case Token:: tok:
 #include "impala/tokenlist.h"
-        case Token::L_BRACE:  
         case Token::ID:
+        case Token::L_BRACE:
+        case Token::SEMICOLON:
             return true;
         default:
             return false;

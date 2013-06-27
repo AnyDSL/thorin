@@ -360,13 +360,18 @@ void IfElseStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     JumpTarget then_bb("if_then");
     JumpTarget else_bb("if_else");
 
-    cond()->emit_branch(cg, then_bb, else_bb);
+    cond()->emit_branch(cg, then_stmt()->empty() ? exit_bb : then_bb, 
+                            else_stmt()->empty() ? exit_bb : else_bb);
 
-    cg.enter(then_bb);
-    then_stmt()->emit(cg, exit_bb);
+    if (!then_stmt()->empty()) {
+        cg.enter(then_bb);
+        then_stmt()->emit(cg, exit_bb);
+    }
 
-    cg.enter(else_bb);
-    else_stmt()->emit(cg, exit_bb);
+    if (!else_stmt()->empty()) {
+        cg.enter(else_bb);
+        else_stmt()->emit(cg, exit_bb);
+    }
 }
 
 void DoWhileStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {

@@ -79,11 +79,11 @@ size_t CFFLowering::process() {
         Scope scope(top);
         for (size_t i = scope.size(); i-- != 0;) {
             Lambda* lambda = scope[i];
-            if (lambda->num_params()                            // is there sth to drop?
-                && (lambda->is_generic()                        // drop generic stuff
-                    || (!lambda->is_basicblock()                // don't drop basic blocks
-                        && (!lambda->is_returning()             // drop non-returning lambdas
-                            || top_.find(lambda) == top_.end()))))// lift/drop returning non top-level lambdas
+            if (lambda->num_params()                                // is there sth to drop?
+                && (lambda->is_generic()                            // drop generic stuff
+                    || (!lambda->is_basicblock()                    // don't drop basic blocks
+                        && (!lambda->is_returning()                 // drop non-returning lambdas
+                            || top_.find(lambda) == top_.end()))))  // lift/drop returning non top-level lambdas
                 todo.push_back(lambda);
         }
     }

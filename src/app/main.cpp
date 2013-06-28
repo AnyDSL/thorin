@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
         ("emit-ast",        po::bool_switch(&emit_ast),                 "emit AST of impala program")
         ("emit-dot",        po::bool_switch(&emit_dot),                 "emit dot, arg={air|llvm}")
         ("emit-looptree",   po::bool_switch(&emit_looptree),            "emit loop tree")
-        ("emit-llvm",       po::bool_switch(&emit_llvm),                "emit llvm from AIR representation")
+        ("emit-llvm",       po::bool_switch(&emit_llvm),                "emit llvm from AIR representation (implies -O)")
         ("fancy,f",         po::bool_switch(&fancy),                    "use fancy output")
         ("nocleanup",       po::bool_switch(&nocleanup),                "no clean-up phase")
         ("nossa",           po::bool_switch(&nossa),                    "use slots + load/store instead of SSA construction")
@@ -80,6 +80,7 @@ int main(int argc, char** argv) {
 
         if (emit_all)
             emit_air = emit_looptree = emit_ast = emit_llvm = true;
+        opt |= emit_llvm;
 
         if (infiles.empty() && !help) {
 #if BOOST_VERSION >= 105000

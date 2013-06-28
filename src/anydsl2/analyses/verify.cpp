@@ -158,17 +158,17 @@ bool Verifier::verify_primop(Lambda* current, const PrimOp* primop, PrimOpSet& p
         if (!op->type()->is_u1())
             return invalid(op, "'relop' must yield 'u1'");
     } else if (const TupleOp* op = primop->isa<TupleOp>()) {
-        if(!op->index()->isa<PrimLit>())
+        if (!op->index()->isa<PrimLit>())
             return invalid(op, "'tupleop' needs a constant extraction index");
         unsigned index = op->index()->primlit_value<unsigned>();
         const Sigma* tupleType = op->tuple()->type()->isa<Sigma>();
-        if(!tupleType)
+        if (!tupleType)
             return invalid(op, "'tupleop' can only work on a tuple");
-        if(index >= tupleType->size())
+        if (index >= tupleType->size())
             return invalid(op, "'tupleop' index out of bounds");
     } else if (const Store* op = primop->isa<Store>()) {
-        if(const Ptr* ptrType = op->ptr()->type()->isa<Ptr>()) {
-            if(ptrType->referenced_type() != op->val()->type())
+        if (const Ptr* ptrType = op->ptr()->type()->isa<Ptr>()) {
+            if (ptrType->referenced_type() != op->val()->type())
                 return invalid(op, "ptr must point to the type of the provided value");
         } else
             return invalid(op, "ptr requires a pointer type");

@@ -92,6 +92,8 @@ void IRBuilder::branch(const Def* cond, JumpTarget& t, JumpTarget& f) {
     if (is_reachable()) {
         if (const PrimLit* lit = cond->isa<PrimLit>())
             jump(lit->value().get_u1().get() ? t : f);
+        else if (&t == &f)
+            jump(t);
         else {
             cur_bb->branch(cond, t.get(world()), f.get(world()));
             set_unreachable();
@@ -100,9 +102,7 @@ void IRBuilder::branch(const Def* cond, JumpTarget& t, JumpTarget& f) {
 }
 
 const Param* IRBuilder::call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
-    if (is_reachable())
-        return (cur_bb = cur_bb->call(to, args, ret_type))->param(0);
-    return 0;
+    return is_reachable() ? (cur_bb = cur_bb->call(to, args, ret_type))->param(0) : 0;
 }
 
 void IRBuilder::mem_call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {

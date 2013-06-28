@@ -2,6 +2,7 @@
 #include "anydsl2/literal.h"
 #include "anydsl2/world.h"
 #include "anydsl2/analyses/domtree.h"
+#include "anydsl2/analyses/verify.h"
 
 namespace anydsl2 {
 
@@ -50,6 +51,6 @@ void Merger::merge(const DomNode* n) {
         merge(child);
 }
 
-void merge_lambdas(World& world) { Merger merger(world); }
+void merge_lambdas(World& world) { Merger merger(world); debug_verify(world); }
 
 } // namespace anydsl2

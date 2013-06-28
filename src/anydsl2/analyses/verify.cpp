@@ -1,5 +1,3 @@
-#include "anydsl2/analyses/verifier.h"
-
 #include "anydsl2/world.h"
 #include "anydsl2/type.h"
 #include "anydsl2/literal.h"
@@ -29,12 +27,11 @@ public:
 };
 
 bool Verifier::verify() {
-    // loop over all lambdas and check them
-    bool result = true;
     for_all (lambda, world_.lambdas())
-            result &= verify_body(lambda);
+        if (!verify_body(lambda))
+            return false;
 
-    return result;
+    return true;
 }
 
 bool Verifier::verify_param(Lambda* current, const Param* param) {
@@ -161,17 +158,17 @@ bool Verifier::verify_primop(Lambda* current, const PrimOp* primop, PrimOpSet& p
         if (!op->type()->is_u1())
             return invalid(op, "'relop' must yield 'u1'");
     } else if (const TupleOp* op = primop->isa<TupleOp>()) {
-        if(!op->index()->isa<PrimLit>())
+        if (!op->index()->isa<PrimLit>())
             return invalid(op, "'tupleop' needs a constant extraction index");
         unsigned index = op->index()->primlit_value<unsigned>();
         const Sigma* tupleType = op->tuple()->type()->isa<Sigma>();
-        if(!tupleType)
+        if (!tupleType)
             return invalid(op, "'tupleop' can only work on a tuple");
-        if(index >= tupleType->size())
+        if (index >= tupleType->size())
             return invalid(op, "'tupleop' index out of bounds");
     } else if (const Store* op = primop->isa<Store>()) {
-        if(const Ptr* ptrType = op->ptr()->type()->isa<Ptr>()) {
-            if(ptrType->referenced_type() != op->val()->type())
+        if (const Ptr* ptrType = op->ptr()->type()->isa<Ptr>()) {
+            if (ptrType->referenced_type() != op->val()->type())
                 return invalid(op, "ptr must point to the type of the provided value");
         } else
             return invalid(op, "ptr requires a pointer type");
@@ -214,7 +211,7 @@ bool Verifier::invalid(const Def* def, const Def* source, const char* msg) {
 
 //------------------------------------------------------------------------------
 
-bool verify(World& world) { return true; return Verifier(world).verify(); }
+void verify(World& world) { assert(Verifier(world).verify()); }
 
 //------------------------------------------------------------------------------
 

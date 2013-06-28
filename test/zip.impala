@@ -1,0 +1,38 @@
+def primes(n : int, yield : pi(int)) {
+    if (n < 2) 
+        yield(2);
+
+    def loop(i : int) {
+        def inner_loop(j : int) {
+            if (j < i) {
+                if (i % j == 0)
+                    loop(i + 1);
+                else
+                    inner_loop(j + 1);
+            }
+            yield(i); 
+        }
+        inner_loop(2);
+    }
+    loop(n);
+}
+
+def count(n : int, yield : pi(int)) {
+    yield(n+1);
+}
+
+def zip(zipper : pi(int, int) -> int, generate1 : pi(int, pi(int)), generate2 : pi(int, pi(int)), yield : pi(int, pi())) {
+    def loop(i : int) {
+        yield(zipper(generate1(i), generate2(i)), lambda() { loop(i + 1); });
+    }
+    loop(0);
+}
+
+def main(n : int, ret : pi(int)) {
+    def zipper(a : int, b : int) -> int { return a + b; }
+    zip(zipper, primes, count, lambda(i : int, next : pi()) {
+        if (i > 24)
+            ret(i);
+        next();
+    });
+}

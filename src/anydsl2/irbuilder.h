@@ -1,9 +1,8 @@
 #ifndef ANYDSL2_JUMPTARGET_H
 #define ANYDSL2_JUMPTARGET_H
 
-#include <memory>
-
 #include "anydsl2/util/array.h"
+#include "anydsl2/util/autoptr.h"
 
 namespace anydsl2 {
 
@@ -18,7 +17,7 @@ class World;
 
 //------------------------------------------------------------------------------
 
-typedef std::auto_ptr<const Ref> RefPtr;
+typedef AutoPtr<const Ref> RefPtr;
 
 class Ref {
 public:

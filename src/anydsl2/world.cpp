@@ -12,7 +12,7 @@
 #include "anydsl2/literal.h"
 #include "anydsl2/memop.h"
 #include "anydsl2/type.h"
-#include "anydsl2/analyses/verifier.h"
+#include "anydsl2/analyses/verify.h"
 #include "anydsl2/transform/lower2cff.h"
 #include "anydsl2/transform/inliner.h"
 #include "anydsl2/transform/mem2reg.h"
@@ -973,14 +973,16 @@ void World::cleanup() {
     unreachable_code_elimination();
     dead_code_elimination();
     unused_type_elimination();
+    debug_verify(*this);
 }
 
 void World::opt() {
     cleanup();
-    assert(verify(*this)); mem2reg(*this);       cleanup();
-    assert(verify(*this)); lower2cff(*this);     cleanup();
-    assert(verify(*this)); inliner(*this);       cleanup();
-    assert(verify(*this)); merge_lambdas(*this); cleanup();
+    mem2reg(*this);
+    lower2cff(*this);
+    inliner(*this);
+    merge_lambdas(*this);
+    cleanup();
 }
 
 PrimOp* World::release(const PrimOp* primop) {

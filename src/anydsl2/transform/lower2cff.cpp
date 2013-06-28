@@ -5,7 +5,7 @@
 #include "anydsl2/world.h"
 #include "anydsl2/type.h"
 #include "anydsl2/analyses/scope.h"
-#include "anydsl2/analyses/verifier.h"
+#include "anydsl2/analyses/verify.h"
 #include "anydsl2/transform/mangle.h"
 #include "anydsl2/transform/merge_lambdas.h"
 
@@ -99,11 +99,9 @@ void lower2cff(World& world) {
     do {
         CFFLowering lowering(world);
         todo = lowering.process();
-        assert(verify(world) && "invalid cfg transform");
+        debug_verify(world);
         merge_lambdas(world);
-        assert(verify(world) && "invalid merge lambda transform");
         world.cleanup();
-        assert(verify(world) && "after cleanup");
     } while (todo);
     merge_lambdas(world);
     world.cleanup();

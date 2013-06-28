@@ -6,7 +6,7 @@
 
 #include "anydsl2/analyses/looptree.h"
 #include "anydsl2/analyses/scope.h"
-#include "anydsl2/analyses/verifier.h"
+#include "anydsl2/analyses/verify.h"
 #include "anydsl2/transform/vectorize.h"
 #include "anydsl2/transform/partial_evaluation.h"
 #include "anydsl2/be/llvm.h"

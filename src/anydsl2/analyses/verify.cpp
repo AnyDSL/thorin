@@ -1,5 +1,3 @@
-#include "anydsl2/analyses/verifier.h"
-
 #include "anydsl2/world.h"
 #include "anydsl2/type.h"
 #include "anydsl2/literal.h"
@@ -29,12 +27,11 @@ public:
 };
 
 bool Verifier::verify() {
-    // loop over all lambdas and check them
-    bool result = true;
     for_all (lambda, world_.lambdas())
-            result &= verify_body(lambda);
+        if (!verify_body(lambda))
+            return false;
 
-    return result;
+    return true;
 }
 
 bool Verifier::verify_param(Lambda* current, const Param* param) {
@@ -214,7 +211,7 @@ bool Verifier::invalid(const Def* def, const Def* source, const char* msg) {
 
 //------------------------------------------------------------------------------
 
-bool verify(World& world) { return Verifier(world).verify(); }
+void verify(World& world) { assert(Verifier(world).verify()); }
 
 //------------------------------------------------------------------------------
 

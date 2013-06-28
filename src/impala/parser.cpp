@@ -830,7 +830,7 @@ const Expr* Parser::parse_prefix_expr() {
 const Expr* Parser::parse_infix_expr(const Expr* lhs) {
     Token op = lex();
     if (op == Token::QUESTION_MARK) {
-        const Expr* t_expr = try_expr("infix expression");
+        const Expr* t_expr = la() == Token::ID ? parse_expr() : try_expr("infix expression");
         expect(Token::COLON, "conditional expression");
         const Expr* f_expr = try_expr(PrecTable::infix_r[op], "conditional expression");
         return new ConditionalExpr(lhs, t_expr, f_expr);

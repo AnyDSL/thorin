@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
 #endif
         string outfile = "-";
         string emittype;
-        bool help, emit_all, emit_air, emit_ast, emit_dot, emit_llvm, emit_looptree, fancy, opt, verify, nocleanup, nossa, pe = false;
+        bool help, emit_all, emit_air, emit_ast, emit_llvm, emit_looptree, fancy, opt, verify, nocleanup, nossa, pe = false;
         int vectorlength = 0;
 
         // specify options
@@ -53,9 +53,8 @@ int main(int argc, char** argv) {
         ("break,b",         po::value(&breakpoints),                    "breakpoint at definition generation of number arg")
 #endif
         ("emit-air",        po::bool_switch(&emit_air),                 "emit textual AIR representation of impala program")
-        ("emit-all",        po::bool_switch(&emit_all),                 "emit AST, AIR and LLVM")
+        ("emit-all",        po::bool_switch(&emit_all),                 "emit AST, AIR, LLVM and loop tree")
         ("emit-ast",        po::bool_switch(&emit_ast),                 "emit AST of impala program")
-        ("emit-dot",        po::bool_switch(&emit_dot),                 "emit dot, arg={air|llvm}")
         ("emit-looptree",   po::bool_switch(&emit_looptree),            "emit loop tree")
         ("emit-llvm",       po::bool_switch(&emit_llvm),                "emit llvm from AIR representation (implies -O)")
         ("fancy,f",         po::bool_switch(&fancy),                    "use fancy output")
@@ -63,7 +62,7 @@ int main(int argc, char** argv) {
         ("nossa",           po::bool_switch(&nossa),                    "use slots + load/store instead of SSA construction")
         ("pe",              po::bool_switch(&pe),                       "perform partial evaluation (experimantal!!!)")
         ("verify,v",        po::bool_switch(&verify),                   "run verifier")
-        ("vectorize",       po::value(&vectorlength),                   "run vectorizer on main with given vector length, arg=<vector length (experimantal!!!)>")
+        ("vectorize",       po::value(&vectorlength),                   "run vectorizer on main with given vector length (experimantal!!!), arg=<vector length>")
         (",O",              po::bool_switch(&opt),                      "optimize");
 
         // positional options, i.e., input files
@@ -95,11 +94,11 @@ int main(int argc, char** argv) {
             return EXIT_SUCCESS;
         }
 
-        ofstream ofs;
-        if (outfile != "-") {
-            ofs.open(outfile.c_str());
-            ofs.exceptions(istream::badbit);
-        }
+        //ofstream ofs;
+        //if (outfile != "-") {
+            //ofs.open(outfile.c_str());
+            //ofs.exceptions(istream::badbit);
+        //}
         //ostream& out = ofs.is_open() ? ofs : cout;
 
         const char* filename = infiles[0].c_str();
@@ -128,9 +127,6 @@ int main(int argc, char** argv) {
             dump(p, fancy);
 
         result &= check(init.world, p, nossa);
-
-        if (emit_dot)
-            assert(false && "todo");
 
         if (result) {
             emit(init.world, p);

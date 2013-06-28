@@ -26,7 +26,7 @@ void Tracker::release() {
     if (def_) {
         Trackers::iterator i = std::find(def_->trackers_.begin(), def_->trackers_.end(), this);
         assert(i != def_->trackers_.end() && "must be in trackers set");
-        *i = def->trackers_.back();
+        *i = def_->trackers_.back();
         def_->trackers_.pop_back();
     }
 }

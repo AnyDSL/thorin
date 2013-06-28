@@ -61,9 +61,9 @@ int main(int argc, char** argv) {
         ("fancy,f",         po::bool_switch(&fancy),                    "use fancy output")
         ("nocleanup",       po::bool_switch(&nocleanup),                "no clean-up phase")
         ("nossa",           po::bool_switch(&nossa),                    "use slots + load/store instead of SSA construction")
-        ("pe",              po::bool_switch(&pe),                       "perform partial evaluation")
+        ("pe",              po::bool_switch(&pe),                       "perform partial evaluation (experimantal!!!)")
         ("verify,v",        po::bool_switch(&verify),                   "run verifier")
-        ("vectorize",       po::value(&vectorlength),                   "run vectorizer on main with given vector length, arg=<vector length>")
+        ("vectorize",       po::value(&vectorlength),                   "run vectorizer on main with given vector length, arg=<vector length (experimantal!!!)>")
         (",O",              po::bool_switch(&opt),                      "optimize");
 
         // positional options, i.e., input files

@@ -973,6 +973,7 @@ void World::cleanup() {
     unreachable_code_elimination();
     dead_code_elimination();
     unused_type_elimination();
+    debug_verify(*this);
 }
 
 void World::opt() {
@@ -981,6 +982,7 @@ void World::opt() {
     lower2cff(*this);
     inliner(*this);
     merge_lambdas(*this);
+    cleanup();
 }
 
 PrimOp* World::release(const PrimOp* primop) {

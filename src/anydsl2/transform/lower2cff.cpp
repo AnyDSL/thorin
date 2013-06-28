@@ -5,7 +5,7 @@
 #include "anydsl2/world.h"
 #include "anydsl2/type.h"
 #include "anydsl2/analyses/scope.h"
-#include "anydsl2/analyses/verifier.h"
+#include "anydsl2/analyses/verify.h"
 #include "anydsl2/transform/mangle.h"
 #include "anydsl2/transform/merge_lambdas.h"
 
@@ -79,11 +79,11 @@ size_t CFFLowering::process() {
         Scope scope(top);
         for (size_t i = scope.size(); i-- != 0;) {
             Lambda* lambda = scope[i];
-            if (lambda->num_params()                            // is there sth to drop?
-                && (lambda->is_generic()                        // drop generic stuff
-                    || (!lambda->is_basicblock()                // don't drop basic blocks
-                        && (!lambda->is_returning()             // drop non-returning lambdas
-                            || top_.find(lambda) == top_.end()))))// lift/drop returning non top-level lambdas
+            if (lambda->num_params()                                // is there sth to drop?
+                && (lambda->is_generic()                            // drop generic stuff
+                    || (!lambda->is_basicblock()                    // don't drop basic blocks
+                        && (!lambda->is_returning()                 // drop non-returning lambdas
+                            || top_.find(lambda) == top_.end()))))  // lift/drop returning non top-level lambdas
                 todo.push_back(lambda);
         }
     }
@@ -99,11 +99,9 @@ void lower2cff(World& world) {
     do {
         CFFLowering lowering(world);
         todo = lowering.process();
-        assert(verify(world) && "invalid cfg transform");
+        debug_verify(world);
         merge_lambdas(world);
-        assert(verify(world) && "invalid merge lambda transform");
         world.cleanup();
-        assert(verify(world) && "after cleanup");
     } while (todo);
     merge_lambdas(world);
     world.cleanup();

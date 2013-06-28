@@ -13,23 +13,18 @@ public:
         : ptr_(ptr)
     {}
     ~AutoPtr() { delete ptr_; }
-    //AutoPtr(const AutoPtr<T>&)
-        //: ptr_(
-
-    void release() {
-        delete ptr_;
-        ptr_ = 0;
+    AutoPtr(const AutoPtr<T>& aptr)
+        : ptr_(aptr.get())
+    {
+        const_cast<AutoPtr<T>&>(aptr).ptr_ = 0; // take ownership
     }
 
+
+    void release() { delete ptr_; ptr_ = 0; }
     T* get() const { return ptr_; }
     operator T*() const { return ptr_; }
     T* operator -> () const { return ptr_; }
-
-    AutoPtr<T>& operator = (T* ptr) {
-        delete ptr_;
-        ptr_ = ptr;
-        return *this;
-    }
+    AutoPtr<T>& operator = (T* ptr) { delete ptr_; ptr_ = ptr; return *this; }
 
 private:
 
@@ -54,7 +49,6 @@ public:
             delete *i;
     }
 };
-
 
 }
 

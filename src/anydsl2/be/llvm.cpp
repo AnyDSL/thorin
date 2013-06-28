@@ -63,7 +63,7 @@ private:
     EmitHook& hook;
     llvm::LLVMContext context;
     llvm::IRBuilder<> builder;
-    llvm::Module* module;
+    AutoPtr<llvm::Module> module;
     ParamMap params;
     PhiMap phis;
     PrimOpMap primops;
@@ -245,8 +245,9 @@ void CodeGen::emit() {
     }
 
     module->dump();
+#ifdef NDEBUG
     llvm::verifyModule(*this->module);
-    delete module;
+#endif
 }
 
 llvm::Value* CodeGen::lookup(const Def* def) {

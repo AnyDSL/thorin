@@ -2,6 +2,7 @@
 #include "anydsl2/world.h"
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/analyses/placement.h"
+#include "anydsl2/analyses/verify.h"
 #include "anydsl2/transform/inliner.h"
 #include "anydsl2/transform/merge_lambdas.h"
 
@@ -92,6 +93,17 @@ void mem2reg(World& world) {
 
     for_all (lambda, world.lambdas())
         lambda->clear();
+
+    debug_verify(world);
+    world.cleanup();
+
+    for_all (leave, leaves) {
+        const Enter* enter = leave->frame()->as<TupleExtract>()->tuple()->as<Enter>();
+        if (enter->num_uses() == 2) {
+            enter->extract_mem()->replace(enter->mem());
+            leave->replace(leave->mem());
+        }
+    }
 }
 
 }

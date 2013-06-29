@@ -61,7 +61,7 @@ private:
     size_t& lowlink(Lambda* lambda) { return number(lambda).low; }
     size_t& dfs(Lambda* lambda) { return number(lambda).dfs; }
     bool on_stack(Lambda* lambda) { assert(is_visited(lambda)); return (lambda->counter & OnStack) != 0; }
-    bool in_scc(Lambda* lambda) { return (lambda->counter & InSCC) != 0; }
+    bool in_scc(Lambda* lambda) { return lambda->cur_pass() >= first_pass ? (lambda->counter & InSCC) != 0 : false; }
     bool is_header(Lambda* lambda) { return lambda->cur_pass() >= first_pass ? (lambda->counter & IsHeader) != 0 : false; }
     bool is_visited(Lambda* lambda) { return lambda->is_visited(pass); }
 
@@ -78,8 +78,6 @@ private:
     }
 
     int visit(Lambda* lambda, int counter) {
-        if (lambda->cur_pass() < first_pass)
-            lambda->counter = 0; // clear flags
         lambda->visit_first(pass);
         numbers[lambda->sid()] = Number(counter++);
         push(lambda);
@@ -98,6 +96,10 @@ private:
 };
 
 LoopTreeNode* LFBuilder::build() {
+    // clear all flags
+    for_all (lambda, scope.rpo())
+        lambda->counter = 0;
+
     LoopTreeNode* root = new LoopTreeNode(0, -1);
     recurse<true>(root, scope.entries(), 0);
     return root;

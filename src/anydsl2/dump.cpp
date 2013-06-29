@@ -7,7 +7,7 @@
 #include "anydsl2/analyses/domtree.h"
 #include "anydsl2/analyses/looptree.h"
 #include "anydsl2/analyses/scope.h"
-#include "anydsl2/analyses/placement.h"
+#include "anydsl2/analyses/schedule.h"
 #include "anydsl2/util/for_all.h"
 
 namespace anydsl2 {
@@ -204,14 +204,14 @@ void World::dump(bool fancy) {
 
     for_all (top, top_level_lambdas(*this)) {
         Scope scope(top);
-        Places places = place(scope);
+        Schedule schedule = schedule_smart(scope);
         for_all (lambda, scope.rpo()) {
             int depth = fancy ? scope.domtree().depth(lambda) : 0;
             p.indent += depth;
             p.newline();
             lambda->print_head(p);
 
-            for_all (op, places[lambda->sid()])
+            for_all (op, schedule[lambda->sid()])
                 op->print_assignment(p);
 
             lambda->print_jump(p);

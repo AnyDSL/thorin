@@ -21,7 +21,7 @@
 #include "anydsl2/type.h"
 #include "anydsl2/world.h"
 #include "anydsl2/analyses/looptree.h"
-#include "anydsl2/analyses/placement.h"
+#include "anydsl2/analyses/schedule.h"
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/util/array.h"
 
@@ -122,7 +122,7 @@ void CodeGen::emit() {
         for_all (lambda, scope.rpo())
             bbs[lambda->sid()] = llvm::BasicBlock::Create(context, lambda->name, fct);
 
-        Places places = place(scope);
+        Schedule schedule = schedule_smart(scope);
 
         // emit body for each bb
         for_all (lambda, scope.rpo()) {
@@ -136,12 +136,12 @@ void CodeGen::emit() {
                         phis[param] = builder.CreatePHI(map(param->type()), (unsigned) param->peek().size(), param->name);
             }
 
-            std::vector<const PrimOp*> schedule = places[lambda->sid()];
-            for_all (primop, schedule)
+            for_all (primop,  schedule[lambda->sid()]) {
                 // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
                 if (!primop->type()->isa<Pi>() && !primop->type()->isa<Frame>() 
                         && (!primop->type()->isa<Mem>() || primop->isa<Store>()))
                     primops[primop] = emit(primop);
+            }
 
             // terminate bb
             if (lambda->to() == ret_param) { // return

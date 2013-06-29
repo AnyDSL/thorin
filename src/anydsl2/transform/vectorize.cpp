@@ -5,7 +5,7 @@
 #include "anydsl2/world.h"
 #include "anydsl2/analyses/domtree.h"
 #include "anydsl2/analyses/scope.h"
-#include "anydsl2/analyses/placement.h"
+#include "anydsl2/analyses/schedule.h"
 
 namespace anydsl2 {
 
@@ -63,19 +63,18 @@ Lambda* Vectorizer::vectorize() {
         vparam->name = param->name;
     }
 
-    Places places = visit_early(scope);
-    for_all (primop, places[0]) {
-        if (primop->isa<Select>() && primop->type()->isa<Pi>())
-            continue; // ignore branch
-        vectorize_primop(map_cond(entry), primop);
-    }
+    Schedule schedule = schedule_early(scope);
 
-    for (size_t i = 1, e = scope.size(); i != e; ++i) {
+    for (size_t i = 0, e = scope.size(); i != e; ++i) {
         Lambda* lambda = scope[i];
-        infer_condition(lambda);
-        for_all (param, lambda->params())
-            param2select(param);
-        for_all (primop, places[i]) {
+
+        if (i != 0) {
+            infer_condition(lambda);
+            for_all (param, lambda->params())
+                param2select(param);
+        }
+
+        for_all (primop, schedule[i]) {
             if (primop->isa<Select>() && primop->type()->isa<Pi>())
                 continue; // ignore branch
             vectorize_primop(map_cond(lambda), primop);

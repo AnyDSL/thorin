@@ -12,7 +12,7 @@ void verify(World& world);
 #ifndef NDEBUG
 inline void debug_verify(World& world) { verify(world); }
 #else
-inline void debug_verify(World&) { return true; }
+inline void debug_verify(World&) {}
 #endif
 
 } // namespace anydsl2

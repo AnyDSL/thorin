@@ -35,10 +35,12 @@ void mem2reg(World& world) {
         lambda->unseal();
     }
 
+    AutoVector<Tracker*> enters;
+    AutoVector<Tracker*> leaves;
+
     for_all (root, top_level_lambdas(world)) {
         Scope scope(root);
         std::vector<const Def*> visit = visit_late(scope);
-        AutoVector<Tracker*> leaves;
         std::vector<Replace> to_replace;
         const size_t pass = world.new_pass();
 
@@ -63,6 +65,8 @@ void mem2reg(World& world) {
                     const Type* type = slot->type()->as<Ptr>()->referenced_type();
                     to_replace.push_back(Replace(load, cur->get_value(slot->index(), type, slot->name.c_str())));
                 }
+            } else if (const Enter* enter = def->isa<Enter>()) {
+                enters.push_back(new Tracker(enter));
             } else if (const Leave* leave = def->isa<Leave>()) {
                 leaves.push_back(new Tracker(leave));
             }
@@ -87,22 +91,37 @@ void mem2reg(World& world) {
             }
         }
 
-        for (size_t i = leaves.size(); i-- != 0;) {
-            if (const Leave* leave = leaves[i]->def()->isa<Leave>()) {
-                const Enter* enter = leave->frame()->as<TupleExtract>()->tuple()->as<Enter>();
-                if (enter->num_uses() == 2) {
-                    enter->extract_mem()->replace(enter->mem());
-                    leave->replace(leave->mem());
-                }
-            }
-        }
     }
 
     for_all (lambda, world.lambdas())
         lambda->clear();
 
-    debug_verify(world);
     world.cleanup();
+
+    for (size_t i = leaves.size(); i-- != 0;) {
+        const Leave* leave = leaves[i]->def()->as<Leave>();
+        const Enter* enter = leave->frame()->as<TupleExtract>()->tuple()->as<Enter>();
+
+        for_all (use, enter->uses()) {
+            if (use->isa<Slot>())
+                goto outer_loop;
+        }
+
+        enter->extract_mem()->replace(enter->mem());
+        leave->replace(leave->mem());
+
+outer_loop:;
+    }
+
+    for (size_t i = enters.size(); i-- != 0;) {
+        if (const Enter* enter = enters[i]->def()->isa<Enter>()) {
+            if (enter->extract_frame()->num_uses() == 0)
+                enter->extract_mem()->replace(enter->mem());
+        }
+    }
+
+
+    debug_verify(world);
 }
 
 }

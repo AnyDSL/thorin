@@ -63,7 +63,11 @@ public:
     Tracker()
         : def_(0)
     {}
-    Tracker(const Def* def) { set(def); }
+    Tracker(const Def* def) 
+        : def_(0)
+    { 
+        set(def); 
+    }
     ~Tracker() { release(); }
 
     const Def* operator = (const Def* def) { set(def); return def_; }

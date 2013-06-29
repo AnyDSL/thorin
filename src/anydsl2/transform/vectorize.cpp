@@ -63,19 +63,22 @@ Lambda* Vectorizer::vectorize() {
         vparam->name = param->name;
     }
 
-    // for all other stuff in early topological order
-    Lambda* cur = entry;
-    std::vector<const Def*> early = visit_early(scope);
-    for_all (def, ArrayRef<const Def*>(early).slice_back(entry->num_params() + 1)) {
-        if (Lambda* lambda = def->isa_lambda())
-            infer_condition(cur = lambda);
-        else if (const Param* param = def->isa<Param>())
+    Places places = visit_early(scope);
+    for_all (primop, places[0]) {
+        if (primop->isa<Select>() && primop->type()->isa<Pi>())
+            continue; // ignore branch
+        vectorize_primop(map_cond(entry), primop);
+    }
+
+    for (size_t i = 1, e = scope.size(); i != e; ++i) {
+        Lambda* lambda = scope[i];
+        infer_condition(lambda);
+        for_all (param, lambda->params())
             param2select(param);
-        else {
-            const PrimOp* primop = def->as<PrimOp>();
+        for_all (primop, places[i]) {
             if (primop->isa<Select>() && primop->type()->isa<Pi>())
                 continue; // ignore branch
-            vectorize_primop(map_cond(cur), primop);
+            vectorize_primop(map_cond(lambda), primop);
         }
     }
 

@@ -74,6 +74,34 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
     }
 }
 
+void Scope::jump_to_param_users(const size_t pass, Lambda* lambda, Lambda* limit) {
+    for_all (param, lambda->params())
+        find_user(pass, param, limit);
+}
+
+inline void Scope::find_user(const size_t pass, const Def* def, Lambda* limit) {
+    if (Lambda* lambda = def->isa_lambda())
+        up(pass, lambda, limit);
+    else {
+        if (def->visit(pass))
+            return;
+
+        for_all (use, def->uses())
+            find_user(pass, use, limit);
+    }
+}
+
+void Scope::up(const size_t pass, Lambda* lambda, Lambda* limit) {
+    if (lambda->is_visited(pass) || (limit && limit == lambda))
+        return;
+
+    insert(pass, lambda);
+    jump_to_param_users(pass, lambda, limit);
+
+    for_all (pred, lambda->preds())
+        up(pass, pred, limit);
+}
+
 void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {
     size_t pass = world().new_pass();
 
@@ -105,34 +133,6 @@ void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {
 
     // discard unreachable lambdas
     rpo_.resize(num);
-}
-
-void Scope::jump_to_param_users(const size_t pass, Lambda* lambda, Lambda* limit) {
-    for_all (param, lambda->params())
-        find_user(pass, param, limit);
-}
-
-inline void Scope::find_user(const size_t pass, const Def* def, Lambda* limit) {
-    if (Lambda* lambda = def->isa_lambda())
-        up(pass, lambda, limit);
-    else {
-        if (def->visit(pass))
-            return;
-
-        for_all (use, def->uses())
-            find_user(pass, use, limit);
-    }
-}
-
-void Scope::up(const size_t pass, Lambda* lambda, Lambda* limit) {
-    if (lambda->is_visited(pass) || (limit && limit == lambda))
-        return;
-
-    insert(pass, lambda);
-    jump_to_param_users(pass, lambda, limit);
-
-    for_all (pred, lambda->preds())
-        up(pass, pred, limit);
 }
 
 template<bool forwards>

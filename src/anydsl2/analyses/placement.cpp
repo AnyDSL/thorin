@@ -13,20 +13,22 @@
 
 namespace anydsl2 {
 
-std::vector<const Def*> visit_early(const Scope& scope) {
-    std::vector<const Def*> result;
+Places visit_early(const Scope& scope) {
+    Places result(scope.size());
     std::queue<const Def*> queue;
     const size_t pass = scope.world().new_pass();
 
-    for_all (lambda, scope.rpo()) {
-        result.push_back(lambda);
+    for (size_t i = 0, e = scope.size(); i != e; ++i) {
+        Lambda* lambda = scope[i];
+        Schedule& schedule = result[i];
 
         for_all (param, lambda->params())
             queue.push(param);
 
         while (!queue.empty()) {
             const Def* def = queue.front();
-            result.push_back(def);
+            if (const PrimOp* primop = def->isa<PrimOp>())
+                schedule.push_back(primop);
             queue.pop();
 
             for_all (use, def->uses()) {
@@ -54,15 +56,13 @@ std::vector<const Def*> visit_early(const Scope& scope) {
 
 Lambda*& get_late(const PrimOp* primop) { return (Lambda*&) primop->ptr; }
 
-std::vector<const Def*> visit_late(const Scope& scope) {
-    std::vector<const Def*> result;
-    Array< std::vector<const PrimOp*> > lambda2primop(scope.size());
+Places visit_late(const Scope& scope) {
+    Places result(scope.size());
     std::queue<const Def*> queue;
     const size_t pass = scope.world().new_pass();
 
     for (size_t i = scope.size(); i-- != 0;) {
         Lambda* cur = scope[i];
-
         queue.push(cur);
 
         while (!queue.empty()) {
@@ -80,7 +80,7 @@ std::vector<const Def*> visit_late(const Scope& scope) {
                     late = late ? scope.domtree().lca(cur, late) : cur;
 
                     if (--primop->counter == 0) {   // only visit once when counter == 0
-                        lambda2primop[late->sid()].push_back(primop);
+                        result[late->sid()].push_back(primop);
                         queue.push(primop);
                     }
 
@@ -88,17 +88,8 @@ std::vector<const Def*> visit_late(const Scope& scope) {
                 }
             }
         }
-
-        for_all (primop, lambda2primop[cur->sid()])
-            result.push_back(primop);
-
-        for (size_t i = cur->num_params(); i-- != 0;)
-            result.push_back(cur->param(i));
-
-        result.push_back(cur);
     }
 
-    std::reverse(result.begin(), result.end());
     return result;
 }
 
@@ -127,7 +118,7 @@ private:
     void place_early(Places& places, Lambda* early, const Def* def);
 
     const Scope& scope;
-    std::vector<const Def*> topo_order;
+    Places topo_order;
     size_t pass;
 };
 
@@ -156,12 +147,10 @@ void Placement::place_late(Lambda* lambda, const Def* def) {
 
 Places Placement::place_early() {
     Places places(scope.size());
-    Lambda* early = 0;
 
-    for_all (def, topo_order) {
-        if (Lambda* lambda = def->isa_lambda())
-            early = lambda;
-        else if (const PrimOp* primop = def->isa<PrimOp>()) {
+    for (size_t i = 0, e = scope.size(); i != e; ++i) {
+        Lambda* early = scope[i];
+        for_all (primop, topo_order[i]) {
             if (!primop->is_visited(pass))
                 continue;                           // primop is dead
             Lambda* best = get_late(primop);

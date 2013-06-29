@@ -23,60 +23,53 @@ void mem2reg(World& world) {
 
     for_all (root, top_level_lambdas(world)) {
         Scope scope(root);
-        std::vector<const Def*> visit = visit_late(scope);
         std::vector<const Access*> accesses;
+        Places places = visit_late(scope);
         const size_t pass = world.new_pass();
         size_t cur_handle = 0;
 
-        Lambda* cur = 0;
-        for_all (def, visit) {
-            if (Lambda* lambda = def->isa_lambda()) {
-                if (cur) {
-                    // seal successors of last lambda if applicable
-                    for_all (succ, cur->succs()) {
-                        if (!succ->visit(pass))
-                            succ->counter = succ->preds().size();
-                        if (--succ->counter == 0)
-                            succ->seal();
-                    }
-                }
-                cur = lambda;
-            } else if (const Slot* slot = def->isa<Slot>()) {
-                // are all users loads and store?
-                for_all (use, slot->uses()) {
-                    if (!use->isa<Load>() && !use->isa<Store>()) {
-                        slot->counter = size_t(-1); // mark as "address taken"
-                        goto next_def;
-                    }
-                }
-                slot->counter = cur_handle++;
-            } else if (const Store* store = def->isa<Store>()) {
-                if (const Slot* slot = store->ptr()->isa<Slot>()) {
-                    if (slot->counter != size_t(-1)) { // if not "address taken"
-                        cur->set_value(slot->counter, store->val());
-                        accesses.push_back(store);
-                    }
-                }
-            } else if (const Load* load = def->isa<Load>()) {
-                if (const Slot* slot = load->ptr()->isa<Slot>()) {
-                    if (slot->counter != size_t(-1)) { // if not "address taken"
-                        const Type* type = slot->type()->as<Ptr>()->referenced_type();
-                        load->cptr = cur->get_value(slot->counter, type, slot->name.c_str());
-                        accesses.push_back(load);
-                    }
-                }
-            } else if (const Enter* enter = def->isa<Enter>()) {
-                enters.push_back(new Tracker(enter));
-            } else if (const Leave* leave = def->isa<Leave>()) {
-                leaves.push_back(new Tracker(leave));
-            }
-        }
+        for (size_t i = 0, e = scope.size(); i != e; ++i) {
+            Lambda* lambda = scope[i];
 
-        // seal successors of last block
-        for_all (succ, cur->succs()) {
-            assert(succ->is_visited(pass));
-            assert(succ->counter == 1);
-            succ->seal();
+            for_all (def, places[i]) {
+                if (const Slot* slot = def->isa<Slot>()) {
+                    // are all users loads and store?
+                    for_all (use, slot->uses()) {
+                        if (!use->isa<Load>() && !use->isa<Store>()) {
+                            slot->counter = size_t(-1); // mark as "address taken"
+                            goto next_def;
+                        }
+                    }
+                    slot->counter = cur_handle++;
+                } else if (const Store* store = def->isa<Store>()) {
+                    if (const Slot* slot = store->ptr()->isa<Slot>()) {
+                        if (slot->counter != size_t(-1)) { // if not "address taken"
+                            lambda->set_value(slot->counter, store->val());
+                            accesses.push_back(store);
+                        }
+                    }
+                } else if (const Load* load = def->isa<Load>()) {
+                    if (const Slot* slot = load->ptr()->isa<Slot>()) {
+                        if (slot->counter != size_t(-1)) { // if not "address taken"
+                            const Type* type = slot->type()->as<Ptr>()->referenced_type();
+                            load->cptr = lambda->get_value(slot->counter, type, slot->name.c_str());
+                            accesses.push_back(load);
+                        }
+                    }
+                } else if (const Enter* enter = def->isa<Enter>()) {
+                    enters.push_back(new Tracker(enter));
+                } else if (const Leave* leave = def->isa<Leave>()) {
+                    leaves.push_back(new Tracker(leave));
+                }
+            }
+
+            // seal successors of last lambda if applicable
+            for_all (succ, lambda->succs()) {
+                if (!succ->visit(pass))
+                    succ->counter = succ->preds().size();
+                if (--succ->counter == 0)
+                    succ->seal();
+            }
         }
 
         for (size_t i = accesses.size(); i-- != 0;) {

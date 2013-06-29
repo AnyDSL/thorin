@@ -28,10 +28,6 @@ void init_lambda(const size_t pass, Lambda* lambda) {
 }
 
 void mem2reg(World& world) {
-    std::vector<Replace> to_replace;
-    std::vector<const Enter*> enters;
-    std::vector<const Leave*> leaves;
-
     // mark lambdas passed to other functions as head
     // -> Lambda::get_value will stop at function heads
     for_all (lambda, world.lambdas()) {
@@ -41,10 +37,12 @@ void mem2reg(World& world) {
 
     for_all (root, top_level_lambdas(world)) {
         Scope scope(root);
+        std::vector<const Def*> visit = visit_late(scope);
+        std::vector<Replace> to_replace;
         const size_t pass = world.new_pass();
 
         Lambda* cur = 0;
-        for_all (def, visit_late(scope)) {
+        for_all (def, visit) {
             if (Lambda* lambda = def->isa_lambda()) {
                 if (cur) {
                     for_all (succ, cur->succs()) {
@@ -54,11 +52,7 @@ void mem2reg(World& world) {
                     }
                 }
                 cur = lambda;
-            } else if (const Enter* enter = def->isa<Enter>())
-                enters.push_back(enter);
-            else if (const Leave* leave = def->isa<Leave>())
-                leaves.push_back(leave);
-            else if (const Store* store = def->isa<Store>()) {
+            } else if (const Store* store = def->isa<Store>()) {
                 if (const Slot* slot = store->ptr()->isa<Slot>()) {
                     cur->set_value(slot->index(), store->val());
                     to_replace.push_back(Replace(store));
@@ -76,18 +70,28 @@ void mem2reg(World& world) {
             assert(succ->counter == 1);
             succ->seal();
         }
-    }
 
-    for (size_t i = to_replace.size(); i-- != 0;) {
-        Replace replace = to_replace[i];
+        for (size_t i = to_replace.size(); i-- != 0;) {
+            Replace replace = to_replace[i];
 
-        if (const Def* with = replace.with_) {
-            const Load* load = replace.access_->as<Load>();
-            load->extract_val()->replace(with);
-            load->extract_mem()->replace(load->mem());
-        } else {
-            const Store* store = replace.access_->as<Store>();
-            store->replace(store->mem());
+            if (const Def* with = replace.with_) {
+                const Load* load = replace.access_->as<Load>();
+                load->extract_val()->replace(with);
+                load->extract_mem()->replace(load->mem());
+            } else {
+                const Store* store = replace.access_->as<Store>();
+                store->replace(store->mem());
+            }
+        }
+
+        for (size_t i = visit.size(); i-- != 0;) {
+            if (const Leave* leave = visit[i]->isa<Leave>()) {
+                const Enter* enter = leave->frame()->as<TupleExtract>()->tuple()->as<Enter>();
+                if (enter->num_uses() == 2) {
+                    enter->extract_mem()->replace(enter->mem());
+                    leave->replace(leave->mem());
+                }
+            }
         }
     }
 
@@ -96,14 +100,6 @@ void mem2reg(World& world) {
 
     debug_verify(world);
     world.cleanup();
-
-    for_all (leave, leaves) {
-        const Enter* enter = leave->frame()->as<TupleExtract>()->tuple()->as<Enter>();
-        if (enter->num_uses() == 2) {
-            enter->extract_mem()->replace(enter->mem());
-            leave->replace(leave->mem());
-        }
-    }
 }
 
 }

@@ -43,6 +43,7 @@ void mem2reg(World& world) {
         std::vector<const Def*> visit = visit_late(scope);
         std::vector<Replace> to_replace;
         const size_t pass = world.new_pass();
+        size_t cur_handle = 0;
 
         Lambda* cur = 0;
         for_all (def, visit) {
@@ -55,15 +56,28 @@ void mem2reg(World& world) {
                     }
                 }
                 cur = lambda;
+            } else if (const Slot* slot = def->isa<Slot>()) {
+                // are all users loads and store?
+                for_all (use, slot->uses()) {
+                    if (!use->isa<Load>() && !use->isa<Store>()) {
+                        slot->counter = size_t(-1); // mark as "address taken"
+                        goto next_def;
+                    }
+                }
+                slot->counter = cur_handle++;
             } else if (const Store* store = def->isa<Store>()) {
                 if (const Slot* slot = store->ptr()->isa<Slot>()) {
-                    cur->set_value(slot->index(), store->val());
-                    to_replace.push_back(Replace(store));
+                    if (slot->counter != size_t(-1)) { // if not address taken
+                        cur->set_value(slot->counter, store->val());
+                        to_replace.push_back(Replace(store));
+                    }
                 }
             } else if (const Load* load = def->isa<Load>()) {
                 if (const Slot* slot = load->ptr()->isa<Slot>()) {
-                    const Type* type = slot->type()->as<Ptr>()->referenced_type();
-                    to_replace.push_back(Replace(load, cur->get_value(slot->index(), type, slot->name.c_str())));
+                    if (slot->counter != size_t(-1)) { // if not address taken
+                        const Type* type = slot->type()->as<Ptr>()->referenced_type();
+                        to_replace.push_back(Replace(load, cur->get_value(slot->counter, type, slot->name.c_str())));
+                    }
                 }
             } else if (const Enter* enter = def->isa<Enter>()) {
                 enters.push_back(new Tracker(enter));
@@ -91,6 +105,7 @@ void mem2reg(World& world) {
             }
         }
 
+next_def:;
     }
 
     for_all (lambda, world.lambdas())
@@ -104,13 +119,13 @@ void mem2reg(World& world) {
 
         for_all (use, enter->uses()) {
             if (use->isa<Slot>())
-                goto outer_loop;
+                goto next_leave;
         }
 
         enter->extract_mem()->replace(enter->mem());
         leave->replace(leave->mem());
 
-outer_loop:;
+next_leave:;
     }
 
     for (size_t i = enters.size(); i-- != 0;) {

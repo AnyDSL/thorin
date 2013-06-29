@@ -8,6 +8,8 @@
 
 namespace anydsl2 {
 
+// currently, this transformation only works when in CFF
+
 void mem2reg(World& world) {
     // mark lambdas passed to other functions as head
     // -> Lambda::get_value will stop at function heads
@@ -50,14 +52,14 @@ void mem2reg(World& world) {
                 slot->counter = cur_handle++;
             } else if (const Store* store = def->isa<Store>()) {
                 if (const Slot* slot = store->ptr()->isa<Slot>()) {
-                    if (slot->counter != size_t(-1)) { // if not address taken
+                    if (slot->counter != size_t(-1)) { // if not "address taken"
                         cur->set_value(slot->counter, store->val());
                         accesses.push_back(store);
                     }
                 }
             } else if (const Load* load = def->isa<Load>()) {
                 if (const Slot* slot = load->ptr()->isa<Slot>()) {
-                    if (slot->counter != size_t(-1)) { // if not address taken
+                    if (slot->counter != size_t(-1)) { // if not "address taken"
                         const Type* type = slot->type()->as<Ptr>()->referenced_type();
                         load->cptr = cur->get_value(slot->counter, type, slot->name.c_str());
                         accesses.push_back(load);
@@ -116,7 +118,6 @@ next_leave:;
                 enter->extract_mem()->replace(enter->mem());
         }
     }
-
 
     debug_verify(world);
 }

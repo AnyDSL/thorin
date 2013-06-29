@@ -220,10 +220,6 @@ void World::dump(bool fancy) {
 
         p.newline();
     }
-
-    for_all (top, top_level_lambdas(*this))
-        for_all (def, visit_late(Scope(top)))
-            def->dump();
 }
 
 //------------------------------------------------------------------------------

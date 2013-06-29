@@ -81,6 +81,8 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     bool is_cascading() const;
     bool is_basicblock() const;
     bool is_returning() const;
+    /// Is this Lambda passed as argument to another Lambda?
+    bool is_passed() const;
     Printer& print_jump(Printer&) const;
     Printer& print_head(Printer&) const;
     void dump_jump() const;
@@ -132,6 +134,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     void set_parent(Lambda* parent) { parent_ = parent; }
     void seal();
     bool is_sealed() const { return is_sealed_; }
+    void unseal() { is_sealed_ = false; }
     void clear() { defs_.clear(); }
 
 private:

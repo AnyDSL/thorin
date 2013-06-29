@@ -52,6 +52,62 @@ std::vector<const Def*> visit_early(const Scope& scope) {
     return result;
 }
 
+Lambda*& get_late(const PrimOp* primop) { return (Lambda*&) primop->ptr; }
+
+std::vector<const Def*> visit_late(const Scope& scope) {
+    std::vector<const Def*> result;
+    Array< std::vector<const PrimOp*> > lambda2primop(scope.size());
+    std::queue<const Def*> queue;
+    const size_t pass = scope.world().new_pass();
+
+    for (size_t i = scope.size(); i-- != 0;) {
+        Lambda* cur = scope[i];
+
+        queue.push(cur);
+
+        while (!queue.empty()) {
+            const Def* def = queue.front();
+            queue.pop();
+
+            for_all (op, def->ops()) {
+                if (const PrimOp* primop = op->is_non_const_primop()) {
+                    if (!primop->visit(pass)) {     // init unseen primops
+                        primop->ptr = 0;
+                        primop->counter = primop->num_uses();
+                    }
+
+                    Lambda*& late = get_late(primop);
+                    late = late ? scope.domtree().lca(cur, late) : cur;
+
+                    if (--primop->counter == 0) {   // only visit once when counter == 0
+                        lambda2primop[late->sid()].push_back(primop);
+                        queue.push(primop);
+                    }
+
+                    assert(primop->counter != size_t(-1));
+                }
+            }
+        }
+
+        //while (!qdone.empty() && get_late(qdone.front()) == cur) {
+            //const PrimOp* primop = qdone.front();
+            //qdone.pop();
+            //result.push_back(primop);
+        //}
+
+        for_all (primop, lambda2primop[cur->sid()])
+            result.push_back(primop);
+
+        for (size_t i = cur->num_params(); i-- != 0;)
+            result.push_back(cur->param(i));
+
+        result.push_back(cur);
+    }
+
+    std::reverse(result.begin(), result.end());
+    return result;
+}
+
 class Placement {
 public:
 
@@ -67,7 +123,6 @@ public:
     }
 
     void place_late();
-    std::vector<const Def*> visit_late();
 
 private:
 
@@ -137,49 +192,6 @@ Places Placement::place_early() {
 }
 
 
-std::vector<const Def*> Placement::visit_late() {
-    pass = scope.world().new_pass();
-    place_late(); 
-    std::vector<const Def*> result;
-    std::queue<const Def*> queue;
-    Lambda* cur = 0;
-
-    for_all (lambda, scope.rpo()) {
-        queue.push(lambda);
-
-        for_all (param, lambda->params())
-            queue.push(param);
-    }
-
-    while (!queue.empty()) {
-        const Def* def = queue.front();
-        queue.pop();
-        def->dump();
-
-        if (Lambda* lambda = def->isa_lambda()) {
-            result.push_back(lambda);
-            cur = lambda;
-        } else if (const Param* param = def->isa<Param>()) {
-            result.push_back(param);
-            for_all (use, param->uses())
-                queue.push(use);
-        } else if (const PrimOp* primop = def->is_non_const_primop()) {
-            if (!primop->is_visited(pass))
-                continue;                           // primop is dead
-            if (get_late(primop) == cur) {
-                result.push_back(primop);
-
-                for_all (use, primop->uses())
-                    queue.push(use);
-            } else
-                queue.push(primop);
-        }
-    }
-
-    return result;
-}
-
 Places place(const Scope& scope) { return Placement(scope).place(); }
-std::vector<const Def*> visit_late(const Scope& scope) { return Placement(scope).visit_late(); }
 
 } // namespace anydsl2

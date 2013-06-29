@@ -978,10 +978,10 @@ void World::cleanup() {
 
 void World::opt() {
     cleanup();
-    mem2reg(*this);
     lower2cff(*this);
     inliner(*this);
     merge_lambdas(*this);
+    mem2reg(*this);
     cleanup();
 }
 

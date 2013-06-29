@@ -144,6 +144,17 @@ bool Lambda::is_cascading() const {
     return use->isa<Lambda>() && use.index() > 0;
 }
 
+bool Lambda::is_passed() const {
+    for_all (use, this->uses()) {
+        if (use->isa_lambda()) {
+            if (use.index() != 0)
+                return true;
+        }
+    }
+
+    return false;
+}
+
 bool Lambda::is_basicblock() const { return pi()->is_basicblock(); }
 bool Lambda::is_returning() const { return pi()->is_returning(); }
 void Lambda::dump_jump() const { Printer p(std::cout, false); print_jump(p); }

@@ -979,9 +979,9 @@ void World::cleanup() {
 void World::opt() {
     cleanup();
     lower2cff(*this);
+    mem2reg(*this);
     inliner(*this);
     merge_lambdas(*this);
-    mem2reg(*this);
     cleanup();
 }
 

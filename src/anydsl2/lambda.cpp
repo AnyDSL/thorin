@@ -243,7 +243,6 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
         }
 
         assert(preds.size() == 1 && "there can only be one");
-        // create copy of lvar in this Lambda
         return set_value(handle, preds.front()->get_value(handle, type, name));
     }
 
@@ -256,14 +255,6 @@ return_bottom:
 void Lambda::seal() {
     assert(!is_sealed() && "already sealed");
     is_sealed_ = true;
-
-#ifndef NDEBUG
-    Lambdas preds = this->preds();
-    if (preds.size() >= 2) {
-        for_all (pred, preds)
-            assert(pred->succs().size() <= 1 && "critical edge");
-    }
-#endif
 
     for_all (todo, todos_)
         fix(todo);

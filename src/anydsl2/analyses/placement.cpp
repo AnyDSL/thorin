@@ -89,12 +89,6 @@ std::vector<const Def*> visit_late(const Scope& scope) {
             }
         }
 
-        //while (!qdone.empty() && get_late(qdone.front()) == cur) {
-            //const PrimOp* primop = qdone.front();
-            //qdone.pop();
-            //result.push_back(primop);
-        //}
-
         for_all (primop, lambda2primop[cur->sid()])
             result.push_back(primop);
 

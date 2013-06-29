@@ -211,7 +211,12 @@ bool Verifier::invalid(const Def* def, const Def* source, const char* msg) {
 
 //------------------------------------------------------------------------------
 
-void verify(World& world) { assert(Verifier(world).verify()); }
+void verify(World& world) { 
+    bool res = Verifier(world).verify();
+    if (!res)
+    world.dump(true);
+    assert(res); 
+}
 
 //------------------------------------------------------------------------------
 

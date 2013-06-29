@@ -69,6 +69,12 @@ void mem2reg(World& world) {
                 }
             }
         }
+
+        for_all (succ, cur->succs()) {
+            assert(succ->is_visited(pass));
+            assert(succ->counter == 1);
+            succ->seal();
+        }
     }
 
     for (size_t i = to_replace.size(); i-- != 0;) {

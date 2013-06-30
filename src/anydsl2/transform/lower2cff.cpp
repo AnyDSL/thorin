@@ -103,8 +103,6 @@ void lower2cff(World& world) {
         merge_lambdas(world);
         world.cleanup();
     } while (todo);
-    merge_lambdas(world);
-    world.cleanup();
 }
 
 } // namespace anydsl2

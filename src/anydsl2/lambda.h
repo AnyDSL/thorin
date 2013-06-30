@@ -130,8 +130,9 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
 
     const Def* set_value(size_t handle, const Def* def) { return defs_[handle] = def; }
     const Def* get_value(size_t handle, const Type* type, const char* name = "");
-    Lambda* parent() const { return parent_; }
-    void set_parent(Lambda* parent) { parent_ = parent; }
+    
+    Lambda* parent() const { return parent_; }            ///< See \ref parent_ for more information.
+    void set_parent(Lambda* parent) { parent_ = parent; } ///< See \ref parent_ for more information.
     void seal();
     bool is_sealed() const { return is_sealed_; }
     void unseal() { is_sealed_ = false; }
@@ -171,6 +172,16 @@ private:
     Scope* scope_;
     LambdaAttr attr_;
     Params params_;
+    /**
+     * There exist there cases to distinguish here.
+     * - \p parent_ == this: This \p Lambda is considered as a basic block, i.e., 
+     *                       SSA construction will propagate value through this \p Lambda's predecessors.
+     * - \p parent_ == 0: This \p Lambda is considered as top level function, i.e.,
+     *                    SSA construction will stop propagate values here.
+     *                    Any \p get_value which arrives here without finding a definition will return \p bottom.
+     * - otherwise: This \p Lambda is considered as function head nested in \p parent_.
+     *              Any \p get_value which arrives here without finding a definition will recursively try to find one in \p parent_.
+     */
     Lambda* parent_;
     bool is_sealed_;
 

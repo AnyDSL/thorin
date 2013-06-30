@@ -70,10 +70,12 @@ void mem2reg(World& world) {
 
             // seal successors of last lambda if applicable
             for_all (succ, lambda->succs()) {
-                if (!succ->visit(pass))
-                    succ->counter = succ->preds().size();
-                if (--succ->counter == 0)
-                    succ->seal();
+                if (succ->parent() != 0) {
+                    if (!succ->visit(pass))
+                        succ->counter = succ->preds().size();
+                    if (--succ->counter == 0)
+                        succ->seal();
+                }
             }
         }
 

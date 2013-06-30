@@ -11,17 +11,22 @@ namespace anydsl2 {
 // currently, this transformation only works when in CFF
 
 void mem2reg(World& world) {
-    // mark lambdas passed to other functions as head
-    // -> Lambda::get_value will stop at function heads
+    Array<Lambda*> top = top_level_lambdas(world);
+
     for_all (lambda, world.lambdas()) {
-        lambda->set_parent(lambda->is_passed() ? 0 : lambda);
+        lambda->set_parent(lambda);
         lambda->unseal();
+    }
+
+    for_all (lambda, top) {
+        lambda->set_parent(0);
+        lambda->seal();
     }
 
     AutoVector<Tracker*> enters;
     AutoVector<Tracker*> leaves;
 
-    for_all (root, top_level_lambdas(world)) {
+    for_all (root, top) {
         Scope scope(root);
         std::vector<const Access*> accesses;
         Schedule schedule = schedule_late(scope);

@@ -89,6 +89,9 @@ Schedule schedule_late(const Scope& scope, size_t& pass) {
         }
     }
 
+    for_all (&primops, schedule)
+        std::reverse(primops.begin(), primops.end());
+
     return schedule;
 }
 

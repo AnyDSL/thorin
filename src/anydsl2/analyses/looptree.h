@@ -14,6 +14,22 @@ class Lambda;
 class Scope;
 class World;
 
+struct Edge {
+    Edge() {}
+    Edge(Lambda* src, Lambda* dst) 
+        : src_(src)
+        , dst_(dst)
+    {}
+
+    Lambda* src() const { return src_; }
+    Lambda* dst() const { return dst_; }
+
+private:
+
+    Lambda* src_;
+    Lambda* dst_;
+};
+
 /**
  * Represents a node of a loop nesting forest.
  * Please refer to G. Ramalingam, "On Loops, Dominators, and Dominance Frontiers", 1999
@@ -48,9 +64,22 @@ private:
     int depth_;
     std::vector<Lambda*> headers_;
     AutoVector<LoopTreeNode*> children_;
+    std::vector<Edge> backedges_;
+    std::vector<Edge> entries_;
 
     friend class LFBuilder;
 };
+
+//class LoopTree {
+//public:
+
+    //LoopTree(Scope&);
+
+    //Array<LoopTreeNode*> nodes_;
+
+    //DomNode* lookup(Lambda* lambda) { assert(scope().contains(lambda)); return nodes_[index(lambda)]; }
+    //const DomNode* lookup(Lambda* lambda) const { return const_cast<DomTreeBase*>(this)->lookup(lambda); }
+//};
 
 /**
  * Calculates a loop nesting forest rooted at the returned \p LoopTreeNode.

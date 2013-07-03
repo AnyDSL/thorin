@@ -183,6 +183,16 @@ self_loop:
             }
         }
 
+        // for all lambdas in current SCC
+        for_all (header, headers) {
+            for_all (pred, scope.preds(header))
+                if (in_scc(pred)) {
+                    std::cout << "backedge: " << pred->unique_name() << " -> " << header->unique_name() << std::endl;
+                    parent->backedges_.push_back(Edge(pred, header));
+                } else
+                    parent->entries_.push_back(Edge(pred, header));
+        }
+
         // reset InSCC and OnStack flags
         for (size_t i = b; i != e; ++i)
             stack[i]->counter &= ~(OnStack | InSCC);

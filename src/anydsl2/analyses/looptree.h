@@ -1,10 +1,9 @@
 #ifndef ANALYSES_LOOPS_H
 #define ANALYSES_LOOPS_H
 
-#include <memory>
 #include <vector>
 
-#include "anydsl2/analyses/scope.h"
+#include "anydsl2/analyses/scope_analysis.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/autoptr.h"
 
@@ -70,16 +69,15 @@ private:
     friend class LFBuilder;
 };
 
-//class LoopTree {
-//public:
+class LoopTree : public ScopeAnalysis<LoopTreeNode, true> {
+public:
 
-    //LoopTree(Scope&);
+    typedef ScopeAnalysis<LoopTreeNode, true> Super;
 
-    //Array<LoopTreeNode*> nodes_;
-
-    //DomNode* lookup(Lambda* lambda) { assert(scope().contains(lambda)); return nodes_[index(lambda)]; }
-    //const DomNode* lookup(Lambda* lambda) const { return const_cast<DomTreeBase*>(this)->lookup(lambda); }
-//};
+    explicit LoopTree(Scope& scope)
+        : Super(scope)
+    {}
+};
 
 /**
  * Calculates a loop nesting forest rooted at the returned \p LoopTreeNode.

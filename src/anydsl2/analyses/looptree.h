@@ -56,6 +56,7 @@ public:
     bool is_root() const { return !parent_; }
     size_t num_headers() const { return headers().size(); }
     size_t num_children() const { return children().size(); }
+    bool is_leaf() const { return num_children() == 0; }
 
 private:
 
@@ -66,54 +67,40 @@ private:
     std::vector<Edge> backedges_;
     std::vector<Edge> entries_;
 
-    friend class LFBuilder;
-};
-
-class LoopTree : public ScopeAnalysis<LoopTreeNode, true> {
-public:
-
-    typedef ScopeAnalysis<LoopTreeNode, true> Super;
-
-    explicit LoopTree(Scope& scope)
-        : Super(scope)
-    {}
+    friend class LoopTreeBuilder;
 };
 
 /**
- * Calculates a loop nesting forest rooted at the returned \p LoopTreeNode.
- * You will manually have to delete this returned node in order to free memory again.
+ * Calculates a loop nesting forest rooted at \p root_.
  * The implementation uses Steensgard's algorithm.
  * Check out G. Ramalingam, "On Loops, Dominators, and Dominance Frontiers", 1999, for more information.
  */
-LoopTreeNode* create_loop_forest(const Scope& scope);
-
-std::ostream& operator << (std::ostream& o, const LoopTreeNode* node);
-
-class LoopInfo {
+class LoopTree : public ScopeAnalysis<LoopTreeNode, true, false /*do not auto-destroy nodes*/> {
 public:
 
-    LoopInfo(const Scope& scope)
-        : scope_(scope)
-        , depth_(scope.size())
+    typedef ScopeAnalysis<LoopTreeNode, true, false> Super;
+
+    explicit LoopTree(const Scope& scope)
+        : Super(scope)
     {
-        build_infos();
+        create();
     }
 
-    const Scope& scope() const { return scope_; }
-    int depth(size_t sid) const { return depth_[sid]; }
-    int depth(Lambda* lambda) const { 
-        assert(scope_.contains(lambda)); 
-        return depth(lambda->sid()); 
-    }
+    const LoopTreeNode* root() const { return root_; }
+    int depth(Lambda* lambda) const { return Super::lookup(lambda)->depth(); }
 
 private:
 
-    void build_infos();
-    void visit(const LoopTreeNode* n);
+    AutoPtr<const LoopTreeNode> root_;
 
-    const Scope& scope_;
-    Array<int> depth_;
+    void create();
+
+    friend class LoopTreeBuilder;
 };
+
+LoopTreeNode* create_loop_forest(const Scope& scope);
+
+std::ostream& operator << (std::ostream& o, const LoopTreeNode* node);
 
 } // namespace anydsl2
 

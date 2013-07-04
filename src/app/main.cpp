@@ -147,7 +147,7 @@ int main(int argc, char** argv) {
             if (emit_air)
                 init.world.dump(fancy);
             if (emit_looptree)
-                std::cout << Scope(init.world).looptree() << std::endl;
+                std::cout << Scope(init.world).looptree().root() << std::endl; // TODO
 
             if (emit_llvm)
                 be_llvm::emit(init.world);

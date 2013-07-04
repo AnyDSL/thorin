@@ -114,7 +114,7 @@ Schedule schedule_smart(const Scope& scope) {
                 // all other guys are placed as late as possible but keep them out of loops, please
                 int depth = std::numeric_limits<int>::max();
                 for (Lambda* i = lambda_best; i != lambda_early; i = scope.domtree().idom(i)) {
-                    int cur_depth = scope.loopinfo().depth(i);
+                    int cur_depth = scope.looptree().depth(i);
                     if (cur_depth < depth) {
                         lambda_best = i;
                         depth = cur_depth;

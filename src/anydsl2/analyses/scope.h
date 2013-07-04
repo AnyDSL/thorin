@@ -10,8 +10,7 @@
 namespace anydsl2 {
 
 template<bool> class DomTreeBase;
-class LoopTreeNode;
-class LoopInfo;
+class LoopTree;
 
 class Scope {
 public:
@@ -46,8 +45,7 @@ public:
 
     const DomTreeBase<true>& domtree() const;
     const DomTreeBase<false>& postdomtree() const;
-    const LoopTreeNode* looptree() const;
-    const LoopInfo& loopinfo() const;
+    const LoopTree& looptree() const;
 
 private:
 
@@ -73,8 +71,7 @@ private:
     mutable Array< Array<Lambda*> > succs_;
     mutable AutoPtr< DomTreeBase<true> > domtree_;
     mutable AutoPtr< DomTreeBase<false> > postdomtree_;
-    mutable AutoPtr<LoopTreeNode> looptree_;
-    mutable AutoPtr<LoopInfo> loopinfo_;
+    mutable AutoPtr<LoopTree> looptree_;
 };
 
 inline Array<Lambda*> top_level_lambdas(World& world) { return Scope(world).entries(); }

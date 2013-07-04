@@ -213,8 +213,7 @@ ArrayRef<Lambda*> Scope::backwards_rpo() const {
 
 const DomTree& Scope::domtree() const { return domtree_ ? *domtree_ : *(domtree_ = new DomTree(*this)); }
 const PostDomTree& Scope::postdomtree() const { return postdomtree_ ? *postdomtree_ : *(postdomtree_ = new PostDomTree(*this)); }
-const LoopTreeNode* Scope::looptree() const { return looptree_ ? looptree_ : looptree_ = create_loop_forest(*this); }
-const LoopInfo& Scope::loopinfo() const { return loopinfo_ ? *loopinfo_ : *(loopinfo_ = new LoopInfo(*this)); }
+const LoopTree& Scope::looptree() const { return looptree_ ? *looptree_ : *(looptree_ = new LoopTree(*this)); }
 
 //------------------------------------------------------------------------------
 

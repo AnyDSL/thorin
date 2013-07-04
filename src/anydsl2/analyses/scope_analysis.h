@@ -6,7 +6,7 @@
 
 namespace anydsl2 {
 
-template<class T, bool forwards>
+template<class T, bool forwards, bool destroy_nodes>
 class ScopeAnalysis {
 protected:
 
@@ -14,6 +14,12 @@ protected:
         : scope_(scope)
         , nodes_(size())
     {}
+    ~ScopeAnalysis() {
+        if (destroy_nodes) {
+            t_for_all (n, nodes_)
+                delete n;
+        }
+    }
 
 public:
 
@@ -52,7 +58,7 @@ public:
 protected:
 
     const Scope& scope_;
-    AutoVector<T*> nodes_;
+    Array<T*> nodes_;
 };
 
 } // namespace analyses

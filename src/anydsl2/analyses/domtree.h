@@ -41,11 +41,11 @@ private:
 };
 
 template<bool forwards>
-class DomTreeBase : public ScopeAnalysis<DomNodeBase<forwards>, forwards> {
+class DomTreeBase : public ScopeAnalysis<DomNodeBase<forwards>, forwards, true /*auto destroy nodes*/> {
 public:
 
     typedef DomNodeBase<forwards> DomNode;
-    typedef ScopeAnalysis<DomNodeBase<forwards>, forwards> Super;
+    typedef ScopeAnalysis<DomNodeBase<forwards>, forwards, true> Super;
 
     explicit DomTreeBase(const Scope& scope)
         : Super(scope)

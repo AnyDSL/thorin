@@ -36,10 +36,10 @@ public:
         , first_pass(size_t(-1))
     {
         stack.reserve(size());
+        build();
     }
 
-    LoopTreeNode* build();
-    World& world() const { return scope().world(); }
+    void build();
 
 private:
 
@@ -68,7 +68,7 @@ private:
     bool is_visited(Lambda* lambda) { return lambda->is_visited(pass); }
 
     void new_pass() {
-        pass = world().new_pass();
+        pass = scope().world().new_pass();
         if (first_pass == size_t(-1))
             first_pass = pass;
     }
@@ -97,14 +97,12 @@ private:
     std::vector<Lambda*> stack;
 };
 
-LoopTreeNode* LoopTreeBuilder::build() {
+void LoopTreeBuilder::build() {
     // clear all flags
     for_all (lambda, scope().rpo())
         lambda->counter = 0;
 
-    LoopTreeNode* root = new LoopTreeNode(0, -1);
-    recurse<true>(root, scope().entries(), 0);
-    return root;
+    recurse<true>(looptree.root_ = new LoopTreeNode(0, -1), scope().entries(), 0);
 }
 
 template<bool start>
@@ -205,10 +203,7 @@ self_loop:
     return counter;
 }
 
-void LoopTree::create() {
-    LoopTreeBuilder builder(*this);
-    root_ = builder.build();
-}
+void LoopTree::create() { LoopTreeBuilder builder(*this); }
 
 //------------------------------------------------------------------------------
 

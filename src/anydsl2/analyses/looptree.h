@@ -91,7 +91,7 @@ public:
 
 private:
 
-    AutoPtr<const LoopTreeNode> root_;
+    AutoPtr<LoopTreeNode> root_;
 
     void create();
 

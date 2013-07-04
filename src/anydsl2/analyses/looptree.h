@@ -56,7 +56,10 @@ public:
     bool is_root() const { return !parent_; }
     size_t num_headers() const { return headers().size(); }
     size_t num_children() const { return children().size(); }
-    bool is_leaf() const { return num_children() == 0; }
+    bool is_leaf() const { assert(num_headers() == 1); return num_children() == 0; }
+    const std::vector<Edge>& backedges() const { assert(!is_leaf()); return backedges_or_exits_; }
+    const std::vector<Edge>& exits() const { assert(is_leaf()); return backedges_or_exits_; }
+    Lambda* lambda() const { assert(is_leaf()); return headers().front(); }
 
 private:
 
@@ -64,7 +67,7 @@ private:
     int depth_;
     std::vector<Lambda*> headers_;
     AutoVector<LoopTreeNode*> children_;
-    std::vector<Edge> backedges_;
+    std::vector<Edge> backedges_or_exits_;
     std::vector<Edge> entries_;
 
     friend class LoopTreeBuilder;

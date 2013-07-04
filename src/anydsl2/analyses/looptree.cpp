@@ -103,6 +103,14 @@ void LoopTreeBuilder::build() {
         lambda->counter = 0;
 
     recurse<true>(looptree.root_ = new LoopTreeNode(0, -1), scope().entries(), 0);
+
+    // calculate exit edges
+    for_all (node, looptree.nodes_) {
+        for_all (succ, looptree.succs(node->lambda())) {
+            if (node->depth() > looptree.lookup(succ)->depth())
+                node->backedges_or_exits_.push_back(Edge(node->lambda(), succ));
+        }
+    }
 }
 
 template<bool start>
@@ -123,7 +131,7 @@ void LoopTreeBuilder::recurse(LoopTreeNode* parent, ArrayRef<Lambda*> headers, i
 
     for_all (node, parent->children()) {
         // do not recurse into done nodes (see below)
-        if (node->num_headers() != 1 || looptree.nodes_[node->headers().front()->sid()] == 0)
+        if (node->num_headers() != 1 || looptree.nodes_[node->lambda()->sid()] == 0)
             recurse<false>(node, node->headers(), depth + 1);
     }
 }
@@ -160,7 +168,7 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopTreeNode* parent, int depth, int 
             if (scope().is_entry(lambda)) 
                 headers.push_back(lambda); // entries are axiomatically headers
             else {
-                for_all (pred, scope().preds(lambda)) {
+                for_all (pred, looptree.preds(lambda)) {
                     // all backedges are also inducing headers
                     // but do not yet mark them globally as header -- we are still running through the SCC
                     if (!in_scc(pred)) {
@@ -172,22 +180,21 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopTreeNode* parent, int depth, int 
         }
 
         if (num == 1) {
-            for_all (succ, scope().succs(cur)) {
+            for_all (succ, looptree.succs(cur)) {
                 if (!is_header(succ) && cur == succ)
                     goto self_loop;
             }
 
-            looptree.nodes_[node->headers().front()->sid()] = node; // done
+            looptree.nodes_[node->lambda()->sid()] = node; // done
         }
 
 self_loop:
         // for all lambdas in current SCC
         for_all (header, headers) {
-            for_all (pred, scope().preds(header))
-                if (in_scc(pred)) {
-                    std::cout << "backedge: " << pred->unique_name() << " -> " << header->unique_name() << std::endl;
-                    parent->backedges_.push_back(Edge(pred, header));
-                } else
+            for_all (pred, looptree.preds(header))
+                if (in_scc(pred))
+                    parent->backedges_or_exits_.push_back(Edge(pred, header));
+                else
                     parent->entries_.push_back(Edge(pred, header));
         }
 
@@ -197,7 +204,7 @@ self_loop:
 
         // pop whole SCC
         stack.resize(b);
-        assert(num != 1 || (node->headers().size() == 1 && node->headers().front() == cur));
+        assert(num != 1 || node->lambda() == cur);
     }
 
     return counter;

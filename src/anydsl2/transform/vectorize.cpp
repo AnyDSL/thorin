@@ -118,7 +118,7 @@ void Vectorizer::infer_condition(Lambda* lambda) {
     }
 }
 
-struct PredLess : public std::binary_function<const Lambda*, const Lambda*, bool> {
+struct PredLT : public std::binary_function<const Lambda*, const Lambda*, bool> {
     bool operator () (const Lambda* l1, const Lambda* l2) const { 
         return Vectorizer::map(l1)->non_const_depth() > Vectorizer::map(l2)->non_const_depth();
     }
@@ -128,7 +128,7 @@ void Vectorizer::param2select(const Param* param) {
     const Def* select = 0;
     Array<Lambda*> preds = scope.preds(param->lambda());
     // begin with pred with the most expensive condition (non_const_depth) - this keeps select chains simpler
-    std::sort(preds.begin(), preds.end(), PredLess());
+    std::sort(preds.begin(), preds.end(), PredLT());
 
     for_all (pred, preds) {
         const Def* peek = vectorize(pred->arg(param->index()), length);

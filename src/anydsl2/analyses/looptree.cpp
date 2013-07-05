@@ -248,6 +248,24 @@ LoopTree::LoopTree(const Scope& scope)
     LoopTreeBuilder(*this);
 }
 
+Array<Lambda*> LoopTree::loop_lambdas(const LoopHeader* header) {
+    ArrayRef<const LoopLeaf*> leaves = loop(header);
+    Array<Lambda*> result(leaves.size());
+    for_all2 (&lambda, result, leaf, leaves)
+        lambda = leaf->lambda();
+    return result;
+}
+
+struct LambdaLTSid : public std::binary_function<const Lambda*, const Lambda*, bool> {
+    bool operator () (const Lambda* l1, const Lambda* l2) const { return l1->sid() < l2->sid(); }
+};
+
+Array<Lambda*> LoopTree::loop_lambdas_in_rpo(const LoopHeader* header) {
+    Array<Lambda*> result = loop_lambdas(header);
+    std::sort(result.begin(), result.end(), LambdaLTSid());
+    return result;
+}
+
 //------------------------------------------------------------------------------
 
 std::ostream& operator << (std::ostream& o, const LoopNode* node) {

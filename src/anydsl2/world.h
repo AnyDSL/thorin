@@ -38,11 +38,11 @@ class TypeKeeper;
 typedef boost::unordered_set<const PrimOp*, PrimOpHash, PrimOpEqual> PrimOpSet;
 typedef boost::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;
 
-struct LambdaLT : public std::binary_function<Lambda*, Lambda*, bool> {
+struct LambdaLTGid : public std::binary_function<Lambda*, Lambda*, bool> {
     bool operator () (Lambda* l1, Lambda* l2) const { return l1->gid() < l2->gid(); };
 };
 
-typedef std::set<Lambda*, LambdaLT> LambdaSet;
+typedef std::set<Lambda*, LambdaLTGid> LambdaSet;
 
 //------------------------------------------------------------------------------
 

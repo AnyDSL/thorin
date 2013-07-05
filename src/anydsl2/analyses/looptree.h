@@ -128,6 +128,11 @@ public:
         size_t dfs = lambda2dfs(lambda);
         return header->dfs_begin() <= dfs && dfs < header->dfs_end();
     }
+    ArrayRef<const LoopLeaf*> loop(const LoopHeader* header) {
+        return ArrayRef<const LoopLeaf*>(dfs_leaves_.data() + header->dfs_begin(), header->dfs_end() - header->dfs_begin());
+    }
+    Array<Lambda*> loop_lambdas(const LoopHeader* header);
+    Array<Lambda*> loop_lambdas_in_rpo(const LoopHeader* header);
 
 private:
 

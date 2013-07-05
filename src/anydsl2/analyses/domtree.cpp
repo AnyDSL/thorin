@@ -25,10 +25,10 @@ int DomNodeBase<forwards>::depth() const {
 template<bool forwards>
 void DomTreeBase<forwards>::create() {
     t_for_all (lambda, Super::rpo())
-        Super::nodes_[Super::index(lambda)] = new DomNode(lambda);
+        Super::nodes_[Super::sid(lambda)] = new DomNode(lambda);
 
     for (size_t i = 0; i < Super::size(); ++i)
-        assert(i == Super::index(Super::nodes_[i]));
+        assert(i == Super::sid(Super::nodes_[i]));
 
     // map entries' initial idoms to themselves
     t_for_all (entry,  Super::entries()) {
@@ -39,7 +39,7 @@ void DomTreeBase<forwards>::create() {
     // all others' idoms are set to their first found dominating pred
     t_for_all (lambda, Super::body()) {
         t_for_all (pred, Super::preds(lambda)) {
-            if (Super::index(pred) < Super::index(lambda)) {
+            if (Super::sid(pred) < Super::sid(lambda)) {
                 Super::lookup(lambda)->idom_ = Super::lookup(pred);
                 goto outer_loop;
             }
@@ -76,10 +76,10 @@ outer_loop:;
 
 template<bool forwards>
 DomNodeBase<forwards>* DomTreeBase<forwards>::lca(DomNode* i, DomNode* j) {
-    while (!Super::is_entry(i, j) && Super::index(i) != Super::index(j)) {
-        while (!Super::is_entry(i, j) && Super::index(i) < Super::index(j)) 
+    while (!Super::is_entry(i, j) && Super::sid(i) != Super::sid(j)) {
+        while (!Super::is_entry(i, j) && Super::sid(i) < Super::sid(j)) 
             j = j->idom_;
-        while (!Super::is_entry(i, j) && Super::index(j) < Super::index(i)) 
+        while (!Super::is_entry(i, j) && Super::sid(j) < Super::sid(i)) 
             i = i->idom_;
     }
 

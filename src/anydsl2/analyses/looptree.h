@@ -64,6 +64,8 @@ public:
 
     explicit LoopHeader(LoopHeader* parent, int depth, const std::vector<Lambda*>& headers)
         : LoopNode(parent, depth, headers)
+        , dfs_begin_(0)
+        , dfs_end_(-1)
     {}
 
     ArrayRef<LoopNode*> children() const { return children_; }
@@ -73,27 +75,38 @@ public:
     const std::vector<Edge>& exits() const { return exits_; }
     const std::vector<Edge>& backedges() const { return backedges_; }
     bool is_root() const { return parent_ == 0; }
+    size_t dfs_begin() const { return dfs_begin_; };
+    size_t dfs_end() const { return dfs_end_; }
 
 private:
 
+    size_t dfs_begin_;
+    size_t dfs_end_;
     AutoVector<LoopNode*> children_;
     std::vector<Edge> entries_;
     std::vector<Edge> exits_;
     std::vector<Edge> backedges_;
 
     friend class LoopNode;
+    friend class LoopTreeBuilder;
 };
 
 class LoopLeaf : public LoopNode {
 public:
 
-    explicit LoopLeaf(LoopHeader* parent, int depth, const std::vector<Lambda*>& headers)
+    explicit LoopLeaf(size_t dfs_index, LoopHeader* parent, int depth, const std::vector<Lambda*>& headers)
         : LoopNode(parent, depth, headers)
+        , dfs_index_(dfs_index)
     {
         assert(num_headers() == 1);
     }
 
     Lambda* lambda() const { return headers().front(); }
+    size_t dfs_index() const { return dfs_index_; }
+
+private:
+
+    size_t dfs_index_;
 };
 
 /**
@@ -110,9 +123,15 @@ public:
 
     const LoopHeader* root() const { return root_; }
     int depth(Lambda* lambda) const { return Super::lookup(lambda)->depth(); }
+    size_t lambda2dfs(Lambda* lambda) const { return Super::lookup(lambda)->dfs_index(); }
+    bool contains(const LoopHeader* header, Lambda* lambda) const {
+        size_t dfs = lambda2dfs(lambda);
+        return header->dfs_begin() <= dfs && dfs < header->dfs_end();
+    }
 
 private:
 
+    Array<LoopLeaf*> dfs_leaves_;
     AutoPtr<LoopHeader> root_;
 
     friend class LoopTreeBuilder;

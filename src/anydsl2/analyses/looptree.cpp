@@ -34,12 +34,13 @@ public:
         : looptree(looptree)
         , numbers(size())
         , first_pass(size_t(-1))
+        , dfs_index(0)
     {
+        std::cout << "-------" << std::endl;
         stack.reserve(size());
         build();
+        propagate_bounds(looptree.root_);
     }
-
-    void build();
 
 private:
 
@@ -57,6 +58,8 @@ private:
         size_t low; // low link (see Tarjan's SCC algo)
     };
 
+    void build();
+    static std::pair<size_t, size_t> propagate_bounds(LoopNode* header);
     const Scope& scope() const { return looptree.scope(); }
     size_t size() const { return looptree.size(); }
     Number& number(Lambda* lambda) { return numbers[lambda->sid()]; }
@@ -88,12 +91,13 @@ private:
 
     template<bool start>
     void recurse(LoopHeader* parent, ArrayRef<Lambda*> headers, int depth);
-    int walk_scc(Lambda* cur, LoopHeader* parent, int depth, int counter);
+    int walk_scc(Lambda* cur, LoopHeader* parent, int depth, int scc_counter);
 
     LoopTree& looptree;
     Array<Number> numbers;
     size_t pass;
     size_t first_pass;
+    size_t dfs_index;
     std::vector<Lambda*> stack;
 };
 
@@ -103,14 +107,6 @@ void LoopTreeBuilder::build() {
         lambda->counter = 0;
 
     recurse<true>(looptree.root_ = new LoopHeader(0, -1, std::vector<Lambda*>(0)), scope().entries(), 0);
-
-    // calculate exit edges
-    //for_all (node, looptree.nodes_) {
-        //for_all (succ, looptree.succs(node->lambda())) {
-            //if (node->depth() > looptree.lookup(succ)->depth())
-                //node->backedges_or_exits_.push_back(Edge(node->lambda(), succ));
-        //}
-    //}
 }
 
 template<bool start>
@@ -135,14 +131,14 @@ void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<Lambda*> headers, int
     }
 }
 
-int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int counter) {
-    counter = visit(cur, counter);
+int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int scc_counter) {
+    scc_counter = visit(cur, scc_counter);
 
     for_all (succ, scope().succs(cur)) {
         if (is_header(succ))
             continue; // this is a backedge
         if (!is_visited(succ)) {
-            counter = walk_scc(succ, parent, depth, counter);
+            scc_counter = walk_scc(succ, parent, depth, scc_counter);
             lowlink(cur) = std::min(lowlink(cur), lowlink(succ));
         } else if (on_stack(succ))
             lowlink(cur) = std::min(lowlink(cur), lowlink(succ));
@@ -185,22 +181,23 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int co
                 }
             }
 
-            node = looptree.nodes_[headers.front()->sid()] = new LoopLeaf(parent, depth, headers);
+            LoopLeaf* leaf = new LoopLeaf(dfs_index++, parent, depth, headers);
+            node = looptree.nodes_[headers.front()->sid()] = looptree.dfs_leaves_[leaf->dfs_index()] = leaf;
         }
-
 
 self_loop:
         if (node == 0) {
             node = new LoopHeader(parent, depth, headers);
         }
-        //// for all lambdas in current SCC
-        //for_all (header, headers) {
-            //for_all (pred, looptree.preds(header))
-                //if (in_scc(pred))
-                    //parent->backedges_or_exits_.push_back(Edge(pred, header));
-                //else
-                    //parent->entries_.push_back(Edge(pred, header));
-        //}
+        // for all lambdas in current SCC
+        for_all (header, headers) {
+            for_all (pred, looptree.preds(header)) {
+                if (in_scc(pred))
+                    parent->backedges_.push_back(Edge(pred, header));
+                else
+                    parent->entries_.push_back(Edge(pred, header));
+            }
+        }
 
         // reset InSCC and OnStack flags
         for (size_t i = b; i != e; ++i)
@@ -208,10 +205,27 @@ self_loop:
 
         // pop whole SCC
         stack.resize(b);
-        //assert(num != 1 || node->lambda() == cur);
     }
 
-    return counter;
+    return scc_counter;
+}
+
+std::pair<size_t, size_t> LoopTreeBuilder::propagate_bounds(LoopNode* n) {
+    if (LoopHeader* header = n->isa<LoopHeader>()) {
+        size_t begin = -1, end = 0;
+        for_all (child, header->children()) {
+            std::pair<size_t, size_t> p = propagate_bounds(child);
+            begin = p.first  < begin ? p.first  : begin;
+            end   = p.second > end   ? p.second : end;
+        }
+
+        header->dfs_begin_ = begin;
+        header->dfs_end_   = end;
+        return std::make_pair(begin, end);
+    } else {
+        LoopLeaf* leaf = n->as<LoopLeaf>();
+        return std::make_pair(leaf->dfs_index(), leaf->dfs_index()+1);
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -229,8 +243,9 @@ LoopNode::LoopNode(LoopHeader* parent, int depth, const std::vector<Lambda*>& he
 
 LoopTree::LoopTree(const Scope& scope)
     : Super(scope)
+    , dfs_leaves_(size())
 {
-    LoopTreeBuilder builder(*this);
+    LoopTreeBuilder(*this);
 }
 
 //------------------------------------------------------------------------------
@@ -240,11 +255,12 @@ std::ostream& operator << (std::ostream& o, const LoopNode* node) {
         o << '\t';
     for_all (header, node->headers())
         o << header->unique_name() << " ";
-    o << std::endl;
     if (const LoopHeader* header = node->isa<LoopHeader>()) {
+        o << ": " << header->dfs_begin() << "/" << header->dfs_end() << std::endl;
         for_all (child, header->children())
             o << child;
-    }
+    } else
+        o<< ": " << node->as<LoopLeaf>()->dfs_index() << std::endl;
 
     return o;
 }

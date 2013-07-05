@@ -26,11 +26,11 @@ public:
     const Scope& scope() const { return scope_; }
     size_t size() const { return scope().size();}
     ArrayRef<const T*> nodes() const { return ArrayRef<const T*>(nodes_.begin(), nodes_.size()); }
-    const T* node(Lambda* lambda) const { assert(scope().contains(lambda)); return nodes_[index(lambda)]; }
-    size_t index(T* n) const { return index(n->lambda()); }
+    const T* node(Lambda* lambda) const { assert(scope().contains(lambda)); return nodes_[sid(lambda)]; }
+    size_t sid(T* n) const { return sid(n->lambda()); }
 
     /// Returns \p lambda's scope id if this is a forwards analysis and lambda%'s \p backwards_sid() in the case of a backwards analysis.
-    size_t index(Lambda* lambda) const { return forwards ? lambda->sid() : lambda->backwards_sid(); }
+    size_t sid(Lambda* lambda) const { return forwards ? lambda->sid() : lambda->backwards_sid(); }
 
     /// Returns \p lambda's rpo if this is a forwards analysis and lambda%'s \p backwards_rpo() in the case of a backwards analysis.
     ArrayRef<Lambda*> rpo() const { return forwards ? scope().rpo() : scope().backwards_rpo(); }
@@ -52,7 +52,7 @@ public:
         ? (scope().is_entry(i->lambda()) && scope().is_entry(j->lambda()))
         : (scope().is_exit (i->lambda()) && scope().is_exit (j->lambda())); }
 
-    T* lookup(Lambda* lambda) { assert(scope().contains(lambda)); return nodes_[index(lambda)]; }
+    T* lookup(Lambda* lambda) { assert(scope().contains(lambda)); return nodes_[sid(lambda)]; }
     const T* lookup(Lambda* lambda) const { return const_cast<ScopeAnalysis*>(this)->lookup(lambda); }
 
 protected:

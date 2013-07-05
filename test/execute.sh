@@ -1,8 +1,5 @@
 #!/bin/bash
 # parameter 1: Impala program with a 'foo' function that returns an int
-# clean up
-rm -f out.ll
-rm -f out.s
 rm -f a.out
 # generate LLVM code
 anydsl2 -i $1 --emit-llvm -O >& out.ll
@@ -12,3 +9,6 @@ llc out.ll
 cc execute_impala.c out.s
 echo "Execute Impala program:" $1
 ./a.out
+# clean up
+rm -f out.ll
+rm -f out.s

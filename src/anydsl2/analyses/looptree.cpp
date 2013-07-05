@@ -87,8 +87,8 @@ private:
     }
 
     template<bool start>
-    void recurse(LoopTreeNode* node, ArrayRef<Lambda*> headers, int depth);
-    int walk_scc(Lambda* cur, LoopTreeNode* node, int depth, int counter);
+    void recurse(LoopNode* node, ArrayRef<Lambda*> headers, int depth);
+    int walk_scc(Lambda* cur, LoopNode* node, int depth, int counter);
 
     LoopTree& looptree;
     Array<Number> numbers;
@@ -102,7 +102,7 @@ void LoopTreeBuilder::build() {
     for_all (lambda, scope().rpo())
         lambda->counter = 0;
 
-    recurse<true>(looptree.root_ = new LoopTreeNode(0, -1), scope().entries(), 0);
+    recurse<true>(looptree.root_ = new LoopNode(0, -1), scope().entries(), 0);
 
     // calculate exit edges
     for_all (node, looptree.nodes_) {
@@ -114,7 +114,7 @@ void LoopTreeBuilder::build() {
 }
 
 template<bool start>
-void LoopTreeBuilder::recurse(LoopTreeNode* parent, ArrayRef<Lambda*> headers, int depth) {
+void LoopTreeBuilder::recurse(LoopNode* parent, ArrayRef<Lambda*> headers, int depth) {
     size_t cur_new_child = 0;
     for_all (header, headers) {
         new_pass();
@@ -136,7 +136,7 @@ void LoopTreeBuilder::recurse(LoopTreeNode* parent, ArrayRef<Lambda*> headers, i
     }
 }
 
-int LoopTreeBuilder::walk_scc(Lambda* cur, LoopTreeNode* parent, int depth, int counter) {
+int LoopTreeBuilder::walk_scc(Lambda* cur, LoopNode* parent, int depth, int counter) {
     counter = visit(cur, counter);
 
     for_all (succ, scope().succs(cur)) {
@@ -151,7 +151,7 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopTreeNode* parent, int depth, int 
 
     // root of SCC
     if (lowlink(cur) == dfs(cur)) {
-        LoopTreeNode* node = new LoopTreeNode(parent, depth);
+        LoopNode* node = new LoopNode(parent, depth);
         std::vector<Lambda*>& headers = node->headers_;
 
         // mark all lambdas in current SCC (all lambdas from back to cur on the stack) as 'InSCC'
@@ -214,7 +214,7 @@ void LoopTree::create() { LoopTreeBuilder builder(*this); }
 
 //------------------------------------------------------------------------------
 
-std::ostream& operator << (std::ostream& o, const LoopTreeNode* node) {
+std::ostream& operator << (std::ostream& o, const LoopNode* node) {
     for (int i = 0; i < node->depth(); ++i)
         o << '\t';
     for_all (header, node->headers())

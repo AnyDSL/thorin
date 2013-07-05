@@ -33,14 +33,14 @@ private:
  * Represents a node of a loop nesting forest.
  * Please refer to G. Ramalingam, "On Loops, Dominators, and Dominance Frontiers", 1999
  * for an introduction to loop nesting forests.
- * A \p LoopTreeNode consists of a set of header \p Lambda%s and \p LoopTreeNode%s as children.
- * The root node is a \p LoopTreeNode without any headers but further \p LoopTreeNode children.
+ * A \p LoopNode consists of a set of header \p Lambda%s and \p LoopNode%s as children.
+ * The root node is a \p LoopNode without any headers but further \p LoopNode children.
  * Thus, the forest is pooled into a tree.
  */
-class LoopTreeNode {
+class LoopNode {
 public:
 
-    LoopTreeNode(LoopTreeNode* parent, int depth)
+    LoopNode(LoopNode* parent, int depth)
         : parent_(parent)
         , depth_(depth)
     {
@@ -49,10 +49,10 @@ public:
     }
 
     int depth() const { return depth_; }
-    const LoopTreeNode* parent() const { return parent_; }
+    const LoopNode* parent() const { return parent_; }
     ArrayRef<Lambda*> headers() const { return headers_; }
-    ArrayRef<LoopTreeNode*> children() const { return children_; }
-    const LoopTreeNode* child(size_t i) const { return children_[i]; }
+    ArrayRef<LoopNode*> children() const { return children_; }
+    const LoopNode* child(size_t i) const { return children_[i]; }
     bool is_root() const { return !parent_; }
     size_t num_headers() const { return headers().size(); }
     size_t num_children() const { return children().size(); }
@@ -63,10 +63,10 @@ public:
 
 private:
 
-    LoopTreeNode* parent_;
+    LoopNode* parent_;
     int depth_;
     std::vector<Lambda*> headers_;
-    AutoVector<LoopTreeNode*> children_;
+    AutoVector<LoopNode*> children_;
     std::vector<Edge> backedges_or_exits_;
     std::vector<Edge> entries_;
 
@@ -78,10 +78,10 @@ private:
  * The implementation uses Steensgard's algorithm.
  * Check out G. Ramalingam, "On Loops, Dominators, and Dominance Frontiers", 1999, for more information.
  */
-class LoopTree : public ScopeAnalysis<LoopTreeNode, true, false /*do not auto-destroy nodes*/> {
+class LoopTree : public ScopeAnalysis<LoopNode, true, false /*do not auto-destroy nodes*/> {
 public:
 
-    typedef ScopeAnalysis<LoopTreeNode, true, false> Super;
+    typedef ScopeAnalysis<LoopNode, true, false> Super;
 
     explicit LoopTree(const Scope& scope)
         : Super(scope)
@@ -89,21 +89,21 @@ public:
         create();
     }
 
-    const LoopTreeNode* root() const { return root_; }
+    const LoopNode* root() const { return root_; }
     int depth(Lambda* lambda) const { return Super::lookup(lambda)->depth(); }
 
 private:
 
-    AutoPtr<LoopTreeNode> root_;
+    AutoPtr<LoopNode> root_;
 
     void create();
 
     friend class LoopTreeBuilder;
 };
 
-LoopTreeNode* create_loop_forest(const Scope& scope);
+LoopNode* create_loop_forest(const Scope& scope);
 
-std::ostream& operator << (std::ostream& o, const LoopTreeNode* node);
+std::ostream& operator << (std::ostream& o, const LoopNode* node);
 
 } // namespace anydsl2
 

@@ -66,13 +66,22 @@ private:
     size_t& dfs(Lambda* lambda) { return number(lambda).dfs; }
     bool on_stack(Lambda* lambda) { assert(is_visited(lambda)); return (lambda->counter & OnStack) != 0; }
     bool in_scc(Lambda* lambda) { return lambda->cur_pass() >= first_pass ? (lambda->counter & InSCC) != 0 : false; }
-    bool is_header(Lambda* lambda) { return lambda->cur_pass() >= first_pass ? (lambda->counter & IsHeader) != 0 : false; }
+    bool is_header(Lambda* lambda) const { return lambda->cur_pass() >= first_pass ? (lambda->counter & IsHeader) != 0 : false; }
     bool is_visited(Lambda* lambda) { return lambda->is_visited(pass); }
+    bool is_leaf(Lambda* lambda, size_t num) {
+        if (num == 1) {
+            for_all (succ, looptree.succs(lambda)) {
+                if (!is_header(succ) && lambda == succ)
+                    return false;
+            }
+            return true;
+        }
+        return false;
+    }
 
     void new_pass() {
         pass = scope().world().new_pass();
-        if (first_pass == size_t(-1))
-            first_pass = pass;
+        first_pass = first_pass == size_t(-1) ? pass : first_pass;
     }
 
     void push(Lambda* lambda) { 
@@ -172,22 +181,12 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
             }
         }
 
-        LoopNode* node = 0;
-        if (num == 1) {
-            for_all (succ, looptree.succs(cur)) {
-                if (!is_header(succ) && cur == succ) {
-                    goto self_loop;
-                }
-            }
-
+        if (is_leaf(cur, num)) {
             LoopLeaf* leaf = new LoopLeaf(dfs_index++, parent, depth, headers);
-            node = looptree.nodes_[headers.front()->sid()] = looptree.dfs_leaves_[leaf->dfs_index()] = leaf;
-        }
+            looptree.nodes_[headers.front()->sid()] = looptree.dfs_leaves_[leaf->dfs_index()] = leaf;
+        } else
+            new LoopHeader(parent, depth, headers);
 
-self_loop:
-        if (node == 0) {
-            node = new LoopHeader(parent, depth, headers);
-        }
         // for all lambdas in current SCC
         for_all (header, headers) {
             for_all (pred, looptree.preds(header)) {

@@ -36,7 +36,6 @@ public:
         , first_pass(size_t(-1))
         , dfs_index(0)
     {
-        std::cout << "-------" << std::endl;
         stack.reserve(size());
         build();
         propagate_bounds(looptree.root_);

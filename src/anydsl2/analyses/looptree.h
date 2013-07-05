@@ -125,6 +125,7 @@ public:
     int depth(Lambda* lambda) const { return Super::lookup(lambda)->depth(); }
     size_t lambda2dfs(Lambda* lambda) const { return Super::lookup(lambda)->dfs_index(); }
     bool contains(const LoopHeader* header, Lambda* lambda) const {
+        if (!scope().contains(lambda)) return false;
         size_t dfs = lambda2dfs(lambda);
         return header->dfs_begin() <= dfs && dfs < header->dfs_end();
     }

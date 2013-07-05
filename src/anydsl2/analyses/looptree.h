@@ -29,48 +29,71 @@ private:
     Lambda* dst_;
 };
 
+class LoopHeader;
+
 /**
  * Represents a node of a loop nesting forest.
  * Please refer to G. Ramalingam, "On Loops, Dominators, and Dominance Frontiers", 1999
  * for an introduction to loop nesting forests.
  * A \p LoopNode consists of a set of header \p Lambda%s and \p LoopNode%s as children.
- * The root node is a \p LoopNode without any headers but further \p LoopNode children.
+ * The root node is a \p LoopHeader without any headers but further \p LoopNode children and \p depth_ -1.
  * Thus, the forest is pooled into a tree.
  */
-class LoopNode {
+class LoopNode : public MagicCast {
 public:
 
-    LoopNode(LoopNode* parent, int depth)
-        : parent_(parent)
-        , depth_(depth)
-    {
-        if (parent_)
-            parent_->children_.push_back(this);
-    }
+    LoopNode(LoopHeader* parent, int depth, const std::vector<Lambda*>& headers);
+    virtual ~LoopNode() = 0;
 
     int depth() const { return depth_; }
-    const LoopNode* parent() const { return parent_; }
+    const LoopHeader* parent() const { return parent_; }
     ArrayRef<Lambda*> headers() const { return headers_; }
+    size_t num_headers() const { return headers().size(); }
+
+protected:
+
+    LoopHeader* parent_;
+    int depth_;
+    std::vector<Lambda*> headers_;
+};
+
+inline LoopNode::~LoopNode() {}
+
+class LoopHeader : public LoopNode {
+public:
+
+    explicit LoopHeader(LoopHeader* parent, int depth, const std::vector<Lambda*>& headers)
+        : LoopNode(parent, depth, headers)
+    {}
+
     ArrayRef<LoopNode*> children() const { return children_; }
     const LoopNode* child(size_t i) const { return children_[i]; }
-    bool is_root() const { return !parent_; }
-    size_t num_headers() const { return headers().size(); }
     size_t num_children() const { return children().size(); }
-    bool is_leaf() const { assert(num_headers() == 1); return num_children() == 0; }
-    const std::vector<Edge>& backedges() const { assert(!is_leaf()); return backedges_or_exits_; }
-    const std::vector<Edge>& exits() const { assert(is_leaf()); return backedges_or_exits_; }
-    Lambda* lambda() const { assert(is_leaf()); return headers().front(); }
+    const std::vector<Edge>& entries() const { return entries_; }
+    const std::vector<Edge>& exits() const { return exits_; }
+    const std::vector<Edge>& backedges() const { return backedges_; }
+    bool is_root() const { return parent_ == 0; }
 
 private:
 
-    LoopNode* parent_;
-    int depth_;
-    std::vector<Lambda*> headers_;
     AutoVector<LoopNode*> children_;
-    std::vector<Edge> backedges_or_exits_;
     std::vector<Edge> entries_;
+    std::vector<Edge> exits_;
+    std::vector<Edge> backedges_;
 
-    friend class LoopTreeBuilder;
+    friend class LoopNode;
+};
+
+class LoopLeaf : public LoopNode {
+public:
+
+    explicit LoopLeaf(LoopHeader* parent, int depth, const std::vector<Lambda*>& headers)
+        : LoopNode(parent, depth, headers)
+    {
+        assert(num_headers() == 1);
+    }
+
+    Lambda* lambda() const { return headers().front(); }
 };
 
 /**
@@ -78,30 +101,22 @@ private:
  * The implementation uses Steensgard's algorithm.
  * Check out G. Ramalingam, "On Loops, Dominators, and Dominance Frontiers", 1999, for more information.
  */
-class LoopTree : public ScopeAnalysis<LoopNode, true, false /*do not auto-destroy nodes*/> {
+class LoopTree : public ScopeAnalysis<LoopLeaf, true, false /*do not auto-destroy nodes*/> {
 public:
 
-    typedef ScopeAnalysis<LoopNode, true, false> Super;
+    typedef ScopeAnalysis<LoopLeaf, true, false> Super;
 
-    explicit LoopTree(const Scope& scope)
-        : Super(scope)
-    {
-        create();
-    }
+    explicit LoopTree(const Scope& scope);
 
-    const LoopNode* root() const { return root_; }
+    const LoopHeader* root() const { return root_; }
     int depth(Lambda* lambda) const { return Super::lookup(lambda)->depth(); }
 
 private:
 
-    AutoPtr<LoopNode> root_;
-
-    void create();
+    AutoPtr<LoopHeader> root_;
 
     friend class LoopTreeBuilder;
 };
-
-LoopNode* create_loop_forest(const Scope& scope);
 
 std::ostream& operator << (std::ostream& o, const LoopNode* node);
 

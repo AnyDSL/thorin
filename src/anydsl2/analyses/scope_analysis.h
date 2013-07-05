@@ -6,7 +6,7 @@
 
 namespace anydsl2 {
 
-template<class T, bool forwards, bool destroy_nodes>
+template<class T, bool forwards, bool destroy_nodes = true>
 class ScopeAnalysis {
 protected:
 

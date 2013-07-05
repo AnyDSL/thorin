@@ -41,7 +41,7 @@ private:
 };
 
 template<bool forwards>
-class DomTreeBase : public ScopeAnalysis<DomNodeBase<forwards>, forwards, true /*auto destroy nodes*/> {
+class DomTreeBase : public ScopeAnalysis<DomNodeBase<forwards>, forwards> {
 public:
 
     typedef DomNodeBase<forwards> DomNode;

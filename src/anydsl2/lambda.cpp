@@ -215,9 +215,21 @@ Lambda* Lambda::mem_call(const Def* to, ArrayRef<const Def*> args, const Type* r
  * CPS construction
  */
 
+void Lambda::clear() { 
+    for_all (tracker, tracked_values_)
+        delete tracker;
+    tracked_values_.clear(); 
+}
+
+const Def* Lambda::set_value(size_t handle, const Def* def) { 
+    if (const Tracker* tracker = tracked_values_[handle])
+        delete tracker;
+    return (tracked_values_[handle] = new Tracker(def))->def(); 
+}
+
 const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) {
-    if (const Def* def = defs_.find(handle))
-        return def->representative();
+    if (const Tracker* tracker = tracked_values_.find(handle))
+        return *tracker;
 
     if (parent() != this) { // is a function head?
         if (parent())

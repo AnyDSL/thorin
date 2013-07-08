@@ -128,7 +128,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
 
     // cps construction
 
-    const Def* set_value(size_t handle, const Def* def) { return defs_[handle] = def; }
+    const Def* set_value(size_t handle, const Def* def);
     const Def* get_value(size_t handle, const Type* type, const char* name = "");
     
     Lambda* parent() const { return parent_; }            ///< See \ref parent_ for more information.
@@ -136,7 +136,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     void seal();
     bool is_sealed() const { return is_sealed_; }
     void unseal() { is_sealed_ = false; }
-    void clear() { defs_.clear(); }
+    void clear();
 
 private:
 
@@ -166,6 +166,7 @@ private:
 
     void fix(const Todo& todo);
     const Def* get_value(const Todo& todo) { return get_value(todo.handle(), todo.type(), todo.name()); }
+    const Def* try_remove_trivial_param(const Param*);
 
     size_t sid_;           ///< \p Scope index, i.e., reverse post-order number.
     size_t backwards_sid_; ///< \p Scope index, i.e., reverse post-order number, while reverting control-flow beginning with the exits.
@@ -185,8 +186,8 @@ private:
     Lambda* parent_;
     bool is_sealed_;
 
-    typedef IndexMap<const Def> DefMap;
-    DefMap defs_;
+    typedef IndexMap<const Tracker> TrackedValues;
+    TrackedValues tracked_values_;
 
     typedef std::vector<Todo> Todos;
     Todos todos_;

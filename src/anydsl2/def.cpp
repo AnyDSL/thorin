@@ -208,7 +208,7 @@ Param::Param(size_t gid, const Type* type, Lambda* lambda, size_t index, const s
     : Def(gid, Node_Param, 0, type, false, name)
     , lambda_(lambda)
     , index_(index)
-    , representative_(0)
+    //, representative_(0)
 {}
 
 Peeks Param::peek() const {
@@ -222,19 +222,19 @@ Peeks Param::peek() const {
     return result;
 }
 
-const Def* Param::representative() const {
-    // TODO path compression
-    for (const Param* param = this;;) {
-        if (param->representative_) {
-            if (param->representative_->isa<Param>())
-                param = param->representative_->as<Param>();
-            else {
-                return param->representative_;
-            }
-        } else
-            return param;
-    }
-}
+//const Def* Param::representative() const {
+    //// TODO path compression
+    //for (const Param* param = this;;) {
+        //if (param->representative_) {
+            //if (param->representative_->isa<Param>())
+                //param = param->representative_->as<Param>();
+            //else {
+                //return param->representative_;
+            //}
+        //} else
+            //return param;
+    //}
+//}
 
 //------------------------------------------------------------------------------
 

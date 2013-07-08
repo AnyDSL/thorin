@@ -12,6 +12,7 @@
 #include "anydsl2/enums.h"
 #include "anydsl2/node.h"
 #include "anydsl2/util/array.h"
+#include "anydsl2/util/autoptr.h"
 #include "anydsl2/util/cast.h"
 
 namespace anydsl2 {
@@ -205,6 +206,7 @@ public:
      * Useful if you want to modfy users while iterating over all users.
      */
     Array<Use> copy_uses() const;
+    AutoVector<const Tracker*> tracked_uses() const;
     std::vector<MultiUse> multi_uses() const;
     const Type* type() const { return type_; }
     int order() const;

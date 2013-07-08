@@ -164,7 +164,7 @@ private:
         const char* name_;
     };
 
-    void fix(const Todo& todo);
+    const Def* fix(const Todo& todo);
     const Def* get_value(const Todo& todo) { return get_value(todo.handle(), todo.type(), todo.name()); }
     const Def* try_remove_trivial_param(const Param*);
 

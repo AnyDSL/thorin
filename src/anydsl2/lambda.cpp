@@ -237,25 +237,23 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
         goto return_bottom;
     } else {
         Lambdas preds = this->preds();
-        if (preds.empty())
-            goto return_bottom;
 
-        // insert a 'phi', i.e., create a param and remember to fix the callers
-        if (!is_sealed_ || preds.size() > 1) {
+        if (!is_sealed_) {
             const Param* param = append_param(type, name);
-            set_value(handle, param);
-
-            Todo todo(handle, param->index(), type, name);
-            if (is_sealed_)
-                fix(todo);
-            else
-                todos_.push_back(todo);
-
-            return param;
+            todos_.push_back(Todo(handle, param->index(), type, name));
+            return set_value(handle, param);
+        } else {
+            switch (preds.size()) {
+                case 0: goto return_bottom;
+                case 1: return set_value(handle, preds.front()->get_value(handle, type, name));
+                default: {
+                    const Param* param = append_param(type, name);
+                    set_value(handle, param);
+                    set_value(handle, fix(Todo(handle, param->index(), type, name)));
+                    return param;
+                }
+            }
         }
-
-        assert(preds.size() == 1 && "there can only be one");
-        return set_value(handle, preds.front()->get_value(handle, type, name));
     }
 
 return_bottom:
@@ -273,34 +271,14 @@ void Lambda::seal() {
     todos_.clear();
 }
 
-void Lambda::fix(const Todo& todo) {
+const Def* Lambda::fix(const Todo& todo) {
     assert(is_sealed() && "must be sealed");
 
     size_t index = todo.index();
     const Param* param = this->param(index);
     assert(todo.index() == param->index());
 
-    Lambdas preds = this->preds();
-
-    // find Horspool-like phis
-    const Def* same = 0;
-    for_all (pred, preds) {
-        const Def* def = pred->get_value(todo);
-        if (def == param || same == def)
-            continue;
-
-        if (same) {
-            same = 0;
-            goto fix_preds;
-        }
-        same = def;
-    }
-
-    same = same ? same : world().bottom(param->type());
-    param->replace(same);
-
-fix_preds:
-    for_all (pred, preds) {
+    for_all (pred, preds()) {
         assert(!pred->empty());
         assert(pred->succs().size() == 1 && "critical edge");
 
@@ -309,8 +287,46 @@ fix_preds:
             pred->resize(index+2);
 
         assert(!pred->arg(index) && "already set");
-        pred->set_op(index + 1, same ? same : pred->get_value(todo));
+        pred->set_op(index + 1, pred->get_value(todo));
     }
+
+    return try_remove_trivial_param(param);
+}
+
+const Def* Lambda::try_remove_trivial_param(const Param* param) {
+    assert(is_sealed() && "must be sealed");
+    Lambdas preds = this->preds();
+    size_t index = param->index();
+
+    // find Horspool-like phis
+    const Def* same = 0;
+    for_all (pred, preds) {
+        const Def* def = pred->arg(index);
+        if (def == param || same == def)
+            continue;
+        if (same)
+            return param;
+        same = def;
+    }
+
+    same = same ? same : world().bottom(param->type());
+    AutoVector<const Tracker*> uses = param->tracked_uses();
+    param->replace(same);
+    std::cout << "replace: " << std::endl;
+    param->dump();
+    same->dump();
+    //for_all (peek, param->peek())
+        //peek.from()->update_arg(index, world().bottom(param->type()));
+
+    for_all (tracker, uses) {
+        if (Lambda* lambda = tracker->def()->isa_lambda()) {
+            for_all (succ, lambda->succs())
+                if (param != succ->param(index))
+                    try_remove_trivial_param(succ->param(index));
+        }
+    }
+
+    return same;
 }
 
 } // namespace anydsl2

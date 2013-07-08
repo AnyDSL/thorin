@@ -73,6 +73,14 @@ Array<Use> Def::copy_uses() const {
     return result;
 }
 
+AutoVector<const Tracker*> Def::tracked_uses() const {
+    AutoVector<const Tracker*> result(uses().size());
+    for_all2 (&tracker, result, use, uses())
+        tracker = new Tracker(use.def());
+
+    return result;
+}
+
 std::vector<MultiUse> Def::multi_uses() const {
     std::vector<MultiUse> result;
     Array<Use> uses = copy_uses();

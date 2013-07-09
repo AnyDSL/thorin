@@ -205,7 +205,6 @@ public:
     const Trackers& trackers() const { return trackers_; }
     size_t num_uses() const { return uses_.size(); }
     size_t gid() const { return gid_; }
-    //virtual const Def* representative() const { return this; }
     std::string unique_name() const;
 
     /**
@@ -279,13 +278,11 @@ public:
     Lambda* lambda() const { return lambda_; }
     size_t index() const { return index_; }
     Peeks peek() const;
-    //virtual const Def* representative() const;
 
 private:
 
     mutable Lambda* lambda_;
     const size_t index_;
-    //mutable const Def* representative_;
 
     friend class World;
     friend class Lambda;

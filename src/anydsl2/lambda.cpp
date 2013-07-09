@@ -255,9 +255,8 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
                 case 1: return set_value(handle, preds.front()->get_value(handle, type, name));
                 default: {
                     const Param* param = append_param(type, name);
-                    set_value(handle, param);
-                    set_value(handle, fix(Todo(handle, param->index(), type, name)));
-                    return param;
+                    set_value(handle, param); // break cycle by first letting handle point to param
+                    return set_value(handle, fix(Todo(handle, param->index(), type, name)));
                 }
             }
         }

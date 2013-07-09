@@ -133,6 +133,9 @@ bool Def::is_minus_zero() const {
 }
 
 void Def::replace(const Def* with) const {
+    for_all (tracker, trackers())
+        *tracker = with;
+
     std::vector<MultiUse> uses = multi_uses();
 
     for_all (use, uses) {
@@ -176,10 +179,6 @@ void Def::replace(const Def* with) const {
                 }
             }
 recurse:
-            // update trackers to point to new defintion ndef
-            for_all (tracker, oprimop->trackers())
-                *tracker = ndef;
-
             oprimop->replace(ndef);
             oprimop->unset_ops();
             delete oprimop;

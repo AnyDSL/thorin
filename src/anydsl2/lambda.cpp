@@ -312,11 +312,9 @@ const Def* Lambda::try_remove_trivial_param(const Param* param) {
     same = same ? same : world().bottom(param->type());
     AutoVector<const Tracker*> uses = param->tracked_uses();
     param->replace(same);
-    std::cout << "replace: " << std::endl;
-    param->dump();
-    same->dump();
-    //for_all (peek, param->peek())
-        //peek.from()->update_arg(index, world().bottom(param->type()));
+
+    for_all (peek, param->peek())
+        peek.from()->update_arg(index, world().bottom(param->type()));
 
     for_all (tracker, uses) {
         if (Lambda* lambda = tracker->def()->isa_lambda()) {

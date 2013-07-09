@@ -1,3 +1,5 @@
+#include <boost/unordered_map.hpp>
+
 #include "anydsl2/memop.h"
 #include "anydsl2/world.h"
 #include "anydsl2/analyses/scope.h"
@@ -32,6 +34,7 @@ void mem2reg(World& world) {
         Schedule schedule = schedule_late(scope);
         const size_t pass = world.new_pass();
         size_t cur_handle = 0;
+        boost::unordered_map<const Load*, const Tracker*> load2tracker;
 
         for (size_t i = 0, e = scope.size(); i != e; ++i) {
             Lambda* lambda = scope[i];
@@ -60,7 +63,7 @@ void mem2reg(World& world) {
                     if (const Slot* slot = load->ptr()->isa<Slot>()) {
                         if (slot->counter != size_t(-1)) {  // if not "address taken"
                             const Type* type = slot->type()->as<Ptr>()->referenced_type();
-                            load->cptr = lambda->get_value(slot->counter, type, slot->name.c_str());
+                            load2tracker[load] = new Tracker(lambda->get_value(slot->counter, type, slot->name.c_str()));
                             accesses.push_back(load);
                         }
                     }
@@ -85,13 +88,16 @@ void mem2reg(World& world) {
         // now replace everything from bottom up
         for (size_t i = accesses.size(); i-- != 0;) {
             if (const Load* load = accesses[i]->isa<Load>()) {
-                load->extract_val()->replace((const Def*) load->cptr);
+                load->extract_val()->replace(load2tracker[load]->def());
                 load->extract_mem()->replace(load->mem());
             } else {
                 const Store* store = accesses[i]->as<Store>();
                 store->replace(store->mem());
             }
         }
+
+        for_all (p, load2tracker)
+            delete p.second;
 
 next_primop:;
     }

@@ -184,6 +184,7 @@ private:
      */
     Lambda* parent_;
     bool is_sealed_;
+    bool is_visited_;
 
     typedef std::vector<const Tracker*> TrackedValues;
     TrackedValues tracked_values_;

@@ -18,6 +18,7 @@ Lambda::Lambda(size_t gid, const Pi* pi, LambdaAttr attr, bool is_sealed, const 
     , attr_(attr)
     , parent_(this)
     , is_sealed_(is_sealed)
+    , is_visited_(false)
 {
     params_.reserve(pi->size());
 }
@@ -254,6 +255,25 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
                 case 0: goto return_bottom;
                 case 1: return set_value(handle, preds.front()->get_value(handle, type, name));
                 default: {
+                    if (is_visited_)
+                        goto different;
+                    else {
+                        is_visited_ = true;
+                        const Def* same = 0;
+                        for_all (pred, preds) {
+                            const Def* def = pred->get_value(handle, type, name);
+                            if (same && same != def) {
+                                same = (const Def*)-1;
+                                break;
+                            }
+                            same = def;
+                        }
+
+                        is_visited_ = false;
+                        if (same != (const Def*)-1)
+                            return same;
+                    }
+different: 
                     const Param* param = append_param(type, name);
                     set_value(handle, param); // break cycle by first letting handle point to param
                     return set_value(handle, fix(Todo(handle, param->index(), type, name)));

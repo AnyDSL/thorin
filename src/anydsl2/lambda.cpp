@@ -250,32 +250,32 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
             const Param* param = append_param(type, name);
             todos_.push_back(Todo(handle, param->index(), type, name));
             return set_value(handle, param);
-        } else {
-            switch (preds.size()) {
-                case 0: goto return_bottom;
-                case 1: return set_value(handle, preds.front()->get_value(handle, type, name));
-                default: {
-                    if (!is_visited_) {
-                        is_visited_ = true;
-                        const Def* same = 0;
-                        for_all (pred, preds) {
-                            const Def* def = pred->get_value(handle, type, name);
-                            if (same && same != def) {
-                                same = (const Def*)-1; // defs from preds are different
-                                break;
-                            }
-                            same = def;
-                        }
+        }
 
-                        is_visited_ = false;
-                        if (same != (const Def*)-1)
-                            return same;
+        switch (preds.size()) {
+            case 0: goto return_bottom;
+            case 1: return set_value(handle, preds.front()->get_value(handle, type, name));
+            default: {
+                if (!is_visited_) {
+                    is_visited_ = true;
+                    const Def* same = 0;
+                    for_all (pred, preds) {
+                        const Def* def = pred->get_value(handle, type, name);
+                        if (same && same != def) {
+                            same = (const Def*)-1; // defs from preds are different
+                            break;
+                        }
+                        same = def;
                     }
 
-                    const Param* param = append_param(type, name);
-                    set_value(handle, param); // break cycle by first letting handle point to param
-                    return set_value(handle, fix(Todo(handle, param->index(), type, name)));
+                    is_visited_ = false;
+                    if (same != (const Def*)-1)
+                        return same;
                 }
+
+                const Param* param = append_param(type, name);
+                set_value(handle, param); // break cycle by first letting handle point to param
+                return set_value(handle, fix(Todo(handle, param->index(), type, name)));
             }
         }
     }

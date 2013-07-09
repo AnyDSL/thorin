@@ -318,7 +318,9 @@ const Def* Lambda::fix(const Todo& todo) {
 }
 
 const Def* Lambda::try_remove_trivial_param(const Param* param) {
+    assert(param->lambda() == this);
     assert(is_sealed() && "must be sealed");
+
     Lambdas preds = this->preds();
     size_t index = param->index();
 
@@ -344,7 +346,7 @@ const Def* Lambda::try_remove_trivial_param(const Param* param) {
         if (Lambda* lambda = tracker->def()->isa_lambda()) {
             for_all (succ, lambda->succs())
                 if (param != succ->param(index))
-                    try_remove_trivial_param(succ->param(index));
+                    succ->try_remove_trivial_param(succ->param(index));
         }
     }
 

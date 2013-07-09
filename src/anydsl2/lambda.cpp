@@ -267,6 +267,7 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
                         }
                         same = def;
                     }
+                    assert(same != 0);
 
                     is_visited_ = false;
                     if (same != (const Def*)-1)

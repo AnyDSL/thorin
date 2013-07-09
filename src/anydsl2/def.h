@@ -85,7 +85,10 @@ private:
 
 //------------------------------------------------------------------------------
 
-/// References a user, i.e., a \p Def using the referenced \p Def in question as \p index_'s operand.
+/** 
+ * References a user.
+ * A \p Def u which uses \p Def d as i^th operand is a \p Use with \p index_ i of \p Def d.
+ */
 class Use {
 public:
 
@@ -113,7 +116,11 @@ private:
 
 //------------------------------------------------------------------------------
 
-/// References a user which may use the \p Def in question multiple times.
+/** 
+ * References a user which may use the \p Def in question multiple times.
+ * For example, a \p Def u may use a \p Def d as i^th \em and is j'th operand.
+ * Then a \p MultiUse of d references u with \p indices_ i and j.
+ */
 class MultiUse {
 public:
 

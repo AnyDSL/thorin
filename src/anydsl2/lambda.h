@@ -7,7 +7,6 @@
 #include "anydsl2/def.h"
 #include "anydsl2/type.h"
 #include "anydsl2/util/autoptr.h"
-#include "anydsl2/util/indexmap.h"
 
 namespace anydsl2 {
 
@@ -17,7 +16,6 @@ class Pi;
 class Scope;
 
 typedef std::vector<Lambda*> Lambdas;
-
 typedef std::vector<const Param*> Params;
 
 struct LambdaAttr {
@@ -167,6 +165,7 @@ private:
     const Def* fix(const Todo& todo);
     const Def* get_value(const Todo& todo) { return get_value(todo.handle(), todo.type(), todo.name()); }
     const Def* try_remove_trivial_param(const Param*);
+    const Tracker* find_tracker(size_t handle);
 
     size_t sid_;           ///< \p Scope index, i.e., reverse post-order number.
     size_t backwards_sid_; ///< \p Scope index, i.e., reverse post-order number, while reverting control-flow beginning with the exits.
@@ -186,7 +185,7 @@ private:
     Lambda* parent_;
     bool is_sealed_;
 
-    typedef IndexMap<const Tracker> TrackedValues;
+    typedef std::vector<const Tracker*> TrackedValues;
     TrackedValues tracked_values_;
 
     typedef std::vector<Todo> Todos;

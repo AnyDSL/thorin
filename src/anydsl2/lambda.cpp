@@ -221,15 +221,22 @@ void Lambda::clear() {
     tracked_values_.clear(); 
 }
 
+const Tracker* Lambda::find_tracker(size_t handle) {
+    if (handle >= tracked_values_.size())
+        tracked_values_.resize(handle+1);
+    return tracked_values_[handle];
+}
+
 const Def* Lambda::set_value(size_t handle, const Def* def) { 
-    if (const Tracker* tracker = tracked_values_[handle])
+    if (const Tracker* tracker = find_tracker(handle))
         delete tracker;
+
     return (tracked_values_[handle] = new Tracker(def))->def(); 
 }
 
 const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) {
-    if (const Tracker* tracker = tracked_values_.find(handle))
-        return *tracker;
+    if (const Tracker* tracker = find_tracker(handle))
+        return tracker->def();
 
     if (parent() != this) { // is a function head?
         if (parent())

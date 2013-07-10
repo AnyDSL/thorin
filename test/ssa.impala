@@ -1,0 +1,10 @@
+def main(i : int) -> int {
+    a : int;
+    b : int = 0;
+    if (i == 0)
+        a = 23;
+    else
+        a = 42;
+
+    return a + b;
+}

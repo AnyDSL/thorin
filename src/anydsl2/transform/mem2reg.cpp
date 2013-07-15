@@ -108,7 +108,7 @@ next_primop:;
     // this will wipe out dead Slots
     world.cleanup();
 
-    // are there any Leave/Enter pairs superfluous?
+    // are there any superfluous Leave/Enter pairs?
     for (size_t i = leaves.size(); i-- != 0;) {
         const Leave* leave = leaves[i]->def()->as<Leave>();
         const Enter* enter = leave->frame()->as<TupleExtract>()->tuple()->as<Enter>();

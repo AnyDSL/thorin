@@ -338,7 +338,6 @@ const Def* Lambda::try_remove_trivial_param(const Param* param) {
     }
     assert(same != 0);
 
-    //same = same ? same : world().bottom(param->type());
     AutoVector<const Tracker*> uses = param->tracked_uses();
     param->replace(same);
 

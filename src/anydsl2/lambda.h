@@ -54,7 +54,7 @@ public:
     Lambdas direct_succs() const;
     Lambdas direct_preds() const;
     const Params& params() const { return params_; }
-    const Param* param(size_t i) const { return params_[i]; }
+    const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
     const Param* mem_param() const;
     const Def* to() const { return op(0); };
     ArrayRef<const Def*> args() const { return empty() ? ArrayRef<const Def*>(0, 0) : ops().slice_back(1); }

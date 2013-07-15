@@ -256,26 +256,31 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
             case 0: goto return_bottom;
             case 1: return set_value(handle, preds.front()->get_value(handle, type, name));
             default: {
-                if (!is_visited_) {
-                    is_visited_ = true;
-                    const Def* same = 0;
-                    for_all (pred, preds) {
-                        const Def* def = pred->get_value(handle, type, name);
-                        if (same && same != def) {
-                            same = (const Def*)-1; // defs from preds are different
-                            break;
-                        }
-                        same = def;
+                if (is_visited_)
+                    return set_value(handle, append_param(type, name));
+
+                is_visited_ = true;
+                const Def* same = 0;
+                for_all (pred, preds) {
+                    const Def* def = pred->get_value(handle, type, name);
+                    if (same && same != def) {
+                        same = (const Def*)-1; // defs from preds are different
+                        break;
                     }
-                    assert(same != 0);
-
-                    is_visited_ = false;
-                    if (same != (const Def*)-1)
-                        return same;
+                    same = def;
                 }
+                assert(same != 0);
 
-                const Param* param = append_param(type, name);
-                set_value(handle, param); // break cycle by first letting handle point to param
+                is_visited_ = false;
+                if (same != (const Def*)-1)
+                    return same;
+
+                const Param* param;
+                if (const Tracker* tracker = find_tracker(handle))
+                    param = tracker->def()->as<Param>();
+                else
+                    param = append_param(type, name);
+
                 return set_value(handle, fix(Todo(handle, param->index(), type, name)));
             }
         }
@@ -335,8 +340,9 @@ const Def* Lambda::try_remove_trivial_param(const Param* param) {
             return param;
         same = def;
     }
+    assert(same != 0);
 
-    same = same ? same : world().bottom(param->type());
+    //same = same ? same : world().bottom(param->type());
     AutoVector<const Tracker*> uses = param->tracked_uses();
     param->replace(same);
 
@@ -345,9 +351,20 @@ const Def* Lambda::try_remove_trivial_param(const Param* param) {
 
     for_all (tracker, uses) {
         if (Lambda* lambda = tracker->def()->isa_lambda()) {
-            for_all (succ, lambda->succs())
+            for_all (succ, lambda->succs()) {
+                size_t index = -1;
+                for (size_t i = 0, e = succ->num_args(); i != e; ++i) {
+                    if (succ->arg(i) == tracker->def()) {
+                        index = i;
+                        break;
+                    }
+                }
+                if (index == size_t(-1))
+                    break;
+
                 if (param != succ->param(index))
                     succ->try_remove_trivial_param(succ->param(index));
+            }
         }
     }
 

@@ -5,12 +5,10 @@
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/analyses/schedule.h"
 #include "anydsl2/analyses/verify.h"
-#include "anydsl2/transform/inliner.h"
 #include "anydsl2/transform/merge_lambdas.h"
 
 namespace anydsl2 {
 
-// currently, this transformation only works when in CFF
 
 void mem2reg(World& world) {
     Array<Lambda*> top = top_level_lambdas(world);

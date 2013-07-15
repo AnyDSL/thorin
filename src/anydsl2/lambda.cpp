@@ -244,14 +244,13 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
             return parent()->get_value(handle, type, name);
         goto return_bottom;
     } else {
-        Lambdas preds = this->preds();
-
         if (!is_sealed_) {
             const Param* param = append_param(type, name);
             todos_.push_back(Todo(handle, param->index(), type, name));
             return set_value(handle, param);
         }
 
+        Lambdas preds = this->preds();
         switch (preds.size()) {
             case 0: goto return_bottom;
             case 1: return set_value(handle, preds.front()->get_value(handle, type, name));
@@ -275,11 +274,8 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
                 if (same != (const Def*)-1)
                     return same;
 
-                const Param* param;
-                if (const Tracker* tracker = find_tracker(handle))
-                    param = tracker->def()->as<Param>();
-                else
-                    param = append_param(type, name);
+                const Tracker* tracker = find_tracker(handle);
+                const Param* param = tracker ? tracker->def()->as<Param>() : append_param(type, name);
 
                 return set_value(handle, fix(Todo(handle, param->index(), type, name)));
             }
@@ -302,10 +298,10 @@ void Lambda::seal() {
 }
 
 const Def* Lambda::fix(const Todo& todo) {
-    assert(is_sealed() && "must be sealed");
-
     size_t index = todo.index();
     const Param* param = this->param(index);
+
+    assert(is_sealed() && "must be sealed");
     assert(todo.index() == param->index());
 
     for_all (pred, preds()) {
@@ -359,10 +355,7 @@ const Def* Lambda::try_remove_trivial_param(const Param* param) {
                         break;
                     }
                 }
-                if (index == size_t(-1))
-                    break;
-
-                if (param != succ->param(index))
+                if (index != size_t(-1) && param != succ->param(index))
                     succ->try_remove_trivial_param(succ->param(index));
             }
         }

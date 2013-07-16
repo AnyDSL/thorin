@@ -1,0 +1,18 @@
+def blockedloop(N : int, bodyfn : pi(int)) -> pi(int) {
+    def generatelevel(n : int) -> pi(int) {
+        if (n > N)
+            return bodyfn;
+        //blocksize : int = 32;
+        return lambda(ii : int) {
+            for (i : int = ii; i < N; ++i)
+                generatelevel(n+1)(i);
+            };
+    }
+
+    return generatelevel(1);
+}
+
+def main(i : int) -> int {
+    blockedloop(i, lambda(...));
+    return 0;
+}

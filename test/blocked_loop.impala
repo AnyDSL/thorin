@@ -1,18 +1,31 @@
-def blockedloop(N : int, bodyfn : pi(int)) -> pi(int) {
-    def generatelevel(n : int) -> pi(int) {
-        if (n > N)
-            return bodyfn;
-        //blocksize : int = 32;
-        return lambda(ii : int) {
-            for (i : int = ii; i < N; ++i)
-                generatelevel(n+1)(i);
-            };
+def blocked_loop(length : int, get_block_size : pi(int) -> int, bodyfn : pi(int, pi(int))) -> int {
+    def blocked_iter(cur_level : int, i : int, N : int) -> int {
+        block_size : int = get_block_size(cur_level);
+        if (block_size <= 0)
+            return bodyfn(i);
+        res : int = 0;
+        for (ii : int = i; ii < N; ii += block_size)
+            res += blocked_iter(cur_level + 1, ii, block_size);
+
+        return res;
     }
 
-    return generatelevel(1);
+    return blocked_iter(1, 0, length);
 }
 
 def main(i : int) -> int {
-    blockedloop(i, lambda(...));
-    return 0;
+    def get_block_size(i : int) -> int {
+        if (i == 0)
+            return 4096;
+        else if (i == 1)
+            return 2048;
+        else if (i == 2)
+            return 1024;
+        else if (i == 3)
+            return 256;
+        else
+            return 0;
+    }
+
+    return blocked_loop(8192, get_block_size, lambda(i : int) -> int { return i; });
 }

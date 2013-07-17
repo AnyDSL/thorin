@@ -56,10 +56,20 @@ public:
     std::ostream& error(const Location& loc) { result_ = false; return loc.error(); }
     GenericMap fill_map();
     World& world() { return world_; }
+    bool check(const Prg*) ;
+    void fun_check(const Fun*);
+    void check(const NamedFun* fun) { return fun_check(fun); }
     const anydsl2::Type* check(const Expr* expr) { assert(!expr->type_); return expr->type_ = expr->check(*this); }
+    void check(const Stmt* stmt) { stmt->check(*this); }
+    void check_stmts(const ScopeStmt* scope) { for_all (s, scope->stmts()) s->check(*this); }
+    bool check_cond(const Expr* cond) {
+        if (check(cond)->is_u1())
+            return true;
+        error(cond) << "condition not a bool\n";
+        return false;
+    }
 
     std::vector< boost::unordered_set<const Generic*> > bound_generics_;
-    
     bool in_foreach_;
 
 private:
@@ -74,6 +84,8 @@ private:
     std::vector<size_t> levels_;
 };
 
+void NamedFunStmt::check(Sema& sema) const { sema.check(named_fun()); }
+
 //------------------------------------------------------------------------------
 
 const Decl* Sema::lookup(Symbol sym) {
@@ -82,6 +94,12 @@ const Decl* Sema::lookup(Symbol sym) {
 }
 
 void Sema::insert(const Decl* decl) {
+    if (const Decl* other = clash(decl->symbol())) {
+        error(decl) << "symbol '" << decl->symbol() << "' already defined\n";
+        error(other) << "previous location here\n";
+        return;
+    } 
+
     Symbol symbol = decl->symbol();
     assert(clash(symbol) == 0 && "must not be found");
 
@@ -115,22 +133,16 @@ void Sema::pop_scope() {
 
 //------------------------------------------------------------------------------
 
-bool check(World& world, const Prg* prg, bool nossa) {
-    Sema sema(world, nossa);
-    prg->check(sema);
-    return sema.result();
-}
+bool Sema::check(const Prg* prg) {
+    for_all (global, prg->globals())
+        insert(global);
 
-//------------------------------------------------------------------------------
-
-void Prg::check(Sema& sema) const {
-    for_all (global, globals())
-        global->insert(sema);
-
-    for_all (global, globals()) {
+    for_all (global, prg->globals()) {
         if (const NamedFun* f = global->isa<NamedFun>())
-        f->check(sema);
+            check(f);
     }
+
+    return result();
 }
 
 static void propagate_set(const Type* type, boost::unordered_set<const Generic*>& bound) {
@@ -149,49 +161,32 @@ GenericMap Sema::fill_map() {
     return map;
 }
 
-void Fun::fun_check(Sema& sema) const {
-    sema.push_scope();
+void Sema::fun_check(const Fun* fun) {
+    push_scope();
     boost::unordered_set<const Generic*> bound;
-    propagate_set(pi(), bound);
-    sema.bound_generics_.push_back(bound);
+    propagate_set(fun->pi(), bound);
+    bound_generics_.push_back(bound);
 
-    for_all (f, body()->named_funs())
-        f->insert(sema);
+    for_all (f, fun->body()->named_funs())
+        insert(f);
 
-    for_all (p, params())
-        p->insert(sema);
+    for_all (p, fun->params())
+        insert(p);
 
-    for_all (s, body()->stmts())
-        s->check(sema);
+    for_all (s, fun->body()->stmts())
+        s->check(*this);
 
-    sema.bound_generics_.pop_back();
-    sema.pop_scope();
-}
-
-void Decl::insert(Sema& sema) const {
-    if (const Decl* decl = sema.clash(symbol())) {
-        sema.error(this) << "symbol '" << symbol() << "' already defined\n";
-        sema.error(decl) << "previous location here\n";
-    } else
-        sema.insert(this);
+    bound_generics_.pop_back();
+    pop_scope();
 }
 
 /*
  * Expr
  */
 
-const Type* EmptyExpr::check(Sema& sema) const {
-    return sema.world().unit();
-}
-
-const Type* Literal::check(Sema& sema) const {
-    return sema.world().type(literal2type());
-}
-
-const Type* FunExpr::check(Sema& sema) const {
-    fun_check(sema);
-    return pi();
-}
+const Type* EmptyExpr::check(Sema& sema) const { return sema.world().unit(); }
+const Type* Literal::check(Sema& sema) const { return sema.world().type(literal2type()); }
+const Type* FunExpr::check(Sema& sema) const { sema.fun_check(this); return pi(); }
 
 const Type* Tuple::check(Sema& sema) const {
     Array<const Type*> elems(ops().size());
@@ -361,7 +356,7 @@ const Type* Call::check(Sema& sema) const {
  */
 
 void DeclStmt::check(Sema& sema) const {
-    var_decl()->insert(sema);
+    sema.insert(var_decl());
 
     if (const Expr* init_expr = init()) {
         if (var_decl()->type()->check_with(sema.check(init_expr))) {
@@ -383,35 +378,27 @@ void ExprStmt::check(Sema& sema) const {
     sema.check(expr());
 }
 
-static bool check_cond(Sema& sema, const Expr* cond) {
-    if (sema.check(cond)->is_u1())
-        return true;
-
-    sema.error(cond) << "condition not a bool\n";
-    return false;
-}
-
 void IfElseStmt::check(Sema& sema) const {
-    check_cond(sema, cond());
-    then_stmt()->check(sema);
-    else_stmt()->check(sema);
+    sema.check_cond(cond());
+    sema.check(then_stmt());
+    sema.check(else_stmt());
 }
 
 void DoWhileStmt::check(Sema& sema) const {
-    body()->check(sema);
-    check_cond(sema, cond());
+    sema.check(body());
+    sema.check_cond(cond());
 }
 
 void ForStmt::check(Sema& sema) const {
     sema.push_scope();
-    init()->check(sema);
-    check_cond(sema, cond());
+    sema.check(init());
+    sema.check_cond(cond());
     sema.check(step());
 
     if (const ScopeStmt* scope = body()->isa<ScopeStmt>())
-        scope->check_stmts(sema);
+        sema.check_stmts(scope);
     else
-        body()->check(sema);
+        sema.check(body());
 
     sema.pop_scope();
 }
@@ -421,7 +408,7 @@ void ForeachStmt::check(Sema& sema) const {
 
     const Type* left_type_;
     if (init_decl()) {
-        init_decl()->insert(sema);
+        sema.insert(init_decl());
         left_type_ = init_decl()->type();
     } else {
         left_type_ = sema.check(init_expr());
@@ -457,9 +444,9 @@ void ForeachStmt::check(Sema& sema) const {
     Push<bool> push(sema.in_foreach_, true);
 
     if (const ScopeStmt* scope = body()->isa<ScopeStmt>())
-        scope->check_stmts(sema);
+        sema.check_stmts(scope);
     else
-        body()->check(sema);
+        sema.check(body());
 
     if (init_decl())
         init_decl()->is_address_taken_ = false;
@@ -508,13 +495,14 @@ void ReturnStmt::check(Sema& sema) const {
 
 void ScopeStmt::check(Sema& sema) const {
     sema.push_scope();
-    check_stmts(sema);
+    sema.check_stmts(this);
     sema.pop_scope();
 }
 
-void ScopeStmt::check_stmts(Sema& sema) const {
-    for_all (s, stmts())
-        s->check(sema);
-}
+//------------------------------------------------------------------------------
+
+bool check(World& world, const Prg* prg, bool nossa) { return Sema(world, nossa).check(prg); }
+
+//------------------------------------------------------------------------------
 
 } // namespace impala

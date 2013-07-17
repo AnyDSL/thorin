@@ -49,7 +49,6 @@ public:
 class Prg : public ASTNode {
 public:
 
-    void check(Sema& sema) const;
     virtual Printer& print(Printer& p) const;
     void emit(CodeGen& cg) const;
     const anydsl2::AutoVector<const Global*>& globals() const { return globals_; }
@@ -66,7 +65,6 @@ public:
 
     anydsl2::Symbol symbol() const { return symbol_; }
     const anydsl2::Type* type() const { return type_; }
-    void insert(Sema& sema) const;
     size_t depth() const { return depth_; }
     const Decl* shadows() const { return shadows_; }
 
@@ -94,7 +92,6 @@ public:
     anydsl2::Lambda* lambda() const { return lambda_; }
     const anydsl2::Param* ret_param() const { return ret_param_; }
     Printer& fun_print(Printer& p) const;
-    void fun_check(Sema& sema) const;
     const anydsl2::Lambda* emit_body(CodeGen& cg, anydsl2::Lambda* parent, const char* what) const;
     anydsl2::Lambda* emit_head(CodeGen& cg, anydsl2::Symbol symbol) const;
 
@@ -170,7 +167,6 @@ public:
         set_loc(tok.pos1(), pos2);
     }
 
-    void check(Sema& sema) const { return fun_check(sema); }
     virtual Printer& print(Printer& p) const;
     void emit(CodeGen& cg) const;
 
@@ -479,12 +475,13 @@ class Stmt : public ASTNode {
 public:
 
     virtual bool empty() const { return false; }
-    virtual void check(Sema& sema) const = 0;
 
 private:
 
+    virtual void check(Sema& sema) const = 0;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const = 0;
 
+    friend class Sema;
     friend class CodeGen;
 };
 
@@ -498,12 +495,11 @@ public:
     }
 
     const Expr* expr() const { return expr_; }
-
-    virtual void check(Sema& sema) const;
     virtual Printer& print(Printer& p) const;
 
 private:
 
+    virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     anydsl2::AutoPtr<const Expr> expr_;
@@ -521,12 +517,11 @@ public:
 
     const VarDecl* var_decl() const { return var_decl_; }
     const Expr* init() const { return init_; }
-
-    virtual void check(Sema& sema) const;
     virtual Printer& print(Printer& p) const;
 
 private:
 
+    virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     anydsl2::AutoPtr<const VarDecl> var_decl_;
@@ -547,12 +542,11 @@ public:
     const Expr* cond() const { return cond_; }
     const Stmt* then_stmt() const { return thenStmt_; }
     const Stmt* else_stmt() const { return elseStmt_; }
-
-    virtual void check(Sema& sema) const;
     virtual Printer& print(Printer& p) const;
 
 private:
 
+    virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     anydsl2::AutoPtr<const Expr> cond_;
@@ -564,7 +558,6 @@ class Loop : public Stmt {
 public:
 
     Loop() {}
-
     const Expr* cond() const { return cond_; }
     const Stmt* body() const { return body_; }
 
@@ -587,12 +580,11 @@ public:
         Loop::set(cond, body);
         set_loc(pos1, pos2);
     }
-
-    virtual void check(Sema& sema) const;
     virtual Printer& print(Printer& p) const;
 
 private:
 
+    virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 };
 
@@ -609,18 +601,16 @@ public:
     void set(const DeclStmt* d) { init_decl_ = d; }
     void set(const ExprStmt* e) { init_expr_ = e; }
     void set_empty_init(const anydsl2::Position& pos) { set(new ExprStmt(new EmptyExpr(pos), pos)); }
-
     const DeclStmt* init_decl() const { return init_decl_; }
     const ExprStmt* init_expr() const { return init_expr_; }
     const Stmt* init() const { return (const Stmt*) ((uintptr_t) init_decl_.get() | (uintptr_t) init_expr_.get()); }
     const Expr* step() const { return step_; }
     bool is_while() const;
-
-    virtual void check(Sema& sema) const;
     virtual Printer& print(Printer& p) const;
 
 private:
 
+    virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     anydsl2::AutoPtr<const DeclStmt> init_decl_;
@@ -641,18 +631,16 @@ public:
     void set(const VarDecl* d) { init_decl_ = d; }
     void set(const Expr* e) { init_expr_ = e; }
     void set(const Call* call) { call_ = call; }
-
     const Stmt* body() const { return body_; }
     const VarDecl* init_decl() const { return init_decl_; }
     const Expr* init_expr() const { return init_expr_; }
     const Call* call() const { return call_; }
     const ASTNode* init() const { return (const ASTNode*) ((uintptr_t) init_decl_.get() | (uintptr_t) init_expr_.get()); }
-
-    virtual void check(Sema& sema) const;
     virtual Printer& print(Printer& p) const;
 
 private:
 
+    virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     anydsl2::AutoPtr<const Stmt> body_;
@@ -673,12 +661,11 @@ public:
     }
 
     const Loop* loop() const { return loop_; }
-
-    virtual void check(Sema& sema) const;
     virtual Printer& print(Printer& p) const;
 
 private:
 
+    virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     const Loop* loop_;
@@ -694,12 +681,11 @@ public:
     }
 
     const Loop* loop() const { return loop_; }
-
-    virtual void check(Sema& sema) const;
     virtual Printer& print(Printer& p) const;
 
 private:
 
+    virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     const Loop* loop_;
@@ -717,12 +703,11 @@ public:
 
     const Expr* expr() const { return expr_; }
     const Fun* fun() const { return fun_; }
-
-    virtual void check(Sema& sema) const;
     virtual Printer& print(Printer& p) const;
 
 private:
 
+    virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     anydsl2::AutoPtr<const Expr> expr_;
@@ -737,12 +722,11 @@ public:
     {}
 
     const NamedFun* named_fun() const { return named_fun_; }
-
     virtual Printer& print(Printer& p) const;
-    virtual void check(Sema& sema) const { named_fun()->check(sema); }
 
 private:
 
+    virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     anydsl2::AutoPtr<const NamedFun> named_fun_;
@@ -757,14 +741,12 @@ public:
     const Stmts& stmts() const { return stmts_; }
     const Stmt* stmt(size_t i) const { return stmts_[i]; }
     const NamedFuns& named_funs() const { return named_funs_; }
-    void check_stmts(Sema& sema) const;
-
     virtual bool empty() const { return stmts_.empty(); }
-    virtual void check(Sema& sema) const;
     virtual Printer& print(Printer& p) const;
 
 private:
 
+    virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     mutable Stmts stmts_;

@@ -50,7 +50,6 @@ class Prg : public ASTNode {
 public:
 
     virtual Printer& print(Printer& p) const;
-    void emit(CodeGen& cg) const;
     const anydsl2::AutoVector<const Global*>& globals() const { return globals_; }
 
 private:
@@ -92,8 +91,6 @@ public:
     anydsl2::Lambda* lambda() const { return lambda_; }
     const anydsl2::Param* ret_param() const { return ret_param_; }
     Printer& fun_print(Printer& p) const;
-    const anydsl2::Lambda* emit_body(CodeGen& cg, anydsl2::Lambda* parent, const char* what) const;
-    anydsl2::Lambda* emit_head(CodeGen& cg, anydsl2::Symbol symbol) const;
 
 private:
 
@@ -126,7 +123,6 @@ public:
     size_t handle() const { return handle_; }
     bool is_address_taken() const { return is_address_taken_; }
     virtual Printer& print(Printer& p) const;
-    RefPtr emit(CodeGen& cg) const;
 
 private:
 
@@ -166,9 +162,8 @@ public:
         type_ = type;
         set_loc(tok.pos1(), pos2);
     }
-
     virtual Printer& print(Printer& p) const;
-    void emit(CodeGen& cg) const;
+    bool is_extern() const { return extern_; }
 
 private:
 
@@ -192,7 +187,6 @@ public:
     bool empty() const { return size() == 0; }
     const anydsl2::Type* type() const { return type_; }
     virtual bool is_lvalue() const = 0;
-    anydsl2::Array<const anydsl2::Def*> emit_ops(CodeGen& cg, size_t additional_size = 0) const;
 
 private:
 

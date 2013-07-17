@@ -30,6 +30,12 @@ public:
         , continue_target((JumpTarget*) 0)
     {}
 
+    void emit(const Prg*);
+    const anydsl2::Lambda* emit_body(const Fun* fun, anydsl2::Lambda* parent, const char* what);
+    anydsl2::Lambda* emit_head(const Fun* fun, anydsl2::Symbol symbol);
+    void emit(const NamedFun*);
+    RefPtr emit(const VarDecl*);
+    anydsl2::Array<const anydsl2::Def*> emit_ops(const Expr* expr, size_t additional_size = 0);
     RefPtr emit(const Expr* expr) { return is_reachable() ? expr->emit(*this) : 0; }
     void emit_branch(const Expr* expr, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) { expr->emit_branch(*this, t, f); }
     void emit(const Stmt* stmt, anydsl2::JumpTarget& exit) { if (is_reachable()) stmt->emit(*this, exit); }
@@ -41,75 +47,72 @@ public:
 
 //------------------------------------------------------------------------------
 
-void emit(World& world, const Prg* prg) {
-    CodeGen cg(world);
-    prg->emit(cg);
-}
+void emit(World& world, const Prg* prg) { CodeGen(world).emit(prg); }
 
 //------------------------------------------------------------------------------
 
-Lambda* Fun::emit_head(CodeGen& cg, Symbol symbol) const {
-    lambda_ = cg.world().lambda(convert(pi()), symbol.str());
-    size_t num = params().size();
-    const Type* ret_type = return_type(pi());
-    ret_param_ = ret_type->isa<NoRet>() ? 0 : lambda_->param(num-1+1);
-    lambda()->param(0)->name = "mem";
+Lambda* CodeGen::emit_head(const Fun* fun, Symbol symbol) {
+    fun->lambda_ = world().lambda(convert(fun->pi()), symbol.str());
+    size_t num = fun->params().size();
+    const Type* ret_type = return_type(fun->pi());
+    fun->ret_param_ = ret_type->isa<NoRet>() ? 0 : fun->lambda_->param(num-1+1);
+    fun->lambda()->param(0)->name = "mem";
 
-    return lambda_;
+    return fun->lambda_;
 }
 
-const Lambda* Fun::emit_body(CodeGen& cg, Lambda* parent, const char* what) const {
-    for_all (f, body()->named_funs())
-        f->emit_head(cg, f->symbol());
+const Lambda* CodeGen::emit_body(const Fun* fun, Lambda* parent, const char* what) {
+    for_all (f, fun->body()->named_funs())
+        emit_head(f, f->symbol());
 
-    lambda()->set_parent(parent);
+    fun->lambda()->set_parent(parent);
 
-    Push<Lambda*> push1(cg.cur_bb,  lambda());
+    Push<Lambda*> push1(cur_bb, fun->lambda());
 
     bool new_frame = false;
-    if (!cg.cur_frame) {
-        const Enter* enter = cg.world().enter(lambda()->param(0));
-        cg.set_mem(enter->extract_mem());
-        cg.cur_frame = enter->extract_frame();
+    if (!cur_frame) {
+        const Enter* enter = world().enter(fun->lambda()->param(0));
+        set_mem(enter->extract_mem());
+        cur_frame = enter->extract_frame();
         new_frame = true;
     } else
-        cg.set_mem(lambda()->param(0));
+        set_mem(fun->lambda()->param(0));
 
-    size_t num = params().size();
+    size_t num = fun->params().size();
     for (size_t i = 0; i < num; ++i) {
-        const Param* p = lambda_->param(i+1);
-        p->name = param(i)->symbol().str();
-        param(i)->emit(cg)->store(p);
+        const Param* p = fun->lambda_->param(i+1);
+        p->name = fun->param(i)->symbol().str();
+        emit(fun->param(i))->store(p);
     }
 
     JumpTarget exit;
-    cg.emit(body(), exit);
-    cg.enter(exit);
+    emit(fun->body(), exit);
+    enter(exit);
 
-    if (cg.is_reachable()) {
-        if (!is_continuation() && return_type(pi())->isa<Void>())
-            cg.cur_bb->jump1(ret_param(), cg.get_mem());
+    if (is_reachable()) {
+        if (!fun->is_continuation() && return_type(fun->pi())->isa<Void>())
+            cur_bb->jump1(fun->ret_param(), get_mem());
         else {
-            if (is_continuation())
+            if (fun->is_continuation())
                 std::cerr << what << " does not end with a call\n";
             else
                 std::cerr << what << " does not end with 'return'\n";
-            cg.cur_bb->jump0(cg.world().bottom(cg.world().pi0()));
+            cur_bb->jump0(world().bottom(world().pi0()));
         }
     }
 
     if (new_frame)
-        cg.cur_frame = 0;
+        cur_frame = 0;
 
-    return lambda();
+    return fun->lambda();
 }
 
 //------------------------------------------------------------------------------
 
-void Prg::emit(CodeGen& cg) const {
-    for_all (global, globals()) {
+void CodeGen::emit(const Prg* prg) {
+    for_all (global, prg->globals()) {
         if (const NamedFun* f = global->isa<NamedFun>()) {
-            Lambda* lambda = f->emit_head(cg, f->symbol());
+            Lambda* lambda = emit_head(f, f->symbol());
 
             if (f->symbol() == Symbol("main")) {
                 lambda->name += "_impala";
@@ -118,39 +121,39 @@ void Prg::emit(CodeGen& cg) const {
         }
     }
 
-    for_all (global, globals()) {
+    for_all (global, prg->globals()) {
         if (const NamedFun* f = global->isa<NamedFun>())
-            f->emit(cg);
+            emit(f);
     }
 
     // clear get/set value stuff
-    for_all (lambda, cg.world().lambdas())
+    for_all (lambda, world().lambdas())
         lambda->clear();
 }
 
-void NamedFun::emit(CodeGen& cg) const {
-    emit_body(cg, cg.cur_bb, symbol().str());
-    if (extern_)
-        lambda()->attr().set_extern();
+void CodeGen::emit(const NamedFun* named_fun) {
+    emit_body(named_fun, cur_bb, named_fun->symbol().str());
+    if (named_fun->is_extern())
+        named_fun->lambda()->attr().set_extern();
 }
 
-RefPtr VarDecl::emit(CodeGen& cg) const {
-    const Type* air_type = convert(type());
-    if (is_address_taken())
-        return Ref::create(cg.world().slot(air_type, cg.cur_frame, handle(), symbol().str()), cg);
+RefPtr CodeGen::emit(const VarDecl* decl) {
+    const Type* air_type = convert(decl->type());
+    if (decl->is_address_taken())
+        return Ref::create(world().slot(air_type, cur_frame, decl->handle(), decl->symbol().str()), *this);
 
-    return Ref::create(cg.cur_bb, handle(), air_type, symbol().str());
+    return Ref::create(cur_bb, decl->handle(), air_type, decl->symbol().str());
 }
 
 /*
  * Expr -- emit
  */
 
-Array<const Def*> Expr::emit_ops(CodeGen& cg, size_t additional_size) const {
-    size_t num = ops_.size();
+Array<const Def*> CodeGen::emit_ops(const Expr* expr, size_t additional_size) {
+    size_t num = expr->ops().size();
     Array<const Def*> defs(num + additional_size);
     for (size_t i = 0; i < num; ++i)
-        defs[i] = cg.emit(op(i))->load();
+        defs[i] = emit(expr->op(i))->load();
 
     return defs;
 }
@@ -174,12 +177,12 @@ RefPtr Literal::emit(CodeGen& cg) const {
 }
 
 RefPtr FunExpr::emit(CodeGen& cg) const {
-    emit_head(cg, "lambda");
-    return Ref::create(emit_body(cg, cg.cur_bb, "anonymous lambda expression"));
+    cg.emit_head(this, "lambda");
+    return Ref::create(cg.emit_body(this, cg.cur_bb, "anonymous lambda expression"));
 }
 
 RefPtr Tuple::emit(CodeGen& cg) const {
-    return Ref::create(cg.world().tuple(emit_ops(cg)));
+    return Ref::create(cg.world().tuple(cg.emit_ops(this)));
 }
 
 RefPtr Id::emit(CodeGen& cg) const {
@@ -297,7 +300,7 @@ RefPtr IndexExpr::emit(CodeGen& cg) const {
 }
 
 RefPtr Call::emit(CodeGen& cg) const {
-    Array<const Def*> ops = emit_ops(cg);
+    Array<const Def*> ops = cg.emit_ops(this);
     Array<const Def*> args(num_args() + 1);
     std::copy(ops.begin() + 1, ops.end(), args.begin() + 1);
     args[0] = cg.get_mem();
@@ -343,7 +346,7 @@ void InfixExpr::emit_branch(CodeGen& cg, JumpTarget& t, JumpTarget& f) const {
 
 void DeclStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     if (cg.is_reachable()) {
-        RefPtr ref = var_decl()->emit(cg);
+        RefPtr ref = cg.emit(var_decl());
         if (const Expr* init_expr = init())
             ref->store(cg.emit(init_expr)->load());
         cg.jump(exit_bb);
@@ -440,7 +443,7 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     cg.set_mem(lambda->param(0));
 
     const VarDecl* var_decl = init_decl() ? init_decl() : init_expr()->as<Id>()->decl()->as<VarDecl>();
-    var_decl->emit(cg)->store(lambda->param(1));
+    cg.emit(var_decl)->store(lambda->param(1));
 
     cg.emit(body(), continue_bb);
     cg.enter(continue_bb);
@@ -458,7 +461,7 @@ void ReturnStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     if (cg.is_reachable()) {
         const Param* ret_param = fun()->ret_param();
         if (const Call* call = expr()->isa<Call>()) {
-            Array<const Def*> ops = call->emit_ops(cg);
+            Array<const Def*> ops = cg.emit_ops(call);
             Array<const Def*> args(call->num_args() + 2);
             std::copy(ops.begin() + 1, ops.end(), args.begin() + 1);
             args[0] = cg.get_mem();
@@ -489,7 +492,7 @@ void ScopeStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 }
 
 void NamedFunStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { 
-    named_fun()->emit(cg); 
+    cg.emit(named_fun());
     cg.jump(exit_bb);
 }
 

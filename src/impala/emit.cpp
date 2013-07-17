@@ -30,11 +30,9 @@ public:
         , continue_target((JumpTarget*) 0)
     {}
 
-    RefPtr emit(const Expr* expr) { return expr->emit(*this); }
+    RefPtr emit(const Expr* expr) { return is_reachable() ? expr->emit(*this) : 0; }
     void emit_branch(const Expr* expr, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) { expr->emit_branch(*this, t, f); }
-    void emit(const Stmt* stmt, anydsl2::JumpTarget& exit) {
-        if (is_reachable()) stmt->emit(*this, exit);
-    }
+    void emit(const Stmt* stmt, anydsl2::JumpTarget& exit) { if (is_reachable()) stmt->emit(*this, exit); }
 
     const Def* cur_frame;
     JumpTarget* break_target;
@@ -89,17 +87,14 @@ const Lambda* Fun::emit_body(CodeGen& cg, Lambda* parent, const char* what) cons
     cg.enter(exit);
 
     if (cg.is_reachable()) {
-        if (is_continuation()) {
-            std::cerr << what << " does not end with a call\n";
-            cg.cur_bb->jump0(cg.world().bottom(cg.world().pi0()));
-        } else {
-            const Type* ret_type = return_type(pi());
-            if (ret_type->isa<Void>())
-                cg.cur_bb->jump1(ret_param(), cg.get_mem());
-            else {
+        if (!is_continuation() && return_type(pi())->isa<Void>())
+            cg.cur_bb->jump1(ret_param(), cg.get_mem());
+        else {
+            if (is_continuation())
+                std::cerr << what << " does not end with a call\n";
+            else
                 std::cerr << what << " does not end with 'return'\n";
-                cg.cur_bb->jump1(cg.world().bottom(cg.world().pi1(ret_type)), cg.get_mem());
-            }
+            cg.cur_bb->jump0(cg.world().bottom(cg.world().pi0()));
         }
     }
 

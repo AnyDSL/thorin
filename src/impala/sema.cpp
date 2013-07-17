@@ -56,6 +56,7 @@ public:
     std::ostream& error(const Location& loc) { result_ = false; return loc.error(); }
     GenericMap fill_map();
     World& world() { return world_; }
+    const anydsl2::Type* check(const Expr* expr) { assert(!expr->type_); return expr->type_ = expr->check(*this); }
 
     std::vector< boost::unordered_set<const Generic*> > bound_generics_;
     
@@ -179,28 +180,28 @@ void Decl::insert(Sema& sema) const {
  * Expr
  */
 
-const Type* EmptyExpr::vcheck(Sema& sema) const {
+const Type* EmptyExpr::check(Sema& sema) const {
     return sema.world().unit();
 }
 
-const Type* Literal::vcheck(Sema& sema) const {
+const Type* Literal::check(Sema& sema) const {
     return sema.world().type(literal2type());
 }
 
-const Type* FunExpr::vcheck(Sema& sema) const {
+const Type* FunExpr::check(Sema& sema) const {
     fun_check(sema);
     return pi();
 }
 
-const Type* Tuple::vcheck(Sema& sema) const {
+const Type* Tuple::check(Sema& sema) const {
     Array<const Type*> elems(ops().size());
     for_all2 (&elem, elems, op, ops())
-        elem = op->check(sema);
+        elem = sema.check(op);
 
     return sema.world().sigma(elems);
 }
 
-const Type* Id::vcheck(Sema& sema) const {
+const Type* Id::check(Sema& sema) const {
     if (const Decl* decl = sema.lookup(symbol())) {
         decl_ = decl;
 
@@ -218,33 +219,33 @@ const Type* Id::vcheck(Sema& sema) const {
     return sema.world().type_error();
 }
 
-const Type* PrefixExpr::vcheck(Sema& sema) const {
+const Type* PrefixExpr::check(Sema& sema) const {
     switch (kind()) {
         case INC:
         case DEC:
             if (!rhs()->is_lvalue())
                 sema.error(rhs()) << "lvalue required as operand\n";
-            return rhs()->check(sema);
+            return sema.check(rhs());
         case L_N:
-            if (!rhs()->check(sema)->is_u1())
+            if (!sema.check(rhs())->is_u1())
                 sema.error(rhs()) << "logical not expects 'bool'\n";
             return sema.world().type_u1();
         default:
-            return rhs()->check(sema);
+            return sema.check(rhs());
     }
 }
 
-const Type* InfixExpr::vcheck(Sema& sema) const {
+const Type* InfixExpr::check(Sema& sema) const {
     if (Token::is_assign((TokenKind) kind())) {
         if (!lhs()->is_lvalue())
             sema.error(lhs()) << "no lvalue on left-hand side of assignment\n";
-        else if (lhs()->check(sema) == rhs()->check(sema))
+        else if (sema.check(lhs()) == sema.check(rhs()))
             return lhs()->type();
         else
             sema.error(this) << "incompatible types in assignment: '" 
                 << lhs()->type() << "' and '" << rhs()->type() << "'\n";
-    } else if (lhs()->check(sema)->is_primtype()) {
-        if (rhs()->check(sema)->is_primtype()) {
+    } else if (sema.check(lhs())->is_primtype()) {
+        if (sema.check(rhs())->is_primtype()) {
             if (lhs()->type() == rhs()->type()) {
                 if (Token::is_rel((TokenKind) kind()))
                     return sema.world().type_u1();
@@ -271,16 +272,16 @@ const Type* InfixExpr::vcheck(Sema& sema) const {
     return sema.world().type_error();
 }
 
-const Type* PostfixExpr::vcheck(Sema& sema) const {
+const Type* PostfixExpr::check(Sema& sema) const {
     if (!lhs()->is_lvalue())
         sema.error(lhs()) << "lvalue required as operand\n";
 
-    return lhs()->check(sema);
+    return sema.check(lhs());
 }
 
-const Type* ConditionalExpr::vcheck(Sema& sema) const {
-    if (cond()->check(sema)->is_u1()) {
-        if (t_expr()->check(sema) == f_expr()->check(sema))
+const Type* ConditionalExpr::check(Sema& sema) const {
+    if (sema.check(cond())->is_u1()) {
+        if (sema.check(t_expr()) == sema.check(f_expr()))
             return t_expr()->type();
         else
             sema.error(this) << "incompatible types in conditional expression\n";
@@ -290,9 +291,9 @@ const Type* ConditionalExpr::vcheck(Sema& sema) const {
     return t_expr()->type()->isa<TypeError>() ? f_expr()->type() : t_expr()->type();
 }
 
-const Type* IndexExpr::vcheck(Sema& sema) const {
-    if (const Sigma* sigma = lhs()->check(sema)->isa<Sigma>()) {
-        if (index()->check(sema)->is_int()) {
+const Type* IndexExpr::check(Sema& sema) const {
+    if (const Sigma* sigma = sema.check(lhs())->isa<Sigma>()) {
+        if (sema.check(index())->is_int()) {
             if (const Literal* literal = index()->isa<Literal>()) {
                 unsigned pos;
 
@@ -317,12 +318,12 @@ const Type* IndexExpr::vcheck(Sema& sema) const {
     return sema.world().type_error();
 }
 
-const Type* Call::vcheck(Sema& sema) const { 
-    if (const Pi* to_pi = to()->check(sema)->isa<Pi>()) {
+const Type* Call::check(Sema& sema) const { 
+    if (const Pi* to_pi = sema.check(to())->isa<Pi>()) {
         Array<const Type*> op_types(num_args() + 1); // reserve one more for return type
 
         for (size_t i = 0, e = num_args(); i != e; ++i)
-            op_types[i] = arg(i)->check(sema);
+            op_types[i] = sema.check(arg(i));
 
         const Pi* call_pi;
         const Type* ret_type = to_pi->size() == num_args() ? sema.world().noret() : return_type(to_pi);
@@ -363,7 +364,7 @@ void DeclStmt::check(Sema& sema) const {
     var_decl()->insert(sema);
 
     if (const Expr* init_expr = init()) {
-        if (var_decl()->type()->check_with(init_expr->check(sema))) {
+        if (var_decl()->type()->check_with(sema.check(init_expr))) {
             GenericMap map = sema.fill_map();
             if (var_decl()->type()->infer_with(map, init_expr->type()))
                 return;
@@ -379,11 +380,11 @@ void DeclStmt::check(Sema& sema) const {
 }
 
 void ExprStmt::check(Sema& sema) const {
-    expr()->check(sema);
+    sema.check(expr());
 }
 
 static bool check_cond(Sema& sema, const Expr* cond) {
-    if (cond->check(sema)->is_u1())
+    if (sema.check(cond)->is_u1())
         return true;
 
     sema.error(cond) << "condition not a bool\n";
@@ -405,7 +406,7 @@ void ForStmt::check(Sema& sema) const {
     sema.push_scope();
     init()->check(sema);
     check_cond(sema, cond());
-    step()->check(sema);
+    sema.check(step());
 
     if (const ScopeStmt* scope = body()->isa<ScopeStmt>())
         scope->check_stmts(sema);
@@ -423,16 +424,16 @@ void ForeachStmt::check(Sema& sema) const {
         init_decl()->insert(sema);
         left_type_ = init_decl()->type();
     } else {
-        left_type_ = init_expr()->check(sema);
+        left_type_ = sema.check(init_expr());
     }
 
     // generator call
-    if (const Pi* to_pi = call()->to()->check(sema)->isa<Pi>()) {
+    if (const Pi* to_pi = sema.check(call()->to())->isa<Pi>()) {
         // reserve one for the body type and one for the next continuation type
         Array<const Type*> op_types(call()->num_args() + 1 + 1);
 
         for (size_t i = 0, e = call()->num_args(); i != e; ++i)
-            op_types[i] = call()->arg(i)->check(sema);
+            op_types[i] = sema.check(call()->arg(i));
         
         const Type* elems[2] = { left_type_, sema.world().pi0() };
         op_types[call()->num_args()] = fun_type_ = sema.world().pi(elems);
@@ -487,7 +488,7 @@ void ReturnStmt::check(Sema& sema) const {
             else
                 sema.error(expr()) << "return expression in a function returning 'void'\n";
         } else if (!ret_type->isa<NoRet>()) {
-            if (expr()->check(sema)->isa<TypeError>())
+            if (sema.check(expr())->isa<TypeError>())
                 return;
             if (ret_type->check_with(expr()->type())) {
                 GenericMap map = sema.fill_map();

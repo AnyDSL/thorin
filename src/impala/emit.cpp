@@ -30,8 +30,13 @@ public:
         , continue_target((JumpTarget*) 0)
     {}
 
-    const Def* cur_frame;
+    RefPtr emit(const Expr* expr) { return expr->emit(*this); }
+    void emit_branch(const Expr* expr, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) { expr->emit_branch(*this, t, f); }
+    void emit(const Stmt* stmt, anydsl2::JumpTarget& exit) {
+        if (is_reachable()) stmt->emit(*this, exit);
+    }
 
+    const Def* cur_frame;
     JumpTarget* break_target;
     JumpTarget* continue_target;
 };
@@ -80,7 +85,7 @@ const Lambda* Fun::emit_body(CodeGen& cg, Lambda* parent, const char* what) cons
     }
 
     JumpTarget exit;
-    body()->emit(cg, exit);
+    cg.emit(body(), exit);
     cg.enter(exit);
 
     if (cg.is_reachable()) {
@@ -150,7 +155,7 @@ Array<const Def*> Expr::emit_ops(CodeGen& cg, size_t additional_size) const {
     size_t num = ops_.size();
     Array<const Def*> defs(num + additional_size);
     for (size_t i = 0; i < num; ++i)
-        defs[i] = op(i)->emit(cg)->load();
+        defs[i] = cg.emit(op(i))->load();
 
     return defs;
 }
@@ -201,17 +206,17 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
     switch (kind()) {
         case INC:
         case DEC: {
-            RefPtr ref = rhs()->emit(cg);
+            RefPtr ref = cg.emit(rhs());
             const Def* def = ref->load();
             const Def* one = cg.world().one(convert(def->type()));
             const Def* ndef = cg.world().arithop(Token::to_arithop((TokenKind) kind(), type()->is_float()), def, one);
             ref->store(ndef);
             return ref;
         }
-        case ADD: return rhs()->emit(cg); // this is a NOP
-        case SUB: return Ref::create(cg.world().arithop_minus(rhs()->emit(cg)->load()));
+        case ADD: return cg.emit(rhs()); // this is a NOP
+        case SUB: return Ref::create(cg.world().arithop_minus(cg.emit(rhs())->load()));
         case NOT:
-        case L_N: return Ref::create(cg.world().arithop_not(rhs()->emit(cg)->load()));
+        case L_N: return Ref::create(cg.world().arithop_not(cg.emit(rhs())->load()));
         default: ANYDSL2_UNREACHABLE;
     }
 }
@@ -223,15 +228,15 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
         JumpTarget t(is_or ? "l_or_true"  : "l_and_true");
         JumpTarget f(is_or ? "l_or_false" : "l_and_false");
         JumpTarget x(is_or ? "l_or_exit"  : "l_and_exit");
-        lhs()->emit_branch(cg, t, f);
+        cg.emit_branch(lhs(), t, f);
 
         if (Lambda* tl = cg.enter(t)) {
-            tl->set_value(0, is_or ? cg.world().literal_u1(true) : rhs()->emit(cg)->load());
+            tl->set_value(0, is_or ? cg.world().literal_u1(true) : cg.emit(rhs())->load());
             cg.jump(x);
         }
 
         if (Lambda* fl = cg.enter(f)) {
-            fl->set_value(0, is_or ? rhs()->emit(cg)->load() : cg.world().literal_u1(false));
+            fl->set_value(0, is_or ? cg.emit(rhs())->load() : cg.world().literal_u1(false));
             cg.jump(x);
         }
 
@@ -243,8 +248,8 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
     const TokenKind op = (TokenKind) kind();
 
     if (Token::is_assign(op)) {
-        const Def* rdef = rhs()->emit(cg)->load();
-        RefPtr lref = lhs()->emit(cg);
+        const Def* rdef = cg.emit(rhs())->load();
+        RefPtr lref = cg.emit(lhs());
 
         if (op != Token::ASGN) {
             TokenKind sop = Token::separate_assign(op);
@@ -255,14 +260,14 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
         return lref;
     }
         
-    const Def* ldef = lhs()->emit(cg)->load();
-    const Def* rdef = rhs()->emit(cg)->load();
+    const Def* ldef = cg.emit(lhs())->load();
+    const Def* rdef = cg.emit(rhs())->load();
 
     return Ref::create(cg.world().binop(Token::to_binop(op, ldef->type()->is_float()), ldef, rdef));
 }
 
 RefPtr PostfixExpr::emit(CodeGen& cg) const {
-    RefPtr ref = lhs()->emit(cg);
+    RefPtr ref = cg.emit(lhs());
     const Def* def = ref->load();
     const Def* one = cg.world().one(convert(def->type()));
     ref->store(cg.world().arithop(Token::to_arithop((TokenKind) kind(), type()->is_float()), def, one));
@@ -274,15 +279,15 @@ RefPtr ConditionalExpr::emit(CodeGen& cg) const {
     JumpTarget f("cond_false");
     JumpTarget x("cond_exit");
 
-    cond()->emit_branch(cg, t, f);
+    cg.emit_branch(cond(), t, f);
 
     if (Lambda* tl = cg.enter(t)) {
-        tl->set_value(0, t_expr()->emit(cg)->load());
+        tl->set_value(0, cg.emit(t_expr())->load());
         cg.jump(x);
     }
 
     if (Lambda* fl = cg.enter(f)) {
-        fl->set_value(0, f_expr()->emit(cg)->load());
+        fl->set_value(0, cg.emit(f_expr())->load());
         cg.jump(x);
     }
 
@@ -292,7 +297,8 @@ RefPtr ConditionalExpr::emit(CodeGen& cg) const {
 }
 
 RefPtr IndexExpr::emit(CodeGen& cg) const {
-    return Ref::create(lhs()->emit(cg), index()->emit(cg)->load());
+    const Def* x = cg.emit(index())->load();
+    return Ref::create(cg.emit(lhs()), x);
 }
 
 RefPtr Call::emit(CodeGen& cg) const {
@@ -317,11 +323,11 @@ RefPtr Call::emit(CodeGen& cg) const {
  * Expr -- emit_branch
  */
 
-void Expr::emit_branch(CodeGen& cg, JumpTarget& t, JumpTarget& f) const { cg.branch(emit(cg)->load(), t, f); }
+void Expr::emit_branch(CodeGen& cg, JumpTarget& t, JumpTarget& f) const { cg.branch(cg.emit(this)->load(), t, f); }
 
 void PrefixExpr::emit_branch(CodeGen& cg, JumpTarget& t, JumpTarget& f) const {
     if (kind() == L_N)
-        return rhs()->emit_branch(cg, f, t);
+        return cg.emit_branch(rhs(), f, t);
     cg.branch(emit(cg)->load(), t, f);
 }
 
@@ -329,9 +335,9 @@ void InfixExpr::emit_branch(CodeGen& cg, JumpTarget& t, JumpTarget& f) const {
     if (kind() == L_O || kind() == L_A) {
         bool is_or = kind() == L_O;
         JumpTarget extra(is_or ? "l_or_extra" : "l_and_extra");
-        lhs()->emit_branch(cg, is_or ? t : extra, is_or ? extra : f);
+        cg.emit_branch(lhs(), is_or ? t : extra, is_or ? extra : f);
         if (cg.enter(extra))
-            rhs()->emit_branch(cg, t, f);
+            cg.emit_branch(rhs(), t, f);
     } else
         Expr::emit_branch(cg, t, f);
 }
@@ -344,14 +350,14 @@ void DeclStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     if (cg.is_reachable()) {
         RefPtr ref = var_decl()->emit(cg);
         if (const Expr* init_expr = init())
-            ref->store(init_expr->emit(cg)->load());
+            ref->store(cg.emit(init_expr)->load());
         cg.jump(exit_bb);
     }
 }
 
 void ExprStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     if (cg.is_reachable()) {
-        expr()->emit(cg);
+        cg.emit(expr());
         cg.jump(exit_bb);
     }
 }
@@ -360,17 +366,17 @@ void IfElseStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     JumpTarget then_bb("if_then");
     JumpTarget else_bb("if_else");
 
-    cond()->emit_branch(cg, then_stmt()->empty() ? exit_bb : then_bb, 
-                            else_stmt()->empty() ? exit_bb : else_bb);
+    cg.emit_branch(cond(), then_stmt()->empty() ? exit_bb : then_bb, 
+                           else_stmt()->empty() ? exit_bb : else_bb);
 
     if (!then_stmt()->empty()) {
         cg.enter(then_bb);
-        then_stmt()->emit(cg, exit_bb);
+        cg.emit(then_stmt(), exit_bb);
     }
 
     if (!else_stmt()->empty()) {
         cg.enter(else_bb);
-        else_stmt()->emit(cg, exit_bb);
+        cg.emit(else_stmt(), exit_bb);
     }
 }
 
@@ -384,10 +390,10 @@ void DoWhileStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     cg.jump(body_bb);
 
     cg.enter_unsealed(body_bb);
-    body()->emit(cg, cond_bb);
+    cg.emit(body(), cond_bb);
 
     cg.enter(cond_bb);
-    cond()->emit_branch(cg, body_bb, exit_bb);
+    cg.emit_branch(cond(), body_bb, exit_bb);
     body_bb.seal();
 }
 
@@ -399,16 +405,16 @@ void ForStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     Push<JumpTarget*> push1(cg.break_target, &exit_bb);
     Push<JumpTarget*> push2(cg.continue_target, &step_bb);
 
-    init()->emit(cg, head_bb);
+    cg.emit(init(), head_bb);
 
     cg.enter_unsealed(head_bb);
-    cond()->emit_branch(cg, body_bb, exit_bb);
+    cg.emit_branch(cond(), body_bb, exit_bb);
 
     cg.enter(body_bb);
-    body()->emit(cg, step_bb);
+    cg.emit(body(), step_bb);
 
     cg.enter(step_bb);
-    step()->emit(cg);
+    cg.emit(step());
     cg.jump(head_bb);
     head_bb.seal();
 }
@@ -424,12 +430,12 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     Array<const Def*> args(num + 1);
     args[0] = cg.get_mem();
     for (size_t i = 1; i < num; ++i)
-        args[i] = call()->op(i)->emit(cg)->load();
+        args[i] = cg.emit(call()->op(i))->load();
     // construct a lambda for the body, see below
     Lambda* lambda = cg.world().lambda(convert(fun_type_));
     args[num] = lambda;
 
-    cg.mem_call(call()->op(0)->emit(cg)->load(), args, 0);
+    cg.mem_call(cg.emit(call()->op(0))->load(), args, 0);
     Lambda* next = cg.cur_bb;
     cg.set_mem(cg.cur_bb->param(0));
 
@@ -441,7 +447,7 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     const VarDecl* var_decl = init_decl() ? init_decl() : init_expr()->as<Id>()->decl()->as<VarDecl>();
     var_decl->emit(cg)->store(lambda->param(1));
 
-    body()->emit(cg, continue_bb);
+    cg.emit(body(), continue_bb);
     cg.enter(continue_bb);
     cg.return1(lambda->params().back(), cg.get_mem());
 
@@ -465,7 +471,7 @@ void ReturnStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
             cg.tail_call(ops[0], args);
         } else {
             if (expr()) 
-                cg.return2(ret_param, cg.world().leave(cg.get_mem(), cg.cur_frame), expr()->emit(cg)->load());
+                cg.return2(ret_param, cg.world().leave(cg.get_mem(), cg.cur_frame), cg.emit(expr())->load());
             else
                 cg.return1(ret_param, cg.world().leave(cg.get_mem(), cg.cur_frame));
         }
@@ -480,10 +486,10 @@ void ScopeStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
         size_t i = 0;
         for (; i != size - 1; ++i) {
             JumpTarget stmt_exit_bb("next");
-            stmt(i)->emit(cg, stmt_exit_bb);
+            cg.emit(stmt(i), stmt_exit_bb);
             cg.enter(stmt_exit_bb);
         }
-        stmt(i)->emit(cg, exit_bb);
+        cg.emit(stmt(i), exit_bb);
     }
 }
 

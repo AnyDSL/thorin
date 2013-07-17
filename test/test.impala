@@ -1,15 +1,8 @@
-def extern test() -> int {
-    a : int;
+def main(i : int, ret : pi(int)) {
+    def f(i : int) {
+        ret(i);
+    }
 
-    if (1 == 2)
-        a = 23;
-    else
-        a = 42;
-
-    if (a == 23)
-        a = 1;
-    else
-        a = 2;
-
-    return a;
+    f(i);
+    ret(i);
 }

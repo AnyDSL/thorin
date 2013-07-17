@@ -196,19 +196,22 @@ public:
     bool empty() const { return size() == 0; }
     const anydsl2::Type* type() const { return type_; }
     const anydsl2::Type* check(Sema& sema) const { assert(!type_); return type_ = vcheck(sema); }
-    anydsl2::Array<const anydsl2::Def*> emit_ops(CodeGen& cg, size_t additional_size = 0) const;
     virtual bool is_lvalue() const = 0;
-    virtual RefPtr emit(CodeGen& cg) const = 0;
-    virtual void emit_branch(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const;
+    anydsl2::Array<const anydsl2::Def*> emit_ops(CodeGen& cg, size_t additional_size = 0) const;
 
 private:
 
+    virtual RefPtr emit(CodeGen& cg) const = 0;
     virtual const anydsl2::Type* vcheck(Sema& sema) const = 0;
 
 protected:
 
+    virtual void emit_branch(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const;
+
     Exprs ops_;
     mutable const anydsl2::Type* type_;
+
+    friend class CodeGen;
 };
 
 class EmptyExpr : public Expr {
@@ -218,8 +221,11 @@ public:
 
     virtual bool is_lvalue() const { return false; }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
-    virtual RefPtr emit(CodeGen& cg) const;
     virtual Printer& print(Printer& p) const;
+
+private:
+
+    virtual RefPtr emit(CodeGen& cg) const;
 };
 
 class Literal : public Expr {
@@ -243,12 +249,13 @@ public:
 
     virtual bool is_lvalue() const { return false; }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
-    virtual RefPtr emit(CodeGen& cg) const;
     virtual Printer& print(Printer& p) const;
 
     anydsl2::PrimTypeKind literal2type() const;
 
 private:
+
+    virtual RefPtr emit(CodeGen& cg) const;
 
     Kind kind_;
     anydsl2::Box box_;
@@ -259,10 +266,11 @@ public:
 
     virtual bool is_lvalue() const { return false; }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
-    virtual RefPtr emit(CodeGen& cg) const;
     virtual Printer& print(Printer& p) const;
 
 private:
+
+    virtual RefPtr emit(CodeGen& cg) const;
 
     friend class Parser;
 };
@@ -274,8 +282,11 @@ public:
 
     virtual bool is_lvalue() const { return false; }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
-    virtual RefPtr emit(CodeGen& cg) const;
     virtual Printer& print(Printer& p) const;
+
+private:
+
+    virtual RefPtr emit(CodeGen& cg) const;
 
     friend class Parser;
 };
@@ -294,10 +305,11 @@ public:
 
     virtual bool is_lvalue() const { return true; }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
-    virtual RefPtr emit(CodeGen& cg) const;
     virtual Printer& print(Printer& p) const;
 
 private:
+
+    virtual RefPtr emit(CodeGen& cg) const;
 
     anydsl2::Symbol symbol_;
     mutable const Decl* decl_; ///< Declaration of the variable in use.
@@ -324,11 +336,12 @@ public:
 
     virtual bool is_lvalue() const { return false; }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
-    virtual RefPtr emit(CodeGen& cg) const;
-    virtual void emit_branch(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const;
     virtual Printer& print(Printer& p) const;
 
 private:
+
+    virtual RefPtr emit(CodeGen& cg) const;
+    virtual void emit_branch(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const;
 
     Kind kind_;
 };
@@ -357,11 +370,12 @@ public:
 
     virtual bool is_lvalue() const { return Token::is_assign((TokenKind) kind()); }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
-    virtual RefPtr emit(CodeGen& cg) const;
-    virtual void emit_branch(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const;
     virtual Printer& print(Printer& p) const;
 
 private:
+
+    virtual RefPtr emit(CodeGen& cg) const;
+    virtual void emit_branch(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const;
 
     Kind kind_;
 };
@@ -391,10 +405,11 @@ public:
 
     virtual bool is_lvalue() const { return false; }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
-    virtual RefPtr emit(CodeGen& cg) const;
     virtual Printer& print(Printer& p) const;
 
 private:
+
+    virtual RefPtr emit(CodeGen& cg) const;
 
     Kind kind_;
 };
@@ -412,11 +427,13 @@ public:
     const Expr* cond()   const { return ops_[0]; }
     const Expr* t_expr() const { return ops_[1]; }
     const Expr* f_expr() const { return ops_[2]; }
-
     virtual bool is_lvalue() const { return false; }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
-    virtual RefPtr emit(CodeGen& cg) const;
     virtual Printer& print(Printer& p) const;
+
+private:
+
+    virtual RefPtr emit(CodeGen& cg) const;
 };
 
 class IndexExpr : public Expr {
@@ -430,11 +447,13 @@ public:
 
     const Expr* lhs() const { return ops_[0]; }
     const Expr* index() const { return ops_[1]; }
-
     virtual bool is_lvalue() const { return true; }
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
-    virtual RefPtr emit(CodeGen& cg) const;
     virtual Printer& print(Printer& p) const;
+
+private:
+
+    virtual RefPtr emit(CodeGen& cg) const;
 };
 
 class Call : public Expr {
@@ -452,13 +471,14 @@ public:
     anydsl2::ArrayRef<const Expr*> args() const { return anydsl2::ArrayRef<const Expr*>(&*ops_.begin() + 1, num_args()); }
     const Expr* arg(size_t i) const { return op(i+1); }
     anydsl2::Location args_location() const;
-
+    bool is_continuation_call() const;
     virtual bool is_lvalue() const { return false; }
-    virtual RefPtr emit(CodeGen& cg) const;
     virtual const anydsl2::Type* vcheck(Sema& sema) const;
     virtual Printer& print(Printer& p) const;
 
-    bool is_continuation_call() const;
+private:
+
+    virtual RefPtr emit(CodeGen& cg) const;
 };
 
 //------------------------------------------------------------------------------
@@ -468,7 +488,12 @@ public:
 
     virtual bool empty() const { return false; }
     virtual void check(Sema& sema) const = 0;
+
+private:
+
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const = 0;
+
+    friend class CodeGen;
 };
 
 class ExprStmt : public Stmt {
@@ -484,9 +509,10 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual Printer& print(Printer& p) const;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
 private:
+
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     anydsl2::AutoPtr<const Expr> expr_;
 };
@@ -506,9 +532,10 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual Printer& print(Printer& p) const;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
 private:
+
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     anydsl2::AutoPtr<const VarDecl> var_decl_;
     anydsl2::AutoPtr<const Expr> init_;
@@ -531,9 +558,10 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual Printer& print(Printer& p) const;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
 private:
+
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     anydsl2::AutoPtr<const Expr> cond_;
     anydsl2::AutoPtr<const Stmt> thenStmt_;
@@ -570,6 +598,9 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual Printer& print(Printer& p) const;
+
+private:
+
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 };
 
@@ -595,9 +626,10 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual Printer& print(Printer& p) const;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
 private:
+
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     anydsl2::AutoPtr<const DeclStmt> init_decl_;
     anydsl2::AutoPtr<const ExprStmt> init_expr_;
@@ -626,9 +658,10 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual Printer& print(Printer& p) const;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
 private:
+
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     anydsl2::AutoPtr<const Stmt> body_;
     anydsl2::AutoPtr<const VarDecl> init_decl_;
@@ -651,8 +684,10 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual Printer& print(Printer& p) const;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
+
 private:
+
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     const Loop* loop_;
 };
@@ -670,9 +705,10 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual Printer& print(Printer& p) const;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
 private:
+
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     const Loop* loop_;
 };
@@ -692,9 +728,10 @@ public:
 
     virtual void check(Sema& sema) const;
     virtual Printer& print(Printer& p) const;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
 private:
+
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     anydsl2::AutoPtr<const Expr> expr_;
     const Fun* fun_;
@@ -711,9 +748,10 @@ public:
 
     virtual Printer& print(Printer& p) const;
     virtual void check(Sema& sema) const { named_fun()->check(sema); }
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
 private:
+
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     anydsl2::AutoPtr<const NamedFun> named_fun_;
 };
@@ -732,9 +770,10 @@ public:
     virtual bool empty() const { return stmts_.empty(); }
     virtual void check(Sema& sema) const;
     virtual Printer& print(Printer& p) const;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
 private:
+
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     mutable Stmts stmts_;
     NamedFuns named_funs_;

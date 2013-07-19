@@ -102,7 +102,69 @@ static Lambdas find_preds(const Lambda* lambda) {
     return result;
 }
 
-Lambdas Lambda::preds() const { return find_preds<false>(this); }
+Lambdas Lambda::succs() const {
+    Lambdas result;
+    std::queue<const Def*> queue;
+    boost::unordered_set<const Def*> done;
+
+    for_all (op, ops()) {
+        if (done.find(op) == done.end()) {
+            queue.push(op);
+            done.insert(op);
+        }
+    }
+
+    while (!queue.empty()) {
+        const Def* def = queue.front();
+        queue.pop();
+
+        if (Lambda* lambda = def->isa_lambda()) {
+            result.push_back(lambda);
+        } else {
+            for_all (op, def->ops()) {
+                if (done.find(op) == done.end()) {
+                    queue.push(op);
+                    done.insert(op);
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+Lambdas Lambda::preds() const {
+    Lambdas result;
+    std::queue<const Def*> queue;
+    boost::unordered_set<const Def*> done;
+
+    for_all (use, uses()) {
+        if (done.find(use) == done.end()) {
+            queue.push(use);
+            done.insert(use);
+        }
+    }
+
+    while (!queue.empty()) {
+        const Def* def = queue.front();
+        queue.pop();
+
+        if (Lambda* lambda = def->isa_lambda()) {
+            result.push_back(lambda);
+        } else {
+            for_all (use, def->uses()) {
+                if (done.find(use) == done.end()) {
+                    queue.push(use);
+                    done.insert(use);
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+//Lambdas Lambda::preds() const { return find_preds<false>(this); }
 Lambdas Lambda::direct_preds() const { return find_preds<true>(this); }
 
 Lambdas Lambda::direct_succs() const {
@@ -119,18 +181,18 @@ Lambdas Lambda::direct_succs() const {
     return result;
 }
 
-Lambdas Lambda::succs() const {
-    Lambdas result;
+//Lambdas Lambda::succs() const {
+    //Lambdas result;
 
-    for_all (succ, direct_succs())
-        result.push_back(succ);
+    //for_all (succ, direct_succs())
+        //result.push_back(succ);
 
-    for_all (arg, args())
-        if (Lambda* succ = arg->isa_lambda())
-            result.push_back(succ);
+    //for_all (arg, args())
+        //if (Lambda* succ = arg->isa_lambda())
+            //result.push_back(succ);
 
-    return result;
-}
+    //return result;
+//}
 
 bool Lambda::is_cascading() const {
     if (uses().size() != 1)

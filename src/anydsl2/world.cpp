@@ -929,7 +929,7 @@ void World::dce_insert(const size_t pass, const Def* def) {
             dce_insert(pass, pred);
         if (!lambda->empty()) {
             dce_insert(pass, lambda->to());
-            if (lambda->to()->isa<Param>()) {
+            if (!lambda->to()->isa<Lambda>()) {
                 for_all (arg, lambda->args())
                     dce_insert(pass, arg);
             }

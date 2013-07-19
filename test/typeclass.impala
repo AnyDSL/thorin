@@ -10,13 +10,8 @@ def pyth<T>(Num : sigma(pi(T, T, pi(T)), pi(T, T, pi(T))), num1 : T, num2 : T) -
     return add(mul(num1, num1), mul(num2, num2));
 }
 
-def add(a : int, b : int) -> int {
-    return a + b;
-}
-
-def mul(a : int, b : int) -> int {
-    return a * b;
-}
+def add(a : int, b : int) -> int { return a + b; }
+def mul(a : int, b : int) -> int { return a * b; }
 
 def main(i : int, j : int) -> int {
     Num : sigma(pi(int, int, pi(int)), pi(int, int, pi(int))) = #(add, mul);

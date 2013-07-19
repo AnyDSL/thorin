@@ -94,7 +94,8 @@ static Lambdas find_preds(const Lambda* lambda) {
             }
         } else {
             if (!direct || use.index() == 0)
-                result.push_back(use->as_lambda());
+                if (Lambda* ulambda = use->isa_lambda())
+                    result.push_back(ulambda);
         }
     }
 
@@ -106,21 +107,15 @@ Lambdas Lambda::direct_preds() const { return find_preds<true>(this); }
 
 Lambdas Lambda::direct_succs() const {
     Lambdas result;
-    if (empty())
-        return result;
 
-    result.reserve(2);
-    if (Lambda* succ = to()->isa_lambda()) {
-        result.push_back(succ);
-        return result;
-    } else if (to()->isa<Param>() || to()->isa<Undef>())
-        return result;
-
-    const Select* select = to()->as<Select>();
-    result.resize(2);
-    result[0] = select->tval()->as_lambda();
-    result[1] = select->fval()->as_lambda();
-
+    if (!empty()) {
+        if (Lambda* succ = to()->isa_lambda())
+            result.push_back(succ);
+        else if (const Select* select = to()->isa<Select>()) {
+            result.push_back(select->tval()->as_lambda());
+            result.push_back(select->fval()->as_lambda());
+        }
+    }
     return result;
 }
 

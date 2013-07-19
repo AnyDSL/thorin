@@ -38,6 +38,13 @@ const Type* convert_type(const Type* type) {
             elems[i] = convert(pi->elem(i-1));
 
         return type->world().pi(elems);
+    } else if (const Sigma* sigma = type->isa<Sigma>()) {
+        Array<const Type*> elems(sigma->size());
+
+        for (size_t i = 0, e = elems.size(); i != e; ++i)
+            elems[i] = convert(sigma->elem(i));
+
+        return type->world().sigma(elems);
     }
 
     return type;

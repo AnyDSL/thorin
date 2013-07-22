@@ -48,9 +48,20 @@ void CFFLowering::transform(Lambda* lambda) {
         Array<const Def*> with(size);
         Array<const Def*> args(size);
 
+        // don't drop the "return" of a top-level function
+        size_t keep = -1;
+        if (top_.find(lambda) != top_.end()) {
+            for (size_t i = 0; i != size; ++i) {
+                if (lambda->param(i)->type()->specialize(generic_map)->order() == 1) {
+                    keep = i;
+                    break;
+                }
+            }
+        }
+
         size_t num = 0;
         for (size_t i = 0; i != size; ++i) {
-            if (lambda->param(i)->order() >= 1) {
+            if (i != keep && lambda->param(i)->order() >= 1) {
                 const Def* arg = ulambda->arg(i);
                 indices[num] = i;
                 with[num++] = arg;

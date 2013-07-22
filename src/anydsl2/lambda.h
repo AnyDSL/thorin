@@ -48,14 +48,12 @@ public:
     Lambda* update_op(size_t i, const Def* def);
     Lambda* update_arg(size_t i, const Def* def) { return update_op(i+1, def); }
     const Param* append_param(const Type* type, const std::string& name = "");
-    const Def* append_arg(const Def* arg);
-    Lambdas succs() const;
-    Lambdas preds() const;
+    Lambdas& succs() const;
+    Lambdas& preds() const;
     Lambdas direct_succs() const;
     Lambdas direct_preds() const;
     const Params& params() const { return params_; }
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
-    const Param* mem_param() const;
     const Def* to() const { return op(0); };
     ArrayRef<const Def*> args() const { return empty() ? ArrayRef<const Def*>(0, 0) : ops().slice_back(1); }
     const Def* arg(size_t i) const { return args()[i]; }
@@ -188,9 +186,13 @@ private:
 
     typedef std::vector<const Tracker*> TrackedValues;
     TrackedValues tracked_values_;
-
     typedef std::vector<Todo> Todos;
     Todos todos_;
+
+    mutable Lambdas preds_;
+    mutable Lambdas succs_;
+    mutable std::vector<Use> former_uses_;
+    mutable std::vector<const Def*> former_ops_;
 
     friend class World;
     friend class Scope;

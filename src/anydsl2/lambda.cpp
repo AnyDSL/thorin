@@ -70,19 +70,6 @@ const Param* Lambda::append_param(const Type* type, const std::string& name) {
     return param;
 }
 
-const Param* Lambda::mem_param() const {
-    for_all (param, params())
-        if (param->type()->isa<Mem>())
-            return param;
-
-    return 0;
-}
-
-const Def* Lambda::append_arg(const Def* arg) {
-    ops_.push_back(arg);
-    return arg;
-}
-
 template<bool direct>
 static Lambdas find_preds(const Lambda* lambda) {
     Lambdas result;
@@ -102,71 +89,70 @@ static Lambdas find_preds(const Lambda* lambda) {
     return result;
 }
 
-Lambdas Lambda::succs() const {
-    Lambdas result;
+Lambdas& Lambda::succs() const {
+    if (ops() == former_ops_)
+        return succs_;
+
+    former_ops_.resize(ops().size());
+    std::copy(ops().begin(), ops().end(), former_ops_.begin());
+    succs_.clear();
     std::queue<const Def*> queue;
     boost::unordered_set<const Def*> done;
-
-    for_all (op, ops()) {
-        if (done.find(op) == done.end()) {
-            queue.push(op);
-            done.insert(op);
-        }
-    }
+    const Def* def = this;
+    goto start;
 
     while (!queue.empty()) {
-        const Def* def = queue.front();
+        def = queue.front();
         queue.pop();
 
         if (Lambda* lambda = def->isa_lambda()) {
-            result.push_back(lambda);
-        } else {
-            for_all (op, def->ops()) {
-                if (done.find(op) == done.end()) {
-                    queue.push(op);
-                    done.insert(op);
-                }
+            succs_.push_back(lambda);
+            continue;
+        } 
+start:
+        for_all (op, def->ops()) {
+            if (done.find(op) == done.end()) {
+                queue.push(op);
+                done.insert(op);
             }
         }
     }
 
-    return result;
+    return succs_;
 }
 
-Lambdas Lambda::preds() const {
-    Lambdas result;
+Lambdas& Lambda::preds() const {
+    if (former_uses_ == uses())
+        return preds_;
+
+    former_uses_ = uses();
+    preds_.clear();
     std::queue<const Def*> queue;
     boost::unordered_set<const Def*> done;
-
-    for_all (use, uses()) {
-        if (done.find(use) == done.end()) {
-            queue.push(use);
-            done.insert(use);
-        }
-    }
+    const Def* def = this;
+    goto start;
 
     while (!queue.empty()) {
-        const Def* def = queue.front();
+        def = queue.front();
         queue.pop();
 
         if (Lambda* lambda = def->isa_lambda()) {
-            result.push_back(lambda);
-        } else {
-            for_all (use, def->uses()) {
-                if (done.find(use) == done.end()) {
-                    queue.push(use);
-                    done.insert(use);
-                }
+            preds_.push_back(lambda);
+            continue;
+        } 
+start:
+        for_all (use, def->uses()) {
+            if (done.find(use) == done.end()) {
+                queue.push(use);
+                done.insert(use);
             }
         }
     }
 
-    return result;
+    return preds_;
 }
 
-//Lambdas Lambda::preds() const { return find_preds<false>(this); }
 Lambdas Lambda::direct_preds() const { return find_preds<true>(this); }
-
 Lambdas Lambda::direct_succs() const {
     Lambdas result;
 
@@ -180,19 +166,6 @@ Lambdas Lambda::direct_succs() const {
     }
     return result;
 }
-
-//Lambdas Lambda::succs() const {
-    //Lambdas result;
-
-    //for_all (succ, direct_succs())
-        //result.push_back(succ);
-
-    //for_all (arg, args())
-        //if (Lambda* succ = arg->isa_lambda())
-            //result.push_back(succ);
-
-    //return result;
-//}
 
 bool Lambda::is_cascading() const {
     if (uses().size() != 1)

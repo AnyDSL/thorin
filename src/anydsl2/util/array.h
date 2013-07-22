@@ -53,24 +53,19 @@ public:
     const_iterator end() const { return ptr_ + size_; }
     const_reverse_iterator rbegin() const { return const_reverse_iterator(end()); }
     const_reverse_iterator rend() const { return const_reverse_iterator(begin()); }
-
-    const T& operator [] (size_t i) const {
-        assert(i < size() && "index out of bounds");
-        return *(ptr_ + i);
-    }
-
+    const T& operator [] (size_t i) const { assert(i < size() && "index out of bounds"); return *(ptr_ + i); }
     size_t size() const { return size_; }
     bool empty() const { return size_ == 0; }
-
     T const& front() const { assert(!empty()); return ptr_[0]; }
     T const& back()  const { assert(!empty()); return ptr_[size_ - 1]; }
-
     ArrayRef<T> slice(size_t begin, size_t end) const { return ArrayRef<T>(ptr_ + begin, end - begin); }
     ArrayRef<T> slice_front(size_t end) const { return ArrayRef<T>(ptr_, end); }
     ArrayRef<T> slice_back(size_t begin) const { return ArrayRef<T>(ptr_ + begin, size_ - begin); }
     Array<T> cut(ArrayRef<size_t> indices, size_t reserve = 0) const;
+    template<class U> ArrayRef<U> cast() const { return ArrayRef<U>((const U*) ptr_, size_); }
 
-    bool operator == (ArrayRef<T> other) const {
+    template<class Other>
+    bool operator == (const Other& other) const {
         if (size() != other.size())
             return false;
 
@@ -80,9 +75,6 @@ public:
 
         return true;
     }
-
-    template<class U>
-    ArrayRef<U> cast() const { return ArrayRef<U>((const U*) ptr_, size_); }
 
 private:
 

@@ -173,7 +173,7 @@ private:
     LambdaAttr attr_;
     Params params_;
     /**
-     * There exist there cases to distinguish here.
+     * There exist three cases to distinguish here.
      * - \p parent_ == this: This \p Lambda is considered as a basic block, i.e., 
      *                       SSA construction will propagate value through this \p Lambda's predecessors.
      * - \p parent_ == 0: This \p Lambda is considered as top level function, i.e.,

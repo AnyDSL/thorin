@@ -280,6 +280,36 @@ private:
 
 //------------------------------------------------------------------------------
 
+class GenericRef : public Type {
+private:
+
+    GenericRef(World& world, const Generic* generic, Lambda* lambda)
+        : Type(world, Node_GenericRef, 1, true)
+        , lambda_(lambda)
+    {
+        set(0, generic);
+    }
+
+    virtual Printer& print(Printer& printer) const;
+    virtual size_t hash() const { return hash_combine(Type::hash(), lambda()); }
+    virtual bool equal(const Node* other) const { 
+        return Type::equal(other) ? lambda() == other->as<GenericRef>()->lambda() : false; 
+    }
+
+public:
+
+    const Generic* generic() const { return elem(0)->as<Generic>(); }
+    Lambda* lambda() const { return lambda_; }
+
+private:
+
+    Lambda* lambda_;
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
 class GenericBuilder {
 public:
 

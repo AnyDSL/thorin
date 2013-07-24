@@ -153,19 +153,6 @@ start:
 }
 
 Lambdas Lambda::direct_preds() const { return find_preds<true>(this); }
-Lambdas Lambda::direct_succs() const {
-    Lambdas result;
-
-    if (!empty()) {
-        if (Lambda* succ = to()->isa_lambda())
-            result.push_back(succ);
-        else if (const Select* select = to()->isa<Select>()) {
-            result.push_back(select->tval()->as_lambda());
-            result.push_back(select->fval()->as_lambda());
-        }
-    }
-    return result;
-}
 
 bool Lambda::is_cascading() const {
     if (uses().size() != 1)
@@ -173,17 +160,6 @@ bool Lambda::is_cascading() const {
 
     Use use = *uses().begin();
     return use->isa<Lambda>() && use.index() > 0;
-}
-
-bool Lambda::is_passed() const {
-    for_all (use, this->uses()) {
-        if (use->isa_lambda()) {
-            if (use.index() != 0)
-                return true;
-        }
-    }
-
-    return false;
 }
 
 bool Lambda::is_basicblock() const { return pi()->is_basicblock(); }

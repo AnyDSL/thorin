@@ -24,6 +24,7 @@ Printer& Frame::print(Printer& p) const { p << "frame"; return p; }
 Printer& Mem::  print(Printer& p) const { p << "mem"; return p; }
 Printer& Pi   ::print(Printer& p) const { ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p,    "pi(", elems(), ")"); return p; }
 Printer& Sigma::print(Printer& p) const { ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "sigma(", elems(), ")"); return p; }
+Printer& GenericRef::print(Printer& p) const { return p << generic() << "(" << lambda()->unique_name() << ")"; }
 
 Printer& Ptr::print(Printer& p) const { 
     if (is_vector())

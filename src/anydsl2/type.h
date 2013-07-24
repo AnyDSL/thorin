@@ -280,35 +280,6 @@ private:
 
 //------------------------------------------------------------------------------
 
-class Opaque : public CompoundType {
-private:
-
-    Opaque(World& world, ArrayRef<const Type*> elems, ArrayRef<uint32_t> flags)
-        : CompoundType(world, Node_Opaque, elems.size())
-        , flags_(flags)
-    {}
-
-    virtual Printer& print(Printer& printer) const;
-    virtual size_t hash() const;
-    virtual bool equal(const Node* other) const {
-        return Type::equal(other) ? flags() == other->as<Opaque>()->flags() : false;
-    }
-
-public:
-
-    ArrayRef<uint32_t> flags() const { return flags_; }
-    uint32_t flag(size_t i) const { return flags_[i]; }
-    size_t num_flags() const { return flags_.size(); }
-
-private:
-
-    Array<uint32_t> flags_;
-
-    friend class World;
-};
-
-//------------------------------------------------------------------------------
-
 class GenericBuilder {
 public:
 

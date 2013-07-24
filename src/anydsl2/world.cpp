@@ -81,8 +81,6 @@ Sigma* World::named_sigma(size_t size, const std::string& name) {
     return s;
 }
 
-const Opaque* World::opaque(ArrayRef<const Type*> types, ArrayRef<uint32_t> flags) { return unify(new Opaque(*this, types, flags)); }
-
 /*
  * literals
  */

@@ -168,15 +168,6 @@ bool Pi::is_returning() const {
 
 //------------------------------------------------------------------------------
 
-size_t Opaque::hash() const { 
-    size_t seed = Type::hash(); 
-    for_all (flag, flags_)
-        boost::hash_combine(seed, flag); 
-    return seed; 
-}
-
-//------------------------------------------------------------------------------
-
 size_t GenericBuilder::new_def() {
     size_t handle = index2generic_.size();
     index2generic_.push_back(0);

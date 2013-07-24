@@ -56,13 +56,6 @@ Printer& Generic::print(Printer& p) const {
     return p;
 }
 
-Printer& Opaque::print(Printer& p) const {
-    p << "opaque(";
-    for_all (f, flags()) p << f << " ";
-    for_all (t,elems())  p << t << " ";
-    return p << ")";
-}
-
 std::ostream& operator << (std::ostream& o, const Type* type) {
     Printer p(o, false);
     type->print(p);

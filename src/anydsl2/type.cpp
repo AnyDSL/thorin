@@ -165,9 +165,9 @@ GenericRef::GenericRef(World& world, const Generic* generic, Lambda* lambda)
 GenericRef::~GenericRef() {
     std::vector<const GenericRef*>& generic_refs = lambda()->generic_refs_;
     std::vector<const GenericRef*>::iterator i = std::find(generic_refs.begin(), generic_refs.end(), this);
-    //assert(it != def->uses_.end() && "must be in use set");
-    //*it = def->uses_.back();
-    //def->uses_.pop_back();
+    assert(i != generic_refs.end() && "must be in use set");
+    *i = generic_refs.back();
+    generic_refs.pop_back();
 }
 
 //------------------------------------------------------------------------------

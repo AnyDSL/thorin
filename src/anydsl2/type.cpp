@@ -139,16 +139,6 @@ CompoundType::CompoundType(World& world, int kind, ArrayRef<const Type*> elems)
 
 //------------------------------------------------------------------------------
 
-size_t Sigma::hash() const {
-    return named_ ? boost::hash_value(this) : CompoundType::hash();
-}
-
-bool Sigma::equal(const Node* other) const {
-    return named_ ? this == other : CompoundType::equal(other);
-}
-
-//------------------------------------------------------------------------------
-
 bool Pi::is_returning() const {
     bool ret = false;
     for_all (elem, elems()) {

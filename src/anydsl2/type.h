@@ -53,7 +53,6 @@ public:
     ArrayRef<const Type*> elems() const { return ops_ref<const Type*>(); }
     const Type* elem(size_t i) const { return elems()[i]; }
     const Type* elem_via_lit(const Def* def) const;
-    const Ptr* to_ptr(size_t length = 1) const;
     bool check_with(const Type* type) const;
     bool infer_with(GenericMap& map, const Type* type) const;
     const Type* specialize(const GenericMap& generic_map) const;
@@ -283,12 +282,8 @@ private:
 class GenericRef : public Type {
 private:
 
-    GenericRef(World& world, const Generic* generic, Lambda* lambda)
-        : Type(world, Node_GenericRef, 1, true)
-        , lambda_(lambda)
-    {
-        set(0, generic);
-    }
+    GenericRef(World& world, const Generic* generic, Lambda* lambda);
+    virtual ~GenericRef();
 
     virtual Printer& print(Printer& printer) const;
     virtual size_t hash() const { return hash_combine(Type::hash(), lambda()); }

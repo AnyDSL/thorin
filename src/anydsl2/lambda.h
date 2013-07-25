@@ -11,6 +11,7 @@
 namespace anydsl2 {
 
 class GenericMap;
+class GenericRef;
 class Lambda;
 class Pi;
 class Scope;
@@ -51,6 +52,7 @@ public:
     Lambdas& succs() const;
     Lambdas& preds() const;
     Lambdas direct_preds() const;
+    const std::vector<const GenericRef*>& generic_refs() const { return generic_refs_; }
     const Params& params() const { return params_; }
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
     const Def* to() const { return op(0); };
@@ -190,9 +192,11 @@ private:
     mutable Lambdas succs_;
     mutable std::vector<Use> former_uses_;
     mutable std::vector<const Def*> former_ops_;
+    mutable std::vector<const GenericRef*> generic_refs_;
 
     friend class World;
     friend class Scope;
+    friend class GenericRef;
 };
 
 } // namespace anydsl2

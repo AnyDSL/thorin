@@ -58,12 +58,8 @@ int Type::order() const {
     return sub;
 }
 
-const Ptr* Type::to_ptr(size_t length) const { return world().ptr(this, length); }
 size_t Type::length() const { return as<VectorType>()->length(); }
-
-const Type* Type::elem_via_lit(const Def* def) const {
-    return elem(def->primlit_value<size_t>());
-}
+const Type* Type::elem_via_lit(const Def* def) const { return elem(def->primlit_value<size_t>()); }
 
 bool Type::check_with(const Type* other) const {
     if (this == other || this->isa<Generic>())
@@ -154,6 +150,24 @@ bool Pi::is_returning() const {
         }
     }
     return true;
+}
+
+//------------------------------------------------------------------------------
+
+GenericRef::GenericRef(World& world, const Generic* generic, Lambda* lambda)
+    : Type(world, Node_GenericRef, 1, true)
+    , lambda_(lambda)
+{
+    lambda_->generic_refs_.push_back(this);
+    set(0, generic);
+}
+
+GenericRef::~GenericRef() {
+    std::vector<const GenericRef*>& generic_refs = lambda()->generic_refs_;
+    std::vector<const GenericRef*>::iterator i = std::find(generic_refs.begin(), generic_refs.end(), this);
+    //assert(it != def->uses_.end() && "must be in use set");
+    //*it = def->uses_.back();
+    //def->uses_.pop_back();
 }
 
 //------------------------------------------------------------------------------

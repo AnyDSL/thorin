@@ -4,14 +4,14 @@
 #include <iostream>
 #include <boost/unordered_map.hpp>
 
-#include <llvm/Constant.h>
-#include <llvm/Constants.h>
-#include <llvm/Function.h>
-#include <llvm/LLVMContext.h>
-#include <llvm/Module.h>
-#include <llvm/Type.h>
+#include <llvm/IR/Constant.h>
+#include <llvm/IR/Constants.h>
+#include <llvm/IR/Function.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
+#include <llvm/IR/Type.h>
+#include <llvm/IR/IRBuilder.h>
 #include <llvm/Analysis/Verifier.h>
-#include <llvm/Support/IRBuilder.h>
 
 #include "anydsl2/def.h"
 #include "anydsl2/lambda.h"

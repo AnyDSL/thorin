@@ -2,6 +2,3 @@ CMakeCache.txt
 CMakeFiles/
 build*
 html
-src/build
-src/config.*
-src/local.config

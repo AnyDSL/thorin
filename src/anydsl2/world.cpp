@@ -65,7 +65,7 @@ World::World()
 
 World::~World() {
     for (auto primop : primops_) delete primop;
-    for (auto type :   types_  ) delete type;
+    for (auto type   : types_  ) delete type;
     for (auto lambda : lambdas_) delete lambda;
 }
 

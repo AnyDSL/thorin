@@ -1,5 +1,5 @@
 #include <iostream>
-#include <boost/unordered_map.hpp>
+#include <unordered_map>
 
 #include "anydsl2/lambda.h"
 #include "anydsl2/world.h"
@@ -28,8 +28,7 @@ private:
 
 void CFFLowering::transform(Lambda* lambda) {
     Scope scope(lambda);
-    typedef boost::unordered_map<Array<const Def*>, Lambda*> Args2Lambda;
-    Args2Lambda args2lambda;
+    std::unordered_map<Array<const Def*>, Lambda*> args2lambda;
 
     for_all (use, lambda->copy_uses()) {
         if (use.index() != 0 || !use->isa<Lambda>())

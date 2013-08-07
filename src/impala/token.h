@@ -3,8 +3,7 @@
 
 #include <ostream>
 #include <string>
-
-#include <boost/unordered_map.hpp>
+#include <unordered_map>
 
 #include "anydsl2/enums.h"
 #include "anydsl2/symbol.h"
@@ -39,6 +38,10 @@ public:
         // these do ont appear in impala/tokenlist.h -- they are too special
         ID, END_OF_FILE,
         NUM_TOKENS
+    };
+
+    struct KindHash {
+        size_t operator () (Kind kind) const { return anydsl2::hash_value((int) kind); }
     };
 
     /*
@@ -101,13 +104,13 @@ private:
     static anydsl2::Symbol insert(Kind tok, const char* str);
     static void insert_key(Kind tok, const char* str);
 
-    typedef boost::unordered_map<Kind, anydsl2::Symbol> Tok2Sym;
+    typedef std::unordered_map<Kind, anydsl2::Symbol, KindHash> Tok2Sym;
     static Tok2Sym tok2sym_;
 
-    typedef boost::unordered_map<anydsl2::Symbol, Kind> Sym2Tok;
+    typedef std::unordered_map<anydsl2::Symbol, Kind> Sym2Tok;
     static Sym2Tok keywords_;
 
-    typedef boost::unordered_map<Kind, const char*> Tok2Str;
+    typedef std::unordered_map<Kind, const char*, KindHash> Tok2Str;
     static Tok2Str tok2str_;
 
     friend void init();

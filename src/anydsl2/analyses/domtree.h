@@ -1,8 +1,6 @@
 #ifndef ANYDSL2_ANALYSES_DOMTREE_H
 #define ANYDSL2_ANALYSES_DOMTREE_H
 
-#include <boost/unordered_set.hpp>
-
 #include "anydsl2/lambda.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/analyses/scope_analysis.h"

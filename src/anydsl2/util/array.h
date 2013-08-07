@@ -185,11 +185,22 @@ inline size_t hash_combine(size_t seed, anydsl2::ArrayRef<T> aref) {
     return seed;
 }
 
-template<class T> inline size_t hash_value(ArrayRef<T> aref) { return hash_combine(0, aref); }
-template<class T> inline size_t hash_value(const Array<T>& array) { return hash_value(array.ref()); }
-
 //------------------------------------------------------------------------------
 
 } // namespace anydsl2
+
+namespace std {
+
+template<class T>
+struct hash<anydsl2::ArrayRef<T>> {
+    size_t operator () (anydsl2::ArrayRef<T> aref) const { return hash_combine(0, aref); }
+};
+
+template<class T>
+struct hash<anydsl2::Array<T>> {
+    size_t operator () (const anydsl2::Array<T>& array) const { return hash_value(array.ref()); }
+};
+
+}
 
 #endif

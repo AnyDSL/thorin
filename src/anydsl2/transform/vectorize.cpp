@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <sstream>
 
 #include "anydsl2/literal.h"

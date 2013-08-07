@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <queue>
 
 #include "anydsl2/lambda.h"

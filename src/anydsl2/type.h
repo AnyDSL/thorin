@@ -216,8 +216,11 @@ private:
     {}
 
     virtual Printer& print(Printer& printer) const;
-    virtual size_t hash() const;
-    virtual bool equal(const Node* other) const;
+    virtual size_t hash() const { return named_ ? hash_value(this) : CompoundType::hash(); }
+    virtual bool equal(const Node* other) const { return named_ ? this == other : CompoundType::equal(other); }
+
+//------------------------------------------------------------------------------
+
 
 public:
 

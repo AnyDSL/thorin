@@ -39,8 +39,8 @@ Token::Token(const Location& loc, Kind kind, const std::string& str)
     switch (kind_) {
         case LIT_int8:   box_ = Box(bcast< uint8_t,  int8_t>( int8_t(strtol  (symbol_.str(), 0, 0)))); break;
         case LIT_int16:  box_ = Box(bcast<uint16_t, int16_t>(int16_t(strtol  (symbol_.str(), 0, 0)))); break;
-        case LIT_int32:  box_ = Box(bcast<uint32_t, int32_t>(int32_t(strtol  (symbol_.str(), 0, 0))));  break;
-        case LIT_int64:  box_ = Box(bcast<uint64_t, int64_t>(int64_t(strtoll (symbol_.str(), 0, 0))));  break;
+        case LIT_int32:  box_ = Box(bcast<uint32_t, int32_t>(int32_t(strtol  (symbol_.str(), 0, 0)))); break;
+        case LIT_int64:  box_ = Box(bcast<uint64_t, int64_t>(int64_t(strtoll (symbol_.str(), 0, 0)))); break;
 
         //case LIT_uint8:  box_ = Box(uint8_t (strtoul (symbol_.str(), 0, 0))); break;
         //case LIT_uint16: box_ = Box(uint16_t(strtoul (symbol_.str(), 0, 0))); break;

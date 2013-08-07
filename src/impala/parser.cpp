@@ -115,7 +115,7 @@ private:
      * data
      */
 
-    typedef boost::unordered_map<Symbol, size_t> Symbol2Handle;
+    typedef std::unordered_map<Symbol, size_t> Symbol2Handle;
     class Generics {
     public:
 

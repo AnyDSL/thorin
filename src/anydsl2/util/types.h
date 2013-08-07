@@ -2,11 +2,10 @@
 #define ANYDSL2_UTIL_TYPES_H
 
 #include <cmath>
+#include <cstdint>
 #include <ostream>
 
-#include <boost/cstdint.hpp>
-
-#include <anydsl2/util/cast.h>
+#include "anydsl2/util/cast.h"
 
 namespace anydsl2 {
 

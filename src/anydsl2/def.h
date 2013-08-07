@@ -7,8 +7,6 @@
 #include <string>
 #include <vector>
 
-#include <boost/cstdint.hpp>
-
 #include "anydsl2/enums.h"
 #include "anydsl2/node.h"
 #include "anydsl2/util/array.h"

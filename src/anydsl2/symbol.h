@@ -1,11 +1,11 @@
 #ifndef ANYDSL2_SYMBOL_H
 #define ANYDSL2_SYMBOL_H
 
-#include <string>
 #include <cstring>
+#include <string>
+#include <unordered_set>
 
-#include <boost/unordered_set.hpp>
-#include <boost/functional/hash.hpp>
+#include "anydsl2/util/hash.h"
 
 namespace anydsl2 {
 
@@ -36,13 +36,21 @@ private:
 
     const char* str_;
 
-    typedef boost::unordered_set<const char*, StrHash, StrEqual> Table;
+    typedef std::unordered_set<const char*, StrHash, StrEqual> Table;
     static Table table_;
 };
 
 inline std::ostream& operator << (std::ostream& o, Symbol s) { return o << s.str(); }
-inline size_t hash_value(Symbol symbol) { return boost::hash_value(symbol.str()); }
 
 } // namespace anydsl2
+
+namespace std {
+
+template<>
+struct hash<anydsl2::Symbol> {
+    size_t operator () (anydsl2::Symbol symbol) const { return anydsl2::hash_value(symbol.str()); }
+};
+
+}
 
 #endif

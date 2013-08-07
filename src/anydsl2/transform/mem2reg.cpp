@@ -1,4 +1,4 @@
-#include <boost/unordered_map.hpp>
+#include <unordered_map>
 
 #include "anydsl2/memop.h"
 #include "anydsl2/world.h"
@@ -31,7 +31,7 @@ void mem2reg(World& world) {
         Schedule schedule = schedule_late(scope);
         const size_t pass = world.new_pass();
         size_t cur_handle = 0;
-        boost::unordered_map<const Load*, const Tracker*> load2tracker;
+        std::unordered_map<const Load*, const Tracker*> load2tracker;
 
         for (size_t i = 0, e = scope.size(); i != e; ++i) {
             Lambda* lambda = scope[i];

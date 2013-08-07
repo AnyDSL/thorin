@@ -2,15 +2,14 @@
 
 #include <typeinfo>
 
+#include "anydsl2/util/hash.h"
+
 namespace anydsl2 {
 
 size_t Node::hash() const {
-    size_t seed = 0;
-    boost::hash_combine(seed, kind());
-    boost::hash_combine(seed, size());
+    size_t seed = hash_combine(hash_value(kind()), size());
     for (auto op : ops_)
-        boost::hash_combine(seed, op);
-
+        seed = hash_combine(seed, op);
     return seed;
 }
 

@@ -1,7 +1,7 @@
 #include "impala/ast.h"
 
 #include <vector>
-#include <boost/unordered_map.hpp>
+#include <unordered_map>
 
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/for_all.h"
@@ -69,7 +69,7 @@ public:
         return false;
     }
 
-    std::vector< boost::unordered_set<const Generic*> > bound_generics_;
+    std::vector<std::unordered_set<const Generic*>> bound_generics_;
     bool in_foreach_;
 
 private:
@@ -78,7 +78,7 @@ private:
     bool result_;
     bool nossa_;
 
-    typedef boost::unordered_map<Symbol, const Decl*> Sym2Decl;
+    typedef std::unordered_map<Symbol, const Decl*> Sym2Decl;
     Sym2Decl sym2decl_;
     std::vector<const Decl*> decl_stack_;
     std::vector<size_t> levels_;
@@ -145,7 +145,7 @@ bool Sema::check(const Prg* prg) {
     return result();
 }
 
-static void propagate_set(const Type* type, boost::unordered_set<const Generic*>& bound) {
+static void propagate_set(const Type* type, std::unordered_set<const Generic*>& bound) {
     for (auto elem : type->elems())
         if (const Generic* generic = elem->isa<Generic>())
             bound.insert(generic);
@@ -163,7 +163,7 @@ GenericMap Sema::fill_map() {
 
 void Sema::fun_check(const Fun* fun) {
     push_scope();
-    boost::unordered_set<const Generic*> bound;
+    std::unordered_set<const Generic*> bound;
     propagate_set(fun->pi(), bound);
     bound_generics_.push_back(bound);
 

@@ -1,6 +1,5 @@
 #include "impala/ast.h"
 
-#include <boost/unordered_map.hpp>
 #include <iostream>
 #include <vector>
 

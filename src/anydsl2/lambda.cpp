@@ -97,7 +97,7 @@ Lambdas& Lambda::succs() const {
     std::copy(ops().begin(), ops().end(), former_ops_.begin());
     succs_.clear();
     std::queue<const Def*> queue;
-    boost::unordered_set<const Def*> done;
+    std::unordered_set<const Def*> done;
     const Def* def = this;
     goto start;
 
@@ -128,7 +128,7 @@ Lambdas& Lambda::preds() const {
     former_uses_ = uses();
     preds_.clear();
     std::queue<const Def*> queue;
-    boost::unordered_set<const Def*> done;
+    std::unordered_set<const Def*> done;
     const Def* def = this;
     goto start;
 

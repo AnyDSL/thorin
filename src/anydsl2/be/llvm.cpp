@@ -2,7 +2,7 @@
 
 #include <algorithm>
 #include <iostream>
-#include <boost/unordered_map.hpp>
+#include <unordered_map>
 
 #include <llvm/IR/Constant.h>
 #include <llvm/IR/Constants.h>
@@ -38,10 +38,10 @@ template<class T> llvm::ArrayRef<T> llvm_ref(const ArrayRef<T>& array) {
 
 //------------------------------------------------------------------------------
 
-typedef boost::unordered_map<Lambda*, llvm::Function*> FctMap;
-typedef boost::unordered_map<const Param*, llvm::Value*> ParamMap;
-typedef boost::unordered_map<const Param*, llvm::PHINode*> PhiMap;
-typedef boost::unordered_map<const PrimOp*, llvm::Value*> PrimOpMap;
+typedef std::unordered_map<Lambda*, llvm::Function*> FctMap;
+typedef std::unordered_map<const Param*, llvm::Value*> ParamMap;
+typedef std::unordered_map<const Param*, llvm::PHINode*> PhiMap;
+typedef std::unordered_map<const PrimOp*, llvm::Value*> PrimOpMap;
 typedef Array<llvm::BasicBlock*> BBMap;
 
 //------------------------------------------------------------------------------

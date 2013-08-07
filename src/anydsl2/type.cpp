@@ -49,7 +49,7 @@ int Type::order() const {
         return 0;
 
     int sub = 0;
-    for_all (elem, elems())
+    for (auto elem : elems())
         sub = std::max(sub, elem->order());
 
     if (kind() == Node_Pi)
@@ -130,7 +130,7 @@ CompoundType::CompoundType(World& world, int kind, ArrayRef<const Type*> elems)
     : Type(world, kind, elems.size(), false)
 {
     size_t x = 0;
-    for_all (elem, elems) {
+    for (auto elem : elems) {
         if (elem->is_generic())
             is_generic_ = true;
         set(x++, elem);
@@ -151,7 +151,7 @@ bool Sigma::equal(const Node* other) const {
 
 bool Pi::is_returning() const {
     bool ret = false;
-    for_all (elem, elems()) {
+    for (auto elem : elems()) {
         switch (elem->order()) {
             case 0: continue;
             case 1:
@@ -170,7 +170,7 @@ bool Pi::is_returning() const {
 
 size_t Opaque::hash() const { 
     size_t seed = Type::hash(); 
-    for_all (flag, flags_)
+    for (auto flag : flags_)
         boost::hash_combine(seed, flag); 
     return seed; 
 }

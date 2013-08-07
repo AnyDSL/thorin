@@ -65,9 +65,9 @@ World::World()
 {}
 
 World::~World() {
-    for_all (primop, primops_) delete primop;
-    for_all (type,   types_  ) delete type;
-    for_all (lambda, lambdas_) delete lambda;
+    for (auto primop : primops_) delete primop;
+    for (auto type :   types_  ) delete type;
+    for (auto lambda : lambdas_) delete lambda;
 }
 
 /*
@@ -726,7 +726,7 @@ Lambda* World::lambda(const Pi* pi, LambdaAttr attr, const std::string& name) {
     lambdas_.insert(l);
 
     size_t i = 0;
-    for_all (elem, pi->elems())
+    for (auto elem : pi->elems())
         l->params_.push_back(param(elem, l, i++));
 
     return l;
@@ -844,11 +844,11 @@ void World::unregister_uses(const size_t pass, S& set) {
 void World::unreachable_code_elimination() {
     const size_t pass = new_pass();
 
-    for_all (lambda, lambdas())
+    for (auto lambda : lambdas())
         if (lambda->attr().is_extern())
             uce_insert(pass, lambda);
 
-    for_all (lambda, lambdas()) {
+    for (auto lambda : lambdas()) {
         if (!lambda->is_visited(pass))
             lambda->destroy_body();
     }
@@ -857,27 +857,27 @@ void World::unreachable_code_elimination() {
 void World::uce_insert(const size_t pass, Lambda* lambda) {
     if (lambda->visit(pass)) return;
 
-    for_all (succ, lambda->succs())
+    for (auto succ : lambda->succs())
         uce_insert(pass, succ);
 }
 
 void World::dead_code_elimination() {
     const size_t pass = new_pass();
 
-    for_all (primop, primops()) {
+    for (auto primop : primops()) {
         if (const TypeKeeper* tk = primop->isa<TypeKeeper>())
             dce_insert(pass, tk);
     }
 
-    for_all (lambda, lambdas()) {
+    for (auto lambda : lambdas()) {
         if (lambda->attr().is_extern()) {
             if (lambda->empty()) {
-                for_all (param, lambda->params())
+                for (auto param : lambda->params())
                     dce_insert(pass, param);
             } else {
-                for_all (param, lambda->params()) {
+                for (auto param : lambda->params()) {
                     if (param->order() >= 1) {
-                        for_all (use, param->uses()) {
+                        for (auto use : param->uses()) {
                             if (Lambda* caller = use->isa_lambda())
                                 dce_insert(pass, caller);
                         }
@@ -887,7 +887,7 @@ void World::dead_code_elimination() {
         }
     }
 
-    for_all (lambda, lambdas()) {
+    for (auto lambda : lambdas()) {
         if (!lambda->is_visited(pass))
             lambda->destroy_body();
         else {
@@ -918,19 +918,19 @@ void World::dce_insert(const size_t pass, const Def* def) {
     if (def->visit(pass)) return;
 
     if (const PrimOp* primop = def->isa<PrimOp>()) {
-        for_all (op, primop->ops())
+        for (auto op : primop->ops())
             dce_insert(pass, op);
     } else if (const Param* param = def->isa<Param>()) {
-        for_all (peek, param->peek())
+        for (auto peek : param->peek())
             dce_insert(pass, peek.def());
     } else {
         Lambda* lambda = def->as_lambda();
-        for_all (pred, lambda->preds()) // insert control-dependent lambdas
+        for (auto pred : lambda->preds()) // insert control-dependent lambdas
             dce_insert(pass, pred);
         if (!lambda->empty()) {
             dce_insert(pass, lambda->to());
             if (!lambda->to()->isa<Lambda>()) {
-                for_all (arg, lambda->args())
+                for (auto arg : lambda->args())
                     dce_insert(pass, arg);
             }
         }
@@ -940,12 +940,12 @@ void World::dce_insert(const size_t pass, const Def* def) {
 void World::unused_type_elimination() {
     const size_t pass = new_pass();
 
-    for_all (primop, primops())
+    for (auto primop : primops())
         ute_insert(pass, primop->type());
 
-    for_all (lambda, lambdas()) {
+    for (auto lambda : lambdas()) {
         ute_insert(pass, lambda->type());
-        for_all (param, lambda->params())
+        for (auto param : lambda->params())
             ute_insert(pass, param->type());
     }
 
@@ -965,7 +965,7 @@ void World::ute_insert(const size_t pass, const Type* type) {
 
     if (type->visit(pass)) return;
 
-    for_all (elem, type->elems())
+    for (auto elem : type->elems())
         ute_insert(pass, elem);
 }
 

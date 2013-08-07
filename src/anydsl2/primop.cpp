@@ -15,7 +15,7 @@ void PrimOp::update(size_t i, const Def* with) {
     set_op(i, with); 
 
     is_const_ = true;
-    for_all (op, ops())
+    for (auto op : ops())
         if (op)
             is_const_ &= op->is_const();
 }
@@ -80,7 +80,7 @@ Vector::Vector(World& world, ArrayRef<const Def*> args, const std::string& name)
     : PrimOp(args.size(), Node_Vector, /*type: set later*/ 0, name)
 {
     size_t i = 0;
-    for_all (arg, args)
+    for (auto arg : args)
         set_op(i++, arg);
 
     if (const PrimType* primtype = args.front()->type()->isa<PrimType>()) {

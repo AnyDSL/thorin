@@ -106,7 +106,7 @@ int main(int argc, char** argv) {
 
         impala::Init init;
 #ifndef NDEBUG
-        for_all (b, breakpoints) {
+        for (auto b : breakpoints) {
             assert(b.size() > 0);
             size_t num = 0;
             for (size_t i = 0, e = b.size(); i != e; ++i) {

@@ -24,7 +24,7 @@ Lambda::Lambda(size_t gid, const Pi* pi, LambdaAttr attr, bool is_sealed, const 
 }
 
 Lambda::~Lambda() {
-    for_all (param, params())
+    for (auto param : params())
         delete param;
 }
 
@@ -73,9 +73,9 @@ const Param* Lambda::append_param(const Type* type, const std::string& name) {
 template<bool direct>
 static Lambdas find_preds(const Lambda* lambda) {
     Lambdas result;
-    for_all (use, lambda->uses()) {
+    for (auto use : lambda->uses()) {
         if (const Select* select = use->isa<Select>()) {
-            for_all (select_user, select->uses()) {
+            for (auto select_user : select->uses()) {
                 assert(select_user.index() == 0);
                 result.push_back(select_user->as_lambda());
             }
@@ -110,7 +110,7 @@ Lambdas& Lambda::succs() const {
             continue;
         } 
 start:
-        for_all (op, def->ops()) {
+        for (auto op : def->ops()) {
             if (done.find(op) == done.end()) {
                 queue.push(op);
                 done.insert(op);
@@ -141,7 +141,7 @@ Lambdas& Lambda::preds() const {
             continue;
         } 
 start:
-        for_all (use, def->uses()) {
+        for (auto use : def->uses()) {
             if (done.find(use) == done.end()) {
                 queue.push(use);
                 done.insert(use);
@@ -177,7 +177,7 @@ void Lambda::jump(const Def* to, ArrayRef<const Def*> args) {
     set_op(0, to);
 
     size_t x = 1;
-    for_all (arg, args)
+    for (auto arg : args)
         set_op(x++, arg);
 }
 
@@ -223,7 +223,7 @@ Lambda* Lambda::mem_call(const Def* to, ArrayRef<const Def*> args, const Type* r
  */
 
 void Lambda::clear() { 
-    for_all (tracker, tracked_values_)
+    for (auto tracker : tracked_values_)
         delete tracker;
     tracked_values_.clear(); 
 }
@@ -266,7 +266,7 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
 
                 is_visited_ = true;
                 const Def* same = 0;
-                for_all (pred, preds) {
+                for (auto pred : preds) {
                     const Def* def = pred->get_value(handle, type, name);
                     if (same && same != def) {
                         same = (const Def*)-1; // defs from preds are different
@@ -298,7 +298,7 @@ void Lambda::seal() {
     assert(!is_sealed() && "already sealed");
     is_sealed_ = true;
 
-    for_all (todo, todos_)
+    for (auto todo : todos_)
         fix(todo);
     todos_.clear();
 }
@@ -310,7 +310,7 @@ const Def* Lambda::fix(const Todo& todo) {
     assert(is_sealed() && "must be sealed");
     assert(todo.index() == param->index());
 
-    for_all (pred, preds()) {
+    for (auto pred : preds()) {
         assert(!pred->empty());
         assert(pred->succs().size() == 1 && "critical edge");
 
@@ -334,7 +334,7 @@ const Def* Lambda::try_remove_trivial_param(const Param* param) {
 
     // find Horspool-like phis
     const Def* same = 0;
-    for_all (pred, preds) {
+    for (auto pred : preds) {
         const Def* def = pred->arg(index);
         if (def == param || same == def)
             continue;
@@ -347,12 +347,12 @@ const Def* Lambda::try_remove_trivial_param(const Param* param) {
     AutoVector<const Tracker*> uses = param->tracked_uses();
     param->replace(same);
 
-    for_all (peek, param->peek())
+    for (auto peek : param->peek())
         peek.from()->update_arg(index, world().bottom(param->type()));
 
-    for_all (tracker, uses) {
+    for (auto tracker : uses) {
         if (Lambda* lambda = tracker->def()->isa_lambda()) {
-            for_all (succ, lambda->succs()) {
+            for (auto succ : lambda->succs()) {
                 size_t index = -1;
                 for (size_t i = 0, e = succ->num_args(); i != e; ++i) {
                     if (succ->arg(i) == tracker->def()) {

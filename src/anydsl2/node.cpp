@@ -8,7 +8,7 @@ size_t Node::hash() const {
     size_t seed = 0;
     boost::hash_combine(seed, kind());
     boost::hash_combine(seed, size());
-    for_all (op, ops_)
+    for (auto op : ops_)
         boost::hash_combine(seed, op);
 
     return seed;

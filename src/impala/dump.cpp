@@ -52,7 +52,7 @@ void ASTNode::dump() const {
 }
 
 Printer& Prg::print(Printer& p) const {
-    for_all (global, globals()) {
+    for (auto global : globals()) {
         p.newline();
         global->print(p);
         p.newline();

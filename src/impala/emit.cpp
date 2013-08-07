@@ -62,7 +62,7 @@ Lambda* CodeGen::emit_head(const Fun* fun, Symbol symbol) {
 }
 
 const Lambda* CodeGen::emit_body(const Fun* fun, Lambda* parent, const char* what) {
-    for_all (f, fun->body()->named_funs())
+    for (auto f : fun->body()->named_funs())
         emit_head(f, f->symbol());
 
     fun->lambda()->set_parent(parent);
@@ -110,7 +110,7 @@ const Lambda* CodeGen::emit_body(const Fun* fun, Lambda* parent, const char* wha
 //------------------------------------------------------------------------------
 
 void CodeGen::emit(const Prg* prg) {
-    for_all (global, prg->globals()) {
+    for (auto global : prg->globals()) {
         if (const NamedFun* f = global->isa<NamedFun>()) {
             Lambda* lambda = emit_head(f, f->symbol());
 
@@ -121,13 +121,13 @@ void CodeGen::emit(const Prg* prg) {
         }
     }
 
-    for_all (global, prg->globals()) {
+    for (auto global : prg->globals()) {
         if (const NamedFun* f = global->isa<NamedFun>())
             emit(f);
     }
 
     // clear get/set value stuff
-    for_all (lambda, world().lambdas())
+    for (auto lambda : world().lambdas())
         lambda->clear();
 }
 

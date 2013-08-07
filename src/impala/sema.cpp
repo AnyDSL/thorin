@@ -61,7 +61,7 @@ public:
     void check(const NamedFun* fun) { return fun_check(fun); }
     const anydsl2::Type* check(const Expr* expr) { assert(!expr->type_); return expr->type_ = expr->check(*this); }
     void check(const Stmt* stmt) { stmt->check(*this); }
-    void check_stmts(const ScopeStmt* scope) { for_all (s, scope->stmts()) s->check(*this); }
+    void check_stmts(const ScopeStmt* scope) { for (auto s : scope->stmts()) s->check(*this); }
     bool check_cond(const Expr* cond) {
         if (check(cond)->is_u1())
             return true;
@@ -134,10 +134,10 @@ void Sema::pop_scope() {
 //------------------------------------------------------------------------------
 
 bool Sema::check(const Prg* prg) {
-    for_all (global, prg->globals())
+    for (auto global : prg->globals())
         insert(global);
 
-    for_all (global, prg->globals()) {
+    for (auto global : prg->globals()) {
         if (const NamedFun* f = global->isa<NamedFun>())
             check(f);
     }
@@ -146,7 +146,7 @@ bool Sema::check(const Prg* prg) {
 }
 
 static void propagate_set(const Type* type, boost::unordered_set<const Generic*>& bound) {
-    for_all (elem, type->elems())
+    for (auto elem : type->elems())
         if (const Generic* generic = elem->isa<Generic>())
             bound.insert(generic);
         else 
@@ -155,8 +155,8 @@ static void propagate_set(const Type* type, boost::unordered_set<const Generic*>
 
 GenericMap Sema::fill_map() {
     GenericMap map;
-    for_all (set, bound_generics_)
-        for_all (generic, set)
+    for (auto set : bound_generics_)
+        for (auto generic : set)
             map[generic] = generic;
     return map;
 }
@@ -167,13 +167,13 @@ void Sema::fun_check(const Fun* fun) {
     propagate_set(fun->pi(), bound);
     bound_generics_.push_back(bound);
 
-    for_all (f, fun->body()->named_funs())
+    for (auto f : fun->body()->named_funs())
         insert(f);
 
-    for_all (p, fun->params())
+    for (auto p : fun->params())
         insert(p);
 
-    for_all (s, fun->body()->stmts())
+    for (auto s : fun->body()->stmts())
         s->check(*this);
 
     bound_generics_.pop_back();

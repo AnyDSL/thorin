@@ -58,8 +58,8 @@ Printer& Generic::print(Printer& p) const {
 
 Printer& Opaque::print(Printer& p) const {
     p << "opaque(";
-    for_all (f, flags()) p << f << " ";
-    for_all (t,elems())  p << t << " ";
+    for (auto f : flags()) p << f << " ";
+    for (auto t : elems()) p << t << " ";
     return p << ")";
 }
 
@@ -105,7 +105,7 @@ Printer& Lambda::print_head(Printer& p) const {
     print_name(p);
     p << "(";
     const char* sep = "";
-    for_all (param, params()) { \
+    for (auto param : params()) { \
         p << sep << param << " : " << param->type();
         sep = ", ";
     }
@@ -202,16 +202,16 @@ Printer& PrimOp::print_assignment(Printer& p) const {
 void World::dump(bool fancy) {
     Printer p(std::cout, fancy);
 
-    for_all (top, top_level_lambdas(*this)) {
+    for (auto top : top_level_lambdas(*this)) {
         Scope scope(top);
         Schedule schedule = schedule_smart(scope);
-        for_all (lambda, scope.rpo()) {
+        for (auto lambda : scope.rpo()) {
             int depth = fancy ? scope.domtree().depth(lambda) : 0;
             p.indent += depth;
             p.newline();
             lambda->print_head(p);
 
-            for_all (op, schedule[lambda->sid()])
+            for (auto op : schedule[lambda->sid()])
                 op->print_assignment(p);
 
             lambda->print_jump(p);

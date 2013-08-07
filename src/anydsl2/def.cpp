@@ -87,7 +87,7 @@ std::vector<MultiUse> Def::multi_uses() const {
     std::sort(uses.begin(), uses.end());
 
     const Def* cur = 0;
-    for_all (use, uses) {
+    for (auto use : uses) {
         if (cur != use.def()) {
             result.push_back(use);
             cur = use.def();
@@ -108,7 +108,7 @@ bool Def::is_primlit(int val) const {
     }
 
     if (const Vector* vector = this->isa<Vector>()) {
-        for_all (op, vector->ops()) {
+        for (auto op : vector->ops()) {
             if (!op->is_primlit(val))
                 return false;
         }
@@ -133,26 +133,26 @@ bool Def::is_minus_zero() const {
 }
 
 void Def::replace(const Def* with) const {
-    for_all (tracker, trackers())
+    for (auto tracker : trackers())
         *tracker = with;
 
     std::vector<MultiUse> uses = multi_uses();
 
-    for_all (use, uses) {
+    for (auto use : uses) {
         if (Lambda* lambda = use->isa_lambda()) {
-            for_all (index, use.indices())
+            for (auto index : use.indices())
                 lambda->update_op(index, with);
         } else {
             PrimOp* released = world().release(use->as<PrimOp>());
-            for_all (index, use.indices())
+            for (auto index : use.indices())
                 released->update(index, with);
         }
     }
 
-    for_all (use, uses) {
+    for (auto use : uses) {
         if (PrimOp* oprimop = (PrimOp*) use->isa<PrimOp>()) {
             Array<const Def*> ops(oprimop->ops());
-            for_all (index, use.indices())
+            for (auto index : use.indices())
                 ops[index] = with;
             size_t old_gid = world().gid();
             const Def* ndef = world().rebuild(oprimop, ops);
@@ -192,7 +192,7 @@ int Def::non_const_depth() const {
 
     const PrimOp* primop = this->as<PrimOp>();
     int max = 0;
-    for_all (op, primop->ops()) {
+    for (auto op : primop->ops()) {
         int d = op->non_const_depth();
         max = d > max ? d : max;
     }

@@ -3,7 +3,6 @@
 #include <iomanip>
 #include <sstream>
 
-#include "anydsl2/util/for_all.h"
 #include "anydsl2/util/hash.h"
 
 namespace anydsl2 {
@@ -36,7 +35,7 @@ void Symbol::insert(const char* s) {
 }
 
 void Symbol::destroy() {
-    for_all (s, table_)
+    for (auto s : table_)
         free((void*) const_cast<char*>(s));
 }
 

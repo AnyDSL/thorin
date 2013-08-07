@@ -53,7 +53,6 @@ public:
     ArrayRef<const Type*> elems() const { return ops_ref<const Type*>(); }
     const Type* elem(size_t i) const { return elems()[i]; }
     const Type* elem_via_lit(const Def* def) const;
-    const Ptr* to_ptr(size_t length = 1) const;
     bool check_with(const Type* type) const;
     bool infer_with(GenericMap& map, const Type* type) const;
     const Type* specialize(const GenericMap& generic_map) const;
@@ -219,9 +218,6 @@ private:
     virtual size_t hash() const { return named_ ? hash_value(this) : CompoundType::hash(); }
     virtual bool equal(const Node* other) const { return named_ ? this == other : CompoundType::equal(other); }
 
-//------------------------------------------------------------------------------
-
-
 public:
 
     bool named() const { return named_; }
@@ -283,29 +279,26 @@ private:
 
 //------------------------------------------------------------------------------
 
-class Opaque : public CompoundType {
+class GenericRef : public Type {
 private:
 
-    Opaque(World& world, ArrayRef<const Type*> elems, ArrayRef<uint32_t> flags)
-        : CompoundType(world, Node_Opaque, elems.size())
-        , flags_(flags)
-    {}
+    GenericRef(World& world, const Generic* generic, Lambda* lambda);
+    virtual ~GenericRef();
 
     virtual Printer& print(Printer& printer) const;
-    virtual size_t hash() const;
-    virtual bool equal(const Node* other) const {
-        return Type::equal(other) ? flags() == other->as<Opaque>()->flags() : false;
+    virtual size_t hash() const { return hash_combine(Type::hash(), lambda()); }
+    virtual bool equal(const Node* other) const { 
+        return Type::equal(other) ? lambda() == other->as<GenericRef>()->lambda() : false; 
     }
 
 public:
 
-    ArrayRef<uint32_t> flags() const { return flags_; }
-    uint32_t flag(size_t i) const { return flags_[i]; }
-    size_t num_flags() const { return flags_.size(); }
+    const Generic* generic() const { return elem(0)->as<Generic>(); }
+    Lambda* lambda() const { return lambda_; }
 
 private:
 
-    Array<uint32_t> flags_;
+    Lambda* lambda_;
 
     friend class World;
 };

@@ -1,5 +1,6 @@
 #include "anydsl2/type.h"
 
+#include <algorithm>
 #include <sstream>
 
 #include "anydsl2/lambda.h"
@@ -58,12 +59,8 @@ int Type::order() const {
     return sub;
 }
 
-const Ptr* Type::to_ptr(size_t length) const { return world().ptr(this, length); }
 size_t Type::length() const { return as<VectorType>()->length(); }
-
-const Type* Type::elem_via_lit(const Def* def) const {
-    return elem(def->primlit_value<size_t>());
-}
+const Type* Type::elem_via_lit(const Def* def) const { return elem(def->primlit_value<size_t>()); }
 
 bool Type::check_with(const Type* other) const {
     if (this == other || this->isa<Generic>())
@@ -158,11 +155,20 @@ bool Pi::is_returning() const {
 
 //------------------------------------------------------------------------------
 
-size_t Opaque::hash() const { 
-    size_t seed = Type::hash(); 
-    for (auto flag : flags_)
-        seed = hash_combine(seed, flag); 
-    return seed; 
+GenericRef::GenericRef(World& world, const Generic* generic, Lambda* lambda)
+    : Type(world, Node_GenericRef, 1, true)
+    , lambda_(lambda)
+{
+    lambda_->generic_refs_.push_back(this);
+    set(0, generic);
+}
+
+GenericRef::~GenericRef() {
+    auto& generic_refs = lambda()->generic_refs_;
+    auto i = std::find(generic_refs.begin(), generic_refs.end(), this);
+    assert(i != generic_refs.end() && "must be in use set");
+    *i = generic_refs.back();
+    generic_refs.pop_back();
 }
 
 //------------------------------------------------------------------------------

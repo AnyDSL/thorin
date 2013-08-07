@@ -132,7 +132,7 @@ private:
         Generics* parent() const { return parent_; }
 
         const Generic* lookup(Symbol symbol) {
-            Symbol2Handle::iterator i = symbol2handle_.find(symbol);
+            auto i = symbol2handle_.find(symbol);
             if (i != symbol2handle_.end()) 
                 return builder.use(i->second);
 

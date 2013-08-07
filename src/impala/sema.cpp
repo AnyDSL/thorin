@@ -89,7 +89,7 @@ void NamedFunStmt::check(Sema& sema) const { sema.check(named_fun()); }
 //------------------------------------------------------------------------------
 
 const Decl* Sema::lookup(Symbol sym) {
-    Sym2Decl::iterator i = sym2decl_.find(sym);
+    auto i = sym2decl_.find(sym);
     return i != sym2decl_.end() ? i->second : 0;
 }
 
@@ -103,7 +103,7 @@ void Sema::insert(const Decl* decl) {
     Symbol symbol = decl->symbol();
     assert(clash(symbol) == 0 && "must not be found");
 
-    Sym2Decl::iterator i = sym2decl_.find(symbol);
+    auto i = sym2decl_.find(symbol);
     decl->shadows_ = i != sym2decl_.end() ? i->second : 0;
     decl->depth_ = depth();
 

@@ -24,7 +24,7 @@ void Tracker::set(const Def* def) {
 
 void Tracker::release() {
     if (def_) {
-        Trackers::iterator i = std::find(def_->trackers_.begin(), def_->trackers_.end(), this);
+        auto i = std::find(def_->trackers_.begin(), def_->trackers_.end(), this);
         assert(i != def_->trackers_.end() && "must be in trackers set");
         *i = def_->trackers_.back();
         def_->trackers_.pop_back();
@@ -55,7 +55,7 @@ void Def::unset_ops() {
 
 void Def::unregister_use(size_t i) const {
     const Def* def = op(i);
-    Uses::iterator it = std::find(def->uses_.begin(), def->uses_.end(), Use(i, this));
+    auto it = std::find(def->uses_.begin(), def->uses_.end(), Use(i, this));
     assert(it != def->uses_.end() && "must be in use set");
     *it = def->uses_.back();
     def->uses_.pop_back();

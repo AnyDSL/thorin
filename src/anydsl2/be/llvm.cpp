@@ -258,7 +258,7 @@ llvm::Value* CodeGen::lookup(const Def* def) {
         return primops[primop];
 
     const Param* param = def->as<Param>();
-    ParamMap::iterator i = params.find(param);
+    auto i = params.find(param);
     if (i != params.end())
         return i->second;
 

@@ -16,7 +16,7 @@ protected:
     {}
     ~ScopeAnalysis() {
         if (destroy_nodes) {
-            t_for_all (n, nodes_)
+            for (auto n : nodes_)
                 delete n;
         }
     }

@@ -156,7 +156,7 @@ void Token::init() {
 
 /*static*/ Symbol Token::insert(TokenKind tok, const char* str) {
     Symbol s = str;
-    std::pair<Tok2Sym::iterator, bool> p = tok2sym_.insert( std::make_pair(tok, s) );
+    auto p = tok2sym_.insert(std::make_pair(tok, s));
 
 #ifndef NDEBUG
     if (!p.second) {
@@ -167,14 +167,13 @@ void Token::init() {
 #endif
 
     tok2str_[tok] = s.str();
-
     return p.first->second;
 }
 
 //------------------------------------------------------------------------------
 
 std::ostream& operator << (std::ostream& os, const TokenKind& kind) {
-    Token::Tok2Str::iterator i = Token::tok2str_.find(kind);
+    auto i = Token::tok2str_.find(kind);
     assert(i != Token::tok2str_.end() && "must be found");
     return os << Symbol(i->second).str();
 }

@@ -26,11 +26,9 @@ static const char* duplicate(const char* s) { return strdup(s); }
 #endif // _MSC_VER
 
 void Symbol::insert(const char* s) {
-    Table::iterator i = table_.find(s);
-
+    auto i = table_.find(s);
     if (i == table_.end())
         i = table_.insert(duplicate(s)).first;
-
     str_ = *i;
 }
 

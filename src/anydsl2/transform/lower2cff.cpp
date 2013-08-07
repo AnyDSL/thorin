@@ -73,7 +73,7 @@ void CFFLowering::transform(Lambda* lambda) {
         indices.shrink(num);
 
         // check whether we can reuse an existing version
-        Args2Lambda::iterator args_i = args2lambda.find(args);
+        auto args_i = args2lambda.find(args);
         Lambda* target;
         if (args_i != args2lambda.end()) 
             target = args_i->second; // use already dropped version as jump target 

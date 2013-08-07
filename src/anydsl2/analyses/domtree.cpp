@@ -24,21 +24,21 @@ int DomNodeBase<forwards>::depth() const {
 
 template<bool forwards>
 void DomTreeBase<forwards>::create() {
-    t_for_all (lambda, Super::rpo())
+    for (auto lambda : Super::rpo())
         Super::nodes_[Super::sid(lambda)] = new DomNode(lambda);
 
     for (size_t i = 0; i < Super::size(); ++i)
         assert(i == Super::sid(Super::nodes_[i]));
 
     // map entries' initial idoms to themselves
-    t_for_all (entry,  Super::entries()) {
+    for (auto entry : Super::entries()) {
         DomNode* entry_node = Super::lookup(entry);
         entry_node->idom_ = entry_node;
     }
 
     // all others' idoms are set to their first found dominating pred
-    t_for_all (lambda, Super::body()) {
-        t_for_all (pred, Super::preds(lambda)) {
+    for (auto lambda : Super::body()) {
+        for (auto pred : Super::preds(lambda)) {
             if (Super::sid(pred) < Super::sid(lambda)) {
                 Super::lookup(lambda)->idom_ = Super::lookup(pred);
                 goto outer_loop;
@@ -51,11 +51,11 @@ outer_loop:;
     for (bool changed = true; changed;) {
         changed = false;
 
-        t_for_all (lambda, Super::body()) {
+        for (auto lambda : Super::body()) {
             DomNode* lambda_node = Super::lookup(lambda);
 
             DomNode* new_idom = 0;
-            t_for_all (pred, Super::preds(lambda)) {
+            for (auto pred : Super::preds(lambda)) {
                 DomNode* pred_node = Super::lookup(pred);
                 assert(pred_node);
                 new_idom = new_idom ? lca(new_idom, pred_node) : pred_node;
@@ -68,7 +68,7 @@ outer_loop:;
         }
     }
 
-    t_for_all (lambda, Super::body()) {
+    for (auto lambda : Super::body()) {
         const DomNode* n = Super::lookup(lambda);
         n->idom_->children_.push_back(n);
     }

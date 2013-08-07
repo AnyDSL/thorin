@@ -6,8 +6,7 @@
 #include <queue>
 #include <string>
 #include <set>
-
-#include <boost/unordered_set.hpp>
+#include <unordered_set>
 
 #include "anydsl2/enums.h"
 #include "anydsl2/lambda.h"
@@ -35,8 +34,8 @@ class Store;
 class Type;
 class TypeKeeper;
 
-typedef boost::unordered_set<const PrimOp*, PrimOpHash, PrimOpEqual> PrimOpSet;
-typedef boost::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;
+typedef std::unordered_set<const PrimOp*, PrimOpHash, PrimOpEqual> PrimOpSet;
+typedef std::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;
 
 struct LambdaLTGid : public std::binary_function<Lambda*, Lambda*, bool> {
     bool operator () (Lambda* l1, Lambda* l2) const { return l1->gid() < l2->gid(); };
@@ -348,7 +347,7 @@ protected:
 
     template<class T>
     const T* keep(const T* type) {
-        std::pair<TypeSet::iterator, bool> tp = types_.insert(type);
+        auto tp = types_.insert(type);
         assert(tp.second);
         typekeeper(type);
         return type->template as<T>();
@@ -374,7 +373,7 @@ private:
     LambdaSet lambdas_;
     TypeSet types_;
 #ifndef NDEBUG
-    boost::unordered_set<size_t> breakpoints_;
+    std::unordered_set<size_t> breakpoints_;
 #endif
 
     size_t gid_;

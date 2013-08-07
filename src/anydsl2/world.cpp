@@ -2,9 +2,8 @@
 
 #include <cmath>
 #include <algorithm>
-#include <queue>
 #include <iostream>
-#include <boost/unordered_map.hpp>
+#include <queue>
 
 #include "anydsl2/def.h"
 #include "anydsl2/primop.h"
@@ -784,19 +783,19 @@ const Param* World::param(const Type* type, Lambda* lambda, size_t index, const 
  */
 
 const Type* World::unify_base(const Type* type) {
-    TypeSet::iterator i = types_.find(type);
+    auto i = types_.find(type);
     if (i != types_.end()) {
         delete type;
         return *i;
     }
 
-    std::pair<TypeSet::iterator, bool> p = types_.insert(type);
+    auto p = types_.insert(type);
     assert(p.second && "hash/equal broken");
     return type;
 }
 
 const Def* World::cse_base(const PrimOp* primop) {
-    PrimOpSet::iterator i = primops_.find(primop);
+    auto i = primops_.find(primop);
     if (i != primops_.end()) {
         for (size_t x = 0, e = primop->size(); x != e; ++x)
             primop->unregister_use(x);
@@ -804,7 +803,7 @@ const Def* World::cse_base(const PrimOp* primop) {
         delete primop;
         primop = *i;
     } else {
-        std::pair<PrimOpSet::iterator, bool> p = primops_.insert(primop);
+        auto p = primops_.insert(primop);
         assert(p.second && "hash/equal broken");
         primop->set_gid(gid_++);
     }
@@ -819,8 +818,8 @@ const Def* World::cse_base(const PrimOp* primop) {
 
 template<class S>
 void World::wipe_out(const size_t pass, S& set) {
-    for (typename S::iterator i = set.begin(); i != set.end();) {
-        typename S::iterator j = i++;
+    for (auto i = set.begin(); i != set.end();) {
+        auto j = i++;
         const Def* def = *j;
         if (!def->is_visited(pass)) {
             delete def;
@@ -831,7 +830,7 @@ void World::wipe_out(const size_t pass, S& set) {
 
 template<class S>
 void World::unregister_uses(const size_t pass, S& set) {
-    for (typename S::iterator i = set.begin(), e = set.end(); i != e; ++i) {
+    for (auto i = set.begin(), e = set.end(); i != e; ++i) {
         const Def* def = *i;
         if (!def->is_visited(pass)) {
             for (size_t i = 0, e = def->size(); i != e; ++i) {
@@ -949,7 +948,7 @@ void World::unused_type_elimination() {
             ute_insert(pass, param->type());
     }
 
-    for (TypeSet::iterator i = types_.begin(); i != types_.end();) {
+    for (auto i = types_.begin(); i != types_.end();) {
         const Type* type = *i;
         if (type->is_visited(pass))
             ++i;
@@ -986,7 +985,7 @@ void World::opt() {
 }
 
 PrimOp* World::release(const PrimOp* primop) {
-    PrimOpSet::iterator i = primops_.find(primop);
+    auto i = primops_.find(primop);
     assert(i != primops_.end() && "must be found");
     assert(primop == *i);
     primops_.erase(i);

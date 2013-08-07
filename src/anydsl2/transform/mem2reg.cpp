@@ -9,7 +9,6 @@
 
 namespace anydsl2 {
 
-
 void mem2reg(World& world) {
     Array<Lambda*> top = top_level_lambdas(world);
 

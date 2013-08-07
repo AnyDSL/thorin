@@ -34,14 +34,14 @@ Scope::Scope(World& world)
 {
     size_t pass = world.new_pass();
 
-    for_all (lambda, world.lambdas()) {
+    for (auto lambda : world.lambdas()) {
         if (!lambda->is_visited(pass))
             jump_to_param_users(pass, lambda, lambda);
     }
 
     std::vector<Lambda*> entries;
 
-    for_all (lambda, world.lambdas()) {
+    for (auto lambda : world.lambdas()) {
         if (!lambda->is_visited(pass)) {
             insert(pass, lambda);
             entries.push_back(lambda);
@@ -53,21 +53,21 @@ Scope::Scope(World& world)
 }
 
 Scope::~Scope() {
-    for_all (lambda, rpo_)
+    for (auto lambda : rpo_)
         lambda->scope_ = 0;
 }
 
 void Scope::identify_scope(ArrayRef<Lambda*> entries) {
     // identify all lambdas depending on entry
     size_t pass = world().new_pass();
-    for_all (entry, entries) {
+    for (auto entry : entries) {
         insert(pass, entry);
         jump_to_param_users(pass, entry, 0);
     }
 }
 
 void Scope::jump_to_param_users(const size_t pass, Lambda* lambda, Lambda* limit) {
-    for_all (param, lambda->params())
+    for (auto param : lambda->params())
         find_user(pass, param, limit);
 }
 
@@ -78,7 +78,7 @@ inline void Scope::find_user(const size_t pass, const Def* def, Lambda* limit) {
         if (def->visit(pass))
             return;
 
-        for_all (use, def->uses())
+        for (auto use : def->uses())
             find_user(pass, use, limit);
     }
 }
@@ -90,18 +90,18 @@ void Scope::up(const size_t pass, Lambda* lambda, Lambda* limit) {
     insert(pass, lambda);
     jump_to_param_users(pass, lambda, limit);
 
-    for_all (pred, lambda->preds())
+    for (auto pred : lambda->preds())
         up(pass, pred, limit);
 }
 
 void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {
     size_t pass = world().new_pass();
 
-    for_all (entry, entries)
+    for (auto entry : entries)
         entry->visit_first(pass);
 
     size_t num = 0;
-    for_all (entry, entries)
+    for (auto entry : entries)
         num = po_visit<true>(pass, entry, num);
 
     for (size_t i = entries.size(); i-- != 0;)
@@ -111,7 +111,7 @@ void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {
     assert(num >= 0);
 
     // convert postorder number to reverse postorder number
-    for_all (lambda, rpo()) {
+    for (auto lambda : rpo()) {
         if (lambda->is_visited(pass)) {
             lambda->sid_ = num - 1 - lambda->sid_;
         } else { // lambda is unreachable
@@ -129,7 +129,7 @@ void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {
 
 template<bool forwards>
 size_t Scope::po_visit(const size_t pass, Lambda* cur, size_t i) const {
-    for_all (succ, forwards ? cur->succs() : cur->preds()) {
+    for (auto succ : forwards ? cur->succs() : cur->preds()) {
         if (contains(succ) && !succ->is_visited(pass))
             i = number<forwards>(pass, succ, i);
     }
@@ -148,12 +148,12 @@ ArrayRef<Lambda*> Scope::succ##s(Lambda* lambda) const { \
     assert(contains(lambda));  \
     if (succ##s_.data() == 0) { \
         succ##s_.alloc(size()); \
-        for_all (lambda, rpo_) { \
+        for (auto lambda : rpo_) { \
             Lambdas all_succ##s = lambda->succ##s(); \
             Array<Lambda*>& succ##s = succ##s_[lambda->sid()]; \
             succ##s.alloc(all_succ##s.size()); \
             size_t i = 0; \
-            for_all (succ, all_succ##s) { \
+            for (auto succ : all_succ##s) { \
                 if (contains(succ)) \
                     succ##s[i++] = succ; \
             } \
@@ -172,7 +172,7 @@ ArrayRef<Lambda*> Scope::backwards_rpo() const {
 
         std::vector<Lambda*> exits;
 
-        for_all (lambda, rpo()) {
+        for (auto lambda : rpo()) {
             if (num_succs(lambda) == 0)
                 exits.push_back(lambda);
         }
@@ -183,13 +183,13 @@ ArrayRef<Lambda*> Scope::backwards_rpo() const {
         size_t pass = world().new_pass();
 
         size_t num = 0;
-        for_all (exit, exits) {
+        for (auto exit : exits) {
             exit->visit_first(pass);
             exit->backwards_sid_ = num++;
         }
 
         num = size() - 1;
-        for_all (exit, exits)
+        for (auto exit : exits)
             num = po_visit<false>(pass, exit, num);
 
         assert(num + 1 == num_exits());

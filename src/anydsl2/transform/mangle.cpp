@@ -81,7 +81,7 @@ Lambda* Mangler::mangle() {
     map(oentry, oentry);
     mangle_body(oentry, nentry);
 
-    for_all (cur, scope.rpo().slice_back(1)) {
+    for (auto cur : scope.rpo().slice_back(1)) {
         if (cur->is_visited(pass))
             mangle_body(cur, lookup(cur)->as_lambda());
     }

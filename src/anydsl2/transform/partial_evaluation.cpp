@@ -11,7 +11,7 @@ void partial_evaluation(World& world) {
     while (todo) {
         todo = false;
         LambdaSet lambdas = world.lambdas();
-        for_all (lambda, lambdas) {
+        for (auto lambda : lambdas) {
             if (Lambda* to = lambda->to()->isa_lambda()) {
                 size_t num_args = lambda->num_args();
                 Array<size_t> indices(num_args);

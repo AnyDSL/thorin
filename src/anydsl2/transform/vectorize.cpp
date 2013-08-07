@@ -71,11 +71,11 @@ Lambda* Vectorizer::vectorize() {
 
         if (i != 0) {
             infer_condition(lambda);
-            for_all (param, lambda->params())
+            for (auto param : lambda->params())
                 param2select(param);
         }
 
-        for_all (primop, schedule[i]) {
+        for (auto primop : schedule[i]) {
             if (primop->isa<Select>() && primop->type()->isa<Pi>())
                 continue; // ignore branch
             vectorize_primop(map_cond(lambda), primop);
@@ -100,7 +100,7 @@ void Vectorizer::infer_condition(Lambda* lambda) {
     else {
         cond = world().literal(false, length);
 
-        for_all (pred, scope.preds(lambda)) {
+        for (auto pred : scope.preds(lambda)) {
             const Def* pred_cond = map_cond(pred);
 
             if (const Select* select = pred->to()->isa<Select>()) { // conditional branch
@@ -127,7 +127,7 @@ void Vectorizer::param2select(const Param* param) {
         return map(l1)->non_const_depth() > Vectorizer::map(l2)->non_const_depth(); 
     });
 
-    for_all (pred, preds) {
+    for (auto pred : preds) {
         const Def* peek = vectorize(pred->arg(param->index()), length);
         select = select ? world().select(map_cond(pred), peek, select) : peek;
     }

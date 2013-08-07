@@ -27,7 +27,7 @@ public:
 };
 
 bool Verifier::verify() {
-    for_all (lambda, world_.lambdas())
+    for (auto lambda : world_.lambdas())
         if (!verify_body(lambda))
             return false;
 
@@ -54,7 +54,7 @@ bool Verifier::verify_param(Lambda* current, const Param* param) {
 
     // we have to mark all params of this lambda as visited
     // since we have to check whether a single one occurs in the history
-    for_all (p, current->params())
+    for (auto p : current->params())
         p->visit(pass_);
 
     // continue with the body
@@ -62,7 +62,7 @@ bool Verifier::verify_param(Lambda* current, const Param* param) {
 
     // unmark everything
     current->unvisit(pass_);
-    for_all (p, current->params())
+    for (auto p : current->params())
         p->unvisit(pass_);
 
     if (!result)
@@ -88,7 +88,7 @@ bool Verifier::verify_body(Lambda* lambda) {
     if (lambdas.find(lambda) == lambdas.end())
         invalid(lambda,  "lambda not contained in the world");
     // check the "body" of this lambda
-    for_all (op, lambda->ops()) {
+    for (auto op : lambda->ops()) {
         // -> check the current element structure
         if (!verify(lambda, op, primops)) invalid(lambda, op);
     }
@@ -176,7 +176,7 @@ bool Verifier::verify_primop(Lambda* current, const PrimOp* primop, PrimOpSet& p
 
     // check all operands recursively
     const Def* error = 0;
-    for_all (op, primop->ops()) {
+    for (auto op : primop->ops()) {
         if (!verify(current, op, primops))
             error = op;
     }

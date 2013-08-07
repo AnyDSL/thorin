@@ -70,7 +70,7 @@ private:
     bool is_visited(Lambda* lambda) { return lambda->is_visited(pass); }
     bool is_leaf(Lambda* lambda, size_t num) {
         if (num == 1) {
-            for_all (succ, looptree.succs(lambda)) {
+            for (auto succ : looptree.succs(lambda)) {
                 if (!is_header(succ) && lambda == succ)
                     return false;
             }
@@ -111,7 +111,7 @@ private:
 
 void LoopTreeBuilder::build() {
     // clear all flags
-    for_all (lambda, scope().rpo())
+    for (auto lambda : scope().rpo())
         lambda->counter = 0;
 
     recurse<true>(looptree.root_ = new LoopHeader(0, -1, std::vector<Lambda*>(0)), scope().entries(), 0);
@@ -120,7 +120,7 @@ void LoopTreeBuilder::build() {
 template<bool start>
 void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<Lambda*> headers, int depth) {
     size_t cur_new_child = 0;
-    for_all (header, headers) {
+    for (auto header : headers) {
         new_pass();
         if (start && header->cur_pass() >= first_pass) 
             continue; // in the base case we only want to find SCC on all until now unseen lambdas
@@ -128,12 +128,12 @@ void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<Lambda*> headers, int
 
         // now mark all newly found headers globally as header
         for (size_t e = parent->num_children(); cur_new_child != e; ++cur_new_child) {
-            for_all (header, parent->child(cur_new_child)->headers())
+            for (auto header : parent->child(cur_new_child)->headers())
                 header->counter |= IsHeader;
         }
     }
 
-    for_all (node, parent->children()) {
+    for (auto node : parent->children()) {
         if (LoopHeader* new_parent = node->isa<LoopHeader>())
             recurse<false>(new_parent, new_parent->headers(), depth + 1);
     }
@@ -142,7 +142,7 @@ void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<Lambda*> headers, int
 int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int scc_counter) {
     scc_counter = visit(cur, scc_counter);
 
-    for_all (succ, scope().succs(cur)) {
+    for (auto succ : scope().succs(cur)) {
         if (is_header(succ))
             continue; // this is a backedge
         if (!is_visited(succ)) {
@@ -170,7 +170,7 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
             if (scope().is_entry(lambda)) 
                 headers.push_back(lambda); // entries are axiomatically headers
             else {
-                for_all (pred, looptree.preds(lambda)) {
+                for (auto pred : looptree.preds(lambda)) {
                     // all backedges are also inducing headers
                     // but do not yet mark them globally as header -- we are still running through the SCC
                     if (!in_scc(pred)) {
@@ -188,8 +188,8 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
             new LoopHeader(parent, depth, headers);
 
         // for all lambdas in current SCC
-        for_all (header, headers) {
-            for_all (pred, looptree.preds(header)) {
+        for (auto header : headers) {
+            for (auto pred : looptree.preds(header)) {
                 if (in_scc(pred))
                     parent->backedges_.push_back(Edge(pred, header));
                 else
@@ -211,7 +211,7 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
 std::pair<size_t, size_t> LoopTreeBuilder::propagate_bounds(LoopNode* n) {
     if (LoopHeader* header = n->isa<LoopHeader>()) {
         size_t begin = -1, end = 0;
-        for_all (child, header->children()) {
+        for (auto child : header->children()) {
             std::pair<size_t, size_t> p = propagate_bounds(child);
             begin = p.first  < begin ? p.first  : begin;
             end   = p.second > end   ? p.second : end;
@@ -265,11 +265,11 @@ Array<Lambda*> LoopTree::loop_lambdas_in_rpo(const LoopHeader* header) {
 std::ostream& operator << (std::ostream& o, const LoopNode* node) {
     for (int i = 0; i < node->depth(); ++i)
         o << '\t';
-    for_all (header, node->headers())
+    for (auto header : node->headers())
         o << header->unique_name() << " ";
     if (const LoopHeader* header = node->isa<LoopHeader>()) {
         o << ": " << header->dfs_begin() << "/" << header->dfs_end() << std::endl;
-        for_all (child, header->children())
+        for (auto child : header->children())
             o << child;
     } else
         o<< ": " << node->as<LoopLeaf>()->dfs_index() << std::endl;

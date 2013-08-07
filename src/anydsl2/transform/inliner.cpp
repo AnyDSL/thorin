@@ -7,9 +7,9 @@
 namespace anydsl2 {
 
 void inliner(World& world) {
-    for_all (top, top_level_lambdas(world)) {
+    for (auto top : top_level_lambdas(world)) {
         if (top->num_uses() <= 2) {
-            for_all (use, top->uses()) {
+            for (auto use : top->uses()) {
                 if (use.index() == 0) {
                     if (Lambda* ulambda = use->isa_lambda()) {
                         Scope scope(top);

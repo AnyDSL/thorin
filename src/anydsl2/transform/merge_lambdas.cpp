@@ -13,7 +13,7 @@ public:
         : scope(world)
         , domtree(scope.domtree())
     {
-        for_all (entry, scope.entries())
+        for (auto entry : scope.entries())
             merge(scope.domtree().node(entry));
     }
 
@@ -47,7 +47,7 @@ void Merger::merge(const DomNode* n) {
     if (i != n)
         n->lambda()->jump(i->lambda()->to(), i->lambda()->args());
 
-    for_all (child, i->children())
+    for (auto child : i->children())
         merge(child);
 }
 

@@ -85,14 +85,14 @@ void CodeGen::emit() {
     FctMap fcts;
 
     // map all root-level lambdas to llvm function stubs
-    for_all (lambda, top_level_lambdas(world)) {
+    for (auto lambda : top_level_lambdas(world)) {
         llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
         llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->name, module);
         fcts.insert(std::make_pair(lambda, f));
     }
 
     // for all top-level functions
-    for_all (lf, fcts) {
+    for (auto lf : fcts) {
         Lambda* lambda = lf.first;
         if (lambda->empty())
             continue;
@@ -103,7 +103,7 @@ void CodeGen::emit() {
         // map params
         const Param* ret_param = 0;
         llvm::Function::arg_iterator arg = fct->arg_begin();
-        for_all (param, lambda->params()) {
+        for (auto param : lambda->params()) {
             if (param->type()->isa<Mem>())
                 continue;
             if (param->order() == 0) {
@@ -119,24 +119,24 @@ void CodeGen::emit() {
         BBMap bbs(scope.size());
 
         // map all bb-like lambdas to llvm bb stubs
-        for_all (lambda, scope.rpo())
+        for (auto lambda : scope.rpo())
             bbs[lambda->sid()] = llvm::BasicBlock::Create(context, lambda->name, fct);
 
         Schedule schedule = schedule_smart(scope);
 
         // emit body for each bb
-        for_all (lambda, scope.rpo()) {
+        for (auto lambda : scope.rpo()) {
             assert(scope.is_entry(lambda) || lambda->is_basicblock());
             builder.SetInsertPoint(bbs[lambda->sid()]);
 
             // create phi node stubs (for all non-cascading lambdas different from entry)
             if (!lambda->is_cascading() && !scope.is_entry(lambda)) {
-                for_all (param, lambda->params())
+                for (auto param : lambda->params())
                     if (!param->type()->isa<Mem>())
                         phis[param] = builder.CreatePHI(map(param->type()), (unsigned) param->peek().size(), param->name);
             }
 
-            for_all (primop,  schedule[lambda->sid()]) {
+            for (auto primop :  schedule[lambda->sid()]) {
                 // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
                 if (!primop->type()->isa<Pi>() && !primop->type()->isa<Frame>() 
                         && (!primop->type()->isa<Mem>() || primop->isa<Store>()))
@@ -199,7 +199,7 @@ void CodeGen::emit() {
                     Array<llvm::Value*> args(lambda->args().size() - 1);
                     size_t i = 0;
                     const Def* ret_arg = 0;
-                    for_all (arg, lambda->args())
+                    for (auto arg : lambda->args())
                         if (arg->order() == 0) {
                             if (!arg->type()->isa<Mem>())
                                 args[i++] = lookup(arg);
@@ -231,11 +231,11 @@ void CodeGen::emit() {
         }
 
         // add missing arguments to phis
-        for_all (p, phis) {
+        for (auto p : phis) {
             const Param* param = p.first;
             llvm::PHINode* phi = p.second;
 
-            for_all (peek, param->peek())
+            for (auto peek : param->peek())
                 phi->addIncoming(lookup(peek.def()), bbs[peek.from()->sid()]);
         }
 
@@ -449,7 +449,7 @@ llvm::Type* CodeGen::map(const Type* type) {
             llvm::Type* ret = 0;
             size_t i = 0;
             Array<llvm::Type*> elems(pi->size() - 1);
-            for_all (elem, pi->elems()) {
+            for (auto elem : pi->elems()) {
                 if (elem->isa<Mem>())
                     continue;
                 if (const Pi* pi = elem->isa<Pi>()) {
@@ -492,7 +492,7 @@ multiple:
             const Sigma* sigma = type->as<Sigma>();
             Array<llvm::Type*> elems(sigma->size());
             size_t num = 0;
-            for_all (elem, sigma->elems())
+            for (auto elem : sigma->elems())
                 elems[num++] = map(elem);
             elems.shrink(num);
             return llvm::StructType::get(context, llvm_ref(elems));

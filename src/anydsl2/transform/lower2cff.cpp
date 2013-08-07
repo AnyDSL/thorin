@@ -30,7 +30,7 @@ void CFFLowering::transform(Lambda* lambda) {
     Scope scope(lambda);
     std::unordered_map<Array<const Def*>, Lambda*> args2lambda;
 
-    for_all (use, lambda->copy_uses()) {
+    for (auto use : lambda->copy_uses()) {
         if (use.index() != 0 || !use->isa<Lambda>())
             continue;
 
@@ -85,7 +85,7 @@ void CFFLowering::transform(Lambda* lambda) {
 
 size_t CFFLowering::process() {
     std::vector<Lambda*> todo;
-    for_all (top, top_) {
+    for (auto top : top_) {
         Scope scope(top);
         for (size_t i = scope.size(); i-- != 0;) {
             Lambda* lambda = scope[i];
@@ -98,7 +98,7 @@ size_t CFFLowering::process() {
         }
     }
 
-    for_all (lambda, todo)
+    for (auto lambda : todo)
         transform(lambda);
 
     return todo.size();

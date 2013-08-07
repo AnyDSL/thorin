@@ -22,7 +22,7 @@ Schedule schedule_early(const Scope& scope) {
         Lambda* lambda = scope[i];
         std::vector<const PrimOp*>& primops = schedule[i];
 
-        for_all (param, lambda->params())
+        for (auto param : lambda->params())
             queue.push(param);
 
         while (!queue.empty()) {
@@ -31,14 +31,14 @@ Schedule schedule_early(const Scope& scope) {
                 primops.push_back(primop);
             queue.pop();
 
-            for_all (use, def->uses()) {
+            for (auto use : def->uses()) {
                 if (use->isa<Lambda>())
                     continue;
                 if (use->visit(pass))
                     --use->counter;
                 else {
                     use->counter = -1;
-                    for_all (op, use->ops()) {
+                    for (auto op : use->ops()) {
                         if (!op->is_const())
                             ++use->counter;
                     }
@@ -69,7 +69,7 @@ Schedule schedule_late(const Scope& scope, size_t& pass) {
             const Def* def = queue.front();
             queue.pop();
 
-            for_all (op, def->ops()) {
+            for (auto op : def->ops()) {
                 if (const PrimOp* primop = op->is_non_const_primop()) {
                     if (!primop->visit(pass)) {     // init unseen primops
                         primop->ptr = 0;
@@ -90,7 +90,7 @@ Schedule schedule_late(const Scope& scope, size_t& pass) {
         }
     }
 
-    for_all (&primops, schedule)
+    for (auto& primops : schedule)
         std::reverse(primops.begin(), primops.end());
 
     return schedule;
@@ -104,7 +104,7 @@ Schedule schedule_smart(const Scope& scope) {
 
     for (size_t i = 0, e = scope.size(); i != e; ++i) {
         Lambda* lambda_early = scope[i];
-        for_all (primop, early[i]) {
+        for (auto primop : early[i]) {
             if (!primop->is_visited(pass))
                 continue;                       // primop is dead
             Lambda* lambda_best = get_late(primop);

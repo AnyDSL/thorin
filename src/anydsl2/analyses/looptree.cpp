@@ -254,13 +254,9 @@ Array<Lambda*> LoopTree::loop_lambdas(const LoopHeader* header) {
     return result;
 }
 
-struct LambdaLTSid : public std::binary_function<const Lambda*, const Lambda*, bool> {
-    bool operator () (const Lambda* l1, const Lambda* l2) const { return l1->sid() < l2->sid(); }
-};
-
 Array<Lambda*> LoopTree::loop_lambdas_in_rpo(const LoopHeader* header) {
     Array<Lambda*> result = loop_lambdas(header);
-    std::sort(result.begin(), result.end(), LambdaLTSid());
+    std::sort(result.begin(), result.end(), [] (const Lambda* l1, const Lambda* l2) { return l1->sid() < l2->sid(); });
     return result;
 }
 

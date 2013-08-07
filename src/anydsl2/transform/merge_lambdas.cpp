@@ -39,8 +39,8 @@ void Merger::merge(const DomNode* n) {
     const DomNode* i = n;
     for (const DomNode* next = dom_succ(i); next != 0; i = next, next = dom_succ(next)) {
         assert(i->lambda()->num_args() == next->lambda()->num_params());
-        for_all2 (arg, i->lambda()->args(), param, next->lambda()->params())
-            param->replace(arg);
+        for (size_t j = 0, e = i->lambda()->num_args(); j != e; ++j)
+            next->lambda()->param(j)->replace(i->lambda()->arg(j));
         i->lambda()->destroy_body();
     }
 

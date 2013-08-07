@@ -468,14 +468,14 @@ llvm::Type* CodeGen::map(const Type* type) {
                     } else {
 multiple:
                         Array<llvm::Type*> elems(pi->size());
-                        size_t j = 0;
-                        for_all2 (&elem, elems, pi_elem, pi->elems()) {
-                            if(pi_elem->isa<Mem>())
+                        size_t num = 0;
+                        for (size_t j = 0, e = elems.size(); j != e; ++j) {
+                            if (pi->elem(j)->isa<Mem>())
                                 continue;
-                            ++j;
-                            elem = map(pi_elem);
+                            ++num;
+                            elems[j] = map(pi->elem(j));
                         }
-                        elems.shrink(j);
+                        elems.shrink(num);
                         ret = llvm::StructType::get(context, llvm_ref(elems));
                     }
                 } else

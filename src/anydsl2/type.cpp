@@ -7,7 +7,6 @@
 #include "anydsl2/literal.h"
 #include "anydsl2/printer.h"
 #include "anydsl2/world.h"
-#include "anydsl2/util/for_all.h"
 
 namespace anydsl2 {
 
@@ -111,8 +110,8 @@ const Type* Type::specialize(const GenericMap& generic_map) const {
         return this;
 
     Array<const Type*> new_elems(size());
-    for_all2 (&new_elem, new_elems, elem, elems())
-        new_elem = elem->specialize(generic_map);
+    for (size_t i = 0, e = size(); i != e; ++i)
+        new_elems[i] = elem(i)->specialize(generic_map);
 
     return world().rebuild(this, new_elems);
 }

@@ -46,8 +46,8 @@ const Type* Vectorizer::vectorize_type(const Type* type, size_t length) {
         return world.ptr(ptr->referenced_type(), length);
 
     Array<const Type*> new_elems(type->size());
-    for_all2 (&new_elem, new_elems, elem, type->elems())
-        new_elem = vectorize_type(elem, length);
+    for (size_t i = 0, e = type->size(); i != e; ++i)
+        new_elems[i] = vectorize_type(type->elem(i), length);
 
     return world.rebuild(type, new_elems);
 }
@@ -59,7 +59,9 @@ Lambda* Vectorizer::vectorize() {
     Lambda* vlambda = world().lambda(vectorize_type(entry->pi(), length)->as<Pi>(), LambdaAttr(LambdaAttr::Extern), oss.str());
     map_cond(entry) = world().literal(true, length);
 
-    for_all2 (param, entry->params(), vparam, vlambda->params()) {
+    for (size_t i = 0, e = entry->num_params(); i != e; ++i) {
+        const Param* param = entry->param(i);
+        const Param* vparam = vlambda->param(i);
         map(param) = vparam;
         vparam->name = param->name;
     }
@@ -84,8 +86,8 @@ Lambda* Vectorizer::vectorize() {
 
     Lambda* exit = scope.exits()[0];
     Array<const Def*> vops(exit->size());
-    for_all2 (&vop, vops, op, exit->ops())
-        vop = vectorize(op, length);
+    for (size_t i = 0, e = exit->size(); i != e; ++i)
+        vops[i] = vectorize(exit->op(i), length);
     vlambda->jump(vops.front(), vops.slice_back(1));
 
     return vlambda;
@@ -163,8 +165,8 @@ const Def* Vectorizer::vectorize(const Def* def, size_t length) {
 
     const PrimOp* primop = def->as<PrimOp>();
     Array<const Def*> vops(primop->size());
-    for_all2 (&vop, vops, op, primop->ops())
-        vop = vectorize(op, length);
+    for (size_t i = 0, e = primop->size(); i != e; ++i)
+        vops[i] = vectorize(primop->op(i), length);
 
     return world().rebuild(primop, vops, vectorize_type(primop->type(), length));
 }

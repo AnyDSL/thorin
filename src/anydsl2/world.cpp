@@ -17,7 +17,6 @@
 #include "anydsl2/transform/mem2reg.h"
 #include "anydsl2/transform/merge_lambdas.h"
 #include "anydsl2/util/array.h"
-#include "anydsl2/util/for_all.h"
 #include "anydsl2/util/hash.h"
 
 #define ANYDSL2_NO_U_TYPE \

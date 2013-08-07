@@ -249,8 +249,8 @@ LoopTree::LoopTree(const Scope& scope)
 Array<Lambda*> LoopTree::loop_lambdas(const LoopHeader* header) {
     ArrayRef<const LoopLeaf*> leaves = loop(header);
     Array<Lambda*> result(leaves.size());
-    for_all2 (&lambda, result, leaf, leaves)
-        lambda = leaf->lambda();
+    for (size_t i = 0, e = leaves.size(); i != e; ++i)
+        result[i] = leaves[i]->lambda();
     return result;
 }
 

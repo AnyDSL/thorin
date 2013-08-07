@@ -4,7 +4,6 @@
 #include <unordered_map>
 
 #include "anydsl2/util/array.h"
-#include "anydsl2/util/for_all.h"
 #include "anydsl2/util/push.h"
 
 #include "impala/dump.h"
@@ -190,8 +189,8 @@ const Type* FunExpr::check(Sema& sema) const { sema.fun_check(this); return pi()
 
 const Type* Tuple::check(Sema& sema) const {
     Array<const Type*> elems(ops().size());
-    for_all2 (&elem, elems, op, ops())
-        elem = sema.check(op);
+    for (size_t i = 0, e = elems.size(); i != e; ++i)
+        elems[i] = sema.check(op(i));
 
     return sema.world().sigma(elems);
 }

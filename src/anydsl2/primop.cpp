@@ -65,10 +65,9 @@ Tuple::Tuple(World& world, ArrayRef<const Def*> args, const std::string& name)
     : PrimOp(args.size(), Node_Tuple, /*type: set later*/ 0, name)
 {
     Array<const Type*> elems(size());
-    size_t i = 0;
-    for_all2 (arg, args, &elem, elems) {
-        set_op(i++, arg);
-        elem = arg->type();
+    for (size_t i = 0, e = size(); i != e; ++i) {
+        set_op(i, args[i]);
+        elems[i] = args[i]->type();
     }
 
     set_type(world.sigma(elems));

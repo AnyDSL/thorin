@@ -6,7 +6,6 @@
 #include "anydsl2/world.h"
 #include "anydsl2/analyses/domtree.h"
 #include "anydsl2/analyses/looptree.h"
-#include "anydsl2/util/for_all.h"
 
 namespace anydsl2 {
 

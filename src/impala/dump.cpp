@@ -1,5 +1,3 @@
-#include "anydsl2/util/for_all.h"
-
 #include "anydsl2/printer.h"
 #include "anydsl2/type.h"
 

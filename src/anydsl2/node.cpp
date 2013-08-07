@@ -15,8 +15,8 @@ size_t Node::hash() const {
 
 bool Node::equal(const Node* other) const {
     if (typeid(*this) == typeid(*other) && this->size() == other->size()) {
-        for_all2 (this_op, this->ops_, other_op, other->ops_) {
-            if (this_op != other_op)
+        for (size_t i = 0, e = size(); i != e; ++i) {
+            if (this->ops_[i] != other->ops_[i])
                 return false;
         }
         return true;

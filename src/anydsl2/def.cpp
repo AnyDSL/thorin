@@ -9,7 +9,6 @@
 #include "anydsl2/printer.h"
 #include "anydsl2/type.h"
 #include "anydsl2/world.h"
-#include "anydsl2/util/for_all.h"
 
 namespace anydsl2 {
 
@@ -75,8 +74,8 @@ Array<Use> Def::copy_uses() const {
 
 AutoVector<const Tracker*> Def::tracked_uses() const {
     AutoVector<const Tracker*> result(uses().size());
-    for_all2 (&tracker, result, use, uses())
-        tracker = new Tracker(use.def());
+    for (size_t i = 0, e = uses().size(); i != e; ++i)
+        result[i] = new Tracker(uses()[i]);
 
     return result;
 }
@@ -222,8 +221,8 @@ Peeks Param::peek() const {
     Lambda* l = lambda();
     Lambdas preds = l->direct_preds();
     Peeks result(preds.size());
-    for_all2 (&res, result, pred, preds)
-        res = Peek(pred->arg(x), pred);
+    for (size_t i = 0, e = preds.size(); i != e; ++i)
+        result[i] = Peek(preds[i]->arg(x), preds[i]);
 
     return result;
 }

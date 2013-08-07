@@ -95,8 +95,8 @@ Lambda* Mangler::mangle_head(Lambda* olambda) {
     Lambda* nlambda = olambda->stub(generic_map, olambda->name);
     map(olambda, nlambda);
 
-    for_all2 (oparam, olambda->params(), nparam, nlambda->params())
-        map(oparam, nparam);
+    for (size_t i = 0, e = olambda->num_params(); i != e; ++i)
+        map(olambda->param(i), nlambda->param(i));
 
     return nlambda;
 }
@@ -147,7 +147,9 @@ const Def* Mangler::mangle(const Def* odef) {
     bool is_new = false;
     const PrimOp* oprimop = odef->as<PrimOp>();
     Array<const Def*> nops(oprimop->size());
-    for_all2 (&nop, nops, op, oprimop->ops()) {
+    for (size_t i = 0, e = oprimop->size(); i != e; ++i) {
+        const Def* nop = nops[i];
+        const Def* op = oprimop->op(i);
         nop = mangle(op);
         is_new |= nop != op;
     }

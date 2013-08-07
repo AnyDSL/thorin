@@ -6,7 +6,6 @@
 #include "anydsl2/world.h"
 #include "anydsl2/printer.h"
 #include "anydsl2/util/array.h"
-#include "anydsl2/util/for_all.h"
 
 namespace anydsl2 {
 
@@ -48,8 +47,8 @@ const Pi* Lambda::to_pi() const { return to()->type()->as<Pi>(); }
 
 const Pi* Lambda::arg_pi() const {
     Array<const Type*> elems(num_args());
-    for_all2 (&elem, elems, arg, args())
-        elem = arg->type();
+    for (size_t i = 0, e = num_args(); i != e; ++i)
+        elems[i] = arg(i)->type();
 
     return world().pi(elems);
 }

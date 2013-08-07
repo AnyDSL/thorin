@@ -8,7 +8,6 @@
 #include "anydsl2/analyses/looptree.h"
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/analyses/schedule.h"
-#include "anydsl2/util/for_all.h"
 
 namespace anydsl2 {
 

@@ -1,74 +1,25 @@
+SET ( LIBRARY_NAME anydsl2 )
 
-# Boost
+# get source files
+FILE ( GLOB CPP_GLOBAL    *.cpp )
+FILE ( GLOB CPP_ANALYSES  analyses/*.cpp )
+FILE ( GLOB CPP_TABLES    tables/*.cpp )
+FILE ( GLOB CPP_TRANSFORM transform/*.cpp )
+FILE ( GLOB CPP_UTIL      util/*.cpp )
 
-SET(Boost_USE_STATIC_LIBS   OFF)
-SET(Boost_USE_MULTITHREADED ON)
-FIND_PACKAGE( Boost 1.49.0 REQUIRED COMPONENTS program_options)
+# backend source files
+SET ( CPP_BE_LLVM          be/llvm.cpp )
 
-# LLVM
+# list of source files (without backends)
+SET ( ANYDSL2_SOURCE_FILES ${CPP_GLOBAL} ${CPP_ANALYSES} ${CPP_TABLES} ${CPP_TRANSFORM} ${CPP_UTIL} )
 
-FIND_PACKAGE(LLVM REQUIRED)
+# enable LLVM backend (if possible)
+IF ( LLVM_FOUND )
+    SET ( ANYDSL2_SOURCE_FILES ${ANYDSL2_SOURCE_FILES} ${CPP_BE_LLVM} )
+ENDIF ()
 
-IF( NOT LLVM_FOUND )
-  MESSAGE(FATAL_ERROR "LLVM package can't be found. Set CMAKE_PREFIX_PATH variable to LLVM's installation prefix.")
-ENDIF( NOT LLVM_FOUND )
-
-# project
-
-SET(LIBRARY_NAME
-	anydsl2
-)
-
-
-get_internal_files(GLOB_RECURSE internalFiles "")
-
-# SET(HG_CONSTANTS_FILE   "auto/constants_hg.template")
-# SET(VERSION_FILE        "auto/version.template")
-
-# HG_DefineConstants(${HG_CONSTANTS_FILE}  hgGeneratedFiles)
-# _VERSION_FILE(${VERSION_FILE}  versionGeneratedFiles)
-
-
-SET(LIBRARY_SOURCES
-	${internalFiles}
-	# ${hgGeneratedFiles}
-	# ${versionGeneratedFiles}
-)
-
-SET(LIBRARY_DEPENDENCIES
-)
-
-# MESSAGE(STATUS "LLVM_INCLUDE_DIRS: ${LLVM_INCLUDE_DIRS}")
-# MESSAGE(STATUS "LLVM_LIBRARY_DIRS: ${LLVM_LIBRARY_DIRS}")
-
-SET(LIBRARY_EXT_INCLUDES
-	${Boost_INCLUDE_DIR}
-	${LLVM_INCLUDE_DIRS}
-)
-
-# MESSAGE(STATUS "LLVM_DEFINITIONS: ${LLVM_DEFINITIONS}")
-
-ADD_DEFINITIONS(${LLVM_DEFINITIONS})
-
-llvm_map_components_to_libraries(REQ_LLVM_LIBRARIES jit native analysis)
-
-LINK_DIRECTORIES(
-	${LLVM_LIBRARY_DIRS}
-)
-
-# MESSAGE(STATUS "REQ_LLVM_LIBRARIES: ${REQ_LLVM_LIBRARIES}")
-
-SET(LIBRARY_EXT_LINK_LIBS
-	${Boost_LIBRARIES}
-	${REQ_LLVM_LIBRARIES}
-)
-
-add_project_static_library(
-	"${LIBRARY_NAME}"
-	"${LIBRARY_SOURCES}"
-	"${LIBRARY_DEPENDENCIES}"
-	"${LIBRARY_EXT_INCLUDES}"
-	"${LIBRARY_EXT_LINK_LIBS}"
-)
-
+# create lib
+get_anydsl2_dependency_libs( ANYDSL2_LIBS )
+ADD_LIBRARY ( ${LIBRARY_NAME} STATIC ${ANYDSL2_SOURCE_FILES} )
+TARGET_LINK_LIBRARIES ( ${LIBRARY_NAME} ${ANYDSL2_LIBS} )
 

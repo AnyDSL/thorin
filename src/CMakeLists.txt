@@ -1,35 +1,38 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.1 FATAL_ERROR)
 
-ADD_DEFINITIONS(
-    -std=c++11
-)
+OPTION ( BUILD_IMPALA "Builds the Impala frontend." ON )
 
-SET(ANYDSLEXP_REQUIRED_PROJECTS 
-    anydsl2
-)
+INCLUDE_DIRECTORIES ( ${PROJ_SOURCE_DIR} )
+LINK_DIRECTORIES ( ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY} )
 
-SET(ANYDSLEXP_RECOMMENDED_PROJECTS
-    impala
-    app
-)
+# enable c++11
+IF (NOT MSVC)
+    ADD_DEFINITIONS ( "-std=c++11" )
+ENDIF ()
 
-SET(ANYDSLEXP_SKIP_DIRS 
-    .
-    ..
-    build
-)
+# check for wfv2
+# TODO
 
-INCLUDE_DIRECTORIES(
-    ${PROJ_SOURCE_DIR}
-)
+# check for possible llvm extension
+FIND_PACKAGE ( LLVM QUIET )
 
-LINK_DIRECTORIES(
-    ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}
-)
+IF ( LLVM_FOUND )
+    MESSAGE ( STATUS "Building with LLVM." )
+    ADD_DEFINITIONS ( ${LLVM_DEFINITIONS} )
+    ADD_DEFINITIONS ( "-DLLVM_SUPPORT" )
+    INCLUDE_DIRECTORIES ( ${LLVM_INCLUDE_DIRS} )
+    LINK_DIRECTORIES ( ${LLVM_LIBRARY_DIRS} )
+ELSE ()
+    MESSAGE ( STATUS "Building without LLVM. Specify LLVM_DIR to compile with LLVM." )
+ENDIF ()
 
-add_subdirectories_with_option(
-    "ANYDSLEXP_BUILD"
-    REQUIRED ${ANYDSLEXP_REQUIRED_PROJECTS}
-    RECOMMENDED ${ANYDSLEXP_RECOMMENDED_PROJECTS}
-    SKIP ${ANYDSLEXP_SKIP_DIRS}
-)
+INCLUDE ( anydsl2-shared )
+
+# build anydsl2 lib
+ADD_SUBDIRECTORY ( anydsl2 )
+
+#build impala frontend
+IF ( BUILD_IMPALA )
+    ADD_SUBDIRECTORY ( impala )
+ENDIF ()
+

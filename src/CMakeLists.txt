@@ -11,7 +11,16 @@ IF (NOT MSVC)
 ENDIF ()
 
 # check for wfv2
-# TODO
+FIND_PACKAGE ( WFV2 QUIET )
+
+IF ( WFV2_FOUND )
+    MESSAGE ( STATUS "Building with WFV2." )
+    ADD_DEFINITIONS ( "-DWFV2_SUPPORT" )
+    INCLUDE_DIRECTORIES ( ${WFV2_INCLUDE_DIR} )
+    LINK_DIRECTORIES ( ${WFV2_LIBRARY_DIR} )
+ELSE ()
+    MESSAGE ( STATUS "Building without WFV2. Specify WFV2_DIR to compile with WFV2." )
+ENDIF ()
 
 # check for possible llvm extension
 FIND_PACKAGE ( LLVM QUIET )

@@ -258,7 +258,7 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
             case 1: return set_value(handle, preds.front()->get_value(handle, type, name));
             default: {
                 if (is_visited_)
-                    return set_value(handle, append_param(type, name));
+                    return set_value(handle, append_param(type, name)); // create param to break cycle
 
                 is_visited_ = true;
                 const Def* same = 0;

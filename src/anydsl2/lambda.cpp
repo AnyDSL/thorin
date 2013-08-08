@@ -120,12 +120,9 @@ start:
     return succs_;
 }
 
-Lambdas& Lambda::preds() const {
-    if (former_uses_ == uses())
-        return preds_;
-
-    former_uses_ = uses();
-    preds_.clear();
+Lambdas Lambda::preds() const {
+    // TODO cache the preds like in Lambda::succs -- but this not so obvious as it seems!!!
+    std::vector<Lambda*> preds;
     std::queue<const Def*> queue;
     std::unordered_set<const Def*> done;
     const Def* def = this;
@@ -136,7 +133,7 @@ Lambdas& Lambda::preds() const {
         queue.pop();
 
         if (Lambda* lambda = def->isa_lambda()) {
-            preds_.push_back(lambda);
+            preds.push_back(lambda);
             continue;
         } 
 start:
@@ -148,7 +145,7 @@ start:
         }
     }
 
-    return preds_;
+    return preds;
 }
 
 Lambdas Lambda::direct_preds() const { return find_preds<true>(this); }

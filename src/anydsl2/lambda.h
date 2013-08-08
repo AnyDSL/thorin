@@ -50,7 +50,7 @@ public:
     Lambda* update_arg(size_t i, const Def* def) { return update_op(i+1, def); }
     const Param* append_param(const Type* type, const std::string& name = "");
     Lambdas& succs() const;
-    Lambdas& preds() const;
+    Lambdas preds() const;
     Lambdas direct_preds() const;
     const std::vector<const GenericRef*>& generic_refs() const { return generic_refs_; }
     const Params& params() const { return params_; }
@@ -188,7 +188,6 @@ private:
     typedef std::vector<Todo> Todos;
     Todos todos_;
 
-    mutable Lambdas preds_;
     mutable Lambdas succs_;
     mutable std::vector<Use> former_uses_;
     mutable std::vector<const Def*> former_ops_;

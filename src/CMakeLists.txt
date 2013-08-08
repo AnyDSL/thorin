@@ -5,10 +5,16 @@ OPTION ( BUILD_IMPALA "Builds the Impala frontend." ON )
 INCLUDE_DIRECTORIES ( ${PROJ_SOURCE_DIR} )
 LINK_DIRECTORIES ( ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY} )
 
-# enable c++11
+# enable c++11 and disable non-secure iterator warnings
 IF (NOT MSVC)
     ADD_DEFINITIONS ( "-std=c++11" )
+ELSE ()
+    ADD_DEFINITIONS ( -D_SCL_SECURE_NO_WARNINGS )
 ENDIF ()
+
+SET (Boost_USE_STATIC_LIBS   ON)
+SET (Boost_USE_MULTITHREADED ON)
+FIND_PACKAGE ( Boost 1.49.0 QUIET COMPONENTS program_options)
 
 # check for wfv2
 FIND_PACKAGE ( WFV2 QUIET )
@@ -40,8 +46,7 @@ INCLUDE ( anydsl2-shared )
 # build anydsl2 lib
 ADD_SUBDIRECTORY ( anydsl2 )
 
-#build impala frontend
+# build impala frontend
 IF ( BUILD_IMPALA )
     ADD_SUBDIRECTORY ( impala )
 ENDIF ()
-

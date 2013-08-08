@@ -28,4 +28,3 @@ FUNCTION ( get_anydsl2_dependency_libs OUT_VAR )
     get_anydsl2_wfv2_dependency_libs ( ANYDSL2_WFV2_TEMP_LIBS )
     SET ( ${OUT_VAR} ${ANYDSL2_LLVM_TEMP_LIBS} ${ANYDSL2_WFV2_TEMP_LIBS} PARENT_SCOPE )
 ENDFUNCTION ()
-

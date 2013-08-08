@@ -80,7 +80,7 @@ class TupleRef : public Ref {
 public:
 
     TupleRef(RefPtr lref, const Def* index)
-        : lref_(lref)
+        : lref_(std::move(lref))
         , index_(index)
         , loaded_(0)
     {}
@@ -117,7 +117,7 @@ private:
 };
 
 RefPtr Ref::create(const Def* def) { return RefPtr(new RVal(def)); }
-RefPtr Ref::create(RefPtr lref, const Def* index) { return RefPtr(new TupleRef(lref, index)); }
+RefPtr Ref::create(RefPtr lref, const Def* index) { return RefPtr(new TupleRef(std::move(lref), index)); }
 RefPtr Ref::create(Lambda* bb, size_t handle, const Type* type, const char* name) { 
     return RefPtr(new VarRef(bb, handle, type, name)); 
 }

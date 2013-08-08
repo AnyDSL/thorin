@@ -13,23 +13,23 @@ public:
         : ptr_(ptr)
     {}
     ~AutoPtr() { delete ptr_; }
-    AutoPtr(const AutoPtr<T>& aptr)
+    AutoPtr(AutoPtr<T>&& aptr)
         : ptr_(aptr.get())
     {
-        const_cast<AutoPtr<T>&>(aptr).ptr_ = 0; // take ownership
+        aptr.ptr_ = 0; // take ownership
     }
-
 
     void release() { delete ptr_; ptr_ = 0; }
     T* get() const { return ptr_; }
     operator T*() const { return ptr_; }
     T* operator -> () const { return ptr_; }
     AutoPtr<T>& operator = (T* ptr) { delete ptr_; ptr_ = ptr; return *this; }
+    AutoPtr<T>& operator = (AutoPtr<T> other) { swap(*this, other); return *this; }
+    friend void swap(AutoPtr<T>& a, AutoPtr<T>& b) { std::swap(a.ptr_, b.ptr_); }
 
 private:
 
-    // forbid copy constructor and standard assignment operator
-    AutoPtr<T>& operator = (const AutoPtr<T>&);
+    AutoPtr(const AutoPtr<T>& aptr); // forbid copy constructor
 
     T* ptr_;
 };

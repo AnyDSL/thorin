@@ -160,7 +160,7 @@ const Def* Mangler::mangle(const Def* odef) {
 //------------------------------------------------------------------------------
 
 Lambda* mangle(const Scope& scope, ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
-                       ArrayRef<const Def*> to_lift, const GenericMap& generic_map) {
+               ArrayRef<const Def*> to_lift, const GenericMap& generic_map) {
     return Mangler(scope, to_drop, drop_with, to_lift, generic_map).mangle();
 }
 

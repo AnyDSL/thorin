@@ -274,15 +274,18 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
                     same = def;
                 }
                 assert(same != 0);
-
                 is_visited_ = false;
+
+                // fix any params which may have been introduced to break the cycle above
+                const Def* def = 0;
+                if (const Tracker* tracker = find_tracker(handle))
+                    def = fix(Todo(handle, tracker->def()->as<Param>()->index(), type, name));
+
                 if (same != (const Def*)-1)
                     return same;
 
-                const Tracker* tracker = find_tracker(handle);
-                const Param* param = tracker ? tracker->def()->as<Param>() : append_param(type, name);
-
-                return set_value(handle, fix(Todo(handle, param->index(), type, name)));
+                def = def ? def : fix(Todo(handle, append_param(type, name)->index(), type, name));
+                return set_value(handle, def);
             }
         }
     }

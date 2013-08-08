@@ -8,6 +8,7 @@ LINK_DIRECTORIES ( ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY} )
 # enable c++11 and disable non-secure iterator warnings
 IF (NOT MSVC)
     ADD_DEFINITIONS ( "-std=c++11" )
+    ADD_DEFINITIONS ( "-frtti" )
 ELSE ()
     ADD_DEFINITIONS ( -D_SCL_SECURE_NO_WARNINGS )
 ENDIF ()

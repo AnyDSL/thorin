@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <cstring>
+#include <algorithm>
 #include <iterator>
 #include <vector>
 
@@ -64,16 +65,7 @@ public:
     template<class U> ArrayRef<U> cast() const { return ArrayRef<U>((const U*) ptr_, size_); }
 
     template<class Other>
-    bool operator == (const Other& other) const {
-        if (size() != other.size())
-            return false;
-
-        for (size_t i = 0, e = size(); i != e; ++i)
-            if (!(ptr_[i] == other[i]))
-                return false;
-
-        return true;
-    }
+    bool operator == (const Other& other) const { return this->size() == other.size() && std::equal(begin(), end(), other.begin()); }
 
 private:
 

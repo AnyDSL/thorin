@@ -111,7 +111,7 @@ void Sema::insert(const Decl* decl) {
 }
 
 const Decl* Sema::clash(Symbol symbol) const {
-    Sym2Decl::const_iterator i = sym2decl_.find(symbol);
+    auto i = sym2decl_.find(symbol);
     if (i == sym2decl_.end())
         return 0;
 

@@ -39,16 +39,13 @@ template<class T>
 class AutoVector : public std::vector<T> {
 public:
 
-    AutoVector() : std::vector<T>() {}
-
+    AutoVector() 
+        : std::vector<T>() 
+    {}
     explicit AutoVector(typename std::vector<T>::size_type s)
         : std::vector<T>(s)
     {}
-
-    ~AutoVector() {
-        for (typename std::vector<T>::const_iterator i = this->begin(), e = this->end(); i != e; ++i)
-            delete *i;
-    }
+    ~AutoVector() { for (auto p : *this) delete p; }
 };
 
 }

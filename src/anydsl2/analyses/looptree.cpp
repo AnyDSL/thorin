@@ -212,7 +212,7 @@ std::pair<size_t, size_t> LoopTreeBuilder::propagate_bounds(LoopNode* n) {
     if (LoopHeader* header = n->isa<LoopHeader>()) {
         size_t begin = -1, end = 0;
         for (auto child : header->children()) {
-            std::pair<size_t, size_t> p = propagate_bounds(child);
+            auto p = propagate_bounds(child);
             begin = p.first  < begin ? p.first  : begin;
             end   = p.second > end   ? p.second : end;
         }

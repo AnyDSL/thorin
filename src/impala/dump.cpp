@@ -237,7 +237,7 @@ Printer& Call::print(Printer& p) const {
     p << "(";
 
     if (ops_.size() != 1) {
-        for (Exprs::const_iterator i = ops_.begin() + 1, e = ops_.end() - 1; i != e; ++i) {
+        for (auto i = ops_.cbegin() + 1, e = ops_.cend() - 1; i != e; ++i) {
             (*i)->print(p);
             p << ", ";
         }
@@ -342,7 +342,7 @@ Printer& ScopeStmt::print(Printer& p) const {
     p.up();
 
     if (!stmts().empty()) {
-        for (Stmts::const_iterator i = stmts().begin(), e = stmts().end() - 1; i != e; ++i) {
+        for (auto i = stmts().cbegin(), e = stmts().cend() - 1; i != e; ++i) {
             (*i)->print(p);
             p.newline();
         }

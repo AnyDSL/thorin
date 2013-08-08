@@ -102,7 +102,7 @@ void CodeGen::emit() {
 
         // map params
         const Param* ret_param = 0;
-        llvm::Function::arg_iterator arg = fct->arg_begin();
+        auto arg = fct->arg_begin();
         for (auto param : lambda->params()) {
             if (param->type()->isa<Mem>())
                 continue;

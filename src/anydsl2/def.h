@@ -2,7 +2,6 @@
 #define ANYDSL2_DEF_H
 
 #include <cstring>
-#include <iterator>
 #include <ostream>
 #include <string>
 #include <vector>

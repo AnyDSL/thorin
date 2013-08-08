@@ -22,7 +22,7 @@ Token::Token(const Location& loc, const std::string& str)
     : HasLocation(loc)
     , symbol_(str)
 {
-    Sym2Tok::const_iterator i = keywords_.find(str);
+    auto i = keywords_.find(str);
     if (i == keywords_.end())
         kind_ = Token::ID;
     else

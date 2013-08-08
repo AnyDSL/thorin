@@ -189,7 +189,7 @@ struct hash<anydsl2::ArrayRef<T>> {
 
 template<class T>
 struct hash<anydsl2::Array<T>> {
-    size_t operator () (const anydsl2::Array<T>& array) const { return hash_value(array.ref()); }
+    size_t operator () (const anydsl2::Array<T>& array) const { return anydsl2::hash_value(array.ref()); }
 };
 
 }

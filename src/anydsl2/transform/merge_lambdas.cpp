@@ -47,7 +47,7 @@ void Merger::merge(const DomNode* n) {
     if (cur != n)
         n->lambda()->jump(cur->lambda()->to(), cur->lambda()->args());
 
-    for (auto child : i->children())
+    for (auto child : cur->children())
         merge(child);
 }
 

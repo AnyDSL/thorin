@@ -5,6 +5,7 @@
 
 namespace anydsl2 {
 
+/// Similar to std::unique_ptr<T> but some more convenience like cast operators and non-explicit constructors.
 template<class T>
 class AutoPtr {
 public:

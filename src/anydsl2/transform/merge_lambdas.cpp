@@ -36,16 +36,16 @@ const DomNode* Merger::dom_succ(const DomNode* n) {
 }
 
 void Merger::merge(const DomNode* n) {
-    const DomNode* i = n;
-    for (const DomNode* next = dom_succ(i); next != 0; i = next, next = dom_succ(next)) {
-        assert(i->lambda()->num_args() == next->lambda()->num_params());
-        for (size_t j = 0, e = i->lambda()->num_args(); j != e; ++j)
-            next->lambda()->param(j)->replace(i->lambda()->arg(j));
-        i->lambda()->destroy_body();
+    const DomNode* cur = n;
+    for (const DomNode* next = dom_succ(cur); next != 0; cur = next, next = dom_succ(next)) {
+        assert(cur->lambda()->num_args() == next->lambda()->num_params());
+        for (size_t i = 0, e = cur->lambda()->num_args(); i != e; ++i)
+            next->lambda()->param(i)->replace(cur->lambda()->arg(i));
+        cur->lambda()->destroy_body();
     }
 
-    if (i != n)
-        n->lambda()->jump(i->lambda()->to(), i->lambda()->args());
+    if (cur != n)
+        n->lambda()->jump(cur->lambda()->to(), cur->lambda()->args());
 
     for (auto child : i->children())
         merge(child);

@@ -148,7 +148,7 @@ const Def* Mangler::mangle(const Def* odef) {
     const PrimOp* oprimop = odef->as<PrimOp>();
     Array<const Def*> nops(oprimop->size());
     for (size_t i = 0, e = oprimop->size(); i != e; ++i) {
-        const Def* nop = nops[i];
+        const Def*& nop = nops[i];
         const Def* op = oprimop->op(i);
         nop = mangle(op);
         is_new |= nop != op;

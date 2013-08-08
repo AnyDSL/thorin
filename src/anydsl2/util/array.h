@@ -37,7 +37,7 @@ public:
         , size_(N)
     {}
     ArrayRef(const std::vector<T>& vector)
-       : ptr_(vector.empty() ? 0 : &vector.front())
+       : ptr_(vector.data())
        , size_(vector.size())
     {}
     ArrayRef(const T* ptr, size_t size)
@@ -62,8 +62,6 @@ public:
     ArrayRef<T> slice_front(size_t end) const { return ArrayRef<T>(ptr_, end); }
     ArrayRef<T> slice_back(size_t begin) const { return ArrayRef<T>(ptr_ + begin, size_ - begin); }
     Array<T> cut(ArrayRef<size_t> indices, size_t reserve = 0) const;
-    template<class U> ArrayRef<U> cast() const { return ArrayRef<U>((const U*) ptr_, size_); }
-
     template<class Other>
     bool operator == (const Other& other) const { return this->size() == other.size() && std::equal(begin(), end(), other.begin()); }
 
@@ -123,18 +121,14 @@ public:
 
     T& operator [] (size_t i) { assert(i < size() && "index out of bounds"); return ptr_[i]; }
     T const& operator [] (size_t i) const { assert(i < size() && "index out of bounds"); return ptr_[i]; }
-
-    size_t size() const { return size_; }
-    bool empty() const { return size_ == 0; }
-
     T& front() const { assert(!empty()); return ptr_[0]; }
     T& back()  const { assert(!empty()); return ptr_[size_ - 1]; }
-
+    size_t size() const { return size_; }
+    bool empty() const { return size_ == 0; }
     ArrayRef<T> slice(size_t begin, size_t end) const { return ArrayRef<T>(ptr_ + begin, end - begin); }
     ArrayRef<T> slice_front(size_t end) const { return ArrayRef<T>(ptr_, end); }
     ArrayRef<T> slice_back(size_t begin) const { return ArrayRef<T>(ptr_ + begin, size_ - begin); }
     Array<T> cut(ArrayRef<size_t> indices, size_t reserve = 0) const { return ArrayRef<T>(*this).cut(indices, reserve); }
-
     bool operator == (const Array<T>& other) const { return ArrayRef<T>(*this) == ArrayRef<T>(other); }
     void shrink(size_t newsize) { assert(newsize <= size_); size_ = newsize; }
     ArrayRef<T> ref() const { return ArrayRef<T>(ptr_, size_); }

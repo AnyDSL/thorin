@@ -13,10 +13,8 @@ namespace anydsl2 {
 template<bool forwards>
 int DomNodeBase<forwards>::depth() const {
     int result = 0;
-
     for (const DomNodeBase* i = this; !i->entry(); i = i->idom())
         ++result;
-
     return result;
 };
 

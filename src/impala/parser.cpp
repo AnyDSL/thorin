@@ -406,8 +406,8 @@ void Parser::parse_generic_list() {
 }
 
 void Parser::parse_fun(Fun* fun) {
-    Push<const Fun*> push1(cur_fun, fun);
-    Push<size_t>     push2(cur_var_handle, cur_var_handle);
+    ANYDSL2_PUSH(cur_fun, fun);
+    ANYDSL2_PUSH(cur_var_handle, cur_var_handle);
 
     Generics generics(cur_generics, builder);
     cur_generics = &generics;
@@ -554,7 +554,7 @@ const Stmt* Parser::parse_while() {
     const Expr* cond = parse_cond("while statement");
 
     ForStmt* loop = new ForStmt();
-    Push<const Loop*> push(cur_loop, loop);
+    ANYDSL2_PUSH(cur_loop, loop);
     const Stmt* body = try_stmt("loop body");
 
     loop->set(pos1, cond, new EmptyExpr(pos1), body);
@@ -567,7 +567,7 @@ const Stmt* Parser::parse_do_while() {
     Position pos1 = eat(Token::DO).pos1();
 
     DoWhileStmt* loop = new DoWhileStmt();
-    Push<const Loop*> push(cur_loop, loop);
+    ANYDSL2_PUSH(cur_loop, loop);
     const Stmt* body = try_stmt("loop body");
 
     expect(Token::WHILE, "do-while statement");
@@ -584,7 +584,7 @@ const Stmt* Parser::parse_for() {
     expect(Token::L_PAREN, "for statement");
 
     ForStmt*  loop = new ForStmt();
-    Push<const Loop*> push(cur_loop, loop);
+    ANYDSL2_PUSH(cur_loop, loop);
 
     // clause 1: decl or expr_opt ';'
     if (la2() == Token::COLON)

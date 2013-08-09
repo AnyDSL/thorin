@@ -65,7 +65,7 @@ const Lambda* CodeGen::emit_body(const Fun* fun, Lambda* parent, const char* wha
 
     fun->lambda()->set_parent(parent);
 
-    Push<Lambda*> push1(cur_bb, fun->lambda());
+    ANYDSL2_PUSH(cur_bb, fun->lambda());
 
     bool new_frame = false;
     if (!cur_frame) {
@@ -380,8 +380,8 @@ void DoWhileStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     JumpTarget body_bb("do_while_body");
     JumpTarget cond_bb("do_while_cond");
 
-    Push<JumpTarget*> push1(cg.break_target, &exit_bb);
-    Push<JumpTarget*> push2(cg.continue_target, &cond_bb);
+    ANYDSL2_PUSH(cg.break_target, &exit_bb);
+    ANYDSL2_PUSH(cg.continue_target, &cond_bb);
 
     cg.jump(body_bb);
 
@@ -398,8 +398,8 @@ void ForStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     JumpTarget body_bb("for_body");
     JumpTarget step_bb("for_step");
 
-    Push<JumpTarget*> push1(cg.break_target, &exit_bb);
-    Push<JumpTarget*> push2(cg.continue_target, &step_bb);
+    ANYDSL2_PUSH(cg.break_target, &exit_bb);
+    ANYDSL2_PUSH(cg.continue_target, &step_bb);
 
     cg.emit(init(), head_bb);
 
@@ -418,8 +418,8 @@ void ForStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     JumpTarget continue_bb("continue_bb");
 
-    Push<JumpTarget*> push1(cg.break_target, &exit_bb);
-    Push<JumpTarget*> push2(cg.continue_target, &continue_bb);
+    ANYDSL2_PUSH(cg.break_target, &exit_bb);
+    ANYDSL2_PUSH(cg.continue_target, &continue_bb);
 
     // construct a call to the generator
     size_t num = call()->ops().size();

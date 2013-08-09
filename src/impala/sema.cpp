@@ -440,7 +440,7 @@ void ForeachStmt::check(Sema& sema) const {
         sema.error(call()->to()) << "invocation not done on function type but instead type '" 
             << call()->to()->type() << "' is given\n";
 
-    Push<bool> push(sema.in_foreach_, true);
+    ANYDSL2_PUSH(sema.in_foreach_, true);
 
     if (const ScopeStmt* scope = body()->isa<ScopeStmt>())
         sema.check_stmts(scope);

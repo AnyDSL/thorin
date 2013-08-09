@@ -1,15 +1,4 @@
 IF ( LLVM_FOUND )
-    INCLUDE ( HandleLLVMOptions )
-    INCLUDE ( LLVMProcessSources )
-
-    IF ( NOT LLVM_REQUIRES_RTTI )
-        IF ( LLVM_COMPILER_IS_GCC_COMPATIBLE )
-            llvm_replace_compiler_option(CMAKE_CXX_FLAGS "-fno-rtti" "-frtti")
-        ELSEIF ( MSVC )
-            llvm_replace_compiler_option(CMAKE_CXX_FLAGS "/GR-" "/GR")
-        ENDIF ()
-    ENDIF ()
-
     FUNCTION ( get_anydsl2_llvm_dependency_libs OUT_VAR )
         llvm_map_components_to_libraries ( ANYDSL2_LLVM_TEMP_LIBS jit native analysis )
         SET ( ${OUT_VAR} ${ANYDSL2_LLVM_TEMP_LIBS} PARENT_SCOPE )

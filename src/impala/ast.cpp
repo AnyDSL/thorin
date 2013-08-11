@@ -6,7 +6,7 @@ using namespace anydsl2;
 
 namespace impala {
 
-bool Fun::is_continuation() const { return return_type(pi())->isa<NoRet>() != 0; }
+bool Fun::is_continuation() const { return return_type(pi())->isa<NoRet>() != nullptr; }
 
 PrimTypeKind Literal::literal2type() const {
     switch (kind()) {
@@ -18,7 +18,7 @@ PrimTypeKind Literal::literal2type() const {
     }
 }
 
-bool Call::is_continuation_call() const { return type()->isa<NoRet>() != 0; }
+bool Call::is_continuation_call() const { return type()->isa<NoRet>() != nullptr; }
 
 Location Call::args_location() const {
     if (ops().size() == 1)

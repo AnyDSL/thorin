@@ -178,7 +178,7 @@ class Expr : public ASTNode {
 public:
 
     Expr() 
-        : type_(0) 
+        : type_(nullptr) 
     {}
 
     const Exprs& ops() const { return ops_; }

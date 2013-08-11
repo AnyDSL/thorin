@@ -8,8 +8,6 @@
 
 namespace anydsl2 {
 
-typedef const char* const_char_ptr;
-
 union Box {
 public:
 
@@ -22,9 +20,6 @@ public:
     Box(f32 f) { reset();  f32_ = f; }
     Box(f64 f) { reset();  f64_ = f; }
     Box(bool b)  { reset();   u1_ = b; }
-    Box(char c)  { reset(); char_ = c; }
-    Box(void* p) { reset(); ptr_  = p; }
-    Box(const_char_ptr s) { reset(); const_char_ptr_ = s; }
 
     bool operator == (const Box& other) const { return bcast<uint64_t, Box>(*this) == bcast<uint64_t, Box>(other); }
     // see blow for specializations
@@ -36,7 +31,6 @@ public:
     u64 get_u64() const { return u64_; }
     f32 get_f32() const { return f32_; }
     f64 get_f64() const { return f64_; }
-    void* get_ptr() const { return ptr_; }
 
 private:
 
@@ -49,9 +43,6 @@ private:
     u64  u64_;
     f32  f32_;
     f64  f64_;
-    char  char_;
-    void* ptr_;
-    const_char_ptr const_char_ptr_;
 };
 
 template <> inline  u1 Box::get< u1>() { return  u1_; }
@@ -61,9 +52,6 @@ template <> inline u32 Box::get<u32>() { return u32_; }
 template <> inline u64 Box::get<u64>() { return u64_; }
 template <> inline f32 Box::get<f32>() { return f32_; }
 template <> inline f64 Box::get<f64>() { return f64_; }
-template <> inline const_char_ptr Box::get<const_char_ptr>() { return const_char_ptr_; }
-template <> inline char Box::get<char>() { return char_; }
-template <> inline void* Box::get<void*>() { return ptr_; }
 
 inline size_t hash_value(Box box) { return hash_value(bcast<u64, Box>(box)); }
 

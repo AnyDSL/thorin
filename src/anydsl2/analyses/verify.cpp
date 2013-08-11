@@ -19,7 +19,7 @@ public:
     bool verify_param(Lambda* current, const Param* param);
     bool verify_body(Lambda* lambda);
     bool verify_primop(Lambda* current, const PrimOp* primop, PrimOpSet& primops);
-    void invalid(const Def* def, const Def* source, const char* msg = 0);
+    void invalid(const Def* def, const Def* source, const char* msg = nullptr);
     void invalid(const Def* def, const char* msg) { invalid(def, def, msg); }
 
     World& world_;

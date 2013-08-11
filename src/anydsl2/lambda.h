@@ -173,9 +173,9 @@ private:
      * There exist three cases to distinguish here.
      * - \p parent_ == this: This \p Lambda is considered as a basic block, i.e., 
      *                       SSA construction will propagate value through this \p Lambda's predecessors.
-     * - \p parent_ == 0: This \p Lambda is considered as top level function, i.e.,
-     *                    SSA construction will stop propagate values here.
-     *                    Any \p get_value which arrives here without finding a definition will return \p bottom.
+     * - \p parent_ == nullptr: This \p Lambda is considered as top level function, i.e.,
+     *                          SSA construction will stop propagate values here.
+     *                          Any \p get_value which arrives here without finding a definition will return \p bottom.
      * - otherwise: This \p Lambda is considered as function head nested in \p parent_.
      *              Any \p get_value which arrives here without finding a definition will recursively try to find one in \p parent_.
      */

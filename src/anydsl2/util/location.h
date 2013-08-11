@@ -22,7 +22,9 @@ public:
         , col_(col)
     {}
 
-    bool operator == (const Position& pos) const;
+    bool operator == (const Position& pos) const {
+        return filename_ == pos.filename() && line_ == pos.line_ && col_ == pos.col_;
+    }
 
     const std::string& filename() const { return filename_; }
     int line() const { return line_; }
@@ -67,7 +69,9 @@ public:
         , pos2_( Position(filename, line2, col2) )
     {}
 
-    bool operator == (const Location& loc) const;
+    bool operator == (const Location& loc) const {
+        return pos1_ == loc.pos1() && pos2_ == loc.pos2();
+    }
     bool isSet() const { return pos1_.isSet(); }
 
     const Position& pos1() const { return pos1_; }

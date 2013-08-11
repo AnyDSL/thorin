@@ -1,7 +1,6 @@
 #include "anydsl2/lambda.h"
 
 #include "anydsl2/literal.h"
-#include "anydsl2/symbol.h"
 #include "anydsl2/type.h"
 #include "anydsl2/world.h"
 #include "anydsl2/printer.h"

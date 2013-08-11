@@ -1,6 +1,6 @@
 #include "impala/init.h"
 
-#include "anydsl2/symbol.h"
+#include "anydsl2/util/symbol.h"
 
 #include "impala/prec.h"
 #include "impala/token.h"

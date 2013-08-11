@@ -9,17 +9,7 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
-bool Position::operator == (const Position& pos) const {
-    return filename_ == pos.filename() && line_ == pos.line_ && col_ == pos.col_;
-}
-
-std::ostream& Position::line_col(std::ostream& os) const {
-    return os << line_ << " col " << col_;
-}
-
-bool Location::operator == (const Location& loc) const {
-    return pos1_ == loc.pos1() && pos2_ == loc.pos2();
-}
+std::ostream& Position::line_col(std::ostream& os) const { return os << line_ << " col " << col_; }
 
 //------------------------------------------------------------------------------
 
@@ -49,29 +39,12 @@ std::ostream& operator << (std::ostream& os, const Location& loc) {
 
 //------------------------------------------------------------------------------
 
-std::ostream& Position::error() const {
-    return std::cerr << *this << ": error: ";
-}
-
-std::ostream& Position::warning() const {
-    return std::cerr << *this << ": warning: ";
-}
-
-std::ostream& Location::error() const {
-    return std::cerr << *this << ": error: ";
-}
-
-std::ostream& Location::warning() const {
-    return std::cerr << *this << ": warning: ";
-}
-
-std::ostream& HasLocation::error() const {
-    return std::cerr << loc_ << ": error: ";
-}
-
-std::ostream& HasLocation::warning() const {
-    return std::cerr << loc_ << ": warning: ";
-}
+std::ostream& Position::error() const { return std::cerr << *this << ": error: "; }
+std::ostream& Position::warning() const { return std::cerr << *this << ": warning: "; }
+std::ostream& Location::error() const { return std::cerr << *this << ": error: "; }
+std::ostream& Location::warning() const { return std::cerr << *this << ": warning: "; }
+std::ostream& HasLocation::error() const { return std::cerr << loc_ << ": error: "; }
+std::ostream& HasLocation::warning() const { return std::cerr << loc_ << ": warning: "; }
 
 //------------------------------------------------------------------------------
 

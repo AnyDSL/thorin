@@ -1,4 +1,4 @@
-#include "anydsl2/symbol.h"
+#include "anydsl2/util/symbol.h"
 
 #include <iomanip>
 #include <sstream>

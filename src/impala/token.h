@@ -6,10 +6,10 @@
 #include <unordered_map>
 
 #include "anydsl2/enums.h"
-#include "anydsl2/symbol.h"
 #include "anydsl2/util/box.h"
 #include "anydsl2/util/assert.h"
 #include "anydsl2/util/location.h"
+#include "anydsl2/util/symbol.h"
 
 namespace impala {
 

@@ -33,7 +33,7 @@
 #if (defined(__clang__) || defined(__GNUC__)) && (defined(__x86_64__) || defined(__i386__))
 #define ANYDSL2_BREAK asm("int3");
 #else
-#define ANYDSL2_BREAK { int* __p__ = 0; *__p__ = 42; }
+#define ANYDSL2_BREAK { int* __p__ = nullptr; *__p__ = 42; }
 #endif
 
 #ifndef NDEBUG
@@ -346,8 +346,8 @@ const Def* World::arithop(ArithOpKind kind, const Def* cond, const Def* a, const
             && lrel->relop_kind() == negate(rrel->relop_kind()))
             return literal_u1(false);
 
-    const ArithOp* land = a->kind() == ArithOp_and ? a->as<ArithOp>() : 0;
-    const ArithOp* rand = b->kind() == ArithOp_and ? b->as<ArithOp>() : 0;
+    const ArithOp* land = a->kind() == ArithOp_and ? a->as<ArithOp>() : nullptr;
+    const ArithOp* rand = b->kind() == ArithOp_and ? b->as<ArithOp>() : nullptr;
 
     // distributivity (a and b) or (a and c)
     if (kind == ArithOp_or && land && rand) {
@@ -357,8 +357,8 @@ const Def* World::arithop(ArithOpKind kind, const Def* cond, const Def* a, const
             return arithop_and(cond, land->rhs(), arithop_or(cond, land->lhs(), rand->lhs()));
     }
 
-    const ArithOp* lor = a->kind() == ArithOp_or ? a->as<ArithOp>() : 0;
-    const ArithOp* ror = b->kind() == ArithOp_or ? b->as<ArithOp>() : 0;
+    const ArithOp* lor = a->kind() == ArithOp_or ? a->as<ArithOp>() : nullptr;
+    const ArithOp* ror = b->kind() == ArithOp_or ? b->as<ArithOp>() : nullptr;
 
     // distributivity (a or b) and (a or c)
     if (kind == ArithOp_and && lor && ror) {
@@ -458,10 +458,10 @@ const Def* World::arithop(ArithOpKind kind, const Def* cond, const Def* a, const
 
     // normalize: try to reorder same ops to have the literal/vector on the left-most side
     if (is_associative(kind)) {
-        const ArithOp* a_same = a->isa<ArithOp>() && a->as<ArithOp>()->arithop_kind() == kind ? a->as<ArithOp>() : 0;
-        const ArithOp* b_same = b->isa<ArithOp>() && b->as<ArithOp>()->arithop_kind() == kind ? b->as<ArithOp>() : 0;
-        const Def* a_lhs_lv = a_same && (a_same->lhs()->isa<PrimLit>() || a_same->lhs()->isa<Vector>()) ? a_same->lhs() : 0;
-        const Def* b_lhs_lv = b_same && (b_same->lhs()->isa<PrimLit>() || b_same->lhs()->isa<Vector>()) ? b_same->lhs() : 0;
+        const ArithOp* a_same = a->isa<ArithOp>() && a->as<ArithOp>()->arithop_kind() == kind ? a->as<ArithOp>() : nullptr;
+        const ArithOp* b_same = b->isa<ArithOp>() && b->as<ArithOp>()->arithop_kind() == kind ? b->as<ArithOp>() : nullptr;
+        const Def* a_lhs_lv = a_same && (a_same->lhs()->isa<PrimLit>() || a_same->lhs()->isa<Vector>()) ? a_same->lhs() : nullptr;
+        const Def* b_lhs_lv = b_same && (b_same->lhs()->isa<PrimLit>() || b_same->lhs()->isa<Vector>()) ? b_same->lhs() : nullptr;
 
         if (is_commutative(kind)) {
             if (a_lhs_lv && b_lhs_lv)

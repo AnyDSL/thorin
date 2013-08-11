@@ -10,7 +10,7 @@ namespace anydsl2 {
 class Scope;
 class PrimOp;
 
-typedef Array< std::vector<const PrimOp*> > Schedule;
+typedef Array<std::vector<const PrimOp*>> Schedule;
 
 Schedule schedule_early(const Scope&);
 Schedule schedule_late(const Scope&, size_t& pass);

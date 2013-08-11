@@ -66,11 +66,11 @@ private:
     std::vector<Lambda*> rpo_;
     size_t num_entries_;
     mutable size_t num_exits_;
-    mutable AutoPtr< Array<Lambda*> > backwards_rpo_;
-    mutable Array< Array<Lambda*> > preds_;
-    mutable Array< Array<Lambda*> > succs_;
-    mutable AutoPtr< DomTreeBase<true> > domtree_;
-    mutable AutoPtr< DomTreeBase<false> > postdomtree_;
+    mutable AutoPtr<Array<Lambda*>> backwards_rpo_;
+    mutable Array<Array<Lambda*>> preds_;
+    mutable Array<Array<Lambda*>> succs_;
+    mutable AutoPtr<DomTreeBase<true>> domtree_;
+    mutable AutoPtr<DomTreeBase<false>> postdomtree_;
     mutable AutoPtr<LoopTree> looptree_;
 };
 

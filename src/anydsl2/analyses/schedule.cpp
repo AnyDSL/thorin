@@ -11,7 +11,7 @@
 
 namespace anydsl2 {
 
-typedef Array< std::vector<const PrimOp*> > Schedule;
+typedef Array<std::vector<const PrimOp*>> Schedule;
 
 Schedule schedule_early(const Scope& scope) {
     Schedule schedule(scope.size());

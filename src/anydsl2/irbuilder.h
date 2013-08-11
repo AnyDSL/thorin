@@ -82,7 +82,7 @@ public:
     TupleRef(RefPtr lref, const Def* index)
         : lref_(std::move(lref))
         , index_(index)
-        , loaded_(0)
+        , loaded_(nullptr)
     {}
 
     virtual const Def* load() const;
@@ -129,7 +129,7 @@ class JumpTarget {
 public:
 
     JumpTarget(const char* name = "")
-        : lambda_(0)
+        : lambda_(nullptr)
         , first_(false)
         , name_(name)
     {}
@@ -161,13 +161,13 @@ class IRBuilder {
 public:
 
     IRBuilder(World& world)
-        : cur_bb(0)
+        : cur_bb(nullptr)
         , world_(world)
     {}
 
     World& world() const { return world_; }
-    bool is_reachable() const { return cur_bb != 0; }
-    void set_unreachable() { cur_bb = 0; }
+    bool is_reachable() const { return cur_bb != nullptr; }
+    void set_unreachable() { cur_bb = nullptr; }
     Lambda* enter(JumpTarget& jt) { return cur_bb = jt.enter(); }
     Lambda* enter_unsealed(JumpTarget& jt) { return cur_bb = jt.enter_unsealed(world_); }
     void jump(JumpTarget& jt);

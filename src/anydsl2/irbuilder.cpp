@@ -102,7 +102,7 @@ void IRBuilder::branch(const Def* cond, JumpTarget& t, JumpTarget& f) {
 }
 
 const Param* IRBuilder::call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
-    return is_reachable() ? (cur_bb = cur_bb->call(to, args, ret_type))->param(0) : 0;
+    return is_reachable() ? (cur_bb = cur_bb->call(to, args, ret_type))->param(0) : nullptr;
 }
 
 void IRBuilder::mem_call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {

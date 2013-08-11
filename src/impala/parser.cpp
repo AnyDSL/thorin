@@ -106,8 +106,6 @@ public:
 
 private:
 
-    int next_id();
-
     /// Consume next Token in input stream, fill look-ahead buffer, return consumed Token.
     Token lex();
 
@@ -139,7 +137,7 @@ private:
             if (parent_)
                 return parent_->lookup(symbol);
 
-            return 0;
+            return nullptr;
         }
 
         void insert(Symbol symbol) { 
@@ -156,7 +154,7 @@ private:
     };
 
     const Generic* generic_lookup(Symbol symbol) {
-        return cur_generics ? cur_generics->lookup(symbol) : 0;
+        return cur_generics ? cur_generics->lookup(symbol) : nullptr;
     }
 
     void generic_insert(Token token) {
@@ -202,9 +200,9 @@ const Prg* parse(World& world, std::istream& i, const std::string& filename, boo
 Parser::Parser(World& world, std::istream& stream, const std::string& filename)
     : world(world)
     , lexer(stream, filename)
-    , cur_loop(0)
-    , cur_fun(0)
-    , cur_generics(0)
+    , cur_loop(nullptr)
+    , cur_fun(nullptr)
+    , cur_generics(nullptr)
     , cur_var_handle(2) // reserve 0 for conditionals, 1 for mem
     , generic_counter(0)
     , prg(new Prg())
@@ -260,13 +258,6 @@ void Parser::error(const std::string& what, const std::string& context) {
 std::ostream& Parser::sema_error(Token token) {
     result_ = false;
     return token.error();
-}
-
-int Parser::next_id() {
-    int id = counter++;
-    counter %= 0x100;
-
-    return id;
 }
 
 /*
@@ -529,7 +520,7 @@ const DeclStmt* Parser::parse_decl_stmt() {
     const VarDecl* var_decl = parse_var_decl();
 
     // initialization
-    const Expr* init = 0;
+    const Expr* init = nullptr;
     if (la() == Token::ASGN) {
         Token op = Token(lex().loc(), Token::ASGN);
         init = try_expr("right-hand side of an initialization");
@@ -682,7 +673,7 @@ const Stmt* Parser::parse_return() {
         expr = try_expr("return statement");
         expect(Token::SEMICOLON, "return statement");
     } else {
-        expr = 0;
+        expr = nullptr;
         eat(Token::SEMICOLON);
     }
 

@@ -24,7 +24,7 @@ public:
     typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
     ArrayRef()
-        : ptr_(0)
+        : ptr_(nullptr)
         , size_(0)
     {}
     ArrayRef(const ArrayRef<T>& ref)
@@ -78,7 +78,7 @@ class Array {
 public:
 
     Array()
-        : ptr_(0)
+        : ptr_(nullptr)
         , size_(0)
     {}
     explicit Array(size_t size)
@@ -100,7 +100,7 @@ public:
     ~Array() { delete[] ptr_; }
 
     void alloc(size_t size) {
-        assert(ptr_ == 0 && size_ == 0);
+        assert(ptr_ == nullptr && size_ == 0);
         ptr_ = new T[size]();
         size_ = size;
     };

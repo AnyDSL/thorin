@@ -62,7 +62,7 @@ TupleInsert::TupleInsert(const Def* tuple, const Def* index, const Def* value, c
 //------------------------------------------------------------------------------
 
 Tuple::Tuple(World& world, ArrayRef<const Def*> args, const std::string& name)
-    : PrimOp(args.size(), Node_Tuple, /*type: set later*/ 0, name)
+    : PrimOp(args.size(), Node_Tuple, /*type: set later*/ nullptr, name)
 {
     Array<const Type*> elems(size());
     for (size_t i = 0, e = size(); i != e; ++i) {
@@ -76,7 +76,7 @@ Tuple::Tuple(World& world, ArrayRef<const Def*> args, const std::string& name)
 //------------------------------------------------------------------------------
 
 Vector::Vector(World& world, ArrayRef<const Def*> args, const std::string& name)
-    : PrimOp(args.size(), Node_Vector, /*type: set later*/ 0, name)
+    : PrimOp(args.size(), Node_Vector, /*type: set later*/ nullptr, name)
 {
     size_t i = 0;
     for (auto arg : args)

@@ -15,7 +15,7 @@ namespace anydsl2 {
 const Type*& GenericMap::operator [] (const Generic* generic) const {
     size_t i = generic->index();
     if (i >= types_.size())
-        types_.resize(i+1, 0);
+        types_.resize(i+1, nullptr);
     return types_[i];
 }
 

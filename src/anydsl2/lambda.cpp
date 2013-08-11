@@ -13,7 +13,7 @@ Lambda::Lambda(size_t gid, const Pi* pi, LambdaAttr attr, bool is_sealed, const 
     : Def(gid, Node_Lambda, 0, pi, true, name)
     , sid_(size_t(-1))
     , backwards_sid_(size_t(-1))
-    , scope_(0)
+    , scope_(nullptr)
     , attr_(attr)
     , parent_(this)
     , is_sealed_(is_sealed)
@@ -178,7 +178,7 @@ void Lambda::jump(const Def* to, ArrayRef<const Def*> args) {
 }
 
 void Lambda::branch(const Def* cond, const Def* tto, const Def*  fto) {
-    return jump(world().select(cond, tto, fto), ArrayRef<const Def*>(0, 0));
+    return jump(world().select(cond, tto, fto), ArrayRef<const Def*>(nullptr, 0));
 }
 
 Lambda* Lambda::call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
@@ -198,7 +198,7 @@ Lambda* Lambda::call(const Def* to, ArrayRef<const Def*> args, const Type* ret_t
 
 Lambda* Lambda::mem_call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
     // create next continuation in cascade
-    const Pi* pi = ret_type ? world().pi2(world().mem(), ret_type) : world().pi1(world().mem());
+    const Pi* pi = ret_type != nullptr ? world().pi2(world().mem(), ret_type) : world().pi1(world().mem());
     Lambda* next = world().lambda(pi, name + "_" + to->name);
     next->param(0)->name = "mem";
 
@@ -261,7 +261,7 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
                     return set_value(handle, append_param(type, name)); // create param to break cycle
 
                 is_visited_ = true;
-                const Def* same = 0;
+                const Def* same = nullptr;
                 for (auto pred : preds) {
                     const Def* def = pred->get_value(handle, type, name);
                     if (same && same != def) {
@@ -270,11 +270,11 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
                     }
                     same = def;
                 }
-                assert(same != 0);
+                assert(same != nullptr);
                 is_visited_ = false;
 
                 // fix any params which may have been introduced to break the cycle above
-                const Def* def = 0;
+                const Def* def = nullptr;
                 if (const Tracker* tracker = find_tracker(handle))
                     def = fix(Todo(handle, tracker->def()->as<Param>()->index(), type, name));
 
@@ -332,7 +332,7 @@ const Def* Lambda::try_remove_trivial_param(const Param* param) {
     size_t index = param->index();
 
     // find Horspool-like phis
-    const Def* same = 0;
+    const Def* same = nullptr;
     for (auto pred : preds) {
         const Def* def = pred->arg(index);
         if (def == param || same == def)
@@ -341,7 +341,7 @@ const Def* Lambda::try_remove_trivial_param(const Param* param) {
             return param;
         same = def;
     }
-    assert(same != 0);
+    assert(same != nullptr);
 
     AutoVector<const Tracker*> uses = param->tracked_uses();
     param->replace(same);

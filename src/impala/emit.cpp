@@ -23,9 +23,9 @@ public:
 
     CodeGen(World& world)
         : IRBuilder(world)
-        , cur_frame(0)
-        , break_target(0)
-        , continue_target((JumpTarget*) 0)
+        , cur_frame(nullptr)
+        , break_target(nullptr)
+        , continue_target(nullptr)
     {}
 
     void emit(const Prg*);
@@ -34,7 +34,7 @@ public:
     void emit(const NamedFun*);
     RefPtr emit(const VarDecl*);
     anydsl2::Array<const anydsl2::Def*> emit_ops(const Expr* expr, size_t additional_size = 0);
-    RefPtr emit(const Expr* expr) { return is_reachable() ? expr->emit(*this) : 0; }
+    RefPtr emit(const Expr* expr) { return is_reachable() ? expr->emit(*this) : nullptr; }
     void emit_branch(const Expr* expr, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) { expr->emit_branch(*this, t, f); }
     void emit(const Stmt* stmt, anydsl2::JumpTarget& exit) { if (is_reachable()) stmt->emit(*this, exit); }
 
@@ -53,7 +53,7 @@ Lambda* CodeGen::emit_head(const Fun* fun, Symbol symbol) {
     fun->lambda_ = world().lambda(convert(fun->pi()), symbol.str());
     size_t num = fun->params().size();
     const Type* ret_type = return_type(fun->pi());
-    fun->ret_param_ = ret_type->isa<NoRet>() ? 0 : fun->lambda_->param(num-1+1);
+    fun->ret_param_ = ret_type->isa<NoRet>() ? nullptr : fun->lambda_->param(num-1+1);
     fun->lambda()->param(0)->name = "mem";
 
     return fun->lambda_;
@@ -100,7 +100,7 @@ const Lambda* CodeGen::emit_body(const Fun* fun, Lambda* parent, const char* wha
     }
 
     if (new_frame)
-        cur_frame = 0;
+        cur_frame = nullptr;
 
     return fun->lambda();
 }
@@ -238,7 +238,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
 
         if (Lambda* xl = cg.enter(x))
             return Ref::create(xl->get_value(0, cg.world().type_u1(), is_or ? "l_or" : "l_and"));
-        return Ref::create(0);
+        return Ref::create(nullptr);
     }
 
     const TokenKind op = (TokenKind) kind();
@@ -289,7 +289,7 @@ RefPtr ConditionalExpr::emit(CodeGen& cg) const {
 
     if (Lambda* xl = cg.enter(x))
         return Ref::create(xl->get_value(0, convert(t_expr()->type()), "cond"));
-    return Ref::create(0);
+    return Ref::create(nullptr);
 }
 
 RefPtr IndexExpr::emit(CodeGen& cg) const {
@@ -305,8 +305,8 @@ RefPtr Call::emit(CodeGen& cg) const {
 
     if (is_continuation_call()) {
         cg.cur_bb->jump(ops[0], args);
-        cg.cur_bb = 0;
-        return RefPtr(0);
+        cg.cur_bb = nullptr;
+        return RefPtr(nullptr);
     }
 
     cg.mem_call(ops[0], args, convert(type()));
@@ -431,7 +431,7 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     Lambda* lambda = cg.world().lambda(convert(fun_type_));
     args[num] = lambda;
 
-    cg.mem_call(cg.emit(call()->op(0))->load(), args, 0);
+    cg.mem_call(cg.emit(call()->op(0))->load(), args, nullptr /*no return type*/);
     Lambda* next = cg.cur_bb;
     cg.set_mem(cg.cur_bb->param(0));
 

@@ -44,7 +44,7 @@ void Def::set_op(size_t i, const Def* def) {
 void Def::unset_op(size_t i) {
     assert(op(i) && "must be set");
     unregister_use(i);
-    set(i, 0);
+    set(i, nullptr);
 }
 
 void Def::unset_ops() {
@@ -85,7 +85,7 @@ std::vector<MultiUse> Def::multi_uses() const {
     Array<Use> uses = copy_uses();
     std::sort(uses.begin(), uses.end());
 
-    const Def* cur = 0;
+    const Def* cur = nullptr;
     for (auto use : uses) {
         if (cur != use.def()) {
             result.push_back(use);
@@ -203,7 +203,7 @@ World& Def::world() const { return type()->world(); }
 const Def* Def::op_via_lit(const Def* def) const { return op(def->primlit_value<size_t>()); }
 Lambda* Def::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(this)); }
 Lambda* Def::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(this)); }
-const PrimOp* Def::is_non_const_primop() const { return is_const() ? 0 : isa<PrimOp>(); }
+const PrimOp* Def::is_non_const_primop() const { return is_const() ? nullptr : isa<PrimOp>(); }
 int Def::order() const { return type()->order(); }
 bool Def::is_generic() const { return type()->is_generic(); }
 size_t Def::length() const { return type()->as<VectorType>()->length(); }

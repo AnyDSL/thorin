@@ -59,10 +59,10 @@ private:
 public:
 
     Tracker()
-        : def_(0)
+        : def_(nullptr)
     {}
     Tracker(const Def* def) 
-        : def_(0)
+        : def_(nullptr)
     { 
         set(def); 
     }

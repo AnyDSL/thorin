@@ -10,17 +10,17 @@ template<class T>
 class AutoPtr {
 public:
 
-    AutoPtr(T* ptr = 0)
+    AutoPtr(T* ptr = nullptr)
         : ptr_(ptr)
     {}
     ~AutoPtr() { delete ptr_; }
     AutoPtr(AutoPtr<T>&& aptr)
         : ptr_(aptr.get())
     {
-        aptr.ptr_ = 0; // take ownership
+        aptr.ptr_ = nullptr; // take ownership
     }
 
-    void release() { delete ptr_; ptr_ = 0; }
+    void release() { delete ptr_; ptr_ = nullptr; }
     T* get() const { return ptr_; }
     operator T*() const { return ptr_; }
     T* operator -> () const { return ptr_; }

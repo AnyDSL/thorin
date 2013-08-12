@@ -106,9 +106,9 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
         ops[i] = mangle(olambda->op(i));
 
     // fold branch if possible
-    if (const Select* select = olambda->to()->isa<Select>()) {
+    if (auto select = olambda->to()->isa<Select>()) {
         const Def* cond = mangle(select->cond());
-        if (const PrimLit* lit = cond->isa<PrimLit>())
+        if (auto lit = cond->isa<PrimLit>())
             ops[0] = mangle(lit->value().get_u1().get() ? select->tval() : select->fval());
         else
             ops[0] = world.select(cond, mangle(select->tval()), mangle(select->fval()));
@@ -135,7 +135,7 @@ const Def* Mangler::mangle(const Def* odef) {
     if (odef->is_visited(pass))
         return lookup(odef);
 
-    if (Lambda* olambda = odef->isa_lambda()) {
+    if (auto olambda = odef->isa_lambda()) {
         if (scope.contains(olambda))
             return mangle_head(olambda);
         else

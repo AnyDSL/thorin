@@ -12,7 +12,7 @@ void partial_evaluation(World& world) {
         todo = false;
         LambdaSet lambdas = world.lambdas();
         for (auto lambda : lambdas) {
-            if (Lambda* to = lambda->to()->isa_lambda()) {
+            if (auto to = lambda->to()->isa_lambda()) {
                 size_t num_args = lambda->num_args();
                 Array<size_t> indices(num_args);
                 Array<const Def*> with(num_args);

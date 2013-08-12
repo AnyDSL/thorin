@@ -184,7 +184,7 @@ void CodeGen::emit() {
                         break;
                     }
                 }
-            } else if (const Select* select = lambda->to()->isa<Select>()) { // conditional branch
+            } else if (auto select = lambda->to()->isa<Select>()) { // conditional branch
                 llvm::Value* cond = lookup(select->cond());
                 llvm::BasicBlock* tbb = bbs[select->tval()->as<Lambda>()->sid()];
                 llvm::BasicBlock* fbb = bbs[select->fval()->as<Lambda>()->sid()];
@@ -253,7 +253,7 @@ llvm::Value* CodeGen::lookup(const Def* def) {
     if (def->is_const())
         return emit(def);
 
-    if (const PrimOp* primop = def->isa<PrimOp>())
+    if (auto primop = def->isa<PrimOp>())
         return primops[primop];
 
     const Param* param = def->as<Param>();
@@ -267,11 +267,11 @@ llvm::Value* CodeGen::lookup(const Def* def) {
 }
 
 llvm::Value* CodeGen::emit(const Def* def) {
-    if (const BinOp* bin = def->isa<BinOp>()) {
+    if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = lookup(bin->lhs());
         llvm::Value* rhs = lookup(bin->rhs());
 
-        if (const RelOp* rel = def->isa<RelOp>()) {
+        if (auto rel = def->isa<RelOp>()) {
             switch (rel->relop_kind()) {
                 case RelOp_cmp_eq:   return builder.CreateICmpEQ (lhs, rhs);
                 case RelOp_cmp_ne:   return builder.CreateICmpNE (lhs, rhs);
@@ -332,7 +332,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
     }
 
-    if (const ConvOp* conv = def->isa<ConvOp>()) {
+    if (auto conv = def->isa<ConvOp>()) {
         llvm::Value* from = lookup(conv->from());
         llvm::Type* to = map(conv->type());
 
@@ -352,14 +352,14 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
     }
 
-    if (const Select* select = def->isa<Select>()) {
+    if (auto select = def->isa<Select>()) {
         llvm::Value* cond = lookup(select->cond());
         llvm::Value* tval = lookup(select->tval());
         llvm::Value* fval = lookup(select->fval());
         return builder.CreateSelect(cond, tval, fval);
     }
 
-    if (const TupleOp* tupleop = def->isa<TupleOp>()) {
+    if (auto tupleop = def->isa<TupleOp>()) {
         llvm::Value* tuple = lookup(tupleop->tuple());
         unsigned idxs[1] = { tupleop->index()->primlit_value<unsigned>() };
 
@@ -375,7 +375,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return builder.CreateInsertValue(tuple, value, idxs);
     }
 
-    if (const Tuple* tuple = def->isa<Tuple>()) {
+    if (auto tuple = def->isa<Tuple>()) {
         llvm::Value* agg = llvm::UndefValue::get(map(tuple->type()));
 
         for (size_t i = 0, e = tuple->ops().size(); i != e; ++i) {
@@ -386,7 +386,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return agg;
     }
 
-    if (const PrimLit* primlit = def->isa<PrimLit>()) {
+    if (auto primlit = def->isa<PrimLit>()) {
         llvm::Type* type = map(primlit->type());
         Box box = primlit->value();
 
@@ -401,23 +401,22 @@ llvm::Value* CodeGen::emit(const Def* def) {
         }
     }
 
-    // bottom and any
-    if (const Undef* undef = def->isa<Undef>())
+    if (auto undef = def->isa<Undef>()) // bottom and any
         return llvm::UndefValue::get(map(undef->type()));
 
-    if (const Load* load = def->isa<Load>())
+    if (auto load = def->isa<Load>())
         return builder.CreateLoad(lookup(load->ptr()));
 
-    if (const Store* store = def->isa<Store>())
+    if (auto store = def->isa<Store>())
         return builder.CreateStore(lookup(store->val()), lookup(store->ptr()));
 
-    if (const Slot* slot = def->isa<Slot>())
+    if (auto slot = def->isa<Slot>())
         return builder.CreateAlloca(map(slot->type()->as<Ptr>()->referenced_type()), 0, slot->unique_name());
 
     if (def->isa<Enter>() || def->isa<Leave>())
         return 0;
 
-    if (const Vector* vector = def->isa<Vector>()) {
+    if (auto vector = def->isa<Vector>()) {
         llvm::Value* vec = llvm::UndefValue::get(map(vector->type()));
         for (size_t i = 0, e = vector->size(); i != e; ++i)
             vec = builder.CreateInsertElement(vec, lookup(vector->op(i)), lookup(world.literal_u32(i)));
@@ -451,7 +450,7 @@ llvm::Type* CodeGen::map(const Type* type) {
             for (auto elem : pi->elems()) {
                 if (elem->isa<Mem>())
                     continue;
-                if (const Pi* pi = elem->isa<Pi>()) {
+                if (auto pi = elem->isa<Pi>()) {
                     assert(!ret && "only one 'return' supported");
                     if (pi->empty())
                         ret = llvm::Type::getVoidTy(context);

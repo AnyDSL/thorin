@@ -40,7 +40,7 @@ void mem2reg(World& world) {
             // Then, we now what must be replaced but do not yet replace anything:
             // Defs in the schedule might get invalid!
             for (auto primop : schedule[i]) {
-                if (const Slot* slot = primop->isa<Slot>()) {
+                if (auto slot = primop->isa<Slot>()) {
                     // are all users loads and store?
                     for (auto use : slot->uses()) {
                         if (!use->isa<Load>() && !use->isa<Store>()) {
@@ -49,24 +49,24 @@ void mem2reg(World& world) {
                         }
                     }
                     slot->counter = cur_handle++;
-                } else if (const Store* store = primop->isa<Store>()) {
-                    if (const Slot* slot = store->ptr()->isa<Slot>()) {
+                } else if (auto store = primop->isa<Store>()) {
+                    if (auto slot = store->ptr()->isa<Slot>()) {
                         if (slot->counter != size_t(-1)) {  // if not "address taken"
                             lambda->set_value(slot->counter, store->val());
                             accesses.push_back(store);
                         }
                     }
-                } else if (const Load* load = primop->isa<Load>()) {
-                    if (const Slot* slot = load->ptr()->isa<Slot>()) {
+                } else if (auto load = primop->isa<Load>()) {
+                    if (auto slot = load->ptr()->isa<Slot>()) {
                         if (slot->counter != size_t(-1)) {  // if not "address taken"
                             const Type* type = slot->type()->as<Ptr>()->referenced_type();
                             load2tracker[load] = new Tracker(lambda->get_value(slot->counter, type, slot->name.c_str()));
                             accesses.push_back(load);
                         }
                     }
-                } else if (const Enter* enter = primop->isa<Enter>()) {
+                } else if (auto enter = primop->isa<Enter>()) {
                     enters.push_back(new Tracker(enter));   // keep track of Enters - they might get superfluous 
-                } else if (const Leave* leave = primop->isa<Leave>()) {
+                } else if (auto leave = primop->isa<Leave>()) {
                     leaves.push_back(new Tracker(leave));   // keep track of Leaves - they might get superfluous 
                 }
             }
@@ -84,7 +84,7 @@ void mem2reg(World& world) {
 
         // now replace everything from bottom up
         for (size_t i = accesses.size(); i-- != 0;) {
-            if (const Load* load = accesses[i]->isa<Load>()) {
+            if (auto load = accesses[i]->isa<Load>()) {
                 load->extract_val()->replace(load2tracker[load]->def());
                 load->extract_mem()->replace(load->mem());
             } else {
@@ -123,7 +123,7 @@ next_leave:;
 
     // are there superfluous poor, lonely Enters? no mercy - eliminate them
     for (size_t i = enters.size(); i-- != 0;) {
-        if (const Enter* enter = enters[i]->def()->isa<Enter>()) {
+        if (auto enter = enters[i]->def()->isa<Enter>()) {
             if (enter->extract_frame()->num_uses() == 0)
                 enter->extract_mem()->replace(enter->mem());
         }

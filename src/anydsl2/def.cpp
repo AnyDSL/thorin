@@ -98,7 +98,7 @@ std::vector<MultiUse> Def::multi_uses() const {
 }
 
 bool Def::is_primlit(int val) const {
-    if (const PrimLit* lit = this->isa<PrimLit>()) {
+    if (auto lit = this->isa<PrimLit>()) {
         Box box = lit->value(); // TODO
         switch (lit->primtype_kind()) {
 #define ANYDSL2_UF_TYPE(T) case PrimType_##T: return box.get_##T() == T(val);
@@ -106,7 +106,7 @@ bool Def::is_primlit(int val) const {
         }
     }
 
-    if (const Vector* vector = this->isa<Vector>()) {
+    if (auto vector = this->isa<Vector>()) {
         for (auto op : vector->ops()) {
             if (!op->is_primlit(val))
                 return false;
@@ -119,7 +119,7 @@ bool Def::is_primlit(int val) const {
 }
 
 bool Def::is_minus_zero() const {
-    if (const PrimLit* lit = this->isa<PrimLit>()) {
+    if (auto lit = this->isa<PrimLit>()) {
         Box box = lit->value();
         switch (lit->primtype_kind()) {
 #define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return box.get_##T() == T(0);
@@ -138,7 +138,7 @@ void Def::replace(const Def* with) const {
     std::vector<MultiUse> uses = multi_uses();
 
     for (auto use : uses) {
-        if (Lambda* lambda = use->isa_lambda()) {
+        if (auto lambda = use->isa_lambda()) {
             for (auto index : use.indices())
                 lambda->update_op(index, with);
         } else {
@@ -149,7 +149,7 @@ void Def::replace(const Def* with) const {
     }
 
     for (auto use : uses) {
-        if (PrimOp* oprimop = (PrimOp*) use->isa<PrimOp>()) {
+        if (auto oprimop = (PrimOp*) use->isa<PrimOp>()) {
             Array<const Def*> ops(oprimop->ops());
             for (auto index : use.indices())
                 ops[index] = with;

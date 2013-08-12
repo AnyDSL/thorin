@@ -38,13 +38,13 @@ std::ostream& Printer::print_type(const Type* type) {
     } else if (auto pi = type->isa<anydsl2::Pi>()) {
         const Type* ret_type = return_type(pi);
         if (ret_type->isa<NoRet>()) {
-            dump_list([&] (const Type* elem) { print_type(elem); }, pi->elems(), "pi(", ")");
+            return dump_list([&] (const Type* elem) { print_type(elem); }, pi->elems(), "pi(", ")");
         } else {
-            dump_list([&] (const Type* elem) { print_type(elem); }, pi->elems().slice_front(pi->size()-1), "pi(", ") -> ");
-            print_type(ret_type);
+            return dump_list([&] (const Type* elem) { print_type(elem); }, pi->elems().slice_front(pi->size()-1), "pi(", ") -> ")
+                << ret_type;
         }
     } else if (auto generic = type->isa<anydsl2::Generic>()) {
-        return stream() << "TODO";
+        return stream() << '_' << generic->index();
     } else if (auto genref = type->isa<anydsl2::GenericRef>()) {
         return stream() << "TODO";
     } else if (auto ptr = type->isa<anydsl2::Ptr>()) {

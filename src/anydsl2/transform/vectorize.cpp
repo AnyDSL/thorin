@@ -12,7 +12,6 @@ namespace anydsl2 {
 
 class Vectorizer {
 public:
-
     Vectorizer(const Scope& scope, size_t length)
         : scope(scope)
         , pass(world().new_pass())

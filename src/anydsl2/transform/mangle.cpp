@@ -8,7 +8,6 @@ namespace anydsl2 {
 
 class Mangler {
 public:
-
     Mangler(const Scope& scope, ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
            ArrayRef<const Def*> to_lift, const GenericMap& generic_map)
         : scope(scope)

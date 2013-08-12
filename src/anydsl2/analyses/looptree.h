@@ -24,7 +24,6 @@ struct Edge {
     Lambda* dst() const { return dst_; }
 
 private:
-
     Lambda* src_;
     Lambda* dst_;
 };
@@ -41,7 +40,6 @@ class LoopHeader;
  */
 class LoopNode : public MagicCast {
 public:
-
     LoopNode(LoopHeader* parent, int depth, const std::vector<Lambda*>& headers);
     virtual ~LoopNode() = 0;
 
@@ -51,7 +49,6 @@ public:
     size_t num_headers() const { return headers().size(); }
 
 protected:
-
     LoopHeader* parent_;
     int depth_;
     std::vector<Lambda*> headers_;
@@ -61,7 +58,6 @@ inline LoopNode::~LoopNode() {}
 
 class LoopHeader : public LoopNode {
 public:
-
     explicit LoopHeader(LoopHeader* parent, int depth, const std::vector<Lambda*>& headers)
         : LoopNode(parent, depth, headers)
         , dfs_begin_(0)
@@ -79,7 +75,6 @@ public:
     size_t dfs_end() const { return dfs_end_; }
 
 private:
-
     size_t dfs_begin_;
     size_t dfs_end_;
     AutoVector<LoopNode*> children_;
@@ -93,7 +88,6 @@ private:
 
 class LoopLeaf : public LoopNode {
 public:
-
     explicit LoopLeaf(size_t dfs_index, LoopHeader* parent, int depth, const std::vector<Lambda*>& headers)
         : LoopNode(parent, depth, headers)
         , dfs_index_(dfs_index)
@@ -105,7 +99,6 @@ public:
     size_t dfs_index() const { return dfs_index_; }
 
 private:
-
     size_t dfs_index_;
 };
 
@@ -116,7 +109,6 @@ private:
  */
 class LoopTree : public ScopeAnalysis<LoopLeaf, true, false /*do not auto-destroy nodes*/> {
 public:
-
     typedef ScopeAnalysis<LoopLeaf, true, false> Super;
 
     explicit LoopTree(const Scope& scope);
@@ -136,7 +128,6 @@ public:
     Array<Lambda*> loop_lambdas_in_rpo(const LoopHeader* header);
 
 private:
-
     Array<LoopLeaf*> dfs_leaves_;
     AutoPtr<LoopHeader> root_;
 

@@ -26,16 +26,7 @@ namespace impala {
 
 class Parser {
 public:
-
-    /*
-     * constructor
-     */
-
     Parser(World& world, std::istream& stream, const std::string& filename);
-
-    /*
-     * helpers
-     */
 
     const Token& la(size_t i) const { return lookahead[i]; }
     const Token& la () const { return lookahead[0]; }
@@ -48,7 +39,6 @@ public:
 #endif
 
     bool accept(TokenKind tok);
-
     bool expect(TokenKind tok, const std::string& context);
     void error(const std::string& what, const std::string& context);
     std::ostream& sema_error(Token token);
@@ -105,7 +95,6 @@ public:
     const Expr* parse_cond(const std::string& what);
 
 private:
-
     /// Consume next Token in input stream, fill look-ahead buffer, return consumed Token.
     Token lex();
 
@@ -116,7 +105,6 @@ private:
     typedef std::unordered_map<Symbol, size_t> Symbol2Handle;
     class Generics {
     public:
-
         Generics(Generics* parent, GenericBuilder& builder)
             : parent_(parent)
             , builder(builder)
@@ -146,7 +134,6 @@ private:
         }
 
     private:
-
         Generics* parent_;
         GenericBuilder& builder;
         int counter;

@@ -17,7 +17,6 @@ class World;
 template<bool forwards>
 class DomNodeBase {
 public:
-
     explicit DomNodeBase(Lambda* lambda) 
         : lambda_(lambda) 
         , idom_(0)
@@ -30,7 +29,6 @@ public:
     int depth() const;
 
 private:
-
     Lambda* lambda_;
     DomNodeBase* idom_;
     std::vector<const DomNodeBase*> children_;
@@ -41,7 +39,6 @@ private:
 template<bool forwards>
 class DomTreeBase : public ScopeAnalysis<DomNodeBase<forwards>, forwards> {
 public:
-
     typedef DomNodeBase<forwards> DomNode;
     typedef ScopeAnalysis<DomNodeBase<forwards>, forwards, true> Super;
 
@@ -60,7 +57,6 @@ public:
     Lambda* idom(Lambda* lambda) const { return Super::lookup(lambda)->idom()->lambda(); }
 
 private:
-
     void create();
     DomNode* lca(DomNode* i, DomNode* j);
 };

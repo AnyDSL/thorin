@@ -20,7 +20,6 @@ class World;
 
 class GenericMap {
 public:
-
     GenericMap() {}
 
     const Type*& operator [] (const Generic* generic) const;
@@ -28,7 +27,6 @@ public:
     const char* to_string() const;
 
 private:
-
     mutable std::vector<const Type*> types_;
 };
 
@@ -38,7 +36,6 @@ inline std::ostream& operator << (std::ostream& o, const GenericMap& map) { o <<
 
 class Type : public Node {
 protected:
-
     Type(World& world, int kind, size_t num, bool is_generic)
         : Node(kind, num, "")
         , world_(world)
@@ -46,7 +43,6 @@ protected:
     {}
 
 public:
-
     void dump() const;
     World& world() const { return world_; }
     ArrayRef<const Type*> elems() const { return ops_ref<const Type*>(); }
@@ -68,11 +64,9 @@ public:
     size_t length() const;
 
 private:
-
     World& world_;
 
 protected:
-
     bool is_generic_;
 
     friend class Def;
@@ -93,7 +87,6 @@ struct TypeEqual : std::binary_function<const Type*, const Type*, bool> {
 /// The type of the memory monad.
 class Mem : public Type {
 private:
-
     Mem(World& world)
         : Type(world, Node_Mem, 0, false)
     {}
@@ -106,7 +99,6 @@ private:
 /// The type of a stack frame.
 class Frame : public Type {
 private:
-
     Frame(World& world)
         : Type(world, Node_Frame, 0, false)
     {}
@@ -118,7 +110,6 @@ private:
 
 class VectorType : public Type {
 protected:
-
     VectorType(World& world, int kind, size_t num_elems, size_t length, bool is_generic)
         : Type(world, kind, num_elems, is_generic)
         , length_(length)
@@ -130,13 +121,11 @@ protected:
     }
 
 public:
-
     /// The number of vector elements - the vector length.
     size_t length() const { return length_; }
     bool is_vector() const { return length_ != 1; }
 
 private:
-
     size_t length_;
 };
 
@@ -145,17 +134,14 @@ private:
 /// Primitive types -- also known as atomic or scalar types.
 class PrimType : public VectorType {
 private:
-
     PrimType(World& world, PrimTypeKind kind, size_t length)
         : VectorType(world, (int) kind, 0, length, false)
     {}
 
 public:
-
     PrimTypeKind primtype_kind() const { return (PrimTypeKind) node_kind(); }
 
 private:
-
     friend class World;
 };
 
@@ -163,7 +149,6 @@ private:
 
 class Ptr : public VectorType {
 private:
-
     Ptr(World& world, const Type* referenced_type, size_t length)
         : VectorType(world, (int) Node_Ptr, 1, length, referenced_type->is_generic())
     {
@@ -171,7 +156,6 @@ private:
     }
 
 public:
-
     const Type* referenced_type() const { return elem(0); }
 
     friend class World;
@@ -181,7 +165,6 @@ public:
 
 class CompoundType : public Type {
 protected:
-
     CompoundType(World& world, int kind, size_t num_elems);
     CompoundType(World& world, int kind, ArrayRef<const Type*> elems);
 };
@@ -191,7 +174,6 @@ protected:
 /// A tuple type.
 class Sigma : public CompoundType {
 private:
-
     Sigma(World& world, size_t size, const std::string& sigma_name)
         : CompoundType(world, Node_Sigma, size)
         , named_(true)
@@ -207,12 +189,10 @@ private:
     virtual bool equal(const Node* other) const { return named_ ? this == other : CompoundType::equal(other); }
 
 public:
-
     bool named() const { return named_; }
     // TODO build setter for named sigmas which sets is_generic_
 
 private:
-
     bool named_;
 
     friend class World;
@@ -223,13 +203,11 @@ private:
 /// A function type.
 class Pi : public CompoundType {
 private:
-
     Pi(World& world, ArrayRef<const Type*> elems)
         : CompoundType(world, Node_Pi, elems)
     {}
 
 public:
-
     bool is_basicblock() const { return order() == 1; }
     bool is_returning() const;
 
@@ -240,7 +218,6 @@ public:
 
 class Generic : public Type {
 private:
-
     Generic(World& world, size_t index)
         : Type(world, Node_Generic, 0, true)
         , index_(index)
@@ -252,11 +229,9 @@ private:
     }
 
 public:
-
     size_t index() const { return index_; }
 
 private:
-
     size_t index_;
 
     friend class World;
@@ -266,7 +241,6 @@ private:
 
 class GenericRef : public Type {
 private:
-
     GenericRef(World& world, const Generic* generic, Lambda* lambda);
     virtual ~GenericRef();
 
@@ -276,12 +250,10 @@ private:
     }
 
 public:
-
     const Generic* generic() const { return elem(0)->as<Generic>(); }
     Lambda* lambda() const { return lambda_; }
 
 private:
-
     Lambda* lambda_;
 
     friend class World;
@@ -291,7 +263,6 @@ private:
 
 class GenericBuilder {
 public:
-
     GenericBuilder(World& world)
         : world_(world)
         , index_(0)
@@ -302,7 +273,6 @@ public:
     void pop();
 
 private:
-
     World& world_;
     size_t index_;
     typedef std::vector<const Generic*> Index2Generic;

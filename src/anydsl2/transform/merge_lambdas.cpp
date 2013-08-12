@@ -8,7 +8,6 @@ namespace anydsl2 {
 
 class Merger {
 public:
-
     Merger(World& world)
         : scope(world)
         , domtree(scope.domtree())

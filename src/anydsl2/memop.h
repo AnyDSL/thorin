@@ -9,11 +9,9 @@ namespace anydsl2 {
 
 class MemOp : public PrimOp {
 protected:
-
     MemOp(size_t size, int kind, const Type* type, const Def* mem, const std::string& name);
 
 public:
-
     const Def* mem() const { return op(0); }
 };
 
@@ -21,7 +19,6 @@ public:
 
 class Access : public MemOp {
 protected:
-
     Access(size_t size, int kind, const Type* type, const Def* mem, const Def* ptr, const std::string& name)
         : MemOp(size, kind, type, mem, name)
     {
@@ -30,7 +27,6 @@ protected:
     }
 
 public:
-
     const Def* ptr() const { return op(1); }
 };
 
@@ -38,11 +34,9 @@ public:
 
 class Load : public Access {
 private:
-
     Load(const Def* mem, const Def* ptr, const std::string& name);
 
 public:
-
     const Def* ptr() const { return op(1); }
     const Def* extract_mem() const;
     const Def* extract_val() const;
@@ -54,11 +48,9 @@ public:
 
 class Store : public Access {
 private:
-
     Store(const Def* mem, const Def* ptr, const Def* value, const std::string& name);
 
 public:
-
     const Def* val() const { return op(2); }
 
     friend class World;
@@ -68,11 +60,9 @@ public:
 
 class Enter : public MemOp {
 private:
-
     Enter(const Def* mem, const std::string& name);
 
 public:
-
     const Def* extract_mem() const;
     const Def* extract_frame() const;
 
@@ -83,11 +73,9 @@ public:
 
 class Leave : public MemOp {
 private:
-
     Leave(const Def* mem, const Def* frame, const std::string& name);
 
 public:
-
     const Def* frame() const { return op(1); }
 
     friend class World;
@@ -102,11 +90,9 @@ public:
  */
 class Slot : public PrimOp {
 private:
-
     Slot(const Type* type, const Def* frame, size_t index, const std::string& name);
 
 public:
-
     const Def* frame() const { return op(0); }
     size_t index() const { return index_; }
 
@@ -116,7 +102,6 @@ public:
     }
 
 private:
-
     size_t index_;
 
     friend class World;
@@ -126,7 +111,6 @@ private:
 
 class LEA : public PrimOp {
 private:
-
     LEA(const Def* ptr, const Def* index, const std::string& name)
         : PrimOp(2, Node_LEA, ptr->type(), name)
     {
@@ -135,7 +119,6 @@ private:
     }
 
 public:
-
     const Def* ptr() const { return op(0); }
     const Def* index() const { return op(1); }
 

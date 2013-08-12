@@ -17,7 +17,6 @@ namespace impala {
 
 class Sema {
 public:
-
     Sema(World& world, bool nossa)
         : in_foreach_(false)
         , world_(world)
@@ -72,7 +71,6 @@ public:
     bool in_foreach_;
 
 private:
-
     World& world_;
     bool result_;
     bool nossa_;

@@ -15,7 +15,6 @@ namespace impala {
 
 class Token : public anydsl2::HasLocation {
 public:
-
     enum Kind {
         /*
          * !!! DO NOT CHANGE THIS ORDER !!!
@@ -93,7 +92,6 @@ public:
     bool operator != (const Token& t) const { return kind_ != t; }
 
 private:
-
     static void init();
 
     anydsl2::Symbol symbol_;

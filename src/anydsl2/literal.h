@@ -16,7 +16,6 @@ class World;
 
 class Literal : public PrimOp {
 protected:
-
     Literal(int kind, const Type* type, const std::string& name)
         : PrimOp(0, kind, type, name)
     {}
@@ -27,7 +26,6 @@ protected:
 /// Base class for \p Any and \p Bottom.
 class Undef : public Literal {
 protected:
-
     Undef(int kind, const Type* type, const std::string& name)
         : Literal(kind, type, name)
     {}
@@ -44,7 +42,6 @@ protected:
  */
 class Any : public Undef {
 private:
-
     Any(const Type* type, const std::string& name)
         : Undef(Node_Any, type, name)
     {}
@@ -62,7 +59,6 @@ private:
  */
 class Bottom : public Undef {
 private:
-
     Bottom(const Type* type, const std::string& name)
         : Undef(Node_Bottom, type, name)
     {}
@@ -74,11 +70,9 @@ private:
 
 class PrimLit : public Literal {
 private:
-
     PrimLit(World& world, PrimTypeKind kind, Box box, const std::string& name);
 
 public:
-
     Box value() const { return box_; }
 #define ANYDSL2_U_TYPE(T) \
     T T##_value() const { return value().get_##T(); }
@@ -93,7 +87,6 @@ public:
     }
 
 private:
-
     Box box_;
 
     friend class World;
@@ -108,7 +101,6 @@ private:
  */
 class TypeKeeper : public Literal {
 private:
-
     TypeKeeper(const Type* type, const std::string& name)
         : Literal(Node_TypeKeeper, type, name)
     {}

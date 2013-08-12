@@ -41,19 +41,16 @@ typedef anydsl2::AutoPtr<const anydsl2::Ref> RefPtr;
 
 class ASTNode : public anydsl2::HasLocation, public anydsl2::MagicCast {
 public:
-
     virtual std::ostream& print(Printer& p) const = 0;
     std::ostream& dump() const;
 };
 
 class Prg : public ASTNode {
 public:
-
     virtual std::ostream& print(Printer& p) const;
     const anydsl2::AutoVector<const Global*>& globals() const { return globals_; }
 
 private:
-
     anydsl2::AutoVector<const Global*> globals_;
 
     friend class Parser;
@@ -61,19 +58,16 @@ private:
 
 class Decl : public ASTNode {
 public:
-
     anydsl2::Symbol symbol() const { return symbol_; }
     const anydsl2::Type* type() const { return type_; }
     size_t depth() const { return depth_; }
     const Decl* shadows() const { return shadows_; }
 
 protected:
-
     anydsl2::Symbol symbol_;
     const anydsl2::Type* type_;
 
 private:
-
     mutable const Decl* shadows_;
     mutable size_t depth_;
 
@@ -82,7 +76,6 @@ private:
 
 class Fun {
 public:
-
     const ScopeStmt* body() const { return body_; }
     const VarDecl* param(size_t i) const { return params_[i]; }
     const VarDecls& params() const { return params_; }
@@ -93,7 +86,6 @@ public:
     std::ostream& fun_print(Printer& p) const;
 
 private:
-
     void fun_set(const anydsl2::Pi* pi, const ScopeStmt* body) { pi_ = pi; body_ = body; }
 
     VarDecls params_;
@@ -110,7 +102,6 @@ private:
 
 class VarDecl : public Decl {
 public:
-
     VarDecl(size_t handle, const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2)
         : handle_(handle)
         , is_address_taken_(false)
@@ -125,7 +116,6 @@ public:
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     size_t handle_;
     mutable bool is_address_taken_;
 
@@ -137,7 +127,6 @@ class Global : public Decl {};
 
 class Proto : public Global {
 public:
-
     Proto(anydsl2::Symbol symbol) {
         symbol_ = symbol;
     }
@@ -145,14 +134,11 @@ public:
     const anydsl2::Pi* pi() const { return type_->as<anydsl2::Pi>(); }
     virtual std::ostream& print(Printer& p) const;
 
-private:
-
     friend class Parser;
 };
 
 class NamedFun : public Global, public Fun {
 public:
-
     NamedFun(bool ext)
         : extern_(ext)
     {}
@@ -166,7 +152,6 @@ public:
     bool is_extern() const { return extern_; }
 
 private:
-
     bool extern_;
 
     friend class Parser;
@@ -176,7 +161,6 @@ private:
 
 class Expr : public ASTNode {
 public:
-
     Expr() 
         : type_(nullptr) 
     {}
@@ -189,12 +173,10 @@ public:
     virtual bool is_lvalue() const = 0;
 
 private:
-
     virtual RefPtr emit(CodeGen& cg) const = 0;
     virtual const anydsl2::Type* check(Sema& sema) const = 0;
 
 protected:
-
     virtual void emit_branch(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const;
 
     Exprs ops_;
@@ -206,21 +188,18 @@ protected:
 
 class EmptyExpr : public Expr {
 public:
-
     EmptyExpr(const anydsl2::Location& loc) { loc_ = loc; }
 
     virtual bool is_lvalue() const { return false; }
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     virtual const anydsl2::Type* check(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
 };
 
 class Literal : public Expr {
 public:
-
     enum Kind {
 #define IMPALA_LIT(itype, atype) LIT_##itype = Token::LIT_##itype,
 #include "impala/tokenlist.h"
@@ -241,7 +220,6 @@ public:
     anydsl2::PrimTypeKind literal2type() const;
 
 private:
-
     virtual const anydsl2::Type* check(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
 
@@ -251,12 +229,10 @@ private:
 
 class FunExpr : public Expr, public Fun {
 public:
-
     virtual bool is_lvalue() const { return false; }
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     virtual const anydsl2::Type* check(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
 
@@ -265,14 +241,12 @@ private:
 
 class Tuple : public Expr {
 public:
-
     Tuple(const anydsl2::Position& pos1) { loc_.set_pos1(pos1); }
 
     virtual bool is_lvalue() const { return false; }
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     virtual const anydsl2::Type* check(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
 
@@ -281,7 +255,6 @@ private:
 
 class Id : public Expr {
 public:
-
     Id(const Token& tok)
         : symbol_(tok.symbol())
     {
@@ -295,7 +268,6 @@ public:
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     virtual const anydsl2::Type* check(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
 
@@ -305,7 +277,6 @@ private:
 
 class PrefixExpr : public Expr {
 public:
-
     enum Kind {
 #define IMPALA_PREFIX(tok, str, prec) tok = Token:: tok,
 #include "impala/tokenlist.h"
@@ -324,7 +295,6 @@ public:
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     virtual const anydsl2::Type* check(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void emit_branch(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const;
@@ -334,7 +304,6 @@ private:
 
 class InfixExpr : public Expr {
 public:
-
     enum Kind {
 #define IMPALA_INFIX_ASGN(tok, str, lprec, rprec) tok = Token:: tok,
 #define IMPALA_INFIX(     tok, str, lprec, rprec) tok = Token:: tok,
@@ -356,7 +325,6 @@ public:
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     virtual const anydsl2::Type* check(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void emit_branch(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const;
@@ -370,7 +338,6 @@ private:
  */
 class PostfixExpr : public Expr {
 public:
-
     enum Kind {
         INC = Token::INC,
         DEC = Token::DEC
@@ -389,7 +356,6 @@ public:
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     virtual const anydsl2::Type* check(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
 
@@ -398,7 +364,6 @@ private:
 
 class ConditionalExpr : public Expr {
 public:
-
     ConditionalExpr(const Expr* cond, const Expr* t_expr, const Expr* f_expr) {
         ops_.push_back(cond);
         ops_.push_back(t_expr);
@@ -413,14 +378,12 @@ public:
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     virtual const anydsl2::Type* check(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
 };
 
 class IndexExpr : public Expr {
 public:
-
     IndexExpr(const anydsl2::Position& pos1, const Expr* lhs, const Expr* index, const anydsl2::Position& pos2) {
         ops_.push_back(lhs);
         ops_.push_back(index);
@@ -433,14 +396,12 @@ public:
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     virtual const anydsl2::Type* check(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
 };
 
 class Call : public Expr {
 public:
-
     Call(const Expr* fun) { ops_.push_back(fun); }
 
     void append_arg(const Expr* expr) { ops_.push_back(expr); }
@@ -458,7 +419,6 @@ public:
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     virtual const anydsl2::Type* check(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
 };
@@ -467,11 +427,9 @@ private:
 
 class Stmt : public ASTNode {
 public:
-
     virtual bool empty() const { return false; }
 
 private:
-
     virtual void check(Sema& sema) const = 0;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const = 0;
 
@@ -481,7 +439,6 @@ private:
 
 class ExprStmt : public Stmt {
 public:
-
     ExprStmt(const Expr* expr, const anydsl2::Position& pos2)
         : expr_(expr)
     {
@@ -492,7 +449,6 @@ public:
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
@@ -501,7 +457,6 @@ private:
 
 class DeclStmt : public Stmt {
 public:
-
     DeclStmt(const VarDecl* var_decl, const Expr* init, const anydsl2::Position& pos2)
         : var_decl_(var_decl)
         , init_(init)
@@ -514,7 +469,6 @@ public:
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
@@ -524,7 +478,6 @@ private:
 
 class IfElseStmt: public Stmt {
 public:
-
     IfElseStmt(const anydsl2::Position& pos1, const Expr* cond, const Stmt* thenStmt, const Stmt* elseStmt)
         : cond_(cond)
         , thenStmt_(thenStmt)
@@ -539,7 +492,6 @@ public:
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
@@ -550,24 +502,20 @@ private:
 
 class Loop : public Stmt {
 public:
-
     Loop() {}
     const Expr* cond() const { return cond_; }
     const Stmt* body() const { return body_; }
 
 protected:
-
     void set(const Expr* cond, const Stmt* body) { cond_ = cond; body_ = body; }
 
 private:
-
     anydsl2::AutoPtr<const Expr> cond_;
     anydsl2::AutoPtr<const Stmt> body_;
 };
 
 class DoWhileStmt : public Loop {
 public:
-
     DoWhileStmt() {}
 
     void set(const anydsl2::Position& pos1, const Stmt* body, const Expr* cond, const anydsl2::Position& pos2) {
@@ -577,14 +525,12 @@ public:
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 };
 
 class ForStmt : public Loop {
 public:
-
     ForStmt() {}
 
     void set(const anydsl2::Position& pos1, const Expr* cond, const Expr* step, const Stmt* body) {
@@ -603,7 +549,6 @@ public:
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
@@ -615,7 +560,6 @@ private:
 
 class ForeachStmt : public Stmt {
 public:
-
     ForeachStmt() {}
 
     void set(const anydsl2::Position& pos1, const Stmt* body) {
@@ -633,7 +577,6 @@ public:
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
@@ -647,7 +590,6 @@ private:
 
 class BreakStmt : public Stmt {
 public:
-
     BreakStmt(const anydsl2::Position& pos1, const anydsl2::Position& pos2, const Loop* loop)
         : loop_(loop)
     {
@@ -658,7 +600,6 @@ public:
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
@@ -667,7 +608,6 @@ private:
 
 class ContinueStmt : public Stmt {
 public:
-
     ContinueStmt(const anydsl2::Position& pos1, const anydsl2::Position& pos2, const Loop* loop)
         : loop_(loop)
     {
@@ -678,7 +618,6 @@ public:
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
@@ -687,7 +626,6 @@ private:
 
 class ReturnStmt : public Stmt {
 public:
-
     ReturnStmt(const anydsl2::Position& pos1, const Expr* expr, const Fun* fun, const anydsl2::Position& pos2)
         : expr_(expr)
         , fun_(fun)
@@ -700,7 +638,6 @@ public:
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
@@ -710,7 +647,6 @@ private:
 
 class NamedFunStmt : public Stmt {
 public:
-
     NamedFunStmt(const NamedFun* named_fun)
         : named_fun_(named_fun)
     {}
@@ -719,7 +655,6 @@ public:
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
@@ -728,7 +663,6 @@ private:
 
 class ScopeStmt : public Stmt {
 public:
-
     ScopeStmt() {}
     ScopeStmt(const anydsl2::Location& loc) { loc_ = loc; }
 
@@ -739,7 +673,6 @@ public:
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 

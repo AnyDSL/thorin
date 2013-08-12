@@ -22,7 +22,6 @@ public:
     size_t process();
 
 private:
-
     LambdaSet top_;
 };
 

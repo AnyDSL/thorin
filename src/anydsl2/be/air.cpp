@@ -1,0 +1,177 @@
+#include "anydsl2/lambda.h"
+#include "anydsl2/literal.h"
+#include "anydsl2/primop.h"
+#include "anydsl2/type.h"
+#include "anydsl2/world.h"
+#include "anydsl2/analyses/domtree.h"
+#include "anydsl2/analyses/looptree.h"
+#include "anydsl2/analyses/scope.h"
+#include "anydsl2/analyses/schedule.h"
+#include "anydsl2/util/printer.h"
+
+namespace anydsl2 {
+
+class CodeGen : public Printer {
+public:
+    CodeGen(bool fancy)
+        : Printer(std::cout, fancy)
+    {}
+
+    std::ostream& emit_type(const Type*);
+    std::ostream& emit_name(const Def*);
+    std::ostream& emit_def(const Def*);
+    std::ostream& emit_primop(const PrimOp*);
+    std::ostream& emit_assignment(const PrimOp*);
+    std::ostream& emit_head(const Lambda*);
+    std::ostream& emit_jump(const Lambda*);
+};
+
+//------------------------------------------------------------------------------
+
+std::ostream& CodeGen::emit_type(const Type* type) {
+    if (type == nullptr)
+        return o << "<NULL>";
+    else if (auto frame = type->isa<Frame>())
+        return o << "frame";
+    else if (auto mem = type->isa<Mem>())
+        return o << "mem";
+    else if (auto pi = type->isa<Pi>())
+        return dump_list([&] (const Type* type) { emit_type(type); }, pi->elems(), "pi(", ")");
+    else if (auto sigma = type->isa<Sigma>())
+        return dump_list([&] (const Type* type) { emit_type(type); }, sigma->elems(), "sigma(", ")");
+    else if (auto generic = type->isa<Generic>())
+        return o << "TODO";
+    else if (auto genref = type->isa<GenericRef>())
+        return o << "TODO";
+    else if (auto ptr = type->isa<Ptr>()) {
+        if (ptr->is_vector())
+            o << '<' << ptr->length() << " x ";
+        emit_type(ptr->referenced_type());
+        o << '*';
+        if (ptr->is_vector())
+            o << '>';
+        return o;
+    } else if (auto primtype = type->isa<PrimType>()) {
+        if (primtype->is_vector())
+            o << "<" << primtype->length() << " x ";
+            switch (primtype->primtype_kind()) {
+#define ANYDSL2_UF_TYPE(T) case Node_PrimType_##T: o << #T; break;
+#include "anydsl2/tables/primtypetable.h"
+            default: ANYDSL2_UNREACHABLE;
+        }
+        if (primtype->is_vector())
+            o << ">";
+    }
+    ANYDSL2_UNREACHABLE;
+}
+
+std::ostream& CodeGen::emit_def(const Def* def) {
+    if (auto primop = def->isa<PrimOp>())
+        return emit_primop(primop);
+    return emit_name(def);
+}
+
+std::ostream& CodeGen::emit_name(const Def* def) {
+    if (is_fancy()) // elide white = 0 and black = 7
+        o << "\33[" << (def->gid() % 6 + 30 + 1) << "m";
+
+    o << def->unique_name();
+
+    if (is_fancy())
+        o << "\33[m";
+
+    return o;
+}
+
+std::ostream& CodeGen::emit_primop(const PrimOp* primop) {
+    if (auto primlit = primop->isa<PrimLit>()) {
+        emit_type(primop->type()) << ' ';
+        switch (primlit->primtype_kind()) {
+#define ANYDSL2_UF_TYPE(T) case PrimType_##T: o << primlit->T##_value(); break;
+#include "anydsl2/tables/primtypetable.h"
+            default: ANYDSL2_UNREACHABLE; break;
+        }
+    } else if (primop->is_const()) {
+        if (primop->empty()) {
+            o << primop->op_name() << " ";
+            emit_type(primop->type());
+        } else {
+            emit_type(primop->type());
+            dump_list([&] (const Def* def) { emit_def(def); }, primop->ops(), "(", ")");
+        }
+    } else
+        emit_name(primop);
+
+    return o;
+}
+
+std::ostream& CodeGen::emit_assignment(const PrimOp* primop) {
+    emit_type(primop->type()) << " ";
+    emit_name(primop) << " = ";
+
+    ArrayRef<const Def*> ops = primop->ops();
+    if (auto vectorop = primop->isa<VectorOp>()) {
+        if (!vectorop->cond()->is_allset()) {
+            o << "@ ";
+            emit_name(vectorop->cond()) << " ";
+        }
+        ops = ops.slice_back(1);
+    }
+
+    o << primop->op_name() << " ";
+    dump_list([&] (const Def* def) { emit_def(def); }, ops);
+    return newline();
+}
+
+std::ostream& CodeGen::emit_head(const Lambda* lambda) {
+    emit_name(lambda);
+    dump_list([&] (const Param* param) { emit_type(param->type()); emit_name(param) << " : "; }, lambda->params(), "(", ")");
+
+    if (lambda->attr().is_extern())
+        o << " extern ";
+
+    return up();
+}
+
+std::ostream& CodeGen::emit_jump(const Lambda* lambda) {
+    if (!lambda->empty()) {
+        emit_def(lambda->to());
+        dump_list([&] (const Def* def) { emit_def(def); }, lambda->args(), "(", ")");
+    }
+    return down();
+}
+
+//------------------------------------------------------------------------------
+
+void emit_air(World& world, bool fancy) {
+    CodeGen cg(fancy);
+
+    for (auto top : top_level_lambdas(world)) {
+        Scope scope(top);
+        Schedule schedule = schedule_smart(scope);
+        for (auto lambda : scope.rpo()) {
+            int depth = fancy ? scope.domtree().depth(lambda) : 0;
+            cg.indent += depth;
+            cg.newline();
+            cg.emit_head(lambda);
+
+            for (auto op : schedule[lambda->sid()])
+                cg.emit_assignment(op);
+
+            cg.emit_jump(lambda);
+            cg.indent -= depth;
+        }
+
+        cg.newline();
+    }
+}
+
+void emit_type(const Type* type)            { CodeGen(false).emit_type(type);         }
+void emit_def(const Def* def)               { CodeGen(false).emit_def(def);           }
+void emit_head(const Lambda* lambda)        { CodeGen(false).emit_head(lambda);       }
+void emit_jump(const Lambda* lambda)        { CodeGen(false).emit_jump(lambda);       }
+void emit_assignment(const PrimOp* primop)  { CodeGen(false).emit_assignment(primop); }
+
+//------------------------------------------------------------------------------
+
+} // namespace anydsl2

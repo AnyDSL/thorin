@@ -1,7 +1,6 @@
 #include "anydsl2/world.h"
 #include "anydsl2/type.h"
 #include "anydsl2/literal.h"
-#include "anydsl2/printer.h"
 #include "anydsl2/memop.h"
 
 namespace anydsl2 {
@@ -190,24 +189,19 @@ bool Verifier::verify_primop(Lambda* current, const PrimOp* primop, PrimOpSet& p
 }
 
 void Verifier::invalid(const Def* def, const Def* source, const char* msg) {
-    Printer p(std::cerr, true);
-    p << "Invalid entry [";
-    def->print_name(p);
-    p << "]: ";
+    std::cout << "Invalid entry:" << std::endl;
+    def->dump();
     if (source != def) {
-        p << "caused by ";
-        source->print_name(p);
+        std::cout << "caused by " << std::endl;
+        source->dump();
     } else if (msg)
-        p << msg;
+        std::cout << msg;
 
-    p.newline();
     if (Lambda* lambda = def->isa_lambda())
-        lambda->print_head(p);
+        lambda->dump_head();
     else
-        def->print(p);
-    p.newline();
+        def->dump();
     assert(false);
-    std::abort();
 }
 
 //------------------------------------------------------------------------------

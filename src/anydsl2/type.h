@@ -12,7 +12,6 @@ class Generic;
 class Lambda;
 class Pi;
 class PrimLit;
-class Printer;
 class Ptr;
 class Type;
 class World;
@@ -101,8 +100,6 @@ private:
         : Type(world, Node_Mem, 0, false)
     {}
 
-    virtual Printer& print(Printer& printer) const;
-
     friend class World;
 };
 
@@ -115,8 +112,6 @@ private:
     Frame(World& world)
         : Type(world, Node_Frame, 0, false)
     {}
-
-    virtual Printer& print(Printer& printer) const;
 
     friend class World;
 };
@@ -157,8 +152,6 @@ private:
         : VectorType(world, (int) kind, 0, length, false)
     {}
 
-    virtual Printer& print(Printer& printer) const;
-
 public:
 
     PrimTypeKind primtype_kind() const { return (PrimTypeKind) node_kind(); }
@@ -178,8 +171,6 @@ private:
     {
         set(0, referenced_type);
     }
-
-    virtual Printer& print(Printer& printer) const;
 
 public:
 
@@ -214,7 +205,6 @@ private:
         , named_(false)
     {}
 
-    virtual Printer& print(Printer& printer) const;
     virtual size_t hash() const { return named_ ? hash_value(this) : CompoundType::hash(); }
     virtual bool equal(const Node* other) const { return named_ ? this == other : CompoundType::equal(other); }
 
@@ -240,8 +230,6 @@ private:
         : CompoundType(world, Node_Pi, elems)
     {}
 
-    virtual Printer& print(Printer& printer) const;
-
 public:
 
     bool is_basicblock() const { return order() == 1; }
@@ -260,7 +248,6 @@ private:
         , index_(index)
     {}
 
-    virtual Printer& print(Printer& printer) const;
     virtual size_t hash() const { return hash_combine(Type::hash(), index()); }
     virtual bool equal(const Node* other) const { 
         return Type::equal(other) ? index() == other->as<Generic>()->index() : false; 
@@ -285,7 +272,6 @@ private:
     GenericRef(World& world, const Generic* generic, Lambda* lambda);
     virtual ~GenericRef();
 
-    virtual Printer& print(Printer& printer) const;
     virtual size_t hash() const { return hash_combine(Type::hash(), lambda()); }
     virtual bool equal(const Node* other) const { 
         return Type::equal(other) ? lambda() == other->as<GenericRef>()->lambda() : false; 

@@ -17,8 +17,6 @@ class Type;
 
 class World;
 
-namespace be_llvm {
-
 class EmitHook {
 public:
 
@@ -30,13 +28,12 @@ public:
 };
 
 #ifdef LLVM_SUPPORT
-void emit(World& world, EmitHook& hook);
+void emit_llvm(World& world, EmitHook& hook);
 #else
-inline void emit(World& world, EmitHook& hook) {}
+inline void emit_llvm(World& world, EmitHook& hook) {}
 #endif
-inline void emit(World& world) { EmitHook hook; emit(world, hook); }
+inline void emit_llvm(World& world) { EmitHook hook; emit(world, hook); }
 
 } // namespace anydsl2
-} // namespace be_llvm
 
 #endif

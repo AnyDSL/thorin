@@ -6,9 +6,9 @@
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
 #include "anydsl2/primop.h"
-#include "anydsl2/printer.h"
 #include "anydsl2/type.h"
 #include "anydsl2/world.h"
+#include "anydsl2/be/air.h"
 
 namespace anydsl2 {
 
@@ -197,6 +197,16 @@ int Def::non_const_depth() const {
     }
 
     return max + 1;
+}
+
+void Def::dump() const { 
+    auto primop = this->isa<PrimOp>();
+    if (primop && !primop->is_const())
+        emit_assignment(primop);
+    else {
+        emit_def(this); 
+        std::cout << std::endl;
+    }
 }
 
 World& Def::world() const { return type()->world(); }

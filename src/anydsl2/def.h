@@ -18,7 +18,6 @@ namespace anydsl2 {
 
 class Def;
 class Lambda;
-class Printer;
 class PrimOp;
 class Sigma;
 class Tracker;
@@ -194,8 +193,6 @@ public:
      */
     int non_const_depth() const;
     void dump() const;
-    virtual Printer& print(Printer&) const;
-    Printer& print_name(Printer&) const;
     const PrimOp* is_non_const_primop() const;
 
     const Uses& uses() const { return uses_; }

@@ -94,4 +94,38 @@ Vector::Vector(World& world, ArrayRef<const Def*> args, const std::string& name)
 
 //------------------------------------------------------------------------------
 
+const char* PrimOp::op_name() const {
+    switch (kind()) {
+#define ANYDSL2_AIR_NODE(op, abbr) case Node_##op: return #abbr;
+#include "anydsl2/tables/nodetable.h"
+        default: ANYDSL2_UNREACHABLE;
+    }
+}
+
+const char* ArithOp::op_name() const {
+    switch (kind()) {
+#define ANYDSL2_ARITHOP(op) case ArithOp_##op: return #op;
+#include "anydsl2/tables/arithoptable.h"
+        default: ANYDSL2_UNREACHABLE;
+    }
+}
+
+const char* RelOp::op_name() const {
+    switch (kind()) {
+#define ANYDSL2_RELOP(op) case RelOp_##op: return #op;
+#include "anydsl2/tables/reloptable.h"
+        default: ANYDSL2_UNREACHABLE;
+    }
+}
+
+const char* ConvOp::op_name() const {
+    switch (kind()) {
+#define ANYDSL2_CONVOP(op) case ConvOp_##op: return #op;
+#include "anydsl2/tables/convoptable.h"
+        default: ANYDSL2_UNREACHABLE;
+    }
+}
+
+//------------------------------------------------------------------------------
+
 } // namespace anydsl2

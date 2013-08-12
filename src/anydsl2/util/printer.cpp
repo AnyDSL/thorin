@@ -1,4 +1,4 @@
-#include "anydsl2/printer.h"
+#include "anydsl2/util/printer.h"
 
 #include "anydsl2/node.h"
 
@@ -12,13 +12,13 @@ Printer& Printer::newline() {
     return *this;
 }
 
-Printer& Printer::operator << (const Node* n) {
-    if (n)
-        n->print(*this);
-    else
-        o << "<NULL>";
+//Printer& Printer::operator << (const Node* n) {
+    //if (n)
+        //n->print(*this);
+    //else
+        //o << "<NULL>";
 
-    return *this;
-}
+    //return *this;
+//}
 
 } // namespace anydsl2

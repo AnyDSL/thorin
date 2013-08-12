@@ -1,3 +1,5 @@
+#ifdef LLVM_SUPPORT
+
 #include "anydsl2/be/llvm.h"
 
 #include <algorithm>
@@ -26,7 +28,6 @@
 #include "anydsl2/util/array.h"
 
 namespace anydsl2 {
-namespace be_llvm {
 
 template<class T> llvm::ArrayRef<T> llvm_ref(const Array<T>& array) {
     return llvm::ArrayRef<T>(array.begin(), array.end());
@@ -518,4 +519,5 @@ void emit(World& world, EmitHook& hook) {
 //------------------------------------------------------------------------------
 
 } // namespace anydsl2
-} // namespace be_llvm
+
+#endif

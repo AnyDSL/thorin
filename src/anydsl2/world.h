@@ -316,7 +316,6 @@ public:
      * other
      */
 
-    void dump(bool fancy = false);
     const Type* insert_type(const Type*);
     PrimOp* release(const PrimOp*);
     void reinsert(const PrimOp*);

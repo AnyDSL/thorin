@@ -78,10 +78,8 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     bool is_cascading() const;
     bool is_basicblock() const;
     bool is_returning() const;
-    Printer& print_jump(Printer&) const;
-    Printer& print_head(Printer&) const;
-    void dump_jump() const;
     void dump_head() const;
+    void dump_jump() const;
     void destroy_body() { unset_ops(); resize(0); }
 
     // terminate

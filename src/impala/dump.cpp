@@ -1,5 +1,5 @@
-#include "anydsl2/printer.h"
 #include "anydsl2/type.h"
+#include "anydsl2/util/printer.h"
 
 #include "impala/ast.h"
 #include "impala/dump.h"

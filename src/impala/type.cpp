@@ -1,6 +1,6 @@
 #include "impala/type.h"
 
-#include "anydsl2/printer.h"
+#include "anydsl2/util/printer.h"
 
 using namespace anydsl2;
 

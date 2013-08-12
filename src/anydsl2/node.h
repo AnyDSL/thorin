@@ -10,8 +10,6 @@
 
 namespace anydsl2 {
 
-class Printer;
-
 class Node : public MagicCast {
 private:
 
@@ -42,7 +40,6 @@ public:
     ArrayRef<T> ops_ref() const { return size() ? ArrayRef<T>((T*) &ops_.front(), ops_.size()) : ArrayRef<T>(); }
     size_t size() const { return ops_.size(); }
     bool empty() const { return ops_.empty(); }
-    virtual Printer& print(Printer&) const = 0;
     virtual size_t hash() const;
     virtual bool equal(const Node*) const;
 

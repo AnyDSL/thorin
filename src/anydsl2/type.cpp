@@ -5,8 +5,8 @@
 
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
-#include "anydsl2/printer.h"
 #include "anydsl2/world.h"
+#include "anydsl2/be/air.h"
 
 namespace anydsl2 {
 
@@ -44,6 +44,10 @@ const char* GenericMap::to_string() const {
 
 //------------------------------------------------------------------------------
 
+void Type::dump() const { emit_type(this); }
+size_t Type::length() const { return as<VectorType>()->length(); }
+const Type* Type::elem_via_lit(const Def* def) const { return elem(def->primlit_value<size_t>()); }
+
 int Type::order() const {
     if (kind() == Node_Ptr)
         return 0;
@@ -57,9 +61,6 @@ int Type::order() const {
 
     return sub;
 }
-
-size_t Type::length() const { return as<VectorType>()->length(); }
-const Type* Type::elem_via_lit(const Def* def) const { return elem(def->primlit_value<size_t>()); }
 
 bool Type::check_with(const Type* other) const {
     if (this == other || this->isa<Generic>())

@@ -24,7 +24,6 @@ void dump(const ASTNode* n, bool fancy = false, std::ostream& o = std::cout);
 std::ostream& operator << (std::ostream& o, const ASTNode* n);
 std::ostream& operator << (std::ostream& o, const anydsl2::Type* type);
 
-
 } // namespace impala
 
 #endif // IMPALA_DUMP_H

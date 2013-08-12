@@ -29,21 +29,23 @@ public:
 //------------------------------------------------------------------------------
 
 std::ostream& CodeGen::emit_type(const Type* type) {
-    if (type == nullptr)
+    if (type == nullptr) {
         return stream() << "<NULL>";
-    else if (auto frame = type->isa<Frame>())
+    } else if (auto frame = type->isa<Frame>()) {
         return stream() << "frame";
-    else if (auto mem = type->isa<Mem>())
+    } else if (auto mem = type->isa<Mem>()) {
         return stream() << "mem";
-    else if (auto pi = type->isa<Pi>())
+    } else if (auto pi = type->isa<Pi>()) {
         return dump_list([&] (const Type* type) { emit_type(type); }, pi->elems(), "pi(", ")");
-    else if (auto sigma = type->isa<Sigma>())
+    } else if (auto sigma = type->isa<Sigma>()) {
         return dump_list([&] (const Type* type) { emit_type(type); }, sigma->elems(), "sigma(", ")");
-    else if (auto generic = type->isa<Generic>())
-        return stream() << "TODO";
-    else if (auto genref = type->isa<GenericRef>())
-        return stream() << "TODO";
-    else if (auto ptr = type->isa<Ptr>()) {
+    } else if (auto generic = type->isa<Generic>()) {
+        return stream() << '<' << generic->index() << '>';
+    } else if (auto genref = type->isa<GenericRef>()) {
+        stream() << '<';
+        emit_name(genref->lambda()) << ", ";
+        return emit_type(genref->generic()) << '>';
+    } else if (auto ptr = type->isa<Ptr>()) {
         if (ptr->is_vector())
             stream() << '<' << ptr->length() << " x ";
         emit_type(ptr->referenced_type());

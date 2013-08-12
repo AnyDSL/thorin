@@ -74,11 +74,6 @@ typedef std::set<Lambda*, LambdaLTGid> LambdaSet;
  */
 class World {
 public:
-
-    /*
-     * constructor and destructor
-     */
-
     World();
     ~World();
 
@@ -326,7 +321,6 @@ public:
 #endif
 
 protected:
-
     template<class T>
     const T* keep(const T* type) {
         auto tp = types_.insert(type);
@@ -340,11 +334,8 @@ protected:
     template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
 
 private:
-
     const Param* param(const Type* type, Lambda* lambda, size_t index, const std::string& name = "");
-
     const Type* keep_nocast(const Type* type);
-
     void dce_insert(const size_t pass, const Def* def);
     void ute_insert(const size_t pass, const Type* type);
     void uce_insert(const size_t pass, Lambda*);

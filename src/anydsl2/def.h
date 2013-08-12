@@ -28,7 +28,6 @@ class World;
 
 class Peek {
 public:
-
     Peek() {}
     Peek(const Def* def, Lambda* from)
         : def_(def)
@@ -39,7 +38,6 @@ public:
     Lambda* from() const { return from_; }
 
 private:
-
     const Def* def_;
     Lambda* from_;
 };
@@ -50,13 +48,7 @@ typedef Array<Peek> Peeks;
 
 /// References a \p Def but updates its reference after a \p Def::replace with the replaced \p Def.
 class Tracker {
-private:
-
-    /// Do not copy-construct a \p Tracker.
-    Tracker(const Tracker&);
-
 public:
-
     Tracker()
         : def_(nullptr)
     {}
@@ -75,6 +67,7 @@ public:
     const Def* operator -> () const { return def_; }
 
 private:
+    Tracker(const Tracker&); /// Do not copy-construct a \p Tracker.
 
     const Def* def_;
 };
@@ -87,7 +80,6 @@ private:
  */
 class Use {
 public:
-
     Use() {}
     Use(size_t index, const Def* def)
         : index_(index)
@@ -96,16 +88,13 @@ public:
 
     size_t index() const { return index_; }
     const Def* def() const { return def_; }
-
     bool operator == (Use use) const { return def() == use.def() && index() == use.index(); }
     bool operator != (Use use) const { return def() != use.def() || index() != use.index(); }
     bool operator < (Use) const;
-
     operator const Def*() const { return def_; }
     const Def* operator -> () const { return def_; }
 
 private:
-
     size_t index_;
     const Def* def_;
 };
@@ -119,7 +108,6 @@ private:
  */
 class MultiUse {
 public:
-
     MultiUse() {}
     MultiUse(Use use)
         : indices_(1)
@@ -133,12 +121,10 @@ public:
     const std::vector<size_t>& indices() const { return indices_; }
     const Def* def() const { return def_; }
     void append_user(size_t index) { indices_.push_back(index); }
-
     operator const Def*() const { return def_; }
     const Def* operator -> () const { return def_; }
 
 private:
-
     std::vector<size_t> indices_;
     const Def* def_;
 };
@@ -158,13 +144,7 @@ typedef std::vector<Tracker*> Trackers;
  * - \p Lambda%s.
  */
 class Def : public Node {
-private:
-
-    /// Do not copy-assign a \p Def instance.
-    Def& operator = (const Def&);
-
 protected:
-
     Def(size_t gid, int kind, size_t size, const Type* type, bool is_const, const std::string& name)
         : Node(kind, size, name)
         , type_(type)
@@ -178,7 +158,6 @@ protected:
     void unregister_use(size_t i) const;
 
 public:
-
     virtual ~Def() {}
     void set_op(size_t i, const Def* def);
     void unset_op(size_t i);
@@ -242,6 +221,7 @@ public:
     template<class T> inline T primlit_value() const;
 
 private:
+    Def& operator = (const Def&); /// Do not copy-assign a \p Def instance.
 
     const Type* type_;
     mutable Uses uses_;
@@ -249,7 +229,6 @@ private:
     const size_t gid_;
 
 protected:
-
     bool is_const_;
 
     friend class Tracker;
@@ -264,17 +243,14 @@ inline bool Use::operator < (Use use) const { return def()->gid() < use.def()->g
 
 class Param : public Def {
 private:
-
     Param(size_t gid, const Type* type, Lambda* lambda, size_t index, const std::string& name);
 
 public:
-
     Lambda* lambda() const { return lambda_; }
     size_t index() const { return index_; }
     Peeks peek() const;
 
 private:
-
     mutable Lambda* lambda_;
     const size_t index_;
 

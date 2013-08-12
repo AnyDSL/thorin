@@ -19,7 +19,6 @@ class World;
 
 class EmitHook {
 public:
-
     virtual ~EmitHook() {}
 
     virtual void assign(llvm::IRBuilderBase* builder, llvm::Module* module) {}
@@ -32,7 +31,7 @@ void emit_llvm(World& world, EmitHook& hook);
 #else
 inline void emit_llvm(World& world, EmitHook& hook) {}
 #endif
-inline void emit_llvm(World& world) { EmitHook hook; emit(world, hook); }
+inline void emit_llvm(World& world) { EmitHook hook; emit_llvm(world, hook); }
 
 } // namespace anydsl2
 

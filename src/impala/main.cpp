@@ -9,6 +9,7 @@
 #include "anydsl2/analyses/verify.h"
 #include "anydsl2/transform/vectorize.h"
 #include "anydsl2/transform/partial_evaluation.h"
+#include "anydsl2/be/air.h"
 #include "anydsl2/be/llvm.h"
 
 #include "impala/ast.h"
@@ -145,12 +146,12 @@ int main(int argc, char** argv) {
                 anydsl2::vectorize(scope, vectorlength);
             }
             if (emit_air)
-                init.world.dump(fancy);
+                anydsl2::emit_air(init.world, fancy);
             if (emit_looptree)
                 std::cout << Scope(init.world).looptree().root() << std::endl; // TODO
 
             if (emit_llvm)
-                be_llvm::emit(init.world);
+                anydsl2::emit_llvm(init.world);
         }
 
         return EXIT_SUCCESS;

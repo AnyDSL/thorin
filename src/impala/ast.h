@@ -42,14 +42,14 @@ typedef anydsl2::AutoPtr<const anydsl2::Ref> RefPtr;
 class ASTNode : public anydsl2::HasLocation, public anydsl2::MagicCast {
 public:
 
-    virtual Printer& print(Printer& p) const = 0;
-    void dump() const;
+    virtual std::ostream& print(Printer& p) const = 0;
+    std::ostream& dump() const;
 };
 
 class Prg : public ASTNode {
 public:
 
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
     const anydsl2::AutoVector<const Global*>& globals() const { return globals_; }
 
 private:
@@ -90,7 +90,7 @@ public:
     bool is_continuation() const;
     anydsl2::Lambda* lambda() const { return lambda_; }
     const anydsl2::Param* ret_param() const { return ret_param_; }
-    Printer& fun_print(Printer& p) const;
+    std::ostream& fun_print(Printer& p) const;
 
 private:
 
@@ -122,7 +122,7 @@ public:
 
     size_t handle() const { return handle_; }
     bool is_address_taken() const { return is_address_taken_; }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
 
@@ -143,7 +143,7 @@ public:
     }
 
     const anydsl2::Pi* pi() const { return type_->as<anydsl2::Pi>(); }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
 
@@ -162,7 +162,7 @@ public:
         type_ = type;
         set_loc(tok.pos1(), pos2);
     }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
     bool is_extern() const { return extern_; }
 
 private:
@@ -210,7 +210,7 @@ public:
     EmptyExpr(const anydsl2::Location& loc) { loc_ = loc; }
 
     virtual bool is_lvalue() const { return false; }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
 
@@ -237,7 +237,7 @@ public:
     Kind kind() const { return kind_; }
     anydsl2::Box box() const { return box_; }
     virtual bool is_lvalue() const { return false; }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
     anydsl2::PrimTypeKind literal2type() const;
 
 private:
@@ -253,7 +253,7 @@ class FunExpr : public Expr, public Fun {
 public:
 
     virtual bool is_lvalue() const { return false; }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
 
@@ -269,7 +269,7 @@ public:
     Tuple(const anydsl2::Position& pos1) { loc_.set_pos1(pos1); }
 
     virtual bool is_lvalue() const { return false; }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
 
@@ -292,7 +292,7 @@ public:
     const Decl* decl() const { return decl_; }
 
     virtual bool is_lvalue() const { return true; }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
 
@@ -321,7 +321,7 @@ public:
     const Expr* rhs() const { return ops_[0]; }
     Kind kind() const { return kind_; }
     virtual bool is_lvalue() const { return false; }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
 
@@ -353,7 +353,7 @@ public:
     const Expr* rhs() const { return ops_[1]; }
     Kind kind() const { return kind_; }
     virtual bool is_lvalue() const { return Token::is_assign((TokenKind) kind()); }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
 
@@ -386,7 +386,7 @@ public:
     const Expr* lhs() const { return ops_[0]; }
     Kind kind() const { return kind_; }
     virtual bool is_lvalue() const { return false; }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
 
@@ -410,7 +410,7 @@ public:
     const Expr* t_expr() const { return ops_[1]; }
     const Expr* f_expr() const { return ops_[2]; }
     virtual bool is_lvalue() const { return false; }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
 
@@ -430,7 +430,7 @@ public:
     const Expr* lhs() const { return ops_[0]; }
     const Expr* index() const { return ops_[1]; }
     virtual bool is_lvalue() const { return true; }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
 
@@ -455,7 +455,7 @@ public:
     anydsl2::Location args_location() const;
     bool is_continuation_call() const;
     virtual bool is_lvalue() const { return false; }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
 
@@ -489,7 +489,7 @@ public:
     }
 
     const Expr* expr() const { return expr_; }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
 
@@ -511,7 +511,7 @@ public:
 
     const VarDecl* var_decl() const { return var_decl_; }
     const Expr* init() const { return init_; }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
 
@@ -536,7 +536,7 @@ public:
     const Expr* cond() const { return cond_; }
     const Stmt* then_stmt() const { return thenStmt_; }
     const Stmt* else_stmt() const { return elseStmt_; }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
 
@@ -574,7 +574,7 @@ public:
         Loop::set(cond, body);
         set_loc(pos1, pos2);
     }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
 
@@ -600,7 +600,7 @@ public:
     const Stmt* init() const { return (const Stmt*) ((uintptr_t) init_decl_.get() | (uintptr_t) init_expr_.get()); }
     const Expr* step() const { return step_; }
     bool is_while() const;
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
 
@@ -630,7 +630,7 @@ public:
     const Expr* init_expr() const { return init_expr_; }
     const Call* call() const { return call_; }
     const ASTNode* init() const { return (const ASTNode*) ((uintptr_t) init_decl_.get() | (uintptr_t) init_expr_.get()); }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
 
@@ -655,7 +655,7 @@ public:
     }
 
     const Loop* loop() const { return loop_; }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
 
@@ -675,7 +675,7 @@ public:
     }
 
     const Loop* loop() const { return loop_; }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
 
@@ -697,7 +697,7 @@ public:
 
     const Expr* expr() const { return expr_; }
     const Fun* fun() const { return fun_; }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
 
@@ -716,7 +716,7 @@ public:
     {}
 
     const NamedFun* named_fun() const { return named_fun_; }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
 
@@ -736,7 +736,7 @@ public:
     const Stmt* stmt(size_t i) const { return stmts_[i]; }
     const NamedFuns& named_funs() const { return named_funs_; }
     virtual bool empty() const { return stmts_.empty(); }
-    virtual Printer& print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
 

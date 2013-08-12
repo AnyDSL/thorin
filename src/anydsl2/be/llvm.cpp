@@ -49,11 +49,9 @@ typedef Array<llvm::BasicBlock*> BBMap;
 
 class CodeGen {
 public:
-
     CodeGen(World& world, EmitHook& hook);
 
     void emit();
-
     llvm::Type* map(const Type* type);
     llvm::Value* emit(const Def* def);
     llvm::Value* lookup(const Def* def);
@@ -511,10 +509,7 @@ multiple:
 
 //------------------------------------------------------------------------------
 
-void emit(World& world, EmitHook& hook) {
-    CodeGen cg(world, hook);
-    cg.emit();
-}
+void emit_llvm(World& world, EmitHook& hook) { CodeGen cg(world, hook); cg.emit(); }
 
 //------------------------------------------------------------------------------
 

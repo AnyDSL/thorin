@@ -30,37 +30,38 @@ public:
 
 std::ostream& CodeGen::emit_type(const Type* type) {
     if (type == nullptr)
-        return o << "<NULL>";
+        return stream() << "<NULL>";
     else if (auto frame = type->isa<Frame>())
-        return o << "frame";
+        return stream() << "frame";
     else if (auto mem = type->isa<Mem>())
-        return o << "mem";
+        return stream() << "mem";
     else if (auto pi = type->isa<Pi>())
         return dump_list([&] (const Type* type) { emit_type(type); }, pi->elems(), "pi(", ")");
     else if (auto sigma = type->isa<Sigma>())
         return dump_list([&] (const Type* type) { emit_type(type); }, sigma->elems(), "sigma(", ")");
     else if (auto generic = type->isa<Generic>())
-        return o << "TODO";
+        return stream() << "TODO";
     else if (auto genref = type->isa<GenericRef>())
-        return o << "TODO";
+        return stream() << "TODO";
     else if (auto ptr = type->isa<Ptr>()) {
         if (ptr->is_vector())
-            o << '<' << ptr->length() << " x ";
+            stream() << '<' << ptr->length() << " x ";
         emit_type(ptr->referenced_type());
-        o << '*';
+        stream() << '*';
         if (ptr->is_vector())
-            o << '>';
-        return o;
+            stream() << '>';
+        return stream();
     } else if (auto primtype = type->isa<PrimType>()) {
         if (primtype->is_vector())
-            o << "<" << primtype->length() << " x ";
+            stream() << "<" << primtype->length() << " x ";
             switch (primtype->primtype_kind()) {
-#define ANYDSL2_UF_TYPE(T) case Node_PrimType_##T: o << #T; break;
+#define ANYDSL2_UF_TYPE(T) case Node_PrimType_##T: stream() << #T; break;
 #include "anydsl2/tables/primtypetable.h"
             default: ANYDSL2_UNREACHABLE;
         }
         if (primtype->is_vector())
-            o << ">";
+            stream() << ">";
+        return stream();
     }
     ANYDSL2_UNREACHABLE;
 }
@@ -73,27 +74,27 @@ std::ostream& CodeGen::emit_def(const Def* def) {
 
 std::ostream& CodeGen::emit_name(const Def* def) {
     if (is_fancy()) // elide white = 0 and black = 7
-        o << "\33[" << (def->gid() % 6 + 30 + 1) << "m";
+        stream() << "\33[" << (def->gid() % 6 + 30 + 1) << "m";
 
-    o << def->unique_name();
+    stream() << def->unique_name();
 
     if (is_fancy())
-        o << "\33[m";
+        stream() << "\33[m";
 
-    return o;
+    return stream();
 }
 
 std::ostream& CodeGen::emit_primop(const PrimOp* primop) {
     if (auto primlit = primop->isa<PrimLit>()) {
         emit_type(primop->type()) << ' ';
         switch (primlit->primtype_kind()) {
-#define ANYDSL2_UF_TYPE(T) case PrimType_##T: o << primlit->T##_value(); break;
+#define ANYDSL2_UF_TYPE(T) case PrimType_##T: stream() << primlit->T##_value(); break;
 #include "anydsl2/tables/primtypetable.h"
             default: ANYDSL2_UNREACHABLE; break;
         }
     } else if (primop->is_const()) {
         if (primop->empty()) {
-            o << primop->op_name() << " ";
+            stream() << primop->op_name() << " ";
             emit_type(primop->type());
         } else {
             emit_type(primop->type());
@@ -102,7 +103,7 @@ std::ostream& CodeGen::emit_primop(const PrimOp* primop) {
     } else
         emit_name(primop);
 
-    return o;
+    return stream();
 }
 
 std::ostream& CodeGen::emit_assignment(const PrimOp* primop) {
@@ -112,23 +113,23 @@ std::ostream& CodeGen::emit_assignment(const PrimOp* primop) {
     ArrayRef<const Def*> ops = primop->ops();
     if (auto vectorop = primop->isa<VectorOp>()) {
         if (!vectorop->cond()->is_allset()) {
-            o << "@ ";
+            stream() << "@ ";
             emit_name(vectorop->cond()) << " ";
         }
         ops = ops.slice_back(1);
     }
 
-    o << primop->op_name() << " ";
+    stream() << primop->op_name() << " ";
     dump_list([&] (const Def* def) { emit_def(def); }, ops);
     return newline();
 }
 
 std::ostream& CodeGen::emit_head(const Lambda* lambda) {
     emit_name(lambda);
-    dump_list([&] (const Param* param) { emit_type(param->type()); emit_name(param) << " : "; }, lambda->params(), "(", ")");
+    dump_list([&] (const Param* param) { emit_type(param->type()) << " "; emit_name(param); }, lambda->params(), "(", ")");
 
     if (lambda->attr().is_extern())
-        o << " extern ";
+        stream() << " extern ";
 
     return up();
 }

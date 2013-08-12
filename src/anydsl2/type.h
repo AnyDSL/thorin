@@ -80,8 +80,6 @@ protected:
     friend struct TypeEqual;
 };
 
-std::ostream& operator << (std::ostream& o, const anydsl2::Type* type);
-
 struct TypeHash : std::unary_function<const Type*, size_t> {
     size_t operator () (const Type* t) const { return t->hash(); }
 };

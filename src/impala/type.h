@@ -21,43 +21,33 @@ enum {
 
 class Void : public anydsl2::Type {
 private:
-
     Void(anydsl2::World& world) 
         : anydsl2::Type(world, Type_Void, 0, false)
     {}
-
-    virtual anydsl2::Printer& print(anydsl2::Printer& printer) const;
 
     friend class World;
 };
 
 class NoRet : public anydsl2::Type {
 private:
-
     NoRet(anydsl2::World& world) 
         : anydsl2::Type(world, Type_NoRet, 0, false)
     {}
-
-    virtual anydsl2::Printer& print(anydsl2::Printer& printer) const;
 
     friend class World;
 };
 
 class TypeError : public anydsl2::Type {
 private:
-
     TypeError(anydsl2::World& world) 
         : anydsl2::Type(world, Type_Error, 0, false)
     {}
-
-    virtual anydsl2::Printer& print(anydsl2::Printer& printer) const;
 
     friend class World;
 };
 
 class World : public anydsl2::World {
 public:
-
     World();
 
     const NoRet* noret() { return noret_; }
@@ -65,7 +55,6 @@ public:
     const TypeError* type_error() { return type_error_; }
 
 private:
-
     const NoRet* noret_;
     const Void* type_void_;
     const TypeError* type_error_;

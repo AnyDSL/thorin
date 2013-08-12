@@ -1,24 +1,12 @@
 #include "anydsl2/util/printer.h"
 
-#include "anydsl2/node.h"
-
 namespace anydsl2 {
 
-Printer& Printer::newline() {
-    o << '\n';
+std::ostream& Printer::newline() {
+    stream_ << '\n';
     for (int i = 0; i < indent; ++i)
-        o << "    ";
-
-    return *this;
+        stream_ << "    ";
+    return stream();
 }
-
-//Printer& Printer::operator << (const Node* n) {
-    //if (n)
-        //n->print(*this);
-    //else
-        //o << "<NULL>";
-
-    //return *this;
-//}
 
 } // namespace anydsl2

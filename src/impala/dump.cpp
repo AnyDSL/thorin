@@ -14,113 +14,131 @@ namespace impala {
 
 class Printer : public anydsl2::Printer {
 public:
-
     Printer(std::ostream& o, bool fancy)
         : anydsl2::Printer(o, fancy)
         , prec(BOTTOM)
     {}
 
-    Printer& print_block(const Stmt* s);
-    Printer& operator << (const ASTNode* n) { return n->print(*this); }
-    Printer& operator << (const Type* type);
-    Printer& operator << (const char* str) { o << str; return *this; }
-    Printer& operator << (Symbol sym) { o << sym; return *this; }
+    std::ostream& print_block(const Stmt*);
+    std::ostream& print_type(const Type*);
 
     Prec prec;
 };
 
-Printer& Printer::print_block(const Stmt* s) {
+// TODO The copy&past code from anydsl2/be/air.cpp will be gone when impala gets its own type system
+std::ostream& Printer::print_type(const Type* type) {
+    if (type->isa<Void>()) {
+        return stream() << "void";
+    } else if (type->isa<NoRet>()) {
+        return stream() << "noret";
+    } else if (type->isa<TypeError>()) {
+        return stream() << "<type error>";
+    } else if (auto sigma = type->isa<anydsl2::Sigma>()) {
+        return dump_list([&] (const Type* elem) { print_type(elem); }, sigma->elems(), "#(", ")");
+    } else if (auto pi = type->isa<anydsl2::Pi>()) {
+        const Type* ret_type = return_type(pi);
+        if (ret_type->isa<NoRet>()) {
+            dump_list([&] (const Type* elem) { print_type(elem); }, pi->elems(), "pi(", ")");
+        } else {
+            dump_list([&] (const Type* elem) { print_type(elem); }, pi->elems().slice_front(pi->size()-1), "pi(", ") -> ");
+            print_type(ret_type);
+        }
+    } else if (auto generic = type->isa<anydsl2::Generic>()) {
+        return stream() << "TODO";
+    } else if (auto genref = type->isa<anydsl2::GenericRef>()) {
+        return stream() << "TODO";
+    } else if (auto ptr = type->isa<anydsl2::Ptr>()) {
+        if (ptr->is_vector())
+            stream() << '<' << ptr->length() << " x ";
+        print_type(ptr->referenced_type()) << '*';
+        if (ptr->is_vector())
+            stream() << '>';
+        return stream();
+    } else if (auto primtype = type->isa<anydsl2::PrimType>()) {
+        if (primtype->is_vector())
+            stream() << "<" << primtype->length() << " x ";
+            switch (primtype->primtype_kind()) {
+#define ANYDSL2_UF_TYPE(T) case anydsl2::Node_PrimType_##T: stream() << #T; break;
+#include "anydsl2/tables/primtypetable.h"
+            default: ANYDSL2_UNREACHABLE;
+        }
+        if (primtype->is_vector())
+            stream() << ">";
+        return stream();
+    }
+    ANYDSL2_UNREACHABLE;
+}
+
+std::ostream& Printer::print_block(const Stmt* s) {
     if (s->isa<ScopeStmt>())
         s->print(*this);
     else {
-        o << "{";
+        stream() << "{";
         up();
         s->print(*this);
         down();
-        o << "}";
+        stream() << "}";
     }
 
-    return *this;
+    return stream();
 }
 
 //------------------------------------------------------------------------------
 
-void ASTNode::dump() const {
-    ::impala::dump(this);
-}
+std::ostream& ASTNode::dump() const { Printer p(std::cout, true); return print(p); }
+std::ostream& NamedFun::print(Printer& p) const { p.stream() << "def " << symbol(); return fun_print(p); }
+std::ostream& VarDecl::print(Printer& p) const { return p.stream() << symbol() << " : " << type(); }
 
-Printer& Prg::print(Printer& p) const {
+std::ostream& Prg::print(Printer& p) const {
     for (auto global : globals()) {
         p.newline();
         global->print(p);
         p.newline();
     }
 
-    return p;
+    return p.stream();
 }
 
-Printer& Proto::print(Printer& p) const {
-    p << "extern " << symbol_ << " ";
-    ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "(", pi()->elems().slice_front(pi()->size() - 1), ")");
-    p << " -> " << pi()->elems().back();
-
-    return p;
+std::ostream& Proto::print(Printer& p) const {
+    p.stream() << "extern " << symbol_ << " ";
+    return p.dump_list([&] (const Type* type) { p.print_type(type); }, pi()->elems().slice_front(pi()->size()-1), "(", ")") 
+        << " -> " << pi()->elems().back();
 }
 
-Printer& Fun::fun_print(Printer& p) const {
+std::ostream& Fun::fun_print(Printer& p) const {
     // TODO generics
     const Type* ret_type = return_type(pi());
     ArrayRef<const VarDecl*> params_ref = 
         ret_type->isa<NoRet>() ? params() : ArrayRef<const VarDecl*>(&params().front(), params().size() - 1);
 
-    ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "(", params_ref, ")");
+    p.dump_list([&] (const VarDecl* decl) { decl->print(p); }, params_ref, "(", ")");
 
     if (!ret_type->isa<NoRet>())
-        p << "-> " << ret_type << " ";
+        p.stream() << "-> " << ret_type << " ";
 
     return p.print_block(body());
-}
-
-Printer& NamedFun::print(Printer& p) const {
-    p << "def " << symbol();
-    return fun_print(p);
-}
-
-Printer& VarDecl::print(Printer& p) const {
-    return p << symbol() << " : " << type();
 }
 
 /*
  * Expr
  */
 
-Printer& EmptyExpr::print(Printer& p) const { return p << "/*empty*/"; }
-
-Printer& Literal::print(Printer& p) const {
+std::ostream& Literal::print(Printer& p) const {
     switch (kind()) {
 #define IMPALA_LIT(itype, atype) \
-        case LIT_##itype: p.o << (anydsl2::u64) box().get_##atype(); return p;
+        case LIT_##itype: return p.stream() << (anydsl2::u64) box().get_##atype();
 #include "impala/tokenlist.h"
-        case LIT_bool: return p << (box().get_u1().get() ? "true" : "false");
+        case LIT_bool: return p.stream() << (box().get_u1().get() ? "true" : "false");
         default: ANYDSL2_UNREACHABLE;
     }
 }
 
-Printer& FunExpr::print(Printer& p) const {
-    p << "lambda";
-    return fun_print(p);
-}
+std::ostream& Id::print(Printer& p) const { return p.stream() << symbol(); }
+std::ostream& EmptyExpr::print(Printer& p) const { return p.stream() << "/*empty*/"; }
+std::ostream& FunExpr::print(Printer& p) const { p.stream() << "lambda"; return fun_print(p); }
+std::ostream& Tuple::print(Printer& p) const { return p.dump_list([&] (const Expr* expr) { expr->print(p); }, ops(), "#(", ")"); }
 
-Printer& Tuple::print(Printer& p) const {
-    ANYDSL2_DUMP_EMBRACING_COMMA_LIST(p, "#(", ops(), ")");
-    return p;
-}
-
-Printer& Id::print(Printer& p) const {
-    return p << symbol();
-}
-
-Printer& PrefixExpr::print(Printer& p) const {
+std::ostream& PrefixExpr::print(Printer& p) const {
     Prec r = PrecTable::prefix_r[kind()];
     Prec old = p.prec;
 
@@ -131,21 +149,21 @@ Printer& PrefixExpr::print(Printer& p) const {
         default: ANYDSL2_UNREACHABLE;
     }
 
-    p << op;
+    p.stream() << op;
     p.prec = r;
     rhs()->print(p);
     p.prec = old;
 
-    return p;
+    return p.stream();
 }
 
-Printer& InfixExpr::print(Printer& p) const {
+std::ostream& InfixExpr::print(Printer& p) const {
     Prec l = PrecTable::infix_l[kind()];
     Prec r = PrecTable::infix_r[kind()];
     Prec old = p.prec;
     bool paren = !p.is_fancy() || p.prec > l;
 
-    if (paren) p << "(";
+    if (paren) p.stream() << "(";
 
     p.prec = l;
     lhs()->print(p);
@@ -157,23 +175,23 @@ Printer& InfixExpr::print(Printer& p) const {
 #include "impala/tokenlist.h"
     }
 
-    p << " " << op << " ";
+    p.stream() << " " << op << " ";
 
     p.prec = r;
     rhs()->print(p);
     p.prec = old;
 
-    if (paren) p << ")";
+    if (paren) p.stream() << ")";
 
-    return p;
+    return p.stream();
 }
 
-Printer& PostfixExpr::print(Printer& p) const {
+std::ostream& PostfixExpr::print(Printer& p) const {
     Prec l = PrecTable::postfix_l[kind()];
     Prec old = p.prec;
     bool paren = !p.is_fancy() || p.prec > l;
 
-    if (paren) p << "(";
+    if (paren) p.stream() << "(";
 
     p.prec = l;
     lhs()->print(p);
@@ -185,21 +203,21 @@ Printer& PostfixExpr::print(Printer& p) const {
         default: ANYDSL2_UNREACHABLE;
     }
 
-    p << op;
+    p.stream() << op;
     p.prec = old;
 
-    if (paren) p << ")";
+    if (paren) p.stream() << ")";
 
-    return p;
+    return p.stream();
 }
 
-Printer& ConditionalExpr::print(Printer& p) const {
+std::ostream& ConditionalExpr::print(Printer& p) const {
     Prec l = PrecTable::infix_l[Token::QUESTION_MARK];
     Prec r = PrecTable::infix_r[Token::QUESTION_MARK];
     Prec old = p.prec;
     bool paren = !p.is_fancy() || p.prec > l;
 
-    if (paren) p << "(";
+    if (paren) p.stream() << "(";
 
     p.prec = l;
     cond()->print(p) << " ? " << t_expr() << " : ";
@@ -207,138 +225,119 @@ Printer& ConditionalExpr::print(Printer& p) const {
     f_expr()->print(p);
     p.prec = old;
 
-    if (paren) p << ")";
+    if (paren) p.stream() << ")";
 
-    return p;
+    return p.stream();
 }
 
-Printer& IndexExpr::print(Printer& p) const {
+std::ostream& IndexExpr::print(Printer& p) const {
     Prec l = PrecTable::postfix_l[Token::L_BRACKET];
     Prec old = p.prec;
     bool paren = !p.is_fancy() || p.prec > l;
 
-    if (paren) p << "(";
+    if (paren) p.stream() << "(";
 
     lhs()->print(p);
-    p << "[";
+    p.stream() << "[";
     index()->print(p);
-    p << "]";
+    p.stream() << "]";
     p.prec = old;
 
-    if (paren) p << ")";
+    if (paren) p.stream() << ")";
 
-    return p;
+    return p.stream();
 }
 
-Printer& Call::print(Printer& p) const {
+std::ostream& Call::print(Printer& p) const {
     assert(ops_.size() >= 1);
-
     ops_.front()->print(p);
-    p << "(";
-
-    if (ops_.size() != 1) {
-        for (auto i = ops_.cbegin() + 1, e = ops_.cend() - 1; i != e; ++i) {
-            (*i)->print(p);
-            p << ", ";
-        }
-
-        ops_.back()->print(p);
-    }
-
-    return p << ")";
+    return p.dump_list([&] (const Expr* expr) { expr->print(p); }, args(), "(", ")");
 }
 
 /*
  * Stmt
  */
 
-Printer& DeclStmt::print(Printer& p) const {
+std::ostream& DeclStmt::print(Printer& p) const {
     var_decl()->print(p);
 
     if (init()) {
-        p << " = ";
+        p.stream() << " = ";
         init()->print(p);
     }
 
-    return p << ";";
+    return p.stream() << ";";
 }
 
-Printer& ExprStmt::print(Printer& p) const {
+std::ostream& ExprStmt::print(Printer& p) const {
     expr()->print(p);
-    return p << ";";
+    return p.stream() << ";";
 }
 
-Printer& IfElseStmt::print(Printer& p) const {
-    p << "if (" << cond() << ") ";
+std::ostream& IfElseStmt::print(Printer& p) const {
+    p.stream() << "if (" << cond() << ") ";
     p.print_block(then_stmt());
 
     if (!else_stmt()->empty()) {
-        p << " else ";
+        p.stream() << " else ";
         p.print_block(else_stmt());
     }
 
-    return p;
+    return p.stream();
 }
 
-Printer& DoWhileStmt::print(Printer& p) const {
-    p << "do ";
+std::ostream& DoWhileStmt::print(Printer& p) const {
+    p.stream() << "do ";
     p.print_block(body());
-    p << " while (";
+    p.stream() << " while (";
     cond()->print(p);
-    p << ");";
-
-    return p;
+    return p.stream() << ");";
 }
 
-Printer& ForStmt::print(Printer& p) const {
+std::ostream& ForStmt::print(Printer& p) const {
     if (is_while()) {
-        p << "while (";
+        p.stream() << "while (";
         cond()->print(p);
     } else {
-        p << "for (";
+        p.stream() << "for (";
         init()->print(p);
-        p << " ";
+        p.stream() << " ";
         cond()->print(p);
-        p << "; ";
+        p.stream() << "; ";
         step()->print(p);
     }
-    p << ") ";
-    p.print_block(body());
 
-    return p;
+    p.stream() << ") ";
+    return p.print_block(body());
 }
 
-Printer& ForeachStmt::print(Printer& p) const {
-    p << "foreach (";
+std::ostream& ForeachStmt::print(Printer& p) const {
+    p.stream() << "foreach (";
     init()->print(p);
-    p << " <- ";
+    p.stream() << " <- ";
     call()->print(p);
-    p << ")";
-    p.print_block(body());
-
-    return p;
+    p.stream() << ")";
+    return p.print_block(body());
 }
 
-Printer& BreakStmt::print(Printer& p) const { p << "break;"; return p; }
-Printer& ContinueStmt::print(Printer& p) const { p << "continue;"; return p; }
+std::ostream& BreakStmt::print(Printer& p) const { return p.stream() << "break;"; }
+std::ostream& ContinueStmt::print(Printer& p) const { return p.stream() << "continue;"; }
 
-Printer& ReturnStmt::print(Printer& p) const {
-    p << "return";
+std::ostream& ReturnStmt::print(Printer& p) const {
+    p.stream() << "return";
 
     if (expr()) {
-        p << " ";
+        p.stream() << " ";
         expr()->print(p);
     }
 
-    p << ";";
-
-    return p;
+    return p.stream() << ";";
 }
 
-Printer& NamedFunStmt::print(Printer& p) const { named_fun()->print(p); return p; }
+std::ostream& NamedFunStmt::print(Printer& p) const { return named_fun()->print(p); }
 
-Printer& ScopeStmt::print(Printer& p) const {
-    p << "{";
+std::ostream& ScopeStmt::print(Printer& p) const {
+    p.stream() << "{";
     p.up();
 
     if (!stmts().empty()) {
@@ -349,55 +348,14 @@ Printer& ScopeStmt::print(Printer& p) const {
 
         stmts().back()->print(p);
     }
-    p.down();
-    p << "}";
-
-    return p;
+    return p.down() << "}";
 }
 
 //------------------------------------------------------------------------------
 
-Printer& Printer::operator << (const anydsl2::Type* t) { 
-    if (t->isa<anydsl2::PrimType>()) {
-        t->print(*this);
-    } else if (const anydsl2::Sigma* sigma = t->isa<anydsl2::Sigma>()) {
-        ANYDSL2_DUMP_EMBRACING_COMMA_LIST(*this, "#(", sigma->elems(), ")");
-    } else if (const anydsl2::Pi* pi = t->isa<anydsl2::Pi>()) {
-        const Type* ret_type = return_type(pi);
-        if (ret_type->isa<NoRet>()) {
-            ANYDSL2_DUMP_EMBRACING_COMMA_LIST(*this, "pi(", pi->elems(), ")");
-        } else {
-            ANYDSL2_DUMP_EMBRACING_COMMA_LIST(*this, "pi(", pi->elems().slice_front(pi->size()-1), ") -> ");
-            dump(ret_type);
-        }
-    } else if (t->isa<Void>()) {
-      o << "void";
-    } else if (t->isa<NoRet>()) {
-      o << "noret";
-    } else if (t->isa<TypeError>()) {
-      o << "<type error>";
-    } else {
-        t->print(*this);
-    }
-
-    return *this;
-}
-
-//------------------------------------------------------------------------------
-
-void dump(const ASTNode* n, bool fancy, std::ostream& o) {
-    Printer p(o, fancy);
-    n->print(p);
-}
-
-void dump(const Type* t, bool fancy, std::ostream& o) {
-    Printer(o, fancy) << t;
-}
-
-std::ostream& operator << (std::ostream& o, const ASTNode* n) {
-    dump(n, true, o);
-    return o;
-}
+void dump(const ASTNode* n, bool fancy, std::ostream& o) { Printer p(o, fancy); n->print(p); }
+std::ostream& operator << (std::ostream& o, const ASTNode* n) { Printer p(o, true); return n->print(p); }
+std::ostream& operator << (std::ostream& o, const Type* type) { return Printer(o, true).print_type(type); }
 
 //------------------------------------------------------------------------------
 

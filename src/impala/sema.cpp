@@ -325,7 +325,7 @@ const Type* Call::check(Sema& sema) const {
         if (ret_type->isa<NoRet>())
             call_fn = sema.typetable().fntype(op_types.slice_front(op_types.size()-1));
         else {
-            op_types.back() = sema.typetable().fntype(ret_type->as<TupleType>()->elems());
+            op_types.back() = sema.typetable().fntype(ret_type);
             call_fn = sema.typetable().fntype(op_types);
         }
 

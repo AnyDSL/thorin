@@ -32,18 +32,15 @@ struct LambdaAttr {
     void set_extern() { attr_ |= Extern; }
 
 private:
-
     uint32_t attr_;
 };
 
 class Lambda : public Def {
 private:
-
     Lambda(size_t gid, const Pi* pi, LambdaAttr attr, bool is_sealed, const std::string& name);
     virtual ~Lambda();
 
 public:
-
     Lambda* stub(const GenericMap& generic_map) const { return stub(generic_map, name); }
     Lambda* stub(const GenericMap& generic_map, const std::string& name) const;
     Lambda* update_op(size_t i, const Def* def);
@@ -132,10 +129,8 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     void clear();
 
 private:
-
     class Todo {
     public:
-
         Todo() {}
         Todo(size_t handle, size_t index, const Type* type, const char* name)
             : handle_(handle)
@@ -150,7 +145,6 @@ private:
         const char* name() const { return name_; }
 
     private:
-
         size_t handle_;
         size_t index_;
         const Type* type_;

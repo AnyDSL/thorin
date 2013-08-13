@@ -12,14 +12,10 @@ namespace anydsl2 {
 
 class Node : public MagicCast {
 private:
-
-    /// Do not copy-assign a \p Node instance.
-    Node& operator = (const Node&);
-    /// Do not copy-construct a \p Node.
-    Node(const Node& node);
+    Node& operator = (const Node&); ///< Do not copy-assign a \p Node instance.
+    Node(const Node& node);         ///< Do not copy-construct a \p Node.
 
 protected:
-
     Node(int kind, size_t size, const std::string& name)
         : kind_(kind)
         , ops_(size)
@@ -32,7 +28,6 @@ protected:
     void resize(size_t n) { ops_.resize(n, 0); }
 
 public:
-
     int kind() const { return kind_; }
     bool is_corenode() const { return ::anydsl2::is_corenode(kind()); }
     NodeKind node_kind() const { assert(is_corenode()); return (NodeKind) kind_; }
@@ -62,15 +57,15 @@ public:
 
 private:
     int kind_;
+
 protected:
     std::vector<const Node*> ops_;
+
 private:
     mutable size_t cur_pass_;
 
 public:
-
-    /// Just do what ever you want with this field.
-    mutable std::string name;
+    mutable std::string name; ///< Just do what ever you want with this field.
 
     /** 
      * Use this field in order to annotate information on this Def.

@@ -44,7 +44,6 @@ struct PrecTable {
     static Type2Prec postfix_l;///< Left precedence -- for unary postfix operators.
 
 private:
-
     static void init();
 
     friend void init();

@@ -70,7 +70,7 @@ bool Verifier::verify_param(Lambda* current, const Param* param) {
 }
 
 bool Verifier::verify(Lambda* current, const Def* def, PrimOpSet& primops) {
-    if (const Param* param = def->isa<Param>())
+    if (auto param = def->isa<Param>())
         return verify_param(current, param);
     else if (def->isa_lambda())
         return true;
@@ -137,7 +137,7 @@ bool Verifier::verify_primop(Lambda* current, const PrimOp* primop, PrimOpSet& p
     primops.insert(primop);
 
     // check individual primops
-    if (const Select* select = primop->isa<Select>()) {
+    if (auto select = primop->isa<Select>()) {
         if (select->tval()->type() != select->fval()->type())
             invalid(primop, "'select' on unequal types");
         if (select->order() > 0) {
@@ -146,17 +146,17 @@ bool Verifier::verify_primop(Lambda* current, const PrimOp* primop, PrimOpSet& p
             if (select->type() != world_.pi0() && select->type() != world_.pi1(world_.mem()))
                 invalid(select, "higher-order 'select' must be of type 'pi()'");
         }
-    } else if (const ArithOp* op = primop->isa<ArithOp>()) {
+    } else if (auto op = primop->isa<ArithOp>()) {
         if (op->lhs()->type() != op->rhs()->type() || op->type() != op->lhs()->type())
             invalid(op, "'arithop' on unequal types");
         if (!op->type()->isa<PrimType>())
             invalid(op, "'arithop' uses non primitive type");
-    } else if (const RelOp* op = primop->isa<RelOp>()) {
+    } else if (auto op = primop->isa<RelOp>()) {
         if (op->lhs()->type() != op->rhs()->type())
             invalid(op, "'relop' on unequal types");
         if (!op->type()->is_u1())
             invalid(op, "'relop' must yield 'u1'");
-    } else if (const TupleOp* op = primop->isa<TupleOp>()) {
+    } else if (auto op = primop->isa<TupleOp>()) {
         if (!op->index()->isa<PrimLit>())
             invalid(op, "'tupleop' needs a constant extraction index");
         unsigned index = op->index()->primlit_value<unsigned>();
@@ -165,8 +165,8 @@ bool Verifier::verify_primop(Lambda* current, const PrimOp* primop, PrimOpSet& p
             invalid(op, "'tupleop' can only work on a tuple");
         if (index >= tupleType->size())
             invalid(op, "'tupleop' index out of bounds");
-    } else if (const Store* op = primop->isa<Store>()) {
-        if (const Ptr* ptrType = op->ptr()->type()->isa<Ptr>()) {
+    } else if (auto op = primop->isa<Store>()) {
+        if (auto ptrType = op->ptr()->type()->isa<Ptr>()) {
             if (ptrType->referenced_type() != op->val()->type())
                 invalid(op, "ptr must point to the type of the provided value");
         } else
@@ -197,7 +197,7 @@ void Verifier::invalid(const Def* def, const Def* source, const char* msg) {
     } else if (msg)
         std::cout << msg;
 
-    if (Lambda* lambda = def->isa_lambda())
+    if (auto lambda = def->isa_lambda())
         lambda->dump_head();
     else
         def->dump();

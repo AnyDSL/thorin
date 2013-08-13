@@ -20,7 +20,6 @@ namespace impala {
 
 class CodeGen : public IRBuilder {
 public:
-
     CodeGen(World& world)
         : IRBuilder(world)
         , cur_frame(nullptr)

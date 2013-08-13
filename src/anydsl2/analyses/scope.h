@@ -14,7 +14,6 @@ class LoopTree;
 
 class Scope {
 public:
-
     explicit Scope(Lambda* entry);
     explicit Scope(World& world, ArrayRef<Lambda*> entries);
     explicit Scope(World& world);
@@ -48,7 +47,6 @@ public:
     const LoopTree& looptree() const;
 
 private:
-
     void identify_scope(ArrayRef<Lambda*> entries);
     void rpo_numbering(ArrayRef<Lambda*> entries);
     void jump_to_param_users(const size_t pass, Lambda* lambda, Lambda* limit);

@@ -9,7 +9,6 @@ namespace anydsl2 {
 template<class T, bool forwards, bool destroy_nodes = true>
 class ScopeAnalysis {
 protected:
-
     ScopeAnalysis(const Scope& scope)
         : scope_(scope)
         , nodes_(size())
@@ -22,7 +21,6 @@ protected:
     }
 
 public:
-
     const Scope& scope() const { return scope_; }
     size_t size() const { return scope().size();}
     ArrayRef<const T*> nodes() const { return ArrayRef<const T*>(nodes_.begin(), nodes_.size()); }
@@ -56,7 +54,6 @@ public:
     const T* lookup(Lambda* lambda) const { return const_cast<ScopeAnalysis*>(this)->lookup(lambda); }
 
 protected:
-
     const Scope& scope_;
     Array<T*> nodes_;
 };

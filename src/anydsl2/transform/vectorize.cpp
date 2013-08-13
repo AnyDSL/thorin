@@ -12,7 +12,6 @@ namespace anydsl2 {
 
 class Vectorizer {
 public:
-
     Vectorizer(const Scope& scope, size_t length)
         : scope(scope)
         , pass(world().new_pass())
@@ -156,7 +155,7 @@ void Vectorizer::vectorize_primop(const Def* cond, const PrimOp* primop) {
 const Def* Vectorizer::vectorize(const Def* def, size_t length) {
     if (def->isa<Param>() || def->is_non_const_primop())
         return map(def);
-    if (const PrimLit* primlit = def->isa<PrimLit>())
+    if (auto primlit = def->isa<PrimLit>())
         return world().literal(primlit->primtype_kind(), primlit->value(), length);
     if (def->isa<Bottom>())
         return world().bottom(def->type(), length);

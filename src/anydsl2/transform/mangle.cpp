@@ -8,7 +8,6 @@ namespace anydsl2 {
 
 class Mangler {
 public:
-
     Mangler(const Scope& scope, ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
            ArrayRef<const Def*> to_lift, const GenericMap& generic_map)
         : scope(scope)
@@ -49,7 +48,7 @@ Lambda* Mangler::mangle() {
     assert(scope.num_entries() == 1 && "TODO");
     oentry = scope.entries()[0];
     const Pi* o_pi = oentry->pi();
-    Array<const Type*> nelems = o_pi->elems().cut(to_drop, to_lift.size());
+    auto nelems = o_pi->elems().cut(to_drop, to_lift.size());
     size_t offset = o_pi->elems().size() - to_drop.size();
 
     for (size_t i = offset, e = nelems.size(), x = 0; i != e; ++i, ++x)
@@ -107,9 +106,9 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
         ops[i] = mangle(olambda->op(i));
 
     // fold branch if possible
-    if (const Select* select = olambda->to()->isa<Select>()) {
+    if (auto select = olambda->to()->isa<Select>()) {
         const Def* cond = mangle(select->cond());
-        if (const PrimLit* lit = cond->isa<PrimLit>())
+        if (auto lit = cond->isa<PrimLit>())
             ops[0] = mangle(lit->value().get_u1().get() ? select->tval() : select->fval());
         else
             ops[0] = world.select(cond, mangle(select->tval()), mangle(select->fval()));
@@ -136,7 +135,7 @@ const Def* Mangler::mangle(const Def* odef) {
     if (odef->is_visited(pass))
         return lookup(odef);
 
-    if (Lambda* olambda = odef->isa_lambda()) {
+    if (auto olambda = odef->isa_lambda()) {
         if (scope.contains(olambda))
             return mangle_head(olambda);
         else

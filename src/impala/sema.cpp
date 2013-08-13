@@ -18,7 +18,6 @@ namespace impala {
 
 class Sema {
 public:
-
     Sema(TypeTable& typetable, bool nossa)
         : in_foreach_(false)
         , typetable_(typetable)
@@ -73,7 +72,6 @@ public:
     bool in_foreach_;
 
 private:
-
     TypeTable& typetable_;
     bool result_;
     bool nossa_;

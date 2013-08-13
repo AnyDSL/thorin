@@ -21,7 +21,6 @@ typedef AutoPtr<const Ref> RefPtr;
 
 class Ref {
 public:
-
     virtual ~Ref() {}
 
     virtual const Def* load() const = 0;
@@ -40,7 +39,6 @@ public:
 
 class RVal : public Ref {
 public:
-
     RVal(const Def* def)
         : def_(def)
     {}
@@ -50,13 +48,11 @@ public:
     virtual World& world() const;
 
 private:
-
     const Def* def_;
 };
 
 class VarRef : public Ref {
 public:
-
     VarRef(Lambda* bb, size_t handle, const Type* type, const char* name)
         : bb_(bb)
         , handle_(handle)
@@ -69,7 +65,6 @@ public:
     virtual World& world() const;
 
 private:
-
     Lambda* bb_;
     size_t handle_;
     const Type* type_;
@@ -78,7 +73,6 @@ private:
 
 class TupleRef : public Ref {
 public:
-
     TupleRef(RefPtr lref, const Def* index)
         : lref_(std::move(lref))
         , index_(index)
@@ -90,7 +84,6 @@ public:
     virtual World& world() const;
 
 private:
-
     RefPtr lref_;
     const Def* index_;
 
@@ -100,7 +93,6 @@ private:
 
 class SlotRef : public Ref {
 public:
-
     SlotRef(const Slot* slot, IRBuilder& builder)
         : slot_(slot)
         , builder_(builder)
@@ -111,7 +103,6 @@ public:
     virtual World& world() const;
 
 private:
-
     const Slot* slot_;
     IRBuilder& builder_;
 };
@@ -127,7 +118,6 @@ RefPtr Ref::create(const Slot* slot, IRBuilder& builder) { return RefPtr(new Slo
 
 class JumpTarget {
 public:
-
     JumpTarget(const char* name = "")
         : lambda_(nullptr)
         , first_(false)
@@ -142,7 +132,6 @@ public:
     void jump_from(Lambda* bb);
 
 private:
-
     Lambda* get(World& world);
     Lambda* untangle();
     Lambda* enter();
@@ -159,7 +148,6 @@ private:
 
 class IRBuilder {
 public:
-
     IRBuilder(World& world)
         : cur_bb(nullptr)
         , world_(world)
@@ -184,7 +172,6 @@ public:
     Lambda* cur_bb;
 
 protected:
-
     World& world_;
 };
 

@@ -110,8 +110,16 @@ std::ostream& Fun::fun_print(Printer& p) const {
 
     p.dump_list([&] (const VarDecl* decl) { decl->print(p); }, params_ref, "(", ")");
 
-    if (!ret_type->isa<NoRet>())
-        p.stream() << "-> " << ret_type << " ";
+    if (!ret_type->isa<NoRet>()) {
+        p.stream() << " -> ";
+        auto ret_tuple = ret_type->as<TupleType>();
+        switch (ret_tuple->size()) {
+            case 0:  p.stream() << "void"; break;
+            case 1:  p.print_type(ret_tuple->elem(0)); break;
+            default: p.print_type(ret_tuple); break;
+        }
+        p.stream() << " ";
+    }
 
     return p.print_block(body());
 }

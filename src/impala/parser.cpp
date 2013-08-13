@@ -11,14 +11,6 @@
 #include "impala/prec.h"
 #include "impala/type.h"
 
-#define PARSE_COMMA_LIST(stmnt, delimiter, context) { \
-        if (la() != delimiter) { \
-            do { stmnt; } \
-            while ( accept(Token::COMMA) ); \
-        } \
-        expect(delimiter, context); \
-    }
-
 using namespace anydsl2;
 
 namespace impala {
@@ -62,6 +54,15 @@ public:
     const Proto* parse_proto();
     void parse_fun(Fun* fun);
     const NamedFun* parse_named_fun();
+
+    template<class F>
+    void parse_comma_list(TokenKind delimiter, const char* context, F f) {
+        if (la() != delimiter) {
+            do { f(); }
+            while ( accept(Token::COMMA) );
+        }
+        expect(delimiter, context);
+    }
 
     // expressions
     const Expr* parse_expr(Prec prec);
@@ -261,12 +262,9 @@ const Type* Parser::parse_compound_type() {
     std::vector<const Type*> elems;
     const char* error_str = pi ? "element types of pi" : "element types of sigma";
     expect(Token::L_PAREN, error_str);
-    PARSE_COMMA_LIST
-    (
-        elems.push_back(try_type(error_str)),
-        Token::R_PAREN,
-        pi ?  "closing parenthesis of pi type" : "closing parenthesis of sigma type"
-    )
+    parse_comma_list(Token::R_PAREN, pi ?  "closing parenthesis of pi type" : "closing parenthesis of sigma type", [&] () {
+        elems.push_back(try_type(error_str));
+    });
 
     if (pi && accept(Token::ARROW))
         elems.push_back(parse_return_type());
@@ -314,14 +312,11 @@ const Proto* Parser::parse_proto() {
     eat(Token::EXTERN);
     Proto* proto = new Proto(try_id("prototype").symbol());
     std::vector<const Type*> types;
-    expect(Token::L_PAREN, "prototype");
-    PARSE_COMMA_LIST
-    (
-        types.push_back(try_type("type list of prototype function")),
-        Token::R_PAREN,
-        "type list of prototype"
-    )
 
+    expect(Token::L_PAREN, "prototype");
+    parse_comma_list(Token::R_PAREN, "type list of prototype", [&] {
+        types.push_back(try_type("type list of prototype function"));
+    });
     expect(Token::ARROW, "prototype");
 
     const Type* ret_type = try_type("return type of prototype");
@@ -337,14 +332,10 @@ const Proto* Parser::parse_proto() {
 }
 
 void Parser::parse_generics_list(GenericsList& generics) {
-    if (accept(Token::LT)) {
-        PARSE_COMMA_LIST
-        (
-            generics.push_back(GenericEntry(try_id("generic identifier").symbol(), builder.new_def())),
-            Token::GT,
-            "generics list"
-        )
-    }
+    if (accept(Token::LT))
+        parse_comma_list(Token::GT, "generics list", [&] () {
+            generics.push_back(GenericEntry(try_id("generic identifier").symbol(), builder.new_def()));
+        });
 }
 
 void Parser::parse_fun(Fun* fun) {
@@ -353,16 +344,11 @@ void Parser::parse_fun(Fun* fun) {
 
     std::vector<const Type*> arg_types;
     expect(Token::L_PAREN, "function head");
-    PARSE_COMMA_LIST
-    (
-        {
-            const VarDecl* param = parse_var_decl();
-            fun->params_.push_back(param);
-            arg_types.push_back(param->type());
-        },
-        Token::R_PAREN,
-        "parameter list"
-    )
+    parse_comma_list(Token::R_PAREN, "parameter list", [&] () {
+        const VarDecl* param = parse_var_decl();
+        fun->params_.push_back(param);
+        arg_types.push_back(param->type());
+    });
 
     // return-continuation
     if (accept(Token::ARROW)) {
@@ -795,12 +781,9 @@ const Expr* Parser::parse_infix_expr(const Expr* lhs) {
 const Expr* Parser::parse_postfix_expr(const Expr* lhs) {
     if (accept(Token::L_PAREN)) {
         Call* call = new Call(lhs);
-        PARSE_COMMA_LIST
-        (
-            call->append_arg(try_expr("argument of function call")),
-            Token::R_PAREN,
-            "arguments of a function call"
-        )
+        parse_comma_list(Token::R_PAREN, "arguments of a function call", [&] () {
+            call->append_arg(try_expr("argument of function call"));
+        });
         call->set_pos2(prev_loc.pos2());
 
         return call;
@@ -860,13 +843,9 @@ const Expr* Parser::parse_literal() {
 const Expr* Parser::parse_tuple() {
     Tuple* tuple = new Tuple(eat(Token::HASH).pos1());
     expect(Token::L_PAREN, "tuple");
-
-    PARSE_COMMA_LIST
-    (
-        tuple->ops_.push_back(try_expr("tuple element")),
-        Token::R_PAREN,
-        "closing parenthesis of tuple"
-    )
+    parse_comma_list(Token::R_PAREN, "closing parenthesis of tuple", [&] () {
+        tuple->ops_.push_back(try_expr("tuple element"));
+    });
 
     tuple->set_pos2(prev_loc.pos2());
 

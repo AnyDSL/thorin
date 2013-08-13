@@ -8,7 +8,7 @@ namespace anydsl2 {
 
 void inliner(World& world) {
     for (auto top : top_level_lambdas(world)) {
-        if (top->num_uses() <= 2) {
+        if (!top->empty() && top->num_uses() <= 2) {
             for (auto use : top->uses()) {
                 if (use.index() == 0) {
                     if (Lambda* ulambda = use->isa_lambda()) {

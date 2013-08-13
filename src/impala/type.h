@@ -34,8 +34,6 @@ public:
 #include "impala/tokenlist.h"
     const FnType* fntype(const Type*);
     const FnType* fntype(anydsl2::ArrayRef<const Type*> elems = anydsl2::ArrayRef<const Type*>(nullptr, 0));
-    const FnType* fntype(anydsl2::ArrayRef<const Type*> elems, const Type* ret_type);
-    const FnType* fntype(anydsl2::ArrayRef<const Type*> elems, anydsl2::Array<const Type*> ret_tuple);
     const TupleType* tupletype(anydsl2::ArrayRef<const Type*> elems);
 
 private:

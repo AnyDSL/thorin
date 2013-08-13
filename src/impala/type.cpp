@@ -6,6 +6,8 @@ using namespace anydsl2;
 
 namespace impala {
 
+//------------------------------------------------------------------------------
+
 TypeTable::TypeTable()
     : types_()
 #define IMPALA_TYPE(itype, atype) ,itype##_(unify(primtype(Token::TYPE_##itype)))
@@ -34,6 +36,12 @@ const PrimType* TypeTable::primtype(TokenKind kind) {
         default: ANYDSL2_UNREACHABLE;
     }
 }
+
+const FnType* TypeTable::fntype(const Type* elem) { const Type* elems[1] = { elem }; return fntype(elems); }
+const FnType* TypeTable::fntype(anydsl2::ArrayRef<const Type*> elems) { return unify(new FnType(*this, elems)); }
+const TupleType* TypeTable::tupletype(anydsl2::ArrayRef<const Type*> elems) { return unify(new TupleType(elems)); }
+
+//------------------------------------------------------------------------------
 
 bool Type::is_bool() const { 
     if (auto pt = isa<PrimType>()) 

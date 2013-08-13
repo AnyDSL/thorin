@@ -218,7 +218,7 @@ public:
     anydsl2::Box box() const { return box_; }
     virtual bool is_lvalue() const { return false; }
     virtual std::ostream& print(Printer& p) const;
-    anydsl2::PrimTypeKind literal2type() const;
+    TokenKind literal2type() const;
 
 private:
     virtual const Type* check(Sema& sema) const;

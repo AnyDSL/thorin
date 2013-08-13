@@ -42,15 +42,8 @@ std::ostream& Printer::print_type(const Type* type) {
                 << ret_type;
     } else if (auto generic = type->isa<Generic>()) {
         return stream() << Generic::to_string(generic->index());
-    //} else if (auto genref = type->isa<anydsl2::GenericRef>()) {
-        //return stream() << "TODO";
-    //} else if (auto ptr = type->isa<anydsl2::Ptr>()) {
-        //if (ptr->is_vector())
-            //stream() << '<' << ptr->length() << " x ";
-        //print_type(ptr->referenced_type()) << '*';
-        //if (ptr->is_vector())
-            //stream() << '>';
-        //return stream();
+    } else if (auto genref = type->isa<GenericRef>()) {
+        return stream() << '<' << genref->namedfun()->symbol() << ", " << genref->generic() << '>';
     } else if (auto primtype = type->isa<PrimType>()) {
         switch (primtype->kind()) {
 #define IMPALA_TYPE(itype, atype) case Token::TYPE_##itype: return stream() << #itype;

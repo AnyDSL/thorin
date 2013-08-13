@@ -53,7 +53,7 @@ public:
     bool is_expr();
     bool is_stmt();
     const Prg* parse();
-    void parse_generic_list();
+    void parse_generics_list(GenericsList&);
     const Type* parse_type();
     const Type* parse_compound_type();
     const Type* parse_return_type();
@@ -93,66 +93,41 @@ public:
     /// helper for condition in if/while/do-while
     const Expr* parse_cond(const std::string& what);
 
+    struct GenFun {
+        GenFun() {}
+        GenFun(GenericEntry* generic_entry, const NamedFun* namedfun)
+            : generic_entry_(generic_entry)
+            , namedfun_(namedfun)
+        {}
+
+        GenericEntry* generic_entry() const { return generic_entry_; }
+        const NamedFun* namedfun() const { return namedfun_; }
+
+    private:
+        GenericEntry* generic_entry_;
+        const NamedFun* namedfun_;
+    };
+
+    const Type* generic_lookup(Symbol symbol) {
+        auto i = symbol2gen.find(symbol);
+        if (i != symbol2gen.end()) {
+            GenFun genfun = i->second;
+            auto generic = builder.use(genfun.generic_entry()->handle());
+            if (cur_fun == genfun.namedfun()) 
+                return generic;
+            return generic->genericref(genfun.namedfun());
+        }
+    }
+
 private:
     /// Consume next Token in input stream, fill look-ahead buffer, return consumed Token.
     Token lex();
-
-    typedef std::unordered_map<Symbol, size_t> Symbol2Handle;
-    class Generics {
-    public:
-        Generics(Generics* parent, GenericBuilder& builder)
-            : parent_(parent)
-            , builder(builder)
-            , counter(0)
-        {}
-        ~Generics() {
-            for (; counter; --counter)
-                builder.pop();
-        }
-
-        Generics* parent() const { return parent_; }
-
-        //const Generic* lookup(Symbol symbol) {
-        const Type* lookup(Symbol symbol) {
-            auto i = symbol2handle_.find(symbol);
-            if (i != symbol2handle_.end()) 
-                return builder.use(i->second);
-
-            if (parent_)
-                return parent_->lookup(symbol);
-
-            return nullptr;
-        }
-
-        void insert(Symbol symbol) { 
-            ++counter;
-            symbol2handle_[symbol] = builder.new_def();
-        }
-
-    private:
-        Generics* parent_;
-        GenericBuilder& builder;
-        int counter;
-        Symbol2Handle symbol2handle_;
-    };
-
-    const Type* generic_lookup(Symbol symbol) { return cur_generics ? cur_generics->lookup(symbol) : nullptr; }
-
-    void generic_insert(Token token) {
-        Symbol symbol = token.symbol();
-        assert(cur_generics);
-        if (cur_generics->lookup(symbol))
-            sema_error(token) << "generic '" << symbol << "' defined twice\n";
-        else
-            cur_generics->insert(symbol);
-    }
 
     TypeTable& typetable;
     Lexer lexer;       ///< invoked in order to get next token
     Token lookahead[2];///< LL(2) look ahead
     const Loop* cur_loop;
     const Fun* cur_fun;
-    Generics* cur_generics;
     size_t cur_var_handle;
     size_t generic_counter;
     Prg* prg;
@@ -160,6 +135,7 @@ private:
     anydsl2::Location prev_loc;
     bool result_;
     GenericBuilder builder;
+    std::unordered_map<Symbol, GenFun> symbol2gen;
 };
 
 //------------------------------------------------------------------------------
@@ -183,7 +159,6 @@ Parser::Parser(TypeTable& typetable, std::istream& stream, const std::string& fi
     , lexer(stream, filename)
     , cur_loop(nullptr)
     , cur_fun(nullptr)
-    , cur_generics(nullptr)
     , cur_var_handle(2) // reserve 0 for conditionals, 1 for mem
     , generic_counter(0)
     , prg(new Prg())
@@ -275,7 +250,7 @@ const Type* Parser::parse_type() {
         case Token::SIGMA:             return parse_compound_type();
         // TODO generic refs
         case Token::ID: 
-            return cur_generics->lookup(lex().symbol());
+            return generic_lookup(lex().symbol());
         default: ANYDSL2_UNREACHABLE;
     }
 }
@@ -361,11 +336,11 @@ const Proto* Parser::parse_proto() {
     return proto;
 }
 
-void Parser::parse_generic_list() {
+void Parser::parse_generics_list(GenericsList& generics) {
     if (accept(Token::LT)) {
         PARSE_COMMA_LIST
         (
-            generic_insert(try_id("generic identifier")),
+            generics.push_back(GenericEntry(try_id("generic identifier").symbol(), builder.new_def())),
             Token::GT,
             "generics list"
         )
@@ -375,10 +350,6 @@ void Parser::parse_generic_list() {
 void Parser::parse_fun(Fun* fun) {
     ANYDSL2_PUSH(cur_fun, fun);
     ANYDSL2_PUSH(cur_var_handle, cur_var_handle);
-
-    Generics generics(cur_generics, builder);
-    cur_generics = &generics;
-    parse_generic_list();
 
     std::vector<const Type*> arg_types;
     expect(Token::L_PAREN, "function head");
@@ -404,8 +375,6 @@ void Parser::parse_fun(Fun* fun) {
     const FnType* fntype = typetable.fntype(arg_types);
     const ScopeStmt* body = parse_scope();
     fun->fun_set(fntype, body);
-
-    cur_generics = generics.parent();
 }
 
 const NamedFun* Parser::parse_named_fun() {
@@ -414,8 +383,19 @@ const NamedFun* Parser::parse_named_fun() {
     Token id = try_id("function identifier");
 
     NamedFun* f = new NamedFun(ext);
+    parse_generics_list(f->generics_);
+    for (auto& genentry : f->generics_) {
+        // TODO check generics shadowing
+        symbol2gen[genentry.symbol()] = GenFun(&genentry, f);
+    }
+
     parse_fun(f);
     f->set(id, f->fntype(), prev_loc.pos2());
+
+    for (auto& genentry : f->generics_) {
+        symbol2gen.erase(genentry.symbol());
+        builder.pop();
+    }
 
     return f;
 }

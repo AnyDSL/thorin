@@ -46,6 +46,9 @@ const FnType* TypeTable::fntype(const Type* elem) { const Type* elems[1] = { ele
 const FnType* TypeTable::fntype(anydsl2::ArrayRef<const Type*> elems) { return unify(new FnType(*this, elems)); }
 const TupleType* TypeTable::tupletype(anydsl2::ArrayRef<const Type*> elems) { return unify(new TupleType(*this, elems)); }
 const Generic* TypeTable::generic(size_t index) { return unify(new Generic(*this, index)); }
+const GenericRef* TypeTable::genericref(const NamedFun* fun, const Generic* generic) { 
+    return unify(new GenericRef(*this, fun, generic)); 
+}
 
 //------------------------------------------------------------------------------
 
@@ -103,6 +106,8 @@ const char* GenericMap::to_string() const {
 
     return o.str().c_str();
 }
+
+const GenericRef* Generic::genericref(const NamedFun* fun) const { return typetable_.genericref(fun, this); }
 
 //------------------------------------------------------------------------------
 
@@ -236,7 +241,7 @@ const anydsl2::Type* Generic::convert(anydsl2::World& world) const {
 }
 
 const anydsl2::Type* GenericRef::convert(anydsl2::World& world) const {
-    return world.generic_ref(generic()->convert(world)->as<anydsl2::Generic>(), fun()->lambda());
+    return world.generic_ref(generic()->convert(world)->as<anydsl2::Generic>(), namedfun()->lambda());
 }
 
 //------------------------------------------------------------------------------

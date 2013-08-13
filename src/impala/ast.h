@@ -40,6 +40,23 @@ typedef std::vector<const NamedFun*> NamedFuns;
 typedef anydsl2::AutoVector<const Stmt*> Stmts;
 typedef anydsl2::AutoPtr<const anydsl2::Ref> RefPtr;
 
+struct GenericEntry {
+    GenericEntry() {}
+    GenericEntry(anydsl2::Symbol symbol, size_t handle)
+        : symbol_(symbol)
+        , handle_(handle)
+    {}
+
+    anydsl2::Symbol symbol() const { return symbol_; }
+    size_t handle() const { return handle_; }
+
+private:
+    anydsl2::Symbol symbol_;
+    size_t handle_;
+};
+
+typedef std::vector<GenericEntry> GenericsList;
+
 class ASTNode : public anydsl2::HasLocation, public anydsl2::MagicCast {
 public:
     virtual std::ostream& print(Printer& p) const = 0;
@@ -151,9 +168,11 @@ public:
     }
     virtual std::ostream& print(Printer& p) const;
     bool is_extern() const { return extern_; }
+    const GenericsList& generics() const { return generics_; }
 
 private:
     bool extern_;
+    GenericsList generics_;
 
     friend class Parser;
 };

@@ -1,12 +1,15 @@
 #ifndef IMPALA_EMIT_H
 #define IMPALA_EMIT_H
 
+namespace anydsl2 {
+    class World;
+}
+
 namespace impala {
 
 class Prg;
-class World;
 
-void emit(World& world, const Prg* prg);
+void emit(anydsl2::World&, const Prg*);
 
 } // namespace impala
 

@@ -49,9 +49,9 @@ void emit(World& world, const Prg* prg) { CodeGen(world).emit(prg); }
 //------------------------------------------------------------------------------
 
 Lambda* CodeGen::emit_head(const Fun* fun, Symbol symbol) {
-    fun->lambda_ = world().lambda(convert(fun->pi()), symbol.str());
+    fun->lambda_ = world().lambda(fun->fntype()->convert(world())->as<Pi>(), symbol.str());
     size_t num = fun->params().size();
-    const Type* ret_type = return_type(fun->pi());
+    const Type* ret_type = fun->fntype()->return_type();
     fun->ret_param_ = ret_type->isa<NoRet>() ? nullptr : fun->lambda_->param(num-1+1);
     fun->lambda()->param(0)->name = "mem";
 
@@ -87,7 +87,7 @@ const Lambda* CodeGen::emit_body(const Fun* fun, Lambda* parent, const char* wha
     enter(exit);
 
     if (is_reachable()) {
-        if (!fun->is_continuation() && return_type(fun->pi())->isa<Void>())
+        if (!fun->is_continuation() && fun->fntype()->return_type()->is_void())
             cur_bb->jump1(fun->ret_param(), get_mem());
         else {
             if (fun->is_continuation())
@@ -135,7 +135,7 @@ void CodeGen::emit(const NamedFun* named_fun) {
 }
 
 RefPtr CodeGen::emit(const VarDecl* decl) {
-    const Type* air_type = convert(decl->type());
+    const anydsl2::Type* air_type = decl->type()->convert(world());
     if (decl->is_address_taken())
         return Ref::create(world().slot(air_type, cur_frame, decl->handle(), decl->symbol().str()), *this);
 
@@ -186,10 +186,10 @@ RefPtr Id::emit(CodeGen& cg) const {
     if (const NamedFun* named_fun = decl()->isa<NamedFun>())
         return Ref::create(named_fun->lambda());
     if (const Proto* proto = decl()->isa<Proto>())
-        return Ref::create(cg.world().lambda(convert(proto->pi()), LambdaAttr(LambdaAttr::Extern), proto->symbol().str()));
+        return Ref::create(cg.world().lambda(proto->fntype()->convert(cg.world())->as<Pi>(), LambdaAttr(LambdaAttr::Extern), proto->symbol().str()));
 
     const VarDecl* vardecl = decl()->as<VarDecl>();
-    const Type* air_type = convert(type());
+    const anydsl2::Type* air_type = type()->convert(cg.world());
 
     if (vardecl->is_address_taken())
         return Ref::create(cg.world().slot(air_type, cg.cur_frame, vardecl->handle(), symbol().str()), cg);
@@ -203,7 +203,7 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
         case DEC: {
             RefPtr ref = cg.emit(rhs());
             const Def* def = ref->load();
-            const Def* one = cg.world().one(convert(def->type()));
+            const Def* one = cg.world().one(def->type());
             const Def* ndef = cg.world().arithop(Token::to_arithop((TokenKind) kind(), type()->is_float()), def, one);
             ref->store(ndef);
             return ref;
@@ -264,7 +264,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
 RefPtr PostfixExpr::emit(CodeGen& cg) const {
     RefPtr ref = cg.emit(lhs());
     const Def* def = ref->load();
-    const Def* one = cg.world().one(convert(def->type()));
+    const Def* one = cg.world().one(def->type());
     ref->store(cg.world().arithop(Token::to_arithop((TokenKind) kind(), type()->is_float()), def, one));
     return Ref::create(def);
 }
@@ -287,7 +287,7 @@ RefPtr ConditionalExpr::emit(CodeGen& cg) const {
     }
 
     if (Lambda* xl = cg.enter(x))
-        return Ref::create(xl->get_value(0, convert(t_expr()->type()), "cond"));
+        return Ref::create(xl->get_value(0, t_expr()->type()->convert(cg.world()), "cond"));
     return Ref::create(nullptr);
 }
 
@@ -308,7 +308,7 @@ RefPtr Call::emit(CodeGen& cg) const {
         return RefPtr(nullptr);
     }
 
-    cg.mem_call(ops[0], args, convert(type()));
+    cg.mem_call(ops[0], args, type()->convert(cg.world()));
     cg.set_mem(cg.cur_bb->param(0));
 
     return Ref::create(cg.cur_bb->param(1));
@@ -427,7 +427,7 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     for (size_t i = 1; i < num; ++i)
         args[i] = cg.emit(call()->op(i))->load();
     // construct a lambda for the body, see below
-    Lambda* lambda = cg.world().lambda(convert(fun_type_));
+    Lambda* lambda = cg.world().lambda(fntype_->convert(cg.world())->as<Pi>());
     args[num] = lambda;
 
     cg.mem_call(cg.emit(call()->op(0))->load(), args, nullptr /*no return type*/);

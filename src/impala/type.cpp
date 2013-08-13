@@ -12,7 +12,7 @@ TypeTable::TypeTable()
 #include "impala/tokenlist.h"
     , type_error_(unify(new TypeError()))
     , noret_(unify(new NoRet()))
-    , unit_(unify(new TupleType(ArrayRef<const Type*>(nullptr, 0))))
+    , void_(unify(new TupleType(ArrayRef<const Type*>(nullptr, 0))))
 {}
 
 const Type* TypeTable::unify_base(const Type* type) {
@@ -41,6 +41,12 @@ bool Type::is_bool() const {
     return false; 
 }
 
+bool Type::is_void() const { 
+    if (auto tuple = isa<TupleType>()) 
+        return tuple->empty();
+    return false; 
+}
+
 bool Type::is_int() const {
     if (auto pt = isa<PrimType>()) {
         switch (pt->kind()) {
@@ -50,6 +56,17 @@ bool Type::is_int() const {
             case Token::TYPE_int64:
             case Token::TYPE_int:   return true;
             default:                return false;
+        }
+    }
+    return false;
+}
+
+bool Type::is_float() const {
+    if (auto pt = isa<PrimType>()) {
+        switch (pt->kind()) {
+            case Token::TYPE_float:
+            case Token::TYPE_double: return true;
+            default:                 return false;
         }
     }
     return false;

@@ -182,7 +182,7 @@ void Sema::fun_check(const Fun* fun) {
  * Expr
  */
 
-const Type* EmptyExpr::check(Sema& sema) const { return sema.typetable().unit(); }
+const Type* EmptyExpr::check(Sema& sema) const { return sema.typetable().type_void(); }
 //const Type* Literal::check(Sema& sema) const { return sema.typetable().type(literal2type()); }
 const Type* FunExpr::check(Sema& sema) const { sema.fun_check(this); return fntype(); }
 

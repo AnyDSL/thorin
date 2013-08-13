@@ -191,7 +191,7 @@ Parser::Parser(TypeTable& typetable, std::istream& stream, const std::string& fi
     , prg(new Prg())
     , counter(0)
     , result_(true)
-    //, builder(world)
+    //, builder(typetable)
 {
     // init 2 lookahead
     lookahead[0] = lexer.lex();
@@ -267,16 +267,17 @@ Token Parser::try_id(const std::string& what) {
 const Type* Parser::parse_type() {
     switch (la()) {
 #define IMPALA_TYPE(itype, atype) \
-        case Token::TYPE_##itype: lex(); return world.type_##atype();
+        case Token::TYPE_##itype: lex(); return typetable.type_##itype();
 #include "impala/tokenlist.h"
 
-        case Token::TYPE_int:   lex(); return world.type_u32();
-        case Token::TYPE_void:  lex(); return world.type_void();
-        case Token::TYPE_noret: lex(); return world.noret();
+        case Token::TYPE_int:   lex(); return typetable.type_int32();
+        case Token::TYPE_void:  lex(); return typetable.type_void();
+        case Token::TYPE_noret: lex(); return typetable.noret();
         case Token::PI:
         case Token::SIGMA:             return parse_compound_type();
-        case Token::ID:
-            return cur_generics->lookup(lex().symbol());
+        // TODO
+        //case Token::ID: 
+            //return cur_generics->lookup(lex().symbol());
         default: ANYDSL2_UNREACHABLE;
     }
 }
@@ -284,8 +285,9 @@ const Type* Parser::parse_type() {
 const Type* Parser::parse_compound_type() {
     bool pi = lex().kind() == Token::PI;
 
-    Generics generics(cur_generics, builder);
-    cur_generics = &generics;
+    // TODO
+    //Generics generics(cur_generics, builder);
+    //cur_generics = &generics;
     parse_generic_list();
 
     std::vector<const Type*> elems;
@@ -301,19 +303,19 @@ const Type* Parser::parse_compound_type() {
     if (pi && accept(Token::ARROW))
         elems.push_back(parse_return_type());
 
-    cur_generics = generics.parent();
+    //cur_generics = generics.parent();
 
     if (pi) 
-        return world.pi(elems);
-    return world.sigma(elems);
+        return typetable.fntype(elems);
+    return typetable.tupletype(elems);
 }
 
 const Type* Parser::parse_return_type() {
     const Type* ret_type = try_type("return type");
-    if (ret_type->isa<Void>())
-        return world.pi0();
+    if (ret_type->is_void())
+        return typetable.fntype();
     else
-        return world.pi1(ret_type);
+        return typetable.fntype(ret_type);
 }
 
 const VarDecl* Parser::parse_var_decl() {
@@ -357,18 +359,19 @@ const Proto* Parser::parse_proto() {
     expect(Token::ARROW, "prototype");
 
     const Type* ret_type = try_type("return type of prototype");
-    if (ret_type->isa<Void>())
-        types.push_back(world.pi0());
+    if (ret_type->is_void())
+        types.push_back(typetable.fntype());
     else
-        types.push_back(world.pi1(ret_type));
+        types.push_back(typetable.fntype(ret_type));
 
-    proto->type_ = world.pi(types);
+    proto->type_ = typetable.fntype(types);
     proto->set_loc(pos1, prev_loc.pos2());
 
     return proto;
 }
 
 void Parser::parse_generic_list() {
+#if 0
     if (accept(Token::LT)) {
         PARSE_COMMA_LIST
         (
@@ -377,15 +380,16 @@ void Parser::parse_generic_list() {
             "generics list"
         )
     }
+#endif
 }
 
 void Parser::parse_fun(Fun* fun) {
     ANYDSL2_PUSH(cur_fun, fun);
     ANYDSL2_PUSH(cur_var_handle, cur_var_handle);
 
-    Generics generics(cur_generics, builder);
-    cur_generics = &generics;
-    parse_generic_list();
+    //Generics generics(cur_generics, builder);
+    //cur_generics = &generics;
+    //parse_generic_list();
 
     std::vector<const Type*> arg_types;
     expect(Token::L_PAREN, "function head");
@@ -408,11 +412,11 @@ void Parser::parse_fun(Fun* fun) {
         fun->params_.push_back(new VarDecl(cur_var_handle++, Token(pos1, "return"), arg_types.back(), pos2));
     }
 
-    const Pi* pi = world.pi(arg_types);
+    const FnType* fntype = typetable.fntype(arg_types);
     const ScopeStmt* body = parse_scope();
-    fun->fun_set(pi, body);
+    fun->fun_set(fntype, body);
 
-    cur_generics = generics.parent();
+    //cur_generics = generics.parent();
 }
 
 const NamedFun* Parser::parse_named_fun() {
@@ -422,7 +426,7 @@ const NamedFun* Parser::parse_named_fun() {
 
     NamedFun* f = new NamedFun(ext);
     parse_fun(f);
-    f->set(id, f->pi(), prev_loc.pos2());
+    f->set(id, f->fntype(), prev_loc.pos2());
 
     return f;
 }
@@ -672,8 +676,8 @@ const Expr* Parser::parse_cond(const std::string& what) {
 }
 
 bool Parser::is_type(size_t lookahead) {
-    if (la(lookahead) == Token::ID && generic_lookup(la().symbol()))
-        return true;
+    //if (la(lookahead) == Token::ID && generic_lookup(la().symbol()))
+        //return true;
 
     switch (la(lookahead)) {
 #define IMPALA_TYPE(itype, atype) \
@@ -693,8 +697,8 @@ bool Parser::is_type(size_t lookahead) {
 
 bool Parser::is_expr() {
     // identifier without a succeeding colon which is not a generic
-    if (la() == Token::ID && la2() != Token::COLON && !generic_lookup(la().symbol()))
-        return true;
+    //if (la() == Token::ID && la2() != Token::COLON && !generic_lookup(la().symbol()))
+        //return true;
 
     switch (la()) {
 #define IMPALA_PREFIX(tok, t_str, r) case Token:: tok:
@@ -731,7 +735,7 @@ const Type* Parser::try_type(const std::string& what) {
         type = parse_type();
     else {
         error("type", what);
-        type = world.type_error();
+        type = typetable.type_error();
         lex(); // eat away erroneous token
     }
 

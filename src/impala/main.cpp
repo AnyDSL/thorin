@@ -122,12 +122,12 @@ int main(int argc, char** argv) {
 #endif
 
         bool result;
-        anydsl2::AutoPtr<const impala::Prg> p(impala::parse(init.world, file, filename, result));
+        anydsl2::AutoPtr<const impala::Prg> p(impala::parse(init.typetable, file, filename, result));
 
         if (emit_ast)
             dump(p, fancy);
 
-        result &= check(init.world, p, nossa);
+        result &= check(init.typetable, p, nossa);
 
         if (result) {
             emit(init.world, p);

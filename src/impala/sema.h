@@ -3,9 +3,9 @@
 
 namespace impala {
 
-class World;
+class TypeTable;
 
-bool check(World& world, const Prg* prg, bool nossa = false);
+bool check(TypeTable&, const Prg*, bool nossa = false);
 
 } // namespace impala
 

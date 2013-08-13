@@ -28,43 +28,39 @@ std::ostream& Printer::print_type(const Type* type) {
     if (type->isa<NoRet>()) {
         return stream() << "noret";
     } else if (type->isa<TypeError>()) {
-        return stream() << "<type error>";
+        return stream() << "<error>";
     } else if (auto tuple = type->isa<TupleType>()) {
-        return dump_list([&] (const Type* elem) { print_type(elem); }, sigma->elems(), "(", ")");
+        return dump_list([&] (const Type* elem) { print_type(elem); }, tuple->elems(), "(", ")");
     } else if (auto fn = type->isa<FnType>()) {
-        const Type* ret_type = return_type(pi);
-        if (ret_type->isa<NoRet>()) {
+        const Type* ret_type = fn->return_type();
+        if (ret_type->isa<NoRet>())
             return dump_list([&] (const Type* elem) { print_type(elem); }, fn->elems(), "fn(", ")");
-
-        auto ret_tuple = ret_type->as<TupleType>();
-        dump_list([&] (const Type* elem) { print_type(elem); }, fn->elems().slice_front(fn->size()-1), "fn(", ") -> ");
-        switch (ret_tuple.size()) {
-            case 0: return stream() << "void";
-            case 1: return print_type(ret_tuple->elem(0);
-            default: return print_type(ret_tuple);
+        else {
+            auto ret_tuple = ret_type->as<TupleType>();
+            dump_list([&] (const Type* elem) { print_type(elem); }, fn->elems().slice_front(fn->size()-1), "fn(", ") -> ");
+            switch (ret_tuple->size()) {
+                case 0: return stream() << "void";
+                case 1: return print_type(ret_tuple->elem(0));
+                default: return print_type(ret_tuple);
+            }
         }
-    } else if (auto generic = type->isa<anydsl2::Generic>()) {
-        return stream() << '_' << generic->index();
-    } else if (auto genref = type->isa<anydsl2::GenericRef>()) {
-        return stream() << "TODO";
-    } else if (auto ptr = type->isa<anydsl2::Ptr>()) {
-        if (ptr->is_vector())
-            stream() << '<' << ptr->length() << " x ";
-        print_type(ptr->referenced_type()) << '*';
-        if (ptr->is_vector())
-            stream() << '>';
-        return stream();
-    } else if (auto primtype = type->isa<anydsl2::PrimType>()) {
-        if (primtype->is_vector())
-            stream() << "<" << primtype->length() << " x ";
-            switch (primtype->primtype_kind()) {
-#define ANYDSL2_UF_TYPE(T) case anydsl2::Node_PrimType_##T: stream() << #T; break;
-#include "anydsl2/tables/primtypetable.h"
+    //} else if (auto generic = type->isa<anydsl2::Generic>()) {
+        //return stream() << '_' << generic->index();
+    //} else if (auto genref = type->isa<anydsl2::GenericRef>()) {
+        //return stream() << "TODO";
+    //} else if (auto ptr = type->isa<anydsl2::Ptr>()) {
+        //if (ptr->is_vector())
+            //stream() << '<' << ptr->length() << " x ";
+        //print_type(ptr->referenced_type()) << '*';
+        //if (ptr->is_vector())
+            //stream() << '>';
+        //return stream();
+    } else if (auto primtype = type->isa<PrimType>()) {
+        switch (primtype->kind()) {
+#define IMPALA_TYPE(itype, atype) case Token::TYPE_##itype: return stream() << #itype;
+#include "impala/tokenlist.h"
             default: ANYDSL2_UNREACHABLE;
         }
-        if (primtype->is_vector())
-            stream() << ">";
-        return stream();
     }
     ANYDSL2_UNREACHABLE;
 }
@@ -101,13 +97,13 @@ std::ostream& Prg::print(Printer& p) const {
 
 std::ostream& Proto::print(Printer& p) const {
     p.stream() << "extern " << symbol_ << " ";
-    return p.dump_list([&] (const Type* type) { p.print_type(type); }, pi()->elems().slice_front(pi()->size()-1), "(", ")") 
-        << " -> " << pi()->elems().back();
+    return p.dump_list([&] (const Type* type) { p.print_type(type); }, fntype()->elems().slice_front(fntype()->size()-1), "(", ")") 
+        << " -> " << fntype()->elems().back();
 }
 
 std::ostream& Fun::fun_print(Printer& p) const {
     // TODO generics
-    const Type* ret_type = return_type(pi());
+    const Type* ret_type = fntype()->return_type();
     ArrayRef<const VarDecl*> params_ref = 
         ret_type->isa<NoRet>() ? params() : ArrayRef<const VarDecl*>(&params().front(), params().size() - 1);
 

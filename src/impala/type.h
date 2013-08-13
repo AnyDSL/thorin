@@ -28,10 +28,11 @@ public:
 
     const TypeError* type_error() { return type_error_; }
     const NoRet* noret() { return noret_; }
-    const TupleType* unit() { return unit_; }
+    const TupleType* type_void() { return void_; }
     const PrimType* primtype(TokenKind kind);
 #define IMPALA_TYPE(itype, atype) const PrimType* type_##itype() { return itype##_; }
 #include "impala/tokenlist.h"
+    const FnType* fntype(const Type*);
     const FnType* fntype(anydsl2::ArrayRef<const Type*> elems = anydsl2::ArrayRef<const Type*>(nullptr, 0));
     const FnType* fntype(anydsl2::ArrayRef<const Type*> elems, const Type* ret_type);
     const FnType* fntype(anydsl2::ArrayRef<const Type*> elems, anydsl2::Array<const Type*> ret_tuple);
@@ -47,7 +48,7 @@ private:
 #include "impala/tokenlist.h"
     const TypeError* type_error_;
     const NoRet* noret_;
-    const TupleType* unit_;
+    const TupleType* void_;
 };
 
 class Type : public anydsl2::Node {
@@ -62,6 +63,8 @@ public:
     virtual const anydsl2::Type* convert(anydsl2::World&) const = 0;
     bool is_bool() const;
     bool is_int() const;
+    bool is_float() const;
+    bool is_void() const;
     bool check_with(const Type*) const { return true; } // TODO
     bool infer_with(anydsl2::GenericMap& map, const Type* type) const { return true; } // TODO
     //const Type* specialize(const GenericMap& generic_map) const;

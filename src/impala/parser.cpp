@@ -278,9 +278,9 @@ const Type* Parser::parse_compound_type() {
 const Type* Parser::parse_return_type() {
     const Type* ret_type = try_type("return type");
     if (ret_type->is_void())
-        return typetable.fntype();
+        return typetable.fntype0();
     else
-        return typetable.fntype(ret_type);
+        return typetable.fntype1(ret_type);
 }
 
 const VarDecl* Parser::parse_var_decl() {
@@ -322,9 +322,9 @@ const Proto* Parser::parse_proto() {
 
     const Type* ret_type = try_type("return type of prototype");
     if (ret_type->is_void())
-        types.push_back(typetable.fntype());
+        types.push_back(typetable.fntype0());
     else
-        types.push_back(typetable.fntype(ret_type));
+        types.push_back(typetable.fntype1(ret_type));
 
     proto->type_ = typetable.fntype(types);
     proto->set_loc(pos1, prev_loc.pos2());

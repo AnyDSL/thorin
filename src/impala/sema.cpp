@@ -325,7 +325,7 @@ const Type* Call::check(Sema& sema) const {
         if (ret_type->isa<NoRet>())
             call_fn = sema.typetable().fntype(op_types.slice_front(op_types.size()-1));
         else {
-            op_types.back() = sema.typetable().fntype(ret_type);
+            op_types.back() = sema.typetable().fntype1(ret_type);
             call_fn = sema.typetable().fntype(op_types);
         }
 
@@ -420,9 +420,9 @@ void ForeachStmt::check(Sema& sema) const {
         for (size_t i = 0, e = call()->num_args(); i != e; ++i)
             op_types[i] = sema.check(call()->arg(i));
         
-        const Type* elems[2] = { left_type_, sema.typetable().fntype() };
+        const Type* elems[2] = { left_type_, sema.typetable().fntype0() };
         op_types[call()->num_args()] = fntype_ = sema.typetable().fntype(elems);
-        op_types.back() = sema.typetable().fntype();    
+        op_types.back() = sema.typetable().fntype0();    
         const FnType* call_fn = sema.typetable().fntype(op_types);
 
         if (to_fn->check_with(call_fn)) {

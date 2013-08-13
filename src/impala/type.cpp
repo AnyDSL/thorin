@@ -42,7 +42,7 @@ const PrimType* TypeTable::primtype(TokenKind kind) {
     }
 }
 
-const FnType* TypeTable::fntype(const Type* elem) { const Type* elems[1] = { elem }; return fntype(elems); }
+const FnType* TypeTable::fntype1(const Type* elem) { const Type* elems[1] = { elem }; return fntype(elems); }
 const FnType* TypeTable::fntype(anydsl2::ArrayRef<const Type*> elems) { return unify(new FnType(*this, elems)); }
 const TupleType* TypeTable::tupletype(anydsl2::ArrayRef<const Type*> elems) { return unify(new TupleType(*this, elems)); }
 const Generic* TypeTable::generic(size_t index) { return unify(new Generic(*this, index)); }
@@ -242,35 +242,13 @@ const anydsl2::Type* GenericRef::convert(anydsl2::World& world) const {
 
 //------------------------------------------------------------------------------
 
-const Type* FnType::specialize(const GenericMap& generic_map) const {
-    Array<const Type*> nelems(size());
-    for (size_t i = 0, e = size(); i != e; ++i) {
-        auto t = elem(i)->specialize(generic_map);
-        assert(t);
-        nelems[i] = t;
-    }
-
-    return typetable_.fntype(nelems);
-}
-
-const Type* TupleType::specialize(const GenericMap& generic_map) const {
-    Array<const Type*> nelems(size());
-    for (size_t i = 0, e = size(); i != e; ++i) {
-        auto t = elem(i)->specialize(generic_map);
-        assert(t);
-        nelems[i] = t;
-    }
-
-    return typetable_.tupletype(nelems);
-}
-
-const Type* Generic::specialize(const GenericMap& generic_map) const {
-    auto type = generic_map[this];
+const Type* Generic::specialize(const GenericMap& map) const {
+    auto type = map[this];
     assert(type != nullptr);
     return type;
 }
 
-const Type* GenericRef::specialize(const GenericMap& generic_map) const { return generic()->specialize(generic_map); }
+const Type* GenericRef::specialize(const GenericMap& map) const { return generic()->specialize(map); }
 
 //------------------------------------------------------------------------------
 

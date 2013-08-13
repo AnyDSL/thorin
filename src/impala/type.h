@@ -37,8 +37,9 @@ public:
     const PrimType* primtype(TokenKind kind);
 #define IMPALA_TYPE(itype, atype) const PrimType* type_##itype() { return itype##_; }
 #include "impala/tokenlist.h"
-    const FnType* fntype(const Type*);
-    const FnType* fntype(anydsl2::ArrayRef<const Type*> elems = anydsl2::ArrayRef<const Type*>(nullptr, 0));
+    const FnType* fntype0() { return fntype(anydsl2::ArrayRef<const Type*>(nullptr, 0)); }
+    const FnType* fntype1(const Type*);
+    const FnType* fntype(anydsl2::ArrayRef<const Type*> elems);
     const TupleType* tupletype(anydsl2::ArrayRef<const Type*> elems);
     const Generic* generic(size_t index);
     const GenericRef* genericref(const NamedFun*, const Generic*);
@@ -236,6 +237,18 @@ protected:
         for (auto elem : elems)
             set(i++, elem);
     }
+
+    template<class Constr>
+    const Type* super_specialize(const GenericMap& map, Constr constr) const {
+        anydsl2::Array<const Type*> nelems(size());
+        for (size_t i = 0, e = size(); i != e; ++i) {
+            auto t = elem(i)->specialize(map);
+            assert(t);
+            nelems[i] = t;
+        }
+
+        return (typetable_.*constr)(nelems);
+    }
 };
 
 class FnType : public CompoundType {
@@ -245,7 +258,7 @@ private:
     {}
 
 public:
-    virtual const Type* specialize(const GenericMap& generic_map) const;
+    virtual const Type* specialize(const GenericMap& map) const { return super_specialize(map, &TypeTable::fntype); }
     virtual const anydsl2::Type* convert(anydsl2::World&) const;
     const Type* return_type() const;
 
@@ -258,7 +271,7 @@ private:
         : CompoundType(typetable, Token::SIGMA, elems, "<tuple type>")
     {}
 
-    virtual const Type* specialize(const GenericMap& generic_map) const;
+    virtual const Type* specialize(const GenericMap& map) const { return super_specialize(map, &TypeTable::tupletype); }
     virtual const anydsl2::Type* convert(anydsl2::World&) const;
 
     friend class TypeTable;

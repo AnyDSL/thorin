@@ -98,9 +98,10 @@ inline std::ostream& operator << (std::ostream& o, const GenericMap& map) { o <<
 
 class Type : public anydsl2::Node {
 protected:
-    Type(TypeTable& typetable, TokenKind kind, size_t size, const std::string& name)
+    Type(TypeTable& typetable, TokenKind kind, size_t size, bool is_generic, const std::string& name)
         : Node((int) kind, size, name)
         , typetable_(typetable)
+        , is_generic_(is_generic)
     {}
 
 public:
@@ -113,18 +114,20 @@ public:
     bool is_int() const;
     bool is_float() const;
     bool is_void() const;
+    bool is_generic() const { return is_generic_; }
     bool check_with(const Type*) const;
     bool infer_with(GenericMap& map, const Type* type) const;
     void dump() const;
 
 protected:
     TypeTable& typetable_;
+    bool is_generic_;
 };
 
 class TypeError : public Type {
 private:
     TypeError(TypeTable& typetable) 
-        : Type(typetable, Token::TYPE_error, 0, "<error>")
+        : Type(typetable, Token::TYPE_error, 0, false, "<error>")
     {}
 
     virtual const Type* specialize(const GenericMap& map) const { return this; }
@@ -136,7 +139,7 @@ private:
 class Void : public Type {
 private:
     Void(TypeTable& typetable) 
-        : Type(typetable, Token::TYPE_void, 0, "void")
+        : Type(typetable, Token::TYPE_void, 0, false, "void")
     {}
 
     virtual const Type* specialize(const GenericMap& map) const { return this; }
@@ -148,7 +151,7 @@ private:
 class NoRet : public Type {
 private:
     NoRet(TypeTable& typetable) 
-        : Type(typetable, Token::TYPE_noret, 0, "!")
+        : Type(typetable, Token::TYPE_noret, 0, false, "!")
     {}
 
     virtual const Type* specialize(const GenericMap& map) const { return this; }
@@ -160,7 +163,7 @@ private:
 class PrimType : public Type {
 private:
     PrimType(TypeTable& typetable, TokenKind kind)
-        : Type(typetable, kind, 0, "<primitive type>")
+        : Type(typetable, kind, 0, false, "<primitive type>")
     {}
 
 public:
@@ -173,7 +176,7 @@ public:
 class Generic : public Type {
 private:
     Generic(TypeTable& typetable, size_t index)
-        : Type(typetable, Token::TYPE_generic, 0, "<generic>")
+        : Type(typetable, Token::TYPE_generic, 0, true, "<generic>")
         , index_(index)
     {}
 
@@ -199,7 +202,7 @@ private:
 class GenericRef : public Type {
 private:
     GenericRef(TypeTable& typetable, const NamedFun* namedfun, const Generic* generic)
-        : Type(typetable, Token::TYPE_genericref, 1, "<generic>")
+        : Type(typetable, Token::TYPE_genericref, 1, true, "<generic>")
         , namedfun_(namedfun)
     {
         set(0, generic);
@@ -233,11 +236,13 @@ private:
 class CompoundType : public Type {
 protected:
     CompoundType(TypeTable& typetable, TokenKind kind, anydsl2::ArrayRef<const Type*> elems, const std::string& name)
-        : Type(typetable, kind, elems.size(), name)
+        : Type(typetable, kind, elems.size(), false, name)
     {
         size_t i = 0;
-        for (auto elem : elems)
+        for (auto elem : elems) {
             set(i++, elem);
+            is_generic_ |= elem->is_generic();
+        }
     }
 
     template<class Constr>

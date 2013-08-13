@@ -48,7 +48,7 @@ public:
     const Type* elem_via_lit(const Def* def) const;
     bool check_with(const Type* type) const;
     bool infer_with(GenericMap& map, const Type* type) const;
-    const Type* specialize(const GenericMap& generic_map) const;
+    const Type* specialize(const GenericMap&) const;
     bool is_generic() const { return is_generic_; }
     bool is_u1() const { return kind() == PrimType_u1; }
     bool is_int() const { return anydsl2::is_int(kind()); }

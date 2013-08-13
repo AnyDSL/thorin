@@ -200,8 +200,7 @@ const Type* Id::check(Sema& sema) const {
 
         if (sema.nossa() || sema.in_foreach_) {
             if (const VarDecl* vardecl = decl->isa<VarDecl>()) {
-                //if (!vardecl->type()->isa<Pi>() && !vardecl->type()->is_generic()) // TODO
-                if (!vardecl->type()->isa<FnType>())
+                if (!vardecl->type()->isa<FnType>() && !vardecl->type()->is_generic())
                     vardecl->is_address_taken_ = true;
             }
         }

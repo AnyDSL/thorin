@@ -106,9 +106,9 @@ bool Type::infer_with(GenericMap& map, const Type* other) const {
     return true;
 }
 
-const Type* Type::specialize(const GenericMap& generic_map) const {
+const Type* Type::specialize(const GenericMap& map) const {
     if (auto generic = this->isa<Generic>()) {
-        if (auto substitute = generic_map[generic])
+        if (auto substitute = map[generic])
             return substitute;
         else
             return this;
@@ -117,7 +117,7 @@ const Type* Type::specialize(const GenericMap& generic_map) const {
 
     Array<const Type*> new_elems(size());
     for (size_t i = 0, e = size(); i != e; ++i)
-        new_elems[i] = elem(i)->specialize(generic_map);
+        new_elems[i] = elem(i)->specialize(map);
 
     return world().rebuild(this, new_elems);
 }

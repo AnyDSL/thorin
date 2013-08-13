@@ -21,6 +21,7 @@ public:
     Sema(TypeTable& typetable, bool nossa)
         : in_foreach_(false)
         , typetable_(typetable)
+        , generic_map_(nullptr)
         , result_(true)
         , nossa_(nossa)
     {}
@@ -53,11 +54,19 @@ public:
     bool nossa() const { return nossa_; }
     std::ostream& error(const ASTNode* n) { result_ = false; return n->error(); }
     std::ostream& error(const Location& loc) { result_ = false; return loc.error(); }
-    GenericMap fill_map();
     TypeTable& typetable() { return typetable_; }
     bool check(const Prg*) ;
     void fun_check(const Fun*);
-    void check(const NamedFun* fun) { return fun_check(fun); }
+    void check(const NamedFun* fun) { 
+        GenericMap new_map = generic_map();
+        for (auto genentry : fun->generics()) {
+            if (auto generic = genentry.generic())
+                new_map[generic] = generic;
+        }
+
+        ANYDSL2_PUSH(generic_map_, &new_map);
+        fun_check(fun); 
+    }
     const Type* check(const Expr* expr) { assert(!expr->type_); return expr->type_ = expr->check(*this); }
     void check(const Stmt* stmt) { stmt->check(*this); }
     void check_stmts(const ScopeStmt* scope) { for (auto s : scope->stmts()) s->check(*this); }
@@ -67,12 +76,13 @@ public:
         error(cond) << "condition not a bool\n";
         return false;
     }
+    GenericMap generic_map() { return generic_map_ != nullptr ? *generic_map_ : GenericMap(); }
 
-    std::vector<std::unordered_set<const Generic*>> bound_generics_;
     bool in_foreach_;
 
 private:
     TypeTable& typetable_;
+    GenericMap* generic_map_;
     bool result_;
     bool nossa_;
 
@@ -151,19 +161,10 @@ static void propagate_set(const Type* type, std::unordered_set<const Generic*>& 
             propagate_set(elem, bound);
 }
 
-GenericMap Sema::fill_map() {
-    GenericMap map;
-    for (auto set : bound_generics_)
-        for (auto generic : set)
-            map[generic] = generic;
-    return map;
-}
-
 void Sema::fun_check(const Fun* fun) {
     push_scope();
     std::unordered_set<const Generic*> bound;
     propagate_set(fun->fntype(), bound);
-    bound_generics_.push_back(bound);
 
     for (auto f : fun->body()->named_funs())
         insert(f);
@@ -174,7 +175,6 @@ void Sema::fun_check(const Fun* fun) {
     for (auto s : fun->body()->stmts())
         s->check(*this);
 
-    bound_generics_.pop_back();
     pop_scope();
 }
 
@@ -330,9 +330,11 @@ const Type* Call::check(Sema& sema) const {
         }
 
         if (to_fn->check_with(call_fn)) {
-            GenericMap map = sema.fill_map();
+            GenericMap map = sema.generic_map();
             if (to_fn->infer_with(map, call_fn)) {
-                return ret_type->specialize(map);
+                auto result = ret_type->specialize(map);
+                assert(result);
+                return result;
             } else {
                 sema.error(this->args_location()) << "cannot infer type '" << call_fn << "' induced by arguments\n";
                 sema.error(to()) << "to invocation type '" << to_fn << "' with [" << map << "]\n";
@@ -356,7 +358,7 @@ void DeclStmt::check(Sema& sema) const {
 
     if (const Expr* init_expr = init()) {
         if (var_decl()->type()->check_with(sema.check(init_expr))) {
-            GenericMap map = sema.fill_map();
+            GenericMap map = sema.generic_map();
             if (var_decl()->type()->infer_with(map, init_expr->type()))
                 return;
             else {
@@ -424,7 +426,7 @@ void ForeachStmt::check(Sema& sema) const {
         const FnType* call_fn = sema.typetable().fntype(op_types);
 
         if (to_fn->check_with(call_fn)) {
-            GenericMap map = sema.fill_map();
+            GenericMap map = sema.generic_map();
             if (!to_fn->infer_with(map, call_fn)) {
                 sema.error(call()->args_location()) << "cannot infer type '" << call_fn << "' induced by arguments\n";
                 sema.error(call()->to()) << "to invocation type '" << to_fn << "' with '" << map << "'\n";
@@ -473,7 +475,7 @@ void ReturnStmt::check(Sema& sema) const {
             if (expr()->type()->isa<TypeError>())
                 return;
             if (ret_type->check_with(expr()->type())) {
-                GenericMap map = sema.fill_map();
+                GenericMap map = sema.generic_map();
                 if (ret_type->infer_with(map, expr()->type()))
                     return;
                 else

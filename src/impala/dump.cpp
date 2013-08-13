@@ -25,7 +25,9 @@ public:
 };
 
 std::ostream& Printer::print_type(const Type* type) {
-    if (type->isa<NoRet>()) {
+    if (type == nullptr) {
+        return stream() << "<NULL>";
+    } else if (type->isa<NoRet>()) {
         return stream() << "noret";
     } else if (type->isa<Void>()) {
         return stream() << "void";

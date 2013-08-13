@@ -49,10 +49,15 @@ struct GenericEntry {
 
     anydsl2::Symbol symbol() const { return symbol_; }
     size_t handle() const { return handle_; }
+    const Generic* generic() const { return generic_; }
+    void set(const Generic* generic) { generic_ = generic; }
 
 private:
     anydsl2::Symbol symbol_;
-    size_t handle_;
+    union {
+        size_t handle_;
+        const Generic* generic_;
+    };
 };
 
 typedef std::vector<GenericEntry> GenericsList;

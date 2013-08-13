@@ -67,6 +67,7 @@ public:
 
     size_t new_def();
     const Generic* use(size_t handle);
+    const Generic* get(size_t handle) { assert(handle < index2generic_.size()); return index2generic_[handle]; }
     void pop();
 
 private:
@@ -195,10 +196,11 @@ private:
 class GenericRef : public Type {
 private:
     GenericRef(TypeTable& typetable, const NamedFun* namedfun, const Generic* generic)
-        : Type(typetable, Token::TYPE_generic, 0, "<generic>")
+        : Type(typetable, Token::TYPE_genericref, 1, "<generic>")
         , namedfun_(namedfun)
-        , generic_(generic)
-    {}
+    {
+        set(0, generic);
+    }
 
     virtual const Type* specialize(const GenericMap& generic_map) const;
     virtual const anydsl2::Type* convert(anydsl2::World&) const;
@@ -215,12 +217,11 @@ private:
 
 public:
     const NamedFun* namedfun() const { return namedfun_; }
-    const Generic* generic() const { return generic_; }
+    const Generic* generic() const { return elem(0)->as<Generic>(); }
     static std::string to_string(size_t index);
 
 private:
     const NamedFun* namedfun_;
-    const Generic* generic_;
 
     friend class TypeTable;
 };

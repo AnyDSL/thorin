@@ -59,7 +59,6 @@ size_t GenericBuilder::new_def() {
 }
 
 const Generic* GenericBuilder::use(size_t handle) {
-    assert(handle < index2generic_.size());
     const Generic*& ref = index2generic_[handle];
     if (auto generic = ref)
         return generic;
@@ -162,7 +161,7 @@ const Type* FnType::return_type() const {
 }
 
 bool Type::check_with(const Type* other) const {
-    if (this == other || this->isa<Generic>())
+    if (this == other || this->isa<Generic>() || this->isa<GenericRef>())
         return true;
 
     if (this->kind() != other->kind() || this->size() != other->size())
@@ -179,6 +178,11 @@ bool Type::infer_with(GenericMap& map, const Type* other) const {
     size_t num_elems = this->size();
     assert(num_elems == other->size());
     assert(this->isa<Generic>() || this->kind() == other->kind());
+
+    if (auto genericref = this->isa<GenericRef>())
+        return genericref->generic()->infer_with(map, other);
+    if (auto genericref = other->isa<GenericRef>())
+        other = genericref->generic();
 
     if (this == other)
         return true;
@@ -248,16 +252,22 @@ const anydsl2::Type* GenericRef::convert(anydsl2::World& world) const {
 
 const Type* FnType::specialize(const GenericMap& generic_map) const {
     Array<const Type*> nelems(size());
-    for (size_t i = 0, e = size(); i != e; ++i)
-        nelems[i] = elem(i)->specialize(generic_map);
+    for (size_t i = 0, e = size(); i != e; ++i) {
+        auto t = elem(i)->specialize(generic_map);
+        assert(t);
+        nelems[i] = t;
+    }
 
     return typetable_.fntype(nelems);
 }
 
 const Type* TupleType::specialize(const GenericMap& generic_map) const {
     Array<const Type*> nelems(size());
-    for (size_t i = 0, e = size(); i != e; ++i)
-        nelems[i] = elem(i)->specialize(generic_map);
+    for (size_t i = 0, e = size(); i != e; ++i) {
+        auto t = elem(i)->specialize(generic_map);
+        assert(t);
+        nelems[i] = t;
+    }
 
     return typetable_.tupletype(nelems);
 }

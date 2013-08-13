@@ -44,7 +44,7 @@ const char* GenericMap::to_string() const {
 
 //------------------------------------------------------------------------------
 
-void Type::dump() const { emit_type(this); }
+void Type::dump() const { emit_type(this); std::cout << std::endl; }
 size_t Type::length() const { return as<VectorType>()->length(); }
 const Type* Type::elem_via_lit(const Def* def) const { return elem(def->primlit_value<size_t>()); }
 

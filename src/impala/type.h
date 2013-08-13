@@ -114,7 +114,7 @@ public:
     bool is_void() const;
     bool check_with(const Type*) const;
     bool infer_with(GenericMap& map, const Type* type) const;
-    std::ostream& dump() const;
+    void dump() const;
 
 protected:
     TypeTable& typetable_;

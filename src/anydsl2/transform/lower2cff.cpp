@@ -8,6 +8,7 @@
 #include "anydsl2/analyses/verify.h"
 #include "anydsl2/transform/mangle.h"
 #include "anydsl2/transform/merge_lambdas.h"
+#include "anydsl2/be/air.h"
 
 namespace anydsl2 {
 

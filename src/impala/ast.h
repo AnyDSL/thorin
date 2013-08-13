@@ -65,7 +65,7 @@ typedef std::vector<GenericEntry> GenericsList;
 class ASTNode : public anydsl2::HasLocation, public anydsl2::MagicCast {
 public:
     virtual std::ostream& print(Printer& p) const = 0;
-    std::ostream& dump() const;
+    void dump() const;
 };
 
 class Prg : public ASTNode {

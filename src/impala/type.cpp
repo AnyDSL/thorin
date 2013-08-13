@@ -4,6 +4,7 @@
 
 #include "anydsl2/world.h"
 
+#include "impala/ast.h"
 #include "impala/dump.h"
 
 using namespace anydsl2;
@@ -234,6 +235,10 @@ const anydsl2::Type* Generic::convert(anydsl2::World& world) const {
     return world.generic(index());
 }
 
+const anydsl2::Type* GenericRef::convert(anydsl2::World& world) const {
+    return world.generic_ref(generic()->convert(world)->as<anydsl2::Generic>(), fun()->lambda());
+}
+
 //------------------------------------------------------------------------------
 
 const Type* FnType::specialize(const GenericMap& generic_map) const {
@@ -257,6 +262,8 @@ const Type* Generic::specialize(const GenericMap& generic_map) const {
     assert(type != nullptr);
     return type;
 }
+
+const Type* GenericRef::specialize(const GenericMap& generic_map) const { return generic()->specialize(generic_map); }
 
 //------------------------------------------------------------------------------
 

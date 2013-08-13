@@ -17,6 +17,7 @@ namespace anydsl2 {
 namespace impala {
 
 class FnType;
+class Fun;
 class Generic;
 class GenericRef;
 class NoRet;
@@ -173,6 +174,9 @@ private:
         , index_(index)
     {}
 
+public:
+    size_t index() const { return index_; }
+    static std::string to_string(size_t index);
     virtual const Type* specialize(const GenericMap& generic_map) const;
     virtual const anydsl2::Type* convert(anydsl2::World&) const;
     virtual size_t hash() const { return anydsl2::hash_combine(Type::hash(), index()); }
@@ -180,15 +184,45 @@ private:
         return Type::equal(other) ? index() == other->as<Generic>()->index() : false; 
     }
 
-public:
-    size_t index() const { return index_; }
-    static std::string to_string(size_t index);
-
 private:
     size_t index_;
 
     friend class TypeTable;
 };
+
+class GenericRef : public Type {
+private:
+    GenericRef(TypeTable& typetable, const Fun* fun, const Generic* generic)
+        : Type(typetable, Token::TYPE_generic, 0, "<generic>")
+        , fun_(fun)
+        , generic_(generic)
+    {}
+
+    virtual const Type* specialize(const GenericMap& generic_map) const;
+    virtual const anydsl2::Type* convert(anydsl2::World&) const;
+    virtual size_t hash() const { 
+        return anydsl2::hash_combine(anydsl2::hash_combine(Type::hash(), fun()), generic()); 
+    }
+    virtual bool equal(const Node* other) const { 
+        if (Type::equal(other)) {
+            auto genref = other->as<GenericRef>();
+            return this->fun() == genref->fun() && this->generic() == genref->generic();
+        }
+        return false;
+    }
+
+public:
+    const Fun* fun() const { return fun_; }
+    const Generic* generic() const { return generic_; }
+    static std::string to_string(size_t index);
+
+private:
+    const Fun* fun_;
+    const Generic* generic_;
+
+    friend class TypeTable;
+};
+
 
 class CompoundType : public Type {
 protected:

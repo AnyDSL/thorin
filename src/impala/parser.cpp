@@ -112,7 +112,8 @@ private:
 
         Generics* parent() const { return parent_; }
 
-        const Generic* lookup(Symbol symbol) {
+        //const Generic* lookup(Symbol symbol) {
+        const Type* lookup(Symbol symbol) {
             auto i = symbol2handle_.find(symbol);
             if (i != symbol2handle_.end()) 
                 return builder.use(i->second);
@@ -135,9 +136,7 @@ private:
         Symbol2Handle symbol2handle_;
     };
 
-    const Generic* generic_lookup(Symbol symbol) {
-        return cur_generics ? cur_generics->lookup(symbol) : nullptr;
-    }
+    const Type* generic_lookup(Symbol symbol) { return cur_generics ? cur_generics->lookup(symbol) : nullptr; }
 
     void generic_insert(Token token) {
         Symbol symbol = token.symbol();
@@ -284,10 +283,6 @@ const Type* Parser::parse_type() {
 const Type* Parser::parse_compound_type() {
     bool pi = lex().kind() == Token::PI;
 
-    Generics generics(cur_generics, builder);
-    cur_generics = &generics;
-    parse_generic_list();
-
     std::vector<const Type*> elems;
     const char* error_str = pi ? "element types of pi" : "element types of sigma";
     expect(Token::L_PAREN, error_str);
@@ -300,8 +295,6 @@ const Type* Parser::parse_compound_type() {
 
     if (pi && accept(Token::ARROW))
         elems.push_back(parse_return_type());
-
-    cur_generics = generics.parent();
 
     if (pi) 
         return typetable.fntype(elems);

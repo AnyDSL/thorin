@@ -242,14 +242,4 @@ const anydsl2::Type* GenericRef::convert(anydsl2::World& world) const {
 
 //------------------------------------------------------------------------------
 
-const Type* Generic::specialize(const GenericMap& map) const {
-    auto type = map[this];
-    assert(type != nullptr);
-    return type;
-}
-
-const Type* GenericRef::specialize(const GenericMap& map) const { return generic()->specialize(map); }
-
-//------------------------------------------------------------------------------
-
 } // namespace impala

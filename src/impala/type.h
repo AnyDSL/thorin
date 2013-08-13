@@ -107,7 +107,7 @@ public:
     TokenKind kind() const { return (TokenKind) anydsl2::Node::kind(); }
     anydsl2::ArrayRef<const Type*> elems() const { return ops_ref<const Type*>(); }
     const Type* elem(size_t i) const { return elems()[i]; }
-    virtual const Type* specialize(const GenericMap& generic_map) const = 0;
+    virtual const Type* specialize(const GenericMap& map) const = 0;
     virtual const anydsl2::Type* convert(anydsl2::World&) const = 0;
     bool is_bool() const;
     bool is_int() const;
@@ -127,7 +127,7 @@ private:
         : Type(typetable, Token::TYPE_error, 0, "<error>")
     {}
 
-    virtual const Type* specialize(const GenericMap& generic_map) const { return this; }
+    virtual const Type* specialize(const GenericMap& map) const { return this; }
     virtual const anydsl2::Type* convert(anydsl2::World&) const { assert(false); return nullptr; }
 
     friend class TypeTable;
@@ -139,7 +139,7 @@ private:
         : Type(typetable, Token::TYPE_void, 0, "void")
     {}
 
-    virtual const Type* specialize(const GenericMap& generic_map) const { return this; }
+    virtual const Type* specialize(const GenericMap& map) const { return this; }
     virtual const anydsl2::Type* convert(anydsl2::World&) const { assert(false); return nullptr; }
 
     friend class TypeTable;
@@ -151,7 +151,7 @@ private:
         : Type(typetable, Token::TYPE_noret, 0, "!")
     {}
 
-    virtual const Type* specialize(const GenericMap& generic_map) const { return this; }
+    virtual const Type* specialize(const GenericMap& map) const { return this; }
     virtual const anydsl2::Type* convert(anydsl2::World&) const { assert(false); return nullptr; }
 
     friend class TypeTable;
@@ -164,7 +164,7 @@ private:
     {}
 
 public:
-    virtual const Type* specialize(const GenericMap& generic_map) const { return this; }
+    virtual const Type* specialize(const GenericMap& map) const { return this; }
     virtual const anydsl2::Type* convert(anydsl2::World&) const;
 
     friend class TypeTable;
@@ -181,7 +181,9 @@ public:
     size_t index() const { return index_; }
     static std::string to_string(size_t index);
     const GenericRef* genericref(const NamedFun*) const;
-    virtual const Type* specialize(const GenericMap& generic_map) const;
+    virtual const Type* specialize(const GenericMap& map) const {
+        auto type = map[this]; assert(type != nullptr); return type;
+    }
     virtual const anydsl2::Type* convert(anydsl2::World&) const;
     virtual size_t hash() const { return anydsl2::hash_combine(Type::hash(), index()); }
     virtual bool equal(const Node* other) const { 
@@ -203,7 +205,7 @@ private:
         set(0, generic);
     }
 
-    virtual const Type* specialize(const GenericMap& generic_map) const;
+    virtual const Type* specialize(const GenericMap& map) const { return generic()->specialize(map); }
     virtual const anydsl2::Type* convert(anydsl2::World&) const;
     virtual size_t hash() const { 
         return anydsl2::hash_combine(anydsl2::hash_combine(Type::hash(), namedfun()), generic()); 

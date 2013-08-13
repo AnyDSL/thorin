@@ -12,7 +12,7 @@ union Box {
 public:
 
     Box()      { reset(); }
-    Box( u1 u) { reset();   u1_ = u; }
+    Box( u1 u) { reset();   u1_ = u.get(); }
     Box( u8 u) { reset();   u8_ = u; }
     Box(u16 u) { reset();  u16_ = u; }
     Box(u32 u) { reset();  u32_ = u; }
@@ -24,7 +24,7 @@ public:
     bool operator == (const Box& other) const { return bcast<uint64_t, Box>(*this) == bcast<uint64_t, Box>(other); }
     // see blow for specializations
     template <typename T> inline T get() { ANYDSL2_UNREACHABLE; } 
-     u1  get_u1() const { return u1_; }
+     u1  get_u1() const { return u1(u1_); }
      u8  get_u8() const { return u8_; }
     u16 get_u16() const { return u16_; }
     u32 get_u32() const { return u32_; }
@@ -36,7 +36,7 @@ private:
 
     void reset() { memset(this, 0, sizeof(Box)); }
 
-    u1    u1_;
+    bool  u1_;
     u8    u8_;
     u16  u16_;
     u32  u32_;

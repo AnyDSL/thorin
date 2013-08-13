@@ -141,7 +141,7 @@ void Vectorizer::vectorize_primop(const Def* cond, const PrimOp* primop) {
     size_t size = primop->size();
     Array<const Def*> vops(size);
     size_t i = 0;
-    bool is_vector_op = primop->isa<VectorOp>();
+    bool is_vector_op = primop->isa<VectorOp>() != nullptr;
 
     if (is_vector_op)
         vops[i++] = cond;

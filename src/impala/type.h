@@ -127,7 +127,7 @@ private:
     {}
 
     virtual const Type* specialize(const GenericMap& generic_map) const { return this; }
-    virtual const anydsl2::Type* convert(anydsl2::World&) const { assert(false); }
+    virtual const anydsl2::Type* convert(anydsl2::World&) const { assert(false); return nullptr; }
 
     friend class TypeTable;
 };
@@ -139,7 +139,7 @@ private:
     {}
 
     virtual const Type* specialize(const GenericMap& generic_map) const { return this; }
-    virtual const anydsl2::Type* convert(anydsl2::World&) const { assert(false); }
+    virtual const anydsl2::Type* convert(anydsl2::World&) const { assert(false); return nullptr; }
 
     friend class TypeTable;
 };
@@ -151,7 +151,7 @@ private:
     {}
 
     virtual const Type* specialize(const GenericMap& generic_map) const { return this; }
-    virtual const anydsl2::Type* convert(anydsl2::World&) const { assert(false); }
+    virtual const anydsl2::Type* convert(anydsl2::World&) const { assert(false); return nullptr; }
 
     friend class TypeTable;
 };

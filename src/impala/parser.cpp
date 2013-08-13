@@ -118,6 +118,7 @@ public:
                 return generic;
             return generic->genericref(genfun.namedfun());
         }
+        return nullptr;
     }
 
 private:

@@ -766,6 +766,10 @@ const Type* World::rebuild(const Type* type, ArrayRef<const Type*> elems) {
         case Node_Pi:    return pi(elems);
         case Node_Sigma: return sigma(elems);
         case Node_Ptr:   assert(elems.size() == 1); return ptr(elems.front());
+        case Node_GenericRef: {
+            auto genref = type->as<GenericRef>();
+            return generic_ref(genref->generic(), genref->lambda());
+        }
         default: ANYDSL2_UNREACHABLE;
     }
 }

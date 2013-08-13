@@ -77,6 +77,11 @@ bool Type::check_with(const Type* other) const {
 }
 
 bool Type::infer_with(GenericMap& map, const Type* other) const {
+    if (auto genericref = this->isa<GenericRef>())
+        return genericref->generic()->infer_with(map, other);
+    if (auto genericref = other->isa<GenericRef>())
+        other = genericref->generic();
+
     size_t num_elems = this->size();
     assert(num_elems == other->size());
     assert(this->isa<Generic>() || this->kind() == other->kind());

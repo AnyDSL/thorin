@@ -656,8 +656,6 @@ bool Parser::is_expr() {
     //identifier without a succeeding colon which is not a generic
     if (la() == Token::ID && la2() != Token::COLON && !generic_lookup(la().symbol()))
         return true;
-    //if (la() == Token::ID && la2() != Token::COLON)
-        //return true;
 
     switch (la()) {
 #define IMPALA_PREFIX(tok, t_str, r) case Token:: tok:

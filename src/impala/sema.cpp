@@ -332,10 +332,7 @@ const Type* Call::check(Sema& sema) const {
         if (to_fn->check_with(call_fn)) {
             GenericMap map = sema.fill_map();
             if (to_fn->infer_with(map, call_fn)) {
-                if (const Generic* generic = ret_type->isa<Generic>())
-                    return map[generic];
-                else
-                    return ret_type;
+                return ret_type->specialize(map);
             } else {
                 sema.error(this->args_location()) << "cannot infer type '" << call_fn << "' induced by arguments\n";
                 sema.error(to()) << "to invocation type '" << to_fn << "' with [" << map << "]\n";

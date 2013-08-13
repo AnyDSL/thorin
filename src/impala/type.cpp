@@ -14,11 +14,11 @@ namespace impala {
 
 TypeTable::TypeTable()
     : types_()
-#define IMPALA_TYPE(itype, atype) ,itype##_(unify(new PrimType(Token::TYPE_##itype)))
+#define IMPALA_TYPE(itype, atype) ,itype##_(unify(new PrimType(*this, Token::TYPE_##itype)))
 #include "impala/tokenlist.h"
-    , type_error_(unify(new TypeError()))
-    , noret_(unify(new NoRet()))
-    , void_(unify(new Void()))
+    , type_error_(unify(new TypeError(*this)))
+    , noret_(unify(new NoRet(*this)))
+    , void_(unify(new Void(*this)))
 {}
 
 const Type* TypeTable::unify_base(const Type* type) {
@@ -43,8 +43,8 @@ const PrimType* TypeTable::primtype(TokenKind kind) {
 
 const FnType* TypeTable::fntype(const Type* elem) { const Type* elems[1] = { elem }; return fntype(elems); }
 const FnType* TypeTable::fntype(anydsl2::ArrayRef<const Type*> elems) { return unify(new FnType(*this, elems)); }
-const TupleType* TypeTable::tupletype(anydsl2::ArrayRef<const Type*> elems) { return unify(new TupleType(elems)); }
-const Generic* TypeTable::generic(size_t index) { return unify(new Generic(index)); }
+const TupleType* TypeTable::tupletype(anydsl2::ArrayRef<const Type*> elems) { return unify(new TupleType(*this, elems)); }
+const Generic* TypeTable::generic(size_t index) { return unify(new Generic(*this, index)); }
 
 //------------------------------------------------------------------------------
 
@@ -233,5 +233,31 @@ const anydsl2::Type* TupleType::convert(World& world) const {
 const anydsl2::Type* Generic::convert(anydsl2::World& world) const {
     return world.generic(index());
 }
+
+//------------------------------------------------------------------------------
+
+const Type* FnType::specialize(const GenericMap& generic_map) const {
+    Array<const Type*> nelems(size());
+    for (size_t i = 0, e = size(); i != e; ++i)
+        nelems[i] = elem(i)->specialize(generic_map);
+
+    return typetable_.fntype(nelems);
+}
+
+const Type* TupleType::specialize(const GenericMap& generic_map) const {
+    Array<const Type*> nelems(size());
+    for (size_t i = 0, e = size(); i != e; ++i)
+        nelems[i] = elem(i)->specialize(generic_map);
+
+    return typetable_.tupletype(nelems);
+}
+
+const Type* Generic::specialize(const GenericMap& generic_map) const {
+    auto type = generic_map[this];
+    assert(type != nullptr);
+    return type;
+}
+
+//------------------------------------------------------------------------------
 
 } // namespace impala

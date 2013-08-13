@@ -94,14 +94,16 @@ inline std::ostream& operator << (std::ostream& o, const GenericMap& map) { o <<
 
 class Type : public anydsl2::Node {
 protected:
-    Type(TokenKind kind, size_t size, const std::string& name)
+    Type(TypeTable& typetable, TokenKind kind, size_t size, const std::string& name)
         : Node((int) kind, size, name)
+        , typetable_(typetable)
     {}
 
 public:
     TokenKind kind() const { return (TokenKind) anydsl2::Node::kind(); }
     anydsl2::ArrayRef<const Type*> elems() const { return ops_ref<const Type*>(); }
     const Type* elem(size_t i) const { return elems()[i]; }
+    virtual const Type* specialize(const GenericMap& generic_map) const = 0;
     virtual const anydsl2::Type* convert(anydsl2::World&) const = 0;
     bool is_bool() const;
     bool is_int() const;
@@ -110,14 +112,18 @@ public:
     bool check_with(const Type*) const;
     bool infer_with(GenericMap& map, const Type* type) const;
     std::ostream& dump() const;
+
+protected:
+    TypeTable& typetable_;
 };
 
 class TypeError : public Type {
 private:
-    TypeError() 
-        : Type(Token::TYPE_error, 0, "<error>")
+    TypeError(TypeTable& typetable) 
+        : Type(typetable, Token::TYPE_error, 0, "<error>")
     {}
 
+    virtual const Type* specialize(const GenericMap& generic_map) const { return this; }
     virtual const anydsl2::Type* convert(anydsl2::World&) const { assert(false); }
 
     friend class TypeTable;
@@ -125,10 +131,11 @@ private:
 
 class Void : public Type {
 private:
-    Void() 
-        : Type(Token::TYPE_void, 0, "void")
+    Void(TypeTable& typetable) 
+        : Type(typetable, Token::TYPE_void, 0, "void")
     {}
 
+    virtual const Type* specialize(const GenericMap& generic_map) const { return this; }
     virtual const anydsl2::Type* convert(anydsl2::World&) const { assert(false); }
 
     friend class TypeTable;
@@ -136,10 +143,11 @@ private:
 
 class NoRet : public Type {
 private:
-    NoRet() 
-        : Type(Token::TYPE_noret, 0, "!")
+    NoRet(TypeTable& typetable) 
+        : Type(typetable, Token::TYPE_noret, 0, "!")
     {}
 
+    virtual const Type* specialize(const GenericMap& generic_map) const { return this; }
     virtual const anydsl2::Type* convert(anydsl2::World&) const { assert(false); }
 
     friend class TypeTable;
@@ -147,11 +155,12 @@ private:
 
 class PrimType : public Type {
 private:
-    PrimType(TokenKind kind)
-        : Type(kind, 0, "<primitive type>")
+    PrimType(TypeTable& typetable, TokenKind kind)
+        : Type(typetable, kind, 0, "<primitive type>")
     {}
 
 public:
+    virtual const Type* specialize(const GenericMap& generic_map) const { return this; }
     virtual const anydsl2::Type* convert(anydsl2::World&) const;
 
     friend class TypeTable;
@@ -159,11 +168,12 @@ public:
 
 class Generic : public Type {
 private:
-    Generic(size_t index)
-        : Type(Token::TYPE_generic, 0, "<generic>")
+    Generic(TypeTable& typetable, size_t index)
+        : Type(typetable, Token::TYPE_generic, 0, "<generic>")
         , index_(index)
     {}
 
+    virtual const Type* specialize(const GenericMap& generic_map) const;
     virtual const anydsl2::Type* convert(anydsl2::World&) const;
     virtual size_t hash() const { return anydsl2::hash_combine(Type::hash(), index()); }
     virtual bool equal(const Node* other) const { 
@@ -182,8 +192,8 @@ private:
 
 class CompoundType : public Type {
 protected:
-    CompoundType(TokenKind kind, anydsl2::ArrayRef<const Type*> elems, const std::string& name)
-        : Type(kind, elems.size(), name)
+    CompoundType(TypeTable& typetable, TokenKind kind, anydsl2::ArrayRef<const Type*> elems, const std::string& name)
+        : Type(typetable, kind, elems.size(), name)
     {
         size_t i = 0;
         for (auto elem : elems)
@@ -194,26 +204,24 @@ protected:
 class FnType : public CompoundType {
 private:
     FnType(TypeTable& typetable, anydsl2::ArrayRef<const Type*> elems)
-        : CompoundType(Token::PI, elems, "<function type>")
-        , typetable_(typetable)
+        : CompoundType(typetable, Token::PI, elems, "<function type>")
     {}
 
 public:
+    virtual const Type* specialize(const GenericMap& generic_map) const;
     virtual const anydsl2::Type* convert(anydsl2::World&) const;
     const Type* return_type() const;
-
-private:
-    TypeTable& typetable_;
 
     friend class TypeTable;
 };
 
 class TupleType : public CompoundType {
 private:
-    TupleType(anydsl2::ArrayRef<const Type*> elems)
-        : CompoundType(Token::SIGMA, elems, "<tuple type>")
+    TupleType(TypeTable& typetable, anydsl2::ArrayRef<const Type*> elems)
+        : CompoundType(typetable, Token::SIGMA, elems, "<tuple type>")
     {}
 
+    virtual const Type* specialize(const GenericMap& generic_map) const;
     virtual const anydsl2::Type* convert(anydsl2::World&) const;
 
     friend class TypeTable;

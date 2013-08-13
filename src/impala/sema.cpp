@@ -333,13 +333,12 @@ const Type* Call::check(Sema& sema) const {
             GenericMap map = sema.fill_map();
             if (to_fn->infer_with(map, call_fn)) {
                 if (const Generic* generic = ret_type->isa<Generic>())
-                    //return map[generic];
-                    return sema.typetable().type_error(); // TODO
+                    return map[generic];
                 else
                     return ret_type;
             } else {
                 sema.error(this->args_location()) << "cannot infer type '" << call_fn << "' induced by arguments\n";
-                sema.error(to()) << "to invocation type '" << to_fn << "' with '" << map << "'\n";
+                sema.error(to()) << "to invocation type '" << to_fn << "' with [" << map << "]\n";
             }
         } else {
             sema.error(to()) << "'" << to() << "' expects an invocation of type '" << to_fn 
@@ -466,28 +465,25 @@ void ContinueStmt::check(Sema& sema) const {
 
 void ReturnStmt::check(Sema& sema) const {
     if (!fun()->is_continuation()) {
-        const TupleType* ret_tuple = fun()->fntype()->return_type()->as<TupleType>();
+        const Type* ret_type = fun()->fntype()->return_type();
 
-        if (ret_tuple->empty()) {
+        if (ret_type->isa<Void>()) {
             if (!expr())
                 return;
             else
                 sema.error(expr()) << "return expression in a function returning 'void'\n";
-        //} else if (!ret_type->isa<NoRet>()) { 
-        } else if (true) { // TODO
-            if (sema.check(expr())->isa<TypeError>())
+        } else if (!sema.check(expr())->isa<NoRet>()) {
+            if (expr()->type()->isa<TypeError>())
                 return;
-            //if (ret_type->check_with(expr()->type())) {
-            if (true) { // TODO
+            if (ret_type->check_with(expr()->type())) {
                 GenericMap map = sema.fill_map();
-                //if (ret_type->infer_with(map, expr()->type()))
-                if (true) // TODO
+                if (ret_type->infer_with(map, expr()->type()))
                     return;
                 else
                     sema.error(expr()) << "cannot infer type '" << expr()->type() 
-                        << "' of return expression to return type '" << ret_tuple << "' with '" << map << "'\n";
+                        << "' of return expression to return type '" << ret_type << "' with [" << map << "]\n";
             } else 
-                sema.error(expr()) << "expected return type '" << ret_tuple 
+                sema.error(expr()) << "expected return type '" << ret_type 
                     << "' but return expression is of type '" << expr()->type() << "'\n";
         } else
             sema.error(this) << "return statement not allowed for calling a continuation\n";

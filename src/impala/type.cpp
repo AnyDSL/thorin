@@ -1,6 +1,10 @@
 #include "impala/type.h"
 
+#include <sstream>
+
 #include "anydsl2/world.h"
+
+#include "impala/dump.h"
 
 using namespace anydsl2;
 
@@ -14,7 +18,7 @@ TypeTable::TypeTable()
 #include "impala/tokenlist.h"
     , type_error_(unify(new TypeError()))
     , noret_(unify(new NoRet()))
-    , void_(unify(new TupleType(ArrayRef<const Type*>(nullptr, 0))))
+    , void_(unify(new Void()))
 {}
 
 const Type* TypeTable::unify_base(const Type* type) {
@@ -40,6 +44,64 @@ const PrimType* TypeTable::primtype(TokenKind kind) {
 const FnType* TypeTable::fntype(const Type* elem) { const Type* elems[1] = { elem }; return fntype(elems); }
 const FnType* TypeTable::fntype(anydsl2::ArrayRef<const Type*> elems) { return unify(new FnType(*this, elems)); }
 const TupleType* TypeTable::tupletype(anydsl2::ArrayRef<const Type*> elems) { return unify(new TupleType(elems)); }
+const Generic* TypeTable::generic(size_t index) { return unify(new Generic(index)); }
+
+//------------------------------------------------------------------------------
+
+size_t GenericBuilder::new_def() {
+    size_t handle = index2generic_.size();
+    index2generic_.push_back(0);
+    return handle;
+}
+
+const Generic* GenericBuilder::use(size_t handle) {
+    assert(handle < index2generic_.size());
+    const Generic*& ref = index2generic_[handle];
+    if (auto generic = ref)
+        return generic;
+
+    return ref = typetable_.generic(index_++);
+}
+
+void GenericBuilder::pop() { 
+    if (auto generic = index2generic_.back()) {
+        --index_;
+        assert(generic->index() == index_);
+    }
+    index2generic_.pop_back(); 
+}
+
+//------------------------------------------------------------------------------
+
+const Type*& GenericMap::operator [] (const Generic* generic) const {
+    size_t i = generic->index();
+    if (i >= types_.size())
+        types_.resize(i+1, nullptr);
+    return types_[i];
+}
+
+bool GenericMap::is_empty() const {
+    for (size_t i = 0, e = types_.size(); i != e; ++i)
+        if (!types_[i])
+            return false;
+
+    return true;
+}
+
+const char* GenericMap::to_string() const {
+    std::ostringstream o;
+    bool first = true;
+    for (size_t i = 0, e = types_.size(); i != e; ++i)
+        if (auto type = types_[i]) {
+            if (first)
+                first = false;
+            else
+                o << ", ";
+            o << Generic::to_string(i) << " = " << type;
+        }
+
+    return o.str().c_str();
+}
 
 //------------------------------------------------------------------------------
 
@@ -82,11 +144,63 @@ bool Type::is_float() const {
 
 const Type* FnType::return_type() const {
     if (!empty()) {
-        if (auto ret = elems().back()->isa<FnType>())
-            return typetable_.tupletype(ret->elems());
+        if (auto fn = elems().back()->isa<FnType>()) {
+            switch (fn->size()) {
+                case 0: return typetable_.type_void();
+                case 1: return fn->elem(0);
+            }
+        }
     }
 
     return typetable_.noret();
+}
+
+bool Type::check_with(const Type* other) const {
+    if (this == other || this->isa<Generic>())
+        return true;
+
+    if (this->kind() != other->kind() || this->size() != other->size())
+        return false;
+
+    for (size_t i = 0, e = size(); i != e; ++i)
+        if (!this->elem(i)->check_with(other->elem(i)))
+            return false;
+
+    return true;
+}
+
+bool Type::infer_with(GenericMap& map, const Type* other) const {
+    size_t num_elems = this->size();
+    assert(num_elems == other->size());
+    assert(this->isa<Generic>() || this->kind() == other->kind());
+
+    if (this == other)
+        return true;
+
+    if (auto generic = this->isa<Generic>()) {
+        const Type*& mapped = map[generic];
+        if (!mapped) {
+            mapped = other;
+            return true;
+        } else
+            return mapped == other;
+    }
+
+    for (size_t i = 0; i < num_elems; ++i) {
+        if (!this->elem(i)->infer_with(map, other->elem(i)))
+            return false;
+    }
+
+    return true;
+}
+
+/*static*/ std::string Generic::to_string(size_t index) {
+    std::ostringstream oss;
+    if (index < 26)
+        oss << char('a' + index) << '\'';
+    else
+        oss << 'T' << index << '\'';
+    return oss.str();
 }
 
 //------------------------------------------------------------------------------
@@ -114,6 +228,10 @@ const anydsl2::Type* TupleType::convert(World& world) const {
         elems[i] = elem(i)->convert(world);
 
     return world.sigma(elems);
+}
+
+const anydsl2::Type* Generic::convert(anydsl2::World& world) const {
+    return world.generic(index());
 }
 
 } // namespace impala

@@ -173,29 +173,4 @@ GenericRef::~GenericRef() {
 
 //------------------------------------------------------------------------------
 
-size_t GenericBuilder::new_def() {
-    size_t handle = index2generic_.size();
-    index2generic_.push_back(0);
-    return handle;
-}
-
-const Generic* GenericBuilder::use(size_t handle) {
-    assert(handle < index2generic_.size());
-    const Generic*& ref = index2generic_[handle];
-    if (auto generic = ref)
-        return generic;
-
-    return ref = world_.generic(index_++);
-}
-
-void GenericBuilder::pop() { 
-    if (auto generic = index2generic_.back()) {
-        --index_;
-        assert(generic->index() == index_);
-    }
-    index2generic_.pop_back(); 
-}
-
-//------------------------------------------------------------------------------
-
 } // namespace anydsl2

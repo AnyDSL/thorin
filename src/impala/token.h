@@ -35,7 +35,7 @@ public:
         NOT, L_N, INC, DEC,
         // these do ont appear in impala/tokenlist.h -- they are too special
         ID, END_OF_FILE,
-        TYPE_error,
+        TYPE_generic, TYPE_error,
         NUM_TOKENS
     };
 

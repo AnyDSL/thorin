@@ -27,6 +27,8 @@ public:
 std::ostream& Printer::print_type(const Type* type) {
     if (type->isa<NoRet>()) {
         return stream() << "noret";
+    } else if (type->isa<Void>()) {
+        return stream() << "void";
     } else if (type->isa<TypeError>()) {
         return stream() << "<error>";
     } else if (auto tuple = type->isa<TupleType>()) {
@@ -44,8 +46,8 @@ std::ostream& Printer::print_type(const Type* type) {
                 default: return print_type(ret_tuple);
             }
         }
-    //} else if (auto generic = type->isa<anydsl2::Generic>()) {
-        //return stream() << '_' << generic->index();
+    } else if (auto generic = type->isa<Generic>()) {
+        return stream() << Generic::to_string(generic->index());
     //} else if (auto genref = type->isa<anydsl2::GenericRef>()) {
         //return stream() << "TODO";
     //} else if (auto ptr = type->isa<anydsl2::Ptr>()) {

@@ -30,8 +30,6 @@ private:
     mutable std::vector<const Type*> types_;
 };
 
-inline std::ostream& operator << (std::ostream& o, const GenericMap& map) { o << map.to_string(); return o; }
-
 //------------------------------------------------------------------------------
 
 class Type : public Node {
@@ -257,26 +255,6 @@ private:
     Lambda* lambda_;
 
     friend class World;
-};
-
-//------------------------------------------------------------------------------
-
-class GenericBuilder {
-public:
-    GenericBuilder(World& world)
-        : world_(world)
-        , index_(0)
-    {}
-
-    size_t new_def();
-    const Generic* use(size_t handle);
-    void pop();
-
-private:
-    World& world_;
-    size_t index_;
-    typedef std::vector<const Generic*> Index2Generic;
-    Index2Generic index2generic_;
 };
 
 //------------------------------------------------------------------------------

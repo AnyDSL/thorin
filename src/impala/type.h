@@ -4,6 +4,7 @@
 #include <unordered_set>
 
 #include "anydsl2/node.h"
+#include "anydsl2/util/hash.h"
 
 #include "impala/token.h"
 
@@ -16,7 +17,10 @@ namespace anydsl2 {
 namespace impala {
 
 class FnType;
+class Generic;
+class GenericRef;
 class NoRet;
+class Void;
 class PrimType;
 class TupleType;
 class Type;
@@ -28,13 +32,14 @@ public:
 
     const TypeError* type_error() { return type_error_; }
     const NoRet* noret() { return noret_; }
-    const TupleType* type_void() { return void_; }
+    const Void* type_void() { return void_; }
     const PrimType* primtype(TokenKind kind);
 #define IMPALA_TYPE(itype, atype) const PrimType* type_##itype() { return itype##_; }
 #include "impala/tokenlist.h"
     const FnType* fntype(const Type*);
     const FnType* fntype(anydsl2::ArrayRef<const Type*> elems = anydsl2::ArrayRef<const Type*>(nullptr, 0));
     const TupleType* tupletype(anydsl2::ArrayRef<const Type*> elems);
+    const Generic* generic(size_t index);
 
 private:
     const Type* unify_base(const Type* type);
@@ -46,8 +51,46 @@ private:
 #include "impala/tokenlist.h"
     const TypeError* type_error_;
     const NoRet* noret_;
-    const TupleType* void_;
+    const Void* void_;
 };
+
+//------------------------------------------------------------------------------
+
+class GenericBuilder {
+public:
+    GenericBuilder(TypeTable& typetable)
+        : typetable_(typetable)
+        , index_(0)
+    {}
+
+    size_t new_def();
+    const Generic* use(size_t handle);
+    void pop();
+
+private:
+    TypeTable& typetable_;
+    size_t index_;
+    typedef std::vector<const Generic*> Index2Generic;
+    Index2Generic index2generic_;
+};
+
+//------------------------------------------------------------------------------
+
+class GenericMap {
+public:
+    GenericMap() {}
+
+    const Type*& operator [] (const Generic* generic) const;
+    bool is_empty() const;
+    const char* to_string() const;
+
+private:
+    mutable std::vector<const Type*> types_;
+};
+
+inline std::ostream& operator << (std::ostream& o, const GenericMap& map) { o << map.to_string(); return o; }
+
+//------------------------------------------------------------------------------
 
 class Type : public anydsl2::Node {
 protected:
@@ -64,9 +107,8 @@ public:
     bool is_int() const;
     bool is_float() const;
     bool is_void() const;
-    bool check_with(const Type*) const { return true; } // TODO
-    bool infer_with(anydsl2::GenericMap& map, const Type* type) const { return true; } // TODO
-    //const Type* specialize(const GenericMap& generic_map) const;
+    bool check_with(const Type*) const;
+    bool infer_with(GenericMap& map, const Type* type) const;
     std::ostream& dump() const;
 };
 
@@ -74,6 +116,17 @@ class TypeError : public Type {
 private:
     TypeError() 
         : Type(Token::TYPE_error, 0, "<error>")
+    {}
+
+    virtual const anydsl2::Type* convert(anydsl2::World&) const { assert(false); }
+
+    friend class TypeTable;
+};
+
+class Void : public Type {
+private:
+    Void() 
+        : Type(Token::TYPE_void, 0, "void")
     {}
 
     virtual const anydsl2::Type* convert(anydsl2::World&) const { assert(false); }
@@ -100,6 +153,29 @@ private:
 
 public:
     virtual const anydsl2::Type* convert(anydsl2::World&) const;
+
+    friend class TypeTable;
+};
+
+class Generic : public Type {
+private:
+    Generic(size_t index)
+        : Type(Token::TYPE_generic, 0, "<generic>")
+        , index_(index)
+    {}
+
+    virtual const anydsl2::Type* convert(anydsl2::World&) const;
+    virtual size_t hash() const { return anydsl2::hash_combine(Type::hash(), index()); }
+    virtual bool equal(const Node* other) const { 
+        return Type::equal(other) ? index() == other->as<Generic>()->index() : false; 
+    }
+
+public:
+    size_t index() const { return index_; }
+    static std::string to_string(size_t index);
+
+private:
+    size_t index_;
 
     friend class TypeTable;
 };

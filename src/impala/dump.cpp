@@ -37,15 +37,9 @@ std::ostream& Printer::print_type(const Type* type) {
         const Type* ret_type = fn->return_type();
         if (ret_type->isa<NoRet>())
             return dump_list([&] (const Type* elem) { print_type(elem); }, fn->elems(), "fn(", ")");
-        else {
-            auto ret_tuple = ret_type->as<TupleType>();
-            dump_list([&] (const Type* elem) { print_type(elem); }, fn->elems().slice_front(fn->size()-1), "fn(", ") -> ");
-            switch (ret_tuple->size()) {
-                case 0: return stream() << "void";
-                case 1: return print_type(ret_tuple->elem(0));
-                default: return print_type(ret_tuple);
-            }
-        }
+        else
+            return dump_list([&] (const Type* elem) { print_type(elem); }, fn->elems().slice_front(fn->size()-1), "fn(", ") -> ") 
+                << ret_type;
     } else if (auto generic = type->isa<Generic>()) {
         return stream() << Generic::to_string(generic->index());
     //} else if (auto genref = type->isa<anydsl2::GenericRef>()) {
@@ -112,16 +106,8 @@ std::ostream& Fun::fun_print(Printer& p) const {
 
     p.dump_list([&] (const VarDecl* decl) { decl->print(p); }, params_ref, "(", ")");
 
-    if (!ret_type->isa<NoRet>()) {
-        p.stream() << " -> ";
-        auto ret_tuple = ret_type->as<TupleType>();
-        switch (ret_tuple->size()) {
-            case 0:  p.stream() << "void"; break;
-            case 1:  p.print_type(ret_tuple->elem(0)); break;
-            default: p.print_type(ret_tuple); break;
-        }
-        p.stream() << " ";
-    }
+    if (!ret_type->isa<NoRet>())
+        p.stream() << " -> " << ret_type << ' ';
 
     return p.print_block(body());
 }

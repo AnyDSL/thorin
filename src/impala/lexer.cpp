@@ -261,20 +261,20 @@ l_error:
         // fall through intended
 l_out:
         // lex suffix
-        TokenKind tok = floating ? Token::Lit_double : Token::Lit_int32;
+        TokenKind tok = floating ? Token::LIT_double : Token::LIT_int32;
         
         if (floating) {
             if (accept(str, fF))
-                tok = Token::Lit_float;
+                tok = Token::LIT_float;
         } else {
             //if (accept(str, uU)) {
-                     //if (accept(str, bB)) tok = Token:: Lit_uint8;
-                //else if (accept(str, sS)) tok = Token::Lit_uint16;
-                //else if (accept(str, lL)) tok = Token::Lit_uint64;
+                     //if (accept(str, bB)) tok = Token::LIT_uint8;
+                //else if (accept(str, sS)) tok = Token::LIT_uint16;
+                //else if (accept(str, lL)) tok = Token::LIT_uint64;
             //} else {
-                     if (accept(str, bB)) tok = Token:: Lit_int8;
-                else if (accept(str, sS)) tok = Token::Lit_int16;
-                else if (accept(str, lL)) tok = Token::Lit_int64;
+                     if (accept(str, bB)) tok = Token::LIT_int8;
+                else if (accept(str, sS)) tok = Token::LIT_int16;
+                else if (accept(str, lL)) tok = Token::LIT_int64;
             //}
         }
 

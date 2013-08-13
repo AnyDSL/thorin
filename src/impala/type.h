@@ -70,7 +70,7 @@ public:
 class TypeError : public Type {
 private:
     TypeError() 
-        : Type(Token::Type_error, 0, "<error>")
+        : Type(Token::TYPE_error, 0, "<error>")
     {}
 
     virtual const anydsl2::Type* convert(anydsl2::World&) const { assert(false); }
@@ -81,7 +81,7 @@ private:
 class NoRet : public Type {
 private:
     NoRet() 
-        : Type(Token::Type_noret, 0, "!")
+        : Type(Token::TYPE_noret, 0, "!")
     {}
 
     virtual const anydsl2::Type* convert(anydsl2::World&) const { assert(false); }

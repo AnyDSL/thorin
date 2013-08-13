@@ -133,10 +133,10 @@ IMPALA_KEY_MISC(DEF,        "def")
 IMPALA_KEY_MISC(EXTERN,     "extern")
 IMPALA_KEY_MISC(PI,         "pi")
 IMPALA_KEY_MISC(SIGMA,      "sigma")
-IMPALA_KEY_MISC(Type_int,   "int")
-IMPALA_KEY_MISC(Type_noret, "noret")
-IMPALA_KEY_MISC(Type_uint,  "uint")
-IMPALA_KEY_MISC(Type_void,  "void")
+IMPALA_KEY_MISC(TYPE_int,   "int")
+IMPALA_KEY_MISC(TYPE_noret, "noret")
+IMPALA_KEY_MISC(TYPE_uint,  "uint")
+IMPALA_KEY_MISC(TYPE_void,  "void")
 
 #undef IMPALA_KEY_MISC
 

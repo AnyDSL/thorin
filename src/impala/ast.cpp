@@ -9,9 +9,9 @@ namespace impala {
 PrimTypeKind Literal::literal2type() const {
     switch (kind()) {
 #define IMPALA_LIT(itype, atype) \
-        case Lit_##itype: return PrimType_##atype;
+        case LIT_##itype: return PrimType_##atype;
 #include "impala/tokenlist.h"
-        case Lit_bool:    return PrimType_u1;
+        case LIT_bool:    return PrimType_u1;
         default: ANYDSL2_UNREACHABLE;
     }
 }

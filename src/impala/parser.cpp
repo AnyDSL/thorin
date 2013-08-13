@@ -1,5 +1,3 @@
-#include "impala/parser.h"
-
 #include <algorithm>
 #include <sstream>
 
@@ -26,7 +24,7 @@ namespace impala {
 
 class Parser {
 public:
-    Parser(World& world, std::istream& stream, const std::string& filename);
+    Parser(TypeTable& typetable, std::istream& stream, const std::string& filename);
 
     const Token& la(size_t i) const { return lookahead[i]; }
     const Token& la () const { return lookahead[0]; }
@@ -98,10 +96,7 @@ private:
     /// Consume next Token in input stream, fill look-ahead buffer, return consumed Token.
     Token lex();
 
-    /*
-     * data
-     */
-
+#if 0
     typedef std::unordered_map<Symbol, size_t> Symbol2Handle;
     class Generics {
     public:
@@ -152,26 +147,27 @@ private:
         else
             cur_generics->insert(symbol);
     }
+#endif
 
-    World& world;
+    TypeTable& typetable;
     Lexer lexer;       ///< invoked in order to get next token
     Token lookahead[2];///< LL(2) look ahead
     const Loop* cur_loop;
     const Fun* cur_fun;
-    Generics* cur_generics;
+    //Generics* cur_generics;
     size_t cur_var_handle;
     size_t generic_counter;
     Prg* prg;
     int counter;
     anydsl2::Location prev_loc;
     bool result_;
-    GenericBuilder builder;
+    //GenericBuilder builder;
 };
 
 //------------------------------------------------------------------------------
 
-const Prg* parse(World& world, std::istream& i, const std::string& filename, bool& result) {
-    Parser p(world, i, filename);
+const Prg* parse(TypeTable& typetable, std::istream& i, const std::string& filename, bool& result) {
+    Parser p(typetable, i, filename);
     const Prg* prg = p.parse();
     result = p.result();
 
@@ -184,18 +180,18 @@ const Prg* parse(World& world, std::istream& i, const std::string& filename, boo
  * constructor
  */
 
-Parser::Parser(World& world, std::istream& stream, const std::string& filename)
-    : world(world)
+Parser::Parser(TypeTable& typetable, std::istream& stream, const std::string& filename)
+    : typetable(typetable)
     , lexer(stream, filename)
     , cur_loop(nullptr)
     , cur_fun(nullptr)
-    , cur_generics(nullptr)
+    //, cur_generics(nullptr)
     , cur_var_handle(2) // reserve 0 for conditionals, 1 for mem
     , generic_counter(0)
     , prg(new Prg())
     , counter(0)
     , result_(true)
-    , builder(world)
+    //, builder(world)
 {
     // init 2 lookahead
     lookahead[0] = lexer.lex();
@@ -580,14 +576,14 @@ const Stmt* Parser::parse_for() {
     if (accept(Token::SEMICOLON)) { 
         // do nothing: no expr given, semicolon consumed
         // but create true cond
-        cond = new Literal(prev_loc, Literal::Lit_bool, Box(true));
+        cond = new Literal(prev_loc, Literal::LIT_bool, Box(true));
     } else if (is_expr()) {
         cond = parse_expr();
         expect(Token::SEMICOLON, "second clause in for statement");
     } else {
         error("expression or nothing", 
                 "second clause in for statement");
-        cond = new Literal(prev_loc, Literal::Lit_bool, Box(true));
+        cond = new Literal(prev_loc, Literal::LIT_bool, Box(true));
     }
 
     const Expr* inc;
@@ -703,7 +699,7 @@ bool Parser::is_expr() {
     switch (la()) {
 #define IMPALA_PREFIX(tok, t_str, r) case Token:: tok:
 #define IMPALA_KEY_EXPR(tok, t_str)  case Token:: tok:
-#define IMPALA_LIT(itype, atype)     case Token:: Lit_##itype:
+#define IMPALA_LIT(itype, atype)     case Token:: LIT_##itype:
 #include "impala/tokenlist.h"
         case Token::HASH:
         case Token::L_PAREN:
@@ -846,7 +842,7 @@ const Expr* Parser::parse_postfix_expr(const Expr* lhs) {
 const Expr* Parser::parse_primary_expr() {
     switch (la() ) {
 #define IMPALA_LIT(itype, atype) \
-        case Token::Lit_##itype:
+        case Token::LIT_##itype:
 #include "impala/tokenlist.h"
         case Token::TRUE:
         case Token::FALSE:      return parse_literal();
@@ -871,11 +867,11 @@ const Expr* Parser::parse_literal() {
     Box box;
 
     switch (la()) {
-        case Token::TRUE:  return new Literal(lex().loc(), Literal::Lit_bool, Box(true));
-        case Token::FALSE: return new Literal(lex().loc(), Literal::Lit_bool, Box(false));
+        case Token::TRUE:  return new Literal(lex().loc(), Literal::LIT_bool, Box(true));
+        case Token::FALSE: return new Literal(lex().loc(), Literal::LIT_bool, Box(false));
 #define IMPALA_LIT(itype, atype) \
-        case Token::Lit_##itype: { \
-            kind = Literal::Lit_##itype; \
+        case Token::LIT_##itype: { \
+            kind = Literal::LIT_##itype; \
             Box box = la().box(); \
             return new Literal(lex().loc(), kind, box); \
         }

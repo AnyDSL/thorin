@@ -8,7 +8,7 @@ namespace impala {
 
 TypeTable::TypeTable()
     : types_()
-#define IMPALA_TYPE(itype, atype) ,itype##_(unify(primtype(Token::Type_##itype)))
+#define IMPALA_TYPE(itype, atype) ,itype##_(unify(primtype(Token::TYPE_##itype)))
 #include "impala/tokenlist.h"
     , type_error_(unify(new TypeError()))
     , noret_(unify(new NoRet()))
@@ -29,7 +29,7 @@ const Type* TypeTable::unify_base(const Type* type) {
 
 const PrimType* TypeTable::primtype(TokenKind kind) {
     switch (kind) {
-#define IMPALA_TYPE(itype, atype) case Token::Type_##itype: return itype##_;
+#define IMPALA_TYPE(itype, atype) case Token::TYPE_##itype: return itype##_;
 #include "impala/tokenlist.h"
         default: ANYDSL2_UNREACHABLE;
     }
@@ -37,18 +37,18 @@ const PrimType* TypeTable::primtype(TokenKind kind) {
 
 bool Type::is_bool() const { 
     if (auto pt = isa<PrimType>()) 
-        return pt->kind() == Token::Type_bool; 
+        return pt->kind() == Token::TYPE_bool; 
     return false; 
 }
 
 bool Type::is_int() const {
     if (auto pt = isa<PrimType>()) {
         switch (pt->kind()) {
-            case Token::Type_int8:
-            case Token::Type_int16:
-            case Token::Type_int32:
-            case Token::Type_int64:
-            case Token::Type_int:   return true;
+            case Token::TYPE_int8:
+            case Token::TYPE_int16:
+            case Token::TYPE_int32:
+            case Token::TYPE_int64:
+            case Token::TYPE_int:   return true;
             default:                return false;
         }
     }
@@ -68,7 +68,7 @@ const Type* FnType::return_type() const {
 
 const anydsl2::Type* PrimType::convert(World& world) const {
     switch (kind()) {
-#define IMPALA_TYPE(itype, atype) case Token::Type_##itype: return world.type_##atype();
+#define IMPALA_TYPE(itype, atype) case Token::TYPE_##itype: return world.type_##atype();
 #include "impala/tokenlist.h"
         default: ANYDSL2_UNREACHABLE;
     }

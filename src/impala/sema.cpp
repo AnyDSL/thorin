@@ -293,7 +293,7 @@ const Type* IndexExpr::check(Sema& sema) const {
 
                 switch (literal->kind()) {
 #define IMPALA_LIT(itype, atype) \
-                    case Literal::Lit_##itype: pos = (unsigned) literal->box().get_##atype(); break;
+                    case Literal::LIT_##itype: pos = (unsigned) literal->box().get_##atype(); break;
 #include "impala/tokenlist.h"
                     default: ANYDSL2_UNREACHABLE;
                 }

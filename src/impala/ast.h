@@ -202,9 +202,9 @@ private:
 class Literal : public Expr {
 public:
     enum Kind {
-#define IMPALA_LIT(itype, atype) Lit_##itype = Token::Lit_##itype,
+#define IMPALA_LIT(itype, atype) LIT_##itype = Token::LIT_##itype,
 #include "impala/tokenlist.h"
-        Lit_bool
+        LIT_bool
     };
 
     Literal(const anydsl2::Location& loc, Kind kind, anydsl2::Box box)

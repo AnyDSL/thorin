@@ -71,7 +71,7 @@ void Scope::jump_to_param_users(const size_t pass, Lambda* lambda, Lambda* limit
 }
 
 inline void Scope::find_user(const size_t pass, const Def* def, Lambda* limit) {
-    if (Lambda* lambda = def->isa_lambda())
+    if (auto lambda = def->isa_lambda())
         up(pass, lambda, limit);
     else {
         if (def->visit(pass))
@@ -145,11 +145,11 @@ size_t Scope::number(const size_t pass, Lambda* cur, size_t i) const {
 #define ANYDSL2_SCOPE_SUCC_PRED(succ) \
 ArrayRef<Lambda*> Scope::succ##s(Lambda* lambda) const { \
     assert(contains(lambda));  \
-    if (succ##s_.data() == 0) { \
+    if (succ##s_.data() == nullptr) { \
         succ##s_.alloc(size()); \
         for (auto lambda : rpo_) { \
             Lambdas all_succ##s = lambda->succ##s(); \
-            Array<Lambda*>& succ##s = succ##s_[lambda->sid()]; \
+            auto& succ##s = succ##s_[lambda->sid()]; \
             succ##s.alloc(all_succ##s.size()); \
             size_t i = 0; \
             for (auto succ : all_succ##s) { \

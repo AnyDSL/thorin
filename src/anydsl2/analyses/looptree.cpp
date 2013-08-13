@@ -134,7 +134,7 @@ void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<Lambda*> headers, int
     }
 
     for (auto node : parent->children()) {
-        if (LoopHeader* new_parent = node->isa<LoopHeader>())
+        if (auto new_parent = node->isa<LoopHeader>())
             recurse<false>(new_parent, new_parent->headers(), depth + 1);
     }
 }
@@ -209,7 +209,7 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
 }
 
 std::pair<size_t, size_t> LoopTreeBuilder::propagate_bounds(LoopNode* n) {
-    if (LoopHeader* header = n->isa<LoopHeader>()) {
+    if (auto header = n->isa<LoopHeader>()) {
         size_t begin = -1, end = 0;
         for (auto child : header->children()) {
             auto p = propagate_bounds(child);
@@ -247,7 +247,7 @@ LoopTree::LoopTree(const Scope& scope)
 }
 
 Array<Lambda*> LoopTree::loop_lambdas(const LoopHeader* header) {
-    ArrayRef<const LoopLeaf*> leaves = loop(header);
+    auto leaves = loop(header);
     Array<Lambda*> result(leaves.size());
     for (size_t i = 0, e = leaves.size(); i != e; ++i)
         result[i] = leaves[i]->lambda();
@@ -255,7 +255,7 @@ Array<Lambda*> LoopTree::loop_lambdas(const LoopHeader* header) {
 }
 
 Array<Lambda*> LoopTree::loop_lambdas_in_rpo(const LoopHeader* header) {
-    Array<Lambda*> result = loop_lambdas(header);
+    auto result = loop_lambdas(header);
     std::sort(result.begin(), result.end(), [] (const Lambda* l1, const Lambda* l2) { return l1->sid() < l2->sid(); });
     return result;
 }
@@ -267,7 +267,7 @@ std::ostream& operator << (std::ostream& o, const LoopNode* node) {
         o << '\t';
     for (auto header : node->headers())
         o << header->unique_name() << " ";
-    if (const LoopHeader* header = node->isa<LoopHeader>()) {
+    if (auto header = node->isa<LoopHeader>()) {
         o << ": " << header->dfs_begin() << "/" << header->dfs_end() << std::endl;
         for (auto child : header->children())
             o << child;

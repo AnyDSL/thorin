@@ -14,7 +14,7 @@ namespace anydsl2 {
 class CFFLowering {
 public:
     CFFLowering(World& world) {
-        Array<Lambda*> top = top_level_lambdas(world);
+        auto top = top_level_lambdas(world);
         top_.insert(top.begin(), top.end());
     }
 

@@ -31,7 +31,7 @@ const char* GenericMap::to_string() const {
     std::ostringstream o;
     bool first = true;
     for (size_t i = 0, e = types_.size(); i != e; ++i)
-        if (const Type* type = types_[i]) {
+        if (auto type = types_[i]) {
             if (first)
                 first = false;
             else
@@ -84,7 +84,7 @@ bool Type::infer_with(GenericMap& map, const Type* other) const {
     if (this == other)
         return true;
 
-    if (const Generic* generic = this->isa<Generic>()) {
+    if (auto generic = this->isa<Generic>()) {
         const Type*& mapped = map[generic];
         if (!mapped) {
             mapped = other;
@@ -102,8 +102,8 @@ bool Type::infer_with(GenericMap& map, const Type* other) const {
 }
 
 const Type* Type::specialize(const GenericMap& generic_map) const {
-    if (const Generic* generic = this->isa<Generic>()) {
-        if (const Type* substitute = generic_map[generic])
+    if (auto generic = this->isa<Generic>()) {
+        if (auto substitute = generic_map[generic])
             return substitute;
         else
             return this;
@@ -182,14 +182,14 @@ size_t GenericBuilder::new_def() {
 const Generic* GenericBuilder::use(size_t handle) {
     assert(handle < index2generic_.size());
     const Generic*& ref = index2generic_[handle];
-    if (const Generic* generic = ref)
+    if (auto generic = ref)
         return generic;
 
     return ref = world_.generic(index_++);
 }
 
 void GenericBuilder::pop() { 
-    if (const Generic* generic = index2generic_.back()) {
+    if (auto generic = index2generic_.back()) {
         --index_;
         assert(generic->index() == index_);
     }

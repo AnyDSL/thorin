@@ -25,8 +25,8 @@ public:
 };
 
 const DomNode* Merger::dom_succ(const DomNode* n) { 
-    ArrayRef<Lambda*> succs = scope.succs(n->lambda());
-    const std::vector<const DomNode*>& children = n->children();
+    auto succs = scope.succs(n->lambda());
+    auto& children = n->children();
     return succs.size() == 1 && children.size() == 1 
         && succs.front() == children.front()->lambda() 
         && succs.front()->num_uses() == 1

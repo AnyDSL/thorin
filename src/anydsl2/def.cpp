@@ -82,7 +82,7 @@ AutoVector<const Tracker*> Def::tracked_uses() const {
 
 std::vector<MultiUse> Def::multi_uses() const {
     std::vector<MultiUse> result;
-    Array<Use> uses = copy_uses();
+    auto uses = copy_uses();
     std::sort(uses.begin(), uses.end());
 
     const Def* cur = nullptr;
@@ -135,7 +135,7 @@ void Def::replace(const Def* with) const {
     for (auto tracker : trackers())
         *tracker = with;
 
-    std::vector<MultiUse> uses = multi_uses();
+    auto uses = multi_uses();
 
     for (auto use : uses) {
         if (auto lambda = use->isa_lambda()) {

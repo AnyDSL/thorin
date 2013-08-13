@@ -10,7 +10,7 @@
 namespace anydsl2 {
 
 void mem2reg(World& world) {
-    Array<Lambda*> top = top_level_lambdas(world);
+    auto top = top_level_lambdas(world);
 
     for (auto lambda : world.lambdas()) {
         lambda->set_parent(lambda);

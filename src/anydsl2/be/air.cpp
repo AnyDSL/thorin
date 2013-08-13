@@ -112,7 +112,7 @@ std::ostream& CodeGen::emit_assignment(const PrimOp* primop) {
     emit_type(primop->type()) << " ";
     emit_name(primop) << " = ";
 
-    ArrayRef<const Def*> ops = primop->ops();
+    auto ops = primop->ops();
     if (auto vectorop = primop->isa<VectorOp>()) {
         if (!vectorop->cond()->is_allset()) {
             stream() << "@ ";

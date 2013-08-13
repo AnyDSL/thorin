@@ -20,14 +20,14 @@ Schedule schedule_early(const Scope& scope) {
 
     for (size_t i = 0, e = scope.size(); i != e; ++i) {
         Lambda* lambda = scope[i];
-        std::vector<const PrimOp*>& primops = schedule[i];
+        auto& primops = schedule[i];
 
         for (auto param : lambda->params())
             queue.push(param);
 
         while (!queue.empty()) {
             const Def* def = queue.front();
-            if (const PrimOp* primop = def->isa<PrimOp>())
+            if (auto primop = def->isa<PrimOp>())
                 primops.push_back(primop);
             queue.pop();
 
@@ -70,7 +70,7 @@ Schedule schedule_late(const Scope& scope, size_t& pass) {
             queue.pop();
 
             for (auto op : def->ops()) {
-                if (const PrimOp* primop = op->is_non_const_primop()) {
+                if (auto primop = op->is_non_const_primop()) {
                     if (!primop->visit(pass)) {     // init unseen primops
                         primop->ptr = 0;
                         primop->counter = primop->num_uses();

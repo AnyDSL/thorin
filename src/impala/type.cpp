@@ -66,14 +66,6 @@ const Generic* GenericBuilder::use(size_t handle) {
     return ref = typetable_.generic(index_++);
 }
 
-void GenericBuilder::pop() { 
-    if (auto generic = index2generic_.back()) {
-        --index_;
-        assert(generic->index() == index_);
-    }
-    index2generic_.pop_back(); 
-}
-
 //------------------------------------------------------------------------------
 
 const Type*& GenericMap::operator [] (const Generic* generic) const {
@@ -175,14 +167,14 @@ bool Type::check_with(const Type* other) const {
 }
 
 bool Type::infer_with(GenericMap& map, const Type* other) const {
-    size_t num_elems = this->size();
-    assert(num_elems == other->size());
-    assert(this->isa<Generic>() || this->kind() == other->kind());
-
     if (auto genericref = this->isa<GenericRef>())
         return genericref->generic()->infer_with(map, other);
     if (auto genericref = other->isa<GenericRef>())
         other = genericref->generic();
+
+    size_t num_elems = this->size();
+    assert(num_elems == other->size());
+    assert(this->isa<Generic>() || this->kind() == other->kind());
 
     if (this == other)
         return true;

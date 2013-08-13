@@ -68,7 +68,7 @@ public:
     size_t new_def();
     const Generic* use(size_t handle);
     const Generic* get(size_t handle) { assert(handle < index2generic_.size()); return index2generic_[handle]; }
-    void pop();
+    void pop(size_t num) { index2generic_.resize(num); }
 
 private:
     TypeTable& typetable_;

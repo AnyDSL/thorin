@@ -394,9 +394,10 @@ const NamedFun* Parser::parse_named_fun() {
 
     for (auto& genentry : f->generics_) {
         symbol2gen.erase(genentry.symbol());
-        builder.pop();
         genentry.set(builder.get(genentry.handle()));
     }
+
+    builder.pop(f->generics_.size());
 
     return f;
 }

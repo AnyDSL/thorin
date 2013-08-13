@@ -1,49 +1,94 @@
 #include "impala/type.h"
 
-#include "anydsl2/util/printer.h"
+#include "anydsl2/world.h"
 
 using namespace anydsl2;
 
 namespace impala {
 
-World::World() 
-    : noret_(keep(new NoRet(*this)))
-    , type_void_(keep(new Void(*this)))
-    , type_error_(keep(new TypeError(*this)))
+TypeTable::TypeTable()
+    : types_()
+#define IMPALA_TYPE(itype, atype) ,itype##_(unify(primtype(Token::Type_##itype)))
+#include "impala/tokenlist.h"
+    , type_error_(unify(new TypeError()))
+    , noret_(unify(new NoRet()))
+    , unit_(unify(new TupleType(ArrayRef<const Type*>(nullptr, 0))))
 {}
 
-const Type* return_type(const Pi* pi) {
-    if (!pi->empty()) {
-        if (const Pi* ret = pi->elems().back()->isa<Pi>()) {
-            if (ret->size() == 1)
-                return ret->elem(0);
-            if (ret->size() == 0)
-                return ((impala::World&) pi->world()).type_void();
-        }
+const Type* TypeTable::unify_base(const Type* type) {
+    auto i = types_.find(type);
+    if (i != types_.end()) {
+        delete type;
+        return *i;
     }
 
-    return ((impala::World&) pi->world()).noret();
+    auto p = types_.insert(type);
+    assert(p.second && "hash/equal broken");
+    return type;
 }
 
-const Type* convert_type(const Type* type) {
-    if (const Pi* pi = type->isa<Pi>()) {
-        Array<const Type*> elems(pi->size() + 1);
-        elems[0] = type->world().mem();
+const PrimType* TypeTable::primtype(TokenKind kind) {
+    switch (kind) {
+#define IMPALA_TYPE(itype, atype) case Token::Type_##itype: return itype##_;
+#include "impala/tokenlist.h"
+        default: ANYDSL2_UNREACHABLE;
+    }
+}
 
-        for (size_t i = 1, e = elems.size(); i != e; ++i)
-            elems[i] = convert(pi->elem(i-1));
+bool Type::is_bool() const { 
+    if (auto pt = isa<PrimType>()) 
+        return pt->kind() == Token::Type_bool; 
+    return false; 
+}
 
-        return type->world().pi(elems);
-    } else if (const Sigma* sigma = type->isa<Sigma>()) {
-        Array<const Type*> elems(sigma->size());
+bool Type::is_int() const {
+    if (auto pt = isa<PrimType>()) {
+        switch (pt->kind()) {
+            case Token::Type_int8:
+            case Token::Type_int16:
+            case Token::Type_int32:
+            case Token::Type_int64:
+            case Token::Type_int:   return true;
+            default:                return false;
+        }
+    }
+    return false;
+}
 
-        for (size_t i = 0, e = elems.size(); i != e; ++i)
-            elems[i] = convert(sigma->elem(i));
-
-        return type->world().sigma(elems);
+const Type* FnType::return_type() const {
+    if (!empty()) {
+        if (auto ret = elems().back()->isa<FnType>())
+            return typetable_.tupletype(ret->elems());
     }
 
-    return type;
+    return typetable_.noret();
+}
+
+//------------------------------------------------------------------------------
+
+const anydsl2::Type* PrimType::convert(World& world) const {
+    switch (kind()) {
+#define IMPALA_TYPE(itype, atype) case Token::Type_##itype: return world.type_##atype();
+#include "impala/tokenlist.h"
+        default: ANYDSL2_UNREACHABLE;
+    }
+}
+
+const anydsl2::Type* FnType::convert(World& world) const {
+    Array<const anydsl2::Type*> elems(size() + 1);
+    elems[0] = world.mem();
+    for (size_t i = 1, e = elems.size(); i != e; ++i)
+        elems[i] = elem(i-1)->convert(world);
+
+    return world.pi(elems);
+}
+
+const anydsl2::Type* TupleType::convert(World& world) const {
+    Array<const anydsl2::Type*> elems(size());
+    for (size_t i = 0, e = elems.size(); i != e; ++i)
+        elems[i] = elem(i)->convert(world);
+
+    return world.sigma(elems);
 }
 
 } // namespace impala

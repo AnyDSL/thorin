@@ -7,14 +7,8 @@
 
 namespace impala {
 
-void init() {
-    PrecTable::init();
-    Token::init();
-}
-
-void destroy() {
-    anydsl2::Symbol::destroy();
-}
+void init() { PrecTable::init(); Token::init(); }
+void destroy() { anydsl2::Symbol::destroy(); }
 
 } // namespace impala
 

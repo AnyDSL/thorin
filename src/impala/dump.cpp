@@ -25,23 +25,24 @@ public:
     Prec prec;
 };
 
-// TODO The copy&past code from anydsl2/be/air.cpp will be gone when impala gets its own type system
 std::ostream& Printer::print_type(const Type* type) {
-    if (type->isa<Void>()) {
-        return stream() << "void";
-    } else if (type->isa<NoRet>()) {
+    if (type->isa<NoRet>()) {
         return stream() << "noret";
     } else if (type->isa<TypeError>()) {
         return stream() << "<type error>";
-    } else if (auto sigma = type->isa<anydsl2::Sigma>()) {
-        return dump_list([&] (const Type* elem) { print_type(elem); }, sigma->elems(), "#(", ")");
-    } else if (auto pi = type->isa<anydsl2::Pi>()) {
+    } else if (auto tuple = type->isa<TupleType>()) {
+        return dump_list([&] (const Type* elem) { print_type(elem); }, sigma->elems(), "(", ")");
+    } else if (auto fn = type->isa<FnType>()) {
         const Type* ret_type = return_type(pi);
         if (ret_type->isa<NoRet>()) {
-            return dump_list([&] (const Type* elem) { print_type(elem); }, pi->elems(), "pi(", ")");
-        } else {
-            return dump_list([&] (const Type* elem) { print_type(elem); }, pi->elems().slice_front(pi->size()-1), "pi(", ") -> ")
-                << ret_type;
+            return dump_list([&] (const Type* elem) { print_type(elem); }, fn->elems(), "fn(", ")");
+
+        auto ret_tuple = ret_type->as<TupleType>();
+        dump_list([&] (const Type* elem) { print_type(elem); }, fn->elems().slice_front(fn->size()-1), "fn(", ") -> ");
+        switch (ret_tuple.size()) {
+            case 0: return stream() << "void";
+            case 1: return print_type(ret_tuple->elem(0);
+            default: return print_type(ret_tuple);
         }
     } else if (auto generic = type->isa<anydsl2::Generic>()) {
         return stream() << '_' << generic->index();
@@ -126,9 +127,9 @@ std::ostream& Fun::fun_print(Printer& p) const {
 std::ostream& Literal::print(Printer& p) const {
     switch (kind()) {
 #define IMPALA_LIT(itype, atype) \
-        case LIT_##itype: return p.stream() << (anydsl2::u64) box().get_##atype();
+        case Lit_##itype: return p.stream() << (anydsl2::u64) box().get_##atype();
 #include "impala/tokenlist.h"
-        case LIT_bool: return p.stream() << (box().get_u1().get() ? "true" : "false");
+        case Lit_bool: return p.stream() << (box().get_u1().get() ? "true" : "false");
         default: ANYDSL2_UNREACHABLE;
     }
 }

@@ -593,14 +593,14 @@ const Stmt* Parser::parse_for() {
     if (accept(Token::SEMICOLON)) { 
         // do nothing: no expr given, semicolon consumed
         // but create true cond
-        cond = new Literal(prev_loc, Literal::LIT_bool, Box(true));
+        cond = new Literal(prev_loc, Literal::Lit_bool, Box(true));
     } else if (is_expr()) {
         cond = parse_expr();
         expect(Token::SEMICOLON, "second clause in for statement");
     } else {
         error("expression or nothing", 
                 "second clause in for statement");
-        cond = new Literal(prev_loc, Literal::LIT_bool, Box(true));
+        cond = new Literal(prev_loc, Literal::Lit_bool, Box(true));
     }
 
     const Expr* inc;
@@ -716,7 +716,7 @@ bool Parser::is_expr() {
     switch (la()) {
 #define IMPALA_PREFIX(tok, t_str, r) case Token:: tok:
 #define IMPALA_KEY_EXPR(tok, t_str)  case Token:: tok:
-#define IMPALA_LIT(itype, atype)     case Token:: LIT_##itype:
+#define IMPALA_LIT(itype, atype)     case Token:: Lit_##itype:
 #include "impala/tokenlist.h"
         case Token::HASH:
         case Token::L_PAREN:
@@ -859,7 +859,7 @@ const Expr* Parser::parse_postfix_expr(const Expr* lhs) {
 const Expr* Parser::parse_primary_expr() {
     switch (la() ) {
 #define IMPALA_LIT(itype, atype) \
-        case Token::LIT_##itype:
+        case Token::Lit_##itype:
 #include "impala/tokenlist.h"
         case Token::TRUE:
         case Token::FALSE:      return parse_literal();
@@ -884,11 +884,11 @@ const Expr* Parser::parse_literal() {
     Box box;
 
     switch (la()) {
-        case Token::TRUE:  return new Literal(lex().loc(), Literal::LIT_bool, Box(true));
-        case Token::FALSE: return new Literal(lex().loc(), Literal::LIT_bool, Box(false));
+        case Token::TRUE:  return new Literal(lex().loc(), Literal::Lit_bool, Box(true));
+        case Token::FALSE: return new Literal(lex().loc(), Literal::Lit_bool, Box(false));
 #define IMPALA_LIT(itype, atype) \
-        case Token::LIT_##itype: { \
-            kind = Literal::LIT_##itype; \
+        case Token::Lit_##itype: { \
+            kind = Literal::Lit_##itype; \
             Box box = la().box(); \
             return new Literal(lex().loc(), kind, box); \
         }

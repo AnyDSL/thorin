@@ -1,69 +1,141 @@
 #ifndef IMPALA_TYPE_H
 #define IMPALA_TYPE_H
 
-#include "anydsl2/type.h"
-#include "anydsl2/world.h"
+#include <unordered_set>
+
+#include "anydsl2/node.h"
+
+#include "impala/token.h"
 
 namespace anydsl2 {
-    class CodeGen;
-    class Printer;
+    class GenericMap;
+    class Type;
+    class World;
 }
 
 namespace impala {
 
-class World;
+class FnType;
+class NoRet;
+class PrimType;
+class TupleType;
+class Type;
+class TypeError;
 
-enum {
-    Type_NoRet = anydsl2::End_AllNodes,
-    Type_Void,
-    Type_Error,
-};
-
-class Void : public anydsl2::Type {
-private:
-    Void(anydsl2::World& world) 
-        : anydsl2::Type(world, Type_Void, 0, false)
-    {}
-
-    friend class World;
-};
-
-class NoRet : public anydsl2::Type {
-private:
-    NoRet(anydsl2::World& world) 
-        : anydsl2::Type(world, Type_NoRet, 0, false)
-    {}
-
-    friend class World;
-};
-
-class TypeError : public anydsl2::Type {
-private:
-    TypeError(anydsl2::World& world) 
-        : anydsl2::Type(world, Type_Error, 0, false)
-    {}
-
-    friend class World;
-};
-
-class World : public anydsl2::World {
+class TypeTable {
 public:
-    World();
+    TypeTable();
 
-    const NoRet* noret() { return noret_; }
-    const Void* type_void() { return type_void_; }
     const TypeError* type_error() { return type_error_; }
+    const NoRet* noret() { return noret_; }
+    const TupleType* unit() { return unit_; }
+    const PrimType* primtype(TokenKind kind);
+#define IMPALA_TYPE(itype, atype) const PrimType* type_##itype() { return itype##_; }
+#include "impala/tokenlist.h"
+    const FnType* fntype(anydsl2::ArrayRef<const Type*> elems = anydsl2::ArrayRef<const Type*>(nullptr, 0));
+    const FnType* fntype(anydsl2::ArrayRef<const Type*> elems, const Type* ret_type);
+    const FnType* fntype(anydsl2::ArrayRef<const Type*> elems, anydsl2::Array<const Type*> ret_tuple);
+    const TupleType* tupletype(anydsl2::ArrayRef<const Type*> elems);
 
 private:
-    const NoRet* noret_;
-    const Void* type_void_;
+    const Type* unify_base(const Type* type);
+    template<class T> const T* unify(const T* type) { return unify_base(type)->template as<T>(); }
+
+    std::unordered_set<const Type*> types_;
+
+#define IMPALA_TYPE(itype, atype) const PrimType* itype##_;
+#include "impala/tokenlist.h"
     const TypeError* type_error_;
+    const NoRet* noret_;
+    const TupleType* unit_;
 };
 
-const anydsl2::Type* return_type(const anydsl2::Pi*);
-const anydsl2::Type* convert_type(const anydsl2::Type*);
-template<class T>
-const T* convert(const T* type) { return convert_type(type)->template as<T>(); }
+class Type : public anydsl2::Node {
+protected:
+    Type(TokenKind kind, size_t size, const std::string& name)
+        : Node((int) kind, size, name)
+    {}
+
+public:
+    anydsl2::ArrayRef<const Type*> elems() const { return ops_ref<const Type*>(); }
+    const Type* elem(size_t i) const { return elems()[i]; }
+    virtual const anydsl2::Type* convert(anydsl2::World&) const = 0;
+    bool is_bool() const;
+    bool is_int() const;
+    bool check_with(const Type*) const { return true; } // TODO
+    bool infer_with(anydsl2::GenericMap& map, const Type* type) const { return true; } // TODO
+    //const Type* specialize(const GenericMap& generic_map) const;
+};
+
+class TypeError : public Type {
+private:
+    TypeError() 
+        : Type(Token::Type_error, 0, "<error>")
+    {}
+
+    virtual const anydsl2::Type* convert(anydsl2::World&) const { assert(false); }
+
+    friend class TypeTable;
+};
+
+class NoRet : public Type {
+private:
+    NoRet() 
+        : Type(Token::Type_noret, 0, "!")
+    {}
+
+    virtual const anydsl2::Type* convert(anydsl2::World&) const { assert(false); }
+
+    friend class TypeTable;
+};
+
+class PrimType : public Type {
+private:
+    PrimType(TokenKind kind)
+        : Type(kind, 0, "<primitive type>")
+    {}
+
+public:
+    TokenKind kind() const { return (TokenKind) kind(); }
+    virtual const anydsl2::Type* convert(anydsl2::World&) const;
+
+    friend class TypeTable;
+};
+
+class CompoundType : public Type {
+protected:
+    CompoundType(TokenKind kind, anydsl2::ArrayRef<const Type*> elems, const std::string& name)
+        : Type(kind, elems.size(), name)
+    {}
+};
+
+class FnType : public CompoundType {
+private:
+    FnType(TypeTable& typetable, anydsl2::ArrayRef<const Type*> elems)
+        : CompoundType(Token::PI, elems, "<function type>")
+        , typetable_(typetable)
+    {}
+
+public:
+    virtual const anydsl2::Type* convert(anydsl2::World&) const;
+    const Type* return_type() const;
+
+private:
+    TypeTable& typetable_;
+
+    friend class TypeTable;
+};
+
+class TupleType : public CompoundType {
+private:
+    TupleType(anydsl2::ArrayRef<const Type*> elems)
+        : CompoundType(Token::SIGMA, elems, "<tuple type>")
+    {}
+
+    virtual const anydsl2::Type* convert(anydsl2::World&) const;
+
+    friend class TypeTable;
+};
 
 } // namespace impala
 

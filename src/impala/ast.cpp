@@ -6,14 +6,12 @@ using namespace anydsl2;
 
 namespace impala {
 
-bool Fun::is_continuation() const { return return_type(pi())->isa<NoRet>() != nullptr; }
-
 PrimTypeKind Literal::literal2type() const {
     switch (kind()) {
 #define IMPALA_LIT(itype, atype) \
-        case LIT_##itype: return PrimType_##atype;
+        case Lit_##itype: return PrimType_##atype;
 #include "impala/tokenlist.h"
-        case LIT_bool:    return PrimType_u1;
+        case Lit_bool:    return PrimType_u1;
         default: ANYDSL2_UNREACHABLE;
     }
 }

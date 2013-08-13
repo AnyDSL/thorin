@@ -37,18 +37,18 @@ Token::Token(const Location& loc, Kind kind, const std::string& str)
     using namespace std;
 
     switch (kind_) {
-        case LIT_int8:   box_ = Box(bcast< uint8_t,  int8_t>( int8_t(strtol  (symbol_.str(), 0, 0)))); break;
-        case LIT_int16:  box_ = Box(bcast<uint16_t, int16_t>(int16_t(strtol  (symbol_.str(), 0, 0)))); break;
-        case LIT_int32:  box_ = Box(bcast<uint32_t, int32_t>(int32_t(strtol  (symbol_.str(), 0, 0)))); break;
-        case LIT_int64:  box_ = Box(bcast<uint64_t, int64_t>(int64_t(strtoll (symbol_.str(), 0, 0)))); break;
+        case Lit_int8:   box_ = Box(bcast< uint8_t,  int8_t>( int8_t(strtol  (symbol_.str(), 0, 0)))); break;
+        case Lit_int16:  box_ = Box(bcast<uint16_t, int16_t>(int16_t(strtol  (symbol_.str(), 0, 0)))); break;
+        case Lit_int32:  box_ = Box(bcast<uint32_t, int32_t>(int32_t(strtol  (symbol_.str(), 0, 0)))); break;
+        case Lit_int64:  box_ = Box(bcast<uint64_t, int64_t>(int64_t(strtoll (symbol_.str(), 0, 0)))); break;
 
-        //case LIT_uint8:  box_ = Box(uint8_t (strtoul (symbol_.str(), 0, 0))); break;
-        //case LIT_uint16: box_ = Box(uint16_t(strtoul (symbol_.str(), 0, 0))); break;
-        //case LIT_uint32: box_ = Box(uint32_t(strtoul (symbol_.str(), 0, 0))); break;
-        //case LIT_uint64: box_ = Box(uint64_t(strtoull(symbol_.str(), 0, 0))); break;
+        //case Lit_uint8:  box_ = Box(uint8_t (strtoul (symbol_.str(), 0, 0))); break;
+        //case Lit_uint16: box_ = Box(uint16_t(strtoul (symbol_.str(), 0, 0))); break;
+        //case Lit_uint32: box_ = Box(uint32_t(strtoul (symbol_.str(), 0, 0))); break;
+        //case Lit_uint64: box_ = Box(uint64_t(strtoull(symbol_.str(), 0, 0))); break;
 
-        case LIT_float:  box_ = Box(strtof(symbol_.str(), 0)); break;
-        case LIT_double: box_ = Box(strtod(symbol_.str(), 0)); break;
+        case Lit_float:  box_ = Box(strtof(symbol_.str(), 0)); break;
+        case Lit_double: box_ = Box(strtod(symbol_.str(), 0)); break;
 
         default: ANYDSL2_UNREACHABLE;
     }
@@ -135,11 +135,11 @@ void Token::init() {
 #define IMPALA_INFIX(     tok, str, r, l) insert(tok, str); tok2op_[tok] |= INFIX;   
 #define IMPALA_INFIX_ASGN(tok, str, r, l) insert(tok, str); tok2op_[tok] |= INFIX | ASGN_OP;
 #define IMPALA_MISC(      tok, str)       insert(tok, str);
-#define IMPALA_LIT(       tok, atype)     tok2str_[LIT_##tok] = Symbol("<literal>").str();
+#define IMPALA_LIT(       tok, atype)     tok2str_[Lit_##tok] = Symbol("<literal>").str();
 #define IMPALA_KEY_EXPR(  tok, str)       insert_key(tok, str);
 #define IMPALA_KEY_STMT(  tok, str)       insert_key(tok, str);
 #define IMPALA_KEY_MISC(  tok, str)       insert_key(tok, str);
-#define IMPALA_TYPE(itype, atype)         insert_key(TYPE_ ## itype, #itype );
+#define IMPALA_TYPE(itype, atype)         insert_key(Type_ ## itype, #itype );
 #include "impala/tokenlist.h"
 
     tok2str_[ID]         = Symbol("<identifier>").str();

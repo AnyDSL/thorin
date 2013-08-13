@@ -3,6 +3,7 @@
 #include <vector>
 #include <unordered_map>
 
+#include "anydsl2/type.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/push.h"
 
@@ -18,9 +19,9 @@ namespace impala {
 class Sema {
 public:
 
-    Sema(World& world, bool nossa)
+    Sema(TypeTable& typetable, bool nossa)
         : in_foreach_(false)
-        , world_(world)
+        , typetable_(typetable)
         , result_(true)
         , nossa_(nossa)
     {}
@@ -54,15 +55,15 @@ public:
     std::ostream& error(const ASTNode* n) { result_ = false; return n->error(); }
     std::ostream& error(const Location& loc) { result_ = false; return loc.error(); }
     GenericMap fill_map();
-    World& world() { return world_; }
+    TypeTable& typetable() { return typetable_; }
     bool check(const Prg*) ;
     void fun_check(const Fun*);
     void check(const NamedFun* fun) { return fun_check(fun); }
-    const anydsl2::Type* check(const Expr* expr) { assert(!expr->type_); return expr->type_ = expr->check(*this); }
+    const Type* check(const Expr* expr) { assert(!expr->type_); return expr->type_ = expr->check(*this); }
     void check(const Stmt* stmt) { stmt->check(*this); }
     void check_stmts(const ScopeStmt* scope) { for (auto s : scope->stmts()) s->check(*this); }
     bool check_cond(const Expr* cond) {
-        if (check(cond)->is_u1())
+        if (check(cond)->is_bool())
             return true;
         error(cond) << "condition not a bool\n";
         return false;
@@ -73,7 +74,7 @@ public:
 
 private:
 
-    World& world_;
+    TypeTable& typetable_;
     bool result_;
     bool nossa_;
 
@@ -163,7 +164,7 @@ GenericMap Sema::fill_map() {
 void Sema::fun_check(const Fun* fun) {
     push_scope();
     std::unordered_set<const Generic*> bound;
-    propagate_set(fun->pi(), bound);
+    propagate_set(fun->fntype(), bound);
     bound_generics_.push_back(bound);
 
     for (auto f : fun->body()->named_funs())
@@ -183,16 +184,16 @@ void Sema::fun_check(const Fun* fun) {
  * Expr
  */
 
-const Type* EmptyExpr::check(Sema& sema) const { return sema.world().unit(); }
-const Type* Literal::check(Sema& sema) const { return sema.world().type(literal2type()); }
-const Type* FunExpr::check(Sema& sema) const { sema.fun_check(this); return pi(); }
+const Type* EmptyExpr::check(Sema& sema) const { return sema.typetable().unit(); }
+//const Type* Literal::check(Sema& sema) const { return sema.typetable().type(literal2type()); }
+const Type* FunExpr::check(Sema& sema) const { sema.fun_check(this); return fntype(); }
 
 const Type* Tuple::check(Sema& sema) const {
     Array<const Type*> elems(ops().size());
     for (size_t i = 0, e = elems.size(); i != e; ++i)
         elems[i] = sema.check(op(i));
 
-    return sema.world().sigma(elems);
+    return sema.typetable().tupletype(elems);
 }
 
 const Type* Id::check(Sema& sema) const {
@@ -201,7 +202,8 @@ const Type* Id::check(Sema& sema) const {
 
         if (sema.nossa() || sema.in_foreach_) {
             if (const VarDecl* vardecl = decl->isa<VarDecl>()) {
-                if (!vardecl->type()->isa<Pi>() && !vardecl->type()->is_generic())
+                //if (!vardecl->type()->isa<Pi>() && !vardecl->type()->is_generic()) // TODO
+                if (!vardecl->type()->isa<FnType>())
                     vardecl->is_address_taken_ = true;
             }
         }
@@ -210,7 +212,7 @@ const Type* Id::check(Sema& sema) const {
     }
 
     sema.error(this) << "symbol '" << symbol() << "' not found in current scope\n";
-    return sema.world().type_error();
+    return sema.typetable().type_error();
 }
 
 const Type* PrefixExpr::check(Sema& sema) const {
@@ -221,9 +223,9 @@ const Type* PrefixExpr::check(Sema& sema) const {
                 sema.error(rhs()) << "lvalue required as operand\n";
             return sema.check(rhs());
         case L_N:
-            if (!sema.check(rhs())->is_u1())
+            if (!sema.check(rhs())->is_bool())
                 sema.error(rhs()) << "logical not expects 'bool'\n";
-            return sema.world().type_u1();
+            return sema.typetable().type_bool();
         default:
             return sema.check(rhs());
     }
@@ -238,16 +240,16 @@ const Type* InfixExpr::check(Sema& sema) const {
         else
             sema.error(this) << "incompatible types in assignment: '" 
                 << lhs()->type() << "' and '" << rhs()->type() << "'\n";
-    } else if (sema.check(lhs())->is_primtype()) {
-        if (sema.check(rhs())->is_primtype()) {
+    } else if (sema.check(lhs())->isa<PrimType>()) {
+        if (sema.check(rhs())->isa<PrimType>()) {
             if (lhs()->type() == rhs()->type()) {
                 if (Token::is_rel((TokenKind) kind()))
-                    return sema.world().type_u1();
+                    return sema.typetable().type_bool();
 
                 if (kind() == L_A || kind() == L_O) {
-                    if (!lhs()->type()->is_u1())
+                    if (!lhs()->type()->is_bool())
                         sema.error(this) << "logical binary expression expects 'bool'\n";
-                    return sema.world().type_u1();
+                    return sema.typetable().type_bool();
                 }
 
                 if (lhs()->type()->isa<TypeError>())
@@ -263,7 +265,7 @@ const Type* InfixExpr::check(Sema& sema) const {
     } else
         sema.error(lhs()) << "primitive type expected on left-hand side of binary expressions\n";
 
-    return sema.world().type_error();
+    return sema.typetable().type_error();
 }
 
 const Type* PostfixExpr::check(Sema& sema) const {
@@ -274,7 +276,7 @@ const Type* PostfixExpr::check(Sema& sema) const {
 }
 
 const Type* ConditionalExpr::check(Sema& sema) const {
-    if (sema.check(cond())->is_u1()) {
+    if (sema.check(cond())->is_bool()) {
         if (sema.check(t_expr()) == sema.check(f_expr()))
             return t_expr()->type();
         else
@@ -286,68 +288,69 @@ const Type* ConditionalExpr::check(Sema& sema) const {
 }
 
 const Type* IndexExpr::check(Sema& sema) const {
-    if (const Sigma* sigma = sema.check(lhs())->isa<Sigma>()) {
+    if (auto tuple = sema.check(lhs())->isa<TupleType>()) {
         if (sema.check(index())->is_int()) {
             if (const Literal* literal = index()->isa<Literal>()) {
                 unsigned pos;
 
                 switch (literal->kind()) {
 #define IMPALA_LIT(itype, atype) \
-                    case Literal::LIT_##itype: pos = (unsigned) literal->box().get_##atype(); break;
+                    case Literal::Lit_##itype: pos = (unsigned) literal->box().get_##atype(); break;
 #include "impala/tokenlist.h"
                     default: ANYDSL2_UNREACHABLE;
                 }
 
-                if (pos < sigma->size())
-                    return sigma->elems()[pos];
+                if (pos < tuple->size())
+                    return tuple->elem(pos);
                 else
-                    sema.error(index()) << "index (" << pos << ") out of bounds (" << sigma->size() << ")\n";
+                    sema.error(index()) << "index (" << pos << ") out of bounds (" << tuple->size() << ")\n";
             } else
                 sema.error(index()) << "indexing expression must be a literal\n";
         } else
             sema.error(index()) << "indexing expression must be of integer type\n";
     } else
-        sema.error(lhs()) << "left-hand side of index expression must be of sigma type\n";
+        sema.error(lhs()) << "left-hand side of index expression must be of tuple type\n";
 
-    return sema.world().type_error();
+    return sema.typetable().type_error();
 }
 
 const Type* Call::check(Sema& sema) const { 
-    if (const Pi* to_pi = sema.check(to())->isa<Pi>()) {
+    if (auto to_fn = sema.check(to())->isa<FnType>()) {
         Array<const Type*> op_types(num_args() + 1); // reserve one more for return type
 
         for (size_t i = 0, e = num_args(); i != e; ++i)
             op_types[i] = sema.check(arg(i));
 
-        const Pi* call_pi;
-        const Type* ret_type = to_pi->size() == num_args() ? sema.world().noret() : return_type(to_pi);
+        const FnType* call_fn;
+        const Type* ret_type = to_fn->size() == num_args() ? sema.typetable().noret() : to_fn->return_type();
 
         if (ret_type->isa<NoRet>())
-            call_pi = sema.world().pi(op_types.slice_front(op_types.size()-1));
+            call_fn = sema.typetable().fntype(op_types.slice_front(op_types.size()-1));
         else {
-            op_types.back() = sema.world().pi1(ret_type);
-            call_pi = sema.world().pi(op_types);
+            op_types.back() = sema.typetable().fntype(ret_type->as<TupleType>()->elems());
+            call_fn = sema.typetable().fntype(op_types);
         }
 
-        if (to_pi->check_with(call_pi)) {
+        if (to_fn->check_with(call_fn)) {
             GenericMap map = sema.fill_map();
-            if (to_pi->infer_with(map, call_pi)) {
+            if (to_fn->infer_with(map, call_fn)) {
                 if (const Generic* generic = ret_type->isa<Generic>())
-                    return map[generic];
+                    //return map[generic];
+                    return sema.typetable().type_error(); // TODO
                 else
                     return ret_type;
             } else {
-                sema.error(this->args_location()) << "cannot infer type '" << call_pi << "' induced by arguments\n";
-                sema.error(to()) << "to invocation type '" << to_pi << "' with '" << map << "'\n";
+                sema.error(this->args_location()) << "cannot infer type '" << call_fn << "' induced by arguments\n";
+                sema.error(to()) << "to invocation type '" << to_fn << "' with '" << map << "'\n";
             }
         } else {
-            sema.error(to()) << "'" << to() << "' expects an invocation of type '" << to_pi 
-                << "' but the invocation type '" << call_pi << "' is structural different\n";
+            sema.error(to()) << "'" << to() << "' expects an invocation of type '" << to_fn 
+                << "' but the invocation type '" << call_fn << "' is structural different\n";
         }
     } else
         sema.error(to()) << "invocation not done on function type but instead type '" << to()->type() << "' is given\n";
 
-    return sema.world().type_error();
+    return sema.typetable().type_error();
 }
 
 /*
@@ -414,27 +417,27 @@ void ForeachStmt::check(Sema& sema) const {
     }
 
     // generator call
-    if (const Pi* to_pi = sema.check(call()->to())->isa<Pi>()) {
+    if (auto to_fn = sema.check(call()->to())->isa<FnType>()) {
         // reserve one for the body type and one for the next continuation type
         Array<const Type*> op_types(call()->num_args() + 1 + 1);
 
         for (size_t i = 0, e = call()->num_args(); i != e; ++i)
             op_types[i] = sema.check(call()->arg(i));
         
-        const Type* elems[2] = { left_type_, sema.world().pi0() };
-        op_types[call()->num_args()] = fun_type_ = sema.world().pi(elems);
-        op_types.back() = sema.world().pi0();    
-        const Pi* call_pi = sema.world().pi(op_types);
+        const Type* elems[2] = { left_type_, sema.typetable().fntype() };
+        op_types[call()->num_args()] = fntype_ = sema.typetable().fntype(elems);
+        op_types.back() = sema.typetable().fntype();    
+        const FnType* call_fn = sema.typetable().fntype(op_types);
 
-        if (to_pi->check_with(call_pi)) {
+        if (to_fn->check_with(call_fn)) {
             GenericMap map = sema.fill_map();
-            if (!to_pi->infer_with(map, call_pi)) {
-                sema.error(call()->args_location()) << "cannot infer type '" << call_pi << "' induced by arguments\n";
-                sema.error(call()->to()) << "to invocation type '" << to_pi << "' with '" << map << "'\n";
+            if (!to_fn->infer_with(map, call_fn)) {
+                sema.error(call()->args_location()) << "cannot infer type '" << call_fn << "' induced by arguments\n";
+                sema.error(call()->to()) << "to invocation type '" << to_fn << "' with '" << map << "'\n";
             }
         } else {
-            sema.error(call()->to()) << "'" << call()->to() << "' expects an invocation of type '" << to_pi 
-                << "' but the invocation type '" << call_pi << "' is structural different\n";
+            sema.error(call()->to()) << "'" << call()->to() << "' expects an invocation of type '" << to_fn 
+                << "' but the invocation type '" << call_fn << "' is structural different\n";
         }
     } else
         sema.error(call()->to()) << "invocation not done on function type but instead type '" 
@@ -465,26 +468,28 @@ void ContinueStmt::check(Sema& sema) const {
 
 void ReturnStmt::check(Sema& sema) const {
     if (!fun()->is_continuation()) {
-        const Pi* pi = fun()->pi();
-        const Type* ret_type = return_type(pi);
+        const TupleType* ret_tuple = fun()->fntype()->return_type()->as<TupleType>();
 
-        if (ret_type->isa<Void>()) {
+        if (ret_tuple->empty()) {
             if (!expr())
                 return;
             else
                 sema.error(expr()) << "return expression in a function returning 'void'\n";
-        } else if (!ret_type->isa<NoRet>()) {
+        //} else if (!ret_type->isa<NoRet>()) { 
+        } else if (true) { // TODO
             if (sema.check(expr())->isa<TypeError>())
                 return;
-            if (ret_type->check_with(expr()->type())) {
+            //if (ret_type->check_with(expr()->type())) {
+            if (true) { // TODO
                 GenericMap map = sema.fill_map();
-                if (ret_type->infer_with(map, expr()->type()))
+                //if (ret_type->infer_with(map, expr()->type()))
+                if (true) // TODO
                     return;
                 else
                     sema.error(expr()) << "cannot infer type '" << expr()->type() 
-                        << "' of return expression to return type '" << ret_type << "' with '" << map << "'\n";
+                        << "' of return expression to return type '" << ret_tuple << "' with '" << map << "'\n";
             } else 
-                sema.error(expr()) << "expected return type '" << ret_type 
+                sema.error(expr()) << "expected return type '" << ret_tuple 
                     << "' but return expression is of type '" << expr()->type() << "'\n";
         } else
             sema.error(this) << "return statement not allowed for calling a continuation\n";
@@ -500,7 +505,7 @@ void ScopeStmt::check(Sema& sema) const {
 
 //------------------------------------------------------------------------------
 
-bool check(World& world, const Prg* prg, bool nossa) { return Sema(world, nossa).check(prg); }
+bool check(TypeTable& typetable, const Prg* prg, bool nossa) { return Sema(typetable, nossa).check(prg); }
 
 //------------------------------------------------------------------------------
 

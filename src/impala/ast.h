@@ -3,7 +3,6 @@
 
 #include <vector>
 
-#include "anydsl2/type.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/assert.h"
 #include "anydsl2/util/autoptr.h"
@@ -13,12 +12,14 @@
 #include "anydsl2/util/types.h"
 
 #include "impala/token.h"
+#include "impala/type.h"
 
 namespace anydsl2 {
     class Def;
+    class JumpTarget;
+    class Lambda;
     class Param;
     class Ref;
-    class JumpTarget;
 }
 
 namespace impala {
@@ -63,14 +64,14 @@ class Decl : public ASTNode {
 public:
 
     anydsl2::Symbol symbol() const { return symbol_; }
-    const anydsl2::Type* type() const { return type_; }
+    const Type* type() const { return type_; }
     size_t depth() const { return depth_; }
     const Decl* shadows() const { return shadows_; }
 
 protected:
 
     anydsl2::Symbol symbol_;
-    const anydsl2::Type* type_;
+    const Type* type_;
 
 private:
 
@@ -86,19 +87,19 @@ public:
     const ScopeStmt* body() const { return body_; }
     const VarDecl* param(size_t i) const { return params_[i]; }
     const VarDecls& params() const { return params_; }
-    const anydsl2::Pi* pi() const { return pi_; }
-    bool is_continuation() const;
+    const FnType* fntype() const { return fntype_; }
+    bool is_continuation() const { return fntype()->return_type()->isa<NoRet>() != nullptr; }
     anydsl2::Lambda* lambda() const { return lambda_; }
     const anydsl2::Param* ret_param() const { return ret_param_; }
     std::ostream& fun_print(Printer& p) const;
 
 private:
 
-    void fun_set(const anydsl2::Pi* pi, const ScopeStmt* body) { pi_ = pi; body_ = body; }
+    void fun_set(const FnType* fntype, const ScopeStmt* body) { fntype_ = fntype; body_ = body; }
 
     VarDecls params_;
     anydsl2::AutoPtr<const ScopeStmt> body_;
-    const anydsl2::Pi* pi_;
+    const FnType* fntype_;
     mutable anydsl2::Lambda* lambda_;
     mutable const anydsl2::Param* ret_param_;
 
@@ -111,7 +112,7 @@ private:
 class VarDecl : public Decl {
 public:
 
-    VarDecl(size_t handle, const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2)
+    VarDecl(size_t handle, const Token& tok, const Type* type, const anydsl2::Position& pos2)
         : handle_(handle)
         , is_address_taken_(false)
     {
@@ -142,7 +143,7 @@ public:
         symbol_ = symbol;
     }
 
-    const anydsl2::Pi* pi() const { return type_->as<anydsl2::Pi>(); }
+    const FnType* fntype() const { return type_->as<FnType>(); }
     virtual std::ostream& print(Printer& p) const;
 
 private:
@@ -157,7 +158,7 @@ public:
         : extern_(ext)
     {}
 
-    void set(const Token& tok, const anydsl2::Type* type, const anydsl2::Position& pos2) {
+    void set(const Token& tok, const Type* type, const anydsl2::Position& pos2) {
         symbol_ = tok.symbol();
         type_ = type;
         set_loc(tok.pos1(), pos2);
@@ -185,20 +186,20 @@ public:
     const Expr* op(size_t i) const { return ops_[i]; }
     size_t size() const { return ops_.size(); }
     bool empty() const { return size() == 0; }
-    const anydsl2::Type* type() const { return type_; }
+    const Type* type() const { return type_; }
     virtual bool is_lvalue() const = 0;
 
 private:
 
     virtual RefPtr emit(CodeGen& cg) const = 0;
-    virtual const anydsl2::Type* check(Sema& sema) const = 0;
+    virtual const Type* check(Sema& sema) const = 0;
 
 protected:
 
     virtual void emit_branch(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const;
 
     Exprs ops_;
-    mutable const anydsl2::Type* type_;
+    mutable const Type* type_;
 
     friend class CodeGen;
     friend class Sema;
@@ -214,7 +215,7 @@ public:
 
 private:
 
-    virtual const anydsl2::Type* check(Sema& sema) const;
+    virtual const Type* check(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
 };
 
@@ -222,9 +223,9 @@ class Literal : public Expr {
 public:
 
     enum Kind {
-#define IMPALA_LIT(itype, atype) LIT_##itype = Token::LIT_##itype,
+#define IMPALA_LIT(itype, atype) Lit_##itype = Token::Lit_##itype,
 #include "impala/tokenlist.h"
-        LIT_bool
+        Lit_bool
     };
 
     Literal(const anydsl2::Location& loc, Kind kind, anydsl2::Box box)
@@ -242,7 +243,7 @@ public:
 
 private:
 
-    virtual const anydsl2::Type* check(Sema& sema) const;
+    virtual const Type* check(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
 
     Kind kind_;
@@ -257,7 +258,7 @@ public:
 
 private:
 
-    virtual const anydsl2::Type* check(Sema& sema) const;
+    virtual const Type* check(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
 
     friend class Parser;
@@ -273,7 +274,7 @@ public:
 
 private:
 
-    virtual const anydsl2::Type* check(Sema& sema) const;
+    virtual const Type* check(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
 
     friend class Parser;
@@ -296,7 +297,7 @@ public:
 
 private:
 
-    virtual const anydsl2::Type* check(Sema& sema) const;
+    virtual const Type* check(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
 
     anydsl2::Symbol symbol_;
@@ -325,7 +326,7 @@ public:
 
 private:
 
-    virtual const anydsl2::Type* check(Sema& sema) const;
+    virtual const Type* check(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void emit_branch(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const;
 
@@ -357,7 +358,7 @@ public:
 
 private:
 
-    virtual const anydsl2::Type* check(Sema& sema) const;
+    virtual const Type* check(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
     virtual void emit_branch(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const;
 
@@ -390,7 +391,7 @@ public:
 
 private:
 
-    virtual const anydsl2::Type* check(Sema& sema) const;
+    virtual const Type* check(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
 
     Kind kind_;
@@ -414,7 +415,7 @@ public:
 
 private:
 
-    virtual const anydsl2::Type* check(Sema& sema) const;
+    virtual const Type* check(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
 };
 
@@ -434,7 +435,7 @@ public:
 
 private:
 
-    virtual const anydsl2::Type* check(Sema& sema) const;
+    virtual const Type* check(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
 };
 
@@ -459,7 +460,7 @@ public:
 
 private:
 
-    virtual const anydsl2::Type* check(Sema& sema) const;
+    virtual const Type* check(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
 };
 
@@ -642,7 +643,7 @@ private:
     anydsl2::AutoPtr<const Expr> init_expr_;
     anydsl2::AutoPtr<const Call> call_;
     
-    mutable const anydsl2::Pi* fun_type_;
+    mutable const FnType* fntype_;
 };
 
 class BreakStmt : public Stmt {

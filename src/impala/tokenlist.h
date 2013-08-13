@@ -133,10 +133,10 @@ IMPALA_KEY_MISC(DEF,        "def")
 IMPALA_KEY_MISC(EXTERN,     "extern")
 IMPALA_KEY_MISC(PI,         "pi")
 IMPALA_KEY_MISC(SIGMA,      "sigma")
-IMPALA_KEY_MISC(TYPE_int,   "int")
-IMPALA_KEY_MISC(TYPE_noret, "noret")
-IMPALA_KEY_MISC(TYPE_uint,  "uint")
-IMPALA_KEY_MISC(TYPE_void,  "void")
+IMPALA_KEY_MISC(Type_int,   "int")
+IMPALA_KEY_MISC(Type_noret, "noret")
+IMPALA_KEY_MISC(Type_uint,  "uint")
+IMPALA_KEY_MISC(Type_void,  "void")
 
 #undef IMPALA_KEY_MISC
 
@@ -174,7 +174,6 @@ IMPALA_LIT(int8,    u8)
 IMPALA_LIT(int16,  u16)
 IMPALA_LIT(int32,  u32)
 IMPALA_LIT(int64,  u64)
-
 IMPALA_LIT(float,  f32)
 IMPALA_LIT(double, f64)
 
@@ -188,10 +187,8 @@ IMPALA_TYPE(  int8,  u8)
 IMPALA_TYPE( int16, u16)
 IMPALA_TYPE( int32, u32)
 IMPALA_TYPE( int64, u64)
-
-IMPALA_TYPE(float,  f32)
+IMPALA_TYPE( float, f32)
 IMPALA_TYPE(double, f64)
-
 IMPALA_TYPE(  bool, u1)
 
 #undef IMPALA_TYPE

@@ -54,7 +54,7 @@ const GenericRef* TypeTable::genericref(const NamedFun* fun, const Generic* gene
 
 size_t GenericBuilder::new_def() {
     size_t handle = index2generic_.size();
-    index2generic_.push_back(0);
+    index2generic_.push_back(nullptr);
     return handle;
 }
 

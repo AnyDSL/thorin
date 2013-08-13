@@ -384,7 +384,6 @@ const NamedFun* Parser::parse_named_fun() {
     }
 
     builder.pop(f->generics_.size());
-
     return f;
 }
 

@@ -56,6 +56,7 @@ protected:
     {}
 
 public:
+    TokenKind kind() const { return (TokenKind) anydsl2::Node::kind(); }
     anydsl2::ArrayRef<const Type*> elems() const { return ops_ref<const Type*>(); }
     const Type* elem(size_t i) const { return elems()[i]; }
     virtual const anydsl2::Type* convert(anydsl2::World&) const = 0;
@@ -66,6 +67,7 @@ public:
     bool check_with(const Type*) const { return true; } // TODO
     bool infer_with(anydsl2::GenericMap& map, const Type* type) const { return true; } // TODO
     //const Type* specialize(const GenericMap& generic_map) const;
+    std::ostream& dump() const;
 };
 
 class TypeError : public Type {
@@ -97,7 +99,6 @@ private:
     {}
 
 public:
-    TokenKind kind() const { return (TokenKind) kind(); }
     virtual const anydsl2::Type* convert(anydsl2::World&) const;
 
     friend class TypeTable;
@@ -107,7 +108,11 @@ class CompoundType : public Type {
 protected:
     CompoundType(TokenKind kind, anydsl2::ArrayRef<const Type*> elems, const std::string& name)
         : Type(kind, elems.size(), name)
-    {}
+    {
+        size_t i = 0;
+        for (auto elem : elems)
+            set(i++, elem);
+    }
 };
 
 class FnType : public CompoundType {

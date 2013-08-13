@@ -10,7 +10,7 @@ namespace impala {
 
 TypeTable::TypeTable()
     : types_()
-#define IMPALA_TYPE(itype, atype) ,itype##_(unify(primtype(Token::TYPE_##itype)))
+#define IMPALA_TYPE(itype, atype) ,itype##_(unify(new PrimType(Token::TYPE_##itype)))
 #include "impala/tokenlist.h"
     , type_error_(unify(new TypeError()))
     , noret_(unify(new NoRet()))

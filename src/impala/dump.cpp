@@ -82,6 +82,7 @@ std::ostream& Printer::print_block(const Stmt* s) {
 //------------------------------------------------------------------------------
 
 std::ostream& ASTNode::dump() const { Printer p(std::cout, true); return print(p); }
+std::ostream& Type::dump() const { Printer p(std::cout, true); return p.print_type(this) << "\n"; }
 std::ostream& NamedFun::print(Printer& p) const { p.stream() << "def " << symbol(); return fun_print(p); }
 std::ostream& VarDecl::print(Printer& p) const { return p.stream() << symbol() << " : " << type(); }
 

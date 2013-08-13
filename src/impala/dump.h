@@ -3,10 +3,6 @@
 
 #include <iostream>
 
-namespace anydsl2 {
-    class Type;
-}
-
 namespace impala {
 
 class ASTNode;
@@ -22,7 +18,7 @@ class ASTNode;
 void dump(const ASTNode* n, bool fancy = false, std::ostream& o = std::cout);
 
 std::ostream& operator << (std::ostream& o, const ASTNode* n);
-std::ostream& operator << (std::ostream& o, const anydsl2::Type* type);
+std::ostream& operator << (std::ostream& o, const Type* type);
 
 } // namespace impala
 

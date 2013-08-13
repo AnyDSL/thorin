@@ -36,9 +36,9 @@ std::ostream& CodeGen::emit_type(const Type* type) {
     } else if (auto mem = type->isa<Mem>()) {
         return stream() << "mem";
     } else if (auto pi = type->isa<Pi>()) {
-        return dump_list([&] (const Type* type) { emit_type(type); }, pi->elems(), "pi(", ")");
+        return dump_list([&](const Type* type) { emit_type(type); }, pi->elems(), "pi(", ")");
     } else if (auto sigma = type->isa<Sigma>()) {
-        return dump_list([&] (const Type* type) { emit_type(type); }, sigma->elems(), "sigma(", ")");
+        return dump_list([&](const Type* type) { emit_type(type); }, sigma->elems(), "sigma(", ")");
     } else if (auto generic = type->isa<Generic>()) {
         return stream() << '<' << generic->index() << '>';
     } else if (auto genref = type->isa<GenericRef>()) {
@@ -100,7 +100,7 @@ std::ostream& CodeGen::emit_primop(const PrimOp* primop) {
             emit_type(primop->type());
         } else {
             emit_type(primop->type());
-            dump_list([&] (const Def* def) { emit_def(def); }, primop->ops(), "(", ")");
+            dump_list([&](const Def* def) { emit_def(def); }, primop->ops(), "(", ")");
         }
     } else
         emit_name(primop);
@@ -122,13 +122,13 @@ std::ostream& CodeGen::emit_assignment(const PrimOp* primop) {
     }
 
     stream() << primop->op_name() << " ";
-    dump_list([&] (const Def* def) { emit_def(def); }, ops);
+    dump_list([&](const Def* def) { emit_def(def); }, ops);
     return newline();
 }
 
 std::ostream& CodeGen::emit_head(const Lambda* lambda) {
     emit_name(lambda);
-    dump_list([&] (const Param* param) { emit_type(param->type()) << " "; emit_name(param); }, lambda->params(), "(", ")");
+    dump_list([&](const Param* param) { emit_type(param->type()) << " "; emit_name(param); }, lambda->params(), "(", ")");
 
     if (lambda->attr().is_extern())
         stream() << " extern ";
@@ -139,7 +139,7 @@ std::ostream& CodeGen::emit_head(const Lambda* lambda) {
 std::ostream& CodeGen::emit_jump(const Lambda* lambda) {
     if (!lambda->empty()) {
         emit_def(lambda->to());
-        dump_list([&] (const Def* def) { emit_def(def); }, lambda->args(), "(", ")");
+        dump_list([&](const Def* def) { emit_def(def); }, lambda->args(), "(", ")");
     }
     return down();
 }

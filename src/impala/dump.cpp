@@ -34,13 +34,13 @@ std::ostream& Printer::print_type(const Type* type) {
     } else if (type->isa<TypeError>()) {
         return stream() << "<error>";
     } else if (auto tuple = type->isa<TupleType>()) {
-        return dump_list([&] (const Type* elem) { print_type(elem); }, tuple->elems(), "(", ")");
+        return dump_list([&](const Type* elem) { print_type(elem); }, tuple->elems(), "(", ")");
     } else if (auto fn = type->isa<FnType>()) {
         const Type* ret_type = fn->return_type();
         if (ret_type->isa<NoRet>())
-            return dump_list([&] (const Type* elem) { print_type(elem); }, fn->elems(), "fn(", ")");
+            return dump_list([&](const Type* elem) { print_type(elem); }, fn->elems(), "fn(", ")");
         else
-            return dump_list([&] (const Type* elem) { print_type(elem); }, fn->elems().slice_front(fn->size()-1), "fn(", ") -> ") 
+            return dump_list([&](const Type* elem) { print_type(elem); }, fn->elems().slice_front(fn->size()-1), "fn(", ") -> ") 
                 << ret_type;
     } else if (auto generic = type->isa<Generic>()) {
         return stream() << Generic::to_string(generic->index());
@@ -89,7 +89,7 @@ std::ostream& Prg::print(Printer& p) const {
 
 std::ostream& Proto::print(Printer& p) const {
     p.stream() << "extern " << symbol_ << " ";
-    return p.dump_list([&] (const Type* type) { p.print_type(type); }, fntype()->elems().slice_front(fntype()->size()-1), "(", ")") 
+    return p.dump_list([&](const Type* type) { p.print_type(type); }, fntype()->elems().slice_front(fntype()->size()-1), "(", ")") 
         << " -> " << fntype()->elems().back();
 }
 
@@ -99,7 +99,7 @@ std::ostream& Fun::fun_print(Printer& p) const {
     ArrayRef<const VarDecl*> params_ref = 
         ret_type->isa<NoRet>() ? params() : ArrayRef<const VarDecl*>(&params().front(), params().size() - 1);
 
-    p.dump_list([&] (const VarDecl* decl) { decl->print(p); }, params_ref, "(", ")");
+    p.dump_list([&](const VarDecl* decl) { decl->print(p); }, params_ref, "(", ")");
 
     if (!ret_type->isa<NoRet>())
         p.stream() << " -> " << ret_type << ' ';
@@ -124,7 +124,7 @@ std::ostream& Literal::print(Printer& p) const {
 std::ostream& Id::print(Printer& p) const { return p.stream() << symbol(); }
 std::ostream& EmptyExpr::print(Printer& p) const { return p.stream() << "/*empty*/"; }
 std::ostream& FunExpr::print(Printer& p) const { p.stream() << "lambda"; return fun_print(p); }
-std::ostream& Tuple::print(Printer& p) const { return p.dump_list([&] (const Expr* expr) { expr->print(p); }, ops(), "#(", ")"); }
+std::ostream& Tuple::print(Printer& p) const { return p.dump_list([&](const Expr* expr) { expr->print(p); }, ops(), "#(", ")"); }
 
 std::ostream& PrefixExpr::print(Printer& p) const {
     Prec r = PrecTable::prefix_r[kind()];
@@ -239,7 +239,7 @@ std::ostream& IndexExpr::print(Printer& p) const {
 std::ostream& Call::print(Printer& p) const {
     assert(ops_.size() >= 1);
     ops_.front()->print(p);
-    return p.dump_list([&] (const Expr* expr) { expr->print(p); }, args(), "(", ")");
+    return p.dump_list([&](const Expr* expr) { expr->print(p); }, args(), "(", ")");
 }
 
 /*

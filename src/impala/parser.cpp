@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <functional>
 #include <sstream>
 #include <iostream>
 
@@ -55,8 +56,7 @@ public:
     void parse_fun(Fun* fun);
     const NamedFun* parse_named_fun();
 
-    template<class F>
-    void parse_comma_list(TokenKind delimiter, const char* context, F f) {
+    void parse_comma_list(TokenKind delimiter, const char* context, std::function<void()> f) {
         if (la() != delimiter) {
             do { f(); }
             while ( accept(Token::COMMA) );
@@ -262,7 +262,7 @@ const Type* Parser::parse_compound_type() {
     std::vector<const Type*> elems;
     const char* error_str = pi ? "element types of pi" : "element types of sigma";
     expect(Token::L_PAREN, error_str);
-    parse_comma_list(Token::R_PAREN, pi ?  "closing parenthesis of pi type" : "closing parenthesis of sigma type", [&] () {
+    parse_comma_list(Token::R_PAREN, pi ?  "closing parenthesis of pi type" : "closing parenthesis of sigma type", [&] {
         elems.push_back(try_type(error_str));
     });
 
@@ -333,7 +333,7 @@ const Proto* Parser::parse_proto() {
 
 void Parser::parse_generics_list(GenericsList& generics) {
     if (accept(Token::LT))
-        parse_comma_list(Token::GT, "generics list", [&] () {
+        parse_comma_list(Token::GT, "generics list", [&] {
             generics.push_back(GenericEntry(try_id("generic identifier").symbol(), builder.new_def()));
         });
 }
@@ -344,7 +344,7 @@ void Parser::parse_fun(Fun* fun) {
 
     std::vector<const Type*> arg_types;
     expect(Token::L_PAREN, "function head");
-    parse_comma_list(Token::R_PAREN, "parameter list", [&] () {
+    parse_comma_list(Token::R_PAREN, "parameter list", [&] {
         const VarDecl* param = parse_var_decl();
         fun->params_.push_back(param);
         arg_types.push_back(param->type());
@@ -781,7 +781,7 @@ const Expr* Parser::parse_infix_expr(const Expr* lhs) {
 const Expr* Parser::parse_postfix_expr(const Expr* lhs) {
     if (accept(Token::L_PAREN)) {
         Call* call = new Call(lhs);
-        parse_comma_list(Token::R_PAREN, "arguments of a function call", [&] () {
+        parse_comma_list(Token::R_PAREN, "arguments of a function call", [&] {
             call->append_arg(try_expr("argument of function call"));
         });
         call->set_pos2(prev_loc.pos2());
@@ -843,7 +843,7 @@ const Expr* Parser::parse_literal() {
 const Expr* Parser::parse_tuple() {
     Tuple* tuple = new Tuple(eat(Token::HASH).pos1());
     expect(Token::L_PAREN, "tuple");
-    parse_comma_list(Token::R_PAREN, "closing parenthesis of tuple", [&] () {
+    parse_comma_list(Token::R_PAREN, "closing parenthesis of tuple", [&] {
         tuple->ops_.push_back(try_expr("tuple element"));
     });
 

@@ -124,7 +124,7 @@ void Vectorizer::param2select(const Param* param) {
     const Def* select = nullptr;
     Array<Lambda*> preds = scope.preds(param->lambda());
     // begin with pred with the most expensive condition (non_const_depth) - this keeps select chains simpler
-    std::sort(preds.begin(), preds.end(), [&] (const Lambda* l1, const Lambda* l2) {
+    std::sort(preds.begin(), preds.end(), [&](const Lambda* l1, const Lambda* l2) {
         return map(l1)->non_const_depth() > Vectorizer::map(l2)->non_const_depth(); 
     });
 

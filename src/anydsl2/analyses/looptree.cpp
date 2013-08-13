@@ -256,7 +256,7 @@ Array<Lambda*> LoopTree::loop_lambdas(const LoopHeader* header) {
 
 Array<Lambda*> LoopTree::loop_lambdas_in_rpo(const LoopHeader* header) {
     auto result = loop_lambdas(header);
-    std::sort(result.begin(), result.end(), [] (const Lambda* l1, const Lambda* l2) { return l1->sid() < l2->sid(); });
+    std::sort(result.begin(), result.end(), [](const Lambda* l1, const Lambda* l2) { return l1->sid() < l2->sid(); });
     return result;
 }
 

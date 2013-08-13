@@ -120,7 +120,7 @@ void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {
     }
     
     // sort rpo_ according to sid_ which now holds the rpo number
-    std::sort(rpo_.begin(), rpo_.end(), [] (const Lambda* l1, const Lambda* l2) { return l1->sid() < l2->sid(); });
+    std::sort(rpo_.begin(), rpo_.end(), [](const Lambda* l1, const Lambda* l2) { return l1->sid() < l2->sid(); });
 
     // discard unreachable lambdas
     rpo_.resize(num);
@@ -194,7 +194,7 @@ ArrayRef<Lambda*> Scope::backwards_rpo() const {
         assert(num + 1 == num_exits());
 
         std::copy(rpo_.begin(), rpo_.end(), backwards_rpo_->begin());
-        std::sort(backwards_rpo_->begin(), backwards_rpo_->end(), [] (const Lambda* l1, const Lambda* l2) { 
+        std::sort(backwards_rpo_->begin(), backwards_rpo_->end(), [](const Lambda* l1, const Lambda* l2) { 
             return l1->backwards_sid() < l2->backwards_sid(); 
         });
     }

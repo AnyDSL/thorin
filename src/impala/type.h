@@ -30,6 +30,7 @@ class TypeError;
 class TypeTable {
 public:
     TypeTable();
+    ~TypeTable();
 
     const TypeError* type_error() { return type_error_; }
     const NoRet* noret() { return noret_; }

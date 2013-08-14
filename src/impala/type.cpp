@@ -22,6 +22,11 @@ TypeTable::TypeTable()
     , void_(unify(new Void(*this)))
 {}
 
+TypeTable::~TypeTable() {
+    for (auto type : types_)
+        delete type;
+}
+
 const Type* TypeTable::unify_base(const Type* type) {
     auto i = types_.find(type);
     if (i != types_.end()) {

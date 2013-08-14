@@ -27,7 +27,7 @@ bool GenericMap::is_empty() const {
     return true;
 }
 
-const char* GenericMap::to_string() const {
+std::string GenericMap::to_string() const {
     std::ostringstream o;
     bool first = true;
     for (size_t i = 0, e = types_.size(); i != e; ++i)
@@ -36,10 +36,11 @@ const char* GenericMap::to_string() const {
                 first = false;
             else
                 o << ", ";
-            o << '_' << i << " = " << type;
+            o << '_' << i << " = "; 
+            type->dump();
         }
 
-    return o.str().c_str();
+    return o.str();
 }
 
 //------------------------------------------------------------------------------
@@ -115,6 +116,9 @@ const Type* Type::specialize(const GenericMap& map) const {
     } else if (empty())
         return this;
 
+    if (auto genref = this->isa<GenericRef>())
+        return genref->generic()->specialize(map);
+
     Array<const Type*> new_elems(size());
     for (size_t i = 0, e = size(); i != e; ++i)
         new_elems[i] = elem(i)->specialize(map);
@@ -164,16 +168,20 @@ GenericRef::GenericRef(World& world, const Generic* generic, Lambda* lambda)
     : Type(world, Node_GenericRef, 1, true)
     , lambda_(lambda)
 {
+#if 0
     lambda_->generic_refs_.push_back(this);
+#endif
     set(0, generic);
 }
 
 GenericRef::~GenericRef() {
+#if 0
     auto& generic_refs = lambda()->generic_refs_;
     auto i = std::find(generic_refs.begin(), generic_refs.end(), this);
     assert(i != generic_refs.end() && "must be in use set");
     *i = generic_refs.back();
     generic_refs.pop_back();
+#endif
 }
 
 //------------------------------------------------------------------------------

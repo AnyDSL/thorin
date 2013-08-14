@@ -38,9 +38,13 @@ void CFFLowering::transform(Lambda* lambda) {
         if (scope.contains(ulambda))
             continue;
 
-        GenericMap generic_map;
-        bool res = lambda->type()->infer_with(generic_map, ulambda->arg_pi());
+        //emit_air(lambda->world(), true);
+        //std::cout << "----" << std::endl;
+
+        GenericMap map;
+        bool res = lambda->type()->infer_with(map, ulambda->arg_pi());
         assert(res);
+        std::cout << map.to_string() << std::endl;
         
         size_t size = lambda->num_params();
         Array<size_t> indices(size);
@@ -51,7 +55,7 @@ void CFFLowering::transform(Lambda* lambda) {
         size_t keep = -1;
         if (top_.find(lambda) != top_.end()) {
             for (size_t i = 0; i != size; ++i) {
-                if (lambda->param(i)->type()->specialize(generic_map)->order() == 1) {
+                if (lambda->param(i)->type()->specialize(map)->order() == 1) {
                     keep = i;
                     break;
                 }
@@ -77,7 +81,7 @@ void CFFLowering::transform(Lambda* lambda) {
         if (args_i != args2lambda.end()) 
             target = args_i->second; // use already dropped version as jump target 
         else
-            args2lambda[args] = target = drop(scope, indices, with, generic_map);
+            args2lambda[args] = target = drop(scope, indices, with, map);
 
         ulambda->jump(target, ulambda->args().cut(indices));
     }

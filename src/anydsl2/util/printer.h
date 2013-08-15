@@ -2,6 +2,7 @@
 #define ANYDSL2_UTIL_PRINTER_H
 
 #include <iostream>
+#include <iomanip>
 #include <string>
 
 namespace anydsl2 {
@@ -21,7 +22,7 @@ public:
     std::ostream& up()   { ++indent; return newline(); }
     std::ostream& down() { --indent; return newline(); }
     template<class Emit, class List>
-    std::ostream& dump_list(Emit emit, const List& list, const char* begin = "", const char* end = "");
+    std::ostream& dump_list(Emit emit, const List& list, const char* begin = "", const char* end = "", const char* sep = ", ");
     std::ostream& stream() { return stream_; }
 
     int indent;
@@ -34,16 +35,39 @@ private:
 };
 
 template<class Emit, class List>
-std::ostream& Printer::dump_list(Emit emit, const List& list, const char* begin, const char* end) {
+std::ostream& Printer::dump_list(Emit emit, const List& list, const char* begin, const char* end, const char* sep) {
     stream_ << begin;
-    const char* sep = "";
+    const char* separator = "";
     for (auto elem : list) {
-        stream_ << sep;
+        stream_ << separator;
         emit(elem);
-        sep = ", ";
+        separator = sep;
     }
     return stream_ << end;
 }
+
+class color {
+  public:
+    color(int c)
+      : c_(c)
+    {}
+
+  private:
+    int c_;
+
+    template <class charT, class Traits>
+    friend std::basic_ostream<charT, Traits>& operator<< (std::basic_ostream<charT, Traits>& ib, const color& c) {
+      ib << "\33[" << c.c_ << "m";
+      return ib;
+    }
+};
+
+inline std::ostream& resetcolor(std::ostream& o) {
+  o << "\33[m";
+  return o;
+}
+
+
 
 } // namespace anydsl2
 

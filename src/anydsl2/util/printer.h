@@ -41,7 +41,7 @@ std::ostream& Printer::dump_list(Emit emit, const List& list, const char* begin,
     stream() << begin;
     const char* separator = "";
     for (auto elem : list) {
-        stream_ << separator;
+        stream() << separator;
         emit(elem);
         separator = sep;
     }

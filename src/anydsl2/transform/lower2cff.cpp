@@ -8,7 +8,6 @@
 #include "anydsl2/analyses/verify.h"
 #include "anydsl2/transform/mangle.h"
 #include "anydsl2/transform/merge_lambdas.h"
-#include "anydsl2/be/air.h"
 
 namespace anydsl2 {
 
@@ -38,13 +37,9 @@ void CFFLowering::transform(Lambda* lambda) {
         if (scope.contains(ulambda))
             continue;
 
-        //emit_air(lambda->world(), true);
-        //std::cout << "----" << std::endl;
-
         GenericMap map;
         bool res = lambda->type()->infer_with(map, ulambda->arg_pi());
         assert(res);
-        std::cout << map.to_string() << std::endl;
         
         size_t size = lambda->num_params();
         Array<size_t> indices(size);

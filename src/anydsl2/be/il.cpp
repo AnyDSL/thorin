@@ -104,12 +104,12 @@ std::ostream& IlPrinter::emit_def(const Def* def) {
 
 std::ostream& IlPrinter::emit_name(const Def* def) {
     if (is_fancy()) // elide white = 0 and black = 7
-        stream() << color(def->gid() % 6 + 30 + 1);
+        color(def->gid() % 6 + 30 + 1);
 
     stream() << def->unique_name();
 
     if (is_fancy())
-        stream() << resetcolor;
+        reset_color();
 
     return stream();
 }

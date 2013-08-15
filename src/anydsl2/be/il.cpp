@@ -16,6 +16,10 @@ void free_vars(Scope& scope, Schedule& schedule, Lambda* lambda, Vars& vars) {
     for (auto lamb : scope.domtree().node(lambda)->children()) {
       free_vars(scope, schedule, lamb->lambda(), vars);
     }
+    for (auto op : lambda->args()) {
+        if (op->isa<PrimOp>() && !op->is_const())
+          vars.insert(op);
+    }
     std::vector<const PrimOp*>& ops = schedule[lambda->sid()];
     for (auto i = ops.rbegin(); i != ops.rend(); ++i) {
       vars.erase(*i);
@@ -64,8 +68,12 @@ std::ostream& IlPrinter::emit_type(const Type* type) {
         return stream() << "frame";
     else if (auto mem = type->isa<Mem>())
         return stream() << "mem";
-    else if (auto pi = type->isa<Pi>())
-        return dump_list([&] (const Type* type) { emit_type(type); }, pi->elems(), "", " ->#", " * ");
+    else if (auto pi = type->isa<Pi>()) {
+        if (pi->elems().empty())
+          return stream() << "unit -> unit";
+        else
+          return dump_list([&] (const Type* type) { emit_type(type); }, pi->elems(), "", " -> unit", " * ");
+    }
     else if (auto sigma = type->isa<Sigma>())
         return dump_list([&] (const Type* type) { emit_type(type); }, sigma->elems(), "", "", " * ");
     else if (auto generic = type->isa<Generic>())
@@ -105,6 +113,8 @@ std::ostream& IlPrinter::emit_name(const Def* def) {
     if (is_fancy()) // elide white = 0 and black = 7
         color(def->gid() % 6 + 30 + 1);
 
+    if (def->isa<PrimOp>())
+      stream() << "v";
     stream() << def->unique_name();
 
     if (is_fancy())
@@ -115,7 +125,7 @@ std::ostream& IlPrinter::emit_name(const Def* def) {
 
 std::ostream& IlPrinter::emit_primop(const PrimOp* primop) {
     if (auto primlit = primop->isa<PrimLit>()) {
-        emit_type(primop->type()) << ' ';
+        //emit_type(primop->type()) << ' ';
         switch (primlit->primtype_kind()) {
 #define ANYDSL2_UF_TYPE(T) case PrimType_##T: stream() << primlit->T##_value(); break;
 #include "anydsl2/tables/primtypetable.h"
@@ -141,7 +151,8 @@ std::ostream& IlPrinter::emit_assignment(const PrimOp* primop) {
     emit_type(primop->type()) << " = ";
 
     ArrayRef<const Def*> ops = primop->ops();
-    if (auto vectorop = primop->isa<VectorOp>()) {
+    if (auto select = primop->isa<Select>()) {
+    } else if (auto vectorop = primop->isa<VectorOp>()) {
         if (!vectorop->cond()->is_allset()) {
             stream() << "@ ";
             emit_name(vectorop->cond()) << " ";
@@ -150,7 +161,7 @@ std::ostream& IlPrinter::emit_assignment(const PrimOp* primop) {
     }
 
     stream() << primop->op_name() << " ";
-    dump_list([&] (const Def* def) { emit_def(def); }, ops);
+    dump_list([&] (const Def* def) { emit_def(def); }, ops, "(", ")");
     return newline();
 }
 
@@ -159,8 +170,8 @@ std::ostream& IlPrinter::emit_head(const Lambda* lambda, bool nodefs) {
     emit_name(lambda) << " ";
     dump_list([&] (const Param* param) { emit_name(param) << " : "; emit_type(param->type()); }, lambda->params(), "(", ")");
 
-    if (lambda->attr().is_extern())
-        stream() << " extern ";
+//    if (lambda->attr().is_extern())
+//       stream() << " extern ";
 
     stream() << " = ";
     if (!nodefs)
@@ -175,6 +186,8 @@ std::ostream& IlPrinter::emit_jump(const Lambda* lambda, bool nodefs) {
             stream() << "in ";
         emit_def(lambda->to());
         dump_list([&] (const Def* def) { emit_def(def); }, lambda->args(), "(", ")");
+        if (!nodefs)
+            stream() << " end";
     }
     return down();
 }
@@ -185,6 +198,7 @@ void IlPrinter::print_lambda(Scope& scope, Schedule& schedule, Lambda* lambda, V
               return;
             emit_head(lambda, schedule[lambda->sid()].empty());
             bool first = true;
+            Vars this_def_vars;
             for (auto op : schedule[lambda->sid()]) {
                 for (auto lamb : scope.domtree().node(lambda)->children()) {
                   Vars vars;
@@ -202,9 +216,13 @@ void IlPrinter::print_lambda(Scope& scope, Schedule& schedule, Lambda* lambda, V
                 }
                 emit_assignment(op);
                 def_vars.insert(op);
+                this_def_vars.insert(op);
             }
 
             emit_jump(lambda, schedule[lambda->sid()].empty());
+            for (auto dop : this_def_vars) {
+                def_vars.erase(dop);
+            }
             //newline();
 }
 

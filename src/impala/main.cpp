@@ -10,6 +10,7 @@
 #include "anydsl2/transform/vectorize.h"
 #include "anydsl2/transform/partial_evaluation.h"
 #include "anydsl2/be/air.h"
+#include "anydsl2/be/il.h"
 #include "anydsl2/be/llvm.h"
 
 #include "impala/ast.h"
@@ -41,7 +42,7 @@ int main(int argc, char** argv) {
 #endif
         string outfile = "-";
         string emittype;
-        bool help, emit_all, emit_air, emit_ast, emit_llvm, emit_looptree, fancy, opt, verify, nocleanup, nossa, pe = false;
+        bool help, emit_all, emit_air, emit_il, emit_ast, emit_llvm, emit_looptree, fancy, opt, verify, nocleanup, nossa, pe = false;
         int vectorlength = 0;
 
         // specify options
@@ -54,6 +55,7 @@ int main(int argc, char** argv) {
         ("break,b",         po::value(&breakpoints),                    "breakpoint at definition generation of number arg")
 #endif
         ("emit-air",        po::bool_switch(&emit_air),                 "emit textual AIR representation of impala program")
+        ("emit-il",         po::bool_switch(&emit_il),                  "emit textual IL representation of impala program")
         ("emit-all",        po::bool_switch(&emit_all),                 "emit AST, AIR, LLVM and loop tree")
         ("emit-ast",        po::bool_switch(&emit_ast),                 "emit AST of impala program")
         ("emit-looptree",   po::bool_switch(&emit_looptree),            "emit loop tree")
@@ -147,6 +149,8 @@ int main(int argc, char** argv) {
             }
             if (emit_air)
                 anydsl2::emit_air(init.world, fancy);
+            if (emit_il)
+                anydsl2::emit_il(init.world, fancy);
             if (emit_looptree)
                 std::cout << Scope(init.world).looptree().root() << std::endl; // TODO
 

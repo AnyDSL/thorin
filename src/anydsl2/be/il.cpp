@@ -38,8 +38,6 @@ void defined_vars(Scope& scope, Schedule& schedule, Lambda* lambda, Vars& vars) 
     }
 }
 
-
-
 class IlPrinter : public Printer {
 public:
     IlPrinter(bool fancy)

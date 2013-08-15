@@ -1,10 +1,9 @@
 #ifndef ANYDSL2_BE_AIR_H
 #define ANYDSL2_BE_AIR_H
 
-namespace anydsl2 {
+#include "anydsl2/anydsl_fwd.h"
 
-class PrimOp;
-class World;
+namespace anydsl2 {
 
 void emit_air(World&, bool fancy = false);
 void emit_type(const Type*);

@@ -2,6 +2,7 @@
 #define ANYDSL2_UTIL_PRINTER_H
 
 #include <iostream>
+#include <iomanip>
 #include <string>
 
 namespace anydsl2 {
@@ -44,6 +45,29 @@ std::ostream& Printer::dump_list(Emit emit, const List& list, const char* begin,
     }
     return stream_ << end;
 }
+
+class color {
+  public:
+    color(int c)
+      : c_(c)
+    {}
+
+  private:
+    int c_;
+
+    template <class charT, class Traits>
+    friend std::basic_ostream<charT, Traits>& operator<< (std::basic_ostream<charT, Traits>& ib, const color& c) {
+      ib << "\33[" << c.c_ << "m";
+      return ib;
+    }
+};
+
+inline std::ostream& resetcolor(std::ostream& o) {
+  o << "\33[m";
+  return o;
+}
+
+
 
 } // namespace anydsl2
 

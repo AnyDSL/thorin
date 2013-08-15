@@ -74,12 +74,12 @@ std::ostream& CodeGen::emit_def(const Def* def) {
 
 std::ostream& CodeGen::emit_name(const Def* def) {
     if (is_fancy()) // elide white = 0 and black = 7
-        stream() << "\33[" << (def->gid() % 6 + 30 + 1) << "m";
+        stream() << color(def->gid() % 6 + 30 + 1);
 
     stream() << def->unique_name();
 
     if (is_fancy())
-        stream() << "\33[m";
+        stream() << resetcolor;
 
     return stream();
 }

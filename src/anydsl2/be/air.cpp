@@ -4,7 +4,6 @@
 #include "anydsl2/type.h"
 #include "anydsl2/world.h"
 #include "anydsl2/analyses/domtree.h"
-#include "anydsl2/analyses/looptree.h"
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/analyses/schedule.h"
 #include "anydsl2/util/printer.h"

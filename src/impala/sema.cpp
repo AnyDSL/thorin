@@ -56,17 +56,8 @@ public:
     std::ostream& error(const Location& loc) { result_ = false; return loc.error(); }
     TypeTable& typetable() { return typetable_; }
     bool check(const Prg*) ;
-    void fun_check(const Fun*);
-    void check(const NamedFun* fun) { 
-        GenericMap new_map = generic_map();
-        for (auto genentry : fun->generics()) {
-            if (auto generic = genentry.generic())
-                new_map[generic] = generic;
-        }
-
-        ANYDSL2_PUSH(generic_map_, &new_map);
-        fun_check(fun); 
-    }
+    void check_fun(const Fun*);
+    void check_namedfun(const NamedFun* fun);
     const Type* check(const Expr* expr) { assert(!expr->type_); return expr->type_ = expr->check(*this); }
     void check(const Stmt* stmt) { stmt->check(*this); }
     void check_stmts(const ScopeStmt* scope) { for (auto s : scope->stmts()) s->check(*this); }
@@ -92,7 +83,7 @@ private:
     std::vector<size_t> levels_;
 };
 
-void NamedFunStmt::check(Sema& sema) const { sema.check(named_fun()); }
+void NamedFunStmt::check(Sema& sema) const { sema.check_namedfun(named_fun()); }
 
 //------------------------------------------------------------------------------
 
@@ -147,7 +138,7 @@ bool Sema::check(const Prg* prg) {
 
     for (auto global : prg->globals()) {
         if (const NamedFun* f = global->isa<NamedFun>())
-            check(f);
+            check_namedfun(f);
     }
 
     return result();
@@ -161,7 +152,7 @@ static void propagate_set(const Type* type, std::unordered_set<const Generic*>& 
             propagate_set(elem, bound);
 }
 
-void Sema::fun_check(const Fun* fun) {
+void Sema::check_fun(const Fun* fun) {
     push_scope();
     std::unordered_set<const Generic*> bound;
     propagate_set(fun->fntype(), bound);
@@ -178,13 +169,24 @@ void Sema::fun_check(const Fun* fun) {
     pop_scope();
 }
 
+void Sema::check_namedfun(const NamedFun* fun) {
+    //GenericMap new_map = generic_map();
+    //for (auto genentry : fun->generics()) {
+        //if (auto generic = genentry.generic())
+            //new_map[generic] = generic;
+    //}
+
+    //ANYDSL2_PUSH(generic_map_, &new_map);
+    check_fun(fun); 
+}
+
 /*
  * Expr
  */
 
 const Type* EmptyExpr::check(Sema& sema) const { return sema.typetable().type_void(); }
 const Type* Literal::check(Sema& sema) const { return sema.typetable().primtype(literal2type()); }
-const Type* FunExpr::check(Sema& sema) const { sema.fun_check(this); return fntype(); }
+const Type* FunExpr::check(Sema& sema) const { sema.check_fun(this); return fntype(); }
 
 const Type* Tuple::check(Sema& sema) const {
     Array<const Type*> elems(ops().size());

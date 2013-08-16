@@ -46,6 +46,8 @@ std::ostream& Printer::print_type(const Type* type) {
         return stream() << Generic::to_string(generic->index());
     } else if (auto genref = type->isa<GenericRef>()) {
         return stream() << '<' << genref->namedfun()->symbol() << ", " << genref->generic() << '>';
+    } else if (auto idtype = type->isa<IdType>()) {
+        return stream() << idtype->name;
     } else if (auto primtype = type->isa<PrimType>()) {
         switch (primtype->kind()) {
 #define IMPALA_TYPE(itype, atype) case Token::TYPE_##itype: return stream() << #itype;

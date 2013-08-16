@@ -20,6 +20,7 @@ class FnType;
 class NamedFun;
 class Generic;
 class GenericRef;
+class IdType;
 class NoRet;
 class Void;
 class PrimType;
@@ -44,6 +45,7 @@ public:
     const TupleType* tupletype(anydsl2::ArrayRef<const Type*> elems);
     const Generic* generic(size_t index);
     const GenericRef* genericref(const NamedFun*, const Generic*);
+    const IdType* idtype(anydsl2::Symbol);
 
 private:
     const Type* unify_base(const Type* type);
@@ -281,6 +283,19 @@ private:
 
     virtual const Type* specialize(const GenericMap& map) const { return super_specialize(map, &TypeTable::tupletype); }
     virtual const anydsl2::Type* convert(anydsl2::World&) const;
+
+    friend class TypeTable;
+};
+
+class IdType : public Type {
+private:
+    IdType(TypeTable& typetable, anydsl2::Symbol symbol)
+        : Type(typetable, Token::TYPE_id, 0, false, symbol.str())
+    {}
+    virtual size_t hash() const { return anydsl2::hash_value(this); }
+    virtual bool equal(const Node* other) const { return this == other; }
+    virtual const Type* specialize(const GenericMap& map) const { assert(false); return nullptr; }
+    virtual const anydsl2::Type* convert(anydsl2::World&) const { assert(false); return nullptr; }
 
     friend class TypeTable;
 };

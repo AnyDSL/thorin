@@ -54,6 +54,7 @@ const Generic* TypeTable::generic(size_t index) { return unify(new Generic(*this
 const GenericRef* TypeTable::genericref(const NamedFun* fun, const Generic* generic) { 
     return unify(new GenericRef(*this, fun, generic)); 
 }
+const IdType* TypeTable::idtype(Symbol symbol) { return unify(new IdType(*this, symbol)); }
 
 //------------------------------------------------------------------------------
 

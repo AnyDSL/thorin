@@ -46,7 +46,7 @@ public:
     bool is_expr();
     bool is_stmt();
     const Prg* parse();
-    void parse_generics_list(GenericsList&);
+    void parse_generics_list(Symbols&);
     const Type* parse_type();
     const Type* parse_compound_type();
     const Type* parse_return_type();
@@ -94,33 +94,6 @@ public:
     /// helper for condition in if/while/do-while
     const Expr* parse_cond(const std::string& what);
 
-    struct GenFun {
-        GenFun() {}
-        GenFun(GenericEntry* generic_entry, const NamedFun* namedfun)
-            : generic_entry_(generic_entry)
-            , namedfun_(namedfun)
-        {}
-
-        GenericEntry* generic_entry() const { return generic_entry_; }
-        const NamedFun* namedfun() const { return namedfun_; }
-
-    private:
-        GenericEntry* generic_entry_;
-        const NamedFun* namedfun_;
-    };
-
-    const Type* generic_lookup(Symbol symbol) {
-        auto i = symbol2gen.find(symbol);
-        if (i != symbol2gen.end()) {
-            GenFun genfun = i->second;
-            auto generic = builder.use(genfun.generic_entry()->handle());
-            if (cur_fun == genfun.namedfun()) 
-                return generic;
-            return generic->genericref(genfun.namedfun());
-        }
-        return nullptr;
-    }
-
 private:
     /// Consume next Token in input stream, fill look-ahead buffer, return consumed Token.
     Token lex();
@@ -136,8 +109,6 @@ private:
     int counter;
     anydsl2::Location prev_loc;
     bool result_;
-    GenericBuilder builder;
-    std::unordered_map<Symbol, GenFun> symbol2gen;
 };
 
 //------------------------------------------------------------------------------
@@ -166,7 +137,6 @@ Parser::Parser(TypeTable& typetable, std::istream& stream, const std::string& fi
     , prg(new Prg())
     , counter(0)
     , result_(true)
-    , builder(typetable)
 {
     // init 2 lookahead
     lookahead[0] = lexer.lex();
@@ -252,7 +222,7 @@ const Type* Parser::parse_type() {
         case Token::SIGMA:             return parse_compound_type();
         // TODO generic refs
         case Token::ID: 
-            return generic_lookup(lex().symbol());
+            return typetable.idtype(lex().symbol());
         default: ANYDSL2_UNREACHABLE;
     }
 }
@@ -332,10 +302,10 @@ const Proto* Parser::parse_proto() {
     return proto;
 }
 
-void Parser::parse_generics_list(GenericsList& generics) {
+void Parser::parse_generics_list(Symbols& generics) {
     if (accept(Token::LT))
         parse_comma_list(Token::GT, "generics list", [&] {
-            generics.push_back(GenericEntry(try_id("generic identifier").symbol(), builder.new_def()));
+            generics.push_back(try_id("generic identifier").symbol());
         });
 }
 
@@ -368,23 +338,11 @@ const NamedFun* Parser::parse_named_fun() {
     Position pos1 = eat(Token::DEF).pos1();
     bool ext = accept(Token::EXTERN);
     Token id = try_id("function identifier");
-
     NamedFun* f = new NamedFun(ext);
     parse_generics_list(f->generics_);
-    for (auto& genentry : f->generics_) {
-        // TODO check generics shadowing
-        symbol2gen[genentry.symbol()] = GenFun(&genentry, f);
-    }
-
     parse_fun(f);
     f->set(id, f->fntype(), prev_loc.pos2());
 
-    for (auto& genentry : f->generics_) {
-        symbol2gen.erase(genentry.symbol());
-        genentry.set(builder.get(genentry.handle()));
-    }
-
-    builder.pop(f->generics_.size());
     return f;
 }
 
@@ -633,9 +591,6 @@ const Expr* Parser::parse_cond(const std::string& what) {
 }
 
 bool Parser::is_type(size_t lookahead) {
-    if (la(lookahead) == Token::ID && generic_lookup(la().symbol()))
-        return true;
-
     switch (la(lookahead)) {
 #define IMPALA_TYPE(itype, atype) \
         case Token:: TYPE_##itype:
@@ -646,6 +601,7 @@ bool Parser::is_type(size_t lookahead) {
         case Token::TYPE_noret:
         case Token::PI:
         case Token::SIGMA:
+        case Token::ID:
             return true;
         default:
             return false;
@@ -654,7 +610,7 @@ bool Parser::is_type(size_t lookahead) {
 
 bool Parser::is_expr() {
     //identifier without a succeeding colon which is not a generic
-    if (la() == Token::ID && la2() != Token::COLON && !generic_lookup(la().symbol()))
+    if (la() == Token::ID && la2() != Token::COLON)
         return true;
 
     switch (la()) {
@@ -804,10 +760,7 @@ const Expr* Parser::parse_primary_expr() {
 #include "impala/tokenlist.h"
         case Token::TRUE:
         case Token::FALSE:      return parse_literal();
-        case Token::ID: {
-            assert(!generic_lookup(la().symbol()));
-            return new Id(lex());
-        }
+        case Token::ID:         return new Id(lex());
         case Token::L_PAREN: {
             eat(Token::L_PAREN);
             const Expr* expr = try_expr("primary expression");

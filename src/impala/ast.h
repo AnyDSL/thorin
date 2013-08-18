@@ -71,8 +71,6 @@ public:
     std::ostream& fun_print(Printer& p) const;
 
 private:
-    void fun_set(const FnType* fntype, const ScopeStmt* body) { fntype_ = fntype; body_ = body; }
-
     VarDecls params_;
     anydsl2::AutoPtr<const ScopeStmt> body_;
     const FnType* fntype_;
@@ -160,15 +158,7 @@ public:
 
 class NamedFun : public Global, public Fun {
 public:
-    NamedFun(bool ext)
-        : extern_(ext)
-    {}
 
-    void set(const Token& tok, const Type* orig_type, const anydsl2::Position& pos2) {
-        symbol_ = tok.symbol();
-        orig_type_ = orig_type;
-        set_loc(tok.pos1(), pos2);
-    }
     virtual std::ostream& print(Printer& p) const;
     bool is_extern() const { return extern_; }
     const TypeDecls& generics() const { return generics_; }
@@ -529,22 +519,17 @@ public:
     const Expr* cond() const { return cond_; }
     const Stmt* body() const { return body_; }
 
-protected:
-    void set(const Expr* cond, const Stmt* body) { cond_ = cond; body_ = body; }
-
 private:
     anydsl2::AutoPtr<const Expr> cond_;
     anydsl2::AutoPtr<const Stmt> body_;
+
+    friend class Parser;
 };
 
 class DoWhileStmt : public Loop {
 public:
     DoWhileStmt() {}
 
-    void set(const anydsl2::Position& pos1, const Stmt* body, const Expr* cond, const anydsl2::Position& pos2) {
-        Loop::set(cond, body);
-        set_loc(pos1, pos2);
-    }
     virtual std::ostream& print(Printer& p) const;
 
 private:
@@ -556,14 +541,6 @@ class ForStmt : public Loop {
 public:
     ForStmt() {}
 
-    void set(const anydsl2::Position& pos1, const Expr* cond, const Expr* step, const Stmt* body) {
-        Loop::set(cond, body);
-        step_ = step;
-        set_loc(pos1, body->pos2());
-    }
-    void set(const DeclStmt* d) { init_decl_ = d; }
-    void set(const ExprStmt* e) { init_expr_ = e; }
-    void set_empty_init(const anydsl2::Position& pos) { set(new ExprStmt(new EmptyExpr(pos), pos)); }
     const DeclStmt* init_decl() const { return init_decl_; }
     const ExprStmt* init_expr() const { return init_expr_; }
     const Stmt* init() const { return (const Stmt*) ((uintptr_t) init_decl_.get() | (uintptr_t) init_expr_.get()); }
@@ -578,6 +555,8 @@ private:
     anydsl2::AutoPtr<const DeclStmt> init_decl_;
     anydsl2::AutoPtr<const ExprStmt> init_expr_;
     anydsl2::AutoPtr<const Expr> step_;
+
+    friend class Parser;
 };
 
 
@@ -585,13 +564,6 @@ class ForeachStmt : public Stmt {
 public:
     ForeachStmt() {}
 
-    void set(const anydsl2::Position& pos1, const Stmt* body) {
-        body_ = body;
-        set_loc(pos1, body->pos2());
-    }
-    void set(const VarDecl* d) { init_decl_ = d; }
-    void set(const Expr* e) { init_expr_ = e; }
-    void set(const Call* call) { call_ = call; }
     const Stmt* body() const { return body_; }
     const VarDecl* init_decl() const { return init_decl_; }
     const Expr* init_expr() const { return init_expr_; }
@@ -607,8 +579,9 @@ private:
     anydsl2::AutoPtr<const VarDecl> init_decl_;
     anydsl2::AutoPtr<const Expr> init_expr_;
     anydsl2::AutoPtr<const Call> call_;
-    
     mutable const FnType* fntype_;
+
+    friend class Parser;
 };
 
 class BreakStmt : public Stmt {

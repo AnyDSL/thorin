@@ -329,19 +329,17 @@ void Parser::parse_fun(Fun* fun) {
         fun->params_.push_back(new VarDecl(cur_var_handle++, Token(pos1, "return"), arg_types.back(), pos2));
     }
 
-    const FnType* fntype = typetable.fntype(arg_types);
-    const ScopeStmt* body = parse_scope();
-    fun->fun_set(fntype, body);
+    fun->fntype_ = typetable.fntype(arg_types);
+    fun->body_ = parse_scope();
 }
 
 const NamedFun* Parser::parse_named_fun() {
-    Position pos1 = eat(Token::DEF).pos1();
-    bool ext = accept(Token::EXTERN);
-    Token id = try_id("function identifier");
-    NamedFun* f = new NamedFun(ext);
+    NamedFun* f = new NamedFun();
+    f->set_pos1(eat(Token::DEF).pos1());
+    f->extern_= accept(Token::EXTERN);
+    f->symbol_= try_id("function identifier").symbol();
     parse_generics_list(f->generics_);
     parse_fun(f);
-    f->set(id, f->fntype(), prev_loc.pos2());
 
     return f;
 }
@@ -443,51 +441,47 @@ const Stmt* Parser::parse_if_else() {
 }
 
 const Stmt* Parser::parse_while() {
-    Position pos1 = eat(Token::WHILE).pos1();
-    const Expr* cond = parse_cond("while statement");
-
     ForStmt* loop = new ForStmt();
-    ANYDSL2_PUSH(cur_loop, loop);
-    const Stmt* body = try_stmt("loop body");
 
-    loop->set(pos1, cond, new EmptyExpr(pos1), body);
-    loop->set_empty_init(pos1);
+    loop->set_pos1(eat(Token::WHILE).pos1());
+    loop->init_expr_ = new ExprStmt(new EmptyExpr(loop->pos1()), loop->pos1());
+    loop->cond_ = parse_cond("while statement");
+    loop->step_ = new EmptyExpr(loop->pos1());
+    ANYDSL2_PUSH(cur_loop, loop);
+    loop->body_ = try_stmt("loop body");
 
     return loop;
 }
 
 const Stmt* Parser::parse_do_while() {
-    Position pos1 = eat(Token::DO).pos1();
-
     DoWhileStmt* loop = new DoWhileStmt();
+    loop->set_pos1(eat(Token::DO).pos1());
     ANYDSL2_PUSH(cur_loop, loop);
-    const Stmt* body = try_stmt("loop body");
-
+    loop->body_ = try_stmt("loop body");
     expect(Token::WHILE, "do-while statement");
-    const Expr* cond = parse_cond("do-while statement");
+    loop->cond_ = parse_cond("do-while statement");
     expect(Token::SEMICOLON, "do-while statement");
-
-    loop->set(pos1, body, cond, prev_loc.pos2());
+    loop->set_pos1(prev_loc.pos2());
 
     return loop;
 }
 
 const Stmt* Parser::parse_for() {
-    Position pos1 = eat(Token::FOR).pos1();
+    ForStmt*  loop = new ForStmt();
+    loop->set_pos1(eat(Token::FOR).pos1());
     expect(Token::L_PAREN, "for statement");
 
-    ForStmt*  loop = new ForStmt();
     ANYDSL2_PUSH(cur_loop, loop);
 
     // clause 1: decl or expr_opt ';'
     if (la2() == Token::COLON)
-        loop->set(parse_decl_stmt());
+        loop->init_decl_ = parse_decl_stmt();
     else if (is_expr())
-        loop->set(parse_expr_stmt());
+        loop->init_expr_ = parse_expr_stmt();
     else  {
         if (!accept(Token::SEMICOLON))
             error("expression or delcaration statement", "first clause in for statement");
-        loop->set_empty_init(prev_loc.pos2());
+        loop->init_expr_ = new ExprStmt(new EmptyExpr(loop->pos1()), loop->pos1());
     }
 
     // clause 2: expr_opt ';'
@@ -495,60 +489,64 @@ const Stmt* Parser::parse_for() {
     if (accept(Token::SEMICOLON)) { 
         // do nothing: no expr given, semicolon consumed
         // but create true cond
-        cond = new Literal(prev_loc, Literal::LIT_bool, Box(true));
+        loop->cond_ = new Literal(prev_loc, Literal::LIT_bool, Box(true));
     } else if (is_expr()) {
-        cond = parse_expr();
+        loop->cond_ = parse_expr();
         expect(Token::SEMICOLON, "second clause in for statement");
     } else {
         error("expression or nothing", 
                 "second clause in for statement");
-        cond = new Literal(prev_loc, Literal::LIT_bool, Box(true));
+        loop->cond_ = new Literal(prev_loc, Literal::LIT_bool, Box(true));
     }
 
-    const Expr* inc;
     // clause 3: expr_opt ';'
     if (accept(Token::R_PAREN)) { 
         // do nothing: no expr given, semicolon consumed
-        inc = new EmptyExpr(prev_loc);
+        loop->step_ = new EmptyExpr(prev_loc);
     } else if (is_expr()) {
-        inc = parse_expr();
+        loop->step_ = parse_expr();
         expect(Token::R_PAREN, "for statement");
     } else {
         error("expression or nothing",
                 "third clause in for statement");
-        inc = new EmptyExpr(prev_loc);
+        loop->step_ = new EmptyExpr(prev_loc);
     }
 
-    const Stmt* body = try_stmt("loop body");
-    loop->set(pos1, cond, inc, body);
+    loop->body_ = try_stmt("loop body");
+    loop->set_pos2(prev_loc.pos2());
 
     return loop;
 }
 
 const Stmt* Parser::parse_foreach() {
-    Position pos1 = eat(Token::FOREACH).pos1();
+    ForeachStmt* foreach = new ForeachStmt();
+    foreach->set_pos2(eat(Token::FOREACH).pos1());
     expect(Token::L_PAREN, "foreach statement");
 
-    ForeachStmt* foreach = new ForeachStmt();
 
     if (la2() == Token::COLON) {
         // parse only 'x : int' and no further assignment
-        const VarDecl* decl = parse_var_decl();
-        foreach->set(decl);
+        foreach->init_decl_ = parse_var_decl();
     } else if (is_expr()) {
-        const Expr* expr = parse_primary_expr();
-        foreach->set(expr);
-    } else
+        foreach->init_expr_ = parse_primary_expr();
+    } else {
         error("expression or delcaration statement", "for-each statement");
+        foreach->init_expr_ = new EmptyExpr(foreach->pos1());
+    }
 
     expect(Token::LARROW, "for-each statement");
     const Expr* expr = try_expr("generator call in for-each statement");
-    foreach->set(expr->isa<Call>());
-    if (!foreach->call())
+    if (const Call* call = expr->isa<Call>()) {
+        foreach->call_ = call;
+    } else {
         error("generator call", " for-each statement");
+        delete expr;
+        foreach->call_ = nullptr; // TODO
+    }
 
     expect(Token::R_PAREN, "for-each statement");
-    foreach->set(pos1, try_stmt("for-each body"));
+    foreach->body_ = try_stmt("for-each body");
+    foreach->set_pos2(prev_loc.pos2());
 
     return foreach;
 }

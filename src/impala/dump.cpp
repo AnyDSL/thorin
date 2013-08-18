@@ -86,14 +86,15 @@ std::ostream& NamedFun::print(Printer& p) const {
     return fun_print(p); 
 }
 
-std::ostream& Prg::print(Printer& p) const {
-    for (auto global : globals()) {
-        p.newline();
-        global->print(p);
-        p.newline();
-    }
+std::ostream& Scope::print(Printer& p) const {
+    if (!stmts().empty()) {
+        for (auto i = stmts().cbegin(), e = stmts().cend() - 1; i != e; ++i) {
+            (*i)->print(p);
+            p.newline();
+        }
 
-    return p.stream();
+        stmts().back()->print(p);
+    }
 }
 
 std::ostream& Proto::print(Printer& p) const {
@@ -104,7 +105,7 @@ std::ostream& Proto::print(Printer& p) const {
 
 std::ostream& Fun::fun_print(Printer& p) const {
     // TODO generics
-    const Type* ret_type = fntype()->return_type();
+    const Type* ret_type = orig_fntype()->return_type();
     ArrayRef<const VarDecl*> params_ref = 
         ret_type->isa<NoRet>() ? params() : ArrayRef<const VarDecl*>(&params().front(), params().size() - 1);
 
@@ -256,14 +257,13 @@ std::ostream& Call::print(Printer& p) const {
  */
 
 std::ostream& DeclStmt::print(Printer& p) const {
+    return decl()->print(p) << ";";
+}
+
+std::ostream& InitStmt::print(Printer& p) const {
     var_decl()->print(p);
-
-    if (init()) {
-        p.stream() << " = ";
-        init()->print(p);
-    }
-
-    return p.stream() << ";";
+    p.stream() << " = ";
+    return init()->print(p) << ";";
 }
 
 std::ostream& ExprStmt::print(Printer& p) const {
@@ -336,15 +336,7 @@ std::ostream& NamedFunStmt::print(Printer& p) const { return named_fun()->print(
 std::ostream& ScopeStmt::print(Printer& p) const {
     p.stream() << "{";
     p.up();
-
-    if (!stmts().empty()) {
-        for (auto i = stmts().cbegin(), e = stmts().cend() - 1; i != e; ++i) {
-            (*i)->print(p);
-            p.newline();
-        }
-
-        stmts().back()->print(p);
-    }
+    scope()->print(p);
     return p.down() << "}";
 }
 

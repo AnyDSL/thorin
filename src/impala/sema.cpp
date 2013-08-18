@@ -1,3 +1,4 @@
+#if 0
 #include "impala/ast.h"
 
 #include <vector>
@@ -494,3 +495,4 @@ bool check(TypeTable& typetable, const Prg* prg, bool nossa) { return Sema(typet
 //------------------------------------------------------------------------------
 
 } // namespace impala
+#endif

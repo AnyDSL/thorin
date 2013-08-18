@@ -3,9 +3,10 @@
 
 namespace impala {
 
+class Scope;
 class TypeTable;
 
-bool check(TypeTable&, const Prg*, bool nossa = false);
+bool check(TypeTable&, const Scope*, bool nossa = false);
 
 } // namespace impala
 

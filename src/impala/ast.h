@@ -48,39 +48,20 @@ public:
     void dump() const;
 };
 
-class Prg : public ASTNode {
+class Scope : public ASTNode {
 public:
+    const Stmts& stmts() const { return stmts_; }
+    const Stmt* stmt(size_t i) const { return stmts_[i]; }
+    virtual bool empty() const { return stmts_.empty(); }
     virtual std::ostream& print(Printer& p) const;
-    const anydsl2::AutoVector<const Global*>& globals() const { return globals_; }
 
 private:
-    anydsl2::AutoVector<const Global*> globals_;
+    virtual void check(Sema& sema) const;
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
+
+    mutable Stmts stmts_;
 
     friend class Parser;
-};
-
-class Fun {
-public:
-    const ScopeStmt* body() const { return body_; }
-    const VarDecl* param(size_t i) const { return params_[i]; }
-    const VarDecls& params() const { return params_; }
-    const FnType* fntype() const { return fntype_; }
-    bool is_continuation() const { return fntype()->return_type()->isa<NoRet>() != nullptr; }
-    anydsl2::Lambda* lambda() const { return lambda_; }
-    const anydsl2::Param* ret_param() const { return ret_param_; }
-    std::ostream& fun_print(Printer& p) const;
-
-private:
-    VarDecls params_;
-    anydsl2::AutoPtr<const ScopeStmt> body_;
-    const FnType* fntype_;
-    mutable anydsl2::Lambda* lambda_;
-    mutable const anydsl2::Param* ret_param_;
-
-    friend class NamedFun;
-    friend class FunExpr;
-    friend class Parser;
-    friend class CodeGen;
 };
 
 class Decl : public ASTNode {
@@ -101,6 +82,29 @@ private:
     mutable size_t depth_;
 
     friend class Sema;
+};
+
+class Fun : public Decl {
+public:
+    const ScopeStmt* body() const { return body_; }
+    const VarDecl* param(size_t i) const { return params_[i]; }
+    const VarDecls& params() const { return params_; }
+    const FnType* orig_fntype() const { return orig_type_->as<FnType>(); }
+    bool is_continuation() const { return orig_fntype()->return_type()->isa<NoRet>() != nullptr; }
+    anydsl2::Lambda* lambda() const { return lambda_; }
+    const anydsl2::Param* ret_param() const { return ret_param_; }
+    std::ostream& fun_print(Printer& p) const;
+
+private:
+    VarDecls params_;
+    anydsl2::AutoPtr<const ScopeStmt> body_;
+    mutable anydsl2::Lambda* lambda_;
+    mutable const anydsl2::Param* ret_param_;
+
+    friend class NamedFun;
+    friend class FunExpr;
+    friend class Parser;
+    friend class CodeGen;
 };
 
 class TypeDecl : public Decl {
@@ -142,9 +146,7 @@ private:
     friend class ForeachStmt;
 };
 
-class Global : public Decl {};
-
-class Proto : public Global {
+class Proto : public Decl {
 public:
     Proto(anydsl2::Symbol symbol) {
         symbol_ = symbol;
@@ -156,7 +158,7 @@ public:
     friend class Parser;
 };
 
-class NamedFun : public Global, public Fun {
+class NamedFun : public Fun {
 public:
 
     virtual std::ostream& print(Printer& p) const;
@@ -470,11 +472,27 @@ private:
 
 class DeclStmt : public Stmt {
 public:
-    DeclStmt(const VarDecl* var_decl, const Expr* init, const anydsl2::Position& pos2)
+    DeclStmt(const Decl* decl)
+        : decl_(decl)
+    {}
+
+    const Decl* decl() const { return decl_; }
+    virtual std::ostream& print(Printer& p) const;
+
+private:
+    virtual void check(Sema& sema) const;
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
+
+    anydsl2::AutoPtr<const Decl> decl_;
+};
+
+class InitStmt : public Stmt {
+public:
+    InitStmt(const VarDecl* var_decl, const Expr* init)
         : var_decl_(var_decl)
         , init_(init)
     {
-        set_loc(var_decl->pos1(), pos2);
+        set_loc(var_decl->pos1(), init->pos2());
     }
 
     const VarDecl* var_decl() const { return var_decl_; }
@@ -541,7 +559,7 @@ class ForStmt : public Loop {
 public:
     ForStmt() {}
 
-    const DeclStmt* init_decl() const { return init_decl_; }
+    const Stmt* init_decl() const { return init_decl_; }
     const ExprStmt* init_expr() const { return init_expr_; }
     const Stmt* init() const { return (const Stmt*) ((uintptr_t) init_decl_.get() | (uintptr_t) init_expr_.get()); }
     const Expr* step() const { return step_; }
@@ -552,7 +570,7 @@ private:
     virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
-    anydsl2::AutoPtr<const DeclStmt> init_decl_;
+    anydsl2::AutoPtr<const Stmt> init_decl_;
     anydsl2::AutoPtr<const ExprStmt> init_expr_;
     anydsl2::AutoPtr<const Expr> step_;
 
@@ -660,20 +678,18 @@ private:
 class ScopeStmt : public Stmt {
 public:
     ScopeStmt() {}
-    ScopeStmt(const anydsl2::Location& loc) { loc_ = loc; }
+    ScopeStmt(const anydsl2::Location& loc) {
+        loc_ = loc;
+    }
 
-    const Stmts& stmts() const { return stmts_; }
-    const Stmt* stmt(size_t i) const { return stmts_[i]; }
-    const NamedFuns& named_funs() const { return named_funs_; }
-    virtual bool empty() const { return stmts_.empty(); }
+    const Scope* scope() const { return scope_; }
     virtual std::ostream& print(Printer& p) const;
 
 private:
     virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
-    mutable Stmts stmts_;
-    NamedFuns named_funs_;
+    anydsl2::AutoPtr<const Scope> scope_;
 
     friend class Parser;
 };

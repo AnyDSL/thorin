@@ -45,13 +45,12 @@ public:
     bool is_type(size_t lookahead = 0);
     bool is_expr();
     bool is_stmt();
-    const Prg* parse();
+    const Scope* parse_scope(bool outmost = false);
     void parse_generics_list(TypeDecls&);
     const Type* parse_type();
     const Type* parse_compound_type();
     const Type* parse_return_type();
     const VarDecl* parse_var_decl();
-    void parse_globals();
     const Proto* parse_proto();
     void parse_fun(Fun* fun);
     const NamedFun* parse_named_fun();
@@ -63,6 +62,8 @@ public:
         }
         expect(delimiter, context);
     }
+
+    const Decl* parse_decl();
 
     // expressions
     const Expr* parse_expr(Prec prec);
@@ -78,7 +79,7 @@ public:
     // statements
     const Stmt* parse_stmt();
     const ExprStmt* parse_expr_stmt();
-    const DeclStmt* parse_decl_stmt();
+    const Stmt* parse_decl_or_init_stmt();
     const Stmt* parse_if_else();
     const Stmt* parse_while();
     const Stmt* parse_do_while();
@@ -87,9 +88,8 @@ public:
     const Stmt* parse_break();
     const Stmt* parse_continue();
     const Stmt* parse_return();
-
-    /// { Stmt* }
-    const ScopeStmt* parse_scope();
+    const NamedFunStmt* parse_named_fun_stmt();
+    const ScopeStmt* parse_scope_stmt();
 
     /// helper for condition in if/while/do-while
     const Expr* parse_cond(const std::string& what);
@@ -105,7 +105,6 @@ private:
     const Fun* cur_fun;
     size_t cur_var_handle;
     size_t generic_counter;
-    Prg* prg;
     int counter;
     anydsl2::Location prev_loc;
     bool result_;
@@ -113,9 +112,9 @@ private:
 
 //------------------------------------------------------------------------------
 
-const Prg* parse(TypeTable& typetable, std::istream& i, const std::string& filename, bool& result) {
+const Scope* parse(TypeTable& typetable, std::istream& i, const std::string& filename, bool& result) {
     Parser p(typetable, i, filename);
-    const Prg* prg = p.parse();
+    const Scope* prg = p.parse_scope(true);
     result = p.result();
 
     return prg;
@@ -134,7 +133,6 @@ Parser::Parser(TypeTable& typetable, std::istream& stream, const std::string& fi
     , cur_fun(nullptr)
     , cur_var_handle(2) // reserve 0 for conditionals, 1 for mem
     , generic_counter(0)
-    , prg(new Prg())
     , counter(0)
     , result_(true)
 {
@@ -191,11 +189,6 @@ std::ostream& Parser::sema_error(Token token) {
 /*
  * misc
  */
-
-const Prg* Parser::parse() {
-    parse_globals();
-    return prg;
-}
 
 Token Parser::try_id(const std::string& what) {
     Token name;
@@ -262,22 +255,6 @@ const VarDecl* Parser::parse_var_decl() {
     return new VarDecl(cur_var_handle++, tok, type, prev_loc.pos2());
 }
 
-void Parser::parse_globals() {
-    while (true) {
-        switch (la()) {
-            case Token::SEMICOLON:   lex(); continue; // ignore semicolon in global list
-            case Token::DEF:         prg->globals_.push_back(parse_named_fun()); continue;
-            case Token::EXTERN:      prg->globals_.push_back(parse_proto()); continue;
-            case Token::END_OF_FILE: return;
-
-            // consume token nobody wants to have in order to prevent infinite loop
-            default:
-                error("global", "global list");
-                lex(); 
-        }
-    }
-}
-
 const Proto* Parser::parse_proto() {
     Position pos1 = la().pos1();
     eat(Token::EXTERN);
@@ -329,8 +306,8 @@ void Parser::parse_fun(Fun* fun) {
         fun->params_.push_back(new VarDecl(cur_var_handle++, Token(pos1, "return"), arg_types.back(), pos2));
     }
 
-    fun->fntype_ = typetable.fntype(arg_types);
-    fun->body_ = parse_scope();
+    fun->orig_type_ = typetable.fntype(arg_types);
+    fun->body_ = parse_scope_stmt();
 }
 
 const NamedFun* Parser::parse_named_fun() {
@@ -344,28 +321,28 @@ const NamedFun* Parser::parse_named_fun() {
     return f;
 }
 
-const ScopeStmt* Parser::parse_scope() {
-    ScopeStmt* scope = new ScopeStmt();
-    scope->set_pos1(la().pos1());
+const Decl* Parser::parse_decl() {
+    switch (la()) {
+        case Token::EXTERN: return parse_proto();
+        default:            return parse_var_decl();
+    }
+}
 
-    expect(Token::L_BRACE, "scope statement");
-
-    Stmts& stmts = scope->stmts_;
-    NamedFuns& named_funs = scope->named_funs_;
+const Scope* Parser::parse_scope(bool outmost) {
+    Scope* scope = new Scope();
+    scope->set_pos1(prev_loc.pos1());
 
     while (true) {
-        if (la() == Token::DEF) {
-            const NamedFun* named_fun = parse_named_fun();
-            const NamedFunStmt* named_fun_stmt = new NamedFunStmt(named_fun);
-            stmts.push_back(named_fun_stmt);
-            named_funs.push_back(named_fun);
-        } else if (is_stmt())
-            stmts.push_back(parse_stmt());
-        else
+        if (la() == Token::SEMICOLON) {
+            lex(); 
+            continue; // ignore semicolon
+        } else if (la() == Token::END_OF_FILE) {
+            return scope;
+        } else if (is_stmt()) {
+            scope->stmts_.push_back(parse_stmt());
+        } else
             break;
     }
-
-    expect(Token::R_BRACE, "scope statement");
 
     return scope;
 }
@@ -374,37 +351,39 @@ const ScopeStmt* Parser::parse_scope() {
  * statements
  */
 
+const ScopeStmt* Parser::parse_scope_stmt() {
+    ScopeStmt* s = new ScopeStmt();
+    s->set_pos1(eat(Token::L_BRACE).pos1());
+    s->scope_ = parse_scope();
+    expect(Token::R_BRACE, "scope statement");
+    s->set_pos2(prev_loc.pos2());
+
+    return s;
+}
+
 const Stmt* Parser::parse_stmt() {
     if (is_expr())
         return parse_expr_stmt();
 
-    Location loc = la().loc();
-    if (accept(Token::ELSE)) {
-        error("'else' without matching 'if'", "statement");
-        return new ScopeStmt(loc);
-    }
+    if (la() == Token::EXTERN 
+            || (la() == Token::ID && la2() == Token::COLON))
+        return parse_decl_or_init_stmt();
 
     switch (la()) {
-        // expression or a decl
-        case Token::ID:
-            if (la2() == Token::COLON)
-                return parse_decl_stmt();
-            else {
-                error("statement", "");
-                return new ScopeStmt(loc);
-            }
-
-        // other statements
-        case Token::IF:        return parse_if_else();
-        case Token::WHILE:     return parse_while();
+        case Token::BREAK:     return parse_break();
+        case Token::CONTINUE:  return parse_continue();
+        case Token::DEF:       return parse_named_fun_stmt();
         case Token::DO:        return parse_do_while();
         case Token::FOR:       return parse_for();
         case Token::FOREACH:   return parse_foreach();
-        case Token::BREAK:     return parse_break();
-        case Token::CONTINUE:  return parse_continue();
+        case Token::IF:        return parse_if_else();
+        case Token::L_BRACE:   return parse_scope_stmt();
         case Token::RETURN:    return parse_return();
-        case Token::L_BRACE:   return parse_scope();
+        case Token::WHILE:     return parse_while();
         case Token::SEMICOLON: return new ScopeStmt(lex().loc());
+        case Token::ELSE:
+            error("'else' without matching 'if'", "statement");
+            return new ScopeStmt(lex().loc());
         default:               ANYDSL2_UNREACHABLE;
     }
 }
@@ -416,19 +395,19 @@ const ExprStmt* Parser::parse_expr_stmt() {
     return new ExprStmt(expr, prev_loc.pos2());
 }
 
-const DeclStmt* Parser::parse_decl_stmt() {
-    const VarDecl* var_decl = parse_var_decl();
-
-    // initialization
-    const Expr* init = nullptr;
-    if (la() == Token::ASGN) {
-        Token op = Token(lex().loc(), Token::ASGN);
-        init = try_expr("right-hand side of an initialization");
+const Stmt* Parser::parse_decl_or_init_stmt() {
+    const Decl* decl = parse_decl();
+    if (const auto var_decl = decl->isa<VarDecl>()) {
+        if (la() == Token::ASGN) {
+            auto init = new InitStmt(var_decl, try_expr("right-hand side of an initialization"));
+            expect(Token::SEMICOLON, "the end of an initialization statement");
+            return init;
+        }
     }
 
+    auto decl_stmt = new DeclStmt(decl);
     expect(Token::SEMICOLON, "the end of an declaration statement");
-
-    return new DeclStmt(var_decl, init, prev_loc.pos2());
+    return decl_stmt;
 }
 
 const Stmt* Parser::parse_if_else() {
@@ -475,7 +454,7 @@ const Stmt* Parser::parse_for() {
 
     // clause 1: decl or expr_opt ';'
     if (la2() == Token::COLON)
-        loop->init_decl_ = parse_decl_stmt();
+        loop->init_decl_ = parse_decl_or_init_stmt();
     else if (is_expr())
         loop->init_expr_ = parse_expr_stmt();
     else  {
@@ -631,6 +610,7 @@ bool Parser::is_stmt() {
     switch (la()) {
 #define IMPALA_KEY_STMT(tok, t_str) case Token:: tok:
 #include "impala/tokenlist.h"
+        case Token::DEF:
         case Token::ID:
         case Token::L_BRACE:
         case Token::SEMICOLON:

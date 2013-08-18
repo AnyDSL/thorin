@@ -7,9 +7,9 @@ namespace anydsl2 {
 
 namespace impala {
 
-class Prg;
+class Scope;
 
-void emit(anydsl2::World&, const Prg*);
+void emit(anydsl2::World&, const Scope*);
 
 } // namespace impala
 

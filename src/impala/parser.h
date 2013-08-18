@@ -6,10 +6,10 @@
 
 namespace impala {
 
-class Prg;
+class Scope;
 class TypeTable;
 
-const Prg* parse(TypeTable& typetable, std::istream& i, const std::string& filename, bool& result);
+const Scope* parse(TypeTable& typetable, std::istream& i, const std::string& filename, bool& result);
 
 } // namespace impala
 

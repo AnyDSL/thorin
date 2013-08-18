@@ -124,15 +124,15 @@ int main(int argc, char** argv) {
 #endif
 
         bool result;
-        anydsl2::AutoPtr<const impala::Prg> p(impala::parse(init.typetable, file, filename, result));
+        anydsl2::AutoPtr<const impala::Scope> prg(impala::parse(init.typetable, file, filename, result));
 
         if (emit_ast)
-            dump(p, fancy);
+            dump(prg, fancy);
 
-        result &= check(init.typetable, p, nossa);
+        result &= check(init.typetable, prg, nossa);
 
         if (result) {
-            emit(init.world, p);
+            emit(init.world, prg);
 
             if (!nocleanup)
                 init.world.cleanup();

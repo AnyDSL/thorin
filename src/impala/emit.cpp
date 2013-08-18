@@ -1,3 +1,4 @@
+#if 0
 #include "impala/ast.h"
 
 #include <iostream>
@@ -27,7 +28,7 @@ public:
         , continue_target(nullptr)
     {}
 
-    void emit(const Prg*);
+    void emit(const Scope*);
     const anydsl2::Lambda* emit_body(const Fun* fun, anydsl2::Lambda* parent, const char* what);
     anydsl2::Lambda* emit_head(const Fun* fun, anydsl2::Symbol symbol);
     void emit(const NamedFun*);
@@ -44,7 +45,7 @@ public:
 
 //------------------------------------------------------------------------------
 
-void emit(World& world, const Prg* prg) { CodeGen(world).emit(prg); }
+void emit(World& world, const Scope* prg) { CodeGen(world).emit(prg); }
 
 //------------------------------------------------------------------------------
 
@@ -494,3 +495,4 @@ void NamedFunStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 }
 
 } // namespace impala
+#endif

@@ -135,7 +135,7 @@ void CodeGen::emit(const NamedFun* named_fun) {
 }
 
 RefPtr CodeGen::emit(const VarDecl* decl) {
-    const anydsl2::Type* air_type = decl->type()->convert(world());
+    const anydsl2::Type* air_type = decl->refined_type()->convert(world());
     if (decl->is_address_taken())
         return Ref::create(world().slot(air_type, cur_frame, decl->handle(), decl->symbol().str()), *this);
 

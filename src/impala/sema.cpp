@@ -144,18 +144,8 @@ bool Sema::check(const Prg* prg) {
     return result();
 }
 
-static void propagate_set(const Type* type, std::unordered_set<const Generic*>& bound) {
-    for (auto elem : type->elems())
-        if (const Generic* generic = elem->isa<Generic>())
-            bound.insert(generic);
-        else 
-            propagate_set(elem, bound);
-}
-
 void Sema::check_fun(const Fun* fun) {
     push_scope();
-    std::unordered_set<const Generic*> bound;
-    propagate_set(fun->fntype(), bound);
 
     for (auto f : fun->body()->named_funs())
         insert(f);

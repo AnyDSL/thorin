@@ -46,7 +46,7 @@ public:
     bool is_expr();
     bool is_stmt();
     const Prg* parse();
-    void parse_generics_list(Symbols&);
+    void parse_generics_list(TypeDecls&);
     const Type* parse_type();
     const Type* parse_compound_type();
     const Type* parse_return_type();
@@ -296,16 +296,16 @@ const Proto* Parser::parse_proto() {
     else
         types.push_back(typetable.fntype1(ret_type));
 
-    proto->type_ = typetable.fntype(types);
+    proto->orig_type_ = typetable.fntype(types);
     proto->set_loc(pos1, prev_loc.pos2());
 
     return proto;
 }
 
-void Parser::parse_generics_list(Symbols& generics) {
+void Parser::parse_generics_list(TypeDecls& typedecls) {
     if (accept(Token::LT))
         parse_comma_list(Token::GT, "generics list", [&] {
-            generics.push_back(try_id("generic identifier").symbol());
+            typedecls.push_back(new TypeDecl(try_id("generic identifier")));
         });
 }
 
@@ -318,7 +318,7 @@ void Parser::parse_fun(Fun* fun) {
     parse_comma_list(Token::R_PAREN, "parameter list", [&] {
         const VarDecl* param = parse_var_decl();
         fun->params_.push_back(param);
-        arg_types.push_back(param->type());
+        arg_types.push_back(param->orig_type());
     });
 
     // return-continuation

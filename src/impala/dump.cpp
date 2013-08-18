@@ -38,9 +38,9 @@ std::ostream& Printer::print_type(const Type* type) {
     } else if (auto fn = type->isa<FnType>()) {
         const Type* ret_type = fn->return_type();
         if (ret_type->isa<NoRet>())
-            return dump_list([&](const Type* elem) { print_type(elem); }, fn->elems(), "fn(", ")");
+            return dump_list([&](const Type* elem) { print_type(elem); }, fn->elems(), "pi(", ")");
         else
-            return dump_list([&](const Type* elem) { print_type(elem); }, fn->elems().slice_front(fn->size()-1), "fn(", ") -> ") 
+            return dump_list([&](const Type* elem) { print_type(elem); }, fn->elems().slice_front(fn->size()-1), "pi(", ") -> ") 
                 << ret_type;
     } else if (auto generic = type->isa<Generic>()) {
         return stream() << Generic::to_string(generic->index());
@@ -76,8 +76,15 @@ std::ostream& Printer::print_block(const Stmt* s) {
 
 void ASTNode::dump() const { Printer p(std::cout, true); print(p) << std::endl; }
 void Type::dump() const { Printer p(std::cout, true); p.print_type(this) << std::endl; }
-std::ostream& NamedFun::print(Printer& p) const { p.stream() << "def " << symbol(); return fun_print(p); }
-std::ostream& VarDecl::print(Printer& p) const { return p.stream() << symbol() << " : " << type(); }
+std::ostream& VarDecl::print(Printer& p) const { return p.stream() << symbol() << " : " << orig_type(); }
+
+std::ostream& NamedFun::print(Printer& p) const { 
+    p.stream() << "def " << symbol(); 
+    if (!generics().empty())
+        p.dump_list([&] (const TypeDecl* typedecl) { typedecl->print(p); }, generics(), "<", ">");
+
+    return fun_print(p); 
+}
 
 std::ostream& Prg::print(Printer& p) const {
     for (auto global : globals()) {

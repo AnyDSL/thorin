@@ -33,13 +33,14 @@ class ScopeStmt;
 class Sema;
 class Stmt;
 class VarDecl;
+class TypeDecl;
 
 typedef anydsl2::AutoVector<const VarDecl*> VarDecls;
 typedef anydsl2::AutoVector<const Expr*> Exprs;
 typedef std::vector<const NamedFun*> NamedFuns;
 typedef anydsl2::AutoVector<const Stmt*> Stmts;
 typedef anydsl2::AutoPtr<const anydsl2::Ref> RefPtr;
-typedef std::vector<anydsl2::Symbol> Symbols;
+typedef anydsl2::AutoVector<const TypeDecl*> TypeDecls;
 
 class ASTNode : public anydsl2::HasLocation, public anydsl2::MagicCast {
 public:
@@ -56,24 +57,6 @@ private:
     anydsl2::AutoVector<const Global*> globals_;
 
     friend class Parser;
-};
-
-class Decl : public ASTNode {
-public:
-    anydsl2::Symbol symbol() const { return symbol_; }
-    const Type* type() const { return type_; }
-    size_t depth() const { return depth_; }
-    const Decl* shadows() const { return shadows_; }
-
-protected:
-    anydsl2::Symbol symbol_;
-    const Type* type_;
-
-private:
-    mutable const Decl* shadows_;
-    mutable size_t depth_;
-
-    friend class Sema;
 };
 
 class Fun {
@@ -102,14 +85,50 @@ private:
     friend class CodeGen;
 };
 
+class Decl : public ASTNode {
+public:
+    anydsl2::Symbol symbol() const { return symbol_; }
+    const Type* orig_type() const { return orig_type_; }
+    const Type* refined_type() const { return refined_type_; }
+    size_t depth() const { return depth_; }
+    const Decl* shadows() const { return shadows_; }
+
+protected:
+    anydsl2::Symbol symbol_;
+    const Type* orig_type_;
+    const Type* refined_type_;
+
+private:
+    mutable const Decl* shadows_;
+    mutable size_t depth_;
+
+    friend class Sema;
+};
+
+class TypeDecl : public Decl {
+public:
+    TypeDecl(const Token& tok)
+    {
+        symbol_ = tok.symbol();
+        set_loc(tok.loc());
+    }
+
+    virtual std::ostream& print(Printer& p) const;
+
+private:
+
+    friend class Id;
+    friend class ForeachStmt;
+};
+
 class VarDecl : public Decl {
 public:
-    VarDecl(size_t handle, const Token& tok, const Type* type, const anydsl2::Position& pos2)
+    VarDecl(size_t handle, const Token& tok, const Type* orig_type, const anydsl2::Position& pos2)
         : handle_(handle)
         , is_address_taken_(false)
     {
         symbol_ = tok.symbol();
-        type_ = type;
+        orig_type_ = orig_type;
         set_loc(tok.pos1(), pos2);
     }
 
@@ -133,7 +152,7 @@ public:
         symbol_ = symbol;
     }
 
-    const FnType* fntype() const { return type_->as<FnType>(); }
+    const FnType* fntype() const { return orig_type_->as<FnType>(); }
     virtual std::ostream& print(Printer& p) const;
 
     friend class Parser;
@@ -145,18 +164,18 @@ public:
         : extern_(ext)
     {}
 
-    void set(const Token& tok, const Type* type, const anydsl2::Position& pos2) {
+    void set(const Token& tok, const Type* orig_type, const anydsl2::Position& pos2) {
         symbol_ = tok.symbol();
-        type_ = type;
+        orig_type_ = orig_type;
         set_loc(tok.pos1(), pos2);
     }
     virtual std::ostream& print(Printer& p) const;
     bool is_extern() const { return extern_; }
-    const Symbols& generics() const { return generics_; }
+    const TypeDecls& generics() const { return generics_; }
 
 private:
     bool extern_;
-    Symbols generics_;
+    TypeDecls generics_;
 
     friend class Parser;
 };

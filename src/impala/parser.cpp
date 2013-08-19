@@ -548,7 +548,7 @@ const Expr* Parser::parse_tuple() {
 }
 
 const Expr* Parser::parse_fun_expr() {
-    FunExpr* e = new FunExpr();
+    FunExpr* e = new FunExpr(typetable);
     Position pos1 = eat(Token::LAMBDA).pos1();
     parse_fun(e->fun_);
 
@@ -790,7 +790,7 @@ const Expr* Parser::parse_cond(const std::string& what) {
 }
 
 const Stmt* Parser::parse_fun_stmt() {
-    FunStmt* s = new FunStmt();
+    FunStmt* s = new FunStmt(typetable);
     s->set_pos1(eat(Token::DEF).pos1());
     s->fun_->extern_ = accept(Token::EXTERN);
     s->fun_->symbol_ = try_id("function identifier").symbol();

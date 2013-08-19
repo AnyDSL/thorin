@@ -86,8 +86,9 @@ private:
 
 class Fun : public Decl {
 public:
-    Fun()
+    Fun(TypeTable& typetable)
         : extern_(false)
+        , generic_builder_(typetable)
     {}
 
     const Scope* body() const { return body_; }
@@ -110,8 +111,11 @@ private:
     TypeDecls generics_;
     mutable anydsl2::Lambda* lambda_;
     mutable const anydsl2::Param* ret_param_;
+    mutable GenericBuilder generic_builder_;
+    mutable GenericMap generic_map_;
 
     friend class Parser;
+    friend class Sema;
     friend class CodeGen;
 };
 
@@ -123,13 +127,17 @@ public:
         set_loc(tok.loc());
     }
 
+    size_t handle() const { return handle_; }
+    const Fun* fun() const { return fun_; }
     virtual void check(Sema& sema) const;
     virtual std::ostream& print(Printer& p) const;
 
 private:
 
-    friend class Id;
-    friend class ForeachStmt;
+    mutable size_t handle_;
+    mutable const Fun* fun_;
+
+    friend class Sema;
 };
 
 class VarDecl : public Decl {
@@ -241,8 +249,8 @@ private:
 
 class FunExpr : public Expr {
 public:
-    FunExpr()
-        : fun_(new Fun())
+    FunExpr(TypeTable& typetable)
+        : fun_(new Fun(typetable))
     {}
 
     virtual bool is_lvalue() const { return false; }
@@ -665,8 +673,8 @@ private:
 
 class FunStmt : public Stmt {
 public:
-    FunStmt()
-        : fun_(new Fun())
+    FunStmt(TypeTable& typetable)
+        : fun_(new Fun(typetable))
     {}
 
     const Fun* fun() const { return fun_; }

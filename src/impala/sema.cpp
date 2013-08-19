@@ -21,7 +21,7 @@ public:
     Sema(TypeTable& typetable, bool nossa)
         : in_foreach_(false)
         , typetable_(typetable)
-        , generic_map_(nullptr)
+        , cur_fun_(nullptr)
         , result_(true)
         , nossa_(nossa)
     {}
@@ -30,7 +30,7 @@ public:
      * @brief Looks up the current definition of \p sym.
      * @return Returns 0 on failure.
      */
-    const Decl* lookup(Symbol symbol);
+    const Decl* lookup(Symbol symbol) const;
 
     /** 
      * @brief Maps \p decl's symbol to \p decl.
@@ -54,7 +54,7 @@ public:
     bool nossa() const { return nossa_; }
     std::ostream& error(const ASTNode* n) { result_ = false; return n->error(); }
     std::ostream& error(const Location& loc) { result_ = false; return loc.error(); }
-    TypeTable& typetable() { return typetable_; }
+    TypeTable& typetable() const { return typetable_; }
     void check(const Scope*) ;
     const Type* check(const Decl* decl) { return decl->refined_type_; }
     const Type* check(const Expr* expr) { assert(!expr->type_); return expr->type_ = expr->check(*this); }
@@ -65,13 +65,17 @@ public:
         error(cond) << "condition not a bool\n";
         return false;
     }
-    GenericMap generic_map() { return generic_map_ != nullptr ? *generic_map_ : GenericMap(); }
+    GenericMap copy_generic_map() { return cur_fun_ != nullptr ? cur_fun_->generic_map_ : GenericMap(); }
+    GenericBuilder copy_generic_builder() { return cur_fun_ != nullptr ? cur_fun_->generic_builder_ : GenericBuilder(typetable_); }
+    GenericMap* generic_map() const { return cur_fun_ != nullptr ? &cur_fun_->generic_map_ : nullptr; }
+    GenericBuilder* generic_builder() const { return cur_fun_ != nullptr ? &cur_fun_->generic_builder_ : nullptr; }
+    const Fun* cur_fun() const { return cur_fun_; }
 
     bool in_foreach_;
 
 private:
     TypeTable& typetable_;
-    GenericMap* generic_map_;
+    Fun* cur_fun_;
     bool result_;
     bool nossa_;
 
@@ -79,11 +83,13 @@ private:
     Sym2Decl sym2decl_;
     std::vector<const Decl*> decl_stack_;
     std::vector<size_t> levels_;
+
+    friend class Fun;
 };
 
 //------------------------------------------------------------------------------
 
-const Decl* Sema::lookup(Symbol sym) {
+const Decl* Sema::lookup(Symbol sym) const {
     auto i = sym2decl_.find(sym);
     return i != sym2decl_.end() ? i->second : 0;
 }
@@ -131,12 +137,39 @@ void Sema::pop_scope() {
 void Sema::check(const Scope* scope) {
     for (auto stmt : scope->stmts()) {
         if (auto fun_stmt = stmt->isa<FunStmt>()) {
-            insert(fun_stmt->fun());
+            auto fun = fun_stmt->fun();
+            fun->generic_builder_ = copy_generic_builder();
+            fun->generic_map_     = copy_generic_map();
+            insert(fun);
+
+            push_scope();
+            ANYDSL2_PUSH(cur_fun_, fun);
+            for (auto type_decl : fun->generics()) {
+                type_decl->handle_ = fun->generic_builder_.new_def();
+                type_decl->fun_ = fun;
+            }
+
+            fun->refined_type_ = fun->orig_type()->refine(*this);
+            pop_scope();
         }
     }
 
     for (auto stmt : scope->stmts())
         check(stmt);
+}
+
+const Type* IdType::refine(const Sema& sema) const { 
+    if (auto generic_builder = sema.generic_builder()) {
+        if (auto decl = sema.lookup(Symbol(name.c_str()))) {
+            if (auto type_decl = decl->isa<TypeDecl>()) {
+                auto generic = generic_builder->use(type_decl->handle());
+                if (type_decl->fun() == sema.cur_fun())
+                    return generic;
+                return typetable_.genericref(type_decl->fun(), generic);
+            }
+        }
+    }
+    return typetable_.type_error();
 }
 
 /*
@@ -145,6 +178,7 @@ void Sema::check(const Scope* scope) {
 
 void Fun::check(Sema& sema) const {
     sema.push_scope();
+    ANYDSL2_PUSH(sema.cur_fun_, this);
 
     for (auto param : params()) 
         sema.insert(param);
@@ -304,7 +338,7 @@ const Type* Call::check(Sema& sema) const {
         }
 
         if (to_fn->check_with(call_fn)) {
-            GenericMap map = sema.generic_map();
+            GenericMap map = sema.copy_generic_map();
             if (to_fn->infer_with(map, call_fn)) {
                 auto result = ret_type->specialize(map);
                 assert(result);
@@ -334,7 +368,7 @@ void InitStmt::check(Sema& sema) const {
 
     if (const Expr* init_expr = init()) {
         if (var_decl()->type()->check_with(sema.check(init_expr))) {
-            GenericMap map = sema.generic_map();
+            GenericMap map = sema.copy_generic_map();
             if (var_decl()->type()->infer_with(map, init_expr->type()))
                 return;
             else {
@@ -402,7 +436,7 @@ void ForeachStmt::check(Sema& sema) const {
         const FnType* call_fn = sema.typetable().fntype(op_types);
 
         if (to_fn->check_with(call_fn)) {
-            GenericMap map = sema.generic_map();
+            GenericMap map = sema.copy_generic_map();
             if (!to_fn->infer_with(map, call_fn)) {
                 sema.error(call()->args_location()) << "cannot infer type '" << call_fn << "' induced by arguments\n";
                 sema.error(call()->to()) << "to invocation type '" << to_fn << "' with '" << map << "'\n";
@@ -451,7 +485,7 @@ void ReturnStmt::check(Sema& sema) const {
             if (expr()->type()->isa<TypeError>())
                 return;
             if (ret_type->check_with(expr()->type())) {
-                GenericMap map = sema.generic_map();
+                GenericMap map = sema.copy_generic_map();
                 if (ret_type->infer_with(map, expr()->type()))
                     return;
                 else

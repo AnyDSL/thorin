@@ -65,6 +65,11 @@ private:
 
 class Decl : public ASTNode {
 public:
+    Decl()
+        : orig_type_(nullptr)
+        , refined_type_(nullptr)
+    {}
+
     anydsl2::Symbol symbol() const { return symbol_; }
     const Type* orig_type() const { return orig_type_; }
     const Type* refined_type() const { return refined_type_; }
@@ -101,6 +106,7 @@ public:
     bool is_continuation() const { return orig_fntype()->return_type()->isa<NoRet>() != nullptr; }
     anydsl2::Lambda* lambda() const { return lambda_; }
     const anydsl2::Param* ret_param() const { return ret_param_; }
+    void refine(Sema&) const;
     virtual void check(Sema& sema) const;
     virtual std::ostream& print(Printer& p) const;
 
@@ -137,6 +143,7 @@ private:
     mutable size_t handle_;
     mutable const Fun* fun_;
 
+    friend class Fun;
     friend class Sema;
 };
 

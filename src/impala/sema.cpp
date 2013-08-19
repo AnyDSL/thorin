@@ -56,7 +56,7 @@ public:
     std::ostream& error(const Location& loc) { result_ = false; return loc.error(); }
     TypeTable& typetable() const { return typetable_; }
     void check(const Scope*) ;
-    const Type* check(const Decl* decl) { return decl->refined_type_; }
+    const Type* check(const Decl* decl) { decl->check(*this); return decl->refined_type_; }
     const Type* check(const Expr* expr) { assert(!expr->type_); return expr->type_ = expr->check(*this); }
     void check(const Stmt* stmt) { stmt->check(*this); }
     bool check_cond(const Expr* cond) {
@@ -134,24 +134,26 @@ void Sema::pop_scope() {
 
 //------------------------------------------------------------------------------
 
+void Fun::refine(Sema& sema) const {
+    generic_builder_ = sema.copy_generic_builder();
+    generic_map_     = sema.copy_generic_map();
+    sema.insert(this);
+
+    sema.push_scope();
+    ANYDSL2_PUSH(sema.cur_fun_, this);
+    for (auto type_decl : generics()) {
+        type_decl->handle_ = generic_builder_.new_def();
+        type_decl->fun_ = this;
+    }
+
+    refined_type_ = orig_type()->refine(sema);
+    sema.pop_scope();
+}
+
 void Sema::check(const Scope* scope) {
     for (auto stmt : scope->stmts()) {
-        if (auto fun_stmt = stmt->isa<FunStmt>()) {
-            auto fun = fun_stmt->fun();
-            fun->generic_builder_ = copy_generic_builder();
-            fun->generic_map_     = copy_generic_map();
-            insert(fun);
-
-            push_scope();
-            ANYDSL2_PUSH(cur_fun_, fun);
-            for (auto type_decl : fun->generics()) {
-                type_decl->handle_ = fun->generic_builder_.new_def();
-                type_decl->fun_ = fun;
-            }
-
-            fun->refined_type_ = fun->orig_type()->refine(*this);
-            pop_scope();
-        }
+        if (auto fun_stmt = stmt->isa<FunStmt>())
+            fun_stmt->fun()->refine(*this);
     }
 
     for (auto stmt : scope->stmts())
@@ -176,10 +178,19 @@ const Type* IdType::refine(const Sema& sema) const {
  * Decl
  */
 
+void VarDecl::check(Sema& sema) const {
+    refined_type_ = orig_type_->refine(sema);
+}
+
 void Fun::check(Sema& sema) const {
     sema.push_scope();
     ANYDSL2_PUSH(sema.cur_fun_, this);
 
+    if (refined_type_ == nullptr)
+        refine(sema);
+
+    for (auto type_decl : generics())
+        sema.insert(type_decl);
     for (auto param : params()) 
         sema.insert(param);
     sema.check(body());
@@ -367,17 +378,17 @@ void InitStmt::check(Sema& sema) const {
     sema.insert(var_decl());
 
     if (const Expr* init_expr = init()) {
-        if (var_decl()->type()->check_with(sema.check(init_expr))) {
+        if (sema.check(var_decl())->check_with(sema.check(init_expr))) {
             GenericMap map = sema.copy_generic_map();
-            if (var_decl()->type()->infer_with(map, init_expr->type()))
+            if (var_decl()->refined_type()->infer_with(map, init_expr->type()))
                 return;
             else {
                 sema.error(init_expr) << "cannot infer initializing type '" << init_expr->type() << "'\n";
-                sema.error(var_decl()) << "to declared type '" << var_decl()->type() << "' with '" << map << "'\n";
+                sema.error(var_decl()) << "to declared type '" << var_decl()->refined_type() << "' with '" << map << "'\n";
             }
         } else {
             sema.error(this) << "initializing expression of type '" << init_expr->type() << "' but '" 
-                << var_decl()->symbol() << "' declared of type '" << var_decl()->type() << '\n';
+                << var_decl()->symbol() << "' declared of type '" << var_decl()->refined_type() << '\n';
         }
     }
 }

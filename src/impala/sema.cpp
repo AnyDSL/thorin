@@ -142,8 +142,7 @@ void Fun::refine(Sema& sema) const {
     sema.push_scope();
     ANYDSL2_PUSH(sema.cur_fun_, this);
     for (auto type_decl : generics()) {
-        type_decl->handle_ = generic_builder_.new_def();
-        type_decl->fun_ = this;
+        sema.check(type_decl);
     }
 
     refined_type_ = orig_type()->refine(sema);
@@ -200,6 +199,9 @@ void Fun::check(Sema& sema) const {
 }
 
 void TypeDecl::check(Sema& sema) const {
+    sema.insert(this);
+    handle_ = sema.cur_fun()->generic_builder_.new_def();
+    fun_ = sema.cur_fun();
 }
 
 void Proto::check(Sema& sema) const {

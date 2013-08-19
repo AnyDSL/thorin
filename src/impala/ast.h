@@ -123,6 +123,7 @@ private:
     friend class Parser;
     friend class Sema;
     friend class CodeGen;
+    friend class TypeDecl;
 };
 
 class TypeDecl : public Decl {

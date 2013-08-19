@@ -390,6 +390,7 @@ void Parser::parse_fun(Fun* fun) {
     ANYDSL2_PUSH(cur_fun, fun);
     ANYDSL2_PUSH(cur_var_handle, cur_var_handle);
 
+    fun->set_pos1(la().pos1());
     std::vector<const Type*> arg_types;
     expect(Token::L_PAREN, "function head");
     parse_comma_list(Token::R_PAREN, "parameter list", [&] {
@@ -410,6 +411,7 @@ void Parser::parse_fun(Fun* fun) {
     expect(Token::L_BRACE, "body of function");
     fun->body_ = parse_scope();
     expect(Token::R_BRACE, "body of function");
+    fun->set_pos2(prev_loc.pos2());
 }
 
 /*
@@ -549,8 +551,9 @@ const Expr* Parser::parse_tuple() {
 
 const Expr* Parser::parse_fun_expr() {
     FunExpr* e = new FunExpr(typetable);
-    Position pos1 = eat(Token::LAMBDA).pos1();
+    e->set_pos1(eat(Token::LAMBDA).pos1());
     parse_fun(e->fun_);
+    e->set_pos2(prev_loc.pos2());
 
     return e;
 }

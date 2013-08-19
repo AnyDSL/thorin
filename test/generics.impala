@@ -1,8 +1,11 @@
-def f<A, B>(a1 : A, a2 : A, b1 : B, b2 : B, i : int) -> A {
-    s : sigma<C>(A, int, C) = #(1, 42, true);
-    return 42;
+def id<T>(a : T) -> T {
+    def id2(a : T) -> T {
+        return a;
+    }
+
+    return id2(a);
 }
 
-//def g() -> int {
-    //return f(1, 2, 3.f, 4, 42);
-//}
+def main(i : int) -> int {
+    return id(i);
+}

@@ -198,6 +198,13 @@ void Fun::check(Sema& sema) const {
     sema.pop_scope();
 }
 
+void TypeDecl::check(Sema& sema) const {
+}
+
+void Proto::check(Sema& sema) const {
+    refined_type_ = orig_type_->refine(sema);
+}
+
 /*
  * Expr
  */
@@ -518,6 +525,10 @@ void ScopeStmt::check(Sema& sema) const {
     sema.push_scope();
     sema.check(scope());
     sema.pop_scope();
+}
+
+void FunStmt::check(Sema& sema) const {
+    sema.check(fun());
 }
 
 //------------------------------------------------------------------------------

@@ -77,6 +77,7 @@ std::ostream& Printer::print_block(const Stmt* s) {
 void ASTNode::dump() const { Printer p(std::cout, true); print(p) << std::endl; }
 void Type::dump() const { Printer p(std::cout, true); p.print_type(this) << std::endl; }
 std::ostream& VarDecl::print(Printer& p) const { return p.stream() << symbol() << " : " << orig_type(); }
+std::ostream& TypeDecl::print(Printer& p) const { return p.stream() << symbol(); }
 
 std::ostream& Scope::print(Printer& p) const {
     if (!stmts().empty()) {

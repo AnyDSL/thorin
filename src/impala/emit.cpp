@@ -107,7 +107,7 @@ const Lambda* CodeGen::emit_body(const Fun* fun, Lambda* parent, const char* wha
 
 //------------------------------------------------------------------------------
 
-void CodeGen::emit(const Prg* prg) {
+void CodeGen::emit(const Scope* prg) {
     for (auto global : prg->globals()) {
         if (const NamedFun* f = global->isa<NamedFun>()) {
             Lambda* lambda = emit_head(f, f->symbol());

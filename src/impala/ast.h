@@ -578,9 +578,7 @@ class ForStmt : public Loop {
 public:
     ForStmt() {}
 
-    const Stmt* init_decl() const { return init_decl_; }
-    const ExprStmt* init_expr() const { return init_expr_; }
-    const Stmt* init() const { return (const Stmt*) ((uintptr_t) init_decl_.get() | (uintptr_t) init_expr_.get()); }
+    const Stmt* init() const { return init_; }
     const Expr* step() const { return step_; }
     bool is_while() const;
     virtual std::ostream& print(Printer& p) const;
@@ -589,8 +587,7 @@ private:
     virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
-    anydsl2::AutoPtr<const Stmt> init_decl_;
-    anydsl2::AutoPtr<const ExprStmt> init_expr_;
+    anydsl2::AutoPtr<const Stmt> init_;
     anydsl2::AutoPtr<const Expr> step_;
 
     friend class Parser;

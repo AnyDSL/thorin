@@ -78,7 +78,7 @@ public:
     // statements
     const Stmt* parse_stmt();
     const ExprStmt* parse_expr_stmt();
-    const Stmt* parse_decl_or_init_stmt();
+    const Stmt* parse_decl_stmt_or_init_stmt();
     const Stmt* parse_if_else();
     const Stmt* parse_while();
     const Stmt* parse_do_while();
@@ -409,7 +409,7 @@ void Parser::parse_fun(Fun* fun) {
     fun->orig_type_ = typetable.fntype(arg_types);
     expect(Token::L_BRACKET, "body of function");
     fun->body_ = parse_scope();
-    expect(Token::L_BRACKET, "body of function");
+    expect(Token::R_BRACKET, "body of function");
 }
 
 /*
@@ -579,7 +579,7 @@ const Stmt* Parser::parse_stmt() {
 
     if (la() == Token::EXTERN 
             || (la() == Token::ID && la2() == Token::COLON))
-        return parse_decl_or_init_stmt();
+        return parse_decl_stmt_or_init_stmt();
 
     switch (la()) {
         case Token::BREAK:     return parse_break();
@@ -617,7 +617,7 @@ const ExprStmt* Parser::parse_expr_stmt() {
     return new ExprStmt(expr, prev_loc.pos2());
 }
 
-const Stmt* Parser::parse_decl_or_init_stmt() {
+const Stmt* Parser::parse_decl_stmt_or_init_stmt() {
     const Decl* decl = parse_decl();
     if (const auto var_decl = decl->isa<VarDecl>()) {
         if (la() == Token::ASGN) {
@@ -630,6 +630,14 @@ const Stmt* Parser::parse_decl_or_init_stmt() {
     auto decl_stmt = new DeclStmt(decl);
     expect(Token::SEMICOLON, "the end of an declaration statement");
     return decl_stmt;
+}
+
+const Expr* Parser::parse_cond(const std::string& what) {
+    expect(Token::L_PAREN, "condition in " + what);
+    const Expr* cond = try_expr("condition in " + what);
+    expect(Token::R_PAREN, "condition in " + what);
+
+    return cond;
 }
 
 const Stmt* Parser::parse_if_else() {
@@ -645,7 +653,7 @@ const Stmt* Parser::parse_while() {
     ForStmt* loop = new ForStmt();
 
     loop->set_pos1(eat(Token::WHILE).pos1());
-    loop->init_expr_ = new ExprStmt(new EmptyExpr(loop->pos1()), loop->pos1());
+    loop->init_ = new ExprStmt(new EmptyExpr(loop->pos1()), loop->pos1());
     loop->cond_ = parse_cond("while statement");
     loop->step_ = new EmptyExpr(loop->pos1());
     ANYDSL2_PUSH(cur_loop, loop);
@@ -676,13 +684,13 @@ const Stmt* Parser::parse_for() {
 
     // clause 1: decl or expr_opt ';'
     if (la2() == Token::COLON)
-        loop->init_decl_ = parse_decl_or_init_stmt();
+        loop->init_ = parse_decl_stmt_or_init_stmt();
     else if (is_expr())
-        loop->init_expr_ = parse_expr_stmt();
+        loop->init_ = parse_expr_stmt();
     else  {
         if (!accept(Token::SEMICOLON))
             error("expression or delcaration statement", "first clause in for statement");
-        loop->init_expr_ = new ExprStmt(new EmptyExpr(loop->pos1()), loop->pos1());
+        loop->init_ = new ExprStmt(new EmptyExpr(loop->pos1()), loop->pos1());
     }
 
     // clause 2: expr_opt ';'
@@ -779,14 +787,6 @@ const Stmt* Parser::parse_return() {
     }
 
     return new ReturnStmt(pos1, expr, cur_fun, prev_loc.pos2());
-}
-
-const Expr* Parser::parse_cond(const std::string& what) {
-    expect(Token::L_PAREN, "condition in " + what);
-    const Expr* cond = try_expr("condition in " + what);
-    expect(Token::R_PAREN, "condition in " + what);
-
-    return cond;
 }
 
 const Stmt* Parser::parse_fun_stmt() {

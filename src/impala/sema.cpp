@@ -75,7 +75,7 @@ public:
 
 private:
     TypeTable& typetable_;
-    Fun* cur_fun_;
+    const Fun* cur_fun_;
     bool result_;
     bool nossa_;
 
@@ -415,7 +415,8 @@ void ForStmt::check(Sema& sema) const {
     sema.check(step());
 
     if (const ScopeStmt* scope = body()->isa<ScopeStmt>())
-        sema.check_stmts(scope);
+        //sema.check_stmts(scope);
+        sema.check(scope);
     else
         sema.check(body());
 
@@ -423,6 +424,7 @@ void ForStmt::check(Sema& sema) const {
 }
 
 void ForeachStmt::check(Sema& sema) const {
+#if 0
     sema.push_scope();
 
     const Type* left_type_;
@@ -471,6 +473,7 @@ void ForeachStmt::check(Sema& sema) const {
         init_decl()->is_address_taken_ = false;
 
     sema.pop_scope();
+#endif
 }
 
 void BreakStmt::check(Sema& sema) const {
@@ -485,7 +488,7 @@ void ContinueStmt::check(Sema& sema) const {
 
 void ReturnStmt::check(Sema& sema) const {
     if (!fun()->is_continuation()) {
-        const Type* ret_type = fun()->fntype()->return_type();
+        const Type* ret_type = fun()->refined_fntype()->return_type();
 
         if (ret_type->isa<Void>()) {
             if (!expr())
@@ -513,13 +516,13 @@ void ReturnStmt::check(Sema& sema) const {
 
 void ScopeStmt::check(Sema& sema) const {
     sema.push_scope();
-    sema.check_stmts(this);
+    sema.check(scope());
     sema.pop_scope();
 }
 
 //------------------------------------------------------------------------------
 
-bool check(TypeTable& typetable, const Prg* prg, bool nossa) { return Sema(typetable, nossa).check(prg); }
+bool check(TypeTable& typetable, const Scope* prg, bool nossa) { Sema sema(typetable, nossa); sema.check(prg); return sema.result(); }
 
 //------------------------------------------------------------------------------
 

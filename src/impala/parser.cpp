@@ -407,9 +407,9 @@ void Parser::parse_fun(Fun* fun) {
     }
 
     fun->orig_type_ = typetable.fntype(arg_types);
-    expect(Token::L_BRACKET, "body of function");
+    expect(Token::L_BRACE, "body of function");
     fun->body_ = parse_scope();
-    expect(Token::R_BRACKET, "body of function");
+    expect(Token::R_BRACE, "body of function");
 }
 
 /*

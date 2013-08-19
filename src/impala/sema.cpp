@@ -179,6 +179,7 @@ const Type* IdType::refine(const Sema& sema) const {
  */
 
 void VarDecl::check(Sema& sema) const {
+    sema.insert(this);
     refined_type_ = orig_type_->refine(sema);
 }
 
@@ -192,7 +193,7 @@ void Fun::check(Sema& sema) const {
     for (auto type_decl : generics())
         sema.insert(type_decl);
     for (auto param : params()) 
-        sema.insert(param);
+        sema.check(param);
     sema.check(body());
 
     sema.pop_scope();

@@ -51,7 +51,7 @@ const FnType* TypeTable::fntype1(const Type* elem) { const Type* elems[1] = { el
 const FnType* TypeTable::fntype(anydsl2::ArrayRef<const Type*> elems) { return unify(new FnType(*this, elems)); }
 const TupleType* TypeTable::tupletype(anydsl2::ArrayRef<const Type*> elems) { return unify(new TupleType(*this, elems)); }
 const Generic* TypeTable::generic(size_t index) { return unify(new Generic(*this, index)); }
-const GenericRef* TypeTable::genericref(const NamedFun* fun, const Generic* generic) { 
+const GenericRef* TypeTable::genericref(const Fun* fun, const Generic* generic) { 
     return unify(new GenericRef(*this, fun, generic)); 
 }
 const IdType* TypeTable::idtype(Symbol symbol) { return unify(new IdType(*this, symbol)); }
@@ -104,7 +104,7 @@ const char* GenericMap::to_string() const {
     return o.str().c_str();
 }
 
-const GenericRef* Generic::genericref(const NamedFun* fun) const { return typetable_.genericref(fun, this); }
+const GenericRef* Generic::genericref(const Fun* fun) const { return typetable_.genericref(fun, this); }
 
 //------------------------------------------------------------------------------
 
@@ -243,7 +243,7 @@ const anydsl2::Type* Generic::convert(anydsl2::World& world) const {
 }
 
 const anydsl2::Type* GenericRef::convert(anydsl2::World& world) const {
-    return world.generic_ref(generic()->convert(world)->as<anydsl2::Generic>(), namedfun()->lambda());
+    return world.generic_ref(generic()->convert(world)->as<anydsl2::Generic>(), fun()->lambda());
 }
 
 //------------------------------------------------------------------------------

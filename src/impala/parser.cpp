@@ -53,7 +53,6 @@ public:
     const VarDecl* parse_var_decl();
     const Proto* parse_proto();
     void parse_fun(Fun* fun);
-    const NamedFun* parse_named_fun();
 
     void parse_comma_list(TokenKind delimiter, const char* context, std::function<void()> f) {
         if (la() != delimiter) {
@@ -88,7 +87,7 @@ public:
     const Stmt* parse_break();
     const Stmt* parse_continue();
     const Stmt* parse_return();
-    const NamedFunStmt* parse_named_fun_stmt();
+    const Stmt* parse_fun_stmt();
     const ScopeStmt* parse_scope_stmt();
 
     /// helper for condition in if/while/do-while
@@ -310,15 +309,15 @@ void Parser::parse_fun(Fun* fun) {
     fun->body_ = parse_scope_stmt();
 }
 
-const NamedFun* Parser::parse_named_fun() {
-    NamedFun* f = new NamedFun();
-    f->set_pos1(eat(Token::DEF).pos1());
-    f->extern_= accept(Token::EXTERN);
-    f->symbol_= try_id("function identifier").symbol();
-    parse_generics_list(f->generics_);
-    parse_fun(f);
+const Stmt* Parser::parse_fun_stmt() {
+    FunStmt* s = new FunStmt();
+    s->set_pos1(eat(Token::DEF).pos1());
+    s->fun_->extern_ = accept(Token::EXTERN);
+    s->fun_->symbol_ = try_id("function identifier").symbol();
+    parse_generics_list(s->fun_->generics_);
+    parse_fun(s->fun_);
 
-    return f;
+    return s;
 }
 
 const Decl* Parser::parse_decl() {
@@ -372,7 +371,7 @@ const Stmt* Parser::parse_stmt() {
     switch (la()) {
         case Token::BREAK:     return parse_break();
         case Token::CONTINUE:  return parse_continue();
-        case Token::DEF:       return parse_named_fun_stmt();
+        case Token::DEF:       return parse_fun_stmt();
         case Token::DO:        return parse_do_while();
         case Token::FOR:       return parse_for();
         case Token::FOREACH:   return parse_foreach();
@@ -782,11 +781,11 @@ const Expr* Parser::parse_tuple() {
 }
 
 const Expr* Parser::parse_fun_expr() {
+    FunExpr* e = new FunExpr();
     Position pos1 = eat(Token::LAMBDA).pos1();
-    FunExpr* fun_expr = new FunExpr();
-    parse_fun(fun_expr);
+    parse_fun(e->fun_);
 
-    return fun_expr;
+    return e;
 }
 
 } // namespace impala

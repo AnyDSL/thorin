@@ -27,7 +27,6 @@ namespace impala {
 class CodeGen;
 class Expr;
 class Global;
-class NamedFun;
 class Printer;
 class ScopeStmt;
 class Sema;
@@ -37,7 +36,6 @@ class TypeDecl;
 
 typedef anydsl2::AutoVector<const VarDecl*> VarDecls;
 typedef anydsl2::AutoVector<const Expr*> Exprs;
-typedef std::vector<const NamedFun*> NamedFuns;
 typedef anydsl2::AutoVector<const Stmt*> Stmts;
 typedef anydsl2::AutoPtr<const anydsl2::Ref> RefPtr;
 typedef anydsl2::AutoVector<const TypeDecl*> TypeDecls;
@@ -90,19 +88,21 @@ public:
     const VarDecl* param(size_t i) const { return params_[i]; }
     const VarDecls& params() const { return params_; }
     const FnType* orig_fntype() const { return orig_type_->as<FnType>(); }
+    const TypeDecls& generics() const { return generics_; }
+    bool is_extern() const { return extern_; }
     bool is_continuation() const { return orig_fntype()->return_type()->isa<NoRet>() != nullptr; }
     anydsl2::Lambda* lambda() const { return lambda_; }
     const anydsl2::Param* ret_param() const { return ret_param_; }
-    std::ostream& fun_print(Printer& p) const;
+    virtual std::ostream& print(Printer& p) const;
 
 private:
     VarDecls params_;
     anydsl2::AutoPtr<const ScopeStmt> body_;
+    bool extern_;
+    TypeDecls generics_;
     mutable anydsl2::Lambda* lambda_;
     mutable const anydsl2::Param* ret_param_;
 
-    friend class NamedFun;
-    friend class FunExpr;
     friend class Parser;
     friend class CodeGen;
 };
@@ -154,20 +154,6 @@ public:
 
     const FnType* fntype() const { return orig_type_->as<FnType>(); }
     virtual std::ostream& print(Printer& p) const;
-
-    friend class Parser;
-};
-
-class NamedFun : public Fun {
-public:
-
-    virtual std::ostream& print(Printer& p) const;
-    bool is_extern() const { return extern_; }
-    const TypeDecls& generics() const { return generics_; }
-
-private:
-    bool extern_;
-    TypeDecls generics_;
 
     friend class Parser;
 };
@@ -242,14 +228,21 @@ private:
     anydsl2::Box box_;
 };
 
-class FunExpr : public Expr, public Fun {
+class FunExpr : public Expr {
 public:
+    FunExpr()
+        : fun_(new Fun())
+    {}
+
     virtual bool is_lvalue() const { return false; }
     virtual std::ostream& print(Printer& p) const;
+    const Fun* fun() const { return fun_; }
 
 private:
     virtual const Type* check(Sema& sema) const;
     virtual RefPtr emit(CodeGen& cg) const;
+
+    anydsl2::AutoPtr<Fun> fun_;
 
     friend class Parser;
 };
@@ -659,20 +652,22 @@ private:
     const Fun* fun_;
 };
 
-class NamedFunStmt : public Stmt {
+class FunStmt : public Stmt {
 public:
-    NamedFunStmt(const NamedFun* named_fun)
-        : named_fun_(named_fun)
+    FunStmt()
+        : fun_(new Fun())
     {}
 
-    const NamedFun* named_fun() const { return named_fun_; }
+    const Fun* fun() const { return fun_; }
     virtual std::ostream& print(Printer& p) const;
 
 private:
     virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
-    anydsl2::AutoPtr<const NamedFun> named_fun_;
+    anydsl2::AutoPtr<Fun> fun_;
+
+    friend class Parser;
 };
 
 class ScopeStmt : public Stmt {

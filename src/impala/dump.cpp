@@ -45,7 +45,7 @@ std::ostream& Printer::print_type(const Type* type) {
     } else if (auto generic = type->isa<Generic>()) {
         return stream() << Generic::to_string(generic->index());
     } else if (auto genref = type->isa<GenericRef>()) {
-        return stream() << '<' << genref->namedfun()->symbol() << ", " << genref->generic() << '>';
+        return stream() << '<' << genref->fun()->symbol() << ", " << genref->generic() << '>';
     } else if (auto idtype = type->isa<IdType>()) {
         return stream() << idtype->name;
     } else if (auto primtype = type->isa<PrimType>()) {
@@ -78,14 +78,6 @@ void ASTNode::dump() const { Printer p(std::cout, true); print(p) << std::endl; 
 void Type::dump() const { Printer p(std::cout, true); p.print_type(this) << std::endl; }
 std::ostream& VarDecl::print(Printer& p) const { return p.stream() << symbol() << " : " << orig_type(); }
 
-std::ostream& NamedFun::print(Printer& p) const { 
-    p.stream() << "def " << symbol(); 
-    if (!generics().empty())
-        p.dump_list([&] (const TypeDecl* typedecl) { typedecl->print(p); }, generics(), "<", ">");
-
-    return fun_print(p); 
-}
-
 std::ostream& Scope::print(Printer& p) const {
     if (!stmts().empty()) {
         for (auto i = stmts().cbegin(), e = stmts().cend() - 1; i != e; ++i) {
@@ -103,8 +95,10 @@ std::ostream& Proto::print(Printer& p) const {
         << " -> " << fntype()->elems().back();
 }
 
-std::ostream& Fun::fun_print(Printer& p) const {
-    // TODO generics
+std::ostream& Fun::print(Printer& p) const {
+    if (!generics().empty())
+        p.dump_list([&] (const TypeDecl* typedecl) { typedecl->print(p); }, generics(), "<", ">");
+
     const Type* ret_type = orig_fntype()->return_type();
     ArrayRef<const VarDecl*> params_ref = 
         ret_type->isa<NoRet>() ? params() : ArrayRef<const VarDecl*>(&params().front(), params().size() - 1);
@@ -133,7 +127,7 @@ std::ostream& Literal::print(Printer& p) const {
 
 std::ostream& Id::print(Printer& p) const { return p.stream() << symbol(); }
 std::ostream& EmptyExpr::print(Printer& p) const { return p.stream() << "/*empty*/"; }
-std::ostream& FunExpr::print(Printer& p) const { p.stream() << "lambda"; return fun_print(p); }
+std::ostream& FunExpr::print(Printer& p) const { p.stream() << "lambda"; return fun()->print(p); }
 std::ostream& Tuple::print(Printer& p) const { return p.dump_list([&](const Expr* expr) { expr->print(p); }, ops(), "#(", ")"); }
 
 std::ostream& PrefixExpr::print(Printer& p) const {
@@ -331,7 +325,10 @@ std::ostream& ReturnStmt::print(Printer& p) const {
     return p.stream() << ";";
 }
 
-std::ostream& NamedFunStmt::print(Printer& p) const { return named_fun()->print(p); }
+std::ostream& FunStmt::print(Printer& p) const { 
+    p.stream() << "def " << fun()->symbol(); 
+    return fun()->print(p);
+}
 
 std::ostream& ScopeStmt::print(Printer& p) const {
     p.stream() << "{";

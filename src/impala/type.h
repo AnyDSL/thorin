@@ -17,7 +17,7 @@ namespace anydsl2 {
 namespace impala {
 
 class FnType;
-class NamedFun;
+class Fun;
 class Generic;
 class GenericRef;
 class IdType;
@@ -44,7 +44,7 @@ public:
     const FnType* fntype(anydsl2::ArrayRef<const Type*> elems);
     const TupleType* tupletype(anydsl2::ArrayRef<const Type*> elems);
     const Generic* generic(size_t index);
-    const GenericRef* genericref(const NamedFun*, const Generic*);
+    const GenericRef* genericref(const Fun*, const Generic*);
     const IdType* idtype(anydsl2::Symbol);
 
 private:
@@ -191,7 +191,7 @@ private:
 public:
     size_t index() const { return index_; }
     static std::string to_string(size_t index);
-    const GenericRef* genericref(const NamedFun*) const;
+    const GenericRef* genericref(const Fun*) const;
     virtual const Type* refine() const { return this; }
     virtual const Type* specialize(const GenericMap& map) const {
         auto type = map[this]; assert(type != nullptr); return type;
@@ -210,9 +210,9 @@ private:
 
 class GenericRef : public Type {
 private:
-    GenericRef(TypeTable& typetable, const NamedFun* namedfun, const Generic* generic)
+    GenericRef(TypeTable& typetable, const Fun* fun, const Generic* generic)
         : Type(typetable, Token::TYPE_genericref, 1, true, "<generic>")
-        , namedfun_(namedfun)
+        , fun_(fun)
     {
         set(0, generic);
     }
@@ -221,23 +221,23 @@ private:
     virtual const Type* specialize(const GenericMap& map) const { return generic()->specialize(map); }
     virtual const anydsl2::Type* convert(anydsl2::World&) const;
     virtual size_t hash() const { 
-        return anydsl2::hash_combine(anydsl2::hash_combine(Type::hash(), namedfun()), generic()); 
+        return anydsl2::hash_combine(anydsl2::hash_combine(Type::hash(), fun()), generic()); 
     }
     virtual bool equal(const Node* other) const { 
         if (Type::equal(other)) {
             auto genref = other->as<GenericRef>();
-            return this->namedfun() == genref->namedfun() && this->generic() == genref->generic();
+            return this->fun() == genref->fun() && this->generic() == genref->generic();
         }
         return false;
     }
 
 public:
-    const NamedFun* namedfun() const { return namedfun_; }
+    const Fun* fun() const { return fun_; }
     const Generic* generic() const { return elem(0)->as<Generic>(); }
     static std::string to_string(size_t index);
 
 private:
-    const NamedFun* namedfun_;
+    const Fun* fun_;
 
     friend class TypeTable;
 };

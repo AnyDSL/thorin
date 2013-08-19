@@ -40,6 +40,8 @@ typedef anydsl2::AutoVector<const Stmt*> Stmts;
 typedef anydsl2::AutoPtr<const anydsl2::Ref> RefPtr;
 typedef anydsl2::AutoVector<const TypeDecl*> TypeDecls;
 
+//------------------------------------------------------------------------------
+
 class ASTNode : public anydsl2::HasLocation, public anydsl2::MagicCast {
 public:
     virtual std::ostream& print(Printer& p) const = 0;
@@ -50,17 +52,16 @@ class Scope : public ASTNode {
 public:
     const Stmts& stmts() const { return stmts_; }
     const Stmt* stmt(size_t i) const { return stmts_[i]; }
-    virtual bool empty() const { return stmts_.empty(); }
+    bool empty() const { return stmts_.empty(); }
     virtual std::ostream& print(Printer& p) const;
 
 private:
-    virtual void check(Sema& sema) const;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
-
     mutable Stmts stmts_;
 
     friend class Parser;
 };
+
+//------------------------------------------------------------------------------
 
 class Decl : public ASTNode {
 public:
@@ -69,11 +70,12 @@ public:
     const Type* refined_type() const { return refined_type_; }
     size_t depth() const { return depth_; }
     const Decl* shadows() const { return shadows_; }
+    virtual void check(Sema& sema) const = 0;
 
 protected:
     anydsl2::Symbol symbol_;
     const Type* orig_type_;
-    const Type* refined_type_;
+    mutable const Type* refined_type_;
 
 private:
     mutable const Decl* shadows_;
@@ -84,20 +86,26 @@ private:
 
 class Fun : public Decl {
 public:
-    const ScopeStmt* body() const { return body_; }
+    Fun()
+        : extern_(false)
+    {}
+
+    const Scope* body() const { return body_; }
     const VarDecl* param(size_t i) const { return params_[i]; }
     const VarDecls& params() const { return params_; }
     const FnType* orig_fntype() const { return orig_type_->as<FnType>(); }
+    const FnType* refined_fntype() const { return refined_type_->as<FnType>(); }
     const TypeDecls& generics() const { return generics_; }
     bool is_extern() const { return extern_; }
     bool is_continuation() const { return orig_fntype()->return_type()->isa<NoRet>() != nullptr; }
     anydsl2::Lambda* lambda() const { return lambda_; }
     const anydsl2::Param* ret_param() const { return ret_param_; }
+    virtual void check(Sema& sema) const;
     virtual std::ostream& print(Printer& p) const;
 
 private:
     VarDecls params_;
-    anydsl2::AutoPtr<const ScopeStmt> body_;
+    anydsl2::AutoPtr<const Scope> body_;
     bool extern_;
     TypeDecls generics_;
     mutable anydsl2::Lambda* lambda_;
@@ -115,6 +123,7 @@ public:
         set_loc(tok.loc());
     }
 
+    virtual void check(Sema& sema) const;
     virtual std::ostream& print(Printer& p) const;
 
 private:
@@ -136,6 +145,7 @@ public:
 
     size_t handle() const { return handle_; }
     bool is_address_taken() const { return is_address_taken_; }
+    virtual void check(Sema& sema) const;
     virtual std::ostream& print(Printer& p) const;
 
 private:
@@ -153,6 +163,7 @@ public:
     }
 
     const FnType* fntype() const { return orig_type_->as<FnType>(); }
+    virtual void check(Sema& sema) const;
     virtual std::ostream& print(Printer& p) const;
 
     friend class Parser;
@@ -678,6 +689,7 @@ public:
     }
 
     const Scope* scope() const { return scope_; }
+    virtual bool empty() const { return scope_->empty(); }
     virtual std::ostream& print(Printer& p) const;
 
 private:

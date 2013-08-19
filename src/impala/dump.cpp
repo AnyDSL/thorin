@@ -108,7 +108,10 @@ std::ostream& Fun::print(Printer& p) const {
     if (!ret_type->isa<NoRet>())
         p.stream() << " -> " << ret_type << ' ';
 
-    return p.print_block(body());
+    p.stream() << " {";
+    p.up();
+    body()->print(p);
+    return p.down() << '}';
 }
 
 /*

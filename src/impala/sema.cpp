@@ -1,4 +1,3 @@
-#if 0
 #include "impala/ast.h"
 
 #include <vector>
@@ -56,12 +55,10 @@ public:
     std::ostream& error(const ASTNode* n) { result_ = false; return n->error(); }
     std::ostream& error(const Location& loc) { result_ = false; return loc.error(); }
     TypeTable& typetable() { return typetable_; }
-    bool check(const Prg*) ;
-    void check_fun(const Fun*);
-    void check_namedfun(const NamedFun* fun);
+    void check(const Scope*) ;
+    const Type* check(const Decl* decl) { return decl->refined_type_; }
     const Type* check(const Expr* expr) { assert(!expr->type_); return expr->type_ = expr->check(*this); }
     void check(const Stmt* stmt) { stmt->check(*this); }
-    void check_stmts(const ScopeStmt* scope) { for (auto s : scope->stmts()) s->check(*this); }
     bool check_cond(const Expr* cond) {
         if (check(cond)->is_bool())
             return true;
@@ -83,8 +80,6 @@ private:
     std::vector<const Decl*> decl_stack_;
     std::vector<size_t> levels_;
 };
-
-void NamedFunStmt::check(Sema& sema) const { sema.check_namedfun(named_fun()); }
 
 //------------------------------------------------------------------------------
 
@@ -133,42 +128,29 @@ void Sema::pop_scope() {
 
 //------------------------------------------------------------------------------
 
-bool Sema::check(const Prg* prg) {
-    for (auto global : prg->globals())
-        insert(global);
-
-    for (auto global : prg->globals()) {
-        if (const NamedFun* f = global->isa<NamedFun>())
-            check_namedfun(f);
+void Sema::check(const Scope* scope) {
+    for (auto stmt : scope->stmts()) {
+        if (auto fun_stmt = stmt->isa<FunStmt>()) {
+            insert(fun_stmt->fun());
+        }
     }
 
-    return result();
+    for (auto stmt : scope->stmts())
+        check(stmt);
 }
 
-void Sema::check_fun(const Fun* fun) {
-    push_scope();
+/*
+ * Decl
+ */
 
-    for (auto f : fun->body()->named_funs())
-        insert(f);
+void Fun::check(Sema& sema) const {
+    sema.push_scope();
 
-    for (auto p : fun->params())
-        insert(p);
+    for (auto param : params()) 
+        sema.insert(param);
+    sema.check(body());
 
-    for (auto s : fun->body()->stmts())
-        s->check(*this);
-
-    pop_scope();
-}
-
-void Sema::check_namedfun(const NamedFun* fun) {
-    //GenericMap new_map = generic_map();
-    //for (auto genentry : fun->generics()) {
-        //if (auto generic = genentry.generic())
-            //new_map[generic] = generic;
-    //}
-
-    //ANYDSL2_PUSH(generic_map_, &new_map);
-    check_fun(fun); 
+    sema.pop_scope();
 }
 
 /*
@@ -177,7 +159,7 @@ void Sema::check_namedfun(const NamedFun* fun) {
 
 const Type* EmptyExpr::check(Sema& sema) const { return sema.typetable().type_void(); }
 const Type* Literal::check(Sema& sema) const { return sema.typetable().primtype(literal2type()); }
-const Type* FunExpr::check(Sema& sema) const { sema.check_fun(this); return fntype(); }
+const Type* FunExpr::check(Sema& sema) const { sema.check(fun()); return fun()->refined_fntype(); }
 
 const Type* Tuple::check(Sema& sema) const {
     Array<const Type*> elems(ops().size());
@@ -193,12 +175,12 @@ const Type* Id::check(Sema& sema) const {
 
         if (sema.nossa() || sema.in_foreach_) {
             if (const VarDecl* vardecl = decl->isa<VarDecl>()) {
-                if (!vardecl->type()->isa<FnType>() && !vardecl->type()->is_generic())
+                if (!vardecl->refined_type()->isa<FnType>() && !vardecl->refined_type()->is_generic())
                     vardecl->is_address_taken_ = true;
             }
         }
 
-        return decl->type();
+        return decl->refined_type();
     }
 
     sema.error(this) << "symbol '" << symbol() << "' not found in current scope\n";
@@ -345,7 +327,9 @@ const Type* Call::check(Sema& sema) const {
  * Stmt
  */
 
-void DeclStmt::check(Sema& sema) const {
+void DeclStmt::check(Sema& sema) const { sema.check(decl()); }
+
+void InitStmt::check(Sema& sema) const {
     sema.insert(var_decl());
 
     if (const Expr* init_expr = init()) {
@@ -495,4 +479,3 @@ bool check(TypeTable& typetable, const Prg* prg, bool nossa) { return Sema(typet
 //------------------------------------------------------------------------------
 
 } // namespace impala
-#endif

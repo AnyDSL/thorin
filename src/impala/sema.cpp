@@ -216,6 +216,7 @@ void TypeDecl::check(Sema& sema) const {
 }
 
 void Proto::check(Sema& sema) const {
+    sema.insert(this);
     refined_type_ = orig_type_->refine(sema);
 }
 

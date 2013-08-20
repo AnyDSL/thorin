@@ -260,7 +260,7 @@ bool Parser::is_stmt() {
 
 const Scope* Parser::parse_prg() {
     Scope* scope = new Scope();
-    scope->set_pos1(prev_loc.pos1());
+    scope->set_pos1(la().pos1());
 
     while (true) {
         switch (la()) {

@@ -88,6 +88,7 @@ std::ostream& Scope::print(Printer& p) const {
 
         stmts().back()->print(p);
     }
+    return p.stream();
 }
 
 std::ostream& Proto::print(Printer& p) const {

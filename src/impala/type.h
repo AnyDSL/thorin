@@ -79,6 +79,7 @@ public:
         this->typetable_     = other.typetable_;
         this->index_         = other.index_;
         this->index2generic_ = other.index2generic_;
+        return *this;
     }
 
 private:

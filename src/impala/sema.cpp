@@ -454,13 +454,12 @@ void ForStmt::check(Sema& sema) const {
 }
 
 void ForeachStmt::check(Sema& sema) const {
-#if 0
     sema.push_scope();
 
     const Type* left_type_;
     if (init_decl()) {
-        sema.insert(init_decl());
-        left_type_ = init_decl()->type();
+        sema.check(init_decl());
+        left_type_ = init_decl()->refined_type();
     } else {
         left_type_ = sema.check(init_expr());
     }
@@ -494,16 +493,12 @@ void ForeachStmt::check(Sema& sema) const {
 
     ANYDSL2_PUSH(sema.in_foreach_, true);
 
-    if (const ScopeStmt* scope = body()->isa<ScopeStmt>())
-        sema.check_stmts(scope);
-    else
-        sema.check(body());
+    sema.check(body());
 
     if (init_decl())
         init_decl()->is_address_taken_ = false;
 
     sema.pop_scope();
-#endif
 }
 
 void BreakStmt::check(Sema& sema) const {

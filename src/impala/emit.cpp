@@ -1,4 +1,3 @@
-#if 0
 #include "impala/ast.h"
 
 #include <iostream>
@@ -28,15 +27,16 @@ public:
         , continue_target(nullptr)
     {}
 
-    void emit(const Scope*);
-    const anydsl2::Lambda* emit_body(const Fun* fun, anydsl2::Lambda* parent, const char* what);
-    anydsl2::Lambda* emit_head(const Fun* fun, anydsl2::Symbol symbol);
-    void emit(const NamedFun*);
+    void emit_prg(const Scope*);
+    void emit(const Scope*, JumpTarget&);
+    const Lambda* emit_body(const Fun* fun, Lambda* parent, const char* what);
+    Lambda* emit_head(const Fun* fun, Symbol symbol);
+    //void emit(const NamedFun*);
     RefPtr emit(const VarDecl*);
-    anydsl2::Array<const anydsl2::Def*> emit_ops(const Expr* expr, size_t additional_size = 0);
+    Array<const Def*> emit_ops(const Expr* expr, size_t additional_size = 0);
     RefPtr emit(const Expr* expr) { return is_reachable() ? expr->emit(*this) : nullptr; }
-    void emit_branch(const Expr* expr, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) { expr->emit_branch(*this, t, f); }
-    void emit(const Stmt* stmt, anydsl2::JumpTarget& exit) { if (is_reachable()) stmt->emit(*this, exit); }
+    void emit_branch(const Expr* expr, JumpTarget& t, JumpTarget& f) { expr->emit_branch(*this, t, f); }
+    void emit(const Stmt* stmt, JumpTarget& exit) { if (is_reachable()) stmt->emit(*this, exit); }
 
     const Def* cur_frame;
     JumpTarget* break_target;
@@ -45,10 +45,34 @@ public:
 
 //------------------------------------------------------------------------------
 
-void emit(World& world, const Scope* prg) { CodeGen(world).emit(prg); }
+void emit(World& world, const Scope* prg) { CodeGen(world).emit_prg(prg); }
 
 //------------------------------------------------------------------------------
 
+void CodeGen::emit(const Scope* scope, JumpTarget& exit_bb) {
+#if 0
+    for (auto stmt : scope->stmts()) {
+        if (auto fun_stmt = stmt->isa<FunStmt>()) {
+            // TODO
+        }
+    }
+#endif
+
+    size_t size = scope->stmts().size();
+    if (size == 0)
+        jump(exit_bb);
+    else {
+        size_t i = 0;
+        for (; i != size - 1; ++i) {
+            JumpTarget stmt_exit_bb("next");
+            emit(scope->stmt(i), stmt_exit_bb);
+            enter(stmt_exit_bb);
+        }
+        emit(scope->stmt(i), exit_bb);
+    }
+}
+
+#if 0
 Lambda* CodeGen::emit_head(const Fun* fun, Symbol symbol) {
     fun->lambda_ = world().lambda(fun->fntype()->convert(world())->as<Pi>(), symbol.str());
     size_t num = fun->params().size();
@@ -129,11 +153,14 @@ void CodeGen::emit(const Scope* prg) {
         lambda->clear();
 }
 
+
 void CodeGen::emit(const NamedFun* named_fun) {
     emit_body(named_fun, cur_bb, named_fun->symbol().str());
     if (named_fun->is_extern())
         named_fun->lambda()->attr().set_extern();
 }
+
+#endif
 
 RefPtr CodeGen::emit(const VarDecl* decl) {
     const anydsl2::Type* air_type = decl->refined_type()->convert(world());
@@ -174,23 +201,26 @@ RefPtr Literal::emit(CodeGen& cg) const {
     return Ref::create(cg.world().literal(akind, box()));
 }
 
+#if 0
 RefPtr FunExpr::emit(CodeGen& cg) const {
     cg.emit_head(this, "lambda");
     return Ref::create(cg.emit_body(this, cg.cur_bb, "anonymous lambda expression"));
 }
+#endif
 
 RefPtr Tuple::emit(CodeGen& cg) const {
     return Ref::create(cg.world().tuple(cg.emit_ops(this)));
 }
 
 RefPtr Id::emit(CodeGen& cg) const {
-    if (const NamedFun* named_fun = decl()->isa<NamedFun>())
-        return Ref::create(named_fun->lambda());
-    if (const Proto* proto = decl()->isa<Proto>())
-        return Ref::create(cg.world().lambda(proto->fntype()->convert(cg.world())->as<Pi>(), LambdaAttr(LambdaAttr::Extern), proto->symbol().str()));
+    if (auto fun = decl()->isa<Fun>())
+        return Ref::create(fun->lambda());
+    if (auto proto = decl()->isa<Proto>())
+        return Ref::create(cg.world().lambda(proto->refined_fntype()->convert(cg.world())->as<Pi>(), 
+                    LambdaAttr(LambdaAttr::Extern), proto->symbol().str()));
 
-    const VarDecl* vardecl = decl()->as<VarDecl>();
-    const anydsl2::Type* air_type = type()->convert(cg.world());
+    auto vardecl = decl()->as<VarDecl>();
+    auto air_type = type()->convert(cg.world());
 
     if (vardecl->is_address_taken())
         return Ref::create(cg.world().slot(air_type, cg.cur_frame, vardecl->handle(), symbol().str()), cg);
@@ -344,9 +374,15 @@ void InfixExpr::emit_branch(CodeGen& cg, JumpTarget& t, JumpTarget& f) const {
 
 void DeclStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     if (cg.is_reachable()) {
+        //cg.emit(decl());
+        cg.jump(exit_bb);
+    }
+}
+
+void InitStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
+    if (cg.is_reachable()) {
         RefPtr ref = cg.emit(var_decl());
-        if (const Expr* init_expr = init())
-            ref->store(cg.emit(init_expr)->load());
+        ref->store(cg.emit(init())->load());
         cg.jump(exit_bb);
     }
 }
@@ -362,17 +398,17 @@ void IfElseStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     JumpTarget then_bb("if_then");
     JumpTarget else_bb("if_else");
 
-    cg.emit_branch(cond(), then_stmt()->empty() ? exit_bb : then_bb, 
-                           else_stmt()->empty() ? exit_bb : else_bb);
+    cg.emit_branch(cond(), then_scope()->empty() ? exit_bb : then_bb, 
+                           else_scope()->empty() ? exit_bb : else_bb);
 
-    if (!then_stmt()->empty()) {
+    if (!then_scope()->empty()) {
         cg.enter(then_bb);
-        cg.emit(then_stmt(), exit_bb);
+        cg.emit(then_scope(), exit_bb);
     }
 
-    if (!else_stmt()->empty()) {
+    if (!else_scope()->empty()) {
         cg.enter(else_bb);
-        cg.emit(else_stmt(), exit_bb);
+        cg.emit(else_scope(), exit_bb);
     }
 }
 
@@ -474,25 +510,13 @@ void ReturnStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     }
 }
 
-void ScopeStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
-    size_t size = stmts().size();
-    if (size == 0)
-        cg.jump(exit_bb);
-    else {
-        size_t i = 0;
-        for (; i != size - 1; ++i) {
-            JumpTarget stmt_exit_bb("next");
-            cg.emit(stmt(i), stmt_exit_bb);
-            cg.enter(stmt_exit_bb);
-        }
-        cg.emit(stmt(i), exit_bb);
-    }
-}
+void ScopeStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.emit(scope(), exit_bb); }
 
-void NamedFunStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { 
-    cg.emit(named_fun());
+#if 0
+void FunStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { 
+    cg.emit(fun());
     cg.jump(exit_bb);
 }
+#endif
 
 } // namespace impala
-#endif

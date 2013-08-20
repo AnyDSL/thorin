@@ -426,12 +426,18 @@ void ExprStmt::check(Sema& sema) const {
 
 void IfElseStmt::check(Sema& sema) const {
     sema.check_cond(cond());
+    sema.push_scope();
     sema.check(then_scope());
+    sema.pop_scope();
+    sema.push_scope();
     sema.check(else_scope());
+    sema.pop_scope();
 }
 
 void DoWhileStmt::check(Sema& sema) const {
+    sema.push_scope();
     sema.check(body());
+    sema.pop_scope();
     sema.check_cond(cond());
 }
 

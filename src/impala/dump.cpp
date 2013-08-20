@@ -95,8 +95,9 @@ std::ostream& Scope::print(Printer& p) const {
 
 std::ostream& Proto::print(Printer& p) const {
     p.stream() << "extern " << symbol_ << " ";
-    return p.dump_list([&](const Type* type) { p.print_type(type); }, fntype()->elems().slice_front(fntype()->size()-1), "(", ")") 
-        << " -> " << fntype()->elems().back();
+    auto type = refined_fntype();
+    return p.dump_list([&](const Type* type) { p.print_type(type); }, type->elems().slice_front(type->size()-1), "(", ")") 
+            << " -> " << type->elems().back();
 }
 
 std::ostream& Fun::print(Printer& p) const {

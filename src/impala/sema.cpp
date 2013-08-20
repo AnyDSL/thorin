@@ -85,6 +85,7 @@ private:
     std::vector<size_t> levels_;
 
     friend class Fun;
+    friend class FunExpr;
 };
 
 //------------------------------------------------------------------------------
@@ -134,25 +135,34 @@ void Sema::pop_scope() {
 
 //------------------------------------------------------------------------------
 
-void Fun::refine(Sema& sema) const {
+void Fun::refine(Sema& sema, bool pop_scope) const {
     generic_builder_ = sema.copy_generic_builder();
     generic_map_     = sema.copy_generic_map();
     sema.insert(this);
 
     sema.push_scope();
     ANYDSL2_PUSH(sema.cur_fun_, this);
-    for (auto type_decl : generics()) {
+
+    for (auto type_decl : generics())
         sema.check(type_decl);
-    }
 
     refined_type_ = orig_type()->refine(sema);
-    sema.pop_scope();
+
+    for (auto type_decl : generics()) {
+        if (type_decl->handle() != size_t(-1)) {
+            auto generic = generic_builder_.get(type_decl->handle());
+            generic_map_[generic] = generic;
+        }
+    }
+
+    if (pop_scope)
+        sema.pop_scope();
 }
 
 void Sema::check(const Scope* scope) {
     for (auto stmt : scope->stmts()) {
         if (auto fun_stmt = stmt->isa<FunStmt>())
-            fun_stmt->fun()->refine(*this);
+            fun_stmt->fun()->refine(*this, true);
     }
 
     for (auto stmt : scope->stmts())
@@ -183,11 +193,12 @@ void VarDecl::check(Sema& sema) const {
 }
 
 void Fun::check(Sema& sema) const {
-    sema.push_scope();
-    ANYDSL2_PUSH(sema.cur_fun_, this);
-
     if (refined_type_ == nullptr)
-        refine(sema);
+        refine(sema, false);
+    else
+        sema.push_scope();
+
+    ANYDSL2_PUSH(sema.cur_fun_, this);
 
     for (auto type_decl : generics())
         sema.insert(type_decl);
@@ -214,7 +225,17 @@ void Proto::check(Sema& sema) const {
 
 const Type* EmptyExpr::check(Sema& sema) const { return sema.typetable().type_void(); }
 const Type* Literal::check(Sema& sema) const { return sema.typetable().primtype(literal2type()); }
-const Type* FunExpr::check(Sema& sema) const { sema.check(fun()); return fun()->refined_fntype(); }
+const Type* FunExpr::check(Sema& sema) const { 
+    fun_->generic_builder_ = sema.copy_generic_builder();
+    fun_->generic_map_     = sema.copy_generic_map();
+    sema.push_scope();
+    for (auto param : fun()->params()) 
+        sema.check(param);
+    ANYDSL2_PUSH(sema.cur_fun_, fun());
+    fun_->refined_type_ = fun()->orig_type()->refine(sema);
+    sema.check(fun_->body()); 
+    return fun()->refined_fntype(); 
+}
 
 const Type* Tuple::check(Sema& sema) const {
     Array<const Type*> elems(ops().size());

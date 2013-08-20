@@ -65,6 +65,7 @@ size_t GenericBuilder::new_def() {
 }
 
 const Generic* GenericBuilder::use(size_t handle) {
+    assert(handle < index2generic_.size());
     const Generic*& ref = index2generic_[handle];
     if (auto generic = ref)
         return generic;
@@ -92,7 +93,7 @@ bool GenericMap::is_empty() const {
 const char* GenericMap::to_string() const {
     std::ostringstream o;
     bool first = true;
-    for (size_t i = 0, e = types_.size(); i != e; ++i)
+    for (size_t i = 0, e = types_.size(); i != e; ++i) {
         if (auto type = types_[i]) {
             if (first)
                 first = false;
@@ -100,7 +101,9 @@ const char* GenericMap::to_string() const {
                 o << ", ";
             o << Generic::to_string(i) << " = " << type;
         }
+    }
 
+    o << std::endl;
     return o.str().c_str();
 }
 

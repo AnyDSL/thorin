@@ -97,8 +97,7 @@ private:
 class Fun : public Decl {
 public:
     Fun(TypeTable& typetable)
-        : extern_(false)
-        , generic_builder_(typetable)
+        : generic_builder_(typetable)
     {}
 
     const Scope* body() const { return body_; }
@@ -111,7 +110,7 @@ public:
     bool is_continuation() const { return orig_fntype()->return_type()->isa<NoRet>() != nullptr; }
     anydsl2::Lambda* lambda() const { return lambda_; }
     const anydsl2::Param* ret_param() const { return ret_param_; }
-    void refine(Sema&) const;
+    void refine(Sema&, bool pop_scope) const;
     virtual void check(Sema& sema) const;
     virtual std::ostream& print(Printer& p) const;
 
@@ -129,11 +128,13 @@ private:
     friend class Sema;
     friend class CodeGen;
     friend class TypeDecl;
+    friend class FunExpr;
 };
 
 class TypeDecl : public Decl {
 public:
     TypeDecl(const Token& tok)
+        : handle_(-1)
     {
         symbol_ = tok.symbol();
         set_loc(tok.loc());

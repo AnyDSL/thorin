@@ -64,9 +64,9 @@ public:
 std::ostream& IlPrinter::emit_type(const Type* type) {
     if (type == nullptr)
         return stream() << "null";
-    else if (auto frame = type->isa<Frame>())
+    else if (type->isa<Frame>())
         return stream() << "frame";
-    else if (auto mem = type->isa<Mem>())
+    else if (type->isa<Mem>())
         return stream() << "mem";
     else if (auto pi = type->isa<Pi>()) {
         if (pi->elems().empty())

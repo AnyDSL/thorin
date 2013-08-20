@@ -587,11 +587,12 @@ const Expr* Parser::parse_fun_expr() {
     FunExpr* e = new FunExpr(typetable);
     e->set_pos1(eat(Token::LAMBDA).pos1());
     parse_fun(e->fun_);
+    e->fun_->extern_ = false;
+    e->fun_->symbol_ = "<anonymous function>";
     e->set_pos2(prev_loc.pos2());
 
     return e;
 }
-
 
 /*
  * statements
@@ -726,10 +727,8 @@ const Stmt* Parser::parse_for() {
     }
 
     // clause 2: expr_opt ';'
-    const Expr* cond;
     if (accept(Token::SEMICOLON)) { 
-        // do nothing: no expr given, semicolon consumed
-        // but create true cond
+        // do nothing: no expr given, semicolon consumed, but create true cond
         loop->cond_ = new Literal(prev_loc, Literal::LIT_bool, Box(true));
     } else if (is_expr()) {
         loop->cond_ = parse_expr();

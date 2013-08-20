@@ -217,8 +217,11 @@ void VarDecl::check(Sema& sema) const {
 
 void TypeDecl::check(Sema& sema) const {
     sema.insert(this);
-    handle_ = sema.cur_fun()->generic_builder_.new_def();
-    fun_ = sema.cur_fun();
+
+    if (handle_ == size_t(-1)) {
+        handle_ = sema.cur_fun()->generic_builder_.new_def();
+        fun_ = sema.cur_fun();
+    }
 }
 
 void Proto::check(Sema& sema) const {

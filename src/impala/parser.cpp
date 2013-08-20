@@ -655,7 +655,7 @@ const ExprStmt* Parser::parse_expr_stmt() {
 const Stmt* Parser::parse_decl_stmt_or_init_stmt() {
     const Decl* decl = parse_decl();
     if (const auto var_decl = decl->isa<VarDecl>()) {
-        if (la() == Token::ASGN) {
+        if (accept(Token::ASGN)) {
             auto init = new InitStmt(var_decl, try_expr("right-hand side of an initialization"));
             expect(Token::SEMICOLON, "the end of an initialization statement");
             return init;

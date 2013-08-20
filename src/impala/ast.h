@@ -110,7 +110,7 @@ public:
     bool is_continuation() const { return orig_fntype()->return_type()->isa<NoRet>() != nullptr; }
     anydsl2::Lambda* lambda() const { return lambda_; }
     const anydsl2::Param* ret_param() const { return ret_param_; }
-    void refine(Sema&, bool pop_scope) const;
+    void check_head(Sema&) const;
     virtual void check(Sema& sema) const;
     virtual std::ostream& print(Printer& p) const;
 

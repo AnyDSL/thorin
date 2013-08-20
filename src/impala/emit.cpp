@@ -71,6 +71,8 @@ void CodeGen::emit(const Scope* scope, JumpTarget& exit_bb) {
 Lambda* CodeGen::emit_head(const Fun* fun) {
     auto type = fun->refined_fntype();
     fun->lambda_ = world().lambda(type->convert(world())->as<Pi>(), fun->symbol().str());
+    if (fun->is_extern())
+        fun->lambda_->attr().set_extern();
     size_t num = fun->params().size();
     const Type* ret_type = type->return_type();
     fun->ret_param_ = ret_type->isa<NoRet>() ? nullptr : fun->lambda_->param(num-1+1);
@@ -121,8 +123,6 @@ const Lambda* CodeGen::emit_body(const Fun* fun) {
     return fun->lambda();
 }
 
-//------------------------------------------------------------------------------
-
 void CodeGen::emit_prg(const Scope* prg) {
     for (auto stmt : prg->stmts()) {
         if (auto fun_stmt = stmt->isa<FunStmt>()) {
@@ -147,6 +147,8 @@ void CodeGen::emit_prg(const Scope* prg) {
     for (auto lambda : world().lambdas())
         lambda->clear();
 }
+
+//------------------------------------------------------------------------------
 
 RefPtr CodeGen::emit(const VarDecl* decl) {
     const anydsl2::Type* air_type = decl->refined_type()->convert(world());

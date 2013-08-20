@@ -1,12 +1,7 @@
-def extern f(i : int) -> int {
-    
-    b : int = 7;
-
-    def g(j : int) -> int { return h(i + j); }
-
-    def h(j : int) -> int { return f(g(j+b)); }
-
-    return h(23);
+def main(i : int) -> int {
+    x : int = 42;
+    def f(j : int) -> int {
+        return i + j + x;
+    }
+    return f(5);
 }
-
-def foo(i : int) -> int { return i; }

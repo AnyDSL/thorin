@@ -385,21 +385,17 @@ const Type* Call::check(Sema& sema) const {
 void DeclStmt::check(Sema& sema) const { sema.check(decl()); }
 
 void InitStmt::check(Sema& sema) const {
-    sema.insert(var_decl());
-
-    if (const Expr* init_expr = init()) {
-        if (sema.check(var_decl())->check_with(sema.check(init_expr))) {
-            GenericMap map = sema.copy_generic_map();
-            if (var_decl()->refined_type()->infer_with(map, init_expr->type()))
-                return;
-            else {
-                sema.error(init_expr) << "cannot infer initializing type '" << init_expr->type() << "'\n";
-                sema.error(var_decl()) << "to declared type '" << var_decl()->refined_type() << "' with '" << map << "'\n";
-            }
-        } else {
-            sema.error(this) << "initializing expression of type '" << init_expr->type() << "' but '" 
-                << var_decl()->symbol() << "' declared of type '" << var_decl()->refined_type() << '\n';
+    if (sema.check(var_decl())->check_with(sema.check(init()))) {
+        GenericMap map = sema.copy_generic_map();
+        if (var_decl()->refined_type()->infer_with(map, init()->type()))
+            return;
+        else {
+            sema.error(init()) << "cannot infer initializing type '" << init()->type() << "'\n";
+            sema.error(var_decl()) << "to declared type '" << var_decl()->refined_type() << "' with '" << map << "'\n";
         }
+    } else {
+        sema.error(this) << "initializing expression of type '" << init()->type() << "' but '" 
+            << var_decl()->symbol() << "' declared of type '" << var_decl()->refined_type() << '\n';
     }
 }
 
@@ -423,13 +419,7 @@ void ForStmt::check(Sema& sema) const {
     sema.check(init());
     sema.check_cond(cond());
     sema.check(step());
-
-    if (const ScopeStmt* scope = body()->isa<ScopeStmt>())
-        //sema.check_stmts(scope);
-        sema.check(scope);
-    else
-        sema.check(body());
-
+    sema.check(body());
     sema.pop_scope();
 }
 

@@ -671,7 +671,6 @@ const Expr* Parser::parse_cond(const std::string& what) {
     expect(Token::L_PAREN, "condition in " + what);
     const Expr* cond = try_expr("condition in " + what);
     expect(Token::R_PAREN, "condition in " + what);
-
     return cond;
 }
 
@@ -685,15 +684,13 @@ const Stmt* Parser::parse_if_else() {
 }
 
 const Stmt* Parser::parse_while() {
-    ForStmt* loop = new ForStmt();
-
+    auto loop = new ForStmt();
     loop->set_pos1(eat(Token::WHILE).pos1());
     loop->init_ = new ExprStmt(new EmptyExpr(loop->pos1()), loop->pos1());
     loop->cond_ = parse_cond("while statement");
     loop->step_ = new EmptyExpr(loop->pos1());
     ANYDSL2_PUSH(cur_loop, loop);
     loop->body_ = parse_stmt_as_scope("body of while statement");
-
     return loop;
 }
 

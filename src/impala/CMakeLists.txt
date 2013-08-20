@@ -1,7 +1,7 @@
 SET ( EXECUTABLE_NAME impala )
 
 # get source files
-FILE ( GLOB CPP_GLOBAL *.cpp )
+FILE ( GLOB CPP_GLOBAL *.cpp *.h )
 
 # list of source files (without backends)
 SET ( IMPALA_SOURCE_FILES ${CPP_GLOBAL} )

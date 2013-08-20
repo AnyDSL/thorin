@@ -103,14 +103,13 @@ std::ostream& Fun::print(Printer& p) const {
     if (!generics().empty())
         p.dump_list([&] (const TypeDecl* typedecl) { typedecl->print(p); }, generics(), "<", ">");
 
-    const Type* ret_type = orig_fntype()->return_type();
-    ArrayRef<const VarDecl*> params_ref = 
-        ret_type->isa<NoRet>() ? params() : ArrayRef<const VarDecl*>(&params().front(), params().size() - 1);
+    const VarDecl* ret_param = !params().empty() && params().back()->symbol() == Symbol("return") ? params().back() : nullptr;
+    ArrayRef<const VarDecl*> params_ref = ret_param ? ArrayRef<const VarDecl*>(&params().front(), params().size() - 1) : params();
 
     p.dump_list([&](const VarDecl* decl) { decl->print(p); }, params_ref, "(", ")");
 
-    if (!ret_type->isa<NoRet>())
-        p.stream() << " -> " << ret_type << ' ';
+    if (ret_param)
+        p.stream() << " -> " << ret_param->orig_type()->as<FnType>()->elem(0) << ' ';
 
     return body()->print(p);
 }
@@ -337,6 +336,14 @@ std::ostream& FunStmt::print(Printer& p) const {
 }
 
 //------------------------------------------------------------------------------
+
+void dump_prg(const Scope* scope, bool fancy, std::ostream& o) { 
+    Printer p(o, fancy);
+    for (auto stmt : scope->stmts()) {
+        stmt->print(p);
+        p.newline();
+    }
+}
 
 void dump(const ASTNode* n, bool fancy, std::ostream& o) { Printer p(o, fancy); n->print(p); }
 std::ostream& operator << (std::ostream& o, const ASTNode* n) { Printer p(o, true); return n->print(p); }

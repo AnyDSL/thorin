@@ -127,7 +127,7 @@ int main(int argc, char** argv) {
         anydsl2::AutoPtr<const impala::Scope> prg(impala::parse(init.typetable, file, filename, result));
 
         if (emit_ast)
-            dump(prg, fancy);
+            dump_prg(prg, fancy);
 
         result &= check(init.typetable, prg, nossa);
 

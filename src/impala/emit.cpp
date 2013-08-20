@@ -29,9 +29,8 @@ public:
 
     void emit_prg(const Scope*);
     void emit(const Scope*, JumpTarget&);
-    const Lambda* emit_body(const Fun* fun, Lambda* parent, const char* what);
-    Lambda* emit_head(const Fun* fun, Symbol symbol);
-    //void emit(const NamedFun*);
+    Lambda* emit_head(const Fun* fun);
+    const Lambda* emit_body(const Fun* fun, Lambda* parent);
     RefPtr emit(const VarDecl*);
     Array<const Def*> emit_ops(const Expr* expr, size_t additional_size = 0);
     RefPtr emit(const Expr* expr) { return is_reachable() ? expr->emit(*this) : nullptr; }
@@ -50,13 +49,10 @@ void emit(World& world, const Scope* prg) { CodeGen(world).emit_prg(prg); }
 //------------------------------------------------------------------------------
 
 void CodeGen::emit(const Scope* scope, JumpTarget& exit_bb) {
-#if 0
     for (auto stmt : scope->stmts()) {
-        if (auto fun_stmt = stmt->isa<FunStmt>()) {
-            // TODO
-        }
+        if (auto fun_stmt = stmt->isa<FunStmt>())
+            emit_head(fun_stmt->fun());
     }
-#endif
 
     size_t size = scope->stmts().size();
     if (size == 0)
@@ -72,23 +68,19 @@ void CodeGen::emit(const Scope* scope, JumpTarget& exit_bb) {
     }
 }
 
-#if 0
-Lambda* CodeGen::emit_head(const Fun* fun, Symbol symbol) {
-    fun->lambda_ = world().lambda(fun->fntype()->convert(world())->as<Pi>(), symbol.str());
+Lambda* CodeGen::emit_head(const Fun* fun) {
+    auto type = fun->refined_fntype();
+    fun->lambda_ = world().lambda(type->convert(world())->as<Pi>(), fun->symbol().str());
     size_t num = fun->params().size();
-    const Type* ret_type = fun->fntype()->return_type();
+    const Type* ret_type = type->return_type();
     fun->ret_param_ = ret_type->isa<NoRet>() ? nullptr : fun->lambda_->param(num-1+1);
     fun->lambda()->param(0)->name = "mem";
 
     return fun->lambda_;
 }
 
-const Lambda* CodeGen::emit_body(const Fun* fun, Lambda* parent, const char* what) {
-    for (auto f : fun->body()->named_funs())
-        emit_head(f, f->symbol());
-
+const Lambda* CodeGen::emit_body(const Fun* fun, Lambda* parent) {
     fun->lambda()->set_parent(parent);
-
     ANYDSL2_PUSH(cur_bb, fun->lambda());
 
     bool new_frame = false;
@@ -112,13 +104,13 @@ const Lambda* CodeGen::emit_body(const Fun* fun, Lambda* parent, const char* wha
     enter(exit);
 
     if (is_reachable()) {
-        if (!fun->is_continuation() && fun->fntype()->return_type()->is_void())
+        if (!fun->is_continuation() && fun->refined_fntype()->return_type()->is_void())
             cur_bb->jump1(fun->ret_param(), get_mem());
         else {
             if (fun->is_continuation())
-                std::cerr << what << " does not end with a call\n";
+                std::cerr << fun->symbol() << " does not end with a call\n";
             else
-                std::cerr << what << " does not end with 'return'\n";
+                std::cerr << fun->symbol() << " does not end with 'return'\n";
             cur_bb->jump0(world().bottom(world().pi0()));
         }
     }
@@ -131,7 +123,8 @@ const Lambda* CodeGen::emit_body(const Fun* fun, Lambda* parent, const char* wha
 
 //------------------------------------------------------------------------------
 
-void CodeGen::emit(const Scope* prg) {
+#if 0
+void CodeGen::emit_prg(const Scope* prg) {
     for (auto global : prg->globals()) {
         if (const NamedFun* f = global->isa<NamedFun>()) {
             Lambda* lambda = emit_head(f, f->symbol());
@@ -151,13 +144,6 @@ void CodeGen::emit(const Scope* prg) {
     // clear get/set value stuff
     for (auto lambda : world().lambdas())
         lambda->clear();
-}
-
-
-void CodeGen::emit(const NamedFun* named_fun) {
-    emit_body(named_fun, cur_bb, named_fun->symbol().str());
-    if (named_fun->is_extern())
-        named_fun->lambda()->attr().set_extern();
 }
 
 #endif
@@ -512,11 +498,9 @@ void ReturnStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 
 void ScopeStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.emit(scope(), exit_bb); }
 
-#if 0
 void FunStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { 
-    cg.emit(fun());
+    cg.emit_body(fun());
     cg.jump(exit_bb);
 }
-#endif
 
 } // namespace impala

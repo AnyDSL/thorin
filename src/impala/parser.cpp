@@ -588,7 +588,7 @@ const Expr* Parser::parse_fun_expr() {
     e->set_pos1(eat(Token::LAMBDA).pos1());
     parse_fun(e->fun_);
     e->fun_->extern_ = false;
-    e->fun_->symbol_ = "<anonymous function>";
+    e->fun_->symbol_ = "<lambda>";
     e->set_pos2(prev_loc.pos2());
 
     return e;

@@ -143,7 +143,7 @@ void Token::init() {
 #include "impala/tokenlist.h"
 
     tok2str_[ID]         = Symbol("<identifier>").str();
-    tok2str_[END_OF_FILE]= Symbol("<end of file>").str();
+    insert(END_OF_FILE, "<end of file>");
 }
 
 /*static*/ void Token::insert_key(TokenKind tok, const char* str) {

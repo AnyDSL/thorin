@@ -409,8 +409,8 @@ void ExprStmt::check(Sema& sema) const {
 
 void IfElseStmt::check(Sema& sema) const {
     sema.check_cond(cond());
-    sema.check(then_stmt());
-    sema.check(else_stmt());
+    sema.check(then_scope());
+    sema.check(else_scope());
 }
 
 void DoWhileStmt::check(Sema& sema) const {

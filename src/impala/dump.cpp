@@ -80,6 +80,8 @@ std::ostream& VarDecl::print(Printer& p) const { return p.stream() << symbol() <
 std::ostream& TypeDecl::print(Printer& p) const { return p.stream() << symbol(); }
 
 std::ostream& Scope::print(Printer& p) const {
+    p.stream() << "{";
+    p.up();
     if (!stmts().empty()) {
         for (auto i = stmts().cbegin(), e = stmts().cend() - 1; i != e; ++i) {
             (*i)->print(p);
@@ -88,7 +90,7 @@ std::ostream& Scope::print(Printer& p) const {
 
         stmts().back()->print(p);
     }
-    return p.stream();
+    return p.down() << "}";
 }
 
 std::ostream& Proto::print(Printer& p) const {
@@ -110,10 +112,7 @@ std::ostream& Fun::print(Printer& p) const {
     if (!ret_type->isa<NoRet>())
         p.stream() << " -> " << ret_type << ' ';
 
-    p.stream() << " {";
-    p.up();
-    body()->print(p);
-    return p.down() << '}';
+    return body()->print(p);
 }
 
 /*
@@ -272,11 +271,11 @@ std::ostream& ExprStmt::print(Printer& p) const {
 
 std::ostream& IfElseStmt::print(Printer& p) const {
     p.stream() << "if (" << cond() << ") ";
-    p.print_block(then_stmt());
+    then_scope()->print(p);
 
-    if (!else_stmt()->empty()) {
+    if (!else_scope()->empty()) {
         p.stream() << " else ";
-        p.print_block(else_stmt());
+        else_scope()->print(p);
     }
 
     return p.stream();
@@ -284,7 +283,7 @@ std::ostream& IfElseStmt::print(Printer& p) const {
 
 std::ostream& DoWhileStmt::print(Printer& p) const {
     p.stream() << "do ";
-    p.print_block(body());
+    body()->print(p);
     p.stream() << " while (";
     cond()->print(p);
     return p.stream() << ");";
@@ -304,7 +303,7 @@ std::ostream& ForStmt::print(Printer& p) const {
     }
 
     p.stream() << ") ";
-    return p.print_block(body());
+    return body()->print(p);
 }
 
 std::ostream& ForeachStmt::print(Printer& p) const {
@@ -318,6 +317,8 @@ std::ostream& ForeachStmt::print(Printer& p) const {
 
 std::ostream& BreakStmt::print(Printer& p) const { return p.stream() << "break;"; }
 std::ostream& ContinueStmt::print(Printer& p) const { return p.stream() << "continue;"; }
+std::ostream& ScopeStmt::print(Printer& p) const { return scope()->print(p); }
+
 
 std::ostream& ReturnStmt::print(Printer& p) const {
     p.stream() << "return";
@@ -333,13 +334,6 @@ std::ostream& ReturnStmt::print(Printer& p) const {
 std::ostream& FunStmt::print(Printer& p) const { 
     p.stream() << "def " << fun()->symbol(); 
     return fun()->print(p);
-}
-
-std::ostream& ScopeStmt::print(Printer& p) const {
-    p.stream() << "{";
-    p.up();
-    scope()->print(p);
-    return p.down() << "}";
 }
 
 //------------------------------------------------------------------------------

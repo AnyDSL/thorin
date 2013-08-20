@@ -50,6 +50,11 @@ public:
 
 class Scope : public ASTNode {
 public:
+    Scope() {}
+    Scope(const anydsl2::Location& loc) {
+        loc_ = loc;
+    }
+
     const Stmts& stmts() const { return stmts_; }
     const Stmt* stmt(size_t i) const { return stmts_[i]; }
     bool empty() const { return stmts_.empty(); }
@@ -461,9 +466,6 @@ private:
 //------------------------------------------------------------------------------
 
 class Stmt : public ASTNode {
-public:
-    virtual bool empty() const { return false; }
-
 private:
     virtual void check(Sema& sema) const = 0;
     //virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const = 0;
@@ -529,17 +531,9 @@ private:
 
 class IfElseStmt: public Stmt {
 public:
-    IfElseStmt(const anydsl2::Position& pos1, const Expr* cond, const Stmt* thenStmt, const Stmt* elseStmt)
-        : cond_(cond)
-        , thenStmt_(thenStmt)
-        , elseStmt_(elseStmt)
-    {
-        set_loc(pos1, elseStmt->pos2());
-    }
-
     const Expr* cond() const { return cond_; }
-    const Stmt* then_stmt() const { return thenStmt_; }
-    const Stmt* else_stmt() const { return elseStmt_; }
+    const Scope* then_scope() const { return then_scope_; }
+    const Scope* else_scope() const { return else_scope_; }
     virtual std::ostream& print(Printer& p) const;
 
 private:
@@ -547,19 +541,21 @@ private:
     //virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     anydsl2::AutoPtr<const Expr> cond_;
-    anydsl2::AutoPtr<const Stmt> thenStmt_;
-    anydsl2::AutoPtr<const Stmt> elseStmt_;
+    anydsl2::AutoPtr<const Scope> then_scope_;
+    anydsl2::AutoPtr<const Scope> else_scope_;
+
+    friend class Parser;
 };
 
 class Loop : public Stmt {
 public:
     Loop() {}
     const Expr* cond() const { return cond_; }
-    const Stmt* body() const { return body_; }
+    const Scope* body() const { return body_; }
 
 private:
     anydsl2::AutoPtr<const Expr> cond_;
-    anydsl2::AutoPtr<const Stmt> body_;
+    anydsl2::AutoPtr<const Scope> body_;
 
     friend class Parser;
 };
@@ -702,7 +698,6 @@ public:
     }
 
     const Scope* scope() const { return scope_; }
-    virtual bool empty() const { return scope_->empty(); }
     virtual std::ostream& print(Printer& p) const;
 
 private:

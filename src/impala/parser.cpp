@@ -45,7 +45,10 @@ public:
     bool is_type(size_t lookahead = 0);
     bool is_expr();
     bool is_stmt();
-    const Scope* parse_scope(bool outmost = false);
+    const Scope* parse_prg();
+    const Scope* parse_scope();
+    const Scope* try_scope(const std::string& context);
+    const Scope* parse_stmt_as_scope(const std::string& what);
     void parse_generics_list(TypeDecls&);
     const Type* parse_type();
     const Type* parse_compound_type();
@@ -113,7 +116,7 @@ private:
 
 const Scope* parse(TypeTable& typetable, std::istream& i, const std::string& filename, bool& result) {
     Parser p(typetable, i, filename);
-    const Scope* prg = p.parse_scope(true);
+    const Scope* prg = p.parse_prg();
     result = p.result();
 
     return prg;
@@ -255,21 +258,54 @@ bool Parser::is_stmt() {
  * scope
  */
 
-const Scope* Parser::parse_scope(bool outmost) {
+const Scope* Parser::parse_prg() {
     Scope* scope = new Scope();
     scope->set_pos1(prev_loc.pos1());
 
     while (true) {
-        if (la() == Token::SEMICOLON) {
-            lex(); 
+        switch (la()) {
+            case Token::SEMICOLON:      lex(); continue; // ignore semicolon
+            case Token::END_OF_FILE:    scope->set_pos2(prev_loc.pos2()); return scope;
+            case Token::DEF:            scope->stmts_.push_back(parse_fun_stmt()); continue;
+            case Token::EXTERN:         scope->stmts_.push_back(parse_decl_stmt_or_init_stmt()); continue;
+            default:                    lex(); continue; // consume token nobody wants
+        }
+    }
+}
+
+const Scope* Parser::try_scope(const std::string& context) {
+    if (la() == Token::L_BRACE)
+        return parse_scope();
+    error("scope", context);
+    return new Scope(prev_loc);
+}
+
+const Scope* Parser::parse_stmt_as_scope(const std::string& what) {
+    if (la() == Token::L_BRACE)
+        return parse_scope();
+    auto scope = new Scope();
+    scope->stmts_.push_back(try_stmt(what));
+    return scope;
+}
+
+const Scope* Parser::parse_scope() {
+    Scope* scope = new Scope();
+    scope->set_pos1(eat(Token::L_BRACE).pos1());
+
+    while (true) {
+        if (accept(Token::SEMICOLON)) {
             continue; // ignore semicolon
-        } else if (la() == Token::END_OF_FILE) {
-            return scope;
+        } else if (la() == Token::R_BRACE || la() == Token::END_OF_FILE) {
+            break;
         } else if (is_stmt()) {
             scope->stmts_.push_back(parse_stmt());
-        } else
-            break;
+        } else {
+            lex(); // consume token nobody wants
+        }
     }
+
+    expect(Token::R_BRACE, "scope statement");
+    scope->set_pos2(prev_loc.pos2());
 
     return scope;
 }
@@ -408,9 +444,7 @@ void Parser::parse_fun(Fun* fun) {
     }
 
     fun->orig_type_ = typetable.fntype(arg_types);
-    expect(Token::L_BRACE, "body of function");
-    fun->body_ = parse_scope();
-    expect(Token::R_BRACE, "body of function");
+    fun->body_ = try_scope("body of function");
     fun->set_pos2(prev_loc.pos2());
 }
 
@@ -605,11 +639,9 @@ const Stmt* Parser::parse_stmt() {
 
 const ScopeStmt* Parser::parse_scope_stmt() {
     ScopeStmt* s = new ScopeStmt();
-    s->set_pos1(eat(Token::L_BRACE).pos1());
+    s->set_pos1(la().pos1());
     s->scope_ = parse_scope();
-    expect(Token::R_BRACE, "scope statement");
     s->set_pos2(prev_loc.pos2());
-
     return s;
 }
 
@@ -644,12 +676,12 @@ const Expr* Parser::parse_cond(const std::string& what) {
 }
 
 const Stmt* Parser::parse_if_else() {
-    Position pos1 = eat(Token::IF).pos1();
-    const Expr* cond = parse_cond("if statement");
-    const Stmt* ifStmt = try_stmt("if clause");
-    const Stmt* elseStmt = accept(Token::ELSE) ? try_stmt("else clause") : new ScopeStmt(prev_loc);
-
-    return new IfElseStmt(pos1, cond, ifStmt, elseStmt);
+    auto ifelse = new IfElseStmt();
+    ifelse->set_pos1(eat(Token::IF).pos1());
+    ifelse->cond_ = parse_cond("if statement");
+    ifelse->then_scope_ = parse_stmt_as_scope("if clause");
+    ifelse->else_scope_ = accept(Token::ELSE) ? parse_stmt_as_scope("else clause") : new Scope(prev_loc);
+    return ifelse;
 }
 
 const Stmt* Parser::parse_while() {
@@ -660,7 +692,7 @@ const Stmt* Parser::parse_while() {
     loop->cond_ = parse_cond("while statement");
     loop->step_ = new EmptyExpr(loop->pos1());
     ANYDSL2_PUSH(cur_loop, loop);
-    loop->body_ = try_stmt("loop body");
+    loop->body_ = parse_stmt_as_scope("body of while statement");
 
     return loop;
 }
@@ -669,7 +701,7 @@ const Stmt* Parser::parse_do_while() {
     DoWhileStmt* loop = new DoWhileStmt();
     loop->set_pos1(eat(Token::DO).pos1());
     ANYDSL2_PUSH(cur_loop, loop);
-    loop->body_ = try_stmt("loop body");
+    loop->body_ = parse_stmt_as_scope("body of do-while statement");
     expect(Token::WHILE, "do-while statement");
     loop->cond_ = parse_cond("do-while statement");
     expect(Token::SEMICOLON, "do-while statement");
@@ -724,7 +756,7 @@ const Stmt* Parser::parse_for() {
         loop->step_ = new EmptyExpr(prev_loc);
     }
 
-    loop->body_ = try_stmt("loop body");
+    loop->body_ = parse_stmt_as_scope("body of for statement");
     loop->set_pos2(prev_loc.pos2());
 
     return loop;

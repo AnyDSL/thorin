@@ -76,9 +76,9 @@ std::ostream& IlPrinter::emit_type(const Type* type) {
     }
     else if (auto sigma = type->isa<Sigma>())
         return dump_list([&] (const Type* type) { emit_type(type); }, sigma->elems(), "", "", " * ");
-    else if (auto generic = type->isa<Generic>())
+    else if (type->isa<Generic>())
         return stream() << "TODO";
-    else if (auto genref = type->isa<GenericRef>())
+    else if (type->isa<GenericRef>())
         return stream() << "TODO";
     else if (auto ptr = type->isa<Ptr>()) {
         if (ptr->is_vector())
@@ -151,7 +151,7 @@ std::ostream& IlPrinter::emit_assignment(const PrimOp* primop) {
     emit_type(primop->type()) << " = ";
 
     ArrayRef<const Def*> ops = primop->ops();
-    if (auto select = primop->isa<Select>()) {
+    if (primop->isa<Select>()) {
     } else if (auto vectorop = primop->isa<VectorOp>()) {
         if (!vectorop->cond()->is_allset()) {
             stream() << "@ ";

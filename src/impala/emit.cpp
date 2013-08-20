@@ -30,7 +30,7 @@ public:
     void emit_prg(const Scope*);
     void emit(const Scope*, JumpTarget&);
     Lambda* emit_head(const Fun* fun);
-    const Lambda* emit_body(const Fun* fun, Lambda* parent);
+    const Lambda* emit_body(const Fun* fun);
     RefPtr emit(const VarDecl*);
     Array<const Def*> emit_ops(const Expr* expr, size_t additional_size = 0);
     RefPtr emit(const Expr* expr) { return is_reachable() ? expr->emit(*this) : nullptr; }
@@ -79,8 +79,8 @@ Lambda* CodeGen::emit_head(const Fun* fun) {
     return fun->lambda_;
 }
 
-const Lambda* CodeGen::emit_body(const Fun* fun, Lambda* parent) {
-    fun->lambda()->set_parent(parent);
+const Lambda* CodeGen::emit_body(const Fun* fun) {
+    fun->lambda()->set_parent(cur_bb);
     ANYDSL2_PUSH(cur_bb, fun->lambda());
 
     bool new_frame = false;
@@ -123,30 +123,30 @@ const Lambda* CodeGen::emit_body(const Fun* fun, Lambda* parent) {
 
 //------------------------------------------------------------------------------
 
-#if 0
 void CodeGen::emit_prg(const Scope* prg) {
-    for (auto global : prg->globals()) {
-        if (const NamedFun* f = global->isa<NamedFun>()) {
-            Lambda* lambda = emit_head(f, f->symbol());
-
-            if (f->symbol() == Symbol("main")) {
+    for (auto stmt : prg->stmts()) {
+        if (auto fun_stmt = stmt->isa<FunStmt>()) {
+            auto fun = fun_stmt->fun();
+            Lambda* lambda = emit_head(fun);
+            if (fun->symbol() == Symbol("main")) {
                 lambda->name += "_impala";
                 lambda->attr().set_extern();
             }
-        }
+        } 
+        //else if (auto decl_stmt = stmt->isa<DeclStmt>()) {
+            //// TODO
+        //}
     }
 
-    for (auto global : prg->globals()) {
-        if (const NamedFun* f = global->isa<NamedFun>())
-            emit(f);
+    for (auto stmt : prg->stmts()) {
+        if (auto fun_stmt = stmt->isa<FunStmt>())
+            emit_body(fun_stmt->fun());
     }
 
     // clear get/set value stuff
     for (auto lambda : world().lambdas())
         lambda->clear();
 }
-
-#endif
 
 RefPtr CodeGen::emit(const VarDecl* decl) {
     const anydsl2::Type* air_type = decl->refined_type()->convert(world());
@@ -187,12 +187,10 @@ RefPtr Literal::emit(CodeGen& cg) const {
     return Ref::create(cg.world().literal(akind, box()));
 }
 
-#if 0
 RefPtr FunExpr::emit(CodeGen& cg) const {
-    cg.emit_head(this, "lambda");
-    return Ref::create(cg.emit_body(this, cg.cur_bb, "anonymous lambda expression"));
+    cg.emit_head(fun());
+    return Ref::create(cg.emit_body(fun()));
 }
-#endif
 
 RefPtr Tuple::emit(CodeGen& cg) const {
     return Ref::create(cg.world().tuple(cg.emit_ops(this)));

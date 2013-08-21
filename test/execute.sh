@@ -2,7 +2,7 @@
 # parameter 1: Impala program with a 'foo' function that returns an int
 rm -f a.out
 # generate LLVM code
-./impala -i $1 --emit-llvm -O >& out.ll
+./impala std.impala $1 --emit-llvm -O >& out.ll
 # generate assembler
 llc out.ll
 # link with a C main function

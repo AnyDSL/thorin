@@ -132,10 +132,13 @@ void CodeGen::emit_prg(const Scope* prg) {
                 lambda->name += "_impala";
                 lambda->attr().set_extern();
             }
-        } 
-        //else if (auto decl_stmt = stmt->isa<DeclStmt>()) {
-            //// TODO
-        //}
+        } else if (auto decl_stmt = stmt->isa<DeclStmt>()) {
+            if (auto proto = decl_stmt->decl()->isa<Proto>()) {
+                auto lambda = world().lambda(proto->refined_type()->convert(world())->as<Pi>());
+                lambda->attr().set_extern();
+                lambda->name = proto->symbol().str();
+            }
+        }
     }
 
     for (auto stmt : prg->stmts()) {

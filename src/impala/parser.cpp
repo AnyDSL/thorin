@@ -335,7 +335,6 @@ const Type* Parser::parse_type() {
         case Token::TYPE_noret: lex(); return typetable.noret();
         case Token::FN:
         case Token::SIGMA:             return parse_compound_type();
-        // TODO generic refs
         case Token::ID: 
             return typetable.idtype(lex().symbol());
         default: ANYDSL2_UNREACHABLE;

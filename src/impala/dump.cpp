@@ -101,13 +101,14 @@ std::ostream& Proto::print(Printer& p) const {
 }
 
 std::ostream& Fun::print(Printer& p) const {
-    if (!generics().empty())
-        p.dump_list([&] (const TypeDecl* typedecl) { typedecl->print(p); }, generics(), "<", ">");
+    const VarDecl* ret_param = !params().empty() && params().back()->symbol() == Symbol("return") 
+                             ? params().back() 
+                             : nullptr;
+    ArrayRef<const VarDecl*> params_ref = ret_param 
+                                        ? ArrayRef<const VarDecl*>(&params().front(), params().size() - 1) 
+                                        : params();
 
-    const VarDecl* ret_param = !params().empty() && params().back()->symbol() == Symbol("return") ? params().back() : nullptr;
-    ArrayRef<const VarDecl*> params_ref = ret_param ? ArrayRef<const VarDecl*>(&params().front(), params().size() - 1) : params();
-
-    p.dump_list([&](const VarDecl* decl) { decl->print(p); }, params_ref, "(", ")");
+    p.dump_list([&](const VarDecl* decl) { decl->print(p); }, params_ref, is_lambda() ? "|" : "(", is_lambda() ? "|" : ")");
 
     if (ret_param)
         p.stream() << " -> " << orig_fntype()->return_type() << ' ';
@@ -134,24 +135,6 @@ std::ostream& Literal::print(Printer& p) const {
 std::ostream& Id::print(Printer& p) const { return p.stream() << symbol(); }
 std::ostream& EmptyExpr::print(Printer& p) const { return p.stream() << "/*empty*/"; }
 std::ostream& Tuple::print(Printer& p) const { return p.dump_list([&](const Expr* expr) { expr->print(p); }, ops(), "#(", ")"); }
-
-std::ostream& FunExpr::print(Printer& p) const { 
-    const VarDecl* ret_param = !fun()->params().empty() && fun()->params().back()->symbol() == Symbol("return") 
-                             ? fun()->params().back() 
-                             : nullptr;
-    ArrayRef<const VarDecl*> params_ref = ret_param 
-                                        ? ArrayRef<const VarDecl*>(&fun()->params().front(), fun()->params().size() - 1) 
-                                        : fun()->params();
-
-    p.dump_list([&](const VarDecl* decl) { decl->print(p); }, params_ref, "|", "|");
-
-    if (ret_param)
-        p.stream() << " -> " << fun()->orig_fntype()->return_type() << ' ';
-    else
-        p.stream() << ' ';
-
-    return fun()->body()->print(p);
-}
 
 std::ostream& PrefixExpr::print(Printer& p) const {
     Prec r = PrecTable::prefix_r[kind()];
@@ -269,6 +252,8 @@ std::ostream& Call::print(Printer& p) const {
     return p.dump_list([&](const Expr* expr) { expr->print(p); }, args(), "(", ")");
 }
 
+std::ostream& FunExpr::print(Printer& p) const { return fun()->print(p); }
+
 /*
  * Stmt
  */
@@ -335,7 +320,6 @@ std::ostream& BreakStmt::print(Printer& p) const { return p.stream() << "break;"
 std::ostream& ContinueStmt::print(Printer& p) const { return p.stream() << "continue;"; }
 std::ostream& ScopeStmt::print(Printer& p) const { return scope()->print(p); }
 
-
 std::ostream& ReturnStmt::print(Printer& p) const {
     p.stream() << "return";
 
@@ -349,6 +333,9 @@ std::ostream& ReturnStmt::print(Printer& p) const {
 
 std::ostream& FunStmt::print(Printer& p) const { 
     p.stream() << "fn " << fun()->symbol(); 
+    if (!fun()->generics().empty())
+        p.dump_list([&] (const TypeDecl* typedecl) { typedecl->print(p); }, fun()->generics(), "<", ">");
+
     return fun()->print(p);
 }
 

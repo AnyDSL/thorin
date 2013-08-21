@@ -9,7 +9,7 @@ namespace impala {
 class Scope;
 class TypeTable;
 
-const Scope* parse(TypeTable& typetable, std::istream& i, const std::string& filename, bool& result);
+bool parse(TypeTable&, std::istream&, const std::string&, Scope*);
 
 } // namespace impala
 

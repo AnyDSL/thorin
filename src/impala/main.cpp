@@ -104,9 +104,6 @@ int main(int argc, char** argv) {
         //}
         //ostream& out = ofs.is_open() ? ofs : cout;
 
-        const char* filename = infiles[0].c_str();
-        ifstream file(filename);
-
         impala::Init init;
 #ifndef NDEBUG
         for (auto b : breakpoints) {
@@ -123,8 +120,14 @@ int main(int argc, char** argv) {
         }
 #endif
 
-        bool result;
-        anydsl2::AutoPtr<const impala::Scope> prg(impala::parse(init.typetable, file, filename, result));
+        anydsl2::AutoPtr<impala::Scope> prg = new impala::Scope();
+
+        bool result = true;
+        for (auto infile : infiles) {
+            const char* filename = infile.c_str();
+            ifstream file(filename);
+            result |= impala::parse(init.typetable, file, filename, prg);
+        }
 
         if (emit_ast)
             dump_prg(prg, fancy);

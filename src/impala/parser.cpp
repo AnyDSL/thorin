@@ -58,7 +58,7 @@ public:
     bool is_type(size_t lookahead = 0);
     bool is_expr();
     bool is_stmt();
-    const Scope* parse_prg();
+    bool parse_prg(Scope*);
     const Scope* parse_scope();
     const Scope* try_scope(const std::string& context);
     const Scope* parse_stmt_as_scope(const std::string& what);
@@ -132,12 +132,8 @@ private:
 
 //------------------------------------------------------------------------------
 
-const Scope* parse(TypeTable& typetable, std::istream& i, const std::string& filename, bool& result) {
-    Parser p(typetable, i, filename);
-    const Scope* prg = p.parse_prg();
-    result = p.result();
-
-    return prg;
+bool parse(TypeTable& typetable, std::istream& i, const std::string& filename, Scope* prg) {
+    return Parser(typetable, i, filename).parse_prg(prg);
 }
 
 //------------------------------------------------------------------------------
@@ -253,19 +249,18 @@ bool Parser::is_stmt() {
     }
 }
 
-
 /*
  * scope
  */
 
-const Scope* Parser::parse_prg() {
-    Scope* scope = new Scope();
-    scope->set_pos1(la().pos1());
+bool Parser::parse_prg(Scope* scope) {
+    if (scope->empty())
+        scope->set_pos1(la().pos1());
 
     while (true) {
         switch (la()) {
             case Token::SEMICOLON:      lex(); continue; // ignore semicolon
-            case Token::END_OF_FILE:    scope->set_pos2(prev_loc.pos2()); return scope;
+            case Token::END_OF_FILE:    scope->set_pos2(prev_loc.pos2()); return result();
             case Token::FN:             scope->stmts_.push_back(parse_fun_stmt()); continue;
             case Token::EXTERN:         scope->stmts_.push_back(parse_decl_stmt_or_init_stmt()); continue;
             default:                    lex(); continue; // consume token nobody wants

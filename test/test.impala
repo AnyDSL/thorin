@@ -1,5 +1,5 @@
-def main(i : int, ret : pi(int)) {
-    def f(i : int) {
+fn main(i : int, ret : fn(int)) {
+    fn f(i : int) {
         ret(i);
     }
 

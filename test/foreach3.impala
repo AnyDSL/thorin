@@ -1,8 +1,8 @@
 /*
 foreach a parameterized generator
 */
-def count<T>(n : T, yield : pi(T, pi()), ret : pi()) {
-    def loop(i : T) {
+fn count<T>(n : T, yield : fn(T, fn()), ret : fn()) {
+    fn loop(i : T) {
         if (true)
             yield(i, lambda() { loop(i); });
         else
@@ -11,7 +11,7 @@ def count<T>(n : T, yield : pi(T, pi()), ret : pi()) {
     loop(n);
 }
 
-def main() -> int {
+fn main() -> int {
     b : float = 2.0f;
     foreach (x : float  <- count(10.0f)) {
         b += x;

@@ -1,4 +1,4 @@
-def extern fac(n : double) -> double 
+fn extern fac(n : double) -> double 
 {
     if (n <= 1.0) 
         return 1.0;

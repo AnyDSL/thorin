@@ -1,4 +1,4 @@
-def f(a : int) -> pi(int) -> int {
+fn f(a : int) -> fn(int) -> int {
     return lambda(i : int) -> int { 
         if (i == a)
             return i + a; 
@@ -7,6 +7,6 @@ def f(a : int) -> pi(int) -> int {
     };
 }
 
-def main(i : int) -> int {
+fn main(i : int) -> int {
     return f(i)(i);
 }

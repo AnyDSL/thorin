@@ -48,6 +48,35 @@ void emit(World& world, const Scope* prg) { CodeGen(world).emit_prg(prg); }
 
 //------------------------------------------------------------------------------
 
+void CodeGen::emit_prg(const Scope* prg) {
+    for (auto stmt : prg->stmts()) {
+        if (auto fun_stmt = stmt->isa<FunStmt>()) {
+            auto fun = fun_stmt->fun();
+            Lambda* lambda = emit_head(fun);
+            if (fun->symbol() == Symbol("main")) {
+                lambda->name += "_impala";
+                lambda->attr().set_extern();
+            }
+        } else if (auto decl_stmt = stmt->isa<DeclStmt>()) {
+            if (auto proto = decl_stmt->decl()->isa<Proto>()) {
+                auto lambda = world().lambda(proto->refined_type()->convert(world())->as<Pi>());
+                lambda->attr().set_extern();
+                lambda->name = proto->symbol().str();
+            }
+        }
+    }
+
+    for (auto stmt : prg->stmts()) {
+        if (auto fun_stmt = stmt->isa<FunStmt>())
+            emit_body(fun_stmt->fun());
+    }
+
+    // clear get/set value stuff
+    for (auto lambda : world().lambdas())
+        lambda->clear();
+}
+
+
 void CodeGen::emit(const Scope* scope, JumpTarget& exit_bb) {
     for (auto stmt : scope->stmts()) {
         if (auto fun_stmt = stmt->isa<FunStmt>())
@@ -121,34 +150,6 @@ const Lambda* CodeGen::emit_body(const Fun* fun) {
         cur_frame = nullptr;
 
     return fun->lambda();
-}
-
-void CodeGen::emit_prg(const Scope* prg) {
-    for (auto stmt : prg->stmts()) {
-        if (auto fun_stmt = stmt->isa<FunStmt>()) {
-            auto fun = fun_stmt->fun();
-            Lambda* lambda = emit_head(fun);
-            if (fun->symbol() == Symbol("main")) {
-                lambda->name += "_impala";
-                lambda->attr().set_extern();
-            }
-        } else if (auto decl_stmt = stmt->isa<DeclStmt>()) {
-            if (auto proto = decl_stmt->decl()->isa<Proto>()) {
-                auto lambda = world().lambda(proto->refined_type()->convert(world())->as<Pi>());
-                lambda->attr().set_extern();
-                lambda->name = proto->symbol().str();
-            }
-        }
-    }
-
-    for (auto stmt : prg->stmts()) {
-        if (auto fun_stmt = stmt->isa<FunStmt>())
-            emit_body(fun_stmt->fun());
-    }
-
-    // clear get/set value stuff
-    for (auto lambda : world().lambdas())
-        lambda->clear();
 }
 
 //------------------------------------------------------------------------------
@@ -500,10 +501,6 @@ void ReturnStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 }
 
 void ScopeStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.emit(scope(), exit_bb); }
-
-void FunStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { 
-    cg.emit_body(fun());
-    cg.jump(exit_bb);
-}
+void FunStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.emit_body(fun()); cg.jump(exit_bb); }
 
 } // namespace impala

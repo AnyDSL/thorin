@@ -12,6 +12,6 @@ def extern a(m : int, n : int) -> int
     return a(m-1, a(m, n-1));
 }
 
-def main() -> int {
+fn main() -> int {
     return a(3, 4);
 }

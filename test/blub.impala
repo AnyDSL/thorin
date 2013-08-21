@@ -1,5 +1,5 @@
-def extern f<A>(a : A) -> A {
-    def g<B>(b : B) -> B { 
+fn extern f<A>(a : A) -> A {
+    fn g<B>(b : B) -> B { 
         return a; 
     }
     return g(a);

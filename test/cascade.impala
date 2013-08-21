@@ -1,4 +1,4 @@
-def extern test(cond : bool) -> int {
+fn extern test(cond : bool) -> int {
     a : int;
 
     if (cond)

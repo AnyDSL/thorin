@@ -3,8 +3,8 @@ foreach with a generators that takes no initial argument
 + foreach with a generators that takes two initial arguments
 expected result: 45
 */
-def to5(yield : pi(int, pi()), ret : pi()) {
-    def loop(i : int) {
+fn to5(yield : fn(int, fn()), ret : fn()) {
+    fn loop(i : int) {
         if (i < 5)
             yield(i, lambda() { loop(i+1); });
         else
@@ -13,8 +13,8 @@ def to5(yield : pi(int, pi()), ret : pi()) {
     loop(0);
 }
 
-def count(n : int, m : int, yield : pi(int, pi()), ret : pi()) {
-    def loop(i : int) {
+fn count(n : int, m : int, yield : fn(int, fn()), ret : fn()) {
+    fn loop(i : int) {
         if (i < m)
             yield(i, lambda() { loop(i+1); });
         else
@@ -23,7 +23,7 @@ def count(n : int, m : int, yield : pi(int, pi()), ret : pi()) {
     loop(n);
 }
 
-def main(n : int) -> int {
+fn main(n : int) -> int {
     b : int = 0;
     foreach (x : int  <- to5())
         b += x;

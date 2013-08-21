@@ -1,8 +1,8 @@
-def extern f(i : int, ret : pi(int)) {
+fn extern f(i : int, ret : fn(int)) {
     //g(i, ret);
     return g(3) + 5;
 }
 
-def extern g(i : int, ret : pi(int)) {
+fn extern g(i : int, ret : fn(int)) {
     f(i, ret);
 }

@@ -209,7 +209,7 @@ bool Parser::is_type(size_t lookahead) {
         case Token::TYPE_uint:
         case Token::TYPE_void:
         case Token::TYPE_noret:
-        case Token::PI:
+        case Token::FN:
         case Token::SIGMA:
         case Token::ID:
             return true;
@@ -244,7 +244,7 @@ bool Parser::is_stmt() {
 #define IMPALA_KEY_STMT(tok, t_str) case Token:: tok:
 #include "impala/tokenlist.h"
         case Token::EXTERN:
-        case Token::DEF:
+        case Token::FN:
         case Token::ID:
         case Token::L_BRACE:
         case Token::SEMICOLON:
@@ -267,7 +267,7 @@ const Scope* Parser::parse_prg() {
         switch (la()) {
             case Token::SEMICOLON:      lex(); continue; // ignore semicolon
             case Token::END_OF_FILE:    scope->set_pos2(prev_loc.pos2()); return scope;
-            case Token::DEF:            scope->stmts_.push_back(parse_fun_stmt()); continue;
+            case Token::FN:             scope->stmts_.push_back(parse_fun_stmt()); continue;
             case Token::EXTERN:         scope->stmts_.push_back(parse_decl_stmt_or_init_stmt()); continue;
             default:                    lex(); continue; // consume token nobody wants
         }
@@ -337,7 +337,7 @@ const Type* Parser::parse_type() {
         case Token::TYPE_int:   lex(); return typetable.type_int32();
         case Token::TYPE_void:  lex(); return typetable.type_void();
         case Token::TYPE_noret: lex(); return typetable.noret();
-        case Token::PI:
+        case Token::FN:
         case Token::SIGMA:             return parse_compound_type();
         // TODO generic refs
         case Token::ID: 
@@ -347,19 +347,19 @@ const Type* Parser::parse_type() {
 }
 
 const Type* Parser::parse_compound_type() {
-    bool pi = lex().kind() == Token::PI;
+    bool fn = lex().kind() == Token::FN;
 
     std::vector<const Type*> elems;
-    const char* error_str = pi ? "element types of pi" : "element types of sigma";
+    const char* error_str = fn ? "element types of fn" : "element types of sigma";
     expect(Token::L_PAREN, error_str);
-    parse_comma_list(Token::R_PAREN, pi ?  "closing parenthesis of pi type" : "closing parenthesis of sigma type", [&] {
+    parse_comma_list(Token::R_PAREN, fn ?  "closing parenthesis of fn type" : "closing parenthesis of sigma type", [&] {
         elems.push_back(try_type(error_str));
     });
 
-    if (pi && accept(Token::ARROW))
+    if (fn && accept(Token::ARROW))
         elems.push_back(parse_return_type());
 
-    if (pi) 
+    if (fn) 
         return typetable.fntype(elems);
     return typetable.tupletype(elems);
 }
@@ -623,7 +623,7 @@ const Stmt* Parser::parse_stmt() {
     switch (la()) {
         case Token::BREAK:     return parse_break();
         case Token::CONTINUE:  return parse_continue();
-        case Token::DEF:       return parse_fun_stmt();
+        case Token::FN:        return parse_fun_stmt();
         case Token::DO:        return parse_do_while();
         case Token::FOR:       return parse_for();
         case Token::FOREACH:   return parse_foreach();
@@ -823,7 +823,7 @@ const Stmt* Parser::parse_return() {
 
 const Stmt* Parser::parse_fun_stmt() {
     FunStmt* s = new FunStmt(typetable);
-    s->set_pos1(eat(Token::DEF).pos1());
+    s->set_pos1(eat(Token::FN).pos1());
     s->fun_->extern_ = accept(Token::EXTERN);
     s->fun_->symbol_ = try_id("function identifier").symbol();
     parse_generics_list(s->fun_->generics_);

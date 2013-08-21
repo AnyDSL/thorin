@@ -1,9 +1,9 @@
-def f(i : int) -> int {
+fn f(i : int) -> int {
     if (i == 42)
         return 1;
     return 2;
 }
 
-def main(i : int) -> int {
+fn main(i : int) -> int {
     return f(0);
 }

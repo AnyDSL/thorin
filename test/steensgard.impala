@@ -1,9 +1,9 @@
-def main(i : int, ret : pi(int)) {
-    def branch(cond : bool, t : pi(), f : pi()) {
+fn main(i : int, ret : fn(int)) {
+    fn branch(cond : bool, t : fn(), f : fn()) {
         (cond ? (t) : f)();
     }
 
-    def switch(i : int, a : pi(), b : pi(), c : pi()) {
+    fn switch(i : int, a : fn(), b : fn(), c : fn()) {
         if (i == 0)
             a();
         else if (i == 1)
@@ -12,11 +12,11 @@ def main(i : int, ret : pi(int)) {
             c();
     }
 
-    def b() { d(); }
-    def c() { e(); }
-    def d() { switch(i, b, e, f); }
-    def e() { switch(i, d, c, f); }
-    def f() { ret(23); }
+    fn b() { d(); }
+    fn c() { e(); }
+    fn d() { switch(i, b, e, f); }
+    fn e() { switch(i, d, c, f); }
+    fn f() { ret(23); }
 
     branch(i == 0, b, c);
 }

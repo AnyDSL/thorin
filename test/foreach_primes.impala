@@ -2,13 +2,13 @@
 foreach that adds all primes smaller than 100
 expected result: 1060
 */
-def primes(n : int, yield : pi(int, pi()), ret : pi()) {
+fn primes(n : int, yield : fn(int, fn()), ret : fn()) {
     if (n < 2) 
         ret();
 
     yield(2, lambda() {
-        def loop(i : int) {
-            def inner_loop(j : int) {
+        fn loop(i : int) {
+            fn inner_loop(j : int) {
                 if (j < i) {
                     if (i % j == 0)
                         loop(i + 1);
@@ -26,7 +26,7 @@ def primes(n : int, yield : pi(int, pi()), ret : pi()) {
     });
 }
 
-def main() -> int {
+fn main() -> int {
     result : int = 0;
     foreach (p : int <- primes(100)) {
         result += p;

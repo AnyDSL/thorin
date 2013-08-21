@@ -38,9 +38,9 @@ std::ostream& Printer::print_type(const Type* type) {
     } else if (auto fn = type->isa<FnType>()) {
         const Type* ret_type = fn->return_type();
         if (ret_type->isa<NoRet>())
-            return dump_list([&](const Type* elem) { print_type(elem); }, fn->elems(), "pi(", ")");
+            return dump_list([&](const Type* elem) { print_type(elem); }, fn->elems(), "fn(", ")");
         else
-            return dump_list([&](const Type* elem) { print_type(elem); }, fn->elems().slice_front(fn->size()-1), "pi(", ") -> ") 
+            return dump_list([&](const Type* elem) { print_type(elem); }, fn->elems().slice_front(fn->size()-1), "fn(", ") -> ") 
                 << ret_type;
     } else if (auto generic = type->isa<Generic>()) {
         return stream() << Generic::to_string(generic->index());
@@ -332,7 +332,7 @@ std::ostream& ReturnStmt::print(Printer& p) const {
 }
 
 std::ostream& FunStmt::print(Printer& p) const { 
-    p.stream() << "def " << fun()->symbol(); 
+    p.stream() << "fn " << fun()->symbol(); 
     return fun()->print(p);
 }
 

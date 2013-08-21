@@ -1,4 +1,4 @@
-def extern foo() -> int {
+fn extern foo() -> int {
     a : int;
     b : int;
     c : int;

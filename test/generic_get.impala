@@ -1,8 +1,8 @@
-def get<T>() -> T {
+fn get<T>() -> T {
     tuple : sigma(T, T);
     return tuple[0];
 }
 
-def main() -> int {
+fn main() -> int {
     return get();
 }

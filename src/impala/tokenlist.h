@@ -129,9 +129,8 @@ IMPALA_KEY_STMT(RETURN,   "return")
 #define IMPALA_KEY_MISC(tok, str)
 #endif
 
-IMPALA_KEY_MISC(DEF,        "def")
 IMPALA_KEY_MISC(EXTERN,     "extern")
-IMPALA_KEY_MISC(PI,         "pi")
+IMPALA_KEY_MISC(FN,         "fn")
 IMPALA_KEY_MISC(SIGMA,      "sigma")
 IMPALA_KEY_MISC(TYPE_int,   "int")
 IMPALA_KEY_MISC(TYPE_noret, "noret")

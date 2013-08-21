@@ -1,5 +1,5 @@
-def f<A,B>(x : A, y : B) -> A {
-    def g(x : A) -> pi(A) -> A {
+fn f<A,B>(x : A, y : B) -> A {
+    fn g(x : A) -> fn(A) -> A {
         return lambda(s : A) -> A { return s; };
     }
 

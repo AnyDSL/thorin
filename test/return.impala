@@ -1,11 +1,11 @@
-def extern f() -> void {
+fn extern f() -> void {
 }
 
-def extern g() -> int {
+fn extern g() -> int {
 }
 
-def h() {
+fn h() {
 }
 
-def i(a : int) {
+fn i(a : int) {
 }

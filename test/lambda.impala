@@ -1,10 +1,10 @@
-def extern f(a : int) -> int {
+fn extern f(a : int) -> int {
     i : int = 22;
     j : int = 22;
     b : bool = i == 23;
 
-    g : pi(int) -> int = lambda(k : int) -> int { 
-        def z(x : int) -> int { return x; }
+    g : fn(int) -> int = lambda(k : int) -> int { 
+        fn z(x : int) -> int { return x; }
         return i + j + a + z(k); 
     };
 
@@ -14,16 +14,16 @@ def extern f(a : int) -> int {
         return g(g(42));
 }
 
-def extern g(i : int) -> int {
+fn extern g(i : int) -> int {
     return lambda(j : int) -> int { return j + 42 + i; }(23);
 }
 
-def foo(h : pi(int, pi(int))) -> int {
+fn foo(h : fn(int, fn(int))) -> int {
     return h(24);
 }
 
-def extern bar(a : int) -> int {
-    k : pi(int) -> int = lambda(b : int) -> int {
+fn extern bar(a : int) -> int {
+    k : fn(int) -> int = lambda(b : int) -> int {
         return a + b;
     };
     return foo(k);

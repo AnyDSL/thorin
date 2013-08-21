@@ -1,4 +1,4 @@
-def main(i : int) -> int {
+fn main(i : int) -> int {
     if (3 == 4) {
         i++;
     } else

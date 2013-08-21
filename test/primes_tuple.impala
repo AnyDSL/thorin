@@ -1,10 +1,10 @@
-def primes<T>(n : int, t : T, yield : pi(int, T, pi(T)), ret : pi(T)) {
+fn primes<T>(n : int, t : T, yield : fn(int, T, fn(T)), ret : fn(T)) {
     if (n < 2) 
         ret(t);
 
     yield(2, t, lambda(t : T) {
-        def loop(i : int, t : T) {
-            def inner_loop(j : int) {
+        fn loop(i : int, t : T) {
+            fn inner_loop(j : int) {
                 if (j < i) {
                     if (i % j == 0)
                         loop(i + 1, t);
@@ -22,9 +22,9 @@ def primes<T>(n : int, t : T, yield : pi(int, T, pi(T)), ret : pi(T)) {
     });
 }
 
-def main(main_ret : pi(sigma(int, int))) {
+fn main(main_ret : fn(sigma(int, int))) {
     primes(100, #(0, 42),
-        lambda(p : int, result : sigma(int, int), next : pi(sigma(int, int))) {
+        lambda(p : int, result : sigma(int, int), next : fn(sigma(int, int))) {
             next(result);
         },
         lambda(result : sigma(int, int)) {

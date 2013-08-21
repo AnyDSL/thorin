@@ -1,8 +1,8 @@
-def genericRange<T>(nextElem : pi(int, pi(T)),
-                      c : pi(T, pi()),
+fn genericRange<T>(nextElem : fn(int, fn(T)),
+                      c : fn(T, fn()),
                       count : int,
-                      next : pi()) {
-  def innerRange(i : int) {
+                      next : fn()) {
+  fn innerRange(i : int) {
     if(i < count) {
       c(nextElem(i), lambda() {
           innerRange(++i);
@@ -13,21 +13,21 @@ def genericRange<T>(nextElem : pi(int, pi(T)),
   innerRange(0);
 }
 
-def intRange(start : int,
+fn intRange(start : int,
              count : int,
-             iter : pi(int, pi()),
-             next : pi()) {
+             iter : fn(int, fn()),
+             next : fn()) {
   genericRange(
-    lambda(i : int, c : pi(int)) {
+    lambda(i : int, c : fn(int)) {
       c(i);
     }, iter, count, next);
 }
 
-def main(p : pi(int)){
+fn main(p : fn(int)){
   // use int range
   // for each(int e in range(2, 10)) { ... }
   intRange(2, 10,
-    lambda(e : int, c : pi()) {
+    lambda(e : int, c : fn()) {
       // body
       c();
     },

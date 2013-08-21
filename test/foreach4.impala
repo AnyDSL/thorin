@@ -2,8 +2,8 @@
 foreach without an explicit scope
 expected result: 45
 */
-def count(n : int, yield : pi(int, pi()), ret : pi()) {
-    def loop(i : int) {
+fn count(n : int, yield : fn(int, fn()), ret : fn()) {
+    fn loop(i : int) {
         if (i < n)
             yield(i, lambda() { loop(i+1); });
         else
@@ -12,7 +12,7 @@ def count(n : int, yield : pi(int, pi()), ret : pi()) {
     loop(0);
 }
 
-def main(n : int) -> int {
+fn main(n : int) -> int {
     b : int = 0;
     foreach (x : int  <- count(10))
         b += x;

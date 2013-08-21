@@ -1,6 +1,6 @@
-def count<T>(n : int, t : T, yield : pi(int, T, pi(T)), ret : pi(T)) {
+fn count<T>(n : int, t : T, yield : fn(int, T, fn(T)), ret : fn(T)) {
     yield(1, t, lambda(t : T) {
-        def loop(i : int, t : T) {
+        fn loop(i : int, t : T) {
             if (i < n)
                 yield(i, t, lambda(t : T) { loop(i+1, t); });
             else
@@ -10,9 +10,9 @@ def count<T>(n : int, t : T, yield : pi(int, T, pi(T)), ret : pi(T)) {
     });
 }
 
-def main(main_ret : pi(int)) {
+fn main(main_ret : fn(int)) {
     count(100, 0,
-        lambda(p : int, result : int, next : pi(int)) {
+        lambda(p : int, result : int, next : fn(int)) {
             next(result + p);
         },
         lambda(result : int) {

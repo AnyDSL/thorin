@@ -1,6 +1,6 @@
-def extern fac(n : int) -> int 
+fn extern fac(n : int) -> int 
 {
-    def helper(r : int, i : int) -> int 
+    fn helper(r : int, i : int) -> int 
     {
         if (i <= n)
             return helper(r * i, i + 1);

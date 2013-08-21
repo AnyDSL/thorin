@@ -1,8 +1,8 @@
 /*
 foreach without float
 */
-def count(n : float, yield : pi(float, pi()), ret : pi()) {
-    def loop(i : float) {
+fn count(n : float, yield : fn(float, fn()), ret : fn()) {
+    fn loop(i : float) {
         if (i < n)
             yield(i, lambda() { loop(i+1.0f); });
         else
@@ -11,7 +11,7 @@ def count(n : float, yield : pi(float, pi()), ret : pi()) {
     loop(0.0f);
 }
 
-def main() -> float {
+fn main() -> float {
     b : float = 2.0f;
     foreach (x : float  <- count(10.0f)) {
         b += x;

@@ -2,8 +2,8 @@
 foreach with a generator that takes a generator as an argument
 expected result: 45
 */
-def count(n : int, m : int, yield : pi(int, pi()), ret : pi()) {
-    def loop(i : int) {
+fn count(n : int, m : int, yield : fn(int, fn()), ret : fn()) {
+    fn loop(i : int) {
         if (i < m)
             yield(i, lambda() { loop(i+1); });
         else
@@ -12,11 +12,11 @@ def count(n : int, m : int, yield : pi(int, pi()), ret : pi()) {
     loop(n);
 }
 
-def foo(n : int, gen: pi(int, int, pi(int, pi()), pi()), yield : pi(int, pi()), ret : pi()) {
+fn foo(n : int, gen: fn(int, int, fn(int, fn()), fn()), yield : fn(int, fn()), ret : fn()) {
     gen(n, n+10, yield, ret);
 }
 
-def main(n : int) -> int {
+fn main(n : int) -> int {
     b : int = 0;
     foreach (x : int  <- foo(0, count))
         b += x;

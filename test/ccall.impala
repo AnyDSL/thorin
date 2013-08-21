@@ -1,10 +1,10 @@
 extern println(int) -> int;
 
-def main(i : int) -> int {
+fn main(i : int) -> int {
     println(i);
     return 0;
 }
 extern printf(int) -> int;
 
 
-def f( i : int) -> int { return i; }
+fn f( i : int) -> int { return i; }

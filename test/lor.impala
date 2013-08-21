@@ -1,4 +1,4 @@
-def main(i : int) -> bool {
+fn main(i : int) -> bool {
     return i == 1 || (i == 2 || i == 3);
 }
     

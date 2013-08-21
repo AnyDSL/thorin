@@ -1,4 +1,4 @@
-def main(i : int) -> int {
+fn main(i : int) -> int {
     a : int;
     b : int = 0;
     if (i == 0)

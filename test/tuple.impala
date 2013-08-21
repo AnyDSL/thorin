@@ -1,10 +1,10 @@
-def f(cond : bool) -> sigma(int, bool) {
+fn f(cond : bool) -> sigma(int, bool) {
     if (cond)
         return #(42, cond);
     else
         return #(42, cond);
 }
 
-def main(i : int) -> int {
+fn main(i : int) -> int {
     return f(i == 0)[0];
 }

@@ -1,4 +1,4 @@
-def main(i : int) -> int {
+fn main(i : int) -> int {
     j : int;
     k : int;
     return i + 1;

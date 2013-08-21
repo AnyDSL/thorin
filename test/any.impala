@@ -1,4 +1,4 @@
-def extern f() -> int {
+fn extern f() -> int {
     i : int;
     j : int;
     return i + j;

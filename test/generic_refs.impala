@@ -1,10 +1,10 @@
-def f<T>(a : T) -> T {
-    def g(a : T) -> T {
+fn f<T>(a : T) -> T {
+    fn g(a : T) -> T {
         return a;
     }
     return g(a);
 }
 
-def main(i : int) -> int { 
+fn main(i : int) -> int { 
     return f(i);
 }

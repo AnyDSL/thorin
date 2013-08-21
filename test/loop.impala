@@ -1,4 +1,4 @@
-def extern f(i : int) -> int {
+fn extern f(i : int) -> int {
     while (i < 42) {
         do {
             for (j : int = 5; i < j; ++j)

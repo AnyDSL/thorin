@@ -1,6 +1,6 @@
-def range_xy<L>(l : L,
+fn range_xy<L>(l : L,
                   xn : int, yn : int,
-                  body : pi(L, int, int) -> L) -> L
+                  body : fn(L, int, int) -> L) -> L
 {
     for (y : int = 0; y < yn; ++y)
         for (x : int = 0; x < xn; ++x)
@@ -10,25 +10,25 @@ def range_xy<L>(l : L,
 }
 
 
-def initially<G,T,R>(g : G, xn: int, yn : int, make_strand : pi(G) -> T, write_result : pi(int, int, G, R) -> G, update : pi(G, T, int, int, /*loop*/ pi(T), /*stabilize*/ pi(R), /*die*/ pi())) -> G {
-    return range_xy(g, xn, yn, lambda(g : G, x : int, y : int, ret : pi(G)) { 
-        def loop(strand : T) {
+fn initially<G,T,R>(g : G, xn: int, yn : int, make_strand : fn(G) -> T, write_result : fn(int, int, G, R) -> G, update : fn(G, T, int, int, /*loop*/ fn(T), /*stabilize*/ fn(R), /*die*/ fn())) -> G {
+    return range_xy(g, xn, yn, lambda(g : G, x : int, y : int, ret : fn(G)) { 
+        fn loop(strand : T) {
             update(g, strand, x, y, 
                 loop, 
                 stab,
                 die); 
         }
 
-        def stab(res : R) { ret(write_result(x, y, g, res)); }
+        fn stab(res : R) { ret(write_result(x, y, g, res)); }
 
-        def die() { ret(g); }
+        fn die() { ret(g); }
 
         loop(make_strand(g));
     });
 }
 
-def main(j : int) -> int64 {
-    def update(g : int64, t : int16, xn : int, yn : int, loop : pi(int16), stabilize : pi(int16), die : pi()) {
+fn main(j : int) -> int64 {
+    fn update(g : int64, t : int16, xn : int, yn : int, loop : fn(int16), stabilize : fn(int16), die : fn()) {
         if (xn + yn < 42)
             die();
         if (t == 23s)
@@ -36,11 +36,11 @@ def main(j : int) -> int64 {
         loop(t + 1s);
     }
 
-    def make_strand(g : int64) -> int16 {
+    fn make_strand(g : int64) -> int16 {
         return 24s;
     }
 
-    def write_result(x : int, y : int, g : int64, r : int16) -> int64 {
+    fn write_result(x : int, y : int, g : int64, r : int16) -> int64 {
         return 25l;
     }
 

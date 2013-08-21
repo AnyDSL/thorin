@@ -283,7 +283,7 @@ protected:
 class FnType : public CompoundType {
 private:
     FnType(TypeTable& typetable, anydsl2::ArrayRef<const Type*> elems)
-        : CompoundType(typetable, Token::PI, elems, "<function type>")
+        : CompoundType(typetable, Token::FN, elems, "<function type>")
     {}
 
 public:

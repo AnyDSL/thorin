@@ -1,6 +1,6 @@
-def main(i : int) -> int {
+fn main(i : int) -> int {
     x : int = 42;
-    def f(j : int) -> int {
+    fn f(j : int) -> int {
         return i + j + x;
     }
     return f(5);

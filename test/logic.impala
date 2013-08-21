@@ -1,4 +1,4 @@
-def main(i : int) -> bool {
+fn main(i : int) -> bool {
     result : int;
     if (i == 0 || i == 1)
         result = 23;

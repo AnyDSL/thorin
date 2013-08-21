@@ -871,6 +871,7 @@ void World::dead_code_elimination() {
 
     for (auto lambda : lambdas()) {
         if (lambda->attr().is_extern()) {
+            dce_insert(pass, lambda);
             if (lambda->empty()) {
                 for (auto param : lambda->params())
                     dce_insert(pass, param);

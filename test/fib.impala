@@ -13,9 +13,7 @@ fn main() -> int {
     for (i : int = 15000000; i > 0; --i) {
         fib(40,
             |f : int| -> void { result = result % 4 + f; },
-            || {
-                continue;
-            }
+            || { continue; }
         );
     }
     return result;

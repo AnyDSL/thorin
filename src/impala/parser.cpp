@@ -62,7 +62,7 @@ public:
     const Scope* parse_scope();
     const Scope* try_scope(const std::string& context);
     const Scope* parse_stmt_as_scope(const std::string& what);
-    void parse_generics_list(TypeDecls&);
+    void parse_generics_list(GenericDecls&);
     const Type* parse_type();
     const Type* parse_compound_type();
     const Type* parse_return_type();
@@ -411,10 +411,10 @@ const Proto* Parser::parse_proto() {
     return proto;
 }
 
-void Parser::parse_generics_list(TypeDecls& typedecls) {
+void Parser::parse_generics_list(GenericDecls& generic_decls) {
     if (accept(Token::LT))
         parse_comma_list(Token::GT, "generics list", [&] {
-            typedecls.push_back(new TypeDecl(try_id("generic identifier")));
+            generic_decls.push_back(new GenericDecl(try_id("generic identifier")));
         });
 }
 
@@ -695,6 +695,7 @@ const Stmt* Parser::parse_decl_stmt_or_init_stmt() {
     }
 
     auto decl_stmt = new DeclStmt(decl);
+    decl_stmt->set_loc(decl->pos1(), la().pos2());
     expect(Token::SEMICOLON, "the end of an declaration statement");
     return decl_stmt;
 }

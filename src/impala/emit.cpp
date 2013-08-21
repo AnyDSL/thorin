@@ -364,7 +364,8 @@ void InfixExpr::emit_branch(CodeGen& cg, JumpTarget& t, JumpTarget& f) const {
 
 void DeclStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     if (cg.is_reachable()) {
-        //cg.emit(decl());
+        if (auto var_decl = decl()->isa<VarDecl>())
+            cg.emit(var_decl);
         cg.jump(exit_bb);
     }
 }

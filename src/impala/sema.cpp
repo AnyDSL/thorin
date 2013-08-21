@@ -140,14 +140,14 @@ void Fun::check_head(Sema& sema) const {
     sema.push_scope();
     ANYDSL2_PUSH(sema.cur_fun_, this);
 
-    for (auto type_decl : generics())
-        sema.check(type_decl);
+    for (auto generic_decl : generics())
+        sema.check(generic_decl);
 
     refined_type_ = orig_type()->refine(sema);
 
-    for (auto type_decl : generics()) {
-        if (type_decl->handle() != size_t(-1)) {
-            auto generic = generic_builder_.get(type_decl->handle());
+    for (auto generic_decl : generics()) {
+        if (generic_decl->handle() != size_t(-1)) {
+            auto generic = generic_builder_.get(generic_decl->handle());
             generic_map_[generic] = generic;
         }
     }
@@ -158,8 +158,8 @@ void Fun::check_head(Sema& sema) const {
 void Fun::check(Sema& sema) const {
     sema.push_scope();
 
-    for (auto type_decl : generics())
-        sema.check(type_decl);
+    for (auto generic_decl : generics())
+        sema.check(generic_decl);
 
     if (refined_type_ == nullptr) {
         generic_builder_ = sema.copy_generic_builder();
@@ -192,11 +192,11 @@ void Sema::check(const Scope* scope) {
 const Type* IdType::refine(const Sema& sema) const { 
     if (auto generic_builder = sema.generic_builder()) {
         if (auto decl = sema.lookup(Symbol(name.c_str()))) {
-            if (auto type_decl = decl->isa<TypeDecl>()) {
-                auto generic = generic_builder->use(type_decl->handle());
-                if (type_decl->fun() == sema.cur_fun())
+            if (auto generic_decl = decl->isa<GenericDecl>()) {
+                auto generic = generic_builder->use(generic_decl->handle());
+                if (generic_decl->fun() == sema.cur_fun())
                     return generic;
-                return typetable_.genericref(type_decl->fun(), generic);
+                return typetable_.genericref(generic_decl->fun(), generic);
             }
         }
     }
@@ -213,7 +213,7 @@ void VarDecl::check(Sema& sema) const {
     fun_ = sema.cur_fun();
 }
 
-void TypeDecl::check(Sema& sema) const {
+void GenericDecl::check(Sema& sema) const {
     sema.insert(this);
 
     if (handle_ == size_t(-1)) {

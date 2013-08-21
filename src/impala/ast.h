@@ -3,6 +3,8 @@
 
 #include <vector>
 
+#include "anydsl2/irbuilder.h"
+
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/assert.h"
 #include "anydsl2/util/autoptr.h"
@@ -32,13 +34,12 @@ class ScopeStmt;
 class Sema;
 class Stmt;
 class VarDecl;
-class TypeDecl;
+class GenericDecl;
 
 typedef anydsl2::AutoVector<const VarDecl*> VarDecls;
 typedef anydsl2::AutoVector<const Expr*> Exprs;
 typedef anydsl2::AutoVector<const Stmt*> Stmts;
-typedef anydsl2::AutoPtr<const anydsl2::Ref> RefPtr;
-typedef anydsl2::AutoVector<const TypeDecl*> TypeDecls;
+typedef anydsl2::AutoVector<const GenericDecl*> GenericDecls;
 
 //------------------------------------------------------------------------------
 
@@ -108,7 +109,7 @@ public:
     const VarDecls& params() const { return params_; }
     const FnType* orig_fntype() const { return orig_type_->as<FnType>(); }
     const FnType* refined_fntype() const { return refined_type_->as<FnType>(); }
-    const TypeDecls& generics() const { return generics_; }
+    const GenericDecls& generics() const { return generics_; }
     bool is_extern() const { return extern_; }
     bool is_continuation() const { return orig_fntype()->return_type()->isa<NoRet>() != nullptr; }
     bool is_lambda() const { return symbol_ == anydsl2::Symbol("<lambda>"); }
@@ -122,7 +123,7 @@ private:
     VarDecls params_;
     anydsl2::AutoPtr<const Scope> body_;
     bool extern_;
-    TypeDecls generics_;
+    GenericDecls generics_;
     mutable anydsl2::Lambda* lambda_;
     mutable const anydsl2::Param* ret_param_;
     mutable GenericBuilder generic_builder_;
@@ -131,13 +132,13 @@ private:
     friend class Parser;
     friend class Sema;
     friend class CodeGen;
-    friend class TypeDecl;
+    friend class GenericDecl;
     friend class FunExpr;
 };
 
-class TypeDecl : public Decl {
+class GenericDecl : public Decl {
 public:
-    TypeDecl(const Token& tok)
+    GenericDecl(const Token& tok)
         : handle_(-1)
     {
         symbol_ = tok.symbol();
@@ -217,7 +218,7 @@ public:
     virtual bool is_lvalue() const = 0;
 
 private:
-    virtual RefPtr emit(CodeGen& cg) const = 0;
+    virtual anydsl2::RefPtr emit(CodeGen& cg) const = 0;
     virtual const Type* check(Sema& sema) const = 0;
 
 protected:
@@ -239,7 +240,7 @@ public:
 
 private:
     virtual const Type* check(Sema& sema) const;
-    virtual RefPtr emit(CodeGen& cg) const;
+    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
 };
 
 class Literal : public Expr {
@@ -265,7 +266,7 @@ public:
 
 private:
     virtual const Type* check(Sema& sema) const;
-    virtual RefPtr emit(CodeGen& cg) const;
+    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
 
     Kind kind_;
     anydsl2::Box box_;
@@ -283,7 +284,7 @@ public:
 
 private:
     virtual const Type* check(Sema& sema) const;
-    virtual RefPtr emit(CodeGen& cg) const;
+    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
 
     anydsl2::AutoPtr<Fun> fun_;
 
@@ -299,7 +300,7 @@ public:
 
 private:
     virtual const Type* check(Sema& sema) const;
-    virtual RefPtr emit(CodeGen& cg) const;
+    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
 
     friend class Parser;
 };
@@ -320,7 +321,7 @@ public:
 
 private:
     virtual const Type* check(Sema& sema) const;
-    virtual RefPtr emit(CodeGen& cg) const;
+    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
 
     anydsl2::Symbol symbol_;
     mutable const Decl* decl_; ///< Declaration of the variable in use.
@@ -347,7 +348,7 @@ public:
 
 private:
     virtual const Type* check(Sema& sema) const;
-    virtual RefPtr emit(CodeGen& cg) const;
+    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
     virtual void emit_branch(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const;
 
     Kind kind_;
@@ -377,7 +378,7 @@ public:
 
 private:
     virtual const Type* check(Sema& sema) const;
-    virtual RefPtr emit(CodeGen& cg) const;
+    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
     virtual void emit_branch(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const;
 
     Kind kind_;
@@ -408,7 +409,7 @@ public:
 
 private:
     virtual const Type* check(Sema& sema) const;
-    virtual RefPtr emit(CodeGen& cg) const;
+    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
 
     Kind kind_;
 };
@@ -430,7 +431,7 @@ public:
 
 private:
     virtual const Type* check(Sema& sema) const;
-    virtual RefPtr emit(CodeGen& cg) const;
+    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
 };
 
 class IndexExpr : public Expr {
@@ -448,7 +449,7 @@ public:
 
 private:
     virtual const Type* check(Sema& sema) const;
-    virtual RefPtr emit(CodeGen& cg) const;
+    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
 };
 
 class Call : public Expr {
@@ -471,7 +472,7 @@ public:
 
 private:
     virtual const Type* check(Sema& sema) const;
-    virtual RefPtr emit(CodeGen& cg) const;
+    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
 };
 
 //------------------------------------------------------------------------------

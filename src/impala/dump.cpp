@@ -77,7 +77,7 @@ std::ostream& Printer::print_block(const Stmt* s) {
 void ASTNode::dump() const { Printer p(std::cout, true); print(p) << std::endl; }
 void Type::dump() const { Printer p(std::cout, true); p.print_type(this) << std::endl; }
 std::ostream& VarDecl::print(Printer& p) const { return p.stream() << symbol() << " : " << orig_type(); }
-std::ostream& TypeDecl::print(Printer& p) const { return p.stream() << symbol(); }
+std::ostream& GenericDecl::print(Printer& p) const { return p.stream() << symbol(); }
 
 std::ostream& Scope::print(Printer& p) const {
     p.stream() << "{";
@@ -334,7 +334,7 @@ std::ostream& ReturnStmt::print(Printer& p) const {
 std::ostream& FunStmt::print(Printer& p) const { 
     p.stream() << "fn " << fun()->symbol(); 
     if (!fun()->generics().empty())
-        p.dump_list([&] (const TypeDecl* typedecl) { typedecl->print(p); }, fun()->generics(), "<", ">");
+        p.dump_list([&] (const GenericDecl* generic_decl) { generic_decl->print(p); }, fun()->generics(), "<", ">");
 
     return fun()->print(p);
 }

@@ -167,12 +167,14 @@ public:
 
     size_t handle() const { return handle_; }
     bool is_address_taken() const { return is_address_taken_; }
+    const Fun* fun() const { return fun_; }
     virtual void check(Sema& sema) const;
     virtual std::ostream& print(Printer& p) const;
 
 private:
     size_t handle_;
     mutable bool is_address_taken_;
+    mutable const Fun* fun_;
 
     friend class Id;
     friend class ForeachStmt;

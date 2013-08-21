@@ -213,6 +213,7 @@ const Type* IdType::refine(const Sema& sema) const {
 void VarDecl::check(Sema& sema) const {
     sema.insert(this);
     refined_type_ = orig_type_->refine(sema);
+    fun_ = sema.cur_fun();
 }
 
 void TypeDecl::check(Sema& sema) const {
@@ -252,8 +253,8 @@ const Type* Id::check(Sema& sema) const {
     if (const Decl* decl = sema.lookup(symbol())) {
         decl_ = decl;
 
-        if (sema.nossa() || sema.in_foreach_) {
-            if (const VarDecl* vardecl = decl->isa<VarDecl>()) {
+        if (const VarDecl* vardecl = decl->isa<VarDecl>()) {
+            if (sema.nossa() || sema.in_foreach_ || vardecl->fun() != sema.cur_fun()) {
                 if (!vardecl->refined_type()->isa<FnType>() && !vardecl->refined_type()->is_generic())
                     vardecl->is_address_taken_ = true;
             }

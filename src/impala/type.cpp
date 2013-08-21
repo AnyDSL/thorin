@@ -117,12 +117,6 @@ bool Type::is_bool() const {
     return false; 
 }
 
-bool Type::is_void() const { 
-    if (auto tuple = isa<TupleType>()) 
-        return tuple->empty();
-    return false; 
-}
-
 bool Type::is_int() const {
     if (auto pt = isa<PrimType>()) {
         switch (pt->kind()) {

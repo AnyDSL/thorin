@@ -125,11 +125,13 @@ public:
     bool is_bool() const;
     bool is_int() const;
     bool is_float() const;
-    bool is_void() const;
+    bool is_void() const { return isa<Void>(); }
+    bool is_noret() const { return isa<NoRet>(); }
     bool is_generic() const { return is_generic_; }
     bool check_with(const Type*) const;
     bool infer_with(GenericMap& map, const Type* type) const;
     void dump() const;
+    void set(size_t i, const Type* t) { assert(!t->is_void() && !t->is_noret()); Node::set(i, t); }
 
 protected:
     TypeTable& typetable_;

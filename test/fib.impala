@@ -12,10 +12,7 @@ fn main() -> int {
     result : int = 0;
     for (i : int = 15000000; i > 0; --i) {
         fib(40,
-            |f : int, next : fn()| {
-                result = result % 4 + f;
-                next();
-            },
+            |f : int| -> void { result = result % 4 + f; },
             || {
                 continue;
             }

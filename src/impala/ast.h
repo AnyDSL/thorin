@@ -44,6 +44,9 @@ typedef anydsl2::AutoVector<const TypeDecl*> TypeDecls;
 
 class ASTNode : public anydsl2::HasLocation, public anydsl2::MagicCast {
 public:
+#ifndef NDEBUG
+    virtual ~ASTNode() { assert(loc_.is_set()); }
+#endif
     virtual std::ostream& print(Printer& p) const = 0;
     void dump() const;
 };

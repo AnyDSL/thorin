@@ -9,13 +9,11 @@ namespace anydsl2 {
 
 class Position {
 public:
-
     Position() 
         : filename_("<unset>")
         , line_(-1)
         , col_(-1)
     {}
-
     Position(const std::string& filename, int line, int col)
         : filename_(filename)
         , line_(line)
@@ -36,15 +34,12 @@ public:
     void dec_col(int dec = 1)  { col_ -= dec; }
     void reset_col() { col_ = 1; }
     void reset_line() { line_ = 1; }
-
     std::ostream& line_col(std::ostream& os) const;
     std::ostream& error() const;
     std::ostream& warning() const;
-
-    bool isSet() const { return line_ != -1; }
+    bool is_set() const { return line_ != -1; }
 
 private:
-
     std::string filename_;
     int line_;
     int col_;
@@ -54,7 +49,6 @@ private:
 
 class Location {
 public:
-
     Location() {}
     Location(const Position& pos1, const Position& pos2)
         : pos1_(pos1)
@@ -69,26 +63,18 @@ public:
         , pos2_( Position(filename, line2, col2) )
     {}
 
-    bool operator == (const Location& loc) const {
-        return pos1_ == loc.pos1() && pos2_ == loc.pos2();
-    }
-    bool isSet() const { return pos1_.isSet(); }
-
+    bool operator == (const Location& loc) const { return pos1_ == loc.pos1() && pos2_ == loc.pos2(); }
+    bool is_set() const { return pos1_.is_set(); }
     const Position& pos1() const { return pos1_; }
     const Position& pos2() const { return pos2_; }
-
     void set_pos1(const Position& pos1) { pos1_ = pos1; }
     void set_pos2(const Position& pos2) { pos2_ = pos2; }
-
     std::ostream& error() const;
     std::ostream& warning() const;
 
 protected:
-
     Position pos1_;
     Position pos2_;
-
-private:
 
     friend class HasLocation;
 };
@@ -97,7 +83,6 @@ private:
 
 class HasLocation {
 public:
-
     HasLocation() {}
     HasLocation(const Position& pos)
         : loc_(pos, pos)
@@ -116,12 +101,10 @@ public:
     void set_pos2(const Position& pos2) { loc_.pos2_ = pos2; }
     void set_loc(const Location& loc) { loc_ = loc; }
     void set_loc(const Position& pos1, const Position& pos2) { loc_.pos1_ = pos1; loc_.pos2_ = pos2; }
-
     std::ostream& error() const;
     std::ostream& warning() const;
 
 protected:
-
     Location loc_;
 };
 

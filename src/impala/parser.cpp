@@ -285,7 +285,9 @@ const Scope* Parser::parse_stmt_as_scope(const std::string& what) {
     if (la() == Token::L_BRACE)
         return parse_scope();
     auto scope = new Scope();
+    scope->set_pos1(la().pos1());
     scope->stmts_.push_back(try_stmt(what));
+    scope->set_pos2(prev_loc.pos2());
     return scope;
 }
 

@@ -1,0 +1,6 @@
+extern f(int, int) -> int;
+
+def main(i : int) -> int {
+    extern g(float) -> int;
+    return f(g(3.f), 42);
+}

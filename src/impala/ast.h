@@ -74,22 +74,13 @@ private:
 
 class Decl : public ASTNode {
 public:
-    Decl()
-        : orig_type_(nullptr)
-        , refined_type_(nullptr)
-    {}
-
     anydsl2::Symbol symbol() const { return symbol_; }
-    const Type* orig_type() const { return orig_type_; }
-    const Type* refined_type() const { return refined_type_; }
     size_t depth() const { return depth_; }
     const Decl* shadows() const { return shadows_; }
     virtual void check(Sema& sema) const = 0;
 
 protected:
     anydsl2::Symbol symbol_;
-    const Type* orig_type_;
-    mutable const Type* refined_type_;
 
 private:
     mutable const Decl* shadows_;
@@ -98,7 +89,50 @@ private:
     friend class Sema;
 };
 
-class Fun : public Decl {
+class TypeDecl : public Decl {
+};
+
+class GenericDecl : public TypeDecl {
+public:
+    GenericDecl(const Token& tok)
+        : handle_(-1)
+    {
+        symbol_ = tok.symbol();
+        set_loc(tok.loc());
+    }
+
+    size_t handle() const { return handle_; }
+    const Fun* fun() const { return fun_; }
+    virtual void check(Sema& sema) const;
+    virtual std::ostream& print(Printer& p) const;
+
+private:
+
+    mutable size_t handle_;
+    mutable const Fun* fun_;
+
+    friend class Fun;
+    friend class Sema;
+};
+
+class LetDecl : public Decl {
+public:
+    LetDecl()
+        : orig_type_(nullptr)
+        , refined_type_(nullptr)
+    {}
+
+    const Type* orig_type() const { return orig_type_; }
+    const Type* refined_type() const { return refined_type_; }
+
+protected:
+    const Type* orig_type_;
+    mutable const Type* refined_type_;
+
+    friend class Sema;
+};
+
+class Fun : public LetDecl {
 public:
     Fun(TypeTable& typetable)
         : generic_builder_(typetable)
@@ -136,30 +170,7 @@ private:
     friend class FunExpr;
 };
 
-class GenericDecl : public Decl {
-public:
-    GenericDecl(const Token& tok)
-        : handle_(-1)
-    {
-        symbol_ = tok.symbol();
-        set_loc(tok.loc());
-    }
-
-    size_t handle() const { return handle_; }
-    const Fun* fun() const { return fun_; }
-    virtual void check(Sema& sema) const;
-    virtual std::ostream& print(Printer& p) const;
-
-private:
-
-    mutable size_t handle_;
-    mutable const Fun* fun_;
-
-    friend class Fun;
-    friend class Sema;
-};
-
-class VarDecl : public Decl {
+class VarDecl : public LetDecl {
 public:
     VarDecl(size_t handle, bool is_val, const Token& tok, const Type* orig_type, const anydsl2::Position& pos2)
         : handle_(handle)
@@ -188,7 +199,7 @@ private:
     friend class ForeachStmt;
 };
 
-class Proto : public Decl {
+class Proto : public LetDecl {
 public:
     Proto(anydsl2::Symbol symbol) {
         symbol_ = symbol;

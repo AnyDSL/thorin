@@ -55,7 +55,7 @@ public:
     std::ostream& error(const Location& loc) { result_ = false; return loc.error(); }
     TypeTable& typetable() const { return typetable_; }
     void check(const Scope*) ;
-    const Type* check(const Decl* decl) { decl->check(*this); return decl->refined_type_; }
+    void check(const Decl* decl) { decl->check(*this); }
     const Type* check(const Expr* expr) { assert(!expr->type_); return expr->type_ = expr->check(*this); }
     void check(const Stmt* stmt) { stmt->check(*this); }
     bool check_cond(const Expr* cond) {
@@ -248,14 +248,19 @@ const Type* Tuple::check(Sema& sema) const {
 
 const Type* Id::check(Sema& sema) const {
     if (const Decl* decl = sema.lookup(symbol())) {
-        decl_ = decl;
+        if (auto let_decl = decl->isa<LetDecl>()) {
+            decl_ = decl;
 
-        if (const VarDecl* vardecl = decl->isa<VarDecl>()) {
-            if (!vardecl->is_val() && (sema.nossa() || vardecl->fun() != sema.cur_fun()))
-                vardecl->is_address_taken_ = true;
+            if (const VarDecl* vardecl = decl->isa<VarDecl>()) {
+                if (!vardecl->is_val() && (sema.nossa() || vardecl->fun() != sema.cur_fun()))
+                    vardecl->is_address_taken_ = true;
+            }
+
+            return let_decl->refined_type();
+        } else {
+            sema.error(this) << "symbol '" << symbol() << "' is used in expression\n";
+            sema.error(decl) << "but is bound as a type here\n";
         }
-
-        return decl->refined_type();
     }
 
     sema.error(this) << "symbol '" << symbol() << "' not found in current scope\n";
@@ -405,7 +410,8 @@ const Type* Call::check(Sema& sema) const {
 void DeclStmt::check(Sema& sema) const { sema.check(decl()); }
 
 void InitStmt::check(Sema& sema) const {
-    if (sema.check(var_decl())->check_with(sema.check(init()))) {
+    sema.check(var_decl());
+    if (var_decl()->refined_type()->check_with(sema.check(init()))) {
         GenericMap map = sema.copy_generic_map();
         if (var_decl()->refined_type()->infer_with(map, init()->type()))
             return;

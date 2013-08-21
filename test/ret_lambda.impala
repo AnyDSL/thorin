@@ -1,5 +1,5 @@
 fn f(a : int) -> fn(int) -> int {
-    return lambda(i : int) -> int { 
+    return |i : int| -> int { 
         if (i == a)
             return i + a; 
         else

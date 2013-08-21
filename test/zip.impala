@@ -23,14 +23,14 @@ fn count(n : int, yield : fn(int)) {
 
 fn zip(zipper : fn(int, int) -> int, generate1 : fn(int, fn(int)), generate2 : fn(int, fn(int)), yield : fn(int, fn())) {
     fn loop(i : int) {
-        yield(zipper(generate1(i), generate2(i)), lambda() { loop(i + 1); });
+        yield(zipper(generate1(i), generate2(i)), || { loop(i + 1); });
     }
     loop(0);
 }
 
 fn main(n : int, ret : fn(int)) {
     fn zipper(a : int, b : int) -> int { return a + b; }
-    zip(zipper, primes, count, lambda(i : int, next : fn()) {
+    zip(zipper, primes, count, |i : int, next : fn()| {
         if (i > 24)
             ret(i);
         next();

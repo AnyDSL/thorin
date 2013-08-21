@@ -1,8 +1,8 @@
 fn count<T>(n : int, t : T, yield : fn(int, T, fn(T)), ret : fn(T)) {
-    yield(1, t, lambda(t : T) {
+    yield(1, t, |t : T| {
         fn loop(i : int, t : T) {
             if (i < n)
-                yield(i, t, lambda(t : T) { loop(i+1, t); });
+                yield(i, t, |t : T| { loop(i+1, t); });
             else
                 ret(t);
         }
@@ -12,10 +12,10 @@ fn count<T>(n : int, t : T, yield : fn(int, T, fn(T)), ret : fn(T)) {
 
 fn main(main_ret : fn(int)) {
     count(100, 0,
-        lambda(p : int, result : int, next : fn(int)) {
+        |p : int, result : int, next : fn(int)| {
             next(result + p);
         },
-        lambda(result : int) {
+        |result : int| {
             main_ret(result);
         }
     );

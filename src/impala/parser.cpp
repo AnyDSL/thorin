@@ -493,6 +493,8 @@ const Expr* Parser::parse_expr(Prec prec) {
 }
 
 const Expr* Parser::parse_prefix_expr() {
+    if (la() == Token::OR || la() == Token::L_O)
+        return parse_fun_expr();
     Token op = lex();
     const Expr* rhs = try_expr(PrecTable::prefix_r[op], "prefix expression");
 
@@ -549,7 +551,6 @@ const Expr* Parser::parse_primary_expr() {
             return expr;
         }
         case Token::HASH:       return parse_tuple();
-        case Token::LAMBDA:     return parse_fun_expr();
         default:                ANYDSL2_UNREACHABLE;
     }
 }
@@ -586,8 +587,35 @@ const Expr* Parser::parse_tuple() {
 
 const Expr* Parser::parse_fun_expr() {
     FunExpr* e = new FunExpr(typetable);
-    e->set_pos1(eat(Token::LAMBDA).pos1());
-    parse_fun(e->fun_);
+    e->set_pos1(la().pos1());
+    Fun* fun = e->fun_;
+
+    ANYDSL2_PUSH(cur_fun, fun);
+    ANYDSL2_PUSH(cur_var_handle, cur_var_handle);
+
+    fun->set_pos1(la().pos1());
+    std::vector<const Type*> arg_types;
+    if (accept(Token::OR)) {
+        parse_comma_list(Token::OR, "parameter list of function expression", [&] {
+            const VarDecl* param = parse_var_decl();
+            fun->params_.push_back(param);
+            arg_types.push_back(param->orig_type());
+        });
+    } else
+        expect(Token::L_O, "parameter list of function expression");
+
+    // return-continuation
+    if (accept(Token::ARROW)) {
+        Position pos1 = prev_loc.pos1();
+        arg_types.push_back(parse_return_type());
+        Position pos2 = prev_loc.pos2();
+        fun->params_.push_back(new VarDecl(cur_var_handle++, Token(pos1, "return"), arg_types.back(), pos2));
+    }
+
+    fun->orig_type_ = typetable.fntype(arg_types);
+    fun->body_ = try_scope("body of function");
+    fun->set_pos2(prev_loc.pos2());
+
     e->fun_->extern_ = false;
     e->fun_->symbol_ = "<lambda>";
     e->set_pos2(prev_loc.pos2());

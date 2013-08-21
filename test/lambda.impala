@@ -3,7 +3,7 @@ fn extern f(a : int) -> int {
     j : int = 22;
     b : bool = i == 23;
 
-    g : fn(int) -> int = lambda(k : int) -> int { 
+    g : fn(int) -> int = |k : int| -> int { 
         fn z(x : int) -> int { return x; }
         return i + j + a + z(k); 
     };
@@ -15,7 +15,7 @@ fn extern f(a : int) -> int {
 }
 
 fn extern g(i : int) -> int {
-    return lambda(j : int) -> int { return j + 42 + i; }(23);
+    return |j : int| -> int { return j + 42 + i; }(23);
 }
 
 fn foo(h : fn(int, fn(int))) -> int {
@@ -23,7 +23,7 @@ fn foo(h : fn(int, fn(int))) -> int {
 }
 
 fn extern bar(a : int) -> int {
-    k : fn(int) -> int = lambda(b : int) -> int {
+    k : fn(int) -> int = |b : int| -> int {
         return a + b;
     };
     return foo(k);

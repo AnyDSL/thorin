@@ -6,7 +6,7 @@ fn primes(n : int, yield : fn(int, fn()), ret : fn()) {
     if (n < 2) 
         ret();
 
-    yield(2, lambda() {
+    yield(2, || {
         fn loop(i : int) {
             fn inner_loop(j : int) {
                 if (j < i) {
@@ -15,7 +15,7 @@ fn primes(n : int, yield : fn(int, fn()), ret : fn()) {
                     else
                         inner_loop(j + 1);
                 }
-                yield(i, lambda() { loop(i+1); });
+                yield(i, || { loop(i+1); });
             }
             if (i < n)
                 inner_loop(2);

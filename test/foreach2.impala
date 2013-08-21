@@ -4,7 +4,7 @@ foreach without float
 fn count(n : float, yield : fn(float, fn()), ret : fn()) {
     fn loop(i : float) {
         if (i < n)
-            yield(i, lambda() { loop(i+1.0f); });
+            yield(i, || { loop(i+1.0f); });
         else
             ret();
     }

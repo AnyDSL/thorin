@@ -4,7 +4,7 @@ foreach a parameterized generator
 fn count<T>(n : T, yield : fn(T, fn()), ret : fn()) {
     fn loop(i : T) {
         if (true)
-            yield(i, lambda() { loop(i); });
+            yield(i, || { loop(i); });
         else
             ret();
     }

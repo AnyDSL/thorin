@@ -27,5 +27,5 @@ fn main(i : int) -> int {
             return 0;
     }
 
-    return blocked_loop(8192, get_block_size, lambda(i : int) -> int { return i; });
+    return blocked_loop(8192, get_block_size, |i : int| -> int { return i; });
 }

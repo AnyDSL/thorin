@@ -5,7 +5,7 @@ expected result: 15
 fn count(n : int, yield : fn(int, fn()), ret : fn()) {
     fn loop(i : int) {
         if (i < n)
-            yield(i, lambda() { loop(i+1); });
+            yield(i, || { loop(i+1); });
         else
             ret();
     }

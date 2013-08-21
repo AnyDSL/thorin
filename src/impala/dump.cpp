@@ -111,6 +111,8 @@ std::ostream& Fun::print(Printer& p) const {
 
     if (ret_param)
         p.stream() << " -> " << ret_param->orig_type()->as<FnType>()->elem(0) << ' ';
+    else
+        p.stream() << ' ';
 
     return body()->print(p);
 }
@@ -131,8 +133,25 @@ std::ostream& Literal::print(Printer& p) const {
 
 std::ostream& Id::print(Printer& p) const { return p.stream() << symbol(); }
 std::ostream& EmptyExpr::print(Printer& p) const { return p.stream() << "/*empty*/"; }
-std::ostream& FunExpr::print(Printer& p) const { p.stream() << "lambda"; return fun()->print(p); }
 std::ostream& Tuple::print(Printer& p) const { return p.dump_list([&](const Expr* expr) { expr->print(p); }, ops(), "#(", ")"); }
+
+std::ostream& FunExpr::print(Printer& p) const { 
+    const VarDecl* ret_param = !fun()->params().empty() && fun()->params().back()->symbol() == Symbol("return") 
+                             ? fun()->params().back() 
+                             : nullptr;
+    ArrayRef<const VarDecl*> params_ref = ret_param 
+                                        ? ArrayRef<const VarDecl*>(&fun()->params().front(), fun()->params().size() - 1) 
+                                        : fun()->params();
+
+    p.dump_list([&](const VarDecl* decl) { decl->print(p); }, params_ref, "|", "|");
+
+    if (ret_param)
+        p.stream() << " -> " << ret_param->orig_type()->as<FnType>()->elem(0) << ' ';
+    else
+        p.stream() << ' ';
+
+    return fun()->body()->print(p);
+}
 
 std::ostream& PrefixExpr::print(Printer& p) const {
     Prec r = PrecTable::prefix_r[kind()];

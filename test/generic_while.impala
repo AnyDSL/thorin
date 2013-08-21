@@ -4,7 +4,7 @@ fn generic_while<L, B>(l : L,
                           next : fn(B)) 
 {
     head(l,
-        lambda(b : B, cond : bool) {
+        |b : B, cond : bool| {
             if (cond)
                 generic_while(body(b), head, body, next);
             else
@@ -17,6 +17,6 @@ fn main(ret_main : fn(int))
 {
     return generic_while(
         0, // counter
-        lambda(i : int, ret : fn(int, bool)) { ret(i, i < 42); },
-        lambda(i : int) -> int { return i + 1; });
+        |i : int, ret : fn(int, bool)| { ret(i, i < 42); },
+        |i : int| -> int { return i + 1; });
 }

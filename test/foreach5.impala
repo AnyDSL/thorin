@@ -6,7 +6,7 @@ expected result: 45
 fn to5(yield : fn(int, fn()), ret : fn()) {
     fn loop(i : int) {
         if (i < 5)
-            yield(i, lambda() { loop(i+1); });
+            yield(i, || { loop(i+1); });
         else
             ret();
     }
@@ -16,7 +16,7 @@ fn to5(yield : fn(int, fn()), ret : fn()) {
 fn count(n : int, m : int, yield : fn(int, fn()), ret : fn()) {
     fn loop(i : int) {
         if (i < m)
-            yield(i, lambda() { loop(i+1); });
+            yield(i, || { loop(i+1); });
         else
             ret();
     }

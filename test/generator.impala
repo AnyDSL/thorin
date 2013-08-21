@@ -4,7 +4,7 @@ fn genericRange<T>(nextElem : fn(int, fn(T)),
                       next : fn()) {
   fn innerRange(i : int) {
     if(i < count) {
-      c(nextElem(i), lambda() {
+      c(nextElem(i), || {
           innerRange(++i);
         });
     } else 
@@ -18,7 +18,7 @@ fn intRange(start : int,
              iter : fn(int, fn()),
              next : fn()) {
   genericRange(
-    lambda(i : int, c : fn(int)) {
+    |i : int, c : fn(int)| {
       c(i);
     }, iter, count, next);
 }
@@ -27,11 +27,11 @@ fn main(p : fn(int)){
   // use int range
   // for each(int e in range(2, 10)) { ... }
   intRange(2, 10,
-    lambda(e : int, c : fn()) {
+    |e : int, c : fn()| {
       // body
       c();
     },
-    lambda() {
+    || {
       p(42);
     } );
 }

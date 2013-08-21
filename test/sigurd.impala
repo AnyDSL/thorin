@@ -1,6 +1,6 @@
 fn f<A,B>(x : A, y : B) -> A {
     fn g(x : A) -> fn(A) -> A {
-        return lambda(s : A) -> A { return s; };
+        return |s : A| -> A { return s; };
     }
 
     return g(x)(y);

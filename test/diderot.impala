@@ -11,7 +11,7 @@ fn range_xy<L>(l : L,
 
 
 fn initially<G,T,R>(g : G, xn: int, yn : int, make_strand : fn(G) -> T, write_result : fn(int, int, G, R) -> G, update : fn(G, T, int, int, /*loop*/ fn(T), /*stabilize*/ fn(R), /*die*/ fn())) -> G {
-    return range_xy(g, xn, yn, lambda(g : G, x : int, y : int, ret : fn(G)) { 
+    return range_xy(g, xn, yn, |g : G, x : int, y : int, ret : fn(G)| { 
         fn loop(strand : T) {
             update(g, strand, x, y, 
                 loop, 

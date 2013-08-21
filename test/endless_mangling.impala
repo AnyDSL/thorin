@@ -6,5 +6,5 @@ fn f(a : int, ret1 : fn(int), ret2 : fn(int)) {
 }
 
 fn main(i : int, ret : fn(int)) {
-    f(i, ret, lambda(i : int) { ret(i); });
+    f(i, ret, |i : int| { ret(i); });
 }

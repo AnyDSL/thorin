@@ -2,7 +2,7 @@ fn primes<T>(n : int, t : T, yield : fn(int, T, fn(T)), ret : fn(T)) {
     if (n < 2) 
         ret(t);
 
-    yield(2, t, lambda(t : T) {
+    yield(2, t, |t : T| {
         fn loop(i : int, t : T) {
             fn inner_loop(j : int) {
                 if (j < i) {
@@ -11,7 +11,7 @@ fn primes<T>(n : int, t : T, yield : fn(int, T, fn(T)), ret : fn(T)) {
                     else
                         inner_loop(j + 1);
                 }
-                yield(i, t, lambda(t : T) { loop(i+1, t); });
+                yield(i, t, |t : T| { loop(i+1, t); });
             }
             if (i < n)
                 inner_loop(2);
@@ -24,10 +24,10 @@ fn primes<T>(n : int, t : T, yield : fn(int, T, fn(T)), ret : fn(T)) {
 
 fn main(main_ret : fn(sigma(int, int))) {
     primes(100, #(0, 42),
-        lambda(p : int, result : sigma(int, int), next : fn(sigma(int, int))) {
+        |p : int, result : sigma(int, int), next : fn(sigma(int, int))| {
             next(result);
         },
-        lambda(result : sigma(int, int)) {
+        |result : sigma(int, int)| {
             main_ret(result);
         }
     );

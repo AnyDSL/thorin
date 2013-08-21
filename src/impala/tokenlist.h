@@ -19,6 +19,8 @@ IMPALA_PREFIX(         NOT,    "~",   POSTFIX             ) // unary complement
 IMPALA_PREFIX(         L_N,    "!",   POSTFIX             ) // logical not
 IMPALA_PREFIX(         INC,   "++",   POSTFIX             ) // prefix ++
 IMPALA_PREFIX(         DEC,   "--",   POSTFIX             ) // prefix --
+IMPALA_PREFIX(          OR,    "|",   POSTFIX             ) // lambda expressions
+IMPALA_PREFIX(         L_O,   "||",   POSTFIX             ) // lambda expressions with empty param list
 
 #undef IMPALA_PREFIX
 
@@ -103,7 +105,6 @@ IMPALA_INFIX(        ARROW,  "->",    POSTFIX,         TOP)
 #define IMPALA_KEY_EXPR(tok, str)
 #endif
 
-IMPALA_KEY_EXPR(LAMBDA, "lambda")
 IMPALA_KEY_EXPR(TRUE,   "true")
 IMPALA_KEY_EXPR(FALSE,  "false")
 

@@ -4,7 +4,7 @@ fn simple_while(i : int,
                 next : fn(int)) 
 {
     head(i, 
-        lambda(f : int, cond : bool) {
+        |f : int, cond : bool| {
             if (cond)
                 simple_while(body(f), head, body, next);
             else
@@ -17,6 +17,6 @@ fn main(N : int, ret_main : fn(int))
 {
     return simple_while(
         0, // counter
-        lambda(i : int, ret : fn(int, bool)) { ret(i, i < N); },
-        lambda(i : int) -> int { return i + 1; });
+        |i : int, ret : fn(int, bool)| { ret(i, i < N); },
+        |i : int| -> int { return i + 1; });
 }

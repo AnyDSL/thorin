@@ -605,21 +605,16 @@ class ForeachStmt : public Stmt {
 public:
     ForeachStmt() {}
 
-    const Stmt* body() const { return body_; }
-    const VarDecl* init_decl() const { return init_decl_; }
-    const Expr* init_expr() const { return init_expr_; }
     const Call* call() const { return call_; }
-    const ASTNode* init() const { return (const ASTNode*) ((uintptr_t) init_decl_.get() | (uintptr_t) init_expr_.get()); }
+    const FunExpr* fun_expr() const { return fun_expr_; }
     virtual std::ostream& print(Printer& p) const;
 
 private:
     virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
-    anydsl2::AutoPtr<const Stmt> body_;
-    anydsl2::AutoPtr<const VarDecl> init_decl_;
-    anydsl2::AutoPtr<const Expr> init_expr_;
     anydsl2::AutoPtr<const Call> call_;
+    anydsl2::AutoPtr<const FunExpr> fun_expr_;
     mutable const FnType* fntype_;
 
     friend class Parser;

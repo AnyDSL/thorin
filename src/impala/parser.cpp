@@ -18,7 +18,20 @@ namespace impala {
 
 class Parser {
 public:
-    Parser(TypeTable& typetable, std::istream& stream, const std::string& filename);
+    Parser(TypeTable& typetable, std::istream& stream, const std::string& filename)
+        : typetable(typetable)
+        , lexer(stream, filename)
+        , cur_loop(nullptr)
+        , cur_fun(nullptr)
+        , cur_var_handle(2) // reserve 0 for conditionals, 1 for mem
+        , no_bars_(false)
+        , generic_counter(0)
+        , counter(0)
+        , result_(true)
+    {
+        lookahead[0] = lexer.lex();
+        lookahead[1] = lexer.lex();
+    }
 
     const Token& la(size_t i) const { return lookahead[i]; }
     const Token& la () const { return lookahead[0]; }
@@ -39,8 +52,8 @@ public:
     // misc
     Token try_id(const std::string& what);
     const Type* try_type(const std::string& what);
-    const Expr* try_expr(Prec prec, const std::string& what);
-    const Expr* try_expr(const std::string& what) { return try_expr(BOTTOM, what); }
+    const Expr* try_expr(Prec prec, const std::string& what, bool no_bars = false);
+    const Expr* try_expr(const std::string& what) { return try_expr(BOTTOM, what, false); }
     const Stmt* try_stmt(const std::string& what);
     bool is_type(size_t lookahead = 0);
     bool is_expr();
@@ -56,6 +69,7 @@ public:
     const VarDecl* parse_var_decl(bool is_param);
     const Proto* parse_proto();
     void parse_fun(Fun* fun);
+    const Decl* parse_decl();
 
     void parse_comma_list(TokenKind delimiter, const char* context, std::function<void()> f) {
         if (la() != delimiter) {
@@ -65,18 +79,21 @@ public:
         expect(delimiter, context);
     }
 
-    const Decl* parse_decl();
-
     // expressions
+    bool is_infix();
     const Expr* parse_expr(Prec prec);
-    const Expr* parse_expr() { return parse_expr(BOTTOM); }
+    const Expr* parse_expr() { return parse_expr(BOTTOM, false); }
+    const Expr* parse_expr(Prec prec, bool no_bars) {
+        ANYDSL2_PUSH(no_bars_, no_bars);
+        return parse_expr(prec); 
+    }
     const Expr* parse_prefix_expr();
     const Expr* parse_infix_expr(const Expr* lhs);
     const Expr* parse_postfix_expr(const Expr* lhs);
     const Expr* parse_primary_expr();
     const Expr* parse_literal();
     const Expr* parse_tuple();
-    const Expr* parse_fun_expr();
+    const FunExpr* parse_fun_expr();
 
     // statements
     const Stmt* parse_stmt();
@@ -106,6 +123,7 @@ private:
     const Loop* cur_loop;
     const Fun* cur_fun;
     size_t cur_var_handle;
+    bool no_bars_;
     size_t generic_counter;
     int counter;
     anydsl2::Location prev_loc;
@@ -123,25 +141,6 @@ const Scope* parse(TypeTable& typetable, std::istream& i, const std::string& fil
 }
 
 //------------------------------------------------------------------------------
-
-/*
- * constructor
- */
-
-Parser::Parser(TypeTable& typetable, std::istream& stream, const std::string& filename)
-    : typetable(typetable)
-    , lexer(stream, filename)
-    , cur_loop(nullptr)
-    , cur_fun(nullptr)
-    , cur_var_handle(2) // reserve 0 for conditionals, 1 for mem
-    , generic_counter(0)
-    , counter(0)
-    , result_(true)
-{
-    // init 2 lookahead
-    lookahead[0] = lexer.lex();
-    lookahead[1] = lexer.lex();
-}
 
 /*
  * helpers
@@ -455,10 +454,10 @@ void Parser::parse_fun(Fun* fun) {
  * expressions
  */
 
-const Expr* Parser::try_expr(Prec prec, const std::string& what) {
+const Expr* Parser::try_expr(Prec prec, const std::string& what, bool no_bars) {
     const Expr* expr;
     if (is_expr())
-        expr = parse_expr(prec);
+        expr = parse_expr(prec, no_bars);
     else {
         error("expression", what);
         expr = new EmptyExpr(prev_loc);
@@ -466,6 +465,13 @@ const Expr* Parser::try_expr(Prec prec, const std::string& what) {
     }
 
     return expr;
+}
+
+bool Parser::is_infix() {
+    bool infix = la().is_infix();
+    if (no_bars_ && infix)
+        return !la() == Token::OR && !la() == Token::L_O;
+    return infix;
 }
 
 const Expr* Parser::parse_expr(Prec prec) {
@@ -477,7 +483,7 @@ const Expr* Parser::parse_expr(Prec prec) {
          *  lhs  op (LA  op ...) otherwise                                  -->  shift
          */
 
-        if (la().is_infix()) {
+        if (is_infix()) {
             if (prec > PrecTable::infix_l[la()])
                 break;
 
@@ -587,7 +593,7 @@ const Expr* Parser::parse_tuple() {
     return tuple;
 }
 
-const Expr* Parser::parse_fun_expr() {
+const FunExpr* Parser::parse_fun_expr() {
     FunExpr* e = new FunExpr(typetable);
     e->set_pos1(la().pos1());
     Fun* fun = e->fun_;
@@ -793,22 +799,9 @@ const Stmt* Parser::parse_for() {
 
 const Stmt* Parser::parse_foreach() {
     ForeachStmt* foreach = new ForeachStmt();
-    foreach->set_pos2(eat(Token::FOREACH).pos1());
-    expect(Token::L_PAREN, "foreach statement");
+    foreach->set_pos1(eat(Token::FOREACH).pos1());
 
-
-    if (la2() == Token::COLON) {
-        // parse only 'x : int' and no further assignment
-        foreach->init_decl_ = parse_var_decl(false);
-    } else if (is_expr()) {
-        foreach->init_expr_ = parse_primary_expr();
-    } else {
-        error("expression or delcaration statement", "for-each statement");
-        foreach->init_expr_ = new EmptyExpr(foreach->pos1());
-    }
-
-    expect(Token::LARROW, "for-each statement");
-    const Expr* expr = try_expr("generator call in for-each statement");
+    const Expr* expr = try_expr(BOTTOM, "generator call in for-each statement", true);
     if (const Call* call = expr->isa<Call>()) {
         foreach->call_ = call;
     } else {
@@ -817,8 +810,7 @@ const Stmt* Parser::parse_foreach() {
         foreach->call_ = nullptr; // TODO
     }
 
-    expect(Token::R_PAREN, "for-each statement");
-    foreach->body_ = try_stmt("for-each body");
+    foreach->fun_expr_ = parse_fun_expr();
     foreach->set_pos2(prev_loc.pos2());
 
     return foreach;

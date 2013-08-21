@@ -443,6 +443,7 @@ void ForStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 
 void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     JumpTarget continue_bb("continue_bb");
+    auto fun = fun_expr()->fun();
 
     ANYDSL2_PUSH(cg.break_target, &exit_bb);
     ANYDSL2_PUSH(cg.continue_target, &continue_bb);
@@ -453,23 +454,25 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     args[0] = cg.get_mem();
     for (size_t i = 1; i < num; ++i)
         args[i] = cg.emit(call()->op(i))->load();
-    // construct a lambda for the body, see below
-    Lambda* lambda = cg.world().lambda(fntype_->convert(cg.world())->as<Pi>());
+
+    Lambda* lambda = cg.emit_head(fun);
     args[num] = lambda;
 
     cg.mem_call(cg.emit(call()->op(0))->load(), args, nullptr /*no return type*/);
     Lambda* next = cg.cur_bb;
     cg.set_mem(cg.cur_bb->param(0));
 
-    // go into the lambda
     lambda->set_parent(cg.cur_bb);
     cg.cur_bb = lambda;
     cg.set_mem(lambda->param(0));
 
-    const VarDecl* var_decl = init_decl() ? init_decl() : init_expr()->as<Id>()->decl()->as<VarDecl>();
-    cg.emit(var_decl)->store(lambda->param(1));
+    for (size_t i = 0, e = fun->params().size(); i != e; ++i) {
+        const Param* p = lambda->param(i+1);
+        p->name = fun->param(i)->symbol().str();
+        cg.emit(fun->param(i))->store(p);
+    }
 
-    cg.emit(body(), continue_bb);
+    cg.emit(fun->body(), continue_bb);
     cg.enter(continue_bb);
     cg.return1(lambda->params().back(), cg.get_mem());
 

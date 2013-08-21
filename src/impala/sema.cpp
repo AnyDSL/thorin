@@ -19,8 +19,7 @@ namespace impala {
 class Sema {
 public:
     Sema(TypeTable& typetable, bool nossa)
-        : in_foreach_(false)
-        , typetable_(typetable)
+        : typetable_(typetable)
         , cur_fun_(nullptr)
         , result_(true)
         , nossa_(nossa)
@@ -70,8 +69,6 @@ public:
     GenericMap* generic_map() const { return cur_fun_ != nullptr ? &cur_fun_->generic_map_ : nullptr; }
     GenericBuilder* generic_builder() const { return cur_fun_ != nullptr ? &cur_fun_->generic_builder_ : nullptr; }
     const Fun* cur_fun() const { return cur_fun_; }
-
-    bool in_foreach_;
 
 private:
     TypeTable& typetable_;
@@ -254,7 +251,7 @@ const Type* Id::check(Sema& sema) const {
         decl_ = decl;
 
         if (const VarDecl* vardecl = decl->isa<VarDecl>()) {
-            if (!vardecl->is_val() && (sema.nossa() || sema.in_foreach_ || vardecl->fun() != sema.cur_fun()))
+            if (!vardecl->is_val() && (sema.nossa() || vardecl->fun() != sema.cur_fun()))
                 vardecl->is_address_taken_ = true;
         }
 
@@ -454,26 +451,18 @@ void ForStmt::check(Sema& sema) const {
 
 void ForeachStmt::check(Sema& sema) const {
     sema.push_scope();
-
-    const Type* left_type_;
-    if (init_decl()) {
-        sema.check(init_decl());
-        left_type_ = init_decl()->refined_type();
-    } else {
-        left_type_ = sema.check(init_expr());
-    }
+    sema.check(fun_expr());
 
     // generator call
     if (auto to_fn = sema.check(call()->to())->isa<FnType>()) {
         // reserve one for the body type and one for the next continuation type
         Array<const Type*> op_types(call()->num_args() + 1 + 1);
 
-        for (size_t i = 0, e = call()->num_args(); i != e; ++i)
+        size_t i = 0;
+        for (size_t e = call()->num_args(); i != e; ++i)
             op_types[i] = sema.check(call()->arg(i));
-        
-        const Type* elems[2] = { left_type_, sema.typetable().fntype0() };
-        op_types[call()->num_args()] = fntype_ = sema.typetable().fntype(elems);
-        op_types.back() = sema.typetable().fntype0();    
+        op_types[i++] = fun_expr()->type();
+        op_types[i++] = sema.typetable().fntype0();
         const FnType* call_fn = sema.typetable().fntype(op_types);
 
         if (to_fn->check_with(call_fn)) {
@@ -490,23 +479,16 @@ void ForeachStmt::check(Sema& sema) const {
         sema.error(call()->to()) << "invocation not done on function type but instead type '" 
             << call()->to()->type() << "' is given\n";
 
-    ANYDSL2_PUSH(sema.in_foreach_, true);
-
-    sema.check(body());
-
-    if (init_decl())
-        init_decl()->is_address_taken_ = false;
-
     sema.pop_scope();
 }
 
 void BreakStmt::check(Sema& sema) const {
-    if (!loop() && !sema.in_foreach_)
+    if (!loop())
         sema.error(this) << "break statement not within a loop\n";
 }
 
 void ContinueStmt::check(Sema& sema) const {
-    if (!loop() && !sema.in_foreach_)
+    if (!loop())
         sema.error(this) << "continue statement not within a loop\n";
 }
 

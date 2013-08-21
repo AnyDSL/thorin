@@ -110,7 +110,7 @@ std::ostream& Fun::print(Printer& p) const {
     p.dump_list([&](const VarDecl* decl) { decl->print(p); }, params_ref, "(", ")");
 
     if (ret_param)
-        p.stream() << " -> " << ret_param->orig_type()->as<FnType>()->elem(0) << ' ';
+        p.stream() << " -> " << orig_fntype()->return_type() << ' ';
     else
         p.stream() << ' ';
 
@@ -146,7 +146,7 @@ std::ostream& FunExpr::print(Printer& p) const {
     p.dump_list([&](const VarDecl* decl) { decl->print(p); }, params_ref, "|", "|");
 
     if (ret_param)
-        p.stream() << " -> " << ret_param->orig_type()->as<FnType>()->elem(0) << ' ';
+        p.stream() << " -> " << fun()->orig_fntype()->return_type() << ' ';
     else
         p.stream() << ' ';
 
@@ -326,12 +326,9 @@ std::ostream& ForStmt::print(Printer& p) const {
 }
 
 std::ostream& ForeachStmt::print(Printer& p) const {
-    p.stream() << "foreach (";
-    init()->print(p);
-    p.stream() << " <- ";
-    call()->print(p);
-    p.stream() << ")";
-    return p.print_block(body());
+    p.stream() << "foreach ";
+    call()->print(p) << ' ';
+    return fun_expr()->print(p);
 }
 
 std::ostream& BreakStmt::print(Printer& p) const { return p.stream() << "break;"; }

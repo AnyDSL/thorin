@@ -64,7 +64,7 @@ public:
     {}
 
     bool operator == (const Location& loc) const { return pos1_ == loc.pos1() && pos2_ == loc.pos2(); }
-    bool is_set() const { return pos1_.is_set(); }
+    bool is_set() const { return pos1_.is_set() && pos2_.is_set(); }
     const Position& pos1() const { return pos1_; }
     const Position& pos2() const { return pos2_; }
     void set_pos1(const Position& pos1) { pos1_ = pos1; }

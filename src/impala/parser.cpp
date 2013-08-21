@@ -712,6 +712,7 @@ const Stmt* Parser::parse_if_else() {
     ifelse->cond_ = parse_cond("if statement");
     ifelse->then_scope_ = parse_stmt_as_scope("if clause");
     ifelse->else_scope_ = accept(Token::ELSE) ? parse_stmt_as_scope("else clause") : new Scope(prev_loc);
+    ifelse->set_pos2(prev_loc.pos2());
     return ifelse;
 }
 
@@ -723,6 +724,7 @@ const Stmt* Parser::parse_while() {
     loop->step_ = new EmptyExpr(loop->pos1());
     ANYDSL2_PUSH(cur_loop, loop);
     loop->body_ = parse_stmt_as_scope("body of while statement");
+    loop->set_pos2(prev_loc.pos2());
     return loop;
 }
 
@@ -734,7 +736,7 @@ const Stmt* Parser::parse_do_while() {
     expect(Token::WHILE, "do-while statement");
     loop->cond_ = parse_cond("do-while statement");
     expect(Token::SEMICOLON, "do-while statement");
-    loop->set_pos1(prev_loc.pos2());
+    loop->set_pos2(prev_loc.pos2());
 
     return loop;
 }
@@ -858,6 +860,7 @@ const Stmt* Parser::parse_fun_stmt() {
     s->fun_->symbol_ = try_id("function identifier").symbol();
     parse_generics_list(s->fun_->generics_);
     parse_fun(s->fun_);
+    s->set_pos2(prev_loc.pos2());
 
     return s;
 }

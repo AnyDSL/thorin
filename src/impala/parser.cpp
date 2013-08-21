@@ -53,7 +53,7 @@ public:
     const Type* parse_type();
     const Type* parse_compound_type();
     const Type* parse_return_type();
-    const VarDecl* parse_var_decl();
+    const VarDecl* parse_var_decl(bool is_param);
     const Proto* parse_proto();
     void parse_fun(Fun* fun);
 
@@ -381,17 +381,17 @@ const Type* Parser::parse_return_type() {
 const Decl* Parser::parse_decl() {
     switch (la()) {
         case Token::EXTERN: return parse_proto();
-        default:            return parse_var_decl();
+        default:            return parse_var_decl(false);
     }
 }
 
-const VarDecl* Parser::parse_var_decl() {
+const VarDecl* Parser::parse_var_decl(bool is_param) {
     Token tok = la();
     expect(Token::ID, "declaration");
     expect(Token::COLON, "declaration");
     const Type* type = try_type("declaration");
 
-    return new VarDecl(cur_var_handle++, tok, type, prev_loc.pos2());
+    return new VarDecl(cur_var_handle++, is_param, tok, type, prev_loc.pos2());
 }
 
 const Proto* Parser::parse_proto() {
@@ -433,7 +433,7 @@ void Parser::parse_fun(Fun* fun) {
     std::vector<const Type*> arg_types;
     expect(Token::L_PAREN, "function head");
     parse_comma_list(Token::R_PAREN, "parameter list", [&] {
-        const VarDecl* param = parse_var_decl();
+        const VarDecl* param = parse_var_decl(true);
         fun->params_.push_back(param);
         arg_types.push_back(param->orig_type());
     });
@@ -443,7 +443,7 @@ void Parser::parse_fun(Fun* fun) {
         Position pos1 = prev_loc.pos1();
         arg_types.push_back(parse_return_type());
         Position pos2 = prev_loc.pos2();
-        fun->params_.push_back(new VarDecl(cur_var_handle++, Token(pos1, "return"), arg_types.back(), pos2));
+        fun->params_.push_back(new VarDecl(cur_var_handle++, true, Token(pos1, "return"), arg_types.back(), pos2));
     }
 
     fun->orig_type_ = typetable.fntype(arg_types);
@@ -599,7 +599,7 @@ const Expr* Parser::parse_fun_expr() {
     std::vector<const Type*> arg_types;
     if (accept(Token::OR)) {
         parse_comma_list(Token::OR, "parameter list of function expression", [&] {
-            const VarDecl* param = parse_var_decl();
+            const VarDecl* param = parse_var_decl(true);
             fun->params_.push_back(param);
             arg_types.push_back(param->orig_type());
         });
@@ -611,7 +611,7 @@ const Expr* Parser::parse_fun_expr() {
         Position pos1 = prev_loc.pos1();
         arg_types.push_back(parse_return_type());
         Position pos2 = prev_loc.pos2();
-        fun->params_.push_back(new VarDecl(cur_var_handle++, Token(pos1, "return"), arg_types.back(), pos2));
+        fun->params_.push_back(new VarDecl(cur_var_handle++, true, Token(pos1, "return"), arg_types.back(), pos2));
     }
 
     fun->orig_type_ = typetable.fntype(arg_types);
@@ -799,7 +799,7 @@ const Stmt* Parser::parse_foreach() {
 
     if (la2() == Token::COLON) {
         // parse only 'x : int' and no further assignment
-        foreach->init_decl_ = parse_var_decl();
+        foreach->init_decl_ = parse_var_decl(false);
     } else if (is_expr()) {
         foreach->init_expr_ = parse_primary_expr();
     } else {

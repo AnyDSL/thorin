@@ -254,10 +254,8 @@ const Type* Id::check(Sema& sema) const {
         decl_ = decl;
 
         if (const VarDecl* vardecl = decl->isa<VarDecl>()) {
-            if (sema.nossa() || sema.in_foreach_ || vardecl->fun() != sema.cur_fun()) {
-                if (!vardecl->refined_type()->isa<FnType>() && !vardecl->refined_type()->is_generic())
-                    vardecl->is_address_taken_ = true;
-            }
+            if (!vardecl->is_val() && (sema.nossa() || sema.in_foreach_ || vardecl->fun() != sema.cur_fun()))
+                vardecl->is_address_taken_ = true;
         }
 
         return decl->refined_type();

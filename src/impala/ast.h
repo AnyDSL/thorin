@@ -159,8 +159,9 @@ private:
 
 class VarDecl : public Decl {
 public:
-    VarDecl(size_t handle, const Token& tok, const Type* orig_type, const anydsl2::Position& pos2)
+    VarDecl(size_t handle, bool is_val, const Token& tok, const Type* orig_type, const anydsl2::Position& pos2)
         : handle_(handle)
+        , is_val_(is_val)
         , is_address_taken_(false)
     {
         symbol_ = tok.symbol();
@@ -169,6 +170,7 @@ public:
     }
 
     size_t handle() const { return handle_; }
+    bool is_val() const { return is_val_; }
     bool is_address_taken() const { return is_address_taken_; }
     const Fun* fun() const { return fun_; }
     virtual void check(Sema& sema) const;
@@ -176,6 +178,7 @@ public:
 
 private:
     size_t handle_;
+    bool is_val_;
     mutable bool is_address_taken_;
     mutable const Fun* fun_;
 

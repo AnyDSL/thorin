@@ -114,15 +114,17 @@ IMPALA_KEY_EXPR(FALSE,  "false")
 #define IMPALA_KEY_STMT(tok, str)
 #endif
 
-IMPALA_KEY_STMT(IF,       "if")
-IMPALA_KEY_STMT(ELSE,     "else")
-IMPALA_KEY_STMT(WHILE,    "while")
-IMPALA_KEY_STMT(DO,       "do")
-IMPALA_KEY_STMT(FOR,      "for")
-IMPALA_KEY_STMT(FOREACH,  "foreach")
-IMPALA_KEY_STMT(BREAK,    "break")
-IMPALA_KEY_STMT(CONTINUE, "continue")
-IMPALA_KEY_STMT(RETURN,   "return")
+IMPALA_KEY_STMT(IF,         "if")
+IMPALA_KEY_STMT(ELSE,       "else")
+IMPALA_KEY_STMT(WHILE,      "while")
+IMPALA_KEY_STMT(DO,         "do")
+IMPALA_KEY_STMT(FOR,        "for")
+IMPALA_KEY_STMT(FOREACH,    "foreach")
+IMPALA_KEY_STMT(BREAK,      "break")
+IMPALA_KEY_STMT(CONTINUE,   "continue")
+IMPALA_KEY_STMT(RETURN,     "return")
+IMPALA_KEY_STMT(VAR,        "var")
+IMPALA_KEY_STMT(VAL,        "val")
 
 #undef IMPALA_KEY_STMT
 

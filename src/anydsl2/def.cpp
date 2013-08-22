@@ -132,8 +132,8 @@ bool Def::is_minus_zero() const {
 }
 
 void Def::replace(const Def* with) const {
-    for (auto tracker : trackers())
-        *tracker = with;
+    for (auto i = trackers_.begin(), e = trackers_.end(); i != e;)
+        **(i++) = with;
 
     auto uses = multi_uses();
 

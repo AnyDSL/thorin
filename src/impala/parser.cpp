@@ -27,6 +27,36 @@
     case Token::L_PAREN: \
     case Token::ID
 
+#define CASE_EXPR \
+    case Token::LIT_int8: \
+    case Token::LIT_int16: \
+    case Token::LIT_int32: \
+    case Token::LIT_int64: \
+    case Token::LIT_float: \
+    case Token::LIT_double: \
+    case Token::TRUE: \
+    case Token::FALSE: \
+    case Token::ADD: \
+    case Token::SUB: \
+    case Token::MUL: \
+    case Token::AND: \
+    case Token::NOT: \
+    case Token::L_N: \
+    case Token::INC: \
+    case Token::DEC: \
+    case Token:: OR: \
+    case Token::L_O: \
+    case Token::ID: \
+    case Token::L_BRACE
+    
+#define CASE_DECL \
+    case Token::VAL: \
+    case Token::VAR
+
+#define CASE_STMT \
+    CASE_ITEM: \
+    CASE_EXPR: \
+    CASE_DECL
 
 using namespace anydsl2;
 

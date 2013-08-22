@@ -152,6 +152,7 @@ public:
     void check_head(Sema&) const;
     virtual void check(Sema& sema) const;
     virtual std::ostream& print(Printer& p) const;
+    const anydsl2::Def* frame() const { return frame_; }
 
 private:
     VarDecls params_;
@@ -162,12 +163,14 @@ private:
     mutable const anydsl2::Param* ret_param_;
     mutable GenericBuilder generic_builder_;
     mutable GenericMap generic_map_;
+    mutable const anydsl2::Def* frame_;
 
     friend class Parser;
     friend class Sema;
     friend class CodeGen;
     friend class GenericDecl;
     friend class FunExpr;
+    friend class ForeachStmt;
 };
 
 class VarDecl : public LetDecl {

@@ -22,7 +22,6 @@ class CodeGen : public IRBuilder {
 public:
     CodeGen(World& world)
         : IRBuilder(world)
-        , cur_frame(nullptr)
         , break_target(nullptr)
         , continue_target(nullptr)
     {}
@@ -37,7 +36,6 @@ public:
     void emit_branch(const Expr* expr, JumpTarget& t, JumpTarget& f) { expr->emit_branch(*this, t, f); }
     void emit(const Stmt* stmt, JumpTarget& exit) { if (is_reachable()) stmt->emit(*this, exit); }
 
-    const Def* cur_frame;
     JumpTarget* break_target;
     JumpTarget* continue_target;
 };
@@ -114,14 +112,9 @@ const Lambda* CodeGen::emit_body(const Fun* fun) {
     fun->lambda()->set_parent(cur_bb);
     ANYDSL2_PUSH(cur_bb, fun->lambda());
 
-    bool new_frame = false;
-    if (!cur_frame) {
-        const Enter* enter = world().enter(fun->lambda()->param(0));
-        set_mem(enter->extract_mem());
-        cur_frame = enter->extract_frame();
-        new_frame = true;
-    } else
-        set_mem(fun->lambda()->param(0));
+    const Enter* enter_op = world().enter(fun->lambda()->param(0));
+    set_mem(enter_op->extract_mem());
+    fun->frame_ = enter_op->extract_frame();
 
     size_t num = fun->params().size();
     for (size_t i = 0; i < num; ++i) {
@@ -146,9 +139,6 @@ const Lambda* CodeGen::emit_body(const Fun* fun) {
         }
     }
 
-    if (new_frame)
-        cur_frame = nullptr;
-
     return fun->lambda();
 }
 
@@ -157,7 +147,7 @@ const Lambda* CodeGen::emit_body(const Fun* fun) {
 RefPtr CodeGen::emit(const VarDecl* decl) {
     const anydsl2::Type* air_type = decl->refined_type()->convert(world());
     if (decl->is_address_taken())
-        return Ref::create(world().slot(air_type, cur_frame, decl->handle(), decl->symbol().str()), *this);
+        return Ref::create(world().slot(air_type, decl->fun()->frame(), decl->handle(), decl->symbol().str()), *this);
 
     return Ref::create(cur_bb, decl->handle(), air_type, decl->symbol().str());
 }
@@ -213,7 +203,7 @@ RefPtr Id::emit(CodeGen& cg) const {
     auto air_type = type()->convert(cg.world());
 
     if (vardecl->is_address_taken())
-        return Ref::create(cg.world().slot(air_type, cg.cur_frame, vardecl->handle(), symbol().str()), cg);
+        return Ref::create(cg.world().slot(air_type, vardecl->fun()->frame(), vardecl->handle(), symbol().str()), cg);
 
     return Ref::create(cg.cur_bb, vardecl->handle(), air_type, symbol().str());
 }
@@ -466,6 +456,9 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     lambda->set_parent(cg.cur_bb);
     cg.cur_bb = lambda;
     cg.set_mem(lambda->param(0));
+    const Enter* enter = cg.world().enter(lambda->param(0));
+    cg.set_mem(enter->extract_mem());
+    fun->frame_ = enter->extract_frame();
 
     for (size_t i = 0, e = fun->params().size(); i != e; ++i) {
         const Param* p = lambda->param(i+1);
@@ -497,9 +490,9 @@ void ReturnStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
             cg.tail_call(ops[0], args);
         } else {
             if (expr()) 
-                cg.return2(ret_param, cg.world().leave(cg.get_mem(), cg.cur_frame), cg.emit(expr())->load());
+                cg.return2(ret_param, cg.world().leave(cg.get_mem(), fun()->frame()), cg.emit(expr())->load());
             else
-                cg.return1(ret_param, cg.world().leave(cg.get_mem(), cg.cur_frame));
+                cg.return1(ret_param, cg.world().leave(cg.get_mem(), fun()->frame()));
         }
     }
 }

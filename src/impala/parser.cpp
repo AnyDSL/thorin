@@ -13,7 +13,8 @@
 #include "impala/type.h"
 
 #define CASE_ITEM \
-    case Token::FN
+    case Token::FN \
+    case Token::EXTERN
 
 #define CASE_TYPE \
     case Token::TYPE_int8: \
@@ -47,6 +48,12 @@
     case Token:: OR: \
     case Token::L_O: \
     case Token::ID: \
+    case Token::IF: \
+    case Token::FOR: \
+    case Token::DO: \
+    case Token::BREAK: \
+    case Token::CONTINUE: \
+    case Token::RETURN: \
     case Token::L_BRACE
     
 #define CASE_DECL \

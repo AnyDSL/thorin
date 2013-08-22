@@ -464,7 +464,7 @@ const Expr* Parser::try_expr(Prec prec, const std::string& what, bool no_bars) {
 bool Parser::is_infix() {
     bool infix = la().is_infix();
     if (no_bars_ && infix)
-        return !la() == Token::OR && !la() == Token::L_O;
+        return la() != Token::OR && la() != Token::L_O;
     return infix;
 }
 

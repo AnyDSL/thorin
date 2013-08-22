@@ -12,6 +12,22 @@
 #include "impala/prec.h"
 #include "impala/type.h"
 
+#define CASE_ITEM \
+    case Token::FN
+
+#define CASE_TYPE \
+    case Token::TYPE_int8: \
+    case Token::TYPE_int16: \
+    case Token::TYPE_int32: \
+    case Token::TYPE_int64: \
+    case Token::TYPE_float: \
+    case Token::TYPE_double: \
+    case Token::TYPE_bool: \
+    case Token::FN: \
+    case Token::L_PAREN: \
+    case Token::ID
+
+
 using namespace anydsl2;
 
 namespace impala {

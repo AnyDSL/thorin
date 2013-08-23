@@ -12,12 +12,8 @@
 #include "impala/prec.h"
 #include "impala/type.h"
 
-#define CASE_ITEM \
-    case Token::FN \
-    case Token::EXTERN
-
-#define CASE_TYPE \
-    case Token::TYPE_int8: \
+#define TYPE \
+         Token::TYPE_int8: \
     case Token::TYPE_int16: \
     case Token::TYPE_int32: \
     case Token::TYPE_int64: \
@@ -28,8 +24,8 @@
     case Token::L_PAREN: \
     case Token::ID
 
-#define CASE_EXPR \
-    case Token::LIT_int8: \
+#define EXPR \
+         Token::LIT_int8: \
     case Token::LIT_int16: \
     case Token::LIT_int32: \
     case Token::LIT_int64: \
@@ -47,7 +43,16 @@
     case Token::DEC: \
     case Token:: OR: \
     case Token::L_O: \
-    case Token::ID: \
+    case Token::ID
+    
+#define DECL \
+         Token::VAL: \
+    case Token::VAR
+
+#define STMT \
+         DECL: \
+    case EXPR: \
+    case Token::FN: \
     case Token::IF: \
     case Token::FOR: \
     case Token::DO: \
@@ -55,15 +60,6 @@
     case Token::CONTINUE: \
     case Token::RETURN: \
     case Token::L_BRACE
-    
-#define CASE_DECL \
-    case Token::VAL: \
-    case Token::VAR
-
-#define CASE_STMT \
-    CASE_ITEM: \
-    CASE_EXPR: \
-    CASE_DECL
 
 using namespace anydsl2;
 
@@ -99,25 +95,18 @@ public:
     bool accept(TokenKind tok);
     bool expect(TokenKind tok, const std::string& context);
     void error(const std::string& what, const std::string& context);
-    std::ostream& sema_error(Token token);
     bool result() const { return result_; }
 
     // misc
     Token try_id(const std::string& what);
-    const Type* try_type(const std::string& what);
-    const Expr* try_expr(Prec prec, const std::string& what, bool no_bars = false);
-    const Expr* try_expr(const std::string& what) { return try_expr(BOTTOM, what, false); }
-    const Stmt* try_stmt(const std::string& what);
-    bool is_type(size_t lookahead = 0);
-    bool is_expr();
-    bool is_stmt();
     bool parse_prg(Scope*);
     const Scope* parse_scope();
     const Scope* try_scope(const std::string& context);
     const Scope* parse_stmt_as_scope(const std::string& what);
     void parse_generics_list(GenericDecls&);
     const Type* parse_type();
-    const Type* parse_compound_type();
+    const Type* parse_fn_type();
+    const Type* parse_tuple_type();
     const Type* parse_return_type();
     const VarDecl* parse_var_decl(bool is_param);
     const Proto* parse_proto();
@@ -145,7 +134,6 @@ public:
     const Expr* parse_postfix_expr(const Expr* lhs);
     const Expr* parse_primary_expr();
     const Expr* parse_literal();
-    const Expr* parse_tuple();
     const FunExpr* parse_fun_expr();
 
     // statements
@@ -231,11 +219,6 @@ void Parser::error(const std::string& what, const std::string& context) {
     os << "\n";
 }
 
-std::ostream& Parser::sema_error(Token token) {
-    result_ = false;
-    return token.error();
-}
-
 Token Parser::try_id(const std::string& what) {
     Token name;
     if (la() == Token::ID)
@@ -246,60 +229,6 @@ Token Parser::try_id(const std::string& what) {
     }
 
     return name;
-}
-
-bool Parser::is_type(size_t lookahead) {
-    switch (la(lookahead)) {
-#define IMPALA_TYPE(itype, atype) \
-        case Token:: TYPE_##itype:
-#include "impala/tokenlist.h"
-        case Token::TYPE_int:
-        case Token::TYPE_uint:
-        case Token::TYPE_void:
-        case Token::TYPE_noret:
-        case Token::FN:
-        case Token::SIGMA:
-        case Token::ID:
-            return true;
-        default:
-            return false;
-    }
-}
-
-bool Parser::is_expr() {
-    //identifier without a succeeding colon which is not a generic
-    if (la() == Token::ID && la2() != Token::COLON)
-        return true;
-
-    switch (la()) {
-#define IMPALA_PREFIX(tok, t_str, r) case Token:: tok:
-#define IMPALA_KEY_EXPR(tok, t_str)  case Token:: tok:
-#define IMPALA_LIT(itype, atype)     case Token:: LIT_##itype:
-#include "impala/tokenlist.h"
-        case Token::HASH:
-        case Token::L_PAREN:
-            return true;
-        default:
-            return false;
-    }
-}
-
-bool Parser::is_stmt() {
-    if (is_expr())
-        return true;
-
-    switch (la()) {
-#define IMPALA_KEY_STMT(tok, t_str) case Token:: tok:
-#include "impala/tokenlist.h"
-        case Token::EXTERN:
-        case Token::FN:
-        case Token::ID:
-        case Token::L_BRACE:
-        case Token::SEMICOLON:
-            return true;
-        default:
-            return false;
-    }
 }
 
 /*
@@ -314,7 +243,6 @@ bool Parser::parse_prg(Scope* scope) {
         switch (la()) {
             case Token::END_OF_FILE:    scope->set_pos2(prev_loc.pos2()); return result();
             case Token::FN:             scope->stmts_.push_back(parse_fun_stmt()); continue;
-            case Token::EXTERN:         scope->stmts_.push_back(parse_decl_stmt_or_init_stmt()); continue;
             case Token::SEMICOLON:      // FALLTHROUGH: ignore semicolon
             default:                    lex(); continue; // consume token nobody wants
         }
@@ -331,11 +259,16 @@ const Scope* Parser::try_scope(const std::string& context) {
 const Scope* Parser::parse_stmt_as_scope(const std::string& what) {
     if (la() == Token::L_BRACE)
         return parse_scope();
-    auto scope = new Scope();
-    scope->set_pos1(la().pos1());
-    scope->stmts_.push_back(try_stmt(what));
-    scope->set_pos2(prev_loc.pos2());
-    return scope;
+    switch (la()) {
+        case STMT: {
+            auto scope = new Scope();
+            scope->set_pos1(la().pos1());
+            scope->stmts_.push_back(parse_stmt());
+            scope->set_pos2(prev_loc.pos2());
+            return scope;
+        }
+        default:                return new Scope(prev_loc);
+    }
 }
 
 const Scope* Parser::parse_scope() {
@@ -343,17 +276,14 @@ const Scope* Parser::parse_scope() {
     scope->set_pos1(eat(Token::L_BRACE).pos1());
 
     while (true) {
-        if (accept(Token::SEMICOLON)) {
-            continue; // ignore semicolon
-        } else if (la() == Token::R_BRACE || la() == Token::END_OF_FILE) {
-            break;
-        } else if (is_stmt()) {
-            scope->stmts_.push_back(parse_stmt());
-        } else {
-            lex(); // consume token nobody wants
+        switch (la()) {
+            case Token::SEMICOLON:  lex(); continue; // ignore semicolon
+            case STMT:              scope->stmts_.push_back(parse_stmt()); break;
+            case Token::R_BRACE:
+            default:                goto out;
         }
     }
-
+out:
     expect(Token::R_BRACE, "scope statement");
     scope->set_pos2(prev_loc.pos2());
 
@@ -364,60 +294,44 @@ const Scope* Parser::parse_scope() {
  * types
  */
 
-const Type* Parser::try_type(const std::string& what) {
-    const Type* type;
-    if (is_type())
-        type = parse_type();
-    else {
-        error("type", what);
-        type = typetable.type_error();
-        lex(); // eat away erroneous token
-    }
-
-    return type;
-}
-
 const Type* Parser::parse_type() {
     switch (la()) {
 #define IMPALA_TYPE(itype, atype) \
-        case Token::TYPE_##itype: lex(); return typetable.type_##itype();
+        case Token::TYPE_##itype:   lex(); return typetable.type_##itype();
 #include "impala/tokenlist.h"
-
-        case Token::TYPE_int:   lex(); return typetable.type_int32();
-        case Token::TYPE_void:  lex(); return typetable.type_void();
-        case Token::TYPE_noret: lex(); return typetable.noret();
-        case Token::FN:
-        case Token::SIGMA:             return parse_compound_type();
-        case Token::ID: 
-            return typetable.idtype(lex().symbol());
-        default: ANYDSL2_UNREACHABLE;
+        case Token::TYPE_int:       lex(); return typetable.type_int32();
+        case Token::TYPE_void:      lex(); return typetable.type_void();
+        case Token::TYPE_noret:     lex(); return typetable.noret();
+        case Token::FN:                    return parse_fn_type();
+        case Token::L_PAREN:               return parse_tuple_type();
+        case Token::ID:                    return typetable.idtype(lex().symbol());
+        default:                    error("type", ""); lex(); return typetable.type_error();
     }
 }
 
-const Type* Parser::parse_compound_type() {
-    bool fn = lex().kind() == Token::FN;
-
+const Type* Parser::parse_fn_type() {
+    eat(Token::FN);
     std::vector<const Type*> elems;
-    const char* error_str = fn ? "element types of fn" : "element types of sigma";
-    expect(Token::L_PAREN, error_str);
-    parse_comma_list(Token::R_PAREN, fn ?  "closing parenthesis of fn type" : "closing parenthesis of sigma type", [&] {
-        elems.push_back(try_type(error_str));
-    });
+    expect(Token::L_PAREN, "parameter list of function type");
+    parse_comma_list(Token::R_PAREN, "closing parenthesis of function type", [&]{ elems.push_back(parse_type()); });
 
-    if (fn && accept(Token::ARROW))
+    if (accept(Token::ARROW))
         elems.push_back(parse_return_type());
 
-    if (fn) 
-        return typetable.fntype(elems);
+    return typetable.fntype(elems);
+}
+
+const Type* Parser::parse_tuple_type() {
+    eat(Token::L_PAREN);
+    std::vector<const Type*> elems;
+    parse_comma_list(Token::R_PAREN, "closing parenthesis of sigma type", [&]{ elems.push_back(parse_type()); });
+
     return typetable.tupletype(elems);
 }
 
 const Type* Parser::parse_return_type() {
-    const Type* ret_type = try_type("return type");
-    if (ret_type->is_void())
-        return typetable.fntype0();
-    else
-        return typetable.fntype1(ret_type);
+    auto ret_type = parse_type();
+    return ret_type->is_void() ? typetable.fntype0() : typetable.fntype1(ret_type);
 }
 
 /*
@@ -431,6 +345,7 @@ const Decl* Parser::parse_decl() {
     }
 }
 
+#if 0
 const VarDecl* Parser::parse_var_decl(bool is_param) {
     Token tok = la();
     expect(Token::ID, "declaration");
@@ -439,7 +354,9 @@ const VarDecl* Parser::parse_var_decl(bool is_param) {
 
     return new VarDecl(cur_var_handle++, is_param, tok, type, prev_loc.pos2());
 }
+#endif
 
+#if 0
 const Proto* Parser::parse_proto() {
     Position pos1 = la().pos1();
     eat(Token::EXTERN);
@@ -463,6 +380,7 @@ const Proto* Parser::parse_proto() {
 
     return proto;
 }
+#endif
 
 void Parser::parse_generics_list(GenericDecls& generic_decls) {
     if (accept(Token::LT))
@@ -501,19 +419,6 @@ void Parser::parse_fun(Fun* fun) {
  * expressions
  */
 
-const Expr* Parser::try_expr(Prec prec, const std::string& what, bool no_bars) {
-    const Expr* expr;
-    if (is_expr())
-        expr = parse_expr(prec, no_bars);
-    else {
-        error("expression", what);
-        expr = new EmptyExpr(prev_loc);
-        lex(); // eat away erroneous token
-    }
-
-    return expr;
-}
-
 bool Parser::is_infix() {
     bool infix = la().is_infix();
     if (no_bars_ && infix)
@@ -522,7 +427,7 @@ bool Parser::is_infix() {
 }
 
 const Expr* Parser::parse_expr(Prec prec) {
-    const Expr* lhs = la().is_prefix() ? parse_prefix_expr() : parse_primary_expr();
+    auto lhs = la().is_prefix() ? parse_prefix_expr() : parse_primary_expr();
 
     while (true) {
         /*
@@ -551,7 +456,7 @@ const Expr* Parser::parse_prefix_expr() {
     if (la() == Token::OR || la() == Token::L_O)
         return parse_fun_expr();
     Token op = lex();
-    const Expr* rhs = try_expr(PrecTable::prefix_r[op], "prefix expression");
+    auto rhs = parse_expr(PrecTable::prefix_r[op]);
 
     return new PrefixExpr(op.pos1(), (PrefixExpr::Kind) op.kind(), rhs);
 }
@@ -559,29 +464,26 @@ const Expr* Parser::parse_prefix_expr() {
 const Expr* Parser::parse_infix_expr(const Expr* lhs) {
     Token op = lex();
     if (op == Token::QUESTION_MARK) {
-        const Expr* t_expr = la() == Token::ID ? parse_expr() : try_expr("infix expression");
+        auto t_expr = parse_expr();
         expect(Token::COLON, "conditional expression");
-        const Expr* f_expr = try_expr(PrecTable::infix_r[op], "conditional expression");
+        auto f_expr = parse_expr(PrecTable::infix_r[op]);
         return new ConditionalExpr(lhs, t_expr, f_expr);
     }
 
-    const Expr* rhs = try_expr(PrecTable::infix_r[op], "infix expression");
+    auto rhs = parse_expr(PrecTable::infix_r[op]);
 
     return new InfixExpr(lhs, (InfixExpr::Kind) op.kind(), rhs);
 }
 
 const Expr* Parser::parse_postfix_expr(const Expr* lhs) {
     if (accept(Token::L_PAREN)) {
-        Call* call = new Call(lhs);
-        parse_comma_list(Token::R_PAREN, "arguments of a function call", [&] {
-            call->append_arg(try_expr("argument of function call"));
-        });
+        auto call = new Call(lhs);
+        parse_comma_list(Token::R_PAREN, "arguments of a function call", [&]{ call->append_arg(parse_expr()); });
         call->set_pos2(prev_loc.pos2());
-
         return call;
     } else if (accept(Token::L_BRACKET)) {
         Position pos1 = prev_loc.pos1();
-        const Expr* index = try_expr("indexing expression");
+        auto index = parse_expr();
         expect(Token::R_BRACKET, "index expression");
         return new IndexExpr(pos1, lhs, index, prev_loc.pos2());
     } else {
@@ -593,20 +495,28 @@ const Expr* Parser::parse_postfix_expr(const Expr* lhs) {
 
 const Expr* Parser::parse_primary_expr() {
     switch (la() ) {
+        case Token::L_PAREN: {
+            Position pos1 = lex().pos1();
+            auto expr = parse_expr();
+            if (accept(Token::COMMA)) {
+                auto tuple = new Tuple();
+                tuple->set_pos1(pos1);
+                tuple->ops_.push_back(expr);
+                parse_comma_list(Token::R_PAREN, "elements of tuple expression", [&]{ tuple->ops_.push_back(parse_expr()); });
+                tuple->set_pos2(prev_loc.pos2());
+                return tuple;
+            } else {
+                expect(Token::R_PAREN, "primary expression");
+                return expr;
+            }
+        }
 #define IMPALA_LIT(itype, atype) \
         case Token::LIT_##itype:
 #include "impala/tokenlist.h"
         case Token::TRUE:
         case Token::FALSE:      return parse_literal();
         case Token::ID:         return new Id(lex());
-        case Token::L_PAREN: {
-            eat(Token::L_PAREN);
-            const Expr* expr = try_expr("primary expression");
-            expect(Token::R_PAREN, "primary expression");
-            return expr;
-        }
-        case Token::HASH:       return parse_tuple();
-        default:                ANYDSL2_UNREACHABLE;
+        default:                error("expression", ""); return new EmptyExpr(lex().loc());
     }
 }
 
@@ -628,20 +538,8 @@ const Expr* Parser::parse_literal() {
     }
 }
 
-const Expr* Parser::parse_tuple() {
-    Tuple* tuple = new Tuple(eat(Token::HASH).pos1());
-    expect(Token::L_PAREN, "tuple");
-    parse_comma_list(Token::R_PAREN, "closing parenthesis of tuple", [&] {
-        tuple->ops_.push_back(try_expr("tuple element"));
-    });
-
-    tuple->set_pos2(prev_loc.pos2());
-
-    return tuple;
-}
-
 const FunExpr* Parser::parse_fun_expr() {
-    FunExpr* e = new FunExpr(typetable);
+    auto e = new FunExpr(typetable);
     e->set_pos1(la().pos1());
     Fun* fun = e->fun_;
 
@@ -682,43 +580,22 @@ const FunExpr* Parser::parse_fun_expr() {
  * statements
  */
 
-const Stmt* Parser::try_stmt(const std::string& what) {
-    const Stmt* stmt;
-    if (is_stmt())
-        stmt = parse_stmt();
-    else {
-        error("statement", what);
-        stmt = new ExprStmt(new EmptyExpr(prev_loc), prev_loc.pos2());
-        lex(); // eat away erroneous token
-    }
-
-    return stmt;
-}
-
 const Stmt* Parser::parse_stmt() {
-    if (is_expr())
-        return parse_expr_stmt();
-
-    if (la() == Token::EXTERN 
-            || (la() == Token::ID && la2() == Token::COLON))
-        return parse_decl_stmt_or_init_stmt();
-
     switch (la()) {
-        case Token::BREAK:     return parse_break();
-        case Token::CONTINUE:  return parse_continue();
-        case Token::FN:        return parse_fun_stmt();
-        case Token::DO:        return parse_do_while();
-        case Token::FOR:       return parse_for();
-        case Token::FOREACH:   return parse_foreach();
-        case Token::IF:        return parse_if_else();
-        case Token::L_BRACE:   return parse_scope_stmt();
-        case Token::RETURN:    return parse_return();
-        case Token::WHILE:     return parse_while();
-        case Token::SEMICOLON: return new ScopeStmt(lex().loc());
-        case Token::ELSE:
-            error("'else' without matching 'if'", "statement");
-            return new ScopeStmt(lex().loc());
-        default:               ANYDSL2_UNREACHABLE;
+        case EXPR:              return parse_expr_stmt();
+        case Token::BREAK:      return parse_break();
+        case Token::CONTINUE:   return parse_continue();
+        case Token::FN:         return parse_fun_stmt();
+        case Token::DO:         return parse_do_while();
+        case Token::FOR:        return parse_for();
+        case Token::FOREACH:    return parse_foreach();
+        case Token::IF:         return parse_if_else();
+        case Token::L_BRACE:    return parse_scope_stmt();
+        case Token::RETURN:     return parse_return();
+        case Token::WHILE:      return parse_while();
+        case Token::SEMICOLON:  return new ScopeStmt(lex().loc());
+        case Token::ELSE:       error("'else' without matching 'if'", "statement"); return new ScopeStmt(lex().loc());
+        default:                error("statement", ""); return new ScopeStmt(lex().loc());
     }
 }
 
@@ -731,12 +608,13 @@ const ScopeStmt* Parser::parse_scope_stmt() {
 }
 
 const ExprStmt* Parser::parse_expr_stmt() {
-    const Expr* expr = parse_expr(); // discard val
+    auto expr = parse_expr(); // discard val
     expect(Token::SEMICOLON, "the end of an expression statement");
 
     return new ExprStmt(expr, prev_loc.pos2());
 }
 
+#if 0
 const Stmt* Parser::parse_decl_stmt_or_init_stmt() {
     const Decl* decl = parse_decl();
     if (const auto var_decl = decl->isa<VarDecl>()) {
@@ -752,10 +630,11 @@ const Stmt* Parser::parse_decl_stmt_or_init_stmt() {
     expect(Token::SEMICOLON, "the end of an declaration statement");
     return decl_stmt;
 }
+#endif
 
 const Expr* Parser::parse_cond(const std::string& what) {
     expect(Token::L_PAREN, "condition in " + what);
-    const Expr* cond = try_expr("condition in " + what);
+    auto cond = parse_expr();
     expect(Token::R_PAREN, "condition in " + what);
     return cond;
 }
@@ -849,7 +728,7 @@ const Stmt* Parser::parse_foreach() {
     ForeachStmt* foreach = new ForeachStmt();
     foreach->set_pos1(eat(Token::FOREACH).pos1());
 
-    const Expr* expr = try_expr(BOTTOM, "generator call in for-each statement", true);
+    auto expr = parse_expr(BOTTOM, true);
     if (const Call* call = expr->isa<Call>()) {
         foreach->call_ = call;
     } else {
@@ -881,13 +760,11 @@ const Stmt* Parser::parse_continue() {
 const Stmt* Parser::parse_return() {
     Position pos1 = eat(Token::RETURN).pos1();
     const Expr* expr;
-
-    if (la() != Token::SEMICOLON) {
-        expr = try_expr("return statement");
-        expect(Token::SEMICOLON, "return statement");
-    } else {
+    if (accept(Token::SEMICOLON))
         expr = nullptr;
-        eat(Token::SEMICOLON);
+    else {
+        expr = parse_expr();
+        expect(Token::SEMICOLON, "return statement");
     }
 
     return new ReturnStmt(pos1, expr, cur_fun, prev_loc.pos2());

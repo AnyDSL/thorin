@@ -134,7 +134,6 @@ IMPALA_KEY_STMT(VAL,        "val")
 
 IMPALA_KEY_MISC(EXTERN,     "extern")
 IMPALA_KEY_MISC(FN,         "fn")
-IMPALA_KEY_MISC(SIGMA,      "sigma")
 IMPALA_KEY_MISC(TYPE_int,   "int")
 IMPALA_KEY_MISC(TYPE_noret, "noret")
 IMPALA_KEY_MISC(TYPE_uint,  "uint")

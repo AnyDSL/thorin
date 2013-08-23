@@ -300,7 +300,7 @@ public:
 class TupleType : public CompoundType {
 private:
     TupleType(TypeTable& typetable, anydsl2::ArrayRef<const Type*> elems)
-        : CompoundType(typetable, Token::SIGMA, elems, "<tuple type>")
+        : CompoundType(typetable, Token::TYPE_tuple, elems, "<tuple type>")
     {}
 
     virtual const Type* refine(const Sema& sema) const { return super_refine(&TypeTable::fntype, sema); }

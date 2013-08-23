@@ -307,8 +307,6 @@ private:
 
 class Tuple : public Expr {
 public:
-    Tuple(const anydsl2::Position& pos1) { loc_.set_pos1(pos1); }
-
     virtual bool is_lvalue() const { return false; }
     virtual std::ostream& print(Printer& p) const;
 

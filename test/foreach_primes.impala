@@ -27,7 +27,7 @@ fn primes(n : int, yield : fn(int, fn()), ret : fn()) {
 }
 
 fn main() -> int {
-    result : int = 0;
+    var result = 0;
     foreach primes(100) |p : int| -> void {
         result += p;
     }

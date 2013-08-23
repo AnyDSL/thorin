@@ -1,5 +1,5 @@
 fn main(a : int, b : int, c : int) -> int {
-    var result : int = 0;
+    var result = 0;
 
 foo:
     while (!(a < 42 && a != b))

@@ -20,7 +20,7 @@ struct StrEqual : std::binary_function<const char*, const char*, bool> {
 class Symbol {
 public:
 
-    Symbol() {}
+    Symbol() { insert(""); }
     Symbol(const char* str) { insert(str); }
     Symbol(const std::string& str) { insert(str.c_str()); }
 

@@ -57,6 +57,7 @@
     case Token::FOR: \
     case Token::FOREACH: \
     case Token::DO: \
+    case Token::WHILE: \
     case Token::BREAK: \
     case Token::CONTINUE: \
     case Token::RETURN: \
@@ -155,6 +156,7 @@ public:
     const Stmt* parse_continue();
     const Stmt* parse_return();
     const Stmt* parse_fun_stmt();
+    const Stmt* parse_label_stmt();
     const ScopeStmt* parse_scope_stmt();
 
     /// helper for condition in if/while/do-while
@@ -578,6 +580,9 @@ const FunExpr* Parser::parse_fun_expr() {
  */
 
 const Stmt* Parser::parse_stmt() {
+    if (la() == Token::ID && la2() == Token::COLON)
+        return parse_label_stmt();
+
     switch (la()) {
         case DECL:              return parse_init_stmt();
         case EXPR:              return parse_expr_stmt();
@@ -591,9 +596,9 @@ const Stmt* Parser::parse_stmt() {
         case Token::L_BRACE:    return parse_scope_stmt();
         case Token::RETURN:     return parse_return();
         case Token::WHILE:      return parse_while();
-        case Token::SEMICOLON:  return new ScopeStmt(lex().loc());
-        case Token::ELSE:       error("'else' without matching 'if'", "statement"); return new ScopeStmt(lex().loc());
-        default:                error("statement", ""); return new ScopeStmt(lex().loc());
+        case Token::SEMICOLON:                                                      return new ExprStmt(new EmptyExpr(lex().loc()));
+        case Token::ELSE:       error("'else' without matching 'if'", "statement"); return new ExprStmt(new EmptyExpr(lex().loc()));
+        default:                error("statement", "");                             return new ExprStmt(new EmptyExpr(lex().loc()));
     }
 }
 
@@ -639,6 +644,24 @@ const Stmt* Parser::parse_if_else() {
     ifelse->else_scope_ = accept(Token::ELSE) ? parse_stmt_as_scope("else clause") : new Scope(prev_loc);
     ifelse->set_pos2(prev_loc.pos2());
     return ifelse;
+}
+
+const Stmt* Parser::parse_label_stmt() {
+    Token tok = eat(Token::ID);
+    eat(Token::COLON);
+    Loop* loop = nullptr;
+    switch (la()) {
+        case Token::DO:     loop = (Loop*) parse_do_while(); break;
+        case Token::FOR:    loop = (Loop*) parse_for();      break;
+        case Token::WHILE:  loop = (Loop*) parse_while();    break;
+        default:            error("for statement after label", ""); return new ExprStmt(new EmptyExpr(Location(tok.pos1(), prev_loc.pos2())));
+
+    }
+
+    loop->set_pos1(tok.pos1());
+    loop->label_ = tok.symbol();
+
+    return loop;
 }
 
 const Stmt* Parser::parse_while() {

@@ -560,10 +560,12 @@ public:
     Loop() {}
     const Expr* cond() const { return cond_; }
     const Scope* body() const { return body_; }
+    anydsl2::Symbol label() const { return label_; }
 
 private:
     anydsl2::AutoPtr<const Expr> cond_;
     anydsl2::AutoPtr<const Scope> body_;
+    anydsl2::Symbol label_;
 
     friend class Parser;
 };

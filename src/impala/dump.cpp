@@ -134,7 +134,7 @@ std::ostream& Literal::print(Printer& p) const {
 
 std::ostream& Id::print(Printer& p) const { return p.stream() << symbol(); }
 std::ostream& EmptyExpr::print(Printer& p) const { return p.stream() << "/*empty*/"; }
-std::ostream& Tuple::print(Printer& p) const { return p.dump_list([&](const Expr* expr) { expr->print(p); }, ops(), "#(", ")"); }
+std::ostream& Tuple::print(Printer& p) const { return p.dump_list([&](const Expr* expr) { expr->print(p); }, ops(), "(", ")"); }
 
 std::ostream& PrefixExpr::print(Printer& p) const {
     Prec r = PrecTable::prefix_r[kind()];
@@ -258,14 +258,13 @@ std::ostream& FunExpr::print(Printer& p) const { return fun()->print(p); }
  * Stmt
  */
 
-std::ostream& DeclStmt::print(Printer& p) const {
-    return decl()->print(p) << ";";
-}
-
 std::ostream& InitStmt::print(Printer& p) const {
     var_decl()->print(p);
-    p.stream() << " = ";
-    return init()->print(p) << ";";
+    if (init()) {
+        p.stream() << " = ";
+        init()->print(p) << ";";
+    }
+    return p.stream();
 }
 
 std::ostream& ExprStmt::print(Printer& p) const {

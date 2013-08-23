@@ -55,6 +55,7 @@
     case Token::FN: \
     case Token::IF: \
     case Token::FOR: \
+    case Token::FOREACH: \
     case Token::DO: \
     case Token::BREAK: \
     case Token::CONTINUE: \
@@ -99,6 +100,12 @@ public:
 
     // misc
     Token try_id(const std::string& what);
+    bool is_expr() const {
+        switch (la()) {
+            case EXPR: return true;
+            default:   return false;
+        }
+    }
     bool parse_prg(Scope*);
     const Scope* parse_scope();
     const Scope* try_scope(const std::string& context);
@@ -109,9 +116,8 @@ public:
     const Type* parse_tuple_type();
     const Type* parse_return_type();
     const VarDecl* parse_var_decl(bool is_param);
-    const Proto* parse_proto();
+    //const Proto* parse_proto();
     void parse_fun(Fun* fun);
-    const Decl* parse_decl();
 
     void parse_comma_list(TokenKind delimiter, const char* context, std::function<void()> f) {
         if (la() != delimiter) {
@@ -139,7 +145,7 @@ public:
     // statements
     const Stmt* parse_stmt();
     const ExprStmt* parse_expr_stmt();
-    const Stmt* parse_decl_stmt_or_init_stmt();
+    const Stmt* parse_init_stmt();
     const Stmt* parse_if_else();
     const Stmt* parse_while();
     const Stmt* parse_do_while();
@@ -338,23 +344,14 @@ const Type* Parser::parse_return_type() {
  * delcs
  */
 
-const Decl* Parser::parse_decl() {
-    switch (la()) {
-        case Token::EXTERN: return parse_proto();
-        default:            return parse_var_decl(false);
-    }
-}
-
-#if 0
 const VarDecl* Parser::parse_var_decl(bool is_param) {
     Token tok = la();
     expect(Token::ID, "declaration");
     expect(Token::COLON, "declaration");
-    const Type* type = try_type("declaration");
+    const Type* type = parse_type();
 
     return new VarDecl(cur_var_handle++, is_param, tok, type, prev_loc.pos2());
 }
-#endif
 
 #if 0
 const Proto* Parser::parse_proto() {
@@ -582,6 +579,7 @@ const FunExpr* Parser::parse_fun_expr() {
 
 const Stmt* Parser::parse_stmt() {
     switch (la()) {
+        case DECL:              return parse_init_stmt();
         case EXPR:              return parse_expr_stmt();
         case Token::BREAK:      return parse_break();
         case Token::CONTINUE:   return parse_continue();
@@ -614,23 +612,17 @@ const ExprStmt* Parser::parse_expr_stmt() {
     return new ExprStmt(expr, prev_loc.pos2());
 }
 
-#if 0
-const Stmt* Parser::parse_decl_stmt_or_init_stmt() {
-    const Decl* decl = parse_decl();
-    if (const auto var_decl = decl->isa<VarDecl>()) {
-        if (accept(Token::ASGN)) {
-            auto init = new InitStmt(var_decl, try_expr("right-hand side of an initialization"));
-            expect(Token::SEMICOLON, "the end of an initialization statement");
-            return init;
-        }
-    }
+const Stmt* Parser::parse_init_stmt() {
+    auto s = new InitStmt();
+    s->set_pos1(lex().pos1()); // eat val/var
+    s->var_decl_ = parse_var_decl(false);
+    if (accept(Token::ASGN))
+        s->init_ = parse_expr();
 
-    auto decl_stmt = new DeclStmt(decl);
-    decl_stmt->set_loc(decl->pos1(), la().pos2());
-    expect(Token::SEMICOLON, "the end of an declaration statement");
-    return decl_stmt;
+    expect(Token::SEMICOLON, "the end of an initialization statement");
+    s->set_pos2(prev_loc.pos2());
+    return s;
 }
-#endif
 
 const Expr* Parser::parse_cond(const std::string& what) {
     expect(Token::L_PAREN, "condition in " + what);
@@ -682,14 +674,11 @@ const Stmt* Parser::parse_for() {
     ANYDSL2_PUSH(cur_loop, loop);
 
     // clause 1: decl or expr_opt ';'
-    if (la2() == Token::COLON)
-        loop->init_ = parse_decl_stmt_or_init_stmt();
-    else if (is_expr())
-        loop->init_ = parse_expr_stmt();
-    else  {
-        if (!accept(Token::SEMICOLON))
-            error("expression or delcaration statement", "first clause in for statement");
-        loop->init_ = new ExprStmt(new EmptyExpr(loop->pos1()), loop->pos1());
+    switch (la()) {
+        case DECL:              loop->init_ = parse_init_stmt(); break;
+        case EXPR:              loop->init_ = parse_expr_stmt(); break;
+        case Token::SEMICOLON:  loop->init_ = new ExprStmt(new EmptyExpr(lex().loc())); break;
+        default: error("expression or delcaration statement", "first clause in for statement");
     }
 
     // clause 2: expr_opt ';'

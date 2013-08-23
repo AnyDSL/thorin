@@ -1,8 +1,8 @@
-fn f(cond : bool) -> sigma(int, bool) {
+fn f(cond : bool) -> (int, bool) {
     if (cond)
-        return #(42, cond);
+        return (42, cond);
     else
-        return #(42, cond);
+        return (42, cond);
 }
 
 fn main(i : int) -> int {

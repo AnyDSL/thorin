@@ -55,13 +55,14 @@ void CodeGen::emit_prg(const Scope* prg) {
                 lambda->name += "_impala";
                 lambda->attr().set_extern();
             }
-        } else if (auto decl_stmt = stmt->isa<DeclStmt>()) {
-            if (auto proto = decl_stmt->decl()->isa<Proto>()) {
-                auto lambda = world().lambda(proto->refined_type()->convert(world())->as<Pi>());
-                lambda->attr().set_extern();
-                lambda->name = proto->symbol().str();
-            }
-        }
+        } 
+        //else if (auto decl_stmt = stmt->isa<DeclStmt>()) {
+            //if (auto proto = decl_stmt->decl()->isa<Proto>()) {
+                //auto lambda = world().lambda(proto->refined_type()->convert(world())->as<Pi>());
+                //lambda->attr().set_extern();
+                //lambda->name = proto->symbol().str();
+            //}
+        //}
     }
 
     for (auto stmt : prg->stmts()) {
@@ -352,18 +353,11 @@ void InfixExpr::emit_branch(CodeGen& cg, JumpTarget& t, JumpTarget& f) const {
  * Stmt
  */
 
-void DeclStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
-    if (cg.is_reachable()) {
-        if (auto var_decl = decl()->isa<VarDecl>())
-            cg.emit(var_decl);
-        cg.jump(exit_bb);
-    }
-}
-
 void InitStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     if (cg.is_reachable()) {
         RefPtr ref = cg.emit(var_decl());
-        ref->store(cg.emit(init())->load());
+        if (init())
+            ref->store(cg.emit(init())->load());
         cg.jump(exit_bb);
     }
 }

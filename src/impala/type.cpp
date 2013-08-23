@@ -208,6 +208,23 @@ bool Type::infer_with(GenericMap& map, const Type* other) const {
     return oss.str();
 }
 
+#define ANYDSL2_REFINE_SPECIALIZE(T, constr) \
+    const Type* T::refine(const Sema& sema) const { \
+        anydsl2::Array<const Type*> nelems(size()); \
+        for (size_t i = 0, e = size(); i != e; ++i) \
+            nelems[i] = elem(i)->refine(sema); \
+        return typetable_.constr(nelems); \
+    } \
+    const Type* T::specialize(const GenericMap& map) const { \
+        anydsl2::Array<const Type*> nelems(size()); \
+        for (size_t i = 0, e = size(); i != e; ++i) \
+            nelems[i] = elem(i)->specialize(map); \
+        return typetable_.constr(nelems); \
+    }
+
+ANYDSL2_REFINE_SPECIALIZE(TupleType, tupletype)
+ANYDSL2_REFINE_SPECIALIZE(FnType, fntype)
+
 //------------------------------------------------------------------------------
 
 const anydsl2::Type* PrimType::convert(World& world) const {

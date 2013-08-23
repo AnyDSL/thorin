@@ -500,6 +500,11 @@ private:
 
 class ExprStmt : public Stmt {
 public:
+    ExprStmt(const Expr* expr)
+        : expr_(expr)
+    {
+        set_loc(expr->loc());
+    }
     ExprStmt(const Expr* expr, const anydsl2::Position& pos2)
         : expr_(expr)
     {
@@ -516,31 +521,8 @@ private:
     anydsl2::AutoPtr<const Expr> expr_;
 };
 
-class DeclStmt : public Stmt {
-public:
-    DeclStmt(const Decl* decl)
-        : decl_(decl)
-    {}
-
-    const Decl* decl() const { return decl_; }
-    virtual std::ostream& print(Printer& p) const;
-
-private:
-    virtual void check(Sema& sema) const;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
-
-    anydsl2::AutoPtr<const Decl> decl_;
-};
-
 class InitStmt : public Stmt {
 public:
-    InitStmt(const VarDecl* var_decl, const Expr* init)
-        : var_decl_(var_decl)
-        , init_(init)
-    {
-        set_loc(var_decl->pos1(), init->pos2());
-    }
-
     const VarDecl* var_decl() const { return var_decl_; }
     const Expr* init() const { return init_; }
     virtual std::ostream& print(Printer& p) const;
@@ -551,6 +533,8 @@ private:
 
     anydsl2::AutoPtr<const VarDecl> var_decl_;
     anydsl2::AutoPtr<const Expr> init_;
+
+    friend class Parser;
 };
 
 class IfElseStmt: public Stmt {

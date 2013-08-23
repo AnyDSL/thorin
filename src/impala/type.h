@@ -264,22 +264,6 @@ protected:
             is_generic_ |= elem->is_generic();
         }
     }
-
-    template<class Constr>
-    const Type* super_refine(Constr constr, const Sema& sema) const { 
-        anydsl2::Array<const Type*> nelems(size());
-        for (size_t i = 0, e = size(); i != e; ++i)
-            nelems[i] = elem(i)->refine(sema);
-        return (typetable_.*constr)(nelems);
-    }
-
-    template<class Constr>
-    const Type* super_specialize(const GenericMap& map, Constr constr) const {
-        anydsl2::Array<const Type*> nelems(size());
-        for (size_t i = 0, e = size(); i != e; ++i)
-            nelems[i] = elem(i)->specialize(map);
-        return (typetable_.*constr)(nelems);
-    }
 };
 
 class FnType : public CompoundType {
@@ -289,8 +273,8 @@ private:
     {}
 
 public:
-    virtual const Type* refine(const Sema& sema) const { return super_refine(&TypeTable::fntype, sema); }
-    virtual const Type* specialize(const GenericMap& map) const { return super_specialize(map, &TypeTable::fntype); }
+    virtual const Type* refine(const Sema& sema) const;
+    virtual const Type* specialize(const GenericMap& map) const;
     virtual const anydsl2::Type* convert(anydsl2::World&) const;
     const Type* return_type() const;
 
@@ -303,8 +287,8 @@ private:
         : CompoundType(typetable, Token::TYPE_tuple, elems, "<tuple type>")
     {}
 
-    virtual const Type* refine(const Sema& sema) const { return super_refine(&TypeTable::fntype, sema); }
-    virtual const Type* specialize(const GenericMap& map) const { return super_specialize(map, &TypeTable::tupletype); }
+    virtual const Type* refine(const Sema& sema) const;
+    virtual const Type* specialize(const GenericMap& map) const;
     virtual const anydsl2::Type* convert(anydsl2::World&) const;
 
     friend class TypeTable;

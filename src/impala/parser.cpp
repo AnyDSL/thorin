@@ -67,6 +67,22 @@ using namespace anydsl2;
 
 namespace impala {
 
+class Parser;
+
+template<class T>
+class Loc {
+public:
+    inline Loc(Parser& parser, T* node);
+    inline ~Loc();
+
+    operator T*() { return node_; }
+    T* operator -> () { return node_; }
+
+private:
+    Parser& parser_;
+    T* node_;
+};
+
 class Parser {
 public:
     Parser(TypeTable& typetable, std::istream& stream, const std::string& filename)
@@ -98,6 +114,10 @@ public:
     bool expect(TokenKind tok, const std::string& context);
     void error(const std::string& what, const std::string& context);
     bool result() const { return result_; }
+    template<class T>
+    Loc<T> loc(T* node) { return Loc<T>(*this, node); }
+    const ExprStmt* lex_as_empty_expr_stmt() { return new ExprStmt(new EmptyExpr(lex().loc())); }
+    const ExprStmt* create_empty_expr_stmt() { return new ExprStmt(new EmptyExpr(prev_loc)); }
 
     // misc
     Token try_id(const std::string& what);
@@ -119,7 +139,6 @@ public:
     const VarDecl* parse_var_decl(bool is_param);
     //const Proto* parse_proto();
     void parse_fun(Fun* fun);
-
     void parse_comma_list(TokenKind delimiter, const char* context, std::function<void()> f) {
         if (la() != delimiter) {
             do { f(); }
@@ -162,7 +181,7 @@ public:
     /// helper for condition in if/while/do-while
     const Expr* parse_cond(const std::string& what);
 
-private:
+//private:
     /// Consume next Token in input stream, fill look-ahead buffer, return consumed Token.
     Token lex();
 
@@ -178,6 +197,18 @@ private:
     anydsl2::Location prev_loc;
     bool result_;
 };
+
+//------------------------------------------------------------------------------
+
+template<class T>
+Loc<T>::Loc(Parser& parser, T* node)
+    : parser_(parser)
+    , node_(node)
+{
+    node_->set_pos1(parser_.la().pos1());
+}
+template<class T>
+Loc<T>::~Loc() { node_->set_pos2(parser_.prev_loc.pos2()); }
 
 //------------------------------------------------------------------------------
 
@@ -269,20 +300,17 @@ const Scope* Parser::parse_stmt_as_scope(const std::string& what) {
         return parse_scope();
     switch (la()) {
         case STMT: {
-            auto scope = new Scope();
-            scope->set_pos1(la().pos1());
+            auto scope = loc(new Scope());
             scope->stmts_.push_back(parse_stmt());
-            scope->set_pos2(prev_loc.pos2());
             return scope;
         }
-        default:                return new Scope(prev_loc);
+        default: return new Scope(prev_loc);
     }
 }
 
 const Scope* Parser::parse_scope() {
-    Scope* scope = new Scope();
-    scope->set_pos1(eat(Token::L_BRACE).pos1());
-
+    eat(Token::L_BRACE);
+    auto scope = loc(new Scope());
     while (true) {
         switch (la()) {
             case Token::SEMICOLON:  lex(); continue; // ignore semicolon
@@ -293,8 +321,6 @@ const Scope* Parser::parse_scope() {
     }
 out:
     expect(Token::R_BRACE, "scope statement");
-    scope->set_pos2(prev_loc.pos2());
-
     return scope;
 }
 
@@ -361,9 +387,8 @@ const VarDecl* Parser::parse_var_decl(bool is_param) {
 
 #if 0
 const Proto* Parser::parse_proto() {
-    Position pos1 = la().pos1();
+    auto proto = loc(new Proto(try_id("prototype").symbol()));
     eat(Token::EXTERN);
-    Proto* proto = new Proto(try_id("prototype").symbol());
     std::vector<const Type*> types;
 
     expect(Token::L_PAREN, "prototype");
@@ -379,7 +404,6 @@ const Proto* Parser::parse_proto() {
         types.push_back(typetable.fntype1(ret_type));
 
     proto->orig_type_ = typetable.fntype(types);
-    proto->set_loc(pos1, prev_loc.pos2());
 
     return proto;
 }
@@ -392,11 +416,10 @@ void Parser::parse_generics_list(GenericDecls& generic_decls) {
         });
 }
 
-void Parser::parse_fun(Fun* fun) {
-    ANYDSL2_PUSH(cur_fun, fun);
+void Parser::parse_fun(Fun* f) {
+    ANYDSL2_PUSH(cur_fun, f);
     ANYDSL2_PUSH(cur_var_handle, cur_var_handle);
-
-    fun->set_pos1(la().pos1());
+    auto fun = loc(f);
     std::vector<const Type*> arg_types;
     expect(Token::L_PAREN, "function head");
     parse_comma_list(Token::R_PAREN, "parameter list", [&] {
@@ -415,7 +438,6 @@ void Parser::parse_fun(Fun* fun) {
 
     fun->orig_type_ = typetable.fntype(arg_types);
     fun->body_ = try_scope("body of function");
-    fun->set_pos2(prev_loc.pos2());
 }
 
 /*
@@ -480,19 +502,21 @@ const Expr* Parser::parse_infix_expr(const Expr* lhs) {
 
 const Expr* Parser::parse_postfix_expr(const Expr* lhs) {
     if (accept(Token::L_PAREN)) {
-        auto call = new Call(lhs);
+        auto call = loc(new Call(lhs));
         parse_comma_list(Token::R_PAREN, "arguments of a function call", [&]{ call->append_arg(parse_expr()); });
-        call->set_pos2(prev_loc.pos2());
         return call;
     } else if (accept(Token::L_BRACKET)) {
-        Position pos1 = prev_loc.pos1();
-        auto index = parse_expr();
+        auto expr = loc(new IndexExpr());
+        expr->ops_.push_back(lhs);
+        expr->ops_.push_back(parse_expr());
         expect(Token::R_BRACKET, "index expression");
-        return new IndexExpr(pos1, lhs, index, prev_loc.pos2());
+        return expr;
     } else {
-        assert(la() == Token::INC || la() == Token::DEC);
-        Token op = lex();
-        return new PostfixExpr(lhs, (PostfixExpr::Kind) op.kind(), op.pos2());
+        auto expr = loc(new PostfixExpr());
+        expr->ops_.push_back(lhs);
+        assert(la() == Token::INC || la() == Token::DEC); 
+        expr->kind_ = (PostfixExpr::Kind) lex().kind();
+        return expr;
     }
 }
 
@@ -542,14 +566,12 @@ const Expr* Parser::parse_literal() {
 }
 
 const FunExpr* Parser::parse_fun_expr() {
-    auto e = new FunExpr(typetable);
-    e->set_pos1(la().pos1());
-    Fun* fun = e->fun_;
+    auto e = loc(new FunExpr(typetable));
+    auto fun = loc(e->fun_.get());
 
     ANYDSL2_PUSH(cur_fun, fun);
     ANYDSL2_PUSH(cur_var_handle, cur_var_handle);
 
-    fun->set_pos1(la().pos1());
     std::vector<const Type*> arg_types;
     if (accept(Token::OR)) {
         parse_comma_list(Token::OR, "parameter list of function expression", [&] {
@@ -570,11 +592,8 @@ const FunExpr* Parser::parse_fun_expr() {
 
     fun->orig_type_ = typetable.fntype(arg_types);
     fun->body_ = try_scope("body of function");
-    fun->set_pos2(prev_loc.pos2());
-
     e->fun_->extern_ = false;
     e->fun_->symbol_ = "<lambda>";
-    e->set_pos2(prev_loc.pos2());
 
     return e;
 }
@@ -600,36 +619,33 @@ const Stmt* Parser::parse_stmt() {
         case Token::L_BRACE:    return parse_scope_stmt();
         case Token::RETURN:     return parse_return();
         case Token::WHILE:      return parse_while();
-        case Token::SEMICOLON:                                                      return new ExprStmt(new EmptyExpr(lex().loc()));
-        case Token::ELSE:       error("'else' without matching 'if'", "statement"); return new ExprStmt(new EmptyExpr(lex().loc()));
-        default:                error("statement", "");                             return new ExprStmt(new EmptyExpr(lex().loc()));
+        case Token::SEMICOLON:                                                      return lex_as_empty_expr_stmt();
+        case Token::ELSE:       error("'else' without matching 'if'", "statement"); return lex_as_empty_expr_stmt();
+        default:                error("statement", "");                             return lex_as_empty_expr_stmt();
     }
 }
 
 const ScopeStmt* Parser::parse_scope_stmt() {
-    ScopeStmt* s = new ScopeStmt();
-    s->set_pos1(la().pos1());
+    auto s = loc(new ScopeStmt());
     s->scope_ = parse_scope();
-    s->set_pos2(prev_loc.pos2());
     return s;
 }
 
 const ExprStmt* Parser::parse_expr_stmt() {
-    auto expr = parse_expr(); // discard val
+    auto s = loc(new ExprStmt());
+    s->expr_ = parse_expr();
     expect(Token::SEMICOLON, "the end of an expression statement");
-
-    return new ExprStmt(expr, prev_loc.pos2());
+    return s;
 }
 
 const Stmt* Parser::parse_init_stmt() {
-    auto s = new InitStmt();
-    s->set_pos1(lex().pos1()); // eat val/var
+    lex(); // eat val/var
+    auto s = loc(new InitStmt());
     s->var_decl_ = parse_var_decl(false);
     if (accept(Token::ASGN))
         s->init_ = parse_expr();
 
     expect(Token::SEMICOLON, "the end of an initialization statement");
-    s->set_pos2(prev_loc.pos2());
     return s;
 }
 
@@ -641,12 +657,11 @@ const Expr* Parser::parse_cond(const std::string& what) {
 }
 
 const Stmt* Parser::parse_if_else() {
-    auto ifelse = new IfElseStmt();
-    ifelse->set_pos1(eat(Token::IF).pos1());
+    eat(Token::IF);
+    auto ifelse = loc(new IfElseStmt());
     ifelse->cond_ = parse_cond("if statement");
     ifelse->then_scope_ = parse_stmt_as_scope("if clause");
     ifelse->else_scope_ = accept(Token::ELSE) ? parse_stmt_as_scope("else clause") : new Scope(prev_loc);
-    ifelse->set_pos2(prev_loc.pos2());
     return ifelse;
 }
 
@@ -658,7 +673,7 @@ const Stmt* Parser::parse_label_stmt() {
         case Token::DO:     loop = (Loop*) parse_do_while(); break;
         case Token::FOR:    loop = (Loop*) parse_for();      break;
         case Token::WHILE:  loop = (Loop*) parse_while();    break;
-        default:            error("for statement after label", ""); return new ExprStmt(new EmptyExpr(Location(tok.pos1(), prev_loc.pos2())));
+        default:            error("for statement after label", ""); return create_empty_expr_stmt();
 
     }
 
@@ -669,33 +684,32 @@ const Stmt* Parser::parse_label_stmt() {
 }
 
 const Stmt* Parser::parse_while() {
-    auto loop = new ForStmt();
-    loop->set_pos1(eat(Token::WHILE).pos1());
-    loop->init_ = new ExprStmt(new EmptyExpr(loop->pos1()), loop->pos1());
+    eat(Token::WHILE);
+    auto loop = loc(new ForStmt());
+    loop->init_ = create_empty_expr_stmt();
     loop->cond_ = parse_cond("while statement");
     loop->step_ = new EmptyExpr(loop->pos1());
     ANYDSL2_PUSH(cur_loop, loop);
     loop->body_ = parse_stmt_as_scope("body of while statement");
-    loop->set_pos2(prev_loc.pos2());
+
     return loop;
 }
 
 const Stmt* Parser::parse_do_while() {
-    DoWhileStmt* loop = new DoWhileStmt();
-    loop->set_pos1(eat(Token::DO).pos1());
+    eat(Token::DO);
+    auto loop = loc(new DoWhileStmt());
     ANYDSL2_PUSH(cur_loop, loop);
     loop->body_ = parse_stmt_as_scope("body of do-while statement");
     expect(Token::WHILE, "do-while statement");
     loop->cond_ = parse_cond("do-while statement");
     expect(Token::SEMICOLON, "do-while statement");
-    loop->set_pos2(prev_loc.pos2());
 
     return loop;
 }
 
 const Stmt* Parser::parse_for() {
-    ForStmt*  loop = new ForStmt();
-    loop->set_pos1(eat(Token::FOR).pos1());
+    eat(Token::FOR);
+    auto loop = loc(new ForStmt());
     expect(Token::L_PAREN, "for statement");
 
     ANYDSL2_PUSH(cur_loop, loop);
@@ -704,7 +718,7 @@ const Stmt* Parser::parse_for() {
     switch (la()) {
         case DECL:              loop->init_ = parse_init_stmt(); break;
         case EXPR:              loop->init_ = parse_expr_stmt(); break;
-        case Token::SEMICOLON:  loop->init_ = new ExprStmt(new EmptyExpr(lex().loc())); break;
+        case Token::SEMICOLON:  loop->init_ = lex_as_empty_expr_stmt(); break;
         default: error("expression or delcaration statement", "first clause in for statement");
     }
 
@@ -735,14 +749,13 @@ const Stmt* Parser::parse_for() {
     }
 
     loop->body_ = parse_stmt_as_scope("body of for statement");
-    loop->set_pos2(prev_loc.pos2());
 
     return loop;
 }
 
 const Stmt* Parser::parse_foreach() {
-    ForeachStmt* foreach = new ForeachStmt();
-    foreach->set_pos1(eat(Token::FOREACH).pos1());
+    eat(Token::FOREACH);
+    auto foreach = loc(new ForeachStmt());
 
     auto expr = parse_expr(BOTTOM, true);
     if (const Call* call = expr->isa<Call>()) {
@@ -754,47 +767,47 @@ const Stmt* Parser::parse_foreach() {
     }
 
     foreach->fun_expr_ = parse_fun_expr();
-    foreach->set_pos2(prev_loc.pos2());
 
     return foreach;
 }
 
 const Stmt* Parser::parse_break() {
-    Position pos1 = eat(Token::BREAK).pos1();
+    auto s = loc(new BreakStmt());
+    s->loop_ = cur_loop;
+    eat(Token::BREAK).pos1();
     expect(Token::SEMICOLON, "break statement");
-
-    return new BreakStmt(pos1, prev_loc.pos2(), cur_loop);
+    return s;
 }
 
 const Stmt* Parser::parse_continue() {
-    Position pos1 = eat(Token::CONTINUE).pos1();
+    auto s = loc(new ContinueStmt());
+    s->loop_ = cur_loop;
+    eat(Token::CONTINUE);
     expect(Token::SEMICOLON, "continue statement");
-
-    return new ContinueStmt(pos1, prev_loc.pos2(), cur_loop);
+    return s;
 }
 
 const Stmt* Parser::parse_return() {
-    Position pos1 = eat(Token::RETURN).pos1();
-    const Expr* expr;
+    auto ret = loc(new ReturnStmt());
+    ret->fun_ = cur_fun;
+    eat(Token::RETURN);
     if (accept(Token::SEMICOLON))
-        expr = nullptr;
+        ret->expr_ = nullptr;
     else {
-        expr = parse_expr();
+        ret->expr_ = parse_expr();
         expect(Token::SEMICOLON, "return statement");
     }
 
-    return new ReturnStmt(pos1, expr, cur_fun, prev_loc.pos2());
+    return ret;
 }
 
 const Stmt* Parser::parse_fun_stmt() {
-    FunStmt* s = new FunStmt(typetable);
-    s->set_pos1(eat(Token::FN).pos1());
+    auto s = loc(new FunStmt(typetable));
+    eat(Token::FN).pos1();
     s->fun_->extern_ = accept(Token::EXTERN);
     s->fun_->symbol_ = try_id("function identifier").symbol();
     parse_generics_list(s->fun_->generics_);
     parse_fun(s->fun_);
-    s->set_pos2(prev_loc.pos2());
-
     return s;
 }
 

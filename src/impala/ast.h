@@ -242,8 +242,9 @@ protected:
     Exprs ops_;
     mutable const Type* type_;
 
-    friend class CodeGen;
+    friend class Parser;
     friend class Sema;
+    friend class CodeGen;
 };
 
 class EmptyExpr : public Expr {
@@ -408,13 +409,6 @@ public:
         DEC = Token::DEC
     };
 
-    PostfixExpr(const Expr* lhs, Kind kind, const anydsl2::Position& pos2)
-        : kind_(kind)
-    {
-        ops_.push_back(lhs);
-        set_loc(lhs->pos1(), pos2);
-    }
-
     const Expr* lhs() const { return ops_[0]; }
     Kind kind() const { return kind_; }
     virtual bool is_lvalue() const { return false; }
@@ -425,6 +419,8 @@ private:
     virtual anydsl2::RefPtr emit(CodeGen& cg) const;
 
     Kind kind_;
+
+    friend class Parser;
 };
 
 class ConditionalExpr : public Expr {
@@ -449,12 +445,6 @@ private:
 
 class IndexExpr : public Expr {
 public:
-    IndexExpr(const anydsl2::Position& pos1, const Expr* lhs, const Expr* index, const anydsl2::Position& pos2) {
-        ops_.push_back(lhs);
-        ops_.push_back(index);
-        set_loc(pos1, pos2);
-    }
-
     const Expr* lhs() const { return ops_[0]; }
     const Expr* index() const { return ops_[1]; }
     virtual bool is_lvalue() const { return true; }
@@ -501,15 +491,11 @@ private:
 
 class ExprStmt : public Stmt {
 public:
+    ExprStmt() {}
     ExprStmt(const Expr* expr)
         : expr_(expr)
     {
         set_loc(expr->loc());
-    }
-    ExprStmt(const Expr* expr, const anydsl2::Position& pos2)
-        : expr_(expr)
-    {
-        set_loc(expr->pos1(), pos2);
     }
 
     const Expr* expr() const { return expr_; }
@@ -520,6 +506,8 @@ private:
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     anydsl2::AutoPtr<const Expr> expr_;
+
+    friend class Parser;
 };
 
 class InitStmt : public Stmt {
@@ -623,12 +611,6 @@ private:
 
 class BreakStmt : public Stmt {
 public:
-    BreakStmt(const anydsl2::Position& pos1, const anydsl2::Position& pos2, const Loop* loop)
-        : loop_(loop)
-    {
-        set_loc(pos1, pos2);
-    }
-
     const Loop* loop() const { return loop_; }
     virtual std::ostream& print(Printer& p) const;
 
@@ -637,16 +619,12 @@ private:
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     const Loop* loop_;
+
+    friend class Parser;
 };
 
 class ContinueStmt : public Stmt {
 public:
-    ContinueStmt(const anydsl2::Position& pos1, const anydsl2::Position& pos2, const Loop* loop)
-        : loop_(loop)
-    {
-        set_loc(pos1, pos2);
-    }
-
     const Loop* loop() const { return loop_; }
     virtual std::ostream& print(Printer& p) const;
 
@@ -655,17 +633,12 @@ private:
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     const Loop* loop_;
+
+    friend class Parser;
 };
 
 class ReturnStmt : public Stmt {
 public:
-    ReturnStmt(const anydsl2::Position& pos1, const Expr* expr, const Fun* fun, const anydsl2::Position& pos2)
-        : expr_(expr)
-        , fun_(fun)
-    {
-        set_loc(pos1, pos2);
-    }
-
     const Expr* expr() const { return expr_; }
     const Fun* fun() const { return fun_; }
     virtual std::ostream& print(Printer& p) const;
@@ -676,6 +649,8 @@ private:
 
     anydsl2::AutoPtr<const Expr> expr_;
     const Fun* fun_;
+
+    friend class Parser;
 };
 
 class FunStmt : public Stmt {

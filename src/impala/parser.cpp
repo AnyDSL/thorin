@@ -349,9 +349,13 @@ const Type* Parser::parse_return_type() {
 const VarDecl* Parser::parse_var_decl(bool is_param) {
     Token tok = la();
     expect(Token::ID, "declaration");
-    expect(Token::COLON, "declaration");
-    const Type* type = parse_type();
-
+    const Type* type;
+    if (!is_param) {
+        type = accept(Token::COLON) ? parse_type() : nullptr;
+    } else {
+        expect(Token::COLON, "declaration");
+        type = parse_type();
+    }
     return new VarDecl(cur_var_handle++, is_param, tok, type, prev_loc.pos2());
 }
 

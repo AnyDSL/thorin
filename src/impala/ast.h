@@ -130,6 +130,7 @@ protected:
     mutable const Type* refined_type_;
 
     friend class Sema;
+    friend class InitStmt;
 };
 
 class Fun : public LetDecl {

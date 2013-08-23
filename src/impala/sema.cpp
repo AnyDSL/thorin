@@ -209,7 +209,7 @@ const Type* IdType::refine(const Sema& sema) const {
 
 void VarDecl::check(Sema& sema) const {
     sema.insert(this);
-    refined_type_ = orig_type_->refine(sema);
+    refined_type_ = orig_type_ ? orig_type_->refine(sema) : nullptr;
     fun_ = sema.cur_fun();
 }
 
@@ -410,7 +410,11 @@ const Type* Call::check(Sema& sema) const {
 void InitStmt::check(Sema& sema) const {
     sema.check(var_decl());
     if (init()) {
-        if (var_decl()->refined_type()->check_with(sema.check(init()))) {
+        sema.check(init());
+        if (var_decl()->refined_type() ==  nullptr)
+            var_decl()->refined_type_ = init()->type();
+
+        if (var_decl()->refined_type()->check_with(init()->type())) {
             GenericMap map = sema.copy_generic_map();
             if (var_decl()->refined_type()->infer_with(map, init()->type()))
                 return;
@@ -422,6 +426,9 @@ void InitStmt::check(Sema& sema) const {
             sema.error(this) << "initializing expression of type '" << init()->type() << "' but '" 
                 << var_decl()->symbol() << "' declared of type '" << var_decl()->refined_type() << '\n';
         }
+    } else {
+        if (var_decl()->refined_type() ==  nullptr)
+            sema.error(var_decl()) << "cannot infer type\n";
     }
 }
 

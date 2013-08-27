@@ -823,8 +823,8 @@ void World::wipe_out(const size_t pass, S& set) {
         auto j = i++;
         const Def* def = *j;
         if (!def->is_visited(pass)) {
-            delete def;
             set.erase(j);
+            delete def;
         }
     }
 }
@@ -955,8 +955,8 @@ void World::unused_type_elimination() {
         if (type->is_visited(pass))
             ++i;
         else {
-            delete type;
             i = types_.erase(i);
+            delete type;
         }
     }
 }

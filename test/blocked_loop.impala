@@ -1,4 +1,4 @@
-fn blocked_loop(length : int, get_block_size : pi(int) -> int, bodyfn : fn(int, fn(int))) -> int {
+fn blocked_loop(length : int, get_block_size : fn(int) -> int, bodyfn : fn(int, fn(int))) -> int {
     fn blocked_iter(cur_level : int, i : int, N : int) -> int {
         block_size : int = get_block_size(cur_level);
         if (block_size <= 0)

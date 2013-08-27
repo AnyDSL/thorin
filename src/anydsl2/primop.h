@@ -109,7 +109,7 @@ public:
 class ConvOp : public VectorOp {
 private:
     ConvOp(ConvOpKind kind, const Def* cond, const Def* from, const Type* to, const std::string& name)
-        : VectorOp(1, (NodeKind) kind, to, cond, name)
+        : VectorOp(2, (NodeKind) kind, to, cond, name)
     {
         set_op(1, from);
     }

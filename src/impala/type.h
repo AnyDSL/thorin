@@ -125,8 +125,8 @@ public:
     bool is_bool() const;
     bool is_int() const;
     bool is_float() const;
-    bool is_void() const { return isa<Void>(); }
-    bool is_noret() const { return isa<NoRet>(); }
+    bool is_void() const { return isa<Void>() != nullptr; }
+    bool is_noret() const { return isa<NoRet>() != nullptr; }
     bool is_generic() const { return is_generic_; }
     bool check_with(const Type*) const;
     bool infer_with(GenericMap& map, const Type* type) const;

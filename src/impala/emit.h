@@ -9,7 +9,7 @@ namespace impala {
 
 class Scope;
 
-inline void emit(anydsl2::World&, const Scope*) {}
+void emit(anydsl2::World&, const Scope*);
 
 } // namespace impala
 

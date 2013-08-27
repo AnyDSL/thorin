@@ -37,7 +37,7 @@ std::ostream& CodeGen::emit_type(const Type* type) {
     } else if (auto pi = type->isa<Pi>()) {
         return dump_list([&](const Type* type) { emit_type(type); }, pi->elems(), "pi(", ")");
     } else if (auto sigma = type->isa<Sigma>()) {
-        return dump_list([&](const Type* type) { emit_type(type); }, sigma->elems(), "sigma(", ")");
+        return dump_list([&](const Type* type) { emit_type(type); }, sigma->elems(), "[", "]");
     } else if (auto generic = type->isa<Generic>()) {
         return stream() << '<' << generic->index() << '>';
     } else if (auto genref = type->isa<GenericRef>()) {

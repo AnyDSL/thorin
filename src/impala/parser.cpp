@@ -262,8 +262,11 @@ bool Parser::parse_prg(Scope* scope) {
             case Token::END_OF_FILE:    scope->set_pos2(prev_loc.pos2()); return result();
             case Token::FN:             scope->stmts_.push_back(parse_fun_stmt()); continue;
             case Token::EXTERN:         scope->stmts_.push_back(parse_decl_stmt_or_init_stmt()); continue;
-            case Token::SEMICOLON:      // FALLTHROUGH: ignore semicolon
-            default:                    lex(); continue; // consume token nobody wants
+            case Token::SEMICOLON:      lex(); continue;
+            default:
+                error("item", "program");
+                lex();
+                continue; // consume token nobody wants
         }
     }
 }
@@ -297,6 +300,7 @@ const Scope* Parser::parse_scope() {
         } else if (is_stmt()) {
             scope->stmts_.push_back(parse_stmt());
         } else {
+            error("item or statement", "scope");
             lex(); // consume token nobody wants
         }
     }

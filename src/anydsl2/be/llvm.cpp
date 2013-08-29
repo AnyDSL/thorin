@@ -423,6 +423,9 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return vec;
     }
 
+    if (auto lea = def->isa<LEA>()) {
+    }
+
     assert(!def->is_corenode());
     return hook.emit(def);
 }

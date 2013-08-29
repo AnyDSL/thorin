@@ -2,7 +2,7 @@ fn fac_rec(n : int) -> int
 {
     if (n <= 0) 
         return 1;
-    return n * fac_rec(n -1);
+    return n * fac_rec(n-1);
 }
 
 fn main() -> int {

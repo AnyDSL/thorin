@@ -282,8 +282,11 @@ bool Parser::parse_prg(Scope* scope) {
         switch (la()) {
             case Token::END_OF_FILE:    scope->set_pos2(prev_loc.pos2()); return result();
             case Token::FN:             scope->stmts_.push_back(parse_fun_stmt()); continue;
-            case Token::SEMICOLON:      // FALLTHROUGH: ignore semicolon
-            default:                    lex(); continue; // consume token nobody wants
+            case Token::SEMICOLON:      lex(); continue;
+            default:
+                error("item", "program");
+                lex();
+                continue; // consume token nobody wants
         }
     }
 }

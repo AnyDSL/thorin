@@ -111,12 +111,7 @@ private:
 
 class LEA : public PrimOp {
 private:
-    LEA(const Def* ptr, const Def* index, const std::string& name)
-        : PrimOp(2, Node_LEA, ptr->type(), name)
-    {
-        set_op(0, ptr);
-        set_op(1, index);
-    }
+    LEA(const Def* ptr, const Def* index, const std::string& name);
 
 public:
     const Def* ptr() const { return op(0); }

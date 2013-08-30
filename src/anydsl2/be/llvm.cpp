@@ -136,7 +136,7 @@ void CodeGen::emit() {
 
             for (auto primop :  schedule[lambda->sid()]) {
                 // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
-                if (!primop->type()->isa<Pi>() && !primop->type()->isa<Frame>() 
+                if (!primop->type()->isa<Pi>() && !primop->type()->isa<Frame>()
                         && (!primop->type()->isa<Mem>() || primop->isa<Store>()))
                     primops[primop] = emit(primop);
             }
@@ -146,7 +146,12 @@ void CodeGen::emit() {
                 size_t num_args = lambda->num_args();
                 switch (num_args) {
                     case 0: builder.CreateRetVoid(); break;
-                    case 1: builder.CreateRet(lookup(lambda->arg(0))); break;
+                    case 1:
+                        if (lambda->arg(0)->type()->isa<Mem>())
+                            builder.CreateRetVoid();
+                        else
+                            builder.CreateRet(lookup(lambda->arg(0)));
+                        break;
                     case 2: {
                         if (lambda->arg(0)->type()->isa<Mem>()) {
                             builder.CreateRet(lookup(lambda->arg(1)));
@@ -219,8 +224,18 @@ void CodeGen::emit() {
                                 unsigned idxs[1] = { i };
                                 params[succ->param(i)] = builder.CreateExtractValue(call, idxs);
                             }
-                        } else
-                            params[succ->param(0)->type()->isa<Mem>() ? succ->param(1) : succ->param(0)] = call;
+                        } else {
+                            switch (succ->num_params()) {
+                                case 1:
+                                    if (!succ->param(0)->type()->isa<Mem>())
+                                        params[succ->param(0)] = call;
+                                    break;
+                                case 2:
+                                    params[succ->param(0)->type()->isa<Mem>() ? succ->param(1) : succ->param(0)] = call;
+                                    break;
+                                default: ANYDSL2_UNREACHABLE;
+                            }
+                        }
 
                         builder.CreateBr(bbs[succ->sid()]);
                     }

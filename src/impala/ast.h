@@ -60,12 +60,14 @@ public:
     }
 
     const Stmts& stmts() const { return stmts_; }
+    const Expr* expr() const { return expr_; }
     const Stmt* stmt(size_t i) const { return stmts_[i]; }
     bool empty() const { return stmts_.empty(); }
     virtual std::ostream& print(Printer& p) const;
 
 private:
     mutable Stmts stmts_;
+    anydsl2::AutoPtr<const Expr> expr_;
 
     friend class Parser;
 };

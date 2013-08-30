@@ -49,9 +49,8 @@
          Token::VAL: \
     case Token::VAR
 
-#define STMT \
+#define STMT_NO_EXPR \
          DECL: \
-    case EXPR: \
     case Token::FN: \
     case Token::IF: \
     case Token::FOR: \
@@ -62,6 +61,10 @@
     case Token::CONTINUE: \
     case Token::RETURN: \
     case Token::L_BRACE
+
+#define STMT \
+        STMT_NO_EXPR: \
+    case EXPR
 
 using namespace anydsl2;
 
@@ -317,14 +320,23 @@ const Scope* Parser::parse_scope() {
     while (true) {
         switch (la()) {
             case Token::SEMICOLON:  lex(); continue; // ignore semicolon
-            case STMT:              scope->stmts_.push_back(parse_stmt()); break;
-            case Token::R_BRACE:
-            default:                goto out;
+            case STMT_NO_EXPR:      scope->stmts_.push_back(parse_stmt()); break;
+            case EXPR: {
+                auto expr = parse_expr();
+                if (accept(Token::SEMICOLON)) {
+                    scope->stmts_.push_back(new ExprStmt(expr));
+                    scope->set_loc(expr->pos1(), prev_loc.pos2());
+                    continue;
+                } else {
+                    scope->expr_ = expr;
+                }
+                // FALLTHROUGH
+            } 
+            default:
+                expect(Token::R_BRACE, "scope statement");
+                return scope;
         }
     }
-out:
-    expect(Token::R_BRACE, "scope statement");
-    return scope;
 }
 
 /*

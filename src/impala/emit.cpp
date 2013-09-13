@@ -47,9 +47,9 @@ void emit(World& world, const Scope* prg) { CodeGen(world).emit_prg(prg); }
 //------------------------------------------------------------------------------
 
 void CodeGen::emit_prg(const Scope* prg) {
-    for (auto stmt : prg->stmts()) {
-        if (auto fun_stmt = stmt->isa<FunStmt>()) {
-            auto fun = fun_stmt->fun();
+    for (auto stmt_or_item : prg->stmts_or_items()) {
+        if (auto fun_item = stmt_or_item->isa<FunItem>()) {
+            auto fun = fun_item->fun();
             Lambda* lambda = emit_head(fun);
             if (fun->symbol() == Symbol("main")) {
                 lambda->name += "_impala";
@@ -65,9 +65,9 @@ void CodeGen::emit_prg(const Scope* prg) {
         //}
     }
 
-    for (auto stmt : prg->stmts()) {
-        if (auto fun_stmt = stmt->isa<FunStmt>())
-            emit_body(fun_stmt->fun());
+    for (auto stmt : prg->stmts_or_items()) {
+        if (auto fun_item = stmt->isa<FunItem>())
+            emit_body(fun_item->fun());
     }
 
     // clear get/set value stuff
@@ -77,22 +77,27 @@ void CodeGen::emit_prg(const Scope* prg) {
 
 
 void CodeGen::emit(const Scope* scope, JumpTarget& exit_bb) {
-    for (auto stmt : scope->stmts()) {
-        if (auto fun_stmt = stmt->isa<FunStmt>())
-            emit_head(fun_stmt->fun());
+    for (auto stmt_or_item : scope->stmts_or_items()) {
+        if (auto fun_item = stmt_or_item->isa<FunItem>())
+            emit_head(fun_item->fun());
     }
 
-    size_t size = scope->stmts().size();
+    size_t size = scope->stmts_or_items().size();
     if (size == 0)
         jump(exit_bb);
     else {
         size_t i = 0;
         for (; i != size - 1; ++i) {
-            JumpTarget stmt_exit_bb("next");
-            emit(scope->stmt(i), stmt_exit_bb);
-            enter(stmt_exit_bb);
+            // TODO: fixme
+            if (auto stmt = scope->stmt_or_item(i)->isa<Stmt>()) {
+                JumpTarget stmt_exit_bb("next");
+                emit(stmt, stmt_exit_bb);
+                enter(stmt_exit_bb);
+            }
         }
-        emit(scope->stmt(i), exit_bb);
+        // TODO: fixme
+        if (auto stmt = scope->stmt_or_item(i)->isa<Stmt>())
+            emit(stmt, exit_bb);
     }
 }
 
@@ -492,6 +497,12 @@ void ReturnStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 }
 
 void ScopeStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.emit(scope(), exit_bb); }
-void FunStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.emit_body(fun()); cg.jump(exit_bb); }
+
+/*
+ * items
+ */
+
+void FunItem::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.emit_body(fun()); cg.jump(exit_bb); }
+void TraitItem::emit(CodeGen &cg, JumpTarget &exit_bb) const { assert( false && "todo"); }
 
 } // namespace impala

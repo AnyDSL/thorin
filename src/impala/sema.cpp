@@ -54,10 +54,10 @@ public:
     std::ostream& error(const ASTNode* n) { result_ = false; return n->error(); }
     std::ostream& error(const Location& loc) { result_ = false; return loc.error(); }
     TypeTable& typetable() const { return typetable_; }
-    void check(const Scope*) ;
+    void check(const Scope*);
     void check(const Decl* decl) { decl->check(*this); }
     const Type* check(const Expr* expr) { assert(!expr->type_); return expr->type_ = expr->check(*this); }
-    void check(const Stmt* stmt) { stmt->check(*this); }
+    void check(const StmtOrItem* stmt_or_item) { stmt_or_item->check(*this); }
     bool check_cond(const Expr* cond) {
         if (check(cond)->is_bool())
             return true;
@@ -180,12 +180,12 @@ void Fun::check(Sema& sema) const {
 }
 
 void Sema::check(const Scope* scope) {
-    for (auto stmt : scope->stmts()) {
-        if (auto fun_stmt = stmt->isa<FunStmt>())
-            fun_stmt->fun()->check_head(*this);
+    for (auto stmt : scope->stmts_or_items()) {
+        if (auto fun_item = stmt->isa<FunItem>())
+            fun_item->fun()->check_head(*this);
     }
 
-    for (auto stmt : scope->stmts())
+    for (auto stmt : scope->stmts_or_items())
         check(stmt);
 }
 
@@ -539,7 +539,10 @@ void ScopeStmt::check(Sema& sema) const {
     sema.pop_scope();
 }
 
-void FunStmt::check(Sema& sema) const { sema.check(fun()); }
+//------------------------------------------------------------------------------
+
+void FunItem::check(Sema& sema) const { sema.check(fun()); }
+void TraitItem::check(Sema& sema) const { assert( false && "todo"); }
 
 //------------------------------------------------------------------------------
 

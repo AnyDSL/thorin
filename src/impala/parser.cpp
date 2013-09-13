@@ -51,7 +51,6 @@
 
 #define STMT_NO_EXPR \
          DECL: \
-    case Token::FN: \
     case Token::IF: \
     case Token::FOR: \
     case Token::FOREACH: \
@@ -65,6 +64,11 @@
 #define STMT \
         STMT_NO_EXPR: \
     case EXPR
+
+#define ITEM \
+         Token::FN: \
+    case Token::CLASS: \
+    case Token::STRUCT
 
 using namespace anydsl2;
 
@@ -165,6 +169,9 @@ public:
     const Expr* parse_literal();
     const FunExpr* parse_fun_expr();
 
+    // statements or items
+    const StmtOrItem* parse_stmt_or_item();
+
     // statements
     const Stmt* parse_stmt();
     const ExprStmt* parse_expr_stmt();
@@ -177,9 +184,13 @@ public:
     const Stmt* parse_break();
     const Stmt* parse_continue();
     const Stmt* parse_return();
-    const Stmt* parse_fun_stmt();
     const Stmt* parse_label_stmt();
     const ScopeStmt* parse_scope_stmt();
+
+    // items
+    const Item* parse_item();
+    const FunItem* parse_fun_item();
+    const TraitItem* parse_trait_item();
 
     /// helper for condition in if/while/do-while
     const Expr* parse_cond(const std::string& what);
@@ -283,9 +294,9 @@ bool Parser::parse_prg(Scope* scope) {
 
     while (true) {
         switch (la()) {
-            case Token::END_OF_FILE:    scope->set_pos2(prev_loc.pos2()); return result();
-            case Token::FN:             scope->stmts_.push_back(parse_fun_stmt()); continue;
-            case Token::SEMICOLON:      lex(); continue;
+            case Token::END_OF_FILE: scope->set_pos2(prev_loc.pos2()); return result();
+            case ITEM:               scope->stmts_or_items_.push_back(parse_item()); continue;
+            case Token::SEMICOLON:   lex(); continue;
             default:
                 error("item", "program");
                 lex();
@@ -307,7 +318,7 @@ const Scope* Parser::parse_stmt_as_scope(const std::string& what) {
     switch (la()) {
         case STMT: {
             auto scope = loc(new Scope());
-            scope->stmts_.push_back(parse_stmt());
+            scope->stmts_or_items_.push_back(parse_stmt());
             return scope;
         }
         default: return new Scope(prev_loc);
@@ -320,11 +331,12 @@ const Scope* Parser::parse_scope() {
     while (true) {
         switch (la()) {
             case Token::SEMICOLON:  lex(); continue; // ignore semicolon
-            case STMT_NO_EXPR:      scope->stmts_.push_back(parse_stmt()); break;
+            case ITEM:
+            case STMT_NO_EXPR:      scope->stmts_or_items_.push_back(parse_stmt_or_item()); continue;
             case EXPR: {
                 auto expr = parse_expr();
                 if (accept(Token::SEMICOLON)) {
-                    scope->stmts_.push_back(new ExprStmt(expr));
+                    scope->stmts_or_items_.push_back(new ExprStmt(expr));
                     scope->set_loc(expr->pos1(), prev_loc.pos2());
                     continue;
                 } else {
@@ -613,6 +625,13 @@ const FunExpr* Parser::parse_fun_expr() {
     return e;
 }
 
+const StmtOrItem* Parser::parse_stmt_or_item() {
+    switch (la()) {
+    case ITEM:          return parse_item();
+    case STMT_NO_EXPR:  return parse_stmt();
+    default:            error("item or statement", ""); return lex_as_empty_expr_stmt();
+    }
+}
 /*
  * statements
  */
@@ -626,7 +645,6 @@ const Stmt* Parser::parse_stmt() {
         case EXPR:              return parse_expr_stmt();
         case Token::BREAK:      return parse_break();
         case Token::CONTINUE:   return parse_continue();
-        case Token::FN:         return parse_fun_stmt();
         case Token::DO:         return parse_do_while();
         case Token::FOR:        return parse_for();
         case Token::FOREACH:    return parse_foreach();
@@ -816,14 +834,34 @@ const Stmt* Parser::parse_return() {
     return ret;
 }
 
-const Stmt* Parser::parse_fun_stmt() {
-    auto s = loc(new FunStmt(typetable));
+/*
+ * items
+ */
+
+const Item* Parser::parse_item() {
+    switch (la()) {
+    case Token::FN:     return parse_fun_item();
+    case Token::STRUCT:
+    case Token::CLASS:  return parse_fun_item();
+    default:            ANYDSL2_UNREACHABLE;
+    }
+}
+const FunItem* Parser::parse_fun_item() {
+    auto i = loc(new FunItem(typetable));
     eat(Token::FN).pos1();
-    s->fun_->extern_ = accept(Token::EXTERN);
-    s->fun_->symbol_ = try_id("function identifier").symbol();
-    parse_generics_list(s->fun_->generics_);
-    parse_fun(s->fun_);
-    return s;
+    i->fun_->extern_ = accept(Token::EXTERN);
+    i->fun_->symbol_ = try_id("function identifier").symbol();
+    parse_generics_list(i->fun_->generics_);
+    parse_fun(i->fun_);
+    return i;
+}
+
+const TraitItem* Parser::parse_trait_item() {
+    auto i = loc(new TraitItem(typetable));
+    // TODO
+    expect(Token::CLASS);
+    return i;
 }
 
 } // namespace impala
+

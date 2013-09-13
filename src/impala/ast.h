@@ -31,14 +31,14 @@ class Expr;
 class Global;
 class Printer;
 class ScopeStmt;
+class StmtOrItem;
 class Sema;
-class Stmt;
 class VarDecl;
 class GenericDecl;
 
 typedef anydsl2::AutoVector<const VarDecl*> VarDecls;
 typedef anydsl2::AutoVector<const Expr*> Exprs;
-typedef anydsl2::AutoVector<const Stmt*> Stmts;
+typedef anydsl2::AutoVector<const StmtOrItem*> StmtsOrItems;
 typedef anydsl2::AutoVector<const GenericDecl*> GenericDecls;
 
 //------------------------------------------------------------------------------
@@ -59,14 +59,14 @@ public:
         loc_ = loc;
     }
 
-    const Stmts& stmts() const { return stmts_; }
+    const StmtsOrItems& stmts_or_items() const { return stmts_or_items_; }
     const Expr* expr() const { return expr_; }
-    const Stmt* stmt(size_t i) const { return stmts_[i]; }
-    bool empty() const { return stmts_.empty(); }
+    const StmtOrItem* stmt_or_item(size_t i) const { return stmts_or_items_[i]; }
+    bool empty() const { return stmts_or_items_.empty(); }
     virtual std::ostream& print(Printer& p) const;
 
 private:
-    mutable Stmts stmts_;
+    mutable StmtsOrItems stmts_or_items_;
     anydsl2::AutoPtr<const Expr> expr_;
 
     friend class Parser;
@@ -482,13 +482,19 @@ private:
 
 //------------------------------------------------------------------------------
 
-class Stmt : public ASTNode {
+class StmtOrItem : public ASTNode {
 private:
     virtual void check(Sema& sema) const = 0;
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const = 0;
 
     friend class Sema;
     friend class CodeGen;
+};
+
+//------------------------------------------------------------------------------
+
+class Stmt : public StmtOrItem {
+private:
 };
 
 class ExprStmt : public Stmt {
@@ -655,23 +661,6 @@ private:
     friend class Parser;
 };
 
-class FunStmt : public Stmt {
-public:
-    FunStmt(TypeTable& typetable)
-        : fun_(new Fun(typetable))
-    {}
-
-    const Fun* fun() const { return fun_; }
-    virtual std::ostream& print(Printer& p) const;
-
-private:
-    virtual void check(Sema& sema) const;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
-
-    anydsl2::AutoPtr<Fun> fun_;
-
-    friend class Parser;
-};
 
 class ScopeStmt : public Stmt {
 public:
@@ -688,6 +677,42 @@ private:
     virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     anydsl2::AutoPtr<const Scope> scope_;
+
+    friend class Parser;
+};
+
+//------------------------------------------------------------------------------
+
+class Item : public StmtOrItem {
+};
+
+class FunItem : public Item {
+public:
+    FunItem(TypeTable& typetable)
+        : fun_(new Fun(typetable))
+    {}
+
+    const Fun* fun() const { return fun_; }
+    virtual std::ostream& print(Printer& p) const;
+
+private:
+    virtual void check(Sema& sema) const;
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
+
+    anydsl2::AutoPtr<Fun> fun_;
+
+    friend class Parser;
+};
+
+class TraitItem : public StmtOrItem {
+public:
+    TraitItem(TypeTable &typetable)
+    {}
+
+    virtual std::ostream& print(Printer& p) const;
+private:
+    virtual void check(Sema& sema) const;
+    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
 
     friend class Parser;
 };

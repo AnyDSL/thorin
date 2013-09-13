@@ -88,13 +88,13 @@ std::ostream& VarDecl::print(Printer& p) const {
 std::ostream& Scope::print(Printer& p) const {
     p.stream() << "{";
     p.up();
-    if (!stmts().empty()) {
-        for (auto i = stmts().cbegin(), e = stmts().cend() - 1; i != e; ++i) {
+    if (!stmts_or_items().empty()) {
+        for (auto i = stmts_or_items().cbegin(), e = stmts_or_items().cend() - 1; i != e; ++i) {
             (*i)->print(p);
             p.newline();
         }
 
-        stmts().back()->print(p);
+        stmts_or_items().back()->print(p);
     }
     return p.down() << "}";
 }
@@ -336,7 +336,9 @@ std::ostream& ReturnStmt::print(Printer& p) const {
     return p.stream() << ";";
 }
 
-std::ostream& FunStmt::print(Printer& p) const { 
+//------------------------------------------------------------------------------
+
+std::ostream& FunItem::print(Printer& p) const {
     p.stream() << "fn " << fun()->symbol(); 
     if (!fun()->generics().empty())
         p.dump_list([&] (const GenericDecl* generic_decl) { generic_decl->print(p); }, fun()->generics(), "<", ">");
@@ -344,11 +346,16 @@ std::ostream& FunStmt::print(Printer& p) const {
     return fun()->print(p);
 }
 
+std::ostream& TraitItem::print(Printer& p) const {
+    assert( false && "todo" );
+    return p.stream();
+}
+
 //------------------------------------------------------------------------------
 
 void dump_prg(const Scope* scope, bool fancy, std::ostream& o) { 
     Printer p(o, fancy);
-    for (auto stmt : scope->stmts()) {
+    for (auto stmt : scope->stmts_or_items()) {
         stmt->print(p);
         p.newline();
     }

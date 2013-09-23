@@ -70,6 +70,8 @@ private:
     Tracker(const Tracker&); /// Do not copy-construct a \p Tracker.
 
     const Def* def_;
+
+    friend class World;
 };
 
 //------------------------------------------------------------------------------

@@ -75,7 +75,7 @@ World::~World() {
 Sigma* World::named_sigma(size_t size, const std::string& name) {
     Sigma* s = new Sigma(*this, size, name);
     assert(types_.find(s) == types_.end() && "must not be inside");
-    types_.insert(s).first;
+    types_.insert(s);
     return s;
 }
 

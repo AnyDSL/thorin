@@ -823,6 +823,9 @@ void World::wipe_out(const size_t pass, S& set) {
         auto j = i++;
         const Def* def = *j;
         if (!def->is_visited(pass)) {
+            for (auto tracker : def->trackers_)
+                tracker->def_ = 0;
+
             set.erase(j);
             delete def;
         }

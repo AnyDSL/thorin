@@ -58,35 +58,51 @@ static inline Lambda*& get_late(const PrimOp* primop) { return (Lambda*&) primop
 
 Schedule schedule_late(const Scope& scope, size_t& pass) {
     Schedule schedule(scope.size());
-    std::queue<const Def*> queue;
+    Array<std::queue<const PrimOp*>> queues(scope.size());
     pass = scope.world().new_pass();
 
     for (size_t i = scope.size(); i-- != 0;) {
+        auto& queue = queues[i];
         Lambda* cur = scope[i];
-        queue.push(cur);
 
-        while (!queue.empty()) {
-            const Def* def = queue.front();
-            queue.pop();
+        for (auto op : cur->ops()) {
+            if (auto primop = op->is_non_const_primop()) {
+                queue.push(primop);
 
-            for (auto op : def->ops()) {
-                if (auto primop = op->is_non_const_primop()) {
-                    if (!primop->visit(pass)) {     // init unseen primops
-                        primop->ptr = 0;
-                        primop->counter = primop->num_uses();
-                    }
-
-                    Lambda*& late = get_late(primop);
-                    late = late ? scope.domtree().lca(cur, late) : cur;
-
-                    if (--primop->counter == 0) {   // only visit once when counter == 0
-                        schedule[late->sid()].push_back(primop);
-                        queue.push(primop);
-                    }
-
-                    assert(primop->counter != size_t(-1));
+                if (!primop->visit(pass)) {     // init unseen primops
+                    get_late(primop) = cur;
+                    primop->counter = primop->num_uses() - 1;
                 }
             }
+        }
+
+        while (!queue.empty()) {
+            const PrimOp* primop = queue.front();
+            queue.pop();
+            assert(primop->is_visited(pass));
+
+            if (primop->counter == 0) {
+                Lambda*& late = get_late(primop);
+
+                if (late == cur) {
+                    schedule[late->sid()].push_back(primop);
+
+                    for (auto op : primop->ops()) {
+                        if (auto primop = op->is_non_const_primop()) {
+                            queue.push(primop);
+
+                            if (!primop->visit(pass)) {     // init unseen primops
+                                get_late(primop) = cur;
+                                primop->counter = primop->num_uses() - 1;
+                            }
+                        }
+                    }
+                } else {
+                    late = late ? scope.domtree().lca(cur, late) : cur;
+                    queues[late->sid()].push(primop);
+                }
+            } else
+                --primop->counter;
         }
     }
 
@@ -109,17 +125,12 @@ Schedule schedule_smart(const Scope& scope) {
                 continue;                       // primop is dead
             Lambda* lambda_best = get_late(primop);
             assert(scope.contains(lambda_best));
-            if (primop->isa<Slot>() || primop->isa<Enter>())
-                lambda_best = lambda_early;     // place these guys always early
-            else if (!primop->isa<Leave>()) {   // place this guy always late
-                // all other guys are placed as late as possible but keep them out of loops, please
-                int depth = std::numeric_limits<int>::max();
-                for (Lambda* i = lambda_best; i != lambda_early; i = scope.domtree().idom(i)) {
-                    int cur_depth = scope.looptree().depth(i);
-                    if (cur_depth < depth) {
-                        lambda_best = i;
-                        depth = cur_depth;
-                    }
+            int depth = std::numeric_limits<int>::max();
+            for (Lambda* i = lambda_best; i != lambda_early; i = scope.domtree().idom(i)) {
+                int cur_depth = scope.looptree().depth(i);
+                if (cur_depth < depth) {
+                    lambda_best = i;
+                    depth = cur_depth;
                 }
             }
             smart[lambda_best->sid()].push_back(primop);

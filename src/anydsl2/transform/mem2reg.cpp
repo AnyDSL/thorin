@@ -123,9 +123,11 @@ next_leave:;
 
     // are there superfluous poor, lonely Enters? no mercy - eliminate them
     for (size_t i = enters.size(); i-- != 0;) {
-        if (auto enter = enters[i]->def()->isa<Enter>()) {
-            if (enter->extract_frame()->num_uses() == 0)
-                enter->extract_mem()->replace(enter->mem());
+        if (auto def = enters[i]->def()) {
+            if (auto enter = def->isa<Enter>()) {
+                if (enter->extract_frame()->num_uses() == 0)
+                    enter->extract_mem()->replace(enter->mem());
+            }
         }
     }
 

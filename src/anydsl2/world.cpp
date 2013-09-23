@@ -75,7 +75,7 @@ World::~World() {
 Sigma* World::named_sigma(size_t size, const std::string& name) {
     Sigma* s = new Sigma(*this, size, name);
     assert(types_.find(s) == types_.end() && "must not be inside");
-    types_.insert(s).first;
+    types_.insert(s);
     return s;
 }
 
@@ -823,6 +823,9 @@ void World::wipe_out(const size_t pass, S& set) {
         auto j = i++;
         const Def* def = *j;
         if (!def->is_visited(pass)) {
+            for (auto tracker : def->trackers_)
+                tracker->def_ = 0;
+
             set.erase(j);
             delete def;
         }

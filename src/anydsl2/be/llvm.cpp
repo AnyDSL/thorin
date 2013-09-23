@@ -217,24 +217,15 @@ void CodeGen::emit() {
                         builder.CreateRet(call);
                     else {                          // call + continuation
                         Lambda* succ = ret_arg->as_lambda();
-
-                        if (llvm::StructType* st = llvm::dyn_cast<llvm::StructType>(call->getType())) {
-                            // extract multiple return values from struct
-                            for (unsigned i = 0, e = st->getNumElements(); i != e; ++i) {
-                                unsigned idxs[1] = { i };
-                                params[succ->param(i)] = builder.CreateExtractValue(call, idxs);
-                            }
-                        } else {
-                            switch (succ->num_params()) {
-                                case 1:
-                                    if (!succ->param(0)->type()->isa<Mem>())
-                                        params[succ->param(0)] = call;
-                                    break;
-                                case 2:
-                                    params[succ->param(0)->type()->isa<Mem>() ? succ->param(1) : succ->param(0)] = call;
-                                    break;
-                                default: ANYDSL2_UNREACHABLE;
-                            }
+                        switch (succ->num_params()) {
+                            case 1:
+                                if (!succ->param(0)->type()->isa<Mem>())
+                                    params[succ->param(0)] = call;
+                                break;
+                            case 2:
+                                params[succ->param(0)->type()->isa<Mem>() ? succ->param(1) : succ->param(0)] = call;
+                                break;
+                            default: ANYDSL2_UNREACHABLE;
                         }
 
                         builder.CreateBr(bbs[succ->sid()]);
@@ -276,7 +267,6 @@ llvm::Value* CodeGen::lookup(const Def* def) {
         return i->second;
 
     assert(phis.find(param) != phis.end());
-
     return phis[param];
 }
 
@@ -439,6 +429,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
     }
 
     if (auto lea = def->isa<LEA>()) {
+        assert(false && "TODO");
     }
 
     assert(!def->is_corenode());

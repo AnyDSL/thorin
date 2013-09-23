@@ -859,7 +859,7 @@ const FunItem* Parser::parse_fun_item() {
 const TraitItem* Parser::parse_trait_item() {
     auto i = loc(new TraitItem(typetable));
     // TODO
-    expect(Token::CLASS);
+    expect(Token::CLASS, "trait");
     return i;
 }
 

@@ -35,6 +35,7 @@ public:
     RefPtr emit(const Expr* expr) { return is_reachable() ? expr->emit(*this) : nullptr; }
     void emit_branch(const Expr* expr, JumpTarget& t, JumpTarget& f) { expr->emit_branch(*this, t, f); }
     void emit(const Stmt* stmt, JumpTarget& exit) { if (is_reachable()) stmt->emit(*this, exit); }
+    void emit(const Item* item) { item->emit(*this); }
 
     JumpTarget* break_target;
     JumpTarget* continue_target;
@@ -47,8 +48,9 @@ void emit(World& world, const Scope* prg) { CodeGen(world).emit_prg(prg); }
 //------------------------------------------------------------------------------
 
 void CodeGen::emit_prg(const Scope* prg) {
-    for (auto stmt_or_item : prg->stmts_or_items()) {
-        if (auto fun_item = stmt_or_item->isa<FunItem>()) {
+    for (auto stmt : prg->stmts()) {
+        auto item = stmt->as<ItemStmt>()->item();
+        if (auto fun_item = item->isa<FunItem>()) {
             auto fun = fun_item->fun();
             Lambda* lambda = emit_head(fun);
             if (fun->symbol() == Symbol("main")) {
@@ -65,7 +67,7 @@ void CodeGen::emit_prg(const Scope* prg) {
         //}
     }
 
-    for (auto stmt : prg->stmts_or_items()) {
+    for (auto stmt : prg->stmts()) {
         if (auto fun_item = stmt->isa<FunItem>())
             emit_body(fun_item->fun());
     }
@@ -77,26 +79,28 @@ void CodeGen::emit_prg(const Scope* prg) {
 
 
 void CodeGen::emit(const Scope* scope, JumpTarget& exit_bb) {
-    for (auto stmt_or_item : scope->stmts_or_items()) {
-        if (auto fun_item = stmt_or_item->isa<FunItem>())
-            emit_head(fun_item->fun());
+    for (auto stmt : scope->stmts()) {
+        if (auto item_stmt = stmt->isa<ItemStmt>()) {
+            if (auto fun_item = stmt->isa<FunItem>())
+                emit_head(fun_item->fun());
+        }
     }
 
-    size_t size = scope->stmts_or_items().size();
+    size_t size = scope->stmts().size();
     if (size == 0)
         jump(exit_bb);
     else {
         size_t i = 0;
         for (; i != size - 1; ++i) {
             // TODO: fixme
-            if (auto stmt = scope->stmt_or_item(i)->isa<Stmt>()) {
+            if (auto stmt = scope->stmt(i)->isa<Stmt>()) {
                 JumpTarget stmt_exit_bb("next");
                 emit(stmt, stmt_exit_bb);
                 enter(stmt_exit_bb);
             }
         }
         // TODO: fixme
-        if (auto stmt = scope->stmt_or_item(i)->isa<Stmt>())
+        if (auto stmt = scope->stmt(i)->isa<Stmt>())
             emit(stmt, exit_bb);
     }
 }
@@ -358,6 +362,8 @@ void InfixExpr::emit_branch(CodeGen& cg, JumpTarget& t, JumpTarget& f) const {
  * Stmt
  */
 
+void ItemStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.emit(item()); cg.jump(exit_bb); }
+
 void InitStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     if (cg.is_reachable()) {
         RefPtr ref = cg.emit(var_decl());
@@ -502,7 +508,7 @@ void ScopeStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.emit(scope(), 
  * items
  */
 
-void FunItem::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.emit_body(fun()); cg.jump(exit_bb); }
-void TraitItem::emit(CodeGen &cg, JumpTarget &exit_bb) const { assert( false && "todo"); }
+void FunItem::emit(CodeGen& cg) const { cg.emit_body(fun()); }
+void TraitItem::emit(CodeGen& cg) const { assert( false && "todo"); }
 
 } // namespace impala

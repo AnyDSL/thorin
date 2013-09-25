@@ -88,13 +88,13 @@ std::ostream& VarDecl::print(Printer& p) const {
 std::ostream& Scope::print(Printer& p) const {
     p.stream() << "{";
     p.up();
-    if (!stmts_or_items().empty()) {
-        for (auto i = stmts_or_items().cbegin(), e = stmts_or_items().cend() - 1; i != e; ++i) {
+    if (!empty()) {
+        for (auto i = stmts().cbegin(), e = stmts().cend() - 1; i != e; ++i) {
             (*i)->print(p);
             p.newline();
         }
 
-        stmts_or_items().back()->print(p);
+        stmts().back()->print(p);
     }
     return p.down() << "}";
 }
@@ -264,6 +264,8 @@ std::ostream& FunExpr::print(Printer& p) const { return fun()->print(p); }
  * Stmt
  */
 
+std::ostream& ItemStmt::print(Printer& p) const { return item()->print(p); }
+
 std::ostream& InitStmt::print(Printer& p) const {
     var_decl()->print(p);
     if (init()) {
@@ -355,7 +357,7 @@ std::ostream& TraitItem::print(Printer& p) const {
 
 void dump_prg(const Scope* scope, bool fancy, std::ostream& o) { 
     Printer p(o, fancy);
-    for (auto stmt : scope->stmts_or_items()) {
+    for (auto stmt : scope->stmts()) {
         stmt->print(p);
         p.newline();
     }

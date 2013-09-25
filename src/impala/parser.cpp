@@ -24,6 +24,15 @@
     case Token::L_PAREN: \
     case Token::ID
 
+#define ITEM \
+         Token::FN: \
+    case Token::CLASS: \
+    case Token::STRUCT
+
+#define DECL \
+         Token::VAL: \
+    case Token::VAR
+
 #define EXPR \
          Token::LIT_int8: \
     case Token::LIT_int16: \
@@ -45,12 +54,9 @@
     case Token::L_O: \
     case Token::ID
     
-#define DECL \
-         Token::VAL: \
-    case Token::VAR
-
 #define STMT_NO_EXPR \
          DECL: \
+    case ITEM: \
     case Token::IF: \
     case Token::FOR: \
     case Token::FOREACH: \
@@ -64,11 +70,6 @@
 #define STMT \
         STMT_NO_EXPR: \
     case EXPR
-
-#define ITEM \
-         Token::FN: \
-    case Token::CLASS: \
-    case Token::STRUCT
 
 using namespace anydsl2;
 
@@ -169,11 +170,9 @@ public:
     const Expr* parse_literal();
     const FunExpr* parse_fun_expr();
 
-    // statements or items
-    const StmtOrItem* parse_stmt_or_item();
-
     // statements
     const Stmt* parse_stmt();
+    const ItemStmt* parse_item_stmt();
     const ExprStmt* parse_expr_stmt();
     const Stmt* parse_init_stmt();
     const Stmt* parse_if_else();
@@ -295,7 +294,7 @@ bool Parser::parse_prg(Scope* scope) {
     while (true) {
         switch (la()) {
             case Token::END_OF_FILE: scope->set_pos2(prev_loc.pos2()); return result();
-            case ITEM:               scope->stmts_or_items_.push_back(parse_item()); continue;
+            case ITEM:               scope->stmts_.push_back(new ItemStmt(parse_item())); continue;
             case Token::SEMICOLON:   lex(); continue;
             default:
                 error("item", "program");
@@ -318,7 +317,7 @@ const Scope* Parser::parse_stmt_as_scope(const std::string& what) {
     switch (la()) {
         case STMT: {
             auto scope = loc(new Scope());
-            scope->stmts_or_items_.push_back(parse_stmt());
+            scope->stmts_.push_back(parse_stmt());
             return scope;
         }
         default: return new Scope(prev_loc);
@@ -331,12 +330,11 @@ const Scope* Parser::parse_scope() {
     while (true) {
         switch (la()) {
             case Token::SEMICOLON:  lex(); continue; // ignore semicolon
-            case ITEM:
-            case STMT_NO_EXPR:      scope->stmts_or_items_.push_back(parse_stmt_or_item()); continue;
+            case STMT_NO_EXPR:      scope->stmts_.push_back(parse_stmt()); continue;
             case EXPR: {
                 auto expr = parse_expr();
                 if (accept(Token::SEMICOLON)) {
-                    scope->stmts_or_items_.push_back(new ExprStmt(expr));
+                    scope->stmts_.push_back(new ExprStmt(expr));
                     scope->set_loc(expr->pos1(), prev_loc.pos2());
                     continue;
                 } else {
@@ -625,13 +623,6 @@ const FunExpr* Parser::parse_fun_expr() {
     return e;
 }
 
-const StmtOrItem* Parser::parse_stmt_or_item() {
-    switch (la()) {
-    case ITEM:          return parse_item();
-    case STMT_NO_EXPR:  return parse_stmt();
-    default:            error("item or statement", ""); return lex_as_empty_expr_stmt();
-    }
-}
 /*
  * statements
  */

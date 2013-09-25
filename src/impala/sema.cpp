@@ -183,7 +183,7 @@ void Fun::check(Sema& sema) const {
 void Sema::check(const Scope* scope) {
     for (auto stmt : scope->stmts()) {
         if (auto item_stmt = stmt->isa<ItemStmt>()) {
-            if (auto fun_item = item_stmt->isa<FunItem>())
+            if (auto fun_item = item_stmt->item()->isa<FunItem>())
                 fun_item->fun()->check_head(*this);
         }
     }

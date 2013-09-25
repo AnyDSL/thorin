@@ -27,7 +27,7 @@ public:
 
     /** 
      * @brief Looks up the current definition of \p sym.
-     * @return Returns 0 on failure.
+     * @return Returns nullptr on failure.
      */
     const Decl* lookup(Symbol symbol) const;
 
@@ -42,7 +42,7 @@ public:
     /** 
      * @brief Checks whether there already exists a \p Symbol \p symbol in the \em current scope.
      * @param symbol The \p Symbol to check.
-     * @return The current mapping if the lookup succeeds, 0 otherwise.
+     * @return The current mapping if the lookup succeeds, nullptr otherwise.
      */
     const Decl* clash(Symbol symbol) const;
 
@@ -90,7 +90,7 @@ private:
 
 const Decl* Sema::lookup(Symbol sym) const {
     auto i = sym2decl_.find(sym);
-    return i != sym2decl_.end() ? i->second : 0;
+    return i != sym2decl_.end() ? i->second : nullptr;
 }
 
 void Sema::insert(const Decl* decl) {
@@ -101,10 +101,10 @@ void Sema::insert(const Decl* decl) {
     } 
 
     Symbol symbol = decl->symbol();
-    assert(clash(symbol) == 0 && "must not be found");
+    assert(clash(symbol) == nullptr && "must not be found");
 
     auto i = sym2decl_.find(symbol);
-    decl->shadows_ = i != sym2decl_.end() ? i->second : 0;
+    decl->shadows_ = i != sym2decl_.end() ? i->second : nullptr;
     decl->depth_ = depth();
 
     decl_stack_.push_back(decl);
@@ -114,10 +114,10 @@ void Sema::insert(const Decl* decl) {
 const Decl* Sema::clash(Symbol symbol) const {
     auto i = sym2decl_.find(symbol);
     if (i == sym2decl_.end())
-        return 0;
+        return nullptr;
 
     const Decl* decl = i->second;
-    return (decl && decl->depth() == depth()) ? decl : 0;
+    return (decl && decl->depth() == depth()) ? decl : nullptr;
 }
 
 void Sema::pop_scope() {
@@ -182,8 +182,10 @@ void Fun::check(Sema& sema) const {
 
 void Sema::check(const Scope* scope) {
     for (auto stmt : scope->stmts()) {
-        if (auto fun_item = stmt->isa<FunItem>())
-            fun_item->fun()->check_head(*this);
+        if (auto item_stmt = stmt->isa<ItemStmt>()) {
+            if (auto fun_item = item_stmt->isa<FunItem>())
+                fun_item->fun()->check_head(*this);
+        }
     }
 
     for (auto stmt : scope->stmts())

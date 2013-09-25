@@ -67,10 +67,8 @@ void CodeGen::emit_prg(const Scope* prg) {
         //}
     }
 
-    for (auto stmt : prg->stmts()) {
-        if (auto fun_item = stmt->isa<FunItem>())
-            emit_body(fun_item->fun());
-    }
+    for (auto stmt : prg->stmts())
+        emit(stmt->as<ItemStmt>()->item());
 
     // clear get/set value stuff
     for (auto lambda : world().lambdas())

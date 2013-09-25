@@ -1,7 +1,7 @@
 fn main(a : int, b : int, c : int) -> int {
     var result = 0;
 
-foo:
+//foo:
     while (!(a < 42 && a != b))
         while (b < 23)
             do 

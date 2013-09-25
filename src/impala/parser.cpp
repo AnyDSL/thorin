@@ -831,10 +831,10 @@ const Stmt* Parser::parse_return() {
 
 const Item* Parser::parse_item() {
     switch (la()) {
-    case Token::FN:     return parse_fun_item();
-    case Token::STRUCT:
-    case Token::CLASS:  return parse_fun_item();
-    default:            ANYDSL2_UNREACHABLE;
+        case Token::FN:     return parse_fun_item();
+        case Token::STRUCT:
+        case Token::CLASS:  return parse_trait_item();
+        default:            ANYDSL2_UNREACHABLE;
     }
 }
 const FunItem* Parser::parse_fun_item() {

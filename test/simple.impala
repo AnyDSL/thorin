@@ -1,5 +1,5 @@
 fn main(i : int) -> int {
-    a : int;
+    val a : int = 0;
     if (i == 0)
         a = 23;
     else

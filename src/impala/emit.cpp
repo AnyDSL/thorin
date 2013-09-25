@@ -79,7 +79,7 @@ void CodeGen::emit_prg(const Scope* prg) {
 void CodeGen::emit(const Scope* scope, JumpTarget& exit_bb) {
     for (auto stmt : scope->stmts()) {
         if (auto item_stmt = stmt->isa<ItemStmt>()) {
-            if (auto fun_item = stmt->isa<FunItem>())
+            if (auto fun_item = item_stmt->isa<FunItem>())
                 emit_head(fun_item->fun());
         }
     }

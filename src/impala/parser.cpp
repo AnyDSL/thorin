@@ -294,7 +294,7 @@ bool Parser::parse_prg(Scope* scope) {
     while (true) {
         switch (la()) {
             case Token::END_OF_FILE: scope->set_pos2(prev_loc.pos2()); return result();
-            case ITEM:               scope->stmts_.push_back(new ItemStmt(parse_item())); continue;
+            case ITEM:               scope->stmts_.push_back(parse_item_stmt()); continue;
             case Token::SEMICOLON:   lex(); continue;
             default:
                 error("item", "program");
@@ -634,6 +634,7 @@ const Stmt* Parser::parse_stmt() {
     switch (la()) {
         case DECL:              return parse_init_stmt();
         case EXPR:              return parse_expr_stmt();
+        case ITEM:              return parse_item_stmt();
         case Token::BREAK:      return parse_break();
         case Token::CONTINUE:   return parse_continue();
         case Token::DO:         return parse_do_while();
@@ -652,6 +653,12 @@ const Stmt* Parser::parse_stmt() {
 const ScopeStmt* Parser::parse_scope_stmt() {
     auto s = loc(new ScopeStmt());
     s->scope_ = parse_scope();
+    return s;
+}
+
+const ItemStmt* Parser::parse_item_stmt() {
+    auto s = loc(new ItemStmt());
+    s->item_ = parse_item();
     return s;
 }
 
@@ -837,6 +844,7 @@ const Item* Parser::parse_item() {
         default:            ANYDSL2_UNREACHABLE;
     }
 }
+
 const FunItem* Parser::parse_fun_item() {
     auto i = loc(new FunItem(typetable));
     eat(Token::FN).pos1();

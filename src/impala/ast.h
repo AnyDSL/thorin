@@ -535,13 +535,6 @@ private:
 
 class ItemStmt : public Stmt {
 public:
-    ItemStmt() {}
-    ItemStmt(const Item* item)
-        : item_(item)
-    {
-        set_loc(item->loc());
-    }
-
     const Item* item() const { return item_; }
     virtual std::ostream& print(Printer& p) const;
 

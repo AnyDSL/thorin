@@ -24,10 +24,12 @@ fn count(n : int, m : int, yield : fn(int, fn()), ret : fn()) {
 }
 
 fn main(n : int) -> int {
-    b : int = 0;
-    foreach (x : int  <- to5())
+    var b : int = 0;
+    foreach to5() |x : int| -> void {
         b += x;
-    foreach (x : int  <- count(5, 10))
+    }
+    foreach count(5, 10) |x : int| -> void {
         b += x;
+    }
     return b;
 }

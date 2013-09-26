@@ -1,10 +1,10 @@
-fn extern fac(n : double) -> double 
+extern fn fac(n : double) -> double 
 {
     if (n <= 1.0) 
         return 1.0;
 
-    r : double = 1.0;
-    for (i : double = 2.0; i <= n; ++i)
+    var r : double = 1.0;
+    for (var i : double = 2.0; i <= n; ++i)
         r *= i;
 
     return r;

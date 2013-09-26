@@ -12,13 +12,13 @@ fn count(n : float, yield : fn(float, fn()), ret : fn()) {
 }
 
 fn main() -> float {
-    b : float = 2.0f;
-    foreach (x : float  <- count(10.0f)) {
+    var b : float = 2.0f;
+    foreach count(10.0f)  |x : float| -> void {
         b += x;
     }
 
-    x : float = 42.0f;
-    foreach (x  <- count(10.0f)) {
+    var x : float = 42.0f;
+    foreach count(10.0f)  |x : float| -> void {
         b += x;
     }
 

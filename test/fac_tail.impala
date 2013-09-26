@@ -1,5 +1,4 @@
-fn extern fac(n : int) -> int 
-{
+extern fn fac(n : int) -> int {
     if (n == 0) 
         return 1;
     if (n == 1) 
@@ -8,8 +7,7 @@ fn extern fac(n : int) -> int
     return helper(1, 2, n);
 }
 
-fn helper(r : int, i : int, n : int) -> int 
-{
+fn helper(r : int, i : int, n : int) -> int {
     if (i <= n)
         return helper(r * i, i + 1, n);
     else

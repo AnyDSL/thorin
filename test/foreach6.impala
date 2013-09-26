@@ -17,8 +17,10 @@ fn foo(n : int, gen: fn(int, int, fn(int, fn()), fn()), yield : fn(int, fn()), r
 }
 
 fn main(n : int) -> int {
-    b : int = 0;
-    foreach (x : int  <- foo(0, count))
+    var b : int = 0;
+    foreach foo(0, count) |x : int| -> void {
         b += x;
+    }
+
     return b;
 }

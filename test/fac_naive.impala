@@ -1,4 +1,4 @@
-fn extern fac(i : int) -> int {
+extern fn fac(i : int) -> int {
     if (i == 0)
         return 1;
     return i * fac(i - 1);

@@ -1,6 +1,6 @@
-fn extern foo(n : int) -> int {
-    a : int = 0;
-    for (i : int = 0; i < n; ++i)
+extern fn foo(n : int) -> int {
+    var a : int = 0;
+    for (var i : int = 0; i < n; ++i)
         ++a;
 
     return a;

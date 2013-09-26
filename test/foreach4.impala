@@ -13,8 +13,9 @@ fn count(n : int, yield : fn(int, fn()), ret : fn()) {
 }
 
 fn main(n : int) -> int {
-    b : int = 0;
-    foreach (x : int  <- count(10))
+    var b : int = 0;
+    foreach count(10) |x : int| -> void {
         b += x;
+    }
     return b;
 }

@@ -13,13 +13,13 @@ fn count(n : int, yield : fn(int, fn()), ret : fn()) {
 }
 
 fn main(n : int) -> int {
-    b : int = 2;
-    foreach (x : int  <- count(10)) {
+    var b : int = 2;
+    foreach count(10)  |x : int| -> void {
         b += x;
     }
 
-    x : int = 42;
-    foreach (x  <- count(10)) {
+    var x : int = 42;
+    foreach count(10)  |x : int| -> void {
         b += x;
     }
 

@@ -619,6 +619,25 @@ const Def* World::convop(ConvOpKind kind, const Def* cond, const Def* from, cons
     if (from->isa<Bottom>())
         return bottom(to);
 
+    const PrimLit* lit = from->isa<PrimLit>();
+    const Vector*  vec = from->isa<Vector>();
+
+#if 0
+    if (vec) {
+        const Vector* cvec = cond->isa<Vector>();
+        size_t num = lvec->type()->as<PrimType>()->length();
+        Array<const Def*> ops(num);
+        for (size_t i = 0; i != num; ++i)
+            ops[i] = cvec && cvec->op(i)->is_zero() ? bottom(type, 1) :  arithop(kind, lvec->op(i), rvec->op(i));
+        return vector(ops, name);
+    }
+
+    if (llit && rlit) {
+        Box l = llit->value();
+        Box r = rlit->value();
+
+        switch (kind) {
+#endif
     return cse(new ConvOp(kind, cond, from, to, name));
 }
 

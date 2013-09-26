@@ -1,5 +1,5 @@
 fn extern f() -> int {
-    i : int;
-    j : int;
+    var i : int;
+    var j : int;
     return i + j;
 }

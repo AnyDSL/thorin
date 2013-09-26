@@ -1,5 +1,4 @@
-def extern a(m : int, n : int) -> int
-{   
+fn extern a(m : int, n : int) -> int {   
     if (m == 0)
         return n + 1;
 

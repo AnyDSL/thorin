@@ -89,7 +89,7 @@ std::ostream& CodeGen::emit_primop(const PrimOp* primop) {
     if (auto primlit = primop->isa<PrimLit>()) {
         emit_type(primop->type()) << ' ';
         switch (primlit->primtype_kind()) {
-#define ANYDSL2_UF_TYPE(T) case PrimType_##T: stream() << primlit->T##_value(); break;
+#define ANYDSL2_UF_TYPE(T) case PrimType_##T: stream() << (u64) primlit->T##_value(); break;
 #include "anydsl2/tables/primtypetable.h"
             default: ANYDSL2_UNREACHABLE; break;
         }

@@ -428,9 +428,8 @@ llvm::Value* CodeGen::emit(const Def* def) {
         return vec;
     }
 
-    if (auto lea = def->isa<LEA>()) {
-        assert(false && "TODO");
-    }
+    if (auto lea = def->isa<LEA>())
+        return builder.CreateConstInBoundsGEP2_64(lookup(lea->ptr()), 0ull, lea->index()->primlit_value<u64>());
 
     assert(!def->is_corenode());
     return hook.emit(def);

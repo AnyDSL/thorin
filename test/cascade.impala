@@ -1,5 +1,5 @@
 fn extern test(cond : bool) -> int {
-    a : int;
+    var a : int;
 
     if (cond)
         a = 23;

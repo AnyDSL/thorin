@@ -1,7 +1,7 @@
 fn extern head(ir : sigma(int, int)) -> sigma(int, int, bool) {
-    i : int = ir[0];
-    r : int = ir[1];
-    n : int = 42;
+    var i : int = ir[0];
+    var r : int = ir[1];
+    var n : int = 42;
 
     if (r == 17)
         return (#(i, r, i <= n));

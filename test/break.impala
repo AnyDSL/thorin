@@ -1,8 +1,8 @@
 fn main(n : int) -> int {
-    res : int = 0;
-    for (i : int = 0; i < n; ++i) {
-        //if (i*i > 42)
-            //continue;
+    var res : int = 0;
+    for (var i : int = 0; i < n; ++i) {
+        if (i*i > 42)
+            break;
         res += i;
         continue;
     }

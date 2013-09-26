@@ -1,6 +1,6 @@
 fn main(n : int) -> int {
-    result : int = 0;
-    for (i : int = 0; i < n; ++i)
+    var result : int = 0;
+    for (var i : int = 0; i < n; ++i)
         if (i == 42) {
             continue;
         } else {

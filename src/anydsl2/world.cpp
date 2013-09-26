@@ -616,6 +616,25 @@ const Def* World::relop(RelOpKind kind, const Def* cond, const Def* a, const Def
 }
 
 const Def* World::convop(ConvOpKind kind, const Def* cond, const Def* from, const Type* to, const std::string& name) {
+#define from_kind (from->type()->as<PrimType>()->primtype_kind())
+#define   to_kind (  to        ->as<PrimType>()->primtype_kind())
+#ifndef NDEBUG
+    switch (kind) {
+        case ConvOp_trunc:      assert(num_bits(from_kind) > num_bits(to_kind)); break;
+        case ConvOp_sext:
+        case ConvOp_zext:       assert(num_bits(from_kind) < num_bits(to_kind)); break;
+        case ConvOp_stof:  
+        case ConvOp_utof:       assert(  is_int(from_kind) && is_float(to_kind)); break;
+        case ConvOp_ftos:       
+        case ConvOp_ftou:       assert(is_float(from_kind) &&   is_int(to_kind)); break;
+        case ConvOp_ftrunc:     assert(from_kind == PrimType_f64 && to_kind == PrimType_f32); break;
+        case ConvOp_fext:       assert(from_kind == PrimType_f32 && to_kind == PrimType_f64); break;
+        case ConvOp_inttoptr:   assert(is_int(from_kind) && to->isa<Ptr>()); break;
+        case ConvOp_ptrtoint:   assert(from->type()->isa<Ptr>() && is_int(to_kind)); break;
+        case ConvOp_bitcast:    /* TODO check */;
+    }
+#endif
+
     if (from->isa<Bottom>())
         return bottom(to);
 

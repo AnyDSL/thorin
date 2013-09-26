@@ -657,24 +657,29 @@ const Def* World::convop(ConvOpKind kind, const Def* cond, const Def* from, cons
         switch (kind) {
             case ConvOp_trunc:
             case ConvOp_zext:   return literal(to_kind, box);
-                //assert(kind == ConvOpKind num_bits(from_kind) > num_bits(to_kind));
-                //switch (from_kind) {
-//#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal(to_kind, Box(box.get_##T()));
-//#include "anydsl2/tables/primtypetable.h"
-                    //ANYDSL2_NO_F_TYPE;
-                //}
             case ConvOp_sext: {
-                //u64 sign = box.get_u64() >> (num_bits(from_kind) - 1);
+                i64 res;
+                switch (from_kind) {
+#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: res = ((i64) (make_signed<T>::type) box.get_##T()); break;
+#include "anydsl2/tables/primtypetable.h"
+                    ANYDSL2_NO_F_TYPE;
+                }
+                return literal(to_kind, Box((u64) res));
             }
             case ConvOp_stof:
             case ConvOp_utof:
-            case ConvOp_ftrunc:
-            case ConvOp_fext:
+                switch (to_kind) {
+#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal(to_kind, Box((T) box.get_u64()));
+#include "anydsl2/tables/primtypetable.h"
+                    ANYDSL2_NO_U_TYPE;
+                }
+            case ConvOp_ftrunc: return literal(PrimType_f32, Box((f32) box.get_f64()));
+            case ConvOp_fext:   return literal(PrimType_f64, Box((f64) box.get_f32()));
             case ConvOp_ftos:
             case ConvOp_ftou:
             case ConvOp_bitcast:
             case ConvOp_inttoptr:
-            case ConvOp_ptrtoint: ;
+            case ConvOp_ptrtoint: /* FALLTROUGH */;
         }
     }
 

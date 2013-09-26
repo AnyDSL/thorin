@@ -126,7 +126,7 @@ int main(int argc, char** argv) {
         for (auto infile : infiles) {
             const char* filename = infile.c_str();
             ifstream file(filename);
-            result |= impala::parse(init.typetable, file, filename, prg);
+            result &= impala::parse(init.typetable, file, filename, prg);
         }
 
         if (emit_ast)

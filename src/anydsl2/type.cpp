@@ -128,6 +128,14 @@ const Type* Type::specialize(const GenericMap& map) const {
 
 //------------------------------------------------------------------------------
 
+const VectorType* VectorType::scalarize() const {
+    if (auto ptr = isa<Ptr>())
+        return world().ptr(ptr->referenced_type());
+    return world().type(as<PrimType>()->primtype_kind());
+}
+
+//------------------------------------------------------------------------------
+
 CompoundType::CompoundType(World& world, int kind, size_t size)
     : Type(world, kind, size, false /*TODO named sigma*/)
 {}

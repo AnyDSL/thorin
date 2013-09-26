@@ -122,6 +122,8 @@ public:
     /// The number of vector elements - the vector length.
     size_t length() const { return length_; }
     bool is_vector() const { return length_ != 1; }
+    /// Rebuilds the type with vector length 1.
+    const VectorType* scalarize() const;
 
 private:
     size_t length_;

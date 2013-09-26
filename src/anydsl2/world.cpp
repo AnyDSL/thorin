@@ -622,22 +622,21 @@ const Def* World::convop(ConvOpKind kind, const Def* cond, const Def* from, cons
     const PrimLit* lit = from->isa<PrimLit>();
     const Vector*  vec = from->isa<Vector>();
 
-#if 0
     if (vec) {
         const Vector* cvec = cond->isa<Vector>();
-        size_t num = lvec->type()->as<PrimType>()->length();
+        size_t num = vec->length();
         Array<const Def*> ops(num);
+        const VectorType* to_scalar = to->as<VectorType>()->scalarize();
         for (size_t i = 0; i != num; ++i)
-            ops[i] = cvec && cvec->op(i)->is_zero() ? bottom(type, 1) :  arithop(kind, lvec->op(i), rvec->op(i));
+            ops[i] = cvec && cvec->op(i)->is_zero() ? bottom(to_scalar, 1) :  convop(kind, vec->op(i), to_scalar);
         return vector(ops, name);
     }
 
-    if (llit && rlit) {
-        Box l = llit->value();
-        Box r = rlit->value();
+    if (lit) {
+        //Box box = lit->value();
+        // TODO
+    }
 
-        switch (kind) {
-#endif
     return cse(new ConvOp(kind, cond, from, to, name));
 }
 

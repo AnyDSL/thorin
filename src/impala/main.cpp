@@ -121,6 +121,7 @@ int main(int argc, char** argv) {
 #endif
 
         anydsl2::AutoPtr<impala::Scope> prg = new impala::Scope();
+        prg->set_loc(anydsl2::Location(infiles[0], 1, 1, 1, 1));
 
         bool result = true;
         for (auto infile : infiles) {

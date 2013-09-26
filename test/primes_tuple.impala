@@ -22,12 +22,12 @@ fn primes<T>(n : int, t : T, yield : fn(int, T, fn(T)), ret : fn(T)) {
     });
 }
 
-fn main(main_ret : fn(sigma(int, int))) {
-    primes(100, #(0, 42),
-        |p : int, result : sigma(int, int), next : fn(sigma(int, int))| {
+fn main(main_ret : fn((int, int))) {
+    primes(100, (0, 42),
+        |p : int, result : (int, int), next : fn((int, int))| {
             next(result);
         },
-        |result : sigma(int, int)| {
+        |result : (int, int)| {
             main_ret(result);
         }
     );

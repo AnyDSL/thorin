@@ -58,6 +58,13 @@ const IdType* TypeTable::idtype(Symbol symbol) { return unify(new IdType(*this, 
 
 //------------------------------------------------------------------------------
 
+GenericBuilder& GenericBuilder::operator = (const GenericBuilder& other) {
+    this->typetable_     = other.typetable_;
+    this->index_         = other.index_;
+    this->index2generic_ = other.index2generic_;
+    return *this;
+}
+
 size_t GenericBuilder::new_def() {
     size_t handle = index2generic_.size();
     index2generic_.push_back(nullptr);
@@ -103,7 +110,6 @@ const char* GenericMap::to_string() const {
         }
     }
 
-    o << std::endl;
     return o.str().c_str();
 }
 
@@ -176,7 +182,7 @@ bool Type::infer_with(GenericMap& map, const Type* other) const {
         other = genericref->generic();
 
     size_t num_elems = this->size();
-    assert(num_elems == other->size());
+    assert(this->isa<Generic>() || num_elems == other->size());
     assert(this->isa<Generic>() || this->kind() == other->kind());
 
     if (this == other)

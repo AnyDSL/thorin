@@ -1,2 +1,2 @@
-fn extern f(i : int) -> void {
+extern fn f(i : int) -> void {
 }

@@ -1,7 +1,7 @@
-fn extern f(i : int) -> int {
+fn main(i : int) -> int {
     while (i < 42) {
         do {
-            for (j : int = 5; i < j; ++j)
+            for (var j : int = 5; i < j; ++j)
                 ++i;
         } while (i < 23);
     }

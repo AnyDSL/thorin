@@ -5,7 +5,7 @@ expected result: 375
 fn count(n : int, yield : fn(int, fn()), ret : fn()) {
     fn loop(i : int) {
         if (i < n)
-            yield(i, lambda() { loop(i+1); });
+            yield(i, || { loop(i+1); });
         else
             ret();
     }
@@ -13,12 +13,12 @@ fn count(n : int, yield : fn(int, fn()), ret : fn()) {
 }
 
 fn main() -> int {
-    b : int = 0;
-    foreach (x : int  <- count(10)) {
+    var b : int = 0;
+    foreach count(10) |x: int| -> void {
         b += x;
-        foreach (y : int  <- count(x)) {
+        foreach count(x) |y: int| -> void {
             b += y;
-            foreach (z : int  <- count(y)) {
+            foreach count(y) |z: int| -> void {
                 b += z;
             }
         }

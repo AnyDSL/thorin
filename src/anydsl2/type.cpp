@@ -84,7 +84,7 @@ bool Type::infer_with(GenericMap& map, const Type* other) const {
         other = genericref->generic();
 
     size_t num_elems = this->size();
-    assert(num_elems == other->size());
+    assert(this->isa<Generic>() || num_elems == other->size());
     assert(this->isa<Generic>() || this->kind() == other->kind());
 
     if (this == other)

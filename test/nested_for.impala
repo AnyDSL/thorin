@@ -3,8 +3,8 @@ fn combine(i : int, x : int) -> int {
 }
 
 fn main(xn : int) -> int {
-    result : int = 0;
-    for (x : int = 0; x < xn; ++x)
+    var result : int = 0;
+    for (var x : int = 0; x < xn; ++x)
         result = combine(result, x);
 
     return result;

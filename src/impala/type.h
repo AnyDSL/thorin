@@ -1,6 +1,7 @@
 #ifndef IMPALA_TYPE_H
 #define IMPALA_TYPE_H
 
+#include <iostream>
 #include <unordered_set>
 
 #include "anydsl2/node.h"
@@ -27,39 +28,8 @@ class PrimType;
 class Sema;
 class TupleType;
 class Type;
+class TypeTable;
 class TypeError;
-
-class TypeTable {
-public:
-    TypeTable();
-    ~TypeTable();
-
-    const TypeError* type_error() { return type_error_; }
-    const NoRet* noret() { return noret_; }
-    const Void* type_void() { return void_; }
-    const PrimType* primtype(TokenKind kind);
-#define IMPALA_TYPE(itype, atype) const PrimType* type_##itype() { return itype##_; }
-#include "impala/tokenlist.h"
-    const FnType* fntype0() { return fntype(anydsl2::ArrayRef<const Type*>(nullptr, 0)); }
-    const FnType* fntype1(const Type*);
-    const FnType* fntype(anydsl2::ArrayRef<const Type*> elems);
-    const TupleType* tupletype(anydsl2::ArrayRef<const Type*> elems);
-    const Generic* generic(size_t index);
-    const GenericRef* genericref(const Fun*, const Generic*);
-    const IdType* idtype(anydsl2::Symbol);
-
-private:
-    const Type* unify_base(const Type* type);
-    template<class T> const T* unify(const T* type) { return unify_base(type)->template as<T>(); }
-
-    std::unordered_set<const Type*> types_;
-
-#define IMPALA_TYPE(itype, atype) const PrimType* itype##_;
-#include "impala/tokenlist.h"
-    const TypeError* type_error_;
-    const NoRet* noret_;
-    const Void* void_;
-};
 
 //------------------------------------------------------------------------------
 
@@ -74,13 +44,7 @@ public:
     const Generic* use(size_t handle);
     const Generic* get(size_t handle) { assert(handle < index2generic_.size()); return index2generic_[handle]; }
     void pop(size_t num) { index2generic_.resize(index2generic_.size() - num); }
-
-    GenericBuilder& operator = (const GenericBuilder& other) {
-        this->typetable_     = other.typetable_;
-        this->index_         = other.index_;
-        this->index2generic_ = other.index2generic_;
-        return *this;
-    }
+    GenericBuilder& operator = (const GenericBuilder& other);
 
 private:
     TypeTable& typetable_;
@@ -307,6 +271,52 @@ private:
 
     friend class TypeTable;
 };
+
+//------------------------------------------------------------------------------
+
+struct TypeHash : std::unary_function<const Type*, size_t> {
+    size_t operator () (const Type* t) const { return t->hash(); }
+};
+
+struct TypeEqual : std::binary_function<const Type*, const Type*, bool> {
+    bool operator () (const Type* t1, const Type* t2) const { return t1->equal(t2); }
+};
+
+typedef std::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;
+
+class TypeTable {
+public:
+    TypeTable();
+    ~TypeTable();
+
+    const TypeError* type_error() { return type_error_; }
+    const NoRet* noret() { return noret_; }
+    const Void* type_void() { return void_; }
+    const PrimType* primtype(TokenKind kind);
+#define IMPALA_TYPE(itype, atype) const PrimType* type_##itype() { return itype##_; }
+#include "impala/tokenlist.h"
+    const FnType* fntype0() { return fntype(anydsl2::ArrayRef<const Type*>(nullptr, 0)); }
+    const FnType* fntype1(const Type*);
+    const FnType* fntype(anydsl2::ArrayRef<const Type*> elems);
+    const TupleType* tupletype(anydsl2::ArrayRef<const Type*> elems);
+    const Generic* generic(size_t index);
+    const GenericRef* genericref(const Fun*, const Generic*);
+    const IdType* idtype(anydsl2::Symbol);
+
+private:
+    const Type* unify_base(const Type* type);
+    template<class T> const T* unify(const T* type) { return unify_base(type)->template as<T>(); }
+
+    TypeSet types_;
+
+#define IMPALA_TYPE(itype, atype) const PrimType* itype##_;
+#include "impala/tokenlist.h"
+    const TypeError* type_error_;
+    const NoRet* noret_;
+    const Void* void_;
+};
+
+//------------------------------------------------------------------------------
 
 } // namespace impala
 

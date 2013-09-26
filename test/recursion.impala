@@ -1,7 +1,0 @@
-fn extern f(i : int, ret : fn(int), bla : fn(int)) {
-    g(i, ret, bla);
-}
-
-fn extern g(i : int, ret : fn(int), bla : fn(int)) {
-    f(i, ret, bla);
-}

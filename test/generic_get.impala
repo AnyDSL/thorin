@@ -1,5 +1,5 @@
 fn get<T>() -> T {
-    tuple : sigma(T, T);
+    val tuple: (T, T);
     return tuple[0];
 }
 

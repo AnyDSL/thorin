@@ -1,7 +1,7 @@
-fn extern f() -> void {
+extern fn f() -> void {
 }
 
-fn extern g() -> int {
+extern fn g() -> int {
 }
 
 fn h() {

@@ -338,7 +338,8 @@ const Scope* Parser::parse_scope() {
                     scope->set_loc(expr->pos1(), prev_loc.pos2());
                     continue;
                 } else {
-                    scope->expr_ = expr;
+                    assert(false && "TODO");
+                    //scope->expr_ = expr;
                 }
                 // FALLTHROUGH
             } 

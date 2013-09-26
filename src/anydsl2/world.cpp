@@ -652,8 +652,30 @@ const Def* World::convop(ConvOpKind kind, const Def* cond, const Def* from, cons
     }
 
     if (lit) {
-        //Box box = lit->value();
-        // TODO
+        Box box = lit->value();
+
+        switch (kind) {
+            case ConvOp_trunc:
+            case ConvOp_zext:   return literal(to_kind, box);
+                //assert(kind == ConvOpKind num_bits(from_kind) > num_bits(to_kind));
+                //switch (from_kind) {
+//#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal(to_kind, Box(box.get_##T()));
+//#include "anydsl2/tables/primtypetable.h"
+                    //ANYDSL2_NO_F_TYPE;
+                //}
+            case ConvOp_sext: {
+                //u64 sign = box.get_u64() >> (num_bits(from_kind) - 1);
+            }
+            case ConvOp_stof:
+            case ConvOp_utof:
+            case ConvOp_ftrunc:
+            case ConvOp_fext:
+            case ConvOp_ftos:
+            case ConvOp_ftou:
+            case ConvOp_bitcast:
+            case ConvOp_inttoptr:
+            case ConvOp_ptrtoint: ;
+        }
     }
 
     return cse(new ConvOp(kind, cond, from, to, name));

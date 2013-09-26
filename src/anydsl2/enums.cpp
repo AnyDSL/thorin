@@ -10,11 +10,16 @@ namespace anydsl2 {
 #define ANYDSL2_CONVOP(op)           static_assert(Node_##op == (NodeKind) zzzMarker_##op,                 "NodeKind value not equal zzzMarker");
 #include "anydsl2/tables/allnodes.h"
 
-const char* kind2str(PrimTypeKind kind) {
+const char* kind2str(NodeKind kind) {
     switch (kind) {
-#define ANYDSL2_UF_TYPE(T) case PrimType_##T: return #T;
-#include "anydsl2/tables/primtypetable.h"
-        default: ANYDSL2_UNREACHABLE;
+#define ANYDSL2_GLUE(pre, next)
+#define ANYDSL2_PRIMTYPE(T)         case Node_PrimType_##T: return #T;
+#define ANYDSL2_AIR_NODE(n, abbr)   case Node_##n: return #n;
+#define ANYDSL2_ARITHOP(n)          case Node_##n: return #n;
+#define ANYDSL2_RELOP(n)            case Node_##n: return #n;
+#define ANYDSL2_CONVOP(n)           case Node_##n: return #n;
+#include "anydsl2/tables/allnodes.h"
+                                    default: ANYDSL2_UNREACHABLE;
     }
 }
 

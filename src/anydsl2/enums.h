@@ -101,7 +101,7 @@ template<> struct type2kind<bool> { static const PrimTypeKind kind = PrimType_u1
 #define ANYDSL2_F_TYPE(T) template<> struct type2kind<T> { static const PrimTypeKind kind = PrimType_##T; };
 #include "anydsl2/tables/primtypetable.h"
 
-const char* kind2str(PrimTypeKind kind);
+const char* kind2str(NodeKind kind);
 int num_bits(PrimTypeKind);
 
 RelOpKind negate(RelOpKind kind);

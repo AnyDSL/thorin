@@ -53,7 +53,8 @@
     case Token::DEC: \
     case Token:: OR: \
     case Token::L_O: \
-    case Token::ID
+    case Token::ID: \
+    case Token::L_PAREN
     
 #define STMT_NO_EXPR \
          DECL: \

@@ -330,19 +330,20 @@ const Scope* Parser::parse_scope() {
     while (true) {
         switch (la()) {
             case Token::SEMICOLON:  lex(); continue; // ignore semicolon
-            case STMT_NO_EXPR:      scope->stmts_.push_back(parse_stmt()); continue;
-            case EXPR: {
-                auto expr = parse_expr();
-                if (accept(Token::SEMICOLON)) {
-                    scope->stmts_.push_back(new ExprStmt(expr));
-                    scope->set_loc(expr->pos1(), prev_loc.pos2());
-                    continue;
-                } else {
-                    assert(false && "TODO");
-                    //scope->expr_ = expr;
-                }
-                // FALLTHROUGH
-            } 
+            case STMT:              scope->stmts_.push_back(parse_stmt()); continue;
+            //case STMT_NO_EXPR:      scope->stmts_.push_back(parse_stmt()); continue;
+            //case EXPR: {
+                //auto expr = parse_expr();
+                //if (accept(Token::SEMICOLON)) {
+                    //scope->stmts_.push_back(new ExprStmt(expr));
+                    //scope->set_loc(expr->pos1(), prev_loc.pos2());
+                    //continue;
+                //} else {
+                    //assert(false && "TODO");
+                    ////scope->expr_ = expr;
+                //}
+                //// FALLTHROUGH
+            //} 
             default:
                 expect(Token::R_BRACE, "scope statement");
                 return scope;

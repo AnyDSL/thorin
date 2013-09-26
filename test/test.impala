@@ -1,8 +1,0 @@
-fn main(i : int, ret : fn(int)) {
-    fn f(i : int) {
-        ret(i);
-    }
-
-    f(i);
-    ret(i);
-}

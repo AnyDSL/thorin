@@ -1,6 +1,6 @@
 fn main(i : int, ret : fn(int)) {
     fn branch(cond : bool, t : fn(), f : fn()) {
-        (cond ? (t) : f)();
+        (cond ? t : f)();
     }
 
     fn switch(i : int, a : fn(), b : fn(), c : fn()) {

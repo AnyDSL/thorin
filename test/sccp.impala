@@ -1,11 +1,11 @@
-fn extern foo() -> int {
-    a : int;
-    b : int;
-    c : int;
-    d : int;
-    e : int;
-    f : int = 0;
-    g : int;
+extern fn foo() -> int {
+    var a : int;
+    var b : int;
+    var c : int;
+    var d : int;
+    var e : int;
+    var f : int = 0;
+    var g : int;
 
     a = 3;
     d = 2;

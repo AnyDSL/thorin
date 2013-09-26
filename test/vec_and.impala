@@ -1,5 +1,5 @@
 fn main(i : int) -> int {
-    res : int = 23;
+    var res : int = 23;
     if (i > 0 && i < 23)
         res = 42;
     return res;

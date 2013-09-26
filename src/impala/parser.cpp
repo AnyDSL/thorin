@@ -101,8 +101,6 @@ public:
         , cur_fun(nullptr)
         , cur_var_handle(2) // reserve 0 for conditionals, 1 for mem
         , no_bars_(false)
-        , generic_counter(0)
-        , counter(0)
         , result_(true)
     {
         lookahead[0] = lexer.lex();
@@ -147,7 +145,7 @@ public:
     const Type* parse_tuple_type();
     const Type* parse_return_type();
     const VarDecl* parse_var_decl(bool is_param);
-    const Proto* parse_proto();
+    //const Proto* parse_proto();
     void parse_fun(Fun* fun);
     void parse_comma_list(TokenKind delimiter, const char* context, std::function<void()> f) {
         if (la() != delimiter) {
@@ -207,8 +205,6 @@ private:
     const Fun* cur_fun;
     size_t cur_var_handle;
     bool no_bars_;
-    size_t generic_counter;
-    int counter;
     anydsl2::Location prev_loc_;
     bool result_;
 };
@@ -241,7 +237,7 @@ Token Parser::lex() {
     Token result  = lookahead[0]; // remember result
     lookahead[0] = lookahead[1];  // copy over LA2 to LA1
     lookahead[1] = lexer.lex();   // fill new LA2
-    prev_loc_ = result.loc();      // remember previous location
+    prev_loc_ = result.loc();     // remember previous location
 
     return result;
 }
@@ -414,29 +410,32 @@ const VarDecl* Parser::parse_var_decl(bool is_param) {
     return new VarDecl(cur_var_handle++, is_param, tok, type, prev_loc().pos2());
 }
 
-#if 0
-const Proto* Parser::parse_proto() {
-    auto proto = loc(new Proto(try_id("prototype").symbol()));
-    eat(Token::EXTERN);
-    std::vector<const Type*> types;
+//const Proto* Parser::parse_proto() {
+    //auto proto = loc(new Proto(try_id("prototype").symbol()));
+    //eat(Token::EXTERN);
+    //std::vector<const Type*> types;
 
-    expect(Token::L_PAREN, "prototype");
-    parse_comma_list(Token::R_PAREN, "type list of prototype", [&] {
-        types.push_back(try_type("type list of prototype function"));
-    });
-    expect(Token::ARROW, "prototype");
+    //expect(Token::L_PAREN, "prototype");
+    //parse_comma_list(Token::R_PAREN, "type list of prototype", [&] {
+        //const Type* type;
+        //switch (la()) {
+            //case TYPE:  type = parse_type();
+            //default:    type = typetable.type_error();
+        //}
+        //types.push_back(type);
+    //});
+    //expect(Token::ARROW, "prototype");
 
-    const Type* ret_type = try_type("return type of prototype");
-    if (ret_type->is_void())
-        types.push_back(typetable.fntype0());
-    else
-        types.push_back(typetable.fntype1(ret_type));
+    //const Type* ret_type = 0; //try_type("return type of prototype");
+    //if (ret_type->is_void())
+        //types.push_back(typetable.fntype0());
+    //else
+        //types.push_back(typetable.fntype1(ret_type));
 
-    proto->orig_type_ = typetable.fntype(types);
+    //proto->orig_type_ = typetable.fntype(types);
 
-    return proto;
-}
-#endif
+    //return proto;
+//}
 
 void Parser::parse_generics_list(GenericDecls& generic_decls) {
     if (accept(Token::LT))
@@ -842,7 +841,8 @@ const Stmt* Parser::parse_return() {
 
 const Item* Parser::parse_item() {
     switch (la()) {
-        case Token::FN:     return parse_fun_item();
+        case Token::FN:     
+        case Token::EXTERN: return parse_fun_item();
         case Token::STRUCT:
         case Token::CLASS:  return parse_trait_item();
         default:            ANYDSL2_UNREACHABLE;
@@ -850,13 +850,13 @@ const Item* Parser::parse_item() {
 }
 
 const FunItem* Parser::parse_fun_item() {
-    auto i = loc(new FunItem(typetable));
-    eat(Token::FN).pos1();
-    i->fun_->extern_ = accept(Token::EXTERN);
-    i->fun_->symbol_ = try_id("function identifier").symbol();
-    parse_generics_list(i->fun_->generics_);
-    parse_fun(i->fun_);
-    return i;
+    auto fi = loc(new FunItem(typetable));
+    fi->fun_->extern_ = accept(Token::EXTERN);
+    eat(Token::FN);
+    fi->fun_->symbol_ = try_id("function identifier").symbol();
+    parse_generics_list(fi->fun_->generics_);
+    parse_fun(fi->fun_);
+    return fi;
 }
 
 const TraitItem* Parser::parse_trait_item() {

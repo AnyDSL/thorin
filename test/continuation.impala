@@ -1,8 +1,8 @@
-fn extern f(i : int, ret : fn(int)) {
+extern fn f(i : int, ret : fn(int)) {
     //g(i, ret);
     return g(3) + 5;
 }
 
-fn extern g(i : int, ret : fn(int)) {
+extern fn g(i : int, ret : fn(int)) {
     f(i, ret);
 }

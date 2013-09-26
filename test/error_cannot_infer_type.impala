@@ -1,4 +1,4 @@
-fn extern f<A>(a : A) -> A {
+extern fn f<A>(a : A) -> A {
     fn g<B>(b : B) -> B { 
         return a; 
     }

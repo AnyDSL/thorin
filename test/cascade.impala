@@ -1,4 +1,4 @@
-fn extern test(cond : bool) -> int {
+extern fn test(cond : bool) -> int {
     var a : int;
 
     if (cond)

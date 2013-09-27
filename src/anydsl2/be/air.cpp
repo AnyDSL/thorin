@@ -94,9 +94,14 @@ std::ostream& CodeGen::emit_primop(const PrimOp* primop) {
             default: ANYDSL2_UNREACHABLE; break;
         }
     } else if (primop->is_const()) {
-        stream() << primop->op_name() << "_";
-        emit_type(primop->type());
-        dump_list([&](const Def* def) { emit_def(def); }, primop->ops(), "(", ")");
+        if (primop->empty()) {
+            stream() << primop->op_name() << ' ';
+            emit_type(primop->type());
+        } else {
+            stream() << '(';
+            emit_type(primop->type()) << ' ' << primop->op_name();
+            dump_list([&](const Def* def) { emit_def(def); }, primop->ops(), " ", ")");
+        }
     } else
         emit_name(primop);
 

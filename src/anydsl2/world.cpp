@@ -178,7 +178,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* cond, const Def* a, const
                         typedef make_signed<T>::type S; \
                         return rlit->is_zero() \
                             ? (const Def*) bottom(type) \
-                            : literal(type, Box(bcast<T , S>(bcast<S, T >(l.get_##T()) / bcast<S, T >(r.get_##T())))); \
+                            : literal(type, Box((T) ((S) l.get_##T() / (S) r.get_##T()))); \
                     }
 #include "anydsl2/tables/primtypetable.h"
                     ANYDSL2_NO_F_TYPE;
@@ -198,7 +198,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* cond, const Def* a, const
 #define ANYDSL2_JUST_U_TYPE(T) \
                     case PrimType_##T: { \
                         typedef make_signed<T>::type S; \
-                        return literal(type, Box(bcast<T , S>(bcast<S, T >(l.get_##T()) % bcast<S, T >(r.get_##T())))); \
+                        return literal(type, Box((T) ((S) l.get_##T() % (S) r.get_##T()))); \
                     }
 #include "anydsl2/tables/primtypetable.h"
                     ANYDSL2_NO_F_TYPE;
@@ -238,7 +238,7 @@ const Def* World::arithop(ArithOpKind kind, const Def* cond, const Def* a, const
 #define ANYDSL2_JUST_U_TYPE(T) \
                     case PrimType_##T: { \
                         typedef make_signed<T>::type S; \
-                        return literal(type, Box(bcast<T , S>(bcast<S, T >(l.get_##T()) >> bcast<S, T >(r.get_##T())))); \
+                        return literal(type, Box((T) ((S) l.get_##T() >> (S) r.get_##T()))); \
                     }
 #include "anydsl2/tables/primtypetable.h"
                     ANYDSL2_NO_F_TYPE;
@@ -555,8 +555,8 @@ const Def* World::relop(RelOpKind kind, const Def* cond, const Def* a, const Def
                 switch (type) {
 #define ANYDSL2_JUST_U_TYPE(T) \
                     case PrimType_##T: { \
-                        typedef make_signed< T >::type S; \
-                        return literal_u1(bcast<S, T>(l.get_##T()) <  bcast<S, T>(r.get_##T())); \
+                        typedef make_signed<T>::type S; \
+                        return literal_u1((S) l.get_##T() < (S) r.get_##T()); \
                     }
 #include "anydsl2/tables/primtypetable.h"
                     ANYDSL2_NO_F_TYPE;
@@ -566,7 +566,7 @@ const Def* World::relop(RelOpKind kind, const Def* cond, const Def* a, const Def
 #define ANYDSL2_JUST_U_TYPE(T) \
                     case PrimType_##T: { \
                         typedef make_signed< T >::type S; \
-                        return literal_u1(bcast<S, T>(l.get_##T()) <= bcast<S, T>(r.get_##T())); \
+                        return literal_u1((S) l.get_##T() <= (S) r.get_##T()); \
                     }
 #include "anydsl2/tables/primtypetable.h"
                     ANYDSL2_NO_F_TYPE;
@@ -615,6 +615,14 @@ const Def* World::relop(RelOpKind kind, const Def* cond, const Def* a, const Def
     return cse(new RelOp(kind, cond, a, b, name));
 }
 
+static i64 box2i64(PrimTypeKind kind, Box box) {
+    switch (kind) {
+#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return (i64) (make_signed<T>::type) box.get_##T();
+#include "anydsl2/tables/primtypetable.h"
+        ANYDSL2_NO_F_TYPE;
+    }
+}
+
 const Def* World::convop(ConvOpKind kind, const Def* cond, const Def* from, const Type* to, const std::string& name) {
 #define from_kind (from->type()->as<PrimType>()->primtype_kind())
 #define   to_kind (  to        ->as<PrimType>()->primtype_kind())
@@ -657,26 +665,33 @@ const Def* World::convop(ConvOpKind kind, const Def* cond, const Def* from, cons
         switch (kind) {
             case ConvOp_trunc:
             case ConvOp_zext:   return literal(to_kind, box);
-            case ConvOp_sext: {
-                i64 res;
-                switch (from_kind) {
-#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: res = ((i64) (make_signed<T>::type) box.get_##T()); break;
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_F_TYPE;
-                }
-                return literal(to_kind, Box((u64) res));
-            }
-            case ConvOp_stof:
+            case ConvOp_sext:   return literal(to_kind, Box((u64) box2i64(from_kind, box)));
             case ConvOp_utof:
                 switch (to_kind) {
 #define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal(to_kind, Box((T) box.get_u64()));
 #include "anydsl2/tables/primtypetable.h"
                     ANYDSL2_NO_U_TYPE;
                 }
+            case ConvOp_stof:
+                switch (to_kind) {
+#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal(to_kind, Box((T) box2i64(from_kind, box)));
+#include "anydsl2/tables/primtypetable.h"
+                    ANYDSL2_NO_U_TYPE;
+                }
+            case ConvOp_ftou:
+                switch (from_kind) {
+#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal(to_kind, Box((u64) box.get_##T()));
+#include "anydsl2/tables/primtypetable.h"
+                    ANYDSL2_NO_U_TYPE;
+                }
+            case ConvOp_ftos:
+                switch (from_kind) {
+#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal(to_kind, Box((u64) (i64) box.get_##T()));
+#include "anydsl2/tables/primtypetable.h"
+                    ANYDSL2_NO_U_TYPE;
+                }
             case ConvOp_ftrunc: return literal(PrimType_f32, Box((f32) box.get_f64()));
             case ConvOp_fext:   return literal(PrimType_f64, Box((f64) box.get_f32()));
-            case ConvOp_ftos:
-            case ConvOp_ftou:
             case ConvOp_bitcast:
             case ConvOp_inttoptr:
             case ConvOp_ptrtoint: /* FALLTROUGH */;

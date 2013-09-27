@@ -105,6 +105,7 @@ int main(int argc, char** argv) {
         //ostream& out = ofs.is_open() ? ofs : cout;
 
         impala::Init init;
+
 #ifndef NDEBUG
         for (auto b : breakpoints) {
             assert(b.size() > 0);

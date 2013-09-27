@@ -24,9 +24,10 @@ public:
         : IRBuilder(world)
         , break_target(nullptr)
         , continue_target(nullptr)
+        , result(true)
     {}
 
-    void emit_prg(const Scope*);
+    bool emit_prg(const Scope*);
     void emit(const Scope*, JumpTarget&);
     Lambda* emit_head(const Fun* fun);
     const Lambda* emit_body(const Fun* fun);
@@ -39,15 +40,16 @@ public:
 
     JumpTarget* break_target;
     JumpTarget* continue_target;
+    bool result;
 };
 
 //------------------------------------------------------------------------------
 
-void emit(World& world, const Scope* prg) { CodeGen(world).emit_prg(prg); }
+bool emit(World& world, const Scope* prg) { return CodeGen(world).emit_prg(prg); }
 
 //------------------------------------------------------------------------------
 
-void CodeGen::emit_prg(const Scope* prg) {
+bool CodeGen::emit_prg(const Scope* prg) {
     for (auto stmt : prg->stmts()) {
         auto item = stmt->as<ItemStmt>()->item();
         if (auto fun_item = item->isa<FunItem>()) {
@@ -73,6 +75,8 @@ void CodeGen::emit_prg(const Scope* prg) {
     // clear get/set value stuff
     for (auto lambda : world().lambdas())
         lambda->clear();
+
+    return result;
 }
 
 
@@ -140,9 +144,11 @@ const Lambda* CodeGen::emit_body(const Fun* fun) {
             cur_bb->jump1(fun->ret_param(), get_mem());
         else {
             if (fun->is_continuation())
-                std::cerr << fun->symbol() << " does not end with a call\n";
+                fun->body()->pos2().error() << "'" << fun->symbol() << "' does not end with a call\n";
             else
-                std::cerr << fun->symbol() << " does not end with 'return'\n";
+                fun->body()->pos2().error() << "'" << fun->symbol() << "' does not end with 'return'\n";
+
+            result = false;
             cur_bb->jump0(world().bottom(world().pi0()));
         }
     }

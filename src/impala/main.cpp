@@ -41,7 +41,6 @@ int main(int argc, char** argv) {
         Names breakpoints;
 #endif
         string outfile = "-";
-        string emittype;
         bool help, emit_all, emit_air, emit_il, emit_ast, emit_llvm, emit_looptree, fancy, opt, verify, nocleanup, nossa, pe = false;
         int vectorlength = 0;
 
@@ -135,10 +134,9 @@ int main(int argc, char** argv) {
             dump_prg(prg, fancy);
 
         result &= check(init.typetable, prg, nossa);
+        result &= result ? emit(init.world, prg) : false;
 
         if (result) {
-            emit(init.world, prg);
-
             if (!nocleanup)
                 init.world.cleanup();
             if (verify)

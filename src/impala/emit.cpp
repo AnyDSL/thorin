@@ -237,6 +237,10 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
         case SUB: return Ref::create(cg.world().arithop_minus(cg.emit(rhs())->load()));
         case NOT:
         case L_N: return Ref::create(cg.world().arithop_not(cg.emit(rhs())->load()));
+        case RUN: 
+            if (rhs()->isa<Call>())
+                cg.cur_bb->attr().set_run(); 
+            return cg.emit(rhs());
         default: ANYDSL2_UNREACHABLE;
     }
 }

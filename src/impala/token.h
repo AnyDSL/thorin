@@ -32,7 +32,7 @@ public:
 #include "impala/tokenlist.h"
 
         // manually insert missing unary prefix/postfix types
-        NOT, L_N, INC, DEC,
+        NOT, L_N, INC, DEC, RUN,
         // these do ont appear in impala/tokenlist.h -- they are too special
         ID, END_OF_FILE,
         TYPE_id, TYPE_generic, TYPE_genericref, TYPE_error, TYPE_tuple,

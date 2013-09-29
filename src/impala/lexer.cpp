@@ -155,16 +155,15 @@ Token Lexer::lex() {
         IMPALA_LEX_AND_OR('|',  OR, L_O,  OR_ASGN)
 
         // single character tokens
-        if (accept('#')) 
-            return Token(loc_, Token::HASH);
         if (accept('(')) return Token(loc_, Token::L_PAREN);
         if (accept(')')) return Token(loc_, Token::R_PAREN);
-        if (accept('[')) return Token(loc_, Token::L_BRACKET);
-        if (accept(']')) return Token(loc_, Token::R_BRACKET);
         if (accept(',')) return Token(loc_, Token::COMMA);
         if (accept(':')) return Token(loc_, Token::COLON);
         if (accept(';')) return Token(loc_, Token::SEMICOLON);
         if (accept('?')) return Token(loc_, Token::QUESTION_MARK);
+        if (accept('@')) return Token(loc_, Token::RUN);
+        if (accept('[')) return Token(loc_, Token::L_BRACKET);
+        if (accept(']')) return Token(loc_, Token::R_BRACKET);
         if (accept('{')) return Token(loc_, Token::L_BRACE);
         if (accept('}')) return Token(loc_, Token::R_BRACE);
         if (accept('~')) return Token(loc_, Token::NOT);

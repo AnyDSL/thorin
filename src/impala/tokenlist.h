@@ -21,6 +21,7 @@ IMPALA_PREFIX(         INC,   "++",   POSTFIX             ) // prefix ++
 IMPALA_PREFIX(         DEC,   "--",   POSTFIX             ) // prefix --
 IMPALA_PREFIX(          OR,    "|",   POSTFIX             ) // lambda expressions
 IMPALA_PREFIX(         L_O,   "||",   POSTFIX             ) // lambda expressions with empty param list
+IMPALA_PREFIX(         RUN,    "@",   POSTFIX             ) // trigger partial evaluation
 
 #undef IMPALA_PREFIX
 
@@ -161,7 +162,6 @@ IMPALA_MISC(COMMA,      ",")
 IMPALA_MISC(SEMICOLON,  ";")
 IMPALA_MISC(COLON,      ":")
 IMPALA_MISC(LARROW,     "<-")
-IMPALA_MISC(HASH,       "#")
 
 #undef IMPALA_MISC
 

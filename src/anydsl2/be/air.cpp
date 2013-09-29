@@ -138,6 +138,8 @@ std::ostream& CodeGen::emit_head(const Lambda* lambda) {
 
 std::ostream& CodeGen::emit_jump(const Lambda* lambda) {
     if (!lambda->empty()) {
+        if (lambda->attr().is_run())
+            stream() << '@';
         emit_def(lambda->to());
         dump_list([&](const Def* def) { emit_def(def); }, lambda->args(), "(", ")");
     }

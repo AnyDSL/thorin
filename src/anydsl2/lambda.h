@@ -22,6 +22,7 @@ typedef std::vector<const Param*> Params;
 struct LambdaAttr {
     enum Attr {
         Extern = 1 << 0, ///< Is the function visible in other translation units?
+        Run    = 1 << 1, ///< Flag for the partial evaluator: Evaluate the \em body of this function.
     };
 
     explicit LambdaAttr(uint32_t attr)
@@ -29,7 +30,9 @@ struct LambdaAttr {
     {}
 
     bool is_extern() const { return attr_ & Extern; }
+    bool is_run()    const { return attr_ & Run; }
     void set_extern() { attr_ |= Extern; }
+    void set_run()    { attr_ |= Run; }
 
 private:
     uint32_t attr_;

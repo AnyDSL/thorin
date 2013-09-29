@@ -6,5 +6,5 @@ fn fac_rec(n : int) -> int
 }
 
 fn main() -> int {
-    return fac_rec(5);
+    return @fac_rec(5);
 }

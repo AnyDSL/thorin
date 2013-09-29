@@ -1,4 +1,4 @@
-extern fn fac(n : int) -> int {
+fn fac(n : int) -> int {
     if (n <= 1) 
         return 1;
 
@@ -7,4 +7,9 @@ extern fn fac(n : int) -> int {
         r *= i;
     }
     return r;
+}
+
+
+fn main(i: int) -> int {
+    return @fac(5);
 }

@@ -33,6 +33,8 @@ struct LambdaAttr {
     bool is_run()    const { return attr_ & Run; }
     void set_extern() { attr_ |= Extern; }
     void set_run()    { attr_ |= Run; }
+    void unset_extern() { attr_ &= ~Extern; }
+    void unset_run()    { attr_ &= ~Run; }
 
 private:
     uint32_t attr_;

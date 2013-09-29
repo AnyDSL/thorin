@@ -1,0 +1,12 @@
+fn f(i: int) -> int {
+    return i + 1;
+}
+
+fn main(i: int) -> int {
+    var a = f(i);
+    var b = @f(4);
+    var c = f(i);
+    var d = f(i);
+
+    return a + b + c + d;
+}

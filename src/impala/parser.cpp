@@ -531,7 +531,8 @@ const Expr* Parser::parse_infix_expr(const Expr* lhs) {
 
 const Expr* Parser::parse_postfix_expr(const Expr* lhs) {
     if (accept(Token::L_PAREN)) {
-        auto call = loc(new Call(lhs));
+        auto call = loc(new Call());
+        call->ops_.push_back(lhs);
         parse_comma_list(Token::R_PAREN, "arguments of a function call", [&]{ call->append_arg(parse_expr()); });
         return call;
     } else if (accept(Token::L_BRACKET)) {

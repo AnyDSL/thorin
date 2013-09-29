@@ -501,13 +501,7 @@ private:
 
 class Call : public Expr {
 public:
-    Call(const Expr* fun) { ops_.push_back(fun); }
-
     void append_arg(const Expr* expr) { ops_.push_back(expr); }
-    void set_pos2(const anydsl2::Position& pos2) {
-        assert(!ops_.empty());
-        HasLocation::set_loc(ops_.front()->pos1(), pos2);
-    }
     const Expr* to() const { return ops_.front(); }
     size_t num_args() const { return size() - 1; }
     anydsl2::ArrayRef<const Expr*> args() const { return anydsl2::ArrayRef<const Expr*>(&*ops_.begin() + 1, num_args()); }

@@ -1,9 +1,5 @@
-fn range(a : int, b : int, yield : fn(int, fn()), ret : fn()) {
-    fn loop(i : int) {
-        if (i < b)
-            yield(i, || { loop(i+1); });
-        else
-            ret();
-    }
-    loop(a);
+fn range(a : int, b : int, yield : fn(int, fn())) -> void {
+    var i: int = a;
+    while (i < b)
+        yield(i++, || { continue; });
 }

@@ -11,5 +11,5 @@ fn fac(n : int) -> int {
 
 
 fn main(i: int) -> int {
-    return fac(5);
+    return @fac(5);
 }

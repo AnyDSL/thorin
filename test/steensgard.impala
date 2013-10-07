@@ -12,8 +12,13 @@ fn main(i : int, ret : fn(int)) {
             c();
     }
 
+    fn x() { z(); }
+    fn y() { z(); }
+    fn z() { e(); }
+
     fn b() { d(); }
-    fn c() { e(); }
+    //fn c() { e(); }
+    fn c() { branch(i == 0, x, y); }
     fn d() { switch(i, b, e, f); }
     fn e() { switch(i, d, c, f); }
     fn f() { ret(23); }

@@ -54,6 +54,7 @@
     case Token:: OR: \
     case Token::L_O: \
     case Token::ID: \
+    case Token::RUN: \
     case Token::L_PAREN
     
 #define STMT_NO_EXPR \

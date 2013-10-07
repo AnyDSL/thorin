@@ -34,7 +34,7 @@ class LoopHeader;
  * Represents a node of a loop nesting forest.
  * Please refer to G. Ramalingam, "On Loops, Dominators, and Dominance Frontiers", 1999
  * for an introduction to loop nesting forests.
- * A \p LoopNode consists of a set of header \p Lambda%s and \p LoopNode%s as children.
+ * A \p LoopNode consists of a set of header \p Lambda%s.
  * The root node is a \p LoopHeader without any headers but further \p LoopNode children and \p depth_ -1.
  * Thus, the forest is pooled into a tree.
  */
@@ -56,6 +56,7 @@ protected:
 
 inline LoopNode::~LoopNode() {}
 
+/// A LoopHeader owns further \p LoopNode%s as children.
 class LoopHeader : public LoopNode {
 public:
     explicit LoopHeader(LoopHeader* parent, int depth, const std::vector<Lambda*>& headers)

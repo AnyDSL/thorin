@@ -9,12 +9,13 @@ namespace anydsl2 {
 class Mangler {
 public:
     Mangler(const Scope& scope, ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
-           ArrayRef<const Def*> to_lift, const GenericMap& generic_map)
+           ArrayRef<const Def*> to_lift, const GenericMap& generic_map, ArrayRef<Lambda*> run)
         : scope(scope)
         , to_drop(to_drop)
         , drop_with(drop_with)
         , to_lift(to_lift)
         , generic_map(generic_map)
+        , run(run)
         , world(scope.world())
         , pass(world.new_pass())
     {}
@@ -38,6 +39,7 @@ public:
     ArrayRef<const Def*> drop_with;
     ArrayRef<const Def*> to_lift;
     GenericMap generic_map;
+    ArrayRef<Lambda*> run;
     World& world;
     const size_t pass;
     Lambda* nentry;
@@ -56,6 +58,8 @@ Lambda* Mangler::mangle() {
 
     const Pi* n_pi = world.pi(nelems)->specialize(generic_map)->as<Pi>();
     nentry = world.lambda(n_pi, oentry->name);
+    if (oentry->attr().is_run())
+        nentry->attr().set_run();
 
     // put in params for entry (oentry)
     // op -> iterates over old params
@@ -84,6 +88,9 @@ Lambda* Mangler::mangle() {
         if (cur->is_visited(pass))
             mangle_body(cur, lookup(cur)->as_lambda());
     }
+
+    for (auto lambda : run)
+        lookup(lambda)->as_lambda()->attr().set_run();
 
     return nentry;
 }
@@ -159,17 +166,17 @@ const Def* Mangler::mangle(const Def* odef) {
 //------------------------------------------------------------------------------
 
 Lambda* mangle(const Scope& scope, ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, 
-               ArrayRef<const Def*> to_lift, const GenericMap& generic_map) {
-    return Mangler(scope, to_drop, drop_with, to_lift, generic_map).mangle();
+               ArrayRef<const Def*> to_lift, const GenericMap& generic_map, ArrayRef<Lambda*> run) {
+    return Mangler(scope, to_drop, drop_with, to_lift, generic_map, run).mangle();
 }
 
-Lambda* drop(const Scope& scope, ArrayRef<const Def*> with) {
+Lambda* drop(const Scope& scope, ArrayRef<const Def*> with, ArrayRef<Lambda*> run) {
     size_t size = with.size();
     Array<size_t> to_drop(size);
     for (size_t i = 0; i != size; ++i)
         to_drop[i] = i;
 
-    return mangle(scope, to_drop, with, Array<const Def*>(), GenericMap());
+    return mangle(scope, to_drop, with, Array<const Def*>(), GenericMap(), run);
 }
 
 //------------------------------------------------------------------------------

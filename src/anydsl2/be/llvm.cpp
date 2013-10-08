@@ -116,9 +116,18 @@ void CodeGen::emit() {
         Scope scope(lambda);
         BBMap bbs(scope.size());
 
-        // map all bb-like lambdas to llvm bb stubs
-        for (auto lambda : scope.rpo())
-            bbs[lambda->sid()] = llvm::BasicBlock::Create(context, lambda->name, fct);
+        for (auto lambda : scope.rpo()) {
+            // map all bb-like lambdas to llvm bb stubs
+            auto bb = bbs[lambda->sid()] = llvm::BasicBlock::Create(context, lambda->name, fct);
+
+            // create phi node stubs (for all non-cascading lambdas different from entry)
+            if (!lambda->is_cascading() && !scope.is_entry(lambda)) {
+                for (auto param : lambda->params())
+                    if (!param->type()->isa<Mem>())
+                        phis[param] = llvm::PHINode::Create(map(param->type()), (unsigned) param->peek().size(), param->name, bb);
+            }
+
+        }
 
         Schedule schedule = schedule_smart(scope);
 
@@ -126,13 +135,6 @@ void CodeGen::emit() {
         for (auto lambda : scope.rpo()) {
             assert(scope.is_entry(lambda) || lambda->is_basicblock());
             builder.SetInsertPoint(bbs[lambda->sid()]);
-
-            // create phi node stubs (for all non-cascading lambdas different from entry)
-            if (!lambda->is_cascading() && !scope.is_entry(lambda)) {
-                for (auto param : lambda->params())
-                    if (!param->type()->isa<Mem>())
-                        phis[param] = builder.CreatePHI(map(param->type()), (unsigned) param->peek().size(), param->name);
-            }
 
             for (auto primop :  schedule[lambda->sid()]) {
                 // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
@@ -217,18 +219,18 @@ void CodeGen::emit() {
                         builder.CreateRet(call);
                     else {                          // call + continuation
                         Lambda* succ = ret_arg->as_lambda();
-                        switch (succ->num_params()) {
-                            case 1:
-                                if (!succ->param(0)->type()->isa<Mem>())
-                                    params[succ->param(0)] = call;
-                                break;
-                            case 2:
-                                params[succ->param(0)->type()->isa<Mem>() ? succ->param(1) : succ->param(0)] = call;
-                                break;
-                            default: ANYDSL2_UNREACHABLE;
-                        }
+                        const Param* param = succ->param(0)->isa<Mem>() ? nullptr : succ->param(0);
+                        if (param == nullptr && succ->num_params() == 2)
+                            param = succ->param(1);
 
                         builder.CreateBr(bbs[succ->sid()]);
+                        if (param) {
+                            auto i = phis.find(param);
+                            if (i != phis.end())
+                                i->second->addIncoming(call, builder.GetInsertBlock());
+                            else
+                                params[param] = call;
+                        }
                     }
                 }
             }

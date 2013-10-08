@@ -121,6 +121,7 @@ void partial_evaluation(World& world) {
 
         merge_lambdas(world);
         world.unreachable_code_elimination();
+        //std::cout << world.gid() << std::endl;
     } while (todo);
 }
 

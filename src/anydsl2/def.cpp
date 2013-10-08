@@ -34,11 +34,10 @@ void Tracker::release() {
 
 void Def::set_op(size_t i, const Def* def) {
     assert(!op(i) && "already set");
-    assert(std::find(def->uses_.begin(), def->uses_.end(), Use(i, this)) == def->uses_.end() && "already in use set");
-    def->uses_.push_back(Use(i, this));
     set(i, def);
-    if (isa<PrimOp>())
-        is_const_ &= def->is_const();
+    if (isa<PrimOp>()) is_const_ &= def->is_const();
+    auto p = def->uses_.insert(Use(i, this));
+    assert(p.second && "already in use set");
 }
 
 void Def::unset_op(size_t i) {
@@ -50,14 +49,6 @@ void Def::unset_op(size_t i) {
 void Def::unset_ops() {
     for (size_t i = 0, e = size(); i != e; ++i)
         unset_op(i);
-}
-
-void Def::unregister_use(size_t i) const {
-    const Def* def = op(i);
-    auto it = std::find(def->uses_.begin(), def->uses_.end(), Use(i, this));
-    assert(it != def->uses_.end() && "must be in use set");
-    *it = def->uses_.back();
-    def->uses_.pop_back();
 }
 
 std::string Def::unique_name() const {
@@ -74,9 +65,9 @@ Array<Use> Def::copy_uses() const {
 
 AutoVector<const Tracker*> Def::tracked_uses() const {
     AutoVector<const Tracker*> result(uses().size());
-    for (size_t i = 0, e = uses().size(); i != e; ++i)
-        result[i] = new Tracker(uses()[i]);
-
+    size_t i = 0;
+    for (auto use : uses())
+        result[i++] = new Tracker(use);
     return result;
 }
 

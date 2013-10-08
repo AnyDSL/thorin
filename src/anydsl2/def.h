@@ -1,9 +1,8 @@
 #ifndef ANYDSL2_DEF_H
 #define ANYDSL2_DEF_H
 
-#include <cstring>
-#include <ostream>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "anydsl2/enums.h"
@@ -133,7 +132,16 @@ private:
 
 //------------------------------------------------------------------------------
 
-typedef std::vector<Use> Uses;
+
+struct UseHash : std::unary_function<Use, size_t> {
+    size_t operator () (Use use) const { return hash_combine(hash_value(use.def()), use.index()); }
+};
+
+struct UseEqual : std::binary_function<const Type*, const Type*, bool> {
+    bool operator () (Use use1, Use use2) const { return use1 == use2; }
+};
+
+typedef std::unordered_set<Use, UseHash, UseEqual> Uses;
 typedef std::vector<Tracker*> Trackers;
 
 //------------------------------------------------------------------------------
@@ -152,12 +160,11 @@ protected:
         , type_(type)
         , gid_(gid)
         , is_const_(is_const)
-    {
-        uses_.reserve(4);
-    }
+        , uses_(13) // 13 seems to perform best
+    {}
 
     void set_type(const Type* type) { type_ = type; }
-    void unregister_use(size_t i) const;
+    void unregister_use(size_t i) const { op(i)->uses_.erase(Use(i, this)); }
 
 public:
     virtual ~Def() {}

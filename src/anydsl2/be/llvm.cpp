@@ -251,7 +251,7 @@ void CodeGen::emit() {
     }
 
     module->dump();
-#ifdef NDEBUG
+#ifndef NDEBUG
     llvm::verifyModule(*this->module);
 #endif
 }

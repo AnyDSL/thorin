@@ -1,0 +1,14 @@
+fn power(a: int, b: int) -> int {
+    var result = 1;
+    while (b != 0) {
+        result *= a;
+        --b;
+    }
+
+    return result;
+}
+
+fn main(i: int) -> int {
+    val power4 = |a: int| -> int { return @power(a, 4); };
+    return power4(i) + @power(3, 4);
+}

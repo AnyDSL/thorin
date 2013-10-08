@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
         Names breakpoints;
 #endif
         string outfile = "-";
-        bool help, emit_all, emit_air, emit_il, emit_ast, emit_llvm, emit_looptree, fancy, opt, verify, nocleanup, nossa, pe = false;
+        bool help, emit_all, emit_air, emit_il, emit_ast, emit_llvm, emit_looptree, fancy, opt, verify, nocleanup, nossa = false;
         int vectorlength = 0;
 
         // specify options
@@ -62,7 +62,6 @@ int main(int argc, char** argv) {
         ("fancy,f",         po::bool_switch(&fancy),                    "use fancy output")
         ("nocleanup",       po::bool_switch(&nocleanup),                "no clean-up phase")
         ("nossa",           po::bool_switch(&nossa),                    "use slots + load/store instead of SSA construction")
-        ("pe",              po::bool_switch(&pe),                       "perform partial evaluation (experimantal!!!)")
         ("verify,v",        po::bool_switch(&verify),                   "run verifier")
         ("vectorize",       po::value(&vectorlength),                   "run vectorizer on main with given vector length (experimantal!!!), arg=<vector length>")
         (",O",              po::bool_switch(&opt),                      "optimize");
@@ -143,8 +142,6 @@ int main(int argc, char** argv) {
                 anydsl2::verify(init.world);
             if (opt)
                 init.world.opt();
-            if (pe)
-                partial_evaluation(init.world);
             if (vectorlength != 0) {
                 Lambda* impala_main = top_level_lambdas(init.world)[0];
                 Scope scope(impala_main);

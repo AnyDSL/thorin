@@ -16,6 +16,7 @@
 #include "anydsl2/transform/inliner.h"
 #include "anydsl2/transform/mem2reg.h"
 #include "anydsl2/transform/merge_lambdas.h"
+#include "anydsl2/transform/partial_evaluation.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/hash.h"
 
@@ -1059,9 +1060,10 @@ void World::cleanup() {
 
 void World::opt() {
     cleanup();
+    partial_evaluation(*this);
     lower2cff(*this);
     mem2reg(*this);
-    //inliner(*this);
+    inliner(*this);
     merge_lambdas(*this);
     cleanup();
 }

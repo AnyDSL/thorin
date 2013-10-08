@@ -122,8 +122,6 @@ void partial_evaluation(World& world) {
         merge_lambdas(world);
         world.unreachable_code_elimination();
     } while (todo);
-
-    world.opt();
 }
 
 }

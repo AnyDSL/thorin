@@ -219,7 +219,7 @@ void CodeGen::emit() {
                         builder.CreateRet(call);
                     else {                          // call + continuation
                         Lambda* succ = ret_arg->as_lambda();
-                        const Param* param = succ->param(0)->isa<Mem>() ? nullptr : succ->param(0);
+                        const Param* param = succ->param(0)->type()->isa<Mem>() ? nullptr : succ->param(0);
                         if (param == nullptr && succ->num_params() == 2)
                             param = succ->param(1);
 

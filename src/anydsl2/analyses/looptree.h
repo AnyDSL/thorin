@@ -38,7 +38,7 @@ class LoopHeader;
  * The root node is a \p LoopHeader without any headers but further \p LoopNode children and \p depth_ -1.
  * Thus, the forest is pooled into a tree.
  */
-class LoopNode : public MagicCast {
+class LoopNode : public MagicCast<LoopNode> {
 public:
     LoopNode(LoopHeader* parent, int depth, const std::vector<Lambda*>& headers);
     virtual ~LoopNode() = 0;

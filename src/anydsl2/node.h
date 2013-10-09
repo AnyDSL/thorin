@@ -10,7 +10,7 @@
 
 namespace anydsl2 {
 
-class Node : public MagicCast {
+class Node : public MagicCast<Node> {
 private:
     Node& operator = (const Node&); ///< Do not copy-assign a \p Node instance.
     Node(const Node& node);         ///< Do not copy-construct a \p Node.

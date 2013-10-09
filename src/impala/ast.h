@@ -43,7 +43,7 @@ typedef anydsl2::AutoVector<const GenericDecl*> GenericDecls;
 
 //------------------------------------------------------------------------------
 
-class ASTNode : public anydsl2::HasLocation, public anydsl2::MagicCast {
+class ASTNode : public anydsl2::HasLocation, public anydsl2::MagicCast<ASTNode> {
 public:
 #ifndef NDEBUG
     virtual ~ASTNode() { assert(loc_.is_set()); }

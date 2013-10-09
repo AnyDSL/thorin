@@ -381,7 +381,10 @@ const Type* Call::check(Sema& sema) const {
 
         if (ret_type->isa<NoRet>())
             call_fn = sema.typetable().fntype(op_types.slice_front(op_types.size()-1));
-        else {
+        else if (ret_type->isa<Void>()) {
+            op_types.back() = sema.typetable().fntype0();
+            call_fn = sema.typetable().fntype(op_types);
+        } else {
             op_types.back() = sema.typetable().fntype1(ret_type);
             call_fn = sema.typetable().fntype(op_types);
         }

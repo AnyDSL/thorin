@@ -33,13 +33,8 @@ private:
     friend class World;
 };
 
-struct PrimOpHash : std::unary_function<const PrimOp*, size_t> {
-    size_t operator () (const PrimOp* o) const { return o->hash(); }
-};
-
-struct PrimOpEqual : std::binary_function<const PrimOp*, const PrimOp*, bool> {
-    bool operator () (const PrimOp* o1, const PrimOp* o2) const { return o1->equal(o2); }
-};
+struct PrimOpHash { size_t operator () (const PrimOp* o) const { return o->hash(); } };
+struct PrimOpEqual { bool operator () (const PrimOp* o1, const PrimOp* o2) const { return o1->equal(o2); } };
 
 //------------------------------------------------------------------------------
 

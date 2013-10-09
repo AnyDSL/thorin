@@ -9,13 +9,8 @@
 
 namespace anydsl2 {
 
-struct StrHash : std::unary_function<const char*, size_t> {
-    size_t operator () (const char* s) const;
-};
-
-struct StrEqual : std::binary_function<const char*, const char*, bool> {
-    bool operator () (const char* s1, const char* s2) const { return std::strcmp(s1, s2) == 0; }
-};
+struct StrHash { size_t operator () (const char* s) const; };
+struct StrEqual { bool operator () (const char* s1, const char* s2) const { return std::strcmp(s1, s2) == 0; } };
 
 class Symbol {
 public:

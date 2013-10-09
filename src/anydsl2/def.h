@@ -133,13 +133,8 @@ private:
 //------------------------------------------------------------------------------
 
 
-struct UseHash : std::unary_function<Use, size_t> {
-    size_t operator () (Use use) const { return hash_combine(hash_value(use.def()), use.index()); }
-};
-
-struct UseEqual : std::binary_function<const Type*, const Type*, bool> {
-    bool operator () (Use use1, Use use2) const { return use1 == use2; }
-};
+struct UseHash { size_t operator () (Use use) const { return hash_combine(hash_value(use.def()), use.index()); } };
+struct UseEqual { bool operator () (Use use1, Use use2) const { return use1 == use2; } };
 
 typedef std::unordered_set<Use, UseHash, UseEqual> Uses;
 typedef std::vector<Tracker*> Trackers;

@@ -36,10 +36,7 @@ class TypeKeeper;
 typedef std::unordered_set<const PrimOp*, PrimOpHash, PrimOpEqual> PrimOpSet;
 typedef std::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;
 
-struct LambdaLTGid : public std::binary_function<Lambda*, Lambda*, bool> {
-    bool operator () (Lambda* l1, Lambda* l2) const { return l1->gid() < l2->gid(); };
-};
-
+struct LambdaLTGid { bool operator () (Lambda* l1, Lambda* l2) const { return l1->gid() < l2->gid(); }; };
 typedef std::set<Lambda*, LambdaLTGid> LambdaSet;
 
 //------------------------------------------------------------------------------

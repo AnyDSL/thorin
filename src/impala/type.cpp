@@ -58,13 +58,6 @@ const IdType* TypeTable::idtype(Symbol symbol) { return unify(new IdType(*this, 
 
 //------------------------------------------------------------------------------
 
-GenericBuilder& GenericBuilder::operator = (const GenericBuilder& other) {
-    this->typetable_     = other.typetable_;
-    this->index_         = other.index_;
-    this->index2generic_ = other.index2generic_;
-    return *this;
-}
-
 size_t GenericBuilder::new_def() {
     size_t handle = index2generic_.size();
     index2generic_.push_back(nullptr);
@@ -77,7 +70,7 @@ const Generic* GenericBuilder::use(size_t handle) {
     if (auto generic = ref)
         return generic;
 
-    return ref = typetable_.generic(index_++);
+    return ref = typetable().generic(index_++);
 }
 
 //------------------------------------------------------------------------------

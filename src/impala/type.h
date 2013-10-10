@@ -36,7 +36,7 @@ class TypeError;
 class GenericBuilder {
 public:
     GenericBuilder(TypeTable& typetable)
-        : typetable_(typetable)
+        : typetable_(&typetable)
         , index_(0)
     {}
 
@@ -44,10 +44,10 @@ public:
     const Generic* use(size_t handle);
     const Generic* get(size_t handle) { assert(handle < index2generic_.size()); return index2generic_[handle]; }
     void pop(size_t num) { index2generic_.resize(index2generic_.size() - num); }
-    GenericBuilder& operator = (const GenericBuilder& other);
+    TypeTable& typetable() const { return *typetable_; }
 
 private:
-    TypeTable& typetable_;
+    TypeTable* typetable_;
     size_t index_;
     typedef std::vector<const Generic*> Index2Generic;
     Index2Generic index2generic_;
@@ -300,6 +300,7 @@ public:
 private:
     const Type* unify_base(const Type* type);
     template<class T> const T* unify(const T* type) { return unify_base(type)->template as<T>(); }
+    TypeTable& operator = (const TypeTable&);
 
     TypeSet types_;
 

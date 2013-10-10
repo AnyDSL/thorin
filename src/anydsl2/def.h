@@ -153,9 +153,9 @@ protected:
     Def(size_t gid, int kind, size_t size, const Type* type, bool is_const, const std::string& name)
         : Node(kind, size, name)
         , type_(type)
+        , uses_(13) // 13 seems to perform best
         , gid_(gid)
         , is_const_(is_const)
-        , uses_(13) // 13 seems to perform best
     {}
 
     void set_type(const Type* type) { type_ = type; }

@@ -9,9 +9,9 @@ namespace anydsl2 {
 void inliner(World& world) {
     for (auto top : top_level_lambdas(world)) {
         if (!top->empty() && top->num_uses() <= 2) {
-            for (auto use : top->uses()) {
-                if (use.index() == 0) {
-                    if (Lambda* ulambda = use->isa_lambda()) {
+            for (auto tracker : top->tracked_uses()) {
+                if (Lambda* ulambda = tracker->def()->isa_lambda()) {
+                    if (ulambda->to() == top) {
                         Scope scope(top);
                         if (!scope.contains(ulambda))
                             ulambda->jump0(drop(scope, ulambda->args()));

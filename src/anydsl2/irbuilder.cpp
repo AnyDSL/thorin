@@ -49,7 +49,7 @@ Lambda* JumpTarget::untangle() {
         return lambda_;
     assert(lambda_);
     Lambda* bb = world().basicblock(name_);
-    lambda_->jump0(bb);
+    lambda_->jump(bb, {});
     first_ = false;
     return lambda_ = bb;
 }
@@ -59,7 +59,7 @@ void JumpTarget::jump_from(Lambda* bb) {
         lambda_ = bb;
         first_ = true;
     } else
-        bb->jump0(untangle());
+        bb->jump(untangle(), {});
 }
 
 Lambda* JumpTarget::get(World& world) {
@@ -101,7 +101,7 @@ void IRBuilder::branch(const Def* cond, JumpTarget& t, JumpTarget& f) {
     }
 }
 
-const Param* IRBuilder::call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
+const Param* IRBuilder::cascading_call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
     return is_reachable() ? (cur_bb = cur_bb->call(to, args, ret_type))->param(0) : nullptr;
 }
 
@@ -117,23 +117,9 @@ void IRBuilder::tail_call(const Def* to, ArrayRef<const Def*> args) {
     }
 }
 
-void IRBuilder::return0(const Param* ret_param) {
+void IRBuilder::param_call(const Param* ret_param, ArrayRef<const Def*> args) {
     if (is_reachable()) {
-        cur_bb->jump0(ret_param);
-        set_unreachable();
-    }
-}
-
-void IRBuilder::return1(const Param* ret_param, const Def* def) {
-    if (is_reachable()) {
-        cur_bb->jump1(ret_param, def);
-        set_unreachable();
-    }
-}
-
-void IRBuilder::return2(const Param* ret_param, const Def* def1, const Def* def2) {
-    if (is_reachable()) {
-        cur_bb->jump2(ret_param, def1, def2);
+        cur_bb->jump(ret_param, args);
         set_unreachable();
     }
 }

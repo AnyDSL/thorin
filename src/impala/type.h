@@ -216,7 +216,6 @@ private:
     friend class TypeTable;
 };
 
-
 class CompoundType : public Type {
 protected:
     CompoundType(TypeTable& typetable, TokenKind kind, anydsl2::ArrayRef<const Type*> elems, const std::string& name)
@@ -289,8 +288,6 @@ public:
     const PrimType* primtype(TokenKind kind);
 #define IMPALA_TYPE(itype, atype) const PrimType* type_##itype() { return itype##_; }
 #include "impala/tokenlist.h"
-    const FnType* fntype0() { return fntype(anydsl2::ArrayRef<const Type*>(nullptr, 0)); }
-    const FnType* fntype1(const Type*);
     const FnType* fntype(anydsl2::ArrayRef<const Type*> elems);
     const TupleType* tupletype(anydsl2::ArrayRef<const Type*> elems);
     const Generic* generic(size_t index);

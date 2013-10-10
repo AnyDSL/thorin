@@ -111,7 +111,7 @@ void partial_evaluation(World& world) {
                         idx.shrink(x);
                         PartialEvaluator pe(scope, idx);
                         auto dropped = drop(scope, lambda->args(), pe.run_);
-                        lambda->jump0(dropped);
+                        lambda->jump(dropped, {});
                         //lambda->attr().unset_run();
                         todo = true;
                     }

@@ -44,8 +44,8 @@ public:
     }
     virtual bool equal(const Node* other) const {
         bool result = this->kind() == other->kind() && this->size() == other->size();
-        for (size_t i = 0, e = size(); result && i == e; ++i)
-            result &= this->ops_[i] != other->ops_[i];
+        for (size_t i = 0, e = size(); result && i != e; ++i)
+            result &= this->ops_[i] == other->ops_[i];
         return result;
     }
 

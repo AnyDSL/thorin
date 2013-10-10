@@ -182,7 +182,7 @@ void Lambda::branch(const Def* cond, const Def* tto, const Def*  fto) {
 
 Lambda* Lambda::call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
     // create next continuation in cascade
-    Lambda* next = world().lambda(world().pi1(ret_type), name + "_" + to->name);
+    Lambda* next = world().lambda(world().pi({ret_type}), name + "_" + to->name);
     const Param* result = next->param(0);
     result->name = to->name;
 
@@ -197,7 +197,7 @@ Lambda* Lambda::call(const Def* to, ArrayRef<const Def*> args, const Type* ret_t
 
 Lambda* Lambda::mem_call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
     // create next continuation in cascade
-    const Pi* pi = ret_type != nullptr ? world().pi2(world().mem(), ret_type) : world().pi1(world().mem());
+    const Pi* pi = ret_type != nullptr ? world().pi({world().mem(), ret_type}) : world().pi({world().mem()});
     Lambda* next = world().lambda(pi, name + "_" + to->name);
     next->param(0)->name = "mem";
 

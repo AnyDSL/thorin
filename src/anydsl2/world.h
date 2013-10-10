@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <functional>
+#include <initializer_list>
 #include <queue>
 #include <string>
 #include <set>
@@ -94,56 +95,12 @@ public:
 
     const Mem* mem() const { return mem_; }
     const Frame* frame() const { return frame_; }
-    const Ptr* ptr(const Type* referenced_type, size_t length = 1) { 
-        return unify(new Ptr(*this, referenced_type, length)); 
-    }
-
-    // sigmas
-
-    /// Get unit AKA void AKA (unnamed) sigma().
-    const Sigma* unit() const { return sigma0_; }
-    /// Creates 'sigma()'.
-    const Sigma* sigma0() { return sigma0_; }
-    /// Creates 'sigma(t1)'.
-    const Sigma* sigma1(const Type* t1) {
-        const Type* types[1] = {t1};
-        return sigma(types);
-    }
-    /// Creates 'sigma(t1, t2)'.
-    const Sigma* sigma2(const Type* t1, const Type* t2) {
-        const Type* types[2] = {t1, t2};
-        return sigma(types);
-    }
-    /// Creates 'sigma(t1, t2, t3)'.
-    const Sigma* sigma3(const Type* t1, const Type* t2, const Type* t3) {
-        const Type* types[3] = {t1, t2, t3};
-        return sigma(types);
-    }
+    const Ptr* ptr(const Type* referenced_type, size_t length = 1) { return unify(new Ptr(*this, referenced_type, length)); }
+    const Sigma* sigma0() { return sigma0_; }   ///< Creates 'sigma()'.
     const Sigma* sigma(ArrayRef<const Type*> elems) { return unify(new Sigma(*this, elems)); }
-
-    /// Creates a fresh \em named sigma.
-    Sigma* named_sigma(size_t size, const std::string& name = "");
-
-    // pis
-
-    /// Creates 'pi()'.
-    const Pi* pi0() { return pi0_; }
-    const Pi* pi1(const Type* t1) {
-        const Type* types[1] = {t1};
-        return pi(types);
-    }
-    /// Creates 'pi(t1, t2)'.
-    const Pi* pi2(const Type* t1, const Type* t2) {
-        const Type* types[2] = {t1, t2};
-        return pi(types);
-    }
-    /// Creates 'pi(t1, t2, t3)'.
-    const Pi* pi3(const Type* t1, const Type* t2, const Type* t3) {
-        const Type* types[3] = {t1, t2, t3};
-        return pi(types);
-    }
+    Sigma* named_sigma(size_t size, const std::string& name = ""); ///< Creates a fresh \em named sigma.
+    const Pi* pi0() { return pi0_; }            ///< Creates 'pi()'.
     const Pi* pi(ArrayRef<const Type*> elems) { return unify(new Pi(*this, elems)); }
-
     const Generic* generic(size_t index) { return unify(new Generic(*this, index)); }
     const GenericRef* generic_ref(const Generic* generic, Lambda* lambda) { return unify(new GenericRef(*this, generic, lambda)); }
 
@@ -158,7 +115,6 @@ public:
     const Def* literal(PrimTypeKind kind, int value, size_t length = 1);
     template<class T>
     const Def* literal(T value, size_t length = 1) { return literal(type2kind<T>::kind, Box(value), length); }
-
     const Def* zero(PrimTypeKind kind, size_t length = 1) { return literal(kind, 0, length); }
     const Def* zero(const Type*, size_t length = 1);
     const Def* one(PrimTypeKind kind, size_t length = 1) { return literal(kind, 1, length); }
@@ -168,12 +124,10 @@ public:
         return literal(kind, -1, length);
     }
     const Def* allset(const Type*, size_t length = 1);
-
     const Def* any(const Type* type, size_t length = 1);
     const Def* any(PrimTypeKind kind, size_t length = 1) { return any(type(kind), length); }
     const Def* bottom(const Type* type, size_t length = 1);
     const Def* bottom(PrimTypeKind kind, size_t length = 1) { return bottom(type(kind), length); }
-
     /// Creates a vector of all true while the length is derived from @p def.
     const Def* true_mask(const Def* def) { return literal(true, def->length()); }
     const Def* true_mask(size_t length) { return literal(true, length); }
@@ -245,12 +199,7 @@ public:
         if (args.size() == 1) return args[0];
         return cse(new Vector(*this, args, name)); 
     }
-    const Def* vector2(const Def* arg1, const Def* arg2, const std::string& name = "") {
-        const Def* args[] = { arg1, arg2 }; return vector(args, name);
-    }
-    const Def* vector4(const Def* arg1, const Def* arg2, const Def* arg3, const Def* arg4, const std::string& name = "") {
-        const Def* args[] = { arg1, arg2, arg3, arg4 }; return vector(args, name);
-    }
+    /// Splats \p arg to create a \p Vector with \p length.
     const Def* vector(const Def* arg, size_t length = 1, const std::string& name = "");
 
     /*

@@ -47,7 +47,6 @@ const PrimType* TypeTable::primtype(TokenKind kind) {
     }
 }
 
-const FnType* TypeTable::fntype1(const Type* elem) { const Type* elems[1] = { elem }; return fntype(elems); }
 const FnType* TypeTable::fntype(anydsl2::ArrayRef<const Type*> elems) { return unify(new FnType(*this, elems)); }
 const TupleType* TypeTable::tupletype(anydsl2::ArrayRef<const Type*> elems) { return unify(new TupleType(*this, elems)); }
 const Generic* TypeTable::generic(size_t index) { return unify(new Generic(*this, index)); }

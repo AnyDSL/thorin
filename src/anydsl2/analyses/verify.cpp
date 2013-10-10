@@ -143,7 +143,7 @@ bool Verifier::verify_primop(Lambda* current, const PrimOp* primop, PrimOpSet& p
         if (select->order() > 0) {
             if (!select->tval()->isa_lambda() || !select->fval()->isa_lambda())
                 invalid(select, "higher-order 'select' not on lambda");
-            if (select->type() != world_.pi0() && select->type() != world_.pi1(world_.mem()))
+            if (select->type() != world_.pi0() && select->type() != world_.pi({world_.mem()}))
                 invalid(select, "higher-order 'select' must be of type 'pi()'");
         }
     } else if (auto op = primop->isa<ArithOp>()) {

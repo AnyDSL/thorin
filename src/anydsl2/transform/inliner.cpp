@@ -14,7 +14,7 @@ void inliner(World& world) {
                     if (ulambda->to() == top) {
                         Scope scope(top);
                         if (!scope.contains(ulambda))
-                            ulambda->jump0(drop(scope, ulambda->args()));
+                            ulambda->jump(drop(scope, ulambda->args()), {});
                     }
                 }
             }

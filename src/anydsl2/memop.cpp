@@ -18,7 +18,7 @@ MemOp::MemOp(size_t size, int kind, const Type* type, const Def* mem, const std:
 //------------------------------------------------------------------------------
 
 Load::Load(const Def* mem, const Def* ptr, const std::string& name)
-    : Access(2, Node_Load, mem->world().sigma2(mem->type(), ptr->type()->as<Ptr>()->referenced_type()), mem, ptr, name)
+    : Access(2, Node_Load, mem->world().sigma({mem->type(), ptr->type()->as<Ptr>()->referenced_type()}), mem, ptr, name)
 {}
 
 const Def* Load::extract_mem() const { return world().tuple_extract(this, world().literal(0u)); }
@@ -35,7 +35,7 @@ Store::Store(const Def* mem, const Def* ptr, const Def* value, const std::string
 //------------------------------------------------------------------------------
 
 Enter::Enter(const Def* mem, const std::string& name)
-    : MemOp(1, Node_Enter, mem->world().sigma2(mem->type(), mem->world().frame()), mem, name)
+    : MemOp(1, Node_Enter, mem->world().sigma({mem->type(), mem->world().frame()}), mem, name)
 {}
 
 const Def* Enter::extract_mem()   const { return world().tuple_extract(this, world().literal(0u)); }

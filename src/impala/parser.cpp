@@ -392,7 +392,7 @@ const Type* Parser::parse_tuple_type() {
 
 const Type* Parser::parse_return_type() {
     auto ret_type = parse_type();
-    return ret_type->is_void() ? typetable.fntype0() : typetable.fntype1(ret_type);
+    return ret_type->is_void() ? typetable.fntype({}) : typetable.fntype({ret_type});
 }
 
 /*

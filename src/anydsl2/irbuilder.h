@@ -161,11 +161,9 @@ public:
     void jump(JumpTarget& jt);
     void branch(const Def* cond, JumpTarget& t, JumpTarget& f);
     void mem_call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type);
-    const Param* call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type);
     void tail_call(const Def* to, ArrayRef<const Def*> args);
-    void return0(const Param* ret_param);
-    void return1(const Param* ret_param, const Def*);
-    void return2(const Param* ret_param, const Def*, const Def*);
+    void param_call(const Param* ret_param, ArrayRef<const Def*> args);
+    const Param* cascading_call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type);
     const Def* get_mem();
     void set_mem(const Def* def);
 

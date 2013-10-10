@@ -141,7 +141,7 @@ const Lambda* CodeGen::emit_body(const Fun* fun) {
 
     if (is_reachable()) {
         if (!fun->is_continuation() && fun->refined_fntype()->return_type()->is_void())
-            cur_bb->jump1(fun->ret_param(), get_mem());
+            cur_bb->jump(fun->ret_param(), {get_mem()});
         else {
             if (fun->is_continuation())
                 fun->body()->pos2().error() << "'" << fun->symbol() << "' does not end with a call\n";
@@ -149,7 +149,7 @@ const Lambda* CodeGen::emit_body(const Fun* fun) {
                 fun->body()->pos2().error() << "'" << fun->symbol() << "' does not end with 'return'\n";
 
             result = false;
-            cur_bb->jump0(world().bottom(world().pi0()));
+            cur_bb->jump(world().bottom(world().pi0()), {});
         }
     }
 
@@ -180,7 +180,7 @@ Array<const Def*> CodeGen::emit_ops(const Expr* expr, size_t additional_size) {
 }
 
 RefPtr EmptyExpr::emit(CodeGen& cg) const { 
-    return Ref::create(cg.world().bottom(cg.world().unit())); 
+    return Ref::create(cg.world().bottom(cg.world().sigma0())); 
 }
 
 RefPtr Literal::emit(CodeGen& cg) const {
@@ -481,7 +481,7 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 
     cg.emit(fun->body(), continue_bb);
     cg.enter(continue_bb);
-    cg.return1(lambda->params().back(), cg.get_mem());
+    cg.param_call(lambda->params().back(), {cg.get_mem()});
 
     // go out of the lambda
     cg.cur_bb = next;
@@ -503,9 +503,9 @@ void ReturnStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
             cg.tail_call(ops[0], args);
         } else {
             if (expr()) 
-                cg.return2(ret_param, cg.world().leave(cg.get_mem(), fun()->frame()), cg.emit(expr())->load());
+                cg.param_call(ret_param, {cg.world().leave(cg.get_mem(), fun()->frame()), cg.emit(expr())->load()});
             else
-                cg.return1(ret_param, cg.world().leave(cg.get_mem(), fun()->frame()));
+                cg.param_call(ret_param, {cg.world().leave(cg.get_mem(), fun()->frame())});
         }
     }
 }

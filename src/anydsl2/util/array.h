@@ -1,9 +1,10 @@
 #ifndef ANYDSL2_ARRAY_H
 #define ANYDSL2_ARRAY_H
 
+#include <algorithm>
 #include <cstddef>
 #include <cstring>
-#include <algorithm>
+#include <initializer_list>
 #include <iterator>
 #include <vector>
 
@@ -47,6 +48,10 @@ public:
     ArrayRef(const Array<T>& array)
         : ptr_(array.begin())
         , size_(array.size())
+    {}
+    ArrayRef(std::initializer_list<T> list)
+        : ptr_(list.begin())
+        , size_(std::distance(list.begin(), list.end()))
     {}
 
     const_iterator begin() const { return ptr_; }

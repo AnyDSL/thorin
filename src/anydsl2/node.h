@@ -10,7 +10,8 @@
 
 namespace anydsl2 {
 
-class Node : public MagicCast<Node> {
+template<class Base>
+class Node : public MagicCast<Base> {
 private:
     Node& operator = (const Node&); ///< Do not copy-assign a \p Node instance.
     Node(const Node& node);         ///< Do not copy-construct a \p Node.
@@ -35,8 +36,18 @@ public:
     ArrayRef<T> ops_ref() const { return size() ? ArrayRef<T>((T*) &ops_.front(), ops_.size()) : ArrayRef<T>(); }
     size_t size() const { return ops_.size(); }
     bool empty() const { return ops_.empty(); }
-    virtual size_t hash() const;
-    virtual bool equal(const Node*) const;
+    virtual size_t hash() const {
+        size_t seed = hash_combine(hash_value(kind()), size());
+        for (auto op : ops_)
+            seed = hash_combine(seed, op);
+        return seed;
+    }
+    virtual bool equal(const Node* other) const {
+        bool result = this->kind() == other->kind() && this->size() == other->size();
+        for (size_t i = 0, e = size(); result && i != e; ++i)
+            result &= this->ops_[i] != other->ops_[i];
+        return result;
+    }
 
     /*
      * scratch operations
@@ -90,15 +101,6 @@ public:
 
     friend class World;
 };
-
-//------------------------------------------------------------------------------
-
-template<class T, class U> inline
-bool smart_eq(const T& t, const Node* other) { 
-    if (const U* u = other->isa<U>()) 
-        return smart_eq(t, u->as_tuple()); 
-    return false;
-}
 
 //------------------------------------------------------------------------------
 

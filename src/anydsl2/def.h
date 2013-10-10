@@ -148,7 +148,7 @@ typedef std::vector<Tracker*> Trackers;
  * - \p Param%s and
  * - \p Lambda%s.
  */
-class Def : public Node {
+class Def : public Node<Def> {
 protected:
     Def(size_t gid, int kind, size_t size, const Type* type, bool is_const, const std::string& name)
         : Node(kind, size, name)

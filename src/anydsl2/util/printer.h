@@ -7,8 +7,6 @@
 
 namespace anydsl2 {
 
-class Node;
-
 class Printer {
 public:
     Printer(std::ostream& stream, bool fancy)

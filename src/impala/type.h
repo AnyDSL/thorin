@@ -71,7 +71,7 @@ inline std::ostream& operator << (std::ostream& o, const GenericMap& map) { o <<
 
 //------------------------------------------------------------------------------
 
-class Type : public anydsl2::Node {
+class Type : public anydsl2::Node<Type> {
 protected:
     Type(TypeTable& typetable, TokenKind kind, size_t size, bool is_generic, const std::string& name)
         : Node((int) kind, size, name)
@@ -80,7 +80,7 @@ protected:
     {}
 
 public:
-    TokenKind kind() const { return (TokenKind) anydsl2::Node::kind(); }
+    TokenKind kind() const { return (TokenKind) anydsl2::Node<Type>::kind(); }
     anydsl2::ArrayRef<const Type*> elems() const { return ops_ref<const Type*>(); }
     const Type* elem(size_t i) const { return elems()[i]; }
     virtual const Type* refine(const Sema&) const = 0;

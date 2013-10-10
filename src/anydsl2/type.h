@@ -32,7 +32,7 @@ private:
 
 //------------------------------------------------------------------------------
 
-class Type : public Node {
+class Type : public Node<Type> {
 protected:
     Type(World& world, int kind, size_t num, bool is_generic)
         : Node(kind, num, "")

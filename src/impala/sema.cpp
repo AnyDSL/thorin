@@ -77,8 +77,7 @@ private:
     bool result_;
     bool nossa_;
 
-    typedef std::unordered_map<Symbol, const Decl*> Sym2Decl;
-    Sym2Decl sym2decl_;
+    std::unordered_map<Symbol, const Decl*> sym2decl_;
     std::vector<const Decl*> decl_stack_;
     std::vector<size_t> levels_;
 

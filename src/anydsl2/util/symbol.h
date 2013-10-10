@@ -14,7 +14,6 @@ struct StrEqual { bool operator () (const char* s1, const char* s2) const { retu
 
 class Symbol {
 public:
-
     Symbol() { insert(""); }
     Symbol(const char* str) { insert(str); }
     Symbol(const std::string& str) { insert(str.c_str()); }
@@ -26,11 +25,9 @@ public:
     static void destroy();
 
 private:
-
     void insert(const char* str);
 
     const char* str_;
-
     typedef std::unordered_set<const char*, StrHash, StrEqual> Table;
     static Table table_;
 };

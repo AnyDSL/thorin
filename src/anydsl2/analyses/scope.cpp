@@ -14,9 +14,8 @@ Scope::Scope(Lambda* entry)
     , num_entries_(1)
     , num_exits_(-1)
 {
-    Lambda* entries[1] = { entry };
-    identify_scope(entries);
-    rpo_numbering(entries);
+    identify_scope({entry});
+    rpo_numbering({entry});
 }
 
 Scope::Scope(World& world, ArrayRef<Lambda*> entries)

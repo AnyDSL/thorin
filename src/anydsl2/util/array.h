@@ -32,11 +32,6 @@ public:
         : ptr_(ref.ptr_)
         , size_(ref.size_)
     {}
-    template<size_t N>
-    ArrayRef(T (&array)[N])
-        : ptr_(&array[0])
-        , size_(N)
-    {}
     ArrayRef(const std::vector<T>& vector)
        : ptr_(vector.data())
        , size_(vector.size())

@@ -28,21 +28,8 @@
 
 namespace anydsl2 {
 
-template<class T> llvm::ArrayRef<T> llvm_ref(const Array<T>& array) {
-    return llvm::ArrayRef<T>(array.begin(), array.end());
-}
-
-template<class T> llvm::ArrayRef<T> llvm_ref(const ArrayRef<T>& array) {
-    return llvm::ArrayRef<T>(array.begin(), array.end());
-}
-
-//------------------------------------------------------------------------------
-
-typedef std::unordered_map<Lambda*, llvm::Function*> FctMap;
-typedef std::unordered_map<const Param*, llvm::Value*> ParamMap;
-typedef std::unordered_map<const Param*, llvm::PHINode*> PhiMap;
-typedef std::unordered_map<const PrimOp*, llvm::Value*> PrimOpMap;
-typedef Array<llvm::BasicBlock*> BBMap;
+template<class T> 
+llvm::ArrayRef<T> llvm_ref(const Array<T>& array) { return llvm::ArrayRef<T>(array.begin(), array.end()); }
 
 //------------------------------------------------------------------------------
 
@@ -56,16 +43,17 @@ public:
     llvm::Value* lookup(const Def* def);
 
 private:
-
     World& world;
     EmitHook& hook;
     llvm::LLVMContext context;
     llvm::IRBuilder<> builder;
     AutoPtr<llvm::Module> module;
-    ParamMap params;
-    PhiMap phis;
-    PrimOpMap primops;
+    std::unordered_map<const Param*, llvm::Value*> params;
+    std::unordered_map<const Param*, llvm::PHINode*> phis;
+    std::unordered_map<const PrimOp*, llvm::Value*> primops;
 };
+
+//------------------------------------------------------------------------------
 
 CodeGen::CodeGen(World& world, EmitHook& hook)
     : world(world)
@@ -77,10 +65,8 @@ CodeGen::CodeGen(World& world, EmitHook& hook)
     hook.assign(&builder, module);
 }
 
-//------------------------------------------------------------------------------
-
 void CodeGen::emit() {
-    FctMap fcts;
+    std::unordered_map<Lambda*, llvm::Function*> fcts;
 
     // map all root-level lambdas to llvm function stubs
     for (auto lambda : top_level_lambdas(world)) {
@@ -114,7 +100,7 @@ void CodeGen::emit() {
         }
 
         Scope scope(lambda);
-        BBMap bbs(scope.size());
+        Array<llvm::BasicBlock*> bbs(scope.size());
 
         for (auto lambda : scope.rpo()) {
             // map all bb-like lambdas to llvm bb stubs
@@ -182,10 +168,9 @@ void CodeGen::emit() {
                         elems.shrink(n);
                         llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context, llvm_ref(elems)));
 
-                        for (size_t i = 0; i != n; ++i) {
-                            unsigned idxs[1] = { unsigned(i) };
-                            agg = builder.CreateInsertValue(agg, values[i], idxs);
-                        }
+                        for (size_t i = 0; i != n; ++i)
+                            agg = builder.CreateInsertValue(agg, values[i], { unsigned(i) });
+
                         builder.CreateRet(agg);
                         break;
                     }
@@ -367,27 +352,25 @@ llvm::Value* CodeGen::emit(const Def* def) {
 
     if (auto tupleop = def->isa<TupleOp>()) {
         llvm::Value* tuple = lookup(tupleop->tuple());
-        unsigned idxs[1] = { tupleop->index()->primlit_value<unsigned>() };
+        unsigned idx = tupleop->index()->primlit_value<unsigned>();
 
         if (tupleop->node_kind() == Node_TupleExtract) {
             if (tupleop->tuple()->isa<Load>())
                 return tuple; // bypass artificial extract
-            return builder.CreateExtractValue(tuple, idxs);
+            return builder.CreateExtractValue(tuple, { idx });
         }
 
         const TupleInsert* insert = def->as<TupleInsert>();
         llvm::Value* value = lookup(insert->value());
 
-        return builder.CreateInsertValue(tuple, value, idxs);
+        return builder.CreateInsertValue(tuple, value, { idx });
     }
 
     if (auto tuple = def->isa<Tuple>()) {
         llvm::Value* agg = llvm::UndefValue::get(map(tuple->type()));
 
-        for (size_t i = 0, e = tuple->ops().size(); i != e; ++i) {
-            unsigned idxs[1] = { unsigned(i) };
-            agg = builder.CreateInsertValue(agg, lookup(tuple->op(i)), idxs);
-        }
+        for (size_t i = 0, e = tuple->ops().size(); i != e; ++i)
+            agg = builder.CreateInsertValue(agg, lookup(tuple->op(i)), { unsigned(i) });
 
         return agg;
     }

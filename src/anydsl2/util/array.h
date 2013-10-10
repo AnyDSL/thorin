@@ -20,7 +20,6 @@ template<class T> class Array;
 template<class T>
 class ArrayRef {
 public:
-
     typedef const T* const_iterator;
     typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
@@ -66,7 +65,6 @@ public:
     bool operator == (const Other& other) const { return this->size() == other.size() && std::equal(begin(), end(), other.begin()); }
 
 private:
-
     const T* ptr_;
     size_t size_;
 };
@@ -76,7 +74,6 @@ private:
 template<class T>
 class Array {
 public:
-
     Array()
         : ptr_(nullptr)
         , size_(0)
@@ -136,7 +133,6 @@ public:
     const T* data() const { return ptr_; }
 
 private:
-
     Array<T>& operator = (const Array<T>& array);
 
     T* ptr_;

@@ -57,7 +57,7 @@ bool CodeGen::emit_prg(const Scope* prg) {
             Lambda* lambda = emit_head(fun);
             if (fun->symbol() == Symbol("main")) {
                 lambda->name += "_impala";
-                lambda->attr().set_extern();
+                lambda->attribute().set(Lambda::Extern);
             }
         } 
         //else if (auto decl_stmt = stmt->isa<DeclStmt>()) {
@@ -111,7 +111,7 @@ Lambda* CodeGen::emit_head(const Fun* fun) {
     auto type = fun->refined_fntype();
     fun->lambda_ = world().lambda(type->convert(world())->as<Pi>(), fun->symbol().str());
     if (fun->is_extern())
-        fun->lambda_->attr().set_extern();
+        fun->lambda_->attribute().set(Lambda::Extern);
     size_t num = fun->params().size();
     const Type* ret_type = type->return_type();
     fun->ret_param_ = ret_type->isa<NoRet>() ? nullptr : fun->lambda_->param(num-1+1);
@@ -211,7 +211,7 @@ RefPtr Id::emit(CodeGen& cg) const {
         return Ref::create(fun->lambda());
     if (auto proto = decl()->isa<Proto>())
         return Ref::create(cg.world().lambda(proto->refined_fntype()->convert(cg.world())->as<Pi>(), 
-                    LambdaAttr(LambdaAttr::Extern), proto->symbol().str()));
+                    Lambda::Attribute(Lambda::Extern), proto->symbol().str()));
 
     auto vardecl = decl()->as<VarDecl>();
     auto air_type = type()->convert(cg.world());
@@ -239,7 +239,7 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
         case L_N: return Ref::create(cg.world().arithop_not(cg.emit(rhs())->load()));
         case RUN: 
             if (rhs()->isa<Call>())
-                cg.cur_bb->attr().set_run(); 
+                cg.cur_bb->attribute().set(Lambda::Run);
             return cg.emit(rhs());
         default: ANYDSL2_UNREACHABLE;
     }

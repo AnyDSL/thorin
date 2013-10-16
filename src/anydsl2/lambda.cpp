@@ -8,12 +8,12 @@
 
 namespace anydsl2 {
 
-Lambda::Lambda(size_t gid, const Pi* pi, LambdaAttr attr, bool is_sealed, const std::string& name)
+Lambda::Lambda(size_t gid, const Pi* pi, Attribute attribute, bool is_sealed, const std::string& name)
     : Def(gid, Node_Lambda, 0, pi, true, name)
     , sid_(size_t(-1))
     , backwards_sid_(size_t(-1))
     , scope_(nullptr)
-    , attr_(attr)
+    , attribute_(attribute)
     , parent_(this)
     , is_sealed_(is_sealed)
     , is_visited_(false)
@@ -27,7 +27,7 @@ Lambda::~Lambda() {
 }
 
 Lambda* Lambda::stub(const GenericMap& generic_map, const std::string& name) const {
-    Lambda* result = world().lambda(pi()->specialize(generic_map)->as<Pi>(), attr(), name);
+    Lambda* result = world().lambda(pi()->specialize(generic_map)->as<Pi>(), attribute(), name);
 
     for (size_t i = 0, e = params().size(); i != e; ++i)
         result->param(i)->name = param(i)->name;

@@ -794,9 +794,9 @@ const Slot* World::slot(const Type* type, const Def* frame, size_t index, const 
 }
 const LEA* World::lea(const Def* ptr, const Def* index, const std::string& name) { return cse(new LEA(ptr, index, name)); }
 
-Lambda* World::lambda(const Pi* pi, LambdaAttr attr, const std::string& name) {
+Lambda* World::lambda(const Pi* pi, Lambda::Attribute attribute, const std::string& name) {
     ANYDSL2_CHECK_BREAK(gid_)
-    Lambda* l = new Lambda(gid_++, pi, attr, true, name);
+    Lambda* l = new Lambda(gid_++, pi, attribute, true, name);
     lambdas_.insert(l);
 
     size_t i = 0;
@@ -808,7 +808,7 @@ Lambda* World::lambda(const Pi* pi, LambdaAttr attr, const std::string& name) {
 
 Lambda* World::basicblock(const std::string& name) {
     ANYDSL2_CHECK_BREAK(gid_)
-    Lambda* bb = new Lambda(gid_++, pi0(), LambdaAttr(0), false, name);
+    Lambda* bb = new Lambda(gid_++, pi0(), Lambda::Attribute(0), false, name);
     lambdas_.insert(bb);
     return bb;
 }
@@ -926,7 +926,7 @@ void World::unreachable_code_elimination() {
     const size_t pass = new_pass();
 
     for (auto lambda : lambdas())
-        if (lambda->attr().is_extern())
+        if (lambda->attribute().is(Lambda::Extern))
             uce_insert(pass, lambda);
 
     for (auto lambda : lambdas()) {
@@ -951,7 +951,7 @@ void World::dead_code_elimination() {
     }
 
     for (auto lambda : lambdas()) {
-        if (lambda->attr().is_extern()) {
+        if (lambda->attribute().is(Lambda::Extern)) {
             dce_insert(pass, lambda);
             if (lambda->empty()) {
                 for (auto param : lambda->params())

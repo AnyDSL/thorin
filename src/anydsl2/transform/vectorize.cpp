@@ -55,7 +55,7 @@ Lambda* Vectorizer::vectorize() {
     Lambda* entry = scope.entries()[0];
     std::ostringstream oss;
     oss << scope[0]->name << "_x" << length;
-    Lambda* vlambda = world().lambda(vectorize_type(entry->pi(), length)->as<Pi>(), LambdaAttr(LambdaAttr::Extern), oss.str());
+    Lambda* vlambda = world().lambda(vectorize_type(entry->pi(), length)->as<Pi>(), Lambda::Attribute(Lambda::Extern), oss.str());
     map_cond(entry) = world().literal(true, length);
 
     for (size_t i = 0, e = entry->num_params(); i != e; ++i) {

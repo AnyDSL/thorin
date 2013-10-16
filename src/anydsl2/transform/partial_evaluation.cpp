@@ -100,7 +100,7 @@ void partial_evaluation(World& world) {
         for (auto lambda : world.lambdas()) {
             if (!lambda->empty()) {
                 if (auto to = lambda->to()->isa_lambda()) {
-                    if (lambda->attr().is_run()) {
+                    if (lambda->attribute().is(Lambda::Run)) {
                         Scope scope(to);
                         Array<size_t> idx(lambda->num_args());
                         size_t x = 0;

@@ -58,8 +58,7 @@ Lambda* Mangler::mangle() {
 
     const Pi* n_pi = world.pi(nelems)->specialize(generic_map)->as<Pi>();
     nentry = world.lambda(n_pi, oentry->name);
-    if (oentry->attr().is_run())
-        nentry->attr().set_run();
+    nentry->attribute().set(oentry->attribute().filter(Lambda::Run));
 
     // put in params for entry (oentry)
     // op -> iterates over old params
@@ -90,7 +89,7 @@ Lambda* Mangler::mangle() {
     }
 
     for (auto lambda : run)
-        lookup(lambda)->as_lambda()->attr().set_run();
+        lookup(lambda)->as_lambda()->attribute().set(Lambda::Run);
 
     return nentry;
 }

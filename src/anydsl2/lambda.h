@@ -19,30 +19,31 @@ class Scope;
 typedef std::vector<Lambda*> Lambdas;
 typedef std::vector<const Param*> Params;
 
-struct LambdaAttr {
-    enum Attr {
+class Lambda : public Def {
+public:
+    enum {
         Extern = 1 << 0, ///< Is the function visible in other translation units?
         Run    = 1 << 1, ///< Flag for the partial evaluator: Evaluate the \em body of this function.
     };
 
-    explicit LambdaAttr(uint32_t attr)
-        : attr_(attr)
-    {}
+    struct Attribute {
+        explicit Attribute(uint32_t flags)
+            : flags_(flags)
+        {}
 
-    bool is_extern() const { return attr_ & Extern; }
-    bool is_run()    const { return attr_ & Run; }
-    void set_extern() { attr_ |= Extern; }
-    void set_run()    { attr_ |= Run; }
-    void unset_extern() { attr_ &= ~Extern; }
-    void unset_run()    { attr_ &= ~Run; }
+        uint32_t filter(uint32_t flags) const { return flags_ & flags; }
+        bool is(uint32_t flags) const { return filter(flags) != 0; }
+        void set(uint32_t flags) { flags_ |=  flags; }
+        void clear(uint32_t flags) { flags_ &= ~flags; }
+        void toggle(uint32_t flags) { flags_ ^= flags; }
+        uint32_t flags() const { return flags_; }
+
+    private:
+        uint32_t flags_;
+    };
 
 private:
-    uint32_t attr_;
-};
-
-class Lambda : public Def {
-private:
-    Lambda(size_t gid, const Pi* pi, LambdaAttr attr, bool is_sealed, const std::string& name);
+    Lambda(size_t gid, const Pi* pi, Attribute attribute, bool is_sealed, const std::string& name);
     virtual ~Lambda();
 
 public:
@@ -69,8 +70,8 @@ public:
     const Scope* scope() const { return scope_; }
     size_t num_args() const { return args().size(); }
     size_t num_params() const { return params().size(); }
-    LambdaAttr& attr() { return attr_; }
-    const LambdaAttr& attr() const { return attr_; }
+    Attribute& attribute() { return attribute_; }
+    const Attribute& attribute() const { return attribute_; }
     /**
      * Is this Lambda part of a call-lambda-cascade? <br>
      * @code
@@ -134,7 +135,7 @@ private:
     size_t sid_;           ///< \p Scope index, i.e., reverse post-order number.
     size_t backwards_sid_; ///< \p Scope index, i.e., reverse post-order number, while reverting control-flow beginning with the exits.
     Scope* scope_;
-    LambdaAttr attr_;
+    Attribute attribute_;
     Params params_;
     /**
      * There exist three cases to distinguish here.

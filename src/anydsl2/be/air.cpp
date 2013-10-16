@@ -130,7 +130,7 @@ std::ostream& CodeGen::emit_head(const Lambda* lambda) {
     emit_name(lambda);
     dump_list([&](const Param* param) { emit_type(param->type()) << " "; emit_name(param); }, lambda->params(), "(", ")");
 
-    if (lambda->attr().is_extern())
+    if (lambda->attribute().is(Lambda::Extern))
         stream() << " extern ";
 
     return up();
@@ -138,7 +138,7 @@ std::ostream& CodeGen::emit_head(const Lambda* lambda) {
 
 std::ostream& CodeGen::emit_jump(const Lambda* lambda) {
     if (!lambda->empty()) {
-        if (lambda->attr().is_run())
+        if (lambda->attribute().is(Lambda::Run))
             stream() << '@';
         emit_def(lambda->to());
         dump_list([&](const Def* def) { emit_def(def); }, lambda->args(), "(", ")");

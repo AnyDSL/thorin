@@ -25,7 +25,7 @@ namespace anydsl2 {
 /// \c static_cast checked in debug version
 template<class L, class R>
 inline L* scast(R* r) {
-    static_assert(std::is_base_of<R, L>(), "R is not a base type of L");
+    static_assert(std::is_base_of<R, L>::value, "R is not a base type of L");
     assert((!r || dynamic_cast<L*>(r)) && "cast not possible" );
     return static_cast<L*>(r);
 }
@@ -37,7 +37,7 @@ inline const L* scast(const R* r) { return const_cast<const L*>(scast<L, R>(cons
 /// shorthand for \c dynamic_cast
 template<class L, class R>
 inline L* dcast(R* u) { 
-    static_assert(std::is_base_of<R, L>(), "R is not a base type of L");
+    static_assert(std::is_base_of<R, L>::value, "R is not a base type of L");
     return dynamic_cast<L*>(u); 
 }
 

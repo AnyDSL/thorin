@@ -149,6 +149,10 @@ start:
 
 Lambdas Lambda::direct_preds() const { return find_preds<true>(this); }
 
+bool Lambda::is_builtin() const {
+    return attribute().is(Cuda);
+}
+
 bool Lambda::is_cascading() const {
     if (uses().size() != 1)
         return false;

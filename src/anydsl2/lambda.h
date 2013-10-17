@@ -24,6 +24,7 @@ public:
     enum {
         Extern = 1 << 0, ///< Is the function visible in other translation units?
         Run    = 1 << 1, ///< Flag for the partial evaluator: Evaluate the \em body of this function.
+        Cuda   = 1 << 2, ///< Flag for the internal Cuda-Backend
     };
 
     struct Attribute {
@@ -81,6 +82,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     bool is_cascading() const;
     bool is_basicblock() const;
     bool is_returning() const;
+    bool is_builtin() const;
     void dump_head() const;
     void dump_jump() const;
     void destroy_body() { unset_ops(); resize(0); }

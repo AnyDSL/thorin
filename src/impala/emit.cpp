@@ -64,6 +64,8 @@ bool CodeGen::emit_prg(const Scope* prg) {
             auto lambda = world().lambda(proto->refined_type()->convert(world())->as<Pi>());
             lambda->attribute().set(Lambda::Extern);
             lambda->name = proto->symbol().str();
+            if (lambda->name == "run_on_gpu")
+                lambda->attribute().set(Lambda::Cuda);
         }
     }
 

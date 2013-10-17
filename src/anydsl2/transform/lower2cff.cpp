@@ -82,18 +82,6 @@ void CFFLowering::transform(Lambda* lambda) {
     }
 }
 
-static bool skip_builtin(Lambda* lambda) {
-    if (lambda->is_builtin())
-        return true;
-    // check for uses in the context of builtin functions
-    for (auto use : lambda->uses()) {
-        if (auto lambda = use->isa<Lambda>())
-            if (lambda->is_builtin())
-                return true;
-    }
-    return false;
-}
-
 size_t CFFLowering::process() {
     std::vector<Lambda*> todo;
     for (auto top : top_) {
@@ -101,7 +89,7 @@ size_t CFFLowering::process() {
         for (size_t i = scope.size(); i-- != 0;) {
             Lambda* lambda = scope[i];
             // check for builtin functionality
-            if (skip_builtin(lambda))
+            if (lambda->is_builtin() || lambda->is_connected_to_builtin())
                 continue;
             if (lambda->num_params()                                // is there sth to drop?
                 && (lambda->is_generic()                            // drop generic stuff

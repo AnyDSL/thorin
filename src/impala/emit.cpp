@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <vector>
+#include <map>
 
 #include "anydsl2/irbuilder.h"
 #include "anydsl2/lambda.h"
@@ -38,6 +39,7 @@ public:
     void emit(const Stmt* stmt, JumpTarget& exit) { if (is_reachable()) stmt->emit(*this, exit); }
     void emit(const Item* item) { item->emit(*this); }
 
+    std::map<const Proto*, Lambda*> protos_;
     JumpTarget* break_target;
     JumpTarget* continue_target;
     bool result;
@@ -66,6 +68,8 @@ bool CodeGen::emit_prg(const Scope* prg) {
             lambda->name = proto->symbol().str();
             if (lambda->name == "run_on_gpu")
                 lambda->attribute().set(Lambda::Cuda);
+            // register proto
+            protos_[proto] = lambda;
         }
     }
 
@@ -209,9 +213,13 @@ RefPtr Tuple::emit(CodeGen& cg) const {
 RefPtr Id::emit(CodeGen& cg) const {
     if (auto fun = decl()->isa<Fun>())
         return Ref::create(fun->lambda());
-    if (auto proto = decl()->isa<Proto>())
-        return Ref::create(cg.world().lambda(proto->refined_fntype()->convert(cg.world())->as<Pi>(), 
-                    Lambda::Attribute(Lambda::Extern), proto->symbol().str()));
+    if (auto proto = decl()->isa<Proto>()) {
+        assert(cg.protos_.find(proto) != cg.protos_.end());
+        return Ref::create(cg.protos_[proto]);
+    }
+//     if (auto proto = decl()->isa<Proto>())
+//         return Ref::create(cg.world().lambda(proto->refined_fntype()->convert(cg.world())->as<Pi>(), 
+//                     Lambda::Attribute(Lambda::Extern), proto->symbol().str()));
 
     auto vardecl = decl()->as<VarDecl>();
     auto air_type = type()->convert(cg.world());

@@ -36,6 +36,10 @@ void mem2reg(World& world) {
         for (size_t i = 0, e = scope.size(); i != e; ++i) {
             Lambda* lambda = scope[i];
 
+            // skip lambdas that are connected to higher-order built-ins
+            if (lambda->is_connected_to_builtin())
+                continue;
+
             // Search for slots/loads/stores from top down and use set_value/get_value to install parameters.
             // Then, we now what must be replaced but do not yet replace anything:
             // Defs in the schedule might get invalid!

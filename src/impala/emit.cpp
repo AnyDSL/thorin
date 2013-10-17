@@ -59,14 +59,12 @@ bool CodeGen::emit_prg(const Scope* prg) {
                 lambda->name += "_impala";
                 lambda->attribute().set(Lambda::Extern);
             }
-        } 
-        //else if (auto decl_stmt = stmt->isa<DeclStmt>()) {
-            //if (auto proto = decl_stmt->decl()->isa<Proto>()) {
-                //auto lambda = world().lambda(proto->refined_type()->convert(world())->as<Pi>());
-                //lambda->attr().set_extern();
-                //lambda->name = proto->symbol().str();
-            //}
-        //}
+        } else if (auto proto_item = item->isa<ProtoItem>()) {
+            auto proto = proto_item->proto();
+            auto lambda = world().lambda(proto->refined_type()->convert(world())->as<Pi>());
+            lambda->attribute().set(Lambda::Extern);
+            lambda->name = proto->symbol().str();
+        }
     }
 
     for (auto stmt : prg->stmts())
@@ -517,6 +515,7 @@ void ScopeStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.emit(scope(), 
  */
 
 void FunItem::emit(CodeGen& cg) const { cg.emit_body(fun()); }
+void ProtoItem::emit(CodeGen& cg) const { }
 void TraitItem::emit(CodeGen& cg) const { assert( false && "todo"); }
 
 } // namespace impala

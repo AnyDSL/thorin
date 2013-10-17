@@ -340,6 +340,11 @@ std::ostream& ReturnStmt::print(Printer& p) const {
 
 //------------------------------------------------------------------------------
 
+std::ostream& ProtoItem::print(Printer& p) const {
+    p.stream() << "proto " << proto()->symbol();
+    return p.stream();
+}
+
 std::ostream& FunItem::print(Printer& p) const {
     p.stream() << "fn " << fun()->symbol(); 
     if (!fun()->generics().empty())

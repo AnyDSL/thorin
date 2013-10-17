@@ -147,7 +147,7 @@ public:
     const Type* parse_tuple_type();
     const Type* parse_return_type();
     const VarDecl* parse_var_decl(bool is_param);
-    //const Proto* parse_proto();
+    void parse_proto(Proto* proto);
     void parse_fun(Fun* fun);
     void parse_comma_list(TokenKind delimiter, const char* context, std::function<void()> f) {
         if (la() != delimiter) {
@@ -190,6 +190,7 @@ public:
 
     // items
     const Item* parse_item();
+    const ProtoItem* parse_proto_item();
     const FunItem* parse_fun_item();
     const TraitItem* parse_trait_item();
 
@@ -412,32 +413,24 @@ const VarDecl* Parser::parse_var_decl(bool is_param) {
     return new VarDecl(cur_var_handle++, is_param, tok, type, prev_loc().pos2());
 }
 
-//const Proto* Parser::parse_proto() {
-    //auto proto = loc(new Proto(try_id("prototype").symbol()));
-    //eat(Token::EXTERN);
-    //std::vector<const Type*> types;
+void Parser::parse_proto(Proto* proto) {
+    std::vector<const Type*> types;
+    loc(proto);
 
-    //expect(Token::L_PAREN, "prototype");
-    //parse_comma_list(Token::R_PAREN, "type list of prototype", [&] {
-        //const Type* type;
-        //switch (la()) {
-            //case TYPE:  type = parse_type();
-            //default:    type = typetable.type_error();
-        //}
-        //types.push_back(type);
-    //});
-    //expect(Token::ARROW, "prototype");
+    expect(Token::L_PAREN, "prototype");
+    parse_comma_list(Token::R_PAREN, "type list", [&] {
+        types.push_back(parse_type());
+    });
+    expect(Token::ARROW, "prototype");
 
-    //const Type* ret_type = 0; //try_type("return type of prototype");
-    //if (ret_type->is_void())
-        //types.push_back(typetable.fntype0());
-    //else
-        //types.push_back(typetable.fntype1(ret_type));
+    const Type* ret_type = parse_type();
+    if (ret_type->is_void())
+        types.push_back(typetable.fntype({}));
+    else
+        types.push_back(typetable.fntype({ret_type}));
 
-    //proto->orig_type_ = typetable.fntype(types);
-
-    //return proto;
-//}
+    proto->orig_type_ = typetable.fntype(types);
+}
 
 void Parser::parse_generics_list(GenericDecls& generic_decls) {
     if (accept(Token::LT))
@@ -844,12 +837,20 @@ const Stmt* Parser::parse_return() {
 
 const Item* Parser::parse_item() {
     switch (la()) {
-        case Token::FN:     
-        case Token::EXTERN: return parse_fun_item();
+        case Token::FN:     return parse_fun_item();
+        case Token::EXTERN: return parse_proto_item();
         case Token::STRUCT:
         case Token::CLASS:  return parse_trait_item();
         default:            ANYDSL2_UNREACHABLE;
     }
+}
+
+const ProtoItem* Parser::parse_proto_item() {
+    eat(Token::EXTERN);
+    auto proto = loc(new ProtoItem(try_id("prototype").symbol()));
+    parse_proto(proto->proto_ );
+    expect(Token::SEMICOLON, "end of proto expected");
+    return proto;
 }
 
 const FunItem* Parser::parse_fun_item() {

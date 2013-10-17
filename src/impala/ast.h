@@ -230,6 +230,24 @@ private:
     friend class CodeGen;
 };
 
+class ProtoItem : public Item {
+public:
+    ProtoItem(anydsl2::Symbol symbol)
+        : proto_(new Proto(symbol))
+    {}
+
+    const Proto* proto() const { return proto_; }
+    virtual std::ostream& print(Printer& p) const;
+
+private:
+    virtual void check(Sema& sema) const;
+    virtual void emit(CodeGen& cg) const;
+
+    anydsl2::AutoPtr<Proto> proto_;
+
+    friend class Parser;
+};
+
 class FunItem : public Item {
 public:
     FunItem(TypeTable& typetable)

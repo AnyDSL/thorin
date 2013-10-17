@@ -2,8 +2,6 @@
 #include <vector>
 #include <cctype>
 
-#include <boost/program_options.hpp>
-
 #include "anydsl2/analyses/looptree.h"
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/analyses/verify.h"
@@ -20,11 +18,12 @@
 #include "impala/emit.h"
 #include "impala/init.h"
 
+#include "args.h"
+
 //------------------------------------------------------------------------------
 
 using namespace anydsl2;
 using namespace std;
-namespace po = boost::program_options;
 
 typedef vector<string> Names;
 
@@ -40,84 +39,68 @@ int main(int argc, char** argv) {
 #ifndef NDEBUG
         Names breakpoints;
 #endif
-        string outfile = "-";
+        string outfile;
         bool help, emit_all, emit_air, emit_il, emit_ast, emit_llvm, emit_looptree, fancy, opt, verify, nocleanup, nossa = false;
         int vectorlength = 0;
-
-        // specify options
-        po::options_description desc("Usage: " + prgname + " [options] file...");
-        desc.add_options()
-        ("help,h",          po::bool_switch(&help),                     "produce this help message")
-        ("outfile,o",       po::value(&outfile)->default_value("-"),    "specifies output file")
-        ("infile,i",        po::value(&infiles),                        "input file")
+        auto cmd_parser = ArgParser("Usage: " + prgname + " [options] file...")
+            .implicit_option("infiles", "input files", infiles)
+            // specify options
+            .add_option<bool>("help", "produce this help message", help, false)
+            .add_option<string>("o", "specifies the output file", outfile, "-")
 #ifndef NDEBUG
-        ("break,b",         po::value(&breakpoints),                    "breakpoint at definition generation of number arg")
+            .add_option<vector<string>>("break", "breakpoint at definition generation of number arg", breakpoints)
 #endif
-        ("emit-air",        po::bool_switch(&emit_air),                 "emit textual AIR representation of impala program")
-        ("emit-il",         po::bool_switch(&emit_il),                  "emit textual IL representation of impala program")
-        ("emit-all",        po::bool_switch(&emit_all),                 "emit AST, AIR, LLVM and loop tree")
-        ("emit-ast",        po::bool_switch(&emit_ast),                 "emit AST of impala program")
-        ("emit-looptree",   po::bool_switch(&emit_looptree),            "emit loop tree")
-        ("emit-llvm",       po::bool_switch(&emit_llvm),                "emit llvm from AIR representation (implies -O)")
-        ("fancy,f",         po::bool_switch(&fancy),                    "use fancy output")
-        ("nocleanup",       po::bool_switch(&nocleanup),                "no clean-up phase")
-        ("nossa",           po::bool_switch(&nossa),                    "use slots + load/store instead of SSA construction")
-        ("verify,v",        po::bool_switch(&verify),                   "run verifier")
-        ("vectorize",       po::value(&vectorlength),                   "run vectorizer on main with given vector length (experimantal!!!), arg=<vector length>")
-        (",O",              po::bool_switch(&opt),                      "optimize");
-
-        // positional options, i.e., input files
-        po::positional_options_description pos_desc;
-        pos_desc.add("infile", -1);
+            .add_option<bool>("nocleanup", "no clean-up phase", nocleanup, false)
+            .add_option<bool>("nossa", "use slots + load/store instead of SSA construction", nossa, false)
+            .add_option<bool>("verify", "run verifier", verify, false)
+            .add_option<int>("vectorize", "run vectorizer on main with given vector length (experimantal!!!), arg=<vector length>", vectorlength, false)
+            .add_option<bool>("emit-air", "emit textual AIR representation of impala program", emit_air, false)
+            .add_option<bool>("emit-il", "emit textual IL representation of impala program", emit_il, false)
+            .add_option<bool>("emit-all", "emit AST, AIR, LLVM and loop tree", emit_all, false)
+            .add_option<bool>("emit-ast", "emit AST of impala program", emit_ast, false)
+            .add_option<bool>("emit-looptree", "emit loop tree", emit_looptree, false)
+            .add_option<bool>("emit-llvm", "emit llvm from AIR representation (implies -O)", emit_llvm, false)
+            .add_option<bool>("f", "use fancy output", fancy, false)
+            .add_option<bool>("O", "optimize", opt, false);
 
         // do cmdline parsing
-        po::command_line_parser clp(argc, argv);
-        clp.options(desc);
-        clp.positional(pos_desc);
-        po::variables_map vm;
-        po::store(clp.run(), vm);
-        po::notify(vm);
+        cmd_parser.parse(argc, argv);
 
         if (emit_all)
             emit_air = emit_looptree = emit_ast = emit_llvm = true;
         opt |= emit_llvm;
 
-        if (infiles.empty() && !help) {
-#if BOOST_VERSION >= 105000
-            throw po::invalid_syntax(po::invalid_syntax::missing_parameter, "infile");
-#else
-            throw po::invalid_syntax("infile", po::invalid_syntax::missing_parameter);
-#endif
-        }
+        if (infiles.empty() && !help)
+            throw exception("no input files");
 
         if (help) {
-            desc.print(cout);
+            cmd_parser.print_help();
             return EXIT_SUCCESS;
         }
 
-        //ofstream ofs;
-        //if (outfile != "-") {
-            //ofs.open(outfile.c_str());
-            //ofs.exceptions(istream::badbit);
-        //}
-        //ostream& out = ofs.is_open() ? ofs : cout;
+        ofstream ofs;
+        if (outfile != "-") {
+            ofs.open(outfile.c_str());
+            ofs.exceptions(istream::badbit);
+        }
+        ostream& out = ofs.is_open() ? ofs : cout;
 
         impala::Init init;
 
-#ifndef NDEBUG
-        for (auto b : breakpoints) {
-            assert(b.size() > 0);
-            size_t num = 0;
-            for (size_t i = 0, e = b.size(); i != e; ++i) {
-                char c = b[i];
-                if (!std::isdigit(c))
-                    throw po::error("invalid breakpoint '" + b + "'");
-                num = num*10 + c - '0';
-            }
-
-            init.world.breakpoint(num);
-        }
-#endif
+//#ifndef NDEBUG
+//        for (auto b : breakpoints) {
+//            assert(b.size() > 0);
+//            size_t num = 0;
+//            for (size_t i = 0, e = b.size(); i != e; ++i) {
+//                char c = b[i];
+//                if (!std::isdigit(c))
+//                    throw exception("invalid breakpoint '" + b + "'");
+//                num = num*10 + c - '0';
+//            }
+//
+//            init.world.breakpoint(num);
+//        }
+//#endif
 
         anydsl2::AutoPtr<impala::Scope> prg = new impala::Scope();
         prg->set_loc(anydsl2::Location(infiles[0], 1, 1, 1, 1));

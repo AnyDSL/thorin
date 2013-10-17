@@ -42,10 +42,9 @@ int main(int argc, char** argv) {
         string outfile;
         bool help, emit_all, emit_air, emit_il, emit_ast, emit_llvm, emit_looptree, fancy, opt, verify, nocleanup, nossa = false;
         int vectorlength = 0;
-        auto cmd_parser = ArgParser("Usage: " + prgname + " [options] file...")
+        auto cmd_parser = ArgParser()
             .implicit_option("infiles", "input files", infiles)
             // specify options
-            .add_option<bool>("help", "produce this help message", help, false)
             .add_option<bool>("help", "produce this help message", help, false)
             .add_option<string>("o", "specifies the output file", outfile, "-")
 #ifndef NDEBUG
@@ -73,10 +72,11 @@ int main(int argc, char** argv) {
 
         if (infiles.empty() && !help) {
             std::cerr << "no input files" << std::endl;
-            throw exception();
+            return EXIT_FAILURE;
         }
 
         if (help) {
+            std::cout << "Usage: " + prgname + " [options] file..." << std::endl;
             cmd_parser.print_help();
             return EXIT_SUCCESS;
         }
@@ -90,20 +90,22 @@ int main(int argc, char** argv) {
 
         impala::Init init;
 
-//#ifndef NDEBUG
-//        for (auto b : breakpoints) {
-//            assert(b.size() > 0);
-//            size_t num = 0;
-//            for (size_t i = 0, e = b.size(); i != e; ++i) {
-//                char c = b[i];
-//                if (!std::isdigit(c))
-//                    throw exception("invalid breakpoint '" + b + "'");
-//                num = num*10 + c - '0';
-//            }
-//
-//            init.world.breakpoint(num);
-//        }
-//#endif
+#ifndef NDEBUG
+       for (auto b : breakpoints) {
+           assert(b.size() > 0);
+           size_t num = 0;
+           for (size_t i = 0, e = b.size(); i != e; ++i) {
+               char c = b[i];
+               if (!std::isdigit(c)) {
+                   std::cerr << "invalid breakpoint '" << b << "'" << std::endl;
+                   return EXIT_FAILURE;
+               }
+               num = num*10 + c - '0';
+           }
+
+           init.world.breakpoint(num);
+       }
+#endif
 
         anydsl2::AutoPtr<impala::Scope> prg = new impala::Scope();
         prg->set_loc(anydsl2::Location(infiles[0], 1, 1, 1, 1));

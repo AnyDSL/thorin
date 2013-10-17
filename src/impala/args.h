@@ -112,21 +112,12 @@ public:
 
     void print_help() {
         // print some help infos
-        // TODO
+        const Class* c = as_class();
+        std::cout << "\t-" << c->arg() << "\t" << c->help_msg() << std::endl;
+        previous_.print_help();
     }
 
 protected:
-    T previous_;
-};
-
-template<typename T>
-struct EndOption {
-    EndOption(const T& previous)
-        : previous_(previous)
-    { }
-
-
-private:
     T previous_;
 };
 
@@ -221,6 +212,8 @@ struct Option<void, void> : public BasicOption<void>{
                                                  NData& target, const NData& def = NData()) const {
         return Option<NData, Option<void, void>>(*this, arg, help_msg, &target, def);
     }
+
+    void print_help() { }
 };
 
 struct ImplicitOption : BasicOption<std::vector<std::string>> {
@@ -243,12 +236,15 @@ struct ImplicitOption : BasicOption<std::vector<std::string>> {
         target()->push_back(*it++);
         return it;
     }
+
+    void print_help() {
+        std::cout << "implicit arguments: " << help_msg() << std::endl;
+    }
 };
 
 class ArgParser {
 public:
-    ArgParser(const std::string& program_desc)
-        : program_desc_(program_desc)
+    ArgParser()
     { }
 
     ImplicitOption implicit_option(const std::string& arg, const std::string& help_msg, std::vector<std::string>& target) const {
@@ -258,11 +254,6 @@ public:
     Option<void, void> option() const {
         return Option<void, void>();
     }
-
-    const std::string& program_desc() const { return program_desc_; }
-
-private:
-    std::string program_desc_;
 };
 
 #endif

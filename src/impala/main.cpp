@@ -46,6 +46,7 @@ int main(int argc, char** argv) {
             .implicit_option("infiles", "input files", infiles)
             // specify options
             .add_option<bool>("help", "produce this help message", help, false)
+            .add_option<bool>("help", "produce this help message", help, false)
             .add_option<string>("o", "specifies the output file", outfile, "-")
 #ifndef NDEBUG
             .add_option<vector<string>>("break", "breakpoint at definition generation of number arg", breakpoints)
@@ -70,8 +71,10 @@ int main(int argc, char** argv) {
             emit_air = emit_looptree = emit_ast = emit_llvm = true;
         opt |= emit_llvm;
 
-        if (infiles.empty() && !help)
-            throw exception("no input files");
+        if (infiles.empty() && !help) {
+            std::cerr << "no input files" << std::endl;
+            throw exception();
+        }
 
         if (help) {
             cmd_parser.print_help();

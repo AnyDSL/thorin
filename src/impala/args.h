@@ -81,7 +81,12 @@ public:
         // TODO: nicer
         if (value[0] != '-')
             return false;
-        return strcmp(BasicOption<Data>::arg().c_str(), value + 1) == 0;
+
+        // allow also --
+        int offset = 1;
+        if (value[1] == '-') offset++;
+
+        return strcmp(BasicOption<Data>::arg().c_str(), value + offset) == 0;
     }
 
     typename BasicOption<Data>::iterator handle(typename BasicOption<Data>::iterator it) const {

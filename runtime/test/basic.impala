@@ -1,0 +1,73 @@
+/*
+extern all_on_gpu(Array3D, fn(int, int, int) -> void) -> int;
+
+extern malloc(int, int, int) -> Array3D;
+extern load_value(Array3D, int, int, int) -> float;
+extern store_value(Array3D, int, int, int, float) -> int;
+
+fn main() -> Array3D {
+    var a : Array3D = malloc(1024, 1024, 1024);
+    var b : Array3D = malloc(1024, 1024, 1024);
+    all_on_gpu(a, |x : int, y : int, z : int| -> void {
+        val a2 : float = load_value(a, x, y, z);
+        val b2 : float = load_value(b, x, y, z);
+        val c2 : float = @convolve(b, 3, x, y, z);
+        store_value(a, x, y, z, a2 + b2 + c2);
+    });
+
+    return a;
+}
+
+fn convolve(arr : Array3D, range : int, x : int, y : int, z : int) -> float {
+    var sum : float = 0.0f;
+
+    var xf : int = -range;
+    var yf : int = -range;
+    while (yf<range) {
+        while (xf<range) {
+            sum += load_value(arr, x + xf, y + yf, z);
+            xf++;
+        }
+        xf = -range;
+        yf++;
+    }
+
+    return sum;
+}
+*/
+
+extern all_on_gpu(float, fn(int, int, int) -> void) -> int;
+
+extern malloc(int, int, int) -> float;
+extern load_value(float, int, int, int) -> float;
+extern store_value(float, int, int, int, float) -> int;
+
+fn main() -> float {
+    var a : float = malloc(1024, 1024, 1024);
+    var b : float = malloc(1024, 1024, 1024);
+    all_on_gpu(a, |x : int, y : int, z : int| -> void {
+        val a2 : float = load_value(a, x, y, z);
+        val b2 : float = load_value(b, x, y, z);
+        val c2 : int = @convolve(b, 3, x, y, z);
+        store_value(a, x, y, c2, a2 + b2);
+    });
+    return a;
+}
+
+fn convolve(arr : float, range : int, x : int, y : int, z : int) -> int {
+    var sum : int = 0;
+
+    var xf : int = -range;
+    var yf : int = -range;
+    while (yf<range) {
+        while (xf<range) {
+            sum += (x + xf+ y + yf+ z);
+            xf++;
+        }
+        xf = -range;
+        yf++;
+    }
+
+    return sum;
+}
+

@@ -1,6 +1,7 @@
 #include <fstream>
 #include <vector>
 #include <cctype>
+#include <stdexcept>
 
 #include "anydsl2/analyses/looptree.h"
 #include "anydsl2/analyses/scope.h"

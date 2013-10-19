@@ -88,15 +88,17 @@ Lambda* Mangler::mangle() {
             mangle_body(cur, lookup(cur)->as_lambda());
     }
 
-    for (auto lambda : run)
-        lookup(lambda)->as_lambda()->attribute().set(Lambda::Run);
+    for (auto lambda : run) {
+        if (lambda->is_visited(pass))
+            lookup(lambda)->as_lambda()->attribute().set(Lambda::Run);
+    }
 
     return nentry;
 }
 
 Lambda* Mangler::mangle_head(Lambda* olambda) {
     assert(!olambda->is_visited(pass));
-
+    assert(!olambda->empty());
     Lambda* nlambda = olambda->stub(generic_map, olambda->name);
     map(olambda, nlambda);
 
@@ -107,6 +109,7 @@ Lambda* Mangler::mangle_head(Lambda* olambda) {
 }
 
 void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
+    assert(!olambda->empty());
     Array<const Def*> ops(olambda->ops().size());
     for (size_t i = 1, e = ops.size(); i != e; ++i)
         ops[i] = mangle(olambda->op(i));

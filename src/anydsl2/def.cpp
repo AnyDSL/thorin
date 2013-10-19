@@ -27,6 +27,7 @@ void Tracker::release() {
         assert(i != def_->trackers_.end() && "must be in trackers set");
         *i = def_->trackers_.back();
         def_->trackers_.pop_back();
+        def_ = nullptr;
     }
 }
 
@@ -63,12 +64,10 @@ Array<Use> Def::copy_uses() const {
     return result;
 }
 
-AutoVector<const Tracker*> Def::tracked_uses() const {
-    AutoVector<const Tracker*> result(uses().size());
-    size_t i = 0;
+void Def::tracked_uses(AutoVector<const Tracker*>& result) const {
+    result.reserve(uses().size());
     for (auto use : uses())
-        result[i++] = new Tracker(use);
-    return result;
+        result.push_back(new Tracker(use));
 }
 
 std::vector<MultiUse> Def::multi_uses() const {

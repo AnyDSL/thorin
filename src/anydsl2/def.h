@@ -189,7 +189,7 @@ public:
      * Useful if you want to modfy users while iterating over all users.
      */
     Array<Use> copy_uses() const;
-    AutoVector<const Tracker*> tracked_uses() const;
+    void tracked_uses(AutoVector<const Tracker*>& result) const;
     std::vector<MultiUse> multi_uses() const;
     const Type* type() const { return type_; }
     int order() const;

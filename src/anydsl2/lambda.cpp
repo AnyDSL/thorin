@@ -357,7 +357,8 @@ const Def* Lambda::try_remove_trivial_param(const Param* param) {
     }
     assert(same != nullptr);
 
-    AutoVector<const Tracker*> uses = param->tracked_uses();
+    AutoVector<const Tracker*> uses;
+    param->tracked_uses(uses);
     param->replace(same);
 
     for (auto peek : param->peek())

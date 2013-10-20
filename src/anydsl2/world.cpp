@@ -833,6 +833,7 @@ const Def* World::rebuild(const PrimOp* in, ArrayRef<const Def*> ops, const Type
         case Node_TupleInsert:  assert(ops.size() == 3); return tuple_insert( ops[0], ops[1], ops[2], name);
         case Node_Slot:    assert(ops.size() == 1); 
             return slot(type->as<Ptr>()->referenced_type(), ops[0], in->as<Slot>()->index(), name);
+        case Node_LEA:     assert(ops.size() == 2); return lea(ops[0], ops[1], name);
         default: ANYDSL2_UNREACHABLE;
     }
 }

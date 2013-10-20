@@ -509,6 +509,7 @@ class IndexExpr : public Expr {
 public:
     const Expr* lhs() const { return ops_[0]; }
     const Expr* index() const { return ops_[1]; }
+    bool is_array_subscript() const;
     virtual bool is_lvalue() const { return true; }
     virtual std::ostream& print(Printer& p) const;
 

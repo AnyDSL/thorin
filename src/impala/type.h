@@ -155,6 +155,31 @@ public:
     friend class TypeTable;
 };
 
+class ArrayType : public Type {
+private:
+    ArrayType(TypeTable& typetable, size_t dim, const Type* elem_type)
+        : Type(typetable, Token::TYPE_array, 1, false, "<array type>")
+        , dim_(dim)
+    {
+        set(0, elem_type);
+    }
+
+public:
+    const Type* elem_type() const { return elem(0); }
+    size_t dim() const { return dim_; }
+
+    virtual const Type* refine(const Sema& sema) const;
+    virtual const Type* specialize(const GenericMap& map) const;
+    virtual const anydsl2::Type* convert(anydsl2::World&) const;
+
+    virtual size_t hash() const;
+    virtual bool equals(const Node* other) const;
+
+private:
+    size_t dim_;
+    friend class TypeTable;
+};
+
 class Generic : public Type {
 private:
     Generic(TypeTable& typetable, size_t index)
@@ -236,7 +261,7 @@ private:
     {}
 
 public:
-    virtual const Type* refine(const Sema& sema) const;
+    virtual const Type* refine(const Sema&) const;
     virtual const Type* specialize(const GenericMap& map) const;
     virtual const anydsl2::Type* convert(anydsl2::World&) const;
     const Type* return_type() const;
@@ -286,6 +311,7 @@ public:
     const NoRet* noret() { return noret_; }
     const Void* type_void() { return void_; }
     const PrimType* primtype(TokenKind kind);
+    const ArrayType* arraytype(size_t dim, const Type* elem_type);
 #define IMPALA_TYPE(itype, atype) const PrimType* type_##itype() { return itype##_; }
 #include "impala/tokenlist.h"
     const FnType* fntype(anydsl2::ArrayRef<const Type*> elems);

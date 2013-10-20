@@ -31,8 +31,10 @@ public:
     inline static RefPtr create(const Def* def);
     /// Create \p VarRef.
     inline static RefPtr create(Lambda* bb, size_t handle, const Type*, const char* name);
+    /// Create \p ArrayDeclRef.
+    inline static RefPtr create_array(RefPtr lref, const Def* index, IRBuilder& builde);
     /// Create \p TupleRef.
-    inline static RefPtr create(RefPtr lref, const Def* index);
+    inline static RefPtr create_tuple(RefPtr lref, const Def* indexr);
     /// Create \p SlotRef.
     inline static RefPtr create(const Slot* slot, IRBuilder& builder);
 };
@@ -69,6 +71,25 @@ private:
     size_t handle_;
     const Type* type_;
     const char* name_;
+};
+
+// FIXME: nice integration
+class ArrayDeclRef : public Ref {
+public:
+    ArrayDeclRef(RefPtr lref, const Def* index, IRBuilder& builder)
+        : lref_(std::move(lref))
+        , index_(index)
+        , builder_(builder)
+    {}
+
+    virtual const Def* load() const;
+    virtual void store(const Def* val) const;
+    virtual World& world() const;
+
+private:
+    RefPtr lref_;
+    const Def* index_;
+    IRBuilder& builder_;
 };
 
 class TupleRef : public Ref {
@@ -108,7 +129,8 @@ private:
 };
 
 RefPtr Ref::create(const Def* def) { return RefPtr(new RVal(def)); }
-RefPtr Ref::create(RefPtr lref, const Def* index) { return RefPtr(new TupleRef(std::move(lref), index)); }
+RefPtr Ref::create_array(RefPtr lref, const Def* index, IRBuilder& builder) { return RefPtr(new ArrayDeclRef(std::move(lref), index, builder)); }
+RefPtr Ref::create_tuple(RefPtr lref, const Def* index) { return RefPtr(new TupleRef(std::move(lref), index)); }
 RefPtr Ref::create(Lambda* bb, size_t handle, const Type* type, const char* name) { 
     return RefPtr(new VarRef(bb, handle, type, name)); 
 }

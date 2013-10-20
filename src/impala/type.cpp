@@ -47,6 +47,7 @@ const PrimType* TypeTable::primtype(TokenKind kind) {
     }
 }
 
+const ArrayType* TypeTable::arraytype(size_t dim, const Type* elem_type) { return unify(new ArrayType(*this, dim, elem_type)); }
 const FnType* TypeTable::fntype(anydsl2::ArrayRef<const Type*> elems) { return unify(new FnType(*this, elems)); }
 const TupleType* TypeTable::tupletype(anydsl2::ArrayRef<const Type*> elems) { return unify(new TupleType(*this, elems)); }
 const Generic* TypeTable::generic(size_t index) { return unify(new Generic(*this, index)); }
@@ -54,6 +55,19 @@ const GenericRef* TypeTable::genericref(const Fun* fun, const Generic* generic) 
     return unify(new GenericRef(*this, fun, generic)); 
 }
 const IdType* TypeTable::idtype(Symbol symbol) { return unify(new IdType(*this, symbol)); }
+
+//------------------------------------------------------------------------------
+
+size_t ArrayType::hash() const {
+    return hash_combine(Type::hash(), dim());
+}
+
+bool ArrayType::equals(const Node* other) const {
+    if (!Type::equal(other))
+        return false;
+    const ArrayType* o = other->as<ArrayType>();
+    return o->dim() == dim();
+}
 
 //------------------------------------------------------------------------------
 
@@ -223,6 +237,14 @@ bool Type::infer_with(GenericMap& map, const Type* other) const {
 ANYDSL2_REFINE_SPECIALIZE(TupleType, tupletype)
 ANYDSL2_REFINE_SPECIALIZE(FnType, fntype)
 
+const Type* ArrayType::refine(const Sema& sema) const {
+    return typetable_.arraytype(dim(), elem_type()->refine(sema));
+}
+
+const Type* ArrayType::specialize(const GenericMap& map) const {
+    return typetable_.arraytype(dim(), elem_type()->specialize(map));
+}
+
 //------------------------------------------------------------------------------
 
 const anydsl2::Type* PrimType::convert(World& world) const {
@@ -231,6 +253,10 @@ const anydsl2::Type* PrimType::convert(World& world) const {
 #include "impala/tokenlist.h"
         default: ANYDSL2_UNREACHABLE;
     }
+}
+
+const anydsl2::Type* ArrayType::convert(World& world) const {
+    return world.ptr(elem_type()->convert(world));
 }
 
 const anydsl2::Type* FnType::convert(World& world) const {

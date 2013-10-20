@@ -66,7 +66,8 @@ bool CodeGen::emit_prg(const Scope* prg) {
             auto lambda = world().lambda(proto->refined_type()->convert(world())->as<Pi>());
             lambda->attribute().set(Lambda::Extern);
             lambda->name = proto->symbol().str();
-            if (lambda->name == "run_on_gpu")
+            // HACK: eliminate this hack
+            if (lambda->name == "all_on_gpu")
                 lambda->attribute().set(Lambda::Cuda);
             // register proto
             protos_[proto] = lambda;
@@ -330,7 +331,10 @@ RefPtr ConditionalExpr::emit(CodeGen& cg) const {
 
 RefPtr IndexExpr::emit(CodeGen& cg) const {
     const Def* x = cg.emit(index())->load();
-    return Ref::create(cg.emit(lhs()), x);
+    if (is_array_subscript())
+        return Ref::create_array(cg.emit(lhs()), x, cg);
+    else
+        return Ref::create_tuple(cg.emit(lhs()), x);
 }
 
 RefPtr Call::emit(CodeGen& cg) const {

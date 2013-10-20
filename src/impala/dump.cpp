@@ -33,6 +33,12 @@ std::ostream& Printer::print_type(const Type* type) {
         return stream() << "void";
     } else if (type->isa<TypeError>()) {
         return stream() << "<error>";
+    } else if (auto array_type = type->isa<ArrayType>()) {
+        print_type(array_type->elem_type());
+        stream() << '[';
+        for (size_t i = 1, e = array_type->dim(); i != e; ++i)
+            stream() << ',';
+        return stream() << ']';
     } else if (auto tuple = type->isa<TupleType>()) {
         return dump_list([&](const Type* elem) { print_type(elem); }, tuple->elems(), "(", ")");
     } else if (auto fn = type->isa<FnType>()) {

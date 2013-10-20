@@ -213,6 +213,8 @@ void VarDecl::check(Sema& sema) const {
     sema.insert(this);
     refined_type_ = orig_type_ ? orig_type_->refine(sema) : nullptr;
     fun_ = sema.cur_fun();
+    // HACK
+    is_address_taken_ |= (refined_type_->isa<ArrayType>() != nullptr);
 }
 
 void GenericDecl::check(Sema& sema) const {
@@ -342,7 +344,8 @@ const Type* ConditionalExpr::check(Sema& sema) const {
 }
 
 const Type* IndexExpr::check(Sema& sema) const {
-    if (auto tuple = sema.check(lhs())->isa<TupleType>()) {
+    sema.check(lhs());
+    if (auto tuple = lhs()->type()->isa<TupleType>()) {
         if (sema.check(index())->is_int()) {
             if (const Literal* literal = index()->isa<Literal>()) {
                 unsigned pos;
@@ -362,8 +365,20 @@ const Type* IndexExpr::check(Sema& sema) const {
                 sema.error(index()) << "indexing expression must be a literal\n";
         } else
             sema.error(index()) << "indexing expression must be of integer type\n";
-    } else
-        sema.error(lhs()) << "left-hand side of index expression must be of tuple type\n";
+    } else if (auto arr = lhs()->type()->isa<ArrayType>()) {
+        if (sema.check(index())->isa<TupleType>()) {
+            const Tuple* arr_index = index()->as<Tuple>();
+            if (arr_index->size() == arr->dim())
+                return arr->elem_type();
+            else
+                sema.error(index()) << "indexing expression has an invalid number of dimensions\n";
+        } else if (index()->type()->isa<PrimType>()) {
+            return arr->elem_type();
+        } else
+            sema.error(index()) << "indexing expression must be of tuple of primitive type\n";
+    }
+    else
+        sema.error(lhs()) << "left-hand side of index expression must be of tuple or array type\n";
 
     return sema.typetable().type_error();
 }

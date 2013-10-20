@@ -1,0 +1,34 @@
+extern all_on_gpu(float[], fn(int, int, int) -> void) -> int;
+extern array(int) -> float[];
+
+fn main() -> float[] {
+    val a : float[] = array(1024 * 1024 * 1024);
+    val b : float[] = array(1024 * 1024 * 1024);
+    all_on_gpu(a, |x : int, y : int, z : int| -> void {
+        var index : int = x + 1024 * y + 1024 * 1024 * z;
+        val a2 : float = a[index];
+        val b2 : float = b[index];
+        val c2 : float = @convolve(b, 3, x, y, z);
+        a[index] = c2 + a2 + b2;
+    });
+    return a;
+}
+
+fn convolve(arr : float[], range : int, x : int, y : int, z : int) -> float {
+    var sum : float = 0.0f;
+
+    var xf : int = -range;
+    var yf : int = -range;
+
+    while (yf<range) {
+        while (xf<range) {
+            val index : int = x + xf + 1024 * (y + yf) + 1024 * 1024 * z;
+            sum += arr[index];
+            xf++;
+        }
+        xf = -range;
+        yf++;
+    }
+
+    return sum;
+}

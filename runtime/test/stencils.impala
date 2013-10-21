@@ -1,0 +1,158 @@
+extern all_on_gpu(float[], fn(int, int, int) -> void) -> int;
+extern array(int) -> float[];
+
+fn idx(x : int, y: int, z : int, width : int, height : int, depth : int) -> int {
+    return x + width * y + z * width * height;
+}
+
+fn main() -> float[] {
+    val width   = 1024;
+    val height  = 1024;
+    val depth   = 1;
+    val range   = 3;
+    val size    = 2*range;
+    val out     = array(width * height * depth);
+    val in      = array(width * height * depth);
+
+
+    // deriv 2D
+    val mask    = array(size * size);
+    mask[0] = 0.0f; mask[1] = 1.0f; mask[2] = 0.0f;
+    mask[3] = 1.0f; mask[4] = 4.0f; mask[5] = 1.0f;
+    mask[6] = 0.0f; mask[7] = 1.0f; mask[8] = 0.0f;
+    all_on_gpu(out, |x : int, y : int, z : int| -> void {
+        //val result = @convolve(in, mask, 1.0f, range, x, y, z, width, height, depth);
+        val result = - (
+            1.0f * in[idx(x+0, y+1, z, width, height, depth)] +
+            1.0f * in[idx(x-1, y+0, z, width, height, depth)] +
+           -4.0f * in[idx(x  , y  , z, width, height, depth)] +
+            1.0f * in[idx(x+1, y+0, z, width, height, depth)] +
+            1.0f * in[idx(x+0, y-1, z, width, height, depth)]);
+        out[idx(x, y, z, width, height, depth)] = result;
+    });
+
+
+    // Jacobi
+    val OMEGA       = 0.8f;
+    val RHS         = array(width * height * depth);
+    val Sol         = array(width * height * depth);
+    val jacobi_mask = array(size * size);
+    jacobi_mask[0] = 0.00f; jacobi_mask[1] = 0.25f; jacobi_mask[2] = 0.00f;
+    jacobi_mask[3] = 0.25f; jacobi_mask[4] = 0.00f; jacobi_mask[5] = 0.25f;
+    jacobi_mask[6] = 0.00f; jacobi_mask[7] = 0.25f; jacobi_mask[8] = 0.00f;
+    all_on_gpu(out, |x : int, y : int, z : int| -> void {
+        //val result =
+        //    (1.0f - OMEGA) * Sol[idx(x, y, z, width, height, depth)] +
+        //    0.25f * OMEGA  * RHS[idx(x, y, z, width, height, depth)] +
+        //    @convolve(Sol, jacobi_mask, 1.0f, range, x, y, z, width, height, depth);
+        val result =
+            (1.0f - OMEGA) * Sol[idx(x, y, z, width, height, depth)] +
+            0.25f * OMEGA  * (
+                Sol[idx(x+0, y+1, z, width, height, depth)] +
+                Sol[idx(x-1, y+0, z, width, height, depth)] +
+                RHS[idx(x  , y  , z, width, height, depth)] +
+                Sol[idx(x+1, y+0, z, width, height, depth)] +
+                Sol[idx(x+0, y-1, z, width, height, depth)]
+            );
+        out[idx(x, y, z, width, height, depth)] = result;
+    });
+
+
+    // Residuum
+    all_on_gpu(out, |x : int, y : int, z : int| -> void {
+        //val result =
+        //    RHS[idx(x,   y,   z, width, height, depth)] +
+        //    @convolve(Sol, mask, 1.0f, range, x, y, z, width, height, depth);
+        val result =
+                    RHS[idx(x,   y,   z, width, height, depth)] +
+             1.0f * Sol[idx(x+0, y+1, z, width, height, depth)] +
+             1.0f * Sol[idx(x-1, y+0, z, width, height, depth)] +
+            -4.0f * Sol[idx(x  , y  , z, width, height, depth)] +
+             1.0f * Sol[idx(x+1, y+0, z, width, height, depth)] +
+             1.0f * Sol[idx(x+0, y-1, z, width, height, depth)];
+        out[idx(x, y, z, width, height, depth)] = result;
+    });
+
+
+    // Restrict: in = size x size; out = size/2 x size/2; fine -> coarse
+    // coarse = Stencil * fine;
+    val restrict_mask = array(size * size);
+    restrict_mask[0] = 0.25f; restrict_mask[1] = 0.50f; restrict_mask[2] = 0.25f;
+    restrict_mask[3] = 0.50f; restrict_mask[4] = 1.00f; restrict_mask[5] = 0.50f;
+    restrict_mask[6] = 0.25f; restrict_mask[7] = 0.50f; restrict_mask[8] = 0.25f;
+    all_on_gpu(out, |x : int, y : int, z : int| -> void {
+        val fx = 2*x;
+        val fy = 2*y;
+        val fz = 2*z;
+        val fwidth  = 2*width;
+        val fheight = 2*height;
+        val fdepth  = 2*depth;
+
+        //val result = @convolve(in, restrict_mask, 1.0f, range, fx, fy, fz, fwidth, fheight, fdepth);
+        val result =
+            0.25f * in[idx(fx-1, fy-1, fz, fwidth, fheight, fdepth)];
+            0.50f * in[idx(fx+0, fy-1, fz, fwidth, fheight, fdepth)];
+            0.25f * in[idx(fx+1, fy-1, fz, fwidth, fheight, fdepth)];
+            0.50f * in[idx(fx-1, fy+0, fz, fwidth, fheight, fdepth)];
+                    in[idx(fx  , fy  , fz, fwidth, fheight, fdepth)];
+            0.50f * in[idx(fx+1, fy+0, fz, fwidth, fheight, fdepth)];
+            0.25f * in[idx(fx-1, fy+1, fz, fwidth, fheight, fdepth)];
+            0.50f * in[idx(fx+0, fy+1, fz, fwidth, fheight, fdepth)];
+            0.25f * in[idx(fx+1, fy+1, fz, fwidth, fheight, fdepth)];
+        out[idx(x, y, z, width, height, depth)] = result;
+    });
+
+
+    // Interpolate: in = size/2 x size/2; out = size x size; coarse -> fine
+    // fine += Stencil * coarse:
+    // 0.25 0.50 0.25
+    // 0.50 1.00 0.50
+    // 0.25 0.50 0.25
+    // FIXME: this will not run correctly on accelerators such as GPUs due to
+    // their memory consistency model
+    all_on_gpu(in, |x : int, y : int, z : int| -> void {
+        val cx = 2*x;
+        val cy = 2*y;
+        val cz = 2*z;
+        val cwidth  = 2*width;
+        val cheight = 2*height;
+        val cdepth  = 2*depth;
+
+        val v = in[idx(x, y, z, width, height, depth)];
+        out[idx(cx-1, cy-1, cz, cwidth, cheight, cdepth)] += 0.25f * v;
+        out[idx(cx+0, cy-1, cz, cwidth, cheight, cdepth)] += 0.50f * v;
+        out[idx(cx+1, cy-1, cz, cwidth, cheight, cdepth)] += 0.25f * v;
+        out[idx(cx-1, cy+0, cz, cwidth, cheight, cdepth)] += 0.50f * v;
+        out[idx(cx  , cy  , cz, cwidth, cheight, cdepth)] +=         v;
+        out[idx(cx+1, cy+0, cz, cwidth, cheight, cdepth)] += 0.50f * v;
+        out[idx(cx-1, cy+1, cz, cwidth, cheight, cdepth)] += 0.25f * v;
+        out[idx(cx+0, cy+1, cz, cwidth, cheight, cdepth)] += 0.50f * v;
+        out[idx(cx+1, cy+1, cz, cwidth, cheight, cdepth)] += 0.25f * v;
+    });
+
+    return out;
+}
+
+fn convolve(arr : float[], mask : float[], omega : float, range : int, x : int, y : int, z : int, width : int, height : int, depth : int) -> float {
+    var sum = 0.0f;
+    val msize = 2*range;
+
+    // TODO:
+    // - iterate over C const arrays
+    // - consider only non-null values
+    // - get value and index of current element
+    // for (val cur not null in mask.values(), val idx in mask.index()) {
+    //   sum += val * arr((x, y, z) + idx);
+    // }
+    for (var yf=-range; yf<range; ++yf) {
+        for (var xf=-range; xf<range; ++xf) {
+            val index = x + xf + width * (y + yf) + width * height * z;
+            val imask = range + xf +  msize * (range + yf);
+            // TODO: propagate mask[imask] in case mask is a C const array
+            sum += omega * mask[imask] * arr[index];
+        }
+    }
+
+    return sum;
+}
+

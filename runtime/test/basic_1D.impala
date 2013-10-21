@@ -1,11 +1,19 @@
 extern all_on_gpu(float[], fn(int, int, int) -> void) -> int;
 extern array(int) -> float[];
 
+fn idx(x : int, y: int, z : int, width : int, height : int, depth : int) -> int {
+    return x + width * y + z * width * depth;
+}
+
 fn main() -> float[] {
-    val a : float[] = array(1024 * 1024 * 1024);
-    val b : float[] = array(1024 * 1024 * 1024);
+    val width : int = 1024;
+    val height : int = 1024;
+    val depth : int = 1024;
+    val a : float[] = array(width * height * depth);
+    val b : float[] = array(width * height * depth);
     all_on_gpu(a, |x : int, y : int, z : int| -> void {
-        var index : int = x + 1024 * y + 1024 * 1024 * z;
+        //var index : int = x + 1024 * y + 1024 * 1024 * z;
+        val index : int = idx(x, y, z, width, height, depth);
         val a2 : float = a[index];
         val b2 : float = b[index];
         val c2 : float = @convolve(b, 3, x, y, z);

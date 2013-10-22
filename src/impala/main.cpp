@@ -82,13 +82,6 @@ int main(int argc, char** argv) {
             return EXIT_SUCCESS;
         }
 
-        ofstream ofs;
-        if (outfile != "-") {
-            ofs.open(outfile.c_str());
-            ofs.exceptions(istream::badbit);
-        }
-        ostream& out = ofs.is_open() ? ofs : cout;
-
         impala::Init init;
 
 #ifndef NDEBUG

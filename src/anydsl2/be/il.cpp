@@ -10,7 +10,7 @@
 
 namespace anydsl2 {
 
-typedef std::unordered_set<const Def*> Vars;
+typedef std::unordered_set<const DefNode*> Vars;
 
 void free_vars(Scope& scope, Schedule& schedule, Lambda* lambda, Vars& vars) {
     for (auto lamb : scope.domtree().node(lambda)->children()) {
@@ -48,8 +48,8 @@ public:
     {}
 
     std::ostream& emit_type(const Type*);
-    std::ostream& emit_name(const Def*);
-    std::ostream& emit_def(const Def*);
+    std::ostream& emit_name(const DefNode*);
+    std::ostream& emit_def(const DefNode*);
     std::ostream& emit_primop(const PrimOp*);
     std::ostream& emit_assignment(const PrimOp*);
     std::ostream& emit_head(const Lambda*, bool nodefs);
@@ -103,13 +103,13 @@ std::ostream& IlPrinter::emit_type(const Type* type) {
     ANYDSL2_UNREACHABLE;
 }
 
-std::ostream& IlPrinter::emit_def(const Def* def) {
+std::ostream& IlPrinter::emit_def(const DefNode* def) {
     if (auto primop = def->isa<PrimOp>())
         return emit_primop(primop);
     return emit_name(def);
 }
 
-std::ostream& IlPrinter::emit_name(const Def* def) {
+std::ostream& IlPrinter::emit_name(const DefNode* def) {
     if (is_fancy()) // elide white = 0 and black = 7
         color(def->gid() % 6 + 30 + 1);
 
@@ -137,7 +137,7 @@ std::ostream& IlPrinter::emit_primop(const PrimOp* primop) {
             emit_type(primop->type());
         } else {
             emit_type(primop->type());
-            dump_list([&] (const Def* def) { emit_def(def); }, primop->ops(), "(", ")");
+            dump_list([&] (const DefNode* def) { emit_def(def); }, primop->ops(), "(", ")");
         }
     } else
         emit_name(primop);
@@ -150,7 +150,7 @@ std::ostream& IlPrinter::emit_assignment(const PrimOp* primop) {
     emit_name(primop) << " : ";
     emit_type(primop->type()) << " = ";
 
-    ArrayRef<const Def*> ops = primop->ops();
+    ArrayRef<const DefNode*> ops = primop->ops();
     if (primop->isa<Select>()) {
     } else if (auto vectorop = primop->isa<VectorOp>()) {
         if (!vectorop->cond()->is_allset()) {
@@ -161,7 +161,7 @@ std::ostream& IlPrinter::emit_assignment(const PrimOp* primop) {
     }
 
     stream() << primop->op_name() << " ";
-    dump_list([&] (const Def* def) { emit_def(def); }, ops, "(", ")");
+    dump_list([&] (const DefNode* def) { emit_def(def); }, ops, "(", ")");
     return newline();
 }
 
@@ -185,7 +185,7 @@ std::ostream& IlPrinter::emit_jump(const Lambda* lambda, bool nodefs) {
         if (!nodefs)
             stream() << "in ";
         emit_def(lambda->to());
-        dump_list([&] (const Def* def) { emit_def(def); }, lambda->args(), "(", ")");
+        dump_list([&] (const DefNode* def) { emit_def(def); }, lambda->args(), "(", ")");
         if (!nodefs)
             stream() << " end";
     }

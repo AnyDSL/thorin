@@ -10,7 +10,7 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
-void PrimOp::update(size_t i, const Def* with) { 
+void PrimOp::update(size_t i, const DefNode* with) { 
     unset_op(i); 
     set_op(i, with); 
 
@@ -20,14 +20,14 @@ void PrimOp::update(size_t i, const Def* with) {
             is_const_ &= op->is_const();
 }
 
-VectorOp::VectorOp(size_t size, NodeKind kind, const Type* type, const Def* cond, const std::string& name)
+VectorOp::VectorOp(size_t size, NodeKind kind, const Type* type, const DefNode* cond, const std::string& name)
     : PrimOp(size, kind, type, name)
 {
     assert(cond->type()->is_u1());
     set_op(0, cond);
 }
 
-BinOp::BinOp(NodeKind kind, const Type* type, const Def* cond, const Def* lhs, const Def* rhs, const std::string& name)
+BinOp::BinOp(NodeKind kind, const Type* type, const DefNode* cond, const DefNode* lhs, const DefNode* rhs, const std::string& name)
     : VectorOp(3, kind, type, cond, name)
 {
     assert(lhs->type() == rhs->type() && "types are not equal");
@@ -35,11 +35,11 @@ BinOp::BinOp(NodeKind kind, const Type* type, const Def* cond, const Def* lhs, c
     set_op(2, rhs);
 }
 
-RelOp::RelOp(RelOpKind kind, const Def* cond, const Def* lhs, const Def* rhs, const std::string& name)
+RelOp::RelOp(RelOpKind kind, const DefNode* cond, const DefNode* lhs, const DefNode* rhs, const std::string& name)
     : BinOp((NodeKind) kind, lhs->world().type_u1(lhs->type()->as<PrimType>()->length()), cond, lhs, rhs, name)
 {}
 
-Select::Select(const Def* cond, const Def* tval, const Def* fval, const std::string& name)
+Select::Select(const DefNode* cond, const DefNode* tval, const DefNode* fval, const std::string& name)
     : VectorOp(3, Node_Select, tval->type(), cond, name)
 {
     set_op(1, tval);
@@ -49,11 +49,11 @@ Select::Select(const Def* cond, const Def* tval, const Def* fval, const std::str
 
 //------------------------------------------------------------------------------
 
-TupleExtract::TupleExtract(const Def* tuple, const Def* index, const std::string& name)
+TupleExtract::TupleExtract(const DefNode* tuple, const DefNode* index, const std::string& name)
     : TupleOp(2, Node_TupleExtract, tuple->type()->as<Sigma>()->elem_via_lit(index), tuple, index, name)
 {}
 
-TupleInsert::TupleInsert(const Def* tuple, const Def* index, const Def* value, const std::string& name)
+TupleInsert::TupleInsert(const DefNode* tuple, const DefNode* index, const DefNode* value, const std::string& name)
     : TupleOp(2, Node_TupleInsert, tuple->type()->as<Sigma>()->elem_via_lit(index), tuple, index, name)
 {
     set_op(2, value);
@@ -61,7 +61,7 @@ TupleInsert::TupleInsert(const Def* tuple, const Def* index, const Def* value, c
 
 //------------------------------------------------------------------------------
 
-Tuple::Tuple(World& world, ArrayRef<const Def*> args, const std::string& name)
+Tuple::Tuple(World& world, ArrayRef<const DefNode*> args, const std::string& name)
     : PrimOp(args.size(), Node_Tuple, /*type: set later*/ nullptr, name)
 {
     Array<const Type*> elems(size());
@@ -75,7 +75,7 @@ Tuple::Tuple(World& world, ArrayRef<const Def*> args, const std::string& name)
 
 //------------------------------------------------------------------------------
 
-Vector::Vector(World& world, ArrayRef<const Def*> args, const std::string& name)
+Vector::Vector(World& world, ArrayRef<const DefNode*> args, const std::string& name)
     : PrimOp(args.size(), Node_Vector, /*type: set later*/ nullptr, name)
 {
     size_t i = 0;

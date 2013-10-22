@@ -39,8 +39,8 @@ public:
 
     void emit();
     llvm::Type* map(const Type* type);
-    llvm::Value* emit(const Def* def);
-    llvm::Value* lookup(const Def* def);
+    llvm::Value* emit(const DefNode* def);
+    llvm::Value* lookup(const DefNode* def);
 
 private:
     World& world;
@@ -188,7 +188,7 @@ void CodeGen::emit() {
                     // put all first-order args into an array
                     Array<llvm::Value*> args(lambda->args().size() - 1);
                     size_t i = 0;
-                    const Def* ret_arg = 0;
+                    const DefNode* ret_arg = 0;
                     for (auto arg : lambda->args())
                         if (arg->order() == 0) {
                             if (!arg->type()->isa<Mem>())
@@ -241,7 +241,7 @@ void CodeGen::emit() {
 #endif
 }
 
-llvm::Value* CodeGen::lookup(const Def* def) {
+llvm::Value* CodeGen::lookup(const DefNode* def) {
     if (def->is_const())
         return emit(def);
 
@@ -257,7 +257,7 @@ llvm::Value* CodeGen::lookup(const Def* def) {
     return phis[param];
 }
 
-llvm::Value* CodeGen::emit(const Def* def) {
+llvm::Value* CodeGen::emit(const DefNode* def) {
     if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = lookup(bin->lhs());
         llvm::Value* rhs = lookup(bin->rhs());

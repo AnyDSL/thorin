@@ -19,7 +19,7 @@ class Scope;
 typedef std::vector<Lambda*> Lambdas;
 typedef std::vector<const Param*> Params;
 
-class Lambda : public Def {
+class Lambda : public DefNode {
 public:
     enum {
         Extern = 1 << 0, ///< Is the function visible in other translation units?
@@ -50,8 +50,8 @@ private:
 public:
     Lambda* stub(const GenericMap& generic_map) const { return stub(generic_map, name); }
     Lambda* stub(const GenericMap& generic_map, const std::string& name) const;
-    Lambda* update_op(size_t i, const Def* def);
-    Lambda* update_arg(size_t i, const Def* def) { return update_op(i+1, def); }
+    Lambda* update_op(size_t i, const DefNode* def);
+    Lambda* update_arg(size_t i, const DefNode* def) { return update_op(i+1, def); }
     const Param* append_param(const Type* type, const std::string& name = "");
     Lambdas& succs() const;
     Lambdas preds() const;
@@ -59,9 +59,9 @@ public:
     const std::vector<const GenericRef*>& generic_refs() const { return generic_refs_; }
     const Params& params() const { return params_; }
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
-    const Def* to() const { return op(0); };
-    ArrayRef<const Def*> args() const { return empty() ? ArrayRef<const Def*>(0, 0) : ops().slice_back(1); }
-    const Def* arg(size_t i) const { return args()[i]; }
+    const DefNode* to() const { return op(0); };
+    ArrayRef<const DefNode*> args() const { return empty() ? ArrayRef<const DefNode*>(0, 0) : ops().slice_back(1); }
+    const DefNode* arg(size_t i) const { return args()[i]; }
     const Pi* pi() const;
     const Pi* to_pi() const;
     const Pi* arg_pi() const;
@@ -90,15 +90,15 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
 
     // terminate
 
-    void jump(const Def* to, ArrayRef<const Def*> args);
-    void branch(const Def* cond, const Def* tto, const Def* fto);
-    Lambda* call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type);
-    Lambda* mem_call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type);
+    void jump(const DefNode* to, ArrayRef<const DefNode*> args);
+    void branch(const DefNode* cond, const DefNode* tto, const DefNode* fto);
+    Lambda* call(const DefNode* to, ArrayRef<const DefNode*> args, const Type* ret_type);
+    Lambda* mem_call(const DefNode* to, ArrayRef<const DefNode*> args, const Type* ret_type);
 
     // cps construction
 
-    const Def* set_value(size_t handle, const Def* def);
-    const Def* get_value(size_t handle, const Type* type, const char* name = "");
+    const DefNode* set_value(size_t handle, const DefNode* def);
+    const DefNode* get_value(size_t handle, const Type* type, const char* name = "");
     
     Lambda* parent() const { return parent_; }            ///< See \ref parent_ for more information.
     void set_parent(Lambda* parent) { parent_ = parent; } ///< See \ref parent_ for more information.
@@ -130,9 +130,9 @@ private:
         const char* name_;
     };
 
-    const Def* fix(const Todo& todo);
-    const Def* get_value(const Todo& todo) { return get_value(todo.handle(), todo.type(), todo.name()); }
-    const Def* try_remove_trivial_param(const Param*);
+    const DefNode* fix(const Todo& todo);
+    const DefNode* get_value(const Todo& todo) { return get_value(todo.handle(), todo.type(), todo.name()); }
+    const DefNode* try_remove_trivial_param(const Param*);
     const Tracker* find_tracker(size_t handle);
 
     size_t sid_;           ///< \p Scope index, i.e., reverse post-order number.
@@ -161,7 +161,7 @@ private:
 
     mutable Lambdas succs_;
     mutable std::vector<Use> former_uses_;
-    mutable std::vector<const Def*> former_ops_;
+    mutable std::vector<const DefNode*> former_ops_;
     mutable std::vector<const GenericRef*> generic_refs_;
 
     friend class World;

@@ -11,18 +11,18 @@ class PrimLit;
 
 //------------------------------------------------------------------------------
 
-class PrimOp : public Def {
+class PrimOp : public DefNode {
 protected:
     PrimOp(size_t size, int kind, const Type* type, const std::string& name)
-        : Def(-1, kind, size, type, true, name)
+        : DefNode(-1, kind, size, type, true, name)
     {}
 
 public:
-    void update(size_t i, const Def* with);
+    void update(size_t i, const DefNode* with);
     virtual const char* op_name() const;
-    virtual size_t hash() const { return hash_combine(Def::hash(), type()); }
+    virtual size_t hash() const { return hash_combine(DefNode::hash(), type()); }
     virtual bool equal(const Node* other) const { 
-        return Def::equal(other) ? type() == other->as<PrimOp>()->type() : false; 
+        return DefNode::equal(other) ? type() == other->as<PrimOp>()->type() : false; 
     }
 
 private:
@@ -40,21 +40,21 @@ struct PrimOpEqual { bool operator () (const PrimOp* o1, const PrimOp* o2) const
 
 class VectorOp : public PrimOp {
 protected:
-    VectorOp(size_t size, NodeKind kind, const Type* type, const Def* cond, const std::string& name);
+    VectorOp(size_t size, NodeKind kind, const Type* type, const DefNode* cond, const std::string& name);
 
 public:
-    const Def* cond() const { return op(0); }
+    const DefNode* cond() const { return op(0); }
 };
 
 //------------------------------------------------------------------------------
 
 class Select : public VectorOp {
 private:
-    Select(const Def* cond, const Def* tval, const Def* fval, const std::string& name);
+    Select(const DefNode* cond, const DefNode* tval, const DefNode* fval, const std::string& name);
 
 public:
-    const Def* tval() const { return op(1); }
-    const Def* fval() const { return op(2); }
+    const DefNode* tval() const { return op(1); }
+    const DefNode* fval() const { return op(2); }
 
     friend class World;
 };
@@ -64,18 +64,18 @@ public:
 
 class BinOp : public VectorOp {
 protected:
-    BinOp(NodeKind kind, const Type* type, const Def* cond, const Def* lhs, const Def* rhs, const std::string& name);
+    BinOp(NodeKind kind, const Type* type, const DefNode* cond, const DefNode* lhs, const DefNode* rhs, const std::string& name);
 
 public:
-    const Def* lhs() const { return op(1); }
-    const Def* rhs() const { return op(2); }
+    const DefNode* lhs() const { return op(1); }
+    const DefNode* rhs() const { return op(2); }
 };
 
 //------------------------------------------------------------------------------
 
 class ArithOp : public BinOp {
 private:
-    ArithOp(ArithOpKind kind, const Def* cond, const Def* lhs, const Def* rhs, const std::string& name)
+    ArithOp(ArithOpKind kind, const DefNode* cond, const DefNode* lhs, const DefNode* rhs, const std::string& name)
         : BinOp((NodeKind) kind, lhs->type(), cond, lhs, rhs, name)
     {}
 
@@ -90,7 +90,7 @@ public:
 
 class RelOp : public BinOp {
 private:
-    RelOp(RelOpKind kind, const Def* cond, const Def* lhs, const Def* rhs, const std::string& name);
+    RelOp(RelOpKind kind, const DefNode* cond, const DefNode* lhs, const DefNode* rhs, const std::string& name);
 
 public:
     RelOpKind relop_kind() const { return (RelOpKind) node_kind(); }
@@ -103,14 +103,14 @@ public:
 
 class ConvOp : public VectorOp {
 private:
-    ConvOp(ConvOpKind kind, const Def* cond, const Def* from, const Type* to, const std::string& name)
+    ConvOp(ConvOpKind kind, const DefNode* cond, const DefNode* from, const Type* to, const std::string& name)
         : VectorOp(2, (NodeKind) kind, to, cond, name)
     {
         set_op(1, from);
     }
 
 public:
-    const Def* from() const { return op(1); }
+    const DefNode* from() const { return op(1); }
     ConvOpKind convop_kind() const { return (ConvOpKind) node_kind(); }
     virtual const char* op_name() const;
 
@@ -121,7 +121,7 @@ public:
 
 class TupleOp : public PrimOp {
 protected:
-    TupleOp(size_t size, int kind, const Type* type, const Def* tuple, const Def* index, const std::string& name)
+    TupleOp(size_t size, int kind, const Type* type, const DefNode* tuple, const DefNode* index, const std::string& name)
         : PrimOp(size, kind, type, name)
     {
         set_op(0, tuple);
@@ -129,8 +129,8 @@ protected:
     }
 
 public:
-    const Def* tuple() const { return op(0); }
-    const Def* index() const { return op(1); }
+    const DefNode* tuple() const { return op(0); }
+    const DefNode* index() const { return op(1); }
 
     friend class World;
 };
@@ -139,7 +139,7 @@ public:
 
 class TupleExtract : public TupleOp {
 private:
-    TupleExtract(const Def* tuple, const Def* index, const std::string& name);
+    TupleExtract(const DefNode* tuple, const DefNode* index, const std::string& name);
     
     friend class World;
 };
@@ -148,10 +148,10 @@ private:
 
 class TupleInsert : public TupleOp {
 private:
-    TupleInsert(const Def* tuple, const Def* index, const Def* value, const std::string& name);
+    TupleInsert(const DefNode* tuple, const DefNode* index, const DefNode* value, const std::string& name);
 
 public:
-    const Def* value() const { return op(2); }
+    const DefNode* value() const { return op(2); }
 
     friend class World;
 };
@@ -160,7 +160,7 @@ public:
 
 class Tuple : public PrimOp {
 private:
-    Tuple(World& world, ArrayRef<const Def*> args, const std::string& name);
+    Tuple(World& world, ArrayRef<const DefNode*> args, const std::string& name);
 
     friend class World;
 };
@@ -169,7 +169,7 @@ private:
 
 class Vector : public PrimOp {
 private:
-    Vector(World& world, ArrayRef<const Def*> args, const std::string& name);
+    Vector(World& world, ArrayRef<const DefNode*> args, const std::string& name);
 
     friend class World;
 };

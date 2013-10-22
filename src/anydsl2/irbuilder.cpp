@@ -15,34 +15,34 @@ World& TupleRef::world() const { return loaded_ ? loaded_->world() : lref_->worl
 World& ArrayDeclRef::world() const { return lref_->world(); }
 World& SlotRef::world() const { return slot_->world(); }
 
-const Def* VarRef::load() const { return bb_->get_value(handle_, type_, name_); }
-void VarRef::store(const Def* def) const { bb_->set_value(handle_, def); }
+const DefNode* VarRef::load() const { return bb_->get_value(handle_, type_, name_); }
+void VarRef::store(const DefNode* def) const { bb_->set_value(handle_, def); }
 
-const Def* ArrayDeclRef::load() const {
+const DefNode* ArrayDeclRef::load() const {
     const Load* load = world().load(builder_.get_mem(), world().lea(lref_->load(), index_));
     builder_.set_mem(load->extract_mem());
     return load->extract_val();
 }
 
-void ArrayDeclRef::store(const Def* val) const {
+void ArrayDeclRef::store(const DefNode* val) const {
     builder_.set_mem(world().store(builder_.get_mem(), world().lea(lref_->load(), index_), val));
 }
 
-const Def* TupleRef::load() const { 
+const DefNode* TupleRef::load() const { 
     return loaded_ ? loaded_ : loaded_ = world().tuple_extract(lref_->load(), index_);
 }
 
-void TupleRef::store(const Def* val) const { 
+void TupleRef::store(const DefNode* val) const { 
     lref_->store(world().tuple_insert(lref_->load(), index_, val)); 
 }
 
-const Def* SlotRef::load() const { 
+const DefNode* SlotRef::load() const { 
     const Load* load = world().load(builder_.get_mem(), slot_); 
     builder_.set_mem(load->extract_mem());
     return load->extract_val(); 
 }
 
-void SlotRef::store(const Def* val) const { 
+void SlotRef::store(const DefNode* val) const { 
     builder_.set_mem(world().store(builder_.get_mem(), slot_, val)); 
 }
 
@@ -99,7 +99,7 @@ void IRBuilder::jump(JumpTarget& jt) {
     }
 }
 
-void IRBuilder::branch(const Def* cond, JumpTarget& t, JumpTarget& f) {
+void IRBuilder::branch(const DefNode* cond, JumpTarget& t, JumpTarget& f) {
     if (is_reachable()) {
         if (auto lit = cond->isa<PrimLit>())
             jump(lit->value().get_u1().get() ? t : f);
@@ -112,31 +112,31 @@ void IRBuilder::branch(const Def* cond, JumpTarget& t, JumpTarget& f) {
     }
 }
 
-const Param* IRBuilder::cascading_call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
+const Param* IRBuilder::cascading_call(const DefNode* to, ArrayRef<const DefNode*> args, const Type* ret_type) {
     return is_reachable() ? (cur_bb = cur_bb->call(to, args, ret_type))->param(0) : nullptr;
 }
 
-void IRBuilder::mem_call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
+void IRBuilder::mem_call(const DefNode* to, ArrayRef<const DefNode*> args, const Type* ret_type) {
     if (is_reachable())
         (cur_bb = cur_bb->mem_call(to, args, ret_type));
 }
 
-void IRBuilder::tail_call(const Def* to, ArrayRef<const Def*> args) {
+void IRBuilder::tail_call(const DefNode* to, ArrayRef<const DefNode*> args) {
     if (is_reachable()) {
         cur_bb->jump(to, args);
         set_unreachable();
     }
 }
 
-void IRBuilder::param_call(const Param* ret_param, ArrayRef<const Def*> args) {
+void IRBuilder::param_call(const Param* ret_param, ArrayRef<const DefNode*> args) {
     if (is_reachable()) {
         cur_bb->jump(ret_param, args);
         set_unreachable();
     }
 }
 
-const Def* IRBuilder::get_mem() { return cur_bb->get_value(1, world().mem(), "mem"); }
-void IRBuilder::set_mem(const Def* def) { if (is_reachable()) cur_bb->set_value(1, def); }
+const DefNode* IRBuilder::get_mem() { return cur_bb->get_value(1, world().mem(), "mem"); }
+void IRBuilder::set_mem(const DefNode* def) { if (is_reachable()) cur_bb->set_value(1, def); }
 
 //------------------------------------------------------------------------------
 

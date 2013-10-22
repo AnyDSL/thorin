@@ -12,7 +12,7 @@ namespace llvm {
 
 namespace anydsl2 {
 
-class Def;
+class DefNode;
 class Type;
 
 class World;
@@ -22,7 +22,7 @@ public:
     virtual ~EmitHook() {}
 
     virtual void assign(llvm::IRBuilderBase* builder, llvm::Module* module) {}
-    virtual llvm::Value* emit(const Def*) { ANYDSL2_UNREACHABLE; }
+    virtual llvm::Value* emit(const DefNode*) { ANYDSL2_UNREACHABLE; }
     virtual llvm::Type* map(const Type*) { ANYDSL2_UNREACHABLE; }
 };
 

@@ -14,7 +14,7 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
-void Tracker::set(const Def* def) {
+void Tracker::set(const DefNode* def) {
     release();
     def_ = def;
     assert(std::find(def->trackers_.begin(), def->trackers_.end(), this) == def->trackers_.end() && "already in trackers set");
@@ -33,7 +33,7 @@ void Tracker::release() {
 
 //------------------------------------------------------------------------------
 
-void Def::set_op(size_t i, const Def* def) {
+void DefNode::set_op(size_t i, const DefNode* def) {
     assert(!op(i) && "already set");
     set(i, def);
     if (isa<PrimOp>()) is_const_ &= def->is_const();
@@ -41,41 +41,41 @@ void Def::set_op(size_t i, const Def* def) {
     assert(p.second && "already in use set");
 }
 
-void Def::unset_op(size_t i) {
+void DefNode::unset_op(size_t i) {
     assert(op(i) && "must be set");
     unregister_use(i);
     set(i, nullptr);
 }
 
-void Def::unset_ops() {
+void DefNode::unset_ops() {
     for (size_t i = 0, e = size(); i != e; ++i)
         unset_op(i);
 }
 
-std::string Def::unique_name() const {
+std::string DefNode::unique_name() const {
     std::ostringstream oss;
     oss << name << '_' << gid();
     return oss.str();
 }
 
-Array<Use> Def::copy_uses() const {
+Array<Use> DefNode::copy_uses() const {
     Array<Use> result(uses().size());
     std::copy(uses().begin(), uses().end(), result.begin());
     return result;
 }
 
-void Def::tracked_uses(AutoVector<const Tracker*>& result) const {
+void DefNode::tracked_uses(AutoVector<const Tracker*>& result) const {
     result.reserve(uses().size());
     for (auto use : uses())
         result.push_back(new Tracker(use));
 }
 
-std::vector<MultiUse> Def::multi_uses() const {
+std::vector<MultiUse> DefNode::multi_uses() const {
     std::vector<MultiUse> result;
     auto uses = copy_uses();
     std::sort(uses.begin(), uses.end());
 
-    const Def* cur = nullptr;
+    const DefNode* cur = nullptr;
     for (auto use : uses) {
         if (cur != use.def()) {
             result.push_back(use);
@@ -87,7 +87,7 @@ std::vector<MultiUse> Def::multi_uses() const {
     return result;
 }
 
-bool Def::is_primlit(int val) const {
+bool DefNode::is_primlit(int val) const {
     if (auto lit = this->isa<PrimLit>()) {
         Box box = lit->value(); // TODO
         switch (lit->primtype_kind()) {
@@ -108,7 +108,7 @@ bool Def::is_primlit(int val) const {
     return false;
 }
 
-bool Def::is_minus_zero() const {
+bool DefNode::is_minus_zero() const {
     if (auto lit = this->isa<PrimLit>()) {
         Box box = lit->value();
         switch (lit->primtype_kind()) {
@@ -121,7 +121,7 @@ bool Def::is_minus_zero() const {
     return false;
 }
 
-void Def::replace(const Def* with) const {
+void DefNode::replace(const DefNode* with) const {
     // copy trackers to avoid internal modification
     const Trackers trackers = trackers_;
     for (auto tracker : trackers)
@@ -142,11 +142,11 @@ void Def::replace(const Def* with) const {
 
     for (auto use : uses) {
         if (auto oprimop = (PrimOp*) use->isa<PrimOp>()) {
-            Array<const Def*> ops(oprimop->ops());
+            Array<const DefNode*> ops(oprimop->ops());
             for (auto index : use.indices())
                 ops[index] = with;
             size_t old_gid = world().gid();
-            const Def* ndef = world().rebuild(oprimop, ops);
+            const DefNode* ndef = world().rebuild(oprimop, ops);
 
             if (oprimop->kind() == ndef->kind()) {
                 assert(oprimop->size() == ndef->size());
@@ -177,7 +177,7 @@ recurse:
     }
 }
 
-int Def::non_const_depth() const {
+int DefNode::non_const_depth() const {
     if (this->is_const() || this->isa<Param>()) 
         return 0;
 
@@ -191,7 +191,7 @@ int Def::non_const_depth() const {
     return max + 1;
 }
 
-void Def::dump() const { 
+void DefNode::dump() const { 
     auto primop = this->isa<PrimOp>();
     if (primop && !primop->is_const())
         emit_assignment(primop);
@@ -201,19 +201,19 @@ void Def::dump() const {
     }
 }
 
-World& Def::world() const { return type()->world(); }
-const Def* Def::op_via_lit(const Def* def) const { return op(def->primlit_value<size_t>()); }
-Lambda* Def::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(this)); }
-Lambda* Def::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(this)); }
-const PrimOp* Def::is_non_const_primop() const { return is_const() ? nullptr : isa<PrimOp>(); }
-int Def::order() const { return type()->order(); }
-bool Def::is_generic() const { return type()->is_generic(); }
-size_t Def::length() const { return type()->as<VectorType>()->length(); }
+World& DefNode::world() const { return type()->world(); }
+const DefNode* DefNode::op_via_lit(const DefNode* def) const { return op(def->primlit_value<size_t>()); }
+Lambda* DefNode::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(this)); }
+Lambda* DefNode::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(this)); }
+const PrimOp* DefNode::is_non_const_primop() const { return is_const() ? nullptr : isa<PrimOp>(); }
+int DefNode::order() const { return type()->order(); }
+bool DefNode::is_generic() const { return type()->is_generic(); }
+size_t DefNode::length() const { return type()->as<VectorType>()->length(); }
 
 //------------------------------------------------------------------------------
 
 Param::Param(size_t gid, const Type* type, Lambda* lambda, size_t index, const std::string& name)
-    : Def(gid, Node_Param, 0, type, false, name)
+    : DefNode(gid, Node_Param, 0, type, false, name)
     , lambda_(lambda)
     , index_(index)
 {}

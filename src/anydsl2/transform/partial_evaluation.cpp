@@ -47,13 +47,13 @@ next_param:;
         fill(looptree_.root());
     }
 
-    bool get_evaluable(const Def* def) { 
+    bool get_evaluable(const DefNode* def) { 
         if (!def->visit(pass_))
             return def->flags[0] = todo_ = true;
         return def->flags[0];
     }
 
-    void set_not_evaluable(const Def* def) { 
+    void set_not_evaluable(const DefNode* def) { 
         if (!def->visit(pass_)) {
             todo_ = true;
             def->flags[0] = false;

@@ -22,12 +22,12 @@ public:
     void infer_condition(Lambda* lambda);
     void param2select(const Param* param);
     const Type* vectorize_type(const Type* type, size_t length);
-    void vectorize_primop(const Def* cond, const PrimOp* primop);
-    const Def* vectorize(const Def* def, size_t length);
+    void vectorize_primop(const DefNode* cond, const PrimOp* primop);
+    const DefNode* vectorize(const DefNode* def, size_t length);
 
     World& world() { return scope.world(); }
-    static const Def*& map_cond(Lambda* lambda) { return (const Def*&) lambda->ptr; }
-    static const Def*& map(const Def* def) { return (const Def*&) def->ptr; }
+    static const DefNode*& map_cond(Lambda* lambda) { return (const DefNode*&) lambda->ptr; }
+    static const DefNode*& map(const DefNode* def) { return (const DefNode*&) def->ptr; }
 
     const Scope& scope;
     size_t pass;
@@ -84,7 +84,7 @@ Lambda* Vectorizer::vectorize() {
     }
 
     Lambda* exit = scope.exits()[0];
-    Array<const Def*> vops(exit->size());
+    Array<const DefNode*> vops(exit->size());
     for (size_t i = 0, e = exit->size(); i != e; ++i)
         vops[i] = vectorize(exit->op(i), length);
     vlambda->jump(vops.front(), vops.slice_back(1));
@@ -93,7 +93,7 @@ Lambda* Vectorizer::vectorize() {
 }
 
 void Vectorizer::infer_condition(Lambda* lambda) {
-    const Def*& cond = map_cond(lambda);
+    const DefNode*& cond = map_cond(lambda);
 
     Lambda* dom = scope.domtree().idom(lambda);
     if (scope.postdomtree().idom(dom) == lambda)
@@ -102,11 +102,11 @@ void Vectorizer::infer_condition(Lambda* lambda) {
         cond = world().literal(false, length);
 
         for (auto pred : scope.preds(lambda)) {
-            const Def* pred_cond = map_cond(pred);
+            const DefNode* pred_cond = map_cond(pred);
 
             if (const Select* select = pred->to()->isa<Select>()) { // conditional branch
                 assert(scope.num_succs(pred) == 2);
-                const Def* select_cond = vectorize(select->cond(), length);
+                const DefNode* select_cond = vectorize(select->cond(), length);
                 if (select->tval() == lambda)
                     pred_cond = world().arithop_and(pred_cond, select_cond);
                 else {
@@ -121,7 +121,7 @@ void Vectorizer::infer_condition(Lambda* lambda) {
 }
 
 void Vectorizer::param2select(const Param* param) {
-    const Def* select = nullptr;
+    const DefNode* select = nullptr;
     Array<Lambda*> preds = scope.preds(param->lambda());
     // begin with pred with the most expensive condition (non_const_depth) - this keeps select chains simpler
     std::sort(preds.begin(), preds.end(), [&](const Lambda* l1, const Lambda* l2) {
@@ -129,7 +129,7 @@ void Vectorizer::param2select(const Param* param) {
     });
 
     for (auto pred : preds) {
-        const Def* peek = vectorize(pred->arg(param->index()), length);
+        const DefNode* peek = vectorize(pred->arg(param->index()), length);
         select = select ? world().select(map_cond(pred), peek, select) : peek;
     }
 
@@ -137,9 +137,9 @@ void Vectorizer::param2select(const Param* param) {
     select->name = param->name;
 }
 
-void Vectorizer::vectorize_primop(const Def* cond, const PrimOp* primop) {
+void Vectorizer::vectorize_primop(const DefNode* cond, const PrimOp* primop) {
     size_t size = primop->size();
-    Array<const Def*> vops(size);
+    Array<const DefNode*> vops(size);
     size_t i = 0;
     bool is_vector_op = primop->isa<VectorOp>() != nullptr;
 
@@ -152,7 +152,7 @@ void Vectorizer::vectorize_primop(const Def* cond, const PrimOp* primop) {
     map(primop) = world().rebuild(primop, vops, vectorize_type(primop->type(), is_vector_op ? length : 1));
 }
 
-const Def* Vectorizer::vectorize(const Def* def, size_t length) {
+const DefNode* Vectorizer::vectorize(const DefNode* def, size_t length) {
     if (def->isa<Param>() || def->is_non_const_primop())
         return map(def);
     if (auto primlit = def->isa<PrimLit>())
@@ -163,7 +163,7 @@ const Def* Vectorizer::vectorize(const Def* def, size_t length) {
         return world().any(def->type(), length);
 
     const PrimOp* primop = def->as<PrimOp>();
-    Array<const Def*> vops(primop->size());
+    Array<const DefNode*> vops(primop->size());
     for (size_t i = 0, e = primop->size(); i != e; ++i)
         vops[i] = vectorize(primop->op(i), length);
 

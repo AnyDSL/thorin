@@ -15,7 +15,7 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
-class Def;
+class DefNode;
 class Lambda;
 class PrimOp;
 class Sigma;
@@ -28,16 +28,16 @@ class World;
 class Peek {
 public:
     Peek() {}
-    Peek(const Def* def, Lambda* from)
+    Peek(const DefNode* def, Lambda* from)
         : def_(def)
         , from_(from)
     {}
 
-    const Def* def() const { return def_; }
+    const DefNode* def() const { return def_; }
     Lambda* from() const { return from_; }
 
 private:
-    const Def* def_;
+    const DefNode* def_;
     Lambda* from_;
 };
 
@@ -45,30 +45,30 @@ typedef Array<Peek> Peeks;
 
 //------------------------------------------------------------------------------
 
-/// References a \p Def but updates its reference after a \p Def::replace with the replaced \p Def.
+/// References a \p Def but updates its reference after a \p DefNode::replace with the replaced \p Def.
 class Tracker {
 public:
     Tracker()
         : def_(nullptr)
     {}
-    Tracker(const Def* def) 
+    Tracker(const DefNode* def) 
         : def_(nullptr)
     { 
         set(def); 
     }
     ~Tracker() { release(); }
 
-    const Def* operator = (const Def* def) { set(def); return def_; }
-    void set(const Def*);
+    const DefNode* operator = (const DefNode* def) { set(def); return def_; }
+    void set(const DefNode*);
     void release();
-    const Def* def() const { return def_; }
-    operator const Def*() const { return def_; }
-    const Def* operator -> () const { return def_; }
+    const DefNode* def() const { return def_; }
+    operator const DefNode*() const { return def_; }
+    const DefNode* operator -> () const { return def_; }
 
 private:
     Tracker(const Tracker&); /// Do not copy-construct a \p Tracker.
 
-    const Def* def_;
+    const DefNode* def_;
 
     friend class World;
 };
@@ -82,22 +82,22 @@ private:
 class Use {
 public:
     Use() {}
-    Use(size_t index, const Def* def)
+    Use(size_t index, const DefNode* def)
         : index_(index)
         , def_(def)
     {}
 
     size_t index() const { return index_; }
-    const Def* def() const { return def_; }
+    const DefNode* def() const { return def_; }
     bool operator == (Use use) const { return def() == use.def() && index() == use.index(); }
     bool operator != (Use use) const { return def() != use.def() || index() != use.index(); }
     bool operator < (Use) const;
-    operator const Def*() const { return def_; }
-    const Def* operator -> () const { return def_; }
+    operator const DefNode*() const { return def_; }
+    const DefNode* operator -> () const { return def_; }
 
 private:
     size_t index_;
-    const Def* def_;
+    const DefNode* def_;
 };
 
 //------------------------------------------------------------------------------
@@ -120,14 +120,14 @@ public:
     size_t index(size_t i) const { return indices_[i]; }
     size_t num_indices() const { return indices_.size(); }
     const std::vector<size_t>& indices() const { return indices_; }
-    const Def* def() const { return def_; }
+    const DefNode* def() const { return def_; }
     void append_user(size_t index) { indices_.push_back(index); }
-    operator const Def*() const { return def_; }
-    const Def* operator -> () const { return def_; }
+    operator const DefNode*() const { return def_; }
+    const DefNode* operator -> () const { return def_; }
 
 private:
     std::vector<size_t> indices_;
-    const Def* def_;
+    const DefNode* def_;
 };
 
 //------------------------------------------------------------------------------
@@ -148,9 +148,9 @@ typedef std::vector<Tracker*> Trackers;
  * - \p Param%s and
  * - \p Lambda%s.
  */
-class Def : public Node<Def> {
+class DefNode : public Node<DefNode> {
 protected:
-    Def(size_t gid, int kind, size_t size, const Type* type, bool is_const, const std::string& name)
+    DefNode(size_t gid, int kind, size_t size, const Type* type, bool is_const, const std::string& name)
         : Node(kind, size, name)
         , type_(type)
         , uses_(13) // 13 seems to perform best
@@ -162,8 +162,8 @@ protected:
     void unregister_use(size_t i) const { op(i)->uses_.erase(Use(i, this)); }
 
 public:
-    virtual ~Def() {}
-    void set_op(size_t i, const Def* def);
+    virtual ~DefNode() {}
+    void set_op(size_t i, const DefNode* def);
     void unset_op(size_t i);
     void unset_ops();
     Lambda* as_lambda() const;
@@ -195,11 +195,11 @@ public:
     int order() const;
     bool is_generic() const;
     World& world() const;
-    ArrayRef<const Def*> ops() const { return ops_ref<const Def*>(); }
-    ArrayRef<const Def*> ops(size_t begin, size_t end) const { return ops().slice(begin, end); }
-    const Def* op(size_t i) const { assert(i < ops().size()); return ops()[i]; }
-    const Def* op_via_lit(const Def* def) const;
-    void replace(const Def*) const;
+    ArrayRef<const DefNode*> ops() const { return ops_ref<const DefNode*>(); }
+    ArrayRef<const DefNode*> ops(size_t begin, size_t end) const { return ops().slice(begin, end); }
+    const DefNode* op(size_t i) const { assert(i < ops().size()); return ops()[i]; }
+    const DefNode* op_via_lit(const DefNode* def) const;
+    void replace(const DefNode*) const;
     /**
      * Returns the vector length.
      * Raises an assertion if type of this is not a \p VectorType.
@@ -225,7 +225,7 @@ public:
     template<class T> inline T primlit_value() const;
 
 private:
-    Def& operator = (const Def&); /// Do not copy-assign a \p Def instance.
+    DefNode& operator = (const DefNode&); /// Do not copy-assign a \p Def instance.
 
     const Type* type_;
     mutable Uses uses_;
@@ -240,12 +240,12 @@ protected:
     friend class World;
 };
 
-std::ostream& operator << (std::ostream& o, const Def* def);
+std::ostream& operator << (std::ostream& o, const DefNode* def);
 inline bool Use::operator < (Use use) const { return def()->gid() < use.def()->gid() && index() < use.index(); }
 
 //------------------------------------------------------------------------------
 
-class Param : public Def {
+class Param : public DefNode {
 private:
     Param(size_t gid, const Type* type, Lambda* lambda, size_t index, const std::string& name);
 

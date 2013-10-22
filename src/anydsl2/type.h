@@ -7,7 +7,7 @@
 
 namespace anydsl2 {
 
-class Def;
+class DefNode;
 class Generic;
 class Lambda;
 class Pi;
@@ -45,7 +45,7 @@ public:
     World& world() const { return world_; }
     ArrayRef<const Type*> elems() const { return ops_ref<const Type*>(); }
     const Type* elem(size_t i) const { return elems()[i]; }
-    const Type* elem_via_lit(const Def* def) const;
+    const Type* elem_via_lit(const DefNode* def) const;
     bool check_with(const Type* type) const;
     bool infer_with(GenericMap& map, const Type* type) const;
     const Type* specialize(const GenericMap&) const;
@@ -67,7 +67,7 @@ private:
 protected:
     bool is_generic_;
 
-    friend class Def;
+    friend class DefNode;
     friend struct TypeHash;
     friend struct TypeEqual;
 };

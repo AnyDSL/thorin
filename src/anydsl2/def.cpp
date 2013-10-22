@@ -1,6 +1,7 @@
 #include "anydsl2/def.h"
 
 #include <algorithm>
+#include <stack>
 #include <sstream>
 
 #include "anydsl2/lambda.h"
@@ -11,25 +12,6 @@
 #include "anydsl2/be/air.h"
 
 namespace anydsl2 {
-
-//------------------------------------------------------------------------------
-
-void Tracker::set(const DefNode* def) {
-    release();
-    def_ = def;
-    assert(std::find(def->trackers_.begin(), def->trackers_.end(), this) == def->trackers_.end() && "already in trackers set");
-    def->trackers_.push_back(this);
-}
-
-void Tracker::release() {
-    if (def_) {
-        auto i = std::find(def_->trackers_.begin(), def_->trackers_.end(), this);
-        assert(i != def_->trackers_.end() && "must be in trackers set");
-        *i = def_->trackers_.back();
-        def_->trackers_.pop_back();
-        def_ = nullptr;
-    }
-}
 
 //------------------------------------------------------------------------------
 
@@ -61,29 +43,6 @@ std::string DefNode::unique_name() const {
 Array<Use> DefNode::copy_uses() const {
     Array<Use> result(uses().size());
     std::copy(uses().begin(), uses().end(), result.begin());
-    return result;
-}
-
-void DefNode::tracked_uses(AutoVector<const Tracker*>& result) const {
-    result.reserve(uses().size());
-    for (auto use : uses())
-        result.push_back(new Tracker(use));
-}
-
-std::vector<MultiUse> DefNode::multi_uses() const {
-    std::vector<MultiUse> result;
-    auto uses = copy_uses();
-    std::sort(uses.begin(), uses.end());
-
-    const DefNode* cur = nullptr;
-    for (auto use : uses) {
-        if (cur != use.def()) {
-            result.push_back(use);
-            cur = use.def();
-        } else
-            result.back().append_user(use.index());
-    }
-
     return result;
 }
 
@@ -122,6 +81,71 @@ bool DefNode::is_minus_zero() const {
 }
 
 void DefNode::replace(const DefNode* with) const {
+#if 0
+    std::unordered_set<const DefNode*> visited;
+
+    std::stack<const DefNode*> stack;
+
+    const DefNode* cur = this;
+    do {
+        if (auto lambda = cur->isa_lambda()) {
+            assert(false && "todo");
+        } else if (auto param = cur->isa<Param>()) {
+            param
+        } else {
+            if (auto oprimop = cur->isa<PrimOp>()) {
+            Array<const DefNode*> ops(oprimop->ops());
+            for (auto index : use.indices())
+                ops[index] = with;
+            size_t old_gid = world().gid();
+            const DefNode* ndef = world().rebuild(oprimop, ops);
+
+            if (oprimop->kind() == ndef->kind()) {
+                assert(oprimop->size() == ndef->size());
+
+                size_t j = 0;
+                size_t index = use.index(j);
+                for (size_t i = 0, e = oprimop->size(); i != e; ++i) {
+                    if (i != index && oprimop->op(i) != ndef->op(i))
+                        goto recurse;
+                    if (i == index && j < use.num_indices())
+                        index = use.index(j++);
+                }
+
+                if (ndef->gid() == old_gid) { // only consider fresh (non-CSEd) primop
+                    // nothing exciting happened by rebuilding 
+                    // -> reuse the old chunk of memory and save recursive updates
+                    AutoPtr<PrimOp> nreleased = world().release(ndef->as<PrimOp>());
+                    nreleased->unset_ops();
+                    world().reinsert(oprimop);
+                    continue;
+                }
+            }
+recurse:
+            oprimop->replace(ndef);
+            oprimop->unset_ops();
+            delete oprimop;
+        }
+    } while (!stack.empty());
+
+
+
+        auto def = stack.top();
+        stack.pop();
+    }
+
+    std::queue<const DefNode*> queue;
+    for (auto use : this->uses())
+        queue.push(use);
+
+    while (!queue.empty()) {
+        auto def = queue.front();
+        queue.pop();
+
+    }
+    }
+
+#if 0
     // copy trackers to avoid internal modification
     const Trackers trackers = trackers_;
     for (auto tracker : trackers)
@@ -175,6 +199,8 @@ recurse:
             delete oprimop;
         }
     }
+#endif
+#endif
 }
 
 int DefNode::non_const_depth() const {

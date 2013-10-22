@@ -294,6 +294,7 @@ private:
 #ifndef NDEBUG
     std::unordered_set<size_t> breakpoints_;
 #endif
+    std::unordered_set<const PrimOp*> released_;
 
     size_t gid_;
     size_t pass_counter_;

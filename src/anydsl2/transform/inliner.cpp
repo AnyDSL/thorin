@@ -9,10 +9,8 @@ namespace anydsl2 {
 void inliner(World& world) {
     for (auto top : top_level_lambdas(world)) {
         if (!top->empty() && top->num_uses() <= 2) {
-            AutoVector<const Tracker*> trackers;
-            top->tracked_uses(trackers);
-            for (auto tracker : trackers) {
-                if (Lambda* ulambda = tracker->def()->isa_lambda()) {
+            for (auto use : top->uses()) {
+                if (Lambda* ulambda = use->isa_lambda()) {
                     if (ulambda->to() == top) {
                         Scope scope(top);
                         if (!scope.contains(ulambda))

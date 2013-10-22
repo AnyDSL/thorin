@@ -45,35 +45,27 @@ typedef Array<Peek> Peeks;
 
 //------------------------------------------------------------------------------
 
-/// References a \p Def but updates its reference after a \p DefNode::replace with the replaced \p Def.
-class Tracker {
+class Def {
 public:
-    Tracker()
-        : def_(nullptr)
+    Def() 
+        : node_(nullptr)
     {}
-    Tracker(const DefNode* def) 
-        : def_(nullptr)
-    { 
-        set(def); 
-    }
-    ~Tracker() { release(); }
+    Def(const DefNode* node)
+        : node_(node)
+    {}
 
-    const DefNode* operator = (const DefNode* def) { set(def); return def_; }
-    void set(const DefNode*);
-    void release();
-    const DefNode* def() const { return def_; }
-    operator const DefNode*() const { return def_; }
-    const DefNode* operator -> () const { return def_; }
+    bool empty() const { return node_ == nullptr; }
+    const DefNode* node() const { return node_; }
+    const DefNode* deref() const;
+    bool operator == (Def other) const { return this->deref() == other.deref(); }
+    bool operator != (Def other) const { return this->deref() != other.deref(); }
+    //operator bool() const { return !empty(); }
+    operator const DefNode*() const { return deref(); }
+    const DefNode* operator -> () const { return deref(); }
 
 private:
-    Tracker(const Tracker&); /// Do not copy-construct a \p Tracker.
-
-    const DefNode* def_;
-
-    friend class World;
+    const DefNode* node_;
 };
-
-//------------------------------------------------------------------------------
 
 /** 
  * References a user.
@@ -102,42 +94,10 @@ private:
 
 //------------------------------------------------------------------------------
 
-/** 
- * References a user which may use the \p Def in question multiple times.
- * For example, a \p Def u may use a \p Def d as i^th \em and is j'th operand.
- * Then a \p MultiUse of d references u with \p indices_ i and j.
- */
-class MultiUse {
-public:
-    MultiUse() {}
-    MultiUse(Use use)
-        : indices_(1)
-        , def_(use.def())
-    {
-        indices_[0] = use.index();
-    }
-
-    size_t index(size_t i) const { return indices_[i]; }
-    size_t num_indices() const { return indices_.size(); }
-    const std::vector<size_t>& indices() const { return indices_; }
-    const DefNode* def() const { return def_; }
-    void append_user(size_t index) { indices_.push_back(index); }
-    operator const DefNode*() const { return def_; }
-    const DefNode* operator -> () const { return def_; }
-
-private:
-    std::vector<size_t> indices_;
-    const DefNode* def_;
-};
-
-//------------------------------------------------------------------------------
-
-
 struct UseHash { size_t operator () (Use use) const { return hash_combine(hash_value(use.def()), use.index()); } };
 struct UseEqual { bool operator () (Use use1, Use use2) const { return use1 == use2; } };
 
 typedef std::unordered_set<Use, UseHash, UseEqual> Uses;
-typedef std::vector<Tracker*> Trackers;
 
 //------------------------------------------------------------------------------
 
@@ -154,6 +114,7 @@ protected:
         : Node(kind, size, name)
         , type_(type)
         , uses_(13) // 13 seems to perform best
+        , representitive_(this)
         , gid_(gid)
         , is_const_(is_const)
     {}
@@ -179,18 +140,10 @@ public:
     const PrimOp* is_non_const_primop() const;
 
     const Uses& uses() const { return uses_; }
-    const Trackers& trackers() const { return trackers_; }
+    Array<Use> copy_uses() const;
     size_t num_uses() const { return uses_.size(); }
     size_t gid() const { return gid_; }
     std::string unique_name() const;
-
-    /**
-     * Copies all use-info into an array.
-     * Useful if you want to modfy users while iterating over all users.
-     */
-    Array<Use> copy_uses() const;
-    void tracked_uses(AutoVector<const Tracker*>& result) const;
-    std::vector<MultiUse> multi_uses() const;
     const Type* type() const { return type_; }
     int order() const;
     bool is_generic() const;
@@ -229,13 +182,12 @@ private:
 
     const Type* type_;
     mutable Uses uses_;
-    mutable Trackers trackers_;
+    mutable const DefNode* representitive_;
     const size_t gid_;
 
 protected:
     bool is_const_;
 
-    friend class Tracker;
     friend class PrimOp;
     friend class World;
 };

@@ -22,8 +22,8 @@ void mem2reg(World& world) {
         lambda->seal();
     }
 
-    AutoVector<Tracker*> enters;
-    AutoVector<Tracker*> leaves;
+    std::vector<Def> enters;
+    std::vector<Def> leaves;
 
     for (auto root : top) {
         Scope scope(root);
@@ -31,7 +31,7 @@ void mem2reg(World& world) {
         Schedule schedule = schedule_late(scope);
         const size_t pass = world.new_pass();
         size_t cur_handle = 0;
-        std::unordered_map<const Load*, const Tracker*> load2tracker;
+        std::unordered_map<const Load*, Def> load2def;
 
         for (size_t i = 0, e = scope.size(); i != e; ++i) {
             Lambda* lambda = scope[i];
@@ -64,14 +64,14 @@ void mem2reg(World& world) {
                     if (auto slot = load->ptr()->isa<Slot>()) {
                         if (slot->counter != size_t(-1)) {  // if not "address taken"
                             const Type* type = slot->type()->as<Ptr>()->referenced_type();
-                            load2tracker[load] = new Tracker(lambda->get_value(slot->counter, type, slot->name.c_str()));
+                            load2def[load] = lambda->get_value(slot->counter, type, slot->name.c_str());
                             accesses.push_back(load);
                         }
                     }
                 } else if (auto enter = primop->isa<Enter>()) {
-                    enters.push_back(new Tracker(enter));   // keep track of Enters - they might get superfluous 
+                    enters.push_back(enter);                // keep track of Enters - they might get superfluous 
                 } else if (auto leave = primop->isa<Leave>()) {
-                    leaves.push_back(new Tracker(leave));   // keep track of Leaves - they might get superfluous 
+                    leaves.push_back(leave);                // keep track of Leaves - they might get superfluous 
                 }
             }
 
@@ -89,7 +89,7 @@ void mem2reg(World& world) {
         // now replace everything from bottom up
         for (size_t i = accesses.size(); i-- != 0;) {
             if (auto load = accesses[i]->isa<Load>()) {
-                load->extract_val()->replace(load2tracker[load]->def());
+                load->extract_val()->replace(load2def[load]);
                 load->extract_mem()->replace(load->mem());
             } else {
                 const Store* store = accesses[i]->as<Store>();
@@ -97,7 +97,7 @@ void mem2reg(World& world) {
             }
         }
 
-        for (auto p : load2tracker)
+        for (auto p : load2def)
             delete p.second;
 
 next_primop:;
@@ -111,7 +111,7 @@ next_primop:;
 
     // are there any superfluous Leave/Enter pairs?
     for (size_t i = leaves.size(); i-- != 0;) {
-        const Leave* leave = leaves[i]->def()->as<Leave>();
+        const Leave* leave = leaves[i]->as<Leave>();
         const Enter* enter = leave->frame()->as<TupleExtract>()->tuple()->as<Enter>();
 
         for (auto use : enter->uses()) {
@@ -127,7 +127,7 @@ next_leave:;
 
     // are there superfluous poor, lonely Enters? no mercy - eliminate them
     for (size_t i = enters.size(); i-- != 0;) {
-        if (auto def = enters[i]->def()) {
+        if (auto def = enters[i]) {
             if (auto enter = def->isa<Enter>()) {
                 if (enter->extract_frame()->num_uses() == 0)
                     enter->extract_mem()->replace(enter->mem());

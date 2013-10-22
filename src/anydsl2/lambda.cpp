@@ -232,28 +232,19 @@ Lambda* Lambda::mem_call(const DefNode* to, ArrayRef<const DefNode*> args, const
  * CPS construction
  */
 
-void Lambda::clear() { 
-    for (auto tracker : tracked_values_)
-        delete tracker;
-    tracked_values_.clear(); 
+Def Lambda::find_def(size_t handle) {
+    increase_values(handle);
+    return values_[handle];
 }
 
-const Tracker* Lambda::find_tracker(size_t handle) {
-    if (handle >= tracked_values_.size())
-        tracked_values_.resize(handle+1);
-    return tracked_values_[handle];
+Def Lambda::set_value(size_t handle, Def def) { 
+    increase_values(handle);
+    return values_[handle] = def;
 }
 
-const DefNode* Lambda::set_value(size_t handle, const DefNode* def) { 
-    if (const Tracker* tracker = find_tracker(handle))
-        delete tracker;
-
-    return (tracked_values_[handle] = new Tracker(def))->def(); 
-}
-
-const DefNode* Lambda::get_value(size_t handle, const Type* type, const char* name) {
-    if (const Tracker* tracker = find_tracker(handle))
-        return tracker->def();
+Def Lambda::get_value(size_t handle, const Type* type, const char* name) {
+    if (auto def = find_def(handle))
+        return def;
 
     if (parent() != this) { // is a function head?
         if (parent())
@@ -275,24 +266,24 @@ const DefNode* Lambda::get_value(size_t handle, const Type* type, const char* na
                     return set_value(handle, append_param(type, name)); // create param to break cycle
 
                 is_visited_ = true;
-                const DefNode* same = nullptr;
+                Def same;
                 for (auto pred : preds) {
-                    const DefNode* def = pred->get_value(handle, type, name);
+                    Def def = pred->get_value(handle, type, name);
                     if (same && same != def) {
                         same = (const DefNode*)-1; // defs from preds are different
                         break;
                     }
                     same = def;
                 }
-                assert(same != nullptr);
+                assert(!same.empty());
                 is_visited_ = false;
 
                 // fix any params which may have been introduced to break the cycle above
-                const DefNode* def = nullptr;
-                if (const Tracker* tracker = find_tracker(handle))
-                    def = fix(Todo(handle, tracker->def()->as<Param>()->index(), type, name));
+                Def def = nullptr;
+                if (auto found = find_def(handle))
+                    def = fix(Todo(handle, found->as<Param>()->index(), type, name));
 
-                if (same != (const DefNode*)-1)
+                if (same.node() != (const DefNode*)-1)
                     return same;
 
                 def = def ? def : fix(Todo(handle, append_param(type, name)->index(), type, name));
@@ -316,7 +307,7 @@ void Lambda::seal() {
     todos_.clear();
 }
 
-const DefNode* Lambda::fix(const Todo& todo) {
+Def Lambda::fix(const Todo& todo) {
     size_t index = todo.index();
     const Param* param = this->param(index);
 
@@ -338,7 +329,7 @@ const DefNode* Lambda::fix(const Todo& todo) {
     return try_remove_trivial_param(param);
 }
 
-const DefNode* Lambda::try_remove_trivial_param(const Param* param) {
+Def Lambda::try_remove_trivial_param(const Param* param) {
     assert(param->lambda() == this);
     assert(is_sealed() && "must be sealed");
 
@@ -346,30 +337,27 @@ const DefNode* Lambda::try_remove_trivial_param(const Param* param) {
     size_t index = param->index();
 
     // find Horspool-like phis
-    const DefNode* same = nullptr;
+    Def same = nullptr;
     for (auto pred : preds) {
-        const DefNode* def = pred->arg(index);
-        if (def == param || same == def)
+        Def def = pred->arg(index);
+        if (def.deref() == param || same == def)
             continue;
         if (same)
             return param;
         same = def;
     }
-    assert(same != nullptr);
-
-    AutoVector<const Tracker*> uses;
-    param->tracked_uses(uses);
+    assert(!same.empty());
     param->replace(same);
 
     for (auto peek : param->peek())
         peek.from()->update_arg(index, world().bottom(param->type()));
 
-    for (auto tracker : uses) {
-        if (Lambda* lambda = tracker->def()->isa_lambda()) {
+    for (auto use : same->uses()) {
+        if (Lambda* lambda = use->isa_lambda()) {
             for (auto succ : lambda->succs()) {
                 size_t index = -1;
                 for (size_t i = 0, e = succ->num_args(); i != e; ++i) {
-                    if (succ->arg(i) == tracker->def()) {
+                    if (succ->arg(i) == use) {
                         index = i;
                         break;
                     }

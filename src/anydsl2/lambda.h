@@ -97,15 +97,15 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
 
     // cps construction
 
-    const DefNode* set_value(size_t handle, const DefNode* def);
-    const DefNode* get_value(size_t handle, const Type* type, const char* name = "");
+    Def set_value(size_t handle, Def def);
+    Def get_value(size_t handle, const Type* type, const char* name = "");
     
     Lambda* parent() const { return parent_; }            ///< See \ref parent_ for more information.
     void set_parent(Lambda* parent) { parent_ = parent; } ///< See \ref parent_ for more information.
     void seal();
     bool is_sealed() const { return is_sealed_; }
     void unseal() { is_sealed_ = false; }
-    void clear();
+    void clear() { values_.clear(); }
 
 private:
     class Todo {
@@ -130,10 +130,11 @@ private:
         const char* name_;
     };
 
-    const DefNode* fix(const Todo& todo);
-    const DefNode* get_value(const Todo& todo) { return get_value(todo.handle(), todo.type(), todo.name()); }
-    const DefNode* try_remove_trivial_param(const Param*);
-    const Tracker* find_tracker(size_t handle);
+    Def fix(const Todo& todo);
+    Def get_value(const Todo& todo) { return get_value(todo.handle(), todo.type(), todo.name()); }
+    Def try_remove_trivial_param(const Param*);
+    Def find_def(size_t handle);
+    void increase_values(size_t handle) { if (handle >= values_.size()) values_.resize(handle+1); }
 
     size_t sid_;           ///< \p Scope index, i.e., reverse post-order number.
     size_t backwards_sid_; ///< \p Scope index, i.e., reverse post-order number, while reverting control-flow beginning with the exits.
@@ -154,14 +155,13 @@ private:
     bool is_sealed_;
     bool is_visited_;
 
-    typedef std::vector<const Tracker*> TrackedValues;
-    TrackedValues tracked_values_;
+    std::vector<Def> values_;
     typedef std::vector<Todo> Todos;
     Todos todos_;
 
     mutable Lambdas succs_;
     mutable std::vector<Use> former_uses_;
-    mutable std::vector<const DefNode*> former_ops_;
+    mutable std::vector<Def> former_ops_;
     mutable std::vector<const GenericRef*> generic_refs_;
 
     friend class World;

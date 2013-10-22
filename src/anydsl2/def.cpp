@@ -15,6 +15,10 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
+const DefNode* Def::deref() const {
+    return node_;
+}
+
 void DefNode::set_op(size_t i, const DefNode* def) {
     assert(!op(i) && "already set");
     set(i, def);
@@ -81,6 +85,7 @@ bool DefNode::is_minus_zero() const {
 }
 
 void DefNode::replace(const DefNode* with) const {
+    assert(false && "todo");
 #if 0
     std::unordered_set<const DefNode*> visited;
 

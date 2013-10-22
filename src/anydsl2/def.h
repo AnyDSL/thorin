@@ -59,7 +59,6 @@ public:
     const DefNode* deref() const;
     bool operator == (Def other) const { return this->deref() == other.deref(); }
     bool operator != (Def other) const { return this->deref() != other.deref(); }
-    //operator bool() const { return !empty(); }
     operator const DefNode*() const { return deref(); }
     const DefNode* operator -> () const { return deref(); }
 

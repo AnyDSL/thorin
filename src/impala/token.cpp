@@ -156,7 +156,7 @@ void Token::init() {
 
 /*static*/ Symbol Token::insert(TokenKind tok, const char* str) {
     Symbol s = str;
-    auto p = tok2sym_.insert(std::make_pair(tok, s));
+    auto p = tok2sym_.emplace(tok, s);
 
 #ifndef NDEBUG
     if (!p.second) {

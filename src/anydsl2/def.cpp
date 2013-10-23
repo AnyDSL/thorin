@@ -1,8 +1,9 @@
 #include "anydsl2/def.h"
 
 #include <algorithm>
-#include <stack>
 #include <sstream>
+#include <unordered_map>
+#include <queue>
 
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
@@ -16,14 +17,21 @@ namespace anydsl2 {
 //------------------------------------------------------------------------------
 
 const DefNode* Def::deref() const {
-    return node_;
+    if (node_ == nullptr)
+        return nullptr;
+
+    const DefNode* n = node_;
+    while (n != n->representitive_)
+        n = n->representitive_;
+
+    return n;
 }
 
 void DefNode::set_op(size_t i, const DefNode* def) {
     assert(!op(i) && "already set");
     set(i, def);
     if (isa<PrimOp>()) is_const_ &= def->is_const();
-    auto p = def->uses_.insert(Use(i, this));
+    auto p = def->uses_.emplace(i, this);
     assert(p.second && "already in use set");
 }
 
@@ -85,70 +93,36 @@ bool DefNode::is_minus_zero() const {
 }
 
 void DefNode::replace(const DefNode* with) const {
-    assert(false && "todo");
-#if 0
-    std::unordered_set<const DefNode*> visited;
-
-    std::stack<const DefNode*> stack;
-
-    const DefNode* cur = this;
-    do {
-        if (auto lambda = cur->isa_lambda()) {
-            assert(false && "todo");
-        } else if (auto param = cur->isa<Param>()) {
-            param
-        } else {
-            if (auto oprimop = cur->isa<PrimOp>()) {
-            Array<const DefNode*> ops(oprimop->ops());
-            for (auto index : use.indices())
-                ops[index] = with;
-            size_t old_gid = world().gid();
-            const DefNode* ndef = world().rebuild(oprimop, ops);
-
-            if (oprimop->kind() == ndef->kind()) {
-                assert(oprimop->size() == ndef->size());
-
-                size_t j = 0;
-                size_t index = use.index(j);
-                for (size_t i = 0, e = oprimop->size(); i != e; ++i) {
-                    if (i != index && oprimop->op(i) != ndef->op(i))
-                        goto recurse;
-                    if (i == index && j < use.num_indices())
-                        index = use.index(j++);
-                }
-
-                if (ndef->gid() == old_gid) { // only consider fresh (non-CSEd) primop
-                    // nothing exciting happened by rebuilding 
-                    // -> reuse the old chunk of memory and save recursive updates
-                    AutoPtr<PrimOp> nreleased = world().release(ndef->as<PrimOp>());
-                    nreleased->unset_ops();
-                    world().reinsert(oprimop);
-                    continue;
-                }
-            }
-recurse:
-            oprimop->replace(ndef);
-            oprimop->unset_ops();
-            delete oprimop;
-        }
-    } while (!stack.empty());
-
-
-
-        auto def = stack.top();
-        stack.pop();
-    }
-
     std::queue<const DefNode*> queue;
-    for (auto use : this->uses())
-        queue.push(use);
+    std::unordered_map<const DefNode*, int> def2num;
+    def2num[this] = 0;
 
     while (!queue.empty()) {
-        auto def = queue.front();
+        const DefNode* def = queue.front();
+        //if (auto primop = def->isa<PrimOp>()) {
+            // replace primop
+        //}
         queue.pop();
 
+        for (auto use : def->uses()) {
+            if (use->isa<Lambda>())
+                continue;
+            auto i = def2num.find(use);
+            if (i != def2num.end())
+                --i->second;
+            else {
+                i = def2num.emplace(use, -1).first;
+                for (auto op : use->ops()) {
+                    if (!op->is_const())
+                        ++i->second;
+                }
+            }
+
+            if (i->second == 0)
+                queue.push(use);
+        }
     }
-    }
+}
 
 #if 0
     // copy trackers to avoid internal modification
@@ -204,9 +178,8 @@ recurse:
             delete oprimop;
         }
     }
-#endif
-#endif
 }
+#endif
 
 int DefNode::non_const_depth() const {
     if (this->is_const() || this->isa<Param>()) 

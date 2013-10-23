@@ -72,7 +72,7 @@ void CodeGen::emit() {
     for (auto lambda : top_level_lambdas(world)) {
         llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
         llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->name, module);
-        fcts.insert(std::make_pair(lambda, f));
+        fcts.emplace(lambda, f);
     }
 
     // for all top-level functions

@@ -9,6 +9,8 @@
 #include "anydsl2/analyses/looptree.h"
 #include "anydsl2/analyses/scope.h"
 
+// TODO these impls need some love
+
 namespace anydsl2 {
 
 typedef Array<std::vector<const PrimOp*>> Schedule;

@@ -187,6 +187,7 @@ private:
 protected:
     bool is_const_;
 
+    friend class Def;
     friend class PrimOp;
     friend class World;
 };

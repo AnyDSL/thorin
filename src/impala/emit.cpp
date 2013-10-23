@@ -33,7 +33,7 @@ public:
     Lambda* emit_head(const Fun* fun);
     const Lambda* emit_body(const Fun* fun);
     RefPtr emit(const VarDecl*);
-    Array<const DefNode*> emit_ops(const Expr* expr, size_t additional_size = 0);
+    Array<Def> emit_ops(const Expr* expr, size_t additional_size = 0);
     RefPtr emit(const Expr* expr) { return is_reachable() ? expr->emit(*this) : nullptr; }
     void emit_branch(const Expr* expr, JumpTarget& t, JumpTarget& f) { expr->emit_branch(*this, t, f); }
     void emit(const Stmt* stmt, JumpTarget& exit) { if (is_reachable()) stmt->emit(*this, exit); }
@@ -175,9 +175,9 @@ RefPtr CodeGen::emit(const VarDecl* decl) {
  * Expr -- emit
  */
 
-Array<const DefNode*> CodeGen::emit_ops(const Expr* expr, size_t additional_size) {
+Array<Def> CodeGen::emit_ops(const Expr* expr, size_t additional_size) {
     size_t num = expr->ops().size();
-    Array<const DefNode*> defs(num + additional_size);
+    Array<Def> defs(num + additional_size);
     for (size_t i = 0; i < num; ++i)
         defs[i] = emit(expr->op(i))->load();
 
@@ -236,9 +236,9 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
         case INC:
         case DEC: {
             RefPtr ref = cg.emit(rhs());
-            const DefNode* def = ref->load();
-            const DefNode* one = cg.world().one(def->type());
-            const DefNode* ndef = cg.world().arithop(Token::to_arithop((TokenKind) kind(), type()->is_float()), def, one);
+            Def def = ref->load();
+            Def one = cg.world().one(def->type());
+            Def ndef = cg.world().arithop(Token::to_arithop((TokenKind) kind(), type()->is_float()), def, one);
             ref->store(ndef);
             return ref;
         }
@@ -281,7 +281,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
     const TokenKind op = (TokenKind) kind();
 
     if (Token::is_assign(op)) {
-        const DefNode* rdef = cg.emit(rhs())->load();
+        Def rdef = cg.emit(rhs())->load();
         RefPtr lref = cg.emit(lhs());
 
         if (op != Token::ASGN) {
@@ -293,16 +293,16 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
         return lref;
     }
         
-    const DefNode* ldef = cg.emit(lhs())->load();
-    const DefNode* rdef = cg.emit(rhs())->load();
+    Def ldef = cg.emit(lhs())->load();
+    Def rdef = cg.emit(rhs())->load();
 
     return Ref::create(cg.world().binop(Token::to_binop(op, ldef->type()->is_float()), ldef, rdef));
 }
 
 RefPtr PostfixExpr::emit(CodeGen& cg) const {
     RefPtr ref = cg.emit(lhs());
-    const DefNode* def = ref->load();
-    const DefNode* one = cg.world().one(def->type());
+    Def def = ref->load();
+    Def one = cg.world().one(def->type());
     ref->store(cg.world().arithop(Token::to_arithop((TokenKind) kind(), type()->is_float()), def, one));
     return Ref::create(def);
 }
@@ -330,7 +330,7 @@ RefPtr ConditionalExpr::emit(CodeGen& cg) const {
 }
 
 RefPtr IndexExpr::emit(CodeGen& cg) const {
-    const DefNode* x = cg.emit(index())->load();
+    Def x = cg.emit(index())->load();
     if (is_array_subscript())
         return Ref::create_array(cg.emit(lhs()), x, cg);
     else
@@ -338,8 +338,8 @@ RefPtr IndexExpr::emit(CodeGen& cg) const {
 }
 
 RefPtr Call::emit(CodeGen& cg) const {
-    Array<const DefNode*> ops = cg.emit_ops(this);
-    Array<const DefNode*> args(num_args() + 1);
+    Array<Def> ops = cg.emit_ops(this);
+    Array<Def> args(num_args() + 1);
     std::copy(ops.begin() + 1, ops.end(), args.begin() + 1);
     args[0] = cg.get_mem();
 
@@ -466,7 +466,7 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 
     // construct a call to the generator
     size_t num = call()->ops().size();
-    Array<const DefNode*> args(num + 1);
+    Array<Def> args(num + 1);
     args[0] = cg.get_mem();
     for (size_t i = 1; i < num; ++i)
         args[i] = cg.emit(call()->op(i))->load();
@@ -507,8 +507,8 @@ void ReturnStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     if (cg.is_reachable()) {
         const Param* ret_param = fun()->ret_param();
         if (const Call* call = expr()->isa<Call>()) {
-            Array<const DefNode*> ops = cg.emit_ops(call);
-            Array<const DefNode*> args(call->num_args() + 2);
+            Array<Def> ops = cg.emit_ops(call);
+            Array<Def> args(call->num_args() + 2);
             std::copy(ops.begin() + 1, ops.end(), args.begin() + 1);
             args[0] = cg.get_mem();
             args.back() = ret_param;

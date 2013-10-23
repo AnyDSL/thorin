@@ -43,7 +43,7 @@ void CFFLowering::transform(Lambda* lambda) {
         
         size_t size = lambda->num_params();
         Array<size_t> indices(size);
-        Array<const DefNode*> with(size);
+        Array<Def> with(size);
         Array<const DefNode*> args(size);
 
         // don't drop the "return" of a top-level function
@@ -60,7 +60,7 @@ void CFFLowering::transform(Lambda* lambda) {
         size_t num = 0;
         for (size_t i = 0; i != size; ++i) {
             if (i != keep && lambda->param(i)->order() >= 1) {
-                const DefNode* arg = ulambda->arg(i);
+                Def arg = ulambda->arg(i);
                 indices[num] = i;
                 with[num++] = arg;
                 args[i] = arg;

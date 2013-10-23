@@ -354,7 +354,7 @@ llvm::Value* CodeGen::emit(const DefNode* def) {
         llvm::Value* tuple = lookup(tupleop->tuple());
         unsigned idx = tupleop->index()->primlit_value<unsigned>();
 
-        if (tupleop->node_kind() == Node_TupleExtract) {
+        if (tupleop->kind() == Node_TupleExtract) {
             if (tupleop->tuple()->isa<Load>())
                 return tuple; // bypass artificial extract
             return builder.CreateExtractValue(tuple, { idx });
@@ -423,7 +423,7 @@ llvm::Value* CodeGen::emit(const DefNode* def) {
 llvm::Type* CodeGen::map(const Type* type) {
     assert(!type->isa<Mem>());
     llvm::Type* llvm_type;
-    switch (type->node_kind()) {
+    switch (type->kind()) {
         case Node_PrimType_u1:  llvm_type = llvm::IntegerType::get(context,  1); break;
         case Node_PrimType_u8:  llvm_type = llvm::IntegerType::get(context,  8); break;
         case Node_PrimType_u16: llvm_type = llvm::IntegerType::get(context, 16); break;

@@ -1,3 +1,4 @@
+#if 0
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
 #include "anydsl2/primop.h"
@@ -150,7 +151,7 @@ std::ostream& IlPrinter::emit_assignment(const PrimOp* primop) {
     emit_name(primop) << " : ";
     emit_type(primop->type()) << " = ";
 
-    ArrayRef<const DefNode*> ops = primop->ops();
+    ArrayRef<Def> ops = primop->ops();
     if (primop->isa<Select>()) {
     } else if (auto vectorop = primop->isa<VectorOp>()) {
         if (!vectorop->cond()->is_allset()) {
@@ -244,3 +245,4 @@ void emit_il(World& world, bool fancy) {
 //------------------------------------------------------------------------------
 
 } // namespace anydsl2
+#endif

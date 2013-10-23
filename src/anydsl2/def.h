@@ -38,6 +38,7 @@ public:
     bool empty() const { return node_ == nullptr; }
     const DefNode* node() const { return node_; }
     const DefNode* deref() const;
+    const DefNode* operator *() const { return deref(); }
     bool operator == (const DefNode* other) const { return this->deref() == other; }
     bool operator == (const Use& use) const;
     bool operator == (Def other) const { return this->deref() == other.deref(); }
@@ -133,6 +134,7 @@ public:
     virtual ~DefNode() {}
 
     NodeKind kind() const { return kind_; }
+    bool is_corenode() const { return ::anydsl2::is_corenode(kind()); }
     size_t size() const { return ops_.size(); }
     bool empty() const { return ops_.empty(); }
     void set_op(size_t i, Def def);

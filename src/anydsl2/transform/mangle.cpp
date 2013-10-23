@@ -24,14 +24,14 @@ public:
     void mangle_body(Lambda* olambda, Lambda* nlambda);
     Lambda* mangle_head(Lambda* olambda);
     const DefNode* mangle(const DefNode* odef);
-    const DefNode* map(const DefNode* def, const DefNode* to) {
+    Def* map(Def* def, const DefNode* to) {
         def->visit_first(pass);
         def->cptr = to;
         return to;
     }
-    const DefNode* lookup(const DefNode* def) {
+    Def* lookup(Def* def) {
         assert(def->is_visited(pass));
-        return (const DefNode*) def->cptr;
+        return (Def*) def->cptr;
     }
 
     const Scope& scope;

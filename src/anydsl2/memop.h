@@ -9,7 +9,7 @@ namespace anydsl2 {
 
 class MemOp : public PrimOp {
 protected:
-    MemOp(size_t size, int kind, const Type* type, const DefNode* mem, const std::string& name);
+    MemOp(size_t size, NodeKind kind, const Type* type, const DefNode* mem, const std::string& name);
 
 public:
     const DefNode* mem() const { return op(0); }
@@ -19,7 +19,7 @@ public:
 
 class Access : public MemOp {
 protected:
-    Access(size_t size, int kind, const Type* type, const DefNode* mem, const DefNode* ptr, const std::string& name)
+    Access(size_t size, NodeKind kind, const Type* type, const DefNode* mem, const DefNode* ptr, const std::string& name)
         : MemOp(size, kind, type, mem, name)
     {
         assert(size >= 2);
@@ -97,7 +97,7 @@ public:
     size_t index() const { return index_; }
 
     virtual size_t hash() const { return hash_combine(PrimOp::hash(), index()); }
-    virtual bool equal(const Node* other) const {
+    virtual bool equal(const PrimOp* other) const {
         return PrimOp::equal(other) ? this->index() == other->as<Slot>()->index() : false;
     }
 

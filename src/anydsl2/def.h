@@ -21,27 +21,8 @@ class PrimOp;
 class Sigma;
 class Tracker;
 class Type;
+class Use;
 class World;
-
-//------------------------------------------------------------------------------
-
-class Peek {
-public:
-    Peek() {}
-    Peek(const DefNode* def, Lambda* from)
-        : def_(def)
-        , from_(from)
-    {}
-
-    const DefNode* def() const { return def_; }
-    Lambda* from() const { return from_; }
-
-private:
-    const DefNode* def_;
-    Lambda* from_;
-};
-
-typedef Array<Peek> Peeks;
 
 //------------------------------------------------------------------------------
 
@@ -57,6 +38,8 @@ public:
     bool empty() const { return node_ == nullptr; }
     const DefNode* node() const { return node_; }
     const DefNode* deref() const;
+    bool operator == (const DefNode* other) const { return this->deref() == other; }
+    bool operator == (const Use& use) const;
     bool operator == (Def other) const { return this->deref() == other.deref(); }
     bool operator != (Def other) const { return this->deref() != other.deref(); }
     operator const DefNode*() const { return deref(); }
@@ -73,28 +56,47 @@ private:
 class Use {
 public:
     Use() {}
-    Use(size_t index, const DefNode* def)
+    Use(size_t index, Def def)
         : index_(index)
         , def_(def)
     {}
 
     size_t index() const { return index_; }
-    const DefNode* def() const { return def_; }
+    Def def() const { return def_; }
     bool operator == (Use use) const { return def() == use.def() && index() == use.index(); }
     bool operator != (Use use) const { return def() != use.def() || index() != use.index(); }
     bool operator < (Use) const;
+    operator Def() const { return def_; }
     operator const DefNode*() const { return def_; }
-    const DefNode* operator -> () const { return def_; }
+    Def operator -> () const { return def_; }
 
 private:
     size_t index_;
-    const DefNode* def_;
+    Def def_;
 };
 
-//------------------------------------------------------------------------------
+inline bool Def::operator == (const Use& use) const { return this->deref() == use.def().deref(); }
 
-struct UseHash { size_t operator () (Use use) const { return hash_combine(hash_value(use.def()), use.index()); } };
+struct UseHash { size_t operator () (Use use) const { return hash_combine(hash_value(use.def().node()) /*TODO sure?*/, use.index()); } };
 struct UseEqual { bool operator () (Use use1, Use use2) const { return use1 == use2; } };
+
+class Peek {
+public:
+    Peek() {}
+    Peek(Def def, Lambda* from)
+        : def_(def)
+        , from_(from)
+    {}
+
+    Def def() const { return def_; }
+    Lambda* from() const { return from_; }
+
+private:
+    Def def_;
+    Lambda* from_;
+};
+
+typedef Array<Peek> Peeks;
 
 //------------------------------------------------------------------------------
 
@@ -105,23 +107,35 @@ struct UseEqual { bool operator () (Use use1, Use use2) const { return use1 == u
  * - \p Param%s and
  * - \p Lambda%s.
  */
-class DefNode : public Node<DefNode> {
+class DefNode : public MagicCast<DefNode> {
+private:
+    DefNode& operator = (const DefNode&); ///< Do not copy-assign a \p DefNode instance.
+    DefNode(const DefNode& );             ///< Do not copy-construct a \p DefNode.
+
 protected:
-    DefNode(size_t gid, int kind, size_t size, const Type* type, bool is_const, const std::string& name)
-        : Node(kind, size, name)
+    DefNode(size_t gid, NodeKind kind, size_t size, const Type* type, bool is_const, const std::string& name)
+        : kind_(kind)
+        , ops_(size)
+        , cur_pass_(0)
         , type_(type)
         , uses_(13) // 13 seems to perform best
-        , representitive_(this)
+        , representative_(this)
         , gid_(gid)
         , is_const_(is_const)
+        , name(name)
     {}
 
     void set_type(const Type* type) { type_ = type; }
     void unregister_use(size_t i) const { op(i)->uses_.erase(Use(i, this)); }
+    void resize(size_t n) { ops_.resize(n, 0); }
 
 public:
     virtual ~DefNode() {}
-    void set_op(size_t i, const DefNode* def);
+
+    NodeKind kind() const { return kind_; }
+    size_t size() const { return ops_.size(); }
+    bool empty() const { return ops_.empty(); }
+    void set_op(size_t i, Def def);
     void unset_op(size_t i);
     void unset_ops();
     Lambda* as_lambda() const;
@@ -136,7 +150,7 @@ public:
     void dump() const;
     const PrimOp* is_non_const_primop() const;
     std::vector<Use> uses() const;
-    bool is_proxy() const { return representitive_ != this; }
+    bool is_proxy() const { return representative_ != this; }
     size_t num_uses() const { return uses_.size(); }
     size_t gid() const { return gid_; }
     std::string unique_name() const;
@@ -144,17 +158,12 @@ public:
     int order() const;
     bool is_generic() const;
     World& world() const;
-    ArrayRef<const DefNode*> ops() const { return ops_ref<const DefNode*>(); }
-    ArrayRef<const DefNode*> ops(size_t begin, size_t end) const { return ops().slice(begin, end); }
-    const DefNode* op(size_t i) const { assert(i < ops().size()); return ops()[i]; }
-    const DefNode* op_via_lit(const DefNode* def) const;
-    void replace(const DefNode*) const;
-    /**
-     * Returns the vector length.
-     * Raises an assertion if type of this is not a \p VectorType.
-     */
-    size_t length() const;
-
+    ArrayRef<Def> ops() const { return ops_; }
+    ArrayRef<Def> ops(size_t begin, size_t end) const { return ops().slice(begin, end); }
+    Def op(size_t i) const { assert(i < ops().size()); return ops()[i]; }
+    Def op_via_lit(Def def) const;
+    void replace(Def) const;
+    size_t length() const; ///< Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
     bool is_primlit(int val) const;
     bool is_zero() const { return is_primlit(0); }
     bool is_minus_zero() const;
@@ -164,33 +173,71 @@ public:
     bool is_rem()         const { return anydsl2::is_rem  (kind()); }
     bool is_bitop()       const { return anydsl2::is_bitop(kind()); }
     bool is_shift()       const { return anydsl2::is_shift(kind()); }
-    bool is_not()         const { return kind() == ArithOp_xor && op(0)->is_allset(); }
-    bool is_minus()       const { return (kind() == ArithOp_sub || kind() == ArithOp_fsub) && op(0)->is_minus_zero(); }
+    bool is_not()         const { return kind() == Node_xor && op(0)->is_allset(); }
+    bool is_minus()       const { return (kind() == Node_sub || kind() == Node_fsub) && op(0)->is_minus_zero(); }
     bool is_div_or_rem()  const { return anydsl2::is_div_or_rem(kind()); }
     bool is_commutative() const { return anydsl2::is_commutative(kind()); }
     bool is_associative() const { return anydsl2::is_associative(kind()); }
+    template<class T> inline T primlit_value() const; // implementation in literal.h
 
-    // implementation in literal.h
-    template<class T> inline T primlit_value() const;
+    // scratch operations
+
+    size_t cur_pass() const { return cur_pass_; }
+    bool visit(const size_t pass) const { 
+        assert(cur_pass_ <= pass); 
+        if (cur_pass_ != pass) { 
+            cur_pass_ = pass; 
+            return false; 
+        } 
+        return true; 
+    }
+    void visit_first(const size_t pass) const { assert(!is_visited(pass)); cur_pass_ = pass; }
+    void unvisit(const size_t pass) const { assert(cur_pass_ == pass); --cur_pass_; }
+    bool is_visited(const size_t pass) const { assert(cur_pass_ <= pass); return cur_pass_ == pass; }
 
 private:
-    DefNode& operator = (const DefNode&); /// Do not copy-assign a \p Def instance.
-
+    NodeKind kind_;
+    std::vector<Def> ops_;
+    mutable size_t cur_pass_;
     const Type* type_;
     mutable std::unordered_set<Use, UseHash, UseEqual> uses_;
-    mutable const DefNode* representitive_;
-    mutable std::unordered_set<const DefNode*> proxies_;
+    mutable const DefNode* representative_;
+    mutable std::unordered_set<const DefNode*> representatives_of_;
     const size_t gid_;
 
 protected:
     bool is_const_;
+
+public:
+    mutable std::string name; ///< Just do what ever you want with this field.
+
+    /** 
+     * Use this field in order to annotate information on this Def.
+     * Various analyses have to memorize different stuff temporally.
+     * Each analysis can use this field for its specific information. 
+     * \attention { 
+     *      Each pass/analysis simply overwrites this field again.
+     *      So keep this in mind and perform copy operations in order to
+     *      save your data before running the next pass/analysis.
+     *      Also, keep in mind to perform clean up operations at the end 
+     *      of your pass/analysis.
+     * }
+     */
+    union {
+        mutable void* ptr;
+        mutable const void* cptr;
+    };
+    union {
+        mutable bool flags[sizeof(size_t)/sizeof(bool)];
+        mutable size_t counter;
+    };
 
     friend class Def;
     friend class PrimOp;
     friend class World;
 };
 
-std::ostream& operator << (std::ostream& o, const DefNode* def);
+std::ostream& operator << (std::ostream& o, Def def);
 inline bool Use::operator < (Use use) const { return def()->gid() < use.def()->gid() && index() < use.index(); }
 
 //------------------------------------------------------------------------------

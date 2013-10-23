@@ -16,7 +16,7 @@ class World;
 
 class Literal : public PrimOp {
 protected:
-    Literal(int kind, const Type* type, const std::string& name)
+    Literal(NodeKind kind, const Type* type, const std::string& name)
         : PrimOp(0, kind, type, name)
     {}
 };
@@ -26,7 +26,7 @@ protected:
 /// Base class for \p Any and \p Bottom.
 class Undef : public Literal {
 protected:
-    Undef(int kind, const Type* type, const std::string& name)
+    Undef(NodeKind kind, const Type* type, const std::string& name)
         : Literal(kind, type, name)
     {}
 };
@@ -82,7 +82,7 @@ public:
     const PrimType* primtype() const { return type()->as<PrimType>(); }
     PrimTypeKind primtype_kind() const { return primtype()->primtype_kind(); }
     virtual size_t hash() const { return hash_combine(Literal::hash(), bcast<uint64_t, Box>(value())); }
-    virtual bool equal(const Node* other) const { 
+    virtual bool equal(const PrimOp* other) const { 
         return Literal::equal(other) ? this->value() == other->as<PrimLit>()->value() : false; 
     }
 

@@ -21,15 +21,15 @@ const DefNode* Def::deref() const {
         return nullptr;
 
     const DefNode* n = node_;
-    while (n != n->representitive_)
-        n = n->representitive_;
+    while (n != n->representative_)
+        n = n->representative_;
 
     return n;
 }
 
-void DefNode::set_op(size_t i, const DefNode* def) {
+void DefNode::set_op(size_t i, Def def) {
     assert(!op(i) && "already set");
-    set(i, def);
+    ops_[i] = def;
     if (isa<PrimOp>()) is_const_ &= def->is_const();
     auto p = def->uses_.emplace(i, this);
     assert(p.second && "already in use set");
@@ -38,7 +38,7 @@ void DefNode::set_op(size_t i, const DefNode* def) {
 void DefNode::unset_op(size_t i) {
     assert(op(i) && "must be set");
     unregister_use(i);
-    set(i, nullptr);
+    ops_[i] = nullptr;
 }
 
 void DefNode::unset_ops() {
@@ -54,7 +54,18 @@ std::string DefNode::unique_name() const {
 
 std::vector<Use> DefNode::uses() const {
     std::vector<Use> result;
-    std::copy(uses_.begin(), uses_.end(), std::inserter(result, result.begin()));
+    std::vector<const DefNode*> stack;
+    stack.push_back(this);
+
+    while (!stack.empty()) {
+        const DefNode* cur = stack.back();
+        stack.pop_back();
+        std::copy(uses_.begin(), uses_.end(), std::inserter(result, result.begin()));
+
+        for (auto of : cur->representatives_of_)
+            stack.push_back(of);
+    }
+
     return result;
 }
 
@@ -92,8 +103,10 @@ bool DefNode::is_minus_zero() const {
     return false;
 }
 
-void DefNode::replace(const DefNode* with) const {
-    // TODO
+void DefNode::replace(Def with) const {
+    assert(!is_proxy());
+    this->representative_ = with;
+    with->representatives_of_.insert(this);
 }
 
 int DefNode::non_const_depth() const {
@@ -121,7 +134,7 @@ void DefNode::dump() const {
 }
 
 World& DefNode::world() const { return type()->world(); }
-const DefNode* DefNode::op_via_lit(const DefNode* def) const { return op(def->primlit_value<size_t>()); }
+Def DefNode::op_via_lit(Def def) const { return op(def->primlit_value<size_t>()); }
 Lambda* DefNode::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(this)); }
 Lambda* DefNode::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(this)); }
 const PrimOp* DefNode::is_non_const_primop() const { return is_const() ? nullptr : isa<PrimOp>(); }

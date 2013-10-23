@@ -11,6 +11,8 @@
 #include "anydsl2/literal.h"
 #include "anydsl2/memop.h"
 #include "anydsl2/type.h"
+#include "anydsl2/analyses/scope.h"
+#include "anydsl2/analyses/schedule.h"
 #include "anydsl2/analyses/verify.h"
 #include "anydsl2/transform/lower2cff.h"
 #include "anydsl2/transform/inliner.h"
@@ -84,8 +86,8 @@ Sigma* World::named_sigma(size_t size, const std::string& name) {
  * literals
  */
 
-const DefNode* World::literal(PrimTypeKind kind, int value, size_t length) {
-    const DefNode* lit;
+Def World::literal(PrimTypeKind kind, int value, size_t length) {
+    Def lit;
     switch (kind) {
 #define ANYDSL2_U_TYPE(T) case PrimType_##T: lit = literal(T(value), 1); break;
 #define ANYDSL2_F_TYPE(T) ANYDSL2_U_TYPE(T)
@@ -96,19 +98,19 @@ const DefNode* World::literal(PrimTypeKind kind, int value, size_t length) {
     return vector(lit, length);
 }
 
-const DefNode* World::literal(PrimTypeKind kind, Box box, size_t length) { return vector(cse(new PrimLit(*this, kind, box, "")), length); }
-const DefNode* World::any    (const Type* type, size_t length) { return vector(cse(new Any(type, "")), length); }
-const DefNode* World::bottom (const Type* type, size_t length) { return vector(cse(new Bottom(type, "")), length); }
-const DefNode* World::zero   (const Type* type, size_t length) { return zero  (type->as<PrimType>()->primtype_kind(), length); }
-const DefNode* World::one    (const Type* type, size_t length) { return one   (type->as<PrimType>()->primtype_kind(), length); }
-const DefNode* World::allset (const Type* type, size_t length) { return allset(type->as<PrimType>()->primtype_kind(), length); }
+Def World::literal(PrimTypeKind kind, Box box, size_t length) { return vector(cse(new PrimLit(*this, kind, box, "")), length); }
+Def World::any    (const Type* type, size_t length) { return vector(cse(new Any(type, "")), length); }
+Def World::bottom (const Type* type, size_t length) { return vector(cse(new Bottom(type, "")), length); }
+Def World::zero   (const Type* type, size_t length) { return zero  (type->as<PrimType>()->primtype_kind(), length); }
+Def World::one    (const Type* type, size_t length) { return one   (type->as<PrimType>()->primtype_kind(), length); }
+Def World::allset (const Type* type, size_t length) { return allset(type->as<PrimType>()->primtype_kind(), length); }
 const TypeKeeper* World::typekeeper(const Type* type, const std::string& name) { return cse(new TypeKeeper(type, name)); }
 
 /*
  * create
  */
 
-const DefNode* World::binop(int kind, const DefNode* cond, const DefNode* lhs, const DefNode* rhs, const std::string& name) {
+Def World::binop(int kind, Def cond, Def lhs, Def rhs, const std::string& name) {
     if (is_arithop(kind))
         return arithop((ArithOpKind) kind, cond, lhs, rhs);
 
@@ -116,7 +118,7 @@ const DefNode* World::binop(int kind, const DefNode* cond, const DefNode* lhs, c
     return relop((RelOpKind) kind, cond, lhs, rhs);
 }
 
-const DefNode* World::arithop(ArithOpKind kind, const DefNode* cond, const DefNode* a, const DefNode* b, const std::string& name) {
+Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& name) {
     assert(a->type() == b->type());
     assert(a->type()->as<PrimType>()->length() == b->type()->as<PrimType>()->length());
     PrimTypeKind type = a->type()->as<PrimType>()->primtype_kind();
@@ -133,7 +135,7 @@ const DefNode* World::arithop(ArithOpKind kind, const DefNode* cond, const DefNo
     if (lvec && rvec) {
         const Vector* cvec = cond->isa<Vector>();
         size_t num = lvec->type()->as<PrimType>()->length();
-        Array<const DefNode*> ops(num);
+        Array<Def> ops(num);
         for (size_t i = 0; i != num; ++i)
             ops[i] = cvec && cvec->op(i)->is_zero() ? bottom(type, 1) :  arithop(kind, lvec->op(i), rvec->op(i));
         return vector(ops, name);
@@ -167,7 +169,7 @@ const DefNode* World::arithop(ArithOpKind kind, const DefNode* cond, const DefNo
 #define ANYDSL2_JUST_U_TYPE(T) \
                     case PrimType_##T: \
                         return rlit->is_zero() \
-                             ? (const DefNode*) bottom(type) \
+                             ? bottom(type) \
                              : literal(type, Box(T(l.get_##T() / r.get_##T())));
 #include "anydsl2/tables/primtypetable.h"
                     ANYDSL2_NO_F_TYPE;
@@ -178,7 +180,7 @@ const DefNode* World::arithop(ArithOpKind kind, const DefNode* cond, const DefNo
                     case PrimType_##T: { \
                         typedef make_signed<T>::type S; \
                         return rlit->is_zero() \
-                            ? (const DefNode*) bottom(type) \
+                            ? bottom(type) \
                             : literal(type, Box((T) ((S) l.get_##T() / (S) r.get_##T()))); \
                     }
 #include "anydsl2/tables/primtypetable.h"
@@ -189,7 +191,7 @@ const DefNode* World::arithop(ArithOpKind kind, const DefNode* cond, const DefNo
 #define ANYDSL2_JUST_U_TYPE(T) \
                     case PrimType_##T: \
                         return rlit->is_zero() \
-                             ? (const DefNode*) bottom(type) \
+                             ? bottom(type) \
                              : literal(type, Box(T(l.get_##T() % r.get_##T())));
 #include "anydsl2/tables/primtypetable.h"
                     ANYDSL2_NO_F_TYPE;
@@ -347,8 +349,8 @@ const DefNode* World::arithop(ArithOpKind kind, const DefNode* cond, const DefNo
             && lrel->relop_kind() == negate(rrel->relop_kind()))
             return literal_u1(false);
 
-    const ArithOp* land = a->kind() == ArithOp_and ? a->as<ArithOp>() : nullptr;
-    const ArithOp* rand = b->kind() == ArithOp_and ? b->as<ArithOp>() : nullptr;
+    const ArithOp* land = a->kind() == Node_and ? a->as<ArithOp>() : nullptr;
+    const ArithOp* rand = b->kind() == Node_and ? b->as<ArithOp>() : nullptr;
 
     // distributivity (a and b) or (a and c)
     if (kind == ArithOp_or && land && rand) {
@@ -358,8 +360,8 @@ const DefNode* World::arithop(ArithOpKind kind, const DefNode* cond, const DefNo
             return arithop_and(cond, land->rhs(), arithop_or(cond, land->lhs(), rand->lhs()));
     }
 
-    const ArithOp* lor = a->kind() == ArithOp_or ? a->as<ArithOp>() : nullptr;
-    const ArithOp* ror = b->kind() == ArithOp_or ? b->as<ArithOp>() : nullptr;
+    const ArithOp* lor = a->kind() == Node_or ? a->as<ArithOp>() : nullptr;
+    const ArithOp* ror = b->kind() == Node_or ? b->as<ArithOp>() : nullptr;
 
     // distributivity (a or b) and (a or c)
     if (kind == ArithOp_and && lor && ror) {
@@ -479,9 +481,9 @@ const DefNode* World::arithop(ArithOpKind kind, const DefNode* cond, const DefNo
     return cse(new ArithOp(kind, cond, a, b, name));
 }
 
-const DefNode* World::arithop_not(const DefNode* cond, const DefNode* def) { return arithop_xor(cond, allset(def->type(), def->length()), def); }
+Def World::arithop_not(Def cond, Def def) { return arithop_xor(cond, allset(def->type(), def->length()), def); }
 
-const DefNode* World::arithop_minus(const DefNode* cond, const DefNode* def) {
+Def World::arithop_minus(Def cond, Def def) {
     switch (PrimTypeKind kind = def->type()->as<PrimType>()->primtype_kind()) {
         case PrimType_f32: return arithop_fsub(cond, literal_f32(-0.f), def);
         case PrimType_f64: return arithop_fsub(cond, literal_f64(-0.0), def);
@@ -489,7 +491,7 @@ const DefNode* World::arithop_minus(const DefNode* cond, const DefNode* def) {
     }
 }
 
-const DefNode* World::relop(RelOpKind kind, const DefNode* cond, const DefNode* a, const DefNode* b, const std::string& name) {
+Def World::relop(RelOpKind kind, Def cond, Def a, Def b, const std::string& name) {
     if (a->isa<Bottom>() || b->isa<Bottom>())
         return bottom(type_u1());
 
@@ -516,7 +518,7 @@ const DefNode* World::relop(RelOpKind kind, const DefNode* cond, const DefNode* 
 
     if (lvec && rvec) {
         size_t num = lvec->type()->as<PrimType>()->length();
-        Array<const DefNode*> ops(num);
+        Array<Def> ops(num);
         for (size_t i = 0; i != num; ++i)
             ops[i] = relop(kind, lvec->op(i), rvec->op(i));
         return vector(ops, name);
@@ -624,7 +626,7 @@ static i64 box2i64(PrimTypeKind kind, Box box) {
     }
 }
 
-const DefNode* World::convop(ConvOpKind kind, const DefNode* cond, const DefNode* from, const Type* to, const std::string& name) {
+Def World::convop(ConvOpKind kind, Def cond, Def from, const Type* to, const std::string& name) {
 #define from_kind (from->type()->as<PrimType>()->primtype_kind())
 #define   to_kind (  to        ->as<PrimType>()->primtype_kind())
 #ifndef NDEBUG
@@ -653,7 +655,7 @@ const DefNode* World::convop(ConvOpKind kind, const DefNode* cond, const DefNode
     if (vec) {
         const Vector* cvec = cond->isa<Vector>();
         size_t num = vec->length();
-        Array<const DefNode*> ops(num);
+        Array<Def> ops(num);
         const VectorType* to_scalar = to->as<VectorType>()->scalarize();
         for (size_t i = 0; i != num; ++i)
             ops[i] = cvec && cvec->op(i)->is_zero() ? bottom(to_scalar, 1) :  convop(kind, vec->op(i), to_scalar);
@@ -702,7 +704,7 @@ const DefNode* World::convop(ConvOpKind kind, const DefNode* cond, const DefNode
     return cse(new ConvOp(kind, cond, from, to, name));
 }
 
-const DefNode* World::tuple_extract(const DefNode* agg, const DefNode* index, const std::string& name) {
+Def World::tuple_extract(Def agg, Def index, const std::string& name) {
     if (agg->isa<Bottom>())
         return bottom(agg->type()->as<Sigma>()->elem_via_lit(index));
 
@@ -719,12 +721,12 @@ const DefNode* World::tuple_extract(const DefNode* agg, const DefNode* index, co
     return cse(new TupleExtract(agg, index, name));
 }
 
-const DefNode* World::tuple_insert(const DefNode* agg, const DefNode* index, const DefNode* value, const std::string& name) {
+Def World::tuple_insert(Def agg, Def index, Def value, const std::string& name) {
     if (agg->isa<Bottom>() || value->isa<Bottom>())
         return bottom(agg->type());
 
     if (const Tuple* tup = agg->isa<Tuple>()) {
-        Array<const DefNode*> args(tup->size());
+        Array<Def> args(tup->size());
         std::copy(agg->ops().begin(), agg->ops().end(), args.begin());
         args[index->primlit_value<size_t>()] = value;
 
@@ -734,23 +736,23 @@ const DefNode* World::tuple_insert(const DefNode* agg, const DefNode* index, con
     return cse(new TupleInsert(agg, index, value, name));
 }
 
-const DefNode* World::tuple_extract(const DefNode* tuple, u32 index, const std::string& name) { 
+Def World::tuple_extract(Def tuple, u32 index, const std::string& name) { 
     return tuple_extract(tuple, literal_u32(index), name); 
 }
-const DefNode* World::tuple_insert(const DefNode* tuple, u32 index, const DefNode* value, const std::string& name) { 
+Def World::tuple_insert(Def tuple, u32 index, Def value, const std::string& name) { 
     return tuple_insert(tuple, literal_u32(index), value, name); 
 }
 
-const DefNode* World::vector(const DefNode* arg, size_t length, const std::string& name) {
+Def World::vector(Def arg, size_t length, const std::string& name) {
     if (length == 1) 
         return arg;
 
-    Array<const DefNode*> args(length);
+    Array<Def> args(length);
     std::fill(args.begin(), args.end(), arg);
     return vector(args, name);
 }
 
-const Enter* World::enter(const DefNode* mem, const std::string& name) {
+const Enter* World::enter(Def mem, const std::string& name) {
     if (const Leave* leave = mem->isa<Leave>())
         if (const TupleExtract* extract = leave->frame()->isa<TupleExtract>())
             if (const Enter* old_enter = extract->tuple()->isa<Enter>())
@@ -763,7 +765,7 @@ const Enter* World::enter(const DefNode* mem, const std::string& name) {
     return cse(new Enter(mem, name));
 }
 
-const DefNode* World::select(const DefNode* cond, const DefNode* a, const DefNode* b, const std::string& name) {
+Def World::select(Def cond, Def a, Def b, const std::string& name) {
     if (cond->isa<Bottom>() || a->isa<Bottom>() || b->isa<Bottom>())
         return bottom(a->type());
 
@@ -781,18 +783,18 @@ const DefNode* World::select(const DefNode* cond, const DefNode* a, const DefNod
     return cse(new Select(cond, a, b, name));
 }
 
-const Load* World::load(const DefNode* mem, const DefNode* ptr, const std::string& name) { 
+const Load* World::load(Def mem, Def ptr, const std::string& name) { 
     return cse(new Load(mem, ptr, name)); 
 }
-const Store* World::store(const DefNode* mem, const DefNode* ptr, const DefNode* value, const std::string& name) {
+const Store* World::store(Def mem, Def ptr, Def value, const std::string& name) {
     return cse(new Store(mem, ptr, value, name));
 }
-const Leave* World::leave(const DefNode* mem, const DefNode* frame, const std::string& name) { 
+const Leave* World::leave(Def mem, Def frame, const std::string& name) { 
     return cse(new Leave(mem, frame, name)); }
-const Slot* World::slot(const Type* type, const DefNode* frame, size_t index, const std::string& name) {
+const Slot* World::slot(const Type* type, Def frame, size_t index, const std::string& name) {
     return cse(new Slot(type, frame, index, name));
 }
-const LEA* World::lea(const DefNode* ptr, const DefNode* index, const std::string& name) { return cse(new LEA(ptr, index, name)); }
+const LEA* World::lea(Def ptr, Def index, const std::string& name) { return cse(new LEA(ptr, index, name)); }
 
 Lambda* World::lambda(const Pi* pi, Lambda::Attribute attribute, const std::string& name) {
     ANYDSL2_CHECK_BREAK(gid_)
@@ -813,7 +815,7 @@ Lambda* World::basicblock(const std::string& name) {
     return bb;
 }
 
-const DefNode* World::rebuild(const PrimOp* in, ArrayRef<const DefNode*> ops, const Type* type) {
+Def World::rebuild(const PrimOp* in, ArrayRef<Def> ops, const Type* type) {
     int kind = in->kind();
     const std::string& name = in->name;
 
@@ -923,6 +925,35 @@ void World::unregister_uses(const size_t pass, S& set) {
     }
 }
 
+static const DefNode*& mapped(const DefNode* def) { return (const DefNode*&) def->cptr; }
+
+void World::eliminate_proxies() {
+    std::vector<const PrimOp*> proxies;
+
+    for (auto top : top_level_lambdas(*this)) {
+        Scope scope(top);
+        Schedule schedule = schedule_early(scope);
+
+        for (auto lambda : scope.rpo()) {
+            for (auto primop : schedule[lambda->sid()]) {
+                if (!primop->is_proxy())
+                    mapped(primop) = primop;
+                else { // proxy
+                    Array<Def> ops(primop->size());
+                    for (size_t i = 0, e = primop->size(); i != e; ++i)
+                        ops[i] = mapped(primop->op(i));
+
+                    mapped(primop) = rebuild(primop, ops);
+                    proxies.push_back(release(primop));
+                }
+            }
+        }
+    }
+
+    for (auto proxy : proxies)
+        delete proxy;
+}
+
 void World::unreachable_code_elimination() {
     const size_t pass = new_pass();
 
@@ -975,9 +1006,9 @@ void World::dead_code_elimination() {
             lambda->destroy_body();
         else {
             for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
-                const DefNode* arg = lambda->arg(i);
+                Def arg = lambda->arg(i);
                 if (!arg->is_visited(pass)) {
-                    const DefNode* bot = bottom(arg->type());
+                    Def bot = bottom(arg->type());
                     bot->visit(pass);
                     lambda->update_arg(i, bot);
                 }
@@ -1053,6 +1084,7 @@ void World::ute_insert(const size_t pass, const Type* type) {
 }
 
 void World::cleanup() {
+    eliminate_proxies();
     unreachable_code_elimination();
     dead_code_elimination();
     unused_type_elimination();
@@ -1060,7 +1092,6 @@ void World::cleanup() {
 }
 
 void World::opt() {
-    return;
     cleanup();
     partial_evaluation(*this);
     lower2cff(*this);

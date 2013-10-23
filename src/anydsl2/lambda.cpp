@@ -35,7 +35,7 @@ Lambda* Lambda::stub(const GenericMap& generic_map, const std::string& name) con
     return result;
 }
 
-Lambda* Lambda::update_op(size_t i, const DefNode* def) {
+Lambda* Lambda::update_op(size_t i, Def def) {
     unset_op(i);
     set_op(i, def);
     return this;
@@ -181,7 +181,7 @@ void Lambda::dump_jump() const { emit_jump(this); }
  * terminate
  */
 
-void Lambda::jump(const DefNode* to, ArrayRef<const DefNode*> args) {
+void Lambda::jump(Def to, ArrayRef<Def> args) {
     unset_ops();
     resize(args.size()+1);
     set_op(0, to);
@@ -191,11 +191,11 @@ void Lambda::jump(const DefNode* to, ArrayRef<const DefNode*> args) {
         set_op(x++, arg);
 }
 
-void Lambda::branch(const DefNode* cond, const DefNode* tto, const DefNode* fto) {
-    return jump(world().select(cond, tto, fto), ArrayRef<const DefNode*>(nullptr, 0));
+void Lambda::branch(Def cond, Def tto, Def fto) {
+    return jump(world().select(cond, tto, fto), ArrayRef<Def>(nullptr, 0));
 }
 
-Lambda* Lambda::call(const DefNode* to, ArrayRef<const DefNode*> args, const Type* ret_type) {
+Lambda* Lambda::call(Def to, ArrayRef<Def> args, const Type* ret_type) {
     // create next continuation in cascade
     Lambda* next = world().lambda(world().pi({ret_type}), name + "_" + to->name);
     const Param* result = next->param(0);
@@ -203,14 +203,14 @@ Lambda* Lambda::call(const DefNode* to, ArrayRef<const DefNode*> args, const Typ
 
     // create jump to this new continuation
     size_t csize = args.size() + 1;
-    Array<const DefNode*> cargs(csize);
+    Array<Def> cargs(csize);
     *std::copy(args.begin(), args.end(), cargs.begin()) = next;
     jump(to, cargs);
 
     return next;
 }
 
-Lambda* Lambda::mem_call(const DefNode* to, ArrayRef<const DefNode*> args, const Type* ret_type) {
+Lambda* Lambda::mem_call(Def to, ArrayRef<Def> args, const Type* ret_type) {
     // create next continuation in cascade
     const Pi* pi = ret_type != nullptr ? world().pi({world().mem(), ret_type}) : world().pi({world().mem()});
     Lambda* next = world().lambda(pi, name + "_" + to->name);
@@ -221,7 +221,7 @@ Lambda* Lambda::mem_call(const DefNode* to, ArrayRef<const DefNode*> args, const
 
     // create jump to this new continuation
     size_t csize = args.size() + 1;
-    Array<const DefNode*> cargs(csize);
+    Array<Def> cargs(csize);
     *std::copy(args.begin(), args.end(), cargs.begin()) = next;
     jump(to, cargs);
 

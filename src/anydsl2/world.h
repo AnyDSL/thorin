@@ -109,79 +109,79 @@ public:
      */
 
 #define ANYDSL2_UF_TYPE(T) \
-    const DefNode* literal_##T(T val, size_t length = 1) { return literal(val, length); }
+    Def literal_##T(T val, size_t length = 1) { return literal(val, length); }
 #include "anydsl2/tables/primtypetable.h"
-    const DefNode* literal(PrimTypeKind kind, Box value, size_t length = 1);
-    const DefNode* literal(PrimTypeKind kind, int value, size_t length = 1);
+    Def literal(PrimTypeKind kind, Box value, size_t length = 1);
+    Def literal(PrimTypeKind kind, int value, size_t length = 1);
     template<class T>
-    const DefNode* literal(T value, size_t length = 1) { return literal(type2kind<T>::kind, Box(value), length); }
-    const DefNode* zero(PrimTypeKind kind, size_t length = 1) { return literal(kind, 0, length); }
-    const DefNode* zero(const Type*, size_t length = 1);
-    const DefNode* one(PrimTypeKind kind, size_t length = 1) { return literal(kind, 1, length); }
-    const DefNode* one(const Type*, size_t length = 1);
-    const DefNode* allset(PrimTypeKind kind, size_t length = 1) {
+    Def literal(T value, size_t length = 1) { return literal(type2kind<T>::kind, Box(value), length); }
+    Def zero(PrimTypeKind kind, size_t length = 1) { return literal(kind, 0, length); }
+    Def zero(const Type*, size_t length = 1);
+    Def one(PrimTypeKind kind, size_t length = 1) { return literal(kind, 1, length); }
+    Def one(const Type*, size_t length = 1);
+    Def allset(PrimTypeKind kind, size_t length = 1) {
         assert(is_int(kind) && "must not be a float");
         return literal(kind, -1, length);
     }
-    const DefNode* allset(const Type*, size_t length = 1);
-    const DefNode* any(const Type* type, size_t length = 1);
-    const DefNode* any(PrimTypeKind kind, size_t length = 1) { return any(type(kind), length); }
-    const DefNode* bottom(const Type* type, size_t length = 1);
-    const DefNode* bottom(PrimTypeKind kind, size_t length = 1) { return bottom(type(kind), length); }
+    Def allset(const Type*, size_t length = 1);
+    Def any(const Type* type, size_t length = 1);
+    Def any(PrimTypeKind kind, size_t length = 1) { return any(type(kind), length); }
+    Def bottom(const Type* type, size_t length = 1);
+    Def bottom(PrimTypeKind kind, size_t length = 1) { return bottom(type(kind), length); }
     /// Creates a vector of all true while the length is derived from @p def.
-    const DefNode* true_mask(const DefNode* def) { return literal(true, def->length()); }
-    const DefNode* true_mask(size_t length) { return literal(true, length); }
+    Def true_mask(Def def) { return literal(true, def->length()); }
+    Def true_mask(size_t length) { return literal(true, length); }
 
     /*
      * arithop, relop, convop
      */
 
     /// Creates an \p ArithOp or a \p RelOp.
-    const DefNode* binop(int kind, const DefNode* cond, const DefNode* lhs, const DefNode* rhs, const std::string& name = "");
-    const DefNode* binop(int kind, const DefNode* lhs, const DefNode* rhs, const std::string& name = "") {
+    Def binop(int kind, Def cond, Def lhs, Def rhs, const std::string& name = "");
+    Def binop(int kind, Def lhs, Def rhs, const std::string& name = "") {
         return binop(kind, true_mask(lhs), lhs, rhs, name);
     }
 
-    const DefNode* arithop(ArithOpKind kind, const DefNode* cond, const DefNode* lhs, const DefNode* rhs, const std::string& name = "");
-    const DefNode* arithop(ArithOpKind kind, const DefNode* lhs, const DefNode* rhs, const std::string& name = "") {
+    Def arithop(ArithOpKind kind, Def cond, Def lhs, Def rhs, const std::string& name = "");
+    Def arithop(ArithOpKind kind, Def lhs, Def rhs, const std::string& name = "") {
         return arithop(kind, true_mask(lhs), lhs, rhs, name);
     }
 #define ANYDSL2_ARITHOP(OP) \
-    const DefNode* arithop_##OP(const DefNode* cond, const DefNode* lhs, const DefNode* rhs, const std::string& name = "") { \
+    Def arithop_##OP(Def cond, Def lhs, Def rhs, const std::string& name = "") { \
         return arithop(ArithOp_##OP, cond, lhs, rhs, name); \
     } \
-    const DefNode* arithop_##OP(const DefNode* lhs, const DefNode* rhs, const std::string& name = "") { \
+    Def arithop_##OP(Def lhs, Def rhs, const std::string& name = "") { \
         return arithop(ArithOp_##OP, true_mask(lhs), lhs, rhs, name); \
     }
 #include "anydsl2/tables/arithoptable.h"
 
-    const DefNode* arithop_not(const DefNode* cond, const DefNode* def);
-    const DefNode* arithop_not(const DefNode* def) { return arithop_not(true_mask(def), def); }
-    const DefNode* arithop_minus(const DefNode* cond, const DefNode* def);
-    const DefNode* arithop_minus(const DefNode* def) { return arithop_minus(true_mask(def), def); }
+    Def arithop_not(Def cond, Def def);
+    Def arithop_not(Def def) { return arithop_not(true_mask(def), def); }
+    Def arithop_minus(Def cond, Def def);
+    Def arithop_minus(Def def) { return arithop_minus(true_mask(def), def); }
 
-    const DefNode* relop(RelOpKind kind, const DefNode* cond, const DefNode* lhs, const DefNode* rhs, const std::string& name = "");
-    const DefNode* relop(RelOpKind kind, const DefNode* lhs, const DefNode* rhs, const std::string& name = "") {
+    Def relop(RelOpKind kind, Def cond, Def lhs, Def rhs, const std::string& name = "");
+    Def relop(RelOpKind kind, Def lhs, Def rhs, const std::string& name = "") {
         return relop(kind, true_mask(lhs), lhs, rhs, name);
     }
 #define ANYDSL2_RELOP(OP) \
-    const DefNode* relop_##OP(const DefNode* cond, const DefNode* lhs, const DefNode* rhs, const std::string& name = "") { \
+    Def relop_##OP(Def cond, Def lhs, Def rhs, const std::string& name = "") { \
         return relop(RelOp_##OP, cond, lhs, rhs, name);  \
     } \
-    const DefNode* relop_##OP(const DefNode* lhs, const DefNode* rhs, const std::string& name = "") { \
+    Def relop_##OP(Def lhs, Def rhs, const std::string& name = "") { \
         return relop(RelOp_##OP, true_mask(lhs), lhs, rhs, name);  \
     }
 #include "anydsl2/tables/reloptable.h"
 
-    const DefNode* convop(ConvOpKind kind, const DefNode* cond, const DefNode* from, const Type* to, const std::string& name = "");
-    const DefNode* convop(ConvOpKind kind, const DefNode* from, const Type* to, const std::string& name = "") {
+    Def convop(ConvOpKind kind, Def cond, Def from, const Type* to, const std::string& name = "");
+    Def convop(ConvOpKind kind, Def from, const Type* to, const std::string& name = "") {
         return convop(kind, true_mask(from), from, to, name);
     }
 #define ANYDSL2_CONVOP(OP) \
-    const DefNode* convop_##OP(const DefNode* from, const DefNode* cond, const Type* to, const std::string& name = "") { \
+    Def convop_##OP(Def from, Def cond, const Type* to, const std::string& name = "") { \
         return convop(ConvOp_##OP, cond, from, to, name); \
     } \
-    const DefNode* convop_##OP(const DefNode* from, const Type* to, const std::string& name = "") { \
+    Def convop_##OP(Def from, const Type* to, const std::string& name = "") { \
         return convop(ConvOp_##OP, true_mask(from), from, to, name); \
     }
 #include "anydsl2/tables/convoptable.h"
@@ -190,34 +190,34 @@ public:
      * aggregate stuff
      */
 
-    const DefNode* tuple_extract(const DefNode* tuple, const DefNode* index, const std::string& name = "");
-    const DefNode* tuple_extract(const DefNode* tuple, u32 index, const std::string& name = "");
-    const DefNode* tuple_insert(const DefNode* tuple, const DefNode*DefNodeindex, const DefNode* value, const std::string& name = "");
-    const DefNode* tuple_insert(const DefNode* tuple, u32 index, const DefNode* value, const std::string& name = "");
-    const DefNode* tuple(ArrayRef<const DefNode*> args, const std::string& name = "") { return cse(new Tuple(*this, args, name)); }
-    const DefNode* vector(ArrayRef<const DefNode*> args, const std::string& name = "") {
+    Def tuple_extract(Def tuple, Def index, const std::string& name = "");
+    Def tuple_extract(Def tuple, u32 index, const std::string& name = "");
+    Def tuple_insert(Def tuple, Def index, Def value, const std::string& name = "");
+    Def tuple_insert(Def tuple, u32 index, Def value, const std::string& name = "");
+    Def tuple(ArrayRef<Def> args, const std::string& name = "") { return cse(new Tuple(*this, args, name)); }
+    Def vector(ArrayRef<Def> args, const std::string& name = "") {
         if (args.size() == 1) return args[0];
         return cse(new Vector(*this, args, name)); 
     }
     /// Splats \p arg to create a \p Vector with \p length.
-    const DefNode* vector(const DefNode* arg, size_t length = 1, const std::string& name = "");
+    Def vector(Def arg, size_t length = 1, const std::string& name = "");
 
     /*
      * memops
      */
 
-    const Load* load(const DefNode* mem, const DefNode* ptr, const std::string& name = "");
-    const Store* store(const DefNode* mem, const DefNode* ptr, const DefNode* val, const std::string& name = "");
-    const Enter* enter(const DefNode* mem, const std::string& name = "");
-    const Leave* leave(const DefNode* mem, const DefNode* frame, const std::string& name = "");
-    const Slot* slot(const Type* type, const DefNode* frame, size_t index, const std::string& name = "");
-    const LEA* lea(const DefNode* ptr, const DefNode* index, const std::string& name = "");
+    const Load* load(Def mem, Def ptr, const std::string& name = "");
+    const Store* store(Def mem, Def ptr, Def val, const std::string& name = "");
+    const Enter* enter(Def mem, const std::string& name = "");
+    const Leave* leave(Def mem, Def frame, const std::string& name = "");
+    const Slot* slot(const Type* type, Def frame, size_t index, const std::string& name = "");
+    const LEA* lea(Def ptr, Def index, const std::string& name = "");
 
     /*
      * other stuff
      */
 
-    const DefNode* select(const DefNode* cond, const DefNode* a, const DefNode* b, const std::string& name = "");
+    Def select(Def cond, Def a, Def b, const std::string& name = "");
     const TypeKeeper* typekeeper(const Type* type, const std::string& name = "");
 
     Lambda* lambda(const Pi* pi, Lambda::Attribute attribute = Lambda::Attribute(0), const std::string& name = "");
@@ -226,9 +226,9 @@ public:
     Lambda* basicblock(const std::string& name = "");
 
     /// Generic \p PrimOp constructor; inherits name from \p in.
-    const DefNode* rebuild(const PrimOp* in, ArrayRef<const DefNode*> ops, const Type* type);
+    Def rebuild(const PrimOp* in, ArrayRef<Def> ops, const Type* type);
     /// Generic \p PrimOp constructor; inherits type and name name from \p in.
-    const DefNode* rebuild(const PrimOp* in, ArrayRef<const DefNode*> ops) { return rebuild(in, ops, in->type()); }
+    Def rebuild(const PrimOp* in, ArrayRef<Def> ops) { return rebuild(in, ops, in->type()); }
     /// Generic \p Type constructor.
     const Type* rebuild(const Type* in, ArrayRef<const Type*> elems);
 
@@ -282,6 +282,7 @@ protected:
 private:
     const Param* param(const Type* type, Lambda* lambda, size_t index, const std::string& name = "");
     const Type* keep_nocast(const Type* type);
+    void eliminate_proxies();
     void dce_insert(const size_t pass, const DefNode* def);
     void ute_insert(const size_t pass, const Type* type);
     void uce_insert(const size_t pass, Lambda*);

@@ -86,7 +86,9 @@ std::ostream& CodeGen::emit_name(const DefNode* def) {
 }
 
 std::ostream& CodeGen::emit_primop(const PrimOp* primop) {
-    if (auto primlit = primop->isa<PrimLit>()) {
+    if (primop->is_proxy())
+        stream() << "<proxy>";
+    else if (auto primlit = primop->isa<PrimLit>()) {
         emit_type(primop->type()) << ' ';
         switch (primlit->primtype_kind()) {
 #define ANYDSL2_UF_TYPE(T) case PrimType_##T: stream() << (u64) primlit->T##_value(); break;

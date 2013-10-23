@@ -7,7 +7,7 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
-MemOp::MemOp(size_t size, int kind, const Type* type, const DefNode* mem, const std::string& name)
+MemOp::MemOp(size_t size, NodeKind kind, const Type* type, const DefNode* mem, const std::string& name)
     : PrimOp(size, kind, type, name)
 {
     assert(mem->type()->isa<Mem>());

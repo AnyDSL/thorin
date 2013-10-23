@@ -50,8 +50,8 @@ private:
 public:
     Lambda* stub(const GenericMap& generic_map) const { return stub(generic_map, name); }
     Lambda* stub(const GenericMap& generic_map, const std::string& name) const;
-    Lambda* update_op(size_t i, const DefNode* def);
-    Lambda* update_arg(size_t i, const DefNode* def) { return update_op(i+1, def); }
+    Lambda* update_op(size_t i, Def def);
+    Lambda* update_arg(size_t i, Def def) { return update_op(i+1, def); }
     const Param* append_param(const Type* type, const std::string& name = "");
     Lambdas& succs() const;
     Lambdas preds() const;
@@ -59,9 +59,9 @@ public:
     const std::vector<const GenericRef*>& generic_refs() const { return generic_refs_; }
     const Params& params() const { return params_; }
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
-    const DefNode* to() const { return op(0); };
-    ArrayRef<const DefNode*> args() const { return empty() ? ArrayRef<const DefNode*>(0, 0) : ops().slice_back(1); }
-    const DefNode* arg(size_t i) const { return args()[i]; }
+    Def to() const { return op(0); };
+    ArrayRef<Def> args() const { return empty() ? ArrayRef<Def>(0, 0) : ops().slice_back(1); }
+    Def arg(size_t i) const { return args()[i]; }
     const Pi* pi() const;
     const Pi* to_pi() const;
     const Pi* arg_pi() const;
@@ -90,10 +90,10 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
 
     // terminate
 
-    void jump(const DefNode* to, ArrayRef<const DefNode*> args);
-    void branch(const DefNode* cond, const DefNode* tto, const DefNode* fto);
-    Lambda* call(const DefNode* to, ArrayRef<const DefNode*> args, const Type* ret_type);
-    Lambda* mem_call(const DefNode* to, ArrayRef<const DefNode*> args, const Type* ret_type);
+    void jump(Def to, ArrayRef<Def> args);
+    void branch(Def cond, Def tto, Def fto);
+    Lambda* call(Def to, ArrayRef<Def> args, const Type* ret_type);
+    Lambda* mem_call(Def to, ArrayRef<Def> args, const Type* ret_type);
 
     // cps construction
 

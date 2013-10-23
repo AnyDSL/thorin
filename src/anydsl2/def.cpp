@@ -52,9 +52,9 @@ std::string DefNode::unique_name() const {
     return oss.str();
 }
 
-Array<Use> DefNode::copy_uses() const {
-    Array<Use> result(uses().size());
-    std::copy(uses().begin(), uses().end(), result.begin());
+std::vector<Use> DefNode::uses() const {
+    std::vector<Use> result;
+    std::copy(uses_.begin(), uses_.end(), std::inserter(result, result.begin()));
     return result;
 }
 
@@ -93,93 +93,8 @@ bool DefNode::is_minus_zero() const {
 }
 
 void DefNode::replace(const DefNode* with) const {
-    std::queue<const DefNode*> queue;
-    std::unordered_map<const DefNode*, int> def2num;
-    def2num[this] = 0;
-
-    while (!queue.empty()) {
-        const DefNode* def = queue.front();
-        //if (auto primop = def->isa<PrimOp>()) {
-            // replace primop
-        //}
-        queue.pop();
-
-        for (auto use : def->uses()) {
-            if (use->isa<Lambda>())
-                continue;
-            auto i = def2num.find(use);
-            if (i != def2num.end())
-                --i->second;
-            else {
-                i = def2num.emplace(use, -1).first;
-                for (auto op : use->ops()) {
-                    if (!op->is_const())
-                        ++i->second;
-                }
-            }
-
-            if (i->second == 0)
-                queue.push(use);
-        }
-    }
+    // TODO
 }
-
-#if 0
-    // copy trackers to avoid internal modification
-    const Trackers trackers = trackers_;
-    for (auto tracker : trackers)
-        *tracker = with;
-
-    auto uses = multi_uses();
-
-    for (auto use : uses) {
-        if (auto lambda = use->isa_lambda()) {
-            for (auto index : use.indices())
-                lambda->update_op(index, with);
-        } else {
-            PrimOp* released = world().release(use->as<PrimOp>());
-            for (auto index : use.indices())
-                released->update(index, with);
-        }
-    }
-
-    for (auto use : uses) {
-        if (auto oprimop = (PrimOp*) use->isa<PrimOp>()) {
-            Array<const DefNode*> ops(oprimop->ops());
-            for (auto index : use.indices())
-                ops[index] = with;
-            size_t old_gid = world().gid();
-            const DefNode* ndef = world().rebuild(oprimop, ops);
-
-            if (oprimop->kind() == ndef->kind()) {
-                assert(oprimop->size() == ndef->size());
-
-                size_t j = 0;
-                size_t index = use.index(j);
-                for (size_t i = 0, e = oprimop->size(); i != e; ++i) {
-                    if (i != index && oprimop->op(i) != ndef->op(i))
-                        goto recurse;
-                    if (i == index && j < use.num_indices())
-                        index = use.index(j++);
-                }
-
-                if (ndef->gid() == old_gid) { // only consider fresh (non-CSEd) primop
-                    // nothing exciting happened by rebuilding 
-                    // -> reuse the old chunk of memory and save recursive updates
-                    AutoPtr<PrimOp> nreleased = world().release(ndef->as<PrimOp>());
-                    nreleased->unset_ops();
-                    world().reinsert(oprimop);
-                    continue;
-                }
-            }
-recurse:
-            oprimop->replace(ndef);
-            oprimop->unset_ops();
-            delete oprimop;
-        }
-    }
-}
-#endif
 
 int DefNode::non_const_depth() const {
     if (this->is_const() || this->isa<Param>()) 

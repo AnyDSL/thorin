@@ -96,8 +96,6 @@ private:
 struct UseHash { size_t operator () (Use use) const { return hash_combine(hash_value(use.def()), use.index()); } };
 struct UseEqual { bool operator () (Use use1, Use use2) const { return use1 == use2; } };
 
-typedef std::unordered_set<Use, UseHash, UseEqual> Uses;
-
 //------------------------------------------------------------------------------
 
 /**
@@ -137,9 +135,8 @@ public:
     int non_const_depth() const;
     void dump() const;
     const PrimOp* is_non_const_primop() const;
-
-    const Uses& uses() const { return uses_; }
-    Array<Use> copy_uses() const;
+    std::vector<Use> uses() const;
+    bool is_proxy() const { return representitive_ != this; }
     size_t num_uses() const { return uses_.size(); }
     size_t gid() const { return gid_; }
     std::string unique_name() const;
@@ -180,8 +177,9 @@ private:
     DefNode& operator = (const DefNode&); /// Do not copy-assign a \p Def instance.
 
     const Type* type_;
-    mutable Uses uses_;
+    mutable std::unordered_set<Use, UseHash, UseEqual> uses_;
     mutable const DefNode* representitive_;
+    mutable std::unordered_set<const DefNode*> proxies_;
     const size_t gid_;
 
 protected:

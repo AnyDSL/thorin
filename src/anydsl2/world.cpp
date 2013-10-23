@@ -1060,6 +1060,7 @@ void World::cleanup() {
 }
 
 void World::opt() {
+    return;
     cleanup();
     partial_evaluation(*this);
     lower2cff(*this);

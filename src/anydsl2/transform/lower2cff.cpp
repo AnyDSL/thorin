@@ -29,7 +29,7 @@ void CFFLowering::transform(Lambda* lambda) {
     Scope scope(lambda);
     std::unordered_map<Array<const DefNode*>, Lambda*> args2lambda;
 
-    for (auto use : lambda->copy_uses()) {
+    for (auto use : lambda->uses()) {
         if (use.index() != 0 || !use->isa<Lambda>())
             continue;
 

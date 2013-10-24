@@ -45,6 +45,20 @@ std::string GenericMap::to_string() const {
 
 //------------------------------------------------------------------------------
 
+size_t Type::hash() const {
+    size_t seed = hash_combine(hash_value((int) kind()), size());
+    for (auto elem : elems_)
+        seed = hash_combine(seed, elem);
+    return seed;
+}
+
+bool Type::equal(const Type* other) const {
+    bool result = this->kind() == other->kind() && this->size() == other->size();
+    for (size_t i = 0, e = size(); result && i != e; ++i)
+        result &= this->elems_[i] == other->elems_[i];
+    return result;
+}
+
 void Type::dump() const { emit_type(this); std::cout << std::endl; }
 size_t Type::length() const { return as<VectorType>()->length(); }
 const Type* Type::elem_via_lit(Def def) const { return elem(def->primlit_value<size_t>()); }
@@ -136,11 +150,11 @@ const VectorType* VectorType::scalarize() const {
 
 //------------------------------------------------------------------------------
 
-CompoundType::CompoundType(World& world, int kind, size_t size)
+CompoundType::CompoundType(World& world, NodeKind kind, size_t size)
     : Type(world, kind, size, false /*TODO named sigma*/)
 {}
 
-CompoundType::CompoundType(World& world, int kind, ArrayRef<const Type*> elems)
+CompoundType::CompoundType(World& world, NodeKind kind, ArrayRef<const Type*> elems)
     : Type(world, kind, elems.size(), false)
 {
     size_t x = 0;

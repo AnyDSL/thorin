@@ -38,7 +38,9 @@ public:
     Def() 
         : node_(nullptr)
     {}
-    Def(const DefNode* node);
+    Def(const DefNode* node)
+        : node_(node)
+    {}
 
     bool empty() const { return node_ == nullptr; }
     const DefNode* node() const { return node_; }
@@ -50,33 +52,10 @@ public:
     bool operator != (Def other) const { return this->deref() != other.deref(); }
     operator const DefNode*() const { return deref(); }
     const DefNode* operator -> () const { return deref(); }
-    Def& operator = (Def other);
-#ifndef NDEBUG
-    int cur_counter() const { return cur_counter_; }
-#endif
 
 private:
     const DefNode* node_;
-#ifndef NDEBUG
-    int cur_counter_;
-#endif
 };
-
-#if 0
-class DefRef {
-public:
-    DefRef(const DefNode** node)
-        : node_(node)
-    {}
-
-    DefRef& operator = (DefRef def) { *node_ = *def; }
-    operator Def() const { return Def(*node_); }
-
-
-private:
-    const DefNode** node_;
-};
-#endif
 
 /** 
  * References a user.
@@ -139,7 +118,7 @@ typedef Array<Peek> Peeks;
 class DefNode : public MagicCast<DefNode> {
 private:
     DefNode& operator = (const DefNode&); ///< Do not copy-assign a \p DefNode instance.
-    DefNode(const DefNode& );             ///< Do not copy-construct a \p DefNode.
+    DefNode(const DefNode&);              ///< Do not copy-construct a \p DefNode.
 
 protected:
     DefNode(size_t gid, NodeKind kind, size_t size, const Type* type, bool is_const, const std::string& name)
@@ -153,14 +132,13 @@ protected:
         , is_const_(is_const)
         , name(name)
     {}
+    virtual ~DefNode() {}
 
     void set_type(const Type* type) { type_ = type; }
     void unregister_use(size_t i) const { op(i)->uses_.erase(Use(i, this)); }
-    void resize(size_t n) { ops_.resize(n, 0); }
+    void resize(size_t n) { ops_.resize(n, nullptr); }
 
 public:
-    virtual ~DefNode() {}
-
     NodeKind kind() const { return kind_; }
     bool is_corenode() const { return ::anydsl2::is_corenode(kind()); }
     size_t size() const { return ops_.size(); }
@@ -189,7 +167,6 @@ public:
     bool is_generic() const;
     World& world() const;
     ArrayRef<Def> ops() const { return ops_; }
-    ArrayRef<Def> ops(size_t begin, size_t end) const { return ops().slice(begin, end); }
     Def op(size_t i) const { assert(i < ops().size()); return ops()[i]; }
     Def op_via_lit(Def def) const;
     void replace(Def) const;

@@ -7,25 +7,21 @@
 #include "anydsl2/analyses/verify.h"
 #include "anydsl2/transform/merge_lambdas.h"
 
-// TODO Review this code
-
 namespace anydsl2 {
 
 void mem2reg(World& world) {
     auto top = top_level_lambdas(world);
+    std::vector<Def> enters, leaves;
 
-    for (auto lambda : world.lambdas()) {
+    for (auto lambda : world.lambdas()) {   // unseal all lambdas ...
         lambda->set_parent(lambda);
         lambda->unseal();
     }
 
-    for (auto lambda : top) {
+    for (auto lambda : top) {               // ... except top-level lambdas
         lambda->set_parent(0);
         lambda->seal();
     }
-
-    std::vector<Def> enters;
-    std::vector<Def> leaves;
 
     for (auto root : top) {
         Scope scope(root);
@@ -98,44 +94,34 @@ void mem2reg(World& world) {
                 store->replace(store->mem());
             }
         }
-
-        for (auto p : load2def)
-            delete p.second;
-
 next_primop:;
     }
 
     for (auto lambda : world.lambdas())
         lambda->clear();
 
-    // this will wipe out dead Slots
-    world.cleanup();
-
     // are there any superfluous Leave/Enter pairs?
     for (size_t i = leaves.size(); i-- != 0;) {
-        const Leave* leave = leaves[i]->as<Leave>();
-        const Enter* enter = leave->frame()->as<TupleExtract>()->tuple()->as<Enter>();
+        if (auto leave = leaves[i]->isa<Leave>()) {
+            auto enter = leave->frame()->as<TupleExtract>()->tuple()->as<Enter>();
 
-        for (auto use : enter->uses()) {
-            if (use->isa<Slot>())
-                goto next_leave;
+            for (auto use : enter->uses()) {
+                if (use->isa<Slot>())
+                    goto next_leave;
+            }
+
+            enter->extract_mem()->replace(enter->mem());
+            leave->replace(leave->mem());
         }
-
-        enter->extract_mem()->replace(enter->mem());
-        leave->replace(leave->mem());
 
 next_leave:;
     }
 
-    // TODO Review this code
-
     // are there superfluous poor, lonely Enters? no mercy - eliminate them
     for (size_t i = enters.size(); i-- != 0;) {
-        if (auto def = enters[i]) {
-            if (auto enter = def->isa<Enter>()) {
-                if (enter->extract_frame()->num_uses() == 0)
-                    enter->extract_mem()->replace(enter->mem());
-            }
+        if (auto enter = enters[i]->isa<Enter>()) {
+            if (enter->extract_frame()->num_uses() == 0)
+                enter->extract_mem()->replace(enter->mem());
         }
     }
 

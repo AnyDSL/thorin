@@ -258,13 +258,10 @@ public:
      */
 
     const Type* insert_type(const Type*);
-    PrimOp* release(const PrimOp*);
-    void reinsert(const PrimOp*);
     size_t new_pass() { return pass_counter_++; }
 
 #ifndef NDEBUG
     void breakpoint(size_t number) { breakpoints_.insert(number); }
-    int proxy_counter() const { return proxy_counter_; }
 #endif
 
 protected:
@@ -281,6 +278,7 @@ protected:
     template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
 
 private:
+    PrimOp* release(const PrimOp*);
     const Param* param(const Type* type, Lambda* lambda, size_t index, const std::string& name = "");
     const Type* keep_nocast(const Type* type);
     void eliminate_proxies();
@@ -295,7 +293,6 @@ private:
     TypeSet types_;
 #ifndef NDEBUG
     std::unordered_set<size_t> breakpoints_;
-    int proxy_counter_;
 #endif
     std::unordered_set<const PrimOp*> released_;
 

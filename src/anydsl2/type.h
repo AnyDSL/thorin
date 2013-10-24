@@ -31,37 +31,67 @@ private:
 
 //------------------------------------------------------------------------------
 
-class Type : public Node<Type> {
+class Type : public MagicCast<Type> {
+private:
+    Type& operator = (const Type&); ///< Do not copy-assign a \p Type instance.
+    Type(const Type&);             ///< Do not copy-construct a \p Type.
+
 protected:
-    Type(World& world, int kind, size_t num, bool is_generic)
-        : Node(kind, num, "")
-        , world_(world)
+    Type(World& world, NodeKind kind, size_t num, bool is_generic)
+        : world_(world)
+        , kind_(kind)
+        , elems_(num)
+        , cur_pass_(0)
         , is_generic_(is_generic)
     {}
 
+    void set(size_t i, const Type* n) { elems_[i] = n; }
+
 public:
+    NodeKind kind() const { return kind_; }
+    bool is_corenode() const { return ::anydsl2::is_corenode(kind()); }
+    ArrayRef<const Type*> elems() const { return elems_; }
+    const Type* elem(size_t i) const { assert(i < elems().size()); return elems()[i]; }
+    const Type* elem_via_lit(Def def) const;
+    size_t size() const { return elems_.size(); }
+    bool empty() const { return elems_.empty(); }
     void dump() const;
     World& world() const { return world_; }
-    ArrayRef<const Type*> elems() const { return ops_ref<const Type*>(); }
-    const Type* elem(size_t i) const { return elems()[i]; }
-    const Type* elem_via_lit(Def def) const;
     bool check_with(const Type* type) const;
     bool infer_with(GenericMap& map, const Type* type) const;
     const Type* specialize(const GenericMap&) const;
     bool is_generic() const { return is_generic_; }
-    bool is_u1() const { return kind() == PrimType_u1; }
+    bool is_u1() const { return kind() == Node_PrimType_u1; }
     bool is_int() const { return anydsl2::is_int(kind()); }
     bool is_float() const { return anydsl2::is_float(kind()); }
     bool is_primtype() const { return anydsl2::is_primtype(kind()); }
     int order() const;
+    virtual size_t hash() const;
+    virtual bool equal(const Type* other) const;
     /**
      * Returns the vector length.
      * Raises an assertion if type of this is not a \p VectorType.
      */
     size_t length() const;
 
+    size_t cur_pass() const { return cur_pass_; }
+    bool visit(const size_t pass) const { 
+        assert(cur_pass_ <= pass); 
+        if (cur_pass_ != pass) { 
+            cur_pass_ = pass; 
+            return false; 
+        } 
+        return true; 
+    }
+    void visit_first(const size_t pass) const { assert(!is_visited(pass)); cur_pass_ = pass; }
+    void unvisit(const size_t pass) const { assert(cur_pass_ == pass); --cur_pass_; }
+    bool is_visited(const size_t pass) const { assert(cur_pass_ <= pass); return cur_pass_ == pass; }
+
 private:
     World& world_;
+    NodeKind kind_;
+    std::vector<const Type*> elems_;
+    mutable size_t cur_pass_;
 
 protected:
     bool is_generic_;
@@ -102,13 +132,13 @@ private:
 
 class VectorType : public Type {
 protected:
-    VectorType(World& world, int kind, size_t num_elems, size_t length, bool is_generic)
+    VectorType(World& world, NodeKind kind, size_t num_elems, size_t length, bool is_generic)
         : Type(world, kind, num_elems, is_generic)
         , length_(length)
     {}
 
     virtual size_t hash() const { return hash_combine(Type::hash(), length()); }
-    virtual bool equal(const Node* other) const { 
+    virtual bool equal(const Type* other) const { 
         return Type::equal(other) ? this->length() == other->as<VectorType>()->length() : false;
     }
 
@@ -129,11 +159,11 @@ private:
 class PrimType : public VectorType {
 private:
     PrimType(World& world, PrimTypeKind kind, size_t length)
-        : VectorType(world, (int) kind, 0, length, false)
+        : VectorType(world, (NodeKind) kind, 0, length, false)
     {}
 
 public:
-    PrimTypeKind primtype_kind() const { return (PrimTypeKind) node_kind(); }
+    PrimTypeKind primtype_kind() const { return (PrimTypeKind) kind(); }
 
 private:
     friend class World;
@@ -144,7 +174,7 @@ private:
 class Ptr : public VectorType {
 private:
     Ptr(World& world, const Type* referenced_type, size_t length)
-        : VectorType(world, (int) Node_Ptr, 1, length, referenced_type->is_generic())
+        : VectorType(world, Node_Ptr, 1, length, referenced_type->is_generic())
     {
         set(0, referenced_type);
     }
@@ -159,8 +189,8 @@ public:
 
 class CompoundType : public Type {
 protected:
-    CompoundType(World& world, int kind, size_t num_elems);
-    CompoundType(World& world, int kind, ArrayRef<const Type*> elems);
+    CompoundType(World& world, NodeKind kind, size_t num_elems);
+    CompoundType(World& world, NodeKind kind, ArrayRef<const Type*> elems);
 };
 
 //------------------------------------------------------------------------------
@@ -168,26 +198,26 @@ protected:
 /// A tuple type.
 class Sigma : public CompoundType {
 private:
-    Sigma(World& world, size_t size, const std::string& sigma_name)
+    Sigma(World& world, size_t size, const std::string& name)
         : CompoundType(world, Node_Sigma, size)
-        , named_(true)
+        , name_(name)
     {
-        name = sigma_name;
+        assert(name != "");
     }
     Sigma(World& world, ArrayRef<const Type*> elems)
         : CompoundType(world, Node_Sigma, elems)
-        , named_(false)
+        , name_("")
     {}
 
-    virtual size_t hash() const { return named_ ? hash_value(this) : CompoundType::hash(); }
-    virtual bool equal(const Node* other) const { return named_ ? this == other : CompoundType::equal(other); }
+    virtual size_t hash() const { return is_named() ? hash_value(this) : CompoundType::hash(); }
+    virtual bool equal(const Type* other) const { return is_named() ? this == other : CompoundType::equal(other); }
 
 public:
-    bool named() const { return named_; }
+    bool is_named() const { return name_ == ""; }
     // TODO build setter for named sigmas which sets is_generic_
 
 private:
-    bool named_;
+    std::string name_;
 
     friend class World;
 };
@@ -218,7 +248,7 @@ private:
     {}
 
     virtual size_t hash() const { return hash_combine(Type::hash(), index()); }
-    virtual bool equal(const Node* other) const { 
+    virtual bool equal(const Type* other) const { 
         return Type::equal(other) ? index() == other->as<Generic>()->index() : false; 
     }
 
@@ -239,7 +269,7 @@ private:
     virtual ~GenericRef();
 
     virtual size_t hash() const { return hash_combine(Type::hash(), lambda()); }
-    virtual bool equal(const Node* other) const { 
+    virtual bool equal(const Type* other) const { 
         return Type::equal(other) ? lambda() == other->as<GenericRef>()->lambda() : false; 
     }
 

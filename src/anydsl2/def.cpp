@@ -16,30 +16,10 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
-Def::Def(const DefNode* node)
-    : node_(node)
-{
-    if (node)
-        cur_counter_ = node->world().proxy_counter();
-}
-
-Def& Def::operator = (Def other) {
-    this->node_ = other.node();
-    if (!other.empty()) {
-        this->cur_counter_ = other.cur_counter();
-    }
-
-    return *this;
-}
-
 const DefNode* Def::deref() const {
     const DefNode* n = node_;
-    //assert(n == nullptr || cur_counter_ == n->world().proxy_counter());
-    while (n != nullptr && n != n->representative_) {
+    for (; n != nullptr && n != n->representative_; n = n->representative_)
         assert(n != nullptr);
-        //assert(cur_counter_ == n->world().proxy_counter());
-        n = n->representative_;
-    }
 
     return n;
 }

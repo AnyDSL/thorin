@@ -21,7 +21,6 @@
 #include "anydsl2/transform/partial_evaluation.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/hash.h"
-#include "anydsl2/be/air.h"
 
 #define ANYDSL2_NO_U_TYPE \
     case PrimType_u1: \
@@ -56,7 +55,6 @@ namespace anydsl2 {
 World::World()
     : primops_(1031)
     , types_(1031)
-    , proxy_counter_(0)
     , gid_(0)
     , pass_counter_(1)
     , sigma0_ (keep(new Sigma(*this, ArrayRef<const Type*>())))
@@ -936,25 +934,22 @@ static const DefNode* get_mapped(const DefNode* def) {
 static void set_mapped(const DefNode* odef, const DefNode* ndef) { ((const DefNode*&) odef->cptr) = ndef; }
 
 void World::eliminate_proxies() {
-    std::cout << "H3x30R" << std::endl;
     std::vector<const PrimOp*> trash;
+
+    for (auto lambda : lambdas()) {
+        for (auto param : lambda->params())
+            set_mapped(param, Def(param));
+    }
 
     for (auto top : top_level_lambdas(*this)) {
         Scope scope(top);
         Schedule schedule = schedule_early(scope);
 
         for (auto lambda : scope.rpo()) {
-            for (auto param : lambda->params())
-                set_mapped(param, param);
-
             for (auto oprimop : schedule[lambda->sid()]) {
                 Array<Def> ops(oprimop->size());
-                std::cout << "------" << std::endl;
-                oprimop->dump();
-                std::cout << "------" << std::endl;
                 for (size_t i = 0, e = oprimop->size(); i != e; ++i)
                     ops[i] = get_mapped(oprimop->op(i));
-
 
                 auto nprimop = rebuild(oprimop, ops);
                 set_mapped(oprimop, nprimop);
@@ -964,12 +959,13 @@ void World::eliminate_proxies() {
         }
     }
 
+    for (auto lambda : lambdas()) {
+        for (size_t i = 0, e = lambda->size(); i != e; ++i)
+            lambda->update_op(i, get_mapped(Def(lambda->op(i))));
+    }
+
     for (auto primop : trash)
         delete primop;
-
-#ifndef NDEBUG
-    proxy_counter_++;
-#endif
 }
 
 void World::unreachable_code_elimination() {
@@ -1110,15 +1106,13 @@ void World::cleanup() {
 }
 
 void World::opt() {
-    emit_air(*this, true);
-    std::cout << "---" << std::endl;
     cleanup();
     partial_evaluation(*this);
     lower2cff(*this);
     mem2reg(*this);
     inliner(*this);
     merge_lambdas(*this);
-    //cleanup();
+    cleanup();
 }
 
 PrimOp* World::release(const PrimOp* primop) {
@@ -1126,13 +1120,7 @@ PrimOp* World::release(const PrimOp* primop) {
     assert(i != primops_.end() && "must be found");
     assert(primop == *i);
     primops_.erase(i);
-
     return const_cast<PrimOp*>(primop);
-}
-
-void World::reinsert(const PrimOp* primop) {
-    assert(primops_.find(primop) == primops_.end() && "must not be found");
-    primops_.insert(primop);
 }
 
 } // namespace anydsl2

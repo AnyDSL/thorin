@@ -969,6 +969,8 @@ void World::eliminate_proxies() {
 
     for (auto primop : trash)
         delete primop;
+
+    // TODO clear representitives_of_
 }
 
 void World::unreachable_code_elimination() {

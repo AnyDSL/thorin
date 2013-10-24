@@ -1,6 +1,7 @@
 #ifndef ANYDSL2_BE_LLVM_H
 #define ANYDSL2_BE_LLVM_H
 
+#include "anydsl2/def.h"
 #include "anydsl2/util/assert.h"
 
 namespace llvm {
@@ -12,7 +13,6 @@ namespace llvm {
 
 namespace anydsl2 {
 
-class DefNode;
 class Type;
 
 class World;
@@ -22,7 +22,7 @@ public:
     virtual ~EmitHook() {}
 
     virtual void assign(llvm::IRBuilderBase* builder, llvm::Module* module) {}
-    virtual llvm::Value* emit(const DefNode*) { ANYDSL2_UNREACHABLE; }
+    virtual llvm::Value* emit(Def) { ANYDSL2_UNREACHABLE; }
     virtual llvm::Type* map(const Type*) { ANYDSL2_UNREACHABLE; }
 };
 

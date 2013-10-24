@@ -1,13 +1,12 @@
 #ifndef ANYDSL2_TYPE_H
 #define ANYDSL2_TYPE_H
 
-#include "anydsl2/node.h"
+#include "anydsl2/def.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/hash.h"
 
 namespace anydsl2 {
 
-class DefNode;
 class Generic;
 class Lambda;
 class Pi;
@@ -45,7 +44,7 @@ public:
     World& world() const { return world_; }
     ArrayRef<const Type*> elems() const { return ops_ref<const Type*>(); }
     const Type* elem(size_t i) const { return elems()[i]; }
-    const Type* elem_via_lit(const DefNode* def) const;
+    const Type* elem_via_lit(Def def) const;
     bool check_with(const Type* type) const;
     bool infer_with(GenericMap& map, const Type* type) const;
     const Type* specialize(const GenericMap&) const;

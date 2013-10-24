@@ -26,6 +26,13 @@ class World;
 
 //------------------------------------------------------------------------------
 
+/**
+ * This class acts as a proxy for \p DefNode pointers.
+ * This proxy hides that a \p DefNode may have been replaced by another one.
+ * It automatically forwards to the replaced node.
+ * If in doubt use a \p Def instead of \p DefNode*.
+ * You almost never have to use a \p DefNode* directly.
+ */
 class Def {
 public:
     Def() 
@@ -49,6 +56,22 @@ public:
 private:
     const DefNode* node_;
 };
+
+#if 0
+class DefRef {
+public:
+    DefRef(const DefNode** node)
+        : node_(node)
+    {}
+
+    DefRef& operator = (DefRef def) { *node_ = *def; }
+    operator Def() const { return Def(*node_); }
+
+
+private:
+    const DefNode** node_;
+};
+#endif
 
 /** 
  * References a user.

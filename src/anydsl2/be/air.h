@@ -11,7 +11,7 @@ class World;
 
 void emit_air(World&, bool fancy = false);
 void emit_type(const Type*);
-void emit_def(const DefNode*);
+void emit_def(Def);
 void emit_assignment(const PrimOp*);
 void emit_head(const Lambda*);
 void emit_jump(const Lambda*);

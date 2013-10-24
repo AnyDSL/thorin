@@ -14,12 +14,12 @@ public:
     {}
 
     bool verify();
-    bool verify(Lambda* current, const DefNode* def, PrimOpSet& primops);
+    bool verify(Lambda* current, Def def, PrimOpSet& primops);
     bool verify_param(Lambda* current, const Param* param);
     bool verify_body(Lambda* lambda);
     bool verify_primop(Lambda* current, const PrimOp* primop, PrimOpSet& primops);
-    void invalid(const DefNode* def, const DefNode* source, const char* msg = nullptr);
-    void invalid(const DefNode* def, const char* msg) { invalid(def, def, msg); }
+    void invalid(Def def, Def source, const char* msg = nullptr);
+    void invalid(Def def, const char* msg) { invalid(def, def, msg); }
 
     World& world_;
     const size_t pass_;
@@ -69,7 +69,7 @@ bool Verifier::verify_param(Lambda* current, const Param* param) {
     return true;
 }
 
-bool Verifier::verify(Lambda* current, const DefNode* def, PrimOpSet& primops) {
+bool Verifier::verify(Lambda* current, Def def, PrimOpSet& primops) {
     if (auto param = def->isa<Param>())
         return verify_param(current, param);
     else if (def->isa_lambda())
@@ -174,7 +174,7 @@ bool Verifier::verify_primop(Lambda* current, const PrimOp* primop, PrimOpSet& p
     }
 
     // check all operands recursively
-    const DefNode* error = 0;
+    Def error = 0;
     for (auto op : primop->ops()) {
         if (!verify(current, op, primops))
             error = op;
@@ -188,7 +188,7 @@ bool Verifier::verify_primop(Lambda* current, const PrimOp* primop, PrimOpSet& p
     return true;
 }
 
-void Verifier::invalid(const DefNode* def, const DefNode* source, const char* msg) {
+void Verifier::invalid(Def def, Def source, const char* msg) {
     std::cout << "Invalid entry:" << std::endl;
     def->dump();
     if (source != def) {

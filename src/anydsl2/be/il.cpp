@@ -1,4 +1,3 @@
-#if 0
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
 #include "anydsl2/primop.h"
@@ -49,8 +48,8 @@ public:
     {}
 
     std::ostream& emit_type(const Type*);
-    std::ostream& emit_name(const DefNode*);
-    std::ostream& emit_def(const DefNode*);
+    std::ostream& emit_name(Def);
+    std::ostream& emit_def(Def);
     std::ostream& emit_primop(const PrimOp*);
     std::ostream& emit_assignment(const PrimOp*);
     std::ostream& emit_head(const Lambda*, bool nodefs);
@@ -104,13 +103,13 @@ std::ostream& IlPrinter::emit_type(const Type* type) {
     ANYDSL2_UNREACHABLE;
 }
 
-std::ostream& IlPrinter::emit_def(const DefNode* def) {
+std::ostream& IlPrinter::emit_def(Def def) {
     if (auto primop = def->isa<PrimOp>())
         return emit_primop(primop);
     return emit_name(def);
 }
 
-std::ostream& IlPrinter::emit_name(const DefNode* def) {
+std::ostream& IlPrinter::emit_name(Def def) {
     if (is_fancy()) // elide white = 0 and black = 7
         color(def->gid() % 6 + 30 + 1);
 
@@ -138,7 +137,7 @@ std::ostream& IlPrinter::emit_primop(const PrimOp* primop) {
             emit_type(primop->type());
         } else {
             emit_type(primop->type());
-            dump_list([&] (const DefNode* def) { emit_def(def); }, primop->ops(), "(", ")");
+            dump_list([&] (Def def) { emit_def(def); }, primop->ops(), "(", ")");
         }
     } else
         emit_name(primop);
@@ -162,7 +161,7 @@ std::ostream& IlPrinter::emit_assignment(const PrimOp* primop) {
     }
 
     stream() << primop->op_name() << " ";
-    dump_list([&] (const DefNode* def) { emit_def(def); }, ops, "(", ")");
+    dump_list([&] (Def def) { emit_def(def); }, ops, "(", ")");
     return newline();
 }
 
@@ -186,7 +185,7 @@ std::ostream& IlPrinter::emit_jump(const Lambda* lambda, bool nodefs) {
         if (!nodefs)
             stream() << "in ";
         emit_def(lambda->to());
-        dump_list([&] (const DefNode* def) { emit_def(def); }, lambda->args(), "(", ")");
+        dump_list([&] (Def def) { emit_def(def); }, lambda->args(), "(", ")");
         if (!nodefs)
             stream() << " end";
     }
@@ -245,4 +244,3 @@ void emit_il(World& world, bool fancy) {
 //------------------------------------------------------------------------------
 
 } // namespace anydsl2
-#endif

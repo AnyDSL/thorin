@@ -11,8 +11,8 @@ fn main() -> float[] {
     val depth   = 1;
     val range   = 3;
     val size    = 2*range;
-    val out       = array(width * height * depth);
-    val in       = array(width * height * depth);
+    val out     = array(width * height * depth);
+    val in      = array(width * height * depth);
     // TODO: mask as a C const array
     val mask    = array(size * size);
 
@@ -21,19 +21,25 @@ fn main() -> float[] {
     mask[3] = 0.124758f; mask[4] = 0.272496f; mask[5] = 0.124758f;
     mask[6] = 0.057118f; mask[7] = 0.124758f; mask[8] = 0.057118f;
 
-
-    all_on_gpu(out, |x : int, y : int, z : int| -> void {
-        val index = x + width * y + height * depth * z;
-        // TODO: call to idx triggers assertion
-        //val index = idx(x, y, z, width, height, depth);
-        val a2 = out[index];
-        val b2 = in[index];
-        val c2 = @convolve(in, mask, 3, x, y, z, width, height, depth);
-        // TODO: passing 'range' instead of '3' results in infintie loop during
-        // compilation / partial evaluation
-        //val c2 = @convolve(in, mask, range, x, y, z, width, height, depth);
-        out[index] = c2 + a2 + b2;
-    });
+    for (var iter=0; iter<100; ++iter) {
+        // TODO: howto switch pointers?
+        // val *float[] tmp;
+        // tmp = in;
+        // in = out;
+        // out = tmp;
+        all_on_gpu(out, |x : int, y : int, z : int| -> void {
+            val index = x + width * y + height * depth * z;
+            // TODO: call to idx triggers assertion
+            //val index = idx(x, y, z, width, height, depth);
+            val a2 = out[index];
+            val b2 = in[index];
+            val c2 = @convolve(in, mask, 3, x, y, z, width, height, depth);
+            // TODO: passing 'range' instead of '3' results in infintie loop during
+            // compilation / partial evaluation
+            //val c2 = @convolve(in, mask, range, x, y, z, width, height, depth);
+            out[index] = c2 + a2 + b2;
+        });
+    }
 
     return out;
 }

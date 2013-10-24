@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "anydsl2/enums.h"
-#include "anydsl2/node.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/autoptr.h"
 #include "anydsl2/util/cast.h"

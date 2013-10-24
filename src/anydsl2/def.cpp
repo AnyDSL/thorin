@@ -106,6 +106,9 @@ bool DefNode::is_minus_zero() const {
 
 void DefNode::replace(Def with) const {
     assert(!is_proxy());
+    assert(!is_const());
+    if (this == *with)
+        return;
     this->representative_ = with;
     with->representatives_of_.insert(this);
 }

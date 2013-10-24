@@ -936,16 +936,19 @@ static void set_mapped(const DefNode* odef, const DefNode* ndef) { ((const DefNo
 void World::eliminate_proxies() {
     std::vector<const PrimOp*> trash;
 
-    for (auto lambda : lambdas()) {
-        for (auto param : lambda->params())
-            set_mapped(param, Def(param));
-    }
+    for (auto lambda : lambdas())
+        set_mapped(lambda, lambda);
 
     for (auto top : top_level_lambdas(*this)) {
         Scope scope(top);
         Schedule schedule = schedule_early(scope);
 
         for (auto lambda : scope.rpo()) {
+            for (auto param : lambda->params()) {
+                if (param->is_proxy())
+                    set_mapped(param, param->is_proxy() ? get_mapped(Def(param)) : param);
+            }
+
             for (auto oprimop : schedule[lambda->sid()]) {
                 Array<Def> ops(oprimop->size());
                 for (size_t i = 0, e = oprimop->size(); i != e; ++i)
@@ -961,7 +964,9 @@ void World::eliminate_proxies() {
 
     for (auto lambda : lambdas()) {
         for (size_t i = 0, e = lambda->size(); i != e; ++i)
-            lambda->update_op(i, get_mapped(Def(lambda->op(i))));
+            lambda->update_op(i, get_mapped(lambda->op(i)));
+        for (auto param : lambda->params())
+            param->replace(get_mapped(param));
     }
 
     for (auto primop : trash)

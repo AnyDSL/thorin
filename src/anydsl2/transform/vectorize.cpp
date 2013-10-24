@@ -26,8 +26,8 @@ public:
     Def vectorize(Def def, size_t length);
 
     World& world() { return scope.world(); }
-    static Def& map_cond(Lambda* lambda) { return (Def&) lambda->ptr; }
-    static Def& map(Def def) { return (Def&) def->ptr; }
+    static const DefNode*& map_cond(Lambda* lambda) { return (const DefNode*&) lambda->ptr; }
+    static const DefNode*& map(const DefNode* def) { return (const DefNode*&) def->ptr; }
 
     const Scope& scope;
     size_t pass;
@@ -56,7 +56,7 @@ Lambda* Vectorizer::vectorize() {
     std::ostringstream oss;
     oss << scope[0]->name << "_x" << length;
     Lambda* vlambda = world().lambda(vectorize_type(entry->pi(), length)->as<Pi>(), Lambda::Attribute(Lambda::Extern), oss.str());
-    map_cond(entry) = world().literal(true, length);
+    map_cond(entry) = *world().literal(true, length);
 
     for (size_t i = 0, e = entry->num_params(); i != e; ++i) {
         const Param* param = entry->param(i);
@@ -93,7 +93,7 @@ Lambda* Vectorizer::vectorize() {
 }
 
 void Vectorizer::infer_condition(Lambda* lambda) {
-    Def& cond = map_cond(lambda);
+    const DefNode*& cond = map_cond(lambda);
 
     Lambda* dom = scope.domtree().idom(lambda);
     if (scope.postdomtree().idom(dom) == lambda)

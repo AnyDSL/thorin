@@ -253,7 +253,7 @@ Def Lambda::get_value(size_t handle, const Type* type, const char* name) {
     } else {
         if (!is_sealed_) {
             const Param* param = append_param(type, name);
-            todos_.push_back(Todo(handle, param->index(), type, name));
+            todos_.emplace_back(handle, param->index(), type, name);
             return set_value(handle, param);
         }
 

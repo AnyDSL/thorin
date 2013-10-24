@@ -191,9 +191,9 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
         for (auto header : headers) {
             for (auto pred : looptree.preds(header)) {
                 if (in_scc(pred))
-                    parent->backedges_.push_back(Edge(pred, header));
+                    parent->backedges_.emplace_back(pred, header);
                 else
-                    parent->entries_.push_back(Edge(pred, header));
+                    parent->entries_.emplace_back(pred, header);
             }
         }
 

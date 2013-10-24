@@ -944,10 +944,8 @@ void World::eliminate_proxies() {
         Schedule schedule = schedule_early(scope);
 
         for (auto lambda : scope.rpo()) {
-            for (auto param : lambda->params()) {
-                if (param->is_proxy())
-                    set_mapped(param, param->is_proxy() ? get_mapped(Def(param)) : param);
-            }
+            for (auto param : lambda->params())
+                set_mapped(param, param->is_proxy() ? get_mapped(Def(param)) : param);
 
             for (auto oprimop : schedule[lambda->sid()]) {
                 Array<Def> ops(oprimop->size());

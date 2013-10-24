@@ -11,6 +11,7 @@
 #include "anydsl2/be/air.h"
 #include "anydsl2/be/il.h"
 #include "anydsl2/be/llvm.h"
+#include "anydsl2/util/args.h"
 
 #include "impala/ast.h"
 #include "impala/parser.h"
@@ -18,8 +19,6 @@
 #include "impala/dump.h"
 #include "impala/emit.h"
 #include "impala/init.h"
-
-#include "args.h"
 
 //------------------------------------------------------------------------------
 

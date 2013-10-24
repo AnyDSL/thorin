@@ -16,13 +16,30 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
-const DefNode* Def::deref() const {
-    if (node_ == nullptr)
-        return nullptr;
+Def::Def(const DefNode* node)
+    : node_(node)
+{
+    if (node)
+        cur_counter_ = node->world().proxy_counter();
+}
 
+Def& Def::operator = (Def other) {
+    this->node_ = other.node();
+    if (!other.empty()) {
+        this->cur_counter_ = other.cur_counter();
+    }
+
+    return *this;
+}
+
+const DefNode* Def::deref() const {
     const DefNode* n = node_;
-    while (n != n->representative_)
+    //assert(n == nullptr || cur_counter_ == n->world().proxy_counter());
+    while (n != nullptr && n != n->representative_) {
+        assert(n != nullptr);
+        //assert(cur_counter_ == n->world().proxy_counter());
         n = n->representative_;
+    }
 
     return n;
 }
@@ -60,7 +77,11 @@ std::vector<Use> DefNode::uses() const {
     while (!stack.empty()) {
         const DefNode* cur = stack.back();
         stack.pop_back();
-        std::copy(uses_.begin(), uses_.end(), std::inserter(result, result.begin()));
+
+        for (auto use : cur->uses_) {
+            if (!use.def().node()->is_proxy())
+                result.push_back(use);
+        }
 
         for (auto of : cur->representatives_of_)
             stack.push_back(of);
@@ -104,9 +125,6 @@ bool DefNode::is_minus_zero() const {
 }
 
 void DefNode::replace(Def with) const {
-    //this->dump();
-    //std::cout << "--->" << std::endl;
-    //with->dump();
     assert(!is_proxy());
     this->representative_ = with;
     with->representatives_of_.insert(this);
@@ -146,12 +164,6 @@ bool DefNode::is_generic() const { return type()->is_generic(); }
 size_t DefNode::length() const { return type()->as<VectorType>()->length(); }
 
 //------------------------------------------------------------------------------
-
-Param::Param(size_t gid, const Type* type, Lambda* lambda, size_t index, const std::string& name)
-    : DefNode(gid, Node_Param, 0, type, false, name)
-    , lambda_(lambda)
-    , index_(index)
-{}
 
 Peeks Param::peek() const {
     size_t x = index();

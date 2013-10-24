@@ -7,6 +7,8 @@
 #include "anydsl2/analyses/verify.h"
 #include "anydsl2/transform/merge_lambdas.h"
 
+// TODO Review this code
+
 namespace anydsl2 {
 
 void mem2reg(World& world) {
@@ -124,6 +126,8 @@ next_primop:;
 
 next_leave:;
     }
+
+    // TODO Review this code
 
     // are there superfluous poor, lonely Enters? no mercy - eliminate them
     for (size_t i = enters.size(); i-- != 0;) {

@@ -264,6 +264,7 @@ public:
 
 #ifndef NDEBUG
     void breakpoint(size_t number) { breakpoints_.insert(number); }
+    int proxy_counter() const { return proxy_counter_; }
 #endif
 
 protected:
@@ -294,6 +295,7 @@ private:
     TypeSet types_;
 #ifndef NDEBUG
     std::unordered_set<size_t> breakpoints_;
+    int proxy_counter_;
 #endif
     std::unordered_set<const PrimOp*> released_;
 

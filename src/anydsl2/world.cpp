@@ -21,6 +21,7 @@
 #include "anydsl2/transform/partial_evaluation.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/hash.h"
+#include "anydsl2/be/air.h"
 
 #define ANYDSL2_NO_U_TYPE \
     case PrimType_u1: \
@@ -55,6 +56,7 @@ namespace anydsl2 {
 World::World()
     : primops_(1031)
     , types_(1031)
+    , proxy_counter_(0)
     , gid_(0)
     , pass_counter_(1)
     , sigma0_ (keep(new Sigma(*this, ArrayRef<const Type*>())))
@@ -925,33 +927,49 @@ void World::unregister_uses(const size_t pass, S& set) {
     }
 }
 
-static const DefNode*& mapped(const DefNode* def) { return (const DefNode*&) def->cptr; }
+static const DefNode* get_mapped(const DefNode* def) { 
+    if (def->is_const())
+        return def;
+    return (const DefNode*) def->cptr; 
+}
+
+static void set_mapped(const DefNode* odef, const DefNode* ndef) { ((const DefNode*&) odef->cptr) = ndef; }
 
 void World::eliminate_proxies() {
-    std::vector<const PrimOp*> proxies;
+    std::cout << "H3x30R" << std::endl;
+    std::vector<const PrimOp*> trash;
 
     for (auto top : top_level_lambdas(*this)) {
         Scope scope(top);
         Schedule schedule = schedule_early(scope);
 
         for (auto lambda : scope.rpo()) {
-            for (auto primop : schedule[lambda->sid()]) {
-                if (!primop->is_proxy())
-                    mapped(primop) = primop;
-                else { // proxy
-                    Array<Def> ops(primop->size());
-                    for (size_t i = 0, e = primop->size(); i != e; ++i)
-                        ops[i] = mapped(primop->op(i));
+            for (auto param : lambda->params())
+                set_mapped(param, param);
 
-                    mapped(primop) = rebuild(primop, ops);
-                    proxies.push_back(release(primop));
-                }
+            for (auto oprimop : schedule[lambda->sid()]) {
+                Array<Def> ops(oprimop->size());
+                std::cout << "------" << std::endl;
+                oprimop->dump();
+                std::cout << "------" << std::endl;
+                for (size_t i = 0, e = oprimop->size(); i != e; ++i)
+                    ops[i] = get_mapped(oprimop->op(i));
+
+
+                auto nprimop = rebuild(oprimop, ops);
+                set_mapped(oprimop, nprimop);
+                if (nprimop->gid() != oprimop->gid())
+                    trash.push_back(release(oprimop));
             }
         }
     }
 
-    for (auto proxy : proxies)
-        delete proxy;
+    for (auto primop : trash)
+        delete primop;
+
+#ifndef NDEBUG
+    proxy_counter_++;
+#endif
 }
 
 void World::unreachable_code_elimination() {
@@ -1092,13 +1110,15 @@ void World::cleanup() {
 }
 
 void World::opt() {
+    emit_air(*this, true);
+    std::cout << "---" << std::endl;
     cleanup();
     partial_evaluation(*this);
     lower2cff(*this);
     mem2reg(*this);
     inliner(*this);
     merge_lambdas(*this);
-    cleanup();
+    //cleanup();
 }
 
 PrimOp* World::release(const PrimOp* primop) {

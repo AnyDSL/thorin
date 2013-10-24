@@ -38,9 +38,7 @@ public:
     Def() 
         : node_(nullptr)
     {}
-    Def(const DefNode* node)
-        : node_(node)
-    {}
+    Def(const DefNode* node);
 
     bool empty() const { return node_ == nullptr; }
     const DefNode* node() const { return node_; }
@@ -52,9 +50,16 @@ public:
     bool operator != (Def other) const { return this->deref() != other.deref(); }
     operator const DefNode*() const { return deref(); }
     const DefNode* operator -> () const { return deref(); }
+    Def& operator = (Def other);
+#ifndef NDEBUG
+    int cur_counter() const { return cur_counter_; }
+#endif
 
 private:
     const DefNode* node_;
+#ifndef NDEBUG
+    int cur_counter_;
+#endif
 };
 
 #if 0
@@ -269,7 +274,11 @@ inline bool Use::operator < (Use use) const { return def()->gid() < use.def()->g
 
 class Param : public DefNode {
 private:
-    Param(size_t gid, const Type* type, Lambda* lambda, size_t index, const std::string& name);
+    Param(size_t gid, const Type* type, Lambda* lambda, size_t index, const std::string& name)
+        : DefNode(gid, Node_Param, 0, type, false, name)
+        , lambda_(lambda)
+        , index_(index)
+    {}
 
 public:
     Lambda* lambda() const { return lambda_; }

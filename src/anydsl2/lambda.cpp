@@ -266,28 +266,28 @@ Def Lambda::get_value(size_t handle, const Type* type, const char* name) {
                     return set_value(handle, append_param(type, name)); // create param to break cycle
 
                 is_visited_ = true;
-                Def same;
+                const DefNode* same = nullptr;
                 for (auto pred : preds) {
-                    Def def = pred->get_value(handle, type, name);
+                    const DefNode* def = pred->get_value(handle, type, name);
                     if (same && same != def) {
                         same = (const DefNode*)-1; // defs from preds are different
                         break;
                     }
                     same = def;
                 }
-                assert(!same.empty());
+                assert(same != nullptr);
                 is_visited_ = false;
 
                 // fix any params which may have been introduced to break the cycle above
-                Def def = nullptr;
+                const DefNode* def = nullptr;
                 if (auto found = find_def(handle))
                     def = fix(Todo(handle, found->as<Param>()->index(), type, name));
 
-                if (same.node() != (const DefNode*)-1)
+                if (same != (const DefNode*)-1)
                     return same;
 
-                def = def ? def : fix(Todo(handle, append_param(type, name)->index(), type, name));
-                return set_value(handle, def);
+                Def result = def ? Def(def) : fix(Todo(handle, append_param(type, name)->index(), type, name));
+                return set_value(handle, result);
             }
         }
     }

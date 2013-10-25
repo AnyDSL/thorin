@@ -84,15 +84,12 @@ public:
 }
 #include "anydsl2/tables/primtypetable.h"
 
-    // primitive types
-
     /// Get PrimType.
     const PrimType* type(PrimTypeKind kind, size_t length = 1) {
         size_t i = kind - Begin_PrimType;
         assert(0 <= i && i < (size_t) Num_PrimTypes);
         return length == 1 ? primtypes_[i] : unify(new PrimType(*this, kind, length));
     }
-
     const Mem* mem() const { return mem_; }
     const Frame* frame() const { return frame_; }
     const Ptr* ptr(const Type* referenced_type, size_t length = 1) { return unify(new Ptr(*this, referenced_type, length)); }
@@ -239,6 +236,7 @@ public:
     void dead_code_elimination();
     void unreachable_code_elimination();
     void unused_type_elimination();
+    void eliminate_params();
 
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();
@@ -282,7 +280,7 @@ private:
     const Param* param(const Type* type, Lambda* lambda, size_t index, const std::string& name = "");
     const Type* keep_nocast(const Type* type);
     void eliminate_proxies();
-    void dce_insert(const size_t pass, const DefNode* def);
+    Def dce_rebuild(const size_t pass, Def def);
     void ute_insert(const size_t pass, const Type* type);
     void uce_insert(const size_t pass, Lambda*);
     template<class S> static void unregister_uses(const size_t pass, S& set);

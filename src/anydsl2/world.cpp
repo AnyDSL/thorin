@@ -736,9 +736,7 @@ Def World::tuple_insert(Def agg, Def index, Def value, const std::string& name) 
     return cse(new TupleInsert(agg, index, value, name));
 }
 
-Def World::tuple_extract(Def tuple, u32 index, const std::string& name) { 
-    return tuple_extract(tuple, literal_u32(index), name); 
-}
+Def World::tuple_extract(Def tuple, u32 index, const std::string& name) { return tuple_extract(tuple, literal_u32(index), name); }
 Def World::tuple_insert(Def tuple, u32 index, Def value, const std::string& name) { 
     return tuple_insert(tuple, literal_u32(index), value, name); 
 }
@@ -783,14 +781,9 @@ Def World::select(Def cond, Def a, Def b, const std::string& name) {
     return cse(new Select(cond, a, b, name));
 }
 
-const Load* World::load(Def mem, Def ptr, const std::string& name) { 
-    return cse(new Load(mem, ptr, name)); 
-}
-const Store* World::store(Def mem, Def ptr, Def value, const std::string& name) {
-    return cse(new Store(mem, ptr, value, name));
-}
-const Leave* World::leave(Def mem, Def frame, const std::string& name) { 
-    return cse(new Leave(mem, frame, name)); }
+const Load* World::load(Def mem, Def ptr, const std::string& name) { return cse(new Load(mem, ptr, name)); }
+const Store* World::store(Def mem, Def ptr, Def value, const std::string& name) { return cse(new Store(mem, ptr, value, name)); }
+const Leave* World::leave(Def mem, Def frame, const std::string& name) { return cse(new Leave(mem, frame, name)); }
 const Slot* World::slot(const Type* type, Def frame, size_t index, const std::string& name) {
     return cse(new Slot(type, frame, index, name));
 }
@@ -904,9 +897,6 @@ void World::wipe_out(const size_t pass, S& set) {
         auto j = i++;
         const DefNode* def = *j;
         if (!def->is_visited(pass)) {
-            //for (auto tracker : def->trackers_)
-                //tracker->def_ = 0;
-
             set.erase(j);
             delete def;
         }
@@ -915,62 +905,48 @@ void World::wipe_out(const size_t pass, S& set) {
 
 template<class S>
 void World::unregister_uses(const size_t pass, S& set) {
-    for (auto i = set.begin(), e = set.end(); i != e; ++i) {
-        const DefNode* def = *i;
+    for (auto def : set) {
         if (!def->is_visited(pass)) {
-            for (size_t i = 0, e = def->size(); i != e; ++i) {
+            for (size_t i = 0, e = def->size(); i != e; ++i)
                 def->unregister_use(i);
-            }
+            if (def->is_proxy())
+                def->representative_->representatives_of_.erase(def);
         }
     }
 }
 
-static const DefNode* get_mapped(const DefNode* def) { 
-    if (def->is_const())
-        return def;
-    return (const DefNode*) def->cptr; 
-}
+void World::eliminate_params() {
+    for (auto olambda : lambdas()) {
+        if (olambda->empty()) 
+            continue;
 
-static void set_mapped(const DefNode* odef, const DefNode* ndef) { ((const DefNode*&) odef->cptr) = ndef; }
+        std::vector<size_t> proxy_idx;
+        std::vector<size_t> param_idx;
+        size_t i = 0;
+        for (auto param : olambda->params()) {
+            if (param->is_proxy())
+                proxy_idx.push_back(i++);
+            else
+                param_idx.push_back(i++);
+        }
 
-void World::eliminate_proxies() {
-    std::vector<const PrimOp*> trash;
+        if (proxy_idx.empty()) 
+            continue;
 
-    for (auto lambda : lambdas())
-        set_mapped(lambda, lambda);
+        auto nlambda = lambda(pi(olambda->type()->elems().cut(proxy_idx)), olambda->attribute(), olambda->name);
+        size_t j = 0;
+        for (auto i : param_idx)
+            olambda->param(i)->replace(nlambda->param(j++));
 
-    for (auto top : top_level_lambdas(*this)) {
-        Scope scope(top);
-        Schedule schedule = schedule_early(scope);
+        nlambda->jump(olambda->to(), olambda->args());
+        olambda->destroy_body();
 
-        for (auto lambda : scope.rpo()) {
-            for (auto param : lambda->params())
-                set_mapped(param, param->is_proxy() ? get_mapped(Def(param)) : param);
-
-            for (auto oprimop : schedule[lambda->sid()]) {
-                Array<Def> ops(oprimop->size());
-                for (size_t i = 0, e = oprimop->size(); i != e; ++i)
-                    ops[i] = get_mapped(oprimop->op(i));
-
-                auto nprimop = rebuild(oprimop, ops);
-                set_mapped(oprimop, nprimop);
-                if (nprimop->gid() != oprimop->gid())
-                    trash.push_back(release(oprimop));
-            }
+        for (auto use : olambda->uses()) {
+            auto ulambda = use->as_lambda();
+            assert(use.index() == 0);
+            ulambda->jump(nlambda, ulambda->args().cut(proxy_idx));
         }
     }
-
-    for (auto lambda : lambdas()) {
-        for (size_t i = 0, e = lambda->size(); i != e; ++i)
-            lambda->update_op(i, get_mapped(lambda->op(i)));
-        for (auto param : lambda->params())
-            param->replace(get_mapped(param));
-    }
-
-    for (auto primop : trash)
-        delete primop;
-
-    // TODO clear representitives_of_
 }
 
 void World::unreachable_code_elimination() {
@@ -993,81 +969,69 @@ void World::uce_insert(const size_t pass, Lambda* lambda) {
         uce_insert(pass, succ);
 }
 
-void World::dead_code_elimination() {
-    const size_t pass = new_pass();
-
-    for (auto primop : primops()) {
-        if (const TypeKeeper* tk = primop->isa<TypeKeeper>())
-            dce_insert(pass, tk);
-    }
-
-    for (auto lambda : lambdas()) {
-        if (lambda->attribute().is(Lambda::Extern)) {
-            dce_insert(pass, lambda);
-            if (lambda->empty()) {
-                for (auto param : lambda->params())
-                    dce_insert(pass, param);
-            } else {
-                for (auto param : lambda->params()) {
-                    if (param->order() >= 1) {
-                        for (auto use : param->uses()) {
-                            if (Lambda* caller = use->isa_lambda())
-                                dce_insert(pass, caller);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    for (auto lambda : lambdas()) {
-        if (!lambda->is_visited(pass))
-            lambda->destroy_body();
-        else {
-            for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
-                Def arg = lambda->arg(i);
-                if (!arg->is_visited(pass)) {
-                    Def bot = bottom(arg->type());
-                    bot->visit(pass);
-                    lambda->update_arg(i, bot);
-                }
-            }
-        }
-    }
-
-    unregister_uses(pass, primops_);
-    unregister_uses(pass, lambdas_);
-    wipe_out(pass, primops_);
-    wipe_out(pass, lambdas_);
+static const DefNode* get_mapped(const DefNode* def) { return (const DefNode*) def->cptr; }
+static void set_mapped(const DefNode* odef, const DefNode* ndef) { ((const DefNode*&) odef->cptr) = ndef; }
+static bool wipe(const PrimOp* primop, const size_t pass) {
+    return !primop->is_visited(pass) || get_mapped(primop) != primop;
 }
 
-void World::dce_insert(const size_t pass, const DefNode* def) {
-#ifndef NDEBUG
-    if (const PrimOp* primop = def->isa<PrimOp>()) assert(primops_.find(primop)          != primops_.end());
-    if (      Lambda* lambda = def->isa_lambda() ) assert(lambdas_.find(lambda)          != lambdas_.end());
-    if (const Param*  param  = def->isa<Param>() ) assert(lambdas_.find(param->lambda()) != lambdas_.end());
-#endif
+void World::dead_code_elimination() {
+    const size_t pass = new_pass();
+    std::vector<const DefNode*> stack;
 
-    if (def->visit(pass)) return;
-
-    if (const PrimOp* primop = def->isa<PrimOp>()) {
-        for (auto op : primop->ops())
-            dce_insert(pass, op);
-    } else if (const Param* param = def->isa<Param>()) {
-        for (auto peek : param->peek())
-            dce_insert(pass, peek.def());
-    } else {
-        Lambda* lambda = def->as_lambda();
-        for (auto pred : lambda->preds()) // insert control-dependent lambdas
-            dce_insert(pass, pred);
+    for (auto lambda : lambdas()) {
         if (!lambda->empty()) {
-            dce_insert(pass, lambda->to());
-            if (!lambda->to()->isa<Lambda>()) {
-                for (auto arg : lambda->args())
-                    dce_insert(pass, arg);
-            }
+            for (size_t i = 0, e = lambda->ops().size(); i != e; ++i)
+                lambda->update_op(i, dce_rebuild(pass, lambda->op(i)));
         }
     }
+
+    for (auto primop : primops_) {
+        if (wipe(primop, pass)) {
+            for (size_t i = 0, e = primop->size(); i != e; ++i)
+                primop->unregister_use(i);
+            if (primop->is_proxy())
+                primop->representative_->representatives_of_.erase(primop);
+        }
+    }
+
+    for (auto i = primops_.begin(); i != primops_.end();) {
+        auto j = i++;
+        const PrimOp* def = *j;
+        if (def->is_const())
+            continue;
+        auto primop = def->as<PrimOp>();
+        if (wipe(primop, pass)) {
+            primops_.erase(j);
+            delete def;
+        }
+    }
+}
+
+Def World::dce_rebuild(const size_t pass, Def def) {
+    if (def->is_const() || def->isa<Param>())
+        return def;
+
+    auto oprimop = def->as<PrimOp>();
+
+    if (oprimop->is_visited(pass)) {
+        if (auto mapped = get_mapped(oprimop))
+            return mapped;
+    }
+
+    Array<Def> ops(oprimop->size());
+    for (size_t i = 0, e = oprimop->size(); i != e; ++i)
+        ops[i] = dce_rebuild(pass, oprimop->op(i));
+
+    auto nprimop = rebuild(oprimop, ops);
+    if (oprimop->gid() != nprimop->gid()) {
+        nprimop->visit_first(pass);
+        set_mapped(nprimop, nprimop);
+    }
+
+    set_mapped(oprimop, nprimop);
+    oprimop->visit(pass);
+    return nprimop;
 }
 
 void World::unused_type_elimination() {
@@ -1103,7 +1067,7 @@ void World::ute_insert(const size_t pass, const Type* type) {
 }
 
 void World::cleanup() {
-    eliminate_proxies();
+    eliminate_params();
     unreachable_code_elimination();
     dead_code_elimination();
     unused_type_elimination();

@@ -917,6 +917,8 @@ void World::unregister_uses(const size_t pass, S& set) {
 
 void World::eliminate_params() {
     for (auto olambda : lambdas()) {
+        if (olambda->gid() == 74)
+            std::cout << "hey" << std::endl;
         if (olambda->empty()) 
             continue;
 
@@ -933,18 +935,31 @@ void World::eliminate_params() {
         if (proxy_idx.empty()) 
             continue;
 
+        std::cout << "---" << std::endl;
+        olambda->dump_head();
+        std::cout << "proxies:" << std::endl;
+        for (auto i : proxy_idx) {
+            std::cout << olambda->param(i)->unique_name() << " to " << Def(olambda->param(i))->unique_name() << std::endl;
+        }
+
         auto nlambda = lambda(pi(olambda->type()->elems().cut(proxy_idx)), olambda->attribute(), olambda->name);
         size_t j = 0;
-        for (auto i : param_idx)
-            olambda->param(i)->replace(nlambda->param(j++));
+        for (auto i : param_idx) {
+            olambda->param(i)->replace(nlambda->param(j));
+            nlambda->param(j++)->name = olambda->param(i)->name;
+        }
+        nlambda->dump_head();
 
         nlambda->jump(olambda->to(), olambda->args());
         olambda->destroy_body();
 
         for (auto use : olambda->uses()) {
             auto ulambda = use->as_lambda();
+            std::cout << "ulambda" << std::endl;
+            ulambda->dump_jump();
             assert(use.index() == 0);
             ulambda->jump(nlambda, ulambda->args().cut(proxy_idx));
+            ulambda->dump_jump();
         }
     }
 }
@@ -957,12 +972,22 @@ void World::unreachable_code_elimination() {
             uce_insert(pass, lambda);
 
     for (auto lambda : lambdas()) {
-        if (!lambda->is_visited(pass))
+        if (!lambda->is_visited(pass)) {
+            std::cout << "destroy: " << std::endl;
+            lambda->dump_head();
+            lambda->dump_jump();
             lambda->destroy_body();
+        } else {
+            std::cout << "keep: " << std::endl;
+            lambda->dump_head();
+            lambda->dump_jump();
+        }
     }
 }
 
 void World::uce_insert(const size_t pass, Lambda* lambda) {
+    if (lambda->gid() == 74)
+        std::cout << "WTF?" << std::endl;
     if (lambda->visit(pass)) return;
 
     for (auto succ : lambda->succs())
@@ -1006,6 +1031,10 @@ void World::dead_code_elimination() {
         auto j = i++;
         auto lambda = *j;
         if (lambda->empty()) {
+            for (auto param : lambda->params()) {
+                if (param->is_proxy())
+                    param->representative_->representatives_of_.erase(param);
+            }
             lambdas_.erase(j);
             //delete lambda;
         }

@@ -33,11 +33,6 @@ Schedule schedule_early(const Scope& scope) {
                 primops.push_back(primop);
             queue.pop();
 
-            if (def->gid() == 37)
-                std::cout << "hey" << std::endl;
-            if (def->gid() == 15)
-                std::cout << "hey" << std::endl;
-
             for (auto use : def->uses()) {
                 if (use->isa<Lambda>())
                     continue;

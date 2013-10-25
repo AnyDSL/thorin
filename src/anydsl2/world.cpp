@@ -1022,12 +1022,29 @@ void World::dead_code_elimination() {
 
 #ifndef NDEBUG
     for (auto primop : primops_) {
+        within(primop->representative_);
         for (auto op : primop->ops())
             within(op);
+        for (auto use : primop->uses_)
+            within(use);
+        for (auto r : primop->representatives_of_)
+            within(r);
     }
     for (auto lambda : lambdas_) {
+        within(lambda->representative_);
+        for (auto r : lambda->representatives_of_)
+            within(r);
         for (auto op : lambda->ops())
             within(op);
+        for (auto use : lambda->uses_)
+            within(use);
+        for (auto param : lambda->params()) {
+            within(param->representative_);
+            for (auto use : param->uses_)
+                within(use);
+            for (auto r : param->representatives_of_)
+                within(r);
+        }
     }
 #endif
 }

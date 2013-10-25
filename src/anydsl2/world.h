@@ -285,6 +285,7 @@ private:
     void uce_insert(const size_t pass, Lambda*);
     template<class S> static void unregister_uses(const size_t pass, S& set);
     template<class S> static void wipe_out(const size_t pass, S& set);
+    void within(const DefNode*);
 
     PrimOpSet primops_;
     LambdaSet lambdas_;
@@ -292,7 +293,6 @@ private:
 #ifndef NDEBUG
     std::unordered_set<size_t> breakpoints_;
 #endif
-    std::unordered_set<const PrimOp*> released_;
 
     size_t gid_;
     size_t pass_counter_;

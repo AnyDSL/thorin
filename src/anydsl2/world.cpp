@@ -1027,16 +1027,12 @@ void World::dead_code_elimination() {
         }
     }
 
-    for (auto i = lambdas_.begin(); i != lambdas_.end();) {
-        auto j = i++;
-        auto lambda = *j;
-        if (lambda->empty()) {
+    for (auto lambda : lambdas()) {
+        if (lambda->empty() && !lambda->attribute().is(Lambda::Extern)) {
             for (auto param : lambda->params()) {
                 if (param->is_proxy())
                     param->representative_->representatives_of_.erase(param);
             }
-            lambdas_.erase(j);
-            //delete lambda;
         }
     }
 
@@ -1046,8 +1042,16 @@ void World::dead_code_elimination() {
         if (wipe(primop, pass)) {
             primops_.erase(j);
             //delete primop;
-        } else {
+        } else
             assert(!primop->is_proxy());
+    }
+
+    for (auto i = lambdas_.begin(); i != lambdas_.end();) {
+        auto j = i++;
+        auto lambda = *j;
+        if (lambda->empty() && !lambda->attribute().is(Lambda::Extern)) {
+            lambdas_.erase(j);
+            //delete lambda;
         }
     }
 
@@ -1055,9 +1059,9 @@ void World::dead_code_elimination() {
     for (auto primop : primops_) {
         within(primop->representative_);
         for (auto op : primop->ops())
-            within(op);
+            within(op.node());
         for (auto use : primop->uses_)
-            within(use);
+            within(use.def().node());
         for (auto r : primop->representatives_of_)
             within(r);
     }
@@ -1068,13 +1072,13 @@ void World::dead_code_elimination() {
         for (auto r : lambda->representatives_of_)
             within(r);
         for (auto op : lambda->ops())
-            within(op);
+            within(op.node());
         for (auto use : lambda->uses_)
-            within(use);
+            within(use.def().node());
         for (auto param : lambda->params()) {
             within(param->representative_);
             for (auto use : param->uses_)
-                within(use);
+                within(use.def().node());
             for (auto r : param->representatives_of_)
                 within(r);
         }
@@ -1098,13 +1102,10 @@ Def World::dce_rebuild(const size_t pass, Def def) {
         ops[i] = dce_rebuild(pass, oprimop->op(i));
 
     auto nprimop = rebuild(oprimop, ops);
-    if (oprimop != nprimop) {
-        nprimop->visit_first(pass);
-        set_mapped(nprimop, nprimop);
-    }
-
     set_mapped(oprimop, nprimop);
+    set_mapped(nprimop, nprimop);
     oprimop->visit(pass);
+    nprimop->visit(pass);
     return nprimop;
 }
 

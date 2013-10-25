@@ -53,7 +53,7 @@ public:
     Lambda* update_op(size_t i, Def def);
     Lambda* update_arg(size_t i, Def def) { return update_op(i+1, def); }
     const Param* append_param(const Type* type, const std::string& name = "");
-    Lambdas& succs() const;
+    Lambdas succs() const;
     Lambdas preds() const;
     Lambdas direct_preds() const;
     const std::vector<const GenericRef*>& generic_refs() const { return generic_refs_; }
@@ -153,14 +153,9 @@ private:
     Lambda* parent_;
     bool is_sealed_;
     bool is_visited_;
-
     std::vector<Def> values_;
     typedef std::vector<Todo> Todos;
     Todos todos_;
-
-    mutable Lambdas succs_;
-    mutable std::vector<Use> former_uses_;
-    mutable std::vector<Def> former_ops_;
     mutable std::vector<const GenericRef*> generic_refs_;
 
     friend class World;

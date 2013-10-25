@@ -84,15 +84,12 @@ public:
 }
 #include "anydsl2/tables/primtypetable.h"
 
-    // primitive types
-
     /// Get PrimType.
     const PrimType* type(PrimTypeKind kind, size_t length = 1) {
         size_t i = kind - Begin_PrimType;
         assert(0 <= i && i < (size_t) Num_PrimTypes);
         return length == 1 ? primtypes_[i] : unify(new PrimType(*this, kind, length));
     }
-
     const Mem* mem() const { return mem_; }
     const Frame* frame() const { return frame_; }
     const Ptr* ptr(const Type* referenced_type, size_t length = 1) { return unify(new Ptr(*this, referenced_type, length)); }
@@ -239,6 +236,7 @@ public:
     void dead_code_elimination();
     void unreachable_code_elimination();
     void unused_type_elimination();
+    void eliminate_params();
 
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();

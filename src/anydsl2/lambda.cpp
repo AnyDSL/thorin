@@ -87,13 +87,8 @@ static Lambdas find_preds(const Lambda* lambda) {
     return result;
 }
 
-Lambdas& Lambda::succs() const {
-    if (ops() == former_ops_)
-        return succs_;
-
-    former_ops_.resize(ops().size());
-    std::copy(ops().begin(), ops().end(), former_ops_.begin());
-    succs_.clear();
+Lambdas Lambda::succs() const {
+    std::vector<Lambda*> succs;
     std::queue<const DefNode*> queue;
     std::unordered_set<const DefNode*> done;
     const DefNode* def = this;
@@ -104,7 +99,7 @@ Lambdas& Lambda::succs() const {
         queue.pop();
 
         if (Lambda* lambda = def->isa_lambda()) {
-            succs_.push_back(lambda);
+            succs.push_back(lambda);
             continue;
         } 
 start:
@@ -116,11 +111,10 @@ start:
         }
     }
 
-    return succs_;
+    return succs;
 }
 
 Lambdas Lambda::preds() const {
-    // TODO cache the preds like in Lambda::succs -- but this not so obvious as it seems!!!
     std::vector<Lambda*> preds;
     std::queue<const DefNode*> queue;
     std::unordered_set<const DefNode*> done;

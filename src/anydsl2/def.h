@@ -69,13 +69,13 @@ public:
     {}
 
     size_t index() const { return index_; }
-    Def def() const { return def_; }
+    const Def& def() const { return def_; }
     bool operator == (Use use) const { return def() == use.def() && index() == use.index(); }
     bool operator != (Use use) const { return def() != use.def() || index() != use.index(); }
     bool operator < (Use) const;
     operator Def() const { return def_; }
     operator const DefNode*() const { return def_; }
-    Def operator -> () const { return def_; }
+    const Def& operator -> () const { return def_; }
 
 private:
     size_t index_;

@@ -736,9 +736,7 @@ Def World::tuple_insert(Def agg, Def index, Def value, const std::string& name) 
     return cse(new TupleInsert(agg, index, value, name));
 }
 
-Def World::tuple_extract(Def tuple, u32 index, const std::string& name) { 
-    return tuple_extract(tuple, literal_u32(index), name); 
-}
+Def World::tuple_extract(Def tuple, u32 index, const std::string& name) { return tuple_extract(tuple, literal_u32(index), name); }
 Def World::tuple_insert(Def tuple, u32 index, Def value, const std::string& name) { 
     return tuple_insert(tuple, literal_u32(index), value, name); 
 }
@@ -783,14 +781,9 @@ Def World::select(Def cond, Def a, Def b, const std::string& name) {
     return cse(new Select(cond, a, b, name));
 }
 
-const Load* World::load(Def mem, Def ptr, const std::string& name) { 
-    return cse(new Load(mem, ptr, name)); 
-}
-const Store* World::store(Def mem, Def ptr, Def value, const std::string& name) {
-    return cse(new Store(mem, ptr, value, name));
-}
-const Leave* World::leave(Def mem, Def frame, const std::string& name) { 
-    return cse(new Leave(mem, frame, name)); }
+const Load* World::load(Def mem, Def ptr, const std::string& name) { return cse(new Load(mem, ptr, name)); }
+const Store* World::store(Def mem, Def ptr, Def value, const std::string& name) { return cse(new Store(mem, ptr, value, name)); }
+const Leave* World::leave(Def mem, Def frame, const std::string& name) { return cse(new Leave(mem, frame, name)); }
 const Slot* World::slot(const Type* type, Def frame, size_t index, const std::string& name) {
     return cse(new Slot(type, frame, index, name));
 }
@@ -904,9 +897,6 @@ void World::wipe_out(const size_t pass, S& set) {
         auto j = i++;
         const DefNode* def = *j;
         if (!def->is_visited(pass)) {
-            //for (auto tracker : def->trackers_)
-                //tracker->def_ = 0;
-
             set.erase(j);
             delete def;
         }
@@ -915,12 +905,12 @@ void World::wipe_out(const size_t pass, S& set) {
 
 template<class S>
 void World::unregister_uses(const size_t pass, S& set) {
-    for (auto i = set.begin(), e = set.end(); i != e; ++i) {
-        const DefNode* def = *i;
+    for (auto def : set) {
         if (!def->is_visited(pass)) {
-            for (size_t i = 0, e = def->size(); i != e; ++i) {
+            for (size_t i = 0, e = def->size(); i != e; ++i)
                 def->unregister_use(i);
-            }
+            if (def->is_proxy())
+                def->representative_->representatives_of_.erase(def);
         }
     }
 }
@@ -933,9 +923,40 @@ static const DefNode* get_mapped(const DefNode* def) {
 
 static void set_mapped(const DefNode* odef, const DefNode* ndef) { ((const DefNode*&) odef->cptr) = ndef; }
 
-void World::eliminate_proxies() {
-    std::vector<const PrimOp*> trash;
+void World::eliminate_params() {
+    for (auto olambda : lambdas()) {
+        if (olambda->empty()) 
+            continue;
 
+        std::vector<size_t> proxy_idx;
+        std::vector<size_t> param_idx;
+        size_t i = 0;
+        for (auto param : olambda->params()) {
+            if (param->is_proxy())
+                proxy_idx.push_back(i++);
+            else
+                param_idx.push_back(i++);
+        }
+
+        if (proxy_idx.empty()) 
+            continue;
+
+        auto nlambda = lambda(pi(olambda->type()->elems().cut(proxy_idx)), olambda->attribute(), olambda->name);
+        size_t j = 0;
+        for (auto i : param_idx)
+            olambda->param(i)->replace(nlambda->param(j++));
+
+        nlambda->jump(olambda->to(), olambda->args());
+
+        for (auto use : olambda->uses()) {
+            auto ulambda = use->as_lambda();
+            assert(use.index() == 0);
+            ulambda->jump(nlambda, ulambda->args().cut(proxy_idx));
+        }
+    }
+}
+
+void World::eliminate_proxies() {
     for (auto lambda : lambdas())
         set_mapped(lambda, lambda);
 
@@ -945,7 +966,8 @@ void World::eliminate_proxies() {
 
         for (auto lambda : scope.rpo()) {
             for (auto param : lambda->params())
-                set_mapped(param, param->is_proxy() ? get_mapped(Def(param)) : param);
+                //set_mapped(param, param->is_proxy() ? get_mapped(Def(param)) : param);
+                set_mapped(param, param);
 
             for (auto oprimop : schedule[lambda->sid()]) {
                 Array<Def> ops(oprimop->size());
@@ -954,8 +976,6 @@ void World::eliminate_proxies() {
 
                 auto nprimop = rebuild(oprimop, ops);
                 set_mapped(oprimop, nprimop);
-                if (nprimop->gid() != oprimop->gid())
-                    trash.push_back(release(oprimop));
             }
         }
     }
@@ -963,12 +983,9 @@ void World::eliminate_proxies() {
     for (auto lambda : lambdas()) {
         for (size_t i = 0, e = lambda->size(); i != e; ++i)
             lambda->update_op(i, get_mapped(lambda->op(i)));
-        for (auto param : lambda->params())
-            param->replace(get_mapped(param));
+        //for (auto param : lambda->params())
+            //param->replace(get_mapped(param));
     }
-
-    for (auto primop : trash)
-        delete primop;
 }
 
 void World::unreachable_code_elimination() {
@@ -1101,6 +1118,7 @@ void World::ute_insert(const size_t pass, const Type* type) {
 }
 
 void World::cleanup() {
+    eliminate_params();
     eliminate_proxies();
     unreachable_code_elimination();
     dead_code_elimination();

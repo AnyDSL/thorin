@@ -1002,21 +1002,23 @@ void World::dead_code_elimination() {
         }
     }
 
-    for (auto i = primops_.begin(); i != primops_.end();) {
-        auto j = i++;
-        auto primop = *j;
-        if (wipe(primop, pass)) {
-            primops_.erase(j);
-            delete primop;
-        }
-    }
-
     for (auto i = lambdas_.begin(); i != lambdas_.end();) {
         auto j = i++;
         auto lambda = *j;
         if (lambda->empty()) {
             lambdas_.erase(j);
-            delete lambda;
+            //delete lambda;
+        }
+    }
+
+    for (auto i = primops_.begin(); i != primops_.end();) {
+        auto j = i++;
+        auto primop = *j;
+        if (wipe(primop, pass)) {
+            primops_.erase(j);
+            //delete primop;
+        } else {
+            assert(!primop->is_proxy());
         }
     }
 
@@ -1031,6 +1033,8 @@ void World::dead_code_elimination() {
             within(r);
     }
     for (auto lambda : lambdas_) {
+        if (lambda->empty())
+            continue;
         within(lambda->representative_);
         for (auto r : lambda->representatives_of_)
             within(r);

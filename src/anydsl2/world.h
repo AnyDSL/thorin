@@ -280,7 +280,7 @@ private:
     const Param* param(const Type* type, Lambda* lambda, size_t index, const std::string& name = "");
     const Type* keep_nocast(const Type* type);
     void eliminate_proxies();
-    void dce_insert(const size_t pass, const DefNode* def);
+    Def dce_rebuild(const size_t pass, Def def);
     void ute_insert(const size_t pass, const Type* type);
     void uce_insert(const size_t pass, Lambda*);
     template<class S> static void unregister_uses(const size_t pass, S& set);

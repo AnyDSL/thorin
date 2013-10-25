@@ -103,10 +103,10 @@ bool DefNode::is_minus_zero() const {
 }
 
 void DefNode::replace(Def with) const {
-    //assert(!is_proxy());
+    assert(!is_proxy());
     assert(!is_const());
-    if (this == *with)
-        return;
+    assert(this != *with);
+    assert(!isa<Param>() || !as<Param>()->lambda()->attribute().is(Lambda::Extern));
     this->representative_ = with;
     with->representatives_of_.insert(this);
 }

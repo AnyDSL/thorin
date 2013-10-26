@@ -11,7 +11,6 @@
 #include "anydsl2/literal.h"
 #include "anydsl2/memop.h"
 #include "anydsl2/type.h"
-#include "anydsl2/analyses/scope.h"
 #include "anydsl2/analyses/schedule.h"
 #include "anydsl2/analyses/verify.h"
 #include "anydsl2/transform/lower2cff.h"
@@ -1000,15 +999,6 @@ static bool wipe(const PrimOp* primop, const size_t pass) {
     return !primop->is_const() && (!primop->is_visited(pass) || get_mapped(primop) != primop);
 }
 
-void World::within(const DefNode* def) {
-    if (auto primop = def->isa<PrimOp>())
-        assert(primops_.find(primop) != primops_.end());
-    else if (auto lambda = def->isa_lambda())
-        assert(lambdas_.find(lambda) != lambdas_.end());
-    else
-        within(def->as<Param>()->lambda());
-}
-
 void World::dead_code_elimination() {
     const size_t pass = new_pass();
     std::vector<const DefNode*> stack;
@@ -1055,35 +1045,7 @@ void World::dead_code_elimination() {
         }
     }
 
-#ifndef NDEBUG
-    for (auto primop : primops_) {
-        within(primop->representative_);
-        for (auto op : primop->ops())
-            within(op.node());
-        for (auto use : primop->uses_)
-            within(use.def().node());
-        for (auto r : primop->representatives_of_)
-            within(r);
-    }
-    for (auto lambda : lambdas_) {
-        if (lambda->empty())
-            continue;
-        within(lambda->representative_);
-        for (auto r : lambda->representatives_of_)
-            within(r);
-        for (auto op : lambda->ops())
-            within(op.node());
-        for (auto use : lambda->uses_)
-            within(use.def().node());
-        for (auto param : lambda->params()) {
-            within(param->representative_);
-            for (auto use : param->uses_)
-                within(use.def().node());
-            for (auto r : param->representatives_of_)
-                within(r);
-        }
-    }
-#endif
+    verify_closedness(*this);
 }
 
 Def World::dce_rebuild(const size_t pass, Def def) {

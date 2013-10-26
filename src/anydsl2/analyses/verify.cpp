@@ -204,6 +204,45 @@ void Verifier::invalid(Def def, Def source, const char* msg) {
     assert(false);
 }
 
+static void within(World& world, const DefNode* def) {
+    if (auto primop = def->isa<PrimOp>())
+        assert(world.primops().find(primop) != world.primops().end());
+    else if (auto lambda = def->isa_lambda())
+        assert(world.lambdas().find(lambda) != world.lambdas().end());
+    else
+        within(world, def->as<Param>()->lambda());
+}
+
+void verify_closedness(World& world) {
+    for (auto primop : world.primops()) {
+        within(world, primop->representative_);
+        for (auto op : primop->ops())
+            within(world, op.node());
+        for (auto use : primop->uses_)
+            within(world, use.def().node());
+        for (auto r : primop->representatives_of_)
+            within(world, r);
+    }
+    for (auto lambda : world.lambdas()) {
+        if (lambda->empty())
+            continue;
+        within(world, lambda->representative_);
+        for (auto r : lambda->representatives_of_)
+            within(world, r);
+        for (auto op : lambda->ops())
+            within(world, op.node());
+        for (auto use : lambda->uses_)
+            within(world, use.def().node());
+        for (auto param : lambda->params()) {
+            within(world, param->representative_);
+            for (auto use : param->uses_)
+                within(world, use.def().node());
+            for (auto r : param->representatives_of_)
+                within(world, r);
+        }
+    }
+}
+
 //------------------------------------------------------------------------------
 
 void verify(World& world) { return; Verifier(world).verify(); }

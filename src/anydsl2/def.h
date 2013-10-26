@@ -241,6 +241,7 @@ public:
     friend class Def;
     friend class PrimOp;
     friend class World;
+    friend void verify_closedness(World& world);
 };
 
 std::ostream& operator << (std::ostream& o, Def def);

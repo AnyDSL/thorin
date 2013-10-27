@@ -9,11 +9,9 @@
 namespace anydsl2 {
 
 Lambda* Lambda::stub(const GenericMap& generic_map, const std::string& name) const {
-    Lambda* result = world().lambda(pi()->specialize(generic_map)->as<Pi>(), attribute(), name);
-
-    for (size_t i = 0, e = params().size(); i != e; ++i)
+    auto result = world().lambda(pi()->specialize(generic_map)->as<Pi>(), attribute(), name);
+    for (size_t i = 0, e = num_params(); i != e; ++i)
         result->param(i)->name = param(i)->name;
-
     return result;
 }
 
@@ -56,7 +54,7 @@ static Lambdas find_preds(const Lambda* lambda) {
             }
         } else {
             if (!direct || use.index() == 0)
-                if (Lambda* ulambda = use->isa_lambda())
+                if (auto ulambda = use->isa_lambda())
                     result.push_back(ulambda);
         }
     }
@@ -75,7 +73,7 @@ Lambdas Lambda::succs() const {
         def = queue.front();
         queue.pop();
 
-        if (Lambda* lambda = def->isa_lambda()) {
+        if (auto lambda = def->isa_lambda()) {
             succs.push_back(lambda);
             continue;
         } 
@@ -102,7 +100,7 @@ Lambdas Lambda::preds() const {
         def = queue.front();
         queue.pop();
 
-        if (Lambda* lambda = def->isa_lambda()) {
+        if (auto lambda = def->isa_lambda()) {
             preds.push_back(lambda);
             continue;
         } 
@@ -119,10 +117,7 @@ start:
 }
 
 Lambdas Lambda::direct_preds() const { return find_preds<true>(this); }
-
-bool Lambda::is_builtin() const {
-    return attribute().is(Cuda);
-}
+bool Lambda::is_builtin() const { return attribute().is(Cuda); }
 
 bool Lambda::is_connected_to_builtin() const {
     // check for uses in the context of builtin functions
@@ -183,8 +178,8 @@ Lambda* Lambda::call(Def to, ArrayRef<Def> args, const Type* ret_type) {
 
 Lambda* Lambda::mem_call(Def to, ArrayRef<Def> args, const Type* ret_type) {
     // create next continuation in cascade
-    const Pi* pi = ret_type != nullptr ? world().pi({world().mem(), ret_type}) : world().pi({world().mem()});
-    Lambda* next = world().lambda(pi, name + "_" + to->name);
+    auto pi = ret_type != nullptr ? world().pi({world().mem(), ret_type}) : world().pi({world().mem()});
+    auto next = world().lambda(pi, name + "_" + to->name);
     next->param(0)->name = "mem";
 
     if (ret_type)

@@ -790,7 +790,7 @@ const LEA* World::lea(Def ptr, Def index, const std::string& name) { return cse(
 
 Lambda* World::lambda(const Pi* pi, Lambda::Attribute attribute, const std::string& name) {
     ANYDSL2_CHECK_BREAK(gid_)
-    Lambda* l = new Lambda(gid_++, pi, attribute, true, name);
+    auto l = new Lambda(gid_++, pi, attribute, true, name);
     lambdas_.insert(l);
 
     size_t i = 0;
@@ -802,7 +802,7 @@ Lambda* World::lambda(const Pi* pi, Lambda::Attribute attribute, const std::stri
 
 Lambda* World::basicblock(const std::string& name) {
     ANYDSL2_CHECK_BREAK(gid_)
-    Lambda* bb = new Lambda(gid_++, pi0(), Lambda::Attribute(0), false, name);
+    auto bb = new Lambda(gid_++, pi0(), Lambda::Attribute(0), false, name);
     lambdas_.insert(bb);
     return bb;
 }

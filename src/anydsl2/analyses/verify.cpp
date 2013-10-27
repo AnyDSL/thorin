@@ -224,11 +224,7 @@ void verify_closedness(World& world) {
             within(world, r);
     }
     for (auto lambda : world.lambdas()) {
-        if (lambda->empty())
-            continue;
-        within(world, lambda->representative_);
-        for (auto r : lambda->representatives_of_)
-            within(world, r);
+        assert(lambda->representative_ == lambda && lambda->representatives_of_.empty());
         for (auto op : lambda->ops())
             within(world, op.node());
         for (auto use : lambda->uses_)

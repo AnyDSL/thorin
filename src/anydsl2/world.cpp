@@ -908,16 +908,12 @@ void World::unregister_uses(const size_t pass, S& set) {
         if (!def->is_visited(pass)) {
             for (size_t i = 0, e = def->size(); i != e; ++i)
                 def->unregister_use(i);
-            if (def->is_proxy())
-                def->representative_->representatives_of_.erase(def);
         }
     }
 }
 
 void World::eliminate_params() {
     for (auto olambda : lambdas()) {
-        if (olambda->gid() == 74)
-            std::cout << "hey" << std::endl;
         if (olambda->empty()) 
             continue;
 
@@ -1012,8 +1008,6 @@ void World::dead_code_elimination() {
         if (wipe(primop, pass)) {
             for (size_t i = 0, e = primop->size(); i != e; ++i)
                 primop->unregister_use(i);
-            if (primop->is_proxy())
-                primop->representative_->representatives_of_.erase(primop);
         }
     }
 
@@ -1031,7 +1025,7 @@ void World::dead_code_elimination() {
         auto primop = *j;
         if (wipe(primop, pass)) {
             primops_.erase(j);
-            //delete primop;
+            delete primop;
         } else
             assert(!primop->is_proxy());
     }
@@ -1041,7 +1035,7 @@ void World::dead_code_elimination() {
         auto lambda = *j;
         if (lambda->empty() && !lambda->attribute().is(Lambda::Extern)) {
             lambdas_.erase(j);
-            //delete lambda;
+            delete lambda;
         }
     }
 

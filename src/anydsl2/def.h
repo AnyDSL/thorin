@@ -134,7 +134,7 @@ protected:
     virtual ~DefNode() {}
 
     void set_type(const Type* type) { type_ = type; }
-    void unregister_use(size_t i) const { op(i)->uses_.erase(Use(i, this)); }
+    void unregister_use(size_t i) const;
     void resize(size_t n) { ops_.resize(n, nullptr); }
 
 public:

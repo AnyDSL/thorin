@@ -32,6 +32,14 @@ void DefNode::set_op(size_t i, Def def) {
     assert(p.second && "already in use set");
 }
 
+void DefNode::unregister_use(size_t i) const { 
+    auto def = op(i).node();
+    auto res = def->uses_.erase(Use(i, this));
+    assert(res == 1);
+    if (def->is_proxy())
+        def->representative_->representatives_of_.erase(def);
+}
+
 void DefNode::unset_op(size_t i) {
     assert(op(i) && "must be set");
     unregister_use(i);

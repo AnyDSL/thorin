@@ -8,24 +8,6 @@
 
 namespace anydsl2 {
 
-Lambda::Lambda(size_t gid, const Pi* pi, Attribute attribute, bool is_sealed, const std::string& name)
-    : DefNode(gid, Node_Lambda, 0, pi, true, name)
-    , sid_(size_t(-1))
-    , backwards_sid_(size_t(-1))
-    , scope_(nullptr)
-    , attribute_(attribute)
-    , parent_(this)
-    , is_sealed_(is_sealed)
-    , is_visited_(false)
-{
-    params_.reserve(pi->size());
-}
-
-Lambda::~Lambda() {
-    for (auto param : params())
-        delete param;
-}
-
 Lambda* Lambda::stub(const GenericMap& generic_map, const std::string& name) const {
     Lambda* result = world().lambda(pi()->specialize(generic_map)->as<Pi>(), attribute(), name);
 
@@ -54,15 +36,10 @@ const Pi* Lambda::arg_pi() const {
 
 const Param* Lambda::append_param(const Type* type, const std::string& name) {
     size_t size = pi()->size();
-
     Array<const Type*> elems(size + 1);
     *std::copy(pi()->elems().begin(), pi()->elems().end(), elems.begin()) = type;
-
-    // update type
-    set_type(world().pi(elems));
-
-    // append new param
-    const Param* param = world().param(type, this, size, name);
+    set_type(world().pi(elems));                        // update type
+    auto param = world().param(type, this, size, name); // append new param
     params_.push_back(param);
 
     return param;
@@ -331,7 +308,7 @@ Def Lambda::try_remove_trivial_param(const Param* param) {
     size_t index = param->index();
 
     // find Horspool-like phis
-    Def same = nullptr;
+    const DefNode* same = nullptr;
     for (auto pred : preds) {
         Def def = pred->arg(index);
         if (def.deref() == param || same == def)
@@ -340,7 +317,7 @@ Def Lambda::try_remove_trivial_param(const Param* param) {
             return param;
         same = def;
     }
-    assert(!same.empty());
+    assert(same != nullptr);
     param->replace(same);
 
     for (auto peek : param->peek())

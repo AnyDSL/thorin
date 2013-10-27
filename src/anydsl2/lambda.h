@@ -44,8 +44,19 @@ public:
     };
 
 private:
-    Lambda(size_t gid, const Pi* pi, Attribute attribute, bool is_sealed, const std::string& name);
-    virtual ~Lambda();
+    Lambda(size_t gid, const Pi* pi, Attribute attribute, bool is_sealed, const std::string& name)
+        : DefNode(gid, Node_Lambda, 0, pi, true, name)
+        , sid_(size_t(-1))
+        , backwards_sid_(size_t(-1))
+        , scope_(nullptr)
+        , attribute_(attribute)
+        , parent_(this)
+        , is_sealed_(is_sealed)
+        , is_visited_(false)
+    {
+        params_.reserve(pi->size());
+    }
+    virtual ~Lambda() { for (auto param : params()) delete param; }
 
 public:
     Lambda* stub(const GenericMap& generic_map) const { return stub(generic_map, name); }

@@ -86,9 +86,6 @@ void mem2reg(World& world) {
 next_primop:;
     }
 
-    for (auto lambda : world.lambdas())
-        lambda->clear();
-
     // are there any superfluous Leave/Enter pairs?
     for (size_t i = leaves.size(); i-- != 0;) {
         if (auto leave = leaves[i]->isa<Leave>()) {
@@ -114,6 +111,7 @@ next_leave:;
         }
     }
 
+    world.eliminate_params();
     debug_verify(world);
 }
 

@@ -913,7 +913,10 @@ void World::unregister_uses(const size_t pass, S& set) {
 }
 
 void World::eliminate_params() {
-    for (auto olambda : lambdas()) {
+    // after carefully reading the C++11 standard this statement correctly iterates over all old lambdas; 
+    // new lambdas are not visited
+    for (auto olambda : lambdas()) { 
+        olambda->clear();
         if (olambda->empty()) 
             continue;
 

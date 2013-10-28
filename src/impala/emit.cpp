@@ -77,9 +77,7 @@ bool CodeGen::emit_prg(const Scope* prg) {
     for (auto stmt : prg->stmts())
         emit(stmt->as<ItemStmt>()->item());
 
-    // clear get/set value stuff
-    for (auto lambda : world().lambdas())
-        lambda->clear();
+    world().eliminate_params();
 
     return result;
 }

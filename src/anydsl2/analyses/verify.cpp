@@ -14,12 +14,12 @@ public:
     {}
 
     bool verify();
-    bool verify(Lambda* current, const Def* def, PrimOpSet& primops);
+    bool verify(Lambda* current, Def def, PrimOpSet& primops);
     bool verify_param(Lambda* current, const Param* param);
     bool verify_body(Lambda* lambda);
     bool verify_primop(Lambda* current, const PrimOp* primop, PrimOpSet& primops);
-    void invalid(const Def* def, const Def* source, const char* msg = nullptr);
-    void invalid(const Def* def, const char* msg) { invalid(def, def, msg); }
+    void invalid(Def def, Def source, const char* msg = nullptr);
+    void invalid(Def def, const char* msg) { invalid(def, def, msg); }
 
     World& world_;
     const size_t pass_;
@@ -69,7 +69,7 @@ bool Verifier::verify_param(Lambda* current, const Param* param) {
     return true;
 }
 
-bool Verifier::verify(Lambda* current, const Def* def, PrimOpSet& primops) {
+bool Verifier::verify(Lambda* current, Def def, PrimOpSet& primops) {
     if (auto param = def->isa<Param>())
         return verify_param(current, param);
     else if (def->isa_lambda())
@@ -174,7 +174,7 @@ bool Verifier::verify_primop(Lambda* current, const PrimOp* primop, PrimOpSet& p
     }
 
     // check all operands recursively
-    const Def* error = 0;
+    Def error = 0;
     for (auto op : primop->ops()) {
         if (!verify(current, op, primops))
             error = op;
@@ -188,7 +188,7 @@ bool Verifier::verify_primop(Lambda* current, const PrimOp* primop, PrimOpSet& p
     return true;
 }
 
-void Verifier::invalid(const Def* def, const Def* source, const char* msg) {
+void Verifier::invalid(Def def, Def source, const char* msg) {
     std::cout << "Invalid entry:" << std::endl;
     def->dump();
     if (source != def) {
@@ -202,6 +202,41 @@ void Verifier::invalid(const Def* def, const Def* source, const char* msg) {
     else
         def->dump();
     assert(false);
+}
+
+static void within(World& world, const DefNode* def) {
+    if (auto primop = def->isa<PrimOp>())
+        assert(world.primops().find(primop) != world.primops().end());
+    else if (auto lambda = def->isa_lambda())
+        assert(world.lambdas().find(lambda) != world.lambdas().end());
+    else
+        within(world, def->as<Param>()->lambda());
+}
+
+void verify_closedness(World& world) {
+    for (auto primop : world.primops()) {
+        within(world, primop->representative_);
+        for (auto op : primop->ops())
+            within(world, op.node());
+        for (auto use : primop->uses_)
+            within(world, use.def().node());
+        for (auto r : primop->representatives_of_)
+            within(world, r);
+    }
+    for (auto lambda : world.lambdas()) {
+        assert(lambda->representative_ == lambda && lambda->representatives_of_.empty());
+        for (auto op : lambda->ops())
+            within(world, op.node());
+        for (auto use : lambda->uses_)
+            within(world, use.def().node());
+        for (auto param : lambda->params()) {
+            within(world, param->representative_);
+            for (auto use : param->uses_)
+                within(world, use.def().node());
+            for (auto r : param->representatives_of_)
+                within(world, r);
+        }
+    }
 }
 
 //------------------------------------------------------------------------------

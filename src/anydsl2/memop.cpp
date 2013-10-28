@@ -7,7 +7,7 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
-MemOp::MemOp(size_t size, int kind, const Type* type, const Def* mem, const std::string& name)
+MemOp::MemOp(size_t size, NodeKind kind, const Type* type, Def mem, const std::string& name)
     : PrimOp(size, kind, type, name)
 {
     assert(mem->type()->isa<Mem>());
@@ -17,16 +17,16 @@ MemOp::MemOp(size_t size, int kind, const Type* type, const Def* mem, const std:
 
 //------------------------------------------------------------------------------
 
-Load::Load(const Def* mem, const Def* ptr, const std::string& name)
+Load::Load(Def mem, Def ptr, const std::string& name)
     : Access(2, Node_Load, mem->world().sigma({mem->type(), ptr->type()->as<Ptr>()->referenced_type()}), mem, ptr, name)
 {}
 
-const Def* Load::extract_mem() const { return world().tuple_extract(this, world().literal(0u)); }
-const Def* Load::extract_val() const { return world().tuple_extract(this, world().literal(1u)); }
+Def Load::extract_mem() const { return world().tuple_extract(this, world().literal(0u)); }
+Def Load::extract_val() const { return world().tuple_extract(this, world().literal(1u)); }
 
 //------------------------------------------------------------------------------
 
-Store::Store(const Def* mem, const Def* ptr, const Def* value, const std::string& name)
+Store::Store(Def mem, Def ptr, Def value, const std::string& name)
     : Access(3, Node_Store, mem->type(), mem, ptr, name)
 {
     set_op(2, value);
@@ -34,16 +34,16 @@ Store::Store(const Def* mem, const Def* ptr, const Def* value, const std::string
 
 //------------------------------------------------------------------------------
 
-Enter::Enter(const Def* mem, const std::string& name)
+Enter::Enter(Def mem, const std::string& name)
     : MemOp(1, Node_Enter, mem->world().sigma({mem->type(), mem->world().frame()}), mem, name)
 {}
 
-const Def* Enter::extract_mem()   const { return world().tuple_extract(this, world().literal(0u)); }
-const Def* Enter::extract_frame() const { return world().tuple_extract(this, world().literal(1u)); }
+Def Enter::extract_mem()   const { return world().tuple_extract(this, world().literal(0u)); }
+Def Enter::extract_frame() const { return world().tuple_extract(this, world().literal(1u)); }
 
 //------------------------------------------------------------------------------
 
-Leave::Leave(const Def* mem, const Def* frame, const std::string& name)
+Leave::Leave(Def mem, Def frame, const std::string& name)
     : MemOp(2, Node_Leave, mem->type(), mem, name)
 {
     assert(frame->type()->isa<Frame>());
@@ -52,7 +52,7 @@ Leave::Leave(const Def* mem, const Def* frame, const std::string& name)
 
 //------------------------------------------------------------------------------
 
-Slot::Slot(const Type* type, const Def* frame, size_t index, const std::string& name)
+Slot::Slot(const Type* type, Def frame, size_t index, const std::string& name)
     : PrimOp(1, Node_Slot, type->world().ptr(type), name)
     , index_(index)
 {
@@ -61,8 +61,10 @@ Slot::Slot(const Type* type, const Def* frame, size_t index, const std::string& 
 
 //------------------------------------------------------------------------------
 
-LEA::LEA(const Def* ptr, const Def* index, const std::string& name)
-    : PrimOp(2, Node_LEA, ptr->type()->isa<Ptr>() ? ptr->type()->as<Ptr>() : ptr->world().ptr(ptr->type()->as<Sigma>()->elem_via_lit(index)), name)
+LEA::LEA(Def ptr, Def index, const std::string& name)
+    : PrimOp(2, Node_LEA, ptr->type()->isa<Ptr>() 
+                        ?  ptr->type()->as<Ptr>() 
+                        : ptr->world().ptr(ptr->type()->as<Sigma>()->elem_via_lit(index)), name)
 {
     set_op(0, ptr);
     set_op(1, index);

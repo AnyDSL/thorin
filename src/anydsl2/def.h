@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "anydsl2/enums.h"
-#include "anydsl2/node.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/autoptr.h"
 #include "anydsl2/util/cast.h"
@@ -15,65 +14,47 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
-class Def;
+class DefNode;
 class Lambda;
 class PrimOp;
 class Sigma;
 class Tracker;
 class Type;
+class Use;
 class World;
 
 //------------------------------------------------------------------------------
 
-class Peek {
+/**
+ * This class acts as a proxy for \p DefNode pointers.
+ * This proxy hides that a \p DefNode may have been replaced by another one.
+ * It automatically forwards to the replaced node.
+ * If in doubt use a \p Def instead of \p DefNode*.
+ * You almost never have to use a \p DefNode* directly.
+ */
+class Def {
 public:
-    Peek() {}
-    Peek(const Def* def, Lambda* from)
-        : def_(def)
-        , from_(from)
+    Def() 
+        : node_(nullptr)
+    {}
+    Def(const DefNode* node)
+        : node_(node)
     {}
 
-    const Def* def() const { return def_; }
-    Lambda* from() const { return from_; }
+    bool empty() const { return node_ == nullptr; }
+    const DefNode* node() const { return node_; }
+    const DefNode* deref() const;
+    const DefNode* operator *() const { return deref(); }
+    bool operator == (const DefNode* other) const { return this->deref() == other; }
+    bool operator == (const Use& use) const;
+    bool operator == (Def other) const { return this->deref() == other.deref(); }
+    bool operator != (Def other) const { return this->deref() != other.deref(); }
+    operator const DefNode*() const { return deref(); }
+    const DefNode* operator -> () const { return deref(); }
 
 private:
-    const Def* def_;
-    Lambda* from_;
+    mutable const DefNode* node_;
 };
-
-typedef Array<Peek> Peeks;
-
-//------------------------------------------------------------------------------
-
-/// References a \p Def but updates its reference after a \p Def::replace with the replaced \p Def.
-class Tracker {
-public:
-    Tracker()
-        : def_(nullptr)
-    {}
-    Tracker(const Def* def) 
-        : def_(nullptr)
-    { 
-        set(def); 
-    }
-    ~Tracker() { release(); }
-
-    const Def* operator = (const Def* def) { set(def); return def_; }
-    void set(const Def*);
-    void release();
-    const Def* def() const { return def_; }
-    operator const Def*() const { return def_; }
-    const Def* operator -> () const { return def_; }
-
-private:
-    Tracker(const Tracker&); /// Do not copy-construct a \p Tracker.
-
-    const Def* def_;
-
-    friend class World;
-};
-
-//------------------------------------------------------------------------------
 
 /** 
  * References a user.
@@ -82,62 +63,47 @@ private:
 class Use {
 public:
     Use() {}
-    Use(size_t index, const Def* def)
+    Use(size_t index, Def def)
         : index_(index)
         , def_(def)
     {}
 
     size_t index() const { return index_; }
-    const Def* def() const { return def_; }
+    const Def& def() const { return def_; }
     bool operator == (Use use) const { return def() == use.def() && index() == use.index(); }
     bool operator != (Use use) const { return def() != use.def() || index() != use.index(); }
     bool operator < (Use) const;
-    operator const Def*() const { return def_; }
-    const Def* operator -> () const { return def_; }
+    operator Def() const { return def_; }
+    operator const DefNode*() const { return def_; }
+    const Def& operator -> () const { return def_; }
 
 private:
     size_t index_;
-    const Def* def_;
+    Def def_;
 };
 
-//------------------------------------------------------------------------------
+inline bool Def::operator == (const Use& use) const { return this->deref() == use.def().deref(); }
 
-/** 
- * References a user which may use the \p Def in question multiple times.
- * For example, a \p Def u may use a \p Def d as i^th \em and is j'th operand.
- * Then a \p MultiUse of d references u with \p indices_ i and j.
- */
-class MultiUse {
-public:
-    MultiUse() {}
-    MultiUse(Use use)
-        : indices_(1)
-        , def_(use.def())
-    {
-        indices_[0] = use.index();
-    }
-
-    size_t index(size_t i) const { return indices_[i]; }
-    size_t num_indices() const { return indices_.size(); }
-    const std::vector<size_t>& indices() const { return indices_; }
-    const Def* def() const { return def_; }
-    void append_user(size_t index) { indices_.push_back(index); }
-    operator const Def*() const { return def_; }
-    const Def* operator -> () const { return def_; }
-
-private:
-    std::vector<size_t> indices_;
-    const Def* def_;
-};
-
-//------------------------------------------------------------------------------
-
-
-struct UseHash { size_t operator () (Use use) const { return hash_combine(hash_value(use.def()), use.index()); } };
+struct UseHash { size_t operator () (Use use) const { return hash_combine(hash_value(use.def().node()), use.index()); } };
 struct UseEqual { bool operator () (Use use1, Use use2) const { return use1 == use2; } };
 
-typedef std::unordered_set<Use, UseHash, UseEqual> Uses;
-typedef std::vector<Tracker*> Trackers;
+class Peek {
+public:
+    Peek() {}
+    Peek(Def def, Lambda* from)
+        : def_(def)
+        , from_(from)
+    {}
+
+    Def def() const { return def_; }
+    Lambda* from() const { return from_; }
+
+private:
+    Def def_;
+    Lambda* from_;
+};
+
+typedef Array<Peek> Peeks;
 
 //------------------------------------------------------------------------------
 
@@ -148,22 +114,35 @@ typedef std::vector<Tracker*> Trackers;
  * - \p Param%s and
  * - \p Lambda%s.
  */
-class Def : public Node<Def> {
+class DefNode : public MagicCast<DefNode> {
+private:
+    DefNode& operator = (const DefNode&); ///< Do not copy-assign a \p DefNode instance.
+    DefNode(const DefNode&);              ///< Do not copy-construct a \p DefNode.
+
 protected:
-    Def(size_t gid, int kind, size_t size, const Type* type, bool is_const, const std::string& name)
-        : Node(kind, size, name)
+    DefNode(size_t gid, NodeKind kind, size_t size, const Type* type, bool is_const, const std::string& name)
+        : kind_(kind)
+        , ops_(size)
+        , cur_pass_(0)
         , type_(type)
         , uses_(13) // 13 seems to perform best
+        , representative_(this)
         , gid_(gid)
         , is_const_(is_const)
+        , name(name)
     {}
+    virtual ~DefNode() {}
 
     void set_type(const Type* type) { type_ = type; }
-    void unregister_use(size_t i) const { op(i)->uses_.erase(Use(i, this)); }
+    void unregister_use(size_t i) const;
+    void resize(size_t n) { ops_.resize(n, nullptr); }
 
 public:
-    virtual ~Def() {}
-    void set_op(size_t i, const Def* def);
+    NodeKind kind() const { return kind_; }
+    bool is_corenode() const { return ::anydsl2::is_corenode(kind()); }
+    size_t size() const { return ops_.size(); }
+    bool empty() const { return ops_.empty(); }
+    void set_op(size_t i, Def def);
     void unset_op(size_t i);
     void unset_ops();
     Lambda* as_lambda() const;
@@ -177,35 +156,21 @@ public:
     int non_const_depth() const;
     void dump() const;
     const PrimOp* is_non_const_primop() const;
-
-    const Uses& uses() const { return uses_; }
-    const Trackers& trackers() const { return trackers_; }
-    size_t num_uses() const { return uses_.size(); }
+    std::vector<Use> uses() const;
+    bool is_proxy() const { return representative_ != this; }
+    /// WARNING: slow!
+    size_t num_uses() const { return uses().size(); }
     size_t gid() const { return gid_; }
     std::string unique_name() const;
-
-    /**
-     * Copies all use-info into an array.
-     * Useful if you want to modfy users while iterating over all users.
-     */
-    Array<Use> copy_uses() const;
-    void tracked_uses(AutoVector<const Tracker*>& result) const;
-    std::vector<MultiUse> multi_uses() const;
     const Type* type() const { return type_; }
     int order() const;
     bool is_generic() const;
     World& world() const;
-    ArrayRef<const Def*> ops() const { return ops_ref<const Def*>(); }
-    ArrayRef<const Def*> ops(size_t begin, size_t end) const { return ops().slice(begin, end); }
-    const Def* op(size_t i) const { assert(i < ops().size()); return ops()[i]; }
-    const Def* op_via_lit(const Def* def) const;
-    void replace(const Def*) const;
-    /**
-     * Returns the vector length.
-     * Raises an assertion if type of this is not a \p VectorType.
-     */
-    size_t length() const;
-
+    ArrayRef<Def> ops() const { return ops_; }
+    Def op(size_t i) const { assert(i < ops().size()); return ops()[i]; }
+    Def op_via_lit(Def def) const;
+    void replace(Def) const;
+    size_t length() const; ///< Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
     bool is_primlit(int val) const;
     bool is_zero() const { return is_primlit(0); }
     bool is_minus_zero() const;
@@ -215,39 +180,83 @@ public:
     bool is_rem()         const { return anydsl2::is_rem  (kind()); }
     bool is_bitop()       const { return anydsl2::is_bitop(kind()); }
     bool is_shift()       const { return anydsl2::is_shift(kind()); }
-    bool is_not()         const { return kind() == ArithOp_xor && op(0)->is_allset(); }
-    bool is_minus()       const { return (kind() == ArithOp_sub || kind() == ArithOp_fsub) && op(0)->is_minus_zero(); }
+    bool is_not()         const { return kind() == Node_xor && op(0)->is_allset(); }
+    bool is_minus()       const { return (kind() == Node_sub || kind() == Node_fsub) && op(0)->is_minus_zero(); }
     bool is_div_or_rem()  const { return anydsl2::is_div_or_rem(kind()); }
     bool is_commutative() const { return anydsl2::is_commutative(kind()); }
     bool is_associative() const { return anydsl2::is_associative(kind()); }
+    template<class T> inline T primlit_value() const; // implementation in literal.h
 
-    // implementation in literal.h
-    template<class T> inline T primlit_value() const;
+    // scratch operations
+
+    size_t cur_pass() const { return cur_pass_; }
+    bool visit(const size_t pass) const { 
+        assert(cur_pass_ <= pass); 
+        if (cur_pass_ != pass) { 
+            cur_pass_ = pass; 
+            return false; 
+        } 
+        return true; 
+    }
+    void visit_first(const size_t pass) const { assert(!is_visited(pass)); cur_pass_ = pass; }
+    void unvisit(const size_t pass) const { assert(cur_pass_ == pass); --cur_pass_; }
+    bool is_visited(const size_t pass) const { assert(cur_pass_ <= pass); return cur_pass_ == pass; }
 
 private:
-    Def& operator = (const Def&); /// Do not copy-assign a \p Def instance.
-
+    NodeKind kind_;
+    std::vector<Def> ops_;
+    mutable size_t cur_pass_;
     const Type* type_;
-    mutable Uses uses_;
-    mutable Trackers trackers_;
+    mutable std::unordered_set<Use, UseHash, UseEqual> uses_;
+    mutable const DefNode* representative_;
+    mutable std::unordered_set<const DefNode*> representatives_of_;
     const size_t gid_;
 
 protected:
     bool is_const_;
 
-    friend class Tracker;
+public:
+    mutable std::string name; ///< Just do what ever you want with this field.
+
+    /** 
+     * Use this field in order to annotate information on this Def.
+     * Various analyses have to memorize different stuff temporally.
+     * Each analysis can use this field for its specific information. 
+     * \attention { 
+     *      Each pass/analysis simply overwrites this field again.
+     *      So keep this in mind and perform copy operations in order to
+     *      save your data before running the next pass/analysis.
+     *      Also, keep in mind to perform clean up operations at the end 
+     *      of your pass/analysis.
+     * }
+     */
+    union {
+        mutable void* ptr;
+        mutable const void* cptr;
+    };
+    union {
+        mutable bool flags[sizeof(size_t)/sizeof(bool)];
+        mutable size_t counter;
+    };
+
+    friend class Def;
     friend class PrimOp;
     friend class World;
+    friend void verify_closedness(World& world);
 };
 
-std::ostream& operator << (std::ostream& o, const Def* def);
+std::ostream& operator << (std::ostream& o, Def def);
 inline bool Use::operator < (Use use) const { return def()->gid() < use.def()->gid() && index() < use.index(); }
 
 //------------------------------------------------------------------------------
 
-class Param : public Def {
+class Param : public DefNode {
 private:
-    Param(size_t gid, const Type* type, Lambda* lambda, size_t index, const std::string& name);
+    Param(size_t gid, const Type* type, Lambda* lambda, size_t index, const std::string& name)
+        : DefNode(gid, Node_Param, 0, type, false, name)
+        , lambda_(lambda)
+        , index_(index)
+    {}
 
 public:
     Lambda* lambda() const { return lambda_; }

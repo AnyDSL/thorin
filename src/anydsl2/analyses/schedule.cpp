@@ -9,13 +9,15 @@
 #include "anydsl2/analyses/looptree.h"
 #include "anydsl2/analyses/scope.h"
 
+// TODO these impls need some love
+
 namespace anydsl2 {
 
 typedef Array<std::vector<const PrimOp*>> Schedule;
 
 Schedule schedule_early(const Scope& scope) {
     Schedule schedule(scope.size());
-    std::queue<const Def*> queue;
+    std::queue<Def> queue;
     const size_t pass = scope.world().new_pass();
 
     for (size_t i = 0, e = scope.size(); i != e; ++i) {
@@ -26,7 +28,7 @@ Schedule schedule_early(const Scope& scope) {
             queue.push(param);
 
         while (!queue.empty()) {
-            const Def* def = queue.front();
+            Def def = queue.front();
             if (auto primop = def->isa<PrimOp>())
                 primops.push_back(primop);
             queue.pop();

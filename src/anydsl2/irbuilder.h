@@ -1,12 +1,13 @@
 #ifndef ANYDSL2_JUMPTARGET_H
 #define ANYDSL2_JUMPTARGET_H
 
+#include "anydsl2/def.h"
 #include "anydsl2/util/array.h"
 #include "anydsl2/util/autoptr.h"
 
 namespace anydsl2 {
 
-class Def;
+class DefNode;
 class IRBuilder;
 class Lambda;
 class Param;
@@ -23,34 +24,34 @@ class Ref {
 public:
     virtual ~Ref() {}
 
-    virtual const Def* load() const = 0;
-    virtual void store(const Def* val) const = 0;
+    virtual Def load() const = 0;
+    virtual void store(Def val) const = 0;
     virtual World& world() const = 0;
 
     /// Create \p RVal.
-    inline static RefPtr create(const Def* def);
+    inline static RefPtr create(Def def);
     /// Create \p VarRef.
     inline static RefPtr create(Lambda* bb, size_t handle, const Type*, const char* name);
     /// Create \p ArrayDeclRef.
-    inline static RefPtr create_array(RefPtr lref, const Def* index, IRBuilder& builde);
+    inline static RefPtr create_array(RefPtr lref, Def index, IRBuilder& builde);
     /// Create \p TupleRef.
-    inline static RefPtr create_tuple(RefPtr lref, const Def* indexr);
+    inline static RefPtr create_tuple(RefPtr lref, Def indexr);
     /// Create \p SlotRef.
     inline static RefPtr create(const Slot* slot, IRBuilder& builder);
 };
 
 class RVal : public Ref {
 public:
-    RVal(const Def* def)
+    RVal(Def def)
         : def_(def)
     {}
 
-    virtual const Def* load() const { return def_; }
-    virtual void store(const Def* val) const { ANYDSL2_UNREACHABLE; }
+    virtual Def load() const { return def_; }
+    virtual void store(Def val) const { ANYDSL2_UNREACHABLE; }
     virtual World& world() const;
 
 private:
-    const Def* def_;
+    Def def_;
 };
 
 class VarRef : public Ref {
@@ -62,8 +63,8 @@ public:
         , name_(name)
     {}
 
-    virtual const Def* load() const;
-    virtual void store(const Def* def) const;
+    virtual Def load() const;
+    virtual void store(Def def) const;
     virtual World& world() const;
 
 private:
@@ -76,40 +77,40 @@ private:
 // FIXME: nice integration
 class ArrayDeclRef : public Ref {
 public:
-    ArrayDeclRef(RefPtr lref, const Def* index, IRBuilder& builder)
+    ArrayDeclRef(RefPtr lref, Def index, IRBuilder& builder)
         : lref_(std::move(lref))
         , index_(index)
         , builder_(builder)
     {}
 
-    virtual const Def* load() const;
-    virtual void store(const Def* val) const;
+    virtual Def load() const;
+    virtual void store(Def val) const;
     virtual World& world() const;
 
 private:
     RefPtr lref_;
-    const Def* index_;
+    Def index_;
     IRBuilder& builder_;
 };
 
 class TupleRef : public Ref {
 public:
-    TupleRef(RefPtr lref, const Def* index)
+    TupleRef(RefPtr lref, Def index)
         : lref_(std::move(lref))
         , index_(index)
         , loaded_(nullptr)
     {}
 
-    virtual const Def* load() const;
-    virtual void store(const Def* val) const;
+    virtual Def load() const;
+    virtual void store(Def val) const;
     virtual World& world() const;
 
 private:
     RefPtr lref_;
-    const Def* index_;
+    Def index_;
 
     /// Caches loaded value to prevent quadratic blow up in calls.
-    mutable const Def* loaded_;
+    mutable Def loaded_;
 };
 
 class SlotRef : public Ref {
@@ -119,8 +120,8 @@ public:
         , builder_(builder)
     {}
 
-    virtual const Def* load() const;
-    virtual void store(const Def* val) const;
+    virtual Def load() const;
+    virtual void store(Def val) const;
     virtual World& world() const;
 
 private:
@@ -128,9 +129,9 @@ private:
     IRBuilder& builder_;
 };
 
-RefPtr Ref::create(const Def* def) { return RefPtr(new RVal(def)); }
-RefPtr Ref::create_array(RefPtr lref, const Def* index, IRBuilder& builder) { return RefPtr(new ArrayDeclRef(std::move(lref), index, builder)); }
-RefPtr Ref::create_tuple(RefPtr lref, const Def* index) { return RefPtr(new TupleRef(std::move(lref), index)); }
+RefPtr Ref::create(Def def) { return RefPtr(new RVal(def)); }
+RefPtr Ref::create_array(RefPtr lref, Def index, IRBuilder& builder) { return RefPtr(new ArrayDeclRef(std::move(lref), index, builder)); }
+RefPtr Ref::create_tuple(RefPtr lref, Def index) { return RefPtr(new TupleRef(std::move(lref), index)); }
 RefPtr Ref::create(Lambda* bb, size_t handle, const Type* type, const char* name) { 
     return RefPtr(new VarRef(bb, handle, type, name)); 
 }
@@ -181,13 +182,13 @@ public:
     Lambda* enter(JumpTarget& jt) { return cur_bb = jt.enter(); }
     Lambda* enter_unsealed(JumpTarget& jt) { return cur_bb = jt.enter_unsealed(world_); }
     void jump(JumpTarget& jt);
-    void branch(const Def* cond, JumpTarget& t, JumpTarget& f);
-    void mem_call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type);
-    void tail_call(const Def* to, ArrayRef<const Def*> args);
-    void param_call(const Param* ret_param, ArrayRef<const Def*> args);
-    const Param* cascading_call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type);
-    const Def* get_mem();
-    void set_mem(const Def* def);
+    void branch(Def cond, JumpTarget& t, JumpTarget& f);
+    void mem_call(Def to, ArrayRef<Def> args, const Type* ret_type);
+    void tail_call(Def to, ArrayRef<Def> args);
+    void param_call(const Param* ret_param, ArrayRef<Def> args);
+    const Param* cascading_call(Def to, ArrayRef<Def> args, const Type* ret_type);
+    Def get_mem();
+    void set_mem(Def def);
 
     Lambda* cur_bb;
 

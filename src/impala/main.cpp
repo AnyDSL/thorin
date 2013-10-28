@@ -11,6 +11,7 @@
 #include "anydsl2/be/air.h"
 #include "anydsl2/be/il.h"
 #include "anydsl2/be/llvm.h"
+#include "anydsl2/util/args.h"
 
 #include "impala/ast.h"
 #include "impala/parser.h"
@@ -18,8 +19,6 @@
 #include "impala/dump.h"
 #include "impala/emit.h"
 #include "impala/init.h"
-
-#include "args.h"
 
 //------------------------------------------------------------------------------
 
@@ -131,8 +130,8 @@ int main(int argc, char** argv) {
             }
             if (emit_air)
                 anydsl2::emit_air(init.world, fancy);
-            if (emit_il)
-                anydsl2::emit_il(init.world, fancy);
+            //if (emit_il)
+                //anydsl2::emit_il(init.world, fancy);
             if (emit_looptree)
                 std::cout << Scope(init.world).looptree().root() << std::endl; // TODO
 

@@ -69,7 +69,7 @@ void Scope::jump_to_param_users(const size_t pass, Lambda* lambda, Lambda* limit
         find_user(pass, param, limit);
 }
 
-inline void Scope::find_user(const size_t pass, const Def* def, Lambda* limit) {
+inline void Scope::find_user(const size_t pass, Def def, Lambda* limit) {
     if (auto lambda = def->isa_lambda())
         up(pass, lambda, limit);
     else {

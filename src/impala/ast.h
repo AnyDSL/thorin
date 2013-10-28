@@ -17,7 +17,7 @@
 #include "impala/type.h"
 
 namespace anydsl2 {
-    class Def;
+    class DefNode;
     class JumpTarget;
     class Lambda;
     class Param;
@@ -155,7 +155,7 @@ public:
     void check_head(Sema&) const;
     virtual void check(Sema& sema) const;
     virtual std::ostream& print(Printer& p) const;
-    const anydsl2::Def* frame() const { return frame_; }
+    const anydsl2::DefNode* frame() const { return frame_; }
 
 private:
     VarDecls params_;
@@ -166,7 +166,7 @@ private:
     mutable const anydsl2::Param* ret_param_;
     mutable GenericBuilder generic_builder_;
     mutable GenericMap generic_map_;
-    mutable const anydsl2::Def* frame_;
+    mutable const anydsl2::DefNode* frame_;
 
     friend class Parser;
     friend class Sema;

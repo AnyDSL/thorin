@@ -8,6 +8,7 @@ namespace anydsl2 {
 class World;
 
 void verify(World& world);
+void verify_closedness(World& world);
 
 #ifndef NDEBUG
 inline void debug_verify(World& world) { verify(world); }

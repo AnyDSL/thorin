@@ -8,34 +8,14 @@
 
 namespace anydsl2 {
 
-Lambda::Lambda(size_t gid, const Pi* pi, Attribute attribute, bool is_sealed, const std::string& name)
-    : Def(gid, Node_Lambda, 0, pi, true, name)
-    , sid_(size_t(-1))
-    , backwards_sid_(size_t(-1))
-    , scope_(nullptr)
-    , attribute_(attribute)
-    , parent_(this)
-    , is_sealed_(is_sealed)
-    , is_visited_(false)
-{
-    params_.reserve(pi->size());
-}
-
-Lambda::~Lambda() {
-    for (auto param : params())
-        delete param;
-}
-
 Lambda* Lambda::stub(const GenericMap& generic_map, const std::string& name) const {
-    Lambda* result = world().lambda(pi()->specialize(generic_map)->as<Pi>(), attribute(), name);
-
-    for (size_t i = 0, e = params().size(); i != e; ++i)
+    auto result = world().lambda(pi()->specialize(generic_map)->as<Pi>(), attribute(), name);
+    for (size_t i = 0, e = num_params(); i != e; ++i)
         result->param(i)->name = param(i)->name;
-
     return result;
 }
 
-Lambda* Lambda::update_op(size_t i, const Def* def) {
+Lambda* Lambda::update_op(size_t i, Def def) {
     unset_op(i);
     set_op(i, def);
     return this;
@@ -54,15 +34,10 @@ const Pi* Lambda::arg_pi() const {
 
 const Param* Lambda::append_param(const Type* type, const std::string& name) {
     size_t size = pi()->size();
-
     Array<const Type*> elems(size + 1);
     *std::copy(pi()->elems().begin(), pi()->elems().end(), elems.begin()) = type;
-
-    // update type
-    set_type(world().pi(elems));
-
-    // append new param
-    const Param* param = world().param(type, this, size, name);
+    set_type(world().pi(elems));                        // update type
+    auto param = world().param(type, this, size, name); // append new param
     params_.push_back(param);
 
     return param;
@@ -79,7 +54,7 @@ static Lambdas find_preds(const Lambda* lambda) {
             }
         } else {
             if (!direct || use.index() == 0)
-                if (Lambda* ulambda = use->isa_lambda())
+                if (auto ulambda = use->isa_lambda())
                     result.push_back(ulambda);
         }
     }
@@ -87,24 +62,19 @@ static Lambdas find_preds(const Lambda* lambda) {
     return result;
 }
 
-Lambdas& Lambda::succs() const {
-    if (ops() == former_ops_)
-        return succs_;
-
-    former_ops_.resize(ops().size());
-    std::copy(ops().begin(), ops().end(), former_ops_.begin());
-    succs_.clear();
-    std::queue<const Def*> queue;
-    std::unordered_set<const Def*> done;
-    const Def* def = this;
+Lambdas Lambda::succs() const {
+    std::vector<Lambda*> succs;
+    std::queue<const DefNode*> queue;
+    std::unordered_set<const DefNode*> done;
+    const DefNode* def = this;
     goto start;
 
     while (!queue.empty()) {
         def = queue.front();
         queue.pop();
 
-        if (Lambda* lambda = def->isa_lambda()) {
-            succs_.push_back(lambda);
+        if (auto lambda = def->isa_lambda()) {
+            succs.push_back(lambda);
             continue;
         } 
 start:
@@ -116,22 +86,21 @@ start:
         }
     }
 
-    return succs_;
+    return succs;
 }
 
 Lambdas Lambda::preds() const {
-    // TODO cache the preds like in Lambda::succs -- but this not so obvious as it seems!!!
     std::vector<Lambda*> preds;
-    std::queue<const Def*> queue;
-    std::unordered_set<const Def*> done;
-    const Def* def = this;
+    std::queue<const DefNode*> queue;
+    std::unordered_set<const DefNode*> done;
+    const DefNode* def = this;
     goto start;
 
     while (!queue.empty()) {
         def = queue.front();
         queue.pop();
 
-        if (Lambda* lambda = def->isa_lambda()) {
+        if (auto lambda = def->isa_lambda()) {
             preds.push_back(lambda);
             continue;
         } 
@@ -148,10 +117,7 @@ start:
 }
 
 Lambdas Lambda::direct_preds() const { return find_preds<true>(this); }
-
-bool Lambda::is_builtin() const {
-    return attribute().is(Cuda);
-}
+bool Lambda::is_builtin() const { return attribute().is(Cuda); }
 
 bool Lambda::is_connected_to_builtin() const {
     // check for uses in the context of builtin functions
@@ -181,7 +147,7 @@ void Lambda::dump_jump() const { emit_jump(this); }
  * terminate
  */
 
-void Lambda::jump(const Def* to, ArrayRef<const Def*> args) {
+void Lambda::jump(Def to, ArrayRef<Def> args) {
     unset_ops();
     resize(args.size()+1);
     set_op(0, to);
@@ -191,11 +157,11 @@ void Lambda::jump(const Def* to, ArrayRef<const Def*> args) {
         set_op(x++, arg);
 }
 
-void Lambda::branch(const Def* cond, const Def* tto, const Def*  fto) {
-    return jump(world().select(cond, tto, fto), ArrayRef<const Def*>(nullptr, 0));
+void Lambda::branch(Def cond, Def tto, Def fto) {
+    return jump(world().select(cond, tto, fto), ArrayRef<Def>(nullptr, 0));
 }
 
-Lambda* Lambda::call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
+Lambda* Lambda::call(Def to, ArrayRef<Def> args, const Type* ret_type) {
     // create next continuation in cascade
     Lambda* next = world().lambda(world().pi({ret_type}), name + "_" + to->name);
     const Param* result = next->param(0);
@@ -203,17 +169,17 @@ Lambda* Lambda::call(const Def* to, ArrayRef<const Def*> args, const Type* ret_t
 
     // create jump to this new continuation
     size_t csize = args.size() + 1;
-    Array<const Def*> cargs(csize);
+    Array<Def> cargs(csize);
     *std::copy(args.begin(), args.end(), cargs.begin()) = next;
     jump(to, cargs);
 
     return next;
 }
 
-Lambda* Lambda::mem_call(const Def* to, ArrayRef<const Def*> args, const Type* ret_type) {
+Lambda* Lambda::mem_call(Def to, ArrayRef<Def> args, const Type* ret_type) {
     // create next continuation in cascade
-    const Pi* pi = ret_type != nullptr ? world().pi({world().mem(), ret_type}) : world().pi({world().mem()});
-    Lambda* next = world().lambda(pi, name + "_" + to->name);
+    auto pi = ret_type != nullptr ? world().pi({world().mem(), ret_type}) : world().pi({world().mem()});
+    auto next = world().lambda(pi, name + "_" + to->name);
     next->param(0)->name = "mem";
 
     if (ret_type)
@@ -221,7 +187,7 @@ Lambda* Lambda::mem_call(const Def* to, ArrayRef<const Def*> args, const Type* r
 
     // create jump to this new continuation
     size_t csize = args.size() + 1;
-    Array<const Def*> cargs(csize);
+    Array<Def> cargs(csize);
     *std::copy(args.begin(), args.end(), cargs.begin()) = next;
     jump(to, cargs);
 
@@ -232,28 +198,19 @@ Lambda* Lambda::mem_call(const Def* to, ArrayRef<const Def*> args, const Type* r
  * CPS construction
  */
 
-void Lambda::clear() { 
-    for (auto tracker : tracked_values_)
-        delete tracker;
-    tracked_values_.clear(); 
+Def Lambda::find_def(size_t handle) {
+    increase_values(handle);
+    return values_[handle];
 }
 
-const Tracker* Lambda::find_tracker(size_t handle) {
-    if (handle >= tracked_values_.size())
-        tracked_values_.resize(handle+1);
-    return tracked_values_[handle];
+Def Lambda::set_value(size_t handle, Def def) { 
+    increase_values(handle);
+    return values_[handle] = def;
 }
 
-const Def* Lambda::set_value(size_t handle, const Def* def) { 
-    if (const Tracker* tracker = find_tracker(handle))
-        delete tracker;
-
-    return (tracked_values_[handle] = new Tracker(def))->def(); 
-}
-
-const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) {
-    if (const Tracker* tracker = find_tracker(handle))
-        return tracker->def();
+Def Lambda::get_value(size_t handle, const Type* type, const char* name) {
+    if (auto def = find_def(handle))
+        return def;
 
     if (parent() != this) { // is a function head?
         if (parent())
@@ -262,7 +219,7 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
     } else {
         if (!is_sealed_) {
             const Param* param = append_param(type, name);
-            todos_.push_back(Todo(handle, param->index(), type, name));
+            todos_.emplace_back(handle, param->index(), type, name);
             return set_value(handle, param);
         }
 
@@ -275,11 +232,11 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
                     return set_value(handle, append_param(type, name)); // create param to break cycle
 
                 is_visited_ = true;
-                const Def* same = nullptr;
+                const DefNode* same = nullptr;
                 for (auto pred : preds) {
-                    const Def* def = pred->get_value(handle, type, name);
+                    const DefNode* def = pred->get_value(handle, type, name);
                     if (same && same != def) {
-                        same = (const Def*)-1; // defs from preds are different
+                        same = (const DefNode*)-1; // defs from preds are different
                         break;
                     }
                     same = def;
@@ -288,15 +245,15 @@ const Def* Lambda::get_value(size_t handle, const Type* type, const char* name) 
                 is_visited_ = false;
 
                 // fix any params which may have been introduced to break the cycle above
-                const Def* def = nullptr;
-                if (const Tracker* tracker = find_tracker(handle))
-                    def = fix(Todo(handle, tracker->def()->as<Param>()->index(), type, name));
+                const DefNode* def = nullptr;
+                if (auto found = find_def(handle))
+                    def = fix(Todo(handle, found->as<Param>()->index(), type, name));
 
-                if (same != (const Def*)-1)
+                if (same != (const DefNode*)-1)
                     return same;
 
-                def = def ? def : fix(Todo(handle, append_param(type, name)->index(), type, name));
-                return set_value(handle, def);
+                Def result = def ? Def(def) : fix(Todo(handle, append_param(type, name)->index(), type, name));
+                return set_value(handle, result);
             }
         }
     }
@@ -316,7 +273,7 @@ void Lambda::seal() {
     todos_.clear();
 }
 
-const Def* Lambda::fix(const Todo& todo) {
+Def Lambda::fix(const Todo& todo) {
     size_t index = todo.index();
     const Param* param = this->param(index);
 
@@ -338,7 +295,7 @@ const Def* Lambda::fix(const Todo& todo) {
     return try_remove_trivial_param(param);
 }
 
-const Def* Lambda::try_remove_trivial_param(const Param* param) {
+Def Lambda::try_remove_trivial_param(const Param* param) {
     assert(param->lambda() == this);
     assert(is_sealed() && "must be sealed");
 
@@ -346,30 +303,27 @@ const Def* Lambda::try_remove_trivial_param(const Param* param) {
     size_t index = param->index();
 
     // find Horspool-like phis
-    const Def* same = nullptr;
+    const DefNode* same = nullptr;
     for (auto pred : preds) {
-        const Def* def = pred->arg(index);
-        if (def == param || same == def)
+        Def def = pred->arg(index);
+        if (def.deref() == param || same == def)
             continue;
         if (same)
             return param;
         same = def;
     }
     assert(same != nullptr);
-
-    AutoVector<const Tracker*> uses;
-    param->tracked_uses(uses);
     param->replace(same);
 
     for (auto peek : param->peek())
         peek.from()->update_arg(index, world().bottom(param->type()));
 
-    for (auto tracker : uses) {
-        if (Lambda* lambda = tracker->def()->isa_lambda()) {
+    for (auto use : same->uses()) {
+        if (Lambda* lambda = use->isa_lambda()) {
             for (auto succ : lambda->succs()) {
                 size_t index = -1;
                 for (size_t i = 0, e = succ->num_args(); i != e; ++i) {
-                    if (succ->arg(i) == tracker->def()) {
+                    if (succ->arg(i) == use) {
                         index = i;
                         break;
                     }

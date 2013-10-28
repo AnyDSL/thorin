@@ -9,17 +9,17 @@ namespace anydsl2 {
 
 class MemOp : public PrimOp {
 protected:
-    MemOp(size_t size, int kind, const Type* type, const Def* mem, const std::string& name);
+    MemOp(size_t size, NodeKind kind, const Type* type, Def mem, const std::string& name);
 
 public:
-    const Def* mem() const { return op(0); }
+    Def mem() const { return op(0); }
 };
 
 //------------------------------------------------------------------------------
 
 class Access : public MemOp {
 protected:
-    Access(size_t size, int kind, const Type* type, const Def* mem, const Def* ptr, const std::string& name)
+    Access(size_t size, NodeKind kind, const Type* type, Def mem, Def ptr, const std::string& name)
         : MemOp(size, kind, type, mem, name)
     {
         assert(size >= 2);
@@ -27,19 +27,19 @@ protected:
     }
 
 public:
-    const Def* ptr() const { return op(1); }
+    Def ptr() const { return op(1); }
 };
 
 //------------------------------------------------------------------------------
 
 class Load : public Access {
 private:
-    Load(const Def* mem, const Def* ptr, const std::string& name);
+    Load(Def mem, Def ptr, const std::string& name);
 
 public:
-    const Def* ptr() const { return op(1); }
-    const Def* extract_mem() const;
-    const Def* extract_val() const;
+    Def ptr() const { return op(1); }
+    Def extract_mem() const;
+    Def extract_val() const;
 
     friend class World;
 };
@@ -48,10 +48,10 @@ public:
 
 class Store : public Access {
 private:
-    Store(const Def* mem, const Def* ptr, const Def* value, const std::string& name);
+    Store(Def mem, Def ptr, Def value, const std::string& name);
 
 public:
-    const Def* val() const { return op(2); }
+    Def val() const { return op(2); }
 
     friend class World;
 };
@@ -60,11 +60,11 @@ public:
 
 class Enter : public MemOp {
 private:
-    Enter(const Def* mem, const std::string& name);
+    Enter(Def mem, const std::string& name);
 
 public:
-    const Def* extract_mem() const;
-    const Def* extract_frame() const;
+    Def extract_mem() const;
+    Def extract_frame() const;
 
     friend class World;
 };
@@ -73,10 +73,10 @@ public:
 
 class Leave : public MemOp {
 private:
-    Leave(const Def* mem, const Def* frame, const std::string& name);
+    Leave(Def mem, Def frame, const std::string& name);
 
 public:
-    const Def* frame() const { return op(1); }
+    Def frame() const { return op(1); }
 
     friend class World;
 };
@@ -90,14 +90,14 @@ public:
  */
 class Slot : public PrimOp {
 private:
-    Slot(const Type* type, const Def* frame, size_t index, const std::string& name);
+    Slot(const Type* type, Def frame, size_t index, const std::string& name);
 
 public:
-    const Def* frame() const { return op(0); }
+    Def frame() const { return op(0); }
     size_t index() const { return index_; }
 
     virtual size_t hash() const { return hash_combine(PrimOp::hash(), index()); }
-    virtual bool equal(const Node* other) const {
+    virtual bool equal(const PrimOp* other) const {
         return PrimOp::equal(other) ? this->index() == other->as<Slot>()->index() : false;
     }
 
@@ -111,11 +111,11 @@ private:
 
 class LEA : public PrimOp {
 private:
-    LEA(const Def* ptr, const Def* index, const std::string& name);
+    LEA(Def ptr, Def index, const std::string& name);
 
 public:
-    const Def* ptr() const { return op(0); }
-    const Def* index() const { return op(1); }
+    Def ptr() const { return op(0); }
+    Def index() const { return op(1); }
 
     friend class World;
 };

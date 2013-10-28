@@ -5,7 +5,7 @@
 namespace anydsl2 {
 
 PrimLit::PrimLit(World& world, PrimTypeKind kind, Box box, const std::string& name)
-    : Literal((int) kind, world.type(kind), name)
+    : Literal((NodeKind) kind, world.type(kind), name)
     , box_(box)
 {}
 

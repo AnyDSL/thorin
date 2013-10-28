@@ -27,9 +27,9 @@ private:
 
 void CFFLowering::transform(Lambda* lambda) {
     Scope scope(lambda);
-    std::unordered_map<Array<const Def*>, Lambda*> args2lambda;
+    std::unordered_map<Array<const DefNode*>, Lambda*> args2lambda;
 
-    for (auto use : lambda->copy_uses()) {
+    for (auto use : lambda->uses()) {
         if (use.index() != 0 || !use->isa<Lambda>())
             continue;
 
@@ -43,8 +43,8 @@ void CFFLowering::transform(Lambda* lambda) {
         
         size_t size = lambda->num_params();
         Array<size_t> indices(size);
-        Array<const Def*> with(size);
-        Array<const Def*> args(size);
+        Array<Def> with(size);
+        Array<const DefNode*> args(size);
 
         // don't drop the "return" of a top-level function
         size_t keep = -1;
@@ -60,7 +60,7 @@ void CFFLowering::transform(Lambda* lambda) {
         size_t num = 0;
         for (size_t i = 0; i != size; ++i) {
             if (i != keep && lambda->param(i)->order() >= 1) {
-                const Def* arg = ulambda->arg(i);
+                Def arg = ulambda->arg(i);
                 indices[num] = i;
                 with[num++] = arg;
                 args[i] = arg;

@@ -17,8 +17,8 @@ public:
     {}
 
     std::ostream& emit_type(const Type*);
-    std::ostream& emit_name(const Def*);
-    std::ostream& emit_def(const Def*);
+    std::ostream& emit_name(Def);
+    std::ostream& emit_def(Def);
     std::ostream& emit_primop(const PrimOp*);
     std::ostream& emit_assignment(const PrimOp*);
     std::ostream& emit_head(const Lambda*);
@@ -67,13 +67,13 @@ std::ostream& CodeGen::emit_type(const Type* type) {
     ANYDSL2_UNREACHABLE;
 }
 
-std::ostream& CodeGen::emit_def(const Def* def) {
+std::ostream& CodeGen::emit_def(Def def) {
     if (auto primop = def->isa<PrimOp>())
         return emit_primop(primop);
     return emit_name(def);
 }
 
-std::ostream& CodeGen::emit_name(const Def* def) {
+std::ostream& CodeGen::emit_name(Def def) {
     if (is_fancy()) // elide white = 0 and black = 7
         color(def->gid() % 6 + 30 + 1);
 
@@ -86,7 +86,9 @@ std::ostream& CodeGen::emit_name(const Def* def) {
 }
 
 std::ostream& CodeGen::emit_primop(const PrimOp* primop) {
-    if (auto primlit = primop->isa<PrimLit>()) {
+    if (primop->is_proxy())
+        stream() << "<proxy>";
+    else if (auto primlit = primop->isa<PrimLit>()) {
         emit_type(primop->type()) << ' ';
         switch (primlit->primtype_kind()) {
 #define ANYDSL2_UF_TYPE(T) case PrimType_##T: stream() << (u64) primlit->T##_value(); break;
@@ -100,7 +102,7 @@ std::ostream& CodeGen::emit_primop(const PrimOp* primop) {
         } else {
             stream() << '(';
             emit_type(primop->type()) << ' ' << primop->op_name();
-            dump_list([&](const Def* def) { emit_def(def); }, primop->ops(), " ", ")");
+            dump_list([&](Def def) { emit_def(def); }, primop->ops(), " ", ")");
         }
     } else
         emit_name(primop);
@@ -122,7 +124,7 @@ std::ostream& CodeGen::emit_assignment(const PrimOp* primop) {
     }
 
     stream() << primop->op_name() << " ";
-    dump_list([&](const Def* def) { emit_def(def); }, ops);
+    dump_list([&](Def def) { emit_def(def); }, ops);
     return newline();
 }
 
@@ -141,7 +143,7 @@ std::ostream& CodeGen::emit_jump(const Lambda* lambda) {
         if (lambda->attribute().is(Lambda::Run))
             stream() << '@';
         emit_def(lambda->to());
-        dump_list([&](const Def* def) { emit_def(def); }, lambda->args(), "(", ")");
+        dump_list([&](Def def) { emit_def(def); }, lambda->args(), "(", ")");
     }
     return down();
 }
@@ -172,7 +174,7 @@ void emit_air(World& world, bool fancy) {
 }
 
 void emit_type(const Type* type)            { CodeGen(false).emit_type(type);         }
-void emit_def(const Def* def)               { CodeGen(false).emit_def(def);           }
+void emit_def(Def def)               { CodeGen(false).emit_def(def);           }
 void emit_head(const Lambda* lambda)        { CodeGen(false).emit_head(lambda);       }
 void emit_jump(const Lambda* lambda)        { CodeGen(false).emit_jump(lambda);       }
 void emit_assignment(const PrimOp* primop)  { CodeGen(false).emit_assignment(primop); }

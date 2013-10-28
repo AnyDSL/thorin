@@ -1,4 +1,4 @@
-extern fn f() -> int {
+fn main() -> int {
     var i : int;
     var j : int;
     return i + j;

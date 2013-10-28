@@ -39,8 +39,8 @@ public:
 
     void emit();
     llvm::Type* map(const Type* type);
-    llvm::Value* emit(const Def* def);
-    llvm::Value* lookup(const Def* def);
+    llvm::Value* emit(Def def);
+    llvm::Value* lookup(Def def);
 
 private:
     World& world;
@@ -72,7 +72,7 @@ void CodeGen::emit() {
     for (auto lambda : top_level_lambdas(world)) {
         llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
         llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->name, module);
-        fcts.insert(std::make_pair(lambda, f));
+        fcts.emplace(lambda, f);
     }
 
     // for all top-level functions
@@ -188,7 +188,7 @@ void CodeGen::emit() {
                     // put all first-order args into an array
                     Array<llvm::Value*> args(lambda->args().size() - 1);
                     size_t i = 0;
-                    const Def* ret_arg = 0;
+                    Def ret_arg = 0;
                     for (auto arg : lambda->args())
                         if (arg->order() == 0) {
                             if (!arg->type()->isa<Mem>())
@@ -241,7 +241,7 @@ void CodeGen::emit() {
 #endif
 }
 
-llvm::Value* CodeGen::lookup(const Def* def) {
+llvm::Value* CodeGen::lookup(Def def) {
     if (def->is_const())
         return emit(def);
 
@@ -257,7 +257,7 @@ llvm::Value* CodeGen::lookup(const Def* def) {
     return phis[param];
 }
 
-llvm::Value* CodeGen::emit(const Def* def) {
+llvm::Value* CodeGen::emit(Def def) {
     if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = lookup(bin->lhs());
         llvm::Value* rhs = lookup(bin->rhs());
@@ -354,7 +354,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
         llvm::Value* tuple = lookup(tupleop->tuple());
         unsigned idx = tupleop->index()->primlit_value<unsigned>();
 
-        if (tupleop->node_kind() == Node_TupleExtract) {
+        if (tupleop->kind() == Node_TupleExtract) {
             if (tupleop->tuple()->isa<Load>())
                 return tuple; // bypass artificial extract
             return builder.CreateExtractValue(tuple, { idx });
@@ -423,7 +423,7 @@ llvm::Value* CodeGen::emit(const Def* def) {
 llvm::Type* CodeGen::map(const Type* type) {
     assert(!type->isa<Mem>());
     llvm::Type* llvm_type;
-    switch (type->node_kind()) {
+    switch (type->kind()) {
         case Node_PrimType_u1:  llvm_type = llvm::IntegerType::get(context,  1); break;
         case Node_PrimType_u8:  llvm_type = llvm::IntegerType::get(context,  8); break;
         case Node_PrimType_u16: llvm_type = llvm::IntegerType::get(context, 16); break;

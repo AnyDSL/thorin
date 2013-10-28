@@ -9,20 +9,20 @@ class Scope;
 
 Lambda* mangle(const Scope& scope, 
                ArrayRef<size_t> to_drop, 
-               ArrayRef<const Def*> drop_with, 
-               ArrayRef<const Def*> to_lift, 
+               ArrayRef<Def> drop_with, 
+               ArrayRef<Def> to_lift, 
                const GenericMap& generic_map = GenericMap(),
                ArrayRef<Lambda*> run = ArrayRef<Lambda*>(nullptr, 0)); 
 
-Lambda* drop(const Scope& scope, ArrayRef<const Def*> with, ArrayRef<Lambda*> run = ArrayRef<Lambda*>(nullptr, 0));
+Lambda* drop(const Scope& scope, ArrayRef<Def> with, ArrayRef<Lambda*> run = ArrayRef<Lambda*>(nullptr, 0));
 inline Lambda* clone(const Scope& scope, const GenericMap& generic_map) { 
-    return mangle(scope, Array<size_t>(), Array<const Def*>(), Array<const Def*>(), generic_map);
+    return mangle(scope, Array<size_t>(), Array<Def>(), Array<Def>(), generic_map);
 }
-inline Lambda* drop(const Scope& scope, ArrayRef<size_t> to_drop, ArrayRef<const Def*> drop_with, const GenericMap& generic_map) {
-    return mangle(scope, to_drop, drop_with, Array<const Def*>(), generic_map);
+inline Lambda* drop(const Scope& scope, ArrayRef<size_t> to_drop, ArrayRef<Def> drop_with, const GenericMap& generic_map) {
+    return mangle(scope, to_drop, drop_with, Array<Def>(), generic_map);
 }
-inline Lambda* lift(const Scope& scope, ArrayRef<const Def*> to_lift, const GenericMap& generic_map) {
-    return mangle(scope, Array<size_t>(), Array<const Def*>(), to_lift, generic_map);
+inline Lambda* lift(const Scope& scope, ArrayRef<Def> to_lift, const GenericMap& generic_map) {
+    return mangle(scope, Array<size_t>(), Array<Def>(), to_lift, generic_map);
 }
 
 }

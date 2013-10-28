@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <sstream>
+#include <unordered_map>
+#include <queue>
 
 #include "anydsl2/lambda.h"
 #include "anydsl2/literal.h"
@@ -14,80 +16,81 @@ namespace anydsl2 {
 
 //------------------------------------------------------------------------------
 
-void Tracker::set(const Def* def) {
-    release();
-    def_ = def;
-    assert(std::find(def->trackers_.begin(), def->trackers_.end(), this) == def->trackers_.end() && "already in trackers set");
-    def->trackers_.push_back(this);
-}
+const DefNode* Def::deref() const {
+    if (node_ == nullptr) return nullptr;
 
-void Tracker::release() {
-    if (def_) {
-        auto i = std::find(def_->trackers_.begin(), def_->trackers_.end(), this);
-        assert(i != def_->trackers_.end() && "must be in trackers set");
-        *i = def_->trackers_.back();
-        def_->trackers_.pop_back();
-        def_ = nullptr;
+    auto target = node_;
+    for (; target->is_proxy(); target = target->representative_)
+        assert(target != nullptr);
+
+    // path compression
+    auto n = node_;
+    while (n->representative_ != target) {
+        auto representative = n->representative_;
+        auto res = representative->representatives_of_.erase(n);
+        assert(res == 1);
+        n->representative_ = target;
+        target->representatives_of_.insert(n);
+        n = representative;
     }
+
+    return node_ = target;
 }
 
-//------------------------------------------------------------------------------
-
-void Def::set_op(size_t i, const Def* def) {
+void DefNode::set_op(size_t i, Def def) {
     assert(!op(i) && "already set");
-    set(i, def);
-    if (isa<PrimOp>()) is_const_ &= def->is_const();
-    auto p = def->uses_.insert(Use(i, this));
+    auto node = *def;
+    ops_[i] = node;
+    if (isa<PrimOp>()) is_const_ &= node->is_const();
+    auto p = node->uses_.emplace(i, this);
     assert(p.second && "already in use set");
 }
 
-void Def::unset_op(size_t i) {
-    assert(op(i) && "must be set");
-    unregister_use(i);
-    set(i, nullptr);
+void DefNode::unregister_use(size_t i) const { 
+    auto def = op(i).node();
+    auto res = def->uses_.erase(Use(i, this));
+    assert(res == 1);
 }
 
-void Def::unset_ops() {
+void DefNode::unset_op(size_t i) {
+    assert(op(i) && "must be set");
+    unregister_use(i);
+    ops_[i] = nullptr;
+}
+
+void DefNode::unset_ops() {
     for (size_t i = 0, e = size(); i != e; ++i)
         unset_op(i);
 }
 
-std::string Def::unique_name() const {
+std::string DefNode::unique_name() const {
     std::ostringstream oss;
     oss << name << '_' << gid();
     return oss.str();
 }
 
-Array<Use> Def::copy_uses() const {
-    Array<Use> result(uses().size());
-    std::copy(uses().begin(), uses().end(), result.begin());
-    return result;
-}
+std::vector<Use> DefNode::uses() const {
+    std::vector<Use> result;
+    std::vector<const DefNode*> stack;
+    stack.push_back(this);
 
-void Def::tracked_uses(AutoVector<const Tracker*>& result) const {
-    result.reserve(uses().size());
-    for (auto use : uses())
-        result.push_back(new Tracker(use));
-}
+    while (!stack.empty()) {
+        const DefNode* cur = stack.back();
+        stack.pop_back();
 
-std::vector<MultiUse> Def::multi_uses() const {
-    std::vector<MultiUse> result;
-    auto uses = copy_uses();
-    std::sort(uses.begin(), uses.end());
+        for (auto use : cur->uses_) {
+            if (!use.def().node()->is_proxy())
+                result.push_back(use);
+        }
 
-    const Def* cur = nullptr;
-    for (auto use : uses) {
-        if (cur != use.def()) {
-            result.push_back(use);
-            cur = use.def();
-        } else
-            result.back().append_user(use.index());
+        for (auto of : cur->representatives_of_)
+            stack.push_back(of);
     }
 
     return result;
 }
 
-bool Def::is_primlit(int val) const {
+bool DefNode::is_primlit(int val) const {
     if (auto lit = this->isa<PrimLit>()) {
         Box box = lit->value(); // TODO
         switch (lit->primtype_kind()) {
@@ -101,14 +104,12 @@ bool Def::is_primlit(int val) const {
             if (!op->is_primlit(val))
                 return false;
         }
-
         return true;
     }
-
     return false;
 }
 
-bool Def::is_minus_zero() const {
+bool DefNode::is_minus_zero() const {
     if (auto lit = this->isa<PrimLit>()) {
         Box box = lit->value();
         switch (lit->primtype_kind()) {
@@ -121,63 +122,16 @@ bool Def::is_minus_zero() const {
     return false;
 }
 
-void Def::replace(const Def* with) const {
-    // copy trackers to avoid internal modification
-    const Trackers trackers = trackers_;
-    for (auto tracker : trackers)
-        *tracker = with;
-
-    auto uses = multi_uses();
-
-    for (auto use : uses) {
-        if (auto lambda = use->isa_lambda()) {
-            for (auto index : use.indices())
-                lambda->update_op(index, with);
-        } else {
-            PrimOp* released = world().release(use->as<PrimOp>());
-            for (auto index : use.indices())
-                released->update(index, with);
-        }
-    }
-
-    for (auto use : uses) {
-        if (auto oprimop = (PrimOp*) use->isa<PrimOp>()) {
-            Array<const Def*> ops(oprimop->ops());
-            for (auto index : use.indices())
-                ops[index] = with;
-            size_t old_gid = world().gid();
-            const Def* ndef = world().rebuild(oprimop, ops);
-
-            if (oprimop->kind() == ndef->kind()) {
-                assert(oprimop->size() == ndef->size());
-
-                size_t j = 0;
-                size_t index = use.index(j);
-                for (size_t i = 0, e = oprimop->size(); i != e; ++i) {
-                    if (i != index && oprimop->op(i) != ndef->op(i))
-                        goto recurse;
-                    if (i == index && j < use.num_indices())
-                        index = use.index(j++);
-                }
-
-                if (ndef->gid() == old_gid) { // only consider fresh (non-CSEd) primop
-                    // nothing exciting happened by rebuilding 
-                    // -> reuse the old chunk of memory and save recursive updates
-                    AutoPtr<PrimOp> nreleased = world().release(ndef->as<PrimOp>());
-                    nreleased->unset_ops();
-                    world().reinsert(oprimop);
-                    continue;
-                }
-            }
-recurse:
-            oprimop->replace(ndef);
-            oprimop->unset_ops();
-            delete oprimop;
-        }
-    }
+void DefNode::replace(Def with) const {
+    if (this == *with) return;
+    assert(!is_proxy() && !is_const());
+    assert(!isa<Param>() || !as<Param>()->lambda()->attribute().is(Lambda::Extern));
+    this->representative_ = with;
+    auto p = with->representatives_of_.insert(this);
+    assert(p.second);
 }
 
-int Def::non_const_depth() const {
+int DefNode::non_const_depth() const {
     if (this->is_const() || this->isa<Param>()) 
         return 0;
 
@@ -191,7 +145,7 @@ int Def::non_const_depth() const {
     return max + 1;
 }
 
-void Def::dump() const { 
+void DefNode::dump() const { 
     auto primop = this->isa<PrimOp>();
     if (primop && !primop->is_const())
         emit_assignment(primop);
@@ -201,22 +155,16 @@ void Def::dump() const {
     }
 }
 
-World& Def::world() const { return type()->world(); }
-const Def* Def::op_via_lit(const Def* def) const { return op(def->primlit_value<size_t>()); }
-Lambda* Def::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(this)); }
-Lambda* Def::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(this)); }
-const PrimOp* Def::is_non_const_primop() const { return is_const() ? nullptr : isa<PrimOp>(); }
-int Def::order() const { return type()->order(); }
-bool Def::is_generic() const { return type()->is_generic(); }
-size_t Def::length() const { return type()->as<VectorType>()->length(); }
+World& DefNode::world() const { return type()->world(); }
+Def DefNode::op_via_lit(Def def) const { return op(def->primlit_value<size_t>()); }
+Lambda* DefNode::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(this)); }
+Lambda* DefNode::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(this)); }
+const PrimOp* DefNode::is_non_const_primop() const { return is_const() ? nullptr : isa<PrimOp>(); }
+int DefNode::order() const { return type()->order(); }
+bool DefNode::is_generic() const { return type()->is_generic(); }
+size_t DefNode::length() const { return type()->as<VectorType>()->length(); }
 
 //------------------------------------------------------------------------------
-
-Param::Param(size_t gid, const Type* type, Lambda* lambda, size_t index, const std::string& name)
-    : Def(gid, Node_Param, 0, type, false, name)
-    , lambda_(lambda)
-    , index_(index)
-{}
 
 Peeks Param::peek() const {
     size_t x = index();

@@ -26,7 +26,7 @@ void mem2reg(World& world) {
     for (auto root : top) {
         Scope scope(root);
         Schedule schedule = schedule_late(scope);
-        const size_t pass = world.new_pass();
+        const auto pass = world.new_pass();
         size_t cur_handle = 0;
         std::unordered_map<const Load*, Def> load2def;
 

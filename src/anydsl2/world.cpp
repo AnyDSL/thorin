@@ -126,13 +126,13 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
     if (a->isa<Bottom>() || b->isa<Bottom>())
         return bottom(type);
 
-    const PrimLit* llit = a->isa<PrimLit>();
-    const PrimLit* rlit = b->isa<PrimLit>();
-    const Vector*  lvec = a->isa<Vector>();
-    const Vector*  rvec = b->isa<Vector>();
+    auto llit = a->isa<PrimLit>();
+    auto rlit = b->isa<PrimLit>();
+    auto lvec = a->isa<Vector>();
+    auto rvec = b->isa<Vector>();
 
     if (lvec && rvec) {
-        const Vector* cvec = cond->isa<Vector>();
+        auto cvec = cond->isa<Vector>();
         size_t num = lvec->type()->as<PrimType>()->length();
         Array<Def> ops(num);
         for (size_t i = 0; i != num; ++i)
@@ -337,8 +337,8 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
             return this->relop(negate(relop->relop_kind()), cond, relop->lhs(), relop->rhs());
     }
 
-    const RelOp* lrel = a->isa<RelOp>();
-    const RelOp* rrel = b->isa<RelOp>();
+    auto lrel = a->isa<RelOp>();
+    auto rrel = b->isa<RelOp>();
 
     if (kind == ArithOp_or && lrel && rrel && lrel->lhs() == rrel->lhs() && lrel->rhs() == rrel->rhs() 
             && lrel->relop_kind() == negate(rrel->relop_kind()))
@@ -348,8 +348,8 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
             && lrel->relop_kind() == negate(rrel->relop_kind()))
             return literal_u1(false);
 
-    const ArithOp* land = a->kind() == Node_and ? a->as<ArithOp>() : nullptr;
-    const ArithOp* rand = b->kind() == Node_and ? b->as<ArithOp>() : nullptr;
+    auto land = a->kind() == Node_and ? a->as<ArithOp>() : nullptr;
+    auto rand = b->kind() == Node_and ? b->as<ArithOp>() : nullptr;
 
     // distributivity (a and b) or (a and c)
     if (kind == ArithOp_or && land && rand) {
@@ -359,8 +359,8 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
             return arithop_and(cond, land->rhs(), arithop_or(cond, land->lhs(), rand->lhs()));
     }
 
-    const ArithOp* lor = a->kind() == Node_or ? a->as<ArithOp>() : nullptr;
-    const ArithOp* ror = b->kind() == Node_or ? b->as<ArithOp>() : nullptr;
+    auto lor = a->kind() == Node_or ? a->as<ArithOp>() : nullptr;
+    auto ror = b->kind() == Node_or ? b->as<ArithOp>() : nullptr;
 
     // distributivity (a or b) and (a or c)
     if (kind == ArithOp_and && lor && ror) {
@@ -460,10 +460,10 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
 
     // normalize: try to reorder same ops to have the literal/vector on the left-most side
     if (is_associative(kind)) {
-        const ArithOp* a_same = a->isa<ArithOp>() && a->as<ArithOp>()->arithop_kind() == kind ? a->as<ArithOp>() : nullptr;
-        const ArithOp* b_same = b->isa<ArithOp>() && b->as<ArithOp>()->arithop_kind() == kind ? b->as<ArithOp>() : nullptr;
-        const DefNode* a_lhs_lv = a_same && (a_same->lhs()->isa<PrimLit>() || a_same->lhs()->isa<Vector>()) ? a_same->lhs() : nullptr;
-        const DefNode* b_lhs_lv = b_same && (b_same->lhs()->isa<PrimLit>() || b_same->lhs()->isa<Vector>()) ? b_same->lhs() : nullptr;
+        auto a_same = a->isa<ArithOp>() && a->as<ArithOp>()->arithop_kind() == kind ? a->as<ArithOp>() : nullptr;
+        auto b_same = b->isa<ArithOp>() && b->as<ArithOp>()->arithop_kind() == kind ? b->as<ArithOp>() : nullptr;
+        auto a_lhs_lv = a_same && (a_same->lhs()->isa<PrimLit>() || a_same->lhs()->isa<Vector>()) ? a_same->lhs() : nullptr;
+        auto b_lhs_lv = b_same && (b_same->lhs()->isa<PrimLit>() || b_same->lhs()->isa<Vector>()) ? b_same->lhs() : nullptr;
 
         if (is_commutative(kind)) {
             if (a_lhs_lv && b_lhs_lv)
@@ -510,10 +510,10 @@ Def World::relop(RelOpKind kind, Def cond, Def a, Def b, const std::string& name
     if (oldkind != kind)
         std::swap(a, b);
 
-    const PrimLit* llit = a->isa<PrimLit>();
-    const PrimLit* rlit = b->isa<PrimLit>();
-    const Vector*  lvec = a->isa<Vector>();
-    const Vector*  rvec = b->isa<Vector>();
+    auto llit = a->isa<PrimLit>();
+    auto rlit = b->isa<PrimLit>();
+    auto  lvec = a->isa<Vector>();
+    auto  rvec = b->isa<Vector>();
 
     if (lvec && rvec) {
         size_t num = lvec->type()->as<PrimType>()->length();
@@ -648,14 +648,14 @@ Def World::convop(ConvOpKind kind, Def cond, Def from, const Type* to, const std
     if (from->isa<Bottom>())
         return bottom(to);
 
-    const PrimLit* lit = from->isa<PrimLit>();
-    const Vector*  vec = from->isa<Vector>();
+    auto lit = from->isa<PrimLit>();
+    auto vec = from->isa<Vector>();
 
     if (vec) {
-        const Vector* cvec = cond->isa<Vector>();
+        auto cvec = cond->isa<Vector>();
         size_t num = vec->length();
         Array<Def> ops(num);
-        const VectorType* to_scalar = to->as<VectorType>()->scalarize();
+        auto to_scalar = to->as<VectorType>()->scalarize();
         for (size_t i = 0; i != num; ++i)
             ops[i] = cvec && cvec->op(i)->is_zero() ? bottom(to_scalar, 1) :  convop(kind, vec->op(i), to_scalar);
         return vector(ops, name);
@@ -890,6 +890,24 @@ const DefNode* World::cse_base(const PrimOp* primop) {
  * optimizations
  */
 
+void World::cleanup() {
+    eliminate_params();
+    unreachable_code_elimination();
+    dead_code_elimination();
+    unused_type_elimination();
+    debug_verify(*this);
+}
+
+void World::opt() {
+    cleanup();
+    partial_evaluation(*this);
+    lower2cff(*this);
+    mem2reg(*this);
+    inliner(*this);
+    merge_lambdas(*this);
+    cleanup();
+}
+
 void World::eliminate_params() {
     // after carefully reading the C++11 standard this statement correctly iterates over all old lambdas; 
     // new lambdas are not visited
@@ -930,7 +948,7 @@ void World::eliminate_params() {
 }
 
 void World::unreachable_code_elimination() {
-    const size_t pass = new_pass();
+    const auto pass = new_pass();
 
     for (auto lambda : lambdas())
         if (lambda->attribute().is(Lambda::Extern))
@@ -951,18 +969,6 @@ void World::uce_insert(const size_t pass, Lambda* lambda) {
 
 static const DefNode* get_mapped(const DefNode* def) { return (const DefNode*) def->cptr; }
 static void set_mapped(const DefNode* odef, const DefNode* ndef) { ((const DefNode*&) odef->cptr) = ndef; }
-
-template<class S, class W>
-void World::wipe_out(S& set, W wipe) {
-    for (auto i = set.begin(); i != set.end();) {
-        auto j = i++;
-        auto val = *j;
-        if (wipe(val)) {
-            set.erase(j);
-            delete val;
-        }
-    }
-}
 
 void World::dead_code_elimination() {
     const auto pass = new_pass();
@@ -1052,22 +1058,16 @@ void World::ute_insert(const size_t pass, const Type* type) {
         ute_insert(pass, elem);
 }
 
-void World::cleanup() {
-    eliminate_params();
-    unreachable_code_elimination();
-    dead_code_elimination();
-    unused_type_elimination();
-    debug_verify(*this);
-}
-
-void World::opt() {
-    cleanup();
-    partial_evaluation(*this);
-    lower2cff(*this);
-    mem2reg(*this);
-    inliner(*this);
-    merge_lambdas(*this);
-    cleanup();
+template<class S, class W>
+void World::wipe_out(S& set, W wipe) {
+    for (auto i = set.begin(); i != set.end();) {
+        auto j = i++;
+        auto val = *j;
+        if (wipe(val)) {
+            set.erase(j);
+            delete val;
+        }
+    }
 }
 
 } // namespace anydsl2

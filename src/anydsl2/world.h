@@ -22,7 +22,6 @@ class DefNode;
 class Enter;
 class Lambda;
 class LEA;
-class Leave;
 class Load;
 class Pi;
 class PrimLit;
@@ -206,7 +205,7 @@ public:
     const Load* load(Def mem, Def ptr, const std::string& name = "");
     const Store* store(Def mem, Def ptr, Def val, const std::string& name = "");
     const Enter* enter(Def mem, const std::string& name = "");
-    const Leave* leave(Def mem, Def frame, const std::string& name = "");
+    Def leave(Def mem, Def frame, const std::string& name = "");
     const Slot* slot(const Type* type, Def frame, size_t index, const std::string& name = "");
     const LEA* lea(Def ptr, Def index, const std::string& name = "");
 

@@ -283,8 +283,7 @@ private:
     Def dce_rebuild(const size_t pass, Def def);
     void ute_insert(const size_t pass, const Type* type);
     void uce_insert(const size_t pass, Lambda*);
-    template<class S> static void unregister_uses(const size_t pass, S& set);
-    template<class S> static void wipe_out(const size_t pass, S& set);
+    template<class S, class W> static void wipe_out(S& set, W wipe); 
 
     PrimOpSet primops_;
     LambdaSet lambdas_;

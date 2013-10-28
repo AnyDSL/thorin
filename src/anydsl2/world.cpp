@@ -890,28 +890,6 @@ const DefNode* World::cse_base(const PrimOp* primop) {
  * optimizations
  */
 
-template<class S>
-void World::wipe_out(const size_t pass, S& set) {
-    for (auto i = set.begin(); i != set.end();) {
-        auto j = i++;
-        const DefNode* def = *j;
-        if (!def->is_visited(pass)) {
-            set.erase(j);
-            delete def;
-        }
-    }
-}
-
-template<class S>
-void World::unregister_uses(const size_t pass, S& set) {
-    for (auto def : set) {
-        if (!def->is_visited(pass)) {
-            for (size_t i = 0, e = def->size(); i != e; ++i)
-                def->unregister_use(i);
-        }
-    }
-}
-
 void World::eliminate_params() {
     // after carefully reading the C++11 standard this statement correctly iterates over all old lambdas; 
     // new lambdas are not visited
@@ -973,12 +951,21 @@ void World::uce_insert(const size_t pass, Lambda* lambda) {
 
 static const DefNode* get_mapped(const DefNode* def) { return (const DefNode*) def->cptr; }
 static void set_mapped(const DefNode* odef, const DefNode* ndef) { ((const DefNode*&) odef->cptr) = ndef; }
-static bool wipe(const PrimOp* primop, const size_t pass) {
-    return !primop->is_const() && (!primop->is_visited(pass) || get_mapped(primop) != primop);
+
+template<class S, class W>
+void World::wipe_out(S& set, W wipe) {
+    for (auto i = set.begin(); i != set.end();) {
+        auto j = i++;
+        auto val = *j;
+        if (wipe(val)) {
+            set.erase(j);
+            delete val;
+        }
+    }
 }
 
 void World::dead_code_elimination() {
-    const size_t pass = new_pass();
+    const auto pass = new_pass();
     std::vector<const DefNode*> stack;
 
     for (auto lambda : lambdas()) {
@@ -986,8 +973,13 @@ void World::dead_code_elimination() {
             lambda->update_op(i, dce_rebuild(pass, lambda->op(i)));
     }
 
+    auto wipe_primop = [=] (const PrimOp* primop) {
+        return !primop->is_const() && (!primop->is_visited(pass) || get_mapped(primop) != primop);
+    };
+    auto wipe_lambda = [] (Lambda* lambda) { return lambda->empty() && !lambda->attribute().is(Lambda::Extern); };
+
     for (auto primop : primops_) {
-        if (wipe(primop, pass)) {
+        if (wipe_primop(primop)) {
             for (size_t i = 0, e = primop->size(); i != e; ++i)
                 primop->unregister_use(i);
                 if (primop->is_proxy()) {
@@ -998,7 +990,7 @@ void World::dead_code_elimination() {
     }
 
     for (auto lambda : lambdas()) {
-        if (lambda->empty() && !lambda->attribute().is(Lambda::Extern)) {
+        if (wipe_lambda(lambda)) {
             for (auto param : lambda->params()) {
                 if (param->is_proxy()) {
                     auto num = param->representative_->representatives_of_.erase(param);
@@ -1008,25 +1000,8 @@ void World::dead_code_elimination() {
         }
     }
 
-    for (auto i = primops_.begin(); i != primops_.end();) {
-        auto j = i++;
-        auto primop = *j;
-        if (wipe(primop, pass)) {
-            primops_.erase(j);
-            delete primop;
-        } else
-            assert(!primop->is_proxy());
-    }
-
-    for (auto i = lambdas_.begin(); i != lambdas_.end();) {
-        auto j = i++;
-        auto lambda = *j;
-        if (lambda->empty() && !lambda->attribute().is(Lambda::Extern)) {
-            lambdas_.erase(j);
-            delete lambda;
-        }
-    }
-
+    wipe_out(primops_, wipe_primop);
+    wipe_out(lambdas_, wipe_lambda);
     verify_closedness(*this);
 }
 
@@ -1054,7 +1029,7 @@ Def World::dce_rebuild(const size_t pass, Def def) {
 }
 
 void World::unused_type_elimination() {
-    const size_t pass = new_pass();
+    const auto pass = new_pass();
 
     for (auto primop : primops())
         ute_insert(pass, primop->type());
@@ -1065,15 +1040,7 @@ void World::unused_type_elimination() {
             ute_insert(pass, param->type());
     }
 
-    for (auto i = types_.begin(); i != types_.end();) {
-        const Type* type = *i;
-        if (type->is_visited(pass))
-            ++i;
-        else {
-            i = types_.erase(i);
-            delete type;
-        }
-    }
+    wipe_out(types_, [=] (const Type* type) { return !type->is_visited(pass); });
 }
 
 void World::ute_insert(const size_t pass, const Type* type) {

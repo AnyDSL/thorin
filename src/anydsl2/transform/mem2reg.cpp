@@ -25,7 +25,6 @@ void mem2reg(World& world) {
 
     for (auto root : top) {
         Scope scope(root);
-        std::vector<const Access*> accesses;
         Schedule schedule = schedule_late(scope);
         const size_t pass = world.new_pass();
         size_t cur_handle = 0;
@@ -42,7 +41,8 @@ void mem2reg(World& world) {
             // Then, we know what must be replaced but do not yet replace anything:
             // Defs in the schedule might get invalid!
             for (auto primop : schedule[i]) {
-                if (auto slot = primop->isa<Slot>()) {
+                auto def = Def(primop);
+                if (auto slot = def->isa<Slot>()) {
                     // are all users loads and store?
                     for (auto use : slot->uses()) {
                         if (!use->isa<Load>() && !use->isa<Store>()) {
@@ -51,24 +51,24 @@ void mem2reg(World& world) {
                         }
                     }
                     slot->counter = cur_handle++;
-                } else if (auto store = primop->isa<Store>()) {
+                } else if (auto store = def->isa<Store>()) {
                     if (auto slot = store->ptr()->isa<Slot>()) {
                         if (slot->counter != size_t(-1)) {  // if not "address taken"
                             lambda->set_value(slot->counter, store->val());
-                            accesses.push_back(store);
+                            store->replace(store->mem());
                         }
                     }
-                } else if (auto load = primop->isa<Load>()) {
+                } else if (auto load = def->isa<Load>()) {
                     if (auto slot = load->ptr()->isa<Slot>()) {
                         if (slot->counter != size_t(-1)) {  // if not "address taken"
-                            const Type* type = slot->type()->as<Ptr>()->referenced_type();
-                            load2def[load] = lambda->get_value(slot->counter, type, slot->name.c_str());
-                            accesses.push_back(load);
+                            auto type = slot->type()->as<Ptr>()->referenced_type();
+                            load->extract_val()->replace(lambda->get_value(slot->counter, type, slot->name.c_str()));
+                            load->extract_mem()->replace(load->mem());
                         }
                     }
-                } else if (auto enter = primop->isa<Enter>()) {
+                } else if (auto enter = def->isa<Enter>()) {
                     enters.push_back(enter);                // keep track of Enters - they might get superfluous 
-                } else if (auto leave = primop->isa<Leave>()) {
+                } else if (auto leave = def->isa<Leave>()) {
                     leaves.push_back(leave);                // keep track of Leaves - they might get superfluous 
                 }
             }
@@ -81,17 +81,6 @@ void mem2reg(World& world) {
                     if (--succ->counter == 0)
                         succ->seal();
                 }
-            }
-        }
-
-        // now replace everything from bottom up
-        for (size_t i = accesses.size(); i-- != 0;) {
-            if (auto load = accesses[i]->isa<Load>()) {
-                load->extract_val()->replace(load2def[load]);
-                load->extract_mem()->replace(load->mem());
-            } else {
-                const Store* store = accesses[i]->as<Store>();
-                store->replace(store->mem());
             }
         }
 next_primop:;

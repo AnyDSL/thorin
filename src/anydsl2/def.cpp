@@ -17,18 +17,32 @@ namespace anydsl2 {
 //------------------------------------------------------------------------------
 
 const DefNode* Def::deref() const {
-    const DefNode* n = node_;
-    for (; n != nullptr && n != n->representative_; n = n->representative_)
-        assert(n != nullptr);
+    if (node_ == nullptr) return nullptr;
 
-    return n;
+    auto target = node_;
+    for (; target->is_proxy(); target = target->representative_)
+        assert(target != nullptr);
+
+    // path compression
+    auto n = node_;
+    while (n->representative_ != target) {
+        auto representative = n->representative_;
+        auto res = representative->representatives_of_.erase(n);
+        assert(res == 1);
+        n->representative_ = target;
+        target->representatives_of_.insert(n);
+        n = representative;
+    }
+
+    return node_ = target;
 }
 
 void DefNode::set_op(size_t i, Def def) {
     assert(!op(i) && "already set");
-    ops_[i] = def;
-    if (isa<PrimOp>()) is_const_ &= def->is_const();
-    auto p = def->uses_.emplace(i, this);
+    auto node = *def;
+    ops_[i] = node;
+    if (isa<PrimOp>()) is_const_ &= node->is_const();
+    auto p = node->uses_.emplace(i, this);
     assert(p.second && "already in use set");
 }
 
@@ -36,8 +50,6 @@ void DefNode::unregister_use(size_t i) const {
     auto def = op(i).node();
     auto res = def->uses_.erase(Use(i, this));
     assert(res == 1);
-    if (def->is_proxy())
-        def->representative_->representatives_of_.erase(def);
 }
 
 void DefNode::unset_op(size_t i) {
@@ -111,10 +123,12 @@ bool DefNode::is_minus_zero() const {
 }
 
 void DefNode::replace(Def with) const {
-    assert(!is_proxy() && !is_const() && this != *with);
+    if (this == *with) return;
+    assert(!is_proxy() && !is_const());
     assert(!isa<Param>() || !as<Param>()->lambda()->attribute().is(Lambda::Extern));
     this->representative_ = with;
-    with->representatives_of_.insert(this);
+    auto p = with->representatives_of_.insert(this);
+    assert(p.second);
 }
 
 int DefNode::non_const_depth() const {

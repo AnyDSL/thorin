@@ -930,31 +930,20 @@ void World::eliminate_params() {
         if (proxy_idx.empty()) 
             continue;
 
-        std::cout << "---" << std::endl;
-        olambda->dump_head();
-        std::cout << "proxies:" << std::endl;
-        for (auto i : proxy_idx) {
-            std::cout << olambda->param(i)->unique_name() << " to " << Def(olambda->param(i))->unique_name() << std::endl;
-        }
-
         auto nlambda = lambda(pi(olambda->type()->elems().cut(proxy_idx)), olambda->attribute(), olambda->name);
         size_t j = 0;
         for (auto i : param_idx) {
             olambda->param(i)->replace(nlambda->param(j));
             nlambda->param(j++)->name = olambda->param(i)->name;
         }
-        nlambda->dump_head();
 
         nlambda->jump(olambda->to(), olambda->args());
         olambda->destroy_body();
 
         for (auto use : olambda->uses()) {
             auto ulambda = use->as_lambda();
-            std::cout << "ulambda" << std::endl;
-            ulambda->dump_jump();
             assert(use.index() == 0);
             ulambda->jump(nlambda, ulambda->args().cut(proxy_idx));
-            ulambda->dump_jump();
         }
     }
 }
@@ -967,22 +956,12 @@ void World::unreachable_code_elimination() {
             uce_insert(pass, lambda);
 
     for (auto lambda : lambdas()) {
-        if (!lambda->is_visited(pass)) {
-            std::cout << "destroy: " << std::endl;
-            lambda->dump_head();
-            lambda->dump_jump();
+        if (!lambda->is_visited(pass))
             lambda->destroy_body();
-        } else {
-            std::cout << "keep: " << std::endl;
-            lambda->dump_head();
-            lambda->dump_jump();
-        }
     }
 }
 
 void World::uce_insert(const size_t pass, Lambda* lambda) {
-    if (lambda->gid() == 74)
-        std::cout << "WTF?" << std::endl;
     if (lambda->visit(pass)) return;
 
     for (auto succ : lambda->succs())
@@ -1008,14 +987,20 @@ void World::dead_code_elimination() {
         if (wipe(primop, pass)) {
             for (size_t i = 0, e = primop->size(); i != e; ++i)
                 primop->unregister_use(i);
+                if (primop->is_proxy()) {
+                    auto num = primop->representative_->representatives_of_.erase(primop);
+                    assert(num == 1);
+                }
         }
     }
 
     for (auto lambda : lambdas()) {
         if (lambda->empty() && !lambda->attribute().is(Lambda::Extern)) {
             for (auto param : lambda->params()) {
-                if (param->is_proxy())
-                    param->representative_->representatives_of_.erase(param);
+                if (param->is_proxy()) {
+                    auto num = param->representative_->representatives_of_.erase(param);
+                    assert(num == 1);
+                }
             }
         }
     }

@@ -53,7 +53,7 @@ public:
     const DefNode* operator -> () const { return deref(); }
 
 private:
-    const DefNode* node_;
+    mutable const DefNode* node_;
 };
 
 /** 
@@ -84,7 +84,7 @@ private:
 
 inline bool Def::operator == (const Use& use) const { return this->deref() == use.def().deref(); }
 
-struct UseHash { size_t operator () (Use use) const { return hash_combine(hash_value(use.def().node()) /*TODO sure?*/, use.index()); } };
+struct UseHash { size_t operator () (Use use) const { return hash_combine(hash_value(use.def().node()), use.index()); } };
 struct UseEqual { bool operator () (Use use1, Use use2) const { return use1 == use2; } };
 
 class Peek {
@@ -158,7 +158,8 @@ public:
     const PrimOp* is_non_const_primop() const;
     std::vector<Use> uses() const;
     bool is_proxy() const { return representative_ != this; }
-    size_t num_uses() const { return uses_.size(); }
+    /// WARNING: slow!
+    size_t num_uses() const { return uses().size(); }
     size_t gid() const { return gid_; }
     std::string unique_name() const;
     const Type* type() const { return type_; }

@@ -330,7 +330,7 @@ RefPtr ConditionalExpr::emit(CodeGen& cg) const {
 RefPtr IndexExpr::emit(CodeGen& cg) const {
     Def x = cg.emit(index())->load();
     if (is_array_subscript())
-        return Ref::create_array(cg.emit(lhs()), x, cg);
+        return Ref::create_array(cg.emit(lhs()), x);
     else
         return Ref::create_tuple(cg.emit(lhs()), x);
 }

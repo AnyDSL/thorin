@@ -127,6 +127,55 @@ public:
 
 //------------------------------------------------------------------------------
 
+class ArrayValue : public PrimOp {
+private:
+    ArrayValue(World& world, const Type* elem, ArrayRef<Def> args, const std::string& name);
+
+    friend class World;
+};
+
+class ArrayOp : public PrimOp {
+protected:
+    ArrayOp(size_t size, NodeKind kind, const Type* type, Def array, Def index, const std::string& name)
+        : PrimOp(size, kind, type, name)
+    {
+        set_op(0, array);
+        set_op(1, index);
+    }
+
+public:
+    Def array() const { return op(0); }
+    Def index() const { return op(1); }
+
+    friend class World;
+};
+
+class ArrayExtract : public ArrayOp {
+private:
+    ArrayExtract(Def array, Def index, const std::string& name);
+    
+    friend class World;
+};
+
+class ArrayInsert : public ArrayOp {
+private:
+    ArrayInsert(Def array, Def index, Def value, const std::string& name);
+
+public:
+    Def value() const { return op(2); }
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
+class Tuple : public PrimOp {
+private:
+    Tuple(World& world, ArrayRef<Def> args, const std::string& name);
+
+    friend class World;
+};
+
 class TupleOp : public PrimOp {
 protected:
     TupleOp(size_t size, NodeKind kind, const Type* type, Def tuple, Def index, const std::string& name)
@@ -143,8 +192,6 @@ public:
     friend class World;
 };
 
-//------------------------------------------------------------------------------
-
 class TupleExtract : public TupleOp {
 private:
     TupleExtract(Def tuple, Def index, const std::string& name);
@@ -152,23 +199,12 @@ private:
     friend class World;
 };
 
-//------------------------------------------------------------------------------
-
 class TupleInsert : public TupleOp {
 private:
     TupleInsert(Def tuple, Def index, Def value, const std::string& name);
 
 public:
     Def value() const { return op(2); }
-
-    friend class World;
-};
-
-//------------------------------------------------------------------------------
-
-class Tuple : public PrimOp {
-private:
-    Tuple(World& world, ArrayRef<Def> args, const std::string& name);
 
     friend class World;
 };

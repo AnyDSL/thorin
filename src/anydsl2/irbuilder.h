@@ -32,10 +32,10 @@ public:
     inline static RefPtr create(Def def);
     /// Create \p VarRef.
     inline static RefPtr create(Lambda* bb, size_t handle, const Type*, const char* name);
-    /// Create \p ArrayDeclRef.
-    inline static RefPtr create_array(RefPtr lref, Def index, IRBuilder& builde);
+    /// Create \p ArrayValueRef.
+    inline static RefPtr create_array(RefPtr lref, Def index);
     /// Create \p TupleRef.
-    inline static RefPtr create_tuple(RefPtr lref, Def indexr);
+    inline static RefPtr create_tuple(RefPtr lref, Def index);
     /// Create \p SlotRef.
     inline static RefPtr create(const Slot* slot, IRBuilder& builder);
 };
@@ -74,13 +74,12 @@ private:
     const char* name_;
 };
 
-// FIXME: nice integration
-class ArrayDeclRef : public Ref {
+class ArrayValueRef : public Ref {
 public:
-    ArrayDeclRef(RefPtr lref, Def index, IRBuilder& builder)
+    ArrayValueRef(RefPtr lref, Def index)
         : lref_(std::move(lref))
         , index_(index)
-        , builder_(builder)
+        , loaded_(nullptr)
     {}
 
     virtual Def load() const;
@@ -90,7 +89,9 @@ public:
 private:
     RefPtr lref_;
     Def index_;
-    IRBuilder& builder_;
+
+    /// Caches loaded value to prevent quadratic blow up in calls.
+    mutable Def loaded_;
 };
 
 class TupleRef : public Ref {
@@ -130,8 +131,10 @@ private:
 };
 
 RefPtr Ref::create(Def def) { return RefPtr(new RVal(def)); }
-RefPtr Ref::create_array(RefPtr lref, Def index, IRBuilder& builder) { return RefPtr(new ArrayDeclRef(std::move(lref), index, builder)); }
-RefPtr Ref::create_tuple(RefPtr lref, Def index) { return RefPtr(new TupleRef(std::move(lref), index)); }
+RefPtr Ref::create_array(RefPtr lref, Def index) { 
+    return RefPtr(new ArrayValueRef(std::move(lref), index)); }
+RefPtr Ref::create_tuple(RefPtr lref, Def index) { 
+    return RefPtr(new TupleRef(std::move(lref), index)); }
 RefPtr Ref::create(Lambda* bb, size_t handle, const Type* type, const char* name) { 
     return RefPtr(new VarRef(bb, handle, type, name)); 
 }

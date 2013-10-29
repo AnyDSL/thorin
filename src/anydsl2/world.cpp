@@ -703,6 +703,40 @@ Def World::convop(ConvOpKind kind, Def cond, Def from, const Type* to, const std
     return cse(new ConvOp(kind, cond, from, to, name));
 }
 
+Def World::array_extract(Def agg, Def index, const std::string& name) {
+    if (agg->isa<Bottom>())
+        return bottom(agg->type()->as<ArrayType>()->elem_type());
+
+    if (auto array = agg->isa<ArrayValue>())
+        return array->op_via_lit(index);
+
+    if (auto insert = agg->isa<ArrayInsert>()) {
+        if (index == insert->index())
+            return insert->value();
+        else
+            return array_extract(insert->array(), index);
+    }
+
+    return cse(new ArrayExtract(agg, index, name));
+}
+
+Def World::array_insert(Def agg, Def index, Def value, const std::string& name) {
+    if (agg->isa<Bottom>() || value->isa<Bottom>())
+        return bottom(agg->type());
+
+    if (auto array = agg->isa<ArrayValue>()) {
+        if (auto literal = index->isa<PrimLit>()) {
+            Array<Def> args(array->size());
+            std::copy(agg->ops().begin(), agg->ops().end(), args.begin());
+            args[literal->primlit_value<u64>()] = value;
+
+            return array_value(args);
+        }
+    }
+
+    return cse(new ArrayInsert(agg, index, value, name));
+}
+
 Def World::tuple_extract(Def agg, Def index, const std::string& name) {
     if (agg->isa<Bottom>())
         return bottom(agg->type()->as<Sigma>()->elem_via_lit(index));
@@ -727,7 +761,7 @@ Def World::tuple_insert(Def agg, Def index, Def value, const std::string& name) 
     if (auto tup = agg->isa<Tuple>()) {
         Array<Def> args(tup->size());
         std::copy(agg->ops().begin(), agg->ops().end(), args.begin());
-        args[index->primlit_value<size_t>()] = value;
+        args[index->primlit_value<u64>()] = value;
 
         return tuple(args);
     }
@@ -848,10 +882,10 @@ const Type* World::rebuild(const Type* type, ArrayRef<const Type*> elems) {
     if (elems.empty()) return type;
 
     switch (type->kind()) {
-        case Node_Pi:    return pi(elems);
-        case Node_Sigma: return sigma(elems);
-        case Node_Ptr:           assert(elems.size() == 1); return ptr(elems.front());
-        case Node_DefiniteArray: assert(elems.size() == 1); return definite_array(elems.front(), type->length());
+        case Node_Pi:        return pi(elems);
+        case Node_Sigma:     return sigma(elems);
+        case Node_Ptr:       assert(elems.size() == 1); return ptr(elems.front());
+        case Node_ArrayType: assert(elems.size() == 1); return array(elems.front());
         case Node_GenericRef: {
             auto genref = type->as<GenericRef>();
             return generic_ref(genref->generic(), genref->lambda());

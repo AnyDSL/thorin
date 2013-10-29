@@ -11,21 +11,19 @@ namespace anydsl2 {
 
 World& RVal::world() const { return def_->world(); }
 World& VarRef::world() const { return type_->world(); }
-World& TupleRef::world() const { return loaded_ ? loaded_->world() : lref_->world(); }
-World& ArrayDeclRef::world() const { return lref_->world(); }
+World& TupleRef::world() const      { return loaded_ ? loaded_->world() : lref_->world(); }
+World& ArrayValueRef::world() const { return loaded_ ? loaded_->world() : lref_->world(); }
 World& SlotRef::world() const { return slot_->world(); }
 
 Def VarRef::load() const { return bb_->get_value(handle_, type_, name_); }
 void VarRef::store(Def def) const { bb_->set_value(handle_, def); }
 
-Def ArrayDeclRef::load() const {
-    const Load* load = world().load(builder_.get_mem(), world().lea(lref_->load(), index_));
-    builder_.set_mem(load->extract_mem());
-    return load->extract_val();
+Def ArrayValueRef::load() const {
+    return loaded_ ? loaded_ : loaded_ = world().array_extract(lref_->load(), index_);
 }
 
-void ArrayDeclRef::store(Def val) const {
-    builder_.set_mem(world().store(builder_.get_mem(), world().lea(lref_->load(), index_), val));
+void ArrayValueRef::store(Def val) const {
+    lref_->store(world().array_insert(lref_->load(), index_, val)); 
 }
 
 Def TupleRef::load() const { 

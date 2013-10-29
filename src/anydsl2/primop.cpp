@@ -49,12 +49,21 @@ Select::Select(Def cond, Def tval, Def fval, const std::string& name)
 
 //------------------------------------------------------------------------------
 
-TupleExtract::TupleExtract(Def tuple, Def index, const std::string& name)
-    : TupleOp(2, Node_TupleExtract, tuple->type()->as<Sigma>()->elem_via_lit(index), tuple, index, name)
+ArrayValue::ArrayValue(World& world, const Type* elem, ArrayRef<Def> args, const std::string& name)
+    : PrimOp(args.size(), Node_ArrayValue, world.array(elem), name)
+{
+    for (size_t i = 0, e = size(); i != e; ++i) {
+        set_op(i, args[i]);
+        assert(args[i]->type() == elem);
+    }
+}
+
+ArrayExtract::ArrayExtract(Def array, Def index, const std::string& name)
+    : ArrayOp(2, Node_ArrayExtract, array->type()->as<ArrayType>()->elem_type(), array, index, name)
 {}
 
-TupleInsert::TupleInsert(Def tuple, Def index, Def value, const std::string& name)
-    : TupleOp(2, Node_TupleInsert, tuple->type()->as<Sigma>()->elem_via_lit(index), tuple, index, name)
+ArrayInsert::ArrayInsert(Def array, Def index, Def value, const std::string& name)
+    : ArrayOp(3, Node_ArrayInsert, array->type(), array, index, name)
 {
     set_op(2, value);
 }
@@ -71,6 +80,16 @@ Tuple::Tuple(World& world, ArrayRef<Def> args, const std::string& name)
     }
 
     set_type(world.sigma(elems));
+}
+
+TupleExtract::TupleExtract(Def tuple, Def index, const std::string& name)
+    : TupleOp(2, Node_TupleExtract, tuple->type()->as<Sigma>()->elem_via_lit(index), tuple, index, name)
+{}
+
+TupleInsert::TupleInsert(Def tuple, Def index, Def value, const std::string& name)
+    : TupleOp(3, Node_TupleInsert, tuple->type()->as<Sigma>()->elem_via_lit(index), tuple, index, name)
+{
+    set_op(2, value);
 }
 
 //------------------------------------------------------------------------------

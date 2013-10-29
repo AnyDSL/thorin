@@ -21,8 +21,8 @@ Load::Load(Def mem, Def ptr, const std::string& name)
     : Access(2, Node_Load, mem->world().sigma({mem->type(), ptr->type()->as<Ptr>()->referenced_type()}), mem, ptr, name)
 {}
 
-Def Load::extract_mem() const { return world().tuple_extract(this, world().literal(0u)); }
-Def Load::extract_val() const { return world().tuple_extract(this, world().literal(1u)); }
+Def Load::extract_mem() const { return world().extract(this, world().literal(0u)); }
+Def Load::extract_val() const { return world().extract(this, world().literal(1u)); }
 
 //------------------------------------------------------------------------------
 
@@ -38,8 +38,8 @@ Enter::Enter(Def mem, const std::string& name)
     : MemOp(1, Node_Enter, mem->world().sigma({mem->type(), mem->world().frame()}), mem, name)
 {}
 
-Def Enter::extract_mem()   const { return world().tuple_extract(this, world().literal(0u)); }
-Def Enter::extract_frame() const { return world().tuple_extract(this, world().literal(1u)); }
+Def Enter::extract_mem()   const { return world().extract(this, world().literal(0u)); }
+Def Enter::extract_frame() const { return world().extract(this, world().literal(1u)); }
 
 //------------------------------------------------------------------------------
 
@@ -58,24 +58,6 @@ Slot::Slot(const Type* type, Def frame, size_t index, const std::string& name)
 {
     set_op(0, frame);
 }
-
-//------------------------------------------------------------------------------
-
-LEA::LEA(Def def, Def index, const std::string& name)
-    : PrimOp(2, Node_LEA, nullptr, name)
-{
-    set_op(0, def);
-    set_op(1, index);
-
-    if (auto sigma = referenced_type()->isa<Sigma>())
-        set_type(index->world().ptr(sigma->elem_via_lit(index)));
-    else {
-        auto array = referenced_type()->as<ArrayType>();
-        set_type(index->world().ptr(array->elem_type()));;
-    }
-}
-
-const Type* LEA::referenced_type() const { return ptr()->type()->as<Ptr>()->referenced_type(); }
 
 //------------------------------------------------------------------------------
 

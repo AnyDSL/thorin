@@ -703,79 +703,45 @@ Def World::convop(ConvOpKind kind, Def cond, Def from, const Type* to, const std
     return cse(new ConvOp(kind, cond, from, to, name));
 }
 
-Def World::array_extract(Def agg, Def index, const std::string& name) {
+Def World::extract(Def agg, Def index, const std::string& name) {
     if (agg->isa<Bottom>())
-        return bottom(agg->type()->as<ArrayType>()->elem_type());
+        return bottom(Extract::type(agg, index));
 
-    if (auto array = agg->isa<ArrayValue>()) {
-        if (auto literal = index->isa<PrimLit>())
-        return array->op_via_lit(literal);
-    }
+    if (auto aggregate = agg->isa<Aggregate>())
+        if (auto lit = index->isa<PrimLit>())
+            return aggregate->op_via_lit(lit);
 
-    if (auto insert = agg->isa<ArrayInsert>()) {
+    if (auto insert = agg->isa<Insert>()) {
         if (index == insert->index())
             return insert->value();
         else if (index->isa<PrimLit>()) {
             if (insert->index()->isa<PrimLit>())
-                return array_extract(insert->array(), index);
+                return extract(insert->agg(), index);
         }
     }
 
-    return cse(new ArrayExtract(agg, index, name));
+    return cse(new Extract(agg, index, name));
 }
 
-Def World::array_insert(Def agg, Def index, Def value, const std::string& name) {
+Def World::insert(Def agg, Def index, Def value, const std::string& name) {
     if (agg->isa<Bottom>() || value->isa<Bottom>())
         return bottom(agg->type());
 
-    if (auto array = agg->isa<ArrayValue>()) {
+    if (auto aggregate = agg->isa<Aggregate>()) {
         if (auto literal = index->isa<PrimLit>()) {
-            Array<Def> args(array->size());
+            Array<Def> args(agg->size());
             std::copy(agg->ops().begin(), agg->ops().end(), args.begin());
             args[literal->primlit_value<u64>()] = value;
-
-            return array_value(args);
+            return rebuild(aggregate, args);
         }
     }
 
-    return cse(new ArrayInsert(agg, index, value, name));
+    return cse(new Insert(agg, index, value, name));
 }
 
-Def World::tuple_extract(Def agg, Def index, const std::string& name) {
-    if (agg->isa<Bottom>())
-        return bottom(agg->type()->as<Sigma>()->elem_via_lit(index));
-
-    if (auto tuple = agg->isa<Tuple>())
-        return tuple->op_via_lit(index);
-
-    if (auto insert = agg->isa<TupleInsert>()) {
-        if (index == insert->index())
-            return insert->value();
-        else
-            return tuple_extract(insert->tuple(), index);
-    }
-
-    return cse(new TupleExtract(agg, index, name));
-}
-
-Def World::tuple_insert(Def agg, Def index, Def value, const std::string& name) {
-    if (agg->isa<Bottom>() || value->isa<Bottom>())
-        return bottom(agg->type());
-
-    if (auto tup = agg->isa<Tuple>()) {
-        Array<Def> args(tup->size());
-        std::copy(agg->ops().begin(), agg->ops().end(), args.begin());
-        args[index->primlit_value<u64>()] = value;
-
-        return tuple(args);
-    }
-
-    return cse(new TupleInsert(agg, index, value, name));
-}
-
-Def World::tuple_extract(Def tuple, u32 index, const std::string& name) { return tuple_extract(tuple, literal_u32(index), name); }
-Def World::tuple_insert(Def tuple, u32 index, Def value, const std::string& name) { 
-    return tuple_insert(tuple, literal_u32(index), value, name); 
+Def World::extract(Def tuple, u32 index, const std::string& name) { return extract(tuple, literal_u32(index), name); }
+Def World::insert(Def tuple, u32 index, Def value, const std::string& name) { 
+    return insert(tuple, literal_u32(index), value, name); 
 }
 
 Def World::vector(Def arg, size_t length, const std::string& name) {
@@ -789,12 +755,12 @@ Def World::vector(Def arg, size_t length, const std::string& name) {
 
 const Enter* World::enter(Def mem, const std::string& name) {
     if (auto leave = mem->isa<Leave>())
-        if (auto extract = leave->frame()->isa<TupleExtract>())
-            if (auto old_enter = extract->tuple()->isa<Enter>())
+        if (auto extract = leave->frame()->isa<Extract>())
+            if (auto old_enter = extract->agg()->isa<Enter>())
                 return old_enter;
 
-    if (auto extract = mem->isa<TupleExtract>())
-        if (auto old_enter = extract->tuple()->isa<Enter>())
+    if (auto extract = mem->isa<Extract>())
+        if (auto old_enter = extract->agg()->isa<Enter>())
             return old_enter;
 
     return cse(new Enter(mem, name));
@@ -819,10 +785,10 @@ Def World::select(Def cond, Def a, Def b, const std::string& name) {
 }
 
 Def World::leave(Def mem, Def frame, const std::string& name) { 
-    if (auto mextract = mem->isa<TupleExtract>())
-        if (auto menter = mextract->tuple()->isa<Enter>())
-            if (auto fextract = frame->isa<TupleExtract>())
-                if (auto fenter = fextract->tuple()->isa<Enter>())
+    if (auto mextract = mem->isa<Extract>())
+        if (auto menter = mextract->agg()->isa<Enter>())
+            if (auto fextract = frame->isa<Extract>())
+                if (auto fenter = fextract->agg()->isa<Enter>())
                     if (menter == fenter)
                         return menter->mem();
 
@@ -870,12 +836,11 @@ Def World::rebuild(const PrimOp* in, ArrayRef<Def> ops, const Type* type) {
         case Node_Load:    assert(ops.size() == 2); return load(   ops[0], ops[1], name);
         case Node_Select:  assert(ops.size() == 3); return select( ops[0], ops[1], ops[2], name);
         case Node_Store:   assert(ops.size() == 3); return store(  ops[0], ops[1], ops[2], name);
-        case Node_ArrayValue:                            return array_value(type->as<ArrayType>()->elem_type(), ops, name);
-        case Node_ArrayExtract: assert(ops.size() == 2); return array_extract(ops[0], ops[1], name);
-        case Node_ArrayInsert:  assert(ops.size() == 3); return array_insert( ops[0], ops[1], ops[2], name);
-        case Node_Tuple:                                 return tuple(  ops, name);
-        case Node_TupleExtract: assert(ops.size() == 2); return tuple_extract(ops[0], ops[1], name);
-        case Node_TupleInsert:  assert(ops.size() == 3); return tuple_insert( ops[0], ops[1], ops[2], name);
+        case Node_ArrayAgg:                         return array_agg(type->as<ArrayType>()->elem_type(), ops, name);
+        case Node_Tuple:                            return tuple(ops, name);
+        case Node_Vector:                           return vector(ops, name);
+        case Node_Extract: assert(ops.size() == 2); return extract(ops[0], ops[1], name);
+        case Node_Insert:  assert(ops.size() == 3); return insert( ops[0], ops[1], ops[2], name);
         case Node_Slot:    assert(ops.size() == 1); 
             return slot(type->as<Ptr>()->referenced_type(), ops[0], in->as<Slot>()->index(), name);
         case Node_LEA:     assert(ops.size() == 2); return lea(ops[0], ops[1], name);

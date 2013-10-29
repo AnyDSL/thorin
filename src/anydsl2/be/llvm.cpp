@@ -351,9 +351,8 @@ llvm::Value* CodeGen::emit(Def def) {
         return builder.CreateSelect(cond, tval, fval);
     }
 
-    if (auto array = def->isa<ArrayValue>()) {
-        assert(false && "TODO");
 #if 0
+    if (auto array = def->isa<ArrayValue>()) {
         auto alloca = new llvm::AllocaInst(
             llvm::ArrayType::get(map(array->array_type()->elem_type()), array->size()),     // type
             nullptr /* no variable length array */, array->name,
@@ -370,19 +369,16 @@ llvm::Value* CodeGen::emit(Def def) {
             before = new llvm::StoreInst(lookup(op), gep, before);
         }
         return alloca;
-#endif
     }
 
     if (auto arrayop = def->isa<ArrayOp>()) {
-        assert(false && "TODO");
-#if 0
         auto array = lookup(arrayop->array());
         auto gep = builder.CreateInBoundsGEP(array, lookup(arrayop->index()));
         if (auto extract = arrayop->isa<ArrayExtract>())
             return builder.CreateLoad(gep, extract->name);
         return builder.CreateStore(lookup(arrayop->as<ArrayInsert>()->value()), gep);
-#endif
     }
+#endif
 
     if (auto tuple = def->isa<Tuple>()) {
         llvm::Value* agg = llvm::UndefValue::get(map(tuple->type()));
@@ -391,17 +387,17 @@ llvm::Value* CodeGen::emit(Def def) {
         return agg;
     }
 
-    if (auto tupleop = def->isa<TupleOp>()) {
-        auto tuple = lookup(tupleop->tuple());
-        unsigned idx = tupleop->index()->primlit_value<unsigned>();
+    if (auto aggop = def->isa<AggOp>()) {
+        auto tuple = lookup(aggop->agg());
+        unsigned idx = aggop->index()->primlit_value<unsigned>();
 
-        if (tupleop->kind() == Node_TupleExtract) {
-            if (tupleop->tuple()->isa<Load>())
+        if (auto extract = aggop->as<Extract>()) {
+            if (extract->agg()->isa<Load>())
                 return tuple; // bypass artificial extract
             return builder.CreateExtractValue(tuple, { idx });
         }
 
-        auto insert = def->as<TupleInsert>();
+        auto insert = def->as<Insert>();
         auto value = lookup(insert->value());
 
         return builder.CreateInsertValue(tuple, value, { idx });

@@ -109,20 +109,6 @@ private:
 
 //------------------------------------------------------------------------------
 
-class LEA : public PrimOp {
-private:
-    LEA(Def ptr, Def index, const std::string& name);
-
-public:
-    Def ptr() const { return op(0); }
-    Def index() const { return op(1); }
-    const Type* referenced_type() const;
-
-    friend class World;
-};
-
-//------------------------------------------------------------------------------
-
 } // namespace anydsl2
 
 #endif // ANYDSL2_MEMOP_H

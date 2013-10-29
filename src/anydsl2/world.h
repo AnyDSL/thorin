@@ -187,28 +187,24 @@ public:
      * aggregate stuff
      */
 
-    Def array_value(const Type* elem, ArrayRef<Def> args, const std::string& name = "") { 
-        return cse(new ArrayValue(*this, elem, args, name)); 
+    Def array_agg(const Type* elem, ArrayRef<Def> args, const std::string& name = "") { 
+        return cse(new ArrayAgg(*this, elem, args, name)); 
     }
-    Def array_value(ArrayRef<Def> args, const std::string& name = "") { 
+    Def array_agg(ArrayRef<Def> args, const std::string& name = "") { 
         assert(!args.empty()); 
-        return array_value(args.front()->type(), args, name);
+        return array_agg(args.front()->type(), args, name);
     }
-    Def array_extract(Def array, Def index, const std::string& name = "");
-    Def array_extract(Def array, u32 index, const std::string& name = "");
-    Def array_insert(Def array, Def index, Def value, const std::string& name = "");
-    Def array_insert(Def array, u32 index, Def value, const std::string& name = "");
     Def tuple(ArrayRef<Def> args, const std::string& name = "") { return cse(new Tuple(*this, args, name)); }
-    Def tuple_extract(Def tuple, Def index, const std::string& name = "");
-    Def tuple_extract(Def tuple, u32 index, const std::string& name = "");
-    Def tuple_insert(Def tuple, Def index, Def value, const std::string& name = "");
-    Def tuple_insert(Def tuple, u32 index, Def value, const std::string& name = "");
     Def vector(ArrayRef<Def> args, const std::string& name = "") {
         if (args.size() == 1) return args[0];
         return cse(new Vector(*this, args, name)); 
     }
     /// Splats \p arg to create a \p Vector with \p length.
     Def vector(Def arg, size_t length = 1, const std::string& name = "");
+    Def extract(Def tuple, Def index, const std::string& name = "");
+    Def extract(Def tuple, u32 index, const std::string& name = "");
+    Def insert(Def tuple, Def index, Def value, const std::string& name = "");
+    Def insert(Def tuple, u32 index, Def value, const std::string& name = "");
 
     /*
      * memops

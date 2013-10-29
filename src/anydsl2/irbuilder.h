@@ -7,7 +7,6 @@
 
 namespace anydsl2 {
 
-class DefNode;
 class IRBuilder;
 class Lambda;
 class Param;
@@ -22,35 +21,34 @@ typedef AutoPtr<const Ref> RefPtr;
 
 class Ref {
 public:
+    Ref(World& world)
+        : world_(world)
+    {}
     virtual ~Ref() {}
 
     virtual Def load() const = 0;
     virtual void store(Def val) const = 0;
-    virtual World& world() const = 0;
+    World& world() const { return world_; }
 
-    /// Create \p RVal.
-    inline static RefPtr create(Def def);
-    /// Create \p VarRef.
-    inline static RefPtr create(Lambda* bb, size_t handle, const Type*, const char* name);
-    /// Create \p ArrayValueRef.
-    inline static RefPtr create_array_val(RefPtr lref, Def index);
-    /// Create \p TupleRef.
-    inline static RefPtr create_tuple(RefPtr lref, Def index);
-    /// Create \p ArrayPtrRef.
-    inline static RefPtr create_array_ptr(IRBuilder& builder, RefPtr lref, Def index);
-    /// Create \p SlotRef.
-    inline static RefPtr create(IRBuilder& builder, const Slot* slot);
+    inline static RefPtr create(Def def);                                                   ///< Create \p RVal.
+    inline static RefPtr create(Lambda* bb, size_t handle, const Type*, const char* name);  ///< Create \p VarRef.
+    inline static RefPtr create(RefPtr lref, Def index);                                    ///< Create \p AggRef.
+    inline static RefPtr create(IRBuilder& builder, RefPtr lref, Def index);                ///< Create \p PtrAggRef.
+    inline static RefPtr create(IRBuilder& builder, const Slot* slot);                      ///< Create \p SlotRef.
+
+private:
+    World& world_;
 };
 
 class RVal : public Ref {
 public:
     RVal(Def def)
-        : def_(def)
+        : Ref(def->world())
+        , def_(def)
     {}
 
     virtual Def load() const { return def_; }
     virtual void store(Def val) const { ANYDSL2_UNREACHABLE; }
-    virtual World& world() const;
 
 private:
     Def def_;
@@ -58,16 +56,10 @@ private:
 
 class VarRef : public Ref {
 public:
-    VarRef(Lambda* bb, size_t handle, const Type* type, const char* name)
-        : bb_(bb)
-        , handle_(handle)
-        , type_(type)
-        , name_(name)
-    {}
+    VarRef(Lambda* bb, size_t handle, const Type* type, const char* name);
 
     virtual Def load() const;
     virtual void store(Def def) const;
-    virtual World& world() const;
 
 private:
     Lambda* bb_;
@@ -76,89 +68,59 @@ private:
     const char* name_;
 };
 
-class ArrayValueRef : public Ref {
+class AggRef : public Ref {
 public:
-    ArrayValueRef(RefPtr lref, Def index)
-        : lref_(std::move(lref))
-        , index_(index)
-        , loaded_(nullptr)
-    {}
-
-    virtual Def load() const;
-    virtual void store(Def val) const;
-    virtual World& world() const;
-
-private:
-    RefPtr lref_;
-    Def index_;
-
-    /// Caches loaded value to prevent quadratic blow up in calls.
-    mutable Def loaded_;
-};
-
-class ArrayPtrRef : public Ref {
-public:
-    ArrayPtrRef(IRBuilder& builder, RefPtr lref, Def index)
-        : builder_(builder)
+    AggRef(RefPtr lref, Def index)
+        : Ref(lref->world())
         , lref_(std::move(lref))
         , index_(index)
-    {}
-
-    virtual Def load() const;
-    virtual void store(Def val) const;
-    virtual World& world() const;
-
-private:
-    IRBuilder& builder_;
-    RefPtr lref_;
-    Def index_;
-};
-
-class TupleRef : public Ref {
-public:
-    TupleRef(RefPtr lref, Def index)
-        : lref_(std::move(lref))
-        , index_(index)
         , loaded_(nullptr)
     {}
 
     virtual Def load() const;
     virtual void store(Def val) const;
-    virtual World& world() const;
 
 private:
     RefPtr lref_;
     Def index_;
-
-    /// Caches loaded value to prevent quadratic blow up in calls.
-    mutable Def loaded_;
+    mutable Def loaded_; ///< Caches loaded value to prevent quadratic blow up in calls.
 };
 
 class SlotRef : public Ref {
 public:
-    SlotRef(IRBuilder& builder, const Slot* slot)
-        : builder_(builder)
-        , slot_(slot)
-    {}
+    SlotRef(IRBuilder& builder, const Slot* slot);
 
     virtual Def load() const;
     virtual void store(Def val) const;
-    virtual World& world() const;
 
 private:
     IRBuilder& builder_;
     const Slot* slot_;
 };
 
+class AggPtrRef : public Ref {
+public:
+    AggPtrRef(IRBuilder& builder, RefPtr lref, Def index)
+        : Ref(lref->world())
+        , builder_(builder)
+        , lref_(std::move(lref))
+        , index_(index)
+    {}
+
+    virtual Def load() const;
+    virtual void store(Def val) const;
+
+private:
+    IRBuilder& builder_;
+    RefPtr lref_;
+    Def index_;
+};
+
 RefPtr Ref::create(Def def) { return RefPtr(new RVal(def)); }
-RefPtr Ref::create_array_val(RefPtr lref, Def index) { return RefPtr(new ArrayValueRef(std::move(lref), index)); }
-RefPtr Ref::create_array_ptr(IRBuilder& builder, RefPtr lref, Def index) { 
-    return RefPtr(new ArrayPtrRef(builder, std::move(lref), index)); }
-RefPtr Ref::create_tuple(RefPtr lref, Def index) { return RefPtr(new TupleRef(std::move(lref), index)); }
+RefPtr Ref::create(RefPtr lref, Def index) { return RefPtr(new AggRef(std::move(lref), index)); }
+RefPtr Ref::create(IRBuilder& builder, RefPtr lref, Def index) { return RefPtr(new AggPtrRef(builder, std::move(lref), index)); }
 RefPtr Ref::create(IRBuilder& builder, const Slot* slot) { return RefPtr(new SlotRef(builder, slot)); }
-RefPtr Ref::create(Lambda* bb, size_t handle, const Type* type, const char* name) { 
-    return RefPtr(new VarRef(bb, handle, type, name)); 
-}
+RefPtr Ref::create(Lambda* bb, size_t handle, const Type* type, const char* name) { return RefPtr(new VarRef(bb, handle, type, name)); }
 
 //------------------------------------------------------------------------------
 

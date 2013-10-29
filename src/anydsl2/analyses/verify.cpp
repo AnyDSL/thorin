@@ -156,11 +156,11 @@ bool Verifier::verify_primop(Lambda* current, const PrimOp* primop, PrimOpSet& p
             invalid(op, "'relop' on unequal types");
         if (!op->type()->is_u1())
             invalid(op, "'relop' must yield 'u1'");
-    } else if (auto op = primop->isa<TupleOp>()) {
+    } else if (auto op = primop->isa<AggOp>()) {
         if (!op->index()->isa<PrimLit>())
             invalid(op, "'tupleop' needs a constant extraction index");
         unsigned index = op->index()->primlit_value<unsigned>();
-        const Sigma* tupleType = op->tuple()->type()->isa<Sigma>();
+        const Sigma* tupleType = op->agg()->type()->isa<Sigma>();
         if (!tupleType)
             invalid(op, "'tupleop' can only work on a tuple");
         if (index >= tupleType->size())

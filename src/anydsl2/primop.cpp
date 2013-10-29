@@ -49,64 +49,29 @@ Select::Select(Def cond, Def tval, Def fval, const std::string& name)
 
 //------------------------------------------------------------------------------
 
-ArrayValue::ArrayValue(World& world, const Type* elem, ArrayRef<Def> args, const std::string& name)
-    : PrimOp(args.size(), Node_ArrayValue, world.array_type(elem), name)
+ArrayAgg::ArrayAgg(World& world, const Type* elem, ArrayRef<Def> args, const std::string& name)
+    : Aggregate(Node_ArrayAgg, args, name)
 {
-    for (size_t i = 0, e = size(); i != e; ++i) {
-        set_op(i, args[i]);
-        assert(args[i]->type() == elem);
-    }
+    set_type(world.array_type(elem));
+#ifndef NDEBUG
+    for (size_t i = 0, e = size(); i != e; ++i)
+        assert(args[i]->type() == array_type()->elem_type());
+#endif
 }
-
-const ArrayType* ArrayValue::array_type() const { return type()->as<ArrayType>(); }
-const ArrayType* ArrayOp::array_type() const { return array()->type()->as<ArrayType>(); }
-
-ArrayExtract::ArrayExtract(Def array, Def index, const std::string& name)
-    : ArrayOp(2, Node_ArrayExtract, array->type()->as<ArrayType>()->elem_type(), array, index, name)
-{}
-
-ArrayInsert::ArrayInsert(Def array, Def index, Def value, const std::string& name)
-    : ArrayOp(3, Node_ArrayInsert, array->type(), array, index, name)
-{
-    set_op(2, value);
-}
-
-//------------------------------------------------------------------------------
 
 Tuple::Tuple(World& world, ArrayRef<Def> args, const std::string& name)
-    : PrimOp(args.size(), Node_Tuple, /*type: set later*/ nullptr, name)
+    : Aggregate(Node_Tuple, args, name)
 {
     Array<const Type*> elems(size());
-    for (size_t i = 0, e = size(); i != e; ++i) {
-        set_op(i, args[i]);
+    for (size_t i = 0, e = size(); i != e; ++i)
         elems[i] = args[i]->type();
-    }
 
     set_type(world.sigma(elems));
 }
 
-const Sigma* Tuple::sigma() const { return type()->as<Sigma>(); }
-const Sigma* TupleOp::sigma() const { return tuple()->type()->as<Sigma>(); }
-
-TupleExtract::TupleExtract(Def tuple, Def index, const std::string& name)
-    : TupleOp(2, Node_TupleExtract, tuple->type()->as<Sigma>()->elem_via_lit(index), tuple, index, name)
-{}
-
-TupleInsert::TupleInsert(Def tuple, Def index, Def value, const std::string& name)
-    : TupleOp(3, Node_TupleInsert, tuple->type()->as<Sigma>()->elem_via_lit(index), tuple, index, name)
-{
-    set_op(2, value);
-}
-
-//------------------------------------------------------------------------------
-
 Vector::Vector(World& world, ArrayRef<Def> args, const std::string& name)
-    : PrimOp(args.size(), Node_Vector, /*type: set later*/ nullptr, name)
+    : Aggregate(Node_Vector, args, name)
 {
-    size_t i = 0;
-    for (auto arg : args)
-        set_op(i++, arg);
-
     if (const PrimType* primtype = args.front()->type()->isa<PrimType>()) {
         assert(primtype->length() == 1);
         set_type(world.type(primtype->primtype_kind(), args.size()));
@@ -116,6 +81,46 @@ Vector::Vector(World& world, ArrayRef<Def> args, const std::string& name)
         set_type(world.ptr(ptr->referenced_type(), args.size()));
     }
 }
+
+const ArrayType* ArrayAgg::array_type() const { return type()->as<ArrayType>(); }
+const Sigma* Tuple::sigma() const { return type()->as<Sigma>(); }
+const VectorType* Vector::vector_type() const { return type()->as<VectorType>(); }
+
+Extract::Extract(Def agg, Def index, const std::string& name)
+    : AggOp(2, Node_Extract, type(agg, index), agg, index, name)
+{}
+
+const Type* Extract::type(Def agg, Def index) {
+    if (auto sigma = agg->type()->isa<Sigma>())
+        return sigma->elem_via_lit(index);
+    else if (auto array = agg->type()->isa<ArrayType>())
+        return array->elem_type();
+    assert(false && "TODO");
+}
+
+Insert::Insert(Def agg, Def index, Def value, const std::string& name)
+    : AggOp(3, Node_Insert, type(agg), agg, index, name)
+{
+    set_op(2, value);
+}
+
+const Type* Insert::type(Def agg) { return agg->type(); }
+
+LEA::LEA(Def def, Def index, const std::string& name)
+    : PrimOp(2, Node_LEA, nullptr, name)
+{
+    set_op(0, def);
+    set_op(1, index);
+
+    if (auto sigma = referenced_type()->isa<Sigma>())
+        set_type(index->world().ptr(sigma->elem_via_lit(index)));
+    else {
+        auto array = referenced_type()->as<ArrayType>();
+        set_type(index->world().ptr(array->elem_type()));;
+    }
+}
+
+const Type* LEA::referenced_type() const { return ptr()->type()->as<Ptr>()->referenced_type(); }
 
 //------------------------------------------------------------------------------
 

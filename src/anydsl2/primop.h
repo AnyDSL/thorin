@@ -10,6 +10,7 @@ namespace anydsl2 {
 class ArrayType;
 class PrimLit;
 class Sigma;
+class VectorType;
 
 //------------------------------------------------------------------------------
 
@@ -129,53 +130,27 @@ public:
 
 //------------------------------------------------------------------------------
 
-class ArrayValue : public PrimOp {
-private:
-    ArrayValue(World& world, const Type* elem, ArrayRef<Def> args, const std::string& name);
-
-public:
-    const ArrayType* array_type() const;
-
-    friend class World;
-};
-
-class ArrayOp : public PrimOp {
+class Aggregate : public PrimOp {
 protected:
-    ArrayOp(size_t size, NodeKind kind, const Type* type, Def array, Def index, const std::string& name)
-        : PrimOp(size, kind, type, name)
+    Aggregate(NodeKind kind, ArrayRef<Def> args, const std::string& name)
+        : PrimOp(args.size(), kind, /*type: set later*/ nullptr, name)
     {
-        set_op(0, array);
-        set_op(1, index);
+        for (size_t i = 0, e = size(); i != e; ++i)
+            set_op(i, args[i]);
     }
+};
+
+class ArrayAgg : public Aggregate {
+private:
+    ArrayAgg(World& world, const Type* elem, ArrayRef<Def> args, const std::string& name);
 
 public:
-    Def array() const { return op(0); }
-    Def index() const { return op(1); }
     const ArrayType* array_type() const;
 
     friend class World;
 };
 
-class ArrayExtract : public ArrayOp {
-private:
-    ArrayExtract(Def array, Def index, const std::string& name);
-    
-    friend class World;
-};
-
-class ArrayInsert : public ArrayOp {
-private:
-    ArrayInsert(Def array, Def index, Def value, const std::string& name);
-
-public:
-    Def value() const { return op(2); }
-
-    friend class World;
-};
-
-//------------------------------------------------------------------------------
-
-class Tuple : public PrimOp {
+class Tuple : public Aggregate {
 private:
     Tuple(World& world, ArrayRef<Def> args, const std::string& name);
 
@@ -185,45 +160,64 @@ public:
     friend class World;
 };
 
-class TupleOp : public PrimOp {
-protected:
-    TupleOp(size_t size, NodeKind kind, const Type* type, Def tuple, Def index, const std::string& name)
-        : PrimOp(size, kind, type, name)
-    {
-        set_op(0, tuple);
-        set_op(1, index);
-    }
+class Vector : public Aggregate {
+private:
+    Vector(World& world, ArrayRef<Def> args, const std::string& name);
 
 public:
-    Def tuple() const { return op(0); }
-    Def index() const { return op(1); }
-    const Sigma* sigma() const;
-
-    friend class World;
-};
-
-class TupleExtract : public TupleOp {
-private:
-    TupleExtract(Def tuple, Def index, const std::string& name);
-
-    friend class World;
-};
-
-class TupleInsert : public TupleOp {
-private:
-    TupleInsert(Def tuple, Def index, Def value, const std::string& name);
-
-public:
-    Def value() const { return op(2); }
+    const VectorType* vector_type() const;
 
     friend class World;
 };
 
 //------------------------------------------------------------------------------
 
-class Vector : public PrimOp {
+class AggOp : public PrimOp {
+protected:
+    AggOp(size_t size, NodeKind kind, const Type* type, Def agg, Def index, const std::string& name)
+        : PrimOp(size, kind, type, name)
+    {
+        set_op(0, agg);
+        set_op(1, index);
+    }
+
+public:
+    Def agg() const { return op(0); }
+    Def index() const { return op(1); }
+    const Type* agg_type() const { return agg()->type(); }
+
+    friend class World;
+};
+
+class Extract : public AggOp {
 private:
-    Vector(World& world, ArrayRef<Def> args, const std::string& name);
+    Extract(Def agg, Def index, const std::string& name);
+
+public:
+    static const Type* type(Def agg, Def index);
+
+    friend class World;
+};
+
+class Insert : public AggOp {
+private:
+    Insert(Def agg, Def index, Def value, const std::string& name);
+
+public:
+    Def value() const { return op(2); }
+    static const Type* type(Def agg);
+
+    friend class World;
+};
+
+class LEA : public PrimOp {
+private:
+    LEA(Def ptr, Def index, const std::string& name);
+
+public:
+    Def ptr() const { return op(0); }
+    Def index() const { return op(1); }
+    const Type* referenced_type() const; ///< Returns the type referenced by \p ptr().
 
     friend class World;
 };

@@ -58,6 +58,9 @@ ArrayValue::ArrayValue(World& world, const Type* elem, ArrayRef<Def> args, const
     }
 }
 
+const ArrayType* ArrayValue::array_type() const { return type()->as<ArrayType>(); }
+const ArrayType* ArrayOp::array_type() const { return array()->type()->as<ArrayType>(); }
+
 ArrayExtract::ArrayExtract(Def array, Def index, const std::string& name)
     : ArrayOp(2, Node_ArrayExtract, array->type()->as<ArrayType>()->elem_type(), array, index, name)
 {}
@@ -81,6 +84,9 @@ Tuple::Tuple(World& world, ArrayRef<Def> args, const std::string& name)
 
     set_type(world.sigma(elems));
 }
+
+const Sigma* Tuple::sigma() const { return type()->as<Sigma>(); }
+const Sigma* TupleOp::sigma() const { return tuple()->type()->as<Sigma>(); }
 
 TupleExtract::TupleExtract(Def tuple, Def index, const std::string& name)
     : TupleOp(2, Node_TupleExtract, tuple->type()->as<Sigma>()->elem_via_lit(index), tuple, index, name)

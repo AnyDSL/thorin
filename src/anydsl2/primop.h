@@ -7,7 +7,9 @@
 
 namespace anydsl2 {
 
+class ArrayType;
 class PrimLit;
+class Sigma;
 
 //------------------------------------------------------------------------------
 
@@ -131,6 +133,9 @@ class ArrayValue : public PrimOp {
 private:
     ArrayValue(World& world, const Type* elem, ArrayRef<Def> args, const std::string& name);
 
+public:
+    const ArrayType* array_type() const;
+
     friend class World;
 };
 
@@ -146,6 +151,7 @@ protected:
 public:
     Def array() const { return op(0); }
     Def index() const { return op(1); }
+    const ArrayType* array_type() const;
 
     friend class World;
 };
@@ -173,6 +179,9 @@ class Tuple : public PrimOp {
 private:
     Tuple(World& world, ArrayRef<Def> args, const std::string& name);
 
+public:
+    const Sigma* sigma() const;
+
     friend class World;
 };
 
@@ -188,6 +197,7 @@ protected:
 public:
     Def tuple() const { return op(0); }
     Def index() const { return op(1); }
+    const Sigma* sigma() const;
 
     friend class World;
 };
@@ -195,7 +205,7 @@ public:
 class TupleExtract : public TupleOp {
 private:
     TupleExtract(Def tuple, Def index, const std::string& name);
-    
+
     friend class World;
 };
 

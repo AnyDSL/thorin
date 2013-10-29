@@ -707,14 +707,18 @@ Def World::array_extract(Def agg, Def index, const std::string& name) {
     if (agg->isa<Bottom>())
         return bottom(agg->type()->as<ArrayType>()->elem_type());
 
-    if (auto array = agg->isa<ArrayValue>())
-        return array->op_via_lit(index);
+    if (auto array = agg->isa<ArrayValue>()) {
+        if (auto literal = index->isa<PrimLit>())
+        return array->op_via_lit(literal);
+    }
 
     if (auto insert = agg->isa<ArrayInsert>()) {
         if (index == insert->index())
             return insert->value();
-        else
-            return array_extract(insert->array(), index);
+        else if (index->isa<PrimLit>()) {
+            if (insert->index()->isa<PrimLit>())
+                return array_extract(insert->array(), index);
+        }
     }
 
     return cse(new ArrayExtract(agg, index, name));

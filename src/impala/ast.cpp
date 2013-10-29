@@ -34,4 +34,6 @@ bool ForStmt::is_while() const {
     return false;
 }
 
+uint64_t Literal::get_u64() const { return bcast<uint64_t, Box>(box()); }
+
 } // namespace impala

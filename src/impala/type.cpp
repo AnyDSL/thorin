@@ -47,7 +47,7 @@ const PrimType* TypeTable::primtype(TokenKind kind) {
     }
 }
 
-const DefiniteArray* TypeTable::definite_array(const Type* elem_type, uint64_t length) { 
+const DefiniteArray* TypeTable::definite_array(const Type* elem_type, u64 length) { 
     return unify(new DefiniteArray(*this, elem_type, length)); 
 }
 const IndefiniteArray* TypeTable::indefinite_array(const Type* elem_type) { 

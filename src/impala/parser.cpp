@@ -378,7 +378,7 @@ const Type* Parser::parse_array_type() {
     const Type* result = parse_type();
 
     while (accept(Token::MUL)) {
-        uint64_t length;
+        u64 length;
         switch (la()) {
             case Token::LIT_int8:   length = la().box().get_u8();  break;
             case Token::LIT_int16:  length = la().box().get_u16(); break;

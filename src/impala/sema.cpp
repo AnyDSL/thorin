@@ -345,43 +345,32 @@ const Type* ConditionalExpr::check(Sema& sema) const {
 
 const Type* IndexExpr::check(Sema& sema) const {
     sema.check(lhs());
-    if (auto tuple = lhs()->type()->isa<TupleType>()) {
-        if (sema.check(index())->is_int()) {
+    sema.check(index());
+    if (index()->type()->is_int()) {
+        if (auto tuple = lhs()->type()->isa<TupleType>()) {
             if (const Literal* literal = index()->isa<Literal>()) {
-                unsigned pos;
-
-                switch (literal->kind()) {
-#define IMPALA_LIT(itype, atype) \
-                    case Literal::LIT_##itype: pos = (unsigned) literal->box().get_##atype(); break;
-#include "impala/tokenlist.h"
-                    default: ANYDSL2_UNREACHABLE;
-                }
-
-                if (pos < tuple->size())
-                    return tuple->elem(pos);
+                auto x = literal->get_u64();
+                if (x < tuple->size())
+                    return tuple->elem(x);
                 else
-                    sema.error(index()) << "index (" << pos << ") out of bounds (" << tuple->size() << ")\n";
+                    sema.error(index()) << "index '" << x << "' out of bounds '" << tuple->size() << "'\n";
             } else
                 sema.error(index()) << "indexing expression must be a literal\n";
+        } else if (auto array = lhs()->type()->isa<ArrayType>()) {
+            if (auto definite_array = lhs()->type()->isa<DefiniteArray>()) {
+                if (const Literal* literal = index()->isa<Literal>()) {
+                    auto x = literal->get_u64();
+                    if (x < definite_array->length())
+                        return definite_array->elem_type();
+                    else
+                        sema.error(index()) << "index '" << x << "' out of bounds '" << definite_array->length() << "'\n";
+                }
+            }
+            return array->elem_type();
         } else
-            sema.error(index()) << "indexing expression must be of integer type\n";
-    } 
-#if 0
-    else if (auto arr = lhs()->type()->isa<ArrayType>()) {
-        if (sema.check(index())->isa<TupleType>()) {
-            const Tuple* arr_index = index()->as<Tuple>();
-            if (arr_index->size() == arr->dim())
-                return arr->elem_type();
-            else
-                sema.error(index()) << "indexing expression has an invalid number of dimensions\n";
-        } else if (index()->type()->isa<PrimType>()) {
-            return arr->elem_type();
-        } else
-            sema.error(index()) << "indexing expression must be of tuple of primitive type\n";
-    }
-#endif
-    else
-        sema.error(lhs()) << "left-hand side of index expression must be of tuple or array type\n";
+            sema.error(lhs()) << "left-hand side of index expression must be of tuple or array type\n";
+    } else
+        sema.error(index()) << "indexing expression must be of integer type\n";
 
     return sema.typetable().type_error();
 }

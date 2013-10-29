@@ -338,6 +338,7 @@ public:
 
     Kind kind() const { return kind_; }
     anydsl2::Box box() const { return box_; }
+    uint64_t get_u64() const;
     virtual bool is_lvalue() const { return false; }
     virtual std::ostream& print(Printer& p) const;
     TokenKind literal2type() const;

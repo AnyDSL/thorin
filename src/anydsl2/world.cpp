@@ -819,10 +819,8 @@ Def World::leave(Def mem, Def frame, const std::string& name) {
         if (auto menter = mextract->tuple()->isa<Enter>())
             if (auto fextract = frame->isa<TupleExtract>())
                 if (auto fenter = fextract->tuple()->isa<Enter>())
-                    if (menter == fenter) {
-                        std::cout << "asdf" << std::endl;
+                    if (menter == fenter)
                         return menter->mem();
-                    }
 
     return cse(new Leave(mem, frame, name)); 
 }
@@ -868,7 +866,10 @@ Def World::rebuild(const PrimOp* in, ArrayRef<Def> ops, const Type* type) {
         case Node_Load:    assert(ops.size() == 2); return load(   ops[0], ops[1], name);
         case Node_Select:  assert(ops.size() == 3); return select( ops[0], ops[1], ops[2], name);
         case Node_Store:   assert(ops.size() == 3); return store(  ops[0], ops[1], ops[2], name);
-        case Node_Tuple:                            return tuple(  ops, name);
+        case Node_ArrayValue:                            return array_value(type->as<ArrayType>()->elem_type(), ops, name);
+        case Node_ArrayExtract: assert(ops.size() == 2); return array_extract(ops[0], ops[1], name);
+        case Node_ArrayInsert:  assert(ops.size() == 3); return array_insert( ops[0], ops[1], ops[2], name);
+        case Node_Tuple:                                 return tuple(  ops, name);
         case Node_TupleExtract: assert(ops.size() == 2); return tuple_extract(ops[0], ops[1], name);
         case Node_TupleInsert:  assert(ops.size() == 3); return tuple_insert( ops[0], ops[1], ops[2], name);
         case Node_Slot:    assert(ops.size() == 1); 
@@ -885,7 +886,7 @@ const Type* World::rebuild(const Type* type, ArrayRef<const Type*> elems) {
         case Node_Pi:        return pi(elems);
         case Node_Sigma:     return sigma(elems);
         case Node_Ptr:       assert(elems.size() == 1); return ptr(elems.front());
-        case Node_ArrayType: assert(elems.size() == 1); return array(elems.front());
+        case Node_ArrayType: assert(elems.size() == 1); return array_type(elems.front());
         case Node_GenericRef: {
             auto genref = type->as<GenericRef>();
             return generic_ref(genref->generic(), genref->lambda());

@@ -214,7 +214,7 @@ void VarDecl::check(Sema& sema) const {
     refined_type_ = orig_type_ ? orig_type_->refine(sema) : nullptr;
     fun_ = sema.cur_fun();
     // HACK
-    is_address_taken_ |= (refined_type_->isa<ArrayType>() != nullptr);
+    //is_address_taken_ |= (refined_type_->isa<ArrayType>() != nullptr);
 }
 
 void GenericDecl::check(Sema& sema) const {

@@ -50,7 +50,7 @@ Select::Select(Def cond, Def tval, Def fval, const std::string& name)
 //------------------------------------------------------------------------------
 
 ArrayValue::ArrayValue(World& world, const Type* elem, ArrayRef<Def> args, const std::string& name)
-    : PrimOp(args.size(), Node_ArrayValue, world.array(elem), name)
+    : PrimOp(args.size(), Node_ArrayValue, world.array_type(elem), name)
 {
     for (size_t i = 0, e = size(); i != e; ++i) {
         set_op(i, args[i]);

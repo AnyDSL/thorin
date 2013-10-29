@@ -256,11 +256,11 @@ const anydsl2::Type* PrimType::convert(World& world) const {
 }
 
 const anydsl2::Type* DefiniteArray::convert(World& world) const {
-    return world.ptr(elem_type()->convert(world));
+    return world.array_type(elem_type()->convert(world));
 }
 
 const anydsl2::Type* IndefiniteArray::convert(World& world) const {
-    return world.ptr(elem_type()->convert(world));
+    return world.ptr(world.array_type(elem_type()->convert(world)));
 }
 
 const anydsl2::Type* FnType::convert(World& world) const {

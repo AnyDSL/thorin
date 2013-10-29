@@ -44,6 +44,10 @@ std::ostream& CodeGen::emit_type(const Type* type) {
         stream() << '<';
         emit_name(genref->lambda()) << ", ";
         return emit_type(genref->generic()) << '>';
+    } else if (auto array = type->isa<ArrayType>()) {
+        stream() << "array(";
+        emit_type(array->elem_type());
+        return stream() << ')';
     } else if (auto ptr = type->isa<Ptr>()) {
         if (ptr->is_vector())
             stream() << '<' << ptr->length() << " x ";

@@ -365,7 +365,9 @@ const Type* IndexExpr::check(Sema& sema) const {
                 sema.error(index()) << "indexing expression must be a literal\n";
         } else
             sema.error(index()) << "indexing expression must be of integer type\n";
-    } else if (auto arr = lhs()->type()->isa<ArrayType>()) {
+    } 
+#if 0
+    else if (auto arr = lhs()->type()->isa<ArrayType>()) {
         if (sema.check(index())->isa<TupleType>()) {
             const Tuple* arr_index = index()->as<Tuple>();
             if (arr_index->size() == arr->dim())
@@ -377,6 +379,7 @@ const Type* IndexExpr::check(Sema& sema) const {
         } else
             sema.error(index()) << "indexing expression must be of tuple of primitive type\n";
     }
+#endif
     else
         sema.error(lhs()) << "left-hand side of index expression must be of tuple or array type\n";
 

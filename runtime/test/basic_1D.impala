@@ -1,5 +1,6 @@
 extern all_on_gpu(float[], fn(int, int, int) -> void) -> int;
 extern array(int) -> float[];
+extern sqrt(float) -> float;
 
 fn idx(x : int, y: int, z : int, width : int, height : int, depth : int) -> int {
     return x + width * y + z * width * height;
@@ -11,8 +12,8 @@ fn main() -> float[] {
     val depth   = 1;
     val range   = 3;
     val size    = 2*range;
+    val arr     = array(width * height * depth);
     val out     = array(width * height * depth);
-    val in      = array(width * height * depth);
     // TODO: mask as a C const array
     val mask    = array(size * size);
 
@@ -21,25 +22,32 @@ fn main() -> float[] {
     mask[3] = 0.124758f; mask[4] = 0.272496f; mask[5] = 0.124758f;
     mask[6] = 0.057118f; mask[7] = 0.124758f; mask[8] = 0.057118f;
 
-    for (var iter=0; iter<100; ++iter) {
-        // TODO: howto switch pointers?
-        // val *float[] tmp;
-        // tmp = in;
-        // in = out;
-        // out = tmp;
+    //for (var iter=0; iter<100; ++iter) {
+        var l2sum = 0.0f;
         all_on_gpu(out, |x : int, y : int, z : int| -> void {
             val index = x + width * y + height * depth * z;
             // TODO: call to idx triggers assertion
             //val index = idx(x, y, z, width, height, depth);
             val a2 = out[index];
-            val b2 = in[index];
-            val c2 = @convolve(in, mask, 3, x, y, z, width, height, depth);
+            val b2 = arr[index];
+            val c2 = convolve(arr, mask, 3, x, y, z, width, height, depth);
             // TODO: passing 'range' instead of '3' results in infintie loop during
             // compilation / partial evaluation
-            //val c2 = @convolve(in, mask, range, x, y, z, width, height, depth);
+            //val c2 = @convolve(arr, mask, range, x, y, z, width, height, depth);
             out[index] = c2 + a2 + b2;
+
+            // TODO: support reductions
+            l2sum += c2*c2;
         });
-    }
+        // TODO: introduce casts, implicit or explicit
+        //val l2norm = sqrt(l2sum)/(width*height);
+        val l2norm = sqrt(l2sum)/(1024.f*1024.f);
+
+        var tmp : float[];
+        tmp = arr;
+        arr = out;
+        out = tmp;
+    //}
 
     return out;
 }

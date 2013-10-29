@@ -1,5 +1,6 @@
 extern all_on_gpu(float[], fn(int, int, int) -> void) -> int;
 extern array(int) -> float[];
+extern sqrt(float) -> float;
 
 fn idx(x : int, y: int, z : int, width : int, height : int, depth : int) -> int {
     return x + width * y + z * width * height;
@@ -101,6 +102,15 @@ fn main() -> float[] {
             0.25f * in[idx(fx+1, fy+1, fz, fwidth, fheight, fdepth)];
         out[idx(x, y, z, width, height, depth)] = result;
     });
+
+
+    // L2 norm
+    var l2sum = 0.0f;
+    all_on_gpu(in, |x : int, y : int, z : int| -> void {
+        val value = in[idx(x, y, z, width, height, depth)];
+        l2sum += value*value;
+    });
+    val l2norm = sqrtf(l2sum)/(width*height)
 
 
     // Interpolate: in = size/2 x size/2; out = size x size; coarse -> fine

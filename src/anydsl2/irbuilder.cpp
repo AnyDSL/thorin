@@ -29,7 +29,7 @@ Def VarRef::load() const { return bb_->get_value(handle_, type_, name_); }
 Def AggRef::load() const { return loaded_ ? loaded_ : loaded_ = world().extract(lref_->load(), index_); } 
 
 Def SlotRef::load() const { 
-    const Load* load = world().load(builder_.get_mem(), slot_); 
+    auto load = world().load(builder_.get_mem(), slot_); 
     builder_.set_mem(load->extract_mem());
     return load->extract_val(); 
 }
@@ -140,8 +140,8 @@ void IRBuilder::param_call(const Param* ret_param, ArrayRef<Def> args) {
     }
 }
 
-Def IRBuilder::get_mem() { return cur_bb->get_value(1, world().mem(), "mem"); }
-void IRBuilder::set_mem(Def def) { if (is_reachable()) cur_bb->set_value(1, def); }
+Def IRBuilder::get_mem() { return cur_bb->get_value(0, world().mem(), "mem"); }
+void IRBuilder::set_mem(Def def) { if (is_reachable()) cur_bb->set_value(0, def); }
 
 //------------------------------------------------------------------------------
 

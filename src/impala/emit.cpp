@@ -261,17 +261,17 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
         cg.emit_branch(lhs(), t, f);
 
         if (Lambda* tl = cg.enter(t)) {
-            tl->set_value(0, is_or ? cg.world().literal_u1(true) : cg.emit(rhs())->load());
+            tl->set_value(1, is_or ? cg.world().literal_u1(true) : cg.emit(rhs())->load());
             cg.jump(x);
         }
 
         if (Lambda* fl = cg.enter(f)) {
-            fl->set_value(0, is_or ? cg.emit(rhs())->load() : cg.world().literal_u1(false));
+            fl->set_value(1, is_or ? cg.emit(rhs())->load() : cg.world().literal_u1(false));
             cg.jump(x);
         }
 
         if (Lambda* xl = cg.enter(x))
-            return Ref::create(xl->get_value(0, cg.world().type_u1(), is_or ? "l_or" : "l_and"));
+            return Ref::create(xl->get_value(1, cg.world().type_u1(), is_or ? "l_or" : "l_and"));
         return Ref::create(nullptr);
     }
 
@@ -312,17 +312,17 @@ RefPtr ConditionalExpr::emit(CodeGen& cg) const {
     cg.emit_branch(cond(), t, f);
 
     if (Lambda* tl = cg.enter(t)) {
-        tl->set_value(0, cg.emit(t_expr())->load());
+        tl->set_value(1, cg.emit(t_expr())->load());
         cg.jump(x);
     }
 
     if (Lambda* fl = cg.enter(f)) {
-        fl->set_value(0, cg.emit(f_expr())->load());
+        fl->set_value(1, cg.emit(f_expr())->load());
         cg.jump(x);
     }
 
     if (Lambda* xl = cg.enter(x))
-        return Ref::create(xl->get_value(0, t_expr()->type()->convert(cg.world()), "cond"));
+        return Ref::create(xl->get_value(1, t_expr()->type()->convert(cg.world()), "cond"));
     return Ref::create(nullptr);
 }
 

@@ -21,8 +21,8 @@ Load::Load(Def mem, Def ptr, const std::string& name)
     : Access(2, Node_Load, mem->world().sigma({mem->type(), ptr->type()->as<Ptr>()->referenced_type()}), mem, ptr, name)
 {}
 
-Def Load::extract_mem() const { return world().extract(this, world().literal(0u)); }
-Def Load::extract_val() const { return world().extract(this, world().literal(1u)); }
+Def Load::extract_mem() const { return world().extract(this, 0); }
+Def Load::extract_val() const { return world().extract(this, 1); }
 
 //------------------------------------------------------------------------------
 
@@ -38,8 +38,8 @@ Enter::Enter(Def mem, const std::string& name)
     : MemOp(1, Node_Enter, mem->world().sigma({mem->type(), mem->world().frame()}), mem, name)
 {}
 
-Def Enter::extract_mem()   const { return world().extract(this, world().literal(0u)); }
-Def Enter::extract_frame() const { return world().extract(this, world().literal(1u)); }
+Def Enter::extract_mem()   const { return world().extract(this, 0); }
+Def Enter::extract_frame() const { return world().extract(this, 1); }
 
 //------------------------------------------------------------------------------
 

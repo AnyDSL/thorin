@@ -210,6 +210,13 @@ public:
     friend class World;
 };
 
+//------------------------------------------------------------------------------
+
+/**
+ * Loads Effective Address.
+ * Takes a pointer \p ptr to an aggregate as input.
+ * Then, the address to the \p index'th element is computed.
+ */
 class LEA : public PrimOp {
 private:
     LEA(Def ptr, Def index, const std::string& name);

@@ -106,6 +106,8 @@ Insert::Insert(Def agg, Def index, Def value, const std::string& name)
 
 const Type* Insert::type(Def agg) { return agg->type(); }
 
+//------------------------------------------------------------------------------
+
 LEA::LEA(Def def, Def index, const std::string& name)
     : PrimOp(2, Node_LEA, nullptr, name)
 {

@@ -103,7 +103,7 @@ public:
         , lexer(stream, filename)
         , cur_loop(nullptr)
         , cur_fun(nullptr)
-        , cur_var_handle(2) // reserve 0 for conditionals, 1 for mem
+        , cur_var_handle(2) // reserve 1 for conditionals, 0 for mem
         , no_bars_(false)
         , result_(true)
     {

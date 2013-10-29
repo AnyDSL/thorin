@@ -445,8 +445,13 @@ llvm::Value* CodeGen::emit(Def def) {
         return vec;
     }
 
-    if (auto lea = def->isa<LEA>())
-        return builder.CreateConstInBoundsGEP2_64(lookup(lea->ptr()), 0ull, lea->index()->primlit_value<u64>());
+    if (auto lea = def->isa<LEA>()) {
+        if (lea->referenced_type()->isa<Sigma>())
+            return builder.CreateConstInBoundsGEP2_64(lookup(lea->ptr()), 0ull, lea->index()->primlit_value<u64>());
+
+        assert(lea->referenced_type()->isa<ArrayType>());
+        return builder.CreateInBoundsGEP(lookup(lea->ptr()), lookup(lea->index()));
+    }
 
     assert(!def->is_corenode());
     return hook.emit(def);
@@ -464,7 +469,7 @@ llvm::Type* CodeGen::map(const Type* type) {
         case Node_PrimType_f32: llvm_type = llvm::Type::getFloatTy(context);     break;
         case Node_PrimType_f64: llvm_type = llvm::Type::getDoubleTy(context);    break;
         case Node_Ptr:          llvm_type = llvm::PointerType::getUnqual(map(type->as<Ptr>()->referenced_type())); break;
-
+        case Node_ArrayType:    return map(type->as<ArrayType>()->elem_type());
         case Node_Pi: {
             // extract "return" type, collect all other types
             const Pi* pi = type->as<Pi>();

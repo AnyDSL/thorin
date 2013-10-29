@@ -205,9 +205,8 @@ RefPtr FunExpr::emit(CodeGen& cg) const {
     return Ref::create(cg.emit_body(fun()));
 }
 
-RefPtr Tuple::emit(CodeGen& cg) const {
-    return Ref::create(cg.world().tuple(cg.emit_ops(this)));
-}
+RefPtr ArrayExpr::emit(CodeGen& cg) const { return Ref::create(cg.world().array_value(cg.emit_ops(this))); }
+RefPtr Tuple::emit(CodeGen& cg) const     { return Ref::create(cg.world().tuple(cg.emit_ops(this))); }
 
 RefPtr Id::emit(CodeGen& cg) const {
     if (auto fun = decl()->isa<Fun>())

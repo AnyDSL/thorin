@@ -370,6 +370,18 @@ private:
     friend class Parser;
 };
 
+class ArrayExpr : public Expr {
+public:
+    virtual bool is_lvalue() const { return false; }
+    virtual std::ostream& print(Printer& p) const;
+
+private:
+    virtual const Type* check(Sema& sema) const;
+    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
+
+    friend class Parser;
+};
+
 class Tuple : public Expr {
 public:
     virtual bool is_lvalue() const { return false; }

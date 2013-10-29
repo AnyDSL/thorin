@@ -56,7 +56,8 @@
     case Token::L_O: \
     case Token::ID: \
     case Token::RUN: \
-    case Token::L_PAREN
+    case Token::L_PAREN: \
+    case Token::L_BRACKET
     
 #define STMT_NO_EXPR \
          DECL: \
@@ -588,6 +589,13 @@ const Expr* Parser::parse_primary_expr() {
                 expect(Token::R_PAREN, "primary expression");
                 return expr;
             }
+        }
+        case Token::L_BRACKET: {
+            auto array = new ArrayExpr();
+            array->set_pos1(lex().pos1());
+            parse_comma_list(Token::R_BRACKET, "elements of array expression", [&]{ array->ops_.push_back(parse_expr()); });
+            array->set_pos2(prev_loc().pos2());
+            return array;
         }
 #define IMPALA_LIT(itype, atype) \
         case Token::LIT_##itype:

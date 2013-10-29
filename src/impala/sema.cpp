@@ -242,6 +242,20 @@ const Type* FunExpr::check(Sema& sema) const {
     return fun()->refined_fntype();
 }
 
+const Type* ArrayExpr::check(Sema& sema) const {
+    // TODO empty array expr
+    if (ops().empty())
+        return sema.typetable().definite_array(sema.typetable().type_error(), 0);
+
+    const Type* elem = sema.check(op(0));
+    for (size_t i = 1, e = ops().size(); i != e; ++i) {
+        if (elem != sema.check(op(i)))
+            sema.error(op(i)) << "inhomogeneous types in array expression\n";
+    }
+
+    return sema.typetable().definite_array(elem, ops().size());
+}
+
 const Type* Tuple::check(Sema& sema) const {
     Array<const Type*> elems(ops().size());
     for (size_t i = 0, e = elems.size(); i != e; ++i)

@@ -144,6 +144,7 @@ std::ostream& Literal::print(Printer& p) const {
 
 std::ostream& Id::print(Printer& p) const { return p.stream() << symbol(); }
 std::ostream& EmptyExpr::print(Printer& p) const { return p.stream() << "/*empty*/"; }
+std::ostream& ArrayExpr::print(Printer& p) const { return p.dump_list([&](const Expr* expr) { expr->print(p); }, ops(), "[", "]"); }
 std::ostream& Tuple::print(Printer& p) const { return p.dump_list([&](const Expr* expr) { expr->print(p); }, ops(), "(", ")"); }
 
 std::ostream& PrefixExpr::print(Printer& p) const {

@@ -61,14 +61,21 @@ Slot::Slot(const Type* type, Def frame, size_t index, const std::string& name)
 
 //------------------------------------------------------------------------------
 
-LEA::LEA(Def ptr, Def index, const std::string& name)
-    : PrimOp(2, Node_LEA, ptr->type()->isa<Ptr>() 
-                        ?  ptr->type()->as<Ptr>() 
-                        : ptr->world().ptr(ptr->type()->as<Sigma>()->elem_via_lit(index)), name)
+LEA::LEA(Def def, Def index, const std::string& name)
+    : PrimOp(2, Node_LEA, nullptr, name)
 {
-    set_op(0, ptr);
+    set_op(0, def);
     set_op(1, index);
+
+    if (auto sigma = referenced_type()->isa<Sigma>())
+        set_type(index->world().ptr(sigma->elem_via_lit(index)));
+    else {
+        auto array = referenced_type()->as<ArrayType>();
+        set_type(index->world().ptr(array->elem_type()));;
+    }
 }
+
+const Type* LEA::referenced_type() const { return ptr()->type()->as<Ptr>()->referenced_type(); }
 
 //------------------------------------------------------------------------------
 

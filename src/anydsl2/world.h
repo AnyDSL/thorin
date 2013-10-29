@@ -22,7 +22,6 @@ class DefNode;
 class Enter;
 class Lambda;
 class LEA;
-class Leave;
 class Load;
 class Pi;
 class PrimLit;
@@ -100,6 +99,7 @@ public:
     const Pi* pi(ArrayRef<const Type*> elems) { return unify(new Pi(*this, elems)); }
     const Generic* generic(size_t index) { return unify(new Generic(*this, index)); }
     const GenericRef* generic_ref(const Generic* generic, Lambda* lambda) { return unify(new GenericRef(*this, generic, lambda)); }
+    const ArrayType* array_type(const Type* elem) { return unify(new ArrayType(*this, elem)); }
 
     /*
      * literals
@@ -187,11 +187,22 @@ public:
      * aggregate stuff
      */
 
+    Def array_value(const Type* elem, ArrayRef<Def> args, const std::string& name = "") { 
+        return cse(new ArrayValue(*this, elem, args, name)); 
+    }
+    Def array_value(ArrayRef<Def> args, const std::string& name = "") { 
+        assert(!args.empty()); 
+        return array_value(args.front()->type(), args, name);
+    }
+    Def array_extract(Def array, Def index, const std::string& name = "");
+    Def array_extract(Def array, u32 index, const std::string& name = "");
+    Def array_insert(Def array, Def index, Def value, const std::string& name = "");
+    Def array_insert(Def array, u32 index, Def value, const std::string& name = "");
+    Def tuple(ArrayRef<Def> args, const std::string& name = "") { return cse(new Tuple(*this, args, name)); }
     Def tuple_extract(Def tuple, Def index, const std::string& name = "");
     Def tuple_extract(Def tuple, u32 index, const std::string& name = "");
     Def tuple_insert(Def tuple, Def index, Def value, const std::string& name = "");
     Def tuple_insert(Def tuple, u32 index, Def value, const std::string& name = "");
-    Def tuple(ArrayRef<Def> args, const std::string& name = "") { return cse(new Tuple(*this, args, name)); }
     Def vector(ArrayRef<Def> args, const std::string& name = "") {
         if (args.size() == 1) return args[0];
         return cse(new Vector(*this, args, name)); 
@@ -206,7 +217,7 @@ public:
     const Load* load(Def mem, Def ptr, const std::string& name = "");
     const Store* store(Def mem, Def ptr, Def val, const std::string& name = "");
     const Enter* enter(Def mem, const std::string& name = "");
-    const Leave* leave(Def mem, Def frame, const std::string& name = "");
+    Def leave(Def mem, Def frame, const std::string& name = "");
     const Slot* slot(const Type* type, Def frame, size_t index, const std::string& name = "");
     const LEA* lea(Def ptr, Def index, const std::string& name = "");
 

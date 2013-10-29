@@ -116,6 +116,7 @@ private:
 public:
     Def ptr() const { return op(0); }
     Def index() const { return op(1); }
+    const Type* referenced_type() const;
 
     friend class World;
 };

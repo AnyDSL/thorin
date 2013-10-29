@@ -9,6 +9,7 @@
 #include <llvm/IR/Constant.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Type.h>
@@ -350,8 +351,48 @@ llvm::Value* CodeGen::emit(Def def) {
         return builder.CreateSelect(cond, tval, fval);
     }
 
+    if (auto array = def->isa<ArrayValue>()) {
+        assert(false && "TODO");
+#if 0
+        auto alloca = new llvm::AllocaInst(
+            llvm::ArrayType::get(map(array->array_type()->elem_type()), array->size()),     // type
+            nullptr /* no variable length array */, array->name,
+            builder.GetInsertBlock()->getParent()->getEntryBlock().getTerminator()          // insert before this
+        );
+
+        llvm::Instruction* before = builder.GetInsertBlock()->getParent()->getEntryBlock().getTerminator();
+        u64 i = 0;
+        for (auto op : array->ops()) {
+            auto gep = llvm::GetElementPtrInst::CreateInBounds(
+                alloca, 
+                { llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), i) },
+                op->name, before);
+            before = new llvm::StoreInst(lookup(op), gep, before);
+        }
+        return alloca;
+#endif
+    }
+
+    if (auto arrayop = def->isa<ArrayOp>()) {
+        assert(false && "TODO");
+#if 0
+        auto array = lookup(arrayop->array());
+        auto gep = builder.CreateInBoundsGEP(array, lookup(arrayop->index()));
+        if (auto extract = arrayop->isa<ArrayExtract>())
+            return builder.CreateLoad(gep, extract->name);
+        return builder.CreateStore(lookup(arrayop->as<ArrayInsert>()->value()), gep);
+#endif
+    }
+
+    if (auto tuple = def->isa<Tuple>()) {
+        llvm::Value* agg = llvm::UndefValue::get(map(tuple->type()));
+        for (size_t i = 0, e = tuple->ops().size(); i != e; ++i)
+            agg = builder.CreateInsertValue(agg, lookup(tuple->op(i)), { unsigned(i) });
+        return agg;
+    }
+
     if (auto tupleop = def->isa<TupleOp>()) {
-        llvm::Value* tuple = lookup(tupleop->tuple());
+        auto tuple = lookup(tupleop->tuple());
         unsigned idx = tupleop->index()->primlit_value<unsigned>();
 
         if (tupleop->kind() == Node_TupleExtract) {
@@ -360,19 +401,10 @@ llvm::Value* CodeGen::emit(Def def) {
             return builder.CreateExtractValue(tuple, { idx });
         }
 
-        const TupleInsert* insert = def->as<TupleInsert>();
-        llvm::Value* value = lookup(insert->value());
+        auto insert = def->as<TupleInsert>();
+        auto value = lookup(insert->value());
 
         return builder.CreateInsertValue(tuple, value, { idx });
-    }
-
-    if (auto tuple = def->isa<Tuple>()) {
-        llvm::Value* agg = llvm::UndefValue::get(map(tuple->type()));
-
-        for (size_t i = 0, e = tuple->ops().size(); i != e; ++i)
-            agg = builder.CreateInsertValue(agg, lookup(tuple->op(i)), { unsigned(i) });
-
-        return agg;
     }
 
     if (auto primlit = def->isa<PrimLit>()) {
@@ -413,8 +445,13 @@ llvm::Value* CodeGen::emit(Def def) {
         return vec;
     }
 
-    if (auto lea = def->isa<LEA>())
-        return builder.CreateConstInBoundsGEP2_64(lookup(lea->ptr()), 0ull, lea->index()->primlit_value<u64>());
+    if (auto lea = def->isa<LEA>()) {
+        if (lea->referenced_type()->isa<Sigma>())
+            return builder.CreateConstInBoundsGEP2_64(lookup(lea->ptr()), 0ull, lea->index()->primlit_value<u64>());
+
+        assert(lea->referenced_type()->isa<ArrayType>());
+        return builder.CreateInBoundsGEP(lookup(lea->ptr()), lookup(lea->index()));
+    }
 
     assert(!def->is_corenode());
     return hook.emit(def);
@@ -432,7 +469,7 @@ llvm::Type* CodeGen::map(const Type* type) {
         case Node_PrimType_f32: llvm_type = llvm::Type::getFloatTy(context);     break;
         case Node_PrimType_f64: llvm_type = llvm::Type::getDoubleTy(context);    break;
         case Node_Ptr:          llvm_type = llvm::PointerType::getUnqual(map(type->as<Ptr>()->referenced_type())); break;
-
+        case Node_ArrayType:    return map(type->as<ArrayType>()->elem_type());
         case Node_Pi: {
             // extract "return" type, collect all other types
             const Pi* pi = type->as<Pi>();

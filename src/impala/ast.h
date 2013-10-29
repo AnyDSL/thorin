@@ -338,6 +338,7 @@ public:
 
     Kind kind() const { return kind_; }
     anydsl2::Box box() const { return box_; }
+    uint64_t get_u64() const;
     virtual bool is_lvalue() const { return false; }
     virtual std::ostream& print(Printer& p) const;
     TokenKind literal2type() const;
@@ -365,6 +366,18 @@ private:
     virtual anydsl2::RefPtr emit(CodeGen& cg) const;
 
     anydsl2::AutoPtr<Fun> fun_;
+
+    friend class Parser;
+};
+
+class ArrayExpr : public Expr {
+public:
+    virtual bool is_lvalue() const { return false; }
+    virtual std::ostream& print(Printer& p) const;
+
+private:
+    virtual const Type* check(Sema& sema) const;
+    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
 
     friend class Parser;
 };
@@ -509,7 +522,6 @@ class IndexExpr : public Expr {
 public:
     const Expr* lhs() const { return ops_[0]; }
     const Expr* index() const { return ops_[1]; }
-    bool is_array_subscript() const;
     virtual bool is_lvalue() const { return true; }
     virtual std::ostream& print(Printer& p) const;
 

@@ -16,10 +16,6 @@ TokenKind Literal::literal2type() const {
     }
 }
 
-bool IndexExpr::is_array_subscript() const {
-    return lhs()->type()->isa<ArrayType>() != nullptr;
-}
-
 bool Call::is_continuation_call() const { return type()->isa<NoRet>() != nullptr; }
 
 Location Call::args_location() const {
@@ -33,5 +29,7 @@ bool ForStmt::is_while() const {
         return expr_stmt->expr()->isa<EmptyExpr>() && step()->isa<EmptyExpr>();
     return false;
 }
+
+uint64_t Literal::get_u64() const { return bcast<uint64_t, Box>(box()); }
 
 } // namespace impala

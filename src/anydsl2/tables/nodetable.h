@@ -21,11 +21,16 @@
         //ANYDSL2_AIR_NODE(ArithOp)
         //ANYDSL2_AIR_NODE(RelOp)
         //ANYDSL2_AIR_NODE(ConvOp)
+        ANYDSL2_AIR_NODE(ArrayValue, array_value)
+        ANYDSL2_AIR_NODE(ArrayExtract, array_extract)
+        ANYDSL2_AIR_NODE(ArrayInsert, array_insert)
         ANYDSL2_AIR_NODE(Tuple, tuple)
         ANYDSL2_AIR_NODE(TupleExtract, tuple_extract)
         ANYDSL2_AIR_NODE(TupleInsert, tuple_insert)
-        ANYDSL2_AIR_NODE(Select, select)
         ANYDSL2_AIR_NODE(Vector, vector)
+        ANYDSL2_AIR_NODE(VectorExtract, vector_extract)
+        ANYDSL2_AIR_NODE(VectorInsert, vector_insert)
+        ANYDSL2_AIR_NODE(Select, select)
     ANYDSL2_AIR_NODE(Param, param)
     // Type
         // PrimType
@@ -36,5 +41,6 @@
         ANYDSL2_AIR_NODE(Pi, pi)
         ANYDSL2_AIR_NODE(Ptr, ptr)
         ANYDSL2_AIR_NODE(Sigma, sigma)
+        ANYDSL2_AIR_NODE(ArrayType, array_type)
 
 #undef ANYDSL2_AIR_NODE

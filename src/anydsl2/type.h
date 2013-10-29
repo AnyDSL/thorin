@@ -240,6 +240,22 @@ public:
 
 //------------------------------------------------------------------------------
 
+class ArrayType : public Type {
+private:
+    ArrayType(World& world, const Type* elem_type)
+        : Type(world, Node_ArrayType, 1, elem_type->is_generic())
+    {
+        set(0, elem_type);
+    }
+
+public:
+    const Type* elem_type() const { return elem(0); }
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
 class Generic : public Type {
 private:
     Generic(World& world, size_t index)

@@ -7,7 +7,9 @@
 
 namespace anydsl2 {
 
+class ArrayType;
 class PrimLit;
+class Sigma;
 
 //------------------------------------------------------------------------------
 
@@ -127,36 +129,43 @@ public:
 
 //------------------------------------------------------------------------------
 
-class TupleOp : public PrimOp {
+class ArrayValue : public PrimOp {
+private:
+    ArrayValue(World& world, const Type* elem, ArrayRef<Def> args, const std::string& name);
+
+public:
+    const ArrayType* array_type() const;
+
+    friend class World;
+};
+
+class ArrayOp : public PrimOp {
 protected:
-    TupleOp(size_t size, NodeKind kind, const Type* type, Def tuple, Def index, const std::string& name)
+    ArrayOp(size_t size, NodeKind kind, const Type* type, Def array, Def index, const std::string& name)
         : PrimOp(size, kind, type, name)
     {
-        set_op(0, tuple);
+        set_op(0, array);
         set_op(1, index);
     }
 
 public:
-    Def tuple() const { return op(0); }
+    Def array() const { return op(0); }
     Def index() const { return op(1); }
+    const ArrayType* array_type() const;
 
     friend class World;
 };
 
-//------------------------------------------------------------------------------
-
-class TupleExtract : public TupleOp {
+class ArrayExtract : public ArrayOp {
 private:
-    TupleExtract(Def tuple, Def index, const std::string& name);
+    ArrayExtract(Def array, Def index, const std::string& name);
     
     friend class World;
 };
 
-//------------------------------------------------------------------------------
-
-class TupleInsert : public TupleOp {
+class ArrayInsert : public ArrayOp {
 private:
-    TupleInsert(Def tuple, Def index, Def value, const std::string& name);
+    ArrayInsert(Def array, Def index, Def value, const std::string& name);
 
 public:
     Def value() const { return op(2); }
@@ -169,6 +178,43 @@ public:
 class Tuple : public PrimOp {
 private:
     Tuple(World& world, ArrayRef<Def> args, const std::string& name);
+
+public:
+    const Sigma* sigma() const;
+
+    friend class World;
+};
+
+class TupleOp : public PrimOp {
+protected:
+    TupleOp(size_t size, NodeKind kind, const Type* type, Def tuple, Def index, const std::string& name)
+        : PrimOp(size, kind, type, name)
+    {
+        set_op(0, tuple);
+        set_op(1, index);
+    }
+
+public:
+    Def tuple() const { return op(0); }
+    Def index() const { return op(1); }
+    const Sigma* sigma() const;
+
+    friend class World;
+};
+
+class TupleExtract : public TupleOp {
+private:
+    TupleExtract(Def tuple, Def index, const std::string& name);
+
+    friend class World;
+};
+
+class TupleInsert : public TupleOp {
+private:
+    TupleInsert(Def tuple, Def index, Def value, const std::string& name);
+
+public:
+    Def value() const { return op(2); }
 
     friend class World;
 };

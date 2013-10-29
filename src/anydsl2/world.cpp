@@ -991,6 +991,21 @@ void World::dead_code_elimination() {
     const auto pass = new_pass();
     std::vector<const DefNode*> stack;
 
+    // elimimante useless enters/leaves
+    for (auto primop : primops()) {
+        if (auto enter = primop->isa<Enter>())
+            switch (enter->extract_frame()->num_uses()) {
+                case 0: enter->extract_mem()->replace(enter->mem()); break;
+                case 1: {
+                    if (auto leave = enter->extract_frame()->uses().front()->isa<Leave>()) {
+                        enter->extract_mem()->replace(enter->mem());
+                        leave->replace(leave->mem());
+                    }
+                }
+                default: { /* do nothing */ }
+            }
+    }
+
     for (auto lambda : lambdas()) {
         for (size_t i = 0, e = lambda->ops().size(); i != e; ++i)
             lambda->update_op(i, dce_rebuild(pass, lambda->op(i)));

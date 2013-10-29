@@ -9,8 +9,6 @@
 #include "anydsl2/analyses/looptree.h"
 #include "anydsl2/analyses/scope.h"
 
-// TODO these impls need some love
-
 namespace anydsl2 {
 
 typedef Array<std::vector<const PrimOp*>> Schedule;
@@ -72,7 +70,7 @@ Schedule schedule_late(const Scope& scope, size_t& pass) {
                 if (auto primop = op->is_non_const_primop()) {
                     queue.push(primop);
 
-                    if (!primop->visit(pass)) {     // init unseen primops
+                    if (!primop->visit(pass)) { // init unseen primops
                         get_late(primop) = cur;
                         primop->counter = primop->num_uses() - 1;
                     }
@@ -118,7 +116,7 @@ Schedule schedule_smart(const Scope& scope) {
         Lambda* lambda_early = scope[i];
         for (auto primop : early[i]) {
             if (!primop->is_visited(pass))
-                continue;                       // primop is dead
+                continue;       // primop is dead
             Lambda* lambda_best = get_late(primop);
             assert(scope.contains(lambda_best));
             int depth = std::numeric_limits<int>::max();

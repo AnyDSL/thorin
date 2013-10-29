@@ -1,0 +1,6 @@
+fn main(a: (int, int, int)) -> int {
+    if (a[0] == 42)
+        ++a[1];
+    return a[0];
+}
+

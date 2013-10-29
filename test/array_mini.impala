@@ -1,0 +1,10 @@
+fn main(i: int) -> int {
+    val a = [0, 1, 2];
+    ++a[i];
+    return a[0];
+}
+//fn main(a: [int * 3]) -> int {
+//    if (a[0] == 42)
+//        ++a[1];
+//    return a[0];
+//}

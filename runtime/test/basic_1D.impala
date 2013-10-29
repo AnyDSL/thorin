@@ -1,12 +1,12 @@
-extern all_on_gpu(float[], fn(int, int, int) -> void) -> int;
-extern array(int) -> float[];
+extern all_on_gpu([float], fn(int, int, int) -> void) -> int;
+extern array(int) -> [float];
 extern sqrt(float) -> float;
 
 fn idx(x : int, y: int, z : int, width : int, height : int, depth : int) -> int {
     return x + width * y + z * width * height;
 }
 
-fn main() -> float[] {
+fn main() -> [float] {
     val width   = 1024;
     val height  = 1024;
     val depth   = 1;
@@ -14,15 +14,13 @@ fn main() -> float[] {
     val size    = 2*range;
     val arr     = array(width * height * depth);
     val out     = array(width * height * depth);
-    // TODO: mask as a C const array
-    val mask    = array(size * size);
-
     // convolution filter mask for 3x3 gaussian blur
-    mask[0] = 0.057118f; mask[1] = 0.124758f; mask[2] = 0.057118f;
-    mask[3] = 0.124758f; mask[4] = 0.272496f; mask[5] = 0.124758f;
-    mask[6] = 0.057118f; mask[7] = 0.124758f; mask[8] = 0.057118f;
+    val mask : [float *3 * 3] = [
+        [0.057118f, 0.124758f, 0.057118f],
+        [0.124758f, 0.272496f, 0.124758f],
+        [0.057118f, 0.124758f, 0.057118f]];
 
-    //for (var iter=0; iter<100; ++iter) {
+    for (var iter=0; iter<100; ++iter) {
         var l2sum = 0.0f;
         all_on_gpu(out, |x : int, y : int, z : int| -> void {
             val index = x + width * y + height * depth * z;
@@ -30,9 +28,9 @@ fn main() -> float[] {
             //val index = idx(x, y, z, width, height, depth);
             val a2 = out[index];
             val b2 = arr[index];
-            val c2 = convolve(arr, mask, 3, x, y, z, width, height, depth);
-            // TODO: passing 'range' instead of '3' results in infintie loop during
-            // compilation / partial evaluation
+            val c2 = @convolve(arr, mask, 3, x, y, z, width, height, depth);
+            // TODO: passing 'range' instead of '3' results in infinite loop
+            // during compilation / partial evaluation
             //val c2 = @convolve(arr, mask, range, x, y, z, width, height, depth);
             out[index] = c2 + a2 + b2;
 
@@ -43,16 +41,16 @@ fn main() -> float[] {
         //val l2norm = sqrt(l2sum)/(width*height);
         val l2norm = sqrt(l2sum)/(1024.f*1024.f);
 
-        var tmp : float[];
+        var tmp : [float];
         tmp = arr;
         arr = out;
         out = tmp;
-    //}
+    }
 
     return out;
 }
 
-fn convolve(arr : float[], mask : float[], range : int, x : int, y : int, z : int, width : int, height : int, depth : int) -> float {
+fn convolve(arr : [float], mask : [float * 3 * 3], range : int, x : int, y : int, z : int, width : int, height : int, depth : int) -> float {
     var sum = 0.0f;
     val msize = 2*range;
 
@@ -68,7 +66,7 @@ fn convolve(arr : float[], mask : float[], range : int, x : int, y : int, z : in
             val index = x + xf + width * (y + yf) + width * height * z;
             val imask = range + xf +  msize * (range + yf);
             // TODO: propagate mask[imask] in case mask is a C const array
-            sum += mask[imask] * arr[index];
+            sum += mask[range + xf][range +yf] * arr[index];
         }
     }
 

@@ -18,7 +18,7 @@ typedef Array<std::vector<const PrimOp*>> Schedule;
 Schedule schedule_early(const Scope& scope) {
     Schedule schedule(scope.size());
     std::queue<Def> queue;
-    const size_t pass = scope.world().new_pass();
+    const auto pass = scope.world().new_pass();
 
     for (size_t i = 0, e = scope.size(); i != e; ++i) {
         Lambda* lambda = scope[i];
@@ -67,16 +67,20 @@ Schedule schedule_late(const Scope& scope, size_t& pass) {
         auto& queue = queues[i];
         Lambda* cur = scope[i];
 
-        for (auto op : cur->ops()) {
-            if (auto primop = op->is_non_const_primop()) {
-                queue.push(primop);
+        auto fill_queue = [&] (Def def) {
+            for (auto op : def->ops()) {
+                if (auto primop = op->is_non_const_primop()) {
+                    queue.push(primop);
 
-                if (!primop->visit(pass)) {     // init unseen primops
-                    get_late(primop) = cur;
-                    primop->counter = primop->num_uses() - 1;
+                    if (!primop->visit(pass)) {     // init unseen primops
+                        get_late(primop) = cur;
+                        primop->counter = primop->num_uses() - 1;
+                    }
                 }
             }
-        }
+        };
+
+        fill_queue(cur);
 
         while (!queue.empty()) {
             const PrimOp* primop = queue.front();
@@ -88,17 +92,7 @@ Schedule schedule_late(const Scope& scope, size_t& pass) {
 
                 if (late == cur) {
                     schedule[late->sid()].push_back(primop);
-
-                    for (auto op : primop->ops()) {
-                        if (auto primop = op->is_non_const_primop()) {
-                            queue.push(primop);
-
-                            if (!primop->visit(pass)) {     // init unseen primops
-                                get_late(primop) = cur;
-                                primop->counter = primop->num_uses() - 1;
-                            }
-                        }
-                    }
+                    fill_queue(primop);
                 } else {
                     late = late ? scope.domtree().lca(cur, late) : cur;
                     queues[late->sid()].push(primop);

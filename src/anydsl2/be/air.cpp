@@ -159,7 +159,7 @@ void emit_air(World& world, bool fancy) {
 
     for (auto top : top_level_lambdas(world)) {
         Scope scope(top);
-        Schedule schedule = schedule_smart(scope);
+        Schedule schedule = schedule_early(scope);
         for (auto lambda : scope.rpo()) {
             int depth = fancy ? scope.domtree().depth(lambda) : 0;
             cg.indent += depth;
@@ -177,11 +177,11 @@ void emit_air(World& world, bool fancy) {
     }
 }
 
-void emit_type(const Type* type)            { CodeGen(false).emit_type(type);         }
-void emit_def(Def def)               { CodeGen(false).emit_def(def);           }
-void emit_head(const Lambda* lambda)        { CodeGen(false).emit_head(lambda);       }
-void emit_jump(const Lambda* lambda)        { CodeGen(false).emit_jump(lambda);       }
-void emit_assignment(const PrimOp* primop)  { CodeGen(false).emit_assignment(primop); }
+void emit_type(const Type* type)           { CodeGen(false).emit_type(type);         }
+void emit_def(Def def)                     { CodeGen(false).emit_def(def);           }
+void emit_head(const Lambda* lambda)       { CodeGen(false).emit_head(lambda);       }
+void emit_jump(const Lambda* lambda)       { CodeGen(false).emit_jump(lambda);       }
+void emit_assignment(const PrimOp* primop) { CodeGen(false).emit_assignment(primop); }
 
 //------------------------------------------------------------------------------
 

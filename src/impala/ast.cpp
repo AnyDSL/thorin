@@ -16,7 +16,6 @@ TokenKind Literal::literal2type() const {
     }
 }
 
-bool IndexExpr::is_array_subscript() const { return lhs()->type()->isa<ArrayType>() != nullptr; }
 bool Call::is_continuation_call() const { return type()->isa<NoRet>() != nullptr; }
 
 Location Call::args_location() const {

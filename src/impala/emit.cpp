@@ -164,7 +164,7 @@ const Lambda* CodeGen::emit_body(const Fun* fun) {
 RefPtr CodeGen::emit(const VarDecl* decl) {
     const anydsl2::Type* air_type = decl->refined_type()->convert(world());
     if (decl->is_address_taken())
-        return Ref::create(world().slot(air_type, decl->fun()->frame(), decl->handle(), decl->symbol().str()), *this);
+        return Ref::create(*this, world().slot(air_type, decl->fun()->frame(), decl->handle(), decl->symbol().str()));
 
     return Ref::create(cur_bb, decl->handle(), air_type, decl->symbol().str());
 }
@@ -223,7 +223,7 @@ RefPtr Id::emit(CodeGen& cg) const {
     auto air_type = type()->convert(cg.world());
 
     if (vardecl->is_address_taken())
-        return Ref::create(cg.world().slot(air_type, vardecl->fun()->frame(), vardecl->handle(), symbol().str()), cg);
+        return Ref::create(cg, cg.world().slot(air_type, vardecl->fun()->frame(), vardecl->handle(), symbol().str()));
 
     return Ref::create(cg.cur_bb, vardecl->handle(), air_type, symbol().str());
 }
@@ -328,10 +328,14 @@ RefPtr ConditionalExpr::emit(CodeGen& cg) const {
 
 RefPtr IndexExpr::emit(CodeGen& cg) const {
     Def x = cg.emit(index())->load();
-    if (is_array_subscript())
-        return Ref::create_array(cg.emit(lhs()), x);
-    else
+    if (lhs()->type()->isa<DefiniteArray>())
+        return Ref::create_array_val(cg.emit(lhs()), x);
+    else if (lhs()->type()->isa<IndefiniteArray>())
+        return Ref::create_array_ptr(cg, cg.emit(lhs()), x);
+    else {
+        assert(lhs()->type()->isa<TupleType>());
         return Ref::create_tuple(cg.emit(lhs()), x);
+    }
 }
 
 RefPtr Call::emit(CodeGen& cg) const {

@@ -1,0 +1,14 @@
+extern all_on_gpu([float], fn(int, int, int) -> void) -> int;
+extern array(int) -> [float];
+
+fn main() -> [float] {
+    val width   = 1024;
+    val arr     = array(width);
+    val out     = array(width);
+
+    all_on_gpu(out, |x : int, y : int, z : int| -> void {
+        out[x] = arr[x];
+    });
+
+    return out;
+}

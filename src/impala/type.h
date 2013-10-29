@@ -182,22 +182,22 @@ public:
 
 class DefiniteArray : public ArrayType {
 public:
-    DefiniteArray(TypeTable& typetable, const Type* elem_type, anydsl2::u64 length)
+    DefiniteArray(TypeTable& typetable, const Type* elem_type, anydsl2::u64 dim)
         : ArrayType(typetable, Token::TYPE_definite_array, elem_type)
-        , length_(length)
+        , dim_(dim)
     {}
 
-    anydsl2::u64 length() const { return length_; }
+    anydsl2::u64 dim() const { return dim_; }
     virtual const Type* refine(const Sema&) const;
     virtual const Type* specialize(const GenericMap&) const;
     virtual const anydsl2::Type* convert(anydsl2::World&) const;
-    virtual size_t hash() const { return anydsl2::hash_combine(ArrayType::hash(), length()); }
+    virtual size_t hash() const { return anydsl2::hash_combine(ArrayType::hash(), dim()); }
     virtual bool equals(const Node* other) const {
-        return Type::equal(other) && this->length() == other->as<DefiniteArray>()->length();
+        return Type::equal(other) && this->dim() == other->as<DefiniteArray>()->dim();
     }
 
 private:
-    anydsl2::u64 length_;
+    anydsl2::u64 dim_;
 
     friend class TypeTable;
 };
@@ -333,7 +333,7 @@ public:
     const NoRet* noret() { return noret_; }
     const Void* type_void() { return void_; }
     const PrimType* primtype(TokenKind kind);
-    const DefiniteArray* definite_array(const Type* elem_type, anydsl2::u64 length);
+    const DefiniteArray* definite_array(const Type* elem_type, anydsl2::u64 dim);
     const IndefiniteArray* indefinite_array(const Type* elem_type);
 #define IMPALA_TYPE(itype, atype) const PrimType* type_##itype() { return itype##_; }
 #include "impala/tokenlist.h"

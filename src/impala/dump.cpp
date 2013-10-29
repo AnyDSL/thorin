@@ -34,7 +34,7 @@ std::ostream& Printer::print_type(const Type* type) {
     } else if (type->isa<TypeError>()) {
         return stream() << "<error>";
     } else if (auto array = type->isa<DefiniteArray>()) {
-        return stream() << '[' << array->elem_type() << " * " << array->length() << ']';
+        return stream() << '[' << array->elem_type() << " * " << array->dim() << ']';
     } else if (auto array = type->isa<IndefiniteArray>()) {
         return stream() << '[' << array->elem_type() << ']';
     } else if (auto tuple = type->isa<TupleType>()) {

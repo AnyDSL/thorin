@@ -99,6 +99,8 @@ public:
     const Pi* pi(ArrayRef<const Type*> elems) { return unify(new Pi(*this, elems)); }
     const Generic* generic(size_t index) { return unify(new Generic(*this, index)); }
     const GenericRef* generic_ref(const Generic* generic, Lambda* lambda) { return unify(new GenericRef(*this, generic, lambda)); }
+    const DefiniteArray* definite_array(const Type* type, u64 length) { return unify(new DefiniteArray(*this, type, length)); }
+    const IndefiniteArray* indefinite_array(const Type* type) { return unify(new IndefiniteArray(*this, type)); }
 
     /*
      * literals

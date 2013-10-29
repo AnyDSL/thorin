@@ -240,6 +240,48 @@ public:
 
 //------------------------------------------------------------------------------
 
+class ArrayType : public Type {
+protected:
+    ArrayType(World& world, NodeKind kind, const Type* elem_type)
+        : Type(world, kind, 1, elem_type->is_generic())
+    {
+        set(0, elem_type);
+    }
+
+public:
+    const Type* elem_type() const { return elem(0); }
+};
+
+class IndefiniteArray : public ArrayType {
+public:
+    IndefiniteArray(World& world, const Type* elem_type)
+        : ArrayType(world, Node_IndefiniteArray, elem_type)
+    {}
+
+    friend class World;
+};
+
+class DefiniteArray : public ArrayType {
+public:
+    DefiniteArray(World& world, const Type* elem_type, u64 dim)
+        : ArrayType(world, Node_DefiniteArray, elem_type)
+        , dim_(dim)
+    {}
+
+    u64 dim() const { return dim_; }
+    virtual size_t hash() const { return hash_combine(ArrayType::hash(), dim()); }
+    virtual bool equals(const Type* other) const {
+        return Type::equal(other) && this->dim() == other->as<DefiniteArray>()->dim();
+    }
+
+private:
+    u64 dim_;
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
 class Generic : public Type {
 private:
     Generic(World& world, size_t index)

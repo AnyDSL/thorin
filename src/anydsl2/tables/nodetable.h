@@ -36,5 +36,7 @@
         ANYDSL2_AIR_NODE(Pi, pi)
         ANYDSL2_AIR_NODE(Ptr, ptr)
         ANYDSL2_AIR_NODE(Sigma, sigma)
+        ANYDSL2_AIR_NODE(DefiniteArray, definite_array)
+        ANYDSL2_AIR_NODE(IndefiniteArray, indefinite_array)
 
 #undef ANYDSL2_AIR_NODE

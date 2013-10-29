@@ -850,7 +850,8 @@ const Type* World::rebuild(const Type* type, ArrayRef<const Type*> elems) {
     switch (type->kind()) {
         case Node_Pi:    return pi(elems);
         case Node_Sigma: return sigma(elems);
-        case Node_Ptr:   assert(elems.size() == 1); return ptr(elems.front());
+        case Node_Ptr:           assert(elems.size() == 1); return ptr(elems.front());
+        case Node_DefiniteArray: assert(elems.size() == 1); return definite_array(elems.front(), type->length());
         case Node_GenericRef: {
             auto genref = type->as<GenericRef>();
             return generic_ref(genref->generic(), genref->lambda());

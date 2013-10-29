@@ -360,10 +360,10 @@ const Type* IndexExpr::check(Sema& sema) const {
             if (auto definite_array = lhs()->type()->isa<DefiniteArray>()) {
                 if (const Literal* literal = index()->isa<Literal>()) {
                     auto x = literal->get_u64();
-                    if (x < definite_array->length())
+                    if (x < definite_array->dim())
                         return definite_array->elem_type();
                     else
-                        sema.error(index()) << "index '" << x << "' out of bounds '" << definite_array->length() << "'\n";
+                        sema.error(index()) << "index '" << x << "' out of bounds '" << definite_array->dim() << "'\n";
                 }
             }
             return array->elem_type();

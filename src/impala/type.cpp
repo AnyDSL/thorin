@@ -47,8 +47,8 @@ const PrimType* TypeTable::primtype(TokenKind kind) {
     }
 }
 
-const DefiniteArray* TypeTable::definite_array(const Type* elem_type, u64 length) { 
-    return unify(new DefiniteArray(*this, elem_type, length)); 
+const DefiniteArray* TypeTable::definite_array(const Type* elem_type, u64 dim) { 
+    return unify(new DefiniteArray(*this, elem_type, dim)); 
 }
 const IndefiniteArray* TypeTable::indefinite_array(const Type* elem_type) { 
     return unify(new IndefiniteArray(*this, elem_type)); 
@@ -230,7 +230,7 @@ ANYDSL2_REFINE_SPECIALIZE(TupleType, tupletype)
 ANYDSL2_REFINE_SPECIALIZE(FnType, fntype)
 
 const Type* DefiniteArray::refine(const Sema& sema) const {
-    return typetable_.definite_array(elem_type()->refine(sema), length());
+    return typetable_.definite_array(elem_type()->refine(sema), dim());
 }
 
 const Type* IndefiniteArray::refine(const Sema& sema) const {
@@ -238,7 +238,7 @@ const Type* IndefiniteArray::refine(const Sema& sema) const {
 }
 
 const Type* DefiniteArray::specialize(const GenericMap& map) const {
-    return typetable_.definite_array(elem_type()->specialize(map), length());
+    return typetable_.definite_array(elem_type()->specialize(map), dim());
 }
 
 const Type* IndefiniteArray::specialize(const GenericMap& map) const {

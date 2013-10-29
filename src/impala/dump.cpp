@@ -85,8 +85,8 @@ std::ostream& GenericDecl::print(Printer& p) const { return p.stream() << symbol
 std::ostream& VarDecl::print(Printer& p) const { 
     p.stream() << (is_val() ? "val" : "var");
     if (orig_type())
-        p.stream() << " : " << orig_type(); 
-    return p.stream();
+        p.stream() << ':' << orig_type(); 
+    return p.stream() << ' ' << symbol();
 }
 
 std::ostream& Scope::print(Printer& p) const {

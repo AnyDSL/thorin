@@ -22,6 +22,7 @@
     case Token::TYPE_bool: \
     case Token::FN: \
     case Token::L_PAREN: \
+    case Token::L_BRACKET: \
     case Token::ID
 
 #define ITEM \
@@ -143,7 +144,7 @@ public:
     const Scope* parse_stmt_as_scope(const std::string& what);
     void parse_generics_list(GenericDecls&);
     const Type* parse_type();
-    const Type* try_type_postfix(const Type* type);
+    const Type* parse_array_type();
     const Type* parse_fn_type();
     const Type* parse_tuple_type();
     const Type* parse_return_type();
@@ -358,32 +359,44 @@ const Scope* Parser::parse_scope() {
  */
 
 const Type* Parser::parse_type() {
-    const Type* type;
     switch (la()) {
 #define IMPALA_TYPE(itype, atype) \
-        case Token::TYPE_##itype:   lex(); type = typetable.type_##itype(); break;
+        case Token::TYPE_##itype:   lex(); return typetable.type_##itype();
 #include "impala/tokenlist.h"
-        case Token::TYPE_int:       lex(); type = typetable.type_int32(); break;
-        case Token::TYPE_void:      lex(); type = typetable.type_void(); break;
-        case Token::TYPE_noret:     lex(); type = typetable.noret(); break;
-        case Token::FN:                    type = parse_fn_type(); break;
-        case Token::L_PAREN:               type = parse_tuple_type(); break;
-        case Token::ID:                    type = typetable.idtype(lex().symbol()); break;
-        default:                    error("type", ""); lex(); return typetable.type_error();
+        case Token::TYPE_int:       lex(); return typetable.type_int32();
+        case Token::TYPE_void:      lex(); return typetable.type_void();
+        case Token::TYPE_noret:     lex(); return typetable.noret();
+        case Token::FN:                    return parse_fn_type();
+        case Token::L_PAREN:               return parse_tuple_type();
+        case Token::ID:                    return typetable.idtype(lex().symbol());
+        case Token::L_BRACKET:      lex(); return parse_array_type();
+        default: error("type", ""); lex(); return typetable.type_error();
     }
-    return try_type_postfix(type);
 }
 
-const Type* Parser::try_type_postfix(const Type* type) {
-    if (accept(Token::L_BRACKET)) {
-        // parsing an array
-        size_t dim = 1;
-        while (accept(Token::COMMA))
-            ++dim;
-        expect(TokenKind::R_BRACKET, "end of array declaration");
-        return typetable.arraytype(dim, type);
+const Type* Parser::parse_array_type() {
+    const Type* result = parse_type();
+
+    while (accept(Token::MUL)) {
+        uint64_t length;
+        switch (la()) {
+            case Token::LIT_int8:   length = la().box().get_u8();  break;
+            case Token::LIT_int16:  length = la().box().get_u16(); break;
+            case Token::LIT_int32:  length = la().box().get_u32(); break;
+            case Token::LIT_int64:  length = la().box().get_u64(); break;
+            default:
+                length = 0;
+                error("integer literal", "definite array type");
+        }
+        lex();
+        result = typetable.definite_array(result, length);
     }
-    return type;
+
+    if (!result->isa<DefiniteArray>())
+        result = typetable.indefinite_array(result);
+
+    expect(Token::R_BRACKET, "array type");
+    return result;
 }
 
 const Type* Parser::parse_fn_type() {

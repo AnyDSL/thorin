@@ -804,6 +804,7 @@ const Slot* World::slot(const Type* type, Def frame, size_t index, const std::st
     return cse(new Slot(type, frame, index, name));
 }
 const LEA* World::lea(Def ptr, Def index, const std::string& name) { return cse(new LEA(ptr, index, name)); }
+const Addr* World::addr(Def lambda, const std::string& name) { return cse(new Addr(lambda, name)); }
 
 Lambda* World::lambda(const Pi* pi, Lambda::Attribute attribute, const std::string& name) {
     ANYDSL2_CHECK_BREAK(gid_)
@@ -927,22 +928,39 @@ void World::opt() {
     merge_lambdas(*this);
     cleanup();
 
-#if 0
-    for (auto lambda : lambdas()) {
-        lambda->attribute().clear(Lambda::Extern);
-        if (lambda->gid() == 42) {
-            Scope scope(lambda);
+    // HACK
+    for (auto cur : lambdas()) {
+        if (cur->is_connected_to_builtin() && !cur->is_basicblock()) {
+            Scope scope(cur);
             auto lifted = lift(scope, free_vars(scope));
             lifted->attribute().set(Lambda::Extern);
+
+            std::cout << "lambda: " << std::endl;
+            cur->dump_head();
+
+            for (auto use : cur->uses()) {
+                if (auto ulambda = use->isa_lambda()) {
+                    if (auto to = ulambda->to()->isa_lambda()) {
+                        std::cout << "ulambda: " << std::endl;
+                        ulambda->dump_head();
+                        if (to->is_builtin()) {
+                            Array<const Type*> elems = to->pi()->elems();
+                            elems[use.index()-1] = ptr(lifted->pi());
+                            ulambda->update_op(0, lambda(pi(elems), to->attribute(), to->name));
+                            ulambda->update_arg(use.index()-1, addr(lifted));
+                            to->attribute().clear(-1);
+                        }
+                    }
+                }
+            }
         }
     }
 
     cleanup();
-#endif
 }
 
 void World::eliminate_params() {
-    // after carefully reading the C++11 standard this statement correctly iterates over all old lambdas; 
+    // according to the the C++11 standard this statement correctly iterates over all old lambdas; 
     // new lambdas are not visited
     for (auto olambda : lambdas()) { 
         olambda->clear();

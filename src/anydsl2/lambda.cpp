@@ -120,12 +120,13 @@ Lambdas Lambda::direct_preds() const { return find_preds<true>(this); }
 bool Lambda::is_builtin() const { return attribute().is(Cuda); }
 
 bool Lambda::is_connected_to_builtin() const {
-    // check for uses in the context of builtin functions
-    for (auto use : uses()) {
-        if (auto lambda = use->isa<Lambda>())
-            if (auto to_lambda = lambda->to()->isa<Lambda>())
-                if (to_lambda->is_builtin())
-                    return true;
+    if (!is_builtin()) {
+        for (auto use : uses()) {
+            if (auto lambda = use->isa<Lambda>())
+                if (auto to_lambda = lambda->to()->isa<Lambda>())
+                    if (to_lambda->is_builtin())
+                        return true;
+        }
     }
     return false;
 }

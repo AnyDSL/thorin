@@ -8,6 +8,7 @@
 namespace anydsl2 {
 
 class ArrayType;
+class Pi;
 class PrimLit;
 class Sigma;
 class VectorType;
@@ -225,6 +226,19 @@ public:
     Def ptr() const { return op(0); }
     Def index() const { return op(1); }
     const Type* referenced_type() const; ///< Returns the type referenced by \p ptr().
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
+class Addr : public PrimOp {
+private:
+    Addr(Def lambda, const std::string& name);
+
+public:
+    Lambda* lambda() const { return op(0)->as_lambda(); }
+    const Pi* referenced_type() const;
 
     friend class World;
 };

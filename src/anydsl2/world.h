@@ -223,6 +223,7 @@ public:
 
     Def select(Def cond, Def a, Def b, const std::string& name = "");
     const TypeKeeper* typekeeper(const Type* type, const std::string& name = "");
+    const Addr* addr(Def lambda, const std::string& name = "");
 
     Lambda* lambda(const Pi* pi, Lambda::Attribute attribute = Lambda::Attribute(0), const std::string& name = "");
     Lambda* lambda(const Pi* pi, const std::string& name) { return lambda(pi, Lambda::Attribute(0), name); }

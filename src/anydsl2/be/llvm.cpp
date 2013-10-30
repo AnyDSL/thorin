@@ -52,6 +52,7 @@ private:
     std::unordered_map<const Param*, llvm::Value*> params;
     std::unordered_map<const Param*, llvm::PHINode*> phis;
     std::unordered_map<const PrimOp*, llvm::Value*> primops;
+    std::unordered_map<Lambda*, llvm::Function*> fcts;
 };
 
 //------------------------------------------------------------------------------
@@ -67,8 +68,6 @@ CodeGen::CodeGen(World& world, EmitHook& hook)
 }
 
 void CodeGen::emit() {
-    std::unordered_map<Lambda*, llvm::Function*> fcts;
-
     // map all root-level lambdas to llvm function stubs
     for (auto lambda : top_level_lambdas(world)) {
         llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
@@ -190,7 +189,7 @@ void CodeGen::emit() {
                     Array<llvm::Value*> args(lambda->args().size() - 1);
                     size_t i = 0;
                     Def ret_arg = 0;
-                    for (auto arg : lambda->args())
+                    for (auto arg : lambda->args()) {
                         if (arg->order() == 0) {
                             if (!arg->type()->isa<Mem>())
                                 args[i++] = lookup(arg);
@@ -198,6 +197,7 @@ void CodeGen::emit() {
                             assert(!ret_arg);
                             ret_arg = arg;
                         }
+                    }
                     args.shrink(i);
                     llvm::CallInst* call = builder.CreateCall(fcts[to_lambda], llvm_ref(args));
 
@@ -448,6 +448,9 @@ llvm::Value* CodeGen::emit(Def def) {
         assert(lea->referenced_type()->isa<ArrayType>());
         return builder.CreateInBoundsGEP(lookup(lea->ptr()), lookup(lea->index()));
     }
+
+    if (auto addr = def->isa<Addr>())
+        return fcts[addr->lambda()];
 
     assert(!def->is_corenode());
     return hook.emit(def);

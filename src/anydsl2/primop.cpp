@@ -126,6 +126,16 @@ const Type* LEA::referenced_type() const { return ptr()->type()->as<Ptr>()->refe
 
 //------------------------------------------------------------------------------
 
+Addr::Addr(Def lambda, const std::string& name)
+    : PrimOp(1, Node_Addr, lambda->world().ptr(lambda->type()), name)
+{
+    set_op(0, lambda);
+}
+
+const Pi* Addr::referenced_type() const { return lambda()->pi(); }
+
+//------------------------------------------------------------------------------
+
 const char* PrimOp::op_name() const {
     switch (kind()) {
 #define ANYDSL2_AIR_NODE(op, abbr) case Node_##op: return #abbr;

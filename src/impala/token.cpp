@@ -144,6 +144,7 @@ void Token::init() {
 
     tok2str_[ID]         = Symbol("<identifier>").str();
     insert(END_OF_FILE, "<end of file>");
+    insert_key(MUT, "mut");
 }
 
 /*static*/ void Token::insert_key(TokenKind tok, const char* str) {

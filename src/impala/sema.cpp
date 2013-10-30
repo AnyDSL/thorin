@@ -270,7 +270,7 @@ const Type* Id::check(Sema& sema) const {
             decl_ = decl;
 
             if (const VarDecl* vardecl = decl->isa<VarDecl>()) {
-                if (!vardecl->is_val() && (sema.nossa() || vardecl->fun() != sema.cur_fun()))
+                if (vardecl->is_mut() && (sema.nossa() || vardecl->fun() != sema.cur_fun()))
                     vardecl->is_address_taken_ = true;
             }
 
@@ -286,32 +286,36 @@ const Type* Id::check(Sema& sema) const {
 }
 
 const Type* PrefixExpr::check(Sema& sema) const {
+    auto rhs_type = sema.check(rhs());
     switch (kind()) {
         case INC:
         case DEC:
             if (!rhs()->is_lvalue())
                 sema.error(rhs()) << "lvalue required as operand\n";
-            return sema.check(rhs());
+            return rhs_type;
         case L_N:
-            if (!sema.check(rhs())->is_bool())
+            if (!rhs_type->is_bool())
                 sema.error(rhs()) << "logical not expects 'bool'\n";
             return sema.typetable().type_bool();
         default:
-            return sema.check(rhs());
+            return rhs_type;
     }
 }
 
 const Type* InfixExpr::check(Sema& sema) const {
+    auto lhs_type = sema.check(lhs());
+    auto rhs_type = sema.check(rhs());
+
     if (Token::is_assign((TokenKind) kind())) {
         if (!lhs()->is_lvalue())
             sema.error(lhs()) << "no lvalue on left-hand side of assignment\n";
-        else if (sema.check(lhs()) == sema.check(rhs()))
+        else if (lhs_type == rhs_type)
             return lhs()->type();
         else
             sema.error(this) << "incompatible types in assignment: '" 
                 << lhs()->type() << "' and '" << rhs()->type() << "'\n";
-    } else if (sema.check(lhs())->isa<PrimType>()) {
-        if (sema.check(rhs())->isa<PrimType>()) {
+    } else if (lhs_type->isa<PrimType>()) {
+        if (lhs_type->isa<PrimType>()) {
             if (lhs()->type() == rhs()->type()) {
                 if (Token::is_rel((TokenKind) kind()))
                     return sema.typetable().type_bool();
@@ -339,10 +343,11 @@ const Type* InfixExpr::check(Sema& sema) const {
 }
 
 const Type* PostfixExpr::check(Sema& sema) const {
+    auto lhs_type = sema.check(lhs());
     if (!lhs()->is_lvalue())
         sema.error(lhs()) << "lvalue required as operand\n";
 
-    return sema.check(lhs());
+    return lhs_type;
 }
 
 const Type* ConditionalExpr::check(Sema& sema) const {

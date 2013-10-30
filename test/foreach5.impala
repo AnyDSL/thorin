@@ -24,7 +24,7 @@ fn count(n : int, m : int, yield : fn(int, fn()), ret : fn()) {
 }
 
 fn main(n : int) -> int {
-    var b : int = 0;
+    let mut b : int = 0;
     foreach to5() |x : int| -> void {
         b += x;
     }

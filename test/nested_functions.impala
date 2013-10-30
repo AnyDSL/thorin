@@ -1,5 +1,5 @@
 fn main(i : int) -> int {
-    var x : int = 42;
+    let mut x : int = 42;
     fn f(j : int) -> int {
         return i + j + x;
     }

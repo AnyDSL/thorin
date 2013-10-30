@@ -1,9 +1,9 @@
 extern fn f(a : int) -> int {
-    var i : int = 22;
-    var j : int = 22;
-    var b : bool = i == 23;
+    let mut i : int = 22;
+    let mut j : int = 22;
+    let mut b : bool = i == 23;
 
-    val g : fn(int) -> int = |k : int| -> int { 
+    let g : fn(int) -> int = |k : int| -> int { 
         fn z(x : int) -> int { return x; }
         return i + j + a + z(k); 
     };
@@ -23,7 +23,7 @@ fn foo(h : fn(int, fn(int))) -> int {
 }
 
 extern fn bar(a : int) -> int {
-    val k : fn(int) -> int = |b : int| -> int {
+    let k : fn(int) -> int = |b : int| -> int {
         return a + b;
     };
     return foo(k);

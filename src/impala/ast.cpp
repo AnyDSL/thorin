@@ -18,6 +18,13 @@ TokenKind Literal::literal2type() const {
 
 bool Call::is_continuation_call() const { return type()->isa<NoRet>() != nullptr; }
 
+bool Id::is_lvalue() const { 
+    assert(decl());
+    if (auto vardecl = decl()->isa<VarDecl>())
+        return vardecl->is_mut();
+    return false;
+}
+
 Location Call::args_location() const {
     if (ops().size() == 1)
         return Location(pos2());

@@ -5,8 +5,8 @@
  */
 
 fn pyth<T>(Num :(fn(T, T, fn(T)), fn(T, T, fn(T))), num1 : T, num2 : T) -> T {
-    val add : fn(T, T, fn(T)) = Num[0];
-    val mul : fn(T, T, fn(T)) = Num[1];
+    let add : fn(T, T, fn(T)) = Num[0];
+    let mul : fn(T, T, fn(T)) = Num[1];
     return add(mul(num1, num1), mul(num2, num2));
 }
 
@@ -14,6 +14,6 @@ fn add(a : int, b : int) -> int { return a + b; }
 fn mul(a : int, b : int) -> int { return a * b; }
 
 fn main(i : int, j : int) -> int {
-    val Num :(fn(int, int, fn(int)), fn(int, int, fn(int))) = (add, mul);
+    let Num :(fn(int, int, fn(int)), fn(int, int, fn(int))) = (add, mul);
     return pyth(Num, i, j);
 }

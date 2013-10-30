@@ -3,8 +3,8 @@ extern fn fac(n : float) -> float
     if (n <= 1.f) 
         return 1.f;
 
-    var r : float = 1.f;
-    for (var i : float = 2.f; i <= n; ++i)
+    let mut r : float = 1.f;
+    for (let mut i : float = 2.f; i <= n; ++i)
         r *= i;
 
     return r;

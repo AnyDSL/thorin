@@ -1,5 +1,5 @@
 fn main() -> int {
-    var i : int;
-    var j : int;
+    let mut i : int;
+    let mut j : int;
     return i + j;
 }

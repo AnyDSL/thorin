@@ -13,7 +13,7 @@ fn count(n : int, yield : fn(int, fn()), ret : fn()) {
 }
 
 fn main() -> int {
-    var b : int = 0;
+    let mut b : int = 0;
     foreach count(10) |x: int| -> void {
         b += x;
         foreach count(x) |y: int| -> void {

@@ -8,9 +8,9 @@ fn seq(a: int, b: int) -> (int, fn(int, fn(int, fn()), fn())) {
 }
 
 fn fold(f: fn(int, int) -> int, z: int, stream: (int, fn(int, fn(int, fn()), fn())), ret: fn(int)) {
-    var res = z;
-    var a = stream[0];
-    var s = stream[1];
+    let mut res = z;
+    let mut a = stream[0];
+    let mut s = stream[1];
     s(a, |i: int, next: fn()| {
             res = f(res, i);
             next();

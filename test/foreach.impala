@@ -13,12 +13,12 @@ fn count(n : int, yield : fn(int, fn()), ret : fn()) {
 }
 
 fn main(n : int) -> int {
-    var b : int = 2;
+    let mut b : int = 2;
     foreach count(10)  |x : int| -> void {
         b += x;
     }
 
-    var x : int = 42;
+    let mut x : int = 42;
     foreach count(10)  |x : int| -> void {
         b += x;
     }

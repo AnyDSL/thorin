@@ -83,7 +83,7 @@ void Type::dump() const { Printer p(std::cout, true); p.print_type(this) << std:
 std::ostream& GenericDecl::print(Printer& p) const { return p.stream() << symbol(); }
 
 std::ostream& VarDecl::print(Printer& p) const { 
-    p.stream() << (is_val() ? "val" : "var");
+    p.stream() << (is_mut() ? "let mut" : "let");
     if (orig_type())
         p.stream() << ": " << orig_type(); 
     return p.stream() << ' ' << symbol();

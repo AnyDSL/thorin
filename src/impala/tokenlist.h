@@ -124,8 +124,7 @@ IMPALA_KEY_STMT(FOREACH,    "foreach")
 IMPALA_KEY_STMT(BREAK,      "break")
 IMPALA_KEY_STMT(CONTINUE,   "continue")
 IMPALA_KEY_STMT(RETURN,     "return")
-IMPALA_KEY_STMT(VAR,        "var")
-IMPALA_KEY_STMT(VAL,        "val")
+IMPALA_KEY_STMT(LET,        "let")
 
 #undef IMPALA_KEY_STMT
 

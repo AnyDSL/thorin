@@ -1,10 +1,10 @@
 fn blocked_loop(length : int, get_block_size : fn(int) -> int, bodyfn : fn(int, fn(int))) -> int {
     fn blocked_iter(cur_level : int, i : int, N : int) -> int {
-        var block_size : int = get_block_size(cur_level);
+        let mut block_size : int = get_block_size(cur_level);
         if (block_size <= 0)
             return bodyfn(i);
-        var res : int = 0;
-        for (var ii : int = i; ii < N; ii += block_size)
+        let mut res : int = 0;
+        for (let mut ii : int = i; ii < N; ii += block_size)
             res += blocked_iter(cur_level + 1, ii, block_size);
 
         return res;

@@ -2,8 +2,8 @@ fn range_xy<L>(l : L,
                   xn : int, yn : int,
                   body : fn(L, int, int) -> L) -> L
 {
-    for (var y = 0; y < yn; ++y)
-        for (var x = 0; x < xn; ++x)
+    for (let mut y = 0; y < yn; ++y)
+        for (let mut x = 0; x < xn; ++x)
             l = body(l, x, y);
 
     return l;
@@ -44,7 +44,7 @@ fn main(j : int) -> int64 {
         return 25l;
     }
 
-    var g = 26l;
+    let mut g = 26l;
 
     return initially(g, 100, 200, make_strand, write_result, update);
 }

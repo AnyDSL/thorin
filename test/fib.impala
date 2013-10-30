@@ -9,8 +9,8 @@ fn fib(n : int, yield : fn(int, fn()), ret : fn()) {
 }
 
 fn main() -> int {
-    var result : int = 0;
-    for (var i : int = 15000000; i > 0; --i) {
+    let mut result : int = 0;
+    for (let mut i : int = 15000000; i > 0; --i) {
         fib(40,
             |f : int| -> void { result = result % 4 + f; },
             || { continue; }

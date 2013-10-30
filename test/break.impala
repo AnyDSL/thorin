@@ -1,6 +1,6 @@
 fn main(n : int) -> int {
-    var res : int = 0;
-    for (var i : int = 0; i < n; ++i) {
+    let mut res : int = 0;
+    for (let mut i : int = 0; i < n; ++i) {
         if (i*i > 42)
             break;
         res += i;

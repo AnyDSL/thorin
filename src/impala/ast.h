@@ -178,9 +178,9 @@ private:
 
 class VarDecl : public LetDecl {
 public:
-    VarDecl(size_t handle, bool is_val, const Token& tok, const Type* orig_type, const anydsl2::Position& pos2)
+    VarDecl(size_t handle, bool is_mut, const Token& tok, const Type* orig_type, const anydsl2::Position& pos2)
         : handle_(handle)
-        , is_val_(is_val)
+        , is_mut_(is_mut)
         , is_address_taken_(false)
     {
         symbol_ = tok.symbol();
@@ -189,7 +189,7 @@ public:
     }
 
     size_t handle() const { return handle_; }
-    bool is_val() const { return is_val_; }
+    bool is_mut() const { return is_mut_; }
     bool is_address_taken() const { return is_address_taken_; }
     const Fun* fun() const { return fun_; }
     virtual void check(Sema& sema) const;
@@ -197,7 +197,7 @@ public:
 
 private:
     size_t handle_;
-    bool is_val_;
+    bool is_mut_;
     mutable bool is_address_taken_;
     mutable const Fun* fun_;
 
@@ -398,6 +398,7 @@ class Id : public Expr {
 public:
     Id(const Token& tok)
         : symbol_(tok.symbol())
+        , decl_(nullptr)
     {
         loc_ = tok.loc();
     }
@@ -405,7 +406,7 @@ public:
     anydsl2::Symbol symbol() const { return symbol_; }
     const Decl* decl() const { return decl_; }
 
-    virtual bool is_lvalue() const { return true; }
+    virtual bool is_lvalue() const;
     virtual std::ostream& print(Printer& p) const;
 
 private:

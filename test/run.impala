@@ -3,10 +3,10 @@ fn f(i: int) -> int {
 }
 
 fn main(i: int) -> int {
-    var a = f(i);
-    var b = @f(4);
-    var c = f(i);
-    var d = f(i);
+    let mut a = f(i);
+    let mut b = @f(4);
+    let mut c = f(i);
+    let mut d = f(i);
 
     return a + b + c + d;
 }

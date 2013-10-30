@@ -1,6 +1,6 @@
 extern fn foo(n : int) -> int {
-    var a : int = 0;
-    for (var i : int = 0; i < n; ++i)
+    let mut a : int = 0;
+    for (let mut i : int = 0; i < n; ++i)
         ++a;
 
     return a;

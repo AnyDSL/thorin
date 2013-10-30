@@ -31,10 +31,6 @@
     case Token::CLASS: \
     case Token::STRUCT
 
-#define DECL \
-         Token::VAL: \
-    case Token::VAR
-
 #define EXPR \
          Token::LIT_int8: \
     case Token::LIT_int16: \
@@ -60,7 +56,7 @@
     case Token::L_BRACKET
     
 #define STMT_NO_EXPR \
-         DECL: \
+         Token::LET: \
     case ITEM: \
     case Token::IF: \
     case Token::FOR: \
@@ -430,6 +426,7 @@ const Type* Parser::parse_return_type() {
  */
 
 const VarDecl* Parser::parse_var_decl(bool is_param) {
+    bool is_mut = accept(Token::MUT);
     Token tok = la();
     expect(Token::ID, "declaration");
     const Type* type;
@@ -439,7 +436,7 @@ const VarDecl* Parser::parse_var_decl(bool is_param) {
         expect(Token::COLON, "declaration");
         type = parse_type();
     }
-    return new VarDecl(cur_var_handle++, is_param, tok, type, prev_loc().pos2());
+    return new VarDecl(cur_var_handle++, is_mut, tok, type, prev_loc().pos2());
 }
 
 void Parser::parse_proto(Proto* proto) {
@@ -667,9 +664,9 @@ const Stmt* Parser::parse_stmt() {
         return parse_label_stmt();
 
     switch (la()) {
-        case DECL:              return parse_init_stmt();
         case EXPR:              return parse_expr_stmt();
         case ITEM:              return parse_item_stmt();
+        case Token::LET:        return parse_init_stmt();
         case Token::BREAK:      return parse_break();
         case Token::CONTINUE:   return parse_continue();
         case Token::DO:         return parse_do_while();
@@ -705,8 +702,8 @@ const ExprStmt* Parser::parse_expr_stmt() {
 }
 
 const Stmt* Parser::parse_init_stmt() {
-    lex(); // eat val/var
     auto s = loc(new InitStmt());
+    lex(); // eat let
     s->var_decl_ = parse_var_decl(false);
     if (accept(Token::ASGN))
         s->init_ = parse_expr();
@@ -782,8 +779,8 @@ const Stmt* Parser::parse_for() {
 
     // clause 1: decl or expr_opt ';'
     switch (la()) {
-        case DECL:              loop->init_ = parse_init_stmt(); break;
         case EXPR:              loop->init_ = parse_expr_stmt(); break;
+        case Token::LET:        loop->init_ = parse_init_stmt(); break;
         case Token::SEMICOLON:  loop->init_ = lex_as_empty_expr_stmt(); break;
         default: error("expression or delcaration statement", "first clause in for statement");
     }

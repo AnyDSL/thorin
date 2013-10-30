@@ -1,7 +1,7 @@
 fn main(i : int) -> int {
     while (i < 42) {
         do {
-            for (var j : int = 5; i < j; ++j)
+            for (let mut j : int = 5; i < j; ++j)
                 ++i;
         } while (i < 23);
     }

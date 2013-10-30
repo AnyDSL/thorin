@@ -1,5 +1,5 @@
 fn main(i : int) -> int {
-    var result : int;
+    let mut result : int;
     if (i < 0)
         result = 1;
     else if (i == 0)

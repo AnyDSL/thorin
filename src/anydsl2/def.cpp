@@ -44,7 +44,7 @@ void DefNode::set_op(size_t i, Def def) {
     if (isa<PrimOp>()) is_const_ &= node->is_const();
     auto p = node->uses_.emplace(i, this);
     assert(p.second && "already in use set");
-    assert(this->isa<Lambda>() || !def->isa<EvalOp>());
+    //assert(this->isa<Lambda>() || !def->isa<EvalOp>());
 }
 
 void DefNode::unregister_use(size_t i) const { 

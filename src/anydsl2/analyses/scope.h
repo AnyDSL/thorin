@@ -28,7 +28,7 @@ public:
     ArrayRef<Lambda*> backwards_rpo() const;
     ArrayRef<Lambda*> exits() const { return backwards_rpo().slice_to_end(num_exits()); }
     /// Like \p backwards_rpo() but without \p exits().
-    ArrayRef<Lambda*> backwards_body() const { return backwards_rpo().slice_to_end(num_exits()); }
+    ArrayRef<Lambda*> backwards_body() const { return backwards_rpo().slice_from_begin(num_exits()); }
     Lambda* rpo(size_t i) const { return rpo_[i]; }
     Lambda* operator [] (size_t i) const { return rpo(i); }
     ArrayRef<Lambda*> preds(Lambda* lambda) const;

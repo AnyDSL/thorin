@@ -1,4 +1,4 @@
-fn range_xy<L>(l : L,
+fn range_xy<L>(mut l : L,
                   xn : int, yn : int,
                   body : fn(L, int, int) -> L) -> L
 {

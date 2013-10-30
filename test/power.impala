@@ -9,6 +9,6 @@ fn power(a: int, mut b: int) -> int {
 }
 
 fn main(i: int) -> int {
-    let power4 = |a: int| -> int { return @power(a, 4); };
-    return power4(i) + @power(3, 4);
+    let power4 = |a: int| -> int { return @power(4, a); };
+    return power4(i) + power(3, 4);
 }

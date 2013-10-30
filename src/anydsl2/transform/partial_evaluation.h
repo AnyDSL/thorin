@@ -7,7 +7,6 @@ class World;
 
 void partial_evaluation(World&);
 
-} // namespace anydsl2
+}
 
-#endif // ANYDSL2_TRANSFORM_PARTIAL_EVALUATION_H
-
+#endif

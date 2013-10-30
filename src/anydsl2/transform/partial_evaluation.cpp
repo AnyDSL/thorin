@@ -68,8 +68,6 @@ void partial_evaluation(World& world) {
                         dropped = drop(Scope(call.to), call.idx, args, map);
                         done[call] = dropped;
                         todo = true;
-
-                        Scope scope(dropped);
                     }
 
                     lambda->jump(dropped, lambda->args().cut(call.idx));

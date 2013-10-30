@@ -97,16 +97,17 @@ void CodeGen::emit(const Scope* scope, JumpTarget& exit_bb) {
     else {
         size_t i = 0;
         for (; i != size - 1; ++i) {
-            // TODO: fixme
             if (auto stmt = scope->stmt(i)->isa<Stmt>()) {
                 JumpTarget stmt_exit_bb("next");
                 emit(stmt, stmt_exit_bb);
                 enter(stmt_exit_bb);
-            }
+            } else
+                assert(false && "TODO");
         }
-        // TODO: fixme
         if (auto stmt = scope->stmt(i)->isa<Stmt>())
             emit(stmt, exit_bb);
+        else
+            assert(false && "TODO");
     }
 }
 
@@ -541,9 +542,10 @@ void ReturnStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
             args.back() = ret_param;
             cg.tail_call(ops[0], args);
         } else {
-            if (expr()) 
-                cg.param_call(ret_param, {cg.world().leave(cg.get_mem(), fun()->frame()), cg.emit(expr())->load()});
-            else
+            if (expr()) {
+                auto retval = cg.emit(expr())->load();
+                cg.param_call(ret_param, {cg.world().leave(cg.get_mem(), fun()->frame()), retval});
+            } else
                 cg.param_call(ret_param, {cg.world().leave(cg.get_mem(), fun()->frame())});
         }
     }

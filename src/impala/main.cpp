@@ -84,20 +84,20 @@ int main(int argc, char** argv) {
         impala::Init init;
 
 #ifndef NDEBUG
-       for (auto b : breakpoints) {
-           assert(b.size() > 0);
-           size_t num = 0;
-           for (size_t i = 0, e = b.size(); i != e; ++i) {
-               char c = b[i];
-               if (!std::isdigit(c)) {
-                   std::cerr << "invalid breakpoint '" << b << "'" << std::endl;
-                   return EXIT_FAILURE;
-               }
-               num = num*10 + c - '0';
-           }
+        for (auto b : breakpoints) {
+            assert(b.size() > 0);
+            size_t num = 0;
+            for (size_t i = 0, e = b.size(); i != e; ++i) {
+                char c = b[i];
+                if (!std::isdigit(c)) {
+                    std::cerr << "invalid breakpoint '" << b << "'" << std::endl;
+                    return EXIT_FAILURE;
+                }
+                num = num*10 + c - '0';
+            }
 
-           init.world.breakpoint(num);
-       }
+            init.world.breakpoint(num);
+        }
 #endif
 
         anydsl2::AutoPtr<impala::Scope> prg = new impala::Scope();

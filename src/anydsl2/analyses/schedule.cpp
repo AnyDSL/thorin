@@ -23,7 +23,8 @@ Schedule schedule_early(const Scope& scope) {
         auto& primops = schedule[i];
 
         for (auto param : lambda->params())
-            queue.push(param);
+            if (!param->is_proxy())
+                queue.push(param);
 
         while (!queue.empty()) {
             Def def = queue.front();

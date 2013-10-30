@@ -11,10 +11,13 @@
 #include "anydsl2/literal.h"
 #include "anydsl2/memop.h"
 #include "anydsl2/type.h"
+#include "anydsl2/analyses/free_vars.h"
 #include "anydsl2/analyses/schedule.h"
+#include "anydsl2/analyses/scope.h"
 #include "anydsl2/analyses/verify.h"
 #include "anydsl2/transform/lower2cff.h"
 #include "anydsl2/transform/inliner.h"
+#include "anydsl2/transform/mangle.h"
 #include "anydsl2/transform/mem2reg.h"
 #include "anydsl2/transform/merge_lambdas.h"
 #include "anydsl2/transform/partial_evaluation.h"
@@ -923,6 +926,19 @@ void World::opt() {
     inliner(*this);
     merge_lambdas(*this);
     cleanup();
+
+#if 0
+    for (auto lambda : lambdas()) {
+        lambda->attribute().clear(Lambda::Extern);
+        if (lambda->gid() == 42) {
+            Scope scope(lambda);
+            auto lifted = lift(scope, free_vars(scope));
+            lifted->attribute().set(Lambda::Extern);
+        }
+    }
+
+    cleanup();
+#endif
 }
 
 void World::eliminate_params() {
@@ -989,7 +1005,6 @@ static void set_mapped(const DefNode* odef, const DefNode* ndef) { ((const DefNo
 
 void World::dead_code_elimination() {
     const auto pass = new_pass();
-    std::vector<const DefNode*> stack;
 
     // elimimante useless enters/leaves
     for (auto primop : primops()) {

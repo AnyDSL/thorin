@@ -935,14 +935,9 @@ void World::opt() {
             auto lifted = lift(scope, free_vars(scope));
             lifted->attribute().set(Lambda::Extern);
 
-            std::cout << "lambda: " << std::endl;
-            cur->dump_head();
-
             for (auto use : cur->uses()) {
                 if (auto ulambda = use->isa_lambda()) {
                     if (auto to = ulambda->to()->isa_lambda()) {
-                        std::cout << "ulambda: " << std::endl;
-                        ulambda->dump_head();
                         if (to->is_builtin()) {
                             Array<const Type*> elems = to->pi()->elems();
                             elems[use.index()-1] = ptr(lifted->pi());

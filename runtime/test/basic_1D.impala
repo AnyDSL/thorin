@@ -31,14 +31,14 @@ fn main() -> [float] {
             let c2 = @convolve(arr, mask, 3, x, y, z, width, height, depth);
             // TODO: passing 'range' instead of '3' results in infinite loop
             // during compilation / partial evaluation
-            //val c2 = @convolve(arr, mask, range, x, y, z, width, height, depth);
+            //let c2 = @convolve(arr, mask, range, x, y, z, width, height, depth);
             out[index] = c2 + a2 + b2;
 
             // TODO: support reductions
             l2sum += c2*c2;
         });
         // TODO: introduce casts, implicit or explicit
-        //val l2norm = sqrt(l2sum)/(width*height);
+        //let l2norm = sqrt(l2sum)/(width*height);
         let l2norm = sqrt(l2sum)/(1024.f*1024.f);
 
         let mut tmp : [float];
@@ -58,8 +58,8 @@ fn convolve(arr : [float], mask : [float * 3 * 3], range : int, x : int, y : int
     // - iterate over C const arrays
     // - consider only non-null values
     // - get value and index of current element
-    // for (val cur not null in mask.values(), val idx in mask.index()) {
-    //   sum += val * arr((x, y, z) + idx);
+    // for (let cur not null in mask.values(), let idx in mask.index()) {
+    //   sum += let * arr((x, y, z) + idx);
     // }
     for (let mut yf=-range; yf<range; ++yf) {
         for (let mut xf=-range; xf<range; ++xf) {

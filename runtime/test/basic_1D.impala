@@ -7,28 +7,28 @@ fn idx(x : int, y: int, z : int, width : int, height : int, depth : int) -> int 
 }
 
 fn main() -> [float] {
-    val width   = 1024;
-    val height  = 1024;
-    val depth   = 1;
-    val range   = 3;
-    val size    = 2*range;
-    val arr     = array(width * height * depth);
-    val out     = array(width * height * depth);
+    let width   = 1024;
+    let height  = 1024;
+    let depth   = 1;
+    let range   = 3;
+    let size    = 2*range;
+    let mut arr = array(width * height * depth);
+    let mut out = array(width * height * depth);
     // convolution filter mask for 3x3 gaussian blur
-    val mask : [float *3 * 3] = [
+    let mask : [float *3 * 3] = [
         [0.057118f, 0.124758f, 0.057118f],
         [0.124758f, 0.272496f, 0.124758f],
         [0.057118f, 0.124758f, 0.057118f]];
 
-    for (var iter=0; iter<100; ++iter) {
-        var l2sum = 0.0f;
+    for (let mut iter=0; iter<100; ++iter) {
+        let mut l2sum = 0.0f;
         all_on_gpu(out, |x : int, y : int, z : int| -> void {
-            val index = x + width * y + height * depth * z;
+            let index = x + width * y + height * depth * z;
             // TODO: call to idx triggers assertion
-            //val index = idx(x, y, z, width, height, depth);
-            val a2 = out[index];
-            val b2 = arr[index];
-            val c2 = @convolve(arr, mask, 3, x, y, z, width, height, depth);
+            //let index = idx(x, y, z, width, height, depth);
+            let a2 = out[index];
+            let b2 = arr[index];
+            let c2 = @convolve(arr, mask, 3, x, y, z, width, height, depth);
             // TODO: passing 'range' instead of '3' results in infinite loop
             // during compilation / partial evaluation
             //val c2 = @convolve(arr, mask, range, x, y, z, width, height, depth);
@@ -39,9 +39,9 @@ fn main() -> [float] {
         });
         // TODO: introduce casts, implicit or explicit
         //val l2norm = sqrt(l2sum)/(width*height);
-        val l2norm = sqrt(l2sum)/(1024.f*1024.f);
+        let l2norm = sqrt(l2sum)/(1024.f*1024.f);
 
-        var tmp : [float];
+        let mut tmp : [float];
         tmp = arr;
         arr = out;
         out = tmp;
@@ -51,8 +51,8 @@ fn main() -> [float] {
 }
 
 fn convolve(arr : [float], mask : [float * 3 * 3], range : int, x : int, y : int, z : int, width : int, height : int, depth : int) -> float {
-    var sum = 0.0f;
-    val msize = 2*range;
+    let mut sum = 0.0f;
+    let msize = 2*range;
 
     // TODO:
     // - iterate over C const arrays
@@ -61,9 +61,9 @@ fn convolve(arr : [float], mask : [float * 3 * 3], range : int, x : int, y : int
     // for (val cur not null in mask.values(), val idx in mask.index()) {
     //   sum += val * arr((x, y, z) + idx);
     // }
-    for (var yf=-range; yf<range; ++yf) {
-        for (var xf=-range; xf<range; ++xf) {
-            val index = x + xf + width * (y + yf) + width * height * z;
+    for (let mut yf=-range; yf<range; ++yf) {
+        for (let mut xf=-range; xf<range; ++xf) {
+            let index = x + xf + width * (y + yf) + width * height * z;
             // TODO: propagate mask[imask] in case mask is a C const array
             sum += mask[range + xf][range +yf] * arr[index];
         }

@@ -83,10 +83,11 @@ void Type::dump() const { Printer p(std::cout, true); p.print_type(this) << std:
 std::ostream& GenericDecl::print(Printer& p) const { return p.stream() << symbol(); }
 
 std::ostream& VarDecl::print(Printer& p) const { 
-    p.stream() << (is_mut() ? "let mut" : "let");
+    p.stream() << (is_mut() ? "mut " : "");
+    p.stream() << symbol();
     if (orig_type())
         p.stream() << ": " << orig_type(); 
-    return p.stream() << ' ' << symbol();
+    return p.stream();
 }
 
 std::ostream& Scope::print(Printer& p) const {
@@ -272,6 +273,7 @@ std::ostream& FunExpr::print(Printer& p) const { return fun()->print(p); }
 std::ostream& ItemStmt::print(Printer& p) const { return item()->print(p); }
 
 std::ostream& InitStmt::print(Printer& p) const {
+    p.stream() << "let ";
     var_decl()->print(p);
     if (init()) {
         p.stream() << " = ";

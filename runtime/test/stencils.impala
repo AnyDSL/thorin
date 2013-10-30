@@ -1,12 +1,12 @@
-extern all_on_gpu(float[], fn(int, int, int) -> void) -> int;
-extern array(int) -> float[];
+extern all_on_gpu([float], fn(int, int, int) -> void) -> int;
+extern array(int) -> [float];
 extern sqrt(float) -> float;
 
 fn idx(x : int, y: int, z : int, width : int, height : int, depth : int) -> int {
     return x + width * y + z * width * height;
 }
 
-fn main() -> float[] {
+fn main() -> [float] {
     val width   = 1024;
     val height  = 1024;
     val depth   = 1;
@@ -17,10 +17,10 @@ fn main() -> float[] {
 
 
     // deriv 2D
-    val mask    = array(size * size);
-    mask[0] = 0.0f; mask[1] = 1.0f; mask[2] = 0.0f;
-    mask[3] = 1.0f; mask[4] = 4.0f; mask[5] = 1.0f;
-    mask[6] = 0.0f; mask[7] = 1.0f; mask[8] = 0.0f;
+    val mask = [
+        [0.0f, 1.0f, 0.0f],
+        [1.0f, 4.0f, 1.0f],
+        [0.0f, 1.0f, 0.0f]];
     all_on_gpu(out, |x : int, y : int, z : int| -> void {
         //val result = @convolve(in, mask, 1.0f, range, x, y, z, width, height, depth);
         val result = - (
@@ -110,7 +110,8 @@ fn main() -> float[] {
         val value = in[idx(x, y, z, width, height, depth)];
         l2sum += value*value;
     });
-    val l2norm = sqrtf(l2sum)/(width*height)
+    //val l2norm = sqrt(l2sum)/(width*height);
+    val l2norm = sqrt(l2sum)/(1024.0f*1024.0f);
 
 
     // Interpolate: in = size/2 x size/2; out = size x size; coarse -> fine
@@ -143,7 +144,7 @@ fn main() -> float[] {
     return out;
 }
 
-fn convolve(arr : float[], mask : float[], omega : float, range : int, x : int, y : int, z : int, width : int, height : int, depth : int) -> float {
+fn convolve(arr : [float], mask : [float * 3 * 3], omega : float, range : int, x : int, y : int, z : int, width : int, height : int, depth : int) -> float {
     var sum = 0.0f;
     val msize = 2*range;
 
@@ -157,9 +158,8 @@ fn convolve(arr : float[], mask : float[], omega : float, range : int, x : int, 
     for (var yf=-range; yf<range; ++yf) {
         for (var xf=-range; xf<range; ++xf) {
             val index = x + xf + width * (y + yf) + width * height * z;
-            val imask = range + xf +  msize * (range + yf);
             // TODO: propagate mask[imask] in case mask is a C const array
-            sum += omega * mask[imask] * arr[index];
+            sum += omega * mask[range + xf][range + yf] * arr[index];
         }
     }
 

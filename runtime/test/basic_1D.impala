@@ -64,7 +64,6 @@ fn convolve(arr : [float], mask : [float * 3 * 3], range : int, x : int, y : int
     for (var yf=-range; yf<range; ++yf) {
         for (var xf=-range; xf<range; ++xf) {
             val index = x + xf + width * (y + yf) + width * height * z;
-            val imask = range + xf +  msize * (range + yf);
             // TODO: propagate mask[imask] in case mask is a C const array
             sum += mask[range + xf][range +yf] * arr[index];
         }

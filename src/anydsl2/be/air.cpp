@@ -35,9 +35,9 @@ std::ostream& CodeGen::emit_type(const Type* type) {
     } else if (type->isa<Mem>()) {
         return stream() << "mem";
     } else if (auto pi = type->isa<Pi>()) {
-        return dump_list([&](const Type* type) { emit_type(type); }, pi->elems(), "pi(", ")");
+        return dump_list([&](const Type* type) { emit_type(type); }, pi->elems(), "fn(", ")");
     } else if (auto sigma = type->isa<Sigma>()) {
-        return dump_list([&](const Type* type) { emit_type(type); }, sigma->elems(), "[", "]");
+        return dump_list([&](const Type* type) { emit_type(type); }, sigma->elems(), "(", ")");
     } else if (auto generic = type->isa<Generic>()) {
         return stream() << '<' << generic->index() << '>';
     } else if (auto genref = type->isa<GenericRef>()) {
@@ -45,9 +45,9 @@ std::ostream& CodeGen::emit_type(const Type* type) {
         emit_name(genref->lambda()) << ", ";
         return emit_type(genref->generic()) << '>';
     } else if (auto array = type->isa<ArrayType>()) {
-        stream() << "array(";
+        stream() << '[';
         emit_type(array->elem_type());
-        return stream() << ')';
+        return stream() << ']';
     } else if (auto ptr = type->isa<Ptr>()) {
         if (ptr->is_vector())
             stream() << '<' << ptr->length() << " x ";
@@ -147,7 +147,7 @@ std::ostream& CodeGen::emit_jump(const Lambda* lambda) {
         if (lambda->attribute().is(Lambda::Run))
             stream() << '@';
         emit_def(lambda->to());
-        dump_list([&](Def def) { emit_def(def); }, lambda->args(), "(", ")");
+        dump_list([&](Def def) { emit_def(def); }, lambda->args(), " ", "");
     }
     return down();
 }

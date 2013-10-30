@@ -69,6 +69,8 @@ bool CodeGen::emit_prg(const Scope* prg) {
             // HACK: eliminate this hack
             if (lambda->name == "all_on_gpu")
                 lambda->attribute().set(Lambda::Cuda);
+            if (lambda->name == "array")
+                lambda->attribute().set(Lambda::ArrayInit);
             // register proto
             protos_[proto] = lambda;
         }
@@ -377,9 +379,11 @@ RefPtr Call::emit(CodeGen& cg) const {
         return RefPtr(nullptr);
     }
 
-    cg.mem_call(ops[0], args, type()->convert(cg.world()));
+    cg.mem_call(ops[0], args, type()->is_void() ? nullptr : type()->convert(cg.world()));
     cg.set_mem(cg.cur_bb->param(0));
 
+    if (type()->is_void())
+        return Ref::create(cg.world().bottom(cg.world().mem()));
     return Ref::create(cg.cur_bb->param(1));
 }
 

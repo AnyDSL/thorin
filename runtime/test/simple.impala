@@ -1,4 +1,4 @@
-extern all_on_gpu([float], fn(int, int, int) -> void) -> int;
+extern all_on_gpu([float], fn(fn() -> int, fn() -> int, fn() -> int) -> void) -> int;
 extern array(int) -> [float];
 
 fn main() -> [float] {
@@ -6,8 +6,8 @@ fn main() -> [float] {
     let arr     = array(width);
     let out     = array(width);
 
-    all_on_gpu(out, |x : int, y : int, z : int| -> void {
-        out[x] = arr[x];
+    all_on_gpu(out, |x : fn() -> int, y : fn() -> int, z : fn() -> int| -> void {
+        out[x()] = arr[x()];
     });
 
     return out;

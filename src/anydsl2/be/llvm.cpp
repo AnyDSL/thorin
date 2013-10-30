@@ -13,6 +13,7 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Type.h>
+#include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/Analysis/Verifier.h>
 
@@ -38,6 +39,8 @@ class CodeGen {
 public:
     CodeGen(World& world, EmitHook& hook);
 
+    void emit_cuda_decls();
+    void emit_cuda(Lambda* target, ArrayRef<llvm::BasicBlock*> bbs);
     void emit();
     llvm::Type* map(const Type* type);
     llvm::Value* emit(Def def);
@@ -49,10 +52,23 @@ private:
     llvm::LLVMContext context;
     llvm::IRBuilder<> builder;
     AutoPtr<llvm::Module> module;
+    AutoPtr<llvm::Module> cuda_module;
     std::unordered_map<const Param*, llvm::Value*> params;
     std::unordered_map<const Param*, llvm::PHINode*> phis;
     std::unordered_map<const PrimOp*, llvm::Value*> primops;
     std::unordered_map<Lambda*, llvm::Function*> fcts;
+
+    // cuda functions
+    llvm::Function* cuda_thread_id_getter[3];
+    llvm::Function* malloc_gpu;
+    llvm::Function* mem_to_gpu;
+    llvm::Function* load_kernel;
+    llvm::Function* set_kernel_arg;
+    llvm::Function* set_problem_size;
+    llvm::Function* launch_kernel;
+    llvm::Function* synchronize;
+    llvm::Function* mem_to_host;
+    llvm::Function* free_gpu;
 };
 
 //------------------------------------------------------------------------------
@@ -63,41 +79,167 @@ CodeGen::CodeGen(World& world, EmitHook& hook)
     , context()
     , builder(context)
     , module(new llvm::Module("anydsl", context))
+    , cuda_module(new llvm::Module("a_kernel", context))
 {
     hook.assign(&builder, module);
 }
 
+// HACK -> nicer and integrated
+void CodeGen::emit_cuda_decls() {
+    const char* thread_id_names[] = { "llvm.nvvm.read.pts.sreg.ctaid.x", "llvm.nvvm.read.pts.sreg.ctaid.y", "llvm.nvvm.read.pts.sreg.ctaid.z" };
+    llvm::FunctionType* thread_id_type = llvm::FunctionType::get(llvm::IntegerType::getInt32Ty(context), false);
+    for (size_t i = 0; i < 3; ++i)
+        cuda_thread_id_getter[i] = llvm::Function::Create(thread_id_type, llvm::Function::ExternalLinkage, thread_id_names[i], cuda_module);
+    llvm::Type* void_ty = llvm::Type::getVoidTy(context);
+    llvm::Type* void_ptr_ty = llvm::IntegerType::getInt8PtrTy(context);
+    llvm::Type* cuda_device_ptr_ty = llvm::IntegerType::getInt32Ty(context);
+    llvm::Type* host_data_ty = llvm::Type::getFloatPtrTy(context);
+    llvm::Type* char_ptr_ty = llvm::PointerType::getUnqual(llvm::IntegerType::getInt8Ty(context));
+    synchronize = llvm::Function::Create(llvm::FunctionType::get(void_ty, false), llvm::Function::ExternalLinkage, "synchronize", module);
+    malloc_gpu = llvm::Function::Create(llvm::FunctionType::get(cuda_device_ptr_ty, { cuda_device_ptr_ty }, false), llvm::Function::ExternalLinkage, "malloc_gpu", module);
+    llvm::Type* mem_to_gpu_type[] = { host_data_ty, cuda_device_ptr_ty, cuda_device_ptr_ty };
+    mem_to_gpu = llvm::Function::Create(llvm::FunctionType::get(cuda_device_ptr_ty, mem_to_gpu_type, false), llvm::Function::ExternalLinkage, "mem_to_gpu", module);
+    llvm::Type* load_kernel_type[] = { char_ptr_ty, char_ptr_ty };
+    load_kernel = llvm::Function::Create(llvm::FunctionType::get(void_ty, load_kernel_type, false), llvm::Function::ExternalLinkage, "load_kernel", module);
+    set_kernel_arg = llvm::Function::Create(llvm::FunctionType::get(void_ty, llvm::PointerType::getUnqual(void_ptr_ty), false), llvm::Function::ExternalLinkage, "set_kernel_arg", module);
+    llvm::Type* set_problem_size_type[] = { cuda_device_ptr_ty, cuda_device_ptr_ty, cuda_device_ptr_ty };
+    set_problem_size = llvm::Function::Create(llvm::FunctionType::get(void_ty, set_problem_size_type, false), llvm::Function::ExternalLinkage, "set_problem_size", module);
+    launch_kernel = llvm::Function::Create(llvm::FunctionType::get(void_ty, { char_ptr_ty }, false), llvm::Function::ExternalLinkage, "launch_kernel", module);
+    llvm::Type* mem_to_host_type[] = { cuda_device_ptr_ty, void_ptr_ty, cuda_device_ptr_ty };
+    mem_to_host = llvm::Function::Create(llvm::FunctionType::get(host_data_ty, mem_to_host_type, false), llvm::Function::ExternalLinkage, "mem_to_host", module);
+    free_gpu = llvm::Function::Create(llvm::FunctionType::get(void_ty, { cuda_device_ptr_ty }, false), llvm::Function::ExternalLinkage, "free_gpu", module);
+}
+
+static uint32_t try_resolve_array_size(Def def) {
+    // Ugly HACK
+    for (auto use : def->as<Param>()->lambda()->uses()) {
+        if (auto lambda = use->isa_lambda()) {
+            if (auto larray = lambda->to()->isa_lambda()) {
+                if (larray->attribute().is(Lambda::ArrayInit)) {
+                    // resolve size
+                    return lambda->arg(1)->as<PrimLit>()->u32_value();
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+// HACK
+void CodeGen::emit_cuda(Lambda* lambda, ArrayRef<llvm::BasicBlock*> bbs) {
+    Lambda* target = lambda->to()->as_lambda();
+    assert(target->is_builtin() && target->attribute().is(Lambda::Cuda));
+    // passed lambda is the external cuda call
+    const uint32_t it_space_x = try_resolve_array_size(lambda->arg(1));
+    Lambda* kernel = lambda->arg(2)->as<Addr>()->lambda();
+    // fetch values and create external calls for intialization
+    std::vector<llvm::Value*> device_ptrs;
+    for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
+        Def cuda_param = lambda->arg(i);
+        uint32_t num_elems = try_resolve_array_size(cuda_param);
+        llvm::Constant* size = llvm::ConstantInt::get(llvm::IntegerType::getInt32Ty(context), num_elems);
+        auto device_ptr = builder.CreateCall(malloc_gpu, size);
+        device_ptrs.push_back(device_ptr);
+
+        llvm::Value* mem_args[] = { params[cuda_param->as<Param>()], device_ptr, size };
+        builder.CreateCall(mem_to_gpu, mem_args);
+        // TODO: create alloca
+        //builder.CreateCall(set_kernel_arg, { device_ptr });
+    }
+    // determine problem size
+    llvm::Value* problem_size_args[] = {
+        llvm::ConstantInt::get(llvm::IntegerType::getInt32Ty(context), it_space_x),
+        llvm::ConstantInt::get(llvm::IntegerType::getInt32Ty(context), 1),
+        llvm::ConstantInt::get(llvm::IntegerType::getInt32Ty(context), 1)
+    };
+    builder.CreateCall(set_problem_size, problem_size_args);
+    
+    // register kernel name
+    //llvm::GlobalVariable* str = new llvm::GlobalVariable(*cuda_module, llvm::IntegerType::getInt8PtrTy(context), true, llvm::GlobalValue::PrivateLinkage, 0, ".kernelname");
+    //llvm::Constant* str_data = llvm::ConstantDataArray::getString(context, "kernel", true);
+    //str->setInitializer(str_data);
+
+    // launch
+    //builder.CreateCall(launch_kernel, { str });
+
+    // synchronize
+    builder.CreateCall(synchronize);
+
+    // fetch data back to cpu
+    for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
+        // TODO: check for write access
+    }
+
+    // free memory
+    for (auto device_ptr : device_ptrs)
+        builder.CreateCall(free_gpu, { device_ptr });
+    // create branch to return
+    builder.CreateBr(bbs[lambda->arg(3)->as_lambda()->sid()]);
+}
+
 void CodeGen::emit() {
+    // emit cuda declarations
+    emit_cuda_decls();
     // map all root-level lambdas to llvm function stubs
+    const Param* cuda_return = 0;
     for (auto lambda : top_level_lambdas(world)) {
-        llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
-        llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->name, module);
+        if (lambda->is_builtin())
+            continue;
+        llvm::Function* f;
+        if (lambda->is_connected_to_builtin()) {
+            const size_t e = lambda->num_params();
+            // check dimensions
+            size_t i = 1;
+            for (; i < 4 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i)
+                params[lambda->param(i)] = cuda_thread_id_getter[i];
+            // cuda return param
+            cuda_return = lambda->param(i);
+            assert(cuda_return->type()->isa<Pi>());
+            // build kernel declaration
+            llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(world.pi(lambda->pi()->elems().slice_from_begin(i))));
+            f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "kernel", cuda_module);
+            // wire params directly
+            auto arg = f->arg_begin();
+            for (size_t j = i + 1; j < e; ++j)
+                params[lambda->param(j)] = arg++;
+            // append required metadata
+            // TODO
+        } else {
+            llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
+            f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->name, module);
+        }
         fcts.emplace(lambda, f);
     }
 
     // for all top-level functions
     for (auto lf : fcts) {
         Lambda* lambda = lf.first;
-        if (lambda->empty())
+        if (lambda->is_builtin() || lambda->empty())
             continue;
 
-        assert(lambda->is_returning());
+        assert(lambda->is_returning() || lambda->is_connected_to_builtin());
         llvm::Function* fct = lf.second;
 
         // map params
         const Param* ret_param = 0;
-        auto arg = fct->arg_begin();
-        for (auto param : lambda->params()) {
-            if (param->type()->isa<Mem>())
-                continue;
-            if (param->order() == 0) {
-                arg->setName(param->name);
-                params[param] = arg++;
-            } else {
-                assert(!ret_param);
-                ret_param = param;
+        if (lambda->is_connected_to_builtin())
+            ret_param = cuda_return;
+        else {
+            auto arg = fct->arg_begin();
+            for (auto param : lambda->params()) {
+                if (param->type()->isa<Mem>())
+                    continue;
+                if (param->order() == 0) {
+                    arg->setName(param->name);
+                    params[param] = arg++;
+                }
+                else {
+                    assert(!ret_param);
+                    ret_param = param;
+                }
             }
         }
+        assert(ret_param);
 
         Scope scope(lambda);
         Array<llvm::BasicBlock*> bbs(scope.size());
@@ -119,6 +261,8 @@ void CodeGen::emit() {
 
         // emit body for each bb
         for (auto lambda : scope.rpo()) {
+            if (lambda->empty())
+                continue;
             assert(scope.is_entry(lambda) || lambda->is_basicblock());
             builder.SetInsertPoint(bbs[lambda->sid()]);
 
@@ -181,41 +325,56 @@ void CodeGen::emit() {
                 llvm::BasicBlock* fbb = bbs[select->fval()->as<Lambda>()->sid()];
                 builder.CreateCondBr(cond, tbb, fbb);
             } else {
-                Lambda* to_lambda = lambda->to()->as_lambda();
-                if (to_lambda->is_basicblock())      // ordinary jump
-                    builder.CreateBr(bbs[to_lambda->sid()]);
-                else {
-                    // put all first-order args into an array
-                    Array<llvm::Value*> args(lambda->args().size() - 1);
-                    size_t i = 0;
-                    Def ret_arg = 0;
-                    for (auto arg : lambda->args()) {
-                        if (arg->order() == 0) {
-                            if (!arg->type()->isa<Mem>())
-                                args[i++] = lookup(arg);
-                        } else {
-                            assert(!ret_arg);
-                            ret_arg = arg;
-                        }
-                    }
-                    args.shrink(i);
-                    llvm::CallInst* call = builder.CreateCall(fcts[to_lambda], llvm_ref(args));
+                if (auto higher_order_call = lambda->to()->isa<Param>()) { // higher-order call
+                    llvm::CallInst* call_target = builder.CreateCall(params[higher_order_call]);
+                    auto succ = lambda->arg(1)->as_lambda();
+                    const Param* param = succ->param(0)->type()->isa<Mem>() ? nullptr : succ->param(0);
+                    if (param == nullptr && succ->num_params() == 2)
+                        param = succ->param(1);
+                    params[param] = call_target;
+                    builder.CreateBr(bbs[succ->sid()]);
+                } else {
+                    Lambda* to_lambda = lambda->to()->as_lambda();
+                    if (to_lambda->is_basicblock())      // ordinary jump
+                        builder.CreateBr(bbs[to_lambda->sid()]);
+                    else {
+                        if (lambda->to()->isa<Lambda>() && lambda->to()->as_lambda()->is_builtin())
+                            emit_cuda(lambda, bbs);
+                        else {
+                            // put all first-order args into an array
+                            Array<llvm::Value*> args(lambda->args().size() - 1);
+                            size_t i = 0;
+                            Def ret_arg = 0;
+                            for (auto arg : lambda->args()) {
+                                if (arg->order() == 0) {
+                                    if (!arg->type()->isa<Mem>())
+                                        args[i++] = lookup(arg);
+                                }
+                                else {
+                                    assert(!ret_arg);
+                                    ret_arg = arg;
+                                }
+                            }
+                            args.shrink(i);
+                            llvm::CallInst* call = builder.CreateCall(fcts[to_lambda], llvm_ref(args));
 
-                    if (ret_arg == ret_param)       // call + return
-                        builder.CreateRet(call);
-                    else {                          // call + continuation
-                        Lambda* succ = ret_arg->as_lambda();
-                        const Param* param = succ->param(0)->type()->isa<Mem>() ? nullptr : succ->param(0);
-                        if (param == nullptr && succ->num_params() == 2)
-                            param = succ->param(1);
+                            if (ret_arg == ret_param)       // call + return
+                                builder.CreateRet(call);
+                            else {                          // call + continuation
+                                Lambda* succ = ret_arg->as_lambda();
+                                const Param* param = succ->param(0)->type()->isa<Mem>() ? nullptr : succ->param(0);
+                                if (param == nullptr && succ->num_params() == 2)
+                                    param = succ->param(1);
 
-                        builder.CreateBr(bbs[succ->sid()]);
-                        if (param) {
-                            auto i = phis.find(param);
-                            if (i != phis.end())
-                                i->second->addIncoming(call, builder.GetInsertBlock());
-                            else
-                                params[param] = call;
+                                builder.CreateBr(bbs[succ->sid()]);
+                                if (param) {
+                                    auto i = phis.find(param);
+                                    if (i != phis.end())
+                                        i->second->addIncoming(call, builder.GetInsertBlock());
+                                    else
+                                        params[param] = call;
+                                }
+                            }
                         }
                     }
                 }
@@ -231,14 +390,16 @@ void CodeGen::emit() {
                 phi->addIncoming(lookup(peek.def()), bbs[peek.from()->sid()]);
         }
 
-        params.clear();
+        // FIXME: params.clear();
         phis.clear();
         primops.clear();
     }
 
     module->dump();
+    cuda_module->dump();
 #ifndef NDEBUG
     llvm::verifyModule(*this->module);
+    llvm::verifyModule(*this->cuda_module);
 #endif
 }
 

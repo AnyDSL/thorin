@@ -39,7 +39,10 @@ void partial_evaluation(World& world) {
         todo = false;
 
         for (auto top : top_level_lambdas(world)) {
-            for (auto lambda : Array<Lambda*>(Scope(top).rpo())) {
+            Array<Lambda*> lambdas(Scope(top).rpo());
+            for (auto lambda : lambdas) {
+                if (lambda->empty())
+                    continue;
                 if (auto to = lambda->to()->isa_lambda()) {
                     Call call;
                     call.to = to;

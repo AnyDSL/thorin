@@ -206,7 +206,8 @@ private:
     NodeKind kind_;
     std::vector<Def> ops_;
     mutable size_t cur_pass_;
-    const Type* type_;
+    // HACK
+    mutable const Type* type_;
     mutable std::unordered_set<Use, UseHash, UseEqual> uses_;
     mutable const DefNode* representative_;
     mutable std::unordered_set<const DefNode*> representatives_of_;

@@ -22,8 +22,9 @@ typedef std::vector<const Param*> Params;
 class Lambda : public DefNode {
 public:
     enum {
-        Extern = 1 << 0, ///< Is the function visible in other translation units?
-        Cuda   = 1 << 1, ///< Flag for the internal Cuda-Backend
+        Extern     = 1 << 0, ///< Is the function visible in other translation units?
+        Cuda       = 1 << 1, ///< Flag for the internal Cuda-Backend
+        ArrayInit  = 1 << 2, ///< Flag for the external array intialization
     };
 
     struct Attribute {

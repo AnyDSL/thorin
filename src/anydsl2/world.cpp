@@ -934,17 +934,27 @@ void World::opt() {
     for (auto cur : lambdas()) {
         if (cur->is_connected_to_builtin() && !cur->is_basicblock()) {
             Scope scope(cur);
-            auto lifted = lift(scope, free_vars(scope));
-            lifted->attribute().set(Lambda::Extern);
+            std::vector<Def> vars = free_vars(scope);
+            auto lifted = lift(scope, vars);
 
             for (auto use : cur->uses()) {
                 if (auto ulambda = use->isa_lambda()) {
                     if (auto to = ulambda->to()->isa_lambda()) {
                         if (to->is_builtin()) {
-                            Array<const Type*> elems = to->pi()->elems();
+                            ArrayRef<const Type*> pelems = to->pi()->elems();
+                            Array<const Type*> elems(pelems.size() + vars.size());
+                            ulambda->resize(elems.size() + 1);
+                            std::copy(pelems.begin(), pelems.end(), elems.begin());
                             elems[use.index()-1] = ptr(lifted->pi());
+                            // append data
+                            for (size_t i = 0, e = vars.size(); i < e; ++i) {
+                                const size_t index = pelems.size() + i;
+                                elems[index] = vars[i]->type();
+                                ulambda->set_op(index + 1, vars[i]);
+                            }
                             ulambda->update_op(0, lambda(pi(elems), to->attribute(), to->name));
                             ulambda->update_arg(use.index()-1, addr(lifted));
+                            to->type_ = pi(elems);
                             to->attribute().clear(-1);
                         }
                     }

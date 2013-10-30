@@ -22,6 +22,7 @@ IMPALA_PREFIX(         DEC,   "--",   POSTFIX             ) // prefix --
 IMPALA_PREFIX(          OR,    "|",   POSTFIX             ) // lambda expressions
 IMPALA_PREFIX(         L_O,   "||",   POSTFIX             ) // lambda expressions with empty param list
 IMPALA_PREFIX(         RUN,    "@",   POSTFIX             ) // trigger partial evaluation
+IMPALA_PREFIX(        HALT,    "$",   POSTFIX             ) // stop partial evaluation
 
 #undef IMPALA_PREFIX
 

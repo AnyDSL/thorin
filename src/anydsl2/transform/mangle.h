@@ -11,10 +11,9 @@ Lambda* mangle(const Scope& scope,
                ArrayRef<size_t> to_drop, 
                ArrayRef<Def> drop_with, 
                ArrayRef<Def> to_lift, 
-               const GenericMap& generic_map = GenericMap(),
-               ArrayRef<Lambda*> run = ArrayRef<Lambda*>(nullptr, 0)); 
+               const GenericMap& generic_map = GenericMap());
 
-Lambda* drop(const Scope& scope, ArrayRef<Def> with, ArrayRef<Lambda*> run = ArrayRef<Lambda*>(nullptr, 0));
+Lambda* drop(const Scope& scope, ArrayRef<Def> with);
 inline Lambda* clone(const Scope& scope, const GenericMap& generic_map) { 
     return mangle(scope, Array<size_t>(), Array<Def>(), Array<Def>(), generic_map);
 }

@@ -58,8 +58,9 @@ public:
     T const& front() const { assert(!empty()); return ptr_[0]; }
     T const& back()  const { assert(!empty()); return ptr_[size_ - 1]; }
     ArrayRef<T> slice(size_t begin, size_t end) const { return ArrayRef<T>(ptr_ + begin, end - begin); }
-    ArrayRef<T> slice_front(size_t end) const { return ArrayRef<T>(ptr_, end); }
-    ArrayRef<T> slice_back(size_t begin) const { return ArrayRef<T>(ptr_ + begin, size_ - begin); }
+    ArrayRef<T> slice_to_end(size_t end) const { return ArrayRef<T>(ptr_, end); }
+    ArrayRef<T> slice_num_from_end(size_t num) const { return ArrayRef<T>(ptr_, size_ - num); }
+    ArrayRef<T> slice_from_begin(size_t begin) const { return ArrayRef<T>(ptr_ + begin, size_ - begin); }
     Array<T> cut(ArrayRef<size_t> indices, size_t reserve = 0) const;
     template<class Other>
     bool operator == (const Other& other) const { return this->size() == other.size() && std::equal(begin(), end(), other.begin()); }
@@ -123,8 +124,8 @@ public:
     size_t size() const { return size_; }
     bool empty() const { return size_ == 0; }
     ArrayRef<T> slice(size_t begin, size_t end) const { return ArrayRef<T>(ptr_ + begin, end - begin); }
-    ArrayRef<T> slice_front(size_t end) const { return ArrayRef<T>(ptr_, end); }
-    ArrayRef<T> slice_back(size_t begin) const { return ArrayRef<T>(ptr_ + begin, size_ - begin); }
+    ArrayRef<T> slice_to_end(size_t end) const { return ArrayRef<T>(ptr_, end); }
+    ArrayRef<T> slice_from_begin(size_t begin) const { return ArrayRef<T>(ptr_ + begin, size_ - begin); }
     Array<T> cut(ArrayRef<size_t> indices, size_t reserve = 0) const { return ArrayRef<T>(*this).cut(indices, reserve); }
     bool operator == (const Array<T>& other) const { return ArrayRef<T>(*this) == ArrayRef<T>(other); }
     void shrink(size_t newsize) { assert(newsize <= size_); size_ = newsize; }

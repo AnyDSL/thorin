@@ -840,6 +840,8 @@ Def World::rebuild(const PrimOp* in, ArrayRef<Def> ops, const Type* type) {
         case Node_Load:    assert(ops.size() == 2); return load(   ops[0], ops[1], name);
         case Node_Select:  assert(ops.size() == 3); return select( ops[0], ops[1], ops[2], name);
         case Node_Store:   assert(ops.size() == 3); return store(  ops[0], ops[1], ops[2], name);
+        case Node_Run:     assert(ops.size() == 1); return run(    ops[0], name);
+        case Node_Halt:    assert(ops.size() == 1); return halt(   ops[0], name);
         case Node_ArrayAgg:                         return array_agg(type->as<ArrayType>()->elem_type(), ops, name);
         case Node_Tuple:                            return tuple(ops, name);
         case Node_Vector:                           return vector(ops, name);

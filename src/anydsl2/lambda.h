@@ -23,8 +23,7 @@ class Lambda : public DefNode {
 public:
     enum {
         Extern = 1 << 0, ///< Is the function visible in other translation units?
-        Run    = 1 << 1, ///< Flag for the partial evaluator: Evaluate the \em body of this function.
-        Cuda   = 1 << 2, ///< Flag for the internal Cuda-Backend
+        Cuda   = 1 << 1, ///< Flag for the internal Cuda-Backend
     };
 
     struct Attribute {
@@ -71,7 +70,7 @@ public:
     const Params& params() const { return params_; }
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
     Def to() const { return op(0); };
-    ArrayRef<Def> args() const { return empty() ? ArrayRef<Def>(0, 0) : ops().slice_back(1); }
+    ArrayRef<Def> args() const { return empty() ? ArrayRef<Def>(0, 0) : ops().slice_from_begin(1); }
     Def arg(size_t i) const { return args()[i]; }
     const Pi* pi() const;
     const Pi* to_pi() const;

@@ -229,24 +229,49 @@ RefPtr Id::emit(CodeGen& cg) const {
 }
 
 RefPtr PrefixExpr::emit(CodeGen& cg) const {
+    auto rref = cg.emit(rhs());
+
     switch (kind()) {
         case INC:
         case DEC: {
-            RefPtr ref = cg.emit(rhs());
-            Def def = ref->load();
+            Def def = rref->load();
             Def one = cg.world().one(def->type());
             Def ndef = cg.world().arithop(Token::to_arithop((TokenKind) kind(), type()->is_float()), def, one);
-            ref->store(ndef);
-            return ref;
+            rref->store(ndef);
+            return rref;
         }
-        case ADD: return cg.emit(rhs()); // this is a NOP
-        case SUB: return Ref::create(cg.world().arithop_minus(cg.emit(rhs())->load()));
+        case ADD: return rref; // this is a NOP
+        case SUB: return Ref::create(cg.world().arithop_minus(rref->load()));
         case NOT:
-        case L_N: return Ref::create(cg.world().arithop_not(cg.emit(rhs())->load()));
+        case L_N: return Ref::create(cg.world().arithop_not(rref->load()));
         case RUN: 
-            if (rhs()->isa<Call>())
-                cg.cur_bb->attribute().set(Lambda::Run);
-            return cg.emit(rhs());
+            if (auto call = rhs()->isa<Call>()) {
+                bool is_continuation_call = call->is_continuation_call();
+                auto callee = call->callee();
+                auto args = is_continuation_call ? callee->args() : callee->args().slice_num_from_end(1);
+                for (size_t i = 0, e = args.size(); i != e; ++i) {
+                    Def def = args[i];
+                    if (def->is_const())
+                        callee->update_arg(i, cg.world().run(def));
+                }
+
+                if (!is_continuation_call) {
+                    auto def = callee->ops().back();
+                    callee->update_op(callee->size()-1, cg.world().halt(def));
+                }
+                return rref;
+            } else
+                return Ref::create(cg.world().run(rref->load()));
+        case HALT: 
+            if (auto call = rhs()->isa<Call>()) {
+                auto callee = call->callee();
+                for (size_t i = 0, e = callee->args().size(); i != e; ++i) {
+                    Def def = callee->arg(i);
+                    callee->update_arg(i, cg.world().halt(def));
+                }
+                return rref;
+            } else
+                return Ref::create(cg.world().halt(rref->load()));
         default: ANYDSL2_UNREACHABLE;
     }
 }
@@ -343,6 +368,7 @@ RefPtr Call::emit(CodeGen& cg) const {
     Array<Def> args(num_args() + 1);
     std::copy(ops.begin() + 1, ops.end(), args.begin() + 1);
     args[0] = cg.get_mem();
+    callee_ = cg.cur_bb;
 
     if (is_continuation_call()) {
         cg.cur_bb->jump(ops[0], args);

@@ -405,7 +405,7 @@ const Type* Call::check(Sema& sema) const {
         const Type* ret_type = to_fn->size() == num_args() ? sema.typetable().noret() : to_fn->return_type();
 
         if (ret_type->isa<NoRet>())
-            call_fn = sema.typetable().fntype(op_types.slice_front(op_types.size()-1));
+            call_fn = sema.typetable().fntype(op_types.slice_to_end(op_types.size()-1));
         else if (ret_type->isa<Void>()) {
             op_types.back() = sema.typetable().fntype({});
             call_fn = sema.typetable().fntype(op_types);

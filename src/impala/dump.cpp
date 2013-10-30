@@ -44,7 +44,7 @@ std::ostream& Printer::print_type(const Type* type) {
         if (ret_type->isa<NoRet>())
             return dump_list([&](const Type* elem) { print_type(elem); }, fn->elems(), "fn(", ")");
         else
-            return dump_list([&](const Type* elem) { print_type(elem); }, fn->elems().slice_front(fn->size()-1), "fn(", ") -> ") 
+            return dump_list([&](const Type* elem) { print_type(elem); }, fn->elems().slice_to_end(fn->size()-1), "fn(", ") -> ") 
                 << ret_type;
     } else if (auto generic = type->isa<Generic>()) {
         return stream() << Generic::to_string(generic->index());
@@ -107,7 +107,7 @@ std::ostream& Scope::print(Printer& p) const {
 std::ostream& Proto::print(Printer& p) const {
     p.stream() << "extern " << symbol_ << " ";
     auto type = refined_fntype();
-    return p.dump_list([&](const Type* type) { p.print_type(type); }, type->elems().slice_front(type->size()-1), "(", ")") 
+    return p.dump_list([&](const Type* type) { p.print_type(type); }, type->elems().slice_to_end(type->size()-1), "(", ")") 
             << " -> " << type->elems().back();
 }
 

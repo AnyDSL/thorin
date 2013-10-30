@@ -245,6 +245,38 @@ public:
 
 //------------------------------------------------------------------------------
 
+class EvalOp : public PrimOp {
+protected:
+    EvalOp(NodeKind kind, Def def, const std::string& name)
+        : PrimOp(1, kind, def->type(), name)
+    {
+        set_op(0, def);
+    }
+
+public:
+    Def def() const { return op(0); }
+};
+
+class Run : public EvalOp {
+private:
+    Run(Def def, const std::string& name)
+        : EvalOp(Node_Run, def, name)
+    {}
+
+    friend class World;
+};
+
+class Halt : public EvalOp {
+private:
+    Halt(Def def, const std::string& name)
+        : EvalOp(Node_Halt, def, name)
+    {}
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
 } // namespace anydsl2
 
 #endif

@@ -87,7 +87,7 @@ Lambda* Vectorizer::vectorize() {
     Array<Def> vops(exit->size());
     for (size_t i = 0, e = exit->size(); i != e; ++i)
         vops[i] = vectorize(exit->op(i), length);
-    vlambda->jump(vops.front(), vops.slice_back(1));
+    vlambda->jump(vops.front(), vops.slice_from_begin(1));
 
     return vlambda;
 }

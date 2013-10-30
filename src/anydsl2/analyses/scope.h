@@ -22,13 +22,13 @@ public:
     bool contains(Lambda* lambda) const { return lambda->scope() == this; }
     /// All lambdas within this scope in reverse postorder.
     ArrayRef<Lambda*> rpo() const { return rpo_; }
-    ArrayRef<Lambda*> entries() const { return ArrayRef<Lambda*>(rpo_).slice_front(num_entries()); }
+    ArrayRef<Lambda*> entries() const { return ArrayRef<Lambda*>(rpo_).slice_to_end(num_entries()); }
     /// Like \p rpo() but without \p entries().
-    ArrayRef<Lambda*> body() const { return rpo().slice_back(num_entries()); }
+    ArrayRef<Lambda*> body() const { return rpo().slice_from_begin(num_entries()); }
     ArrayRef<Lambda*> backwards_rpo() const;
-    ArrayRef<Lambda*> exits() const { return backwards_rpo().slice_front(num_exits()); }
+    ArrayRef<Lambda*> exits() const { return backwards_rpo().slice_to_end(num_exits()); }
     /// Like \p backwards_rpo() but without \p exits().
-    ArrayRef<Lambda*> backwards_body() const { return backwards_rpo().slice_back(num_exits()); }
+    ArrayRef<Lambda*> backwards_body() const { return backwards_rpo().slice_to_end(num_exits()); }
     Lambda* rpo(size_t i) const { return rpo_[i]; }
     Lambda* operator [] (size_t i) const { return rpo(i); }
     ArrayRef<Lambda*> preds(Lambda* lambda) const;

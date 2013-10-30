@@ -9,13 +9,12 @@ namespace anydsl2 {
 class Mangler {
 public:
     Mangler(const Scope& scope, ArrayRef<size_t> to_drop, ArrayRef<Def> drop_with, 
-           ArrayRef<Def> to_lift, const GenericMap& generic_map, ArrayRef<Lambda*> run)
+           ArrayRef<Def> to_lift, const GenericMap& generic_map)
         : scope(scope)
         , to_drop(to_drop)
         , drop_with(drop_with)
         , to_lift(to_lift)
         , generic_map(generic_map)
-        , run(run)
         , world(scope.world())
         , pass(world.new_pass())
     {}
@@ -39,7 +38,6 @@ public:
     ArrayRef<Def> drop_with;
     ArrayRef<Def> to_lift;
     GenericMap generic_map;
-    ArrayRef<Lambda*> run;
     World& world;
     const size_t pass;
     Lambda* nentry;
@@ -58,7 +56,6 @@ Lambda* Mangler::mangle() {
 
     const Pi* n_pi = world.pi(nelems)->specialize(generic_map)->as<Pi>();
     nentry = world.lambda(n_pi, oentry->name);
-    nentry->attribute().set(oentry->attribute().filter(Lambda::Run));
 
     // put in params for entry (oentry)
     // op -> iterates over old params
@@ -83,14 +80,9 @@ Lambda* Mangler::mangle() {
     map(oentry, oentry);
     mangle_body(oentry, nentry);
 
-    for (auto cur : scope.rpo().slice_back(1)) {
+    for (auto cur : scope.rpo().slice_from_begin(1)) {
         if (cur->is_visited(pass))
             mangle_body(cur, lookup(cur)->as_lambda());
-    }
-
-    for (auto lambda : run) {
-        if (lambda->is_visited(pass))
-            lookup(lambda)->as_lambda()->attribute().set(Lambda::Run);
     }
 
     return nentry;
@@ -124,7 +116,7 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
     } else
         ops[0] = mangle(olambda->to());
 
-    ArrayRef<Def> nargs(ops.slice_back(1));  // new args of nlambda
+    ArrayRef<Def> nargs(ops.slice_from_begin(1));  // new args of nlambda
     Def ntarget = ops.front();               // new target of nlambda
 
     // check whether we can optimize tail recursion
@@ -168,17 +160,17 @@ Def Mangler::mangle(Def odef) {
 //------------------------------------------------------------------------------
 
 Lambda* mangle(const Scope& scope, ArrayRef<size_t> to_drop, ArrayRef<Def> drop_with, 
-               ArrayRef<Def> to_lift, const GenericMap& generic_map, ArrayRef<Lambda*> run) {
-    return Mangler(scope, to_drop, drop_with, to_lift, generic_map, run).mangle();
+               ArrayRef<Def> to_lift, const GenericMap& generic_map) {
+    return Mangler(scope, to_drop, drop_with, to_lift, generic_map).mangle();
 }
 
-Lambda* drop(const Scope& scope, ArrayRef<Def> with, ArrayRef<Lambda*> run) {
+Lambda* drop(const Scope& scope, ArrayRef<Def> with) {
     size_t size = with.size();
     Array<size_t> to_drop(size);
     for (size_t i = 0; i != size; ++i)
         to_drop[i] = i;
 
-    return mangle(scope, to_drop, with, Array<Def>(), GenericMap(), run);
+    return mangle(scope, to_drop, with, Array<Def>(), GenericMap());
 }
 
 //------------------------------------------------------------------------------

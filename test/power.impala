@@ -1,4 +1,4 @@
-fn power(a: int, b: int) -> int {
+fn power(a: int, mut b: int) -> int {
     let mut result = 1;
     while (b != 0) {
         result *= a;

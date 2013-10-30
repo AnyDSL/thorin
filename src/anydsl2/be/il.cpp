@@ -157,7 +157,7 @@ std::ostream& IlPrinter::emit_assignment(const PrimOp* primop) {
             stream() << "@ ";
             emit_name(vectorop->cond()) << " ";
         }
-        ops = ops.slice_back(1);
+        ops = ops.slice_from_begin(1);
     }
 
     stream() << primop->op_name() << " ";

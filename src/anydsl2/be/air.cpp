@@ -124,7 +124,7 @@ std::ostream& CodeGen::emit_assignment(const PrimOp* primop) {
             stream() << "@ ";
             emit_name(vectorop->cond()) << " ";
         }
-        ops = ops.slice_back(1);
+        ops = ops.slice_from_begin(1);
     }
 
     stream() << primop->op_name() << " ";
@@ -144,8 +144,6 @@ std::ostream& CodeGen::emit_head(const Lambda* lambda) {
 
 std::ostream& CodeGen::emit_jump(const Lambda* lambda) {
     if (!lambda->empty()) {
-        if (lambda->attribute().is(Lambda::Run))
-            stream() << '@';
         emit_def(lambda->to());
         dump_list([&](Def def) { emit_def(def); }, lambda->args(), " ", "");
     }

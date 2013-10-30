@@ -28,6 +28,8 @@
         ANYDSL2_AIR_NODE(Extract, extract)
         ANYDSL2_AIR_NODE(Insert, insert)
         ANYDSL2_AIR_NODE(LEA, lea)
+        ANYDSL2_AIR_NODE(Run, run)
+        ANYDSL2_AIR_NODE(Halt, halt)
     ANYDSL2_AIR_NODE(Param, param)
     // Type
         // PrimType

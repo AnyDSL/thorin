@@ -542,10 +542,13 @@ public:
     bool is_continuation_call() const;
     virtual bool is_lvalue() const { return false; }
     virtual std::ostream& print(Printer& p) const;
+    anydsl2::Lambda* callee() const { return callee_; }
 
 private:
     virtual const Type* check(Sema& sema) const;
     virtual anydsl2::RefPtr emit(CodeGen& cg) const;
+
+    mutable anydsl2::Lambda* callee_;
 };
 
 //------------------------------------------------------------------------------

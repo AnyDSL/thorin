@@ -136,7 +136,7 @@ std::ostream& Fun::print(Printer& p) const {
 std::ostream& Literal::print(Printer& p) const {
     switch (kind()) {
 #define IMPALA_LIT(itype, atype) \
-        case LIT_##itype: return p.stream() << (anydsl2::u64) box().get_##atype();
+        case LIT_##itype: return p.stream() << box().get_##atype();
 #include "impala/tokenlist.h"
         case LIT_bool: return p.stream() << (box().get_u1().get() ? "true" : "false");
         default: ANYDSL2_UNREACHABLE;

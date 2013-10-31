@@ -61,6 +61,8 @@ private:
 
     // cuda functions
     llvm::Function* cuda_thread_id_getter[3];
+    llvm::Function* cuda_block_id_getter[3];
+    llvm::Function* cuda_block_dim_getter[3];
     llvm::Function* malloc_gpu;
     llvm::Function* mem_to_gpu;
     llvm::Function* mem_to_gpu_indir;
@@ -95,10 +97,16 @@ CodeGen::CodeGen(World& world, EmitHook& hook)
 // HACK -> nicer and integrated
 void CodeGen::emit_cuda_decls() {
     cuda_device_ptr_ty = llvm::IntegerType::getInt64Ty(context);
-    const char* thread_id_names[] = { "llvm.nvvm.read.ptx.sreg.ctaid.x", "llvm.nvvm.read.ptx.sreg.ctaid.y", "llvm.nvvm.read.ptx.sreg.ctaid.z" };
+    const char* thread_id_names[] = { "llvm.nvvm.read.ptx.sreg.tid.x", "llvm.nvvm.read.ptx.sreg.tid.y", "llvm.nvvm.read.ptx.sreg.tid.z" };
+    const char* block_id_names[] = { "llvm.nvvm.read.ptx.sreg.ctaid.x", "llvm.nvvm.read.ptx.sreg.ctaid.y", "llvm.nvvm.read.ptx.sreg.ctaid.z" };
+    const char* block_dim_names[] = { "llvm.nvvm.read.ptx.sreg.ntid.x", "llvm.nvvm.read.ptx.sreg.ntid.y", "llvm.nvvm.read.ptx.sreg.ntid.z" };
     llvm::FunctionType* thread_id_type = llvm::FunctionType::get(llvm::IntegerType::getInt32Ty(context), false);
-    for (size_t i = 0; i < 3; ++i)
+    for (size_t i = 0; i < 3; ++i) {
         cuda_thread_id_getter[i] = llvm::Function::Create(thread_id_type, llvm::Function::ExternalLinkage, thread_id_names[i], cuda_module);
+        cuda_block_id_getter[i] = llvm::Function::Create(thread_id_type, llvm::Function::ExternalLinkage, block_id_names[i], cuda_module);
+        cuda_block_dim_getter[i] = llvm::Function::Create(thread_id_type, llvm::Function::ExternalLinkage, block_dim_names[i], cuda_module);
+    }
+
     llvm::Type* void_ty = llvm::Type::getVoidTy(context);
     llvm::Type* char_ptr_ty = llvm::IntegerType::getInt8PtrTy(context);
     llvm::Type* host_data_ty = llvm::Type::getFloatPtrTy(context);
@@ -152,7 +160,7 @@ void CodeGen::emit_cuda(Lambda* lambda, ArrayRef<llvm::BasicBlock*> bbs) {
     builder.CreateCall(load_kernel, load_args);
     // fetch values and create external calls for intialization
     std::vector<std::pair<llvm::Value*, llvm::Constant*>> device_ptrs;
-    for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
+    for (size_t i = 7, e = lambda->num_args(); i < e; ++i) {
         Def cuda_param = lambda->arg(i);
         const Type* param_type = cuda_param->type();
         uint64_t num_elems = try_resolve_array_size(cuda_param);
@@ -163,7 +171,6 @@ void CodeGen::emit_cuda(Lambda* lambda, ArrayRef<llvm::BasicBlock*> bbs) {
         builder.CreateStore(device_ptr, alloca);
         auto loaded_device_ptr = builder.CreateLoad(alloca);
         device_ptrs.push_back(std::pair<llvm::Value*, llvm::Constant*>(loaded_device_ptr, size));
-//         llvm::Value* mem_args[] = { params[cuda_param->as<Param>()], loaded_device_ptr, size };
         llvm::Value* mem_args[] = { lookup(cuda_param), loaded_device_ptr, size };
         if (param_type->isa<Ptr>() && param_type->as<Ptr>()->referenced_type()->isa<Ptr>())
             builder.CreateCall(mem_to_gpu_indir, mem_args);
@@ -184,7 +191,7 @@ void CodeGen::emit_cuda(Lambda* lambda, ArrayRef<llvm::BasicBlock*> bbs) {
     builder.CreateCall(synchronize);
 
     // fetch data back to cpu
-    for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
+    for (size_t i = 7, e = lambda->num_args(); i < e; ++i) {
         Def cuda_param = lambda->arg(i);
         const Type* param_type = cuda_param->type();
         auto entry = device_ptrs[i-4];
@@ -216,8 +223,12 @@ void CodeGen::emit() {
             const size_t e = lambda->num_params();
             // check dimensions
             size_t i = 1;
-            for (; i < 4 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i)
+            for (; i < 3 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i)
                 params[lambda->param(i)] = cuda_thread_id_getter[i - 1];
+            for (; i < 5 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i)
+                params[lambda->param(i)] = cuda_block_id_getter[i - 3];
+            for (; i < 7 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i)
+                params[lambda->param(i)] = cuda_block_dim_getter[i - 5];
             // cuda return param
             cuda_return = lambda->param(i);
             assert(cuda_return->type()->isa<Pi>());

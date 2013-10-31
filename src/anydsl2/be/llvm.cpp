@@ -11,6 +11,7 @@
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Metadata.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Type.h>
 #include <llvm/IR/GlobalVariable.h>
@@ -215,7 +216,13 @@ void CodeGen::emit() {
             for (size_t j = i + 1; j < e; ++j)
                 params[lambda->param(j)] = arg++;
             // append required metadata
-            // TODO
+            llvm::NamedMDNode* annotation = cuda_module->getOrInsertNamedMetadata("nvvm.annotations");
+            llvm::Value* annotation_values[] = {
+                f,
+                llvm::MDString::get(context, cuda_kernel_name),
+                llvm::ConstantInt::get(llvm::IntegerType::getInt32Ty(context), 0)
+            };
+            annotation->addOperand(llvm::MDNode::get(context, annotation_values));
         } else {
             llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
             f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->name, module);

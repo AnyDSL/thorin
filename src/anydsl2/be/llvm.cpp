@@ -156,7 +156,6 @@ void CodeGen::emit_cuda(Lambda* lambda, ArrayRef<llvm::BasicBlock*> bbs) {
         device_ptrs.push_back(std::pair<llvm::Value*, llvm::Constant*>(loaded_device_ptr, size));
         llvm::Value* mem_args[] = { params[cuda_param->as<Param>()], loaded_device_ptr, size };
         builder.CreateCall(mem_to_gpu, mem_args);
-//         auto address = builder.CreateConstInBoundsGEP1_32(alloca, 0);
         builder.CreateCall(set_kernel_arg, { alloca });
     }
     // determine problem size
@@ -174,13 +173,10 @@ void CodeGen::emit_cuda(Lambda* lambda, ArrayRef<llvm::BasicBlock*> bbs) {
     // fetch data back to cpu
     for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
         Def cuda_param = lambda->arg(i);
-        for (auto use : cuda_param->uses()) {
-            if (use->isa<Store>()) {
-                // need to fetch back memory
-                llvm::Value* args[] = { device_ptrs[i].first, params[cuda_param->as<Param>()], device_ptrs[i].second };
-                builder.CreateCall(mem_to_host, args);
-            }
-        }
+        auto entry = device_ptrs[i-4];
+        // need to fetch back memory
+        llvm::Value* args[] = { entry.first, params[cuda_param->as<Param>()], entry.second };
+        builder.CreateCall(mem_to_host, args);
     }
 
     // free memory
@@ -204,7 +200,7 @@ void CodeGen::emit() {
             // check dimensions
             size_t i = 1;
             for (; i < 4 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i)
-                params[lambda->param(i)] = cuda_thread_id_getter[i];
+                params[lambda->param(i)] = cuda_thread_id_getter[i - 1];
             // cuda return param
             cuda_return = lambda->param(i);
             assert(cuda_return->type()->isa<Pi>());

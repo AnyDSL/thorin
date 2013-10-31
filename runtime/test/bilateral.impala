@@ -9,11 +9,10 @@ fn idx(x : int, y: int, width : int, height : int) -> int {
 fn main() -> [float] {
     let width   = 1024;
     let height  = 1024;
-    let range   = 3;
     let sigma_d = 3;
     let sigma_r = 5.0f;
-    let mut arr = array(width * height);
-    let mut out = array(width * height);
+    let arr     = array(width * height);
+    let out     = array(width * height);
 
     let mask = [
         [0.018316f, 0.033746f, 0.055638f, 0.082085f, 0.108368f, 0.128022f, 0.135335f, 0.128022f, 0.108368f, 0.082085f, 0.055638f, 0.033746f, 0.018316f],
@@ -40,11 +39,11 @@ fn main() -> [float] {
 
         for (let mut yf = -2*sigma_d; yf<=2*sigma_d; yf++) {
             for (let mut xf = -2*sigma_d; xf<=2*sigma_d; xf++) {
-                let diff = arr[index + xf + yf * range] - arr[index];
+                let diff = arr[index + xf + yf * sigma_d] - arr[index];
 
-                let s = exp(-c_r * diff*diff) * mask[xf + range][yf + range];
+                let s = exp(-c_r * diff*diff) * mask[xf + sigma_d][yf + sigma_d];
                 d += s;
-                p += s * arr[index + xf + yf * range];
+                p += s * arr[index + xf + yf * sigma_d];
             }
         }
 

@@ -1,4 +1,4 @@
-extern all_on_gpu([float], fn(int, int, int) -> void) -> int;
+extern all_on_gpu([float], fn(fn() -> int, fn() -> int, fn() -> int) -> void) -> int;
 extern array(int) -> [float];
 extern sqrt(float) -> float;
 
@@ -21,15 +21,15 @@ fn main() -> [float] {
         [0.0f, 1.0f, 0.0f],
         [1.0f, 4.0f, 1.0f],
         [0.0f, 1.0f, 0.0f]];
-    all_on_gpu(out, |x : int, y : int, z : int| -> void {
-        //let result = @convolve(in, mask, 1.0f, range, x, y, z, width, height, depth);
+    all_on_gpu(out, |x : fn() -> int, y : fn() -> int, z : fn() -> int| -> void {
+        //let result = @convolve(in, mask, 1.0f, range, x(), y(), z(), width, height, depth);
         let result = - (
-            1.0f * in[idx(x+0, y+1, z, width, height, depth)] +
-            1.0f * in[idx(x-1, y+0, z, width, height, depth)] +
-           -4.0f * in[idx(x  , y  , z, width, height, depth)] +
-            1.0f * in[idx(x+1, y+0, z, width, height, depth)] +
-            1.0f * in[idx(x+0, y-1, z, width, height, depth)]);
-        out[idx(x, y, z, width, height, depth)] = result;
+            1.0f * in[idx(x()+0, y()+1, z(), width, height, depth)] +
+            1.0f * in[idx(x()-1, y()+0, z(), width, height, depth)] +
+           -4.0f * in[idx(x()  , y()  , z(), width, height, depth)] +
+            1.0f * in[idx(x()+1, y()+0, z(), width, height, depth)] +
+            1.0f * in[idx(x()+0, y()-1, z(), width, height, depth)]);
+        out[idx(x(), y(), z(), width, height, depth)] = result;
     });
 
 
@@ -41,37 +41,37 @@ fn main() -> [float] {
     jacobi_mask[0] = 0.00f; jacobi_mask[1] = 0.25f; jacobi_mask[2] = 0.00f;
     jacobi_mask[3] = 0.25f; jacobi_mask[4] = 0.00f; jacobi_mask[5] = 0.25f;
     jacobi_mask[6] = 0.00f; jacobi_mask[7] = 0.25f; jacobi_mask[8] = 0.00f;
-    all_on_gpu(out, |x : int, y : int, z : int| -> void {
+    all_on_gpu(out, |x : fn() -> int, y : fn() -> int, z : fn() -> int| -> void {
         //let result =
-        //    (1.0f - OMEGA) * Sol[idx(x, y, z, width, height, depth)] +
-        //    0.25f * OMEGA  * RHS[idx(x, y, z, width, height, depth)] +
-        //    @convolve(Sol, jacobi_mask, 1.0f, range, x, y, z, width, height, depth);
+        //    (1.0f - OMEGA) * Sol[idx(x(), y(), z(), width, height, depth)] +
+        //    0.25f * OMEGA  * RHS[idx(x(), y(), z(), width, height, depth)] +
+        //    @convolve(Sol, jacobi_mask, 1.0f, range, x(), y(), z(), width, height, depth);
         let result =
-            (1.0f - OMEGA) * Sol[idx(x, y, z, width, height, depth)] +
+            (1.0f - OMEGA) * Sol[idx(x(), y(), z(), width, height, depth)] +
             0.25f * OMEGA  * (
-                Sol[idx(x+0, y+1, z, width, height, depth)] +
-                Sol[idx(x-1, y+0, z, width, height, depth)] +
-                RHS[idx(x  , y  , z, width, height, depth)] +
-                Sol[idx(x+1, y+0, z, width, height, depth)] +
-                Sol[idx(x+0, y-1, z, width, height, depth)]
+                Sol[idx(x()+0, y()+1, z(), width, height, depth)] +
+                Sol[idx(x()-1, y()+0, z(), width, height, depth)] +
+                RHS[idx(x()  , y()  , z(), width, height, depth)] +
+                Sol[idx(x()+1, y()+0, z(), width, height, depth)] +
+                Sol[idx(x()+0, y()-1, z(), width, height, depth)]
             );
-        out[idx(x, y, z, width, height, depth)] = result;
+        out[idx(x(), y(), z(), width, height, depth)] = result;
     });
 
 
     // Residuum
-    all_on_gpu(out, |x : int, y : int, z : int| -> void {
+    all_on_gpu(out, |x : fn() -> int, y : fn() -> int, z : fn() -> int| -> void {
         //let result =
-        //    RHS[idx(x,   y,   z, width, height, depth)] +
-        //    @convolve(Sol, mask, 1.0f, range, x, y, z, width, height, depth);
+        //    RHS[idx(x(), y(), z(), width, height, depth)] +
+        //    @convolve(Sol, mask, 1.0f, range, x(), y(), z(), width, height, depth);
         let result =
-                    RHS[idx(x,   y,   z, width, height, depth)] +
-             1.0f * Sol[idx(x+0, y+1, z, width, height, depth)] +
-             1.0f * Sol[idx(x-1, y+0, z, width, height, depth)] +
-            -4.0f * Sol[idx(x  , y  , z, width, height, depth)] +
-             1.0f * Sol[idx(x+1, y+0, z, width, height, depth)] +
-             1.0f * Sol[idx(x+0, y-1, z, width, height, depth)];
-        out[idx(x, y, z, width, height, depth)] = result;
+                    RHS[idx(x(),   y(),   z(), width, height, depth)] +
+             1.0f * Sol[idx(x()+0, y()+1, z(), width, height, depth)] +
+             1.0f * Sol[idx(x()-1, y()+0, z(), width, height, depth)] +
+            -4.0f * Sol[idx(x()  , y()  , z(), width, height, depth)] +
+             1.0f * Sol[idx(x()+1, y()+0, z(), width, height, depth)] +
+             1.0f * Sol[idx(x()+0, y()-1, z(), width, height, depth)];
+        out[idx(x(), y(), z(), width, height, depth)] = result;
     });
 
 
@@ -81,10 +81,10 @@ fn main() -> [float] {
     restrict_mask[0] = 0.25f; restrict_mask[1] = 0.50f; restrict_mask[2] = 0.25f;
     restrict_mask[3] = 0.50f; restrict_mask[4] = 1.00f; restrict_mask[5] = 0.50f;
     restrict_mask[6] = 0.25f; restrict_mask[7] = 0.50f; restrict_mask[8] = 0.25f;
-    all_on_gpu(out, |x : int, y : int, z : int| -> void {
-        let fx = 2*x;
-        let fy = 2*y;
-        let fz = 2*z;
+    all_on_gpu(out, |x : fn() -> int, y : fn() -> int, z : fn() -> int| -> void {
+        let fx = 2*x();
+        let fy = 2*y();
+        let fz = 2*z();
         let fwidth  = 2*width;
         let fheight = 2*height;
         let fdepth  = 2*depth;
@@ -100,14 +100,14 @@ fn main() -> [float] {
             0.25f * in[idx(fx-1, fy+1, fz, fwidth, fheight, fdepth)];
             0.50f * in[idx(fx+0, fy+1, fz, fwidth, fheight, fdepth)];
             0.25f * in[idx(fx+1, fy+1, fz, fwidth, fheight, fdepth)];
-        out[idx(x, y, z, width, height, depth)] = result;
+        out[idx(x(), y(), z(), width, height, depth)] = result;
     });
 
 
     // L2 norm
     let mut l2sum = 0.0f;
-    all_on_gpu(in, |x : int, y : int, z : int| -> void {
-        let value = in[idx(x, y, z, width, height, depth)];
+    all_on_gpu(in, |x : fn() -> int, y : fn() -> int, z : fn() -> int| -> void {
+        let value = in[idx(x(), y(), z(), width, height, depth)];
         l2sum += value*value;
     });
     //let l2norm = sqrt(l2sum)/(width*height);
@@ -121,15 +121,15 @@ fn main() -> [float] {
     // 0.25 0.50 0.25
     // FIXME: this will not run correctly on accelerators such as GPUs due to
     // their memory consistency model
-    all_on_gpu(in, |x : int, y : int, z : int| -> void {
-        let cx = 2*x;
-        let cy = 2*y;
-        let cz = 2*z;
+    all_on_gpu(in, |x : fn() -> int, y : fn() -> int, z : fn() -> int| -> void {
+        let cx = 2*x();
+        let cy = 2*y();
+        let cz = 2*z();
         let cwidth  = 2*width;
         let cheight = 2*height;
         let cdepth  = 2*depth;
 
-        let v = in[idx(x, y, z, width, height, depth)];
+        let v = in[idx(x(), y(), z(), width, height, depth)];
         out[idx(cx-1, cy-1, cz, cwidth, cheight, cdepth)] += 0.25f * v;
         out[idx(cx+0, cy-1, cz, cwidth, cheight, cdepth)] += 0.50f * v;
         out[idx(cx+1, cy-1, cz, cwidth, cheight, cdepth)] += 0.25f * v;

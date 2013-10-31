@@ -1,71 +1,70 @@
-/*
-extern all_on_gpu(Array3D, fn(int, int, int) -> void) -> int;
+extern all_on_gpu([float], fn(fn() -> int, fn() -> int, fn() -> int) -> void) -> int;
+extern array(int) -> [float];
+extern sqrt(float) -> float;
 
-extern malloc(int, int, int) -> Array3D;
-extern load_value(Array3D, int, int, int) -> float;
-extern store_value(Array3D, int, int, int, float) -> int;
-
-fn main() -> Array3D {
-    let mut a : Array3D = malloc(1024, 1024, 1024);
-    let mut b : Array3D = malloc(1024, 1024, 1024);
-    all_on_gpu(a, |x : int, y : int, z : int| -> void {
-        let a2 : float = load_value(a, x, y, z);
-        let b2 : float = load_value(b, x, y, z);
-        let c2 : float = @convolve(b, 3, x, y, z);
-        store_value(a, x, y, z, a2 + b2 + c2);
-    });
-
-    return a;
+fn idx(x : int, y: int, z : int, width : int, height : int) -> int {
+    return x + width * y + z * width * height;
 }
 
-fn convolve(arr : Array3D, range : int, x : int, y : int, z : int) -> float {
-    let mut sum : float = 0.0f;
+fn main() -> [float] {
+    let width   = 1024;
+    let height  = 1024;
+    let range   = 3;
+    let mut arr = array(width * height);
+    let mut out = array(width * height);
+    // convolution filter mask for 3x3 gaussian blur
+    let mask : [float * 3 * 3] = [
+        [0.057118f, 0.124758f, 0.057118f],
+        [0.124758f, 0.272496f, 0.124758f],
+        [0.057118f, 0.124758f, 0.057118f]];
 
-    let mut xf : int = -range;
-    let mut yf : int = -range;
-    while (yf<range) {
-        while (xf<range) {
-            sum += load_value(arr, x + xf, y + yf, z);
-            xf++;
-        }
-        xf = -range;
-        yf++;
+    for (let mut iter=0; iter<100; ++iter) {
+        let mut l2sum = 0.0f;
+        all_on_gpu(out, |x : fn() -> int, y : fn() -> int, z : fn() -> int| -> void {
+            let index = x() + width * y();
+            // TODO: call to idx triggers assertion
+            //let index = idx(x(), y(), z(), width, height);
+            let a2 = out[index];
+            let b2 = arr[index];
+            let c2 = @convolve(arr, mask, 3, x(), y(), z(), width, height);
+            // TODO: passing 'range' instead of '3' results in infinite loop
+            // during compilation / partial evaluation
+            //let c2 = @convolve(arr, mask, range, x(), y(), z(), width, height);
+            out[index] = c2 + a2 + b2;
+
+            // TODO: support reductions
+            l2sum += c2*c2;
+        });
+        // TODO: introduce casts, implicit or explicit
+        //let l2norm = sqrt(l2sum)/(width*height);
+        let l2norm = sqrt(l2sum)/(1024.f*1024.f);
+
+        let mut tmp : [float];
+        tmp = arr;
+        arr = out;
+        out = tmp;
     }
 
-    return sum;
-}
-*/
-
-extern all_on_gpu(float, fn(int, int, int) -> void) -> int;
-
-extern malloc(int, int, int) -> float;
-extern load_value(float, int, int, int) -> float;
-extern store_value(float, int, int, int, float) -> int;
-
-fn main() -> float {
-    let mut a : float = malloc(1024, 1024, 1024);
-    let mut b : float = malloc(1024, 1024, 1024);
-    all_on_gpu(a, |x : int, y : int, z : int| -> void {
-        let a2 : float = load_value(a, x, y, z);
-        let b2 : float = load_value(b, x, y, z);
-        let c2 : int = @convolve(b, 3, x, y, z);
-        store_value(a, x, y, c2, a2 + b2);
-    });
-    return a;
+    return out;
 }
 
-fn convolve(arr : float, range : int, x : int, y : int, z : int) -> int {
-    let mut sum : int = 0;
+fn convolve(arr : [float], mask : [float * 3 * 3], range : int, x : int, y : int, z : int, width : int, height : int) -> float {
+    let mut sum = 0.0f;
+    let msize = 2*range;
 
-    let mut xf : int = -range;
-    let mut yf : int = -range;
-    while (yf<range) {
-        while (xf<range) {
-            sum += (x + xf+ y + yf+ z);
-            xf++;
+    // TODO:
+    // - iterate over C const arrays
+    // - consider only non-null values
+    // - get value and index of current element
+    // for (let cur not null in mask.values(), let idx in mask.index()) {
+    //   sum += let * arr((x, y, z) + idx);
+    // }
+    for (let mut yf=-range; yf<range; ++yf) {
+        for (let mut xf=-range; xf<range; ++xf) {
+            let index = x + xf + width * (y + yf) + width * height * z;
+            // TODO: propagate mask[imask] in case mask is a C const array
+            sum += mask[range + xf][range +yf] * arr[index];
         }
-        xf = -range;
-        yf++;
     }
 
     return sum;

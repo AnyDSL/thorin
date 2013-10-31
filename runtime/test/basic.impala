@@ -49,9 +49,6 @@ fn main() -> [float] {
 }
 
 fn convolve(arr : [float], mask : [float * 3 * 3], range : int, x : int, y : int, z : int, width : int, height : int) -> float {
-    let mut sum = 0.0f;
-    let msize = 2*range;
-
     // TODO:
     // - iterate over C const arrays
     // - consider only non-null values
@@ -59,6 +56,8 @@ fn convolve(arr : [float], mask : [float * 3 * 3], range : int, x : int, y : int
     // for (let cur not null in mask.values(), let idx in mask.index()) {
     //   sum += let * arr((x, y, z) + idx);
     // }
+    let mut sum = 0.0f;
+
     for (let mut yf=-range; yf<range; ++yf) {
         for (let mut xf=-range; xf<range; ++xf) {
             let index = x + xf + width * (y + yf) + width * height * z;

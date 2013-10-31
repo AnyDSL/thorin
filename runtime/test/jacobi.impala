@@ -29,14 +29,51 @@ fn main() -> [float] {
     for (let mut iter=0; iter<10; ++iter) {
         all_on_gpu(out, |x : fn() -> int, y : fn() -> int, z : fn() -> int| -> void {
             let index = x() + width * y();
-            //let index = idx(x(), y(), z(), width, height);
-            //let sum = @apply_stencil(arr, stencil, 3, x(), y(), width, height);
+
             let sum = a * arr[index] +
                       b * (
-                        arr[index - 1 + 0 * range] +
-                        arr[index + 1 + 0 * range] +
-                        arr[index + 0 - 1 * range] +
-                        arr[index + 0 + 1 * range]);
+                        arr[index - 1 + 0 * width] +
+                        arr[index + 1 + 0 * width] +
+                        arr[index + 0 - 1 * width] +
+                        arr[index + 0 + 1 * width]);
+
+            out[index] = sum;
+        });
+
+        //let mut tmp : [float];
+        //tmp = arr;
+        //arr = out;
+        //out = tmp;
+    }
+
+    return out;
+}
+
+
+fn main2() -> [float] {
+    let width   = 2048;
+    let height  = 2048;
+    let range   = 3;
+    let a       = 0.2f;
+    let b       = 1.0f - 4.0f * a;
+    let arr = array(width * height);
+    let out = array(width * height);
+
+    let stencil : [float * 3 * 3] = [
+        [0.0f, b, 0.0f],
+        [   b, a, b   ],
+        [0.0f, b, 0.0f]];
+
+    for (let mut iter=0; iter<10; ++iter) {
+        all_on_gpu(out, |x : fn() -> int, y : fn() -> int, z : fn() -> int| -> void {
+            let index = x() + width * y();
+            let mut sum = 0.0f;
+
+            for (let mut yf=-1; yf<1; ++yf) {
+                for (let mut xf=-1; xf<1; ++xf) {
+                    sum += stencil[xf+1][yf+1] * arr[index + xf + yf * width];
+                }
+            }
 
             out[index] = sum;
         });

@@ -25,7 +25,7 @@ all: jacobi.out
 %.s: %.bc
 	llc $(OPT_FLAGS) $< -o $@
 
-%.out: %.s
+%.out: %.s gpu_runtime.s
 	clang++ gpu_runtime.s $< $(LIB_DIRS) -lcuda -lnvvm -o $@
 
 clean:

@@ -247,7 +247,12 @@ void set_kernel_arg(void *host) {
 }
 
 float *array(size_t num_elems) {
-    return (float *)malloc(sizeof(float)*num_elems);
+    float *tmp = (float *)malloc(sizeof(float)*num_elems);
+
+    // initialize with dummy data
+    for (int i = 0; i < num_elems; ++i) tmp[i] = i;
+
+    return tmp;
 }
 
 

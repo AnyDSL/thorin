@@ -226,13 +226,17 @@ void CodeGen::emit() {
             f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, cuda_kernel_name, cuda_module);
             // wire params directly
             auto arg = f->arg_begin();
-            for (size_t j = i + 1; j < e; ++j)
-                params[lambda->param(j)] = arg++;
+            for (size_t j = i + 1; j < e; ++j) {
+                llvm::Argument* param = arg++;
+                const Param* p = lambda->param(j);
+                param->setName(llvm::Twine(p->name));
+                params[p] = param;
+            }
             // append required metadata
             llvm::NamedMDNode* annotation = cuda_module->getOrInsertNamedMetadata("nvvm.annotations");
             llvm::Value* annotation_values[] = {
                 f,
-                llvm::MDString::get(context, cuda_kernel_name),
+                llvm::MDString::get(context, "kernel"),
                 llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), 1)
             };
             annotation->addOperand(llvm::MDNode::get(context, annotation_values));

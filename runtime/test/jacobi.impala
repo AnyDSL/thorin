@@ -6,6 +6,17 @@ fn idx(x : int, y: int, width : int, height : int) -> int {
     return x + width * y;
 }
 
+fn bh_clamp_lower(i : int, lower : int) -> int {
+    if (idx < lower) idx = lower;
+    return idx;
+}
+
+fn bh_clamp_upper(i : int, upper : int) -> int {
+    if (idx >= upper) idx = upper - 1;
+    return idx;
+}
+
+
 fn main() -> [float] {
     let width   = 1024;
     let height  = 1024;
@@ -22,7 +33,7 @@ fn main() -> [float] {
 
     for (let mut iter=0; iter<100; ++iter) {
         all_on_gpu(out, |x : fn() -> int, y : fn() -> int, z : fn() -> int| -> void {
-            let index = x() + width * y() + height;
+            let index = x() + width * y();
             //let index = idx(x(), y(), z(), width, height);
             //let sum = @apply_stencil(arr, stencil, 3, x(), y(), width, height);
             let sum = a * arr[index] +

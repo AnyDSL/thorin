@@ -94,8 +94,8 @@ CodeGen::CodeGen(World& world, EmitHook& hook)
 
 // HACK -> nicer and integrated
 void CodeGen::emit_cuda_decls() {
-    cuda_device_ptr_ty = llvm::IntegerType::getInt32Ty(context);
-    const char* thread_id_names[] = { "llvm.nvvm.read.pts.sreg.ctaid.x", "llvm.nvvm.read.pts.sreg.ctaid.y", "llvm.nvvm.read.pts.sreg.ctaid.z" };
+    cuda_device_ptr_ty = llvm::IntegerType::getInt64Ty(context);
+    const char* thread_id_names[] = { "llvm.nvvm.read.ptx.sreg.ctaid.x", "llvm.nvvm.read.ptx.sreg.ctaid.y", "llvm.nvvm.read.ptx.sreg.ctaid.z" };
     llvm::FunctionType* thread_id_type = llvm::FunctionType::get(llvm::IntegerType::getInt32Ty(context), false);
     for (size_t i = 0; i < 3; ++i)
         cuda_thread_id_getter[i] = llvm::Function::Create(thread_id_type, llvm::Function::ExternalLinkage, thread_id_names[i], cuda_module);
@@ -121,7 +121,7 @@ void CodeGen::emit_cuda_decls() {
     free_gpu = llvm::Function::Create(llvm::FunctionType::get(void_ty, { cuda_device_ptr_ty }, false), llvm::Function::ExternalLinkage, "free_gpu", module);
 }
 
-static uint32_t try_resolve_array_size(Def def) {
+static uint64_t try_resolve_array_size(Def def) {
     // Ugly HACK
     if (const Param* p = def->isa<Param>()) {
         for (auto use : p->lambda()->uses()) {
@@ -129,7 +129,7 @@ static uint32_t try_resolve_array_size(Def def) {
                 if (auto larray = lambda->to()->isa_lambda()) {
                     if (larray->attribute().is(Lambda::ArrayInit)) {
                         // resolve size
-                        return lambda->arg(1)->as<PrimLit>()->u32_value();
+                        return lambda->arg(1)->as<PrimLit>()->u64_value();
                     }
                 }
             }
@@ -143,7 +143,7 @@ void CodeGen::emit_cuda(Lambda* lambda, ArrayRef<llvm::BasicBlock*> bbs) {
     Lambda* target = lambda->to()->as_lambda();
     assert(target->is_builtin() && target->attribute().is(Lambda::Cuda));
     // passed lambda is the external cuda call
-    const uint32_t it_space_x = try_resolve_array_size(lambda->arg(1));
+    const uint64_t it_space_x = try_resolve_array_size(lambda->arg(1));
     Lambda* kernel = lambda->arg(2)->as<Addr>()->lambda();
     // load kernel
     llvm::Value* module_name = builder.CreateGlobalStringPtr(cuda_module_name);
@@ -155,8 +155,8 @@ void CodeGen::emit_cuda(Lambda* lambda, ArrayRef<llvm::BasicBlock*> bbs) {
     for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
         Def cuda_param = lambda->arg(i);
         const Type* param_type = cuda_param->type();
-        uint32_t num_elems = try_resolve_array_size(cuda_param);
-        llvm::Constant* size = llvm::ConstantInt::get(llvm::IntegerType::getInt32Ty(context), num_elems);
+        uint64_t num_elems = try_resolve_array_size(cuda_param);
+        llvm::Constant* size = llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), num_elems);
         auto alloca = builder.CreateAlloca(cuda_device_ptr_ty);
         auto device_ptr = builder.CreateCall(malloc_gpu, size);
         // store device ptr
@@ -173,9 +173,9 @@ void CodeGen::emit_cuda(Lambda* lambda, ArrayRef<llvm::BasicBlock*> bbs) {
     }
     // determine problem size
     llvm::Value* problem_size_args[] = {
-        llvm::ConstantInt::get(llvm::IntegerType::getInt32Ty(context), it_space_x),
-        llvm::ConstantInt::get(llvm::IntegerType::getInt32Ty(context), 1),
-        llvm::ConstantInt::get(llvm::IntegerType::getInt32Ty(context), 1)
+        llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), it_space_x),
+        llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), 1),
+        llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), 1)
     };
     builder.CreateCall(set_problem_size, problem_size_args);
     // launch
@@ -233,7 +233,7 @@ void CodeGen::emit() {
             llvm::Value* annotation_values[] = {
                 f,
                 llvm::MDString::get(context, cuda_kernel_name),
-                llvm::ConstantInt::get(llvm::IntegerType::getInt32Ty(context), 0)
+                llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), 1)
             };
             annotation->addOperand(llvm::MDNode::get(context, annotation_values));
         } else {

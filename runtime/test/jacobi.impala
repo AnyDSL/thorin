@@ -1,10 +1,5 @@
-extern all_on_gpu([float], fn(fn() -> int, fn() -> int, fn() -> int) -> void) -> int;
+extern all_on_gpu([float], fn(fn() -> int, fn() -> int, fn() -> int) -> void) -> void;
 extern array(int) -> [float];
-extern sqrt(float) -> float;
-
-fn idx(x : int, y: int, width : int, height : int) -> int {
-    return x + width * y;
-}
 
 fn bh_clamp_lower(i : int, lower : int) -> int {
     if (idx < lower) idx = lower;
@@ -23,8 +18,8 @@ fn main() -> [float] {
     let range   = 3;
     let a       = 0.2f;
     let b       = 1.0f - 4.0f * a;
-    let mut arr = array(width * height);
-    let mut out = array(width * height);
+    let arr = array(width * height);
+    let out = array(width * height);
 
     let stencil : [float * 3 * 3] = [
         [0.0f, b, 0.0f],
@@ -36,6 +31,7 @@ fn main() -> [float] {
             let index = x() + width * y();
             //let index = idx(x(), y(), z(), width, height);
             //let sum = @apply_stencil(arr, stencil, 3, x(), y(), width, height);
+            let index = x() + width * y() + height;
             let sum = a * arr[index] +
                       b * (
                         arr[index - 1 + 0 * range] +
@@ -46,25 +42,12 @@ fn main() -> [float] {
             out[index] = sum;
         });
 
-        let mut tmp : [float];
-        tmp = arr;
-        arr = out;
-        out = tmp;
+        //let mut tmp : [float];
+        //tmp = arr;
+        //arr = out;
+        //out = tmp;
     }
 
     return out;
-}
-
-fn apply_stencil(arr : [float], stencil : [float * 3 * 3], range : int, x : int, y : int, width : int, height : int) -> float {
-    let mut sum = 0.0f;
-
-    for (let mut yf=-range; yf<range; ++yf) {
-        for (let mut xf=-range; xf<range; ++xf) {
-            let index = x + xf + width * (y + yf);
-            sum += stencil[range + xf][range +yf] * arr[index];
-        }
-    }
-
-    return sum;
 }
 

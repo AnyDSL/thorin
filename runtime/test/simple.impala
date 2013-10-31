@@ -1,4 +1,4 @@
-extern all_on_gpu([float], fn(fn() -> int, fn() -> int, fn() -> int) -> void) -> int;
+extern all_on_gpu([float], fn(fn() -> int, fn() -> int, fn() -> int) -> void) -> void;
 extern array(int) -> [float];
 
 fn main() -> [float] {

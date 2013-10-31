@@ -925,13 +925,11 @@ void World::opt() {
     cleanup();
     partial_evaluation(*this);
     lower2cff(*this);
-    mem2reg(*this);
-    //inliner(*this);
-    merge_lambdas(*this);
-    cleanup();
 
+    cleanup();
     // HACK
-    for (auto cur : lambdas()) {
+    LambdaSet lms = lambdas();
+    for (auto cur : lms) {
         if (cur->is_connected_to_builtin() && !cur->is_basicblock()) {
             Scope scope(cur);
             std::vector<Def> vars = free_vars(scope);
@@ -963,6 +961,9 @@ void World::opt() {
         }
     }
 
+//     mem2reg(*this);
+    //inliner(*this);
+    merge_lambdas(*this);
     cleanup();
 }
 

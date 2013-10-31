@@ -9,6 +9,8 @@
 #include <fstream>
 #include <iostream>
 
+extern "C"
+{
 
 // global variables ...
 CUdevice cuDevice;
@@ -175,7 +177,7 @@ CUdeviceptr malloc_gpu(size_t size) {
     CUresult err = CUDA_SUCCESS;
     CUdeviceptr mem;
 
-    err = cuMemAlloc(&mem, size);
+    err = cuMemAlloc(&mem, size * sizeof(float));
     checkErrDrv(err, "cuMemAlloc()");
 
     return mem;
@@ -193,16 +195,25 @@ void mem_to_gpu(void *host, CUdeviceptr dev, size_t size) {
     init_cuda();
     CUresult err = CUDA_SUCCESS;
 
-    err = cuMemcpyHtoD(dev, host, size);
+    err = cuMemcpyHtoD(dev, host, size * sizeof(float));
     checkErrDrv(err, "cuMemcpyHtoD()");
+}
+void mem_to_gpu1(void *host, CUdeviceptr dev, size_t size) {
+    mem_to_gpu(host, dev, size);
+}
+void mem_to_gpu2(void **host, CUdeviceptr dev, size_t size) {
+    mem_to_gpu(*host, dev, size);
 }
 
 void mem_to_host(CUdeviceptr dev, void *host, size_t size) {
     init_cuda();
     CUresult err = CUDA_SUCCESS;
 
-    err = cuMemcpyDtoH(host, dev, size);
-    checkErrDrv(err, "cuMemcpyHtoD()");
+    err = cuMemcpyDtoH(host, dev, size * sizeof(float));
+    checkErrDrv(err, "cuMemcpyDtoH()");
+}
+void mem_to_host2(CUdeviceptr dev, void **host, size_t size) {
+    mem_to_host(dev, *host, size);
 }
 
 void synchronize() {
@@ -233,6 +244,10 @@ void set_kernel_arg(void *host) {
     }
     cuArgs[cuArgIdx-1] = (void *)malloc(sizeof(void *));
     cuArgs[cuArgIdx-1] = host;
+}
+
+float *array(size_t num_elems) {
+    return (float *)malloc(sizeof(float)*num_elems);
 }
 
 
@@ -275,6 +290,8 @@ void launch_kernel(const char *kernel_name) {
 
     // reset argument index
     cuArgIdx = 0;
+}
+
 }
 
 #endif  // __CUDA_RT_HPP__

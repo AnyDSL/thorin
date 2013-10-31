@@ -1,14 +1,14 @@
 extern all_on_gpu([float], fn(fn() -> int, fn() -> int, fn() -> int) -> void) -> void;
 extern array(int) -> [float];
 
-fn bh_clamp_lower(i : int, lower : int) -> int {
-    if (idx < lower) idx = lower;
-    return idx;
+fn bh_clamp_lower(mut i : int, lower : int) -> int {
+    if (i < lower) i = lower;
+    return i;
 }
 
-fn bh_clamp_upper(i : int, upper : int) -> int {
-    if (idx >= upper) idx = upper - 1;
-    return idx;
+fn bh_clamp_upper(mut i : int, upper : int) -> int {
+    if (i >= upper) i = upper - 1;
+    return i;
 }
 
 
@@ -31,7 +31,6 @@ fn main() -> [float] {
             let index = x() + width * y();
             //let index = idx(x(), y(), z(), width, height);
             //let sum = @apply_stencil(arr, stencil, 3, x(), y(), width, height);
-            let index = x() + width * y() + height;
             let sum = a * arr[index] +
                       b * (
                         arr[index - 1 + 0 * range] +

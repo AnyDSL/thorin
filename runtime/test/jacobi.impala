@@ -12,6 +12,7 @@ fn bh_clamp_upper(mut i : int, upper : int) -> int {
 }
 
 
+/*
 fn main() -> [float] {
     let width   = 2048;
     let height  = 2048;
@@ -48,9 +49,9 @@ fn main() -> [float] {
 
     return out;
 }
+*/
 
-/*
-fn main2() -> [float] {
+fn main() -> [float] {
     let width   = 2048;
     let height  = 2048;
     let range   = 3;
@@ -65,7 +66,7 @@ fn main2() -> [float] {
         [0.0f, b, 0.0f]];
 
     for (let mut iter=0; iter<10; ++iter) {
-        all_on_gpu(out, |x : fn() -> int, y : fn() -> int, z : fn() -> int, bIx : fn() -> int, bDx : fn() -> int, bIy : fn() -> int, bDy : fn() -> int| -> void {
+        all_on_gpu(out, |x : fn() -> int, y : fn() -> int, bIx : fn() -> int, bIy : fn() -> int, bDx : fn() -> int, bDy : fn() -> int| -> void {
             let index = (x() + bIx() * bDx()) + width * (y() + bIy() * bDy());
             let mut sum = 0.0f;
 
@@ -86,4 +87,4 @@ fn main2() -> [float] {
 
     return out;
 }
-*/
+

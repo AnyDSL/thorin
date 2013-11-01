@@ -139,6 +139,8 @@ static uint64_t try_resolve_array_size(Def def) {
                         // resolve size
                         return lambda->arg(1)->as<PrimLit>()->u64_value();
                     }
+                    else if (larray->attribute().is(Lambda::StencilAr))
+                        return 9;
                 }
             }
         }

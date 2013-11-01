@@ -160,7 +160,7 @@ void CodeGen::emit_cuda(Lambda* lambda, ArrayRef<llvm::BasicBlock*> bbs) {
     builder.CreateCall(load_kernel, load_args);
     // fetch values and create external calls for intialization
     std::vector<std::pair<llvm::Value*, llvm::Constant*>> device_ptrs;
-    for (size_t i = 7, e = lambda->num_args(); i < e; ++i) {
+    for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
         Def cuda_param = lambda->arg(i);
         const Type* param_type = cuda_param->type();
         uint64_t num_elems = try_resolve_array_size(cuda_param);
@@ -191,7 +191,7 @@ void CodeGen::emit_cuda(Lambda* lambda, ArrayRef<llvm::BasicBlock*> bbs) {
     builder.CreateCall(synchronize);
 
     // fetch data back to cpu
-    for (size_t i = 7, e = lambda->num_args(); i < e; ++i) {
+    for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
         Def cuda_param = lambda->arg(i);
         const Type* param_type = cuda_param->type();
         auto entry = device_ptrs[i-4];

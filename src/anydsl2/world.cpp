@@ -15,6 +15,7 @@
 #include "anydsl2/analyses/schedule.h"
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/analyses/verify.h"
+#include "anydsl2/be/air.h"
 #include "anydsl2/transform/lower2cff.h"
 #include "anydsl2/transform/inliner.h"
 #include "anydsl2/transform/mangle.h"
@@ -1021,7 +1022,6 @@ void World::unreachable_code_elimination() {
 
 void World::uce_insert(const size_t pass, Lambda* lambda) {
     if (lambda->visit(pass)) return;
-
     for (auto succ : lambda->succs())
         uce_insert(pass, succ);
 }
@@ -1052,11 +1052,8 @@ void World::dead_code_elimination() {
             lambda->update_op(i, dce_rebuild(pass, lambda->op(i)));
     }
 
-    auto wipe_primop = [=] (const PrimOp* primop) {
-        return !primop->is_const() && (!primop->is_visited(pass) || get_mapped(primop) != primop);
-    };
-    //auto wipe_lambda = [] (Lambda* lambda) { return lambda->empty() && !lambda->attribute().is(Lambda::Extern); };
-    auto wipe_lambda = [] (Lambda* lambda) { return false; };
+    auto wipe_primop = [&] (const PrimOp* primop) { return !primop->is_visited(pass) || get_mapped(primop) != primop; };
+    auto wipe_lambda = [] (Lambda* lambda) { return lambda->empty() && !lambda->attribute().is(Lambda::Extern); };
 
     for (auto primop : primops_) {
         if (wipe_primop(primop)) {
@@ -1088,9 +1085,9 @@ void World::dead_code_elimination() {
 Def World::dce_rebuild(const size_t pass, Def def) {
     if (def->visit(pass))
         return get_mapped(def);
-    else if (auto lambda = def->isa<Lambda>())
+    if (auto lambda = def->isa<Lambda>())
         return set_mapped(lambda, lambda);
-    else if (def->isa<Param>())
+    if (def->isa<Param>())
         return set_mapped(def, def);
 
     assert(def->is_visited(pass));

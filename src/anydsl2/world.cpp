@@ -807,6 +807,19 @@ const Slot* World::slot(const Type* type, Def frame, size_t index, const std::st
 const LEA* World::lea(Def ptr, Def index, const std::string& name) { return cse(new LEA(ptr, index, name)); }
 const Addr* World::addr(Def lambda, const std::string& name) { return cse(new Addr(lambda, name)); }
 
+Def World::run(Def def, const std::string& name) { 
+    if (auto run  = def->isa<Run >()) return run;
+    if (auto halt = def->isa<Halt>()) return halt;
+    return cse(new Run(def, name)); 
+}
+
+Def World::halt(Def def, const std::string& name) { 
+    if (auto halt = def->isa<Halt>()) return halt;
+    if (auto run  = def->isa<Run >()) 
+        def = run->def();
+    return cse(new Halt(def, name)); 
+}
+
 Lambda* World::lambda(const Pi* pi, Lambda::Attribute attribute, const std::string& name) {
     ANYDSL2_CHECK_BREAK(gid_)
     auto l = new Lambda(gid_++, pi, attribute, true, name);
@@ -925,6 +938,8 @@ void World::cleanup() {
 void World::opt() {
     cleanup();
     partial_evaluation(*this);
+    cleanup();
+    return;
     lower2cff(*this);
 
     cleanup();

@@ -10,6 +10,7 @@
 
 namespace anydsl2 {
 
+#if 0
 struct Call {
     Lambda* to;
     std::vector<const DefNode*> args;
@@ -31,11 +32,30 @@ struct CallEqual {
             && ArrayRef<size_t>(call1.idx) == ArrayRef<size_t>(call2.idx);
     }
 };
+#endif
+
+static size_t count(Lambda* dropped, size_t num) {
+    if (dropped == nullptr)
+        return num;
+
+    Scope scope(dropped);
+    assert(num >= scope.size());
+    size_t result = num - scope.size();
+    for (auto lambda : scope.rpo()) {
+        if (lambda->to()->is_const()) {
+            assert(lambda->to()->isa<Lambda>());
+            ++result;
+        }
+    }
+
+    return result;
+}
 
 void partial_evaluation(World& world) {
-    std::unordered_map<Call, Lambda*, CallHash, CallEqual> done;
+    //std::unordered_map<Call, Lambda*, CallHash, CallEqual> done;
     bool todo;
 
+    //for (int counter = 0; counter < 1; ++counter) {
     do {
         todo = false;
 
@@ -45,48 +65,59 @@ void partial_evaluation(World& world) {
                 if (lambda->empty())
                     continue;
                 if (auto to = lambda->to()->isa_lambda()) {
-                    Call call;
-                    call.to = to;
+                    if (to->gid() == 74)
+                        std::cout << "hey" << std::endl;
+                    Scope scope(to);
+                    GenericMap map;
+                    bool res = to->type()->infer_with(map, lambda->arg_pi());
+                    assert(res);
+                    Lambda* e_dropped = nullptr;
+                    Lambda* f_dropped = nullptr;
+                    std::vector<Def> e_args, f_args;
+                    std::vector<size_t> e_idx, f_idx;
 
                     for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
                         if (auto run = lambda->arg(i)->isa<Run>()) {
-                            call.args.push_back(run);
-                            call.idx.push_back(i);
+                            e_args.push_back(run);
+                            e_idx.push_back(i);
                         }
                     }
 
-                    if (call.args.empty())
+                    if (!e_args.empty())
+                        e_dropped = drop(scope, e_idx, e_args, map);
+                    else
                         continue;
 
-                    Lambda* dropped;
-                    auto iter = done.find(call);
-                    if (iter != done.end()) {
-                        std::cout << "FOUND!!!" << std::endl;
-                        dropped = iter->second;
-                    } else {
-                        GenericMap map;
-                        bool res = to->type()->infer_with(map, lambda->arg_pi());
-                        assert(res);
-                        Array<Def> args(call.args.size());
-                        for (size_t i = 0, e = args.size(); i != e; ++i)
-                            args[i] = call.args[i];
-                        dropped = drop(Scope(call.to), call.idx, args, map);
-                        done[call] = dropped;
-                        todo = true;
+                    for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
+                        auto arg = lambda->arg(i);
+                        if (!arg->isa<Halt>()) {
+                            if (arg->is_const())
+                                arg = world.run(arg);
+                            f_args.push_back(arg);
+                            f_idx.push_back(i);
+                        }
                     }
 
-                    lambda->jump(dropped, lambda->args().cut(call.idx));
-                }
+                    if (!f_args.empty())
+                        f_dropped = drop(scope, f_idx, f_args, map);
 
+                    // choose better variant
+                    size_t num = scope.size();
+                    size_t e_good = count(e_dropped, num);
+                    size_t f_good = count(f_dropped, num);
+                    bool use_f = f_good > e_good;
+                    use_f = true;
+
+                    std::vector<size_t>* idx = use_f ? &f_idx : &e_idx;
+                    Lambda* dropped          = use_f ? f_dropped : e_dropped;
+
+                    lambda->jump(dropped, lambda->args().cut(*idx));
+                    todo = true;
+                }
             }
         }
-        //std::cout << "---" << std::endl;
-        //emit_air(world, false);
-        //std::cout << "---" << std::endl;
-    } while (todo);
-    //std::cout << "FINAL:" << std::endl;
-    //std::cout << "---------------------------" << std::endl;
-    //emit_air(world, false);
+    }
+    while (todo);
 }
 
 }

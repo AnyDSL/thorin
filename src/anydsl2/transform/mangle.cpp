@@ -112,6 +112,8 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
     // fold branch if possible
     if (auto select = olambda->to()->isa<Select>()) {
         Def cond = mangle(select->cond());
+        if (auto run = cond->isa<Run>())
+            cond = run->def();
         if (auto lit = cond->isa<PrimLit>())
             ops[0] = mangle(lit->value().get_u1().get() ? select->tval() : select->fval());
         else
@@ -135,12 +137,9 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
     nlambda->jump(ntarget, nargs);
 }
 
+enum class Eval { Run, Infer, NonConst, Halt };
+
 Def Mangler::mangle(Def odef) {
-    if (auto evalop = odef->isa<EvalOp>()) {
-        auto run = odef->isa<Run>();
-        auto halt = odef->isa<Halt>();
-        //odef = evalop->def();
-    }
     if (odef->cur_pass() < pass1)
         return odef;
     if (odef->is_visited(pass2))
@@ -156,10 +155,36 @@ Def Mangler::mangle(Def odef) {
 
     auto oprimop = odef->as<PrimOp>();
     Array<Def> nops(oprimop->size());
-    for (size_t i = 0, e = oprimop->size(); i != e; ++i)
-        nops[i] = mangle(oprimop->op(i));
+    Eval eval = Eval::Infer;
+    for (size_t i = 0, e = oprimop->size(); i != e; ++i) {
+        auto op = mangle(oprimop->op(i));
 
-    return map(oprimop, world.rebuild(oprimop, nops));
+        if (auto evalop = op->isa<EvalOp>()) {
+            if (evalop->isa<Run>() && eval == Eval::Infer)
+                eval = Eval::Run;
+            else if (evalop->isa<Halt>())
+                eval = Eval::Halt;
+            op = evalop->def();
+        } else if (!op->is_const()) {
+            if (eval == Eval::Run || eval == Eval::Infer)
+                eval = Eval::NonConst;
+        }
+
+        nops[i] = op;
+    }
+
+    auto nprimop = world.rebuild(oprimop, nops);
+    if (eval == Eval::Run) 
+        nprimop = world.run(nprimop);
+    else if (eval == Eval::Halt)
+        nprimop = world.halt(nprimop);
+
+    std::cout << "-" << std::endl;
+    oprimop->dump();
+    nprimop->dump();
+    std::cout << "-" << std::endl;
+
+    return map(oprimop, nprimop);
 }
 
 //------------------------------------------------------------------------------

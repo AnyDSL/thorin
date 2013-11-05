@@ -34,29 +34,12 @@ struct CallEqual {
 };
 #endif
 
-static size_t count(Lambda* dropped, size_t num) {
-    if (dropped == nullptr)
-        return num;
-
-    Scope scope(dropped);
-    assert(num >= scope.size());
-    size_t result = num - scope.size();
-    for (auto lambda : scope.rpo()) {
-        if (lambda->to()->is_const()) {
-            assert(lambda->to()->isa<Lambda>());
-            ++result;
-        }
-    }
-
-    return result;
-}
-
 void partial_evaluation(World& world) {
     //std::unordered_map<Call, Lambda*, CallHash, CallEqual> done;
     bool todo;
 
-    //for (int counter = 0; counter < 1; ++counter) {
-    do {
+    for (int counter = 0; counter < 1; ++counter) {
+    //do {
         todo = false;
 
         for (auto top : top_level_lambdas(world)) {
@@ -65,59 +48,92 @@ void partial_evaluation(World& world) {
                 if (lambda->empty())
                     continue;
                 if (auto to = lambda->to()->isa_lambda()) {
-                    if (to->gid() == 74)
-                        std::cout << "hey" << std::endl;
                     Scope scope(to);
-                    GenericMap map;
-                    bool res = to->type()->infer_with(map, lambda->arg_pi());
-                    assert(res);
-                    Lambda* e_dropped = nullptr;
-                    Lambda* f_dropped = nullptr;
-                    std::vector<Def> e_args, f_args;
-                    std::vector<size_t> e_idx, f_idx;
+                    std::vector<Def> args;
+                    std::vector<size_t> idx;
 
                     for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
                         if (auto run = lambda->arg(i)->isa<Run>()) {
-                            e_args.push_back(run);
-                            e_idx.push_back(i);
+                            args.push_back(run);
+                            idx.push_back(i);
                         }
                     }
 
-                    if (!e_args.empty())
-                        e_dropped = drop(scope, e_idx, e_args, map);
-                    else
+                    if (args.empty())
                         continue;
 
-                    for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
-                        auto arg = lambda->arg(i);
-                        if (!arg->isa<Halt>()) {
-                            if (arg->is_const())
-                                arg = world.run(arg);
-                            f_args.push_back(arg);
-                            f_idx.push_back(i);
+                    GenericMap map;
+                    bool res = to->type()->infer_with(map, lambda->arg_pi());
+                    assert(res);
+                    auto dropped = drop(scope, idx, args, map);
+
+                    lambda->jump(dropped, lambda->args().cut(idx));
+                    todo = true;
+
+                    Scope dscope(dropped);
+                    std::cout << "scope of: " << dropped->unique_name() << std::endl;
+                    std::queue<Def> queue;
+                    const auto pass1 = dscope.mark();
+                    const auto pass2 = world.new_pass();
+
+                    auto fill_queue = [&] (Def def) {
+                        assert(!def->isa<Lambda>());
+                        for (auto op : def->ops()) {
+                            if (op->cur_pass() < pass1)
+                                continue;
+
+                            if (op->isa<Lambda>())
+                                continue;
+
+                            assert(!op->isa<EvalOp>());
+
+                            if (!op->visit(pass2)) {
+                                if (auto param = op->isa<Param>()) {
+                                    for (auto peek : param->peek()) {
+                                        if (peek.def()->cur_pass() < pass1 || peek.def()->is_visited(pass2))
+                                            continue;
+                                        auto nrun = world.run(peek.def());
+                                        nrun->visit_first(pass2);
+                                        std::cout << "updating:" << std::endl;
+                                        peek.from()->dump_head();
+                                        peek.from()->dump_jump();
+                                        peek.from()->update_arg(param->index(), nrun);
+                                        peek.from()->dump_jump();
+                                        queue.push(nrun);
+                                    }
+                                } else
+                                    queue.push(op);
+                            }
+                        }
+                    };
+
+                    for (auto lambda : dscope.rpo()) {
+                        for (auto op : lambda->ops()) {
+                            if (auto run = op->isa<Run>())
+                                fill_queue(run);
                         }
                     }
 
-                    if (!f_args.empty())
-                        f_dropped = drop(scope, f_idx, f_args, map);
-
-                    // choose better variant
-                    size_t num = scope.size();
-                    size_t e_good = count(e_dropped, num);
-                    size_t f_good = count(f_dropped, num);
-                    bool use_f = f_good > e_good;
-                    use_f = true;
-
-                    std::vector<size_t>* idx = use_f ? &f_idx : &e_idx;
-                    Lambda* dropped          = use_f ? f_dropped : e_dropped;
-
-                    lambda->jump(dropped, lambda->args().cut(*idx));
-                    todo = true;
+                    while (!queue.empty()) {
+                        auto def = queue.front();
+                        queue.pop();
+                        fill_queue(def);
+                    }
                 }
             }
         }
+    } 
+    //while (todo);
+
+#if 0
+    for (auto lambda : world.lambdas()) {
+        for (size_t i = 0, e = lambda->size(); i != e; ++i) {
+            auto op = lambda->op(i);
+            if (auto evalop = op->isa<EvalOp>())
+                lambda->update_op(i, evalop->def());
+        }
     }
-    while (todo);
+#endif
 }
 
 }

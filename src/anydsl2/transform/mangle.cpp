@@ -112,12 +112,10 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
     // fold branch if possible
     if (auto select = olambda->to()->isa<Select>()) {
         Def cond = mangle(select->cond());
-        if (auto run = cond->isa<Run>())
-            cond = run->def();
         if (auto lit = cond->isa<PrimLit>())
             ops[0] = mangle(lit->value().get_u1().get() ? select->tval() : select->fval());
         else
-            ops[0] = world.select(cond, mangle(select->tval()), mangle(select->fval()));
+            ops[0] = mangle(select); //world.select(cond, mangle(select->tval()), mangle(select->fval()));
     } else
         ops[0] = mangle(olambda->to());
 
@@ -137,7 +135,7 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
     nlambda->jump(ntarget, nargs);
 }
 
-enum class Eval { Run, Infer, NonConst, Halt };
+enum class Eval { Run, Infer, Halt };
 
 Def Mangler::mangle(Def odef) {
     if (odef->cur_pass() < pass1)
@@ -162,12 +160,11 @@ Def Mangler::mangle(Def odef) {
         if (auto evalop = op->isa<EvalOp>()) {
             if (evalop->isa<Run>() && eval == Eval::Infer)
                 eval = Eval::Run;
-            else if (evalop->isa<Halt>())
+            else {
+                assert(evalop->isa<Halt>());
                 eval = Eval::Halt;
+            }
             op = evalop->def();
-        } else if (!op->is_const()) {
-            if (eval == Eval::Run || eval == Eval::Infer)
-                eval = Eval::NonConst;
         }
 
         nops[i] = op;
@@ -178,11 +175,6 @@ Def Mangler::mangle(Def odef) {
         nprimop = world.run(nprimop);
     else if (eval == Eval::Halt)
         nprimop = world.halt(nprimop);
-
-    std::cout << "-" << std::endl;
-    oprimop->dump();
-    nprimop->dump();
-    std::cout << "-" << std::endl;
 
     return map(oprimop, nprimop);
 }

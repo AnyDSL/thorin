@@ -16,7 +16,8 @@ public:
         , to_lift(to_lift)
         , generic_map(generic_map)
         , world(scope.world())
-        , pass(world.new_pass())
+        , pass1(scope.mark())
+        , pass2(world.new_pass())
     {}
 
     Lambda* mangle();
@@ -24,12 +25,12 @@ public:
     Lambda* mangle_head(Lambda* olambda);
     Def mangle(Def odef);
     Def map(Def def, Def to) {
-        def->visit_first(pass);
+        def->visit_first(pass2);
         def->cptr = *to;
         return to;
     }
     Def lookup(Def def) {
-        assert(def->is_visited(pass));
+        assert(def->is_visited(pass2));
         return Def((const DefNode*) def->cptr);
     }
 
@@ -39,7 +40,8 @@ public:
     ArrayRef<Def> to_lift;
     GenericMap generic_map;
     World& world;
-    const size_t pass;
+    const size_t pass1;
+    const size_t pass2;
     Lambda* nentry;
     Lambda* oentry;
 };
@@ -72,6 +74,7 @@ Lambda* Mangler::mangle() {
         }
     }
 
+    // TODO mark users of to_lift
     for (size_t i = offset, e = nelems.size(), x = 0; i != e; ++i, ++x) {
         map(to_lift[x], nentry->param(i));
         nentry->param(i)->name = to_lift[x]->name;
@@ -81,7 +84,7 @@ Lambda* Mangler::mangle() {
     mangle_body(oentry, nentry);
 
     for (auto cur : scope.rpo().slice_from_begin(1)) {
-        if (cur->is_visited(pass))
+        if (cur->is_visited(pass2))
             mangle_body(cur, lookup(cur)->as_lambda());
     }
 
@@ -89,7 +92,7 @@ Lambda* Mangler::mangle() {
 }
 
 Lambda* Mangler::mangle_head(Lambda* olambda) {
-    assert(!olambda->is_visited(pass));
+    assert(!olambda->is_visited(pass2));
     assert(!olambda->empty());
     Lambda* nlambda = olambda->stub(generic_map, olambda->name);
     map(olambda, nlambda);
@@ -116,8 +119,8 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
     } else
         ops[0] = mangle(olambda->to());
 
-    ArrayRef<Def> nargs(ops.slice_from_begin(1));  // new args of nlambda
-    Def ntarget = ops.front();               // new target of nlambda
+    ArrayRef<Def> nargs(ops.slice_from_begin(1));// new args of nlambda
+    Def ntarget = ops.front();                   // new target of nlambda
 
     // check whether we can optimize tail recursion
     if (ntarget == oentry) {
@@ -133,28 +136,30 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
 }
 
 Def Mangler::mangle(Def odef) {
-    if (odef->is_visited(pass))
+    if (auto evalop = odef->isa<EvalOp>()) {
+        auto run = odef->isa<Run>();
+        auto halt = odef->isa<Halt>();
+        //odef = evalop->def();
+    }
+    if (odef->cur_pass() < pass1)
+        return odef;
+    if (odef->is_visited(pass2))
         return lookup(odef);
 
     if (auto olambda = odef->isa_lambda()) {
-        if (scope.contains(olambda))
-            return mangle_head(olambda);
-        else
-            return map(odef, odef);
-    } else if (odef->isa<Param>())
+        assert(scope.contains(olambda));
+        return mangle_head(olambda);
+    } else if (auto param = odef->isa<Param>()) {
+        assert(scope.contains(param->lambda()));
         return map(odef, odef);
-
-    bool is_new = false;
-    const PrimOp* oprimop = odef->as<PrimOp>();
-    Array<Def> nops(oprimop->size());
-    for (size_t i = 0, e = oprimop->size(); i != e; ++i) {
-        Def& nop = nops[i];
-        Def op = oprimop->op(i);
-        nop = mangle(op);
-        is_new |= nop != op;
     }
 
-    return map(oprimop, is_new ? world.rebuild(oprimop, nops) : oprimop);
+    auto oprimop = odef->as<PrimOp>();
+    Array<Def> nops(oprimop->size());
+    for (size_t i = 0, e = oprimop->size(); i != e; ++i)
+        nops[i] = mangle(oprimop->op(i));
+
+    return map(oprimop, world.rebuild(oprimop, nops));
 }
 
 //------------------------------------------------------------------------------

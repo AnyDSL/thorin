@@ -214,7 +214,9 @@ void CodeGen::emit_cuda(Lambda* lambda, ArrayRef<llvm::BasicBlock*> bbs) {
 
 void CodeGen::emit() {
     // emit cuda declarations
+#if 0
     emit_cuda_decls();
+#endif
     // map all root-level lambdas to llvm function stubs
     const Param* cuda_return = 0;
     for (auto lambda : top_level_lambdas(world)) {

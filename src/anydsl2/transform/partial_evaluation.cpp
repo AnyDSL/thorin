@@ -2,6 +2,7 @@
 
 #include "anydsl2/world.h"
 #include "anydsl2/analyses/scope.h"
+#include "anydsl2/be/air.h"
 #include "anydsl2/analyses/schedule.h"
 #include "anydsl2/analyses/looptree.h"
 #include "anydsl2/transform/mangle.h"
@@ -39,8 +40,8 @@ void partial_evaluation(World& world) {
         todo = false;
 
         for (auto top : top_level_lambdas(world)) {
-            Array<Lambda*> lambdas(Scope(top).rpo());
-            for (auto lambda : lambdas) {
+            Scope scope(top);
+            for (auto lambda : scope.rpo()) {
                 if (lambda->empty())
                     continue;
                 if (auto to = lambda->to()->isa_lambda()) {
@@ -59,9 +60,10 @@ void partial_evaluation(World& world) {
 
                     Lambda* dropped;
                     auto iter = done.find(call);
-                    if (iter != done.end())
+                    if (iter != done.end()) {
+                        std::cout << "FOUND!!!" << std::endl;
                         dropped = iter->second;
-                    else {
+                    } else {
                         GenericMap map;
                         bool res = to->type()->infer_with(map, lambda->arg_pi());
                         assert(res);
@@ -78,7 +80,13 @@ void partial_evaluation(World& world) {
 
             }
         }
+        //std::cout << "---" << std::endl;
+        //emit_air(world, false);
+        //std::cout << "---" << std::endl;
     } while (todo);
+    //std::cout << "FINAL:" << std::endl;
+    //std::cout << "---------------------------" << std::endl;
+    //emit_air(world, false);
 }
 
 }

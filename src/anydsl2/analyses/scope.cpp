@@ -201,6 +201,32 @@ ArrayRef<Lambda*> Scope::backwards_rpo() const {
     return *backwards_rpo_;
 }
 
+size_t Scope::mark() const {
+    std::queue<Def> queue;
+    const auto pass = world().new_pass();
+
+    for (auto lambda : rpo()) {
+        lambda->visit_first(pass);
+
+        for (auto param : lambda->params()) {
+            param->visit_first(pass);
+            queue.push(param);
+        }
+
+        while (!queue.empty()) {
+            auto def = queue.front();
+            queue.pop();
+
+            for (auto use : def->uses()) {
+                if (!use->isa_lambda() && !use->visit(pass))
+                    queue.push(use);
+            }
+        }
+    }
+
+    return pass;
+}
+
 //------------------------------------------------------------------------------
 
 const DomTree& Scope::domtree() const { return domtree_ ? *domtree_ : *(domtree_ = new DomTree(*this)); }

@@ -205,9 +205,9 @@ void Verifier::invalid(Def def, Def source, const char* msg) {
 }
 
 static void within(World& world, const DefNode* def) {
-    if (auto primop = def->isa<PrimOp>())
+    if (auto primop = def->isa<PrimOp>()) {
         assert(world.primops().find(primop) != world.primops().end());
-    else if (auto lambda = def->isa_lambda())
+    } else if (auto lambda = def->isa_lambda())
         assert(world.lambdas().find(lambda) != world.lambdas().end());
     else
         within(world, def->as<Param>()->lambda());

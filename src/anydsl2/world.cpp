@@ -961,8 +961,8 @@ void World::opt() {
         }
     }
 
-//     mem2reg(*this);
-    //inliner(*this);
+    mem2reg(*this);
+    inliner(*this);
     merge_lambdas(*this);
     cleanup();
 }
@@ -1027,7 +1027,7 @@ void World::uce_insert(const size_t pass, Lambda* lambda) {
 }
 
 static const DefNode* get_mapped(const DefNode* def) { return (const DefNode*) def->cptr; }
-static void set_mapped(const DefNode* odef, const DefNode* ndef) { ((const DefNode*&) odef->cptr) = ndef; }
+static const DefNode* set_mapped(const DefNode* odef, const DefNode* ndef) { return ((const DefNode*&) odef->cptr) = ndef; }
 
 void World::dead_code_elimination() {
     const auto pass = new_pass();
@@ -1055,7 +1055,8 @@ void World::dead_code_elimination() {
     auto wipe_primop = [=] (const PrimOp* primop) {
         return !primop->is_const() && (!primop->is_visited(pass) || get_mapped(primop) != primop);
     };
-    auto wipe_lambda = [] (Lambda* lambda) { return lambda->empty() && !lambda->attribute().is(Lambda::Extern); };
+    //auto wipe_lambda = [] (Lambda* lambda) { return lambda->empty() && !lambda->attribute().is(Lambda::Extern); };
+    auto wipe_lambda = [] (Lambda* lambda) { return false; };
 
     for (auto primop : primops_) {
         if (wipe_primop(primop)) {
@@ -1085,16 +1086,16 @@ void World::dead_code_elimination() {
 }
 
 Def World::dce_rebuild(const size_t pass, Def def) {
-    if (def->is_const()) 
-        return def;
-    if (auto param = def->isa<Param>())
-        return Def(param);
+    if (def->visit(pass))
+        return get_mapped(def);
+    else if (auto lambda = def->isa<Lambda>())
+        return set_mapped(lambda, lambda);
+    else if (def->isa<Param>())
+        return set_mapped(def, def);
+
+    assert(def->is_visited(pass));
 
     auto oprimop = def->as<PrimOp>();
-
-    if (oprimop->is_visited(pass))
-        return get_mapped(oprimop);
-
     Array<Def> ops(oprimop->size());
     for (size_t i = 0, e = oprimop->size(); i != e; ++i)
         ops[i] = dce_rebuild(pass, oprimop->op(i));

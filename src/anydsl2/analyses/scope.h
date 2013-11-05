@@ -41,10 +41,16 @@ public:
     World& world() const { return world_; }
     bool is_entry(Lambda* lambda) const { assert(contains(lambda)); return lambda->sid() < num_entries(); }
     bool is_exit(Lambda* lambda) const { assert(contains(lambda)); return lambda->backwards_sid() < num_exits(); }
-
     const DomTreeBase<true>& domtree() const;
     const DomTreeBase<false>& postdomtree() const;
     const LoopTree& looptree() const;
+    /**
+     * Mark everything within this scope.
+     * This analysis creates a new pass.
+     * All \p DefNode%s' \p cur_pass_ counters are set to this number
+     * @return Returns the counter used for marking.
+     */
+    size_t mark() const;
 
 private:
     void identify_scope(ArrayRef<Lambda*> entries);

@@ -938,11 +938,8 @@ void World::cleanup() {
 void World::opt() {
     cleanup();
     partial_evaluation(*this);
-    cleanup();
-    return;
     lower2cff(*this);
 
-    cleanup();
     // HACK
     LambdaSet lms = lambdas();
     for (auto cur : lms) {
@@ -1044,9 +1041,14 @@ void World::uce_insert(const size_t pass, Lambda* lambda) {
 static const DefNode* get_mapped(const DefNode* def) { return (const DefNode*) def->cptr; }
 static const DefNode* set_mapped(const DefNode* odef, const DefNode* ndef) { return ((const DefNode*&) odef->cptr) = ndef; }
 
-void World::dead_code_elimination() {
-    const auto pass = new_pass();
+static void sanity_check(Def def) {
+    if (auto param = def->isa<Param>())
+        assert(!param->lambda()->empty());
+    else if (auto lambda = def->isa_lambda())
+        assert(!lambda->empty());
+}
 
+void World::dead_code_elimination() {
     // elimimante useless enters/leaves
     for (auto primop : primops()) {
         if (auto enter = primop->isa<Enter>())
@@ -1062,13 +1064,15 @@ void World::dead_code_elimination() {
             }
     }
 
+    const auto pass = new_pass();
+
     for (auto lambda : lambdas()) {
         for (size_t i = 0, e = lambda->ops().size(); i != e; ++i)
             lambda->update_op(i, dce_rebuild(pass, lambda->op(i)));
     }
 
     auto wipe_primop = [&] (const PrimOp* primop) { return !primop->is_visited(pass) || get_mapped(primop) != primop; };
-    auto wipe_lambda = [] (Lambda* lambda) { return lambda->empty() && !lambda->attribute().is(Lambda::Extern); };
+    auto wipe_lambda = [&] (Lambda* lambda) { return lambda->empty() && !lambda->attribute().is(Lambda::Extern); };
 
     for (auto primop : primops_) {
         if (wipe_primop(primop)) {
@@ -1078,6 +1082,11 @@ void World::dead_code_elimination() {
                     auto num = primop->representative_->representatives_of_.erase(primop);
                     assert(num == 1);
                 }
+#ifndef NDEBUG
+        } else {
+            for (auto op : primop->ops())
+                sanity_check(op);
+#endif
         }
     }
 
@@ -1089,6 +1098,11 @@ void World::dead_code_elimination() {
                     assert(num == 1);
                 }
             }
+#ifndef NDEBUG
+        } else {
+            for (auto op : lambda->ops())
+                sanity_check(op);
+#endif
         }
     }
 

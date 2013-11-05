@@ -168,14 +168,22 @@ size_t DefNode::length() const { return type()->as<VectorType>()->length(); }
 //------------------------------------------------------------------------------
 
 Peeks Param::peek() const {
-    size_t x = index();
-    Lambda* l = lambda();
-    Lambdas preds = l->direct_preds();
-    Peeks result(preds.size());
-    for (size_t i = 0, e = preds.size(); i != e; ++i)
-        result[i] = Peek(preds[i]->arg(x), preds[i]);
+    Peeks peeks;
+    for (auto use : lambda()->uses()) {
+        if (auto pred = use->isa_lambda()) {
+            if (use.index() == 0)
+                peeks.emplace_back(pred->arg(index()), pred);
+        } 
+        //else if (auto evalop = use->isa<EvalOp>()) {
+            //for (auto use : evalop->uses()) {
+                //if (auto pred = use->isa_lambda())
+                    //if (use.index() == 0)
+                        //peeks.emplace_back(pred->arg(index()), pred);
+            //}
+        //}
+    }
 
-    return result;
+    return peeks;
 }
 
 //------------------------------------------------------------------------------

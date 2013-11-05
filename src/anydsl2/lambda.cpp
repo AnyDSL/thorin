@@ -43,25 +43,6 @@ const Param* Lambda::append_param(const Type* type, const std::string& name) {
     return param;
 }
 
-template<bool direct>
-static Lambdas find_preds(const Lambda* lambda) {
-    Lambdas result;
-    for (auto use : lambda->uses()) {
-        if (const Select* select = use->isa<Select>()) {
-            for (auto select_user : select->uses()) {
-                assert(select_user.index() == 0);
-                result.push_back(select_user->as_lambda());
-            }
-        } else {
-            if (!direct || use.index() == 0)
-                if (auto ulambda = use->isa_lambda())
-                    result.push_back(ulambda);
-        }
-    }
-
-    return result;
-}
-
 Lambdas Lambda::succs() const {
     std::vector<Lambda*> succs;
     std::queue<const DefNode*> queue;
@@ -116,7 +97,6 @@ start:
     return preds;
 }
 
-Lambdas Lambda::direct_preds() const { return find_preds<true>(this); }
 bool Lambda::is_builtin() const { return attribute().is(Cuda); }
 
 bool Lambda::is_connected_to_builtin() const {

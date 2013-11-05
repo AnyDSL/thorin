@@ -1,7 +1,6 @@
-fn main(a : int, b : int, c : int) -> int {
+fn main(mut a : int, mut b : int, mut c : int) -> int {
     let mut result = 0;
 
-//foo:
     while (!(a < 42 && a != b))
         while (b < 23)
             do 

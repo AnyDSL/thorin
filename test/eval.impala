@@ -1,15 +1,15 @@
 fn foo(a: int, b: int) -> int {
     let mut res1 = 0;
     for (let mut i = 0; i < a; ++i)
-        res1+=4;
+        res1 += 4;
 
     let mut res2 = 0;
     for (let mut i = 0; i < b; ++i)
-        ++res2;
+        res2 += 3;
 
     return res1 + res2;
 }
 
 fn main(i: int) -> int {
-    return foo(@10, @20);
+    return foo(@1, @0);
 }

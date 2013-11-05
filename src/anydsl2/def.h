@@ -103,7 +103,7 @@ private:
     Lambda* from_;
 };
 
-typedef Array<Peek> Peeks;
+typedef std::vector<Peek> Peeks;
 
 //------------------------------------------------------------------------------
 

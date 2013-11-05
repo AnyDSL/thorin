@@ -35,11 +35,10 @@ struct CallEqual {
 #endif
 
 void partial_evaluation(World& world) {
-    //std::unordered_map<Call, Lambda*, CallHash, CallEqual> done;
     bool todo;
 
-    for (int counter = 0; counter < 1; ++counter) {
-    //do {
+    //for (int counter = 0; counter < 10; ++counter) {
+    do {
         todo = false;
 
         for (auto top : top_level_lambdas(world)) {
@@ -70,62 +69,64 @@ void partial_evaluation(World& world) {
                     lambda->jump(dropped, lambda->args().cut(idx));
                     todo = true;
 
-                    Scope dscope(dropped);
-                    std::cout << "scope of: " << dropped->unique_name() << std::endl;
-                    std::queue<Def> queue;
-                    const auto pass1 = dscope.mark();
-                    const auto pass2 = world.new_pass();
+                    // propagate run ops
+                    {
+                        Scope scope(dropped);
+                        std::queue<Def> queue;
+                        const auto pass1 = scope.mark();
+                        const auto pass2 = world.new_pass();
 
-                    auto fill_queue = [&] (Def def) {
-                        assert(!def->isa<Lambda>());
-                        for (auto op : def->ops()) {
-                            if (op->cur_pass() < pass1)
-                                continue;
+                        auto fill_queue = [&] (Def def) {
+                            assert(!def->isa<Lambda>());
+                            for (auto op : def->ops()) {
+                                if (op->cur_pass() < pass1)
+                                    continue;
 
-                            if (op->isa<Lambda>())
-                                continue;
+                                if (op->isa<Lambda>())
+                                    continue;
 
-                            assert(!op->isa<EvalOp>());
+                                assert(!op->isa<EvalOp>());
 
-                            if (!op->visit(pass2)) {
-                                if (auto param = op->isa<Param>()) {
-                                    for (auto peek : param->peek()) {
-                                        if (peek.def()->cur_pass() < pass1 || peek.def()->is_visited(pass2))
-                                            continue;
-                                        auto nrun = world.run(peek.def());
-                                        nrun->visit_first(pass2);
-                                        std::cout << "updating:" << std::endl;
-                                        peek.from()->dump_head();
-                                        peek.from()->dump_jump();
-                                        peek.from()->update_arg(param->index(), nrun);
-                                        peek.from()->dump_jump();
-                                        queue.push(nrun);
-                                    }
-                                } else
-                                    queue.push(op);
+                                if (!op->visit(pass2)) {
+                                    if (auto param = op->isa<Param>()) {
+                                        for (auto peek : param->peek()) {
+                                            //if (peek.def()->is_visited(pass2)) continue;
+                                            if (!scope.contains(peek.from())) continue;
+                                            //if (!peek.def()->is_const() && peek.def()->cur_pass() < pass1) continue;
+                                            if (!peek.def()->is_const()) continue;
+                                            if (!peek.def()->order() == 0) continue;
+
+                                            auto nrun = world.run(peek.def());
+                                            //nrun->visit_first(pass2);
+                                            nrun->visit(pass2);
+                                            peek.from()->update_arg(param->index(), nrun);
+                                            queue.push(nrun);
+                                        }
+                                    } else
+                                        queue.push(op);
+                                }
+                            }
+                        };
+
+                        for (auto lambda : scope.rpo()) {
+                            for (auto op : lambda->ops()) {
+                                if (auto run = op->isa<Run>()) {
+                                    fill_queue(run);
+                                }
                             }
                         }
-                    };
 
-                    for (auto lambda : dscope.rpo()) {
-                        for (auto op : lambda->ops()) {
-                            if (auto run = op->isa<Run>())
-                                fill_queue(run);
+                        while (!queue.empty()) {
+                            auto def = queue.front();
+                            queue.pop();
+                            fill_queue(def);
                         }
-                    }
-
-                    while (!queue.empty()) {
-                        auto def = queue.front();
-                        queue.pop();
-                        fill_queue(def);
                     }
                 }
             }
         }
-    } 
-    //while (todo);
+    } while (todo);
 
-#if 0
     for (auto lambda : world.lambdas()) {
         for (size_t i = 0, e = lambda->size(); i != e; ++i) {
             auto op = lambda->op(i);
@@ -133,7 +134,6 @@ void partial_evaluation(World& world) {
                 lambda->update_op(i, evalop->def());
         }
     }
-#endif
 }
 
 }

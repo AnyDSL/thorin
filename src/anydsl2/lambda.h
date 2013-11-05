@@ -19,6 +19,8 @@ class Scope;
 typedef std::vector<Lambda*> Lambdas;
 typedef std::vector<const Param*> Params;
 
+//------------------------------------------------------------------------------
+
 class Lambda : public DefNode {
 public:
     enum {
@@ -67,7 +69,6 @@ public:
     const Param* append_param(const Type* type, const std::string& name = "");
     Lambdas succs() const;
     Lambdas preds() const;
-    Lambdas direct_preds() const;
     const std::vector<const GenericRef*>& generic_refs() const { return generic_refs_; }
     const Params& params() const { return params_; }
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }

@@ -207,6 +207,7 @@ size_t Scope::mark() const {
 
     for (auto lambda : rpo()) {
         lambda->visit_first(pass);
+        queue.push(lambda);
 
         for (auto param : lambda->params()) {
             param->visit_first(pass);
@@ -216,6 +217,7 @@ size_t Scope::mark() const {
         while (!queue.empty()) {
             auto def = queue.front();
             queue.pop();
+            assert(!def->isa<Lambda>() || contains(def->as_lambda()));
 
             for (auto use : def->uses()) {
                 if (!use->isa_lambda() && !use->visit(pass))

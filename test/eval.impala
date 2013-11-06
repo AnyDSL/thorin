@@ -11,5 +11,5 @@ fn foo(a: int, b: int) -> int {
 }
 
 fn main(i: int) -> int {
-    return foo(i, @3);
+    return foo(i, @10);
 }

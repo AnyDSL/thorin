@@ -22,10 +22,8 @@ public:
     template<class Emit, class List>
     std::ostream& dump_list(Emit emit, const List& list, const char* begin = "", const char* end = "", const char* sep = ", ");
     std::ostream& stream() { return stream_; }
-    std::ostream& color(int c) { return stream(); }
-    std::ostream& reset_color() { return stream(); }
-    //std::ostream& color(int c) { return stream() << "\33[" << c << "m"; }
-    //std::ostream& reset_color() { return stream() << "\33[m"; }
+    std::ostream& color(int c) { return stream() << "\33[" << c << "m"; }
+    std::ostream& reset_color() { return stream() << "\33[m"; }
 
     int indent;
 

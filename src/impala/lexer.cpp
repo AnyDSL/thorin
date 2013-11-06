@@ -162,6 +162,7 @@ Token Lexer::lex() {
         if (accept(';')) return Token(loc_, Token::SEMICOLON);
         if (accept('?')) return Token(loc_, Token::QUESTION_MARK);
         if (accept('@')) return Token(loc_, Token::RUN);
+        if (accept('$')) return Token(loc_, Token::HALT);
         if (accept('[')) return Token(loc_, Token::L_BRACKET);
         if (accept(']')) return Token(loc_, Token::R_BRACKET);
         if (accept('{')) return Token(loc_, Token::L_BRACE);

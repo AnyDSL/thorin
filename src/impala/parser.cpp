@@ -52,6 +52,7 @@
     case Token::L_O: \
     case Token::ID: \
     case Token::RUN: \
+    case Token::HALT: \
     case Token::L_PAREN: \
     case Token::L_BRACKET
     

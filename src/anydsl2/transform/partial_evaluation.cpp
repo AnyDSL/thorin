@@ -37,7 +37,8 @@ void partial_evaluation(World& world) {
                 if (!to) {
                     if (auto run = lambda->to()->isa<Run>())
                         has_run = to = run->def()->isa_lambda();
-                }
+                } else if (to->isa<Halt>())
+                    continue;
 
                 if (to) {
                     Scope scope(to);

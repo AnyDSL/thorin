@@ -938,8 +938,8 @@ void World::cleanup() {
 void World::opt() {
     cleanup();
     partial_evaluation(*this);
-        cleanup();
-        return;
+        //cleanup();
+        //return;
     lower2cff(*this);
 
     // HACK

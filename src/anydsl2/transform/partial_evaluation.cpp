@@ -109,10 +109,8 @@ void partial_evaluation(World& world) {
                     todo = true;
 
                     if ((use_f && !f_cached) || (!use_f && !e_cached)) {
-                        std::cout << "asdf" << std::endl;
                         // propagate run
                         for (auto lambda : new_lambdas) {
-                            std::cout << lambda->unique_name() << std::endl;
                             if (auto to = lambda->to()->isa_lambda())
                                 lambda->update_to(world.run(to));
                         }
@@ -124,7 +122,6 @@ void partial_evaluation(World& world) {
     } 
     while (todo);
 
-#if 0
     for (auto lambda : world.lambdas()) {
         for (size_t i = 0, e = lambda->size(); i != e; ++i) {
             auto op = lambda->op(i);
@@ -132,7 +129,6 @@ void partial_evaluation(World& world) {
                 lambda->update_op(i, evalop->def());
         }
     }
-#endif
 }
 
 }

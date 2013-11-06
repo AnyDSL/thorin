@@ -62,10 +62,8 @@ Lambda* Mangler::mangle() {
 
     auto& call2lambda = world.cache_[oentry];
     auto iter = call2lambda.find(call);
-    if (iter != call2lambda.end()) {
-        std::cout << "hussa" << std::endl;
+    if (iter != call2lambda.end())
         return iter->second;
-    }
 
     for (size_t i = offset, e = nelems.size(), x = 0; i != e; ++i, ++x)
         nelems[i] = to_lift[x]->type();

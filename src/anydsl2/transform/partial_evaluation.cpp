@@ -91,10 +91,10 @@ void partial_evaluation(World& world) {
                                     if (auto param = op->isa<Param>()) {
                                         for (auto peek : param->peek()) {
                                             //if (peek.def()->is_visited(pass2)) continue;
-                                            if (!scope.contains(peek.from())) continue;
+                                            //if (!scope.contains(peek.from())) continue;
                                             //if (!peek.def()->is_const() && peek.def()->cur_pass() < pass1) continue;
-                                            if (!peek.def()->is_const()) continue;
-                                            if (!peek.def()->order() == 0) continue;
+                                            //if (!peek.def()->is_const()) continue;
+                                            //if (!peek.def()->order() == 0) continue;
 
                                             auto nrun = world.run(peek.def());
                                             //nrun->visit_first(pass2);
@@ -127,6 +127,7 @@ void partial_evaluation(World& world) {
         }
     } while (todo);
 
+#if 0
     for (auto lambda : world.lambdas()) {
         for (size_t i = 0, e = lambda->size(); i != e; ++i) {
             auto op = lambda->op(i);
@@ -134,6 +135,7 @@ void partial_evaluation(World& world) {
                 lambda->update_op(i, evalop->def());
         }
     }
+#endif
 }
 
 }

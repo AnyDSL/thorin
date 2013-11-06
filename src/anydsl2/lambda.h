@@ -64,6 +64,7 @@ private:
 public:
     Lambda* stub(const GenericMap& generic_map) const { return stub(generic_map, name); }
     Lambda* stub(const GenericMap& generic_map, const std::string& name) const;
+    Lambda* update_to(Def def) { return update_op(0, def); }
     Lambda* update_op(size_t i, Def def);
     Lambda* update_arg(size_t i, Def def) { return update_op(i+1, def); }
     const Param* append_param(const Type* type, const std::string& name = "");

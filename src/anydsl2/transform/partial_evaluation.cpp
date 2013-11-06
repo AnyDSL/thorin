@@ -10,34 +10,19 @@
 
 namespace anydsl2 {
 
-#if 0
-struct Call {
-    Lambda* to;
-    std::vector<const DefNode*> args;
-    std::vector<size_t> idx;
-};
-
-struct CallHash { 
-    size_t operator () (const Call& call) const { 
-        return hash_combine(hash_combine(hash_value(call.to), 
-                ArrayRef<const DefNode*>(call.args)), 
-                ArrayRef<size_t>(call.idx));
+static Lambda* cached(World& world, Lambda* lambda, const Call& call) {
+    auto& call2lambda = world.cache_[lambda];
+    auto iter = call2lambda.find(call);
+    if (iter != call2lambda.end()) {
+        return iter->second;
     }
-};
-
-struct CallEqual { 
-    bool operator () (const Call& call1, const Call& call2) const { 
-        return call1.to == call2.to 
-            && ArrayRef<const DefNode*>(call1.args) == ArrayRef<const DefNode*>(call2.args) 
-            && ArrayRef<size_t>(call1.idx) == ArrayRef<size_t>(call2.idx);
-    }
-};
-#endif
+    return nullptr;
+}
 
 void partial_evaluation(World& world) {
     bool todo;
 
-    //for (int counter = 0; counter < 10; ++counter) {
+    //for (int counter = 0; counter < 1; ++counter) {
     do {
         todo = false;
 
@@ -46,86 +31,98 @@ void partial_evaluation(World& world) {
             for (auto lambda : scope.rpo()) {
                 if (lambda->empty())
                     continue;
-                if (auto to = lambda->to()->isa_lambda()) {
+
+                bool has_run = false;
+                auto to = lambda->to()->isa_lambda();
+                if (!to) {
+                    if (auto run = lambda->to()->isa<Run>())
+                        has_run = to = run->def()->isa_lambda();
+                }
+
+                if (to) {
                     Scope scope(to);
-                    std::vector<Def> args;
-                    std::vector<size_t> idx;
-
-                    for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
-                        if (auto run = lambda->arg(i)->isa<Run>()) {
-                            args.push_back(run);
-                            idx.push_back(i);
-                        }
-                    }
-
-                    if (args.empty())
-                        continue;
+                    Call e_call, f_call;
+                    Lambda* e_dropped = nullptr;
+                    Lambda* f_dropped = nullptr;
+                    std::vector<Lambda*> e_new, f_new;
+                    bool e_cached, f_cached = false;
 
                     GenericMap map;
                     bool res = to->type()->infer_with(map, lambda->arg_pi());
                     assert(res);
-                    auto dropped = drop(scope, idx, args, map);
+
+                    {
+                        for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
+                            if (auto run = lambda->arg(i)->isa<Run>()) {
+                                has_run = true;
+                                e_call.args.push_back(run);
+                                e_call.idx.push_back(i);
+                            }
+                        }
+
+                        if (has_run) {
+                            e_cached = cached(world, to, e_call);
+                            e_dropped = drop(scope, e_call.idx, e_call.args, map);
+                            if (!e_cached) {
+                                e_new.push_back(e_dropped);
+                                for (auto lambda : scope.rpo()) {
+                                    auto mapped = (Lambda*) lambda->ptr;
+                                    if (mapped != lambda)
+                                        e_new.push_back(mapped);
+                                }
+                            }
+                        }
+                    }
+                    if (!has_run)
+                        continue;
+                    {
+                        for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
+                            if (!lambda->arg(i)->isa<Halt>()) {
+                                f_call.args.push_back(lambda->arg(i));
+                                f_call.idx.push_back(i);
+                            }
+                        }
+
+                        f_cached = cached(world, to, f_call);
+                        f_dropped = drop(scope, f_call.idx, f_call.args, map);
+                        if (!f_cached) {
+                            f_new.push_back(f_dropped);
+                            for (auto lambda : scope.rpo()) {
+                                auto mapped = (Lambda*) lambda->ptr;
+                                if (mapped != lambda)
+                                    f_new.push_back(mapped);
+                            }
+                        }
+                    }
+
+                    assert(f_dropped != nullptr);
+                    bool use_f = f_dropped->to()->isa<Lambda>();
+                    if (!use_f) {
+                        if (auto run = f_dropped->to()->isa<Run>())
+                            use_f = run->def()->isa<Lambda>();
+                    }
+                    Lambda* dropped = use_f ? f_dropped : e_dropped;
+                    auto& new_lambdas = use_f ? f_new : e_new;
+                    auto& idx = use_f ? f_call.idx : e_call.idx;
 
                     lambda->jump(dropped, lambda->args().cut(idx));
                     todo = true;
 
-                    // propagate run ops
-                    {
-                        Scope scope(dropped);
-                        std::queue<Def> queue;
-                        const auto pass1 = scope.mark();
-                        const auto pass2 = world.new_pass();
-
-                        auto fill_queue = [&] (Def def) {
-                            assert(!def->isa<Lambda>());
-                            for (auto op : def->ops()) {
-                                if (op->cur_pass() < pass1)
-                                    continue;
-
-                                if (op->isa<Lambda>())
-                                    continue;
-
-                                assert(!op->isa<EvalOp>());
-
-                                if (!op->visit(pass2)) {
-                                    if (auto param = op->isa<Param>()) {
-                                        for (auto peek : param->peek()) {
-                                            //if (peek.def()->is_visited(pass2)) continue;
-                                            //if (!scope.contains(peek.from())) continue;
-                                            //if (!peek.def()->is_const() && peek.def()->cur_pass() < pass1) continue;
-                                            //if (!peek.def()->is_const()) continue;
-                                            //if (!peek.def()->order() == 0) continue;
-
-                                            auto nrun = world.run(peek.def());
-                                            //nrun->visit_first(pass2);
-                                            nrun->visit(pass2);
-                                            peek.from()->update_arg(param->index(), nrun);
-                                            queue.push(nrun);
-                                        }
-                                    } else
-                                        queue.push(op);
-                                }
-                            }
-                        };
-
-                        for (auto lambda : scope.rpo()) {
-                            for (auto op : lambda->ops()) {
-                                if (auto run = op->isa<Run>()) {
-                                    fill_queue(run);
-                                }
-                            }
-                        }
-
-                        while (!queue.empty()) {
-                            auto def = queue.front();
-                            queue.pop();
-                            fill_queue(def);
+                    if ((use_f && !f_cached) || (!use_f && !e_cached)) {
+                        std::cout << "asdf" << std::endl;
+                        // propagate run
+                        for (auto lambda : new_lambdas) {
+                            std::cout << lambda->unique_name() << std::endl;
+                            if (auto to = lambda->to()->isa_lambda())
+                                lambda->update_to(world.run(to));
                         }
                     }
                 }
             }
         }
-    } while (todo);
+        //world.cleanup();
+    } 
+    while (todo);
 
 #if 0
     for (auto lambda : world.lambdas()) {

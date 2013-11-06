@@ -7,12 +7,14 @@
 #include <queue>
 #include <string>
 #include <set>
+#include <unordered_map>
 #include <unordered_set>
 
 #include "anydsl2/enums.h"
 #include "anydsl2/lambda.h"
 #include "anydsl2/primop.h"
 #include "anydsl2/util/box.h"
+#include "anydsl2/util/hash.h"
 
 namespace anydsl2 {
 
@@ -38,6 +40,33 @@ typedef std::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;
 
 struct LambdaLTGid { bool operator () (Lambda* l1, Lambda* l2) const { return l1->gid() < l2->gid(); }; };
 typedef std::set<Lambda*, LambdaLTGid> LambdaSet;
+
+struct Call {
+    std::vector<Def> args;
+    std::vector<size_t> idx;
+};
+
+struct CallHash { 
+    size_t operator () (const Call& call) const { 
+        auto hash = hash_value(ArrayRef<size_t>(call.idx));
+        for (auto def : call.args)
+            hash = hash_combine(hash, hash_value(*def));
+        return  hash;
+    }
+};
+
+struct CallEqual { 
+    bool operator () (const Call& call1, const Call& call2) const { 
+        assert(call1.args.size() == call2.args.size());
+        assert(call1.idx.size() == call2.idx.size());
+        assert(call1.idx.size() == call2.args.size());
+
+        bool result = ArrayRef<size_t>(call1.idx) == ArrayRef<size_t>(call2.idx);
+        for (size_t i = 0, e = call1.args.size(); i != e && result; ++i)
+            result &= call1.args[i] == call2.args[i];
+        return result;
+    }
+};
 
 //------------------------------------------------------------------------------
 
@@ -317,6 +346,9 @@ private:
 
         const PrimType* primtypes_[Num_PrimTypes];
     };
+
+public:
+    std::unordered_map<Lambda*, std::unordered_map<Call, Lambda*, CallHash, CallEqual>> cache_;
 
     friend class Lambda;
 };

@@ -53,6 +53,20 @@ Lambda* Mangler::mangle() {
     auto nelems = o_pi->elems().cut(to_drop, to_lift.size());
     size_t offset = o_pi->elems().size() - to_drop.size();
 
+    Call call;
+    for (auto def : drop_with)
+        call.args.push_back(def);
+
+    for (auto x : to_drop)
+        call.idx.push_back(x);
+
+    auto& call2lambda = world.cache_[oentry];
+    auto iter = call2lambda.find(call);
+    if (iter != call2lambda.end()) {
+        std::cout << "hussa" << std::endl;
+        return iter->second;
+    }
+
     for (size_t i = offset, e = nelems.size(), x = 0; i != e; ++i, ++x)
         nelems[i] = to_lift[x]->type();
 
@@ -86,8 +100,11 @@ Lambda* Mangler::mangle() {
     for (auto cur : scope.rpo().slice_from_begin(1)) {
         if (cur->is_visited(pass2))
             mangle_body(cur, lookup(cur)->as_lambda());
+        else
+            cur->ptr = cur;
     }
 
+    call2lambda[call] = nentry;
     return nentry;
 }
 

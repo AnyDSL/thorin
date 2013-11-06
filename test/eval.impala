@@ -5,11 +5,11 @@ fn foo(a: int, b: int) -> int {
 
     let mut res2 = 0;
     for (let mut i = 0; i < b; ++i)
-        res2 += 3;
+        res2 += 3333;
 
     return res1 + res2;
 }
 
 fn main(i: int) -> int {
-    return foo(@10, @20);
+    return foo(i, @3);
 }

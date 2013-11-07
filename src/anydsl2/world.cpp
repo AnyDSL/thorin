@@ -938,9 +938,11 @@ void World::cleanup() {
 void World::opt() {
     cleanup();
     partial_evaluation(*this);
-        //cleanup();
+    verify_closedness(*this);
+        cleanup();
         //return;
-    lower2cff(*this);
+    //lower2cff(*this);
+        //return;
 
     // HACK
     LambdaSet lms = lambdas();
@@ -1075,6 +1077,17 @@ void World::dead_code_elimination() {
 
     auto wipe_primop = [&] (const PrimOp* primop) { return !primop->is_visited(pass) || get_mapped(primop) != primop; };
     auto wipe_lambda = [&] (Lambda* lambda) { return lambda->empty() && !lambda->attribute().is(Lambda::Extern); };
+
+    for (auto lambda : lambdas_) {
+        if (wipe_lambda(lambda)) {
+            for (auto i = cache_.begin(); i != cache_.end();) {
+                auto j = i++;
+                auto p = *j;
+                if (p.first.to == lambda || p.second == lambda)
+                    cache_.erase(j);
+            }
+        }
+    }
 
     for (auto primop : primops_) {
         if (wipe_primop(primop)) {

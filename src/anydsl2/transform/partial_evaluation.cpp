@@ -10,10 +10,9 @@
 
 namespace anydsl2 {
 
-static Lambda* cached(World& world, Lambda* lambda, const Call& call) {
-    auto& call2lambda = world.cache_[lambda];
-    auto iter = call2lambda.find(call);
-    if (iter != call2lambda.end()) {
+static Lambda* cached(World& world, const Call& call) {
+    auto iter = world.cache_.find(call);
+    if (iter != world.cache_.end()) {
         return iter->second;
     }
     return nullptr;
@@ -22,8 +21,10 @@ static Lambda* cached(World& world, Lambda* lambda, const Call& call) {
 void partial_evaluation(World& world) {
     bool todo;
 
-    //for (int counter = 0; counter < 1; ++counter) {
-    do {
+    //do {
+    for (int counter = 0; counter < 10; ++counter) {
+        //std::cout << "================ " << counter << " ==============" << std::endl;
+        //emit_air(world, true);
         todo = false;
 
         for (auto top : top_level_lambdas(world)) {
@@ -42,7 +43,7 @@ void partial_evaluation(World& world) {
 
                 if (to) {
                     Scope scope(to);
-                    Call e_call, f_call;
+                    Call e_call(to), f_call(to);
                     Lambda* e_dropped = nullptr;
                     Lambda* f_dropped = nullptr;
                     std::vector<Lambda*> e_new, f_new;
@@ -62,7 +63,7 @@ void partial_evaluation(World& world) {
                         }
 
                         if (has_run) {
-                            e_cached = cached(world, to, e_call);
+                            e_cached = cached(world, e_call);
                             e_dropped = drop(scope, e_call.idx, e_call.args, map);
                             if (!e_cached) {
                                 e_new.push_back(e_dropped);
@@ -84,7 +85,7 @@ void partial_evaluation(World& world) {
                             }
                         }
 
-                        f_cached = cached(world, to, f_call);
+                        f_cached = cached(world, f_call);
                         f_dropped = drop(scope, f_call.idx, f_call.args, map);
                         if (!f_cached) {
                             f_new.push_back(f_dropped);
@@ -116,12 +117,15 @@ void partial_evaluation(World& world) {
                                 lambda->update_to(world.run(to));
                         }
                     }
+
+                    goto next;
                 }
             }
         }
+next:;
         //world.cleanup();
     } 
-    while (todo);
+    //while (todo);
 
     for (auto lambda : world.lambdas()) {
         for (size_t i = 0, e = lambda->size(); i != e; ++i) {

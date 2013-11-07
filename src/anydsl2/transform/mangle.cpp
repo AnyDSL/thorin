@@ -53,17 +53,18 @@ Lambda* Mangler::mangle() {
     auto nelems = o_pi->elems().cut(to_drop, to_lift.size());
     size_t offset = o_pi->elems().size() - to_drop.size();
 
-    Call call;
+    Call call(oentry);
     for (auto def : drop_with)
         call.args.push_back(def);
 
     for (auto x : to_drop)
         call.idx.push_back(x);
 
-    auto& call2lambda = world.cache_[oentry];
-    auto iter = call2lambda.find(call);
-    if (iter != call2lambda.end())
+    auto iter = world.cache_.find(call);
+    if (iter != world.cache_.end()) {
+        assert(!iter->second->empty());
         return iter->second;
+    }
 
     for (size_t i = offset, e = nelems.size(), x = 0; i != e; ++i, ++x)
         nelems[i] = to_lift[x]->type();
@@ -102,7 +103,7 @@ Lambda* Mangler::mangle() {
             cur->ptr = cur;
     }
 
-    call2lambda[call] = nentry;
+    world.cache_[call] = nentry;
     return nentry;
 }
 

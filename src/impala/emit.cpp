@@ -264,6 +264,7 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
                     auto def = callee->ops().back();
                     callee->update_op(callee->size()-1, cg.world().halt(def));
                 }
+                callee->update_to(cg.world().run(callee->to()));
                 return rref;
             } else
                 return Ref::create(cg.world().run(rref->load()));
@@ -274,6 +275,7 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
                     Def def = callee->arg(i);
                     callee->update_arg(i, cg.world().halt(def));
                 }
+                callee->update_to(cg.world().halt(callee->to()));
                 return rref;
             } else
                 return Ref::create(cg.world().halt(rref->load()));

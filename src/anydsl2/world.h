@@ -42,13 +42,18 @@ struct LambdaLTGid { bool operator () (Lambda* l1, Lambda* l2) const { return l1
 typedef std::set<Lambda*, LambdaLTGid> LambdaSet;
 
 struct Call {
+    Call() {}
+    Call(Lambda* to) 
+        : to(to)
+    {}
+    Lambda* to;
     std::vector<Def> args;
     std::vector<size_t> idx;
 };
 
 struct CallHash { 
     size_t operator () (const Call& call) const { 
-        auto hash = hash_value(ArrayRef<size_t>(call.idx));
+        auto hash = hash_combine(hash_value(call.to), ArrayRef<size_t>(call.idx));
         for (auto def : call.args)
             hash = hash_combine(hash, hash_value(*def));
         return  hash;
@@ -61,7 +66,7 @@ struct CallEqual {
         assert(call1.idx.size() == call2.idx.size());
         assert(call1.idx.size() == call2.args.size());
 
-        bool result = ArrayRef<size_t>(call1.idx) == ArrayRef<size_t>(call2.idx);
+        bool result = call1.to == call2.to && ArrayRef<size_t>(call1.idx) == ArrayRef<size_t>(call2.idx);
         for (size_t i = 0, e = call1.args.size(); i != e && result; ++i)
             result &= call1.args[i] == call2.args[i];
         return result;
@@ -348,7 +353,7 @@ private:
     };
 
 public:
-    std::unordered_map<Lambda*, std::unordered_map<Call, Lambda*, CallHash, CallEqual>> cache_;
+    std::unordered_map<Call, Lambda*, CallHash, CallEqual> cache_;
 
     friend class Lambda;
 };

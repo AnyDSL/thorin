@@ -157,7 +157,8 @@ void emit_air(World& world, bool fancy) {
 
     for (auto top : top_level_lambdas(world)) {
         Scope scope(top);
-        Schedule schedule = schedule_late(scope);
+        //Schedule schedule = schedule_late(scope);
+        Schedule schedule = schedule_early(scope);
         for (auto lambda : scope.rpo()) {
             int depth = fancy ? scope.domtree().depth(lambda) : 0;
             cg.indent += depth;

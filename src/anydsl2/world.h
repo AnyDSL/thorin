@@ -324,7 +324,8 @@ private:
     const Param* param(const Type* type, Lambda* lambda, size_t index, const std::string& name = "");
     const Type* keep_nocast(const Type* type);
     void eliminate_proxies();
-    Def dce_rebuild(const size_t pass, Def def);
+    Def dce_rebuild(const size_t pass, const size_t old_gid, Def def);
+    void dce_mark(const size_t pass, Def def);
     void ute_insert(const size_t pass, const Type* type);
     void uce_insert(const size_t pass, Lambda*);
     template<class S, class W> static void wipe_out(S& set, W wipe); 

@@ -21,10 +21,7 @@ static Lambda* cached(World& world, const Call& call) {
 void partial_evaluation(World& world) {
     bool todo;
 
-    //do {
-    for (int counter = 0; counter < 10; ++counter) {
-        //std::cout << "================ " << counter << " ==============" << std::endl;
-        //emit_air(world, true);
+    do {
         todo = false;
 
         for (auto top : top_level_lambdas(world)) {
@@ -123,10 +120,9 @@ void partial_evaluation(World& world) {
             }
         }
 next:;
-        //world.cleanup();
-    } 
-    //while (todo);
-
+        world.cleanup();
+    } while (todo);
+    
     for (auto lambda : world.lambdas()) {
         for (size_t i = 0, e = lambda->size(); i != e; ++i) {
             auto op = lambda->op(i);

@@ -31,12 +31,14 @@ const DomNode* Merger::dom_succ(const DomNode* n) {
         && succs.front() == children.front()->lambda() 
         && succs.front()->num_uses() == 1
         && succs.front() == n->lambda()->to()
-        ? children.front() : 0;
+        ? children.front() : nullptr;
 }
 
 void Merger::merge(const DomNode* n) {
+    if (n->lambda()->gid() == 880)
+        std::cout << "here" << std::endl;
     const DomNode* cur = n;
-    for (const DomNode* next = dom_succ(cur); next != 0; cur = next, next = dom_succ(next)) {
+    for (const DomNode* next = dom_succ(cur); next != nullptr; cur = next, next = dom_succ(next)) {
         assert(cur->lambda()->num_args() == next->lambda()->num_params());
         for (size_t i = 0, e = cur->lambda()->num_args(); i != e; ++i)
             next->lambda()->param(i)->replace(cur->lambda()->arg(i));

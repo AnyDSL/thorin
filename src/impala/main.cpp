@@ -98,8 +98,6 @@ int main(int argc, char** argv) {
 
             init.world.breakpoint(num);
         }
-        //init.world.breakpoint(310);
-        //init.world.breakpoint(315);
 #endif
 
         anydsl2::AutoPtr<impala::Scope> prg = new impala::Scope();

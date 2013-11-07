@@ -938,11 +938,7 @@ void World::cleanup() {
 void World::opt() {
     cleanup();
     partial_evaluation(*this);
-    verify_closedness(*this);
-        cleanup();
-        //return;
-    //lower2cff(*this);
-        //return;
+    lower2cff(*this);
 
     // HACK
     LambdaSet lms = lambdas();
@@ -989,9 +985,6 @@ void World::eliminate_params() {
     // new lambdas are not visited
     for (auto olambda : lambdas()) { 
         olambda->clear();
-        if (olambda->empty()) 
-            continue;
-
         std::vector<size_t> proxy_idx;
         std::vector<size_t> param_idx;
         size_t i = 0;
@@ -1068,14 +1061,20 @@ void World::dead_code_elimination() {
             }
     }
 
-    const auto pass = new_pass();
-
+    const auto old_gid = gid_;
+    const auto pass1 = new_pass();
     for (auto lambda : lambdas()) {
         for (size_t i = 0, e = lambda->ops().size(); i != e; ++i)
-            lambda->update_op(i, dce_rebuild(pass, lambda->op(i)));
+            lambda->update_op(i, dce_rebuild(pass1, old_gid, lambda->op(i)));
     }
 
-    auto wipe_primop = [&] (const PrimOp* primop) { return !primop->is_visited(pass) || get_mapped(primop) != primop; };
+    const auto pass2 = new_pass();
+    for (auto lambda : lambdas()) {
+        for (size_t i = 0, e = lambda->ops().size(); i != e; ++i)
+            dce_mark(pass2, lambda->op(i));
+    }
+
+    auto wipe_primop = [&] (const PrimOp* primop) { return !primop->is_visited(pass2); };
     auto wipe_lambda = [&] (Lambda* lambda) { return lambda->empty() && !lambda->attribute().is(Lambda::Extern); };
 
     for (auto lambda : lambdas_) {
@@ -1126,27 +1125,37 @@ void World::dead_code_elimination() {
     verify_closedness(*this);
 }
 
-Def World::dce_rebuild(const size_t pass, Def def) {
+Def World::dce_rebuild(const size_t pass, const size_t old_gid, Def def) {
     if (def->visit(pass))
         return get_mapped(def);
+    if (def->gid() >= old_gid)
+        return def;
     if (auto lambda = def->isa<Lambda>())
         return set_mapped(lambda, lambda);
     if (def->isa<Param>())
         return set_mapped(def, def);
-
     assert(def->is_visited(pass));
 
     auto oprimop = def->as<PrimOp>();
     Array<Def> ops(oprimop->size());
     for (size_t i = 0, e = oprimop->size(); i != e; ++i)
-        ops[i] = dce_rebuild(pass, oprimop->op(i));
+        ops[i] = dce_rebuild(pass, old_gid, oprimop->op(i));
 
     auto nprimop = rebuild(oprimop, ops);
     set_mapped(oprimop, nprimop);
-    set_mapped(nprimop, nprimop);
     oprimop->visit(pass);
-    nprimop->visit(pass);
     return nprimop;
+}
+
+void World::dce_mark(const size_t pass, Def def) {
+    if (def->visit(pass) || def->isa<Lambda>() || def->isa<Param>())
+        return;
+    assert(def->is_visited(pass));
+
+    for (auto op : def->as<PrimOp>()->ops())
+        dce_mark(pass, op);
+
+    def->visit(pass);
 }
 
 void World::unused_type_elimination() {
@@ -1180,7 +1189,7 @@ void World::wipe_out(S& set, W wipe) {
         auto val = *j;
         if (wipe(val)) {
             set.erase(j);
-            delete val;
+            //delete val;
         }
     }
 }

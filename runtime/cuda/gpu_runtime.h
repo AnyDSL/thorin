@@ -145,7 +145,12 @@ void load_kernel(const char *file_name, const char *kernel_name) {
     err = nvvmAddModuleToProgram(program, llString.c_str(), llString.length(), file_name);
     checkErrNvvm(err, "nvvmAddModuleToProgram()");
 
-    err = nvvmCompileProgram(program, 0, NULL);
+    int num_options = 0;
+    const char *options[2];
+    options[0] = "-arch=compute_30";
+    options[1] = "-ftz=1";
+
+    err = nvvmCompileProgram(program, num_options, options);
     if (err != NVVM_SUCCESS) {
         size_t log_size;
         nvvmGetProgramLogSize(program, &log_size);
@@ -250,7 +255,24 @@ float *array(size_t num_elems) {
     float *tmp = (float *)malloc(sizeof(float)*num_elems);
 
     // initialize with dummy data
-    for (int i = 0; i < num_elems; ++i) tmp[i] = i;
+    for (int i = 0; i < num_elems; ++i) tmp[i] = i%2048;
+
+    return tmp;
+}
+
+float *stencil_array(size_t num_elems) {
+    float *tmp = (float *)malloc(sizeof(float)*num_elems);
+
+    // initialize with stencil
+    tmp[0] = 0.0f;
+    tmp[1] = 0.2f;
+    tmp[2] = 0.0f;
+    tmp[3] = 0.2f;
+    tmp[4] = 0.2f;
+    tmp[5] = 0.2f;
+    tmp[6] = 0.0f;
+    tmp[7] = 0.2f;
+    tmp[8] = 0.0f;
 
     return tmp;
 }

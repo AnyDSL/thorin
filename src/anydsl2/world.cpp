@@ -984,6 +984,9 @@ void World::eliminate_params() {
     // according to the the C++11 standard this statement correctly iterates over all old lambdas; 
     // new lambdas are not visited
     for (auto olambda : lambdas()) { 
+        if (olambda->empty())
+            continue;
+
         olambda->clear();
         std::vector<size_t> proxy_idx;
         std::vector<size_t> param_idx;
@@ -1189,7 +1192,7 @@ void World::wipe_out(S& set, W wipe) {
         auto val = *j;
         if (wipe(val)) {
             set.erase(j);
-            //delete val;
+            delete val;
         }
     }
 }

@@ -24,10 +24,10 @@ fn main(i: int) -> int {
             return 4096;
         else if (i == 1)
             return 2048;
-        //else if (i == 2)
-            //return 1024;
-        //else if (i == 3)
-            //return 256;
+        else if (i == 2)
+            return 1024;
+        else if (i == 3)
+            return 256;
         else
             return 0;
     }

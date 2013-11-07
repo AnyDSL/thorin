@@ -23,7 +23,7 @@ fn primes<T>(n : int, t : T, yield : fn(int, T, fn(T)), ret : fn(T)) {
 }
 
 fn main(main_ret : fn(int)) {
-    @primes(7, 0,
+    @primes(50, 0,
         |p : int, result : int, next : fn(int)| {
             next(result + p);
         },

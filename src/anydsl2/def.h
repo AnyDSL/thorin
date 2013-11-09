@@ -1,6 +1,7 @@
 #ifndef ANYDSL2_DEF_H
 #define ANYDSL2_DEF_H
 
+#include <queue>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -271,6 +272,10 @@ private:
     friend class World;
     friend class Lambda;
 };
+
+//------------------------------------------------------------------------------
+
+void mark_down(const size_t pass, std::queue<Def>& queue);
 
 //------------------------------------------------------------------------------
 

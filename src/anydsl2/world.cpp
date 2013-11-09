@@ -840,7 +840,7 @@ Lambda* World::basicblock(const std::string& name) {
 }
 
 Def World::rebuild(const PrimOp* in, ArrayRef<Def> ops, const Type* type) {
-    int kind = in->kind();
+    NodeKind kind = in->kind();
     const std::string& name = in->name;
 
     if (ops.empty()) return in;
@@ -849,6 +849,7 @@ Def World::rebuild(const PrimOp* in, ArrayRef<Def> ops, const Type* type) {
     if (is_convop (kind)) { assert(ops.size() == 2); return convop( (ConvOpKind ) kind, ops[0], ops[1],   type, name); }
 
     switch (kind) {
+        case Node_Addr:    assert(ops.size() == 1); return addr(   ops[0], name);
         case Node_Enter:   assert(ops.size() == 1); return enter(  ops[0], name);
         case Node_Leave:   assert(ops.size() == 2); return leave(  ops[0], ops[1], name);
         case Node_Load:    assert(ops.size() == 2); return load(   ops[0], ops[1], name);
@@ -937,6 +938,7 @@ void World::cleanup() {
 
 void World::opt() {
     cleanup();
+    mem2reg(*this);
     partial_evaluation(*this);
     lower2cff(*this);
 
@@ -1013,7 +1015,7 @@ void World::eliminate_params() {
 
         for (auto use : olambda->uses()) {
             auto ulambda = use->as_lambda();
-            assert(use.index() == 0);
+            assert(use.index() == 0 && "deleted param of lambda used as argument");
             ulambda->jump(nlambda, ulambda->args().cut(proxy_idx));
         }
     }
@@ -1045,7 +1047,7 @@ static void sanity_check(Def def) {
     if (auto param = def->isa<Param>())
         assert(!param->lambda()->empty());
     else if (auto lambda = def->isa_lambda())
-        assert(!lambda->empty());
+        assert(lambda->attribute().is(Lambda::Extern) || !lambda->empty());
 }
 
 void World::dead_code_elimination() {

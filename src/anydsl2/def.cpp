@@ -188,4 +188,18 @@ Peeks Param::peek() const {
 
 //------------------------------------------------------------------------------
 
+void mark_down(const size_t pass, std::queue<Def>& queue) {
+    while (!queue.empty()) {
+        auto def = queue.front();
+        queue.pop();
+
+        for (auto use : def->uses()) {
+            if (!use->isa_lambda() && !use->visit(pass))
+                queue.push(use);
+        }
+    }
+}
+
+//------------------------------------------------------------------------------
+
 } // namespace anydsl2

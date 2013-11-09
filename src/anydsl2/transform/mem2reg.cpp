@@ -16,10 +16,6 @@ void mem2reg(const Scope& scope) {
     for (size_t i = 0, e = scope.size(); i != e; ++i) {
         Lambda* lambda = scope[i];
 
-        // skip lambdas that are connected to higher-order built-ins
-        if (lambda->is_connected_to_builtin())
-            continue;
-
         // Search for slots/loads/stores from top to bottom and use set_value/get_value to install parameters.
         for (auto primop : schedule[i]) {
             auto def = Def(primop);

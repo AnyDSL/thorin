@@ -17,8 +17,13 @@ public:
         , generic_map(generic_map)
         , world(scope.world())
         , pass1(scope.mark())
-        , pass2(world.new_pass())
-    {}
+    {
+        std::queue<Def> queue;
+        for (auto def : to_lift)
+            queue.push(def);
+        mark_down(pass1, queue);
+        pass2 = world.new_pass();
+    }
 
     Lambda* mangle();
     void mangle_body(Lambda* olambda, Lambda* nlambda);
@@ -41,7 +46,7 @@ public:
     GenericMap generic_map;
     World& world;
     const size_t pass1;
-    const size_t pass2;
+    size_t pass2;
     Lambda* nentry;
     Lambda* oentry;
 };
@@ -87,7 +92,6 @@ Lambda* Mangler::mangle() {
         }
     }
 
-    // TODO mark users of to_lift
     for (size_t i = offset, e = nelems.size(), x = 0; i != e; ++i, ++x) {
         map(to_lift[x], nentry->param(i));
         nentry->param(i)->name = to_lift[x]->name;

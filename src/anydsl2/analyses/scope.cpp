@@ -214,16 +214,7 @@ size_t Scope::mark() const {
             queue.push(param);
         }
 
-        while (!queue.empty()) {
-            auto def = queue.front();
-            queue.pop();
-            assert(!def->isa<Lambda>() || contains(def->as_lambda()));
-
-            for (auto use : def->uses()) {
-                if (!use->isa_lambda() && !use->visit(pass))
-                    queue.push(use);
-            }
-        }
+        mark_down(pass, queue);
     }
 
     return pass;

@@ -587,7 +587,7 @@ void CodeGen::postprocess() {
     // vectorize entries
     for (auto& entry : v_fcts) {
         WFVInterface::WFVInterface wfv(module, &context, entry.kernel_func, entry.kernel_simd_func, entry.vector_length);
-        bool b_simd = wfv.addSIMDSemantics(*vector_tid_getter, false, false, false, false, false, false, false, true, false, true);
+        bool b_simd = wfv.addSIMDSemantics(*vector_tid_getter, false, true, false, false, false, true, false, true, false, true);
         assert(b_simd && "simd semantics for vectorization failed");
         bool b = wfv.run();
         assert(b && "vectorization failed");

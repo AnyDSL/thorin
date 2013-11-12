@@ -28,6 +28,7 @@ public:
         Cuda       = 1 << 1, ///< Flag for the internal Cuda-Backend
         ArrayInit  = 1 << 2, ///< Flag for the external array intialization
         StencilAr  = 1 << 3, ///< Flag for the external stencil intialization
+        Vectorize  = 1 << 4, ///< Flag for the external vectorizer
     };
 
     struct Attribute {
@@ -98,6 +99,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     bool is_returning() const;
     bool is_builtin() const;
     bool is_connected_to_builtin() const;
+    bool is_connected_to_builtin(uint32_t flags) const;
     void dump_head() const;
     void dump_jump() const;
     void destroy_body() { unset_ops(); resize(0); }

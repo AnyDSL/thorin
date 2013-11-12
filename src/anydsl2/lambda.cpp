@@ -97,18 +97,26 @@ start:
     return preds;
 }
 
-bool Lambda::is_builtin() const { return attribute().is(Cuda); }
+bool Lambda::is_builtin() const { return attribute().is(Cuda) || attribute().is(Vectorize); }
 
-bool Lambda::is_connected_to_builtin() const {
-    if (!is_builtin()) {
-        for (auto use : uses()) {
+static bool connected_to_builtin(const Lambda* lambda, std::function<bool(Lambda*)> func) {
+    if (!lambda->is_builtin()) {
+        for (auto use : lambda->uses()) {
             if (auto lambda = (use->isa<Addr>() ? *use->uses().begin() : use)->isa<Lambda>())
-                if (auto to_lambda = lambda->to()->isa<Lambda>())
+                if (auto to_lambda = lambda->to()->isa_lambda())
                     if (to_lambda->is_builtin())
-                        return true;
+                        return func(to_lambda);
         }
     }
     return false;
+}
+
+bool Lambda::is_connected_to_builtin() const {
+    return connected_to_builtin(this, [&](Lambda* lambda) { return true; });
+}
+
+bool Lambda::is_connected_to_builtin(uint32_t flags) const {
+    return connected_to_builtin(this, [&](Lambda* lambda) { return lambda->attribute().is(flags); });
 }
 
 bool Lambda::is_cascading() const {

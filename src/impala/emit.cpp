@@ -73,6 +73,8 @@ bool CodeGen::emit_prg(const Scope* prg) {
                 lambda->attribute().set(Lambda::StencilAr);
             if (lambda->name == "array")
                 lambda->attribute().set(Lambda::ArrayInit);
+            if (lambda->name == "vectorized_loop")
+                lambda->attribute().set(Lambda::Vectorize);
             // register proto
             protos_[proto] = lambda;
         }

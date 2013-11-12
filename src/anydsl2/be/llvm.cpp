@@ -18,6 +18,7 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/Analysis/Verifier.h>
 #include <llvm/Transforms/Utils/Cloning.h>
+#include <llvm/Transforms/Utils/BasicBlockUtils.h>
 
 #include "anydsl2/def.h"
 #include "anydsl2/lambda.h"
@@ -584,7 +585,6 @@ void CodeGen::postprocess() {
     if (v_fcts.size() < 1)
         return;
     // vectorize entries
-    assert(v_fcts.size() == 1 && "FIX replacement of tid computation first");
     for (auto& entry : v_fcts) {
         WFVInterface::WFVInterface wfv(module, &context, entry.kernel_func, entry.kernel_simd_func, entry.vector_length);
         bool b_simd = wfv.addSIMDSemantics(*vector_tid_getter, false, false, false, false, false, false, false, true, false, true);
@@ -594,6 +594,18 @@ void CodeGen::postprocess() {
         // inline kernel
         llvm::InlineFunctionInfo info;
         llvm::InlineFunction(entry.kernel_call, info);
+
+        std::vector<llvm::CallInst*> calls;
+        for (auto it = vector_tid_getter->use_begin(), e = vector_tid_getter->use_end(); it != e; ++it) {
+            if (auto call = llvm::dyn_cast<llvm::CallInst>(*it))
+                if (const Function* func = call->getParent()->getParent())
+                    if (func == entry.func)
+                        calls.push_back(call);
+        }
+        for (auto it = calls.rbegin(), e = calls.rend(); it != e; ++it) {
+            BasicBlock::iterator ii(*it);
+            ReplaceInstWithValue((*it)->getParent()->getInstList(), ii, entry.loop_counter);
+        }
     }
 }
 

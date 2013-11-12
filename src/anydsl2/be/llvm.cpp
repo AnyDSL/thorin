@@ -17,6 +17,7 @@
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/Analysis/Verifier.h>
+#include <llvm/Transforms/Utils/Cloning.h>
 
 #include "anydsl2/def.h"
 #include "anydsl2/lambda.h"
@@ -28,6 +29,8 @@
 #include "anydsl2/analyses/schedule.h"
 #include "anydsl2/analyses/scope.h"
 #include "anydsl2/util/array.h"
+
+#include <wfvInterface.h>
 
 namespace anydsl2 {
 
@@ -41,8 +44,12 @@ public:
     CodeGen(World& world, EmitHook& hook);
 
     void emit_cuda_decls();
+    void emit_vector_decls();
     void emit_cuda(Lambda* target, ArrayRef<llvm::BasicBlock*> bbs);
+    void emit_vectors(llvm::Function* current, Lambda* target, ArrayRef<llvm::BasicBlock*> bbs);
     void emit();
+    void postprocess();
+    void dump();
     llvm::Type* map(const Type* type);
     llvm::Value* emit(Def def);
     llvm::Value* lookup(Def def);
@@ -59,7 +66,20 @@ private:
     std::unordered_map<const PrimOp*, llvm::Value*> primops;
     std::unordered_map<Lambda*, llvm::Function*> fcts;
 
-    // cuda functions
+    // vectors
+    llvm::Type* vector_tid_type;
+    llvm::Function* vector_tid_getter;
+    struct VectorizationEntry {
+        llvm::PHINode* loop_counter;
+        llvm::CallInst* kernel_call;
+        llvm::Function* func;
+        llvm::Function* kernel_func;
+        llvm::Function* kernel_simd_func;
+        u32 vector_length;
+    };
+    std::vector<VectorizationEntry> v_fcts;
+
+    // cuda
     llvm::Function* cuda_thread_id_getter[3];
     llvm::Function* cuda_block_id_getter[3];
     llvm::Function* cuda_block_dim_getter[3];
@@ -129,6 +149,12 @@ void CodeGen::emit_cuda_decls() {
     free_gpu = llvm::Function::Create(llvm::FunctionType::get(void_ty, { cuda_device_ptr_ty }, false), llvm::Function::ExternalLinkage, "free_gpu", module);
 }
 
+void CodeGen::emit_vector_decls() {
+    const char* thread_id_name = "get_tid";
+    vector_tid_type = llvm::VectorType::get(llvm::IntegerType::getInt32Ty(context), 4);
+    llvm::FunctionType* thread_id_type = llvm::FunctionType::get(llvm::IntegerType::getInt32Ty(context), false);
+    vector_tid_getter = llvm::Function::Create(thread_id_type, llvm::Function::ExternalLinkage, thread_id_name, module);
+}
 static uint64_t try_resolve_array_size(Def def) {
     // Ugly HACK
     if (const Param* p = def->isa<Param>()) {
@@ -212,18 +238,92 @@ void CodeGen::emit_cuda(Lambda* lambda, ArrayRef<llvm::BasicBlock*> bbs) {
     builder.CreateBr(bbs[lambda->arg(3)->as_lambda()->sid()]);
 }
 
+void CodeGen::emit_vectors(llvm::Function* current, Lambda* lambda, ArrayRef<llvm::BasicBlock*> bbs) {
+    VectorizationEntry e;
+    Lambda* target = lambda->to()->as_lambda();
+    assert(target->is_builtin() && target->attribute().is(Lambda::Vectorize));
+
+    // resolve vector length
+    Def vector_length = lambda->arg(1);
+    assert(vector_length->isa<PrimLit>());
+    e.vector_length = vector_length->as<PrimLit>()->u32_value();
+    assert(e.vector_length == 4 && "FIXME");
+    // loop count
+    Def loop_count = lambda->arg(2);
+    assert(loop_count->isa<PrimLit>());
+    u32 count = loop_count->as<PrimLit>()->u32_value();
+    // passed lambda is the kernel
+    Lambda* kernel = lambda->arg(3)->as<Addr>()->lambda();
+    Lambda* ret_lambda = lambda->arg(4)->as_lambda();
+    const size_t arg_index = 5;
+    const size_t num_args = lambda->num_args() >= arg_index ? lambda->num_args() - arg_index : 0;
+    e.func = current;
+
+    // build simd-function signature
+    Array<llvm::Type*> simd_args(num_args);
+    for (size_t i = 0; i < num_args; ++i) {
+        const Type* type = lambda->arg(i + arg_index)->type();
+        llvm::Type* arg_type;
+        if (const Ptr* ptr = type->isa<Ptr>())
+            arg_type = llvm::PointerType::getUnqual(llvm::VectorType::get(map(ptr->referenced_type()), e.vector_length));
+        else
+            arg_type = llvm::VectorType::get(map(type), e.vector_length);
+        simd_args[i] = arg_type;
+    }
+    llvm::FunctionType* simd_type = llvm::FunctionType::get(builder.getVoidTy(), llvm_ref(simd_args), false);
+    e.kernel_simd_func = (llvm::Function*)module->getOrInsertFunction("vector_kernel_" + kernel->name, simd_type);
+
+    // build iteration loop and wire the calls
+    llvm::BasicBlock* header = llvm::BasicBlock::Create(context, "vec_header", current);
+    llvm::BasicBlock* body = llvm::BasicBlock::Create(context, "vec_body", current);
+    llvm::BasicBlock* exit = llvm::BasicBlock::Create(context, "vec_exit", current);
+    // create loop phi and connect init value
+    e.loop_counter = llvm::PHINode::Create(builder.getInt32Ty(), 2U, "vector_loop_phi", header);
+    llvm::Value* i = builder.getInt32(0);
+    e.loop_counter->addIncoming(i, builder.GetInsertBlock());
+    // connect header
+    builder.CreateBr(header);
+    builder.SetInsertPoint(header);
+    // create conditional branch
+    llvm::Value* cond = builder.CreateICmpUGT(e.loop_counter, builder.getInt32(count));
+    builder.CreateCondBr(cond, body, exit);
+    // set body
+    builder.SetInsertPoint(body);
+    Array<llvm::Value*> args(num_args);
+    for (size_t i = 0; i < num_args; ++i) {
+        // check target type
+        Def arg = lambda->arg(i + arg_index);
+        llvm::Value* llvm_arg = lookup(arg);
+        if (arg->type()->isa<Ptr>())
+            llvm_arg = builder.CreateBitCast(llvm_arg, simd_args[i]);
+        args[i] = llvm_arg;
+    }
+    // call new function
+    e.kernel_func = fcts[kernel];
+    e.kernel_call = builder.CreateCall(e.kernel_simd_func, llvm_ref(args));
+    // inc loop counter
+    e.loop_counter->addIncoming(builder.CreateAdd(e.loop_counter, builder.getInt32(e.vector_length)), body);
+    builder.CreateBr(header);
+    // create branch to return
+    builder.SetInsertPoint(exit);
+    builder.CreateBr(bbs[ret_lambda->sid()]);
+    v_fcts.push_back(e);
+}
+
 void CodeGen::emit() {
     // emit cuda declarations
 #if 0
     emit_cuda_decls();
 #endif
+    emit_vector_decls();
+    std::unordered_map<Lambda*, const Param*> ret_map;
     // map all root-level lambdas to llvm function stubs
     const Param* cuda_return = 0;
     for (auto lambda : top_level_lambdas(world)) {
         if (lambda->is_builtin())
             continue;
         llvm::Function* f;
-        if (lambda->is_connected_to_builtin()) {
+        if (lambda->is_connected_to_builtin(Lambda::Cuda)) {
             const size_t e = lambda->num_params();
             // check dimensions
             size_t i = 1;
@@ -234,7 +334,7 @@ void CodeGen::emit() {
             for (; i < 7 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i)
                 params[lambda->param(i)] = cuda_block_dim_getter[i - 5];
             // cuda return param
-            cuda_return = lambda->param(i);
+            const Param* cuda_return = lambda->param(i);
             assert(cuda_return->type()->isa<Pi>());
             // build kernel declaration
             llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(world.pi(lambda->pi()->elems().slice_from_begin(i))));
@@ -255,6 +355,27 @@ void CodeGen::emit() {
                 llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), 1)
             };
             annotation->addOperand(llvm::MDNode::get(context, annotation_values));
+            ret_map[lambda] = cuda_return;
+        } else if (lambda->is_connected_to_builtin(Lambda::Vectorize)) {
+            const size_t e = lambda->num_params();
+            assert(e >= 2 && "at least a thread id and a return expected");
+            // check dimensions
+            const Param* tid = lambda->param(1);
+            params[tid] = vector_tid_getter;
+            const Param* vector_return = lambda->param(2);
+            assert(vector_return->type()->isa<Pi>());
+            // build vector declaration
+            llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(world.pi(lambda->pi()->elems().slice_from_begin(2))));
+            f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->name, module);
+            // wire params directly
+            auto arg = f->arg_begin();
+            for (size_t i = 3; i < e; ++i) {
+                llvm::Argument* param = arg++;
+                const Param* p = lambda->param(i);
+                param->setName(llvm::Twine(p->name));
+                params[p] = param;
+            }
+            ret_map[lambda] = vector_return;
         } else {
             llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
             f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->name, module);
@@ -274,7 +395,7 @@ void CodeGen::emit() {
         // map params
         const Param* ret_param = 0;
         if (lambda->is_connected_to_builtin())
-            ret_param = cuda_return;
+            ret_param = ret_map[lambda];
         else {
             auto arg = fct->arg_begin();
             for (auto param : lambda->params()) {
@@ -389,9 +510,16 @@ void CodeGen::emit() {
                     if (to_lambda->is_basicblock())      // ordinary jump
                         builder.CreateBr(bbs[to_lambda->sid()]);
                     else {
-                        if (lambda->to()->isa<Lambda>() && lambda->to()->as_lambda()->is_builtin())
-                            emit_cuda(lambda, bbs);
-                        else {
+                        if (lambda->to()->isa<Lambda>()) {
+                            const Lambda::Attribute& attr = lambda->to()->as_lambda()->attribute();
+                            if (attr.is(Lambda::Cuda))
+                                emit_cuda(lambda, bbs);
+                            else if(attr.is(Lambda::Vectorize))
+                                emit_vectors(fct, lambda, bbs);
+                            else
+                                goto no_lambda;
+                        } else {
+no_lambda:
                             // put all first-order args into an array
                             Array<llvm::Value*> args(lambda->args().size() - 1);
                             size_t i = 0;
@@ -446,12 +574,32 @@ void CodeGen::emit() {
         primops.clear();
     }
 
-    module->dump();
-    cuda_module->dump();
 #ifndef NDEBUG
     llvm::verifyModule(*this->module);
     llvm::verifyModule(*this->cuda_module);
 #endif
+}
+
+void CodeGen::postprocess() {
+    if (v_fcts.size() < 1)
+        return;
+    // vectorize entries
+    assert(v_fcts.size() == 1 && "FIX replacement of tid computation first");
+    for (auto& entry : v_fcts) {
+        WFVInterface::WFVInterface wfv(module, &context, entry.kernel_func, entry.kernel_simd_func, entry.vector_length);
+        bool b_simd = wfv.addSIMDSemantics(*vector_tid_getter, false, false, false, false, false, false, false, true, false, true);
+        assert(b_simd && "simd semantics for vectorization failed");
+        bool b = wfv.run();
+        assert(b && "vectorization failed");
+        // inline kernel
+        llvm::InlineFunctionInfo info;
+        llvm::InlineFunction(entry.kernel_call, info);
+    }
+}
+
+void CodeGen::dump() {
+    module->dump();
+    cuda_module->dump();
 }
 
 llvm::Value* CodeGen::lookup(Def def) {
@@ -748,7 +896,12 @@ multiple:
 
 //------------------------------------------------------------------------------
 
-void emit_llvm(World& world, EmitHook& hook) { CodeGen cg(world, hook); cg.emit(); }
+void emit_llvm(World& world, EmitHook& hook) {
+    CodeGen cg(world, hook);
+    cg.emit();
+    cg.postprocess();
+    cg.dump();
+}
 
 //------------------------------------------------------------------------------
 

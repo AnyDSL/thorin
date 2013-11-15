@@ -174,6 +174,9 @@ struct Option<OptionStringVector, T> : public OptionBase<OptionStringVector, T, 
     {}
 
     typename OptionBase<OptionStringVector, T, self>::iterator handle_option(typename OptionBase<OptionStringVector, T, self>::iterator it) const {
+        // it points to the current argument
+        // -> skip it
+        ++it;
         do
         {
             OptionBase<OptionStringVector, T, self>::target()->push_back(*it++);

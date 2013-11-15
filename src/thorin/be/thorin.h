@@ -9,7 +9,7 @@ class PrimOp;
 class Type;
 class World;
 
-void emit_air(World&, bool fancy = false, bool colored = true);
+void emit_thorin(World&, bool fancy = false, bool colored = true);
 void emit_type(const Type*);
 void emit_def(Def);
 void emit_assignment(const PrimOp*);

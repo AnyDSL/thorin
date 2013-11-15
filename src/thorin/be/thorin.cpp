@@ -152,7 +152,7 @@ std::ostream& CodeGen::emit_jump(const Lambda* lambda) {
 
 //------------------------------------------------------------------------------
 
-void emit_air(World& world, bool fancy, bool nocolor) {
+void emit_thorin(World& world, bool fancy, bool nocolor) {
     CodeGen cg(fancy, nocolor);
 
     for (auto top : top_level_lambdas(world)) {

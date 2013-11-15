@@ -8,7 +8,7 @@
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/vectorize.h"
 #include "thorin/transform/partial_evaluation.h"
-#include "thorin/be/air.h"
+#include "thorin/be/thorin.h"
 #include "thorin/be/il.h"
 #include "thorin/be/llvm.h"
 #include "thorin/util/args.h"
@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
         Names breakpoints;
 #endif
         string outfile;
-        bool help, emit_all, emit_air, emit_il, emit_ast, emit_llvm, emit_looptree, fancy, nocolor, opt, verify, nocleanup, nossa = false;
+        bool help, emit_all, emit_thorin, emit_il, emit_ast, emit_llvm, emit_looptree, fancy, nocolor, opt, verify, nocleanup, nossa = false;
         int vectorlength = 0;
         auto cmd_parser = ArgParser()
             .implicit_option("infiles", "input files", infiles)
@@ -54,7 +54,8 @@ int main(int argc, char** argv) {
             .add_option<bool>("nossa", "use slots + load/store instead of SSA construction", nossa, false)
             .add_option<bool>("verify", "run verifier", verify, false)
             .add_option<int>("vectorize", "run vectorizer on main with given vector length (experimantal!!!), arg=<vector length>", vectorlength, false)
-            .add_option<bool>("emit-air", "emit textual AIR representation of impala program", emit_air, false)
+            .add_option<bool>("emit-air", "emit textual THORIN representation of impala program", emit_thorin, false) // legacy support
+            .add_option<bool>("emit-thorin", "emit textual THORIN representation of impala program", emit_thorin, false)
             .add_option<bool>("emit-il", "emit textual IL representation of impala program", emit_il, false)
             .add_option<bool>("emit-all", "emit AST, AIR, LLVM and loop tree", emit_all, false)
             .add_option<bool>("emit-ast", "emit AST of impala program", emit_ast, false)
@@ -68,7 +69,7 @@ int main(int argc, char** argv) {
         cmd_parser.parse(argc, argv);
 
         if (emit_all)
-            emit_air = emit_looptree = emit_ast = emit_llvm = true;
+            emit_thorin = emit_looptree = emit_ast = emit_llvm = true;
         opt |= emit_llvm;
 
         if (infiles.empty() && !help) {
@@ -129,8 +130,8 @@ int main(int argc, char** argv) {
                 Scope scope(impala_main);
                 thorin::vectorize(scope, vectorlength);
             }
-            if (emit_air)
-                thorin::emit_air(init.world, fancy, !nocolor);
+            if (emit_thorin)
+                thorin::emit_thorin(init.world, fancy, !nocolor);
             //if (emit_il)
                 //thorin::emit_il(init.world, fancy);
             if (emit_looptree)

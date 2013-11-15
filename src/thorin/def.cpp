@@ -10,7 +10,7 @@
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
-#include "thorin/be/air.h"
+#include "thorin/be/thorin.h"
 
 namespace thorin {
 

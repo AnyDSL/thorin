@@ -15,7 +15,7 @@
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
-#include "thorin/be/air.h"
+#include "thorin/be/thorin.h"
 #include "thorin/transform/lower2cff.h"
 #include "thorin/transform/inliner.h"
 #include "thorin/transform/mangle.h"

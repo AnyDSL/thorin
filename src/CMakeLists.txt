@@ -7,6 +7,7 @@ LINK_DIRECTORIES ( ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY} )
 
 IF (NOT MSVC)
     ADD_DEFINITIONS ( "-std=c++11" )
+    ADD_DEFINITIONS ( "-DTHORIN_EXPORTS" )
 ELSE ()
     ADD_DEFINITIONS ( -D_SCL_SECURE_NO_WARNINGS )
 ENDIF ()
@@ -36,10 +37,10 @@ ELSE ()
     MESSAGE ( STATUS "Building without LLVM. Specify LLVM_DIR to compile with LLVM." )
 ENDIF ()
 
-INCLUDE ( anydsl2-shared )
+INCLUDE ( thorin-shared )
 
-# build anydsl2 lib
-ADD_SUBDIRECTORY ( anydsl2 )
+# build thorin lib
+ADD_SUBDIRECTORY ( thorin )
 
 # build impala frontend
 IF ( BUILD_IMPALA )

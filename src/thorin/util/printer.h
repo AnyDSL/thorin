@@ -9,21 +9,23 @@ namespace thorin {
 
 class Printer {
 public:
-    Printer(std::ostream& stream, bool fancy)
+    Printer(std::ostream& stream, bool fancy, bool colored = true)
         : indent(0)
         , stream_(stream)
         , fancy_(fancy)
+        , colored_(colored)
     {}
 
     bool is_fancy() const { return fancy_; }
+    bool is_colored() const { return colored_; }
     std::ostream& newline();
     std::ostream& up()   { ++indent; return newline(); }
     std::ostream& down() { --indent; return newline(); }
     template<class Emit, class List>
     std::ostream& dump_list(Emit emit, const List& list, const char* begin = "", const char* end = "", const char* sep = ", ");
     std::ostream& stream() { return stream_; }
-    std::ostream& color(int c) { return stream() << "\33[" << c << "m"; }
-    std::ostream& reset_color() { return stream() << "\33[m"; }
+    std::ostream& color(int c);
+    std::ostream& reset_color();
 
     int indent;
 
@@ -32,6 +34,7 @@ protected:
 
 private:
     bool fancy_;
+    bool colored_;
 };
 
 template<class Emit, class List>

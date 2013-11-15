@@ -9,4 +9,18 @@ std::ostream& Printer::newline() {
     return stream();
 }
 
+std::ostream& Printer::color(int c) {
+    if (colored_)
+        return stream() << "\33[" << c << "m";
+    else
+        return stream();
+}
+
+std::ostream& Printer::reset_color() {
+    if (colored_)
+        return stream() << "\33[m";
+    else
+        return stream();
+}
+
 } // namespace thorin

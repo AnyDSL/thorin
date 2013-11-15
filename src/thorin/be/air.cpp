@@ -12,8 +12,8 @@ namespace thorin {
 
 class CodeGen : public Printer {
 public:
-    CodeGen(bool fancy)
-        : Printer(std::cout, fancy)
+    CodeGen(bool fancy, bool colored = false)
+        : Printer(std::cout, fancy, colored)
     {}
 
     std::ostream& emit_type(const Type*);
@@ -152,8 +152,8 @@ std::ostream& CodeGen::emit_jump(const Lambda* lambda) {
 
 //------------------------------------------------------------------------------
 
-void emit_air(World& world, bool fancy) {
-    CodeGen cg(fancy);
+void emit_air(World& world, bool fancy, bool nocolor) {
+    CodeGen cg(fancy, nocolor);
 
     for (auto top : top_level_lambdas(world)) {
         Scope scope(top);

@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
         Names breakpoints;
 #endif
         string outfile;
-        bool help, emit_all, emit_air, emit_il, emit_ast, emit_llvm, emit_looptree, fancy, opt, verify, nocleanup, nossa = false;
+        bool help, emit_all, emit_air, emit_il, emit_ast, emit_llvm, emit_looptree, fancy, nocolor, opt, verify, nocleanup, nossa = false;
         int vectorlength = 0;
         auto cmd_parser = ArgParser()
             .implicit_option("infiles", "input files", infiles)
@@ -61,6 +61,7 @@ int main(int argc, char** argv) {
             .add_option<bool>("emit-looptree", "emit loop tree", emit_looptree, false)
             .add_option<bool>("emit-llvm", "emit llvm from AIR representation (implies -O)", emit_llvm, false)
             .add_option<bool>("f", "use fancy output", fancy, false)
+            .add_option<bool>("nc", "use uncolored output", nocolor, false)
             .add_option<bool>("O", "optimize", opt, false);
 
         // do cmdline parsing
@@ -129,7 +130,7 @@ int main(int argc, char** argv) {
                 thorin::vectorize(scope, vectorlength);
             }
             if (emit_air)
-                thorin::emit_air(init.world, fancy);
+                thorin::emit_air(init.world, fancy, !nocolor);
             //if (emit_il)
                 //thorin::emit_il(init.world, fancy);
             if (emit_looptree)

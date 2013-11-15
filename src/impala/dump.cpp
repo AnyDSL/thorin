@@ -1,20 +1,20 @@
-#include "anydsl2/util/printer.h"
+#include "thorin/util/printer.h"
 
 #include "impala/ast.h"
 #include "impala/dump.h"
 #include "impala/prec.h"
 #include "impala/type.h"
 
-using anydsl2::ArrayRef;
-using anydsl2::Type;
-using anydsl2::Symbol;
+using thorin::ArrayRef;
+using thorin::Type;
+using thorin::Symbol;
 
 namespace impala {
 
-class Printer : public anydsl2::Printer {
+class Printer : public thorin::Printer {
 public:
     Printer(std::ostream& o, bool fancy)
-        : anydsl2::Printer(o, fancy)
+        : thorin::Printer(o, fancy)
         , prec(BOTTOM)
     {}
 
@@ -56,10 +56,10 @@ std::ostream& Printer::print_type(const Type* type) {
         switch (primtype->kind()) {
 #define IMPALA_TYPE(itype, atype) case Token::TYPE_##itype: return stream() << #itype;
 #include "impala/tokenlist.h"
-            default: ANYDSL2_UNREACHABLE;
+            default: THORIN_UNREACHABLE;
         }
     }
-    ANYDSL2_UNREACHABLE;
+    THORIN_UNREACHABLE;
 }
 
 std::ostream& Printer::print_block(const Stmt* s) {
@@ -139,7 +139,7 @@ std::ostream& Literal::print(Printer& p) const {
         case LIT_##itype: return p.stream() << box().get_##atype();
 #include "impala/tokenlist.h"
         case LIT_bool: return p.stream() << (box().get_u1().get() ? "true" : "false");
-        default: ANYDSL2_UNREACHABLE;
+        default: THORIN_UNREACHABLE;
     }
 }
 
@@ -156,7 +156,7 @@ std::ostream& PrefixExpr::print(Printer& p) const {
     switch (kind()) {
 #define IMPALA_PREFIX(tok, str, rprec) case tok: op = str; break;
 #include "impala/tokenlist.h"
-        default: ANYDSL2_UNREACHABLE;
+        default: THORIN_UNREACHABLE;
     }
 
     p.stream() << op;
@@ -210,7 +210,7 @@ std::ostream& PostfixExpr::print(Printer& p) const {
     switch (kind()) {
         case INC: op = "++"; break;
         case DEC: op = "--"; break;
-        default: ANYDSL2_UNREACHABLE;
+        default: THORIN_UNREACHABLE;
     }
 
     p.stream() << op;

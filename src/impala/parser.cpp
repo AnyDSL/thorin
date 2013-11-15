@@ -3,9 +3,9 @@
 #include <sstream>
 #include <iostream>
 
-#include "anydsl2/util/array.h"
-#include "anydsl2/util/assert.h"
-#include "anydsl2/util/push.h"
+#include "thorin/util/array.h"
+#include "thorin/util/assert.h"
+#include "thorin/util/push.h"
 
 #include "impala/ast.h"
 #include "impala/lexer.h"
@@ -73,7 +73,7 @@
         STMT_NO_EXPR: \
     case EXPR
 
-using namespace anydsl2;
+using namespace thorin;
 
 namespace impala {
 
@@ -111,7 +111,7 @@ public:
     const Token& la(size_t i) const { return lookahead[i]; }
     const Token& la () const { return lookahead[0]; }
     const Token& la2() const { return lookahead[1]; }
-    anydsl2::Location prev_loc() const { return prev_loc_; }
+    thorin::Location prev_loc() const { return prev_loc_; }
 
 #ifdef NDEBUG
     Token eat(TokenKind /*what*/) { return lex(); }
@@ -162,7 +162,7 @@ public:
     const Expr* parse_expr(Prec prec);
     const Expr* parse_expr() { return parse_expr(BOTTOM, false); }
     const Expr* parse_expr(Prec prec, bool no_bars) {
-        ANYDSL2_PUSH(no_bars_, no_bars);
+        THORIN_PUSH(no_bars_, no_bars);
         return parse_expr(prec); 
     }
     const Expr* parse_prefix_expr();
@@ -208,7 +208,7 @@ private:
     const Fun* cur_fun;
     size_t cur_var_handle;
     bool no_bars_;
-    anydsl2::Location prev_loc_;
+    thorin::Location prev_loc_;
     bool result_;
 };
 
@@ -467,8 +467,8 @@ void Parser::parse_generics_list(GenericDecls& generic_decls) {
 }
 
 void Parser::parse_fun(Fun* f) {
-    ANYDSL2_PUSH(cur_fun, f);
-    ANYDSL2_PUSH(cur_var_handle, cur_var_handle);
+    THORIN_PUSH(cur_fun, f);
+    THORIN_PUSH(cur_var_handle, cur_var_handle);
     auto fun = loc(f);
     std::vector<const Type*> arg_types;
     expect(Token::L_PAREN, "function head");
@@ -619,7 +619,7 @@ const Expr* Parser::parse_literal() {
             return new Literal(lex().loc(), kind, box); \
         }
 #include "impala/tokenlist.h"
-        default: ANYDSL2_UNREACHABLE;
+        default: THORIN_UNREACHABLE;
     }
 }
 
@@ -627,8 +627,8 @@ const FunExpr* Parser::parse_fun_expr() {
     auto e = loc(new FunExpr(typetable));
     auto fun = loc(e->fun_.get());
 
-    ANYDSL2_PUSH(cur_fun, fun);
-    ANYDSL2_PUSH(cur_var_handle, cur_var_handle);
+    THORIN_PUSH(cur_fun, fun);
+    THORIN_PUSH(cur_var_handle, cur_var_handle);
 
     std::vector<const Type*> arg_types;
     if (accept(Token::OR)) {
@@ -753,7 +753,7 @@ const Stmt* Parser::parse_while() {
     loop->init_ = create_empty_expr_stmt();
     loop->cond_ = parse_cond("while statement");
     loop->step_ = new EmptyExpr(loop->pos1());
-    ANYDSL2_PUSH(cur_loop, loop);
+    THORIN_PUSH(cur_loop, loop);
     loop->body_ = parse_stmt_as_scope("body of while statement");
 
     return loop;
@@ -762,7 +762,7 @@ const Stmt* Parser::parse_while() {
 const Stmt* Parser::parse_do_while() {
     eat(Token::DO);
     auto loop = loc(new DoWhileStmt());
-    ANYDSL2_PUSH(cur_loop, loop);
+    THORIN_PUSH(cur_loop, loop);
     loop->body_ = parse_stmt_as_scope("body of do-while statement");
     expect(Token::WHILE, "do-while statement");
     loop->cond_ = parse_cond("do-while statement");
@@ -776,7 +776,7 @@ const Stmt* Parser::parse_for() {
     auto loop = loc(new ForStmt());
     expect(Token::L_PAREN, "for statement");
 
-    ANYDSL2_PUSH(cur_loop, loop);
+    THORIN_PUSH(cur_loop, loop);
 
     // clause 1: decl or expr_opt ';'
     switch (la()) {
@@ -875,7 +875,7 @@ const Item* Parser::parse_item() {
         case Token::EXTERN: return parse_proto_item();
         case Token::STRUCT:
         case Token::CLASS:  return parse_trait_item();
-        default:            ANYDSL2_UNREACHABLE;
+        default:            THORIN_UNREACHABLE;
     }
 }
 

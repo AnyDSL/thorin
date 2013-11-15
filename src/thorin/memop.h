@@ -1,9 +1,9 @@
-#ifndef ANYDSL2_MEMOP_H
-#define ANYDSL2_MEMOP_H
+#ifndef THORIN_MEMOP_H
+#define THORIN_MEMOP_H
 
-#include "anydsl2/primop.h"
+#include "thorin/primop.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 //------------------------------------------------------------------------------
 
@@ -109,6 +109,6 @@ private:
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl2
+} // namespace thorin
 
-#endif // ANYDSL2_MEMOP_H
+#endif // THORIN_MEMOP_H

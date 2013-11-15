@@ -1,7 +1,7 @@
 #ifndef IMPALA_EMIT_H
 #define IMPALA_EMIT_H
 
-namespace anydsl2 {
+namespace thorin {
     class World;
 }
 
@@ -9,7 +9,7 @@ namespace impala {
 
 class Scope;
 
-bool emit(anydsl2::World&, const Scope*);
+bool emit(thorin::World&, const Scope*);
 
 } // namespace impala
 

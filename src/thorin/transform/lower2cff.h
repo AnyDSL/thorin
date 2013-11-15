@@ -1,7 +1,7 @@
-#ifndef ANYDSL2_TRANSFORM_LOWER2CFF_H
-#define ANYDSL2_TRANSFORM_LOWER2CFF_H
+#ifndef THORIN_TRANSFORM_LOWER2CFF_H
+#define THORIN_TRANSFORM_LOWER2CFF_H
 
-namespace anydsl2 {
+namespace thorin {
 
 class World;
 

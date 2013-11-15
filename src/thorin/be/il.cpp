@@ -1,14 +1,14 @@
-#include "anydsl2/lambda.h"
-#include "anydsl2/literal.h"
-#include "anydsl2/primop.h"
-#include "anydsl2/type.h"
-#include "anydsl2/world.h"
-#include "anydsl2/analyses/domtree.h"
-#include "anydsl2/analyses/scope.h"
-#include "anydsl2/analyses/schedule.h"
-#include "anydsl2/util/printer.h"
+#include "thorin/lambda.h"
+#include "thorin/literal.h"
+#include "thorin/primop.h"
+#include "thorin/type.h"
+#include "thorin/world.h"
+#include "thorin/analyses/domtree.h"
+#include "thorin/analyses/scope.h"
+#include "thorin/analyses/schedule.h"
+#include "thorin/util/printer.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 typedef std::unordered_set<const DefNode*> Vars;
 
@@ -92,15 +92,15 @@ std::ostream& IlPrinter::emit_type(const Type* type) {
         if (primtype->is_vector())
             stream() << "<" << primtype->length() << " x ";
             switch (primtype->primtype_kind()) {
-#define ANYDSL2_UF_TYPE(T) case Node_PrimType_##T: stream() << #T; break;
-#include "anydsl2/tables/primtypetable.h"
-            default: ANYDSL2_UNREACHABLE;
+#define THORIN_UF_TYPE(T) case Node_PrimType_##T: stream() << #T; break;
+#include "thorin/tables/primtypetable.h"
+            default: THORIN_UNREACHABLE;
         }
         if (primtype->is_vector())
             stream() << ">";
         return stream();
     }
-    ANYDSL2_UNREACHABLE;
+    THORIN_UNREACHABLE;
 }
 
 std::ostream& IlPrinter::emit_def(Def def) {
@@ -127,9 +127,9 @@ std::ostream& IlPrinter::emit_primop(const PrimOp* primop) {
     if (auto primlit = primop->isa<PrimLit>()) {
         //emit_type(primop->type()) << ' ';
         switch (primlit->primtype_kind()) {
-#define ANYDSL2_UF_TYPE(T) case PrimType_##T: stream() << primlit->T##_value(); break;
-#include "anydsl2/tables/primtypetable.h"
-            default: ANYDSL2_UNREACHABLE; break;
+#define THORIN_UF_TYPE(T) case PrimType_##T: stream() << primlit->T##_value(); break;
+#include "thorin/tables/primtypetable.h"
+            default: THORIN_UNREACHABLE; break;
         }
     } else if (primop->is_const()) {
         if (primop->empty()) {
@@ -243,4 +243,4 @@ void emit_il(World& world, bool fancy) {
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl2
+} // namespace thorin

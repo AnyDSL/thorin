@@ -1,15 +1,15 @@
 #include <iostream>
 #include <unordered_map>
 
-#include "anydsl2/lambda.h"
-#include "anydsl2/world.h"
-#include "anydsl2/type.h"
-#include "anydsl2/analyses/scope.h"
-#include "anydsl2/analyses/verify.h"
-#include "anydsl2/transform/mangle.h"
-#include "anydsl2/transform/merge_lambdas.h"
+#include "thorin/lambda.h"
+#include "thorin/world.h"
+#include "thorin/type.h"
+#include "thorin/analyses/scope.h"
+#include "thorin/analyses/verify.h"
+#include "thorin/transform/mangle.h"
+#include "thorin/transform/merge_lambdas.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 class CFFLowering {
 public:
@@ -135,4 +135,4 @@ void lower2cff(World& world) {
     }
 }
 
-} // namespace anydsl2
+} // namespace thorin

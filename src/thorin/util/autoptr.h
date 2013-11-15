@@ -1,9 +1,9 @@
-#ifndef ANYDSL2_AUTOPTR_HEADER
-#define ANYDSL2_AUTOPTR_HEADER
+#ifndef THORIN_AUTOPTR_HEADER
+#define THORIN_AUTOPTR_HEADER
 
 #include <vector>
 
-namespace anydsl2 {
+namespace thorin {
 
 /// Similar to std::unique_ptr<T> but some more convenience like cast operators and non-explicit constructors.
 template<class T>

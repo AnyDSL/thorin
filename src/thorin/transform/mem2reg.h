@@ -1,7 +1,7 @@
-#ifndef ANYDSL2_TRANSFORM_MEM2REG_H
-#define ANYDSL2_TRANSFORM_MEM2REG_H
+#ifndef THORIN_TRANSFORM_MEM2REG_H
+#define THORIN_TRANSFORM_MEM2REG_H
 
-namespace anydsl2 {
+namespace thorin {
 
 class Scope;
 class World;
@@ -13,6 +13,6 @@ class World;
 void mem2reg(World&);
 void mem2reg(const Scope&);
 
-} // namespace anydsl2
+} // namespace thorin
 
-#endif // ANYDSL2_TRANSFORM_MEM2REG_H
+#endif // THORIN_TRANSFORM_MEM2REG_H

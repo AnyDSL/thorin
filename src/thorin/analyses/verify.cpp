@@ -1,9 +1,9 @@
-#include "anydsl2/world.h"
-#include "anydsl2/type.h"
-#include "anydsl2/literal.h"
-#include "anydsl2/memop.h"
+#include "thorin/world.h"
+#include "thorin/type.h"
+#include "thorin/literal.h"
+#include "thorin/memop.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 class Verifier {
 public:
@@ -245,4 +245,4 @@ void verify(World& world) { return; Verifier(world).verify(); }
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl2
+} // namespace thorin

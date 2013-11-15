@@ -1,12 +1,12 @@
-#ifndef ANYDSL2_CAST_HEADER
-#define ANYDSL2_CAST_HEADER
+#ifndef THORIN_CAST_HEADER
+#define THORIN_CAST_HEADER
 
 #include <cstring>
 #include <type_traits>
 
-#include "anydsl2/util/assert.h"
+#include "thorin/util/assert.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 /*
  * Watch out for the order of the template parameters in all of these casts.
@@ -83,18 +83,18 @@ public:
      * Use if you \em know that \p this is of type \p To.
      * It is a program error (an assertion is raised) if this does not hold.
      */
-    template<class To> To* as()  { return anydsl2::scast<To>(this); }
+    template<class To> To* as()  { return thorin::scast<To>(this); }
     /** 
      * @brief Acts as dynamic cast.
      * @return \p this cast to \p To if \p this is a \p To, 0 otherwise.
      */
-    template<class To> To* isa() { return anydsl2::dcast<To>(this); }
+    template<class To> To* isa() { return thorin::dcast<To>(this); }
     /// const version of @see MagicCast#as
-    template<class To> const To* as()  const { return anydsl2::scast<To>(this); }
+    template<class To> const To* as()  const { return thorin::scast<To>(this); }
     /// const version of @see MagicCast#isa
-    template<class To> const To* isa() const { return anydsl2::dcast<To>(this); }
+    template<class To> const To* isa() const { return thorin::dcast<To>(this); }
 };
 
-} // namespace anydsl2
+} // namespace thorin
 
 #endif // DSLU_CAST_HEADER

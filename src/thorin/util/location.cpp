@@ -1,11 +1,11 @@
-#include "anydsl2/util/location.h"
+#include "thorin/util/location.h"
 
 #include <cctype>
 #include <iostream>
 
-#include "anydsl2/util/stdlib.h"
+#include "thorin/util/stdlib.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 //------------------------------------------------------------------------------
 
@@ -48,4 +48,4 @@ std::ostream& HasLocation::warning() const { return std::cerr << loc_ << ": warn
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl2
+} // namespace thorin

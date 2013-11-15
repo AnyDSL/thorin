@@ -1,25 +1,25 @@
-#include "anydsl2/enums.h"
+#include "thorin/enums.h"
 
-namespace anydsl2 {
+namespace thorin {
 
-#define ANYDSL2_GLUE(pre, next)
-#define ANYDSL2_AIR_NODE(node, abbr) static_assert(Node_##node == (NodeKind) zzzMarker_##node,             "NodeKind value not equal zzzMarker");
-#define ANYDSL2_PRIMTYPE(T)          static_assert(Node_PrimType_##T == (NodeKind) zzzMarker_PrimType_##T, "NodeKind value not equal zzzMarker");
-#define ANYDSL2_ARITHOP(op)          static_assert(Node_##op == (NodeKind) zzzMarker_##op,                 "NodeKind value not equal zzzMarker");
-#define ANYDSL2_RELOP(op)            static_assert(Node_##op == (NodeKind) zzzMarker_##op,                 "NodeKind value not equal zzzMarker");
-#define ANYDSL2_CONVOP(op)           static_assert(Node_##op == (NodeKind) zzzMarker_##op,                 "NodeKind value not equal zzzMarker");
-#include "anydsl2/tables/allnodes.h"
+#define THORIN_GLUE(pre, next)
+#define THORIN_AIR_NODE(node, abbr) static_assert(Node_##node == (NodeKind) zzzMarker_##node,             "NodeKind value not equal zzzMarker");
+#define THORIN_PRIMTYPE(T)          static_assert(Node_PrimType_##T == (NodeKind) zzzMarker_PrimType_##T, "NodeKind value not equal zzzMarker");
+#define THORIN_ARITHOP(op)          static_assert(Node_##op == (NodeKind) zzzMarker_##op,                 "NodeKind value not equal zzzMarker");
+#define THORIN_RELOP(op)            static_assert(Node_##op == (NodeKind) zzzMarker_##op,                 "NodeKind value not equal zzzMarker");
+#define THORIN_CONVOP(op)           static_assert(Node_##op == (NodeKind) zzzMarker_##op,                 "NodeKind value not equal zzzMarker");
+#include "thorin/tables/allnodes.h"
 
 const char* kind2str(NodeKind kind) {
     switch (kind) {
-#define ANYDSL2_GLUE(pre, next)
-#define ANYDSL2_PRIMTYPE(T)         case Node_PrimType_##T: return #T;
-#define ANYDSL2_AIR_NODE(n, abbr)   case Node_##n: return #n;
-#define ANYDSL2_ARITHOP(n)          case Node_##n: return #n;
-#define ANYDSL2_RELOP(n)            case Node_##n: return #n;
-#define ANYDSL2_CONVOP(n)           case Node_##n: return #n;
-#include "anydsl2/tables/allnodes.h"
-                                    default: ANYDSL2_UNREACHABLE;
+#define THORIN_GLUE(pre, next)
+#define THORIN_PRIMTYPE(T)         case Node_PrimType_##T: return #T;
+#define THORIN_AIR_NODE(n, abbr)   case Node_##n: return #n;
+#define THORIN_ARITHOP(n)          case Node_##n: return #n;
+#define THORIN_RELOP(n)            case Node_##n: return #n;
+#define THORIN_CONVOP(n)           case Node_##n: return #n;
+#include "thorin/tables/allnodes.h"
+                                    default: THORIN_UNREACHABLE;
     }
 }
 
@@ -33,7 +33,7 @@ int num_bits(PrimTypeKind kind) {
         case PrimType_f32: return 32;
         case PrimType_f64: return 64;
     }
-    ANYDSL2_UNREACHABLE;
+    THORIN_UNREACHABLE;
 }
 
 RelOpKind negate(RelOpKind kind) {
@@ -63,7 +63,7 @@ RelOpKind negate(RelOpKind kind) {
         case RelOp_fcmp_uno: return RelOp_fcmp_ord;
         case RelOp_fcmp_ord: return RelOp_fcmp_uno;
     }
-    ANYDSL2_UNREACHABLE;
+    THORIN_UNREACHABLE;
 }
 
-} // namespace anydsl2
+} // namespace thorin

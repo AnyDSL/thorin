@@ -3,14 +3,14 @@
 #include <vector>
 #include <unordered_map>
 
-#include "anydsl2/type.h"
-#include "anydsl2/util/array.h"
-#include "anydsl2/util/push.h"
+#include "thorin/type.h"
+#include "thorin/util/array.h"
+#include "thorin/util/push.h"
 
 #include "impala/dump.h"
 #include "impala/type.h"
 
-using namespace anydsl2;
+using namespace thorin;
 
 namespace impala {
 
@@ -138,7 +138,7 @@ void Fun::check_head(Sema& sema) const {
     sema.insert(this);
 
     sema.push_scope();
-    ANYDSL2_PUSH(sema.cur_fun_, this);
+    THORIN_PUSH(sema.cur_fun_, this);
 
     for (auto generic_decl : generics())
         sema.check(generic_decl);
@@ -167,7 +167,7 @@ void Fun::check(Sema& sema) const {
         assert(generics().empty());
     }
 
-    ANYDSL2_PUSH(sema.cur_fun_, this);
+    THORIN_PUSH(sema.cur_fun_, this);
 
     if (refined_type_ == nullptr)
         refined_type_ = orig_type()->refine(sema);

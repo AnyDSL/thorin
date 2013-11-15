@@ -1,6 +1,6 @@
 #ifdef LLVM_SUPPORT
 
-#include "anydsl2/be/llvm.h"
+#include "thorin/be/llvm.h"
 
 #include <algorithm>
 #include <iostream>
@@ -20,20 +20,20 @@
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 
-#include "anydsl2/def.h"
-#include "anydsl2/lambda.h"
-#include "anydsl2/literal.h"
-#include "anydsl2/memop.h"
-#include "anydsl2/primop.h"
-#include "anydsl2/type.h"
-#include "anydsl2/world.h"
-#include "anydsl2/analyses/schedule.h"
-#include "anydsl2/analyses/scope.h"
-#include "anydsl2/util/array.h"
+#include "thorin/def.h"
+#include "thorin/lambda.h"
+#include "thorin/literal.h"
+#include "thorin/memop.h"
+#include "thorin/primop.h"
+#include "thorin/type.h"
+#include "thorin/world.h"
+#include "thorin/analyses/schedule.h"
+#include "thorin/analyses/scope.h"
+#include "thorin/util/array.h"
 
-#include <wfvInterface.h>
+//#include <wfvInterface.h>
 
-namespace anydsl2 {
+namespace thorin {
 
 template<class T> 
 llvm::ArrayRef<T> llvm_ref(const Array<T>& array) { return llvm::ArrayRef<T>(array.begin(), array.end()); }
@@ -585,28 +585,28 @@ void CodeGen::postprocess() {
     if (v_fcts.size() < 1)
         return;
     // vectorize entries
-    for (auto& entry : v_fcts) {
-        WFVInterface::WFVInterface wfv(module, &context, entry.kernel_func, entry.kernel_simd_func, entry.vector_length);
-        bool b_simd = wfv.addSIMDSemantics(*vector_tid_getter, false, true, false, false, false, true, false, true, false, true);
-        assert(b_simd && "simd semantics for vectorization failed");
-        bool b = wfv.run();
-        assert(b && "vectorization failed");
-        // inline kernel
-        llvm::InlineFunctionInfo info;
-        llvm::InlineFunction(entry.kernel_call, info);
+    //for (auto& entry : v_fcts) {
+    //    WFVInterface::WFVInterface wfv(module, &context, entry.kernel_func, entry.kernel_simd_func, entry.vector_length);
+    //    bool b_simd = wfv.addSIMDSemantics(*vector_tid_getter, false, true, false, false, false, true, false, true, false, true);
+    //    assert(b_simd && "simd semantics for vectorization failed");
+    //    bool b = wfv.run();
+    //    assert(b && "vectorization failed");
+    //    // inline kernel
+    //    llvm::InlineFunctionInfo info;
+    //    llvm::InlineFunction(entry.kernel_call, info);
 
-        std::vector<llvm::CallInst*> calls;
-        for (auto it = vector_tid_getter->use_begin(), e = vector_tid_getter->use_end(); it != e; ++it) {
-            if (auto call = llvm::dyn_cast<llvm::CallInst>(*it))
-                if (const Function* func = call->getParent()->getParent())
-                    if (func == entry.func)
-                        calls.push_back(call);
-        }
-        for (auto it = calls.rbegin(), e = calls.rend(); it != e; ++it) {
-            BasicBlock::iterator ii(*it);
-            ReplaceInstWithValue((*it)->getParent()->getInstList(), ii, entry.loop_counter);
-        }
-    }
+    //    std::vector<llvm::CallInst*> calls;
+    //    for (auto it = vector_tid_getter->use_begin(), e = vector_tid_getter->use_end(); it != e; ++it) {
+    //        if (auto call = llvm::dyn_cast<llvm::CallInst>(*it))
+    //            if (const Function* func = call->getParent()->getParent())
+    //                if (func == entry.func)
+    //                    calls.push_back(call);
+    //    }
+    //    for (auto it = calls.rbegin(), e = calls.rend(); it != e; ++it) {
+    //        BasicBlock::iterator ii(*it);
+    //        ReplaceInstWithValue((*it)->getParent()->getInstList(), ii, entry.loop_counter);
+    //    }
+    //}
 }
 
 void CodeGen::dump() {
@@ -917,6 +917,6 @@ void emit_llvm(World& world, EmitHook& hook) {
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl2
+} // namespace thorin
 
 #endif

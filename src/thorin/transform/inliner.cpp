@@ -1,10 +1,10 @@
-#include "anydsl2/lambda.h"
-#include "anydsl2/world.h"
-#include "anydsl2/analyses/scope.h"
-#include "anydsl2/analyses/verify.h"
-#include "anydsl2/transform/mangle.h"
+#include "thorin/lambda.h"
+#include "thorin/world.h"
+#include "thorin/analyses/scope.h"
+#include "thorin/analyses/verify.h"
+#include "thorin/transform/mangle.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 void inliner(World& world) {
     for (auto top : top_level_lambdas(world)) {
@@ -24,4 +24,4 @@ void inliner(World& world) {
     debug_verify(world);
 }
 
-} // namespace anydsl2
+} // namespace thorin

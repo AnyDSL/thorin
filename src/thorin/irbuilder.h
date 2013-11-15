@@ -1,11 +1,11 @@
-#ifndef ANYDSL2_JUMPTARGET_H
-#define ANYDSL2_JUMPTARGET_H
+#ifndef THORIN_JUMPTARGET_H
+#define THORIN_JUMPTARGET_H
 
-#include "anydsl2/def.h"
-#include "anydsl2/util/array.h"
-#include "anydsl2/util/autoptr.h"
+#include "thorin/def.h"
+#include "thorin/util/array.h"
+#include "thorin/util/autoptr.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 class IRBuilder;
 class Lambda;
@@ -48,7 +48,7 @@ public:
     {}
 
     virtual Def load() const { return def_; }
-    virtual void store(Def val) const { ANYDSL2_UNREACHABLE; }
+    virtual void store(Def val) const { THORIN_UNREACHABLE; }
 
 private:
     Def def_;
@@ -183,6 +183,6 @@ protected:
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl2
+} // namespace thorin
 
 #endif

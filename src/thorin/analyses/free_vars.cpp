@@ -1,10 +1,10 @@
 #include <queue>
 #include <vector>
 
-#include "anydsl2/world.h"
-#include "anydsl2/analyses/scope.h"
+#include "thorin/world.h"
+#include "thorin/analyses/scope.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 std::vector<Def> free_vars(const Scope& scope) {
     std::vector<Def> result;

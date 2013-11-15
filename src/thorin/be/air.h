@@ -1,7 +1,7 @@
-#ifndef ANYDSL2_BE_AIR_H
-#define ANYDSL2_BE_AIR_H
+#ifndef THORIN_BE_AIR_H
+#define THORIN_BE_AIR_H
 
-namespace anydsl2 {
+namespace thorin {
 
 class DefNode;
 class Lambda;

@@ -1,10 +1,10 @@
-#ifndef ANYDSL2_ANALYSES_SCOPE_ANALYSIS_H
-#define ANYDSL2_ANALYSES_SCOPE_ANALYSIS_H
+#ifndef THORIN_ANALYSES_SCOPE_ANALYSIS_H
+#define THORIN_ANALYSES_SCOPE_ANALYSIS_H
 
-#include "anydsl2/analyses/scope.h"
-#include "anydsl2/util/autoptr.h"
+#include "thorin/analyses/scope.h"
+#include "thorin/util/autoptr.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 template<class T, bool forwards, bool destroy_nodes = true>
 class ScopeAnalysis {

@@ -1,13 +1,13 @@
-#ifndef ANYDSL2_ANALYSES_SCOPE_H
-#define ANYDSL2_ANALYSES_SCOPE_H
+#ifndef THORIN_ANALYSES_SCOPE_H
+#define THORIN_ANALYSES_SCOPE_H
 
 #include <vector>
 
-#include "anydsl2/lambda.h"
-#include "anydsl2/util/array.h"
-#include "anydsl2/util/autoptr.h"
+#include "thorin/lambda.h"
+#include "thorin/util/array.h"
+#include "thorin/util/autoptr.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 template<bool> class DomTreeBase;
 class LoopTree;
@@ -80,6 +80,6 @@ private:
 
 inline Array<Lambda*> top_level_lambdas(World& world) { return Scope(world).entries(); }
 
-} // namespace anydsl2
+} // namespace thorin
 
 #endif

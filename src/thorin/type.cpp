@@ -1,14 +1,14 @@
-#include "anydsl2/type.h"
+#include "thorin/type.h"
 
 #include <algorithm>
 #include <sstream>
 
-#include "anydsl2/lambda.h"
-#include "anydsl2/literal.h"
-#include "anydsl2/world.h"
-#include "anydsl2/be/air.h"
+#include "thorin/lambda.h"
+#include "thorin/literal.h"
+#include "thorin/world.h"
+#include "thorin/be/air.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 //------------------------------------------------------------------------------
 
@@ -208,4 +208,4 @@ GenericRef::~GenericRef() {
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl2
+} // namespace thorin

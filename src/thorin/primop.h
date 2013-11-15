@@ -1,11 +1,11 @@
-#ifndef ANYDSL2_PRIMOP_H
-#define ANYDSL2_PRIMOP_H
+#ifndef THORIN_PRIMOP_H
+#define THORIN_PRIMOP_H
 
-#include "anydsl2/enums.h"
-#include "anydsl2/def.h"
-#include "anydsl2/util/hash.h"
+#include "thorin/enums.h"
+#include "thorin/def.h"
+#include "thorin/util/hash.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 class ArrayType;
 class Pi;
@@ -277,6 +277,6 @@ private:
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl2
+} // namespace thorin
 
 #endif

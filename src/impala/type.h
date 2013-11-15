@@ -4,12 +4,12 @@
 #include <iostream>
 #include <unordered_set>
 
-#include "anydsl2/node.h"
-#include "anydsl2/util/hash.h"
+#include "thorin/node.h"
+#include "thorin/util/hash.h"
 
 #include "impala/token.h"
 
-namespace anydsl2 {
+namespace thorin {
     class GenericMap;
     class Type;
     class World;
@@ -71,7 +71,7 @@ inline std::ostream& operator << (std::ostream& o, const GenericMap& map) { o <<
 
 //------------------------------------------------------------------------------
 
-class Type : public anydsl2::Node<Type> {
+class Type : public thorin::Node<Type> {
 protected:
     Type(TypeTable& typetable, TokenKind kind, size_t size, bool is_generic, const std::string& name)
         : Node((int) kind, size, name)
@@ -80,12 +80,12 @@ protected:
     {}
 
 public:
-    TokenKind kind() const { return (TokenKind) anydsl2::Node<Type>::kind(); }
-    anydsl2::ArrayRef<const Type*> elems() const { return ops_ref<const Type*>(); }
+    TokenKind kind() const { return (TokenKind) thorin::Node<Type>::kind(); }
+    thorin::ArrayRef<const Type*> elems() const { return ops_ref<const Type*>(); }
     const Type* elem(size_t i) const { return elems()[i]; }
     virtual const Type* refine(const Sema&) const = 0;
     virtual const Type* specialize(const GenericMap& map) const = 0;
-    virtual const anydsl2::Type* convert(anydsl2::World&) const = 0;
+    virtual const thorin::Type* convert(thorin::World&) const = 0;
     bool is_bool() const;
     bool is_int() const;
     bool is_float() const;
@@ -110,7 +110,7 @@ private:
 
     virtual const Type* refine(const Sema&) const { return this; }
     virtual const Type* specialize(const GenericMap& map) const { return this; }
-    virtual const anydsl2::Type* convert(anydsl2::World&) const { assert(false); return nullptr; }
+    virtual const thorin::Type* convert(thorin::World&) const { assert(false); return nullptr; }
 
     friend class TypeTable;
 };
@@ -123,7 +123,7 @@ private:
 
     virtual const Type* refine(const Sema&) const { return this; }
     virtual const Type* specialize(const GenericMap& map) const { return this; }
-    virtual const anydsl2::Type* convert(anydsl2::World&) const { assert(false); return nullptr; }
+    virtual const thorin::Type* convert(thorin::World&) const { assert(false); return nullptr; }
 
     friend class TypeTable;
 };
@@ -136,7 +136,7 @@ private:
 
     virtual const Type* refine(const Sema&) const { return this; }
     virtual const Type* specialize(const GenericMap& map) const { return this; }
-    virtual const anydsl2::Type* convert(anydsl2::World&) const { assert(false); return nullptr; }
+    virtual const thorin::Type* convert(thorin::World&) const { assert(false); return nullptr; }
 
     friend class TypeTable;
 };
@@ -150,7 +150,7 @@ private:
 public:
     virtual const Type* refine(const Sema&) const { return this; }
     virtual const Type* specialize(const GenericMap&) const { return this; }
-    virtual const anydsl2::Type* convert(anydsl2::World&) const;
+    virtual const thorin::Type* convert(thorin::World&) const;
 
     friend class TypeTable;
 };
@@ -175,29 +175,29 @@ public:
 
     virtual const Type* refine(const Sema&) const;
     virtual const Type* specialize(const GenericMap&) const;
-    virtual const anydsl2::Type* convert(anydsl2::World&) const;
+    virtual const thorin::Type* convert(thorin::World&) const;
 
     friend class TypeTable;
 };
 
 class DefiniteArray : public ArrayType {
 public:
-    DefiniteArray(TypeTable& typetable, const Type* elem_type, anydsl2::u64 dim)
+    DefiniteArray(TypeTable& typetable, const Type* elem_type, thorin::u64 dim)
         : ArrayType(typetable, Token::TYPE_definite_array, elem_type)
         , dim_(dim)
     {}
 
-    anydsl2::u64 dim() const { return dim_; }
+    thorin::u64 dim() const { return dim_; }
     virtual const Type* refine(const Sema&) const;
     virtual const Type* specialize(const GenericMap&) const;
-    virtual const anydsl2::Type* convert(anydsl2::World&) const;
-    virtual size_t hash() const { return anydsl2::hash_combine(ArrayType::hash(), dim()); }
+    virtual const thorin::Type* convert(thorin::World&) const;
+    virtual size_t hash() const { return thorin::hash_combine(ArrayType::hash(), dim()); }
     virtual bool equals(const Node* other) const {
         return Type::equal(other) && this->dim() == other->as<DefiniteArray>()->dim();
     }
 
 private:
-    anydsl2::u64 dim_;
+    thorin::u64 dim_;
 
     friend class TypeTable;
 };
@@ -217,8 +217,8 @@ public:
     virtual const Type* specialize(const GenericMap& map) const {
         auto type = map[this]; assert(type != nullptr); return type;
     }
-    virtual const anydsl2::Type* convert(anydsl2::World&) const;
-    virtual size_t hash() const { return anydsl2::hash_combine(Type::hash(), index()); }
+    virtual const thorin::Type* convert(thorin::World&) const;
+    virtual size_t hash() const { return thorin::hash_combine(Type::hash(), index()); }
     virtual bool equal(const Node* other) const { 
         return Type::equal(other) ? index() == other->as<Generic>()->index() : false; 
     }
@@ -240,9 +240,9 @@ private:
 
     virtual const Type* refine(const Sema&) const { assert(false); return this; }
     virtual const Type* specialize(const GenericMap& map) const { return generic()->specialize(map); }
-    virtual const anydsl2::Type* convert(anydsl2::World&) const;
+    virtual const thorin::Type* convert(thorin::World&) const;
     virtual size_t hash() const { 
-        return anydsl2::hash_combine(anydsl2::hash_combine(Type::hash(), fun()), generic()); 
+        return thorin::hash_combine(thorin::hash_combine(Type::hash(), fun()), generic()); 
     }
     virtual bool equal(const Node* other) const { 
         if (Type::equal(other)) {
@@ -265,7 +265,7 @@ private:
 
 class CompoundType : public Type {
 protected:
-    CompoundType(TypeTable& typetable, TokenKind kind, anydsl2::ArrayRef<const Type*> elems, const std::string& name)
+    CompoundType(TypeTable& typetable, TokenKind kind, thorin::ArrayRef<const Type*> elems, const std::string& name)
         : Type(typetable, kind, elems.size(), false, name)
     {
         size_t i = 0;
@@ -278,14 +278,14 @@ protected:
 
 class FnType : public CompoundType {
 private:
-    FnType(TypeTable& typetable, anydsl2::ArrayRef<const Type*> elems)
+    FnType(TypeTable& typetable, thorin::ArrayRef<const Type*> elems)
         : CompoundType(typetable, Token::FN, elems, "<function type>")
     {}
 
 public:
     virtual const Type* refine(const Sema&) const;
     virtual const Type* specialize(const GenericMap& map) const;
-    virtual const anydsl2::Type* convert(anydsl2::World&) const;
+    virtual const thorin::Type* convert(thorin::World&) const;
     const Type* return_type() const;
 
     friend class TypeTable;
@@ -293,27 +293,27 @@ public:
 
 class TupleType : public CompoundType {
 private:
-    TupleType(TypeTable& typetable, anydsl2::ArrayRef<const Type*> elems)
+    TupleType(TypeTable& typetable, thorin::ArrayRef<const Type*> elems)
         : CompoundType(typetable, Token::TYPE_tuple, elems, "<tuple type>")
     {}
 
     virtual const Type* refine(const Sema& sema) const;
     virtual const Type* specialize(const GenericMap& map) const;
-    virtual const anydsl2::Type* convert(anydsl2::World&) const;
+    virtual const thorin::Type* convert(thorin::World&) const;
 
     friend class TypeTable;
 };
 
 class IdType : public Type {
 private:
-    IdType(TypeTable& typetable, anydsl2::Symbol symbol)
+    IdType(TypeTable& typetable, thorin::Symbol symbol)
         : Type(typetable, Token::TYPE_id, 0, false, symbol.str())
     {}
-    virtual size_t hash() const { return anydsl2::hash_value(this); }
+    virtual size_t hash() const { return thorin::hash_value(this); }
     virtual bool equal(const Node* other) const { return this == other; }
     virtual const Type* refine(const Sema&) const;
     virtual const Type* specialize(const GenericMap& map) const { assert(false); return nullptr; }
-    virtual const anydsl2::Type* convert(anydsl2::World&) const { assert(false); return nullptr; }
+    virtual const thorin::Type* convert(thorin::World&) const { assert(false); return nullptr; }
 
     friend class TypeTable;
 };
@@ -333,15 +333,15 @@ public:
     const NoRet* noret() { return noret_; }
     const Void* type_void() { return void_; }
     const PrimType* primtype(TokenKind kind);
-    const DefiniteArray* definite_array(const Type* elem_type, anydsl2::u64 dim);
+    const DefiniteArray* definite_array(const Type* elem_type, thorin::u64 dim);
     const IndefiniteArray* indefinite_array(const Type* elem_type);
 #define IMPALA_TYPE(itype, atype) const PrimType* type_##itype() { return itype##_; }
 #include "impala/tokenlist.h"
-    const FnType* fntype(anydsl2::ArrayRef<const Type*> elems);
-    const TupleType* tupletype(anydsl2::ArrayRef<const Type*> elems);
+    const FnType* fntype(thorin::ArrayRef<const Type*> elems);
+    const TupleType* tupletype(thorin::ArrayRef<const Type*> elems);
     const Generic* generic(size_t index);
     const GenericRef* genericref(const Fun*, const Generic*);
-    const IdType* idtype(anydsl2::Symbol);
+    const IdType* idtype(thorin::Symbol);
 
 private:
     const Type* unify_base(const Type* type);

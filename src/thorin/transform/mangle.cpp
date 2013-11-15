@@ -1,10 +1,10 @@
-#include "anydsl2/literal.h"
-#include "anydsl2/primop.h"
-#include "anydsl2/type.h"
-#include "anydsl2/world.h"
-#include "anydsl2/analyses/scope.h"
+#include "thorin/literal.h"
+#include "thorin/primop.h"
+#include "thorin/type.h"
+#include "thorin/world.h"
+#include "thorin/analyses/scope.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 class Mangler {
 public:

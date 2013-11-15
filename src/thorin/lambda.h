@@ -1,14 +1,14 @@
-#ifndef ANYDSL2_LAMBDA_H
-#define ANYDSL2_LAMBDA_H
+#ifndef THORIN_LAMBDA_H
+#define THORIN_LAMBDA_H
 
 #include <vector>
 #include <iostream>
 
-#include "anydsl2/def.h"
-#include "anydsl2/type.h"
-#include "anydsl2/util/autoptr.h"
+#include "thorin/def.h"
+#include "thorin/type.h"
+#include "thorin/util/autoptr.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 class GenericMap;
 class GenericRef;
@@ -179,6 +179,6 @@ private:
     friend class GenericRef;
 };
 
-} // namespace anydsl2
+} // namespace thorin
 
 #endif

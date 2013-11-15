@@ -1,12 +1,12 @@
-#ifndef ANYDSL2_TRANSFORM_INLINER_H
-#define ANYDSL2_TRANSFORM_INLINER_H
+#ifndef THORIN_TRANSFORM_INLINER_H
+#define THORIN_TRANSFORM_INLINER_H
 
-namespace anydsl2 {
+namespace thorin {
 
 class World;
 
 void inliner(World& world);
 
-} // namespace anydsl2
+} // namespace thorin
 
 #endif

@@ -1,12 +1,12 @@
-#include "anydsl2/primop.h"
+#include "thorin/primop.h"
 
-#include "anydsl2/literal.h"
-#include "anydsl2/type.h"
-#include "anydsl2/world.h"
-#include "anydsl2/util/array.h"
-#include "anydsl2/util/hash.h"
+#include "thorin/literal.h"
+#include "thorin/type.h"
+#include "thorin/world.h"
+#include "thorin/util/array.h"
+#include "thorin/util/hash.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 //------------------------------------------------------------------------------
 
@@ -138,36 +138,36 @@ const Pi* Addr::referenced_type() const { return lambda()->pi(); }
 
 const char* PrimOp::op_name() const {
     switch (kind()) {
-#define ANYDSL2_AIR_NODE(op, abbr) case Node_##op: return #abbr;
-#include "anydsl2/tables/nodetable.h"
-        default: ANYDSL2_UNREACHABLE;
+#define THORIN_AIR_NODE(op, abbr) case Node_##op: return #abbr;
+#include "thorin/tables/nodetable.h"
+        default: THORIN_UNREACHABLE;
     }
 }
 
 const char* ArithOp::op_name() const {
     switch (kind()) {
-#define ANYDSL2_ARITHOP(op) case ArithOp_##op: return #op;
-#include "anydsl2/tables/arithoptable.h"
-        default: ANYDSL2_UNREACHABLE;
+#define THORIN_ARITHOP(op) case ArithOp_##op: return #op;
+#include "thorin/tables/arithoptable.h"
+        default: THORIN_UNREACHABLE;
     }
 }
 
 const char* RelOp::op_name() const {
     switch (kind()) {
-#define ANYDSL2_RELOP(op) case RelOp_##op: return #op;
-#include "anydsl2/tables/reloptable.h"
-        default: ANYDSL2_UNREACHABLE;
+#define THORIN_RELOP(op) case RelOp_##op: return #op;
+#include "thorin/tables/reloptable.h"
+        default: THORIN_UNREACHABLE;
     }
 }
 
 const char* ConvOp::op_name() const {
     switch (kind()) {
-#define ANYDSL2_CONVOP(op) case ConvOp_##op: return #op;
-#include "anydsl2/tables/convoptable.h"
-        default: ANYDSL2_UNREACHABLE;
+#define THORIN_CONVOP(op) case ConvOp_##op: return #op;
+#include "thorin/tables/convoptable.h"
+        default: THORIN_UNREACHABLE;
     }
 }
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl2
+} // namespace thorin

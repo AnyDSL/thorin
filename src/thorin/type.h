@@ -1,11 +1,11 @@
-#ifndef ANYDSL2_TYPE_H
-#define ANYDSL2_TYPE_H
+#ifndef THORIN_TYPE_H
+#define THORIN_TYPE_H
 
-#include "anydsl2/def.h"
-#include "anydsl2/util/array.h"
-#include "anydsl2/util/hash.h"
+#include "thorin/def.h"
+#include "thorin/util/array.h"
+#include "thorin/util/hash.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 class Generic;
 class Lambda;
@@ -49,7 +49,7 @@ protected:
 
 public:
     NodeKind kind() const { return kind_; }
-    bool is_corenode() const { return ::anydsl2::is_corenode(kind()); }
+    bool is_corenode() const { return ::thorin::is_corenode(kind()); }
     ArrayRef<const Type*> elems() const { return elems_; }
     const Type* elem(size_t i) const { assert(i < elems().size()); return elems()[i]; }
     const Type* elem_via_lit(Def def) const;
@@ -62,9 +62,9 @@ public:
     const Type* specialize(const GenericMap&) const;
     bool is_generic() const { return is_generic_; }
     bool is_u1() const { return kind() == Node_PrimType_u1; }
-    bool is_int() const { return anydsl2::is_int(kind()); }
-    bool is_float() const { return anydsl2::is_float(kind()); }
-    bool is_primtype() const { return anydsl2::is_primtype(kind()); }
+    bool is_int() const { return thorin::is_int(kind()); }
+    bool is_float() const { return thorin::is_float(kind()); }
+    bool is_primtype() const { return thorin::is_primtype(kind()); }
     int order() const;
     virtual size_t hash() const;
     virtual bool equal(const Type* other) const;
@@ -301,6 +301,6 @@ private:
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl2
+} // namespace thorin
 
 #endif

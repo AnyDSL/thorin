@@ -1,11 +1,11 @@
-#include "anydsl2/irbuilder.h"
+#include "thorin/irbuilder.h"
 
-#include "anydsl2/lambda.h"
-#include "anydsl2/literal.h"
-#include "anydsl2/memop.h"
-#include "anydsl2/world.h"
+#include "thorin/lambda.h"
+#include "thorin/literal.h"
+#include "thorin/memop.h"
+#include "thorin/world.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 //------------------------------------------------------------------------------
 
@@ -145,4 +145,4 @@ void IRBuilder::set_mem(Def def) { if (is_reachable()) cur_bb->set_value(0, def)
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl2
+} // namespace thorin

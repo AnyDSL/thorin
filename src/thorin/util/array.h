@@ -1,5 +1,5 @@
-#ifndef ANYDSL2_ARRAY_H
-#define ANYDSL2_ARRAY_H
+#ifndef THORIN_ARRAY_H
+#define THORIN_ARRAY_H
 
 #include <algorithm>
 #include <cstddef>
@@ -8,10 +8,10 @@
 #include <iterator>
 #include <vector>
 
-#include "anydsl2/util/assert.h"
-#include "anydsl2/util/hash.h"
+#include "thorin/util/assert.h"
+#include "thorin/util/hash.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 template<class T> class Array;
 
@@ -161,7 +161,7 @@ Array<T> ArrayRef<T>::cut(ArrayRef<size_t> indices, size_t reserve) const {
 //------------------------------------------------------------------------------
 
 template<class T>
-inline size_t hash_combine(size_t seed, anydsl2::ArrayRef<T> aref) {
+inline size_t hash_combine(size_t seed, thorin::ArrayRef<T> aref) {
     for (size_t i = 0, e = aref.size(); i != e; ++i)
         seed = hash_combine(seed, aref[i]);
     return seed;
@@ -169,18 +169,18 @@ inline size_t hash_combine(size_t seed, anydsl2::ArrayRef<T> aref) {
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl2
+} // namespace thorin
 
 namespace std {
 
 template<class T>
-struct hash<anydsl2::ArrayRef<T>> {
-    size_t operator () (anydsl2::ArrayRef<T> aref) const { return hash_combine(0, aref); }
+struct hash<thorin::ArrayRef<T>> {
+    size_t operator () (thorin::ArrayRef<T> aref) const { return hash_combine(0, aref); }
 };
 
 template<class T>
-struct hash<anydsl2::Array<T>> {
-    size_t operator () (const anydsl2::Array<T>& array) const { return anydsl2::hash_value(array.ref()); }
+struct hash<thorin::Array<T>> {
+    size_t operator () (const thorin::Array<T>& array) const { return thorin::hash_value(array.ref()); }
 };
 
 }

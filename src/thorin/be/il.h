@@ -1,7 +1,7 @@
-#ifndef ANYDSL2_BE_IL_H
-#define ANYDSL2_BE_IL_H
+#ifndef THORIN_BE_IL_H
+#define THORIN_BE_IL_H
 
-namespace anydsl2 {
+namespace thorin {
 
 class World;
 

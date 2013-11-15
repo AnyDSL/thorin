@@ -1,9 +1,9 @@
-#ifndef ANYDSL2_LOCATION_H
-#define ANYDSL2_LOCATION_H
+#ifndef THORIN_LOCATION_H
+#define THORIN_LOCATION_H
 
 #include <string>
 
-namespace anydsl2 {
+namespace thorin {
 
 //------------------------------------------------------------------------------
 
@@ -115,6 +115,6 @@ std::ostream& operator << (std::ostream& os, const Location& loc);
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl2
+} // namespace thorin
 
 #endif // DSLU_LOCATION_H

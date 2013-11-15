@@ -1,18 +1,18 @@
-#ifndef ANYDSL2_CONVOP
-#error "define ANYDSL2_CONVOP before including this file"
+#ifndef THORIN_CONVOP
+#error "define THORIN_CONVOP before including this file"
 #endif
 
-ANYDSL2_CONVOP(trunc)
-ANYDSL2_CONVOP(zext)
-ANYDSL2_CONVOP(sext)
-ANYDSL2_CONVOP(stof)
-ANYDSL2_CONVOP(utof)
-ANYDSL2_CONVOP(ftrunc)
-ANYDSL2_CONVOP(fext)
-ANYDSL2_CONVOP(ftos)
-ANYDSL2_CONVOP(ftou)
-ANYDSL2_CONVOP(bitcast)
-ANYDSL2_CONVOP(inttoptr)
-ANYDSL2_CONVOP(ptrtoint)
+THORIN_CONVOP(trunc)
+THORIN_CONVOP(zext)
+THORIN_CONVOP(sext)
+THORIN_CONVOP(stof)
+THORIN_CONVOP(utof)
+THORIN_CONVOP(ftrunc)
+THORIN_CONVOP(fext)
+THORIN_CONVOP(ftos)
+THORIN_CONVOP(ftou)
+THORIN_CONVOP(bitcast)
+THORIN_CONVOP(inttoptr)
+THORIN_CONVOP(ptrtoint)
 
-#undef ANYDSL2_CONVOP
+#undef THORIN_CONVOP

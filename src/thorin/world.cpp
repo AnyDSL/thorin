@@ -1,55 +1,55 @@
-#include "anydsl2/world.h"
+#include "thorin/world.h"
 
 #include <cmath>
 #include <algorithm>
 #include <iostream>
 #include <queue>
 
-#include "anydsl2/def.h"
-#include "anydsl2/primop.h"
-#include "anydsl2/lambda.h"
-#include "anydsl2/literal.h"
-#include "anydsl2/memop.h"
-#include "anydsl2/type.h"
-#include "anydsl2/analyses/free_vars.h"
-#include "anydsl2/analyses/schedule.h"
-#include "anydsl2/analyses/scope.h"
-#include "anydsl2/analyses/verify.h"
-#include "anydsl2/be/air.h"
-#include "anydsl2/transform/lower2cff.h"
-#include "anydsl2/transform/inliner.h"
-#include "anydsl2/transform/mangle.h"
-#include "anydsl2/transform/mem2reg.h"
-#include "anydsl2/transform/merge_lambdas.h"
-#include "anydsl2/transform/partial_evaluation.h"
-#include "anydsl2/util/array.h"
-#include "anydsl2/util/hash.h"
+#include "thorin/def.h"
+#include "thorin/primop.h"
+#include "thorin/lambda.h"
+#include "thorin/literal.h"
+#include "thorin/memop.h"
+#include "thorin/type.h"
+#include "thorin/analyses/free_vars.h"
+#include "thorin/analyses/schedule.h"
+#include "thorin/analyses/scope.h"
+#include "thorin/analyses/verify.h"
+#include "thorin/be/air.h"
+#include "thorin/transform/lower2cff.h"
+#include "thorin/transform/inliner.h"
+#include "thorin/transform/mangle.h"
+#include "thorin/transform/mem2reg.h"
+#include "thorin/transform/merge_lambdas.h"
+#include "thorin/transform/partial_evaluation.h"
+#include "thorin/util/array.h"
+#include "thorin/util/hash.h"
 
-#define ANYDSL2_NO_U_TYPE \
+#define THORIN_NO_U_TYPE \
     case PrimType_u1: \
     case PrimType_u8: \
     case PrimType_u16: \
     case PrimType_u32: \
-    case PrimType_u64: ANYDSL2_UNREACHABLE;
+    case PrimType_u64: THORIN_UNREACHABLE;
 
-#define ANYDSL2_NO_F_TYPE \
+#define THORIN_NO_F_TYPE \
     case PrimType_f32: \
-    case PrimType_f64: ANYDSL2_UNREACHABLE;
+    case PrimType_f64: THORIN_UNREACHABLE;
 
 #if (defined(__clang__) || defined(__GNUC__)) && (defined(__x86_64__) || defined(__i386__))
-#define ANYDSL2_BREAK asm("int3");
+#define THORIN_BREAK asm("int3");
 #else
-#define ANYDSL2_BREAK { int* __p__ = nullptr; *__p__ = 42; }
+#define THORIN_BREAK { int* __p__ = nullptr; *__p__ = 42; }
 #endif
 
 #ifndef NDEBUG
-#define ANYDSL2_CHECK_BREAK(gid) \
-    if (breakpoints_.find((gid)) != breakpoints_.end()) { ANYDSL2_BREAK }
+#define THORIN_CHECK_BREAK(gid) \
+    if (breakpoints_.find((gid)) != breakpoints_.end()) { THORIN_BREAK }
 #else
-#define ANYDSL2_CHECK_BREAK(gid) {}
+#define THORIN_CHECK_BREAK(gid) {}
 #endif
 
-namespace anydsl2 {
+namespace thorin {
 
 /*
  * constructor and destructor
@@ -64,8 +64,8 @@ World::World()
     , pi0_    (keep(new Pi   (*this, ArrayRef<const Type*>())))
     , mem_    (keep(new Mem  (*this)))
     , frame_  (keep(new Frame(*this)))
-#define ANYDSL2_UF_TYPE(T) ,T##_(keep(new PrimType(*this, PrimType_##T, 1)))
-#include "anydsl2/tables/primtypetable.h"
+#define THORIN_UF_TYPE(T) ,T##_(keep(new PrimType(*this, PrimType_##T, 1)))
+#include "thorin/tables/primtypetable.h"
 {}
 
 World::~World() {
@@ -92,10 +92,10 @@ Sigma* World::named_sigma(size_t size, const std::string& name) {
 Def World::literal(PrimTypeKind kind, int value, size_t length) {
     Def lit;
     switch (kind) {
-#define ANYDSL2_U_TYPE(T) case PrimType_##T: lit = literal(T(value), 1); break;
-#define ANYDSL2_F_TYPE(T) ANYDSL2_U_TYPE(T)
-#include "anydsl2/tables/primtypetable.h"
-            default: ANYDSL2_UNREACHABLE;
+#define THORIN_U_TYPE(T) case PrimType_##T: lit = literal(T(value), 1); break;
+#define THORIN_F_TYPE(T) THORIN_U_TYPE(T)
+#include "thorin/tables/primtypetable.h"
+            default: THORIN_UNREACHABLE;
     }
 
     return vector(lit, length);
@@ -151,133 +151,133 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
         switch (kind) {
             case ArithOp_add:
                 switch (type) {
-#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())));
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_F_TYPE;
+#define THORIN_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())));
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_F_TYPE;
                 }
             case ArithOp_sub:
                 switch (type) {
-#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() - r.get_##T())));
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_F_TYPE;
+#define THORIN_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() - r.get_##T())));
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_F_TYPE;
                 }
             case ArithOp_mul:
                 switch (type) {
-#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())));
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_F_TYPE;
+#define THORIN_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())));
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_F_TYPE;
                 }
             case ArithOp_udiv:
                 switch (type) {
-#define ANYDSL2_JUST_U_TYPE(T) \
+#define THORIN_JUST_U_TYPE(T) \
                     case PrimType_##T: \
                         return rlit->is_zero() \
                              ? bottom(type) \
                              : literal(type, Box(T(l.get_##T() / r.get_##T())));
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_F_TYPE;
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_F_TYPE;
                 }
             case ArithOp_sdiv:
                 switch (type) {
-#define ANYDSL2_JUST_U_TYPE(T) \
+#define THORIN_JUST_U_TYPE(T) \
                     case PrimType_##T: { \
                         typedef make_signed<T>::type S; \
                         return rlit->is_zero() \
                             ? bottom(type) \
                             : literal(type, Box((T) ((S) l.get_##T() / (S) r.get_##T()))); \
                     }
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_F_TYPE;
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_F_TYPE;
                 }
             case ArithOp_urem:
                 switch (type) {
-#define ANYDSL2_JUST_U_TYPE(T) \
+#define THORIN_JUST_U_TYPE(T) \
                     case PrimType_##T: \
                         return rlit->is_zero() \
                              ? bottom(type) \
                              : literal(type, Box(T(l.get_##T() % r.get_##T())));
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_F_TYPE;
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_F_TYPE;
                 }
             case ArithOp_srem:
                 switch (type) {
-#define ANYDSL2_JUST_U_TYPE(T) \
+#define THORIN_JUST_U_TYPE(T) \
                     case PrimType_##T: { \
                         typedef make_signed<T>::type S; \
                         return literal(type, Box((T) ((S) l.get_##T() % (S) r.get_##T()))); \
                     }
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_F_TYPE;
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_F_TYPE;
                 }
             case ArithOp_and:
                 switch (type) {
-#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() & r.get_##T())));
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_F_TYPE;
+#define THORIN_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() & r.get_##T())));
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_F_TYPE;
                 }
             case ArithOp_or:
                 switch (type) {
-#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() | r.get_##T())));
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_F_TYPE;
+#define THORIN_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() | r.get_##T())));
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_F_TYPE;
                 }
             case ArithOp_xor:
                 switch (type) {
-#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() ^ r.get_##T())));
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_F_TYPE;
+#define THORIN_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() ^ r.get_##T())));
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_F_TYPE;
                 }
             case ArithOp_shl:
                 switch (type) {
-#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() << r.get_##T())));
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_F_TYPE;
+#define THORIN_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() << r.get_##T())));
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_F_TYPE;
                 }
             case ArithOp_lshr:
                 switch (type) {
-#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() >> r.get_##T())));
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_F_TYPE;
+#define THORIN_JUST_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() >> r.get_##T())));
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_F_TYPE;
                 }
             case ArithOp_ashr:
                 switch (type) {
-#define ANYDSL2_JUST_U_TYPE(T) \
+#define THORIN_JUST_U_TYPE(T) \
                     case PrimType_##T: { \
                         typedef make_signed<T>::type S; \
                         return literal(type, Box((T) ((S) l.get_##T() >> (S) r.get_##T()))); \
                     }
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_F_TYPE;
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_F_TYPE;
                 }
             case ArithOp_fadd:
                 switch (type) {
-#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())));
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_U_TYPE;
+#define THORIN_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())));
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_U_TYPE;
                 }
             case ArithOp_fsub:
                 switch (type) {
-#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() - r.get_##T())));
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_U_TYPE;
+#define THORIN_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() - r.get_##T())));
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_U_TYPE;
                 }
             case ArithOp_fmul:
                 switch (type) {
-#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())));
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_U_TYPE;
+#define THORIN_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())));
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_U_TYPE;
                 }
             case ArithOp_fdiv:
                 switch (type) {
-#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() / r.get_##T())));
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_U_TYPE;
+#define THORIN_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() / r.get_##T())));
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_U_TYPE;
                 }
             case ArithOp_frem:
                 switch (type) {
-#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(std::fmod(l.get_##T(), r.get_##T())));
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_U_TYPE;
+#define THORIN_JUST_F_TYPE(T) case PrimType_##T: return literal(type, Box(std::fmod(l.get_##T(), r.get_##T())));
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_U_TYPE;
                 }
         }
     }
@@ -535,74 +535,74 @@ Def World::relop(RelOpKind kind, Def cond, Def a, Def b, const std::string& name
         switch (kind) {
             case RelOp_cmp_eq:
                 switch (type) {
-#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() == r.get_##T());
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_F_TYPE;
+#define THORIN_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() == r.get_##T());
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_F_TYPE;
                 }
             case RelOp_cmp_ne:
                 switch (type) {
-#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() != r.get_##T());
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_F_TYPE;
+#define THORIN_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() != r.get_##T());
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_F_TYPE;
                 }
             case RelOp_cmp_ult:
                 switch (type) {
-#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <  r.get_##T());
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_F_TYPE;
+#define THORIN_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <  r.get_##T());
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_F_TYPE;
                 }
             case RelOp_cmp_ule:
                 switch (type) {
-#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <= r.get_##T());
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_F_TYPE;
+#define THORIN_JUST_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <= r.get_##T());
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_F_TYPE;
                 }
             case RelOp_cmp_slt:
                 switch (type) {
-#define ANYDSL2_JUST_U_TYPE(T) \
+#define THORIN_JUST_U_TYPE(T) \
                     case PrimType_##T: { \
                         typedef make_signed<T>::type S; \
                         return literal_u1((S) l.get_##T() < (S) r.get_##T()); \
                     }
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_F_TYPE;
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_F_TYPE;
                 }
             case RelOp_cmp_sle:
                 switch (type) {
-#define ANYDSL2_JUST_U_TYPE(T) \
+#define THORIN_JUST_U_TYPE(T) \
                     case PrimType_##T: { \
                         typedef make_signed< T >::type S; \
                         return literal_u1((S) l.get_##T() <= (S) r.get_##T()); \
                     }
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_F_TYPE;
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_F_TYPE;
                 }
             case RelOp_fcmp_oeq:
                 switch (type) {
-#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() == r.get_##T());
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_U_TYPE;
+#define THORIN_JUST_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() == r.get_##T());
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_U_TYPE;
                 }
             case RelOp_fcmp_one:
                 switch (type) {
-#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() != r.get_##T());
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_U_TYPE;
+#define THORIN_JUST_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() != r.get_##T());
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_U_TYPE;
                 }
             case RelOp_fcmp_olt:
                 switch (type) {
-#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <  r.get_##T());
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_U_TYPE;
+#define THORIN_JUST_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <  r.get_##T());
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_U_TYPE;
                 }
             case RelOp_fcmp_ole:
                 switch (type) {
-#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <= r.get_##T());
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_U_TYPE;
+#define THORIN_JUST_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <= r.get_##T());
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_U_TYPE;
                 }
             default:
-                ANYDSL2_UNREACHABLE;
+                THORIN_UNREACHABLE;
         }
     }
 
@@ -623,9 +623,9 @@ Def World::relop(RelOpKind kind, Def cond, Def a, Def b, const std::string& name
 
 static i64 box2i64(PrimTypeKind kind, Box box) {
     switch (kind) {
-#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return (i64) (make_signed<T>::type) box.get_##T();
-#include "anydsl2/tables/primtypetable.h"
-        ANYDSL2_NO_F_TYPE;
+#define THORIN_JUST_U_TYPE(T) case PrimType_##T: return (i64) (make_signed<T>::type) box.get_##T();
+#include "thorin/tables/primtypetable.h"
+        THORIN_NO_F_TYPE;
     }
 }
 
@@ -674,27 +674,27 @@ Def World::convop(ConvOpKind kind, Def cond, Def from, const Type* to, const std
             case ConvOp_sext:   return literal(to_kind, Box((u64) box2i64(from_kind, box)));
             case ConvOp_utof:
                 switch (to_kind) {
-#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal(to_kind, Box((T) box.get_u64()));
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_U_TYPE;
+#define THORIN_JUST_F_TYPE(T) case PrimType_##T: return literal(to_kind, Box((T) box.get_u64()));
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_U_TYPE;
                 }
             case ConvOp_stof:
                 switch (to_kind) {
-#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal(to_kind, Box((T) box2i64(from_kind, box)));
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_U_TYPE;
+#define THORIN_JUST_F_TYPE(T) case PrimType_##T: return literal(to_kind, Box((T) box2i64(from_kind, box)));
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_U_TYPE;
                 }
             case ConvOp_ftou:
                 switch (from_kind) {
-#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal(to_kind, Box((u64) box.get_##T()));
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_U_TYPE;
+#define THORIN_JUST_F_TYPE(T) case PrimType_##T: return literal(to_kind, Box((u64) box.get_##T()));
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_U_TYPE;
                 }
             case ConvOp_ftos:
                 switch (from_kind) {
-#define ANYDSL2_JUST_F_TYPE(T) case PrimType_##T: return literal(to_kind, Box((u64) (i64) box.get_##T()));
-#include "anydsl2/tables/primtypetable.h"
-                    ANYDSL2_NO_U_TYPE;
+#define THORIN_JUST_F_TYPE(T) case PrimType_##T: return literal(to_kind, Box((u64) (i64) box.get_##T()));
+#include "thorin/tables/primtypetable.h"
+                    THORIN_NO_U_TYPE;
                 }
             case ConvOp_ftrunc: return literal(PrimType_f32, Box((f32) box.get_f64()));
             case ConvOp_fext:   return literal(PrimType_f64, Box((f64) box.get_f32()));
@@ -821,7 +821,7 @@ Def World::halt(Def def, const std::string& name) {
 }
 
 Lambda* World::lambda(const Pi* pi, Lambda::Attribute attribute, const std::string& name) {
-    ANYDSL2_CHECK_BREAK(gid_)
+    THORIN_CHECK_BREAK(gid_)
     auto l = new Lambda(gid_++, pi, attribute, true, name);
     lambdas_.insert(l);
 
@@ -833,7 +833,7 @@ Lambda* World::lambda(const Pi* pi, Lambda::Attribute attribute, const std::stri
 }
 
 Lambda* World::basicblock(const std::string& name) {
-    ANYDSL2_CHECK_BREAK(gid_)
+    THORIN_CHECK_BREAK(gid_)
     auto bb = new Lambda(gid_++, pi0(), Lambda::Attribute(0), false, name);
     lambdas_.insert(bb);
     return bb;
@@ -865,7 +865,7 @@ Def World::rebuild(const PrimOp* in, ArrayRef<Def> ops, const Type* type) {
         case Node_Slot:    assert(ops.size() == 1); 
             return slot(type->as<Ptr>()->referenced_type(), ops[0], in->as<Slot>()->index(), name);
         case Node_LEA:     assert(ops.size() == 2); return lea(ops[0], ops[1], name);
-        default: ANYDSL2_UNREACHABLE;
+        default: THORIN_UNREACHABLE;
     }
 }
 
@@ -881,12 +881,12 @@ const Type* World::rebuild(const Type* type, ArrayRef<const Type*> elems) {
             auto genref = type->as<GenericRef>();
             return generic_ref(genref->generic(), genref->lambda());
         }
-        default: ANYDSL2_UNREACHABLE;
+        default: THORIN_UNREACHABLE;
     }
 }
 
 const Param* World::param(const Type* type, Lambda* lambda, size_t index, const std::string& name) {
-    ANYDSL2_CHECK_BREAK(gid_)
+    THORIN_CHECK_BREAK(gid_)
     return new Param(gid_++, type, lambda, index, name);
 }
 
@@ -920,7 +920,7 @@ const DefNode* World::cse_base(const PrimOp* primop) {
         primop->set_gid(gid_++);
     }
 
-    ANYDSL2_CHECK_BREAK(primop->gid())
+    THORIN_CHECK_BREAK(primop->gid())
     return primop;
 }
 
@@ -1199,4 +1199,4 @@ void World::wipe_out(S& set, W wipe) {
     }
 }
 
-} // namespace anydsl2
+} // namespace thorin

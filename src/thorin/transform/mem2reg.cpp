@@ -1,12 +1,12 @@
 #include <unordered_map>
 
-#include "anydsl2/memop.h"
-#include "anydsl2/world.h"
-#include "anydsl2/analyses/scope.h"
-#include "anydsl2/analyses/schedule.h"
-#include "anydsl2/analyses/verify.h"
+#include "thorin/memop.h"
+#include "thorin/world.h"
+#include "thorin/analyses/scope.h"
+#include "thorin/analyses/schedule.h"
+#include "thorin/analyses/verify.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 void mem2reg(const Scope& scope) {
     auto schedule = schedule_late(scope);

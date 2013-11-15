@@ -1,44 +1,44 @@
-#ifndef ANYDSL2_GLUE
-#error "define ANYDSL2_GLUE before including this file"
+#ifndef THORIN_GLUE
+#error "define THORIN_GLUE before including this file"
 #endif
 
-#ifndef ANYDSL2_AIR_NODE
-#error "define ANYDSL2_AIR_NODE before including this file"
+#ifndef THORIN_AIR_NODE
+#error "define THORIN_AIR_NODE before including this file"
 #endif
 
-#ifndef ANYDSL2_PRIMTYPE
-#error "define ANYDSL2_PRIMTYPE before including this file"
+#ifndef THORIN_PRIMTYPE
+#error "define THORIN_PRIMTYPE before including this file"
 #endif
 
-#ifndef ANYDSL2_ARITHOP
-#error "define ANYDSL2_ARITHOP before including this file"
+#ifndef THORIN_ARITHOP
+#error "define THORIN_ARITHOP before including this file"
 #endif
 
-#ifndef ANYDSL2_RELOP
-#error "define ANYDSL2_RELOP before including this file"
+#ifndef THORIN_RELOP
+#error "define THORIN_RELOP before including this file"
 #endif
 
-#ifndef ANYDSL2_CONVOP
-#error "define ANYDSL2_CONVOP before including this file"
+#ifndef THORIN_CONVOP
+#error "define THORIN_CONVOP before including this file"
 #endif
 
-#include "anydsl2/tables/nodetable.h"
-    ANYDSL2_GLUE(Node, PrimType_u)
-#define ANYDSL2_JUST_U_TYPE(T) ANYDSL2_PRIMTYPE(T)
-#include "anydsl2/tables/primtypetable.h"
-    ANYDSL2_GLUE(PrimType_u, PrimType_f)
-#define ANYDSL2_JUST_F_TYPE(T) ANYDSL2_PRIMTYPE(T)
-#include "anydsl2/tables/primtypetable.h"
-    ANYDSL2_GLUE(PrimType_f, ArithOp)
-#include "anydsl2/tables/arithoptable.h"
-    ANYDSL2_GLUE(ArithOp, RelOp)
-#include "anydsl2/tables/reloptable.h"
-    ANYDSL2_GLUE(RelOp, ConvOp)
-#include "anydsl2/tables/convoptable.h"
+#include "thorin/tables/nodetable.h"
+    THORIN_GLUE(Node, PrimType_u)
+#define THORIN_JUST_U_TYPE(T) THORIN_PRIMTYPE(T)
+#include "thorin/tables/primtypetable.h"
+    THORIN_GLUE(PrimType_u, PrimType_f)
+#define THORIN_JUST_F_TYPE(T) THORIN_PRIMTYPE(T)
+#include "thorin/tables/primtypetable.h"
+    THORIN_GLUE(PrimType_f, ArithOp)
+#include "thorin/tables/arithoptable.h"
+    THORIN_GLUE(ArithOp, RelOp)
+#include "thorin/tables/reloptable.h"
+    THORIN_GLUE(RelOp, ConvOp)
+#include "thorin/tables/convoptable.h"
 
-#undef ANYDSL2_GLUE
-#undef ANYDSL2_AIR_NODE
-#undef ANYDSL2_PRIMTYPE
-#undef ANYDSL2_ARITHOP
-#undef ANYDSL2_RELOP
-#undef ANYDSL2_CONVOP
+#undef THORIN_GLUE
+#undef THORIN_AIR_NODE
+#undef THORIN_PRIMTYPE
+#undef THORIN_ARITHOP
+#undef THORIN_RELOP
+#undef THORIN_CONVOP

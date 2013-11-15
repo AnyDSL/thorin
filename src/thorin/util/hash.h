@@ -1,9 +1,9 @@
-#ifndef ANYDSL2_UTIL_HASH_H
-#define ANYDSL2_UTIL_HASH_H
+#ifndef THORIN_UTIL_HASH_H
+#define THORIN_UTIL_HASH_H
 
 #include <functional>
 
-namespace anydsl2 {
+namespace thorin {
 
 template<class T> 
 inline size_t hash_value(const T& t) { return std::hash<T>()(t); }

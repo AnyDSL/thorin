@@ -1,34 +1,34 @@
-#ifndef ANYDSL2_ENUMS_H
-#define ANYDSL2_ENUMS_H
+#ifndef THORIN_ENUMS_H
+#define THORIN_ENUMS_H
 
-#include "anydsl2/util/types.h"
+#include "thorin/util/types.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 //------------------------------------------------------------------------------
 
 
 enum NodeKind {
-#define ANYDSL2_GLUE(pre, next)
-#define ANYDSL2_AIR_NODE(node, abbr) Node_##node,
-#define ANYDSL2_PRIMTYPE(T) Node_PrimType_##T,
-#define ANYDSL2_ARITHOP(op) Node_##op,
-#define ANYDSL2_RELOP(op) Node_##op,
-#define ANYDSL2_CONVOP(op) Node_##op,
-#include "anydsl2/tables/allnodes.h"
+#define THORIN_GLUE(pre, next)
+#define THORIN_AIR_NODE(node, abbr) Node_##node,
+#define THORIN_PRIMTYPE(T) Node_PrimType_##T,
+#define THORIN_ARITHOP(op) Node_##op,
+#define THORIN_RELOP(op) Node_##op,
+#define THORIN_CONVOP(op) Node_##op,
+#include "thorin/tables/allnodes.h"
 };
 
 enum Markers {
-#define ANYDSL2_GLUE(pre, next) \
+#define THORIN_GLUE(pre, next) \
     End_##pre, \
     Begin_##next = End_##pre, \
     zzz##Begin_##next = Begin_##next - 1,
-#define ANYDSL2_AIR_NODE(node, abbr) zzzMarker_##node,
-#define ANYDSL2_PRIMTYPE(T) zzzMarker_PrimType_##T,
-#define ANYDSL2_ARITHOP(op) zzzMarker_##op,
-#define ANYDSL2_RELOP(op) zzzMarker_##op,
-#define ANYDSL2_CONVOP(op) zzzMarker_##op,
-#include "anydsl2/tables/allnodes.h"
+#define THORIN_AIR_NODE(node, abbr) zzzMarker_##node,
+#define THORIN_PRIMTYPE(T) zzzMarker_PrimType_##T,
+#define THORIN_ARITHOP(op) zzzMarker_##op,
+#define THORIN_RELOP(op) zzzMarker_##op,
+#define THORIN_CONVOP(op) zzzMarker_##op,
+#include "thorin/tables/allnodes.h"
     End_ConvOp,
     Begin_Node = 0,
     End_AllNodes    = End_ConvOp,
@@ -52,23 +52,23 @@ enum Markers {
 };
 
 enum PrimTypeKind {
-#define ANYDSL2_UF_TYPE(T) PrimType_##T = Node_PrimType_##T,
-#include "anydsl2/tables/primtypetable.h"
+#define THORIN_UF_TYPE(T) PrimType_##T = Node_PrimType_##T,
+#include "thorin/tables/primtypetable.h"
 };
 
 enum ArithOpKind {
-#define ANYDSL2_ARITHOP(op) ArithOp_##op = Node_##op,
-#include "anydsl2/tables/arithoptable.h"
+#define THORIN_ARITHOP(op) ArithOp_##op = Node_##op,
+#include "thorin/tables/arithoptable.h"
 };
 
 enum RelOpKind {
-#define ANYDSL2_RELOP(op) RelOp_##op = Node_##op,
-#include "anydsl2/tables/reloptable.h"
+#define THORIN_RELOP(op) RelOp_##op = Node_##op,
+#include "thorin/tables/reloptable.h"
 };
 
 enum ConvOpKind {
-#define ANYDSL2_CONVOP(op) ConvOp_##op = Node_##op,
-#include "anydsl2/tables/convoptable.h"
+#define THORIN_CONVOP(op) ConvOp_##op = Node_##op,
+#include "thorin/tables/convoptable.h"
 };
 
 inline bool is_int(int kind)     { return (int) Begin_PrimType_u <= kind && kind < (int) End_PrimType_u; }
@@ -91,21 +91,21 @@ inline bool is_associative(int kind) { return kind == ArithOp_add || kind == Ari
                                            || kind == ArithOp_and || kind == ArithOp_or || kind == ArithOp_xor; }
 
 template<PrimTypeKind kind> struct kind2type {};
-#define ANYDSL2_U_TYPE(T) template<> struct kind2type<PrimType_##T> { typedef T type; };
-#define ANYDSL2_F_TYPE(T) template<> struct kind2type<PrimType_##T> { typedef T type; };
-#include "anydsl2/tables/primtypetable.h"
+#define THORIN_U_TYPE(T) template<> struct kind2type<PrimType_##T> { typedef T type; };
+#define THORIN_F_TYPE(T) template<> struct kind2type<PrimType_##T> { typedef T type; };
+#include "thorin/tables/primtypetable.h"
 
 template<class T> struct type2kind {};
 template<> struct type2kind<bool> { static const PrimTypeKind kind = PrimType_u1; };
-#define ANYDSL2_U_TYPE(T) template<> struct type2kind<T> { static const PrimTypeKind kind = PrimType_##T; };
-#define ANYDSL2_F_TYPE(T) template<> struct type2kind<T> { static const PrimTypeKind kind = PrimType_##T; };
-#include "anydsl2/tables/primtypetable.h"
+#define THORIN_U_TYPE(T) template<> struct type2kind<T> { static const PrimTypeKind kind = PrimType_##T; };
+#define THORIN_F_TYPE(T) template<> struct type2kind<T> { static const PrimTypeKind kind = PrimType_##T; };
+#include "thorin/tables/primtypetable.h"
 
 const char* kind2str(NodeKind kind);
 int num_bits(PrimTypeKind);
 
 RelOpKind negate(RelOpKind kind);
 
-} // namespace anydsl2
+} // namespace thorin
 
 #endif

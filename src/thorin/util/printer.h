@@ -1,11 +1,11 @@
-#ifndef ANYDSL2_UTIL_PRINTER_H
-#define ANYDSL2_UTIL_PRINTER_H
+#ifndef THORIN_UTIL_PRINTER_H
+#define THORIN_UTIL_PRINTER_H
 
 #include <iostream>
 #include <iomanip>
 #include <string>
 
-namespace anydsl2 {
+namespace thorin {
 
 class Printer {
 public:
@@ -46,6 +46,6 @@ std::ostream& Printer::dump_list(Emit emit, const List& list, const char* begin,
     return stream() << end;
 }
 
-} // namespace anydsl2
+} // namespace thorin
 
 #endif

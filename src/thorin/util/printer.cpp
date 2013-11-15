@@ -1,6 +1,6 @@
-#include "anydsl2/util/printer.h"
+#include "thorin/util/printer.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 std::ostream& Printer::newline() {
     stream_ << '\n';
@@ -9,4 +9,4 @@ std::ostream& Printer::newline() {
     return stream();
 }
 
-} // namespace anydsl2
+} // namespace thorin

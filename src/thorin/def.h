@@ -1,17 +1,17 @@
-#ifndef ANYDSL2_DEF_H
-#define ANYDSL2_DEF_H
+#ifndef THORIN_DEF_H
+#define THORIN_DEF_H
 
 #include <queue>
 #include <string>
 #include <unordered_set>
 #include <vector>
 
-#include "anydsl2/enums.h"
-#include "anydsl2/util/array.h"
-#include "anydsl2/util/autoptr.h"
-#include "anydsl2/util/cast.h"
+#include "thorin/enums.h"
+#include "thorin/util/array.h"
+#include "thorin/util/autoptr.h"
+#include "thorin/util/cast.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 //------------------------------------------------------------------------------
 
@@ -140,7 +140,7 @@ protected:
 
 public:
     NodeKind kind() const { return kind_; }
-    bool is_corenode() const { return ::anydsl2::is_corenode(kind()); }
+    bool is_corenode() const { return ::thorin::is_corenode(kind()); }
     size_t size() const { return ops_.size(); }
     bool empty() const { return ops_.empty(); }
     void set_op(size_t i, Def def);
@@ -177,15 +177,15 @@ public:
     bool is_minus_zero() const;
     bool is_one() const { return is_primlit(1); }
     bool is_allset() const { return is_primlit(-1); }
-    bool is_div()         const { return anydsl2::is_div  (kind()); }
-    bool is_rem()         const { return anydsl2::is_rem  (kind()); }
-    bool is_bitop()       const { return anydsl2::is_bitop(kind()); }
-    bool is_shift()       const { return anydsl2::is_shift(kind()); }
+    bool is_div()         const { return thorin::is_div  (kind()); }
+    bool is_rem()         const { return thorin::is_rem  (kind()); }
+    bool is_bitop()       const { return thorin::is_bitop(kind()); }
+    bool is_shift()       const { return thorin::is_shift(kind()); }
     bool is_not()         const { return kind() == Node_xor && op(0)->is_allset(); }
     bool is_minus()       const { return (kind() == Node_sub || kind() == Node_fsub) && op(0)->is_minus_zero(); }
-    bool is_div_or_rem()  const { return anydsl2::is_div_or_rem(kind()); }
-    bool is_commutative() const { return anydsl2::is_commutative(kind()); }
-    bool is_associative() const { return anydsl2::is_associative(kind()); }
+    bool is_div_or_rem()  const { return thorin::is_div_or_rem(kind()); }
+    bool is_commutative() const { return thorin::is_commutative(kind()); }
+    bool is_associative() const { return thorin::is_associative(kind()); }
     template<class T> inline T primlit_value() const; // implementation in literal.h
 
     // scratch operations
@@ -279,6 +279,6 @@ void mark_down(const size_t pass, std::queue<Def>& queue);
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl2
+} // namespace thorin
 
 #endif

@@ -4,18 +4,18 @@
 #include <vector>
 #include <map>
 
-#include "anydsl2/irbuilder.h"
-#include "anydsl2/lambda.h"
-#include "anydsl2/literal.h"
-#include "anydsl2/memop.h"
-#include "anydsl2/type.h"
-#include "anydsl2/util/array.h"
-#include "anydsl2/util/push.h"
-#include "anydsl2/world.h"
+#include "thorin/irbuilder.h"
+#include "thorin/lambda.h"
+#include "thorin/literal.h"
+#include "thorin/memop.h"
+#include "thorin/type.h"
+#include "thorin/util/array.h"
+#include "thorin/util/push.h"
+#include "thorin/world.h"
 
 #include "impala/type.h"
 
-using namespace anydsl2;
+using namespace thorin;
 
 namespace impala {
 
@@ -132,7 +132,7 @@ Lambda* CodeGen::emit_head(const Fun* fun) {
 
 const Lambda* CodeGen::emit_body(const Fun* fun) {
     fun->lambda()->set_parent(cur_bb);
-    ANYDSL2_PUSH(cur_bb, fun->lambda());
+    THORIN_PUSH(cur_bb, fun->lambda());
 
     const Enter* enter_op = world().enter(fun->lambda()->param(0));
     set_mem(enter_op->extract_mem());
@@ -169,7 +169,7 @@ const Lambda* CodeGen::emit_body(const Fun* fun) {
 //------------------------------------------------------------------------------
 
 RefPtr CodeGen::emit(const VarDecl* decl) {
-    const anydsl2::Type* air_type = decl->refined_type()->convert(world());
+    const thorin::Type* air_type = decl->refined_type()->convert(world());
     if (decl->is_address_taken())
         return Ref::create(*this, world().slot(air_type, decl->fun()->frame(), decl->handle(), decl->symbol().str()));
 
@@ -201,7 +201,7 @@ RefPtr Literal::emit(CodeGen& cg) const {
         case LIT_##itype: akind = PrimType_##atype; break;
 #include "impala/tokenlist.h"
         case LIT_bool: akind = PrimType_u1; break;
-        default: ANYDSL2_UNREACHABLE;
+        default: THORIN_UNREACHABLE;
     }
 
     return Ref::create(cg.world().literal(akind, box()));
@@ -281,7 +281,7 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
                 return rref;
             } else
                 return Ref::create(cg.world().halt(rref->load()));
-        default: ANYDSL2_UNREACHABLE;
+        default: THORIN_UNREACHABLE;
     }
 }
 
@@ -460,8 +460,8 @@ void DoWhileStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     JumpTarget body_bb("do_while_body");
     JumpTarget cond_bb("do_while_cond");
 
-    ANYDSL2_PUSH(cg.break_target, &exit_bb);
-    ANYDSL2_PUSH(cg.continue_target, &cond_bb);
+    THORIN_PUSH(cg.break_target, &exit_bb);
+    THORIN_PUSH(cg.continue_target, &cond_bb);
 
     cg.jump(body_bb);
 
@@ -478,8 +478,8 @@ void ForStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     JumpTarget body_bb("for_body");
     JumpTarget step_bb("for_step");
 
-    ANYDSL2_PUSH(cg.break_target, &exit_bb);
-    ANYDSL2_PUSH(cg.continue_target, &step_bb);
+    THORIN_PUSH(cg.break_target, &exit_bb);
+    THORIN_PUSH(cg.continue_target, &step_bb);
 
     cg.emit(init(), head_bb);
 
@@ -499,8 +499,8 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     JumpTarget continue_bb("continue_bb");
     auto fun = fun_expr()->fun();
 
-    ANYDSL2_PUSH(cg.break_target, &exit_bb);
-    ANYDSL2_PUSH(cg.continue_target, &continue_bb);
+    THORIN_PUSH(cg.break_target, &exit_bb);
+    THORIN_PUSH(cg.continue_target, &continue_bb);
 
     // construct a call to the generator
     size_t num = call()->ops().size();

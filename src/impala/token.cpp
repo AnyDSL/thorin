@@ -1,10 +1,10 @@
 #include "impala/token.h"
 
-#include "anydsl2/util/assert.h"
-#include "anydsl2/util/cast.h"
-#include "anydsl2/util/stdlib.h"
+#include "thorin/util/assert.h"
+#include "thorin/util/cast.h"
+#include "thorin/util/stdlib.h"
 
-using namespace anydsl2;
+using namespace thorin;
 
 namespace impala {
 
@@ -50,7 +50,7 @@ Token::Token(const Location& loc, Kind kind, const std::string& str)
         case LIT_float:  box_ = Box(strtof(symbol_.str(), 0)); break;
         case LIT_double: box_ = Box(strtod(symbol_.str(), 0)); break;
 
-        default: ANYDSL2_UNREACHABLE;
+        default: THORIN_UNREACHABLE;
     }
 }
 
@@ -76,7 +76,7 @@ TokenKind Token::separate_assign(TokenKind kind) {
         case XOR_ASGN: return XOR;
         case SHL_ASGN: return SHL;
         case SHR_ASGN: return SHR;
-        default: ANYDSL2_UNREACHABLE;
+        default: THORIN_UNREACHABLE;
     }
 }
 
@@ -100,7 +100,7 @@ int Token::to_binop(Kind kind, bool is_float) {
         case XOR: assert(!is_float); return ArithOp_xor;
         case SHL: assert(!is_float); return ArithOp_shl;
         case SHR: assert(!is_float); return ArithOp_ashr;
-        default: ANYDSL2_UNREACHABLE;
+        default: THORIN_UNREACHABLE;
     }
 }
 
@@ -118,7 +118,7 @@ Token::Tok2Str Token::tok2str_;
  */
 
 void Token::init() {
-    ANYDSL2_CALL_ONCE;
+    THORIN_CALL_ONCE;
 
     /*
      * - set pre-/in-/postfix operators

@@ -1,11 +1,11 @@
-#ifndef ANYDSL2_UTIL_PUSH_H
-#define ANYDSL2_UTIL_PUSH_H
+#ifndef THORIN_UTIL_PUSH_H
+#define THORIN_UTIL_PUSH_H
 
-#define ANYDSL2_LNAME__(name, line) name##__##line
-#define ANYDSL2_LNAME_(name, line)  ANYDSL2_LNAME__(name, line)
-#define ANYDSL2_LNAME(name)         ANYDSL2_LNAME_(name, __LINE__)
+#define THORIN_LNAME__(name, line) name##__##line
+#define THORIN_LNAME_(name, line)  THORIN_LNAME__(name, line)
+#define THORIN_LNAME(name)         THORIN_LNAME_(name, __LINE__)
  
-namespace anydsl2 {
+namespace thorin {
 
 template<class T>
 struct Push {
@@ -25,8 +25,8 @@ private:
 template<class T, class U>
 inline Push<T> push(T& t, U new_val) { return Push<T>(t, new_val); }
 
-#define ANYDSL2_PUSH(what, with) auto ANYDSL2_LNAME(anydsl2_push) = anydsl2::push((what), (with))
+#define THORIN_PUSH(what, with) auto THORIN_LNAME(thorin_push) = thorin::push((what), (with))
 
-} // namespace anydsl2
+} // namespace thorin
 
 #endif // UTIL_PUSH_H

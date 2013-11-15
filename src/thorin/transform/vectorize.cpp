@@ -1,14 +1,14 @@
 #include <algorithm>
 #include <sstream>
 
-#include "anydsl2/literal.h"
-#include "anydsl2/type.h"
-#include "anydsl2/world.h"
-#include "anydsl2/analyses/domtree.h"
-#include "anydsl2/analyses/scope.h"
-#include "anydsl2/analyses/schedule.h"
+#include "thorin/literal.h"
+#include "thorin/type.h"
+#include "thorin/world.h"
+#include "thorin/analyses/domtree.h"
+#include "thorin/analyses/scope.h"
+#include "thorin/analyses/schedule.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 class Vectorizer {
 public:

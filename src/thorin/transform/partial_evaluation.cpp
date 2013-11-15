@@ -1,14 +1,14 @@
 #include <unordered_map>
 
-#include "anydsl2/world.h"
-#include "anydsl2/analyses/scope.h"
-#include "anydsl2/be/air.h"
-#include "anydsl2/analyses/schedule.h"
-#include "anydsl2/analyses/looptree.h"
-#include "anydsl2/transform/mangle.h"
-#include "anydsl2/transform/merge_lambdas.h"
+#include "thorin/world.h"
+#include "thorin/analyses/scope.h"
+#include "thorin/be/air.h"
+#include "thorin/analyses/schedule.h"
+#include "thorin/analyses/looptree.h"
+#include "thorin/transform/mangle.h"
+#include "thorin/transform/merge_lambdas.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 static Lambda* cached(World& world, const Call& call) {
     auto iter = world.cache_.find(call);

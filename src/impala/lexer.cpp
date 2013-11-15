@@ -4,9 +4,9 @@
 #include <cstdio>
 #include <stdexcept>
 
-#include "anydsl2/util/symbol.h"
+#include "thorin/util/symbol.h"
 
-using anydsl2::Symbol;
+using thorin::Symbol;
 
 namespace impala {
 
@@ -41,7 +41,7 @@ Lexer::Lexer(std::istream& stream, const std::string& filename)
     stream_.exceptions(std::istream::badbit);
 }
 
-std::ostream& Lexer::error(const anydsl2::Location& loc) {
+std::ostream& Lexer::error(const thorin::Location& loc) {
     result_ = false;
     return loc.error();
 }

@@ -1,13 +1,13 @@
-#include "anydsl2/analyses/scope.h"
+#include "thorin/analyses/scope.h"
 
 #include <algorithm>
 
-#include "anydsl2/lambda.h"
-#include "anydsl2/world.h"
-#include "anydsl2/analyses/domtree.h"
-#include "anydsl2/analyses/looptree.h"
+#include "thorin/lambda.h"
+#include "thorin/world.h"
+#include "thorin/analyses/domtree.h"
+#include "thorin/analyses/looptree.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 Scope::Scope(Lambda* entry)
     : world_(entry->world())
@@ -141,7 +141,7 @@ size_t Scope::number(const size_t pass, Lambda* cur, size_t i) const {
     return forwards ? (cur->sid_ = i) + 1 : (cur->backwards_sid_ = i) - 1;
 }
 
-#define ANYDSL2_SCOPE_SUCC_PRED(succ) \
+#define THORIN_SCOPE_SUCC_PRED(succ) \
 ArrayRef<Lambda*> Scope::succ##s(Lambda* lambda) const { \
     assert(contains(lambda));  \
     if (succ##s_.data() == nullptr) { \
@@ -161,8 +161,8 @@ ArrayRef<Lambda*> Scope::succ##s(Lambda* lambda) const { \
     return succ##s_[lambda->sid()];  \
 }
 
-ANYDSL2_SCOPE_SUCC_PRED(succ)
-ANYDSL2_SCOPE_SUCC_PRED(pred)
+THORIN_SCOPE_SUCC_PRED(succ)
+THORIN_SCOPE_SUCC_PRED(pred)
 
 ArrayRef<Lambda*> Scope::backwards_rpo() const {
     if (!backwards_rpo_) {
@@ -228,4 +228,4 @@ const LoopTree& Scope::looptree() const { return looptree_ ? *looptree_ : *(loop
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl2
+} // namespace thorin

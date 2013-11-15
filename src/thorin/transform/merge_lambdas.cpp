@@ -1,10 +1,10 @@
-#include "anydsl2/lambda.h"
-#include "anydsl2/literal.h"
-#include "anydsl2/world.h"
-#include "anydsl2/analyses/domtree.h"
-#include "anydsl2/analyses/verify.h"
+#include "thorin/lambda.h"
+#include "thorin/literal.h"
+#include "thorin/world.h"
+#include "thorin/analyses/domtree.h"
+#include "thorin/analyses/verify.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 class Merger {
 public:
@@ -54,4 +54,4 @@ void Merger::merge(const DomNode* n) {
 
 void merge_lambdas(World& world) { Merger merger(world); debug_verify(world); }
 
-} // namespace anydsl2
+} // namespace thorin

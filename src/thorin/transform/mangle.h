@@ -1,9 +1,9 @@
-#ifndef ANYDSL2_TRANSFORM_MANGLE_H
-#define ANYDSL2_TRANSFORM_MANGLE_H
+#ifndef THORIN_TRANSFORM_MANGLE_H
+#define THORIN_TRANSFORM_MANGLE_H
 
-#include "anydsl2/type.h"
+#include "thorin/type.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 class Scope;
 

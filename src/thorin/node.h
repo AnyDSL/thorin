@@ -1,14 +1,14 @@
-#ifndef ANYDSL2_NODE_H
-#define ANYDSL2_NODE_H
+#ifndef THORIN_NODE_H
+#define THORIN_NODE_H
 
 #include <cassert>
 #include <vector>
 
-#include "anydsl2/enums.h"
-#include "anydsl2/util/array.h"
-#include "anydsl2/util/cast.h"
+#include "thorin/enums.h"
+#include "thorin/util/array.h"
+#include "thorin/util/cast.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 template<class Base>
 class Node : public MagicCast<Base> {
@@ -30,7 +30,7 @@ protected:
 
 public:
     int kind() const { return kind_; }
-    bool is_corenode() const { return ::anydsl2::is_corenode(kind()); }
+    bool is_corenode() const { return ::thorin::is_corenode(kind()); }
     NodeKind node_kind() const { assert(is_corenode()); return (NodeKind) kind_; }
     template<class T>
     ArrayRef<T> ops_ref() const { return size() ? ArrayRef<T>((T*) &ops_.front(), ops_.size()) : ArrayRef<T>(); }
@@ -104,6 +104,6 @@ public:
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl2
+} // namespace thorin
 
-#endif // ANYDSL2_NODE_H
+#endif // THORIN_NODE_H

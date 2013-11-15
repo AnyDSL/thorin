@@ -1,9 +1,9 @@
-#ifndef ANYDSL2_TRANSFORM_VECTORIZE_H
-#define ANYDSL2_TRANSFORM_VECTORIZE_H
+#ifndef THORIN_TRANSFORM_VECTORIZE_H
+#define THORIN_TRANSFORM_VECTORIZE_H
 
 #include <cstdlib>
 
-namespace anydsl2 {
+namespace thorin {
 
 class Scope;
 class Lambda;

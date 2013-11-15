@@ -1,8 +1,8 @@
-#include "anydsl2/analyses/looptree.h"
+#include "thorin/analyses/looptree.h"
 
-#include "anydsl2/lambda.h"
-#include "anydsl2/world.h"
-#include "anydsl2/analyses/scope.h"
+#include "thorin/lambda.h"
+#include "thorin/world.h"
+#include "thorin/analyses/scope.h"
 
 #include <algorithm>
 #include <limits>
@@ -19,7 +19,7 @@
  * for more details on Tarjan's SCC algorithm
  */
 
-namespace anydsl2 {
+namespace thorin {
 
 enum {
     InSCC    = 1, // is in current walk_scc run?
@@ -279,4 +279,4 @@ std::ostream& operator << (std::ostream& o, const LoopNode* node) {
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl2
+} // namespace thorin

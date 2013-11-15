@@ -1,9 +1,9 @@
-#ifndef ANYDSL2_ANALYSES_VERIFY_H
-#define ANYDSL2_ANALYSES_VERIFY_H
+#ifndef THORIN_ANALYSES_VERIFY_H
+#define THORIN_ANALYSES_VERIFY_H
 
-#include "anydsl2/lambda.h"
+#include "thorin/lambda.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 class World;
 
@@ -16,6 +16,6 @@ inline void debug_verify(World& world) { verify(world); }
 inline void debug_verify(World&) {}
 #endif
 
-} // namespace anydsl2
+} // namespace thorin
 
 #endif

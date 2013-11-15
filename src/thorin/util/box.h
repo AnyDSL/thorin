@@ -1,12 +1,12 @@
-#ifndef ANYDSL2_DSLU_BOX_H
-#define ANYDSL2_DSLU_BOX_H
+#ifndef THORIN_DSLU_BOX_H
+#define THORIN_DSLU_BOX_H
 
 #include <cstring>
 
-#include "anydsl2/util/assert.h"
-#include "anydsl2/util/types.h"
+#include "thorin/util/assert.h"
+#include "thorin/util/types.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 union Box {
 public:
@@ -23,7 +23,7 @@ public:
 
     bool operator == (const Box& other) const { return bcast<uint64_t, Box>(*this) == bcast<uint64_t, Box>(other); }
     // see blow for specializations
-    template <typename T> inline T get() { ANYDSL2_UNREACHABLE; } 
+    template <typename T> inline T get() { THORIN_UNREACHABLE; } 
      u1  get_u1() const { return u1(u1_); }
      u8  get_u8() const { return u8_; }
     u16 get_u16() const { return u16_; }
@@ -55,6 +55,6 @@ template <> inline f64 Box::get<f64>() { return f64_; }
 
 inline size_t hash_value(Box box) { return hash_value(bcast<u64, Box>(box)); }
 
-} // namespace anydsl2
+} // namespace thorin
 
-#endif // ANYDSL2_DSLU_BOX_H
+#endif // THORIN_DSLU_BOX_H

@@ -1,11 +1,11 @@
-#include "anydsl2/util/symbol.h"
+#include "thorin/util/symbol.h"
 
 #include <iomanip>
 #include <sstream>
 
-#include "anydsl2/util/hash.h"
+#include "thorin/util/hash.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 size_t StrHash::operator () (const char* s) const {
     size_t seed = 0;
@@ -37,4 +37,4 @@ void Symbol::destroy() {
         free((void*) const_cast<char*>(s));
 }
 
-} // namespace anydsl2
+} // namespace thorin

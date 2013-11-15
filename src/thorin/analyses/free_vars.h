@@ -1,9 +1,9 @@
-#ifndef ANYDSL2_ANALYSES_FREE_VARS_H
-#define ANYDSL2_ANALYSES_FREE_VARS_H
+#ifndef THORIN_ANALYSES_FREE_VARS_H
+#define THORIN_ANALYSES_FREE_VARS_H
 
 #include <vector>
 
-namespace anydsl2 {
+namespace thorin {
 
 class Param;
 class Scope;

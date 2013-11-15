@@ -1,12 +1,12 @@
-#ifndef ANYDSL2_UTILS_H
-#define ANYDSL2_UTILS_H
+#ifndef THORIN_UTILS_H
+#define THORIN_UTILS_H
 
 #include <cassert>
 #include <iostream>
 #include <iterator>
 #include <vector>
 
-namespace anydsl2 {
+namespace thorin {
 
 class ArgsIterator : public std::iterator<std::forward_iterator_tag, const char*> {
 public:

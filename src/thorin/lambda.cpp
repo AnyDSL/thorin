@@ -1,12 +1,12 @@
-#include "anydsl2/lambda.h"
+#include "thorin/lambda.h"
 
-#include "anydsl2/literal.h"
-#include "anydsl2/type.h"
-#include "anydsl2/world.h"
-#include "anydsl2/util/array.h"
-#include "anydsl2/be/air.h"
+#include "thorin/literal.h"
+#include "thorin/type.h"
+#include "thorin/world.h"
+#include "thorin/util/array.h"
+#include "thorin/be/air.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 Lambda* Lambda::stub(const GenericMap& generic_map, const std::string& name) const {
     auto result = world().lambda(pi()->specialize(generic_map)->as<Pi>(), attribute(), name);
@@ -326,4 +326,4 @@ Def Lambda::try_remove_trivial_param(const Param* param) {
     return same;
 }
 
-} // namespace anydsl2
+} // namespace thorin

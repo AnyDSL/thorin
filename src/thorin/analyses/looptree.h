@@ -3,11 +3,11 @@
 
 #include <vector>
 
-#include "anydsl2/analyses/scope_analysis.h"
-#include "anydsl2/util/array.h"
-#include "anydsl2/util/autoptr.h"
+#include "thorin/analyses/scope_analysis.h"
+#include "thorin/util/array.h"
+#include "thorin/util/autoptr.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 class Lambda;
 class Scope;
@@ -137,6 +137,6 @@ private:
 
 std::ostream& operator << (std::ostream& o, const LoopNode* node);
 
-} // namespace anydsl2
+} // namespace thorin
 
 #endif // ANALYSES_LOOPS_H

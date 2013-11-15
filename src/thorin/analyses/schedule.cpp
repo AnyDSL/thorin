@@ -1,15 +1,15 @@
 #include <algorithm>
 #include <queue>
 
-#include "anydsl2/lambda.h"
-#include "anydsl2/memop.h"
-#include "anydsl2/primop.h"
-#include "anydsl2/world.h"
-#include "anydsl2/analyses/domtree.h"
-#include "anydsl2/analyses/looptree.h"
-#include "anydsl2/analyses/scope.h"
+#include "thorin/lambda.h"
+#include "thorin/memop.h"
+#include "thorin/primop.h"
+#include "thorin/world.h"
+#include "thorin/analyses/domtree.h"
+#include "thorin/analyses/looptree.h"
+#include "thorin/analyses/scope.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 typedef Array<std::vector<const PrimOp*>> Schedule;
 
@@ -135,4 +135,4 @@ Schedule schedule_smart(const Scope& scope) {
     return smart;
 }
 
-} // namespace anydsl2
+} // namespace thorin

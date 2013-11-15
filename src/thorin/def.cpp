@@ -1,18 +1,18 @@
-#include "anydsl2/def.h"
+#include "thorin/def.h"
 
 #include <algorithm>
 #include <sstream>
 #include <unordered_map>
 #include <queue>
 
-#include "anydsl2/lambda.h"
-#include "anydsl2/literal.h"
-#include "anydsl2/primop.h"
-#include "anydsl2/type.h"
-#include "anydsl2/world.h"
-#include "anydsl2/be/air.h"
+#include "thorin/lambda.h"
+#include "thorin/literal.h"
+#include "thorin/primop.h"
+#include "thorin/type.h"
+#include "thorin/world.h"
+#include "thorin/be/air.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 //------------------------------------------------------------------------------
 
@@ -95,8 +95,8 @@ bool DefNode::is_primlit(int val) const {
     if (auto lit = this->isa<PrimLit>()) {
         Box box = lit->value(); // TODO
         switch (lit->primtype_kind()) {
-#define ANYDSL2_UF_TYPE(T) case PrimType_##T: return box.get_##T() == T(val);
-#include "anydsl2/tables/primtypetable.h"
+#define THORIN_UF_TYPE(T) case PrimType_##T: return box.get_##T() == T(val);
+#include "thorin/tables/primtypetable.h"
         }
     }
 
@@ -114,8 +114,8 @@ bool DefNode::is_minus_zero() const {
     if (auto lit = this->isa<PrimLit>()) {
         Box box = lit->value();
         switch (lit->primtype_kind()) {
-#define ANYDSL2_JUST_U_TYPE(T) case PrimType_##T: return box.get_##T() == T(0);
-#include "anydsl2/tables/primtypetable.h"
+#define THORIN_JUST_U_TYPE(T) case PrimType_##T: return box.get_##T() == T(0);
+#include "thorin/tables/primtypetable.h"
             case PrimType_f32: return box.get_f32() == -0.f;
             case PrimType_f64: return box.get_f64() == -0.0;
         }
@@ -202,4 +202,4 @@ void mark_down(const size_t pass, std::queue<Def>& queue) {
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl2
+} // namespace thorin

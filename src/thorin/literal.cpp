@@ -1,8 +1,8 @@
-#include "anydsl2/literal.h"
+#include "thorin/literal.h"
 
-#include "anydsl2/world.h"
+#include "thorin/world.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 PrimLit::PrimLit(World& world, PrimTypeKind kind, Box box, const std::string& name)
     : Literal((NodeKind) kind, world.type(kind), name)

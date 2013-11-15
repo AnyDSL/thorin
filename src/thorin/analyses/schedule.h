@@ -1,11 +1,11 @@
-#ifndef ANYDSL2_ANALYSES_PLACEMENT_H
-#define ANYDSL2_ANALYSES_PLACEMENT_H
+#ifndef THORIN_ANALYSES_PLACEMENT_H
+#define THORIN_ANALYSES_PLACEMENT_H
 
 #include <vector>
 
-#include "anydsl2/util/array.h"
+#include "thorin/util/array.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 class Scope;
 class PrimOp;
@@ -17,6 +17,6 @@ Schedule schedule_late(const Scope&, size_t& pass);
 inline Schedule schedule_late(const Scope& scope) { size_t pass; return schedule_late(scope, pass); }
 Schedule schedule_smart(const Scope&);
 
-} // namespace anydsl2
+} // namespace thorin
 
 #endif

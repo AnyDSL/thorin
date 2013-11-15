@@ -1,12 +1,12 @@
-#ifndef ANYDSL2_TRANSFORM_MERGE_LAMBDAS_H
-#define ANYDSL2_TRANSFORM_MERGE_LAMBDAS_H
+#ifndef THORIN_TRANSFORM_MERGE_LAMBDAS_H
+#define THORIN_TRANSFORM_MERGE_LAMBDAS_H
 
-namespace anydsl2 {
+namespace thorin {
 
 class World;
 
 void merge_lambdas(World& world);
 
-} // namespace anydsl2
+} // namespace thorin
 
 #endif

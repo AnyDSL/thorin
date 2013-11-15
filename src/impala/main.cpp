@@ -3,15 +3,15 @@
 #include <cctype>
 #include <stdexcept>
 
-#include "anydsl2/analyses/looptree.h"
-#include "anydsl2/analyses/scope.h"
-#include "anydsl2/analyses/verify.h"
-#include "anydsl2/transform/vectorize.h"
-#include "anydsl2/transform/partial_evaluation.h"
-#include "anydsl2/be/air.h"
-#include "anydsl2/be/il.h"
-#include "anydsl2/be/llvm.h"
-#include "anydsl2/util/args.h"
+#include "thorin/analyses/looptree.h"
+#include "thorin/analyses/scope.h"
+#include "thorin/analyses/verify.h"
+#include "thorin/transform/vectorize.h"
+#include "thorin/transform/partial_evaluation.h"
+#include "thorin/be/air.h"
+#include "thorin/be/il.h"
+#include "thorin/be/llvm.h"
+#include "thorin/util/args.h"
 
 #include "impala/ast.h"
 #include "impala/parser.h"
@@ -22,7 +22,7 @@
 
 //------------------------------------------------------------------------------
 
-using namespace anydsl2;
+using namespace thorin;
 using namespace std;
 
 typedef vector<string> Names;
@@ -100,8 +100,8 @@ int main(int argc, char** argv) {
         }
 #endif
 
-        anydsl2::AutoPtr<impala::Scope> prg = new impala::Scope();
-        prg->set_loc(anydsl2::Location(infiles[0], 1, 1, 1, 1));
+        thorin::AutoPtr<impala::Scope> prg = new impala::Scope();
+        prg->set_loc(thorin::Location(infiles[0], 1, 1, 1, 1));
 
         bool result = true;
         for (auto infile : infiles) {
@@ -120,23 +120,23 @@ int main(int argc, char** argv) {
             if (!nocleanup)
                 init.world.cleanup();
             if (verify)
-                anydsl2::verify(init.world);
+                thorin::verify(init.world);
             if (opt)
                 init.world.opt();
             if (vectorlength != 0) {
                 Lambda* impala_main = top_level_lambdas(init.world)[0];
                 Scope scope(impala_main);
-                anydsl2::vectorize(scope, vectorlength);
+                thorin::vectorize(scope, vectorlength);
             }
             if (emit_air)
-                anydsl2::emit_air(init.world, fancy);
+                thorin::emit_air(init.world, fancy);
             //if (emit_il)
-                //anydsl2::emit_il(init.world, fancy);
+                //thorin::emit_il(init.world, fancy);
             if (emit_looptree)
                 std::cout << Scope(init.world).looptree().root() << std::endl; // TODO
 
             if (emit_llvm)
-                anydsl2::emit_llvm(init.world);
+                thorin::emit_llvm(init.world);
         }
 
         return EXIT_SUCCESS;

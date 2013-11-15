@@ -1,13 +1,13 @@
-#ifndef ANYDSL2_LITERAL_H
-#define ANYDSL2_LITERAL_H
+#ifndef THORIN_LITERAL_H
+#define THORIN_LITERAL_H
 
 #include <vector>
 
-#include "anydsl2/primop.h"
-#include "anydsl2/type.h"
-#include "anydsl2/util/box.h"
+#include "thorin/primop.h"
+#include "thorin/type.h"
+#include "thorin/util/box.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 class Type;
 class World;
@@ -74,10 +74,10 @@ private:
 
 public:
     Box value() const { return box_; }
-#define ANYDSL2_U_TYPE(T) \
+#define THORIN_U_TYPE(T) \
     T T##_value() const { return value().get_##T(); }
-#define ANYDSL2_F_TYPE(T) ANYDSL2_U_TYPE(T)
-#include "anydsl2/tables/primtypetable.h"
+#define THORIN_F_TYPE(T) THORIN_U_TYPE(T)
+#include "thorin/tables/primtypetable.h"
     
     const PrimType* primtype() const { return type()->as<PrimType>(); }
     PrimTypeKind primtype_kind() const { return primtype()->primtype_kind(); }
@@ -114,14 +114,14 @@ template<class T>
 T DefNode::primlit_value() const {
     const PrimLit* lit = this->as<PrimLit>();
     switch (lit->primtype_kind()) {
-#define ANYDSL2_UF_TYPE(U) case PrimType_##U: return (T) lit->value().get_##U();
-#include "anydsl2/tables/primtypetable.h"
-        default: ANYDSL2_UNREACHABLE;
+#define THORIN_UF_TYPE(U) case PrimType_##U: return (T) lit->value().get_##U();
+#include "thorin/tables/primtypetable.h"
+        default: THORIN_UNREACHABLE;
     }
 }
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl2
+} // namespace thorin
 
 #endif

@@ -3,7 +3,7 @@
 
 #include <istream>
 
-#include "anydsl2/util/location.h"
+#include "thorin/util/location.h"
 #include "impala/token.h"
 
 namespace impala {
@@ -16,7 +16,7 @@ public:
     Token lex();
 
 private:
-    std::ostream& error(const anydsl2::Location& loc);
+    std::ostream& error(const thorin::Location& loc);
 
     /*
      * peek, next and accept
@@ -62,8 +62,8 @@ private:
     }
 
     std::istream& stream_;
-    anydsl2::Position pos_;
-    anydsl2::Location loc_;
+    thorin::Position pos_;
+    thorin::Location loc_;
     bool result_;
 };
 

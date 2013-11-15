@@ -1,13 +1,13 @@
-#ifndef ANYDSL2_SYMBOL_H
-#define ANYDSL2_SYMBOL_H
+#ifndef THORIN_SYMBOL_H
+#define THORIN_SYMBOL_H
 
 #include <cstring>
 #include <string>
 #include <unordered_set>
 
-#include "anydsl2/util/hash.h"
+#include "thorin/util/hash.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 struct StrHash { size_t operator () (const char* s) const; };
 struct StrEqual { bool operator () (const char* s1, const char* s2) const { return std::strcmp(s1, s2) == 0; } };
@@ -34,13 +34,13 @@ private:
 
 inline std::ostream& operator << (std::ostream& o, Symbol s) { return o << s.str(); }
 
-} // namespace anydsl2
+} // namespace thorin
 
 namespace std {
 
 template<>
-struct hash<anydsl2::Symbol> {
-    size_t operator () (anydsl2::Symbol symbol) const { return anydsl2::hash_value(symbol.str()); }
+struct hash<thorin::Symbol> {
+    size_t operator () (thorin::Symbol symbol) const { return thorin::hash_value(symbol.str()); }
 };
 
 }

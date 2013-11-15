@@ -3,20 +3,20 @@
 
 #include <vector>
 
-#include "anydsl2/irbuilder.h"
+#include "thorin/irbuilder.h"
 
-#include "anydsl2/util/array.h"
-#include "anydsl2/util/assert.h"
-#include "anydsl2/util/autoptr.h"
-#include "anydsl2/util/box.h"
-#include "anydsl2/util/cast.h"
-#include "anydsl2/util/location.h"
-#include "anydsl2/util/types.h"
+#include "thorin/util/array.h"
+#include "thorin/util/assert.h"
+#include "thorin/util/autoptr.h"
+#include "thorin/util/box.h"
+#include "thorin/util/cast.h"
+#include "thorin/util/location.h"
+#include "thorin/util/types.h"
 
 #include "impala/token.h"
 #include "impala/type.h"
 
-namespace anydsl2 {
+namespace thorin {
     class DefNode;
     class JumpTarget;
     class Lambda;
@@ -36,14 +36,14 @@ class Sema;
 class VarDecl;
 class GenericDecl;
 
-typedef anydsl2::AutoVector<const VarDecl*> VarDecls;
-typedef anydsl2::AutoVector<const Expr*> Exprs;
-typedef anydsl2::AutoVector<const Stmt*> Stmts;
-typedef anydsl2::AutoVector<const GenericDecl*> GenericDecls;
+typedef thorin::AutoVector<const VarDecl*> VarDecls;
+typedef thorin::AutoVector<const Expr*> Exprs;
+typedef thorin::AutoVector<const Stmt*> Stmts;
+typedef thorin::AutoVector<const GenericDecl*> GenericDecls;
 
 //------------------------------------------------------------------------------
 
-class ASTNode : public anydsl2::HasLocation, public anydsl2::MagicCast<ASTNode> {
+class ASTNode : public thorin::HasLocation, public thorin::MagicCast<ASTNode> {
 public:
 #ifndef NDEBUG
     virtual ~ASTNode() { assert(loc_.is_set()); }
@@ -55,7 +55,7 @@ public:
 class Scope : public ASTNode {
 public:
     Scope() {}
-    Scope(const anydsl2::Location& loc) {
+    Scope(const thorin::Location& loc) {
         loc_ = loc;
     }
 
@@ -67,7 +67,7 @@ public:
 
 private:
     Stmts stmts_;
-    //anydsl2::AutoPtr<const Expr> expr_;
+    //thorin::AutoPtr<const Expr> expr_;
 
     friend class Parser;
 };
@@ -76,13 +76,13 @@ private:
 
 class Decl : public ASTNode {
 public:
-    anydsl2::Symbol symbol() const { return symbol_; }
+    thorin::Symbol symbol() const { return symbol_; }
     size_t depth() const { return depth_; }
     const Decl* shadows() const { return shadows_; }
     virtual void check(Sema& sema) const = 0;
 
 protected:
-    anydsl2::Symbol symbol_;
+    thorin::Symbol symbol_;
 
 private:
     mutable const Decl* shadows_;
@@ -149,24 +149,24 @@ public:
     const GenericDecls& generics() const { return generics_; }
     bool is_extern() const { return extern_; }
     bool is_continuation() const { return orig_fntype()->return_type()->isa<NoRet>() != nullptr; }
-    bool is_lambda() const { return symbol_ == anydsl2::Symbol("<lambda>"); }
-    anydsl2::Lambda* lambda() const { return lambda_; }
-    const anydsl2::Param* ret_param() const { return ret_param_; }
+    bool is_lambda() const { return symbol_ == thorin::Symbol("<lambda>"); }
+    thorin::Lambda* lambda() const { return lambda_; }
+    const thorin::Param* ret_param() const { return ret_param_; }
     void check_head(Sema&) const;
     virtual void check(Sema& sema) const;
     virtual std::ostream& print(Printer& p) const;
-    const anydsl2::DefNode* frame() const { return frame_; }
+    const thorin::DefNode* frame() const { return frame_; }
 
 private:
     VarDecls params_;
-    anydsl2::AutoPtr<const Scope> body_;
+    thorin::AutoPtr<const Scope> body_;
     bool extern_;
     GenericDecls generics_;
-    mutable anydsl2::Lambda* lambda_;
-    mutable const anydsl2::Param* ret_param_;
+    mutable thorin::Lambda* lambda_;
+    mutable const thorin::Param* ret_param_;
     mutable GenericBuilder generic_builder_;
     mutable GenericMap generic_map_;
-    mutable const anydsl2::DefNode* frame_;
+    mutable const thorin::DefNode* frame_;
 
     friend class Parser;
     friend class Sema;
@@ -178,7 +178,7 @@ private:
 
 class VarDecl : public LetDecl {
 public:
-    VarDecl(size_t handle, bool is_mut, const Token& tok, const Type* orig_type, const anydsl2::Position& pos2)
+    VarDecl(size_t handle, bool is_mut, const Token& tok, const Type* orig_type, const thorin::Position& pos2)
         : handle_(handle)
         , is_mut_(is_mut)
         , is_address_taken_(false)
@@ -207,7 +207,7 @@ private:
 
 class Proto : public LetDecl {
 public:
-    Proto(anydsl2::Symbol symbol) {
+    Proto(thorin::Symbol symbol) {
         symbol_ = symbol;
     }
 
@@ -232,7 +232,7 @@ private:
 
 class ProtoItem : public Item {
 public:
-    ProtoItem(anydsl2::Symbol symbol)
+    ProtoItem(thorin::Symbol symbol)
         : proto_(new Proto(symbol))
     {}
 
@@ -243,7 +243,7 @@ private:
     virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg) const;
 
-    anydsl2::AutoPtr<Proto> proto_;
+    thorin::AutoPtr<Proto> proto_;
 
     friend class Parser;
 };
@@ -261,7 +261,7 @@ private:
     virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg) const;
 
-    anydsl2::AutoPtr<Fun> fun_;
+    thorin::AutoPtr<Fun> fun_;
 
     friend class Parser;
 };
@@ -295,11 +295,11 @@ public:
     virtual bool is_lvalue() const = 0;
 
 private:
-    virtual anydsl2::RefPtr emit(CodeGen& cg) const = 0;
+    virtual thorin::RefPtr emit(CodeGen& cg) const = 0;
     virtual const Type* check(Sema& sema) const = 0;
 
 protected:
-    virtual void emit_branch(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const;
+    virtual void emit_branch(CodeGen& cg, thorin::JumpTarget& t, thorin::JumpTarget& f) const;
 
     Exprs ops_;
     mutable const Type* type_;
@@ -311,14 +311,14 @@ protected:
 
 class EmptyExpr : public Expr {
 public:
-    EmptyExpr(const anydsl2::Location& loc) { loc_ = loc; }
+    EmptyExpr(const thorin::Location& loc) { loc_ = loc; }
 
     virtual bool is_lvalue() const { return false; }
     virtual std::ostream& print(Printer& p) const;
 
 private:
     virtual const Type* check(Sema& sema) const;
-    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
+    virtual thorin::RefPtr emit(CodeGen& cg) const;
 };
 
 class Literal : public Expr {
@@ -329,7 +329,7 @@ public:
         LIT_bool
     };
 
-    Literal(const anydsl2::Location& loc, Kind kind, anydsl2::Box box)
+    Literal(const thorin::Location& loc, Kind kind, thorin::Box box)
         : kind_(kind)
         , box_(box)
     {
@@ -337,7 +337,7 @@ public:
     }
 
     Kind kind() const { return kind_; }
-    anydsl2::Box box() const { return box_; }
+    thorin::Box box() const { return box_; }
     uint64_t get_u64() const;
     virtual bool is_lvalue() const { return false; }
     virtual std::ostream& print(Printer& p) const;
@@ -345,10 +345,10 @@ public:
 
 private:
     virtual const Type* check(Sema& sema) const;
-    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
+    virtual thorin::RefPtr emit(CodeGen& cg) const;
 
     Kind kind_;
-    anydsl2::Box box_;
+    thorin::Box box_;
 };
 
 class FunExpr : public Expr {
@@ -363,9 +363,9 @@ public:
 
 private:
     virtual const Type* check(Sema& sema) const;
-    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
+    virtual thorin::RefPtr emit(CodeGen& cg) const;
 
-    anydsl2::AutoPtr<Fun> fun_;
+    thorin::AutoPtr<Fun> fun_;
 
     friend class Parser;
 };
@@ -377,7 +377,7 @@ public:
 
 private:
     virtual const Type* check(Sema& sema) const;
-    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
+    virtual thorin::RefPtr emit(CodeGen& cg) const;
 
     friend class Parser;
 };
@@ -389,7 +389,7 @@ public:
 
 private:
     virtual const Type* check(Sema& sema) const;
-    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
+    virtual thorin::RefPtr emit(CodeGen& cg) const;
 
     friend class Parser;
 };
@@ -403,7 +403,7 @@ public:
         loc_ = tok.loc();
     }
 
-    anydsl2::Symbol symbol() const { return symbol_; }
+    thorin::Symbol symbol() const { return symbol_; }
     const Decl* decl() const { return decl_; }
 
     virtual bool is_lvalue() const;
@@ -411,9 +411,9 @@ public:
 
 private:
     virtual const Type* check(Sema& sema) const;
-    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
+    virtual thorin::RefPtr emit(CodeGen& cg) const;
 
-    anydsl2::Symbol symbol_;
+    thorin::Symbol symbol_;
     mutable const Decl* decl_; ///< Declaration of the variable in use.
 };
 
@@ -424,7 +424,7 @@ public:
 #include "impala/tokenlist.h"
     };
 
-    PrefixExpr(const anydsl2::Position& pos1, Kind kind, const Expr* rhs)
+    PrefixExpr(const thorin::Position& pos1, Kind kind, const Expr* rhs)
         : kind_(kind)
     {
         ops_.push_back(rhs);
@@ -438,8 +438,8 @@ public:
 
 private:
     virtual const Type* check(Sema& sema) const;
-    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
-    virtual void emit_branch(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const;
+    virtual thorin::RefPtr emit(CodeGen& cg) const;
+    virtual void emit_branch(CodeGen& cg, thorin::JumpTarget& t, thorin::JumpTarget& f) const;
 
     Kind kind_;
 };
@@ -468,8 +468,8 @@ public:
 
 private:
     virtual const Type* check(Sema& sema) const;
-    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
-    virtual void emit_branch(CodeGen& cg, anydsl2::JumpTarget& t, anydsl2::JumpTarget& f) const;
+    virtual thorin::RefPtr emit(CodeGen& cg) const;
+    virtual void emit_branch(CodeGen& cg, thorin::JumpTarget& t, thorin::JumpTarget& f) const;
 
     Kind kind_;
 };
@@ -492,7 +492,7 @@ public:
 
 private:
     virtual const Type* check(Sema& sema) const;
-    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
+    virtual thorin::RefPtr emit(CodeGen& cg) const;
 
     Kind kind_;
 
@@ -516,7 +516,7 @@ public:
 
 private:
     virtual const Type* check(Sema& sema) const;
-    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
+    virtual thorin::RefPtr emit(CodeGen& cg) const;
 };
 
 class IndexExpr : public Expr {
@@ -528,7 +528,7 @@ public:
 
 private:
     virtual const Type* check(Sema& sema) const;
-    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
+    virtual thorin::RefPtr emit(CodeGen& cg) const;
 };
 
 class Call : public Expr {
@@ -536,19 +536,19 @@ public:
     void append_arg(const Expr* expr) { ops_.push_back(expr); }
     const Expr* to() const { return ops_.front(); }
     size_t num_args() const { return size() - 1; }
-    anydsl2::ArrayRef<const Expr*> args() const { return anydsl2::ArrayRef<const Expr*>(&*ops_.begin() + 1, num_args()); }
+    thorin::ArrayRef<const Expr*> args() const { return thorin::ArrayRef<const Expr*>(&*ops_.begin() + 1, num_args()); }
     const Expr* arg(size_t i) const { return op(i+1); }
-    anydsl2::Location args_location() const;
+    thorin::Location args_location() const;
     bool is_continuation_call() const;
     virtual bool is_lvalue() const { return false; }
     virtual std::ostream& print(Printer& p) const;
-    anydsl2::Lambda* callee() const { return callee_; }
+    thorin::Lambda* callee() const { return callee_; }
 
 private:
     virtual const Type* check(Sema& sema) const;
-    virtual anydsl2::RefPtr emit(CodeGen& cg) const;
+    virtual thorin::RefPtr emit(CodeGen& cg) const;
 
-    mutable anydsl2::Lambda* callee_;
+    mutable thorin::Lambda* callee_;
 };
 
 //------------------------------------------------------------------------------
@@ -556,7 +556,7 @@ private:
 class Stmt : public ASTNode {
 private:
     virtual void check(Sema& sema) const = 0;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const = 0;
+    virtual void emit(CodeGen& cg, thorin::JumpTarget& exit) const = 0;
 
     friend class Sema;
     friend class CodeGen;
@@ -569,9 +569,9 @@ public:
 
 private:
     virtual void check(Sema& sema) const;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
+    virtual void emit(CodeGen& cg, thorin::JumpTarget& exit) const;
 
-    anydsl2::AutoPtr<const Item> item_;
+    thorin::AutoPtr<const Item> item_;
 
     friend class Parser;
 };
@@ -590,9 +590,9 @@ public:
 
 private:
     virtual void check(Sema& sema) const;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
+    virtual void emit(CodeGen& cg, thorin::JumpTarget& exit) const;
 
-    anydsl2::AutoPtr<const Expr> expr_;
+    thorin::AutoPtr<const Expr> expr_;
 
     friend class Parser;
 };
@@ -605,10 +605,10 @@ public:
 
 private:
     virtual void check(Sema& sema) const;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
+    virtual void emit(CodeGen& cg, thorin::JumpTarget& exit) const;
 
-    anydsl2::AutoPtr<const VarDecl> var_decl_;
-    anydsl2::AutoPtr<const Expr> init_;
+    thorin::AutoPtr<const VarDecl> var_decl_;
+    thorin::AutoPtr<const Expr> init_;
 
     friend class Parser;
 };
@@ -622,11 +622,11 @@ public:
 
 private:
     virtual void check(Sema& sema) const;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
+    virtual void emit(CodeGen& cg, thorin::JumpTarget& exit) const;
 
-    anydsl2::AutoPtr<const Expr> cond_;
-    anydsl2::AutoPtr<const Scope> then_scope_;
-    anydsl2::AutoPtr<const Scope> else_scope_;
+    thorin::AutoPtr<const Expr> cond_;
+    thorin::AutoPtr<const Scope> then_scope_;
+    thorin::AutoPtr<const Scope> else_scope_;
 
     friend class Parser;
 };
@@ -636,12 +636,12 @@ public:
     Loop() {}
     const Expr* cond() const { return cond_; }
     const Scope* body() const { return body_; }
-    anydsl2::Symbol label() const { return label_; }
+    thorin::Symbol label() const { return label_; }
 
 private:
-    anydsl2::AutoPtr<const Expr> cond_;
-    anydsl2::AutoPtr<const Scope> body_;
-    anydsl2::Symbol label_;
+    thorin::AutoPtr<const Expr> cond_;
+    thorin::AutoPtr<const Scope> body_;
+    thorin::Symbol label_;
 
     friend class Parser;
 };
@@ -654,7 +654,7 @@ public:
 
 private:
     virtual void check(Sema& sema) const;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
+    virtual void emit(CodeGen& cg, thorin::JumpTarget& exit) const;
 };
 
 class ForStmt : public Loop {
@@ -668,10 +668,10 @@ public:
 
 private:
     virtual void check(Sema& sema) const;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
+    virtual void emit(CodeGen& cg, thorin::JumpTarget& exit) const;
 
-    anydsl2::AutoPtr<const Stmt> init_;
-    anydsl2::AutoPtr<const Expr> step_;
+    thorin::AutoPtr<const Stmt> init_;
+    thorin::AutoPtr<const Expr> step_;
 
     friend class Parser;
 };
@@ -687,10 +687,10 @@ public:
 
 private:
     virtual void check(Sema& sema) const;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
+    virtual void emit(CodeGen& cg, thorin::JumpTarget& exit) const;
 
-    anydsl2::AutoPtr<const Call> call_;
-    anydsl2::AutoPtr<const FunExpr> fun_expr_;
+    thorin::AutoPtr<const Call> call_;
+    thorin::AutoPtr<const FunExpr> fun_expr_;
     mutable const FnType* fntype_;
 
     friend class Parser;
@@ -703,7 +703,7 @@ public:
 
 private:
     virtual void check(Sema& sema) const;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
+    virtual void emit(CodeGen& cg, thorin::JumpTarget& exit) const;
 
     const Loop* loop_;
 
@@ -717,7 +717,7 @@ public:
 
 private:
     virtual void check(Sema& sema) const;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
+    virtual void emit(CodeGen& cg, thorin::JumpTarget& exit) const;
 
     const Loop* loop_;
 
@@ -732,9 +732,9 @@ public:
 
 private:
     virtual void check(Sema& sema) const;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
+    virtual void emit(CodeGen& cg, thorin::JumpTarget& exit) const;
 
-    anydsl2::AutoPtr<const Expr> expr_;
+    thorin::AutoPtr<const Expr> expr_;
     const Fun* fun_;
 
     friend class Parser;
@@ -744,7 +744,7 @@ private:
 class ScopeStmt : public Stmt {
 public:
     ScopeStmt() {}
-    ScopeStmt(const anydsl2::Location& loc) {
+    ScopeStmt(const thorin::Location& loc) {
         loc_ = loc;
     }
 
@@ -753,9 +753,9 @@ public:
 
 private:
     virtual void check(Sema& sema) const;
-    virtual void emit(CodeGen& cg, anydsl2::JumpTarget& exit) const;
+    virtual void emit(CodeGen& cg, thorin::JumpTarget& exit) const;
 
-    anydsl2::AutoPtr<const Scope> scope_;
+    thorin::AutoPtr<const Scope> scope_;
 
     friend class Parser;
 };

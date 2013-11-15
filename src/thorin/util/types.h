@@ -1,13 +1,13 @@
-#ifndef ANYDSL2_UTIL_TYPES_H
-#define ANYDSL2_UTIL_TYPES_H
+#ifndef THORIN_UTIL_TYPES_H
+#define THORIN_UTIL_TYPES_H
 
 #include <cmath>
 #include <cstdint>
 #include <ostream>
 
-#include "anydsl2/util/cast.h"
+#include "thorin/util/cast.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 typedef  int8_t  i8;
 typedef int16_t i16;
@@ -141,6 +141,6 @@ template<> struct make_signed<u64> { typedef i64 type; };
 
 inline std::ostream& operator << (std::ostream& o, u1 u) { return o << ((unsigned) u.get()); }
 
-} // namespace anydsl2
+} // namespace thorin
 
-#endif // ANYDSL2_UTIL_TYPES_H
+#endif // THORIN_UTIL_TYPES_H

@@ -1,5 +1,5 @@
-#ifndef ANYDSL2_WORLD_H
-#define ANYDSL2_WORLD_H
+#ifndef THORIN_WORLD_H
+#define THORIN_WORLD_H
 
 #include <cassert>
 #include <functional>
@@ -10,13 +10,13 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "anydsl2/enums.h"
-#include "anydsl2/lambda.h"
-#include "anydsl2/primop.h"
-#include "anydsl2/util/box.h"
-#include "anydsl2/util/hash.h"
+#include "thorin/enums.h"
+#include "thorin/lambda.h"
+#include "thorin/primop.h"
+#include "thorin/util/box.h"
+#include "thorin/util/hash.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 class Any;
 class Bottom;
@@ -112,10 +112,10 @@ public:
      * types
      */
 
-#define ANYDSL2_UF_TYPE(T) const PrimType* type_##T(size_t length = 1) { \
+#define THORIN_UF_TYPE(T) const PrimType* type_##T(size_t length = 1) { \
     return length == 1 ? T##_ : unify(new PrimType(*this, PrimType_##T, length)); \
 }
-#include "anydsl2/tables/primtypetable.h"
+#include "thorin/tables/primtypetable.h"
 
     /// Get PrimType.
     const PrimType* type(PrimTypeKind kind, size_t length = 1) {
@@ -139,9 +139,9 @@ public:
      * literals
      */
 
-#define ANYDSL2_UF_TYPE(T) \
+#define THORIN_UF_TYPE(T) \
     Def literal_##T(T val, size_t length = 1) { return literal(val, length); }
-#include "anydsl2/tables/primtypetable.h"
+#include "thorin/tables/primtypetable.h"
     Def literal(PrimTypeKind kind, Box value, size_t length = 1);
     Def literal(PrimTypeKind kind, int value, size_t length = 1);
     template<class T>
@@ -177,14 +177,14 @@ public:
     Def arithop(ArithOpKind kind, Def lhs, Def rhs, const std::string& name = "") {
         return arithop(kind, true_mask(lhs), lhs, rhs, name);
     }
-#define ANYDSL2_ARITHOP(OP) \
+#define THORIN_ARITHOP(OP) \
     Def arithop_##OP(Def cond, Def lhs, Def rhs, const std::string& name = "") { \
         return arithop(ArithOp_##OP, cond, lhs, rhs, name); \
     } \
     Def arithop_##OP(Def lhs, Def rhs, const std::string& name = "") { \
         return arithop(ArithOp_##OP, true_mask(lhs), lhs, rhs, name); \
     }
-#include "anydsl2/tables/arithoptable.h"
+#include "thorin/tables/arithoptable.h"
 
     Def arithop_not(Def cond, Def def);
     Def arithop_not(Def def) { return arithop_not(true_mask(def), def); }
@@ -195,27 +195,27 @@ public:
     Def relop(RelOpKind kind, Def lhs, Def rhs, const std::string& name = "") {
         return relop(kind, true_mask(lhs), lhs, rhs, name);
     }
-#define ANYDSL2_RELOP(OP) \
+#define THORIN_RELOP(OP) \
     Def relop_##OP(Def cond, Def lhs, Def rhs, const std::string& name = "") { \
         return relop(RelOp_##OP, cond, lhs, rhs, name);  \
     } \
     Def relop_##OP(Def lhs, Def rhs, const std::string& name = "") { \
         return relop(RelOp_##OP, true_mask(lhs), lhs, rhs, name);  \
     }
-#include "anydsl2/tables/reloptable.h"
+#include "thorin/tables/reloptable.h"
 
     Def convop(ConvOpKind kind, Def cond, Def from, const Type* to, const std::string& name = "");
     Def convop(ConvOpKind kind, Def from, const Type* to, const std::string& name = "") {
         return convop(kind, true_mask(from), from, to, name);
     }
-#define ANYDSL2_CONVOP(OP) \
+#define THORIN_CONVOP(OP) \
     Def convop_##OP(Def from, Def cond, const Type* to, const std::string& name = "") { \
         return convop(ConvOp_##OP, cond, from, to, name); \
     } \
     Def convop_##OP(Def from, const Type* to, const std::string& name = "") { \
         return convop(ConvOp_##OP, true_mask(from), from, to, name); \
     }
-#include "anydsl2/tables/convoptable.h"
+#include "thorin/tables/convoptable.h"
 
     /*
      * aggregate stuff
@@ -346,8 +346,8 @@ private:
 
     union {
         struct {
-#define ANYDSL2_UF_TYPE(T) const PrimType* T##_;
-#include "anydsl2/tables/primtypetable.h"
+#define THORIN_UF_TYPE(T) const PrimType* T##_;
+#include "thorin/tables/primtypetable.h"
         };
 
         const PrimType* primtypes_[Num_PrimTypes];
@@ -361,6 +361,6 @@ public:
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl2
+} // namespace thorin
 
 #endif

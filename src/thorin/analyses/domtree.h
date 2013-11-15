@@ -1,11 +1,11 @@
-#ifndef ANYDSL2_ANALYSES_DOMTREE_H
-#define ANYDSL2_ANALYSES_DOMTREE_H
+#ifndef THORIN_ANALYSES_DOMTREE_H
+#define THORIN_ANALYSES_DOMTREE_H
 
-#include "anydsl2/lambda.h"
-#include "anydsl2/util/array.h"
-#include "anydsl2/analyses/scope_analysis.h"
+#include "thorin/lambda.h"
+#include "thorin/util/array.h"
+#include "thorin/analyses/scope_analysis.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 template<bool> class DomNodeBase;
 template<bool> class DomTreeBase;
@@ -66,6 +66,6 @@ typedef DomNodeBase<false>  PostDomNode;
 typedef DomTreeBase< true>      DomTree;
 typedef DomTreeBase<false>  PostDomTree;
 
-} // namespace anydsl2
+} // namespace thorin
 
 #endif

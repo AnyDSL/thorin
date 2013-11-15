@@ -2,7 +2,7 @@
 
 #include "impala/type.h"
 
-using namespace anydsl2;
+using namespace thorin;
 
 namespace impala {
 
@@ -12,7 +12,7 @@ TokenKind Literal::literal2type() const {
         case LIT_##itype: return Token::TYPE_##itype;
 #include "impala/tokenlist.h"
         case LIT_bool:    return Token::TYPE_bool;
-        default: ANYDSL2_UNREACHABLE;
+        default: THORIN_UNREACHABLE;
     }
 }
 

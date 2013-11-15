@@ -1,11 +1,11 @@
 #ifndef IMPALA_INIT_H
 #define IMPALA_INIT_H
 
-#include "anydsl2/world.h"
+#include "thorin/world.h"
 
 #include "impala/type.h"
 
-namespace anydsl2 {
+namespace thorin {
     class World;
 }
 
@@ -18,7 +18,7 @@ struct Init {
     Init() { init(); }
     ~Init() { destroy(); }
 
-    anydsl2::World world;
+    thorin::World world;
     TypeTable typetable;
 };
 

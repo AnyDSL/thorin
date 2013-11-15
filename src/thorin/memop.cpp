@@ -1,9 +1,9 @@
-#include "anydsl2/memop.h"
+#include "thorin/memop.h"
 
-#include "anydsl2/literal.h"
-#include "anydsl2/world.h"
+#include "thorin/literal.h"
+#include "thorin/world.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 //------------------------------------------------------------------------------
 
@@ -61,4 +61,4 @@ Slot::Slot(const Type* type, Def frame, size_t index, const std::string& name)
 
 //------------------------------------------------------------------------------
 
-} // namespace anydsl2
+} // namespace thorin

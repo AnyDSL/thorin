@@ -1,12 +1,12 @@
-#include "anydsl2/analyses/domtree.h"
+#include "thorin/analyses/domtree.h"
 
 #include <limits>
 #include <queue>
 
-#include "anydsl2/lambda.h"
-#include "anydsl2/analyses/scope.h"
+#include "thorin/lambda.h"
+#include "thorin/analyses/scope.h"
 
-namespace anydsl2 {
+namespace thorin {
 
 //------------------------------------------------------------------------------
 
@@ -42,7 +42,7 @@ void DomTreeBase<forwards>::create() {
                 goto outer_loop;
             }
         }
-        ANYDSL2_UNREACHABLE;
+        THORIN_UNREACHABLE;
 outer_loop:;
     }
 
@@ -90,4 +90,4 @@ template class DomNodeBase<false>;
 template class DomTreeBase< true>;
 template class DomTreeBase<false>;
 
-} // namespace anydsl2
+} // namespace thorin

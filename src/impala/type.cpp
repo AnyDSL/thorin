@@ -2,12 +2,12 @@
 
 #include <sstream>
 
-#include "anydsl2/world.h"
+#include "thorin/world.h"
 
 #include "impala/ast.h"
 #include "impala/dump.h"
 
-using namespace anydsl2;
+using namespace thorin;
 
 namespace impala {
 
@@ -43,7 +43,7 @@ const PrimType* TypeTable::primtype(TokenKind kind) {
     switch (kind) {
 #define IMPALA_TYPE(itype, atype) case Token::TYPE_##itype: return itype##_;
 #include "impala/tokenlist.h"
-        default: ANYDSL2_UNREACHABLE;
+        default: THORIN_UNREACHABLE;
     }
 }
 
@@ -53,8 +53,8 @@ const DefiniteArray* TypeTable::definite_array(const Type* elem_type, u64 dim) {
 const IndefiniteArray* TypeTable::indefinite_array(const Type* elem_type) { 
     return unify(new IndefiniteArray(*this, elem_type)); 
 }
-const FnType* TypeTable::fntype(anydsl2::ArrayRef<const Type*> elems) { return unify(new FnType(*this, elems)); }
-const TupleType* TypeTable::tupletype(anydsl2::ArrayRef<const Type*> elems) { return unify(new TupleType(*this, elems)); }
+const FnType* TypeTable::fntype(thorin::ArrayRef<const Type*> elems) { return unify(new FnType(*this, elems)); }
+const TupleType* TypeTable::tupletype(thorin::ArrayRef<const Type*> elems) { return unify(new TupleType(*this, elems)); }
 const Generic* TypeTable::generic(size_t index) { return unify(new Generic(*this, index)); }
 const GenericRef* TypeTable::genericref(const Fun* fun, const Generic* generic) { 
     return unify(new GenericRef(*this, fun, generic)); 
@@ -212,22 +212,22 @@ bool Type::infer_with(GenericMap& map, const Type* other) const {
     return oss.str();
 }
 
-#define ANYDSL2_REFINE_SPECIALIZE(T, constr) \
+#define THORIN_REFINE_SPECIALIZE(T, constr) \
     const Type* T::refine(const Sema& sema) const { \
-        anydsl2::Array<const Type*> nelems(size()); \
+        thorin::Array<const Type*> nelems(size()); \
         for (size_t i = 0, e = size(); i != e; ++i) \
             nelems[i] = elem(i)->refine(sema); \
         return typetable_.constr(nelems); \
     } \
     const Type* T::specialize(const GenericMap& map) const { \
-        anydsl2::Array<const Type*> nelems(size()); \
+        thorin::Array<const Type*> nelems(size()); \
         for (size_t i = 0, e = size(); i != e; ++i) \
             nelems[i] = elem(i)->specialize(map); \
         return typetable_.constr(nelems); \
     }
 
-ANYDSL2_REFINE_SPECIALIZE(TupleType, tupletype)
-ANYDSL2_REFINE_SPECIALIZE(FnType, fntype)
+THORIN_REFINE_SPECIALIZE(TupleType, tupletype)
+THORIN_REFINE_SPECIALIZE(FnType, fntype)
 
 const Type* DefiniteArray::refine(const Sema& sema) const {
     return typetable_.definite_array(elem_type()->refine(sema), dim());
@@ -247,24 +247,24 @@ const Type* IndefiniteArray::specialize(const GenericMap& map) const {
 
 //------------------------------------------------------------------------------
 
-const anydsl2::Type* PrimType::convert(World& world) const {
+const thorin::Type* PrimType::convert(World& world) const {
     switch (kind()) {
 #define IMPALA_TYPE(itype, atype) case Token::TYPE_##itype: return world.type_##atype();
 #include "impala/tokenlist.h"
-        default: ANYDSL2_UNREACHABLE;
+        default: THORIN_UNREACHABLE;
     }
 }
 
-const anydsl2::Type* DefiniteArray::convert(World& world) const {
+const thorin::Type* DefiniteArray::convert(World& world) const {
     return world.array_type(elem_type()->convert(world));
 }
 
-const anydsl2::Type* IndefiniteArray::convert(World& world) const {
+const thorin::Type* IndefiniteArray::convert(World& world) const {
     return world.ptr(world.array_type(elem_type()->convert(world)));
 }
 
-const anydsl2::Type* FnType::convert(World& world) const {
-    Array<const anydsl2::Type*> elems(size() + 1);
+const thorin::Type* FnType::convert(World& world) const {
+    Array<const thorin::Type*> elems(size() + 1);
     elems[0] = world.mem();
     for (size_t i = 1, e = elems.size(); i != e; ++i)
         elems[i] = elem(i-1)->convert(world);
@@ -272,20 +272,20 @@ const anydsl2::Type* FnType::convert(World& world) const {
     return world.pi(elems);
 }
 
-const anydsl2::Type* TupleType::convert(World& world) const {
-    Array<const anydsl2::Type*> elems(size());
+const thorin::Type* TupleType::convert(World& world) const {
+    Array<const thorin::Type*> elems(size());
     for (size_t i = 0, e = elems.size(); i != e; ++i)
         elems[i] = elem(i)->convert(world);
 
     return world.sigma(elems);
 }
 
-const anydsl2::Type* Generic::convert(anydsl2::World& world) const {
+const thorin::Type* Generic::convert(thorin::World& world) const {
     return world.generic(index());
 }
 
-const anydsl2::Type* GenericRef::convert(anydsl2::World& world) const {
-    return world.generic_ref(generic()->convert(world)->as<anydsl2::Generic>(), fun()->lambda());
+const thorin::Type* GenericRef::convert(thorin::World& world) const {
+    return world.generic_ref(generic()->convert(world)->as<thorin::Generic>(), fun()->lambda());
 }
 
 //------------------------------------------------------------------------------

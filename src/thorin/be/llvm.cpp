@@ -31,7 +31,9 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/util/array.h"
 
-//#include <wfvInterface.h>
+#ifdef WFV2_SUPPORT
+#include <wfvInterface.h>
+#endif
 
 namespace thorin {
 
@@ -264,12 +266,7 @@ void CodeGen::emit_vectors(llvm::Function* current, Lambda* lambda, ArrayRef<llv
     Array<llvm::Type*> simd_args(num_args);
     for (size_t i = 0; i < num_args; ++i) {
         const Type* type = lambda->arg(i + arg_index)->type();
-        llvm::Type* arg_type;
-        if (const Ptr* ptr = type->isa<Ptr>())
-            arg_type = llvm::PointerType::getUnqual(llvm::VectorType::get(map(ptr->referenced_type()), e.vector_length));
-        else
-            arg_type = llvm::VectorType::get(map(type), e.vector_length);
-        simd_args[i] = arg_type;
+        simd_args[i] = map(type);
     }
     llvm::FunctionType* simd_type = llvm::FunctionType::get(builder.getVoidTy(), llvm_ref(simd_args), false);
     e.kernel_simd_func = (llvm::Function*)module->getOrInsertFunction("vector_kernel_" + kernel->name, simd_type);
@@ -582,31 +579,33 @@ no_lambda:
 }
 
 void CodeGen::postprocess() {
+#ifdef WFV2_SUPPORT
     if (v_fcts.size() < 1)
         return;
     // vectorize entries
-    //for (auto& entry : v_fcts) {
-    //    WFVInterface::WFVInterface wfv(module, &context, entry.kernel_func, entry.kernel_simd_func, entry.vector_length);
-    //    bool b_simd = wfv.addSIMDSemantics(*vector_tid_getter, false, true, false, false, false, true, false, true, false, true);
-    //    assert(b_simd && "simd semantics for vectorization failed");
-    //    bool b = wfv.run();
-    //    assert(b && "vectorization failed");
-    //    // inline kernel
-    //    llvm::InlineFunctionInfo info;
-    //    llvm::InlineFunction(entry.kernel_call, info);
+    for (auto& entry : v_fcts) {
+       WFVInterface::WFVInterface wfv(module, &context, entry.kernel_func, entry.kernel_simd_func, entry.vector_length);
+       bool b_simd = wfv.addSIMDSemantics(*vector_tid_getter, false, true, false, false, false, true, false, true, false, true);
+       assert(b_simd && "simd semantics for vectorization failed");
+       bool b = wfv.run();
+       assert(b && "vectorization failed");
+       // inline kernel
+       llvm::InlineFunctionInfo info;
+       llvm::InlineFunction(entry.kernel_call, info);
 
-    //    std::vector<llvm::CallInst*> calls;
-    //    for (auto it = vector_tid_getter->use_begin(), e = vector_tid_getter->use_end(); it != e; ++it) {
-    //        if (auto call = llvm::dyn_cast<llvm::CallInst>(*it))
-    //            if (const Function* func = call->getParent()->getParent())
-    //                if (func == entry.func)
-    //                    calls.push_back(call);
-    //    }
-    //    for (auto it = calls.rbegin(), e = calls.rend(); it != e; ++it) {
-    //        BasicBlock::iterator ii(*it);
-    //        ReplaceInstWithValue((*it)->getParent()->getInstList(), ii, entry.loop_counter);
-    //    }
-    //}
+       std::vector<llvm::CallInst*> calls;
+       for (auto it = vector_tid_getter->use_begin(), e = vector_tid_getter->use_end(); it != e; ++it) {
+           if (auto call = llvm::dyn_cast<llvm::CallInst>(*it))
+               if (const Function* func = call->getParent()->getParent())
+                   if (func == entry.func)
+                       calls.push_back(call);
+       }
+       for (auto it = calls.rbegin(), e = calls.rend(); it != e; ++it) {
+           BasicBlock::iterator ii(*it);
+           ReplaceInstWithValue((*it)->getParent()->getInstList(), ii, entry.loop_counter);
+       }
+    }
+#endif
 }
 
 void CodeGen::dump() {

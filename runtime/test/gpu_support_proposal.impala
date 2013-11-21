@@ -1,0 +1,110 @@
+
+fn main() -> [float] {
+    let width   = 2048;
+    let height  = 2048;
+    let mut img = array(width * height);
+
+    let stencil : [float * 3] = [ 0.25f, 0.50f, 0.25f ];
+
+    convolution_separable(img, stencil, stencil);
+
+    return img;
+}
+
+
+// explicit variant
+fn convolution_separable(img: [float],
+                         stencil_row: [float * 3 * 3],
+                         stencil_col: [float * 3 * 3]) -> [float] {
+    // temporary memory
+    let img_gpu : [float] = map<GPU>(img);
+    let tmp_gpu : [float] = array<GPU>(img.width(), img.height());
+
+    // constant memory for stencil
+    let stencil_row_gpu : [float * 3 * 3] = map<CM>(stencil_row);
+    let stencil_col_gpu : [float * 3 * 3] = map<CM>(stencil_col);
+
+    for gid_x, gid_y in range(tmp_gpu) run on GPU {
+        // thread index
+        let tid_x = get_thread_idx(0);
+        let tid_y = get_thread_idx(1);
+
+        // shared memory for data staging
+        let mut sdata : [float, float] = array<SM>(get_blocking(1), get_blocking(2));
+
+        // load data to shared memory
+        sdata[get_thread_idx(1), get_thread_idx(0)] = img_gpu[gid_x, gid_y];
+
+        // synchronize
+        barrier(SM);
+
+        // apply stencil
+        tmp_gpu[gid_x, gid_y] = @convolve(sdata, stencil_row_gpu);
+    }
+
+    for gid_x, gid_y in range(img_gpu) run on GPU {
+        // thread index
+        let tid_x = get_thread_idx(0);
+        let tid_y = get_thread_idx(1);
+
+        // shared memory for data staging
+        let mut sdata : [float, float] = array<SM>(get_blocking(1), get_blocking(2));
+
+        // load data to shared memory
+        sdata[get_thread_idx(1), get_thread_idx(0)] = tmp_gpu[gid_x, gid_y];
+
+        // synchronize
+        barrier(SM);
+
+        // apply stencil
+        img_gpu[gid_x, gid_y] = @convolve(sdata, stencil_col_gpu);
+    }
+
+    // map GPU to CPU memory using map<CPU>()
+    img = map(img_gpu);
+}
+
+
+// implicit variant
+fn convolution_separable(img: [float],
+                         stencil_row: [float * 3 * 3],
+                         stencil_col: [float * 3 * 3]) -> [float] {
+    let tmp : [float] = array(img.width(), img.height());
+
+    for gid_x, gid_y in range(tmp) {
+        // thread index
+        let tid_x = get_thread_idx(0);
+        let tid_y = get_thread_idx(1);
+
+        // shared memory for data staging
+        let mut sdata : [float, float] = array(get_blocking(1), get_blocking(2));
+
+        // load data to shared memory
+        sdata[get_thread_idx(1), get_thread_idx(0)] = img[gid_x, gid_y];
+
+        // synchronize
+        barrier();
+
+        // apply stencil
+        tmp[gid_x, gid_y] = @convolve(sdata, stencil_row);
+    }
+
+    for gid_x, gid_y in range(img) {
+        // thread index
+        let tid_x = get_thread_idx(0);
+        let tid_y = get_thread_idx(1);
+
+        // shared memory for data staging
+        let mut sdata : [float, float] = array(get_blocking(1), get_blocking(2));
+
+        // load data to shared memory
+        sdata[get_thread_idx(1), get_thread_idx(0)] = tmp[gid_x, gid_y];
+
+        // synchronize
+        barrier();
+
+        // apply stencil
+        img[gid_x, gid_y] = @convolve(sdata, stencil_col);
+    }
+}
+

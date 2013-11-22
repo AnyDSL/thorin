@@ -6,6 +6,8 @@
 #include <queue>
 
 #include "thorin/def.h"
+#include "thorin/defmap.h"
+#include "thorin/defset.h"
 #include "thorin/primop.h"
 #include "thorin/lambda.h"
 #include "thorin/literal.h"

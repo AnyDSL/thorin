@@ -252,6 +252,16 @@ inline bool Use::operator < (Use use) const { return def()->gid() < use.def()->g
 
 //------------------------------------------------------------------------------
 
+struct DefNodeHash { 
+    size_t operator () (const DefNode* n) const { return hash_value(n->gid()); } 
+};
+
+struct DefNodeEqual { 
+    bool operator () (const DefNode* n1, const DefNode* n2) const { return n1->gid() == n2->gid(); } 
+};
+
+//------------------------------------------------------------------------------
+
 class Param : public DefNode {
 private:
     Param(size_t gid, const Type* type, Lambda* lambda, size_t index, const std::string& name)

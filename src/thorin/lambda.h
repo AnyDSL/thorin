@@ -2,7 +2,6 @@
 #define THORIN_LAMBDA_H
 
 #include <vector>
-#include <iostream>
 
 #include "thorin/def.h"
 #include "thorin/type.h"

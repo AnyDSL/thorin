@@ -1,6 +1,7 @@
 #include "thorin/def.h"
 
 #include <algorithm>
+#include <iostream>
 #include <sstream>
 #include <unordered_map>
 #include <queue>

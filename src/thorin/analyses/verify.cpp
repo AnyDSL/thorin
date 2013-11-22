@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "thorin/world.h"
 #include "thorin/type.h"
 #include "thorin/literal.h"

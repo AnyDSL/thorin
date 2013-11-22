@@ -65,11 +65,13 @@ Lambda* Mangler::mangle() {
     for (auto x : to_drop)
         call.idx.push_back(x);
 
+#if 0
     auto iter = world.cache_.find(call);
     if (iter != world.cache_.end()) {
         assert(!iter->second->empty());
         return iter->second;
     }
+#endif
 
     for (size_t i = offset, e = nelems.size(), x = 0; i != e; ++i, ++x)
         nelems[i] = to_lift[x]->type();
@@ -107,7 +109,7 @@ Lambda* Mangler::mangle() {
             cur->ptr = cur;
     }
 
-    world.cache_[call] = nentry;
+    //world.cache_[call] = nentry;
     return nentry;
 }
 

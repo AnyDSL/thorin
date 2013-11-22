@@ -189,6 +189,18 @@ Peeks Param::peek() const {
 
 //------------------------------------------------------------------------------
 
+void mark_down(DefSet& set, std::queue<Def>& queue) {
+    while (!queue.empty()) {
+        auto def = queue.front();
+        queue.pop();
+
+        for (auto use : def->uses()) {
+            if (!use->isa_lambda() && !set.visit(use))
+                queue.push(use);
+        }
+    }
+}
+
 void mark_down(const size_t pass, std::queue<Def>& queue) {
     while (!queue.empty()) {
         auto def = queue.front();

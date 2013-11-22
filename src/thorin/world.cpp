@@ -74,6 +74,12 @@ World::~World() {
     for (auto lambda : lambdas_) delete lambda;
 }
 
+Array<Lambda*> World::copy_lambdas() const {
+    Array<Lambda*> result(lambdas().size());
+    std::copy(lambdas().begin(), lambdas().end(), result.begin());
+    return result;
+}
+
 /*
  * types
  */
@@ -938,13 +944,11 @@ void World::cleanup() {
 
 void World::opt() {
     cleanup();
-    partial_evaluation(*this);
+    //mem2reg(*this);
+    //partial_evaluation(*this);
     lower2cff(*this);
-    mem2reg(*this);
 
-    // HACK
-    LambdaSet lms = lambdas();
-    for (auto cur : lms) {
+    for (auto cur : copy_lambdas()) {
         if (cur->is_connected_to_builtin() && !cur->is_basicblock()) {
             Scope scope(cur);
             std::vector<Def> vars = free_vars(scope);
@@ -976,16 +980,14 @@ void World::opt() {
         }
     }
 
-    mem2reg(*this);
+    //mem2reg(*this);
     inliner(*this);
     merge_lambdas(*this);
     cleanup();
 }
 
 void World::eliminate_params() {
-    // according to the the C++11 standard this statement correctly iterates over all old lambdas; 
-    // new lambdas are not visited
-    for (auto olambda : lambdas()) { 
+    for (auto olambda : copy_lambdas()) { 
         if (olambda->empty())
             continue;
 

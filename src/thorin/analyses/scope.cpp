@@ -1,6 +1,7 @@
 #include "thorin/analyses/scope.h"
 
 #include <algorithm>
+#include <iostream>
 
 #include "thorin/lambda.h"
 #include "thorin/world.h"
@@ -30,22 +31,16 @@ Scope::Scope(World& world)
     : world_(world)
     , num_entries_(0)
 {
-    size_t pass = world.new_pass();
+    candidates_ = world.lambdas();
 
     for (auto lambda : world.lambdas()) {
-        if (!lambda->is_visited(pass))
-            jump_to_param_users(pass, lambda, lambda);
-    }
-
-    std::vector<Lambda*> entries;
-
-    for (auto lambda : world.lambdas()) {
-        if (!lambda->is_visited(pass)) {
-            insert(pass, lambda);
-            entries.push_back(lambda);
+        if (!set_.contains(lambda)) {
+            collect(lambda);
         }
     }
 
+    std::vector<Lambda*> entries;
+    std::copy(candidates_.begin(), candidates_.end(), std::inserter(entries, entries.begin()));
     num_entries_ = entries.size();
     rpo_numbering(entries);
 }
@@ -56,40 +51,59 @@ Scope::~Scope() {
 }
 
 void Scope::identify_scope(ArrayRef<Lambda*> entries) {
-    // identify all lambdas depending on entry
-    size_t pass = world().new_pass();
-    for (auto entry : entries) {
-        insert(pass, entry);
-        jump_to_param_users(pass, entry, 0);
-    }
+    for (auto entry : entries)
+        collect(entry);
 }
 
-void Scope::jump_to_param_users(const size_t pass, Lambda* lambda, Lambda* limit) {
-    for (auto param : lambda->params())
-        find_user(pass, param, limit);
-}
-
-inline void Scope::find_user(const size_t pass, Def def, Lambda* limit) {
-    if (auto lambda = def->isa_lambda())
-        up(pass, lambda, limit);
-    else {
-        if (def->visit(pass))
-            return;
-
-        for (auto use : def->uses())
-            find_user(pass, use, limit);
-    }
-}
-
-void Scope::up(const size_t pass, Lambda* lambda, Lambda* limit) {
-    if (lambda->is_visited(pass) || (limit && limit == lambda))
+void Scope::collect(Lambda* lambda) {
+    if (set_.contains(lambda)) 
         return;
 
-    insert(pass, lambda);
-    jump_to_param_users(pass, lambda, limit);
+    set_.insert(lambda);
+    lambda->scope_ = this;
+    rpo_.push_back(lambda);
 
-    for (auto pred : lambda->preds())
-        up(pass, pred, limit);
+    std::queue<Def> queue;
+    for (auto param : lambda->params()) {
+        if (!param->is_proxy()) {
+            set_.insert(param);
+            queue.push(param);
+        }
+    }
+
+    LambdaSet lambdas;
+
+    while (!queue.empty()) {
+        auto def = queue.front();
+        queue.pop();
+
+        for (auto use : def->uses()) {
+            if (!set_.contains(use)) {
+                if (auto ulambda = use->isa_lambda())
+                    lambdas.insert(ulambda);
+                else {
+                    set_.insert(use);
+                    queue.push(use);
+                }
+            }
+        }
+    }
+
+    for (auto lambda : lambdas)
+        collect(lambda);
+
+        for (auto pred : lambda->preds()) {
+            if (!set_.contains(pred)) {
+                for (auto op : pred->ops()) {
+                    if (set_.contains(op)) {
+                        collect(pred);
+                        candidates_.erase(pred);
+                        goto next_pred;
+                    }
+                }
+            }
+next_pred:;
+        }
 }
 
 void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {

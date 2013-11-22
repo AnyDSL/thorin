@@ -55,20 +55,18 @@ public:
 private:
     void identify_scope(ArrayRef<Lambda*> entries);
     void rpo_numbering(ArrayRef<Lambda*> entries);
+    void collect(Lambda* lambda);
     void jump_to_param_users(const size_t pass, Lambda* lambda, Lambda* limit);
     void up(const size_t pass, Lambda* lambda, Lambda* limit);
     void find_user(const size_t pass, Def def, Lambda* limit);
     template<bool forwards> size_t po_visit(const size_t pass, Lambda* cur, size_t i) const;
     template<bool forwards> size_t number(const size_t pass, Lambda* cur, size_t i) const;
-    void insert(const size_t pass, Lambda* lambda) { 
-        lambda->visit_first(pass); 
-        lambda->scope_ = this; 
-        rpo_.push_back(lambda); 
-    }
 
     World& world_;
     std::vector<Lambda*> rpo_;
     size_t num_entries_;
+    DefSet set_;
+    LambdaSet candidates_;
     mutable size_t num_exits_;
     mutable AutoPtr<Array<Lambda*>> backwards_rpo_;
     mutable Array<Array<Lambda*>> preds_;

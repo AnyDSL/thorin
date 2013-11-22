@@ -56,11 +56,9 @@ struct CallHash {
 
 struct CallEqual { 
     bool operator () (const Call& call1, const Call& call2) const { 
-        assert(call1.args.size() == call2.args.size());
-        assert(call1.idx.size() == call2.idx.size());
-        assert(call1.idx.size() == call2.args.size());
-
-        bool result = call1.to == call2.to && ArrayRef<size_t>(call1.idx) == ArrayRef<size_t>(call2.idx);
+        bool result = call1.to == call2.to 
+            && ArrayRef<size_t>(call1.idx) == ArrayRef<size_t>(call2.idx)
+            && call1.args.size() == call2.args.size();
         for (size_t i = 0, e = call1.args.size(); i != e && result; ++i)
             result &= call1.args[i] == call2.args[i];
         return result;
@@ -286,6 +284,7 @@ public:
 
     const PrimOpSet& primops() const { return primops_; }
     const LambdaSet& lambdas() const { return lambdas_; }
+    Array<Lambda*> copy_lambdas() const;
     TypeSet types() const { return types_; }
     size_t gid() const { return gid_; }
 

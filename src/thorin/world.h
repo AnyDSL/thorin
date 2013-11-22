@@ -6,9 +6,6 @@
 #include <initializer_list>
 #include <queue>
 #include <string>
-#include <set>
-#include <unordered_map>
-#include <unordered_set>
 
 #include "thorin/enums.h"
 #include "thorin/lambda.h"
@@ -37,9 +34,6 @@ class TypeKeeper;
 
 typedef std::unordered_set<const PrimOp*, PrimOpHash, PrimOpEqual> PrimOpSet;
 typedef std::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;
-
-struct LambdaLTGid { bool operator () (Lambda* l1, Lambda* l2) const { return l1->gid() < l2->gid(); }; };
-typedef std::set<Lambda*, LambdaLTGid> LambdaSet;
 
 struct Call {
     Call() {}
@@ -324,10 +318,10 @@ private:
     const Param* param(const Type* type, Lambda* lambda, size_t index, const std::string& name = "");
     const Type* keep_nocast(const Type* type);
     void eliminate_proxies();
-    Def dce_rebuild(const size_t pass, const size_t old_gid, Def def);
-    void dce_mark(const size_t pass, Def def);
-    void ute_insert(const size_t pass, const Type* type);
-    void uce_insert(const size_t pass, Lambda*);
+    Def dce_rebuild(Def2Def&, const size_t old_gid, Def def);
+    void dce_mark(DefSet&, Def);
+    void ute_insert(std::unordered_set<const Type*>&, const Type*);
+    void uce_insert(LambdaSet&, Lambda*);
     template<class S, class W> static void wipe_out(S& set, W wipe); 
 
     PrimOpSet primops_;

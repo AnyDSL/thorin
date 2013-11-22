@@ -179,6 +179,18 @@ private:
     friend class GenericRef;
 };
 
+//------------------------------------------------------------------------------
+
+class LambdaSet : public std::unordered_set<Lambda*, DefNodeHash, DefNodeEqual> {
+public:
+    typedef std::unordered_set<Lambda*, DefNodeHash, DefNodeEqual> Super;
+
+    bool contains(Lambda* def) { return Super::find(def) != Super::end(); }
+    bool visit(Lambda* def) { return !Super::insert(def).second; }
+};
+
+//------------------------------------------------------------------------------
+
 } // namespace thorin
 
 #endif

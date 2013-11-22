@@ -3,6 +3,7 @@
 
 #include <queue>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -261,6 +262,35 @@ struct DefNodeEqual {
 };
 
 //------------------------------------------------------------------------------
+
+template<class Value>
+class DefMap : public std::unordered_map<const DefNode*, Value, DefNodeHash, DefNodeEqual> {
+public:
+    typedef std::unordered_map<const DefNode*, Value, DefNodeHash, DefNodeEqual> Super;
+};
+
+template<class Value>
+class DefMap<Value*> : public std::unordered_map<const DefNode*, Value*, DefNodeHash, DefNodeEqual> {
+public:
+    typedef std::unordered_map<const DefNode*, Value*, DefNodeHash, DefNodeEqual> Super;
+
+    Value* find(const DefNode* def) const {
+        auto i = Super::find(def);
+        return i == Super::end() ? nullptr : i->second;
+    }
+};
+
+class DefSet : public std::unordered_set<const DefNode*, DefNodeHash, DefNodeEqual> {
+public:
+    typedef std::unordered_set<const DefNode*, DefNodeHash, DefNodeEqual> Super;
+
+    bool contains(const DefNode* def) { return Super::find(def) != Super::end(); }
+    bool visit(const DefNode* def) { return !Super::insert(def).second; }
+};
+
+//------------------------------------------------------------------------------
+
+typedef DefMap<const DefNode*> Def2Def;
 
 class Param : public DefNode {
 private:

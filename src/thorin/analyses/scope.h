@@ -58,12 +58,10 @@ public:
     const DomTreeBase<false>& postdomtree() const;
     const LoopTree& looptree() const;
 
-    size_t mark() const;
-
 private:
     void identify_scope(ArrayRef<Lambda*> entries);
     void rpo_numbering(ArrayRef<Lambda*> entries);
-    void collect(Lambda* lambda);
+    void collect(Lambda* lambda, Lambda* boundary);
     template<bool forwards> size_t po_visit(LambdaSet&, Lambda* cur, size_t i) const;
     template<bool forwards> size_t number(LambdaSet&, Lambda* cur, size_t i) const;
 

@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <iostream>
+#include <queue>
+#include <stack>
 
 #include "thorin/lambda.h"
 #include "thorin/world.h"
@@ -33,9 +35,10 @@ Scope::Scope(World& world)
 {
     top_level_ = world.lambdas();
 
-    for (auto lambda : world.lambdas())
+    for (auto lambda : world.lambdas()) {
         if (!set_.contains(lambda))
-            collect(lambda);
+            collect(lambda, lambda);
+    }
 
     std::vector<Lambda*> entries;
     std::copy(top_level_.begin(), top_level_.end(), std::inserter(entries, entries.begin()));
@@ -45,16 +48,17 @@ Scope::Scope(World& world)
 
 void Scope::identify_scope(ArrayRef<Lambda*> entries) {
     for (auto entry : entries)
-        collect(entry);
+        collect(entry, entry);
 }
 
-void Scope::collect(Lambda* lambda) {
-    if (set_.contains(lambda))
-        return;
+void Scope::collect(Lambda* lambda, Lambda* boundary) {
+    if (lambda != boundary)
+        top_level_.erase(lambda);
 
     set_.insert(lambda);
     rpo_.push_back(lambda);
 
+    // search downwards
     std::queue<Def> queue;
     for (auto param : lambda->params()) {
         if (!param->is_proxy()) {
@@ -62,37 +66,44 @@ void Scope::collect(Lambda* lambda) {
             queue.push(param);
         }
     }
-
+    
     LambdaSet lambdas;
     while (!queue.empty()) {
         auto def = queue.front();
         queue.pop();
         for (auto use : def->uses()) {
-            if (auto ulambda = use->isa_lambda()) {
-                if (ulambda != lambda)
-                    lambdas.insert(ulambda);
-            } else if (!set_.contains(use)) {
-                set_.insert(use);
-                queue.push(use);
+            if (!set_.visit(use)) {
+                if (auto ulambda = use->isa_lambda()) {
+                    if (ulambda != lambda)
+                        lambdas.insert(ulambda);
+                } else
+                    queue.push(use);
             }
         }
     }
 
-    for (auto lambda : lambdas) {
-        top_level_.erase(lambda);
-        collect(lambda);
+    for (auto olambda : lambdas)
+        collect(olambda, boundary);
 
-        for (auto pred : lambda->preds()) {
-            if (!set_.contains(pred)) {
-                for (auto op : pred->ops()) {
-                    if (set_.contains(op)) {
-                        top_level_.erase(pred);
-                        collect(pred);
-                        goto next_pred;
-                    }
-                }
+    if (lambda == boundary)
+        return;
+
+    for (auto pred : lambda->preds()) {
+        if (!set_.contains(pred)) {
+            std::queue<Def> predops;
+            for (auto op : pred->ops())
+                predops.push(op);
+            while (!predops.empty()) {
+                auto def = predops.front();
+                predops.pop();
+                if (set_.contains(def))
+                    goto pred;
+                for (auto d : def->ops())
+                    predops.push(d);
             }
-next_pred:;
+            continue;
+pred:
+            collect(pred, boundary);
         }
     }
 }
@@ -204,25 +215,6 @@ ArrayRef<Lambda*> Scope::backwards_rpo() const {
     }
 
     return *backwards_rpo_;
-}
-
-size_t Scope::mark() const {
-    std::queue<Def> queue;
-    const auto pass = world().new_pass();
-
-    for (auto lambda : rpo()) {
-        lambda->visit_first(pass);
-        queue.push(lambda);
-
-        for (auto param : lambda->params()) {
-            param->visit_first(pass);
-            queue.push(param);
-        }
-
-        mark_down(pass, queue);
-    }
-
-    return pass;
 }
 
 //------------------------------------------------------------------------------

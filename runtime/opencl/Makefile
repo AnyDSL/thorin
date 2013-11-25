@@ -9,7 +9,7 @@ all: main.out
 	@llvm-as simple-gpu64.spir
 	@./main.out
 
-%.llo: %.cpp gpu_runtime.h
+%.llo: %.cpp cl_runtime.h
 	clang++ $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -c -emit-llvm $<
 
 #%.llo: %.cpp
@@ -24,8 +24,8 @@ all: main.out
 %.s: %.bc
 	llc $(OPT_FLAGS) $< -o $@
 
-#%.out: %.s gpu_runtime.s
-#	clang++ gpu_runtime.s $< $(LIB_DIRS) -lOpenCL -o $@
+#%.out: %.s cl_runtime.s
+#	clang++ cl_runtime.s $< $(LIB_DIRS) -lOpenCL -o $@
 
 %.out: %.s
 	clang++ $< $(LIB_DIRS) -lOpenCL -o $@

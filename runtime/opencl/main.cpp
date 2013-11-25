@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "gpu_runtime.h"
+#include "cl_runtime.h"
 
 static int num = 1024;
 

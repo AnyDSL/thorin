@@ -32,7 +32,6 @@ public:
 
     LoopTreeBuilder(LoopTree& looptree) 
         : looptree(looptree)
-        , numbers(size())
         , first_pass(size_t(-1))
         , dfs_index(0)
     {
@@ -61,7 +60,7 @@ private:
     static std::pair<size_t, size_t> propagate_bounds(LoopNode* header);
     const Scope& scope() const { return looptree.scope(); }
     size_t size() const { return looptree.size(); }
-    Number& number(Lambda* lambda) { return numbers[lambda->sid()]; }
+    Number& number(Lambda* lambda) { return numbers[lambda]; }
     size_t& lowlink(Lambda* lambda) { return number(lambda).low; }
     size_t& dfs(Lambda* lambda) { return number(lambda).dfs; }
     bool on_stack(Lambda* lambda) { assert(is_visited(lambda)); return (lambda->counter & OnStack) != 0; }
@@ -92,7 +91,7 @@ private:
 
     int visit(Lambda* lambda, int counter) {
         lambda->visit_first(pass);
-        numbers[lambda->sid()] = Number(counter++);
+        numbers[lambda] = Number(counter++);
         push(lambda);
         return counter;
     }
@@ -102,7 +101,7 @@ private:
     int walk_scc(Lambda* cur, LoopHeader* parent, int depth, int scc_counter);
 
     LoopTree& looptree;
-    Array<Number> numbers;
+    LambdaMap<Number> numbers;
     size_t pass;
     size_t first_pass;
     size_t dfs_index;
@@ -183,7 +182,7 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
 
         if (is_leaf(cur, num)) {
             LoopLeaf* leaf = new LoopLeaf(dfs_index++, parent, depth, headers);
-            looptree.nodes_[headers.front()->sid()] = looptree.dfs_leaves_[leaf->dfs_index()] = leaf;
+            looptree.nodes_[headers.front()] = looptree.dfs_leaves_[leaf->dfs_index()] = leaf;
         } else
             new LoopHeader(parent, depth, headers);
 
@@ -256,7 +255,9 @@ Array<Lambda*> LoopTree::loop_lambdas(const LoopHeader* header) {
 
 Array<Lambda*> LoopTree::loop_lambdas_in_rpo(const LoopHeader* header) {
     auto result = loop_lambdas(header);
-    std::sort(result.begin(), result.end(), [](const Lambda* l1, const Lambda* l2) { return l1->sid() < l2->sid(); });
+    std::sort(result.begin(), result.end(), [&](Lambda* l1, Lambda* l2) {
+        return scope_.sid(l1) < scope_.sid(l2);
+    });
     return result;
 }
 

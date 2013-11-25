@@ -49,9 +49,6 @@ public:
 private:
     Lambda(size_t gid, const Pi* pi, Attribute attribute, bool is_sealed, const std::string& name)
         : DefNode(gid, Node_Lambda, 0, pi, true, name)
-        , sid_(size_t(-1))
-        , backwards_sid_(size_t(-1))
-        , scope_(nullptr)
         , attribute_(attribute)
         , parent_(this)
         , is_sealed_(is_sealed)
@@ -79,10 +76,6 @@ public:
     const Pi* pi() const;
     const Pi* to_pi() const;
     const Pi* arg_pi() const;
-    size_t sid() const { return sid_; }
-    size_t backwards_sid() const { return backwards_sid_; }
-    Scope* scope() { return scope_; }
-    const Scope* scope() const { return scope_; }
     size_t num_args() const { return args().size(); }
     size_t num_params() const { return params().size(); }
     Attribute& attribute() { return attribute_; }
@@ -150,9 +143,6 @@ private:
     Def find_def(size_t handle);
     void increase_values(size_t handle) { if (handle >= values_.size()) values_.resize(handle+1); }
 
-    size_t sid_;           ///< \p Scope index, i.e., reverse post-order number.
-    size_t backwards_sid_; ///< \p Scope index, i.e., reverse post-order number, while reverting control-flow beginning with the exits.
-    Scope* scope_;
     Attribute attribute_;
     Params params_;
     /**
@@ -184,8 +174,25 @@ class LambdaSet : public std::unordered_set<Lambda*, DefNodeHash, DefNodeEqual> 
 public:
     typedef std::unordered_set<Lambda*, DefNodeHash, DefNodeEqual> Super;
 
-    bool contains(Lambda* def) { return Super::find(def) != Super::end(); }
+    bool contains(Lambda* def) const { return Super::find(def) != Super::end(); }
     bool visit(Lambda* def) { return !Super::insert(def).second; }
+};
+
+template<class Value>
+class LambdaMap : public std::unordered_map<const Lambda*, Value, DefNodeHash, DefNodeEqual> {
+public:
+    typedef std::unordered_map<const Lambda*, Value, DefNodeHash, DefNodeEqual> Super;
+};
+
+template<class Value>
+class LambdaMap<Value*> : public std::unordered_map<const Lambda*, Value*, DefNodeHash, DefNodeEqual> {
+public:
+    typedef std::unordered_map<const Lambda*, Value*, DefNodeHash, DefNodeEqual> Super;
+
+    Value* find(const Lambda* def) const {
+        auto i = Super::find(def);
+        return i == Super::end() ? nullptr : i->second;
+    }
 };
 
 //------------------------------------------------------------------------------

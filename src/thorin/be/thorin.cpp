@@ -164,7 +164,7 @@ void emit_thorin(World& world, bool fancy, bool nocolor) {
             cg.newline();
             cg.emit_head(lambda);
 
-            for (auto op : schedule[lambda->sid()])
+            for (auto op : schedule[scope.sid(lambda)])
                 cg.emit_assignment(op);
 
             cg.emit_jump(lambda);

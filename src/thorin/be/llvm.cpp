@@ -48,8 +48,8 @@ public:
 
     void emit_cuda_decls();
     void emit_vector_decls();
-    void emit_cuda(Lambda* target, ArrayRef<llvm::BasicBlock*> bbs);
-    void emit_vectors(llvm::Function* current, Lambda* target, ArrayRef<llvm::BasicBlock*> bbs);
+    void emit_cuda(const Scope& scope, Lambda* target, ArrayRef<llvm::BasicBlock*> bbs);
+    void emit_vectors(const Scope& scope, llvm::Function* current, Lambda* target, ArrayRef<llvm::BasicBlock*> bbs);
     void emit();
     void postprocess();
     void dump();
@@ -178,7 +178,7 @@ static uint64_t try_resolve_array_size(Def def) {
 }
 
 // HACK
-void CodeGen::emit_cuda(Lambda* lambda, ArrayRef<llvm::BasicBlock*> bbs) {
+void CodeGen::emit_cuda(const Scope& scope, Lambda* lambda, ArrayRef<llvm::BasicBlock*> bbs) {
     Lambda* target = lambda->to()->as_lambda();
     assert(target->is_builtin() && target->attribute().is(Lambda::Cuda));
     // passed lambda is the external cuda call
@@ -238,10 +238,10 @@ void CodeGen::emit_cuda(Lambda* lambda, ArrayRef<llvm::BasicBlock*> bbs) {
     for (auto device_ptr : device_ptrs)
         builder.CreateCall(free_gpu, { device_ptr.first });
     // create branch to return
-    builder.CreateBr(bbs[lambda->arg(3)->as_lambda()->sid()]);
+    builder.CreateBr(bbs[scope.sid(lambda->arg(3)->as_lambda())]);
 }
 
-void CodeGen::emit_vectors(llvm::Function* current, Lambda* lambda, ArrayRef<llvm::BasicBlock*> bbs) {
+void CodeGen::emit_vectors(const Scope& scope, llvm::Function* current, Lambda* lambda, ArrayRef<llvm::BasicBlock*> bbs) {
     VectorizationEntry e;
     Lambda* target = lambda->to()->as_lambda();
     assert(target->is_builtin() && target->attribute().is(Lambda::Vectorize));
@@ -304,7 +304,7 @@ void CodeGen::emit_vectors(llvm::Function* current, Lambda* lambda, ArrayRef<llv
     builder.CreateBr(header);
     // create branch to return
     builder.SetInsertPoint(exit);
-    builder.CreateBr(bbs[ret_lambda->sid()]);
+    builder.CreateBr(bbs[scope.sid(ret_lambda)]);
     v_fcts.push_back(e);
 }
 
@@ -416,7 +416,7 @@ void CodeGen::emit() {
 
         for (auto lambda : scope.rpo()) {
             // map all bb-like lambdas to llvm bb stubs
-            auto bb = bbs[lambda->sid()] = llvm::BasicBlock::Create(context, lambda->name, fct);
+            auto bb = bbs[scope.sid(lambda)] = llvm::BasicBlock::Create(context, lambda->name, fct);
 
             // create phi node stubs (for all non-cascading lambdas different from entry)
             if (!lambda->is_cascading() && !scope.is_entry(lambda)) {
@@ -434,9 +434,9 @@ void CodeGen::emit() {
             if (lambda->empty())
                 continue;
             assert(scope.is_entry(lambda) || lambda->is_basicblock());
-            builder.SetInsertPoint(bbs[lambda->sid()]);
+            builder.SetInsertPoint(bbs[scope.sid(lambda)]);
 
-            for (auto primop :  schedule[lambda->sid()]) {
+            for (auto primop :  schedule[scope.sid(lambda)]) {
                 // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
                 if (!primop->type()->isa<Pi>() && !primop->type()->isa<Frame>()
                         && (!primop->type()->isa<Mem>() || primop->isa<Store>()))
@@ -491,8 +491,8 @@ void CodeGen::emit() {
                 }
             } else if (auto select = lambda->to()->isa<Select>()) { // conditional branch
                 llvm::Value* cond = lookup(select->cond());
-                llvm::BasicBlock* tbb = bbs[select->tval()->as<Lambda>()->sid()];
-                llvm::BasicBlock* fbb = bbs[select->fval()->as<Lambda>()->sid()];
+                llvm::BasicBlock* tbb = bbs[scope.sid(select->tval()->as_lambda())];
+                llvm::BasicBlock* fbb = bbs[scope.sid(select->fval()->as_lambda())];
                 builder.CreateCondBr(cond, tbb, fbb);
             } else {
                 if (auto higher_order_call = lambda->to()->isa<Param>()) { // higher-order call
@@ -502,18 +502,18 @@ void CodeGen::emit() {
                     if (param == nullptr && succ->num_params() == 2)
                         param = succ->param(1);
                     params[param] = call_target;
-                    builder.CreateBr(bbs[succ->sid()]);
+                    builder.CreateBr(bbs[scope.sid(succ)]);
                 } else {
                     Lambda* to_lambda = lambda->to()->as_lambda();
                     if (to_lambda->is_basicblock())      // ordinary jump
-                        builder.CreateBr(bbs[to_lambda->sid()]);
+                        builder.CreateBr(bbs[scope.sid(to_lambda)]);
                     else {
                         if (lambda->to()->isa<Lambda>()) {
                             const Lambda::Attribute& attr = lambda->to()->as_lambda()->attribute();
                             if (attr.is(Lambda::Cuda))
-                                emit_cuda(lambda, bbs);
+                                emit_cuda(scope, lambda, bbs);
                             else if(attr.is(Lambda::Vectorize))
-                                emit_vectors(fct, lambda, bbs);
+                                emit_vectors(scope, fct, lambda, bbs);
                             else
                                 goto no_lambda;
                         } else {
@@ -543,7 +543,7 @@ no_lambda:
                                 if (param == nullptr && succ->num_params() == 2)
                                     param = succ->param(1);
 
-                                builder.CreateBr(bbs[succ->sid()]);
+                                builder.CreateBr(bbs[scope.sid(succ)]);
                                 if (param) {
                                     auto i = phis.find(param);
                                     if (i != phis.end())
@@ -564,7 +564,7 @@ no_lambda:
             llvm::PHINode* phi = p.second;
 
             for (auto peek : param->peek())
-                phi->addIncoming(lookup(peek.def()), bbs[peek.from()->sid()]);
+                phi->addIncoming(lookup(peek.def()), bbs[scope.sid(peek.from())]);
         }
 
         // FIXME: params.clear();

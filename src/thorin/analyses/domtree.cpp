@@ -23,10 +23,7 @@ int DomNodeBase<forwards>::depth() const {
 template<bool forwards>
 void DomTreeBase<forwards>::create() {
     for (auto lambda : Super::rpo())
-        Super::nodes_[Super::sid(lambda)] = new DomNode(lambda);
-
-    for (size_t i = 0; i < Super::size(); ++i)
-        assert(i == Super::sid(Super::nodes_[i]));
+        Super::nodes_[lambda] = new DomNode(lambda);
 
     // map entries' initial idoms to themselves
     for (auto entry : Super::entries()) {

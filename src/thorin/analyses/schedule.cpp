@@ -90,11 +90,11 @@ Schedule schedule_late(const Scope& scope, size_t& pass) {
                 Lambda*& late = get_late(primop);
 
                 if (late == cur) {
-                    schedule[late->sid()].push_back(primop);
+                    schedule[scope.sid(late)].push_back(primop);
                     fill_queue(primop);
                 } else {
                     late = late ? scope.domtree().lca(cur, late) : cur;
-                    queues[late->sid()].push(primop);
+                    queues[scope.sid(late)].push(primop);
                 }
             } else
                 --primop->counter;
@@ -128,7 +128,7 @@ Schedule schedule_smart(const Scope& scope) {
                     depth = cur_depth;
                 }
             }
-            smart[lambda_best->sid()].push_back(primop);
+            smart[scope.sid(lambda_best)].push_back(primop);
         }
     }
 

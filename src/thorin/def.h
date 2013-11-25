@@ -284,7 +284,7 @@ class DefSet : public std::unordered_set<const DefNode*, DefNodeHash, DefNodeEqu
 public:
     typedef std::unordered_set<const DefNode*, DefNodeHash, DefNodeEqual> Super;
 
-    bool contains(const DefNode* def) { return Super::find(def) != Super::end(); }
+    bool contains(const DefNode* def) const { return Super::find(def) != Super::end(); }
     bool visit(const DefNode* def) { return !Super::insert(def).second; }
 };
 
@@ -316,7 +316,7 @@ private:
 //------------------------------------------------------------------------------
 
 void mark_down(DefSet&, std::queue<Def>&);
-void mark_down(const size_t pass, std::queue<Def>& queue);
+void mark_down(size_t, std::queue<Def>&);
 
 //------------------------------------------------------------------------------
 

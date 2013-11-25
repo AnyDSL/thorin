@@ -31,21 +31,16 @@ Scope::Scope(World& world)
     : world_(world)
     , num_entries_(0)
 {
-    candidates_ = world.lambdas();
+    top_level_ = world.lambdas();
 
     for (auto lambda : world.lambdas())
         if (!set_.contains(lambda))
             collect(lambda);
 
     std::vector<Lambda*> entries;
-    std::copy(candidates_.begin(), candidates_.end(), std::inserter(entries, entries.begin()));
+    std::copy(top_level_.begin(), top_level_.end(), std::inserter(entries, entries.begin()));
     num_entries_ = entries.size();
     rpo_numbering(entries);
-}
-
-Scope::~Scope() {
-    for (auto lambda : rpo_)
-        lambda->scope_ = 0;
 }
 
 void Scope::identify_scope(ArrayRef<Lambda*> entries) {
@@ -58,7 +53,6 @@ void Scope::collect(Lambda* lambda) {
         return;
 
     set_.insert(lambda);
-    lambda->scope_ = this;
     rpo_.push_back(lambda);
 
     std::queue<Def> queue;
@@ -85,14 +79,14 @@ void Scope::collect(Lambda* lambda) {
     }
 
     for (auto lambda : lambdas) {
-        candidates_.erase(lambda);
+        top_level_.erase(lambda);
         collect(lambda);
 
         for (auto pred : lambda->preds()) {
             if (!set_.contains(pred)) {
                 for (auto op : pred->ops()) {
                     if (set_.contains(op)) {
-                        candidates_.erase(pred);
+                        top_level_.erase(pred);
                         collect(pred);
                         goto next_pred;
                     }
@@ -104,52 +98,52 @@ next_pred:;
 }
 
 void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {
-    size_t pass = world().new_pass();
+    LambdaSet lambdas;
 
     for (auto entry : entries)
-        entry->visit_first(pass);
+        lambdas.visit(entry);
 
     size_t num = 0;
     for (auto entry : entries)
-        num = po_visit<true>(pass, entry, num);
+        num = po_visit<true>(lambdas, entry, num);
 
     for (size_t i = entries.size(); i-- != 0;)
-        entries[i]->sid_ = num++;
+        sid_[entries[i]].sid = num++;
 
     assert(num <= size());
     assert(num >= 0);
 
     // convert postorder number to reverse postorder number
     for (auto lambda : rpo()) {
-        if (lambda->is_visited(pass)) {
-            lambda->sid_ = num - 1 - lambda->sid_;
+        if (lambdas.contains(lambda)) {
+            sid_[lambda].sid = num - 1 - sid_[lambda].sid;
         } else { // lambda is unreachable
-            lambda->scope_ = 0;
-            lambda->sid_ = size_t(-1);
+            set_.erase(lambda);
+            sid_.erase(lambda);
         }
     }
     
     // sort rpo_ according to sid_ which now holds the rpo number
-    std::sort(rpo_.begin(), rpo_.end(), [](const Lambda* l1, const Lambda* l2) { return l1->sid() < l2->sid(); });
+    std::sort(rpo_.begin(), rpo_.end(), [&](const Lambda* l1, const Lambda* l2) { return sid_[l1].sid < sid_[l2].sid; });
 
     // discard unreachable lambdas
     rpo_.resize(num);
 }
 
 template<bool forwards>
-size_t Scope::po_visit(const size_t pass, Lambda* cur, size_t i) const {
+size_t Scope::po_visit(LambdaSet& set, Lambda* cur, size_t i) const {
     for (auto succ : forwards ? cur->succs() : cur->preds()) {
-        if (contains(succ) && !succ->is_visited(pass))
-            i = number<forwards>(pass, succ, i);
+        if (contains(succ) && !set.contains(succ))
+            i = number<forwards>(set, succ, i);
     }
     return i;
 }
 
 template<bool forwards>
-size_t Scope::number(const size_t pass, Lambda* cur, size_t i) const {
-    cur->visit_first(pass);
-    i = po_visit<forwards>(pass, cur, i);
-    return forwards ? (cur->sid_ = i) + 1 : (cur->backwards_sid_ = i) - 1;
+size_t Scope::number(LambdaSet& set, Lambda* cur, size_t i) const {
+    set.visit(cur);
+    i = po_visit<forwards>(set, cur, i);
+    return forwards ? (sid_[cur].sid = i) + 1 : (sid_[cur].backwards_sid = i) - 1;
 }
 
 #define THORIN_SCOPE_SUCC_PRED(succ) \
@@ -159,7 +153,7 @@ ArrayRef<Lambda*> Scope::succ##s(Lambda* lambda) const { \
         succ##s_.alloc(size()); \
         for (auto lambda : rpo_) { \
             Lambdas all_succ##s = lambda->succ##s(); \
-            auto& succ##s = succ##s_[lambda->sid()]; \
+            auto& succ##s = succ##s_[sid(lambda)]; \
             succ##s.alloc(all_succ##s.size()); \
             size_t i = 0; \
             for (auto succ : all_succ##s) { \
@@ -169,7 +163,7 @@ ArrayRef<Lambda*> Scope::succ##s(Lambda* lambda) const { \
             succ##s.shrink(i); \
         } \
     } \
-    return succ##s_[lambda->sid()];  \
+    return succ##s_[sid(lambda)];  \
 }
 
 THORIN_SCOPE_SUCC_PRED(succ)
@@ -189,23 +183,23 @@ ArrayRef<Lambda*> Scope::backwards_rpo() const {
         num_exits_ = exits.size();
 
         // number all lambdas in postorder
-        size_t pass = world().new_pass();
+        LambdaSet lambdas;
 
         size_t num = 0;
         for (auto exit : exits) {
-            exit->visit_first(pass);
-            exit->backwards_sid_ = num++;
+            lambdas.visit(exit);
+            sid_[exit].backwards_sid = num++;
         }
 
         num = size() - 1;
         for (auto exit : exits)
-            num = po_visit<false>(pass, exit, num);
+            num = po_visit<false>(lambdas, exit, num);
 
         assert(num + 1 == num_exits());
 
         std::copy(rpo_.begin(), rpo_.end(), backwards_rpo_->begin());
-        std::sort(backwards_rpo_->begin(), backwards_rpo_->end(), [](const Lambda* l1, const Lambda* l2) { 
-            return l1->backwards_sid() < l2->backwards_sid(); 
+        std::sort(backwards_rpo_->begin(), backwards_rpo_->end(), [&](const Lambda* l1, const Lambda* l2) {
+            return sid_[l1].backwards_sid < sid_[l2].backwards_sid;
         });
     }
 
@@ -232,6 +226,19 @@ size_t Scope::mark() const {
 }
 
 //------------------------------------------------------------------------------
+
+LambdaSet Scope::resolve_lambdas() const
+{
+    LambdaSet result;
+    std::copy(rpo_.begin(), rpo_.end(), std::inserter(result, result.begin()));
+    return result;
+}
+
+bool Scope::is_entry(Lambda* lambda) const { assert(contains(lambda)); return sid_[lambda].sid < num_entries(); }
+bool Scope::is_exit(Lambda* lambda) const { assert(contains(lambda)); return sid_[lambda].backwards_sid < num_exits(); }
+
+size_t Scope::sid(Lambda* lambda) const { assert(contains(lambda)); return sid_[lambda].sid; }
+size_t Scope::backwards_sid(Lambda* lambda) const { assert(contains(lambda)); return sid_[lambda].backwards_sid; }
 
 const DomTree& Scope::domtree() const { return domtree_ ? *domtree_ : *(domtree_ = new DomTree(*this)); }
 const PostDomTree& Scope::postdomtree() const { return postdomtree_ ? *postdomtree_ : *(postdomtree_ = new PostDomTree(*this)); }

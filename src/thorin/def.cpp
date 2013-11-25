@@ -212,7 +212,6 @@ void mark_down(const size_t pass, std::queue<Def>& queue) {
         }
     }
 }
-
 //------------------------------------------------------------------------------
 
 } // namespace thorin

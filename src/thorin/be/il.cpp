@@ -20,7 +20,7 @@ void free_vars(Scope& scope, Schedule& schedule, Lambda* lambda, Vars& vars) {
         if (op->isa<PrimOp>() && !op->is_const())
           vars.insert(op);
     }
-    std::vector<const PrimOp*>& ops = schedule[lambda->sid()];
+    std::vector<const PrimOp*>& ops = schedule[scope.sid(lambda)];
     for (auto i = ops.rbegin(); i != ops.rend(); ++i) {
       vars.erase(*i);
       for (auto op : (*i)->ops()) {
@@ -31,7 +31,7 @@ void free_vars(Scope& scope, Schedule& schedule, Lambda* lambda, Vars& vars) {
 }
 
 void defined_vars(Scope& scope, Schedule& schedule, Lambda* lambda, Vars& vars) {
-    std::vector<const PrimOp*>& ops = schedule[lambda->sid()];
+    std::vector<const PrimOp*>& ops = schedule[scope.sid(lambda)];
     for (auto i = ops.rbegin(); i != ops.rend(); ++i) {
         vars.erase(*i);
     }
@@ -196,10 +196,10 @@ std::ostream& IlPrinter::emit_jump(const Lambda* lambda, bool nodefs) {
 void IlPrinter::print_lambda(Scope& scope, Schedule& schedule, Lambda* lambda, Vars& def_vars) {
             if (lambda->visit(pass_))
               return;
-            emit_head(lambda, schedule[lambda->sid()].empty());
+            emit_head(lambda, schedule[scope.sid(lambda)].empty());
             bool first = true;
             Vars this_def_vars;
-            for (auto op : schedule[lambda->sid()]) {
+            for (auto op : schedule[scope.sid(lambda)]) {
                 for (auto lamb : scope.domtree().node(lambda)->children()) {
                   Vars vars;
                   free_vars(scope, schedule, lamb->lambda(), vars);
@@ -219,7 +219,7 @@ void IlPrinter::print_lambda(Scope& scope, Schedule& schedule, Lambda* lambda, V
                 this_def_vars.insert(op);
             }
 
-            emit_jump(lambda, schedule[lambda->sid()].empty());
+            emit_jump(lambda, schedule[scope.sid(lambda)].empty());
             for (auto dop : this_def_vars) {
                 def_vars.erase(dop);
             }

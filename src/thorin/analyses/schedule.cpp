@@ -9,18 +9,17 @@
 #include "thorin/analyses/looptree.h"
 #include "thorin/analyses/scope.h"
 
+#include "thorin/analyses/schedule.h"
+
 namespace thorin {
 
-typedef Array<std::vector<const PrimOp*>> Schedule;
-
 Schedule schedule_early(const Scope& scope) {
-    Schedule schedule(scope.size());
+    Schedule schedule;
     std::queue<Def> queue;
-    const auto pass = scope.world().new_pass();
+    DefSet set;
 
-    for (size_t i = 0, e = scope.size(); i != e; ++i) {
-        Lambda* lambda = scope[i];
-        auto& primops = schedule[i];
+    for (Lambda* lambda : scope) {
+        auto& primops = schedule[lambda];
 
         for (auto param : lambda->params())
             if (!param->is_proxy())
@@ -35,7 +34,7 @@ Schedule schedule_early(const Scope& scope) {
             for (auto use : def->uses()) {
                 if (use->isa<Lambda>())
                     continue;
-                if (use->visit(pass))
+                if (set.visit(use))
                     --use->counter;
                 else {
                     use->counter = -1;
@@ -57,21 +56,20 @@ Schedule schedule_early(const Scope& scope) {
 
 static inline Lambda*& get_late(const PrimOp* primop) { return (Lambda*&) primop->ptr; }
 
-Schedule schedule_late(const Scope& scope, size_t& pass) {
-    Schedule schedule(scope.size());
-    Array<std::queue<const PrimOp*>> queues(scope.size());
-    pass = scope.world().new_pass();
+Schedule schedule_late(const Scope& scope, DefSet& set) {
+    Schedule schedule;
+    LambdaMap<std::queue<const PrimOp*>> queues;
+    set.clear();
 
-    for (size_t i = scope.size(); i-- != 0;) {
-        auto& queue = queues[i];
-        Lambda* cur = scope[i];
+    for (Lambda* cur : scope.backwards_rpo()) {
+        auto& queue = queues[cur] = std::queue<const PrimOp*>();
 
         auto fill_queue = [&] (Def def) {
             for (auto op : def->ops()) {
                 if (auto primop = op->is_non_const_primop()) {
                     queue.push(primop);
 
-                    if (!primop->visit(pass)) { // init unseen primops
+                    if (!set.visit(primop)) { // init unseen primops
                         get_late(primop) = cur;
                         primop->counter = primop->num_uses() - 1;
                     }
@@ -84,17 +82,17 @@ Schedule schedule_late(const Scope& scope, size_t& pass) {
         while (!queue.empty()) {
             const PrimOp* primop = queue.front();
             queue.pop();
-            assert(primop->is_visited(pass));
+            assert(set.contains(primop));
 
             if (primop->counter == 0) {
                 Lambda*& late = get_late(primop);
 
                 if (late == cur) {
-                    schedule[scope.sid(late)].push_back(primop);
+                    schedule[late].push_back(primop);
                     fill_queue(primop);
                 } else {
                     late = late ? scope.domtree().lca(cur, late) : cur;
-                    queues[scope.sid(late)].push(primop);
+                    queues[late].push(primop);
                 }
             } else
                 --primop->counter;
@@ -102,21 +100,21 @@ Schedule schedule_late(const Scope& scope, size_t& pass) {
     }
 
     for (auto& primops : schedule)
-        std::reverse(primops.begin(), primops.end());
+        std::reverse(primops.second.begin(), primops.second.end());
 
     return schedule;
 }
 
 Schedule schedule_smart(const Scope& scope) {
-    Schedule smart(scope.size());
+    Schedule smart;
     Schedule early = schedule_early(scope);
-    size_t pass;
-    schedule_late(scope, pass); // set late pointers in primop and remember pass
+    DefSet set;
+    schedule_late(scope, set); // set late pointers in primop and remember pass
 
     for (size_t i = 0, e = scope.size(); i != e; ++i) {
         Lambda* lambda_early = scope[i];
-        for (auto primop : early[i]) {
-            if (!primop->is_visited(pass))
+        for (auto primop : early[lambda_early]) {
+            if (!set.contains(primop))
                 continue;       // primop is dead
             Lambda* lambda_best = get_late(primop);
             assert(scope.contains(lambda_best));
@@ -128,7 +126,7 @@ Schedule schedule_smart(const Scope& scope) {
                     depth = cur_depth;
                 }
             }
-            smart[scope.sid(lambda_best)].push_back(primop);
+            smart[lambda_best].push_back(primop);
         }
     }
 

@@ -37,6 +37,10 @@ public:
     Lambda* rpo(size_t i) const { return rpo_[i]; }
     Lambda* operator [] (size_t i) const { return rpo(i); }
 
+    typedef ArrayRef<Lambda*>::const_iterator const_iterator;
+    const_iterator begin() const { return rpo().begin(); }
+    const_iterator end() const { return rpo().end(); }
+
     ArrayRef<Lambda*> preds(Lambda* lambda) const;
     ArrayRef<Lambda*> succs(Lambda* lambda) const;
 

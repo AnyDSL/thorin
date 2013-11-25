@@ -76,7 +76,7 @@ Lambda* Vectorizer::vectorize() {
                 param2select(param);
         }
 
-        for (auto primop : schedule[i]) {
+        for (auto primop : schedule[lambda]) {
             if (primop->isa<Select>() && primop->type()->isa<Pi>())
                 continue; // ignore branch
             vectorize_primop(map_cond(lambda), primop);

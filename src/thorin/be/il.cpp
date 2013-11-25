@@ -14,24 +14,24 @@ typedef std::unordered_set<const DefNode*> Vars;
 
 void free_vars(Scope& scope, Schedule& schedule, Lambda* lambda, Vars& vars) {
     for (auto lamb : scope.domtree().node(lambda)->children()) {
-      free_vars(scope, schedule, lamb->lambda(), vars);
+        free_vars(scope, schedule, lamb->lambda(), vars);
     }
     for (auto op : lambda->args()) {
         if (op->isa<PrimOp>() && !op->is_const())
-          vars.insert(op);
+            vars.insert(op);
     }
-    std::vector<const PrimOp*>& ops = schedule[scope.sid(lambda)];
+    std::vector<const PrimOp*>& ops = schedule[lambda];
     for (auto i = ops.rbegin(); i != ops.rend(); ++i) {
-      vars.erase(*i);
-      for (auto op : (*i)->ops()) {
-        if (op->isa<PrimOp>() && !op->is_const())
-          vars.insert(op);
-      }
+        vars.erase(*i);
+        for (auto op : (*i)->ops()) {
+            if (op->isa<PrimOp>() && !op->is_const())
+                vars.insert(op);
+        }
     }
 }
 
 void defined_vars(Scope& scope, Schedule& schedule, Lambda* lambda, Vars& vars) {
-    std::vector<const PrimOp*>& ops = schedule[scope.sid(lambda)];
+    std::vector<const PrimOp*>& ops = schedule[lambda];
     for (auto i = ops.rbegin(); i != ops.rend(); ++i) {
         vars.erase(*i);
     }
@@ -196,10 +196,10 @@ std::ostream& IlPrinter::emit_jump(const Lambda* lambda, bool nodefs) {
 void IlPrinter::print_lambda(Scope& scope, Schedule& schedule, Lambda* lambda, Vars& def_vars) {
             if (lambda->visit(pass_))
               return;
-            emit_head(lambda, schedule[scope.sid(lambda)].empty());
+            emit_head(lambda, schedule[lambda].empty());
             bool first = true;
             Vars this_def_vars;
-            for (auto op : schedule[scope.sid(lambda)]) {
+            for (auto op : schedule[lambda]) {
                 for (auto lamb : scope.domtree().node(lambda)->children()) {
                   Vars vars;
                   free_vars(scope, schedule, lamb->lambda(), vars);
@@ -219,7 +219,7 @@ void IlPrinter::print_lambda(Scope& scope, Schedule& schedule, Lambda* lambda, V
                 this_def_vars.insert(op);
             }
 
-            emit_jump(lambda, schedule[scope.sid(lambda)].empty());
+            emit_jump(lambda, schedule[lambda].empty());
             for (auto dop : this_def_vars) {
                 def_vars.erase(dop);
             }

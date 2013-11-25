@@ -13,11 +13,9 @@ void mem2reg(const Scope& scope) {
     const auto pass = scope.world().new_pass();
     size_t cur_handle = 0;
 
-    for (size_t i = 0, e = scope.size(); i != e; ++i) {
-        Lambda* lambda = scope[i];
-
+    for (Lambda* lambda : scope) {
         // Search for slots/loads/stores from top to bottom and use set_value/get_value to install parameters.
-        for (auto primop : schedule[i]) {
+        for (auto primop : schedule[lambda]) {
             auto def = Def(primop);
             if (auto slot = def->isa<Slot>()) {
                 // are all users loads and store?

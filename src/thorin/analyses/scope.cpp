@@ -33,11 +33,9 @@ Scope::Scope(World& world)
 {
     candidates_ = world.lambdas();
 
-    for (auto lambda : world.lambdas()) {
-        if (!set_.contains(lambda)) {
+    for (auto lambda : world.lambdas())
+        if (!set_.contains(lambda))
             collect(lambda);
-        }
-    }
 
     std::vector<Lambda*> entries;
     std::copy(candidates_.begin(), candidates_.end(), std::inserter(entries, entries.begin()));
@@ -56,7 +54,7 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
 }
 
 void Scope::collect(Lambda* lambda) {
-    if (set_.contains(lambda)) 
+    if (set_.contains(lambda))
         return;
 
     set_.insert(lambda);
@@ -72,38 +70,37 @@ void Scope::collect(Lambda* lambda) {
     }
 
     LambdaSet lambdas;
-
     while (!queue.empty()) {
         auto def = queue.front();
         queue.pop();
-
         for (auto use : def->uses()) {
-            if (!set_.contains(use)) {
-                if (auto ulambda = use->isa_lambda())
+            if (auto ulambda = use->isa_lambda()) {
+                if (ulambda != lambda)
                     lambdas.insert(ulambda);
-                else {
-                    set_.insert(use);
-                    queue.push(use);
-                }
+            } else if (!set_.contains(use)) {
+                set_.insert(use);
+                queue.push(use);
             }
         }
     }
 
-    for (auto lambda : lambdas)
+    for (auto lambda : lambdas) {
+        candidates_.erase(lambda);
         collect(lambda);
 
         for (auto pred : lambda->preds()) {
             if (!set_.contains(pred)) {
                 for (auto op : pred->ops()) {
                     if (set_.contains(op)) {
-                        collect(pred);
                         candidates_.erase(pred);
+                        collect(pred);
                         goto next_pred;
                     }
                 }
             }
 next_pred:;
         }
+    }
 }
 
 void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {

@@ -13,8 +13,8 @@ class PrimOp;
 typedef LambdaMap<std::vector<const PrimOp*>> Schedule;
 
 Schedule schedule_early(const Scope&);
-Schedule schedule_late(const Scope&, DefSet&);
-inline Schedule schedule_late(const Scope& scope) { DefSet set; return schedule_late(scope, set); }
+Schedule schedule_late(const Scope&, DefMap<Lambda*>&);
+inline Schedule schedule_late(const Scope& scope) { DefMap<Lambda*> late; return schedule_late(scope, late); }
 Schedule schedule_smart(const Scope&);
 
 } // namespace thorin

@@ -28,14 +28,9 @@ public:
     void mangle_body(Lambda* olambda, Lambda* nlambda);
     Lambda* mangle_head(Lambda* olambda);
     Def mangle(Def odef);
-    Def map(Def def, Def to) {
-        pass2.visit(def);
-        def->cptr = *to;
-        return to;
-    }
     Def lookup(Def def) {
         assert(pass2.contains(def));
-        return Def((const DefNode*) def->cptr);
+        return pass2[def];
     }
 
     const Scope& scope;
@@ -45,7 +40,7 @@ public:
     GenericMap generic_map;
     World& world;
     DefSet pass1;
-    DefSet pass2;
+    Def2Def pass2;
     Lambda* nentry;
     Lambda* oentry;
 };
@@ -85,27 +80,27 @@ Lambda* Mangler::mangle() {
     for (size_t op = 0, np = 0, i = 0, e = o_pi->size(); op != e; ++op) {
         const Param* oparam = oentry->param(op);
         if (i < to_drop.size() && to_drop[i] == op)
-            map(oparam, drop_with[i++]);
+            pass2[oparam] = drop_with[i++];
         else {
             const Param* nparam = nentry->param(np++);
             nparam->name = oparam->name;
-            map(oparam, nparam);
+            pass2[oparam] = nparam;
         }
     }
 
     for (size_t i = offset, e = nelems.size(), x = 0; i != e; ++i, ++x) {
-        map(to_lift[x], nentry->param(i));
+        pass2[to_lift[x]] = nentry->param(i);
         nentry->param(i)->name = to_lift[x]->name;
     }
 
-    map(oentry, oentry);
+    pass2[oentry] = oentry;
     mangle_body(oentry, nentry);
 
     for (auto cur : scope.rpo().slice_from_begin(1)) {
         if (pass2.contains(cur))
             mangle_body(cur, lookup(cur)->as_lambda());
         else
-            cur->ptr = cur;
+            pass2[cur] = cur;
     }
 
     //world.cache_[call] = nentry;
@@ -116,10 +111,10 @@ Lambda* Mangler::mangle_head(Lambda* olambda) {
     assert(!pass2.contains(olambda));
     assert(!olambda->empty());
     Lambda* nlambda = olambda->stub(generic_map, olambda->name);
-    map(olambda, nlambda);
+    pass2[olambda] = nlambda;
 
     for (size_t i = 0, e = olambda->num_params(); i != e; ++i)
-        map(olambda->param(i), nlambda->param(i));
+        pass2[olambda->param(i)] = nlambda->param(i);
 
     return nlambda;
 }
@@ -169,7 +164,7 @@ Def Mangler::mangle(Def odef) {
         return mangle_head(olambda);
     } else if (auto param = odef->isa<Param>()) {
         assert(scope.contains(param->lambda()));
-        return map(odef, odef);
+        return pass2[odef] = odef;
     }
 
     auto oprimop = odef->as<PrimOp>();
@@ -197,7 +192,7 @@ Def Mangler::mangle(Def odef) {
     else if (eval == Eval::Halt)
         nprimop = world.halt(nprimop);
 
-    return map(oprimop, nprimop);
+    return pass2[oprimop] = nprimop;
 }
 
 //------------------------------------------------------------------------------

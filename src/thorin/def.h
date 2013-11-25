@@ -278,6 +278,9 @@ public:
         auto i = Super::find(def);
         return i == Super::end() ? nullptr : i->second;
     }
+
+    bool contains(const DefNode* def) const { return Super::find(def) != Super::end(); }
+    bool visit(const DefNode* def, Value* val) { return !Super::insert(std::make_pair(def, val)).second; }
 };
 
 class DefSet : public std::unordered_set<const DefNode*, DefNodeHash, DefNodeEqual> {

@@ -58,14 +58,18 @@ private:
 
     void build();
     static std::pair<size_t, size_t> propagate_bounds(LoopNode* header);
+
     const Scope& scope() const { return looptree.scope(); }
     size_t size() const { return looptree.size(); }
+
     Number& number(Lambda* lambda) { return numbers[lambda]; }
     size_t& lowlink(Lambda* lambda) { return number(lambda).low; }
     size_t& dfs(Lambda* lambda) { return number(lambda).dfs; }
-    bool on_stack(Lambda* lambda) { assert(is_visited(lambda)); return (lambda->counter & OnStack) != 0; }
-    bool in_scc(Lambda* lambda) { return lambda->cur_pass() >= first_pass ? (lambda->counter & InSCC) != 0 : false; }
-    bool is_header(Lambda* lambda) const { return lambda->cur_pass() >= first_pass ? (lambda->counter & IsHeader) != 0 : false; }
+
+    bool on_stack(Lambda* lambda) { assert(is_visited(lambda)); return (states[lambda] & OnStack) != 0; }
+    bool in_scc(Lambda* lambda) { return lambda->cur_pass() >= first_pass ? (states[lambda] & InSCC) != 0 : false; }
+    bool is_header(Lambda* lambda) { return lambda->cur_pass() >= first_pass ? (states[lambda] & IsHeader) != 0 : false; }
+
     bool is_visited(Lambda* lambda) { return lambda->is_visited(pass); }
     bool is_leaf(Lambda* lambda, size_t num) {
         if (num == 1) {
@@ -84,9 +88,9 @@ private:
     }
 
     void push(Lambda* lambda) { 
-        assert(is_visited(lambda) && (lambda->counter & OnStack) == 0);
+        assert(is_visited(lambda) && (states[lambda] & OnStack) == 0);
         stack.push_back(lambda);
-        lambda->counter |= OnStack;
+        states[lambda] |= OnStack;
     }
 
     int visit(Lambda* lambda, int counter) {
@@ -102,6 +106,7 @@ private:
 
     LoopTree& looptree;
     LambdaMap<Number> numbers;
+    LambdaMap<uint8_t> states;
     size_t pass;
     size_t first_pass;
     size_t dfs_index;
@@ -111,7 +116,7 @@ private:
 void LoopTreeBuilder::build() {
     // clear all flags
     for (auto lambda : scope().rpo())
-        lambda->counter = 0;
+        states[lambda] = 0;
 
     recurse<true>(looptree.root_ = new LoopHeader(0, -1, std::vector<Lambda*>(0)), scope().entries(), 0);
 }
@@ -128,7 +133,7 @@ void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<Lambda*> headers, int
         // now mark all newly found headers globally as header
         for (size_t e = parent->num_children(); cur_new_child != e; ++cur_new_child) {
             for (auto header : parent->child(cur_new_child)->headers())
-                header->counter |= IsHeader;
+                states[header] |= IsHeader;
         }
     }
 
@@ -158,7 +163,7 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
         // mark all lambdas in current SCC (all lambdas from back to cur on the stack) as 'InSCC'
         size_t num = 0, e = stack.size(), b = e - 1;
         do {
-            stack[b]->counter |= InSCC;
+            states[stack[b]] |= InSCC;
             ++num;
         } while (stack[b--] != cur);
 
@@ -198,7 +203,7 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
 
         // reset InSCC and OnStack flags
         for (size_t i = b; i != e; ++i)
-            stack[i]->counter &= ~(OnStack | InSCC);
+            states[stack[i]] &= ~(OnStack | InSCC);
 
         // pop whole SCC
         stack.resize(b);

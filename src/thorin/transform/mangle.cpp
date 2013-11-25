@@ -16,13 +16,12 @@ public:
         , to_lift(to_lift)
         , generic_map(generic_map)
         , world(scope.world())
-        , pass1(scope.mark())
+        , pass1(scope.defs())
     {
         std::queue<Def> queue;
         for (auto def : to_lift)
             queue.push(def);
         mark_down(pass1, queue);
-        pass2 = world.new_pass();
     }
 
     Lambda* mangle();
@@ -30,12 +29,12 @@ public:
     Lambda* mangle_head(Lambda* olambda);
     Def mangle(Def odef);
     Def map(Def def, Def to) {
-        def->visit_first(pass2);
+        pass2.visit(def);
         def->cptr = *to;
         return to;
     }
     Def lookup(Def def) {
-        assert(def->is_visited(pass2));
+        assert(pass2.contains(def));
         return Def((const DefNode*) def->cptr);
     }
 
@@ -45,8 +44,8 @@ public:
     ArrayRef<Def> to_lift;
     GenericMap generic_map;
     World& world;
-    const size_t pass1;
-    size_t pass2;
+    DefSet pass1;
+    DefSet pass2;
     Lambda* nentry;
     Lambda* oentry;
 };
@@ -103,7 +102,7 @@ Lambda* Mangler::mangle() {
     mangle_body(oentry, nentry);
 
     for (auto cur : scope.rpo().slice_from_begin(1)) {
-        if (cur->is_visited(pass2))
+        if (pass2.contains(cur))
             mangle_body(cur, lookup(cur)->as_lambda());
         else
             cur->ptr = cur;
@@ -114,7 +113,7 @@ Lambda* Mangler::mangle() {
 }
 
 Lambda* Mangler::mangle_head(Lambda* olambda) {
-    assert(!olambda->is_visited(pass2));
+    assert(!pass2.contains(olambda));
     assert(!olambda->empty());
     Lambda* nlambda = olambda->stub(generic_map, olambda->name);
     map(olambda, nlambda);
@@ -160,9 +159,9 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
 enum class Eval { Run, Infer, Halt };
 
 Def Mangler::mangle(Def odef) {
-    if (odef->cur_pass() < pass1)
+    if (!pass1.contains(odef))
         return odef;
-    if (odef->is_visited(pass2))
+    if (pass2.contains(odef))
         return lookup(odef);
 
     if (auto olambda = odef->isa_lambda()) {

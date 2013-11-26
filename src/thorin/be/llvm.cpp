@@ -86,17 +86,17 @@ private:
     llvm::Function* cuda_thread_id_getter[3];
     llvm::Function* cuda_block_id_getter[3];
     llvm::Function* cuda_block_dim_getter[3];
-    llvm::Function* malloc_gpu;
-    llvm::Function* mem_to_gpu;
-    llvm::Function* mem_to_gpu_indir;
+    llvm::Function* malloc_memory;
+    llvm::Function* write_memory;
+    llvm::Function* write_memory_indir;
     llvm::Function* load_kernel;
     llvm::Function* set_kernel_arg;
     llvm::Function* set_problem_size;
     llvm::Function* launch_kernel;
     llvm::Function* synchronize;
-    llvm::Function* mem_to_host;
-    llvm::Function* mem_to_host_indir;
-    llvm::Function* free_gpu;
+    llvm::Function* read_memory;
+    llvm::Function* read_memory_indir;
+    llvm::Function* free_memory;
     llvm::Type* cuda_device_ptr_ty;
     const char* cuda_module_name;
     const char* cuda_kernel_name;
@@ -134,22 +134,22 @@ void CodeGen::emit_cuda_decls() {
     llvm::Type* char_ptr_ty = llvm::IntegerType::getInt8PtrTy(context);
     llvm::Type* host_data_ty = llvm::Type::getFloatPtrTy(context);
     synchronize = llvm::Function::Create(llvm::FunctionType::get(void_ty, false), llvm::Function::ExternalLinkage, "synchronize", module);
-    malloc_gpu = llvm::Function::Create(llvm::FunctionType::get(cuda_device_ptr_ty, { cuda_device_ptr_ty }, false), llvm::Function::ExternalLinkage, "malloc_gpu", module);
-    llvm::Type* mem_to_gpu_type[] = { host_data_ty, cuda_device_ptr_ty, cuda_device_ptr_ty };
-    mem_to_gpu = llvm::Function::Create(llvm::FunctionType::get(cuda_device_ptr_ty, mem_to_gpu_type, false), llvm::Function::ExternalLinkage, "mem_to_gpu", module);
-    llvm::Type* mem_to_gpu_type_indir[] = { llvm::PointerType::getUnqual(host_data_ty), cuda_device_ptr_ty, cuda_device_ptr_ty };
-    mem_to_gpu_indir = llvm::Function::Create(llvm::FunctionType::get(cuda_device_ptr_ty, mem_to_gpu_type_indir, false), llvm::Function::ExternalLinkage, "mem_to_gpu", module);
+    malloc_memory = llvm::Function::Create(llvm::FunctionType::get(cuda_device_ptr_ty, { cuda_device_ptr_ty }, false), llvm::Function::ExternalLinkage, "malloc_memory", module);
+    llvm::Type* write_memory_type[] = { cuda_device_ptr_ty, host_data_ty, cuda_device_ptr_ty };
+    write_memory = llvm::Function::Create(llvm::FunctionType::get(cuda_device_ptr_ty, write_memory_type, false), llvm::Function::ExternalLinkage, "write_memory", module);
+    llvm::Type* write_memory_type_indir[] = { cuda_device_ptr_ty, llvm::PointerType::getUnqual(host_data_ty), cuda_device_ptr_ty };
+    write_memory_indir = llvm::Function::Create(llvm::FunctionType::get(cuda_device_ptr_ty, write_memory_type_indir, false), llvm::Function::ExternalLinkage, "write_memory", module);
     llvm::Type* load_kernel_type[] = { char_ptr_ty, char_ptr_ty };
     load_kernel = llvm::Function::Create(llvm::FunctionType::get(void_ty, load_kernel_type, false), llvm::Function::ExternalLinkage, "load_kernel", module);
     set_kernel_arg = llvm::Function::Create(llvm::FunctionType::get(void_ty, llvm::PointerType::getUnqual(cuda_device_ptr_ty), false), llvm::Function::ExternalLinkage, "set_kernel_arg", module);
     llvm::Type* set_problem_size_type[] = { cuda_device_ptr_ty, cuda_device_ptr_ty, cuda_device_ptr_ty };
     set_problem_size = llvm::Function::Create(llvm::FunctionType::get(void_ty, set_problem_size_type, false), llvm::Function::ExternalLinkage, "set_problem_size", module);
     launch_kernel = llvm::Function::Create(llvm::FunctionType::get(void_ty, { char_ptr_ty }, false), llvm::Function::ExternalLinkage, "launch_kernel", module);
-    llvm::Type* mem_to_host_type[] = { cuda_device_ptr_ty, host_data_ty, cuda_device_ptr_ty };
-    mem_to_host = llvm::Function::Create(llvm::FunctionType::get(host_data_ty, mem_to_host_type, false), llvm::Function::ExternalLinkage, "mem_to_host", module);
-    llvm::Type* mem_to_host_type_indir[] = { cuda_device_ptr_ty, llvm::PointerType::getUnqual(host_data_ty), cuda_device_ptr_ty };
-    mem_to_host_indir = llvm::Function::Create(llvm::FunctionType::get(host_data_ty, mem_to_host_type_indir, false), llvm::Function::ExternalLinkage, "mem_to_host", module);
-    free_gpu = llvm::Function::Create(llvm::FunctionType::get(void_ty, { cuda_device_ptr_ty }, false), llvm::Function::ExternalLinkage, "free_gpu", module);
+    llvm::Type* read_memory_type[] = { cuda_device_ptr_ty, host_data_ty, cuda_device_ptr_ty };
+    read_memory = llvm::Function::Create(llvm::FunctionType::get(host_data_ty, read_memory_type, false), llvm::Function::ExternalLinkage, "read_memory", module);
+    llvm::Type* read_memory_type_indir[] = { cuda_device_ptr_ty, llvm::PointerType::getUnqual(host_data_ty), cuda_device_ptr_ty };
+    read_memory_indir = llvm::Function::Create(llvm::FunctionType::get(host_data_ty, read_memory_type_indir, false), llvm::Function::ExternalLinkage, "read_memory", module);
+    free_memory = llvm::Function::Create(llvm::FunctionType::get(void_ty, { cuda_device_ptr_ty }, false), llvm::Function::ExternalLinkage, "free_memory", module);
 }
 
 void CodeGen::emit_vector_decls() {
@@ -197,16 +197,16 @@ void CodeGen::emit_cuda(Lambda* lambda, ArrayRef<llvm::BasicBlock*> bbs) {
         uint64_t num_elems = try_resolve_array_size(cuda_param);
         llvm::Constant* size = llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), num_elems);
         auto alloca = builder.CreateAlloca(cuda_device_ptr_ty);
-        auto device_ptr = builder.CreateCall(malloc_gpu, size);
+        auto device_ptr = builder.CreateCall(malloc_memory, size);
         // store device ptr
         builder.CreateStore(device_ptr, alloca);
         auto loaded_device_ptr = builder.CreateLoad(alloca);
         device_ptrs.push_back(std::pair<llvm::Value*, llvm::Constant*>(loaded_device_ptr, size));
-        llvm::Value* mem_args[] = { lookup(cuda_param), loaded_device_ptr, size };
+        llvm::Value* mem_args[] = { loaded_device_ptr, lookup(cuda_param), size };
         if (param_type->isa<Ptr>() && param_type->as<Ptr>()->referenced_type()->isa<Ptr>())
-            builder.CreateCall(mem_to_gpu_indir, mem_args);
+            builder.CreateCall(write_memory_indir, mem_args);
         else
-            builder.CreateCall(mem_to_gpu, mem_args);
+            builder.CreateCall(write_memory, mem_args);
         builder.CreateCall(set_kernel_arg, { alloca });
     }
     // determine problem size
@@ -229,14 +229,14 @@ void CodeGen::emit_cuda(Lambda* lambda, ArrayRef<llvm::BasicBlock*> bbs) {
         // need to fetch back memory
         llvm::Value* args[] = { entry.first, lookup(cuda_param), entry.second };
         if (param_type->isa<Ptr>() && param_type->as<Ptr>()->referenced_type()->isa<Ptr>())
-            builder.CreateCall(mem_to_host_indir, args);
+            builder.CreateCall(read_memory_indir, args);
         else
-            builder.CreateCall(mem_to_host, args);
+            builder.CreateCall(read_memory, args);
     }
 
     // free memory
     for (auto device_ptr : device_ptrs)
-        builder.CreateCall(free_gpu, { device_ptr.first });
+        builder.CreateCall(free_memory, { device_ptr.first });
     // create branch to return
     builder.CreateBr(bbs[lambda->arg(3)->as_lambda()->sid()]);
 }

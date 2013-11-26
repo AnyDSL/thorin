@@ -177,7 +177,7 @@ void load_kernel(const char *file_name, const char *kernel_name) {
     create_module_kernel(PTX, kernel_name);
 }
 
-CUdeviceptr malloc_gpu(size_t size) {
+CUdeviceptr malloc_memory(size_t size) {
     init_cuda();
     CUresult err = CUDA_SUCCESS;
     CUdeviceptr mem;
@@ -188,7 +188,7 @@ CUdeviceptr malloc_gpu(size_t size) {
     return mem;
 }
 
-void free_gpu(CUdeviceptr mem) {
+void free_memory(CUdeviceptr mem) {
     init_cuda();
     CUresult err = CUDA_SUCCESS;
 
@@ -196,29 +196,29 @@ void free_gpu(CUdeviceptr mem) {
     checkErrDrv(err, "cuMemFree()");
 }
 
-void mem_to_gpu(void *host, CUdeviceptr dev, size_t size) {
+void write_memory(CUdeviceptr dev, void *host, size_t size) {
     init_cuda();
     CUresult err = CUDA_SUCCESS;
 
     err = cuMemcpyHtoD(dev, host, size * sizeof(float));
     checkErrDrv(err, "cuMemcpyHtoD()");
 }
-void mem_to_gpu1(void *host, CUdeviceptr dev, size_t size) {
-    mem_to_gpu(host, dev, size);
+void write_memory1(CUdeviceptr dev, void *host, size_t size) {
+    write_memory(dev, host, size);
 }
-void mem_to_gpu2(void **host, CUdeviceptr dev, size_t size) {
-    mem_to_gpu(*host, dev, size);
+void write_memory2(CUdeviceptr dev, void **host, size_t size) {
+    write_memory(dev, *host, size);
 }
 
-void mem_to_host(CUdeviceptr dev, void *host, size_t size) {
+void read_memory(CUdeviceptr dev, void *host, size_t size) {
     init_cuda();
     CUresult err = CUDA_SUCCESS;
 
     err = cuMemcpyDtoH(host, dev, size * sizeof(float));
     checkErrDrv(err, "cuMemcpyDtoH()");
 }
-void mem_to_host2(CUdeviceptr dev, void **host, size_t size) {
-    mem_to_host(dev, *host, size);
+void read_memory2(CUdeviceptr dev, void **host, size_t size) {
+    read_memory(dev, *host, size);
 }
 
 void synchronize() {

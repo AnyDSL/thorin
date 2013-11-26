@@ -4,13 +4,13 @@ INC_DIRS = -I $(CUDA_DIR)/include \
            -I $(CUDA_DIR)/nvvm/libnvvm-samples/common/include
 LIB_DIRS = -L $(CUDA_DIR)/nvvm/lib64
 OPT_FLAGS := -O3
-DBG_FLAGS := 
+DBG_FLAGS :=
 
 all: jacobi.out
 	@echo "Running main ..."
 	@./jacobi.out
 
-#%.llo: %.cpp gpu_runtime.h
+#%.llo: %.cpp cu_runtime.h
 #	clang++ $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -c -emit-llvm $<
 
 %.llo: %.cpp
@@ -25,8 +25,8 @@ all: jacobi.out
 %.s: %.bc
 	llc $(OPT_FLAGS) $< -o $@
 
-%.out: %.s gpu_runtime.s
-	clang++ gpu_runtime.s $< $(LIB_DIRS) -lcuda -lnvvm -o $@
+%.out: %.s cu_runtime.s
+	clang++ cu_runtime.s $< $(LIB_DIRS) -lcuda -lnvvm -o $@
 
 clean:
 	@rm -f main $(MAIN_FILES) *.ll *.llo *.o *.bc *.s *.out

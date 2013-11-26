@@ -136,9 +136,9 @@ void CodeGen::emit_cuda_decls() {
     synchronize = llvm::Function::Create(llvm::FunctionType::get(void_ty, false), llvm::Function::ExternalLinkage, "synchronize", module);
     malloc_memory = llvm::Function::Create(llvm::FunctionType::get(cuda_device_ptr_ty, { cuda_device_ptr_ty }, false), llvm::Function::ExternalLinkage, "malloc_memory", module);
     llvm::Type* write_memory_type[] = { cuda_device_ptr_ty, host_data_ty, cuda_device_ptr_ty };
-    write_memory = llvm::Function::Create(llvm::FunctionType::get(cuda_device_ptr_ty, write_memory_type, false), llvm::Function::ExternalLinkage, "write_memory", module);
+    write_memory = llvm::Function::Create(llvm::FunctionType::get(void_ty, write_memory_type, false), llvm::Function::ExternalLinkage, "write_memory", module);
     llvm::Type* write_memory_type_indir[] = { cuda_device_ptr_ty, llvm::PointerType::getUnqual(host_data_ty), cuda_device_ptr_ty };
-    write_memory_indir = llvm::Function::Create(llvm::FunctionType::get(cuda_device_ptr_ty, write_memory_type_indir, false), llvm::Function::ExternalLinkage, "write_memory", module);
+    write_memory_indir = llvm::Function::Create(llvm::FunctionType::get(void_ty, write_memory_type_indir, false), llvm::Function::ExternalLinkage, "write_memory", module);
     llvm::Type* load_kernel_type[] = { char_ptr_ty, char_ptr_ty };
     load_kernel = llvm::Function::Create(llvm::FunctionType::get(void_ty, load_kernel_type, false), llvm::Function::ExternalLinkage, "load_kernel", module);
     set_kernel_arg = llvm::Function::Create(llvm::FunctionType::get(void_ty, llvm::PointerType::getUnqual(cuda_device_ptr_ty), false), llvm::Function::ExternalLinkage, "set_kernel_arg", module);
@@ -146,9 +146,9 @@ void CodeGen::emit_cuda_decls() {
     set_problem_size = llvm::Function::Create(llvm::FunctionType::get(void_ty, set_problem_size_type, false), llvm::Function::ExternalLinkage, "set_problem_size", module);
     launch_kernel = llvm::Function::Create(llvm::FunctionType::get(void_ty, { char_ptr_ty }, false), llvm::Function::ExternalLinkage, "launch_kernel", module);
     llvm::Type* read_memory_type[] = { cuda_device_ptr_ty, host_data_ty, cuda_device_ptr_ty };
-    read_memory = llvm::Function::Create(llvm::FunctionType::get(host_data_ty, read_memory_type, false), llvm::Function::ExternalLinkage, "read_memory", module);
+    read_memory = llvm::Function::Create(llvm::FunctionType::get(void_ty, read_memory_type, false), llvm::Function::ExternalLinkage, "read_memory", module);
     llvm::Type* read_memory_type_indir[] = { cuda_device_ptr_ty, llvm::PointerType::getUnqual(host_data_ty), cuda_device_ptr_ty };
-    read_memory_indir = llvm::Function::Create(llvm::FunctionType::get(host_data_ty, read_memory_type_indir, false), llvm::Function::ExternalLinkage, "read_memory", module);
+    read_memory_indir = llvm::Function::Create(llvm::FunctionType::get(void_ty, read_memory_type_indir, false), llvm::Function::ExternalLinkage, "read_memory", module);
     free_memory = llvm::Function::Create(llvm::FunctionType::get(void_ty, { cuda_device_ptr_ty }, false), llvm::Function::ExternalLinkage, "free_memory", module);
 }
 

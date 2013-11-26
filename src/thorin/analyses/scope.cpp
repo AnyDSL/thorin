@@ -36,8 +36,10 @@ Scope::Scope(World& world)
     LambdaSet top_level = world.lambdas();
 
     for (auto lambda : world.lambdas()) {
-        LambdaSet processing;
-        collect(top_level, processing, lambda, lambda);
+        if (!set_.contains(lambda)) {
+            LambdaSet processing;
+            collect(top_level, processing, lambda, lambda);
+        }
     }
 
     std::vector<Lambda*> entries;

@@ -221,27 +221,6 @@ protected:
 public:
     mutable std::string name; ///< Just do what ever you want with this field.
 
-    /** 
-     * Use this field in order to annotate information on this Def.
-     * Various analyses have to memorize different stuff temporally.
-     * Each analysis can use this field for its specific information. 
-     * \attention { 
-     *      Each pass/analysis simply overwrites this field again.
-     *      So keep this in mind and perform copy operations in order to
-     *      save your data before running the next pass/analysis.
-     *      Also, keep in mind to perform clean up operations at the end 
-     *      of your pass/analysis.
-     * }
-     */
-    union {
-        mutable void* ptr;
-        mutable const void* cptr;
-    };
-    union {
-        mutable bool flags[sizeof(size_t)/sizeof(bool)];
-        mutable size_t counter;
-    };
-
     friend class Def;
     friend class PrimOp;
     friend class World;

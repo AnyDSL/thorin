@@ -125,7 +125,6 @@ protected:
     DefNode(size_t gid, NodeKind kind, size_t size, const Type* type, bool is_const, const std::string& name)
         : kind_(kind)
         , ops_(size)
-        , cur_pass_(0)
         , type_(type)
         , uses_(13) // 13 seems to perform best
         , representative_(this)
@@ -189,25 +188,9 @@ public:
     bool is_associative() const { return thorin::is_associative(kind()); }
     template<class T> inline T primlit_value() const; // implementation in literal.h
 
-    // scratch operations
-
-    size_t cur_pass() const { return cur_pass_; }
-    bool visit(const size_t pass) const { 
-        assert(cur_pass_ <= pass); 
-        if (cur_pass_ != pass) { 
-            cur_pass_ = pass; 
-            return false; 
-        } 
-        return true; 
-    }
-    void visit_first(const size_t pass) const { assert(!is_visited(pass)); cur_pass_ = pass; }
-    void unvisit(const size_t pass) const { assert(cur_pass_ == pass); --cur_pass_; }
-    bool is_visited(const size_t pass) const { assert(cur_pass_ <= pass); return cur_pass_ == pass; }
-
 private:
     NodeKind kind_;
     std::vector<Def> ops_;
-    mutable size_t cur_pass_;
     // HACK
     mutable const Type* type_;
     mutable std::unordered_set<Use, UseHash, UseEqual> uses_;

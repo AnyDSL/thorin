@@ -66,7 +66,7 @@ void partial_evaluation(World& world) {
                             if (!e_cached) {
                                 e_new.push_back(e_dropped);
                                 for (auto lambda : scope.rpo()) {
-                                    if (lambda->cur_pass() == scope.entries()[0]->cur_pass()) {
+                                    if (mapping.contains(lambda)) {
                                         auto mapped = mapping[lambda]->as_lambda();
                                         if (mapped != lambda)
                                             e_new.push_back(mapped);
@@ -91,7 +91,7 @@ void partial_evaluation(World& world) {
                         if (!f_cached) {
                             f_new.push_back(f_dropped);
                             for (auto lambda : scope.rpo()) {
-                                if (lambda->cur_pass() == scope.entries()[0]->cur_pass()) {
+                                if (mapping.contains(lambda)) {
                                     auto mapped = mapping[lambda]->as_lambda();
                                     if (mapped != lambda)
                                         f_new.push_back(mapped);

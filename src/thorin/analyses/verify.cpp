@@ -7,6 +7,7 @@
 
 namespace thorin {
 
+#if 0
 class Verifier {
 public:
 
@@ -206,6 +207,8 @@ void Verifier::invalid(Def def, Def source, const char* msg) {
     assert(false);
 }
 
+#endif
+
 static void within(World& world, const DefNode* def) {
     if (auto primop = def->isa<PrimOp>()) {
         assert(world.primops().find(primop) != world.primops().end());
@@ -243,8 +246,7 @@ void verify_closedness(World& world) {
 
 //------------------------------------------------------------------------------
 
-void verify(World& world) { return; Verifier(world).verify(); }
-
+void verify(World& world) { verify_closedness(world); }
 //------------------------------------------------------------------------------
 
 } // namespace thorin

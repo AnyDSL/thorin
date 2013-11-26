@@ -1,3 +1,4 @@
+#include <iostream>
 #include <unordered_map>
 
 #include "thorin/memop.h"
@@ -11,7 +12,7 @@ namespace thorin {
 void mem2reg(const Scope& scope) {
     auto schedule = schedule_late(scope);
     DefMap<size_t> addresses;
-    const auto pass = scope.world().new_pass();
+    LambdaSet pass;
     size_t cur_handle = 0;
 
     for (Lambda* lambda : scope) {
@@ -49,8 +50,10 @@ next_primop:;
         // seal successors of last lambda if applicable
         for (auto succ : lambda->succs()) {
             if (succ->parent() != 0) {
-                if (!succ->visit(pass))
+                if (!pass.visit(succ)) {
+                    assert(addresses.find(succ) == addresses.end());
                     addresses[succ] = succ->preds().size();
+                }
                 if (--addresses[succ] == 0)
                     succ->seal();
             }

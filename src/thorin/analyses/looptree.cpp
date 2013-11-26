@@ -32,7 +32,6 @@ public:
 
     LoopTreeBuilder(LoopTree& looptree) 
         : looptree(looptree)
-        , first_pass(size_t(-1))
         , dfs_index(0)
     {
         stack.reserve(size());
@@ -66,11 +65,12 @@ private:
     size_t& lowlink(Lambda* lambda) { return number(lambda).low; }
     size_t& dfs(Lambda* lambda) { return number(lambda).dfs; }
 
-    bool on_stack(Lambda* lambda) { assert(is_visited(lambda)); return (states[lambda] & OnStack) != 0; }
-    bool in_scc(Lambda* lambda) { return lambda->cur_pass() >= first_pass ? (states[lambda] & InSCC) != 0 : false; }
-    bool is_header(Lambda* lambda) { return lambda->cur_pass() >= first_pass ? (states[lambda] & IsHeader) != 0 : false; }
+    bool on_stack(Lambda* lambda) { assert(pass.contains(lambda)); return (states[lambda] & OnStack) != 0; }
+    bool in_scc(Lambda* lambda) { return was_seen(lambda) ? (states[lambda] & InSCC) != 0 : false; }
+    bool is_header(Lambda* lambda) { return was_seen(lambda) ? (states[lambda] & IsHeader) != 0 : false; }
 
-    bool is_visited(Lambda* lambda) { return lambda->is_visited(pass); }
+    bool was_seen(Lambda* lambda) { return first_pass.contains(lambda) || pass.contains(lambda); }
+
     bool is_leaf(Lambda* lambda, size_t num) {
         if (num == 1) {
             for (auto succ : looptree.succs(lambda)) {
@@ -83,18 +83,19 @@ private:
     }
 
     void new_pass() {
-        pass = scope().world().new_pass();
-        first_pass = first_pass == size_t(-1) ? pass : first_pass;
+        if (first_pass.empty())
+            first_pass = pass;
+        pass.clear();
     }
 
     void push(Lambda* lambda) { 
-        assert(is_visited(lambda) && (states[lambda] & OnStack) == 0);
+        assert(pass.contains(lambda) && (states[lambda] & OnStack) == 0);
         stack.push_back(lambda);
         states[lambda] |= OnStack;
     }
 
     int visit(Lambda* lambda, int counter) {
-        lambda->visit_first(pass);
+        pass.visit(lambda);
         numbers[lambda] = Number(counter++);
         push(lambda);
         return counter;
@@ -107,8 +108,8 @@ private:
     LoopTree& looptree;
     LambdaMap<Number> numbers;
     LambdaMap<uint8_t> states;
-    size_t pass;
-    size_t first_pass;
+    LambdaSet pass;
+    LambdaSet first_pass;
     size_t dfs_index;
     std::vector<Lambda*> stack;
 };
@@ -126,7 +127,7 @@ void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<Lambda*> headers, int
     size_t cur_new_child = 0;
     for (auto header : headers) {
         new_pass();
-        if (start && header->cur_pass() >= first_pass) 
+        if (start && was_seen(header))
             continue; // in the base case we only want to find SCC on all until now unseen lambdas
         walk_scc(header, parent, depth, 0);
 
@@ -149,7 +150,7 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
     for (auto succ : scope().succs(cur)) {
         if (is_header(succ))
             continue; // this is a backedge
-        if (!is_visited(succ)) {
+        if (!pass.contains(succ)) {
             scc_counter = walk_scc(succ, parent, depth, scc_counter);
             lowlink(cur) = std::min(lowlink(cur), lowlink(succ));
         } else if (on_stack(succ))

@@ -21,6 +21,8 @@ cl_context context;
 cl_command_queue command_queue;
 cl_program program;
 cl_kernel kernel;
+int clArgIdx;
+size_t local_work_size[3], global_work_size[3];
 bool initialized = false;
 
 
@@ -184,7 +186,7 @@ void create_context_command_queue() {
 
 
 // initialize OpenCL device
-void init_opencl(cl_device_type dev_type) {
+void init_opencl(cl_device_type dev_type=CL_DEVICE_TYPE_ALL) {
     if (initialized) return;
 
     char pnBuffer[1024], pvBuffer[1024], pv2Buffer[1024], pdBuffer[1024], pd2Buffer[1024], pd3Buffer[1024];
@@ -283,6 +285,15 @@ void init_opencl(cl_device_type dev_type) {
     }
 
     create_context_command_queue();
+
+    // initialize clArgIdx
+    clArgIdx = 0;
+    local_work_size[0] = 256;
+    local_work_size[1] = 1;
+    local_work_size[2] = 1;
+    global_work_size[0] = 0;
+    global_work_size[1] = 0;
+    global_work_size[2] = 0;
     initialized = true;
 }
 
@@ -396,6 +407,113 @@ void build_program_and_kernel(const char *file_name, const char *kernel_name) {
     if (print_progress) std::cerr << ". done" << std::endl;
 }
 
+
+// allocate memory without any alignment considerations
+cl_mem malloc_buffer(size_t size) {
+    init_opencl();
+    cl_int err = CL_SUCCESS;
+    cl_mem mem;
+    cl_mem_flags flags = CL_MEM_READ_WRITE;
+
+    mem = clCreateBuffer(context, flags, size * sizeof(float), NULL, &err);
+    checkErr(err, "clCreateBuffer()");
+
+    return mem;
+}
+
+void free_buffer(cl_mem mem) {
+    init_opencl();
+    cl_int err = CL_SUCCESS;
+
+    err = clReleaseMemObject(mem);
+    checkErr(err, "clReleaseMemObject()");
+}
+
+
+// write to memory
+void write_buffer(cl_mem mem, void *host_mem, size_t size) {
+    init_opencl();
+    cl_int err = CL_SUCCESS;
+
+    err = clEnqueueWriteBuffer(command_queue, mem, CL_FALSE, 0, size * sizeof(float), host_mem, 0, NULL, NULL);
+    err |= clFinish(command_queue);
+    checkErr(err, "clEnqueueWriteBuffer()");
+}
+
+
+// read from memory
+void read_buffer(cl_mem mem, void *host_mem, size_t size) {
+    init_opencl();
+    cl_int err = CL_SUCCESS;
+
+    err = clEnqueueReadBuffer(command_queue, mem, CL_FALSE, 0, size * sizeof(float), host_mem, 0, NULL, NULL);
+    err |= clFinish(command_queue);
+    checkErr(err, "clEnqueueReadBuffer()");
+}
+
+
+// synchronize execution
+void synchronize() {
+    init_opencl();
+    cl_int err = CL_SUCCESS;
+
+    err |= clFinish(command_queue);
+    checkErr(err, "clFinish()");
+}
+
+
+// set problem size
+void set_problem_size(size_t size_x, size_t size_y, size_t size_z) {
+    init_opencl();
+    global_work_size[0] = size_x;
+    global_work_size[1] = size_y;
+    global_work_size[2] = size_z;
+}
+
+
+// set kernel argument
+void set_kernel_arg(void *param, size_t size) {
+    init_opencl();
+    cl_int err = CL_SUCCESS;
+
+    err = clSetKernelArg(kernel, clArgIdx++, size, param);
+    checkErr(err, "clSetKernelArg()");
+}
+
+
+// enqueue and launch kernel
+void launch_kernel(const char *kernel_name) {
+    init_opencl();
+    cl_int err = CL_SUCCESS;
+    cl_event event;
+    cl_ulong end, start;
+    bool print_timing = true;
+
+    err = clEnqueueNDRangeKernel(command_queue, kernel, 2, NULL, global_work_size, local_work_size, 0, NULL, &event);
+    err |= clFinish(command_queue);
+    checkErr(err, "clEnqueueNDRangeKernel()");
+
+    err = clWaitForEvents(1, &event);
+    checkErr(err, "clWaitForEvents()");
+    err = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);
+    err |= clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
+    checkErr(err, "clGetEventProfilingInfo()");
+    start *= 1e-3;
+    end *= 1e-3;
+
+    err = clReleaseEvent(event);
+    checkErr(err, "clReleaseEvent()");
+
+    if (print_timing) {
+        std::cerr << "Kernel timing for '" << kernel_name << "' ("
+                  << local_work_size[0]*local_work_size[1] << ": "
+                  << local_work_size[0] << "x" << local_work_size[1] << "): "
+                  << (end-start)*1.0e-3f << "(ms)" << std::endl;
+    }
+
+    // reset argument index
+    clArgIdx = 0;
+}
 
 }
 

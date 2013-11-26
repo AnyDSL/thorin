@@ -1,6 +1,7 @@
 #include "thorin/type.h"
 
 #include <algorithm>
+#include <iostream>
 #include <sstream>
 
 #include "thorin/lambda.h"

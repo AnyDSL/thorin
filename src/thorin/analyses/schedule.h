@@ -1,5 +1,5 @@
-#ifndef THORIN_ANALYSES_PLACEMENT_H
-#define THORIN_ANALYSES_PLACEMENT_H
+#ifndef THORIN_ANALYSES_SCHEDULE_H
+#define THORIN_ANALYSES_SCHEDULE_H
 
 #include <vector>
 
@@ -10,11 +10,11 @@ namespace thorin {
 class Scope;
 class PrimOp;
 
-typedef Array<std::vector<const PrimOp*>> Schedule;
+typedef LambdaMap<std::vector<const PrimOp*>> Schedule;
 
 Schedule schedule_early(const Scope&);
-Schedule schedule_late(const Scope&, size_t& pass);
-inline Schedule schedule_late(const Scope& scope) { size_t pass; return schedule_late(scope, pass); }
+Schedule schedule_late(const Scope&, DefMap<Lambda*>&);
+inline Schedule schedule_late(const Scope& scope) { DefMap<Lambda*> late; return schedule_late(scope, late); }
 Schedule schedule_smart(const Scope&);
 
 } // namespace thorin

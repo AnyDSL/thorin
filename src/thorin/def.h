@@ -3,6 +3,7 @@
 
 #include <queue>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -124,7 +125,6 @@ protected:
     DefNode(size_t gid, NodeKind kind, size_t size, const Type* type, bool is_const, const std::string& name)
         : kind_(kind)
         , ops_(size)
-        , cur_pass_(0)
         , type_(type)
         , uses_(13) // 13 seems to perform best
         , representative_(this)
@@ -188,25 +188,9 @@ public:
     bool is_associative() const { return thorin::is_associative(kind()); }
     template<class T> inline T primlit_value() const; // implementation in literal.h
 
-    // scratch operations
-
-    size_t cur_pass() const { return cur_pass_; }
-    bool visit(const size_t pass) const { 
-        assert(cur_pass_ <= pass); 
-        if (cur_pass_ != pass) { 
-            cur_pass_ = pass; 
-            return false; 
-        } 
-        return true; 
-    }
-    void visit_first(const size_t pass) const { assert(!is_visited(pass)); cur_pass_ = pass; }
-    void unvisit(const size_t pass) const { assert(cur_pass_ == pass); --cur_pass_; }
-    bool is_visited(const size_t pass) const { assert(cur_pass_ <= pass); return cur_pass_ == pass; }
-
 private:
     NodeKind kind_;
     std::vector<Def> ops_;
-    mutable size_t cur_pass_;
     // HACK
     mutable const Type* type_;
     mutable std::unordered_set<Use, UseHash, UseEqual> uses_;
@@ -220,27 +204,6 @@ protected:
 public:
     mutable std::string name; ///< Just do what ever you want with this field.
 
-    /** 
-     * Use this field in order to annotate information on this Def.
-     * Various analyses have to memorize different stuff temporally.
-     * Each analysis can use this field for its specific information. 
-     * \attention { 
-     *      Each pass/analysis simply overwrites this field again.
-     *      So keep this in mind and perform copy operations in order to
-     *      save your data before running the next pass/analysis.
-     *      Also, keep in mind to perform clean up operations at the end 
-     *      of your pass/analysis.
-     * }
-     */
-    union {
-        mutable void* ptr;
-        mutable const void* cptr;
-    };
-    union {
-        mutable bool flags[sizeof(size_t)/sizeof(bool)];
-        mutable size_t counter;
-    };
-
     friend class Def;
     friend class PrimOp;
     friend class World;
@@ -251,6 +214,48 @@ std::ostream& operator << (std::ostream& o, Def def);
 inline bool Use::operator < (Use use) const { return def()->gid() < use.def()->gid() && index() < use.index(); }
 
 //------------------------------------------------------------------------------
+
+struct DefNodeHash { 
+    size_t operator () (const DefNode* n) const { return hash_value(n->gid()); } 
+};
+
+struct DefNodeEqual { 
+    bool operator () (const DefNode* n1, const DefNode* n2) const { return n1->gid() == n2->gid(); } 
+};
+
+//------------------------------------------------------------------------------
+
+template<class Value>
+class DefMap : public std::unordered_map<const DefNode*, Value, DefNodeHash, DefNodeEqual> {
+public:
+    typedef std::unordered_map<const DefNode*, Value, DefNodeHash, DefNodeEqual> Super;
+};
+
+template<class Value>
+class DefMap<Value*> : public std::unordered_map<const DefNode*, Value*, DefNodeHash, DefNodeEqual> {
+public:
+    typedef std::unordered_map<const DefNode*, Value*, DefNodeHash, DefNodeEqual> Super;
+
+    Value* find(const DefNode* def) const {
+        auto i = Super::find(def);
+        return i == Super::end() ? nullptr : i->second;
+    }
+
+    bool contains(const DefNode* def) const { return Super::find(def) != Super::end(); }
+    bool visit(const DefNode* def, Value* val) { return !Super::insert(std::make_pair(def, val)).second; }
+};
+
+class DefSet : public std::unordered_set<const DefNode*, DefNodeHash, DefNodeEqual> {
+public:
+    typedef std::unordered_set<const DefNode*, DefNodeHash, DefNodeEqual> Super;
+
+    bool contains(const DefNode* def) const { return Super::find(def) != Super::end(); }
+    bool visit(const DefNode* def) { return !Super::insert(def).second; }
+};
+
+//------------------------------------------------------------------------------
+
+typedef DefMap<const DefNode*> Def2Def;
 
 class Param : public DefNode {
 private:
@@ -275,7 +280,7 @@ private:
 
 //------------------------------------------------------------------------------
 
-void mark_down(const size_t pass, std::queue<Def>& queue);
+void mark_down(DefSet&, std::queue<Def>&);
 
 //------------------------------------------------------------------------------
 

@@ -6,9 +6,6 @@
 #include <initializer_list>
 #include <queue>
 #include <string>
-#include <set>
-#include <unordered_map>
-#include <unordered_set>
 
 #include "thorin/enums.h"
 #include "thorin/lambda.h"
@@ -38,9 +35,6 @@ class TypeKeeper;
 typedef std::unordered_set<const PrimOp*, PrimOpHash, PrimOpEqual> PrimOpSet;
 typedef std::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;
 
-struct LambdaLTGid { bool operator () (Lambda* l1, Lambda* l2) const { return l1->gid() < l2->gid(); }; };
-typedef std::set<Lambda*, LambdaLTGid> LambdaSet;
-
 struct Call {
     Call() {}
     Call(Lambda* to) 
@@ -62,11 +56,9 @@ struct CallHash {
 
 struct CallEqual { 
     bool operator () (const Call& call1, const Call& call2) const { 
-        assert(call1.args.size() == call2.args.size());
-        assert(call1.idx.size() == call2.idx.size());
-        assert(call1.idx.size() == call2.args.size());
-
-        bool result = call1.to == call2.to && ArrayRef<size_t>(call1.idx) == ArrayRef<size_t>(call2.idx);
+        bool result = call1.to == call2.to 
+            && ArrayRef<size_t>(call1.idx) == ArrayRef<size_t>(call2.idx)
+            && call1.args.size() == call2.args.size();
         for (size_t i = 0, e = call1.args.size(); i != e && result; ++i)
             result &= call1.args[i] == call2.args[i];
         return result;
@@ -292,6 +284,7 @@ public:
 
     const PrimOpSet& primops() const { return primops_; }
     const LambdaSet& lambdas() const { return lambdas_; }
+    Array<Lambda*> copy_lambdas() const;
     TypeSet types() const { return types_; }
     size_t gid() const { return gid_; }
 
@@ -324,10 +317,10 @@ private:
     const Param* param(const Type* type, Lambda* lambda, size_t index, const std::string& name = "");
     const Type* keep_nocast(const Type* type);
     void eliminate_proxies();
-    Def dce_rebuild(const size_t pass, const size_t old_gid, Def def);
-    void dce_mark(const size_t pass, Def def);
-    void ute_insert(const size_t pass, const Type* type);
-    void uce_insert(const size_t pass, Lambda*);
+    Def dce_rebuild(Def2Def&, const size_t old_gid, Def def);
+    void dce_mark(DefSet&, Def);
+    void ute_insert(std::unordered_set<const Type*>&, const Type*);
+    void uce_insert(LambdaSet&, Lambda*);
     template<class S, class W> static void wipe_out(S& set, W wipe); 
 
     PrimOpSet primops_;

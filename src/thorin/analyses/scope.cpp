@@ -1,6 +1,9 @@
 #include "thorin/analyses/scope.h"
 
 #include <algorithm>
+#include <iostream>
+#include <queue>
+#include <stack>
 
 #include "thorin/lambda.h"
 #include "thorin/world.h"
@@ -30,115 +33,139 @@ Scope::Scope(World& world)
     : world_(world)
     , num_entries_(0)
 {
-    size_t pass = world.new_pass();
+    LambdaSet top_level = world.lambdas();
 
     for (auto lambda : world.lambdas()) {
-        if (!lambda->is_visited(pass))
-            jump_to_param_users(pass, lambda, lambda);
-    }
-
-    std::vector<Lambda*> entries;
-
-    for (auto lambda : world.lambdas()) {
-        if (!lambda->is_visited(pass)) {
-            insert(pass, lambda);
-            entries.push_back(lambda);
+        if (!set_.contains(lambda)) {
+            LambdaSet processing;
+            collect(top_level, processing, lambda, lambda);
         }
     }
 
+    std::vector<Lambda*> entries;
+    std::copy(top_level.begin(), top_level.end(), std::inserter(entries, entries.begin()));
     num_entries_ = entries.size();
     rpo_numbering(entries);
 }
 
-Scope::~Scope() {
-    for (auto lambda : rpo_)
-        lambda->scope_ = 0;
-}
-
 void Scope::identify_scope(ArrayRef<Lambda*> entries) {
-    // identify all lambdas depending on entry
-    size_t pass = world().new_pass();
+    LambdaSet top_level;
     for (auto entry : entries) {
-        insert(pass, entry);
-        jump_to_param_users(pass, entry, 0);
+        LambdaSet processing;
+        collect(top_level, processing, entry, entry);
     }
 }
 
-void Scope::jump_to_param_users(const size_t pass, Lambda* lambda, Lambda* limit) {
-    for (auto param : lambda->params())
-        find_user(pass, param, limit);
-}
+void Scope::collect(LambdaSet& top_level, LambdaSet& processing, Lambda* lambda, Lambda* boundary) {
+    if (lambda != boundary)
+        top_level.erase(lambda);
 
-inline void Scope::find_user(const size_t pass, Def def, Lambda* limit) {
-    if (auto lambda = def->isa_lambda())
-        up(pass, lambda, limit);
-    else {
-        if (def->visit(pass))
-            return;
-
-        for (auto use : def->uses())
-            find_user(pass, use, limit);
-    }
-}
-
-void Scope::up(const size_t pass, Lambda* lambda, Lambda* limit) {
-    if (lambda->is_visited(pass) || (limit && limit == lambda))
+    if (processing.contains(lambda))
         return;
 
-    insert(pass, lambda);
-    jump_to_param_users(pass, lambda, limit);
+    processing.insert(lambda);
 
-    for (auto pred : lambda->preds())
-        up(pass, pred, limit);
+    if (!set_.visit(lambda))
+        rpo_.push_back(lambda);
+
+    // search downwards
+    std::queue<Def> queue;
+    for (auto param : lambda->params()) {
+        if (!param->is_proxy()) {
+            set_.insert(param);
+            queue.push(param);
+        }
+    }
+
+    LambdaSet lambdas;
+    while (!queue.empty()) {
+        auto def = queue.front();
+        queue.pop();
+        for (auto use : def->uses()) {
+            if (auto ulambda = use->isa_lambda()) {
+                if (ulambda != lambda)
+                    lambdas.insert(ulambda);
+            } else {
+                set_.insert(use);
+                queue.push(use);
+            }
+        }
+    }
+
+    for (auto olambda : lambdas)
+        collect(top_level, processing, olambda, boundary);
+
+    // check for predecessors
+    if (lambda != boundary) {
+        for (auto pred : lambda->preds()) {
+            if (pred == lambda)
+                continue;
+            std::queue<Def> predops;
+            for (auto op : pred->ops())
+                predops.push(op);
+            while (!predops.empty()) {
+                auto def = predops.front();
+                predops.pop();
+                if (set_.contains(def)) {
+                    collect(top_level, processing, pred, boundary);
+                    goto pred;
+                }
+                for (auto d : def->ops())
+                    predops.push(d);
+            }
+        pred:;
+        }
+    }
+
+    processing.erase(lambda);
 }
 
 void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {
-    size_t pass = world().new_pass();
+    LambdaSet lambdas;
 
     for (auto entry : entries)
-        entry->visit_first(pass);
+        lambdas.visit(entry);
 
     size_t num = 0;
     for (auto entry : entries)
-        num = po_visit<true>(pass, entry, num);
+        num = po_visit<true>(lambdas, entry, num);
 
     for (size_t i = entries.size(); i-- != 0;)
-        entries[i]->sid_ = num++;
+        sid_[entries[i]].sid = num++;
 
     assert(num <= size());
-    assert(num >= 0);
 
     // convert postorder number to reverse postorder number
     for (auto lambda : rpo()) {
-        if (lambda->is_visited(pass)) {
-            lambda->sid_ = num - 1 - lambda->sid_;
+        if (lambdas.contains(lambda)) {
+            sid_[lambda].sid = num - 1 - sid_[lambda].sid;
         } else { // lambda is unreachable
-            lambda->scope_ = 0;
-            lambda->sid_ = size_t(-1);
+            set_.erase(lambda);
+            sid_[lambda].sid = size_t(-1);
         }
     }
     
     // sort rpo_ according to sid_ which now holds the rpo number
-    std::sort(rpo_.begin(), rpo_.end(), [](const Lambda* l1, const Lambda* l2) { return l1->sid() < l2->sid(); });
+    std::sort(rpo_.begin(), rpo_.end(), [&](const Lambda* l1, const Lambda* l2) { return sid_[l1].sid < sid_[l2].sid; });
 
     // discard unreachable lambdas
     rpo_.resize(num);
 }
 
 template<bool forwards>
-size_t Scope::po_visit(const size_t pass, Lambda* cur, size_t i) const {
+size_t Scope::po_visit(LambdaSet& set, Lambda* cur, size_t i) const {
     for (auto succ : forwards ? cur->succs() : cur->preds()) {
-        if (contains(succ) && !succ->is_visited(pass))
-            i = number<forwards>(pass, succ, i);
+        if (contains(succ) && !set.contains(succ))
+            i = number<forwards>(set, succ, i);
     }
     return i;
 }
 
 template<bool forwards>
-size_t Scope::number(const size_t pass, Lambda* cur, size_t i) const {
-    cur->visit_first(pass);
-    i = po_visit<forwards>(pass, cur, i);
-    return forwards ? (cur->sid_ = i) + 1 : (cur->backwards_sid_ = i) - 1;
+size_t Scope::number(LambdaSet& set, Lambda* cur, size_t i) const {
+    set.visit(cur);
+    i = po_visit<forwards>(set, cur, i);
+    return forwards ? (sid_[cur].sid = i) + 1 : (sid_[cur].backwards_sid = i) - 1;
 }
 
 #define THORIN_SCOPE_SUCC_PRED(succ) \
@@ -148,7 +175,7 @@ ArrayRef<Lambda*> Scope::succ##s(Lambda* lambda) const { \
         succ##s_.alloc(size()); \
         for (auto lambda : rpo_) { \
             Lambdas all_succ##s = lambda->succ##s(); \
-            auto& succ##s = succ##s_[lambda->sid()]; \
+            auto& succ##s = succ##s_[sid(lambda)]; \
             succ##s.alloc(all_succ##s.size()); \
             size_t i = 0; \
             for (auto succ : all_succ##s) { \
@@ -158,7 +185,7 @@ ArrayRef<Lambda*> Scope::succ##s(Lambda* lambda) const { \
             succ##s.shrink(i); \
         } \
     } \
-    return succ##s_[lambda->sid()];  \
+    return succ##s_[sid(lambda)];  \
 }
 
 THORIN_SCOPE_SUCC_PRED(succ)
@@ -178,49 +205,43 @@ ArrayRef<Lambda*> Scope::backwards_rpo() const {
         num_exits_ = exits.size();
 
         // number all lambdas in postorder
-        size_t pass = world().new_pass();
+        LambdaSet lambdas;
 
         size_t num = 0;
         for (auto exit : exits) {
-            exit->visit_first(pass);
-            exit->backwards_sid_ = num++;
+            lambdas.visit(exit);
+            sid_[exit].backwards_sid = num++;
         }
 
         num = size() - 1;
         for (auto exit : exits)
-            num = po_visit<false>(pass, exit, num);
+            num = po_visit<false>(lambdas, exit, num);
 
         assert(num + 1 == num_exits());
 
         std::copy(rpo_.begin(), rpo_.end(), backwards_rpo_->begin());
-        std::sort(backwards_rpo_->begin(), backwards_rpo_->end(), [](const Lambda* l1, const Lambda* l2) { 
-            return l1->backwards_sid() < l2->backwards_sid(); 
+        std::sort(backwards_rpo_->begin(), backwards_rpo_->end(), [&](const Lambda* l1, const Lambda* l2) {
+            return sid_[l1].backwards_sid < sid_[l2].backwards_sid;
         });
     }
 
     return *backwards_rpo_;
 }
 
-size_t Scope::mark() const {
-    std::queue<Def> queue;
-    const auto pass = world().new_pass();
+//------------------------------------------------------------------------------
 
-    for (auto lambda : rpo()) {
-        lambda->visit_first(pass);
-        queue.push(lambda);
-
-        for (auto param : lambda->params()) {
-            param->visit_first(pass);
-            queue.push(param);
-        }
-
-        mark_down(pass, queue);
-    }
-
-    return pass;
+LambdaSet Scope::resolve_lambdas() const
+{
+    LambdaSet result;
+    std::copy(rpo_.begin(), rpo_.end(), std::inserter(result, result.begin()));
+    return result;
 }
 
-//------------------------------------------------------------------------------
+bool Scope::is_entry(Lambda* lambda) const { assert(contains(lambda)); return sid_[lambda].sid < num_entries(); }
+bool Scope::is_exit(Lambda* lambda) const { assert(contains(lambda)); return sid_[lambda].backwards_sid < num_exits(); }
+
+size_t Scope::sid(Lambda* lambda) const { assert(contains(lambda)); return sid_[lambda].sid; }
+size_t Scope::backwards_sid(Lambda* lambda) const { assert(contains(lambda)); return sid_[lambda].backwards_sid; }
 
 const DomTree& Scope::domtree() const { return domtree_ ? *domtree_ : *(domtree_ = new DomTree(*this)); }
 const PostDomTree& Scope::postdomtree() const { return postdomtree_ ? *postdomtree_ : *(postdomtree_ = new PostDomTree(*this)); }

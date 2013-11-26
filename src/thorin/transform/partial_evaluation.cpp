@@ -61,12 +61,13 @@ void partial_evaluation(World& world) {
 
                         if (has_run) {
                             e_cached = cached(world, e_call);
-                            e_dropped = drop(scope, e_call.idx, e_call.args, map);
+                            Def2Def mapping;
+                            e_dropped = drop(scope, mapping, e_call.idx, e_call.args, map);
                             if (!e_cached) {
                                 e_new.push_back(e_dropped);
                                 for (auto lambda : scope.rpo()) {
-                                    if (lambda->cur_pass() == scope.entries()[0]->cur_pass()) {
-                                        auto mapped = (Lambda*) lambda->ptr;
+                                    if (mapping.contains(lambda)) {
+                                        auto mapped = mapping[lambda]->as_lambda();
                                         if (mapped != lambda)
                                             e_new.push_back(mapped);
                                     }
@@ -85,12 +86,13 @@ void partial_evaluation(World& world) {
                         }
 
                         f_cached = cached(world, f_call);
-                        f_dropped = drop(scope, f_call.idx, f_call.args, map);
+                        Def2Def mapping;
+                        f_dropped = drop(scope, mapping, f_call.idx, f_call.args, map);
                         if (!f_cached) {
                             f_new.push_back(f_dropped);
                             for (auto lambda : scope.rpo()) {
-                                if (lambda->cur_pass() == scope.entries()[0]->cur_pass()) {
-                                    auto mapped = (Lambda*) lambda->ptr;
+                                if (mapping.contains(lambda)) {
+                                    auto mapped = mapping[lambda]->as_lambda();
                                     if (mapped != lambda)
                                         f_new.push_back(mapped);
                                 }

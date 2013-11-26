@@ -14,24 +14,24 @@ typedef std::unordered_set<const DefNode*> Vars;
 
 void free_vars(Scope& scope, Schedule& schedule, Lambda* lambda, Vars& vars) {
     for (auto lamb : scope.domtree().node(lambda)->children()) {
-      free_vars(scope, schedule, lamb->lambda(), vars);
+        free_vars(scope, schedule, lamb->lambda(), vars);
     }
     for (auto op : lambda->args()) {
         if (op->isa<PrimOp>() && !op->is_const())
-          vars.insert(op);
+            vars.insert(op);
     }
-    std::vector<const PrimOp*>& ops = schedule[lambda->sid()];
+    std::vector<const PrimOp*>& ops = schedule[lambda];
     for (auto i = ops.rbegin(); i != ops.rend(); ++i) {
-      vars.erase(*i);
-      for (auto op : (*i)->ops()) {
-        if (op->isa<PrimOp>() && !op->is_const())
-          vars.insert(op);
-      }
+        vars.erase(*i);
+        for (auto op : (*i)->ops()) {
+            if (op->isa<PrimOp>() && !op->is_const())
+                vars.insert(op);
+        }
     }
 }
 
 void defined_vars(Scope& scope, Schedule& schedule, Lambda* lambda, Vars& vars) {
-    std::vector<const PrimOp*>& ops = schedule[lambda->sid()];
+    std::vector<const PrimOp*>& ops = schedule[lambda];
     for (auto i = ops.rbegin(); i != ops.rend(); ++i) {
         vars.erase(*i);
     }
@@ -56,7 +56,7 @@ public:
     std::ostream& emit_jump(const Lambda*, bool nodefs);
 
     void print_lambda(Scope& scope, Schedule& schedule, Lambda* lambda, Vars& def_vars);
-    int pass_;
+    DefSet pass_;
 };
 
 //------------------------------------------------------------------------------
@@ -194,12 +194,12 @@ std::ostream& IlPrinter::emit_jump(const Lambda* lambda, bool nodefs) {
 
 
 void IlPrinter::print_lambda(Scope& scope, Schedule& schedule, Lambda* lambda, Vars& def_vars) {
-            if (lambda->visit(pass_))
+            if (pass_.visit(lambda))
               return;
-            emit_head(lambda, schedule[lambda->sid()].empty());
+            emit_head(lambda, schedule[lambda].empty());
             bool first = true;
             Vars this_def_vars;
-            for (auto op : schedule[lambda->sid()]) {
+            for (auto op : schedule[lambda]) {
                 for (auto lamb : scope.domtree().node(lambda)->children()) {
                   Vars vars;
                   free_vars(scope, schedule, lamb->lambda(), vars);
@@ -219,7 +219,7 @@ void IlPrinter::print_lambda(Scope& scope, Schedule& schedule, Lambda* lambda, V
                 this_def_vars.insert(op);
             }
 
-            emit_jump(lambda, schedule[lambda->sid()].empty());
+            emit_jump(lambda, schedule[lambda].empty());
             for (auto dop : this_def_vars) {
                 def_vars.erase(dop);
             }
@@ -234,7 +234,7 @@ void emit_il(World& world, bool fancy) {
     for (auto lambda : top_level_lambdas(world)) {
         Scope scope(lambda);
         Schedule schedule = schedule_smart(scope);
-        cg.pass_ = world.new_pass();
+        cg.pass_.clear();
         Vars def_vars;
         cg.print_lambda(scope, schedule, lambda, def_vars);
         cg.newline();

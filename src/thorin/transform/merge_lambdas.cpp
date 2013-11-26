@@ -35,8 +35,6 @@ const DomNode* Merger::dom_succ(const DomNode* n) {
 }
 
 void Merger::merge(const DomNode* n) {
-    if (n->lambda()->gid() == 880)
-        std::cout << "here" << std::endl;
     const DomNode* cur = n;
     for (const DomNode* next = dom_succ(cur); next != nullptr; cur = next, next = dom_succ(next)) {
         assert(cur->lambda()->num_args() == next->lambda()->num_params());
@@ -52,6 +50,6 @@ void Merger::merge(const DomNode* n) {
         merge(child);
 }
 
-void merge_lambdas(World& world) { Merger merger(world); debug_verify(world); }
+void merge_lambdas(World& world) { Merger merger(world); }
 
 } // namespace thorin

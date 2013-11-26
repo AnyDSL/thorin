@@ -74,6 +74,12 @@ World::~World() {
     for (auto lambda : lambdas_) delete lambda;
 }
 
+Array<Lambda*> World::copy_lambdas() const {
+    Array<Lambda*> result(lambdas().size());
+    std::copy(lambdas().begin(), lambdas().end(), result.begin());
+    return result;
+}
+
 /*
  * types
  */
@@ -938,13 +944,11 @@ void World::cleanup() {
 
 void World::opt() {
     cleanup();
-    mem2reg(*this);
-    partial_evaluation(*this);
+    //mem2reg(*this);
+    //partial_evaluation(*this);
     lower2cff(*this);
 
-    // HACK
-    LambdaSet lms = lambdas();
-    for (auto cur : lms) {
+    for (auto cur : copy_lambdas()) {
         if (cur->is_connected_to_builtin() && !cur->is_basicblock()) {
             Scope scope(cur);
             std::vector<Def> vars = free_vars(scope);
@@ -976,16 +980,14 @@ void World::opt() {
         }
     }
 
-    mem2reg(*this);
+    //mem2reg(*this);
     inliner(*this);
     merge_lambdas(*this);
     cleanup();
 }
 
 void World::eliminate_params() {
-    // according to the the C++11 standard this statement correctly iterates over all old lambdas; 
-    // new lambdas are not visited
-    for (auto olambda : lambdas()) { 
+    for (auto olambda : copy_lambdas()) { 
         if (olambda->empty())
             continue;
 
@@ -1022,26 +1024,23 @@ void World::eliminate_params() {
 }
 
 void World::unreachable_code_elimination() {
-    const auto pass = new_pass();
+    LambdaSet set;
 
     for (auto lambda : lambdas())
         if (lambda->attribute().is(Lambda::Extern))
-            uce_insert(pass, lambda);
+            uce_insert(set, lambda);
 
     for (auto lambda : lambdas()) {
-        if (!lambda->is_visited(pass))
+        if (!set.contains(lambda))
             lambda->destroy_body();
     }
 }
 
-void World::uce_insert(const size_t pass, Lambda* lambda) {
-    if (lambda->visit(pass)) return;
+void World::uce_insert(LambdaSet& set, Lambda* lambda) {
+    if (set.visit(lambda)) return;
     for (auto succ : lambda->succs())
-        uce_insert(pass, succ);
+        uce_insert(set, succ);
 }
-
-static const DefNode* get_mapped(const DefNode* def) { return (const DefNode*) def->cptr; }
-static const DefNode* set_mapped(const DefNode* odef, const DefNode* ndef) { return ((const DefNode*&) odef->cptr) = ndef; }
 
 static void sanity_check(Def def) {
     if (auto param = def->isa<Param>())
@@ -1067,19 +1066,19 @@ void World::dead_code_elimination() {
     }
 
     const auto old_gid = gid_;
-    const auto pass1 = new_pass();
+    Def2Def map;
     for (auto lambda : lambdas()) {
         for (size_t i = 0, e = lambda->ops().size(); i != e; ++i)
-            lambda->update_op(i, dce_rebuild(pass1, old_gid, lambda->op(i)));
+            lambda->update_op(i, dce_rebuild(map, old_gid, lambda->op(i)));
     }
 
-    const auto pass2 = new_pass();
+    DefSet set;
     for (auto lambda : lambdas()) {
         for (size_t i = 0, e = lambda->ops().size(); i != e; ++i)
-            dce_mark(pass2, lambda->op(i));
+            dce_mark(set, lambda->op(i));
     }
 
-    auto wipe_primop = [&] (const PrimOp* primop) { return !primop->is_visited(pass2); };
+    auto wipe_primop = [&] (const PrimOp* primop) { return !set.contains(primop); };
     auto wipe_lambda = [&] (Lambda* lambda) { return lambda->empty() && !lambda->attribute().is(Lambda::Extern); };
 
     for (auto lambda : lambdas_) {
@@ -1130,61 +1129,53 @@ void World::dead_code_elimination() {
     verify_closedness(*this);
 }
 
-Def World::dce_rebuild(const size_t pass, const size_t old_gid, Def def) {
-    if (def->visit(pass))
-        return get_mapped(def);
+Def World::dce_rebuild(Def2Def& map, const size_t old_gid, Def def) {
+    if (const DefNode* mapped = map.find(def))
+        return mapped;
     if (def->gid() >= old_gid)
         return def;
-    if (auto lambda = def->isa<Lambda>())
-        return set_mapped(lambda, lambda);
-    if (def->isa<Param>())
-        return set_mapped(def, def);
-    assert(def->is_visited(pass));
+    if (def->isa<Lambda>() || def->isa<Param>())
+        return map[def] = def;
 
     auto oprimop = def->as<PrimOp>();
     Array<Def> ops(oprimop->size());
     for (size_t i = 0, e = oprimop->size(); i != e; ++i)
-        ops[i] = dce_rebuild(pass, old_gid, oprimop->op(i));
+        ops[i] = dce_rebuild(map, old_gid, oprimop->op(i));
 
-    auto nprimop = rebuild(oprimop, ops);
-    set_mapped(oprimop, nprimop);
-    oprimop->visit(pass);
-    return nprimop;
+    return map[oprimop] = rebuild(oprimop, ops);
 }
 
-void World::dce_mark(const size_t pass, Def def) {
-    if (def->visit(pass) || def->isa<Lambda>() || def->isa<Param>())
+void World::dce_mark(DefSet& set, Def def) {
+    if (set.visit(def) || def->isa<Lambda>() || def->isa<Param>())
         return;
-    assert(def->is_visited(pass));
 
     for (auto op : def->as<PrimOp>()->ops())
-        dce_mark(pass, op);
-
-    def->visit(pass);
+        dce_mark(set, op);
 }
 
 void World::unused_type_elimination() {
-    const auto pass = new_pass();
+    std::unordered_set<const Type*> set;
 
     for (auto primop : primops())
-        ute_insert(pass, primop->type());
+        ute_insert(set, primop->type());
 
     for (auto lambda : lambdas()) {
-        ute_insert(pass, lambda->type());
+        ute_insert(set, lambda->type());
         for (auto param : lambda->params())
-            ute_insert(pass, param->type());
+            ute_insert(set, param->type());
     }
 
-    wipe_out(types_, [=] (const Type* type) { return !type->is_visited(pass); });
+    wipe_out(types_, [=] (const Type* type) { return set.find(type) == set.end(); });
 }
 
-void World::ute_insert(const size_t pass, const Type* type) {
+void World::ute_insert(std::unordered_set<const Type*>& set, const Type* type) {
     assert(types_.find(type) != types_.end() && "not in map");
 
-    if (type->visit(pass)) return;
+    if (set.find(type) != set.end()) return;
+    set.insert(type);
 
     for (auto elem : type->elems())
-        ute_insert(pass, elem);
+        ute_insert(set, elem);
 }
 
 template<class S, class W>

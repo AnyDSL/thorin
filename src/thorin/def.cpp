@@ -1,6 +1,7 @@
 #include "thorin/def.h"
 
 #include <algorithm>
+#include <iostream>
 #include <sstream>
 #include <unordered_map>
 #include <queue>
@@ -188,13 +189,13 @@ Peeks Param::peek() const {
 
 //------------------------------------------------------------------------------
 
-void mark_down(const size_t pass, std::queue<Def>& queue) {
+void mark_down(DefSet& set, std::queue<Def>& queue) {
     while (!queue.empty()) {
         auto def = queue.front();
         queue.pop();
 
         for (auto use : def->uses()) {
-            if (!use->isa_lambda() && !use->visit(pass))
+            if (!use->isa_lambda() && !set.visit(use))
                 queue.push(use);
         }
     }

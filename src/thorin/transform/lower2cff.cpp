@@ -116,7 +116,7 @@ void lower2cff(World& world) {
         world.cleanup();
     } while (todo);
 
-    for (auto lambda : LambdaSet(world.lambdas())) {
+    for (auto lambda : world.copy_lambdas()) {
         if (lambda->is_connected_to_builtin()) {
             Scope scope(lambda);
             for (auto use : lambda->uses()) {

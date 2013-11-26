@@ -158,13 +158,13 @@ void emit_thorin(World& world, bool fancy, bool nocolor) {
     for (auto top : top_level_lambdas(world)) {
         Scope scope(top);
         Schedule schedule = schedule_smart(scope);
-        for (auto lambda : scope.rpo()) {
+        for (auto lambda : scope) {
             int depth = fancy ? scope.domtree().depth(lambda) : 0;
             cg.indent += depth;
             cg.newline();
             cg.emit_head(lambda);
 
-            for (auto op : schedule[lambda->sid()])
+            for (auto op : schedule[lambda])
                 cg.emit_assignment(op);
 
             cg.emit_jump(lambda);

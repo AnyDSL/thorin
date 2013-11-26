@@ -32,8 +32,6 @@ public:
 
     LoopTreeBuilder(LoopTree& looptree) 
         : looptree(looptree)
-        , numbers(size())
-        , first_pass(size_t(-1))
         , dfs_index(0)
     {
         stack.reserve(size());
@@ -59,15 +57,20 @@ private:
 
     void build();
     static std::pair<size_t, size_t> propagate_bounds(LoopNode* header);
+
     const Scope& scope() const { return looptree.scope(); }
     size_t size() const { return looptree.size(); }
-    Number& number(Lambda* lambda) { return numbers[lambda->sid()]; }
+
+    Number& number(Lambda* lambda) { return numbers[lambda]; }
     size_t& lowlink(Lambda* lambda) { return number(lambda).low; }
     size_t& dfs(Lambda* lambda) { return number(lambda).dfs; }
-    bool on_stack(Lambda* lambda) { assert(is_visited(lambda)); return (lambda->counter & OnStack) != 0; }
-    bool in_scc(Lambda* lambda) { return lambda->cur_pass() >= first_pass ? (lambda->counter & InSCC) != 0 : false; }
-    bool is_header(Lambda* lambda) const { return lambda->cur_pass() >= first_pass ? (lambda->counter & IsHeader) != 0 : false; }
-    bool is_visited(Lambda* lambda) { return lambda->is_visited(pass); }
+
+    bool on_stack(Lambda* lambda) { assert(pass.contains(lambda)); return (states[lambda] & OnStack) != 0; }
+    bool in_scc(Lambda* lambda) { return was_seen(lambda) ? (states[lambda] & InSCC) != 0 : false; }
+    bool is_header(Lambda* lambda) { return was_seen(lambda) ? (states[lambda] & IsHeader) != 0 : false; }
+
+    bool was_seen(Lambda* lambda) { return first_pass.contains(lambda) || pass.contains(lambda); }
+
     bool is_leaf(Lambda* lambda, size_t num) {
         if (num == 1) {
             for (auto succ : looptree.succs(lambda)) {
@@ -80,19 +83,20 @@ private:
     }
 
     void new_pass() {
-        pass = scope().world().new_pass();
-        first_pass = first_pass == size_t(-1) ? pass : first_pass;
+        if (first_pass.empty())
+            first_pass = pass;
+        pass.clear();
     }
 
     void push(Lambda* lambda) { 
-        assert(is_visited(lambda) && (lambda->counter & OnStack) == 0);
+        assert(pass.contains(lambda) && (states[lambda] & OnStack) == 0);
         stack.push_back(lambda);
-        lambda->counter |= OnStack;
+        states[lambda] |= OnStack;
     }
 
     int visit(Lambda* lambda, int counter) {
-        lambda->visit_first(pass);
-        numbers[lambda->sid()] = Number(counter++);
+        pass.visit(lambda);
+        numbers[lambda] = Number(counter++);
         push(lambda);
         return counter;
     }
@@ -102,9 +106,10 @@ private:
     int walk_scc(Lambda* cur, LoopHeader* parent, int depth, int scc_counter);
 
     LoopTree& looptree;
-    Array<Number> numbers;
-    size_t pass;
-    size_t first_pass;
+    LambdaMap<Number> numbers;
+    LambdaMap<uint8_t> states;
+    LambdaSet pass;
+    LambdaSet first_pass;
     size_t dfs_index;
     std::vector<Lambda*> stack;
 };
@@ -112,7 +117,7 @@ private:
 void LoopTreeBuilder::build() {
     // clear all flags
     for (auto lambda : scope().rpo())
-        lambda->counter = 0;
+        states[lambda] = 0;
 
     recurse<true>(looptree.root_ = new LoopHeader(0, -1, std::vector<Lambda*>(0)), scope().entries(), 0);
 }
@@ -122,14 +127,14 @@ void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<Lambda*> headers, int
     size_t cur_new_child = 0;
     for (auto header : headers) {
         new_pass();
-        if (start && header->cur_pass() >= first_pass) 
+        if (start && was_seen(header))
             continue; // in the base case we only want to find SCC on all until now unseen lambdas
         walk_scc(header, parent, depth, 0);
 
         // now mark all newly found headers globally as header
         for (size_t e = parent->num_children(); cur_new_child != e; ++cur_new_child) {
             for (auto header : parent->child(cur_new_child)->headers())
-                header->counter |= IsHeader;
+                states[header] |= IsHeader;
         }
     }
 
@@ -145,7 +150,7 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
     for (auto succ : scope().succs(cur)) {
         if (is_header(succ))
             continue; // this is a backedge
-        if (!is_visited(succ)) {
+        if (!pass.contains(succ)) {
             scc_counter = walk_scc(succ, parent, depth, scc_counter);
             lowlink(cur) = std::min(lowlink(cur), lowlink(succ));
         } else if (on_stack(succ))
@@ -159,7 +164,7 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
         // mark all lambdas in current SCC (all lambdas from back to cur on the stack) as 'InSCC'
         size_t num = 0, e = stack.size(), b = e - 1;
         do {
-            stack[b]->counter |= InSCC;
+            states[stack[b]] |= InSCC;
             ++num;
         } while (stack[b--] != cur);
 
@@ -183,7 +188,7 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
 
         if (is_leaf(cur, num)) {
             LoopLeaf* leaf = new LoopLeaf(dfs_index++, parent, depth, headers);
-            looptree.nodes_[headers.front()->sid()] = looptree.dfs_leaves_[leaf->dfs_index()] = leaf;
+            looptree.nodes_[headers.front()] = looptree.dfs_leaves_[leaf->dfs_index()] = leaf;
         } else
             new LoopHeader(parent, depth, headers);
 
@@ -199,7 +204,7 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
 
         // reset InSCC and OnStack flags
         for (size_t i = b; i != e; ++i)
-            stack[i]->counter &= ~(OnStack | InSCC);
+            states[stack[i]] &= ~(OnStack | InSCC);
 
         // pop whole SCC
         stack.resize(b);
@@ -256,7 +261,9 @@ Array<Lambda*> LoopTree::loop_lambdas(const LoopHeader* header) {
 
 Array<Lambda*> LoopTree::loop_lambdas_in_rpo(const LoopHeader* header) {
     auto result = loop_lambdas(header);
-    std::sort(result.begin(), result.end(), [](const Lambda* l1, const Lambda* l2) { return l1->sid() < l2->sid(); });
+    std::sort(result.begin(), result.end(), [&](Lambda* l1, Lambda* l2) {
+        return scope_.sid(l1) < scope_.sid(l2);
+    });
     return result;
 }
 

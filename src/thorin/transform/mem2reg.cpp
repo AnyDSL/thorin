@@ -1,3 +1,4 @@
+#include <iostream>
 #include <unordered_map>
 
 #include "thorin/memop.h"
@@ -10,36 +11,35 @@ namespace thorin {
 
 void mem2reg(const Scope& scope) {
     auto schedule = schedule_late(scope);
-    const auto pass = scope.world().new_pass();
+    DefMap<size_t> addresses;
+    LambdaSet pass;
     size_t cur_handle = 0;
 
-    for (size_t i = 0, e = scope.size(); i != e; ++i) {
-        Lambda* lambda = scope[i];
-
+    for (Lambda* lambda : scope) {
         // Search for slots/loads/stores from top to bottom and use set_value/get_value to install parameters.
-        for (auto primop : schedule[i]) {
+        for (auto primop : schedule[lambda]) {
             auto def = Def(primop);
             if (auto slot = def->isa<Slot>()) {
                 // are all users loads and store?
                 for (auto use : slot->uses()) {
                     if (!use->isa<Load>() && !use->isa<Store>()) {
-                        slot->counter = size_t(-1);     // mark as "address taken"
+                        addresses[slot] = size_t(-1);     // mark as "address taken"
                         goto next_primop;
                     }
                 }
-                slot->counter = cur_handle++;
+                addresses[slot] = cur_handle++;
             } else if (auto store = def->isa<Store>()) {
                 if (auto slot = store->ptr()->isa<Slot>()) {
-                    if (slot->counter != size_t(-1)) {  // if not "address taken"
-                        lambda->set_value(slot->counter, store->val());
+                    if (addresses[slot] != size_t(-1)) {  // if not "address taken"
+                        lambda->set_value(addresses[slot], store->val());
                         store->replace(store->mem());
                     }
                 }
             } else if (auto load = def->isa<Load>()) {
                 if (auto slot = load->ptr()->isa<Slot>()) {
-                    if (slot->counter != size_t(-1)) {  // if not "address taken"
+                    if (addresses[slot] != size_t(-1)) {  // if not "address taken"
                         auto type = slot->type()->as<Ptr>()->referenced_type();
-                        load->extract_val()->replace(lambda->get_value(slot->counter, type, slot->name.c_str()));
+                        load->extract_val()->replace(lambda->get_value(addresses[slot], type, slot->name.c_str()));
                         load->extract_mem()->replace(load->mem());
                     }
                 }
@@ -50,9 +50,11 @@ next_primop:;
         // seal successors of last lambda if applicable
         for (auto succ : lambda->succs()) {
             if (succ->parent() != 0) {
-                if (!succ->visit(pass))
-                    succ->counter = succ->preds().size();
-                if (--succ->counter == 0)
+                if (!pass.visit(succ)) {
+                    assert(addresses.find(succ) == addresses.end());
+                    addresses[succ] = succ->preds().size();
+                }
+                if (--addresses[succ] == 0)
                     succ->seal();
             }
         }

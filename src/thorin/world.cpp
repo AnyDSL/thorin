@@ -944,7 +944,7 @@ void World::cleanup() {
 
 void World::opt() {
     cleanup();
-    //mem2reg(*this);
+    mem2reg(*this);
     //partial_evaluation(*this);
     lower2cff(*this);
 
@@ -980,7 +980,6 @@ void World::opt() {
         }
     }
 
-    //mem2reg(*this);
     inliner(*this);
     merge_lambdas(*this);
     cleanup();

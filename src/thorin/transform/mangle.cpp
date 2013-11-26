@@ -159,7 +159,7 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
 enum class Eval { Run, Infer, Halt };
 
 Def Mangler::mangle(Def odef) {
-    if (!pass1.contains(odef))
+    if (!pass1.contains(odef) && !pass2.contains(odef))
         return odef;
     if (pass2.contains(odef))
         return lookup(odef);

@@ -50,6 +50,6 @@ void Merger::merge(const DomNode* n) {
         merge(child);
 }
 
-void merge_lambdas(World& world) { Merger merger(world); debug_verify(world); }
+void merge_lambdas(World& world) { Merger merger(world); }
 
 } // namespace thorin

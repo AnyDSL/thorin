@@ -8,8 +8,12 @@ namespace thorin {
 
 class Mangler {
 public:
-    Mangler(const Scope& scope, ArrayRef<size_t> to_drop, ArrayRef<Def> drop_with, 
-           ArrayRef<Def> to_lift, const GenericMap& generic_map)
+    Mangler(const Scope& scope,
+            Def2Def& mapped,
+            ArrayRef<size_t> to_drop,
+            ArrayRef<Def> drop_with,
+            ArrayRef<Def> to_lift,
+            const GenericMap& generic_map)
         : scope(scope)
         , to_drop(to_drop)
         , drop_with(drop_with)
@@ -17,6 +21,7 @@ public:
         , generic_map(generic_map)
         , world(scope.world())
         , pass1(scope.defs())
+        , pass2(mapped)
     {
         std::queue<Def> queue;
         for (auto def : to_lift)
@@ -40,7 +45,7 @@ public:
     GenericMap generic_map;
     World& world;
     DefSet pass1;
-    Def2Def pass2;
+    Def2Def& pass2;
     Lambda* nentry;
     Lambda* oentry;
 };
@@ -197,18 +202,22 @@ Def Mangler::mangle(Def odef) {
 
 //------------------------------------------------------------------------------
 
-Lambda* mangle(const Scope& scope, ArrayRef<size_t> to_drop, ArrayRef<Def> drop_with, 
-               ArrayRef<Def> to_lift, const GenericMap& generic_map) {
-    return Mangler(scope, to_drop, drop_with, to_lift, generic_map).mangle();
+Lambda* mangle(const Scope& scope,
+               Def2Def& mapping,
+               ArrayRef<size_t> to_drop,
+               ArrayRef<Def> drop_with,
+               ArrayRef<Def> to_lift,
+               const GenericMap& generic_map) {
+    return Mangler(scope, mapping, to_drop, drop_with, to_lift, generic_map).mangle();
 }
 
-Lambda* drop(const Scope& scope, ArrayRef<Def> with) {
+Lambda* drop(const Scope& scope, Def2Def& mapping, ArrayRef<Def> with) {
     size_t size = with.size();
     Array<size_t> to_drop(size);
     for (size_t i = 0; i != size; ++i)
         to_drop[i] = i;
 
-    return mangle(scope, to_drop, with, Array<Def>(), GenericMap());
+    return mangle(scope, mapping, to_drop, with, Array<Def>(), GenericMap());
 }
 
 //------------------------------------------------------------------------------

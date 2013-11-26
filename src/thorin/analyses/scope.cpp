@@ -33,30 +33,38 @@ Scope::Scope(World& world)
     : world_(world)
     , num_entries_(0)
 {
-    top_level_ = world.lambdas();
+    LambdaSet top_level = world.lambdas();
 
     for (auto lambda : world.lambdas()) {
-        if (!set_.contains(lambda))
-            collect(lambda, lambda);
+        LambdaSet processing;
+        collect(top_level, processing, lambda, lambda);
     }
 
     std::vector<Lambda*> entries;
-    std::copy(top_level_.begin(), top_level_.end(), std::inserter(entries, entries.begin()));
+    std::copy(top_level.begin(), top_level.end(), std::inserter(entries, entries.begin()));
     num_entries_ = entries.size();
     rpo_numbering(entries);
 }
 
 void Scope::identify_scope(ArrayRef<Lambda*> entries) {
-    for (auto entry : entries)
-        collect(entry, entry);
+    LambdaSet top_level;
+    for (auto entry : entries) {
+        LambdaSet processing;
+        collect(top_level, processing, entry, entry);
+    }
 }
 
-void Scope::collect(Lambda* lambda, Lambda* boundary) {
+void Scope::collect(LambdaSet& top_level, LambdaSet& processing, Lambda* lambda, Lambda* boundary) {
     if (lambda != boundary)
-        top_level_.erase(lambda);
+        top_level.erase(lambda);
 
-    set_.insert(lambda);
-    rpo_.push_back(lambda);
+    if (processing.contains(lambda))
+        return;
+
+    processing.insert(lambda);
+
+    if (!set_.visit(lambda))
+        rpo_.push_back(lambda);
 
     // search downwards
     std::queue<Def> queue;
@@ -66,46 +74,48 @@ void Scope::collect(Lambda* lambda, Lambda* boundary) {
             queue.push(param);
         }
     }
-    
+
     LambdaSet lambdas;
     while (!queue.empty()) {
         auto def = queue.front();
         queue.pop();
         for (auto use : def->uses()) {
-            if (!set_.visit(use)) {
-                if (auto ulambda = use->isa_lambda()) {
-                    if (ulambda != lambda)
-                        lambdas.insert(ulambda);
-                } else
-                    queue.push(use);
+            if (auto ulambda = use->isa_lambda()) {
+                if (ulambda != lambda)
+                    lambdas.insert(ulambda);
+            } else {
+                set_.insert(use);
+                queue.push(use);
             }
         }
     }
 
     for (auto olambda : lambdas)
-        collect(olambda, boundary);
+        collect(top_level, processing, olambda, boundary);
 
-    if (lambda == boundary)
-        return;
-
-    for (auto pred : lambda->preds()) {
-        if (!set_.contains(pred)) {
+    // check for predecessors
+    if (lambda != boundary) {
+        for (auto pred : lambda->preds()) {
+            if (pred == lambda)
+                continue;
             std::queue<Def> predops;
             for (auto op : pred->ops())
                 predops.push(op);
             while (!predops.empty()) {
                 auto def = predops.front();
                 predops.pop();
-                if (set_.contains(def))
+                if (set_.contains(def)) {
+                    collect(top_level, processing, pred, boundary);
                     goto pred;
+                }
                 for (auto d : def->ops())
                     predops.push(d);
             }
-            continue;
-pred:
-            collect(pred, boundary);
+        pred:;
         }
     }
+
+    processing.erase(lambda);
 }
 
 void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {
@@ -122,7 +132,6 @@ void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {
         sid_[entries[i]].sid = num++;
 
     assert(num <= size());
-    assert(num >= 0);
 
     // convert postorder number to reverse postorder number
     for (auto lambda : rpo()) {
@@ -130,7 +139,7 @@ void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {
             sid_[lambda].sid = num - 1 - sid_[lambda].sid;
         } else { // lambda is unreachable
             set_.erase(lambda);
-            sid_.erase(lambda);
+            sid_[lambda].sid = size_t(-1);
         }
     }
     

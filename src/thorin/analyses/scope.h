@@ -19,7 +19,6 @@ public:
     explicit Scope(World& world);
     ~Scope() {}
 
-
     bool contains(Lambda* lambda) const { return set_.contains(lambda); }
     const DefSet& defs() const { return set_; }
     LambdaSet resolve_lambdas() const;
@@ -65,7 +64,7 @@ public:
 private:
     void identify_scope(ArrayRef<Lambda*> entries);
     void rpo_numbering(ArrayRef<Lambda*> entries);
-    void collect(Lambda* lambda, Lambda* boundary);
+    void collect(LambdaSet& top_level, LambdaSet& processing, Lambda* lambda, Lambda* boundary);
     template<bool forwards> size_t po_visit(LambdaSet&, Lambda* cur, size_t i) const;
     template<bool forwards> size_t number(LambdaSet&, Lambda* cur, size_t i) const;
 
@@ -86,7 +85,6 @@ private:
     };
 
     mutable LambdaMap<LambdaSidInfo> sid_;
-    LambdaSet top_level_;
 
     mutable size_t num_exits_;
     mutable AutoPtr<Array<Lambda*>> backwards_rpo_;

@@ -118,16 +118,6 @@ int main(int argc, char** argv) {
         result &= check(init.typetable, prg, nossa);
         result &= result ? emit(init.world, prg) : false;
 
-        auto& w = init.world;
-        for (auto l : w.lambdas())
-            if (l->gid() == 23) {
-                Scope scope(l);
-                for (auto l : scope.rpo())
-                    std::cout << l->unique_name() << std::endl;
-            }
-
-        std::cout << "---" << std::endl;
-
         if (result) {
             if (!nocleanup)
                 init.world.cleanup();

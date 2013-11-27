@@ -17,7 +17,7 @@ public:
     explicit Scope(Lambda* entry);
     explicit Scope(World& world, ArrayRef<Lambda*> entries);
     explicit Scope(World& world);
-    ~Scope() {}
+    ~Scope();
 
     bool contains(Lambda* lambda) const { return set_.contains(lambda); }
     const DefSet& defs() const { return set_; }
@@ -90,9 +90,10 @@ private:
     mutable AutoPtr<Array<Lambda*>> backwards_rpo_;
     mutable Array<Array<Lambda*>> preds_;
     mutable Array<Array<Lambda*>> succs_;
-    mutable AutoPtr<DomTreeBase<true>> domtree_;
-    mutable AutoPtr<DomTreeBase<false>> postdomtree_;
-    mutable AutoPtr<LoopTree> looptree_;
+    // TODO: maybe we should eliminate caching
+    mutable DomTreeBase<true>* domtree_;
+    mutable DomTreeBase<false>* postdomtree_;
+    mutable LoopTree* looptree_;
 };
 
 inline Array<Lambda*> top_level_lambdas(World& world) { return Scope(world).entries(); }

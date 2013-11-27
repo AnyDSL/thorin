@@ -50,8 +50,8 @@ void DefNode::set_op(size_t i, Def def) {
 
 void DefNode::unregister_use(size_t i) const { 
     auto def = op(i).node();
-    auto res = def->uses_.erase(Use(i, this));
-    assert(res == 1);
+    assert(def->uses_.count(Use(i, this)) == 1);
+    def->uses_.erase(Use(i, this));
 }
 
 void DefNode::unset_op(size_t i) {

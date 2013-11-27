@@ -48,7 +48,6 @@ public:
     const DefNode* deref() const;
     const DefNode* operator *() const { return deref(); }
     bool operator == (const DefNode* other) const { return this->deref() == other; }
-    bool operator == (const Use& use) const;
     bool operator == (Def other) const { return this->deref() == other.deref(); }
     bool operator != (Def other) const { return this->deref() != other.deref(); }
     operator const DefNode*() const { return deref(); }
@@ -72,8 +71,8 @@ public:
 
     size_t index() const { return index_; }
     const Def& def() const { return def_; }
-    bool operator == (Use use) const { return def() == use.def() && index() == use.index(); }
-    bool operator != (Use use) const { return def() != use.def() || index() != use.index(); }
+    bool operator == (Use use) const { return def().node() == use.def().node() && index() == use.index(); }
+    bool operator != (Use use) const { return def().node() != use.def().node() || index() != use.index(); }
     bool operator < (Use) const;
     operator Def() const { return def_; }
     operator const DefNode*() const { return def_; }
@@ -83,8 +82,6 @@ private:
     size_t index_;
     Def def_;
 };
-
-inline bool Def::operator == (const Use& use) const { return this->deref() == use.def().deref(); }
 
 struct UseHash { size_t operator () (Use use) const { return hash_combine(hash_value(use.def().node()), use.index()); } };
 struct UseEqual { bool operator () (Use use1, Use use2) const { return use1 == use2; } };

@@ -314,7 +314,7 @@ Def Lambda::try_remove_trivial_param(const Param* param) {
             for (auto succ : lambda->succs()) {
                 size_t index = -1;
                 for (size_t i = 0, e = succ->num_args(); i != e; ++i) {
-                    if (succ->arg(i) == use) {
+                    if (succ->arg(i) == use.def()) {
                         index = i;
                         break;
                     }

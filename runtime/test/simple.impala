@@ -1,4 +1,4 @@
-extern all_on_gpu([float], fn(fn() -> int, fn() -> int, fn() -> int) -> void) -> void;
+extern accelerator([float], fn(fn() -> int, fn() -> int, fn() -> int, fn() -> int, fn() -> int, fn() -> int) -> void) -> void;
 extern array(int) -> [float];
 
 fn main() -> [float] {
@@ -6,7 +6,7 @@ fn main() -> [float] {
     let mut arr     = array(width);
     let mut out     = array(width);
 
-    all_on_gpu(out, |x : fn() -> int, y : fn() -> int, z : fn() -> int| -> void {
+    accelerator(out, |x : fn() -> int, y : fn() -> int, bIx : fn() -> int, bIy : fn() -> int, bDx : fn() -> int, bDy : fn() -> int| -> void {
         out[x()] = arr[x()];
     });
 

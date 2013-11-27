@@ -67,8 +67,8 @@ bool CodeGen::emit_prg(const Scope* prg) {
             lambda->attribute().set(Lambda::Extern);
             lambda->name = proto->symbol().str();
             // HACK: eliminate this hack
-            if (lambda->name == "all_on_gpu")
-                lambda->attribute().set(Lambda::Cuda);
+            if (lambda->name == "accelerator")
+                lambda->attribute().set(Lambda::Accelerator);
             if (lambda->name == "stencil_array")
                 lambda->attribute().set(Lambda::StencilAr);
             if (lambda->name == "array")

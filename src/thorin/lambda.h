@@ -23,11 +23,11 @@ typedef std::vector<const Param*> Params;
 class Lambda : public DefNode {
 public:
     enum {
-        Extern     = 1 << 0, ///< Is the function visible in other translation units?
-        Cuda       = 1 << 1, ///< Flag for the internal Cuda-Backend
-        ArrayInit  = 1 << 2, ///< Flag for the external array intialization
-        StencilAr  = 1 << 3, ///< Flag for the external stencil intialization
-        Vectorize  = 1 << 4, ///< Flag for the external vectorizer
+        Extern      = 1 << 0, ///< Is the function visible in other translation units?
+        Accelerator = 1 << 1, ///< Flag for the internal Accelerator-Backend (NVVM / SPIR)
+        ArrayInit   = 1 << 2, ///< Flag for the external array intialization
+        StencilAr   = 1 << 3, ///< Flag for the external stencil intialization
+        Vectorize   = 1 << 4, ///< Flag for the external vectorizer
     };
 
     struct Attribute {

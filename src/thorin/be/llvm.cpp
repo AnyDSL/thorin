@@ -48,9 +48,18 @@ class CodeGen {
 public:
     CodeGen(World& world, EmitHook& hook);
 
+    llvm::Function* prepare_cuda_kernel(Lambda* target, const Param*& ret_param);
     void emit_cuda_decls();
-    void emit_vector_decls();
     void emit_cuda(Lambda* target, BBMap& bbs);
+
+    llvm::Function* prepare_spir_kernel(Lambda* target, const Param*& ret_param);
+    void emit_spir_decls();
+    void emit_spir(Lambda* target, BBMap& bbs);
+
+    llvm::Function* prepare_accelerator_kernel(Lambda* target, const Param*& ret_param);
+    void emit_accelerator(Lambda* target, BBMap& bbs);
+
+    void emit_vector_decls();
     void emit_vectors(llvm::Function* current, Lambda* target, BBMap& bbs);
     void emit();
     void postprocess();
@@ -119,7 +128,51 @@ CodeGen::CodeGen(World& world, EmitHook& hook)
     hook.assign(&builder, module);
 }
 
+llvm::Function* CodeGen::prepare_cuda_kernel(Lambda* lambda, const Param*& ret_param) {
+   const size_t e = lambda->num_params();
+    // check dimensions
+    size_t i = 1;
+    for (; i < 3 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i)
+        params[lambda->param(i)] = cuda_thread_id_getter[i - 1];
+    for (; i < 5 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i)
+        params[lambda->param(i)] = cuda_block_id_getter[i - 3];
+    for (; i < 7 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i)
+        params[lambda->param(i)] = cuda_block_dim_getter[i - 5];
+    // cuda return param
+    ret_param = lambda->param(i);
+    assert(ret_param->type()->isa<Pi>());
+    // build kernel declaration
+    llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(world.pi(lambda->pi()->elems().slice_from_begin(i))));
+    llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, cuda_kernel_name, cuda_module);
+    // wire params directly
+    auto arg = f->arg_begin();
+    for (size_t j = i + 1; j < e; ++j) {
+        llvm::Argument* param = arg++;
+        const Param* p = lambda->param(j);
+        param->setName(llvm::Twine(p->name));
+        params[p] = param;
+    }
+    // append required metadata
+    llvm::NamedMDNode* annotation = cuda_module->getOrInsertNamedMetadata("nvvm.annotations");
+    llvm::Value* annotation_values[] = {
+        f,
+        llvm::MDString::get(context, "kernel"),
+        llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), 1)
+    };
+    annotation->addOperand(llvm::MDNode::get(context, annotation_values));
+    return f;
+}
+
+llvm::Function* CodeGen::prepare_spir_kernel(Lambda* target, const Param*& ret_param) {
+    assert(false);
+    return nullptr;
+}
+
+llvm::Function* CodeGen::prepare_accelerator_kernel(Lambda* target, const Param*& ret_param) {
+    return prepare_cuda_kernel(target, ret_param);
+}
 // HACK -> nicer and integrated
+
 void CodeGen::emit_cuda_decls() {
     cuda_device_ptr_ty = llvm::IntegerType::getInt64Ty(context);
     const char* thread_id_names[] = { "llvm.nvvm.read.ptx.sreg.tid.x", "llvm.nvvm.read.ptx.sreg.tid.y", "llvm.nvvm.read.ptx.sreg.tid.z" };
@@ -130,6 +183,8 @@ void CodeGen::emit_cuda_decls() {
         cuda_thread_id_getter[i] = llvm::Function::Create(thread_id_type, llvm::Function::ExternalLinkage, thread_id_names[i], cuda_module);
         cuda_block_id_getter[i] = llvm::Function::Create(thread_id_type, llvm::Function::ExternalLinkage, block_id_names[i], cuda_module);
         cuda_block_dim_getter[i] = llvm::Function::Create(thread_id_type, llvm::Function::ExternalLinkage, block_dim_names[i], cuda_module);
+        cuda_thread_id_getter[i]->addFnAttr(llvm::Attribute::ReadNone);
+        cuda_thread_id_getter[i]->addFnAttr(llvm::Attribute::NoUnwind);
     }
 
     llvm::Type* void_ty = llvm::Type::getVoidTy(context);
@@ -182,7 +237,7 @@ static uint64_t try_resolve_array_size(Def def) {
 // HACK
 void CodeGen::emit_cuda(Lambda* lambda, BBMap& bbs) {
     Lambda* target = lambda->to()->as_lambda();
-    assert(target->is_builtin() && target->attribute().is(Lambda::Cuda));
+    assert(target->is_builtin() && target->attribute().is(Lambda::Accelerator));
     // passed lambda is the external cuda call
     const uint64_t it_space_x = try_resolve_array_size(lambda->arg(1));
     Lambda* kernel = lambda->arg(2)->as<Addr>()->lambda();
@@ -241,6 +296,15 @@ void CodeGen::emit_cuda(Lambda* lambda, BBMap& bbs) {
         builder.CreateCall(free_memory, { device_ptr.first });
     // create branch to return
     builder.CreateBr(bbs[lambda->arg(3)->as_lambda()]);
+}
+
+void CodeGen::emit_spir(Lambda* lambda, BBMap& bbs) {
+}
+
+void CodeGen::emit_accelerator(Lambda* lambda, BBMap& bbs) {
+    Lambda* target = lambda->to()->as_lambda();
+    assert(target->is_builtin() && target->attribute().is(Lambda::Accelerator));
+    emit_cuda(lambda, bbs);
 }
 
 void CodeGen::emit_vectors(llvm::Function* current, Lambda* lambda, BBMap& bbs) {
@@ -312,50 +376,17 @@ void CodeGen::emit_vectors(llvm::Function* current, Lambda* lambda, BBMap& bbs) 
 
 void CodeGen::emit() {
     // emit cuda declarations
-#if 0
     emit_cuda_decls();
-#endif
     emit_vector_decls();
     std::unordered_map<Lambda*, const Param*> ret_map;
     // map all root-level lambdas to llvm function stubs
-    const Param* cuda_return = 0;
     for (auto lambda : top_level_lambdas(world)) {
         if (lambda->is_builtin())
             continue;
         llvm::Function* f;
-        if (lambda->is_connected_to_builtin(Lambda::Cuda)) {
-            const size_t e = lambda->num_params();
-            // check dimensions
-            size_t i = 1;
-            for (; i < 3 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i)
-                params[lambda->param(i)] = cuda_thread_id_getter[i - 1];
-            for (; i < 5 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i)
-                params[lambda->param(i)] = cuda_block_id_getter[i - 3];
-            for (; i < 7 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i)
-                params[lambda->param(i)] = cuda_block_dim_getter[i - 5];
-            // cuda return param
-            const Param* cuda_return = lambda->param(i);
-            assert(cuda_return->type()->isa<Pi>());
-            // build kernel declaration
-            llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(world.pi(lambda->pi()->elems().slice_from_begin(i))));
-            f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, cuda_kernel_name, cuda_module);
-            // wire params directly
-            auto arg = f->arg_begin();
-            for (size_t j = i + 1; j < e; ++j) {
-                llvm::Argument* param = arg++;
-                const Param* p = lambda->param(j);
-                param->setName(llvm::Twine(p->name));
-                params[p] = param;
-            }
-            // append required metadata
-            llvm::NamedMDNode* annotation = cuda_module->getOrInsertNamedMetadata("nvvm.annotations");
-            llvm::Value* annotation_values[] = {
-                f,
-                llvm::MDString::get(context, "kernel"),
-                llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), 1)
-            };
-            annotation->addOperand(llvm::MDNode::get(context, annotation_values));
-            ret_map[lambda] = cuda_return;
+        if (lambda->is_connected_to_builtin(Lambda::Accelerator)) {
+            ret_map[lambda] = nullptr;
+            f = prepare_accelerator_kernel(lambda, ret_map[lambda]);
         } else if (lambda->is_connected_to_builtin(Lambda::Vectorize)) {
             const size_t e = lambda->num_params();
             assert(e >= 2 && "at least a thread id and a return expected");
@@ -512,8 +543,8 @@ void CodeGen::emit() {
                     else {
                         if (lambda->to()->isa<Lambda>()) {
                             const Lambda::Attribute& attr = lambda->to()->as_lambda()->attribute();
-                            if (attr.is(Lambda::Cuda))
-                                emit_cuda(lambda, bbs);
+                            if (attr.is(Lambda::Accelerator))
+                                emit_accelerator(lambda, bbs);
                             else if(attr.is(Lambda::Vectorize))
                                 emit_vectors(fct, lambda, bbs);
                             else

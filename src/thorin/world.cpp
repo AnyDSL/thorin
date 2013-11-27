@@ -1095,10 +1095,10 @@ void World::dead_code_elimination() {
         if (wipe_primop(primop)) {
             for (size_t i = 0, e = primop->size(); i != e; ++i)
                 primop->unregister_use(i);
-                if (primop->is_proxy()) {
-                    auto num = primop->representative_->representatives_of_.erase(primop);
-                    assert(num == 1);
-                }
+            if (primop->is_proxy()) {
+                auto num = primop->representative_->representatives_of_.erase(primop);
+                assert(num == 1);
+            }
 #ifndef NDEBUG
         } else {
             for (auto op : primop->ops())

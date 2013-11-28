@@ -12,9 +12,9 @@ namespace thorin {
 
 typedef std::unordered_set<const DefNode*> Vars;
 
-void free_vars(Scope& scope, Schedule& schedule, Lambda* lambda, Vars& vars) {
-    for (auto lamb : scope.domtree().node(lambda)->children()) {
-        free_vars(scope, schedule, lamb->lambda(), vars);
+void free_vars(const DomTree& domtree, Schedule& schedule, Lambda* lambda, Vars& vars) {
+    for (auto lamb : domtree.node(lambda)->children()) {
+        free_vars(domtree, schedule, lamb->lambda(), vars);
     }
     for (auto op : lambda->args()) {
         if (op->isa<PrimOp>() && !op->is_const())
@@ -30,14 +30,14 @@ void free_vars(Scope& scope, Schedule& schedule, Lambda* lambda, Vars& vars) {
     }
 }
 
-void defined_vars(Scope& scope, Schedule& schedule, Lambda* lambda, Vars& vars) {
+void defined_vars(const DomTree& domtree, Schedule& schedule, Lambda* lambda, Vars& vars) {
     std::vector<const PrimOp*>& ops = schedule[lambda];
     for (auto i = ops.rbegin(); i != ops.rend(); ++i) {
         vars.erase(*i);
     }
-    auto idom = scope.domtree().idom(lambda);
+    auto idom = domtree.idom(lambda);
     if (idom && idom != lambda) {
-        defined_vars(scope, schedule, idom, vars);
+        defined_vars(domtree, schedule, idom, vars);
     }
 }
 
@@ -55,7 +55,7 @@ public:
     std::ostream& emit_head(const Lambda*, bool nodefs);
     std::ostream& emit_jump(const Lambda*, bool nodefs);
 
-    void print_lambda(Scope& scope, Schedule& schedule, Lambda* lambda, Vars& def_vars);
+    void print_lambda(const DomTree& domtree, Schedule& schedule, Lambda* lambda, Vars& def_vars);
     DefSet pass_;
 };
 
@@ -193,37 +193,37 @@ std::ostream& IlPrinter::emit_jump(const Lambda* lambda, bool nodefs) {
 }
 
 
-void IlPrinter::print_lambda(Scope& scope, Schedule& schedule, Lambda* lambda, Vars& def_vars) {
-            if (pass_.visit(lambda))
-              return;
-            emit_head(lambda, schedule[lambda].empty());
-            bool first = true;
-            Vars this_def_vars;
-            for (auto op : schedule[lambda]) {
-                for (auto lamb : scope.domtree().node(lambda)->children()) {
-                  Vars vars;
-                  free_vars(scope, schedule, lamb->lambda(), vars);
-                  for (auto dop : def_vars) {
-                      vars.erase(dop);
-                  }
-                  if (vars.empty())
-                    print_lambda(scope, schedule, lamb->lambda(), def_vars);
-                }
-                if (!first) {
-                  //newline();
-                } else {
-                  first = false;
-                }
-                emit_assignment(op);
-                def_vars.insert(op);
-                this_def_vars.insert(op);
+void IlPrinter::print_lambda(const DomTree& domtree, Schedule& schedule, Lambda* lambda, Vars& def_vars) {
+    if (pass_.visit(lambda))
+        return;
+    emit_head(lambda, schedule[lambda].empty());
+    bool first = true;
+    Vars this_def_vars;
+    for (auto op : schedule[lambda]) {
+        for (auto lamb : domtree.node(lambda)->children()) {
+            Vars vars;
+            free_vars(domtree, schedule, lamb->lambda(), vars);
+            for (auto dop : def_vars) {
+                vars.erase(dop);
             }
-
-            emit_jump(lambda, schedule[lambda].empty());
-            for (auto dop : this_def_vars) {
-                def_vars.erase(dop);
-            }
+            if (vars.empty())
+            print_lambda(domtree, schedule, lamb->lambda(), def_vars);
+        }
+        if (!first) {
             //newline();
+        } else {
+            first = false;
+        }
+        emit_assignment(op);
+        def_vars.insert(op);
+        this_def_vars.insert(op);
+    }
+
+    emit_jump(lambda, schedule[lambda].empty());
+    for (auto dop : this_def_vars) {
+        def_vars.erase(dop);
+    }
+    //newline();
 }
 
 //------------------------------------------------------------------------------
@@ -233,10 +233,11 @@ void emit_il(World& world, bool fancy) {
 
     for (auto lambda : top_level_lambdas(world)) {
         Scope scope(lambda);
+        const DomTree domtree(scope);
         Schedule schedule = schedule_smart(scope);
         cg.pass_.clear();
         Vars def_vars;
-        cg.print_lambda(scope, schedule, lambda, def_vars);
+        cg.print_lambda(domtree, schedule, lambda, def_vars);
         cg.newline();
     }
 }

@@ -7,8 +7,6 @@
 
 #include "thorin/lambda.h"
 #include "thorin/world.h"
-#include "thorin/analyses/domtree.h"
-#include "thorin/analyses/looptree.h"
 
 namespace thorin {
 
@@ -16,9 +14,6 @@ Scope::Scope(Lambda* entry)
     : world_(entry->world())
     , num_entries_(1)
     , num_exits_(-1)
-    , domtree_(nullptr)
-    , postdomtree_(nullptr)
-    , looptree_(nullptr)
 {
     identify_scope({entry});
     rpo_numbering({entry});
@@ -27,9 +22,6 @@ Scope::Scope(Lambda* entry)
 Scope::Scope(World& world, ArrayRef<Lambda*> entries)
     : world_(world)
     , num_entries_(entries.size())
-    , domtree_(nullptr)
-    , postdomtree_(nullptr)
-    , looptree_(nullptr)
 {
     identify_scope(entries);
     rpo_numbering(entries);
@@ -38,9 +30,6 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries)
 Scope::Scope(World& world) 
     : world_(world)
     , num_entries_(0)
-    , domtree_(nullptr)
-    , postdomtree_(nullptr)
-    , looptree_(nullptr)
 {
     LambdaSet top_level = world.lambdas();
 
@@ -55,12 +44,6 @@ Scope::Scope(World& world)
     std::copy(top_level.begin(), top_level.end(), std::inserter(entries, entries.begin()));
     num_entries_ = entries.size();
     rpo_numbering(entries);
-}
-
-Scope::~Scope() {
-    delete domtree_;
-    delete postdomtree_;
-    delete looptree_;
 }
 
 void Scope::identify_scope(ArrayRef<Lambda*> entries) {
@@ -257,10 +240,6 @@ bool Scope::is_exit(Lambda* lambda) const { assert(contains(lambda)); return sid
 
 size_t Scope::sid(Lambda* lambda) const { assert(contains(lambda)); return sid_[lambda].sid; }
 size_t Scope::backwards_sid(Lambda* lambda) const { assert(contains(lambda)); return sid_[lambda].backwards_sid; }
-
-const DomTree& Scope::domtree() const { return domtree_ ? *domtree_ : *(domtree_ = new DomTree(*this)); }
-const PostDomTree& Scope::postdomtree() const { return postdomtree_ ? *postdomtree_ : *(postdomtree_ = new PostDomTree(*this)); }
-const LoopTree& Scope::looptree() const { return looptree_ ? *looptree_ : *(looptree_ = new LoopTree(*this)); }
 
 //------------------------------------------------------------------------------
 

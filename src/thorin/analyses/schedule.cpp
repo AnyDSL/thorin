@@ -57,6 +57,7 @@ Schedule schedule_early(const Scope& scope) {
 
 Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &late_mapping) {
     Schedule schedule;
+    const DomTree domtree(scope);
     LambdaMap<std::queue<const PrimOp*>> queues;
     DefMap<size_t> placed_uses;
     late_mapping.clear();
@@ -90,7 +91,7 @@ Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &late_mapping) {
                     schedule[late].push_back(primop);
                     fill_queue(primop);
                 } else {
-                    late = late ? scope.domtree().lca(cur, late) : cur;
+                    late = late ? domtree.lca(cur, late) : cur;
                     queues[late].push(primop);
                 }
             } else
@@ -106,6 +107,8 @@ Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &late_mapping) {
 
 Schedule schedule_smart(const Scope& scope) {
     Schedule smart;
+    const DomTree domtree(scope); // TODO cache domtree across schedule_late
+    const LoopTree looptree(scope);
     Schedule early = schedule_early(scope);
     DefMap<Lambda*> late_mapping;
     schedule_late(scope, late_mapping); // set late pointers in primop and remember pass
@@ -118,8 +121,8 @@ Schedule schedule_smart(const Scope& scope) {
             Lambda* lambda_best = late_mapping[primop];
             assert(scope.contains(lambda_best));
             int depth = std::numeric_limits<int>::max();
-            for (Lambda* i = lambda_best; i != lambda_early; i = scope.domtree().idom(i)) {
-                int cur_depth = scope.looptree().depth(i);
+            for (Lambda* i = lambda_best; i != lambda_early; i = domtree.idom(i)) {
+                int cur_depth = looptree.depth(i);
                 if (cur_depth < depth) {
                     lambda_best = i;
                     depth = cur_depth;

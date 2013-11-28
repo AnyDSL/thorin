@@ -134,8 +134,11 @@ int main(int argc, char** argv) {
                 thorin::emit_thorin(init.world, fancy, !nocolor);
             //if (emit_il)
                 //thorin::emit_il(init.world, fancy);
-            if (emit_looptree)
-                std::cout << Scope(init.world).looptree().root() << std::endl; // TODO
+            if (emit_looptree) {
+                Scope scope(init.world);
+                const LoopTree looptree(scope);
+                std::cout << looptree.root() << std::endl; // TODO
+            }
 
             if (emit_llvm)
                 thorin::emit_llvm(init.world);

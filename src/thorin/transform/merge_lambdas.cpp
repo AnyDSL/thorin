@@ -10,10 +10,10 @@ class Merger {
 public:
     Merger(World& world)
         : scope(world)
-        , domtree(scope.domtree())
+        , domtree(DomTree(scope))
     {
         for (auto entry : scope.entries())
-            merge(scope.domtree().node(entry));
+            merge(domtree.node(entry));
     }
 
     void merge(const DomNode* n);
@@ -21,7 +21,7 @@ public:
     World& world() { return scope.world(); }
 
     Scope scope;
-    const DomTree& domtree;
+    const DomTree domtree;
 };
 
 const DomNode* Merger::dom_succ(const DomNode* n) { 

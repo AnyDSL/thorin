@@ -9,15 +9,11 @@
 
 namespace thorin {
 
-template<bool> class DomTreeBase;
-class LoopTree;
-
 class Scope {
 public:
     explicit Scope(Lambda* entry);
     explicit Scope(World& world, ArrayRef<Lambda*> entries);
     explicit Scope(World& world);
-    ~Scope();
 
     bool contains(Lambda* lambda) const { return set_.contains(lambda); }
     const DefSet& defs() const { return set_; }
@@ -57,10 +53,6 @@ public:
     size_t sid(Lambda* lambda) const;
     size_t backwards_sid(Lambda* lambda) const;
 
-    const DomTreeBase<true>& domtree() const;
-    const DomTreeBase<false>& postdomtree() const;
-    const LoopTree& looptree() const;
-
 private:
     void identify_scope(ArrayRef<Lambda*> entries);
     void rpo_numbering(ArrayRef<Lambda*> entries);
@@ -90,10 +82,6 @@ private:
     mutable AutoPtr<Array<Lambda*>> backwards_rpo_;
     mutable Array<Array<Lambda*>> preds_;
     mutable Array<Array<Lambda*>> succs_;
-    // TODO: maybe we should eliminate caching
-    mutable DomTreeBase<true>* domtree_;
-    mutable DomTreeBase<false>* postdomtree_;
-    mutable LoopTree* looptree_;
 };
 
 inline Array<Lambda*> top_level_lambdas(World& world) { return Scope(world).entries(); }

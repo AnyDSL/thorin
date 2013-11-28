@@ -71,8 +71,8 @@ public:
 
     size_t index() const { return index_; }
     const Def& def() const { return def_; }
-    bool operator == (Use use) const { return def().node() == use.def().node() && index() == use.index(); }
-    bool operator != (Use use) const { return def().node() != use.def().node() || index() != use.index(); }
+    bool operator == (Use use) const { return def() == use.def() && index() == use.index(); }
+    bool operator != (Use use) const { return def() != use.def() || index() != use.index(); }
     bool operator < (Use) const;
     operator Def() const { return def_; }
     operator const DefNode*() const { return def_; }
@@ -84,7 +84,7 @@ private:
 };
 
 struct UseHash { size_t operator () (Use use) const { return hash_combine(hash_value(use.def().node()), use.index()); } };
-struct UseEqual { bool operator () (Use use1, Use use2) const { return use1 == use2; } };
+struct UseEqual { bool operator () (Use use1, Use use2) const { return use1.def().node() == use2.def().node(); } };
 
 class Peek {
 public:

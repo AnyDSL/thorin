@@ -9,7 +9,7 @@ namespace thorin {
 std::vector<Def> free_vars(const Scope& scope) {
     std::vector<Def> result;
     std::queue<Def> queue;
-    const DefSet& pass1 = scope.defs();
+    const DefSet& pass1 = scope.mark();
     DefSet pass2;
 
     // now find everything not marked previously

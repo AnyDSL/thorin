@@ -20,7 +20,7 @@ public:
         , to_lift(to_lift)
         , generic_map(generic_map)
         , world(scope.world())
-        , pass1(scope.defs())
+        , pass1(scope.mark())
         , pass2(mapped)
     {
         std::queue<Def> queue;

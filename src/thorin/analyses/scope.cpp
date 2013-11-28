@@ -7,8 +7,32 @@
 
 #include "thorin/lambda.h"
 #include "thorin/world.h"
+#include "thorin/be/thorin.h"
 
 namespace thorin {
+
+Array<Lambda*> top_level_lambdas(World& world) {
+    // trivial implementation, but works
+    // TODO: nicer version with Fibonacci heaps
+    AutoVector<Scope*> scopes;
+    for (auto lambda : world.lambdas())
+        scopes.push_back(new Scope(lambda));
+
+    // check for top_level lambdas
+    LambdaSet top_level = world.lambdas();
+    for (auto lambda : world.lambdas()) {
+        for (auto scope : scopes)
+            if (lambda != scope->entries().front() && scope->contains(lambda)) {
+                top_level.erase(lambda);
+                goto next_lambda;
+            }
+    next_lambda:;
+    }
+
+    Array<Lambda*> result(top_level.size());
+    std::copy(top_level.begin(), top_level.end(), result.begin());
+    return result;
+}
 
 Scope::Scope(Lambda* entry)
     : world_(entry->world())
@@ -27,95 +51,66 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries)
     rpo_numbering(entries);
 }
 
-Scope::Scope(World& world) 
-    : world_(world)
-    , num_entries_(0)
-{
-    LambdaSet top_level = world.lambdas();
-
-    for (auto lambda : world.lambdas()) {
-        if (!set_.contains(lambda)) {
-            LambdaSet processing;
-            collect(top_level, processing, lambda, lambda);
-        }
-    }
-
-    std::vector<Lambda*> entries;
-    std::copy(top_level.begin(), top_level.end(), std::inserter(entries, entries.begin()));
-    num_entries_ = entries.size();
-    rpo_numbering(entries);
+bool Scope::contains(Lambda* lambda) const {
+    auto it = sid_.find(lambda);
+    if (it == sid_.end())
+        return false;
+    return it->second.sid != size_t(-1);
 }
 
 void Scope::identify_scope(ArrayRef<Lambda*> entries) {
-    LambdaSet top_level;
-    for (auto entry : entries) {
-        LambdaSet processing;
-        collect(top_level, processing, entry, entry);
-    }
+    for (auto entry : entries)
+        collect(entry);
 }
 
-void Scope::collect(LambdaSet& top_level, LambdaSet& processing, Lambda* lambda, Lambda* boundary) {
-    if (lambda != boundary)
-        top_level.erase(lambda);
-
-    if (processing.contains(lambda))
+void Scope::collect(Lambda* lambda) {
+    if (visited_.visit(lambda))
         return;
-
-    processing.insert(lambda);
-
-    if (!set_.visit(lambda))
-        rpo_.push_back(lambda);
+    rpo_.push_back(lambda);
 
     // search downwards
     std::queue<Def> queue;
     for (auto param : lambda->params()) {
-        if (!param->is_proxy()) {
-            set_.insert(param);
-            queue.push(param);
-        }
+        if (param->is_proxy())
+            continue;
+        visited_.insert(param);
+        queue.push(param);
     }
+
+    for (auto use : lambda->uses())
+        queue.push(use);
 
     LambdaSet lambdas;
     while (!queue.empty()) {
         auto def = queue.front();
         queue.pop();
         for (auto use : def->uses()) {
-            if (auto ulambda = use->isa_lambda()) {
-                if (ulambda != lambda)
+            if (!visited_.contains(use)) {
+                if (auto ulambda = use->isa_lambda()) {
                     lambdas.insert(ulambda);
-            } else {
-                set_.insert(use);
-                queue.push(use);
+                } else {
+                    visited_.insert(use);
+                    queue.push(use);
+                }
             }
         }
     }
 
     for (auto olambda : lambdas)
-        collect(top_level, processing, olambda, boundary);
+        collect(olambda);
 
     // check for predecessors
-    if (lambda != boundary) {
-        for (auto pred : lambda->preds()) {
-            if (pred == lambda)
-                continue;
-            std::queue<Def> predops;
-            for (auto op : pred->ops())
-                predops.push(op);
-            while (!predops.empty()) {
-                auto def = predops.front();
-                predops.pop();
-                if (set_.contains(def)) {
-                    collect(top_level, processing, pred, boundary);
-                    goto pred;
+    for (auto pred : lambda->preds()) {
+        if (!visited_.contains(pred)) {
+            for (auto op : pred->ops()) {
+                if (visited_.contains(op)) {
+                    collect(pred);
+                    goto next_pred;
                 }
-                for (auto d : def->ops())
-                    predops.push(d);
             }
-        pred:;
         }
+    next_pred:;
     }
-
-    processing.erase(lambda);
 }
 
 void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {
@@ -138,8 +133,11 @@ void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {
         if (lambdas.contains(lambda)) {
             sid_[lambda].sid = num - 1 - sid_[lambda].sid;
         } else { // lambda is unreachable
-            set_.erase(lambda);
             sid_[lambda].sid = size_t(-1);
+            for (auto param : lambda->params())
+                if (!param->is_proxy())
+                    visited_.erase(param);
+            visited_.erase(lambda);
         }
     }
     
@@ -153,7 +151,7 @@ void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {
 template<bool forwards>
 size_t Scope::po_visit(LambdaSet& set, Lambda* cur, size_t i) const {
     for (auto succ : forwards ? cur->succs() : cur->preds()) {
-        if (contains(succ) && !set.contains(succ))
+        if (visited_.contains(succ) && !set.contains(succ))
             i = number<forwards>(set, succ, i);
     }
     return i;
@@ -226,14 +224,26 @@ ArrayRef<Lambda*> Scope::backwards_rpo() const {
     return *backwards_rpo_;
 }
 
-//------------------------------------------------------------------------------
+DefSet Scope::mark() const {
+    DefSet set;
+    std::queue<Def> queue;
 
-LambdaSet Scope::resolve_lambdas() const
-{
-    LambdaSet result;
-    std::copy(rpo_.begin(), rpo_.end(), std::inserter(result, result.begin()));
-    return result;
+    for (auto lambda : rpo()) {
+        set.visit(lambda);
+        queue.push(lambda);
+
+        for (auto param : lambda->params()) {
+            set.insert(param);
+            queue.push(param);
+        }
+
+        mark_down(set, queue);
+    }
+
+    return set;
 }
+
+//------------------------------------------------------------------------------
 
 bool Scope::is_entry(Lambda* lambda) const { assert(contains(lambda)); return sid_[lambda].sid < num_entries(); }
 bool Scope::is_exit(Lambda* lambda) const { assert(contains(lambda)); return sid_[lambda].backwards_sid < num_exits(); }

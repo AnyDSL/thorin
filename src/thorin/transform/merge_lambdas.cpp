@@ -9,8 +9,8 @@ namespace thorin {
 class Merger {
 public:
     Merger(World& world)
-        : scope(world)
-        , domtree(DomTree(scope))
+        : scope(world, top_level_lambdas(world))
+        , domtree(scope)
     {
         for (auto entry : scope.entries())
             merge(domtree.node(entry));

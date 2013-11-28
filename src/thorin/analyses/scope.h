@@ -9,15 +9,14 @@
 
 namespace thorin {
 
+Array<Lambda*> top_level_lambdas(World& world);
+
 class Scope {
 public:
     explicit Scope(Lambda* entry);
     explicit Scope(World& world, ArrayRef<Lambda*> entries);
-    explicit Scope(World& world);
 
-    bool contains(Lambda* lambda) const { return set_.contains(lambda); }
-    const DefSet& defs() const { return set_; }
-    LambdaSet resolve_lambdas() const;
+    bool contains(Lambda* lambda) const;
 
     /// All lambdas within this scope in reverse postorder.
     ArrayRef<Lambda*> rpo() const { return rpo_; }
@@ -53,17 +52,19 @@ public:
     size_t sid(Lambda* lambda) const;
     size_t backwards_sid(Lambda* lambda) const;
 
+    DefSet mark() const;
+
 private:
     void identify_scope(ArrayRef<Lambda*> entries);
     void rpo_numbering(ArrayRef<Lambda*> entries);
-    void collect(LambdaSet& top_level, LambdaSet& processing, Lambda* lambda, Lambda* boundary);
+    void collect(Lambda* lambda);
     template<bool forwards> size_t po_visit(LambdaSet&, Lambda* cur, size_t i) const;
     template<bool forwards> size_t number(LambdaSet&, Lambda* cur, size_t i) const;
 
     World& world_;
     std::vector<Lambda*> rpo_;
+    DefSet visited_;
     size_t num_entries_;
-    DefSet set_;
 
     struct LambdaSidInfo
     {
@@ -83,8 +84,6 @@ private:
     mutable Array<Array<Lambda*>> preds_;
     mutable Array<Array<Lambda*>> succs_;
 };
-
-inline Array<Lambda*> top_level_lambdas(World& world) { return Scope(world).entries(); }
 
 } // namespace thorin
 

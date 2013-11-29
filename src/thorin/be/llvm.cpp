@@ -235,11 +235,11 @@ llvm::Function* CodeGen::prepare_spir_kernel(Lambda* lambda, const Param*& ret_p
     llvm::NamedMDNode* annotation;
     llvm::Value* annotation_values_12[] = { builder.getInt32(1), builder.getInt32(2) };
     size_t num_params = e - i;
-    llvm::Value* annotation_values_addr_space[num_params];
-    llvm::Value* annotation_values_access_qual[num_params];
-    llvm::Value* annotation_values_type[num_params];
-    llvm::Value* annotation_values_type_qual[num_params];
-    llvm::Value* annotation_values_name[num_params];
+    llvm::Value** annotation_values_addr_space  = new llvm::Value*[num_params];
+    llvm::Value** annotation_values_access_qual = new llvm::Value*[num_params];
+    llvm::Value** annotation_values_type        = new llvm::Value*[num_params];
+    llvm::Value** annotation_values_type_qual   = new llvm::Value*[num_params];
+    llvm::Value** annotation_values_name        = new llvm::Value*[num_params];
     annotation_values_addr_space[0]  = llvm::MDString::get(context, "kernel_arg_addr_space");
     annotation_values_access_qual[0] = llvm::MDString::get(context, "kernel_arg_access_qual");
     annotation_values_type[0]        = llvm::MDString::get(context, "kernel_arg_type");
@@ -289,6 +289,12 @@ llvm::Function* CodeGen::prepare_spir_kernel(Lambda* lambda, const Param*& ret_p
     annotation = acc_module->getOrInsertNamedMetadata("opencl.used.optional.core.features");
     // opencl.compiler.options
     annotation = acc_module->getOrInsertNamedMetadata("opencl.compiler.options");
+
+    delete annotation_values_addr_space;
+    delete annotation_values_access_qual;
+    delete annotation_values_type;
+    delete annotation_values_type_qual;
+    delete annotation_values_name;
 
     return f;
 }

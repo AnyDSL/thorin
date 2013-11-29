@@ -980,7 +980,21 @@ void World::opt() {
         }
     }
 
+    for (auto top : top_level_lambdas(*this)) {
+        std::cout << top->unique_name() << std::endl;
+        if (top->gid() == 119) {
+            std::cout << "uses of 119:" << std::endl;
+            std::cout << top->num_uses() << std::endl;
+            for (auto use : top->uses()) {
+                use->dump();
+            }
+            std::cout << "done uses" << std::endl;
+        }
+    }
     inliner(*this);
+    std::cout << "--" << std::endl;
+    for (auto top : top_level_lambdas(*this))
+        std::cout << top->unique_name() << std::endl;
     merge_lambdas(*this);
     cleanup();
 }
@@ -1080,6 +1094,7 @@ void World::dead_code_elimination() {
     auto wipe_primop = [&] (const PrimOp* primop) { return !set.contains(primop); };
     auto wipe_lambda = [&] (Lambda* lambda) { return lambda->empty() && !lambda->attribute().is(Lambda::Extern); };
 
+#if 0
     for (auto lambda : lambdas_) {
         if (wipe_lambda(lambda)) {
             for (auto i = cache_.begin(); i != cache_.end();) {
@@ -1090,6 +1105,7 @@ void World::dead_code_elimination() {
             }
         }
     }
+#endif
 
     for (auto primop : primops_) {
         if (wipe_primop(primop)) {

@@ -6,6 +6,7 @@
 #include <initializer_list>
 #include <queue>
 #include <string>
+#include <unordered_set>
 
 #include "thorin/enums.h"
 #include "thorin/lambda.h"
@@ -347,7 +348,7 @@ private:
     };
 
 public:
-    std::unordered_map<Call, Lambda*, CallHash, CallEqual> cache_;
+    //std::unordered_map<Call, Lambda*, CallHash, CallEqual> cache_;
 
     friend class Lambda;
 };

@@ -11,10 +11,12 @@
 namespace thorin {
 
 static Lambda* cached(World& world, const Call& call) {
+#if 0
     auto iter = world.cache_.find(call);
     if (iter != world.cache_.end()) {
         return iter->second;
     }
+#endif
     return nullptr;
 }
 

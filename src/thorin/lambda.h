@@ -170,24 +170,24 @@ private:
 
 //------------------------------------------------------------------------------
 
-class LambdaSet : public std::unordered_set<Lambda*, DefNodeHash, DefNodeEqual> {
+class LambdaSet : public std::set<Lambda*, DefNodeLT> {
 public:
-    typedef std::unordered_set<Lambda*, DefNodeHash, DefNodeEqual> Super;
+    typedef std::set<Lambda*, DefNodeLT> Super;
 
     bool contains(Lambda* def) const { return Super::find(def) != Super::end(); }
     bool visit(Lambda* def) { return !Super::insert(def).second; }
 };
 
 template<class Value>
-class LambdaMap : public std::unordered_map<const Lambda*, Value, DefNodeHash, DefNodeEqual> {
+class LambdaMap : public std::map<const Lambda*, Value, DefNodeLT> {
 public:
-    typedef std::unordered_map<const Lambda*, Value, DefNodeHash, DefNodeEqual> Super;
+    typedef std::map<const Lambda*, Value, DefNodeLT> Super;
 };
 
 template<class Value>
-class LambdaMap<Value*> : public std::unordered_map<const Lambda*, Value*, DefNodeHash, DefNodeEqual> {
+class LambdaMap<Value*> : public std::map<const Lambda*, Value*, DefNodeLT> {
 public:
-    typedef std::unordered_map<const Lambda*, Value*, DefNodeHash, DefNodeEqual> Super;
+    typedef std::map<const Lambda*, Value*, DefNodeLT> Super;
 
     Value* find(const Lambda* def) const {
         auto i = Super::find(def);

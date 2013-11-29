@@ -3,8 +3,8 @@
 
 #include <queue>
 #include <string>
-#include <unordered_map>
-#include <unordered_set>
+#include <map>
+#include <set>
 #include <vector>
 
 #include "thorin/enums.h"
@@ -24,6 +24,12 @@ class Tracker;
 class Type;
 class Use;
 class World;
+
+//------------------------------------------------------------------------------
+
+struct DefNodeLT { 
+    inline size_t operator () (const DefNode* n1, const DefNode* n2) const;
+};
 
 //------------------------------------------------------------------------------
 
@@ -83,8 +89,9 @@ private:
     Def def_;
 };
 
-struct UseHash { size_t operator () (Use use) const { return hash_combine(hash_value(use.def().node()), use.index()); } };
-struct UseEqual { bool operator () (Use use1, Use use2) const { return use1.def().node() == use2.def().node(); } };
+struct UseLT { 
+    inline bool operator () (Use use1, Use use2) const;
+};
 
 class Peek {
 public:
@@ -123,7 +130,6 @@ protected:
         : kind_(kind)
         , ops_(size)
         , type_(type)
-        , uses_(13) // 13 seems to perform best
         , representative_(this)
         , gid_(gid)
         , is_const_(is_const)
@@ -190,9 +196,9 @@ private:
     std::vector<Def> ops_;
     // HACK
     mutable const Type* type_;
-    mutable std::unordered_set<Use, UseHash, UseEqual> uses_;
+    mutable std::set<Use, UseLT> uses_;
     mutable const DefNode* representative_;
-    mutable std::unordered_set<const DefNode*> representatives_of_;
+    mutable std::set<const DefNode*, DefNodeLT> representatives_of_;
     const size_t gid_;
 
 protected:
@@ -207,31 +213,29 @@ public:
     friend void verify_closedness(World& world);
 };
 
+//------------------------------------------------------------------------------
+
 std::ostream& operator << (std::ostream& o, Def def);
 inline bool Use::operator < (Use use) const { return def()->gid() < use.def()->gid() && index() < use.index(); }
-
-//------------------------------------------------------------------------------
-
-struct DefNodeHash { 
-    size_t operator () (const DefNode* n) const { return hash_value(n->gid()); } 
-};
-
-struct DefNodeEqual { 
-    bool operator () (const DefNode* n1, const DefNode* n2) const { return n1->gid() == n2->gid(); } 
-};
+size_t DefNodeLT::operator () (const DefNode* n1, const DefNode* n2) const { return n1->gid() > n2->gid(); } 
+bool UseLT::operator () (Use use2, Use use1) const { // <- note that we switch the order here on purpose
+        auto gid1 = use1.def().node()->gid();
+        auto gid2 = use2.def().node()->gid();
+        return (gid1 < gid2 || (gid1 == gid2 && use1.index() < use2.index()));
+}
 
 //------------------------------------------------------------------------------
 
 template<class Value>
-class DefMap : public std::unordered_map<const DefNode*, Value, DefNodeHash, DefNodeEqual> {
+class DefMap : public std::map<const DefNode*, Value, DefNodeLT> {
 public:
-    typedef std::unordered_map<const DefNode*, Value, DefNodeHash, DefNodeEqual> Super;
+    typedef std::map<const DefNode*, Value, DefNodeLT> Super;
 };
 
 template<class Value>
-class DefMap<Value*> : public std::unordered_map<const DefNode*, Value*, DefNodeHash, DefNodeEqual> {
+class DefMap<Value*> : public std::map<const DefNode*, Value*, DefNodeLT> {
 public:
-    typedef std::unordered_map<const DefNode*, Value*, DefNodeHash, DefNodeEqual> Super;
+    typedef std::map<const DefNode*, Value*, DefNodeLT> Super;
 
     Value* find(const DefNode* def) const {
         auto i = Super::find(def);
@@ -242,9 +246,9 @@ public:
     bool visit(const DefNode* def, Value* val) { return !Super::insert(std::make_pair(def, val)).second; }
 };
 
-class DefSet : public std::unordered_set<const DefNode*, DefNodeHash, DefNodeEqual> {
+class DefSet : public std::set<const DefNode*, DefNodeLT> {
 public:
-    typedef std::unordered_set<const DefNode*, DefNodeHash, DefNodeEqual> Super;
+    typedef std::set<const DefNode*, DefNodeLT> Super;
 
     bool contains(const DefNode* def) const { return Super::find(def) != Super::end(); }
     bool visit(const DefNode* def) { return !Super::insert(def).second; }

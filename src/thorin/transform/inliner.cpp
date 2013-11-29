@@ -7,7 +7,8 @@
 namespace thorin {
 
 void inliner(World& world) {
-    for (auto top : top_level_lambdas(world)) {
+    auto top_level = top_level_lambdas(world);
+    for (auto top : top_level) {
         if (!top->empty() && top->num_uses() <= 2) {
             for (auto use : top->uses()) {
                 if (Lambda* ulambda = use->isa_lambda()) {

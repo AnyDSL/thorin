@@ -22,7 +22,7 @@ define spir_func i32 @ave(i32 %a, i32 %b) nounwind {
 define spir_kernel void @simple(i32 addrspace(1)* %out) nounwind {
   %add64 = call spir_func i64 @_Z13get_global_idj(i32 0) nounwind readnone
   %add32 = trunc i64 %add64 to i32
-  %call = call i32 @ave(i32 %add32, i32 %add32)
+  %call = call spir_func i32 @ave(i32 %add32, i32 %add32)
   %arrayidx = getelementptr inbounds i32 addrspace(1)* %out, i64 %add64
   store i32 %call, i32 addrspace(1)* %arrayidx, align 4
   ret void

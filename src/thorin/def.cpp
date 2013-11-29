@@ -41,7 +41,8 @@ void DefNode::set_op(size_t i, Def def) {
     assert(!op(i) && "already set");
     auto node = *def;
     ops_[i] = node;
-    if (isa<PrimOp>()) is_const_ &= node->is_const();
+    if (isa<PrimOp>())
+        is_const_ &= node->is_const();
     assert(def->uses_.count(Use(i, this)) == 0);
     node->uses_.emplace(i, this);
 }

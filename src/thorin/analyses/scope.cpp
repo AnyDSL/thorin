@@ -59,11 +59,14 @@ bool Scope::contains(Lambda* lambda) const {
 }
 
 void Scope::identify_scope(ArrayRef<Lambda*> entries) {
+    LambdaSet lambdas;
     for (auto entry : entries)
-        collect(entry);
+        lambdas.insert(entry);
+    for (auto entry : entries)
+        collect(lambdas, entry);
 }
 
-void Scope::collect(Lambda* lambda) {
+void Scope::collect(LambdaSet& entries, Lambda* lambda) {
     if (visited_.visit(lambda))
         return;
     rpo_.push_back(lambda);
@@ -77,8 +80,10 @@ void Scope::collect(Lambda* lambda) {
         queue.push(param);
     }
 
-    for (auto use : lambda->uses())
-        queue.push(use);
+    if (!entries.contains(lambda)) {
+        for (auto use : lambda->uses())
+            queue.push(use);
+    }
 
     LambdaSet lambdas;
     while (!queue.empty()) {
@@ -96,21 +101,29 @@ void Scope::collect(Lambda* lambda) {
         }
     }
 
-    for (auto olambda : lambdas)
-        collect(olambda);
-
     // check for predecessors
-    for (auto pred : lambda->preds()) {
-        if (!visited_.contains(pred)) {
-            for (auto op : pred->ops()) {
-                if (visited_.contains(op)) {
-                    collect(pred);
-                    goto next_pred;
+    if (!entries.contains(lambda)) {
+        for (auto pred : lambda->preds()) {
+            if (!visited_.contains(pred)) {
+                for (auto op : pred->ops()) {
+                    if (auto ulambda = op->isa_lambda()) {
+                        if (entries.contains(ulambda))
+                            continue;
+                    }
+                    if (visited_.contains(op)) {
+                        collect(entries, pred);
+                        goto next_pred;
+                    }
                 }
             }
+        next_pred:;
         }
-    next_pred:;
     }
+
+    entries.insert(lambda);
+    for (auto olambda : lambdas)
+        collect(entries, olambda);
+    entries.erase(lambda);
 }
 
 void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {

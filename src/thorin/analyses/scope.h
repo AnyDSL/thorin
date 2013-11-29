@@ -57,7 +57,7 @@ public:
 private:
     void identify_scope(ArrayRef<Lambda*> entries);
     void rpo_numbering(ArrayRef<Lambda*> entries);
-    void collect(Lambda* lambda);
+    void collect(LambdaSet& entries, Lambda* lambda);
     template<bool forwards> size_t po_visit(LambdaSet&, Lambda* cur, size_t i) const;
     template<bool forwards> size_t number(LambdaSet&, Lambda* cur, size_t i) const;
 

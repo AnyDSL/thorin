@@ -48,7 +48,7 @@ const Param* Lambda::append_param(const Type* type, const std::string& name) {
 Lambdas Lambda::succs() const {
     std::vector<Lambda*> succs;
     std::queue<const DefNode*> queue;
-    std::unordered_set<const DefNode*> done;
+    DefSet done;
     const DefNode* def = this;
     goto start;
 
@@ -75,7 +75,7 @@ start:
 Lambdas Lambda::preds() const {
     std::vector<Lambda*> preds;
     std::queue<const DefNode*> queue;
-    std::unordered_set<const DefNode*> done;
+    DefSet done;
     const DefNode* def = this;
     goto start;
 

@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <iostream>
 #include <sstream>
-#include <unordered_map>
 #include <queue>
 
 #include "thorin/lambda.h"

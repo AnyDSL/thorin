@@ -186,7 +186,7 @@ void create_context_command_queue() {
 
 
 // initialize OpenCL device
-void init_opencl(cl_device_type dev_type=CL_DEVICE_TYPE_ALL) {
+void init_opencl(cl_device_type dev_type=CL_DEVICE_TYPE_CPU) {
     if (initialized) return;
 
     char pnBuffer[1024], pvBuffer[1024], pv2Buffer[1024], pdBuffer[1024], pd2Buffer[1024], pd3Buffer[1024];
@@ -344,6 +344,7 @@ void dump_program_binary(cl_program program, cl_device_id device) {
 
 // load OpenCL source file, build program, and create kernel
 void build_program_and_kernel(const char *file_name, const char *kernel_name) {
+    init_opencl();
     cl_int err = CL_SUCCESS;
     bool print_progress = true;
     bool print_log = true;
@@ -420,6 +421,7 @@ cl_mem malloc_buffer(size_t size) {
 
     return mem;
 }
+
 
 void free_buffer(cl_mem mem) {
     init_opencl();
@@ -515,6 +517,14 @@ void launch_kernel(const char *kernel_name) {
     clArgIdx = 0;
 }
 
+float *array(size_t num_elems) {
+    float *tmp = (float *)malloc(sizeof(float)*num_elems);
+
+    // initialize with dummy data
+    for (int i = 0; i < num_elems; ++i) tmp[i] = i%2048;
+
+    return tmp;
+}
 }
 
 #endif  // __OPENCL_RT_HPP__

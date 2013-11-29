@@ -8,6 +8,7 @@
 
 #include <llvm/IR/Constant.h>
 #include <llvm/IR/Constants.h>
+#include <llvm/IR/DataLayout.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/LLVMContext.h>
@@ -17,6 +18,7 @@
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/Analysis/Verifier.h>
+#include <llvm/Support/raw_ostream.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 
@@ -34,6 +36,8 @@
 #ifdef WFV2_SUPPORT
 #include <wfvInterface.h>
 #endif
+
+//#define EMIT_NVVM
 
 namespace thorin {
 
@@ -74,8 +78,9 @@ private:
     llvm::LLVMContext context;
     llvm::IRBuilder<> builder;
     AutoPtr<llvm::Module> module;
-    AutoPtr<llvm::Module> cuda_module;
+    AutoPtr<llvm::Module> acc_module;
     std::unordered_map<const Param*, llvm::Value*> params;
+    std::unordered_map<const Param*, llvm::Value*> acc_params;
     std::unordered_map<const Param*, llvm::PHINode*> phis;
     std::unordered_map<const PrimOp*, llvm::Value*> primops;
     std::unordered_map<Lambda*, llvm::Function*> fcts;
@@ -93,7 +98,11 @@ private:
     };
     std::vector<VectorizationEntry> v_fcts;
 
-    // cuda
+    // Accelerator module
+    const char* acc_kernel_name;
+    const char* acc_module_name;
+
+    // CUDA
     llvm::Function* cuda_thread_id_getter[3];
     llvm::Function* cuda_block_id_getter[3];
     llvm::Function* cuda_block_dim_getter[3];
@@ -109,8 +118,23 @@ private:
     llvm::Function* read_memory_indir;
     llvm::Function* free_memory;
     llvm::Type* cuda_device_ptr_ty;
-    const char* cuda_module_name;
-    const char* cuda_kernel_name;
+
+    // SPIR
+    llvm::Function* spir_thread_id_getter[3];
+    llvm::Function* spir_block_id_getter[3];
+    llvm::Function* spir_block_dim_getter[3];
+    llvm::Function* spir_malloc_buffer;
+    llvm::Function* spir_write_buffer;
+    llvm::Function* spir_write_buffer_indir;
+    llvm::Function* spir_build_program_and_kernel;
+    llvm::Function* spir_set_kernel_arg;
+    llvm::Function* spir_set_problem_size;
+    llvm::Function* spir_launch_kernel;
+    llvm::Function* spir_synchronize;
+    llvm::Function* spir_read_buffer;
+    llvm::Function* spir_read_buffer_indir;
+    llvm::Function* spir_free_buffer;
+    llvm::Type* spir_device_ptr_ty;
 };
 
 //------------------------------------------------------------------------------
@@ -121,15 +145,20 @@ CodeGen::CodeGen(World& world, EmitHook& hook)
     , context()
     , builder(context)
     , module(new llvm::Module("anydsl", context))
-    , cuda_module(new llvm::Module("a_kernel", context))
-    , cuda_module_name("a_kernel.nvvm")
-    , cuda_kernel_name("a_kernel")
+    , acc_module(new llvm::Module("a_kernel", context))
+    #ifdef EMIT_NVVM
+    , acc_module_name("a_kernel.nvvm")
+    #else
+    , acc_module_name("a_kernel.spir.bc")
+    #endif
+    , acc_kernel_name("a_kernel")
 {
     hook.assign(&builder, module);
 }
 
 llvm::Function* CodeGen::prepare_cuda_kernel(Lambda* lambda, const Param*& ret_param) {
    const size_t e = lambda->num_params();
+
     // check dimensions
     size_t i = 1;
     for (; i < 3 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i)
@@ -138,12 +167,13 @@ llvm::Function* CodeGen::prepare_cuda_kernel(Lambda* lambda, const Param*& ret_p
         params[lambda->param(i)] = cuda_block_id_getter[i - 3];
     for (; i < 7 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i)
         params[lambda->param(i)] = cuda_block_dim_getter[i - 5];
-    // cuda return param
+    // CUDA return param
     ret_param = lambda->param(i);
     assert(ret_param->type()->isa<Pi>());
     // build kernel declaration
     llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(world.pi(lambda->pi()->elems().slice_from_begin(i))));
-    llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, cuda_kernel_name, cuda_module);
+    llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, acc_kernel_name, acc_module);
+    f->setCallingConv(llvm::CallingConv::PTX_Kernel);
     // wire params directly
     auto arg = f->arg_begin();
     for (size_t j = i + 1; j < e; ++j) {
@@ -153,25 +183,129 @@ llvm::Function* CodeGen::prepare_cuda_kernel(Lambda* lambda, const Param*& ret_p
         params[p] = param;
     }
     // append required metadata
-    llvm::NamedMDNode* annotation = cuda_module->getOrInsertNamedMetadata("nvvm.annotations");
+    llvm::NamedMDNode* annotation = acc_module->getOrInsertNamedMetadata("nvvm.annotations");
     llvm::Value* annotation_values[] = {
         f,
         llvm::MDString::get(context, "kernel"),
         llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), 1)
     };
     annotation->addOperand(llvm::MDNode::get(context, annotation_values));
+
     return f;
 }
 
-llvm::Function* CodeGen::prepare_spir_kernel(Lambda* target, const Param*& ret_param) {
-    assert(false);
-    return nullptr;
+llvm::Function* CodeGen::prepare_spir_kernel(Lambda* lambda, const Param*& ret_param) {
+   const size_t e = lambda->num_params();
+
+    // check dimensions
+    size_t i = 1;
+    for (; i < 3 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i)
+        params[lambda->param(i)] = acc_params[lambda->param(i)] = spir_thread_id_getter[i - 1];
+    for (; i < 5 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i)
+        params[lambda->param(i)] = acc_params[lambda->param(i)] = spir_block_id_getter[i - 3];
+    for (; i < 7 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i)
+        params[lambda->param(i)] = acc_params[lambda->param(i)] = spir_block_dim_getter[i - 5];
+    // SPIR return param
+    ret_param = lambda->param(i);
+    assert(ret_param->type()->isa<Pi>());
+    // build kernel declaration
+    llvm::Type* ty = map(world.pi(lambda->pi()->elems().slice_from_begin(i)));
+    // iterate over function type and set address space for SPIR
+    llvm::SmallVector<llvm::Type *, 4> types;
+    for (size_t j=0; j<ty->getFunctionNumParams(); ++j) {
+        llvm::Type* fty = ty->getFunctionParamType(j);
+        if (llvm::isa<llvm::PointerType>(fty)) {
+            types.push_back(llvm::dyn_cast<llvm::PointerType>(fty)->getElementType()->getPointerTo(1));
+        } else {
+            types.push_back(fty);
+        }
+    }
+    llvm::FunctionType* ft = llvm::FunctionType::get(llvm::IntegerType::getVoidTy(context), types, false);
+    llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, acc_kernel_name, acc_module);
+    f->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
+    // wire params directly
+    auto arg = f->arg_begin();
+    for (size_t j = i + 1; j < e; ++j) {
+        llvm::Argument* param = arg++;
+        const Param* p = lambda->param(j);
+        param->setName(llvm::Twine(p->name));
+        params[p] = param;
+    }
+    // append required metadata
+    llvm::NamedMDNode* annotation;
+    llvm::Value* annotation_values_12[] = { builder.getInt32(1), builder.getInt32(2) };
+    size_t num_params = e - i;
+    llvm::Value* annotation_values_addr_space[num_params];
+    llvm::Value* annotation_values_access_qual[num_params];
+    llvm::Value* annotation_values_type[num_params];
+    llvm::Value* annotation_values_type_qual[num_params];
+    llvm::Value* annotation_values_name[num_params];
+    annotation_values_addr_space[0]  = llvm::MDString::get(context, "kernel_arg_addr_space");
+    annotation_values_access_qual[0] = llvm::MDString::get(context, "kernel_arg_access_qual");
+    annotation_values_type[0]        = llvm::MDString::get(context, "kernel_arg_type");
+    annotation_values_type_qual[0]   = llvm::MDString::get(context, "kernel_arg_type_qual");
+    annotation_values_name[0]        = llvm::MDString::get(context, "kernel_arg_name");
+    for (size_t j = i + 1; j < e; ++j) {
+        const Param* p = lambda->param(j);
+        llvm::Value* param = params[p];
+        llvm::Type* type = param->getType();
+        size_t addr_space = 0;
+        if (llvm::isa<llvm::PointerType>(type)) {
+            addr_space = llvm::dyn_cast<llvm::PointerType>(type)->getAddressSpace();
+            type = llvm::dyn_cast<llvm::PointerType>(type)->getElementType()->getPointerTo(0);
+        }
+        annotation_values_addr_space[j-i]  = builder.getInt32(addr_space);
+        annotation_values_access_qual[j-i] = llvm::MDString::get(context, "none");
+        std::string type_string;
+        llvm::raw_string_ostream type_os(type_string);
+        type->print(type_os);
+        type_os.flush();
+        annotation_values_type[j-i] = llvm::MDString::get(context, type_string);
+        annotation_values_type_qual[j-i] = llvm::MDString::get(context, "");
+        annotation_values_name[j-i] = llvm::MDString::get(context, param->getName());
+    }
+    llvm::Value* annotation_values_kernel[] = {
+        f,
+        llvm::MDNode::get(context, llvm::ArrayRef<llvm::Value*>(annotation_values_addr_space, num_params)),
+        llvm::MDNode::get(context, llvm::ArrayRef<llvm::Value*>(annotation_values_access_qual, num_params)),
+        llvm::MDNode::get(context, llvm::ArrayRef<llvm::Value*>(annotation_values_type, num_params)),
+        llvm::MDNode::get(context, llvm::ArrayRef<llvm::Value*>(annotation_values_type_qual, num_params)),
+        llvm::MDNode::get(context, llvm::ArrayRef<llvm::Value*>(annotation_values_name, num_params))
+    };
+    // opencl.kernels
+    annotation = acc_module->getOrInsertNamedMetadata("opencl.kernels");
+    annotation->addOperand(llvm::MDNode::get(context, annotation_values_kernel));
+    // opencl.enable.FP_CONTRACT
+    annotation = acc_module->getOrInsertNamedMetadata("opencl.enable.FP_CONTRACT");
+    // opencl.spir.version
+    annotation = acc_module->getOrInsertNamedMetadata("opencl.spir.version");
+    annotation->addOperand(llvm::MDNode::get(context, annotation_values_12));
+    // opencl.ocl.version
+    annotation = acc_module->getOrInsertNamedMetadata("opencl.ocl.version");
+    annotation->addOperand(llvm::MDNode::get(context, annotation_values_12));
+    // opencl.used.extensions
+    annotation = acc_module->getOrInsertNamedMetadata("opencl.used.extensions");
+    // opencl.used.optional.core.features
+    annotation = acc_module->getOrInsertNamedMetadata("opencl.used.optional.core.features");
+    // opencl.compiler.options
+    annotation = acc_module->getOrInsertNamedMetadata("opencl.compiler.options");
+
+    return f;
 }
 
 llvm::Function* CodeGen::prepare_accelerator_kernel(Lambda* target, const Param*& ret_param) {
+    #ifdef EMIT_NVVM
     return prepare_cuda_kernel(target, ret_param);
+    #else
+    return prepare_spir_kernel(target, ret_param);
+    #endif
 }
 // HACK -> nicer and integrated
+
+void nvvm_set_func_attributes(llvm::Function*& fun) {
+    fun->addFnAttr(llvm::Attribute::ReadNone);
+    fun->addFnAttr(llvm::Attribute::NoUnwind);
+}
 
 void CodeGen::emit_cuda_decls() {
     cuda_device_ptr_ty = llvm::IntegerType::getInt64Ty(context);
@@ -180,11 +314,12 @@ void CodeGen::emit_cuda_decls() {
     const char* block_dim_names[] = { "llvm.nvvm.read.ptx.sreg.ntid.x", "llvm.nvvm.read.ptx.sreg.ntid.y", "llvm.nvvm.read.ptx.sreg.ntid.z" };
     llvm::FunctionType* thread_id_type = llvm::FunctionType::get(llvm::IntegerType::getInt32Ty(context), false);
     for (size_t i = 0; i < 3; ++i) {
-        cuda_thread_id_getter[i] = llvm::Function::Create(thread_id_type, llvm::Function::ExternalLinkage, thread_id_names[i], cuda_module);
-        cuda_block_id_getter[i] = llvm::Function::Create(thread_id_type, llvm::Function::ExternalLinkage, block_id_names[i], cuda_module);
-        cuda_block_dim_getter[i] = llvm::Function::Create(thread_id_type, llvm::Function::ExternalLinkage, block_dim_names[i], cuda_module);
-        cuda_thread_id_getter[i]->addFnAttr(llvm::Attribute::ReadNone);
-        cuda_thread_id_getter[i]->addFnAttr(llvm::Attribute::NoUnwind);
+        cuda_thread_id_getter[i] = llvm::Function::Create(thread_id_type, llvm::Function::ExternalLinkage, thread_id_names[i], acc_module);
+        cuda_block_id_getter[i] = llvm::Function::Create(thread_id_type, llvm::Function::ExternalLinkage, block_id_names[i], acc_module);
+        cuda_block_dim_getter[i] = llvm::Function::Create(thread_id_type, llvm::Function::ExternalLinkage, block_dim_names[i], acc_module);
+        nvvm_set_func_attributes(cuda_thread_id_getter[i]);
+        nvvm_set_func_attributes(cuda_block_id_getter[i]);
+        nvvm_set_func_attributes(cuda_block_dim_getter[i]);
     }
 
     llvm::Type* void_ty = llvm::Type::getVoidTy(context);
@@ -209,12 +344,58 @@ void CodeGen::emit_cuda_decls() {
     free_memory = llvm::Function::Create(llvm::FunctionType::get(void_ty, { cuda_device_ptr_ty }, false), llvm::Function::ExternalLinkage, "free_memory", module);
 }
 
+void spir_set_func_attributes(llvm::Function*& fun) {
+    fun->addFnAttr(llvm::Attribute::ReadNone);
+    fun->addFnAttr(llvm::Attribute::NoUnwind);
+    fun->setCallingConv(llvm::CallingConv::SPIR_FUNC);
+}
+
+void CodeGen::emit_spir_decls() {
+    spir_device_ptr_ty = llvm::IntegerType::getInt64Ty(context);
+    llvm::Type* uint_ty = llvm::Type::getInt32Ty(context);
+    const char* local_id_name = "_Z12get_local_idj";
+    const char* group_id_name = "_Z12get_group_idj";
+    const char* local_size_name = "_Z14get_local_sizej";
+    llvm::FunctionType* thread_id_type = llvm::FunctionType::get(llvm::IntegerType::getInt32Ty(context), false);
+    for (size_t i = 0; i < 3; ++i) {
+        spir_thread_id_getter[i] = llvm::Function::Create(llvm::FunctionType::get(spir_device_ptr_ty, { uint_ty }, false), llvm::Function::ExternalLinkage, local_id_name, acc_module);
+        spir_block_id_getter[i] = llvm::Function::Create(llvm::FunctionType::get(spir_device_ptr_ty, { uint_ty }, false), llvm::Function::ExternalLinkage, group_id_name, acc_module);
+        spir_block_dim_getter[i] = llvm::Function::Create(llvm::FunctionType::get(spir_device_ptr_ty, { uint_ty }, false), llvm::Function::ExternalLinkage, local_size_name, acc_module);
+        spir_set_func_attributes(spir_thread_id_getter[i]);
+        spir_set_func_attributes(spir_block_id_getter[i]);
+        spir_set_func_attributes(spir_block_dim_getter[i]);
+    }
+
+    llvm::Type* void_ty = llvm::Type::getVoidTy(context);
+    llvm::Type* char_ptr_ty = llvm::IntegerType::getInt8PtrTy(context);
+    llvm::Type* host_data_ty = llvm::Type::getInt8PtrTy(context); // void *
+    spir_synchronize = llvm::Function::Create(llvm::FunctionType::get(void_ty, false), llvm::Function::ExternalLinkage, "synchronize", module);
+    spir_malloc_buffer = llvm::Function::Create(llvm::FunctionType::get(spir_device_ptr_ty, { spir_device_ptr_ty }, false), llvm::Function::ExternalLinkage, "malloc_buffer", module);
+    llvm::Type* spir_write_buffer_type[] = { spir_device_ptr_ty, host_data_ty, spir_device_ptr_ty };
+    spir_write_buffer = llvm::Function::Create(llvm::FunctionType::get(void_ty, spir_write_buffer_type, false), llvm::Function::ExternalLinkage, "write_buffer", module);
+    llvm::Type* spir_write_buffer_type_indir[] = { spir_device_ptr_ty, llvm::PointerType::getUnqual(host_data_ty), spir_device_ptr_ty };
+    spir_write_buffer_indir = llvm::Function::Create(llvm::FunctionType::get(void_ty, spir_write_buffer_type_indir, false), llvm::Function::ExternalLinkage, "write_buffer", module);
+    llvm::Type* spir_build_program_and_kernel_type[] = { char_ptr_ty, char_ptr_ty };
+    spir_build_program_and_kernel = llvm::Function::Create(llvm::FunctionType::get(void_ty, spir_build_program_and_kernel_type, false), llvm::Function::ExternalLinkage, "build_program_and_kernel", module);
+    llvm::Type* spir_set_kernel_arg_type[] = { llvm::PointerType::getUnqual(spir_device_ptr_ty), spir_device_ptr_ty };
+    spir_set_kernel_arg = llvm::Function::Create(llvm::FunctionType::get(void_ty, spir_set_kernel_arg_type, false), llvm::Function::ExternalLinkage, "set_kernel_arg", module);
+    llvm::Type* spir_set_problem_size_type[] = { spir_device_ptr_ty, spir_device_ptr_ty, spir_device_ptr_ty };
+    spir_set_problem_size = llvm::Function::Create(llvm::FunctionType::get(void_ty, spir_set_problem_size_type, false), llvm::Function::ExternalLinkage, "set_problem_size", module);
+    spir_launch_kernel = llvm::Function::Create(llvm::FunctionType::get(void_ty, { char_ptr_ty }, false), llvm::Function::ExternalLinkage, "launch_kernel", module);
+    llvm::Type* read_buffer_type[] = { spir_device_ptr_ty, host_data_ty, spir_device_ptr_ty };
+    spir_read_buffer = llvm::Function::Create(llvm::FunctionType::get(void_ty, read_buffer_type, false), llvm::Function::ExternalLinkage, "read_buffer", module);
+    llvm::Type* read_buffer_type_indir[] = { spir_device_ptr_ty, llvm::PointerType::getUnqual(host_data_ty), spir_device_ptr_ty };
+    spir_read_buffer_indir = llvm::Function::Create(llvm::FunctionType::get(void_ty, read_buffer_type_indir, false), llvm::Function::ExternalLinkage, "read_buffer", module);
+    spir_free_buffer = llvm::Function::Create(llvm::FunctionType::get(void_ty, { spir_device_ptr_ty }, false), llvm::Function::ExternalLinkage, "free_buffer", module);
+}
+
 void CodeGen::emit_vector_decls() {
     const char* thread_id_name = "get_tid";
     vector_tid_type = llvm::VectorType::get(llvm::IntegerType::getInt32Ty(context), 4);
     llvm::FunctionType* thread_id_type = llvm::FunctionType::get(llvm::IntegerType::getInt32Ty(context), false);
     vector_tid_getter = llvm::Function::Create(thread_id_type, llvm::Function::ExternalLinkage, thread_id_name, module);
 }
+
 static uint64_t try_resolve_array_size(Def def) {
     // Ugly HACK
     if (const Param* p = def->isa<Param>()) {
@@ -238,15 +419,15 @@ static uint64_t try_resolve_array_size(Def def) {
 void CodeGen::emit_cuda(Lambda* lambda, BBMap& bbs) {
     Lambda* target = lambda->to()->as_lambda();
     assert(target->is_builtin() && target->attribute().is(Lambda::Accelerator));
-    // passed lambda is the external cuda call
+    // passed lambda is the external CUDA call
     const uint64_t it_space_x = try_resolve_array_size(lambda->arg(1));
     Lambda* kernel = lambda->arg(2)->as<Addr>()->lambda();
     // load kernel
-    llvm::Value* module_name = builder.CreateGlobalStringPtr(cuda_module_name);
-    llvm::Value* kernel_name = builder.CreateGlobalStringPtr(cuda_kernel_name);
+    llvm::Value* module_name = builder.CreateGlobalStringPtr(acc_module_name);
+    llvm::Value* kernel_name = builder.CreateGlobalStringPtr(acc_kernel_name);
     llvm::Value* load_args[] = { module_name, kernel_name };
     builder.CreateCall(load_kernel, load_args);
-    // fetch values and create external calls for intialization
+    // fetch values and create external calls for initialization
     std::vector<std::pair<llvm::Value*, llvm::Constant*>> device_ptrs;
     for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
         Def cuda_param = lambda->arg(i);
@@ -278,7 +459,7 @@ void CodeGen::emit_cuda(Lambda* lambda, BBMap& bbs) {
     // synchronize
     builder.CreateCall(synchronize);
 
-    // fetch data back to cpu
+    // fetch data back to CPU
     for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
         Def cuda_param = lambda->arg(i);
         const Type* param_type = cuda_param->type();
@@ -299,12 +480,88 @@ void CodeGen::emit_cuda(Lambda* lambda, BBMap& bbs) {
 }
 
 void CodeGen::emit_spir(Lambda* lambda, BBMap& bbs) {
+    Lambda* target = lambda->to()->as_lambda();
+    assert(target->is_builtin() && target->attribute().is(Lambda::Accelerator));
+    // passed lambda is the external SPIR call
+    const uint64_t it_space_x = try_resolve_array_size(lambda->arg(1));
+    Lambda* kernel = lambda->arg(2)->as<Addr>()->lambda();
+    // load kernel
+    llvm::Value* module_name = builder.CreateGlobalStringPtr(acc_module_name);
+    llvm::Value* kernel_name = builder.CreateGlobalStringPtr(acc_kernel_name);
+    llvm::Value* load_args[] = { module_name, kernel_name };
+    builder.CreateCall(spir_build_program_and_kernel, load_args);
+    // fetch values and create external calls for initialization
+    std::vector<std::pair<llvm::Value*, llvm::Constant*>> device_ptrs;
+    for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
+        Def spir_param = lambda->arg(i);
+        const Type* param_type = spir_param->type();
+        uint64_t num_elems = try_resolve_array_size(spir_param);
+        llvm::Constant* size = llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), num_elems);
+        auto alloca = builder.CreateAlloca(spir_device_ptr_ty);
+        auto device_ptr = builder.CreateCall(spir_malloc_buffer, size);
+        // store device ptr
+        builder.CreateStore(device_ptr, alloca);
+        auto loaded_device_ptr = builder.CreateLoad(alloca);
+        device_ptrs.push_back(std::pair<llvm::Value*, llvm::Constant*>(loaded_device_ptr, size));
+        llvm::Value* mem_args[] = {
+            loaded_device_ptr,
+            builder.CreateBitCast(lookup(spir_param), llvm::Type::getInt8PtrTy(context)),
+            size
+        };
+        if (param_type->isa<Ptr>() && param_type->as<Ptr>()->referenced_type()->isa<Ptr>())
+            builder.CreateCall(spir_write_buffer_indir, mem_args);
+        else
+            builder.CreateCall(spir_write_buffer, mem_args);
+        // set_kernel_arg(void *, size_t)
+        const llvm::DataLayout *DL = new llvm::DataLayout(acc_module);
+        llvm::Value* size_of_arg = builder.getInt64(DL->getTypeAllocSize(llvm::Type::getInt8PtrTy(context)));
+        llvm::Value* arg_args[] = { alloca, size_of_arg };
+        builder.CreateCall(spir_set_kernel_arg, arg_args);
+    }
+    // determine problem size
+    llvm::Value* problem_size_args[] = {
+        llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), it_space_x),
+        llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), 1),
+        llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), 1)
+    };
+    builder.CreateCall(spir_set_problem_size, problem_size_args);
+    // launch
+    builder.CreateCall(spir_launch_kernel, { kernel_name });
+    // synchronize
+    builder.CreateCall(spir_synchronize);
+
+    // fetch data back to CPU
+    for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
+        Def spir_param = lambda->arg(i);
+        const Type* param_type = spir_param->type();
+        auto entry = device_ptrs[i-4];
+        // need to fetch back memory
+        llvm::Value* args[] = {
+            entry.first,
+            builder.CreateBitCast(lookup(spir_param), llvm::Type::getInt8PtrTy(context)),
+            entry.second
+        };
+        if (param_type->isa<Ptr>() && param_type->as<Ptr>()->referenced_type()->isa<Ptr>())
+            builder.CreateCall(spir_read_buffer_indir, args);
+        else
+            builder.CreateCall(spir_read_buffer, args);
+    }
+
+    // free memory
+    for (auto device_ptr : device_ptrs)
+        builder.CreateCall(spir_free_buffer, { device_ptr.first });
+    // create branch to return
+    builder.CreateBr(bbs[lambda->arg(3)->as_lambda()]);
 }
 
 void CodeGen::emit_accelerator(Lambda* lambda, BBMap& bbs) {
     Lambda* target = lambda->to()->as_lambda();
     assert(target->is_builtin() && target->attribute().is(Lambda::Accelerator));
+    #ifdef EMIT_NVVM
     emit_cuda(lambda, bbs);
+    #else
+    emit_spir(lambda, bbs);
+    #endif
 }
 
 void CodeGen::emit_vectors(llvm::Function* current, Lambda* lambda, BBMap& bbs) {
@@ -375,8 +632,12 @@ void CodeGen::emit_vectors(llvm::Function* current, Lambda* lambda, BBMap& bbs) 
 }
 
 void CodeGen::emit() {
-    // emit cuda declarations
+    // emit target-specific declarations
+    #ifdef EMIT_NVVM
     emit_cuda_decls();
+    #else
+    emit_spir_decls();
+    #endif
     emit_vector_decls();
     std::unordered_map<Lambda*, const Param*> ret_map;
     // map all root-level lambdas to llvm function stubs
@@ -446,6 +707,15 @@ void CodeGen::emit() {
 
         Scope scope(lambda);
         BBMap bbs;
+
+        // check for 
+        llvm::CallingConv::ID CallingConvention = llvm::CallingConv::C;
+        if (lambda->is_connected_to_builtin())
+           #ifdef EMIT_NVVM
+           CallingConvention = llvm::CallingConv::PTX_Device;
+           #else
+           CallingConvention = llvm::CallingConv::SPIR_FUNC;
+           #endif
 
         for (auto lambda : scope.rpo()) {
             // map all bb-like lambdas to llvm bb stubs
@@ -529,7 +799,20 @@ void CodeGen::emit() {
                 builder.CreateCondBr(cond, tbb, fbb);
             } else {
                 if (auto higher_order_call = lambda->to()->isa<Param>()) { // higher-order call
-                    llvm::CallInst* call_target = builder.CreateCall(params[higher_order_call]);
+                    // first check for spir functions
+                    llvm::CallInst* call_target;
+                    if (acc_params.count(higher_order_call)) {
+                        size_t index = 0;
+                        for (; index < 3; ++index) {
+                            if (params[higher_order_call] == spir_thread_id_getter[index]) break;
+                            if (params[higher_order_call] == spir_block_id_getter[index]) break;
+                            if (params[higher_order_call] == spir_block_dim_getter[index]) break;
+                        }
+                        call_target = builder.CreateCall(params[higher_order_call], builder.getInt32(index));
+                    } else {
+                        call_target = builder.CreateCall(params[higher_order_call]);
+                    }
+                    call_target->setCallingConv(CallingConvention); // set proper calling convention
                     auto succ = lambda->arg(1)->as_lambda();
                     const Param* param = succ->param(0)->type()->isa<Mem>() ? nullptr : succ->param(0);
                     if (param == nullptr && succ->num_params() == 2)
@@ -567,6 +850,7 @@ no_lambda:
                             }
                             args.shrink(i);
                             llvm::CallInst* call = builder.CreateCall(fcts[to_lambda], llvm_ref(args));
+                            call->setCallingConv(CallingConvention); // set proper calling convention
 
                             if (ret_arg == ret_param)       // call + return
                                 builder.CreateRet(call);
@@ -607,7 +891,7 @@ no_lambda:
 
 #ifndef NDEBUG
     llvm::verifyModule(*this->module);
-    llvm::verifyModule(*this->cuda_module);
+    llvm::verifyModule(*this->acc_module);
 #endif
 }
 
@@ -643,7 +927,13 @@ void CodeGen::postprocess() {
 
 void CodeGen::dump() {
     module->dump();
-    cuda_module->dump();
+    #ifdef EMIT_NVVM
+    std::cerr << "target datalayout = \"e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64\"" << std::endl;
+    #else
+    std::cerr << "target datalayout = \"e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v16:16:16-v24:32:32-v32:32:32-v48:64:64-v64:64:64-v96:128:128-v128:128:128-v192:256:256-v256:256:256-v512:512:512-v1024:1024:1024\"" << std::endl
+              << "target triple = \"spir64-unknown-unknown\"" << std::endl;
+    #endif
+    acc_module->dump();
 }
 
 llvm::Value* CodeGen::lookup(Def def) {

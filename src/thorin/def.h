@@ -79,7 +79,6 @@ public:
     const Def& def() const { return def_; }
     bool operator == (Use use) const { return def() == use.def() && index() == use.index(); }
     bool operator != (Use use) const { return def() != use.def() || index() != use.index(); }
-    bool operator < (Use) const;
     operator Def() const { return def_; }
     operator const DefNode*() const { return def_; }
     const Def& operator -> () const { return def_; }
@@ -216,9 +215,10 @@ public:
 //------------------------------------------------------------------------------
 
 std::ostream& operator << (std::ostream& o, Def def);
-inline bool Use::operator < (Use use) const { return def()->gid() < use.def()->gid() && index() < use.index(); }
-size_t DefNodeLT::operator () (const DefNode* n1, const DefNode* n2) const { return n1->gid() > n2->gid(); } 
-bool UseLT::operator () (Use use2, Use use1) const { // <- note that we switch the order here on purpose
+
+size_t DefNodeLT::operator () (const DefNode* n1, const DefNode* n2) const { return n1->gid() < n2->gid(); }
+
+bool UseLT::operator () (Use use1, Use use2) const { // <- note that we switch the order here on purpose
         auto gid1 = use1.def().node()->gid();
         auto gid2 = use2.def().node()->gid();
         return (gid1 < gid2 || (gid1 == gid2 && use1.index() < use2.index()));

@@ -20,8 +20,6 @@
 #include "impala/emit.h"
 #include "impala/init.h"
 
-#include <vld.h>
-
 //------------------------------------------------------------------------------
 
 using namespace thorin;

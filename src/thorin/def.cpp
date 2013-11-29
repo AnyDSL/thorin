@@ -42,12 +42,11 @@ void DefNode::set_op(size_t i, Def def) {
     auto node = *def;
     ops_[i] = node;
     if (isa<PrimOp>()) is_const_ &= node->is_const();
-    auto p = node->uses_.emplace(i, this);
-    assert(p.second && "already in use set");
-    //assert(this->isa<Lambda>() || !def->isa<EvalOp>());
+    assert(def->uses_.count(Use(i, this)) == 0);
+    node->uses_.emplace(i, this);
 }
 
-void DefNode::unregister_use(size_t i) const { 
+void DefNode::unregister_use(size_t i) const {
     auto def = op(i).node();
     assert(def->uses_.count(Use(i, this)) == 1);
     def->uses_.erase(Use(i, this));

@@ -724,7 +724,7 @@ void CodeGen::emit() {
 
         // check for 
         llvm::CallingConv::ID CallingConvention = llvm::CallingConv::C;
-        if (lambda->is_connected_to_builtin())
+        if (lambda->is_connected_to_builtin(Lambda::Accelerator))
            #ifdef EMIT_NVVM
            CallingConvention = llvm::CallingConv::PTX_Device;
            #else

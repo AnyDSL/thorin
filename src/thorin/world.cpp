@@ -437,6 +437,9 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
 
     if (a->is_zero()) {
         switch (kind) {
+            // TODO: disable fast-math
+            case ArithOp_fmul:
+
             case ArithOp_mul:
             case ArithOp_sdiv:
             case ArithOp_udiv:
@@ -446,6 +449,9 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
             case ArithOp_shl:
             case ArithOp_lshr:
             case ArithOp_ashr: return zero(type);
+
+            // TODO: disable fast-math
+            case ArithOp_fadd:
 
             case ArithOp_add: 
             case ArithOp_or:

@@ -179,9 +179,13 @@ Def Mangler::mangle(Def odef) {
         auto op = mangle(oprimop->op(i));
 
         if (auto evalop = op->isa<EvalOp>()) {
-            if (evalop->isa<Run>() && eval == Eval::Infer)
-                eval = Eval::Run;
-            else {
+            if (evalop->isa<Run>()) {
+                if (eval == Eval::Run || eval == Eval::Infer)
+                    eval = Eval::Run;
+                else
+                    goto halt_mode;
+            } else {
+halt_mode:
                 assert(evalop->isa<Halt>());
                 eval = Eval::Halt;
             }

@@ -54,8 +54,6 @@ public:
     const DefNode* deref() const;
     const DefNode* operator *() const { return deref(); }
     bool operator == (const DefNode* other) const { return this->deref() == other; }
-    bool operator == (Def other) const { return this->deref() == other.deref(); }
-    bool operator != (Def other) const { return this->deref() != other.deref(); }
     operator const DefNode*() const { return deref(); }
     const DefNode* operator -> () const { return deref(); }
 
@@ -77,8 +75,6 @@ public:
 
     size_t index() const { return index_; }
     const Def& def() const { return def_; }
-    bool operator == (Use use) const { return def() == use.def() && index() == use.index(); }
-    bool operator != (Use use) const { return def() != use.def() || index() != use.index(); }
     operator Def() const { return def_; }
     operator const DefNode*() const { return def_; }
     const Def& operator -> () const { return def_; }

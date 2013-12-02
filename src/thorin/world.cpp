@@ -944,9 +944,9 @@ void World::cleanup() {
 
 void World::opt() {
     cleanup();
-    mem2reg(*this);
-    //partial_evaluation(*this);
+    partial_evaluation(*this);
     lower2cff(*this);
+    mem2reg(*this);
 
     for (auto cur : copy_lambdas()) {
         if (cur->is_connected_to_builtin() && !cur->is_basicblock()) {
@@ -1050,7 +1050,7 @@ static void sanity_check(Def def) {
 
 void World::dead_code_elimination() {
     // elimimante useless enters/leaves
-    for (auto primop : primops()) {
+    for (auto primop : primops_) {
         if (auto enter = primop->isa<Enter>())
             switch (enter->extract_frame()->num_uses()) {
                 case 0: enter->extract_mem()->replace(enter->mem()); break;

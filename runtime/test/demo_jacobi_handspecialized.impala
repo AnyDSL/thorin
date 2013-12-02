@@ -1,0 +1,26 @@
+extern accelerator([float], fn(fn() -> int, fn() -> int, fn() -> int, fn() -> int, fn() -> int, fn() -> int) -> void) -> void;
+extern array(int) -> [float];
+
+fn main() -> [float] {
+    let width   = 2048;
+    let height  = 2048;
+    let range   = 2;
+    let a       = 0.2f;
+    let b       = 1.0f - 4.0f * a;
+    let arr = array(width * height);
+    let out = array(width * height);
+
+    accelerator(out, |x : fn() -> int, y : fn() -> int, bIx : fn() -> int, bIy : fn() -> int, bDx : fn() -> int, bDy : fn() -> int| -> void {
+        let index = (x() + bIx() * bDx()) + width * (y() + bIy() * bDy());
+        let sum = a * arr[index] +
+                  b * (
+                    arr[index - 1 + 0 * width] +
+                    arr[index + 1 + 0 * width] +
+                    arr[index + 0 - 1 * width] +
+                    arr[index + 0 + 1 * width]);
+        out[index] = sum;
+    });
+
+    return out;
+}
+

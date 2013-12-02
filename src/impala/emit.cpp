@@ -69,7 +69,7 @@ bool CodeGen::emit_prg(const Scope* prg) {
             // HACK: eliminate this hack
             if (lambda->name == "accelerator")
                 lambda->attribute().set(Lambda::Accelerator);
-            if (lambda->name == "stencil_array")
+            if (lambda->name == "get_stencil_array")
                 lambda->attribute().set(Lambda::StencilAr);
             if (lambda->name == "array")
                 lambda->attribute().set(Lambda::ArrayInit);

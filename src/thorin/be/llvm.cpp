@@ -37,7 +37,7 @@
 #include <wfvInterface.h>
 #endif
 
-//#define EMIT_NVVM
+#define EMIT_NVVM
 
 namespace thorin {
 
@@ -736,7 +736,7 @@ void CodeGen::emit() {
 
         }
 
-        Schedule schedule = schedule_smart(scope);
+        Schedule schedule = schedule_early(scope);
 
         // emit body for each bb
         for (auto lambda : scope.rpo()) {

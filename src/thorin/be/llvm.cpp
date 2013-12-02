@@ -405,8 +405,8 @@ void CodeGen::emit_spir_decls() {
 
 void CodeGen::emit_vector_decls() {
     const char* thread_id_name = "get_tid";
-    vector_tid_type = llvm::VectorType::get(llvm::IntegerType::getInt32Ty(context), 4);
-    llvm::FunctionType* thread_id_type = llvm::FunctionType::get(llvm::IntegerType::getInt32Ty(context), false);
+    vector_tid_type = llvm::VectorType::get(llvm::IntegerType::getInt64Ty(context), 4);
+    llvm::FunctionType* thread_id_type = llvm::FunctionType::get(llvm::IntegerType::getInt64Ty(context), false);
     vector_tid_getter = llvm::Function::Create(thread_id_type, llvm::Function::ExternalLinkage, thread_id_name, module);
 }
 

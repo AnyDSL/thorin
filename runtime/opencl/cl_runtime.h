@@ -525,6 +525,23 @@ float *array(size_t num_elems) {
 
     return tmp;
 }
+
+float *get_stencil_array(size_t num_elems) {
+    float *tmp = (float *)malloc(sizeof(float)*num_elems);
+
+    // initialize with stencil
+    tmp[0] = 0.0f;
+    tmp[1] = 0.2f;
+    tmp[2] = 0.0f;
+    tmp[3] = 0.2f;
+    tmp[4] = 0.2f;
+    tmp[5] = 0.2f;
+    tmp[6] = 0.0f;
+    tmp[7] = 0.2f;
+    tmp[8] = 0.0f;
+
+    return tmp;
+}
 }
 
 #endif  // __OPENCL_RT_HPP__

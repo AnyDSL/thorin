@@ -593,7 +593,7 @@ void CodeGen::emit_vectors(llvm::Function* current, Lambda* lambda, BBMap& bbs) 
     // loop count
     Def loop_count = lambda->arg(2);
     assert(loop_count->isa<PrimLit>());
-    u32 count = loop_count->as<PrimLit>()->u32_value();
+    u64 count = loop_count->as<PrimLit>()->u64_value();
     // passed lambda is the kernel
     Lambda* kernel = lambda->arg(3)->as<Addr>()->lambda();
     Lambda* ret_lambda = lambda->arg(4)->as_lambda();
@@ -615,14 +615,14 @@ void CodeGen::emit_vectors(llvm::Function* current, Lambda* lambda, BBMap& bbs) 
     llvm::BasicBlock* body = llvm::BasicBlock::Create(context, "vec_body", current);
     llvm::BasicBlock* exit = llvm::BasicBlock::Create(context, "vec_exit", current);
     // create loop phi and connect init value
-    e.loop_counter = llvm::PHINode::Create(builder.getInt32Ty(), 2U, "vector_loop_phi", header);
-    llvm::Value* i = builder.getInt32(0);
+    e.loop_counter = llvm::PHINode::Create(builder.getInt64Ty(), 2U, "vector_loop_phi", header);
+    llvm::Value* i = builder.getInt64(0);
     e.loop_counter->addIncoming(i, builder.GetInsertBlock());
     // connect header
     builder.CreateBr(header);
     builder.SetInsertPoint(header);
     // create conditional branch
-    llvm::Value* cond = builder.CreateICmpUGT(e.loop_counter, builder.getInt32(count));
+    llvm::Value* cond = builder.CreateICmpUGT(e.loop_counter, builder.getInt64(count));
     builder.CreateCondBr(cond, body, exit);
     // set body
     builder.SetInsertPoint(body);
@@ -639,7 +639,7 @@ void CodeGen::emit_vectors(llvm::Function* current, Lambda* lambda, BBMap& bbs) 
     e.kernel_func = fcts[kernel];
     e.kernel_call = builder.CreateCall(e.kernel_simd_func, llvm_ref(args));
     // inc loop counter
-    e.loop_counter->addIncoming(builder.CreateAdd(e.loop_counter, builder.getInt32(e.vector_length)), body);
+    e.loop_counter->addIncoming(builder.CreateAdd(e.loop_counter, builder.getInt64(e.vector_length)), body);
     builder.CreateBr(header);
     // create branch to return
     builder.SetInsertPoint(exit);

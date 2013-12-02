@@ -21,6 +21,8 @@
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
+#include <llvm/PassManager.h>
+#include <llvm/Transforms/Scalar.h>
 
 #include "thorin/def.h"
 #include "thorin/lambda.h"
@@ -909,6 +911,11 @@ void CodeGen::postprocess() {
 #ifdef WFV2_SUPPORT
     if (v_fcts.size() < 1)
         return;
+    // pre-passes
+    llvm::PassManager pm;
+    pm.add(llvm::createLICMPass());
+    pm.add(llvm::createLCSSAPass());
+    pm.run(*module);
     // vectorize entries
     for (auto& entry : v_fcts) {
        WFVInterface::WFVInterface wfv(module, &context, entry.kernel_func, entry.kernel_simd_func, entry.vector_length);

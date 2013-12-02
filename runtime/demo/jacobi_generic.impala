@@ -1,0 +1,35 @@
+extern array(int) -> [float];
+extern get_stencil_array() -> [float];
+
+fn iter(a : int, b : int, yield : fn(int, fn())) -> void {
+    let mut i: int = a;
+    while (i < b)
+        yield(i++, || { continue; });
+}
+
+fn main() -> [float] {
+    let width   = 2048;
+    let height  = 2048;
+    let range   = 2;
+    let a       = 0.2f;
+    let b       = 1.0f - 4.0f * a;
+    let arr = array(width * height);
+    let out = array(width * height);
+    let stencil = get_stencil_array();
+
+    iterate_over_field(out, width, |index : int| -> void {
+        let mut sum = 0.0f;
+        let half_range = range / 2;
+        iter(-half_range, range, |i : int| -> void {
+            iter(-half_range, range, |j : int| -> void {
+                let stencil_index = i + half_range + ((j + half_range) * (range + 1));
+                let stencil_val = stencil[stencil_index];
+                sum += arr[index + i + j * width] * stencil_val;
+            });
+        });
+        out[index] = sum;
+    });
+
+    return out;
+}
+

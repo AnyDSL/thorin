@@ -1,0 +1,4 @@
+fn iterate_over_field(source : [float], width : int, body : fn(int) -> void) -> void {
+    for(let mut i : int = 0; i < width; ++i)
+        body(i);
+}

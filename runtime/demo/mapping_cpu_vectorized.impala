@@ -1,0 +1,8 @@
+extern vectorized_loop(int, int, fn(fn() -> int) -> void) -> void;
+
+fn iterate_over_field(source : [float], width : int, body : fn(int) -> void) -> void {
+    vectorized_loop(4, width / 4, |index : fn() -> int| -> void {
+        let computed_index = index();
+        body(computed_index);
+    });
+}

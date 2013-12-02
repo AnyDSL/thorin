@@ -37,7 +37,7 @@
 #include <wfvInterface.h>
 #endif
 
-#define EMIT_NVVM
+//#define EMIT_NVVM
 
 namespace thorin {
 
@@ -80,7 +80,6 @@ private:
     AutoPtr<llvm::Module> module;
     AutoPtr<llvm::Module> acc_module;
     std::unordered_map<const Param*, llvm::Value*> params;
-    std::unordered_map<const Param*, llvm::Value*> acc_params;
     std::unordered_map<const Param*, llvm::PHINode*> phis;
     std::unordered_map<const PrimOp*, llvm::Value*> primops;
     std::unordered_map<Lambda*, llvm::Function*> fcts;
@@ -120,9 +119,14 @@ private:
     llvm::Type* cuda_device_ptr_ty;
 
     // SPIR
-    llvm::Function* spir_thread_id_getter[3];
-    llvm::Function* spir_block_id_getter[3];
-    llvm::Function* spir_block_dim_getter[3];
+    struct SPIREntry {
+        size_t index;
+        llvm::Function* target;
+    };
+    std::unordered_map<const Param*, size_t> spir_index_mapper;
+    llvm::Function* spir_thread_id_getter;
+    llvm::Function* spir_block_id_getter;
+    llvm::Function* spir_block_dim_getter;
     llvm::Function* spir_malloc_buffer;
     llvm::Function* spir_write_buffer;
     llvm::Function* spir_write_buffer_indir;
@@ -195,16 +199,22 @@ llvm::Function* CodeGen::prepare_cuda_kernel(Lambda* lambda, const Param*& ret_p
 }
 
 llvm::Function* CodeGen::prepare_spir_kernel(Lambda* lambda, const Param*& ret_param) {
-   const size_t e = lambda->num_params();
+    const size_t e = lambda->num_params();
 
     // check dimensions
     size_t i = 1;
-    for (; i < 3 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i)
-        params[lambda->param(i)] = acc_params[lambda->param(i)] = spir_thread_id_getter[i - 1];
-    for (; i < 5 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i)
-        params[lambda->param(i)] = acc_params[lambda->param(i)] = spir_block_id_getter[i - 3];
-    for (; i < 7 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i)
-        params[lambda->param(i)] = acc_params[lambda->param(i)] = spir_block_dim_getter[i - 5];
+    for (; i < 3 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i) {
+        params[lambda->param(i)] = spir_thread_id_getter;
+        spir_index_mapper[lambda->param(i)] = i - 1;
+    }
+    for (; i < 5 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i) {
+        params[lambda->param(i)] = spir_block_id_getter;
+        spir_index_mapper[lambda->param(i)] = i - 3;
+    }
+    for (; i < 7 && lambda->param(i)->type()->isa<Pi>() && i < e; ++i) {
+        params[lambda->param(i)] = spir_block_dim_getter;
+        spir_index_mapper[lambda->param(i)] = i - 5;
+    }
     // SPIR return param
     ret_param = lambda->param(i);
     assert(ret_param->type()->isa<Pi>());
@@ -363,14 +373,12 @@ void CodeGen::emit_spir_decls() {
     const char* group_id_name = "_Z12get_group_idj";
     const char* local_size_name = "_Z14get_local_sizej";
     llvm::FunctionType* thread_id_type = llvm::FunctionType::get(llvm::IntegerType::getInt32Ty(context), false);
-    for (size_t i = 0; i < 3; ++i) {
-        spir_thread_id_getter[i] = llvm::Function::Create(llvm::FunctionType::get(spir_device_ptr_ty, { uint_ty }, false), llvm::Function::ExternalLinkage, local_id_name, acc_module);
-        spir_block_id_getter[i] = llvm::Function::Create(llvm::FunctionType::get(spir_device_ptr_ty, { uint_ty }, false), llvm::Function::ExternalLinkage, group_id_name, acc_module);
-        spir_block_dim_getter[i] = llvm::Function::Create(llvm::FunctionType::get(spir_device_ptr_ty, { uint_ty }, false), llvm::Function::ExternalLinkage, local_size_name, acc_module);
-        spir_set_func_attributes(spir_thread_id_getter[i]);
-        spir_set_func_attributes(spir_block_id_getter[i]);
-        spir_set_func_attributes(spir_block_dim_getter[i]);
-    }
+    spir_thread_id_getter = llvm::Function::Create(llvm::FunctionType::get(spir_device_ptr_ty, { uint_ty }, false), llvm::Function::ExternalLinkage, local_id_name, acc_module);
+    spir_block_id_getter = llvm::Function::Create(llvm::FunctionType::get(spir_device_ptr_ty, { uint_ty }, false), llvm::Function::ExternalLinkage, group_id_name, acc_module);
+    spir_block_dim_getter = llvm::Function::Create(llvm::FunctionType::get(spir_device_ptr_ty, { uint_ty }, false), llvm::Function::ExternalLinkage, local_size_name, acc_module);
+    spir_set_func_attributes(spir_thread_id_getter);
+    spir_set_func_attributes(spir_block_id_getter);
+    spir_set_func_attributes(spir_block_dim_getter);
 
     llvm::Type* void_ty = llvm::Type::getVoidTy(context);
     llvm::Type* char_ptr_ty = llvm::IntegerType::getInt8PtrTy(context);
@@ -644,7 +652,7 @@ void CodeGen::emit() {
     #else
     emit_spir_decls();
     #endif
-    emit_vector_decls();
+    bool need_vector_decls = false;
     std::unordered_map<Lambda*, const Param*> ret_map;
     // map all root-level lambdas to llvm function stubs
     for (auto lambda : top_level_lambdas(world)) {
@@ -674,12 +682,15 @@ void CodeGen::emit() {
                 params[p] = param;
             }
             ret_map[lambda] = vector_return;
+            need_vector_decls = true;
         } else {
             llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
             f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->name, module);
         }
         fcts.emplace(lambda, f);
     }
+    if (need_vector_decls)
+        emit_vector_decls();
 
     // for all top-level functions
     for (auto lf : fcts) {
@@ -807,14 +818,10 @@ void CodeGen::emit() {
                 if (auto higher_order_call = lambda->to()->isa<Param>()) { // higher-order call
                     // first check for spir functions
                     llvm::CallInst* call_target;
-                    if (acc_params.count(higher_order_call)) {
-                        size_t index = 0;
-                        for (; index < 3; ++index) {
-                            if (params[higher_order_call] == spir_thread_id_getter[index]) break;
-                            if (params[higher_order_call] == spir_block_id_getter[index]) break;
-                            if (params[higher_order_call] == spir_block_dim_getter[index]) break;
-                        }
-                        call_target = builder.CreateCall(params[higher_order_call], builder.getInt32(index));
+                    size_t index;
+                    auto spir_info = spir_index_mapper.find(higher_order_call);
+                    if (spir_info != spir_index_mapper.end()) {
+                        call_target = builder.CreateCall(params[higher_order_call], builder.getInt32(spir_info->second));
                     } else {
                         call_target = builder.CreateCall(params[higher_order_call]);
                     }
@@ -1111,7 +1118,7 @@ llvm::Value* CodeGen::emit(Def def) {
             case PrimType_u1:  return builder.getInt1(box.get_u1().get());
             case PrimType_u8:  return builder.getInt8(box.get_u8());
             case PrimType_u16: return builder.getInt16(box.get_u16());
-            case PrimType_u32: return builder.getInt32(box.get_u32());
+            case PrimType_u32: //return builder.getInt32(box.get_u32());
             case PrimType_u64: return builder.getInt64(box.get_u64());
             case PrimType_f32: return llvm::ConstantFP::get(type, box.get_f32());
             case PrimType_f64: return llvm::ConstantFP::get(type, box.get_f64());
@@ -1163,7 +1170,7 @@ llvm::Type* CodeGen::map(const Type* type) {
         case Node_PrimType_u1:  llvm_type = llvm::IntegerType::get(context,  1); break;
         case Node_PrimType_u8:  llvm_type = llvm::IntegerType::get(context,  8); break;
         case Node_PrimType_u16: llvm_type = llvm::IntegerType::get(context, 16); break;
-        case Node_PrimType_u32: llvm_type = llvm::IntegerType::get(context, 32); break;
+        case Node_PrimType_u32: //llvm_type = llvm::IntegerType::get(context, 32); break;
         case Node_PrimType_u64: llvm_type = llvm::IntegerType::get(context, 64); break;
         case Node_PrimType_f32: llvm_type = llvm::Type::getFloatTy(context);     break;
         case Node_PrimType_f64: llvm_type = llvm::Type::getDoubleTy(context);    break;

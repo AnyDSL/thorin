@@ -652,7 +652,7 @@ void CodeGen::emit() {
     #else
     emit_spir_decls();
     #endif
-    bool need_vector_decls = false;
+    emit_vector_decls();
     std::unordered_map<Lambda*, const Param*> ret_map;
     // map all root-level lambdas to llvm function stubs
     for (auto lambda : top_level_lambdas(world)) {
@@ -682,15 +682,12 @@ void CodeGen::emit() {
                 params[p] = param;
             }
             ret_map[lambda] = vector_return;
-            need_vector_decls = true;
         } else {
             llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
             f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->name, module);
         }
         fcts.emplace(lambda, f);
     }
-    if (need_vector_decls)
-        emit_vector_decls();
 
     // for all top-level functions
     for (auto lf : fcts) {

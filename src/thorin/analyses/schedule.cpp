@@ -75,26 +75,26 @@ Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &def2late) {
     const DomTree domtree(scope);
     assert(def2late.empty());
 
-    for (Lambda* cur : scope.backwards_rpo()) {
-        auto decrease = [&] (Def def) {
-            for (auto op : def->ops()) {
-                auto i = primop2num.find(op);
-                if (i != primop2num.end()) {
-                    int& num = i->second;
-                    --num;
-                    assert(num >= 0);
-                    if (num == 0) {
-                        zero.insert(op);
-                    }
+    auto decrease = [&] (Def def) {
+        for (auto op : def->ops()) {
+            auto i = primop2num.find(op);
+            if (i != primop2num.end()) {
+                int& num = i->second;
+                --num;
+                assert(num >= 0);
+                if (num == 0) {
+                    zero.insert(op);
                 }
             }
-        };
+        }
+    };
 
+    for (Lambda* cur : scope.backwards_rpo()) {
         decrease(cur);
 
-        bool yes = true;
+        bool todo = true;
         do {
-            std::vector<const PrimOp*> todo;
+            std::vector<const PrimOp*> remove;
 
             for (auto z : zero) {
                 Lambda* late = cur;
@@ -108,16 +108,17 @@ Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &def2late) {
 
                 def2late[primop] = late;
                 schedule[late].push_back(primop);
-                todo.push_back(primop);
+                remove.push_back(primop);
             }
 
             if (zero.empty())
-                yes = false;
+                todo = false;
+            else
+                zero.clear();
 
-            zero.clear();
-            for (auto t : todo)
-                decrease(t);
-        } while (yes);
+            for (auto op : remove)
+                decrease(op);
+        } while (todo);
     }
     for (auto z : zero) {
         z->dump();

@@ -745,7 +745,8 @@ void CodeGen::emit() {
 
         }
 
-        Schedule schedule = schedule_early(scope);
+        // never use early schedule here - this may break memory operations
+        Schedule schedule = schedule_smart(scope);
 
         // emit body for each bb
         for (auto lambda : scope.rpo()) {

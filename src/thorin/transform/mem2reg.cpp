@@ -13,14 +13,17 @@ void mem2reg(const Scope& scope) {
     auto schedule = schedule_late(scope);
     DefMap<size_t> addresses;
     LambdaSet pass;
-    size_t cur_handle = 0;
+    size_t cur_handle = 1; // use 0 for mem
 
     for (Lambda* lambda : scope) {
         // Search for slots/loads/stores from top to bottom and use set_value/get_value to install parameters.
         for (auto primop : schedule[lambda]) {
             auto def = Def(primop);
+            if (def->type()->isa<Mem>())
+                lambda->set_mem(def);
+
             if (auto slot = def->isa<Slot>()) {
-                // are all users loads and store?
+                // are all users loads and stores?
                 for (auto use : slot->uses()) {
                     if (!use->isa<Load>() && !use->isa<Store>()) {
                         addresses[slot] = size_t(-1);     // mark as "address taken"
@@ -32,7 +35,7 @@ void mem2reg(const Scope& scope) {
                 if (auto slot = store->ptr()->isa<Slot>()) {
                     if (addresses[slot] != size_t(-1)) {  // if not "address taken"
                         lambda->set_value(addresses[slot], store->val());
-                        store->replace(store->mem());
+                        store->replace(lambda->get_mem());
                     }
                 }
             } else if (auto load = def->isa<Load>()) {
@@ -40,7 +43,7 @@ void mem2reg(const Scope& scope) {
                     if (addresses[slot] != size_t(-1)) {  // if not "address taken"
                         auto type = slot->type()->as<Ptr>()->referenced_type();
                         load->extract_val()->replace(lambda->get_value(addresses[slot], type, slot->name.c_str()));
-                        load->extract_mem()->replace(load->mem());
+                        load->extract_mem()->replace(lambda->get_mem());
                     }
                 }
             }
@@ -72,6 +75,20 @@ void mem2reg(World& world) {
     for (auto lambda : top) {               // ... except top-level lambdas
         lambda->set_parent(0);
         lambda->seal();
+#ifndef NDEBUG
+        bool found = false;
+#endif
+        for (auto param : lambda->params()) {
+            if (param->type()->isa<Mem>()) {
+                lambda->set_mem(param);
+#ifndef NDEBUG
+                assert(!found);
+                found = true;
+#else
+                break;
+#endif
+            }
+        }
     }
 
     for (auto root : top)

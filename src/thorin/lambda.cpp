@@ -194,6 +194,9 @@ Def Lambda::find_def(size_t handle) {
     return values_[handle];
 }
 
+Def Lambda::set_mem(Def def) { return set_value(0, def); }
+Def Lambda::get_mem() { return get_value(0, world().mem(), "mem"); }
+
 Def Lambda::set_value(size_t handle, Def def) { 
     increase_values(handle);
     return values_[handle] = def;

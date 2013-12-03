@@ -107,6 +107,8 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
 
     Def set_value(size_t handle, Def def);
     Def get_value(size_t handle, const Type* type, const char* name = "");
+    Def set_mem(Def def);
+    Def get_mem();
     Lambda* parent() const { return parent_; }            ///< See \ref parent_ for more information.
     void set_parent(Lambda* parent) { parent_ = parent; } ///< See \ref parent_ for more information.
     void seal();

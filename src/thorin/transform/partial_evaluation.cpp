@@ -34,6 +34,9 @@ void partial_evaluation(World& world) {
         break;
     }
 
+    if (main_lambda == nullptr)
+        return;
+
     do {
         todo = false;
 

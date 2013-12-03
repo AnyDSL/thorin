@@ -213,7 +213,7 @@ private:
     virtual bool equal(const Type* other) const { return is_named() ? this == other : CompoundType::equal(other); }
 
 public:
-    bool is_named() const { return name_ == ""; }
+    bool is_named() const { return false; /*hack*/ }
     // TODO build setter for named sigmas which sets is_generic_
 
 private:

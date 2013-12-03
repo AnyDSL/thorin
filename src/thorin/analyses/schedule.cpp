@@ -55,49 +55,74 @@ Schedule schedule_early(const Scope& scope) {
     return schedule;
 }
 
-Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &late_mapping) {
+Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &def2late) {
+    DefMap<int> primop2num;
+    DefSet zero;
+
+    for (auto def : scope.in_scope()) {
+        if (auto primop = def->isa<PrimOp>()) {
+            int num = 0;
+            for (auto use : primop->uses()) {
+                if (scope.contains(use))
+                    ++num;
+            }
+            if (num != 0) // not dead
+                primop2num[def] = num;
+        }
+    }
+
     Schedule schedule;
     const DomTree domtree(scope);
-    LambdaMap<std::queue<const PrimOp*>> queues;
-    DefMap<size_t> placed_uses;
-    late_mapping.clear();
+    assert(def2late.empty());
 
     for (Lambda* cur : scope.backwards_rpo()) {
-        auto& queue = queues[cur] = std::queue<const PrimOp*>();
-
-        auto fill_queue = [&] (Def def) {
+        auto decrease = [&] (Def def) {
             for (auto op : def->ops()) {
-                if (auto primop = op->is_non_const_primop()) {
-                    queue.push(primop);
-
-                    if (!late_mapping.visit(primop, cur)) { // init unseen primops
-                        placed_uses[primop] = primop->num_uses() - 1;
+                auto i = primop2num.find(op);
+                if (i != primop2num.end()) {
+                    int& num = i->second;
+                    --num;
+                    assert(num >= 0);
+                    if (num == 0) {
+                        zero.insert(op);
                     }
                 }
             }
         };
 
-        fill_queue(cur);
+        decrease(cur);
 
-        while (!queue.empty()) {
-            const PrimOp* primop = queue.front();
-            queue.pop();
-            assert(late_mapping.contains(primop));
+        bool yes = true;
+        do {
+            std::vector<const PrimOp*> todo;
 
-            if (placed_uses[primop] == 0) {
-                Lambda*& late = late_mapping[primop];
-
-                if (late == cur) {
-                    schedule[late].push_back(primop);
-                    fill_queue(primop);
-                } else {
-                    late = late ? domtree.lca(cur, late) : cur;
-                    queues[late].push(primop);
+            for (auto z : zero) {
+                Lambda* late = cur;
+                const PrimOp* primop = z->as<PrimOp>();
+                for (auto use : primop->uses()) {
+                    if (scope.contains(use)) {
+                        if (auto uprimop = use->isa<PrimOp>())
+                            late = domtree.lca(late, def2late[uprimop]);
+                    }
                 }
-            } else
-                --placed_uses[primop];
-        }
+
+                def2late[primop] = late;
+                schedule[late].push_back(primop);
+                todo.push_back(primop);
+            }
+
+            if (zero.empty())
+                yes = false;
+
+            zero.clear();
+            for (auto t : todo)
+                decrease(t);
+        } while (yes);
     }
+    for (auto z : zero) {
+        z->dump();
+    }
+    assert(zero.empty());
 
     for (auto& primops : schedule)
         std::reverse(primops.second.begin(), primops.second.end());
@@ -110,15 +135,15 @@ Schedule schedule_smart(const Scope& scope) {
     const DomTree domtree(scope); // TODO cache domtree across schedule_late
     const LoopTree looptree(scope);
     Schedule early = schedule_early(scope);
-    DefMap<Lambda*> late_mapping;
-    schedule_late(scope, late_mapping); // set late pointers in primop and remember pass
+    DefMap<Lambda*> def2late;
+    schedule_late(scope, def2late); // set late pointers in primop and remember pass
 
     for (size_t i = 0, e = scope.size(); i != e; ++i) {
         Lambda* lambda_early = scope[i];
         for (auto primop : early[lambda_early]) {
-            if (!late_mapping.contains(primop))
+            if (!def2late.contains(primop))
                 continue;       // primop is dead
-            Lambda* lambda_best = late_mapping[primop];
+            Lambda* lambda_best = def2late[primop];
             assert(scope.contains(lambda_best));
             int depth = std::numeric_limits<int>::max();
             for (Lambda* i = lambda_best; i != lambda_early; i = domtree.idom(i)) {

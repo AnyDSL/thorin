@@ -133,14 +133,14 @@ void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<Lambda*> headers, int
 
         // now mark all newly found headers globally as header
         for (size_t e = parent->num_children(); cur_new_child != e; ++cur_new_child) {
-            for (auto header : parent->child(cur_new_child)->headers())
+            for (auto header : parent->child(cur_new_child)->lambdas())
                 states[header] |= IsHeader;
         }
     }
 
     for (auto node : parent->children()) {
         if (auto new_parent = node->isa<LoopHeader>())
-            recurse<false>(new_parent, new_parent->headers(), depth + 1);
+            recurse<false>(new_parent, new_parent->lambdas(), depth + 1);
     }
 }
 
@@ -233,10 +233,10 @@ std::pair<size_t, size_t> LoopTreeBuilder::propagate_bounds(LoopNode* n) {
 
 //------------------------------------------------------------------------------
 
-LoopNode::LoopNode(LoopHeader* parent, int depth, const std::vector<Lambda*>& headers)
+LoopNode::LoopNode(LoopHeader* parent, int depth, const std::vector<Lambda*>& lambdas)
     : parent_(parent)
     , depth_(depth)
-    , headers_(headers)
+    , lambdas_(lambdas)
 {
     if (parent_)
         parent_->children_.push_back(this);
@@ -272,7 +272,7 @@ Array<Lambda*> LoopTree::loop_lambdas_in_rpo(const LoopHeader* header) {
 std::ostream& operator << (std::ostream& o, const LoopNode* node) {
     for (int i = 0; i < node->depth(); ++i)
         o << '\t';
-    for (auto header : node->headers())
+    for (auto header : node->lambdas())
         o << header->unique_name() << " ";
     if (auto header = node->isa<LoopHeader>()) {
         o << ": " << header->dfs_begin() << "/" << header->dfs_end() << std::endl;

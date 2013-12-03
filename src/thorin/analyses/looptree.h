@@ -35,23 +35,23 @@ class LoopHeader;
  * Please refer to G. Ramalingam, "On Loops, Dominators, and Dominance Frontiers", 1999
  * for an introduction to loop nesting forests.
  * A \p LoopNode consists of a set of header \p Lambda%s.
- * The root node is a \p LoopHeader without any headers but further \p LoopNode children and \p depth_ -1.
+ * The root node is a \p LoopHeader without any lambdas but further \p LoopNode children and \p depth_ -1.
  * Thus, the forest is pooled into a tree.
  */
 class LoopNode : public MagicCast<LoopNode> {
 public:
-    LoopNode(LoopHeader* parent, int depth, const std::vector<Lambda*>& headers);
+    LoopNode(LoopHeader* parent, int depth, const std::vector<Lambda*>& lambdas);
     virtual ~LoopNode() = 0;
 
     int depth() const { return depth_; }
     const LoopHeader* parent() const { return parent_; }
-    ArrayRef<Lambda*> headers() const { return headers_; }
-    size_t num_headers() const { return headers().size(); }
+    ArrayRef<Lambda*> lambdas() const { return lambdas_; }
+    size_t num_lambdas() const { return lambdas().size(); }
 
 protected:
     LoopHeader* parent_;
     int depth_;
-    std::vector<Lambda*> headers_;
+    std::vector<Lambda*> lambdas_;
 };
 
 inline LoopNode::~LoopNode() {}
@@ -59,8 +59,8 @@ inline LoopNode::~LoopNode() {}
 /// A LoopHeader owns further \p LoopNode%s as children.
 class LoopHeader : public LoopNode {
 public:
-    explicit LoopHeader(LoopHeader* parent, int depth, const std::vector<Lambda*>& headers)
-        : LoopNode(parent, depth, headers)
+    explicit LoopHeader(LoopHeader* parent, int depth, const std::vector<Lambda*>& lambdas)
+        : LoopNode(parent, depth, lambdas)
         , dfs_begin_(0)
         , dfs_end_(-1)
     {}
@@ -89,14 +89,14 @@ private:
 
 class LoopLeaf : public LoopNode {
 public:
-    explicit LoopLeaf(size_t dfs_index, LoopHeader* parent, int depth, const std::vector<Lambda*>& headers)
-        : LoopNode(parent, depth, headers)
+    explicit LoopLeaf(size_t dfs_index, LoopHeader* parent, int depth, const std::vector<Lambda*>& lambdas)
+        : LoopNode(parent, depth, lambdas)
         , dfs_index_(dfs_index)
     {
-        assert(num_headers() == 1);
+        assert(num_lambdas() == 1);
     }
 
-    Lambda* lambda() const { return headers().front(); }
+    Lambda* lambda() const { return lambdas().front(); }
     size_t dfs_index() const { return dfs_index_; }
 
 private:

@@ -20,13 +20,22 @@ public:
         , to_lift(to_lift)
         , generic_map(generic_map)
         , world(scope.world())
-        , pass1(scope.mark())
-        , pass2(mapped)
+        , set(scope.in_scope())
+        , map(mapped)
     {
         std::queue<Def> queue;
         for (auto def : to_lift)
             queue.push(def);
-        mark_down(pass1, queue);
+
+        while (!queue.empty()) {
+            auto def = queue.front();
+            queue.pop();
+
+            for (auto use : def->uses()) {
+                if (!use->isa_lambda() && !set.visit(use))
+                    queue.push(use);
+            }
+        }
     }
 
     Lambda* mangle();
@@ -34,8 +43,8 @@ public:
     Lambda* mangle_head(Lambda* olambda);
     Def mangle(Def odef);
     Def lookup(Def def) {
-        assert(pass2.contains(def));
-        return pass2[def];
+        assert(map.contains(def));
+        return map[def];
     }
 
     const Scope& scope;
@@ -44,8 +53,8 @@ public:
     ArrayRef<Def> to_lift;
     GenericMap generic_map;
     World& world;
-    DefSet pass1;
-    Def2Def& pass2;
+    DefSet set;
+    Def2Def& map;
     Lambda* nentry;
     Lambda* oentry;
 };
@@ -85,27 +94,27 @@ Lambda* Mangler::mangle() {
     for (size_t op = 0, np = 0, i = 0, e = o_pi->size(); op != e; ++op) {
         const Param* oparam = oentry->param(op);
         if (i < to_drop.size() && to_drop[i] == op)
-            pass2[oparam] = drop_with[i++];
+            map[oparam] = drop_with[i++];
         else {
             const Param* nparam = nentry->param(np++);
             nparam->name = oparam->name;
-            pass2[oparam] = nparam;
+            map[oparam] = nparam;
         }
     }
 
     for (size_t i = offset, e = nelems.size(), x = 0; i != e; ++i, ++x) {
-        pass2[to_lift[x]] = nentry->param(i);
+        map[to_lift[x]] = nentry->param(i);
         nentry->param(i)->name = to_lift[x]->name;
     }
 
-    pass2[oentry] = oentry;
+    map[oentry] = oentry;
     mangle_body(oentry, nentry);
 
     for (auto cur : scope.rpo().slice_from_begin(1)) {
-        if (pass2.contains(cur))
+        if (map.contains(cur))
             mangle_body(cur, lookup(cur)->as_lambda());
         else
-            pass2[cur] = cur;
+            map[cur] = cur;
     }
 
     //world.cache_[call] = nentry;
@@ -113,13 +122,13 @@ Lambda* Mangler::mangle() {
 }
 
 Lambda* Mangler::mangle_head(Lambda* olambda) {
-    assert(!pass2.contains(olambda));
+    assert(!map.contains(olambda));
     assert(!olambda->empty());
     Lambda* nlambda = olambda->stub(generic_map, olambda->name);
-    pass2[olambda] = nlambda;
+    map[olambda] = nlambda;
 
     for (size_t i = 0, e = olambda->num_params(); i != e; ++i)
-        pass2[olambda->param(i)] = nlambda->param(i);
+        map[olambda->param(i)] = nlambda->param(i);
 
     return nlambda;
 }
@@ -159,9 +168,9 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
 enum class Eval { Run, Infer, Halt };
 
 Def Mangler::mangle(Def odef) {
-    if (!pass1.contains(odef) && !pass2.contains(odef))
+    if (!set.contains(odef) && !map.contains(odef))
         return odef;
-    if (pass2.contains(odef))
+    if (map.contains(odef))
         return lookup(odef);
 
     if (auto olambda = odef->isa_lambda()) {
@@ -169,7 +178,7 @@ Def Mangler::mangle(Def odef) {
         return mangle_head(olambda);
     } else if (auto param = odef->isa<Param>()) {
         assert(scope.contains(param->lambda()));
-        return pass2[odef] = odef;
+        return map[odef] = odef;
     }
 
     auto oprimop = odef->as<PrimOp>();
@@ -208,7 +217,7 @@ Def Mangler::mangle(Def odef) {
         else if (eval == Eval::Halt)
             nprimop = world.halt(nprimop);
     }
-    return pass2[oprimop] = nprimop;
+    return map[oprimop] = nprimop;
 }
 
 //------------------------------------------------------------------------------

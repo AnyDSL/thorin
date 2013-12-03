@@ -56,8 +56,6 @@ public:
     size_t sid(Lambda* lambda) const;
     size_t backwards_sid(Lambda* lambda) const;
 
-    DefSet mark() const;
-
 private:
     void identify_scope(ArrayRef<Lambda*> entries);
     void rpo_numbering(ArrayRef<Lambda*> entries);

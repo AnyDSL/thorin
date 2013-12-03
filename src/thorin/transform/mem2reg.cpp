@@ -17,8 +17,6 @@ void mem2reg(const Scope& scope) {
     World& world = scope.world();
 
     for (Lambda* lambda : scope) {
-        for (auto pred : lambda->preds()) {
-            if (!scope.contains(pred)) {
 #ifndef NDEBUG
                 bool found = false;
 #endif
@@ -33,9 +31,6 @@ void mem2reg(const Scope& scope) {
 #endif
                     }
                 }
-                break;
-            }
-        }
 
         // Search for slots/loads/stores from top to bottom and use set_value/get_value to install parameters.
         for (auto primop : schedule[lambda]) {

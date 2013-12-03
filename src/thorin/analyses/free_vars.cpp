@@ -9,21 +9,20 @@ namespace thorin {
 std::vector<Def> free_vars(const Scope& scope) {
     std::vector<Def> result;
     std::queue<Def> queue;
-    const DefSet& pass1 = scope.mark();
-    DefSet pass2;
+    DefSet set;
 
-    // now find everything not marked previously
+    // now find everything not in scope
     auto fill_queue = [&] (Def def) {
         for (auto op : def->ops()) {
             if (op->is_const())
                 continue;
-            if (!pass1.contains(op)) {
+            if (!scope.contains(op)) {
                 result.push_back(op);
-                pass2.visit(op);
+                set.visit(op);
                 continue;
             }
 
-            if (!pass2.visit(op))
+            if (!set.visit(op))
                 queue.push(op);
         }
     };

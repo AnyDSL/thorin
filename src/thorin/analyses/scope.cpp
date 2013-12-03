@@ -230,25 +230,6 @@ ArrayRef<Lambda*> Scope::backwards_rpo() const {
     return *backwards_rpo_;
 }
 
-DefSet Scope::mark() const {
-    DefSet set;
-    std::queue<Def> queue;
-
-    for (auto lambda : rpo()) {
-        set.visit(lambda);
-        queue.push(lambda);
-
-        for (auto param : lambda->params()) {
-            set.insert(param);
-            queue.push(param);
-        }
-
-        mark_down(set, queue);
-    }
-
-    return set;
-}
-
 //------------------------------------------------------------------------------
 
 bool Scope::is_entry(Lambda* lambda) const { assert(contains(lambda)); return sid_[lambda].sid < num_entries(); }

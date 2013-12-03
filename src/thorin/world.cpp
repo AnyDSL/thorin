@@ -952,6 +952,7 @@ void World::opt() {
     partial_evaluation(*this);
     lower2cff(*this);
     mem2reg(*this);
+    //return;
 
     for (auto cur : copy_lambdas()) {
         if (cur->is_connected_to_builtin() && !cur->is_basicblock()) {

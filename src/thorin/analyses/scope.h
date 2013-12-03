@@ -14,9 +14,12 @@ Array<Lambda*> top_level_lambdas(World& world);
 class Scope {
 public:
     explicit Scope(Lambda* entry);
-    explicit Scope(World& world, ArrayRef<Lambda*> entries);
+    Scope(World& world, ArrayRef<Lambda*> entries);
+    Scope(ArrayRef<Lambda*> entries)
+        : Scope(entries[0]->world(), entries)
+    {}
 
-    bool contains(Lambda* lambda) const;
+    bool contains(Def def) const { return in_scope_.contains(def); }
 
     /// All lambdas within this scope in reverse postorder.
     ArrayRef<Lambda*> rpo() const { return rpo_; }
@@ -27,6 +30,7 @@ public:
     ArrayRef<Lambda*> exits() const { return backwards_rpo().slice_to_end(num_exits()); }
     /// Like \p backwards_rpo() but without \p exits().
     ArrayRef<Lambda*> backwards_body() const { return backwards_rpo().slice_from_begin(num_exits()); }
+    const DefSet& in_scope() const { return in_scope_; }
 
     Lambda* rpo(size_t i) const { return rpo_[i]; }
     Lambda* operator [] (size_t i) const { return rpo(i); }
@@ -63,11 +67,10 @@ private:
 
     World& world_;
     std::vector<Lambda*> rpo_;
-    DefSet visited_;
+    DefSet in_scope_;
     size_t num_entries_;
 
-    struct LambdaSidInfo
-    {
+    struct LambdaSidInfo {
         size_t sid;
         size_t backwards_sid;
 

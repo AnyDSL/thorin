@@ -51,13 +51,6 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries)
     rpo_numbering(entries);
 }
 
-bool Scope::contains(Lambda* lambda) const {
-    auto it = sid_.find(lambda);
-    if (it == sid_.end())
-        return false;
-    return it->second.sid != size_t(-1);
-}
-
 void Scope::identify_scope(ArrayRef<Lambda*> entries) {
     LambdaSet lambdas;
     for (auto entry : entries)
@@ -67,7 +60,7 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
 }
 
 void Scope::collect(LambdaSet& entries, Lambda* lambda) {
-    if (visited_.visit(lambda))
+    if (in_scope_.visit(lambda))
         return;
     rpo_.push_back(lambda);
 
@@ -76,7 +69,7 @@ void Scope::collect(LambdaSet& entries, Lambda* lambda) {
     for (auto param : lambda->params()) {
         if (param->is_proxy())
             continue;
-        visited_.insert(param);
+        in_scope_.insert(param);
         queue.push(param);
     }
 
@@ -90,11 +83,11 @@ void Scope::collect(LambdaSet& entries, Lambda* lambda) {
         auto def = queue.front();
         queue.pop();
         for (auto use : def->uses()) {
-            if (!visited_.contains(use)) {
+            if (!in_scope_.contains(use)) {
                 if (auto ulambda = use->isa_lambda()) {
                     lambdas.insert(ulambda);
                 } else {
-                    visited_.insert(use);
+                    in_scope_.insert(use);
                     queue.push(use);
                 }
             }
@@ -104,13 +97,13 @@ void Scope::collect(LambdaSet& entries, Lambda* lambda) {
     // check for predecessors
     if (!entries.contains(lambda)) {
         for (auto pred : lambda->preds()) {
-            if (!visited_.contains(pred)) {
+            if (!in_scope_.contains(pred)) {
                 for (auto op : pred->ops()) {
                     if (auto ulambda = op->isa_lambda()) {
                         if (entries.contains(ulambda))
                             continue;
                     }
-                    if (visited_.contains(op)) {
+                    if (in_scope_.contains(op)) {
                         collect(entries, pred);
                         goto next_pred;
                     }
@@ -149,8 +142,8 @@ void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {
             sid_[lambda].sid = size_t(-1);
             for (auto param : lambda->params())
                 if (!param->is_proxy())
-                    visited_.erase(param);
-            visited_.erase(lambda);
+                    in_scope_.erase(param);
+            in_scope_.erase(lambda);
         }
     }
     
@@ -164,7 +157,7 @@ void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {
 template<bool forwards>
 size_t Scope::po_visit(LambdaSet& set, Lambda* cur, size_t i) const {
     for (auto succ : forwards ? cur->succs() : cur->preds()) {
-        if (visited_.contains(succ) && !set.contains(succ))
+        if (in_scope_.contains(succ) && !set.contains(succ))
             i = number<forwards>(set, succ, i);
     }
     return i;

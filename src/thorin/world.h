@@ -294,7 +294,6 @@ public:
      */
 
     const Type* insert_type(const Type*);
-    size_t new_pass() { return pass_counter_++; }
 
 #ifndef NDEBUG
     void breakpoint(size_t number) { breakpoints_.insert(number); }
@@ -332,7 +331,6 @@ private:
 #endif
 
     size_t gid_;
-    size_t pass_counter_;
     const Sigma* sigma0_;///< sigma().
     const Pi* pi0_;      ///< pi().
     const Mem* mem_;

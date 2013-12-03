@@ -99,9 +99,8 @@ private:
     };
     std::vector<VectorizationEntry> v_fcts;
 
-    // Accelerator module
-    const char* acc_kernel_name;
     const char* acc_module_name;
+    const char* acc_kernel_name;
 
     // CUDA
     llvm::Function* cuda_thread_id_getter[3];

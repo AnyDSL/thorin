@@ -14,13 +14,32 @@ void mem2reg(const Scope& scope) {
     DefMap<size_t> addresses;
     LambdaSet pass;
     size_t cur_handle = 1; // use 0 for mem
+    World& world = scope.world();
 
     for (Lambda* lambda : scope) {
+        for (auto pred : lambda->preds()) {
+            if (!scope.contains(pred)) {
+#ifndef NDEBUG
+                bool found = false;
+#endif
+                for (auto param : lambda->params()) {
+                    if (param->type()->isa<Mem>()) {
+                        lambda->set_mem(param);
+#ifndef NDEBUG
+                        assert(!found);
+                        found = true;
+#else
+                        break;
+#endif
+                    }
+                }
+                break;
+            }
+        }
+
         // Search for slots/loads/stores from top to bottom and use set_value/get_value to install parameters.
         for (auto primop : schedule[lambda]) {
             auto def = Def(primop);
-            if (def->type()->isa<Mem>())
-                lambda->set_mem(def);
 
             if (auto slot = def->isa<Slot>()) {
                 // are all users loads and stores?
@@ -36,16 +55,30 @@ void mem2reg(const Scope& scope) {
                     if (addresses[slot] != size_t(-1)) {  // if not "address taken"
                         lambda->set_value(addresses[slot], store->val());
                         store->replace(lambda->get_mem());
+                        continue;
                     }
                 }
+                store->replace(world.store(lambda->get_mem(), store->ptr(), store->val(), store->name));
+                lambda->set_mem(store);
             } else if (auto load = def->isa<Load>()) {
                 if (auto slot = load->ptr()->isa<Slot>()) {
                     if (addresses[slot] != size_t(-1)) {  // if not "address taken"
                         auto type = slot->type()->as<Ptr>()->referenced_type();
                         load->extract_val()->replace(lambda->get_value(addresses[slot], type, slot->name.c_str()));
                         load->extract_mem()->replace(lambda->get_mem());
+                        continue;
                     }
                 }
+                auto nload = world.load(lambda->get_mem(), load->ptr(), load->name);
+                load->replace(nload);
+                lambda->set_mem(nload->extract_mem());
+            } else if (auto enter = def->isa<Enter>()) {
+                auto nenter = world.enter(lambda->get_mem());
+                enter->replace(nenter);
+                lambda->set_mem(nenter->extract_mem());
+            } else if (auto leave = def->isa<Leave>()) {
+                leave->replace(world.leave(lambda->get_mem(), leave->frame()));
+                lambda->set_mem(Def(leave));
             }
 next_primop:;
         }
@@ -76,19 +109,19 @@ void mem2reg(World& world) {
         lambda->set_parent(0);
         lambda->seal();
 #ifndef NDEBUG
-        bool found = false;
+                bool found = false;
 #endif
-        for (auto param : lambda->params()) {
-            if (param->type()->isa<Mem>()) {
-                lambda->set_mem(param);
+                for (auto param : lambda->params()) {
+                    if (param->type()->isa<Mem>()) {
+                        lambda->set_mem(param);
 #ifndef NDEBUG
-                assert(!found);
-                found = true;
+                        assert(!found);
+                        found = true;
 #else
-                break;
+                        break;
 #endif
-            }
-        }
+                    }
+                }
     }
 
     for (auto root : top)

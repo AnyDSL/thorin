@@ -1056,7 +1056,7 @@ static void sanity_check(Def def) {
 void World::dead_code_elimination() {
     // elimimante useless enters/leaves
     for (auto primop : primops_) {
-        if (auto enter = primop->isa<Enter>())
+        if (auto enter = Def(primop)->isa<Enter>())
             switch (enter->extract_frame()->num_uses()) {
                 case 0: enter->extract_mem()->replace(enter->mem()); break;
                 case 1: {

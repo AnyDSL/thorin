@@ -7,7 +7,7 @@
 namespace thorin {
 
 std::vector<Def> free_vars(const Scope& scope) {
-    std::vector<Def> result;
+    DefSet vars;
     std::queue<Def> queue;
     DefSet set;
 
@@ -17,7 +17,7 @@ std::vector<Def> free_vars(const Scope& scope) {
             if (op->is_const())
                 continue;
             if (!scope.contains(op)) {
-                result.push_back(op);
+                vars.insert(op);
                 set.visit(op);
                 continue;
             }
@@ -37,7 +37,7 @@ std::vector<Def> free_vars(const Scope& scope) {
         }
     }
 
-    return result;
+    return std::vector<Def>(vars.begin(), vars.end());
 }
 
 }

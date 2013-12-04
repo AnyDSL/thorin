@@ -958,8 +958,6 @@ void World::opt() {
         if (cur->is_connected_to_builtin() && !cur->is_basicblock()) {
             Scope scope(cur);
             std::vector<Def> vars = free_vars(scope);
-            for (auto v : vars)
-                v->dump();
             auto lifted = lift(scope, vars);
 
             for (auto use : cur->uses()) {

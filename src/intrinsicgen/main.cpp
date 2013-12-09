@@ -19,10 +19,11 @@ int main() {
         
         if (!llvm::Intrinsic::isOverloaded(id)) {
             auto type = llvm::Intrinsic::getType(context, id);
-            std::cout << llvm::Intrinsic::getName(id) << std::endl;
-            std::cout.flush();
-            type->dump();
-            std::cout << std::endl;
+            std::string name = llvm::Intrinsic::getName(id);
+            assert(name.substr(0, 5) == "llvm.");
+            name = name.substr(5); // remove 'llvm.' prefix
+            // replace '.' with '_'
+            std::transform(name.begin(), name.end(), name.begin(), [] (char c) { return c == '.' ? '_' : c; });
             if (auto itype = llvm2impala(init.typetable, type))
                 itype->dump();
         }
@@ -41,10 +42,8 @@ const impala::Type* llvm2impala(impala::TypeTable& tt, llvm::Type* type) {
         }
     }
 
-    if (type->isFloatTy())
-        return tt.type_float();
-    if (type->isDoubleTy())
-        return tt.type_double();
+    if (type->isFloatTy())  return tt.type_float();
+    if (type->isDoubleTy()) return tt.type_double();
 
     if (auto fn = llvm::dyn_cast<llvm::FunctionType>(type)) {
         std::vector<const impala::Type*> param_types(fn->getNumParams()+1);

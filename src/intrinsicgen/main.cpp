@@ -5,11 +5,13 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Type.h>
 
+#include "impala/init.h"
 #include "impala/type.h"
 
 const impala::Type* llvm2impala(impala::TypeTable&, llvm::Type*);
 
 int main() {
+    auto init = impala::Init();
     auto& context = llvm::getGlobalContext();
     int num = llvm::Intrinsic::num_intrinsics - 1;
     for (int i = 1; i != num; ++i) {
@@ -17,10 +19,12 @@ int main() {
         
         if (!llvm::Intrinsic::isOverloaded(id)) {
             auto type = llvm::Intrinsic::getType(context, id);
-            std::cout << llvm::Intrinsic::getName(id) << " ";
+            std::cout << llvm::Intrinsic::getName(id) << std::endl;
             std::cout.flush();
             type->dump();
             std::cout << std::endl;
+            if (auto itype = llvm2impala(init.typetable, type))
+                itype->dump();
         }
     }
 }
@@ -28,6 +32,7 @@ int main() {
 const impala::Type* llvm2impala(impala::TypeTable& tt, llvm::Type* type) {
     if (auto int_type = llvm::dyn_cast<llvm::IntegerType>(type)) {
         switch (int_type->getBitWidth()) {
+            case  1: return tt.type_bool();
             case  8: return tt.type_int8();
             case 16: return tt.type_int16();
             case 32: return tt.type_int32();
@@ -42,13 +47,21 @@ const impala::Type* llvm2impala(impala::TypeTable& tt, llvm::Type* type) {
         return tt.type_double();
 
     if (auto fn = llvm::dyn_cast<llvm::FunctionType>(type)) {
-        const impala::Type* ret = llvm2impala(tt, fn->getReturnType());
-        std::vector<const impala::Type*> params;
+        std::vector<const impala::Type*> param_types(fn->getNumParams()+1);
         bool valid = true;
         for (size_t i = 0, e = fn->getNumParams(); i != e; ++i) {
-            params[i] = llvm2impala(tt, fn->getParamType(i));
-            valid &= params[i] != nullptr;
+            param_types[i] = llvm2impala(tt, fn->getParamType(i));
+            valid &= param_types[i] != nullptr;
         }
+
+        auto ret = llvm2impala(tt, fn->getReturnType());
+        valid &= ret != nullptr;
+        if (valid) {
+            param_types.back() = tt.fntype({ret});
+            return tt.fntype(param_types);
+        }
+
+        return nullptr;
     }
 
     return nullptr;

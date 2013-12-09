@@ -57,7 +57,7 @@ Schedule schedule_early(const Scope& scope) {
 
 Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &def2late) {
     DefMap<int> primop2num;
-    DefSet zero;
+    std::vector<Def> zero;
 
     for (auto def : scope.in_scope()) {
         if (auto primop = def->isa<PrimOp>()) {
@@ -83,7 +83,7 @@ Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &def2late) {
                 --num;
                 assert(num >= 0);
                 if (num == 0) {
-                    zero.insert(op);
+                    zero.push_back(op);
                 }
             }
         }
@@ -91,6 +91,7 @@ Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &def2late) {
 
     for (Lambda* cur : scope.backwards_rpo()) {
         decrease(cur);
+        def2late[cur] = cur;
 
         bool todo = true;
         do {
@@ -100,10 +101,8 @@ Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &def2late) {
                 Lambda* late = cur;
                 const PrimOp* primop = z->as<PrimOp>();
                 for (auto use : primop->uses()) {
-                    if (scope.contains(use)) {
-                        if (auto uprimop = use->isa<PrimOp>())
-                            late = domtree.lca(late, def2late[uprimop]);
-                    }
+                    if (scope.contains(use))
+                        late = domtree.lca(late, def2late[use]);
                 }
 
                 def2late[primop] = late;

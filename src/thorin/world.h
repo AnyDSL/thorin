@@ -345,9 +345,6 @@ private:
         const PrimType* primtypes_[Num_PrimTypes];
     };
 
-public:
-    //std::unordered_map<Call, Lambda*, CallHash, CallEqual> cache_;
-
     friend class Lambda;
 };
 

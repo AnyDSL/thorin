@@ -1122,7 +1122,7 @@ llvm::Value* CodeGen::emit(Def def) {
             case PrimType_u1:  return builder.getInt1(box.get_u1().get());
             case PrimType_u8:  return builder.getInt8(box.get_u8());
             case PrimType_u16: return builder.getInt16(box.get_u16());
-            case PrimType_u32: //return builder.getInt32(box.get_u32());
+            case PrimType_u32: return builder.getInt32(box.get_u32());
             case PrimType_u64: return builder.getInt64(box.get_u64());
             case PrimType_f32: return llvm::ConstantFP::get(type, box.get_f32());
             case PrimType_f64: return llvm::ConstantFP::get(type, box.get_f64());

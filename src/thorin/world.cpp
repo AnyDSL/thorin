@@ -1086,19 +1086,6 @@ void World::dead_code_elimination() {
     auto wipe_primop = [&] (const PrimOp* primop) { return !set.contains(primop); };
     auto wipe_lambda = [&] (Lambda* lambda) { return lambda->empty() && !lambda->attribute().is(Lambda::Extern); };
 
-#if 0
-    for (auto lambda : lambdas_) {
-        if (wipe_lambda(lambda)) {
-            for (auto i = cache_.begin(); i != cache_.end();) {
-                auto j = i++;
-                auto p = *j;
-                if (p.first.to == lambda || p.second == lambda)
-                    cache_.erase(j);
-            }
-        }
-    }
-#endif
-
     for (auto primop : primops_) {
         if (wipe_primop(primop)) {
             for (size_t i = 0, e = primop->size(); i != e; ++i)

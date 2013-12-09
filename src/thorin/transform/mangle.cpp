@@ -73,14 +73,6 @@ Lambda* Mangler::mangle() {
     for (auto x : to_drop)
         call.idx.push_back(x);
 
-#if 0
-    auto iter = world.cache_.find(call);
-    if (iter != world.cache_.end()) {
-        assert(!iter->second->empty());
-        return iter->second;
-    }
-#endif
-
     for (size_t i = offset, e = nelems.size(), x = 0; i != e; ++i, ++x)
         nelems[i] = to_lift[x]->type();
 
@@ -117,7 +109,6 @@ Lambda* Mangler::mangle() {
             map[cur] = cur;
     }
 
-    //world.cache_[call] = nentry;
     return nentry;
 }
 
@@ -185,7 +176,7 @@ Def Mangler::mangle(Def odef) {
     Array<Def> nops(oprimop->size());
     Def nprimop;
 
-    if (oprimop->isa<ArrayAgg>()) {
+    if (oprimop->isa<Aggregate>()) {
         for (size_t i = 0, e = oprimop->size(); i != e; ++i)
             nops[i] = mangle(oprimop->op(i));
         nprimop = world.rebuild(oprimop, nops);

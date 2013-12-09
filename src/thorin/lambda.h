@@ -28,6 +28,7 @@ public:
         ArrayInit   = 1 << 2, ///< Flag for the external array intialization
         StencilAr   = 1 << 3, ///< Flag for the external stencil intialization
         Vectorize   = 1 << 4, ///< Flag for the external vectorizer
+        Intrinsic   = 1 << 5, ///< Flag for intrinsic LLVM function
     };
 
     struct Attribute {

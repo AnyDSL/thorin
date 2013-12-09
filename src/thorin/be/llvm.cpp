@@ -88,7 +88,12 @@ void CodeGen::emit() {
         if (lambda->is_builtin())
             continue;
         llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
-        llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->name, module);
+        std::string name = lambda->name;
+        if (lambda->attribute().is(Lambda::Intrinsic)) {
+            std::transform(name.begin(), name.end(), name.begin(), [] (char c) { return c == '_' ? '.' : c; });
+            name = "llvm." + name;
+        }
+        llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, module);
         fcts.emplace(lambda, f);
     }
 

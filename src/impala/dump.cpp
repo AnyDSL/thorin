@@ -1,4 +1,4 @@
-#include "thorin/util/printer.h"
+#include "impala/dump.h"
 
 #include "impala/ast.h"
 #include "impala/dump.h"
@@ -10,19 +10,6 @@ using thorin::Type;
 using thorin::Symbol;
 
 namespace impala {
-
-class Printer : public thorin::Printer {
-public:
-    Printer(std::ostream& o, bool fancy)
-        : thorin::Printer(o, fancy)
-        , prec(BOTTOM)
-    {}
-
-    std::ostream& print_block(const Stmt*);
-    std::ostream& print_type(const Type*);
-
-    Prec prec;
-};
 
 std::ostream& Printer::print_type(const Type* type) {
     if (type == nullptr) {

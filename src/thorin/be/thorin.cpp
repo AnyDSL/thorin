@@ -138,6 +138,8 @@ std::ostream& CodeGen::emit_head(const Lambda* lambda) {
 
     if (lambda->attribute().is(Lambda::Extern))
         stream() << " extern ";
+    if (lambda->attribute().is(Lambda::Intrinsic))
+        stream() << " intrinsic ";
 
     return up();
 }

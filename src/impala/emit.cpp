@@ -64,7 +64,10 @@ bool CodeGen::emit_prg(const Scope* prg) {
         } else if (auto proto_item = item->isa<ProtoItem>()) {
             auto proto = proto_item->proto();
             auto lambda = world().lambda(proto->refined_type()->convert(world())->as<Pi>());
-            lambda->attribute().set(Lambda::Extern);
+            if (proto->is_extern())
+                lambda->attribute().set(Lambda::Extern);
+            else
+                lambda->attribute().set(Lambda::Intrinsic);
             lambda->name = proto->symbol().str();
             // HACK: eliminate this hack
             if (lambda->name == "accelerator")

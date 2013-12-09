@@ -6,6 +6,7 @@
 #include <llvm/IR/Type.h>
 
 #include "impala/init.h"
+#include "impala/dump.h"
 #include "impala/type.h"
 
 const impala::Type* llvm2impala(impala::TypeTable&, llvm::Type*);
@@ -14,6 +15,8 @@ int main() {
     auto init = impala::Init();
     auto& context = llvm::getGlobalContext();
     int num = llvm::Intrinsic::num_intrinsics - 1;
+    impala::Printer printer(std::cout, false);
+
     for (int i = 1; i != num; ++i) {
         auto id = (llvm::Intrinsic::ID) i;
         
@@ -24,8 +27,14 @@ int main() {
             name = name.substr(5); // remove 'llvm.' prefix
             // replace '.' with '_'
             std::transform(name.begin(), name.end(), name.begin(), [] (char c) { return c == '.' ? '_' : c; });
-            if (auto itype = llvm2impala(init.typetable, type))
-                itype->dump();
+            if (auto itype = llvm2impala(init.typetable, type)) {
+                auto fn = itype->as<impala::FnType>();
+                printer.stream() << "intrinsic " << name;
+                printer.dump_list([&] (const impala::Type* type) { printer.print_type(type); }, fn->elems().slice_to_end(fn->size()-1), "(", ")");
+                printer.stream() << " -> ";
+                printer.print_type(fn->return_type()) << ';';
+                printer.newline();
+            }
         }
     }
 }

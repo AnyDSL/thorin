@@ -9,7 +9,7 @@ namespace thorin {
 
 class Printer {
 public:
-    Printer(std::ostream& stream, bool fancy, bool colored = true)
+    Printer(std::ostream& stream, bool fancy = true, bool colored = true)
         : indent(0)
         , stream_(stream)
         , fancy_(fancy)

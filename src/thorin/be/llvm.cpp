@@ -39,8 +39,6 @@
 #include <wfvInterface.h>
 #endif
 
-//#define EMIT_NVVM
-
 namespace thorin {
 
 template<class T> 

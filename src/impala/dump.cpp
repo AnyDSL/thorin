@@ -105,10 +105,9 @@ std::ostream& Scope::print(Printer& p) const {
 }
 
 std::ostream& Proto::print(Printer& p) const {
-    p.stream() << "extern " << symbol_ << " ";
-    auto type = refined_fntype();
-    return p.dump_list([&](const Type* type) { p.print_type(type); }, type->elems().slice_to_end(type->size()-1), "(", ")") 
-            << " -> " << type->elems().back();
+    p.stream() << (is_extern() ? "extern " : "intrinsic ") << symbol_ << " ";
+    return p.dump_list([&](const Type* type) { p.print_type(type); }, orig_type()->elems().slice_to_end(orig_type()->size()-1), "(", ")") 
+            << " -> " << orig_type()->elems().back() << ';';
 }
 
 std::ostream& Fun::print(Printer& p) const {
@@ -347,10 +346,7 @@ std::ostream& ReturnStmt::print(Printer& p) const {
 
 //------------------------------------------------------------------------------
 
-std::ostream& ProtoItem::print(Printer& p) const {
-    p.stream() << "proto " << proto()->symbol();
-    return p.stream();
-}
+std::ostream& ProtoItem::print(Printer& p) const { return proto()->print(p); }
 
 std::ostream& FunItem::print(Printer& p) const {
     p.stream() << "fn " << fun()->symbol(); 

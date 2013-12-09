@@ -134,6 +134,7 @@ IMPALA_KEY_STMT(LET,        "let")
 #endif
 
 IMPALA_KEY_MISC(EXTERN,     "extern")
+IMPALA_KEY_MISC(INTRINSIC,  "intrinsic")
 IMPALA_KEY_MISC(FN,         "fn")
 IMPALA_KEY_MISC(TYPE_int,   "int")
 IMPALA_KEY_MISC(TYPE_noret, "noret")

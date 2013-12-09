@@ -213,8 +213,13 @@ public:
 
     const FnType* orig_fntype() const { return orig_type_->as<FnType>(); }
     const FnType* refined_fntype() const { return refined_type_->as<FnType>(); }
+    bool is_extern() const { return kind_ == Token::EXTERN; }
+    bool is_intrinsic() const { return kind_ == Token::INTRINSIC; }
     virtual void check(Sema& sema) const;
     virtual std::ostream& print(Printer& p) const;
+
+private:
+    TokenKind kind_;
 
     friend class Parser;
 };

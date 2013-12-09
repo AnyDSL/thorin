@@ -28,6 +28,7 @@
 #define ITEM \
          Token::FN: \
     case Token::EXTERN: \
+    case Token::INTRINSIC: \
     case Token::CLASS: \
     case Token::STRUCT
 
@@ -871,17 +872,19 @@ const Stmt* Parser::parse_return() {
 
 const Item* Parser::parse_item() {
     switch (la()) {
-        case Token::FN:     return parse_fun_item();
-        case Token::EXTERN: return parse_proto_item();
+        case Token::FN:        return parse_fun_item();
+        case Token::EXTERN:
+        case Token::INTRINSIC: return parse_proto_item();
         case Token::STRUCT:
-        case Token::CLASS:  return parse_trait_item();
-        default:            THORIN_UNREACHABLE;
+        case Token::CLASS:     return parse_trait_item();
+        default:               THORIN_UNREACHABLE;
     }
 }
 
 const ProtoItem* Parser::parse_proto_item() {
-    eat(Token::EXTERN);
+    auto kind = lex();
     auto proto = loc(new ProtoItem(try_id("prototype").symbol()));
+    proto->proto_->kind_ = kind;
     parse_proto(proto->proto_ );
     expect(Token::SEMICOLON, "end of proto expected");
     return proto;

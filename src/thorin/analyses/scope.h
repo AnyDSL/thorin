@@ -14,6 +14,9 @@ Array<Lambda*> top_level_lambdas(World& world);
 class Scope {
 public:
     explicit Scope(Lambda* entry);
+    Scope(World& world)
+        : Scope(world, top_level_lambdas(world))
+    {}
     Scope(World& world, ArrayRef<Lambda*> entries);
     Scope(ArrayRef<Lambda*> entries)
         : Scope(entries[0]->world(), entries)

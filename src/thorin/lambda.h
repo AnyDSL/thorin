@@ -197,6 +197,8 @@ public:
     }
 };
 
+typedef LambdaMap<Lambda*> Lambda2Lambda;
+
 //------------------------------------------------------------------------------
 
 } // namespace thorin

@@ -147,6 +147,8 @@ private:
 
 public:
     const ArrayType* array_type() const;
+    const Type* elem_type() const;
+    bool is_definite() const;
 
     friend class World;
 };

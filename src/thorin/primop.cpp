@@ -59,6 +59,10 @@ ArrayAgg::ArrayAgg(World& world, const Type* elem, ArrayRef<Def> args, bool defi
 #endif
 }
 
+bool ArrayAgg::is_definite() const { return type()->isa<DefArray>(); }
+const ArrayType* ArrayAgg::array_type() const { return type()->as<ArrayType>(); }
+const Type* ArrayAgg::elem_type() const { return array_type()->elem_type(); }
+
 Tuple::Tuple(World& world, ArrayRef<Def> args, const std::string& name)
     : Aggregate(Node_Tuple, args, name)
 {
@@ -82,9 +86,8 @@ Vector::Vector(World& world, ArrayRef<Def> args, const std::string& name)
     }
 }
 
-const ArrayType* ArrayAgg::array_type() const { return type()->as<ArrayType>(); }
-const Sigma* Tuple::sigma() const { return type()->as<Sigma>(); }
 const VectorType* Vector::vector_type() const { return type()->as<VectorType>(); }
+const Sigma* Tuple::sigma() const { return type()->as<Sigma>(); }
 
 Extract::Extract(Def agg, Def index, const std::string& name)
     : AggOp(2, Node_Extract, type(agg, index), agg, index, name)

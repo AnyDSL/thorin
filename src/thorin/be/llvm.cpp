@@ -56,6 +56,7 @@ public:
     llvm::Type* map(const Type* type);
     llvm::Value* emit(Def def);
     llvm::Value* lookup(Def def);
+    llvm::AllocaInst* emit_array(Def def);
 
 private:
     World& world;
@@ -290,6 +291,28 @@ llvm::Value* CodeGen::lookup(Def def) {
     return phis[param];
 }
 
+llvm::AllocaInst* CodeGen::emit_array(Def array) {
+    assert(array->type()->isa<ArrayType>());
+    auto entry = &builder.GetInsertBlock()->getParent()->getEntryBlock();
+    llvm::Instruction* before;
+    if (entry->empty())
+        before = new llvm::AllocaInst(builder.getInt32Ty(), nullptr /* no variable length array */, "dummy", entry);
+    else
+        before = entry->getFirstNonPHIOrDbg();
+
+    auto alloca = new llvm::AllocaInst(map(array->type()), nullptr /* no variable length array */, array->name, before);
+
+    u64 i = 0;
+    llvm::Value* args[2] = { builder.getInt64(0), nullptr };
+    for (auto op : array->ops()) {
+        args[1] = builder.getInt64(i++);
+        auto gep = llvm::GetElementPtrInst::CreateInBounds(alloca, args, op->name, before);
+        before = new llvm::StoreInst(lookup(op), gep, before);
+    }
+
+    return alloca;
+}
+
 llvm::Value* CodeGen::emit(Def def) {
     if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = lookup(bin->lhs());
@@ -383,34 +406,8 @@ llvm::Value* CodeGen::emit(Def def) {
         return builder.CreateSelect(cond, tval, fval);
     }
 
-#if 0
-    if (auto array = def->isa<ArrayValue>()) {
-        auto alloca = new llvm::AllocaInst(
-            llvm::ArrayType::get(map(array->array_type()->elem_type()), array->size()),     // type
-            nullptr /* no variable length array */, array->name,
-            builder.GetInsertBlock()->getParent()->getEntryBlock().getTerminator()          // insert before this
-        );
-
-        llvm::Instruction* before = builder.GetInsertBlock()->getParent()->getEntryBlock().getTerminator();
-        u64 i = 0;
-        for (auto op : array->ops()) {
-            auto gep = llvm::GetElementPtrInst::CreateInBounds(
-                alloca, 
-                { llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), i) },
-                op->name, before);
-            before = new llvm::StoreInst(lookup(op), gep, before);
-        }
-        return alloca;
-    }
-
-    if (auto arrayop = def->isa<ArrayOp>()) {
-        auto array = lookup(arrayop->array());
-        auto gep = builder.CreateInBoundsGEP(array, lookup(arrayop->index()));
-        if (auto extract = arrayop->isa<ArrayExtract>())
-            return builder.CreateLoad(gep, extract->name);
-        return builder.CreateStore(lookup(arrayop->as<ArrayInsert>()->value()), gep);
-    }
-#endif
+    if (auto array = def->isa<ArrayAgg>())
+        return builder.CreateLoad(emit_array(array));
 
     if (auto tuple = def->isa<Tuple>()) {
         llvm::Value* agg = llvm::UndefValue::get(map(tuple->type()));
@@ -420,19 +417,43 @@ llvm::Value* CodeGen::emit(Def def) {
     }
 
     if (auto aggop = def->isa<AggOp>()) {
-        auto tuple = lookup(aggop->agg());
-        unsigned idx = aggop->index()->primlit_value<unsigned>();
+        if (aggop->agg_type()->isa<Sigma>()) {
+            auto tuple = lookup(aggop->agg());
+            unsigned idx = aggop->index()->primlit_value<unsigned>();
 
-        if (auto extract = aggop->as<Extract>()) {
-            if (extract->agg()->isa<Load>())
-                return tuple; // bypass artificial extract
-            return builder.CreateExtractValue(tuple, { idx });
-        }
+            if (auto extract = aggop->as<Extract>()) {
+                if (extract->agg()->isa<Load>())
+                    return tuple; // bypass artificial extract
+                return builder.CreateExtractValue(tuple, { idx });
+            }
 
-        auto insert = def->as<Insert>();
-        auto value = lookup(insert->value());
+            auto insert = def->as<Insert>();
+            auto value = lookup(insert->value());
 
-        return builder.CreateInsertValue(tuple, value, { idx });
+            return builder.CreateInsertValue(tuple, value, { idx });
+        } else if (aggop->agg_type()->isa<ArrayType>()) {
+            auto entry = &builder.GetInsertBlock()->getParent()->getEntryBlock();
+            llvm::Instruction* before;
+            if (entry->empty())
+                before = new llvm::AllocaInst(builder.getInt32Ty(), nullptr /* no variable length array */, "dummy", entry);
+            else
+                before = entry->getFirstNonPHIOrDbg();
+
+            auto array = lookup(aggop->agg());
+            auto alloca = new llvm::AllocaInst(array->getType(), nullptr /* no variable length array */, "todo", before);
+            builder.CreateStore(array, alloca);
+
+            auto idx = lookup(aggop->index());
+            llvm::Value* args[2] = { builder.getInt64(0), idx };
+            auto gep = builder.CreateInBoundsGEP(alloca, args);
+
+            if (auto extract = aggop->isa<Extract>())
+                return builder.CreateLoad(gep);
+
+            builder.CreateStore(lookup(aggop->as<Insert>()->value()), gep);
+            return builder.CreateLoad(alloca);
+        } else
+            assert(false && "TODO");
     }
 
     if (auto primlit = def->isa<PrimLit>()) {

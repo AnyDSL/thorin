@@ -256,11 +256,11 @@ const thorin::Type* PrimType::convert(World& world) const {
 }
 
 const thorin::Type* DefiniteArray::convert(World& world) const {
-    return world.array_type(elem_type()->convert(world));
+    return world.def_array(elem_type()->convert(world), dim());
 }
 
 const thorin::Type* IndefiniteArray::convert(World& world) const {
-    return world.ptr(world.array_type(elem_type()->convert(world)));
+    return world.ptr(world.indef_array(elem_type()->convert(world)));
 }
 
 const thorin::Type* FnType::convert(World& world) const {

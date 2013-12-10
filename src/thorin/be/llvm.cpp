@@ -268,10 +268,10 @@ void CodeGen::emit() {
         primops.clear();
     }
 
+    module->dump();
 #ifndef NDEBUG
     llvm::verifyModule(*this->module);
 #endif
-    module->dump();
 }
 
 llvm::Value* CodeGen::lookup(Def def) {
@@ -478,7 +478,8 @@ llvm::Value* CodeGen::emit(Def def) {
             return builder.CreateConstInBoundsGEP2_64(lookup(lea->ptr()), 0ull, lea->index()->primlit_value<u64>());
 
         assert(lea->referenced_type()->isa<ArrayType>());
-        return builder.CreateInBoundsGEP(lookup(lea->ptr()), lookup(lea->index()));
+        llvm::Value* args[2] = { builder.getInt64(0), lookup(lea->index()) };
+        return builder.CreateInBoundsGEP(lookup(lea->ptr()), args);
     }
 
     if (auto addr = def->isa<Addr>())
@@ -500,7 +501,11 @@ llvm::Type* CodeGen::map(const Type* type) {
         case Node_PrimType_f32: llvm_type = llvm::Type::getFloatTy(context);     break;
         case Node_PrimType_f64: llvm_type = llvm::Type::getDoubleTy(context);    break;
         case Node_Ptr:          llvm_type = llvm::PointerType::getUnqual(map(type->as<Ptr>()->referenced_type())); break;
-        case Node_ArrayType:    return map(type->as<ArrayType>()->elem_type());
+        case Node_IndefArray:   return llvm::ArrayType::get(map(type->as<ArrayType>()->elem_type()), 0);
+        case Node_DefArray: {
+            auto array = type->as<DefArray>();
+            return llvm::ArrayType::get(map(array->elem_type()), array->dim());
+        }
         case Node_Pi: {
             // extract "return" type, collect all other types
             const Pi* pi = type->as<Pi>();

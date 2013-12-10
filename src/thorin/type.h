@@ -139,7 +139,7 @@ protected:
 
     virtual size_t hash() const { return hash_combine(Type::hash(), length()); }
     virtual bool equal(const Type* other) const { 
-        return Type::equal(other) ? this->length() == other->as<VectorType>()->length() : false;
+        return Type::equal(other) && this->length() == other->as<VectorType>()->length();
     }
 
 public:
@@ -241,18 +241,45 @@ public:
 //------------------------------------------------------------------------------
 
 class ArrayType : public Type {
-private:
-    ArrayType(World& world, const Type* elem_type)
-        : Type(world, Node_ArrayType, 1, elem_type->is_generic())
+protected:
+    ArrayType(World& world, NodeKind kind, const Type* elem_type)
+        : Type(world, kind, 1, elem_type->is_generic())
     {
         set(0, elem_type);
     }
 
 public:
     const Type* elem_type() const { return elem(0); }
+};
+
+class IndefArray : public ArrayType {
+public:
+    IndefArray(World& world, const Type* elem_type)
+        : ArrayType(world, Node_IndefArray, elem_type)
+    {}
 
     friend class World;
 };
+
+class DefArray : public ArrayType {
+public:
+    DefArray(World& world, const Type* elem_type, u64 dim)
+        : ArrayType(world, Node_DefArray, elem_type)
+        , dim_(dim)
+    {}
+
+    u64 dim() const { return dim_; }
+    virtual size_t hash() const { return hash_combine(Type::hash(), dim()); }
+    virtual bool equal(const Type* other) const { 
+        return Type::equal(other) && this->dim() == other->as<DefArray>()->dim();
+    }
+
+private:
+    u64 dim_;
+
+    friend class World;
+};
+
 
 //------------------------------------------------------------------------------
 
@@ -265,7 +292,7 @@ private:
 
     virtual size_t hash() const { return hash_combine(Type::hash(), index()); }
     virtual bool equal(const Type* other) const { 
-        return Type::equal(other) ? index() == other->as<Generic>()->index() : false; 
+        return Type::equal(other) && index() == other->as<Generic>()->index();
     }
 
 public:
@@ -286,7 +313,7 @@ private:
 
     virtual size_t hash() const { return hash_combine(Type::hash(), lambda()); }
     virtual bool equal(const Type* other) const { 
-        return Type::equal(other) ? lambda() == other->as<GenericRef>()->lambda() : false; 
+        return Type::equal(other) && lambda() == other->as<GenericRef>()->lambda();
     }
 
 public:

@@ -884,10 +884,11 @@ const Type* World::rebuild(const Type* type, ArrayRef<const Type*> elems) {
     if (elems.empty()) return type;
 
     switch (type->kind()) {
-        case Node_Pi:        return pi(elems);
-        case Node_Sigma:     return sigma(elems);
-        case Node_Ptr:       assert(elems.size() == 1); return ptr(elems.front());
-        case Node_ArrayType: assert(elems.size() == 1); return array_type(elems.front());
+        case Node_Pi:         return pi(elems);
+        case Node_Sigma:      return sigma(elems);
+        case Node_Ptr:        assert(elems.size() == 1); return ptr(elems.front());
+        case Node_IndefArray: assert(elems.size() == 1); return indef_array(elems.front());
+        case Node_DefArray:   assert(elems.size() == 1); return def_array(elems.front(), type->as<DefArray>()->dim());
         case Node_GenericRef: {
             auto genref = type->as<GenericRef>();
             return generic_ref(genref->generic(), genref->lambda());

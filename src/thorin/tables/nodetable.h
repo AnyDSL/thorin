@@ -40,6 +40,7 @@
         THORIN_AIR_NODE(Pi, pi)
         THORIN_AIR_NODE(Ptr, ptr)
         THORIN_AIR_NODE(Sigma, sigma)
-        THORIN_AIR_NODE(ArrayType, array_type)
+        THORIN_AIR_NODE(DefArray, def_array)
+        THORIN_AIR_NODE(IndefArray, indef_array)
 
 #undef THORIN_AIR_NODE

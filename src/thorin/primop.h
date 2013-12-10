@@ -143,7 +143,7 @@ protected:
 
 class ArrayAgg : public Aggregate {
 private:
-    ArrayAgg(World& world, const Type* elem, ArrayRef<Def> args, const std::string& name);
+    ArrayAgg(World& world, const Type* elem, ArrayRef<Def> args, bool definite, const std::string& name);
 
 public:
     const ArrayType* array_type() const;

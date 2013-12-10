@@ -49,10 +49,10 @@ Select::Select(Def cond, Def tval, Def fval, const std::string& name)
 
 //------------------------------------------------------------------------------
 
-ArrayAgg::ArrayAgg(World& world, const Type* elem, ArrayRef<Def> args, const std::string& name)
+ArrayAgg::ArrayAgg(World& world, const Type* elem, ArrayRef<Def> args, bool definite, const std::string& name)
     : Aggregate(Node_ArrayAgg, args, name)
 {
-    set_type(world.def_array(elem, args.size()));
+    set_type(definite ? (const Type*) world.def_array(elem, args.size()) : (const Type*) world.indef_array(elem));
 #ifndef NDEBUG
     for (size_t i = 0, e = size(); i != e; ++i)
         assert(args[i]->type() == array_type()->elem_type());

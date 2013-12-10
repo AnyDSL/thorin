@@ -185,12 +185,12 @@ public:
      * aggregate stuff
      */
 
-    Def array_agg(const Type* elem, ArrayRef<Def> args, const std::string& name = "") { 
-        return cse(new ArrayAgg(*this, elem, args, name)); 
+    Def array_agg(const Type* elem, ArrayRef<Def> args, bool definite = true, const std::string& name = "") { 
+        return cse(new ArrayAgg(*this, elem, args, definite, name)); 
     }
-    Def array_agg(ArrayRef<Def> args, const std::string& name = "") { 
+    Def array_agg(ArrayRef<Def> args, bool definite = true, const std::string& name = "") { 
         assert(!args.empty()); 
-        return array_agg(args.front()->type(), args, name);
+        return array_agg(args.front()->type(), args, definite, name);
     }
     Def tuple(ArrayRef<Def> args, const std::string& name = "") { return cse(new Tuple(*this, args, name)); }
     Def vector(ArrayRef<Def> args, const std::string& name = "") {

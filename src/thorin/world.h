@@ -36,36 +36,6 @@ class TypeKeeper;
 typedef std::unordered_set<const PrimOp*, PrimOpHash, PrimOpEqual> PrimOpSet;
 typedef std::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;
 
-struct Call {
-    Call() {}
-    Call(Lambda* to) 
-        : to(to)
-    {}
-    Lambda* to;
-    std::vector<Def> args;
-    std::vector<size_t> idx;
-};
-
-struct CallHash { 
-    size_t operator () (const Call& call) const { 
-        auto hash = hash_combine(hash_value(call.to), ArrayRef<size_t>(call.idx));
-        for (auto def : call.args)
-            hash = hash_combine(hash, hash_value(*def));
-        return  hash;
-    }
-};
-
-struct CallEqual { 
-    bool operator () (const Call& call1, const Call& call2) const { 
-        bool result = call1.to == call2.to 
-            && ArrayRef<size_t>(call1.idx) == ArrayRef<size_t>(call2.idx)
-            && call1.args.size() == call2.args.size();
-        for (size_t i = 0, e = call1.args.size(); i != e && result; ++i)
-            result &= call1.args[i] == call2.args[i];
-        return result;
-    }
-};
-
 //------------------------------------------------------------------------------
 
 /**

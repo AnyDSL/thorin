@@ -66,13 +66,6 @@ Lambda* Mangler::mangle() {
     auto nelems = o_pi->elems().cut(to_drop, to_lift.size());
     size_t offset = o_pi->elems().size() - to_drop.size();
 
-    Call call(oentry);
-    for (auto def : drop_with)
-        call.args.push_back(def);
-
-    for (auto x : to_drop)
-        call.idx.push_back(x);
-
     for (size_t i = offset, e = nelems.size(), x = 0; i != e; ++i, ++x)
         nelems[i] = to_lift[x]->type();
 

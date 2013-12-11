@@ -868,14 +868,15 @@ Def World::rebuild(const PrimOp* in, ArrayRef<Def> ops, const Type* type) {
         case Node_Store:   assert(ops.size() == 3); return store(  ops[0], ops[1], ops[2], name);
         case Node_Run:     assert(ops.size() == 1); return run(    ops[0], name);
         case Node_Halt:    assert(ops.size() == 1); return halt(   ops[0], name);
-        case Node_ArrayAgg:                         return array(type->as<ArrayType>()->elem_type(), ops, type->isa<DefArray>(), name);
         case Node_Tuple:                            return tuple(ops, name);
-        case Node_Vector:                           return vector(ops, name);
         case Node_Extract: assert(ops.size() == 2); return extract(ops[0], ops[1], name);
         case Node_Insert:  assert(ops.size() == 3); return insert( ops[0], ops[1], ops[2], name);
+        case Node_LEA:     assert(ops.size() == 2); return lea(ops[0], ops[1], name);
+        case Node_Vector:                           return vector(ops, name);
+        case Node_ArrayAgg:                         
+            return array(type->as<ArrayType>()->elem_type(), ops, type->isa<DefArray>(), name);
         case Node_Slot:    assert(ops.size() == 1); 
             return slot(type->as<Ptr>()->referenced_type(), ops[0], in->as<Slot>()->index(), name);
-        case Node_LEA:     assert(ops.size() == 2); return lea(ops[0], ops[1], name);
         default: THORIN_UNREACHABLE;
     }
 }

@@ -1,7 +1,5 @@
 #ifdef LLVM_SUPPORT
 
-#include "thorin/be/llvm.h"
-
 #include <algorithm>
 #include <iostream>
 #include <unordered_map>
@@ -50,7 +48,12 @@ typedef LambdaMap<llvm::BasicBlock*> BBMap;
 
 class CodeGen {
 public:
-    CodeGen(World& world, EmitHook& hook);
+    CodeGen(World& world)
+        : world(world)
+        , context()
+        , builder(context)
+        , module(new llvm::Module("anydsl", context))
+    {}
 
     void emit();
     llvm::Type* map(const Type* type);
@@ -60,7 +63,6 @@ public:
 
 private:
     World& world;
-    EmitHook& hook;
     llvm::LLVMContext context;
     llvm::IRBuilder<> builder;
     AutoPtr<llvm::Module> module;
@@ -71,16 +73,6 @@ private:
 };
 
 //------------------------------------------------------------------------------
-
-CodeGen::CodeGen(World& world, EmitHook& hook)
-    : world(world)
-    , hook(hook)
-    , context()
-    , builder(context)
-    , module(new llvm::Module("anydsl", context))
-{
-    hook.assign(&builder, module);
-}
 
 void CodeGen::emit() {
     // emit all globals
@@ -523,8 +515,7 @@ llvm::Value* CodeGen::emit(Def def) {
     if (auto addr = def->isa<Addr>())
         return fcts[addr->lambda()];
 
-    assert(!def->is_corenode());
-    return hook.emit(def);
+    THORIN_UNREACHABLE;
 }
 
 llvm::Type* CodeGen::map(const Type* type) {
@@ -599,9 +590,8 @@ multiple:
             return llvm::StructType::get(context, llvm_ref(elems));
         }
 
-        default:
-            assert(!type->is_corenode());
-            return hook.map(type);
+        default: 
+            THORIN_UNREACHABLE;
     }
 
     if (type->length() == 1)
@@ -611,9 +601,8 @@ multiple:
 
 //------------------------------------------------------------------------------
 
-void emit_llvm(World& world, EmitHook& hook) {
-    CodeGen cg(world, hook);
-    cg.emit();
+void emit_llvm(World& world) {
+    CodeGen(world).emit();
 }
 
 //------------------------------------------------------------------------------

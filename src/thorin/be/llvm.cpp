@@ -405,8 +405,16 @@ llvm::Value* CodeGen::emit(Def def) {
     }
 
     if (auto array = def->isa<ArrayAgg>()) {
+        auto type = llvm::cast<llvm::ArrayType>(map(array->type()));
+        if (array->is_const()) {
+            size_t size = array->size();
+            Array<llvm::Constant*> vals(size);
+            for (size_t i = 0; i != size; ++i)
+                vals[i] = llvm::cast<llvm::Constant>(emit(array->op(i)));
+            return llvm::ConstantArray::get(type, llvm_ref(vals));
+        }
         std::cout << "warning: slow" << std::endl;
-        auto alloca = emit_alloca(map(array->type()), array->name);
+        auto alloca = emit_alloca(type, array->name);
         llvm::Instruction* cur = alloca;
 
         u64 i = 0;
@@ -446,6 +454,7 @@ llvm::Value* CodeGen::emit(Def def) {
 
             return builder.CreateInsertValue(tuple, value, { idx });
         } else if (aggop->agg_type()->isa<ArrayType>()) {
+            // TODO use llvm::ConstantArray if applicable
             std::cout << "warning: slow" << std::endl;
             auto array = lookup(aggop->agg());
             auto alloca = emit_alloca(array->getType(), aggop->name);

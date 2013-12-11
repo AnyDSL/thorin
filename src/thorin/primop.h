@@ -309,7 +309,7 @@ private:
  */
 class Global : public PrimOp {
 private:
-    Global(const Type* type, Def init, const std::string& name);
+    Global(Def init, const std::string& name);
 
 public:
     Def init() const { return op(0); }

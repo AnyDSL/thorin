@@ -213,7 +213,8 @@ public:
     const Enter* enter(Def mem, const std::string& name = "");
     Def leave(Def mem, Def frame, const std::string& name = "");
     const Slot* slot(const Type* type, Def frame, size_t index, const std::string& name = "");
-    const Global* global(const Type* type, Def init, const std::string& name = "");
+    const Global* global(Def init, const std::string& name = "");
+    const Global* global(const std::string& str, const std::string& name = "");
     const LEA* lea(Def ptr, Def index, const std::string& name = "");
 
     /*

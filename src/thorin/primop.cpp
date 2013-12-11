@@ -148,8 +148,8 @@ Slot::Slot(const Type* type, Def frame, size_t index, const std::string& name)
 
 //------------------------------------------------------------------------------
 
-Global::Global(const Type* type, Def init, const std::string& name)
-    : PrimOp(1, Node_Global, type->world().ptr(type), name)
+Global::Global(Def init, const std::string& name)
+    : PrimOp(1, Node_Global, init->type()->world().ptr(init->type()), name)
 {
     set_op(0, init);
     assert(init->is_const());

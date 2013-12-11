@@ -812,12 +812,23 @@ Def World::leave(Def mem, Def frame, const std::string& name) {
 
 const Load* World::load(Def mem, Def ptr, const std::string& name) { return cse(new Load(mem, ptr, name)); }
 const Store* World::store(Def mem, Def ptr, Def value, const std::string& name) { return cse(new Store(mem, ptr, value, name)); }
-const Global* World::global(const Type* type, Def init, const std::string& name) { return cse(new Global(type, init, name)); }
+const Global* World::global(Def init, const std::string& name) { return cse(new Global(init, name)); }
 const Slot* World::slot(const Type* type, Def frame, size_t index, const std::string& name) {
     return cse(new Slot(type, frame, index, name));
 }
 const LEA* World::lea(Def ptr, Def index, const std::string& name) { return cse(new LEA(ptr, index, name)); }
 const Addr* World::addr(Def lambda, const std::string& name) { return cse(new Addr(lambda, name)); }
+
+const Global* World::global(const std::string& str, const std::string& name) {
+    size_t size = str.size() + 1;
+
+    Array<Def> str_array(size);
+    for (size_t i = 0; i != size-1; ++i)
+        str_array[i] = literal_u8(str[i]);
+    str_array.back() = literal_u8('\0');
+
+    return global(array(str_array));
+}
 
 Def World::run(Def def, const std::string& name) { 
     if (auto run  = def->isa<Run >()) return run;
@@ -874,7 +885,7 @@ Def World::rebuild(const PrimOp* in, ArrayRef<Def> ops, const Type* type) {
         case Node_Insert:  assert(ops.size() == 3); return insert( ops[0], ops[1], ops[2], name);
         case Node_LEA:     assert(ops.size() == 2); return lea(ops[0], ops[1], name);
         case Node_Vector:                           return vector(ops, name);
-        case Node_Global:  assert(ops.size() == 1); return global(type->as<Ptr>()->referenced_type(), ops[0], name);
+        case Node_Global:  assert(ops.size() == 1); return global(ops[0], name);
         case Node_ArrayAgg:                         
             return array(type->as<ArrayType>()->elem_type(), ops, type->isa<DefArray>(), name);
         case Node_Slot:    assert(ops.size() == 1); 

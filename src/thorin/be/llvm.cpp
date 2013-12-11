@@ -75,15 +75,6 @@ private:
 //------------------------------------------------------------------------------
 
 void CodeGen::emit() {
-    // emit all globals
-    for (auto primop : world.primops()) {
-        if (auto global = primop->isa<Global>()) {
-            auto var = llvm::cast<llvm::GlobalVariable>(module->getOrInsertGlobal(global->name, map(global->referenced_type())));
-            var->setInitializer(llvm::cast<llvm::Constant>(emit(global->init())));
-            primops[global] = var;
-        }
-    }
-
     std::unordered_map<Lambda*, const Param*> ret_map;
     // map all root-level lambdas to llvm function stubs
     for (auto lambda : top_level_lambdas(world)) {
@@ -97,6 +88,18 @@ void CodeGen::emit() {
         }
         llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, module);
         fcts.emplace(lambda, f);
+    }
+
+    // emit all globals
+    for (auto primop : world.primops()) {
+        if (auto global = primop->isa<Global>()) {
+            auto val = llvm::cast<llvm::GlobalValue>(module->getOrInsertGlobal(global->name, map(global->referenced_type())));
+            if (auto var = llvm::dyn_cast<llvm::GlobalVariable>(val))
+                var->setInitializer(llvm::cast<llvm::Constant>(emit(global->init())));
+            else
+                assert(global->init()->isa_lambda());
+            primops[global] = val;
+        }
     }
 
     // for all top-level functions
@@ -511,9 +514,6 @@ llvm::Value* CodeGen::emit(Def def) {
         llvm::Value* args[2] = { builder.getInt64(0), lookup(lea->index()) };
         return builder.CreateInBoundsGEP(lookup(lea->ptr()), args);
     }
-
-    if (auto addr = def->isa<Addr>())
-        return fcts[addr->lambda()];
 
     THORIN_UNREACHABLE;
 }

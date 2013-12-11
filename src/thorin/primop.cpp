@@ -129,16 +129,6 @@ const Type* LEA::referenced_type() const { return ptr()->type()->as<Ptr>()->refe
 
 //------------------------------------------------------------------------------
 
-Addr::Addr(Def lambda, const std::string& name)
-    : PrimOp(1, Node_Addr, lambda->world().ptr(lambda->type()), name)
-{
-    set_op(0, lambda);
-}
-
-const Pi* Addr::referenced_type() const { return lambda()->pi(); }
-
-//------------------------------------------------------------------------------
-
 Slot::Slot(const Type* type, Def frame, size_t index, const std::string& name)
     : PrimOp(1, Node_Slot, type->world().ptr(type), name)
     , index_(index)

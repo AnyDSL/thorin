@@ -223,7 +223,6 @@ public:
 
     Def select(Def cond, Def a, Def b, const std::string& name = "");
     const TypeKeeper* typekeeper(const Type* type, const std::string& name = "");
-    const Addr* addr(Def lambda, const std::string& name = "");
     Def run(Def def, const std::string& name = "");
     Def halt(Def def, const std::string& name = "");
 
@@ -233,12 +232,15 @@ public:
     Lambda* basicblock(const std::string& name = "");
 
     /// Generic \p PrimOp constructor; inherits name from \p in.
-    Def rebuild(const PrimOp* in, ArrayRef<Def> ops, const Type* type);
+    static Def rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, const Type* type);
     /// Generic \p PrimOp constructor; inherits type and name name from \p in.
-    Def rebuild(const PrimOp* in, ArrayRef<Def> ops) { return rebuild(in, ops, in->type()); }
+    static Def rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops) { return rebuild(to, in, ops, in->type()); }
     /// Generic \p Type constructor.
-    const Type* rebuild(const Type* in, ArrayRef<const Type*> elems);
+    static const Type* rebuild(World& to, const Type* in, ArrayRef<const Type*> elems);
 
+    Def rebuild(const PrimOp* in, ArrayRef<Def> ops, const Type* type) { return rebuild(*this, in, ops, type); }
+    Def rebuild(const PrimOp* in, ArrayRef<Def> ops) { return rebuild(in, ops, in->type()); }
+    const Type* rebuild(const Type* in, ArrayRef<const Type*> elems) { return rebuild(*this, in, elems); }
     /*
      * optimizations
      */

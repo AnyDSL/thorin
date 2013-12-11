@@ -234,19 +234,6 @@ public:
 
 //------------------------------------------------------------------------------
 
-class Addr : public PrimOp {
-private:
-    Addr(Def lambda, const std::string& name);
-
-public:
-    Lambda* lambda() const { return op(0)->as_lambda(); }
-    const Pi* referenced_type() const;
-
-    friend class World;
-};
-
-//------------------------------------------------------------------------------
-
 class EvalOp : public PrimOp {
 protected:
     EvalOp(NodeKind kind, Def def, const std::string& name)

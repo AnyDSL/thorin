@@ -818,7 +818,6 @@ const Slot* World::slot(const Type* type, Def frame, size_t index, const std::st
     return cse(new Slot(type, frame, index, name));
 }
 const LEA* World::lea(Def ptr, Def index, const std::string& name) { return cse(new LEA(ptr, index, name)); }
-const Addr* World::addr(Def lambda, const std::string& name) { return cse(new Addr(lambda, name)); }
 
 const Global* World::global(const std::string& str, const std::string& name) {
     size_t size = str.size() + 1;
@@ -863,50 +862,49 @@ Lambda* World::basicblock(const std::string& name) {
     return bb;
 }
 
-Def World::rebuild(const PrimOp* in, ArrayRef<Def> ops, const Type* type) {
+Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, const Type* type) {
     NodeKind kind = in->kind();
     const std::string& name = in->name;
 
     if (ops.empty()) return in;
-    if (is_arithop(kind)) { assert(ops.size() == 3); return arithop((ArithOpKind) kind, ops[0], ops[1], ops[2], name); }
-    if (is_relop  (kind)) { assert(ops.size() == 3); return relop(  (RelOpKind  ) kind, ops[0], ops[1], ops[2], name); }
-    if (is_convop (kind)) { assert(ops.size() == 2); return convop( (ConvOpKind ) kind, ops[0], ops[1],   type, name); }
+    if (is_arithop(kind)) { assert(ops.size() == 3); return to.arithop((ArithOpKind) kind, ops[0], ops[1], ops[2], name); }
+    if (is_relop  (kind)) { assert(ops.size() == 3); return to.relop(  (RelOpKind  ) kind, ops[0], ops[1], ops[2], name); }
+    if (is_convop (kind)) { assert(ops.size() == 2); return to.convop( (ConvOpKind ) kind, ops[0], ops[1],   type, name); }
 
     switch (kind) {
-        case Node_Addr:    assert(ops.size() == 1); return addr(   ops[0], name);
-        case Node_Enter:   assert(ops.size() == 1); return enter(  ops[0], name);
-        case Node_Leave:   assert(ops.size() == 2); return leave(  ops[0], ops[1], name);
-        case Node_Load:    assert(ops.size() == 2); return load(   ops[0], ops[1], name);
-        case Node_Select:  assert(ops.size() == 3); return select( ops[0], ops[1], ops[2], name);
-        case Node_Store:   assert(ops.size() == 3); return store(  ops[0], ops[1], ops[2], name);
-        case Node_Run:     assert(ops.size() == 1); return run(    ops[0], name);
-        case Node_Halt:    assert(ops.size() == 1); return halt(   ops[0], name);
-        case Node_Tuple:                            return tuple(ops, name);
-        case Node_Extract: assert(ops.size() == 2); return extract(ops[0], ops[1], name);
-        case Node_Insert:  assert(ops.size() == 3); return insert( ops[0], ops[1], ops[2], name);
-        case Node_LEA:     assert(ops.size() == 2); return lea(ops[0], ops[1], name);
-        case Node_Vector:                           return vector(ops, name);
-        case Node_Global:  assert(ops.size() == 1); return global(ops[0], name);
+        case Node_Enter:   assert(ops.size() == 1); return to.enter(  ops[0], name);
+        case Node_Leave:   assert(ops.size() == 2); return to.leave(  ops[0], ops[1], name);
+        case Node_Load:    assert(ops.size() == 2); return to.load(   ops[0], ops[1], name);
+        case Node_Select:  assert(ops.size() == 3); return to.select( ops[0], ops[1], ops[2], name);
+        case Node_Store:   assert(ops.size() == 3); return to.store(  ops[0], ops[1], ops[2], name);
+        case Node_Run:     assert(ops.size() == 1); return to.run(    ops[0], name);
+        case Node_Halt:    assert(ops.size() == 1); return to.halt(   ops[0], name);
+        case Node_Tuple:                            return to.tuple(ops, name);
+        case Node_Extract: assert(ops.size() == 2); return to.extract(ops[0], ops[1], name);
+        case Node_Insert:  assert(ops.size() == 3); return to.insert( ops[0], ops[1], ops[2], name);
+        case Node_LEA:     assert(ops.size() == 2); return to.lea(ops[0], ops[1], name);
+        case Node_Vector:                           return to.vector(ops, name);
+        case Node_Global:  assert(ops.size() == 1); return to.global(ops[0], name);
         case Node_ArrayAgg:                         
-            return array(type->as<ArrayType>()->elem_type(), ops, type->isa<DefArray>(), name);
+            return to.array(type->as<ArrayType>()->elem_type(), ops, type->isa<DefArray>(), name);
         case Node_Slot:    assert(ops.size() == 1); 
-            return slot(type->as<Ptr>()->referenced_type(), ops[0], in->as<Slot>()->index(), name);
+            return to.slot(type->as<Ptr>()->referenced_type(), ops[0], in->as<Slot>()->index(), name);
         default: THORIN_UNREACHABLE;
     }
 }
 
-const Type* World::rebuild(const Type* type, ArrayRef<const Type*> elems) {
+const Type* World::rebuild(World& to, const Type* type, ArrayRef<const Type*> elems) {
     if (elems.empty()) return type;
 
     switch (type->kind()) {
-        case Node_Pi:         return pi(elems);
-        case Node_Sigma:      return sigma(elems);
-        case Node_Ptr:        assert(elems.size() == 1); return ptr(elems.front());
-        case Node_IndefArray: assert(elems.size() == 1); return indef_array(elems.front());
-        case Node_DefArray:   assert(elems.size() == 1); return def_array(elems.front(), type->as<DefArray>()->dim());
+        case Node_Pi:         return to.pi(elems);
+        case Node_Sigma:      return to.sigma(elems);
+        case Node_Ptr:        assert(elems.size() == 1); return to.ptr(elems.front());
+        case Node_IndefArray: assert(elems.size() == 1); return to.indef_array(elems.front());
+        case Node_DefArray:   assert(elems.size() == 1); return to.def_array(elems.front(), type->as<DefArray>()->dim());
         case Node_GenericRef: {
             auto genref = type->as<GenericRef>();
-            return generic_ref(genref->generic(), genref->lambda());
+            return to.generic_ref(genref->generic(), genref->lambda());
         }
         default: THORIN_UNREACHABLE;
     }
@@ -992,7 +990,7 @@ void World::opt() {
                                 ulambda->set_op(index + 1, vars[i]);
                             }
                             ulambda->update_op(0, lambda(pi(elems), to->attribute(), to->name));
-                            ulambda->update_arg(use.index()-1, addr(lifted));
+                            ulambda->update_arg(use.index()-1, global(lifted, lifted->name));
                             to->type_ = pi(elems);
                             to->attribute().clear(-1);
                         }

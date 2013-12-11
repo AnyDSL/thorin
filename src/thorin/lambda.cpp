@@ -104,7 +104,7 @@ bool Lambda::is_builtin() const { return attribute().is(Accelerator) || attribut
 static bool connected_to_builtin(const Lambda* lambda, std::function<bool(Lambda*)> func) {
     if (!lambda->is_builtin()) {
         for (auto use : lambda->uses()) {
-            if (auto lambda = (use->isa<Addr>() ? *use->uses().begin() : use)->isa<Lambda>())
+            if (auto lambda = (use->isa<Global>() ? *use->uses().begin() : use)->isa<Lambda>())
                 if (auto to_lambda = lambda->to()->isa_lambda())
                     if (to_lambda->is_builtin())
                         return func(to_lambda);

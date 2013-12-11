@@ -139,6 +139,26 @@ const Pi* Addr::referenced_type() const { return lambda()->pi(); }
 
 //------------------------------------------------------------------------------
 
+Slot::Slot(const Type* type, Def frame, size_t index, const std::string& name)
+    : PrimOp(1, Node_Slot, type->world().ptr(type), name)
+    , index_(index)
+{
+    set_op(0, frame);
+}
+
+//------------------------------------------------------------------------------
+
+Global::Global(const Type* type, Def init, const std::string& name)
+    : PrimOp(1, Node_Global, type->world().ptr(type), name)
+{
+    set_op(0, init);
+    assert(init->is_const());
+}
+
+const Type* Global::referenced_type() const { return type()->as<Ptr>()->referenced_type(); }
+
+//------------------------------------------------------------------------------
+
 const char* PrimOp::op_name() const {
     switch (kind()) {
 #define THORIN_AIR_NODE(op, abbr) case Node_##op: return #abbr;

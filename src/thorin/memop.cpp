@@ -52,13 +52,4 @@ Leave::Leave(Def mem, Def frame, const std::string& name)
 
 //------------------------------------------------------------------------------
 
-Slot::Slot(const Type* type, Def frame, size_t index, const std::string& name)
-    : PrimOp(1, Node_Slot, type->world().ptr(type), name)
-    , index_(index)
-{
-    set_op(0, frame);
-}
-
-//------------------------------------------------------------------------------
-
 } // namespace thorin

@@ -161,6 +161,11 @@ std::ostream& CodeGen::emit_jump(const Lambda* lambda) {
 void emit_thorin(World& world, bool fancy, bool nocolor) {
     CodeGen cg(fancy, nocolor);
 
+    for (auto primop : world.primops()) {
+        if (auto global = primop->isa<Global>())
+            cg.emit_assignment(global);
+    }
+
     for (auto top : top_level_lambdas(world)) {
         Scope scope(top);
         const DomTree domtree(scope);

@@ -279,6 +279,51 @@ private:
 
 //------------------------------------------------------------------------------
 
+/**
+ * This represents a slot in a stack frame opend via \p Enter.
+ * Loads from this address yield \p Bottom if the frame has already been closed via \p Leave.
+ */
+class Slot : public PrimOp {
+private:
+    Slot(const Type* type, Def frame, size_t index, const std::string& name);
+
+public:
+    Def frame() const { return op(0); }
+    size_t index() const { return index_; }
+
+    virtual size_t hash() const { return hash_combine(PrimOp::hash(), index()); }
+    virtual bool equal(const PrimOp* other) const {
+        return PrimOp::equal(other) ? this->index() == other->as<Slot>()->index() : false;
+    }
+
+private:
+    size_t index_;
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
+/**
+ * This represents a global variable in the data segment.
+ */
+class Global : public PrimOp {
+private:
+    Global(const Type* type, Def init, const std::string& name);
+
+public:
+    Def init() const { return op(0); }
+    const Type* referenced_type() const; ///< Returns the type referenced by this \p Global's pointer type.
+
+    virtual size_t hash() const { return hash_value(gid()); }
+    virtual bool equal(const PrimOp* other) const { return this == other; }
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
+
 } // namespace thorin
 
 #endif

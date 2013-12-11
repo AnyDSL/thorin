@@ -83,6 +83,15 @@ CodeGen::CodeGen(World& world, EmitHook& hook)
 }
 
 void CodeGen::emit() {
+    // emit all globals
+    for (auto primop : world.primops()) {
+        if (auto global = primop->isa<Global>()) {
+            auto var = llvm::cast<llvm::GlobalVariable>(module->getOrInsertGlobal(global->name, map(global->referenced_type())));
+            var->setInitializer(llvm::cast<llvm::Constant>(emit(global->init())));
+            primops[global] = var;
+        }
+    }
+
     std::unordered_map<Lambda*, const Param*> ret_map;
     // map all root-level lambdas to llvm function stubs
     for (auto lambda : top_level_lambdas(world)) {

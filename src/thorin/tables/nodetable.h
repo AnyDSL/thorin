@@ -18,6 +18,7 @@
             THORIN_AIR_NODE(CCall, call)
         THORIN_AIR_NODE(Addr, addr)
         THORIN_AIR_NODE(Select, select)
+        THORIN_AIR_NODE(Global, global)
         THORIN_AIR_NODE(Slot, slot)
         //THORIN_AIR_NODE(ArithOp)
         //THORIN_AIR_NODE(RelOp)

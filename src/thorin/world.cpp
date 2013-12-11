@@ -812,6 +812,7 @@ Def World::leave(Def mem, Def frame, const std::string& name) {
 
 const Load* World::load(Def mem, Def ptr, const std::string& name) { return cse(new Load(mem, ptr, name)); }
 const Store* World::store(Def mem, Def ptr, Def value, const std::string& name) { return cse(new Store(mem, ptr, value, name)); }
+const Global* World::global(const Type* type, Def init, const std::string& name) { return cse(new Global(type, init, name)); }
 const Slot* World::slot(const Type* type, Def frame, size_t index, const std::string& name) {
     return cse(new Slot(type, frame, index, name));
 }
@@ -873,6 +874,7 @@ Def World::rebuild(const PrimOp* in, ArrayRef<Def> ops, const Type* type) {
         case Node_Insert:  assert(ops.size() == 3); return insert( ops[0], ops[1], ops[2], name);
         case Node_LEA:     assert(ops.size() == 2); return lea(ops[0], ops[1], name);
         case Node_Vector:                           return vector(ops, name);
+        case Node_Global:  assert(ops.size() == 1); return global(type->as<Ptr>()->referenced_type(), ops[0], name);
         case Node_ArrayAgg:                         
             return array(type->as<ArrayType>()->elem_type(), ops, type->isa<DefArray>(), name);
         case Node_Slot:    assert(ops.size() == 1); 
@@ -1085,7 +1087,7 @@ void World::dead_code_elimination() {
             dce_mark(set, lambda->op(i));
     }
 
-    auto wipe_primop = [&] (const PrimOp* primop) { return !set.contains(primop); };
+    auto wipe_primop = [&] (const PrimOp* primop) { return !set.contains(primop) && !primop->isa<TypeKeeper>(); };
     auto wipe_lambda = [&] (Lambda* lambda) {
         return !lambda->attribute().is(Lambda::Extern) 
             && (   (!lambda->attribute().is(Lambda::Intrinsic) && lambda->empty()) 

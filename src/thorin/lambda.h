@@ -173,32 +173,10 @@ private:
 
 //------------------------------------------------------------------------------
 
-class LambdaSet : public std::set<Lambda*, DefNodeLT> {
-public:
-    typedef std::set<Lambda*, DefNodeLT> Super;
-
-    bool contains(Lambda* def) const { return Super::find(def) != Super::end(); }
-    bool visit(Lambda* def) { return !Super::insert(def).second; }
-};
-
-template<class Value>
-class LambdaMap : public std::map<const Lambda*, Value, DefNodeLT> {
-public:
-    typedef std::map<const Lambda*, Value, DefNodeLT> Super;
-};
-
-template<class Value>
-class LambdaMap<Value*> : public std::map<const Lambda*, Value*, DefNodeLT> {
-public:
-    typedef std::map<const Lambda*, Value*, DefNodeLT> Super;
-
-    Value* find(const Lambda* def) const {
-        auto i = Super::find(def);
-        return i == Super::end() ? nullptr : i->second;
-    }
-};
-
-typedef LambdaMap<Lambda*> Lambda2Lambda;
+template<class To> 
+using LambdaMap  = GidMap<Lambda*, To>;
+using LambdaSet  = GidSet<Lambda*>;
+using Lambda2Lambda = GidMap<Lambda*, Lambda*>;
 
 //------------------------------------------------------------------------------
 

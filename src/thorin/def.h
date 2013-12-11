@@ -27,8 +27,9 @@ class World;
 
 //------------------------------------------------------------------------------
 
-struct DefNodeLT { 
-    inline size_t operator () (const DefNode* n1, const DefNode* n2) const;
+template<class GidType>
+struct GidLT { 
+    size_t operator () (GidType n1, GidType n2) const { return n1->gid() < n2->gid(); }
 };
 
 //------------------------------------------------------------------------------
@@ -105,6 +106,42 @@ private:
 };
 
 typedef std::vector<Peek> Peeks;
+
+//------------------------------------------------------------------------------
+
+template<class From, class To>
+class GidMap : public std::map<From, To, GidLT<From>> {
+public:
+    typedef std::map<From, To, GidLT<From>> Super;
+};
+
+template<class From, class To>
+class GidMap<From, To*> : public std::map<From, To*, GidLT<From>> {
+public:
+    typedef std::map<From, To*, GidLT<From>> Super;
+
+    To* find(From from) const {
+        auto i = Super::find(from);
+        return i == Super::end() ? nullptr : i->second;
+    }
+
+    bool contains(From from) const { return Super::find(from) != Super::end(); }
+    bool visit(From from, To* to) { return !Super::insert(std::make_pair(from, to)).second; }
+};
+
+template<class From>
+class GidSet : public std::set<From, GidLT<From>> {
+public:
+    typedef std::set<From, GidLT<From>> Super;
+
+    bool contains(From from) const { return Super::find(from) != Super::end(); }
+    bool visit(From from) { return !Super::insert(from).second; }
+};
+
+template<class To> 
+using DefMap  = GidMap<const DefNode*, To>;
+using DefSet  = GidSet<const DefNode*>;
+using Def2Def = GidMap<const DefNode*, const DefNode*>;
 
 //------------------------------------------------------------------------------
 
@@ -193,7 +230,7 @@ private:
     mutable const Type* type_;
     mutable std::set<Use, UseLT> uses_;
     mutable const DefNode* representative_;
-    mutable std::set<const DefNode*, DefNodeLT> representatives_of_;
+    mutable DefSet representatives_of_;
     const size_t gid_;
 
 protected:
@@ -212,8 +249,6 @@ public:
 
 std::ostream& operator << (std::ostream& o, Def def);
 
-size_t DefNodeLT::operator () (const DefNode* n1, const DefNode* n2) const { return n1->gid() < n2->gid(); }
-
 bool UseLT::operator () (Use use1, Use use2) const { // <- note that we switch the order here on purpose
         auto gid1 = use1.def().node()->gid();
         auto gid2 = use2.def().node()->gid();
@@ -221,38 +256,6 @@ bool UseLT::operator () (Use use1, Use use2) const { // <- note that we switch t
 }
 
 //------------------------------------------------------------------------------
-
-template<class Value>
-class DefMap : public std::map<const DefNode*, Value, DefNodeLT> {
-public:
-    typedef std::map<const DefNode*, Value, DefNodeLT> Super;
-};
-
-template<class Value>
-class DefMap<Value*> : public std::map<const DefNode*, Value*, DefNodeLT> {
-public:
-    typedef std::map<const DefNode*, Value*, DefNodeLT> Super;
-
-    Value* find(const DefNode* def) const {
-        auto i = Super::find(def);
-        return i == Super::end() ? nullptr : i->second;
-    }
-
-    bool contains(const DefNode* def) const { return Super::find(def) != Super::end(); }
-    bool visit(const DefNode* def, Value* val) { return !Super::insert(std::make_pair(def, val)).second; }
-};
-
-class DefSet : public std::set<const DefNode*, DefNodeLT> {
-public:
-    typedef std::set<const DefNode*, DefNodeLT> Super;
-
-    bool contains(const DefNode* def) const { return Super::find(def) != Super::end(); }
-    bool visit(const DefNode* def) { return !Super::insert(def).second; }
-};
-
-//------------------------------------------------------------------------------
-
-typedef DefMap<const DefNode*> Def2Def;
 
 class Param : public DefNode {
 private:

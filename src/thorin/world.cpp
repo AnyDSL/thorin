@@ -865,6 +865,11 @@ Lambda* World::basicblock(const std::string& name) {
 Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, const Type* type) {
     NodeKind kind = in->kind();
     const std::string& name = in->name;
+    assert(&type->world() == &to);
+#ifndef NDEBUG
+    for (auto op : ops)
+        assert(&op->world() == &to);
+#endif
 
     if (ops.empty()) return in;
     if (is_arithop(kind)) { assert(ops.size() == 3); return to.arithop((ArithOpKind) kind, ops[0], ops[1], ops[2], name); }
@@ -927,6 +932,8 @@ const Type* World::unify_base(const Type* type) {
     }
 
     auto p = types_.insert(type);
+    assert(type->gid_ == size_t(-1));
+    type->gid_ = gid_++;
     assert(p.second && "hash/equal broken");
     return type;
 }

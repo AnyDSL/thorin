@@ -41,8 +41,8 @@ protected:
         : world_(world)
         , kind_(kind)
         , elems_(num)
-        , cur_pass_(0)
         , is_generic_(is_generic)
+        , gid_(-1)
     {}
 
     void set(size_t i, const Type* n) { elems_[i] = n; }
@@ -65,6 +65,7 @@ public:
     bool is_int() const { return thorin::is_int(kind()); }
     bool is_float() const { return thorin::is_float(kind()); }
     bool is_primtype() const { return thorin::is_primtype(kind()); }
+    size_t gid() const { return gid_; }
     int order() const;
     virtual size_t hash() const;
     virtual bool equal(const Type* other) const;
@@ -74,31 +75,16 @@ public:
      */
     size_t length() const;
 
-    size_t cur_pass() const { return cur_pass_; }
-    bool visit(const size_t pass) const { 
-        assert(cur_pass_ <= pass); 
-        if (cur_pass_ != pass) { 
-            cur_pass_ = pass; 
-            return false; 
-        } 
-        return true; 
-    }
-    void visit_first(const size_t pass) const { assert(!is_visited(pass)); cur_pass_ = pass; }
-    void unvisit(const size_t pass) const { assert(cur_pass_ == pass); --cur_pass_; }
-    bool is_visited(const size_t pass) const { assert(cur_pass_ <= pass); return cur_pass_ == pass; }
-
 private:
     World& world_;
     NodeKind kind_;
     std::vector<const Type*> elems_;
-    mutable size_t cur_pass_;
+    mutable size_t gid_;
 
 protected:
     bool is_generic_;
 
-    friend class DefNode;
-    friend struct TypeHash;
-    friend struct TypeEqual;
+    friend class World;
 };
 
 struct TypeHash { size_t operator () (const Type* t) const { return t->hash(); } };
@@ -325,6 +311,13 @@ private:
 
     friend class World;
 };
+
+//------------------------------------------------------------------------------
+
+template<class To> 
+using TypeMap  = GidMap<const Type*, To>;
+using TypeSet  = GidSet<const Type*>;
+using Type2Type = GidMap<const Type*, const Type*>;
 
 //------------------------------------------------------------------------------
 

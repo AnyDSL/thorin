@@ -33,9 +33,6 @@ class Store;
 class Type;
 class TypeKeeper;
 
-typedef std::unordered_set<const PrimOp*, PrimOpHash, PrimOpEqual> PrimOpSet;
-typedef std::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;
-
 //------------------------------------------------------------------------------
 
 /**
@@ -68,6 +65,9 @@ typedef std::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;
  */
 class World {
 public:
+    typedef std::unordered_set<const PrimOp*, PrimOpHash, PrimOpEqual> PrimOps;
+    typedef std::unordered_set<const Type*, TypeHash, TypeEqual> Types;
+
     World(std::string name = "");
     ~World();
 
@@ -259,10 +259,10 @@ public:
      */
 
     const std::string& name() const { return name_; }
-    const PrimOpSet& primops() const { return primops_; }
+    const PrimOps& primops() const { return primops_; }
     const LambdaSet& lambdas() const { return lambdas_; }
     Array<Lambda*> copy_lambdas() const;
-    TypeSet types() const { return types_; }
+    Types types() const { return types_; }
     size_t gid() const { return gid_; }
 
     /*
@@ -300,9 +300,9 @@ private:
     template<class S, class W> static void wipe_out(S& set, W wipe); 
 
     std::string name_;
-    PrimOpSet primops_;
     LambdaSet lambdas_;
-    TypeSet types_;
+    PrimOps primops_;
+    Types types_;
 #ifndef NDEBUG
     std::unordered_set<size_t> breakpoints_;
 #endif

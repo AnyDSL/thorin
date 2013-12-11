@@ -5,7 +5,8 @@
 
 namespace thorin {
 
-void import(World& to, Def def);
+const Type* import(World& to, const Type* otype);
+Def import(World& to, Def odef);
 
 }
 

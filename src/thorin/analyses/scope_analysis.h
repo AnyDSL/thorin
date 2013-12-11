@@ -23,7 +23,7 @@ public:
     const Scope& scope() const { return scope_; }
     size_t size() const { return scope().size();}
     ArrayRef<const T*> nodes() const { return ArrayRef<const T*>(nodes_.begin(), nodes_.size()); }
-    const T* node(const Lambda* lambda) const { return nodes_.find(lambda); }
+    const T* node(Lambda* lambda) const { return nodes_.find(lambda); }
     size_t sid(T* n) const { return sid(n->lambda()); }
 
     /// Returns \p lambda's scope id if this is a forwards analysis and lambda%'s \p backwards_sid() in the case of a backwards analysis.

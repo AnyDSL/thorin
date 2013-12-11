@@ -57,7 +57,7 @@ Schedule schedule_early(const Scope& scope) {
 }
 
 Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &def2late) {
-    DefMap<int> primop2num;
+    DefMap<int> def2num;
     std::vector<Def> zero;
 
     for (auto def : scope.in_scope()) {
@@ -68,7 +68,7 @@ Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &def2late) {
                     ++num;
             }
             if (num != 0) // not dead
-                primop2num[def] = num;
+                def2num[def] = num;
         }
     }
 
@@ -78,8 +78,8 @@ Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &def2late) {
 
     auto decrease = [&] (Def def) {
         for (auto op : def->ops()) {
-            auto i = primop2num.find(op);
-            if (i != primop2num.end()) {
+            auto i = def2num.find(op);
+            if (i != def2num.end()) {
                 int& num = i->second;
                 --num;
                 assert(num >= 0);

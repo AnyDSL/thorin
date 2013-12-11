@@ -310,6 +310,12 @@ public:
 
 //------------------------------------------------------------------------------
 
+template<class To> 
+using PrimOpMap     = GidMap<const PrimOp*, To>;
+using PrimOpSet     = GidSet<const PrimOp*>;
+using PrimOp2PrimOp = GidMap<const PrimOp*, const PrimOp*>;
+
+//------------------------------------------------------------------------------
 
 } // namespace thorin
 

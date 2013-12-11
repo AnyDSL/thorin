@@ -68,7 +68,7 @@ typedef std::unordered_set<const Type*, TypeHash, TypeEqual> TypeSet;
  */
 class World {
 public:
-    World();
+    World(std::string name = "");
     ~World();
 
     /*
@@ -256,6 +256,7 @@ public:
      * getters
      */
 
+    const std::string& name() const { return name_; }
     const PrimOpSet& primops() const { return primops_; }
     const LambdaSet& lambdas() const { return lambdas_; }
     Array<Lambda*> copy_lambdas() const;
@@ -296,6 +297,7 @@ private:
     void uce_insert(LambdaSet&, Lambda*);
     template<class S, class W> static void wipe_out(S& set, W wipe); 
 
+    std::string name_;
     PrimOpSet primops_;
     LambdaSet lambdas_;
     TypeSet types_;

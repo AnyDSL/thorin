@@ -52,7 +52,7 @@ public:
         : world(world)
         , context()
         , builder(context)
-        , module(new llvm::Module("anydsl", context))
+        , module(new llvm::Module(world.name(), context))
     {}
 
     void emit();

@@ -459,7 +459,7 @@ llvm::Value* CodeGen::emit(Def def) {
             llvm::Value* args[2] = { builder.getInt64(0), idx };
             auto gep = builder.CreateInBoundsGEP(alloca, args);
 
-            if (auto extract = aggop->isa<Extract>())
+            if (aggop->isa<Extract>())
                 return builder.CreateLoad(gep);
 
             builder.CreateStore(lookup(aggop->as<Insert>()->value()), gep);

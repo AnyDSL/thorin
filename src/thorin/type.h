@@ -41,8 +41,8 @@ protected:
         : world_(world)
         , kind_(kind)
         , elems_(num)
-        , is_generic_(is_generic)
         , gid_(-1)
+        , is_generic_(is_generic)
     {}
 
     void set(size_t i, const Type* n) { elems_[i] = n; }

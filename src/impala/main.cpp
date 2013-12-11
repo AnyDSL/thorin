@@ -6,6 +6,7 @@
 #include "thorin/analyses/looptree.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
+#include "thorin/transform/import.h"
 #include "thorin/transform/vectorize.h"
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/be/thorin.h"

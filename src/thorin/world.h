@@ -279,6 +279,7 @@ protected:
     template<class T>
     const T* keep(const T* type) {
         auto tp = types_.insert(type);
+        type->gid_ = gid_++;
         assert(tp.second);
         typekeeper(type);
         return type->template as<T>();

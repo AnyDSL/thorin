@@ -638,6 +638,7 @@ static i64 box2i64(PrimTypeKind kind, Box box) {
 #define THORIN_JUST_U_TYPE(T) case PrimType_##T: return (i64) (make_signed<T>::type) box.get_##T();
 #include "thorin/tables/primtypetable.h"
         THORIN_NO_F_TYPE;
+        default: THORIN_UNREACHABLE;
     }
 }
 
@@ -871,25 +872,32 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, const Type* t
         assert(&op->world() == &to);
 #endif
 
-    if (ops.empty()) return in;
-    if (is_arithop(kind)) { assert(ops.size() == 3); return to.arithop((ArithOpKind) kind, ops[0], ops[1], ops[2], name); }
-    if (is_relop  (kind)) { assert(ops.size() == 3); return to.relop(  (RelOpKind  ) kind, ops[0], ops[1], ops[2], name); }
-    if (is_convop (kind)) { assert(ops.size() == 2); return to.convop( (ConvOpKind ) kind, ops[0], ops[1],   type, name); }
+    if (ops.empty() && &in->world() == &to) return in;
+    if (is_arithop (kind))  { assert(ops.size() == 3); return to.arithop((ArithOpKind) kind, ops[0], ops[1], ops[2], name); }
+    if (is_relop   (kind))  { assert(ops.size() == 3); return to.relop(  (RelOpKind  ) kind, ops[0], ops[1], ops[2], name); }
+    if (is_convop  (kind))  { assert(ops.size() == 2); return to.convop( (ConvOpKind ) kind, ops[0], ops[1],   type, name); }
+    if (is_primtype(kind)) { 
+        assert(ops.size() == 0); 
+        auto primlit = in->as<PrimLit>();
+        return to.literal(primlit->primtype_kind(), primlit->value()); 
+    }
 
     switch (kind) {
+        case Node_Any:     assert(ops.size() == 0); return to.any(type);
+        case Node_Bottom:  assert(ops.size() == 0); return to.bottom(type);
         case Node_Enter:   assert(ops.size() == 1); return to.enter(  ops[0], name);
-        case Node_Leave:   assert(ops.size() == 2); return to.leave(  ops[0], ops[1], name);
-        case Node_Load:    assert(ops.size() == 2); return to.load(   ops[0], ops[1], name);
-        case Node_Select:  assert(ops.size() == 3); return to.select( ops[0], ops[1], ops[2], name);
-        case Node_Store:   assert(ops.size() == 3); return to.store(  ops[0], ops[1], ops[2], name);
-        case Node_Run:     assert(ops.size() == 1); return to.run(    ops[0], name);
-        case Node_Halt:    assert(ops.size() == 1); return to.halt(   ops[0], name);
-        case Node_Tuple:                            return to.tuple(ops, name);
         case Node_Extract: assert(ops.size() == 2); return to.extract(ops[0], ops[1], name);
+        case Node_Global:  assert(ops.size() == 1); return to.global(ops[0], name);
+        case Node_Halt:    assert(ops.size() == 1); return to.halt(   ops[0], name);
         case Node_Insert:  assert(ops.size() == 3); return to.insert( ops[0], ops[1], ops[2], name);
         case Node_LEA:     assert(ops.size() == 2); return to.lea(ops[0], ops[1], name);
+        case Node_Leave:   assert(ops.size() == 2); return to.leave(  ops[0], ops[1], name);
+        case Node_Load:    assert(ops.size() == 2); return to.load(   ops[0], ops[1], name);
+        case Node_Run:     assert(ops.size() == 1); return to.run(    ops[0], name);
+        case Node_Select:  assert(ops.size() == 3); return to.select( ops[0], ops[1], ops[2], name);
+        case Node_Store:   assert(ops.size() == 3); return to.store(  ops[0], ops[1], ops[2], name);
+        case Node_Tuple:                            return to.tuple(ops, name);
         case Node_Vector:                           return to.vector(ops, name);
-        case Node_Global:  assert(ops.size() == 1); return to.global(ops[0], name);
         case Node_ArrayAgg:                         
             return to.array(type->as<ArrayType>()->elem_type(), ops, type->isa<DefArray>(), name);
         case Node_Slot:    assert(ops.size() == 1); 
@@ -899,14 +907,24 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, const Type* t
 }
 
 const Type* World::rebuild(World& to, const Type* type, ArrayRef<const Type*> elems) {
-    if (elems.empty()) return type;
+    if (elems.empty() && &type->world() == &to) 
+        return type;
+
+    if (is_primtype(type->kind())) {
+        assert(elems.size() == 0); 
+        auto primtype = type->as<PrimType>();
+        return to.type(primtype->primtype_kind(), primtype->length()); 
+    }
 
     switch (type->kind()) {
-        case Node_Pi:         return to.pi(elems);
-        case Node_Sigma:      return to.sigma(elems);
-        case Node_Ptr:        assert(elems.size() == 1); return to.ptr(elems.front());
-        case Node_IndefArray: assert(elems.size() == 1); return to.indef_array(elems.front());
         case Node_DefArray:   assert(elems.size() == 1); return to.def_array(elems.front(), type->as<DefArray>()->dim());
+        case Node_Generic:    assert(elems.size() == 0); return to.generic(type->as<Generic>()->index());
+        case Node_IndefArray: assert(elems.size() == 1); return to.indef_array(elems.front());
+        case Node_Mem:        assert(elems.size() == 0); return to.mem();
+        case Node_Frame:      assert(elems.size() == 0); return to.frame();
+        case Node_Ptr:        assert(elems.size() == 1); return to.ptr(elems.front(), type->as<Ptr>()->length());
+        case Node_Sigma:      return to.sigma(elems);
+        case Node_Pi:         return to.pi(elems);
         case Node_GenericRef: {
             auto genref = type->as<GenericRef>();
             return to.generic_ref(genref->generic(), genref->lambda());

@@ -1086,8 +1086,11 @@ void World::dead_code_elimination() {
     }
 
     auto wipe_primop = [&] (const PrimOp* primop) { return !set.contains(primop); };
-    auto wipe_lambda = [&] (Lambda* lambda) { return !lambda->attribute().is(Lambda::Extern) && lambda->num_uses() == 0; };
-        //return lambda->empty() && !lambda->attribute().is(Lambda::Extern); };
+    auto wipe_lambda = [&] (Lambda* lambda) {
+        return !lambda->attribute().is(Lambda::Extern) 
+            && (   (!lambda->attribute().is(Lambda::Intrinsic) && lambda->empty()) 
+                || (lambda->attribute().is(Lambda::Intrinsic) && lambda->num_uses() == 0));
+    };
 
     for (auto primop : primops_) {
         if (wipe_primop(primop)) {

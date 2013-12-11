@@ -84,7 +84,19 @@ int main(int argc, char** argv) {
             return EXIT_SUCCESS;
         }
 
-        impala::Init init;
+        std::string module_name;
+        for (auto infile : infiles) {
+            auto i = infile.find_last_of('.');
+            if (infile.substr(i + 1) != "impala")
+                throw logic_error("input file '" + infile + "' does not have '.impala' extension");
+            auto rest = infile.substr(0, i);
+            if (rest.empty())
+                throw logic_error("input file '" + infile + "' has empty module name");
+            if (module_name.empty())
+                module_name = rest;
+        }
+
+        impala::Init init(module_name);
 
 #ifndef NDEBUG
         for (auto b : breakpoints) {
@@ -108,7 +120,7 @@ int main(int argc, char** argv) {
 
         bool result = true;
         for (auto infile : infiles) {
-            const char* filename = infile.c_str();
+            std::string filename = infile.c_str();
             ifstream file(filename);
             result &= impala::parse(init.typetable, file, filename, prg);
         }

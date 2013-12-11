@@ -15,7 +15,11 @@ void init();
 void destroy();
 
 struct Init {
-    Init() { init(); }
+    Init(std::string module_name) 
+        : world(module_name)
+    { 
+        init(); 
+    }
     ~Init() { destroy(); }
 
     thorin::World world;

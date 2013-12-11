@@ -12,7 +12,7 @@
 const impala::Type* llvm2impala(impala::TypeTable&, llvm::Type*);
 
 int main() {
-    auto init = impala::Init();
+    auto init = impala::Init("dummy");
     auto& context = llvm::getGlobalContext();
     int num = llvm::Intrinsic::num_intrinsics - 1;
     impala::Printer printer(std::cout, false);

@@ -160,6 +160,7 @@ std::ostream& CodeGen::emit_jump(const Lambda* lambda) {
 
 void emit_thorin(World& world, bool fancy, bool nocolor) {
     CodeGen cg(fancy, nocolor);
+    cg.stream() << "module '" << world.name() << "'\n";
 
     for (auto primop : world.primops()) {
         if (auto global = primop->isa<Global>())

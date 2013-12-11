@@ -24,6 +24,10 @@
 #include <llvm/PassManager.h>
 #include <llvm/Transforms/Scalar.h>
 
+#ifdef WFV2_SUPPORT
+#include <wfvInterface.h>
+#endif
+
 #include "thorin/def.h"
 #include "thorin/lambda.h"
 #include "thorin/literal.h"
@@ -34,10 +38,6 @@
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/util/array.h"
-
-#ifdef WFV2_SUPPORT
-#include <wfvInterface.h>
-#endif
 
 namespace thorin {
 
@@ -56,7 +56,7 @@ public:
     llvm::Type* map(const Type* type);
     llvm::Value* emit(Def def);
     llvm::Value* lookup(Def def);
-    llvm::AllocaInst* emit_array(Def def);
+    llvm::AllocaInst* emit_alloca(llvm::Type*, const std::string& name);
 
 private:
     World& world;
@@ -291,25 +291,14 @@ llvm::Value* CodeGen::lookup(Def def) {
     return phis[param];
 }
 
-llvm::AllocaInst* CodeGen::emit_array(Def array) {
-    assert(array->type()->isa<ArrayType>());
+llvm::AllocaInst* CodeGen::emit_alloca(llvm::Type* type, const std::string& name) {
+    assert(type->isArrayTy());
     auto entry = &builder.GetInsertBlock()->getParent()->getEntryBlock();
-    llvm::Instruction* before;
+    llvm::AllocaInst* alloca;
     if (entry->empty())
-        before = new llvm::AllocaInst(builder.getInt32Ty(), nullptr /* no variable length array */, "dummy", entry);
+        alloca = new llvm::AllocaInst(type, nullptr, name, entry);
     else
-        before = entry->getFirstNonPHIOrDbg();
-
-    auto alloca = new llvm::AllocaInst(map(array->type()), nullptr /* no variable length array */, array->name, before);
-
-    u64 i = 0;
-    llvm::Value* args[2] = { builder.getInt64(0), nullptr };
-    for (auto op : array->ops()) {
-        args[1] = builder.getInt64(i++);
-        auto gep = llvm::GetElementPtrInst::CreateInBounds(alloca, args, op->name, before);
-        before = new llvm::StoreInst(lookup(op), gep, before);
-    }
-
+        alloca = new llvm::AllocaInst(type, nullptr, name, entry->getFirstNonPHIOrDbg());
     return alloca;
 }
 
@@ -406,8 +395,24 @@ llvm::Value* CodeGen::emit(Def def) {
         return builder.CreateSelect(cond, tval, fval);
     }
 
-    if (auto array = def->isa<ArrayAgg>())
-        return builder.CreateLoad(emit_array(array));
+    if (auto array = def->isa<ArrayAgg>()) {
+        std::cout << "warning: slow" << std::endl;
+        auto alloca = emit_alloca(map(array->type()), array->name);
+        llvm::Instruction* cur = alloca;
+
+        u64 i = 0;
+        llvm::Value* args[2] = { builder.getInt64(0), nullptr };
+        for (auto op : array->ops()) {
+            args[1] = builder.getInt64(i++);
+            auto gep = llvm::GetElementPtrInst::CreateInBounds(alloca, args, op->name);
+            gep->insertAfter(cur);
+            auto store = new llvm::StoreInst(lookup(op), gep);
+            store->insertAfter(gep);
+            cur = store;
+        }
+
+        return builder.CreateLoad(alloca);
+    }
 
     if (auto tuple = def->isa<Tuple>()) {
         llvm::Value* agg = llvm::UndefValue::get(map(tuple->type()));
@@ -432,15 +437,9 @@ llvm::Value* CodeGen::emit(Def def) {
 
             return builder.CreateInsertValue(tuple, value, { idx });
         } else if (aggop->agg_type()->isa<ArrayType>()) {
-            auto entry = &builder.GetInsertBlock()->getParent()->getEntryBlock();
-            llvm::Instruction* before;
-            if (entry->empty())
-                before = new llvm::AllocaInst(builder.getInt32Ty(), nullptr /* no variable length array */, "dummy", entry);
-            else
-                before = entry->getFirstNonPHIOrDbg();
-
+            std::cout << "warning: slow" << std::endl;
             auto array = lookup(aggop->agg());
-            auto alloca = new llvm::AllocaInst(array->getType(), nullptr /* no variable length array */, "todo", before);
+            auto alloca = emit_alloca(array->getType(), aggop->name);
             builder.CreateStore(array, alloca);
 
             auto idx = lookup(aggop->index());

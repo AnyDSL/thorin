@@ -41,7 +41,6 @@ class LoopHeader;
 class LoopNode : public MagicCast<LoopNode> {
 public:
     LoopNode(LoopHeader* parent, int depth, const std::vector<Lambda*>& lambdas);
-    virtual ~LoopNode() = 0;
 
     int depth() const { return depth_; }
     const LoopHeader* parent() const { return parent_; }
@@ -53,8 +52,6 @@ protected:
     int depth_;
     std::vector<Lambda*> lambdas_;
 };
-
-inline LoopNode::~LoopNode() {}
 
 /// A LoopHeader owns further \p LoopNode%s as children.
 class LoopHeader : public LoopNode {

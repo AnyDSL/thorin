@@ -64,37 +64,34 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
 }
 
 void Scope::collect(Lambda* entry) {
-    if (in_scope_.contains(entry))
-        return;
+    if (!in_scope_.contains(entry)) {
+        std::queue<Def> queue;
 
-    std::queue<Def> queue;
-
-    for (auto param : entry->params()) {
-        if (!param->is_proxy()) {
-            in_scope_.insert(param);
-            queue.push(param);
-        }
-    }
-    in_scope_.insert(entry);
-    rpo_.push_back(entry);
-
-    while (!queue.empty()) {
-        auto def = queue.front();
-        queue.pop();
-        for (auto use : def->uses()) {
-            if (!in_scope_.contains(use)) {
-                if (auto ulambda = use->isa_lambda()) {
-                    for (auto param : ulambda->params()) {
-                        if (!param->is_proxy()) {
-                            in_scope_.insert(param);
-                            queue.push(param);
-                        }
-                    }
-                    assert(std::find(rpo_.begin(), rpo_.end(), ulambda) == rpo_.end());
-                    rpo_.push_back(ulambda);
+        auto insert_lambda = [&] (Lambda* lambda) {
+            for (auto param : lambda->params()) {
+                if (!param->is_proxy()) {
+                    in_scope_.insert(param);
+                    queue.push(param);
                 }
-                in_scope_.insert(use);
-                queue.push(use);
+            }
+
+            assert(std::find(rpo_.begin(), rpo_.end(), lambda) == rpo_.end());
+            rpo_.push_back(lambda);
+        };
+
+        insert_lambda(entry);
+        in_scope_.insert(entry);
+
+        while (!queue.empty()) {
+            auto def = queue.front();
+            queue.pop();
+            for (auto use : def->uses()) {
+                if (!in_scope_.contains(use)) {
+                    if (auto ulambda = use->isa_lambda())
+                        insert_lambda(ulambda);
+                    in_scope_.insert(use);
+                    queue.push(use);
+                }
             }
         }
     }

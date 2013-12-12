@@ -56,71 +56,48 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
     for (auto entry : entries)
         lambdas.insert(entry);
     for (auto entry : entries)
-        collect(lambdas, entry);
+        collect(entry);
 #ifndef NDEBUG
     for (auto lambda : rpo())
         assert(contains(lambda));
 #endif
 }
 
-void Scope::collect(LambdaSet& entries, Lambda* lambda) {
-    if (in_scope_.visit(lambda))
+void Scope::collect(Lambda* entry) {
+    if (in_scope_.contains(entry))
         return;
-    rpo_.push_back(lambda);
 
-    // search downwards
     std::queue<Def> queue;
-    for (auto param : lambda->params()) {
-        if (param->is_proxy())
-            continue;
-        in_scope_.insert(param);
-        queue.push(param);
-    }
 
-    if (!entries.contains(lambda)) {
-        for (auto use : lambda->uses())
-            queue.push(use);
+    for (auto param : entry->params()) {
+        if (!param->is_proxy()) {
+            in_scope_.insert(param);
+            queue.push(param);
+        }
     }
+    in_scope_.insert(entry);
+    rpo_.push_back(entry);
 
-    LambdaSet lambdas;
     while (!queue.empty()) {
         auto def = queue.front();
         queue.pop();
         for (auto use : def->uses()) {
             if (!in_scope_.contains(use)) {
                 if (auto ulambda = use->isa_lambda()) {
-                    lambdas.insert(ulambda);
-                } else {
-                    in_scope_.insert(use);
-                    queue.push(use);
+                    for (auto param : ulambda->params()) {
+                        if (!param->is_proxy()) {
+                            in_scope_.insert(param);
+                            queue.push(param);
+                        }
+                    }
+                    assert(std::find(rpo_.begin(), rpo_.end(), ulambda) == rpo_.end());
+                    rpo_.push_back(ulambda);
                 }
+                in_scope_.insert(use);
+                queue.push(use);
             }
         }
     }
-
-    // check for predecessors
-    if (!entries.contains(lambda)) {
-        for (auto pred : lambda->preds()) {
-            if (!in_scope_.contains(pred)) {
-                for (auto op : pred->ops()) {
-                    if (auto ulambda = op->isa_lambda()) {
-                        if (entries.contains(ulambda))
-                            continue;
-                    }
-                    if (in_scope_.contains(op)) {
-                        collect(entries, pred);
-                        goto next_pred;
-                    }
-                }
-            }
-next_pred:;
-        }
-    }
-
-    entries.insert(lambda);
-    for (auto olambda : lambdas)
-        collect(entries, olambda);
-    entries.erase(lambda);
 }
 
 void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {
@@ -137,11 +114,13 @@ void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {
         sid_[entries[i]].sid = num++;
 
     assert(num <= size());
+    assert(num == lambdas.size());
 
     // convert postorder number to reverse postorder number
     for (auto lambda : rpo()) {
         if (lambdas.contains(lambda)) {
             sid_[lambda].sid = num - 1 - sid_[lambda].sid;
+            assert(sid_[lambda].sid < 1000);
         } else { // lambda is unreachable
             sid_[lambda].sid = size_t(-1);
             for (auto param : lambda->params())
@@ -156,6 +135,14 @@ void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {
 
     // discard unreachable lambdas
     rpo_.resize(num);
+
+#ifndef NDEBUG
+    std::set<size_t> done;
+    for (auto p : sid_) {
+        if (p.second.sid != size_t(-1))
+            assert(done.insert(p.second.sid).second);
+    }
+#endif
 }
 
 template<bool forwards>

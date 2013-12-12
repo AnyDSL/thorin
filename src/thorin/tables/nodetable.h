@@ -23,7 +23,7 @@
         //THORIN_AIR_NODE(ArithOp)
         //THORIN_AIR_NODE(RelOp)
         //THORIN_AIR_NODE(ConvOp)
-        THORIN_AIR_NODE(ArrayAgg, array_agg)
+        THORIN_AIR_NODE(ArrayAgg, array)
         THORIN_AIR_NODE(Tuple, tuple)
         THORIN_AIR_NODE(Vector, vector)
         THORIN_AIR_NODE(Extract, extract)

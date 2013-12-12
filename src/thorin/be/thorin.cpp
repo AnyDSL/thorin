@@ -109,7 +109,9 @@ std::ostream& CodeGen::emit_primop(const PrimOp* primop) {
             emit_type(primop->type());
         } else {
             stream() << '(';
-            emit_type(primop->type()) << ' ' << primop->op_name();
+            if (primop->isa<PrimLit>())
+                emit_type(primop->type()) << ' ';
+            stream() << primop->op_name();
             dump_list([&](Def def) { emit_def(def); }, primop->ops(), " ", ")");
         }
     } else

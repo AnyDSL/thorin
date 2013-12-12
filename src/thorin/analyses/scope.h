@@ -22,8 +22,6 @@ public:
         : Scope(entries[0]->world(), entries)
     {}
 
-    bool contains(Def def) const { return in_scope_.contains(def); }
-
     /// All lambdas within this scope in reverse postorder.
     ArrayRef<Lambda*> rpo() const { return rpo_; }
     ArrayRef<Lambda*> entries() const { return ArrayRef<Lambda*>(rpo_).slice_to_end(num_entries()); }
@@ -34,6 +32,7 @@ public:
     /// Like \p backwards_rpo() but without \p exits().
     ArrayRef<Lambda*> backwards_body() const { return backwards_rpo().slice_from_begin(num_exits()); }
     const DefSet& in_scope() const { return in_scope_; }
+    bool contains(Def def) const { return in_scope_.contains(def); }
 
     Lambda* rpo(size_t i) const { return rpo_[i]; }
     Lambda* operator [] (size_t i) const { return rpo(i); }

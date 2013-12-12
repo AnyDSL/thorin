@@ -62,6 +62,7 @@ public:
 Lambda* Mangler::mangle() {
     assert(scope.num_entries() == 1 && "TODO");
     oentry = scope.entries()[0];
+    assert(!oentry->empty());
     const Pi* o_pi = oentry->pi();
     auto nelems = o_pi->elems().cut(to_drop, to_lift.size());
     size_t offset = o_pi->elems().size() - to_drop.size();

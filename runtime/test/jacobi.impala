@@ -1,4 +1,4 @@
-extern all_on_gpu([float], fn(fn() -> int, fn() -> int, fn() -> int, fn() -> int, fn() -> int, fn() -> int) -> void) -> void;
+extern accelerator([float], fn(fn() -> int, fn() -> int, fn() -> int, fn() -> int, fn() -> int, fn() -> int) -> void) -> void;
 extern array(int) -> [float];
 
 fn bh_clamp_lower(mut i : int, lower : int) -> int {
@@ -28,7 +28,7 @@ fn main() -> [float] {
         [0.0f, b, 0.0f]];
 
     for (let mut iter=0; iter<10; ++iter) {
-        all_on_gpu(out, |x : fn() -> int, y : fn() -> int, bIx : fn() -> int, bIy : fn() -> int, bDx : fn() -> int, bDy : fn() -> int| -> void {
+        accelerator(out, |x : fn() -> int, y : fn() -> int, bIx : fn() -> int, bIy : fn() -> int, bDx : fn() -> int, bDy : fn() -> int| -> void {
             let index = (x() + bIx() * bDx()) + width * (y() + bIy() * bDy());
 
             let sum = a * arr[index] +
@@ -66,7 +66,7 @@ fn main() -> [float] {
         [0.0f, b, 0.0f]];
 
     for (let mut iter=0; iter<10; ++iter) {
-        all_on_gpu(out, |x : fn() -> int, y : fn() -> int, bIx : fn() -> int, bIy : fn() -> int, bDx : fn() -> int, bDy : fn() -> int| -> void {
+        accelerator(out, |x : fn() -> int, y : fn() -> int, bIx : fn() -> int, bIy : fn() -> int, bDx : fn() -> int, bDy : fn() -> int| -> void {
             let index = (x() + bIx() * bDx()) + width * (y() + bIy() * bDy());
             let mut sum = 0.0f;
 

@@ -1,4 +1,4 @@
-extern all_on_gpu([float], fn(fn() -> int, fn() -> int, fn() -> int) -> void) -> int;
+extern accelerator([float], fn(fn() -> int, fn() -> int, fn() -> int) -> void) -> int;
 extern array(int) -> [float];
 extern exp(float) -> float;
 
@@ -29,7 +29,7 @@ fn main() -> [float] {
         [0.033746f, 0.062177f, 0.102512f, 0.151240f, 0.199666f, 0.235877f, 0.249352f, 0.235877f, 0.199666f, 0.151240f, 0.102512f, 0.062177f, 0.033746f],
         [0.018316f, 0.033746f, 0.055638f, 0.082085f, 0.108368f, 0.128022f, 0.135335f, 0.128022f, 0.108368f, 0.082085f, 0.055638f, 0.033746f, 0.018316f]];
 
-    all_on_gpu(out, |x : fn() -> int, y : fn() -> int, z : fn() -> int| -> void {
+    accelerator(out, |x : fn() -> int, y : fn() -> int, z : fn() -> int| -> void {
         let index = x() + width * y();
         //let index = idx(x(), y(), z(), width, height);
 

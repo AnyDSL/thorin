@@ -99,7 +99,7 @@ start:
     return preds;
 }
 
-bool Lambda::is_builtin() const { return attribute().is(Accelerator) || attribute().is(Vectorize); }
+bool Lambda::is_builtin() const { return attribute().is(Accelerator | Vectorize); }
 
 static bool connected_to_builtin(const Lambda* lambda, std::function<bool(Lambda*)> func) {
     if (!lambda->is_builtin()) {

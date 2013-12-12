@@ -67,26 +67,25 @@ private:
     template<bool forwards> size_t number(LambdaSet&, Lambda* cur, size_t i) const;
 
     World& world_;
-    std::vector<Lambda*> rpo_;
-    DefSet in_scope_;
     size_t num_entries_;
-
-    struct LambdaSidInfo {
-        size_t sid;
-        size_t backwards_sid;
-
-        LambdaSidInfo()
-            : sid(-1)
-            , backwards_sid(-1)
-        {}
-    };
-
-    mutable LambdaMap<LambdaSidInfo> sid_;
-
     mutable size_t num_exits_;
+    DefSet in_scope_;
+    std::vector<Lambda*> rpo_;
     mutable AutoPtr<Array<Lambda*>> backwards_rpo_;
     mutable Array<Array<Lambda*>> preds_;
     mutable Array<Array<Lambda*>> succs_;
+
+    struct Sid {
+        Sid()
+            : sid(-1)
+            , backwards_sid(-1)
+        {}
+
+        size_t sid;
+        size_t backwards_sid;
+    };
+
+    mutable LambdaMap<Sid> sid_;
 };
 
 } // namespace thorin

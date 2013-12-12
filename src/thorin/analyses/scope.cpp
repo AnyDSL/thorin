@@ -26,7 +26,7 @@ Array<Lambda*> top_level_lambdas(World& world) {
                 top_level.erase(lambda);
                 goto next_lambda;
             }
-    next_lambda:;
+next_lambda:;
     }
 
     Array<Lambda*> result(top_level.size());

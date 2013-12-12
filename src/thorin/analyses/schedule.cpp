@@ -10,9 +10,9 @@
 #include "thorin/analyses/looptree.h"
 #include "thorin/analyses/scope.h"
 
-#include "thorin/analyses/schedule.h"
-
 namespace thorin {
+
+typedef LambdaMap<std::vector<const PrimOp*>> Schedule;
 
 Schedule schedule_early(const Scope& scope) {
     Schedule schedule;
@@ -56,7 +56,7 @@ Schedule schedule_early(const Scope& scope) {
     return schedule;
 }
 
-Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &def2late) {
+static Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &def2late) {
     DefMap<int> def2num;
     std::vector<Def> zero;
 
@@ -130,6 +130,8 @@ Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &def2late) {
 
     return schedule;
 }
+
+Schedule schedule_late(const Scope& scope) { DefMap<Lambda*> late; return schedule_late(scope, late); }
 
 Schedule schedule_smart(const Scope& scope) {
     Schedule smart;

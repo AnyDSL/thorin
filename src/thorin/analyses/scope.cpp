@@ -57,6 +57,10 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
         lambdas.insert(entry);
     for (auto entry : entries)
         collect(lambdas, entry);
+#ifndef NDEBUG
+    for (auto lambda : rpo())
+        assert(contains(lambda));
+#endif
 }
 
 void Scope::collect(LambdaSet& entries, Lambda* lambda) {
@@ -109,7 +113,7 @@ void Scope::collect(LambdaSet& entries, Lambda* lambda) {
                     }
                 }
             }
-        next_pred:;
+next_pred:;
         }
     }
 

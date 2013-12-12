@@ -22,6 +22,7 @@
 #include "thorin/transform/merge_lambdas.h"
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/util/array.h"
+#include "thorin/be/thorin.h"
 
 #define THORIN_NO_U_TYPE \
     case PrimType_u1: \
@@ -988,11 +989,23 @@ void World::opt() {
     cleanup();
     partial_evaluation(*this);
     lower2cff(*this);
+    debug_verify(*this);
     clone_bodies(*this);
+    debug_verify(*this);
     mem2reg(*this);
+    debug_verify(*this);
+    std::cout << "---" << std::endl;
+    emit_thorin(*this, true);
+    std::cout << "---" << std::endl;
     lift_builtins(*this);
+    std::cout << "---" << std::endl;
+    emit_thorin(*this, true);
+    std::cout << "---" << std::endl;
+    debug_verify(*this);
     inliner(*this);
+    debug_verify(*this);
     merge_lambdas(*this);
+    debug_verify(*this);
     cleanup();
 }
 

@@ -1,0 +1,5 @@
+fn main(i: int) -> int {
+    let a = [0, 1, 2];
+    a[i+1] = 5;
+    return a[i];
+}

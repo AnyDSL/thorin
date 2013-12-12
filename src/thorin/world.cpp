@@ -11,19 +11,17 @@
 #include "thorin/literal.h"
 #include "thorin/memop.h"
 #include "thorin/type.h"
-#include "thorin/analyses/free_vars.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
-#include "thorin/be/thorin.h"
+#include "thorin/transform/clone_bodies.h"
+#include "thorin/transform/lift_builtins.h"
 #include "thorin/transform/lower2cff.h"
 #include "thorin/transform/inliner.h"
-#include "thorin/transform/mangle.h"
 #include "thorin/transform/mem2reg.h"
 #include "thorin/transform/merge_lambdas.h"
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/util/array.h"
-#include "thorin/util/hash.h"
 
 #define THORIN_NO_U_TYPE \
     case PrimType_u1: \
@@ -965,9 +963,9 @@ const DefNode* World::cse_base(const PrimOp* primop) {
         delete primop;
         primop = *i;
     } else {
+        primop->set_gid(gid_++);
         auto p = primops_.insert(primop);
         assert(p.second && "hash/equal broken");
-        primop->set_gid(gid_++);
     }
 
     THORIN_CHECK_BREAK(primop->gid())
@@ -990,41 +988,9 @@ void World::opt() {
     cleanup();
     partial_evaluation(*this);
     lower2cff(*this);
+    clone_bodies(*this);
     mem2reg(*this);
-    //return;
-
-    for (auto cur : copy_lambdas()) {
-        if (cur->is_connected_to_builtin() && !cur->is_basicblock()) {
-            Scope scope(cur);
-            std::vector<Def> vars = free_vars(scope);
-            auto lifted = lift(scope, vars);
-
-            for (auto use : cur->uses()) {
-                if (auto ulambda = use->isa_lambda()) {
-                    if (auto to = ulambda->to()->isa_lambda()) {
-                        if (to->is_builtin()) {
-                            ArrayRef<const Type*> pelems = to->pi()->elems();
-                            Array<const Type*> elems(pelems.size() + vars.size());
-                            ulambda->resize(elems.size() + 1);
-                            std::copy(pelems.begin(), pelems.end(), elems.begin());
-                            elems[use.index()-1] = ptr(lifted->pi());
-                            // append data
-                            for (size_t i = 0, e = vars.size(); i < e; ++i) {
-                                const size_t index = pelems.size() + i;
-                                elems[index] = vars[i]->type();
-                                ulambda->set_op(index + 1, vars[i]);
-                            }
-                            ulambda->update_op(0, lambda(pi(elems), to->attribute(), to->name));
-                            ulambda->update_arg(use.index()-1, global(lifted, lifted->name));
-                            to->type_ = pi(elems);
-                            to->attribute().clear(-1);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
+    lift_builtins(*this);
     inliner(*this);
     merge_lambdas(*this);
     cleanup();

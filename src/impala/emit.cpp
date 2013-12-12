@@ -428,8 +428,11 @@ void ItemStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.emit(item()); c
 void InitStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
     if (cg.is_reachable()) {
         RefPtr ref = cg.emit(var_decl());
-        if (init())
-            ref->store(cg.emit(init())->load());
+        if (init()) {
+            auto def = cg.emit(init())->load();
+            def->name = var_decl()->symbol().str();
+            ref->store(def);
+        }
         cg.jump(exit_bb);
     }
 }

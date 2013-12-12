@@ -12,12 +12,6 @@ void lift_builtins(World& world) {
         if (cur->is_connected_to_builtin() && !cur->is_basicblock()) {
             Scope scope(cur);
             auto vars = free_vars(scope);
-            std::cout << "---in scope---" << std::endl;
-            for (auto l : scope.rpo())
-                std::cout << l->unique_name() << std::endl;
-            std::cout << "---vorher---" << std::endl;
-            for (auto v : vars)
-                v->dump();
             auto lifted = lift(scope, vars);
 
             for (auto use : cur->uses()) {
@@ -40,9 +34,6 @@ void lift_builtins(World& world) {
                 }
             }
 
-            std::cout << "---nachher---" << std::endl;
-            for (auto v : free_vars(Scope(lifted)))
-                v->dump();
             assert(free_vars(Scope(lifted)).empty());
         }
     }

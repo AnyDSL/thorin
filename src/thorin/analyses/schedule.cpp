@@ -41,7 +41,7 @@ Schedule schedule_early(const Scope& scope) {
                 else {
                     num_placed[use] = -1;
                     for (auto op : use->ops()) {
-                        if (!op->is_const())
+                        if (scope.contains(op))
                             ++num_placed[use];
                     }
                 }
@@ -83,9 +83,8 @@ static Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &def2late) {
                 int& num = i->second;
                 --num;
                 assert(num >= 0);
-                if (num == 0) {
+                if (num == 0)
                     zero.push_back(op);
-                }
             }
         }
     };

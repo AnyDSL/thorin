@@ -98,6 +98,8 @@ const Type* Extract::type(Def agg, Def index) {
         return sigma->elem_via_lit(index);
     else if (auto array = agg->type()->isa<ArrayType>())
         return array->elem_type();
+    else if (auto vector = agg->type()->isa<VectorType>())
+        return vector->scalarize();
     assert(false && "TODO");
 }
 

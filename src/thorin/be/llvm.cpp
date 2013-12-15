@@ -434,25 +434,25 @@ llvm::Value* CodeGen::emit(Def def) {
     }
 
     if (auto aggop = def->isa<AggOp>()) {
+        auto agg = lookup(aggop->agg());
+        auto idx = lookup(aggop->index());
+
         if (aggop->agg_type()->isa<Sigma>()) {
-            auto tuple = lookup(aggop->agg());
-            unsigned idx = aggop->index()->primlit_value<unsigned>();
+            unsigned i = aggop->index()->primlit_value<unsigned>();
 
             if (auto extract = aggop->as<Extract>())
-                return builder.CreateExtractValue(tuple, { idx });
+                return builder.CreateExtractValue(agg, { i });
 
             auto insert = def->as<Insert>();
             auto value = lookup(insert->value());
 
-            return builder.CreateInsertValue(tuple, value, { idx });
+            return builder.CreateInsertValue(agg, value, { i });
         } else if (aggop->agg_type()->isa<ArrayType>()) {
             // TODO use llvm::ConstantArray if applicable
             std::cout << "warning: slow" << std::endl;
-            auto array = lookup(aggop->agg());
-            auto alloca = emit_alloca(array->getType(), aggop->name);
-            builder.CreateStore(array, alloca);
+            auto alloca = emit_alloca(agg->getType(), aggop->name);
+            builder.CreateStore(agg, alloca);
 
-            auto idx = lookup(aggop->index());
             llvm::Value* args[2] = { builder.getInt64(0), idx };
             auto gep = builder.CreateInBoundsGEP(alloca, args);
 
@@ -461,8 +461,11 @@ llvm::Value* CodeGen::emit(Def def) {
 
             builder.CreateStore(lookup(aggop->as<Insert>()->value()), gep);
             return builder.CreateLoad(alloca);
-        } else
-            assert(false && "TODO");
+        } else {
+            if (auto extract = aggop->as<Extract>())
+                return builder.CreateExtractElement(agg, idx);
+            return builder.CreateInsertElement(agg, lookup(aggop->as<Insert>()->value()), idx);
+        }
     }
 
     if (auto primlit = def->isa<PrimLit>()) {

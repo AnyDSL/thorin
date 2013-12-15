@@ -142,11 +142,12 @@ int main(int argc, char** argv) {
                 Lambda* impala_main = top_level_lambdas(init.world)[0];
                 Scope scope(impala_main);
                 thorin::vectorize(scope, vectorlength);
+                init.world.cleanup();
             }
             if (emit_thorin)
                 thorin::emit_thorin(init.world, fancy, !nocolor);
-            //if (emit_il)
-                //thorin::emit_il(init.world, fancy);
+            if (emit_il)
+                thorin::emit_il(init.world, fancy);
             if (emit_looptree) {
                 for (auto top : top_level_lambdas(init.world)) {
                     Scope scope(top);

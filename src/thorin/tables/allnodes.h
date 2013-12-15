@@ -24,10 +24,10 @@
 
 #include "thorin/tables/nodetable.h"
     THORIN_GLUE(Node, PrimType_u)
-#define THORIN_JUST_U_TYPE(T) THORIN_PRIMTYPE(T)
+#define THORIN_U_TYPE(T) THORIN_PRIMTYPE(T)
 #include "thorin/tables/primtypetable.h"
     THORIN_GLUE(PrimType_u, PrimType_f)
-#define THORIN_JUST_F_TYPE(T) THORIN_PRIMTYPE(T)
+#define THORIN_F_TYPE(T) THORIN_PRIMTYPE(T)
 #include "thorin/tables/primtypetable.h"
     THORIN_GLUE(PrimType_f, ArithOp)
 #include "thorin/tables/arithoptable.h"

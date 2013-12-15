@@ -296,14 +296,18 @@ private:
  */
 class Global : public PrimOp {
 private:
-    Global(Def init, const std::string& name);
+    Global(Def init, bool is_mutable, const std::string& name);
 
 public:
     Def init() const { return op(0); }
+    bool is_mutable() const { return is_mutable_; }
     const Type* referenced_type() const; ///< Returns the type referenced by this \p Global's pointer type.
 
     virtual size_t hash() const { return hash_value(gid()); }
     virtual bool equal(const PrimOp* other) const { return this == other; }
+
+private:
+    bool is_mutable_;
 
     friend class World;
 };

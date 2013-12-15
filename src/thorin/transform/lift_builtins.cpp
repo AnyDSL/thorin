@@ -23,7 +23,7 @@ void lift_builtins(World& world) {
                             Array<Def> nops(oops.size() + vars.size());
                             std::copy(oops.begin(), oops.end(), nops.begin());               // copy over old ops
                             assert(oops[use.index()] == cur);
-                            nops[use.index()] = world.global(lifted, lifted->name);          // update to new lifted lambda
+                            nops[use.index()] = world.global(lifted, false, lifted->name);   // update to new lifted lambda
                             std::copy(vars.begin(), vars.end(), nops.begin() + oops.size()); // append former free vars
                             ulambda->jump(cur, nops.slice_from_begin(1));                    // set new args
                             // jump to new top-level dummy function

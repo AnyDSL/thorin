@@ -810,6 +810,12 @@ Def World::load(Def mem, Def ptr, const std::string& name) {
         }
     }
 
+    if (auto global = ptr->isa<Global>()) {
+        if (!global->is_mutable())
+            return global->init();
+    }
+
+
     return cse(new Load(mem, ptr, name)); 
 }
 
@@ -822,13 +828,13 @@ const Store* World::store(Def mem, Def ptr, Def value, const std::string& name) 
     return cse(new Store(mem, ptr, value, name)); 
 }
 
-const Global* World::global(Def init, const std::string& name) { return cse(new Global(init, name)); }
+const LEA* World::lea(Def ptr, Def index, const std::string& name) { return cse(new LEA(ptr, index, name)); }
+const Global* World::global(Def init, bool is_mutable, const std::string& name) { return cse(new Global(init, is_mutable, name)); }
 const Slot* World::slot(const Type* type, Def frame, size_t index, const std::string& name) {
     return cse(new Slot(type, frame, index, name));
 }
-const LEA* World::lea(Def ptr, Def index, const std::string& name) { return cse(new LEA(ptr, index, name)); }
 
-const Global* World::global(const std::string& str, const std::string& name) {
+const Global* World::global_immutable_string(const std::string& str, const std::string& name) {
     size_t size = str.size() + 1;
 
     Array<Def> str_array(size);
@@ -836,7 +842,7 @@ const Global* World::global(const std::string& str, const std::string& name) {
         str_array[i] = literal_u8(str[i]);
     str_array.back() = literal_u8('\0');
 
-    return global(array(str_array));
+    return global(array(str_array), false, name);
 }
 
 Def World::run(Def def, const std::string& name) { 
@@ -895,7 +901,7 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, const Type* t
         case Node_Bottom:  assert(ops.size() == 0); return to.bottom(type);
         case Node_Enter:   assert(ops.size() == 1); return to.enter(  ops[0], name);
         case Node_Extract: assert(ops.size() == 2); return to.extract(ops[0], ops[1], name);
-        case Node_Global:  assert(ops.size() == 1); return to.global(ops[0], name);
+        case Node_Global:  assert(ops.size() == 1); return to.global( ops[0], in->as<Global>()->is_mutable(), name);
         case Node_Halt:    assert(ops.size() == 1); return to.halt(   ops[0], name);
         case Node_Insert:  assert(ops.size() == 3); return to.insert( ops[0], ops[1], ops[2], name);
         case Node_LEA:     assert(ops.size() == 2); return to.lea(ops[0], ops[1], name);

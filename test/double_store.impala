@@ -2,8 +2,8 @@ extern array(int) -> [float];
 
 fn main(i: int) -> float {
     let a = array(i);
-    a[i] = a[i] + a[i];
     a[i] = 42.f;
+    a[i] = a[i] + a[i];
 
     return a[i];
 }

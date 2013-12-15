@@ -22,7 +22,6 @@ class DefNode;
 class Enter;
 class Lambda;
 class LEA;
-class Load;
 class Pi;
 class PrimLit;
 class PrimOp;
@@ -208,7 +207,7 @@ public:
      * memops
      */
 
-    const Load* load(Def mem, Def ptr, const std::string& name = "");
+    Def load(Def mem, Def ptr, const std::string& name = "");
     const Store* store(Def mem, Def ptr, Def val, const std::string& name = "");
     const Enter* enter(Def mem, const std::string& name = "");
     Def leave(Def mem, Def frame, const std::string& name = "");

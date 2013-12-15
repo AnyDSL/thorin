@@ -1,0 +1,9 @@
+extern array(int) -> [float];
+
+fn main(i: int) -> float {
+    let a = array(i);
+    a[i] = a[i] + a[i];
+    a[i] = 42.f;
+
+    return a[i];
+}

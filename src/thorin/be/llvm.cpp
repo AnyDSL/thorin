@@ -438,11 +438,8 @@ llvm::Value* CodeGen::emit(Def def) {
             auto tuple = lookup(aggop->agg());
             unsigned idx = aggop->index()->primlit_value<unsigned>();
 
-            if (auto extract = aggop->as<Extract>()) {
-                if (extract->agg()->isa<Load>())
-                    return tuple; // bypass artificial extract
+            if (auto extract = aggop->as<Extract>())
                 return builder.CreateExtractValue(tuple, { idx });
-            }
 
             auto insert = def->as<Insert>();
             auto value = lookup(insert->value());
@@ -496,7 +493,7 @@ llvm::Value* CodeGen::emit(Def def) {
         return builder.CreateAlloca(map(slot->type()->as<Ptr>()->referenced_type()), 0, slot->unique_name());
 
     if (def->isa<Enter>() || def->isa<Leave>())
-        return 0;
+        return nullptr;
 
     if (auto vector = def->isa<Vector>()) {
         llvm::Value* vec = llvm::UndefValue::get(map(vector->type()));

@@ -38,8 +38,6 @@ private:
 
 public:
     Def ptr() const { return op(1); }
-    Def extract_mem() const;
-    Def extract_val() const;
 
     friend class World;
 };
@@ -62,10 +60,6 @@ class Enter : public MemOp {
 private:
     Enter(Def mem, const std::string& name);
 
-public:
-    Def extract_mem() const;
-    Def extract_frame() const;
-
     friend class World;
 };
 
@@ -76,7 +70,7 @@ private:
     Leave(Def mem, Def frame, const std::string& name);
 
 public:
-    Def frame() const { return op(1); }
+    const Enter* frame() const { return op(1)->as<Enter>(); }
 
     friend class World;
 };

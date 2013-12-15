@@ -14,6 +14,16 @@ namespace thorin {
 
 typedef LambdaMap<std::vector<const PrimOp*>> Schedule;
 
+bool sort_primops(Def def1, Def def2) {
+    if (def1->kind() == def2->kind())
+        return def1->gid() < def2->gid();
+
+    if ( def1->isa<Enter>() || def1->isa<Slot>() || def1->isa<Load>() || def1->isa<Store>())
+        return true;
+
+    return def1->gid() < def2->gid();
+}
+
 Schedule schedule_early(const Scope& scope) {
     Schedule schedule;
     std::queue<Def> queue;
@@ -33,6 +43,7 @@ Schedule schedule_early(const Scope& scope) {
                 primops.push_back(primop);
             queue.pop();
 
+            std::vector<Def> todo;
             for (auto use : def->uses()) {
                 if (use->isa<Lambda>())
                     continue;
@@ -48,8 +59,12 @@ Schedule schedule_early(const Scope& scope) {
                 assert(num_placed[use] != size_t(-1));
 
                 if (num_placed[use] == 0)
-                    queue.push(use);
+                    todo.push_back(use);
             }
+
+            std::sort(todo.begin(), todo.end(), sort_primops);
+            for (auto def : todo)
+                queue.push(def);
         }
     }
 
@@ -117,6 +132,8 @@ static Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &def2late) {
 
             for (auto op : remove)
                 decrease(op);
+
+            std::sort(zero.begin(), zero.end(), [] (Def def1, Def def2) { return !sort_primops; });
         } while (todo);
     }
     for (auto z : zero) {

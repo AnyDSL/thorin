@@ -137,9 +137,9 @@ const Lambda* CodeGen::emit_body(const Fun* fun) {
     fun->lambda()->set_parent(cur_bb);
     THORIN_PUSH(cur_bb, fun->lambda());
 
-    const Enter* enter_op = world().enter(fun->lambda()->param(0));
-    set_mem(enter_op->extract_mem());
-    fun->frame_ = enter_op->extract_frame();
+    auto mem = fun->lambda()->param(0);
+    set_mem(mem);
+    fun->frame_ = world().enter(mem);
 
     size_t num = fun->params().size();
     for (size_t i = 0; i < num; ++i) {
@@ -524,10 +524,9 @@ void ForeachStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const {
 
     lambda->set_parent(cg.cur_bb);
     cg.cur_bb = lambda;
-    cg.set_mem(lambda->param(0));
-    const Enter* enter = cg.world().enter(lambda->param(0));
-    cg.set_mem(enter->extract_mem());
-    fun->frame_ = enter->extract_frame();
+    auto mem = lambda->param(0);
+    cg.set_mem(mem);
+    fun->frame_ = cg.world().enter(mem);
 
     for (size_t i = 0, e = fun->params().size(); i != e; ++i) {
         const Param* p = lambda->param(i+1);

@@ -769,19 +769,6 @@ Def World::vector(Def arg, size_t length, const std::string& name) {
     return vector(args, name);
 }
 
-const Enter* World::enter(Def mem, const std::string& name) {
-    if (auto leave = mem->isa<Leave>())
-        if (auto extract = leave->frame()->isa<Extract>())
-            if (auto old_enter = extract->agg()->isa<Enter>())
-                return old_enter;
-
-    if (auto extract = mem->isa<Extract>())
-        if (auto old_enter = extract->agg()->isa<Enter>())
-            return old_enter;
-
-    return cse(new Enter(mem, name));
-}
-
 Def World::select(Def cond, Def a, Def b, const std::string& name) {
     if (cond->isa<Bottom>() || a->isa<Bottom>() || b->isa<Bottom>())
         return bottom(a->type());
@@ -800,19 +787,41 @@ Def World::select(Def cond, Def a, Def b, const std::string& name) {
     return cse(new Select(cond, a, b, name));
 }
 
-Def World::leave(Def mem, Def frame, const std::string& name) { 
-    if (auto mextract = mem->isa<Extract>())
-        if (auto menter = mextract->agg()->isa<Enter>())
-            if (auto fextract = frame->isa<Extract>())
-                if (auto fenter = fextract->agg()->isa<Enter>())
-                    if (menter == fenter)
-                        return menter->mem();
+const Enter* World::enter(Def mem, const std::string& name) {
+    if (auto leave = mem->isa<Leave>())
+        return leave->frame();
 
-    return cse(new Leave(mem, frame, name)); 
+    return cse(new Enter(mem, name));
 }
 
-const Load* World::load(Def mem, Def ptr, const std::string& name) { return cse(new Load(mem, ptr, name)); }
-const Store* World::store(Def mem, Def ptr, Def value, const std::string& name) { return cse(new Store(mem, ptr, value, name)); }
+Def World::leave(Def mem, Def frame, const std::string& name) { 
+    for (auto use : frame->uses()) {
+        if (use->isa<Slot>())
+            return cse(new Leave(mem, frame, name)); 
+    }
+
+    return mem;
+}
+
+Def World::load(Def mem, Def ptr, const std::string& name) { 
+    if (auto store = mem->isa<Store>()) {
+        if (store->ptr() == ptr) {
+            return store->val();
+        }
+    }
+
+    return cse(new Load(mem, ptr, name)); 
+}
+
+const Store* World::store(Def mem, Def ptr, Def value, const std::string& name) { 
+    if (auto store = mem->isa<Store>()) {
+        if (ptr == store->ptr())
+            mem = store->mem();
+    }
+
+    return cse(new Store(mem, ptr, value, name)); 
+}
+
 const Global* World::global(Def init, const std::string& name) { return cse(new Global(init, name)); }
 const Slot* World::slot(const Type* type, Def frame, size_t index, const std::string& name) {
     return cse(new Slot(type, frame, index, name));
@@ -1061,21 +1070,6 @@ static void sanity_check(Def def) {
 }
 
 void World::dead_code_elimination() {
-    // elimimante useless enters/leaves
-    for (auto primop : primops_) {
-        if (auto enter = Def(primop)->isa<Enter>())
-            switch (enter->extract_frame()->num_uses()) {
-                case 0: enter->extract_mem()->replace(enter->mem()); break;
-                case 1: {
-                    if (auto leave = enter->extract_frame()->uses().front()->isa<Leave>()) {
-                        enter->extract_mem()->replace(enter->mem());
-                        leave->replace(leave->mem());
-                    }
-                }
-                default: { /* do nothing */ }
-            }
-    }
-
     const auto old_gid = gid_;
     Def2Def map;
     for (auto lambda : lambdas()) {

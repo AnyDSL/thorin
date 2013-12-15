@@ -18,11 +18,8 @@ MemOp::MemOp(size_t size, NodeKind kind, const Type* type, Def mem, const std::s
 //------------------------------------------------------------------------------
 
 Load::Load(Def mem, Def ptr, const std::string& name)
-    : Access(2, Node_Load, mem->world().sigma({mem->type(), ptr->type()->as<Ptr>()->referenced_type()}), mem, ptr, name)
+    : Access(2, Node_Load, ptr->type()->as<Ptr>()->referenced_type(), mem, ptr, name)
 {}
-
-Def Load::extract_mem() const { return world().extract(this, 0); }
-Def Load::extract_val() const { return world().extract(this, 1); }
 
 //------------------------------------------------------------------------------
 
@@ -35,11 +32,8 @@ Store::Store(Def mem, Def ptr, Def value, const std::string& name)
 //------------------------------------------------------------------------------
 
 Enter::Enter(Def mem, const std::string& name)
-    : MemOp(1, Node_Enter, mem->world().sigma({mem->type(), mem->world().frame()}), mem, name)
+    : MemOp(1, Node_Enter, mem->world().frame(), mem, name)
 {}
-
-Def Enter::extract_mem()   const { return world().extract(this, 0); }
-Def Enter::extract_frame() const { return world().extract(this, 1); }
 
 //------------------------------------------------------------------------------
 

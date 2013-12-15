@@ -18,6 +18,7 @@
 
 namespace thorin {
     class DefNode;
+    class Enter;
     class JumpTarget;
     class Lambda;
     class Param;
@@ -155,7 +156,7 @@ public:
     void check_head(Sema&) const;
     virtual void check(Sema& sema) const;
     virtual std::ostream& print(Printer& p) const;
-    const thorin::DefNode* frame() const { return frame_; }
+    const thorin::Enter* frame() const { return frame_; }
 
 private:
     VarDecls params_;
@@ -166,7 +167,7 @@ private:
     mutable const thorin::Param* ret_param_;
     mutable GenericBuilder generic_builder_;
     mutable GenericMap generic_map_;
-    mutable const thorin::DefNode* frame_;
+    mutable const thorin::Enter* frame_;
 
     friend class Parser;
     friend class Sema;

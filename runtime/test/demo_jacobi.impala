@@ -31,18 +31,23 @@ fn main() -> [float] {
     let range   = 2;
     let a       = 0.2f;
     let b       = 1.0f - 4.0f * a;
-    let arr = array(width * height);
-    let out = array(width * height);
+    let mut arr = array(width * height);
+    let mut out = array(width * height);
 
     let stencil : [float * 3 * 3] = [
         [0.0f, b, 0.0f],
         [   b, a, b   ],
         [0.0f, b, 0.0f]];
 
-    accelerator(out, |x : fn() -> int, y : fn() -> int, bIx : fn() -> int, bIy : fn() -> int, bDx : fn() -> int, bDy : fn() -> int| -> void {
-        let index = (x() + bIx() * bDx()) + width * (y() + bIy() * bDy());
-        out[index] = @apply_stencil(range, stencil, index, arr, out, width);
-    });
+    for (let mut i = 0; i < 10; ++i) {
+        accelerator(out, |x : fn() -> int, y : fn() -> int, bIx : fn() -> int, bIy : fn() -> int, bDx : fn() -> int, bDy : fn() -> int| -> void {
+            let index = (x() + bIx() * bDx()) + width * (y() + bIy() * bDy());
+            out[index] = apply_stencil(range, stencil, index, arr, out, width);
+        });
+        let mut tmp = out;
+        out = arr;
+        arr = tmp;
+    }
 
     return out;
 }

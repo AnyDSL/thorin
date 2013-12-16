@@ -174,12 +174,12 @@ Peeks Param::peek() const {
         if (auto pred = use->isa_lambda()) {
             if (use.index() == 0)
                 peeks.emplace_back(pred->arg(index()), pred);
-        } 
-        else if (auto evalop = use->isa<EvalOp>()) {
+        } else if (auto evalop = use->isa<EvalOp>()) {
             for (auto use : evalop->uses()) {
-                if (auto pred = use->isa_lambda())
+                if (auto pred = use->isa_lambda()) {
                     if (use.index() == 0)
                         peeks.emplace_back(pred->arg(index()), pred);
+                }
             }
         }
     }

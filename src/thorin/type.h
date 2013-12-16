@@ -61,7 +61,7 @@ public:
     bool infer_with(GenericMap& map, const Type* type) const;
     const Type* specialize(const GenericMap&) const;
     bool is_generic() const { return is_generic_; }
-    bool is_u1() const { return kind() == Node_PrimType_u1; }
+    bool is_u1() const { return kind() == Node_PrimType_pu1 || kind() == Node_PrimType_qu1; }
     bool is_int() const { return thorin::is_int(kind()); }
     bool is_float() const { return thorin::is_float(kind()); }
     bool is_primtype() const { return thorin::is_primtype(kind()); }

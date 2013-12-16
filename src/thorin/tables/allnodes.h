@@ -23,22 +23,22 @@
 #endif
 
 #include "thorin/tables/nodetable.h"
-    THORIN_GLUE(Node, PrimType_s)
-#define THORIN_S_TYPE(T) THORIN_PRIMTYPE(T)
+    THORIN_GLUE(Node, PrimType_ps)
+#define THORIN_PS_TYPE(T) THORIN_PRIMTYPE(T)
 #include "thorin/tables/primtypetable.h"
-    THORIN_GLUE(PrimType_s, PrimType_u)
-#define THORIN_U_TYPE(T) THORIN_PRIMTYPE(T)
+    THORIN_GLUE(PrimType_ps, PrimType_pu)
+#define THORIN_PU_TYPE(T) THORIN_PRIMTYPE(T)
 #include "thorin/tables/primtypetable.h"
-    THORIN_GLUE(PrimType_u, PrimType_qs)
+    THORIN_GLUE(PrimType_pu, PrimType_qs)
 #define THORIN_QS_TYPE(T) THORIN_PRIMTYPE(T)
 #include "thorin/tables/primtypetable.h"
     THORIN_GLUE(PrimType_qs, PrimType_qu)
 #define THORIN_QU_TYPE(T) THORIN_PRIMTYPE(T)
 #include "thorin/tables/primtypetable.h"
-    THORIN_GLUE(PrimType_qu, PrimType_f)
-#define THORIN_F_TYPE(T) THORIN_PRIMTYPE(T)
+    THORIN_GLUE(PrimType_qu, PrimType_pf)
+#define THORIN_PF_TYPE(T) THORIN_PRIMTYPE(T)
 #include "thorin/tables/primtypetable.h"
-    THORIN_GLUE(PrimType_f, PrimType_qf)
+    THORIN_GLUE(PrimType_pf, PrimType_qf)
 #define THORIN_QF_TYPE(T) THORIN_PRIMTYPE(T)
 #include "thorin/tables/primtypetable.h"
     THORIN_GLUE(PrimType_qf, ArithOp)

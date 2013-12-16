@@ -100,12 +100,12 @@ public:
 
 //------------------------------------------------------------------------------
 
-class RelOp : public BinOp {
+class Cmp : public BinOp {
 private:
-    RelOp(RelOpKind kind, Def cond, Def lhs, Def rhs, const std::string& name);
+    Cmp(CmpKind kind, Def cond, Def lhs, Def rhs, const std::string& name);
 
 public:
-    RelOpKind relop_kind() const { return (RelOpKind) kind(); }
+    CmpKind relop_kind() const { return (CmpKind) kind(); }
     virtual const char* op_name() const;
 
     friend class World;

@@ -45,7 +45,7 @@ enum Markers {
     Num_PrimTypes_f = End_PrimType_f - Begin_PrimType_f,
 
     Num_ArithOps    = End_ArithOp    - Begin_ArithOp,
-    Num_RelOps      = End_RelOp      - Begin_RelOp,
+    Num_Cmps        = End_Cmp        - Begin_Cmp,
     Num_ConvOps     = End_ConvOp     - Begin_ConvOp,
 
     Num_PrimTypes = Num_PrimTypes_u + Num_PrimTypes_f,
@@ -61,8 +61,8 @@ enum ArithOpKind {
 #include "thorin/tables/arithoptable.h"
 };
 
-enum RelOpKind {
-#define THORIN_RELOP(op) RelOp_##op = Node_##op,
+enum CmpKind {
+#define THORIN_RELOP(op) Cmp_##op = Node_##op,
 #include "thorin/tables/reloptable.h"
 };
 
@@ -76,7 +76,7 @@ inline bool is_float(int kind)   { return (int) Begin_PrimType_f <= kind && kind
 inline bool is_corenode(int kind){ return (int) Begin_AllNodes <= kind && kind < (int) End_AllNodes; }
 inline bool is_primtype(int kind){ return (int) Begin_PrimType <= kind && kind < (int) End_PrimType; }
 inline bool is_arithop(int kind) { return (int) Begin_ArithOp <= kind && kind < (int) End_ArithOp; }
-inline bool is_relop(int kind)   { return (int) Begin_RelOp   <= kind && kind < (int) End_RelOp; }
+inline bool is_cmp(int kind)     { return (int) Begin_Cmp   <= kind && kind < (int) End_Cmp; }
 inline bool is_convop(int kind)  { return (int) Begin_ConvOp  <= kind && kind < (int) End_ConvOp; }
 
 inline bool is_div(int kind) { return  kind == ArithOp_sdiv || kind == ArithOp_udiv || kind == ArithOp_fdiv; }
@@ -102,7 +102,7 @@ template<> struct type2kind<bool> { static const PrimTypeKind kind = PrimType_u1
 const char* kind2str(NodeKind kind);
 int num_bits(PrimTypeKind);
 
-RelOpKind negate(RelOpKind kind);
+CmpKind negate(CmpKind kind);
 
 } // namespace thorin
 

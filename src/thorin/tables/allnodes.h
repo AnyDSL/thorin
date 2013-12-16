@@ -14,8 +14,8 @@
 #error "define THORIN_ARITHOP before including this file"
 #endif
 
-#ifndef THORIN_CMPOP
-#error "define THORIN_CMPOP before including this file"
+#ifndef THORIN_CMP
+#error "define THORIN_CMP before including this file"
 #endif
 
 #ifndef THORIN_CONVOP
@@ -40,5 +40,5 @@
 #undef THORIN_AIR_NODE
 #undef THORIN_PRIMTYPE
 #undef THORIN_ARITHOP
-#undef THORIN_CMPOP
+#undef THORIN_CMP
 #undef THORIN_CONVOP

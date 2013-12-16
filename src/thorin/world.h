@@ -127,10 +127,10 @@ public:
     Def true_mask(size_t length) { return literal(true, length); }
 
     /*
-     * arithop, relop, convop
+     * arithop, cmp, convop
      */
 
-    /// Creates an \p ArithOp or a \p RelOp.
+    /// Creates an \p ArithOp or a \p Cmp.
     Def binop(int kind, Def cond, Def lhs, Def rhs, const std::string& name = "");
     Def binop(int kind, Def lhs, Def rhs, const std::string& name = "") {
         return binop(kind, true_mask(lhs), lhs, rhs, name);
@@ -154,18 +154,18 @@ public:
     Def arithop_minus(Def cond, Def def);
     Def arithop_minus(Def def) { return arithop_minus(true_mask(def), def); }
 
-    Def relop(RelOpKind kind, Def cond, Def lhs, Def rhs, const std::string& name = "");
-    Def relop(RelOpKind kind, Def lhs, Def rhs, const std::string& name = "") {
-        return relop(kind, true_mask(lhs), lhs, rhs, name);
+    Def cmp(CmpKind kind, Def cond, Def lhs, Def rhs, const std::string& name = "");
+    Def cmp(CmpKind kind, Def lhs, Def rhs, const std::string& name = "") {
+        return cmp(kind, true_mask(lhs), lhs, rhs, name);
     }
-#define THORIN_RELOP(OP) \
-    Def relop_##OP(Def cond, Def lhs, Def rhs, const std::string& name = "") { \
-        return relop(RelOp_##OP, cond, lhs, rhs, name);  \
+#define THORIN_CMP(OP) \
+    Def cmp_##OP(Def cond, Def lhs, Def rhs, const std::string& name = "") { \
+        return cmp(Cmp_##OP, cond, lhs, rhs, name);  \
     } \
-    Def relop_##OP(Def lhs, Def rhs, const std::string& name = "") { \
-        return relop(RelOp_##OP, true_mask(lhs), lhs, rhs, name);  \
+    Def cmp_##OP(Def lhs, Def rhs, const std::string& name = "") { \
+        return cmp(Cmp_##OP, true_mask(lhs), lhs, rhs, name);  \
     }
-#include "thorin/tables/reloptable.h"
+#include "thorin/tables/cmptable.h"
 
     Def convop(ConvOpKind kind, Def cond, Def from, const Type* to, const std::string& name = "");
     Def convop(ConvOpKind kind, Def from, const Type* to, const std::string& name = "") {

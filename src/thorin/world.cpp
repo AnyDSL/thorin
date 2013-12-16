@@ -122,8 +122,8 @@ Def World::binop(int kind, Def cond, Def lhs, Def rhs, const std::string& name) 
     if (is_arithop(kind))
         return arithop((ArithOpKind) kind, cond, lhs, rhs);
 
-    assert(is_relop(kind) && "must be a RelOp");
-    return relop((RelOpKind) kind, cond, lhs, rhs);
+    assert(is_cmp(kind) && "must be a Cmp");
+    return relop((CmpKind) kind, cond, lhs, rhs);
 }
 
 Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& name) {
@@ -172,7 +172,7 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
 #include "thorin/tables/primtypetable.h"
                     THORIN_NO_F_TYPE;
                 }
-            case ArithOp_udiv:
+            case ArithOp_div:
                 switch (type) {
 #define THORIN_U_TYPE(T) \
                     case PrimType_##T: \
@@ -182,35 +182,13 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
 #include "thorin/tables/primtypetable.h"
                     THORIN_NO_F_TYPE;
                 }
-            case ArithOp_sdiv:
-                switch (type) {
-#define THORIN_U_TYPE(T) \
-                    case PrimType_##T: { \
-                        typedef make_signed<T>::type S; \
-                        return rlit->is_zero() \
-                            ? bottom(type) \
-                            : literal(type, Box((T) ((S) l.get_##T() / (S) r.get_##T()))); \
-                    }
-#include "thorin/tables/primtypetable.h"
-                    THORIN_NO_F_TYPE;
-                }
-            case ArithOp_urem:
+            case ArithOp_rem:
                 switch (type) {
 #define THORIN_U_TYPE(T) \
                     case PrimType_##T: \
                         return rlit->is_zero() \
                              ? bottom(type) \
                              : literal(type, Box(T(l.get_##T() % r.get_##T())));
-#include "thorin/tables/primtypetable.h"
-                    THORIN_NO_F_TYPE;
-                }
-            case ArithOp_srem:
-                switch (type) {
-#define THORIN_U_TYPE(T) \
-                    case PrimType_##T: { \
-                        typedef make_signed<T>::type S; \
-                        return literal(type, Box((T) ((S) l.get_##T() % (S) r.get_##T()))); \
-                    }
 #include "thorin/tables/primtypetable.h"
                     THORIN_NO_F_TYPE;
                 }
@@ -238,51 +216,11 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
 #include "thorin/tables/primtypetable.h"
                     THORIN_NO_F_TYPE;
                 }
-            case ArithOp_lshr:
+            case ArithOp_shr:
                 switch (type) {
 #define THORIN_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() >> r.get_##T())));
 #include "thorin/tables/primtypetable.h"
                     THORIN_NO_F_TYPE;
-                }
-            case ArithOp_ashr:
-                switch (type) {
-#define THORIN_U_TYPE(T) \
-                    case PrimType_##T: { \
-                        typedef make_signed<T>::type S; \
-                        return literal(type, Box((T) ((S) l.get_##T() >> (S) r.get_##T()))); \
-                    }
-#include "thorin/tables/primtypetable.h"
-                    THORIN_NO_F_TYPE;
-                }
-            case ArithOp_fadd:
-                switch (type) {
-#define THORIN_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())));
-#include "thorin/tables/primtypetable.h"
-                    THORIN_NO_U_TYPE;
-                }
-            case ArithOp_fsub:
-                switch (type) {
-#define THORIN_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() - r.get_##T())));
-#include "thorin/tables/primtypetable.h"
-                    THORIN_NO_U_TYPE;
-                }
-            case ArithOp_fmul:
-                switch (type) {
-#define THORIN_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())));
-#include "thorin/tables/primtypetable.h"
-                    THORIN_NO_U_TYPE;
-                }
-            case ArithOp_fdiv:
-                switch (type) {
-#define THORIN_F_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() / r.get_##T())));
-#include "thorin/tables/primtypetable.h"
-                    THORIN_NO_U_TYPE;
-                }
-            case ArithOp_frem:
-                switch (type) {
-#define THORIN_F_TYPE(T) case PrimType_##T: return literal(type, Box(std::fmod(l.get_##T(), r.get_##T())));
-#include "thorin/tables/primtypetable.h"
-                    THORIN_NO_U_TYPE;
                 }
         }
     }
@@ -342,12 +280,12 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
     if (kind == ArithOp_xor && a->is_allset()) {    // is this a NOT
         if (b->is_not())                            // do we have ~~x?
             return b->as<ArithOp>()->rhs();
-        if (auto relop = b->isa<RelOp>())   // do we have ~(a cmp b)?
+        if (auto relop = b->isa<Cmp>())   // do we have ~(a cmp b)?
             return this->relop(negate(relop->relop_kind()), cond, relop->lhs(), relop->rhs());
     }
 
-    auto lrel = a->isa<RelOp>();
-    auto rrel = b->isa<RelOp>();
+    auto lrel = a->isa<Cmp>();
+    auto rrel = b->isa<CmCmp
 
     if (kind == ArithOp_or && lrel && rrel && lrel->lhs() == rrel->lhs() && lrel->rhs() == rrel->rhs() 
             && lrel->relop_kind() == negate(rrel->relop_kind()))
@@ -505,20 +443,14 @@ Def World::arithop_minus(Def cond, Def def) {
     }
 }
 
-Def World::relop(RelOpKind kind, Def cond, Def a, Def b, const std::string& name) {
+Def World::cmp(CmpKind kind, Def cond, Def a, Def b, const std::string& name) {
     if (a->isa<Bottom>() || b->isa<Bottom>())
         return bottom(type_u1());
 
-    RelOpKind oldkind = kind;
+    CmpKind oldkind = kind;
     switch (kind) {
-        case RelOp_cmp_ugt:  kind = RelOp_cmp_ult; break;
-        case RelOp_cmp_uge:  kind = RelOp_cmp_ule; break;
-        case RelOp_cmp_sgt:  kind = RelOp_cmp_slt; break;
-        case RelOp_cmp_sge:  kind = RelOp_cmp_sle; break;
-        case RelOp_fcmp_ogt: kind = RelOp_fcmp_olt; break;
-        case RelOp_fcmp_oge: kind = RelOp_fcmp_ole; break;
-        case RelOp_fcmp_ugt: kind = RelOp_fcmp_ult; break;
-        case RelOp_fcmp_uge: kind = RelOp_fcmp_ule; break;
+        case Cmp_gt:  kind = Cmp_lt; break;
+        case Cmp_ge:  kind = Cmp_le; break;
         default: break;
     }
 
@@ -544,92 +476,44 @@ Def World::relop(RelOpKind kind, Def cond, Def a, Def b, const std::string& name
         PrimTypeKind type = llit->primtype_kind();
 
         switch (kind) {
-            case RelOp_cmp_eq:
+            case Cmp_eq:
                 switch (type) {
 #define THORIN_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() == r.get_##T());
 #include "thorin/tables/primtypetable.h"
                     THORIN_NO_F_TYPE;
                 }
-            case RelOp_cmp_ne:
+            case Cmp_ne:
                 switch (type) {
 #define THORIN_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() != r.get_##T());
 #include "thorin/tables/primtypetable.h"
                     THORIN_NO_F_TYPE;
                 }
-            case RelOp_cmp_ult:
+            case Cmp_lt:
                 switch (type) {
 #define THORIN_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <  r.get_##T());
 #include "thorin/tables/primtypetable.h"
                     THORIN_NO_F_TYPE;
                 }
-            case RelOp_cmp_ule:
+            case Cmp_le:
                 switch (type) {
 #define THORIN_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <= r.get_##T());
 #include "thorin/tables/primtypetable.h"
                     THORIN_NO_F_TYPE;
                 }
-            case RelOp_cmp_slt:
-                switch (type) {
-#define THORIN_U_TYPE(T) \
-                    case PrimType_##T: { \
-                        typedef make_signed<T>::type S; \
-                        return literal_u1((S) l.get_##T() < (S) r.get_##T()); \
-                    }
-#include "thorin/tables/primtypetable.h"
-                    THORIN_NO_F_TYPE;
-                }
-            case RelOp_cmp_sle:
-                switch (type) {
-#define THORIN_U_TYPE(T) \
-                    case PrimType_##T: { \
-                        typedef make_signed< T >::type S; \
-                        return literal_u1((S) l.get_##T() <= (S) r.get_##T()); \
-                    }
-#include "thorin/tables/primtypetable.h"
-                    THORIN_NO_F_TYPE;
-                }
-            case RelOp_fcmp_oeq:
-                switch (type) {
-#define THORIN_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() == r.get_##T());
-#include "thorin/tables/primtypetable.h"
-                    THORIN_NO_U_TYPE;
-                }
-            case RelOp_fcmp_one:
-                switch (type) {
-#define THORIN_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() != r.get_##T());
-#include "thorin/tables/primtypetable.h"
-                    THORIN_NO_U_TYPE;
-                }
-            case RelOp_fcmp_olt:
-                switch (type) {
-#define THORIN_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <  r.get_##T());
-#include "thorin/tables/primtypetable.h"
-                    THORIN_NO_U_TYPE;
-                }
-            case RelOp_fcmp_ole:
-                switch (type) {
-#define THORIN_F_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <= r.get_##T());
-#include "thorin/tables/primtypetable.h"
-                    THORIN_NO_U_TYPE;
-                }
-            default:
-                THORIN_UNREACHABLE;
-        }
-    }
 
     if (a == b) {
         switch (kind) {
-            case RelOp_cmp_ult:
-            case RelOp_cmp_slt: 
-            case RelOp_cmp_eq:  return zero(u1_);
-            case RelOp_cmp_ule:
-            case RelOp_cmp_sle:
-            case RelOp_cmp_ne:  return one(u1_);
+            case Cmp_cmp_ult:
+            case Cmp_cmp_slt: 
+            case Cmp_cmp_eq:  return zero(u1_);
+            case Cmp_cmp_ule:
+            case Cmp_cmp_sle:
+            case Cmp_cmp_ne:  return one(u1_);
             default: break;
         }
     }
 
-    return cse(new RelOp(kind, cond, a, b, name));
+    return cse(new Cmp(kind, cond, a, b, name));
 }
 
 static i64 box2i64(PrimTypeKind kind, Box box) {
@@ -888,7 +772,7 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, const Type* t
 
     if (ops.empty() && &in->world() == &to) return in;
     if (is_arithop (kind))  { assert(ops.size() == 3); return to.arithop((ArithOpKind) kind, ops[0], ops[1], ops[2], name); }
-    if (is_relop   (kind))  { assert(ops.size() == 3); return to.relop(  (RelOpKind  ) kind, ops[0], ops[1], ops[2], name); }
+    if (is_relop   (kind))  { assert(ops.size() == 3); return to.relop(  (CmpKind  ) kind, ops[0], ops[1], ops[2], name); }
     if (is_convop  (kind))  { assert(ops.size() == 2); return to.convop( (ConvOpKind ) kind, ops[0], ops[1],   type, name); }
     if (is_primtype(kind)) { 
         assert(ops.size() == 0); 

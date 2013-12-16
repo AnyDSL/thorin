@@ -35,7 +35,7 @@ BinOp::BinOp(NodeKind kind, const Type* type, Def cond, Def lhs, Def rhs, const 
     set_op(2, rhs);
 }
 
-RelOp::RelOp(RelOpKind kind, Def cond, Def lhs, Def rhs, const std::string& name)
+Cmp::Cmp(CmpKind kind, Def cond, Def lhs, Def rhs, const std::string& name)
     : BinOp((NodeKind) kind, lhs->world().type_u1(lhs->type()->as<PrimType>()->length()), cond, lhs, rhs, name)
 {}
 
@@ -168,9 +168,9 @@ const char* ArithOp::op_name() const {
     }
 }
 
-const char* RelOp::op_name() const {
+const char* Cmp::op_name() const {
     switch (kind()) {
-#define THORIN_RELOP(op) case RelOp_##op: return #op;
+#define THORIN_RELOP(op) case Cmp_##op: return #op;
 #include "thorin/tables/reloptable.h"
         default: THORIN_UNREACHABLE;
     }

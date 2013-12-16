@@ -74,9 +74,7 @@ private:
 
 public:
     Box value() const { return box_; }
-#define THORIN_U_TYPE(T) \
-    T T##_value() const { return value().get_##T(); }
-#define THORIN_F_TYPE(T) THORIN_U_TYPE(T)
+#define THORIN_ALL_TYPE(T) T T##_value() const { return value().get_##T(); }
 #include "thorin/tables/primtypetable.h"
     
     const PrimType* primtype() const { return type()->as<PrimType>(); }

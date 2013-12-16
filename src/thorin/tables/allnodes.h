@@ -23,17 +23,29 @@
 #endif
 
 #include "thorin/tables/nodetable.h"
-    THORIN_GLUE(Node, PrimType_u)
+    THORIN_GLUE(Node, PrimType_s)
+#define THORIN_S_TYPE(T) THORIN_PRIMTYPE(T)
+#include "thorin/tables/primtypetable.h"
+    THORIN_GLUE(PrimType_s, PrimType_u)
 #define THORIN_U_TYPE(T) THORIN_PRIMTYPE(T)
 #include "thorin/tables/primtypetable.h"
-    THORIN_GLUE(PrimType_u, PrimType_f)
+    THORIN_GLUE(PrimType_u, PrimType_qs)
+#define THORIN_QS_TYPE(T) THORIN_PRIMTYPE(T)
+#include "thorin/tables/primtypetable.h"
+    THORIN_GLUE(PrimType_qs, PrimType_qu)
+#define THORIN_QU_TYPE(T) THORIN_PRIMTYPE(T)
+#include "thorin/tables/primtypetable.h"
+    THORIN_GLUE(PrimType_qu, PrimType_f)
 #define THORIN_F_TYPE(T) THORIN_PRIMTYPE(T)
 #include "thorin/tables/primtypetable.h"
-    THORIN_GLUE(PrimType_f, ArithOp)
+    THORIN_GLUE(PrimType_f, PrimType_qf)
+#define THORIN_QF_TYPE(T) THORIN_PRIMTYPE(T)
+#include "thorin/tables/primtypetable.h"
+    THORIN_GLUE(PrimType_qf, ArithOp)
 #include "thorin/tables/arithoptable.h"
-    THORIN_GLUE(ArithOp, RelOp)
-#include "thorin/tables/reloptable.h"
-    THORIN_GLUE(RelOp, ConvOp)
+    THORIN_GLUE(ArithOp, Cmp)
+#include "thorin/tables/cmptable.h"
+    THORIN_GLUE(Cmp, ConvOp)
 #include "thorin/tables/convoptable.h"
 
 #undef THORIN_GLUE

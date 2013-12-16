@@ -13,7 +13,7 @@ enum NodeKind {
 #define THORIN_AIR_NODE(node, abbr) Node_##node,
 #define THORIN_PRIMTYPE(T) Node_PrimType_##T,
 #define THORIN_ARITHOP(op) Node_##op,
-#define THORIN_RELOP(op) Node_##op,
+#define THORIN_CMP(op) Node_##op,
 #define THORIN_CONVOP(op) Node_##op,
 #include "thorin/tables/allnodes.h"
 };
@@ -26,7 +26,7 @@ enum Markers {
 #define THORIN_AIR_NODE(node, abbr) zzzMarker_##node,
 #define THORIN_PRIMTYPE(T) zzzMarker_PrimType_##T,
 #define THORIN_ARITHOP(op) zzzMarker_##op,
-#define THORIN_RELOP(op) zzzMarker_##op,
+#define THORIN_CMP(op) zzzMarker_##op,
 #define THORIN_CONVOP(op) zzzMarker_##op,
 #include "thorin/tables/allnodes.h"
     End_ConvOp,
@@ -62,8 +62,8 @@ enum ArithOpKind {
 };
 
 enum CmpKind {
-#define THORIN_RELOP(op) Cmp_##op = Node_##op,
-#include "thorin/tables/reloptable.h"
+#define THORIN_CMP(op) Cmp_##op = Node_##op,
+#include "thorin/tables/cmptable.h"
 };
 
 enum ConvOpKind {
@@ -79,13 +79,10 @@ inline bool is_arithop(int kind) { return (int) Begin_ArithOp <= kind && kind < 
 inline bool is_cmp(int kind)     { return (int) Begin_Cmp   <= kind && kind < (int) End_Cmp; }
 inline bool is_convop(int kind)  { return (int) Begin_ConvOp  <= kind && kind < (int) End_ConvOp; }
 
-inline bool is_div(int kind) { return  kind == ArithOp_sdiv || kind == ArithOp_udiv || kind == ArithOp_fdiv; }
-inline bool is_rem(int kind) { return  kind == ArithOp_srem || kind == ArithOp_urem || kind == ArithOp_frem; }
 inline bool is_bitop(int kind) { return  kind == ArithOp_and || kind == ArithOp_or || kind == ArithOp_xor; }
-inline bool is_shift(int kind) { return  kind == ArithOp_shl || kind == ArithOp_lshr || kind == ArithOp_ashr; }
-inline bool is_div_or_rem(int kind) { return is_div(kind) || is_rem(kind); }
+inline bool is_shift(int kind) { return  kind == ArithOp_shl || kind == ArithOp_shr; }
+inline bool is_div_or_rem(int kind) { return kind == ArithOp_div || kind == ArithOp_rem; }
 inline bool is_commutative(int kind) { return kind == ArithOp_add  || kind == ArithOp_mul 
-                                           || kind == ArithOp_fadd || kind == ArithOp_fmul 
                                            || kind == ArithOp_and  || kind == ArithOp_or || kind == ArithOp_xor; }
 inline bool is_associative(int kind) { return kind == ArithOp_add || kind == ArithOp_mul
                                            || kind == ArithOp_and || kind == ArithOp_or || kind == ArithOp_xor; }
@@ -94,10 +91,11 @@ template<PrimTypeKind kind> struct kind2type {};
 #define THORIN_ALL_TYPE(T) template<> struct kind2type<PrimType_##T> { typedef T type; };
 #include "thorin/tables/primtypetable.h"
 
-template<class T> struct type2kind {};
-template<> struct type2kind<bool> { static const PrimTypeKind kind = PrimType_u1; };
-#define THORIN_ALL_TYPE(T) template<> struct type2kind<T> { static const PrimTypeKind kind = PrimType_##T; };
-#include "thorin/tables/primtypetable.h"
+template<class T, bool quick> struct type2kind {};
+template<> struct type2kind<bool, false> { static const PrimTypeKind kind = PrimType_u1; };
+template<> struct type2kind<bool,  true> { static const PrimTypeKind kind = PrimType_qu1; };
+//#define THORIN_ALL_TYPE(T) template<> struct type2kind<T> { static const PrimTypeKind kind = PrimType_##T; };
+//#include "thorin/tables/primtypetable.h"
 
 const char* kind2str(NodeKind kind);
 int num_bits(PrimTypeKind);

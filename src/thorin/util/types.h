@@ -39,14 +39,14 @@ class u1 {
 public:
     u1() {}
     u1(bool b) : b_(b) {}
-    u1( i8 i) : b_(i & 1) {}
-    u1(i16 i) : b_(i & 1) {}
-    u1(i32 i) : b_(i & 1) {}
-    u1(i64 i) : b_(i & 1ll) {}
-    u1( u8 u) : b_(u & 1u) {}
-    u1(u16 u) : b_(u & 1u) {}
-    u1(u32 u) : b_(u & 1u) {}
-    u1(u64 u) : b_(u & 1ull) {}
+    u1( s8 i) : b_(i & 1) {}
+    u1(s16 i) : b_(i & 1) {}
+    u1(s32 i) : b_(i & 1) {}
+    u1(s64 i) : b_(i & 1ll) {}
+    u1( u8 i) : b_(i & 1u) {}
+    u1(u16 i) : b_(i & 1u) {}
+    u1(u32 i) : b_(i & 1u) {}
+    u1(u64 i) : b_(i & 1ull) {}
 
     u1 operator + (u1 u) { return u1(get() + u.get()); }
     u1 operator - (u1 u) { return u1(get() - u.get()); }

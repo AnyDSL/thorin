@@ -212,12 +212,10 @@ public:
     bool is_minus_zero() const;
     bool is_one() const { return is_primlit(1); }
     bool is_allset() const { return is_primlit(-1); }
-    bool is_div()         const { return thorin::is_div  (kind()); }
-    bool is_rem()         const { return thorin::is_rem  (kind()); }
     bool is_bitop()       const { return thorin::is_bitop(kind()); }
     bool is_shift()       const { return thorin::is_shift(kind()); }
     bool is_not()         const { return kind() == Node_xor && op(0)->is_allset(); }
-    bool is_minus()       const { return (kind() == Node_sub || kind() == Node_fsub) && op(0)->is_minus_zero(); }
+    bool is_minus()       const { return kind() == Node_sub && op(0)->is_minus_zero(); }
     bool is_div_or_rem()  const { return thorin::is_div_or_rem(kind()); }
     bool is_commutative() const { return thorin::is_commutative(kind()); }
     bool is_associative() const { return thorin::is_associative(kind()); }

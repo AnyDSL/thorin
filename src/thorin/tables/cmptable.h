@@ -1,12 +1,12 @@
-#ifndef THORIN_CMPOP
-#error "define THORIN_CMPOP before including this file"
+#ifndef THORIN_CMP
+#error "define THORIN_CMP before including this file"
 #endif
 
-THORIN_CMPOP(eq)
-THORIN_CMPOP(ne)
-THORIN_CMPOP(gt)
-THORIN_CMPOP(ge)
-THORIN_CMPOP(lt)
-THORIN_CMPOP(le)
+THORIN_CMP(eq)
+THORIN_CMP(ne)
+THORIN_CMP(gt)
+THORIN_CMP(ge)
+THORIN_CMP(lt)
+THORIN_CMP(le)
 
-#undef THORIN_CMPOP
+#undef THORIN_CMP

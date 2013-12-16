@@ -79,7 +79,7 @@ int Type::order() const {
 }
 
 bool Type::check_with(const Type* other) const {
-    if (this == other || this->isa<Generic>())
+    if (this == other || this->isa<Generic>() || this->isa<GenericRef>() || other->isa<Generic>() || other->isa<GenericRef>())
         return true;
 
     if (this->kind() != other->kind() || this->size() != other->size())

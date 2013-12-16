@@ -21,7 +21,7 @@
         THORIN_AIR_NODE(Global, global)
         THORIN_AIR_NODE(Slot, slot)
         //THORIN_AIR_NODE(ArithOp)
-        //THORIN_AIR_NODE(RelOp)
+        //THORIN_AIR_NODE(CmpOp)
         //THORIN_AIR_NODE(ConvOp)
         THORIN_AIR_NODE(ArrayAgg, array)
         THORIN_AIR_NODE(Tuple, tuple)

@@ -114,7 +114,7 @@ template<class T>
 T DefNode::primlit_value() const {
     const PrimLit* lit = this->as<PrimLit>();
     switch (lit->primtype_kind()) {
-#define THORIN_UF_TYPE(U) case PrimType_##U: return (T) lit->value().get_##U();
+#define THORIN_ALL_TYPE(U) case PrimType_##U: return (T) lit->value().get_##U();
 #include "thorin/tables/primtypetable.h"
         default: THORIN_UNREACHABLE;
     }

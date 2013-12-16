@@ -52,7 +52,7 @@ enum Markers {
 };
 
 enum PrimTypeKind {
-#define THORIN_UF_TYPE(T) PrimType_##T = Node_PrimType_##T,
+#define THORIN_ALL_TYPE(T) PrimType_##T = Node_PrimType_##T,
 #include "thorin/tables/primtypetable.h"
 };
 

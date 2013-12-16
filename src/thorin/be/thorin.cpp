@@ -64,7 +64,7 @@ std::ostream& CodeGen::emit_type(const Type* type) {
         if (primtype->is_vector())
             stream() << "<" << primtype->length() << " x ";
             switch (primtype->primtype_kind()) {
-#define THORIN_UF_TYPE(T) case Node_PrimType_##T: stream() << #T; break;
+#define THORIN_ALL_TYPE(T) case Node_PrimType_##T: stream() << #T; break;
 #include "thorin/tables/primtypetable.h"
             default: THORIN_UNREACHABLE;
         }
@@ -99,7 +99,7 @@ std::ostream& CodeGen::emit_primop(const PrimOp* primop) {
     else if (auto primlit = primop->isa<PrimLit>()) {
         emit_type(primop->type()) << ' ';
         switch (primlit->primtype_kind()) {
-#define THORIN_UF_TYPE(T) case PrimType_##T: stream() << primlit->T##_value(); break;
+#define THORIN_ALL_TYPE(T) case PrimType_##T: stream() << primlit->T##_value(); break;
 #include "thorin/tables/primtypetable.h"
             default: THORIN_UNREACHABLE; break;
         }

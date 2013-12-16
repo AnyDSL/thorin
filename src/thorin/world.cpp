@@ -63,7 +63,7 @@ World::World(std::string name)
     , pi0_    (keep(new Pi   (*this, ArrayRef<const Type*>())))
     , mem_    (keep(new Mem  (*this)))
     , frame_  (keep(new Frame(*this)))
-#define THORIN_UF_TYPE(T) ,T##_(keep(new PrimType(*this, PrimType_##T, 1)))
+#define THORIN_ALL_TYPE(T) ,T##_(keep(new PrimType(*this, PrimType_##T, 1)))
 #include "thorin/tables/primtypetable.h"
 {}
 

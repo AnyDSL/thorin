@@ -74,7 +74,7 @@ public:
      * types
      */
 
-#define THORIN_UF_TYPE(T) const PrimType* type_##T(size_t length = 1) { \
+#define THORIN_ALL_TYPE(T) const PrimType* type_##T(size_t length = 1) { \
     return length == 1 ? T##_ : unify(new PrimType(*this, PrimType_##T, length)); \
 }
 #include "thorin/tables/primtypetable.h"
@@ -102,7 +102,7 @@ public:
      * literals
      */
 
-#define THORIN_UF_TYPE(T) \
+#define THORIN_ALL_TYPE(T) \
     Def literal_##T(T val, size_t length = 1) { return literal(val, length); }
 #include "thorin/tables/primtypetable.h"
     Def literal(PrimTypeKind kind, Box value, size_t length = 1);
@@ -315,7 +315,7 @@ private:
 
     union {
         struct {
-#define THORIN_UF_TYPE(T) const PrimType* T##_;
+#define THORIN_ALL_TYPE(T) const PrimType* T##_;
 #include "thorin/tables/primtypetable.h"
         };
 

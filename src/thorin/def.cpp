@@ -95,7 +95,7 @@ bool DefNode::is_primlit(int val) const {
     if (auto lit = this->isa<PrimLit>()) {
         Box box = lit->value(); // TODO
         switch (lit->primtype_kind()) {
-#define THORIN_UF_TYPE(T) case PrimType_##T: return box.get_##T() == T(val);
+#define THORIN_ALL_TYPE(T) case PrimType_##T: return box.get_##T() == T(val);
 #include "thorin/tables/primtypetable.h"
         }
     }

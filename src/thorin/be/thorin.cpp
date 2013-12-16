@@ -172,7 +172,7 @@ void emit_thorin(World& world, bool fancy, bool nocolor) {
     for (auto top : top_level_lambdas(world)) {
         Scope scope(top);
         const DomTree domtree(scope);
-        Schedule schedule = schedule_early(scope);
+        Schedule schedule = schedule_smart(scope);
         for (auto lambda : scope) {
             int depth = fancy ? domtree.depth(lambda) : 0;
             cg.indent += depth;

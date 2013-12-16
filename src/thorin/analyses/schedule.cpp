@@ -91,20 +91,22 @@ static Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &def2late) {
     const DomTree domtree(scope);
     assert(def2late.empty());
 
-    auto decrease = [&] (Def def) {
-        for (auto op : def->ops()) {
-            auto i = def2num.find(op);
-            if (i != def2num.end()) {
-                int& num = i->second;
-                --num;
-                assert(num >= 0);
-                if (num == 0)
-                    zero.push_back(op);
-            }
-        }
-    };
-
     for (Lambda* cur : scope.backwards_rpo()) {
+        auto decrease = [&] (Def def) {
+            assert(scope.contains(def));
+            for (auto op : def->ops()) {
+                if (op->isa<PrimOp>() && scope.contains(op)) {
+                    Lambda*& late = def2late[op];
+                    late = late == nullptr ? cur : domtree.lca(late, cur);
+
+                    assert(def2num.find(op) != def2num.end());
+                    if (--def2num[op] == 0)
+                        zero.push_back(op);
+                    assert(def2num[op] >= 0);
+                }
+            }
+        };
+
         decrease(cur);
         def2late[cur] = cur;
 
@@ -114,14 +116,9 @@ static Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &def2late) {
             std::sort(zero.begin(), zero.end(), [] (Def def1, Def def2) { return !sort_primops; });
 
             for (auto z : zero) {
-                Lambda* late = cur;
                 const PrimOp* primop = z->as<PrimOp>();
-                for (auto use : primop->uses()) {
-                    if (scope.contains(use))
-                        late = domtree.lca(late, def2late[use]);
-                }
-
-                def2late[primop] = late;
+                auto late = def2late[primop];
+                assert(late);
                 schedule[late].push_back(primop);
                 remove.push_back(primop);
             }

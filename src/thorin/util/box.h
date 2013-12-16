@@ -1,5 +1,5 @@
-#ifndef THORIN_DSLU_BOX_H
-#define THORIN_DSLU_BOX_H
+#ifndef THORIN_UTIL_BOX_H
+#define THORIN_UTIL_BOX_H
 
 #include <cstring>
 
@@ -10,7 +10,6 @@ namespace thorin {
 
 union Box {
 public:
-
     Box()      { reset(); }
     Box( u1 u) { reset();   u1_ = u.get(); }
     Box( u8 u) { reset();   u8_ = u; }
@@ -19,7 +18,7 @@ public:
     Box(u64 u) { reset();  u64_ = u; }
     Box(f32 f) { reset();  f32_ = f; }
     Box(f64 f) { reset();  f64_ = f; }
-    Box(bool b)  { reset();   u1_ = b; }
+    Box(bool b){ reset();   u1_ = b; }
 
     bool operator == (const Box& other) const { return bcast<uint64_t, Box>(*this) == bcast<uint64_t, Box>(other); }
     // see blow for specializations
@@ -33,7 +32,6 @@ public:
     f64 get_f64() const { return f64_; }
 
 private:
-
     void reset() { memset(this, 0, sizeof(Box)); }
 
     bool  u1_;
@@ -55,6 +53,6 @@ template <> inline f64 Box::get<f64>() { return f64_; }
 
 inline size_t hash_value(Box box) { return hash_value(bcast<u64, Box>(box)); }
 
-} // namespace thorin
+}
 
-#endif // THORIN_DSLU_BOX_H
+#endif

@@ -9,25 +9,34 @@
 
 namespace thorin {
 
-typedef  int8_t  i8;
-typedef int16_t i16;
-typedef int32_t i32;
-typedef int64_t i64;
+typedef  int8_t  s8;
+typedef int16_t s16;
+typedef int32_t s32;
+typedef int64_t s64;
 
 typedef  uint8_t  u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
-typedef float    ff32;
-typedef double   ff64;
-typedef float    pf32;
-typedef double   pf64;
+typedef  int8_t  qs8;
+typedef int16_t qs16;
+typedef int32_t qs32;
+typedef int64_t qs64;
 
+typedef  uint8_t  qu8;
+typedef uint16_t qu16;
+typedef uint32_t qu32;
+typedef uint64_t qu64;
+
+typedef float    f32;
+typedef double   f64;
+
+typedef float    qf32;
+typedef double   qf64;
 
 class u1 {
 public:
-
     u1() {}
     u1(bool b) : b_(b) {}
     u1( i8 i) : b_(i & 1) {}
@@ -126,23 +135,15 @@ public:
     operator uint32_t() { return b_; }
 
 private:
-
     bool b_;
 };
 
-
-// TODO
-typedef u1 i1;
-
-template<class T> struct make_signed {};
-template<> struct make_signed< u1> { typedef  i1 type; };
-template<> struct make_signed< u8> { typedef  i8 type; };
-template<> struct make_signed<u16> { typedef i16 type; };
-template<> struct make_signed<u32> { typedef i32 type; };
-template<> struct make_signed<u64> { typedef i64 type; };
+typedef u1 s1;
+typedef u1 qu1;
+typedef u1 qs1;
 
 inline std::ostream& operator << (std::ostream& o, u1 u) { return o << ((unsigned) u.get()); }
 
-} // namespace thorin
+}
 
-#endif // THORIN_UTIL_TYPES_H
+#endif

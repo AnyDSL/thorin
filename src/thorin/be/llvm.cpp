@@ -440,7 +440,7 @@ llvm::Value* CodeGen::emit(Def def) {
         if (aggop->agg_type()->isa<Sigma>()) {
             unsigned i = aggop->index()->primlit_value<unsigned>();
 
-            if (auto extract = aggop->as<Extract>())
+            if (aggop->isa<Extract>())
                 return builder.CreateExtractValue(agg, { i });
 
             auto insert = def->as<Insert>();
@@ -462,7 +462,7 @@ llvm::Value* CodeGen::emit(Def def) {
             builder.CreateStore(lookup(aggop->as<Insert>()->value()), gep);
             return builder.CreateLoad(alloca);
         } else {
-            if (auto extract = aggop->as<Extract>())
+            if (aggop->isa<Extract>())
                 return builder.CreateExtractElement(agg, idx);
             return builder.CreateInsertElement(agg, lookup(aggop->as<Insert>()->value()), idx);
         }

@@ -113,7 +113,7 @@ static Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &def2late) {
         bool todo = true;
         do {
             std::vector<const PrimOp*> remove;
-            std::sort(zero.begin(), zero.end(), [] (Def def1, Def def2) { return !sort_primops; });
+            std::sort(zero.begin(), zero.end(), [] (Def def1, Def def2) { return !sort_primops(def1, def2); });
 
             for (auto z : zero) {
                 const PrimOp* primop = z->as<PrimOp>();

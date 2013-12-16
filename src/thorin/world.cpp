@@ -804,10 +804,9 @@ Def World::leave(Def mem, Def frame, const std::string& name) {
 }
 
 Def World::load(Def mem, Def ptr, const std::string& name) { 
-    if (auto store = mem->isa<Store>()) {
+    if (auto store = mem->isa<Store>())
         if (store->ptr() == ptr) {
             return store->val();
-        }
     }
 
     if (auto global = ptr->isa<Global>()) {

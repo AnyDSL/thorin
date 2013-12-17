@@ -311,85 +311,134 @@ llvm::Value* CodeGen::emit(Def def) {
         llvm::Value* lhs = lookup(bin->lhs());
         llvm::Value* rhs = lookup(bin->rhs());
 
-        if (auto rel = def->isa<RelOp>()) {
-            switch (rel->relop_kind()) {
-                case RelOp_cmp_eq:   return builder.CreateICmpEQ (lhs, rhs);
-                case RelOp_cmp_ne:   return builder.CreateICmpNE (lhs, rhs);
-
-                case RelOp_cmp_ugt:  return builder.CreateICmpUGT(lhs, rhs);
-                case RelOp_cmp_uge:  return builder.CreateICmpUGE(lhs, rhs);
-                case RelOp_cmp_ult:  return builder.CreateICmpULT(lhs, rhs);
-                case RelOp_cmp_ule:  return builder.CreateICmpULE(lhs, rhs);
-
-                case RelOp_cmp_sgt:  return builder.CreateICmpSGT(lhs, rhs);
-                case RelOp_cmp_sge:  return builder.CreateICmpSGE(lhs, rhs);
-                case RelOp_cmp_slt:  return builder.CreateICmpSLT(lhs, rhs);
-                case RelOp_cmp_sle:  return builder.CreateICmpSLE(lhs, rhs);
-
-                case RelOp_fcmp_oeq: return builder.CreateFCmpOEQ(lhs, rhs);
-                case RelOp_fcmp_one: return builder.CreateFCmpONE(lhs, rhs);
-
-                case RelOp_fcmp_ogt: return builder.CreateFCmpOGT(lhs, rhs);
-                case RelOp_fcmp_oge: return builder.CreateFCmpOGE(lhs, rhs);
-                case RelOp_fcmp_olt: return builder.CreateFCmpOLT(lhs, rhs);
-                case RelOp_fcmp_ole: return builder.CreateFCmpOLE(lhs, rhs);
-
-                case RelOp_fcmp_ueq: return builder.CreateFCmpUEQ(lhs, rhs);
-                case RelOp_fcmp_une: return builder.CreateFCmpUNE(lhs, rhs);
-
-                case RelOp_fcmp_ugt: return builder.CreateFCmpUGT(lhs, rhs);
-                case RelOp_fcmp_uge: return builder.CreateFCmpUGE(lhs, rhs);
-                case RelOp_fcmp_ult: return builder.CreateFCmpULT(lhs, rhs);
-                case RelOp_fcmp_ule: return builder.CreateFCmpULE(lhs, rhs);
-
-                case RelOp_fcmp_uno: return builder.CreateFCmpUNO(lhs, rhs);
-                case RelOp_fcmp_ord: return builder.CreateFCmpORD(lhs, rhs);
+        if (auto cmp = bin->isa<Cmp>()) {
+            if (cmp->lhs()->type()->is_type_s()) {
+                switch (cmp->cmp_kind()) {
+                    case Cmp_eq:  return builder.CreateICmpEQ (lhs, rhs);
+                    case Cmp_ne:  return builder.CreateICmpNE (lhs, rhs);
+                    case Cmp_gt:  return builder.CreateICmpSGT(lhs, rhs);
+                    case Cmp_ge:  return builder.CreateICmpSGE(lhs, rhs);
+                    case Cmp_lt:  return builder.CreateICmpSLT(lhs, rhs);
+                    case Cmp_le:  return builder.CreateICmpSLE(lhs, rhs);
+                }
+            } else if (cmp->lhs()->type()->is_type_u()) {
+                switch (cmp->cmp_kind()) {
+                    case Cmp_eq:  return builder.CreateICmpEQ (lhs, rhs);
+                    case Cmp_ne:  return builder.CreateICmpNE (lhs, rhs);
+                    case Cmp_gt:  return builder.CreateICmpUGT(lhs, rhs);
+                    case Cmp_ge:  return builder.CreateICmpUGE(lhs, rhs);
+                    case Cmp_lt:  return builder.CreateICmpULT(lhs, rhs);
+                    case Cmp_le:  return builder.CreateICmpULE(lhs, rhs);
+                }
+            } else if (cmp->lhs()->type()->is_type_pf()) {
+                switch (cmp->cmp_kind()) {
+                    case Cmp_eq: return builder.CreateFCmpOEQ(lhs, rhs);
+                    case Cmp_ne: return builder.CreateFCmpONE(lhs, rhs);
+                    case Cmp_gt: return builder.CreateFCmpOGT(lhs, rhs);
+                    case Cmp_ge: return builder.CreateFCmpOGE(lhs, rhs);
+                    case Cmp_lt: return builder.CreateFCmpOLT(lhs, rhs);
+                    case Cmp_le: return builder.CreateFCmpOLE(lhs, rhs);
+                }
+            } else if (cmp->lhs()->type()->is_type_qf()) {
+                switch (cmp->cmp_kind()) {
+                    case Cmp_eq: return builder.CreateFCmpUEQ(lhs, rhs);
+                    case Cmp_ne: return builder.CreateFCmpUNE(lhs, rhs);
+                    case Cmp_gt: return builder.CreateFCmpUGT(lhs, rhs);
+                    case Cmp_ge: return builder.CreateFCmpUGE(lhs, rhs);
+                    case Cmp_lt: return builder.CreateFCmpULT(lhs, rhs);
+                    case Cmp_le: return builder.CreateFCmpULE(lhs, rhs);
+                }
             }
         }
 
-        switch (def->as<ArithOp>()->arithop_kind()) {
-            case ArithOp_add:  return builder.CreateAdd (lhs, rhs);
-            case ArithOp_sub:  return builder.CreateSub (lhs, rhs);
-            case ArithOp_mul:  return builder.CreateMul (lhs, rhs);
-            case ArithOp_udiv: return builder.CreateUDiv(lhs, rhs);
-            case ArithOp_sdiv: return builder.CreateSDiv(lhs, rhs);
-            case ArithOp_urem: return builder.CreateURem(lhs, rhs);
-            case ArithOp_srem: return builder.CreateSRem(lhs, rhs);
-
-            case ArithOp_fadd: return builder.CreateFAdd(lhs, rhs);
-            case ArithOp_fsub: return builder.CreateFSub(lhs, rhs);
-            case ArithOp_fmul: return builder.CreateFMul(lhs, rhs);
-            case ArithOp_fdiv: return builder.CreateFDiv(lhs, rhs);
-            case ArithOp_frem: return builder.CreateFRem(lhs, rhs);
-
-            case ArithOp_and:  return builder.CreateAnd (lhs, rhs);
-            case ArithOp_or:   return builder.CreateOr  (lhs, rhs);
-            case ArithOp_xor:  return builder.CreateXor (lhs, rhs);
-
-            case ArithOp_shl:  return builder.CreateShl (lhs, rhs);
-            case ArithOp_lshr: return builder.CreateLShr(lhs, rhs);
-            case ArithOp_ashr: return builder.CreateAShr(lhs, rhs);
+        if (auto arithop = bin->isa<ArithOp>()) {
+            if (arithop->lhs()->type()->is_type_f()) {
+                switch (arithop->arithop_kind()) {
+                    case ArithOp_add: return builder.CreateFAdd(lhs, rhs);
+                    case ArithOp_sub: return builder.CreateFSub(lhs, rhs);
+                    case ArithOp_mul: return builder.CreateFMul(lhs, rhs);
+                    case ArithOp_div: return builder.CreateFDiv(lhs, rhs);
+                    case ArithOp_rem: return builder.CreateFRem(lhs, rhs);
+                    case ArithOp_and:
+                    case ArithOp_or:
+                    case ArithOp_xor:
+                    case ArithOp_shl:
+                    case ArithOp_shr: THORIN_UNREACHABLE;
+                }
+            }
+            if (arithop->lhs()->type()->is_type_s()) {
+                switch (arithop->arithop_kind()) {
+                    case ArithOp_add: return builder.CreateAdd (lhs, rhs);
+                    case ArithOp_sub: return builder.CreateSub (lhs, rhs);
+                    case ArithOp_mul: return builder.CreateMul (lhs, rhs);
+                    case ArithOp_div: return builder.CreateSDiv(lhs, rhs);
+                    case ArithOp_rem: return builder.CreateSRem(lhs, rhs);
+                    case ArithOp_and: return builder.CreateAnd (lhs, rhs);
+                    case ArithOp_or:  return builder.CreateOr  (lhs, rhs);
+                    case ArithOp_xor: return builder.CreateXor (lhs, rhs);
+                    case ArithOp_shl: return builder.CreateShl (lhs, rhs);
+                    case ArithOp_shr: return builder.CreateAShr(lhs, rhs);
+                }
+            }
+            if (arithop->lhs()->type()->is_type_u()) {
+                switch (arithop->arithop_kind()) {
+                    case ArithOp_add: return builder.CreateAdd (lhs, rhs);
+                    case ArithOp_sub: return builder.CreateSub (lhs, rhs);
+                    case ArithOp_mul: return builder.CreateMul (lhs, rhs);
+                    case ArithOp_div: return builder.CreateUDiv(lhs, rhs);
+                    case ArithOp_rem: return builder.CreateURem(lhs, rhs);
+                    case ArithOp_and: return builder.CreateAnd (lhs, rhs);
+                    case ArithOp_or:  return builder.CreateOr  (lhs, rhs);
+                    case ArithOp_xor: return builder.CreateXor (lhs, rhs);
+                    case ArithOp_shl: return builder.CreateShl (lhs, rhs);
+                    case ArithOp_shr: return builder.CreateLShr(lhs, rhs);
+                }
+            }
         }
     }
 
     if (auto conv = def->isa<ConvOp>()) {
-        llvm::Value* from = lookup(conv->from());
-        llvm::Type* to = map(conv->type());
+        auto from = lookup(conv->from());
+        auto src = conv->from()->type()->as<PrimType>();
+        auto dst = conv->type()->as<PrimType>();
+        auto to = map(dst);
 
-        switch (conv->convop_kind()) {
-            case ConvOp_trunc:    return builder.CreateTrunc   (from, to);
-            case ConvOp_zext:     return builder.CreateZExt    (from, to);
-            case ConvOp_sext:     return builder.CreateSExt    (from, to);
-            case ConvOp_stof:     return builder.CreateSIToFP  (from, to);
-            case ConvOp_utof:     return builder.CreateSIToFP  (from, to);
-            case ConvOp_ftrunc:   return builder.CreateFPTrunc (from, to);
-            case ConvOp_ftos:     return builder.CreateFPToSI  (from, to);
-            case ConvOp_ftou:     return builder.CreateFPToUI  (from, to);
-            case ConvOp_fext:     return builder.CreateFPExt   (from, to);
-            case ConvOp_bitcast:  return builder.CreateBitCast (from, to);
-            case ConvOp_inttoptr: return builder.CreateIntToPtr(from, to);
-            case ConvOp_ptrtoint: return builder.CreatePtrToInt(from, to);
+        if (conv->isa<Cast>()) {
+            if (src->isa<Ptr>()) {
+                assert(dst->is_type_i());
+                return builder.CreatePtrToInt(from, to);
+            }
+            if (dst->isa<Ptr>()) {
+                assert(src->is_type_i());
+                return builder.CreateIntToPtr(from, to);
+            }
+            if (src->is_type_f() && dst->is_type_f()) {
+                assert(num_bits(src->primtype_kind()) != num_bits(dst->primtype_kind()));
+                return builder.CreateFPCast(from, to);
+            } 
+            if (src->is_type_f()) {
+                if (dst->is_type_s())
+                    return builder.CreateFPToSI(from, to);
+                return builder.CreateFPToUI(from, to);
+            }
+            if (dst->is_type_f()) {
+                if (src->is_type_s())
+                    return builder.CreateSIToFP(from, to);
+                return builder.CreateSIToFP(from, to);
+            }
+            if (src->is_type_i() && dst->is_type_i() && (num_bits(src->primtype_kind()) > num_bits(dst->primtype_kind())))
+                return builder.CreateTrunc(from, to);
+            if (src->is_type_s() && dst->is_type_s() && (num_bits(src->primtype_kind()) < num_bits(dst->primtype_kind())))
+                return builder.CreateSExt(from, to);
+            if (src->is_type_u() && dst->is_type_u() && (num_bits(src->primtype_kind()) < num_bits(dst->primtype_kind())))
+                return builder.CreateZExt(from, to);
+
+            assert(from->getType() == to);
+            return from;
         }
+
+        if (conv->isa<Bitcast>())
+            return builder.CreateBitCast(from, to);
     }
 
     if (auto select = def->isa<Select>()) {
@@ -473,13 +522,13 @@ llvm::Value* CodeGen::emit(Def def) {
         Box box = primlit->value();
 
         switch (primlit->primtype_kind()) {
-            case PrimType_u1:  return builder.getInt1(box.get_u1().get());
-            case PrimType_u8:  return builder.getInt8(box.get_u8());
-            case PrimType_u16: return builder.getInt16(box.get_u16());
-            case PrimType_u32: return builder.getInt32(box.get_u32());
-            case PrimType_u64: return builder.getInt64(box.get_u64());
-            case PrimType_f32: return llvm::ConstantFP::get(type, box.get_f32());
-            case PrimType_f64: return llvm::ConstantFP::get(type, box.get_f64());
+            case PrimType_ps1:  case PrimType_qs1:  case PrimType_pu1:  case PrimType_qu1:  return builder.getInt1(box.get_u1().get());
+            case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  return builder.getInt8(box.get_u8());
+            case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: return builder.getInt16(box.get_u16());
+            case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: return builder.getInt32(box.get_u32());
+            case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: return builder.getInt64(box.get_u64());
+            case PrimType_pf32: case PrimType_qf32:                                         return llvm::ConstantFP::get(type, box.get_f32());
+            case PrimType_pf64: case PrimType_qf64:                                         return llvm::ConstantFP::get(type, box.get_f64());
         }
     }
 
@@ -501,7 +550,7 @@ llvm::Value* CodeGen::emit(Def def) {
     if (auto vector = def->isa<Vector>()) {
         llvm::Value* vec = llvm::UndefValue::get(map(vector->type()));
         for (size_t i = 0, e = vector->size(); i != e; ++i)
-            vec = builder.CreateInsertElement(vec, lookup(vector->op(i)), lookup(world.literal_u32(i)));
+            vec = builder.CreateInsertElement(vec, lookup(vector->op(i)), lookup(world.literal_pu32(i)));
 
         return vec;
     }
@@ -522,15 +571,17 @@ llvm::Type* CodeGen::map(const Type* type) {
     assert(!type->isa<Mem>());
     llvm::Type* llvm_type;
     switch (type->kind()) {
-        case Node_PrimType_u1:  llvm_type = llvm::IntegerType::get(context,  1); break;
-        case Node_PrimType_u8:  llvm_type = llvm::IntegerType::get(context,  8); break;
-        case Node_PrimType_u16: llvm_type = llvm::IntegerType::get(context, 16); break;
-        case Node_PrimType_u32: llvm_type = llvm::IntegerType::get(context, 32); break;
-        case Node_PrimType_u64: llvm_type = llvm::IntegerType::get(context, 64); break;
-        case Node_PrimType_f32: llvm_type = llvm::Type::getFloatTy(context);     break;
-        case Node_PrimType_f64: llvm_type = llvm::Type::getDoubleTy(context);    break;
-        case Node_Ptr:          llvm_type = llvm::PointerType::getUnqual(map(type->as<Ptr>()->referenced_type())); break;
-        case Node_IndefArray:   return llvm::ArrayType::get(map(type->as<ArrayType>()->elem_type()), 0);
+        case PrimType_ps1:  case PrimType_qs1:  case PrimType_pu1:  case PrimType_qu1:  llvm_type = llvm::IntegerType::get(context,  1); break;
+        case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  llvm_type = llvm::IntegerType::get(context,  8); break;
+        case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: llvm_type = llvm::IntegerType::get(context, 16); break;
+        case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: llvm_type = llvm::IntegerType::get(context, 32); break;
+        case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: llvm_type = llvm::IntegerType::get(context, 64); break;
+        case PrimType_pf32: case PrimType_qf32:                                         llvm_type = llvm::Type::getFloatTy(context);     break;
+        case PrimType_pf64: case PrimType_qf64:                                         llvm_type = llvm::Type::getDoubleTy(context);    break;
+        case Node_Ptr: 
+            llvm_type = llvm::PointerType::getUnqual(map(type->as<Ptr>()->referenced_type())); break;
+        case Node_IndefArray: 
+            return llvm::ArrayType::get(map(type->as<ArrayType>()->elem_type()), 0);
         case Node_DefArray: {
             auto array = type->as<DefArray>();
             return llvm::ArrayType::get(map(array->elem_type()), array->dim());

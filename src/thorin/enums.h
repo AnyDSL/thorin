@@ -60,8 +60,18 @@ enum CmpKind {
 #include "thorin/tables/cmptable.h"
 };
 
-inline bool is_int(int kind)     { return (int) Begin_PrimType_ps <= kind && kind < (int) End_PrimType_qu; }
-inline bool is_float(int kind)   { return (int) Begin_PrimType_pf <= kind && kind < (int) End_PrimType_qf; }
+inline bool is_type_ps(int kind) { return (int) Begin_PrimType_ps <= kind && kind < (int) End_PrimType_ps; }
+inline bool is_type_pu(int kind) { return (int) Begin_PrimType_pu <= kind && kind < (int) End_PrimType_pu; }
+inline bool is_type_qs(int kind) { return (int) Begin_PrimType_qs <= kind && kind < (int) End_PrimType_qs; }
+inline bool is_type_qu(int kind) { return (int) Begin_PrimType_qu <= kind && kind < (int) End_PrimType_qu; }
+inline bool is_type_pf(int kind) { return (int) Begin_PrimType_pf <= kind && kind < (int) End_PrimType_pf; }
+inline bool is_type_qf(int kind) { return (int) Begin_PrimType_qf <= kind && kind < (int) End_PrimType_qf; }
+
+inline bool is_type_s(int kind) { return is_type_ps(kind) || is_type_qs(kind); }
+inline bool is_type_u(int kind) { return is_type_pu(kind) || is_type_qu(kind); }
+inline bool is_type_i(int kind) { return is_type_s (kind) || is_type_u (kind); }
+inline bool is_type_f(int kind) { return is_type_pf(kind) || is_type_qf(kind); }
+
 inline bool is_corenode(int kind){ return (int) Begin_AllNodes <= kind && kind < (int) End_AllNodes; }
 inline bool is_primtype(int kind){ return (int) Begin_PrimType <= kind && kind < (int) End_PrimType; }
 inline bool is_arithop(int kind) { return (int) Begin_ArithOp <= kind && kind < (int) End_ArithOp; }

@@ -61,10 +61,22 @@ public:
     bool infer_with(GenericMap& map, const Type* type) const;
     const Type* specialize(const GenericMap&) const;
     bool is_generic() const { return is_generic_; }
+
     bool is_u1() const { return kind() == Node_PrimType_pu1 || kind() == Node_PrimType_qu1; }
-    bool is_int() const { return thorin::is_int(kind()); }
-    bool is_float() const { return thorin::is_float(kind()); }
     bool is_primtype() const { return thorin::is_primtype(kind()); }
+
+    bool is_type_ps() const { return thorin::is_type_ps(kind()); }
+    bool is_type_pu() const { return thorin::is_type_pu(kind()); }
+    bool is_type_qs() const { return thorin::is_type_qs(kind()); }
+    bool is_type_qu() const { return thorin::is_type_qu(kind()); }
+    bool is_type_pf() const { return thorin::is_type_pf(kind()); }
+    bool is_type_qf() const { return thorin::is_type_qf(kind()); }
+
+    bool is_type_s() const { return thorin::is_type_s(kind()); }
+    bool is_type_u() const { return thorin::is_type_u(kind()); }
+    bool is_type_i() const { return thorin::is_type_i(kind()); }
+    bool is_type_f() const { return thorin::is_type_f(kind()); }
+
     size_t gid() const { return gid_; }
     int order() const;
     virtual size_t hash() const;

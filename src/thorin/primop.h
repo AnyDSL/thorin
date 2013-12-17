@@ -105,7 +105,7 @@ private:
     Cmp(CmpKind kind, Def cond, Def lhs, Def rhs, const std::string& name);
 
 public:
-    CmpKind relop_kind() const { return (CmpKind) kind(); }
+    CmpKind cmp_kind() const { return (CmpKind) kind(); }
     virtual const char* op_name() const;
 
     friend class World;

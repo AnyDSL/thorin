@@ -116,7 +116,7 @@ public:
     Def one(PrimTypeKind kind, size_t length = 1) { return literal(kind, 1, length); }
     Def one(const Type*, size_t length = 1);
     Def allset(PrimTypeKind kind, size_t length = 1) {
-        assert(is_int(kind) && "must not be a float");
+        assert(is_type_u(kind) && "must not be a float");
         return literal(kind, -1, length);
     }
     Def allset(const Type*, size_t length = 1);

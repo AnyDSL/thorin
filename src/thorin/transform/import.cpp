@@ -56,7 +56,8 @@ Def import(Type2Type& type_old2new, Def2Def& def_old2new, World& to, Def odef) {
         return def_old2new[oprimop] = World::rebuild(to, oprimop, nops, ntype);
 
     assert(nlambda && &nlambda->world() == &to);
-    nlambda->jump(nops[0], nops.slice_from_begin(1));
+    if (size > 0)
+        nlambda->jump(nops[0], nops.slice_from_begin(1));
     return nlambda;
 }
 

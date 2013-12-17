@@ -6,8 +6,7 @@ namespace thorin {
 #define THORIN_AIR_NODE(node, abbr) static_assert(Node_##node == (NodeKind) zzzMarker_##node,             "NodeKind value not equal zzzMarker");
 #define THORIN_PRIMTYPE(T)          static_assert(Node_PrimType_##T == (NodeKind) zzzMarker_PrimType_##T, "NodeKind value not equal zzzMarker");
 #define THORIN_ARITHOP(op)          static_assert(Node_##op == (NodeKind) zzzMarker_##op,                 "NodeKind value not equal zzzMarker");
-#define THORIN_RELOP(op)            static_assert(Node_##op == (NodeKind) zzzMarker_##op,                 "NodeKind value not equal zzzMarker");
-#define THORIN_CONVOP(op)           static_assert(Node_##op == (NodeKind) zzzMarker_##op,                 "NodeKind value not equal zzzMarker");
+#define THORIN_CMP(op)              static_assert(Node_##op == (NodeKind) zzzMarker_##op,                 "NodeKind value not equal zzzMarker");
 #include "thorin/tables/allnodes.h"
 
 const char* kind2str(NodeKind kind) {
@@ -16,8 +15,7 @@ const char* kind2str(NodeKind kind) {
 #define THORIN_PRIMTYPE(T)         case Node_PrimType_##T: return #T;
 #define THORIN_AIR_NODE(n, abbr)   case Node_##n: return #n;
 #define THORIN_ARITHOP(n)          case Node_##n: return #n;
-#define THORIN_RELOP(n)            case Node_##n: return #n;
-#define THORIN_CONVOP(n)           case Node_##n: return #n;
+#define THORIN_CMP(n)            case Node_##n: return #n;
 #include "thorin/tables/allnodes.h"
                                     default: THORIN_UNREACHABLE;
     }
@@ -25,18 +23,16 @@ const char* kind2str(NodeKind kind) {
 
 int num_bits(PrimTypeKind kind) {
     switch (kind) {
-        case PrimType_u1:  return 1;
-        case PrimType_u8:  return 8;
-        case PrimType_u16: return 16;
-        case PrimType_u32: return 32;
-        case PrimType_u64: return 64;
-        case PrimType_f32: return 32;
-        case PrimType_f64: return 64;
+        case PrimType_ps1:  case PrimType_qs1:  case PrimType_pu1:  case PrimType_qu1:  return 1;
+        case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  return 8;
+        case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: return 16;
+        case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: case PrimType_pf32: case PrimType_qf32: return 32;
+        case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: case PrimType_pf64: case PrimType_qf64: return 64;
     }
     THORIN_UNREACHABLE;
 }
 
-RelOpKind negate(CmpKind kind) {
+CmpKind negate(CmpKind kind) {
     switch (kind) {
         case Cmp_eq: return Cmp_ne;
         case Cmp_ne: return Cmp_eq;

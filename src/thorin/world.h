@@ -171,18 +171,10 @@ public:
     }
 #include "thorin/tables/cmptable.h"
 
-    Def convop(ConvOpKind kind, Def cond, Def from, const Type* to, const std::string& name = "");
-    Def convop(ConvOpKind kind, Def from, const Type* to, const std::string& name = "") {
-        return convop(kind, true_mask(from), from, to, name);
-    }
-#define THORIN_CONVOP(OP) \
-    Def convop_##OP(Def from, Def cond, const Type* to, const std::string& name = "") { \
-        return convop(ConvOp_##OP, cond, from, to, name); \
-    } \
-    Def convop_##OP(Def from, const Type* to, const std::string& name = "") { \
-        return convop(ConvOp_##OP, true_mask(from), from, to, name); \
-    }
-#include "thorin/tables/convoptable.h"
+    Def cast(Def cond, Def from, const Type* to, const std::string& name = "");
+    Def cast(Def from, const Type* to, const std::string& name = "") { return cast(true_mask(from), from, to, name); }
+    Def bitcast(Def cond, Def from, const Type* to, const std::string& name = "");
+    Def bitcast(Def from, const Type* to, const std::string& name = "") { return bitcast(true_mask(from), from, to, name); }
 
     /*
      * aggregate stuff

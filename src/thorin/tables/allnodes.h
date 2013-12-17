@@ -18,10 +18,6 @@
 #error "define THORIN_CMP before including this file"
 #endif
 
-#ifndef THORIN_CONVOP
-#error "define THORIN_CONVOP before including this file"
-#endif
-
 #include "thorin/tables/nodetable.h"
     THORIN_GLUE(Node, PrimType_ps)
 #define THORIN_PS_TYPE(T) THORIN_PRIMTYPE(T)
@@ -45,12 +41,9 @@
 #include "thorin/tables/arithoptable.h"
     THORIN_GLUE(ArithOp, Cmp)
 #include "thorin/tables/cmptable.h"
-    THORIN_GLUE(Cmp, ConvOp)
-#include "thorin/tables/convoptable.h"
 
 #undef THORIN_GLUE
 #undef THORIN_AIR_NODE
 #undef THORIN_PRIMTYPE
 #undef THORIN_ARITHOP
 #undef THORIN_CMP
-#undef THORIN_CONVOP

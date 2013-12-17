@@ -170,16 +170,8 @@ const char* ArithOp::op_name() const {
 
 const char* Cmp::op_name() const {
     switch (kind()) {
-#define THORIN_RELOP(op) case Cmp_##op: return #op;
-#include "thorin/tables/reloptable.h"
-        default: THORIN_UNREACHABLE;
-    }
-}
-
-const char* ConvOp::op_name() const {
-    switch (kind()) {
-#define THORIN_CONVOP(op) case ConvOp_##op: return #op;
-#include "thorin/tables/convoptable.h"
+#define THORIN_CMP(op) case Cmp_##op: return #op;
+#include "thorin/tables/cmptable.h"
         default: THORIN_UNREACHABLE;
     }
 }

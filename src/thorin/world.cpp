@@ -516,6 +516,8 @@ Def World::cmp(CmpKind kind, Def cond, Def a, Def b, const std::string& name) {
     return cse(new Cmp(kind, cond, a, b, name));
 }
 
+#if 0
+
 static i64 box2i64(PrimTypeKind kind, Box box) {
     switch (kind) {
 #define THORIN_U_TYPE(T) case PrimType_##T: return (i64) (make_signed<T>::type) box.get_##T();
@@ -602,6 +604,7 @@ Def World::convop(ConvOpKind kind, Def cond, Def from, const Type* to, const std
 
     return cse(new ConvOp(kind, cond, from, to, name));
 }
+#endif
 
 Def World::extract(Def agg, Def index, const std::string& name) {
     if (agg->isa<Bottom>())

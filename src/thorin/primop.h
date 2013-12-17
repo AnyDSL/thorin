@@ -114,17 +114,31 @@ public:
 //------------------------------------------------------------------------------
 
 class ConvOp : public VectorOp {
-private:
-    ConvOp(ConvOpKind kind, Def cond, Def from, const Type* to, const std::string& name)
-        : VectorOp(2, (NodeKind) kind, to, cond, name)
+protected:
+    ConvOp(NodeKind kind, Def cond, Def from, const Type* to, const std::string& name)
+        : VectorOp(2, kind, to, cond, name)
     {
         set_op(1, from);
     }
 
 public:
     Def from() const { return op(1); }
-    ConvOpKind convop_kind() const { return (ConvOpKind) kind(); }
-    virtual const char* op_name() const;
+};
+
+class Cast : public ConvOp {
+private:
+    Cast(Def cond, Def from, const Type* to, const std::string& name)
+        : ConvOp(Node_Cast, cond, from, to, name)
+    {}
+
+    friend class World;
+};
+
+class Bitcast : public ConvOp {
+private:
+    Bitcast(Def cond, Def from, const Type* to, const std::string& name)
+        : ConvOp(Node_Bitcast, cond, from, to, name)
+    {}
 
     friend class World;
 };

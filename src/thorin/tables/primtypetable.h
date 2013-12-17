@@ -15,8 +15,40 @@
 #define THORIN_QF_TYPE(T) THORIN_Q_TYPE(T)
 #endif
 
+#ifdef THORIN_I_TYPE
+#define THORIN_PS_TYPE(T) THORIN_I_TYPE(T)
+#define THORIN_PU_TYPE(T) THORIN_I_TYPE(T)
+#define THORIN_QS_TYPE(T) THORIN_I_TYPE(T)
+#define THORIN_QU_TYPE(T) THORIN_I_TYPE(T)
+#endif
+
+#ifdef THORIN_F_TYPE
+#define THORIN_PF_TYPE(T) THORIN_F_TYPE(T)
+#define THORIN_QF_TYPE(T) THORIN_F_TYPE(T)
+#endif
+
 #ifndef THORIN_PS_TYPE
 #define THORIN_PS_TYPE(T)
+#endif
+
+#ifdef  THORIN_JUST_U_TYPE
+#error "THORIN_JUST_U_TYPE"
+#endif
+
+#ifdef  THORIN_JUST_F_TYPE
+#error "THORIN_JUST_F_TYPE"
+#endif
+
+#ifdef  THORIN_UF_TYPE
+#error "THORIN_UF_TYPE"
+#endif
+
+#ifdef  THORIN_U_TYPE
+#error "THORIN_U_TYPE"
+#endif
+
+#ifdef  THORIN_F_TYPE
+#warning "THORIN_F_TYPE"
 #endif
 
 THORIN_PS_TYPE(ps1)

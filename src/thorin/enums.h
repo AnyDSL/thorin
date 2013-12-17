@@ -14,7 +14,6 @@ enum NodeKind {
 #define THORIN_PRIMTYPE(T) Node_PrimType_##T,
 #define THORIN_ARITHOP(op) Node_##op,
 #define THORIN_CMP(op) Node_##op,
-#define THORIN_CONVOP(op) Node_##op,
 #include "thorin/tables/allnodes.h"
 };
 
@@ -27,11 +26,10 @@ enum Markers {
 #define THORIN_PRIMTYPE(T) zzzMarker_PrimType_##T,
 #define THORIN_ARITHOP(op) zzzMarker_##op,
 #define THORIN_CMP(op) zzzMarker_##op,
-#define THORIN_CONVOP(op) zzzMarker_##op,
 #include "thorin/tables/allnodes.h"
-    End_ConvOp,
+    End_Cmp,
     Begin_Node = 0,
-    End_AllNodes    = End_ConvOp,
+    End_AllNodes    = End_Cmp,
 
     Begin_AllNodes  = Begin_Node,
 
@@ -43,7 +41,6 @@ enum Markers {
 
     Num_ArithOps    = End_ArithOp    - Begin_ArithOp,
     Num_Cmps        = End_Cmp        - Begin_Cmp,
-    Num_ConvOps     = End_ConvOp     - Begin_ConvOp,
 
     Num_PrimTypes   = End_PrimType_qf - Begin_PrimType_ps,
 };
@@ -63,18 +60,12 @@ enum CmpKind {
 #include "thorin/tables/cmptable.h"
 };
 
-enum ConvOpKind {
-#define THORIN_CONVOP(op) ConvOp_##op = Node_##op,
-#include "thorin/tables/convoptable.h"
-};
-
 inline bool is_int(int kind)     { return (int) Begin_PrimType_ps <= kind && kind < (int) End_PrimType_qu; }
 inline bool is_float(int kind)   { return (int) Begin_PrimType_pf <= kind && kind < (int) End_PrimType_qf; }
 inline bool is_corenode(int kind){ return (int) Begin_AllNodes <= kind && kind < (int) End_AllNodes; }
 inline bool is_primtype(int kind){ return (int) Begin_PrimType <= kind && kind < (int) End_PrimType; }
 inline bool is_arithop(int kind) { return (int) Begin_ArithOp <= kind && kind < (int) End_ArithOp; }
 inline bool is_cmp(int kind)     { return (int) Begin_Cmp   <= kind && kind < (int) End_Cmp; }
-inline bool is_convop(int kind)  { return (int) Begin_ConvOp  <= kind && kind < (int) End_ConvOp; }
 
 inline bool is_bitop(int kind) { return  kind == ArithOp_and || kind == ArithOp_or || kind == ArithOp_xor; }
 inline bool is_shift(int kind) { return  kind == ArithOp_shl || kind == ArithOp_shr; }

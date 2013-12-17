@@ -70,10 +70,10 @@ bool CodeGen::emit_prg(const Scope* prg) {
                 lambda->attribute().set(Lambda::Intrinsic);
             lambda->name = proto->symbol().str();
             // HACK: eliminate this hack
-            if (lambda->name == "accelerator")
-                lambda->attribute().set(Lambda::Accelerator);
-            if (lambda->name == "get_stencil_array")
-                lambda->attribute().set(Lambda::StencilAr);
+            if (lambda->name == "nvvm")
+                lambda->attribute().set(Lambda::NVVM);
+            if (lambda->name == "spir")
+                lambda->attribute().set(Lambda::SPIR);
             if (lambda->name == "array")
                 lambda->attribute().set(Lambda::ArrayInit);
             if (lambda->name == "vectorized_loop")

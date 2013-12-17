@@ -26,6 +26,7 @@
 #include <wfvInterface.h>
 #endif
 
+#include "thorin/be/llvm_decls.h"
 #include "thorin/def.h"
 #include "thorin/lambda.h"
 #include "thorin/literal.h"
@@ -35,6 +36,7 @@
 #include "thorin/world.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/transform/import.h"
 #include "thorin/util/array.h"
 
 namespace thorin {
@@ -48,24 +50,34 @@ typedef LambdaMap<llvm::BasicBlock*> BBMap;
 
 class CodeGen {
 public:
-    CodeGen(World& world)
+    CodeGen(World& world, llvm::CallingConv::ID calling_convention)
         : world(world)
         , context()
         , builder(context)
         , module(new llvm::Module(world.name(), context))
+        , llvm_decls(context, module)
+        , calling_convention(calling_convention)
     {}
 
-    void emit();
+    template<typename DeclFunc, typename IntrinsicFunc>
+    void emit(DeclFunc func, IntrinsicFunc ifunc);
     llvm::Type* map(const Type* type);
     llvm::Value* emit(Def def);
     llvm::Value* lookup(Def def);
     llvm::AllocaInst* emit_alloca(llvm::Type*, const std::string& name);
 
 private:
+    Lambda* emit_builtin(Lambda* lambda);
+    Lambda* emit_nvvm(Lambda* lambda);
+    Lambda* emit_spir(Lambda* lambda);
+
+private:
     World& world;
     llvm::LLVMContext context;
-    llvm::IRBuilder<> builder;
     AutoPtr<llvm::Module> module;
+    llvm::IRBuilder<> builder;
+    LLVMDecls llvm_decls;
+    llvm::CallingConv::ID calling_convention;
     std::unordered_map<const Param*, llvm::Value*> params;
     std::unordered_map<const Param*, llvm::PHINode*> phis;
     std::unordered_map<const PrimOp*, llvm::Value*> primops;
@@ -74,19 +86,167 @@ private:
 
 //------------------------------------------------------------------------------
 
-void CodeGen::emit() {
-    std::unordered_map<Lambda*, const Param*> ret_map;
+Lambda* CodeGen::emit_nvvm(Lambda* lambda)
+{
+    // to-target is the desired cuda call
+    // target(mem, size, body, return, free_vars)
+    Lambda* target = lambda->to()->as_lambda();
+    assert(target->is_builtin() && target->attribute().is(Lambda::NVVM));
+    assert(lambda->num_args() > 3 && "required arguments are missing");
+    // get input
+    const uint64_t it_space_x = lambda->arg(1)->as<PrimLit>()->u64_value();
+    Lambda* kernel = lambda->arg(2)->as_lambda();
+    Lambda* ret = lambda->arg(3)->as_lambda();
+
+    // load kernel
+    llvm::Value* module_name = builder.CreateGlobalStringPtr(kernel->unique_name());
+    llvm::Value* kernel_name = builder.CreateGlobalStringPtr("kernel");
+    llvm::Value* load_args[] = { module_name, kernel_name };
+    builder.CreateCall(llvm_decls.get_nvvm_load_kernel(), load_args);
+    // fetch values and create external calls for intialization
+    std::vector<std::pair<llvm::Value*, llvm::Constant*>> device_ptrs;
+    for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
+        Def cuda_param = lambda->arg(i);
+        uint64_t num_elems = uint64_t(-1);
+        if (const ArrayAgg* array_value = cuda_param->isa<ArrayAgg>())
+            num_elems = (uint64_t)array_value->size();
+        llvm::Constant* size = llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), num_elems);
+        auto alloca = builder.CreateAlloca(llvm_decls.get_nvvm_device_ptr_type());
+        auto device_ptr = builder.CreateCall(llvm_decls.get_nvvm_malloc_memory(), size);
+        // store device ptr
+        builder.CreateStore(device_ptr, alloca);
+        auto loaded_device_ptr = builder.CreateLoad(alloca);
+        device_ptrs.push_back(std::pair<llvm::Value*, llvm::Constant*>(loaded_device_ptr, size));
+        llvm::Value* mem_args[] = { loaded_device_ptr, builder.CreateBitCast(lookup(cuda_param), builder.getInt8PtrTy()), size };
+        builder.CreateCall(llvm_decls.get_nvvm_write_memory(), mem_args);
+        builder.CreateCall(llvm_decls.get_nvvm_set_kernel_arg(), { alloca });
+    }
+    // setup problem size
+    llvm::Value* problem_size_args[] = {
+        llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), it_space_x),
+        llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), 1),
+        llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), 1)
+    };
+    builder.CreateCall(llvm_decls.get_nvvm_set_problem_size(), problem_size_args);
+    // launch
+    builder.CreateCall(llvm_decls.get_nvvm_launch_kernel(), { kernel_name });
+    // synchronize
+    builder.CreateCall(llvm_decls.get_nvvm_synchronize());
+
+    // back-fetch to cpu
+    for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
+        Def cuda_param = lambda->arg(i);
+        const Type* param_type = cuda_param->type();
+        auto entry = device_ptrs[i - 4];
+        // need to fetch back memory
+        llvm::Value* args[] = { entry.first, builder.CreateBitCast(lookup(cuda_param), builder.getInt8PtrTy()), entry.second };
+        builder.CreateCall(llvm_decls.get_nvvm_read_memory(), args);
+    }
+
+    // free memory
+    for (auto device_ptr : device_ptrs)
+        builder.CreateCall(llvm_decls.get_nvvm_free_memory(), { device_ptr.first });
+    return ret;
+}
+
+Lambda* CodeGen::emit_spir(Lambda* lambda)
+{
+    Lambda* target = lambda->to()->as_lambda();
+    assert(target->is_builtin() && target->attribute().is(Lambda::SPIR));
+    assert(lambda->num_args() > 3 && "required arguments are missing");
+    // get input
+    const uint64_t it_space_x = lambda->arg(1)->as<PrimLit>()->u64_value();
+    Lambda* kernel = lambda->arg(2)->as_lambda();
+    Lambda* ret = lambda->arg(3)->as_lambda();
+    // load kernel
+    llvm::Value* module_name = builder.CreateGlobalStringPtr(kernel->unique_name());
+    llvm::Value* kernel_name = builder.CreateGlobalStringPtr("kernel");
+    llvm::Value* load_args[] = { module_name, kernel_name };
+    builder.CreateCall(llvm_decls.get_spir_build_program_and_kernel(), load_args);
+    // fetch values and create external calls for initialization
+    std::vector<std::pair<llvm::Value*, llvm::Constant*>> device_ptrs;
+    for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
+        Def spir_param = lambda->arg(i);
+        uint64_t num_elems = uint64_t(-1);
+        if (const ArrayAgg* array_value = spir_param->isa<ArrayAgg>())
+            num_elems = (uint64_t)array_value->size();
+        llvm::Constant* size = llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), num_elems);
+        auto alloca = builder.CreateAlloca(llvm_decls.get_spir_device_ptr_type());
+        auto device_ptr = builder.CreateCall(llvm_decls.get_spir_malloc_buffer(), size);
+        // store device ptr
+        builder.CreateStore(device_ptr, alloca);
+        auto loaded_device_ptr = builder.CreateLoad(alloca);
+        device_ptrs.push_back(std::pair<llvm::Value*, llvm::Constant*>(loaded_device_ptr, size));
+        llvm::Value* mem_args[] = {
+            loaded_device_ptr,
+            builder.CreateBitCast(lookup(spir_param), llvm::Type::getInt8PtrTy(context)),
+            size
+        };
+        builder.CreateCall(llvm_decls.get_spir_write_buffer(), mem_args);
+        // set_kernel_arg(void *, size_t)
+        const llvm::DataLayout *DL = new llvm::DataLayout(module.get());
+        llvm::Value* size_of_arg = builder.getInt64(DL->getTypeAllocSize(llvm::Type::getInt8PtrTy(context)));
+        llvm::Value* arg_args[] = { alloca, size_of_arg };
+        builder.CreateCall(llvm_decls.get_spir_set_kernel_arg(), arg_args);
+    }
+    // determine problem size
+    llvm::Value* problem_size_args[] = {
+        llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), it_space_x),
+        llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), 1),
+        llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), 1)
+    };
+    builder.CreateCall(llvm_decls.get_spir_set_problem_size(), problem_size_args);
+    // launch
+    builder.CreateCall(llvm_decls.get_spir_launch_kernel(), { kernel_name });
+    // synchronize
+    builder.CreateCall(llvm_decls.get_spir_synchronize());
+
+    // fetch data back to CPU
+    for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
+        Def spir_param = lambda->arg(i);
+        const Type* param_type = spir_param->type();
+        auto entry = device_ptrs[i - 4];
+        // need to fetch back memory
+        llvm::Value* args[] = {
+            entry.first,
+            builder.CreateBitCast(lookup(spir_param), llvm::Type::getInt8PtrTy(context)),
+            entry.second
+        };
+        builder.CreateCall(llvm_decls.get_spir_read_buffer(), args);
+    }
+
+    // free memory
+    for (auto device_ptr : device_ptrs)
+        builder.CreateCall(llvm_decls.get_spir_free_buffer(), { device_ptr.first });
+    return ret;
+}
+
+Lambda* CodeGen::emit_builtin(Lambda* lambda)
+{
+    Lambda* to = lambda->to()->as_lambda();
+    if (to->attribute().is(Lambda::NVVM))
+        return emit_nvvm(lambda);
+    else if (to->attribute().is(Lambda::SPIR))
+        return emit_spir(lambda);
+    THORIN_UNREACHABLE;
+    return nullptr;
+}
+
+template<typename DeclFunc, typename IntrinsicFunc>
+void CodeGen::emit(DeclFunc func, IntrinsicFunc ifunc) {
     // map all root-level lambdas to llvm function stubs
     for (auto lambda : top_level_lambdas(world)) {
         if (lambda->is_builtin())
             continue;
-        llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
+        llvm::Function* f = nullptr;
         std::string name = lambda->name;
         if (lambda->attribute().is(Lambda::Intrinsic)) {
             std::transform(name.begin(), name.end(), name.begin(), [] (char c) { return c == '_' ? '.' : c; });
             name = "llvm." + name;
-        }
-        llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, module);
+            f = ifunc(*this, context, module, name, lambda);
+        } else
+            f = func(*this, context, module, name, lambda);
+        assert(f != nullptr && "invalid function declaration");
         fcts.emplace(lambda, f);
     }
 
@@ -94,9 +254,9 @@ void CodeGen::emit() {
     for (auto primop : world.primops()) {
         if (auto global = primop->isa<Global>()) {
             auto val = llvm::cast<llvm::GlobalValue>(module->getOrInsertGlobal(global->name, map(global->referenced_type())));
-            if (auto var = llvm::dyn_cast<llvm::GlobalVariable>(val))
+            if (auto var = llvm::dyn_cast<llvm::GlobalVariable>(val)) {
                 var->setInitializer(llvm::cast<llvm::Constant>(emit(global->init())));
-            else
+            } else
                 assert(global->init()->isa_lambda());
             primops[global] = val;
         }
@@ -113,21 +273,17 @@ void CodeGen::emit() {
 
         // map params
         const Param* ret_param = 0;
-        if (lambda->is_connected_to_builtin())
-            ret_param = ret_map[lambda];
-        else {
-            auto arg = fct->arg_begin();
-            for (auto param : lambda->params()) {
-                if (param->type()->isa<Mem>())
-                    continue;
-                if (param->order() == 0) {
-                    arg->setName(param->name);
-                    params[param] = arg++;
-                }
-                else {
-                    assert(!ret_param);
-                    ret_param = param;
-                }
+        auto arg = fct->arg_begin();
+        for (auto param : lambda->params()) {
+            if (param->type()->isa<Mem>())
+                continue;
+            if (param->order() == 0) {
+                arg->setName(param->name);
+                params[param] = arg++;
+            }
+            else {
+                assert(!ret_param);
+                ret_param = param;
             }
         }
         assert(ret_param);
@@ -221,38 +377,44 @@ void CodeGen::emit() {
                 if (to_lambda->is_basicblock())      // ordinary jump
                     builder.CreateBr(bbs[to_lambda]);
                 else {
-                    // put all first-order args into an array
-                    Array<llvm::Value*> args(lambda->args().size() - 1);
-                    size_t i = 0;
-                    Def ret_arg = 0;
-                    for (auto arg : lambda->args()) {
-                        if (arg->order() == 0) {
-                            if (!arg->type()->isa<Mem>())
-                                args[i++] = lookup(arg);
+                    if (to_lambda->is_builtin()) {
+                        Lambda* ret_lambda = emit_builtin(lambda);
+                        builder.CreateBr(bbs[ret_lambda]);
+                    } else {
+                        // put all first-order args into an array
+                        Array<llvm::Value*> args(lambda->args().size() - 1);
+                        size_t i = 0;
+                        Def ret_arg = 0;
+                        for (auto arg : lambda->args()) {
+                            if (arg->order() == 0) {
+                                if (!arg->type()->isa<Mem>())
+                                    args[i++] = lookup(arg);
+                            }
+                            else {
+                                assert(!ret_arg);
+                                ret_arg = arg;
+                            }
                         }
-                        else {
-                            assert(!ret_arg);
-                            ret_arg = arg;
-                        }
-                    }
-                    args.shrink(i);
-                    llvm::CallInst* call = builder.CreateCall(fcts[to_lambda], llvm_ref(args));
+                        args.shrink(i);
+                        llvm::CallInst* call = builder.CreateCall(fcts[to_lambda], llvm_ref(args));
+                        call->setCallingConv(calling_convention); // set proper calling convention
 
-                    if (ret_arg == ret_param)       // call + return
-                        builder.CreateRet(call);
-                    else {                          // call + continuation
-                        Lambda* succ = ret_arg->as_lambda();
-                        const Param* param = succ->param(0)->type()->isa<Mem>() ? nullptr : succ->param(0);
-                        if (param == nullptr && succ->num_params() == 2)
-                            param = succ->param(1);
+                        if (ret_arg == ret_param)       // call + return
+                            builder.CreateRet(call);
+                        else {                          // call + continuation
+                            Lambda* succ = ret_arg->as_lambda();
+                            const Param* param = succ->param(0)->type()->isa<Mem>() ? nullptr : succ->param(0);
+                            if (param == nullptr && succ->num_params() == 2)
+                                param = succ->param(1);
 
-                        builder.CreateBr(bbs[succ]);
-                        if (param) {
-                            auto i = phis.find(param);
-                            if (i != phis.end())
-                                i->second->addIncoming(call, builder.GetInsertBlock());
-                            else
-                                params[param] = call;
+                            builder.CreateBr(bbs[succ]);
+                            if (param) {
+                                auto i = phis.find(param);
+                                if (i != phis.end())
+                                    i->second->addIncoming(call, builder.GetInsertBlock());
+                                else
+                                    params[param] = call;
+                            }
                         }
                     }
                 }
@@ -601,8 +763,126 @@ multiple:
 
 //------------------------------------------------------------------------------
 
+static llvm::Function* emit_default_function_decl(CodeGen& cg, llvm::LLVMContext& context, llvm::Module* mod,
+                                                  std::string& name, Lambda* lambda) {
+    llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(cg.map(lambda->type()));
+    return llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, mod);
+}
+
+static llvm::Function* emit_nnvm_function_decl(CodeGen& cg, llvm::LLVMContext& context, llvm::Module* mod,
+                                               std::string& name, Lambda* lambda) {
+    llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(cg.map(lambda->type()));
+    llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "kernel", mod);
+    f->setCallingConv(llvm::CallingConv::PTX_Kernel);
+    // append required metadata
+    llvm::NamedMDNode* annotation = mod->getOrInsertNamedMetadata("nvvm.annotations");
+    llvm::Value* annotation_values[] = {
+        f,
+        llvm::MDString::get(context, lambda->unique_name()),
+        llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context), 1)
+    };
+    annotation->addOperand(llvm::MDNode::get(context, annotation_values));
+    return f;
+}
+
+static llvm::Function* emit_spir_function_decl(CodeGen& cg, llvm::LLVMContext& context, llvm::Module* mod,
+                                              std::string& name, Lambda* lambda) {
+    llvm::Type* ty = cg.map(lambda->world().pi(lambda->pi()->elems()));
+    // iterate over function type and set address space for SPIR
+    llvm::SmallVector<llvm::Type*, 4> types;
+    for (size_t i = 0; i < ty->getFunctionNumParams(); ++i) {
+        llvm::Type* fty = ty->getFunctionParamType(i);
+        if (llvm::isa<llvm::PointerType>(fty))
+            types.push_back(llvm::dyn_cast<llvm::PointerType>(fty)->getElementType()->getPointerTo(1));
+        else
+            types.push_back(fty);
+    }
+    llvm::FunctionType* ft = llvm::FunctionType::get(llvm::IntegerType::getVoidTy(context), types, false);
+    llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "kernel", mod);
+    f->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
+    // append required metadata
+    llvm::NamedMDNode* annotation;
+    llvm::Value* annotation_values_12[] = { llvm::ConstantInt::get(llvm::IntegerType::getInt32Ty(context), 1),
+                                            llvm::ConstantInt::get(llvm::IntegerType::getInt32Ty(context), 2) };
+    size_t num_params = lambda->num_params();
+    Array<llvm::Value*> annotation_values_addr_space(num_params);
+    Array<llvm::Value*> annotation_values_access_qual(num_params);
+    Array<llvm::Value*> annotation_values_type(num_params);
+    Array<llvm::Value*> annotation_values_type_qual(num_params);
+    Array<llvm::Value*> annotation_values_name(num_params);
+    annotation_values_addr_space[0]  = llvm::MDString::get(context, "kernel_arg_addr_space");
+    annotation_values_access_qual[0] = llvm::MDString::get(context, "kernel_arg_access_qual");
+    annotation_values_type[0]        = llvm::MDString::get(context, "kernel_arg_type");
+    annotation_values_type_qual[0]   = llvm::MDString::get(context, "kernel_arg_type_qual");
+    annotation_values_name[0]        = llvm::MDString::get(context, "kernel_arg_name");
+    size_t index = 1;
+    for (auto it = f->arg_begin(), e = f->arg_end(); it != e; ++it, ++index) {
+        llvm::Type* type = it->getType();
+        size_t addr_space = 0;
+        if (llvm::isa<llvm::PointerType>(type)) {
+            addr_space = llvm::dyn_cast<llvm::PointerType>(type)->getAddressSpace();
+            type = llvm::dyn_cast<llvm::PointerType>(type)->getElementType()->getPointerTo(0);
+        }
+        annotation_values_addr_space[index] = llvm::ConstantInt::get(llvm::IntegerType::getInt32Ty(context), addr_space);
+        annotation_values_access_qual[index] = llvm::MDString::get(context, "none");
+        std::string type_string;
+        llvm::raw_string_ostream type_os(type_string);
+        type->print(type_os);
+        type_os.flush();
+        annotation_values_type[index] = llvm::MDString::get(context, type_string);
+        annotation_values_type_qual[index] = llvm::MDString::get(context, "");
+        annotation_values_name[index] = llvm::MDString::get(context, lambda->param(index - 1)->name);
+    }
+    llvm::Value* annotation_values_kernel[] = {
+        f,
+        llvm::MDNode::get(context, llvm_ref(annotation_values_addr_space)),
+        llvm::MDNode::get(context, llvm_ref(annotation_values_access_qual)),
+        llvm::MDNode::get(context, llvm_ref(annotation_values_type)),
+        llvm::MDNode::get(context, llvm_ref(annotation_values_type_qual)),
+        llvm::MDNode::get(context, llvm_ref(annotation_values_name))
+    };
+    // opencl.kernels
+    annotation = mod->getOrInsertNamedMetadata("opencl.kernels");
+    annotation->addOperand(llvm::MDNode::get(context, annotation_values_kernel));
+    // opencl.enable.FP_CONTRACT
+    annotation = mod->getOrInsertNamedMetadata("opencl.enable.FP_CONTRACT");
+    // opencl.spir.version
+    annotation = mod->getOrInsertNamedMetadata("opencl.spir.version");
+    annotation->addOperand(llvm::MDNode::get(context, annotation_values_12));
+    // opencl.ocl.version
+    annotation = mod->getOrInsertNamedMetadata("opencl.ocl.version");
+    annotation->addOperand(llvm::MDNode::get(context, annotation_values_12));
+    // opencl.used.extensions
+    annotation = mod->getOrInsertNamedMetadata("opencl.used.extensions");
+    // opencl.used.optional.core.features
+    annotation = mod->getOrInsertNamedMetadata("opencl.used.optional.core.features");
+    // opencl.compiler.options
+    annotation = mod->getOrInsertNamedMetadata("opencl.compiler.options");
+    return f;
+}
+
+template<typename Func>
+void emit_kernel(Lambda* lambda, llvm::CallingConv::ID calling_conv, Func func) {
+    World kernel_world(lambda->unique_name());
+    import(kernel_world, lambda);
+    CodeGen(kernel_world, calling_conv).emit(func, emit_default_function_decl);
+}
+
 void emit_llvm(World& world) {
-    CodeGen(world).emit();
+    World default_world("thorin");
+    // determine different parts of the world which need to be compiled differently
+    for (auto lambda : top_level_lambdas(world)) {
+        if (lambda->is_connected_to_builtin(Lambda::NVVM))
+            emit_kernel(lambda, llvm::CallingConv::PTX_Device, emit_nnvm_function_decl);
+        else if (lambda->is_connected_to_builtin(Lambda::SPIR))
+            emit_kernel(lambda, llvm::CallingConv::SPIR_FUNC, emit_spir_function_decl);
+        else {
+            // default code
+            import(default_world, lambda);
+        }
+    }
+    // Generate code for the default functions
+    CodeGen(default_world, llvm::CallingConv::C).emit(emit_default_function_decl, emit_default_function_decl);
 }
 
 //------------------------------------------------------------------------------

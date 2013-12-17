@@ -1,6 +1,7 @@
 IF ( LLVM_FOUND )
     FUNCTION ( get_thorin_llvm_dependency_libs OUT_VAR )
 	llvm_map_components_to_libraries ( THORIN_LLVM_TEMP_LIBS jit native analysis )
+	SET( THORIN_LLVM_TEMP_LIBS ${THORIN_LLVM_TEMP_LIBS} LLVMIRReader LLVMAsmParser LLVMBitReader )
 	SET ( ${OUT_VAR} ${THORIN_LLVM_TEMP_LIBS} PARENT_SCOPE )
     ENDFUNCTION ()
 ELSE ()

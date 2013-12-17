@@ -58,7 +58,7 @@ Lambda* Vectorizer::vectorize() {
     std::ostringstream oss;
     oss << scope[0]->name << "_x" << length;
     Lambda* vlambda = world().lambda(vectorize_type(entry->pi(), length)->as<Pi>(), Lambda::Attribute(Lambda::Extern), oss.str());
-    mapped[entry] = *world().literal(true, length);
+    mapped[entry] = *world().true_mask(length);
 
     for (size_t i = 0, e = entry->num_params(); i != e; ++i) {
         const Param* param = entry->param(i);
@@ -101,7 +101,7 @@ void Vectorizer::infer_condition(Lambda* lambda) {
     if (postdomtree.idom(dom) == lambda)
         cond = mapped[dom];
     else {
-        cond = world().literal(false, length);
+        cond = world().false_mask(length);
 
         for (auto pred : scope.preds(lambda)) {
             Def pred_cond = mapped[pred];

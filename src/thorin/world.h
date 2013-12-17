@@ -103,12 +103,14 @@ public:
      */
 
 #define THORIN_ALL_TYPE(T) \
-    Def literal_##T(T val, size_t length = 1) { return literal(val, length); }
+    Def literal_##T(T val, size_t length = 1) { return literal(PrimType_##T, Box(val), length); }
 #include "thorin/tables/primtypetable.h"
     Def literal(PrimTypeKind kind, Box value, size_t length = 1);
     Def literal(PrimTypeKind kind, int value, size_t length = 1);
     template<class T>
-    Def literal(T value, size_t length = 1) { return literal(type2kind<T>::kind, Box(value), length); }
+    Def literal_precise(T value, size_t length = 1) { return literal(type2kind<T, true>::kind, Box(value), length); }
+    template<class T>
+    Def literal_fast(T value, size_t length = 1) { return literal(type2kind<T, false>::kind, Box(value), length); }
     Def zero(PrimTypeKind kind, size_t length = 1) { return literal(kind, 0, length); }
     Def zero(const Type*, size_t length = 1);
     Def one(PrimTypeKind kind, size_t length = 1) { return literal(kind, 1, length); }
@@ -123,8 +125,10 @@ public:
     Def bottom(const Type* type, size_t length = 1);
     Def bottom(PrimTypeKind kind, size_t length = 1) { return bottom(type(kind), length); }
     /// Creates a vector of all true while the length is derived from @p def.
-    Def true_mask(Def def) { return literal(true, def->length()); }
-    Def true_mask(size_t length) { return literal(true, length); }
+    Def true_mask(Def def) { return literal_precise(true, def->length()); }
+    Def true_mask(size_t length) { return literal_precise(true, length); }
+    Def false_mask(Def def) { return literal_precise(false, def->length()); }
+    Def false_mask(size_t length) { return literal_precise(false, length); }
 
     /*
      * arithop, cmp, convop

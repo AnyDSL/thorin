@@ -47,10 +47,6 @@
 #error "THORIN_U_TYPE"
 #endif
 
-#ifdef  THORIN_F_TYPE
-#warning "THORIN_F_TYPE"
-#endif
-
 THORIN_PS_TYPE(ps1)
 THORIN_PS_TYPE(ps8)
 THORIN_PS_TYPE(ps16)
@@ -109,4 +105,6 @@ THORIN_QF_TYPE(qf64)
 #undef THORIN_QF_TYPE
 #undef THORIN_P_TYPE
 #undef THORIN_Q_TYPE
+#undef THORIN_I_TYPE
+#undef THORIN_F_TYPE
 #undef THORIN_ALL_TYPE

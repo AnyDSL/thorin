@@ -24,17 +24,6 @@
 #include "thorin/util/array.h"
 #include "thorin/be/thorin.h"
 
-#define THORIN_NO_U_TYPE \
-    case PrimType_u1: \
-    case PrimType_u8: \
-    case PrimType_u16: \
-    case PrimType_u32: \
-    case PrimType_u64: THORIN_UNREACHABLE;
-
-#define THORIN_NO_F_TYPE \
-    case PrimType_f32: \
-    case PrimType_f64: THORIN_UNREACHABLE;
-
 #if (defined(__clang__) || defined(__GNUC__)) && (defined(__x86_64__) || defined(__i386__))
 #define THORIN_BREAK asm("int3");
 #else
@@ -97,8 +86,8 @@ Sigma* World::named_sigma(size_t size, const std::string& name) {
 Def World::literal(PrimTypeKind kind, int value, size_t length) {
     Def lit;
     switch (kind) {
-#define THORIN_U_TYPE(T) case PrimType_##T: lit = literal(T(value), 1); break;
-#define THORIN_F_TYPE(T) THORIN_U_TYPE(T)
+#define THORIN_P_TYPE(T) case PrimType_##T: lit = literal_precise(T(value), 1); break;
+#define THORIN_q_TYPE(T) case PrimType_##T: lit = literal_quick(T(value), 1); break;
 #include "thorin/tables/primtypetable.h"
             default: THORIN_UNREACHABLE;
     }
@@ -123,7 +112,7 @@ Def World::binop(int kind, Def cond, Def lhs, Def rhs, const std::string& name) 
         return arithop((ArithOpKind) kind, cond, lhs, rhs);
 
     assert(is_cmp(kind) && "must be a Cmp");
-    return relop((CmpKind) kind, cond, lhs, rhs);
+    return cmp((CmpKind) kind, cond, lhs, rhs);
 }
 
 Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& name) {
@@ -156,89 +145,83 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
         switch (kind) {
             case ArithOp_add:
                 switch (type) {
-#define THORIN_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())));
+#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())));
 #include "thorin/tables/primtypetable.h"
-                    THORIN_NO_F_TYPE;
                 }
             case ArithOp_sub:
                 switch (type) {
-#define THORIN_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() - r.get_##T())));
+#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() - r.get_##T())));
 #include "thorin/tables/primtypetable.h"
-                    THORIN_NO_F_TYPE;
                 }
             case ArithOp_mul:
                 switch (type) {
-#define THORIN_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())));
+#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())));
 #include "thorin/tables/primtypetable.h"
-                    THORIN_NO_F_TYPE;
                 }
             case ArithOp_div:
                 switch (type) {
-#define THORIN_U_TYPE(T) \
+#define THORIN_ALL_TYPE(T) \
                     case PrimType_##T: \
                         return rlit->is_zero() \
                              ? bottom(type) \
                              : literal(type, Box(T(l.get_##T() / r.get_##T())));
 #include "thorin/tables/primtypetable.h"
-                    THORIN_NO_F_TYPE;
                 }
             case ArithOp_rem:
                 switch (type) {
-#define THORIN_U_TYPE(T) \
+#define THORIN_I_TYPE(T) \
                     case PrimType_##T: \
                         return rlit->is_zero() \
                              ? bottom(type) \
                              : literal(type, Box(T(l.get_##T() % r.get_##T())));
 #include "thorin/tables/primtypetable.h"
-                    THORIN_NO_F_TYPE;
+                    default: assert(false && "TODO");
                 }
             case ArithOp_and:
                 switch (type) {
-#define THORIN_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() & r.get_##T())));
+#define THORIN_I_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() & r.get_##T())));
 #include "thorin/tables/primtypetable.h"
-                    THORIN_NO_F_TYPE;
+                    default: THORIN_UNREACHABLE;
                 }
             case ArithOp_or:
                 switch (type) {
-#define THORIN_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() | r.get_##T())));
+#define THORIN_I_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() | r.get_##T())));
 #include "thorin/tables/primtypetable.h"
-                    THORIN_NO_F_TYPE;
+                    default: THORIN_UNREACHABLE;
                 }
             case ArithOp_xor:
                 switch (type) {
-#define THORIN_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() ^ r.get_##T())));
+#define THORIN_I_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() ^ r.get_##T())));
 #include "thorin/tables/primtypetable.h"
-                    THORIN_NO_F_TYPE;
+                    default: THORIN_UNREACHABLE;
                 }
             case ArithOp_shl:
                 switch (type) {
-#define THORIN_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() << r.get_##T())));
+#define THORIN_I_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() << r.get_##T())));
 #include "thorin/tables/primtypetable.h"
-                    THORIN_NO_F_TYPE;
+                    default: THORIN_UNREACHABLE;
                 }
             case ArithOp_shr:
                 switch (type) {
-#define THORIN_U_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() >> r.get_##T())));
+#define THORIN_I_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() >> r.get_##T())));
 #include "thorin/tables/primtypetable.h"
-                    THORIN_NO_F_TYPE;
+                    default: THORIN_UNREACHABLE;
                 }
         }
     }
 
     if (a == b) {
         switch (kind) {
-            case ArithOp_add:  return arithop_mul(cond, literal(type, 2), a);
+            case ArithOp_add: return arithop_mul(cond, literal(type, 2), a);
 
             case ArithOp_sub:
-            case ArithOp_srem:
-            case ArithOp_urem:
-            case ArithOp_xor:  return zero(type);
+            case ArithOp_rem:
+            case ArithOp_xor: return zero(type);
 
-            case ArithOp_sdiv:
-            case ArithOp_udiv: return one(type);
+            case ArithOp_div: return one(type);
 
             case ArithOp_and:
-            case ArithOp_or:   return a;
+            case ArithOp_or:  return a;
 
             default: break;
         }
@@ -246,32 +229,25 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
 
     if (a->is_zero()) {
         switch (kind) {
-            case ArithOp_sdiv:
-            case ArithOp_udiv:
-            case ArithOp_srem:
-            case ArithOp_urem: return bottom(type);
+            case ArithOp_div:
+            case ArithOp_rem: return bottom(type);
 
             case ArithOp_shl:
-            case ArithOp_ashr:
-            case ArithOp_lshr: return a;
+            case ArithOp_shr: return a;
 
             default: break;
         }
     } else if (a->is_one()) {
         switch (kind) {
-            case ArithOp_sdiv:
-            case ArithOp_udiv: return a;
-
-            case ArithOp_srem:
-            case ArithOp_urem: return zero(type);
+            case ArithOp_div: return a;
+            case ArithOp_rem: return zero(type);
 
             default: break;
         }
     } else if (rlit && rlit->primlit_value<uint64_t>() >= uint64_t(num_bits(type))) {
         switch (kind) {
             case ArithOp_shl:
-            case ArithOp_ashr:
-            case ArithOp_lshr: return bottom(type);
+            case ArithOp_shr: return bottom(type);
 
             default: break;
         }
@@ -280,20 +256,20 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
     if (kind == ArithOp_xor && a->is_allset()) {    // is this a NOT
         if (b->is_not())                            // do we have ~~x?
             return b->as<ArithOp>()->rhs();
-        if (auto relop = b->isa<Cmp>())   // do we have ~(a cmp b)?
-            return this->relop(negate(relop->relop_kind()), cond, relop->lhs(), relop->rhs());
+        if (auto cmp = b->isa<Cmp>())   // do we have ~(a cmp b)?
+            return this->cmp(negate(cmp->cmp_kind()), cond, cmp->lhs(), cmp->rhs());
     }
 
-    auto lrel = a->isa<Cmp>();
-    auto rrel = b->isa<CmCmp
+    auto lcmp = a->isa<Cmp>();
+    auto rcmp = b->isa<Cmp>();
 
-    if (kind == ArithOp_or && lrel && rrel && lrel->lhs() == rrel->lhs() && lrel->rhs() == rrel->rhs() 
-            && lrel->relop_kind() == negate(rrel->relop_kind()))
-            return literal_u1(true);
+    if (kind == ArithOp_or && lcmp && rcmp && lcmp->lhs() == rcmp->lhs() && lcmp->rhs() == rcmp->rhs() 
+            && lcmp->cmp_kind() == negate(rcmp->cmp_kind()))
+            return literal_pu1(true);
 
-    if (kind == ArithOp_and && lrel && rrel && lrel->lhs() == rrel->lhs() && lrel->rhs() == rrel->rhs() 
-            && lrel->relop_kind() == negate(rrel->relop_kind()))
-            return literal_u1(false);
+    if (kind == ArithOp_and && lcmp && rcmp && lcmp->lhs() == rcmp->lhs() && lcmp->rhs() == rcmp->rhs() 
+            && lcmp->cmp_kind() == negate(rcmp->cmp_kind()))
+            return literal_pu1(false);
 
     auto land = a->kind() == Node_and ? a->as<ArithOp>() : nullptr;
     auto rand = b->kind() == Node_and ? b->as<ArithOp>() : nullptr;
@@ -360,9 +336,9 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
     }
 
     // normalize: a - b = a + -b
-    if ((kind == ArithOp_sub || kind == ArithOp_fsub) && !a->is_minus_zero()) { 
+    if (kind == ArithOp_sub && !a->is_minus_zero()) { 
         rlit = (b = arithop_minus(b))->isa<PrimLit>();
-        kind = kind == ArithOp_sub ? ArithOp_add : ArithOp_fadd;
+        kind = ArithOp_add;
     }
 
     // normalize: swap literal/vector to the left
@@ -374,21 +350,12 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
 
     if (a->is_zero()) {
         switch (kind) {
-            // TODO: disable fast-math
-            case ArithOp_fmul:
-
             case ArithOp_mul:
-            case ArithOp_sdiv:
-            case ArithOp_udiv:
-            case ArithOp_srem:
-            case ArithOp_urem:
+            case ArithOp_div:
+            case ArithOp_rem:
             case ArithOp_and:
             case ArithOp_shl:
-            case ArithOp_lshr:
-            case ArithOp_ashr: return zero(type);
-
-            // TODO: disable fast-math
-            case ArithOp_fadd:
+            case ArithOp_shr: return zero(type);
 
             case ArithOp_add: 
             case ArithOp_or:
@@ -437,15 +404,19 @@ Def World::arithop_not(Def cond, Def def) { return arithop_xor(cond, allset(def-
 
 Def World::arithop_minus(Def cond, Def def) {
     switch (PrimTypeKind kind = def->type()->as<PrimType>()->primtype_kind()) {
-        case PrimType_f32: return arithop_fsub(cond, literal_f32(-0.f), def);
-        case PrimType_f64: return arithop_fsub(cond, literal_f64(-0.0), def);
-        default:           return arithop_sub(cond, zero(kind), def);
+#define THORIN_F_TYPE(T) \
+        case PrimType_##T: \
+            return arithop_sub(cond, literal_##T(-0.f, def->length()), def);
+#include "thorin/tables/primtypetable.h"
+        default:
+            assert(is_type_i(kind));
+            return arithop_sub(cond, zero(kind), def);
     }
 }
 
 Def World::cmp(CmpKind kind, Def cond, Def a, Def b, const std::string& name) {
     if (a->isa<Bottom>() || b->isa<Bottom>())
-        return bottom(type_u1());
+        return bottom(type_pu1());
 
     CmpKind oldkind = kind;
     switch (kind) {
@@ -466,7 +437,7 @@ Def World::cmp(CmpKind kind, Def cond, Def a, Def b, const std::string& name) {
         size_t num = lvec->type()->as<PrimType>()->length();
         Array<Def> ops(num);
         for (size_t i = 0; i != num; ++i)
-            ops[i] = relop(kind, lvec->op(i), rvec->op(i));
+            ops[i] = cmp(kind, lvec->op(i), rvec->op(i));
         return vector(ops, name);
     }
 
@@ -475,40 +446,38 @@ Def World::cmp(CmpKind kind, Def cond, Def a, Def b, const std::string& name) {
         Box r = rlit->value();
         PrimTypeKind type = llit->primtype_kind();
 
+        // TODO unordered
         switch (kind) {
             case Cmp_eq:
                 switch (type) {
-#define THORIN_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() == r.get_##T());
+#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal_pu1(l.get_##T() == r.get_##T());
 #include "thorin/tables/primtypetable.h"
-                    THORIN_NO_F_TYPE;
                 }
             case Cmp_ne:
                 switch (type) {
-#define THORIN_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() != r.get_##T());
+#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal_pu1(l.get_##T() != r.get_##T());
 #include "thorin/tables/primtypetable.h"
-                    THORIN_NO_F_TYPE;
                 }
             case Cmp_lt:
                 switch (type) {
-#define THORIN_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <  r.get_##T());
+#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal_pu1(l.get_##T() <  r.get_##T());
 #include "thorin/tables/primtypetable.h"
-                    THORIN_NO_F_TYPE;
                 }
             case Cmp_le:
                 switch (type) {
-#define THORIN_U_TYPE(T) case PrimType_##T: return literal_u1(l.get_##T() <= r.get_##T());
+#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal_pu1(l.get_##T() <= r.get_##T());
 #include "thorin/tables/primtypetable.h"
-                    THORIN_NO_F_TYPE;
                 }
+            default: THORIN_UNREACHABLE;
+        }
+    }
 
     if (a == b) {
         switch (kind) {
-            case Cmp_cmp_ult:
-            case Cmp_cmp_slt: 
-            case Cmp_cmp_eq:  return zero(u1_);
-            case Cmp_cmp_ule:
-            case Cmp_cmp_sle:
-            case Cmp_cmp_ne:  return one(u1_);
+            case Cmp_lt:
+            case Cmp_eq:  return zero(type_pu1());
+            case Cmp_le:
+            case Cmp_ne:  return one(type_pu1());
             default: break;
         }
     }
@@ -642,9 +611,9 @@ Def World::insert(Def agg, Def index, Def value, const std::string& name) {
     return cse(new Insert(agg, index, value, name));
 }
 
-Def World::extract(Def tuple, u32 index, const std::string& name) { return extract(tuple, literal_u32(index), name); }
+Def World::extract(Def tuple, u32 index, const std::string& name) { return extract(tuple, literal_pu32(index), name); }
 Def World::insert(Def tuple, u32 index, Def value, const std::string& name) { 
-    return insert(tuple, literal_u32(index), value, name); 
+    return insert(tuple, literal_pu32(index), value, name); 
 }
 
 Def World::vector(Def arg, size_t length, const std::string& name) {
@@ -725,8 +694,8 @@ const Global* World::global_immutable_string(const std::string& str, const std::
 
     Array<Def> str_array(size);
     for (size_t i = 0; i != size-1; ++i)
-        str_array[i] = literal_u8(str[i]);
-    str_array.back() = literal_u8('\0');
+        str_array[i] = literal_pu8(str[i]);
+    str_array.back() = literal_pu8('\0');
 
     return global(array(str_array), false, name);
 }
@@ -774,8 +743,9 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, const Type* t
 
     if (ops.empty() && &in->world() == &to) return in;
     if (is_arithop (kind))  { assert(ops.size() == 3); return to.arithop((ArithOpKind) kind, ops[0], ops[1], ops[2], name); }
-    if (is_relop   (kind))  { assert(ops.size() == 3); return to.relop(  (CmpKind  ) kind, ops[0], ops[1], ops[2], name); }
-    if (is_convop  (kind))  { assert(ops.size() == 2); return to.convop( (ConvOpKind ) kind, ops[0], ops[1],   type, name); }
+    if (is_cmp     (kind))  { assert(ops.size() == 3); return to.cmp(    (CmpKind)     kind, ops[0], ops[1], ops[2], name); }
+    // TODO
+    //if (is_convop  (kind))  { assert(ops.size() == 2); return to.convop( (ConvOpKind)  kind, ops[0], ops[1],   type, name); }
     if (is_primtype(kind)) { 
         assert(ops.size() == 0); 
         auto primlit = in->as<PrimLit>();

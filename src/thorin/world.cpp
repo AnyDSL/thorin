@@ -611,9 +611,9 @@ Def World::insert(Def agg, Def index, Def value, const std::string& name) {
     return cse(new Insert(agg, index, value, name));
 }
 
-Def World::extract(Def tuple, u32 index, const std::string& name) { return extract(tuple, literal_pu32(index), name); }
+Def World::extract(Def tuple, u32 index, const std::string& name) { return extract(tuple, literal_qu32(index), name); }
 Def World::insert(Def tuple, u32 index, Def value, const std::string& name) { 
-    return insert(tuple, literal_pu32(index), value, name); 
+    return insert(tuple, literal_qu32(index), value, name); 
 }
 
 Def World::vector(Def arg, size_t length, const std::string& name) {
@@ -694,8 +694,8 @@ const Global* World::global_immutable_string(const std::string& str, const std::
 
     Array<Def> str_array(size);
     for (size_t i = 0; i != size-1; ++i)
-        str_array[i] = literal_pu8(str[i]);
-    str_array.back() = literal_pu8('\0');
+        str_array[i] = literal_qu8(str[i]);
+    str_array.back() = literal_qu8('\0');
 
     return global(array(str_array), false, name);
 }

@@ -196,21 +196,12 @@ void write_memory(CUdeviceptr dev, void *host, size_t size) {
     err = cuMemcpyHtoD(dev, host, size * sizeof(float));
     checkErrDrv(err, "cuMemcpyHtoD()");
 }
-void write_memory1(CUdeviceptr dev, void *host, size_t size) {
-    write_memory(dev, host, size);
-}
-void write_memory2(CUdeviceptr dev, void **host, size_t size) {
-    write_memory(dev, *host, size);
-}
 
 void read_memory(CUdeviceptr dev, void *host, size_t size) {
     CUresult err = CUDA_SUCCESS;
 
     err = cuMemcpyDtoH(host, dev, size * sizeof(float));
     checkErrDrv(err, "cuMemcpyDtoH()");
-}
-void read_memory2(CUdeviceptr dev, void **host, size_t size) {
-    read_memory(dev, *host, size);
 }
 
 void synchronize() {

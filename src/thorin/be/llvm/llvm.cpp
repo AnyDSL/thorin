@@ -56,7 +56,6 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID calling_convention)
 #include "spir_decls.h"
 {
     llvm::SMDiagnostic diag;
-    std::string error;
     AutoPtr<llvm::Module> nvvm_mod = llvm::ParseIRFile("nvvm.s", diag, context_);
 #define NVVM_DECL(fun_name) \
     fun_name ## _ = insert(nvvm_mod, module_, #fun_name);
@@ -187,45 +186,45 @@ void CodeGen::emit() {
                 switch (num_args) {
                     case 0: builder_.CreateRetVoid(); break;
                     case 1:
-                        if (lambda->arg(0)->type()->isa<Mem>())
-                            builder_.CreateRetVoid();
-                        else
-                            builder_.CreateRet(lookup(lambda->arg(0)));
-                        break;
+                            if (lambda->arg(0)->type()->isa<Mem>())
+                                builder_.CreateRetVoid();
+                            else
+                                builder_.CreateRet(lookup(lambda->arg(0)));
+                            break;
                     case 2: {
-                        if (lambda->arg(0)->type()->isa<Mem>()) {
-                            builder_.CreateRet(lookup(lambda->arg(1)));
-                            break;
-                        } else if (lambda->arg(1)->type()->isa<Mem>()) {
-                            builder_.CreateRet(lookup(lambda->arg(0)));
-                            break;
-                        }
-                        // FALLTHROUGH
-                    }
-                    default: {
-                        Array<llvm::Value*> values(num_args);
-                        Array<llvm::Type*> elems(num_args);
-
-                        size_t n = 0;
-                        for (size_t a = 0; a < num_args; ++a) {
-                            if (!lambda->arg(n)->type()->isa<Mem>()) {
-                                llvm::Value* val = lookup(lambda->arg(a));
-                                values[n] = val;
-                                elems[n++] = val->getType();
+                                if (lambda->arg(0)->type()->isa<Mem>()) {
+                                    builder_.CreateRet(lookup(lambda->arg(1)));
+                                    break;
+                                } else if (lambda->arg(1)->type()->isa<Mem>()) {
+                                    builder_.CreateRet(lookup(lambda->arg(0)));
+                                    break;
+                                }
+                                // FALLTHROUGH
                             }
-                        }
+                    default: {
+                                 Array<llvm::Value*> values(num_args);
+                                 Array<llvm::Type*> elems(num_args);
 
-                        assert(n == num_args || n+1 == num_args);
-                        values.shrink(n);
-                        elems.shrink(n);
-                        llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context_, llvm_ref(elems)));
+                                 size_t n = 0;
+                                 for (size_t a = 0; a < num_args; ++a) {
+                                     if (!lambda->arg(n)->type()->isa<Mem>()) {
+                                         llvm::Value* val = lookup(lambda->arg(a));
+                                         values[n] = val;
+                                         elems[n++] = val->getType();
+                                     }
+                                 }
 
-                        for (size_t i = 0; i != n; ++i)
-                            agg = builder_.CreateInsertValue(agg, values[i], { unsigned(i) });
+                                 assert(n == num_args || n+1 == num_args);
+                                 values.shrink(n);
+                                 elems.shrink(n);
+                                 llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context_, llvm_ref(elems)));
 
-                        builder_.CreateRet(agg);
-                        break;
-                    }
+                                 for (size_t i = 0; i != n; ++i)
+                                     agg = builder_.CreateInsertValue(agg, values[i], { unsigned(i) });
+
+                                 builder_.CreateRet(agg);
+                                 break;
+                             }
                 }
             } else if (auto select = lambda->to()->isa<Select>()) { // conditional branch
                 llvm::Value* cond = lookup(select->cond());
@@ -295,13 +294,29 @@ void CodeGen::emit() {
         primops_.clear();
     }
 
+    {
+        std::string error;
+        auto bc_name = world_.name() + ".bc";
+        llvm::raw_fd_ostream out(bc_name.c_str(), error, llvm::raw_fd_ostream::F_Binary);
+        if (!error.empty())
+            throw std::runtime_error("cannot write '" + bc_name + "': " + error);
+
+        llvm::WriteBitcodeToFile(module_, out);
+    }
+
+    {
+        std::string error;
+        auto ll_name = world_.name() + ".ll";
+        llvm::raw_fd_ostream out(ll_name.c_str(), error);
+        if (!error.empty())
+            throw std::runtime_error("cannot write '" + ll_name + "': " + error);
+
+        module_->print(out, nullptr);
+    }
+
 #ifndef NDEBUG
     llvm::verifyModule(*this->module_);
 #endif
-    
-    std::string error;
-    llvm::raw_fd_ostream out((world_.name() + ".bc").c_str(), error, llvm::raw_fd_ostream::F_Binary);
-    llvm::WriteBitcodeToFile(module_, out);
 }
 
 llvm::Value* CodeGen::lookup(Def def) {

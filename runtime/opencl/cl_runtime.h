@@ -7,6 +7,10 @@
 #include <CL/cl.h>
 #endif
 
+#include <math.h>
+#include <stdlib.h>
+#include <time.h>
+
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -25,6 +29,20 @@ int clArgIdx;
 size_t local_work_size[3], global_work_size[3];
 bool initialized = false;
 
+long global_time = 0;
+
+void getMicroTime() {
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+
+    if (global_time==0) {
+        global_time = now.tv_sec*1000000LL + now.tv_nsec / 1000LL;
+    } else {
+        global_time = (now.tv_sec*1000000LL + now.tv_nsec / 1000LL) - global_time;
+        std::cerr << "timing: " << global_time * 1.0e-3f << "(ms)" << std::endl;
+        global_time = 0;
+    }
+}
 
 const char *getOpenCLErrorCodeStr(int errorCode) {
     switch (errorCode) {
@@ -491,8 +509,10 @@ void launch_kernel(const char *kernel_name) {
     cl_ulong end, start;
     bool print_timing = true;
 
+    getMicroTime();
     err = clEnqueueNDRangeKernel(command_queue, kernel, 2, NULL, global_work_size, local_work_size, 0, NULL, &event);
     err |= clFinish(command_queue);
+    getMicroTime();
     checkErr(err, "clEnqueueNDRangeKernel()");
 
     err = clWaitForEvents(1, &event);
@@ -508,6 +528,8 @@ void launch_kernel(const char *kernel_name) {
 
     if (print_timing) {
         std::cerr << "Kernel timing for '" << kernel_name << "' ("
+                  << global_work_size[0]*global_work_size[1] << ": "
+                  << global_work_size[0] << "x" << global_work_size[1] << ", "
                   << local_work_size[0]*local_work_size[1] << ": "
                   << local_work_size[0] << "x" << local_work_size[1] << "): "
                   << (end-start)*1.0e-3f << "(ms)" << std::endl;
@@ -518,29 +540,10 @@ void launch_kernel(const char *kernel_name) {
 }
 
 float *array(size_t num_elems) {
-    float *tmp = (float *)malloc(sizeof(float)*num_elems);
-
-    // initialize with dummy data
-    for (int i = 0; i < num_elems; ++i) tmp[i] = i%2048;
-
-    return tmp;
+    return (float *)malloc(sizeof(float)*num_elems);
 }
-
-float *get_stencil_array(size_t num_elems) {
-    float *tmp = (float *)malloc(sizeof(float)*num_elems);
-
-    // initialize with stencil
-    tmp[0] = 0.0f;
-    tmp[1] = 0.2f;
-    tmp[2] = 0.0f;
-    tmp[3] = 0.2f;
-    tmp[4] = 0.2f;
-    tmp[5] = 0.2f;
-    tmp[6] = 0.0f;
-    tmp[7] = 0.2f;
-    tmp[8] = 0.0f;
-
-    return tmp;
+float random_val(int max) {
+    return random() / max;
 }
 }
 

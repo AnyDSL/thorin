@@ -25,10 +25,10 @@ all: main.out
 	llc $(OPT_FLAGS) $< -o $@
 
 #%.out: %.s cl_runtime.s
-#	clang++ cl_runtime.s $< $(LIB_DIRS) -lOpenCL -o $@
+#	clang++ cl_runtime.s $< $(LIB_DIRS) -lrt -lOpenCL -o $@
 
 %.out: %.s
-	clang++ $< $(LIB_DIRS) -lOpenCL -o $@
+	clang++ $< $(LIB_DIRS) -lrt -lOpenCL -o $@
 
 clean:
 	@rm -f main $(MAIN_FILES) *.ll *.llo *.o *.bc *.s *.out

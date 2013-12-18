@@ -1,26 +1,17 @@
-#ifdef LLVM_SUPPORT
+#include "thorin/be/llvm/llvm.h"
 
 #include <algorithm>
 #include <iostream>
-#include <unordered_map>
 
 #include <llvm/IR/Constant.h>
 #include <llvm/IR/Constants.h>
-#include <llvm/IR/DataLayout.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/Metadata.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Type.h>
 #include <llvm/IR/GlobalVariable.h>
-#include <llvm/IR/IRBuilder.h>
 #include <llvm/Analysis/Verifier.h>
-#include <llvm/Support/raw_ostream.h>
-#include <llvm/Transforms/Utils/Cloning.h>
-#include <llvm/Transforms/Utils/BasicBlockUtils.h>
-#include <llvm/PassManager.h>
-#include <llvm/Transforms/Scalar.h>
 
 #ifdef WFV2_SUPPORT
 #include <wfvInterface.h>
@@ -33,77 +24,76 @@
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
+#include "thorin/util/array.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/util/array.h"
+#include "thorin/be/llvm/decls.h"
+#include "thorin/be/llvm/cpu.h"
+#include "thorin/be/llvm/nvvm.h"
+#include "thorin/be/llvm/spir.h"
+#include "thorin/transform/import.h"
 
 namespace thorin {
 
-template<class T> 
-llvm::ArrayRef<T> llvm_ref(const Array<T>& array) { return llvm::ArrayRef<T>(array.begin(), array.end()); }
+CodeGen::CodeGen(World& world, llvm::CallingConv::ID calling_convention)
+    : world_(world)
+    , context_()
+    , builder_(context_)
+    , module_(new llvm::Module(world.name(), context_))
+    , llvm_decls_(context_, module_)
+    , calling_convention_(calling_convention)
+{}
 
-//------------------------------------------------------------------------------
+Lambda* CodeGen::emit_builtin(Lambda* lambda) {
+    Lambda* to = lambda->to()->as_lambda();
+    if (to->attribute().is(Lambda::NVVM))
+        return emit_nvvm(lambda);
+    else if (to->attribute().is(Lambda::SPIR))
+        return emit_spir(lambda);
+    THORIN_UNREACHABLE;
+    return nullptr;
+}
 
-typedef LambdaMap<llvm::BasicBlock*> BBMap;
-
-class CodeGen {
-public:
-    CodeGen(World& world)
-        : world(world)
-        , context()
-        , builder(context)
-        , module(new llvm::Module(world.name(), context))
-    {}
-
-    void emit();
-    llvm::Type* map(const Type* type);
-    llvm::Value* emit(Def def);
-    llvm::Value* lookup(Def def);
-    llvm::AllocaInst* emit_alloca(llvm::Type*, const std::string& name);
-
-private:
-    World& world;
-    llvm::LLVMContext context;
-    llvm::IRBuilder<> builder;
-    AutoPtr<llvm::Module> module;
-    std::unordered_map<const Param*, llvm::Value*> params;
-    std::unordered_map<const Param*, llvm::PHINode*> phis;
-    std::unordered_map<const PrimOp*, llvm::Value*> primops;
-    std::unordered_map<Lambda*, llvm::Function*> fcts;
-};
-
-//------------------------------------------------------------------------------
+llvm::Function* CodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
+    llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
+    return llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, module_);
+}
 
 void CodeGen::emit() {
-    std::unordered_map<Lambda*, const Param*> ret_map;
     // map all root-level lambdas to llvm function stubs
-    for (auto lambda : top_level_lambdas(world)) {
+    for (auto lambda : top_level_lambdas(world_)) {
         if (lambda->is_builtin())
             continue;
-        llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
+        llvm::Function* f = nullptr;
         std::string name = lambda->name;
         if (lambda->attribute().is(Lambda::Intrinsic)) {
             std::transform(name.begin(), name.end(), name.begin(), [] (char c) { return c == '_' ? '.' : c; });
             name = "llvm." + name;
-        }
-        llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, module);
-        fcts.emplace(lambda, f);
+            f = emit_intrinsic_decl(name, lambda);
+        } else
+            f = emit_function_decl(name, lambda);
+
+        assert(f != nullptr && "invalid function declaration");
+        fcts_.emplace(lambda, f);
     }
 
     // emit all globals
-    for (auto primop : world.primops()) {
+    for (auto primop : world_.primops()) {
         if (auto global = primop->isa<Global>()) {
-            auto val = llvm::cast<llvm::GlobalValue>(module->getOrInsertGlobal(global->name, map(global->referenced_type())));
-            if (auto var = llvm::dyn_cast<llvm::GlobalVariable>(val))
+            llvm::Value* val;
+            if (auto lambda = global->init()->isa_lambda())
+                val = fcts_[lambda];
+            else {
+                auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->name, map(global->referenced_type())));
                 var->setInitializer(llvm::cast<llvm::Constant>(emit(global->init())));
-            else
-                assert(global->init()->isa_lambda());
-            primops[global] = val;
+                val = var;
+            }
+            primops_[global] = val;
         }
     }
 
     // for all top-level functions
-    for (auto lf : fcts) {
+    for (auto lf : fcts_) {
         Lambda* lambda = lf.first;
         if (lambda->is_builtin() || lambda->empty())
             continue;
@@ -113,21 +103,17 @@ void CodeGen::emit() {
 
         // map params
         const Param* ret_param = 0;
-        if (lambda->is_connected_to_builtin())
-            ret_param = ret_map[lambda];
-        else {
-            auto arg = fct->arg_begin();
-            for (auto param : lambda->params()) {
-                if (param->type()->isa<Mem>())
-                    continue;
-                if (param->order() == 0) {
-                    arg->setName(param->name);
-                    params[param] = arg++;
-                }
-                else {
-                    assert(!ret_param);
-                    ret_param = param;
-                }
+        auto arg = fct->arg_begin();
+        for (auto param : lambda->params()) {
+            if (param->type()->isa<Mem>())
+                continue;
+            if (param->order() == 0) {
+                arg->setName(param->name);
+                params_[param] = arg++;
+            }
+            else {
+                assert(!ret_param);
+                ret_param = param;
             }
         }
         assert(ret_param);
@@ -137,13 +123,13 @@ void CodeGen::emit() {
 
         for (auto lambda : scope.rpo()) {
             // map all bb-like lambdas to llvm bb stubs
-            auto bb = bbs[lambda] = llvm::BasicBlock::Create(context, lambda->name, fct);
+            auto bb = bbs[lambda] = llvm::BasicBlock::Create(context_, lambda->name, fct);
 
             // create phi node stubs (for all non-cascading lambdas different from entry)
             if (!lambda->is_cascading() && !scope.is_entry(lambda)) {
                 for (auto param : lambda->params())
                     if (!param->type()->isa<Mem>())
-                        phis[param] = llvm::PHINode::Create(map(param->type()), (unsigned) param->peek().size(), param->name, bb);
+                        phis_[param] = llvm::PHINode::Create(map(param->type()), (unsigned) param->peek().size(), param->name, bb);
             }
 
         }
@@ -156,32 +142,32 @@ void CodeGen::emit() {
             if (lambda->empty())
                 continue;
             assert(scope.is_entry(lambda) || lambda->is_basicblock());
-            builder.SetInsertPoint(bbs[lambda]);
+            builder_.SetInsertPoint(bbs[lambda]);
 
             for (auto primop :  schedule[lambda]) {
                 // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
                 if (!primop->type()->isa<Pi>() && !primop->type()->isa<Frame>()
                         && (!primop->type()->isa<Mem>() || primop->isa<Store>()))
-                    primops[primop] = emit(primop);
+                    primops_[primop] = emit(primop);
             }
 
             // terminate bb
             if (lambda->to() == ret_param) { // return
                 size_t num_args = lambda->num_args();
                 switch (num_args) {
-                    case 0: builder.CreateRetVoid(); break;
+                    case 0: builder_.CreateRetVoid(); break;
                     case 1:
                         if (lambda->arg(0)->type()->isa<Mem>())
-                            builder.CreateRetVoid();
+                            builder_.CreateRetVoid();
                         else
-                            builder.CreateRet(lookup(lambda->arg(0)));
+                            builder_.CreateRet(lookup(lambda->arg(0)));
                         break;
                     case 2: {
                         if (lambda->arg(0)->type()->isa<Mem>()) {
-                            builder.CreateRet(lookup(lambda->arg(1)));
+                            builder_.CreateRet(lookup(lambda->arg(1)));
                             break;
                         } else if (lambda->arg(1)->type()->isa<Mem>()) {
-                            builder.CreateRet(lookup(lambda->arg(0)));
+                            builder_.CreateRet(lookup(lambda->arg(0)));
                             break;
                         }
                         // FALLTHROUGH
@@ -202,12 +188,12 @@ void CodeGen::emit() {
                         assert(n == num_args || n+1 == num_args);
                         values.shrink(n);
                         elems.shrink(n);
-                        llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context, llvm_ref(elems)));
+                        llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context_, llvm_ref(elems)));
 
                         for (size_t i = 0; i != n; ++i)
-                            agg = builder.CreateInsertValue(agg, values[i], { unsigned(i) });
+                            agg = builder_.CreateInsertValue(agg, values[i], { unsigned(i) });
 
-                        builder.CreateRet(agg);
+                        builder_.CreateRet(agg);
                         break;
                     }
                 }
@@ -215,52 +201,58 @@ void CodeGen::emit() {
                 llvm::Value* cond = lookup(select->cond());
                 llvm::BasicBlock* tbb = bbs[select->tval()->as_lambda()];
                 llvm::BasicBlock* fbb = bbs[select->fval()->as_lambda()];
-                builder.CreateCondBr(cond, tbb, fbb);
+                builder_.CreateCondBr(cond, tbb, fbb);
             } else {
                 Lambda* to_lambda = lambda->to()->as_lambda();
                 if (to_lambda->is_basicblock())      // ordinary jump
-                    builder.CreateBr(bbs[to_lambda]);
+                    builder_.CreateBr(bbs[to_lambda]);
                 else {
-                    // put all first-order args into an array
-                    Array<llvm::Value*> args(lambda->args().size() - 1);
-                    size_t i = 0;
-                    Def ret_arg = 0;
-                    for (auto arg : lambda->args()) {
-                        if (arg->order() == 0) {
-                            if (!arg->type()->isa<Mem>())
-                                args[i++] = lookup(arg);
+                    if (to_lambda->is_builtin()) {
+                        Lambda* ret_lambda = emit_builtin(lambda);
+                        builder_.CreateBr(bbs[ret_lambda]);
+                    } else {
+                        // put all first-order args into an array
+                        Array<llvm::Value*> args(lambda->args().size() - 1);
+                        size_t i = 0;
+                        Def ret_arg = 0;
+                        for (auto arg : lambda->args()) {
+                            if (arg->order() == 0) {
+                                if (!arg->type()->isa<Mem>())
+                                    args[i++] = lookup(arg);
+                            }
+                            else {
+                                assert(!ret_arg);
+                                ret_arg = arg;
+                            }
                         }
-                        else {
-                            assert(!ret_arg);
-                            ret_arg = arg;
-                        }
-                    }
-                    args.shrink(i);
-                    llvm::CallInst* call = builder.CreateCall(fcts[to_lambda], llvm_ref(args));
+                        args.shrink(i);
+                        llvm::CallInst* call = builder_.CreateCall(fcts_[to_lambda], llvm_ref(args));
+                        call->setCallingConv(calling_convention_); // set proper calling convention
 
-                    if (ret_arg == ret_param)       // call + return
-                        builder.CreateRet(call);
-                    else {                          // call + continuation
-                        Lambda* succ = ret_arg->as_lambda();
-                        const Param* param = succ->param(0)->type()->isa<Mem>() ? nullptr : succ->param(0);
-                        if (param == nullptr && succ->num_params() == 2)
-                            param = succ->param(1);
+                        if (ret_arg == ret_param)       // call + return
+                            builder_.CreateRet(call);
+                        else {                          // call + continuation
+                            Lambda* succ = ret_arg->as_lambda();
+                            const Param* param = succ->param(0)->type()->isa<Mem>() ? nullptr : succ->param(0);
+                            if (param == nullptr && succ->num_params() == 2)
+                                param = succ->param(1);
 
-                        builder.CreateBr(bbs[succ]);
-                        if (param) {
-                            auto i = phis.find(param);
-                            if (i != phis.end())
-                                i->second->addIncoming(call, builder.GetInsertBlock());
-                            else
-                                params[param] = call;
+                            builder_.CreateBr(bbs[succ]);
+                            if (param) {
+                                auto i = phis_.find(param);
+                                if (i != phis_.end())
+                                    i->second->addIncoming(call, builder_.GetInsertBlock());
+                                else
+                                    params_[param] = call;
+                            }
                         }
                     }
                 }
             }
         }
 
-        // add missing arguments to phis
-        for (auto p : phis) {
+        // add missing arguments to phis_
+        for (auto p : phis_) {
             const Param* param = p.first;
             llvm::PHINode* phi = p.second;
 
@@ -268,14 +260,14 @@ void CodeGen::emit() {
                 phi->addIncoming(lookup(peek.def()), bbs[peek.from()]);
         }
 
-        params.clear();
-        phis.clear();
-        primops.clear();
+        params_.clear();
+        phis_.clear();
+        primops_.clear();
     }
 
-    module->dump();
+    module_->dump();
 #ifndef NDEBUG
-    llvm::verifyModule(*this->module);
+    llvm::verifyModule(*this->module_);
 #endif
 }
 
@@ -284,20 +276,20 @@ llvm::Value* CodeGen::lookup(Def def) {
         return emit(def);
 
     if (auto primop = def->isa<PrimOp>())
-        return primops[primop];
+        return primops_[primop];
 
     const Param* param = def->as<Param>();
-    auto i = params.find(param);
-    if (i != params.end())
+    auto i = params_.find(param);
+    if (i != params_.end())
         return i->second;
 
-    assert(phis.find(param) != phis.end());
-    return phis[param];
+    assert(phis_.find(param) != phis_.end());
+    return phis_[param];
 }
 
 llvm::AllocaInst* CodeGen::emit_alloca(llvm::Type* type, const std::string& name) {
     assert(type->isArrayTy());
-    auto entry = &builder.GetInsertBlock()->getParent()->getEntryBlock();
+    auto entry = &builder_.GetInsertBlock()->getParent()->getEntryBlock();
     llvm::AllocaInst* alloca;
     if (entry->empty())
         alloca = new llvm::AllocaInst(type, nullptr, name, entry);
@@ -314,39 +306,39 @@ llvm::Value* CodeGen::emit(Def def) {
         if (auto cmp = bin->isa<Cmp>()) {
             if (cmp->lhs()->type()->is_type_s()) {
                 switch (cmp->cmp_kind()) {
-                    case Cmp_eq:  return builder.CreateICmpEQ (lhs, rhs);
-                    case Cmp_ne:  return builder.CreateICmpNE (lhs, rhs);
-                    case Cmp_gt:  return builder.CreateICmpSGT(lhs, rhs);
-                    case Cmp_ge:  return builder.CreateICmpSGE(lhs, rhs);
-                    case Cmp_lt:  return builder.CreateICmpSLT(lhs, rhs);
-                    case Cmp_le:  return builder.CreateICmpSLE(lhs, rhs);
+                    case Cmp_eq:  return builder_.CreateICmpEQ (lhs, rhs);
+                    case Cmp_ne:  return builder_.CreateICmpNE (lhs, rhs);
+                    case Cmp_gt:  return builder_.CreateICmpSGT(lhs, rhs);
+                    case Cmp_ge:  return builder_.CreateICmpSGE(lhs, rhs);
+                    case Cmp_lt:  return builder_.CreateICmpSLT(lhs, rhs);
+                    case Cmp_le:  return builder_.CreateICmpSLE(lhs, rhs);
                 }
             } else if (cmp->lhs()->type()->is_type_u()) {
                 switch (cmp->cmp_kind()) {
-                    case Cmp_eq:  return builder.CreateICmpEQ (lhs, rhs);
-                    case Cmp_ne:  return builder.CreateICmpNE (lhs, rhs);
-                    case Cmp_gt:  return builder.CreateICmpUGT(lhs, rhs);
-                    case Cmp_ge:  return builder.CreateICmpUGE(lhs, rhs);
-                    case Cmp_lt:  return builder.CreateICmpULT(lhs, rhs);
-                    case Cmp_le:  return builder.CreateICmpULE(lhs, rhs);
+                    case Cmp_eq:  return builder_.CreateICmpEQ (lhs, rhs);
+                    case Cmp_ne:  return builder_.CreateICmpNE (lhs, rhs);
+                    case Cmp_gt:  return builder_.CreateICmpUGT(lhs, rhs);
+                    case Cmp_ge:  return builder_.CreateICmpUGE(lhs, rhs);
+                    case Cmp_lt:  return builder_.CreateICmpULT(lhs, rhs);
+                    case Cmp_le:  return builder_.CreateICmpULE(lhs, rhs);
                 }
             } else if (cmp->lhs()->type()->is_type_pf()) {
                 switch (cmp->cmp_kind()) {
-                    case Cmp_eq: return builder.CreateFCmpOEQ(lhs, rhs);
-                    case Cmp_ne: return builder.CreateFCmpONE(lhs, rhs);
-                    case Cmp_gt: return builder.CreateFCmpOGT(lhs, rhs);
-                    case Cmp_ge: return builder.CreateFCmpOGE(lhs, rhs);
-                    case Cmp_lt: return builder.CreateFCmpOLT(lhs, rhs);
-                    case Cmp_le: return builder.CreateFCmpOLE(lhs, rhs);
+                    case Cmp_eq: return builder_.CreateFCmpOEQ(lhs, rhs);
+                    case Cmp_ne: return builder_.CreateFCmpONE(lhs, rhs);
+                    case Cmp_gt: return builder_.CreateFCmpOGT(lhs, rhs);
+                    case Cmp_ge: return builder_.CreateFCmpOGE(lhs, rhs);
+                    case Cmp_lt: return builder_.CreateFCmpOLT(lhs, rhs);
+                    case Cmp_le: return builder_.CreateFCmpOLE(lhs, rhs);
                 }
             } else if (cmp->lhs()->type()->is_type_qf()) {
                 switch (cmp->cmp_kind()) {
-                    case Cmp_eq: return builder.CreateFCmpUEQ(lhs, rhs);
-                    case Cmp_ne: return builder.CreateFCmpUNE(lhs, rhs);
-                    case Cmp_gt: return builder.CreateFCmpUGT(lhs, rhs);
-                    case Cmp_ge: return builder.CreateFCmpUGE(lhs, rhs);
-                    case Cmp_lt: return builder.CreateFCmpULT(lhs, rhs);
-                    case Cmp_le: return builder.CreateFCmpULE(lhs, rhs);
+                    case Cmp_eq: return builder_.CreateFCmpUEQ(lhs, rhs);
+                    case Cmp_ne: return builder_.CreateFCmpUNE(lhs, rhs);
+                    case Cmp_gt: return builder_.CreateFCmpUGT(lhs, rhs);
+                    case Cmp_ge: return builder_.CreateFCmpUGE(lhs, rhs);
+                    case Cmp_lt: return builder_.CreateFCmpULT(lhs, rhs);
+                    case Cmp_le: return builder_.CreateFCmpULE(lhs, rhs);
                 }
             }
         }
@@ -354,11 +346,11 @@ llvm::Value* CodeGen::emit(Def def) {
         if (auto arithop = bin->isa<ArithOp>()) {
             if (arithop->lhs()->type()->is_type_f()) {
                 switch (arithop->arithop_kind()) {
-                    case ArithOp_add: return builder.CreateFAdd(lhs, rhs);
-                    case ArithOp_sub: return builder.CreateFSub(lhs, rhs);
-                    case ArithOp_mul: return builder.CreateFMul(lhs, rhs);
-                    case ArithOp_div: return builder.CreateFDiv(lhs, rhs);
-                    case ArithOp_rem: return builder.CreateFRem(lhs, rhs);
+                    case ArithOp_add: return builder_.CreateFAdd(lhs, rhs);
+                    case ArithOp_sub: return builder_.CreateFSub(lhs, rhs);
+                    case ArithOp_mul: return builder_.CreateFMul(lhs, rhs);
+                    case ArithOp_div: return builder_.CreateFDiv(lhs, rhs);
+                    case ArithOp_rem: return builder_.CreateFRem(lhs, rhs);
                     case ArithOp_and:
                     case ArithOp_or:
                     case ArithOp_xor:
@@ -368,30 +360,30 @@ llvm::Value* CodeGen::emit(Def def) {
             }
             if (arithop->lhs()->type()->is_type_s()) {
                 switch (arithop->arithop_kind()) {
-                    case ArithOp_add: return builder.CreateAdd (lhs, rhs);
-                    case ArithOp_sub: return builder.CreateSub (lhs, rhs);
-                    case ArithOp_mul: return builder.CreateMul (lhs, rhs);
-                    case ArithOp_div: return builder.CreateSDiv(lhs, rhs);
-                    case ArithOp_rem: return builder.CreateSRem(lhs, rhs);
-                    case ArithOp_and: return builder.CreateAnd (lhs, rhs);
-                    case ArithOp_or:  return builder.CreateOr  (lhs, rhs);
-                    case ArithOp_xor: return builder.CreateXor (lhs, rhs);
-                    case ArithOp_shl: return builder.CreateShl (lhs, rhs);
-                    case ArithOp_shr: return builder.CreateAShr(lhs, rhs);
+                    case ArithOp_add: return builder_.CreateAdd (lhs, rhs);
+                    case ArithOp_sub: return builder_.CreateSub (lhs, rhs);
+                    case ArithOp_mul: return builder_.CreateMul (lhs, rhs);
+                    case ArithOp_div: return builder_.CreateSDiv(lhs, rhs);
+                    case ArithOp_rem: return builder_.CreateSRem(lhs, rhs);
+                    case ArithOp_and: return builder_.CreateAnd (lhs, rhs);
+                    case ArithOp_or:  return builder_.CreateOr  (lhs, rhs);
+                    case ArithOp_xor: return builder_.CreateXor (lhs, rhs);
+                    case ArithOp_shl: return builder_.CreateShl (lhs, rhs);
+                    case ArithOp_shr: return builder_.CreateAShr(lhs, rhs);
                 }
             }
             if (arithop->lhs()->type()->is_type_u()) {
                 switch (arithop->arithop_kind()) {
-                    case ArithOp_add: return builder.CreateAdd (lhs, rhs);
-                    case ArithOp_sub: return builder.CreateSub (lhs, rhs);
-                    case ArithOp_mul: return builder.CreateMul (lhs, rhs);
-                    case ArithOp_div: return builder.CreateUDiv(lhs, rhs);
-                    case ArithOp_rem: return builder.CreateURem(lhs, rhs);
-                    case ArithOp_and: return builder.CreateAnd (lhs, rhs);
-                    case ArithOp_or:  return builder.CreateOr  (lhs, rhs);
-                    case ArithOp_xor: return builder.CreateXor (lhs, rhs);
-                    case ArithOp_shl: return builder.CreateShl (lhs, rhs);
-                    case ArithOp_shr: return builder.CreateLShr(lhs, rhs);
+                    case ArithOp_add: return builder_.CreateAdd (lhs, rhs);
+                    case ArithOp_sub: return builder_.CreateSub (lhs, rhs);
+                    case ArithOp_mul: return builder_.CreateMul (lhs, rhs);
+                    case ArithOp_div: return builder_.CreateUDiv(lhs, rhs);
+                    case ArithOp_rem: return builder_.CreateURem(lhs, rhs);
+                    case ArithOp_and: return builder_.CreateAnd (lhs, rhs);
+                    case ArithOp_or:  return builder_.CreateOr  (lhs, rhs);
+                    case ArithOp_xor: return builder_.CreateXor (lhs, rhs);
+                    case ArithOp_shl: return builder_.CreateShl (lhs, rhs);
+                    case ArithOp_shr: return builder_.CreateLShr(lhs, rhs);
                 }
             }
         }
@@ -406,46 +398,46 @@ llvm::Value* CodeGen::emit(Def def) {
         if (conv->isa<Cast>()) {
             if (src->isa<Ptr>()) {
                 assert(dst->is_type_i());
-                return builder.CreatePtrToInt(from, to);
+                return builder_.CreatePtrToInt(from, to);
             }
             if (dst->isa<Ptr>()) {
                 assert(src->is_type_i());
-                return builder.CreateIntToPtr(from, to);
+                return builder_.CreateIntToPtr(from, to);
             }
             if (src->is_type_f() && dst->is_type_f()) {
                 assert(num_bits(src->primtype_kind()) != num_bits(dst->primtype_kind()));
-                return builder.CreateFPCast(from, to);
+                return builder_.CreateFPCast(from, to);
             } 
             if (src->is_type_f()) {
                 if (dst->is_type_s())
-                    return builder.CreateFPToSI(from, to);
-                return builder.CreateFPToUI(from, to);
+                    return builder_.CreateFPToSI(from, to);
+                return builder_.CreateFPToUI(from, to);
             }
             if (dst->is_type_f()) {
                 if (src->is_type_s())
-                    return builder.CreateSIToFP(from, to);
-                return builder.CreateSIToFP(from, to);
+                    return builder_.CreateSIToFP(from, to);
+                return builder_.CreateSIToFP(from, to);
             }
             if (src->is_type_i() && dst->is_type_i() && (num_bits(src->primtype_kind()) > num_bits(dst->primtype_kind())))
-                return builder.CreateTrunc(from, to);
+                return builder_.CreateTrunc(from, to);
             if (src->is_type_s() && dst->is_type_s() && (num_bits(src->primtype_kind()) < num_bits(dst->primtype_kind())))
-                return builder.CreateSExt(from, to);
+                return builder_.CreateSExt(from, to);
             if (src->is_type_u() && dst->is_type_u() && (num_bits(src->primtype_kind()) < num_bits(dst->primtype_kind())))
-                return builder.CreateZExt(from, to);
+                return builder_.CreateZExt(from, to);
 
             assert(from->getType() == to);
             return from;
         }
 
         if (conv->isa<Bitcast>())
-            return builder.CreateBitCast(from, to);
+            return builder_.CreateBitCast(from, to);
     }
 
     if (auto select = def->isa<Select>()) {
         llvm::Value* cond = lookup(select->cond());
         llvm::Value* tval = lookup(select->tval());
         llvm::Value* fval = lookup(select->fval());
-        return builder.CreateSelect(cond, tval, fval);
+        return builder_.CreateSelect(cond, tval, fval);
     }
 
     if (auto array = def->isa<ArrayAgg>()) {
@@ -462,9 +454,9 @@ llvm::Value* CodeGen::emit(Def def) {
         llvm::Instruction* cur = alloca;
 
         u64 i = 0;
-        llvm::Value* args[2] = { builder.getInt64(0), nullptr };
+        llvm::Value* args[2] = { builder_.getInt64(0), nullptr };
         for (auto op : array->ops()) {
-            args[1] = builder.getInt64(i++);
+            args[1] = builder_.getInt64(i++);
             auto gep = llvm::GetElementPtrInst::CreateInBounds(alloca, args, op->name);
             gep->insertAfter(cur);
             auto store = new llvm::StoreInst(lookup(op), gep);
@@ -472,13 +464,13 @@ llvm::Value* CodeGen::emit(Def def) {
             cur = store;
         }
 
-        return builder.CreateLoad(alloca);
+        return builder_.CreateLoad(alloca);
     }
 
     if (auto tuple = def->isa<Tuple>()) {
         llvm::Value* agg = llvm::UndefValue::get(map(tuple->type()));
         for (size_t i = 0, e = tuple->ops().size(); i != e; ++i)
-            agg = builder.CreateInsertValue(agg, lookup(tuple->op(i)), { unsigned(i) });
+            agg = builder_.CreateInsertValue(agg, lookup(tuple->op(i)), { unsigned(i) });
         return agg;
     }
 
@@ -490,30 +482,30 @@ llvm::Value* CodeGen::emit(Def def) {
             unsigned i = aggop->index()->primlit_value<unsigned>();
 
             if (aggop->isa<Extract>())
-                return builder.CreateExtractValue(agg, { i });
+                return builder_.CreateExtractValue(agg, { i });
 
             auto insert = def->as<Insert>();
             auto value = lookup(insert->value());
 
-            return builder.CreateInsertValue(agg, value, { i });
+            return builder_.CreateInsertValue(agg, value, { i });
         } else if (aggop->agg_type()->isa<ArrayType>()) {
             // TODO use llvm::ConstantArray if applicable
             std::cout << "warning: slow" << std::endl;
             auto alloca = emit_alloca(agg->getType(), aggop->name);
-            builder.CreateStore(agg, alloca);
+            builder_.CreateStore(agg, alloca);
 
-            llvm::Value* args[2] = { builder.getInt64(0), idx };
-            auto gep = builder.CreateInBoundsGEP(alloca, args);
+            llvm::Value* args[2] = { builder_.getInt64(0), idx };
+            auto gep = builder_.CreateInBoundsGEP(alloca, args);
 
             if (aggop->isa<Extract>())
-                return builder.CreateLoad(gep);
+                return builder_.CreateLoad(gep);
 
-            builder.CreateStore(lookup(aggop->as<Insert>()->value()), gep);
-            return builder.CreateLoad(alloca);
+            builder_.CreateStore(lookup(aggop->as<Insert>()->value()), gep);
+            return builder_.CreateLoad(alloca);
         } else {
             if (aggop->isa<Extract>())
-                return builder.CreateExtractElement(agg, idx);
-            return builder.CreateInsertElement(agg, lookup(aggop->as<Insert>()->value()), idx);
+                return builder_.CreateExtractElement(agg, idx);
+            return builder_.CreateInsertElement(agg, lookup(aggop->as<Insert>()->value()), idx);
         }
     }
 
@@ -522,11 +514,11 @@ llvm::Value* CodeGen::emit(Def def) {
         Box box = primlit->value();
 
         switch (primlit->primtype_kind()) {
-            case PrimType_ps1:  case PrimType_qs1:  case PrimType_pu1:  case PrimType_qu1:  return builder.getInt1(box.get_u1().get());
-            case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  return builder.getInt8(box.get_u8());
-            case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: return builder.getInt16(box.get_u16());
-            case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: return builder.getInt32(box.get_u32());
-            case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: return builder.getInt64(box.get_u64());
+            case PrimType_ps1:  case PrimType_qs1:  case PrimType_pu1:  case PrimType_qu1:  return builder_.getInt1(box.get_u1().get());
+            case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  return builder_.getInt8(box.get_u8());
+            case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: return builder_.getInt16(box.get_u16());
+            case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: return builder_.getInt32(box.get_u32());
+            case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: return builder_.getInt64(box.get_u64());
             case PrimType_pf32: case PrimType_qf32:                                         return llvm::ConstantFP::get(type, box.get_f32());
             case PrimType_pf64: case PrimType_qf64:                                         return llvm::ConstantFP::get(type, box.get_f64());
         }
@@ -536,13 +528,13 @@ llvm::Value* CodeGen::emit(Def def) {
         return llvm::UndefValue::get(map(undef->type()));
 
     if (auto load = def->isa<Load>())
-        return builder.CreateLoad(lookup(load->ptr()));
+        return builder_.CreateLoad(lookup(load->ptr()));
 
     if (auto store = def->isa<Store>())
-        return builder.CreateStore(lookup(store->val()), lookup(store->ptr()));
+        return builder_.CreateStore(lookup(store->val()), lookup(store->ptr()));
 
     if (auto slot = def->isa<Slot>())
-        return builder.CreateAlloca(map(slot->type()->as<Ptr>()->referenced_type()), 0, slot->unique_name());
+        return builder_.CreateAlloca(map(slot->type()->as<Ptr>()->referenced_type()), 0, slot->unique_name());
 
     if (def->isa<Enter>() || def->isa<Leave>())
         return nullptr;
@@ -550,18 +542,18 @@ llvm::Value* CodeGen::emit(Def def) {
     if (auto vector = def->isa<Vector>()) {
         llvm::Value* vec = llvm::UndefValue::get(map(vector->type()));
         for (size_t i = 0, e = vector->size(); i != e; ++i)
-            vec = builder.CreateInsertElement(vec, lookup(vector->op(i)), lookup(world.literal_pu32(i)));
+            vec = builder_.CreateInsertElement(vec, lookup(vector->op(i)), lookup(world.literal_pu32(i)));
 
         return vec;
     }
 
     if (auto lea = def->isa<LEA>()) {
         if (lea->referenced_type()->isa<Sigma>())
-            return builder.CreateConstInBoundsGEP2_64(lookup(lea->ptr()), 0ull, lea->index()->primlit_value<u64>());
+            return builder_.CreateConstInBoundsGEP2_64(lookup(lea->ptr()), 0ull, lea->index()->primlit_value<u64>());
 
         assert(lea->referenced_type()->isa<ArrayType>());
-        llvm::Value* args[2] = { builder.getInt64(0), lookup(lea->index()) };
-        return builder.CreateInBoundsGEP(lookup(lea->ptr()), args);
+        llvm::Value* args[2] = { builder_.getInt64(0), lookup(lea->index()) };
+        return builder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
     }
 
     THORIN_UNREACHABLE;
@@ -598,9 +590,9 @@ llvm::Type* CodeGen::map(const Type* type) {
                 if (auto pi = elem->isa<Pi>()) {
                     assert(!ret && "only one 'return' supported");
                     if (pi->empty())
-                        ret = llvm::Type::getVoidTy(context);
+                        ret = llvm::Type::getVoidTy(context_);
                     else if (pi->size() == 1)
-                        ret = pi->elem(0)->isa<Mem>() ? llvm::Type::getVoidTy(context) : map(pi->elem(0));
+                        ret = pi->elem(0)->isa<Mem>() ? llvm::Type::getVoidTy(context_) : map(pi->elem(0));
                     else if (pi->size() == 2) {
                         if (pi->elem(0)->isa<Mem>())
                             ret = map(pi->elem(1));
@@ -619,7 +611,7 @@ multiple:
                             elems[j] = map(pi->elem(j));
                         }
                         elems.shrink(num);
-                        ret = llvm::StructType::get(context, llvm_ref(elems));
+                        ret = llvm::StructType::get(context_, llvm_ref(elems));
                     }
                 } else
                     elems[i++] = map(elem);
@@ -638,7 +630,7 @@ multiple:
             for (auto elem : sigma->elems())
                 elems[num++] = map(elem);
             elems.shrink(num);
-            return llvm::StructType::get(context, llvm_ref(elems));
+            return llvm::StructType::get(context_, llvm_ref(elems));
         }
 
         default: 
@@ -653,11 +645,27 @@ multiple:
 //------------------------------------------------------------------------------
 
 void emit_llvm(World& world) {
-    CodeGen(world).emit();
+    World cpu(world.name());
+    World nvvm(world.name() + "_nvvm");
+    World spir(world.name() + "_spir");
+
+    // determine different parts of the world which need to be compiled differently
+    for (auto lambda : top_level_lambdas(world)) {
+        if (lambda->is_connected_to_builtin(Lambda::NVVM)) 
+            import(nvvm, lambda);
+        else if (lambda->is_connected_to_builtin(Lambda::SPIR))
+            import(spir, lambda);
+        else
+            import(cpu, lambda);
+    }
+
+    CPUCodeGen(cpu).emit();
+    if (!nvvm.lambdas().empty())
+        NVVMCodeGen(nvvm).emit();
+    if (!spir.lambdas().empty())
+        SPIRCodeGen(spir).emit();
 }
 
 //------------------------------------------------------------------------------
 
 } // namespace thorin
-
-#endif

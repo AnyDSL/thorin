@@ -6,6 +6,8 @@
 #include <drvapi_error_string.h>
 #include <nvvm.h>
 
+#include <stdlib.h>
+
 #include <fstream>
 #include <iostream>
 
@@ -251,32 +253,6 @@ void set_kernel_arg(void *host) {
     cuArgs[cuArgIdx-1] = host;
 }
 
-float *array(size_t num_elems) {
-    float *tmp = (float *)malloc(sizeof(float)*num_elems);
-
-    // initialize with dummy data
-    for (int i = 0; i < num_elems; ++i) tmp[i] = i%2048;
-
-    return tmp;
-}
-
-float *stencil_array(size_t num_elems) {
-    float *tmp = (float *)malloc(sizeof(float)*num_elems);
-
-    // initialize with stencil
-    tmp[0] = 0.0f;
-    tmp[1] = 0.2f;
-    tmp[2] = 0.0f;
-    tmp[3] = 0.2f;
-    tmp[4] = 0.2f;
-    tmp[5] = 0.2f;
-    tmp[6] = 0.0f;
-    tmp[7] = 0.2f;
-    tmp[8] = 0.0f;
-
-    return tmp;
-}
-
 
 // launch kernel
 void launch_kernel(const char *kernel_name) {
@@ -319,6 +295,12 @@ void launch_kernel(const char *kernel_name) {
     cuArgIdx = 0;
 }
 
+float *array(size_t num_elems) {
+    return (float *)malloc(sizeof(float)*num_elems);
+}
+float random_val(int max) {
+    return random() / max;
+}
 }
 
 #endif  // __CUDA_RT_HPP__

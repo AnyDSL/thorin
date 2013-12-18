@@ -1,0 +1,8 @@
+extern nvvm(int, fn() -> void) -> void;
+
+fn run_on_gpu(size : int, body : fn(int) -> void) -> void {
+    nvvm(size, || -> void {
+        let tidx = nvvm_read_ptx_sreg_tid_x();
+        body(tidx);
+    });
+}

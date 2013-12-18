@@ -22,11 +22,11 @@ typedef std::vector<const Param*> Params;
 
 class Lambda : public DefNode {
 public:
-    enum {
+    enum AttrType {
         Extern      = 1 << 0, ///< Is the function visible in other translation units?
-        Accelerator = 1 << 1, ///< Flag for the internal Accelerator-Backend (NVVM / SPIR)
-        ArrayInit   = 1 << 2, ///< Flag for the external array intialization
-        StencilAr   = 1 << 3, ///< Flag for the external stencil intialization
+        NVVM        = 1 << 1, ///< Flag for the internal NNVM-Backend
+        SPIR        = 1 << 2, ///< Flag for the internal SPIR-Backend
+        ArrayInit   = 1 << 3, ///< Flag for the external array intialization
         Vectorize   = 1 << 4, ///< Flag for the external vectorizer
         Intrinsic   = 1 << 5, ///< Flag for intrinsic LLVM function
     };

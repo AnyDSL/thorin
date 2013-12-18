@@ -1,13 +1,12 @@
-extern accelerator([float], fn(fn() -> int, fn() -> int, fn() -> int, fn() -> int, fn() -> int, fn() -> int) -> void) -> void;
 extern array(int) -> [float];
 
 fn main() -> [float] {
     let width   = 1024;
-    let mut arr     = array(width);
-    let mut out     = array(width);
+    let arr = array(width);
+    let out = array(width);
 
-    accelerator(out, |x : fn() -> int, y : fn() -> int, bIx : fn() -> int, bIy : fn() -> int, bDx : fn() -> int, bDy : fn() -> int| -> void {
-        out[x()] = arr[x()];
+    run_on_gpu(width, |tidx : int| -> void {
+        arr[tidx] = out[tidx];
     });
 
     return out;

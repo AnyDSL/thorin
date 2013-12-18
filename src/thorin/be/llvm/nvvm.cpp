@@ -27,7 +27,7 @@ llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     llvm::NamedMDNode* annotation = module_->getOrInsertNamedMetadata("nvvm.annotations");
     llvm::Value* annotation_values[] = {
         f,
-        llvm::MDString::get(context_, lambda->name),
+        llvm::MDString::get(context_, "kernel"),
         llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context_), 1)
     };
     annotation->addOperand(llvm::MDNode::get(context_, annotation_values));

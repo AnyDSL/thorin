@@ -27,7 +27,6 @@ cl_program program;
 cl_kernel kernel;
 int clArgIdx;
 size_t local_work_size[3], global_work_size[3];
-bool initialized = false;
 
 long global_time = 0;
 
@@ -205,8 +204,6 @@ void create_context_command_queue() {
 
 // initialize OpenCL device
 void init_opencl(cl_device_type dev_type=CL_DEVICE_TYPE_CPU) {
-    if (initialized) return;
-
     char pnBuffer[1024], pvBuffer[1024], pv2Buffer[1024], pdBuffer[1024], pd2Buffer[1024], pd3Buffer[1024];
     int platform_number = -1, device_number = -1;
     cl_uint num_platforms, num_devices, num_devices_type;
@@ -312,7 +309,6 @@ void init_opencl(cl_device_type dev_type=CL_DEVICE_TYPE_CPU) {
     global_work_size[0] = 0;
     global_work_size[1] = 0;
     global_work_size[2] = 0;
-    initialized = true;
 }
 
 
@@ -362,7 +358,6 @@ void dump_program_binary(cl_program program, cl_device_id device) {
 
 // load OpenCL source file, build program, and create kernel
 void build_program_and_kernel(const char *file_name, const char *kernel_name) {
-    init_opencl();
     cl_int err = CL_SUCCESS;
     bool print_progress = true;
     bool print_log = true;
@@ -429,7 +424,6 @@ void build_program_and_kernel(const char *file_name, const char *kernel_name) {
 
 // allocate memory without any alignment considerations
 cl_mem malloc_buffer(size_t size) {
-    init_opencl();
     cl_int err = CL_SUCCESS;
     cl_mem mem;
     cl_mem_flags flags = CL_MEM_READ_WRITE;
@@ -442,7 +436,6 @@ cl_mem malloc_buffer(size_t size) {
 
 
 void free_buffer(cl_mem mem) {
-    init_opencl();
     cl_int err = CL_SUCCESS;
 
     err = clReleaseMemObject(mem);
@@ -452,7 +445,6 @@ void free_buffer(cl_mem mem) {
 
 // write to memory
 void write_buffer(cl_mem mem, void *host_mem, size_t size) {
-    init_opencl();
     cl_int err = CL_SUCCESS;
 
     err = clEnqueueWriteBuffer(command_queue, mem, CL_FALSE, 0, size * sizeof(float), host_mem, 0, NULL, NULL);
@@ -463,7 +455,6 @@ void write_buffer(cl_mem mem, void *host_mem, size_t size) {
 
 // read from memory
 void read_buffer(cl_mem mem, void *host_mem, size_t size) {
-    init_opencl();
     cl_int err = CL_SUCCESS;
 
     err = clEnqueueReadBuffer(command_queue, mem, CL_FALSE, 0, size * sizeof(float), host_mem, 0, NULL, NULL);
@@ -474,7 +465,6 @@ void read_buffer(cl_mem mem, void *host_mem, size_t size) {
 
 // synchronize execution
 void synchronize() {
-    init_opencl();
     cl_int err = CL_SUCCESS;
 
     err |= clFinish(command_queue);
@@ -484,7 +474,6 @@ void synchronize() {
 
 // set problem size
 void set_problem_size(size_t size_x, size_t size_y, size_t size_z) {
-    init_opencl();
     global_work_size[0] = size_x;
     global_work_size[1] = size_y;
     global_work_size[2] = size_z;
@@ -493,7 +482,6 @@ void set_problem_size(size_t size_x, size_t size_y, size_t size_z) {
 
 // set kernel argument
 void set_kernel_arg(void *param, size_t size) {
-    init_opencl();
     cl_int err = CL_SUCCESS;
 
     err = clSetKernelArg(kernel, clArgIdx++, size, param);
@@ -503,7 +491,6 @@ void set_kernel_arg(void *param, size_t size) {
 
 // enqueue and launch kernel
 void launch_kernel(const char *kernel_name) {
-    init_opencl();
     cl_int err = CL_SUCCESS;
     cl_event event;
     cl_ulong end, start;
@@ -545,6 +532,14 @@ float *array(size_t num_elems) {
 float random_val(int max) {
     return random() / max;
 }
+}
+
+
+extern int main_impala();
+int main(int argc, char *argv[]) {
+    init_opencl();
+
+    return main_impala();
 }
 
 #endif  // __OPENCL_RT_HPP__

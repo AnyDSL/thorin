@@ -287,6 +287,18 @@ float *array(size_t num_elems) {
 float random_val(int max) {
     return random() / max;
 }
+CUdeviceptr nvvm_malloc_memory(size_t size) { return malloc_memory(size); }
+void nvvm_free_memory(CUdeviceptr mem) { free_memory(mem); }
+
+void nvvm_write_memory(CUdeviceptr dev, void *host, size_t size) { write_memory(dev, host, size); }
+void nvvm_read_memory(CUdeviceptr dev, void *host, size_t size) { read_memory(dev, host, size); }
+
+void nvvm_load_kernel(const char *file_name, const char *kernel_name) { load_kernel(file_name, kernel_name); }
+void nvvm_set_kernel_arg(void *host) { set_kernel_arg(host); }
+void nvvm_set_problem_size(size_t size_x, size_t size_y, size_t size_z) { set_problem_size(size_x, size_y, size_z); }
+
+void nvvm_launch_kernel(const char *kernel_name) { launch_kernel(kernel_name); }
+void nvvm_synchronize() { synchronize(); }
 }
 
 

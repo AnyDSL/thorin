@@ -28,6 +28,9 @@
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/be/llvm/decls.h"
+#include "thorin/be/llvm/cpu.h"
+#include "thorin/be/llvm/nvvm.h"
+#include "thorin/be/llvm/spir.h"
 #include "thorin/transform/import.h"
 
 namespace thorin {
@@ -51,8 +54,7 @@ Lambda* CodeGen::emit_builtin(Lambda* lambda) {
     return nullptr;
 }
 
-template<typename DeclFunc, typename IntrinsicFunc>
-void CodeGen::emit(DeclFunc func, IntrinsicFunc ifunc) {
+void CodeGen::emit() {
     // map all root-level lambdas to llvm function stubs
     for (auto lambda : top_level_lambdas(world_)) {
         if (lambda->is_builtin())
@@ -62,9 +64,12 @@ void CodeGen::emit(DeclFunc func, IntrinsicFunc ifunc) {
         if (lambda->attribute().is(Lambda::Intrinsic)) {
             std::transform(name.begin(), name.end(), name.begin(), [] (char c) { return c == '_' ? '.' : c; });
             name = "llvm." + name;
-            f = ifunc(*this, context_, module_, name, lambda);
-        } else
-            f = func(*this, context_, module_, name, lambda);
+            assert(false && "TODO");
+            //f = ifunc(*this, context_, module_, name, lambda);
+        } else {
+            assert(false && "TODO");
+            //f = func(*this, context_, module_, name, lambda);
+        }
         assert(f != nullptr && "invalid function declaration");
         fcts_.emplace(lambda, f);
     }
@@ -585,11 +590,24 @@ multiple:
 
 //------------------------------------------------------------------------------
 
-template<typename Func>
-void emit_kernel(Lambda* lambda, llvm::CallingConv::ID calling_conv, Func func) {
-    World kernel_world(lambda->unique_name());
-    import(kernel_world, lambda);
-    CodeGen(kernel_world, calling_conv).emit(func, emit_default_function_decl);
+void emit_llvm(World& world) {
+    World cpu(world.name());
+    World nvvm(world.name() + "_nvvm");
+    World spir(world.name() + "_spir");
+
+    // determine different parts of the world which need to be compiled differently
+    for (auto lambda : top_level_lambdas(world)) {
+        if (lambda->is_connected_to_builtin(Lambda::NVVM)) 
+            import(nvvm, lambda);
+        else if (lambda->is_connected_to_builtin(Lambda::SPIR))
+            import(spir, lambda);
+        else
+            import(cpu, lambda);
+    }
+
+    CPUCodeGen(cpu).emit();
+    NVVMCodeGen(cpu).emit();
+    SPIRCodeGen(cpu).emit();
 }
 
 void emit_llvm(World& world) {

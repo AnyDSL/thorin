@@ -1,5 +1,5 @@
-#ifndef THORIN_BE_LLVM_H
-#define THORIN_BE_LLVM_H
+#ifndef THORIN_BE_LLVM_LLVM_H
+#define THORIN_BE_LLVM_LLVM_H
 
 #include <unordered_map>
 
@@ -21,10 +21,11 @@ typedef LambdaMap<llvm::BasicBlock*> BBMap;
 
 class CodeGen {
 public:
+    void emit();
+
+protected:
     CodeGen(World& world, llvm::CallingConv::ID calling_convention);
 
-    template<typename DeclFunc, typename IntrinsicFunc>
-    void emit(DeclFunc, IntrinsicFunc);
     llvm::Type* map(const Type*);
     llvm::Value* emit(Def);
     llvm::Value* lookup(Def);

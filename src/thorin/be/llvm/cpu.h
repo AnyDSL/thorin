@@ -1,10 +1,19 @@
-#include "thorin/be/llvm/cpu.h"
+#ifndef THORIN_BE_LLVM_CPU_H
+#define THORIN_BE_LLVM_CPU_H
+
+#include "thorin/be/llvm/llvm.h"
 
 namespace thorin {
 
-llvm::Function* emit_function_decl(std::string& name, Lambda* lambda) {
-    llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(cg.map(lambda->type()));
-    return llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, module_);
-}
+class CPUCodeGen : public CodeGen {
+public:
+    CPUCodeGen(World& world)
+        : CodeGen(world, llvm::CallingConv::C)
+    {}
+
+    virtual llvm::Function* emit_function_decl(std::string&, Lambda*);
+};
 
 }
+
+#endif

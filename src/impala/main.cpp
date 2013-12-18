@@ -11,7 +11,7 @@
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/be/thorin.h"
 #include "thorin/be/il.h"
-#include "thorin/be/llvm.h"
+#include "thorin/be/llvm/llvm.h"
 #include "thorin/util/args.h"
 
 #include "impala/ast.h"

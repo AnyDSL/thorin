@@ -54,6 +54,11 @@ Lambda* CodeGen::emit_builtin(Lambda* lambda) {
     return nullptr;
 }
 
+llvm::Function* CodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
+    llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
+    return llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, module_);
+}
+
 void CodeGen::emit() {
     // map all root-level lambdas to llvm function stubs
     for (auto lambda : top_level_lambdas(world_)) {
@@ -66,10 +71,9 @@ void CodeGen::emit() {
             name = "llvm." + name;
             assert(false && "TODO");
             //f = ifunc(*this, context_, module_, name, lambda);
-        } else {
-            assert(false && "TODO");
-            //f = func(*this, context_, module_, name, lambda);
-        }
+        } else
+            f = emit_function_decl(name, lambda);
+
         assert(f != nullptr && "invalid function declaration");
         fcts_.emplace(lambda, f);
     }
@@ -610,6 +614,7 @@ void emit_llvm(World& world) {
     SPIRCodeGen(cpu).emit();
 }
 
+#if 0
 void emit_llvm(World& world) {
     World default_world("thorin");
     // determine different parts of the world which need to be compiled differently
@@ -626,6 +631,7 @@ void emit_llvm(World& world) {
     // Generate code for the default functions
     CodeGen(default_world, llvm::CallingConv::C).emit(emit_default_function_decl, emit_default_function_decl);
 }
+#endif
 
 //------------------------------------------------------------------------------
 

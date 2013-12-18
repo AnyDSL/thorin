@@ -29,7 +29,7 @@
          Token::FN: \
     case Token::EXTERN: \
     case Token::INTRINSIC: \
-    case Token::CLASS: \
+    case Token::TRAIT: \
     case Token::STRUCT
 
 #define EXPR \
@@ -193,7 +193,7 @@ public:
     const Item* parse_item();
     const ProtoItem* parse_proto_item();
     const FunItem* parse_fun_item();
-    const TraitItem* parse_trait_item();
+    const StructItem* parse_struct_item();
 
     /// helper for condition in if/while/do-while
     const Expr* parse_cond(const std::string& what);
@@ -662,9 +662,6 @@ const FunExpr* Parser::parse_fun_expr() {
  */
 
 const Stmt* Parser::parse_stmt() {
-    if (la() == Token::ID && la2() == Token::COLON)
-        return parse_label_stmt();
-
     switch (la()) {
         case EXPR:              return parse_expr_stmt();
         case ITEM:              return parse_item_stmt();
@@ -728,24 +725,6 @@ const Stmt* Parser::parse_if_else() {
     ifelse->then_scope_ = parse_stmt_as_scope("if clause");
     ifelse->else_scope_ = accept(Token::ELSE) ? parse_stmt_as_scope("else clause") : new Scope(prev_loc());
     return ifelse;
-}
-
-const Stmt* Parser::parse_label_stmt() {
-    Token tok = eat(Token::ID);
-    eat(Token::COLON);
-    Loop* loop = nullptr;
-    switch (la()) {
-        case Token::DO:     loop = (Loop*) parse_do_while(); break;
-        case Token::FOR:    loop = (Loop*) parse_for();      break;
-        case Token::WHILE:  loop = (Loop*) parse_while();    break;
-        default:            error("for statement after label", ""); return create_empty_expr_stmt();
-
-    }
-
-    loop->set_pos1(tok.pos1());
-    loop->label_ = tok.symbol();
-
-    return loop;
 }
 
 const Stmt* Parser::parse_while() {
@@ -875,8 +854,7 @@ const Item* Parser::parse_item() {
         case Token::FN:        return parse_fun_item();
         case Token::EXTERN:
         case Token::INTRINSIC: return parse_proto_item();
-        case Token::STRUCT:
-        case Token::CLASS:     return parse_trait_item();
+        case Token::STRUCT:    return parse_struct_item();
         default:               THORIN_UNREACHABLE;
     }
 }
@@ -900,11 +878,11 @@ const FunItem* Parser::parse_fun_item() {
     return fi;
 }
 
-const TraitItem* Parser::parse_trait_item() {
-    auto i = loc(new TraitItem(typetable));
+const StructItem* Parser::parse_struct_item() {
+    //auto i = loc(new TraitItem(typetable));
     // TODO
-    expect(Token::CLASS, "trait");
-    return i;
+    expect(Token::STRUCT, "struct");
+    return 0;
 }
 
 } // namespace impala

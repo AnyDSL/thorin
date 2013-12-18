@@ -2,4 +2,7 @@
 
 namespace thorin {
 
+void CPUCodeGen::set_data_layout() {
+}
+
 }

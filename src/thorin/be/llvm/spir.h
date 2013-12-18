@@ -12,6 +12,7 @@ public:
     {}
 
     virtual llvm::Function* emit_function_decl(std::string&, Lambda*);
+    virtual void set_data_layout();
 };
 
 }

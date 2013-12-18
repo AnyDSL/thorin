@@ -530,7 +530,7 @@ float *array(size_t num_elems) {
     return (float *)malloc(sizeof(float)*num_elems);
 }
 float random_val(int max) {
-    return random() / max;
+    return ((float)random() / RAND_MAX) * max;
 }
 
 extern int main_impala();

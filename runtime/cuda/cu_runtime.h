@@ -276,7 +276,7 @@ float *array(size_t num_elems) {
     return (float *)malloc(sizeof(float)*num_elems);
 }
 float random_val(int max) {
-    return random() / max;
+    return ((float)random() / RAND_MAX) * max;
 }
 CUdeviceptr nvvm_malloc_memory(size_t size) { return malloc_memory(size); }
 void nvvm_free_memory(CUdeviceptr mem) { free_memory(mem); }

@@ -1,4 +1,4 @@
-extern fn test(cond : bool) -> int {
+fn main(cond : bool) -> int {
     let mut a : int;
 
     if (cond)

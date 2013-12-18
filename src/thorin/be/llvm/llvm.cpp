@@ -5,7 +5,6 @@
 
 #include <llvm/IR/Constant.h>
 #include <llvm/IR/Constants.h>
-#include <llvm/IR/DataLayout.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/LLVMContext.h>
@@ -13,10 +12,6 @@
 #include <llvm/IR/Type.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/Analysis/Verifier.h>
-#include <llvm/Transforms/Utils/Cloning.h>
-#include <llvm/Transforms/Utils/BasicBlockUtils.h>
-#include <llvm/PassManager.h>
-#include <llvm/Transforms/Scalar.h>
 
 #ifdef WFV2_SUPPORT
 #include <wfvInterface.h>
@@ -27,13 +22,13 @@
 #include "thorin/literal.h"
 #include "thorin/memop.h"
 #include "thorin/primop.h"
-#include "thorin/transform/import.h"
 #include "thorin/type.h"
-#include "thorin/util/array.h"
 #include "thorin/world.h"
+#include "thorin/util/array.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/be/llvm/decls.h"
+#include "thorin/transform/import.h"
 
 namespace thorin {
 

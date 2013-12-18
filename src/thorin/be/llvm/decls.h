@@ -3,11 +3,11 @@
 
 #include "thorin/util/autoptr.h"
 
-#ifdef LLVM_SUPPORT
 namespace llvm {
-    class Context;
+    class LLVMContext;
     class Function;
     class Module;
+    class Type;
 }
 
 namespace thorin {
@@ -51,6 +51,5 @@ private:
 };
 
 }
-#endif
 
 #endif

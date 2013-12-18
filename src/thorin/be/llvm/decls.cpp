@@ -1,11 +1,9 @@
-#ifdef LLVM_SUPPORT
+#include "thorin/be/llvm/decls.h"
 
 #include <llvm/IR/Module.h>
 #include <llvm/IRReader/IRReader.h>
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Transforms/Utils/Cloning.h>
-
-#include "llvm_decls.h"
 
 using namespace llvm;
 
@@ -44,5 +42,3 @@ llvm::Function* LLVMDecls::register_in_module(llvm::Function* fun) {
 }
 
 }
-
-#endif

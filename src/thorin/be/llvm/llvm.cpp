@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <iostream>
 
-#include <llvm/Linker.h>
+#include <llvm/Bitcode/ReaderWriter.h>
 #include <llvm/IR/Constant.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
@@ -14,7 +14,7 @@
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/Analysis/Verifier.h>
 #include <llvm/IRReader/IRReader.h>
-#include <llvm/Support/raw_ostream.h>
+#include "llvm/Support/raw_ostream.h"
 #include <llvm/Support/SourceMgr.h>
 
 #ifdef WFV2_SUPPORT
@@ -295,10 +295,13 @@ void CodeGen::emit() {
         primops_.clear();
     }
 
-    module_->dump();
 #ifndef NDEBUG
     llvm::verifyModule(*this->module_);
 #endif
+    
+    std::string error;
+    llvm::raw_fd_ostream out((world_.name() + ".bc").c_str(), error, raw_fd_ostream::F_Binary);
+    llvm::WriteBitcodeToFile(module_, out);
 }
 
 llvm::Value* CodeGen::lookup(Def def) {

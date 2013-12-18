@@ -7,12 +7,11 @@ namespace thorin {
 
 class NVVMCodeGen : public CodeGen {
 public:
-    NVVMCodeGen(World& world)
-        : CodeGen(world, llvm::CallingConv::PTX_Device)
-    {}
+    NVVMCodeGen(World& world);
 
     virtual llvm::Function* emit_function_decl(std::string&, Lambda*);
-    virtual void set_data_layout();
+
+private:
 };
 
 }

@@ -92,8 +92,7 @@ int main(int argc, char** argv) {
             auto rest = infile.substr(0, i);
             if (rest.empty())
                 throw logic_error("input file '" + infile + "' has empty module name");
-            if (module_name.empty())
-                module_name = rest;
+            module_name = rest;
         }
 
         impala::Init init(module_name);

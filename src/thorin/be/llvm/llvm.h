@@ -34,21 +34,19 @@ private:
     Lambda* emit_builtin(Lambda*);
     Lambda* emit_nvvm(Lambda*);
     Lambda* emit_spir(Lambda*);
+    virtual llvm::Function* emit_function_decl(std::string&, Lambda*) = 0;
 
-    llvm::Function* emit_nnvm_function_decl(llvm::LLVMContext&, llvm::Module*, std::string&, Lambda*);
-    llvm::Function* emit_spir_function_decl(llvm::LLVMContext&, llvm::Module*, std::string&, Lambda*);
-
-private:
-    World& world;
-    llvm::LLVMContext context;
-    AutoPtr<llvm::Module> module;
-    llvm::IRBuilder<> builder;
-    LLVMDecls llvm_decls;
-    llvm::CallingConv::ID calling_convention;
-    std::unordered_map<const Param*, llvm::Value*> params;
-    std::unordered_map<const Param*, llvm::PHINode*> phis;
-    std::unordered_map<const PrimOp*, llvm::Value*> primops;
-    std::unordered_map<Lambda*, llvm::Function*> fcts;
+protected:
+    World& world_;
+    llvm::LLVMContext context_;
+    AutoPtr<llvm::Module> module_;
+    llvm::IRBuilder<> builder_;
+    LLVMDecls llvm_decls_;
+    llvm::CallingConv::ID calling_convention_;
+    std::unordered_map<const Param*, llvm::Value*> params_;
+    std::unordered_map<const Param*, llvm::PHINode*> phis_;
+    std::unordered_map<const PrimOp*, llvm::Value*> primops_;
+    std::unordered_map<Lambda*, llvm::Function*> fcts_;
 };
 
 //------------------------------------------------------------------------------

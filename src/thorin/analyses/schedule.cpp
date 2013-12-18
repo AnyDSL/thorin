@@ -96,9 +96,6 @@ static Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &def2late) {
             assert(scope.contains(def));
             for (auto op : def->ops()) {
                 if (op->isa<PrimOp>() && scope.contains(op)) {
-                    Lambda*& late = def2late[op];
-                    late = late == nullptr ? cur : domtree.lca(late, cur);
-
                     assert(def2num.find(op) != def2num.end());
                     if (--def2num[op] == 0)
                         zero.push_back(op);
@@ -117,8 +114,13 @@ static Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &def2late) {
 
             for (auto z : zero) {
                 const PrimOp* primop = z->as<PrimOp>();
-                auto late = def2late[primop];
-                assert(late);
+                auto& late = def2late[primop];
+                assert(late == nullptr);
+                late = cur;
+                for (auto use : primop->uses()) {
+                    if (scope.contains(use))
+                        late = domtree.lca(late, def2late[use]);
+                }
                 schedule[late].push_back(primop);
                 remove.push_back(primop);
             }

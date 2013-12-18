@@ -30,15 +30,15 @@ protected:
     llvm::Value* emit(Def);
     llvm::Value* lookup(Def);
     llvm::AllocaInst* emit_alloca(llvm::Type*, const std::string&);
+    virtual llvm::Function* emit_function_decl(std::string&, Lambda*);
+    virtual llvm::Function* emit_intrinsic_decl(std::string& name, Lambda* lambda) {
+        return CodeGen::emit_function_decl(name, lambda);
+    }
 
 private:
     Lambda* emit_builtin(Lambda*);
     Lambda* emit_nvvm(Lambda*);
     Lambda* emit_spir(Lambda*);
-    virtual llvm::Function* emit_function_decl(std::string&, Lambda*);
-    virtual llvm::Function* emit_intrinsic_decl(std::string& name, Lambda* lambda) {
-        return CodeGen::emit_function_decl(name, lambda);
-    }
 
 protected:
     World& world_;

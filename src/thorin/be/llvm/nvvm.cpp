@@ -34,6 +34,12 @@ llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     return f;
 }
 
+llvm::Function* NVVMCodeGen::emit_intrinsic_decl(std::string& name, Lambda* lambda) {
+    auto f = CodeGen::emit_function_decl(name, lambda);
+    f->setAttributes(llvm::AttributeSet());
+    return f;
+}
+
 Lambda* CodeGen::emit_nvvm(Lambda* lambda) {
     // to-target is the desired cuda call
     // target(mem, size, body, return, free_vars)

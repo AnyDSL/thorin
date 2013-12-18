@@ -38,6 +38,10 @@
 
 namespace thorin {
 
+static llvm::Function* insert(llvm::Module* src, llvm::Module* dst, const char* name) {
+    return llvm::cast<llvm::Function>(dst->getOrInsertFunction(name, src->getFunction(name)->getFunctionType()));
+}
+
 CodeGen::CodeGen(World& world, llvm::CallingConv::ID calling_convention)
     : world_(world)
     , context_()
@@ -53,25 +57,21 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID calling_convention)
 {
     llvm::SMDiagnostic diag;
     std::string error;
-    bool ok = llvm::Linker::LinkModules(module_, llvm::ParseIRFile("nvvm.s", diag, context_), llvm::Linker::DestroySource, &error);
-    if (!ok)
-        throw std::make_pair(error, diag);
-
+    AutoPtr<llvm::Module> nvvm_mod = llvm::ParseIRFile("nvvm.s", diag, context_);
 #define NVVM_DECL(fun_name) \
-    fun_name ## _ = module_->getFunction(#fun_name);
+    fun_name ## _ = insert(nvvm_mod, module_, #fun_name);
 #include "nvvm_decls.h"
 
     nvvm_device_ptr_ty_ = llvm::IntegerType::getInt64Ty(context_);
 
-    ok = llvm::Linker::LinkModules(module_, llvm::ParseIRFile("spir.s", diag, context_), llvm::Linker::DestroySource, &error);
-    if (!ok)
-        throw std::make_pair(error, diag);
-
+#if 0
+    AutoPtr<llvm::Module> spir_mod = llvm::ParseIRFile("spir.s", diag, context_);
 #define SPIR_DECL(fun_name) \
-    fun_name ## _ = module_->getFunction(#fun_name);
+    fun_name ## _ = insert(spir_mod, module_, #fun_name);
 #include "spir_decls.h"
 
     spir_device_ptr_ty_ = IntegerType::getInt64Ty(context_);
+#endif
 }
 
 Lambda* CodeGen::emit_builtin(Lambda* lambda) {

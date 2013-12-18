@@ -57,20 +57,21 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID calling_convention)
 {
     llvm::SMDiagnostic diag;
     AutoPtr<llvm::Module> nvvm_mod = llvm::ParseIRFile("nvvm.s", diag, context_);
+    if (nvvm_mod) {
+        nvvm_device_ptr_ty_ = llvm::IntegerType::getInt64Ty(context_);
 #define NVVM_DECL(fun_name) \
-    fun_name ## _ = insert(nvvm_mod, module_, #fun_name);
+        fun_name ## _ = insert(nvvm_mod, module_, #fun_name);
 #include "nvvm_decls.h"
+    }
 
-    nvvm_device_ptr_ty_ = llvm::IntegerType::getInt64Ty(context_);
-
-#if 0
     AutoPtr<llvm::Module> spir_mod = llvm::ParseIRFile("spir.s", diag, context_);
-#define SPIR_DECL(fun_name) \
-    fun_name ## _ = insert(spir_mod, module_, #fun_name);
-#include "spir_decls.h"
+    if (spir_mod) {
+        spir_device_ptr_ty_ = IntegerType::getInt64Ty(context_);
 
-    spir_device_ptr_ty_ = IntegerType::getInt64Ty(context_);
-#endif
+#define SPIR_DECL(fun_name) \
+        fun_name ## _ = insert(spir_mod, module_, #fun_name);
+#include "spir_decls.h"
+    }
 }
 
 Lambda* CodeGen::emit_builtin(Lambda* lambda) {

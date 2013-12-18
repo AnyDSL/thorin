@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <iostream>
 
+#include <llvm/Linker.h>
 #include <llvm/IR/Constant.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
@@ -12,6 +13,9 @@
 #include <llvm/IR/Type.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/Analysis/Verifier.h>
+#include <llvm/IRReader/IRReader.h>
+#include <llvm/Support/raw_ostream.h>
+#include <llvm/Support/SourceMgr.h>
 
 #ifdef WFV2_SUPPORT
 #include <wfvInterface.h>
@@ -27,7 +31,6 @@
 #include "thorin/util/array.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/be/llvm/decls.h"
 #include "thorin/be/llvm/cpu.h"
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/spir.h"
@@ -38,11 +41,38 @@ namespace thorin {
 CodeGen::CodeGen(World& world, llvm::CallingConv::ID calling_convention)
     : world_(world)
     , context_()
-    , builder_(context_)
     , module_(new llvm::Module(world.name(), context_))
-    , llvm_decls_(context_, module_)
+    , builder_(context_)
     , calling_convention_(calling_convention)
-{}
+#define NVVM_DECL(fun_name) \
+    , fun_name ## _(nullptr)
+#include "nvvm_decls.h"
+#define SPIR_DECL(fun_name) \
+    , fun_name ## _(nullptr)
+#include "spir_decls.h"
+{
+    llvm::SMDiagnostic diag;
+    std::string error;
+    bool ok = llvm::Linker::LinkModules(module_, llvm::ParseIRFile("nvvm.s", diag, context_), llvm::Linker::DestroySource, &error);
+    if (!ok)
+        throw std::make_pair(error, diag);
+
+#define NVVM_DECL(fun_name) \
+    fun_name ## _ = module_->getFunction(#fun_name);
+#include "nvvm_decls.h"
+
+    nvvm_device_ptr_ty_ = llvm::IntegerType::getInt64Ty(context_);
+
+    ok = llvm::Linker::LinkModules(module_, llvm::ParseIRFile("spir.s", diag, context_), llvm::Linker::DestroySource, &error);
+    if (!ok)
+        throw std::make_pair(error, diag);
+
+#define SPIR_DECL(fun_name) \
+    fun_name ## _ = module_->getFunction(#fun_name);
+#include "spir_decls.h"
+
+    spir_device_ptr_ty_ = IntegerType::getInt64Ty(context_);
+}
 
 Lambda* CodeGen::emit_builtin(Lambda* lambda) {
     Lambda* to = lambda->to()->as_lambda();

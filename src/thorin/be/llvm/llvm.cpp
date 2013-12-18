@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <stdexcept>
 
 #include <llvm/Bitcode/ReaderWriter.h>
 #include <llvm/IR/Constant.h>

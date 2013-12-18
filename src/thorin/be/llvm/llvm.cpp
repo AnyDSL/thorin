@@ -300,7 +300,7 @@ void CodeGen::emit() {
 #endif
     
     std::string error;
-    llvm::raw_fd_ostream out((world_.name() + ".bc").c_str(), error, raw_fd_ostream::F_Binary);
+    llvm::raw_fd_ostream out((world_.name() + ".bc").c_str(), error, llvm::raw_fd_ostream::F_Binary);
     llvm::WriteBitcodeToFile(module_, out);
 }
 

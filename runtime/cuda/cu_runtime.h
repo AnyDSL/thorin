@@ -299,8 +299,6 @@ void nvvm_set_problem_size(size_t size_x, size_t size_y, size_t size_z) { set_pr
 
 void nvvm_launch_kernel(const char *kernel_name) { launch_kernel(kernel_name); }
 void nvvm_synchronize() { synchronize(); }
-}
-
 
 extern int main_impala();
 int main(int argc, char *argv[]) {
@@ -308,6 +306,8 @@ int main(int argc, char *argv[]) {
 
     return main_impala();
 }
+}
+
 
 #endif  // __CUDA_RT_HPP__
 

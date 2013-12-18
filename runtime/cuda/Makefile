@@ -26,7 +26,7 @@ all: jacobi.out
 	llc $(OPT_FLAGS) $< -o $@
 
 %.out: %.s cu_runtime.s
-	clang++ cu_runtime.s $< $(LIB_DIRS) -lcuda -lnvvm -o $@
+	clang++ $< cu_runtime.s $(LIB_DIRS) -lcuda -lnvvm -o $@
 
 clean:
 	@rm -f main $(MAIN_FILES) *.ll *.llo *.o *.bc *.s *.out

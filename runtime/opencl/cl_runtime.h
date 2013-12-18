@@ -532,8 +532,6 @@ float *array(size_t num_elems) {
 float random_val(int max) {
     return random() / max;
 }
-}
-
 
 extern int main_impala();
 int main(int argc, char *argv[]) {
@@ -541,6 +539,8 @@ int main(int argc, char *argv[]) {
 
     return main_impala();
 }
+}
+
 
 #endif  // __OPENCL_RT_HPP__
 

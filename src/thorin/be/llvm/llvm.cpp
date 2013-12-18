@@ -648,12 +648,13 @@ void emit_llvm(World& world) {
     // determine different parts of the world which need to be compiled differently
     for (auto lambda : top_level_lambdas(world)) {
         if (lambda->is_connected_to_builtin(Lambda::NVVM))
-            import(nvvm, lambda);
+            import(nvvm, lambda)->name = lambda->unique_name();
         else if (lambda->is_connected_to_builtin(Lambda::SPIR))
-            import(spir, lambda);
+            import(spir, lambda)->name = lambda->unique_name();
         else
             continue;
 
+        lambda->name = lambda->unique_name();
         lambda->destroy_body();
         lambda->attribute().set(Lambda::Extern);
     }

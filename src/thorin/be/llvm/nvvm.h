@@ -10,8 +10,6 @@ public:
     NVVMCodeGen(World& world);
 
     virtual llvm::Function* emit_function_decl(std::string&, Lambda*);
-
-private:
 };
 
 }

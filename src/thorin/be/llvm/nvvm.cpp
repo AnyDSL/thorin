@@ -21,13 +21,13 @@ NVVMCodeGen::NVVMCodeGen(World& world)
 
 llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
     llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
-    llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "kernel", module_);
+    llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->name, module_);
     f->setCallingConv(llvm::CallingConv::PTX_Kernel);
     // append required metadata
     llvm::NamedMDNode* annotation = module_->getOrInsertNamedMetadata("nvvm.annotations");
     llvm::Value* annotation_values[] = {
         f,
-        llvm::MDString::get(context_, lambda->unique_name()),
+        llvm::MDString::get(context_, lambda->name),
         llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context_), 1)
     };
     annotation->addOperand(llvm::MDNode::get(context_, annotation_values));
@@ -46,8 +46,8 @@ Lambda* CodeGen::emit_nvvm(Lambda* lambda) {
     Lambda* ret = lambda->arg(3)->as_lambda();
 
     // load kernel
-    llvm::Value* module_name = builder_.CreateGlobalStringPtr(kernel);
-    llvm::Value* kernel_name = builder_.CreateGlobalStringPtr("kernel");
+    llvm::Value* module_name = builder_.CreateGlobalStringPtr(world_.name() + "_nvvm.ll");
+    llvm::Value* kernel_name = builder_.CreateGlobalStringPtr(kernel);
     llvm::Value* load_args[] = { module_name, kernel_name };
     builder_.CreateCall(nvvm_load_kernel_, load_args);
     // fetch values and create external calls for intialization

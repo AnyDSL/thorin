@@ -20,29 +20,10 @@ fn init_rand(arr : [float], width : int, height : int) -> void {
     });
 }
 
-fn apply_stencil(range : int, stencil : [float * 3 * 3],
-                 index : int, arr : [float], width : int) -> float {
-    let mut sum = 0.0f;
-    let half_range = range / 2;
-    iterate(-half_range, half_range+1, |i : int| -> void {
-        iterate(-half_range, half_range+1, |j : int| -> void {
-            let stencil_val = stencil[i + half_range][j + half_range];
-            if (stencil_val != 0.0f)
-                sum += arr[index + i + j * width] * stencil_val;
-            else {
-                // additional logic for empty stencil value
-            }
-        });
-    });
-
-    return sum;
-}
-
 
 fn main() -> int {
     let width   = 2048;
     let height  = 2048;
-    let range   = 3;
     let a       = 0.2f;
     let b       = 1.0f - 4.0f * a;
     let mut arr = array(width * height);
@@ -50,13 +31,15 @@ fn main() -> int {
     init_rand(arr, width, height);
     init_zero(out, width, height);
 
-    let stencil : [float * 3 * 3] = [
-        [0.0f, b, 0.0f],
-        [   b, a, b   ],
-        [0.0f, b, 0.0f]];
 
     run_on_gpu(width, |index : int| -> void {
-        out[index] = @apply_stencil(range, stencil, index, arr, width);
+        let sum = a * arr[index] +
+                  b * (
+                    arr[index - 1 + 0 * width] +
+                    arr[index + 1 + 0 * width] +
+                    arr[index + 0 - 1 * width] +
+                    arr[index + 0 + 1 * width]);
+        out[index] = sum;
     });
 
 

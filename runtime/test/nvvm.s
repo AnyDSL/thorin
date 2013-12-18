@@ -1,7 +1,7 @@
 ; Module nvvm-thorin runtime decls
 
 declare i64 @nvvm_malloc_memory(i64);
-declare i64 @nvvm_free_memory(i64);
+declare void @nvvm_free_memory(i64);
 
 declare void @nvvm_write_memory(i64, i8*, i64);
 declare void @nvvm_read_memory(i64, i8*, i64);

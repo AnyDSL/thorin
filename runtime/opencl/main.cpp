@@ -14,7 +14,6 @@ int main_impala() {
     }
 
     // CODE TO BE GENERATED: BEGIN
-    init_opencl(CL_DEVICE_TYPE_CPU);
     build_program_and_kernel("simple-gpu64.spir.bc", "simple");
     cl_mem dev;
     dev = malloc_buffer(num*sizeof(int));

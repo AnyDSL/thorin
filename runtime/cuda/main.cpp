@@ -14,7 +14,6 @@ int main_impala() {
     }
 
     // CODE TO BE GENERATED: BEGIN
-    init_cuda();
     CUdeviceptr dev;
     dev = malloc_memory(num*sizeof(int));
     write_memory(dev, host, num*sizeof(int));

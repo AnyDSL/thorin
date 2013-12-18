@@ -67,7 +67,7 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID calling_convention)
 
     AutoPtr<llvm::Module> spir_mod = llvm::ParseIRFile("spir.s", diag, context_);
     if (spir_mod) {
-        spir_device_ptr_ty_ = IntegerType::getInt64Ty(context_);
+        spir_device_ptr_ty_ = llvm::IntegerType::getInt64Ty(context_);
 
 #define SPIR_DECL(fun_name) \
         fun_name ## _ = insert(spir_mod, module_, #fun_name);

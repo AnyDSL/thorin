@@ -86,8 +86,7 @@ private:
 
 //------------------------------------------------------------------------------
 
-Lambda* CodeGen::emit_nvvm(Lambda* lambda)
-{
+Lambda* CodeGen::emit_nvvm(Lambda* lambda) {
     // to-target is the desired cuda call
     // target(mem, size, body, return, free_vars)
     Lambda* target = lambda->to()->as_lambda();
@@ -149,8 +148,7 @@ Lambda* CodeGen::emit_nvvm(Lambda* lambda)
     return ret;
 }
 
-Lambda* CodeGen::emit_spir(Lambda* lambda)
-{
+Lambda* CodeGen::emit_spir(Lambda* lambda) {
     Lambda* target = lambda->to()->as_lambda();
     assert(target->is_builtin() && target->attribute().is(Lambda::SPIR));
     assert(lambda->num_args() > 3 && "required arguments are missing");
@@ -221,8 +219,7 @@ Lambda* CodeGen::emit_spir(Lambda* lambda)
     return ret;
 }
 
-Lambda* CodeGen::emit_builtin(Lambda* lambda)
-{
+Lambda* CodeGen::emit_builtin(Lambda* lambda) {
     Lambda* to = lambda->to()->as_lambda();
     if (to->attribute().is(Lambda::NVVM))
         return emit_nvvm(lambda);
@@ -253,11 +250,14 @@ void CodeGen::emit(DeclFunc func, IntrinsicFunc ifunc) {
     // emit all globals
     for (auto primop : world.primops()) {
         if (auto global = primop->isa<Global>()) {
-            auto val = llvm::cast<llvm::GlobalValue>(module->getOrInsertGlobal(global->name, map(global->referenced_type())));
-            if (auto var = llvm::dyn_cast<llvm::GlobalVariable>(val)) {
+            llvm::Value* val;
+            if (auto lambda = global->init()->isa_lambda())
+                val = fcts[lambda];
+            else {
+                auto var = llvm::cast<llvm::GlobalVariable>(module->getOrInsertGlobal(global->name, map(global->referenced_type())));
                 var->setInitializer(llvm::cast<llvm::Constant>(emit(global->init())));
-            } else
-                assert(global->init()->isa_lambda());
+                val = var;
+            }
             primops[global] = val;
         }
     }

@@ -69,8 +69,7 @@ void CodeGen::emit() {
         if (lambda->attribute().is(Lambda::Intrinsic)) {
             std::transform(name.begin(), name.end(), name.begin(), [] (char c) { return c == '_' ? '.' : c; });
             name = "llvm." + name;
-            assert(false && "TODO");
-            //f = ifunc(*this, context_, module_, name, lambda);
+            f = emit_intrinsic_decl(name, lambda);
         } else
             f = emit_function_decl(name, lambda);
 
@@ -610,28 +609,11 @@ void emit_llvm(World& world) {
     }
 
     CPUCodeGen(cpu).emit();
-    NVVMCodeGen(cpu).emit();
-    SPIRCodeGen(cpu).emit();
+    if (!nvvm.lambdas().empty())
+        NVVMCodeGen(nvvm).emit();
+    if (!spir.lambdas().empty())
+        SPIRCodeGen(spir).emit();
 }
-
-#if 0
-void emit_llvm(World& world) {
-    World default_world("thorin");
-    // determine different parts of the world which need to be compiled differently
-    for (auto lambda : top_level_lambdas(world)) {
-        if (lambda->is_connected_to_builtin(Lambda::NVVM))
-            emit_kernel(lambda, llvm::CallingConv::PTX_Device, emit_nnvm_function_decl);
-        else if (lambda->is_connected_to_builtin(Lambda::SPIR))
-            emit_kernel(lambda, llvm::CallingConv::SPIR_FUNC, emit_spir_function_decl);
-        else {
-            // default code
-            import(default_world, lambda);
-        }
-    }
-    // Generate code for the default functions
-    CodeGen(default_world, llvm::CallingConv::C).emit(emit_default_function_decl, emit_default_function_decl);
-}
-#endif
 
 //------------------------------------------------------------------------------
 

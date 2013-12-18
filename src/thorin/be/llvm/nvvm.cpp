@@ -33,11 +33,11 @@ Lambda* CodeGen::emit_nvvm(Lambda* lambda) {
     assert(lambda->num_args() > 3 && "required arguments are missing");
     // get input
     const uint64_t it_space_x = lambda->arg(1)->as<PrimLit>()->u64_value();
-    Lambda* kernel = lambda->arg(2)->as_lambda();
+    auto kernel = lambda->arg(2)->as<Global>()->init()->as<Lambda>()->name;
     Lambda* ret = lambda->arg(3)->as_lambda();
 
     // load kernel
-    llvm::Value* module_name = builder_.CreateGlobalStringPtr(kernel->unique_name());
+    llvm::Value* module_name = builder_.CreateGlobalStringPtr(kernel);
     llvm::Value* kernel_name = builder_.CreateGlobalStringPtr("kernel");
     llvm::Value* load_args[] = { module_name, kernel_name };
     builder_.CreateCall(llvm_decls_.get_nvvm_load_kernel(), load_args);

@@ -624,21 +624,26 @@ multiple:
 //------------------------------------------------------------------------------
 
 void emit_llvm(World& world) {
-    World cpu(world.name());
     World nvvm(world.name() + "_nvvm");
     World spir(world.name() + "_spir");
 
     // determine different parts of the world which need to be compiled differently
     for (auto lambda : top_level_lambdas(world)) {
-        if (lambda->is_connected_to_builtin(Lambda::NVVM)) 
+        if (lambda->is_connected_to_builtin(Lambda::NVVM))
             import(nvvm, lambda);
         else if (lambda->is_connected_to_builtin(Lambda::SPIR))
             import(spir, lambda);
         else
-            import(cpu, lambda);
+            continue;
+
+        lambda->destroy_body();
+        lambda->attribute().set(Lambda::Extern);
     }
 
-    CPUCodeGen(cpu).emit();
+    if (!nvvm.lambdas().empty() || !spir.lambdas().empty())
+        world.cleanup();
+
+    CPUCodeGen(world).emit();
     if (!nvvm.lambdas().empty())
         NVVMCodeGen(nvvm).emit();
     if (!spir.lambdas().empty())

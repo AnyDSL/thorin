@@ -22,7 +22,6 @@ CUfunction cuFunction;
 void **cuArgs;
 int cuArgIdx, cuArgIdxMax;
 dim3 cuDimProblem;
-bool initialized = false;
 
 
 #define checkErrNvvm(err, name) __checkNvvmErrors (err, name, __FILE__, __LINE__)
@@ -46,8 +45,6 @@ inline void __checkNvvmErrors(nvvmResult err, const char *name, const char *file
 
 // initialize CUDA device
 void init_cuda() {
-    if (initialized) return;
-
     CUresult err = CUDA_SUCCESS;
     int device_count, driver_version = 0, nvvm_major = 0, nvvm_minor = 0;
 
@@ -95,13 +92,11 @@ void init_cuda() {
     cuArgs = (void **)malloc(sizeof(void *));
     cuArgIdx = 0;
     cuArgIdxMax = 1;
-    initialized = true;
 }
 
 
 // load ptx assembly, create a module and kernel
 void create_module_kernel(const char *ptx, const char *kernel_name) {
-    init_cuda();
     CUresult err = CUDA_SUCCESS;
     //CUjit_target_enum target_cc;
 
@@ -126,7 +121,6 @@ void create_module_kernel(const char *ptx, const char *kernel_name) {
 
 // load ll intermediate and compile to ptx
 void load_kernel(const char *file_name, const char *kernel_name) {
-    init_cuda();
     nvvmResult err;
     nvvmProgram program;
     size_t PTXSize;
@@ -180,7 +174,6 @@ void load_kernel(const char *file_name, const char *kernel_name) {
 }
 
 CUdeviceptr malloc_memory(size_t size) {
-    init_cuda();
     CUresult err = CUDA_SUCCESS;
     CUdeviceptr mem;
 
@@ -191,7 +184,6 @@ CUdeviceptr malloc_memory(size_t size) {
 }
 
 void free_memory(CUdeviceptr mem) {
-    init_cuda();
     CUresult err = CUDA_SUCCESS;
 
     err = cuMemFree(mem);
@@ -199,32 +191,20 @@ void free_memory(CUdeviceptr mem) {
 }
 
 void write_memory(CUdeviceptr dev, void *host, size_t size) {
-    init_cuda();
     CUresult err = CUDA_SUCCESS;
 
     err = cuMemcpyHtoD(dev, host, size * sizeof(float));
     checkErrDrv(err, "cuMemcpyHtoD()");
 }
-void write_memory1(CUdeviceptr dev, void *host, size_t size) {
-    write_memory(dev, host, size);
-}
-void write_memory2(CUdeviceptr dev, void **host, size_t size) {
-    write_memory(dev, *host, size);
-}
 
 void read_memory(CUdeviceptr dev, void *host, size_t size) {
-    init_cuda();
     CUresult err = CUDA_SUCCESS;
 
     err = cuMemcpyDtoH(host, dev, size * sizeof(float));
     checkErrDrv(err, "cuMemcpyDtoH()");
 }
-void read_memory2(CUdeviceptr dev, void **host, size_t size) {
-    read_memory(dev, *host, size);
-}
 
 void synchronize() {
-    init_cuda();
     CUresult err = CUDA_SUCCESS;
 
     err = cuCtxSynchronize();
@@ -234,7 +214,6 @@ void synchronize() {
 
 // set problem size
 void set_problem_size(size_t size_x, size_t size_y, size_t size_z) {
-    init_cuda();
     cuDimProblem.x = size_x;
     cuDimProblem.y = size_y;
     cuDimProblem.z = size_z;
@@ -243,7 +222,6 @@ void set_problem_size(size_t size_x, size_t size_y, size_t size_z) {
 
 // set kernel argument
 void set_kernel_arg(void *host) {
-    init_cuda();
     cuArgIdx++;
     if (cuArgIdx > cuArgIdxMax) {
         cuArgs = (void **)realloc(cuArgs, sizeof(void *)*cuArgIdx);
@@ -256,7 +234,6 @@ void set_kernel_arg(void *host) {
 
 // launch kernel
 void launch_kernel(const char *kernel_name) {
-    init_cuda();
     CUresult err = CUDA_SUCCESS;
     CUevent start, end;
     unsigned int event_flags = CU_EVENT_DEFAULT;
@@ -299,9 +276,29 @@ float *array(size_t num_elems) {
     return (float *)malloc(sizeof(float)*num_elems);
 }
 float random_val(int max) {
-    return random() / max;
+    return ((float)random() / RAND_MAX) * max;
+}
+CUdeviceptr nvvm_malloc_memory(size_t size) { return malloc_memory(size); }
+void nvvm_free_memory(CUdeviceptr mem) { free_memory(mem); }
+
+void nvvm_write_memory(CUdeviceptr dev, void *host, size_t size) { write_memory(dev, host, size); }
+void nvvm_read_memory(CUdeviceptr dev, void *host, size_t size) { read_memory(dev, host, size); }
+
+void nvvm_load_kernel(const char *file_name, const char *kernel_name) { load_kernel(file_name, kernel_name); }
+void nvvm_set_kernel_arg(void *host) { set_kernel_arg(host); }
+void nvvm_set_problem_size(size_t size_x, size_t size_y, size_t size_z) { set_problem_size(size_x, size_y, size_z); }
+
+void nvvm_launch_kernel(const char *kernel_name) { launch_kernel(kernel_name); }
+void nvvm_synchronize() { synchronize(); }
+
+extern int main_impala();
+int main(int argc, char *argv[]) {
+    init_cuda();
+
+    return main_impala();
 }
 }
+
 
 #endif  // __CUDA_RT_HPP__
 

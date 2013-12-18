@@ -7,9 +7,7 @@ namespace thorin {
 
 class CPUCodeGen : public CodeGen {
 public:
-    CPUCodeGen(World& world)
-        : CodeGen(world, llvm::CallingConv::C)
-    {}
+    CPUCodeGen(World& world);
 };
 
 }

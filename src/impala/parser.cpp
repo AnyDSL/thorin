@@ -652,7 +652,7 @@ const FunExpr* Parser::parse_fun_expr() {
     fun->orig_type_ = typetable.fntype(arg_types);
     fun->body_ = try_scope("body of function");
     e->fun_->extern_ = false;
-    e->fun_->symbol_ = "<lambda>";
+    e->fun_->symbol_ = "lambda";
 
     return e;
 }

@@ -7,14 +7,13 @@ namespace thorin {
 
 class SPIRCodeGen : public CodeGen {
 public:
-    SPIRCodeGen(World& world)
-        : CodeGen(world, llvm::CallingConv::SPIR_FUNC)
-    {}
+    SPIRCodeGen(World& world);
 
     virtual llvm::Function* emit_function_decl(std::string&, Lambda*);
+
+private:
 };
 
 }
 
 #endif
-

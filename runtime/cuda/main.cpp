@@ -6,7 +6,7 @@
 
 static int num = 1024;
 
-int main() {
+int main_impala() {
     int *host = (int *)malloc(num*sizeof(int));
 
     for (unsigned int i=0; i<num; ++i) {

@@ -6,7 +6,7 @@
 
 static int num = 1024;
 
-int main() {
+int main_impala() {
     int *host = (int *)malloc(num*sizeof(int));
 
     for (unsigned int i=0; i<num; ++i) {
@@ -14,7 +14,6 @@ int main() {
     }
 
     // CODE TO BE GENERATED: BEGIN
-    init_opencl(CL_DEVICE_TYPE_CPU);
     build_program_and_kernel("simple-gpu64.spir.bc", "simple");
     cl_mem dev;
     dev = malloc_buffer(num*sizeof(int));

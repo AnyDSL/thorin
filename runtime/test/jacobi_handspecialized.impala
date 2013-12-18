@@ -32,7 +32,7 @@ fn main() -> int {
     init_zero(out, width, height);
 
 
-    run_on_gpu(width, |index : int| -> void {
+    run_on_gpu(width * height, |index : int| -> void {
         let sum = a * arr[index] +
                   b * (
                     arr[index - 1 + 0 * width] +
@@ -53,7 +53,9 @@ fn main() -> int {
                 0.2f * arr[x + 0 + (y + 0)*width] +
                 0.2f * arr[x + 1 + (y + 0)*width] +
                 0.2f * arr[x + 0 + (y + 1)*width];
-            if (ref != out[x + y*width]) passed = 1;
+            let mut diff = ref - out[x + y*width];
+            if (diff < 0.0f) diff = -diff;
+            if (diff > 0.1f) passed++;
         }
     }
 

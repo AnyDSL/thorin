@@ -55,7 +55,7 @@ fn main() -> int {
         [   b, a, b   ],
         [0.0f, b, 0.0f]];
 
-    run_on_gpu(width, |index : int| -> void {
+    run_on_gpu(width * height, |index : int| -> void {
         out[index] = @apply_stencil(range, stencil, index, arr, width);
     });
 
@@ -70,7 +70,9 @@ fn main() -> int {
                 0.2f * arr[x + 0 + (y + 0)*width] +
                 0.2f * arr[x + 1 + (y + 0)*width] +
                 0.2f * arr[x + 0 + (y + 1)*width];
-            if (ref != out[x + y*width]) passed = 1;
+            let mut diff = ref - out[x + y*width];
+            if (diff < 0.0f) diff = -diff;
+            if (diff > 0.1f) passed++;
         }
     }
 

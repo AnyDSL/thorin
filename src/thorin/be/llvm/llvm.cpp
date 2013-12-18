@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <iostream>
+#include <stdexcept>
 
+#include <llvm/Bitcode/ReaderWriter.h>
 #include <llvm/IR/Constant.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
@@ -12,6 +14,9 @@
 #include <llvm/IR/Type.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/Analysis/Verifier.h>
+#include <llvm/IRReader/IRReader.h>
+#include "llvm/Support/raw_ostream.h"
+#include <llvm/Support/SourceMgr.h>
 
 #ifdef WFV2_SUPPORT
 #include <wfvInterface.h>
@@ -27,7 +32,6 @@
 #include "thorin/util/array.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
-#include "thorin/be/llvm/decls.h"
 #include "thorin/be/llvm/cpu.h"
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/spir.h"
@@ -35,14 +39,41 @@
 
 namespace thorin {
 
+static llvm::Function* insert(llvm::Module* src, llvm::Module* dst, const char* name) {
+    return llvm::cast<llvm::Function>(dst->getOrInsertFunction(name, src->getFunction(name)->getFunctionType()));
+}
+
 CodeGen::CodeGen(World& world, llvm::CallingConv::ID calling_convention)
     : world_(world)
     , context_()
-    , builder_(context_)
     , module_(new llvm::Module(world.name(), context_))
-    , llvm_decls_(context_, module_)
+    , builder_(context_)
     , calling_convention_(calling_convention)
-{}
+#define NVVM_DECL(fun_name) \
+    , fun_name ## _(nullptr)
+#include "nvvm_decls.h"
+#define SPIR_DECL(fun_name) \
+    , fun_name ## _(nullptr)
+#include "spir_decls.h"
+{
+    llvm::SMDiagnostic diag;
+    AutoPtr<llvm::Module> nvvm_mod = llvm::ParseIRFile("nvvm.s", diag, context_);
+    if (nvvm_mod) {
+        nvvm_device_ptr_ty_ = llvm::IntegerType::getInt64Ty(context_);
+#define NVVM_DECL(fun_name) \
+        fun_name ## _ = insert(nvvm_mod, module_, #fun_name);
+#include "nvvm_decls.h"
+    }
+
+    AutoPtr<llvm::Module> spir_mod = llvm::ParseIRFile("spir.s", diag, context_);
+    if (spir_mod) {
+        spir_device_ptr_ty_ = IntegerType::getInt64Ty(context_);
+
+#define SPIR_DECL(fun_name) \
+        fun_name ## _ = insert(spir_mod, module_, #fun_name);
+#include "spir_decls.h"
+    }
+}
 
 Lambda* CodeGen::emit_builtin(Lambda* lambda) {
     Lambda* to = lambda->to()->as_lambda();
@@ -157,45 +188,45 @@ void CodeGen::emit() {
                 switch (num_args) {
                     case 0: builder_.CreateRetVoid(); break;
                     case 1:
-                        if (lambda->arg(0)->type()->isa<Mem>())
-                            builder_.CreateRetVoid();
-                        else
-                            builder_.CreateRet(lookup(lambda->arg(0)));
-                        break;
+                            if (lambda->arg(0)->type()->isa<Mem>())
+                                builder_.CreateRetVoid();
+                            else
+                                builder_.CreateRet(lookup(lambda->arg(0)));
+                            break;
                     case 2: {
-                        if (lambda->arg(0)->type()->isa<Mem>()) {
-                            builder_.CreateRet(lookup(lambda->arg(1)));
-                            break;
-                        } else if (lambda->arg(1)->type()->isa<Mem>()) {
-                            builder_.CreateRet(lookup(lambda->arg(0)));
-                            break;
-                        }
-                        // FALLTHROUGH
-                    }
-                    default: {
-                        Array<llvm::Value*> values(num_args);
-                        Array<llvm::Type*> elems(num_args);
-
-                        size_t n = 0;
-                        for (size_t a = 0; a < num_args; ++a) {
-                            if (!lambda->arg(n)->type()->isa<Mem>()) {
-                                llvm::Value* val = lookup(lambda->arg(a));
-                                values[n] = val;
-                                elems[n++] = val->getType();
+                                if (lambda->arg(0)->type()->isa<Mem>()) {
+                                    builder_.CreateRet(lookup(lambda->arg(1)));
+                                    break;
+                                } else if (lambda->arg(1)->type()->isa<Mem>()) {
+                                    builder_.CreateRet(lookup(lambda->arg(0)));
+                                    break;
+                                }
+                                // FALLTHROUGH
                             }
-                        }
+                    default: {
+                                 Array<llvm::Value*> values(num_args);
+                                 Array<llvm::Type*> elems(num_args);
 
-                        assert(n == num_args || n+1 == num_args);
-                        values.shrink(n);
-                        elems.shrink(n);
-                        llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context_, llvm_ref(elems)));
+                                 size_t n = 0;
+                                 for (size_t a = 0; a < num_args; ++a) {
+                                     if (!lambda->arg(n)->type()->isa<Mem>()) {
+                                         llvm::Value* val = lookup(lambda->arg(a));
+                                         values[n] = val;
+                                         elems[n++] = val->getType();
+                                     }
+                                 }
 
-                        for (size_t i = 0; i != n; ++i)
-                            agg = builder_.CreateInsertValue(agg, values[i], { unsigned(i) });
+                                 assert(n == num_args || n+1 == num_args);
+                                 values.shrink(n);
+                                 elems.shrink(n);
+                                 llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context_, llvm_ref(elems)));
 
-                        builder_.CreateRet(agg);
-                        break;
-                    }
+                                 for (size_t i = 0; i != n; ++i)
+                                     agg = builder_.CreateInsertValue(agg, values[i], { unsigned(i) });
+
+                                 builder_.CreateRet(agg);
+                                 break;
+                             }
                 }
             } else if (auto select = lambda->to()->isa<Select>()) { // conditional branch
                 llvm::Value* cond = lookup(select->cond());
@@ -265,7 +296,26 @@ void CodeGen::emit() {
         primops_.clear();
     }
 
-    module_->dump();
+    {
+        std::string error;
+        auto bc_name = world_.name() + ".bc";
+        llvm::raw_fd_ostream out(bc_name.c_str(), error, llvm::raw_fd_ostream::F_Binary);
+        if (!error.empty())
+            throw std::runtime_error("cannot write '" + bc_name + "': " + error);
+
+        llvm::WriteBitcodeToFile(module_, out);
+    }
+
+    {
+        std::string error;
+        auto ll_name = world_.name() + ".ll";
+        llvm::raw_fd_ostream out(ll_name.c_str(), error);
+        if (!error.empty())
+            throw std::runtime_error("cannot write '" + ll_name + "': " + error);
+
+        module_->print(out, nullptr);
+    }
+
 #ifndef NDEBUG
     llvm::verifyModule(*this->module_);
 #endif
@@ -645,21 +695,27 @@ multiple:
 //------------------------------------------------------------------------------
 
 void emit_llvm(World& world) {
-    World cpu(world.name());
     World nvvm(world.name() + "_nvvm");
     World spir(world.name() + "_spir");
 
     // determine different parts of the world which need to be compiled differently
     for (auto lambda : top_level_lambdas(world)) {
-        if (lambda->is_connected_to_builtin(Lambda::NVVM)) 
-            import(nvvm, lambda);
+        if (lambda->is_connected_to_builtin(Lambda::NVVM))
+            import(nvvm, lambda)->name = lambda->unique_name();
         else if (lambda->is_connected_to_builtin(Lambda::SPIR))
-            import(spir, lambda);
+            import(spir, lambda)->name = lambda->unique_name();
         else
-            import(cpu, lambda);
+            continue;
+
+        lambda->name = lambda->unique_name();
+        lambda->destroy_body();
+        lambda->attribute().set(Lambda::Extern);
     }
 
-    CPUCodeGen(cpu).emit();
+    if (!nvvm.lambdas().empty() || !spir.lambdas().empty())
+        world.cleanup();
+
+    CPUCodeGen(world).emit();
     if (!nvvm.lambdas().empty())
         NVVMCodeGen(nvvm).emit();
     if (!spir.lambdas().empty())

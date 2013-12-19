@@ -8,11 +8,6 @@
 
 #include "thorin/lambda.h"
 
-namespace llvm {
-    class Type;
-    class Value;
-}
-
 namespace thorin {
 
 class World;
@@ -39,6 +34,8 @@ private:
     Lambda* emit_builtin(Lambda*);
     Lambda* emit_nvvm(Lambda*);
     Lambda* emit_spir(Lambda*);
+    llvm::Function* nvvm(const char*);
+    llvm::Function* spir(const char*);
 
 protected:
     World& world_;
@@ -53,16 +50,9 @@ protected:
 
 private:
     llvm::Type* nvvm_device_ptr_ty_;
-
-#define NVVM_DECL(fun_name) \
-    llvm::Function* fun_name ## _;
-#include "nvvm_decls.h"
-
     llvm::Type* spir_device_ptr_ty_;
-
-#define SPIR_DECL(fun_name) \
-    llvm::Function* fun_name ## _;
-#include "spir_decls.h"
+    AutoPtr<llvm::Module> nvvm_module_;
+    AutoPtr<llvm::Module> spir_module_;
 };
 
 //------------------------------------------------------------------------------

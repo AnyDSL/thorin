@@ -95,6 +95,17 @@ private:
 class TypeDecl : public Decl {
 };
 
+class StructDecl : public TypeDecl {
+public:
+    StructDecl(const Token& tok) {
+        symbol_ = tok.symbol();
+        set_loc(tok.loc());
+    }
+
+    virtual void check(Sema& sema) const;
+    virtual std::ostream& print(Printer& p) const;
+};
+
 class GenericDecl : public TypeDecl {
 public:
     GenericDecl(const Token& tok)
@@ -110,7 +121,6 @@ public:
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     mutable size_t handle_;
     mutable const Fun* fun_;
 
@@ -272,15 +282,16 @@ private:
     friend class Parser;
 };
 
-class TraitItem : public Item {
+class StructItem : public Item {
 public:
-    TraitItem(TypeTable &typetable)
-    {}
-
     virtual std::ostream& print(Printer& p) const;
+
 private:
     virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg) const;
+
+    //StructDecl decl_;
+    //VarDecls fields_;
 
     friend class Parser;
 };
@@ -642,12 +653,10 @@ public:
     Loop() {}
     const Expr* cond() const { return cond_; }
     const Scope* body() const { return body_; }
-    thorin::Symbol label() const { return label_; }
 
 private:
     thorin::AutoPtr<const Expr> cond_;
     thorin::AutoPtr<const Scope> body_;
-    thorin::Symbol label_;
 
     friend class Parser;
 };
@@ -681,7 +690,6 @@ private:
 
     friend class Parser;
 };
-
 
 class ForeachStmt : public Stmt {
 public:

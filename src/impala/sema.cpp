@@ -576,7 +576,7 @@ void ScopeStmt::check(Sema& sema) const {
 
 void ProtoItem::check(Sema& sema) const { sema.check(proto()); }
 void FunItem::check(Sema& sema) const { sema.check(fun()); }
-void TraitItem::check(Sema& sema) const { assert( false && "todo"); }
+void StructItem::check(Sema& sema) const { assert( false && "todo"); }
 
 //------------------------------------------------------------------------------
 

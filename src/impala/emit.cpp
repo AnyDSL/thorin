@@ -574,6 +574,6 @@ void ScopeStmt::emit(CodeGen& cg, JumpTarget& exit_bb) const { cg.emit(scope(), 
 
 void FunItem::emit(CodeGen& cg) const { cg.emit_body(fun()); }
 void ProtoItem::emit(CodeGen& cg) const { }
-void TraitItem::emit(CodeGen& cg) const { assert( false && "todo"); }
+void StructItem::emit(CodeGen& cg) const { assert( false && "todo"); }
 
 } // namespace impala

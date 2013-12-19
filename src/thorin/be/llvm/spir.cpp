@@ -28,13 +28,12 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
         else
             types.push_back(fty);
     }
-    llvm::FunctionType* ft = llvm::FunctionType::get(llvm::IntegerType::getVoidTy(context_), types, false);
-    llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "kernel", module_);
+    auto ft = llvm::FunctionType::get(llvm::IntegerType::getVoidTy(context_), types, false);
+    auto f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "kernel", module_);
     f->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
     // append required metadata
     llvm::NamedMDNode* annotation;
-    llvm::Value* annotation_values_12[] = { llvm::ConstantInt::get(llvm::IntegerType::getInt32Ty(context_), 1),
-                                            llvm::ConstantInt::get(llvm::IntegerType::getInt32Ty(context_), 2) };
+    llvm::Value* annotation_values_12[] = { builder_.getInt32(1), builder_.getInt32(2) };
     size_t num_params = lambda->num_params();
     Array<llvm::Value*> annotation_values_addr_space(num_params);
     Array<llvm::Value*> annotation_values_access_qual(num_params);
@@ -54,7 +53,7 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
             addr_space = llvm::dyn_cast<llvm::PointerType>(type)->getAddressSpace();
             type = llvm::dyn_cast<llvm::PointerType>(type)->getElementType()->getPointerTo(0);
         }
-        annotation_values_addr_space[index] = llvm::ConstantInt::get(llvm::IntegerType::getInt32Ty(context_), addr_space);
+        annotation_values_addr_space[index] = builder_.getInt32(addr_space);
         annotation_values_access_qual[index] = llvm::MDString::get(context_, "none");
         std::string type_string;
         llvm::raw_string_ostream type_os(type_string);
@@ -93,18 +92,18 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
 }
 
 Lambda* CodeGen::emit_spir(Lambda* lambda) {
-    Lambda* target = lambda->to()->as_lambda();
+    auto target = lambda->to()->as_lambda();
     assert(target->is_builtin() && target->attribute().is(Lambda::SPIR));
     assert(lambda->num_args() > 3 && "required arguments are missing");
     // get input
     const uint64_t it_space_x = lambda->arg(1)->as<PrimLit>()->u64_value();
-    Lambda* kernel = lambda->arg(2)->as_lambda();
-    Lambda* ret = lambda->arg(3)->as_lambda();
+    auto kernel = lambda->arg(2)->as_lambda();
+    auto ret = lambda->arg(3)->as_lambda();
     // load kernel
-    llvm::Value* module_name = builder_.CreateGlobalStringPtr(kernel->name);
-    llvm::Value* kernel_name = builder_.CreateGlobalStringPtr("kernel");
+    auto module_name = builder_.CreateGlobalStringPtr(kernel->name);
+    auto kernel_name = builder_.CreateGlobalStringPtr("kernel");
     llvm::Value* load_args[] = { module_name, kernel_name };
-    builder_.CreateCall(spir_build_program_and_kernel_, load_args);
+    builder_.CreateCall(spir("spir_build_program_and_kernel"), load_args);
     // fetch values and create external calls for initialization
     std::vector<std::pair<llvm::Value*, llvm::Constant*>> device_ptrs;
     for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
@@ -112,36 +111,32 @@ Lambda* CodeGen::emit_spir(Lambda* lambda) {
         uint64_t num_elems = uint64_t(-1);
         if (const ArrayAgg* array_value = spir_param->isa<ArrayAgg>())
             num_elems = (uint64_t)array_value->size();
-        llvm::Constant* size = llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context_), num_elems);
+        auto size = builder_.getInt64(num_elems);
         auto alloca = builder_.CreateAlloca(spir_device_ptr_ty_);
-        auto device_ptr = builder_.CreateCall(spir_malloc_buffer_, size);
+        auto device_ptr = builder_.CreateCall(spir("spir_malloc_buffer"), size);
         // store device ptr
         builder_.CreateStore(device_ptr, alloca);
         auto loaded_device_ptr = builder_.CreateLoad(alloca);
-        device_ptrs.push_back(std::pair<llvm::Value*, llvm::Constant*>(loaded_device_ptr, size));
+        device_ptrs.push_back(std::make_pair(loaded_device_ptr, size));
         llvm::Value* mem_args[] = {
             loaded_device_ptr,
             builder_.CreateBitCast(lookup(spir_param), llvm::Type::getInt8PtrTy(context_)),
             size
         };
-        builder_.CreateCall(spir_write_buffer_, mem_args);
+        builder_.CreateCall(spir("spir_write_buffer"), mem_args);
         // set_kernel_arg(void *, size_t)
-        const llvm::DataLayout *DL = new llvm::DataLayout(module_.get());
-        llvm::Value* size_of_arg = builder_.getInt64(DL->getTypeAllocSize(llvm::Type::getInt8PtrTy(context_)));
+        auto *DL = new llvm::DataLayout(module_.get());
+        auto size_of_arg = builder_.getInt64(DL->getTypeAllocSize(llvm::Type::getInt8PtrTy(context_)));
         llvm::Value* arg_args[] = { alloca, size_of_arg };
-        builder_.CreateCall(spir_set_kernel_arg_, arg_args);
+        builder_.CreateCall(spir("spir_set_kernel_arg"), arg_args);
     }
     // determine problem size
-    llvm::Value* problem_size_args[] = {
-        llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context_), it_space_x),
-        llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context_), 1),
-        llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context_), 1)
-    };
-    builder_.CreateCall(spir_set_problem_size_, problem_size_args);
+    llvm::Value* problem_size_args[] = { builder_.getInt64(it_space_x), builder_.getInt64(1), builder_.getInt64(1) };
+    builder_.CreateCall(spir("spir_set_problem_size"), problem_size_args);
     // launch
-    builder_.CreateCall(spir_launch_kernel_, { kernel_name });
+    builder_.CreateCall(spir("spir_launch_kernel"), { kernel_name });
     // synchronize
-    builder_.CreateCall(spir_synchronize_);
+    builder_.CreateCall(spir("spir_synchronize"));
 
     // fetch data back to CPU
     for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
@@ -153,12 +148,12 @@ Lambda* CodeGen::emit_spir(Lambda* lambda) {
             builder_.CreateBitCast(lookup(spir_param), llvm::Type::getInt8PtrTy(context_)),
             entry.second
         };
-        builder_.CreateCall(spir_read_buffer_, args);
+        builder_.CreateCall(spir("spir_read_buffer"), args);
     }
 
     // free memory
     for (auto device_ptr : device_ptrs)
-        builder_.CreateCall(spir_free_buffer_, { device_ptr.first });
+        builder_.CreateCall(spir("spir_free_buffer"), { device_ptr.first });
     return ret;
 }
 

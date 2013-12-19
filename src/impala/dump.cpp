@@ -343,7 +343,7 @@ std::ostream& FunItem::print(Printer& p) const {
     return fun()->print(p);
 }
 
-std::ostream& TraitItem::print(Printer& p) const {
+std::ostream& StructItem::print(Printer& p) const {
     assert( false && "todo" );
     return p.stream();
 }

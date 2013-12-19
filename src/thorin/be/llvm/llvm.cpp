@@ -39,54 +39,38 @@
 
 namespace thorin {
 
-static llvm::Function* insert(llvm::Module* src, llvm::Module* dst, const char* name) {
-    return llvm::cast<llvm::Function>(dst->getOrInsertFunction(name, src->getFunction(name)->getFunctionType()));
-}
-
 CodeGen::CodeGen(World& world, llvm::CallingConv::ID calling_convention)
     : world_(world)
     , context_()
     , module_(new llvm::Module(world.name(), context_))
     , builder_(context_)
     , calling_convention_(calling_convention)
-#define NVVM_DECL(fun_name) \
-    , fun_name ## _(nullptr)
-#include "nvvm_decls.h"
-#define SPIR_DECL(fun_name) \
-    , fun_name ## _(nullptr)
-#include "spir_decls.h"
 {
+    nvvm_device_ptr_ty_ = llvm::IntegerType::getInt64Ty(context_);
+    spir_device_ptr_ty_ = llvm::IntegerType::getInt64Ty(context_);
+
     llvm::SMDiagnostic diag;
-    AutoPtr<llvm::Module> nvvm_mod = llvm::ParseIRFile("nvvm.s", diag, context_);
-    if (nvvm_mod) {
-        nvvm_device_ptr_ty_ = llvm::IntegerType::getInt64Ty(context_);
-#define NVVM_DECL(fun_name) \
-        fun_name ## _ = insert(nvvm_mod, module_, #fun_name);
-#include "nvvm_decls.h"
-    }
-
-    AutoPtr<llvm::Module> spir_mod = llvm::ParseIRFile("spir.s", diag, context_);
-    if (spir_mod) {
-        spir_device_ptr_ty_ = IntegerType::getInt64Ty(context_);
-
-#define SPIR_DECL(fun_name) \
-        fun_name ## _ = insert(spir_mod, module_, #fun_name);
-#include "spir_decls.h"
-    }
+    nvvm_module_ = llvm::ParseIRFile("nvvm.s", diag, context_);
+    spir_module_ = llvm::ParseIRFile("spir.s", diag, context_);
 }
+
+static llvm::Function* get(llvm::Module* from, llvm::Module* to, const char* name) { 
+    return llvm::cast<llvm::Function>(to->getOrInsertFunction(name, from->getFunction(name)->getFunctionType()));
+}
+
+llvm::Function* CodeGen::nvvm(const char* name) { return get(nvvm_module_, module_, name); }
+llvm::Function* CodeGen::spir(const char* name) { return get(spir_module_, module_, name); }
 
 Lambda* CodeGen::emit_builtin(Lambda* lambda) {
     Lambda* to = lambda->to()->as_lambda();
     if (to->attribute().is(Lambda::NVVM))
         return emit_nvvm(lambda);
-    else if (to->attribute().is(Lambda::SPIR))
-        return emit_spir(lambda);
-    THORIN_UNREACHABLE;
-    return nullptr;
+    assert(to->attribute().is(Lambda::SPIR));
+    return emit_spir(lambda);
 }
 
 llvm::Function* CodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
-    llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
+    auto ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
     return llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, module_);
 }
 

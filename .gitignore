@@ -1,4 +1,7 @@
+*.bc
+*.ll
 CMakeCache.txt
 CMakeFiles/
 build*
 html
+impala

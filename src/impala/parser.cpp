@@ -879,7 +879,7 @@ const FunItem* Parser::parse_fun_item() {
 }
 
 const StructItem* Parser::parse_struct_item() {
-    //auto i = loc(new TraitItem(typetable));
+    auto s = loc(new StructItem());
     // TODO
     expect(Token::STRUCT, "struct");
     return 0;

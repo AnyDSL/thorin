@@ -95,6 +95,17 @@ private:
 class TypeDecl : public Decl {
 };
 
+class StructDecl : public TypeDecl {
+public:
+    StructDecl(const Token& tok) {
+        symbol_ = tok.symbol();
+        set_loc(tok.loc());
+    }
+
+    virtual void check(Sema& sema) const;
+    virtual std::ostream& print(Printer& p) const;
+};
+
 class GenericDecl : public TypeDecl {
 public:
     GenericDecl(const Token& tok)
@@ -110,7 +121,6 @@ public:
     virtual std::ostream& print(Printer& p) const;
 
 private:
-
     mutable size_t handle_;
     mutable const Fun* fun_;
 
@@ -274,12 +284,14 @@ private:
 
 class StructItem : public Item {
 public:
-    StructItem() {}
-
     virtual std::ostream& print(Printer& p) const;
+
 private:
     virtual void check(Sema& sema) const;
     virtual void emit(CodeGen& cg) const;
+
+    //StructDecl decl_;
+    //VarDecls fields_;
 
     friend class Parser;
 };

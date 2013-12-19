@@ -19,16 +19,12 @@ NVVMCodeGen::NVVMCodeGen(World& world)
 }
 
 llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
-    llvm::FunctionType* ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
-    llvm::Function* f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->name, module_);
+    auto ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
+    auto f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->name, module_);
     f->setCallingConv(llvm::CallingConv::PTX_Kernel);
     // append required metadata
-    llvm::NamedMDNode* annotation = module_->getOrInsertNamedMetadata("nvvm.annotations");
-    llvm::Value* annotation_values[] = {
-        f,
-        llvm::MDString::get(context_, "kernel"),
-        llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context_), 1)
-    };
+    auto annotation = module_->getOrInsertNamedMetadata("nvvm.annotations");
+    llvm::Value* annotation_values[] = { f, llvm::MDString::get(context_, "kernel"), builder_.getInt64(1) };
     annotation->addOperand(llvm::MDNode::get(context_, annotation_values));
     return f;
 }
@@ -42,17 +38,17 @@ llvm::Function* NVVMCodeGen::emit_intrinsic_decl(std::string& name, Lambda* lamb
 Lambda* CodeGen::emit_nvvm(Lambda* lambda) {
     // to-target is the desired cuda call
     // target(mem, size, body, return, free_vars)
-    Lambda* target = lambda->to()->as_lambda();
+    auto target = lambda->to()->as_lambda();
     assert(target->is_builtin() && target->attribute().is(Lambda::NVVM));
     assert(lambda->num_args() > 3 && "required arguments are missing");
     // get input
     const uint64_t it_space_x = lambda->arg(1)->as<PrimLit>()->u64_value();
     auto kernel = lambda->arg(2)->as<Global>()->init()->as<Lambda>()->name;
-    Lambda* ret = lambda->arg(3)->as_lambda();
+    auto ret = lambda->arg(3)->as_lambda();
 
     // load kernel
-    llvm::Value* module_name = builder_.CreateGlobalStringPtr(world_.name() + "_nvvm.ll");
-    llvm::Value* kernel_name = builder_.CreateGlobalStringPtr(kernel);
+    auto module_name = builder_.CreateGlobalStringPtr(world_.name() + "_nvvm.ll");
+    auto kernel_name = builder_.CreateGlobalStringPtr(kernel);
     llvm::Value* load_args[] = { module_name, kernel_name };
     builder_.CreateCall(nvvm("nvvm_load_kernel"), load_args);
     // fetch values and create external calls for intialization
@@ -62,23 +58,19 @@ Lambda* CodeGen::emit_nvvm(Lambda* lambda) {
         uint64_t num_elems = uint64_t(-1);
         if (const ArrayAgg* array_value = cuda_param->isa<ArrayAgg>())
             num_elems = (uint64_t)array_value->size();
-        llvm::Constant* size = llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context_), num_elems);
+        auto size = builder_.getInt64(num_elems);
         auto alloca = builder_.CreateAlloca(nvvm_device_ptr_ty_);
         auto device_ptr = builder_.CreateCall(nvvm("nvvm_malloc_memory"), size);
         // store device ptr
         builder_.CreateStore(device_ptr, alloca);
         auto loaded_device_ptr = builder_.CreateLoad(alloca);
-        device_ptrs.push_back(std::pair<llvm::Value*, llvm::Constant*>(loaded_device_ptr, size));
+        device_ptrs.push_back(std::make_pair(loaded_device_ptr, size));
         llvm::Value* mem_args[] = { loaded_device_ptr, builder_.CreateBitCast(lookup(cuda_param), builder_.getInt8PtrTy()), size };
         builder_.CreateCall(nvvm("nvvm_write_memory"), mem_args);
         builder_.CreateCall(nvvm("nvvm_set_kernel_arg"), { alloca });
     }
     // setup problem size
-    llvm::Value* problem_size_args[] = {
-        llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context_), it_space_x),
-        llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context_), 1),
-        llvm::ConstantInt::get(llvm::IntegerType::getInt64Ty(context_), 1)
-    };
+    llvm::Value* problem_size_args[] = { builder_.getInt64(it_space_x), builder_.getInt64(1), builder_.getInt64(1) };
     builder_.CreateCall(nvvm("nvvm_set_problem_size"), problem_size_args);
     // launch
     builder_.CreateCall(nvvm("nvvm_launch_kernel"), { kernel_name });

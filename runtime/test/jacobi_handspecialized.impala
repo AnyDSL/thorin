@@ -32,7 +32,7 @@ fn main() -> int {
     init_zero(out, width, height);
 
 
-    run_on_gpu(width, height, |index : int| -> void {
+    iteration(width, height, |index : int| -> void {
         let sum = a * arr[index] +
                   b * (
                     arr[index - 1 + 0 * width] +

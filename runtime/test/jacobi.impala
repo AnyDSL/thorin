@@ -55,7 +55,7 @@ fn main() -> int {
         [   b, a, b   ],
         [0.0f, b, 0.0f]];
 
-    run_on_gpu(width, height, |index : int| -> void {
+    iteration(width, height, |index : int| -> void {
         out[index] = @apply_stencil(range, stencil, index, arr, width);
     });
 

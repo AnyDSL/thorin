@@ -1,6 +1,6 @@
 extern nvvm(int, fn() -> void) -> void;
 
-fn run_on_gpu(width : int, height : int, body : fn(int) -> void) -> void {
+fn iteration(width : int, height : int, body : fn(int) -> void) -> void {
     let size = width * height;
     nvvm(size, || -> void {
         let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
@@ -10,7 +10,7 @@ fn run_on_gpu(width : int, height : int, body : fn(int) -> void) -> void {
     });
 }
 
-fn run_on_gpu_advanced(width : int, height : int, body : fn(int) -> void) -> void {
+fn iteration_advanced(width : int, height : int, body : fn(int) -> void) -> void {
     let size = width * height/2;
     nvvm(size, || -> void {
         let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();

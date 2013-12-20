@@ -1,8 +1,0 @@
-extern accelerator([float], fn(fn() -> int, fn() -> int, fn() -> int, fn() -> int, fn() -> int, fn() -> int) -> void) -> void;
-
-fn iterate_over_field(source : [float], width : int, body : fn(int) -> void) -> void {
-    accelerator(source, |x : fn() -> int, y : fn() -> int, bIx : fn() -> int, bIy : fn() -> int, bDx : fn() -> int, bDy : fn() -> int| -> void {
-        let index = (x() + bIx() * bDx()) + width * (y() + bIy() * bDy());
-        body(index);
-    });
-}

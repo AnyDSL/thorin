@@ -76,8 +76,10 @@ bool CodeGen::emit_prg(const Scope* prg) {
                 lambda->attribute().set(Lambda::SPIR);
             if (lambda->name == "array")
                 lambda->attribute().set(Lambda::ArrayInit);
-            if (lambda->name == "vectorized_loop")
+            if (lambda->name == "vectorized")
                 lambda->attribute().set(Lambda::Vectorize);
+            if (lambda->name == "wfv_get_tid")
+                lambda->attribute().set(Lambda::VectorizeTid | Lambda::Extern);
             // register proto
             protos_[proto] = lambda;
         }

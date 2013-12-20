@@ -61,12 +61,19 @@ static llvm::Function* get(llvm::Module* from, llvm::Module* to, const char* nam
 llvm::Function* CodeGen::nvvm(const char* name) { return get(nvvm_module_, module_, name); }
 llvm::Function* CodeGen::spir(const char* name) { return get(spir_module_, module_, name); }
 
-Lambda* CodeGen::emit_builtin(Lambda* lambda) {
+Lambda* CodeGen::emit_builtin(llvm::Function* current, Lambda* lambda) {
     Lambda* to = lambda->to()->as_lambda();
     if (to->attribute().is(Lambda::NVVM))
         return emit_nvvm(lambda);
-    assert(to->attribute().is(Lambda::SPIR));
-    return emit_spir(lambda);
+    if (to->attribute().is(Lambda::SPIR))
+        return emit_spir(lambda);
+    assert(to->attribute().is(Lambda::Vectorize));
+#ifdef WFV2_SUPPORT
+    return emit_vectorized(current, lambda);
+#else
+    assert(false && "vectorization not supported: missing WFV2");
+    return nullptr;
+#endif
 }
 
 llvm::Function* CodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
@@ -76,7 +83,8 @@ llvm::Function* CodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
 
 void CodeGen::emit() {
     // map all root-level lambdas to llvm function stubs
-    for (auto lambda : top_level_lambdas(world_)) {
+    auto top_level = top_level_lambdas(world_);
+    for (auto lambda : top_level) {
         if (lambda->is_builtin())
             continue;
         llvm::Function* f = nullptr;
@@ -107,14 +115,18 @@ void CodeGen::emit() {
         }
     }
 
+    // emit connected functions first
+    std::sort(top_level.begin(), top_level.end(), [](Lambda* first, Lambda* second) {
+        return first->is_connected_to_builtin();
+    });
+
     // for all top-level functions
-    for (auto lf : fcts_) {
-        Lambda* lambda = lf.first;
+    for (auto lambda : top_level) {
         if (lambda->is_builtin() || lambda->empty())
             continue;
 
-        assert(lambda->is_returning() || lambda->is_connected_to_builtin());
-        llvm::Function* fct = lf.second;
+        assert(lambda->is_returning());
+        llvm::Function* fct = fcts_[lambda];
 
         // map params
         const Param* ret_param = 0;
@@ -223,7 +235,7 @@ void CodeGen::emit() {
                     builder_.CreateBr(bbs[to_lambda]);
                 else {
                     if (to_lambda->is_builtin()) {
-                        Lambda* ret_lambda = emit_builtin(lambda);
+                        Lambda* ret_lambda = emit_builtin(fct, lambda);
                         builder_.CreateBr(bbs[ret_lambda]);
                     } else {
                         // put all first-order args into an array

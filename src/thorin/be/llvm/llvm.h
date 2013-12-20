@@ -31,9 +31,10 @@ protected:
     }
 
 private:
-    Lambda* emit_builtin(Lambda*);
+    Lambda* emit_builtin(llvm::Function*, Lambda*);
     Lambda* emit_nvvm(Lambda*);
     Lambda* emit_spir(Lambda*);
+    Lambda* emit_vectorized(llvm::Function*, Lambda*);
     llvm::Function* nvvm(const char*);
     llvm::Function* spir(const char*);
 

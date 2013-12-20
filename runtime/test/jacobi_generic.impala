@@ -40,7 +40,7 @@ fn main() -> int {
     stencil[7] = 0.2f;
 
 
-    run_on_gpu(width * height, |index : int| -> void {
+    run_on_gpu(width, height, |index : int| -> void {
         let mut sum = 0.0f;
         let half_range = range / 2;
         iterate(-half_range, half_range+1, |i : int| -> void {

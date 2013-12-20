@@ -1,13 +1,17 @@
 extern nvvm(int, fn() -> void) -> void;
 
-fn run_on_gpu(size : int, body : fn(int) -> void) -> void {
+fn run_on_gpu(width : int, height : int, body : fn(int) -> void) -> void {
+    let size = width * height;
     nvvm(size, || -> void {
-        let index = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+        let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+        let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
+        let index = tid_y * width + tid_x;
         body(index);
     });
 }
 
-fn run_on_gpu_advanced(size : int, body : fn(int) -> void) -> void {
+fn run_on_gpu_advanced(width : int, height : int, body : fn(int) -> void) -> void {
+    let size = width * height;
     nvvm(size, || -> void {
         let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
         let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();

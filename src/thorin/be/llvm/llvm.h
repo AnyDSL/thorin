@@ -48,7 +48,7 @@ protected:
     std::unordered_map<const Param*, llvm::PHINode*> phis_;
     std::unordered_map<const PrimOp*, llvm::Value*> primops_;
     std::unordered_map<Lambda*, llvm::Function*> fcts_;
-
+    std::set<llvm::Function*> fcts_to_remove_;
 private:
     llvm::Type* nvvm_device_ptr_ty_;
     llvm::Type* spir_device_ptr_ty_;

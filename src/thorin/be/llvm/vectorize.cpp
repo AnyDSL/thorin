@@ -26,7 +26,7 @@ Lambda* CodeGen::emit_vectorized(llvm::Function* current, Lambda* lambda) {
     // vector length
     u32 count = lambda->arg(1)->as<PrimLit>()->u32_value();
     u32 vector_length = lambda->arg(2)->as<PrimLit>()->u32_value();
-    assert(vector_length == 4 && "TODO: vector_length > 4");
+    assert(vector_length >= 4 && "vector_length >= 4");
 
     auto kernel = lambda->arg(3)->as<Global>()->init()->as_lambda();
     auto kernel_func = fcts_[kernel];
@@ -57,7 +57,7 @@ Lambda* CodeGen::emit_vectorized(llvm::Function* current, Lambda* lambda) {
     builder_.CreateBr(header);
     builder_.SetInsertPoint(header);
     // create conditional branch
-    llvm::Value* cond = builder_.CreateICmpUGT(loop_counter, builder_.getInt32(count));
+    llvm::Value* cond = builder_.CreateICmpSLT(loop_counter, builder_.getInt32(count));
     builder_.CreateCondBr(cond, body, exit);
     // set body
     builder_.SetInsertPoint(body);
@@ -86,7 +86,7 @@ Lambda* CodeGen::emit_vectorized(llvm::Function* current, Lambda* lambda) {
 
     // vectorize function
     auto vector_tid_getter = get_vectorize_tid(module_);
-    WFVInterface::WFVInterface wfv(module_, &context_, kernel_func, kernel_simd_func, vector_length, -1, true);
+    WFVInterface::WFVInterface wfv(module_, &context_, kernel_func, kernel_simd_func, vector_length);
     if(vector_tid_getter) {
         bool b_simd = wfv.addSIMDSemantics(*vector_tid_getter, false, true, false, false, false, true, false, true, false, true);
         assert(b_simd && "simd semantics for vectorization failed");
@@ -112,6 +112,12 @@ Lambda* CodeGen::emit_vectorized(llvm::Function* current, Lambda* lambda) {
             ReplaceInstWithValue((*it)->getParent()->getInstList(), ii, loop_counter);
         }
     }
+
+    // remember to remove functions
+    fcts_to_remove_.insert(kernel_func);
+    fcts_to_remove_.insert(kernel_simd_func);
+    fcts_to_remove_.insert(vector_tid_getter);
+
     return ret;
 }
 

@@ -292,6 +292,12 @@ void CodeGen::emit() {
         primops_.clear();
     }
 
+    // remove marked functions
+    for (llvm::Function* rem : fcts_to_remove_) {
+        rem->removeFromParent();
+        rem->deleteBody();
+    }
+
     {
         std::string error;
         auto bc_name = world_.name() + ".bc";

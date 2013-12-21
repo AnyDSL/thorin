@@ -1,0 +1,24 @@
+extern nvvm(int, fn() -> void) -> void;
+
+fn iteration(width : int, height : int, body : fn(int) -> void) -> void {
+    let size = width * height;
+    nvvm(size, || -> void {
+        let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+        let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
+        let index = tid_y * width + tid_x;
+        body(index);
+    });
+}
+
+fn iteration_advanced(width : int, height : int, body : fn(int) -> void) -> void {
+    let size = width * height/2;
+    nvvm(size, || -> void {
+        let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+        let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * 2;
+        let index1 = (tid_y + 0 * nvvm_read_ptx_sreg_ntid_y()) * width + tid_x;
+        let index2 = (tid_y + 1 * nvvm_read_ptx_sreg_ntid_y()) * width + tid_x;
+        body(index1);
+        body(index2);
+    });
+}
+

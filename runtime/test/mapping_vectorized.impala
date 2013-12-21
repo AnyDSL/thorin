@@ -1,0 +1,11 @@
+extern vectorized(int, int, fn() -> void) -> int;
+extern wfv_get_tid() -> int;
+
+fn vectorized_loop(width : int, height : int, body : fn(int) -> void) -> void {
+    let vector_length = 4;
+    let size = width * height / vector_length;
+    vectorized(size, vector_length, || -> void {
+        let index = wfv_get_tid();
+        body(index);
+    });
+}

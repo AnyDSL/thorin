@@ -1,0 +1,5 @@
+fn iteration(width : int, height : int, body : fn(int) -> void) -> void {
+    let size = width * height;
+    for (let mut i : int = 0; i < size; ++i)
+        body(i);
+}

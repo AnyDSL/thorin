@@ -31,9 +31,10 @@ protected:
     }
 
 private:
-    Lambda* emit_builtin(Lambda*);
+    Lambda* emit_builtin(llvm::Function*, Lambda*);
     Lambda* emit_nvvm(Lambda*);
     Lambda* emit_spir(Lambda*);
+    Lambda* emit_vectorized(llvm::Function*, Lambda*);
     llvm::Function* nvvm(const char*);
     llvm::Function* spir(const char*);
 
@@ -47,7 +48,7 @@ protected:
     std::unordered_map<const Param*, llvm::PHINode*> phis_;
     std::unordered_map<const PrimOp*, llvm::Value*> primops_;
     std::unordered_map<Lambda*, llvm::Function*> fcts_;
-
+    std::set<llvm::Function*> fcts_to_remove_;
 private:
     llvm::Type* nvvm_device_ptr_ty_;
     llvm::Type* spir_device_ptr_ty_;

@@ -2,7 +2,6 @@
 #define __CUDA_RT_HPP__
 
 #include <cuda.h>
-#include <cuda_runtime.h>
 #include <drvapi_error_string.h>
 #include <nvvm.h>
 
@@ -10,6 +9,19 @@
 
 #include <fstream>
 #include <iostream>
+
+
+// define dim3
+struct dim3 {
+    unsigned int x, y, z;
+    #if defined(__cplusplus)
+    dim3(unsigned int vx = 1, unsigned int vy = 1, unsigned int vz = 1) : x(vx), y(vy), z(vz) {}
+    #endif /* __cplusplus */
+};
+
+typedef struct dim3 dim3;
+// define dim3
+
 
 extern "C"
 {

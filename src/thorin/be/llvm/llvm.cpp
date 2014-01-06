@@ -594,7 +594,7 @@ llvm::Value* CodeGen::emit(Def def) {
     if (auto vector = def->isa<Vector>()) {
         llvm::Value* vec = llvm::UndefValue::get(map(vector->type()));
         for (size_t i = 0, e = vector->size(); i != e; ++i)
-            vec = builder_.CreateInsertElement(vec, lookup(vector->op(i)), lookup(world.literal_pu32(i)));
+            vec = builder_.CreateInsertElement(vec, lookup(vector->op(i)), lookup(world_.literal_pu32(i)));
 
         return vec;
     }

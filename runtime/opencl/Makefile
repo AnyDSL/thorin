@@ -1,14 +1,25 @@
 OPENCL_DIR ?= /opt/intel/opencl
-INC_DIRS = -I $(OPENCL_DIR)/include
-LIB_DIRS = -L $(OPENCL_DIR)/lib64
 OPT_FLAGS := -O3
 DBG_FLAGS :=
 
-all: jacobi_generic.out
+OS:=$(shell uname -s)
+
+ifeq ($(OS),Linux)
+	INC_DIRS = -I $(OPENCL_DIR)/include
+	LIB_DIRS = -L $(OPENCL_DIR)/lib64
+	LD_FLAGS = -lrt -lOpenCL
+endif
+ifeq ($(OS),Darwin) # Assume Mac Os X
+	INC_DIRS =
+	LIB_DIRS =
+	LD_FLAGS = -framework OpenCL
+endif
+
+
+all: main.out
 	@echo "Running main ..."
 	@llvm-as simple-gpu64.spir
-	@llvm-as a_kernel.spir
-	@./jacobi_generic.out
+	@./main.out
 
 %.llo: %.cpp cl_runtime.h
 	clang++ $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -c -emit-llvm $<
@@ -31,11 +42,11 @@ all: jacobi_generic.out
 %.s: %.bc
 	llc $(OPT_FLAGS) $< -o $@
 
-%.out: %.s cl_runtime.s
-	clang++ $< cl_runtime.s $(LIB_DIRS) -lrt -lOpenCL -o $@
+#%.out: %.s cl_runtime.s
+#	clang++ $< cl_runtime.s $(LIB_DIRS) $(LD_FLAGS) -o $@
 
-#%.out: %.s
-#	clang++ $< $(LIB_DIRS) -lrt -lOpenCL -o $@
+%.out: %.s
+	clang++ $< $(LIB_DIRS) $(LD_FLAGS) -o $@
 
 clean:
 	@rm -f main $(MAIN_FILES) *.ll *.llo *.o *.bc *.s *.out

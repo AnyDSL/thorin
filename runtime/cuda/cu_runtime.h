@@ -2,7 +2,6 @@
 #define __CUDA_RT_HPP__
 
 #include <cuda.h>
-#include <cuda_runtime.h>
 #include <drvapi_error_string.h>
 #include <nvvm.h>
 
@@ -10,6 +9,19 @@
 
 #include <fstream>
 #include <iostream>
+
+
+// define dim3
+struct dim3 {
+    unsigned int x, y, z;
+    #if defined(__cplusplus)
+    dim3(unsigned int vx = 1, unsigned int vy = 1, unsigned int vz = 1) : x(vx), y(vy), z(vz) {}
+    #endif /* __cplusplus */
+};
+
+typedef struct dim3 dim3;
+// define dim3
+
 
 extern "C"
 {
@@ -98,16 +110,17 @@ void init_cuda() {
 // load ptx assembly, create a module and kernel
 void create_module_kernel(const char *ptx, const char *kernel_name) {
     CUresult err = CUDA_SUCCESS;
-    //CUjit_target_enum target_cc;
+    CUjit_target_enum target_cc = CU_TARGET_COMPUTE_20;
 
     const int errorLogSize = 10240;
     char errorLogBuffer[errorLogSize] = {0};
 
-    CUjit_option options[] = { CU_JIT_ERROR_LOG_BUFFER, CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES}; //{, CU_JIT_TARGET };
-    void *optionValues[] = { (void *)errorLogBuffer, (void *)errorLogSize}; //{, (void *)target_cc };
+    int num_options = 2;
+    CUjit_option options[] = { CU_JIT_ERROR_LOG_BUFFER, CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES, CU_JIT_TARGET };
+    void *optionValues[] = { (void *)errorLogBuffer, (void *)errorLogSize, (void *)target_cc };
 
     // load ptx source
-    err = cuModuleLoadDataEx(&cuModule, ptx, 2, options, optionValues);
+    err = cuModuleLoadDataEx(&cuModule, ptx, num_options, options, optionValues);
     if (err != CUDA_SUCCESS) {
         std::cerr << "Error log: " << errorLogBuffer << std::endl;
     }
@@ -141,9 +154,9 @@ void load_kernel(const char *file_name, const char *kernel_name) {
     err = nvvmAddModuleToProgram(program, llString.c_str(), llString.length(), file_name);
     checkErrNvvm(err, "nvvmAddModuleToProgram()");
 
-    int num_options = 0;
+    int num_options = 1;
     const char *options[2];
-    options[0] = "-arch=compute_30";
+    options[0] = "-arch=compute_20";
     options[1] = "-ftz=1";
 
     err = nvvmCompileProgram(program, num_options, options);

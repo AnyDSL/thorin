@@ -97,7 +97,7 @@ void IRBuilder::jump(JumpTarget& jt) {
 void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f) {
     if (is_reachable()) {
         if (auto lit = cond->isa<PrimLit>())
-            jump(lit->value().get_u1().get() ? t : f);
+            jump(lit->value().get_bool() ? t : f);
         else if (&t == &f)
             jump(t);
         else {

@@ -566,13 +566,13 @@ llvm::Value* CodeGen::emit(Def def) {
         Box box = primlit->value();
 
         switch (primlit->primtype_kind()) {
-            case PrimType_ps1:  case PrimType_qs1:  case PrimType_pu1:  case PrimType_qu1:  return builder_.getInt1(box.get_u1().get());
-            case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  return builder_.getInt8(box.get_u8());
-            case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: return builder_.getInt16(box.get_u16());
-            case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: return builder_.getInt32(box.get_u32());
-            case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: return builder_.getInt64(box.get_u64());
-            case PrimType_pf32: case PrimType_qf32:                                         return llvm::ConstantFP::get(type, box.get_f32());
-            case PrimType_pf64: case PrimType_qf64:                                         return llvm::ConstantFP::get(type, box.get_f64());
+            case PrimType_ps1:  case PrimType_qs1:  case PrimType_pu1:  case PrimType_qu1:  return builder_.getInt1(box.get_pu1().data());
+            case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  return builder_.getInt8(box.get_pu8().data());
+            case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: return builder_.getInt16(box.get_pu16().data());
+            case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: return builder_.getInt32(box.get_pu32().data());
+            case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: return builder_.getInt64(box.get_pu64().data());
+            case PrimType_pf32: case PrimType_qf32:                                         return llvm::ConstantFP::get(type, box.get_pf32().data());
+            case PrimType_pf64: case PrimType_qf64:                                         return llvm::ConstantFP::get(type, box.get_pf64().data());
         }
     }
 

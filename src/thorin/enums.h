@@ -91,11 +91,9 @@ template<PrimTypeKind kind> struct kind2type {};
 #define THORIN_ALL_TYPE(T) template<> struct kind2type<PrimType_##T> { typedef T type; };
 #include "thorin/tables/primtypetable.h"
 
-template<class T, bool precise> struct type2kind {};
-template<> struct type2kind<bool,  true> { static const PrimTypeKind kind = PrimType_pu1; };
-template<> struct type2kind<bool, false> { static const PrimTypeKind kind = PrimType_qu1; };
-//#define THORIN_ALL_TYPE(T) template<> struct type2kind<T> { static const PrimTypeKind kind = PrimType_##T; };
-//#include "thorin/tables/primtypetable.h"
+template<class T> struct type2kind {};
+#define THORIN_ALL_TYPE(T) template<> struct type2kind<T> { static const PrimTypeKind kind = PrimType_##T; };
+#include "thorin/tables/primtypetable.h"
 
 const char* kind2str(NodeKind kind);
 int num_bits(PrimTypeKind);

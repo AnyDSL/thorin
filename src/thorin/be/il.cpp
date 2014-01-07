@@ -127,7 +127,7 @@ std::ostream& IlPrinter::emit_primop(const PrimOp* primop) {
     if (auto primlit = primop->isa<PrimLit>()) {
         //emit_type(primop->type()) << ' ';
         switch (primlit->primtype_kind()) {
-#define THORIN_ALL_TYPE(T) case PrimType_##T: stream() << primlit->T##_value(); break;
+#define THORIN_ALL_TYPE(T) case PrimType_##T: stream() << primlit->T##_value().data(); break;
 #include "thorin/tables/primtypetable.h"
             default: THORIN_UNREACHABLE; break;
         }

@@ -83,11 +83,10 @@ Sigma* World::named_sigma(size_t size, const std::string& name) {
  * literals
  */
 
-Def World::literal(PrimTypeKind kind, int value, size_t length) {
+Def World::literal(PrimTypeKind kind, int64_t value, size_t length) {
     Def lit;
     switch (kind) {
-#define THORIN_P_TYPE(T) case PrimType_##T: lit = literal_precise(T(value), 1); break;
-#define THORIN_q_TYPE(T) case PrimType_##T: lit = literal_quick(T(value), 1); break;
+#define THORIN_I_TYPE(T) case PrimType_##T: lit = literal(T(value), 1); break;
 #include "thorin/tables/primtypetable.h"
             default: THORIN_UNREACHABLE;
     }
@@ -265,11 +264,11 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
 
     if (kind == ArithOp_or && lcmp && rcmp && lcmp->lhs() == rcmp->lhs() && lcmp->rhs() == rcmp->rhs() 
             && lcmp->cmp_kind() == negate(rcmp->cmp_kind()))
-            return literal_pu1(true);
+            return literal_pu1(pu1(true));
 
     if (kind == ArithOp_and && lcmp && rcmp && lcmp->lhs() == rcmp->lhs() && lcmp->rhs() == rcmp->rhs() 
             && lcmp->cmp_kind() == negate(rcmp->cmp_kind()))
-            return literal_pu1(false);
+            return literal_pu1(pu1(false));
 
     auto land = a->kind() == Node_and ? a->as<ArithOp>() : nullptr;
     auto rand = b->kind() == Node_and ? b->as<ArithOp>() : nullptr;
@@ -450,22 +449,22 @@ Def World::cmp(CmpKind kind, Def cond, Def a, Def b, const std::string& name) {
         switch (kind) {
             case Cmp_eq:
                 switch (type) {
-#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal_pu1(l.get_##T() == r.get_##T());
+#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal_pu1(pu1(l.get_##T() == r.get_##T()));
 #include "thorin/tables/primtypetable.h"
                 }
             case Cmp_ne:
                 switch (type) {
-#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal_pu1(l.get_##T() != r.get_##T());
+#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal_pu1(pu1(l.get_##T() != r.get_##T()));
 #include "thorin/tables/primtypetable.h"
                 }
             case Cmp_lt:
                 switch (type) {
-#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal_pu1(l.get_##T() <  r.get_##T());
+#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal_pu1(pu1(l.get_##T() <  r.get_##T()));
 #include "thorin/tables/primtypetable.h"
                 }
             case Cmp_le:
                 switch (type) {
-#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal_pu1(l.get_##T() <= r.get_##T());
+#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal_pu1(pu1(l.get_##T() <= r.get_##T()));
 #include "thorin/tables/primtypetable.h"
                 }
             default: THORIN_UNREACHABLE;
@@ -630,7 +629,7 @@ Def World::select(Def cond, Def a, Def b, const std::string& name) {
         return bottom(a->type());
 
     if (auto lit = cond->isa<PrimLit>())
-        return lit->value().get_u1().get() ? a : b;
+        return lit->value().get_bool() ? a : b;
 
     if (cond->is_not()) {
         cond = cond->as<ArithOp>()->rhs();

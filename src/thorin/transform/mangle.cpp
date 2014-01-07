@@ -128,7 +128,7 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
     if (auto select = olambda->to()->isa<Select>()) {
         Def cond = mangle(select->cond());
         if (auto lit = cond->isa<PrimLit>())
-            ops[0] = mangle(lit->value().get_u1().get() ? select->tval() : select->fval());
+            ops[0] = mangle(lit->value().get_bool() ? select->tval() : select->fval());
         else
             ops[0] = mangle(select); //world.select(cond, mangle(select->tval()), mangle(select->fval()));
     } else

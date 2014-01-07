@@ -67,8 +67,8 @@ inline bool is_type_qu(int kind) { return (int) Begin_PrimType_qu <= kind && kin
 inline bool is_type_pf(int kind) { return (int) Begin_PrimType_pf <= kind && kind < (int) End_PrimType_pf; }
 inline bool is_type_qf(int kind) { return (int) Begin_PrimType_qf <= kind && kind < (int) End_PrimType_qf; }
 
-inline bool is_type_q(int kind) { return is_type_ps(kind) || is_type_pu(kind) || is_type_pf(kind); }
-inline bool is_type_p(int kind) { return is_type_qs(kind) || is_type_qu(kind) || is_type_qf(kind); }
+inline bool is_type_q(int kind) { return is_type_qs(kind) || is_type_qu(kind) || is_type_qf(kind); }
+inline bool is_type_p(int kind) { return is_type_ps(kind) || is_type_pu(kind) || is_type_pf(kind); }
 inline bool is_type_s(int kind) { return is_type_ps(kind) || is_type_qs(kind); }
 inline bool is_type_u(int kind) { return is_type_pu(kind) || is_type_qu(kind); }
 inline bool is_type_i(int kind) { return is_type_s (kind) || is_type_u (kind); }

@@ -5,5 +5,5 @@ fn main(mut i : int) -> int {
     else
         a = 42;
 
-    return a * a;
+    return a + a;
 }

@@ -24,12 +24,12 @@ public:
     s1(uint32_t i) : b_(i & 1u) {}
     s1(uint64_t i) : b_(i & 1ull) {}
 
-    s1 operator + (s1 s) { return s1(get() + s.get()); }
-    s1 operator - (s1 s) { return s1(get() - s.get()); }
-    s1 operator * (s1 s) { return s1(get() * s.get()); }
-    s1 operator & (s1 s) { return s1(get() & s.get()); }
-    s1 operator | (s1 s) { return s1(get() | s.get()); }
-    s1 operator ^ (s1 s) { return s1(get() ^ s.get()); }
+    s1 operator + (s1 s) const { return s1(get() + s.get()); }
+    s1 operator - (s1 s) const { return s1(get() - s.get()); }
+    s1 operator * (s1 s) const { return s1(get() * s.get()); }
+    s1 operator & (s1 s) const { return s1(get() & s.get()); }
+    s1 operator | (s1 s) const { return s1(get() | s.get()); }
+    s1 operator ^ (s1 s) const { return s1(get() ^ s.get()); }
 
     /**
      * \verbatim
@@ -107,8 +107,7 @@ public:
     s1 operator -- (int) { s1 tmp = *this; b_ = (*this - s1(true)).get(); return tmp; }
 
     bool get() const { return b_; }
-
-    operator int32_t() { return b_ ? -1 : 0; }
+    operator int32_t() const { return b_ ? -1 : 0; }
 
 private:
     bool b_;
@@ -210,8 +209,7 @@ public:
     u1 operator -- (int) { u1 tmp = *this; b_ = (*this - u1(true)).get(); return tmp; }
 
     bool get() const { return b_; }
-
-    operator uint32_t() { return b_; }
+    operator uint32_t() const { return b_; }
 
 private:
     bool b_;

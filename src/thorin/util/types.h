@@ -259,8 +259,8 @@ public:
         ST a = this->data_, b = other.data_;
 
         if (!wrap) {
-            if (a > 0) {
-                if (b > 0) {
+            if (a > ST(0)) {
+                if (b > ST(0)) {
                     if (a > (std::numeric_limits<ST>::max() / b))
                         throw IntError();
                 } else {
@@ -268,11 +268,11 @@ public:
                         throw IntError();
                 }
             } else {
-                if (b > 0) {
+                if (b > ST(0)) {
                     if (a < (std::numeric_limits<ST>::min() / b))
                         throw IntError();
                 } else {
-                    if ( (a != 0) && (b < (std::numeric_limits<ST>::max() / a)))
+                    if ( (a != ST(0)) && (b < (std::numeric_limits<ST>::max() / a)))
                         throw IntError();
                 }
             }
@@ -357,6 +357,8 @@ public:
     UInt operator % (UInt other) const { div_check(other); return UInt(this->data_ % other.data_); }
 
     UInt operator << (UInt other) const {
+        assert(false && "TODO");
+        return UInt(0);
         //if (this->is_neg() || other.is_neg() 
                 //|| other >= std::numeric_limits<UT>::digits+1 
                 //|| this->data_ >= std::numeric_limits<UT>::max() >> other.data_) {

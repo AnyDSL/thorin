@@ -6,7 +6,6 @@
 #include <unordered_map>
 
 #include "thorin/enums.h"
-#include "thorin/util/box.h"
 #include "thorin/util/assert.h"
 #include "thorin/util/location.h"
 #include "thorin/util/symbol.h"

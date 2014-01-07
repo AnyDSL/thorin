@@ -6,16 +6,13 @@
     THORIN_AIR_NODE(Lambda, lambda)
     // PrimOp
         // Literal
-            THORIN_AIR_NODE(PrimLit, primlit)
             THORIN_AIR_NODE(Any, any)
             THORIN_AIR_NODE(Bottom, bottom)
-            THORIN_AIR_NODE(TypeKeeper, keep)
         // MemOp
             THORIN_AIR_NODE(Load, load)
             THORIN_AIR_NODE(Store, store)
             THORIN_AIR_NODE(Enter, enter)
             THORIN_AIR_NODE(Leave, leave)
-        THORIN_AIR_NODE(Addr, addr)
         THORIN_AIR_NODE(Select, select)
         THORIN_AIR_NODE(Global, global)
         THORIN_AIR_NODE(Slot, slot)

@@ -11,7 +11,6 @@
 #include "thorin/enums.h"
 #include "thorin/lambda.h"
 #include "thorin/primop.h"
-#include "thorin/util/box.h"
 #include "thorin/util/hash.h"
 
 namespace thorin {
@@ -30,7 +29,6 @@ class Sigma;
 class Slot;
 class Store;
 class Type;
-class TypeKeeper;
 
 //------------------------------------------------------------------------------
 
@@ -215,7 +213,6 @@ public:
      */
 
     Def select(Def cond, Def a, Def b, const std::string& name = "");
-    const TypeKeeper* typekeeper(const Type* type, const std::string& name = "");
     Def run(Def def, const std::string& name = "");
     Def halt(Def def, const std::string& name = "");
 
@@ -269,14 +266,6 @@ public:
 #endif
 
 protected:
-    template<class T>
-    const T* keep(const T* type) {
-        auto tp = types_.insert(type);
-        type->gid_ = gid_++;
-        assert(tp.second);
-        typekeeper(type);
-        return type->template as<T>();
-    }
     const Type* unify_base(const Type* type);
     template<class T> const T* unify(const T* type) { return unify_base(type)->template as<T>(); }
     const DefNode* cse_base(const PrimOp*);
@@ -285,7 +274,6 @@ protected:
 private:
     PrimOp* release(const PrimOp*);
     const Param* param(const Type* type, Lambda* lambda, size_t index, const std::string& name = "");
-    const Type* keep_nocast(const Type* type);
     void eliminate_proxies();
     Def dce_rebuild(Def2Def&, const size_t old_gid, Def def);
     void dce_mark(DefSet&, Def);
@@ -302,18 +290,25 @@ private:
 #endif
 
     size_t gid_;
-    const Sigma* sigma0_;///< sigma().
-    const Pi* pi0_;      ///< pi().
-    const Mem* mem_;
-    const Frame* frame_;
 
     union {
         struct {
+            const Sigma* sigma0_;///< sigma().
+            const Pi* pi0_;      ///< pi().
+            const Mem* mem_;
+            const Frame* frame_;
+
+            union {
+                struct {
 #define THORIN_ALL_TYPE(T) const PrimType* T##_;
 #include "thorin/tables/primtypetable.h"
+                };
+
+                const PrimType* primtypes_[Num_PrimTypes];
+            };
         };
 
-        const PrimType* primtypes_[Num_PrimTypes];
+        const Type* keep_[Num_PrimTypes + 4];
     };
 
     friend class Lambda;

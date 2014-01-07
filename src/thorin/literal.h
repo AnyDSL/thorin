@@ -5,7 +5,6 @@
 
 #include "thorin/primop.h"
 #include "thorin/type.h"
-#include "thorin/util/box.h"
 
 namespace thorin {
 
@@ -86,22 +85,6 @@ public:
 
 private:
     Box box_;
-
-    friend class World;
-};
-
-//------------------------------------------------------------------------------
-
-/**
- * The sole purpose of this node is to hold types.
- * This node is not destroyed by the dead code elimination, and hence,
- * the held type won't be destroyed in the unused type elimination.
- */
-class TypeKeeper : public Literal {
-private:
-    TypeKeeper(const Type* type, const std::string& name)
-        : Literal(Node_TypeKeeper, type, name)
-    {}
 
     friend class World;
 };

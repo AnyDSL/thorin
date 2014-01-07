@@ -48,11 +48,11 @@ World::World(std::string name)
     , primops_(1031)
     , types_(1031)
     , gid_(0)
-    , sigma0_ (keep(new Sigma(*this, ArrayRef<const Type*>())))
-    , pi0_    (keep(new Pi   (*this, ArrayRef<const Type*>())))
-    , mem_    (keep(new Mem  (*this)))
-    , frame_  (keep(new Frame(*this)))
-#define THORIN_ALL_TYPE(T) ,T##_(keep(new PrimType(*this, PrimType_##T, 1)))
+    , sigma0_ (unify(new Sigma(*this, ArrayRef<const Type*>())))
+    , pi0_    (unify(new Pi   (*this, ArrayRef<const Type*>())))
+    , mem_    (unify(new Mem  (*this)))
+    , frame_  (unify(new Frame(*this)))
+#define THORIN_ALL_TYPE(T) ,T##_(unify(new PrimType(*this, PrimType_##T, 1)))
 #include "thorin/tables/primtypetable.h"
 {}
 
@@ -100,7 +100,6 @@ Def World::bottom (const Type* type, size_t length) { return vector(cse(new Bott
 Def World::zero   (const Type* type, size_t length) { return zero  (type->as<PrimType>()->primtype_kind(), length); }
 Def World::one    (const Type* type, size_t length) { return one   (type->as<PrimType>()->primtype_kind(), length); }
 Def World::allset (const Type* type, size_t length) { return allset(type->as<PrimType>()->primtype_kind(), length); }
-const TypeKeeper* World::typekeeper(const Type* type, const std::string& name) { return cse(new TypeKeeper(type, name)); }
 
 /*
  * create
@@ -943,7 +942,7 @@ void World::dead_code_elimination() {
             dce_mark(set, lambda->op(i));
     }
 
-    auto wipe_primop = [&] (const PrimOp* primop) { return !set.contains(primop) && !primop->isa<TypeKeeper>(); };
+    auto wipe_primop = [&] (const PrimOp* primop) { return !set.contains(primop); };
     auto wipe_lambda = [&] (Lambda* lambda) {
         return !lambda->attribute().is(Lambda::Extern) 
             && (   (!lambda->attribute().is(Lambda::Intrinsic) && lambda->empty()) 
@@ -1013,6 +1012,9 @@ void World::dce_mark(DefSet& set, Def def) {
 
 void World::unused_type_elimination() {
     std::unordered_set<const Type*> set;
+
+    for (size_t i = 0, e = sizeof(keep_)/sizeof(const Type*); i != e; ++i)
+        ute_insert(set, keep_[i]);
 
     for (auto primop : primops())
         ute_insert(set, primop->type());

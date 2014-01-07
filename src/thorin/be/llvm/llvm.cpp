@@ -354,43 +354,44 @@ llvm::Value* CodeGen::emit(Def def) {
     if (auto bin = def->isa<BinOp>()) {
         llvm::Value* lhs = lookup(bin->lhs());
         llvm::Value* rhs = lookup(bin->rhs());
+        std::string& name = bin->name;
 
         if (auto cmp = bin->isa<Cmp>()) {
             if (cmp->lhs()->type()->is_type_s()) {
                 switch (cmp->cmp_kind()) {
-                    case Cmp_eq:  return builder_.CreateICmpEQ (lhs, rhs);
-                    case Cmp_ne:  return builder_.CreateICmpNE (lhs, rhs);
-                    case Cmp_gt:  return builder_.CreateICmpSGT(lhs, rhs);
-                    case Cmp_ge:  return builder_.CreateICmpSGE(lhs, rhs);
-                    case Cmp_lt:  return builder_.CreateICmpSLT(lhs, rhs);
-                    case Cmp_le:  return builder_.CreateICmpSLE(lhs, rhs);
+                    case Cmp_eq:  return builder_.CreateICmpEQ (lhs, rhs, name);
+                    case Cmp_ne:  return builder_.CreateICmpNE (lhs, rhs, name);
+                    case Cmp_gt:  return builder_.CreateICmpSGT(lhs, rhs, name);
+                    case Cmp_ge:  return builder_.CreateICmpSGE(lhs, rhs, name);
+                    case Cmp_lt:  return builder_.CreateICmpSLT(lhs, rhs, name);
+                    case Cmp_le:  return builder_.CreateICmpSLE(lhs, rhs, name);
                 }
             } else if (cmp->lhs()->type()->is_type_u()) {
                 switch (cmp->cmp_kind()) {
-                    case Cmp_eq:  return builder_.CreateICmpEQ (lhs, rhs);
-                    case Cmp_ne:  return builder_.CreateICmpNE (lhs, rhs);
-                    case Cmp_gt:  return builder_.CreateICmpUGT(lhs, rhs);
-                    case Cmp_ge:  return builder_.CreateICmpUGE(lhs, rhs);
-                    case Cmp_lt:  return builder_.CreateICmpULT(lhs, rhs);
-                    case Cmp_le:  return builder_.CreateICmpULE(lhs, rhs);
+                    case Cmp_eq:  return builder_.CreateICmpEQ (lhs, rhs, name);
+                    case Cmp_ne:  return builder_.CreateICmpNE (lhs, rhs, name);
+                    case Cmp_gt:  return builder_.CreateICmpUGT(lhs, rhs, name);
+                    case Cmp_ge:  return builder_.CreateICmpUGE(lhs, rhs, name);
+                    case Cmp_lt:  return builder_.CreateICmpULT(lhs, rhs, name);
+                    case Cmp_le:  return builder_.CreateICmpULE(lhs, rhs, name);
                 }
             } else if (cmp->lhs()->type()->is_type_pf()) {
                 switch (cmp->cmp_kind()) {
-                    case Cmp_eq: return builder_.CreateFCmpOEQ(lhs, rhs);
-                    case Cmp_ne: return builder_.CreateFCmpONE(lhs, rhs);
-                    case Cmp_gt: return builder_.CreateFCmpOGT(lhs, rhs);
-                    case Cmp_ge: return builder_.CreateFCmpOGE(lhs, rhs);
-                    case Cmp_lt: return builder_.CreateFCmpOLT(lhs, rhs);
-                    case Cmp_le: return builder_.CreateFCmpOLE(lhs, rhs);
+                    case Cmp_eq: return builder_.CreateFCmpOEQ (lhs, rhs, name);
+                    case Cmp_ne: return builder_.CreateFCmpONE (lhs, rhs, name);
+                    case Cmp_gt: return builder_.CreateFCmpOGT (lhs, rhs, name);
+                    case Cmp_ge: return builder_.CreateFCmpOGE (lhs, rhs, name);
+                    case Cmp_lt: return builder_.CreateFCmpOLT (lhs, rhs, name);
+                    case Cmp_le: return builder_.CreateFCmpOLE (lhs, rhs, name);
                 }
             } else if (cmp->lhs()->type()->is_type_qf()) {
                 switch (cmp->cmp_kind()) {
-                    case Cmp_eq: return builder_.CreateFCmpUEQ(lhs, rhs);
-                    case Cmp_ne: return builder_.CreateFCmpUNE(lhs, rhs);
-                    case Cmp_gt: return builder_.CreateFCmpUGT(lhs, rhs);
-                    case Cmp_ge: return builder_.CreateFCmpUGE(lhs, rhs);
-                    case Cmp_lt: return builder_.CreateFCmpULT(lhs, rhs);
-                    case Cmp_le: return builder_.CreateFCmpULE(lhs, rhs);
+                    case Cmp_eq: return builder_.CreateFCmpUEQ(lhs, rhs, name);
+                    case Cmp_ne: return builder_.CreateFCmpUNE(lhs, rhs, name);
+                    case Cmp_gt: return builder_.CreateFCmpUGT(lhs, rhs, name);
+                    case Cmp_ge: return builder_.CreateFCmpUGE(lhs, rhs, name);
+                    case Cmp_lt: return builder_.CreateFCmpULT(lhs, rhs, name);
+                    case Cmp_le: return builder_.CreateFCmpULE(lhs, rhs, name);
                 }
             }
         }
@@ -398,11 +399,11 @@ llvm::Value* CodeGen::emit(Def def) {
         if (auto arithop = bin->isa<ArithOp>()) {
             if (arithop->lhs()->type()->is_type_f()) {
                 switch (arithop->arithop_kind()) {
-                    case ArithOp_add: return builder_.CreateFAdd(lhs, rhs);
-                    case ArithOp_sub: return builder_.CreateFSub(lhs, rhs);
-                    case ArithOp_mul: return builder_.CreateFMul(lhs, rhs);
-                    case ArithOp_div: return builder_.CreateFDiv(lhs, rhs);
-                    case ArithOp_rem: return builder_.CreateFRem(lhs, rhs);
+                    case ArithOp_add: return builder_.CreateFAdd(lhs, rhs, name);
+                    case ArithOp_sub: return builder_.CreateFSub(lhs, rhs, name);
+                    case ArithOp_mul: return builder_.CreateFMul(lhs, rhs, name);
+                    case ArithOp_div: return builder_.CreateFDiv(lhs, rhs, name);
+                    case ArithOp_rem: return builder_.CreateFRem(lhs, rhs, name);
                     case ArithOp_and:
                     case ArithOp_or:
                     case ArithOp_xor:
@@ -410,32 +411,35 @@ llvm::Value* CodeGen::emit(Def def) {
                     case ArithOp_shr: THORIN_UNREACHABLE;
                 }
             }
-            if (arithop->lhs()->type()->is_type_s()) {
+
+            bool nw = arithop->type()->is_type_q(); // quick? -> nsw/nuw/fast float
+
+            if (arithop->type()->is_type_s()) {
                 switch (arithop->arithop_kind()) {
-                    case ArithOp_add: return builder_.CreateAdd (lhs, rhs);
-                    case ArithOp_sub: return builder_.CreateSub (lhs, rhs);
-                    case ArithOp_mul: return builder_.CreateMul (lhs, rhs);
-                    case ArithOp_div: return builder_.CreateSDiv(lhs, rhs);
-                    case ArithOp_rem: return builder_.CreateSRem(lhs, rhs);
-                    case ArithOp_and: return builder_.CreateAnd (lhs, rhs);
-                    case ArithOp_or:  return builder_.CreateOr  (lhs, rhs);
-                    case ArithOp_xor: return builder_.CreateXor (lhs, rhs);
-                    case ArithOp_shl: return builder_.CreateShl (lhs, rhs);
-                    case ArithOp_shr: return builder_.CreateAShr(lhs, rhs);
+                    case ArithOp_add: return builder_.CreateAdd (lhs, rhs, name, false, nw);
+                    case ArithOp_sub: return builder_.CreateSub (lhs, rhs, name, false, nw);
+                    case ArithOp_mul: return builder_.CreateMul (lhs, rhs, name, false, nw);
+                    case ArithOp_div: return builder_.CreateSDiv(lhs, rhs, name);
+                    case ArithOp_rem: return builder_.CreateSRem(lhs, rhs, name);
+                    case ArithOp_and: return builder_.CreateAnd (lhs, rhs, name);
+                    case ArithOp_or:  return builder_.CreateOr  (lhs, rhs, name);
+                    case ArithOp_xor: return builder_.CreateXor (lhs, rhs, name);
+                    case ArithOp_shl: return builder_.CreateShl (lhs, rhs, name, false, nw);
+                    case ArithOp_shr: return builder_.CreateAShr(lhs, rhs, name);
                 }
             }
-            if (arithop->lhs()->type()->is_type_u()) {
+            if (arithop->type()->is_type_u()) {
                 switch (arithop->arithop_kind()) {
-                    case ArithOp_add: return builder_.CreateAdd (lhs, rhs);
-                    case ArithOp_sub: return builder_.CreateSub (lhs, rhs);
-                    case ArithOp_mul: return builder_.CreateMul (lhs, rhs);
-                    case ArithOp_div: return builder_.CreateUDiv(lhs, rhs);
-                    case ArithOp_rem: return builder_.CreateURem(lhs, rhs);
-                    case ArithOp_and: return builder_.CreateAnd (lhs, rhs);
-                    case ArithOp_or:  return builder_.CreateOr  (lhs, rhs);
-                    case ArithOp_xor: return builder_.CreateXor (lhs, rhs);
-                    case ArithOp_shl: return builder_.CreateShl (lhs, rhs);
-                    case ArithOp_shr: return builder_.CreateLShr(lhs, rhs);
+                    case ArithOp_add: return builder_.CreateAdd (lhs, rhs, name, nw, false);
+                    case ArithOp_sub: return builder_.CreateSub (lhs, rhs, name, nw, false);
+                    case ArithOp_mul: return builder_.CreateMul (lhs, rhs, name, nw, false);
+                    case ArithOp_div: return builder_.CreateUDiv(lhs, rhs, name);
+                    case ArithOp_rem: return builder_.CreateURem(lhs, rhs, name);
+                    case ArithOp_and: return builder_.CreateAnd (lhs, rhs, name);
+                    case ArithOp_or:  return builder_.CreateOr  (lhs, rhs, name);
+                    case ArithOp_xor: return builder_.CreateXor (lhs, rhs, name);
+                    case ArithOp_shl: return builder_.CreateShl (lhs, rhs, name, nw, false);
+                    case ArithOp_shr: return builder_.CreateLShr(lhs, rhs, name);
                 }
             }
         }

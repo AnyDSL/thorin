@@ -33,7 +33,7 @@ enum Markers {
 
     Begin_AllNodes  = Begin_Node,
 
-    Begin_PrimType  = Begin_PrimType_ps,
+    Begin_PrimType  = Begin_PrimType_bool,
     End_PrimType    = End_PrimType_qf,
 
     Num_AllNodes    = End_AllNodes   - Begin_AllNodes,
@@ -42,7 +42,7 @@ enum Markers {
     Num_ArithOps    = End_ArithOp    - Begin_ArithOp,
     Num_Cmps        = End_Cmp        - Begin_Cmp,
 
-    Num_PrimTypes   = End_PrimType_qf - Begin_PrimType_ps,
+    Num_PrimTypes   = End_PrimType_qf - Begin_PrimType_bool,
 };
 
 enum PrimTypeKind {

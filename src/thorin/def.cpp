@@ -117,6 +117,7 @@ bool DefNode::is_minus_zero() const {
 #define THORIN_I_TYPE(T) case PrimType_##T: return box.get_##T() == T(0);
 #define THORIN_F_TYPE(T) case PrimType_##T: return box.get_##T() == T(-0.0);
 #include "thorin/tables/primtypetable.h"
+            default: THORIN_UNREACHABLE;
         }
     }
     return false;

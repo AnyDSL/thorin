@@ -23,7 +23,7 @@ void PrimOp::update(size_t i, Def with) {
 VectorOp::VectorOp(size_t size, NodeKind kind, const Type* type, Def cond, const std::string& name)
     : PrimOp(size, kind, type, name)
 {
-    assert(cond->type()->is_pu1());
+    assert(cond->type()->is_bool());
     set_op(0, cond);
 }
 
@@ -36,7 +36,7 @@ BinOp::BinOp(NodeKind kind, const Type* type, Def cond, Def lhs, Def rhs, const 
 }
 
 Cmp::Cmp(CmpKind kind, Def cond, Def lhs, Def rhs, const std::string& name)
-    : BinOp((NodeKind) kind, lhs->world().type_pu1(lhs->type()->as<PrimType>()->length()), cond, lhs, rhs, name)
+    : BinOp((NodeKind) kind, lhs->world().type_bool(lhs->type()->as<PrimType>()->length()), cond, lhs, rhs, name)
 {
 }
 

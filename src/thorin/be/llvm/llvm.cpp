@@ -566,7 +566,7 @@ llvm::Value* CodeGen::emit(Def def) {
         Box box = primlit->value();
 
         switch (primlit->primtype_kind()) {
-            case PrimType_ps1:  case PrimType_qs1:  case PrimType_pu1:  case PrimType_qu1:  return builder_.getInt1(box.get_pu1().data());
+            case PrimType_bool:                                                             return builder_.getInt1(box.get_bool());
             case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  return builder_.getInt8(box.get_pu8().data());
             case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: return builder_.getInt16(box.get_pu16().data());
             case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: return builder_.getInt32(box.get_pu32().data());
@@ -615,7 +615,7 @@ llvm::Type* CodeGen::map(const Type* type) {
     assert(!type->isa<Mem>());
     llvm::Type* llvm_type;
     switch (type->kind()) {
-        case PrimType_ps1:  case PrimType_qs1:  case PrimType_pu1:  case PrimType_qu1:  llvm_type = llvm::IntegerType::get(context_,  1); break;
+        case PrimType_bool:                                                             llvm_type = llvm::IntegerType::get(context_,  1); break;
         case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  llvm_type = llvm::IntegerType::get(context_,  8); break;
         case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: llvm_type = llvm::IntegerType::get(context_, 16); break;
         case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: llvm_type = llvm::IntegerType::get(context_, 32); break;

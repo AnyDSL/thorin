@@ -19,7 +19,10 @@
 #endif
 
 #include "thorin/tables/nodetable.h"
-    THORIN_GLUE(Node, PrimType_ps)
+    THORIN_GLUE(Node, PrimType_bool)
+#define THORIN_BOOL_TYPE(T) THORIN_PRIMTYPE(T)
+#include "thorin/tables/primtypetable.h"
+    THORIN_GLUE(PrimType_bool, PrimType_ps)
 #define THORIN_PS_TYPE(T) THORIN_PRIMTYPE(T)
 #include "thorin/tables/primtypetable.h"
     THORIN_GLUE(PrimType_ps, PrimType_pu)

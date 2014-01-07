@@ -264,11 +264,11 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
 
     if (kind == ArithOp_or && lcmp && rcmp && lcmp->lhs() == rcmp->lhs() && lcmp->rhs() == rcmp->rhs() 
             && lcmp->cmp_kind() == negate(rcmp->cmp_kind()))
-            return literal_pu1(pu1(true));
+            return literal_bool(true);
 
     if (kind == ArithOp_and && lcmp && rcmp && lcmp->lhs() == rcmp->lhs() && lcmp->rhs() == rcmp->rhs() 
             && lcmp->cmp_kind() == negate(rcmp->cmp_kind()))
-            return literal_pu1(pu1(false));
+            return literal_bool(false);
 
     auto land = a->kind() == Node_and ? a->as<ArithOp>() : nullptr;
     auto rand = b->kind() == Node_and ? b->as<ArithOp>() : nullptr;
@@ -415,7 +415,7 @@ Def World::arithop_minus(Def cond, Def def) {
 
 Def World::cmp(CmpKind kind, Def cond, Def a, Def b, const std::string& name) {
     if (a->isa<Bottom>() || b->isa<Bottom>())
-        return bottom(type_pu1());
+        return bottom(type_bool());
 
     CmpKind oldkind = kind;
     switch (kind) {
@@ -449,22 +449,22 @@ Def World::cmp(CmpKind kind, Def cond, Def a, Def b, const std::string& name) {
         switch (kind) {
             case Cmp_eq:
                 switch (type) {
-#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal_pu1(pu1(l.get_##T() == r.get_##T()));
+#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal_bool(l.get_##T() == r.get_##T());
 #include "thorin/tables/primtypetable.h"
                 }
             case Cmp_ne:
                 switch (type) {
-#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal_pu1(pu1(l.get_##T() != r.get_##T()));
+#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal_bool(l.get_##T() != r.get_##T());
 #include "thorin/tables/primtypetable.h"
                 }
             case Cmp_lt:
                 switch (type) {
-#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal_pu1(pu1(l.get_##T() <  r.get_##T()));
+#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal_bool(l.get_##T() <  r.get_##T());
 #include "thorin/tables/primtypetable.h"
                 }
             case Cmp_le:
                 switch (type) {
-#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal_pu1(pu1(l.get_##T() <= r.get_##T()));
+#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal_bool(l.get_##T() <= r.get_##T());
 #include "thorin/tables/primtypetable.h"
                 }
             default: THORIN_UNREACHABLE;
@@ -474,9 +474,9 @@ Def World::cmp(CmpKind kind, Def cond, Def a, Def b, const std::string& name) {
     if (a == b) {
         switch (kind) {
             case Cmp_lt:
-            case Cmp_eq:  return zero(type_pu1());
+            case Cmp_eq:  return zero(type_bool());
             case Cmp_le:
-            case Cmp_ne:  return one(type_pu1());
+            case Cmp_ne:  return one(type_bool());
             default: break;
         }
     }

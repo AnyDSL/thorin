@@ -23,7 +23,7 @@ const char* kind2str(NodeKind kind) {
 
 int num_bits(PrimTypeKind kind) {
     switch (kind) {
-        case PrimType_ps1:  case PrimType_qs1:  case PrimType_pu1:  case PrimType_qu1:  return 1;
+        case PrimType_bool: return 1;
         case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  return 8;
         case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: return 16;
         case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: case PrimType_pf32: case PrimType_qf32: return 32;

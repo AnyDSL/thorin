@@ -75,7 +75,7 @@ public:
     bool is_type_u() const { return thorin::is_type_u(kind()); }
     bool is_type_i() const { return thorin::is_type_i(kind()); }
     bool is_type_f() const { return thorin::is_type_f(kind()); }
-    bool is_pu1() const { return kind() == Node_PrimType_pu1; }
+    bool is_bool() const { return kind() == Node_PrimType_bool; }
 
     size_t gid() const { return gid_; }
     int order() const;

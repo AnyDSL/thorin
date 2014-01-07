@@ -123,10 +123,10 @@ public:
     Def bottom(const Type* type, size_t length = 1);
     Def bottom(PrimTypeKind kind, size_t length = 1) { return bottom(type(kind), length); }
     /// Creates a vector of all true while the length is derived from @p def.
-    Def true_mask(Def def) { return literal(pu1(true), def->length()); }
-    Def true_mask(size_t length) { return literal(pu1(true), length); }
-    Def false_mask(Def def) { return literal(pu1(false), def->length()); }
-    Def false_mask(size_t length) { return literal(pu1(false), length); }
+    Def true_mask(Def def) { return literal(true, def->length()); }
+    Def true_mask(size_t length) { return literal(true, length); }
+    Def false_mask(Def def) { return literal(false, def->length()); }
+    Def false_mask(size_t length) { return literal(false, length); }
 
     /*
      * arithop, cmp, convop

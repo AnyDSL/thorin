@@ -24,8 +24,8 @@ Lambda* CodeGen::emit_vectorized(llvm::Function* current, Lambda* lambda) {
     assert(lambda->num_args() > 5 && "required arguments are missing");
 
     // vector length
-    u32 count = lambda->arg(1)->as<PrimLit>()->u32_value();
-    u32 vector_length = lambda->arg(2)->as<PrimLit>()->u32_value();
+    u32 count = lambda->arg(1)->as<PrimLit>()->qu32_value();
+    u32 vector_length = lambda->arg(2)->as<PrimLit>()->qu32_value();
     assert(vector_length >= 4 && "vector_length >= 4");
 
     auto kernel = lambda->arg(3)->as<Global>()->init()->as_lambda();

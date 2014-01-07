@@ -96,7 +96,7 @@ Lambda* CodeGen::emit_spir(Lambda* lambda) {
     assert(target->is_builtin() && target->attribute().is(Lambda::SPIR));
     assert(lambda->num_args() > 3 && "required arguments are missing");
     // get input
-    const uint64_t it_space_x = lambda->arg(1)->as<PrimLit>()->u64_value();
+    const uint64_t it_space_x = lambda->arg(1)->as<PrimLit>()->qu64_value();
     auto kernel = lambda->arg(2)->as_lambda();
     auto ret = lambda->arg(3)->as_lambda();
     // load kernel

@@ -615,13 +615,13 @@ llvm::Type* CodeGen::map(const Type* type) {
     assert(!type->isa<Mem>());
     llvm::Type* llvm_type;
     switch (type->kind()) {
-        case PrimType_ps1:  case PrimType_qs1:  case PrimType_pu1:  case PrimType_qu1:  llvm_type = llvm::IntegerType::get(context,  1); break;
-        case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  llvm_type = llvm::IntegerType::get(context,  8); break;
-        case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: llvm_type = llvm::IntegerType::get(context, 16); break;
-        case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: llvm_type = llvm::IntegerType::get(context, 32); break;
-        case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: llvm_type = llvm::IntegerType::get(context, 64); break;
-        case PrimType_pf32: case PrimType_qf32:                                         llvm_type = llvm::Type::getFloatTy(context);     break;
-        case PrimType_pf64: case PrimType_qf64:                                         llvm_type = llvm::Type::getDoubleTy(context);    break;
+        case PrimType_ps1:  case PrimType_qs1:  case PrimType_pu1:  case PrimType_qu1:  llvm_type = llvm::IntegerType::get(context_,  1); break;
+        case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  llvm_type = llvm::IntegerType::get(context_,  8); break;
+        case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: llvm_type = llvm::IntegerType::get(context_, 16); break;
+        case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: llvm_type = llvm::IntegerType::get(context_, 32); break;
+        case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: llvm_type = llvm::IntegerType::get(context_, 64); break;
+        case PrimType_pf32: case PrimType_qf32:                                         llvm_type = llvm::Type::getFloatTy(context_);     break;
+        case PrimType_pf64: case PrimType_qf64:                                         llvm_type = llvm::Type::getDoubleTy(context_);    break;
         case Node_Ptr: 
             llvm_type = llvm::PointerType::getUnqual(map(type->as<Ptr>()->referenced_type())); break;
         case Node_IndefArray: 

@@ -52,7 +52,7 @@ Schedule schedule_early(const Scope& scope) {
                 else {
                     num_placed[use] = -1;
                     for (auto op : use->ops()) {
-                        if (scope.contains(op))
+                        if (scope.contains(op) && !op->isa_lambda())
                             ++num_placed[use];
                     }
                 }

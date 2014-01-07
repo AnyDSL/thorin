@@ -14,7 +14,7 @@ namespace thorin {
 // This code assumes two-complement arithmetic for unsigned operations.
 // This is *implementation-defined* but *NOT* *undefined behavior*.
 
-class IntError {};
+class BottomException {};
 
 template<class ST, bool wrap>
 class SInt {
@@ -28,14 +28,14 @@ public:
 
     SInt operator - () const {
         if (data_ == std::numeric_limits<ST>::min())
-            throw IntError();
+            throw BottomException();
         return SInt(-data_); 
     }
 
     SInt operator + (SInt other) const {
         SInt res(UT(this->data_) + UT(other.data_));
         if (!wrap && (this->is_neg() == other.is_neg()) && (this->is_neg() != res.is_neg()))
-            throw IntError();
+            throw BottomException();
         return res;
     }
 
@@ -48,18 +48,18 @@ public:
             if (a > ST(0)) {
                 if (b > ST(0)) {
                     if (a > (std::numeric_limits<ST>::max() / b))
-                        throw IntError();
+                        throw BottomException();
                 } else {
                     if (b < (std::numeric_limits<ST>::min() / a))
-                        throw IntError();
+                        throw BottomException();
                 }
             } else {
                 if (b > ST(0)) {
                     if (a < (std::numeric_limits<ST>::min() / b))
-                        throw IntError();
+                        throw BottomException();
                 } else {
                     if ( (a != ST(0)) && (b < (std::numeric_limits<ST>::max() / a)))
-                        throw IntError();
+                        throw BottomException();
                 }
             }
         }
@@ -69,7 +69,7 @@ public:
 
     void div_check(SInt other) const {
         if (other.data_ == ST(0) || (this->data_ == std::numeric_limits<ST>::min() && other.data_ == ST(-1)))
-            throw IntError();
+            throw BottomException();
     }
 
     SInt operator / (SInt other) const { div_check(other); return SInt(this->data_ / other.data_); }
@@ -79,7 +79,7 @@ public:
         if (this->is_neg() || other.is_neg() 
                 || other.data_ >= std::numeric_limits<ST>::digits+1 
                 || this->data_ >= std::numeric_limits<ST>::max() >> other.data_) {
-            throw IntError();
+            throw BottomException();
         } 
 
         return this->data_ << other.data_;
@@ -123,24 +123,24 @@ public:
     UInt operator + (UInt other) const {
         UInt res(UT(this->data_) + UT(other.data_));
         if (!wrap && res.data_ < this->data_)
-            throw IntError();
+            throw BottomException();
         return res;
     }
 
     UInt operator - (UInt other) const { 
         UInt res(UT(this->data_) - UT(other.data_));
         if (!wrap && res.data_ > this->data_)
-            throw IntError();
+            throw BottomException();
         return res;
     }
 
     UInt operator * (UInt other) const {
         if (!wrap && other.data_ && this->data_ > std::numeric_limits<UT>::max() / other.data_)
-            throw IntError();
+            throw BottomException();
         return UT(this->data_) * UT(other.data_);
     }
 
-    void div_check(UInt other) const { if (other.data_ == UT(0)) throw IntError(); }
+    void div_check(UInt other) const { if (other.data_ == UT(0)) throw BottomException(); }
     UInt operator / (UInt other) const { div_check(other); return UInt(this->data_ / other.data_); }
     UInt operator % (UInt other) const { div_check(other); return UInt(this->data_ % other.data_); }
 
@@ -150,7 +150,7 @@ public:
         //if (this->is_neg() || other.is_neg() 
                 //|| other >= std::numeric_limits<UT>::digits+1 
                 //|| this->data_ >= std::numeric_limits<UT>::max() >> other.data_) {
-            //throw IntError();
+            //throw BottomException();
         //} 
 
         //return this->data_ << other->data_;

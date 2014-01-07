@@ -141,77 +141,76 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
         Box l = llit->value();
         Box r = rlit->value();
 
-        switch (kind) {
-            case ArithOp_add:
-                switch (type) {
+        try {
+            switch (kind) {
+                case ArithOp_add:
+                    switch (type) {
 #define THORIN_ALL_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() + r.get_##T())));
 #include "thorin/tables/primtypetable.h"
-                }
-            case ArithOp_sub:
-                switch (type) {
+                    }
+                case ArithOp_sub:
+                    switch (type) {
 #define THORIN_ALL_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() - r.get_##T())));
 #include "thorin/tables/primtypetable.h"
-                }
-            case ArithOp_mul:
-                switch (type) {
+                    }
+                case ArithOp_mul:
+                    switch (type) {
 #define THORIN_ALL_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() * r.get_##T())));
 #include "thorin/tables/primtypetable.h"
-                }
-            case ArithOp_div:
-                switch (type) {
-#define THORIN_ALL_TYPE(T) \
-                    case PrimType_##T: \
-                        return rlit->is_zero() \
-                             ? bottom(type) \
-                             : literal(type, Box(T(l.get_##T() / r.get_##T())));
+                    }
+                case ArithOp_div:
+                    switch (type) {
+#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() / r.get_##T())));
 #include "thorin/tables/primtypetable.h"
-                }
-            case ArithOp_rem:
-                switch (type) {
-#define THORIN_I_TYPE(T) \
-                    case PrimType_##T: \
-                        return rlit->is_zero() \
-                             ? bottom(type) \
-                             : literal(type, Box(T(l.get_##T() % r.get_##T())));
+                    }
+                case ArithOp_rem:
+                    switch (type) {
+#define THORIN_ALL_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() % r.get_##T())));
 #include "thorin/tables/primtypetable.h"
-                    default: assert(false && "TODO");
-                }
-            case ArithOp_and:
-                switch (type) {
+                    }
+                case ArithOp_and:
+                    switch (type) {
 #define THORIN_I_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() & r.get_##T())));
 #include "thorin/tables/primtypetable.h"
-                    default: THORIN_UNREACHABLE;
-                }
-            case ArithOp_or:
-                switch (type) {
+                        default: THORIN_UNREACHABLE;
+                    }
+                case ArithOp_or:
+                    switch (type) {
 #define THORIN_I_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() | r.get_##T())));
 #include "thorin/tables/primtypetable.h"
-                    default: THORIN_UNREACHABLE;
-                }
-            case ArithOp_xor:
-                switch (type) {
+                        default: THORIN_UNREACHABLE;
+                    }
+                case ArithOp_xor:
+                    switch (type) {
 #define THORIN_I_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() ^ r.get_##T())));
 #include "thorin/tables/primtypetable.h"
-                    default: THORIN_UNREACHABLE;
-                }
-            case ArithOp_shl:
-                switch (type) {
+                        default: THORIN_UNREACHABLE;
+                    }
+                case ArithOp_shl:
+                    switch (type) {
 #define THORIN_I_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() << r.get_##T())));
 #include "thorin/tables/primtypetable.h"
-                    default: THORIN_UNREACHABLE;
-                }
-            case ArithOp_shr:
-                switch (type) {
+                        default: THORIN_UNREACHABLE;
+                    }
+                case ArithOp_shr:
+                    switch (type) {
 #define THORIN_I_TYPE(T) case PrimType_##T: return literal(type, Box(T(l.get_##T() >> r.get_##T())));
 #include "thorin/tables/primtypetable.h"
-                    default: THORIN_UNREACHABLE;
-                }
+                        default: THORIN_UNREACHABLE;
+                    }
+            }
+        } catch (BottomException) {
+            return bottom(type);
         }
     }
 
     if (a == b) {
         switch (kind) {
-            case ArithOp_add: return arithop_mul(cond, literal(type, 2), a);
+            case ArithOp_add: 
+                if (is_type_i(type))
+                    return arithop_mul(cond, literal(type, 2), a);
+                else
+                    break;
 
             case ArithOp_sub:
             case ArithOp_rem:

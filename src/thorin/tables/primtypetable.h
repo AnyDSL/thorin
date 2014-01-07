@@ -28,24 +28,14 @@
 #define THORIN_QF_TYPE(T) THORIN_F_TYPE(T)
 #endif
 
+#ifndef THORIN_BOOL_TYPE
+#define THORIN_BOOL_TYPE(T)
+#endif
+
+THORIN_BOOL_TYPE(bool)
+
 #ifndef THORIN_PS_TYPE
 #define THORIN_PS_TYPE(T)
-#endif
-
-#ifdef  THORIN_JUST_U_TYPE
-#error "THORIN_JUST_U_TYPE"
-#endif
-
-#ifdef  THORIN_JUST_F_TYPE
-#error "THORIN_JUST_F_TYPE"
-#endif
-
-#ifdef  THORIN_UF_TYPE
-#error "THORIN_UF_TYPE"
-#endif
-
-#ifdef  THORIN_U_TYPE
-#error "THORIN_U_TYPE"
 #endif
 
 THORIN_PS_TYPE(ps8)
@@ -93,12 +83,6 @@ THORIN_PF_TYPE(pf64)
 
 THORIN_QF_TYPE(qf32)
 THORIN_QF_TYPE(qf64)
-
-#ifndef THORIN_BOOL_TYPE
-#define THORIN_BOOL_TYPE(T)
-#endif
-
-THORIN_BOOL_TYPE(bool)
 
 #undef THORIN_PS_TYPE
 #undef THORIN_PU_TYPE

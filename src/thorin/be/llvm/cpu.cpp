@@ -12,15 +12,15 @@ namespace thorin {
 CPUCodeGen::CPUCodeGen(World& world)
     : CodeGen(world, llvm::CallingConv::C)
 {
-    llvm::InitializeAllTargets();
+    //llvm::InitializeAllTargets();
     auto triple_str = llvm::sys::getDefaultTargetTriple();
     module_->setTargetTriple(triple_str);
-    llvm::Triple triple(triple_str);
-    llvm::EngineBuilder builder(module_);
-    builder.setMCPU(llvm::sys::getHostCPUName()).setMArch(triple.getArchName());
-    auto machine = builder.selectTarget();
-    assert(machine);
-    module_->setDataLayout(machine->getDataLayout()->getStringRepresentation());
+    //llvm::Triple triple(triple_str);
+    //llvm::EngineBuilder builder(module_);
+    //builder.setMCPU(llvm::sys::getHostCPUName()).setMArch(triple.getArchName());
+    //auto machine = builder.selectTarget();
+    //assert(machine);
+    //module_->setDataLayout(machine->getDataLayout()->getStringRepresentation());
 }
 
 }

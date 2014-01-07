@@ -124,7 +124,7 @@ std::ostream& Literal::print(Printer& p) const {
 #define IMPALA_LIT(itype, atype) \
         case LIT_##itype: return p.stream() << box().get_##atype();
 #include "impala/tokenlist.h"
-        case LIT_bool: return p.stream() << (box().get_u1().get() ? "true" : "false");
+        case LIT_bool: return p.stream() << (box().get_bool() ? "true" : "false");
         default: THORIN_UNREACHABLE;
     }
 }

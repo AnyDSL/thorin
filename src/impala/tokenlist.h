@@ -174,12 +174,12 @@ IMPALA_MISC(LARROW,     "<-")
 #define IMPALA_LIT(itype, atype)
 #endif
 
-IMPALA_LIT(int8,    u8)
-IMPALA_LIT(int16,  u16)
-IMPALA_LIT(int32,  u32)
-IMPALA_LIT(int64,  u64)
-IMPALA_LIT(float,  f32)
-IMPALA_LIT(double, f64)
+IMPALA_LIT(int8,    ps8)
+IMPALA_LIT(int16,  ps16)
+IMPALA_LIT(int32,  ps32)
+IMPALA_LIT(int64,  ps64)
+IMPALA_LIT(float,  pf32)
+IMPALA_LIT(double, pf64)
 
 #undef IMPALA_LIT
 
@@ -187,12 +187,12 @@ IMPALA_LIT(double, f64)
 #define IMPALA_TYPE(itype, atype)
 #endif
 
-IMPALA_TYPE(  int8,  u8)
-IMPALA_TYPE( int16, u16)
-IMPALA_TYPE( int32, u32)
-IMPALA_TYPE( int64, u64)
-IMPALA_TYPE( float, f32)
-IMPALA_TYPE(double, f64)
-IMPALA_TYPE(  bool, u1)
+IMPALA_TYPE(  int8,  ps8)
+IMPALA_TYPE( int16, ps16)
+IMPALA_TYPE( int32, ps32)
+IMPALA_TYPE( int64, ps64)
+IMPALA_TYPE( float, pf32)
+IMPALA_TYPE(double, pf64)
+IMPALA_TYPE(  bool, bool)
 
 #undef IMPALA_TYPE

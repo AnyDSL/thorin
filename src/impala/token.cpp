@@ -80,26 +80,26 @@ TokenKind Token::separate_assign(TokenKind kind) {
     }
 }
 
-int Token::to_binop(Kind kind, bool is_float) {
+int Token::to_binop(Kind kind) {
     switch (kind) {
         case INC:
-        case ADD: return is_float ? ArithOp_fadd : ArithOp_add;
+        case ADD: return ArithOp_add;
         case DEC:
-        case SUB: return is_float ? ArithOp_fsub : ArithOp_sub ;
-        case MUL: return is_float ? ArithOp_fmul : ArithOp_mul ;
-        case DIV: return is_float ? ArithOp_fdiv : ArithOp_sdiv;
-        case MOD: return is_float ? ArithOp_frem : ArithOp_srem;
-        case  EQ: return is_float ? RelOp_fcmp_oeq : RelOp_cmp_eq ;
-        case  NE: return is_float ? RelOp_fcmp_one : RelOp_cmp_ne ;
-        case  LT: return is_float ? RelOp_fcmp_olt : RelOp_cmp_slt;
-        case  LE: return is_float ? RelOp_fcmp_ole : RelOp_cmp_sle;
-        case  GT: return is_float ? RelOp_fcmp_ogt : RelOp_cmp_sgt;
-        case  GE: return is_float ? RelOp_fcmp_oge : RelOp_cmp_sge;
-        case AND: assert(!is_float); return ArithOp_and;
-        case  OR: assert(!is_float); return ArithOp_or;
-        case XOR: assert(!is_float); return ArithOp_xor;
-        case SHL: assert(!is_float); return ArithOp_shl;
-        case SHR: assert(!is_float); return ArithOp_ashr;
+        case SUB: return ArithOp_sub;
+        case MUL: return ArithOp_mul;
+        case DIV: return ArithOp_div;
+        case MOD: return ArithOp_rem;
+        case AND: return ArithOp_and;
+        case  OR: return ArithOp_or;
+        case XOR: return ArithOp_xor;
+        case SHL: return ArithOp_shl;
+        case SHR: return ArithOp_shr;
+        case  EQ: return Cmp_eq;
+        case  NE: return Cmp_ne;
+        case  LT: return Cmp_lt;
+        case  LE: return Cmp_le;
+        case  GT: return Cmp_gt;
+        case  GE: return Cmp_ge;
         default: THORIN_UNREACHABLE;
     }
 }

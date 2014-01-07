@@ -379,10 +379,10 @@ const Type* Parser::parse_array_type() {
     while (accept(Token::MUL)) {
         u64 length;
         switch (la()) {
-            case Token::LIT_int8:   length = la().box().get_u8();  break;
-            case Token::LIT_int16:  length = la().box().get_u16(); break;
-            case Token::LIT_int32:  length = la().box().get_u32(); break;
-            case Token::LIT_int64:  length = la().box().get_u64(); break;
+            case Token::LIT_int8:   length = la().box().get_ps8();  break;
+            case Token::LIT_int16:  length = la().box().get_ps16(); break;
+            case Token::LIT_int32:  length = la().box().get_ps32(); break;
+            case Token::LIT_int64:  length = la().box().get_ps64(); break;
             default:
                 length = 0;
                 error("integer literal", "definite array type");

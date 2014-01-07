@@ -84,9 +84,9 @@ public:
     static bool is_op(Kind kind)      { return is_prefix(kind) || is_infix(kind) || is_postfix(kind); }
     static bool is_rel(Kind kind);
     static Kind separate_assign(Kind kind);
-    static int to_binop(Kind kind, bool is_float);
-    static thorin::ArithOpKind to_arithop(Kind kind, bool is_float) { return (thorin::ArithOpKind) to_binop(kind, is_float); }
-    static thorin::RelOpKind   to_relop  (Kind kind, bool is_float) { return (thorin::RelOpKind)   to_binop(kind, is_float); }
+    static int to_binop(Kind kind);
+    static thorin::ArithOpKind to_arithop(Kind kind) { return (thorin::ArithOpKind) to_binop(kind); }
+    static thorin::CmpKind     to_cmp    (Kind kind) { return (thorin::CmpKind)     to_binop(kind); }
 
     bool operator == (const Token& t) const { return kind_ == t; }
     bool operator != (const Token& t) const { return kind_ != t; }

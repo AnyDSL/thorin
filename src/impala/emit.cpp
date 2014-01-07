@@ -205,7 +205,7 @@ RefPtr Literal::emit(CodeGen& cg) const {
 #define IMPALA_LIT(itype, atype) \
         case LIT_##itype: akind = PrimType_##atype; break;
 #include "impala/tokenlist.h"
-        case LIT_bool: akind = PrimType_u1; break;
+        case LIT_bool: akind = PrimType_bool; break;
         default: THORIN_UNREACHABLE;
     }
 
@@ -248,7 +248,7 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
         case DEC: {
             Def def = rref->load();
             Def one = cg.world().one(def->type());
-            Def ndef = cg.world().arithop(Token::to_arithop((TokenKind) kind(), type()->is_float()), def, one);
+            Def ndef = cg.world().arithop(Token::to_arithop((TokenKind) kind()), def, one);
             rref->store(ndef);
             return rref;
         }
@@ -300,17 +300,17 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
         cg.emit_branch(lhs(), t, f);
 
         if (Lambda* tl = cg.enter(t)) {
-            tl->set_value(1, is_or ? cg.world().literal_u1(true) : cg.emit(rhs())->load());
+            tl->set_value(1, is_or ? cg.world().literal(true) : cg.emit(rhs())->load());
             cg.jump(x);
         }
 
         if (Lambda* fl = cg.enter(f)) {
-            fl->set_value(1, is_or ? cg.emit(rhs())->load() : cg.world().literal_u1(false));
+            fl->set_value(1, is_or ? cg.emit(rhs())->load() : cg.world().literal_bool(false));
             cg.jump(x);
         }
 
         if (Lambda* xl = cg.enter(x))
-            return Ref::create(xl->get_value(1, cg.world().type_u1(), is_or ? "l_or" : "l_and"));
+            return Ref::create(xl->get_value(1, cg.world().type_bool(), is_or ? "l_or" : "l_and"));
         return Ref::create(nullptr);
     }
 
@@ -322,7 +322,7 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
 
         if (op != Token::ASGN) {
             TokenKind sop = Token::separate_assign(op);
-            rdef = cg.world().binop(Token::to_binop(sop, type()->is_float()), lref->load(), rdef);
+            rdef = cg.world().binop(Token::to_binop(sop), lref->load(), rdef);
         }
 
         lref->store(rdef);
@@ -332,14 +332,14 @@ RefPtr InfixExpr::emit(CodeGen& cg) const {
     Def ldef = cg.emit(lhs())->load();
     Def rdef = cg.emit(rhs())->load();
 
-    return Ref::create(cg.world().binop(Token::to_binop(op, ldef->type()->is_float()), ldef, rdef));
+    return Ref::create(cg.world().binop(Token::to_binop(op), ldef, rdef));
 }
 
 RefPtr PostfixExpr::emit(CodeGen& cg) const {
     RefPtr ref = cg.emit(lhs());
     Def def = ref->load();
     Def one = cg.world().one(def->type());
-    ref->store(cg.world().arithop(Token::to_arithop((TokenKind) kind(), type()->is_float()), def, one));
+    ref->store(cg.world().arithop(Token::to_arithop((TokenKind) kind()), def, one));
     return Ref::create(def);
 }
 

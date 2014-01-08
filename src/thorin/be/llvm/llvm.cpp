@@ -570,13 +570,17 @@ llvm::Value* CodeGen::emit(Def def) {
         Box box = primlit->value();
 
         switch (primlit->primtype_kind()) {
-            case PrimType_bool:                                                             return builder_.getInt1(box.get_bool());
-            case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  return builder_.getInt8(box.get_pu8().data());
-            case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: return builder_.getInt16(box.get_pu16().data());
-            case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: return builder_.getInt32(box.get_pu32().data());
-            case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: return builder_.getInt64(box.get_pu64().data());
-            case PrimType_pf32: case PrimType_qf32:                                         return llvm::ConstantFP::get(type, box.get_pf32().data());
-            case PrimType_pf64: case PrimType_qf64:                                         return llvm::ConstantFP::get(type, box.get_pf64().data());
+            case PrimType_bool:                     return builder_. getInt1(box.get_bool());
+            case PrimType_ps8:  case PrimType_qs8:  return builder_. getInt8(box. get_s8());
+            case PrimType_pu8:  case PrimType_qu8:  return builder_. getInt8(box. get_u8());
+            case PrimType_ps16: case PrimType_qs16: return builder_.getInt16(box.get_s16());
+            case PrimType_pu16: case PrimType_qu16: return builder_.getInt16(box.get_u16());
+            case PrimType_ps32: case PrimType_qs32: return builder_.getInt32(box.get_s32());
+            case PrimType_pu32: case PrimType_qu32: return builder_.getInt32(box.get_u32());
+            case PrimType_ps64: case PrimType_qs64: return builder_.getInt64(box.get_s64());
+            case PrimType_pu64: case PrimType_qu64: return builder_.getInt64(box.get_u64());
+            case PrimType_pf32: case PrimType_qf32: return llvm::ConstantFP::get(type, box.get_f32());
+            case PrimType_pf64: case PrimType_qf64: return llvm::ConstantFP::get(type, box.get_f64());
         }
     }
 
@@ -619,13 +623,13 @@ llvm::Type* CodeGen::map(const Type* type) {
     assert(!type->isa<Mem>());
     llvm::Type* llvm_type;
     switch (type->kind()) {
-        case PrimType_bool:                                                             llvm_type = llvm::IntegerType::get(context_,  1); break;
-        case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  llvm_type = llvm::IntegerType::get(context_,  8); break;
-        case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: llvm_type = llvm::IntegerType::get(context_, 16); break;
-        case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: llvm_type = llvm::IntegerType::get(context_, 32); break;
-        case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: llvm_type = llvm::IntegerType::get(context_, 64); break;
-        case PrimType_pf32: case PrimType_qf32:                                         llvm_type = llvm::Type::getFloatTy(context_);     break;
-        case PrimType_pf64: case PrimType_qf64:                                         llvm_type = llvm::Type::getDoubleTy(context_);    break;
+        case PrimType_bool:                                                             llvm_type = builder_. getInt1Ty(); break;
+        case PrimType_ps8:  case PrimType_qs8:  case PrimType_pu8:  case PrimType_qu8:  llvm_type = builder_. getInt8Ty(); break;
+        case PrimType_ps16: case PrimType_qs16: case PrimType_pu16: case PrimType_qu16: llvm_type = builder_.getInt16Ty(); break;
+        case PrimType_ps32: case PrimType_qs32: case PrimType_pu32: case PrimType_qu32: llvm_type = builder_.getInt32Ty(); break;
+        case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: llvm_type = builder_.getInt64Ty(); break;
+        case PrimType_pf32: case PrimType_qf32:                                         llvm_type = builder_.getFloatTy(); break;
+        case PrimType_pf64: case PrimType_qf64:                                         llvm_type = builder_.getDoubleTy();break;
         case Node_Ptr: 
             llvm_type = llvm::PointerType::getUnqual(map(type->as<Ptr>()->referenced_type())); break;
         case Node_IndefArray: 

@@ -216,31 +216,33 @@ public:
     Box()      { reset(); }
 #define THORIN_ALL_TYPE(T) Box(T val) { reset(); T##_ = val; }
 #include "thorin/tables/primtypetable.h"
-    Box(  int8_t val) { reset();   int8_t_ = val; }
-    Box( int16_t val) { reset();  int16_t_ = val; }
-    Box( int32_t val) { reset();  int32_t_ = val; }
-    Box( int64_t val) { reset();  int64_t_ = val; }
-    Box( uint8_t val) { reset();  uint8_t_ = val; }
-    Box(uint16_t val) { reset(); uint16_t_ = val; }
-    Box(uint32_t val) { reset(); uint32_t_ = val; }
-    Box(uint64_t val) { reset(); uint64_t_ = val; }
-    Box(float    val) { reset(); float_    = val; }
-    Box(double   val) { reset(); double_   = val; }
+    Box( s8 val) { reset();  s8_ = val; } Box( u8 val) { reset();  u8_ = val; }
+    Box(s16 val) { reset(); s16_ = val; } Box(u16 val) { reset(); u16_ = val; }
+    Box(s32 val) { reset(); s32_ = val; } Box(u32 val) { reset(); u32_ = val; }
+    Box(s64 val) { reset(); s64_ = val; } Box(u64 val) { reset(); u64_ = val; }
+    Box(f32 val) { reset(); f32_ = val; }
+    Box(f64 val) { reset(); f64_ = val; }
 
     bool operator == (const Box& other) const { return bcast<uint64_t, Box>(*this) == bcast<uint64_t, Box>(other); }
     template <typename T> inline T get() { THORIN_UNREACHABLE; } 
 #define THORIN_ALL_TYPE(T) \
     T get_##T() const { return T##_; }
 #include "thorin/tables/primtypetable.h"
+     s8  get_s8() const { return  s8_; }  u8  get_u8() const { return  u8_; }
+    s16 get_s16() const { return s16_; } u16 get_u16() const { return u16_; }
+    s32 get_s32() const { return s32_; } u32 get_u32() const { return u32_; }
+    s64 get_s64() const { return s64_; } u64 get_u64() const { return u64_; }
+    f32 get_f32() const { return f32_; }
+    f64 get_f64() const { return f64_; }
 
 private:
     void reset() { memset(this, 0, sizeof(Box)); }
 
 #define THORIN_ALL_TYPE(T) T T##_;
 #include "thorin/tables/primtypetable.h"
-      int8_t  int8_t_;  int16_t  int16_t_;  int32_t  int32_t_;  int64_t  int64_t_;
-     uint8_t uint8_t_; uint16_t uint16_t_; uint32_t uint32_t_; uint64_t uint64_t_;
-     float float_; double double_;
+    s8 s8_; s16 s16_; s32 s32_; s64 s64_;
+    u8 u8_; u16 u16_; u32 u32_; u64 u64_;
+    f32 f32_; f64 f64_;
 };
 
 static_assert(sizeof(Box) == sizeof(uint64_t), "Box has incorrect size in bytes");

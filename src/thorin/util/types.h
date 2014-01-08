@@ -211,6 +211,13 @@ typedef int64_t s64; typedef uint64_t u64; typedef SInt<s64, true>  ps64; typede
 typedef float  f32; typedef Float<f32, true> pf32; typedef Float<f32, false>  qf32;
 typedef double f64; typedef Float<f64, true> pf64; typedef Float<f64, false>  qf64;
 
+// define literals - not yet supported by MSVC
+#if (__cplusplus >= 201103L) && !defined(_MSC_VER)
+#define THORIN_I_TYPE(T) inline T operator "" _##T(unsigned long long int val) { return T(val); }
+#define THORIN_F_TYPE(T) inline T operator "" _##T(long double            val) { return T(val); }
+#include "thorin/tables/primtypetable.h"
+#endif
+
 union Box {
 public:
     Box()      { reset(); }

@@ -397,6 +397,8 @@ llvm::Value* CodeGen::emit(Def def) {
         }
 
         if (auto arithop = bin->isa<ArithOp>()) {
+            bool q = arithop->type()->is_type_q(); // quick? -> nsw/nuw/fast float
+
             if (arithop->lhs()->type()->is_type_f()) {
                 switch (arithop->arithop_kind()) {
                     case ArithOp_add: return builder_.CreateFAdd(lhs, rhs, name);
@@ -412,33 +414,31 @@ llvm::Value* CodeGen::emit(Def def) {
                 }
             }
 
-            bool nw = arithop->type()->is_type_q(); // quick? -> nsw/nuw/fast float
-
             if (arithop->type()->is_type_s()) {
                 switch (arithop->arithop_kind()) {
-                    case ArithOp_add: return builder_.CreateAdd (lhs, rhs, name, false, nw);
-                    case ArithOp_sub: return builder_.CreateSub (lhs, rhs, name, false, nw);
-                    case ArithOp_mul: return builder_.CreateMul (lhs, rhs, name, false, nw);
+                    case ArithOp_add: return builder_.CreateAdd (lhs, rhs, name, false, q);
+                    case ArithOp_sub: return builder_.CreateSub (lhs, rhs, name, false, q);
+                    case ArithOp_mul: return builder_.CreateMul (lhs, rhs, name, false, q);
                     case ArithOp_div: return builder_.CreateSDiv(lhs, rhs, name);
                     case ArithOp_rem: return builder_.CreateSRem(lhs, rhs, name);
                     case ArithOp_and: return builder_.CreateAnd (lhs, rhs, name);
                     case ArithOp_or:  return builder_.CreateOr  (lhs, rhs, name);
                     case ArithOp_xor: return builder_.CreateXor (lhs, rhs, name);
-                    case ArithOp_shl: return builder_.CreateShl (lhs, rhs, name, false, nw);
+                    case ArithOp_shl: return builder_.CreateShl (lhs, rhs, name, false, q);
                     case ArithOp_shr: return builder_.CreateAShr(lhs, rhs, name);
                 }
             }
             if (arithop->type()->is_type_u()) {
                 switch (arithop->arithop_kind()) {
-                    case ArithOp_add: return builder_.CreateAdd (lhs, rhs, name, nw, false);
-                    case ArithOp_sub: return builder_.CreateSub (lhs, rhs, name, nw, false);
-                    case ArithOp_mul: return builder_.CreateMul (lhs, rhs, name, nw, false);
+                    case ArithOp_add: return builder_.CreateAdd (lhs, rhs, name, q, false);
+                    case ArithOp_sub: return builder_.CreateSub (lhs, rhs, name, q, false);
+                    case ArithOp_mul: return builder_.CreateMul (lhs, rhs, name, q, false);
                     case ArithOp_div: return builder_.CreateUDiv(lhs, rhs, name);
                     case ArithOp_rem: return builder_.CreateURem(lhs, rhs, name);
                     case ArithOp_and: return builder_.CreateAnd (lhs, rhs, name);
                     case ArithOp_or:  return builder_.CreateOr  (lhs, rhs, name);
                     case ArithOp_xor: return builder_.CreateXor (lhs, rhs, name);
-                    case ArithOp_shl: return builder_.CreateShl (lhs, rhs, name, nw, false);
+                    case ArithOp_shl: return builder_.CreateShl (lhs, rhs, name, q, false);
                     case ArithOp_shr: return builder_.CreateLShr(lhs, rhs, name);
                 }
             }

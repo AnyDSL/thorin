@@ -39,8 +39,7 @@ IF ( THORIN_LIBRARIES_DIR )
 		optimized ${THORIN_LIBRARIES_RELEASE}
 		debug ${THORIN_LIBRARIES_DEBUG}
 	)
-	# get the dependencies
-	get_thorin ( THORIN_TEMP_LIBRARIES )
+	get_thorin_dependency_libs ( THORIN_TEMP_LIBRARIES )
 	SET ( THORIN_LIBRARIES ${THORIN_TEMP_LIBRARIES} ${THORIN_LIBRARIES} )
 ENDIF()
 

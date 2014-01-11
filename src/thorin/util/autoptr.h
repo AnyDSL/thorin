@@ -9,7 +9,6 @@ namespace thorin {
 template<class T>
 class AutoPtr {
 public:
-
     AutoPtr(T* ptr = nullptr)
         : ptr_(ptr)
     {}
@@ -29,16 +28,13 @@ public:
     friend void swap(AutoPtr<T>& a, AutoPtr<T>& b) { std::swap(a.ptr_, b.ptr_); }
 
 private:
-
-    AutoPtr(const AutoPtr<T>& aptr); // forbid copy constructor
-
     T* ptr_;
+    AutoPtr(const AutoPtr<T>& aptr); // forbid copy constructor
 };
 
 template<class T>
 class AutoVector : public std::vector<T> {
 public:
-
     AutoVector() 
         : std::vector<T>() 
     {}

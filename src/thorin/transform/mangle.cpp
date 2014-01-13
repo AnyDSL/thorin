@@ -4,12 +4,14 @@
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 
+#include <iostream>
+
 namespace thorin {
 
 class Mangler {
 public:
     Mangler(const Scope& scope,
-            Def2Def& mapped,
+            Def2Def& old2new,
             ArrayRef<size_t> to_drop,
             ArrayRef<Def> drop_with,
             ArrayRef<Def> to_lift,
@@ -21,7 +23,7 @@ public:
         , generic_map(generic_map)
         , world(scope.world())
         , set(scope.in_scope())
-        , map(mapped)
+        , map(old2new)
     {
         std::queue<Def> queue;
         for (auto def : to_lift)
@@ -111,6 +113,7 @@ Lambda* Mangler::mangle_head(Lambda* olambda) {
     assert(!olambda->empty());
     Lambda* nlambda = olambda->stub(generic_map, olambda->name);
     map[olambda] = nlambda;
+    std::cout << "map: " << olambda->unique_name() << " -> " << nlambda->unique_name() << std::endl;
 
     for (size_t i = 0, e = olambda->num_params(); i != e; ++i)
         map[olambda->param(i)] = nlambda->param(i);
@@ -208,21 +211,21 @@ Def Mangler::mangle(Def odef) {
 //------------------------------------------------------------------------------
 
 Lambda* mangle(const Scope& scope,
-               Def2Def& mapping,
+               Def2Def& old2new,
                ArrayRef<size_t> to_drop,
                ArrayRef<Def> drop_with,
                ArrayRef<Def> to_lift,
                const GenericMap& generic_map) {
-    return Mangler(scope, mapping, to_drop, drop_with, to_lift, generic_map).mangle();
+    return Mangler(scope, old2new, to_drop, drop_with, to_lift, generic_map).mangle();
 }
 
-Lambda* drop(const Scope& scope, Def2Def& mapping, ArrayRef<Def> with) {
+Lambda* drop(const Scope& scope, Def2Def& old2new, ArrayRef<Def> with) {
     size_t size = with.size();
     Array<size_t> to_drop(size);
     for (size_t i = 0; i != size; ++i)
         to_drop[i] = i;
 
-    return mangle(scope, mapping, to_drop, with, Array<Def>(), GenericMap());
+    return mangle(scope, old2new, to_drop, with, Array<Def>(), GenericMap());
 }
 
 //------------------------------------------------------------------------------

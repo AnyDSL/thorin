@@ -246,7 +246,7 @@ LoopNode::LoopNode(LoopHeader* parent, int depth, const std::vector<Lambda*>& la
 
 LoopTree::LoopTree(const Scope& scope)
     : Super(scope)
-    , dfs_leaves_(size())
+    , dfs_leaves_(size() + 1 /*HACK*/)
 {
     LoopTreeBuilder(*this);
 }

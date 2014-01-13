@@ -1,7 +1,7 @@
 fn foo(a: int, b: int) -> int {
     let mut res1 = 0;
     for (let mut i = 0; i < a; ++i)
-        res1 += 4;
+        res1 += 666;
 
     let mut res2 = 0;
     for (let mut i = 0; i < b; ++i)

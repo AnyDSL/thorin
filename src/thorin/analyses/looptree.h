@@ -124,6 +124,7 @@ public:
     }
     Array<Lambda*> loop_lambdas(const LoopHeader* header);
     Array<Lambda*> loop_lambdas_in_rpo(const LoopHeader* header);
+    void dump() const;
 
 private:
     Array<LoopLeaf*> dfs_leaves_;

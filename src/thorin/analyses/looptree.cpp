@@ -267,6 +267,10 @@ Array<Lambda*> LoopTree::loop_lambdas_in_rpo(const LoopHeader* header) {
     return result;
 }
 
+void LoopTree::dump() const {
+    std::cout << root_;
+}
+
 //------------------------------------------------------------------------------
 
 std::ostream& operator << (std::ostream& o, const LoopNode* node) {

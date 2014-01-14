@@ -113,7 +113,7 @@ Lambda* Mangler::mangle_head(Lambda* olambda) {
     assert(!olambda->empty());
     Lambda* nlambda = olambda->stub(generic_map, olambda->name);
     map[olambda] = nlambda;
-    std::cout << "map: " << olambda->unique_name() << " -> " << nlambda->unique_name() << std::endl;
+    //std::cout << "map: " << olambda->unique_name() << " -> " << nlambda->unique_name() << std::endl;
 
     for (size_t i = 0, e = olambda->num_params(); i != e; ++i)
         map[olambda->param(i)] = nlambda->param(i);

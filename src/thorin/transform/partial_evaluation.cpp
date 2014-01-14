@@ -10,13 +10,32 @@
 
 namespace thorin {
 
+class Branch {
+public:
+    Branch(std::initializer_list<Lambda*> succs)
+        : index_(0)
+        , succs_(succs)
+    {}
+
+    Lambda* cur() const { return succs_[index_]; }
+    bool inc() { 
+        assert(index_ < succs_.size()); 
+        ++index_; 
+        return index_ == succs_.size();
+    }
+
+private:
+    size_t index_;
+    std::vector<Lambda*> succs_;
+};
+
 class PartialEvaluator {
 public:
     PartialEvaluator(World& world)
         : world(world)
         , loops(world)
     {
-        loops.dump();
+        //loops.dump();
         collect_headers(loops.root());
         for (auto lambda : world.lambdas())
             new2old[lambda] = lambda;
@@ -24,7 +43,6 @@ public:
 
     void collect_headers(const LoopNode*);
     void process();
-    void eval(Lambda*);
     void rewrite_jump(Lambda* lambda, Lambda* to, ArrayRef<size_t> idxs);
     void remove_runs(Lambda* lambda);
     void update_new2old(const Def2Def& map);
@@ -33,6 +51,8 @@ public:
     LoopTree loops;
     Lambda2Lambda new2old;
     std::unordered_set<Lambda*> headers;
+    std::unordered_set<Lambda*> done;
+    std::vector<Branch> branches;
 };
 
 void PartialEvaluator::collect_headers(const LoopNode* n) {
@@ -45,95 +65,93 @@ void PartialEvaluator::collect_headers(const LoopNode* n) {
 }
 
 void PartialEvaluator::process() {
-    while (true) {
-        Scope scope(world);
-        for (auto lambda : scope.rpo()) {
-            for (auto op : lambda->ops()) {
-                if (op->isa<Run>()) {
-                    eval(lambda);
-                    world.cleanup();
-                    std::cout << "-------------------- cleanup ----------------" << std::endl;
-                    std::cout << "--- new2old ---" << std::endl;
-                    for (auto p : new2old) {
-                        auto nlambda = p.first ->as_lambda();
-                        auto olambda = p.second->as_lambda();
-                        std::cout << nlambda->unique_name() << " -> "  << olambda->unique_name() << std::endl;
-                    }
-                    std::cout << "--- new2old ---" << std::endl;
-                    emit_thorin(world);
-                    goto outer_loop;
+    int counter = 20;
+    for (auto top : top_level_lambdas(world)) {
+        branches.push_back(Branch({top}));
+
+        while (!branches.empty()) {
+            if (counter-- == 0)
+                return;
+            auto& branch = branches.back();
+            auto cur = branch.cur();
+            if (branch.inc())
+                branches.pop_back();
+
+            if (done.find(cur) != done.end())
+                continue;
+            done.insert(cur);
+
+            std::cout << "cur: " << cur->unique_name() << std::endl;
+            emit_thorin(world);
+            assert(!cur->empty());
+
+            bool fold = false;
+
+            auto to = cur->to();
+             if (auto run = to->isa<Run>()) {
+                to = run->def();
+                fold = true;
+             }
+
+            Lambda* dst = nullptr;
+            if (to->isa<Halt>()) {
+                continue;
+            } else if (auto select = to->isa<Select>()) {
+                branches.push_back(Branch({select->tval()->as_lambda(), select->fval()->as_lambda()}));
+                continue;
+            } else
+                dst = to->isa_lambda();
+
+            if (dst == nullptr)
+                continue;
+
+            std::vector<Def> f_args, r_args;
+            std::vector<size_t> f_idxs, r_idxs;
+
+            for (size_t i = 0; i != cur->num_args(); ++i) {
+                if (auto evalop = cur->arg(i)->isa<EvalOp>()) {
+                    if (evalop->isa<Run>()) {
+                        f_args.push_back(evalop);
+                        r_args.push_back(evalop);
+                        f_idxs.push_back(i);
+                        r_idxs.push_back(i);
+                        fold = true;
+                    } else
+                        assert(evalop->isa<Halt>());
+                } else {
+                    f_args.push_back(cur->arg(i));
+                    f_idxs.push_back(i);
                 }
             }
-        }
 
-        break;
-outer_loop:;
-    }
-}
+            if (!fold) {
+                branches.push_back(Branch({dst}));
+                continue;
+            }
 
-void PartialEvaluator::eval(Lambda* lambda) {
-    while (true) {
-        std::cout << "--------------------------" << std::endl;
-        std::cout << lambda->unique_name() << std::endl;
-        std::cout << "--------------------------" << std::endl;
-        emit_thorin(world);
-        assert(!lambda->empty());
+            Scope scope(dst);
+            Def2Def f_map;
+            auto f_to = drop(scope, f_map, f_idxs, f_args);
+            f_map[to] = f_to;
+            update_new2old(f_map);
 
-        if (lambda->to()->isa<Halt>()) {
-            remove_runs(lambda);
-            return;
-        }
-
-        Lambda* to;
-        if (auto run = lambda->to()->isa<Run>())
-            to = run->def()->isa_lambda();
-        else
-            to = lambda->to()->isa_lambda();
-
-        if (to == nullptr) {
-            remove_runs(lambda);
-            return;
-        }
-
-        std::vector<Def> f_args, r_args;
-        std::vector<size_t> f_idxs, r_idxs;
-
-        for (size_t i = 0; i != lambda->num_args(); ++i) {
-            if (auto evalop = lambda->arg(i)->isa<EvalOp>()) {
-                if (evalop->isa<Run>()) {
-                    f_args.push_back(evalop);
-                    r_args.push_back(evalop);
-                    f_idxs.push_back(i);
-                    r_idxs.push_back(i);
-                } else
-                    assert(evalop->isa<Halt>());
+            if (f_to->to()->isa_lambda() 
+                    || (f_to->to()->isa<Run>() && f_to->to()->as<Run>()->def()->isa_lambda())) {
+                rewrite_jump(cur, f_to, f_idxs);
+                for (auto lambda : scope.rpo()) {
+                    auto mapped = f_map[lambda]->as_lambda();
+                    if (mapped != lambda)
+                        mapped->update_to(world.run(mapped->to()));
+                }
+                branches.push_back(Branch({f_to}));
             } else {
-                f_args.push_back(lambda->arg(i));
-                f_idxs.push_back(i);
+                Def2Def r_map;
+                auto r_to = drop(scope, r_map, r_idxs, r_args);
+                r_map[to] = r_to;
+                update_new2old(r_map);
+                rewrite_jump(cur, r_to, r_idxs);
+                branches.push_back(Branch({r_to}));
             }
-        }
-
-        Scope scope(to);
-        Def2Def f_map, r_map;
-        auto f_to = drop(scope, f_map, f_idxs, f_args);
-        auto r_to = drop(scope, r_map, r_idxs, r_args);
-        f_map[to] = f_to;
-        r_map[to] = r_to;
-        update_new2old(f_map);
-        update_new2old(r_map);
-
-        if (f_to->to()->isa_lambda() 
-                || (f_to->to()->isa<Run>() && f_to->to()->as<Run>()->def()->isa_lambda())) {
-            rewrite_jump(lambda, f_to, f_idxs);
-            for (auto lambda : scope.rpo()) {
-                auto mapped = f_map[lambda]->as_lambda();
-                if (mapped != lambda)
-                    mapped->update_to(world.run(mapped->to()));
-            }
-            lambda = f_to;
-        } else {
-            rewrite_jump(lambda, r_to, r_idxs);
-            return;
         }
     }
 }
@@ -162,7 +180,7 @@ void PartialEvaluator::update_new2old(const Def2Def& old2new) {
     for (auto p : old2new) {
         if (auto olambda = p.first->isa_lambda()) {
             auto nlambda = p.second->as_lambda();
-            std::cout << nlambda->unique_name() << " -> "  << olambda->unique_name() << std::endl;
+            //std::cout << nlambda->unique_name() << " -> "  << olambda->unique_name() << std::endl;
             assert(new2old.contains(olambda));
             new2old[nlambda] = new2old[olambda];
         }

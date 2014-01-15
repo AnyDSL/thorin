@@ -43,10 +43,10 @@ public:
 
 private:
     void identify_scope(Lambda* entry);
-    void build_cfg();
-    void uce();
-    void find_exits();
-    void rpo_numbering();
+    void build_cfg(Lambda* entry);
+    void uce(Lambda* entry);
+    void find_exits(Lambda* entry);
+    void rpo_numbering(Lambda* entry);
     int po_visit(LambdaSet& set, Lambda* cur, int i);
     void link(Lambda* src, Lambda* dst) {
         succs_[src].push_back(dst);

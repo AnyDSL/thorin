@@ -25,7 +25,6 @@ void mem2reg(const Scope& scope) {
     scope.entry()->set_parent(0);
     scope.entry()->seal();
 
-
     for (Lambda* lambda : scope) {
         // Search for slots/loads/stores from top to bottom and use set_value/get_value to install parameters.
         for (auto primop : schedule[lambda]) {
@@ -73,7 +72,6 @@ next_primop:;
 
 void mem2reg(World& world) {
     auto top = top_level_lambdas(world);
-
     for (auto root : top)
         mem2reg(Scope(root));
 

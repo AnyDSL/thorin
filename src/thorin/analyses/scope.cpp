@@ -18,11 +18,10 @@ Scope::Scope(Lambda* entry, bool forwards)
     , forwards_(forwards)
 {
     identify_scope(entry);
-    assert(entry == this->entry());
-    build_cfg();
-    uce();
-    find_exits();
-    rpo_numbering();
+    build_cfg(entry);
+    uce(entry);
+    find_exits(entry);
+    rpo_numbering(entry);
 }
 
 Scope::~Scope() {
@@ -70,7 +69,7 @@ void Scope::identify_scope(Lambda* entry) {
 #endif
 }
 
-void Scope::build_cfg() {
+void Scope::build_cfg(Lambda* entry) {
     for (auto lambda : rpo_) {
         Lambdas all_succs = lambda->succs();
         for (auto succ : all_succs) {
@@ -80,12 +79,12 @@ void Scope::build_cfg() {
     }
 }
 
-void Scope::uce() {
+void Scope::uce(Lambda* entry) {
     LambdaSet reachable;
     std::queue<Lambda*> queue;
 
     auto insert = [&] (Lambda* lambda) { queue.push(lambda); reachable.insert(lambda); };
-    insert(entry());
+    insert(entry);
 
     while (!queue.empty()) {
         Lambda* lambda = queue.front();
@@ -97,13 +96,11 @@ void Scope::uce() {
         }
     }
 
-    std::cout << "prior: " << rpo_.size() << std::endl;
     rpo_.clear();
     std::copy(reachable.begin(), reachable.end(), std::inserter(rpo_, rpo_.begin()));
-    std::cout << "after: " << rpo_.size() << std::endl;
 }
 
-void Scope::find_exits() {
+void Scope::find_exits(Lambda* entry) {
     LambdaSet exits;
 
     for (auto lambda : rpo()) {
@@ -111,6 +108,7 @@ void Scope::find_exits() {
             exits.insert(lambda);
     }
 
+    // HACK
     auto exit  = world().meta_lambda({}, "exit");
     rpo_.push_back(exit);
     in_scope_.insert(exit);
@@ -119,16 +117,23 @@ void Scope::find_exits() {
         e->ignore(exit);
         link(e, exit);
     }
+
+    if (exits.empty()) {
+        auto last = rpo_[rpo_.size()-2];
+        last->ignore(exit);
+        link(last, exit);
+    }
 }
 
-void Scope::rpo_numbering() {
+void Scope::rpo_numbering(Lambda* entry) {
     LambdaSet visited;
-    visited.insert(entry());
+    visited.insert(entry);
     int num = rpo_.size();
-    num = po_visit(visited, entry(), num);
+
+    num = po_visit(visited, entry, num);
     assert(size() == visited.size());
     assert(num == 0);
-    assign_sid(entry(), 0);
+    assign_sid(entry, num);
 
     // sort rpo_ according to sid which now holds the rpo number
     std::sort(rpo_.begin(), rpo_.end(), [&](Lambda* l1, Lambda* l2) { return sid(l1) < sid(l2); });

@@ -29,7 +29,6 @@ enum {
 
 class LoopTreeBuilder {
 public:
-
     LoopTreeBuilder(LoopTree& looptree) 
         : looptree(looptree)
         , dfs_index(0)
@@ -40,7 +39,6 @@ public:
     }
 
 private:
-
     struct Number {
         Number() 
             : dfs(-1)
@@ -57,7 +55,6 @@ private:
 
     void build();
     static std::pair<size_t, size_t> propagate_bounds(LoopNode* header);
-
     const Scope& scope() const { return looptree.scope(); }
     Number& number(Lambda* lambda) { return numbers[lambda]; }
     size_t& lowlink(Lambda* lambda) { return number(lambda).low; }
@@ -102,8 +99,7 @@ private:
 };
 
 void LoopTreeBuilder::build() {
-    // clear all flags
-    for (auto lambda : scope().rpo())
+    for (auto lambda : scope().rpo()) // clear all flags
         states[lambda] = 0;
 
     recurse(looptree.root_ = new LoopHeader(0, -1, std::vector<Lambda*>(0)), {scope().entry()}, 0);

@@ -758,21 +758,22 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, const Type* t
     }
 
     switch (kind) {
-        case Node_Any:     assert(ops.size() == 0); return to.any(type);
-        case Node_Bottom:  assert(ops.size() == 0); return to.bottom(type);
-        case Node_Enter:   assert(ops.size() == 1); return to.enter(  ops[0], name);
-        case Node_Extract: assert(ops.size() == 2); return to.extract(ops[0], ops[1], name);
-        case Node_Global:  assert(ops.size() == 1); return to.global( ops[0], in->as<Global>()->is_mutable(), name);
-        case Node_Halt:    assert(ops.size() == 1); return to.halt(   ops[0], name);
-        case Node_Insert:  assert(ops.size() == 3); return to.insert( ops[0], ops[1], ops[2], name);
-        case Node_LEA:     assert(ops.size() == 2); return to.lea(ops[0], ops[1], name);
-        case Node_Leave:   assert(ops.size() == 2); return to.leave(  ops[0], ops[1], name);
-        case Node_Load:    assert(ops.size() == 2); return to.load(   ops[0], ops[1], name);
-        case Node_Run:     assert(ops.size() == 1); return to.run(    ops[0], name);
-        case Node_Select:  assert(ops.size() == 3); return to.select( ops[0], ops[1], ops[2], name);
-        case Node_Store:   assert(ops.size() == 3); return to.store(  ops[0], ops[1], ops[2], name);
-        case Node_Tuple:                            return to.tuple(ops, name);
-        case Node_Vector:                           return to.vector(ops, name);
+        case Node_Any:       assert(ops.size() == 0); return to.any(type);
+        case Node_Bottom:    assert(ops.size() == 0); return to.bottom(type);
+        case Node_Enter:     assert(ops.size() == 1); return to.enter(    ops[0], name);
+        case Node_Extract:   assert(ops.size() == 2); return to.extract(  ops[0], ops[1], name);
+        case Node_Global:    assert(ops.size() == 1); return to.global(   ops[0], in->as<Global>()->is_mutable(), name);
+        case Node_Halt:      assert(ops.size() == 1); return to.halt(     ops[0], name);
+        case Node_Ignore2nd: assert(ops.size() == 2); return to.ignore2nd(ops[0], ops[1], name);
+        case Node_Insert:    assert(ops.size() == 3); return to.insert(   ops[0], ops[1], ops[2], name);
+        case Node_LEA:       assert(ops.size() == 2); return to.lea(      ops[0], ops[1], name);
+        case Node_Leave:     assert(ops.size() == 2); return to.leave(    ops[0], ops[1], name);
+        case Node_Load:      assert(ops.size() == 2); return to.load(     ops[0], ops[1], name);
+        case Node_Run:       assert(ops.size() == 1); return to.run(      ops[0], name);
+        case Node_Select:    assert(ops.size() == 3); return to.select(   ops[0], ops[1], ops[2], name);
+        case Node_Store:     assert(ops.size() == 3); return to.store(    ops[0], ops[1], ops[2], name);
+        case Node_Tuple:                              return to.tuple(ops, name);
+        case Node_Vector:                             return to.vector(ops, name);
         case Node_ArrayAgg:                         
             return to.array(type->as<ArrayType>()->elem_type(), ops, type->isa<DefArray>(), name);
         case Node_Slot:    assert(ops.size() == 1); 
@@ -995,6 +996,8 @@ void World::dead_code_elimination() {
 }
 
 Def World::dce_rebuild(Def2Def& map, const size_t old_gid, Def def) {
+    if (auto ignore = def->isa<Ignore2nd>())
+        def = ignore->take();
     if (const DefNode* mapped = map.find(def))
         return mapped;
     if (def->gid() >= old_gid)

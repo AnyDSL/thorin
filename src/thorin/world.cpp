@@ -710,6 +710,12 @@ Def World::halt(Def def, const std::string& name) {
     return cse(new Halt(def, name)); 
 }
 
+Def World::ignore2nd(Def take, Def ignore, const std::string& name) { 
+    if (auto ignore = take->isa<Ignore2nd>())
+        return ignore;
+    return cse(new Ignore2nd(take, ignore, name)); 
+}
+
 Lambda* World::lambda(const Pi* pi, Lambda::Attribute attribute, const std::string& name) {
     THORIN_CHECK_BREAK(gid_)
     auto l = new Lambda(gid_++, pi, attribute, true, name);

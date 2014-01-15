@@ -221,7 +221,7 @@ public:
     Lambda* lambda(const std::string& name) { return lambda(pi0(), Lambda::Attribute(0), name); }
     Lambda* basicblock(const std::string& name = "");
     Lambda* meta_lambda(ArrayRef<Lambda*> args, const std::string& name = "meta");
-    Def ignore2nd(Def take, Def ignore, const std::string& name = "") { return cse(new Ignore2nd(take, ignore, name)); }
+    Def ignore2nd(Def take, Def ignore, const std::string& name = "");
 
     /// Generic \p PrimOp constructor; inherits name from \p in.
     static Def rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, const Type* type);

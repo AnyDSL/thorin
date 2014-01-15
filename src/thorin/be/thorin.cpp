@@ -169,27 +169,25 @@ void emit_thorin(World& world, bool fancy, bool nocolor) {
             cg.emit_assignment(global);
     }
 
-    for (auto top : top_level_lambdas(world)) {
-        Scope scope(top);
-        const DomTree domtree(scope);
-        Schedule schedule = schedule_smart(scope);
-        for (auto lambda : scope) {
-            if (scope.exit() == lambda)
-                continue; // HACK
-            int depth = fancy ? domtree.depth(lambda) : 0;
-            cg.indent += depth;
-            cg.newline();
-            cg.emit_head(lambda);
-
-            for (auto op : schedule[lambda])
-                cg.emit_assignment(op);
-
-            cg.emit_jump(lambda);
-            cg.indent -= depth;
-        }
-
+    Scope scope(top_lambda(world));
+    const DomTree domtree(scope);
+    Schedule schedule = schedule_smart(scope);
+    for (auto lambda : scope) {
+        //if (scope.exit() == lambda)
+            //continue; // HACK
+        int depth = fancy ? domtree.depth(lambda) : 0;
+        cg.indent += depth;
         cg.newline();
+        cg.emit_head(lambda);
+
+        for (auto op : schedule[lambda])
+            cg.emit_assignment(op);
+
+        cg.emit_jump(lambda);
+        cg.indent -= depth;
     }
+
+    cg.newline();
 }
 
 void emit_type(const Type* type)           { CodeGen(false).emit_type(type);         }

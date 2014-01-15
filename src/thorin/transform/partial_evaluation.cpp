@@ -73,13 +73,10 @@ void PartialEvaluator::collect_headers(const LoopNode* n) {
 }
 
 void PartialEvaluator::process() {
-    int counter = 20;
     for (auto top : top_level_lambdas(world)) {
         branches.push_back(Branch({top}));
 
         while (!branches.empty()) {
-            if (counter-- == 0)
-                return;
             auto& branch = branches.back();
             auto cur = branch.cur();
             if (branch.inc())

@@ -7,7 +7,7 @@ fn foo(a: int, b: int) -> int {
     for (let mut i = 0; i < b; ++i)
         res2 += 3333;
 
-    return res1 + res2;
+    return 17 + res2;
 }
 
 fn main(i: int) -> int {

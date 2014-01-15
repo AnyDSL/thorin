@@ -150,6 +150,12 @@ void Scope::rpo_numbering(Lambda* entry) {
 
     // sort rpo_ according to sid which now holds the rpo number
     std::sort(rpo_.begin(), rpo_.end(), [&](Lambda* l1, Lambda* l2) { return sid(l1) < sid(l2); });
+
+#ifndef NDEBUG
+    // double check sids
+    for (int i = 0, e = size(); i != e; ++i)
+        assert(sid(rpo_[i]) == i);
+#endif
 }
 
 int Scope::po_visit(LambdaSet& visited, Lambda* cur, int i) {

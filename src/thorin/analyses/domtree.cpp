@@ -38,7 +38,7 @@ void DomTree::create() {
         map_[lambda] = new DomNode(lambda);
 
     // map entry's initial idom to itself
-    DomNode* entry_node = lookup(scope_.entry());
+    auto entry_node = lookup(scope_.entry());
     entry_node->idom_ = entry_node;
 
     // all others' idoms are set to their first found dominating pred
@@ -59,7 +59,7 @@ outer_loop:;
         for (auto lambda : scope_.body()) {
             DomNode* lambda_node = lookup(lambda);
 
-            DomNode* new_idom = 0;
+            DomNode* new_idom = nullptr;
             for (auto pred : scope_.preds(lambda)) {
                 DomNode* pred_node = lookup(pred);
                 assert(pred_node);

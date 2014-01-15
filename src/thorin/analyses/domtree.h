@@ -15,7 +15,7 @@ class DomNode {
 public:
     explicit DomNode(Lambda* lambda) 
         : lambda_(lambda) 
-        , idom_(0)
+        , idom_(nullptr)
     {}
 
     Lambda* lambda() const { return lambda_; }

@@ -13,6 +13,7 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
+#if 0
 Scope::Scope(Lambda* entry, bool forwards)
     : world_(entry->world())
     , forwards_(forwards)
@@ -23,14 +24,7 @@ Scope::Scope(Lambda* entry, bool forwards)
     find_exits(entry);
     rpo_numbering(entry);
 }
-
-Scope::~Scope() {
-    forwards_ = true;
-    for (auto e : preds(exit())) {
-        if (auto ignore = e->to()->isa<Ignore2nd>())
-            e->update_to(ignore->take());
-    }
-}
+#endif
 
 void Scope::identify_scope(Lambda* entry) {
     std::queue<Def> queue;
@@ -109,7 +103,7 @@ void Scope::find_exits(Lambda* entry) {
     }
 
     // HACK
-    auto exit  = world().meta_lambda({}, "exit");
+    auto exit  = world().meta_lambda();
     rpo_.push_back(exit);
     in_scope_.insert(exit);
 
@@ -175,7 +169,5 @@ next_lambda:;
     std::copy(top_level.begin(), top_level.end(), result.begin());
     return result;
 }
-
-Lambda* top_lambda(World& world) { return world.meta_lambda(top_level_lambdas(world), "top"); }
 
 } // namespace thorin

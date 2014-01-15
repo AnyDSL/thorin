@@ -185,8 +185,6 @@ Lambda* Lambda::mem_call(Def to, ArrayRef<Def> args, const Type* ret_type) {
     return next;
 }
 
-void Lambda::ignore(Lambda* lambda) { update_to(world().ignore2nd(to(), lambda)); }
-
 /*
  * CPS construction
  */

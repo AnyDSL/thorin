@@ -710,12 +710,6 @@ Def World::halt(Def def, const std::string& name) {
     return cse(new Halt(def, name)); 
 }
 
-Def World::ignore2nd(Def take, Def ignore, const std::string& name) { 
-    if (auto ignore = take->isa<Ignore2nd>())
-        return ignore;
-    return cse(new Ignore2nd(take, ignore, name)); 
-}
-
 Lambda* World::lambda(const Pi* pi, Lambda::Attribute attribute, const std::string& name) {
     THORIN_CHECK_BREAK(gid_)
     auto l = new Lambda(gid_++, pi, attribute, true, name);
@@ -728,11 +722,9 @@ Lambda* World::lambda(const Pi* pi, Lambda::Attribute attribute, const std::stri
     return l;
 }
 
-Lambda* World::meta_lambda(ArrayRef<Lambda*> args, const std::string& name) { 
-    auto l = lambda(pi0(), name); 
-    Array<Def> a(args.size());
-    std::copy(args.begin(), args.end(), a.begin());
-    l->jump(bottom(pi0()), a);
+Lambda* World::meta_lambda() { 
+    auto l = lambda(pi0(), "meta"); 
+    l->jump(bottom(pi0()), {});
     return l;
 }
 
@@ -770,7 +762,6 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, const Type* t
         case Node_Extract:   assert(ops.size() == 2); return to.extract(  ops[0], ops[1], name);
         case Node_Global:    assert(ops.size() == 1); return to.global(   ops[0], in->as<Global>()->is_mutable(), name);
         case Node_Halt:      assert(ops.size() == 1); return to.halt(     ops[0], name);
-        case Node_Ignore2nd: assert(ops.size() == 2); return to.ignore2nd(ops[0], ops[1], name);
         case Node_Insert:    assert(ops.size() == 3); return to.insert(   ops[0], ops[1], ops[2], name);
         case Node_LEA:       assert(ops.size() == 2); return to.lea(      ops[0], ops[1], name);
         case Node_Leave:     assert(ops.size() == 2); return to.leave(    ops[0], ops[1], name);
@@ -1002,8 +993,6 @@ void World::dead_code_elimination() {
 }
 
 Def World::dce_rebuild(Def2Def& map, const size_t old_gid, Def def) {
-    if (auto ignore = def->isa<Ignore2nd>())
-        def = ignore->take();
     if (const DefNode* mapped = map.find(def))
         return mapped;
     if (def->gid() >= old_gid)

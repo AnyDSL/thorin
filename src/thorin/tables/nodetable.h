@@ -41,6 +41,5 @@
         THORIN_AIR_NODE(Sigma, sigma)
         THORIN_AIR_NODE(DefArray, def_array)
         THORIN_AIR_NODE(IndefArray, indef_array)
-        THORIN_AIR_NODE(Ignore2nd, ignore2nd)
 
 #undef THORIN_AIR_NODE

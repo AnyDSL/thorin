@@ -9,12 +9,17 @@
 
 namespace thorin {
 
-//------------------------------------------------------------------------------
+Array<Lambda*> top_level_lambdas(World& world);
 
 class Scope {
 public:
-    explicit Scope(Lambda* entry, bool forwards = true);
-    ~Scope();
+    explicit Scope(World& world, ArrayRef<Lambda*> entries, bool forwards = true);
+    explicit Scope(World& world, bool forwards = true)
+        : Scope(world, top_level_lambdas(world), forwards)
+    {}
+    explicit Scope(Lambda* entry, bool forwards = true)
+        : Scope(entry->world(), {entry}, forwards)
+    {}
 
     /// All lambdas within this scope in reverse postorder.
     ArrayRef<Lambda*> rpo() const { return forwards() ? rpo_ : reverse_rpo_; }
@@ -64,13 +69,6 @@ private:
     LambdaMap<int> sid_;
     LambdaMap<int> reverse_sid_;
 };
-
-//------------------------------------------------------------------------------
-
-Array<Lambda*> top_level_lambdas(World& world);
-Lambda* top_lambda(World& world);
-
-//------------------------------------------------------------------------------
 
 } // namespace thorin
 

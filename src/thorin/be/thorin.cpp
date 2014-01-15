@@ -169,7 +169,7 @@ void emit_thorin(World& world, bool fancy, bool nocolor) {
             cg.emit_assignment(global);
     }
 
-    Scope scope(top_lambda(world));
+    Scope scope(world);
     const DomTree domtree(scope);
     Schedule schedule = schedule_smart(scope);
     for (auto lambda : scope) {

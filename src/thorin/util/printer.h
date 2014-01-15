@@ -21,7 +21,7 @@ public:
     std::ostream& newline();
     std::ostream& up()   { ++indent; return newline(); }
     std::ostream& down() { --indent; return newline(); }
-    template<class Emit, class List>
+    template<class Emit, class List, bool nl = false>
     std::ostream& dump_list(Emit emit, const List& list, const char* begin = "", const char* end = "", const char* sep = ", ");
     std::ostream& stream() { return stream_; }
     std::ostream& color(int c);
@@ -37,12 +37,14 @@ private:
     bool colored_;
 };
 
-template<class Emit, class List>
+template<class Emit, class List, bool nl>
 std::ostream& Printer::dump_list(Emit emit, const List& list, const char* begin, const char* end, const char* sep) {
     stream() << begin;
     const char* separator = "";
     for (auto elem : list) {
         stream() << separator;
+        if (nl && separator != "")
+            newline();
         emit(elem);
         separator = sep;
     }

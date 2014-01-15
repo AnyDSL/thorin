@@ -67,15 +67,18 @@ outer_loop:;
 }
 
 template<bool forwards>
-DomNode* DomTreeBase<forwards>::lca(DomNode* i, DomNode* j) {
-    while (!scope_.is_entry(i, j) && scope_.sid(i->lambda()) != scope_.sid(j->lambda())) {
-        while (!scope_.is_entry(i, j) && scope_.sid(i->lambda()) < scope_.sid(j->lambda())) 
-            j = j->idom_;
-        while (!scope_.is_entry(i, j) && scope_.sid(j->lambda()) < scope_.sid(i->lambda())) 
-            i = i->idom_;
+DomNode* DomTreeBase<forwards>::lca(DomNode* a, DomNode* b) {
+    auto i = a->lambda();
+    auto j = b->lambda();
+    auto entry = scope_.entry();
+    while ((i != entry || j != entry) && scope_.sid(i) != scope_.sid(j)) {
+        while ((i != entry || j != entry) && scope_.sid(i) < scope_.sid(j)) 
+            b = b->idom_;
+        while ((i != entry || j != entry) && scope_.sid(j) < scope_.sid(i)) 
+            a = a->idom_;
     }
 
-    return i;
+    return a;
 }
 
 // export templates

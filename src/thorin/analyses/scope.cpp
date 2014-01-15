@@ -40,7 +40,6 @@ Scope::Scope(Lambda* entry)
 {
     identify_scope({entry});
     build_cfg({entry});
-    rpo_numbering({entry});
 }
 
 Scope::Scope(World& world, ArrayRef<Lambda*> entries)
@@ -48,7 +47,6 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries)
 {
     identify_scope(entries);
     build_cfg(entries);
-    rpo_numbering(entries);
 }
 
 void Scope::identify_scope(ArrayRef<Lambda*> entries) {
@@ -93,16 +91,9 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
 }
 
 void Scope::build_cfg(ArrayRef<Lambda*> entries) {
-    auto link = [&] (Lambda* src, Lambda* dst) {
-        succs_[src].push_back(dst);
-        preds_[dst].push_back(src);
-    };
-
     // don't add to in_scope_; this is an implementation detail
     auto entry = world().meta_lambda();
-    auto exit  = world().meta_lambda();
     rpo_.push_back(entry);
-    rpo_.push_back(exit);
 
     for (auto e : entries)
         link(entry, e);
@@ -114,22 +105,63 @@ void Scope::build_cfg(ArrayRef<Lambda*> entries) {
                 link(lambda, succ);
         }
     }
+
+    uce(entry);
+    rpo_numbering(entry);
 }
 
-void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {
+void Scope::uce(Lambda* entry) {
+    LambdaSet reachable;
+    std::queue<Lambda*> queue;
+    queue.push(entry);
+    reachable.insert(entry);
+
+    while (!queue.empty()) {
+        Lambda* lambda = queue.front();
+        queue.pop();
+
+        for (auto succ : succs(lambda)) {
+            if (!reachable.contains(succ)) {
+                queue.push(succ);
+                reachable.insert(succ);
+            }
+        }
+    }
+
+    rpo_.clear();
+    std::copy(reachable.begin(), reachable.end(), std::inserter(rpo_, rpo_.begin()));
+}
+
+void Scope::find_exits() {
+    std::vector<Lambda*> exits;
+
+    for (auto lambda : rpo()) {
+        if (num_succs(lambda) == 0)
+            exits.push_back(lambda);
+    }
+
+    LambdaSet exiting;
+    std::queue<Lambda*> queue;
+
+    while (!queue.empty()) {
+        Lambda* lambda = queue.front();
+        queue.pop();
+    }
+
+    auto exit  = world().meta_lambda();
+    rpo_.push_back(exit);
+
+    for (auto e : exits)
+        link(e, exit);
+}
+
+void Scope::rpo_numbering(Lambda* entry) {
     LambdaSet lambdas;
-
-    for (auto entry : entries)
-        lambdas.visit(entry);
-
+    lambdas.insert(entry);
     size_t num = 0;
-    for (auto entry : entries)
-        num = po_visit<true>(lambdas, entry, num);
+    num = po_visit<true>(lambdas, entry, num);
 
-    for (size_t i = entries.size(); i-- != 0;)
-        sid_[entries[i]].sid = num++;
-
-    assert(num <= size());
+    assert(num == size());
     assert(num == lambdas.size());
 
     // convert postorder number to reverse postorder number
@@ -163,8 +195,8 @@ void Scope::rpo_numbering(ArrayRef<Lambda*> entries) {
 
 template<bool forwards>
 size_t Scope::po_visit(LambdaSet& set, Lambda* cur, size_t i) const {
-    for (auto succ : forwards ? cur->succs() : cur->preds()) {
-        if (in_scope_.contains(succ) && !set.contains(succ))
+    for (auto succ : forwards ? succs(cur) : preds(cur)) {
+        if (!set.contains(succ))
             i = number<forwards>(set, succ, i);
     }
     return i;

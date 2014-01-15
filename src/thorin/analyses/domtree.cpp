@@ -10,10 +10,9 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-template<bool forwards>
-int DomNodeBase<forwards>::depth() const {
+int DomNode::depth() const {
     int result = 0;
-    for (const DomNodeBase* i = this; !i->entry(); i = i->idom())
+    for (const DomNode* i = this; !i->entry(); i = i->idom())
         ++result;
     return result;
 };
@@ -70,7 +69,7 @@ outer_loop:;
 }
 
 template<bool forwards>
-DomNodeBase<forwards>* DomTreeBase<forwards>::lca(DomNode* i, DomNode* j) {
+DomNode* DomTreeBase<forwards>::lca(DomNode* i, DomNode* j) {
     while (!Super::is_entry(i, j) && Super::sid(i) != Super::sid(j)) {
         while (!Super::is_entry(i, j) && Super::sid(i) < Super::sid(j)) 
             j = j->idom_;
@@ -82,8 +81,6 @@ DomNodeBase<forwards>* DomTreeBase<forwards>::lca(DomNode* i, DomNode* j) {
 }
 
 // export templates
-template class DomNodeBase< true>;
-template class DomNodeBase<false>;
 template class DomTreeBase< true>;
 template class DomTreeBase<false>;
 

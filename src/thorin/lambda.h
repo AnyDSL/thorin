@@ -13,7 +13,6 @@ class GenericMap;
 class GenericRef;
 class Lambda;
 class Pi;
-class Scope;
 
 typedef std::vector<Lambda*> Lambdas;
 typedef std::vector<const Param*> Params;
@@ -168,7 +167,6 @@ private:
     mutable std::vector<const GenericRef*> generic_refs_;
 
     friend class World;
-    friend class Scope;
     friend class GenericRef;
 };
 

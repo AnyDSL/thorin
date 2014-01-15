@@ -91,7 +91,8 @@ static Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &def2late) {
     const DomTree domtree(scope);
     assert(def2late.empty());
 
-    for (Lambda* cur : scope.backwards_rpo()) {
+    for (size_t i = scope.size(); i-- != 0;) {
+        auto cur = scope[i];
         auto decrease = [&] (Def def) {
             assert(scope.contains(def));
             for (auto op : def->ops()) {

@@ -107,14 +107,11 @@ void Scope::find_exits(Lambda* entry) {
     rpo_.push_back(exit);
     in_scope_.insert(exit);
 
-    for (auto e : exits) {
-        e->ignore(exit);
+    for (auto e : exits)
         link(e, exit);
-    }
 
     if (exits.empty()) {
         auto last = rpo_[rpo_.size()-2];
-        last->ignore(exit);
         link(last, exit);
     }
 }

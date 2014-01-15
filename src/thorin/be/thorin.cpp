@@ -174,6 +174,8 @@ void emit_thorin(World& world, bool fancy, bool nocolor) {
         const DomTree domtree(scope);
         Schedule schedule = schedule_smart(scope);
         for (auto lambda : scope) {
+            if (scope.exit() == lambda)
+                continue; // HACK
             int depth = fancy ? domtree.depth(lambda) : 0;
             cg.indent += depth;
             cg.newline();

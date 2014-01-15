@@ -18,16 +18,25 @@ Scope::Scope(Lambda* entry, bool forwards)
     , forwards_(forwards)
 {
     identify_scope(entry);
+    assert(entry == this->entry());
     build_cfg();
     uce();
     find_exits();
     rpo_numbering();
 }
 
+Scope::~Scope() {
+    forwards_ = true;
+    for (auto e : preds(exit())) {
+        if (auto ignore = e->to()->isa<Ignore2nd>())
+            e->update_to(ignore->take());
+    }
+}
+
 void Scope::identify_scope(Lambda* entry) {
     std::queue<Def> queue;
 
-    auto insert_lambda = [&] (Lambda* lambda) {
+    auto insert = [&] (Lambda* lambda) {
         for (auto param : lambda->params()) {
             if (!param->is_proxy()) {
                 in_scope_.insert(param);
@@ -39,7 +48,7 @@ void Scope::identify_scope(Lambda* entry) {
         rpo_.push_back(lambda);
     };
 
-    insert_lambda(entry);
+    insert(entry);
     in_scope_.insert(entry);
 
     while (!queue.empty()) {
@@ -48,7 +57,7 @@ void Scope::identify_scope(Lambda* entry) {
         for (auto use : def->uses()) {
             if (!in_scope_.contains(use)) {
                 if (auto ulambda = use->isa_lambda())
-                    insert_lambda(ulambda);
+                    insert(ulambda);
                 in_scope_.insert(use);
                 queue.push(use);
             }
@@ -74,23 +83,24 @@ void Scope::build_cfg() {
 void Scope::uce() {
     LambdaSet reachable;
     std::queue<Lambda*> queue;
-    queue.push(entry());
-    reachable.insert(entry());
+
+    auto insert = [&] (Lambda* lambda) { queue.push(lambda); reachable.insert(lambda); };
+    insert(entry());
 
     while (!queue.empty()) {
         Lambda* lambda = queue.front();
         queue.pop();
 
         for (auto succ : succs(lambda)) {
-            if (!reachable.contains(succ)) {
-                queue.push(succ);
-                reachable.insert(succ);
-            }
+            if (!reachable.contains(succ))
+                insert(succ);
         }
     }
 
+    std::cout << "prior: " << rpo_.size() << std::endl;
     rpo_.clear();
     std::copy(reachable.begin(), reachable.end(), std::inserter(rpo_, rpo_.begin()));
+    std::cout << "after: " << rpo_.size() << std::endl;
 }
 
 void Scope::find_exits() {
@@ -106,19 +116,17 @@ void Scope::find_exits() {
     in_scope_.insert(exit);
 
     for (auto e : exits) {
-        e->dump_jump();
         e->ignore(exit);
-        e->dump_jump();
         link(e, exit);
     }
 }
 
 void Scope::rpo_numbering() {
-    LambdaSet lambdas;
-    lambdas.insert(entry());
+    LambdaSet visited;
+    visited.insert(entry());
     int num = rpo_.size();
-    num = po_visit(lambdas, entry(), num);
-    assert(size() == lambdas.size());
+    num = po_visit(visited, entry(), num);
+    assert(size() == visited.size());
     assert(num == 0);
     assign_sid(entry(), 0);
 
@@ -126,11 +134,11 @@ void Scope::rpo_numbering() {
     std::sort(rpo_.begin(), rpo_.end(), [&](Lambda* l1, Lambda* l2) { return sid(l1) < sid(l2); });
 }
 
-int Scope::po_visit(LambdaSet& set, Lambda* cur, int i) {
+int Scope::po_visit(LambdaSet& visited, Lambda* cur, int i) {
     for (auto succ : succs(cur)) {
-        if (!set.contains(succ)) {
-            set.insert(succ);
-            i = po_visit(set, succ, i);
+        if (!visited.contains(succ)) {
+            visited.insert(succ);
+            i = po_visit(visited, succ, i);
             assign_sid(succ, i);
         }
     }

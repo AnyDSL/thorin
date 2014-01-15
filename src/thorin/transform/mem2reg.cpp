@@ -15,6 +15,17 @@ void mem2reg(const Scope& scope) {
     LambdaSet pass;
     size_t cur_handle = 0;
 
+    // unseal all lambdas ...
+    for (auto lambda : scope.rpo()) {
+        lambda->set_parent(lambda);
+        lambda->unseal();
+    }
+
+    // ... except top-level lambdas
+    scope.entry()->set_parent(0);
+    scope.entry()->seal();
+
+
     for (Lambda* lambda : scope) {
         // Search for slots/loads/stores from top to bottom and use set_value/get_value to install parameters.
         for (auto primop : schedule[lambda]) {
@@ -47,7 +58,7 @@ next_primop:;
         }
 
         // seal successors of last lambda if applicable
-        for (auto succ : lambda->succs()) {
+        for (auto succ : scope.succs(lambda)) {
             if (succ->parent() != 0) {
                 if (!pass.visit(succ)) {
                     assert(addresses.find(succ) == addresses.end());
@@ -62,16 +73,6 @@ next_primop:;
 
 void mem2reg(World& world) {
     auto top = top_level_lambdas(world);
-
-    for (auto lambda : world.lambdas()) {   // unseal all lambdas ...
-        lambda->set_parent(lambda);
-        lambda->unseal();
-    }
-
-    for (auto lambda : top) {               // ... except top-level lambdas
-        lambda->set_parent(0);
-        lambda->seal();
-    }
 
     for (auto root : top)
         mem2reg(Scope(root));

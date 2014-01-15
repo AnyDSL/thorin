@@ -14,6 +14,7 @@ namespace thorin {
 class Scope {
 public:
     explicit Scope(Lambda* entry, bool forwards = true);
+    ~Scope();
 
     /// All lambdas within this scope in reverse postorder.
     ArrayRef<Lambda*> rpo() const { return forwards() ? rpo_ : reverse_rpo_; }

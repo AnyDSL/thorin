@@ -45,55 +45,71 @@ const Param* Lambda::append_param(const Type* type, const std::string& name) {
     return param;
 }
 
-Lambdas Lambda::succs() const {
+template<bool direct, bool indirect>
+static Lambdas succs(const Lambda* lambda) {
     std::vector<Lambda*> succs;
     std::queue<const DefNode*> queue;
     DefSet done;
-    const DefNode* def = this;
-    goto start;
+
+    auto insert = [&] (Def def) {
+        if (done.find(def) == done.end()) {
+            queue.push(def);
+            done.insert(def);
+        }
+    };
+
+    if (direct)
+        insert(lambda->to());
+    if (indirect) {
+        for (auto arg : lambda->args())
+            insert(arg);
+    }
 
     while (!queue.empty()) {
-        def = queue.front();
+        Def def = queue.front();
         queue.pop();
 
         if (auto lambda = def->isa_lambda()) {
             succs.push_back(lambda);
             continue;
         } 
-start:
-        for (auto op : def->ops()) {
-            if (done.find(op) == done.end()) {
-                queue.push(op);
-                done.insert(op);
-            }
-        }
+        for (auto op : def->ops())
+            insert(op);
     }
 
     return succs;
 }
 
+Lambdas Lambda::succs() const { return thorin::succs<true, true>(this); }
+Lambdas Lambda::direct_succs() const { return thorin::succs<true, false>(this); }
+Lambdas Lambda::indirect_succs() const { return thorin::succs<false, true>(this); }
+
 Lambdas Lambda::preds() const {
     std::vector<Lambda*> preds;
     std::queue<const DefNode*> queue;
     DefSet done;
-    const DefNode* def = this;
-    goto start;
 
-    while (!queue.empty()) {
-        def = queue.front();
-        queue.pop();
-
-        if (auto lambda = def->isa_lambda()) {
-            preds.push_back(lambda);
-            continue;
-        } 
-start:
+    auto insert = [&] (Def def) {
         for (auto use : def->uses()) {
             if (done.find(use) == done.end()) {
                 queue.push(use);
                 done.insert(use);
             }
         }
+    };
+
+    insert(this);
+
+    while (!queue.empty()) {
+        Def def = queue.front();
+        queue.pop();
+
+        if (auto lambda = def->isa_lambda()) {
+            preds.push_back(lambda);
+            continue;
+        } 
+
+        insert(def);
     }
 
     return preds;

@@ -722,6 +722,12 @@ Lambda* World::lambda(const Pi* pi, Lambda::Attribute attribute, const std::stri
     return l;
 }
 
+Lambda* World::meta_lambda() { 
+    auto l = lambda(pi0()); 
+    l->jump(bottom(pi0()), {});
+    return l;
+}
+
 Lambda* World::basicblock(const std::string& name) {
     THORIN_CHECK_BREAK(gid_)
     auto bb = new Lambda(gid_++, pi0(), Lambda::Attribute(0), false, name);

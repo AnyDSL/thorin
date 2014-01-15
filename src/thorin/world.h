@@ -220,6 +220,7 @@ public:
     Lambda* lambda(const Pi* pi, const std::string& name) { return lambda(pi, Lambda::Attribute(0), name); }
     Lambda* lambda(const std::string& name) { return lambda(pi0(), Lambda::Attribute(0), name); }
     Lambda* basicblock(const std::string& name = "");
+    Lambda* meta_lambda();
 
     /// Generic \p PrimOp constructor; inherits name from \p in.
     static Def rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, const Type* type);

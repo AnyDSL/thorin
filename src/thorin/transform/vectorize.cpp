@@ -124,7 +124,7 @@ void Vectorizer::infer_condition(Lambda* lambda) {
 
 void Vectorizer::param2select(const Param* param) {
     Def select = nullptr;
-    Array<Lambda*> preds = scope.preds(param->lambda());
+    auto preds = scope.preds(param->lambda()); // copy
     // begin with pred with the most expensive condition (non_const_depth) - this keeps select chains simpler
     std::sort(preds.begin(), preds.end(), [&](const Lambda* l1, const Lambda* l2) {
         return mapped[l1]->non_const_depth() > mapped[l2]->non_const_depth(); 

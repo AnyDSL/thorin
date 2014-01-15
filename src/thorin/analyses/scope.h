@@ -41,12 +41,12 @@ public:
     const_iterator begin() const { return rpo().begin(); }
     const_iterator end() const { return rpo().end(); }
 
-    ArrayRef<Lambda*> preds(Lambda* lambda) const;
-    ArrayRef<Lambda*> succs(Lambda* lambda) const;
+    const std::vector<Lambda*>& preds(Lambda* lambda) const { return preds_.find(lambda)->second; }
+    const std::vector<Lambda*>& succs(Lambda* lambda) const { return succs_.find(lambda)->second; }
 
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
-    size_t num_entries() const { return num_entries_; }
+    size_t num_entries() const { return 1; }
     size_t num_exits() const { if (num_exits_ == size_t(-1)) backwards_rpo(); return num_exits_; }
 
     size_t size() const { return rpo_.size(); }
@@ -60,19 +60,18 @@ public:
 
 private:
     void identify_scope(ArrayRef<Lambda*> entries);
+    void build_cfg(ArrayRef<Lambda*> entries);
     void rpo_numbering(ArrayRef<Lambda*> entries);
-    void collect(Lambda* entry);
     template<bool forwards> size_t po_visit(LambdaSet&, Lambda* cur, size_t i) const;
     template<bool forwards> size_t number(LambdaSet&, Lambda* cur, size_t i) const;
 
     World& world_;
-    size_t num_entries_;
     mutable size_t num_exits_;
     DefSet in_scope_;
     std::vector<Lambda*> rpo_;
     mutable AutoPtr<Array<Lambda*>> backwards_rpo_;
-    mutable Array<Array<Lambda*>> preds_;
-    mutable Array<Array<Lambda*>> succs_;
+    LambdaMap<std::vector<Lambda*>> preds_;
+    LambdaMap<std::vector<Lambda*>> succs_;
 
     struct Sid {
         Sid()

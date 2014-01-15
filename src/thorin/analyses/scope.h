@@ -27,7 +27,7 @@ public:
     ArrayRef<Lambda*> succs(Lambda* lambda) const { return (forwards() ? succs_ : preds_)[lambda]; }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
-    int sid(Lambda* lambda) const { return sid_.find(lambda)->second; } // TODO
+    int sid(Lambda* lambda) const { return (forwards() ? sid_ : reverse_sid_)[lambda]; }
     size_t size() const { return rpo_.size(); }
     World& world() const { return world_; }
     bool forwards() const { return forwards_; }
@@ -51,6 +51,7 @@ private:
         succs_[src].push_back(dst);
         preds_[dst].push_back(src);
     };
+    void assign_sid(Lambda* lambda, int i) { (forwards() ? sid_ : reverse_sid_)[lambda] = i; }
 
     World& world_;
     bool forwards_;

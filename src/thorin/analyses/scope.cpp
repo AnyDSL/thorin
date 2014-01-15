@@ -81,9 +81,7 @@ void Scope::uce() {
         Lambda* lambda = queue.front();
         queue.pop();
 
-        std::cout << lambda->unique_name() << std::endl;
         for (auto succ : succs(lambda)) {
-            std::cout << "succ: " << succ->unique_name() << std::endl;
             if (!reachable.contains(succ)) {
                 queue.push(succ);
                 reachable.insert(succ);
@@ -108,7 +106,9 @@ void Scope::find_exits() {
     in_scope_.insert(exit);
 
     for (auto e : exits) {
+        e->dump_jump();
         e->ignore(exit);
+        e->dump_jump();
         link(e, exit);
     }
 }
@@ -118,9 +118,9 @@ void Scope::rpo_numbering() {
     lambdas.insert(entry());
     int num = rpo_.size();
     num = po_visit(lambdas, entry(), num);
-
-    assert(num == size());
-    assert(num == lambdas.size());
+    assert(size() == lambdas.size());
+    assert(num == 0);
+    assign_sid(entry(), 0);
 
     // sort rpo_ according to sid which now holds the rpo number
     std::sort(rpo_.begin(), rpo_.end(), [&](Lambda* l1, Lambda* l2) { return sid(l1) < sid(l2); });
@@ -129,9 +129,9 @@ void Scope::rpo_numbering() {
 int Scope::po_visit(LambdaSet& set, Lambda* cur, int i) {
     for (auto succ : succs(cur)) {
         if (!set.contains(succ)) {
-            set.insert(cur);
-            i = po_visit(set, cur, i);
-            (*(forwards() ? &sid_ : &reverse_sid_))[cur] = i;
+            set.insert(succ);
+            i = po_visit(set, succ, i);
+            assign_sid(succ, i);
         }
     }
     return i-1;
@@ -143,10 +143,9 @@ Array<Lambda*> top_level_lambdas(World& world) {
     // trivial implementation, but works
     // TODO: nicer version with Fibonacci heaps
     AutoVector<Scope*> scopes;
-    for (auto lambda : world.lambdas()) {
-        std::cout << lambda->unique_name() << std::endl;
+    std::vector<Lambda*> lambdas(world.lambdas().begin(), world.lambdas().end());
+    for (auto lambda : lambdas)
         scopes.push_back(new Scope(lambda));
-    }
 
     // check for top_level lambdas
     LambdaSet top_level = world.lambdas();

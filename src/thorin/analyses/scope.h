@@ -13,13 +13,14 @@ Array<Lambda*> top_level_lambdas(World& world);
 
 class Scope {
 public:
+    /// Always builds a unique meta \p Lambda as entry.
     explicit Scope(World& world, ArrayRef<Lambda*> entries, bool forwards = true);
+    /// Always builds a unique dummy node as entry dominating the \p world.
     explicit Scope(World& world, bool forwards = true)
         : Scope(world, top_level_lambdas(world), forwards)
     {}
-    explicit Scope(Lambda* entry, bool forwards = true)
-        : Scope(entry->world(), {entry}, forwards)
-    {}
+    /// Does not build a meta \p Lambda
+    explicit Scope(Lambda* entry, bool forwards = true);
 
     /// All lambdas within this scope in reverse postorder.
     ArrayRef<Lambda*> rpo() const { return forwards() ? rpo_ : reverse_rpo_; }
@@ -47,10 +48,10 @@ public:
     const_reverse_iterator rend() const { return rpo().rend(); }
 
 private:
-    void identify_scope(Lambda* entry);
-    void build_cfg(Lambda* entry);
+    void identify_scope(ArrayRef<Lambda*> entries);
+    void build_cfg(ArrayRef<Lambda*> entries);
     void uce(Lambda* entry);
-    void find_exits(Lambda* entry);
+    void find_exits();
     void rpo_numbering(Lambda* entry);
     int po_visit(LambdaSet& set, Lambda* cur, int i);
     void link(Lambda* src, Lambda* dst) {

@@ -86,8 +86,8 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
 
 void Scope::build_cfg(ArrayRef<Lambda*> entries) {
     for (auto lambda : rpo_) {
-        Lambdas all_succs = lambda->succs();
-        for (auto succ : all_succs) {
+        auto succs = lambda->succs();
+        for (auto succ : succs) {
             if (contains(succ))
                 link(lambda, succ);
         }
@@ -123,7 +123,6 @@ void Scope::find_exits() {
             exits.insert(lambda);
     }
 
-    // HACK
     auto exit  = world().meta_lambda();
     rpo_.push_back(exit);
     in_scope_.insert(exit);
@@ -131,10 +130,7 @@ void Scope::find_exits() {
     for (auto e : exits)
         link(e, exit);
 
-    if (exits.empty()) {
-        auto last = rpo_[rpo_.size()-2];
-        link(last, exit);
-    }
+    assert(!exits.empty());
 }
 
 void Scope::rpo_numbering(Lambda* entry) {

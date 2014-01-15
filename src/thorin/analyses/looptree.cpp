@@ -99,7 +99,7 @@ private:
 };
 
 void LoopTreeBuilder::build() {
-    for (auto lambda : scope().rpo()) // clear all flags
+    for (auto lambda : scope()) // clear all flags
         states[lambda] = 0;
 
     recurse(looptree.root_ = new LoopHeader(0, -1, std::vector<Lambda*>(0)), {scope().entry()}, 0);

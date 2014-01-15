@@ -2,7 +2,7 @@ fn genericRange<T>(nextElem : fn(int, fn(T)),
                       c : fn(T, fn()),
                       count : int,
                       next : fn()) {
-  fn innerRange(i : int) {
+  fn innerRange(mut i: int) {
     if(i < count) {
       c(nextElem(i), || {
           innerRange(++i);

@@ -172,10 +172,10 @@ void emit_thorin(World& world, bool fancy, bool nocolor) {
     Scope scope(world);
     const DomTree domtree(scope);
     Schedule schedule = schedule_smart(scope);
-    for (auto lambda : scope) {
-        //if (scope.exit() == lambda)
-            //continue; // HACK
-        int depth = fancy ? domtree.depth(lambda) : 0;
+
+    // elide entry/exit meta lambdas
+    for (auto lambda : scope.body().slice_num_from_end(1)) {
+        int depth = fancy ? domtree.depth(lambda)-1 : 0;
         cg.indent += depth;
         cg.newline();
         cg.emit_head(lambda);

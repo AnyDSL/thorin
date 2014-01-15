@@ -38,6 +38,7 @@ public:
     ~DomTree();
 
     bool forwards() const;
+    const Scope& scope() const { return scope_; }
     int depth(Lambda* lambda) const { return lookup(lambda)->depth(); }
     /// Returns the least common ancestor of \p i and \p j.
     Lambda* lca(Lambda* i, Lambda* j) const { return lca(lookup(i), lookup(j))->lambda(); }

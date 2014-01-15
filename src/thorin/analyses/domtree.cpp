@@ -34,18 +34,21 @@ DomTree::~DomTree() {
 bool DomTree::forwards() const { return scope_.forwards(); }
 
 void DomTree::create() {
-    for (auto lambda : scope_.rpo())
+    for (auto lambda : scope())
         map_[lambda] = new DomNode(lambda);
 
     // map entry's initial idom to itself
     auto entry_node = lookup(scope_.entry());
     entry_node->idom_ = entry_node;
 
-    // all others' idoms are set to their first found dominating pred
+    assert(forwards());
+    // all others' idom are set to their first found dominating pred
     for (auto lambda : scope_.body()) {
         for (auto pred : scope_.preds(lambda)) {
             if (scope_.sid(pred) < scope_.sid(lambda)) {
-                lookup(lambda)->idom_ = lookup(pred);
+                auto n = lookup(pred);
+                assert(n);
+                lookup(lambda)->idom_ = n;
                 goto outer_loop;
             }
         }
@@ -80,6 +83,7 @@ outer_loop:;
 }
 
 DomNode* DomTree::lca(DomNode* i, DomNode* j) {
+    assert(i && j);
     auto sid = [&] (DomNode* n) { return scope_.sid(n->lambda()); };
 
     while (sid(i) != sid(j)) {

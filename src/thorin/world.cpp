@@ -855,7 +855,7 @@ void World::cleanup() {
 
 void World::opt() {
     cleanup();
-    //partial_evaluation(*this);
+    partial_evaluation(*this);
     lower2cff(*this);
     clone_bodies(*this);
     mem2reg(*this);
@@ -1045,7 +1045,7 @@ void World::wipe_out(S& set, W wipe) {
         auto val = *j;
         if (wipe(val)) {
             set.erase(j);
-            delete val;
+            //delete val;
         }
     }
 }

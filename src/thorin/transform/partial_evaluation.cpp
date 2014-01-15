@@ -12,10 +12,18 @@ namespace thorin {
 
 class Branch {
 public:
+    Branch(const std::vector<Lambda*>& succs)
+        : index_(0)
+        , succs_(succs)
+    {
+        assert(!succs_.empty());
+    }
     Branch(std::initializer_list<Lambda*> succs)
         : index_(0)
         , succs_(succs)
-    {}
+    {
+        assert(!succs_.empty());
+    }
 
     Lambda* cur() const { return succs_[index_]; }
     bool inc() { 
@@ -85,6 +93,7 @@ void PartialEvaluator::process() {
             emit_thorin(world);
             assert(!cur->empty());
 
+            auto succs = cur->direct_succs();
             bool fold = false;
 
             auto to = cur->to();
@@ -93,17 +102,13 @@ void PartialEvaluator::process() {
                 fold = true;
              }
 
-            Lambda* dst = nullptr;
-            if (to->isa<Halt>()) {
-                continue;
-            } else if (auto select = to->isa<Select>()) {
-                branches.push_back(Branch({select->tval()->as_lambda(), select->fval()->as_lambda()}));
-                continue;
-            } else
-                dst = to->isa_lambda();
+            Lambda* dst = to->isa_lambda();
 
-            if (dst == nullptr)
+            if (dst == nullptr) {
+                if (!succs.empty())
+                    branches.emplace_back(succs);
                 continue;
+            }
 
             std::vector<Def> f_args, r_args;
             std::vector<size_t> f_idxs, r_idxs;

@@ -41,6 +41,10 @@ public:
     {
         create();
     }
+    ~DomTreeBase() {
+        for (auto p : map_)
+            delete p.second;
+    }
 
     int depth(Lambda* lambda) const { return lookup(lambda)->depth(); }
     /// Returns the least common ancestor of \p i and \p j.

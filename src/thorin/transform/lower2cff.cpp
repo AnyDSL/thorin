@@ -86,8 +86,8 @@ size_t CFFLowering::process() {
     std::vector<Lambda*> todo;
     for (auto top : top_) {
         Scope scope(top);
-        for (size_t i = scope.size(); i-- != 0;) {
-            Lambda* lambda = scope[i];
+        for (auto i = scope.rbegin(), e = scope.rend(); i != e; ++i) {
+            auto lambda = *i;
             // check for builtin functionality
             if (lambda->is_builtin() || lambda->is_connected_to_builtin())
                 continue;

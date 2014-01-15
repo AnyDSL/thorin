@@ -2,10 +2,9 @@
 #define THORIN_TRANSFORM_MANGLE_H
 
 #include "thorin/type.h"
+#include "thorin/analyses/scope.h"
 
 namespace thorin {
-
-class Scope;
 
 Lambda* mangle(const Scope& scope, 
                Def2Def& mapping,

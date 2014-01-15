@@ -6,9 +6,9 @@
 namespace thorin {
 
 class Param;
-class Scope;
+template<bool> class ScopeBase;
 
-std::vector<Def> free_vars(const Scope&);
+std::vector<Def> free_vars(const ScopeBase<true>&);
 
 }
 

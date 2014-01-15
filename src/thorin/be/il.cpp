@@ -13,7 +13,7 @@ namespace thorin {
 typedef std::unordered_set<const DefNode*> Vars;
 
 void free_vars(const DomTree& domtree, Schedule& schedule, Lambda* lambda, Vars& vars) {
-    for (auto lamb : domtree.node(lambda)->children()) {
+    for (auto lamb : domtree.lookup(lambda)->children()) {
         free_vars(domtree, schedule, lamb->lambda(), vars);
     }
     for (auto op : lambda->args()) {
@@ -200,7 +200,7 @@ void IlPrinter::print_lambda(const DomTree& domtree, Schedule& schedule, Lambda*
     bool first = true;
     Vars this_def_vars;
     for (auto op : schedule[lambda]) {
-        for (auto lamb : domtree.node(lambda)->children()) {
+        for (auto lamb : domtree.lookup(lambda)->children()) {
             Vars vars;
             free_vars(domtree, schedule, lamb->lambda(), vars);
             for (auto dop : def_vars) {

@@ -91,8 +91,9 @@ static Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &def2late) {
     const DomTree domtree(scope);
     assert(def2late.empty());
 
-    for (size_t i = scope.size(); i-- != 0;) {
-        auto cur = scope[i];
+    for (auto i = scope.rbegin(), e = scope.rend(); i != e; ++i) {
+        auto cur = *i;
+
         auto decrease = [&] (Def def) {
             assert(scope.contains(def));
             for (auto op : def->ops()) {
@@ -153,8 +154,9 @@ Schedule schedule_smart(const Scope& scope) {
     DefMap<Lambda*> def2late;
     schedule_late(scope, def2late); // set late pointers in primop and remember pass
 
-    for (size_t i = 0, e = scope.size(); i != e; ++i) {
-        Lambda* lambda_early = scope[i];
+    //for (size_t i = 0, e = scope.size(); i != e; ++i) {
+    for (auto lambda_early : scope) {
+        //Lambda* lambda_early = scope[i];
         for (auto primop : early[lambda_early]) {
             if (!def2late.contains(primop))
                 continue;       // primop is dead

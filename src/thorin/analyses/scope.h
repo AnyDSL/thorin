@@ -33,6 +33,10 @@ public:
     const_iterator begin() const { return rpo().begin(); }
     const_iterator end() const { return rpo().end(); }
 
+    typedef ArrayRef<Lambda*>::const_reverse_iterator const_reverse_iterator;
+    const_reverse_iterator rbegin() const { return rpo().rbegin(); }
+    const_reverse_iterator rend() const { return rpo().rend(); }
+
     const std::vector<Lambda*>& preds(Lambda* lambda) const { return preds_.find(lambda)->second; }
     const std::vector<Lambda*>& succs(Lambda* lambda) const { return succs_.find(lambda)->second; }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
@@ -52,6 +56,7 @@ private:
         succs_[src].push_back(dst);
         preds_[dst].push_back(src);
     };
+    int po_visit(LambdaSet& set, Lambda* cur, size_t i);
 
     World& world_;
     DefSet in_scope_;

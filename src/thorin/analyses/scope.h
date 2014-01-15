@@ -9,25 +9,28 @@
 
 namespace thorin {
 
-Array<Lambda*> top_level_lambdas(World& world);
+//------------------------------------------------------------------------------
 
-template<bool forwards = true>
-class ScopeBase {
+class Scope {
 public:
-    explicit ScopeBase(Lambda* entry);
-    ScopeBase(World& world)
-        : ScopeBase(world, top_level_lambdas(world))
-    {}
-    ScopeBase(World& world, ArrayRef<Lambda*> entries);
+    explicit Scope(Lambda* entry, bool forwards = true);
 
     /// All lambdas within this scope in reverse postorder.
-    ArrayRef<Lambda*> rpo() const { return rpo_; }
-    Lambda* entry() const { return rpo_.front(); }
-    Lambda* exit()  const { return rpo_.back(); }
-    /// Like \p rpo() but without \p entry() and \p exit()
-    ArrayRef<Lambda*> body() const { return rpo().slice_from_begin(1).slice_num_from_end(1); }
+    ArrayRef<Lambda*> rpo() const { return forwards() ? rpo_ : reverse_rpo_; }
+    Lambda* entry() const { return rpo().front(); }
+    Lambda* exit()  const { return rpo().back(); }
+    /// Like \p rpo() but without \p entry()
+    ArrayRef<Lambda*> body() const { return rpo().slice_from_begin(1); }
     const DefSet& in_scope() const { return in_scope_; }
     bool contains(Def def) const { return in_scope_.contains(def); }
+    ArrayRef<Lambda*> preds(Lambda* lambda) const { return (forwards() ? preds_ : succs_)[lambda]; }
+    ArrayRef<Lambda*> succs(Lambda* lambda) const { return (forwards() ? succs_ : preds_)[lambda]; }
+    size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
+    size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
+    int sid(Lambda* lambda) const { return sid_.find(lambda)->second; } // TODO
+    size_t size() const { return rpo_.size(); }
+    World& world() const { return world_; }
+    bool forwards() const { return forwards_; }
 
     typedef ArrayRef<Lambda*>::const_iterator const_iterator;
     const_iterator begin() const { return rpo().begin(); }
@@ -37,37 +40,35 @@ public:
     const_reverse_iterator rbegin() const { return rpo().rbegin(); }
     const_reverse_iterator rend() const { return rpo().rend(); }
 
-    const std::vector<Lambda*>& preds(Lambda* lambda) const { return preds_.find(lambda)->second; }
-    const std::vector<Lambda*>& succs(Lambda* lambda) const { return succs_.find(lambda)->second; }
-    size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
-    size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
-    int sid(Lambda* lambda) const { return sid_.find(lambda)->second; }
-
-    size_t size() const { return rpo_.size(); }
-    World& world() const { return world_; }
-
 private:
-    void identify_scope(ArrayRef<Lambda*> entries);
-    void build_cfg(ArrayRef<Lambda*> entries);
-    void uce(Lambda* entry);
+    void identify_scope(Lambda* entry);
+    void build_cfg();
+    void uce();
     void find_exits();
-    void rpo_numbering(Lambda* entry);
+    void rpo_numbering();
+    int po_visit(LambdaSet& set, Lambda* cur, int i);
     void link(Lambda* src, Lambda* dst) {
         succs_[src].push_back(dst);
         preds_[dst].push_back(src);
     };
-    int po_visit(LambdaSet& set, Lambda* cur, size_t i);
 
     World& world_;
+    bool forwards_;
     DefSet in_scope_;
     std::vector<Lambda*> rpo_;
+    std::vector<Lambda*> reverse_rpo_;
     LambdaMap<std::vector<Lambda*>> preds_;
     LambdaMap<std::vector<Lambda*>> succs_;
     LambdaMap<int> sid_;
+    LambdaMap<int> reverse_sid_;
 };
 
-typedef ScopeBase<true> Scope;
-typedef ScopeBase<false> BackwardsScope;
+//------------------------------------------------------------------------------
+
+Array<Lambda*> top_level_lambdas(World& world);
+Lambda* top_lambda(World& world);
+
+//------------------------------------------------------------------------------
 
 } // namespace thorin
 

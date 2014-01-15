@@ -113,6 +113,7 @@ template<class From, class To>
 class GidMap : public std::map<From, To, GidLT<From>> {
 public:
     typedef std::map<From, To, GidLT<From>> Super;
+    To& operator [] (const From& from) const { return const_cast<GidMap*>(this)->Super::operator[](from); }
 };
 
 template<class From, class To>
@@ -126,7 +127,7 @@ public:
     }
 
     bool contains(From from) const { return Super::find(from) != Super::end(); }
-    bool visit(From from, To* to) { return !Super::insert(std::make_pair(from, to)).second; }
+    To*& operator [] (const From& from) const { return const_cast<GidMap*>(this)->Super::operator[](from); }
 };
 
 template<class From>

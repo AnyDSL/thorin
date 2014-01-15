@@ -13,7 +13,9 @@ class PartialEvaluator {
 public:
     PartialEvaluator(World& world)
         : world(world)
-        , loops(world)
+        , top(top_lambda(world))
+        , scope(top)
+        , loops(scope)
     {
         collect_headers(loops.root());
     }
@@ -23,6 +25,8 @@ public:
     void rewrite_jump(Lambda* lambda, Lambda* to, ArrayRef<size_t> idxs);
 
     World& world;
+    Lambda* top;
+    Scope scope;
     LoopTree loops;
     std::unordered_set<Lambda*> headers;
 };

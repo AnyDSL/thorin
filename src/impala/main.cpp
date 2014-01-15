@@ -139,8 +139,7 @@ int main(int argc, char** argv) {
                 init.world.opt();
             if (vectorlength != 0) {
                 Lambda* impala_main = top_level_lambdas(init.world)[0];
-                Scope scope(impala_main);
-                thorin::vectorize(scope, vectorlength);
+                thorin::vectorize(impala_main, vectorlength);
                 init.world.cleanup();
             }
             if (emit_thorin)

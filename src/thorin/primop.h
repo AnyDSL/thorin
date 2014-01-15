@@ -328,6 +328,24 @@ private:
 
 //------------------------------------------------------------------------------
 
+class Ignore2nd : public PrimOp {
+private:
+    Ignore2nd(Def take, Def ignore, const std::string& name)
+        : PrimOp(2, Node_Ignore2nd, take->type(), name)
+    {
+        set_op(0, take);
+        set_op(1, ignore);
+    }
+
+public:
+    Def take() const { return op(0); }
+    Lambda* ignore() const { return op(1)->as_lambda(); }
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
 template<class To> 
 using PrimOpMap     = GidMap<const PrimOp*, To>;
 using PrimOpSet     = GidSet<const PrimOp*>;

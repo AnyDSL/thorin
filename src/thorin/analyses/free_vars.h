@@ -3,12 +3,13 @@
 
 #include <vector>
 
+#include "thorin/def.h"
+
 namespace thorin {
 
-class Param;
-template<bool> class ScopeBase;
+class Scope;
 
-std::vector<Def> free_vars(const ScopeBase<true>&);
+std::vector<Def> free_vars(const Scope&);
 
 }
 

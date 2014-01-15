@@ -722,9 +722,11 @@ Lambda* World::lambda(const Pi* pi, Lambda::Attribute attribute, const std::stri
     return l;
 }
 
-Lambda* World::meta_lambda() { 
-    auto l = lambda(pi0()); 
-    l->jump(bottom(pi0()), {});
+Lambda* World::meta_lambda(ArrayRef<Lambda*> args, const std::string& name) { 
+    auto l = lambda(pi0(), name); 
+    Array<Def> a(args.size());
+    std::copy(args.begin(), args.end(), a.begin());
+    l->jump(bottom(pi0()), a);
     return l;
 }
 

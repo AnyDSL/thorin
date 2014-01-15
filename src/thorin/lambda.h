@@ -96,6 +96,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     void dump_head() const;
     void dump_jump() const;
     void destroy_body() { unset_ops(); resize(0); }
+    void ignore(Lambda* lambda);
 
     // terminate
 

@@ -10,7 +10,7 @@ namespace thorin {
 class Merger {
 public:
     Merger(World& world)
-        : scope(world, top_level_lambdas(world))
+        : scope(top_lambda(world))
         , domtree(scope)
     {
         merge(domtree.lookup(scope.entry()));

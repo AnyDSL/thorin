@@ -1,4 +1,3 @@
-#if 0
 #include <algorithm>
 #include <sstream>
 
@@ -13,12 +12,16 @@ namespace thorin {
 
 class Vectorizer {
 public:
-    Vectorizer(const Scope& scope, size_t length)
-        : scope(scope)
-        , domtree(DomTree(scope))
-        , postdomtree(PostDomTree(scope))
+    Vectorizer(Lambda* entry, size_t length)
+        : entry(entry)
+        , scope(entry)
+        , domtree(scope)
+        , postdomtree(scope) // TODO
         , length(length)
-    {}
+    {
+        assert(domtree.forwards() == true);
+        assert(postdomtree.forwards() == false);
+    }
 
     Lambda* vectorize();
     void infer_condition(Lambda* lambda);
@@ -29,9 +32,10 @@ public:
 
     World& world() { return scope.world(); }
 
-    const Scope& scope;
+    Lambda* entry;
+    Scope scope;
     const DomTree domtree;
-    const PostDomTree postdomtree;
+    const DomTree postdomtree;
     Def2Def mapped;
     size_t pass;
     const size_t length;
@@ -55,9 +59,8 @@ const Type* Vectorizer::vectorize_type(const Type* type, size_t length) {
 }
 
 Lambda* Vectorizer::vectorize() {
-    Lambda* entry = scope.entries()[0];
     std::ostringstream oss;
-    oss << scope[0]->name << "_x" << length;
+    oss << entry->name << "_x" << length;
     Lambda* vlambda = world().lambda(vectorize_type(entry->pi(), length)->as<Pi>(), Lambda::Attribute(Lambda::Extern), oss.str());
     mapped[entry] = *world().true_mask(length);
 
@@ -70,10 +73,8 @@ Lambda* Vectorizer::vectorize() {
 
     Schedule schedule = schedule_early(scope);
 
-    for (size_t i = 0, e = scope.size(); i != e; ++i) {
-        Lambda* lambda = scope[i];
-
-        if (i != 0) {
+    for (auto lambda : scope) {
+        if (lambda != entry) {
             infer_condition(lambda);
             for (auto param : lambda->params())
                 param2select(param);
@@ -86,11 +87,11 @@ Lambda* Vectorizer::vectorize() {
         }
     }
 
-    Lambda* exit = scope.exits()[0];
-    Array<Def> vops(exit->size());
-    for (size_t i = 0, e = exit->size(); i != e; ++i)
-        vops[i] = vectorize(exit->op(i), length);
-    vlambda->jump(vops.front(), vops.slice_from_begin(1));
+    //Lambda* exit = scope.exits()[0];
+    //Array<Def> vops(exit->size());
+    //for (size_t i = 0, e = exit->size(); i != e; ++i)
+        //vops[i] = vectorize(exit->op(i), length);
+    //vlambda->jump(vops.front(), vops.slice_from_begin(1));
 
     return vlambda;
 }
@@ -125,7 +126,7 @@ void Vectorizer::infer_condition(Lambda* lambda) {
 
 void Vectorizer::param2select(const Param* param) {
     Def select = nullptr;
-    auto preds = scope.preds(param->lambda()); // copy
+    Array<Lambda*> preds = scope.preds(param->lambda()); // copy
     // begin with pred with the most expensive condition (non_const_depth) - this keeps select chains simpler
     std::sort(preds.begin(), preds.end(), [&](const Lambda* l1, const Lambda* l2) {
         return mapped[l1]->non_const_depth() > mapped[l2]->non_const_depth(); 
@@ -173,7 +174,6 @@ Def Vectorizer::vectorize(Def def, size_t length) {
     return world().rebuild(primop, vops, vectorize_type(primop->type(), length));
 }
 
-Lambda* vectorize(Scope& scope, size_t length) { return Vectorizer(scope, length).vectorize(); }
+Lambda* vectorize(Lambda* entry, size_t length) { return Vectorizer(entry, length).vectorize(); }
 
 }
-#endif

@@ -19,8 +19,21 @@ int DomNode::depth() const {
 
 //------------------------------------------------------------------------------
 
-template<bool forwards>
-void DomTreeBase<forwards>::create() {
+DomTree::DomTree(const Scope& scope)
+    : scope_(scope)
+    , forwards_(scope_.forwards())
+{
+    create();
+}
+
+DomTree::~DomTree() {
+    for (auto p : map_)
+        delete p.second;
+}
+
+bool DomTree::forwards() const { return scope_.forwards(); }
+
+void DomTree::create() {
     for (auto lambda : scope_.rpo())
         map_[lambda] = new DomNode(lambda);
 
@@ -66,8 +79,7 @@ outer_loop:;
     }
 }
 
-template<bool forwards>
-DomNode* DomTreeBase<forwards>::lca(DomNode* i, DomNode* j) {
+DomNode* DomTree::lca(DomNode* i, DomNode* j) {
     auto sid = [&] (DomNode* n) { return scope_.sid(n->lambda()); };
 
     while (sid(i) != sid(j)) {
@@ -77,9 +89,5 @@ DomNode* DomTreeBase<forwards>::lca(DomNode* i, DomNode* j) {
 
     return i;
 }
-
-// export templates
-template class DomTreeBase< true>;
-template class DomTreeBase<false>;
 
 } // namespace thorin

@@ -60,8 +60,7 @@ public:
 };
 
 Lambda* Mangler::mangle() {
-    assert(scope.num_succs(scope.entry()) == 1);
-    oentry = scope.body()[0];
+    oentry = scope.entry();
     assert(!oentry->empty());
     const Pi* o_pi = oentry->pi();
     auto nelems = o_pi->elems().cut(to_drop, to_lift.size());

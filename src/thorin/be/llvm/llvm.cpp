@@ -146,7 +146,6 @@ void CodeGen::emit() {
         assert(ret_param);
 
         Scope scope(lambda);
-        auto entry = scope.body()[1];
         BBMap bbs;
 
         for (auto lambda : scope.rpo()) {
@@ -154,7 +153,7 @@ void CodeGen::emit() {
             auto bb = bbs[lambda] = llvm::BasicBlock::Create(context_, lambda->name, fct);
 
             // create phi node stubs (for all non-cascading lambdas different from entry)
-            if (!lambda->is_cascading() && entry != lambda) {
+            if (!lambda->is_cascading() && scope.entry() != lambda) {
                 for (auto param : lambda->params())
                     if (!param->type()->isa<Mem>())
                         phis_[param] = llvm::PHINode::Create(map(param->type()), (unsigned) param->peek().size(), param->name, bb);
@@ -169,7 +168,7 @@ void CodeGen::emit() {
         for (auto lambda : scope.rpo()) {
             if (lambda->empty())
                 continue;
-            assert(lambda == entry || lambda->is_basicblock());
+            assert(lambda == scope.entry() || lambda->is_basicblock());
             builder_.SetInsertPoint(bbs[lambda]);
 
             for (auto primop :  schedule[lambda]) {

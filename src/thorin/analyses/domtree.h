@@ -6,10 +6,9 @@
 
 namespace thorin {
 
-template<bool> class DomTreeBase;
 class Def;
 class Lambda;
-template<bool> class ScopeBase;
+class Scope;
 class World;
 
 class DomNode {
@@ -30,27 +29,20 @@ private:
     DomNode* idom_;
     std::vector<const DomNode*> children_;
 
-    template<bool> friend class DomTreeBase;
+    friend class DomTree;
 };
 
-template<bool forwards>
-class DomTreeBase {
+class DomTree {
 public:
-    explicit DomTreeBase(const ScopeBase<forwards>& scope)
-        : scope_(scope)
-    {
-        create();
-    }
-    ~DomTreeBase() {
-        for (auto p : map_)
-            delete p.second;
-    }
+    explicit DomTree(const Scope& scope);
+    ~DomTree();
 
+    bool forwards() const;
     int depth(Lambda* lambda) const { return lookup(lambda)->depth(); }
     /// Returns the least common ancestor of \p i and \p j.
     Lambda* lca(Lambda* i, Lambda* j) const { return lca(lookup(i), lookup(j))->lambda(); }
     const DomNode* lca(const DomNode* i, const DomNode* j) const { 
-        return const_cast<DomTreeBase*>(this)->lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j)); 
+        return const_cast<DomTree*>(this)->lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j)); 
     }
     Lambda* idom(Lambda* lambda) const { return lookup(lambda)->idom()->lambda(); }
     const DomNode* lookup(Lambda* lambda) const { return map_.find(lambda); }
@@ -60,12 +52,10 @@ private:
     void create();
     DomNode* lca(DomNode* i, DomNode* j);
 
-    const ScopeBase<forwards>& scope_;
+    const Scope& scope_;
+    bool forwards_;
     LambdaMap<DomNode*> map_;
 };
-
-typedef DomTreeBase< true>      DomTree;
-typedef DomTreeBase<false>  PostDomTree;
 
 } // namespace thorin
 

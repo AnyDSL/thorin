@@ -21,20 +21,18 @@ int DomNode::depth() const {
 
 template<bool forwards>
 void DomTreeBase<forwards>::create() {
-    for (auto lambda : Super::rpo())
-        Super::nodes_[lambda] = new DomNode(lambda);
+    for (auto lambda : scope_.rpo())
+        map_[lambda] = new DomNode(lambda);
 
-    // map entries' initial idoms to themselves
-    for (auto entry : Super::entries()) {
-        DomNode* entry_node = Super::lookup(entry);
-        entry_node->idom_ = entry_node;
-    }
+    // map entry's initial idom to itself
+    DomNode* entry_node = lookup(scope_.entry());
+    entry_node->idom_ = entry_node;
 
     // all others' idoms are set to their first found dominating pred
-    for (auto lambda : Super::body()) {
-        for (auto pred : Super::preds(lambda)) {
-            if (Super::sid(pred) < Super::sid(lambda)) {
-                Super::lookup(lambda)->idom_ = Super::lookup(pred);
+    for (auto lambda : scope_.body()) {
+        for (auto pred : scope_.preds(lambda)) {
+            if (scope_.sid(pred) < scope_.sid(lambda)) {
+                lookup(lambda)->idom_ = lookup(pred);
                 goto outer_loop;
             }
         }
@@ -45,12 +43,12 @@ outer_loop:;
     for (bool changed = true; changed;) {
         changed = false;
 
-        for (auto lambda : Super::body()) {
-            DomNode* lambda_node = Super::lookup(lambda);
+        for (auto lambda : scope_.body()) {
+            DomNode* lambda_node = lookup(lambda);
 
             DomNode* new_idom = 0;
-            for (auto pred : Super::preds(lambda)) {
-                DomNode* pred_node = Super::lookup(pred);
+            for (auto pred : scope_.preds(lambda)) {
+                DomNode* pred_node = lookup(pred);
                 assert(pred_node);
                 new_idom = new_idom ? lca(new_idom, pred_node) : pred_node;
             }
@@ -62,18 +60,18 @@ outer_loop:;
         }
     }
 
-    for (auto lambda : Super::body()) {
-        const DomNode* n = Super::lookup(lambda);
+    for (auto lambda : scope_.body()) {
+        const DomNode* n = lookup(lambda);
         n->idom_->children_.push_back(n);
     }
 }
 
 template<bool forwards>
 DomNode* DomTreeBase<forwards>::lca(DomNode* i, DomNode* j) {
-    while (!Super::is_entry(i, j) && Super::sid(i) != Super::sid(j)) {
-        while (!Super::is_entry(i, j) && Super::sid(i) < Super::sid(j)) 
+    while (!scope_.is_entry(i, j) && scope_.sid(i->lambda()) != scope_.sid(j->lambda())) {
+        while (!scope_.is_entry(i, j) && scope_.sid(i->lambda()) < scope_.sid(j->lambda())) 
             j = j->idom_;
-        while (!Super::is_entry(i, j) && Super::sid(j) < Super::sid(i)) 
+        while (!scope_.is_entry(i, j) && scope_.sid(j->lambda()) < scope_.sid(i->lambda())) 
             i = i->idom_;
     }
 

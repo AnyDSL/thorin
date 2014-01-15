@@ -37,6 +37,7 @@ public:
     const std::vector<Lambda*>& succs(Lambda* lambda) const { return succs_.find(lambda)->second; }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
+    int sid(Lambda* lambda) const { return sid_.find(lambda)->second; }
 
     size_t size() const { return rpo_.size(); }
     World& world() const { return world_; }
@@ -57,6 +58,7 @@ private:
     std::vector<Lambda*> rpo_;
     LambdaMap<std::vector<Lambda*>> preds_;
     LambdaMap<std::vector<Lambda*>> succs_;
+    LambdaMap<int> sid_;
 };
 
 typedef ScopeBase<true> Scope;

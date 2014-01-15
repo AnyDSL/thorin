@@ -9,7 +9,7 @@ namespace thorin {
 template<bool> class DomTreeBase;
 class Def;
 class Lambda;
-template<bool> class Scope;
+template<bool> class ScopeBase;
 class World;
 
 class DomNode {
@@ -30,14 +30,13 @@ private:
     DomNode* idom_;
     std::vector<const DomNode*> children_;
 
-    //template<bool forwards> 
-    //friend class DomTreeBase<forwards>;
+    template<bool> friend class DomTreeBase;
 };
 
 template<bool forwards>
 class DomTreeBase {
 public:
-    explicit DomTreeBase(const Scope<forwards>& scope)
+    explicit DomTreeBase(const ScopeBase<forwards>& scope)
         : scope_(scope)
     {
         create();
@@ -49,16 +48,16 @@ public:
     const DomNode* lca(const DomNode* i, const DomNode* j) const { 
         return const_cast<DomTreeBase*>(this)->lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j)); 
     }
-    Lambda* idom(Lambda* lambda) const { return Super::lookup(lambda)->idom()->lambda(); }
-    const DomNode* lookup(Lambda* lambda) const { return map_[lambda]; }
+    Lambda* idom(Lambda* lambda) const { return lookup(lambda)->idom()->lambda(); }
+    const DomNode* lookup(Lambda* lambda) const { return map_.find(lambda); }
 
 private:
     DomNode* lookup(Lambda* lambda) { return map_[lambda]; }
     void create();
     DomNode* lca(DomNode* i, DomNode* j);
 
-    typename Scope<forwards> scope_;
-    LambdaMap<const DomNode*> map_;
+    const ScopeBase<forwards>& scope_;
+    LambdaMap<DomNode*> map_;
 };
 
 typedef DomTreeBase< true>      DomTree;

@@ -3,7 +3,6 @@
 
 #include <vector>
 
-#include "thorin/analyses/scope_analysis.h"
 #include "thorin/util/array.h"
 #include "thorin/util/autoptr.h"
 

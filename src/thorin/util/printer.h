@@ -42,7 +42,10 @@ std::ostream& Printer::dump_list(Emit emit, const List& list, const char* begin,
     stream() << begin;
     const char* separator = "";
     for (auto elem : list) {
-        stream() << separator;
+        if (std::string(separator) == "\n")
+            newline();
+        else
+            stream() << separator;
         emit(elem);
         separator = sep;
     }

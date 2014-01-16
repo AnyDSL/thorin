@@ -3,9 +3,10 @@
 
 #include <vector>
 
-#include "thorin/analyses/scope_analysis.h"
+#include "thorin/lambda.h"
 #include "thorin/util/array.h"
 #include "thorin/util/autoptr.h"
+#include "thorin/util/cast.h"
 
 namespace thorin {
 
@@ -105,28 +106,28 @@ private:
  * The implementation uses Steensgard's algorithm.
  * Check out G. Ramalingam, "On Loops, Dominators, and Dominance Frontiers", 1999, for more information.
  */
-class LoopTree : public ScopeAnalysis<LoopLeaf, true, false /*do not auto-destroy nodes*/> {
+class LoopTree {
 public:
-    typedef ScopeAnalysis<LoopLeaf, true, false> Super;
-
     explicit LoopTree(const Scope& scope);
 
+    const Scope& scope() const { return scope_; }
     const LoopHeader* root() const { return root_; }
-    int depth(Lambda* lambda) const { return Super::lookup(lambda)->depth(); }
-    size_t lambda2dfs(Lambda* lambda) const { return Super::lookup(lambda)->dfs_index(); }
-    bool contains(const LoopHeader* header, Lambda* lambda) const {
-        if (!scope().contains(lambda)) return false;
-        size_t dfs = lambda2dfs(lambda);
-        return header->dfs_begin() <= dfs && dfs < header->dfs_end();
-    }
+    int depth(Lambda* lambda) const { return lookup(lambda)->depth(); }
+    size_t lambda2dfs(Lambda* lambda) const { return lookup(lambda)->dfs_index(); }
+    bool contains(const LoopHeader* header, Lambda* lambda) const;
     ArrayRef<const LoopLeaf*> loop(const LoopHeader* header) {
         return ArrayRef<const LoopLeaf*>(dfs_leaves_.data() + header->dfs_begin(), header->dfs_end() - header->dfs_begin());
     }
     Array<Lambda*> loop_lambdas(const LoopHeader* header);
     Array<Lambda*> loop_lambdas_in_rpo(const LoopHeader* header);
     void dump() const;
+    const LoopLeaf* lookup(Lambda* lambda) const { return map_.find(lambda); }
 
 private:
+    LoopLeaf* lookup(Lambda* lambda) { return map_[lambda]; }
+
+    const Scope& scope_;
+    LambdaMap<LoopLeaf*> map_;
     Array<LoopLeaf*> dfs_leaves_;
     AutoPtr<LoopHeader> root_;
 

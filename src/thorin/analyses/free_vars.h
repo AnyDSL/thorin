@@ -3,9 +3,10 @@
 
 #include <vector>
 
+#include "thorin/def.h"
+
 namespace thorin {
 
-class Param;
 class Scope;
 
 std::vector<Def> free_vars(const Scope&);

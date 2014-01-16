@@ -41,7 +41,8 @@ class PartialEvaluator {
 public:
     PartialEvaluator(World& world)
         : world(world)
-        , loops(world)
+        , scope(world)
+        , loops(scope)
     {
         //loops.dump();
         collect_headers(loops.root());
@@ -56,6 +57,7 @@ public:
     void update_new2old(const Def2Def& map);
 
     World& world;
+    Scope scope;
     LoopTree loops;
     Lambda2Lambda new2old;
     std::unordered_set<Lambda*> headers;

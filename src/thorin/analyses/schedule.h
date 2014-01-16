@@ -3,11 +3,11 @@
 
 #include <vector>
 
+#include "thorin/analyses/scope.h"
 #include "thorin/util/array.h"
 
 namespace thorin {
 
-class Scope;
 class PrimOp;
 
 typedef LambdaMap<std::vector<const PrimOp*>> Schedule;

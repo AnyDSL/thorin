@@ -722,6 +722,12 @@ Lambda* World::lambda(const Pi* pi, Lambda::Attribute attribute, const std::stri
     return l;
 }
 
+Lambda* World::meta_lambda() { 
+    auto l = lambda(pi0(), "meta"); 
+    l->jump(bottom(pi0()), {});
+    return l;
+}
+
 Lambda* World::basicblock(const std::string& name) {
     THORIN_CHECK_BREAK(gid_)
     auto bb = new Lambda(gid_++, pi0(), Lambda::Attribute(0), false, name);
@@ -750,21 +756,21 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, const Type* t
     }
 
     switch (kind) {
-        case Node_Any:     assert(ops.size() == 0); return to.any(type);
-        case Node_Bottom:  assert(ops.size() == 0); return to.bottom(type);
-        case Node_Enter:   assert(ops.size() == 1); return to.enter(  ops[0], name);
-        case Node_Extract: assert(ops.size() == 2); return to.extract(ops[0], ops[1], name);
-        case Node_Global:  assert(ops.size() == 1); return to.global( ops[0], in->as<Global>()->is_mutable(), name);
-        case Node_Halt:    assert(ops.size() == 1); return to.halt(   ops[0], name);
-        case Node_Insert:  assert(ops.size() == 3); return to.insert( ops[0], ops[1], ops[2], name);
-        case Node_LEA:     assert(ops.size() == 2); return to.lea(ops[0], ops[1], name);
-        case Node_Leave:   assert(ops.size() == 2); return to.leave(  ops[0], ops[1], name);
-        case Node_Load:    assert(ops.size() == 2); return to.load(   ops[0], ops[1], name);
-        case Node_Run:     assert(ops.size() == 1); return to.run(    ops[0], name);
-        case Node_Select:  assert(ops.size() == 3); return to.select( ops[0], ops[1], ops[2], name);
-        case Node_Store:   assert(ops.size() == 3); return to.store(  ops[0], ops[1], ops[2], name);
-        case Node_Tuple:                            return to.tuple(ops, name);
-        case Node_Vector:                           return to.vector(ops, name);
+        case Node_Any:       assert(ops.size() == 0); return to.any(type);
+        case Node_Bottom:    assert(ops.size() == 0); return to.bottom(type);
+        case Node_Enter:     assert(ops.size() == 1); return to.enter(    ops[0], name);
+        case Node_Extract:   assert(ops.size() == 2); return to.extract(  ops[0], ops[1], name);
+        case Node_Global:    assert(ops.size() == 1); return to.global(   ops[0], in->as<Global>()->is_mutable(), name);
+        case Node_Halt:      assert(ops.size() == 1); return to.halt(     ops[0], name);
+        case Node_Insert:    assert(ops.size() == 3); return to.insert(   ops[0], ops[1], ops[2], name);
+        case Node_LEA:       assert(ops.size() == 2); return to.lea(      ops[0], ops[1], name);
+        case Node_Leave:     assert(ops.size() == 2); return to.leave(    ops[0], ops[1], name);
+        case Node_Load:      assert(ops.size() == 2); return to.load(     ops[0], ops[1], name);
+        case Node_Run:       assert(ops.size() == 1); return to.run(      ops[0], name);
+        case Node_Select:    assert(ops.size() == 3); return to.select(   ops[0], ops[1], ops[2], name);
+        case Node_Store:     assert(ops.size() == 3); return to.store(    ops[0], ops[1], ops[2], name);
+        case Node_Tuple:                              return to.tuple(ops, name);
+        case Node_Vector:                             return to.vector(ops, name);
         case Node_ArrayAgg:                         
             return to.array(type->as<ArrayType>()->elem_type(), ops, type->isa<DefArray>(), name);
         case Node_Slot:    assert(ops.size() == 1); 
@@ -839,6 +845,14 @@ const DefNode* World::cse_base(const PrimOp* primop) {
 
     THORIN_CHECK_BREAK(primop->gid())
     return primop;
+}
+
+void World::destroy(Lambda* lambda) {
+    assert(lambda->num_uses() == 0);
+    assert(lambda->num_args() == 0);
+    lambda->destroy_body();
+    lambdas_.erase(lambda);
+    delete lambda;
 }
 
 /*

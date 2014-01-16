@@ -5,7 +5,6 @@
 #include "thorin/analyses/scope.h"
 
 #include <algorithm>
-#include <limits>
 #include <iostream>
 #include <stack>
 
@@ -29,18 +28,16 @@ enum {
 
 class LoopTreeBuilder {
 public:
-
     LoopTreeBuilder(LoopTree& looptree) 
         : looptree(looptree)
         , dfs_index(0)
     {
-        stack.reserve(size());
+        stack.reserve(looptree.scope().size());
         build();
         propagate_bounds(looptree.root_);
     }
 
 private:
-
     struct Number {
         Number() 
             : dfs(-1)
@@ -57,23 +54,17 @@ private:
 
     void build();
     static std::pair<size_t, size_t> propagate_bounds(LoopNode* header);
-
     const Scope& scope() const { return looptree.scope(); }
-    size_t size() const { return looptree.size(); }
-
     Number& number(Lambda* lambda) { return numbers[lambda]; }
     size_t& lowlink(Lambda* lambda) { return number(lambda).low; }
     size_t& dfs(Lambda* lambda) { return number(lambda).dfs; }
-
-    bool on_stack(Lambda* lambda) { assert(pass.contains(lambda)); return (states[lambda] & OnStack) != 0; }
-    bool in_scc(Lambda* lambda) { return was_seen(lambda) ? (states[lambda] & InSCC) != 0 : false; }
-    bool is_header(Lambda* lambda) { return was_seen(lambda) ? (states[lambda] & IsHeader) != 0 : false; }
-
-    bool was_seen(Lambda* lambda) { return first_pass.contains(lambda) || pass.contains(lambda); }
+    bool on_stack(Lambda* lambda) { assert(set.contains(lambda)); return (states[lambda] & OnStack) != 0; }
+    bool in_scc(Lambda* lambda) { return states[lambda] & InSCC; }
+    bool is_header(Lambda* lambda) { return states[lambda] & IsHeader; }
 
     bool is_leaf(Lambda* lambda, size_t num) {
         if (num == 1) {
-            for (auto succ : looptree.succs(lambda)) {
+            for (auto succ : scope().succs(lambda)) {
                 if (!is_header(succ) && lambda == succ)
                     return false;
             }
@@ -82,53 +73,41 @@ private:
         return false;
     }
 
-    void new_pass() {
-        if (first_pass.empty())
-            first_pass = pass;
-        pass.clear();
-    }
-
     void push(Lambda* lambda) { 
-        assert(pass.contains(lambda) && (states[lambda] & OnStack) == 0);
+        assert(set.contains(lambda) && (states[lambda] & OnStack) == 0);
         stack.push_back(lambda);
         states[lambda] |= OnStack;
     }
 
     int visit(Lambda* lambda, int counter) {
-        pass.visit(lambda);
+        set.visit_first(lambda);
         numbers[lambda] = Number(counter++);
         push(lambda);
         return counter;
     }
 
-    template<bool start>
     void recurse(LoopHeader* parent, ArrayRef<Lambda*> headers, int depth);
     int walk_scc(Lambda* cur, LoopHeader* parent, int depth, int scc_counter);
 
     LoopTree& looptree;
     LambdaMap<Number> numbers;
     LambdaMap<uint8_t> states;
-    LambdaSet pass;
-    LambdaSet first_pass;
+    LambdaSet set;
     size_t dfs_index;
     std::vector<Lambda*> stack;
 };
 
 void LoopTreeBuilder::build() {
-    // clear all flags
-    for (auto lambda : scope().rpo())
+    for (auto lambda : scope()) // clear all flags
         states[lambda] = 0;
 
-    recurse<true>(looptree.root_ = new LoopHeader(0, -1, std::vector<Lambda*>(0)), scope().entries(), 0);
+    recurse(looptree.root_ = new LoopHeader(0, -1, std::vector<Lambda*>(0)), {scope().entry()}, 0);
 }
 
-template<bool start>
 void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<Lambda*> headers, int depth) {
     size_t cur_new_child = 0;
     for (auto header : headers) {
-        new_pass();
-        if (start && was_seen(header))
-            continue; // in the base case we only want to find SCC on all until now unseen lambdas
+        set.clear();
         walk_scc(header, parent, depth, 0);
 
         // now mark all newly found headers globally as header
@@ -140,7 +119,7 @@ void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<Lambda*> headers, int
 
     for (auto node : parent->children()) {
         if (auto new_parent = node->isa<LoopHeader>())
-            recurse<false>(new_parent, new_parent->lambdas(), depth + 1);
+            recurse(new_parent, new_parent->lambdas(), depth + 1);
     }
 }
 
@@ -150,7 +129,7 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
     for (auto succ : scope().succs(cur)) {
         if (is_header(succ))
             continue; // this is a backedge
-        if (!pass.contains(succ)) {
+        if (!set.contains(succ)) {
             scc_counter = walk_scc(succ, parent, depth, scc_counter);
             lowlink(cur) = std::min(lowlink(cur), lowlink(succ));
         } else if (on_stack(succ))
@@ -172,10 +151,10 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
         for (size_t i = ++b; i != e; ++i) {
             Lambda* lambda = stack[i];
 
-            if (scope().is_entry(lambda)) 
+            if (scope().entry() == lambda) 
                 headers.push_back(lambda); // entries are axiomatically headers
             else {
-                for (auto pred : looptree.preds(lambda)) {
+                for (auto pred : scope().preds(lambda)) {
                     // all backedges are also inducing headers
                     // but do not yet mark them globally as header -- we are still running through the SCC
                     if (!in_scc(pred)) {
@@ -187,14 +166,15 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
         }
 
         if (is_leaf(cur, num)) {
+            assert(headers.size() == 1);
             LoopLeaf* leaf = new LoopLeaf(dfs_index++, parent, depth, headers);
-            looptree.nodes_[headers.front()] = looptree.dfs_leaves_[leaf->dfs_index()] = leaf;
+            looptree.map_[headers.front()] = looptree.dfs_leaves_[leaf->dfs_index()] = leaf;
         } else
             new LoopHeader(parent, depth, headers);
 
         // for all lambdas in current SCC
         for (auto header : headers) {
-            for (auto pred : looptree.preds(header)) {
+            for (auto pred : scope().preds(header)) {
                 if (in_scc(pred))
                     parent->backedges_.emplace_back(pred, header);
                 else
@@ -245,10 +225,16 @@ LoopNode::LoopNode(LoopHeader* parent, int depth, const std::vector<Lambda*>& la
 //------------------------------------------------------------------------------
 
 LoopTree::LoopTree(const Scope& scope)
-    : Super(scope)
-    , dfs_leaves_(size() + 1 /*HACK*/)
+    : scope_(scope)
+    , dfs_leaves_(scope.size())
 {
     LoopTreeBuilder(*this);
+}
+
+bool LoopTree::contains(const LoopHeader* header, Lambda* lambda) const {
+    if (!scope().contains(lambda)) return false;
+    size_t dfs = lambda2dfs(lambda);
+    return header->dfs_begin() <= dfs && dfs < header->dfs_end();
 }
 
 Array<Lambda*> LoopTree::loop_lambdas(const LoopHeader* header) {

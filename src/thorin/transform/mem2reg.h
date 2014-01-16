@@ -3,7 +3,7 @@
 
 namespace thorin {
 
-class Scope;
+template<bool> class ScopeBase;
 class World;
 
 /**
@@ -11,7 +11,7 @@ class World;
  * \attention { Currently, this transformation only works when in CFF. }
  */
 void mem2reg(World&);
-void mem2reg(const Scope&);
+void mem2reg(const ScopeBase<true>&);
 
 } // namespace thorin
 

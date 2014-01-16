@@ -3,68 +3,62 @@
 
 #include "thorin/lambda.h"
 #include "thorin/util/array.h"
-#include "thorin/analyses/scope_analysis.h"
 
 namespace thorin {
 
-template<bool> class DomNodeBase;
-template<bool> class DomTreeBase;
 class Def;
 class Lambda;
 class Scope;
 class World;
 
-template<bool forwards>
-class DomNodeBase {
+class DomNode {
 public:
-    explicit DomNodeBase(Lambda* lambda) 
+    explicit DomNode(Lambda* lambda) 
         : lambda_(lambda) 
-        , idom_(0)
+        , idom_(nullptr)
     {}
 
     Lambda* lambda() const { return lambda_; }
-    const DomNodeBase* idom() const { return idom_; }
-    const std::vector<const DomNodeBase*>& children() const { return children_; }
+    const DomNode* idom() const { return idom_; }
+    const std::vector<const DomNode*>& children() const { return children_; }
     bool entry() const { return idom_ == this; }
     int depth() const;
 
 private:
     Lambda* lambda_;
-    DomNodeBase* idom_;
-    std::vector<const DomNodeBase*> children_;
+    DomNode* idom_;
+    std::vector<const DomNode*> children_;
 
-    friend class DomTreeBase<forwards>;
+    friend class DomTree;
 };
 
-template<bool forwards>
-class DomTreeBase : public ScopeAnalysis<DomNodeBase<forwards>, forwards> {
+class DomTree {
 public:
-    typedef DomNodeBase<forwards> DomNode;
-    typedef ScopeAnalysis<DomNodeBase<forwards>, forwards, true> Super;
-
-    explicit DomTreeBase(const Scope& scope)
-        : Super(scope)
+    explicit DomTree(const Scope& scope)
+        : scope_(scope)
     {
         create();
     }
+    ~DomTree() { for (auto p : map_) delete p.second; }
 
-    int depth(Lambda* lambda) const { return Super::node(lambda)->depth(); }
+    const Scope& scope() const { return scope_; }
+    int depth(Lambda* lambda) const { return lookup(lambda)->depth(); }
     /// Returns the least common ancestor of \p i and \p j.
-    Lambda* lca(Lambda* i, Lambda* j) const { return lca(Super::lookup(i), Super::lookup(j))->lambda(); }
+    Lambda* lca(Lambda* i, Lambda* j) const { return lca(lookup(i), lookup(j))->lambda(); }
     const DomNode* lca(const DomNode* i, const DomNode* j) const { 
-        return const_cast<DomTreeBase*>(this)->lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j)); 
+        return const_cast<DomTree*>(this)->lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j)); 
     }
-    Lambda* idom(Lambda* lambda) const { return Super::lookup(lambda)->idom()->lambda(); }
+    Lambda* idom(Lambda* lambda) const { return lookup(lambda)->idom()->lambda(); }
+    const DomNode* lookup(Lambda* lambda) const { return map_.find(lambda); }
 
 private:
+    DomNode* lookup(Lambda* lambda) { return map_[lambda]; }
     void create();
     DomNode* lca(DomNode* i, DomNode* j);
-};
 
-typedef DomNodeBase< true>      DomNode;
-typedef DomNodeBase<false>  PostDomNode;
-typedef DomTreeBase< true>      DomTree;
-typedef DomTreeBase<false>  PostDomTree;
+    const Scope& scope_;
+    LambdaMap<DomNode*> map_;
+};
 
 } // namespace thorin
 

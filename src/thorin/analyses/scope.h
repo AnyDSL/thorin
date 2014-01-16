@@ -13,78 +13,73 @@ Array<Lambda*> top_level_lambdas(World& world);
 
 class Scope {
 public:
-    explicit Scope(Lambda* entry);
-    Scope(World& world)
-        : Scope(world, top_level_lambdas(world))
+    enum Mode {
+        Forward = 1 << 0,
+        UniqueExit = 1 << 1,
+        Forward_UniqueExit                = Forward | UniqueExit,
+        Forward_No_UniqueExit             = Forward,
+        Backward /**Implies unique exist*/=           UniqueExit,
+    };
+
+    /// Always builds a unique meta \p Lambda as entry.
+    explicit Scope(World& world, ArrayRef<Lambda*> entries, Mode mode = Forward_No_UniqueExit);
+    /// Always builds a unique dummy node as entry dominating the \p world.
+    explicit Scope(World& world, Mode mode = Forward_No_UniqueExit)
+        : Scope(world, top_level_lambdas(world), mode)
     {}
-    Scope(World& world, ArrayRef<Lambda*> entries);
-    Scope(ArrayRef<Lambda*> entries)
-        : Scope(entries[0]->world(), entries)
-    {}
+    /// Does not build a meta \p Lambda
+    explicit Scope(Lambda* entry, Mode mode = Forward_No_UniqueExit);
+    ~Scope();
 
     /// All lambdas within this scope in reverse postorder.
-    ArrayRef<Lambda*> rpo() const { return rpo_; }
-    ArrayRef<Lambda*> entries() const { return ArrayRef<Lambda*>(rpo_).slice_to_end(num_entries()); }
-    /// Like \p rpo() but without \p entries().
-    ArrayRef<Lambda*> body() const { return rpo().slice_from_begin(num_entries()); }
-    ArrayRef<Lambda*> backwards_rpo() const;
-    ArrayRef<Lambda*> exits() const { return backwards_rpo().slice_to_end(num_exits()); }
-    /// Like \p backwards_rpo() but without \p exits().
-    ArrayRef<Lambda*> backwards_body() const { return backwards_rpo().slice_from_begin(num_exits()); }
+    ArrayRef<Lambda*> rpo() const { return is_forward() ? rpo_ : reverse_rpo_; }
+    Lambda* entry() const { return rpo().front(); }
+    Lambda* exit()  const { assert(has_unique_exit()); return rpo().back(); }
+    /// Like \p rpo() but without \p entry()
+    ArrayRef<Lambda*> body() const { return rpo().slice_from_begin(1); }
     const DefSet& in_scope() const { return in_scope_; }
     bool contains(Def def) const { return in_scope_.contains(def); }
-
-    Lambda* rpo(size_t i) const { return rpo_[i]; }
-    Lambda* operator [] (size_t i) const { return rpo(i); }
+    ArrayRef<Lambda*> preds(Lambda* lambda) const { return (is_forward() ? preds_ : succs_)[lambda]; }
+    ArrayRef<Lambda*> succs(Lambda* lambda) const { return (is_forward() ? succs_ : preds_)[lambda]; }
+    size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
+    size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
+    int sid(Lambda* lambda) const { assert(contains(lambda)); return (is_forward() ? sid_ : reverse_sid_)[lambda]; }
+    size_t size() const { return rpo_.size(); }
+    World& world() const { return world_; }
+    bool is_forward() const { return mode_ == Forward_UniqueExit || mode_ == Forward_No_UniqueExit; }
+    bool has_unique_exit() const { return mode_ == Forward_UniqueExit || mode_ == Backward; }
+    Mode mode() const { return mode_; }
+    Scope& reverse() { assert(has_unique_exit()); (int&) mode_ ^= 1 << Forward; }
 
     typedef ArrayRef<Lambda*>::const_iterator const_iterator;
     const_iterator begin() const { return rpo().begin(); }
     const_iterator end() const { return rpo().end(); }
 
-    ArrayRef<Lambda*> preds(Lambda* lambda) const;
-    ArrayRef<Lambda*> succs(Lambda* lambda) const;
-
-    size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
-    size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
-    size_t num_entries() const { return num_entries_; }
-    size_t num_exits() const { if (num_exits_ == size_t(-1)) backwards_rpo(); return num_exits_; }
-
-    size_t size() const { return rpo_.size(); }
-    World& world() const { return world_; }
-
-    bool is_entry(Lambda* lambda) const;
-    bool is_exit(Lambda* lambda) const;
-
-    size_t sid(Lambda* lambda) const;
-    size_t backwards_sid(Lambda* lambda) const;
+    typedef ArrayRef<Lambda*>::const_reverse_iterator const_reverse_iterator;
+    const_reverse_iterator rbegin() const { return rpo().rbegin(); }
+    const_reverse_iterator rend() const { return rpo().rend(); }
 
 private:
     void identify_scope(ArrayRef<Lambda*> entries);
-    void rpo_numbering(ArrayRef<Lambda*> entries);
-    void collect(Lambda* entry);
-    template<bool forwards> size_t po_visit(LambdaSet&, Lambda* cur, size_t i) const;
-    template<bool forwards> size_t number(LambdaSet&, Lambda* cur, size_t i) const;
+    void build_succs(ArrayRef<Lambda*> entries);
+    void build_preds();
+    void uce(Lambda* entry);
+    Lambda* find_exits();
+    void rpo_numbering(Lambda* entry, Lambda* exit);
+    int po_visit(LambdaSet& set, Lambda* cur, int i);
+    void link_succ(Lambda* src, Lambda* dst) { assert(contains(src) && contains(dst)); succs_[src].push_back(dst); };
+    void link_pred(Lambda* src, Lambda* dst) { assert(contains(src) && contains(dst)); preds_[dst].push_back(src); };
+    void assign_sid(Lambda* lambda, int i) { (is_forward() ? sid_ : reverse_sid_)[lambda] = i; }
 
     World& world_;
-    size_t num_entries_;
-    mutable size_t num_exits_;
+    Mode mode_;
     DefSet in_scope_;
     std::vector<Lambda*> rpo_;
-    mutable AutoPtr<Array<Lambda*>> backwards_rpo_;
-    mutable Array<Array<Lambda*>> preds_;
-    mutable Array<Array<Lambda*>> succs_;
-
-    struct Sid {
-        Sid()
-            : sid(-1)
-            , backwards_sid(-1)
-        {}
-
-        size_t sid;
-        size_t backwards_sid;
-    };
-
-    mutable LambdaMap<Sid> sid_;
+    std::vector<Lambda*> reverse_rpo_;
+    LambdaMap<std::vector<Lambda*>> preds_;
+    LambdaMap<std::vector<Lambda*>> succs_;
+    LambdaMap<int> sid_;
+    LambdaMap<int> reverse_sid_;
 };
 
 } // namespace thorin

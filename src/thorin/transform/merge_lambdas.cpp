@@ -2,6 +2,7 @@
 #include "thorin/literal.h"
 #include "thorin/world.h"
 #include "thorin/analyses/domtree.h"
+#include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
 
 namespace thorin {
@@ -9,11 +10,10 @@ namespace thorin {
 class Merger {
 public:
     Merger(World& world)
-        : scope(world, top_level_lambdas(world))
+        : scope(world)
         , domtree(scope)
     {
-        for (auto entry : scope.entries())
-            merge(domtree.node(entry));
+        merge(domtree.lookup(scope.entry()));
     }
 
     void merge(const DomNode* n);

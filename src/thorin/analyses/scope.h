@@ -55,6 +55,7 @@ private:
     void rpo_numbering(Lambda* entry);
     int po_visit(LambdaSet& set, Lambda* cur, int i);
     void link(Lambda* src, Lambda* dst) {
+        assert(contains(src) && contains(dst));
         succs_[src].push_back(dst);
         preds_[dst].push_back(src);
     };

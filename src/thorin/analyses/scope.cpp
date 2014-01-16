@@ -1,11 +1,11 @@
 #include "thorin/analyses/scope.h"
 
 #include <algorithm>
-#include <iostream>
 #include <queue>
 #include <stack>
 
 #include "thorin/lambda.h"
+#include "thorin/literal.h"
 #include "thorin/world.h"
 #include "thorin/be/thorin.h"
 
@@ -111,6 +111,13 @@ void Scope::uce(Lambda* entry) {
         }
     }
 
+    for (auto lambda : rpo_) {
+        if (!reachable.contains(lambda)) {
+            auto num = in_scope_.erase(lambda);
+            assert(num == 1);
+        }
+    }
+
     rpo_.clear();
     std::copy(reachable.begin(), reachable.end(), std::inserter(rpo_, rpo_.begin()));
 }
@@ -130,19 +137,15 @@ void Scope::find_exits() {
     for (auto e : exits)
         link(e, exit);
 
-    assert(!exits.empty());
+    assert(!exits.empty() && "TODO");
 }
 
 void Scope::rpo_numbering(Lambda* entry) {
     LambdaSet visited;
 
-    visited.insert(entry);
-    int num = rpo_.size();
-
-    num = po_visit(visited, entry, num);
+    auto num = po_visit(visited, entry, size()-1);
     assert(size() == visited.size());
-    assert(num == 0);
-    assign_sid(entry, num);
+    assert(num == -1);
 
     // sort rpo_ according to sid which now holds the rpo number
     std::sort(rpo_.begin(), rpo_.end(), [&](Lambda* l1, Lambda* l2) { return sid(l1) < sid(l2); });
@@ -155,13 +158,15 @@ void Scope::rpo_numbering(Lambda* entry) {
 }
 
 int Scope::po_visit(LambdaSet& visited, Lambda* cur, int i) {
+    assert(!visited.contains(cur));
+    visited.insert(cur);
     for (auto succ : succs(cur)) {
         if (!visited.contains(succ)) {
-            visited.insert(succ);
             i = po_visit(visited, succ, i);
-            assign_sid(succ, i);
         }
     }
+
+    assign_sid(cur, i);
     return i-1;
 }
 
@@ -186,9 +191,16 @@ Array<Lambda*> top_level_lambdas(World& world) {
 next_lambda:;
     }
 
-    Array<Lambda*> result(top_level.size());
-    std::copy(top_level.begin(), top_level.end(), result.begin());
-    return result;
+    std::vector<Lambda*> result;
+    for (auto lambda : top_level) {
+        if (!lambda->empty() && !lambda->to()->isa<Bottom>())
+            result.push_back(lambda);
+    }
+
+    Array<Lambda*> a(result.size());
+    std::copy(result.begin(), result.end(), a.begin());
+
+    return a;
 }
 
 } // namespace thorin

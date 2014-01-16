@@ -41,10 +41,10 @@ void DomTree::create() {
     auto entry_node = lookup(scope_.entry());
     entry_node->idom_ = entry_node;
 
-    assert(forwards());
     // all others' idom are set to their first found dominating pred
     for (auto lambda : scope_.body()) {
         for (auto pred : scope_.preds(lambda)) {
+            assert(scope_.contains(pred));
             if (scope_.sid(pred) < scope_.sid(lambda)) {
                 auto n = lookup(pred);
                 assert(n);

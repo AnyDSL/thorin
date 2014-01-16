@@ -19,17 +19,6 @@ int DomNode::depth() const {
 
 //------------------------------------------------------------------------------
 
-DomTree::DomTree(const Scope& scope)
-    : scope_(scope)
-{
-    create();
-}
-
-DomTree::~DomTree() {
-    for (auto p : map_)
-        delete p.second;
-}
-
 void DomTree::create() {
     for (auto lambda : scope())
         map_[lambda] = new DomNode(lambda);

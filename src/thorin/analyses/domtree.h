@@ -34,8 +34,12 @@ private:
 
 class DomTree {
 public:
-    explicit DomTree(const Scope& scope);
-    ~DomTree();
+    explicit DomTree(const Scope& scope)
+        : scope_(scope)
+    {
+        create();
+    }
+    ~DomTree() { for (auto p : map_) delete p.second; }
 
     const Scope& scope() const { return scope_; }
     int depth(Lambda* lambda) const { return lookup(lambda)->depth(); }

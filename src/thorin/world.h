@@ -260,8 +260,7 @@ public:
      * other
      */
 
-    const Type* insert_type(const Type*);
-
+    void destroy(Lambda* lambda);
 #ifndef NDEBUG
     void breakpoint(size_t number) { breakpoints_.insert(number); }
 #endif

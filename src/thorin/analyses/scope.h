@@ -29,6 +29,7 @@ public:
     {}
     /// Does not build a meta \p Lambda
     explicit Scope(Lambda* entry, Mode mode = Forward_No_UniqueExit);
+    ~Scope();
 
     /// All lambdas within this scope in reverse postorder.
     ArrayRef<Lambda*> rpo() const { return is_forward() ? rpo_ : reverse_rpo_; }

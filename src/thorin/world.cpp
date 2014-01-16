@@ -847,6 +847,14 @@ const DefNode* World::cse_base(const PrimOp* primop) {
     return primop;
 }
 
+void World::destroy(Lambda* lambda) {
+    assert(lambda->num_uses() == 0);
+    assert(lambda->num_args() == 0);
+    lambda->destroy_body();
+    lambdas_.erase(lambda);
+    delete lambda;
+}
+
 /*
  * optimizations
  */

@@ -31,12 +31,6 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries, Mode mode)
     auto exit = find_exits();
     build_preds();
     rpo_numbering(entry, exit);
-
-#ifndef NDEBUG
-    // be sure to not have a meta block within the scope
-    for (auto lambda : has_unique_exit() ? body().slice_num_from_end(1) : body())
-        assert(!lambda->to()->isa<Bottom>());
-#endif
 }
 
 Scope::Scope(Lambda* entry, Mode mode)
@@ -49,6 +43,14 @@ Scope::Scope(Lambda* entry, Mode mode)
     auto exit = find_exits();
     build_preds();
     rpo_numbering(entry, exit);
+}
+
+Scope::~Scope() {
+    std::vector<Lambda*> remove;
+    if (!entry()->empty() && entry()->to()->isa<Bottom>())
+        world().destroy(entry());
+    if (has_unique_exit() && exit()->to()->isa<Bottom>())
+        world().destroy(exit());
 }
 
 void Scope::identify_scope(ArrayRef<Lambda*> entries) {
@@ -227,29 +229,20 @@ Array<Lambda*> top_level_lambdas(World& world) {
         scopes.push_back(new Scope(lambda));
 
     // check for top_level lambdas
-    LambdaSet top_level = world.lambdas();
+    LambdaSet top = world.lambdas();
     for (auto lambda : world.lambdas()) {
         for (auto scope : scopes)
             if (lambda != scope->entry() && scope->contains(lambda)) {
-                top_level.erase(lambda);
+                top.erase(lambda);
                 goto next_lambda;
             }
 next_lambda:;
     }
 
-    std::vector<Lambda*> result;
-    for (auto lambda : top_level) {
-        if (!lambda->empty() && !lambda->to()->isa<Bottom>())
-            result.push_back(lambda);
-    }
+    Array<Lambda*> result(top.size());
+    std::copy(top.begin(), top.end(), result.begin());
 
-    Array<Lambda*> a(result.size());
-    std::copy(result.begin(), result.end(), a.begin());
-
-    for (auto l : result)
-        assert(!l->to()->isa<Bottom>());
-
-    return a;
+    return result;
 }
 
 } // namespace thorin

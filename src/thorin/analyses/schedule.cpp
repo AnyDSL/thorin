@@ -154,9 +154,7 @@ Schedule schedule_smart(const Scope& scope) {
     DefMap<Lambda*> def2late;
     schedule_late(scope, def2late); // set late pointers in primop and remember pass
 
-    //for (size_t i = 0, e = scope.size(); i != e; ++i) {
     for (auto lambda_early : scope) {
-        //Lambda* lambda_early = scope[i];
         for (auto primop : early[lambda_early]) {
             if (!def2late.contains(primop))
                 continue;       // primop is dead

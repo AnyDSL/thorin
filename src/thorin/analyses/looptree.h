@@ -4,7 +4,6 @@
 #include <vector>
 
 #include "thorin/lambda.h"
-#include "thorin/analyses/scope.h"
 #include "thorin/util/array.h"
 #include "thorin/util/autoptr.h"
 #include "thorin/util/cast.h"
@@ -12,6 +11,7 @@
 namespace thorin {
 
 class Lambda;
+class Scope;
 class World;
 
 struct Edge {

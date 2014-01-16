@@ -5,7 +5,6 @@
 #include "thorin/analyses/scope.h"
 
 #include <algorithm>
-#include <limits>
 #include <iostream>
 #include <stack>
 

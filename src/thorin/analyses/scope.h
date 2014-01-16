@@ -33,7 +33,7 @@ public:
     /// All lambdas within this scope in reverse postorder.
     ArrayRef<Lambda*> rpo() const { return is_forward() ? rpo_ : reverse_rpo_; }
     Lambda* entry() const { return rpo().front(); }
-    Lambda* exit()  const { return rpo().back(); }
+    Lambda* exit()  const { assert(has_unique_exit()); return rpo().back(); }
     /// Like \p rpo() but without \p entry()
     ArrayRef<Lambda*> body() const { return rpo().slice_from_begin(1); }
     const DefSet& in_scope() const { return in_scope_; }
@@ -60,16 +60,14 @@ public:
 
 private:
     void identify_scope(ArrayRef<Lambda*> entries);
-    void build_cfg(ArrayRef<Lambda*> entries);
+    void build_succs(ArrayRef<Lambda*> entries);
+    void build_preds();
     void uce(Lambda* entry);
     Lambda* find_exits();
     void rpo_numbering(Lambda* entry, Lambda* exit);
     int po_visit(LambdaSet& set, Lambda* cur, int i);
-    void link(Lambda* src, Lambda* dst) {
-        assert(contains(src) && contains(dst));
-        succs_[src].push_back(dst);
-        preds_[dst].push_back(src);
-    };
+    void link_succ(Lambda* src, Lambda* dst) { assert(contains(src) && contains(dst)); succs_[src].push_back(dst); };
+    void link_pred(Lambda* src, Lambda* dst) { assert(contains(src) && contains(dst)); preds_[dst].push_back(src); };
     void assign_sid(Lambda* lambda, int i) { (is_forward() ? sid_ : reverse_sid_)[lambda] = i; }
 
     World& world_;

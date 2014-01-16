@@ -18,21 +18,23 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries, Mode mode)
     , mode_(mode)
 {
     identify_scope(entries);
-    build_cfg(entries);
+    build_succs(entries);
 
     auto entry = world.meta_lambda();
     rpo_.push_back(entry);
     in_scope_.insert(entry);
 
     for (auto e : entries)
-        link(entry, e);
+        link_succ(entry, e);
 
     uce(entry);
-    rpo_numbering(entry, find_exits());
+    auto exit = find_exits();
+    build_preds();
+    rpo_numbering(entry, exit);
 
 #ifndef NDEBUG
     // be sure to not have a meta block within the scope
-    for (auto lambda : body().slice_num_from_end(1))
+    for (auto lambda : has_unique_exit() ? body().slice_num_from_end(1) : body())
         assert(!lambda->to()->isa<Bottom>());
 #endif
 }
@@ -42,9 +44,11 @@ Scope::Scope(Lambda* entry, Mode mode)
     , mode_(mode)
 {
     identify_scope({entry});
-    build_cfg({entry});
+    build_succs({entry});
     uce(entry);
-    rpo_numbering(entry, find_exits());
+    auto exit = find_exits();
+    build_preds();
+    rpo_numbering(entry, exit);
 }
 
 void Scope::identify_scope(ArrayRef<Lambda*> entries) {
@@ -83,47 +87,77 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
     }
 
 #ifndef NDEBUG
-    for (auto lambda : rpo())
-        assert(contains(lambda));
+    for (auto lambda : rpo()) assert(contains(lambda));
 #endif
 }
 
-void Scope::build_cfg(ArrayRef<Lambda*> entries) {
+void Scope::build_succs(ArrayRef<Lambda*> entries) {
     for (auto lambda : rpo_) {
-        auto succs = lambda->succs();
-        for (auto succ : succs) {
+        for (auto succ : lambda->succs()) {
             if (contains(succ))
-                link(lambda, succ);
+                link_succ(lambda, succ);
         }
+    }
+}
+
+void Scope::build_preds() {
+    for (auto lambda : rpo_) {
+        for (auto succ : succs(lambda))
+            link_pred(lambda, succ);
     }
 }
 
 void Scope::uce(Lambda* entry) {
     LambdaSet reachable;
-    std::queue<Lambda*> queue;
 
-    auto insert = [&] (Lambda* lambda) { queue.push(lambda); reachable.insert(lambda); };
-    insert(entry);
+    {   // mark all reachable stuff
+        std::queue<Lambda*> queue;
 
-    while (!queue.empty()) {
-        Lambda* lambda = queue.front();
-        queue.pop();
+        auto insert = [&] (Lambda* lambda) { queue.push(lambda); reachable.insert(lambda); };
+        insert(entry);
 
-        for (auto succ : succs(lambda)) {
-            if (!reachable.contains(succ))
-                insert(succ);
+        while (!queue.empty()) {
+            Lambda* lambda = queue.front();
+            queue.pop();
+
+            for (auto succ : succs(lambda)) {
+                if (!reachable.contains(succ))
+                    insert(succ);
+            }
+        }
+    }
+    {   // transitively erase all non-reachable stuff
+        std::queue<Def> queue;
+        auto insert = [&] (Def def) { 
+            queue.push(def); 
+            if (Lambda* lambda = def->isa_lambda())
+                for (auto param : lambda->params())
+                    queue.push(param);
+        };
+
+        for (auto lambda : rpo_) {
+            if (!reachable.contains(lambda))
+                insert(lambda);
+        }
+
+        while (!queue.empty()) {
+            Def def = queue.front();
+            queue.pop();
+            int num = in_scope_.erase(def);
+            assert(num = 1);
+
+            for (auto use : def->uses()) {
+                if (contains(use))
+                    insert(use);
+            }
         }
     }
 
-    for (auto lambda : rpo_) {
-        if (!reachable.contains(lambda)) {
-            auto num = in_scope_.erase(lambda);
-            assert(num == 1);
-        }
-    }
-
-    rpo_.clear();
-    std::copy(reachable.begin(), reachable.end(), std::inserter(rpo_, rpo_.begin()));
+    rpo_.resize(reachable.size(), nullptr);
+    std::copy(reachable.begin(), reachable.end(), rpo_.begin());
+#ifndef NDEBUG
+    for (auto lambda : rpo()) assert(contains(lambda));
+#endif
 }
 
 Lambda* Scope::find_exits() {
@@ -142,7 +176,7 @@ Lambda* Scope::find_exits() {
     in_scope_.insert(exit);
 
     for (auto e : exits)
-        link(e, exit);
+        link_succ(e, exit);
 
     assert(!exits.empty() && "TODO");
     return exit;

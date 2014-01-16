@@ -127,6 +127,9 @@ void Scope::uce(Lambda* entry) {
 }
 
 Lambda* Scope::find_exits() {
+    if (!has_unique_exit())
+        return nullptr;
+
     LambdaSet exits;
 
     for (auto lambda : rpo()) {
@@ -149,8 +152,10 @@ void Scope::rpo_numbering(Lambda* entry, Lambda* exit) {
     LambdaSet visited;
 
     int num = size()-1;
-    visited.insert(exit);
-    assign_sid(exit, num--);
+    if (exit != nullptr) {
+        visited.insert(exit);
+        assign_sid(exit, num--);
+    }
     num = po_visit(visited, entry, num);
     assert(size() == visited.size() && num == -1);
 

@@ -148,7 +148,7 @@ void CodeGen::emit() {
         Scope scope(lambda);
         BBMap bbs;
 
-        for (auto lambda : scope.rpo().slice_num_from_end(1)) { // elide exit
+        for (auto lambda : scope.rpo()) {
             // map all bb-like lambdas to llvm bb stubs
             auto bb = bbs[lambda] = llvm::BasicBlock::Create(context_, lambda->name, fct);
 
@@ -165,7 +165,7 @@ void CodeGen::emit() {
         Schedule schedule = schedule_smart(scope);
 
         // emit body for each bb
-        for (auto lambda : scope.rpo().slice_num_from_end(1)) {
+        for (auto lambda : scope.rpo()) {
             if (lambda->empty())
                 continue;
             assert(lambda == scope.entry() || lambda->is_basicblock());

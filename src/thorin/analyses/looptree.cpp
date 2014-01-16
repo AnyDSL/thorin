@@ -59,7 +59,7 @@ private:
     Number& number(Lambda* lambda) { return numbers[lambda]; }
     size_t& lowlink(Lambda* lambda) { return number(lambda).low; }
     size_t& dfs(Lambda* lambda) { return number(lambda).dfs; }
-    bool on_stack(Lambda* lambda) { assert(pass.contains(lambda)); return (states[lambda] & OnStack) != 0; }
+    bool on_stack(Lambda* lambda) { assert(set.contains(lambda)); return (states[lambda] & OnStack) != 0; }
     bool in_scc(Lambda* lambda) { return states[lambda] & InSCC; }
     bool is_header(Lambda* lambda) { return states[lambda] & IsHeader; }
 
@@ -75,13 +75,13 @@ private:
     }
 
     void push(Lambda* lambda) { 
-        assert(pass.contains(lambda) && (states[lambda] & OnStack) == 0);
+        assert(set.contains(lambda) && (states[lambda] & OnStack) == 0);
         stack.push_back(lambda);
         states[lambda] |= OnStack;
     }
 
     int visit(Lambda* lambda, int counter) {
-        pass.visit(lambda);
+        set.visit_first(lambda);
         numbers[lambda] = Number(counter++);
         push(lambda);
         return counter;
@@ -93,7 +93,7 @@ private:
     LoopTree& looptree;
     LambdaMap<Number> numbers;
     LambdaMap<uint8_t> states;
-    LambdaSet pass;
+    LambdaSet set;
     size_t dfs_index;
     std::vector<Lambda*> stack;
 };
@@ -108,7 +108,7 @@ void LoopTreeBuilder::build() {
 void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<Lambda*> headers, int depth) {
     size_t cur_new_child = 0;
     for (auto header : headers) {
-        pass.clear();
+        set.clear();
         walk_scc(header, parent, depth, 0);
 
         // now mark all newly found headers globally as header
@@ -130,7 +130,7 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
     for (auto succ : scope().succs(cur)) {
         if (is_header(succ))
             continue; // this is a backedge
-        if (!pass.contains(succ)) {
+        if (!set.contains(succ)) {
             scc_counter = walk_scc(succ, parent, depth, scc_counter);
             lowlink(cur) = std::min(lowlink(cur), lowlink(succ));
         } else if (on_stack(succ))

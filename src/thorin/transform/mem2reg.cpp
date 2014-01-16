@@ -12,7 +12,7 @@ namespace thorin {
 void mem2reg(const Scope& scope) {
     auto schedule = schedule_late(scope);
     DefMap<size_t> addresses;
-    LambdaSet pass;
+    LambdaSet set;
     size_t cur_handle = 0;
 
     // unseal all lambdas ...
@@ -59,7 +59,7 @@ next_primop:;
         // seal successors of last lambda if applicable
         for (auto succ : scope.succs(lambda)) {
             if (succ->parent() != 0) {
-                if (!pass.visit(succ)) {
+                if (!set.visit(succ)) {
                     assert(addresses.find(succ) == addresses.end());
                     addresses[succ] = succ->preds().size();
                 }
@@ -71,10 +71,7 @@ next_primop:;
 }
 
 void mem2reg(World& world) {
-    auto top = top_level_lambdas(world);
-    for (auto root : top)
-        mem2reg(Scope(root));
-
+    mem2reg(Scope(world));
     world.cleanup();
     debug_verify(world);
 }

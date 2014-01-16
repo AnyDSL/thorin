@@ -51,8 +51,8 @@ private:
     void identify_scope(ArrayRef<Lambda*> entries);
     void build_cfg(ArrayRef<Lambda*> entries);
     void uce(Lambda* entry);
-    void find_exits();
-    void rpo_numbering(Lambda* entry);
+    Lambda* find_exits();
+    void rpo_numbering(Lambda* entry, Lambda* exit);
     int po_visit(LambdaSet& set, Lambda* cur, int i);
     void link(Lambda* src, Lambda* dst) {
         assert(contains(src) && contains(dst));

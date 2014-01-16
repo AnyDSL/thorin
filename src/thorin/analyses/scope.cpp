@@ -28,8 +28,13 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries, bool forwards)
         link(entry, e);
 
     uce(entry);
-    find_exits();
-    rpo_numbering(entry);
+    rpo_numbering(entry, find_exits());
+
+#ifndef NDEBUG
+    // be sure to not have a meta block within the scope
+    for (auto lambda : body().slice_num_from_end(1))
+        assert(!lambda->to()->isa<Bottom>());
+#endif
 }
 
 Scope::Scope(Lambda* entry, bool forwards)
@@ -39,8 +44,7 @@ Scope::Scope(Lambda* entry, bool forwards)
     identify_scope({entry});
     build_cfg({entry});
     uce(entry);
-    find_exits();
-    rpo_numbering(entry);
+    rpo_numbering(entry, find_exits());
 }
 
 void Scope::identify_scope(ArrayRef<Lambda*> entries) {
@@ -122,7 +126,7 @@ void Scope::uce(Lambda* entry) {
     std::copy(reachable.begin(), reachable.end(), std::inserter(rpo_, rpo_.begin()));
 }
 
-void Scope::find_exits() {
+Lambda* Scope::find_exits() {
     LambdaSet exits;
 
     for (auto lambda : rpo()) {
@@ -138,14 +142,17 @@ void Scope::find_exits() {
         link(e, exit);
 
     assert(!exits.empty() && "TODO");
+    return exit;
 }
 
-void Scope::rpo_numbering(Lambda* entry) {
+void Scope::rpo_numbering(Lambda* entry, Lambda* exit) {
     LambdaSet visited;
 
-    auto num = po_visit(visited, entry, size()-1);
-    assert(size() == visited.size());
-    assert(num == -1);
+    int num = size()-1;
+    visited.insert(exit);
+    assign_sid(exit, num--);
+    num = po_visit(visited, entry, num);
+    assert(size() == visited.size() && num == -1);
 
     // sort rpo_ according to sid which now holds the rpo number
     std::sort(rpo_.begin(), rpo_.end(), [&](Lambda* l1, Lambda* l2) { return sid(l1) < sid(l2); });
@@ -160,10 +167,10 @@ void Scope::rpo_numbering(Lambda* entry) {
 int Scope::po_visit(LambdaSet& visited, Lambda* cur, int i) {
     assert(!visited.contains(cur));
     visited.insert(cur);
+
     for (auto succ : succs(cur)) {
-        if (!visited.contains(succ)) {
+        if (!visited.contains(succ))
             i = po_visit(visited, succ, i);
-        }
     }
 
     assign_sid(cur, i);
@@ -199,6 +206,9 @@ next_lambda:;
 
     Array<Lambda*> a(result.size());
     std::copy(result.begin(), result.end(), a.begin());
+
+    for (auto l : result)
+        assert(!l->to()->isa<Bottom>());
 
     return a;
 }

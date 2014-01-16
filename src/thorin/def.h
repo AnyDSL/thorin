@@ -137,6 +137,7 @@ public:
 
     bool contains(From from) const { return Super::find(from) != Super::end(); }
     bool visit(From from) { return !Super::insert(from).second; }
+    void visit_first(From from) { assert(!contains(from)); visit(from); }
 };
 
 template<class To> 

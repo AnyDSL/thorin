@@ -13,9 +13,9 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-Scope::Scope(World& world, ArrayRef<Lambda*> entries, bool forwards)
+Scope::Scope(World& world, ArrayRef<Lambda*> entries, Mode mode)
     : world_(world)
-    , forwards_(forwards)
+    , mode_(mode)
 {
     identify_scope(entries);
     build_cfg(entries);
@@ -37,9 +37,9 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries, bool forwards)
 #endif
 }
 
-Scope::Scope(Lambda* entry, bool forwards)
+Scope::Scope(Lambda* entry, Mode mode)
     : world_(entry->world())
-    , forwards_(forwards)
+    , mode_(mode)
 {
     identify_scope({entry});
     build_cfg({entry});

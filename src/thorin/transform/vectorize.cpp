@@ -15,12 +15,11 @@ public:
     Vectorizer(Lambda* entry, size_t length)
         : entry(entry)
         , scope(entry)
-        , domtree(scope)
-        , postdomtree(scope) // TODO
+        , postdomtree(scope.reverse())
+        , domtree(scope.reverse())
         , length(length)
     {
-        assert(domtree.forwards() == true);
-        assert(postdomtree.forwards() == false);
+        assert(scope.is_forward());
     }
 
     Lambda* vectorize();
@@ -34,8 +33,8 @@ public:
 
     Lambda* entry;
     Scope scope;
-    const DomTree domtree;
     const DomTree postdomtree;
+    const DomTree domtree;
     Def2Def mapped;
     size_t pass;
     const size_t length;

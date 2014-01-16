@@ -21,7 +21,6 @@ int DomNode::depth() const {
 
 DomTree::DomTree(const Scope& scope)
     : scope_(scope)
-    , forwards_(scope_.forwards())
 {
     create();
 }
@@ -30,8 +29,6 @@ DomTree::~DomTree() {
     for (auto p : map_)
         delete p.second;
 }
-
-bool DomTree::forwards() const { return scope_.forwards(); }
 
 void DomTree::create() {
     for (auto lambda : scope())

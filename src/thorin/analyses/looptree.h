@@ -23,6 +23,7 @@ struct Edge {
 
     Lambda* src() const { return src_; }
     Lambda* dst() const { return dst_; }
+    void dump();
 
 private:
     Lambda* src_;
@@ -66,9 +67,17 @@ public:
     ArrayRef<LoopNode*> children() const { return children_; }
     const LoopNode* child(size_t i) const { return children_[i]; }
     size_t num_children() const { return children().size(); }
-    const std::vector<Edge>& entries() const { return entries_; }
-    const std::vector<Edge>& exits() const { return exits_; }
-    const std::vector<Edge>& backedges() const { return backedges_; }
+    const std::vector<Edge>& entry_edges() const { return entry_edges_; }
+    const std::vector<Edge>& exit_edges() const { return exit_edges_; }
+    const std::vector<Edge>& back_edges() const { return back_edges_; }
+    /// Set of lambdas dominating the loop. They are not within the loop.
+    const LambdaSet& preheaders() const { return preheaders_; }
+    /// Set of lambdas which jump to one of the headres.
+    const LambdaSet& latches() const { return latches_; }
+    /// Set of lambdas which jump out of the loop.
+    const LambdaSet& exitings() const { return exitings_; }
+    /// Set of lambdas jumped to via exiting lambdas.
+    const LambdaSet& exits() const { return exits_; }
     bool is_root() const { return parent_ == 0; }
     size_t dfs_begin() const { return dfs_begin_; };
     size_t dfs_end() const { return dfs_end_; }
@@ -77,9 +86,13 @@ private:
     size_t dfs_begin_;
     size_t dfs_end_;
     AutoVector<LoopNode*> children_;
-    std::vector<Edge> entries_;
-    std::vector<Edge> exits_;
-    std::vector<Edge> backedges_;
+    std::vector<Edge> entry_edges_;
+    std::vector<Edge> exit_edges_;
+    std::vector<Edge> back_edges_;
+    LambdaSet preheaders_;
+    LambdaSet latches_;
+    LambdaSet exits_;
+    LambdaSet exitings_;
 
     friend class LoopNode;
     friend class LoopTreeBuilder;

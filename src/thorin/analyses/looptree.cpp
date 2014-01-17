@@ -35,6 +35,7 @@ public:
         stack.reserve(looptree.scope().size());
         build();
         propagate_bounds(looptree.root_);
+        analyse_loops(looptree.root_);
     }
 
 private:
@@ -54,6 +55,7 @@ private:
 
     void build();
     static std::pair<size_t, size_t> propagate_bounds(LoopNode* header);
+    void analyse_loops(LoopHeader* header);
     const Scope& scope() const { return looptree.scope(); }
     Number& number(Lambda* lambda) { return numbers[lambda]; }
     size_t& lowlink(Lambda* lambda) { return number(lambda).low; }
@@ -172,16 +174,6 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
         } else
             new LoopHeader(parent, depth, headers);
 
-        // for all lambdas in current SCC
-        for (auto header : headers) {
-            for (auto pred : scope().preds(header)) {
-                if (in_scc(pred))
-                    parent->backedges_.emplace_back(pred, header);
-                else
-                    parent->entries_.emplace_back(pred, header);
-            }
-        }
-
         // reset InSCC and OnStack flags
         for (size_t i = b; i != e; ++i)
             states[stack[i]] &= ~(OnStack | InSCC);
@@ -192,6 +184,8 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
 
     return scc_counter;
 }
+
+//------------------------------------------------------------------------------
 
 std::pair<size_t, size_t> LoopTreeBuilder::propagate_bounds(LoopNode* n) {
     if (auto header = n->isa<LoopHeader>()) {
@@ -211,6 +205,59 @@ std::pair<size_t, size_t> LoopTreeBuilder::propagate_bounds(LoopNode* n) {
     }
 }
 
+void LoopTreeBuilder::analyse_loops(LoopHeader* header) {
+    for (auto lambda : header->lambdas()) {
+        for (auto pred : lambda->preds()) {
+            if (looptree.contains(header, pred)) {
+                header->back_edges_.emplace_back(pred, lambda);
+                header->latches_.insert(pred);
+            } else {
+                header->entry_edges_.emplace_back(pred, lambda);
+                header->preheaders_.insert(pred);
+            }
+        }
+    }
+
+    for (auto lambda : looptree.loop_lambdas(header)) {
+        for (auto succ : lambda->succs()) {
+            if (!looptree.contains(header, succ)) {
+                header->exit_edges_.emplace_back(lambda, succ);
+                header->exitings_.insert(lambda);
+                header->exits_.insert(succ);
+            }
+        }
+    }
+
+    for (auto child : header->children())
+        if (auto header = child->isa<LoopHeader>())
+            analyse_loops(header);
+    
+#if 0
+    std::cout << "header:" << header->num_lambdas() << std::endl;
+    for (auto lambda : header->lambdas())
+        std::cout << "\t" << lambda->unique_name() << std::endl;
+    std::cout << "preheader:" << header->num_lambdas() << std::endl;
+    for (auto lambda : header->preheaders())
+        std::cout << "\t" << lambda->unique_name() << std::endl;
+    std::cout << "latches:" << header->num_lambdas() << std::endl;
+    for (auto lambda : header->latches())
+        std::cout << "\t" << lambda->unique_name() << std::endl;
+    std::cout << "exits:" << header->num_lambdas() << std::endl;
+    for (auto lambda : header->exits())
+        std::cout << "\t" << lambda->unique_name() << std::endl;
+    std::cout << "entryedges: " << std::endl;
+    for (auto e : header->entry_edges())
+        e.dump();
+    std::cout << "backedges: " << std::endl;
+    for (auto e : header->back_edges())
+        e.dump();
+    std::cout << "exit_edges: " << std::endl;
+    for (auto e : header->exit_edges())
+        e.dump();
+    std::cout << "---" << std::endl;
+#endif
+}
+
 //------------------------------------------------------------------------------
 
 LoopNode::LoopNode(LoopHeader* parent, int depth, const std::vector<Lambda*>& lambdas)
@@ -223,6 +270,10 @@ LoopNode::LoopNode(LoopHeader* parent, int depth, const std::vector<Lambda*>& la
 }
 
 //------------------------------------------------------------------------------
+
+void Edge::dump() {
+    std::cout << src_->unique_name() << " -> " << dst_->unique_name() << std::endl;
+}
 
 LoopTree::LoopTree(const Scope& scope)
     : scope_(scope)
@@ -253,9 +304,7 @@ Array<Lambda*> LoopTree::loop_lambdas_in_rpo(const LoopHeader* header) {
     return result;
 }
 
-void LoopTree::dump() const {
-    std::cout << root_;
-}
+void LoopTree::dump() const { std::cout << root_; }
 
 //------------------------------------------------------------------------------
 

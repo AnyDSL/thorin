@@ -14,11 +14,11 @@ Array<Lambda*> top_level_lambdas(World& world);
 class Scope {
 public:
     enum Mode {
-        Forward = 1 << 0,
-        UniqueExit = 1 << 1,
-        Forward_UniqueExit                = Forward | UniqueExit,
-        Forward_No_UniqueExit             = Forward,
-        Backward /**Implies unique exist*/=           UniqueExit,
+        Forward                             = 1 << 0,
+        UniqueExit                          = 1 << 1,
+        Forward_UniqueExit                  = Forward | UniqueExit,
+        Forward_No_UniqueExit               = Forward,
+        Backward /**Implies unique exist*/  =           UniqueExit,
     };
 
     /// Always builds a unique meta \p Lambda as entry.

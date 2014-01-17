@@ -49,7 +49,7 @@ public:
     bool is_forward() const { return mode_ == Forward_UniqueExit || mode_ == Forward_No_UniqueExit; }
     bool has_unique_exit() const { return mode_ == Forward_UniqueExit || mode_ == Backward; }
     Mode mode() const { return mode_; }
-    Scope& reverse() { assert(has_unique_exit()); (int&) mode_ ^= 1 << Forward; }
+    Scope& reverse() { assert(has_unique_exit()); (int&) mode_ ^= 1 << Forward; return *this; }
 
     typedef ArrayRef<Lambda*>::const_iterator const_iterator;
     const_iterator begin() const { return rpo().begin(); }

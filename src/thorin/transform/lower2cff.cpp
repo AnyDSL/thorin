@@ -5,6 +5,7 @@
 #include "thorin/world.h"
 #include "thorin/type.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/analyses/top_level_scopes.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/transform/merge_lambdas.h"
@@ -14,8 +15,8 @@ namespace thorin {
 class CFFLowering {
 public:
     CFFLowering(World& world) {
-        auto top = top_level_lambdas(world);
-        top_.insert(top.begin(), top.end());
+        for (auto scope : top_level_scopes(world))
+            top_.insert(scope->entry());
     }
 
     void transform(Lambda* lambda);

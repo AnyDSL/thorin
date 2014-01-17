@@ -6,6 +6,7 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/schedule.h"
+#include "thorin/analyses/top_level_scopes.h"
 #include "thorin/util/printer.h"
 
 namespace thorin {
@@ -231,10 +232,10 @@ void IlPrinter::print_lambda(const DomTree& domtree, Schedule& schedule, Lambda*
 void emit_il(World& world, bool fancy) {
     IlPrinter cg(fancy);
 
-    for (auto lambda : top_level_lambdas(world)) {
-        Scope scope(lambda);
-        const DomTree domtree(scope);
-        Schedule schedule = schedule_smart(scope);
+    for (auto scope : top_level_scopes(world)) {
+        auto lambda = scope->entry();
+        const DomTree domtree(*scope);
+        Schedule schedule = schedule_smart(*scope);
         cg.pass_.clear();
         Vars def_vars;
         cg.print_lambda(domtree, schedule, lambda, def_vars);

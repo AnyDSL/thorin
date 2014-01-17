@@ -138,18 +138,18 @@ int main(int argc, char** argv) {
             if (opt)
                 init.world.opt();
             if (vectorlength != 0) {
-                Lambda* impala_main = top_level_lambdas(init.world)[0];
-                thorin::vectorize(impala_main, vectorlength);
-                init.world.cleanup();
+                //Lambda* impala_main = top_level_lambdas(init.world)[0];
+                //thorin::vectorize(impala_main, vectorlength);
+                //init.world.cleanup();
             }
             if (emit_thorin)
                 thorin::emit_thorin(init.world, fancy, !nocolor);
             if (emit_il)
                 thorin::emit_il(init.world, fancy);
             if (emit_looptree) {
-                Scope scope(init.world);
-                const LoopTree looptree(scope);
-                std::cout << looptree.root() << std::endl; // TODO
+                //Scope scope(init.world);
+                //const LoopTree looptree(scope);
+                //std::cout << looptree.root() << std::endl; // TODO
             }
 
             if (emit_llvm)

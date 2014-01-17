@@ -32,6 +32,7 @@
 #include "thorin/util/array.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/analyses/top_level_scopes.h"
 #include "thorin/be/llvm/cpu.h"
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/spir.h"
@@ -82,9 +83,10 @@ llvm::Function* CodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
 }
 
 void CodeGen::emit() {
+    auto scopes = top_level_scopes(world_);
     // map all root-level lambdas to llvm function stubs
-    auto top_level = top_level_lambdas(world_);
-    for (auto lambda : top_level) {
+    for (auto scope : scopes) {
+        auto lambda = scope->entry();
         if (lambda->is_builtin())
             continue;
         llvm::Function* f = nullptr;
@@ -116,12 +118,11 @@ void CodeGen::emit() {
     }
 
     // emit connected functions first
-    std::sort(top_level.begin(), top_level.end(), [](Lambda* first, Lambda* second) {
-        return first->is_connected_to_builtin();
-    });
+    std::sort(scopes.begin(), scopes.end(), [] (Scope* s1, Scope* s2) { return s1->entry()->is_connected_to_builtin(); }); 
 
-    // for all top-level functions
-    for (auto lambda : top_level) {
+    for (auto ptr_scope : scopes) {
+        auto& scope = *ptr_scope;
+        auto lambda = scope.entry();
         if (lambda->is_builtin() || lambda->empty())
             continue;
 
@@ -145,7 +146,6 @@ void CodeGen::emit() {
         }
         assert(ret_param);
 
-        Scope scope(lambda);
         BBMap bbs;
 
         for (auto lambda : scope.rpo()) {
@@ -709,7 +709,8 @@ void emit_llvm(World& world) {
     World spir(world.name() + "_spir");
 
     // determine different parts of the world which need to be compiled differently
-    for (auto lambda : top_level_lambdas(world)) {
+    for (auto scope : top_level_scopes(world)) {
+        auto lambda = scope->entry();
         if (lambda->is_connected_to_builtin(Lambda::NVVM))
             import(nvvm, lambda)->name = lambda->unique_name();
         else if (lambda->is_connected_to_builtin(Lambda::SPIR))

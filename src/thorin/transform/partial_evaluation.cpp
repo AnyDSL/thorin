@@ -1,3 +1,4 @@
+#if 0
 #include <iostream>
 
 #include "thorin/world.h"
@@ -115,3 +116,4 @@ void partial_evaluation(World& world) {
 }
 
 }
+#endif

@@ -10,8 +10,6 @@
 
 namespace thorin {
 
-//------------------------------------------------------------------------------
-
 Scope::Scope(World& world, ArrayRef<Lambda*> entries, int mode)
     : world_(world)
     , mode_(mode)
@@ -216,34 +214,5 @@ int Scope::po_visit(LambdaSet& visited, Lambda* cur, int i) {
     assign_sid(cur, i);
     return i-1;
 }
-
-//------------------------------------------------------------------------------
-
-Array<Lambda*> top_level_lambdas(World& world) {
-    // trivial implementation, but works
-    // TODO: nicer version with Fibonacci heaps
-    AutoVector<Scope*> scopes;
-    std::vector<Lambda*> lambdas(world.lambdas().begin(), world.lambdas().end());
-    for (auto lambda : lambdas)
-        scopes.push_back(new Scope(lambda));
-
-    // check for top_level lambdas
-    LambdaSet top = world.lambdas();
-    for (auto lambda : world.lambdas()) {
-        for (auto scope : scopes)
-            if (lambda != scope->entry() && scope->contains(lambda)) {
-                top.erase(lambda);
-                goto next_lambda;
-            }
-next_lambda:;
-    }
-
-    Array<Lambda*> result(top.size());
-    std::copy(top.begin(), top.end(), result.begin());
-
-    return result;
-}
-
-//------------------------------------------------------------------------------
 
 } // namespace thorin

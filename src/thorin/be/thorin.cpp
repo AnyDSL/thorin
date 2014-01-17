@@ -6,6 +6,7 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/schedule.h"
+#include "thorin/analyses/top_level_scopes.h"
 #include "thorin/util/printer.h"
 
 namespace thorin {
@@ -169,24 +170,24 @@ void emit_thorin(World& world, bool fancy, bool nocolor) {
             cg.emit_assignment(global);
     }
 
-    Scope scope(world);
-    const DomTree domtree(scope);
-    Schedule schedule = schedule_smart(scope);
+    for (auto scope : top_level_scopes(world)) {
+        const DomTree domtree(*scope);
+        Schedule schedule = schedule_smart(*scope);
+        for (auto lambda : scope->body()) {
+            int depth = fancy ? domtree.depth(lambda)-1 : 0;
+            cg.indent += depth;
+            cg.newline();
+            cg.emit_head(lambda);
 
-    for (auto lambda : scope.body()) {
-        int depth = fancy ? domtree.depth(lambda)-1 : 0;
-        cg.indent += depth;
+            for (auto op : schedule[lambda])
+                cg.emit_assignment(op);
+
+            cg.emit_jump(lambda);
+            cg.indent -= depth;
+        }
+
         cg.newline();
-        cg.emit_head(lambda);
-
-        for (auto op : schedule[lambda])
-            cg.emit_assignment(op);
-
-        cg.emit_jump(lambda);
-        cg.indent -= depth;
     }
-
-    cg.newline();
 }
 
 void emit_type(const Type* type)           { CodeGen(false).emit_type(type);         }

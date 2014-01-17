@@ -21,10 +21,8 @@ FIND_PATH ( THORIN_LIBS_DIR
 	NAMES
 		${THORIN_OUTPUT_LIBS}
 	PATHS
-		${THORIN_ROOT_DIR}/build
-		${THORIN_ROOT_DIR}/build_debug
-		${THORIN_ROOT_DIR}/build_release
-		${THORIN_ROOT_DIR}/lib
+		${THORIN_ROOT_DIR}/build_debug/lib
+		${THORIN_ROOT_DIR}/build_release/lib
 		${THORIN_ROOT_DIR}/build/lib
 	PATH_SUFFIXES
 		${CMAKE_CONFIGURATION_TYPES}

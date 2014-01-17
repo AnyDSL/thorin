@@ -13,7 +13,7 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-Scope::Scope(World& world, ArrayRef<Lambda*> entries, Mode mode)
+Scope::Scope(World& world, ArrayRef<Lambda*> entries, int mode)
     : world_(world)
     , mode_(mode)
 {
@@ -33,7 +33,7 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries, Mode mode)
     rpo_numbering(entry, exit);
 }
 
-Scope::Scope(Lambda* entry, Mode mode)
+Scope::Scope(Lambda* entry, int mode)
     : world_(entry->world())
     , mode_(mode)
 {

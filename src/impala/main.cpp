@@ -5,6 +5,7 @@
 
 #include "thorin/analyses/looptree.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/analyses/top_level_scopes.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/import.h"
 #include "thorin/transform/vectorize.h"
@@ -147,9 +148,8 @@ int main(int argc, char** argv) {
             if (emit_il)
                 thorin::emit_il(init.world, fancy);
             if (emit_looptree) {
-                //Scope scope(init.world);
-                //const LoopTree looptree(scope);
-                //std::cout << looptree.root() << std::endl; // TODO
+                for (auto scope : top_level_scopes(init.world))
+                    LoopTree(*scope).dump();
             }
 
             if (emit_llvm)

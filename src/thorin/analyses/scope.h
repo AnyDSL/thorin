@@ -13,7 +13,7 @@ Array<Lambda*> top_level_lambdas(World& world);
 
 class Scope {
 public:
-    enum Mode {
+    enum {
         Forward                             = 1 << 0,
         UniqueExit                          = 1 << 1,
         Forward_UniqueExit                  = Forward | UniqueExit,
@@ -22,13 +22,13 @@ public:
     };
 
     /// Always builds a unique meta \p Lambda as entry.
-    explicit Scope(World& world, ArrayRef<Lambda*> entries, Mode mode = Forward_No_UniqueExit);
+    explicit Scope(World& world, ArrayRef<Lambda*> entries, int mode = Forward_No_UniqueExit);
     /// Always builds a unique dummy node as entry dominating the \p world.
-    explicit Scope(World& world, Mode mode = Forward_No_UniqueExit)
+    explicit Scope(World& world, int mode = Forward_No_UniqueExit)
         : Scope(world, top_level_lambdas(world), mode)
     {}
     /// Does not build a meta \p Lambda
-    explicit Scope(Lambda* entry, Mode mode = Forward_No_UniqueExit);
+    explicit Scope(Lambda* entry, int mode = Forward_No_UniqueExit);
     ~Scope();
 
     /// All lambdas within this scope in reverse postorder.
@@ -46,10 +46,10 @@ public:
     int sid(Lambda* lambda) const { assert(contains(lambda)); return (is_forward() ? sid_ : reverse_sid_)[lambda]; }
     size_t size() const { return rpo_.size(); }
     World& world() const { return world_; }
-    bool is_forward() const { return mode_ == Forward_UniqueExit || mode_ == Forward_No_UniqueExit; }
-    bool has_unique_exit() const { return mode_ == Forward_UniqueExit || mode_ == Backward; }
-    Mode mode() const { return mode_; }
-    Scope& reverse() { assert(has_unique_exit()); (int&) mode_ ^= 1 << Forward; return *this; }
+    bool is_forward() const { return mode_ & Forward; ; }
+    bool has_unique_exit() const { return mode_ & UniqueExit; }
+    int mode() const { return mode_; }
+    Scope& reverse() { assert(has_unique_exit()); mode_ ^= 1 << Forward; return *this; }
 
     typedef ArrayRef<Lambda*>::const_iterator const_iterator;
     const_iterator begin() const { return rpo().begin(); }
@@ -72,7 +72,7 @@ private:
     void assign_sid(Lambda* lambda, int i) { (is_forward() ? sid_ : reverse_sid_)[lambda] = i; }
 
     World& world_;
-    Mode mode_;
+    int mode_;
     DefSet in_scope_;
     std::vector<Lambda*> rpo_;
     std::vector<Lambda*> reverse_rpo_;

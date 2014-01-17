@@ -68,6 +68,15 @@ Array<Lambda*> World::copy_lambdas() const {
     return result;
 }
 
+std::vector<Lambda*> World::externals() const {
+    std::vector<Lambda*> result;
+    for (auto lambda : lambdas_) {
+        if (lambda->attribute().is(Lambda::Extern))
+            result.push_back(lambda);
+    }
+    return result;
+}
+
 /*
  * types
  */

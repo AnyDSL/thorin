@@ -253,6 +253,7 @@ public:
     const PrimOps& primops() const { return primops_; }
     const LambdaSet& lambdas() const { return lambdas_; }
     Array<Lambda*> copy_lambdas() const;
+    std::vector<Lambda*> externals() const;
     Types types() const { return types_; }
     size_t gid() const { return gid_; }
 

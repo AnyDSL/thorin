@@ -2,6 +2,7 @@
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/verify.h"
+#include "thorin/analyses/top_level.h"
 #include "thorin/transform/mangle.h"
 
 namespace thorin {

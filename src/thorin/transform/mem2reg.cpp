@@ -1,10 +1,8 @@
-#include <iostream>
-#include <unordered_map>
-
 #include "thorin/memop.h"
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/schedule.h"
+#include "thorin/analyses/top_level.h"
 #include "thorin/analyses/verify.h"
 
 namespace thorin {
@@ -71,7 +69,8 @@ next_primop:;
 }
 
 void mem2reg(World& world) {
-    mem2reg(Scope(world));
+    for (auto scope : top_level_scopes(world))
+        mem2reg(*scope);
     world.cleanup();
     debug_verify(world);
 }

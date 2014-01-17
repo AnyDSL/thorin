@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <queue>
-#include <stack>
 
 #include "thorin/lambda.h"
 #include "thorin/literal.h"
@@ -244,5 +243,7 @@ next_lambda:;
 
     return result;
 }
+
+//------------------------------------------------------------------------------
 
 } // namespace thorin

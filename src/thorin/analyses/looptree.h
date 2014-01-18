@@ -37,6 +37,7 @@ class LoopHeader;
  * Please refer to G. Ramalingam, "On Loops, Dominators, and Dominance Frontiers", 1999
  * for an introduction to loop nesting forests.
  * A \p LoopNode consists of a set of header \p Lambda%s.
+ * The header lambdas are the set of lambdas not dominated by any other lambda within the loop.
  * The root node is a \p LoopHeader without any lambdas but further \p LoopNode children and \p depth_ -1.
  * Thus, the forest is pooled into a tree.
  */
@@ -70,9 +71,11 @@ public:
     const std::vector<Edge>& entry_edges() const { return entry_edges_; }
     const std::vector<Edge>& exit_edges() const { return exit_edges_; }
     const std::vector<Edge>& back_edges() const { return back_edges_; }
+    /// Set of lambdas not dominated by any other lambda within the loop. Same as \p lambdas() as \p LambdaSet.
+    const LambdaSet& headers() const { return headers_; }
     /// Set of lambdas dominating the loop. They are not within the loop.
     const LambdaSet& preheaders() const { return preheaders_; }
-    /// Set of lambdas which jump to one of the headres.
+    /// Set of lambdas which jump to one of the headers.
     const LambdaSet& latches() const { return latches_; }
     /// Set of lambdas which jump out of the loop.
     const LambdaSet& exitings() const { return exitings_; }
@@ -89,6 +92,7 @@ private:
     std::vector<Edge> entry_edges_;
     std::vector<Edge> exit_edges_;
     std::vector<Edge> back_edges_;
+    LambdaSet headers_;
     LambdaSet preheaders_;
     LambdaSet latches_;
     LambdaSet exits_;

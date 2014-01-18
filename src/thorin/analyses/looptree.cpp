@@ -206,6 +206,8 @@ std::pair<size_t, size_t> LoopTreeBuilder::propagate_bounds(LoopNode* n) {
 }
 
 void LoopTreeBuilder::analyse_loops(LoopHeader* header) {
+    header->headers_.insert(header->lambdas().begin(), header->lambdas().end());
+
     for (auto lambda : header->lambdas()) {
         for (auto pred : lambda->preds()) {
             if (looptree.contains(header, pred)) {

@@ -16,18 +16,21 @@ class World;
 
 struct Edge {
     Edge() {}
-    Edge(Lambda* src, Lambda* dst) 
+    Edge(Lambda* src, Lambda* dst, int levels) 
         : src_(src)
         , dst_(dst)
+        , levels_(levels)
     {}
 
     Lambda* src() const { return src_; }
     Lambda* dst() const { return dst_; }
+    int levels() const { return levels_; }
     void dump();
 
 private:
     Lambda* src_;
     Lambda* dst_;
+    int levels_;
 };
 
 class LoopHeader;
@@ -129,8 +132,8 @@ public:
 
     const Scope& scope() const { return scope_; }
     const LoopHeader* root() const { return root_; }
-    int depth(Lambda* lambda) const { return lookup(lambda)->depth(); }
-    size_t lambda2dfs(Lambda* lambda) const { return lookup(lambda)->dfs_index(); }
+    int depth(Lambda* lambda) const { return lambda2leaf(lambda)->depth(); }
+    size_t lambda2dfs(Lambda* lambda) const { return lambda2leaf(lambda)->dfs_index(); }
     bool contains(const LoopHeader* header, Lambda* lambda) const;
     ArrayRef<const LoopLeaf*> loop(const LoopHeader* header) {
         return ArrayRef<const LoopLeaf*>(dfs_leaves_.data() + header->dfs_begin(), header->dfs_end() - header->dfs_begin());
@@ -138,10 +141,11 @@ public:
     Array<Lambda*> loop_lambdas(const LoopHeader* header);
     Array<Lambda*> loop_lambdas_in_rpo(const LoopHeader* header);
     void dump() const;
-    const LoopLeaf* lookup(Lambda* lambda) const { return map_.find(lambda); }
+    const LoopLeaf* lambda2leaf(Lambda* lambda) const { return map_.find(lambda); }
+    const LoopHeader* lambda2header(Lambda* lambda) const;
 
 private:
-    LoopLeaf* lookup(Lambda* lambda) { return map_[lambda]; }
+    LoopLeaf* lambda2leaf(Lambda* lambda) { return map_[lambda]; }
 
     const Scope& scope_;
     LambdaMap<LoopLeaf*> map_;

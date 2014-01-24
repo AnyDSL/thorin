@@ -103,7 +103,7 @@ void LoopTreeBuilder::build() {
     for (auto lambda : scope()) // clear all flags
         states[lambda] = 0;
 
-    recurse(looptree.root_ = new LoopHeader(0, -1, std::vector<Lambda*>(0)), {scope().entry()}, 0);
+    recurse(looptree.root_ = new LoopHeader(0, 0, std::vector<Lambda*>(0)), {scope().entry()}, 0);
 }
 
 void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<Lambda*> headers, int depth) {
@@ -185,8 +185,6 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
     return scc_counter;
 }
 
-//------------------------------------------------------------------------------
-
 std::pair<size_t, size_t> LoopTreeBuilder::propagate_bounds(LoopNode* n) {
     if (auto header = n->isa<LoopHeader>()) {
         size_t begin = -1, end = 0;
@@ -211,10 +209,10 @@ void LoopTreeBuilder::analyse_loops(LoopHeader* header) {
     for (auto lambda : header->lambdas()) {
         for (auto pred : lambda->preds()) {
             if (looptree.contains(header, pred)) {
-                header->back_edges_.emplace_back(pred, lambda);
+                header->back_edges_.emplace_back(pred, lambda, 0);
                 header->latches_.insert(pred);
             } else {
-                header->entry_edges_.emplace_back(pred, lambda);
+                header->entry_edges_.emplace_back(pred, lambda, 1);
                 header->preheaders_.insert(pred);
             }
         }
@@ -223,7 +221,7 @@ void LoopTreeBuilder::analyse_loops(LoopHeader* header) {
     for (auto lambda : looptree.loop_lambdas(header)) {
         for (auto succ : lambda->succs()) {
             if (!looptree.contains(header, succ)) {
-                header->exit_edges_.emplace_back(lambda, succ);
+                header->exit_edges_.emplace_back(lambda, succ, looptree.lambda2header(succ)->depth() - header->depth());
                 header->exitings_.insert(lambda);
                 header->exits_.insert(succ);
             }
@@ -234,7 +232,6 @@ void LoopTreeBuilder::analyse_loops(LoopHeader* header) {
         if (auto header = child->isa<LoopHeader>())
             analyse_loops(header);
     
-#if 0
     std::cout << "header:" << header->num_lambdas() << std::endl;
     for (auto lambda : header->lambdas())
         std::cout << "\t" << lambda->unique_name() << std::endl;
@@ -257,7 +254,6 @@ void LoopTreeBuilder::analyse_loops(LoopHeader* header) {
     for (auto e : header->exit_edges())
         e.dump();
     std::cout << "---" << std::endl;
-#endif
 }
 
 //------------------------------------------------------------------------------
@@ -274,7 +270,7 @@ LoopNode::LoopNode(LoopHeader* parent, int depth, const std::vector<Lambda*>& la
 //------------------------------------------------------------------------------
 
 void Edge::dump() {
-    std::cout << src_->unique_name() << " -> " << dst_->unique_name() << std::endl;
+    std::cout << src_->unique_name() << " -> " << dst_->unique_name() << ": " << levels_ << std::endl;
 }
 
 LoopTree::LoopTree(const Scope& scope)
@@ -288,6 +284,18 @@ bool LoopTree::contains(const LoopHeader* header, Lambda* lambda) const {
     if (!scope().contains(lambda)) return false;
     size_t dfs = lambda2dfs(lambda);
     return header->dfs_begin() <= dfs && dfs < header->dfs_end();
+}
+
+const LoopHeader* LoopTree::lambda2header(Lambda* lambda) const {
+    auto leaf = lambda2leaf(lambda);
+    if (leaf == nullptr)
+        return root();
+    auto header = leaf->parent();
+    for (; !header->is_root(); header = header->parent()) {
+        if (header->headers().contains(lambda))
+            break;
+    }
+    return header;
 }
 
 Array<Lambda*> LoopTree::loop_lambdas(const LoopHeader* header) {

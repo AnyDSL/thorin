@@ -103,7 +103,7 @@ void LoopTreeBuilder::build() {
     for (auto lambda : scope()) // clear all flags
         states[lambda] = 0;
 
-    recurse(looptree.root_ = new LoopHeader(0, 0, std::vector<Lambda*>(0)), {scope().entry()}, 0);
+    recurse(looptree.root_ = new LoopHeader(0, 0, std::vector<Lambda*>(0)), {scope().entry()}, 1);
 }
 
 void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<Lambda*> headers, int depth) {
@@ -231,29 +231,6 @@ void LoopTreeBuilder::analyse_loops(LoopHeader* header) {
     for (auto child : header->children())
         if (auto header = child->isa<LoopHeader>())
             analyse_loops(header);
-    
-    std::cout << "header:" << header->num_lambdas() << std::endl;
-    for (auto lambda : header->lambdas())
-        std::cout << "\t" << lambda->unique_name() << std::endl;
-    std::cout << "preheader:" << header->num_lambdas() << std::endl;
-    for (auto lambda : header->preheaders())
-        std::cout << "\t" << lambda->unique_name() << std::endl;
-    std::cout << "latches:" << header->num_lambdas() << std::endl;
-    for (auto lambda : header->latches())
-        std::cout << "\t" << lambda->unique_name() << std::endl;
-    std::cout << "exits:" << header->num_lambdas() << std::endl;
-    for (auto lambda : header->exits())
-        std::cout << "\t" << lambda->unique_name() << std::endl;
-    std::cout << "entryedges: " << std::endl;
-    for (auto e : header->entry_edges())
-        e.dump();
-    std::cout << "backedges: " << std::endl;
-    for (auto e : header->back_edges())
-        e.dump();
-    std::cout << "exit_edges: " << std::endl;
-    for (auto e : header->exit_edges())
-        e.dump();
-    std::cout << "---" << std::endl;
 }
 
 //------------------------------------------------------------------------------
@@ -267,10 +244,51 @@ LoopNode::LoopNode(LoopHeader* parent, int depth, const std::vector<Lambda*>& la
         parent_->children_.push_back(this);
 }
 
+std::ostream& LoopNode::indent() const {
+    for (int i = 0; i < depth(); ++i) 
+        std::cout << '\t';
+    return std::cout;
+}
+
+void LoopLeaf::dump() const {
+    indent() << '<' << lambda()->unique_name() << '>' << std::endl;
+    indent() << "+ dfs: " << dfs_index() << std::endl;
+}
+
+#define DUMP_SET(set) \
+    indent() << "+ " #set ": "; \
+    for (auto lambda : set()) \
+        std::cout << lambda->unique_name() << " "; \
+    std::cout << std::endl;
+
+#define DUMP_EDGES(edges) \
+    indent() << "+ " #edges ": "; \
+    for (auto edge : edges()) \
+        edge.dump(); \
+    std::cout << std::endl;
+
+void LoopHeader::dump() const {
+    indent() << "( ";
+    for (auto header : lambdas())
+        std::cout << header->unique_name() << " ";
+    std::cout << ") " << std::endl;
+    indent() << "+ dfs: " << dfs_begin() << " .. " << dfs_end() << std::endl;
+
+    DUMP_SET(preheaders)
+    DUMP_SET(latches)
+    DUMP_SET(exitings)
+    DUMP_EDGES(entry_edges)
+    DUMP_EDGES(back_edges)
+    DUMP_EDGES(exit_edges)
+
+    for (auto child : children())
+        child->dump();
+}
+
 //------------------------------------------------------------------------------
 
 void Edge::dump() {
-    std::cout << src_->unique_name() << " -> " << dst_->unique_name() << ": " << levels_ << std::endl;
+    std::cout << src_->unique_name() << " ->(" << levels_ << ") " << dst_->unique_name() << "   ";
 }
 
 LoopTree::LoopTree(const Scope& scope)
@@ -312,25 +330,6 @@ Array<Lambda*> LoopTree::loop_lambdas_in_rpo(const LoopHeader* header) {
         return scope_.sid(l1) < scope_.sid(l2);
     });
     return result;
-}
-
-void LoopTree::dump() const { std::cout << root_; }
-
-//------------------------------------------------------------------------------
-
-std::ostream& operator << (std::ostream& o, const LoopNode* node) {
-    for (int i = 0; i < node->depth(); ++i)
-        o << '\t';
-    for (auto header : node->lambdas())
-        o << header->unique_name() << " ";
-    if (auto header = node->isa<LoopHeader>()) {
-        o << ": " << header->dfs_begin() << "/" << header->dfs_end() << std::endl;
-        for (auto child : header->children())
-            o << child;
-    } else
-        o<< ": " << node->as<LoopLeaf>()->dfs_index() << std::endl;
-
-    return o;
 }
 
 //------------------------------------------------------------------------------

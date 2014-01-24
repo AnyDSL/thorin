@@ -52,8 +52,11 @@ public:
     const LoopHeader* parent() const { return parent_; }
     ArrayRef<Lambda*> lambdas() const { return lambdas_; }
     size_t num_lambdas() const { return lambdas().size(); }
+    virtual void dump() const = 0;
 
 protected:
+    std::ostream& indent() const;
+
     LoopHeader* parent_;
     int depth_;
     std::vector<Lambda*> lambdas_;
@@ -87,6 +90,7 @@ public:
     bool is_root() const { return parent_ == 0; }
     size_t dfs_begin() const { return dfs_begin_; };
     size_t dfs_end() const { return dfs_end_; }
+    virtual void dump() const;
 
 private:
     size_t dfs_begin_;
@@ -116,6 +120,7 @@ public:
 
     Lambda* lambda() const { return lambdas().front(); }
     size_t dfs_index() const { return dfs_index_; }
+    virtual void dump() const;
 
 private:
     size_t dfs_index_;
@@ -140,7 +145,7 @@ public:
     }
     Array<Lambda*> loop_lambdas(const LoopHeader* header);
     Array<Lambda*> loop_lambdas_in_rpo(const LoopHeader* header);
-    void dump() const;
+    void dump() const { root()->dump(); }
     const LoopLeaf* lambda2leaf(Lambda* lambda) const { return map_.find(lambda); }
     const LoopHeader* lambda2header(Lambda* lambda) const;
 
@@ -154,8 +159,6 @@ private:
 
     friend class LoopTreeBuilder;
 };
-
-std::ostream& operator << (std::ostream& o, const LoopNode* node);
 
 } // namespace thorin
 

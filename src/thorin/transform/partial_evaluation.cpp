@@ -106,6 +106,8 @@ public:
     }
 
     void push(Lambda* src, Lambda* dst, bool evil = false) {
+        std::cout << "pushing: " << std::endl;
+        std::cout << dst->unique_name() << std::endl;
         int ord = order(src, dst);
         if (size_t(ord) >= ord2stack_.size())
             ord2stack_.resize(ord+1);
@@ -169,10 +171,15 @@ void PartialEvaluator::process() {
             done_.insert(cur);
 
             std::cout << "cur: " << cur->unique_name() << std::endl;
+            std::cout << "loop stack:" << std::endl;
+            for (auto& info : loop_stack_) {
+                std::cout << info.loop()->lambdas().front()->unique_name() << std::endl;
+            }
+            std::cout << "----" << std::endl;
             emit_thorin(world_);
             assert(!cur->empty());
 
-            auto succs = cur->direct_succs();
+            auto succs = cur->succs();
             bool fold = false;
 
             auto to = cur->to();
@@ -187,6 +194,10 @@ void PartialEvaluator::process() {
                 for (auto succ : succs)
                     push(cur, succ, true);
                 continue;
+            } else {
+                for (auto succ : succs)
+                    if (succ != dst)
+                        push(cur, succ, true);
             }
 
             std::vector<Def> f_args, r_args;
@@ -210,6 +221,7 @@ void PartialEvaluator::process() {
 
             int ord = order(cur, dst);
             if (ord == BACK) {
+                assert(!loop_stack_.empty());
                 auto info = top_loop();
                 if (info.is_evil())
                     continue;
@@ -234,7 +246,10 @@ void PartialEvaluator::process() {
 
             Scope scope(dst);
             Def2Def f_map;
-            auto f_to = drop(scope, f_map, f_idxs, f_args);
+            GenericMap generic_map;
+            bool res = dst->type()->infer_with(generic_map, cur->arg_pi());
+            assert(res);
+            auto f_to = drop(scope, f_map, f_idxs, f_args, generic_map);
             f_map[to] = f_to;
             update_new2old(f_map);
 
@@ -249,7 +264,7 @@ void PartialEvaluator::process() {
                 push(cur, f_to);
             } else {
                 Def2Def r_map;
-                auto r_to = drop(scope, r_map, r_idxs, r_args);
+                auto r_to = drop(scope, r_map, r_idxs, r_args, generic_map);
                 r_map[to] = r_to;
                 update_new2old(r_map);
                 rewrite_jump(cur, r_to, r_idxs);

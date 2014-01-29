@@ -1,5 +1,7 @@
-extern fn f(i : int) -> int {
+fn main(mut i: int) -> int {
     do {
+        if (i == 23)
+            break;
         ++i;
     } while (i < 42);
 

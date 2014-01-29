@@ -1,4 +1,5 @@
 #include <iostream>
+#include <unordered_map>
 #include <queue>
 
 #include "thorin/world.h"
@@ -38,6 +39,25 @@ private:
     std::vector<Lambda*> succs_;
 };
 
+class PartialEvaluator;
+
+class LoopInfo {
+public:
+    LoopInfo(PartialEvaluator* evaluator, const LoopHeader* loop)
+        : evaluator_(evaluator)
+        , loop_(loop)
+        , evil_(false)
+    {}
+
+    const LoopHeader* loop() const { return loop_; }
+    void set_evil() { evil_ = true; }
+    bool is_exiting(Lambda*) const;
+
+private:
+    PartialEvaluator* evaluator_;
+    const LoopHeader* loop_;
+    bool evil_;
+};
 
 static std::vector<Lambda*> top_level_lambdas(World& world) {
     std::vector<Lambda*> result;
@@ -65,18 +85,29 @@ public:
     void rewrite_jump(Lambda* lambda, Lambda* to, ArrayRef<size_t> idxs);
     void remove_runs(Lambda* lambda);
     void update_new2old(const Def2Def& map);
-    int order(Lambda* src, Lambda* dst);
+    int order(Lambda* src, Lambda* dst) const;
+    const LoopHeader* is_header(Lambda* lambda) const {
+        auto i = headers.find(new2old[lambda]);
+        if (i != headers.end())
+            return i->second;
+        return nullptr;
+    }
 
     World& world;
     Scope scope;
     LoopTree loops;
     Lambda2Lambda new2old;
-    std::unordered_set<Lambda*> headers;
+    std::unordered_map<Lambda*, const LoopHeader*> headers;
     std::unordered_set<Lambda*> done;
     std::vector<Branch> branches;
+    std::vector<LoopInfo> loop_stack;
 };
 
-int PartialEvaluator::order(Lambda* nsrc, Lambda* ndst) {
+bool LoopInfo::is_exiting(Lambda* lambda) const {
+    return loop()->exitings().contains(evaluator_->new2old[lambda]);
+}
+
+int PartialEvaluator::order(Lambda* nsrc, Lambda* ndst) const {
     auto src = new2old[nsrc];
     auto dst = new2old[ndst];
     auto hsrc = loops.lambda2header(src);
@@ -98,7 +129,7 @@ int PartialEvaluator::order(Lambda* nsrc, Lambda* ndst) {
 void PartialEvaluator::collect_headers(const LoopNode* n) {
     if (const LoopHeader* header = n->isa<LoopHeader>()) {
         for (auto lambda : header->lambdas())
-            headers.insert(lambda);
+            headers[lambda] = header;
         for (auto child : header->children())
             collect_headers(child);
     }
@@ -161,6 +192,9 @@ void PartialEvaluator::process() {
                     f_idxs.push_back(i);
                 }
             }
+
+            if (order(cur, dst) == 1)
+                continue;
 
             if (!fold) {
                 branches.push_back(Branch({dst}));

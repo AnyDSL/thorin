@@ -20,7 +20,7 @@ int main_impala() {
 
     load_kernel("simple-gpu64.nvvm", "simple");
     get_tex_ref("texture");
-    bind_tex(dev, CU_AD_FORMAT_FLOAT);
+    bind_tex(dev, CU_AD_FORMAT_SIGNED_INT32);
     set_kernel_arg(&dev);
     set_problem_size(1024, 1, 1);
     launch_kernel("simple");

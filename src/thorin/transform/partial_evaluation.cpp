@@ -12,33 +12,6 @@
 
 namespace thorin {
 
-class Branch {
-public:
-    Branch(const std::vector<Lambda*>& succs)
-        : index_(0)
-        , succs_(succs)
-    {
-        assert(!succs_.empty());
-    }
-    Branch(std::initializer_list<Lambda*> succs)
-        : index_(0)
-        , succs_(succs)
-    {
-        assert(!succs_.empty());
-    }
-
-    Lambda* cur() const { return succs_[index_]; }
-    bool inc() { 
-        assert(index_ < succs_.size()); 
-        ++index_; 
-        return index_ == succs_.size();
-    }
-
-private:
-    size_t index_;
-    std::vector<Lambda*> succs_;
-};
-
 class PartialEvaluator;
 
 class LoopInfo {
@@ -104,7 +77,7 @@ public:
         return nullptr;
     }
 
-    void push(const LoopHeader* header) {
+    void push_loop(const LoopHeader* header) {
         loop_stack_.emplace_back(this, header);
     }
 
@@ -119,13 +92,19 @@ public:
         return nullptr;
     }
 
+    void push(Lambda* src, Lambda* dst) {
+        int ord = order(src, dst);
+        if (size_t(ord) >= ord2stack_.size())
+            ord2stack_.resize(ord+1);
+        ord2stack_[ord].push_back(dst);
+    }
+
     World& world_;
     Scope scope_;
     LoopTree loops_;
     Lambda2Lambda new2old_;
     std::unordered_map<Lambda*, const LoopHeader*> lambda2header_;
     std::unordered_set<Lambda*> done_;
-    std::vector<Branch> branches_;
     std::vector<LoopInfo> loop_stack_;
     std::vector<std::vector<Lambda*>> ord2stack_;
 };
@@ -174,15 +153,8 @@ void PartialEvaluator::collect_headers(const LoopNode* n) {
 }
 
 void PartialEvaluator::process() {
-    for (auto top : top_level_lambdas(world_)) {
-        branches_.push_back(Branch({top}));
-
-        while (!branches_.empty()) {
-            auto& branch = branches_.back();
-            auto cur = branch.cur();
-            if (branch.inc())
-                branches_.pop_back();
-
+    for (auto cur : top_level_lambdas(world_)) {
+        do {
             if (done_.find(cur) != done_.end())
                 continue;
             done_.insert(cur);
@@ -195,27 +167,16 @@ void PartialEvaluator::process() {
             bool fold = false;
 
             auto to = cur->to();
-             if (auto run = to->isa<Run>()) {
+            if (auto run = to->isa<Run>()) {
                 to = run->def();
                 fold = true;
-             }
+            }
 
             Lambda* dst = to->isa_lambda();
 
             if (dst == nullptr) {
-                if (!succs.empty()) {
-                    std::sort(succs.begin(), succs.end(), [&] (Lambda* l1, Lambda* l2) {
-                        return order(cur, l1) < order(cur, l2);
-                    });
-                    branches_.emplace_back(succs);
-
-                    for (auto succ : succs) {
-                        int ord = order(cur, succ);
-                        if (ord > 1) {
-
-                        }
-                    }
-                }
+                for (auto succ : succs)
+                    push(cur, succ);
                 continue;
             }
 
@@ -251,12 +212,12 @@ void PartialEvaluator::process() {
                 std::cout << cur->unique_name() << std::endl;
                 std::cout << dst->unique_name() << std::endl;
                 assert(ord == NEXT_SCC);
-                push(header);
+                push_loop(header);
             } else {
             }
 
             if (!fold) {
-                branches_.push_back(Branch({dst}));
+                push(cur, dst);
                 continue;
             }
 
@@ -274,16 +235,16 @@ void PartialEvaluator::process() {
                     if (mapped != lambda)
                         mapped->update_to(world_.run(mapped->to()));
                 }
-                branches_.push_back(Branch({f_to}));
+                push(cur, f_to);
             } else {
                 Def2Def r_map;
                 auto r_to = drop(scope, r_map, r_idxs, r_args);
                 r_map[to] = r_to;
                 update_new2old(r_map);
                 rewrite_jump(cur, r_to, r_idxs);
-                branches_.push_back(Branch({r_to}));
+                push(cur, r_to);
             }
-        }
+        } while ((cur = pop()));
     }
 }
 

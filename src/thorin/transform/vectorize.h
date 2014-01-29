@@ -8,7 +8,7 @@ namespace thorin {
 template<bool> class ScopeBase;
 class Lambda;
 
-Lambda* vectorize(Lambda*, size_t length);
+Lambda* vectorize(Scope&, size_t length);
 
 }
 

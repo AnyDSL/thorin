@@ -9,8 +9,6 @@
 
 namespace thorin {
 
-Array<Lambda*> top_level_lambdas(World& world);
-
 class Scope {
 public:
     enum {
@@ -23,10 +21,6 @@ public:
 
     /// Always builds a unique meta \p Lambda as entry.
     explicit Scope(World& world, ArrayRef<Lambda*> entries, int mode = Forward_No_UniqueExit);
-    /// Always builds a unique dummy node as entry dominating the \p world.
-    explicit Scope(World& world, int mode = Forward_No_UniqueExit)
-        : Scope(world, top_level_lambdas(world), mode)
-    {}
     /// Does not build a meta \p Lambda
     explicit Scope(Lambda* entry, int mode = Forward_No_UniqueExit);
     ~Scope();

@@ -12,9 +12,8 @@ namespace thorin {
 
 class Vectorizer {
 public:
-    Vectorizer(Lambda* entry, size_t length)
-        : entry(entry)
-        , scope(entry)
+    Vectorizer(Scope& scope, size_t length)
+        : scope(scope)
         , postdomtree(scope.reverse())
         , domtree(scope.reverse())
         , length(length)
@@ -31,7 +30,6 @@ public:
 
     World& world() { return scope.world(); }
 
-    Lambda* entry;
     Scope scope;
     const DomTree postdomtree;
     const DomTree domtree;
@@ -59,6 +57,7 @@ const Type* Vectorizer::vectorize_type(const Type* type, size_t length) {
 
 Lambda* Vectorizer::vectorize() {
     std::ostringstream oss;
+    auto entry = scope.entry();
     oss << entry->name << "_x" << length;
     Lambda* vlambda = world().lambda(vectorize_type(entry->pi(), length)->as<Pi>(), Lambda::Attribute(Lambda::Extern), oss.str());
     mapped[entry] = *world().true_mask(length);
@@ -173,6 +172,6 @@ Def Vectorizer::vectorize(Def def, size_t length) {
     return world().rebuild(primop, vops, vectorize_type(primop->type(), length));
 }
 
-Lambda* vectorize(Lambda* entry, size_t length) { return Vectorizer(entry, length).vectorize(); }
+Lambda* vectorize(Scope& scope, size_t length) { return Vectorizer(scope, length).vectorize(); }
 
 }

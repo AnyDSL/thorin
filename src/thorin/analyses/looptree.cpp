@@ -35,6 +35,7 @@ public:
         stack.reserve(looptree.scope().size());
         build();
         propagate_bounds(looptree.root_);
+        analyse_loops(looptree.root_);
     }
 
 private:
@@ -54,6 +55,7 @@ private:
 
     void build();
     static std::pair<size_t, size_t> propagate_bounds(LoopNode* header);
+    void analyse_loops(LoopHeader* header);
     const Scope& scope() const { return looptree.scope(); }
     Number& number(Lambda* lambda) { return numbers[lambda]; }
     size_t& lowlink(Lambda* lambda) { return number(lambda).low; }
@@ -101,7 +103,7 @@ void LoopTreeBuilder::build() {
     for (auto lambda : scope()) // clear all flags
         states[lambda] = 0;
 
-    recurse(looptree.root_ = new LoopHeader(0, -1, std::vector<Lambda*>(0)), {scope().entry()}, 0);
+    recurse(looptree.root_ = new LoopHeader(0, 0, std::vector<Lambda*>(0)), {scope().entry()}, 1);
 }
 
 void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<Lambda*> headers, int depth) {
@@ -172,16 +174,6 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
         } else
             new LoopHeader(parent, depth, headers);
 
-        // for all lambdas in current SCC
-        for (auto header : headers) {
-            for (auto pred : scope().preds(header)) {
-                if (in_scc(pred))
-                    parent->backedges_.emplace_back(pred, header);
-                else
-                    parent->entries_.emplace_back(pred, header);
-            }
-        }
-
         // reset InSCC and OnStack flags
         for (size_t i = b; i != e; ++i)
             states[stack[i]] &= ~(OnStack | InSCC);
@@ -211,6 +203,36 @@ std::pair<size_t, size_t> LoopTreeBuilder::propagate_bounds(LoopNode* n) {
     }
 }
 
+void LoopTreeBuilder::analyse_loops(LoopHeader* header) {
+    header->headers_.insert(header->lambdas().begin(), header->lambdas().end());
+
+    for (auto lambda : header->lambdas()) {
+        for (auto pred : lambda->preds()) {
+            if (looptree.contains(header, pred)) {
+                header->back_edges_.emplace_back(pred, lambda, 0);
+                header->latches_.insert(pred);
+            } else {
+                header->entry_edges_.emplace_back(pred, lambda, 1);
+                header->preheaders_.insert(pred);
+            }
+        }
+    }
+
+    for (auto lambda : looptree.loop_lambdas(header)) {
+        for (auto succ : lambda->succs()) {
+            if (!looptree.contains(header, succ)) {
+                header->exit_edges_.emplace_back(lambda, succ, looptree.lambda2header(succ)->depth() - header->depth());
+                header->exitings_.insert(lambda);
+                header->exits_.insert(succ);
+            }
+        }
+    }
+
+    for (auto child : header->children())
+        if (auto header = child->isa<LoopHeader>())
+            analyse_loops(header);
+}
+
 //------------------------------------------------------------------------------
 
 LoopNode::LoopNode(LoopHeader* parent, int depth, const std::vector<Lambda*>& lambdas)
@@ -222,7 +244,52 @@ LoopNode::LoopNode(LoopHeader* parent, int depth, const std::vector<Lambda*>& la
         parent_->children_.push_back(this);
 }
 
+std::ostream& LoopNode::indent() const {
+    for (int i = 0; i < depth(); ++i) 
+        std::cout << '\t';
+    return std::cout;
+}
+
+void LoopLeaf::dump() const {
+    indent() << '<' << lambda()->unique_name() << '>' << std::endl;
+    indent() << "+ dfs: " << dfs_index() << std::endl;
+}
+
+#define DUMP_SET(set) \
+    indent() << "+ " #set ": "; \
+    for (auto lambda : set()) \
+        std::cout << lambda->unique_name() << " "; \
+    std::cout << std::endl;
+
+#define DUMP_EDGES(edges) \
+    indent() << "+ " #edges ": "; \
+    for (auto edge : edges()) \
+        edge.dump(); \
+    std::cout << std::endl;
+
+void LoopHeader::dump() const {
+    indent() << "( ";
+    for (auto header : lambdas())
+        std::cout << header->unique_name() << " ";
+    std::cout << ") " << std::endl;
+    indent() << "+ dfs: " << dfs_begin() << " .. " << dfs_end() << std::endl;
+
+    DUMP_SET(preheaders)
+    DUMP_SET(latches)
+    DUMP_SET(exitings)
+    DUMP_EDGES(entry_edges)
+    DUMP_EDGES(back_edges)
+    DUMP_EDGES(exit_edges)
+
+    for (auto child : children())
+        child->dump();
+}
+
 //------------------------------------------------------------------------------
+
+void Edge::dump() {
+    std::cout << src_->unique_name() << " ->(" << levels_ << ") " << dst_->unique_name() << "   ";
+}
 
 LoopTree::LoopTree(const Scope& scope)
     : scope_(scope)
@@ -235,6 +302,18 @@ bool LoopTree::contains(const LoopHeader* header, Lambda* lambda) const {
     if (!scope().contains(lambda)) return false;
     size_t dfs = lambda2dfs(lambda);
     return header->dfs_begin() <= dfs && dfs < header->dfs_end();
+}
+
+const LoopHeader* LoopTree::lambda2header(Lambda* lambda) const {
+    auto leaf = lambda2leaf(lambda);
+    if (leaf == nullptr)
+        return root();
+    auto header = leaf->parent();
+    for (; !header->is_root(); header = header->parent()) {
+        if (header->headers().contains(lambda))
+            break;
+    }
+    return header;
 }
 
 Array<Lambda*> LoopTree::loop_lambdas(const LoopHeader* header) {
@@ -251,27 +330,6 @@ Array<Lambda*> LoopTree::loop_lambdas_in_rpo(const LoopHeader* header) {
         return scope_.sid(l1) < scope_.sid(l2);
     });
     return result;
-}
-
-void LoopTree::dump() const {
-    std::cout << root_;
-}
-
-//------------------------------------------------------------------------------
-
-std::ostream& operator << (std::ostream& o, const LoopNode* node) {
-    for (int i = 0; i < node->depth(); ++i)
-        o << '\t';
-    for (auto header : node->lambdas())
-        o << header->unique_name() << " ";
-    if (auto header = node->isa<LoopHeader>()) {
-        o << ": " << header->dfs_begin() << "/" << header->dfs_end() << std::endl;
-        for (auto child : header->children())
-            o << child;
-    } else
-        o<< ": " << node->as<LoopLeaf>()->dfs_index() << std::endl;
-
-    return o;
 }
 
 //------------------------------------------------------------------------------

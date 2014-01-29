@@ -3,14 +3,15 @@
 #include "thorin/world.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/analyses/top_level_scopes.h"
 #include "thorin/analyses/verify.h"
 
 namespace thorin {
 
 class Merger {
 public:
-    Merger(World& world)
-        : scope(world)
+    Merger(Scope& scope)
+        : scope(scope)
         , domtree(scope)
     {
         merge(domtree.lookup(scope.entry()));
@@ -20,7 +21,7 @@ public:
     const DomNode* dom_succ(const DomNode* n);
     World& world() { return scope.world(); }
 
-    Scope scope;
+    Scope& scope;
     const DomTree domtree;
 };
 
@@ -50,6 +51,9 @@ void Merger::merge(const DomNode* n) {
         merge(child);
 }
 
-void merge_lambdas(World& world) { Merger merger(world); }
+void merge_lambdas(World& world) { 
+    for (auto scope : top_level_scopes(world))
+        Merger merger(*scope); 
+}
 
 } // namespace thorin

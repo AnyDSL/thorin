@@ -43,6 +43,7 @@ class PartialEvaluator;
 
 class LoopInfo {
 public:
+    LoopInfo() {}
     LoopInfo(PartialEvaluator* evaluator, const LoopHeader* loop)
         : evaluator_(evaluator)
         , loop_(loop)
@@ -70,14 +71,14 @@ static std::vector<Lambda*> top_level_lambdas(World& world) {
 class PartialEvaluator {
 public:
     PartialEvaluator(World& world)
-        : world(world)
-        , scope(world, top_level_lambdas(world))
-        , loops(scope)
+        : world_(world)
+        , scope_(world, top_level_lambdas(world))
+        , loops_(scope_)
     {
-        //loops.dump();
-        collect_headers(loops.root());
+        loops_.dump();
+        collect_headers(loops_.root());
         for (auto lambda : world.lambdas())
-            new2old[lambda] = lambda;
+            new2old_[lambda] = lambda;
     }
 
     void collect_headers(const LoopNode*);
@@ -86,71 +87,108 @@ public:
     void remove_runs(Lambda* lambda);
     void update_new2old(const Def2Def& map);
     int order(Lambda* src, Lambda* dst) const;
+
     const LoopHeader* is_header(Lambda* lambda) const {
-        auto i = headers.find(new2old[lambda]);
-        if (i != headers.end())
+        auto i = lambda2header_.find(new2old_[lambda]);
+        if (i != lambda2header_.end())
             return i->second;
         return nullptr;
     }
 
-    World& world;
-    Scope scope;
-    LoopTree loops;
-    Lambda2Lambda new2old;
-    std::unordered_map<Lambda*, const LoopHeader*> headers;
-    std::unordered_set<Lambda*> done;
-    std::vector<Branch> branches;
-    std::vector<LoopInfo> loop_stack;
+    const LoopHeader* on_stack(Lambda* lambda) const {
+        auto parent = loops_.lambda2header(new2old_[lambda]);
+        for (auto& info : loop_stack_) {
+            if (info.loop() == parent)
+                return parent;
+        }
+        return nullptr;
+    }
+
+    void push(const LoopHeader* header) {
+        loop_stack_.emplace_back(this, header);
+    }
+
+    Lambda* pop() {
+        for (auto& stack : ord2stack_) {
+            if (!stack.empty()) {
+                auto result = stack.back();
+                stack.pop_back();
+                return result;
+            }
+        }
+        return nullptr;
+    }
+
+    World& world_;
+    Scope scope_;
+    LoopTree loops_;
+    Lambda2Lambda new2old_;
+    std::unordered_map<Lambda*, const LoopHeader*> lambda2header_;
+    std::unordered_set<Lambda*> done_;
+    std::vector<Branch> branches_;
+    std::vector<LoopInfo> loop_stack_;
+    std::vector<std::vector<Lambda*>> ord2stack_;
 };
 
 bool LoopInfo::is_exiting(Lambda* lambda) const {
-    return loop()->exitings().contains(evaluator_->new2old[lambda]);
+    return loop()->exitings().contains(evaluator_->new2old_[lambda]);
 }
 
-int PartialEvaluator::order(Lambda* nsrc, Lambda* ndst) const {
-    auto src = new2old[nsrc];
-    auto dst = new2old[ndst];
-    auto hsrc = loops.lambda2header(src);
-    auto hdst = loops.lambda2header(dst);
+enum {
+    NEXT_SCC = 0,
+    FORWARD = 1,
+    BACK = 2,
+    EXIT = 3
+};
 
-    if (hsrc == hdst) { // same SCC?
+int PartialEvaluator::order(Lambda* nsrc, Lambda* ndst) const {
+    auto src = new2old_[nsrc];
+    auto dst = new2old_[ndst];
+    auto hsrc = loops_.lambda2header(src);
+    auto hdst = loops_.lambda2header(dst);
+
+    if (hsrc == hdst) {     // same SCC?
         if (hsrc->headers().contains(dst))
-            return 1;   // backedge
-        return 0;       // forward jump
+            return BACK;    // backedge
+        return FORWARD;     // forward jump
     }
-    if (hdst->parent() == hsrc)
-        return -1;      // jump to next SCC nesting level
 
     int result = hsrc->depth() - hdst->depth();
+
+    if (hdst->parent() == hsrc) {
+        assert(result == -1);
+        return NEXT_SCC;    // jump to next SCC nesting level
+    }
+
     assert(result > 0);
-    return result+1;   // disambiguate from backedge
+    return result+2;        // disambiguate from backedge
 }
 
 void PartialEvaluator::collect_headers(const LoopNode* n) {
     if (const LoopHeader* header = n->isa<LoopHeader>()) {
         for (auto lambda : header->lambdas())
-            headers[lambda] = header;
+            lambda2header_[lambda] = header;
         for (auto child : header->children())
             collect_headers(child);
     }
 }
 
 void PartialEvaluator::process() {
-    for (auto top : top_level_lambdas(world)) {
-        branches.push_back(Branch({top}));
+    for (auto top : top_level_lambdas(world_)) {
+        branches_.push_back(Branch({top}));
 
-        while (!branches.empty()) {
-            auto& branch = branches.back();
+        while (!branches_.empty()) {
+            auto& branch = branches_.back();
             auto cur = branch.cur();
             if (branch.inc())
-                branches.pop_back();
+                branches_.pop_back();
 
-            if (done.find(cur) != done.end())
+            if (done_.find(cur) != done_.end())
                 continue;
-            done.insert(cur);
+            done_.insert(cur);
 
             std::cout << "cur: " << cur->unique_name() << std::endl;
-            emit_thorin(world);
+            emit_thorin(world_);
             assert(!cur->empty());
 
             auto succs = cur->direct_succs();
@@ -169,7 +207,14 @@ void PartialEvaluator::process() {
                     std::sort(succs.begin(), succs.end(), [&] (Lambda* l1, Lambda* l2) {
                         return order(cur, l1) < order(cur, l2);
                     });
-                    branches.emplace_back(succs);
+                    branches_.emplace_back(succs);
+
+                    for (auto succ : succs) {
+                        int ord = order(cur, succ);
+                        if (ord > 1) {
+
+                        }
+                    }
                 }
                 continue;
             }
@@ -193,11 +238,25 @@ void PartialEvaluator::process() {
                 }
             }
 
-            if (order(cur, dst) == 1)
+            int ord = order(cur, dst);
+            if (ord == BACK)
                 continue;
 
+            if (ord >= EXIT) {  // exting edge
+                loop_stack_.resize(loop_stack_.size() - ord - 1);
+            }
+
+            if (auto header = is_header(dst)) {
+                std::cout << ord << std::endl;
+                std::cout << cur->unique_name() << std::endl;
+                std::cout << dst->unique_name() << std::endl;
+                assert(ord == NEXT_SCC);
+                push(header);
+            } else {
+            }
+
             if (!fold) {
-                branches.push_back(Branch({dst}));
+                branches_.push_back(Branch({dst}));
                 continue;
             }
 
@@ -213,16 +272,16 @@ void PartialEvaluator::process() {
                 for (auto lambda : scope.rpo()) {
                     auto mapped = f_map[lambda]->as_lambda();
                     if (mapped != lambda)
-                        mapped->update_to(world.run(mapped->to()));
+                        mapped->update_to(world_.run(mapped->to()));
                 }
-                branches.push_back(Branch({f_to}));
+                branches_.push_back(Branch({f_to}));
             } else {
                 Def2Def r_map;
                 auto r_to = drop(scope, r_map, r_idxs, r_args);
                 r_map[to] = r_to;
                 update_new2old(r_map);
                 rewrite_jump(cur, r_to, r_idxs);
-                branches.push_back(Branch({r_to}));
+                branches_.push_back(Branch({r_to}));
             }
         }
     }
@@ -253,8 +312,8 @@ void PartialEvaluator::update_new2old(const Def2Def& old2new) {
         if (auto olambda = p.first->isa_lambda()) {
             auto nlambda = p.second->as_lambda();
             //std::cout << nlambda->unique_name() << " -> "  << olambda->unique_name() << std::endl;
-            assert(new2old.contains(olambda));
-            new2old[nlambda] = new2old[olambda];
+            assert(new2old_.contains(olambda));
+            new2old_[nlambda] = new2old_[olambda];
         }
     }
 }

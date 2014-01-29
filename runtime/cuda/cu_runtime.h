@@ -31,6 +31,7 @@ CUdevice cuDevice;
 CUcontext cuContext;
 CUmodule cuModule;
 CUfunction cuFunction;
+CUtexref cuTexture;
 void **cuArgs;
 int cuArgIdx, cuArgIdxMax;
 dim3 cuDimProblem;
@@ -186,6 +187,19 @@ void load_kernel(const char *file_name, const char *kernel_name) {
     create_module_kernel(PTX, kernel_name);
 }
 
+void get_tex_ref(CUmodule &module, const char *name) {
+    CUresult err = CUDA_SUCCESS;
+
+    err = cuModuleGetTexRef(&cuTexture, cuModule, name);
+    checkErrDrv(err, "cuModuleGetTexRef()");
+}
+
+void bind_tex(CUdeviceptr mem, CUarray_format format) {
+    checkErrDrv(cuTexRefSetFormat(cuTexture, format, 1), "cuTexRefSetFormat()");
+    checkErrDrv(cuTexRefSetFlags(cuTexture, CU_TRSF_READ_AS_INTEGER), "cuTexRefSetFlags()");
+    checkErrDrv(cuTexRefSetAddress(0, cuTexture, mem, WIDTH * HEIGHT * sizeof(float), "cuTexRefSetAddress()");
+}
+
 CUdeviceptr malloc_memory(size_t size) {
     CUresult err = CUDA_SUCCESS;
     CUdeviceptr mem;
@@ -298,6 +312,10 @@ void nvvm_write_memory(CUdeviceptr dev, void *host, size_t size) { write_memory(
 void nvvm_read_memory(CUdeviceptr dev, void *host, size_t size) { read_memory(dev, host, size); }
 
 void nvvm_load_kernel(const char *file_name, const char *kernel_name) { load_kernel(file_name, kernel_name); }
+
+void nvvm_get_tex_ref(CUmodule &module, const char *name) { get_tex_ref(module, name); }
+void nvvm_bind_tex(CUdeviceptr mem, CUarray_format format) { bind_tex(mem, format); }
+
 void nvvm_set_kernel_arg(void *host) { set_kernel_arg(host); }
 void nvvm_set_problem_size(size_t size_x, size_t size_y, size_t size_z) { set_problem_size(size_x, size_y, size_z); }
 

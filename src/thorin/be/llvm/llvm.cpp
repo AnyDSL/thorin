@@ -711,17 +711,16 @@ void emit_llvm(World& world) {
     // determine different parts of the world which need to be compiled differently
     for (auto scope : top_level_scopes(world)) {
         auto lambda = scope->entry();
-        if (lambda->is_connected_to_builtin(Lambda::NVVM)) {
-            auto nvvm_lambda = import(nvvm, lambda)->as_lambda();
-            nvvm_lambda->attribute().set(Lambda::Extern);
-            nvvm_lambda->name = lambda->unique_name();
-        } else if (lambda->is_connected_to_builtin(Lambda::SPIR)) {
-            auto spir_lambda = import(spir, lambda)->as_lambda();
-            spir_lambda->attribute().set(Lambda::Extern);
-            spir_lambda->name = lambda->unique_name();
-        } else
+        Lambda* imported = nullptr;
+        if (lambda->is_connected_to_builtin(Lambda::NVVM))
+            imported = import(nvvm, lambda)->as_lambda();
+        else if (lambda->is_connected_to_builtin(Lambda::SPIR))
+            imported = import(spir, lambda)->as_lambda();
+        else
             continue;
 
+        imported->name = lambda->unique_name();
+        imported->attribute().set(Lambda::Extern);
         lambda->name = lambda->unique_name();
         lambda->destroy_body();
         lambda->attribute().set(Lambda::Extern);

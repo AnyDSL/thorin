@@ -12,6 +12,13 @@
 
 namespace thorin {
 
+enum {
+    NEXT_SCC = 0,
+    FORWARD = 1,
+    BACK = 2,
+    EXIT = 3
+};
+
 class PartialEvaluator;
 
 class LoopInfo {
@@ -24,8 +31,8 @@ public:
     {}
 
     const LoopHeader* loop() const { return loop_; }
+    bool is_evil() { return evil_; }
     void set_evil() { evil_ = true; }
-    bool is_exiting(Lambda*) const;
 
 private:
     PartialEvaluator* evaluator_;
@@ -80,6 +87,12 @@ public:
     void push_loop(const LoopHeader* header) {
         loop_stack_.emplace_back(this, header);
     }
+    void pop_loop(int ord) {
+        loop_stack_.resize(loop_stack_.size() - (ord - (EXIT-1)));
+    }
+    LoopInfo& top_loop() {
+        return loop_stack_.back();
+    }
 
     Lambda* pop() {
         for (auto& stack : ord2stack_) {
@@ -92,11 +105,18 @@ public:
         return nullptr;
     }
 
-    void push(Lambda* src, Lambda* dst) {
+    void push(Lambda* src, Lambda* dst, bool evil = false) {
         int ord = order(src, dst);
         if (size_t(ord) >= ord2stack_.size())
             ord2stack_.resize(ord+1);
         ord2stack_[ord].push_back(dst);
+
+        if (evil && ord >= EXIT) {
+            ord -= (EXIT-1);
+            for (auto i = loop_stack_.rbegin(), e = loop_stack_.rend(); i != e && ord >= 0; ++i, --ord) {
+                i->set_evil();
+            }
+        }
     }
 
     World& world_;
@@ -107,17 +127,6 @@ public:
     std::unordered_set<Lambda*> done_;
     std::vector<LoopInfo> loop_stack_;
     std::vector<std::vector<Lambda*>> ord2stack_;
-};
-
-bool LoopInfo::is_exiting(Lambda* lambda) const {
-    return loop()->exitings().contains(evaluator_->new2old_[lambda]);
-}
-
-enum {
-    NEXT_SCC = 0,
-    FORWARD = 1,
-    BACK = 2,
-    EXIT = 3
 };
 
 int PartialEvaluator::order(Lambda* nsrc, Lambda* ndst) const {
@@ -176,7 +185,7 @@ void PartialEvaluator::process() {
 
             if (dst == nullptr) {
                 for (auto succ : succs)
-                    push(cur, succ);
+                    push(cur, succ, true);
                 continue;
             }
 
@@ -200,25 +209,27 @@ void PartialEvaluator::process() {
             }
 
             int ord = order(cur, dst);
-            if (ord == BACK)
-                continue;
-
-            if (ord >= EXIT) {  // exting edge
-                loop_stack_.resize(loop_stack_.size() - ord - 1);
-            }
-
-            if (auto header = is_header(dst)) {
-                std::cout << ord << std::endl;
-                std::cout << cur->unique_name() << std::endl;
-                std::cout << dst->unique_name() << std::endl;
-                assert(ord == NEXT_SCC);
-                push_loop(header);
+            if (ord == BACK) {
+                auto info = top_loop();
+                if (info.is_evil())
+                    continue;
             } else {
-            }
+                if (ord >= EXIT) {  // exting edge
+                    pop_loop(ord);
+                }
 
-            if (!fold) {
-                push(cur, dst);
-                continue;
+                if (auto header = is_header(dst)) {
+                    std::cout << ord << std::endl;
+                    std::cout << cur->unique_name() << std::endl;
+                    std::cout << dst->unique_name() << std::endl;
+                    assert(ord == NEXT_SCC);
+                    push_loop(header);
+                }
+
+                if (!fold) {
+                    push(cur, dst);
+                    continue;
+                }
             }
 
             Scope scope(dst);

@@ -1,4 +1,3 @@
-#if 0
 #include <iostream>
 #include <queue>
 
@@ -6,6 +5,7 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/looptree.h"
 #include "thorin/be/thorin.h"
+#include "thorin/analyses/top_level_scopes.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/transform/merge_lambdas.h"
 
@@ -38,11 +38,20 @@ private:
     std::vector<Lambda*> succs_;
 };
 
+
+static std::vector<Lambda*> top_level_lambdas(World& world) {
+    std::vector<Lambda*> result;
+    auto scopes = top_level_scopes(world);
+    for (auto scope : scopes)
+        result.push_back(scope->entry());
+    return result;
+}
+
 class PartialEvaluator {
 public:
     PartialEvaluator(World& world)
         : world(world)
-        , scope(world)
+        , scope(world, top_level_lambdas(world))
         , loops(scope)
     {
         //loops.dump();
@@ -56,6 +65,7 @@ public:
     void rewrite_jump(Lambda* lambda, Lambda* to, ArrayRef<size_t> idxs);
     void remove_runs(Lambda* lambda);
     void update_new2old(const Def2Def& map);
+    int order(Lambda* src, Lambda* dst);
 
     World& world;
     Scope scope;
@@ -65,6 +75,25 @@ public:
     std::unordered_set<Lambda*> done;
     std::vector<Branch> branches;
 };
+
+int PartialEvaluator::order(Lambda* nsrc, Lambda* ndst) {
+    auto src = new2old[nsrc];
+    auto dst = new2old[ndst];
+    auto hsrc = loops.lambda2header(src);
+    auto hdst = loops.lambda2header(dst);
+
+    if (hsrc == hdst) { // same SCC?
+        if (hsrc->headers().contains(dst))
+            return 1;   // backedge
+        return 0;       // forward jump
+    }
+    if (hdst->parent() == hsrc)
+        return -1;      // jump to next SCC nesting level
+
+    int result = hsrc->depth() - hdst->depth();
+    assert(result > 0);
+    return result+1;   // disambiguate from backedge
+}
 
 void PartialEvaluator::collect_headers(const LoopNode* n) {
     if (const LoopHeader* header = n->isa<LoopHeader>()) {
@@ -105,8 +134,12 @@ void PartialEvaluator::process() {
             Lambda* dst = to->isa_lambda();
 
             if (dst == nullptr) {
-                if (!succs.empty())
+                if (!succs.empty()) {
+                    std::sort(succs.begin(), succs.end(), [&] (Lambda* l1, Lambda* l2) {
+                        return order(cur, l1) < order(cur, l2);
+                    });
                     branches.emplace_back(succs);
+                }
                 continue;
             }
 
@@ -200,4 +233,3 @@ void partial_evaluation(World& world) {
 }
 
 }
-#endif

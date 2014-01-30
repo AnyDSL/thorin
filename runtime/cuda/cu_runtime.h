@@ -34,7 +34,7 @@ CUfunction cuFunction;
 CUtexref cuTexture;
 void **cuArgs;
 int cuArgIdx, cuArgIdxMax;
-dim3 cuDimProblem;
+dim3 cuDimProblem, cuDimBlock;
 
 
 #define checkErrNvvm(err, name) __checkNvvmErrors (err, name, __FILE__, __LINE__)
@@ -239,7 +239,6 @@ void synchronize() {
 }
 
 
-// set problem size
 void set_problem_size(size_t size_x, size_t size_y, size_t size_z) {
     cuDimProblem.x = size_x;
     cuDimProblem.y = size_y;
@@ -247,7 +246,13 @@ void set_problem_size(size_t size_x, size_t size_y, size_t size_z) {
 }
 
 
-// set kernel argument
+void set_config_size(size_t size_x, size_t size_y, size_t size_z) {
+    cuDimBlock.x = size_x;
+    cuDimBlock.y = size_y;
+    cuDimBlock.z = size_z;
+}
+
+
 void set_kernel_arg(void *host) {
     cuArgIdx++;
     if (cuArgIdx > cuArgIdxMax) {
@@ -259,7 +264,6 @@ void set_kernel_arg(void *host) {
 }
 
 
-// launch kernel
 void launch_kernel(const char *kernel_name) {
     CUresult err = CUDA_SUCCESS;
     CUevent start, end;
@@ -270,18 +274,17 @@ void launch_kernel(const char *kernel_name) {
     error_string += ")";
 
     // compute launch configuration
-    dim3 block(128, 1, 1);
     dim3 grid;
-    grid.x = cuDimProblem.x / block.x;
-    grid.y = cuDimProblem.y / block.y;
-    grid.z = cuDimProblem.z / block.z;
+    grid.x = cuDimProblem.x / cuDimBlock.x;
+    grid.y = cuDimProblem.y / cuDimBlock.y;
+    grid.z = cuDimProblem.z / cuDimBlock.z;
 
     cuEventCreate(&start, event_flags);
     cuEventCreate(&end, event_flags);
     cuEventRecord(start, 0);
 
     // launch the kernel
-    err = cuLaunchKernel(cuFunction, grid.x, grid.y, grid.z, block.x, block.y, block.z, 0, NULL, cuArgs, NULL);
+    err = cuLaunchKernel(cuFunction, grid.x, grid.y, grid.z, cuDimBlock.x, cuDimBlock.y, cuDimBlock.z, 0, NULL, cuArgs, NULL);
     checkErrDrv(err, error_string.c_str());
     err = cuCtxSynchronize();
     checkErrDrv(err, error_string.c_str());
@@ -293,7 +296,7 @@ void launch_kernel(const char *kernel_name) {
     cuEventDestroy(start);
     cuEventDestroy(end);
 
-    std::cerr << "Kernel timing for '" << kernel_name << "' (" << block.x*block.y << ": " << block.x << "x" << block.y << "): " << time << "(ms)" << std::endl;
+    std::cerr << "Kernel timing for '" << kernel_name << "' (" << cuDimBlock.x*cuDimBlock.y << ": " << cuDimBlock.x << "x" << cuDimBlock.y << "): " << time << "(ms)" << std::endl;
 
     // reset argument index
     cuArgIdx = 0;
@@ -318,6 +321,7 @@ void nvvm_bind_tex(CUdeviceptr mem, CUarray_format format) { bind_tex(mem, forma
 
 void nvvm_set_kernel_arg(void *host) { set_kernel_arg(host); }
 void nvvm_set_problem_size(size_t size_x, size_t size_y, size_t size_z) { set_problem_size(size_x, size_y, size_z); }
+void nvvm_set_config_size(size_t size_x, size_t size_y, size_t size_z) { set_config_size(size_x, size_y, size_z); }
 
 void nvvm_launch_kernel(const char *kernel_name) { launch_kernel(kernel_name); }
 void nvvm_synchronize() { synchronize(); }

@@ -301,7 +301,7 @@ void CodeGen::emit() {
     {
         std::string error;
         auto bc_name = world_.name() + ".bc";
-        llvm::raw_fd_ostream out(bc_name.c_str(), error, llvm::raw_fd_ostream::F_Binary);
+        llvm::raw_fd_ostream out(bc_name.c_str(), error, llvm::sys::fs::F_Binary);
         if (!error.empty())
             throw std::runtime_error("cannot write '" + bc_name + "': " + error);
 

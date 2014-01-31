@@ -1,5 +1,5 @@
-#ifndef THORIN_CAST_HEADER
-#define THORIN_CAST_HEADER
+#ifndef THORIN_CAST_HEADER_H
+#define THORIN_CAST_HEADER_H
 
 #include <cstring>
 #include <type_traits>
@@ -95,6 +95,6 @@ public:
     template<class To> const To* isa() const { return thorin::dcast<To>(this); }
 };
 
-} // namespace thorin
+}
 
-#endif // DSLU_CAST_HEADER
+#endif

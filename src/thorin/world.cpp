@@ -44,7 +44,7 @@ namespace thorin {
  */
 
 World::World(std::string name)
-    : name_(name)
+	: name_(name)
     , primops_(1031)
     , types_(1031)
     , gid_(0)

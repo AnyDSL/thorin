@@ -45,7 +45,7 @@ namespace thorin {
 
 World::World(std::string name)
 	: name_(name)
-    , primops_(1031)
+	, primops_(1031)
     , types_(1031)
     , gid_(0)
     , sigma0_ (unify(new Sigma(*this, ArrayRef<const Type*>())))

@@ -99,12 +99,12 @@ Lambda* CodeGen::emit_spir(Lambda* lambda) {
     // get input
     auto it_space  = lambda->arg(1)->as<Tuple>();
     auto it_config = lambda->arg(2)->as<Tuple>();
-    auto kernel = lambda->arg(3)->as_lambda();
+    auto kernel = lambda->arg(3)->as<Global>()->init()->as<Lambda>()->name;
     auto ret = lambda->arg(4)->as_lambda();
 
     // load kernel
-    auto module_name = builder_.CreateGlobalStringPtr(kernel->name);
-    auto kernel_name = builder_.CreateGlobalStringPtr("kernel");
+    auto module_name = builder_.CreateGlobalStringPtr(world_.name() + "_spir.ll");
+    auto kernel_name = builder_.CreateGlobalStringPtr(kernel);
     llvm::Value* load_args[] = { module_name, kernel_name };
     builder_.CreateCall(spir("spir_build_program_and_kernel"), load_args);
     // fetch values and create external calls for initialization
@@ -146,13 +146,13 @@ Lambda* CodeGen::emit_spir(Lambda* lambda) {
         builder_.getInt64(it_config->op(1)->as<PrimLit>()->qu64_value()),
         builder_.getInt64(it_config->op(2)->as<PrimLit>()->qu64_value())
     };
-    builder_.CreateCall(nvvm("spir_set_config_size"), config_args);
+    builder_.CreateCall(spir("spir_set_config_size"), config_args);
     // launch
     builder_.CreateCall(spir("spir_launch_kernel"), { kernel_name });
     // synchronize
     builder_.CreateCall(spir("spir_synchronize"));
 
-    // fetch data back to CPU
+    // back-fetch to CPU
     for (size_t i = 5, e = lambda->num_args(); i < e; ++i) {
         Def spir_param = lambda->arg(i);
         auto entry = device_ptrs[i - 5];

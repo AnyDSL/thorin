@@ -107,7 +107,7 @@ Lambda* CodeGen::emit_spir(Lambda* lambda) {
     auto ret = lambda->arg(4)->as_lambda();
 
     // load kernel
-    auto module_name = builder_.CreateGlobalStringPtr(world_.name() + "_spir.ll");
+    auto module_name = builder_.CreateGlobalStringPtr(world_.name() + "_spir.bc");
     auto kernel_name = builder_.CreateGlobalStringPtr(kernel);
     llvm::Value* load_args[] = { module_name, kernel_name };
     builder_.CreateCall(spir("spir_build_program_and_kernel"), load_args);

@@ -41,6 +41,7 @@ Lambda* CodeGen::emit_nvvm(Lambda* lambda) {
     auto target = lambda->to()->as_lambda();
     assert(target->is_builtin() && target->attribute().is(Lambda::NVVM));
     assert(lambda->num_args() > 4 && "required arguments are missing");
+
     // get input
     auto it_space  = lambda->arg(1)->as<Tuple>();
     auto it_config = lambda->arg(2)->as<Tuple>();
@@ -89,7 +90,7 @@ Lambda* CodeGen::emit_nvvm(Lambda* lambda) {
     // synchronize
     builder_.CreateCall(nvvm("nvvm_synchronize"));
 
-    // back-fetch to cpu
+    // back-fetch to CPU
     for (size_t i = 5, e = lambda->num_args(); i < e; ++i) {
         Def cuda_param = lambda->arg(i);
         auto entry = device_ptrs[i - 5];

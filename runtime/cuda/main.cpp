@@ -23,6 +23,7 @@ int main_impala() {
     bind_tex(dev, CU_AD_FORMAT_SIGNED_INT32);
     set_kernel_arg(&dev);
     set_problem_size(1024, 1, 1);
+    set_config_size(128, 1, 1);
     launch_kernel("simple");
     synchronize(); // optional
     read_memory(dev, host, num*sizeof(int));
@@ -60,6 +61,7 @@ int main_impala() {
     bind_tex(tex, CU_AD_FORMAT_SIGNED_INT32);
     set_kernel_arg(&out);
     set_problem_size(1024, 1, 1);
+    set_config_size(128, 1, 1);
     launch_kernel("simple");
     synchronize(); // optional
     read_memory(out, host, num*sizeof(int));

@@ -38,7 +38,7 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     // append required metadata
     llvm::NamedMDNode* annotation;
     llvm::Value* annotation_values_12[] = { builder_.getInt32(1), builder_.getInt32(2) };
-    size_t num_params = lambda->num_params();
+    size_t num_params = f->arg_size() + 1;
     Array<llvm::Value*> annotation_values_addr_space(num_params);
     Array<llvm::Value*> annotation_values_access_qual(num_params);
     Array<llvm::Value*> annotation_values_type(num_params);
@@ -65,7 +65,7 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
         type_os.flush();
         annotation_values_type[index] = llvm::MDString::get(context_, type_string);
         annotation_values_type_qual[index] = llvm::MDString::get(context_, "");
-        annotation_values_name[index] = llvm::MDString::get(context_, lambda->param(index - 1)->name);
+        annotation_values_name[index] = llvm::MDString::get(context_, lambda->param(index + 1)->name);
     }
     llvm::Value* annotation_values_kernel[] = {
         f,

@@ -34,7 +34,10 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
 
     auto ft = llvm::FunctionType::get(rtype, types, false);
     auto f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, module_);
-    f->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
+
+    // FIXME: assume that kernels return void, other functions not
+    if (!rtype->isVoidTy()) return f;
+
     // append required metadata
     llvm::NamedMDNode* annotation;
     llvm::Value* annotation_values_12[] = { builder_.getInt32(1), builder_.getInt32(2) };
@@ -92,6 +95,7 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     annotation = module_->getOrInsertNamedMetadata("opencl.used.optional.core.features");
     // opencl.compiler.options
     annotation = module_->getOrInsertNamedMetadata("opencl.compiler.options");
+    f->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
     return f;
 }
 

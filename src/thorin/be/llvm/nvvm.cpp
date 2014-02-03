@@ -21,11 +21,15 @@ NVVMCodeGen::NVVMCodeGen(World& world)
 llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
     auto ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
     auto f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->name, module_);
-    f->setCallingConv(llvm::CallingConv::PTX_Kernel);
+
+    // FIXME: assume that kernels return void, other functions not
+    if (!ft->getReturnType()->isVoidTy()) return f;
+
     // append required metadata
     auto annotation = module_->getOrInsertNamedMetadata("nvvm.annotations");
     llvm::Value* annotation_values[] = { f, llvm::MDString::get(context_, "kernel"), builder_.getInt64(1) };
     annotation->addOperand(llvm::MDNode::get(context_, annotation_values));
+    f->setCallingConv(llvm::CallingConv::PTX_Kernel);
     return f;
 }
 

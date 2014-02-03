@@ -437,7 +437,6 @@ void build_program_and_kernel(const char *file_name, const char *kernel_name) {
 }
 
 
-// allocate memory without any alignment considerations
 cl_mem malloc_buffer(size_t size) {
     cl_int err = CL_SUCCESS;
     cl_mem mem;
@@ -458,7 +457,6 @@ void free_buffer(cl_mem mem) {
 }
 
 
-// write to memory
 void write_buffer(cl_mem mem, void *host_mem, size_t size) {
     cl_int err = CL_SUCCESS;
 
@@ -468,7 +466,6 @@ void write_buffer(cl_mem mem, void *host_mem, size_t size) {
 }
 
 
-// read from memory
 void read_buffer(cl_mem mem, void *host_mem, size_t size) {
     cl_int err = CL_SUCCESS;
 
@@ -478,7 +475,6 @@ void read_buffer(cl_mem mem, void *host_mem, size_t size) {
 }
 
 
-// synchronize execution
 void synchronize() {
     cl_int err = CL_SUCCESS;
 
@@ -487,7 +483,6 @@ void synchronize() {
 }
 
 
-// set problem size
 void set_problem_size(size_t size_x, size_t size_y, size_t size_z) {
     global_work_size[0] = size_x;
     global_work_size[1] = size_y;
@@ -495,7 +490,13 @@ void set_problem_size(size_t size_x, size_t size_y, size_t size_z) {
 }
 
 
-// set kernel argument
+void set_config_size(size_t size_x, size_t size_y, size_t size_z) {
+    local_work_size[0] = size_x;
+    local_work_size[1] = size_y;
+    local_work_size[2] = size_z;
+}
+
+
 void set_kernel_arg(void *param, size_t size) {
     cl_int err = CL_SUCCESS;
 
@@ -504,7 +505,6 @@ void set_kernel_arg(void *param, size_t size) {
 }
 
 
-// enqueue and launch kernel
 void launch_kernel(const char *kernel_name) {
     cl_int err = CL_SUCCESS;
     cl_event event;

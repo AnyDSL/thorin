@@ -94,11 +94,14 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
 Lambda* CodeGen::emit_spir(Lambda* lambda) {
     auto target = lambda->to()->as_lambda();
     assert(target->is_builtin() && target->attribute().is(Lambda::SPIR));
-    assert(lambda->num_args() > 3 && "required arguments are missing");
+    assert(lambda->num_args() > 4 && "required arguments are missing");
+
     // get input
-    const uint64_t it_space_x = lambda->arg(1)->as<PrimLit>()->qu64_value();
-    auto kernel = lambda->arg(2)->as_lambda();
-    auto ret = lambda->arg(3)->as_lambda();
+    auto it_space  = lambda->arg(1)->as<Tuple>();
+    auto it_config = lambda->arg(2)->as<Tuple>();
+    auto kernel = lambda->arg(3)->as_lambda();
+    auto ret = lambda->arg(4)->as_lambda();
+
     // load kernel
     auto module_name = builder_.CreateGlobalStringPtr(kernel->name);
     auto kernel_name = builder_.CreateGlobalStringPtr("kernel");
@@ -106,7 +109,7 @@ Lambda* CodeGen::emit_spir(Lambda* lambda) {
     builder_.CreateCall(spir("spir_build_program_and_kernel"), load_args);
     // fetch values and create external calls for initialization
     std::vector<std::pair<llvm::Value*, llvm::Constant*>> device_ptrs;
-    for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
+    for (size_t i = 5, e = lambda->num_args(); i < e; ++i) {
         Def spir_param = lambda->arg(i);
         uint64_t num_elems = uint64_t(-1);
         if (const ArrayAgg* array_value = spir_param->isa<ArrayAgg>())
@@ -130,18 +133,29 @@ Lambda* CodeGen::emit_spir(Lambda* lambda) {
         llvm::Value* arg_args[] = { alloca, size_of_arg };
         builder_.CreateCall(spir("spir_set_kernel_arg"), arg_args);
     }
-    // determine problem size
-    llvm::Value* problem_size_args[] = { builder_.getInt64(it_space_x), builder_.getInt64(1), builder_.getInt64(1) };
+    // setup problem size
+    llvm::Value* problem_size_args[] = {
+        builder_.getInt64(it_space->op(0)->as<PrimLit>()->qu64_value()),
+        builder_.getInt64(it_space->op(1)->as<PrimLit>()->qu64_value()),
+        builder_.getInt64(it_space->op(2)->as<PrimLit>()->qu64_value())
+    };
     builder_.CreateCall(spir("spir_set_problem_size"), problem_size_args);
+    // setup configuration
+    llvm::Value* config_args[] = {
+        builder_.getInt64(it_config->op(0)->as<PrimLit>()->qu64_value()),
+        builder_.getInt64(it_config->op(1)->as<PrimLit>()->qu64_value()),
+        builder_.getInt64(it_config->op(2)->as<PrimLit>()->qu64_value())
+    };
+    builder_.CreateCall(nvvm("spir_set_config_size"), config_args);
     // launch
     builder_.CreateCall(spir("spir_launch_kernel"), { kernel_name });
     // synchronize
     builder_.CreateCall(spir("spir_synchronize"));
 
     // fetch data back to CPU
-    for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
+    for (size_t i = 5, e = lambda->num_args(); i < e; ++i) {
         Def spir_param = lambda->arg(i);
-        auto entry = device_ptrs[i - 4];
+        auto entry = device_ptrs[i - 5];
         // need to fetch back memory
         llvm::Value* args[] = {
             entry.first,

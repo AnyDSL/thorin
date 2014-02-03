@@ -20,6 +20,7 @@ int main_impala() {
     write_buffer(dev, host, num);
 
     set_problem_size(1024, 1, 1);
+    set_config_size(128, 1, 1);
     set_kernel_arg(&dev, sizeof(dev));
     launch_kernel("simple");
     synchronize(); // optional

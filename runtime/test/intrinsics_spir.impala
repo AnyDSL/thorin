@@ -1,0 +1,1 @@
+extern _Z13get_global_idj(int32) -> int64;

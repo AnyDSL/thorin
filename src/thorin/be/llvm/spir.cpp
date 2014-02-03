@@ -18,18 +18,22 @@ SPIRCodeGen::SPIRCodeGen(World& world)
 }
 
 llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
-    llvm::Type* ty = map(lambda->world().pi(lambda->pi()->elems()));
     // iterate over function type and set address space for SPIR
+    llvm::FunctionType* fty = llvm::dyn_cast<llvm::FunctionType>(map(lambda->world().pi(lambda->pi()->elems())));
     llvm::SmallVector<llvm::Type*, 4> types;
-    for (size_t i = 0; i < ty->getFunctionNumParams(); ++i) {
-        llvm::Type* fty = ty->getFunctionParamType(i);
-        if (llvm::isa<llvm::PointerType>(fty))
-            types.push_back(llvm::dyn_cast<llvm::PointerType>(fty)->getElementType()->getPointerTo(1));
+    llvm::Type* rtype = fty->getReturnType();
+    if (llvm::isa<llvm::PointerType>(rtype))
+        rtype = llvm::dyn_cast<llvm::PointerType>(rtype)->getElementType()->getPointerTo(1);
+    for (size_t i = 0; i < fty->getFunctionNumParams(); ++i) {
+        llvm::Type* ty = fty->getFunctionParamType(i);
+        if (llvm::isa<llvm::PointerType>(ty))
+            types.push_back(llvm::dyn_cast<llvm::PointerType>(ty)->getElementType()->getPointerTo(1));
         else
-            types.push_back(fty);
+            types.push_back(ty);
     }
-    auto ft = llvm::FunctionType::get(llvm::IntegerType::getVoidTy(context_), types, false);
-    auto f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "kernel", module_);
+
+    auto ft = llvm::FunctionType::get(rtype, types, false);
+    auto f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, module_);
     f->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
     // append required metadata
     llvm::NamedMDNode* annotation;

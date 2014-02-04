@@ -7,6 +7,7 @@ declare void @nvvm_write_memory(i64, i8*, i64);
 declare void @nvvm_read_memory(i64, i8*, i64);
 
 declare void @nvvm_set_problem_size(i64, i64, i64);
+declare void @nvvm_set_config_size(i64, i64, i64);
 declare void @nvvm_synchronize();
 
 declare void @nvvm_set_kernel_arg(i64*);

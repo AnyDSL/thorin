@@ -9,7 +9,7 @@
 #else // _MSC_VER
 inline __declspec(noreturn) void thorin_dummy_function() { abort(); }
 #define THORIN_UNREACHABLE do { assert(true && "unreachable"); thorin_dummy_function(); } while(0)
-#endif // _MSC_VER
+#endif
 
 #ifndef NDEBUG
 #define THORIN_CALL_ONCE
@@ -17,4 +17,4 @@ inline __declspec(noreturn) void thorin_dummy_function() { abort(); }
 #define THORIN_CALL_ONCE do { static bool once = true; assert(once); once=false; } while(0)
 #endif
 
-#endif // THORIN_UTIL_ASSERT_H
+#endif

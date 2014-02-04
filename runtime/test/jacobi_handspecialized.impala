@@ -32,14 +32,14 @@ fn main() -> int {
     init_zero(out, width, height);
 
 
-    iteration(width, height, |index : int| -> void {
-        let sum = a * arr[index] +
+    iteration(width, height, |x : int, y : int| -> void {
+        let sum = a * arr[y*width + x] +
                   b * (
-                    arr[index - 1 + 0 * width] +
-                    arr[index + 1 + 0 * width] +
-                    arr[index + 0 - 1 * width] +
-                    arr[index + 0 + 1 * width]);
-        out[index] = sum;
+                    arr[(y+0)*width + x - 1] +
+                    arr[(y+0)*width + x + 1] +
+                    arr[(y-1)*width + x + 0] +
+                    arr[(y+1)*width + x + 0]);
+        out[y*width + x] = sum;
     });
 
 

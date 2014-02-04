@@ -18,23 +18,30 @@ SPIRCodeGen::SPIRCodeGen(World& world)
 }
 
 llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
-    llvm::Type* ty = map(lambda->world().pi(lambda->pi()->elems()));
     // iterate over function type and set address space for SPIR
+    llvm::FunctionType* fty = llvm::dyn_cast<llvm::FunctionType>(map(lambda->world().pi(lambda->pi()->elems())));
     llvm::SmallVector<llvm::Type*, 4> types;
-    for (size_t i = 0; i < ty->getFunctionNumParams(); ++i) {
-        llvm::Type* fty = ty->getFunctionParamType(i);
-        if (llvm::isa<llvm::PointerType>(fty))
-            types.push_back(llvm::dyn_cast<llvm::PointerType>(fty)->getElementType()->getPointerTo(1));
+    llvm::Type* rtype = fty->getReturnType();
+    if (llvm::isa<llvm::PointerType>(rtype))
+        rtype = llvm::dyn_cast<llvm::PointerType>(rtype)->getElementType()->getPointerTo(1);
+    for (size_t i = 0; i < fty->getFunctionNumParams(); ++i) {
+        llvm::Type* ty = fty->getFunctionParamType(i);
+        if (llvm::isa<llvm::PointerType>(ty))
+            types.push_back(llvm::dyn_cast<llvm::PointerType>(ty)->getElementType()->getPointerTo(1));
         else
-            types.push_back(fty);
+            types.push_back(ty);
     }
-    auto ft = llvm::FunctionType::get(llvm::IntegerType::getVoidTy(context_), types, false);
-    auto f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, "kernel", module_);
-    f->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
+
+    auto ft = llvm::FunctionType::get(rtype, types, false);
+    auto f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, module_);
+
+    // FIXME: assume that kernels return void, other functions not
+    if (!rtype->isVoidTy()) return f;
+
     // append required metadata
     llvm::NamedMDNode* annotation;
     llvm::Value* annotation_values_12[] = { builder_.getInt32(1), builder_.getInt32(2) };
-    size_t num_params = lambda->num_params();
+    size_t num_params = f->arg_size() + 1;
     Array<llvm::Value*> annotation_values_addr_space(num_params);
     Array<llvm::Value*> annotation_values_access_qual(num_params);
     Array<llvm::Value*> annotation_values_type(num_params);
@@ -61,7 +68,7 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
         type_os.flush();
         annotation_values_type[index] = llvm::MDString::get(context_, type_string);
         annotation_values_type_qual[index] = llvm::MDString::get(context_, "");
-        annotation_values_name[index] = llvm::MDString::get(context_, lambda->param(index - 1)->name);
+        annotation_values_name[index] = llvm::MDString::get(context_, lambda->param(index + 1)->name);
     }
     llvm::Value* annotation_values_kernel[] = {
         f,
@@ -88,25 +95,29 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     annotation = module_->getOrInsertNamedMetadata("opencl.used.optional.core.features");
     // opencl.compiler.options
     annotation = module_->getOrInsertNamedMetadata("opencl.compiler.options");
+    f->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
     return f;
 }
 
 Lambda* CodeGen::emit_spir(Lambda* lambda) {
     auto target = lambda->to()->as_lambda();
     assert(target->is_builtin() && target->attribute().is(Lambda::SPIR));
-    assert(lambda->num_args() > 3 && "required arguments are missing");
+    assert(lambda->num_args() > 4 && "required arguments are missing");
+
     // get input
-    const uint64_t it_space_x = lambda->arg(1)->as<PrimLit>()->qu64_value();
-    auto kernel = lambda->arg(2)->as_lambda();
-    auto ret = lambda->arg(3)->as_lambda();
+    auto it_space  = lambda->arg(1)->as<Tuple>();
+    auto it_config = lambda->arg(2)->as<Tuple>();
+    auto kernel = lambda->arg(3)->as<Global>()->init()->as<Lambda>()->name;
+    auto ret = lambda->arg(4)->as_lambda();
+
     // load kernel
-    auto module_name = builder_.CreateGlobalStringPtr(kernel->name);
-    auto kernel_name = builder_.CreateGlobalStringPtr("kernel");
+    auto module_name = builder_.CreateGlobalStringPtr(world_.name() + "_spir.bc");
+    auto kernel_name = builder_.CreateGlobalStringPtr(kernel);
     llvm::Value* load_args[] = { module_name, kernel_name };
     builder_.CreateCall(spir("spir_build_program_and_kernel"), load_args);
     // fetch values and create external calls for initialization
     std::vector<std::pair<llvm::Value*, llvm::Constant*>> device_ptrs;
-    for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
+    for (size_t i = 5, e = lambda->num_args(); i < e; ++i) {
         Def spir_param = lambda->arg(i);
         uint64_t num_elems = uint64_t(-1);
         if (const ArrayAgg* array_value = spir_param->isa<ArrayAgg>())
@@ -130,18 +141,29 @@ Lambda* CodeGen::emit_spir(Lambda* lambda) {
         llvm::Value* arg_args[] = { alloca, size_of_arg };
         builder_.CreateCall(spir("spir_set_kernel_arg"), arg_args);
     }
-    // determine problem size
-    llvm::Value* problem_size_args[] = { builder_.getInt64(it_space_x), builder_.getInt64(1), builder_.getInt64(1) };
+    // setup problem size
+    llvm::Value* problem_size_args[] = {
+        builder_.getInt64(it_space->op(0)->as<PrimLit>()->qu64_value()),
+        builder_.getInt64(it_space->op(1)->as<PrimLit>()->qu64_value()),
+        builder_.getInt64(it_space->op(2)->as<PrimLit>()->qu64_value())
+    };
     builder_.CreateCall(spir("spir_set_problem_size"), problem_size_args);
+    // setup configuration
+    llvm::Value* config_args[] = {
+        builder_.getInt64(it_config->op(0)->as<PrimLit>()->qu64_value()),
+        builder_.getInt64(it_config->op(1)->as<PrimLit>()->qu64_value()),
+        builder_.getInt64(it_config->op(2)->as<PrimLit>()->qu64_value())
+    };
+    builder_.CreateCall(spir("spir_set_config_size"), config_args);
     // launch
     builder_.CreateCall(spir("spir_launch_kernel"), { kernel_name });
     // synchronize
     builder_.CreateCall(spir("spir_synchronize"));
 
-    // fetch data back to CPU
-    for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
+    // back-fetch to CPU
+    for (size_t i = 5, e = lambda->num_args(); i < e; ++i) {
         Def spir_param = lambda->arg(i);
-        auto entry = device_ptrs[i - 4];
+        auto entry = device_ptrs[i - 5];
         // need to fetch back memory
         llvm::Value* args[] = {
             entry.first,

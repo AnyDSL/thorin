@@ -40,17 +40,17 @@ fn main() -> int {
     stencil[7] = 0.2f;
 
 
-    iteration(width, height, |index : int| -> void {
+    iteration(width, height, |x : int, y : int| -> void {
         let mut sum = 0.0f;
         let half_range = range / 2;
-        iterate(-half_range, half_range+1, |i : int| -> void {
-            iterate(-half_range, half_range+1, |j : int| -> void {
+        iterate(-half_range, half_range+1, |j : int| -> void {
+            iterate(-half_range, half_range+1, |i : int| -> void {
                 let stencil_index = i + half_range + ((j + half_range) * range);
                 let stencil_val = stencil[stencil_index];
-                sum += arr[index + i + j * width] * stencil_val;
+                sum += arr[(y+j)*width + x + i] * stencil_val;
             });
         });
-        out[index] = sum;
+        out[y*width + x] = sum;
     });
 
 

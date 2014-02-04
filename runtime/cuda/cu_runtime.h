@@ -31,9 +31,10 @@ CUdevice cuDevice;
 CUcontext cuContext;
 CUmodule cuModule;
 CUfunction cuFunction;
+CUtexref cuTexture;
 void **cuArgs;
 int cuArgIdx, cuArgIdxMax;
-dim3 cuDimProblem;
+dim3 cuDimProblem, cuDimBlock;
 
 
 #define checkErrNvvm(err, name) __checkNvvmErrors (err, name, __FILE__, __LINE__)
@@ -186,6 +187,19 @@ void load_kernel(const char *file_name, const char *kernel_name) {
     create_module_kernel(PTX, kernel_name);
 }
 
+void get_tex_ref(const char *name) {
+    CUresult err = CUDA_SUCCESS;
+
+    err = cuModuleGetTexRef(&cuTexture, cuModule, name);
+    checkErrDrv(err, "cuModuleGetTexRef()");
+}
+
+void bind_tex(CUdeviceptr mem, CUarray_format format) {
+    checkErrDrv(cuTexRefSetFormat(cuTexture, format, 1), "cuTexRefSetFormat()");
+    checkErrDrv(cuTexRefSetFlags(cuTexture, CU_TRSF_READ_AS_INTEGER), "cuTexRefSetFlags()");
+    checkErrDrv(cuTexRefSetAddress(0, cuTexture, mem, WIDTH * HEIGHT * sizeof(float)), "cuTexRefSetAddress()");
+}
+
 CUdeviceptr malloc_memory(size_t size) {
     CUresult err = CUDA_SUCCESS;
     CUdeviceptr mem;
@@ -225,7 +239,6 @@ void synchronize() {
 }
 
 
-// set problem size
 void set_problem_size(size_t size_x, size_t size_y, size_t size_z) {
     cuDimProblem.x = size_x;
     cuDimProblem.y = size_y;
@@ -233,7 +246,13 @@ void set_problem_size(size_t size_x, size_t size_y, size_t size_z) {
 }
 
 
-// set kernel argument
+void set_config_size(size_t size_x, size_t size_y, size_t size_z) {
+    cuDimBlock.x = size_x;
+    cuDimBlock.y = size_y;
+    cuDimBlock.z = size_z;
+}
+
+
 void set_kernel_arg(void *host) {
     cuArgIdx++;
     if (cuArgIdx > cuArgIdxMax) {
@@ -245,7 +264,6 @@ void set_kernel_arg(void *host) {
 }
 
 
-// launch kernel
 void launch_kernel(const char *kernel_name) {
     CUresult err = CUDA_SUCCESS;
     CUevent start, end;
@@ -256,18 +274,17 @@ void launch_kernel(const char *kernel_name) {
     error_string += ")";
 
     // compute launch configuration
-    dim3 block(128, 1, 1);
     dim3 grid;
-    grid.x = cuDimProblem.x / block.x;
-    grid.y = cuDimProblem.y / block.y;
-    grid.z = cuDimProblem.z / block.z;
+    grid.x = cuDimProblem.x / cuDimBlock.x;
+    grid.y = cuDimProblem.y / cuDimBlock.y;
+    grid.z = cuDimProblem.z / cuDimBlock.z;
 
     cuEventCreate(&start, event_flags);
     cuEventCreate(&end, event_flags);
     cuEventRecord(start, 0);
 
     // launch the kernel
-    err = cuLaunchKernel(cuFunction, grid.x, grid.y, grid.z, block.x, block.y, block.z, 0, NULL, cuArgs, NULL);
+    err = cuLaunchKernel(cuFunction, grid.x, grid.y, grid.z, cuDimBlock.x, cuDimBlock.y, cuDimBlock.z, 0, NULL, cuArgs, NULL);
     checkErrDrv(err, error_string.c_str());
     err = cuCtxSynchronize();
     checkErrDrv(err, error_string.c_str());
@@ -279,7 +296,7 @@ void launch_kernel(const char *kernel_name) {
     cuEventDestroy(start);
     cuEventDestroy(end);
 
-    std::cerr << "Kernel timing for '" << kernel_name << "' (" << block.x*block.y << ": " << block.x << "x" << block.y << "): " << time << "(ms)" << std::endl;
+    std::cerr << "Kernel timing for '" << kernel_name << "' (" << cuDimBlock.x*cuDimBlock.y << ": " << cuDimBlock.x << "x" << cuDimBlock.y << "): " << time << "(ms)" << std::endl;
 
     // reset argument index
     cuArgIdx = 0;
@@ -298,8 +315,13 @@ void nvvm_write_memory(CUdeviceptr dev, void *host, size_t size) { write_memory(
 void nvvm_read_memory(CUdeviceptr dev, void *host, size_t size) { read_memory(dev, host, size); }
 
 void nvvm_load_kernel(const char *file_name, const char *kernel_name) { load_kernel(file_name, kernel_name); }
+
+void nvvm_get_tex_ref(const char *name) { get_tex_ref(name); }
+void nvvm_bind_tex(CUdeviceptr mem, CUarray_format format) { bind_tex(mem, format); }
+
 void nvvm_set_kernel_arg(void *host) { set_kernel_arg(host); }
 void nvvm_set_problem_size(size_t size_x, size_t size_y, size_t size_z) { set_problem_size(size_x, size_y, size_z); }
+void nvvm_set_config_size(size_t size_x, size_t size_y, size_t size_z) { set_config_size(size_x, size_y, size_z); }
 
 void nvvm_launch_kernel(const char *kernel_name) { launch_kernel(kernel_name); }
 void nvvm_synchronize() { synchronize(); }

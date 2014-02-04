@@ -1,11 +1,12 @@
 extern vectorized(int, int, fn() -> void) -> int;
 extern wfv_get_tid() -> int;
 
-fn iteration(width : int, height : int, body : fn(int) -> void) -> void {
+fn iteration(width : int, height : int, body : fn(int,int) -> void) -> void {
     let vector_length = 4;
-    let size = width * height;
-    vectorized(size, vector_length, || -> void {
-        let index = wfv_get_tid();
-        body(index);
-    });
+    for (let mut y=0; y<height; ++y) {
+        vectorized(width, vector_length, || -> void {
+            let x = wfv_get_tid();
+            body(x, y);
+        });
+    }
 }

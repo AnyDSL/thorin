@@ -21,11 +21,15 @@ NVVMCodeGen::NVVMCodeGen(World& world)
 llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
     auto ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
     auto f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->name, module_);
-    f->setCallingConv(llvm::CallingConv::PTX_Kernel);
+
+    // FIXME: assume that kernels return void, other functions not
+    if (!ft->getReturnType()->isVoidTy()) return f;
+
     // append required metadata
     auto annotation = module_->getOrInsertNamedMetadata("nvvm.annotations");
     llvm::Value* annotation_values[] = { f, llvm::MDString::get(context_, "kernel"), builder_.getInt64(1) };
     annotation->addOperand(llvm::MDNode::get(context_, annotation_values));
+    f->setCallingConv(llvm::CallingConv::PTX_Kernel);
     return f;
 }
 
@@ -40,20 +44,22 @@ Lambda* CodeGen::emit_nvvm(Lambda* lambda) {
     // target(mem, size, body, return, free_vars)
     auto target = lambda->to()->as_lambda();
     assert(target->is_builtin() && target->attribute().is(Lambda::NVVM));
-    assert(lambda->num_args() > 3 && "required arguments are missing");
+    assert(lambda->num_args() > 4 && "required arguments are missing");
+
     // get input
-    const uint64_t it_space_x = lambda->arg(1)->as<PrimLit>()->qu64_value();
-    auto kernel = lambda->arg(2)->as<Global>()->init()->as<Lambda>()->name;
-    auto ret = lambda->arg(3)->as_lambda();
+    auto it_space  = lambda->arg(1)->as<Tuple>();
+    auto it_config = lambda->arg(2)->as<Tuple>();
+    auto kernel = lambda->arg(3)->as<Global>()->init()->as<Lambda>()->name;
+    auto ret = lambda->arg(4)->as_lambda();
 
     // load kernel
     auto module_name = builder_.CreateGlobalStringPtr(world_.name() + "_nvvm.ll");
     auto kernel_name = builder_.CreateGlobalStringPtr(kernel);
     llvm::Value* load_args[] = { module_name, kernel_name };
     builder_.CreateCall(nvvm("nvvm_load_kernel"), load_args);
-    // fetch values and create external calls for intialization
+    // fetch values and create external calls for initialization
     std::vector<std::pair<llvm::Value*, llvm::Constant*>> device_ptrs;
-    for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
+    for (size_t i = 5, e = lambda->num_args(); i < e; ++i) {
         Def cuda_param = lambda->arg(i);
         uint64_t num_elems = uint64_t(-1);
         if (const ArrayAgg* array_value = cuda_param->isa<ArrayAgg>())
@@ -70,17 +76,28 @@ Lambda* CodeGen::emit_nvvm(Lambda* lambda) {
         builder_.CreateCall(nvvm("nvvm_set_kernel_arg"), { alloca });
     }
     // setup problem size
-    llvm::Value* problem_size_args[] = { builder_.getInt64(it_space_x), builder_.getInt64(1), builder_.getInt64(1) };
+    llvm::Value* problem_size_args[] = {
+        builder_.getInt64(it_space->op(0)->as<PrimLit>()->qu64_value()),
+        builder_.getInt64(it_space->op(1)->as<PrimLit>()->qu64_value()),
+        builder_.getInt64(it_space->op(2)->as<PrimLit>()->qu64_value())
+    };
     builder_.CreateCall(nvvm("nvvm_set_problem_size"), problem_size_args);
+    // setup configuration
+    llvm::Value* config_args[] = {
+        builder_.getInt64(it_config->op(0)->as<PrimLit>()->qu64_value()),
+        builder_.getInt64(it_config->op(1)->as<PrimLit>()->qu64_value()),
+        builder_.getInt64(it_config->op(2)->as<PrimLit>()->qu64_value())
+    };
+    builder_.CreateCall(nvvm("nvvm_set_config_size"), config_args);
     // launch
     builder_.CreateCall(nvvm("nvvm_launch_kernel"), { kernel_name });
     // synchronize
     builder_.CreateCall(nvvm("nvvm_synchronize"));
 
-    // back-fetch to cpu
-    for (size_t i = 4, e = lambda->num_args(); i < e; ++i) {
+    // back-fetch to CPU
+    for (size_t i = 5, e = lambda->num_args(); i < e; ++i) {
         Def cuda_param = lambda->arg(i);
-        auto entry = device_ptrs[i - 4];
+        auto entry = device_ptrs[i - 5];
         // need to fetch back memory
         llvm::Value* args[] = { entry.first, builder_.CreateBitCast(lookup(cuda_param), builder_.getInt8PtrTy()), entry.second };
         builder_.CreateCall(nvvm("nvvm_read_memory"), args);

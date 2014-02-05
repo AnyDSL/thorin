@@ -25,7 +25,11 @@ public:
 
     const LoopHeader* loop() const { return loop_; }
     bool is_evil() { return evil_; }
-    void set_evil() { evil_ = true; }
+    void set_evil() { 
+        assert(!loop_->is_root());
+        std::cout << "setting evil: " << loop_->lambdas().front()->unique_name() << std::endl;
+        evil_ = true; 
+    }
 
 private:
     PartialEvaluator* evaluator_;
@@ -46,7 +50,10 @@ public:
     EdgeType(bool is_within, int n)
         : is_within_(is_within)
         , n_(n)
-    {}
+    {
+        std::cout << (is_within ? "within " : "cross ") << n << std::endl;
+        
+    }
 
     bool is_within() const { return is_within_; }
     bool is_cross() const { return !is_within(); }
@@ -86,10 +93,6 @@ public:
         return nullptr;
     }
 
-    LoopInfo& top_loop() {
-        return loop_stack_.back();
-    }
-
     void push(Lambda* src, Lambda* dst, bool evil) {
         std::cout << "pushing: " << std::endl;
         std::cout << dst->unique_name() << std::endl;
@@ -109,8 +112,11 @@ public:
             if (e.is_cross()) {
                 assert(e.n() <= 0);
                 auto size = loop_stack_.size();
-                for (auto i = size; i-- != size+e.n();)
+                assert(size+e.n() <= size);
+                for (auto i = size; i-- != size+e.n();) {
+                    assert(i < size);
                     loop_stack_[i].set_evil();
+                }
             }
         }
     }
@@ -146,17 +152,22 @@ EdgeType PartialEvaluator::classify(Lambda* nsrc, Lambda* ndst) const {
     auto hsrc = loops_.lambda2header(src);
     auto hdst = loops_.lambda2header(dst);
 
-    if (loops_.contains(hsrc, ndst))
-        return EdgeType(true, hdst->depth() - hsrc->depth()); // within n, n positive
-    if (loops_.contains(hdst, nsrc))
-        return EdgeType(true, hsrc->depth() - hdst->depth()); // within n, n negative
-    else {
-#ifndef NDEBUG
-        for (auto i = hsrc; i != hdst; i = i->parent())
-            assert(!i->is_root());
-#endif
-        return EdgeType(false, hsrc->depth() - hdst->depth());// cross n, n <= 0
+    std::cout << "classify: " << src->unique_name() << " -> " << dst->unique_name() << std::endl;
+    if (is_header(dst)) {
+        if (loops_.contains(hsrc, dst))
+            return EdgeType(true, hdst->depth() - hsrc->depth()); // within n, n positive
+        if (loops_.contains(hdst, src))
+            return EdgeType(true, hsrc->depth() - hdst->depth()); // within n, n negative
     }
+
+#ifndef NDEBUG
+    for (auto i = hsrc; i != hdst; i = i->parent()) {
+        //assert(!i->is_root());
+        if (i->is_root())
+            return EdgeType(false, 0);
+    }
+#endif
+    return EdgeType(false, hdst->depth() - hsrc->depth());// cross n, n <= 0
 }
 
 int PartialEvaluator::order(EdgeType e) const {

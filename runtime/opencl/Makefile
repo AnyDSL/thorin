@@ -1,4 +1,5 @@
 OPENCL_DIR ?= /opt/intel/opencl
+CXX_FLAGS := -Wall -Wunused
 OPT_FLAGS := -O3
 DBG_FLAGS :=
 
@@ -22,10 +23,10 @@ all: main.out
 	@./main.out
 
 %.llo: %.cpp cl_runtime.h
-	clang++ $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -c -emit-llvm $<
+	clang++ $(CXX_FLAGS) $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -c -emit-llvm $<
 
 #%.llo: %.cpp
-#	clang++ $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -c -emit-llvm $<
+#	clang++ $(CXX_FLAGS) $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -c -emit-llvm $<
 
 %.bc: %.llo
 	llvm-link $^ -o $*-unop.bc

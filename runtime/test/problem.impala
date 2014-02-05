@@ -1,0 +1,31 @@
+extern array(int) -> [float];
+extern sqrt(float) -> float;
+
+fn idx(x : int, y: int, width : int, height : int) -> int {
+    return x + y * width;
+}
+
+fn main() -> [float] {
+    let width   = 1024;
+    let height  = 1024;
+    let mut img = array(width * height);
+    let mut out = array(width * height);
+
+    iteration(width, height, |x : int, y : int| -> void {
+        //out[idx(x, y, width, height)] = img[idx(x  , y  , width, height)];
+        out[0] = 0.0f;
+    });
+
+
+    // L2 norm
+    let mut l2sum = 0.0f;
+    iteration(width, height, |x : int, y : int| -> void {
+        let value = img[idx(x, y, width, height)];
+        l2sum += value*value;
+    });
+    //let l2norm = sqrt(l2sum)/(width*height);
+    let l2norm = sqrt(l2sum)/(1024.0f*1024.0f);
+
+    return out;
+}
+

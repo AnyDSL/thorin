@@ -82,6 +82,13 @@ public:
     void push(int i, T& val) { (*this)[i].push_back(val); }
     int begin() const { return neg_.empty() ? 0 : -(int) neg_.size(); }
     int end() const { return (int) pos_.size(); }
+    bool is_empty() {
+        for (int i = begin(), e = end(); i != e; ++i) {
+            if (!(*this)[i].empty())
+                return false;
+        }
+        return true;
+    }
 
 private:
     std::vector<std::vector<T>> neg_;
@@ -117,6 +124,10 @@ public:
     }
 
     void push(Lambda* src, Lambda* dst, bool evil) {
+        if (done_.find(dst) != done_.end())
+            return;
+        done_.insert(dst);
+
         std::cout << "pushing: " << std::endl;
         auto e = classify(src, dst);
         int ord = order(e);
@@ -137,16 +148,43 @@ public:
     }
 
     Lambda* pop() {
-        for (int i = ord2stack_.begin(), e = ord2stack_.end(); i != e; ++i) {
+        std::cout << "** prev: " << prev_ << std::endl;
+        Lambda* result = nullptr;
+        int i = ord2stack_.begin();
+        for (int e = ord2stack_.end(); i != e; ++i) {
             auto& stack = ord2stack_[i];
             if (!stack.empty()) {
-                auto result = stack.back();
+                result = stack.back();
                 stack.pop_back();
-                return result;
+                break;
             }
         }
 
-        return nullptr;
+        if (result == nullptr)
+            return nullptr;
+
+        std::cout << "** new: " << i << std::endl;
+        int delta = i - prev_;
+        int mod = prev_ % 2;
+
+        if (delta >= 0) {
+            int num = (delta + mod)/2;
+            assert(num >= 0);
+            while (num-- != 0)
+                loop_stack_.pop_back();
+        } else {
+            int num = -((delta - (1 + mod))/2);
+            assert(num == 1 || num == 0);
+            if (num == 1) {
+                assert(is_header(result));
+                auto header = loops_.lambda2header(new2old_[result]);
+                assert(!header->is_root());
+                loop_stack_.emplace_back(this, header);
+            }
+        }
+
+        prev_ = i;
+        return result;
     }
 
     void dump_schedule() {
@@ -170,8 +208,7 @@ public:
     std::unordered_map<Lambda*, const LoopHeader*> lambda2header_;
     std::unordered_set<Lambda*> done_;
     std::vector<LoopInfo> loop_stack_;
-    bool pos_;
-    size_t prev_;
+    int prev_;
     DEQ<Lambda*> ord2stack_;
 };
 
@@ -190,9 +227,8 @@ EdgeType PartialEvaluator::classify(Lambda* nsrc, Lambda* ndst) const {
     }
 
 #ifndef NDEBUG
-    for (auto i = hsrc; i != hdst; i = i->parent()) {
+    for (auto i = hsrc; i != hdst; i = i->parent())
         assert(!i->is_root());
-    }
 #endif
     return EdgeType(false, hdst->depth() - hsrc->depth());// cross n, n <= 0
 }
@@ -215,12 +251,12 @@ void PartialEvaluator::collect_headers(const LoopNode* n) {
 
 void PartialEvaluator::process() {
     for (auto src : top_level_lambdas(world_)) {
-        Lambda* prev = nullptr;
-        do {
-            if (done_.find(src) != done_.end())
-                continue;
-            done_.insert(src);
+        //assert(loop_stack_.empty());
+        loop_stack_.clear();
+        assert(ord2stack_.is_empty());
+        ord2stack_[prev_ = 0].push_back(src);
 
+        while ((src = pop())) {
             std::cout << "src: " << src->unique_name() << std::endl;
             std::cout << "loop stack:" << std::endl;
             std::cout << "----" << std::endl;
@@ -228,23 +264,7 @@ void PartialEvaluator::process() {
                 std::cout << info.loop()->lambdas().front()->unique_name() << std::endl;
             std::cout << "----" << std::endl;
 
-            if (prev != nullptr) {
-                auto e = classify(prev, src);
-                if (e.is_within() && e.n() >= 0) {  // push found header
-                    assert(0 <= e.n() && e.n() <= 1);
-                    auto header = loops_.lambda2header(new2old_[src]);
-                    assert(!header->is_root());
-                    loop_stack_.emplace_back(this, header);
-                } else {                            // within -n or cross -n -> pop n times
-                    assert(e.n() <= 0);
-                    std::cout << "popping: " << -e.n() << std::endl;
-                    loop_stack_.resize(loop_stack_.size() + e.n());
-                }
-            }
-
-            prev = src;
-
-            //emit_thorin(world_);
+            emit_thorin(world_);
             assert(!src->empty());
 
             auto succs = src->direct_succs();
@@ -321,7 +341,7 @@ void PartialEvaluator::process() {
                 rewrite_jump(src, r_to, r_idxs);
                 push(src, r_to, false);
             }
-        } while ((src = pop()));
+        }
     }
 }
 

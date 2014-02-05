@@ -166,8 +166,8 @@ EdgeType PartialEvaluator::classify(Lambda* nsrc, Lambda* ndst) const {
 int PartialEvaluator::order(EdgeType e) const {
     auto level = loop_stack_.size();
     if (e.is_within())
-        return 2*(e.n() + level) + 1;
-    return 2*(e.n() + level);
+        return -2*(e.n() + level) + 1;
+    return -2*(e.n() + level);
 }
 
 void PartialEvaluator::collect_headers(const LoopNode* n) {

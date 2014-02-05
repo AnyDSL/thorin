@@ -289,6 +289,7 @@ void init_opencl(cl_device_type dev_type=CL_DEVICE_TYPE_CPU) {
             for (unsigned int j=0; j<num_devices; ++j) {
                 cl_device_type this_dev_type;
                 cl_uint device_vendor_id;
+                cl_bool has_unified;
 
                 err = clGetDeviceInfo(devices[j], CL_DEVICE_NAME, sizeof(pnBuffer), &pnBuffer, NULL);
                 err |= clGetDeviceInfo(devices[j], CL_DEVICE_VENDOR, sizeof(pvBuffer), &pvBuffer, NULL);
@@ -297,12 +298,14 @@ void init_opencl(cl_device_type dev_type=CL_DEVICE_TYPE_CPU) {
                 err |= clGetDeviceInfo(devices[j], CL_DEVICE_VERSION, sizeof(pdBuffer), &pdBuffer, NULL);
                 err |= clGetDeviceInfo(devices[j], CL_DRIVER_VERSION, sizeof(pd2Buffer), &pd2Buffer, NULL);
                 err |= clGetDeviceInfo(devices[j], CL_DEVICE_EXTENSIONS, sizeof(pd3Buffer), &pd3Buffer, NULL);
+                err |= clGetDeviceInfo(devices[j], CL_DEVICE_HOST_UNIFIED_MEMORY, sizeof(has_unified), &has_unified, NULL);
                 checkErr(err, "clGetDeviceInfo()");
 
                 // use first device of desired type
                 std::string extensions(pd3Buffer);
                 size_t found = extensions.find("cl_khr_spir");
-                if (found!=std::string::npos && platform_number == (int)i && device_number == -1 && (this_dev_type & dev_type)) {
+                bool has_spir = found!=std::string::npos;
+                if (has_spir && platform_number == (int)i && device_number == -1 && (this_dev_type & dev_type)) {
                     std::cerr << "      [*] ";
                     device = devices[j];
                     device_number = j;
@@ -321,12 +324,14 @@ void init_opencl(cl_device_type dev_type=CL_DEVICE_TYPE_CPU) {
                 std::cerr << "          Device Vendor: " << pvBuffer << " (ID: " << device_vendor_id << ")" << std::endl;
                 std::cerr << "          Device OpenCL Version: " << pdBuffer << std::endl;
                 std::cerr << "          Device Driver Version: " << pd2Buffer << std::endl;
-                std::cerr << "          Device Extensions: " << pd3Buffer << std::endl;
+                //std::cerr << "          Device Extensions: " << pd3Buffer << std::endl;
+                std::cerr << "          Device SPIR Support: " << has_spir << std::endl;
                 #ifdef CL_DEVICE_SPIR_VERSIONS
                 err = clGetDeviceInfo(devices[j], CL_DEVICE_SPIR_VERSIONS, sizeof(pd3Buffer), &pd3Buffer, NULL);
                 checkErr(err, "clGetDeviceInfo()");
                 std::cerr << "          Device SPIR Version: " << pd3Buffer << std::endl;
                 #endif
+                std::cerr << "          Device Host Unified Memory: " << has_unified << std::endl;
             }
             free(devices);
         }

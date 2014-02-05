@@ -29,13 +29,17 @@ Schedule schedule_early(const Scope& scope) {
     std::queue<Def> queue;
     DefMap<size_t> num_placed;
     DefSet set;
+    auto insert = [&] (Def def) {
+        if (scope.contains(def))
+            queue.push(def);
+    };
 
     for (Lambda* lambda : scope) {
         auto& primops = schedule[lambda];
 
         for (auto param : lambda->params())
             if (!param->is_proxy())
-                queue.push(param);
+                insert(param);
 
         while (!queue.empty()) {
             Def def = queue.front();
@@ -64,7 +68,7 @@ Schedule schedule_early(const Scope& scope) {
 
             std::sort(todo.begin(), todo.end(), sort_primops);
             for (auto def : todo)
-                queue.push(def);
+                insert(def);
         }
     }
 

@@ -310,7 +310,7 @@ const LoopHeader* LoopTree::lambda2header(Lambda* lambda) const {
         return root();
     auto header = leaf->parent();
     for (; !header->is_root(); header = header->parent()) {
-        if (header->headers().contains(lambda))
+        if (contains(header, lambda))
             break;
     }
     return header;

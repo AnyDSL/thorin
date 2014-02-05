@@ -11,6 +11,8 @@ AutoVector<Scope*> top_level_scopes(World& world) {
     LambdaSet done;
 
     auto insert = [&] (Lambda* lambda) { 
+        if (done.contains(lambda))
+            return;
         auto scope = new Scope(lambda);
         scopes.emplace_back(scope);
 

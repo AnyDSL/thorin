@@ -193,9 +193,9 @@ EdgeType PartialEvaluator::classify(Lambda* nsrc, Lambda* ndst) const {
 
 #ifndef NDEBUG
     for (auto i = hsrc; i != hdst; i = i->parent()) {
-        assert(!i->is_root());
-        //if (i->is_root())
-            //return EdgeType(false, 0);
+        //assert(!i->is_root());
+        if (i->is_root())
+            return EdgeType(false, 0);
     }
 #endif
     return EdgeType(false, hdst->depth() - hsrc->depth());// cross n, n <= 0
@@ -234,8 +234,8 @@ void PartialEvaluator::process() {
 
             if (prev != nullptr) {
                 auto e = classify(prev, src);
-                if (e.is_within() && e.n() >= 1) {  // push found header
-                    assert(e.n() == 1);
+                if (e.is_within() && e.n() >= 0) {  // push found header
+                    assert(0 <= e.n() && e.n() <= 1);
                     auto header = loops_.lambda2header(new2old_[src]);
                     assert(!header->is_root());
                     loop_stack_.emplace_back(this, header);
@@ -248,7 +248,7 @@ void PartialEvaluator::process() {
 
             prev = src;
 
-            emit_thorin(world_);
+            //emit_thorin(world_);
             assert(!src->empty());
 
             auto succs = src->direct_succs();
@@ -298,7 +298,6 @@ void PartialEvaluator::process() {
                         continue;
                 }
             }
-
 
             Scope scope(dst);
             Def2Def f_map;

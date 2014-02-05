@@ -64,6 +64,30 @@ private:
     int n_;
 };
 
+template<class T>
+class DEQ {
+public:
+    std::vector<T>& operator [] (int i) {
+        auto stack = &pos_;
+        if (i < 0) {
+            stack = &neg_;
+            i = -i-1;
+        }
+
+        if (size_t(i) >= stack->size())
+            stack->resize(i+1);
+        return (*stack)[i];
+    }
+
+    void push(int i, T& val) { (*this)[i].push_back(val); }
+    int begin() const { return neg_.empty() ? 0 : -(int) neg_.size(); }
+    int end() const { return (int) pos_.size(); }
+
+private:
+    std::vector<std::vector<T>> neg_;
+    std::vector<std::vector<T>> pos_;
+};
+
 class PartialEvaluator {
 public:
     PartialEvaluator(World& world)
@@ -97,15 +121,7 @@ public:
         auto e = classify(src, dst);
         int ord = order(e);
         std::cout << dst->unique_name() << ": " << ord << std::endl;
-        auto ord2stack = &pos_ord2stack_;
-        if (ord < 0) {
-            ord2stack = &neg_ord2stack_;
-            ord = -ord;
-        }
-
-        if (size_t(ord) >= ord2stack->size())
-            ord2stack->resize(ord+1);
-        (*ord2stack)[ord].push_back(dst);
+        ord2stack_.push(ord, dst);
 
         if (evil) {
             if (e.is_cross()) {
@@ -121,17 +137,8 @@ public:
     }
 
     Lambda* pop() {
-        for (auto i = neg_ord2stack_.rbegin(), e = neg_ord2stack_.rend(); i != e; ++i) {
-            auto& stack = *i;
-            if (!stack.empty()) {
-                auto result = stack.back();
-                stack.pop_back();
-                return result;
-            }
-        }
-
-        for (auto i = pos_ord2stack_.begin(), e = pos_ord2stack_.end(); i != e; ++i) {
-            auto& stack = *i;
+        for (int i = ord2stack_.begin(), e = ord2stack_.end(); i != e; ++i) {
+            auto& stack = ord2stack_[i];
             if (!stack.empty()) {
                 auto result = stack.back();
                 stack.pop_back();
@@ -146,22 +153,12 @@ public:
         std::cout << "---------------------" << std::endl;
         std::cout << "*      schedule     *" << std::endl;
         std::cout << "---------------------" << std::endl;
-        for (auto i = neg_ord2stack_.rbegin(), e = neg_ord2stack_.rend(); i != e; ++i) {
-            auto& stack = *i;
-            if (!stack.empty()) {
-                for (auto l : stack)
-                    std::cout << l->unique_name() << '/' << new2old_[l]->unique_name() << ' ';
-                std::cout << std::endl;
-            }
-        }
-
-        for (auto i = pos_ord2stack_.begin(), e = pos_ord2stack_.end(); i != e; ++i) {
-            auto& stack = *i;
-            if (!stack.empty()) {
-                for (auto l : stack)
-                    std::cout << l->unique_name() << '/' << new2old_[l]->unique_name() << ' ';
-                std::cout << std::endl;
-            }
+        for (int i = ord2stack_.begin(), e = ord2stack_.end(); i != e; ++i) {
+            auto& stack = ord2stack_[i];
+            std::cout << i << ": ";
+            for (auto l : stack)
+                std::cout << l->unique_name() << '/' << new2old_[l]->unique_name() << ' ';
+            std::cout << std::endl;
         }
         std::cout << "---------------------" << std::endl;
     }
@@ -173,8 +170,9 @@ public:
     std::unordered_map<Lambda*, const LoopHeader*> lambda2header_;
     std::unordered_set<Lambda*> done_;
     std::vector<LoopInfo> loop_stack_;
-    std::vector<std::vector<Lambda*>> neg_ord2stack_;
-    std::vector<std::vector<Lambda*>> pos_ord2stack_;
+    bool pos_;
+    size_t prev_;
+    DEQ<Lambda*> ord2stack_;
 };
 
 EdgeType PartialEvaluator::classify(Lambda* nsrc, Lambda* ndst) const {
@@ -193,9 +191,7 @@ EdgeType PartialEvaluator::classify(Lambda* nsrc, Lambda* ndst) const {
 
 #ifndef NDEBUG
     for (auto i = hsrc; i != hdst; i = i->parent()) {
-        //assert(!i->is_root());
-        if (i->is_root())
-            return EdgeType(false, 0);
+        assert(!i->is_root());
     }
 #endif
     return EdgeType(false, hdst->depth() - hsrc->depth());// cross n, n <= 0

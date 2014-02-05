@@ -86,18 +86,11 @@ public:
         return nullptr;
     }
 
-    void push_loop(const LoopHeader* header) {
-        loop_stack_.emplace_back(this, header);
-    }
-    void pop_loop(int ord) {
-        //loop_stack_.resize(loop_stack_.size() - (ord - (EXIT-1)));
-    }
-
     LoopInfo& top_loop() {
         return loop_stack_.back();
     }
 
-    void push(Lambda* src, Lambda* dst, bool evil = false) {
+    void push(Lambda* src, Lambda* dst, bool evil) {
         std::cout << "pushing: " << std::endl;
         std::cout << dst->unique_name() << std::endl;
         int ord = order(src, dst);
@@ -111,12 +104,15 @@ public:
             ord2stack_.resize(ord+1);
         ord2stack_[ord].push_back(dst);
 
-        //if (evil && ord >= EXIT) {
-            //ord -= (EXIT-1);
-            //for (auto i = loop_stack_.rbegin(), e = loop_stack_.rend(); i != e && ord >= 0; ++i, --ord) {
-                //i->set_evil();
-            //}
-        //}
+        if (evil) {
+            auto e = classify(src, dst);
+            if (e.is_cross()) {
+                assert(e.n() <= 0);
+                auto size = loop_stack_.size();
+                for (auto i = size; i-- != size+e.n();)
+                    loop_stack_[i].set_evil();
+            }
+        }
     }
 
     Lambda* pop() {
@@ -181,10 +177,27 @@ void PartialEvaluator::collect_headers(const LoopNode* n) {
 
 void PartialEvaluator::process() {
     for (auto src : top_level_lambdas(world_)) {
+        Lambda* prev = nullptr;
+        // todo pop loop stack
         do {
             if (done_.find(src) != done_.end())
                 continue;
             done_.insert(src);
+
+            if (prev != nullptr) {
+                auto e = classify(prev, src);
+                if (e.is_within() && e.n() >= 1) {  // push found header
+                    assert(e.n() == 1);
+                    auto header = loops_.lambda2header(new2old_[src]);
+                    assert(!header->is_root());
+                    loop_stack_.emplace_back(this, header);
+                } else {                            // within -n or cross -n -> pop n times
+                    assert(e.n() <= 0);
+                    loop_stack_.resize(loop_stack_.size() + e.n());
+                }
+            }
+
+            prev = src;
 
             std::cout << "src: " << src->unique_name() << std::endl;
             std::cout << "loop stack:" << std::endl;
@@ -210,10 +223,6 @@ void PartialEvaluator::process() {
                 for (auto succ : succs)
                     push(src, succ, true);
                 continue;
-            } else {
-                for (auto succ : succs)
-                    if (succ != dst)
-                        push(src, succ, true);
             }
 
             std::vector<Def> f_args, r_args;
@@ -235,29 +244,9 @@ void PartialEvaluator::process() {
                 }
             }
 
-            int ord = order(src, dst);
-            if (ord == 42) {
-                assert(!loop_stack_.empty());
-                auto info = top_loop();
-                if (info.is_evil())
-                    continue;
-            } else {
-                //if (ord >= EXIT) {  // exting edge
-                    //pop_loop(ord);
-                //}
-
-                if (auto header = is_header(dst)) {
-                    std::cout << ord << std::endl;
-                    std::cout << src->unique_name() << std::endl;
-                    std::cout << dst->unique_name() << std::endl;
-                    //assert(ord == NEXT_SCC);
-                    push_loop(header);
-                }
-
-                if (!fold) {
-                    push(src, dst);
-                    continue;
-                }
+            if (!fold) {
+                push(src, dst, false);
+                continue;
             }
 
             Scope scope(dst);
@@ -277,14 +266,14 @@ void PartialEvaluator::process() {
                     if (mapped != lambda)
                         mapped->update_to(world_.run(mapped->to()));
                 }
-                push(src, f_to);
+                push(src, f_to, false);
             } else {
                 Def2Def r_map;
                 auto r_to = drop(scope, r_map, r_idxs, r_args, generic_map);
                 r_map[to] = r_to;
                 update_new2old(r_map);
                 rewrite_jump(src, r_to, r_idxs);
-                push(src, r_to);
+                push(src, r_to, false);
             }
         } while ((src = pop()));
     }

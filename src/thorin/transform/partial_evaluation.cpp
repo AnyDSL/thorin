@@ -84,7 +84,6 @@ public:
     void update_new2old(const Def2Def& map);
     EdgeType classify(Lambda* src, Lambda* dst) const;
     int order(EdgeType) const;
-    int order(Lambda* src, Lambda* dst) const { return order(classify(src, dst)); }
 
     const LoopHeader* is_header(Lambda* lambda) const {
         auto i = lambda2header_.find(new2old_[lambda]);
@@ -95,20 +94,20 @@ public:
 
     void push(Lambda* src, Lambda* dst, bool evil) {
         std::cout << "pushing: " << std::endl;
-        std::cout << dst->unique_name() << std::endl;
-        int ord = order(src, dst);
-        auto& ord2stack_ = pos_ord2stack_;
+        auto e = classify(src, dst);
+        int ord = order(e);
+        std::cout << dst->unique_name() << ": " << ord << std::endl;
+        auto ord2stack = &pos_ord2stack_;
         if (ord < 0) {
-            ord2stack_ = neg_ord2stack_;
+            ord2stack = &neg_ord2stack_;
             ord = -ord;
         }
 
-        if (size_t(ord) >= ord2stack_.size())
-            ord2stack_.resize(ord+1);
-        ord2stack_[ord].push_back(dst);
+        if (size_t(ord) >= ord2stack->size())
+            ord2stack->resize(ord+1);
+        (*ord2stack)[ord].push_back(dst);
 
         if (evil) {
-            auto e = classify(src, dst);
             if (e.is_cross()) {
                 assert(e.n() <= 0);
                 auto size = loop_stack_.size();
@@ -122,17 +121,49 @@ public:
     }
 
     Lambda* pop() {
-        std::vector<std::vector<Lambda*>>* a_ord2stack[2] = { &neg_ord2stack_, &pos_ord2stack_ };
-        for (auto& ord2stack : a_ord2stack) {
-            for (auto& stack : *ord2stack) {
-                if (!stack.empty()) {
-                    auto result = stack.back();
-                    stack.pop_back();
-                    return result;
-                }
+        for (auto i = neg_ord2stack_.rbegin(), e = neg_ord2stack_.rend(); i != e; ++i) {
+            auto& stack = *i;
+            if (!stack.empty()) {
+                auto result = stack.back();
+                stack.pop_back();
+                return result;
             }
         }
+
+        for (auto i = pos_ord2stack_.begin(), e = pos_ord2stack_.end(); i != e; ++i) {
+            auto& stack = *i;
+            if (!stack.empty()) {
+                auto result = stack.back();
+                stack.pop_back();
+                return result;
+            }
+        }
+
         return nullptr;
+    }
+
+    void dump_schedule() {
+        std::cout << "---------------------" << std::endl;
+        std::cout << "*      schedule     *" << std::endl;
+        std::cout << "---------------------" << std::endl;
+        for (auto i = neg_ord2stack_.rbegin(), e = neg_ord2stack_.rend(); i != e; ++i) {
+            auto& stack = *i;
+            if (!stack.empty()) {
+                for (auto l : stack)
+                    std::cout << l->unique_name() << '/' << new2old_[l]->unique_name() << ' ';
+                std::cout << std::endl;
+            }
+        }
+
+        for (auto i = pos_ord2stack_.begin(), e = pos_ord2stack_.end(); i != e; ++i) {
+            auto& stack = *i;
+            if (!stack.empty()) {
+                for (auto l : stack)
+                    std::cout << l->unique_name() << '/' << new2old_[l]->unique_name() << ' ';
+                std::cout << std::endl;
+            }
+        }
+        std::cout << "---------------------" << std::endl;
     }
 
     World& world_;
@@ -162,9 +193,9 @@ EdgeType PartialEvaluator::classify(Lambda* nsrc, Lambda* ndst) const {
 
 #ifndef NDEBUG
     for (auto i = hsrc; i != hdst; i = i->parent()) {
-        //assert(!i->is_root());
-        if (i->is_root())
-            return EdgeType(false, 0);
+        assert(!i->is_root());
+        //if (i->is_root())
+            //return EdgeType(false, 0);
     }
 #endif
     return EdgeType(false, hdst->depth() - hsrc->depth());// cross n, n <= 0
@@ -189,11 +220,17 @@ void PartialEvaluator::collect_headers(const LoopNode* n) {
 void PartialEvaluator::process() {
     for (auto src : top_level_lambdas(world_)) {
         Lambda* prev = nullptr;
-        // todo pop loop stack
         do {
             if (done_.find(src) != done_.end())
                 continue;
             done_.insert(src);
+
+            std::cout << "src: " << src->unique_name() << std::endl;
+            std::cout << "loop stack:" << std::endl;
+            std::cout << "----" << std::endl;
+            for (auto& info : loop_stack_)
+                std::cout << info.loop()->lambdas().front()->unique_name() << std::endl;
+            std::cout << "----" << std::endl;
 
             if (prev != nullptr) {
                 auto e = classify(prev, src);
@@ -204,18 +241,13 @@ void PartialEvaluator::process() {
                     loop_stack_.emplace_back(this, header);
                 } else {                            // within -n or cross -n -> pop n times
                     assert(e.n() <= 0);
+                    std::cout << "popping: " << -e.n() << std::endl;
                     loop_stack_.resize(loop_stack_.size() + e.n());
                 }
             }
 
             prev = src;
 
-            std::cout << "src: " << src->unique_name() << std::endl;
-            std::cout << "loop stack:" << std::endl;
-            for (auto& info : loop_stack_) {
-                std::cout << info.loop()->lambdas().front()->unique_name() << std::endl;
-            }
-            std::cout << "----" << std::endl;
             emit_thorin(world_);
             assert(!src->empty());
 
@@ -233,6 +265,7 @@ void PartialEvaluator::process() {
             if (dst == nullptr) {
                 for (auto succ : succs)
                     push(src, succ, true);
+                dump_schedule();
                 continue;
             }
 
@@ -258,7 +291,14 @@ void PartialEvaluator::process() {
             if (!fold) {
                 push(src, dst, false);
                 continue;
+            } else {
+                auto e = classify(src, dst);
+                if (e.is_within() && e.n() <= 0) {
+                    if (loop_stack_.back().is_evil())
+                        continue;
+                }
             }
+
 
             Scope scope(dst);
             Def2Def f_map;

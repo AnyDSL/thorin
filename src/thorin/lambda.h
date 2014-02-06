@@ -40,7 +40,7 @@ public:
         uint32_t filter(uint32_t flags) const { return flags_ & flags; }
         bool is(uint32_t flags) const { return filter(flags) != 0; }
         void set(uint32_t flags) { flags_ |=  flags; }
-        void clear(uint32_t flags) { flags_ &= ~flags; }
+        void clear(uint32_t flags = uint32_t(-1)) { flags_ &= ~flags; }
         void toggle(uint32_t flags) { flags_ ^= flags; }
         uint32_t flags() const { return flags_; }
 

@@ -18,7 +18,7 @@ static bool sort_primops(Def def1, Def def2) {
     if (def1->kind() == def2->kind())
         return def1->gid() < def2->gid();
 
-    if ( def1->isa<Enter>() || def1->isa<Slot>() || def1->isa<Load>() || def1->isa<Store>())
+    if (def1->isa<Enter>() || def1->isa<Slot>() || def1->isa<Load>() || def1->isa<Store>())
         return true;
 
     return def1->gid() < def2->gid();
@@ -66,7 +66,7 @@ Schedule schedule_early(const Scope& scope) {
                     todo.push_back(use);
             }
 
-            std::sort(todo.begin(), todo.end(), sort_primops);
+            std::stable_sort(todo.begin(), todo.end(), sort_primops);
             for (auto def : todo)
                 insert(def);
         }
@@ -116,7 +116,7 @@ static Schedule schedule_late(const Scope& scope, DefMap<Lambda*> &def2late) {
         bool todo = true;
         do {
             std::vector<const PrimOp*> remove;
-            std::sort(zero.begin(), zero.end(), [] (Def def1, Def def2) { return !sort_primops(def1, def2); });
+            std::stable_sort(zero.begin(), zero.end(), [] (Def def1, Def def2) { return !sort_primops(def1, def2); });
 
             for (auto z : zero) {
                 const PrimOp* primop = z->as<PrimOp>();

@@ -176,8 +176,9 @@ public:
             int num = -((delta - (1 + mod))/2);
             assert(num == 1 || num == 0);
             if (num == 1) {
-                assert(is_header(result));
-                auto header = loops_.lambda2header(new2old_[result]);
+                auto dst = new2old_[result];
+                assert(is_header(dst));
+                auto header = loops_.lambda2header(dst);
                 assert(!header->is_root());
                 loop_stack_.emplace_back(this, header);
             }
@@ -227,8 +228,14 @@ EdgeType PartialEvaluator::classify(Lambda* nsrc, Lambda* ndst) const {
     }
 
 #ifndef NDEBUG
-    for (auto i = hsrc; i != hdst; i = i->parent())
+    for (auto i = hsrc; i != hdst; i = i->parent()) {
+        if (i->is_root()) {
+            std::cout << "warning: " << std::endl;
+            std::cout << src->unique_name() << '/' << nsrc->unique_name() << " -> " << dst->unique_name() << '/' << ndst->unique_name() << std::endl;
+            return EdgeType(false, 0);
+        }
         assert(!i->is_root());
+    }
 #endif
     return EdgeType(false, hdst->depth() - hsrc->depth());// cross n, n <= 0
 }
@@ -308,10 +315,12 @@ void PartialEvaluator::process() {
                 push(src, dst, false);
                 continue;
             } else {
-                auto e = classify(src, dst);
-                if (e.is_within() && e.n() <= 0) {
-                    if (loop_stack_.back().is_evil())
-                        continue;
+                if (is_header(new2old_[dst])) {
+                    auto e = classify(src, dst);
+                    if (e.is_within() && e.n() <= 0) {
+                        if (loop_stack_.back().is_evil())
+                            continue;
+                    }
                 }
             }
 

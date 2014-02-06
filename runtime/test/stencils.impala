@@ -1,19 +1,17 @@
-extern all_on_gpu([float], fn(fn() -> int, fn() -> int, fn() -> int) -> void) -> int;
 extern array(int) -> [float];
 extern sqrt(float) -> float;
 
-fn idx(x : int, y: int, z : int, width : int, height : int, depth : int) -> int {
-    return x + width * y + z * width * height;
+fn idx(x : int, y: int, width : int, height : int) -> int {
+    return x + y * width;
 }
 
 fn main() -> [float] {
     let width   = 1024;
     let height  = 1024;
-    let depth   = 1;
     let range   = 3;
     let size    = 2*range;
-    let out     = array(width * height * depth);
-    let in      = array(width * height * depth);
+    let mut img = array(width * height);
+    let mut out = array(width * height);
 
 
     // deriv 2D
@@ -21,130 +19,126 @@ fn main() -> [float] {
         [0.0f, 1.0f, 0.0f],
         [1.0f, 4.0f, 1.0f],
         [0.0f, 1.0f, 0.0f]];
-    all_on_gpu(out, |x : fn() -> int, y : fn() -> int, z : fn() -> int| -> void {
-        //let result = @convolve(in, mask, 1.0f, range, x(), y(), z(), width, height, depth);
+    iteration(width, height, |x : int, y : int| -> void {
+        //let result = @convolve(img, mask, 1.0f, range, x, y, width, height);
         let result = - (
-            1.0f * in[idx(x()+0, y()+1, z(), width, height, depth)] +
-            1.0f * in[idx(x()-1, y()+0, z(), width, height, depth)] +
-           -4.0f * in[idx(x()  , y()  , z(), width, height, depth)] +
-            1.0f * in[idx(x()+1, y()+0, z(), width, height, depth)] +
-            1.0f * in[idx(x()+0, y()-1, z(), width, height, depth)]);
-        out[idx(x(), y(), z(), width, height, depth)] = result;
+            1.0f * img[idx(x+0, y+1, width, height)] +
+            1.0f * img[idx(x-1, y+0, width, height)] +
+           -4.0f * img[idx(x  , y  , width, height)] +
+            1.0f * img[idx(x+1, y+0, width, height)] +
+            1.0f * img[idx(x+0, y-1, width, height)]);
+        out[idx(x, y, width, height)] = result;
     });
 
 
     // Jacobi
-    let OMEGA       = 0.8f;
-    let RHS         = array(width * height * depth);
-    let Sol         = array(width * height * depth);
-    let jacobi_mask = array(size * size);
+    let OMEGA           = 0.8f;
+    let mut RHS         = array(width * height);
+    let mut Sol         = array(width * height);
+    let mut jacobi_mask = array(size * size);
     jacobi_mask[0] = 0.00f; jacobi_mask[1] = 0.25f; jacobi_mask[2] = 0.00f;
     jacobi_mask[3] = 0.25f; jacobi_mask[4] = 0.00f; jacobi_mask[5] = 0.25f;
     jacobi_mask[6] = 0.00f; jacobi_mask[7] = 0.25f; jacobi_mask[8] = 0.00f;
-    all_on_gpu(out, |x : fn() -> int, y : fn() -> int, z : fn() -> int| -> void {
+    iteration(width, height, |x : int, y : int| -> void {
         //let result =
-        //    (1.0f - OMEGA) * Sol[idx(x(), y(), z(), width, height, depth)] +
-        //    0.25f * OMEGA  * RHS[idx(x(), y(), z(), width, height, depth)] +
-        //    @convolve(Sol, jacobi_mask, 1.0f, range, x(), y(), z(), width, height, depth);
+        //    (1.0f - OMEGA) * Sol[idx(x, y, width, height)] +
+        //    0.25f * OMEGA  * RHS[idx(x, y, width, height)] +
+        //    @convolve(Sol, jacobi_mask, 1.0f, range, x, y, width, height);
         let result =
-            (1.0f - OMEGA) * Sol[idx(x(), y(), z(), width, height, depth)] +
+            (1.0f - OMEGA) * Sol[idx(x, y, width, height)] +
             0.25f * OMEGA  * (
-                Sol[idx(x()+0, y()+1, z(), width, height, depth)] +
-                Sol[idx(x()-1, y()+0, z(), width, height, depth)] +
-                RHS[idx(x()  , y()  , z(), width, height, depth)] +
-                Sol[idx(x()+1, y()+0, z(), width, height, depth)] +
-                Sol[idx(x()+0, y()-1, z(), width, height, depth)]
+                Sol[idx(x+0, y+1, width, height)] +
+                Sol[idx(x-1, y+0, width, height)] +
+                RHS[idx(x  , y  , width, height)] +
+                Sol[idx(x+1, y+0, width, height)] +
+                Sol[idx(x+0, y-1, width, height)]
             );
-        out[idx(x(), y(), z(), width, height, depth)] = result;
+        out[idx(x, y, width, height)] = result;
     });
 
 
     // Residuum
-    all_on_gpu(out, |x : fn() -> int, y : fn() -> int, z : fn() -> int| -> void {
+    iteration(width, height, |x : int, y : int| -> void {
         //let result =
-        //    RHS[idx(x(), y(), z(), width, height, depth)] +
-        //    @convolve(Sol, mask, 1.0f, range, x(), y(), z(), width, height, depth);
+        //    RHS[idx(x, y, width, height)] +
+        //    @convolve(Sol, mask, 1.0f, range, x, y, width, height);
         let result =
-                    RHS[idx(x(),   y(),   z(), width, height, depth)] +
-             1.0f * Sol[idx(x()+0, y()+1, z(), width, height, depth)] +
-             1.0f * Sol[idx(x()-1, y()+0, z(), width, height, depth)] +
-            -4.0f * Sol[idx(x()  , y()  , z(), width, height, depth)] +
-             1.0f * Sol[idx(x()+1, y()+0, z(), width, height, depth)] +
-             1.0f * Sol[idx(x()+0, y()-1, z(), width, height, depth)];
-        out[idx(x(), y(), z(), width, height, depth)] = result;
+                    RHS[idx(x,   y,   width, height)] +
+             1.0f * Sol[idx(x+0, y+1, width, height)] +
+             1.0f * Sol[idx(x-1, y+0, width, height)] +
+            -4.0f * Sol[idx(x  , y  , width, height)] +
+             1.0f * Sol[idx(x+1, y+0, width, height)] +
+             1.0f * Sol[idx(x+0, y-1, width, height)];
+        out[idx(x, y, width, height)] = result;
     });
 
 
-    // Restrict: in = size x size; out = size/2 x size/2; fine -> coarse
+    // Restrict: img = size x size; out = size/2 x size/2; fine -> coarse
     // coarse = Stencil * fine;
     let restrict_mask = array(size * size);
     restrict_mask[0] = 0.25f; restrict_mask[1] = 0.50f; restrict_mask[2] = 0.25f;
     restrict_mask[3] = 0.50f; restrict_mask[4] = 1.00f; restrict_mask[5] = 0.50f;
     restrict_mask[6] = 0.25f; restrict_mask[7] = 0.50f; restrict_mask[8] = 0.25f;
-    all_on_gpu(out, |x : fn() -> int, y : fn() -> int, z : fn() -> int| -> void {
-        let fx = 2*x();
-        let fy = 2*y();
-        let fz = 2*z();
+    iteration(width, height, |x : int, y : int| -> void {
+        let fx = 2*x;
+        let fy = 2*y;
         let fwidth  = 2*width;
         let fheight = 2*height;
-        let fdepth  = 2*depth;
 
-        //let result = @convolve(in, restrict_mask, 1.0f, range, fx, fy, fz, fwidth, fheight, fdepth);
+        //let result = @convolve(img, restrict_mask, 1.0f, range, fx, fy, fwidth, fheight);
         let result =
-            0.25f * in[idx(fx-1, fy-1, fz, fwidth, fheight, fdepth)];
-            0.50f * in[idx(fx+0, fy-1, fz, fwidth, fheight, fdepth)];
-            0.25f * in[idx(fx+1, fy-1, fz, fwidth, fheight, fdepth)];
-            0.50f * in[idx(fx-1, fy+0, fz, fwidth, fheight, fdepth)];
-                    in[idx(fx  , fy  , fz, fwidth, fheight, fdepth)];
-            0.50f * in[idx(fx+1, fy+0, fz, fwidth, fheight, fdepth)];
-            0.25f * in[idx(fx-1, fy+1, fz, fwidth, fheight, fdepth)];
-            0.50f * in[idx(fx+0, fy+1, fz, fwidth, fheight, fdepth)];
-            0.25f * in[idx(fx+1, fy+1, fz, fwidth, fheight, fdepth)];
-        out[idx(x(), y(), z(), width, height, depth)] = result;
+            0.25f * img[idx(fx-1, fy-1, fwidth, fheight)];
+            0.50f * img[idx(fx+0, fy-1, fwidth, fheight)];
+            0.25f * img[idx(fx+1, fy-1, fwidth, fheight)];
+            0.50f * img[idx(fx-1, fy+0, fwidth, fheight)];
+                    img[idx(fx  , fy  , fwidth, fheight)];
+            0.50f * img[idx(fx+1, fy+0, fwidth, fheight)];
+            0.25f * img[idx(fx-1, fy+1, fwidth, fheight)];
+            0.50f * img[idx(fx+0, fy+1, fwidth, fheight)];
+            0.25f * img[idx(fx+1, fy+1, fwidth, fheight)];
+        out[idx(x, y, width, height)] = result;
     });
 
 
     // L2 norm
     let mut l2sum = 0.0f;
-    all_on_gpu(in, |x : fn() -> int, y : fn() -> int, z : fn() -> int| -> void {
-        let value = in[idx(x(), y(), z(), width, height, depth)];
+    iteration(width, height, |x : int, y : int| -> void {
+        let value = img[idx(x, y, width, height)];
         l2sum += value*value;
     });
     //let l2norm = sqrt(l2sum)/(width*height);
     let l2norm = sqrt(l2sum)/(1024.0f*1024.0f);
 
 
-    // Interpolate: in = size/2 x size/2; out = size x size; coarse -> fine
+    // Interpolate: img = size/2 x size/2; out = size x size; coarse -> fine
     // fine += Stencil * coarse:
     // 0.25 0.50 0.25
     // 0.50 1.00 0.50
     // 0.25 0.50 0.25
     // FIXME: this will not run correctly on accelerators such as GPUs due to
     // their memory consistency model
-    all_on_gpu(in, |x : fn() -> int, y : fn() -> int, z : fn() -> int| -> void {
-        let cx = 2*x();
-        let cy = 2*y();
-        let cz = 2*z();
+    iteration(width, height, |x : int, y : int| -> void {
+        let cx = 2*x;
+        let cy = 2*y;
         let cwidth  = 2*width;
         let cheight = 2*height;
-        let cdepth  = 2*depth;
 
-        let v = in[idx(x(), y(), z(), width, height, depth)];
-        out[idx(cx-1, cy-1, cz, cwidth, cheight, cdepth)] += 0.25f * v;
-        out[idx(cx+0, cy-1, cz, cwidth, cheight, cdepth)] += 0.50f * v;
-        out[idx(cx+1, cy-1, cz, cwidth, cheight, cdepth)] += 0.25f * v;
-        out[idx(cx-1, cy+0, cz, cwidth, cheight, cdepth)] += 0.50f * v;
-        out[idx(cx  , cy  , cz, cwidth, cheight, cdepth)] +=         v;
-        out[idx(cx+1, cy+0, cz, cwidth, cheight, cdepth)] += 0.50f * v;
-        out[idx(cx-1, cy+1, cz, cwidth, cheight, cdepth)] += 0.25f * v;
-        out[idx(cx+0, cy+1, cz, cwidth, cheight, cdepth)] += 0.50f * v;
-        out[idx(cx+1, cy+1, cz, cwidth, cheight, cdepth)] += 0.25f * v;
+        let v = img[idx(x, y, width, height)];
+        out[idx(cx-1, cy-1, cwidth, cheight)] += 0.25f * v;
+        out[idx(cx+0, cy-1, cwidth, cheight)] += 0.50f * v;
+        out[idx(cx+1, cy-1, cwidth, cheight)] += 0.25f * v;
+        out[idx(cx-1, cy+0, cwidth, cheight)] += 0.50f * v;
+        out[idx(cx  , cy  , cwidth, cheight)] +=         v;
+        out[idx(cx+1, cy+0, cwidth, cheight)] += 0.50f * v;
+        out[idx(cx-1, cy+1, cwidth, cheight)] += 0.25f * v;
+        out[idx(cx+0, cy+1, cwidth, cheight)] += 0.50f * v;
+        out[idx(cx+1, cy+1, cwidth, cheight)] += 0.25f * v;
     });
 
     return out;
 }
 
-fn convolve(arr : [float], mask : [float * 3 * 3], omega : float, range : int, x : int, y : int, z : int, width : int, height : int, depth : int) -> float {
+fn convolve(arr : [float], mask : [float * 3 * 3], omega : float, range : int, x : int, y : int, width : int, height : int) -> float {
     let mut sum = 0.0f;
     let msize = 2*range;
 
@@ -153,11 +147,11 @@ fn convolve(arr : [float], mask : [float * 3 * 3], omega : float, range : int, x
     // - consider only non-null values
     // - get value and index of current element
     // for (let cur not null in mask.values(), let idx in mask.index()) {
-    //   sum += let * arr((x, y, z) + idx);
+    //   sum += let * arr((x, y) + idx);
     // }
     for (let mut yf=-range; yf<range; ++yf) {
         for (let mut xf=-range; xf<range; ++xf) {
-            let index = x + xf + width * (y + yf) + width * height * z;
+            let index = x + xf + (y + yf) * width;
             // TODO: propagate mask[imask] in case mask is a C const array
             sum += omega * mask[range + xf][range + yf] * arr[index];
         }

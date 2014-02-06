@@ -101,7 +101,9 @@ void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f) {
         else if (&t == &f)
             jump(t);
         else {
-            cur_bb->branch(cond, t.get(world()), f.get(world()));
+            auto tl = t.get(world());
+            auto fl = f.get(world());
+            cur_bb->branch(cond, tl, fl);
             set_unreachable();
         }
     }

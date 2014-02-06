@@ -118,7 +118,7 @@ void CodeGen::emit() {
     }
 
     // emit connected functions first
-    std::sort(scopes.begin(), scopes.end(), [] (Scope* s1, Scope* s2) { return s1->entry()->is_connected_to_builtin(); }); 
+    std::stable_sort(scopes.begin(), scopes.end(), [] (Scope* s1, Scope* s2) { return s1->entry()->is_connected_to_builtin(); }); 
 
     for (auto ptr_scope : scopes) {
         auto& scope = *ptr_scope;

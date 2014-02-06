@@ -29,6 +29,7 @@ public:
         Vectorize    = 1 << 4, ///< Flag for the external vectorizer
         VectorizeTid = 1 << 5, ///< Flag for the external vectorizer (tid getter)
         Intrinsic    = 1 << 6, ///< Flag for intrinsic LLVM function
+        Builtin = NVVM | SPIR | Vectorize
     };
 
     struct Attribute {
@@ -39,7 +40,7 @@ public:
         uint32_t filter(uint32_t flags) const { return flags_ & flags; }
         bool is(uint32_t flags) const { return filter(flags) != 0; }
         void set(uint32_t flags) { flags_ |=  flags; }
-        void clear(uint32_t flags) { flags_ &= ~flags; }
+        void clear(uint32_t flags = uint32_t(-1)) { flags_ &= ~flags; }
         void toggle(uint32_t flags) { flags_ ^= flags; }
         uint32_t flags() const { return flags_; }
 

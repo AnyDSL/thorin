@@ -1,6 +1,8 @@
 OPENCL_DIR ?= /opt/intel/opencl
+CXX_FLAGS := -Wall -Wunused
 OPT_FLAGS := -O3
 DBG_FLAGS :=
+MAIN      := jacobi_handspecialized
 
 OS:=$(shell uname -s)
 
@@ -16,16 +18,16 @@ ifeq ($(OS),Darwin) # Assume Mac Os X
 endif
 
 
-all: main.out
-	@echo "Running main ..."
+all: $(MAIN).out
+	@echo "Running $(MAIN) ..."
 	@llvm-as simple-gpu64.spir
-	@./main.out
+	@./$(MAIN).out
 
 %.llo: %.cpp cl_runtime.h
-	clang++ $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -c -emit-llvm $<
+	clang++ $(CXX_FLAGS) $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -c -emit-llvm $<
 
 #%.llo: %.cpp
-#	clang++ $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -c -emit-llvm $<
+#	clang++ $(CXX_FLAGS) $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -c -emit-llvm $<
 
 %.bc: %.llo
 	llvm-link $^ -o $*-unop.bc
@@ -49,7 +51,7 @@ all: main.out
 	clang++ $< $(LIB_DIRS) $(LD_FLAGS) -o $@
 
 clean:
-	@rm -f main $(MAIN_FILES) *.ll *.llo *.o *.bc *.s *.out
+	@rm -f $(MAIN) *.ll *.llo *.o *.bc *.s *.out
 
 .PHONY: all
 

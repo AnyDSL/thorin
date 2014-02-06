@@ -193,7 +193,7 @@ void Scope::rpo_numbering(Lambda* entry, Lambda* exit) {
     assert(size() == visited.size() && num == -1);
 
     // sort rpo_ according to sid which now holds the rpo number
-    std::sort(rpo_.begin(), rpo_.end(), [&](Lambda* l1, Lambda* l2) { return sid(l1) < sid(l2); });
+    std::stable_sort(rpo_.begin(), rpo_.end(), [&](Lambda* l1, Lambda* l2) { return sid(l1) < sid(l2); });
 
 #ifndef NDEBUG
     // double check sids

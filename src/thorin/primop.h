@@ -22,7 +22,6 @@ protected:
     {}
 
 public:
-    void update(size_t i, Def with);
     virtual const char* op_name() const;
     virtual size_t hash() const {
         size_t seed = hash_combine(hash_combine(hash_value((int) kind()), size()), type());

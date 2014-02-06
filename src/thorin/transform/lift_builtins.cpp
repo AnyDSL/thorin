@@ -28,7 +28,7 @@ void lift_builtins(World& world) {
                             ulambda->jump(cur, nops.slice_from_begin(1));                    // set new args
                             // jump to new top-level dummy function
                             ulambda->update_to(world.lambda(ulambda->arg_pi(), to->attribute(), to->name));
-                            to->attribute().clear(-1);                                       // remove builtin attribute
+                            lifted->attribute().clear(Lambda::Builtin);
                         }
                     }
                 }

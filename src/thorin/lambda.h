@@ -29,6 +29,7 @@ public:
         Vectorize    = 1 << 4, ///< Flag for the external vectorizer
         VectorizeTid = 1 << 5, ///< Flag for the external vectorizer (tid getter)
         Intrinsic    = 1 << 6, ///< Flag for intrinsic LLVM function
+        Builtin = NVVM | SPIR | Vectorize
     };
 
     struct Attribute {

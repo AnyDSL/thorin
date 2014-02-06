@@ -10,16 +10,6 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-void PrimOp::update(size_t i, Def with) { 
-    unset_op(i); 
-    set_op(i, with); 
-
-    is_const_ = true;
-    for (auto op : ops())
-        if (op)
-            is_const_ &= op->is_const();
-}
-
 VectorOp::VectorOp(size_t size, NodeKind kind, const Type* type, Def cond, const std::string& name)
     : PrimOp(size, kind, type, name)
 {

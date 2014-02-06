@@ -1068,7 +1068,7 @@ void World::wipe_out(S& set, W wipe) {
         auto val = *j;
         if (wipe(val)) {
             set.erase(j);
-            //delete val;
+            delete val;
         }
     }
 }

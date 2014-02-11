@@ -232,7 +232,7 @@ EdgeType PartialEvaluator::classify(Lambda* nsrc, Lambda* ndst) const {
         if (i->is_root()) {
             std::cout << "warning: " << std::endl;
             std::cout << src->unique_name() << '/' << nsrc->unique_name() << " -> " << dst->unique_name() << '/' << ndst->unique_name() << std::endl;
-            return EdgeType(false, 0);
+            return EdgeType(false, hdst->depth() - hsrc->depth());
         }
         assert(!i->is_root());
     }

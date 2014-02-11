@@ -130,8 +130,27 @@ void PartialEvaluator::push(Lambda* src, ArrayRef<Lambda*> dst) {
 
     std::stable_sort(edges.begin(), edges.end());
 
-    //for (auto lambda : dst) {
-    //}
+    // TODO evil
+
+    for (auto& edge : edges) {
+        auto i = done_.find(edge.dst());
+        if (i != done_.end())
+            continue;
+        done_.insert(edge.dst());
+        if (edge.n() < 0) {
+            // search up for n loop headers
+            int num_headers = 0;
+            auto i = trace_.rbegin();
+            for (; num_headers > edge.n(); ++i) {
+                assert(i != trace_.rend());
+                if (is_header(i->olambda()))
+                    --num_headers;
+            }
+            auto j = --(i.base()); // convert to forward iterator
+            trace_.insert(j, trace_entry(edge.dst()));
+        } else
+            trace_.push_back(trace_entry(edge.dst()));
+    }
 }
 
 Lambda* PartialEvaluator::pop() {
@@ -155,18 +174,6 @@ Edge PartialEvaluator::edge(Lambda* nsrc, Lambda* ndst) const {
     }
 
     return Edge(nsrc, ndst, false, hdst->depth() - hsrc->depth());        // cross n
-
-//#ifndef NDEBUG
-    //for (auto i = hsrc; i != hdst; i = i->parent()) {
-        //if (i->is_root()) {
-            //std::cout << "warning: " << std::endl;
-            //std::cout << src->unique_name() << '/' << nsrc->unique_name() << " -> " << dst->unique_name() << '/' << ndst->unique_name() << std::endl;
-            //return Edge(false, hdst->depth() - hsrc->depth());
-        //}
-        //assert(!i->is_root());
-    //}
-//#endif
-    //return EdgeType(false, hdst->depth() - hsrc->depth());// cross n, n <= 0
 }
 
 void PartialEvaluator::collect_headers(const LoopNode* n) {
@@ -181,14 +188,10 @@ void PartialEvaluator::collect_headers(const LoopNode* n) {
 void PartialEvaluator::process() {
     for (auto src : top_level_lambdas(world_)) {
         trace_.clear();
+        trace_.push_back(trace_entry(src));
 
         while ((src = pop())) {
             std::cout << "src: " << src->unique_name() << std::endl;
-            std::cout << "loop stack:" << std::endl;
-            std::cout << "----" << std::endl;
-            //for (auto& info : loop_stack_)
-                //std::cout << info.loop()->lambdas().front()->unique_name() << std::endl;
-            std::cout << "----" << std::endl;
 
             emit_thorin(world_);
             assert(!src->empty());

@@ -12,5 +12,5 @@ fn a(m : int, n : int) -> int {
 }
 
 fn main(i: int) -> int {
-    return @a(2, 2);
+    return @a(3, 4);
 }

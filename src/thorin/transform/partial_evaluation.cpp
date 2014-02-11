@@ -39,8 +39,11 @@ public:
     Lambda* olambda() const { return olambda_; }
     Lambda* nlambda() const { return nlambda_; }
     void dump() const {
-        std::cout << olambda()->unique_name() << '/' << nlambda()->unique_name() 
-            << " todo: " << todo_ << " evil: " << is_evil_ << std::endl;
+        if (olambda()) {
+            std::cout << olambda()->unique_name() << '/' << nlambda()->unique_name() 
+                << " todo: " << todo_ << " evil: " << is_evil_ << std::endl;
+        } else
+            std::cout << "<ghost entry>" << std::endl;
     }
     void set_evil() { is_evil_ = true; }
 
@@ -87,6 +90,7 @@ public:
         , scope_(world, top_level_lambdas(world))
         , loops_(scope_)
     {
+        done_.insert(nullptr);
         loops_.dump();
         collect_headers(loops_.root());
         for (auto lambda : world.lambdas())
@@ -100,13 +104,20 @@ public:
     void update_new2old(const Def2Def& map);
     Edge edge(Lambda* src, Lambda* dst) const;
     TraceEntry trace_entry(Lambda* lambda) { return TraceEntry(lambda, new2old_[lambda]); }
+    TraceEntry ghost_entry() { 
+        TraceEntry entry(nullptr, nullptr); 
+        entry.todo();
+        return entry;
+    }
     void push(Lambda* src, ArrayRef<Lambda*> dst);
     Lambda* pop();
 
     std::list<TraceEntry>::iterator search_loop(const Edge& edge, std::function<void(TraceEntry&)> body = [] (TraceEntry&) {}) {
+        dump_trace();
         auto i = trace_.rbegin();
         if (edge.order() <= 0) {
             int num = -edge.order()/2 + 1;
+            std::cout << num << std::endl;
             for (; num != 0; ++i) {
                 assert(i != trace_.rend());
                 if (is_header(i->nlambda())) {
@@ -119,15 +130,20 @@ public:
     }
 
     const LoopHeader* is_header(Lambda* lambda) const {
-        auto i = lambda2header_.find(new2old_[lambda]);
-        if (i != lambda2header_.end())
-            return i->second;
-        return nullptr;
+        if (lambda) {
+            auto i = lambda2header_.find(new2old_[lambda]);
+            if (i != lambda2header_.end())
+                return i->second;
+            return nullptr;
+        }
+        return loops_.root();
     }
 
     void dump_trace() {
+        std::cout << "*** trace ***" << std::endl;
         for (auto entry : trace_)
             entry.dump();
+        std::cout << "*************" << std::endl;
     }
 
     World& world_;
@@ -159,8 +175,13 @@ void PartialEvaluator::push(Lambda* src, ArrayRef<Lambda*> dst) {
         if (edge.order() <= 0) { // more elegant here
             auto j = search_loop(edge);
             trace_.insert(j, trace_entry(edge.dst()));
-        } else
+        } else {
+            if (edge.is_cross()) {
+                for (auto i = 0; i < edge.n(); ++i)
+                    trace_.push_back(ghost_entry());
+            }
             trace_.push_back(trace_entry(edge.dst()));
+        }
     }
 }
 
@@ -184,6 +205,9 @@ Edge PartialEvaluator::edge(Lambda* nsrc, Lambda* ndst) const {
             return Edge(nsrc, ndst, true, hsrc->depth() - hdst->depth()); // within n, n negative
     }
 
+    //if (hdst->depth() - hsrc->depth() > 0)
+        //asm("int3");
+
     return Edge(nsrc, ndst, false, hdst->depth() - hsrc->depth());        // cross n
 }
 
@@ -202,7 +226,8 @@ void PartialEvaluator::process() {
         trace_.push_back(trace_entry(src));
 
         while ((src = pop())) {
-            std::cout << "src: " << src->unique_name() << std::endl;
+            std::cout << "*** src: " << src->unique_name() << std::endl;
+            dump_trace();
 
             emit_thorin(world_);
             assert(!src->empty());
@@ -220,7 +245,6 @@ void PartialEvaluator::process() {
 
             if (dst == nullptr) {
                 push(src, succs);
-                dump_trace();
                 continue;
             }
 
@@ -253,9 +277,11 @@ void PartialEvaluator::process() {
                     assert(e.is_within());
                     if (e.n() <= 0) {
                         auto i = search_loop(e);
-                        assert(header == is_header(i->nlambda()) && "headers don't match");
-                        if (i->is_evil())
-                            continue;
+                        if (!is_header(i->nlambda())->is_root()) {
+                            assert(header == is_header(i->nlambda()) && "headers don't match");
+                            if (i->is_evil())
+                                continue;
+                        }
                     }
                 }
             }

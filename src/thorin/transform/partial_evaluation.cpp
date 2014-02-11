@@ -42,6 +42,7 @@ public:
         std::cout << olambda()->unique_name() << '/' << nlambda()->unique_name() 
             << " todo: " << todo_ << " evil: " << is_evil_ << std::endl;
     }
+    void set_evil() { is_evil_ = true; }
 
 private:
     Lambda* nlambda_;
@@ -102,6 +103,21 @@ public:
     void push(Lambda* src, ArrayRef<Lambda*> dst);
     Lambda* pop();
 
+    std::list<TraceEntry>::iterator search_loop(const Edge& edge, std::function<void(TraceEntry&)> body) {
+        //if (edge.order() <= 0) {,cc
+        int foo = -edge.order()/2 + 1;
+        int num = 0;
+        auto i = trace_.rbegin();
+        for (; num != edge.n(); ++i) {
+            assert(i != trace_.rend());
+            if (is_header(i->olambda())) {
+                --num;
+                body(*i);
+            }
+        }
+        return --(i.base());
+    }
+
     const LoopHeader* is_header(Lambda* lambda) const {
         auto i = lambda2header_.find(new2old_[lambda]);
         if (i != lambda2header_.end())
@@ -130,7 +146,23 @@ void PartialEvaluator::push(Lambda* src, ArrayRef<Lambda*> dst) {
 
     std::stable_sort(edges.begin(), edges.end());
 
-    // TODO evil
+    if (dst.size() > 1) {
+        for (auto& edge : edges) {
+            if (edge.n() < 0) {
+                // TODO remove copy & paste code
+                // search up for n loop headers
+                int num = 0;
+                auto i = trace_.rbegin();
+                for (; num != edge.n(); ++i) {
+                    assert(i != trace_.rend());
+                    if (is_header(i->olambda())) {
+                        --num;
+                        i->set_evil();
+                    }
+                }
+            }
+        }
+    }
 
     for (auto& edge : edges) {
         auto i = done_.find(edge.dst());
@@ -141,7 +173,7 @@ void PartialEvaluator::push(Lambda* src, ArrayRef<Lambda*> dst) {
             // search up for n loop headers
             int num_headers = 0;
             auto i = trace_.rbegin();
-            for (; num_headers > edge.n(); ++i) {
+            for (; num_headers != edge.n(); ++i) {
                 assert(i != trace_.rend());
                 if (is_header(i->olambda()))
                     --num_headers;
@@ -236,12 +268,24 @@ void PartialEvaluator::process() {
                 push(src, {dst});
                 continue;
             } else {
-                if (is_header(new2old_[dst])) {
-                    //auto e = classify(src, dst);
-                    //if (e.is_within() && e.n() <= 0) {
-                        //if (loop_stack_.back().is_evil())
-                            //continue;
-                    //}
+                if (auto header = is_header(new2old_[dst])) {
+                    // TODO remove copy & paste code
+                    // search for dst header
+                    auto e = edge(src, dst);
+                    assert(e.is_within());
+                    if (e.order() <= 0) { // within 0 is dangerous, cross 0 is fine
+                        int num = 0;
+                        //int n = e.n()/2
+                        auto i = trace_.rbegin();
+                        for (; num != e.n()-1; ++i) {
+                            assert(i != trace_.rend());
+                            if (is_header(i->olambda()))
+                                --num;
+                        }
+                        assert(header == is_header(i->nlambda()) && "headers don't match");
+                        if (i->is_evil())
+                            continue;
+                    }
                 }
             }
 

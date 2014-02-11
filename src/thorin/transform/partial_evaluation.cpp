@@ -1,4 +1,5 @@
 #include <iostream>
+#include <list>
 #include <unordered_map>
 #include <queue>
 
@@ -12,31 +13,6 @@
 
 namespace thorin {
 
-class PartialEvaluator;
-
-class LoopInfo {
-public:
-    LoopInfo() {}
-    LoopInfo(PartialEvaluator* evaluator, const LoopHeader* loop)
-        : evaluator_(evaluator)
-        , loop_(loop)
-        , evil_(false)
-    {}
-
-    const LoopHeader* loop() const { return loop_; }
-    bool is_evil() { return evil_; }
-    void set_evil() { 
-        assert(!loop_->is_root());
-        std::cout << "setting evil: " << loop_->lambdas().front()->unique_name() << std::endl;
-        evil_ = true; 
-    }
-
-private:
-    PartialEvaluator* evaluator_;
-    const LoopHeader* loop_;
-    bool evil_;
-};
-
 static std::vector<Lambda*> top_level_lambdas(World& world) {
     std::vector<Lambda*> result;
     auto scopes = top_level_scopes(world);
@@ -45,6 +21,31 @@ static std::vector<Lambda*> top_level_lambdas(World& world) {
     return result;
 }
 
+class TraceEntry {
+public:
+    TraceEntry(Lambda* nlambda, Lambda* olambda) 
+        : nlambda_(nlambda)
+        , olambda_(olambda)
+        , is_evil_(false)
+        , todo_(true)
+    {}
+
+    bool is_evil() { return is_evil_; }
+    bool todo() { return todo_; }
+    Lambda* olambda() const { return olambda_; }
+    Lambda* nlambda() const { return nlambda_; }
+    void dump() const {
+        std::cout << olambda()->unique_name() << '/' << nlambda()->unique_name() 
+            << " todo: " << todo_ << " evil: " << is_evil_ << std::endl;
+    }
+
+private:
+    Lambda* nlambda_;
+    Lambda* olambda_;
+    bool is_evil_;
+    bool todo_;
+};
+
 class EdgeType {
 public:
     EdgeType(bool is_within, int n)
@@ -52,7 +53,6 @@ public:
         , n_(n)
     {
         std::cout << (is_within ? "within " : "cross ") << n << std::endl;
-        
     }
 
     bool is_within() const { return is_within_; }
@@ -62,37 +62,6 @@ public:
 private:
     bool is_within_;
     int n_;
-};
-
-template<class T>
-class DEQ {
-public:
-    std::vector<T>& operator [] (int i) {
-        auto stack = &pos_;
-        if (i < 0) {
-            stack = &neg_;
-            i = -i-1;
-        }
-
-        if (size_t(i) >= stack->size())
-            stack->resize(i+1);
-        return (*stack)[i];
-    }
-
-    void push(int i, T& val) { (*this)[i].push_back(val); }
-    int begin() const { return neg_.empty() ? 0 : -(int) neg_.size(); }
-    int end() const { return (int) pos_.size(); }
-    bool is_empty() {
-        for (int i = begin(), e = end(); i != e; ++i) {
-            if (!(*this)[i].empty())
-                return false;
-        }
-        return true;
-    }
-
-private:
-    std::vector<std::vector<T>> neg_;
-    std::vector<std::vector<T>> pos_;
 };
 
 class PartialEvaluator {
@@ -114,7 +83,14 @@ public:
     void remove_runs(Lambda* lambda);
     void update_new2old(const Def2Def& map);
     EdgeType classify(Lambda* src, Lambda* dst) const;
-    int order(EdgeType) const;
+    int order(EdgeType e) const { return e.is_within() ? -2*(e.n()) + 1 : -2*(e.n()); }
+    TraceEntry trace_entry(Lambda* lambda) { return TraceEntry(lambda, new2old_[lambda]); }
+    void push(Lambda* src, ArrayRef<Lambda*> dst);
+    Lambda* pop();
+    void dump_edge(Lambda* src, Lambda* dst) {
+            std::cout << src->unique_name() << '/' << new2old_[src]->unique_name() << " -> " 
+                      << dst->unique_name() << '/' << new2old_[dst]->unique_name() << std::endl;
+    }
 
     const LoopHeader* is_header(Lambda* lambda) const {
         auto i = lambda2header_.find(new2old_[lambda]);
@@ -123,83 +99,9 @@ public:
         return nullptr;
     }
 
-    void push(Lambda* src, Lambda* dst, bool evil) {
-        if (done_.find(dst) != done_.end())
-            return;
-        done_.insert(dst);
-
-        std::cout << "pushing: " << std::endl;
-        auto e = classify(src, dst);
-        int ord = order(e);
-        std::cout << dst->unique_name() << ": " << ord << std::endl;
-        ord2stack_.push(ord, dst);
-
-        if (evil) {
-            if (e.is_cross()) {
-                assert(e.n() <= 0);
-                auto size = loop_stack_.size();
-                assert(size+e.n() <= size);
-                for (auto i = size; i-- != size+e.n();) {
-                    assert(i < size);
-                    loop_stack_[i].set_evil();
-                }
-            }
-        }
-    }
-
-    Lambda* pop() {
-        std::cout << "** prev: " << prev_ << std::endl;
-        Lambda* result = nullptr;
-        int i = ord2stack_.begin();
-        for (int e = ord2stack_.end(); i != e; ++i) {
-            auto& stack = ord2stack_[i];
-            if (!stack.empty()) {
-                result = stack.back();
-                stack.pop_back();
-                break;
-            }
-        }
-
-        if (result == nullptr)
-            return nullptr;
-
-        std::cout << "** new: " << i << std::endl;
-        int delta = i - prev_;
-        int mod = prev_ % 2;
-
-        if (delta >= 0) {
-            int num = (delta + mod)/2;
-            assert(num >= 0);
-            while (num-- != 0)
-                loop_stack_.pop_back();
-        } else {
-            int num = -((delta - (1 + mod))/2);
-            assert(num == 1 || num == 0);
-            if (num == 1) {
-                auto dst = new2old_[result];
-                assert(is_header(dst));
-                auto header = loops_.lambda2header(dst);
-                assert(!header->is_root());
-                loop_stack_.emplace_back(this, header);
-            }
-        }
-
-        prev_ = i;
-        return result;
-    }
-
-    void dump_schedule() {
-        std::cout << "---------------------" << std::endl;
-        std::cout << "*      schedule     *" << std::endl;
-        std::cout << "---------------------" << std::endl;
-        for (int i = ord2stack_.begin(), e = ord2stack_.end(); i != e; ++i) {
-            auto& stack = ord2stack_[i];
-            std::cout << i << ": ";
-            for (auto l : stack)
-                std::cout << l->unique_name() << '/' << new2old_[l]->unique_name() << ' ';
-            std::cout << std::endl;
-        }
-        std::cout << "---------------------" << std::endl;
+    void dump_trace() {
+        for (auto entry : trace_)
+            entry.dump();
     }
 
     World& world_;
@@ -208,10 +110,15 @@ public:
     Lambda2Lambda new2old_;
     std::unordered_map<Lambda*, const LoopHeader*> lambda2header_;
     std::unordered_set<Lambda*> done_;
-    std::vector<LoopInfo> loop_stack_;
-    int prev_;
-    DEQ<Lambda*> ord2stack_;
+    std::list<TraceEntry> trace_;
 };
+
+void PartialEvaluator::push(Lambda* src, ArrayRef<Lambda*> dst) {
+}
+
+Lambda* PartialEvaluator::pop() {
+    return nullptr;
+}
 
 EdgeType PartialEvaluator::classify(Lambda* nsrc, Lambda* ndst) const {
     auto src = new2old_[nsrc];
@@ -240,13 +147,6 @@ EdgeType PartialEvaluator::classify(Lambda* nsrc, Lambda* ndst) const {
     return EdgeType(false, hdst->depth() - hsrc->depth());// cross n, n <= 0
 }
 
-int PartialEvaluator::order(EdgeType e) const {
-    auto level = loop_stack_.size();
-    if (e.is_within())
-        return -2*(e.n() + level) + 1;
-    return -2*(e.n() + level);
-}
-
 void PartialEvaluator::collect_headers(const LoopNode* n) {
     if (const LoopHeader* header = n->isa<LoopHeader>()) {
         for (auto lambda : header->lambdas())
@@ -258,17 +158,14 @@ void PartialEvaluator::collect_headers(const LoopNode* n) {
 
 void PartialEvaluator::process() {
     for (auto src : top_level_lambdas(world_)) {
-        //assert(loop_stack_.empty());
-        loop_stack_.clear();
-        assert(ord2stack_.is_empty());
-        ord2stack_[prev_ = 0].push_back(src);
+        trace_.clear();
 
         while ((src = pop())) {
             std::cout << "src: " << src->unique_name() << std::endl;
             std::cout << "loop stack:" << std::endl;
             std::cout << "----" << std::endl;
-            for (auto& info : loop_stack_)
-                std::cout << info.loop()->lambdas().front()->unique_name() << std::endl;
+            //for (auto& info : loop_stack_)
+                //std::cout << info.loop()->lambdas().front()->unique_name() << std::endl;
             std::cout << "----" << std::endl;
 
             emit_thorin(world_);
@@ -286,9 +183,8 @@ void PartialEvaluator::process() {
             Lambda* dst = to->isa_lambda();
 
             if (dst == nullptr) {
-                for (auto succ : succs)
-                    push(src, succ, true);
-                dump_schedule();
+                push(src, succs);
+                dump_trace();
                 continue;
             }
 
@@ -312,15 +208,15 @@ void PartialEvaluator::process() {
             }
 
             if (!fold) {
-                push(src, dst, false);
+                push(src, {dst});
                 continue;
             } else {
                 if (is_header(new2old_[dst])) {
-                    auto e = classify(src, dst);
-                    if (e.is_within() && e.n() <= 0) {
-                        if (loop_stack_.back().is_evil())
-                            continue;
-                    }
+                    //auto e = classify(src, dst);
+                    //if (e.is_within() && e.n() <= 0) {
+                        //if (loop_stack_.back().is_evil())
+                            //continue;
+                    //}
                 }
             }
 
@@ -341,14 +237,14 @@ void PartialEvaluator::process() {
                     if (mapped != lambda)
                         mapped->update_to(world_.run(mapped->to()));
                 }
-                push(src, f_to, false);
+                push(src, {f_to});
             } else {
                 Def2Def r_map;
                 auto r_to = drop(scope, r_map, r_idxs, r_args, generic_map);
                 r_map[to] = r_to;
                 update_new2old(r_map);
                 rewrite_jump(src, r_to, r_idxs);
-                push(src, r_to, false);
+                push(src, {r_to});
             }
         }
     }

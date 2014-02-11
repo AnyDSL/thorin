@@ -30,8 +30,12 @@ public:
         , todo_(true)
     {}
 
-    bool is_evil() { return is_evil_; }
-    bool todo() { return todo_; }
+    bool is_evil() const { return is_evil_; }
+    bool todo() { 
+        bool old = todo_; 
+        todo_ = false; 
+        return old; 
+    }
     Lambda* olambda() const { return olambda_; }
     Lambda* nlambda() const { return nlambda_; }
     void dump() const {
@@ -46,20 +50,31 @@ private:
     bool todo_;
 };
 
-class EdgeType {
+class Edge {
 public:
-    EdgeType(bool is_within, int n)
-        : is_within_(is_within)
+    Edge() {}
+    Edge(Lambda* src, Lambda* dst, bool is_within, int n)
+        : src_(src)
+        , dst_(dst)
+        , is_within_(is_within)
         , n_(n)
-    {
-        std::cout << (is_within ? "within " : "cross ") << n << std::endl;
-    }
+    {}
 
+    Lambda* src() const { return src_; }
+    Lambda* dst() const { return dst_; }
+    int n() const { return n_; }
     bool is_within() const { return is_within_; }
     bool is_cross() const { return !is_within(); }
-    int n() const { return n_; }
+    int order() const { return is_within() ? 2*n() : 2*n() + 1; }
+    bool operator < (const Edge& other) const { return this->order() < other.order(); }
+    void dump() {
+        std::cout << (is_within() ? "within " : "cross ") << n() << ": "
+                  << src_->unique_name() << " -> " << dst_->unique_name() << std::endl;
+    }
 
 private:
+    Lambda* src_;
+    Lambda* dst_;
     bool is_within_;
     int n_;
 };
@@ -82,15 +97,10 @@ public:
     void rewrite_jump(Lambda* lambda, Lambda* to, ArrayRef<size_t> idxs);
     void remove_runs(Lambda* lambda);
     void update_new2old(const Def2Def& map);
-    EdgeType classify(Lambda* src, Lambda* dst) const;
-    int order(EdgeType e) const { return e.is_within() ? -2*(e.n()) + 1 : -2*(e.n()); }
+    Edge edge(Lambda* src, Lambda* dst) const;
     TraceEntry trace_entry(Lambda* lambda) { return TraceEntry(lambda, new2old_[lambda]); }
     void push(Lambda* src, ArrayRef<Lambda*> dst);
     Lambda* pop();
-    void dump_edge(Lambda* src, Lambda* dst) {
-            std::cout << src->unique_name() << '/' << new2old_[src]->unique_name() << " -> " 
-                      << dst->unique_name() << '/' << new2old_[dst]->unique_name() << std::endl;
-    }
 
     const LoopHeader* is_header(Lambda* lambda) const {
         auto i = lambda2header_.find(new2old_[lambda]);
@@ -114,13 +124,23 @@ public:
 };
 
 void PartialEvaluator::push(Lambda* src, ArrayRef<Lambda*> dst) {
+    Array<Edge> edges(dst.size());
+    for (size_t i = 0, e = dst.size(); i != e; ++i)
+        edges[i] = edge(src, dst[i]);
+
+    std::stable_sort(edges.begin(), edges.end());
+
+    //for (auto lambda : dst) {
+    //}
 }
 
 Lambda* PartialEvaluator::pop() {
-    return nullptr;
+    while (!trace_.empty() && !trace_.back().todo())
+        trace_.pop_back();
+    return trace_.empty() ? nullptr : trace_.back().nlambda();
 }
 
-EdgeType PartialEvaluator::classify(Lambda* nsrc, Lambda* ndst) const {
+Edge PartialEvaluator::edge(Lambda* nsrc, Lambda* ndst) const {
     auto src = new2old_[nsrc];
     auto dst = new2old_[ndst];
     auto hsrc = loops_.lambda2header(src);
@@ -129,22 +149,24 @@ EdgeType PartialEvaluator::classify(Lambda* nsrc, Lambda* ndst) const {
     std::cout << "classify: " << src->unique_name() << " -> " << dst->unique_name() << std::endl;
     if (is_header(dst)) {
         if (loops_.contains(hsrc, dst))
-            return EdgeType(true, hdst->depth() - hsrc->depth()); // within n, n positive
+            return Edge(nsrc, ndst, true, hdst->depth() - hsrc->depth()); // within n, n positive
         if (loops_.contains(hdst, src))
-            return EdgeType(true, hsrc->depth() - hdst->depth()); // within n, n negative
+            return Edge(nsrc, ndst, true, hsrc->depth() - hdst->depth()); // within n, n negative
     }
 
-#ifndef NDEBUG
-    for (auto i = hsrc; i != hdst; i = i->parent()) {
-        if (i->is_root()) {
-            std::cout << "warning: " << std::endl;
-            std::cout << src->unique_name() << '/' << nsrc->unique_name() << " -> " << dst->unique_name() << '/' << ndst->unique_name() << std::endl;
-            return EdgeType(false, hdst->depth() - hsrc->depth());
-        }
-        assert(!i->is_root());
-    }
-#endif
-    return EdgeType(false, hdst->depth() - hsrc->depth());// cross n, n <= 0
+    return Edge(nsrc, ndst, false, hdst->depth() - hsrc->depth());        // cross n
+
+//#ifndef NDEBUG
+    //for (auto i = hsrc; i != hdst; i = i->parent()) {
+        //if (i->is_root()) {
+            //std::cout << "warning: " << std::endl;
+            //std::cout << src->unique_name() << '/' << nsrc->unique_name() << " -> " << dst->unique_name() << '/' << ndst->unique_name() << std::endl;
+            //return Edge(false, hdst->depth() - hsrc->depth());
+        //}
+        //assert(!i->is_root());
+    //}
+//#endif
+    //return EdgeType(false, hdst->depth() - hsrc->depth());// cross n, n <= 0
 }
 
 void PartialEvaluator::collect_headers(const LoopNode* n) {

@@ -255,6 +255,10 @@ void LoopLeaf::dump() const {
     indent() << "+ dfs: " << dfs_index() << std::endl;
 }
 
+void LoopHeader::Edge::dump() {
+    std::cout << src_->unique_name() << " ->(" << levels_ << ") " << dst_->unique_name() << "   ";
+}
+
 #define DUMP_SET(set) \
     indent() << "+ " #set ": "; \
     for (auto lambda : set()) \
@@ -286,10 +290,6 @@ void LoopHeader::dump() const {
 }
 
 //------------------------------------------------------------------------------
-
-void Edge::dump() {
-    std::cout << src_->unique_name() << " ->(" << levels_ << ") " << dst_->unique_name() << "   ";
-}
 
 LoopTree::LoopTree(const Scope& scope)
     : scope_(scope)

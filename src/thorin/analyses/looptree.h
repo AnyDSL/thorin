@@ -14,25 +14,6 @@ class Lambda;
 class Scope;
 class World;
 
-struct Edge {
-    Edge() {}
-    Edge(Lambda* src, Lambda* dst, int levels) 
-        : src_(src)
-        , dst_(dst)
-        , levels_(levels)
-    {}
-
-    Lambda* src() const { return src_; }
-    Lambda* dst() const { return dst_; }
-    int levels() const { return levels_; }
-    void dump();
-
-private:
-    Lambda* src_;
-    Lambda* dst_;
-    int levels_;
-};
-
 class LoopHeader;
 
 /**
@@ -65,6 +46,25 @@ protected:
 /// A LoopHeader owns further \p LoopNode%s as children.
 class LoopHeader : public LoopNode {
 public:
+    struct Edge {
+        Edge() {}
+        Edge(Lambda* src, Lambda* dst, int levels) 
+            : src_(src)
+            , dst_(dst)
+            , levels_(levels)
+        {}
+
+        Lambda* src() const { return src_; }
+        Lambda* dst() const { return dst_; }
+        int levels() const { return levels_; }
+        void dump();
+
+    private:
+        Lambda* src_;
+        Lambda* dst_;
+        int levels_;
+    };
+
     explicit LoopHeader(LoopHeader* parent, int depth, const std::vector<Lambda*>& lambdas)
         : LoopNode(parent, depth, lambdas)
         , dfs_begin_(0)

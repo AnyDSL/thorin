@@ -113,11 +113,11 @@ public:
     Lambda* pop();
 
     std::list<TraceEntry>::iterator search_loop(const Edge& edge, std::function<void(TraceEntry&)> body = [] (TraceEntry&) {}) {
-        dump_trace();
+        //dump_trace();
         auto i = trace_.rbegin();
         if (edge.order() <= 0) {
             int num = -edge.order()/2 + 1;
-            std::cout << num << std::endl;
+            //std::cout << num << std::endl;
             for (; num != 0; ++i) {
                 assert(i != trace_.rend());
                 if (is_header(i->nlambda())) {
@@ -197,7 +197,7 @@ Edge PartialEvaluator::edge(Lambda* nsrc, Lambda* ndst) const {
     auto hsrc = loops_.lambda2header(src);
     auto hdst = loops_.lambda2header(dst);
 
-    std::cout << "classify: " << src->unique_name() << " -> " << dst->unique_name() << std::endl;
+    //std::cout << "classify: " << src->unique_name() << " -> " << dst->unique_name() << std::endl;
     if (is_header(dst)) {
         if (loops_.contains(hsrc, dst))
             return Edge(nsrc, ndst, true, hdst->depth() - hsrc->depth()); // within n, n positive
@@ -226,10 +226,10 @@ void PartialEvaluator::process() {
         trace_.push_back(trace_entry(src));
 
         while ((src = pop())) {
-            std::cout << "*** src: " << src->unique_name() << std::endl;
-            dump_trace();
+            //std::cout << "*** src: " << src->unique_name() << std::endl;
+            //dump_trace();
 
-            emit_thorin(world_);
+            //emit_thorin(world_);
             assert(!src->empty());
 
             auto succs = src->direct_succs();
@@ -273,7 +273,7 @@ void PartialEvaluator::process() {
             } else {
                 if (auto header = is_header(new2old_[dst])) {
                     auto e = edge(src, dst);
-                    e.dump();
+                    //e.dump();
                     assert(e.is_within());
                     if (e.n() <= 0) {
                         auto i = search_loop(e);
@@ -352,6 +352,14 @@ void PartialEvaluator::update_new2old(const Def2Def& old2new) {
 void partial_evaluation(World& world) { 
     emit_thorin(world);
     PartialEvaluator(world).process(); 
+
+    for (auto lambda : world.lambdas()) {
+        for (size_t i = 0, e = lambda->size(); i != e; ++i) {
+            if (auto evalop = lambda->op(i)->isa<EvalOp>()) {
+                lambda->update_op(i, evalop->def());
+            }
+        }
+    }
 }
 
 }

@@ -223,6 +223,8 @@ void PartialEvaluator::collect_headers(const LoopNode* n) {
 void PartialEvaluator::process() {
     for (auto src : top_level_lambdas(world_)) {
         trace_.clear();
+        if (src->empty())
+            continue;
         trace_.push_back(trace_entry(src));
 
         while ((src = pop())) {
@@ -230,6 +232,8 @@ void PartialEvaluator::process() {
             //dump_trace();
 
             //emit_thorin(world_);
+            if (src->empty())
+                continue;
             assert(!src->empty());
 
             auto succs = src->direct_succs();

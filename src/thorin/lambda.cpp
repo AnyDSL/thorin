@@ -48,7 +48,7 @@ const Param* Lambda::append_param(const Type* type, const std::string& name) {
 template<bool direct, bool indirect>
 static Lambdas succs(const Lambda* lambda) {
     std::vector<Lambda*> succs;
-    std::queue<const DefNode*> queue;
+    std::queue<Def> queue;
     DefSet done;
 
     auto insert = [&] (Def def) {
@@ -58,7 +58,7 @@ static Lambdas succs(const Lambda* lambda) {
         }
     };
 
-    if (direct)
+    if (direct && !lambda->empty())
         insert(lambda->to());
     if (indirect) {
         for (auto arg : lambda->args())
@@ -86,7 +86,7 @@ Lambdas Lambda::indirect_succs() const { return thorin::succs<false, true>(this)
 
 Lambdas Lambda::preds() const {
     std::vector<Lambda*> preds;
-    std::queue<const DefNode*> queue;
+    std::queue<Def> queue;
     DefSet done;
 
     auto insert = [&] (Def def) {

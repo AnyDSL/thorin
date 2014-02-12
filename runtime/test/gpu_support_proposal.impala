@@ -1,3 +1,116 @@
+extern nvvm((int, int, int), (int, int, int), fn() -> void) -> void;
+extern async(fn() -> void) -> int;
+
+fn iteration(width : int, height : int, img : [float], body : fn(int, int, [float]) -> void) -> void {
+    // slice memory
+    let mut cpu_slice1 = slice(img, 0,       0, width/2, height);
+    let mut cpu_slice2 = slice(img, width/2, 0, width/2, height);
+    let mut gpu_img1 = map<GPU1>(cpu_slice1);
+    let mut gpu_img2 = map<GPU2>(cpu_slice2);
+
+    let dim = (width/2, height, 1);
+    let block = (32, 4, 1);
+
+    let handle1 = async(|| -> void {
+        nvvm(dim, block, || -> void {
+            let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+            let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
+
+            body(tid_x, tid_y, gpu_img1);
+        });
+    });
+
+    let handle2 = async(|| -> void {
+        nvvm(dim, block, || -> void {
+            let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+            let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
+
+            body(tid_x, tid_y, gpu_img2);
+        });
+    });
+
+    let gpu_mems = [[float] * 2];
+    gpu_mems[0] = gpu_img1;
+    gpu_mems[1] = gpu_img2;
+    let num_devices = 2;
+    let handles = [float * 2];
+    iterate(0, num_devices+1, |i : int| -> void {
+        body(tid_x, tid_y + i * nvvm_read_ptx_sreg_ntid_y());
+        handles[i] = async(|| -> void {
+            nvvm(dim, block, || -> void {
+                let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+                let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
+
+                body(tid_x, tid_y, gpu_mems[i]);
+            });
+        });
+    });
+
+    // synchronize explicitly on handles
+    synchronize(handle1);
+    synchronize(handle2);
+    // alternatively synchronize on GPU devices
+    synchronize(GPU1);
+    synchronize(GPU2);
+}
+
+
+fn iteration(width : int, height : int, img : [float], body : fn(int, int, [float], [float]) -> void) -> void {
+    // slice memory
+    let mut cpu_slice1 = slice(img, 0,       0, width/2, height);
+    let mut cpu_slice2 = slice(img, width/2, 0, width/2, height);
+    let mut gpu_img1 = map<GPU1>(cpu_slice1);
+    let mut gpu_img2 = map<GPU2>(cpu_slice2);
+
+    let dim = (width/2, height, 1);
+    let block = (32, 4, 1);
+
+    let handle1 = async(|| -> void {
+        nvvm(dim, block, || -> void {
+            let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+            let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
+
+            let mut sm = sm_array(block[0], block[1]);
+            let sm_x = nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+            let sm_y = nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
+
+            // GPU execution with dedicated scratchpad memory
+            let offset_x = 0, offset_y = 0;
+            sm = map<SM>(gpu_img1, sm_x-offset_x, sm_y-offset_y, block[0]+2*offset_x, block[1]+2*offset_y);
+            // execution with scratchpad memory mapped to global memory
+            sm = map<PROXY>(gpu_img1, sm_x-offset_x, sm_y-offset_y, block[0]+2*offset_x, block[1]+2*offset_y);
+
+            body(tid_x, tid_y, gpu_img1, sm);
+        });
+    });
+
+    let handle2 = async(|| -> void {
+        nvvm(dim, block, || -> void {
+            let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+            let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
+
+            let mut sm = sm_array(block[0], block[1]);
+            let sm_x = nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+            let sm_y = nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
+
+            // GPU execution with dedicated scratchpad memory
+            let offset_x = 0, offset_y = 0;
+            sm = map<SM>(gpu_img2, sm_x-offset_x, sm_y-offset_y, block[0]+2*offset_x, block[1]+2*offset_y);
+            // execution with scratchpad memory mapped to global memory
+            sm = map<PROXY>(gpu_img2, sm_x-offset_x, sm_y-offset_y, block[0]+2*offset_x, block[1]+2*offset_y);
+
+            body(tid_x, tid_y, gpu_img2, sm);
+        });
+    });
+
+    // synchronize explicitly on handles
+    synchronize(handle1);
+    synchronize(handle2);
+    // alternatively synchronize on GPU devices
+    synchronize(GPU1);
+    synchronize(GPU2);
+}
+
 
 fn main() -> [float] {
     let width   = 2048;

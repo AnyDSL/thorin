@@ -168,8 +168,8 @@ size_t DefNode::length() const { return type()->as<VectorType>()->length(); }
 
 //------------------------------------------------------------------------------
 
-Peeks Param::peek() const {
-    Peeks peeks;
+std::vector<Param::Peek> Param::peek() const {
+    std::vector<Peek> peeks;
     for (auto use : lambda()->uses()) {
         if (auto pred = use->isa_lambda()) {
             if (use.index() == 0)

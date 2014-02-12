@@ -14,7 +14,7 @@ std::vector<Def> free_vars(const Scope& scope) {
     // now find everything not in scope
     auto fill_queue = [&] (Def def) {
         for (auto op : def->ops()) {
-            if (op->is_const())
+            if (op->is_const()) // FIXME: I think this test is not needed anymore
                 continue;
             if (!scope.contains(op)) {
                 vars.insert(op);

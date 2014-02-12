@@ -971,15 +971,18 @@ void World::dead_code_elimination() {
             && (   (!lambda->attribute().is(Lambda::Intrinsic) && lambda->empty()) 
                 || (lambda->attribute().is(Lambda::Intrinsic) && lambda->num_uses() == 0));
     };
+    auto unlink_representative = [&] (const DefNode* def) {
+        if (def->is_proxy()) {
+            auto num = def->representative_->representatives_of_.erase(def);
+            assert(num == 1);
+        }
+    };
 
     for (auto primop : primops_) {
         if (wipe_primop(primop)) {
             for (size_t i = 0, e = primop->size(); i != e; ++i)
                 primop->unregister_use(i);
-            if (primop->is_proxy()) {
-                auto num = primop->representative_->representatives_of_.erase(primop);
-                assert(num == 1);
-            }
+            unlink_representative(primop);
 #ifndef NDEBUG
         } else {
             for (auto op : primop->ops())
@@ -990,12 +993,11 @@ void World::dead_code_elimination() {
 
     for (auto lambda : lambdas()) {
         if (wipe_lambda(lambda)) {
-            for (auto param : lambda->params()) {
-                if (param->is_proxy()) {
-                    auto num = param->representative_->representatives_of_.erase(param);
-                    assert(num == 1);
-                }
-            }
+            if (lambda->is_proxy())
+                std::cout << "yeah" << std::endl;
+            for (auto param : lambda->params())
+                unlink_representative(param);
+            unlink_representative(lambda);
 #ifndef NDEBUG
         } else {
             for (auto op : lambda->ops())

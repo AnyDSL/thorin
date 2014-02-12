@@ -91,7 +91,7 @@ public:
         , loops_(scope_)
     {
         done_.insert(nullptr);
-        loops_.dump();
+        //loops_.dump();
         collect_headers(loops_.root());
         for (auto lambda : world.lambdas())
             new2old_[lambda] = lambda;
@@ -354,15 +354,11 @@ void PartialEvaluator::update_new2old(const Def2Def& old2new) {
 //------------------------------------------------------------------------------
 
 void partial_evaluation(World& world) { 
-    emit_thorin(world);
     PartialEvaluator(world).process(); 
 
-    for (auto lambda : world.lambdas()) {
-        for (size_t i = 0, e = lambda->size(); i != e; ++i) {
-            if (auto evalop = lambda->op(i)->isa<EvalOp>()) {
-                lambda->update_op(i, evalop->def());
-            }
-        }
+    for (auto primop : world.primops()) {
+        if (auto evalop = primop->isa<EvalOp>())
+            evalop->replace(evalop->def());
     }
 }
 

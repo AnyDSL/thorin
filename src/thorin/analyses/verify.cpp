@@ -17,28 +17,23 @@ static void within(World& world, const DefNode* def) {
 }
 
 void verify_closedness(World& world) {
-    for (auto primop : world.primops()) {
-        within(world, primop->representative_);
-        for (auto op : primop->ops())
+    auto check = [&](const DefNode* def) {
+        within(world, def->representative_);
+        for (auto op : def->ops())
             within(world, op.node());
-        for (auto use : primop->uses_)
+        for (auto use : def->uses_)
             within(world, use.def().node());
-        for (auto r : primop->representatives_of_)
+        for (auto r : def->representatives_of_)
             within(world, r);
-    }
+    };
+
+    for (auto primop : world.primops())
+        check(primop);
+
     for (auto lambda : world.lambdas()) {
-        assert(lambda->representative_ == lambda && lambda->representatives_of_.empty());
-        for (auto op : lambda->ops())
-            within(world, op.node());
-        for (auto use : lambda->uses_)
-            within(world, use.def().node());
-        for (auto param : lambda->params()) {
-            within(world, param->representative_);
-            for (auto use : param->uses_)
-                within(world, use.def().node());
-            for (auto r : param->representatives_of_)
-                within(world, r);
-        }
+        check(lambda);
+        for (auto param : lambda->params())
+            check(param);
     }
 }
 

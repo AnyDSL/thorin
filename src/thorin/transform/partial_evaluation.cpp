@@ -10,6 +10,7 @@
 #include "thorin/analyses/top_level_scopes.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/transform/merge_lambdas.h"
+#include "thorin/util/hash.h"
 
 namespace thorin {
 
@@ -83,6 +84,35 @@ private:
     int n_;
 };
 
+struct Cache {
+//public:
+    //Cache() {}
+    //Lambda* lambda() const { return lambda_; }
+    //ArrayRef<Def> args() const { return args_; }
+
+//private:
+    Lambda* lambda_;
+    std::vector<Def> args_;
+};
+
+}
+
+namespace std {
+
+template<>
+struct hash<thorin::Cache> {
+    size_t operator () (const thorin::Cache& cache) const { 
+        size_t seed = thorin::hash_value(cache.lambda_);
+        for (auto arg : cache.args_)
+            seed = thorin::hash_combine(seed, *arg);
+        return seed;
+    }
+};
+
+}
+
+namespace thorin {
+
 class PartialEvaluator {
 public:
     PartialEvaluator(World& world)
@@ -91,7 +121,7 @@ public:
         , loops_(scope_)
     {
         done_.insert(nullptr);
-        //loops_.dump();
+        loops_.dump();
         collect_headers(loops_.root());
         for (auto lambda : world.lambdas())
             new2old_[lambda] = lambda;
@@ -113,7 +143,6 @@ public:
     Lambda* pop();
 
     std::list<TraceEntry>::iterator search_loop(const Edge& edge, std::function<void(TraceEntry&)> body = [] (TraceEntry&) {}) {
-        //dump_trace();
         auto i = trace_.rbegin();
         if (edge.order() <= 0) {
             int num = -edge.order()/2 + 1;
@@ -152,6 +181,7 @@ public:
     Lambda2Lambda new2old_;
     std::unordered_map<Lambda*, const LoopHeader*> lambda2header_;
     std::unordered_set<Lambda*> done_;
+    std::unordered_map<Cache, Lambda*> cache2lambda_;
     std::list<TraceEntry> trace_;
 };
 
@@ -186,6 +216,12 @@ void PartialEvaluator::push(Lambda* src, ArrayRef<Lambda*> dst) {
 }
 
 Lambda* PartialEvaluator::pop() {
+    static int counter = 100;
+    if (counter-- == 0) {
+        std::cout.flush();
+        abort();
+    }
+
     while (!trace_.empty() && !trace_.back().todo())
         trace_.pop_back();
     return trace_.empty() ? nullptr : trace_.back().nlambda();
@@ -228,10 +264,11 @@ void PartialEvaluator::process() {
         trace_.push_back(trace_entry(src));
 
         while ((src = pop())) {
-            //std::cout << "*** src: " << src->unique_name() << std::endl;
-            //dump_trace();
+            std::cout << "---------------------------------" << std::endl;
+            std::cout << "*** src: " << src->unique_name() << std::endl;
+            dump_trace();
+            emit_thorin(world_);
 
-            //emit_thorin(world_);
             if (src->empty())
                 continue;
             assert(!src->empty());
@@ -265,7 +302,7 @@ void PartialEvaluator::process() {
                         fold = true;
                     } else
                         assert(evalop->isa<Halt>());
-                } else {
+                } else if (src->arg(i)->is_const()) {
                     f_args.push_back(src->arg(i));
                     f_idxs.push_back(i);
                 }
@@ -296,6 +333,9 @@ void PartialEvaluator::process() {
             bool res = dst->type()->infer_with(generic_map, src->arg_pi());
             assert(res);
             auto f_to = drop(scope, f_map, f_idxs, f_args, generic_map);
+            std::cout << "dropped: " << f_to->unique_name() << std::endl;
+            for (auto arg : f_args)
+                arg->dump();
             f_map[to] = f_to;
             update_new2old(f_map);
 
@@ -311,6 +351,9 @@ void PartialEvaluator::process() {
             } else {
                 Def2Def r_map;
                 auto r_to = drop(scope, r_map, r_idxs, r_args, generic_map);
+                std::cout << "dropped: " << r_to->unique_name() << std::endl;
+                for (auto arg : r_args)
+                    arg->dump();
                 r_map[to] = r_to;
                 update_new2old(r_map);
                 rewrite_jump(src, r_to, r_idxs);

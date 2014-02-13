@@ -171,7 +171,7 @@ void CodeGen::emit() {
             assert(lambda == scope.entry() || lambda->is_basicblock());
             builder_.SetInsertPoint(bbs[lambda]);
 
-            for (auto primop :  schedule[lambda]) {
+            for (auto primop : schedule[lambda]) {
                 // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
                 if (!primop->type()->isa<Pi>() && !primop->type()->isa<Frame>()
                         && (!primop->type()->isa<Mem>() || primop->isa<Store>()))
@@ -359,21 +359,21 @@ llvm::Value* CodeGen::emit(Def def) {
         if (auto cmp = bin->isa<Cmp>()) {
             if (cmp->lhs()->type()->is_type_s()) {
                 switch (cmp->cmp_kind()) {
-                    case Cmp_eq:  return builder_.CreateICmpEQ (lhs, rhs, name);
-                    case Cmp_ne:  return builder_.CreateICmpNE (lhs, rhs, name);
-                    case Cmp_gt:  return builder_.CreateICmpSGT(lhs, rhs, name);
-                    case Cmp_ge:  return builder_.CreateICmpSGE(lhs, rhs, name);
-                    case Cmp_lt:  return builder_.CreateICmpSLT(lhs, rhs, name);
-                    case Cmp_le:  return builder_.CreateICmpSLE(lhs, rhs, name);
+                    case Cmp_eq: return builder_.CreateICmpEQ (lhs, rhs, name);
+                    case Cmp_ne: return builder_.CreateICmpNE (lhs, rhs, name);
+                    case Cmp_gt: return builder_.CreateICmpSGT(lhs, rhs, name);
+                    case Cmp_ge: return builder_.CreateICmpSGE(lhs, rhs, name);
+                    case Cmp_lt: return builder_.CreateICmpSLT(lhs, rhs, name);
+                    case Cmp_le: return builder_.CreateICmpSLE(lhs, rhs, name);
                 }
             } else if (cmp->lhs()->type()->is_type_u()) {
                 switch (cmp->cmp_kind()) {
-                    case Cmp_eq:  return builder_.CreateICmpEQ (lhs, rhs, name);
-                    case Cmp_ne:  return builder_.CreateICmpNE (lhs, rhs, name);
-                    case Cmp_gt:  return builder_.CreateICmpUGT(lhs, rhs, name);
-                    case Cmp_ge:  return builder_.CreateICmpUGE(lhs, rhs, name);
-                    case Cmp_lt:  return builder_.CreateICmpULT(lhs, rhs, name);
-                    case Cmp_le:  return builder_.CreateICmpULE(lhs, rhs, name);
+                    case Cmp_eq: return builder_.CreateICmpEQ (lhs, rhs, name);
+                    case Cmp_ne: return builder_.CreateICmpNE (lhs, rhs, name);
+                    case Cmp_gt: return builder_.CreateICmpUGT(lhs, rhs, name);
+                    case Cmp_ge: return builder_.CreateICmpUGE(lhs, rhs, name);
+                    case Cmp_lt: return builder_.CreateICmpULT(lhs, rhs, name);
+                    case Cmp_le: return builder_.CreateICmpULE(lhs, rhs, name);
                 }
             } else if (cmp->lhs()->type()->is_type_pf()) {
                 switch (cmp->cmp_kind()) {

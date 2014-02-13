@@ -67,8 +67,8 @@ std::ostream& CodeGen::emit_type(const Type* type) {
             switch (primtype->primtype_kind()) {
 #define THORIN_ALL_TYPE(T) case Node_PrimType_##T: stream() << #T; break;
 #include "thorin/tables/primtypetable.h"
-            default: THORIN_UNREACHABLE;
-        }
+                default: THORIN_UNREACHABLE;
+            }
         if (primtype->is_vector())
             stream() << ">";
         return stream();

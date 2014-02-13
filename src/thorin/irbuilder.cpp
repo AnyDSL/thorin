@@ -28,7 +28,11 @@ SlotRef::SlotRef(IRBuilder& builder, const Slot* slot)
 Def VarRef::load() const { return bb_->get_value(handle_, type_, name_); }
 Def AggRef::load() const { return loaded_ ? loaded_ : loaded_ = world().extract(lref_->load(), index_); } 
 Def SlotRef::load() const   { return  world().load(builder_.get_mem(), slot_); }
-Def AggPtrRef::load() const { return world().load(builder_.get_mem(), world().lea(lref_->load(), index_)); }
+
+Def AggPtrRef::load() const { 
+    auto mem = builder_.get_mem();
+    return world().load(mem, world().lea(lref_->load(), index_)); 
+}
 
 void VarRef::store(Def def) const { bb_->set_value(handle_, def); }
 void AggRef::store(Def val) const { lref_->store(world().insert(lref_->load(), index_, val)); }
@@ -38,7 +42,8 @@ void SlotRef::store(Def val) const {
 }
 
 void AggPtrRef::store(Def val) const { 
-    builder_.set_mem(world().store(builder_.get_mem(), world().lea(lref_->load(), index_), val)); 
+    auto mem = builder_.get_mem();
+    builder_.set_mem(world().store(mem, world().lea(lref_->load(), index_), val)); 
 }
 
 //------------------------------------------------------------------------------

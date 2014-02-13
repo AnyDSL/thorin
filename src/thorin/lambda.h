@@ -67,10 +67,12 @@ public:
     Lambda* update_op(size_t i, Def def);
     Lambda* update_arg(size_t i, Def def) { return update_op(i+1, def); }
     const Param* append_param(const Type* type, const std::string& name = "");
+    Lambdas direct_preds() const;
     Lambdas direct_succs() const;
+    Lambdas indirect_preds() const;
     Lambdas indirect_succs() const;
-    Lambdas succs() const;
     Lambdas preds() const;
+    Lambdas succs() const;
     const std::vector<const GenericRef*>& generic_refs() const { return generic_refs_; }
     const Params& params() const { return params_; }
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }

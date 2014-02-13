@@ -46,6 +46,40 @@ const Param* Lambda::append_param(const Type* type, const std::string& name) {
 }
 
 template<bool direct, bool indirect>
+static Lambdas preds(const Lambda* lambda) {
+    std::vector<Lambda*> preds;
+    std::queue<Use> queue;
+    DefSet done;
+
+    auto insert = [&] (Def def) {
+        for (auto use : def->uses()) {
+            if (done.find(use) == done.end()) {
+                queue.push(use);
+                done.insert(use);
+            }
+        }
+    };
+
+    done.insert(lambda);
+    insert(lambda);
+
+    while (!queue.empty()) {
+        Use use = queue.front();
+        queue.pop();
+
+        if (auto lambda = use->isa_lambda()) {
+            if ((use.index() == 0 && direct) || (use.index() != 0 && indirect))
+                preds.push_back(lambda);
+            continue;
+        } 
+
+        insert(use);
+    }
+
+    return preds;
+}
+
+template<bool direct, bool indirect>
 static Lambdas succs(const Lambda* lambda) {
     std::vector<Lambda*> succs;
     std::queue<Def> queue;
@@ -58,6 +92,7 @@ static Lambdas succs(const Lambda* lambda) {
         }
     };
 
+    done.insert(lambda);
     if (direct && !lambda->empty())
         insert(lambda->to());
     if (indirect) {
@@ -80,40 +115,12 @@ static Lambdas succs(const Lambda* lambda) {
     return succs;
 }
 
+Lambdas Lambda::preds() const { return thorin::preds<true, true>(this); }
 Lambdas Lambda::succs() const { return thorin::succs<true, true>(this); }
+Lambdas Lambda::direct_preds() const { return thorin::preds<true, false>(this); }
 Lambdas Lambda::direct_succs() const { return thorin::succs<true, false>(this); }
+Lambdas Lambda::indirect_preds() const { return thorin::preds<false, true>(this); }
 Lambdas Lambda::indirect_succs() const { return thorin::succs<false, true>(this); }
-
-Lambdas Lambda::preds() const {
-    std::vector<Lambda*> preds;
-    std::queue<Def> queue;
-    DefSet done;
-
-    auto insert = [&] (Def def) {
-        for (auto use : def->uses()) {
-            if (done.find(use) == done.end()) {
-                queue.push(use);
-                done.insert(use);
-            }
-        }
-    };
-
-    insert(this);
-
-    while (!queue.empty()) {
-        Def def = queue.front();
-        queue.pop();
-
-        if (auto lambda = def->isa_lambda()) {
-            preds.push_back(lambda);
-            continue;
-        } 
-
-        insert(def);
-    }
-
-    return preds;
-}
 
 bool Lambda::is_builtin() const { return attribute().is(NVVM | SPIR | Vectorize); }
 

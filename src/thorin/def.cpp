@@ -30,7 +30,8 @@ const DefNode* Def::deref() const {
         auto res = representative->representatives_of_.erase(n);
         assert(res == 1);
         n->representative_ = target;
-        target->representatives_of_.insert(n);
+        auto p = target->representatives_of_.insert(n);
+        assert(p.second);
         n = representative;
     }
 
@@ -44,7 +45,8 @@ void DefNode::set_op(size_t i, Def def) {
     if (isa<PrimOp>())
         is_const_ &= node->is_const();
     assert(def->uses_.count(Use(i, this)) == 0);
-    node->uses_.emplace(i, this);
+    auto p = node->uses_.emplace(i, this);
+    assert(p.second);
 }
 
 void DefNode::unregister_use(size_t i) const {

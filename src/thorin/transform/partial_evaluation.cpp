@@ -22,6 +22,47 @@ static std::vector<Lambda*> top_level_lambdas(World& world) {
     return result;
 }
 
+//------------------------------------------------------------------------------
+
+struct Cache {
+public:
+    Cache() {}
+    Cache(Lambda* lambda)
+        : lambda_(lambda)
+    {}
+
+    Lambda* lambda() const { return lambda_; }
+    const std::vector<Def>& args() const { return args_; }
+    Def arg(size_t i) const { assert(i < args_.size()); return args_[i]; }
+
+private:
+    Lambda* lambda_;
+    std::vector<Def> args_;
+
+    friend class PartialEvaluator;
+};
+
+struct CacheHash {
+    size_t operator () (const Cache& cache) const {
+        size_t seed = thorin::hash_value(cache.lambda());
+        for (auto arg : cache.args())
+            seed = thorin::hash_combine(seed, *arg);
+        return seed;
+    }
+};
+
+struct CacheEqual {
+    bool operator () (const Cache& c1, const Cache& c2) const {
+        bool result = c1.lambda() == c2.lambda();
+        assert(c1.args().size() == c2.args().size());
+        for (size_t i = 0, e = c1.args().size(); result && i != e; ++i)
+            result &= *c1.arg(i) == c1.arg(i);
+        return result;
+    }
+};
+
+//------------------------------------------------------------------------------
+
 class TraceEntry {
 public:
     TraceEntry(Lambda* nlambda, Lambda* olambda) 
@@ -55,6 +96,8 @@ private:
     bool todo_;
 };
 
+//------------------------------------------------------------------------------
+
 class Edge {
 public:
     Edge() {}
@@ -82,61 +125,6 @@ private:
     Lambda* dst_;
     bool is_within_;
     int n_;
-};
-
-struct Cache {
-public:
-    Cache() {}
-    Cache(Lambda* lambda)
-        : lambda_(lambda)
-    {}
-
-    Lambda* lambda() const { return lambda_; }
-
-    std::vector<size_t>& idxs() { return idxs_; }
-    std::vector<Def>&    args() { return args_; }
-
-private:
-    Lambda* lambda_;
-    std::vector<size_t> idxs_;
-    std::vector<Def> args_;
-
-    friend struct CacheHash;
-    friend struct CacheEqual;
-};
-
-struct CacheHash
-{
-    size_t operator () (const Cache& cache) const
-    {
-        size_t seed = thorin::hash_value(cache.lambda_);
-        for (auto idx : cache.idxs_)
-            seed = thorin::hash_combine(seed, idx);
-        for (auto arg : cache.args_)
-            seed = thorin::hash_combine(seed, *arg);
-        return seed;
-    }
-};
-
-struct CacheEqual
-{
-    bool operator () (const Cache& c1, const Cache& c2) const
-    {
-        if(c1.lambda_ != c2.lambda_)
-            return false;
-        const size_t length = c1.idxs_.size();
-        assert(length == c1.args_.size());
-        if(length != c2.idxs_.size())
-            return false;
-        assert(length == c2.args_.size());
-        for(size_t i = 0; i != length; ++i) {
-            if(c1.idxs_[i] != c2.idxs_[i])
-                return false;
-            if(c1.args_[i] != c2.args_[i])
-                return false;
-        }
-        return true;
-    }
 };
 
 class PartialEvaluator {
@@ -319,21 +307,21 @@ void PartialEvaluator::process() {
             Cache fcache(dst);
             Cache rcache(dst);
 
-            for (size_t i = 0; i != src->num_args(); ++i) {
-                if (auto evalop = src->arg(i)->isa<EvalOp>()) {
-                    if (evalop->isa<Run>()) {
-                        fcache.args().push_back(evalop);
-                        rcache.args().push_back(evalop);
-                        fcache.idxs().push_back(i);
-                        rcache.idxs().push_back(i);
-                        fold = true;
-                    } else
-                        assert(evalop->isa<Hlt>());
-                } else if (src->arg(i)->is_const()) {
-                    fcache.args().push_back(src->arg(i));
-                    fcache.idxs().push_back(i);
-                }
-            }
+            //for (size_t i = 0; i != src->num_args(); ++i) {
+                //if (auto evalop = src->arg(i)->isa<EvalOp>()) {
+                    //if (evalop->isa<Run>()) {
+                        //fcache.args().push_back(evalop);
+                        //rcache.args().push_back(evalop);
+                        //fcache.idxs().push_back(i);
+                        //rcache.idxs().push_back(i);
+                        //fold = true;
+                    //} else
+                        //assert(evalop->isa<Hlt>());
+                //} else if (src->arg(i)->is_const()) {
+                    //fcache.args().push_back(src->arg(i));
+                    //fcache.idxs().push_back(i);
+                //}
+            //}
 
             if (!fold) {
                 push(src, {dst});
@@ -353,6 +341,7 @@ void PartialEvaluator::process() {
                     }
                 }
             }
+#if 0
 
             // check for cached version
             if(Lambda* to_lam = resolve_cached(fcache))
@@ -394,11 +383,13 @@ void PartialEvaluator::process() {
                     push(src, {r_to});
                 }
             }
+#endif
         }
     }
 }
 
 void PartialEvaluator::rewrite_jump(Lambda* lambda, Lambda* to, Cache &cache) {
+#if 0
     std::vector<Def> new_args;
     size_t x = 0;
     for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
@@ -410,6 +401,7 @@ void PartialEvaluator::rewrite_jump(Lambda* lambda, Lambda* to, Cache &cache) {
 
     lambda->jump(to, new_args);
     cache2lambda_[cache] = to;
+#endif
 }
 
 void PartialEvaluator::remove_runs(Lambda* lambda) {

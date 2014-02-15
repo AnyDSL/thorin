@@ -122,6 +122,15 @@ const Type* LEA::referenced_type() const { return ptr()->type()->as<Ptr>()->refe
 
 //------------------------------------------------------------------------------
 
+EvalOp::EvalOp(NodeKind kind, Def def, const std::string& name)
+    : PrimOp(1, kind, def->type(), name)
+{
+    assert(type()->isa<Pi>());
+    set_op(0, def);
+}
+
+//------------------------------------------------------------------------------
+
 Slot::Slot(const Type* type, Def frame, size_t index, const std::string& name)
     : PrimOp(1, Node_Slot, type->world().ptr(type), name)
     , index_(index)

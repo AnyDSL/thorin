@@ -256,36 +256,8 @@ RefPtr PrefixExpr::emit(CodeGen& cg) const {
         case SUB: return Ref::create(cg.world().arithop_minus(rref->load()));
         case NOT:
         case L_N: return Ref::create(cg.world().arithop_not(rref->load()));
-        case RUN: 
-            if (auto call = rhs()->isa<Call>()) {
-                bool is_continuation_call = call->is_continuation_call();
-                auto callee = call->callee();
-                auto args = is_continuation_call ? callee->args() : callee->args().slice_num_from_end(1);
-                for (size_t i = 0, e = args.size(); i != e; ++i) {
-                    Def def = args[i];
-                    if (def->is_const())
-                        callee->update_arg(i, cg.world().run(def));
-                }
-
-                if (!is_continuation_call) {
-                    auto def = callee->ops().back();
-                    callee->update_op(callee->size()-1, cg.world().halt(def));
-                }
-                callee->update_to(cg.world().run(callee->to()));
-                return rref;
-            } else
-                return Ref::create(cg.world().run(rref->load()));
-        case HALT: 
-            if (auto call = rhs()->isa<Call>()) {
-                auto callee = call->callee();
-                for (size_t i = 0, e = callee->args().size(); i != e; ++i) {
-                    Def def = callee->arg(i);
-                    callee->update_arg(i, cg.world().halt(def));
-                }
-                callee->update_to(cg.world().halt(callee->to()));
-                return rref;
-            } else
-                return Ref::create(cg.world().halt(rref->load()));
+        case RUN: return Ref::create(cg.world().run(rref->load()));
+        case HLT: return Ref::create(cg.world().hlt(rref->load()));
         default: THORIN_UNREACHABLE;
     }
 }

@@ -172,38 +172,9 @@ Def Mangler::mangle(Def odef) {
     Array<Def> nops(oprimop->size());
     Def nprimop;
 
-    if (oprimop->isa<Aggregate>()) {
-        for (size_t i = 0, e = oprimop->size(); i != e; ++i)
-            nops[i] = mangle(oprimop->op(i));
-        nprimop = world.rebuild(oprimop, nops);
-    } else {
-        Eval eval = Eval::Infer;
-        for (size_t i = 0, e = oprimop->size(); i != e; ++i) {
-            auto op = mangle(oprimop->op(i));
-
-            if (auto evalop = op->isa<EvalOp>()) {
-                if (evalop->isa<Run>()) {
-                    if (eval == Eval::Run || eval == Eval::Infer)
-                        eval = Eval::Run;
-                    else
-                        goto halt_mode;
-                } else {
-                halt_mode:
-                    assert(evalop->isa<Halt>());
-                    eval = Eval::Halt;
-                }
-                op = evalop->def();
-            }
-
-            nops[i] = op;
-        }
-
-        nprimop = world.rebuild(oprimop, nops);
-        if (eval == Eval::Run)
-            nprimop = world.run(nprimop);
-        else if (eval == Eval::Halt)
-            nprimop = world.halt(nprimop);
-    }
+    for (size_t i = 0, e = oprimop->size(); i != e; ++i)
+        nops[i] = mangle(oprimop->op(i));
+    nprimop = world.rebuild(oprimop, nops);
     return map[oprimop] = nprimop;
 }
 

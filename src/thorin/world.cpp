@@ -707,16 +707,15 @@ const Global* World::global_immutable_string(const std::string& str, const std::
 }
 
 Def World::run(Def def, const std::string& name) { 
-    if (auto run  = def->isa<Run >()) return run;
-    if (auto halt = def->isa<Halt>()) return halt;
+    if (auto run = def->isa<Run>()) return run;
+    if (auto hlt = def->isa<Hlt>()) return hlt;
     return cse(new Run(def, name)); 
 }
 
-Def World::halt(Def def, const std::string& name) { 
-    if (auto halt = def->isa<Halt>()) return halt;
-    if (auto run  = def->isa<Run >()) 
-        def = run->def();
-    return cse(new Halt(def, name)); 
+Def World::hlt(Def def, const std::string& name) { 
+    if (auto hlt = def->isa<Hlt>()) return hlt;
+    if (auto run = def->isa<Run>()) def = run->def();
+    return cse(new Hlt(def, name)); 
 }
 
 Lambda* World::lambda(const Pi* pi, Lambda::Attribute attribute, const std::string& name) {
@@ -770,7 +769,7 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, const Type* t
         case Node_Enter:     assert(ops.size() == 1); return to.enter(    ops[0], name);
         case Node_Extract:   assert(ops.size() == 2); return to.extract(  ops[0], ops[1], name);
         case Node_Global:    assert(ops.size() == 1); return to.global(   ops[0], in->as<Global>()->is_mutable(), name);
-        case Node_Halt:      assert(ops.size() == 1); return to.halt(     ops[0], name);
+        case Node_Hlt:       assert(ops.size() == 1); return to.hlt(      ops[0], name);
         case Node_Insert:    assert(ops.size() == 3); return to.insert(   ops[0], ops[1], ops[2], name);
         case Node_LEA:       assert(ops.size() == 2); return to.lea(      ops[0], ops[1], name);
         case Node_Leave:     assert(ops.size() == 2); return to.leave(    ops[0], ops[1], name);
@@ -878,7 +877,7 @@ void World::cleanup() {
 
 void World::opt() {
     cleanup();
-    partial_evaluation(*this);
+    //partial_evaluation(*this);
     lower2cff(*this);
     clone_bodies(*this);
     mem2reg(*this);

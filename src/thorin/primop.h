@@ -249,11 +249,7 @@ public:
 
 class EvalOp : public PrimOp {
 protected:
-    EvalOp(NodeKind kind, Def def, const std::string& name)
-        : PrimOp(1, kind, def->type(), name)
-    {
-        set_op(0, def);
-    }
+    EvalOp(NodeKind kind, Def def, const std::string& name);
 
 public:
     Def def() const { return op(0); }
@@ -268,10 +264,10 @@ private:
     friend class World;
 };
 
-class Halt : public EvalOp {
+class Hlt : public EvalOp {
 private:
-    Halt(Def def, const std::string& name)
-        : EvalOp(Node_Halt, def, name)
+    Hlt(Def def, const std::string& name)
+        : EvalOp(Node_Hlt, def, name)
     {}
 
     friend class World;

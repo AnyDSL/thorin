@@ -328,7 +328,7 @@ void PartialEvaluator::process() {
                         rcache.idxs().push_back(i);
                         fold = true;
                     } else
-                        assert(evalop->isa<Halt>());
+                        assert(evalop->isa<Hlt>());
                 } else if (src->arg(i)->is_const()) {
                     fcache.args().push_back(src->arg(i));
                     fcache.idxs().push_back(i);

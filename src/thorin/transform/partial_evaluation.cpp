@@ -14,6 +14,8 @@
 
 namespace thorin {
 
+//------------------------------------------------------------------------------
+
 static std::vector<Lambda*> top_level_lambdas(World& world) {
     std::vector<Lambda*> result;
     auto scopes = top_level_scopes(world);
@@ -104,8 +106,8 @@ public:
     Edge(Lambda* src, Lambda* dst, bool is_within, int n)
         : src_(src)
         , dst_(dst)
-        , is_within_(is_within)
         , n_(n)
+        , is_within_(is_within)
     {}
 
     Lambda* src() const { return src_; }
@@ -123,8 +125,8 @@ public:
 private:
     Lambda* src_;
     Lambda* dst_;
-    bool is_within_;
     int n_;
+    bool is_within_;
 };
 
 class PartialEvaluator {
@@ -290,7 +292,6 @@ void PartialEvaluator::process() {
 
             auto succs = src->direct_succs();
             bool fold = false;
-
             auto to = src->to();
             if (auto run = to->isa<Run>()) {
                 to = run->def();
@@ -304,8 +305,7 @@ void PartialEvaluator::process() {
                 continue;
             }
 
-            Cache fcache(dst);
-            Cache rcache(dst);
+            Cache cache(dst);
 
             //for (size_t i = 0; i != src->num_args(); ++i) {
                 //if (auto evalop = src->arg(i)->isa<EvalOp>()) {

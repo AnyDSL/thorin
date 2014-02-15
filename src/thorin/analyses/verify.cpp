@@ -29,7 +29,6 @@ void verify_closedness(World& world) {
 
     for (auto primop : world.primops())
         check(primop);
-
     for (auto lambda : world.lambdas()) {
         check(lambda);
         for (auto param : lambda->params())

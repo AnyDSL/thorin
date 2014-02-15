@@ -130,7 +130,7 @@ void CodeGen::emit() {
         llvm::Function* fct = fcts_[lambda];
 
         // map params
-        const Param* ret_param = 0;
+        const Param* ret_param = nullptr;
         auto arg = fct->arg_begin();
         for (auto param : lambda->params()) {
             if (param->type()->isa<Mem>())
@@ -641,7 +641,7 @@ llvm::Type* CodeGen::map(const Type* type) {
         case Node_Pi: {
             // extract "return" type, collect all other types
             const Pi* pi = type->as<Pi>();
-            llvm::Type* ret = 0;
+            llvm::Type* ret = nullptr;
             size_t i = 0;
             Array<llvm::Type*> elems(pi->size() - 1);
             for (auto elem : pi->elems()) {

@@ -95,8 +95,9 @@ Sigma* World::named_sigma(size_t size, const std::string& name) {
 Def World::literal(PrimTypeKind kind, int64_t value, size_t length) {
     Def lit;
     switch (kind) {
-#define THORIN_I_TYPE(T) case PrimType_##T: lit = literal(T(value), 1); break;
+#define THORIN_I_TYPE(T) case PrimType_##T:  lit = literal(T(value), 1); break;
 #include "thorin/tables/primtypetable.h"
+                         case PrimType_bool: lit = literal(bool(value), 1); break;
             default: THORIN_UNREACHABLE;
     }
 
@@ -992,8 +993,6 @@ void World::dead_code_elimination() {
 
     for (auto lambda : lambdas()) {
         if (wipe_lambda(lambda)) {
-            if (lambda->is_proxy())
-                std::cout << "yeah" << std::endl;
             for (auto param : lambda->params())
                 unlink_representative(param);
             unlink_representative(lambda);

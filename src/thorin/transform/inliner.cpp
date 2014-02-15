@@ -25,4 +25,4 @@ void inliner(World& world) {
     debug_verify(world);
 }
 
-} // namespace thorin
+}

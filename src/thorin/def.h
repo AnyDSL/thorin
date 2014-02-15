@@ -1,16 +1,16 @@
 #ifndef THORIN_DEF_H
 #define THORIN_DEF_H
 
-#include <queue>
-#include <string>
 #include <map>
 #include <set>
+#include <string>
 #include <vector>
 
 #include "thorin/enums.h"
 #include "thorin/util/array.h"
 #include "thorin/util/autoptr.h"
 #include "thorin/util/cast.h"
+#include "thorin/util/hash.h"
 
 namespace thorin {
 
@@ -275,8 +275,28 @@ private:
     friend class Lambda;
 };
 
+}
+
 //------------------------------------------------------------------------------
 
+namespace std {
+    template<>
+    struct hash<thorin::ArrayRef<thorin::Def>> {
+        size_t operator () (thorin::ArrayRef<thorin::Def> defs) const { 
+            size_t seed = thorin::hash_value(defs.size());
+            for (auto def : defs)
+                seed = thorin::hash_combine(seed, *def);
+            return seed;
+        }
+    };
+
+    template<>
+    struct hash<thorin::Array<thorin::Def>> {
+        size_t operator () (const thorin::Array<thorin::Def> defs) const {
+            return std::hash<thorin::ArrayRef<thorin::Def>>()(defs); }
+    };
 }
+
+//------------------------------------------------------------------------------
 
 #endif

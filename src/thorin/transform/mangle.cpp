@@ -10,21 +10,21 @@ namespace thorin {
 
 class Mangler {
 public:
-    Mangler(const Scope& scope,
-            ArrayRef<size_t> to_drop,
-            ArrayRef<Def> drop_with,
-            ArrayRef<Def> to_lift,
-            const GenericMap& generic_map)
+    Mangler(const Scope& scope, ArrayRef<Def> drop, ArrayRef<Def> lift, const GenericMap& generic_map)
         : scope(scope)
-        , to_drop(to_drop)
-        , drop_with(drop_with)
-        , to_lift(to_lift)
+        , drop(drop)
+        , lift(lift)
         , generic_map(generic_map)
         , world(scope.world())
         , set(scope.in_scope())
+        , oentry(scope.entry())
+        , nentry(world.lambda(oentry->name))
     {
+        assert(!oentry->empty());
+        assert(drop.size() == oentry->num_params());
+        old2new[oentry] = oentry;
         std::queue<Def> queue;
-        for (auto def : to_lift)
+        for (auto def : lift)
             queue.push(def);
 
         while (!queue.empty()) {
@@ -43,77 +43,54 @@ public:
     Lambda* mangle_head(Lambda* olambda);
     Def mangle(Def odef);
     Def lookup(Def def) {
-        assert(map.contains(def));
-        return map[def];
+        assert(old2new.contains(def));
+        return old2new[def];
     }
 
     const Scope& scope;
-    ArrayRef<size_t> to_drop;
-    ArrayRef<Def> drop_with;
-    ArrayRef<Def> to_lift;
+    ArrayRef<Def> drop;
+    ArrayRef<Def> lift;
     GenericMap generic_map;
     World& world;
     DefSet set;
-    Def2Def map;
-    Lambda* nentry;
+    Def2Def old2new;
     Lambda* oentry;
+    Lambda* nentry;
 };
 
 Lambda* Mangler::mangle() {
-    oentry = scope.entry();
-    assert(!oentry->empty());
-    const Pi* o_pi = oentry->pi();
-    auto nelems = o_pi->elems().cut(to_drop, to_lift.size());
-    size_t offset = o_pi->elems().size() - to_drop.size();
-
-    for (size_t i = offset, e = nelems.size(), x = 0; i != e; ++i, ++x)
-        nelems[i] = to_lift[x]->type();
-
-    const Pi* n_pi = world.pi(nelems)->specialize(generic_map)->as<Pi>();
-    nentry = world.lambda(n_pi, oentry->name);
-
-    // put in params for entry (oentry)
-    // op -> iterates over old params
-    // np -> iterates over new params
-    //  i -> iterates over to_drop
-    for (size_t op = 0, np = 0, i = 0, e = o_pi->size(); op != e; ++op) {
-        const Param* oparam = oentry->param(op);
-        if (i < to_drop.size() && to_drop[i] == op)
-            map[oparam] = drop_with[i++];
-        else {
-            const Param* nparam = nentry->param(np++);
-            nparam->name = oparam->name;
-            map[oparam] = nparam;
-        }
+    std::vector<const Type*> nelems;
+    for (size_t i = 0, e = oentry->num_params(); i != e; ++i) {
+        auto oparam = oentry->param(i);
+        if (auto def = drop[i])
+            old2new[oparam] = def;
+        else
+            old2new[oparam] = nentry->append_param(oparam->type()->specialize(generic_map), oparam->name);
     }
 
-    for (size_t i = offset, e = nelems.size(), x = 0; i != e; ++i, ++x) {
-        map[to_lift[x]] = nentry->param(i);
-        nentry->param(i)->name = to_lift[x]->name;
-    }
+    for (auto def : lift)
+        old2new[def] = nentry->append_param(def->type()->specialize(generic_map));
 
-    map[oentry] = oentry;
     mangle_body(oentry, nentry);
 
     for (auto cur : scope.rpo().slice_from_begin(1)) {
-        if (map.contains(cur))
+        if (old2new.contains(cur))
             mangle_body(cur, lookup(cur)->as_lambda());
         else
-            map[cur] = cur;
+            old2new[cur] = cur;
     }
 
     return nentry;
 }
 
 Lambda* Mangler::mangle_head(Lambda* olambda) {
-    assert(!map.contains(olambda));
+    assert(!old2new.contains(olambda));
     assert(!olambda->empty());
     Lambda* nlambda = olambda->stub(generic_map, olambda->name);
-    map[olambda] = nlambda;
-    //std::cout << "map: " << olambda->unique_name() << " -> " << nlambda->unique_name() << std::endl;
+    old2new[olambda] = nlambda;
 
     for (size_t i = 0, e = olambda->num_params(); i != e; ++i)
-        map[olambda->param(i)] = nlambda->param(i);
+        old2new[olambda->param(i)] = nlambda->param(i);
 
     return nlambda;
 }
@@ -134,28 +111,31 @@ void Mangler::mangle_body(Lambda* olambda, Lambda* nlambda) {
     } else
         ops[0] = mangle(olambda->to());
 
-    ArrayRef<Def> nargs(ops.slice_from_begin(1));// new args of nlambda
-    Def ntarget = ops.front();                   // new target of nlambda
+    ArrayRef<Def> nargs(ops.slice_from_begin(1)); // new args of nlambda
+    Def ntarget = ops.front();                    // new target of nlambda
 
     // check whether we can optimize tail recursion
     if (ntarget == oentry) {
+        std::vector<size_t> cut;
         bool substitute = true;
-        for (size_t i = 0, e = to_drop.size(); i != e && substitute; ++i)
-            substitute &= nargs[to_drop[i]] == drop_with[i];
+        for (size_t i = 0, e = drop.size(); i != e && substitute; ++i) {
+            if (auto def = drop[i]) {
+                substitute &= def == nargs[i];
+                cut.push_back(i);
+            }
+        }
 
         if (substitute)
-            return nlambda->jump(nentry, nargs.cut(to_drop));
+            return nlambda->jump(nentry, nargs.cut(cut));
     }
 
     nlambda->jump(ntarget, nargs);
 }
 
-enum class Eval { Run, Infer, Halt };
-
 Def Mangler::mangle(Def odef) {
-    if (!set.contains(odef) && !map.contains(odef))
+    if (!set.contains(odef) && !old2new.contains(odef))
         return odef;
-    if (map.contains(odef))
+    if (old2new.contains(odef))
         return lookup(odef);
 
     if (auto olambda = odef->isa_lambda()) {
@@ -163,7 +143,7 @@ Def Mangler::mangle(Def odef) {
         return mangle_head(olambda);
     } else if (auto param = odef->isa<Param>()) {
         assert(scope.contains(param->lambda()));
-        return map[odef] = odef;
+        return old2new[odef] = odef;
     }
 
     auto oprimop = odef->as<PrimOp>();
@@ -173,26 +153,13 @@ Def Mangler::mangle(Def odef) {
     for (size_t i = 0, e = oprimop->size(); i != e; ++i)
         nops[i] = mangle(oprimop->op(i));
     nprimop = world.rebuild(oprimop, nops);
-    return map[oprimop] = nprimop;
+    return old2new[oprimop] = nprimop;
 }
 
 //------------------------------------------------------------------------------
 
-Lambda* mangle(const Scope& scope,
-               ArrayRef<size_t> to_drop,
-               ArrayRef<Def> drop_with,
-               ArrayRef<Def> to_lift,
-               const GenericMap& generic_map) {
-    return Mangler(scope, to_drop, drop_with, to_lift, generic_map).mangle();
-}
-
-Lambda* drop(const Scope& scope, ArrayRef<Def> with) {
-    size_t size = with.size();
-    Array<size_t> to_drop(size);
-    for (size_t i = 0; i != size; ++i)
-        to_drop[i] = i;
-
-    return mangle(scope, to_drop, with, Array<Def>(), GenericMap());
+Lambda* mangle(const Scope& scope, ArrayRef<Def> drop, ArrayRef<Def> lift, const GenericMap& generic_map) {
+    return Mangler(scope, drop, lift, generic_map).mangle();
 }
 
 //------------------------------------------------------------------------------

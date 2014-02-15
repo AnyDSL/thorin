@@ -330,6 +330,6 @@ using PrimOp2PrimOp = GidMap<const PrimOp*, const PrimOp*>;
 
 //------------------------------------------------------------------------------
 
-} // namespace thorin
+}
 
 #endif

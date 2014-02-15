@@ -7,6 +7,6 @@ class World;
 
 void inliner(World& world);
 
-} // namespace thorin
+}
 
 #endif

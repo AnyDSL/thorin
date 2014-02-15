@@ -28,58 +28,45 @@ private:
 
 void CFFLowering::transform(Lambda* lambda) {
     Scope scope(lambda);
-    std::unordered_map<Array<const DefNode*>, Lambda*> args2lambda;
+    std::unordered_map<Array<Def>, Lambda*> args2lambda;
 
     for (auto use : lambda->uses()) {
-        if (use.index() != 0 || !use->isa<Lambda>())
-            continue;
+        assert(!use->isa<EvalOp>() && "use partial evaluation first");
+        if (auto ulambda = use->isa_lambda()) {
+            if (use.index() != 0 || scope.contains(ulambda))
+                continue;
 
-        Lambda* ulambda = use->as_lambda();
-        if (scope.contains(ulambda))
-            continue;
-
-        GenericMap map;
-        bool res = lambda->type()->infer_with(map, ulambda->arg_pi());
-        assert(res);
-        
-        size_t size = lambda->num_params();
-        Array<size_t> indices(size);
-        Array<Def> with(size);
-        Array<const DefNode*> args(size);
-
-        // don't drop the "return" of a top-level function
-        size_t keep = -1;
-        if (top_.find(lambda) != top_.end()) {
-            for (size_t i = 0; i != size; ++i) {
-                if (lambda->param(i)->type()->specialize(map)->order() == 1) {
-                    keep = i;
-                    break;
-                }
+            GenericMap map;
+            bool res = lambda->type()->infer_with(map, ulambda->arg_pi());
+            assert(res);
+            
+            size_t num_args = lambda->num_params();
+            bool ret = false;
+            Array<Def> args(num_args);
+            for (size_t i = num_args; i-- != 0;) {
+                // don't drop the "return" of a top-level function
+                if (!ret &&  top_.find(lambda) != top_.end() && lambda->param(i)->type()->specialize(map)->order() == 1) {
+                    ret = true;
+                    args[i] = nullptr;
+                } else 
+                    args[i] = (lambda->param(i)->order() >= 1) ? ulambda->arg(i) : nullptr;
             }
+
+            // check whether we can reuse an existing version
+            auto i = args2lambda.find(args);
+            Lambda* target;
+            if (i != args2lambda.end()) 
+                target = i->second; // use already dropped version as target 
+            else
+                args2lambda[args] = target = drop(scope, args, map);
+
+            std::vector<Def> nargs;
+            for (size_t i = 0, e = num_args; i != e; ++i) {
+                if (args[i] == nullptr)
+                    nargs.push_back(ulambda->arg(i));
+            }
+            ulambda->jump(target, nargs);
         }
-
-        size_t num = 0;
-        for (size_t i = 0; i != size; ++i) {
-            if (i != keep && lambda->param(i)->order() >= 1) {
-                Def arg = ulambda->arg(i);
-                indices[num] = i;
-                with[num++] = arg;
-                args[i] = arg;
-            } else
-                args[i] = 0;
-        }
-        with.shrink(num);
-        indices.shrink(num);
-
-        // check whether we can reuse an existing version
-        auto args_i = args2lambda.find(args);
-        Lambda* target;
-        if (args_i != args2lambda.end()) 
-            target = args_i->second; // use already dropped version as jump target 
-        else
-            args2lambda[args] = target = drop(scope, indices, with, map);
-
-        ulambda->jump(target, ulambda->args().cut(indices));
     }
 }
 
@@ -92,7 +79,7 @@ size_t CFFLowering::process() {
             // check for builtin functionality
             if (lambda->is_builtin() || lambda->is_connected_to_builtin())
                 continue;
-            if (lambda->num_params()                                // is there sth to drop?
+            if (lambda->num_params() != 0                           // is there sth to drop?
                 && (lambda->is_generic()                            // drop generic stuff
                     || (!lambda->is_basicblock()                    // don't drop basic blocks
                         && (!lambda->is_returning()                 // drop non-returning lambdas
@@ -116,6 +103,7 @@ void lower2cff(World& world) {
         merge_lambdas(world);
         world.cleanup();
     } while (todo);
+    verify_calls(world);
 }
 
-} // namespace thorin
+}

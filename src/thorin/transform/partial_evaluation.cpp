@@ -9,6 +9,7 @@
 #include "thorin/analyses/looptree.h"
 #include "thorin/analyses/top_level_scopes.h"
 #include "thorin/be/thorin.h"
+#include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
 
 namespace thorin {
@@ -178,6 +179,8 @@ public:
         std::cout << "*************" << std::endl;
     }
 
+    void fold(Lambda*, const Call&);
+
     World& world_;
     Scope scope_;
     LoopTree loops_;
@@ -186,8 +189,18 @@ public:
     std::unordered_set<Lambda*> done_;
     std::unordered_set<Call, CallHash> cache_;
     std::list<TraceEntry> trace_;
-    Def2Def old2new;
+    Def2Def old2new_;
 };
+
+void PartialEvaluator::fold(Lambda* lambda, const Call& call) {
+    auto oentry = call.to();
+    ArrayRef<Def> drop = call.args();
+    GenericMap generic_map;
+    bool res = lambda->type()->infer_with(generic_map, lambda->arg_pi());
+    assert(res);
+    Def2Def old2new;
+    auto nentry = drop_stub(old2new, oentry, drop, generic_map);
+}
 
 void PartialEvaluator::push(Lambda* src, ArrayRef<Lambda*> dst) {
     Array<Edge> edges(dst.size());

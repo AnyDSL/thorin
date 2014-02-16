@@ -103,6 +103,7 @@ public:
     Lambda* to() const { return to_; }
     ArrayRef<Def> args() const { return args_; }
     Def& arg(size_t i) { return args_[i]; }
+    const Def& arg(size_t i) const { return args_[i]; }
     bool operator == (const Call& other) const { return this->to() == other.to() && this->args() == other.args(); }
 
 private:
@@ -323,6 +324,7 @@ void PartialEvaluator::process() {
                 bool res = dst->type()->infer_with(generic_map, src->arg_pi());
                 assert(res);
                 auto f_to = drop(scope, old2new, call.args(), generic_map);
+                // update call
                 old2new[to] = f_to;
                 update_new2old(old2new);
                 rewrite_jump(src, call);
@@ -338,17 +340,14 @@ void PartialEvaluator::process() {
 }
 
 void PartialEvaluator::rewrite_jump(Lambda* lambda, const Call& call) {
-    std::vector<Def> new_args;
-    size_t x = 0;
+    std::vector<Def> nargs;
     for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
-        if (x < cache.idxs().size() && i == cache.idxs()[x])
-            ++x;
-        else
-            new_args.push_back(lambda->arg(i));
+        if (auto arg = call.arg(i))
+            nargs.push_back(arg);
     }
 
-    lambda->jump(to, new_args);
-    cache2lambda_[cache] = to;
+    lambda->jump(call.to(), nargs);
+    cache_.insert(call);
 }
 
 void PartialEvaluator::update_new2old(const Def2Def& old2new) {

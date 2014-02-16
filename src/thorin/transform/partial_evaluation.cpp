@@ -1,6 +1,7 @@
 #include <iostream>
 #include <list>
 #include <unordered_map>
+#include <unordered_set>
 #include <queue>
 
 #include "thorin/world.h"
@@ -27,14 +28,15 @@ static std::vector<Lambda*> top_level_lambdas(World& world) {
 class Call {
 public:
     Call() {}
-    Call(Lambda* to, size_t num_args)
+    Call(Lambda* to)
         : to_(to)
-        , args_(num_args)
+        , args_(to->num_args())
     {}
 
     Lambda* to() const { return to_; }
     ArrayRef<Def> args() const { return args_; }
-    bool operator == (const Call& other) { return this->to() == other.to() && this->args() == other.args(); }
+    Def& arg(size_t i) { return args_[i]; }
+    bool operator == (const Call& other) const { return this->to() == other.to() && this->args() == other.args(); }
 
 private:
     Lambda* to_;
@@ -121,8 +123,8 @@ public:
         : world_(world)
         , scope_(world, top_level_lambdas(world))
         , loops_(scope_)
-        , eval_mode_(false)
     {
+        done_.insert(nullptr);
         loops_.dump();
         collect_headers(loops_.root());
         for (auto lambda : world.lambdas())
@@ -131,7 +133,7 @@ public:
 
     void collect_headers(const LoopNode*);
     void process();
-    //void rewrite_jump(Lambda* lambda, Lambda* to, Cache &cache);
+    void rewrite_jump(Lambda* lambda, const Call&);
     void remove_runs(Lambda* lambda);
     void update_new2old(const Def2Def& map);
     Edge edge(Lambda* src, Lambda* dst) const;
@@ -176,22 +178,14 @@ public:
         std::cout << "*************" << std::endl;
     }
 
-    //Lambda* resolve_cached(const Cache &cache) {
-        //auto it = cache2lambda_.find(cache);
-        //if (it != cache2lambda_.end())
-            //return it->second;
-        //return nullptr;
-    //}
-
     World& world_;
     Scope scope_;
     LoopTree loops_;
     Lambda2Lambda new2old_;
     std::unordered_map<Lambda*, const LoopHeader*> lambda2header_;
-    std::unordered_map<Call, Lambda*, CallHash> cache_;
+    std::unordered_set<Lambda*> done_;
+    std::unordered_set<Call, CallHash> cache_;
     std::list<TraceEntry> trace_;
-    Def2Def old2new;
-    bool eval_mode_;
 };
 
 void PartialEvaluator::push(Lambda* src, ArrayRef<Lambda*> dst) {
@@ -207,10 +201,10 @@ void PartialEvaluator::push(Lambda* src, ArrayRef<Lambda*> dst) {
     }
 
     for (auto& edge : edges) {
-        //auto i = done_.find(edge.dst());
-        //if (i != done_.end())
-            //continue;
-        //done_.insert(edge.dst());
+        auto i = done_.find(edge.dst());
+        if (i != done_.end())
+            continue;
+        done_.insert(edge.dst());
         if (edge.order() <= 0) { // more elegant here
             auto j = search_loop(edge);
             trace_.insert(j, trace_entry(edge.dst()));
@@ -272,11 +266,12 @@ void PartialEvaluator::process() {
                 continue;
 
             auto succs = src->direct_succs();
-            bool fold = eval_mode_;
+            bool fold = false;
+
             auto to = src->to();
-            if (auto evalop = to->isa<EvalOp>()) {
-                to = evalop->def();
-                fold = evalop->isa<Run>() ? true : false;
+            if (auto run = to->isa<Run>()) {
+                to = run->def();
+                fold = true;
             }
 
             Lambda* dst = to->isa_lambda();
@@ -286,10 +281,10 @@ void PartialEvaluator::process() {
                 continue;
             }
 
-            Array<Def> call(dst->num_params()+1);
-            for (size_t i = 0; i != src->num_args(); ++i) {
-                auto op = src->op(i);
-                call[i] = op->is_const() ? op : nullptr;
+            Call call(dst);
+            for (size_t i = 0, e = dst->num_params(); i != e; ++i) {
+                auto arg = src->arg(i);
+                call.arg(i) = arg->is_const() ? arg : nullptr;
             }
 
             if (!fold) {
@@ -310,14 +305,13 @@ void PartialEvaluator::process() {
                     }
                 }
             }
-#if 0
 
             // check for cached version
-            if(Lambda* to_lam = resolve_cached(fcache))
-                rewrite_jump(src, to_lam, fcache);
-            else if(Lambda* to_lam = resolve_cached(rcache))
-                rewrite_jump(src, to_lam, rcache);
+            auto i = cache_.find(call);
+            if (i != cache_.end())
+                rewrite_jump(src, *i);
             else {
+#if 0
                 // no no cached version found... create a new one
                 Scope scope(dst);
                 Def2Def f_map;
@@ -351,8 +345,8 @@ void PartialEvaluator::process() {
                     rewrite_jump(src, r_to, rcache);
                     push(src, {r_to});
                 }
-            }
 #endif
+            }
         }
     }
 }

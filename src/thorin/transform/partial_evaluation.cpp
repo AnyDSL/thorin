@@ -1,20 +1,18 @@
 #include <iostream>
 #include <list>
 #include <unordered_map>
-#include <unordered_set>
 #include <queue>
 
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/looptree.h"
-#include "thorin/analyses/top_level_scopes.h"
 #include "thorin/be/thorin.h"
+#include "thorin/analyses/top_level_scopes.h"
 #include "thorin/transform/mangle.h"
+#include "thorin/transform/merge_lambdas.h"
 #include "thorin/util/hash.h"
 
 namespace thorin {
-
-//------------------------------------------------------------------------------
 
 static std::vector<Lambda*> top_level_lambdas(World& world) {
     std::vector<Lambda*> result;
@@ -23,34 +21,6 @@ static std::vector<Lambda*> top_level_lambdas(World& world) {
         result.push_back(scope->entry());
     return result;
 }
-
-//------------------------------------------------------------------------------
-
-class Call {
-public:
-    Call() {}
-    Call(Lambda* to)
-        : to_(to)
-        , args_(to->num_args())
-    {}
-
-    Lambda* to() const { return to_; }
-    ArrayRef<Def> args() const { return args_; }
-    Def& arg(size_t i) { return args_[i]; }
-    bool operator == (const Call& other) const { return this->to() == other.to() && this->args() == other.args(); }
-
-private:
-    Lambda* to_;
-    Array<Def> args_;
-};
-
-struct CallHash {
-    size_t operator () (const Call& call) const { 
-        return hash_combine(hash_value(call.to()), std::hash<ArrayRef<Def>>()(call.args())); 
-    }
-};
-
-//------------------------------------------------------------------------------
 
 class TraceEntry {
 public:
@@ -85,16 +55,14 @@ private:
     bool todo_;
 };
 
-//------------------------------------------------------------------------------
-
 class Edge {
 public:
     Edge() {}
     Edge(Lambda* src, Lambda* dst, bool is_within, int n)
         : src_(src)
         , dst_(dst)
-        , n_(n)
         , is_within_(is_within)
+        , n_(n)
     {}
 
     Lambda* src() const { return src_; }
@@ -112,11 +80,64 @@ public:
 private:
     Lambda* src_;
     Lambda* dst_;
-    int n_;
     bool is_within_;
+    int n_;
 };
 
-//------------------------------------------------------------------------------
+struct Cache {
+public:
+    Cache() {}
+    Cache(Lambda* lambda)
+        : lambda_(lambda)
+    {}
+
+    Lambda* lambda() const { return lambda_; }
+
+    std::vector<size_t>& idxs() { return idxs_; }
+    std::vector<Def>&    args() { return args_; }
+
+private:
+    Lambda* lambda_;
+    std::vector<size_t> idxs_;
+    std::vector<Def> args_;
+
+    friend struct CacheHash;
+    friend struct CacheEqual;
+};
+
+struct CacheHash
+{
+    size_t operator () (const Cache& cache) const
+    {
+        size_t seed = thorin::hash_value(cache.lambda_);
+        for (auto idx : cache.idxs_)
+            seed = thorin::hash_combine(seed, idx);
+        for (auto arg : cache.args_)
+            seed = thorin::hash_combine(seed, *arg);
+        return seed;
+    }
+};
+
+struct CacheEqual
+{
+    bool operator () (const Cache& c1, const Cache& c2) const
+    {
+        if(c1.lambda_ != c2.lambda_)
+            return false;
+        const size_t length = c1.idxs_.size();
+        assert(length == c1.args_.size());
+        if(length != c2.idxs_.size())
+            return false;
+        assert(length == c2.args_.size());
+        for(size_t i = 0; i != length; ++i) {
+            if(c1.idxs_[i] != c2.idxs_[i])
+                return false;
+            if(c1.args_[i] != c2.args_[i])
+                return false;
+        }
+        return true;
+    }
+};
 
 class PartialEvaluator {
 public:
@@ -125,6 +146,7 @@ public:
         , scope_(world, top_level_lambdas(world))
         , loops_(scope_)
     {
+        done_.insert(nullptr);
         loops_.dump();
         collect_headers(loops_.root());
         for (auto lambda : world.lambdas())
@@ -133,7 +155,7 @@ public:
 
     void collect_headers(const LoopNode*);
     void process();
-    void rewrite_jump(Lambda* lambda, const Call&);
+    void rewrite_jump(Lambda* lambda, Lambda* to, Cache &cache);
     void remove_runs(Lambda* lambda);
     void update_new2old(const Def2Def& map);
     Edge edge(Lambda* src, Lambda* dst) const;
@@ -150,6 +172,7 @@ public:
         auto i = trace_.rbegin();
         if (edge.order() <= 0) {
             int num = -edge.order()/2 + 1;
+            //std::cout << num << std::endl;
             for (; num != 0; ++i) {
                 assert(i != trace_.rend());
                 if (is_header(i->nlambda())) {
@@ -178,70 +201,22 @@ public:
         std::cout << "*************" << std::endl;
     }
 
-    void fold(Lambda*, const Call&);
-    Def rebuild(Def2Def& old2new, Def);
+    Lambda* resolve_cached(const Cache &cache) {
+        auto it = cache2lambda_.find(cache);
+        if (it != cache2lambda_.end())
+            return it->second;
+        return nullptr;
+    }
 
     World& world_;
     Scope scope_;
     LoopTree loops_;
     Lambda2Lambda new2old_;
     std::unordered_map<Lambda*, const LoopHeader*> lambda2header_;
-    std::unordered_set<Call, CallHash> cache_;
+    std::unordered_set<Lambda*> done_;
+    std::unordered_map<Cache, Lambda*, CacheHash, CacheEqual> cache2lambda_;
     std::list<TraceEntry> trace_;
-    Def2Def prg_;
 };
-
-// TODO avoid copy&paste code here
-Def PartialEvaluator::rebuild(Def2Def& old2new, Def def) {
-    //if (!set.contains(odef) && !old2new.contains(odef))
-        //return odef;
-    if (old2new.contains(odef))
-        return lookup(odef);
-
-    if (auto olambda = odef->isa_lambda()) {
-        assert(scope.contains(olambda));
-        return mangle_head(olambda);
-    } else if (auto param = odef->isa<Param>()) {
-        assert(scope.contains(param->lambda()));
-        return old2new[odef] = odef;
-    }
-
-    Array<Def> nops(oprimop->size());
-    Def nprimop;
-
-    for (size_t i = 0, e = oprimop->size(); i != e; ++i)
-        nops[i] = rebuild(old2new, oprimop->op(i));
-    nprimop = world.rebuild(oprimop, nops);
-    return old2new[oprimop] = nprimop;
-}
-
-void PartialEvaluator::fold(Lambda* lambda, const Call& call) {
-    auto oentry = call.to();
-    ArrayRef<Def> drop = call.args();
-    GenericMap generic_map;
-    bool res = lambda->type()->infer_with(generic_map, lambda->arg_pi());
-    assert(res);
-    Def2Def old2new;
-    std::queue<Def> queue;
-    auto nentry = drop_stub(old2new, oentry, drop, generic_map);
-
-    auto insert = [&] (Def def) {
-         if (!old2new.contains(def) && !prg_.contains(def)) {
-             old2new[def] = nullptr;
-             queue.push(def);
-         }
-    };
-
-    for (auto def : drop) {
-        if (def)
-            insert(def);
-    }
-
-    while (!queue.empty()) {
-        auto def = queue.front();
-        queue.pop();
-    }
-}
 
 void PartialEvaluator::push(Lambda* src, ArrayRef<Lambda*> dst) {
     Array<Edge> edges(dst.size());
@@ -256,6 +231,10 @@ void PartialEvaluator::push(Lambda* src, ArrayRef<Lambda*> dst) {
     }
 
     for (auto& edge : edges) {
+        auto i = done_.find(edge.dst());
+        if (i != done_.end())
+            continue;
+        done_.insert(edge.dst());
         if (edge.order() <= 0) { // more elegant here
             auto j = search_loop(edge);
             trace_.insert(j, trace_entry(edge.dst()));
@@ -281,12 +260,16 @@ Edge PartialEvaluator::edge(Lambda* nsrc, Lambda* ndst) const {
     auto hsrc = loops_.lambda2header(src);
     auto hdst = loops_.lambda2header(dst);
 
+    //std::cout << "classify: " << src->unique_name() << " -> " << dst->unique_name() << std::endl;
     if (is_header(dst)) {
         if (loops_.contains(hsrc, dst))
             return Edge(nsrc, ndst, true, hdst->depth() - hsrc->depth()); // within n, n positive
         if (loops_.contains(hdst, src))
             return Edge(nsrc, ndst, true, hsrc->depth() - hdst->depth()); // within n, n negative
     }
+
+    //if (hdst->depth() - hsrc->depth() > 0)
+        //asm("int3");
 
     return Edge(nsrc, ndst, false, hdst->depth() - hsrc->depth());        // cross n
 }
@@ -315,6 +298,7 @@ void PartialEvaluator::process() {
 
             if (src->empty())
                 continue;
+            assert(!src->empty());
 
             auto succs = src->direct_succs();
             bool fold = false;
@@ -332,10 +316,23 @@ void PartialEvaluator::process() {
                 continue;
             }
 
-            Call call(dst);
-            for (size_t i = 0, e = dst->num_params(); i != e; ++i) {
-                auto arg = src->arg(i);
-                call.arg(i) = arg->is_const() ? arg : nullptr;
+            Cache fcache(dst);
+            Cache rcache(dst);
+
+            for (size_t i = 0; i != src->num_args(); ++i) {
+                if (auto evalop = src->arg(i)->isa<EvalOp>()) {
+                    if (evalop->isa<Run>()) {
+                        fcache.args().push_back(evalop);
+                        rcache.args().push_back(evalop);
+                        fcache.idxs().push_back(i);
+                        rcache.idxs().push_back(i);
+                        fold = true;
+                    } else
+                        assert(evalop->isa<Halt>());
+                } else if (src->arg(i)->is_const()) {
+                    fcache.args().push_back(src->arg(i));
+                    fcache.idxs().push_back(i);
+                }
             }
 
             if (!fold) {
@@ -358,11 +355,11 @@ void PartialEvaluator::process() {
             }
 
             // check for cached version
-            auto i = cache_.find(call);
-            if (i != cache_.end())
-                rewrite_jump(src, *i);
+            if(Lambda* to_lam = resolve_cached(fcache))
+                rewrite_jump(src, to_lam, fcache);
+            else if(Lambda* to_lam = resolve_cached(rcache))
+                rewrite_jump(src, to_lam, rcache);
             else {
-#if 0
                 // no no cached version found... create a new one
                 Scope scope(dst);
                 Def2Def f_map;
@@ -396,13 +393,11 @@ void PartialEvaluator::process() {
                     rewrite_jump(src, r_to, rcache);
                     push(src, {r_to});
                 }
-#endif
             }
         }
     }
 }
 
-#if 0
 void PartialEvaluator::rewrite_jump(Lambda* lambda, Lambda* to, Cache &cache) {
     std::vector<Def> new_args;
     size_t x = 0;
@@ -416,7 +411,6 @@ void PartialEvaluator::rewrite_jump(Lambda* lambda, Lambda* to, Cache &cache) {
     lambda->jump(to, new_args);
     cache2lambda_[cache] = to;
 }
-#endif
 
 void PartialEvaluator::remove_runs(Lambda* lambda) {
     for (size_t i = 0, e = lambda->size(); i != e; ++i) {

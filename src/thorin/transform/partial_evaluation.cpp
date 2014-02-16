@@ -24,6 +24,31 @@ static std::vector<Lambda*> top_level_lambdas(World& world) {
 
 //------------------------------------------------------------------------------
 
+class Call {
+public:
+    Call() {}
+    Call(Lambda* to, size_t num_args)
+        : to_(to)
+        , args_(num_args)
+    {}
+
+    Lambda* to() const { return to_; }
+    ArrayRef<Def> args() const { return args_; }
+    bool operator == (const Call& other) { return this->to() == other.to() && this->args() == other.args(); }
+
+private:
+    Lambda* to_;
+    Array<Def> args_;
+};
+
+struct CallHash {
+    size_t operator () (const Call& call) const { 
+        return hash_combine(hash_value(call.to()), std::hash<ArrayRef<Def>>()(call.args())); 
+    }
+};
+
+//------------------------------------------------------------------------------
+
 class TraceEntry {
 public:
     TraceEntry(Lambda* nlambda, Lambda* olambda) 
@@ -87,6 +112,8 @@ private:
     int n_;
     bool is_within_;
 };
+
+//------------------------------------------------------------------------------
 
 class PartialEvaluator {
 public:
@@ -161,7 +188,7 @@ public:
     LoopTree loops_;
     Lambda2Lambda new2old_;
     std::unordered_map<Lambda*, const LoopHeader*> lambda2header_;
-    std::unordered_map<Array<Def>, Lambda*> cache_;
+    std::unordered_map<Call, Lambda*, CallHash> cache_;
     std::list<TraceEntry> trace_;
     Def2Def old2new;
     bool eval_mode_;

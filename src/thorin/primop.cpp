@@ -4,7 +4,6 @@
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/util/array.h"
-#include "thorin/util/hash.h"
 
 namespace thorin {
 

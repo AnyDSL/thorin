@@ -95,10 +95,8 @@ public:
     Call() {}
     Call(Lambda* to)
         : to_(to)
-        , args_(to->num_args())
-    {
-        assert(to->type()->as<Pi>()->size() == to->num_args());
-    }
+        , args_(to->type()->as<Pi>()->size())
+    {}
 
     Lambda* to() const { return to_; }
     ArrayRef<Def> args() const { return args_; }
@@ -135,7 +133,7 @@ public:
 
     void collect_headers(const LoopNode*);
     void process();
-    void rewrite_jump(Lambda*, const Call&);
+    void rewrite_jump(Lambda* src, Lambda* dst, const Call&);
     void update_new2old(const Def2Def& map);
     Edge edge(Lambda* src, Lambda* dst) const;
     TraceEntry trace_entry(Lambda* lambda) { return TraceEntry(lambda, new2old_[lambda]); }
@@ -186,7 +184,7 @@ public:
     Lambda2Lambda new2old_;
     std::unordered_map<Lambda*, const LoopHeader*> lambda2header_;
     std::unordered_set<Lambda*> done_;
-    std::unordered_set<Call, CallHash> cache_;
+    std::unordered_map<Call, Lambda*, CallHash> cache_;
     std::list<TraceEntry> trace_;
 };
 
@@ -315,7 +313,7 @@ void PartialEvaluator::process() {
             // check for cached version
             auto i = cache_.find(call);
             if (i != cache_.end())
-                rewrite_jump(src, call);
+                rewrite_jump(src, i->second, call);
             else {
                 // no no cached version found... create a new one
                 Scope scope(dst);
@@ -323,31 +321,31 @@ void PartialEvaluator::process() {
                 GenericMap generic_map;
                 bool res = dst->type()->infer_with(generic_map, src->arg_pi());
                 assert(res);
-                auto f_to = drop(scope, old2new, call.args(), generic_map);
+                auto dropped = drop(scope, old2new, call.args(), generic_map);
                 // update call
-                old2new[to] = f_to;
+                old2new[dropped] = dropped;
                 update_new2old(old2new);
-                rewrite_jump(src, call);
+                rewrite_jump(src, dropped, call);
                 for (auto lambda : scope.rpo()) {
                     auto mapped = old2new[lambda]->as_lambda();
                     if (mapped != lambda)
                         mapped->update_to(world_.run(mapped->to()));
                 }
-                push(src, {f_to});
+                push(src, {dropped});
             }
         }
     }
 }
 
-void PartialEvaluator::rewrite_jump(Lambda* lambda, const Call& call) {
+void PartialEvaluator::rewrite_jump(Lambda* src, Lambda* dst, const Call& call) {
     std::vector<Def> nargs;
-    for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
+    for (size_t i = 0, e = src->num_args(); i != e; ++i) {
         if (auto arg = call.arg(i))
             nargs.push_back(arg);
     }
 
-    lambda->jump(call.to(), nargs);
-    cache_.insert(call);
+    src->jump(dst, nargs);
+    cache_[call] = dst;
 }
 
 void PartialEvaluator::update_new2old(const Def2Def& old2new) {

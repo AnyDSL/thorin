@@ -17,6 +17,8 @@ inline Lambda* lift(const Scope& scope, ArrayRef<Def> what, const GenericMap& ge
     return mangle(scope, Array<Def>(scope.entry()->num_params()), what, generic_map);
 }
 
+Lambda* drop_stub();
+
 }
 
 #endif

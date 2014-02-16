@@ -58,6 +58,20 @@ public:
     Lambda* nentry;
 };
 
+Lambda* drop_stub(Def2Def& old2new, Lambda* oentry, ArrayRef<Def> drop, const GenericMap& generic_map) {
+    auto nentry = oentry->world().lambda(oentry->name);
+    std::vector<const Type*> nelems;
+    for (size_t i = 0, e = oentry->num_params(); i != e; ++i) {
+        auto oparam = oentry->param(i);
+        if (auto def = drop[i])
+            old2new[oparam] = def;
+        else
+            old2new[oparam] = nentry->append_param(oparam->type()->specialize(generic_map), oparam->name);
+    }
+
+    return nentry;
+}
+
 Lambda* Mangler::mangle() {
     std::vector<const Type*> nelems;
     for (size_t i = 0, e = oentry->num_params(); i != e; ++i) {

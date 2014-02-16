@@ -186,6 +186,7 @@ public:
     std::unordered_set<Lambda*> done_;
     std::unordered_set<Call, CallHash> cache_;
     std::list<TraceEntry> trace_;
+    Def2Def old2new;
 };
 
 void PartialEvaluator::push(Lambda* src, ArrayRef<Lambda*> dst) {

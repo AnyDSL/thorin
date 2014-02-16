@@ -125,7 +125,6 @@ public:
         , scope_(world, top_level_lambdas(world))
         , loops_(scope_)
     {
-        done_.insert(nullptr);
         loops_.dump();
         collect_headers(loops_.root());
         for (auto lambda : world.lambdas())
@@ -186,10 +185,9 @@ public:
     LoopTree loops_;
     Lambda2Lambda new2old_;
     std::unordered_map<Lambda*, const LoopHeader*> lambda2header_;
-    std::unordered_set<Lambda*> done_;
     std::unordered_set<Call, CallHash> cache_;
     std::list<TraceEntry> trace_;
-    Def2Def old2new_;
+    Def2Def prg_;
 };
 
 void PartialEvaluator::fold(Lambda* lambda, const Call& call) {
@@ -215,10 +213,6 @@ void PartialEvaluator::push(Lambda* src, ArrayRef<Lambda*> dst) {
     }
 
     for (auto& edge : edges) {
-        auto i = done_.find(edge.dst());
-        if (i != done_.end())
-            continue;
-        done_.insert(edge.dst());
         if (edge.order() <= 0) { // more elegant here
             auto j = search_loop(edge);
             trace_.insert(j, trace_entry(edge.dst()));

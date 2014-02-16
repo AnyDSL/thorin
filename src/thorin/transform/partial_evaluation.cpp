@@ -179,6 +179,7 @@ public:
     }
 
     void fold(Lambda*, const Call&);
+    Def rebuild(Def2Def& old2new, Def);
 
     World& world_;
     Scope scope_;
@@ -190,6 +191,30 @@ public:
     Def2Def prg_;
 };
 
+// TODO avoid copy&paste code here
+Def PartialEvaluator::rebuild(Def2Def& old2new, Def def) {
+    //if (!set.contains(odef) && !old2new.contains(odef))
+        //return odef;
+    if (old2new.contains(odef))
+        return lookup(odef);
+
+    if (auto olambda = odef->isa_lambda()) {
+        assert(scope.contains(olambda));
+        return mangle_head(olambda);
+    } else if (auto param = odef->isa<Param>()) {
+        assert(scope.contains(param->lambda()));
+        return old2new[odef] = odef;
+    }
+
+    Array<Def> nops(oprimop->size());
+    Def nprimop;
+
+    for (size_t i = 0, e = oprimop->size(); i != e; ++i)
+        nops[i] = rebuild(old2new, oprimop->op(i));
+    nprimop = world.rebuild(oprimop, nops);
+    return old2new[oprimop] = nprimop;
+}
+
 void PartialEvaluator::fold(Lambda* lambda, const Call& call) {
     auto oentry = call.to();
     ArrayRef<Def> drop = call.args();
@@ -197,7 +222,25 @@ void PartialEvaluator::fold(Lambda* lambda, const Call& call) {
     bool res = lambda->type()->infer_with(generic_map, lambda->arg_pi());
     assert(res);
     Def2Def old2new;
+    std::queue<Def> queue;
     auto nentry = drop_stub(old2new, oentry, drop, generic_map);
+
+    auto insert = [&] (Def def) {
+         if (!old2new.contains(def) && !prg_.contains(def)) {
+             old2new[def] = nullptr;
+             queue.push(def);
+         }
+    };
+
+    for (auto def : drop) {
+        if (def)
+            insert(def);
+    }
+
+    while (!queue.empty()) {
+        auto def = queue.front();
+        queue.pop();
+    }
 }
 
 void PartialEvaluator::push(Lambda* src, ArrayRef<Lambda*> dst) {

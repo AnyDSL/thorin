@@ -22,6 +22,8 @@ static std::vector<Lambda*> top_level_lambdas(World& world) {
     return result;
 }
 
+//------------------------------------------------------------------------------
+
 class TraceEntry {
 public:
     TraceEntry(Lambda* nlambda, Lambda* olambda) 
@@ -55,6 +57,8 @@ private:
     bool todo_;
 };
 
+//------------------------------------------------------------------------------
+
 class Edge {
 public:
     Edge() {}
@@ -84,60 +88,35 @@ private:
     int n_;
 };
 
-struct Cache {
+//------------------------------------------------------------------------------
+
+class Call {
 public:
-    Cache() {}
-    Cache(Lambda* lambda)
-        : lambda_(lambda)
-    {}
+    Call() {}
+    Call(Lambda* to)
+        : to_(to)
+        , args_(to->num_args())
+    {
+        assert(to->type()->as<Pi>()->size() == to->num_args());
+    }
 
-    Lambda* lambda() const { return lambda_; }
-
-    std::vector<size_t>& idxs() { return idxs_; }
-    std::vector<Def>&    args() { return args_; }
+    Lambda* to() const { return to_; }
+    ArrayRef<Def> args() const { return args_; }
+    Def& arg(size_t i) { return args_[i]; }
+    bool operator == (const Call& other) const { return this->to() == other.to() && this->args() == other.args(); }
 
 private:
-    Lambda* lambda_;
-    std::vector<size_t> idxs_;
-    std::vector<Def> args_;
-
-    friend struct CacheHash;
-    friend struct CacheEqual;
+    Lambda* to_;
+    Array<Def> args_;
 };
 
-struct CacheHash
-{
-    size_t operator () (const Cache& cache) const
-    {
-        size_t seed = thorin::hash_value(cache.lambda_);
-        for (auto idx : cache.idxs_)
-            seed = thorin::hash_combine(seed, idx);
-        for (auto arg : cache.args_)
-            seed = thorin::hash_combine(seed, *arg);
-        return seed;
+struct CallHash {
+    size_t operator () (const Call& call) const { 
+        return hash_combine(hash_value(call.to()), std::hash<ArrayRef<Def>>()(call.args())); 
     }
 };
 
-struct CacheEqual
-{
-    bool operator () (const Cache& c1, const Cache& c2) const
-    {
-        if(c1.lambda_ != c2.lambda_)
-            return false;
-        const size_t length = c1.idxs_.size();
-        assert(length == c1.args_.size());
-        if(length != c2.idxs_.size())
-            return false;
-        assert(length == c2.args_.size());
-        for(size_t i = 0; i != length; ++i) {
-            if(c1.idxs_[i] != c2.idxs_[i])
-                return false;
-            if(c1.args_[i] != c2.args_[i])
-                return false;
-        }
-        return true;
-    }
-};
+//------------------------------------------------------------------------------
 
 class PartialEvaluator {
 public:
@@ -155,8 +134,7 @@ public:
 
     void collect_headers(const LoopNode*);
     void process();
-    void rewrite_jump(Lambda* lambda, Lambda* to, Cache &cache);
-    void remove_runs(Lambda* lambda);
+    void rewrite_jump(Lambda*, const Call&);
     void update_new2old(const Def2Def& map);
     Edge edge(Lambda* src, Lambda* dst) const;
     TraceEntry trace_entry(Lambda* lambda) { return TraceEntry(lambda, new2old_[lambda]); }
@@ -201,20 +179,13 @@ public:
         std::cout << "*************" << std::endl;
     }
 
-    Lambda* resolve_cached(const Cache &cache) {
-        auto it = cache2lambda_.find(cache);
-        if (it != cache2lambda_.end())
-            return it->second;
-        return nullptr;
-    }
-
     World& world_;
     Scope scope_;
     LoopTree loops_;
     Lambda2Lambda new2old_;
     std::unordered_map<Lambda*, const LoopHeader*> lambda2header_;
     std::unordered_set<Lambda*> done_;
-    std::unordered_map<Cache, Lambda*, CacheHash, CacheEqual> cache2lambda_;
+    std::unordered_set<Call, CallHash> cache_;
     std::list<TraceEntry> trace_;
 };
 
@@ -316,24 +287,10 @@ void PartialEvaluator::process() {
                 continue;
             }
 
-            Cache fcache(dst);
-            Cache rcache(dst);
+            Call call(dst);
 
-            for (size_t i = 0; i != src->num_args(); ++i) {
-                if (auto evalop = src->arg(i)->isa<EvalOp>()) {
-                    if (evalop->isa<Run>()) {
-                        fcache.args().push_back(evalop);
-                        rcache.args().push_back(evalop);
-                        fcache.idxs().push_back(i);
-                        rcache.idxs().push_back(i);
-                        fold = true;
-                    } else
-                        assert(evalop->isa<Halt>());
-                } else if (src->arg(i)->is_const()) {
-                    fcache.args().push_back(src->arg(i));
-                    fcache.idxs().push_back(i);
-                }
-            }
+            for (size_t i = 0; i != src->num_args(); ++i)
+                call.arg(i) = src->arg(i)->is_const() ? src->arg(i) : nullptr;
 
             if (!fold) {
                 push(src, {dst});
@@ -355,50 +312,32 @@ void PartialEvaluator::process() {
             }
 
             // check for cached version
-            if(Lambda* to_lam = resolve_cached(fcache))
-                rewrite_jump(src, to_lam, fcache);
-            else if(Lambda* to_lam = resolve_cached(rcache))
-                rewrite_jump(src, to_lam, rcache);
+            auto i = cache_.find(call);
+            if (i != cache_.end())
+                rewrite_jump(src, call);
             else {
                 // no no cached version found... create a new one
                 Scope scope(dst);
-                Def2Def f_map;
+                Def2Def old2new;
                 GenericMap generic_map;
                 bool res = dst->type()->infer_with(generic_map, src->arg_pi());
                 assert(res);
-                auto f_to = drop(scope, f_map, fcache.idxs(), fcache.args(), generic_map);
-                std::cout << "dropped: " << f_to->unique_name() << std::endl;
-                for (auto arg : fcache.args())
-                    arg->dump();
-                f_map[to] = f_to;
-                update_new2old(f_map);
-
-                if (f_to->to()->isa_lambda()
-                        || (f_to->to()->isa<Run>() && f_to->to()->as<Run>()->def()->isa_lambda())) {
-                    rewrite_jump(src, f_to, fcache);
-                    for (auto lambda : scope.rpo()) {
-                        auto mapped = f_map[lambda]->as_lambda();
-                        if (mapped != lambda)
-                            mapped->update_to(world_.run(mapped->to()));
-                    }
-                    push(src, {f_to});
-                } else {
-                    Def2Def r_map;
-                    auto r_to = drop(scope, r_map, rcache.idxs(), rcache.args(), generic_map);
-                    std::cout << "dropped: " << r_to->unique_name() << std::endl;
-                    for (auto arg : rcache.args())
-                        arg->dump();
-                    r_map[to] = r_to;
-                    update_new2old(r_map);
-                    rewrite_jump(src, r_to, rcache);
-                    push(src, {r_to});
+                auto f_to = drop(scope, old2new, call.args(), generic_map);
+                old2new[to] = f_to;
+                update_new2old(old2new);
+                rewrite_jump(src, call);
+                for (auto lambda : scope.rpo()) {
+                    auto mapped = old2new[lambda]->as_lambda();
+                    if (mapped != lambda)
+                        mapped->update_to(world_.run(mapped->to()));
                 }
+                push(src, {f_to});
             }
         }
     }
 }
 
-void PartialEvaluator::rewrite_jump(Lambda* lambda, Lambda* to, Cache &cache) {
+void PartialEvaluator::rewrite_jump(Lambda* lambda, const Call& call) {
     std::vector<Def> new_args;
     size_t x = 0;
     for (size_t i = 0, e = lambda->num_args(); i != e; ++i) {
@@ -410,13 +349,6 @@ void PartialEvaluator::rewrite_jump(Lambda* lambda, Lambda* to, Cache &cache) {
 
     lambda->jump(to, new_args);
     cache2lambda_[cache] = to;
-}
-
-void PartialEvaluator::remove_runs(Lambda* lambda) {
-    for (size_t i = 0, e = lambda->size(); i != e; ++i) {
-        if (auto run = lambda->op(i)->isa<Run>())
-            lambda->update_op(i, run->def());
-    }
 }
 
 void PartialEvaluator::update_new2old(const Def2Def& old2new) {

@@ -10,8 +10,9 @@ namespace thorin {
 
 class Mangler {
 public:
-    Mangler(const Scope& scope, ArrayRef<Def> drop, ArrayRef<Def> lift, const GenericMap& generic_map)
+    Mangler(const Scope& scope, Def2Def& old2new, ArrayRef<Def> drop, ArrayRef<Def> lift, const GenericMap& generic_map)
         : scope(scope)
+        , old2new(old2new)
         , drop(drop)
         , lift(lift)
         , generic_map(generic_map)
@@ -46,12 +47,12 @@ public:
     }
 
     const Scope& scope;
+    Def2Def& old2new;
     ArrayRef<Def> drop;
     ArrayRef<Def> lift;
     GenericMap generic_map;
     World& world;
     DefSet set;
-    Def2Def old2new;
     Lambda* oentry;
     Lambda* nentry;
 };
@@ -164,8 +165,8 @@ Def Mangler::mangle(Def odef) {
 
 //------------------------------------------------------------------------------
 
-Lambda* mangle(const Scope& scope, ArrayRef<Def> drop, ArrayRef<Def> lift, const GenericMap& generic_map) {
-    return Mangler(scope, drop, lift, generic_map).mangle();
+Lambda* mangle(const Scope& scope, Def2Def& old2new, ArrayRef<Def> drop, ArrayRef<Def> lift, const GenericMap& generic_map) {
+    return Mangler(scope, old2new, drop, lift, generic_map).mangle();
 }
 
 //------------------------------------------------------------------------------

@@ -103,6 +103,15 @@ public:
     Def& arg(size_t i) { return args_[i]; }
     const Def& arg(size_t i) const { return args_[i]; }
     bool operator == (const Call& other) const { return this->to() == other.to() && this->args() == other.args(); }
+    void dump() const {
+        to()->dump_head();
+        for (auto def : args()) {
+            if (def) 
+                def->dump();
+            else
+                std::cout << "<null>" << std::endl;
+        }
+    }
 
 private:
     Lambda* to_;
@@ -323,7 +332,7 @@ void PartialEvaluator::process() {
                 assert(res);
                 auto dropped = drop(scope, old2new, call.args(), generic_map);
                 // update call
-                old2new[dropped] = dropped;
+                old2new[dst] = dropped;
                 update_new2old(old2new);
                 rewrite_jump(src, dropped, call);
                 for (auto lambda : scope.rpo()) {
@@ -340,12 +349,17 @@ void PartialEvaluator::process() {
 void PartialEvaluator::rewrite_jump(Lambda* src, Lambda* dst, const Call& call) {
     std::vector<Def> nargs;
     for (size_t i = 0, e = src->num_args(); i != e; ++i) {
-        if (auto arg = call.arg(i))
-            nargs.push_back(arg);
+        if (call.arg(i) == nullptr)
+            nargs.push_back(src->arg(i));
     }
 
     src->jump(dst, nargs);
     cache_[call] = dst;
+    //std::cout << "mapping:" << std::endl;
+    //call.dump();
+    //std::cout << "   to:" << std::endl;
+    //dst->dump_head();
+    //std::cout << "---" << std::endl;
 }
 
 void PartialEvaluator::update_new2old(const Def2Def& old2new) {

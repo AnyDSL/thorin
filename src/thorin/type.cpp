@@ -151,6 +151,18 @@ const VectorType* VectorType::scalarize() const {
 
 //------------------------------------------------------------------------------
 
+size_t Ptr::hash() const {
+    return hash_combine(VectorType::hash(), (size_t)addr_space());
+}
+
+bool Ptr::equal(const Type* other) const {
+    if(!VectorType::equal(other))
+        return false;
+    return other->as<Ptr>()->addr_space() == addr_space();
+}
+
+//------------------------------------------------------------------------------
+
 CompoundType::CompoundType(World& world, NodeKind kind, size_t size)
     : Type(world, kind, size, false /*TODO named sigma*/)
 {}

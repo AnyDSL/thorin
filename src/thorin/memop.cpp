@@ -17,6 +17,18 @@ MemOp::MemOp(size_t size, NodeKind kind, const Type* type, Def mem, const std::s
 
 //------------------------------------------------------------------------------
 
+Map::Map(Def mem, Def ptr, AddressSpace addr_space, const std::string &name)
+    : MemOp(2, Node_Map, mem->world().sigma({mem->type(), mem->world().ptr(ptr->type()->as<Ptr>()->referenced_type(),
+                                             ptr->type()->as<Ptr>()->length(), addr_space)}), mem, name)
+{
+    set_op(1, ptr);
+}
+
+Def Map::extract_mem() const { return world().extract(this, 0); }
+Def Map::extract_mapped_ptr() const { return world().extract(this, 1); }
+
+//------------------------------------------------------------------------------
+
 Load::Load(Def mem, Def ptr, const std::string& name)
     : Access(2, Node_Load, ptr->type()->as<Ptr>()->referenced_type(), mem, ptr, name)
 {}

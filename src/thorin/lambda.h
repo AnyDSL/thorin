@@ -29,6 +29,7 @@ public:
         Vectorize    = 1 << 4, ///< Flag for the external vectorizer
         VectorizeTid = 1 << 5, ///< Flag for the external vectorizer (tid getter)
         Intrinsic    = 1 << 6, ///< Flag for intrinsic LLVM function
+        Map          = 1 << 7, ///< Flag for intrinsic memory-mapping function
         Builtin = NVVM | SPIR | Vectorize
     };
 
@@ -98,6 +99,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     bool is_builtin() const;
     bool is_connected_to_builtin() const;
     bool is_connected_to_builtin(uint32_t flags) const;
+    std::vector<Lambda*> connected_to_builtin_lambdas() const;
     void dump_head() const;
     void dump_jump() const;
     void destroy_body() { unset_ops(); resize(0); }

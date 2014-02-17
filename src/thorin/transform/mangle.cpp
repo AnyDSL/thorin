@@ -19,6 +19,7 @@ public:
         , world(scope.world())
         , set(scope.in_scope())
         , oentry(scope.entry())
+        , nentry(oentry->world().lambda(oentry->name))
     {
         assert(!oentry->empty());
         assert(drop.size() == oentry->num_params());
@@ -57,9 +58,8 @@ public:
     Lambda* nentry;
 };
 
-Lambda* drop_stub(Def2Def& old2new, Lambda* oentry, ArrayRef<Def> drop, const GenericMap& generic_map) {
+Lambda* Mangler::mangle() {
     old2new[oentry] = oentry;
-    auto nentry = oentry->world().lambda(oentry->name);
     std::vector<const Type*> nelems;
     for (size_t i = 0, e = oentry->num_params(); i != e; ++i) {
         auto oparam = oentry->param(i);
@@ -68,12 +68,6 @@ Lambda* drop_stub(Def2Def& old2new, Lambda* oentry, ArrayRef<Def> drop, const Ge
         else
             old2new[oparam] = nentry->append_param(oparam->type()->specialize(generic_map), oparam->name);
     }
-
-    return nentry;
-}
-
-Lambda* Mangler::mangle() {
-    nentry = drop_stub(old2new, oentry, drop, generic_map);
 
     for (auto def : lift)
         old2new[def] = nentry->append_param(def->type()->specialize(generic_map));

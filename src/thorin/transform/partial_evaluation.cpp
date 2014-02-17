@@ -134,7 +134,7 @@ public:
         , loops_(scope_)
     {
         done_.insert(nullptr);
-        loops_.dump();
+        //loops_.dump();
         collect_headers(loops_.root());
         for (auto lambda : world.lambdas())
             new2old_[lambda] = lambda;

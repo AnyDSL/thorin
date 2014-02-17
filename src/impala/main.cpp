@@ -10,6 +10,7 @@
 #include "thorin/transform/import.h"
 #include "thorin/transform/vectorize.h"
 #include "thorin/transform/partial_evaluation.h"
+#include "thorin/be/c.h"
 #include "thorin/be/thorin.h"
 #include "thorin/be/il.h"
 #include "thorin/be/llvm/llvm.h"
@@ -42,7 +43,7 @@ int main(int argc, char** argv) {
         Names breakpoints;
 #endif
         string outfile;
-        bool help, emit_all, emit_thorin, emit_il, emit_ast, emit_llvm, emit_looptree, fancy, nocolor, opt, verify, nocleanup, nossa = false;
+        bool help, emit_all, emit_c, emit_thorin, emit_il, emit_ast, emit_llvm, emit_looptree, fancy, nocolor, opt, verify, nocleanup, nossa = false;
         int vectorlength = 0;
         auto cmd_parser = ArgParser()
             .implicit_option("infiles", "input files", infiles)
@@ -56,6 +57,7 @@ int main(int argc, char** argv) {
             .add_option<bool>("nossa", "use slots + load/store instead of SSA construction", nossa, false)
             .add_option<bool>("verify", "run verifier", verify, false)
             .add_option<int>("vectorize", "run vectorizer on main with given vector length (experimantal!!!), arg=<vector length>", vectorlength, false)
+            .add_option<bool>("emit-c", "\temit textual C representation of impala program", emit_c, false)
             .add_option<bool>("emit-air", "emit textual THORIN representation of impala program", emit_thorin, false) // legacy support
             .add_option<bool>("emit-thorin", "emit textual THORIN representation of impala program", emit_thorin, false)
             .add_option<bool>("emit-il", "emit textual IL representation of impala program", emit_il, false)
@@ -73,6 +75,7 @@ int main(int argc, char** argv) {
         if (emit_all)
             emit_thorin = emit_looptree = emit_ast = emit_llvm = true;
         opt |= emit_llvm;
+        opt |= emit_c;
 
         if (infiles.empty() && !help) {
             std::cerr << "no input files" << std::endl;
@@ -152,6 +155,8 @@ int main(int argc, char** argv) {
                     LoopTree(*scope).dump();
             }
 
+            if (emit_c)
+                thorin::emit_c(init.world);
             if (emit_llvm)
                 thorin::emit_llvm(init.world);
         }

@@ -270,10 +270,10 @@ void PartialEvaluator::process() {
         trace_.push_back(trace_entry(src));
 
         while ((src = pop())) {
-            std::cout << "---------------------------------" << std::endl;
-            std::cout << "*** src: " << src->unique_name() << std::endl;
-            dump_trace();
-            emit_thorin(world_);
+            //std::cout << "---------------------------------" << std::endl;
+            //std::cout << "*** src: " << src->unique_name() << std::endl;
+            //dump_trace();
+            //emit_thorin(world_);
 
             if (src->empty())
                 continue;
@@ -297,8 +297,10 @@ void PartialEvaluator::process() {
 
             Call call(dst);
 
+            bool one = false;
             for (size_t i = 0; i != src->num_args(); ++i)
-                call.arg(i) = src->arg(i)->is_const() ? src->arg(i) : nullptr;
+                one |= (call.arg(i) = src->arg(i)->is_const() ? src->arg(i) : nullptr) != nullptr;
+            fold &= one; // don't fold if there is nothing to fold
 
             if (!fold) {
                 push(src, {dst});
@@ -331,6 +333,13 @@ void PartialEvaluator::process() {
                 bool res = dst->type()->infer_with(generic_map, src->arg_pi());
                 assert(res);
                 auto dropped = drop(scope, old2new, call.args(), generic_map);
+                //std::cout << call.to()->unique_name() << ' ';
+                //for (auto arg : call.args())
+                    //if (arg)
+                        //std::cout << arg->unique_name() << ' ';
+                    //else
+                        //std::cout << "<nulll> ";
+                //std::cout << "---" << std::endl;
                 // update call
                 old2new[dst] = dropped;
                 update_new2old(old2new);

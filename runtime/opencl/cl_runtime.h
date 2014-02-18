@@ -21,6 +21,8 @@
 #include <string>
 #include <vector>
 
+//#define USE_SPIR
+
 extern "C"
 {
 
@@ -259,6 +261,9 @@ void init_opencl(cl_device_type dev_type=CL_DEVICE_TYPE_CPU) {
 
             // check if this platform has a device that supports SPIR
             bool has_spir = false;
+            #ifndef USE_SPIR
+            has_spir = true;
+            #endif
             for (unsigned int j=0; j<num_devices; ++j) {
                 cl_device_type this_dev_type;
 
@@ -305,6 +310,9 @@ void init_opencl(cl_device_type dev_type=CL_DEVICE_TYPE_CPU) {
                 std::string extensions(pd3Buffer);
                 size_t found = extensions.find("cl_khr_spir");
                 bool has_spir = found!=std::string::npos;
+                #ifndef USE_SPIR
+                has_spir = true;
+                #endif
                 if (has_spir && platform_number == (int)i && device_number == -1 && (this_dev_type & dev_type)) {
                     std::cerr << "      [*] ";
                     device = devices[j];

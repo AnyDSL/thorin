@@ -604,10 +604,10 @@ llvm::Value* CodeGen::emit(Def def) {
         return llvm::UndefValue::get(map(undef->type()));
 
     if (auto load = def->isa<Load>())
-        return builder_.CreateLoad(lookup(load->ptr()));
+        return emit_load(load);
 
     if (auto store = def->isa<Store>())
-        return builder_.CreateStore(lookup(store->val()), lookup(store->ptr()));
+        return emit_store(store);
 
     if (auto slot = def->isa<Slot>())
         return builder_.CreateAlloca(map(slot->type()->as<Ptr>()->referenced_type()), 0, slot->unique_name());
@@ -636,6 +636,16 @@ llvm::Value* CodeGen::emit(Def def) {
     }
 
     THORIN_UNREACHABLE;
+}
+
+llvm::Value* CodeGen::emit_load(Def def) {
+    auto load = def->as<Load>();
+    return builder_.CreateLoad(lookup(load->ptr()));
+}
+
+llvm::Value* CodeGen::emit_store(Def def) {
+    auto store = def->as<Store>();
+    return builder_.CreateStore(lookup(store->val()), lookup(store->ptr()));
 }
 
 llvm::Value* CodeGen::emit_memmap(Def map) {

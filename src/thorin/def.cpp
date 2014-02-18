@@ -126,7 +126,7 @@ bool DefNode::is_minus_zero() const {
 }
 
 void DefNode::replace(Def with) const {
-    assert(type() == with->type() || (type()->isa<Ptr>() && with->type()->isa<Ptr>()));
+    assert(type() == with->type());
     if (this == *with) return;
     assert(!is_proxy());
     assert(!isa<Param>() || !as<Param>()->lambda()->attribute().is(Lambda::Extern | Lambda::Intrinsic));

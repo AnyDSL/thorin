@@ -10,6 +10,7 @@ namespace thorin {
 class ArrayType;
 class Pi;
 class PrimLit;
+class Ptr;
 class Sigma;
 class VectorType;
 
@@ -240,6 +241,8 @@ private:
 public:
     Def ptr() const { return op(0); }
     Def index() const { return op(1); }
+
+    const Ptr* ptr_type() const; ///< Returns the ptr type from \p ptr().
     const Type* referenced_type() const; ///< Returns the type referenced by \p ptr().
 
     friend class World;

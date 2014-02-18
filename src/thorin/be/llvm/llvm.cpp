@@ -747,7 +747,7 @@ void emit_llvm(World& world) {
             continue;
 
         imported->name = lambda->unique_name();
-        imported->attribute().set(Lambda::Extern);
+        imported->attribute().set(Lambda::Extern | Lambda::KernelEntry);
         lambda->name = lambda->unique_name();
         lambda->destroy_body();
         lambda->attribute().set(Lambda::Extern);

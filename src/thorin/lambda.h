@@ -25,11 +25,12 @@ public:
         Extern       = 1 << 0, ///< Is the function visible in other translation units?
         NVVM         = 1 << 1, ///< Flag for the internal NNVM-Backend
         SPIR         = 1 << 2, ///< Flag for the internal SPIR-Backend
-        ArrayInit    = 1 << 3, ///< Flag for the external array intialization
-        Vectorize    = 1 << 4, ///< Flag for the external vectorizer
-        VectorizeTid = 1 << 5, ///< Flag for the external vectorizer (tid getter)
-        Intrinsic    = 1 << 6, ///< Flag for intrinsic LLVM function
-        Builtin = NVVM | SPIR | Vectorize
+        OPENCL       = 1 << 3, ///< Flag for the internal OpenCL-Backend
+        ArrayInit    = 1 << 4, ///< Flag for the external array initialization
+        Vectorize    = 1 << 5, ///< Flag for the external vectorizer
+        VectorizeTid = 1 << 6, ///< Flag for the external vectorizer (tid getter)
+        Intrinsic    = 1 << 7, ///< Flag for intrinsic LLVM function
+        Builtin = NVVM | SPIR | OPENCL | Vectorize
     };
 
     struct Attribute {

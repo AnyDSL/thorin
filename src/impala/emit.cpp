@@ -74,6 +74,8 @@ bool CodeGen::emit_prg(const Scope* prg) {
                 lambda->attribute().set(Lambda::NVVM);
             if (lambda->name == "spir")
                 lambda->attribute().set(Lambda::SPIR);
+            if (lambda->name == "opencl")
+                lambda->attribute().set(Lambda::OPENCL);
             if (lambda->name == "array")
                 lambda->attribute().set(Lambda::ArrayInit);
             if (lambda->name == "vectorized")

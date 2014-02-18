@@ -508,6 +508,8 @@ std::ostream& CCodeGen::emit(Def def) {
 #include "thorin/tables/primtypetable.h"
             default: THORIN_UNREACHABLE; break;
         }
+        if (primlit->primtype_kind()==PrimType_pf32 ||
+            primlit->primtype_kind()==PrimType_qf32) stream() << 'f';
         return stream();
     }
 

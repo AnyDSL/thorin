@@ -150,14 +150,8 @@ void CCodeGen::emit() {
         }
         assert(ret_param);
 
-        std::string name = lambda->unique_name();
-        if (lambda->attribute().is(Lambda::Intrinsic)) {
-            std::transform(name.begin(), name.end(), name.begin(), [] (char c) { return c == '_' ? '.' : c; });
-            name = "llvm." + name;
-        }
-
         const Pi *ret_fn_type = ret_param->type()->as<Pi>();
-        emit_type(ret_fn_type->elems().back()) << " " << name << "(";
+        emit_type(ret_fn_type->elems().back()) << " " << lambda->name << "(";
         size_t i = 0;
         // emit all first-order params
         for (auto param : lambda->params()) {
@@ -199,14 +193,8 @@ void CCodeGen::emit() {
         }
         assert(ret_param);
 
-        std::string name = lambda->unique_name();
-        if (lambda->attribute().is(Lambda::Intrinsic)) {
-            std::transform(name.begin(), name.end(), name.begin(), [] (char c) { return c == '_' ? '.' : c; });
-            name = "llvm." + name;
-        }
-
         const Pi *ret_fn_type = ret_param->type()->as<Pi>();
-        emit_type(ret_fn_type->elems().back()) << " " << name << "(";
+        emit_type(ret_fn_type->elems().back()) << " " << lambda->name << "(";
         size_t i = 0;
 
         // emit and store all first-order params
@@ -328,7 +316,11 @@ void CCodeGen::emit() {
                         }
 
                         if (ret_arg == ret_param) {     // call + return
-                            stream() << "return " << to_lambda->unique_name() << "(";
+                            stream() << "return ";
+                            if (to_lambda->attribute().is(Lambda::Intrinsic))
+                                stream() << to_lambda->name << "(";
+                            else
+                                stream() << to_lambda->unique_name() << "(";
                             // emit all first-order args
                             size_t i = 0;
                             for (auto arg : lambda->args()) {
@@ -348,7 +340,10 @@ void CCodeGen::emit() {
                                 emit_type(param->type()) << " ";
                                 emit(param) << " = ";
                             }
-                            stream() << to_lambda->unique_name() << "(";
+                            if (to_lambda->attribute().is(Lambda::Intrinsic))
+                                stream() << to_lambda->name << "(";
+                            else
+                                stream() << to_lambda->unique_name() << "(";
                             // emit all first-order args
                             size_t i = 0;
                             for (auto arg : lambda->args()) {

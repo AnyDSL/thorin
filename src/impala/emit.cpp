@@ -82,6 +82,9 @@ bool CodeGen::emit_prg(const Scope* prg) {
                 lambda->attribute().set(Lambda::Vectorize);
             if (lambda->name == "wfv_get_tid")
                 lambda->attribute().set(Lambda::VectorizeTid | Lambda::Extern);
+            // signature: map(type*, adr_space) -> type*[adr_space]
+            if (lambda->name == "map")
+                lambda->attribute().set(Lambda::Map);
             // register proto
             protos_[proto] = lambda;
         }

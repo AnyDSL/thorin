@@ -169,16 +169,30 @@ private:
 
 //------------------------------------------------------------------------------
 
+enum class AddressSpace : uint32_t {
+    Global,
+    Texture,
+    Shared
+};
+
 class Ptr : public VectorType {
 private:
-    Ptr(World& world, const Type* referenced_type, size_t length)
+    Ptr(World& world, const Type* referenced_type, size_t length, AddressSpace addr_space = AddressSpace::Global)
         : VectorType(world, Node_Ptr, 1, length, referenced_type->is_generic())
+        , addr_space_(addr_space)
     {
         set(0, referenced_type);
     }
 
 public:
     const Type* referenced_type() const { return elem(0); }
+    AddressSpace addr_space() const { return addr_space_; }
+
+    virtual size_t hash() const;
+    virtual bool equal(const Type* other) const;
+
+private:
+    AddressSpace addr_space_;
 
     friend class World;
 };

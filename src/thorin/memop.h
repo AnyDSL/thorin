@@ -2,6 +2,7 @@
 #define THORIN_MEMOP_H
 
 #include "thorin/primop.h"
+#include "thorin/type.h"
 
 namespace thorin {
 
@@ -13,6 +14,21 @@ protected:
 
 public:
     Def mem() const { return op(0); }
+};
+
+//------------------------------------------------------------------------------
+
+class Map : public MemOp {
+private:
+    Map(Def mem, Def ptr, AddressSpace addr_space, const std::string &name);
+
+public:
+    Def extract_mem() const;
+    Def extract_mapped_ptr() const;
+    Def ptr() const { return op(1); }
+    AddressSpace addr_space() const { return extract_mapped_ptr()->type()->as<Ptr>()->addr_space(); }
+
+    friend class World;
 };
 
 //------------------------------------------------------------------------------

@@ -60,6 +60,17 @@ std::ostream& CodeGen::emit_type(const Type* type) {
         stream() << '*';
         if (ptr->is_vector())
             stream() << '>';
+        switch (ptr->addr_space()) {
+        case AddressSpace::Texture:
+            stream() << "[Tex]";
+            break;
+        case AddressSpace::Shared:
+            stream() << "[Shared]";
+            break;
+        default:
+            // ignore unknown address space
+            break;
+        }
         return stream();
     } else if (auto primtype = type->isa<PrimType>()) {
         if (primtype->is_vector())

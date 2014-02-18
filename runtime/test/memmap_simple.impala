@@ -1,0 +1,30 @@
+extern array(int) -> [float];
+extern map([float], int) -> [float];
+
+fn write(out: [float], src: [float], i: int) -> void {
+    out[i] = src[i];
+}
+
+fn main() -> int {
+    let width   = 2048;
+    let height  = 2048;
+    let mut arr = array(width * height);
+    let mut out = array(width * height);
+
+    let mapped = map(arr, 1);
+
+    iteration(width, height, |x : int, y : int| -> void {
+        write(out, mapped, x);
+        write(out, mapped, y);
+    });
+
+    let mapped2 = map(arr, 2);
+    iteration(width, height, |x : int, y : int| -> void {
+        write(out, mapped2, x);
+        write(out, mapped2, y);
+    });
+
+    return 0;
+}
+
+

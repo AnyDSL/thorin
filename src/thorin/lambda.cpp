@@ -124,24 +124,31 @@ Lambdas Lambda::indirect_succs() const { return thorin::succs<false, true>(this)
 
 bool Lambda::is_builtin() const { return attribute().is(NVVM | SPIR | OPENCL | Vectorize); }
 
-static bool connected_to_builtin(const Lambda* lambda, std::function<bool(Lambda*)> func) {
+template<typename T>
+static bool aggregate_connected_builtins(const Lambda* lambda, T value, std::function<T(T, Lambda*)> func) {
     if (!lambda->is_builtin()) {
         for (auto use : lambda->uses()) {
             if (auto lambda = (use->isa<Global>() ? *use->uses().begin() : use)->isa<Lambda>())
                 if (auto to_lambda = lambda->to()->isa_lambda())
                     if (to_lambda->is_builtin())
-                        return func(to_lambda);
+                        value = func(value, to_lambda);
         }
     }
-    return false;
+    return value;
 }
 
 bool Lambda::is_connected_to_builtin() const {
-    return connected_to_builtin(this, [&](Lambda* lambda) { return true; });
+    return aggregate_connected_builtins<bool>(this, false, [&](bool v, Lambda* lambda) { return true; });
 }
 
 bool Lambda::is_connected_to_builtin(uint32_t flags) const {
-    return connected_to_builtin(this, [&](Lambda* lambda) { return lambda->attribute().is(flags); });
+    return aggregate_connected_builtins<bool>(this, false, [&](bool v, Lambda* lambda) { return v || lambda->attribute().is(flags); });
+}
+
+std::vector<Lambda*> Lambda::connected_to_builtin_lambdas() const {
+    std::vector<Lambda*> result;
+    aggregate_connected_builtins<bool>(this, false, [&](bool v, Lambda* lambda) { result.push_back(lambda); return true; });
+    return result;
 }
 
 bool Lambda::is_cascading() const {

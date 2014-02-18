@@ -109,15 +109,17 @@ LEA::LEA(Def def, Def index, const std::string& name)
     set_op(0, def);
     set_op(1, index);
 
+    auto type = ptr_type();
     if (auto sigma = referenced_type()->isa<Sigma>())
-        set_type(index->world().ptr(sigma->elem_via_lit(index)));
+        set_type(index->world().ptr(sigma->elem_via_lit(index), type->length(), type->addr_space()));
     else {
         auto array = referenced_type()->as<ArrayType>();
-        set_type(index->world().ptr(array->elem_type()));;
+        set_type(index->world().ptr(array->elem_type(), type->length(), type->addr_space()));
     }
 }
 
-const Type* LEA::referenced_type() const { return ptr()->type()->as<Ptr>()->referenced_type(); }
+const Ptr* LEA::ptr_type() const { return ptr()->type()->as<Ptr>(); }
+const Type* LEA::referenced_type() const { return ptr_type()->referenced_type(); }
 
 //------------------------------------------------------------------------------
 

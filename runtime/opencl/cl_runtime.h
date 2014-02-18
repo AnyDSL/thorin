@@ -402,7 +402,7 @@ void dump_program_binary(cl_program program, cl_device_id device) {
 
 
 // load OpenCL source file, build program, and create kernel
-void build_program_and_kernel(const char *file_name, const char *kernel_name) {
+void build_program_and_kernel(const char *file_name, const char *kernel_name, bool is_binary) {
     cl_int err = CL_SUCCESS;
     bool print_progress = true;
     bool print_log = true;
@@ -410,7 +410,9 @@ void build_program_and_kernel(const char *file_name, const char *kernel_name) {
 
     std::ifstream srcFile(file_name);
     if (!srcFile.is_open()) {
-        std::cerr << "ERROR: Can't open SPIR binary file '" << file_name << "'!" << std::endl;
+        std::cerr << "ERROR: Can't open"
+                  << (is_binary?"SPIR binary":"OpenCL source")
+                  << " file '" << file_name << "'!" << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -421,8 +423,13 @@ void build_program_and_kernel(const char *file_name, const char *kernel_name) {
 
 
     if (print_progress) std::cerr << "<Thorin:> Compiling '" << kernel_name << "' .";
-    program = clCreateProgramWithBinary(context, 1, &device, &length, (const unsigned char **)&c_str, NULL, &err);
-    checkErr(err, "clCreateProgramWithBinary()");
+    if (is_binary) {
+        program = clCreateProgramWithBinary(context, 1, &device, &length, (const unsigned char **)&c_str, NULL, &err);
+        checkErr(err, "clCreateProgramWithBinary()");
+    } else {
+        program = clCreateProgramWithSource(context, 1, (const char **)&c_str, &length, &err);
+        checkErr(err, "clCreateProgramWithSource()");
+    }
 
     std::string options = "-cl-single-precision-constant -cl-denorms-are-zero";
     // according to the OpenCL specification -x spir -spir-std=1.2 has to be
@@ -584,7 +591,8 @@ void spir_free_buffer(cl_mem mem) { free_buffer(mem); }
 void spir_write_buffer(cl_mem dev, void *host, size_t size) { write_buffer(dev, host, size); }
 void spir_read_buffer(cl_mem dev, void *host, size_t size) { read_buffer(dev, host, size); }
 
-void spir_build_program_and_kernel(const char *file_name, const char *kernel_name) { build_program_and_kernel(file_name, kernel_name); }
+void spir_build_program_and_kernel_from_binary(const char *file_name, const char *kernel_name) { build_program_and_kernel(file_name, kernel_name, true); }
+void spir_build_program_and_kernel_from_source(const char *file_name, const char *kernel_name) { build_program_and_kernel(file_name, kernel_name, false); }
 
 void spir_set_kernel_arg(void *host, size_t size) { set_kernel_arg(host, size); }
 void spir_set_problem_size(size_t size_x, size_t size_y, size_t size_z) { set_problem_size(size_x, size_y, size_z); }

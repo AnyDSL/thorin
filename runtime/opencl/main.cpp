@@ -14,7 +14,8 @@ int main_impala() {
     }
 
     // CODE TO BE GENERATED: BEGIN
-    build_program_and_kernel("simple-gpu64.spir.bc", "simple");
+    bool is_binary = true;
+    build_program_and_kernel("simple-gpu64.spir.bc", "simple", is_binary);
     cl_mem dev;
     dev = malloc_buffer(num*sizeof(int));
     write_buffer(dev, host, num);

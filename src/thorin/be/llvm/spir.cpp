@@ -114,7 +114,7 @@ Lambda* CodeGen::emit_spir(Lambda* lambda) {
     auto module_name = builder_.CreateGlobalStringPtr(world_.name() + "_spir.bc");
     auto kernel_name = builder_.CreateGlobalStringPtr(kernel);
     llvm::Value* load_args[] = { module_name, kernel_name };
-    builder_.CreateCall(spir("spir_build_program_and_kernel"), load_args);
+    builder_.CreateCall(spir("spir_build_program_and_kernel_from_binary"), load_args);
     // fetch values and create external calls for initialization
     std::vector<std::pair<llvm::Value*, llvm::Constant*>> device_ptrs;
     for (size_t i = 5, e = lambda->num_args(); i < e; ++i) {

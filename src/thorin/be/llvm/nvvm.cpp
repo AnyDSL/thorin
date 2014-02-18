@@ -22,8 +22,8 @@ llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     auto ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
     auto f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->name, module_);
 
-    // FIXME: assume that kernels return void, other functions not
-    if (!ft->getReturnType()->isVoidTy()) return f;
+    if (!lambda->attribute().is(Lambda::KernelEntry))
+        return f;
 
     // append required metadata
     auto annotation = module_->getOrInsertNamedMetadata("nvvm.annotations");

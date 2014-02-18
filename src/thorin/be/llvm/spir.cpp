@@ -35,8 +35,8 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     auto ft = llvm::FunctionType::get(rtype, types, false);
     auto f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, module_);
 
-    // FIXME: assume that kernels return void, other functions not
-    if (!rtype->isVoidTy()) return f;
+    if (!lambda->attribute().is(Lambda::KernelEntry))
+        return f;
 
     // append required metadata
     llvm::NamedMDNode* annotation;

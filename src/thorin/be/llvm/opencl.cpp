@@ -22,7 +22,7 @@ void OpenCLCodeGen::emit() {
     std::ofstream file(world_.name() + ".cl");
     if (!file.is_open())
         throw std::runtime_error("cannot write '" + world_.name() + ".cl': " + strerror(errno));
-    thorin::emit_c(world_, file);
+    thorin::emit_c(world_, file, OPENCL);
     file.close();
 }
 

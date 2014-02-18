@@ -10,6 +10,7 @@
 #include "thorin/analyses/top_level_scopes.h"
 #include "thorin/util/autoptr.h"
 #include "thorin/util/printer.h"
+#include "thorin/be/c.h"
 
 #include <unordered_map>
 
@@ -17,9 +18,10 @@ namespace thorin {
 
 class CCodeGen : public Printer {
 public:
-    CCodeGen(World& world, std::ostream& stream)
+    CCodeGen(World& world, std::ostream& stream, LangType lang)
         : Printer(stream)
         , world_(world)
+        , lang_(lang)
     {}
 
     void emit();
@@ -28,6 +30,7 @@ public:
     std::ostream& emit(Def def);
 private:
     World& world_;
+    LangType lang_;
     std::unordered_map<int, std::string> primops_;
 };
 
@@ -529,7 +532,7 @@ std::ostream& CCodeGen::emit(Def def) {
 
 //------------------------------------------------------------------------------
 
-void emit_c(World& world, std::ostream& stream) { CCodeGen(world, stream).emit(); }
+void emit_c(World& world, std::ostream& stream, LangType lang) { CCodeGen(world, stream, lang).emit(); }
 
 //------------------------------------------------------------------------------
 

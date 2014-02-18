@@ -100,6 +100,8 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
 }
 
 Lambda* CodeGen::emit_spir(Lambda* lambda) {
+    // to-target is the desired SPIR call
+    // target(mem, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
     auto target = lambda->to()->as_lambda();
     assert(target->is_builtin() && target->attribute().is(Lambda::SPIR));
     assert(lambda->num_args() > 4 && "required arguments are missing");

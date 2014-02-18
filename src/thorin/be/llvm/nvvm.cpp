@@ -40,8 +40,8 @@ llvm::Function* NVVMCodeGen::emit_intrinsic_decl(std::string& name, Lambda* lamb
 }
 
 Lambda* CodeGen::emit_nvvm(Lambda* lambda) {
-    // to-target is the desired cuda call
-    // target(mem, size, body, return, free_vars)
+    // to-target is the desired CUDA call
+    // target(mem, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
     auto target = lambda->to()->as_lambda();
     assert(target->is_builtin() && target->attribute().is(Lambda::NVVM));
     assert(lambda->num_args() > 4 && "required arguments are missing");

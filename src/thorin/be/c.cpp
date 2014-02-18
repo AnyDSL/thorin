@@ -76,6 +76,7 @@ std::ostream& CCodeGen::emit_type(const Type* type) {
         stream() << "} array_" << array->gid() << ";";
         return stream();
     } else if (auto ptr = type->isa<Ptr>()) {
+        if (lang_==OPENCL) stream() << "__global ";
         emit_type(ptr->referenced_type());
         stream() << '*';
         if (ptr->is_vector())
@@ -139,7 +140,7 @@ void CCodeGen::emit() {
         }
 
         auto lambda = scope->entry();
-        if (lambda->is_builtin())
+        if (lambda->is_builtin() || lambda->attribute().is(Lambda::Intrinsic))
             continue;
 
         // retrieve return param
@@ -153,6 +154,8 @@ void CCodeGen::emit() {
         }
         assert(ret_param);
 
+        if (lambda->attribute().is(Lambda::KernelEntry) && lang_==OPENCL)
+            stream() << "__global ";
         const Pi *ret_fn_type = ret_param->type()->as<Pi>();
         emit_type(ret_fn_type->elems().back()) << " " << lambda->name << "(";
         size_t i = 0;
@@ -196,6 +199,8 @@ void CCodeGen::emit() {
         }
         assert(ret_param);
 
+        if (lambda->attribute().is(Lambda::KernelEntry) && lang_==OPENCL)
+            stream() << "__global ";
         const Pi *ret_fn_type = ret_param->type()->as<Pi>();
         emit_type(ret_fn_type->elems().back()) << " " << lambda->name << "(";
         size_t i = 0;

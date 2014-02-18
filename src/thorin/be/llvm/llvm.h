@@ -29,9 +29,12 @@ protected:
     virtual llvm::Function* emit_intrinsic_decl(std::string& name, Lambda* lambda) {
         return CodeGen::emit_function_decl(name, lambda);
     }
+    virtual llvm::Value* map_param(llvm::Function*, llvm::Argument* a, const Param*) { return a; }
+    virtual void emit_function_start(llvm::BasicBlock*, llvm::Function*, Lambda*) {}
 
     virtual llvm::Value* emit_load(Def);
     virtual llvm::Value* emit_store(Def);
+    virtual llvm::Value* emit_lea(Def);
     virtual llvm::Value* emit_memmap(Def);
 
 private:

@@ -17,6 +17,10 @@ SPIRCodeGen::SPIRCodeGen(World& world)
     module_->setTargetTriple("spir64-unknown-unknown");
 }
 
+//------------------------------------------------------------------------------
+// Kernel code
+//------------------------------------------------------------------------------
+
 llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
     // iterate over function type and set address space for SPIR
     llvm::FunctionType* fty = llvm::dyn_cast<llvm::FunctionType>(map(lambda->world().pi(lambda->pi()->elems())));
@@ -98,6 +102,10 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     f->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
     return f;
 }
+
+//------------------------------------------------------------------------------
+// Host code
+//------------------------------------------------------------------------------
 
 Lambda* CodeGen::emit_spir(Lambda* lambda) {
     // to-target is the desired SPIR call

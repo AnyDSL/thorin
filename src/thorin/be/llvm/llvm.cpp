@@ -142,8 +142,16 @@ void CodeGen::emit() {
             if (param->type()->isa<Mem>())
                 continue;
             if (param->order() == 0) {
-                arg->setName(param->name);
-                params_[param] = arg++;
+                auto argv = &*arg;
+                auto value = map_param(fct, argv, param);
+                if (value == argv) {
+                    // use param
+                    arg->setName(param->name);
+                    params_[param] = arg++;
+                } else {
+                    // use provided value
+                    params_[param] = value;
+                }
             }
             else {
                 assert(!ret_param);
@@ -166,6 +174,12 @@ void CodeGen::emit() {
             }
 
         }
+        auto oldStartBB = fct->begin();
+        auto startBB = llvm::BasicBlock::Create(context_, fct->getName() + "_start", fct, oldStartBB);
+        builder_.SetInsertPoint(startBB);
+        emit_function_start(startBB, fct, lambda);
+        builder_.CreateBr(oldStartBB);
+
 
         // never use early schedule here - this may break memory operations
         Schedule schedule = schedule_smart(scope);
@@ -626,14 +640,8 @@ llvm::Value* CodeGen::emit(Def def) {
         return vec;
     }
 
-    if (auto lea = def->isa<LEA>()) {
-        if (lea->referenced_type()->isa<Sigma>())
-            return builder_.CreateConstInBoundsGEP2_64(lookup(lea->ptr()), 0ull, lea->index()->primlit_value<u64>());
-
-        assert(lea->referenced_type()->isa<ArrayType>());
-        llvm::Value* args[2] = { builder_.getInt64(0), lookup(lea->index()) };
-        return builder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
-    }
+    if (auto lea = def->isa<LEA>())
+        return emit_lea(lea);
 
     THORIN_UNREACHABLE;
 }
@@ -646,6 +654,16 @@ llvm::Value* CodeGen::emit_load(Def def) {
 llvm::Value* CodeGen::emit_store(Def def) {
     auto store = def->as<Store>();
     return builder_.CreateStore(lookup(store->val()), lookup(store->ptr()));
+}
+
+llvm::Value* CodeGen::emit_lea(Def def) {
+    auto lea = def->as<LEA>();
+    if (lea->referenced_type()->isa<Sigma>())
+        return builder_.CreateConstInBoundsGEP2_64(lookup(lea->ptr()), 0ull, lea->index()->primlit_value<u64>());
+
+    assert(lea->referenced_type()->isa<ArrayType>());
+    llvm::Value* args[2] = { builder_.getInt64(0), lookup(lea->index()) };
+    return builder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
 }
 
 llvm::Value* CodeGen::emit_memmap(Def map) {

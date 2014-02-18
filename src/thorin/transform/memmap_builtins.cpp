@@ -4,13 +4,12 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/top_level_scopes.h"
 #include "thorin/transform/mangle.h"
-#include "thorin/be/thorin.h"
-
-#include <iostream>
 
 namespace thorin {
 
-static void map_param(World& world, Lambda* lambda, std::vector<Lambda*>& todo) {
+typedef std::vector<std::pair<const Type*, Use>> ToDo;
+
+static void map_param(World& world, Lambda* lambda, ToDo& todo) {
     // useful sanity checks
     assert(lambda->attribute().is(Lambda::Map) && "invalid map function");
     assert(lambda->params().size() == 4 && "invalid signature");
@@ -20,36 +19,69 @@ static void map_param(World& world, Lambda* lambda, std::vector<Lambda*>& todo) 
         auto ulambda = use->as_lambda();
         auto space = (AddressSpace)ulambda->arg(2)->as<PrimLit>()->ps32_value().data();
         auto cont = ulambda->arg(3)->as_lambda();
-        auto ptr_param = cont->param(1);
 
         auto mapped = world.map(ulambda->arg(0), ulambda->arg(1), space);
-        cont->param(1)->replace(mapped->extract_mapped_ptr());
-        std::vector<Def> nargs;
-        nargs.push_back(mapped->extract_mem());
-        for (size_t i = 1, e = cont->num_args(); i != e; ++i) {
-            auto arg = cont->arg(i);
-            if (arg != ptr_param)
-                nargs.push_back(arg);
-        }
-        ulambda->jump(cont->to(), nargs);
+
+        Scope cont_scope(cont);
+        auto ncont = drop(cont_scope, { mapped->extract_mem(), mapped->extract_mapped_ptr() });
+        ulambda->jump(ncont, {});
         cont->destroy_body();
         for (auto use : mapped->extract_mapped_ptr()->uses())
-            if (auto lambda = use->isa_lambda())
-                todo.push_back(lambda);
+            todo.push_back(std::pair<const Type*, Use>(mapped->extract_mapped_ptr()->type(), use));
+    }
+}
+
+static void adapt_addr_space(World &world, ToDo& uses) {
+    auto entry = uses.back();
+    auto use = entry.second;
+    uses.pop_back();
+    if (auto ulambda = use->isa_lambda()) {
+        // we need to specialize the next lambda if the types do not match
+        auto to = ulambda->to()->isa_lambda();
+        if (!to || use.index() == 0) {
+            // cannot handle calls to parameters right now
+            THORIN_UNREACHABLE;
+        }
+        assert(use.index() > 0);
+        auto index = use.index() - 1;
+        // -> specialize for new ptr type
+        if (to->param(index)->type() != entry.first) {
+            Array<const Type*> pi(to->pi()->elems());
+            pi[index] = entry.first;
+            auto nto = world.lambda(world.pi(pi), to->name);
+            assert(nto->num_params() == to->num_params());
+            nto->attribute() = to->attribute();
+
+            Scope to_scope(to);
+            Array<Def> mapping(nto->num_params());
+            for (size_t i = 0, e = nto->num_params(); i != e; ++i)
+                mapping[i] = nto->param(i);
+
+            auto specialized = drop(to_scope, mapping);
+            nto->jump(specialized, {});
+            ulambda->update_to(nto);
+        }
+    } else {
+        auto primop = use->as<PrimOp>();
+        if (primop->isa<MemOp>())
+            return;
+        // search downwards
+        for (auto puse : primop->uses())
+            uses.push_back(std::pair<const Type*, Use>(primop->type(), puse));
     }
 }
 
 void memmap_builtins(World& world) {
     // 1) look for "mapped" lambdas
-    std::vector<Lambda*> todo;
+    ToDo todo;
     for (auto lambda : world.copy_lambdas()) {
         if (lambda->attribute().is(Lambda::Map))
             map_param(world, lambda, todo);
     }
+    // 2) adapt mapped address spaces on users
+    while (!todo.empty())
+        adapt_addr_space(world, todo);
     world.cleanup();
-    emit_thorin(world);
-
-    // 2) adapt mapped address spaces
 }
 
 }

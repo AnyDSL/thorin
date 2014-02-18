@@ -35,6 +35,7 @@
 #include "thorin/analyses/top_level_scopes.h"
 #include "thorin/be/llvm/cpu.h"
 #include "thorin/be/llvm/nvvm.h"
+#include "thorin/be/llvm/opencl.h"
 #include "thorin/be/llvm/spir.h"
 #include "thorin/transform/import.h"
 
@@ -48,18 +49,21 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID calling_convention)
     , calling_convention_(calling_convention)
 {
     nvvm_device_ptr_ty_ = llvm::IntegerType::getInt64Ty(context_);
+    opencl_device_ptr_ty_ = llvm::IntegerType::getInt64Ty(context_);
     spir_device_ptr_ty_ = llvm::IntegerType::getInt64Ty(context_);
 
     llvm::SMDiagnostic diag;
     nvvm_module_ = llvm::ParseIRFile("nvvm.s", diag, context_);
+    opencl_module_ = llvm::ParseIRFile("spir.s", diag, context_);
     spir_module_ = llvm::ParseIRFile("spir.s", diag, context_);
 }
 
-static llvm::Function* get(llvm::Module* from, llvm::Module* to, const char* name) { 
+static llvm::Function* get(llvm::Module* from, llvm::Module* to, const char* name) {
     return llvm::cast<llvm::Function>(to->getOrInsertFunction(name, from->getFunction(name)->getFunctionType()));
 }
 
 llvm::Function* CodeGen::nvvm(const char* name) { return get(nvvm_module_, module_, name); }
+llvm::Function* CodeGen::opencl(const char* name) { return get(opencl_module_, module_, name); }
 llvm::Function* CodeGen::spir(const char* name) { return get(spir_module_, module_, name); }
 
 Lambda* CodeGen::emit_builtin(llvm::Function* current, Lambda* lambda) {
@@ -68,6 +72,8 @@ Lambda* CodeGen::emit_builtin(llvm::Function* current, Lambda* lambda) {
         return emit_nvvm(lambda);
     if (to->attribute().is(Lambda::SPIR))
         return emit_spir(lambda);
+    if (to->attribute().is(Lambda::OPENCL))
+        return emit_opencl(lambda);
     assert(to->attribute().is(Lambda::Vectorize));
 #ifdef WFV2_SUPPORT
     return emit_vectorized(current, lambda);
@@ -118,7 +124,7 @@ void CodeGen::emit() {
     }
 
     // emit connected functions first
-    std::stable_sort(scopes.begin(), scopes.end(), [] (Scope* s1, Scope* s2) { return s1->entry()->is_connected_to_builtin(); }); 
+    std::stable_sort(scopes.begin(), scopes.end(), [] (Scope* s1, Scope* s2) { return s1->entry()->is_connected_to_builtin(); });
 
     for (auto ptr_scope : scopes) {
         auto& scope = *ptr_scope;
@@ -463,7 +469,7 @@ llvm::Value* CodeGen::emit(Def def) {
             if (src->is_type_f() && dst->is_type_f()) {
                 assert(num_bits(src->primtype_kind()) != num_bits(dst->primtype_kind()));
                 return builder_.CreateFPCast(from, to);
-            } 
+            }
             if (src->is_type_f()) {
                 if (dst->is_type_s())
                     return builder_.CreateFPToSI(from, to);
@@ -630,9 +636,9 @@ llvm::Type* CodeGen::map(const Type* type) {
         case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: llvm_type = builder_.getInt64Ty(); break;
         case PrimType_pf32: case PrimType_qf32:                                         llvm_type = builder_.getFloatTy(); break;
         case PrimType_pf64: case PrimType_qf64:                                         llvm_type = builder_.getDoubleTy();break;
-        case Node_Ptr: 
+        case Node_Ptr:
             llvm_type = llvm::PointerType::getUnqual(map(type->as<Ptr>()->referenced_type())); break;
-        case Node_IndefArray: 
+        case Node_IndefArray:
             return llvm::ArrayType::get(map(type->as<ArrayType>()->elem_type()), 0);
         case Node_DefArray: {
             auto array = type->as<DefArray>();
@@ -693,7 +699,7 @@ multiple:
             return llvm::StructType::get(context_, llvm_ref(elems));
         }
 
-        default: 
+        default:
             THORIN_UNREACHABLE;
     }
 
@@ -707,6 +713,7 @@ multiple:
 void emit_llvm(World& world) {
     World nvvm(world.name() + "_nvvm");
     World spir(world.name() + "_spir");
+    World opencl(world.name());
 
     // determine different parts of the world which need to be compiled differently
     for (auto scope : top_level_scopes(world)) {
@@ -716,6 +723,8 @@ void emit_llvm(World& world) {
             imported = import(nvvm, lambda)->as_lambda();
         else if (lambda->is_connected_to_builtin(Lambda::SPIR))
             imported = import(spir, lambda)->as_lambda();
+        else if (lambda->is_connected_to_builtin(Lambda::OPENCL))
+            imported = import(opencl, lambda)->as_lambda();
         else
             continue;
 
@@ -726,7 +735,7 @@ void emit_llvm(World& world) {
         lambda->attribute().set(Lambda::Extern);
     }
 
-    if (!nvvm.lambdas().empty() || !spir.lambdas().empty())
+    if (!nvvm.lambdas().empty() || !spir.lambdas().empty() || !opencl.lambdas().empty())
         world.cleanup();
 
     CPUCodeGen(world).emit();
@@ -734,6 +743,8 @@ void emit_llvm(World& world) {
         NVVMCodeGen(nvvm).emit();
     if (!spir.lambdas().empty())
         SPIRCodeGen(spir).emit();
+    if (!opencl.lambdas().empty())
+        OpenCLCodeGen(opencl).emit();
 }
 
 //------------------------------------------------------------------------------

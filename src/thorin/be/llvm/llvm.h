@@ -33,9 +33,11 @@ protected:
 private:
     Lambda* emit_builtin(llvm::Function*, Lambda*);
     Lambda* emit_nvvm(Lambda*);
+    Lambda* emit_opencl(Lambda*);
     Lambda* emit_spir(Lambda*);
     Lambda* emit_vectorized(llvm::Function*, Lambda*);
     llvm::Function* nvvm(const char*);
+    llvm::Function* opencl(const char*);
     llvm::Function* spir(const char*);
 
 protected:
@@ -51,14 +53,16 @@ protected:
     std::set<llvm::Function*> fcts_to_remove_;
 private:
     llvm::Type* nvvm_device_ptr_ty_;
+    llvm::Type* opencl_device_ptr_ty_;
     llvm::Type* spir_device_ptr_ty_;
     AutoPtr<llvm::Module> nvvm_module_;
+    AutoPtr<llvm::Module> opencl_module_;
     AutoPtr<llvm::Module> spir_module_;
 };
 
 //------------------------------------------------------------------------------
 
-template<class T> 
+template<class T>
 llvm::ArrayRef<T> llvm_ref(const Array<T>& array) { return llvm::ArrayRef<T>(array.begin(), array.end()); }
 
 void emit_llvm(World& world);

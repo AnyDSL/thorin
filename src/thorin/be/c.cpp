@@ -64,15 +64,12 @@ std::ostream& CCodeGen::emit_type(const Type* type) {
     } else if (auto array = type->isa<IndefArray>()) {
         emit_type(array->elem_type());
         return stream();
-    } else if (auto array = type->isa<DefArray>()) { // DefArray is mapped to tuple
+    } else if (auto array = type->isa<DefArray>()) { // DefArray is mapped to a struct
         if (primops_.count(array->gid()))
             return stream() << primops_[array->gid()];
         stream() << "typedef struct array_" << array->gid() << " {";
-        ++indent;
-        for (size_t i = 0, dim = array->dim(); i < dim; ++i) {
-            newline();
-            emit_type(array->elem_type()) << " e" << i << ";";
-        }
+        ++indent; newline();
+        emit_type(array->elem_type()) << " e[" << array->dim() << "];";
         --indent; newline();
         stream() << "} array_" << array->gid() << ";";
         return stream();
@@ -442,7 +439,7 @@ std::ostream& CCodeGen::emit(Def def) {
 
     if (auto array = def->isa<ArrayAgg>()) {
         if (array->is_const()) {
-            // DefArray is mapped to Tuple
+            // DefArray is mapped to a struct
             emit_type(array->type()) << " " << array->unique_name() << " = {";
             for (size_t i = 0, e = array->size(); i != e; ++i) {
                 if (i) stream() << ", ";
@@ -486,11 +483,11 @@ std::ostream& CCodeGen::emit(Def def) {
         } else if (aggop->agg_type()->isa<ArrayType>()) {
             if (aggop->isa<Extract>()) {
                 emit_type(aggop->type()) << " " << aggop->unique_name() << " = ";
-                emit(aggop->agg()) << "[";
+                emit(aggop->agg()) << ".e[";
                 emit(aggop->index()) << "];";
                 primops_[def->gid()] = def->unique_name();
             } else {
-                emit(aggop->agg()) << "[";
+                emit(aggop->agg()) << ".e[";
                 emit(aggop->index()) << "] = ";
                 emit(aggop->as<Insert>()->value()) << ";";
                 primops_[def->gid()] = aggop->agg()->unique_name();

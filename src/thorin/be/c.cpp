@@ -25,7 +25,8 @@ public:
     {}
 
     void emit();
-    std::ostream& emit_tuple_decl(const Type *type);
+    std::ostream& emit_aggop_defs(Def def);
+    std::ostream& emit_aggop_decl(const Type *type);
     std::ostream& emit_type(const Type* type);
     std::ostream& emit(Def def);
 private:
@@ -101,9 +102,35 @@ std::ostream& CCodeGen::emit_type(const Type* type) {
 }
 
 
-std::ostream& CCodeGen::emit_tuple_decl(const Type *type) {
+std::ostream& CCodeGen::emit_aggop_defs(Def def) {
+    if (primops_.count(def->gid())) return stream();
+
+    // recurse into (multi-dimensional) array
+    if (auto array = def->isa<ArrayAgg>()) {
+        for (size_t i = 0, e = array->size(); i != e; ++i) {
+            emit_aggop_defs(array->op(i));
+        }
+        emit(array);
+        newline();
+    }
+
+    // recurse into (multi-dimensional) tuple
+    if (auto tuple = def->isa<Tuple>()) {
+        for (size_t i = 0, e = tuple->ops().size(); i != e; ++i) {
+            if (i) stream() << ", ";
+            emit_aggop_defs(tuple->op(i));
+        }
+        emit(tuple);
+        newline();
+    }
+
+    return stream();
+}
+
+
+std::ostream& CCodeGen::emit_aggop_decl(const Type *type) {
     if (auto pi = type->isa<Pi>())
-        for (auto type : pi->elems()) emit_tuple_decl(type);
+        for (auto type : pi->elems()) emit_aggop_decl(type);
 
     if (type->isa<Sigma>() || type->isa<DefArray>()) {
         if (!primops_.count(type->gid())) {
@@ -128,15 +155,15 @@ void CCodeGen::emit() {
             Schedule schedule = schedule_smart(*scope);
 
             for (auto param : lambda->params()) {
-                emit_tuple_decl(param->type());
+                emit_aggop_decl(param->type());
                 primops_[param->gid()] = param->unique_name();
             }
 
             for (auto primop : schedule[lambda]) {
-                emit_tuple_decl(primop->type());
+                emit_aggop_decl(primop->type());
                 // search for inlined tuples/arrays
                 if (auto aggop = primop->isa<AggOp>()) {
-                    emit_tuple_decl(aggop->agg()->type());
+                    emit_aggop_decl(aggop->agg()->type());
                 }
             }
         }
@@ -148,7 +175,7 @@ void CCodeGen::emit() {
         // retrieve return param
         const Param *ret_param = nullptr;
         for (auto param : lambda->params()) {
-            emit_tuple_decl(param->type());
+            emit_aggop_decl(param->type());
             if (param->order() != 0) {
                 assert(!ret_param);
                 ret_param = param;
@@ -464,10 +491,9 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto aggop = def->isa<AggOp>()) {
-        if (!primops_.count(aggop->agg()->gid())) {
-            emit(aggop->agg());
-            newline();
-        }
+        // recurse into (multi-dimensional) tuple/array and emit definitions of
+        // inlined tuples/arrays
+        emit_aggop_defs(aggop->agg());
         if (aggop->agg_type()->isa<Sigma>()) {
             if (aggop->isa<Extract>()) {
                 emit_type(aggop->type()) << " " << aggop->unique_name() << " = ";

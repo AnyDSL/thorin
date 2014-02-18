@@ -156,7 +156,7 @@ void CCodeGen::emit() {
 
         const Pi *ret_fn_type = ret_param->type()->as<Pi>();
         if (lambda->attribute().is(Lambda::KernelEntry)) {
-            if (lang_==OPENCL) stream() << "__global ";
+            if (lang_==OPENCL) stream() << "__kernel ";
             emit_type(ret_fn_type->elems().back()) << " " << lambda->name << "(";
         } else {
             emit_type(ret_fn_type->elems().back()) << " " << lambda->unique_name() << "(";
@@ -208,7 +208,7 @@ void CCodeGen::emit() {
 
         const Pi *ret_fn_type = ret_param->type()->as<Pi>();
         if (lambda->attribute().is(Lambda::KernelEntry)) {
-            if (lang_==OPENCL) stream() << "__global ";
+            if (lang_==OPENCL) stream() << "__kernel ";
             emit_type(ret_fn_type->elems().back()) << " " << lambda->name << "(";
         } else {
             emit_type(ret_fn_type->elems().back()) << " " << lambda->unique_name() << "(";

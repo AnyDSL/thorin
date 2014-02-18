@@ -30,6 +30,8 @@ protected:
         return CodeGen::emit_function_decl(name, lambda);
     }
 
+    virtual llvm::Value* emit_memmap(Def);
+
 private:
     Lambda* emit_builtin(llvm::Function*, Lambda*);
     Lambda* emit_nvvm(Lambda*);

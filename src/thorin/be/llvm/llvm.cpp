@@ -543,8 +543,18 @@ llvm::Value* CodeGen::emit(Def def) {
         if (aggop->agg_type()->isa<Sigma>()) {
             unsigned i = aggop->index()->primlit_value<unsigned>();
 
-            if (aggop->isa<Extract>())
+            if (auto extract = aggop->isa<Extract>()) {
+                auto agg_type = extract->agg_type();
+                if (auto agg_sigma = agg_type->isa<Sigma>()) {
+                    // check for a memory-mapped extract
+                    // TODO: integrate memory-mappings in a nicer way :)
+                    if (agg_sigma->size() == 2 &&
+                        agg_sigma->elem(0)->isa<Mem>() &&
+                        agg_sigma->elem(1)->isa<Ptr>())
+                        return lookup(extract->agg());
+                }
                 return builder_.CreateExtractValue(agg, { i });
+            }
 
             auto insert = def->as<Insert>();
             auto value = lookup(insert->value());
@@ -602,6 +612,9 @@ llvm::Value* CodeGen::emit(Def def) {
     if (auto slot = def->isa<Slot>())
         return builder_.CreateAlloca(map(slot->type()->as<Ptr>()->referenced_type()), 0, slot->unique_name());
 
+    if (auto map = def->isa<Map>())
+        return emit_memmap(map);
+
     if (def->isa<Enter>() || def->isa<Leave>())
         return nullptr;
 
@@ -623,6 +636,11 @@ llvm::Value* CodeGen::emit(Def def) {
     }
 
     THORIN_UNREACHABLE;
+}
+
+llvm::Value* CodeGen::emit_memmap(Def map) {
+    assert(map->isa<Map>());
+    return lookup(map->as<Map>()->ptr());
 }
 
 llvm::Type* CodeGen::map(const Type* type) {

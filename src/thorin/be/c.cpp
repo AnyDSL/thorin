@@ -135,8 +135,13 @@ void CCodeGen::emit() {
                 primops_[param->gid()] = param->unique_name();
             }
 
-            for (auto primop : schedule[lambda])
+            for (auto primop : schedule[lambda]) {
                 emit_tuple_decl(primop->type());
+                // search for inlined tuples/arrays
+                if (auto aggop = primop->isa<AggOp>()) {
+                    emit_tuple_decl(aggop->agg()->type());
+                }
+            }
         }
 
         auto lambda = scope->entry();

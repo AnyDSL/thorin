@@ -154,10 +154,13 @@ void CCodeGen::emit() {
         }
         assert(ret_param);
 
-        if (lambda->attribute().is(Lambda::KernelEntry) && lang_==OPENCL)
-            stream() << "__global ";
         const Pi *ret_fn_type = ret_param->type()->as<Pi>();
-        emit_type(ret_fn_type->elems().back()) << " " << lambda->name << "(";
+        if (lambda->attribute().is(Lambda::KernelEntry)) {
+            if (lang_==OPENCL) stream() << "__global ";
+            emit_type(ret_fn_type->elems().back()) << " " << lambda->name << "(";
+        } else {
+            emit_type(ret_fn_type->elems().back()) << " " << lambda->unique_name() << "(";
+        }
         size_t i = 0;
         // emit all first-order params
         for (auto param : lambda->params()) {
@@ -203,12 +206,14 @@ void CCodeGen::emit() {
         }
         assert(ret_param);
 
-        if (lambda->attribute().is(Lambda::KernelEntry) && lang_==OPENCL)
-            stream() << "__global ";
         const Pi *ret_fn_type = ret_param->type()->as<Pi>();
-        emit_type(ret_fn_type->elems().back()) << " " << lambda->name << "(";
+        if (lambda->attribute().is(Lambda::KernelEntry)) {
+            if (lang_==OPENCL) stream() << "__global ";
+            emit_type(ret_fn_type->elems().back()) << " " << lambda->name << "(";
+        } else {
+            emit_type(ret_fn_type->elems().back()) << " " << lambda->unique_name() << "(";
+        }
         size_t i = 0;
-
         // emit and store all first-order params
         for (auto param : lambda->params()) {
             if (param->order() == 0 && !param->type()->isa<Mem>()) {

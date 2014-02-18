@@ -347,6 +347,6 @@ using Type2Type = GidMap<const Type*, const Type*>;
 
 //------------------------------------------------------------------------------
 
-} // namespace thorin
+}
 
 #endif

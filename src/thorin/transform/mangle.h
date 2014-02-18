@@ -6,53 +6,32 @@
 
 namespace thorin {
 
-Lambda* mangle(const Scope& scope, 
-               Def2Def& mapping,
-               ArrayRef<size_t> to_drop, 
-               ArrayRef<Def> drop_with, 
-               ArrayRef<Def> to_lift, 
-               const GenericMap& generic_map = GenericMap());
-
-Lambda* drop(const Scope& scope, Def2Def& mapping, ArrayRef<Def> with);
-
-inline Lambda* drop(const Scope& scope, ArrayRef<Def> with) {
-    Def2Def mapping;
-    return drop(scope, mapping, with);
+Lambda* mangle(const Scope&, Def2Def& old2new, ArrayRef<Def> drop, ArrayRef<Def> lift, const GenericMap& generic_map = GenericMap());
+inline Lambda* drop(const Scope& scope, Def2Def& old2new, ArrayRef<Def> with, const GenericMap& generic_map = GenericMap()) {
+    return mangle(scope, old2new, with, Array<Def>(), generic_map);
+}
+inline Lambda* clone(const Scope& scope, Def2Def& old2new, const GenericMap& generic_map = GenericMap()) { 
+    return mangle(scope, old2new, Array<Def>(scope.entry()->num_params()), Array<Def>(), generic_map);
+}
+inline Lambda* lift(const Scope& scope, Def2Def& old2new, ArrayRef<Def> what, const GenericMap& generic_map = GenericMap()) {
+    return mangle(scope, old2new, Array<Def>(scope.entry()->num_params()), what, generic_map);
 }
 
+inline Lambda* mangle(const Scope& scope, ArrayRef<Def> drop, ArrayRef<Def> lift, const GenericMap& generic_map = GenericMap()) {
+    Def2Def old2new;
+    return mangle(scope, old2new, drop, lift, generic_map);
+}
+inline Lambda* drop(const Scope& scope, ArrayRef<Def> with, const GenericMap& generic_map = GenericMap()) {
+    Def2Def old2new;
+    return mangle(scope, old2new, with, Array<Def>(), generic_map);
+}
 inline Lambda* clone(const Scope& scope, const GenericMap& generic_map = GenericMap()) { 
-    Def2Def mapping;
-    return mangle(scope, mapping, Array<size_t>(), Array<Def>(), Array<Def>(), generic_map);
+    Def2Def old2new;
+    return mangle(scope, old2new, Array<Def>(scope.entry()->num_params()), Array<Def>(), generic_map);
 }
-
-inline Lambda* drop(const Scope& scope,
-                    Def2Def& mapping,
-                    ArrayRef<size_t> to_drop,
-                    ArrayRef<Def> drop_with,
-                    const GenericMap& generic_map = GenericMap()) {
-    return mangle(scope, mapping, to_drop, drop_with, Array<Def>(), generic_map);
-}
-
-inline Lambda* drop(const Scope& scope,
-                    ArrayRef<size_t> to_drop,
-                    ArrayRef<Def> drop_with,
-                    const GenericMap& generic_map = GenericMap()) {
-    Def2Def mapping;
-    return drop(scope, mapping, to_drop, drop_with, generic_map);
-}
-
-inline Lambda* lift(const Scope& scope,
-                    Def2Def& mapping,
-                    ArrayRef<Def> to_lift,
-                    const GenericMap& generic_map = GenericMap()) {
-    return mangle(scope, mapping, Array<size_t>(), Array<Def>(), to_lift, generic_map);
-}
-
-inline Lambda* lift(const Scope& scope,
-                    ArrayRef<Def> to_lift,
-                    const GenericMap& generic_map = GenericMap()) {
-    Def2Def mapping;
-    return lift(scope, mapping, to_lift, generic_map);
+inline Lambda* lift(const Scope& scope, ArrayRef<Def> what, const GenericMap& generic_map = GenericMap()) {
+    Def2Def old2new;
+    return mangle(scope, old2new, Array<Def>(scope.entry()->num_params()), what, generic_map);
 }
 
 }

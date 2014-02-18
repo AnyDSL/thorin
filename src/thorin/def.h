@@ -1,16 +1,16 @@
 #ifndef THORIN_DEF_H
 #define THORIN_DEF_H
 
-#include <queue>
-#include <string>
 #include <map>
 #include <set>
+#include <string>
 #include <vector>
 
 #include "thorin/enums.h"
 #include "thorin/util/array.h"
 #include "thorin/util/autoptr.h"
 #include "thorin/util/cast.h"
+#include "thorin/util/hash.h"
 
 namespace thorin {
 
@@ -88,24 +88,6 @@ private:
 struct UseLT { 
     inline bool operator () (Use use1, Use use2) const;
 };
-
-class Peek {
-public:
-    Peek() {}
-    Peek(Def def, Lambda* from)
-        : def_(def)
-        , from_(from)
-    {}
-
-    Def def() const { return def_; }
-    Lambda* from() const { return from_; }
-
-private:
-    Def def_;
-    Lambda* from_;
-};
-
-typedef std::vector<Peek> Peeks;
 
 //------------------------------------------------------------------------------
 
@@ -224,10 +206,9 @@ public:
     template<class T> inline T primlit_value() const; // implementation in literal.h
 
 private:
-    NodeKind kind_;
+    const NodeKind kind_;
     std::vector<Def> ops_;
-    // HACK
-    mutable const Type* type_;
+    const Type* type_;
     mutable std::set<Use, UseLT> uses_;
     mutable const DefNode* representative_;
     mutable DefSet representatives_of_;
@@ -266,20 +247,56 @@ private:
     {}
 
 public:
+    class Peek {
+    public:
+        Peek() {}
+        Peek(Def def, Lambda* from)
+            : def_(def)
+            , from_(from)
+        {}
+
+        Def def() const { return def_; }
+        Lambda* from() const { return from_; }
+
+    private:
+        Def def_;
+        Lambda* from_;
+    };
+
     Lambda* lambda() const { return lambda_; }
     size_t index() const { return index_; }
-    Peeks peek() const;
+    std::vector<Peek> peek() const;
 
 private:
-    mutable Lambda* lambda_;
+    Lambda* const lambda_;
     const size_t index_;
 
     friend class World;
     friend class Lambda;
 };
 
+}
+
 //------------------------------------------------------------------------------
 
-} // namespace thorin
+namespace std {
+    template<>
+    struct hash<thorin::ArrayRef<thorin::Def>> {
+        size_t operator () (thorin::ArrayRef<thorin::Def> defs) const { 
+            size_t seed = thorin::hash_value(defs.size());
+            for (auto def : defs)
+                seed = thorin::hash_combine(seed, *def);
+            return seed;
+        }
+    };
+
+    template<>
+    struct hash<thorin::Array<thorin::Def>> {
+        size_t operator () (const thorin::Array<thorin::Def> defs) const {
+            return std::hash<thorin::ArrayRef<thorin::Def>>()(defs); }
+    };
+}
+
+//------------------------------------------------------------------------------
 
 #endif

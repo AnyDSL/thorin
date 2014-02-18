@@ -5,12 +5,9 @@ fn a(m : int, n : int) -> int {
     if (n == 0)
         return a(m-1, 1);
 
-    if (n == 0)
-        return a(m-1,1);
-
     return a(m-1, a(m, n-1));
 }
 
-fn main() -> int {
-    return a(3, 4);
+fn main(i: int) -> int {
+    return @a(1, 2);
 }

@@ -142,4 +142,4 @@ void IRBuilder::set_mem(Def def) { if (is_reachable()) cur_bb->set_value(0, def)
 
 //------------------------------------------------------------------------------
 
-} // namespace thorin
+}

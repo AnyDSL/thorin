@@ -21,6 +21,7 @@ enum Prec {
     MUL,
     UNARY,
     POSTFIX,
+    EVAL,
     TOP,
     NUM_PREC
 };

@@ -4,7 +4,6 @@
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/util/array.h"
-#include "thorin/util/hash.h"
 
 namespace thorin {
 
@@ -119,6 +118,15 @@ LEA::LEA(Def def, Def index, const std::string& name)
 }
 
 const Type* LEA::referenced_type() const { return ptr()->type()->as<Ptr>()->referenced_type(); }
+
+//------------------------------------------------------------------------------
+
+EvalOp::EvalOp(NodeKind kind, Def def, const std::string& name)
+    : PrimOp(1, kind, def->type(), name)
+{
+    assert(type()->isa<Pi>());
+    set_op(0, def);
+}
 
 //------------------------------------------------------------------------------
 

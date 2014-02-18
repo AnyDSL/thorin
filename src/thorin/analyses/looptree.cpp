@@ -103,7 +103,7 @@ void LoopTreeBuilder::build() {
     for (auto lambda : scope()) // clear all flags
         states[lambda] = 0;
 
-    recurse(looptree.root_ = new LoopHeader(0, 0, std::vector<Lambda*>(0)), {scope().entry()}, 1);
+    recurse(looptree.root_ = new LoopHeader(nullptr, 0, std::vector<Lambda*>(0)), {scope().entry()}, 1);
 }
 
 void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<Lambda*> headers, int depth) {
@@ -255,6 +255,10 @@ void LoopLeaf::dump() const {
     indent() << "+ dfs: " << dfs_index() << std::endl;
 }
 
+void LoopHeader::Edge::dump() {
+    std::cout << src_->unique_name() << " ->(" << levels_ << ") " << dst_->unique_name() << "   ";
+}
+
 #define DUMP_SET(set) \
     indent() << "+ " #set ": "; \
     for (auto lambda : set()) \
@@ -286,10 +290,6 @@ void LoopHeader::dump() const {
 }
 
 //------------------------------------------------------------------------------
-
-void Edge::dump() {
-    std::cout << src_->unique_name() << " ->(" << levels_ << ") " << dst_->unique_name() << "   ";
-}
 
 LoopTree::LoopTree(const Scope& scope)
     : scope_(scope)

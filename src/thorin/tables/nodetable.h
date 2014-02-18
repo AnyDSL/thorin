@@ -29,7 +29,7 @@
         THORIN_AIR_NODE(Insert, insert)
         THORIN_AIR_NODE(LEA, lea)
         THORIN_AIR_NODE(Run, run)
-        THORIN_AIR_NODE(Halt, halt)
+        THORIN_AIR_NODE(Hlt, hlt)
     THORIN_AIR_NODE(Param, param)
     // Type
         // PrimType

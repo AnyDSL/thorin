@@ -217,7 +217,7 @@ public:
 
     Def select(Def cond, Def a, Def b, const std::string& name = "");
     Def run(Def def, const std::string& name = "");
-    Def halt(Def def, const std::string& name = "");
+    Def hlt(Def def, const std::string& name = "");
 
     Lambda* lambda(const Pi* pi, Lambda::Attribute attribute = Lambda::Attribute(0), const std::string& name = "");
     Lambda* lambda(const Pi* pi, const std::string& name) { return lambda(pi, Lambda::Attribute(0), name); }

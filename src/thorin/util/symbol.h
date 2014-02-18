@@ -34,7 +34,7 @@ private:
 
 inline std::ostream& operator << (std::ostream& o, Symbol s) { return o << s.str(); }
 
-} // namespace thorin
+}
 
 namespace std {
 

@@ -1,4 +1,5 @@
 #include "thorin/be/llvm/nvvm.h"
+#include <sstream>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Metadata.h>
 #include <llvm/IR/Module.h>
@@ -59,7 +60,7 @@ llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     const auto emit_texture_kernel_arg = [&](const Param* param) {
         assert(param->type()->as<Ptr>()->addr_space() == AddressSpace::Texture);
         auto global = new llvm::GlobalVariable(*module_.get(), builder_.getInt64Ty(), false,
-                llvm::GlobalValue::InternalLinkage, nullptr, param->unique_name(),
+                llvm::GlobalValue::InternalLinkage, builder_.getInt64(0), param->unique_name(),
                 nullptr, llvm::GlobalVariable::NotThreadLocal, 1);
         metadata_[param] = append_metadata(global, "texture");
     };
@@ -129,7 +130,6 @@ llvm::Function* NVVMCodeGen::emit_intrinsic_decl(std::string& name, Lambda* lamb
 
 llvm::Value* NVVMCodeGen::emit_load(Def def) {
     auto load = def->as<Load>();
-    return CodeGen::emit_load(def);
     switch (resolve_addr_space(load->ptr())) {
     case AddressSpace::Texture:
         return builder_.CreateExtractValue(lookup(load->ptr()), { unsigned(0) });
@@ -146,19 +146,34 @@ llvm::Value* NVVMCodeGen::emit_store(Def def) {
             "Only global address space for stores is currently supported");
     return CodeGen::emit_store(store);
 }
- llvm::Value* NVVMCodeGen::emit_lea(Def def) {
+
+static std::string get_texture_fetch_command(const Type* type) {
+    std::stringstream fun_str;
+    if (type->as<PrimType>()->is_type_f())
+        fun_str << "tex.1d.v4.f32.s32";
+    else
+        fun_str << "tex.1d.v4.s32.s32";
+    fun_str << " {$0,$1,$2,$3}, [$4, {$5,$6,$7,$8}];";
+    return fun_str.str();
+}
+
+llvm::Value* NVVMCodeGen::emit_lea(Def def) {
     auto lea = def->as<LEA>();
     switch (resolve_addr_space(lea->ptr())) {
     case AddressSpace::Texture: {
-        // %tex_fetch = call { i32, i32, i32, i32 } asm sideeffect "tex.1d.v4.s32.s32 {$0,$1,$2,$3}, [$4, {$5,$6,$7,$8}];", "=r,=r,=r,=r,l,r,r,r,r" (i64 %tex_ref, i32 %add, i32 0, i32 0, i32 0)
-        auto llvm_ptr_ty = map(lea->type());
+        // sample for i32:
+        // %tex_fetch = call { i32, i32, i32, i32 } asm sideeffect "tex.1d.v4.s32.s32 {$0,$1,$2,$3}, [$4, {$5,$6,$7,$8}];",
+        // "=r,=r,=r,=r,l,r,r,r,r" (i64 %tex_ref, i32 %add, i32 0, i32 0, i32 0)
+        auto ptr_ty = lea->type()->as<Ptr>();
+        auto llvm_ptr_ty = map(ptr_ty->referenced_type());
         llvm::Type* struct_types[] = { llvm_ptr_ty, llvm_ptr_ty, llvm_ptr_ty, llvm_ptr_ty };
         auto ret_type = llvm::StructType::create(struct_types);
         llvm::Type* args[] = {
             builder_.getInt64Ty(),
             builder_.getInt32Ty(), builder_.getInt32Ty(), builder_.getInt32Ty(), builder_.getInt32Ty() };
         auto type = llvm::FunctionType::get(ret_type, args, false);
-        auto get_call = llvm::InlineAsm::get(type, "tex.1d.v4.s32.s32 {$0,$1,$2,$3}, [$4, {$5,$6,$7,$8}];", "=r,=r,=r,=r,l,r,r,r,r", false);
+        auto fetch_command = get_texture_fetch_command(ptr_ty->referenced_type());
+        auto get_call = llvm::InlineAsm::get(type, fetch_command, "=r,=r,=r,=r,l,r,r,r,r", false);
         llvm::Value* values[] = {
             lookup(lea->ptr()), lookup(lea->index()),
             builder_.getInt32(0), builder_.getInt32(0), builder_.getInt32(0) };

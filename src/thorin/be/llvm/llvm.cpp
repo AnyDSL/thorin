@@ -146,7 +146,7 @@ void CodeGen::emit() {
                 auto value = map_param(fct, argv, param);
                 if (value == argv) {
                     // use param
-                    arg->setName(param->name);
+                    arg->setName(param->unique_name());
                     params_[param] = arg++;
                 } else {
                     // use provided value

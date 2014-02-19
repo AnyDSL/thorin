@@ -1,22 +1,31 @@
-CUDA_DIR ?= /usr/local/cuda
-INC_DIRS = -I $(CUDA_DIR)/include \
-           -I $(CUDA_DIR)/nvvm/include \
-           -I $(CUDA_DIR)/nvvm/libnvvm-samples/common/include
-LIB_DIRS = -L $(CUDA_DIR)/nvvm/lib64
+CUDA_DIR  ?= /usr/local/cuda
+INC_DIRS   = -I $(CUDA_DIR)/include \
+             -I $(CUDA_DIR)/nvvm/include \
+             -I $(CUDA_DIR)/nvvm/libnvvm-samples/common/include
+LIB_DIRS   = -L $(CUDA_DIR)/nvvm/lib64
+CXX_FLAGS := -Wall -Wunused
 OPT_FLAGS := -O3
 DBG_FLAGS :=
+MAIN      := main
 
-all: jacobi.out
-	@echo "Running main ..."
-	@./jacobi.out
+OS:=$(shell uname -s)
 
-#%.llo: %.cpp cu_runtime.h
-#	clang++ $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -c -emit-llvm $<
+ifeq ($(OS),Linux)
+	LD_FLAGS = -lcuda -lnvvm
+endif
+ifeq ($(OS),Darwin) # assume Mac OS X
+	LD_FLAGS = -lcuda -lnvvm
+endif
 
-%.llo: %.cpp
-	clang++ $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -c -emit-llvm $<
 
-%.bc: %.llo
+all: $(MAIN).out
+	@echo "Running $(MAIN) ..."
+	@./$(MAIN).out
+
+%.s: %.cpp
+	clang++ $(CXX_FLAGS) $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -S $<
+
+%.bc: %.ll
 	llvm-link $^ -o $*-unop.bc
 	opt $*-unop.bc $(OPT_FLAGS) -o $@
 	llvm-link $@ -o $@
@@ -26,10 +35,10 @@ all: jacobi.out
 	llc $(OPT_FLAGS) $< -o $@
 
 %.out: %.s cu_runtime.s
-	clang++ $< cu_runtime.s $(LIB_DIRS) -lcuda -lnvvm -o $@
+	clang++ $< cu_runtime.s $(LIB_DIRS) $(LD_FLAGS) -o $@
 
 clean:
-	@rm -f main $(MAIN_FILES) *.ll *.llo *.o *.bc *.s *.out
+	@rm -f $(MAIN).out *.ll *.o *.bc *.s
 
 .PHONY: all
 

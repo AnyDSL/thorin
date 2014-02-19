@@ -11,7 +11,7 @@ ifeq ($(OS),Linux)
 	LIB_DIRS = -L $(OPENCL_DIR)/lib64
 	LD_FLAGS = -lrt -lOpenCL
 endif
-ifeq ($(OS),Darwin) # Assume Mac Os X
+ifeq ($(OS),Darwin) # assume Mac OS X
 	INC_DIRS =
 	LIB_DIRS =
 	LD_FLAGS = -framework OpenCL
@@ -39,7 +39,7 @@ all: $(MAIN).out
 	clang++ $< cl_runtime.s $(LIB_DIRS) $(LD_FLAGS) -o $@
 
 clean:
-	@rm -f $(MAIN) *.ll *.llo *.o *.bc *.s *.out
+	@rm -f $(MAIN).out *.ll *.o *.bc *.s
 
 .PHONY: all
 

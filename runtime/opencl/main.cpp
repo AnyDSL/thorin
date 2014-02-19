@@ -17,7 +17,7 @@ int main_impala() {
     bool is_binary = true;
     build_program_and_kernel("simple-gpu64.spir.bc", "simple", is_binary);
     cl_mem dev;
-    dev = malloc_buffer(num*sizeof(int));
+    dev = malloc_buffer(num);
     write_buffer(dev, host, num);
 
     set_problem_size(1024, 1, 1);

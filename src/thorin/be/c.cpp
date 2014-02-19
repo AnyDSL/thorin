@@ -467,12 +467,12 @@ std::ostream& CCodeGen::emit(Def def) {
     if (auto array = def->isa<ArrayAgg>()) {
         if (array->is_const()) {
             // DefArray is mapped to a struct
-            emit_type(array->type()) << " " << array->unique_name() << " = {";
+            emit_type(array->type()) << " " << array->unique_name() << " = {{";
             for (size_t i = 0, e = array->size(); i != e; ++i) {
                 if (i) stream() << ", ";
                 emit(array->op(i));
             }
-            stream() << "};";
+            stream() << "}};";
             primops_[def->gid()] = def->unique_name();
             return stream();
         }

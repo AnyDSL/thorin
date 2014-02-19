@@ -2,7 +2,7 @@ OPENCL_DIR ?= /opt/intel/opencl
 CXX_FLAGS := -Wall -Wunused
 OPT_FLAGS := -O3
 DBG_FLAGS :=
-MAIN      := jacobi_handspecialized
+MAIN      := jacobi
 
 OS:=$(shell uname -s)
 
@@ -23,17 +23,8 @@ all: $(MAIN).out
 	@llvm-as simple-gpu64.spir
 	@./$(MAIN).out
 
-%.llo: %.cpp cl_runtime.h
-	clang++ $(CXX_FLAGS) $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -c -emit-llvm $<
-
-#%.llo: %.cpp
-#	clang++ $(CXX_FLAGS) $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -c -emit-llvm $<
-
-%.bc: %.llo
-	llvm-link $^ -o $*-unop.bc
-	opt $*-unop.bc $(OPT_FLAGS) -o $@
-	llvm-link $@ -o $@
-	llvm-dis $@ -o $*.ll
+%.s: %.cpp
+	clang++ $(CXX_FLAGS) $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -S $<
 
 %.bc: %.ll
 	llvm-link $^ -o $*-unop.bc
@@ -44,11 +35,8 @@ all: $(MAIN).out
 %.s: %.bc
 	llc $(OPT_FLAGS) $< -o $@
 
-#%.out: %.s cl_runtime.s
-#	clang++ $< cl_runtime.s $(LIB_DIRS) $(LD_FLAGS) -o $@
-
-%.out: %.s
-	clang++ $< $(LIB_DIRS) $(LD_FLAGS) -o $@
+%.out: %.s cl_runtime.s
+	clang++ $< cl_runtime.s $(LIB_DIRS) $(LD_FLAGS) -o $@
 
 clean:
 	@rm -f $(MAIN) *.ll *.llo *.o *.bc *.s *.out

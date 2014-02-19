@@ -177,9 +177,10 @@ enum class AddressSpace : uint32_t {
 
 class Ptr : public VectorType {
 private:
-    Ptr(World& world, const Type* referenced_type, size_t length, AddressSpace addr_space = AddressSpace::Global)
+    Ptr(World& world, const Type* referenced_type, size_t length, uint32_t device = 0, AddressSpace addr_space = AddressSpace::Global)
         : VectorType(world, Node_Ptr, 1, length, referenced_type->is_generic())
         , addr_space_(addr_space)
+        , device_(device)
     {
         set(0, referenced_type);
     }
@@ -187,12 +188,14 @@ private:
 public:
     const Type* referenced_type() const { return elem(0); }
     AddressSpace addr_space() const { return addr_space_; }
+    uint32_t device() const { return device_; }
 
     virtual size_t hash() const;
     virtual bool equal(const Type* other) const;
 
 private:
     AddressSpace addr_space_;
+    uint32_t device_;
 
     friend class World;
 };

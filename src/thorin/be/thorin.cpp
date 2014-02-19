@@ -60,6 +60,9 @@ std::ostream& CodeGen::emit_type(const Type* type) {
         stream() << '*';
         if (ptr->is_vector())
             stream() << '>';
+        auto device = ptr->device();
+        if (device != 0)
+            stream() << '[' << device << ']';
         switch (ptr->addr_space()) {
         case AddressSpace::Texture:
             stream() << "[Tex]";

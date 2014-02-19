@@ -152,13 +152,15 @@ const VectorType* VectorType::scalarize() const {
 //------------------------------------------------------------------------------
 
 size_t Ptr::hash() const {
-    return hash_combine(VectorType::hash(), (size_t)addr_space());
+    auto seed =  hash_combine(VectorType::hash(), (size_t)device());
+    return hash_combine(seed, (size_t)addr_space());
 }
 
 bool Ptr::equal(const Type* other) const {
     if(!VectorType::equal(other))
         return false;
-    return other->as<Ptr>()->addr_space() == addr_space();
+    auto ptr = other->as<Ptr>();
+    return ptr->device() == device() && ptr->addr_space() == addr_space();
 }
 
 //------------------------------------------------------------------------------

@@ -111,10 +111,10 @@ LEA::LEA(Def def, Def index, const std::string& name)
 
     auto type = ptr_type();
     if (auto sigma = referenced_type()->isa<Sigma>())
-        set_type(index->world().ptr(sigma->elem_via_lit(index), type->length(), type->addr_space()));
+        set_type(index->world().ptr(sigma->elem_via_lit(index), type->length(), type->device(), type->addr_space()));
     else {
         auto array = referenced_type()->as<ArrayType>();
-        set_type(index->world().ptr(array->elem_type(), type->length(), type->addr_space()));
+        set_type(index->world().ptr(array->elem_type(), type->length(), type->device(), type->addr_space()));
     }
 }
 

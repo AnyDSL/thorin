@@ -86,7 +86,7 @@ public:
     }
     const Mem* mem() const { return mem_; }
     const Frame* frame() const { return frame_; }
-    const Ptr* ptr(const Type* referenced_type, size_t length = 1, AddressSpace adr_space = AddressSpace::Global) { return unify(new Ptr(*this, referenced_type, length, adr_space)); }
+    const Ptr* ptr(const Type* referenced_type, size_t length = 1, uint32_t device = 0, AddressSpace adr_space = AddressSpace::Global) { return unify(new Ptr(*this, referenced_type, length, device, adr_space)); }
     const Sigma* sigma0() { return sigma0_; }   ///< Creates 'sigma()'.
     const Sigma* sigma(ArrayRef<const Type*> elems) { return unify(new Sigma(*this, elems)); }
     Sigma* named_sigma(size_t size, const std::string& name = ""); ///< Creates a fresh \em named sigma.
@@ -200,8 +200,8 @@ public:
      * memops
      */
 
-    const Map* map(Def mem, Def ptr, Def addr_space, const std::string& name = "");
-    const Map* map(Def mem, Def ptr, AddressSpace addr_space = AddressSpace::Global, const std::string& name = "");
+    const Map* map(Def mem, Def ptr, Def device, Def addr_space, const std::string& name = "");
+    const Map* map(Def mem, Def ptr, uint32_t device = 0, AddressSpace addr_space = AddressSpace::Global, const std::string& name = "");
     Def load(Def mem, Def ptr, const std::string& name = "");
     const Store* store(Def mem, Def ptr, Def val, const std::string& name = "");
     const Enter* enter(Def mem, const std::string& name = "");

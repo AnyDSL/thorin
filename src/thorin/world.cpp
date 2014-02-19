@@ -667,12 +667,12 @@ Def World::leave(Def mem, Def frame, const std::string& name) {
     return mem;
 }
 
-const Map* World::map(Def mem, Def ptr, Def addr_space, const std::string& name) {
-    return map(mem, ptr, (AddressSpace)addr_space->as<PrimLit>()->ps32_value().data(), name);
+const Map* World::map(Def mem, Def ptr, Def device, Def addr_space, const std::string& name) {
+    return cse(new Map(mem, ptr, device->as<PrimLit>()->ps32_value().data(), (AddressSpace)addr_space->as<PrimLit>()->ps32_value().data(), name));
 }
 
-const Map* World::map(Def mem, Def ptr, AddressSpace addr_space, const std::string& name) {
-    return cse(new Map(mem, ptr, addr_space, name));
+const Map* World::map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space, const std::string& name) {
+    return cse(new Map(mem, ptr, device, addr_space, name));
 }
 
 Def World::load(Def mem, Def ptr, const std::string& name) { 
@@ -784,7 +784,7 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, const Type* t
         case Node_LEA:       assert(ops.size() == 2); return to.lea(      ops[0], ops[1], name);
         case Node_Leave:     assert(ops.size() == 2); return to.leave(    ops[0], ops[1], name);
         case Node_Load:      assert(ops.size() == 2); return to.load(     ops[0], ops[1], name);
-        case Node_Map:       assert(ops.size() == 2); return to.map(      ops[0], ops[1], in->as<Map>()->addr_space(), name);
+        case Node_Map:       assert(ops.size() == 2); return to.map(      ops[0], ops[1], in->as<Map>()->device(), in->as<Map>()->addr_space(), name);
         case Node_Run:       assert(ops.size() == 1); return to.run(      ops[0], name);
         case Node_Select:    assert(ops.size() == 3); return to.select(   ops[0], ops[1], ops[2], name);
         case Node_Store:     assert(ops.size() == 3); return to.store(    ops[0], ops[1], ops[2], name);
@@ -814,7 +814,7 @@ const Type* World::rebuild(World& to, const Type* type, ArrayRef<const Type*> el
         case Node_IndefArray: assert(elems.size() == 1); return to.indef_array(elems.front());
         case Node_Mem:        assert(elems.size() == 0); return to.mem();
         case Node_Frame:      assert(elems.size() == 0); return to.frame();
-        case Node_Ptr:        assert(elems.size() == 1); return to.ptr(elems.front(), type->as<Ptr>()->length(), type->as<Ptr>()->addr_space());
+        case Node_Ptr:        assert(elems.size() == 1); return to.ptr(elems.front(), type->as<Ptr>()->length(), type->as<Ptr>()->device(), type->as<Ptr>()->addr_space());
         case Node_Sigma:      return to.sigma(elems);
         case Node_Pi:         return to.pi(elems);
         case Node_GenericRef: {

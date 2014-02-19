@@ -12,15 +12,14 @@ typedef std::vector<std::pair<const Type*, Use>> ToDo;
 static void map_param(World& world, Lambda* lambda, ToDo& todo) {
     // useful sanity checks
     assert(lambda->attribute().is(Lambda::Map) && "invalid map function");
-    assert(lambda->params().size() == 4 && "invalid signature");
+    assert(lambda->params().size() == 5 && "invalid signature");
     assert(lambda->param(1)->type()->isa<Ptr>() && "invalid pointer type");
 
     for (auto use : lambda->uses()) {
         auto ulambda = use->as_lambda();
-        auto space = (AddressSpace)ulambda->arg(2)->as<PrimLit>()->ps32_value().data();
-        auto cont = ulambda->arg(3)->as_lambda();
+        auto cont = ulambda->arg(4)->as_lambda();
 
-        auto mapped = world.map(ulambda->arg(0), ulambda->arg(1), space);
+        auto mapped = world.map(ulambda->arg(0), ulambda->arg(1), ulambda->arg(2), ulambda->arg(3));
 
         Scope cont_scope(cont);
         auto ncont = drop(cont_scope, { mapped->extract_mem(), mapped->extract_mapped_ptr() });

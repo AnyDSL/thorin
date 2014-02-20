@@ -49,12 +49,13 @@ int main_impala() {
     tex = malloc_memory(host);
     write_memory(tex, host);
 
+    int *host_out = (int *)array(sizeof(int), num, 1);
     CUdeviceptr out;
-    out = malloc_memory(host);
+    out = malloc_memory(host_out);
     for (unsigned int i=0; i<num; ++i) {
-        host[i] = 0;
+        host_out[i] = 0;
     }
-    write_memory(out, host);
+    write_memory(out, host_out);
 
     load_kernel("simple-gpu64.nvvm", "simple_tex");
     get_tex_ref("texture");
@@ -64,19 +65,22 @@ int main_impala() {
     set_config_size(128, 1, 1);
     launch_kernel("simple");
     synchronize(); // optional
-    read_memory(out, host);
+    read_memory(out, host_out);
     free_memory(out);
     free_memory(tex);
     // CODE TO BE GENERATED: END
 
     // check result
     for (unsigned int i=0; i<num; ++i) {
-        if (host[i] != i) {
+        if (host_out[i] != i) {
             printf("Texture test failed!\n");
             return EXIT_FAILURE;
         }
     }
     printf("Texture test passed!\n");
+
+    free(host);
+    free(host_out);
 
     return EXIT_SUCCESS;
 }

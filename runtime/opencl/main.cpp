@@ -38,6 +38,8 @@ int main_impala() {
     }
     printf("Test passed!\n");
 
+    free(host);
+
     return EXIT_SUCCESS;
 }
 

@@ -19,7 +19,8 @@ llvm::Value* SpirRuntime::malloc(llvm::Value* size) {
 }
 
 llvm::CallInst* SpirRuntime::free(llvm::Value* ptr) {
-    return builder_.CreateCall(get("spir_free_buffer"), { ptr });
+    auto loaded_device_ptr = builder_.CreateLoad(ptr);
+    return builder_.CreateCall(get("spir_free_buffer"), { loaded_device_ptr });
 }
 
 llvm::CallInst* SpirRuntime::write(llvm::Value* ptr, llvm::Value* data, llvm::Value* size) {
@@ -61,55 +62,8 @@ llvm::CallInst* SpirRuntime::launch_kernel(llvm::Value* name) {
     return builder_.CreateCall(get("spir_launch_kernel"), { name });
 }
 
-Lambda* SpirRuntime::emit_host_code(CodeGen& code_gen, Lambda* lambda) {
-    auto &world = lambda->world();
-    // to-target is the desired SPIR call
-    // target(mem, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
-    auto target = lambda->to()->as_lambda();
-    assert(target->is_builtin() && (target->attribute().is(Lambda::SPIR) || target->attribute().is(Lambda::OPENCL)));
-    assert(lambda->num_args() > 4 && "required arguments are missing");
-
-    // get input
-    auto it_space  = lambda->arg(1)->as<Tuple>();
-    auto it_config = lambda->arg(2)->as<Tuple>();
-    auto kernel = lambda->arg(3)->as<Global>()->init()->as<Lambda>()->name;
-    auto ret = lambda->arg(4)->as_lambda();
-
-    // load kernel
-    auto module_name = builder_.CreateGlobalStringPtr(world.name() + "_spir.bc");
-    auto kernel_name = builder_.CreateGlobalStringPtr(kernel);
-    load_kernel(module_name, kernel_name);
-    // fetch values and create external calls for initialization
-    std::vector<std::pair<llvm::Value*, llvm::Constant*>> device_ptrs;
-    for (size_t i = 5, e = lambda->num_args(); i < e; ++i) {
-        Def spir_param = lambda->arg(i);
-        uint64_t num_elems = uint64_t(-1);
-        if (const ArrayAgg* array_value = spir_param->isa<ArrayAgg>())
-            num_elems = (uint64_t)array_value->size();
-        auto size = builder_.getInt64(num_elems);
-        auto ptr = malloc(size);
-//        device_ptrs.push_back(std::make_pair(loaded_device_ptr, size));
-        write(ptr, code_gen.lookup(spir_param), size);
-        set_kernel_arg(ptr);
-    }
-    // setup problem size
-    set_problem_size(
-        builder_.getInt64(it_space->op(0)->as<PrimLit>()->qu64_value()),
-        builder_.getInt64(it_space->op(1)->as<PrimLit>()->qu64_value()),
-        builder_.getInt64(it_space->op(2)->as<PrimLit>()->qu64_value()));
-    // setup configuration
-    set_config_size(
-        builder_.getInt64(it_config->op(0)->as<PrimLit>()->qu64_value()),
-        builder_.getInt64(it_config->op(1)->as<PrimLit>()->qu64_value()),
-        builder_.getInt64(it_config->op(2)->as<PrimLit>()->qu64_value()));
-    // launch
-    launch_kernel(kernel_name);
-    // synchronize
-    synchronize();
-
-    // TODO back-fetch to CPU
-    // TODO free mem
-    return ret;
+std::string SpirRuntime::get_module_name(Lambda* l) {
+    return l->world().name() + "_spir.bc";
 }
 
 }

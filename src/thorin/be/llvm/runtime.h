@@ -45,9 +45,10 @@ public:
     // void launch_kernel(char* name);
     virtual llvm::CallInst* launch_kernel(llvm::Value* name) = 0;
 
-    virtual Lambda* emit_host_code(CodeGen &code_gen, Lambda*) = 0;
+    virtual Lambda* emit_host_code(CodeGen &code_gen, Lambda*);
 
 protected:
+    virtual std::string get_module_name(Lambda*) = 0;
     llvm::Function* get(const char* name);
 
     llvm::Module* target_;

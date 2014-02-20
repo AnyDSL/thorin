@@ -23,7 +23,9 @@ public:
     virtual llvm::CallInst* load_kernel(llvm::Value* module, llvm::Value* data);
     virtual llvm::CallInst* launch_kernel(llvm::Value* name);
 
-    virtual Lambda* emit_host_code(CodeGen& code_gen, Lambda* lambda);
+protected:
+    virtual std::string get_module_name(Lambda*);
+
 private:
     llvm::Value* size_of_kernel_arg_;
 };

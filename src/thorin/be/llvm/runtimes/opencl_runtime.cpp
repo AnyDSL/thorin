@@ -11,4 +11,8 @@ llvm::CallInst* OpenCLRuntime::load_kernel(llvm::Value* module, llvm::Value* dat
     return builder_.CreateCall(get("spir_build_program_and_kernel_from_source"), load_args);
 }
 
+std::string OpenCLRuntime::get_module_name(Lambda* l) {
+    return l->world().name() + ".cl";
+}
+
 }

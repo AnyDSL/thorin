@@ -8,6 +8,7 @@
 #include <llvm/Support/SourceMgr.h>
 
 #include "thorin/be/llvm/llvm.h"
+#include "thorin/literal.h"
 
 namespace thorin {
 
@@ -23,6 +24,72 @@ Runtime::Runtime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuild
 
 llvm::Function* Runtime::get(const char* name) {
     return llvm::cast<llvm::Function>(target_->getOrInsertFunction(name, module_->getFunction(name)->getFunctionType()));
+}
+
+Lambda* Runtime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
+    // to-target is the desired CUDA call
+    // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
+    auto target = lambda->to()->as_lambda();
+    assert(target->is_builtin() && target->attribute().is(Lambda::NVVM));
+    assert(lambda->num_args() > 5 && "required arguments are missing");
+
+    // get input
+    auto target_device  = lambda->arg(1)->as<PrimLit>()->qu32_value().data();
+    auto it_space  = lambda->arg(2)->as<Tuple>();
+    auto it_config = lambda->arg(3)->as<Tuple>();
+    auto kernel = lambda->arg(4)->as<Global>()->init()->as<Lambda>()->name;
+    auto ret = lambda->arg(5)->as_lambda();
+
+    // load kernel
+    auto kernel_name = builder_.CreateGlobalStringPtr(kernel);
+    load_kernel(builder_.CreateGlobalStringPtr(get_module_name(lambda)), kernel_name);
+
+    // fetch values and create external calls for initialization
+    // check for source devices of all pointers
+    typedef std::pair<llvm::Value*, llvm::Constant*> Entry;
+    DefMap<Entry> device_ptrs;
+    for (size_t i = 6, e = lambda->num_args(); i < e; ++i) {
+        Def target_arg = lambda->arg(i);
+        const auto target_val = code_gen.lookup(target_arg);
+        // resolve size
+        uint64_t num_elems = uint64_t(-1);
+        if (const ArrayAgg* array_value = target_arg->isa<ArrayAgg>())
+            num_elems = (uint64_t)array_value->size();
+        const auto size = builder_.getInt64(num_elems);
+        // check device target
+        if (auto ptr = target_arg->type()->as<Ptr>()) {
+            if (ptr->device() == target_device) {
+                // data is already on this device
+                // ... do not emit a memory operation
+                set_kernel_arg(target_val);
+            } else {
+                // we need to allocate memory for this chunk on the target device
+                auto ptr = malloc(size);
+                device_ptrs[target_arg] = std::make_pair(ptr, size);
+                // copy memory to target device
+                write(ptr, target_val, size);
+                set_kernel_arg(ptr);
+            }
+        }
+    }
+    const auto get_u64 = [&](Def def) { return builder_.getInt64(def->as<PrimLit>()->qu64_value()); };
+
+    // setup configuration and launch
+    set_problem_size(get_u64(it_space->op(0)), get_u64(it_space->op(1)), get_u64(it_space->op(2)));
+    set_config_size(get_u64(it_config->op(0)), get_u64(it_config->op(1)), get_u64(it_config->op(2)));
+    launch_kernel(kernel_name);
+
+    // synchronize
+    synchronize();
+
+    // emit copy-back operations
+    for (auto entry : device_ptrs)
+        read(entry.second.first, code_gen.lookup(entry.first), entry.second.second);
+    // emit free operations
+    for (auto entry : device_ptrs)
+        free(entry.second.first);
+
+    return ret;
 }
 
 }

@@ -10,6 +10,9 @@ public:
     OpenCLRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<> &builder);
 
     virtual llvm::CallInst* load_kernel(llvm::Value* module, llvm::Value* data);
+
+protected:
+    virtual std::string get_module_name(Lambda*);
 };
 
 }

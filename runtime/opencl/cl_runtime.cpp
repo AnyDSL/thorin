@@ -20,6 +20,7 @@ typedef struct mem_ {
     size_t height;
 } mem_;
 std::unordered_map<void*, mem_> host_mems_;
+std::unordered_map<cl_mem, void*> dev_mems_;
 cl_platform_id platform;
 cl_device_id device;
 cl_context context;
@@ -479,11 +480,11 @@ cl_mem malloc_buffer(void *host) {
     cl_int err = CL_SUCCESS;
     cl_mem mem;
     cl_mem_flags flags = CL_MEM_READ_WRITE;
-
     mem_ info = host_mems_[host];
 
     mem = clCreateBuffer(context, flags, info.elem * info.width * info.height, NULL, &err);
     checkErr(err, "clCreateBuffer()");
+    dev_mems_[mem] = host;
 
     return mem;
 }
@@ -494,12 +495,12 @@ void free_buffer(cl_mem mem) {
 
     err = clReleaseMemObject(mem);
     checkErr(err, "clReleaseMemObject()");
+    dev_mems_.erase(mem);
 }
 
 
 void write_buffer(cl_mem mem, void *host) {
     cl_int err = CL_SUCCESS;
-
     mem_ info = host_mems_[host];
 
     err = clEnqueueWriteBuffer(command_queue, mem, CL_FALSE, 0, info.elem * info.width * info.height, host, 0, NULL, NULL);
@@ -510,7 +511,6 @@ void write_buffer(cl_mem mem, void *host) {
 
 void read_buffer(cl_mem mem, void *host) {
     cl_int err = CL_SUCCESS;
-
     mem_ info = host_mems_[host];
 
     err = clEnqueueReadBuffer(command_queue, mem, CL_FALSE, 0, info.elem * info.width * info.height, host, 0, NULL, NULL);

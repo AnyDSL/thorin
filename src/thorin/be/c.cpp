@@ -416,6 +416,10 @@ void CCodeGen::emit() {
     }
     primops_.clear();
     gparams_.clear();
+
+    newline();
+    stream() << "int int64_to_int32_46(long tid) { return (int)tid; }";
+    newline();
 }
 
 std::ostream& CCodeGen::emit(Def def) {

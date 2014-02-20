@@ -21,15 +21,15 @@ public:
 
     llvm::Type* get_device_ptr_ty() { return device_ptr_ty_; }
 
-    // void* malloc(size);
+    // void* malloc(void* ptr);
     virtual llvm::Value* malloc(llvm::Value* size) = 0;
     // void free(void* ptr);
     virtual llvm::CallInst* free(llvm::Value* ptr) = 0;
 
-    // void write(void* ptr, i8* data, i64 length);
-    virtual llvm::CallInst* write(llvm::Value* ptr, llvm::Value* data, llvm::Value* length) = 0;
-    // void read(void* ptr, i8* data, i64 length);
-    virtual llvm::CallInst* read(llvm::Value* ptr, llvm::Value* data, llvm::Value* length) = 0;
+    // void write(void* ptr, i8* data);
+    virtual llvm::CallInst* write(llvm::Value* ptr, llvm::Value* data) = 0;
+    // void read(void* ptr, i8* data);
+    virtual llvm::CallInst* read(llvm::Value* ptr, llvm::Value* data) = 0;
 
     // void set_problem_size(i64, x, i64 y, i64 z);
     virtual llvm::CallInst* set_problem_size(llvm::Value* x, llvm::Value* y, llvm::Value* z) = 0;

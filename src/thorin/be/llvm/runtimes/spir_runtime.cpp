@@ -11,9 +11,9 @@ SpirRuntime::SpirRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm:
     size_of_kernel_arg_ = builder_.getInt64(DL->getTypeAllocSize(llvm::Type::getInt8PtrTy(context)));
 }
 
-llvm::Value* SpirRuntime::malloc(llvm::Value* size) {
+llvm::Value* SpirRuntime::malloc(llvm::Value* ptr) {
     auto alloca = builder_.CreateAlloca(get_device_ptr_ty());
-    auto device_ptr = builder_.CreateCall(get("spir_malloc_buffer"), size);
+    auto device_ptr = builder_.CreateCall(get("spir_malloc_buffer"), builder_.CreateBitCast(ptr, builder_.getInt8PtrTy()));
     builder_.CreateStore(device_ptr, alloca);
     return alloca;
 }
@@ -23,14 +23,15 @@ llvm::CallInst* SpirRuntime::free(llvm::Value* ptr) {
     return builder_.CreateCall(get("spir_free_buffer"), { loaded_device_ptr });
 }
 
-llvm::CallInst* SpirRuntime::write(llvm::Value* ptr, llvm::Value* data, llvm::Value* size) {
+llvm::CallInst* SpirRuntime::write(llvm::Value* ptr, llvm::Value* data) {
     auto loaded_device_ptr = builder_.CreateLoad(ptr);
-    llvm::Value* mem_args[] = { loaded_device_ptr, builder_.CreateBitCast(data, builder_.getInt8PtrTy()), size };
+    llvm::Value* mem_args[] = { loaded_device_ptr, builder_.CreateBitCast(data, builder_.getInt8PtrTy()) };
     return builder_.CreateCall(get("spir_write_buffer"), mem_args);
 }
 
-llvm::CallInst* SpirRuntime::read(llvm::Value* ptr, llvm::Value* data, llvm::Value* length) {
-    llvm::Value* args[] = { ptr, builder_.CreateBitCast(data, builder_.getInt8PtrTy()), length };
+llvm::CallInst* SpirRuntime::read(llvm::Value* ptr, llvm::Value* data) {
+    auto loaded_device_ptr = builder_.CreateLoad(ptr);
+    llvm::Value* args[] = { loaded_device_ptr, builder_.CreateBitCast(data, builder_.getInt8PtrTy()) };
     return builder_.CreateCall(get("spir_read_buffer"), args);
 }
 

@@ -11,7 +11,15 @@
 #include <iostream>
 #include <unordered_map>
 
-//#define USE_SPIR
+#define USE_SPIR
+
+// define machine as seen/used by OpenCL
+// each tuple consists of platform and device
+int the_machine[][2] = {
+    {5, 0}, // Intel, i7-3770K
+    {2, 0}, // NVIDIA, GTX 680
+    {2, 1}  // NVIDIA, GTX 580
+};
 
 // global variables ...
 typedef struct mem_ {
@@ -222,6 +230,11 @@ void init_opencl(cl_device_type dev_type=CL_DEVICE_TYPE_CPU) {
     cl_platform_id *platforms;
     cl_device_id *devices;
     cl_int err = CL_SUCCESS;
+
+    for (int i=0; i<sizeof(the_machine)/sizeof(int[2]); ++i) {
+        std::cerr << "platform: " << the_machine[i][0] << std::endl;
+        std::cerr << "  device: " << the_machine[i][1] << std::endl;
+    }
 
     // get OpenCL platform count
     err = clGetPlatformIDs(0, NULL, &num_platforms);
@@ -609,12 +622,18 @@ void *array(size_t elem_size, size_t width, size_t height) {
     host_mems_[mem] = {elem_size, width, height};
     return mem;
 }
+void *slice(void *array, size_t x, size_t y, size_t width, size_t height) {
+    mem_ info = host_mems_[array]; 
+    void *mem = (char *)array + (x + y*info.width)*info.elem;
+
+    return mem;
+}
 float random_val(int max) {
     return ((float)random() / RAND_MAX) * max;
 }
 
 int main(int argc, char *argv[]) {
-    init_opencl(CL_DEVICE_TYPE_GPU);
+    init_opencl(CL_DEVICE_TYPE_CPU);
 
     return main_impala();
 }

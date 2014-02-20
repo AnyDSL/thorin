@@ -9,11 +9,11 @@ class NVVMRuntime : public Runtime {
 public:
     NVVMRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<> &builder);
 
-    virtual llvm::Value* malloc(llvm::Value* size);
+    virtual llvm::Value* malloc(llvm::Value* ptr);
     virtual llvm::CallInst* free(llvm::Value* ptr);
 
-    virtual llvm::CallInst* write(llvm::Value* ptr, llvm::Value* data, llvm::Value* length);
-    virtual llvm::CallInst* read(llvm::Value* ptr, llvm::Value* data, llvm::Value* length);
+    virtual llvm::CallInst* write(llvm::Value* ptr, llvm::Value* data);
+    virtual llvm::CallInst* read(llvm::Value* ptr, llvm::Value* data);
 
     virtual llvm::CallInst* set_problem_size(llvm::Value* x, llvm::Value* y, llvm::Value* z);
     virtual llvm::CallInst* set_config_size(llvm::Value* x, llvm::Value* y, llvm::Value* z);

@@ -30,7 +30,7 @@ Lambda* Runtime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
     // to-target is the desired CUDA call
     // target(mem, device, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
     auto target = lambda->to()->as_lambda();
-    assert(target->is_builtin() && target->attribute().is(Lambda::NVVM));
+    assert(target->is_builtin());
     assert(lambda->num_args() > 5 && "required arguments are missing");
 
     // get input
@@ -46,16 +46,10 @@ Lambda* Runtime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
 
     // fetch values and create external calls for initialization
     // check for source devices of all pointers
-    typedef std::pair<llvm::Value*, llvm::Constant*> Entry;
-    DefMap<Entry> device_ptrs;
+    DefMap<llvm::Value*> device_ptrs;
     for (size_t i = 6, e = lambda->num_args(); i < e; ++i) {
         Def target_arg = lambda->arg(i);
         const auto target_val = code_gen.lookup(target_arg);
-        // resolve size
-        uint64_t num_elems = uint64_t(-1);
-        if (const ArrayAgg* array_value = target_arg->isa<ArrayAgg>())
-            num_elems = (uint64_t)array_value->size();
-        const auto size = builder_.getInt64(num_elems);
         // check device target
         if (auto ptr = target_arg->type()->as<Ptr>()) {
             if (ptr->device() == target_device) {
@@ -64,10 +58,10 @@ Lambda* Runtime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
                 set_kernel_arg(target_val);
             } else {
                 // we need to allocate memory for this chunk on the target device
-                auto ptr = malloc(size);
-                device_ptrs[target_arg] = std::make_pair(ptr, size);
+                auto ptr = malloc(target_val);
+                device_ptrs[target_arg] = ptr;
                 // copy memory to target device
-                write(ptr, target_val, size);
+                write(ptr, target_val);
                 set_kernel_arg(ptr);
             }
         }
@@ -84,10 +78,10 @@ Lambda* Runtime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
 
     // emit copy-back operations
     for (auto entry : device_ptrs)
-        read(entry.second.first, code_gen.lookup(entry.first), entry.second.second);
+        read(entry.second, code_gen.lookup(entry.first));
     // emit free operations
     for (auto entry : device_ptrs)
-        free(entry.second.first);
+        free(entry.second);
 
     return ret;
 }

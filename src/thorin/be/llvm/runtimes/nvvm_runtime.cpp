@@ -8,9 +8,9 @@ NVVMRuntime::NVVMRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm:
     : Runtime(context, target, builder, llvm::IntegerType::getInt64Ty(context), "nvvm.s")
 {}
 
-llvm::Value* NVVMRuntime::malloc(llvm::Value* size) {
+llvm::Value* NVVMRuntime::malloc(llvm::Value* ptr) {
     auto alloca = builder_.CreateAlloca(get_device_ptr_ty());
-    auto device_ptr = builder_.CreateCall(get("nvvm_malloc_memory"), size);
+    auto device_ptr = builder_.CreateCall(get("nvvm_malloc_memory"), builder_.CreateBitCast(ptr, builder_.getInt8PtrTy()));
     builder_.CreateStore(device_ptr, alloca);
     return alloca;
 }
@@ -20,14 +20,15 @@ llvm::CallInst* NVVMRuntime::free(llvm::Value* ptr) {
     return builder_.CreateCall(get("nvvm_free_memory"), { loaded_device_ptr });
 }
 
-llvm::CallInst* NVVMRuntime::write(llvm::Value* ptr, llvm::Value* data, llvm::Value* size) {
+llvm::CallInst* NVVMRuntime::write(llvm::Value* ptr, llvm::Value* data) {
     auto loaded_device_ptr = builder_.CreateLoad(ptr);
-    llvm::Value* mem_args[] = { loaded_device_ptr, builder_.CreateBitCast(data, builder_.getInt8PtrTy()), size };
+    llvm::Value* mem_args[] = { loaded_device_ptr, builder_.CreateBitCast(data, builder_.getInt8PtrTy()) };
     return builder_.CreateCall(get("nvvm_write_memory"), mem_args);
 }
 
-llvm::CallInst* NVVMRuntime::read(llvm::Value* ptr, llvm::Value* data, llvm::Value* length) {
-    llvm::Value* args[] = { ptr, builder_.CreateBitCast(data, builder_.getInt8PtrTy()), length };
+llvm::CallInst* NVVMRuntime::read(llvm::Value* ptr, llvm::Value* data) {
+    auto loaded_device_ptr = builder_.CreateLoad(ptr);
+    llvm::Value* args[] = { loaded_device_ptr, builder_.CreateBitCast(data, builder_.getInt8PtrTy()) };
     return builder_.CreateCall(get("nvvm_read_memory"), args);
 }
 

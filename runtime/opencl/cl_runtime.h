@@ -45,6 +45,7 @@ void spir_synchronize();
 
 // helper functions
 void *array(size_t elem_size, size_t width, size_t height);
+void *slice(void *array, size_t x, size_t y, size_t width, size_t height);
 float random_val(int max);
 extern int main_impala();
 

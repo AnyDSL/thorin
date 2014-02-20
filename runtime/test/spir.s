@@ -1,10 +1,10 @@
 ; Module spir-thorin runtime decls
 
-declare i64 @spir_malloc_buffer(i64);
+declare i64 @spir_malloc_buffer(i8*);
 declare void @spir_free_buffer(i64);
 
-declare void @spir_write_buffer(i64, i8*, i64);
-declare void @spir_read_buffer(i64, i8*, i64);
+declare void @spir_write_buffer(i64, i8*);
+declare void @spir_read_buffer(i64, i8*);
 
 declare void @spir_set_problem_size(i64, i64, i64);
 declare void @spir_set_config_size(i64, i64, i64);

@@ -4,6 +4,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <unordered_map>
 
 
 // define dim3
@@ -18,6 +19,13 @@ typedef struct dim3 dim3;
 // define dim3
 
 // global variables ...
+typedef struct mem_ {
+    size_t elem;
+    size_t width;
+    size_t height;
+} mem_;
+std::unordered_map<void*, mem_> host_mems_;
+std::unordered_map<CUdeviceptr, void*> dev_mems_;
 CUdevice cuDevice;
 CUcontext cuContext;
 CUmodule cuModule;
@@ -194,17 +202,21 @@ void get_tex_ref(const char *name) {
 }
 
 void bind_tex(CUdeviceptr mem, CUarray_format format) {
+    void *host = dev_mems_[mem];
+    mem_ info = host_mems_[host];
     checkErrDrv(cuTexRefSetFormat(cuTexture, format, 1), "cuTexRefSetFormat()");
     checkErrDrv(cuTexRefSetFlags(cuTexture, CU_TRSF_READ_AS_INTEGER), "cuTexRefSetFlags()");
-    checkErrDrv(cuTexRefSetAddress(0, cuTexture, mem, WIDTH * HEIGHT * sizeof(float)), "cuTexRefSetAddress()");
+    checkErrDrv(cuTexRefSetAddress(0, cuTexture, mem, info.elem * info.width * info.height), "cuTexRefSetAddress()");
 }
 
-CUdeviceptr malloc_memory(size_t size) {
+CUdeviceptr malloc_memory(void *host) {
     CUresult err = CUDA_SUCCESS;
     CUdeviceptr mem;
+    mem_ info = host_mems_[host];
 
-    err = cuMemAlloc(&mem, size * sizeof(float));
+    err = cuMemAlloc(&mem, info.elem * info.width * info.height);
     checkErrDrv(err, "cuMemAlloc()");
+    dev_mems_[mem] = host;
 
     return mem;
 }
@@ -214,19 +226,22 @@ void free_memory(CUdeviceptr mem) {
 
     err = cuMemFree(mem);
     checkErrDrv(err, "cuMemFree()");
+    dev_mems_.erase(mem);
 }
 
-void write_memory(CUdeviceptr dev, void *host, size_t size) {
+void write_memory(CUdeviceptr dev, void *host) {
     CUresult err = CUDA_SUCCESS;
+    mem_ info = host_mems_[host];
 
-    err = cuMemcpyHtoD(dev, host, size * sizeof(float));
+    err = cuMemcpyHtoD(dev, host, info.elem * info.width * info.height);
     checkErrDrv(err, "cuMemcpyHtoD()");
 }
 
-void read_memory(CUdeviceptr dev, void *host, size_t size) {
+void read_memory(CUdeviceptr dev, void *host) {
     CUresult err = CUDA_SUCCESS;
+    mem_ info = host_mems_[host];
 
-    err = cuMemcpyDtoH(host, dev, size * sizeof(float));
+    err = cuMemcpyDtoH(host, dev, info.elem * info.width * info.height);
     checkErrDrv(err, "cuMemcpyDtoH()");
 }
 
@@ -303,11 +318,11 @@ void launch_kernel(const char *kernel_name) {
 
 
 // NVVM wrappers
-CUdeviceptr nvvm_malloc_memory(size_t size) { return malloc_memory(size); }
+CUdeviceptr nvvm_malloc_memory(void *host) { return malloc_memory(host); }
 void nvvm_free_memory(CUdeviceptr mem) { free_memory(mem); }
 
-void nvvm_write_memory(CUdeviceptr dev, void *host, size_t size) { write_memory(dev, host, size); }
-void nvvm_read_memory(CUdeviceptr dev, void *host, size_t size) { read_memory(dev, host, size); }
+void nvvm_write_memory(CUdeviceptr dev, void *host) { write_memory(dev, host); }
+void nvvm_read_memory(CUdeviceptr dev, void *host) { read_memory(dev, host); }
 
 void nvvm_load_kernel(const char *file_name, const char *kernel_name) { load_kernel(file_name, kernel_name); }
 
@@ -322,8 +337,10 @@ void nvvm_launch_kernel(const char *kernel_name) { launch_kernel(kernel_name); }
 void nvvm_synchronize() { synchronize(); }
 
 // helper functions
-float *array(size_t num_elems) {
-    return (float *)malloc(sizeof(float)*num_elems);
+void *array(size_t elem_size, size_t width, size_t height) {
+    void *mem = malloc(elem_size * width * height);
+    host_mems_[mem] = {elem_size, width, height};
+    return mem;
 }
 float random_val(int max) {
     return ((float)random() / RAND_MAX) * max;

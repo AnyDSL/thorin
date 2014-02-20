@@ -8,11 +8,11 @@ extern "C"
 {
 
 // runtime forward declarations
-CUdeviceptr malloc_memory(size_t size);
+CUdeviceptr malloc_memory(void *host);
 void free_memory(CUdeviceptr mem);
 
-void write_memory(CUdeviceptr dev, void *host, size_t size);
-void read_memory(CUdeviceptr dev, void *host, size_t size);
+void write_memory(CUdeviceptr dev, void *host);
+void read_memory(CUdeviceptr dev, void *host);
 
 void load_kernel(const char *file_name, const char *kernel_name);
 
@@ -27,11 +27,11 @@ void launch_kernel(const char *kernel_name);
 void synchronize();
 
 // NVVM wrappers
-CUdeviceptr nvvm_malloc_memory(size_t size);
+CUdeviceptr nvvm_malloc_memory(void *host);
 void nvvm_free_memory(CUdeviceptr mem);
 
-void nvvm_write_memory(CUdeviceptr dev, void *host, size_t size);
-void nvvm_read_memory(CUdeviceptr dev, void *host, size_t size);
+void nvvm_write_memory(CUdeviceptr dev, void *host);
+void nvvm_read_memory(CUdeviceptr dev, void *host);
 
 void nvvm_load_kernel(const char *file_name, const char *kernel_name);
 
@@ -46,7 +46,7 @@ void nvvm_launch_kernel(const char *kernel_name);
 void nvvm_synchronize();
 
 // helper functions
-float *array(size_t num_elems);
+void *array(size_t elem_size, size_t width, size_t height);
 float random_val(int max);
 extern int main_impala();
 

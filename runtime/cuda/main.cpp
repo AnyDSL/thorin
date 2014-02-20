@@ -7,7 +7,7 @@
 static int num = 1024;
 
 int main_impala() {
-    int *host = (int *)malloc(num*sizeof(int));
+    int *host = (int *)array(sizeof(int), num, 1);
 
     for (unsigned int i=0; i<num; ++i) {
         host[i] = 0;
@@ -15,8 +15,8 @@ int main_impala() {
 
     // CODE TO BE GENERATED: BEGIN
     CUdeviceptr dev;
-    dev = malloc_memory(num);
-    write_memory(dev, host, num);
+    dev = malloc_memory(host);
+    write_memory(dev, host);
 
     load_kernel("simple-gpu64.nvvm", "simple");
     get_tex_ref("texture");
@@ -26,7 +26,7 @@ int main_impala() {
     set_config_size(128, 1, 1);
     launch_kernel("simple");
     synchronize(); // optional
-    read_memory(dev, host, num);
+    read_memory(dev, host);
     free_memory(dev);
     // CODE TO BE GENERATED: END
 
@@ -46,15 +46,15 @@ int main_impala() {
 
     // CODE TO BE GENERATED: BEGIN
     CUdeviceptr tex;
-    tex = malloc_memory(num);
-    write_memory(tex, host, num);
+    tex = malloc_memory(host);
+    write_memory(tex, host);
 
     CUdeviceptr out;
-    out = malloc_memory(num);
+    out = malloc_memory(host);
     for (unsigned int i=0; i<num; ++i) {
         host[i] = 0;
     }
-    write_memory(out, host, num);
+    write_memory(out, host);
 
     load_kernel("simple-gpu64.nvvm", "simple_tex");
     get_tex_ref("texture");
@@ -64,7 +64,7 @@ int main_impala() {
     set_config_size(128, 1, 1);
     launch_kernel("simple");
     synchronize(); // optional
-    read_memory(out, host, num);
+    read_memory(out, host);
     free_memory(out);
     free_memory(tex);
     // CODE TO BE GENERATED: END

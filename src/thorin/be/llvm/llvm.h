@@ -40,9 +40,6 @@ protected:
 
 private:
     Lambda* emit_builtin(llvm::Function*, Lambda*);
-    Lambda* emit_nvvm(Runtime& runtime, Lambda*);
-    Lambda* emit_opencl(Runtime& runtime, Lambda*);
-    Lambda* emit_spir(Runtime& runtime, Lambda*);
     Lambda* emit_vectorized(llvm::Function*, Lambda*);
 
 protected:
@@ -59,6 +56,11 @@ protected:
     AutoPtr<Runtime> nvvm_runtime_;
     AutoPtr<Runtime> spir_runtime_;
     AutoPtr<Runtime> opencl_runtime_;
+
+    friend class Runtime;
+    friend class NVVMRuntime;
+    friend class SpirRuntime;
+    friend class OpenCLRuntime;
 };
 
 //------------------------------------------------------------------------------

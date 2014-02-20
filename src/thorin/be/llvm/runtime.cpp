@@ -7,6 +7,8 @@
 #include "llvm/Support/raw_ostream.h"
 #include <llvm/Support/SourceMgr.h>
 
+#include "thorin/be/llvm/llvm.h"
+
 namespace thorin {
 
 Runtime::Runtime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<> &builder,

@@ -4,9 +4,12 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
 
+#include "thorin/world.h"
 #include "thorin/util/autoptr.h"
 
 namespace thorin {
+
+class CodeGen;
 
 class Runtime {
 protected:
@@ -41,6 +44,8 @@ public:
     virtual llvm::CallInst* load_kernel(llvm::Value* module, llvm::Value* name) = 0;
     // void launch_kernel(char* name);
     virtual llvm::CallInst* launch_kernel(llvm::Value* name) = 0;
+
+    virtual Lambda* emit_host_code(CodeGen &code_gen, Lambda*) = 0;
 
 protected:
     llvm::Function* get(const char* name);

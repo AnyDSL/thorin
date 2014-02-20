@@ -22,6 +22,8 @@ public:
     virtual llvm::CallInst* set_kernel_arg(llvm::Value* ptr);
     virtual llvm::CallInst* load_kernel(llvm::Value* module, llvm::Value* name);
     virtual llvm::CallInst* launch_kernel(llvm::Value* name);
+
+    virtual Lambda* emit_host_code(CodeGen &code_gen, Lambda* lambda);
 };
 
 }

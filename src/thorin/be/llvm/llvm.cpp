@@ -58,11 +58,11 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID calling_convention)
 Lambda* CodeGen::emit_builtin(llvm::Function* current, Lambda* lambda) {
     Lambda* to = lambda->to()->as_lambda();
     if (to->attribute().is(Lambda::NVVM))
-        return emit_nvvm(*nvvm_runtime_.get(), lambda);
+        return nvvm_runtime_->emit_host_code(*this, lambda);
     if (to->attribute().is(Lambda::SPIR))
-        return emit_spir(*spir_runtime_.get(), lambda);
+        return spir_runtime_->emit_host_code(*this, lambda);
     if (to->attribute().is(Lambda::OPENCL))
-        return emit_opencl(*opencl_runtime_.get(), lambda);
+        return opencl_runtime_->emit_host_code(*this, lambda);
     assert(to->attribute().is(Lambda::Vectorize));
 #ifdef WFV2_SUPPORT
     return emit_vectorized(current, lambda);

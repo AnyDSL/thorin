@@ -1,4 +1,4 @@
-extern nvvm((int, int, int), (int, int, int), fn() -> void) -> void;
+extern nvvm(int, (int, int, int), (int, int, int), fn() -> void) -> void;
 extern array(int, int, int) -> [float];
 extern async(fn() -> void) -> int;
 
@@ -13,7 +13,7 @@ fn iteration(width : int, height : int, img : [float], body : fn(int, int, [floa
     let block = (32, 4, 1);
 
     let handle1 = async(|| -> void {
-        nvvm(dim, block, || -> void {
+        nvvm(1, dim, block, || -> void {
             let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
             let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
 
@@ -22,7 +22,7 @@ fn iteration(width : int, height : int, img : [float], body : fn(int, int, [floa
     });
 
     let handle2 = async(|| -> void {
-        nvvm(dim, block, || -> void {
+        nvvm(1, dim, block, || -> void {
             let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
             let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
 
@@ -38,7 +38,7 @@ fn iteration(width : int, height : int, img : [float], body : fn(int, int, [floa
     iterate(0, num_devices+1, |i : int| -> void {
         body(tid_x, tid_y + i * nvvm_read_ptx_sreg_ntid_y());
         handles[i] = async(|| -> void {
-            nvvm(dim, block, || -> void {
+            nvvm(1, dim, block, || -> void {
                 let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
                 let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
 
@@ -67,7 +67,7 @@ fn iteration(width : int, height : int, img : [float], body : fn(int, int, [floa
     let block = (32, 4, 1);
 
     let handle1 = async(|| -> void {
-        nvvm(dim, block, || -> void {
+        nvvm(1, dim, block, || -> void {
             let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
             let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
 
@@ -86,7 +86,7 @@ fn iteration(width : int, height : int, img : [float], body : fn(int, int, [floa
     });
 
     let handle2 = async(|| -> void {
-        nvvm(dim, block, || -> void {
+        nvvm(1, dim, block, || -> void {
             let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
             let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
 

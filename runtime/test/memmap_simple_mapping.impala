@@ -1,10 +1,10 @@
-extern nvvm((int, int, int), (int, int, int), fn() -> void) -> void;
+extern nvvm(int, (int, int, int), (int, int, int), fn() -> void) -> void;
 
 fn iteration(width : int, height : int, body : fn(int, int) -> void) -> void {
     let dim = (width, height, 1);
     let block = (32, 4, 1);
 
-    nvvm(dim, block, || -> void {
+    nvvm(1, dim, block, || -> void {
         let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
         let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
 

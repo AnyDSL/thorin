@@ -1,7 +1,5 @@
 #include "cl_runtime.h"
 
-#include <math.h>
-#include <stdlib.h>
 #include <time.h>
 
 #ifdef __MACH__
@@ -11,12 +9,17 @@
 
 #include <fstream>
 #include <iostream>
-#include <string>
-#include <vector>
+#include <unordered_map>
 
 //#define USE_SPIR
 
 // global variables ...
+typedef struct mem_ {
+    size_t elem;
+    size_t width;
+    size_t height;
+} mem_;
+std::unordered_map<void*, mem_> host_mems_;
 cl_platform_id platform;
 cl_device_id device;
 cl_context context;
@@ -472,12 +475,14 @@ void build_program_and_kernel(const char *file_name, const char *kernel_name, bo
 }
 
 
-cl_mem malloc_buffer(size_t size) {
+cl_mem malloc_buffer(void *host) {
     cl_int err = CL_SUCCESS;
     cl_mem mem;
     cl_mem_flags flags = CL_MEM_READ_WRITE;
 
-    mem = clCreateBuffer(context, flags, size * sizeof(float), NULL, &err);
+    mem_ info = host_mems_[host];
+
+    mem = clCreateBuffer(context, flags, info.elem * info.width * info.height, NULL, &err);
     checkErr(err, "clCreateBuffer()");
 
     return mem;
@@ -492,19 +497,23 @@ void free_buffer(cl_mem mem) {
 }
 
 
-void write_buffer(cl_mem mem, void *host_mem, size_t size) {
+void write_buffer(cl_mem mem, void *host) {
     cl_int err = CL_SUCCESS;
 
-    err = clEnqueueWriteBuffer(command_queue, mem, CL_FALSE, 0, size * sizeof(float), host_mem, 0, NULL, NULL);
+    mem_ info = host_mems_[host];
+
+    err = clEnqueueWriteBuffer(command_queue, mem, CL_FALSE, 0, info.elem * info.width * info.height, host, 0, NULL, NULL);
     err |= clFinish(command_queue);
     checkErr(err, "clEnqueueWriteBuffer()");
 }
 
 
-void read_buffer(cl_mem mem, void *host_mem, size_t size) {
+void read_buffer(cl_mem mem, void *host) {
     cl_int err = CL_SUCCESS;
 
-    err = clEnqueueReadBuffer(command_queue, mem, CL_FALSE, 0, size * sizeof(float), host_mem, 0, NULL, NULL);
+    mem_ info = host_mems_[host];
+
+    err = clEnqueueReadBuffer(command_queue, mem, CL_FALSE, 0, info.elem * info.width * info.height, host, 0, NULL, NULL);
     err |= clFinish(command_queue);
     checkErr(err, "clEnqueueReadBuffer()");
 }
@@ -578,11 +587,11 @@ void launch_kernel(const char *kernel_name) {
 
 
 // SPIR wrappers
-cl_mem spir_malloc_buffer(size_t size) { return malloc_buffer(size); }
+cl_mem spir_malloc_buffer(void *host) { return malloc_buffer(host); }
 void spir_free_buffer(cl_mem mem) { free_buffer(mem); }
 
-void spir_write_buffer(cl_mem dev, void *host, size_t size) { write_buffer(dev, host, size); }
-void spir_read_buffer(cl_mem dev, void *host, size_t size) { read_buffer(dev, host, size); }
+void spir_write_buffer(cl_mem dev, void *host) { write_buffer(dev, host); }
+void spir_read_buffer(cl_mem dev, void *host) { read_buffer(dev, host); }
 
 void spir_build_program_and_kernel_from_binary(const char *file_name, const char *kernel_name) { build_program_and_kernel(file_name, kernel_name, true); }
 void spir_build_program_and_kernel_from_source(const char *file_name, const char *kernel_name) { build_program_and_kernel(file_name, kernel_name, false); }
@@ -595,8 +604,10 @@ void spir_launch_kernel(const char *kernel_name) { launch_kernel(kernel_name); }
 void spir_synchronize() { synchronize(); }
 
 // helper functions
-float *array(size_t num_elems) {
-    return (float *)malloc(sizeof(float)*num_elems);
+void *array(size_t elem_size, size_t width, size_t height) {
+    void *mem = malloc(elem_size * width * height);
+    host_mems_[mem] = {elem_size, width, height};
+    return mem;
 }
 float random_val(int max) {
     return ((float)random() / RAND_MAX) * max;

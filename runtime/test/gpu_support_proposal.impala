@@ -2,6 +2,191 @@ extern nvvm(int, (int, int, int), (int, int, int), fn() -> void) -> void;
 extern array(int, int, int) -> [float];
 extern async(fn() -> void) -> int;
 
+// current mapping: arrays are implicitely mapped to GPU
+iteration(width, height, |x : int, y : int| -> void {
+    out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width);
+});
+
+// proposed mapping: mapped array is passed as parameter
+iteration_mapped(width, height, |x : int, y : int, arr : [float]| -> void {
+    out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width);
+});
+
+// proposed mapping: mapped array is passed as parameter, using shared
+// memory
+iteration_mapped_smem(width, height,
+    |x : int, y : int, arr : [float], smem : [float]| -> void {
+        out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width);
+    }
+    |x : int, y : int, arr : [float], smem : [float]| -> void {
+        out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width);
+    }
+);
+
+fn iteration(width : int, height : int, body : fn(int, int) -> void) -> void {
+    let dim = (width, height, 1);
+    let block = (32, 4, 1);
+
+    opencl(1, dim, block, || -> void {
+        let tid_x = int64_to_int32(get_global_id(0));
+        let tid_y = int64_to_int32(get_global_id(1));
+
+        body(tid_x, tid_y);
+    });
+}
+
+
+fn iteration_mapped(width : int, height : int, img : [float], body : fn(int, int, [float]) -> void) -> void {
+    let dim = (width, height/2, 1);
+    let block = (32, 4, 1);
+
+    // explicit verstion
+    let mut cl_mem = map<CPU, Global>(img);
+    let mut s1 = slice(cl_img, 0, 0,        width, height/2);
+    let mut s2 = slice(cl_img, 0, height/2, width, height/2);
+    let mut g1 = map<GPU1, Global>(s1);
+    let mut g2 = map<GPU2, Global>(s2);
+
+    // skip map to cl mem
+    let mut s1 = slice(img, 0, 0,        width, height/2);
+    let mut s2 = slice(img, 0, height/2, width, height/2);
+    let mut g1 = map<GPU1, Global>(s1);
+    let mut g2 = map<GPU2, Global>(s2);
+
+    // skip slicing
+    let mut g1 = map_region<GPU1, Global>(img, (0, 0),        (width, height/2));
+    let mut g2 = map_region<GPU2, Global>(img, (0, height/2), (width, height/2));
+
+
+    let mut g = [ g1, g2 ];
+    let mut h = [int * 2];
+    
+    @iterate(0, 2+1, |i : int| -> void {
+        h[i] = opencl(i+1, dim, block, || -> void {
+            let tid_x = int64_to_int32(get_global_id(0));
+            let tid_y = int64_to_int32(get_global_id(1));
+
+            body(tid_x, tid_y, g[i]);
+        });
+    });
+
+    synchronize(h[0]);
+    synchronize(h[1]);
+    synchronize(GPU1);
+    synchronize(GPU2);
+}
+
+fn iteration_mapped_smem(width : int, height : int, img : [float], body : fn(int, int, [float], [float]) -> void) -> void {
+    let dim = (width, height/2, 1);
+    let block = (32, 4, 1);
+
+    // skip slicing
+    let mut g1 = map_region<GPU1, Global>(img, (0, 0),        (width, height/2));
+    let mut g2 = map_region<GPU2, Global>(img, (0, height/2), (width, height/2));
+
+    let mut g = [ g1, g2 ];
+    let mut h = [int * 2];
+
+    
+    @iterate(0, 2+1, |i : int| -> void {
+        h[i] = opencl(i+1, dim, block, || -> void {
+            let tid_x = int64_to_int32(get_global_id(0));
+            let tid_y = int64_to_int32(get_global_id(1));
+
+            // block size plus apron for 3x3 stencil
+            let mut sm = sm_array(block[0] + 2, block[1] + 2);
+
+            // load data to shared memory
+            let sm_x = blockDim.x * blockIdx.x;
+            let sm_y = blockDim.y * blockIdx.y;
+
+            // GPU execution with dedicated scratchpad memory
+            let mut sm = map<GPUX, Shared>(gpu_img, sm_x-offset_x, sm_y-offset_y, block[0]+2*offset_x, block[1]+2*offset_y);
+
+            // execution with scratchpad memory mapped to global memory
+            let mut sm = map<GPUX, Proxy >(gpu_img, sm_x-offset_x, sm_y-offset_y, block[0]+2*offset_x, block[1]+2*offset_y);
+
+            out_view = map<GPUX, Proxy>(out, sm_x, sm_y, block[0], block[1]);
+
+            barrier(sm);
+
+            body(get_local_id(0), get_local_id(1), width, arr, out_view) {
+                let mut sum = 0.0f;
+                let half_range = range / 2;
+                iterate(-half_range, half_range+1, |j : int| -> void {
+                    iterate(-half_range, half_range+1, |i : int| -> void {
+                        let stencil_index = i + half_range + ((j + half_range) * range);
+                        let stencil_val = stencil[stencil_index];
+                        sum += arr[x + i][y + j] * stencil_val;
+                    });
+                });
+                out[y*width + x] = sum;
+            }
+
+            // higher-order version
+            let out_fun = |val: float, i: int| -> void {
+                out[tid_x + i][tid_y] = val;
+            };
+            body(get_local_id(0), get_local_id(1), width, arr, out_fun) {
+                let mut sum = 0.0f;
+                let half_range = range / 2;
+                iterate(-half_range, half_range+1, |j : int| -> void {
+                    iterate(-half_range, half_range+1, |i : int| -> void {
+                        let stencil_index = i + half_range + ((j + half_range) * range);
+                        let stencil_val = stencil[stencil_index];
+                        sum += arr[x + i][y + j] * stencil_val;
+                    });
+                });
+                out_fun(sum);
+                // relative indices
+                out(sum, 1, -1);
+            }
+
+            body(get_local_id(0), get_local_id(1), width, arr, out_fun) {
+                let mut sum = 0.0f;
+
+                // ... compute phase 1
+                ... = temp[x, y] + arr[x-1, y+1];
+
+                temp[x, y] = result;
+                sync(temp);
+
+                // ... compute phase 2
+                ... = temp[x, y] + temp[x-1, y+1];
+
+                out_fun(sum);
+            }
+
+            
+            // ulitmate syntax
+            sm = map<Shared>(...);
+            // compute phase 1
+            body1(...);
+            sync(sm);
+            //compute phase 2
+            body2(...);
+        });
+    });
+
+    synchronize(GPU1);
+    synchronize(GPU2);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 fn iteration(width : int, height : int, img : [float], body : fn(int, int, [float]) -> void) -> void {
     // slice memory
     let mut cpu_slice1 = slice(img, 0,       0, width/2, height);

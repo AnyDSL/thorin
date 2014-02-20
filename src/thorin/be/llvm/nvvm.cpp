@@ -194,7 +194,7 @@ llvm::GlobalVariable* NVVMCodeGen::resolve_global_variable(const Param* param) {
 // Host code
 //------------------------------------------------------------------------------
 
-Lambda* CodeGen::emit_nvvm(Lambda* lambda) {
+Lambda* CodeGen::emit_nvvm(Runtime& runtime, Lambda* lambda) {
     // to-target is the desired CUDA call
     // target(mem, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
     auto target = lambda->to()->as_lambda();
@@ -210,8 +210,7 @@ Lambda* CodeGen::emit_nvvm(Lambda* lambda) {
     // load kernel
     auto module_name = builder_.CreateGlobalStringPtr(world_.name() + "_nvvm.ll");
     auto kernel_name = builder_.CreateGlobalStringPtr(kernel);
-    llvm::Value* load_args[] = { module_name, kernel_name };
-    builder_.CreateCall(nvvm("nvvm_load_kernel"), load_args);
+    runtime.load_kernel(module_name, kernel_name);
     // fetch values and create external calls for initialization
     std::vector<std::pair<llvm::Value*, llvm::Constant*>> device_ptrs;
     for (size_t i = 5, e = lambda->num_args(); i < e; ++i) {
@@ -220,47 +219,28 @@ Lambda* CodeGen::emit_nvvm(Lambda* lambda) {
         if (const ArrayAgg* array_value = cuda_param->isa<ArrayAgg>())
             num_elems = (uint64_t)array_value->size();
         auto size = builder_.getInt64(num_elems);
-        auto alloca = builder_.CreateAlloca(nvvm_device_ptr_ty_);
-        auto device_ptr = builder_.CreateCall(nvvm("nvvm_malloc_memory"), size);
-        // store device ptr
-        builder_.CreateStore(device_ptr, alloca);
-        auto loaded_device_ptr = builder_.CreateLoad(alloca);
-        device_ptrs.push_back(std::make_pair(loaded_device_ptr, size));
-        llvm::Value* mem_args[] = { loaded_device_ptr, builder_.CreateBitCast(lookup(cuda_param), builder_.getInt8PtrTy()), size };
-        builder_.CreateCall(nvvm("nvvm_write_memory"), mem_args);
-        builder_.CreateCall(nvvm("nvvm_set_kernel_arg"), { alloca });
+        auto ptr = runtime.malloc(size);
+//        device_ptrs.push_back(std::make_pair(loaded_device_ptr, size));
+        runtime.write(ptr, lookup(cuda_param), size);
+        runtime.set_kernel_arg(ptr);
     }
     // setup problem size
-    llvm::Value* problem_size_args[] = {
+    runtime.set_problem_size(
         builder_.getInt64(it_space->op(0)->as<PrimLit>()->qu64_value()),
         builder_.getInt64(it_space->op(1)->as<PrimLit>()->qu64_value()),
-        builder_.getInt64(it_space->op(2)->as<PrimLit>()->qu64_value())
-    };
-    builder_.CreateCall(nvvm("nvvm_set_problem_size"), problem_size_args);
+        builder_.getInt64(it_space->op(2)->as<PrimLit>()->qu64_value()));
     // setup configuration
-    llvm::Value* config_args[] = {
+    runtime.set_config_size(
         builder_.getInt64(it_config->op(0)->as<PrimLit>()->qu64_value()),
         builder_.getInt64(it_config->op(1)->as<PrimLit>()->qu64_value()),
-        builder_.getInt64(it_config->op(2)->as<PrimLit>()->qu64_value())
-    };
-    builder_.CreateCall(nvvm("nvvm_set_config_size"), config_args);
+        builder_.getInt64(it_config->op(2)->as<PrimLit>()->qu64_value()));
     // launch
-    builder_.CreateCall(nvvm("nvvm_launch_kernel"), { kernel_name });
+    runtime.launch_kernel(kernel_name);
     // synchronize
-    builder_.CreateCall(nvvm("nvvm_synchronize"));
+    runtime.synchronize();
 
-    // back-fetch to CPU
-    for (size_t i = 5, e = lambda->num_args(); i < e; ++i) {
-        Def cuda_param = lambda->arg(i);
-        auto entry = device_ptrs[i - 5];
-        // need to fetch back memory
-        llvm::Value* args[] = { entry.first, builder_.CreateBitCast(lookup(cuda_param), builder_.getInt8PtrTy()), entry.second };
-        builder_.CreateCall(nvvm("nvvm_read_memory"), args);
-    }
-
-    // free memory
-    for (auto device_ptr : device_ptrs)
-        builder_.CreateCall(nvvm("nvvm_free_memory"), { device_ptr.first });
+    // TODO back-fetch to CPU
+    // TODO free mem
     return ret;
 }
 

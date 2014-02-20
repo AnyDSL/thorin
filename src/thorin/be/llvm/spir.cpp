@@ -107,7 +107,7 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
 // Host code
 //------------------------------------------------------------------------------
 
-Lambda* CodeGen::emit_spir(Lambda* lambda) {
+Lambda* CodeGen::emit_spir(Runtime& runtime, Lambda* lambda) {
     // to-target is the desired SPIR call
     // target(mem, (dim.x, dim.y, dim.z), (block.x, block.y, block.z), body, return, free_vars)
     auto target = lambda->to()->as_lambda();
@@ -123,8 +123,7 @@ Lambda* CodeGen::emit_spir(Lambda* lambda) {
     // load kernel
     auto module_name = builder_.CreateGlobalStringPtr(world_.name() + "_spir.bc");
     auto kernel_name = builder_.CreateGlobalStringPtr(kernel);
-    llvm::Value* load_args[] = { module_name, kernel_name };
-    builder_.CreateCall(spir("spir_build_program_and_kernel_from_binary"), load_args);
+    runtime.load_kernel(module_name, kernel_name);
     // fetch values and create external calls for initialization
     std::vector<std::pair<llvm::Value*, llvm::Constant*>> device_ptrs;
     for (size_t i = 5, e = lambda->num_args(); i < e; ++i) {
@@ -133,59 +132,28 @@ Lambda* CodeGen::emit_spir(Lambda* lambda) {
         if (const ArrayAgg* array_value = spir_param->isa<ArrayAgg>())
             num_elems = (uint64_t)array_value->size();
         auto size = builder_.getInt64(num_elems);
-        auto alloca = builder_.CreateAlloca(spir_device_ptr_ty_);
-        auto device_ptr = builder_.CreateCall(spir("spir_malloc_buffer"), size);
-        // store device ptr
-        builder_.CreateStore(device_ptr, alloca);
-        auto loaded_device_ptr = builder_.CreateLoad(alloca);
-        device_ptrs.push_back(std::make_pair(loaded_device_ptr, size));
-        llvm::Value* mem_args[] = {
-            loaded_device_ptr,
-            builder_.CreateBitCast(lookup(spir_param), llvm::Type::getInt8PtrTy(context_)),
-            size
-        };
-        builder_.CreateCall(spir("spir_write_buffer"), mem_args);
-        // set_kernel_arg(void *, size_t)
-        auto *DL = new llvm::DataLayout(module_.get());
-        auto size_of_arg = builder_.getInt64(DL->getTypeAllocSize(llvm::Type::getInt8PtrTy(context_)));
-        llvm::Value* arg_args[] = { alloca, size_of_arg };
-        builder_.CreateCall(spir("spir_set_kernel_arg"), arg_args);
+        auto ptr = runtime.malloc(size);
+//        device_ptrs.push_back(std::make_pair(loaded_device_ptr, size));
+        runtime.write(ptr, lookup(spir_param), size);
+        runtime.set_kernel_arg(ptr);
     }
     // setup problem size
-    llvm::Value* problem_size_args[] = {
+    runtime.set_problem_size(
         builder_.getInt64(it_space->op(0)->as<PrimLit>()->qu64_value()),
         builder_.getInt64(it_space->op(1)->as<PrimLit>()->qu64_value()),
-        builder_.getInt64(it_space->op(2)->as<PrimLit>()->qu64_value())
-    };
-    builder_.CreateCall(spir("spir_set_problem_size"), problem_size_args);
+        builder_.getInt64(it_space->op(2)->as<PrimLit>()->qu64_value()));
     // setup configuration
-    llvm::Value* config_args[] = {
+    runtime.set_config_size(
         builder_.getInt64(it_config->op(0)->as<PrimLit>()->qu64_value()),
         builder_.getInt64(it_config->op(1)->as<PrimLit>()->qu64_value()),
-        builder_.getInt64(it_config->op(2)->as<PrimLit>()->qu64_value())
-    };
-    builder_.CreateCall(spir("spir_set_config_size"), config_args);
+        builder_.getInt64(it_config->op(2)->as<PrimLit>()->qu64_value()));
     // launch
-    builder_.CreateCall(spir("spir_launch_kernel"), { kernel_name });
+    runtime.launch_kernel(kernel_name);
     // synchronize
-    builder_.CreateCall(spir("spir_synchronize"));
+    runtime.synchronize();
 
-    // back-fetch to CPU
-    for (size_t i = 5, e = lambda->num_args(); i < e; ++i) {
-        Def spir_param = lambda->arg(i);
-        auto entry = device_ptrs[i - 5];
-        // need to fetch back memory
-        llvm::Value* args[] = {
-            entry.first,
-            builder_.CreateBitCast(lookup(spir_param), llvm::Type::getInt8PtrTy(context_)),
-            entry.second
-        };
-        builder_.CreateCall(spir("spir_read_buffer"), args);
-    }
-
-    // free memory
-    for (auto device_ptr : device_ptrs)
-        builder_.CreateCall(spir("spir_free_buffer"), { device_ptr.first });
+    // TODO back-fetch to CPU
+    // TODO free mem
     return ret;
 }
 

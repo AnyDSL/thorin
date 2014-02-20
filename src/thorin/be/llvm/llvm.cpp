@@ -14,9 +14,7 @@
 #include <llvm/IR/Type.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/Analysis/Verifier.h>
-#include <llvm/IRReader/IRReader.h>
 #include "llvm/Support/raw_ostream.h"
-#include <llvm/Support/SourceMgr.h>
 
 #ifdef WFV2_SUPPORT
 #include <wfvInterface.h>
@@ -39,6 +37,10 @@
 #include "thorin/be/llvm/spir.h"
 #include "thorin/transform/import.h"
 
+#include "thorin/be/llvm/runtimes/nvvm_runtime.h"
+#include "thorin/be/llvm/runtimes/spir_runtime.h"
+#include "thorin/be/llvm/runtimes/opencl_runtime.h"
+
 namespace thorin {
 
 CodeGen::CodeGen(World& world, llvm::CallingConv::ID calling_convention)
@@ -48,32 +50,19 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID calling_convention)
     , builder_(context_)
     , calling_convention_(calling_convention)
 {
-    nvvm_device_ptr_ty_ = llvm::IntegerType::getInt64Ty(context_);
-    opencl_device_ptr_ty_ = llvm::IntegerType::getInt64Ty(context_);
-    spir_device_ptr_ty_ = llvm::IntegerType::getInt64Ty(context_);
-
-    llvm::SMDiagnostic diag;
-    nvvm_module_ = llvm::ParseIRFile("nvvm.s", diag, context_);
-    opencl_module_ = llvm::ParseIRFile("spir.s", diag, context_);
-    spir_module_ = llvm::ParseIRFile("spir.s", diag, context_);
+    nvvm_runtime_ = new NVVMRuntime(context_, module_.get(), builder_);
+    spir_runtime_ = new SpirRuntime(context_, module_.get(), builder_);
+    opencl_runtime_ = new OpenCLRuntime(context_, module_.get(), builder_);
 }
-
-static llvm::Function* get(llvm::Module* from, llvm::Module* to, const char* name) {
-    return llvm::cast<llvm::Function>(to->getOrInsertFunction(name, from->getFunction(name)->getFunctionType()));
-}
-
-llvm::Function* CodeGen::nvvm(const char* name) { return get(nvvm_module_, module_, name); }
-llvm::Function* CodeGen::opencl(const char* name) { return get(opencl_module_, module_, name); }
-llvm::Function* CodeGen::spir(const char* name) { return get(spir_module_, module_, name); }
 
 Lambda* CodeGen::emit_builtin(llvm::Function* current, Lambda* lambda) {
     Lambda* to = lambda->to()->as_lambda();
     if (to->attribute().is(Lambda::NVVM))
-        return emit_nvvm(lambda);
+        return emit_nvvm(*nvvm_runtime_.get(), lambda);
     if (to->attribute().is(Lambda::SPIR))
-        return emit_spir(lambda);
+        return emit_spir(*spir_runtime_.get(), lambda);
     if (to->attribute().is(Lambda::OPENCL))
-        return emit_opencl(lambda);
+        return emit_opencl(*opencl_runtime_.get(), lambda);
     assert(to->attribute().is(Lambda::Vectorize));
 #ifdef WFV2_SUPPORT
     return emit_vectorized(current, lambda);

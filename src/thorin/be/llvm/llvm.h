@@ -7,6 +7,7 @@
 #include <llvm/IR/Module.h>
 
 #include "thorin/lambda.h"
+#include "thorin/be/llvm/runtime.h"
 
 namespace thorin {
 
@@ -39,13 +40,10 @@ protected:
 
 private:
     Lambda* emit_builtin(llvm::Function*, Lambda*);
-    Lambda* emit_nvvm(Lambda*);
-    Lambda* emit_opencl(Lambda*);
-    Lambda* emit_spir(Lambda*);
+    Lambda* emit_nvvm(Runtime& runtime, Lambda*);
+    Lambda* emit_opencl(Runtime& runtime, Lambda*);
+    Lambda* emit_spir(Runtime& runtime, Lambda*);
     Lambda* emit_vectorized(llvm::Function*, Lambda*);
-    llvm::Function* nvvm(const char*);
-    llvm::Function* opencl(const char*);
-    llvm::Function* spir(const char*);
 
 protected:
     World& world_;
@@ -58,13 +56,9 @@ protected:
     std::unordered_map<const PrimOp*, llvm::Value*> primops_;
     std::unordered_map<Lambda*, llvm::Function*> fcts_;
     std::set<llvm::Function*> fcts_to_remove_;
-private:
-    llvm::Type* nvvm_device_ptr_ty_;
-    llvm::Type* opencl_device_ptr_ty_;
-    llvm::Type* spir_device_ptr_ty_;
-    AutoPtr<llvm::Module> nvvm_module_;
-    AutoPtr<llvm::Module> opencl_module_;
-    AutoPtr<llvm::Module> spir_module_;
+    AutoPtr<Runtime> nvvm_runtime_;
+    AutoPtr<Runtime> spir_runtime_;
+    AutoPtr<Runtime> opencl_runtime_;
 };
 
 //------------------------------------------------------------------------------

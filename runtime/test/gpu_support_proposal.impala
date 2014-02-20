@@ -1,4 +1,5 @@
 extern nvvm((int, int, int), (int, int, int), fn() -> void) -> void;
+extern array(int, int, int) -> [float];
 extern async(fn() -> void) -> int;
 
 fn iteration(width : int, height : int, img : [float], body : fn(int, int, [float]) -> void) -> void {
@@ -115,7 +116,7 @@ fn iteration(width : int, height : int, img : [float], body : fn(int, int, [floa
 fn main() -> [float] {
     let width   = 2048;
     let height  = 2048;
-    let mut img = array(width * height);
+    let mut img = array(4, width, height);
 
     let stencil : [float * 3] = [ 0.25f, 0.50f, 0.25f ];
 

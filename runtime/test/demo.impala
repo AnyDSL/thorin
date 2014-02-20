@@ -1,4 +1,4 @@
-extern array(int) -> [float];
+extern array(int, int, int) -> [float];
 
 // DSL implementation
 
@@ -32,8 +32,8 @@ fn main() -> [float] {
     let width   = 1024;
     let a       = 0.2f;
     let b       = 1.0f - 4.0f * a;
-    let mut arr = array(width);
-    let mut out = array(width);
+    let mut arr = array(4, width, height);
+    let mut out = array(4, width, height);
 
     let stencil : [float * 3] = [b, a, b];
     @apply_stencil(width, arr, out, stencil);

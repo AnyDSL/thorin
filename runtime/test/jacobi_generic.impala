@@ -1,4 +1,4 @@
-extern array(int) -> [float];
+extern array(int, int, int) -> [float];
 extern random_val(int) -> float;
 
 fn iterate(a : int, b : int, yield : fn(int, fn())) -> void {
@@ -25,9 +25,9 @@ fn main() -> int {
     let width   = 2048;
     let height  = 2048;
     let range   = 3;
-    let mut arr = array(width * height);
-    let mut out = array(width * height);
-    let mut stencil = array(range * range);
+    let mut arr = array(4, width, height);
+    let mut out = array(4, width, height);
+    let mut stencil = array(4, range, range);
 
     // initialize the stencil
     init_rand(arr, width, height);

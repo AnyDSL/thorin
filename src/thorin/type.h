@@ -177,7 +177,7 @@ enum class AddressSpace : uint32_t {
 
 class Ptr : public VectorType {
 private:
-    Ptr(World& world, const Type* referenced_type, size_t length, uint32_t device = 0, AddressSpace addr_space = AddressSpace::Global)
+    Ptr(World& world, const Type* referenced_type, size_t length, uint32_t device, AddressSpace addr_space)
         : VectorType(world, Node_Ptr, 1, length, referenced_type->is_generic())
         , addr_space_(addr_space)
         , device_(device)

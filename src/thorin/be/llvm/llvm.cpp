@@ -28,6 +28,7 @@
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/util/array.h"
+#include "thorin/util/push.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/top_level_scopes.h"
@@ -50,6 +51,7 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID calling_convention)
     , builder_(context_)
     , calling_convention_(calling_convention)
 {
+    runtime_ = new GenericRuntime(context_, module_.get(), builder_);
     nvvm_runtime_ = new NVVMRuntime(context_, module_.get(), builder_);
     spir_runtime_ = new SpirRuntime(context_, module_.get(), builder_);
     opencl_runtime_ = new OpenCLRuntime(context_, module_.get(), builder_);
@@ -63,6 +65,7 @@ Lambda* CodeGen::emit_builtin(llvm::Function* current, Lambda* lambda) {
         return spir_runtime_->emit_host_code(*this, lambda);
     if (to->attribute().is(Lambda::OPENCL))
         return opencl_runtime_->emit_host_code(*this, lambda);
+
     assert(to->attribute().is(Lambda::Vectorize));
 #ifdef WFV2_SUPPORT
     return emit_vectorized(current, lambda);
@@ -309,7 +312,7 @@ void CodeGen::emit() {
 
     {
         std::string error;
-        auto bc_name = world_.name() + ".bc";
+        auto bc_name = get_binary_output_name(world_.name());
         llvm::raw_fd_ostream out(bc_name.c_str(), error, llvm::sys::fs::F_Binary);
         if (!error.empty())
             throw std::runtime_error("cannot write '" + bc_name + "': " + error);
@@ -319,7 +322,7 @@ void CodeGen::emit() {
 
     {
         std::string error;
-        auto ll_name = world_.name() + ".ll";
+        auto ll_name = get_output_name(world_.name());
         llvm::raw_fd_ostream out(ll_name.c_str(), error);
         if (!error.empty())
             throw std::runtime_error("cannot write '" + ll_name + "': " + error);
@@ -655,9 +658,10 @@ llvm::Value* CodeGen::emit_lea(Def def) {
     return builder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
 }
 
-llvm::Value* CodeGen::emit_memmap(Def map) {
-    assert(map->isa<Map>());
-    return lookup(map->as<Map>()->ptr());
+llvm::Value* CodeGen::emit_memmap(Def def) {
+    auto map = def->as<Map>();
+    // emit proper runtime call
+    return runtime_->map(map->device(), (uint32_t)map->addr_space(), lookup(map->as<Map>()->ptr()));
 }
 
 llvm::Type* CodeGen::map(const Type* type) {
@@ -746,8 +750,8 @@ multiple:
 //------------------------------------------------------------------------------
 
 void emit_llvm(World& world) {
-    World nvvm(world.name() + "_nvvm");
-    World spir(world.name() + "_spir");
+    World nvvm(world.name());
+    World spir(world.name());
     World opencl(world.name());
 
     // determine different parts of the world which need to be compiled differently

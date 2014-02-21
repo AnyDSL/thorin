@@ -133,17 +133,16 @@ llvm::Value* NVVMCodeGen::emit_load(Def def) {
     switch (resolve_addr_space(load->ptr())) {
     case AddressSpace::Texture:
         return builder_.CreateExtractValue(lookup(load->ptr()), { unsigned(0) });
-    case AddressSpace::Shared:
-        THORIN_UNREACHABLE;
     default:
+        // shared address space uses the same load functionality
         return CodeGen::emit_load(def);
     }
 }
 
 llvm::Value* NVVMCodeGen::emit_store(Def def) {
     auto store = def->as<Store>();
-    assert(resolve_addr_space(store->ptr()) == AddressSpace::Global &&
-            "Only global address space for stores is currently supported");
+    assert(resolve_addr_space(store->ptr()) != AddressSpace::Texture &&
+            "Writes to textures are currently not supported");
     return CodeGen::emit_store(store);
 }
 
@@ -182,6 +181,15 @@ llvm::Value* NVVMCodeGen::emit_lea(Def def) {
     default:
         return CodeGen::emit_lea(def);
     }
+}
+
+llvm::Value* NVVMCodeGen::emit_memmap(Def def) {
+    auto map = def->as<Map>();
+    assert(map->addr_space() == AddressSpace::Shared &&
+            "Only shared memory can be mapped inside NVVM code");
+
+    assert(false && "TODO: shared memory for NVVM");
+    return nullptr;
 }
 
 llvm::GlobalVariable* NVVMCodeGen::resolve_global_variable(const Param* param) {

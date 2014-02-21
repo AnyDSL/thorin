@@ -12,19 +12,38 @@
 
 namespace thorin {
 
-Runtime::Runtime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<> &builder,
-                 llvm::Type* device_ptr_ty, const char* mod_name)
+RuntimeBase::RuntimeBase(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder, const char* mod_name)
     : target_(target)
     , builder_(builder)
-    , device_ptr_ty_(device_ptr_ty)
 {
     llvm::SMDiagnostic diag;
     module_ = llvm::ParseIRFile(mod_name, diag, context);
 }
 
-llvm::Function* Runtime::get(const char* name) {
-    return llvm::cast<llvm::Function>(target_->getOrInsertFunction(name, module_->getFunction(name)->getFunctionType()));
+llvm::Function* RuntimeBase::get(const char* name) {
+    auto result = llvm::cast<llvm::Function>(target_->getOrInsertFunction(name, module_->getFunction(name)->getFunctionType()));
+    assert(result != nullptr && "Requires runtime function could not be resolved");
+    return result;
 }
+
+GenericRuntime::GenericRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder)
+    : RuntimeBase(context, target, builder, "generic.s")
+{}
+
+llvm::Value* GenericRuntime::map(uint32_t device, uint32_t addr_space, llvm::Value* ptr) {
+    llvm::Value* map_args[] = {
+        builder_.getInt32(device),
+        builder_.getInt32(addr_space),
+        builder_.CreateBitCast(ptr, builder_.getInt8PtrTy())
+    };
+    return builder_.CreateCall(get("map_memory"), map_args);
+}
+
+Runtime::Runtime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<> &builder,
+                 llvm::Type* device_ptr_ty, const char* mod_name)
+    : RuntimeBase(context, target, builder, mod_name)
+    , device_ptr_ty_(device_ptr_ty)
+{}
 
 Lambda* Runtime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
     // to-target is the desired CUDA call
@@ -54,8 +73,7 @@ Lambda* Runtime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
         if (auto ptr = target_arg->type()->as<Ptr>()) {
             if (ptr->device() == target_device) {
                 // data is already on this device
-                // ... do not emit a memory operation
-                set_kernel_arg(target_val);
+                set_mapped_kernel_arg(target_val);
             } else {
                 // we need to allocate memory for this chunk on the target device
                 auto ptr = malloc(target_val);

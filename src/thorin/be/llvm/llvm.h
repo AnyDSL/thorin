@@ -38,6 +38,9 @@ protected:
     virtual llvm::Value* emit_lea(Def);
     virtual llvm::Value* emit_memmap(Def);
 
+    virtual std::string get_output_name(const std::string& name) const = 0;
+    virtual std::string get_binary_output_name(const std::string& name) const = 0;
+
 private:
     Lambda* emit_builtin(llvm::Function*, Lambda*);
     Lambda* emit_vectorized(llvm::Function*, Lambda*);
@@ -53,6 +56,7 @@ protected:
     std::unordered_map<const PrimOp*, llvm::Value*> primops_;
     std::unordered_map<Lambda*, llvm::Function*> fcts_;
     std::set<llvm::Function*> fcts_to_remove_;
+    AutoPtr<GenericRuntime> runtime_;
     AutoPtr<Runtime> nvvm_runtime_;
     AutoPtr<Runtime> spir_runtime_;
     AutoPtr<Runtime> opencl_runtime_;

@@ -11,5 +11,6 @@ declare void @nvvm_set_config_size(i64, i64, i64);
 declare void @nvvm_synchronize();
 
 declare void @nvvm_set_kernel_arg(i64*);
+declare void @nvvm_set_mapped_kernel_arg(i8*);
 declare void @nvvm_load_kernel(i8*, i8*);
 declare void @nvvm_launch_kernel(i8*);

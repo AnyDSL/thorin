@@ -1,5 +1,5 @@
-#ifndef THORIN_BE_LLVM_RURNTIMES_OPENCL_H
-#define THORIN_BE_LLVM_RURNTIMES_OPENCL_H
+#ifndef THORIN_BE_LLVM_RUNTIMES_OPENCL_H
+#define THORIN_BE_LLVM_RUNTIMES_OPENCL_H
 
 #include "thorin/be/llvm/runtimes/spir_runtime.h"
 

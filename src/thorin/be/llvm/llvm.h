@@ -8,6 +8,7 @@
 
 #include "thorin/lambda.h"
 #include "thorin/be/llvm/runtime.h"
+#include "thorin/be/llvm/runtimes/generic_runtime.h"
 
 namespace thorin {
 
@@ -56,15 +57,14 @@ protected:
     std::unordered_map<const PrimOp*, llvm::Value*> primops_;
     std::unordered_map<Lambda*, llvm::Function*> fcts_;
     std::set<llvm::Function*> fcts_to_remove_;
-    AutoPtr<GenericRuntime> runtime_;
-    AutoPtr<Runtime> nvvm_runtime_;
-    AutoPtr<Runtime> spir_runtime_;
-    AutoPtr<Runtime> opencl_runtime_;
 
-    friend class Runtime;
-    friend class NVVMRuntime;
-    friend class SpirRuntime;
-    friend class OpenCLRuntime;
+    AutoPtr<GenericRuntime> runtime_;
+    AutoPtr<KernelRuntime> nvvm_runtime_;
+    AutoPtr<KernelRuntime> spir_runtime_;
+    AutoPtr<KernelRuntime> opencl_runtime_;
+
+    friend class GenericRuntime;
+    friend class KernelRuntime;
 };
 
 //------------------------------------------------------------------------------

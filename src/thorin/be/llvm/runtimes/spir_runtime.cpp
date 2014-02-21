@@ -5,10 +5,10 @@
 namespace thorin {
 
 SpirRuntime::SpirRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder)
-    : Runtime(context, target, builder, llvm::IntegerType::getInt64Ty(context), "spir.s")
+    : KernelRuntime(context, target, builder, llvm::IntegerType::getInt64Ty(context), "spir.s")
 {
-    auto *DL = new llvm::DataLayout(target);
-    size_of_kernel_arg_ = builder_.getInt64(DL->getTypeAllocSize(llvm::Type::getInt8PtrTy(context)));
+    AutoPtr<llvm::DataLayout> dl(new llvm::DataLayout(target));
+    size_of_kernel_arg_ = builder_.getInt64(dl->getTypeAllocSize(llvm::Type::getInt8PtrTy(context)));
 }
 
 llvm::Value* SpirRuntime::malloc(llvm::Value* ptr) {

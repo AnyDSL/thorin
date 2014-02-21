@@ -1,11 +1,11 @@
-#ifndef THORIN_BE_LLVM_RURNTIMES_NVVM_H
-#define THORIN_BE_LLVM_RURNTIMES_NVVM_H
+#ifndef THORIN_BE_LLVM_RUNTIMES_NVVM_H
+#define THORIN_BE_LLVM_RUNTIMES_NVVM_H
 
 #include "thorin/be/llvm/runtime.h"
 
 namespace thorin {
 
-class NVVMRuntime : public Runtime {
+class NVVMRuntime : public KernelRuntime {
 public:
     NVVMRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder);
 

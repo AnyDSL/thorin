@@ -65,6 +65,8 @@ Lambda* CodeGen::emit_builtin(llvm::Function* current, Lambda* lambda) {
         return spir_runtime_->emit_host_code(*this, lambda);
     if (to->attribute().is(Lambda::OPENCL))
         return opencl_runtime_->emit_host_code(*this, lambda);
+    if (to->attribute().is(Lambda::Parallel))
+        return runtime_->emit_parallel_start_code(*this, lambda);
 
     assert(to->attribute().is(Lambda::Vectorize));
 #ifdef WFV2_SUPPORT

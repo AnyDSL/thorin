@@ -22,17 +22,18 @@ typedef std::vector<const Param*> Params;
 class Lambda : public DefNode {
 public:
     enum AttrType {
-        Extern       = 1 << 0, ///< Is the function visible in other translation units?
-        NVVM         = 1 << 1, ///< Flag for the internal NNVM-Backend
-        SPIR         = 1 << 2, ///< Flag for the internal SPIR-Backend
-        OPENCL       = 1 << 3, ///< Flag for the internal OpenCL-Backend
-        ArrayInit    = 1 << 4, ///< Flag for the external array initialization
-        Vectorize    = 1 << 5, ///< Flag for the external vectorizer
-        VectorizeTid = 1 << 6, ///< Flag for the external vectorizer (tid getter)
-        Intrinsic    = 1 << 7, ///< Flag for intrinsic LLVM function
-        Map          = 1 << 8, ///< Flag for intrinsic memory-mapping function
-        KernelEntry  = 1 << 9, ///< Flag for the kernel lambda
-        Builtin = NVVM | SPIR | OPENCL | Vectorize
+        Extern       = 1 <<  0, ///< Is the function visible in other translation units?
+        NVVM         = 1 <<  1, ///< Flag for the internal NNVM-Backend
+        SPIR         = 1 <<  2, ///< Flag for the internal SPIR-Backend
+        OPENCL       = 1 <<  3, ///< Flag for the internal OpenCL-Backend
+        Parallel     = 1 <<  4, ///< Flag for the internal Parallel-CPU-Backend
+        ArrayInit    = 1 <<  5, ///< Flag for the external array initialization
+        Vectorize    = 1 <<  6, ///< Flag for the external vectorizer
+        VectorizeTid = 1 <<  7, ///< Flag for the external vectorizer (tid getter)
+        Intrinsic    = 1 <<  8, ///< Flag for intrinsic LLVM function
+        Map          = 1 <<  9, ///< Flag for intrinsic memory-mapping function
+        KernelEntry  = 1 << 10, ///< Flag for the kernel lambda
+        Builtin      = NVVM | SPIR | OPENCL | Parallel | Vectorize
     };
 
     struct Attribute {

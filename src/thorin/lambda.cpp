@@ -122,7 +122,7 @@ Lambdas Lambda::direct_succs() const { return thorin::succs<true, false>(this); 
 Lambdas Lambda::indirect_preds() const { return thorin::preds<false, true>(this); }
 Lambdas Lambda::indirect_succs() const { return thorin::succs<false, true>(this); }
 
-bool Lambda::is_builtin() const { return attribute().is(NVVM | SPIR | OPENCL | Vectorize); }
+bool Lambda::is_builtin() const { return attribute().is(Lambda::Builtin); }
 
 template<typename T>
 static bool aggregate_connected_builtins(const Lambda* lambda, T value, std::function<T(T, Lambda*)> func) {

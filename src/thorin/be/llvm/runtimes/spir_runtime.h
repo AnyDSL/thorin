@@ -1,11 +1,11 @@
-#ifndef THORIN_BE_LLVM_RURNTIMES_SPIR_H
-#define THORIN_BE_LLVM_RURNTIMES_SPIR_H
+#ifndef THORIN_BE_LLVM_RUNTIMES_SPIR_H
+#define THORIN_BE_LLVM_RUNTIMES_SPIR_H
 
 #include "thorin/be/llvm/runtime.h"
 
 namespace thorin {
 
-class SpirRuntime : public Runtime {
+class SpirRuntime : public KernelRuntime {
 public:
     SpirRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder);
 

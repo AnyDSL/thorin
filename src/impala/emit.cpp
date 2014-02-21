@@ -85,6 +85,8 @@ bool CodeGen::emit_prg(const Scope* prg) {
             // signature: map(type*, adr_space) -> type*[adr_space]
             if (lambda->name == "map")
                 lambda->attribute().set(Lambda::Map);
+            if (lambda->name == "parallel")
+                lambda->attribute().set(Lambda::Parallel);
             // register proto
             protos_[proto] = lambda;
         }

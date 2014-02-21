@@ -1,5 +1,5 @@
-#ifndef THORIN_BE_LLVM_RURNTIME_H
-#define THORIN_BE_LLVM_RURNTIME_H
+#ifndef THORIN_BE_LLVM_RUNTIME_H
+#define THORIN_BE_LLVM_RUNTIME_H
 
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
@@ -11,10 +11,10 @@ namespace thorin {
 
 class CodeGen;
 
-class RuntimeBase {
+class Runtime {
 protected:
-    RuntimeBase(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder, const char* mod_name);
-    virtual ~RuntimeBase() {}
+    Runtime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder, const char* mod_name);
+    virtual ~Runtime() {}
 
     llvm::Function* get(const char* name);
 
@@ -23,21 +23,13 @@ protected:
     AutoPtr<llvm::Module> module_;
 };
 
-class GenericRuntime : public RuntimeBase {
-public:
-    GenericRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder);
-    virtual ~GenericRuntime() {}
-
-    llvm::Value* map(uint32_t device, uint32_t addr_space, llvm::Value* ptr);
-};
-
-class Runtime : public RuntimeBase {
+class KernelRuntime : public Runtime {
 protected:
-    Runtime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder,
-            llvm::Type* device_ptr_ty, const char* mod_name);
+    KernelRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder,
+                  llvm::Type* device_ptr_ty, const char* mod_name);
 
 public:
-    virtual ~Runtime() {}
+    virtual ~KernelRuntime() {}
 
     llvm::Type* get_device_ptr_ty() { return device_ptr_ty_; }
 

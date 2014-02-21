@@ -15,11 +15,24 @@
 
 // define machine as seen/used by OpenCL
 // each tuple consists of platform and device
+#ifdef __MACH__
+// Macbook Pro
+const int num_devices_ = 2;
+const int target_dev = 0;
 int the_machine[][2] = {
-    {5, 0}, // Intel, i7-3770K
+    {0, 0}, // Intel, i5-4288U
+    {0, 1}, // Intel, Iris
+};
+#else
+// Desktop
+const int num_devices_ = 3;
+const int target_dev = 1;
+int the_machine[][2] = {
+    {1, 0}, // Intel, i7-3770K
     {2, 0}, // NVIDIA, GTX 680
     {2, 1}  // NVIDIA, GTX 580
 };
+#endif
 
 // global variables ...
 typedef struct mem_ {
@@ -29,10 +42,9 @@ typedef struct mem_ {
 } mem_;
 std::unordered_map<void*, mem_> host_mems_;
 std::unordered_map<cl_mem, void*> dev_mems_;
-cl_platform_id platform;
-cl_device_id device;
-cl_context context;
-cl_command_queue command_queue;
+cl_device_id devices_[num_devices_];
+cl_context contexts_[num_devices_];
+cl_command_queue command_queues_[num_devices_];
 cl_program program;
 cl_kernel kernel;
 int clArgIdx;
@@ -208,33 +220,28 @@ inline void __checkOpenCLErrors(cl_int err, const char *name, const char *file, 
 
 
 // create context and command queue for device
-void create_context_command_queue() {
+void create_context_command_queue(cl_platform_id platform, cl_device_id device, size_t num) {
     cl_int err = CL_SUCCESS;
 
     // create context
     cl_context_properties cprops[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)platform, 0 };
-    context = clCreateContext(cprops, 1, &device, NULL, NULL, &err);
+    contexts_[num] = clCreateContext(cprops, 1, &device, NULL, NULL, &err);
     checkErr(err, "clCreateContext()");
 
     // create command queue
-    command_queue = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &err);
+    command_queues_[num] = clCreateCommandQueue(contexts_[num], device, CL_QUEUE_PROFILING_ENABLE, &err);
     checkErr(err, "clCreateCommandQueue()");
 }
 
 
 // initialize OpenCL device
-void init_opencl(cl_device_type dev_type=CL_DEVICE_TYPE_CPU) {
+void init_opencl() {
     char pnBuffer[1024], pvBuffer[1024], pv2Buffer[1024], pdBuffer[1024], pd2Buffer[1024], pd3Buffer[1024];
-    int platform_number = -1, device_number = -1;
-    cl_uint num_platforms, num_devices, num_devices_type;
+    cl_uint num_platforms, num_devices;
     cl_platform_id *platforms;
     cl_device_id *devices;
     cl_int err = CL_SUCCESS;
 
-    for (int i=0; i<sizeof(the_machine)/sizeof(int[2]); ++i) {
-        std::cerr << "platform: " << the_machine[i][0] << std::endl;
-        std::cerr << "  device: " << the_machine[i][1] << std::endl;
-    }
 
     // get OpenCL platform count
     err = clGetPlatformIDs(0, NULL, &num_platforms);
@@ -249,6 +256,11 @@ void init_opencl(cl_device_type dev_type=CL_DEVICE_TYPE_CPU) {
         err = clGetPlatformIDs(num_platforms, platforms, NULL);
         checkErr(err, "clGetPlatformIDs()");
 
+        int n_dev = sizeof(the_machine)/sizeof(int[2]);
+        int c_dev = 0;
+        int c_pf_id = the_machine[c_dev][0];
+        int c_dev_id = the_machine[c_dev][1];
+
         // get platform info for each platform
         for (unsigned int i=0; i<num_platforms; ++i) {
             err = clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME, 1024, &pnBuffer, NULL);
@@ -257,40 +269,15 @@ void init_opencl(cl_device_type dev_type=CL_DEVICE_TYPE_CPU) {
             checkErr(err, "clGetPlatformInfo()");
 
             err = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, 0, NULL, &num_devices);
-            err |= clGetDeviceIDs(platforms[i], dev_type, 0, NULL, &num_devices_type);
-
-            // check if the requested device type was not found for this platform
-            if (err != CL_DEVICE_NOT_FOUND) checkErr(err, "clGetDeviceIDs()");
+            checkErr(err, "clGetDeviceIDs()");
 
             devices = (cl_device_id *)malloc(sizeof(cl_device_id) * num_devices);
             err = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, num_devices, devices, &num_devices);
             checkErr(err, "clGetDeviceIDs()");
 
-            // check if this platform has a device that supports SPIR
-            bool has_spir = false;
-            #ifndef USE_SPIR
-            has_spir = true;
-            #endif
-            for (unsigned int j=0; j<num_devices; ++j) {
-                cl_device_type this_dev_type;
-
-                err = clGetDeviceInfo(devices[j], CL_DEVICE_TYPE, sizeof(this_dev_type), &this_dev_type, NULL);
-                err |= clGetDeviceInfo(devices[j], CL_DEVICE_EXTENSIONS, sizeof(pd3Buffer), &pd3Buffer, NULL);
-                checkErr(err, "clGetDeviceInfo()");
-
-                // use first device of desired type
-                std::string extensions(pd3Buffer);
-                size_t found = extensions.find("cl_khr_spir");
-                if (found!=std::string::npos && (this_dev_type & dev_type)) {
-                    has_spir = true;
-                }
-            }
-
             // use first platform supporting desired device type
-            if (has_spir && platform_number==-1 && num_devices_type > 0) {
+            if (c_pf_id==i) {
                 std::cerr << "  [*] Platform Name: " << pnBuffer << std::endl;
-                platform_number = i;
-                platform = platforms[platform_number];
             } else {
                 std::cerr << "  [ ] Platform Name: " << pnBuffer << std::endl;
             }
@@ -299,14 +286,14 @@ void init_opencl(cl_device_type dev_type=CL_DEVICE_TYPE_CPU) {
 
             // get device info for each device
             for (unsigned int j=0; j<num_devices; ++j) {
-                cl_device_type this_dev_type;
+                cl_device_type dev_type;
                 cl_uint device_vendor_id;
                 cl_bool has_unified;
 
                 err = clGetDeviceInfo(devices[j], CL_DEVICE_NAME, sizeof(pnBuffer), &pnBuffer, NULL);
                 err |= clGetDeviceInfo(devices[j], CL_DEVICE_VENDOR, sizeof(pvBuffer), &pvBuffer, NULL);
                 err |= clGetDeviceInfo(devices[j], CL_DEVICE_VENDOR_ID, sizeof(device_vendor_id), &device_vendor_id, NULL);
-                err |= clGetDeviceInfo(devices[j], CL_DEVICE_TYPE, sizeof(this_dev_type), &this_dev_type, NULL);
+                err |= clGetDeviceInfo(devices[j], CL_DEVICE_TYPE, sizeof(dev_type), &dev_type, NULL);
                 err |= clGetDeviceInfo(devices[j], CL_DEVICE_VERSION, sizeof(pdBuffer), &pdBuffer, NULL);
                 err |= clGetDeviceInfo(devices[j], CL_DRIVER_VERSION, sizeof(pd2Buffer), &pd2Buffer, NULL);
                 err |= clGetDeviceInfo(devices[j], CL_DEVICE_EXTENSIONS, sizeof(pd3Buffer), &pd3Buffer, NULL);
@@ -317,24 +304,25 @@ void init_opencl(cl_device_type dev_type=CL_DEVICE_TYPE_CPU) {
                 std::string extensions(pd3Buffer);
                 size_t found = extensions.find("cl_khr_spir");
                 bool has_spir = found!=std::string::npos;
-                #ifndef USE_SPIR
-                has_spir = true;
-                #endif
-                if (has_spir && platform_number == (int)i && device_number == -1 && (this_dev_type & dev_type)) {
+                if (c_pf_id == i && j == c_dev_id) {
+                    devices_[c_dev] = devices[j];
+                    create_context_command_queue(platforms[i], devices[j], c_dev);
+                    if (++c_dev < n_dev) {
+                        c_pf_id = the_machine[c_dev][0];
+                        c_dev_id = the_machine[c_dev][1];
+                    }
                     std::cerr << "      [*] ";
-                    device = devices[j];
-                    device_number = j;
                 } else {
                     std::cerr << "      [ ] ";
                 }
                 std::cerr << "Device Name: " << pnBuffer << " (";
-                if (this_dev_type & CL_DEVICE_TYPE_CPU) std::cerr << "CL_DEVICE_TYPE_CPU";
-                if (this_dev_type & CL_DEVICE_TYPE_GPU) std::cerr << "CL_DEVICE_TYPE_GPU";
-                if (this_dev_type & CL_DEVICE_TYPE_ACCELERATOR) std::cerr << "CL_DEVICE_TYPE_ACCELERATOR";
+                if (dev_type & CL_DEVICE_TYPE_CPU) std::cerr << "CL_DEVICE_TYPE_CPU";
+                if (dev_type & CL_DEVICE_TYPE_GPU) std::cerr << "CL_DEVICE_TYPE_GPU";
+                if (dev_type & CL_DEVICE_TYPE_ACCELERATOR) std::cerr << "CL_DEVICE_TYPE_ACCELERATOR";
                 #ifdef CL_VERSION_1_2
-                if (this_dev_type & CL_DEVICE_TYPE_CUSTOM) std::cerr << "CL_DEVICE_TYPE_CUSTOM";
+                if (dev_type & CL_DEVICE_TYPE_CUSTOM) std::cerr << "CL_DEVICE_TYPE_CUSTOM";
                 #endif
-                if (this_dev_type & CL_DEVICE_TYPE_DEFAULT) std::cerr << "|CL_DEVICE_TYPE_DEFAULT";
+                if (dev_type & CL_DEVICE_TYPE_DEFAULT) std::cerr << "|CL_DEVICE_TYPE_DEFAULT";
                 std::cerr << ")" << std::endl;
                 std::cerr << "          Device Vendor: " << pvBuffer << " (ID: " << device_vendor_id << ")" << std::endl;
                 std::cerr << "          Device OpenCL Version: " << pdBuffer << std::endl;
@@ -351,15 +339,13 @@ void init_opencl(cl_device_type dev_type=CL_DEVICE_TYPE_CPU) {
             free(devices);
         }
 
-        if (platform_number == -1) {
+        if (c_dev != n_dev) {
             std::cerr << "No suitable OpenCL platform available, aborting ..." << std::endl;
             exit(EXIT_FAILURE);
         }
 
         free(platforms);
     }
-
-    create_context_command_queue();
 
     // initialize clArgIdx
     clArgIdx = 0;
@@ -439,10 +425,10 @@ void build_program_and_kernel(const char *file_name, const char *kernel_name, bo
 
     if (print_progress) std::cerr << "<Thorin:> Compiling '" << kernel_name << "' .";
     if (is_binary) {
-        program = clCreateProgramWithBinary(context, 1, &device, &length, (const unsigned char **)&c_str, NULL, &err);
+        program = clCreateProgramWithBinary(contexts_[target_dev], 1, &devices_[target_dev], &length, (const unsigned char **)&c_str, NULL, &err);
         checkErr(err, "clCreateProgramWithBinary()");
     } else {
-        program = clCreateProgramWithSource(context, 1, (const char **)&c_str, &length, &err);
+        program = clCreateProgramWithSource(contexts_[target_dev], 1, (const char **)&c_str, &length, &err);
         checkErr(err, "clCreateProgramWithSource()");
     }
 
@@ -458,16 +444,16 @@ void build_program_and_kernel(const char *file_name, const char *kernel_name, bo
     if (err != CL_SUCCESS || print_log) {
         // determine the size of the options and log
         size_t log_size, options_size;
-        err |= clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_OPTIONS, 0, NULL, &options_size);
-        err |= clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+        err |= clGetProgramBuildInfo(program, devices_[target_dev], CL_PROGRAM_BUILD_OPTIONS, 0, NULL, &options_size);
+        err |= clGetProgramBuildInfo(program, devices_[target_dev], CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
 
         // allocate memory for the options and log
         char *program_build_options = (char *)malloc(options_size);
         char *program_build_log = (char *)malloc(log_size);
 
         // get the options and log
-        err |= clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_OPTIONS, options_size, program_build_options, NULL);
-        err |= clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size, program_build_log, NULL);
+        err |= clGetProgramBuildInfo(program, devices_[target_dev], CL_PROGRAM_BUILD_OPTIONS, options_size, program_build_options, NULL);
+        err |= clGetProgramBuildInfo(program, devices_[target_dev], CL_PROGRAM_BUILD_LOG, log_size, program_build_log, NULL);
         if (print_progress) {
             if (err != CL_SUCCESS) std::cerr << ". failed!" << std::endl;
             else std::cerr << "." << std::endl;
@@ -481,7 +467,7 @@ void build_program_and_kernel(const char *file_name, const char *kernel_name, bo
     }
     checkErr(err, "clBuildProgram(), clGetProgramBuildInfo()");
 
-    if (dump_binary) dump_program_binary(program, device);
+    if (dump_binary) dump_program_binary(program, devices_[target_dev]);
 
     kernel = clCreateKernel(program, kernel_name, &err);
     checkErr(err, "clCreateKernel()");
@@ -495,7 +481,7 @@ cl_mem malloc_buffer(void *host) {
     cl_mem_flags flags = CL_MEM_READ_WRITE;
     mem_ info = host_mems_[host];
 
-    mem = clCreateBuffer(context, flags, info.elem * info.width * info.height, NULL, &err);
+    mem = clCreateBuffer(contexts_[target_dev], flags, info.elem * info.width * info.height, NULL, &err);
     checkErr(err, "clCreateBuffer()");
     dev_mems_[mem] = host;
 
@@ -516,8 +502,8 @@ void write_buffer(cl_mem mem, void *host) {
     cl_int err = CL_SUCCESS;
     mem_ info = host_mems_[host];
 
-    err = clEnqueueWriteBuffer(command_queue, mem, CL_FALSE, 0, info.elem * info.width * info.height, host, 0, NULL, NULL);
-    err |= clFinish(command_queue);
+    err = clEnqueueWriteBuffer(command_queues_[target_dev], mem, CL_FALSE, 0, info.elem * info.width * info.height, host, 0, NULL, NULL);
+    err |= clFinish(command_queues_[target_dev]);
     checkErr(err, "clEnqueueWriteBuffer()");
 }
 
@@ -526,8 +512,8 @@ void read_buffer(cl_mem mem, void *host) {
     cl_int err = CL_SUCCESS;
     mem_ info = host_mems_[host];
 
-    err = clEnqueueReadBuffer(command_queue, mem, CL_FALSE, 0, info.elem * info.width * info.height, host, 0, NULL, NULL);
-    err |= clFinish(command_queue);
+    err = clEnqueueReadBuffer(command_queues_[target_dev], mem, CL_FALSE, 0, info.elem * info.width * info.height, host, 0, NULL, NULL);
+    err |= clFinish(command_queues_[target_dev]);
     checkErr(err, "clEnqueueReadBuffer()");
 }
 
@@ -535,7 +521,7 @@ void read_buffer(cl_mem mem, void *host) {
 void synchronize() {
     cl_int err = CL_SUCCESS;
 
-    err |= clFinish(command_queue);
+    err |= clFinish(command_queues_[target_dev]);
     checkErr(err, "clFinish()");
 }
 
@@ -569,8 +555,8 @@ void launch_kernel(const char *kernel_name) {
     bool print_timing = true;
 
     getMicroTime();
-    err = clEnqueueNDRangeKernel(command_queue, kernel, 2, NULL, global_work_size, local_work_size, 0, NULL, &event);
-    err |= clFinish(command_queue);
+    err = clEnqueueNDRangeKernel(command_queues_[target_dev], kernel, 2, NULL, global_work_size, local_work_size, 0, NULL, &event);
+    err |= clFinish(command_queues_[target_dev]);
     getMicroTime();
     checkErr(err, "clEnqueueNDRangeKernel()");
 
@@ -633,7 +619,7 @@ float random_val(int max) {
 }
 
 int main(int argc, char *argv[]) {
-    init_opencl(CL_DEVICE_TYPE_CPU);
+    init_opencl();
 
     return main_impala();
 }

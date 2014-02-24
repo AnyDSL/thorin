@@ -11,7 +11,7 @@ extern "C"
 {
 
 // runtime forward declarations
-cl_mem malloc_buffer(void *host);
+cl_mem malloc_buffer(void *host, int dev=-1, cl_mem_flags flags=CL_MEM_READ_WRITE);
 void free_buffer(cl_mem mem);
 
 void write_buffer(cl_mem dev, void *host);
@@ -37,6 +37,7 @@ void spir_build_program_and_kernel_from_binary(const char *file_name, const char
 void spir_build_program_and_kernel_from_source(const char *file_name, const char *kernel_name);
 
 void spir_set_kernel_arg(void *host, size_t size);
+void spir_set_mapped_kernel_arg(void *host, size_t size);
 void spir_set_problem_size(size_t size_x, size_t size_y, size_t size_z);
 void spir_set_config_size(size_t size_x, size_t size_y, size_t size_z);
 
@@ -46,6 +47,7 @@ void spir_synchronize();
 // helper functions
 void *array(size_t elem_size, size_t width, size_t height);
 void *slice(void *array, size_t x, size_t y, size_t width, size_t height);
+void *map_memory(size_t dev, size_t type, void *from);
 float random_val(int max);
 extern int main_impala();
 

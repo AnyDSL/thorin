@@ -11,7 +11,7 @@
 #include <iostream>
 #include <unordered_map>
 
-#define USE_SPIR
+bool print_timing = true;
 
 // define machine as seen/used by OpenCL
 // each tuple consists of platform and device
@@ -35,13 +35,26 @@ int the_machine[][2] = {
 #endif
 
 // global variables ...
+enum mem_type {
+    Global      = 1 << 0,
+    Texture     = 1 << 1,
+    Constant    = 1 << 2,
+    Shared      = 1 << 3
+};
+typedef struct array_t {
+    void *mem;
+    size_t id;
+} array_t;
+
 typedef struct mem_ {
     size_t elem;
     size_t width;
     size_t height;
 } mem_;
+
 std::unordered_map<void*, mem_> host_mems_;
 std::unordered_map<cl_mem, void*> dev_mems_;
+std::unordered_map<void*, cl_mem> dev_mems2_;
 cl_device_id devices_[num_devices_];
 cl_context contexts_[num_devices_];
 cl_command_queue command_queues_[num_devices_];
@@ -70,7 +83,7 @@ void getMicroTime() {
         global_time = now.tv_sec*1000000LL + now.tv_nsec / 1000LL;
     } else {
         global_time = (now.tv_sec*1000000LL + now.tv_nsec / 1000LL) - global_time;
-        std::cerr << "timing: " << global_time * 1.0e-3f << "(ms)" << std::endl;
+        std::cerr << "   timing: " << global_time * 1.0e-3f << "(ms)" << std::endl;
         global_time = 0;
     }
 }
@@ -423,7 +436,7 @@ void build_program_and_kernel(const char *file_name, const char *kernel_name, bo
     const char *c_str = clString.c_str();
 
 
-    if (print_progress) std::cerr << "<Thorin:> Compiling '" << kernel_name << "' .";
+    if (print_progress) std::cerr << "Compiling(" << target_dev << ") '" << kernel_name << "' .";
     if (is_binary) {
         program = clCreateProgramWithBinary(contexts_[target_dev], 1, &devices_[target_dev], &length, (const unsigned char **)&c_str, NULL, &err);
         checkErr(err, "clCreateProgramWithBinary()");
@@ -478,15 +491,19 @@ void build_program_and_kernel(const char *file_name, const char *kernel_name, bo
 }
 
 
-cl_mem malloc_buffer(void *host) {
+cl_mem malloc_buffer(void *host, int dev, cl_mem_flags flags) {
+    if (dev==-1) dev = target_dev;
     cl_int err = CL_SUCCESS;
     cl_mem mem;
-    cl_mem_flags flags = CL_MEM_READ_WRITE;
     mem_ info = host_mems_[host];
 
-    mem = clCreateBuffer(contexts_[target_dev], flags, info.elem * info.width * info.height, NULL, &err);
+    void *host_ptr = NULL;
+    if (flags & CL_MEM_USE_HOST_PTR) host_ptr = host;
+    mem = clCreateBuffer(contexts_[dev], flags, info.elem * info.width * info.height, host_ptr, &err);
     checkErr(err, "clCreateBuffer()");
+    std::cerr << " * malloc buffer(" << dev << "): dev " << mem << " <-> host: " << host << std::endl;
     dev_mems_[mem] = host;
+    dev_mems2_[host] = mem;
 
     return mem;
 }
@@ -497,27 +514,53 @@ void free_buffer(cl_mem mem) {
 
     err = clReleaseMemObject(mem);
     checkErr(err, "clReleaseMemObject()");
+    void * host = dev_mems_[mem];
     dev_mems_.erase(mem);
+    dev_mems2_.erase(host);
 }
 
 
 void write_buffer(cl_mem mem, void *host) {
     cl_int err = CL_SUCCESS;
+    cl_event event;
+    cl_ulong end, start;
     mem_ info = host_mems_[host];
 
-    err = clEnqueueWriteBuffer(command_queues_[target_dev], mem, CL_FALSE, 0, info.elem * info.width * info.height, host, 0, NULL, NULL);
+    getMicroTime();
+    err = clEnqueueWriteBuffer(command_queues_[target_dev], mem, CL_FALSE, 0, info.elem * info.width * info.height, host, 0, NULL, &event);
     err |= clFinish(command_queues_[target_dev]);
     checkErr(err, "clEnqueueWriteBuffer()");
+    getMicroTime();
+
+    if (print_timing) {
+        err = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);
+        err |= clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
+        checkErr(err, "clGetEventProfilingInfo()");
+        std::cerr << "   timing for write_buffer: "
+                  << (end-start)*1.0e-3f << "(ms)" << std::endl;
+    }
 }
 
 
 void read_buffer(cl_mem mem, void *host) {
     cl_int err = CL_SUCCESS;
+    cl_event event;
+    cl_ulong end, start;
     mem_ info = host_mems_[host];
 
-    err = clEnqueueReadBuffer(command_queues_[target_dev], mem, CL_FALSE, 0, info.elem * info.width * info.height, host, 0, NULL, NULL);
+    getMicroTime();
+    err = clEnqueueReadBuffer(command_queues_[target_dev], mem, CL_FALSE, 0, info.elem * info.width * info.height, host, 0, NULL, &event);
     err |= clFinish(command_queues_[target_dev]);
     checkErr(err, "clEnqueueReadBuffer()");
+    getMicroTime();
+
+    if (print_timing) {
+        err = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);
+        err |= clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
+        checkErr(err, "clGetEventProfilingInfo()");
+        std::cerr << "   timing for read_buffer: "
+                  << (end-start)*1.0e-3f << "(ms)" << std::endl;
+    }
 }
 
 
@@ -546,8 +589,18 @@ void set_config_size(size_t size_x, size_t size_y, size_t size_z) {
 void set_kernel_arg(void *param, size_t size) {
     cl_int err = CL_SUCCESS;
 
+    std::cerr << " * set arg: " << param << std::endl;
+
     err = clSetKernelArg(kernel, clArgIdx++, size, param);
     checkErr(err, "clSetKernelArg()");
+}
+
+
+void set_mapped_kernel_arg(void *param, size_t size) {
+    cl_mem mem = dev_mems2_[param];
+
+    std::cerr << " * set arg mapped: " << param << " (map: " << mem << ")" << std::endl;
+    set_kernel_arg(&mem, sizeof(cl_mem));
 }
 
 
@@ -555,7 +608,6 @@ void launch_kernel(const char *kernel_name) {
     cl_int err = CL_SUCCESS;
     cl_event event;
     cl_ulong end, start;
-    bool print_timing = true;
 
     getMicroTime();
     err = clEnqueueNDRangeKernel(command_queues_[target_dev], kernel, 2, NULL, global_work_size, local_work_size, 0, NULL, &event);
@@ -599,6 +651,7 @@ void spir_build_program_and_kernel_from_binary(const char *file_name, const char
 void spir_build_program_and_kernel_from_source(const char *file_name, const char *kernel_name) { build_program_and_kernel(file_name, kernel_name, false); }
 
 void spir_set_kernel_arg(void *host, size_t size) { set_kernel_arg(host, size); }
+void spir_set_mapped_kernel_arg(void *host, size_t size) { set_mapped_kernel_arg(host, size); }
 void spir_set_problem_size(size_t size_x, size_t size_y, size_t size_z) { set_problem_size(size_x, size_y, size_z); }
 void spir_set_config_size(size_t size_x, size_t size_y, size_t size_z) { set_config_size(size_x, size_y, size_z); }
 
@@ -608,8 +661,39 @@ void spir_synchronize() { synchronize(); }
 // helper functions
 void *array(size_t elem_size, size_t width, size_t height) {
     void *mem = malloc(elem_size * width * height);
+    std::cerr << " * array() -> " << mem << std::endl;
     host_mems_[mem] = {elem_size, width, height};
     return mem;
+}
+void *map_memory(size_t dev, size_t type_, void *from) {
+    cl_int err = CL_SUCCESS;
+    mem_type type = (mem_type)type_;
+    mem_ info = host_mems_[from];
+
+    if (type==Global) {
+        std::cerr << " * map_memory(" << dev << "): from " << from << " " << std::endl;
+        cl_mem_flags mem_flags = CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR;
+        cl_mem mem = malloc_buffer(from, dev, mem_flags);
+
+        cl_event event;
+        cl_ulong end, start;
+        cl_bool blocking_map = CL_TRUE;
+        cl_map_flags map_flags = CL_MAP_READ | CL_MAP_WRITE;
+        void *mapped_mem = clEnqueueMapBuffer(command_queues_[dev], mem, blocking_map, map_flags, 0, info.elem * info.width * info.height, 0, NULL, &event, &err);
+        checkErr(err, "clEnqueueMapBuffer()");
+        if (print_timing) {
+            err = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);
+            err |= clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
+            checkErr(err, "clGetEventProfilingInfo()");
+            std::cerr << "   timing for map_memory: "
+                      << (end-start)*1.0e-3f << "(ms)" << std::endl;
+        }
+    } else {
+        std::cerr << "unsupported memory: " << type << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    return from;
 }
 void *slice(void *array, size_t x, size_t y, size_t width, size_t height) {
     mem_ info = host_mems_[array]; 

@@ -55,7 +55,7 @@ public:
 
 private:
     void identify_scope(ArrayRef<Lambda*> entries);
-    void build_succs(ArrayRef<Lambda*> entries);
+    void build_succs();
     void build_preds();
     void uce(Lambda* entry);
     Lambda* find_exits();

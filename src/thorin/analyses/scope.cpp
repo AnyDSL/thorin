@@ -15,7 +15,7 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries, int mode)
     , mode_(mode)
 {
     identify_scope(entries);
-    build_succs(entries);
+    build_succs();
 
     auto entry = world.meta_lambda();
     rpo_.push_back(entry);
@@ -35,7 +35,7 @@ Scope::Scope(Lambda* entry, int mode)
     , mode_(mode)
 {
     identify_scope({entry});
-    build_succs({entry});
+    build_succs();
     uce(entry);
     auto exit = find_exits();
     build_preds();
@@ -90,7 +90,7 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
 #endif
 }
 
-void Scope::build_succs(ArrayRef<Lambda*> entries) {
+void Scope::build_succs() {
     for (auto lambda : rpo_) {
         for (auto succ : lambda->succs()) {
             if (contains(succ))

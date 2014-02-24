@@ -148,6 +148,9 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type *type) {
 void CCodeGen::emit() {
     auto scopes = top_level_scopes(world_);
 
+    stream() << "int int64_to_int32(long tid) { return (int)tid; }";
+    newline();
+
     // emit lambda and tuple declarations
     for (auto scope : scopes) {
         // tuple declarations
@@ -416,10 +419,6 @@ void CCodeGen::emit() {
     }
     primops_.clear();
     gparams_.clear();
-
-    newline();
-    stream() << "int int64_to_int32_46(long tid) { return (int)tid; }";
-    newline();
 }
 
 std::ostream& CCodeGen::emit(Def def) {

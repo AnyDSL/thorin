@@ -21,8 +21,10 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries, int mode)
     rpo_.push_back(entry);
     in_scope_.insert(entry);
 
+    auto& pair = succs_[entry];
     for (auto e : entries)
-        link_succ(entry, e);
+        pair.second.push_back(e);
+    pair.first = pair.second.size();
 
     uce(entry);
     auto exit = find_exits();
@@ -90,19 +92,35 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
 #endif
 }
 
-void Scope::build_succs() {
+template<bool forward>
+void Scope::build_preds_succs() {
     for (auto lambda : rpo_) {
-        for (auto succ : lambda->succs()) {
+        auto& pair = (forward ? succs_ : preds_)[lambda];
+        for (auto succ : forward ? lambda->succs() : lambda->preds()) {
             if (contains(succ))
-                link_succ(lambda, succ);
+                pair.second.push_back(succ);
         }
+#if 0
+        for (auto succ : forward ? lambda->direct_succs() : lambda->direct_preds()) {
+            if (contains(succ))
+                pair.second.push_back(succ);
+        }
+        pair.first = pair.second.size();
+        for (auto succ : forward ? lambda->indirect_succs() : lambda->indirect_preds()) {
+            if (contains(succ))
+                pair.second.push_back(succ);
+        }
+#endif
     }
 }
+
+//void Scope::build_preds() { build_preds_succs<false>(); }
+void Scope::build_succs() { build_preds_succs<true>(); }
 
 void Scope::build_preds() {
     for (auto lambda : rpo_) {
         for (auto succ : succs(lambda))
-            link_pred(lambda, succ);
+            preds_[lambda].second.push_back(succ);
     }
 }
 
@@ -163,6 +181,7 @@ Lambda* Scope::find_exits() {
     if (!has_unique_exit())
         return nullptr;
 
+    assert(false && "TODO");
     LambdaSet exits;
 
     for (auto lambda : rpo()) {
@@ -174,8 +193,9 @@ Lambda* Scope::find_exits() {
     rpo_.push_back(exit);
     in_scope_.insert(exit);
 
-    for (auto e : exits)
-        link_succ(e, exit);
+    // TODO direct/indirect succs/preds
+    //for (auto e : exits)
+        //link_succ(e, exit);
 
     assert(!exits.empty() && "TODO");
     return exit;

@@ -406,7 +406,7 @@ void dump_program_binary(cl_program program, cl_device_id device) {
 void build_program_and_kernel(const char *file_name, const char *kernel_name, bool is_binary) {
     cl_int err = CL_SUCCESS;
     bool print_progress = true;
-    bool print_log = true;
+    bool print_log = false;
     bool dump_binary = false;
 
     std::ifstream srcFile(file_name);
@@ -456,10 +456,13 @@ void build_program_and_kernel(const char *file_name, const char *kernel_name, bo
         err |= clGetProgramBuildInfo(program, devices_[target_dev], CL_PROGRAM_BUILD_LOG, log_size, program_build_log, NULL);
         if (print_progress) {
             if (err != CL_SUCCESS) std::cerr << ". failed!" << std::endl;
-            else std::cerr << "." << std::endl;
+            else std::cerr << ".";
         }
-        std::cerr << "<Thorin:> OpenCL build options : " << std::endl << program_build_options << std::endl;
-        std::cerr << "<Thorin:> OpenCL build log : " << std::endl << program_build_log << std::endl;
+        std::cerr << std::endl
+                  << "OpenCL build options : "
+                  << program_build_options << std::endl
+                  << "OpenCL build log : " << std::endl
+                  << program_build_log << std::endl;
 
         // free memory for options and log
         free(program_build_options);

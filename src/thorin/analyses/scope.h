@@ -35,6 +35,22 @@ public:
     bool contains(Def def) const { return in_scope_.contains(def); }
     ArrayRef<Lambda*> preds(Lambda* lambda) const { return (is_forward() ? preds_ : succs_)[lambda].second; }
     ArrayRef<Lambda*> succs(Lambda* lambda) const { return (is_forward() ? succs_ : preds_)[lambda].second; }
+    ArrayRef<Lambda*> direct_preds(Lambda* lambda) const { 
+        auto& pair = (is_forward() ? preds_ : succs_)[lambda];
+        return ArrayRef<Lambda*>(pair.second).slice_to_end(pair.first);
+    }
+    ArrayRef<Lambda*> direct_succs(Lambda* lambda) const { 
+        auto& pair = (is_forward() ? succs_ : preds_)[lambda];
+        return ArrayRef<Lambda*>(pair.second).slice_to_end(pair.first);
+    }
+    ArrayRef<Lambda*> indirect_preds(Lambda* lambda) const { 
+        auto& pair = (is_forward() ? preds_ : succs_)[lambda];
+        return ArrayRef<Lambda*>(pair.second).slice_from_begin(pair.first);
+    }
+    ArrayRef<Lambda*> indirect_succs(Lambda* lambda) const { 
+        auto& pair = (is_forward() ? succs_ : preds_)[lambda];
+        return ArrayRef<Lambda*>(pair.second).slice_from_begin(pair.first);
+    }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
     int sid(Lambda* lambda) const { assert(contains(lambda)); return (is_forward() ? sid_ : reverse_sid_)[lambda]; }
@@ -55,7 +71,6 @@ public:
 
 private:
     void identify_scope(ArrayRef<Lambda*> entries);
-    template<bool forward> void build_preds_succs();
     void build_preds();
     void build_succs();
     void uce(Lambda* entry);

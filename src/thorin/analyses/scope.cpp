@@ -25,6 +25,7 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries, int mode)
     for (auto e : entries)
         pair.second.push_back(e);
     pair.first = pair.second.size();
+    assert(succs_[entry].second.size() == entries.size());
 
     uce(entry);
     auto exit = find_exits();
@@ -92,35 +93,34 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
 #endif
 }
 
-template<bool forward>
-void Scope::build_preds_succs() {
+void Scope::build_succs() {
     for (auto lambda : rpo_) {
-        auto& pair = (forward ? succs_ : preds_)[lambda];
-        for (auto succ : forward ? lambda->succs() : lambda->preds()) {
-            if (contains(succ))
-                pair.second.push_back(succ);
-        }
-#if 0
-        for (auto succ : forward ? lambda->direct_succs() : lambda->direct_preds()) {
+        auto& pair = succs_[lambda];
+        for (auto succ : lambda->direct_succs()) {
             if (contains(succ))
                 pair.second.push_back(succ);
         }
         pair.first = pair.second.size();
-        for (auto succ : forward ? lambda->indirect_succs() : lambda->indirect_preds()) {
+        for (auto succ : lambda->indirect_succs()) {
             if (contains(succ))
                 pair.second.push_back(succ);
         }
-#endif
     }
 }
 
-//void Scope::build_preds() { build_preds_succs<false>(); }
-void Scope::build_succs() { build_preds_succs<true>(); }
-
 void Scope::build_preds() {
+    assert(is_forward() && "TODO");
     for (auto lambda : rpo_) {
-        for (auto succ : succs(lambda))
-            preds_[lambda].second.push_back(succ);
+        for (auto succ : direct_succs(lambda))
+            preds_[succ].second.push_back(lambda);
+    }
+    for (auto lambda : rpo_) {
+        auto& pair = preds_[lambda];
+        pair.first = pair.second.size();
+    }
+    for (auto lambda : rpo_) {
+        for (auto succ : indirect_succs(lambda))
+            preds_[succ].second.push_back(lambda);
     }
 }
 

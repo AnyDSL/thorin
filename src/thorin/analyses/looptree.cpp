@@ -35,6 +35,12 @@ public:
         stack.reserve(looptree.scope().size());
         build();
         propagate_bounds(looptree.root_);
+        for (auto lambda : scope()) {
+            if (looptree.lambda2leaf(lambda) == nullptr) {
+                LoopLeaf* leaf = new LoopLeaf(dfs_index++, looptree.root_, 1, {lambda});
+                looptree.map_[lambda] = looptree.dfs_leaves_[leaf->dfs_index()] = leaf;
+            }
+        }
         analyse_loops(looptree.root_);
     }
 
@@ -66,7 +72,7 @@ private:
 
     bool is_leaf(Lambda* lambda, size_t num) {
         if (num == 1) {
-            for (auto succ : scope().succs(lambda)) {
+            for (auto succ : scope().direct_succs(lambda)) {
                 if (!is_header(succ) && lambda == succ)
                     return false;
             }
@@ -128,7 +134,7 @@ void LoopTreeBuilder::recurse(LoopHeader* parent, ArrayRef<Lambda*> headers, int
 int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int scc_counter) {
     scc_counter = visit(cur, scc_counter);
 
-    for (auto succ : scope().succs(cur)) {
+    for (auto succ : scope().direct_succs(cur)) {
         if (is_header(succ))
             continue; // this is a backedge
         if (!set.contains(succ)) {
@@ -156,7 +162,7 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
             if (scope().entry() == lambda) 
                 headers.push_back(lambda); // entries are axiomatically headers
             else {
-                for (auto pred : scope().preds(lambda)) {
+                for (auto pred : scope().direct_preds(lambda)) {
                     // all backedges are also inducing headers
                     // but do not yet mark them globally as header -- we are still running through the SCC
                     if (!in_scc(pred)) {

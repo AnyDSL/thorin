@@ -18,7 +18,7 @@ bool print_timing = true;
 #ifdef __MACH__
 // Macbook Pro
 const int num_devices_ = 2;
-const int target_dev = 0;
+const int target_dev = 1;
 int the_machine[][2] = {
     {0, 0}, // Intel, i5-4288U
     {0, 1}, // Intel, Iris
@@ -537,7 +537,7 @@ void write_buffer(cl_mem mem, void *host) {
         err |= clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
         checkErr(err, "clGetEventProfilingInfo()");
         std::cerr << "   timing for write_buffer: "
-                  << (end-start)*1.0e-3f << "(ms)" << std::endl;
+                  << (end-start)*1.0e-6f << "(ms)" << std::endl;
     }
 }
 
@@ -559,7 +559,7 @@ void read_buffer(cl_mem mem, void *host) {
         err |= clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
         checkErr(err, "clGetEventProfilingInfo()");
         std::cerr << "   timing for read_buffer: "
-                  << (end-start)*1.0e-3f << "(ms)" << std::endl;
+                  << (end-start)*1.0e-6f << "(ms)" << std::endl;
     }
 }
 
@@ -620,8 +620,6 @@ void launch_kernel(const char *kernel_name) {
     err = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);
     err |= clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
     checkErr(err, "clGetEventProfilingInfo()");
-    start *= 1e-3;
-    end *= 1e-3;
 
     err = clReleaseEvent(event);
     checkErr(err, "clReleaseEvent()");
@@ -632,7 +630,7 @@ void launch_kernel(const char *kernel_name) {
                   << global_work_size[0] << "x" << global_work_size[1] << ", "
                   << local_work_size[0]*local_work_size[1] << ": "
                   << local_work_size[0] << "x" << local_work_size[1] << "): "
-                  << (end-start)*1.0e-3f << "(ms)" << std::endl;
+                  << (end-start)*1.0e-6f << "(ms)" << std::endl;
     }
 
     // reset argument index
@@ -686,7 +684,7 @@ void *map_memory(size_t dev, size_t type_, void *from) {
             err |= clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
             checkErr(err, "clGetEventProfilingInfo()");
             std::cerr << "   timing for map_memory: "
-                      << (end-start)*1.0e-3f << "(ms)" << std::endl;
+                      << (end-start)*1.0e-6f << "(ms)" << std::endl;
         }
     } else {
         std::cerr << "unsupported memory: " << type << std::endl;

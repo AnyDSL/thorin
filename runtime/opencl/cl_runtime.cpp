@@ -526,6 +526,7 @@ void write_buffer(cl_mem mem, void *host) {
     cl_ulong end, start;
     mem_ info = host_mems_[host];
 
+    std::cerr << " * write_buffer: " << mem << " <- " << host << std::endl;
     getMicroTime();
     err = clEnqueueWriteBuffer(command_queues_[target_dev], mem, CL_FALSE, 0, info.elem * info.width * info.height, host, 0, NULL, &event);
     err |= clFinish(command_queues_[target_dev]);
@@ -548,6 +549,7 @@ void read_buffer(cl_mem mem, void *host) {
     cl_ulong end, start;
     mem_ info = host_mems_[host];
 
+    std::cerr << " * read_buffer: " << mem << " -> " << host << std::endl;
     getMicroTime();
     err = clEnqueueReadBuffer(command_queues_[target_dev], mem, CL_FALSE, 0, info.elem * info.width * info.height, host, 0, NULL, &event);
     err |= clFinish(command_queues_[target_dev]);

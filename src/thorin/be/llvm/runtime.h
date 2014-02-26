@@ -34,30 +34,30 @@ public:
     llvm::Type* get_device_ptr_ty() { return device_ptr_ty_; }
 
     // void* malloc(void* ptr);
-    virtual llvm::Value* malloc(llvm::Value* size) = 0;
+    virtual llvm::Value* malloc(llvm::Value* device, llvm::Value* size) = 0;
     // void free(void* ptr);
-    virtual llvm::Value* free(llvm::Value* ptr) = 0;
+    virtual llvm::Value* free(llvm::Value* device, llvm::Value* ptr) = 0;
 
     // void write(void* ptr, i8* data);
-    virtual llvm::Value* write(llvm::Value* ptr, llvm::Value* data) = 0;
+    virtual llvm::Value* write(llvm::Value* device, llvm::Value* ptr, llvm::Value* data) = 0;
     // void read(void* ptr, i8* data);
-    virtual llvm::Value* read(llvm::Value* ptr, llvm::Value* data) = 0;
+    virtual llvm::Value* read(llvm::Value* device, llvm::Value* ptr, llvm::Value* data) = 0;
 
     // void set_problem_size(i64, x, i64 y, i64 z);
-    virtual llvm::Value* set_problem_size(llvm::Value* x, llvm::Value* y, llvm::Value* z) = 0;
+    virtual llvm::Value* set_problem_size(llvm::Value* device, llvm::Value* x, llvm::Value* y, llvm::Value* z) = 0;
     // void set_config_size(i64, x, i64 y, i64 z);
-    virtual llvm::Value* set_config_size(llvm::Value* x, llvm::Value* y, llvm::Value* z) = 0;
+    virtual llvm::Value* set_config_size(llvm::Value* device, llvm::Value* x, llvm::Value* y, llvm::Value* z) = 0;
     // void synchronize();
-    virtual llvm::Value* synchronize() = 0;
+    virtual llvm::Value* synchronize(llvm::Value* device) = 0;
 
     // void set_kernel_arg(void* ptr);
-    virtual llvm::Value* set_kernel_arg(llvm::Value* ptr) = 0;
+    virtual llvm::Value* set_kernel_arg(llvm::Value* device, llvm::Value* ptr) = 0;
     // void set_mapped_kernel_arg(void* ptr);
-    virtual llvm::Value* set_mapped_kernel_arg(llvm::Value* ptr) = 0;
+    virtual llvm::Value* set_mapped_kernel_arg(llvm::Value* device, llvm::Value* ptr) = 0;
     // void load_kernel(char* module, char* name);
-    virtual llvm::Value* load_kernel(llvm::Value* module, llvm::Value* name) = 0;
+    virtual llvm::Value* load_kernel(llvm::Value* device, llvm::Value* module, llvm::Value* name) = 0;
     // void launch_kernel(char* name);
-    virtual llvm::Value* launch_kernel(llvm::Value* name) = 0;
+    virtual llvm::Value* launch_kernel(llvm::Value* device, llvm::Value* name) = 0;
 
     virtual Lambda* emit_host_code(CodeGen &code_gen, Lambda*);
 

@@ -41,6 +41,7 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
 
     // get input
     auto target_device  = lambda->arg(1)->as<PrimLit>()->qu32_value().data();
+    auto target_device_val = builder_.getInt32(target_device);
     auto it_space  = lambda->arg(2)->as<Tuple>();
     auto it_config = lambda->arg(3)->as<Tuple>();
     auto kernel = lambda->arg(4)->as<Global>()->init()->as<Lambda>()->name;
@@ -48,7 +49,7 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
 
     // load kernel
     auto kernel_name = builder_.CreateGlobalStringPtr(kernel);
-    load_kernel(builder_.CreateGlobalStringPtr(get_module_name(lambda)), kernel_name);
+    load_kernel(target_device_val, builder_.CreateGlobalStringPtr(get_module_name(lambda)), kernel_name);
 
     // fetch values and create external calls for initialization
     // check for source devices of all pointers
@@ -60,33 +61,33 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
         if (auto ptr = target_arg->type()->as<Ptr>()) {
             if (ptr->device() == target_device) {
                 // data is already on this device
-                set_mapped_kernel_arg(target_val);
+                set_mapped_kernel_arg(target_device_val, target_val);
             } else {
                 // we need to allocate memory for this chunk on the target device
-                auto ptr = malloc(target_val);
+                auto ptr = malloc(target_device_val, target_val);
                 device_ptrs[target_arg] = ptr;
                 // copy memory to target device
-                write(ptr, target_val);
-                set_kernel_arg(ptr);
+                write(target_device_val, ptr, target_val);
+                set_kernel_arg(target_device_val, ptr);
             }
         }
     }
     const auto get_u64 = [&](Def def) { return builder_.getInt64(def->as<PrimLit>()->qu64_value()); };
 
     // setup configuration and launch
-    set_problem_size(get_u64(it_space->op(0)), get_u64(it_space->op(1)), get_u64(it_space->op(2)));
-    set_config_size(get_u64(it_config->op(0)), get_u64(it_config->op(1)), get_u64(it_config->op(2)));
-    launch_kernel(kernel_name);
+    set_problem_size(target_device_val, get_u64(it_space->op(0)), get_u64(it_space->op(1)), get_u64(it_space->op(2)));
+    set_config_size(target_device_val, get_u64(it_config->op(0)), get_u64(it_config->op(1)), get_u64(it_config->op(2)));
+    launch_kernel(target_device_val, kernel_name);
 
     // synchronize
-    synchronize();
+    synchronize(target_device_val);
 
     // emit copy-back operations
     for (auto entry : device_ptrs)
-        read(entry.second, code_gen.lookup(entry.first));
+        read(target_device_val, entry.second, code_gen.lookup(entry.first));
     // emit free operations
     for (auto entry : device_ptrs)
-        free(entry.second);
+        free(target_device_val, entry.second);
 
     return ret;
 }

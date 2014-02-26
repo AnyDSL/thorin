@@ -7,6 +7,7 @@
 static int num = 1024;
 
 int main_impala() {
+    size_t dev = 0;
     int *host = (int *)array(sizeof(int), num, 1);
 
     for (unsigned int i=0; i<num; ++i) {
@@ -14,20 +15,20 @@ int main_impala() {
     }
 
     // CODE TO BE GENERATED: BEGIN
-    CUdeviceptr dev;
-    dev = malloc_memory(host);
-    write_memory(dev, host);
+    CUdeviceptr mem;
+    mem = malloc_memory(dev, host);
+    write_memory(dev, mem, host);
 
-    load_kernel("simple-gpu64.nvvm", "simple");
-    get_tex_ref("texture");
-    bind_tex(dev, CU_AD_FORMAT_SIGNED_INT32);
-    set_kernel_arg(&dev);
-    set_problem_size(1024, 1, 1);
-    set_config_size(128, 1, 1);
-    launch_kernel("simple");
-    synchronize(); // optional
-    read_memory(dev, host);
-    free_memory(dev);
+    load_kernel(dev, "simple-gpu64.nvvm", "simple");
+    get_tex_ref(dev, "texture");
+    bind_tex(dev, mem, CU_AD_FORMAT_SIGNED_INT32);
+    set_kernel_arg(dev, &mem);
+    set_problem_size(dev, 1024, 1, 1);
+    set_config_size(dev, 128, 1, 1);
+    launch_kernel(dev, "simple");
+    synchronize(dev); // optional
+    read_memory(dev, mem, host);
+    free_memory(dev, mem);
     // CODE TO BE GENERATED: END
 
     // check result
@@ -46,28 +47,28 @@ int main_impala() {
 
     // CODE TO BE GENERATED: BEGIN
     CUdeviceptr tex;
-    tex = malloc_memory(host);
-    write_memory(tex, host);
+    tex = malloc_memory(dev, host);
+    write_memory(dev, tex, host);
 
     int *host_out = (int *)array(sizeof(int), num, 1);
     CUdeviceptr out;
-    out = malloc_memory(host_out);
+    out = malloc_memory(dev, host_out);
     for (unsigned int i=0; i<num; ++i) {
         host_out[i] = 0;
     }
-    write_memory(out, host_out);
+    write_memory(dev, out, host_out);
 
-    load_kernel("simple-gpu64.nvvm", "simple_tex");
-    get_tex_ref("texture");
-    bind_tex(tex, CU_AD_FORMAT_SIGNED_INT32);
-    set_kernel_arg(&out);
-    set_problem_size(1024, 1, 1);
-    set_config_size(128, 1, 1);
-    launch_kernel("simple");
-    synchronize(); // optional
-    read_memory(out, host_out);
-    free_memory(out);
-    free_memory(tex);
+    load_kernel(dev, "simple-gpu64.nvvm", "simple_tex");
+    get_tex_ref(dev, "texture");
+    bind_tex(dev, tex, CU_AD_FORMAT_SIGNED_INT32);
+    set_kernel_arg(dev, &out);
+    set_problem_size(dev, 1024, 1, 1);
+    set_config_size(dev, 128, 1, 1);
+    launch_kernel(dev, "simple");
+    synchronize(dev); // optional
+    read_memory(dev, out, host_out);
+    free_memory(dev, out);
+    free_memory(dev, tex);
     // CODE TO BE GENERATED: END
 
     // check result

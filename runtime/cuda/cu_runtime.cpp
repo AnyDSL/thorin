@@ -141,7 +141,7 @@ void create_module_kernel(const char *ptx, const char *kernel_name) {
 
 
 // load ll intermediate and compile to ptx
-void load_kernel(const char *file_name, const char *kernel_name) {
+void load_kernel(size_t dev, const char *file_name, const char *kernel_name) {
     nvvmResult err;
     nvvmProgram program;
     size_t PTXSize;
@@ -194,14 +194,14 @@ void load_kernel(const char *file_name, const char *kernel_name) {
     create_module_kernel(PTX, kernel_name);
 }
 
-void get_tex_ref(const char *name) {
+void get_tex_ref(size_t dev, const char *name) {
     CUresult err = CUDA_SUCCESS;
 
     err = cuModuleGetTexRef(&cuTexture, cuModule, name);
     checkErrDrv(err, "cuModuleGetTexRef()");
 }
 
-void bind_tex(CUdeviceptr mem, CUarray_format format) {
+void bind_tex(size_t dev, CUdeviceptr mem, CUarray_format format) {
     void *host = dev_mems_[mem];
     mem_ info = host_mems_[host];
     checkErrDrv(cuTexRefSetFormat(cuTexture, format, 1), "cuTexRefSetFormat()");
@@ -209,7 +209,7 @@ void bind_tex(CUdeviceptr mem, CUarray_format format) {
     checkErrDrv(cuTexRefSetAddress(0, cuTexture, mem, info.elem * info.width * info.height), "cuTexRefSetAddress()");
 }
 
-CUdeviceptr malloc_memory(void *host) {
+CUdeviceptr malloc_memory(size_t dev, void *host) {
     CUresult err = CUDA_SUCCESS;
     CUdeviceptr mem;
     mem_ info = host_mems_[host];
@@ -221,7 +221,7 @@ CUdeviceptr malloc_memory(void *host) {
     return mem;
 }
 
-void free_memory(CUdeviceptr mem) {
+void free_memory(size_t dev, CUdeviceptr mem) {
     CUresult err = CUDA_SUCCESS;
 
     err = cuMemFree(mem);
@@ -229,23 +229,23 @@ void free_memory(CUdeviceptr mem) {
     dev_mems_.erase(mem);
 }
 
-void write_memory(CUdeviceptr dev, void *host) {
+void write_memory(size_t dev, CUdeviceptr mem, void *host) {
     CUresult err = CUDA_SUCCESS;
     mem_ info = host_mems_[host];
 
-    err = cuMemcpyHtoD(dev, host, info.elem * info.width * info.height);
+    err = cuMemcpyHtoD(mem, host, info.elem * info.width * info.height);
     checkErrDrv(err, "cuMemcpyHtoD()");
 }
 
-void read_memory(CUdeviceptr dev, void *host) {
+void read_memory(size_t dev, CUdeviceptr mem, void *host) {
     CUresult err = CUDA_SUCCESS;
     mem_ info = host_mems_[host];
 
-    err = cuMemcpyDtoH(host, dev, info.elem * info.width * info.height);
+    err = cuMemcpyDtoH(host, mem, info.elem * info.width * info.height);
     checkErrDrv(err, "cuMemcpyDtoH()");
 }
 
-void synchronize() {
+void synchronize(size_t dev) {
     CUresult err = CUDA_SUCCESS;
 
     err = cuCtxSynchronize();
@@ -253,21 +253,21 @@ void synchronize() {
 }
 
 
-void set_problem_size(size_t size_x, size_t size_y, size_t size_z) {
+void set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) {
     cuDimProblem.x = size_x;
     cuDimProblem.y = size_y;
     cuDimProblem.z = size_z;
 }
 
 
-void set_config_size(size_t size_x, size_t size_y, size_t size_z) {
+void set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) {
     cuDimBlock.x = size_x;
     cuDimBlock.y = size_y;
     cuDimBlock.z = size_z;
 }
 
 
-void set_kernel_arg(void *host) {
+void set_kernel_arg(size_t dev, void *host) {
     cuArgIdx++;
     if (cuArgIdx > cuArgIdxMax) {
         cuArgs = (void **)realloc(cuArgs, sizeof(void *)*cuArgIdx);
@@ -278,7 +278,7 @@ void set_kernel_arg(void *host) {
 }
 
 
-void launch_kernel(const char *kernel_name) {
+void launch_kernel(size_t dev, const char *kernel_name) {
     CUresult err = CUDA_SUCCESS;
     CUevent start, end;
     unsigned int event_flags = CU_EVENT_DEFAULT;
@@ -318,23 +318,23 @@ void launch_kernel(const char *kernel_name) {
 
 
 // NVVM wrappers
-CUdeviceptr nvvm_malloc_memory(void *host) { return malloc_memory(host); }
-void nvvm_free_memory(CUdeviceptr mem) { free_memory(mem); }
+CUdeviceptr nvvm_malloc_memory(size_t dev, void *host) { return malloc_memory(dev, host); }
+void nvvm_free_memory(size_t dev, CUdeviceptr mem) { free_memory(dev, mem); }
 
-void nvvm_write_memory(CUdeviceptr dev, void *host) { write_memory(dev, host); }
-void nvvm_read_memory(CUdeviceptr dev, void *host) { read_memory(dev, host); }
+void nvvm_write_memory(size_t dev, CUdeviceptr mem, void *host) { write_memory(dev, mem, host); }
+void nvvm_read_memory(size_t dev, CUdeviceptr mem, void *host) { read_memory(dev, mem, host); }
 
-void nvvm_load_kernel(const char *file_name, const char *kernel_name) { load_kernel(file_name, kernel_name); }
+void nvvm_load_kernel(size_t dev, const char *file_name, const char *kernel_name) { load_kernel(dev, file_name, kernel_name); }
 
-void nvvm_get_tex_ref(const char *name) { get_tex_ref(name); }
-void nvvm_bind_tex(CUdeviceptr mem, CUarray_format format) { bind_tex(mem, format); }
+void nvvm_get_tex_ref(size_t dev, const char *name) { get_tex_ref(dev, name); }
+void nvvm_bind_tex(size_t dev, CUdeviceptr mem, CUarray_format format) { bind_tex(dev, mem, format); }
 
-void nvvm_set_kernel_arg(void *host) { set_kernel_arg(host); }
-void nvvm_set_problem_size(size_t size_x, size_t size_y, size_t size_z) { set_problem_size(size_x, size_y, size_z); }
-void nvvm_set_config_size(size_t size_x, size_t size_y, size_t size_z) { set_config_size(size_x, size_y, size_z); }
+void nvvm_set_kernel_arg(size_t dev, void *host) { set_kernel_arg(dev, host); }
+void nvvm_set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) { set_problem_size(dev, size_x, size_y, size_z); }
+void nvvm_set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) { set_config_size(dev, size_x, size_y, size_z); }
 
-void nvvm_launch_kernel(const char *kernel_name) { launch_kernel(kernel_name); }
-void nvvm_synchronize() { synchronize(); }
+void nvvm_launch_kernel(size_t dev, const char *kernel_name) { launch_kernel(dev, kernel_name); }
+void nvvm_synchronize(size_t dev) { synchronize(dev); }
 
 // helper functions
 void *array(size_t elem_size, size_t width, size_t height) {

@@ -18,7 +18,6 @@ bool print_timing = true;
 #ifdef __MACH__
 // Macbook Pro
 const int num_devices_ = 2;
-const int target_dev = 1;
 int the_machine[][2] = {
     {0, 0}, // Intel, i5-4288U
     {0, 1}, // Intel, Iris
@@ -26,7 +25,6 @@ int the_machine[][2] = {
 #else
 // Desktop
 const int num_devices_ = 3;
-const int target_dev = 1;
 int the_machine[][2] = {
     {1, 0}, // Intel, i7-3770K
     {2, 0}, // NVIDIA, GTX 680
@@ -416,7 +414,7 @@ void dump_program_binary(cl_program program, cl_device_id device) {
 
 
 // load OpenCL source file, build program, and create kernel
-void build_program_and_kernel(const char *file_name, const char *kernel_name, bool is_binary) {
+void build_program_and_kernel(size_t dev, const char *file_name, const char *kernel_name, bool is_binary) {
     cl_int err = CL_SUCCESS;
     bool print_progress = true;
     bool print_log = false;
@@ -436,12 +434,12 @@ void build_program_and_kernel(const char *file_name, const char *kernel_name, bo
     const char *c_str = clString.c_str();
 
 
-    if (print_progress) std::cerr << "Compiling(" << target_dev << ") '" << kernel_name << "' .";
+    if (print_progress) std::cerr << "Compiling(" << dev << ") '" << kernel_name << "' .";
     if (is_binary) {
-        program = clCreateProgramWithBinary(contexts_[target_dev], 1, &devices_[target_dev], &length, (const unsigned char **)&c_str, NULL, &err);
+        program = clCreateProgramWithBinary(contexts_[dev], 1, &devices_[dev], &length, (const unsigned char **)&c_str, NULL, &err);
         checkErr(err, "clCreateProgramWithBinary()");
     } else {
-        program = clCreateProgramWithSource(contexts_[target_dev], 1, (const char **)&c_str, &length, &err);
+        program = clCreateProgramWithSource(contexts_[dev], 1, (const char **)&c_str, &length, &err);
         checkErr(err, "clCreateProgramWithSource()");
     }
 
@@ -457,16 +455,16 @@ void build_program_and_kernel(const char *file_name, const char *kernel_name, bo
     if (err != CL_SUCCESS || print_log) {
         // determine the size of the options and log
         size_t log_size, options_size;
-        err |= clGetProgramBuildInfo(program, devices_[target_dev], CL_PROGRAM_BUILD_OPTIONS, 0, NULL, &options_size);
-        err |= clGetProgramBuildInfo(program, devices_[target_dev], CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+        err |= clGetProgramBuildInfo(program, devices_[dev], CL_PROGRAM_BUILD_OPTIONS, 0, NULL, &options_size);
+        err |= clGetProgramBuildInfo(program, devices_[dev], CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
 
         // allocate memory for the options and log
         char *program_build_options = (char *)malloc(options_size);
         char *program_build_log = (char *)malloc(log_size);
 
         // get the options and log
-        err |= clGetProgramBuildInfo(program, devices_[target_dev], CL_PROGRAM_BUILD_OPTIONS, options_size, program_build_options, NULL);
-        err |= clGetProgramBuildInfo(program, devices_[target_dev], CL_PROGRAM_BUILD_LOG, log_size, program_build_log, NULL);
+        err |= clGetProgramBuildInfo(program, devices_[dev], CL_PROGRAM_BUILD_OPTIONS, options_size, program_build_options, NULL);
+        err |= clGetProgramBuildInfo(program, devices_[dev], CL_PROGRAM_BUILD_LOG, log_size, program_build_log, NULL);
         if (print_progress) {
             if (err != CL_SUCCESS) std::cerr << ". failed!" << std::endl;
             else std::cerr << ".";
@@ -483,7 +481,7 @@ void build_program_and_kernel(const char *file_name, const char *kernel_name, bo
     }
     checkErr(err, "clBuildProgram(), clGetProgramBuildInfo()");
 
-    if (dump_binary) dump_program_binary(program, devices_[target_dev]);
+    if (dump_binary) dump_program_binary(program, devices_[dev]);
 
     kernel = clCreateKernel(program, kernel_name, &err);
     checkErr(err, "clCreateKernel()");
@@ -491,8 +489,7 @@ void build_program_and_kernel(const char *file_name, const char *kernel_name, bo
 }
 
 
-cl_mem malloc_buffer(void *host, int dev, cl_mem_flags flags) {
-    if (dev==-1) dev = target_dev;
+cl_mem malloc_buffer(size_t dev, void *host, cl_mem_flags flags) {
     cl_int err = CL_SUCCESS;
     cl_mem mem;
     mem_ info = host_mems_[host];
@@ -509,7 +506,7 @@ cl_mem malloc_buffer(void *host, int dev, cl_mem_flags flags) {
 }
 
 
-void free_buffer(cl_mem mem) {
+void free_buffer(size_t dev, cl_mem mem) {
     cl_int err = CL_SUCCESS;
 
     err = clReleaseMemObject(mem);
@@ -520,7 +517,7 @@ void free_buffer(cl_mem mem) {
 }
 
 
-void write_buffer(cl_mem mem, void *host) {
+void write_buffer(size_t dev, cl_mem mem, void *host) {
     cl_int err = CL_SUCCESS;
     cl_event event;
     cl_ulong end, start;
@@ -528,8 +525,8 @@ void write_buffer(cl_mem mem, void *host) {
 
     std::cerr << " * write_buffer: " << mem << " <- " << host << std::endl;
     getMicroTime();
-    err = clEnqueueWriteBuffer(command_queues_[target_dev], mem, CL_FALSE, 0, info.elem * info.width * info.height, host, 0, NULL, &event);
-    err |= clFinish(command_queues_[target_dev]);
+    err = clEnqueueWriteBuffer(command_queues_[dev], mem, CL_FALSE, 0, info.elem * info.width * info.height, host, 0, NULL, &event);
+    err |= clFinish(command_queues_[dev]);
     checkErr(err, "clEnqueueWriteBuffer()");
     getMicroTime();
 
@@ -543,7 +540,7 @@ void write_buffer(cl_mem mem, void *host) {
 }
 
 
-void read_buffer(cl_mem mem, void *host) {
+void read_buffer(size_t dev, cl_mem mem, void *host) {
     cl_int err = CL_SUCCESS;
     cl_event event;
     cl_ulong end, start;
@@ -551,8 +548,8 @@ void read_buffer(cl_mem mem, void *host) {
 
     std::cerr << " * read_buffer: " << mem << " -> " << host << std::endl;
     getMicroTime();
-    err = clEnqueueReadBuffer(command_queues_[target_dev], mem, CL_FALSE, 0, info.elem * info.width * info.height, host, 0, NULL, &event);
-    err |= clFinish(command_queues_[target_dev]);
+    err = clEnqueueReadBuffer(command_queues_[dev], mem, CL_FALSE, 0, info.elem * info.width * info.height, host, 0, NULL, &event);
+    err |= clFinish(command_queues_[dev]);
     checkErr(err, "clEnqueueReadBuffer()");
     getMicroTime();
 
@@ -566,29 +563,29 @@ void read_buffer(cl_mem mem, void *host) {
 }
 
 
-void synchronize() {
+void synchronize(size_t dev) {
     cl_int err = CL_SUCCESS;
 
-    err |= clFinish(command_queues_[target_dev]);
+    err |= clFinish(command_queues_[dev]);
     checkErr(err, "clFinish()");
 }
 
 
-void set_problem_size(size_t size_x, size_t size_y, size_t size_z) {
+void set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) {
     global_work_size[0] = size_x;
     global_work_size[1] = size_y;
     global_work_size[2] = size_z;
 }
 
 
-void set_config_size(size_t size_x, size_t size_y, size_t size_z) {
+void set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) {
     local_work_size[0] = size_x;
     local_work_size[1] = size_y;
     local_work_size[2] = size_z;
 }
 
 
-void set_kernel_arg(void *param, size_t size) {
+void set_kernel_arg(size_t dev, void *param, size_t size) {
     cl_int err = CL_SUCCESS;
 
     std::cerr << " * set arg: " << param << std::endl;
@@ -598,22 +595,22 @@ void set_kernel_arg(void *param, size_t size) {
 }
 
 
-void set_mapped_kernel_arg(void *param, size_t size) {
+void set_mapped_kernel_arg(size_t dev, void *param, size_t size) {
     cl_mem mem = dev_mems2_[param];
 
     std::cerr << " * set arg mapped: " << param << " (map: " << mem << ")" << std::endl;
-    set_kernel_arg(&mem, sizeof(cl_mem));
+    set_kernel_arg(dev, &mem, sizeof(cl_mem));
 }
 
 
-void launch_kernel(const char *kernel_name) {
+void launch_kernel(size_t dev, const char *kernel_name) {
     cl_int err = CL_SUCCESS;
     cl_event event;
     cl_ulong end, start;
 
     getMicroTime();
-    err = clEnqueueNDRangeKernel(command_queues_[target_dev], kernel, 2, NULL, global_work_size, local_work_size, 0, NULL, &event);
-    err |= clFinish(command_queues_[target_dev]);
+    err = clEnqueueNDRangeKernel(command_queues_[dev], kernel, 2, NULL, global_work_size, local_work_size, 0, NULL, &event);
+    err |= clFinish(command_queues_[dev]);
     getMicroTime();
     checkErr(err, "clEnqueueNDRangeKernel()");
 
@@ -641,22 +638,22 @@ void launch_kernel(const char *kernel_name) {
 
 
 // SPIR wrappers
-cl_mem spir_malloc_buffer(void *host) { return malloc_buffer(host); }
-void spir_free_buffer(cl_mem mem) { free_buffer(mem); }
+cl_mem spir_malloc_buffer(size_t dev, void *host) { return malloc_buffer(dev, host); }
+void spir_free_buffer(size_t dev, cl_mem mem) { free_buffer(dev, mem); }
 
-void spir_write_buffer(cl_mem dev, void *host) { write_buffer(dev, host); }
-void spir_read_buffer(cl_mem dev, void *host) { read_buffer(dev, host); }
+void spir_write_buffer(size_t dev, cl_mem mem, void *host) { write_buffer(dev, mem, host); }
+void spir_read_buffer(size_t dev, cl_mem mem, void *host) { read_buffer(dev, mem, host); }
 
-void spir_build_program_and_kernel_from_binary(const char *file_name, const char *kernel_name) { build_program_and_kernel(file_name, kernel_name, true); }
-void spir_build_program_and_kernel_from_source(const char *file_name, const char *kernel_name) { build_program_and_kernel(file_name, kernel_name, false); }
+void spir_build_program_and_kernel_from_binary(size_t dev, const char *file_name, const char *kernel_name) { build_program_and_kernel(dev, file_name, kernel_name, true); }
+void spir_build_program_and_kernel_from_source(size_t dev, const char *file_name, const char *kernel_name) { build_program_and_kernel(dev, file_name, kernel_name, false); }
 
-void spir_set_kernel_arg(void *host, size_t size) { set_kernel_arg(host, size); }
-void spir_set_mapped_kernel_arg(void *host, size_t size) { set_mapped_kernel_arg(host, size); }
-void spir_set_problem_size(size_t size_x, size_t size_y, size_t size_z) { set_problem_size(size_x, size_y, size_z); }
-void spir_set_config_size(size_t size_x, size_t size_y, size_t size_z) { set_config_size(size_x, size_y, size_z); }
+void spir_set_kernel_arg(size_t dev, void *host, size_t size) { set_kernel_arg(dev, host, size); }
+void spir_set_mapped_kernel_arg(size_t dev, void *host, size_t size) { set_mapped_kernel_arg(dev, host, size); }
+void spir_set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) { set_problem_size(dev, size_x, size_y, size_z); }
+void spir_set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) { set_config_size(dev, size_x, size_y, size_z); }
 
-void spir_launch_kernel(const char *kernel_name) { launch_kernel(kernel_name); }
-void spir_synchronize() { synchronize(); }
+void spir_launch_kernel(size_t dev, const char *kernel_name) { launch_kernel(dev, kernel_name); }
+void spir_synchronize(size_t dev) { synchronize(dev); }
 
 // helper functions
 void *array(size_t elem_size, size_t width, size_t height) {
@@ -673,7 +670,7 @@ void *map_memory(size_t dev, size_t type_, void *from) {
     if (type==Global) {
         std::cerr << " * map_memory(" << dev << "): from " << from << " " << std::endl;
         cl_mem_flags mem_flags = CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR;
-        cl_mem mem = malloc_buffer(from, dev, mem_flags);
+        cl_mem mem = malloc_buffer(dev, from, mem_flags);
 
         cl_event event;
         cl_ulong end, start;

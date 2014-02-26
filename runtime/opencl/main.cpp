@@ -7,6 +7,7 @@
 static int num = 1024;
 
 int main_impala() {
+    size_t dev = 0;
     int *host = (int *)array(sizeof(int), num, 1);
 
     for (unsigned int i=0; i<num; ++i) {
@@ -15,18 +16,18 @@ int main_impala() {
 
     // CODE TO BE GENERATED: BEGIN
     bool is_binary = true;
-    build_program_and_kernel("simple-gpu64.spir.bc", "simple", is_binary);
-    cl_mem dev;
-    dev = malloc_buffer(host);
-    write_buffer(dev, host);
+    build_program_and_kernel(dev, "simple-gpu64.spir.bc", "simple", is_binary);
+    cl_mem mem;
+    mem = malloc_buffer(dev, host);
+    write_buffer(dev, mem, host);
 
-    set_problem_size(1024, 1, 1);
-    set_config_size(128, 1, 1);
-    set_kernel_arg(&dev, sizeof(dev));
-    launch_kernel("simple");
-    synchronize(); // optional
-    read_buffer(dev, host);
-    free_buffer(dev);
+    set_problem_size(dev, 1024, 1, 1);
+    set_config_size(dev, 128, 1, 1);
+    set_kernel_arg(dev, &mem, sizeof(mem));
+    launch_kernel(dev, "simple");
+    synchronize(dev); // optional
+    read_buffer(dev, mem, host);
+    free_buffer(dev, mem);
     // CODE TO BE GENERATED: END
 
     // check result

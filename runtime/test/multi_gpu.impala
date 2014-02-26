@@ -1,0 +1,20 @@
+extern array(int, int, int) -> [float];
+extern map([float], int, int) -> [float];
+
+fn write(out: [float], src: [float], i: int) -> void {
+    out[i] = src[i];
+}
+
+fn main() -> int {
+    let width   = 4096;
+    let height  = 4096;
+    let mut arr = array(4, width, height);
+    let mut out = array(4, width, height);
+
+    iteration_multi(width, height, out, arr, |x : int, y : int, out : [float], arr : [float]| -> void {
+        out[x + y*width] = arr[x + y*width];
+    });
+
+    return 0;
+}
+

@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
         Names breakpoints;
 #endif
         string outfile;
-        bool help, emit_all, emit_c, emit_thorin, emit_il, emit_ast, emit_llvm, emit_looptree, fancy, nocolor, opt, verify, nocleanup, nossa = false;
+        bool help, emit_all, emit_c, emit_thorin, emit_il, emit_ast, emit_llvm, emit_looptree, emit_domtree, emit_postdomtree, fancy, nocolor, opt, verify, nocleanup, nossa = false;
         int vectorlength = 0;
         auto cmd_parser = ArgParser()
             .implicit_option("infiles", "input files", infiles)
@@ -64,6 +64,8 @@ int main(int argc, char** argv) {
             .add_option<bool>("emit-all", "emit AST, AIR, LLVM and loop tree", emit_all, false)
             .add_option<bool>("emit-ast", "emit AST of impala program", emit_ast, false)
             .add_option<bool>("emit-looptree", "emit loop tree", emit_looptree, false)
+            .add_option<bool>("emit-doptree", "emit dominance tree", emit_domtree, false)
+            .add_option<bool>("emit-postdomtree", "emit post-dominance tree", emit_postdomtree, false)
             .add_option<bool>("emit-llvm", "emit llvm from AIR representation (implies -O)", emit_llvm, false)
             .add_option<bool>("f", "use fancy output", fancy, false)
             .add_option<bool>("nc", "use uncolored output", nocolor, false)

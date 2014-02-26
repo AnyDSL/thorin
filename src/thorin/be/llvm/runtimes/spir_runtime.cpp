@@ -22,7 +22,7 @@ llvm::Value* SpirRuntime::malloc(llvm::Value* device, llvm::Value* ptr) {
 llvm::Value* SpirRuntime::free(llvm::Value* device, llvm::Value* ptr) {
     auto loaded_device_ptr = builder_.CreateLoad(ptr);
     llvm::Value* free_args[] = { device, loaded_device_ptr };
-    return builder_.CreateCall(get("spir_free_buffer"), { loaded_device_ptr });
+    return builder_.CreateCall(get("spir_free_buffer"), free_args);
 }
 
 llvm::Value* SpirRuntime::write(llvm::Value* device, llvm::Value* ptr, llvm::Value* data) {

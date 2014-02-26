@@ -3,31 +3,34 @@
 #include "thorin/literal.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/top_level_scopes.h"
+#include "thorin/be/thorin.h"
 #include "thorin/transform/mangle.h"
 
 namespace thorin {
 
 typedef std::vector<std::pair<const Type*, Use>> ToDo;
 
-static void map_param(World& world, Lambda* lambda, ToDo& todo) {
+static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
     // useful sanity checks
     assert(lambda->attribute().is(Lambda::Map) && "invalid map function");
     assert(lambda->params().size() == 5 && "invalid signature");
     assert(lambda->param(1)->type()->isa<Ptr>() && "invalid pointer type");
 
-    for (auto use : lambda->uses()) {
-        auto ulambda = use->as_lambda();
-        auto cont = ulambda->arg(4)->as_lambda();
+    auto uses = lambda->uses();
+    if (uses.size() < 1)
+        return false;
+    auto ulambda = uses.begin()->def()->as_lambda();
+    auto cont = ulambda->arg(4)->as_lambda();
 
-        auto mapped = world.map(ulambda->arg(0), ulambda->arg(1), ulambda->arg(2), ulambda->arg(3));
+    auto mapped = world.map(ulambda->arg(0), ulambda->arg(1), ulambda->arg(2), ulambda->arg(3));
 
-        Scope cont_scope(cont);
-        auto ncont = drop(cont_scope, { mapped->extract_mem(), mapped->extract_mapped_ptr() });
-        ulambda->jump(ncont, {});
-        cont->destroy_body();
-        for (auto use : mapped->extract_mapped_ptr()->uses())
-            todo.push_back(std::pair<const Type*, Use>(mapped->extract_mapped_ptr()->type(), use));
-    }
+    Scope cont_scope(cont);
+    auto ncont = drop(cont_scope, { mapped->extract_mem(), mapped->extract_mapped_ptr() });
+    ulambda->jump(ncont, {});
+    cont->destroy_body();
+    for (auto use : mapped->extract_mapped_ptr()->uses())
+        todo.push_back(std::pair<const Type*, Use>(mapped->extract_mapped_ptr()->type(), use));
+    return true;
 }
 
 static void adapt_addr_space(World &world, ToDo& uses) {
@@ -71,12 +74,17 @@ static void adapt_addr_space(World &world, ToDo& uses) {
 }
 
 void memmap_builtins(World& world) {
-    // 1) look for "mapped" lambdas
     ToDo todo;
-    for (auto lambda : world.copy_lambdas()) {
-        if (lambda->attribute().is(Lambda::Map))
-            map_param(world, lambda, todo);
-    }
+    // 1) look for "mapped" lambdas
+    bool has_work;
+    do {
+        emit_thorin(world, true, false);
+        has_work = false;
+        for (auto lambda : world.copy_lambdas()) {
+            if (lambda->attribute().is(Lambda::Map) && map_param(world, lambda, todo))
+                has_work = true;
+        }
+    } while (has_work);
     // 2) adapt mapped address spaces on users
     while (!todo.empty())
         adapt_addr_space(world, todo);

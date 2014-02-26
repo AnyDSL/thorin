@@ -1,5 +1,4 @@
 extern array(int, int, int) -> [float];
-extern map([float], int, int) -> [float];
 
 fn write(out: [float], src: [float], i: int) -> void {
     out[i] = src[i];

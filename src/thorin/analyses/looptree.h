@@ -1,5 +1,5 @@
-#ifndef ANALYSES_LOOPS_H
-#define ANALYSES_LOOPS_H
+#ifndef THORIN_ANALYSES_LOOPTREE_H
+#define THORIN_ANALYSES_LOOPTREE_H
 
 #include <vector>
 
@@ -160,6 +160,6 @@ private:
     friend class LoopTreeBuilder;
 };
 
-} // namespace thorin
+}
 
-#endif // ANALYSES_LOOPS_H
+#endif

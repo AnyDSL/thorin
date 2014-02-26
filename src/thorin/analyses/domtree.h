@@ -60,6 +60,6 @@ private:
     LambdaMap<DomNode*> map_;
 };
 
-} // namespace thorin
+}
 
 #endif

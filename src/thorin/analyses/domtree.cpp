@@ -80,4 +80,4 @@ DomNode* DomTree::lca(DomNode* i, DomNode* j) {
     return i;
 }
 
-} // namespace thorin
+}

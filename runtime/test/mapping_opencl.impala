@@ -18,17 +18,18 @@ fn iteration_multi(width : int, height : int, out : [float], arr : [float], body
     let dim = (width, height, 1);
     let block = (32, 4, 1);
 
-    let mapCPU = map(arr, 0, 0);
-    let mapGPU = map(arr, 1, 0);
+    let mapCPU = map(arr, 1, 0);
 
-    opencl(0, dim, block, || -> void {
+    opencl(1, dim, block, || -> void {
         let tid_x = int64_to_int32(get_global_id(0));
         let tid_y = int64_to_int32(get_global_id(1));
 
         body(tid_x, tid_y, out, mapCPU);
     });
 
-    opencl(1, dim, block, || -> void {
+    let mapGPU = map(arr, 2, 0);
+
+    opencl(2, dim, block, || -> void {
         let tid_x = int64_to_int32(get_global_id(0));
         let tid_y = int64_to_int32(get_global_id(1));
 

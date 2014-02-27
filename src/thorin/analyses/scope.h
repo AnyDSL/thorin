@@ -33,24 +33,8 @@ public:
     ArrayRef<Lambda*> body() const { return rpo().slice_from_begin(1); }
     const DefSet& in_scope() const { return in_scope_; }
     bool contains(Def def) const { return in_scope_.contains(def); }
-    ArrayRef<Lambda*> preds(Lambda* lambda) const { return (is_forward() ? preds_ : succs_)[lambda].second; }
-    ArrayRef<Lambda*> succs(Lambda* lambda) const { return (is_forward() ? succs_ : preds_)[lambda].second; }
-    ArrayRef<Lambda*> direct_preds(Lambda* lambda) const { 
-        auto& pair = (is_forward() ? preds_ : succs_)[lambda];
-        return ArrayRef<Lambda*>(pair.second).slice_to_end(pair.first);
-    }
-    ArrayRef<Lambda*> direct_succs(Lambda* lambda) const { 
-        auto& pair = (is_forward() ? succs_ : preds_)[lambda];
-        return ArrayRef<Lambda*>(pair.second).slice_to_end(pair.first);
-    }
-    ArrayRef<Lambda*> indirect_preds(Lambda* lambda) const { 
-        auto& pair = (is_forward() ? preds_ : succs_)[lambda];
-        return ArrayRef<Lambda*>(pair.second).slice_from_begin(pair.first);
-    }
-    ArrayRef<Lambda*> indirect_succs(Lambda* lambda) const { 
-        auto& pair = (is_forward() ? succs_ : preds_)[lambda];
-        return ArrayRef<Lambda*>(pair.second).slice_from_begin(pair.first);
-    }
+    ArrayRef<Lambda*> preds(Lambda* lambda) const { return (is_forward() ? preds_ : succs_)[lambda]; }
+    ArrayRef<Lambda*> succs(Lambda* lambda) const { return (is_forward() ? succs_ : preds_)[lambda]; }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
     int sid(Lambda* lambda) const { assert(contains(lambda)); return (is_forward() ? sid_ : reverse_sid_)[lambda]; }
@@ -71,12 +55,14 @@ public:
 
 private:
     void identify_scope(ArrayRef<Lambda*> entries);
-    void build_preds();
     void build_succs();
+    void build_preds();
     void uce(Lambda* entry);
     Lambda* find_exits();
     void rpo_numbering(Lambda* entry, Lambda* exit);
     int po_visit(LambdaSet& set, Lambda* cur, int i);
+    void link_succ(Lambda* src, Lambda* dst) { assert(contains(src) && contains(dst)); succs_[src].push_back(dst); };
+    void link_pred(Lambda* src, Lambda* dst) { assert(contains(src) && contains(dst)); preds_[dst].push_back(src); };
     void assign_sid(Lambda* lambda, int i) { (is_forward() ? sid_ : reverse_sid_)[lambda] = i; }
 
     World& world_;
@@ -84,8 +70,8 @@ private:
     DefSet in_scope_;
     std::vector<Lambda*> rpo_;
     std::vector<Lambda*> reverse_rpo_;
-    LambdaMap<std::pair<size_t, std::vector<Lambda*>>> preds_;
-    LambdaMap<std::pair<size_t, std::vector<Lambda*>>> succs_;
+    LambdaMap<std::vector<Lambda*>> preds_;
+    LambdaMap<std::vector<Lambda*>> succs_;
     LambdaMap<int> sid_;
     LambdaMap<int> reverse_sid_;
 };

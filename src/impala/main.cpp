@@ -157,6 +157,10 @@ int main(int argc, char** argv) {
                 for (auto scope : top_level_scopes(init.world))
                     DomTree(*scope).dump();
             }
+            if (emit_postdomtree) {
+                for (auto scope : top_level_scopes(init.world, Scope::Backward))
+                    DomTree(*scope).dump();
+            }
             if (emit_looptree) {
                 for (auto scope : top_level_scopes(init.world))
                     LoopTree(*scope).dump();

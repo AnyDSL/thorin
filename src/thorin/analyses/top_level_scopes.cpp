@@ -1,11 +1,10 @@
 #include "thorin/analyses/top_level_scopes.h"
 
 #include "thorin/world.h"
-#include "thorin/analyses/scope.h"
 
 namespace thorin {
 
-AutoVector<Scope*> top_level_scopes(World& world) {
+AutoVector<Scope*> top_level_scopes(World& world, int mode) {
     AutoVector<Scope*> scopes;
     std::queue<Lambda*> queue;
     LambdaSet done;
@@ -13,7 +12,7 @@ AutoVector<Scope*> top_level_scopes(World& world) {
     auto insert = [&] (Lambda* lambda) { 
         if (done.contains(lambda))
             return;
-        auto scope = new Scope(lambda);
+        auto scope = new Scope(lambda, mode);
         scopes.emplace_back(scope);
 
         for (auto lambda : *scope)

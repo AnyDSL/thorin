@@ -15,14 +15,17 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries, int mode)
     , mode_(mode)
 {
     identify_scope(entries);
-    build_succs(entries);
+    build_succs();
 
     auto entry = world.meta_lambda();
     rpo_.push_back(entry);
     in_scope_.insert(entry);
 
+    auto& pair = succs_[entry];
     for (auto e : entries)
-        link_succ(entry, e);
+        pair.second.push_back(e);
+    pair.first = pair.second.size();
+    assert(succs_[entry].second.size() == entries.size());
 
     uce(entry);
     auto exit = find_exits();
@@ -35,7 +38,7 @@ Scope::Scope(Lambda* entry, int mode)
     , mode_(mode)
 {
     identify_scope({entry});
-    build_succs({entry});
+    build_succs();
     uce(entry);
     auto exit = find_exits();
     build_preds();
@@ -90,19 +93,34 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
 #endif
 }
 
-void Scope::build_succs(ArrayRef<Lambda*> entries) {
+void Scope::build_succs() {
     for (auto lambda : rpo_) {
-        for (auto succ : lambda->succs()) {
+        auto& pair = succs_[lambda];
+        for (auto succ : lambda->direct_succs()) {
             if (contains(succ))
-                link_succ(lambda, succ);
+                pair.second.push_back(succ);
+        }
+        pair.first = pair.second.size();
+        for (auto succ : lambda->indirect_succs()) {
+            if (contains(succ))
+                pair.second.push_back(succ);
         }
     }
 }
 
 void Scope::build_preds() {
+    assert(is_forward() && "TODO");
     for (auto lambda : rpo_) {
-        for (auto succ : succs(lambda))
-            link_pred(lambda, succ);
+        for (auto succ : direct_succs(lambda))
+            preds_[succ].second.push_back(lambda);
+    }
+    for (auto lambda : rpo_) {
+        auto& pair = preds_[lambda];
+        pair.first = pair.second.size();
+    }
+    for (auto lambda : rpo_) {
+        for (auto succ : indirect_succs(lambda))
+            preds_[succ].second.push_back(lambda);
     }
 }
 
@@ -163,6 +181,7 @@ Lambda* Scope::find_exits() {
     if (!has_unique_exit())
         return nullptr;
 
+    assert(false && "TODO");
     LambdaSet exits;
 
     for (auto lambda : rpo()) {
@@ -174,8 +193,9 @@ Lambda* Scope::find_exits() {
     rpo_.push_back(exit);
     in_scope_.insert(exit);
 
-    for (auto e : exits)
-        link_succ(e, exit);
+    // TODO direct/indirect succs/preds
+    //for (auto e : exits)
+        //link_succ(e, exit);
 
     assert(!exits.empty() && "TODO");
     return exit;

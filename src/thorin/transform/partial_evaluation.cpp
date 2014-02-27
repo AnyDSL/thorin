@@ -134,7 +134,7 @@ public:
         , loops_(scope_)
     {
         done_.insert(nullptr);
-        //loops_.dump();
+        loops_.dump();
         collect_headers(loops_.root());
         for (auto lambda : world.lambdas())
             new2old_[lambda] = lambda;
@@ -205,6 +205,19 @@ void PartialEvaluator::push(Lambda* src, ArrayRef<Lambda*> dst) {
     std::stable_sort(edges.begin(), edges.end());
 
     if (dst.size() > 1) {
+        for (auto d : dst)
+            if (new2old_[src]->gid() == 42 && new2old_[d]->gid() == 48) {
+                size_t num = 1;
+                auto i = trace_.rbegin();
+                for (; num != 0; ++i) {
+                    assert(i != trace_.rend());
+                    if (is_header(i->nlambda())) {
+                        --num;
+                        i->set_evil();
+                    }
+                }
+            }
+
         for (auto& edge : edges)
             search_loop(edge, [&] (TraceEntry& entry) { entry.set_evil(); });
     }

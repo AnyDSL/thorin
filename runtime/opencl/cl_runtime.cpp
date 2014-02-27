@@ -525,7 +525,7 @@ void write_buffer(size_t dev, cl_mem mem, void *host) {
     cl_ulong end, start;
     mem_ info = host_mems_[host];
 
-    std::cerr << " * write_buffer: " << mem << " <- " << host << std::endl;
+    std::cerr << " * write_buffer(" << dev << "): " << mem << " <- " << host << std::endl;
     getMicroTime();
     err = clEnqueueWriteBuffer(command_queues_[dev], mem, CL_FALSE, 0, info.elem * info.width * info.height, host, 0, NULL, &event);
     err |= clFinish(command_queues_[dev]);
@@ -548,7 +548,7 @@ void read_buffer(size_t dev, cl_mem mem, void *host) {
     cl_ulong end, start;
     mem_ info = host_mems_[host];
 
-    std::cerr << " * read_buffer: " << mem << " -> " << host << std::endl;
+    std::cerr << " * read_buffer(" << dev << "): " << mem << " -> " << host << std::endl;
     getMicroTime();
     err = clEnqueueReadBuffer(command_queues_[dev], mem, CL_FALSE, 0, info.elem * info.width * info.height, host, 0, NULL, &event);
     err |= clFinish(command_queues_[dev]);
@@ -590,7 +590,7 @@ void set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) {
 void set_kernel_arg(size_t dev, void *param, size_t size) {
     cl_int err = CL_SUCCESS;
 
-    std::cerr << " * set arg: " << param << std::endl;
+    std::cerr << " * set arg(" << dev << "): " << param << std::endl;
 
     err = clSetKernelArg(kernel, clArgIdx++, size, param);
     checkErr(err, "clSetKernelArg()");
@@ -600,7 +600,7 @@ void set_kernel_arg(size_t dev, void *param, size_t size) {
 void set_mapped_kernel_arg(size_t dev, void *param, size_t size) {
     cl_mem mem = dev_mems2_[param];
 
-    std::cerr << " * set arg mapped: " << param << " (map: " << mem << ")" << std::endl;
+    std::cerr << " * set arg mapped(" << dev << "): " << param << " (map: " << mem << ")" << std::endl;
     set_kernel_arg(dev, &mem, sizeof(cl_mem));
 }
 
@@ -626,7 +626,8 @@ void launch_kernel(size_t dev, const char *kernel_name) {
     checkErr(err, "clReleaseEvent()");
 
     if (print_timing) {
-        std::cerr << "Kernel timing for '" << kernel_name << "' ("
+        std::cerr << "Kernel timing on device " << dev
+                  << " for '" << kernel_name << " ("
                   << global_work_size[0]*global_work_size[1] << ": "
                   << global_work_size[0] << "x" << global_work_size[1] << ", "
                   << local_work_size[0]*local_work_size[1] << ": "

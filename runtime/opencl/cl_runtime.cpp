@@ -36,10 +36,10 @@ int the_machine[][2] = {
 
 // global variables ...
 enum mem_type {
-    Global      = 1 << 0,
-    Texture     = 1 << 1,
-    Constant    = 1 << 2,
-    Shared      = 1 << 3
+    Global      = 0,
+    Texture     = 1,
+    Constant    = 2,
+    Shared      = 3
 };
 typedef struct array_t {
     void *mem;

@@ -78,7 +78,6 @@ void memmap_builtins(World& world) {
     // 1) look for "mapped" lambdas
     bool has_work;
     do {
-        emit_thorin(world, true, false);
         has_work = false;
         for (auto lambda : world.copy_lambdas()) {
             if (lambda->attribute().is(Lambda::Map) && map_param(world, lambda, todo))

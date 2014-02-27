@@ -1,5 +1,6 @@
 #include "thorin/analyses/domtree.h"
 
+#include <iostream>
 #include <limits>
 #include <queue>
 
@@ -78,6 +79,18 @@ DomNode* DomTree::lca(DomNode* i, DomNode* j) {
     }
 
     return i;
+}
+
+//------------------------------------------------------------------------------
+
+void DomTree::dump() const { lookup(scope().entry())->dump(); }
+
+void DomNode::dump() const {
+    for (int i = 0, e = depth(); i != e; ++i)
+        std::cout << '\t';
+    std::cout << lambda()->unique_name() << std::endl;
+    for (auto child : children())
+        child->dump();
 }
 
 }

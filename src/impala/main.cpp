@@ -3,6 +3,7 @@
 #include <cctype>
 #include <stdexcept>
 
+#include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/top_level_scopes.h"
@@ -64,7 +65,7 @@ int main(int argc, char** argv) {
             .add_option<bool>("emit-all", "emit AST, AIR, LLVM and loop tree", emit_all, false)
             .add_option<bool>("emit-ast", "emit AST of impala program", emit_ast, false)
             .add_option<bool>("emit-looptree", "emit loop tree", emit_looptree, false)
-            .add_option<bool>("emit-doptree", "emit dominance tree", emit_domtree, false)
+            .add_option<bool>("emit-domtree", "emit dominance tree", emit_domtree, false)
             .add_option<bool>("emit-postdomtree", "emit post-dominance tree", emit_postdomtree, false)
             .add_option<bool>("emit-llvm", "emit llvm from AIR representation (implies -O)", emit_llvm, false)
             .add_option<bool>("f", "use fancy output", fancy, false)
@@ -75,7 +76,7 @@ int main(int argc, char** argv) {
         cmd_parser.parse(argc, argv);
 
         if (emit_all)
-            emit_thorin = emit_looptree = emit_ast = emit_llvm = true;
+            emit_thorin = emit_domtree = emit_postdomtree = emit_looptree = emit_ast = emit_llvm = true;
         opt |= emit_llvm;
         opt |= emit_c;
 
@@ -152,6 +153,10 @@ int main(int argc, char** argv) {
                 thorin::emit_thorin(init.world, fancy, !nocolor);
             if (emit_il)
                 thorin::emit_il(init.world, fancy);
+            if (emit_domtree) {
+                for (auto scope : top_level_scopes(init.world))
+                    DomTree(*scope).dump();
+            }
             if (emit_looptree) {
                 for (auto scope : top_level_scopes(init.world))
                     LoopTree(*scope).dump();

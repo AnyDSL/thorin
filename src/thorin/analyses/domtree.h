@@ -23,6 +23,7 @@ public:
     const std::vector<const DomNode*>& children() const { return children_; }
     bool entry() const { return idom_ == this; }
     int depth() const;
+    void dump() const;
 
 private:
     Lambda* lambda_;
@@ -50,6 +51,7 @@ public:
     }
     Lambda* idom(Lambda* lambda) const { return lookup(lambda)->idom()->lambda(); }
     const DomNode* lookup(Lambda* lambda) const { return map_.find(lambda); }
+    void dump() const;
 
 private:
     DomNode* lookup(Lambda* lambda) { return map_[lambda]; }

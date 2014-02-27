@@ -25,8 +25,8 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries, int mode)
         link_succ(entry, e);
 
     uce(entry);
-    auto exit = find_exits();
     build_preds();
+    auto exit = find_exits();
     rpo_numbering(entry, exit);
 }
 
@@ -37,8 +37,8 @@ Scope::Scope(Lambda* entry, int mode)
     identify_scope({entry});
     build_succs();
     uce(entry);
-    auto exit = find_exits();
     build_preds();
+    auto exit = find_exits();
     rpo_numbering(entry, exit);
 }
 
@@ -163,6 +163,7 @@ Lambda* Scope::find_exits() {
     if (!has_unique_exit())
         return nullptr;
 
+    assert(false && "TODO");
     LambdaSet exits;
 
     for (auto lambda : rpo()) {
@@ -170,12 +171,16 @@ Lambda* Scope::find_exits() {
             exits.insert(lambda);
     }
 
-    auto exit  = world().meta_lambda();
-    rpo_.push_back(exit);
-    in_scope_.insert(exit);
-
-    for (auto e : exits)
-        link_succ(e, exit);
+    Lambda* exit;
+    if (exits.size() == 1)
+        exit = *exits.begin();
+    else {
+        exit = world().meta_lambda();
+        rpo_.push_back(exit);
+        in_scope_.insert(exit);
+        for (auto e : exits)
+            link_succ(e, exit);
+    }
 
     assert(!exits.empty() && "TODO");
     return exit;

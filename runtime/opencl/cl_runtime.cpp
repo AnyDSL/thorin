@@ -17,15 +17,17 @@ bool print_timing = true;
 // each tuple consists of platform and device
 #ifdef __MACH__
 // Macbook Pro
-const int num_devices_ = 2;
+const int num_devices_ = 3;
 int the_machine[][2] = {
+    {0, 0}, // Dummy
     {0, 0}, // Intel, i5-4288U
     {0, 1}, // Intel, Iris
 };
 #else
 // Desktop
-const int num_devices_ = 3;
+const int num_devices_ = 4;
 int the_machine[][2] = {
+    {0, 0}, // Dummy
     {1, 0}, // Intel, i7-3770K
     {2, 0}, // NVIDIA, GTX 680
     {2, 1}  // NVIDIA, GTX 580
@@ -268,7 +270,7 @@ void init_opencl() {
         checkErr(err, "clGetPlatformIDs()");
 
         int n_dev = sizeof(the_machine)/sizeof(int[2]);
-        int c_dev = 0;
+        int c_dev = 1;
         int c_pf_id = the_machine[c_dev][0];
         int c_dev_id = the_machine[c_dev][1];
 

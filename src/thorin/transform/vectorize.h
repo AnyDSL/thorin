@@ -5,7 +5,6 @@
 
 namespace thorin {
 
-template<bool> class ScopeBase;
 class Lambda;
 
 Lambda* vectorize(Scope&, size_t length);

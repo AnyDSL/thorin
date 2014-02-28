@@ -62,6 +62,7 @@ fn main() -> int {
         [0.0f, b, 0.0f],
         [   b, a, b   ],
         [0.0f, b, 0.0f]];
+
     let L : [int * 3 * 2] = [
         [0, 1, width - 1],
         [0, 1, height - 1]];
@@ -79,11 +80,11 @@ fn main() -> int {
     //                                      center, center, center, center);
     //});
     
-    // border handling specialization
+    // primitive border handling specialization
     // TODO: crashes in this configuration
     // adding @ to apply_stencil seems to cause an endless loop ... ?
     // @iterate(0, 3, |i : int| -> void {
-    //     iteration_bounds(L[i][0], U[i][0], L[i][1], U[i][1],
+    //     iteration_bounds(L[0][i], U[0][i], L[1][i], U[1][i],
     //         |x : int, y : int, lwidth : int, lheight : int| -> void {
     //             out[y * width + x] = @apply_stencil(range, stencil, x, y, arr, width,
     //                                                 center, center, center, center);
@@ -105,19 +106,37 @@ fn main() -> int {
         return (x, y >= height ? height - 1 : y);
     };
 
-    @iterate(0, 7, |i : int| -> void {
+    // (minx, maxx, miny, maxy)
+    let Bounds2D = [
+        (0        , 1        , 0         , 1),
+        (1        , width - 1, 0         , 1),
+        (width - 1, width    , 0         , 1),
+
+        (0        , 1        , 1         , height - 1),
+        (1        , width - 1, 1         , height - 1),
+        (width - 1, width    , 1         , height - 1),
+
+        (0        , 1        , height - 1, height),
+        (1        , width - 1, height - 1, height),
+        (width - 1, width    , height - 1, height)
+    ];
+
+    @iterate(0, 9, |i : int| -> void {
         let mut left = center;
         let mut right = center;
         let mut top = center;
         let mut bottom = center;
         // 0 --- 1 --- 2
-        // ----- 6 -----
+        // 6 --- 8 --- 7
         // 3 --- 4 --- 5
 
         // left
         if (i == 0) {
             left = left_handling;
             top = top_handling;
+        }
+        if (i == 6) {
+            left = left_handling;
         }
         if (i == 3) {
             left = left_handling;
@@ -133,15 +152,19 @@ fn main() -> int {
             right = right_handling;
             top = top_handling;
         }
-        if (i == 3) {
+        if (i == 7) {
+            right = right_handling;
+        }
+        if (i == 5) {
             right = right_handling;
             bottom = bottom_handling;
         }
         // center case
-        if(i == 6) {
+        if(i == 8) {
             // ignore this case
         }
-        iteration_bounds(L[i][0], U[i][0], L[i][1], U[i][1],
+        let bounds = Bounds2D[i];
+        iteration_bounds(bounds[0], bounds[1], bounds[2], bounds[3],
             |x : int, y : int, lwidth : int, lheight : int| -> void {
                 out[y * width + x] = apply_stencil(range, stencil, x, y, arr, width,
                                                    left, right, top, bottom);

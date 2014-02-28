@@ -62,6 +62,10 @@ class Type;
  *  This is particular useful for multi-threading.
  */
 class World {
+private:
+    World& operator = (const World&); ///< Do not copy-assign a \p World instance.
+    World(const World&);              ///< Do not copy-construct a \p World.
+
 public:
     typedef std::unordered_set<const PrimOp*, PrimOpHash, PrimOpEqual> PrimOps;
     typedef std::unordered_set<const Type*, TypeHash, TypeEqual> Types;

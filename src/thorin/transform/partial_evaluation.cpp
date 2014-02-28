@@ -117,7 +117,7 @@ void PartialEvaluator::eval(Lambda* cur) {
                 fold |= call.arg(i) != nullptr; // don't fold if there is nothing to fold
             }
 
-            if (!fold) {
+            if (!fold || dst->empty()) {
                 cur = dst;
             } else {
                 auto i = cache_.find(call);

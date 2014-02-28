@@ -1,4 +1,4 @@
-fn blocked_loop(length : int, bodyfn : fn(int, fn(int))) -> int {
+fn blocked_loop(length: int, bodyfn: fn(int, fn(int))) -> int {
     fn get_block_size(i : int) -> int {
         if (i == 0)
             return 4096;
@@ -12,20 +12,25 @@ fn blocked_loop(length : int, bodyfn : fn(int, fn(int))) -> int {
             return 0;
     }
 
-    fn blocked_iter(cur_level : int, i : int, N : int) -> int {
-        let mut block_size : int = get_block_size(cur_level);
+    fn blocked_iter(cur_level: int, i: int, N: int, ret: fn(int)) {
+        let block_size = get_block_size(cur_level);
         if (block_size <= 0)
             return bodyfn(i);
-        let mut res : int = 0;
-        for (let mut ii : int = i; ii < N; ii += block_size)
-            res += blocked_iter(cur_level + 1, ii, block_size);
+        let mut res = 0;
 
-        return res;
+        fn rec(ii: int) {
+            res += blocked_iter(cur_level + 1, ii, block_size);
+            if (ii < N)
+                $rec(ii + block_size);
+            else 
+                ret(res);
+        }
+        $rec(i);
     }
 
-    return blocked_iter(1, 0, length);
+    return blocked_iter(0, 0, length);
 }
 
-fn main(i : int) -> int {
-    return blocked_loop(8192, |i : int| -> int { return i; });
+fn main(i: int) -> int {
+    return @blocked_loop(8192, |i: int| -> int { return i+7; });
 }

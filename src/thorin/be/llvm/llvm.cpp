@@ -669,6 +669,21 @@ llvm::Value* CodeGen::emit_memmap(Def def) {
                          lookup(map->top_left()), lookup(map->region_size()));
 }
 
+llvm::Value* CodeGen::emit_shared_memmap(Def def) {
+    auto map = def->as<Map>();
+    assert(map->addr_space() == AddressSpace::Shared &&
+            "Only shared memory can be mapped inside NVVM code");
+    auto region_size = map->region_size()->as<Tuple>();
+    auto total_region_size = region_size->op(0)->as<PrimLit>()->ps32_value() *
+                             region_size->op(1)->as<PrimLit>()->ps32_value() *
+                             region_size->op(2)->as<PrimLit>()->ps32_value();
+    // construct array type
+    auto type = this->map(map->world().def_array(map->extract_mapped_ptr()->type()->as<Ptr>()->referenced_type(), total_region_size));
+    auto global = emit_global_memory(type, map->unique_name(), 3);
+    // TODO: fill memory
+    return global;
+}
+
 llvm::Type* CodeGen::map(const Type* type) {
     assert(!type->isa<Mem>());
     llvm::Type* llvm_type;
@@ -769,6 +784,12 @@ multiple:
     if (type->length() == 1)
         return llvm_type;
     return llvm::VectorType::get(llvm_type, type->length());
+}
+
+llvm::GlobalVariable* CodeGen::emit_global_memory(llvm::Type* type, const std::string& name, unsigned addr_space) {
+    return new llvm::GlobalVariable(*module_.get(), type, false,
+            llvm::GlobalValue::InternalLinkage, builder_.getInt64(0), name,
+            nullptr, llvm::GlobalVariable::NotThreadLocal, addr_space);
 }
 
 //------------------------------------------------------------------------------

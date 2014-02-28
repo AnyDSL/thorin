@@ -3,7 +3,6 @@
 #include "thorin/literal.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/top_level_scopes.h"
-#include "thorin/be/thorin.h"
 #include "thorin/transform/mangle.h"
 
 namespace thorin {

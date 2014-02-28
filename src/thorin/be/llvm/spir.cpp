@@ -104,8 +104,7 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
 }
 
 llvm::Value* SPIRCodeGen::emit_memmap(Def def) {
-    assert(false && "TODO: memmap inside spir code");
-    return nullptr;
+    return emit_shared_memmap(def);
 }
 
 }

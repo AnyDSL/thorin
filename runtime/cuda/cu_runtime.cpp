@@ -326,10 +326,11 @@ void nvvm_read_memory(size_t dev, CUdeviceptr mem, void *host) { read_memory(dev
 
 void nvvm_load_kernel(size_t dev, const char *file_name, const char *kernel_name) { load_kernel(dev, file_name, kernel_name); }
 
-void nvvm_get_tex_ref(size_t dev, const char *name) { get_tex_ref(dev, name); }
-void nvvm_bind_tex(size_t dev, CUdeviceptr mem, CUarray_format format) { bind_tex(dev, mem, format); }
-
 void nvvm_set_kernel_arg(size_t dev, void *host) { set_kernel_arg(dev, host); }
+void nvvm_set_kernel_arg_tex(size_t dev, CUdeviceptr mem, char *name, CUarray_format format) {
+    get_tex_ref(dev, name);
+    bind_tex(dev, mem, format);
+}
 void nvvm_set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) { set_problem_size(dev, size_x, size_y, size_z); }
 void nvvm_set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) { set_config_size(dev, size_x, size_y, size_z); }
 

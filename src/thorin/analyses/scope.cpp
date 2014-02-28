@@ -12,51 +12,38 @@
 
 namespace thorin {
 
-Scope::Scope(World& world, ArrayRef<Lambda*> entries, int mode)
+Scope::Scope(World& world, ArrayRef<Lambda*> entries, bool is_forward)
     : world_(world)
-    , mode_(mode)
+    , is_forward_(is_forward)
 {
     identify_scope(entries);
     build_succs();
 
-    auto entry = world.meta_lambda();
-    rpo_.push_back(entry);
-    in_scope_.insert(entry);
+    Lambda* entry;
+    if (entries.size() == 1)
+        entry = entries.front();
+    else {
+        entry = world.meta_lambda();
+        rpo_.push_back(entry);
+        in_scope_.insert(entry);
 
-    for (auto e : entries)
-        link_succ(entry, e);
+        for (auto e : entries)
+            link_succ(entry, e);
+    }
 
     uce(entry);
     build_preds();
     auto exit = find_exit();
-    if (exit)
-        link_exit(entry, exit);
+    link_exit(entry, exit);
     rpo_numbering<true> (entry, exit);
-    if (exit)
-        rpo_numbering<false>(entry, exit);
-}
-
-Scope::Scope(Lambda* entry, int mode)
-    : world_(entry->world())
-    , mode_(mode)
-{
-    identify_scope({entry});
-    build_succs();
-    uce(entry);
-    build_preds();
-    auto exit = find_exit();
-    if (exit)
-        link_exit(entry, exit);
-    rpo_numbering<true> (entry, exit);
-    if (exit)
-        rpo_numbering<false>(entry, exit);
+    rpo_numbering<false>(entry, exit);
 }
 
 Scope::~Scope() {
     std::vector<Lambda*> remove;
     if (!entry()->empty() && entry()->to()->isa<Bottom>())
         world().destroy(entry());
-    if (has_unique_exit() && exit()->to()->isa<Bottom>())
+    if (exit() != entry() && !exit()->empty() && exit()->to()->isa<Bottom>())
         world().destroy(exit());
 }
 
@@ -177,9 +164,6 @@ void Scope::uce(Lambda* entry) {
 }
 
 Lambda* Scope::find_exit() {
-    if (!has_unique_exit())
-        return nullptr;
-
     LambdaSet exits;
 
     for (auto lambda : rpo_) {
@@ -220,15 +204,12 @@ void Scope::post_order_visit(LambdaSet& done, LambdaSet& reachable, Lambda* cur,
         bool still_unreachable = true;
         for (auto succ : succs_[cur]) {
             if (reachable.contains(succ)) {
-                std::cout << cur->unique_name() << " -> " << succ->unique_name() << std::endl;
                 still_unreachable = false;
                 break;
             }
         }
         reachable.insert(cur);
         if (still_unreachable) {
-            std::cout << "asdfasdf" << std::endl;
-            std::cout << "!" << cur->unique_name() << std::endl;
             link_succ(cur, exit);
             link_pred(cur, exit);
         }
@@ -237,19 +218,13 @@ void Scope::post_order_visit(LambdaSet& done, LambdaSet& reachable, Lambda* cur,
 
 template<bool forward>
 void Scope::rpo_numbering(Lambda* entry, Lambda* exit) {
-    LambdaSet visited;
     auto& rpo = forward ? rpo_ : reverse_rpo_;
     auto& sid = forward ? sid_ : reverse_sid_;
-    if (!forward)
-        std::swap(entry, exit);
+    if (!forward) std::swap(entry, exit);
 
-    int num = size()-1;
-    if (exit != nullptr) {
-        visited.insert(exit);
-        sid[exit] = num--;
-    }
+    LambdaSet visited;
     visited.visit(entry);
-    num = po_visit<forward>(visited, entry, num);
+    int num = po_visit<forward>(visited, entry, size()-1);
     assert(size() == visited.size() && num == -1);
 
     // sort rpo according to sid which now holds the rpo number

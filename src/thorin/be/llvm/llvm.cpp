@@ -243,6 +243,8 @@ void CodeGen::emit() {
                 llvm::BasicBlock* tbb = bbs[select->tval()->as_lambda()];
                 llvm::BasicBlock* fbb = bbs[select->fval()->as_lambda()];
                 builder_.CreateCondBr(cond, tbb, fbb);
+            } else if (lambda->to()->isa<Bottom>()) {
+                builder_.CreateUnreachable();
             } else {
                 Lambda* to_lambda = lambda->to()->as_lambda();
                 if (to_lambda->is_basicblock())      // ordinary jump

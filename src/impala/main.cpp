@@ -145,7 +145,7 @@ int main(int argc, char** argv) {
             if (opt)
                 init.world.opt();
             if (vectorlength != 0) {
-                for (auto scope : top_level_scopes(init.world, Scope::Forward_UniqueExit)) {
+                for (auto scope : top_level_scopes(init.world)) {
                     if (scope->entry()->name == "main_impala") {
                         thorin::vectorize(*scope, vectorlength);
                         break;
@@ -162,7 +162,7 @@ int main(int argc, char** argv) {
                     DomTree(*scope).dump();
             }
             if (emit_postdomtree) {
-                for (auto scope : top_level_scopes(init.world, Scope::Backward))
+                for (auto scope : top_level_scopes(init.world, false))
                     DomTree(*scope).dump();
             }
             if (emit_looptree) {

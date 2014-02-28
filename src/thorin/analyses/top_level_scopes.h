@@ -6,7 +6,7 @@
 
 namespace thorin {
 
-AutoVector<Scope*> top_level_scopes(World&, int mode = Scope::Forward_No_UniqueExit);
+AutoVector<Scope*> top_level_scopes(World&, bool is_forward = true);
 
 }
 

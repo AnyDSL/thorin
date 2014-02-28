@@ -1,7 +1,5 @@
-#include <iostream>
-#include <list>
-#include <unordered_map>
 #include <queue>
+#include <unordered_map>
 
 #include "thorin/literal.h"
 #include "thorin/world.h"
@@ -10,7 +8,6 @@
 #include "thorin/be/thorin.h"
 #include "thorin/analyses/top_level_scopes.h"
 #include "thorin/transform/mangle.h"
-#include "thorin/transform/merge_lambdas.h"
 #include "thorin/util/hash.h"
 
 namespace thorin {
@@ -22,72 +19,6 @@ static std::vector<Lambda*> top_level_lambdas(World& world) {
         result.push_back(scope->entry());
     return result;
 }
-
-//------------------------------------------------------------------------------
-
-class TraceEntry {
-public:
-    TraceEntry(Lambda* nlambda, Lambda* olambda) 
-        : nlambda_(nlambda)
-        , olambda_(olambda)
-        , is_evil_(false)
-        , todo_(true)
-    {}
-
-    bool is_evil() const { return is_evil_; }
-    bool todo() { 
-        bool old = todo_; 
-        todo_ = false; 
-        return old; 
-    }
-    Lambda* olambda() const { return olambda_; }
-    Lambda* nlambda() const { return nlambda_; }
-    void dump() const {
-        if (olambda()) {
-            std::cout << olambda()->unique_name() << '/' << nlambda()->unique_name() 
-                << " todo: " << todo_ << " evil: " << is_evil_ << std::endl;
-        } else
-            std::cout << "<ghost entry>" << std::endl;
-    }
-    void set_evil() { is_evil_ = true; }
-
-private:
-    Lambda* nlambda_;
-    Lambda* olambda_;
-    bool is_evil_;
-    bool todo_;
-};
-
-//------------------------------------------------------------------------------
-
-class Edge {
-public:
-    Edge() {}
-    Edge(Lambda* src, Lambda* dst, bool is_within, int n)
-        : src_(src)
-        , dst_(dst)
-        , is_within_(is_within)
-        , n_(n)
-    {}
-
-    Lambda* src() const { return src_; }
-    Lambda* dst() const { return dst_; }
-    int n() const { return n_; }
-    bool is_within() const { return is_within_; }
-    bool is_cross() const { return !is_within(); }
-    int order() const { return is_within() ? 2*n() : 2*n() + 1; }
-    bool operator < (const Edge& other) const { return this->order() < other.order(); }
-    void dump() {
-        std::cout << (is_within() ? "within " : "cross ") << n() << ": "
-                  << src_->unique_name() << " -> " << dst_->unique_name() << std::endl;
-    }
-
-private:
-    Lambda* src_;
-    Lambda* dst_;
-    bool is_within_;
-    int n_;
-};
 
 //------------------------------------------------------------------------------
 
@@ -104,15 +35,6 @@ public:
     Def& arg(size_t i) { return args_[i]; }
     const Def& arg(size_t i) const { return args_[i]; }
     bool operator == (const Call& other) const { return this->to() == other.to() && this->args() == other.args(); }
-    void dump() const {
-        to()->dump_head();
-        for (auto def : args()) {
-            if (def) 
-                def->dump();
-            else
-                std::cout << "<null>" << std::endl;
-        }
-    }
 
 private:
     Lambda* to_;
@@ -133,9 +55,10 @@ public:
         : scope_(world, top_level_lambdas(world), false)
         , postdomtree_(scope_)
     {
-        postdomtree_.dump();
-        for (auto lambda : world.lambdas())
+        for (auto lambda : world.lambdas()) {
             new2old_[lambda] = lambda;
+            old2new_[lambda] = lambda;
+        }
     }
 
     World& world() { return scope().world(); }
@@ -149,6 +72,7 @@ private:
     Scope scope_;
     const DomTree postdomtree_;
     Lambda2Lambda new2old_;
+    Lambda2Lambda old2new_;
     LambdaSet done_;
     std::unordered_map<Call, Lambda*, CallHash> cache_;
 };
@@ -183,8 +107,10 @@ void PartialEvaluator::eval(Lambda* cur) {
             to = run->def();
 
         auto dst = to->isa_lambda();
-        if (dst == nullptr)
-            break;
+        if (dst == nullptr) {               // skip to immediate post-dominator
+            cur = old2new_[postdomtree_.idom(new2old_[cur])];
+            continue;
+        }
 
         Call call(dst);
         bool fold = false;
@@ -199,10 +125,10 @@ void PartialEvaluator::eval(Lambda* cur) {
         } 
         
         auto i = cache_.find(call);
-        if (i != cache_.end()) {    // check for cached version
+        if (i != cache_.end()) {            // check for cached version
             rewrite_jump(cur, i->second, call);
             break;
-        } else {                    // no no cached version found... create a new one
+        } else {                            // no no cached version found... create a new one
             Scope scope(dst);
             Def2Def old2new;
             GenericMap generic_map;
@@ -234,9 +160,10 @@ void PartialEvaluator::update_new2old(const Def2Def& old2new) {
             auto nlambda = p.second->as_lambda();
             if (!nlambda->empty() && nlambda->to()->isa<Bottom>())
                 continue;
-            //std::cout << nlambda->unique_name() << " -> "  << olambda->unique_name() << std::endl;
             assert(new2old_.contains(olambda));
-            new2old_[nlambda] = new2old_[olambda];
+            auto orig = new2old_[olambda];
+            new2old_[nlambda] = orig;
+            old2new_[orig] = nlambda;
         }
     }
 }

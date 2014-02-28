@@ -306,7 +306,7 @@ Def Lambda::fix(const Todo& todo) {
 
     for (auto pred : preds()) {
         assert(!pred->empty());
-        assert(pred->succs().size() == 1 && "critical edge");
+        assert(pred->direct_succs().size() == 1 && "critical edge");
 
         // make potentially room for the new arg
         if (index >= pred->num_args())

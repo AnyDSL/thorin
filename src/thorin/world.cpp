@@ -893,7 +893,7 @@ void World::cleanup() {
 
 void World::opt() {
     cleanup();
-    //partial_evaluation(*this);
+    partial_evaluation(*this);
     lower2cff(*this);
     clone_bodies(*this);
     mem2reg(*this);

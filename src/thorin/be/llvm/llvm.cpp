@@ -817,6 +817,10 @@ void emit_llvm(World& world) {
         lambda->name = lambda->unique_name();
         lambda->destroy_body();
         lambda->attribute().set(Lambda::Extern);
+
+        for (size_t i = 0, e = lambda->num_params(); i != e; ++i) {
+            imported->param(i)->name = lambda->param(i)->unique_name();
+        }
     }
 
     if (!nvvm.lambdas().empty() || !spir.lambdas().empty() || !opencl.lambdas().empty())

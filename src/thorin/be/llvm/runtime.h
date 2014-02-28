@@ -52,6 +52,8 @@ public:
 
     // void set_kernel_arg(void* ptr);
     virtual llvm::Value* set_kernel_arg(llvm::Value* device, llvm::Value* ptr) = 0;
+    // void set_texture(void* ptr, i8* name, type);
+    virtual llvm::Value* set_texture(llvm::Value* device, llvm::Value* ptr, llvm::Value* name, PrimTypeKind type) = 0;
     // void set_mapped_kernel_arg(void* ptr);
     virtual llvm::Value* set_mapped_kernel_arg(llvm::Value* device, llvm::Value* ptr) = 0;
     // void load_kernel(char* module, char* name);

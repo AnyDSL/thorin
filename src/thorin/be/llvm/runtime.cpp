@@ -1,5 +1,6 @@
 #include "thorin/be/llvm/runtime.h"
 
+#include <sstream>
 #include <llvm/Bitcode/ReaderWriter.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Type.h>
@@ -44,11 +45,11 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
     auto target_device_val = builder_.getInt32(target_device);
     auto it_space  = lambda->arg(2)->as<Tuple>();
     auto it_config = lambda->arg(3)->as<Tuple>();
-    auto kernel = lambda->arg(4)->as<Global>()->init()->as<Lambda>()->name;
+    auto kernel = lambda->arg(4)->as<Global>()->init()->as<Lambda>();
     auto ret = lambda->arg(5)->as_lambda();
 
     // load kernel
-    auto kernel_name = builder_.CreateGlobalStringPtr(kernel);
+    auto kernel_name = builder_.CreateGlobalStringPtr(kernel->name);
     load_kernel(target_device_val, builder_.CreateGlobalStringPtr(get_module_name(lambda)), kernel_name);
 
     // fetch values and create external calls for initialization
@@ -61,14 +62,24 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
         if (auto ptr = target_arg->type()->as<Ptr>()) {
             if (ptr->device() == target_device) {
                 // data is already on this device
-                set_mapped_kernel_arg(target_device_val, target_val);
+                if (ptr->addr_space() == AddressSpace::Texture) {
+                    // skip memory and return continuation of given kernel
+                    auto target_param = kernel->param(i - 6 + 1 + 1);
+                    auto target_array_type = target_param->type()->as<Ptr>()->referenced_type()->as<ArrayType>();
+                    auto texture_type = target_array_type->elem_type()->as<PrimType>();
+                    auto texture_name = builder_.CreateGlobalStringPtr(target_param->unique_name());
+                    set_texture(target_device_val, target_val, texture_name, texture_type->primtype_kind());
+                } else {
+                    // bind mapped buffer
+                    set_mapped_kernel_arg(target_device_val, target_val);
+                }
             } else {
                 // we need to allocate memory for this chunk on the target device
-                auto ptr = malloc(target_device_val, target_val);
-                device_ptrs[target_arg] = ptr;
+                auto mem_ptr = malloc(target_device_val, target_val);
+                device_ptrs[target_arg] = mem_ptr;
                 // copy memory to target device
-                write(target_device_val, ptr, target_val);
-                set_kernel_arg(target_device_val, ptr);
+                write(target_device_val, mem_ptr, target_val);
+                set_kernel_arg(target_device_val, mem_ptr);
             }
         }
     }

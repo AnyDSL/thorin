@@ -7,6 +7,7 @@
 #include <mach/mach.h>
 #endif
 
+#include <cassert>
 #include <fstream>
 #include <iostream>
 #include <unordered_map>
@@ -41,6 +42,7 @@ enum mem_type {
     Constant    = 2,
     Shared      = 3
 };
+
 typedef struct array_t {
     void *mem;
     size_t id;
@@ -665,10 +667,12 @@ void *array(size_t elem_size, size_t width, size_t height) {
     host_mems_[mem] = {elem_size, width, height};
     return mem;
 }
-void *map_memory(size_t dev, size_t type_, void *from) {
+void *map_memory(size_t dev, size_t type_, void *from, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz) {
     cl_int err = CL_SUCCESS;
     mem_type type = (mem_type)type_;
     mem_ info = host_mems_[from];
+
+    assert(oz==0 && sz==0 && "3D memory not yet supported");
 
     if (type==Global) {
         std::cerr << " * map_memory(" << dev << "): from " << from << " " << std::endl;
@@ -694,12 +698,6 @@ void *map_memory(size_t dev, size_t type_, void *from) {
     }
 
     return from;
-}
-void *slice(void *array, size_t x, size_t y, size_t width, size_t height) {
-    mem_ info = host_mems_[array]; 
-    void *mem = (char *)array + (x + y*info.width)*info.elem;
-
-    return mem;
 }
 float random_val(int max) {
     return ((float)random() / RAND_MAX) * max;

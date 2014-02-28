@@ -20,14 +20,19 @@ public:
 
 class Map : public MemOp {
 private:
-    Map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space, const std::string &name);
+    Map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space,
+        Def top_left, Def region_size, const std::string &name);
 
 public:
     Def extract_mem() const;
     Def extract_mapped_ptr() const;
     Def ptr() const { return op(1); }
+    Def top_left() const { return op(2); }
+    Def region_size() const { return op(3); }
+
     AddressSpace addr_space() const { return extract_mapped_ptr()->type()->as<Ptr>()->addr_space(); }
     uint32_t device() const { return extract_mapped_ptr()->type()->as<Ptr>()->device(); }
+
 
     friend class World;
 };

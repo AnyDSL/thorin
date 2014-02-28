@@ -665,7 +665,8 @@ llvm::Value* CodeGen::emit_lea(Def def) {
 llvm::Value* CodeGen::emit_memmap(Def def) {
     auto map = def->as<Map>();
     // emit proper runtime call
-    return runtime_->map(map->device(), (uint32_t)map->addr_space(), lookup(map->as<Map>()->ptr()));
+    return runtime_->map(map->device(), (uint32_t)map->addr_space(), lookup(map->ptr()),
+                         lookup(map->top_left()), lookup(map->region_size()));
 }
 
 llvm::Type* CodeGen::map(const Type* type) {
@@ -679,8 +680,27 @@ llvm::Type* CodeGen::map(const Type* type) {
         case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: llvm_type = builder_.getInt64Ty(); break;
         case PrimType_pf32: case PrimType_qf32:                                         llvm_type = builder_.getFloatTy(); break;
         case PrimType_pf64: case PrimType_qf64:                                         llvm_type = builder_.getDoubleTy();break;
-        case Node_Ptr:
-            llvm_type = llvm::PointerType::getUnqual(map(type->as<Ptr>()->referenced_type())); break;
+        case Node_Ptr: {
+            auto ptr = type->as<Ptr>();
+            unsigned address_space;
+            switch(ptr->addr_space())
+            {
+            case AddressSpace::Global:
+                address_space = 0;
+                break;
+            case AddressSpace::Texture:
+                address_space = 1;
+                break;
+            case AddressSpace::Shared:
+                address_space = 3;
+                break;
+            default:
+                THORIN_UNREACHABLE;
+                break;
+            }
+            llvm_type = llvm::PointerType::get(map(ptr->referenced_type()), address_space);
+            break;
+        }
         case Node_IndefArray:
             return llvm::ArrayType::get(map(type->as<ArrayType>()->elem_type()), 0);
         case Node_DefArray: {

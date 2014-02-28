@@ -37,7 +37,7 @@ llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     std::vector<const Type*> types;
     for (auto type : lambda->type()->elems()) {
         if (auto ptr = type->isa<Ptr>())
-            if (ptr->addr_space() != AddressSpace::Global)
+            if (ptr->addr_space() == AddressSpace::Texture)
                 continue;
         types.push_back(type);
     }
@@ -74,9 +74,6 @@ llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambd
             switch (ptr->addr_space()) {
             case AddressSpace::Texture:
                 emit_texture_kernel_arg(param);
-                break;
-            case AddressSpace::Shared:
-                assert(false && "Shared address space is TODO");
                 break;
             default:
                 // ignore this address space

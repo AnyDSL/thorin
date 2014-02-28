@@ -1,5 +1,5 @@
 extern array(int, int, int) -> [float];
-extern map([float], int, int) -> [float];
+extern map([float], int, int, (int, int, int), (int, int, int)) -> [float];
 
 fn write(out: [float], src: [float], i: int) -> void {
     out[i] = src[i];
@@ -11,7 +11,7 @@ fn main() -> int {
     let mut arr = array(4, width, height);
     let mut out = array(4, width, height);
 
-    let mapped = map(arr, 1, 1);
+    let mapped = map(arr, 1, 2, (0, 0, 0), (width, height, 0));
 
     iteration(width, height, |x : int, y : int| -> void {
         write(out, mapped, x);

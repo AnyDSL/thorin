@@ -17,11 +17,14 @@ MemOp::MemOp(size_t size, NodeKind kind, const Type* type, Def mem, const std::s
 
 //------------------------------------------------------------------------------
 
-Map::Map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space, const std::string &name)
-    : MemOp(2, Node_Map, mem->world().sigma({mem->type(), mem->world().ptr(ptr->type()->as<Ptr>()->referenced_type(),
+Map::Map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space,
+         Def top_left, Def region_size, const std::string &name)
+    : MemOp(4, Node_Map, mem->world().sigma({mem->type(), mem->world().ptr(ptr->type()->as<Ptr>()->referenced_type(),
                                              ptr->type()->as<Ptr>()->length(), device, addr_space)}), mem, name)
 {
     set_op(1, ptr);
+    set_op(2, top_left);
+    set_op(3, region_size);
 }
 
 Def Map::extract_mem() const { return world().extract(this, 0); }

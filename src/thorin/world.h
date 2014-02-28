@@ -204,8 +204,8 @@ public:
      * memops
      */
 
-    const Map* map(Def mem, Def ptr, Def device, Def addr_space, const std::string& name = "");
-    const Map* map(Def mem, Def ptr, uint32_t device = 0, AddressSpace addr_space = AddressSpace::Global, const std::string& name = "");
+    const Map* map(Def mem, Def ptr, Def device, Def addr_space, Def tleft, Def size, const std::string& name = "");
+    const Map* map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space, Def tleft, Def size, const std::string& name = "");
     Def load(Def mem, Def ptr, const std::string& name = "");
     const Store* store(Def mem, Def ptr, Def val, const std::string& name = "");
     const Enter* enter(Def mem, const std::string& name = "");

@@ -170,9 +170,9 @@ private:
 //------------------------------------------------------------------------------
 
 enum class AddressSpace : uint32_t {
-    Global,
-    Texture,
-    Shared
+    Global  = 0,
+    Texture = 1,
+    Shared  = 2,
 };
 
 class Ptr : public VectorType {
@@ -189,6 +189,7 @@ public:
     const Type* referenced_type() const { return elem(0); }
     AddressSpace addr_space() const { return addr_space_; }
     uint32_t device() const { return device_; }
+    bool is_host_device() const { return device_ == 0; }
 
     virtual size_t hash() const;
     virtual bool equal(const Type* other) const;

@@ -13,16 +13,21 @@ typedef std::vector<std::pair<const Type*, Use>> ToDo;
 static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
     // useful sanity checks
     assert(lambda->attribute().is(Lambda::Map) && "invalid map function");
-    assert(lambda->params().size() == 5 && "invalid signature");
+    assert(lambda->params().size() == 7 && "invalid signature");
     assert(lambda->param(1)->type()->isa<Ptr>() && "invalid pointer type");
 
     auto uses = lambda->uses();
     if (uses.size() < 1)
         return false;
     auto ulambda = uses.begin()->def()->as_lambda();
-    auto cont = ulambda->arg(4)->as_lambda();
 
-    auto mapped = world.map(ulambda->arg(0), ulambda->arg(1), ulambda->arg(2), ulambda->arg(3));
+    auto mapped = world.map(ulambda->arg(0),  // memory
+                            ulambda->arg(1),  // source ptr
+                            ulambda->arg(2),  // target device (0 for host device)
+                            ulambda->arg(3),  // address space
+                            ulambda->arg(4),  // top_left of region
+                            ulambda->arg(5)); // region size
+    auto cont = ulambda->arg(6)->as_lambda(); // continuation
 
     Scope cont_scope(cont);
     auto ncont = drop(cont_scope, { mapped->extract_mem(), mapped->extract_mapped_ptr() });

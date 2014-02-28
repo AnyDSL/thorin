@@ -1,0 +1,6 @@
+fn main(i: int) -> int {
+    if (i == 23)
+        return i;
+    else
+        return i + 1;
+}

@@ -57,8 +57,11 @@ private:
     void identify_scope(ArrayRef<Lambda*> entries);
     void build_succs();
     void build_preds();
+    LambdaSet reachable(bool forward, Lambda* entry);
     void uce(Lambda* entry);
     Lambda* find_exit();
+    void link_exit(Lambda* entry, Lambda* exit);
+    void post_order_visit(LambdaSet&, LambdaSet&, Lambda* cur, Lambda* exit);
     template<bool forward> void rpo_numbering(Lambda* entry, Lambda* exit);
     template<bool forward> int po_visit(LambdaSet& set, Lambda* cur, int i);
     void link_succ(Lambda* src, Lambda* dst) { assert(contains(src) && contains(dst)); succs_[src].push_back(dst); };

@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <queue>
+#include <iostream>
+#include <stack>
 
 #include "thorin/lambda.h"
 #include "thorin/literal.h"
@@ -27,6 +29,8 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries, int mode)
     uce(entry);
     build_preds();
     auto exit = find_exit();
+    if (exit)
+        link_exit(entry, exit);
     rpo_numbering<true> (entry, exit);
     if (exit)
         rpo_numbering<false>(entry, exit);
@@ -41,6 +45,8 @@ Scope::Scope(Lambda* entry, int mode)
     uce(entry);
     build_preds();
     auto exit = find_exit();
+    if (exit)
+        link_exit(entry, exit);
     rpo_numbering<true> (entry, exit);
     if (exit)
         rpo_numbering<false>(entry, exit);
@@ -110,56 +116,59 @@ void Scope::build_preds() {
     }
 }
 
+LambdaSet Scope::reachable(bool forward, Lambda* entry) {
+    LambdaSet set;
+    std::queue<Lambda*> queue;
+
+    auto insert = [&] (Lambda* lambda) { queue.push(lambda); set.insert(lambda); };
+    insert(entry);
+
+    while (!queue.empty()) {
+        Lambda* lambda = queue.front();
+        queue.pop();
+
+        for (auto succ : (forward ? succs_ : preds_)[lambda]) {
+            if (!set.contains(succ))
+                insert(succ);
+        }
+    }
+
+    return set;
+}
+
 void Scope::uce(Lambda* entry) {
-    LambdaSet reachable;
+    auto set = reachable(true, entry);
 
-    {   // mark all reachable stuff
-        std::queue<Lambda*> queue;
+    // transitively erase all non-reachable stuff
+    std::queue<Def> queue;
+    auto insert = [&] (Def def) { 
+        queue.push(def); 
+        if (Lambda* lambda = def->isa_lambda())
+            for (auto param : lambda->params())
+                queue.push(param);
+    };
 
-        auto insert = [&] (Lambda* lambda) { queue.push(lambda); reachable.insert(lambda); };
-        insert(entry);
-
-        while (!queue.empty()) {
-            Lambda* lambda = queue.front();
-            queue.pop();
-
-            for (auto succ : succs_[lambda]) {
-                if (!reachable.contains(succ))
-                    insert(succ);
-            }
-        }
+    for (auto lambda : rpo_) {
+        if (!set.contains(lambda))
+            insert(lambda);
     }
-    {   // transitively erase all non-reachable stuff
-        std::queue<Def> queue;
-        auto insert = [&] (Def def) { 
-            queue.push(def); 
-            if (Lambda* lambda = def->isa_lambda())
-                for (auto param : lambda->params())
-                    queue.push(param);
-        };
 
-        for (auto lambda : rpo_) {
-            if (!reachable.contains(lambda))
-                insert(lambda);
-        }
+    while (!queue.empty()) {
+        Def def = queue.front();
+        queue.pop();
+        int num = in_scope_.erase(def);
+        assert(num = 1);
 
-        while (!queue.empty()) {
-            Def def = queue.front();
-            queue.pop();
-            int num = in_scope_.erase(def);
-            assert(num = 1);
-
-            for (auto use : def->uses()) {
-                if (contains(use))
-                    insert(use);
-            }
+        for (auto use : def->uses()) {
+            if (contains(use))
+                insert(use);
         }
     }
 
-    rpo_.resize(reachable.size(), nullptr);
-    reverse_rpo_.resize(reachable.size(), nullptr);
-    std::copy(reachable.begin(), reachable.end(), rpo_.begin());
-    std::copy(reachable.begin(), reachable.end(), reverse_rpo_.begin());
+    rpo_.resize(set.size(), nullptr);
+    reverse_rpo_.resize(set.size(), nullptr);
+    std::copy(set.begin(), set.end(), rpo_.begin());
+    std::copy(set.begin(), set.end(), reverse_rpo_.begin());
 
 #ifndef NDEBUG
     for (auto lambda : rpo_) 
@@ -182,16 +191,48 @@ Lambda* Scope::find_exit() {
     if (exits.size() == 1)
         exit = *exits.begin();
     else {
-        assert(false && "TODO");
         exit = world().meta_lambda();
         rpo_.push_back(exit);
+        reverse_rpo_.push_back(exit);
         in_scope_.insert(exit);
-        for (auto e : exits)
+        for (auto e : exits) {
             link_succ(e, exit);
+            link_pred(e, exit);
+        }
     }
 
-    assert(!exits.empty() && "TODO");
     return exit;
+}
+
+void Scope::link_exit(Lambda* entry, Lambda* exit) {
+    LambdaSet done;
+    auto r = reachable(false, exit);
+    post_order_visit(done, r, entry, exit);
+}
+
+void Scope::post_order_visit(LambdaSet& done, LambdaSet& reachable, Lambda* cur, Lambda* exit) {
+    for (auto succ : succs_[cur]) {
+        if (!done.visit(succ))
+            post_order_visit(done, reachable, succ, exit);
+    }
+
+    if (!reachable.contains(cur)) {
+        bool still_unreachable = true;
+        for (auto succ : succs_[cur]) {
+            if (reachable.contains(succ)) {
+                std::cout << cur->unique_name() << " -> " << succ->unique_name() << std::endl;
+                still_unreachable = false;
+                break;
+            }
+        }
+        reachable.insert(cur);
+        if (still_unreachable) {
+            std::cout << "asdfasdf" << std::endl;
+            std::cout << "!" << cur->unique_name() << std::endl;
+            link_succ(cur, exit);
+            link_pred(cur, exit);
+        }
+    }
 }
 
 template<bool forward>
@@ -207,6 +248,7 @@ void Scope::rpo_numbering(Lambda* entry, Lambda* exit) {
         visited.insert(exit);
         sid[exit] = num--;
     }
+    visited.visit(entry);
     num = po_visit<forward>(visited, entry, num);
     assert(size() == visited.size() && num == -1);
 
@@ -214,22 +256,19 @@ void Scope::rpo_numbering(Lambda* entry, Lambda* exit) {
     std::stable_sort(rpo.begin(), rpo.end(), [&](Lambda* l1, Lambda* l2) { return sid[l1] < sid[l2]; });
 
 #ifndef NDEBUG
-    // double check sids
     for (int i = 0, e = size(); i != e; ++i)
-        assert(sid[rpo[i]] == i);
+        assert(sid[rpo[i]] == i && "double check of sids went wrong");
 #endif
 }
 
 template<bool forward>
-int Scope::po_visit(LambdaSet& visited, Lambda* cur, int i) {
-    assert(!visited.contains(cur));
-    visited.insert(cur);
+int Scope::po_visit(LambdaSet& done, Lambda* cur, int i) {
     auto& succs = forward ? succs_ : preds_;
     auto& sid = forward ? sid_ : reverse_sid_;
 
     for (auto succ : succs[cur]) {
-        if (!visited.contains(succ))
-            i = po_visit<forward>(visited, succ, i);
+        if (!done.visit(succ))
+            i = po_visit<forward>(done, succ, i);
     }
 
     sid[cur] = i;

@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <iostream>
 #include <sstream>
-#include <queue>
+#include <stack>
 
 #include "thorin/lambda.h"
 #include "thorin/literal.h"
@@ -74,12 +74,12 @@ std::string DefNode::unique_name() const {
 
 std::vector<Use> DefNode::uses() const {
     std::vector<Use> result;
-    std::vector<const DefNode*> stack;
-    stack.push_back(this);
+    std::stack<const DefNode*> stack;
+    stack.push(this);
 
     while (!stack.empty()) {
-        const DefNode* cur = stack.back();
-        stack.pop_back();
+        const DefNode* cur = stack.top();
+        stack.pop();
 
         for (auto use : cur->uses_) {
             if (!use.def().node()->is_proxy())
@@ -87,7 +87,7 @@ std::vector<Use> DefNode::uses() const {
         }
 
         for (auto of : cur->representatives_of_)
-            stack.push_back(of);
+            stack.push(of);
     }
 
     return result;

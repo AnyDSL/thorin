@@ -5,7 +5,6 @@
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/domtree.h"
-#include "thorin/be/thorin.h"
 #include "thorin/analyses/top_level_scopes.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
@@ -78,26 +77,29 @@ private:
 };
 
 void PartialEvaluator::seek() {
+    LambdaSet visited;
     std::queue<Lambda*> queue;
-    for (auto lambda : world().externals())
+    for (auto lambda : world().externals()) {
         queue.push(lambda);
+        visited.insert(lambda);
+    }
 
     while (!queue.empty()) {
         auto lambda = queue.front();
         queue.pop();
-
-        if (!done_.contains(lambda)) {
+        if (!lambda->empty() && lambda->to()->isa<Run>())
             eval(lambda);
-            for (auto succ : lambda->succs())
+        for (auto succ : lambda->succs()) {
+            if (!visited.contains(succ)) {
                 queue.push(succ);
+                visited.insert(succ);
+            }
         }
     }
 }
 
 void PartialEvaluator::eval(Lambda* cur) {
-    while (true) {
-        if (done_.contains(cur))
-            break;
+    while (!done_.contains(cur)) {
         done_.insert(cur);
         if (cur->empty()) 
             break;
@@ -107,7 +109,7 @@ void PartialEvaluator::eval(Lambda* cur) {
             to = run->def();
 
         auto dst = to->isa_lambda();
-        if (dst == nullptr) {               // skip to immediate post-dominator
+        if (dst == nullptr) {                   // skip to immediate post-dominator
             cur = old2new_[postdomtree_.idom(new2old_[cur])];
         } else {
             Call call(dst);
@@ -121,10 +123,10 @@ void PartialEvaluator::eval(Lambda* cur) {
                 cur = dst;
             } else {
                 auto i = cache_.find(call);
-                if (i != cache_.end()) {            // check for cached version
+                if (i != cache_.end()) {        // check for cached version
                     rewrite_jump(cur, i->second, call);
                     break;
-                } else {                            // no no cached version found... create a new one
+                } else {                        // no no cached version found... create a new one
                     Scope scope(dst);
                     Def2Def old2new;
                     GenericMap generic_map;

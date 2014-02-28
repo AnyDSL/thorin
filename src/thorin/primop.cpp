@@ -150,6 +150,7 @@ Global::Global(Def init, bool is_mutable, const std::string& name)
 }
 
 const Type* Global::referenced_type() const { return type()->as<Ptr>()->referenced_type(); }
+const char* Global::op_name() const { return is_mutable() ? "global_mutable" : "global_immutable"; }
 
 //------------------------------------------------------------------------------
 

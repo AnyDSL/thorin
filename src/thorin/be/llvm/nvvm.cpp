@@ -59,9 +59,7 @@ llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambd
 
     const auto emit_texture_kernel_arg = [&](const Param* param) {
         assert(param->type()->as<Ptr>()->addr_space() == AddressSpace::Texture);
-        auto global = new llvm::GlobalVariable(*module_.get(), builder_.getInt64Ty(), false,
-                llvm::GlobalValue::InternalLinkage, builder_.getInt64(0), param->unique_name(),
-                nullptr, llvm::GlobalVariable::NotThreadLocal, 1);
+        auto global = emit_global_memory(builder_.getInt64Ty(), param->unique_name(), 1);
         metadata_[param] = append_metadata(global, "texture");
     };
 
@@ -181,12 +179,7 @@ llvm::Value* NVVMCodeGen::emit_lea(Def def) {
 }
 
 llvm::Value* NVVMCodeGen::emit_memmap(Def def) {
-    auto map = def->as<Map>();
-    assert(map->addr_space() == AddressSpace::Shared &&
-            "Only shared memory can be mapped inside NVVM code");
-
-    assert(false && "TODO: shared memory for NVVM");
-    return nullptr;
+    return emit_shared_memmap(def);
 }
 
 llvm::GlobalVariable* NVVMCodeGen::resolve_global_variable(const Param* param) {

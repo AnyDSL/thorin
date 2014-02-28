@@ -14,7 +14,9 @@ namespace thorin {
 
 class CFFLowering {
 public:
-    CFFLowering(World& world) {
+    CFFLowering(World& world) 
+        : world_(world)
+    {
         for (auto scope : top_level_scopes(world))
             top_.insert(scope->entry());
     }
@@ -23,50 +25,85 @@ public:
     size_t process();
 
 private:
+    World& world_;
     LambdaSet top_;
+};
+
+class UseProxy {
+public:
+    enum Kind { None, Run, Hlt };
+
+    UseProxy() {}
+    UseProxy(Lambda* lambda, Kind kind)
+        : lambda_(lambda)
+        , kind_(kind)
+    {}
+
+    Lambda* lambda() const { return lambda_; }
+    Kind kind() const { return kind_; }
+
+private:
+    Lambda* lambda_;
+    Kind kind_;
 };
 
 void CFFLowering::transform(Lambda* lambda) {
     Scope scope(lambda);
     std::unordered_map<Array<Def>, Lambda*> args2lambda;
+    std::vector<UseProxy> use_proxies;
 
     for (auto use : lambda->uses()) {
-        assert(!use->isa<EvalOp>() && "use partial evaluation first");
-        if (auto ulambda = use->isa_lambda()) {
-            if (use.index() != 0 || scope.contains(ulambda))
-                continue;
-
-            GenericMap map;
-            bool res = lambda->type()->infer_with(map, ulambda->arg_pi());
-            assert(res);
-            
-            size_t num_args = lambda->num_params();
-            bool ret = false;
-            Array<Def> args(num_args);
-            for (size_t i = num_args; i-- != 0;) {
-                // don't drop the "return" of a top-level function
-                if (!ret &&  top_.find(lambda) != top_.end() && lambda->param(i)->type()->specialize(map)->order() == 1) {
-                    ret = true;
-                    args[i] = nullptr;
-                } else 
-                    args[i] = (lambda->param(i)->order() >= 1) ? ulambda->arg(i) : nullptr;
+        if (auto evalop = use->isa<EvalOp>()) {
+            for (auto use : evalop->uses()) {
+                if (use.index() == 0) {
+                    if (auto ulambda = use->isa_lambda()) {
+                        if (!scope.contains(ulambda))
+                            use_proxies.emplace_back(ulambda, evalop->isa<Run>() ? UseProxy::Run : UseProxy::Hlt);
+                    }
+                }
             }
-
-            // check whether we can reuse an existing version
-            auto i = args2lambda.find(args);
-            Lambda* target;
-            if (i != args2lambda.end()) 
-                target = i->second; // use already dropped version as target 
-            else
-                args2lambda[args] = target = drop(scope, args, map);
-
-            std::vector<Def> nargs;
-            for (size_t i = 0, e = num_args; i != e; ++i) {
-                if (args[i] == nullptr)
-                    nargs.push_back(ulambda->arg(i));
-            }
-            ulambda->jump(target, nargs);
+        } else if (auto ulambda = use->isa_lambda()) {
+            if (use.index() == 0 && !scope.contains(ulambda))
+                use_proxies.emplace_back(ulambda, UseProxy::None);
         }
+    }
+
+    for (auto use : use_proxies) {
+        auto ulambda = use.lambda();
+        GenericMap map;
+        bool res = lambda->type()->infer_with(map, ulambda->arg_pi());
+        assert(res);
+        
+        size_t num_args = lambda->num_params();
+        bool ret = false;
+        Array<Def> args(num_args);
+        for (size_t i = num_args; i-- != 0;) {
+            // don't drop the "return" of a top-level function
+            if (!ret &&  top_.find(lambda) != top_.end() && lambda->param(i)->type()->specialize(map)->order() == 1) {
+                ret = true;
+                args[i] = nullptr;
+            } else 
+                args[i] = (lambda->param(i)->order() >= 1) ? ulambda->arg(i) : nullptr;
+        }
+
+        // check whether we can reuse an existing version
+        auto i = args2lambda.find(args);
+        Lambda* target;
+        if (i != args2lambda.end()) 
+            target = i->second; // use already dropped version as target 
+        else
+            args2lambda[args] = target = drop(scope, args, map);
+
+        std::vector<Def> nargs;
+        for (size_t i = 0, e = num_args; i != e; ++i) {
+            if (args[i] == nullptr)
+                nargs.push_back(ulambda->arg(i));
+        }
+        ulambda->jump(target, nargs);
+        if (use.kind() == UseProxy::Run)
+            ulambda->update_to(world_.run(ulambda->to()));
+        else if (use.kind() == UseProxy::Hlt)
+            ulambda->update_to(world_.hlt(ulambda->to()));
     }
 }
 

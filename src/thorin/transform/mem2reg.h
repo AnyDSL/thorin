@@ -11,6 +11,6 @@ class World;
  */
 void mem2reg(World&);
 
-} // namespace thorin
+}
 
-#endif // THORIN_TRANSFORM_MEM2REG_H
+#endif

@@ -14,9 +14,10 @@ void mem2reg(const Scope& scope) {
     size_t cur_handle = 0;
 
     // unseal all lambdas ...
-    for (auto lambda : scope.rpo()) {
+    for (auto lambda : scope) {
         lambda->set_parent(lambda);
         lambda->unseal();
+        assert(lambda->is_cleared());
     }
 
     // ... except top-level lambdas
@@ -66,6 +67,9 @@ next_primop:;
             }
         }
     }
+
+    for (auto lambda : scope)
+        lambda->clear();        // clean up value numbering table
 }
 
 void mem2reg(World& world) {

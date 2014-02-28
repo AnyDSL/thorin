@@ -75,21 +75,21 @@ fn main() -> int {
     };
 
     // full mode
-    // iteration_bounds(0, width, 0, height, |x : int, y : int, lwidth : int, lheight : int| -> void {
-    //    out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width,
-    //                                      center, center, center, center);
-    //});
+     iteration_bounds(0, width, 0, height, |x : int, y : int, lwidth : int, lheight : int| -> void {
+        out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width,
+                                          center, center, center, center);
+    });
     
     // primitive border handling specialization
     // TODO: crashes in this configuration
     // adding @ to apply_stencil seems to cause an endless loop ... ?
-    // @iterate(0, 3, |i : int| -> void {
-    //     iteration_bounds(L[0][i], U[0][i], L[1][i], U[1][i],
-    //         |x : int, y : int, lwidth : int, lheight : int| -> void {
-    //             out[y * width + x] = @apply_stencil(range, stencil, x, y, arr, width,
-    //                                                 center, center, center, center);
-    //     });
-    // });
+    @iterate(0, 3, |i : int| -> void {
+        iteration_bounds(L[0][i], U[0][i], L[1][i], U[1][i],
+            |x : int, y : int, lwidth : int, lheight : int| -> void {
+                out[y * width + x] = @apply_stencil(range, stencil, x, y, arr, width,
+                                                    center, center, center, center);
+        });
+    });
 
     // border handling specialization
     // HINT: naive realization which could be created by a domain expert

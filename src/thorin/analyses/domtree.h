@@ -28,21 +28,17 @@ public:
 private:
     Lambda* lambda_;
     DomNode* idom_;
-    std::vector<const DomNode*> children_;
+    AutoVector<const DomNode*> children_;
 
     friend class DomTree;
 };
 
 class DomTree {
 public:
-    explicit DomTree(const Scope& scope)
-        : scope_(scope)
-    {
-        create();
-    }
-    ~DomTree() { for (auto p : map_) delete p.second; }
+    explicit DomTree(const Scope& scope);
 
     const Scope& scope() const { return scope_; }
+    const DomNode* root() const { return root_; }
     int depth(Lambda* lambda) const { return lookup(lambda)->depth(); }
     /// Returns the least common ancestor of \p i and \p j.
     Lambda* lca(Lambda* i, Lambda* j) const { return lca(lookup(i), lookup(j))->lambda(); }
@@ -51,7 +47,8 @@ public:
     }
     Lambda* idom(Lambda* lambda) const { return lookup(lambda)->idom()->lambda(); }
     const DomNode* lookup(Lambda* lambda) const { return map_.find(lambda); }
-    void dump() const;
+    void dump() const { root()->dump(); }
+    bool is_forward() const { return is_forward_; }
 
 private:
     DomNode* lookup(Lambda* lambda) { return map_[lambda]; }
@@ -59,7 +56,9 @@ private:
     DomNode* lca(DomNode* i, DomNode* j);
 
     const Scope& scope_;
+    AutoPtr<DomNode> root_;
     LambdaMap<DomNode*> map_;
+    bool is_forward_;
 };
 
 }

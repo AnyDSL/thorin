@@ -30,7 +30,7 @@ public:
 
     World& world() { return scope.world(); }
 
-    Scope scope;
+    Scope& scope;
     const DomTree postdomtree;
     const DomTree domtree;
     Def2Def mapped;
@@ -85,11 +85,11 @@ Lambda* Vectorizer::vectorize() {
         }
     }
 
-    //Lambda* exit = scope.exits()[0];
-    //Array<Def> vops(exit->size());
-    //for (size_t i = 0, e = exit->size(); i != e; ++i)
-        //vops[i] = vectorize(exit->op(i), length);
-    //vlambda->jump(vops.front(), vops.slice_from_begin(1));
+    auto exit = scope.exit();
+    Array<Def> vops(exit->size());
+    for (size_t i = 0, e = exit->size(); i != e; ++i)
+        vops[i] = vectorize(exit->op(i), length);
+    vlambda->jump(vops.front(), vops.slice_from_begin(1));
 
     return vlambda;
 }

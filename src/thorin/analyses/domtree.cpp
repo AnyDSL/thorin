@@ -20,19 +20,26 @@ int DomNode::depth() const {
 
 //------------------------------------------------------------------------------
 
+DomTree::DomTree(const Scope& scope)
+    : scope_(scope)
+    , is_forward_(scope.is_forward())
+{
+    create();
+}
+
 void DomTree::create() {
     for (auto lambda : scope())
         map_[lambda] = new DomNode(lambda);
 
     // map entry's initial idom to itself
-    auto entry_node = lookup(scope_.entry());
-    entry_node->idom_ = entry_node;
+    root_ = lookup(scope().entry());
+    root_->idom_ = root_;
 
     // all others' idom are set to their first found dominating pred
-    for (auto lambda : scope_.body()) {
-        for (auto pred : scope_.preds(lambda)) {
-            assert(scope_.contains(pred));
-            if (scope_.sid(pred) < scope_.sid(lambda)) {
+    for (auto lambda : scope().body()) {
+        for (auto pred : scope().preds(lambda)) {
+            assert(scope().contains(pred));
+            if (scope().sid(pred) < scope().sid(lambda)) {
                 auto n = lookup(pred);
                 assert(n);
                 lookup(lambda)->idom_ = n;
@@ -46,11 +53,11 @@ outer_loop:;
     for (bool changed = true; changed;) {
         changed = false;
 
-        for (auto lambda : scope_.body()) {
+        for (auto lambda : scope().body()) {
             DomNode* lambda_node = lookup(lambda);
 
             DomNode* new_idom = nullptr;
-            for (auto pred : scope_.preds(lambda)) {
+            for (auto pred : scope().preds(lambda)) {
                 DomNode* pred_node = lookup(pred);
                 assert(pred_node);
                 new_idom = new_idom ? lca(new_idom, pred_node) : pred_node;
@@ -63,15 +70,16 @@ outer_loop:;
         }
     }
 
-    for (auto lambda : scope_.body()) {
+    for (auto lambda : scope().body()) {
         const DomNode* n = lookup(lambda);
         n->idom_->children_.push_back(n);
     }
 }
 
 DomNode* DomTree::lca(DomNode* i, DomNode* j) {
+    assert(scope().is_forward() == is_forward());
     assert(i && j);
-    auto sid = [&] (DomNode* n) { return scope_.sid(n->lambda()); };
+    auto sid = [&] (DomNode* n) { return scope().sid(n->lambda()); };
 
     while (sid(i) != sid(j)) {
         while (sid(i) < sid(j)) j = j->idom_;
@@ -82,8 +90,6 @@ DomNode* DomTree::lca(DomNode* i, DomNode* j) {
 }
 
 //------------------------------------------------------------------------------
-
-void DomTree::dump() const { lookup(scope().entry())->dump(); }
 
 void DomNode::dump() const {
     for (int i = 0, e = depth(); i != e; ++i)

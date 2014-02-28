@@ -43,7 +43,7 @@ public:
     bool is_forward() const { return mode_ & Forward; ; }
     bool has_unique_exit() const { return mode_ & UniqueExit; }
     int mode() const { return mode_; }
-    Scope& reverse() { assert(has_unique_exit()); mode_ ^= 1 << Forward; return *this; }
+    Scope& reverse() { assert(has_unique_exit()); mode_ ^= Forward; return *this; }
 
     typedef ArrayRef<Lambda*>::const_iterator const_iterator;
     const_iterator begin() const { return rpo().begin(); }
@@ -58,12 +58,11 @@ private:
     void build_succs();
     void build_preds();
     void uce(Lambda* entry);
-    Lambda* find_exits();
-    void rpo_numbering(Lambda* entry, Lambda* exit);
-    int po_visit(LambdaSet& set, Lambda* cur, int i);
+    Lambda* find_exit();
+    template<bool forward> void rpo_numbering(Lambda* entry, Lambda* exit);
+    template<bool forward> int po_visit(LambdaSet& set, Lambda* cur, int i);
     void link_succ(Lambda* src, Lambda* dst) { assert(contains(src) && contains(dst)); succs_[src].push_back(dst); };
     void link_pred(Lambda* src, Lambda* dst) { assert(contains(src) && contains(dst)); preds_[dst].push_back(src); };
-    void assign_sid(Lambda* lambda, int i) { (is_forward() ? sid_ : reverse_sid_)[lambda] = i; }
 
     World& world_;
     int mode_;

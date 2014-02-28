@@ -26,8 +26,10 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries, int mode)
 
     uce(entry);
     build_preds();
-    auto exit = find_exits();
-    rpo_numbering(entry, exit);
+    auto exit = find_exit();
+    rpo_numbering<true> (entry, exit);
+    if (exit)
+        rpo_numbering<false>(entry, exit);
 }
 
 Scope::Scope(Lambda* entry, int mode)
@@ -38,8 +40,10 @@ Scope::Scope(Lambda* entry, int mode)
     build_succs();
     uce(entry);
     build_preds();
-    auto exit = find_exits();
-    rpo_numbering(entry, exit);
+    auto exit = find_exit();
+    rpo_numbering<true> (entry, exit);
+    if (exit)
+        rpo_numbering<false>(entry, exit);
 }
 
 Scope::~Scope() {
@@ -86,7 +90,7 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
     }
 
 #ifndef NDEBUG
-    for (auto lambda : rpo()) assert(contains(lambda));
+    for (auto lambda : rpo_) assert(contains(lambda));
 #endif
 }
 
@@ -101,7 +105,7 @@ void Scope::build_succs() {
 
 void Scope::build_preds() {
     for (auto lambda : rpo_) {
-        for (auto succ : succs(lambda))
+        for (auto succ : succs_[lambda])
             link_pred(lambda, succ);
     }
 }
@@ -119,7 +123,7 @@ void Scope::uce(Lambda* entry) {
             Lambda* lambda = queue.front();
             queue.pop();
 
-            for (auto succ : succs(lambda)) {
+            for (auto succ : succs_[lambda]) {
                 if (!reachable.contains(succ))
                     insert(succ);
             }
@@ -153,21 +157,24 @@ void Scope::uce(Lambda* entry) {
     }
 
     rpo_.resize(reachable.size(), nullptr);
+    reverse_rpo_.resize(reachable.size(), nullptr);
     std::copy(reachable.begin(), reachable.end(), rpo_.begin());
+    std::copy(reachable.begin(), reachable.end(), reverse_rpo_.begin());
+
 #ifndef NDEBUG
-    for (auto lambda : rpo()) assert(contains(lambda));
+    for (auto lambda : rpo_) 
+        assert(contains(lambda));
 #endif
 }
 
-Lambda* Scope::find_exits() {
+Lambda* Scope::find_exit() {
     if (!has_unique_exit())
         return nullptr;
 
-    assert(false && "TODO");
     LambdaSet exits;
 
-    for (auto lambda : rpo()) {
-        if (num_succs(lambda) == 0)
+    for (auto lambda : rpo_) {
+        if (succs_[lambda].empty())
             exits.insert(lambda);
     }
 
@@ -175,6 +182,7 @@ Lambda* Scope::find_exits() {
     if (exits.size() == 1)
         exit = *exits.begin();
     else {
+        assert(false && "TODO");
         exit = world().meta_lambda();
         rpo_.push_back(exit);
         in_scope_.insert(exit);
@@ -186,37 +194,45 @@ Lambda* Scope::find_exits() {
     return exit;
 }
 
+template<bool forward>
 void Scope::rpo_numbering(Lambda* entry, Lambda* exit) {
     LambdaSet visited;
+    auto& rpo = forward ? rpo_ : reverse_rpo_;
+    auto& sid = forward ? sid_ : reverse_sid_;
+    if (!forward)
+        std::swap(entry, exit);
 
     int num = size()-1;
     if (exit != nullptr) {
         visited.insert(exit);
-        assign_sid(exit, num--);
+        sid[exit] = num--;
     }
-    num = po_visit(visited, entry, num);
+    num = po_visit<forward>(visited, entry, num);
     assert(size() == visited.size() && num == -1);
 
-    // sort rpo_ according to sid which now holds the rpo number
-    std::stable_sort(rpo_.begin(), rpo_.end(), [&](Lambda* l1, Lambda* l2) { return sid(l1) < sid(l2); });
+    // sort rpo according to sid which now holds the rpo number
+    std::stable_sort(rpo.begin(), rpo.end(), [&](Lambda* l1, Lambda* l2) { return sid[l1] < sid[l2]; });
 
 #ifndef NDEBUG
     // double check sids
     for (int i = 0, e = size(); i != e; ++i)
-        assert(sid(rpo_[i]) == i);
+        assert(sid[rpo[i]] == i);
 #endif
 }
 
+template<bool forward>
 int Scope::po_visit(LambdaSet& visited, Lambda* cur, int i) {
     assert(!visited.contains(cur));
     visited.insert(cur);
+    auto& succs = forward ? succs_ : preds_;
+    auto& sid = forward ? sid_ : reverse_sid_;
 
-    for (auto succ : succs(cur)) {
+    for (auto succ : succs[cur]) {
         if (!visited.contains(succ))
-            i = po_visit(visited, succ, i);
+            i = po_visit<forward>(visited, succ, i);
     }
 
-    assign_sid(cur, i);
+    sid[cur] = i;
     return i-1;
 }
 

@@ -1,0 +1,19 @@
+fn matmul(res: [float], a: [float], b: [float], n: int) -> void {
+    fn index(x: int, y: int) -> int {
+        return y*n + x;
+    }
+
+    for (let mut y = 0; y != n; ++y) {
+        for (let mut x = 0; x != n; ++x) {
+            let mut sum = 0.f;
+            for (let mut i = 0; i != n; ++i) {
+                sum += a[index(x, i)]*b[index(i, y)];
+            }
+            res[index(x, y)] = sum;
+        }
+    }
+}
+
+fn main() -> int {
+    return 0;
+}

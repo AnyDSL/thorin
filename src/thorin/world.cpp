@@ -897,6 +897,8 @@ void World::opt() {
     clone_bodies(*this);
     mem2reg(*this);
     partial_evaluation(*this);
+    merge_lambdas(*this);
+    cleanup();
     memmap_builtins(*this);
     lift_builtins(*this);
     inliner(*this);

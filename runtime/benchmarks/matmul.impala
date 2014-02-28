@@ -1,4 +1,6 @@
 extern array(int) -> [float];
+extern reset_and_start_timer() -> void;
+extern print_time() -> void;
 
 fn checked_matmul(square: bool, res: [float], mut num_rows: int, mut num_cols: int, a: [float], b: [float], num: int) -> void {
     if (square) {
@@ -38,6 +40,8 @@ fn main() -> int {
     let a   = array(3*3);
     let b   = array(3*3);
     let res = array(3*3);
-    @matmul2(res, a, b, 8);
+    reset_and_start_timer();
+    @matmul2(res, a, b, 9);
+    print_time();
     return 0;
 }

@@ -1,0 +1,152 @@
+extern array(int, int, int) -> [float];
+extern random_val(int) -> float;
+
+fn iterate(a : int, b : int, yield : fn(int, fn())) -> void {
+    let mut i: int = a;
+    while (i < b)
+        yield(i++, || { continue; });
+}
+
+fn init_zero(arr : [float], width : int, height : int) -> void {
+    iterate(0, width*height, |i: int| -> void {
+        arr[i] = 0.0f;
+    });
+}
+fn init_rand(arr : [float], width : int, height : int) -> void {
+    iterate(0, height, |y: int| -> void {
+        iterate(0, width, |x: int| -> void {
+            arr[x + y*width] = random_val(width);
+        });
+    });
+}
+
+fn apply_stencil(range : int, stencil : [float * 3 * 3],
+                 x : int, y : int, arr : [float], width : int,
+                 left_handling   : fn(int, int) -> (int, int),
+                 right_handling  : fn(int, int) -> (int, int),
+                 top_handling    : fn(int, int) -> (int, int),
+                 bottom_handling : fn(int, int) -> (int, int)) -> float {
+    let mut sum = 0.0f;
+    let half_range = range / 2;
+    iterate(-half_range, half_range+1, |j : int| -> void {
+        iterate(-half_range, half_range+1, |i : int| -> void {
+            let stencil_val = stencil[i + half_range][j + half_range];
+            if (stencil_val != 0.0f) {
+                let mut index = left_handling(x + i, y + j);
+                        index = right_handling(index[0], index[1]);
+                        index = top_handling(index[0], index[1]);
+                        index = bottom_handling(index[0], index[1]);
+                // sum += arr[(y+j)*width + x + i] * stencil_val;
+                sum += arr[index[0] * width + index[1]] * stencil_val;
+            } else {
+                // additional logic for empty stencil value
+            }
+        });
+    });
+
+    return sum;
+}
+
+fn main() -> int {
+    let width   = 2048;
+    let height  = 2048;
+    let range   = 3;
+    let a       = 0.2f;
+    let b       = 1.0f - 4.0f * a;
+    let mut arr = array(4, width, height);
+    let mut out = array(4, width, height);
+    init_rand(arr, width, height);
+    init_zero(out, width, height);
+
+    let stencil : [float * 3 * 3] = [
+        [0.0f, b, 0.0f],
+        [   b, a, b   ],
+        [0.0f, b, 0.0f]];
+    let L : [int * 3 * 2] = [
+        [0, 1, width - 1],
+        [0, 1, height - 1]];
+    let U : [int * 3 * 2] = [
+        [1, width - 1, width],
+        [1, height - 1, height]];
+
+    let center = |x : int, y : int| -> (int, int) {
+        return (x, y);
+    };
+
+    // full mode
+    // iteration_bounds(0, width, 0, height, |x : int, y : int, lwidth : int, lheight : int| -> void {
+    //    out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width,
+    //                                      center, center, center, center);
+    //});
+    
+    // border handling specialization
+    // TODO: crashes in this configuration
+    // adding @ to apply_stencil seems to cause an endless loop ... ?
+    // @iterate(0, 3, |i : int| -> void {
+    //     iteration_bounds(L[i][0], U[i][0], L[i][1], U[i][1],
+    //         |x : int, y : int, lwidth : int, lheight : int| -> void {
+    //             out[y * width + x] = @apply_stencil(range, stencil, x, y, arr, width,
+    //                                                 center, center, center, center);
+    //     });
+    // });
+
+    // border handling specialization
+    // HINT: naive realization which could be created by a domain expert
+    let left_handling = |x : int, y : int| -> (int, int) {
+        return (x < 0 ? 0 : x, y);
+    };
+    let right_handling = |x : int, y : int| -> (int, int) {
+        return (x >= width ? width - 1 : x, y);
+    };
+    let top_handling = |x : int, y : int| -> (int, int) {
+        return (x, y < 0 ? 0 : y);
+    };
+    let bottom_handling = |x : int, y : int| -> (int, int) {
+        return (x, y >= height ? height - 1 : y);
+    };
+
+    @iterate(0, 7, |i : int| -> void {
+        let mut left = center;
+        let mut right = center;
+        let mut top = center;
+        let mut bottom = center;
+        // 0 --- 1 --- 2
+        // ----- 6 -----
+        // 3 --- 4 --- 5
+
+        // left
+        if (i == 0) {
+            left = left_handling;
+            top = top_handling;
+        }
+        if (i == 3) {
+            left = left_handling;
+            bottom = bottom_handling;
+        }
+        // top + bottom
+        if (i == 1)
+            top = top_handling;
+        if (i == 4)
+            bottom = bottom_handling;
+        // right
+        if (i == 2) {
+            right = right_handling;
+            top = top_handling;
+        }
+        if (i == 3) {
+            right = right_handling;
+            bottom = bottom_handling;
+        }
+        // center case
+        if(i == 6) {
+            // ignore this case
+        }
+        iteration_bounds(L[i][0], U[i][0], L[i][1], U[i][1],
+            |x : int, y : int, lwidth : int, lheight : int| -> void {
+                out[y * width + x] = apply_stencil(range, stencil, x, y, arr, width,
+                                                   left, right, top, bottom);
+        });
+    });
+
+    return 0;
+}

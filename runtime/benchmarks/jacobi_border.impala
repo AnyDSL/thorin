@@ -75,7 +75,7 @@ fn main() -> int {
     };
 
     // full mode
-     iteration_bounds(0, width, 0, height, |x : int, y : int, lwidth : int, lheight : int| -> void {
+    iteration_bounds(0, width, 0, height, |x : int, y : int, lwidth : int, lheight : int| -> void {
         out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width,
                                           center, center, center, center);
     });

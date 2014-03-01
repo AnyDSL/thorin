@@ -101,7 +101,8 @@ void PartialEvaluator::seek() {
     while (!todo_.empty()) {
         auto lambda = todo_.front();
         todo_.pop();
-        eval(lambda);
+        if (!lambda->empty())
+            eval(lambda);
     }
 }
 
@@ -118,10 +119,12 @@ void PartialEvaluator::eval(Lambda* cur) {
         auto dst = to->isa_lambda();
         if (dst == nullptr) {                   // skip to immediate post-dominator
             cur = old2new_[postdomtree_.idom(new2old_[cur])];
-        } else if (dst->empty()) {              // stop here but continue on lambda arguments
+        } else if (dst->empty()) {
             for (auto arg : cur->args()) {
-                if (auto lambda = arg->isa_lambda())
-                    todo_.push(lambda);
+                if (auto lambda = arg->isa_lambda()) {
+                    if (!done_.contains(lambda))
+                        todo_.push(lambda);
+                }
             }
             return;
         } else {

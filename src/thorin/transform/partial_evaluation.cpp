@@ -74,6 +74,7 @@ private:
     Lambda2Lambda old2new_;
     LambdaSet done_;
     std::unordered_map<Call, Lambda*, CallHash> cache_;
+    std::queue<Lambda*> todo_;
 };
 
 void PartialEvaluator::seek() {
@@ -96,13 +97,19 @@ void PartialEvaluator::seek() {
             }
         }
     }
+
+    while (!todo_.empty()) {
+        auto lambda = todo_.front();
+        todo_.pop();
+        eval(lambda);
+    }
 }
 
 void PartialEvaluator::eval(Lambda* cur) {
     while (!done_.contains(cur)) {
         done_.insert(cur);
         if (cur->empty()) 
-            break;
+            return;
 
         auto to = cur->to();
         if (auto run = to->isa<Run>())
@@ -111,6 +118,12 @@ void PartialEvaluator::eval(Lambda* cur) {
         auto dst = to->isa_lambda();
         if (dst == nullptr) {                   // skip to immediate post-dominator
             cur = old2new_[postdomtree_.idom(new2old_[cur])];
+        } else if (dst->empty()) {              // stop here but continue on lambda arguments
+            for (auto arg : cur->args()) {
+                if (auto lambda = arg->isa_lambda())
+                    todo_.push(lambda);
+            }
+            return;
         } else {
             Call call(dst);
             bool fold = false;
@@ -125,7 +138,7 @@ void PartialEvaluator::eval(Lambda* cur) {
                 auto i = cache_.find(call);
                 if (i != cache_.end()) {        // check for cached version
                     rewrite_jump(cur, i->second, call);
-                    break;
+                    return;
                 } else {                        // no no cached version found... create a new one
                     Scope scope(dst);
                     Def2Def old2new;

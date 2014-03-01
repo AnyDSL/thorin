@@ -12,12 +12,15 @@ void lift_builtins(World& world) {
         if (cur->is_connected_to_builtin() && !cur->is_basicblock()) {
             Scope scope(cur);
             auto vars = free_vars(scope);
+#ifndef NDEBUG
+            for (auto var : vars)
+                assert(var->order() == 0 && "creating a higher-order function");
+#endif
             auto lifted = lift(scope, vars);
 
             for (auto use : cur->uses()) {
                 if (auto ulambda = use->isa_lambda()) {
                     if (auto to = ulambda->to()->isa_lambda()) {
-                        //if (to->is_builtin()) {
                         if (to->is_builtin()) {
                             auto oops = ulambda->ops();
                             Array<Def> nops(oops.size() + vars.size());

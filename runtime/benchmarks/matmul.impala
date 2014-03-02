@@ -36,12 +36,12 @@ fn matmul(res: [float], num_rows: int, num_cols: int, a: [float], b: [float], nu
     @checked_matmul(false, res, num_rows, num_cols, a, b, num);
 }
 
-fn main() -> int {
+fn main(i: int) -> int {
     let a   = array(3*3);
     let b   = array(3*3);
     let res = array(3*3);
     reset_and_start_timer();
-    @matmul2(res, a, b, 9);
+    @matmul2(res, a, b, i);
     print_time();
     return 0;
 }

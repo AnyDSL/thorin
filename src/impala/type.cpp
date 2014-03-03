@@ -95,7 +95,7 @@ bool GenericMap::is_empty() const {
     return true;
 }
 
-const char* GenericMap::to_string() const {
+std::string GenericMap::to_string() const {
     std::ostringstream o;
     bool first = true;
     for (size_t i = 0, e = types_.size(); i != e; ++i) {
@@ -108,7 +108,7 @@ const char* GenericMap::to_string() const {
         }
     }
 
-    return o.str().c_str();
+    return o.str();
 }
 
 const GenericRef* Generic::genericref(const Fun* fun) const { return typetable_.genericref(fun, this); }

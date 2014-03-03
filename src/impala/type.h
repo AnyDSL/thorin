@@ -61,7 +61,7 @@ public:
 
     const Type*& operator [] (const Generic* generic) const;
     bool is_empty() const;
-    const char* to_string() const;
+    std::string to_string() const;
 
 private:
     mutable std::vector<const Type*> types_;

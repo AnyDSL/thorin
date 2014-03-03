@@ -76,7 +76,6 @@ Vector::Vector(World& world, ArrayRef<Def> args, const std::string& name)
     }
 }
 
-const VectorType* Vector::vector_type() const { return type()->as<VectorType>(); }
 const Sigma* Tuple::sigma() const { return type()->as<Sigma>(); }
 
 Extract::Extract(Def agg, Def index, const std::string& name)

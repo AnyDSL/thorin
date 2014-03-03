@@ -114,10 +114,6 @@ void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f) {
     }
 }
 
-const Param* IRBuilder::cascading_call(Def to, ArrayRef<Def> args, const Type* ret_type) {
-    return is_reachable() ? (cur_bb = cur_bb->call(to, args, ret_type))->param(0) : nullptr;
-}
-
 void IRBuilder::mem_call(Def to, ArrayRef<Def> args, const Type* ret_type) {
     if (is_reachable())
         (cur_bb = cur_bb->mem_call(to, args, ret_type));

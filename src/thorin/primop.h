@@ -180,10 +180,6 @@ public:
 class Vector : public Aggregate {
 private:
     Vector(World& world, ArrayRef<Def> args, const std::string& name);
-
-public:
-    const VectorType* vector_type() const;
-
     friend class World;
 };
 

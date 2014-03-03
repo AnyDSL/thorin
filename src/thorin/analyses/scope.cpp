@@ -40,7 +40,6 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries, bool is_forward)
 }
 
 Scope::~Scope() {
-    std::vector<Lambda*> remove;
     if (!entry()->empty() && entry()->to()->isa<Bottom>())
         world().destroy(entry());
     if (exit() != entry() && !exit()->empty() && exit()->to()->isa<Bottom>())
@@ -144,7 +143,7 @@ void Scope::uce(Lambda* entry) {
         Def def = queue.front();
         queue.pop();
         int num = in_scope_.erase(def);
-        assert(num = 1);
+        assert(num == 1);
 
         for (auto use : def->uses()) {
             if (contains(use))

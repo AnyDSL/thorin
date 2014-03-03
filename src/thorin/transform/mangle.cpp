@@ -60,7 +60,6 @@ public:
 
 Lambda* Mangler::mangle() {
     old2new[oentry] = oentry;
-    std::vector<const Type*> nelems;
     for (size_t i = 0, e = oentry->num_params(); i != e; ++i) {
         auto oparam = oentry->param(i);
         if (auto def = drop[i])

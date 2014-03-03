@@ -171,7 +171,6 @@ public:
     void mem_call(Def to, ArrayRef<Def> args, const Type* ret_type);
     void tail_call(Def to, ArrayRef<Def> args);
     void param_call(const Param* ret_param, ArrayRef<Def> args);
-    const Param* cascading_call(Def to, ArrayRef<Def> args, const Type* ret_type);
     Def get_mem();
     void set_mem(Def def);
 

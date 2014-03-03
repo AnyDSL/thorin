@@ -6,7 +6,6 @@ namespace thorin {
 
 AutoVector<Scope*> top_level_scopes(World& world, bool is_forward) {
     AutoVector<Scope*> scopes;
-    std::queue<Lambda*> queue;
     LambdaSet done;
 
     auto insert = [&] (Lambda* lambda) { 

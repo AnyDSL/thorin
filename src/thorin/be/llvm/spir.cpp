@@ -82,6 +82,7 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
         llvm::MDNode::get(context_, llvm_ref(annotation_values_type_qual)),
         llvm::MDNode::get(context_, llvm_ref(annotation_values_name))
     };
+    // TODO 'annotation' is reassigned a value before the old one has been used
     // opencl.kernels
     annotation = module_->getOrInsertNamedMetadata("opencl.kernels");
     annotation->addOperand(llvm::MDNode::get(context_, annotation_values_kernel));

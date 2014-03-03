@@ -24,7 +24,7 @@ const DefNode* Def::deref() const {
         assert(target != nullptr);
 
     // path compression
-    auto n = node_;
+    const DefNode* n = node_;
     while (n->representative_ != target) {
         auto representative = n->representative_;
         auto res = representative->representatives_of_.erase(n);

@@ -34,7 +34,6 @@ public:
     const DomTree postdomtree;
     const DomTree domtree;
     Def2Def mapped;
-    size_t pass;
     const size_t length;
 };
 

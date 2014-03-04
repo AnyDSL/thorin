@@ -19,7 +19,7 @@ void load_kernel(size_t dev, const char *file_name, const char *kernel_name);
 void get_tex_ref(size_t dev, const char *name);
 void bind_tex(size_t dev, CUdeviceptr mem, CUarray_format format);
 
-void set_kernel_arg(size_t dev, void *host);
+void set_kernel_arg(size_t dev, void *param);
 void set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
 void set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
 

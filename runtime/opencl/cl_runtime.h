@@ -19,7 +19,7 @@ void read_buffer(size_t dev, cl_mem mem, void *host);
 
 void build_program_and_kernel(size_t dev, const char *file_name, const char *kernel_name, bool);
 
-void set_kernel_arg(size_t dev, void *host, size_t size);
+void set_kernel_arg(size_t dev, void *param, size_t size);
 void set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
 void set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
 

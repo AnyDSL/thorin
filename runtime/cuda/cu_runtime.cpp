@@ -27,6 +27,7 @@ typedef struct mem_ {
 } mem_;
 std::unordered_map<void*, mem_> host_mems_;
 std::unordered_map<CUdeviceptr, void*> dev_mems_;
+std::unordered_map<void*, CUdeviceptr> dev_mems2_;
 CUdevice cuDevice;
 CUcontext cuContext;
 CUmodule cuModule;
@@ -218,6 +219,7 @@ CUdeviceptr malloc_memory(size_t dev, void *host) {
     err = cuMemAlloc(&mem, info.elem * info.width * info.height);
     checkErrDrv(err, "cuMemAlloc()");
     dev_mems_[mem] = host;
+    dev_mems2_[host] = mem;
 
     return mem;
 }
@@ -227,7 +229,9 @@ void free_memory(size_t dev, CUdeviceptr mem) {
 
     err = cuMemFree(mem);
     checkErrDrv(err, "cuMemFree()");
+    void * host = dev_mems_[mem];
     dev_mems_.erase(mem);
+    dev_mems2_.erase(host);
 }
 
 void write_memory(size_t dev, CUdeviceptr mem, void *host) {
@@ -268,14 +272,14 @@ void set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) {
 }
 
 
-void set_kernel_arg(size_t dev, void *host) {
+void set_kernel_arg(size_t dev, void *param) {
     cuArgIdx++;
     if (cuArgIdx > cuArgIdxMax) {
         cuArgs = (void **)realloc(cuArgs, sizeof(void *)*cuArgIdx);
         cuArgIdxMax = cuArgIdx;
     }
     cuArgs[cuArgIdx-1] = (void *)malloc(sizeof(void *));
-    cuArgs[cuArgIdx-1] = host;
+    cuArgs[cuArgIdx-1] = param;
 }
 
 
@@ -330,7 +334,7 @@ void nvvm_load_kernel(size_t dev, const char *file_name, const char *kernel_name
 void nvvm_set_kernel_arg(size_t dev, void *param) { set_kernel_arg(dev, param); }
 void nvvm_set_kernel_arg_map(size_t dev, void *param) {
     CUdeviceptr mem = dev_mems2_[param];
-    set_kernel_arg(dev, (void *)mem);
+    set_kernel_arg(dev, (void *)&mem);
 }
 void nvvm_set_kernel_arg_tex(size_t dev, CUdeviceptr mem, char *name, CUarray_format format) {
     get_tex_ref(dev, name);
@@ -350,7 +354,8 @@ void *array(size_t elem_size, size_t width, size_t height) {
 }
 void *map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, int sx, int sy, int sz) {
     assert(oz==0 && sz==0 && "3D memory not yet supported");
-    return (void *)malloc_memory(dev, from);
+    CUdeviceptr mem = malloc_memory(dev, from);
+    return from;
 }
 float random_val(int max) {
     return ((float)random() / RAND_MAX) * max;

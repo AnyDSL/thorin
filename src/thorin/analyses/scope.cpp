@@ -142,8 +142,7 @@ void Scope::uce(Lambda* entry) {
     while (!queue.empty()) {
         Def def = queue.front();
         queue.pop();
-        int num = in_scope_.erase(def);
-        assert(num == 1);
+        in_scope_.erase(def);
 
         for (auto use : def->uses()) {
             if (contains(use))

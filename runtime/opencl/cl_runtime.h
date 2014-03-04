@@ -46,7 +46,7 @@ void spir_synchronize(size_t dev);
 
 // helper functions
 void *array(size_t elem_size, size_t width, size_t height);
-void *map_memory(size_t dev, size_t type, void *from, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz);
+void *map_memory(size_t dev, size_t type, void *from, int ox, int oy, int oz, int sx, int sy, int sz);
 float random_val(int max);
 extern int main_impala();
 

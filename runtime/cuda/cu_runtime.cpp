@@ -348,7 +348,7 @@ void *array(size_t elem_size, size_t width, size_t height) {
     host_mems_[mem] = {elem_size, width, height};
     return mem;
 }
-void *map_memory(size_t dev, size_t type_, void *from, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz) {
+void *map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, int sx, int sy, int sz) {
     assert(oz==0 && sz==0 && "3D memory not yet supported");
     return (void *)malloc_memory(dev, from);
 }

@@ -142,7 +142,8 @@ llvm::Value* NVVMCodeGen::emit_store(Def def) {
 }
 
 static std::string get_texture_fetch_command(const Type* type) {
-    std::stringstream fun_str("tex.1d.v4.");
+    std::stringstream fun_str;
+    fun_str << "tex.1d.v4.";
     switch (type->as<PrimType>()->primtype_kind()) {
         case PrimType_ps8:  case PrimType_qs8:
         case PrimType_pu8:  case PrimType_qu8:  fun_str << "s8";  break;
@@ -158,7 +159,7 @@ static std::string get_texture_fetch_command(const Type* type) {
         default:
             THORIN_UNREACHABLE;
     }
-    fun_str << ".s32 {$0,$1,$2,$3}, [$4, {$5}];";
+    fun_str << ".s32 {$0,$1,$2,$3}, [$4, {$5,$6,$7,$8}];";
     return fun_str.str();
 }
 
@@ -181,7 +182,7 @@ static std::string get_texture_fetch_constraint(const Type* type) {
             THORIN_UNREACHABLE;
     }
     constraint_str << "=" << c << ",=" << c << ",=" << c << ",=" << c
-                   << "=l,r";
+                   << ",l,r,r,r,r";
     return constraint_str.str();
 }
 

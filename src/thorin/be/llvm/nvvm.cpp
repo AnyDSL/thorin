@@ -142,13 +142,47 @@ llvm::Value* NVVMCodeGen::emit_store(Def def) {
 }
 
 static std::string get_texture_fetch_command(const Type* type) {
-    std::stringstream fun_str;
-    if (type->as<PrimType>()->is_type_f())
-        fun_str << "tex.1d.v4.f32.s32";
-    else
-        fun_str << "tex.1d.v4.s32.s32";
-    fun_str << " {$0,$1,$2,$3}, [$4, {$5,$6,$7,$8}];";
+    std::stringstream fun_str("tex.1d.v4.");
+    switch (type->as<PrimType>()->primtype_kind()) {
+        case PrimType_ps8:  case PrimType_qs8:
+        case PrimType_pu8:  case PrimType_qu8:  fun_str << "s8";  break;
+        case PrimType_ps16: case PrimType_qs16:
+        case PrimType_pu16: case PrimType_qu16: fun_str << "s16"; break;
+        case PrimType_bool:
+        case PrimType_ps32: case PrimType_qs32:
+        case PrimType_pu32: case PrimType_qu32: fun_str << "s32"; break;
+        case PrimType_ps64: case PrimType_qs64:
+        case PrimType_pu64: case PrimType_qu64: fun_str << "s64"; break;
+        case PrimType_pf32: case PrimType_qf32: fun_str << "f32"; break;
+        case PrimType_pf64: case PrimType_qf64: fun_str << "f64"; break;
+        default:
+            THORIN_UNREACHABLE;
+    }
+    fun_str << ".s32 {$0,$1,$2,$3}, [$4, {$5}];";
     return fun_str.str();
+}
+
+static std::string get_texture_fetch_constraint(const Type* type) {
+    std::stringstream constraint_str;
+    char c;
+    switch (type->as<PrimType>()->primtype_kind()) {
+        case PrimType_ps8:  case PrimType_qs8:
+        case PrimType_pu8:  case PrimType_qu8:  c = 'c'; break; // not officially listed
+        case PrimType_ps16: case PrimType_qs16:
+        case PrimType_pu16: case PrimType_qu16: c = 'h'; break;
+        case PrimType_bool:
+        case PrimType_ps32: case PrimType_qs32:
+        case PrimType_pu32: case PrimType_qu32: c = 'r'; break;
+        case PrimType_ps64: case PrimType_qs64:
+        case PrimType_pu64: case PrimType_qu64: c = 'l'; break;
+        case PrimType_pf32: case PrimType_qf32: c = 'f'; break;
+        case PrimType_pf64: case PrimType_qf64: c = 'd'; break;
+        default:
+            THORIN_UNREACHABLE;
+    }
+    constraint_str << "=" << c << ",=" << c << ",=" << c << ",=" << c
+                   << "=l,r";
+    return constraint_str.str();
 }
 
 llvm::Value* NVVMCodeGen::emit_lea(Def def) {
@@ -167,7 +201,8 @@ llvm::Value* NVVMCodeGen::emit_lea(Def def) {
             builder_.getInt32Ty(), builder_.getInt32Ty(), builder_.getInt32Ty(), builder_.getInt32Ty() };
         auto type = llvm::FunctionType::get(ret_type, args, false);
         auto fetch_command = get_texture_fetch_command(ptr_ty->referenced_type());
-        auto get_call = llvm::InlineAsm::get(type, fetch_command, "=r,=r,=r,=r,l,r,r,r,r", false);
+        auto fetch_constraint = get_texture_fetch_constraint(ptr_ty->referenced_type());
+        auto get_call = llvm::InlineAsm::get(type, fetch_command, fetch_constraint, false);
         llvm::Value* values[] = {
             lookup(lea->ptr()), lookup(lea->index()),
             builder_.getInt32(0), builder_.getInt32(0), builder_.getInt32(0) };

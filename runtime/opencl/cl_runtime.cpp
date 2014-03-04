@@ -234,18 +234,23 @@ inline void __checkOpenCLErrors(cl_int err, const char *name, const char *file, 
 }
 
 
-// create context and command queue for device
-void create_context_command_queue(cl_platform_id platform, cl_device_id device, size_t num) {
+// create context and command queue(s) for device(s) of a given platform
+void create_context_command_queue(cl_platform_id platform, cl_device_id *device, size_t num_devices, size_t num) {
     cl_int err = CL_SUCCESS;
 
     // create context
     cl_context_properties cprops[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)platform, 0 };
-    contexts_[num] = clCreateContext(cprops, 1, &device, NULL, NULL, &err);
+    contexts_[num] = clCreateContext(cprops, num_devices, device, NULL, NULL, &err);
     checkErr(err, "clCreateContext()");
+    for (size_t i=1; i<num_devices; ++i) {
+        contexts_[num+i] = contexts_[num];
+    }
 
-    // create command queue
-    command_queues_[num] = clCreateCommandQueue(contexts_[num], device, CL_QUEUE_PROFILING_ENABLE, &err);
-    checkErr(err, "clCreateCommandQueue()");
+    // create command queues
+    for (size_t i=0; i<num_devices; ++i) {
+        command_queues_[num+i] = clCreateCommandQueue(contexts_[num+i], device[i], CL_QUEUE_PROFILING_ENABLE, &err);
+        checkErr(err, "clCreateCommandQueue()");
+    }
 }
 
 
@@ -321,7 +326,7 @@ void init_opencl() {
                 bool has_spir = found!=std::string::npos;
                 if (c_pf_id == i && j == c_dev_id) {
                     devices_[c_dev] = devices[j];
-                    create_context_command_queue(platforms[i], devices[j], c_dev);
+                    create_context_command_queue(platforms[i], &devices[j], 1, c_dev);
                     if (++c_dev < n_dev) {
                         c_pf_id = the_machine[c_dev][0];
                         c_dev_id = the_machine[c_dev][1];

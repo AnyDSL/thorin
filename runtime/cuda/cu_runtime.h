@@ -35,7 +35,8 @@ void nvvm_read_memory(size_t dev, CUdeviceptr mem, void *host);
 
 void nvvm_load_kernel(size_t dev, const char *file_name, const char *kernel_name);
 
-void nvvm_set_kernel_arg(size_t dev, void *host);
+void nvvm_set_kernel_arg(size_t dev, void *param);
+void nvvm_set_kernel_arg_map(size_t dev, void *param);
 void nvvm_set_kernel_arg_tex(size_t dev, CUdeviceptr mem, char *name, CUarray_format format);
 void nvvm_set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
 void nvvm_set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);

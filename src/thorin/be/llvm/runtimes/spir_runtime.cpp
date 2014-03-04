@@ -56,14 +56,14 @@ llvm::Value* SpirRuntime::set_kernel_arg(llvm::Value* device, llvm::Value* ptr) 
     return builder_.CreateCall(get("spir_set_kernel_arg"), arg_args);
 }
 
+llvm::Value* SpirRuntime::set_kernel_arg_map(llvm::Value* device, llvm::Value* ptr) {
+    llvm::Value* arg_args[] = { device, ptr };
+    return builder_.CreateCall(get("spir_set_kernel_arg_map"), arg_args);
+}
+
 llvm::Value* SpirRuntime::set_texture(llvm::Value* device, llvm::Value* ptr, llvm::Value* name, PrimTypeKind type) {
     llvm::Value* tex_args[] = { device, ptr, name, builder_.getInt32(0) };
     return builder_.CreateCall(get("spir_set_kernel_arg_tex"), tex_args);
-}
-
-llvm::Value* SpirRuntime::set_mapped_kernel_arg(llvm::Value* device, llvm::Value* ptr) {
-    llvm::Value* arg_args[] = { device, ptr };
-    return builder_.CreateCall(get("spir_set_mapped_kernel_arg"), arg_args);
 }
 
 llvm::Value* SpirRuntime::load_kernel(llvm::Value* device, llvm::Value* module, llvm::Value* data) {

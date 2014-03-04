@@ -71,7 +71,7 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
                     set_texture(target_device_val, target_val, texture_name, texture_type->primtype_kind());
                 } else {
                     // bind mapped buffer
-                    set_mapped_kernel_arg(target_device_val, target_val);
+                    set_kernel_arg_map(target_device_val, target_val);
                 }
             } else {
                 // we need to allocate memory for this chunk on the target device

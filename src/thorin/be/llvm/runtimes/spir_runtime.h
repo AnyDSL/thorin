@@ -20,8 +20,8 @@ public:
     virtual llvm::Value* synchronize(llvm::Value* device);
 
     virtual llvm::Value* set_kernel_arg(llvm::Value* device, llvm::Value* ptr);
+    virtual llvm::Value* set_kernel_arg_map(llvm::Value* device, llvm::Value* ptr);
     virtual llvm::Value* set_texture(llvm::Value* device, llvm::Value* ptr, llvm::Value* name, PrimTypeKind type);
-    virtual llvm::Value* set_mapped_kernel_arg(llvm::Value* device, llvm::Value* ptr);
     virtual llvm::Value* load_kernel(llvm::Value* device, llvm::Value* module, llvm::Value* data);
     virtual llvm::Value* launch_kernel(llvm::Value* device, llvm::Value* name);
 

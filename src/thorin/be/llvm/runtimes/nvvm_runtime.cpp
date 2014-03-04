@@ -53,6 +53,11 @@ llvm::Value* NVVMRuntime::set_kernel_arg(llvm::Value* device, llvm::Value* ptr) 
     return builder_.CreateCall(get("nvvm_set_kernel_arg"), arg_args);
 }
 
+llvm::Value* NVVMRuntime::set_kernel_arg_map(llvm::Value* device, llvm::Value* ptr) {
+    llvm::Value* arg_args[] = { device, ptr };
+    return builder_.CreateCall(get("nvvm_set_kernel_arg_map"), arg_args);
+}
+
 llvm::Value* NVVMRuntime::set_texture(llvm::Value* device, llvm::Value* ptr, llvm::Value* name, PrimTypeKind type) {
     int32_t format;
     switch(type) {
@@ -75,11 +80,6 @@ llvm::Value* NVVMRuntime::set_texture(llvm::Value* device, llvm::Value* ptr, llv
     llvm::Value* tex_args[] = { device, loaded_device_ptr, name, formatVal };
     return builder_.CreateCall(get("nvvm_set_kernel_arg_tex"), tex_args);
 
-}
-
-llvm::Value* NVVMRuntime::set_mapped_kernel_arg(llvm::Value* device, llvm::Value* ptr) {
-    llvm::Value* arg_args[] = { device, ptr };
-    return builder_.CreateCall(get("nvvm_set_mapped_kernel_arg"), arg_args);
 }
 
 llvm::Value* NVVMRuntime::load_kernel(llvm::Value* device, llvm::Value* module, llvm::Value* name) {

@@ -604,7 +604,7 @@ void set_kernel_arg(size_t dev, void *param, size_t size) {
 }
 
 
-void set_mapped_kernel_arg(size_t dev, void *param, size_t size) {
+void set_kernel_arg_map(size_t dev, void *param, size_t size) {
     cl_mem mem = dev_mems2_[param];
 
     std::cerr << " * set arg mapped(" << dev << "): " << param << " (map: " << mem << ")" << std::endl;
@@ -658,7 +658,7 @@ void spir_build_program_and_kernel_from_binary(size_t dev, const char *file_name
 void spir_build_program_and_kernel_from_source(size_t dev, const char *file_name, const char *kernel_name) { build_program_and_kernel(dev, file_name, kernel_name, false); }
 
 void spir_set_kernel_arg(size_t dev, void *host, size_t size) { set_kernel_arg(dev, host, size); }
-void spir_set_mapped_kernel_arg(size_t dev, void *host, size_t size) { set_mapped_kernel_arg(dev, host, size); }
+void spir_set_kernel_arg_map(size_t dev, void *host, size_t size) { set_kernel_arg_map(dev, host, size); }
 void spir_set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) { set_problem_size(dev, size_x, size_y, size_z); }
 void spir_set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) { set_config_size(dev, size_x, size_y, size_z); }
 

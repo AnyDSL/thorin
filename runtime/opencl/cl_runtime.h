@@ -36,8 +36,8 @@ void spir_read_buffer(size_t dev, cl_mem mem, void *host);
 void spir_build_program_and_kernel_from_binary(size_t dev, const char *file_name, const char *kernel_name);
 void spir_build_program_and_kernel_from_source(size_t dev, const char *file_name, const char *kernel_name);
 
-void spir_set_kernel_arg(size_t dev, void *host, size_t size);
-void spir_set_mapped_kernel_arg(size_t dev, void *host, size_t size);
+void spir_set_kernel_arg(size_t dev, void *param, size_t size);
+void spir_set_kernel_arg_map(size_t dev, void *param, size_t size);
 void spir_set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
 void spir_set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
 

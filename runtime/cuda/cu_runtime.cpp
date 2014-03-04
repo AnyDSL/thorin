@@ -336,7 +336,8 @@ void nvvm_set_kernel_arg_map(size_t dev, void *param) {
     CUdeviceptr mem = dev_mems2_[param];
     set_kernel_arg(dev, (void *)&mem);
 }
-void nvvm_set_kernel_arg_tex(size_t dev, CUdeviceptr mem, char *name, CUarray_format format) {
+void nvvm_set_kernel_arg_tex(size_t dev, CUdeviceptr param, char *name, CUarray_format format) {
+    CUdeviceptr mem = dev_mems2_[(void*)param];
     get_tex_ref(dev, name);
     bind_tex(dev, mem, format);
 }

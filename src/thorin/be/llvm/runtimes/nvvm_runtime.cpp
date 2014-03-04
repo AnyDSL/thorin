@@ -56,36 +56,19 @@ llvm::Value* NVVMRuntime::set_kernel_arg(llvm::Value* device, llvm::Value* ptr) 
 llvm::Value* NVVMRuntime::set_texture(llvm::Value* device, llvm::Value* ptr, llvm::Value* name, PrimTypeKind type) {
     int32_t format;
     switch(type) {
-    case PrimType_pf32:
-    case PrimType_qf32:
-        format = 0x20;
-        break;
-    case PrimType_pu32:
-    case PrimType_qu32:
-        format = 0x03;
-        break;
-    case PrimType_pu16:
-    case PrimType_qu16:
-        format = 0x02;
-        break;
-    case PrimType_pu8:
-    case PrimType_qu8:
-        format = 0x01;
-        break;
-    case PrimType_ps32:
-    case PrimType_qs32:
-        format = 0xA;
-        break;
-    case PrimType_ps16:
-    case PrimType_qs16:
-        format = 0x09;
-        break;
-    case PrimType_ps8:
-    case PrimType_qs8:
-        format = 0x08;
-        break;
-    default:
-        THORIN_UNREACHABLE;
+        case PrimType_ps8:  case PrimType_qs8:  format = 0x08; break;
+        case PrimType_pu8:  case PrimType_qu8:  format = 0x01; break;
+        case PrimType_ps16: case PrimType_qs16: format = 0x09; break;
+        case PrimType_pu16: case PrimType_qu16: format = 0x02; break;
+        case PrimType_bool:
+        case PrimType_ps32: case PrimType_qs32: format = 0x0a; break;
+        case PrimType_pu32: case PrimType_qu32: format = 0x03; break;
+        case PrimType_pf32: case PrimType_qf32: format = 0x20; break;
+        case PrimType_ps64: case PrimType_qs64:
+        case PrimType_pu64: case PrimType_qu64:
+        case PrimType_pf64: case PrimType_qf64:
+        default:
+            THORIN_UNREACHABLE;
     }
     auto loaded_device_ptr = builder_.CreatePtrToInt(ptr, builder_.getInt64Ty());
     llvm::Value* formatVal = builder_.getInt32(format);

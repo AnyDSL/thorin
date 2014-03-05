@@ -1,8 +1,9 @@
 extern nvvm(int, (int, int, int), (int, int, int), fn() -> void) -> void;
+extern map([float], int, int, (int, int, int), (int, int, int)) -> [float];
 
 fn iteration(width : int, height : int, body : fn(int, int) -> void) -> void {
     let dim = (width, height, 1);
-    let block = (32, 4, 1);
+    let block = (128, 1, 1);
 
     nvvm(1, dim, block, || -> void {
         let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
@@ -30,19 +31,41 @@ fn iterate_(a : int, b : int, yield : fn(int, fn())) -> void {
     while (i < b)
         yield(i++, || { continue; });
 }
+fn iterate_times_two(a : int, b : int, yield : fn(int, fn())) -> void {
+    let mut i: int = a;
+    while (i < b)
+        yield(i*=2, || { continue; });
+}
 
-fn iteration_advanced(width : int, height : int, body : fn(int, int) -> void) -> void {
-    let unroll = 1;
-    let dim = (width, height/unroll, 1);
-    let block = (128, 1, 1);
+fn iteration_advanced(width : int, height : int, arr : [float], body : fn(int, int, [float]) -> void) -> void {
+    @iterate_times_two(1, 2, |unroll : int| -> void {
+        let dim = (width, height/unroll, 1);
+        let block = (128, 1, 1);
 
-    nvvm(1, dim, block, || -> void {
-        let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
-        let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
+        // 0 -> global
+        // 1 -> texture
+        // 2 -> shared
+        let gmem = map(arr, 1, 0, (0, 0, 0), (width, height, 0));
 
-        @iterate_(0, unroll+1, |i : int| -> void {
-            body(tid_x, tid_y + i * nvvm_read_ptx_sreg_ntid_y());
+        nvvm(1, dim, block, || -> void {
+            let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+            let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
+
+            iterate_(0, unroll, |i : int| -> void {
+                body(tid_x, tid_y + i * nvvm_read_ptx_sreg_ntid_y(), gmem);
+            });
         });
+
+        //let tex = map(arr, 1, 1, (0, 0, 0), (width, height, 0));
+
+        //nvvm(1, dim, block, || -> void {
+        //    let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+        //    let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
+
+        //    @iterate_(0, unroll, |i : int| -> void {
+        //        body(tid_x, tid_y + i * nvvm_read_ptx_sreg_ntid_y(), tex);
+        //    });
+        //});
     });
 }
 

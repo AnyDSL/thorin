@@ -54,9 +54,26 @@ fn main() -> int {
         [   b, a, b   ],
         [0.0f, b, 0.0f]];
 
-    iteration(width, height, |x : int, y : int| -> void {
+    iteration_advanced(width, height, arr, |x : int, y : int, arr : [float]| -> void {
         out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width);
     });
 
-    return 0;
+
+    let mut passed = 0;
+
+    for (let mut y=1; y<height-1; ++y) {
+        for (let mut x=1; x<width-1; ++x) {
+            let ref =
+                0.2f * arr[x + 0 + (y - 1)*width] +
+                0.2f * arr[x - 1 + (y + 0)*width] +
+                0.2f * arr[x + 0 + (y + 0)*width] +
+                0.2f * arr[x + 1 + (y + 0)*width] +
+                0.2f * arr[x + 0 + (y + 1)*width];
+            let mut diff = ref - out[x + y*width];
+            if (diff < 0.0f) diff = -diff;
+            if (diff > 0.1f) passed++;
+        }
+    }
+
+    return passed;
 }

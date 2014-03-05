@@ -167,6 +167,7 @@ private:
     };
 
 public:
+    static const size_t min_capacity = 16;
     typedef typename HashNode::key_type key_type;
     typedef typename HashNode::mapped_type mapped_type;
     typedef typename HashNode::value_type value_type;
@@ -176,8 +177,8 @@ public:
     typedef iterator_base<false> iterator;
     typedef iterator_base<true> const_iterator;
 
-    HashTable(size_type capacity = 16, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
-        : capacity_(std::max(size_type(16), capacity))
+    HashTable(size_type capacity = min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
+        : capacity_(std::max(size_type(min_capacity), capacity))
         , size_(0)
         , nodes_(alloc())
         , hash_function_(hash_function)
@@ -201,7 +202,7 @@ public:
     void clear() {
         destroy();
         size_ = 0;
-        capacity_ = 16;
+        capacity_ = min_capacity;
         nodes_ = alloc();
     }
 
@@ -211,8 +212,7 @@ public:
         auto n = new HashNode(args...);
         if (size_ > capacity_/size_t(4) + capacity_/size_t(2))
             rehash(capacity_*size_t(2));
-        else if (capacity_ > 16 && size_ < capacity_/size_t(4))
-        //else if (size_ < capacity_/size_t(4))
+        else if (capacity_ > min_capacity && size_ < capacity_/size_t(4))
             rehash(capacity_/size_t(4));
 
         auto& key = n->key();
@@ -223,7 +223,7 @@ public:
                 ++size_;
                 *it = n;
                 return std::make_pair(it, true);
-            } else if (key_eq_(key, (*it)->key())) {
+            } else if (*it != (HashNode*)-1 && key_eq_(key, (*it)->key())) {
                 delete n;
                 return std::make_pair(it, false);
             }
@@ -276,7 +276,7 @@ public:
     bool contains(const key_type& key) const { return count(key) == 1; }
 
     void rehash(size_type new_capacity) {
-        new_capacity = std::max(size_type(16), new_capacity);
+        new_capacity = std::max(size_type(min_capacity), new_capacity);
         size_t old_capacity = capacity_;
         capacity_ = new_capacity;
         auto nodes = alloc();
@@ -335,7 +335,7 @@ public:
     typedef typename Super::iterator iterator;
     typedef typename Super::const_iterator const_iterator;
 
-    HashMap(size_type capacity = 16, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
+    HashMap(size_type capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
         : Super(capacity, hash_function, key_eq)
     {}
 
@@ -358,7 +358,7 @@ public:
     typedef typename Super::iterator iterator;
     typedef typename Super::const_iterator const_iterator;
 
-    HashSet(size_type capacity = 16, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
+    HashSet(size_type capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
         : Super(capacity, hash_function, key_eq)
     {}
 };

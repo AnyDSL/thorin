@@ -49,7 +49,7 @@ std::string GenericMap::to_string() const {
 size_t Type::hash() const {
     size_t seed = hash_combine(hash_value((int) kind()), size());
     for (auto elem : elems_)
-        seed = hash_combine(seed, elem);
+        seed = hash_combine(seed, elem->gid());
     return seed;
 }
 

@@ -867,6 +867,16 @@ const DefNode* World::cse_base(const PrimOp* primop) {
         assert(p.second && "hash/equal broken");
     }
 
+    if (primop->gid() == 45) {
+        std::cout << "---" << std::endl;
+        primop->dump();
+        std::cout << primop->op(1).node()->is_proxy() << std::endl;
+        for (auto use : primop->op(1)->uses_) {
+            std::cout << use.def().node()->is_proxy() << std::endl;
+            use.def()->dump();
+        }
+        std::cout << "---" << std::endl;
+    }
     THORIN_CHECK_BREAK(primop->gid())
     return primop;
 }
@@ -970,6 +980,10 @@ static void sanity_check(Def def) {
 }
 
 void World::dead_code_elimination() {
+    std::cout << "!!!" << std::endl;
+    for (auto p : primops_)
+        std::cout << p->gid() << std::endl;
+    std::cout << "!!!" << std::endl;
     const auto old_gid = gid_;
     Def2Def map;
     for (auto lambda : lambdas()) {
@@ -979,8 +993,11 @@ void World::dead_code_elimination() {
 
     DefSet set;
     for (auto lambda : lambdas()) {
-        for (size_t i = 0, e = lambda->ops().size(); i != e; ++i)
+        lambda->dump_head();
+        for (size_t i = 0, e = lambda->ops().size(); i != e; ++i) {
+            assert(!lambda->op(i).node()->is_proxy());
             dce_mark(set, lambda->op(i));
+        }
     }
 
     auto wipe_primop = [&] (const PrimOp* primop) { return !set.contains(primop); };
@@ -1027,7 +1044,8 @@ void World::dead_code_elimination() {
     verify_closedness(*this);
 }
 
-Def World::dce_rebuild(Def2Def& map, const size_t old_gid, Def def) {
+const DefNode* World::dce_rebuild(Def2Def& map, const size_t old_gid, const DefNode* def) {
+    assert(!def->is_proxy());
     if (const DefNode* mapped = find(map, def))
         return mapped;
     if (def->gid() >= old_gid)
@@ -1036,19 +1054,38 @@ Def World::dce_rebuild(Def2Def& map, const size_t old_gid, Def def) {
         return map[def] = def;
 
     auto oprimop = def->as<PrimOp>();
-    Array<Def> ops(oprimop->size());
-    for (size_t i = 0, e = oprimop->size(); i != e; ++i)
-        ops[i] = dce_rebuild(map, old_gid, oprimop->op(i));
+    if (oprimop->empty()) // no ops -> so reuse the old one
+        return map[oprimop] = oprimop;
 
-    return map[oprimop] = rebuild(oprimop, ops);
+    bool has_proxy_ops = false;
+    Array<Def> ops(oprimop->size());
+    for (size_t i = 0, e = oprimop->size(); i != e; ++i) {
+        has_proxy_ops |= oprimop->op(i).node()->is_proxy();
+        ops[i] = dce_rebuild(map, old_gid, Def(oprimop->op(i)));
+    }
+
+    if (has_proxy_ops) {
+        auto i = primops_.find(oprimop);
+        if (i != primops_.end()) {
+            for (size_t i = 0, e = oprimop->size(); i != e; ++i)
+                oprimop->unregister_use(i);
+            primops_.erase(i);
+        }
+    }
+
+    auto nprimop = rebuild(oprimop, ops);
+    assert(!has_proxy_ops || nprimop != oprimop);
+    return map[oprimop] = nprimop;
 }
 
-void World::dce_mark(DefSet& set, Def def) {
+void World::dce_mark(DefSet& set, const DefNode* def) {
+    std::cout << def->gid_ << std::endl;
+    assert(!def->is_proxy());
     if (visit(set, def) || def->isa<Lambda>() || def->isa<Param>())
         return;
 
     for (auto op : def->as<PrimOp>()->ops())
-        dce_mark(set, op);
+        dce_mark(set, op.node());
 }
 
 void World::unused_type_elimination() {
@@ -1091,4 +1128,4 @@ void World::wipe_out(S& set, W wipe) {
     }
 }
 
-} // namespace thorin
+}

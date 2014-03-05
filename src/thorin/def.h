@@ -84,12 +84,19 @@ struct UseLT {
 
 //------------------------------------------------------------------------------
 
-struct GIDHash { inline size_t operator () (const DefNode* n) const; };
-struct GIDEq { inline size_t operator () (const DefNode* n1, const DefNode* n2) const; };
+template<class T>
+struct GIDHash { 
+    size_t operator () (T n) const { return n->gid(); }
+};
+
+template<class T>
+struct GIDEq { 
+    size_t operator () (T n1, T n2) const { return n1->gid() == n2->gid(); }
+};
 
 template<class To> 
-using DefMap  = HashMap<const DefNode*, To, GIDHash, GIDEq>;
-using DefSet  = HashSet<const DefNode*, GIDHash, GIDEq>;
+using DefMap  = HashMap<const DefNode*, To, GIDHash<const DefNode*>, GIDEq<const DefNode*>>;
+using DefSet  = HashSet<const DefNode*, GIDHash<const DefNode*>, GIDEq<const DefNode*>>;
 using Def2Def = DefMap<const DefNode*>;
 
 //------------------------------------------------------------------------------
@@ -191,9 +198,6 @@ public:
     friend void verify_closedness(World& world);
 };
 
-size_t GIDHash::operator () (const DefNode* n) const { return n->gid(); }
-size_t GIDEq::operator () (const DefNode* n1, const DefNode* n2) const { return n1->gid() == n2->gid(); }
-
 //------------------------------------------------------------------------------
 
 std::ostream& operator << (std::ostream& o, Def def);
@@ -253,7 +257,7 @@ namespace std {
         size_t operator () (thorin::ArrayRef<thorin::Def> defs) const { 
             size_t seed = thorin::hash_value(defs.size());
             for (auto def : defs)
-                seed = thorin::hash_combine(seed, *def);
+                seed = thorin::hash_combine(seed, def->gid());
             return seed;
         }
     };

@@ -24,12 +24,7 @@ protected:
 
 public:
     virtual const char* op_name() const;
-    virtual size_t hash() const {
-        size_t seed = hash_combine(hash_combine(hash_value((int) kind()), size()), type());
-        for (auto op : ops_)
-            seed = hash_combine(seed, op.node());
-        return seed;
-    }
+    virtual size_t hash() const;
     virtual bool equal(const PrimOp* other) const {
         bool result = this->kind() == other->kind() && this->size() == other->size() && this->type() == other->type();
         for (size_t i = 0, e = size(); result && i != e; ++i)

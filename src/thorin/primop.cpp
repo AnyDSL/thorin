@@ -9,6 +9,15 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
+size_t PrimOp::hash() const {
+    size_t seed = hash_combine(hash_combine(hash_value((int) kind()), size()), type()->gid());
+    for (auto op : ops_)
+        seed = hash_combine(seed, op.node()->gid());
+    return seed;
+}
+
+//------------------------------------------------------------------------------
+
 VectorOp::VectorOp(size_t size, NodeKind kind, const Type* type, Def cond, const std::string& name)
     : PrimOp(size, kind, type, name)
 {

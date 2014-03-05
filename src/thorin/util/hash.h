@@ -270,7 +270,7 @@ public:
                 ++size_;
                 *it = n;
                 return std::make_pair(iterator(it, this), true);
-            } else if (key_eq_(key, (*it)->key())) {
+            } else if (key_eq_((*it)->key(), key)) {
                 delete n;
                 return std::make_pair(iterator(it, this), false);
             }
@@ -322,7 +322,7 @@ public:
             auto it = nodes_ + x;
             if (*it == nullptr)
                 return end();
-            else if (*it != (HashNode*)-1 && key_eq_(key, (*it)->key()))
+            else if (*it != (HashNode*)-1 && key_eq_((*it)->key(), key))
                 return iterator(it, this);
         }
     }

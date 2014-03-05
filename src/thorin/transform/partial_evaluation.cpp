@@ -57,9 +57,9 @@ public:
         : scope_(world, top_level_lambdas(world), false)
         , postdomtree_(scope_)
     {
-        emit_thorin(world);
-        postdomtree_.dump();
-        std::cout << "-------------" << std::endl;
+        //emit_thorin(world);
+        //postdomtree_.dump();
+        //std::cout << "-------------" << std::endl;
         for (auto lambda : world.lambdas()) {
             new2old_[lambda] = lambda;
             old2new_[lambda] = lambda;

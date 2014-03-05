@@ -9,6 +9,9 @@
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
 
+#include "thorin/be/thorin.h"
+#include <iostream>
+
 namespace thorin {
 
 static std::vector<Lambda*> top_level_lambdas(World& world) {
@@ -54,6 +57,9 @@ public:
         : scope_(world, top_level_lambdas(world), false)
         , postdomtree_(scope_)
     {
+        emit_thorin(world);
+        postdomtree_.dump();
+        std::cout << "-------------" << std::endl;
         for (auto lambda : world.lambdas()) {
             new2old_[lambda] = lambda;
             old2new_[lambda] = lambda;
@@ -112,6 +118,8 @@ void PartialEvaluator::eval(Lambda* cur) {
         if (cur->empty()) 
             return;
 
+        //emit_thorin(world());
+        //std::cout << "----------------" << std::endl;
         auto to = cur->to();
         if (auto run = to->isa<Run>())
             to = run->def();
@@ -120,10 +128,10 @@ void PartialEvaluator::eval(Lambda* cur) {
         if (dst == nullptr) {                   // skip to immediate post-dominator
             cur = old2new_[postdomtree_.idom(new2old_[cur])];
         } else if (dst->empty()) {
-            for (auto arg : cur->args()) {
-                if (auto lambda = arg->isa_lambda()) {
-                    if (!done_.contains(lambda))
-                        todo_.push(lambda);
+            if (!cur->args().empty()) {
+                if (auto lambda = cur->args().back()->isa_lambda()) {
+                    cur = lambda;
+                    continue;
                 }
             }
             return;

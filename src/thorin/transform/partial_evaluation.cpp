@@ -1,5 +1,4 @@
 #include <queue>
-#include <unordered_map>
 
 #include "thorin/literal.h"
 #include "thorin/world.h"
@@ -79,7 +78,7 @@ private:
     Lambda2Lambda new2old_;
     Lambda2Lambda old2new_;
     LambdaSet done_;
-    std::unordered_map<Call, Lambda*, CallHash> cache_;
+    HashMap<Call, Lambda*, CallHash> cache_;
     std::queue<Lambda*> todo_;
 };
 
@@ -125,7 +124,7 @@ void PartialEvaluator::eval(Lambda* cur) {
             to = run->def();
 
         auto dst = to->isa_lambda();
-        if (dst == nullptr) {                   // skip to immediate post-dominator
+        if (dst == nullptr) {                           // skip to immediate post-dominator
             cur = old2new_[postdomtree_.idom(new2old_[cur])];
         } else if (dst->empty()) {
             if (!cur->args().empty()) {
@@ -140,17 +139,16 @@ void PartialEvaluator::eval(Lambda* cur) {
             bool fold = false;
             for (size_t i = 0; i != cur->num_args(); ++i) {
                 call.arg(i) = cur->arg(i)->is_const() ? cur->arg(i) : nullptr;
-                fold |= call.arg(i) != nullptr; // don't fold if there is nothing to fold
+                fold |= call.arg(i) != nullptr;         // don't fold if there is nothing to fold
             }
 
             if (!fold || dst->empty()) {
                 cur = dst;
             } else {
-                auto i = cache_.find(call);
-                if (i != cache_.end()) {        // check for cached version
-                    rewrite_jump(cur, i->second, call);
+                if (auto cached = find(cache_, call)) { // check for cached version
+                    rewrite_jump(cur, cached, call);
                     return;
-                } else {                        // no no cached version found... create a new one
+                } else {                                // no cached version found... create a new one
                     Scope scope(dst);
                     Def2Def old2new;
                     GenericMap generic_map;

@@ -237,11 +237,11 @@ public:
         for (size_t i = hash_function_(key), step = 0; true; i = (i + step++)) {
             size_t x = i & (capacity_-1);
             auto it = nodes_ + x;
-            if (*it == nullptr) {
+            if (*it == nullptr || *it == (HashNode*)-1) {
                 ++size_;
                 *it = n;
                 return std::make_pair(iterator(it, this), true);
-            } else if (*it != (HashNode*)-1 && key_eq_(key, (*it)->key())) {
+            } else if (key_eq_(key, (*it)->key())) {
                 delete n;
                 return std::make_pair(iterator(it, this), false);
             }

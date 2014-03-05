@@ -3,7 +3,6 @@
 
 #include <cassert>
 #include <cstdint>
-#include <iostream>
 #include <functional>
 #include <limits>
 #include <type_traits>

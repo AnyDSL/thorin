@@ -46,7 +46,7 @@ public:
         return const_cast<DomTree*>(this)->lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j)); 
     }
     Lambda* idom(Lambda* lambda) const { return lookup(lambda)->idom()->lambda(); }
-    const DomNode* lookup(Lambda* lambda) const { return map_.find(lambda); }
+    const DomNode* lookup(Lambda* lambda) const { return find(map_, lambda); }
     void dump() const { root()->dump(); }
     bool is_forward() const { return is_forward_; }
 

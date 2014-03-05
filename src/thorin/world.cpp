@@ -957,7 +957,7 @@ void World::unreachable_code_elimination() {
 }
 
 void World::uce_insert(LambdaSet& set, Lambda* lambda) {
-    if (set.visit(lambda)) return;
+    if (visit(set, lambda)) return;
     for (auto succ : lambda->succs())
         uce_insert(set, succ);
 }
@@ -1028,7 +1028,7 @@ void World::dead_code_elimination() {
 }
 
 Def World::dce_rebuild(Def2Def& map, const size_t old_gid, Def def) {
-    if (const DefNode* mapped = map.find(def))
+    if (const DefNode* mapped = find(map, def))
         return mapped;
     if (def->gid() >= old_gid)
         return def;
@@ -1044,7 +1044,7 @@ Def World::dce_rebuild(Def2Def& map, const size_t old_gid, Def def) {
 }
 
 void World::dce_mark(DefSet& set, Def def) {
-    if (set.visit(def) || def->isa<Lambda>() || def->isa<Param>())
+    if (visit(set, def) || def->isa<Lambda>() || def->isa<Param>())
         return;
 
     for (auto op : def->as<PrimOp>()->ops())

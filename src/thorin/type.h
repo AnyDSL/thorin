@@ -345,9 +345,9 @@ private:
 //------------------------------------------------------------------------------
 
 template<class To> 
-using TypeMap  = GidMap<const Type*, To>;
-using TypeSet  = GidSet<const Type*>;
-using Type2Type = GidMap<const Type*, const Type*>;
+using TypeMap   = HashMap<const Type*, To>;
+using TypeSet   = HashSet<const Type*>;
+using Type2Type = TypeMap<const Type*>;
 
 //------------------------------------------------------------------------------
 

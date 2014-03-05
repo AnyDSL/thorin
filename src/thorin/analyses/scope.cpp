@@ -194,7 +194,7 @@ void Scope::link_exit(Lambda* entry, Lambda* exit) {
 
 void Scope::post_order_visit(LambdaSet& done, LambdaSet& reachable, Lambda* cur, Lambda* exit) {
     for (auto succ : succs_[cur]) {
-        if (!done.visit(succ))
+        if (!visit(done, succ))
             post_order_visit(done, reachable, succ, exit);
     }
 
@@ -221,7 +221,7 @@ void Scope::rpo_numbering(Lambda* entry, Lambda* exit) {
     if (!forward) std::swap(entry, exit);
 
     LambdaSet visited;
-    visited.visit(entry);
+    visit_first(visited, entry);
     int num = po_visit<forward>(visited, entry, size()-1);
     assert(size() == visited.size() && num == -1);
 
@@ -240,7 +240,7 @@ int Scope::po_visit(LambdaSet& done, Lambda* cur, int i) {
     auto& sid = forward ? sid_ : reverse_sid_;
 
     for (auto succ : succs[cur]) {
-        if (!done.visit(succ))
+        if (!visit(done,  succ))
             i = po_visit<forward>(done, succ, i);
     }
 

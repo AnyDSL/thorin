@@ -51,7 +51,7 @@ Schedule schedule_early(const Scope& scope) {
             for (auto use : def->uses()) {
                 if (use->isa<Lambda>())
                     continue;
-                if (set.visit(use))
+                if (visit(set, use))
                     --num_placed[use];
                 else {
                     num_placed[use] = -1;

@@ -204,6 +204,30 @@ public:
         , id_(0)
 #endif
     {}
+    HashTable(const HashTable&) = delete;
+    HashTable(HashTable&& other)
+        : capacity_(std::move(other.capacity_))
+        , size_(std::move(other.size_))
+        , nodes_(std::move(other.nodes_))
+        , hash_function_(std::move(other.hash_function_))
+        , key_eq_(std::move(other.key_eq_))
+#ifndef NDEBUG
+        , id_(std::move(other.id_))
+#endif
+    {
+        swap(*this, other);
+    }
+    template<class InputIt>
+    HashTable(InputIt first, InputIt last, size_type capacity = min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
+        : HashTable(capacity, hash_function, key_eq)
+    {
+        insert(first, last);
+    }
+    HashTable(std::initializer_list<value_type> ilist, size_type capacity = min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
+        : HashTable(capacity, hash_function, key_eq)
+    {
+        insert(ilist);
+    }
     ~HashTable() { destroy(); }
 
     // iterators
@@ -293,7 +317,7 @@ public:
             auto it = nodes_ + x;
             if (*it == nullptr)
                 return end();
-            else if (IS_VALID(it) && key_eq_(key, (*it)->key()))
+            else if (*it != (HashNode*)-1 && key_eq_(key, (*it)->key()))
                 return iterator(it, this);
         }
     }
@@ -323,6 +347,20 @@ public:
         std::swap(nodes, nodes_);
         delete[] nodes;
     }
+
+    // copy/move stuff
+    friend void swap(HashTable& table1, HashTable& table2) {
+        using std::swap; 
+        swap(table1.capacity_,      table2.capacity_); 
+        swap(table1.size_,          table2.size_); 
+        swap(table1.nodes_,         table2.nodes_); 
+        swap(table1.hash_function_, table2.hash_function_); 
+        swap(table1.key_eq_,        table2.key_eq_); 
+#ifndef NDEBUG
+        swap(table1.id_,            table2.id_); 
+#endif
+    }
+    HashTable& operator= (HashTable other) { std::swap(*this, other); return *this; }
 
 protected:
 #ifndef NDEBUG
@@ -356,29 +394,6 @@ protected:
 
 //------------------------------------------------------------------------------
 
-template<class Key, class T, class Hasher = Hash<Key>, class KeyEqual = std::equal_to<Key>>
-class HashMap : public HashTable<Key, T, Hasher, KeyEqual> {
-public:
-    typedef Hasher hasher;
-    typedef KeyEqual key_equal;
-    typedef HashTable<Key, T, Hasher, KeyEqual> Super;
-    typedef typename Super::key_type key_type;
-    typedef typename Super::mapped_type mapped_type;
-    typedef typename Super::value_type value_type;
-    typedef typename Super::size_type size_type;
-    typedef typename Super::iterator iterator;
-    typedef typename Super::const_iterator const_iterator;
-
-    HashMap(size_type capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
-        : Super(capacity, hash_function, key_eq)
-    {}
-
-    mapped_type& operator[] (const key_type& key) { return Super::insert(std::make_pair(key, T())).first->second; }
-    mapped_type& operator[] (key_type&& key) { return Super::insert(std::make_pair(key, T())).first->second; }
-};
-
-//------------------------------------------------------------------------------
-
 template<class Key, class Hasher = Hash<Key>, class KeyEqual = std::equal_to<Key>>
 class HashSet : public HashTable<Key, void, Hasher, KeyEqual> {
 public:
@@ -395,7 +410,63 @@ public:
     HashSet(size_type capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
         : Super(capacity, hash_function, key_eq)
     {}
+    template<class InputIt>
+    HashSet(InputIt first, InputIt last, size_type capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
+        : Super(first, last, capacity, hash_function, key_eq)
+    {}
+    HashSet(std::initializer_list<value_type> ilist, size_type capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
+        : Super(ilist, capacity, hash_function, key_eq)
+    {}
 };
+
+//------------------------------------------------------------------------------
+
+template<class Key, class T, class Hasher = Hash<Key>, class KeyEqual = std::equal_to<Key>>
+class HashMap : public HashTable<Key, T, Hasher, KeyEqual> {
+public:
+    typedef Hasher hasher;
+    typedef KeyEqual key_equal;
+    typedef HashTable<Key, T, Hasher, KeyEqual> Super;
+    typedef typename Super::key_type key_type;
+    typedef typename Super::mapped_type mapped_type;
+    typedef typename Super::value_type value_type;
+    typedef typename Super::size_type size_type;
+    typedef typename Super::iterator iterator;
+    typedef typename Super::const_iterator const_iterator;
+
+    HashMap(size_type capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
+        : Super(capacity, hash_function, key_eq)
+    {}
+    template<class InputIt>
+    HashMap(InputIt first, InputIt last, size_type capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
+        : Super(first, last, capacity, hash_function, key_eq)
+    {}
+    HashMap(std::initializer_list<value_type> ilist, size_type capacity = Super::min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
+        : Super(ilist, capacity, hash_function, key_eq)
+    {}
+
+    mapped_type& operator[] (const key_type& key) { return Super::insert(value_type(key, T())).first->second; }
+    mapped_type& operator[] (key_type&& key) { return Super::insert(value_type(std::move(key), T())).first->second; }
+};
+
+template<class Key, class T, class Hasher, class KeyEqual>
+T* find(const HashMap<Key, T*, Hasher, KeyEqual>& map, const typename HashMap<Key, T*, Hasher, KeyEqual>::key_type& key) {
+    auto i = map.find(key);
+    return i == map.end() ? nullptr : i->second;
+}
+
+template<class Key, class Hasher, class KeyEqual, class Arg> 
+bool visit(HashSet<Key, Hasher, KeyEqual>& set, const Arg& key) { 
+    return !set.insert(key).second; 
+}
+
+template<class Key, class Hasher, class KeyEqual, class Arg> 
+void visit_first(HashSet<Key, Hasher, KeyEqual>& set, const Arg& key) { 
+    assert(!set.contains(key)); 
+    visit(set, key); 
+}
+
+//------------------------------------------------------------------------------
 
 }
 

@@ -58,7 +58,7 @@ next_primop:;
         // seal successors of last lambda if applicable
         for (auto succ : scope.succs(lambda)) {
             if (succ->parent() != 0) {
-                if (!set.visit(succ)) {
+                if (!visit(set, succ)) {
                     assert(addresses.find(succ) == addresses.end());
                     addresses[succ] = succ->preds().size();
                 }

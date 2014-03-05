@@ -184,9 +184,9 @@ private:
 //------------------------------------------------------------------------------
 
 template<class To> 
-using LambdaMap  = GidMap<Lambda*, To>;
-using LambdaSet  = GidSet<Lambda*>;
-using Lambda2Lambda = GidMap<Lambda*, Lambda*>;
+using LambdaMap     = HashMap<Lambda*, To, GIDHash, GIDEq>;
+using LambdaSet     = HashSet<Lambda*, GIDHash, GIDEq>;
+using Lambda2Lambda = LambdaMap<Lambda*>;
 
 //------------------------------------------------------------------------------
 

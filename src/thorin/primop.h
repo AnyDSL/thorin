@@ -324,9 +324,9 @@ private:
 //------------------------------------------------------------------------------
 
 template<class To> 
-using PrimOpMap     = GidMap<const PrimOp*, To>;
-using PrimOpSet     = GidSet<const PrimOp*>;
-using PrimOp2PrimOp = GidMap<const PrimOp*, const PrimOp*>;
+using PrimOpMap     = HashMap<const PrimOp*, To>;
+using PrimOpSet     = HashSet<const PrimOp*>;
+using PrimOp2PrimOp = PrimOpMap<const PrimOp*>;
 
 //------------------------------------------------------------------------------
 

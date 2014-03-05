@@ -196,7 +196,7 @@ std::ostream& IlPrinter::emit_jump(const Lambda* lambda, bool nodefs) {
 
 
 void IlPrinter::print_lambda(const DomTree& domtree, Schedule& schedule, Lambda* lambda, Vars& def_vars) {
-    if (pass_.visit(lambda))
+    if (visit(pass_, lambda))
         return;
     emit_head(lambda, schedule[lambda].empty());
     bool first = true;

@@ -17,7 +17,7 @@ public:
         , lift(lift)
         , generic_map(generic_map)
         , world(scope.world())
-        , set(scope.in_scope())
+        , set(scope.in_scope().begin(), scope.in_scope().end())
         , oentry(scope.entry())
         , nentry(oentry->world().lambda(oentry->name))
     {
@@ -32,7 +32,7 @@ public:
             queue.pop();
 
             for (auto use : def->uses()) {
-                if (!use->isa_lambda() && !set.visit(use))
+                if (!use->isa_lambda() && !visit(set, use))
                     queue.push(use);
             }
         }

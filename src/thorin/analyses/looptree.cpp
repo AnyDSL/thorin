@@ -82,7 +82,7 @@ private:
     }
 
     int visit(Lambda* lambda, int counter) {
-        set.visit_first(lambda);
+        visit_first(set, lambda);
         numbers[lambda] = Number(counter++);
         push(lambda);
         return counter;

@@ -27,18 +27,6 @@ class World;
 
 //------------------------------------------------------------------------------
 
-template<class GidType>
-struct GidHash { 
-    size_t operator () (GidType n1) const { return n1->gid(); }
-};
-
-template<class GidType>
-struct GidEq { 
-    size_t operator () (GidType n1, GidType n2) const { return n1->gid() == n2->gid(); }
-};
-
-//------------------------------------------------------------------------------
-
 /**
  * This class acts as a proxy for \p DefNode pointers.
  * This proxy hides that a \p DefNode may have been replaced by another one.
@@ -96,40 +84,13 @@ struct UseLT {
 
 //------------------------------------------------------------------------------
 
-template<class From, class To>
-class GidMap : public HashMap<From, To, GidHash<From>, GidEq<From>> {
-public:
-    typedef HashMap<From, To, GidHash<From>, GidEq<From>> Super;
-    To& operator [] (const From& from) const { return const_cast<GidMap*>(this)->Super::operator[](from); }
-};
-
-template<class From, class To>
-class GidMap<From, To*> : public HashMap<From, To*, GidHash<From>, GidEq<From>> {
-public:
-    typedef HashMap<From, To*, GidHash<From>, GidEq<From>> Super;
-
-    To* find(From from) const {
-        auto i = Super::find(from);
-        return i == Super::end() ? nullptr : i->second;
-    }
-
-    To*& operator [] (const From& from) const { return const_cast<GidMap*>(this)->Super::operator[](from); }
-};
-
-template<class From>
-class GidSet : public HashSet<From, GidHash<From>, GidEq<From>> {
-public:
-    typedef HashSet<From, GidHash<From>, GidEq<From>> Super;
-
-    bool contains(From from) const { return Super::find(from) != Super::end(); }
-    bool visit(From from) { return !Super::insert(from).second; }
-    void visit_first(From from) { assert(!contains(from)); visit(from); }
-};
+struct GIDHash { inline size_t operator () (const DefNode* n) const; };
+struct GIDEq { inline size_t operator () (const DefNode* n1, const DefNode* n2) const; };
 
 template<class To> 
-using DefMap  = GidMap<const DefNode*, To>;
-using DefSet  = GidSet<const DefNode*>;
-using Def2Def = GidMap<const DefNode*, const DefNode*>;
+using DefMap  = HashMap<const DefNode*, To, GIDHash, GIDEq>;
+using DefSet  = HashSet<const DefNode*, GIDHash, GIDEq>;
+using Def2Def = DefMap<const DefNode*>;
 
 //------------------------------------------------------------------------------
 
@@ -229,6 +190,9 @@ public:
     friend class World;
     friend void verify_closedness(World& world);
 };
+
+size_t GIDHash::operator () (const DefNode* n) const { return n->gid(); }
+size_t GIDEq::operator () (const DefNode* n1, const DefNode* n2) const { return n1->gid() == n2->gid(); }
 
 //------------------------------------------------------------------------------
 

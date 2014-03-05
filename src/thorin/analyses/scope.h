@@ -27,11 +27,11 @@ public:
     ArrayRef<Lambda*> body() const { return rpo().slice_from_begin(1); }
     const DefSet& in_scope() const { return in_scope_; }
     bool contains(Def def) const { return in_scope_.contains(def); }
-    ArrayRef<Lambda*> preds(Lambda* lambda) const { return (is_forward() ? preds_ : succs_)[lambda]; }
-    ArrayRef<Lambda*> succs(Lambda* lambda) const { return (is_forward() ? succs_ : preds_)[lambda]; }
+    ArrayRef<Lambda*> preds(Lambda* lambda) const { return (is_forward() ? preds_ : succs_).find(lambda)->second; }
+    ArrayRef<Lambda*> succs(Lambda* lambda) const { return (is_forward() ? succs_ : preds_).find(lambda)->second; }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
-    int sid(Lambda* lambda) const { assert(contains(lambda)); return (is_forward() ? sid_ : reverse_sid_)[lambda]; }
+    int sid(Lambda* lambda) const { assert(contains(lambda)); return (is_forward() ? sid_ : reverse_sid_).find(lambda)->second; }
     size_t size() const { return rpo_.size(); }
     World& world() const { return world_; }
     bool is_forward() const { return is_forward_; }

@@ -146,7 +146,7 @@ public:
     Array<Lambda*> loop_lambdas(const LoopHeader* header);
     Array<Lambda*> loop_lambdas_in_rpo(const LoopHeader* header);
     void dump() const { root()->dump(); }
-    const LoopLeaf* lambda2leaf(Lambda* lambda) const { return map_.find(lambda); }
+    const LoopLeaf* lambda2leaf(Lambda* lambda) const { return find(map_, lambda); }
     const LoopHeader* lambda2header(Lambda* lambda) const;
 
 private:

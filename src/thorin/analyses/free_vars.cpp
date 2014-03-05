@@ -18,11 +18,11 @@ std::vector<Def> free_vars(const Scope& scope) {
                 continue;
             if (!scope.contains(op)) {
                 vars.insert(op);
-                set.visit(op);
+                visit(set, op);
                 continue;
             }
 
-            if (!set.visit(op))
+            if (!visit(set, op))
                 queue.push(op);
         }
     };

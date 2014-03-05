@@ -257,7 +257,7 @@ namespace std {
         size_t operator () (thorin::ArrayRef<thorin::Def> defs) const { 
             size_t seed = thorin::hash_value(defs.size());
             for (auto def : defs)
-                seed = thorin::hash_combine(seed, def->gid());
+                seed = thorin::hash_combine(seed, def.empty() ? size_t(-1) : def->gid());
             return seed;
         }
     };

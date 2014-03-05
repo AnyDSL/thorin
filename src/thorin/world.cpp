@@ -867,16 +867,6 @@ const DefNode* World::cse_base(const PrimOp* primop) {
         assert(p.second && "hash/equal broken");
     }
 
-    if (primop->gid() == 45) {
-        std::cout << "---" << std::endl;
-        primop->dump();
-        std::cout << primop->op(1).node()->is_proxy() << std::endl;
-        for (auto use : primop->op(1)->uses_) {
-            std::cout << use.def().node()->is_proxy() << std::endl;
-            use.def()->dump();
-        }
-        std::cout << "---" << std::endl;
-    }
     THORIN_CHECK_BREAK(primop->gid())
     return primop;
 }
@@ -980,10 +970,6 @@ static void sanity_check(Def def) {
 }
 
 void World::dead_code_elimination() {
-    std::cout << "!!!" << std::endl;
-    for (auto p : primops_)
-        std::cout << p->gid() << std::endl;
-    std::cout << "!!!" << std::endl;
     const auto old_gid = gid_;
     Def2Def map;
     for (auto lambda : lambdas()) {
@@ -993,7 +979,6 @@ void World::dead_code_elimination() {
 
     DefSet set;
     for (auto lambda : lambdas()) {
-        lambda->dump_head();
         for (size_t i = 0, e = lambda->ops().size(); i != e; ++i) {
             assert(!lambda->op(i).node()->is_proxy());
             dce_mark(set, lambda->op(i));
@@ -1079,7 +1064,6 @@ const DefNode* World::dce_rebuild(Def2Def& map, const size_t old_gid, const DefN
 }
 
 void World::dce_mark(DefSet& set, const DefNode* def) {
-    std::cout << def->gid_ << std::endl;
     assert(!def->is_proxy());
     if (visit(set, def) || def->isa<Lambda>() || def->isa<Param>())
         return;

@@ -1066,7 +1066,7 @@ void World::unused_type_elimination() {
             ute_insert(set, param->type());
     }
 
-    wipe_out(types_, [=] (const Type* type) { return set.find(type) == set.end(); });
+    wipe_out(types_, [&] (const Type* type) { return set.find(type) == set.end(); });
 }
 
 void World::ute_insert(HashSet<const Type*>& set, const Type* type) {

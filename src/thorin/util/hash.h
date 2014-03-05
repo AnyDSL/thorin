@@ -178,10 +178,10 @@ public:
 
     HashTable(size_type capacity = 16, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
         : capacity_(std::max(size_type(16), capacity))
+        , size_(0)
         , nodes_(alloc())
         , hash_function_(hash_function)
         , key_eq_(key_eq)
-        , size_(0)
     {}
     ~HashTable() { destroy(); }
 
@@ -199,7 +199,6 @@ public:
     size_type capacity() const { return capacity_; }
     bool empty() const { return size() == 0; }
     void clear() {
-        assert(false && "TODO");
         destroy();
         size_ = 0;
         capacity_ = 16;
@@ -241,9 +240,9 @@ public:
 
     // erase
     iterator erase(const_iterator pos) {
-        --size_;
         assert(!empty());
         assert(IS_VALID(pos.node_) && pos != end());
+        --size_;
         delete *pos.node_;
         *pos.node_ = (HashNode*)-1;
         return iterator(iterator::move_to_valid(pos.node_));
@@ -278,17 +277,19 @@ public:
 
     void rehash(size_type new_capacity) {
         new_capacity = std::max(size_type(16), new_capacity);
-        auto e = end();
+        size_t old_capacity = capacity_;
         capacity_ = new_capacity;
         auto nodes = alloc();
 
-        for (auto it = begin(); it != e; ++it) {
-            HashNode* old = *it.node_;
-            for (size_t i = hash_function_(old->key()), step = 0; true; i = (i + step++)) {
-                size_t x = i & (capacity_-1);
-                if (nodes[x] == nullptr) {
-                    nodes[x] = old;
-                    break;
+        for (size_t i = 0; i != old_capacity; ++i) {
+            if (IS_VALID(nodes_+i)) {
+                HashNode* old = nodes_[i];
+                for (size_t i = hash_function_(old->key()), step = 0; true; i = (i + step++)) {
+                    size_t x = i & (capacity_-1);
+                    if (nodes[x] == nullptr) {
+                        nodes[x] = old;
+                        break;
+                    }
                 }
             }
         }
@@ -308,17 +309,15 @@ protected:
     HashNode** alloc() {
         assert(is_power_of_2(capacity_));
         auto nodes = new HashNode*[capacity_+1](); // the last node servers as end
-        for (size_t i = 0, e = capacity_; i != e; ++i)
-            assert(nodes[i] == nullptr);
         nodes[capacity_] = (HashNode*)1;           // mark end as occupied
         return nodes;
     }
 
     size_type capacity_;
+    size_type size_;
     HashNode** nodes_;
     hasher hash_function_;
     key_equal key_eq_;
-    size_type size_;
 };
 
 //------------------------------------------------------------------------------

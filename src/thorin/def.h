@@ -28,8 +28,13 @@ class World;
 //------------------------------------------------------------------------------
 
 template<class GidType>
-struct GidLT { 
-    size_t operator () (GidType n1, GidType n2) const { return n1->gid() < n2->gid(); }
+struct GidHash { 
+    size_t operator () (GidType n1) const { return n1->gid(); }
+};
+
+template<class GidType>
+struct GidEq { 
+    size_t operator () (GidType n1, GidType n2) const { return n1->gid() == n2->gid(); }
 };
 
 //------------------------------------------------------------------------------
@@ -92,30 +97,29 @@ struct UseLT {
 //------------------------------------------------------------------------------
 
 template<class From, class To>
-class GidMap : public std::map<From, To, GidLT<From>> {
+class GidMap : public HashMap<From, To, GidHash<From>, GidEq<From>> {
 public:
-    typedef std::map<From, To, GidLT<From>> Super;
+    typedef HashMap<From, To, GidHash<From>, GidEq<From>> Super;
     To& operator [] (const From& from) const { return const_cast<GidMap*>(this)->Super::operator[](from); }
 };
 
 template<class From, class To>
-class GidMap<From, To*> : public std::map<From, To*, GidLT<From>> {
+class GidMap<From, To*> : public HashMap<From, To*, GidHash<From>, GidEq<From>> {
 public:
-    typedef std::map<From, To*, GidLT<From>> Super;
+    typedef HashMap<From, To*, GidHash<From>, GidEq<From>> Super;
 
     To* find(From from) const {
         auto i = Super::find(from);
         return i == Super::end() ? nullptr : i->second;
     }
 
-    bool contains(From from) const { return Super::find(from) != Super::end(); }
     To*& operator [] (const From& from) const { return const_cast<GidMap*>(this)->Super::operator[](from); }
 };
 
 template<class From>
-class GidSet : public std::set<From, GidLT<From>> {
+class GidSet : public HashSet<From, GidHash<From>, GidEq<From>> {
 public:
-    typedef std::set<From, GidLT<From>> Super;
+    typedef HashSet<From, GidHash<From>, GidEq<From>> Super;
 
     bool contains(From from) const { return Super::find(from) != Super::end(); }
     bool visit(From from) { return !Super::insert(from).second; }

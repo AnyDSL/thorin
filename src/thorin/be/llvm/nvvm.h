@@ -1,7 +1,6 @@
 #ifndef THORIN_BE_LLVM_NVVM_H
 #define THORIN_BE_LLVM_NVVM_H
 
-#include <unordered_map>
 #include "thorin/be/llvm/llvm.h"
 
 namespace thorin {
@@ -31,7 +30,7 @@ private:
     llvm::Function* get_texture_handle_fun();
     llvm::GlobalVariable* resolve_global_variable(const Param*);
 
-    std::unordered_map<const Param*, llvm::MDNode*> metadata_;
+    HashMap<const Param*, llvm::MDNode*> metadata_;
 };
 
 }

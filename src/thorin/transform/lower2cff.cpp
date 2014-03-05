@@ -1,6 +1,3 @@
-#include <iostream>
-#include <unordered_map>
-
 #include "thorin/lambda.h"
 #include "thorin/world.h"
 #include "thorin/type.h"
@@ -49,7 +46,7 @@ private:
 
 void CFFLowering::transform(Lambda* lambda) {
     Scope scope(lambda);
-    std::unordered_map<Array<Def>, Lambda*> args2lambda;
+    HashMap<Array<Def>, Lambda*> args2lambda;
     std::vector<UseProxy> use_proxies;
 
     for (auto use : lambda->uses()) {

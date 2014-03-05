@@ -199,6 +199,7 @@ public:
     size_type capacity() const { return capacity_; }
     bool empty() const { return size() == 0; }
     void clear() {
+        assert(false && "TODO");
         destroy();
         size_ = 0;
         capacity_ = 16;

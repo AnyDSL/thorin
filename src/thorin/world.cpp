@@ -1052,7 +1052,7 @@ void World::dce_mark(DefSet& set, Def def) {
 }
 
 void World::unused_type_elimination() {
-    std::unordered_set<const Type*> set;
+    HashSet<const Type*> set;
 
     for (size_t i = 0, e = sizeof(keep_)/sizeof(const Type*); i != e; ++i)
         ute_insert(set, keep_[i]);
@@ -1069,7 +1069,7 @@ void World::unused_type_elimination() {
     wipe_out(types_, [=] (const Type* type) { return set.find(type) == set.end(); });
 }
 
-void World::ute_insert(std::unordered_set<const Type*>& set, const Type* type) {
+void World::ute_insert(HashSet<const Type*>& set, const Type* type) {
     assert(types_.find(type) != types_.end() && "not in map");
 
     if (set.find(type) != set.end()) return;

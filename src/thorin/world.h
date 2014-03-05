@@ -6,7 +6,6 @@
 #include <initializer_list>
 #include <queue>
 #include <string>
-#include <unordered_set>
 
 #include "thorin/enums.h"
 #include "thorin/lambda.h"
@@ -68,7 +67,7 @@ private:
 
 public:
     typedef HashSet<const PrimOp*, PrimOpHash, PrimOpEqual> PrimOps;
-    typedef std::unordered_set<const Type*, TypeHash, TypeEqual> Types;
+    typedef HashSet<const Type*, TypeHash, TypeEqual> Types;
 
     World(std::string name = "");
     ~World();
@@ -285,7 +284,7 @@ private:
     void eliminate_proxies();
     Def dce_rebuild(Def2Def&, const size_t old_gid, Def def);
     void dce_mark(DefSet&, Def);
-    void ute_insert(std::unordered_set<const Type*>&, const Type*);
+    void ute_insert(HashSet<const Type*>&, const Type*);
     void uce_insert(LambdaSet&, Lambda*);
     template<class S, class W> static void wipe_out(S& set, W wipe); 
 
@@ -294,7 +293,7 @@ private:
     PrimOps primops_;
     Types types_;
 #ifndef NDEBUG
-    std::unordered_set<size_t> breakpoints_;
+    HashSet<size_t> breakpoints_;
 #endif
 
     size_t gid_;

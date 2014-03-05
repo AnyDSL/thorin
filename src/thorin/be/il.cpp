@@ -7,11 +7,12 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/top_level_scopes.h"
+#include "thorin/util/hash.h"
 #include "thorin/util/printer.h"
 
 namespace thorin {
 
-typedef std::unordered_set<const DefNode*> Vars;
+typedef HashSet<const DefNode*> Vars;
 
 void free_vars(const DomTree& domtree, Schedule& schedule, Lambda* lambda, Vars& vars) {
     for (auto lamb : domtree.lookup(lambda)->children()) {

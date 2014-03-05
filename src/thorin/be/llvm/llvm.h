@@ -1,8 +1,6 @@
 #ifndef THORIN_BE_LLVM_LLVM_H
 #define THORIN_BE_LLVM_LLVM_H
 
-#include <unordered_map>
-
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
 
@@ -54,10 +52,10 @@ protected:
     AutoPtr<llvm::Module> module_;
     llvm::IRBuilder<> builder_;
     llvm::CallingConv::ID calling_convention_;
-    std::unordered_map<const Param*, llvm::Value*> params_;
-    std::unordered_map<const Param*, llvm::PHINode*> phis_;
-    std::unordered_map<const PrimOp*, llvm::Value*> primops_;
-    std::unordered_map<Lambda*, llvm::Function*> fcts_;
+    HashMap<const Param*, llvm::Value*> params_;
+    HashMap<const Param*, llvm::PHINode*> phis_;
+    HashMap<const PrimOp*, llvm::Value*> primops_;
+    HashMap<Lambda*, llvm::Function*> fcts_;
     std::set<llvm::Function*> fcts_to_remove_;
 
     AutoPtr<GenericRuntime> runtime_;

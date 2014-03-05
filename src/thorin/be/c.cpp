@@ -12,8 +12,6 @@
 #include "thorin/util/printer.h"
 #include "thorin/be/c.h"
 
-#include <unordered_map>
-
 namespace thorin {
 
 class CCodeGen : public Printer {
@@ -32,8 +30,8 @@ public:
 private:
     World& world_;
     LangType lang_;
-    std::unordered_map<int, std::string> primops_;
-    std::unordered_set<int> gparams_;
+    HashMap<int, std::string> primops_;
+    HashSet<int> gparams_;
 };
 
 std::ostream& CCodeGen::emit_type(const Type* type) {

@@ -146,15 +146,28 @@ private:
         typedef typename std::conditional<is_const, const value_type*, value_type*>::type pointer;
         typedef std::bidirectional_iterator_tag iterator_category;
 
-        iterator_base(HashNode** node) : node_(node) {}
-        iterator_base(const iterator_base<false>& i) : node_(i.node_) {}
-        iterator_base& operator=(const iterator_base& i) { node_ = i.node_; return *this; }
+        iterator_base(HashNode** node, const HashTable* table) 
+            : node_(node)
+#ifndef NDEBUG
+            , table_(table) 
+            , id_(table->id())
+#endif
+        {}
+        iterator_base(const iterator_base<false>& i) 
+            : node_(i.node_)
+#ifndef NDEBUG
+            , table_(i.table_) 
+            , id_(i.id_)
+#endif
+        {}
+
+        iterator_base& operator=(const iterator_base& i) { node_ = i.node_; table_ = i.table_; return *this; }
         iterator_base& operator++() { node_ = move_to_valid(++node_); return *this; }
         iterator_base operator++(int) { iterator_base res = *this; ++(*this); return res; }
         reference operator*() const { return (*node_)->value_; }
         pointer operator->() const { return &(*node_)->value_; }
-        bool operator == (const iterator_base& other) { return this->node_ == other.node_; }
-        bool operator != (const iterator_base& other) { return this->node_ != other.node_; }
+        bool operator == (const iterator_base& other) { assert(this->table_ == other.table_ && this->id_ == other.id_); return this->node_ == other.node_; }
+        bool operator != (const iterator_base& other) { assert(this->table_ == other.table_ && this->id_ == other.id_); return this->node_ != other.node_; }
 
     private:
         static HashNode** move_to_valid(HashNode** n) {
@@ -162,6 +175,10 @@ private:
             return n; 
         }
         HashNode** node_;
+#ifndef NDEBUG
+        const HashTable* table_;
+        int id_;
+#endif
 
         friend class HashTable;
     };
@@ -183,32 +200,33 @@ public:
         , nodes_(alloc())
         , hash_function_(hash_function)
         , key_eq_(key_eq)
+#ifndef NDEBUG
+        , id_(0)
+#endif
     {}
     ~HashTable() { destroy(); }
 
     // iterators
-    iterator begin() { return iterator::move_to_valid(nodes_); }
-    iterator end() { auto n = nodes_ + capacity(); assert(IS_END(n)); return n; }
+    iterator begin() { return iterator(iterator::move_to_valid(nodes_), this); }
+    iterator end() { auto n = nodes_ + capacity(); assert(IS_END(n)); return iterator(n, this); }
     const_iterator begin() const { return const_iterator(const_cast<HashTable*>(this)->begin()); }
     const_iterator end() const { return const_iterator(const_cast<HashTable*>(this)->end()); }
     const_iterator cbegin() const { return begin(); }
     const_iterator cend() const { return end(); }
 
+    // getters
     hasher hash_function() const { return hash_function_; }
     key_equal key_eq() const { return key_eq_; }
     size_type size() const { return size_; }
     size_type capacity() const { return capacity_; }
     bool empty() const { return size() == 0; }
-    void clear() {
-        destroy();
-        size_ = 0;
-        capacity_ = min_capacity;
-        nodes_ = alloc();
-    }
 
     // emplace/insert
     template<class... Args>
     std::pair<iterator,bool> emplace(Args&&... args) { 
+#ifndef NDEBUG
+        ++id_;
+#endif
         auto n = new HashNode(args...);
         if (size_ > capacity_/size_t(4) + capacity_/size_t(2))
             rehash(capacity_*size_t(2));
@@ -222,10 +240,10 @@ public:
             if (*it == nullptr) {
                 ++size_;
                 *it = n;
-                return std::make_pair(it, true);
+                return std::make_pair(iterator(it, this), true);
             } else if (*it != (HashNode*)-1 && key_eq_(key, (*it)->key())) {
                 delete n;
-                return std::make_pair(it, false);
+                return std::make_pair(iterator(it, this), false);
             }
         }
     }
@@ -240,12 +258,14 @@ public:
 
     // erase
     iterator erase(const_iterator pos) {
+        assert(pos.table_ == this && "iterator does not match to this table");
+        assert(pos.id_ == id_ && "iterator used after emplace/insert");
         assert(!empty());
         assert(IS_VALID(pos.node_) && pos != end());
         --size_;
         delete *pos.node_;
         *pos.node_ = (HashNode*)-1;
-        return iterator(iterator::move_to_valid(pos.node_));
+        return iterator(iterator::move_to_valid(pos.node_), this);
     }
     iterator erase(const_iterator first, const_iterator last) {
         for (auto i = first; i != last; ++i) 
@@ -259,6 +279,12 @@ public:
         erase(i);
         return 1;
     }
+    void clear() {
+        destroy();
+        size_ = 0;
+        capacity_ = min_capacity;
+        nodes_ = alloc();
+    }
 
     // find
     iterator find(const key_type& key) {
@@ -268,10 +294,10 @@ public:
             if (*it == nullptr)
                 return end();
             else if (IS_VALID(it) && key_eq_(key, (*it)->key()))
-                return iterator(it);
+                return iterator(it, this);
         }
     }
-    const_iterator find(const key_type& key) const { return const_cast<HashTable*>(this)->find(key).node_; }
+    const_iterator find(const key_type& key) const { return const_iterator(const_cast<HashTable*>(this)->find(key).node_, this); }
     size_type count(const key_type& key) const { return find(key) == end() ? 0 : 1; }
     bool contains(const key_type& key) const { return count(key) == 1; }
 
@@ -299,6 +325,11 @@ public:
     }
 
 protected:
+#ifndef NDEBUG
+    int id() const { return id_; }
+#else
+    int id() const { return 0; }
+#endif
     void destroy() {
         for (size_t i = 0, e = capacity_; i != e; ++i) {
             if (IS_VALID(nodes_+i))
@@ -318,6 +349,9 @@ protected:
     HashNode** nodes_;
     hasher hash_function_;
     key_equal key_eq_;
+#ifndef NDEBUG
+    int id_;
+#endif
 };
 
 //------------------------------------------------------------------------------

@@ -84,15 +84,15 @@ inline std::size_t hash_value_unsigned(T val) {
 }
 
 template<class Key> struct Hash;
-template<> struct Hash<  int8_t> { size_t operator () (  int8_t i) const { return hash_value_signed(i); } };
-template<> struct Hash< int16_t> { size_t operator () ( int16_t i) const { return hash_value_signed(i); } };
-template<> struct Hash< int32_t> { size_t operator () ( int32_t i) const { return hash_value_signed(i); } };
-template<> struct Hash< int64_t> { size_t operator () ( int64_t i) const { return hash_value_signed(i); } };
-template<> struct Hash< uint8_t> { size_t operator () ( uint8_t i) const { return hash_value_unsigned(i); } };
-template<> struct Hash<uint16_t> { size_t operator () (uint16_t i) const { return hash_value_unsigned(i); } };
-template<> struct Hash<uint32_t> { size_t operator () (uint32_t i) const { return hash_value_unsigned(i); } };
-template<> struct Hash<uint64_t> { size_t operator () (uint64_t i) const { return hash_value_unsigned(i); } };
-template<class T> struct Hash<T*> { size_t operator () (T* p) const { return hash_value_signed(std::intptr_t(p)); } };
+template<> struct Hash<  int8_t> { size_t operator() (  int8_t i) const { return hash_value_signed(i); } };
+template<> struct Hash< int16_t> { size_t operator() ( int16_t i) const { return hash_value_signed(i); } };
+template<> struct Hash< int32_t> { size_t operator() ( int32_t i) const { return hash_value_signed(i); } };
+template<> struct Hash< int64_t> { size_t operator() ( int64_t i) const { return hash_value_signed(i); } };
+template<> struct Hash< uint8_t> { size_t operator() ( uint8_t i) const { return hash_value_unsigned(i); } };
+template<> struct Hash<uint16_t> { size_t operator() (uint16_t i) const { return hash_value_unsigned(i); } };
+template<> struct Hash<uint32_t> { size_t operator() (uint32_t i) const { return hash_value_unsigned(i); } };
+template<> struct Hash<uint64_t> { size_t operator() (uint64_t i) const { return hash_value_unsigned(i); } };
+template<class T> struct Hash<T*> { size_t operator() (T* p) const { return hash_value_signed(std::intptr_t(p)); } };
 
 //------------------------------------------------------------------------------
 
@@ -160,13 +160,21 @@ private:
 #endif
         {}
 
-        iterator_base& operator=(const iterator_base& i) { node_ = i.node_; table_ = i.table_; return *this; }
-        iterator_base& operator++() { node_ = move_to_valid(++node_); return *this; }
-        iterator_base operator++(int) { iterator_base res = *this; ++(*this); return res; }
-        reference operator*() const { return (*node_)->value_; }
-        pointer operator->() const { return &(*node_)->value_; }
-        bool operator == (const iterator_base& other) { assert(this->table_ == other.table_ && this->id_ == other.id_); return this->node_ == other.node_; }
-        bool operator != (const iterator_base& other) { assert(this->table_ == other.table_ && this->id_ == other.id_); return this->node_ != other.node_; }
+        iterator_base& operator= (iterator_base other) { swap(*this, other); return *this; }
+        iterator_base& operator++ () { node_ = move_to_valid(++node_); return *this; }
+        iterator_base operator++ (int) { iterator_base res = *this; ++(*this); return res; }
+        reference operator* () const { return (*node_)->value_; }
+        pointer operator-> () const { return &(*node_)->value_; }
+        bool operator== (const iterator_base& other) { assert(this->table_ == other.table_ && this->id_ == other.id_); return this->node_ == other.node_; }
+        bool operator!= (const iterator_base& other) { assert(this->table_ == other.table_ && this->id_ == other.id_); return this->node_ != other.node_; }
+        friend void swap(iterator_base& i1, iterator_base& i2) {
+            using std::swap;
+            swap(i1.node_,  i2.node_);
+#ifndef NDEBUG
+            swap(i1.table_, i2.tabe_); 
+            swap(i1.id_,    i2.id_); 
+#endif
+        }
 
     private:
         static HashNode** move_to_valid(HashNode** n) {
@@ -203,7 +211,6 @@ public:
         , id_(0)
 #endif
     {}
-    HashTable(const HashTable&) = delete;
     HashTable(HashTable&& other)
         : capacity_(std::move(other.capacity_))
         , size_(std::move(other.size_))
@@ -213,9 +220,8 @@ public:
 #ifndef NDEBUG
         , id_(std::move(other.id_))
 #endif
-    {
-        swap(*this, other);
-    }
+    {}
+    HashTable(const HashTable&) = delete;
     template<class InputIt>
     HashTable(InputIt first, InputIt last, size_type capacity = min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
         : HashTable(capacity, hash_function, key_eq)
@@ -349,7 +355,7 @@ public:
 
     // copy/move stuff
     friend void swap(HashTable& table1, HashTable& table2) {
-        using std::swap; 
+        using std::swap;
         swap(table1.capacity_,      table2.capacity_); 
         swap(table1.size_,          table2.size_); 
         swap(table1.nodes_,         table2.nodes_); 

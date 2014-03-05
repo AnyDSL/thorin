@@ -89,7 +89,11 @@ public:
     {
         std::copy(ref.begin(), ref.end(), begin());
     }
-    Array(const Array<T>& array)
+    Array(Array&& array)
+        : ptr_(std::move(array.ptr_))
+        , size_(std::move(array.size_))
+    {}
+    Array(const Array& array)
         : ptr_(new T[array.size()])
         , size_(array.size())
     {
@@ -133,9 +137,14 @@ public:
     T* data() { return ptr_; }
     const T* data() const { return ptr_; }
 
-private:
-    Array<T>& operator = (const Array<T>& array);
+    friend void swap(Array& a, Array& b) {
+        using std::swap;
+        swap(a.ptr_,  b.ptr_);
+        swap(a.size_, b.size_);
+    }
+    Array<T>& operator= (Array<T> other) { swap(*this, other); return *this; }
 
+private:
     T* ptr_;
     size_t size_;
 };

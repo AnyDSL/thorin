@@ -56,7 +56,7 @@ protected:
     HashMap<const Param*, llvm::PHINode*> phis_;
     HashMap<const PrimOp*, llvm::Value*> primops_;
     HashMap<Lambda*, llvm::Function*> fcts_;
-    std::set<llvm::Function*> fcts_to_remove_;
+    HashSet<llvm::Function*> fcts_to_remove_;
 
     AutoPtr<GenericRuntime> runtime_;
     AutoPtr<KernelRuntime> nvvm_runtime_;

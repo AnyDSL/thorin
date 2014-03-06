@@ -34,8 +34,8 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries)
     build_preds();
     auto exit = find_exit();
     link_exit(entry, exit);
-    rpo_numbering<true> (entry);
-    rpo_numbering<false>(exit);
+    ScopeView(*this,  true).rpo_numbering(entry);
+    ScopeView(*this, false).rpo_numbering(exit);
 }
 
 Scope::~Scope() {
@@ -193,39 +193,6 @@ void Scope::post_order_visit(LambdaSet& done, LambdaSet& reachable, Lambda* cur,
     }
 }
 
-template<bool forward>
-void Scope::rpo_numbering(Lambda* entry) {
-    auto& rpo = forward ? rpo_ : reverse_rpo_;
-    auto& sid = forward ? sid_ : reverse_sid_;
-
-    LambdaSet visited;
-    visit_first(visited, entry);
-    int num = po_visit<forward>(visited, entry, size()-1);
-    assert(size() == visited.size() && num == -1);
-
-    // sort rpo according to sid which now holds the rpo number
-    std::stable_sort(rpo.begin(), rpo.end(), [&](Lambda* l1, Lambda* l2) { return sid[l1] < sid[l2]; });
-
-#ifndef NDEBUG
-    for (int i = 0, e = size(); i != e; ++i)
-        assert(sid[rpo[i]] == i && "double check of sids went wrong");
-#endif
-}
-
-template<bool forward>
-int Scope::po_visit(LambdaSet& done, Lambda* cur, int i) {
-    auto& succs = forward ? succs_ : preds_;
-    auto& sid = forward ? sid_ : reverse_sid_;
-
-    for (auto succ : succs[cur]) {
-        if (!visit(done,  succ))
-            i = po_visit<forward>(done, succ, i);
-    }
-
-    sid[cur] = i;
-    return i-1;
-}
-
 //------------------------------------------------------------------------------
 
 LambdaSet ScopeView::reachable(Lambda* entry) {
@@ -244,6 +211,31 @@ LambdaSet ScopeView::reachable(Lambda* entry) {
         }
     }
     return set;
+}
+
+void ScopeView::rpo_numbering(Lambda* entry) {
+    LambdaSet visited;
+    visit_first(visited, entry);
+    int num = po_visit(visited, entry, size()-1);
+    assert(size() == visited.size() && num == -1);
+
+    // sort rpo according to sid which now holds the rpo number
+    std::stable_sort(rpo_vector().begin(), rpo_vector().end(), [&](Lambda* l1, Lambda* l2) { return sid()[l1] < sid()[l2]; });
+
+#ifndef NDEBUG
+    for (int i = 0, e = size(); i != e; ++i)
+        assert(sid()[rpo()[i]] == i && "double check of sids went wrong");
+#endif
+}
+
+int ScopeView::po_visit(LambdaSet& done, Lambda* cur, int i) {
+    for (auto succ : succs(cur)) {
+        if (!visit(done,  succ))
+            i = po_visit(done, succ, i);
+    }
+
+    sid()[cur] = i;
+    return i-1;
 }
 
 //------------------------------------------------------------------------------

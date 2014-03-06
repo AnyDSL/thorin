@@ -58,15 +58,13 @@ private:
     Lambda* find_exit();
     void link_exit(Lambda* entry, Lambda* exit);
     void post_order_visit(LambdaSet&, LambdaSet&, Lambda* cur, Lambda* exit);
-    template<bool forward> void rpo_numbering(Lambda* entry);
-    template<bool forward> int po_visit(LambdaSet& set, Lambda* cur, int i);
     void link_succ(Lambda* src, Lambda* dst) { assert(contains(src) && contains(dst)); succs_[src].push_back(dst); };
     void link_pred(Lambda* src, Lambda* dst) { assert(contains(src) && contains(dst)); preds_[dst].push_back(src); };
 
     World& world_;
     DefSet in_scope_;
-    std::vector<Lambda*> rpo_;
-    std::vector<Lambda*> reverse_rpo_;
+    mutable std::vector<Lambda*> rpo_;
+    mutable std::vector<Lambda*> reverse_rpo_;
     mutable LambdaMap<std::vector<Lambda*>> preds_;
     mutable LambdaMap<std::vector<Lambda*>> succs_;
     mutable LambdaMap<int> sid_;
@@ -100,10 +98,7 @@ public:
     ArrayRef<Lambda*> succs(Lambda* lambda) const { return is_forward() ? scope().succs(lambda) : scope().preds(lambda); }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
-    int sid(Lambda* lambda) const { 
-        assert(contains(lambda)); 
-        return (is_forward() ? scope().sid_ : scope().reverse_sid_)[lambda]; 
-    }
+    int sid(Lambda* lambda) const { assert(contains(lambda)); return sid()[lambda]; }
     size_t size() const { return scope().size(); }
     World& world() const { return scope().world(); }
 
@@ -117,6 +112,10 @@ public:
 
 private:
     LambdaSet reachable(Lambda* entry);
+    void rpo_numbering(Lambda* entry);
+    int po_visit(LambdaSet& set, Lambda* cur, int i);
+    LambdaMap<int>& sid() const { return is_forward() ? scope().sid_ : scope().reverse_sid_; }
+    std::vector<Lambda*>& rpo_vector() const { return is_forward() ? scope().rpo_ : scope().reverse_rpo_; }
 
     const Scope& scope_;
     Scope* ptr;

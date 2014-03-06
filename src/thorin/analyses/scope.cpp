@@ -12,6 +12,8 @@
 
 namespace thorin {
 
+//------------------------------------------------------------------------------
+
 Scope::Scope(World& world, ArrayRef<Lambda*> entries)
     : world_(world)
 {

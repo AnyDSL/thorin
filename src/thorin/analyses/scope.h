@@ -1,8 +1,6 @@
 #ifndef THORIN_ANALYSES_SCOPE_H
 #define THORIN_ANALYSES_SCOPE_H
 
-#define private public
-
 #include <vector>
 
 #include "thorin/lambda.h"

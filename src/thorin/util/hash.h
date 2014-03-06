@@ -34,6 +34,7 @@ template<> struct FNV1<uint64_t> {
 #define THORIN_SUPPORTED_HASH_TYPES \
     static_assert(std::is_signed<T>::value || std::is_unsigned<T>::value, \
             "please provide your own hash function; use hash_combine to create one");
+
 template<class T>
 size_t hash_combine(size_t seed, T val) {
     THORIN_SUPPORTED_HASH_TYPES

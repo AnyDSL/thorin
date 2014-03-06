@@ -47,7 +47,7 @@ std::string GenericMap::to_string() const {
 //------------------------------------------------------------------------------
 
 size_t Type::hash() const {
-    size_t seed = hash_combine(hash_value((int) kind()), size());
+    size_t seed = hash_combine(hash_begin((int) kind()), size());
     for (auto elem : elems_)
         seed = hash_combine(seed, elem->gid());
     return seed;
@@ -152,8 +152,7 @@ const VectorType* VectorType::scalarize() const {
 //------------------------------------------------------------------------------
 
 size_t Ptr::hash() const {
-    auto seed =  hash_combine(VectorType::hash(), (size_t)device());
-    return hash_combine(seed, (size_t)addr_space());
+    return hash_combine(hash_combine(VectorType::hash(), (size_t)device()), (size_t)addr_space());
 }
 
 bool Ptr::equal(const Type* other) const {
@@ -220,6 +219,8 @@ GenericRef::~GenericRef() {
     generic_refs.pop_back();
 #endif
 }
+
+size_t GenericRef::hash() const { return hash_combine(Type::hash(), lambda()->gid()); }
 
 //------------------------------------------------------------------------------
 

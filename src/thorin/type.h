@@ -225,7 +225,7 @@ private:
         , name_("")
     {}
 
-    virtual size_t hash() const { return is_named() ? hash_value(this) : CompoundType::hash(); }
+    virtual size_t hash() const { return is_named() ? hash_value(this->gid()) : CompoundType::hash(); }
     virtual bool equal(const Type* other) const { return is_named() ? this == other : CompoundType::equal(other); }
 
 public:
@@ -327,7 +327,7 @@ private:
     GenericRef(World& world, const Generic* generic, Lambda* lambda);
     virtual ~GenericRef();
 
-    virtual size_t hash() const { return hash_combine(Type::hash(), lambda()); }
+    virtual size_t hash() const;
     virtual bool equal(const Type* other) const { 
         return Type::equal(other) && lambda() == other->as<GenericRef>()->lambda();
     }

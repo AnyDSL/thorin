@@ -1,5 +1,5 @@
-#ifndef THORIN_ARRAY_H
-#define THORIN_ARRAY_H
+#ifndef THORIN_UTIL_ARRAY_H
+#define THORIN_UTIL_ARRAY_H
 
 #include <algorithm>
 #include <cstddef>
@@ -8,7 +8,6 @@
 #include <iterator>
 #include <vector>
 
-#include "thorin/util/assert.h"
 #include "thorin/util/hash.h"
 
 namespace thorin {

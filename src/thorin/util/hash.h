@@ -9,16 +9,14 @@
 
 namespace thorin {
 
-template<class T> 
-inline size_t hash_value(const T& t) { return std::hash<T>()(t); }
-template<class T>
-inline size_t hash_combine(size_t seed, const T& val) { return seed ^ (hash_value(val) + 0x9e3779b9 + (seed << 6) + (seed >> 2)); }
+//------------------------------------------------------------------------------
 
+// currently no better place to fit this
+/// Determines wether \p i is a power of two.
 inline size_t is_power_of_2(size_t i) { return ((i != 0) && !(i & (i - 1))); }
 
 //------------------------------------------------------------------------------
 
-#if 0
 // magic numbers from http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param
 template<class T> struct FNV1 {};
 template<> struct FNV1<uint32_t> {
@@ -33,66 +31,50 @@ template<> struct FNV1<uint64_t> {
     static const int size = 64;
 };
 
+#define THORIN_SUPPORTED_HASH_TYPES \
+    static_assert(std::is_signed<T>::value || std::is_unsigned<T>::value, \
+            "please provide your own hash function; use hash_combine to create one");
 template<class T>
-size_t hash_combine(T data) {
-    static_assert(std::is_unsigned<T>::value, "must be unsigned integer type");
-    static_assert(std::numeric_limits<T>::digits == sizeof(T)*8, "something weird goes on here... please review");
-    size_t hash = FNV1<size_t>::offset;
-    for (int i = 0; i < std::numeric_limits<T>::digits/8; ++i) {
-        T octet = data & T(0xff); // extract lower 8 bits
-        hash ^= octet;
-        hash *= FNV1<size_t>::prime;
-        data = data >> size_t(8);
+size_t hash_combine(size_t seed, T val) {
+    THORIN_SUPPORTED_HASH_TYPES
+    if (std::is_signed<T>::value)  
+        return hash_combine(seed, typename std::make_unsigned<T>::type(val));
+    assert(std::is_unsigned<T>::value);
+    for (int i = 0; i < sizeof(T)/8; ++i) {
+        T octet = val & T(0xff); // extract lower 8 bits
+        seed ^= octet;
+        seed *= FNV1<size_t>::prime;
+        val = val >> size_t(8);
     }
-
-    return hash;
-}
-
-inline size_t hash_combine( int8_t seed) { return hash_combine( uint8_t(seed)); }
-inline size_t hash_combine(int16_t seed) { return hash_combine(uint16_t(seed)); }
-inline size_t hash_combine(int32_t seed) { return hash_combine(uint32_t(seed)); }
-inline size_t hash_combine(int64_t seed) { return hash_combine(uint64_t(seed)); }
-#endif
-
-template <class T>
-inline std::size_t hash_value_signed(T val) {
-    const int size_t_bits = std::numeric_limits<std::size_t>::digits;
-    // ceiling(std::numeric_limits<T>::digits / size_t_bits) - 1
-    const int length = (std::numeric_limits<T>::digits - 1) / size_t_bits;
-    std::size_t seed = 0;
-    T positive = val < 0 ? -1 - val : val;
-
-    // hopefully, this loop can be unrolled.
-    for(unsigned int i = length * size_t_bits; i > 0; i -= size_t_bits)
-        seed ^= (std::size_t) (positive >> i) + (seed<<6) + (seed>>2);
-    seed ^= (std::size_t) val + (seed<<6) + (seed>>2);
     return seed;
 }
 
-template <class T>
-inline std::size_t hash_value_unsigned(T val) {
-    const int size_t_bits = std::numeric_limits<std::size_t>::digits;
-    // ceiling(std::numeric_limits<T>::digits / size_t_bits) - 1
-    const int length = (std::numeric_limits<T>::digits - 1) / size_t_bits;
-    std::size_t seed = 0;
+template<class T>
+size_t hash_combine(size_t seed, T* val) { return hash_combine(seed, uintptr_t(val)); }
 
-    // Hopefully, this loop can be unrolled.
-    for(unsigned int i = length * size_t_bits; i > 0; i -= size_t_bits)
-        seed ^= (std::size_t) (val >> i) + (seed<<6) + (seed>>2);
-    seed ^= (std::size_t) val + (seed<<6) + (seed>>2);
-    return seed;
-}
+template<class T>
+size_t hash_begin(T val) { return hash_combine(FNV1<size_t>::offset, val); }
 
-template<class Key> struct Hash;
-template<> struct Hash<  int8_t> { size_t operator() (  int8_t i) const { return hash_value_signed(i); } };
-template<> struct Hash< int16_t> { size_t operator() ( int16_t i) const { return hash_value_signed(i); } };
-template<> struct Hash< int32_t> { size_t operator() ( int32_t i) const { return hash_value_signed(i); } };
-template<> struct Hash< int64_t> { size_t operator() ( int64_t i) const { return hash_value_signed(i); } };
-template<> struct Hash< uint8_t> { size_t operator() ( uint8_t i) const { return hash_value_unsigned(i); } };
-template<> struct Hash<uint16_t> { size_t operator() (uint16_t i) const { return hash_value_unsigned(i); } };
-template<> struct Hash<uint32_t> { size_t operator() (uint32_t i) const { return hash_value_unsigned(i); } };
-template<> struct Hash<uint64_t> { size_t operator() (uint64_t i) const { return hash_value_unsigned(i); } };
-template<class T> struct Hash<T*> { size_t operator() (T* p) const { return hash_value_signed(std::intptr_t(p)); } };
+template<class T> 
+struct Hash {
+    size_t operator() (T val) const {
+        THORIN_SUPPORTED_HASH_TYPES
+        if (std::is_signed<T>::value)  
+            return Hash<typename std::make_unsigned<T>::type>()(val);
+        assert(std::is_unsigned<T>::value);
+        if (sizeof(size_t) >= sizeof(T))
+            return val;
+        return hash_begin(val);
+    }
+};
+
+template<class T> 
+size_t hash_value(T val) { return Hash<T>()(val); }
+
+template<class T> 
+struct Hash<T*> {
+    size_t operator() (T* val) const { return Hash<uintptr_t>()(uintptr_t(val)); }
+};
 
 //------------------------------------------------------------------------------
 
@@ -453,6 +435,8 @@ public:
     mapped_type& operator[] (const key_type& key) { return Super::insert(value_type(key, T())).first->second; }
     mapped_type& operator[] (key_type&& key) { return Super::insert(value_type(std::move(key), T())).first->second; }
 };
+
+//------------------------------------------------------------------------------
 
 template<class Key, class T, class Hasher, class KeyEqual>
 T* find(const HashMap<Key, T*, Hasher, KeyEqual>& map, const typename HashMap<Key, T*, Hasher, KeyEqual>::key_type& key) {

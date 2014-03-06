@@ -247,28 +247,25 @@ private:
     friend class Lambda;
 };
 
-}
+//------------------------------------------------------------------------------
+
+template<>
+struct Hash<ArrayRef<Def>> {
+    size_t operator () (ArrayRef<Def> defs) const { 
+        size_t seed = hash_begin(defs.size());
+        for (auto def : defs)
+            seed = hash_combine(seed, def.empty() ? size_t(-1) : def->gid());
+        return seed;
+    }
+};
+
+template<>
+struct Hash<Array<Def>> {
+    size_t operator () (const Array<Def> defs) const { return Hash<ArrayRef<Def>>()(defs); } 
+};
 
 //------------------------------------------------------------------------------
 
-namespace std {
-    template<>
-    struct hash<thorin::ArrayRef<thorin::Def>> {
-        size_t operator () (thorin::ArrayRef<thorin::Def> defs) const { 
-            size_t seed = thorin::hash_value(defs.size());
-            for (auto def : defs)
-                seed = thorin::hash_combine(seed, def.empty() ? size_t(-1) : def->gid());
-            return seed;
-        }
-    };
-
-    template<>
-    struct hash<thorin::Array<thorin::Def>> {
-        size_t operator () (const thorin::Array<thorin::Def> defs) const {
-            return std::hash<thorin::ArrayRef<thorin::Def>>()(defs); }
-    };
 }
-
-//------------------------------------------------------------------------------
 
 #endif

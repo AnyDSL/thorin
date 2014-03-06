@@ -333,8 +333,8 @@ void nvvm_load_kernel(size_t dev, const char *file_name, const char *kernel_name
 
 void nvvm_set_kernel_arg(size_t dev, void *param) { set_kernel_arg(dev, param); }
 void nvvm_set_kernel_arg_map(size_t dev, void *param) {
-    CUdeviceptr mem = dev_mems2_[param];
-    set_kernel_arg(dev, (void *)&mem);
+    CUdeviceptr *mem = &dev_mems2_[param];
+    set_kernel_arg(dev, (void *)mem);
 }
 void nvvm_set_kernel_arg_tex(size_t dev, CUdeviceptr param, char *name, CUarray_format format) {
     CUdeviceptr mem = dev_mems2_[(void*)param];

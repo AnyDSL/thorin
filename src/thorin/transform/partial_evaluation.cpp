@@ -8,9 +8,6 @@
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
 
-#include "thorin/be/thorin.h"
-#include <iostream>
-
 namespace thorin {
 
 static std::vector<Lambda*> top_level_lambdas(World& world) {
@@ -56,12 +53,6 @@ public:
         : scope_(world, top_level_lambdas(world))
         , postdomtree_(scope_, false)
     {
-        emit_thorin(world);
-        postdomtree_.dump();
-        std::cout << "=== 1 ===" << std::endl;
-        for (auto s : top_level_scopes(world))
-            DomTree(*s, false).dump();
-        std::cout << "=== 2 ===" << std::endl;
         for (auto lambda : world.lambdas()) {
             new2old_[lambda] = lambda;
             old2new_[lambda] = lambda;
@@ -109,16 +100,11 @@ void PartialEvaluator::seek() {
 void PartialEvaluator::eval(Lambda* cur) {
     while (!done_.contains(cur)) {
         done_.insert(cur);
-        if (cur->empty()) 
+        if (cur->empty() || cur->to()->isa<Hlt>())
             return;
 
-        emit_thorin(world());
-        std::cout << "!!!!!!!!!!! " << cur->unique_name() << std::endl;
-        auto to = cur->to();
-        if (auto run = to->isa<Run>())
-            to = run->def();
-
-        auto dst = to->isa_lambda();
+        auto run = cur->to()->isa<Run>();
+        auto dst = (run ? run->def() : cur->to())->isa_lambda();
         if (dst == nullptr) {                           // skip to immediate post-dominator
             cur = old2new_[postdomtree_.idom(new2old_[cur])];
         } else if (dst->empty()) {
@@ -133,10 +119,7 @@ void PartialEvaluator::eval(Lambda* cur) {
             Call call(dst);
             bool fold = false;
             for (size_t i = 0; i != cur->num_args(); ++i) {
-                if (cur->arg(i)->isa<Hlt>())
-                    std::cout << "asfd" << std::endl;
-                call.arg(i) = cur->arg(i)->isa<Hlt>() ? nullptr : cur->arg(i);  //<-- do we need this?
-                //call.arg(i) = cur->arg(i);
+                call.arg(i) = cur->arg(i)->isa<Hlt>() ? nullptr : cur->arg(i);
                 fold |= call.arg(i) != nullptr;         // don't fold if there is nothing to fold
             }
 

@@ -79,8 +79,6 @@ class ScopeView {
 public:
     explicit ScopeView(const Scope& scope, const bool is_forward = true)
         : scope_(scope)
-        , ptr(&const_cast<Scope&>(scope))
-        , foo(*ptr)
         , is_forward_(is_forward)
     {}
 
@@ -118,8 +116,6 @@ private:
     std::vector<Lambda*>& rpo_vector() const { return is_forward() ? scope().rpo_ : scope().reverse_rpo_; }
 
     const Scope& scope_;
-    Scope* ptr;
-    Scope& foo;
     const bool is_forward_;
 
     friend class Scope;

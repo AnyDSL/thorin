@@ -369,8 +369,11 @@ RefPtr Call::emit(CodeGen& cg) const {
         return RefPtr(nullptr);
     }
 
+    auto prev = cg.cur_bb;
     cg.mem_call(ops[0], args, type()->is_void() ? nullptr : type()->convert(cg.world()));
     cg.set_mem(cg.cur_bb->param(0));
+    if (prev->to()->isa<Run>())
+        prev->update_arg(prev->num_args()-1, cg.world().hlt(prev->args().back()));
 
     if (type()->is_void())
         return Ref::create(cg.world().bottom(cg.world().mem()));

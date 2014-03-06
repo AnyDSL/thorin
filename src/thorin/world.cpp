@@ -893,6 +893,7 @@ void World::opt() {
     partial_evaluation(*this);
     merge_lambdas(*this);
     cleanup();
+    lower2cff(*this);
     memmap_builtins(*this);
     lift_builtins(*this);
     inliner(*this);

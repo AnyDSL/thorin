@@ -38,7 +38,7 @@ fn iterate_times_two(a : int, b : int, yield : fn(int, fn())) -> void {
 }
 
 fn iteration_advanced(width : int, height : int, arr : [float], body : fn(int, int, [float]) -> void) -> void {
-    @iterate_times_two(1, 2, |unroll : int| -> void {
+    @iterate_times_two(1, 256, |unroll : int| -> void {
         let dim = (width, height/unroll, 1);
         let block = (128, 1, 1);
 

@@ -41,11 +41,6 @@ fn apply_stencil(range : int, stencil : [float * 3 * 3],
 fn main() -> int {
     let width   = 2048;
     let height  = 2048;
-    return doit(width, height);
-}
-
-
-fn doit(width: int, height: int) -> int {
     let range   = 3;
     let a       = 0.2f;
     let b       = 1.0f - 4.0f * a;
@@ -60,7 +55,7 @@ fn doit(width: int, height: int) -> int {
         [0.0f, b, 0.0f]];
 
     iteration_advanced(width, height, arr, |x : int, y : int, arr : [float]| -> void {
-        out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width);
+        out[y*width + x] = apply_stencil(range, stencil, x, y, arr, width);
     });
 
 

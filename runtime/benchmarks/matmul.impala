@@ -2,11 +2,7 @@ extern array(int) -> [float];
 extern reset_and_start_timer() -> void;
 extern print_time() -> void;
 
-fn checked_matmul(square: bool, res: [float], mut num_rows: int, mut num_cols: int, a: [float], b: [float], num: int) -> void {
-    if (square) {
-        num_rows = num;
-        num_cols = num;
-    }
+fn matmul(res: [float], mut num_rows: int, mut num_cols: int, a: [float], b: [float], num: int) -> void {
     fn index_res(x: int, y: int) -> int {
         return num_cols*y + x;
     }
@@ -29,11 +25,7 @@ fn checked_matmul(square: bool, res: [float], mut num_rows: int, mut num_cols: i
 }
 
 fn matmul2(res: [float], a: [float], b: [float], num: int) -> void {
-    @checked_matmul(true, res, num, num, a, b, num);
-}
-
-fn matmul(res: [float], num_rows: int, num_cols: int, a: [float], b: [float], num: int) -> void {
-    @checked_matmul(false, res, num_rows, num_cols, a, b, num);
+    matmul(res, num, num, a, b, num);
 }
 
 fn main(i: int) -> int {

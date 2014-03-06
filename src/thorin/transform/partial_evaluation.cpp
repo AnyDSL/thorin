@@ -28,7 +28,7 @@ public:
     Call() {}
     Call(Lambda* to)
         : to_(to)
-        , args_(to->type()->as<Pi>()->size())
+        , args_(to->pi()->size())
     {}
 
     Lambda* to() const { return to_; }
@@ -56,9 +56,12 @@ public:
         : scope_(world, top_level_lambdas(world))
         , postdomtree_(scope_, false)
     {
-        //emit_thorin(world);
-        //postdomtree_.dump();
-        //std::cout << "-------------" << std::endl;
+        emit_thorin(world);
+        postdomtree_.dump();
+        std::cout << "=== 1 ===" << std::endl;
+        for (auto s : top_level_scopes(world))
+            DomTree(*s, false).dump();
+        std::cout << "=== 2 ===" << std::endl;
         for (auto lambda : world.lambdas()) {
             new2old_[lambda] = lambda;
             old2new_[lambda] = lambda;
@@ -79,7 +82,6 @@ private:
     Lambda2Lambda old2new_;
     LambdaSet done_;
     HashMap<Call, Lambda*, CallHash> cache_;
-    std::queue<Lambda*> todo_;
 };
 
 void PartialEvaluator::seek() {
@@ -102,13 +104,6 @@ void PartialEvaluator::seek() {
             }
         }
     }
-
-    while (!todo_.empty()) {
-        auto lambda = todo_.front();
-        todo_.pop();
-        if (!lambda->empty())
-            eval(lambda);
-    }
 }
 
 void PartialEvaluator::eval(Lambda* cur) {
@@ -117,8 +112,8 @@ void PartialEvaluator::eval(Lambda* cur) {
         if (cur->empty()) 
             return;
 
-        //emit_thorin(world());
-        //std::cout << "----------------" << std::endl;
+        emit_thorin(world());
+        std::cout << "!!!!!!!!!!! " << cur->unique_name() << std::endl;
         auto to = cur->to();
         if (auto run = to->isa<Run>())
             to = run->def();
@@ -138,11 +133,14 @@ void PartialEvaluator::eval(Lambda* cur) {
             Call call(dst);
             bool fold = false;
             for (size_t i = 0; i != cur->num_args(); ++i) {
-                call.arg(i) = cur->arg(i)->is_const() ? cur->arg(i) : nullptr;
+                if (cur->arg(i)->isa<Hlt>())
+                    std::cout << "asfd" << std::endl;
+                call.arg(i) = cur->arg(i)->isa<Hlt>() ? nullptr : cur->arg(i);  //<-- do we need this?
+                //call.arg(i) = cur->arg(i);
                 fold |= call.arg(i) != nullptr;         // don't fold if there is nothing to fold
             }
 
-            if (!fold || dst->empty()) {
+            if (!fold) {                                // nothing to fold
                 cur = dst;
             } else {
                 if (auto cached = find(cache_, call)) { // check for cached version

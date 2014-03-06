@@ -31,6 +31,18 @@ template<> struct FNV1<uint64_t> {
     static const int size = 64;
 };
 
+#ifdef __APPLE__
+// current workaround for Mac OS X:
+// uint64_t is defined as unsigned long long
+// uint32_t is defined as unsigned int
+// but size_t maps to unsigned long
+template<> struct FNV1<unsigned long> {
+    static const unsigned long offset = 14695981039346656037ull;
+    static const unsigned long prime  = 1099511628211ull;
+    static const int size = 64;
+};
+#endif
+
 #define THORIN_SUPPORTED_HASH_TYPES \
     static_assert(std::is_signed<T>::value || std::is_unsigned<T>::value, \
             "please provide your own hash function; use hash_combine to create one");

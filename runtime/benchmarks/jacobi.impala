@@ -41,11 +41,6 @@ fn apply_stencil(range : int, stencil : [float * 3 * 3],
 fn main() -> int {
     let width   = 2048;
     let height  = 2048;
-    return doit(width, height);
-}
-
-
-fn doit(width: int, height: int) -> int {
     let range   = 3;
     let a       = 0.2f;
     let b       = 1.0f - 4.0f * a;
@@ -59,6 +54,10 @@ fn doit(width: int, height: int) -> int {
         [   b, a, b   ],
         [0.0f, b, 0.0f]];
 
+    //iteration(width, height, |x : int, y : int| -> void {
+    //    out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width);
+    //});
+
     iteration_advanced(width, height, arr, |x : int, y : int, arr : [float]| -> void {
         out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width);
     });
@@ -66,19 +65,19 @@ fn doit(width: int, height: int) -> int {
 
     let mut passed = 0;
 
-    for (let mut y=1; y<height-1; ++y) {
-        for (let mut x=1; x<width-1; ++x) {
-            let ref =
-                0.2f * arr[x + 0 + (y - 1)*width] +
-                0.2f * arr[x - 1 + (y + 0)*width] +
-                0.2f * arr[x + 0 + (y + 0)*width] +
-                0.2f * arr[x + 1 + (y + 0)*width] +
-                0.2f * arr[x + 0 + (y + 1)*width];
-            let mut diff = ref - out[x + y*width];
-            if (diff < 0.0f) diff = -diff;
-            if (diff > 0.1f) passed++;
-        }
-    }
+    //for (let mut y=1; y<height-1; ++y) {
+    //    for (let mut x=1; x<width-1; ++x) {
+    //        let ref =
+    //            0.2f * arr[x + 0 + (y - 1)*width] +
+    //            0.2f * arr[x - 1 + (y + 0)*width] +
+    //            0.2f * arr[x + 0 + (y + 0)*width] +
+    //            0.2f * arr[x + 1 + (y + 0)*width] +
+    //            0.2f * arr[x + 0 + (y + 1)*width];
+    //        let mut diff = ref - out[x + y*width];
+    //        if (diff < 0.0f) diff = -diff;
+    //        if (diff > 0.1f) passed++;
+    //    }
+    //}
 
     return passed;
 }

@@ -2,7 +2,7 @@
 
 #include <time.h>
 
-#ifdef __MACH__
+#ifdef __APPLE__
 #include <mach/clock.h>
 #include <mach/mach.h>
 #endif
@@ -16,7 +16,7 @@ bool print_timing = true;
 
 // define machine as seen/used by OpenCL
 // each tuple consists of platform and device
-#ifdef __MACH__
+#ifdef __APPLE__
 // Macbook Pro
 const int num_devices_ = 3;
 int the_machine[][2] = {
@@ -69,7 +69,7 @@ long global_time = 0;
 
 void getMicroTime() {
     struct timespec now;
-    #ifdef __MACH__ // OS X does not have clock_gettime, use clock_get_time
+    #ifdef __APPLE__ // OS X does not have clock_gettime, use clock_get_time
     clock_serv_t cclock;
     mach_timespec_t mts;
     host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);

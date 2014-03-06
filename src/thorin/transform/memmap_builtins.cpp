@@ -33,7 +33,7 @@ static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
     ulambda->jump(ncont, {});
     cont->destroy_body();
     for (auto use : mapped->extract_mapped_ptr()->uses())
-        todo.push_back(std::pair<const Type*, Use>(mapped->extract_mapped_ptr()->type(), use));
+        todo.push_back(std::pair<const Type*, Use>(mapped->ptr_type(), use));
     return true;
 }
 

@@ -1,7 +1,7 @@
 #ifndef __OPENCL_RT_HPP__
 #define __OPENCL_RT_HPP__
 
-#if defined(__APPLE__) || defined(MACOSX)
+#ifdef __APPLE__
 #include <OpenCL/cl.h>
 #else
 #include <CL/cl.h>

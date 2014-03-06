@@ -34,8 +34,8 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries)
     build_preds();
     auto exit = find_exit();
     link_exit(entry, exit);
-    rpo_numbering<true> (entry, exit);
-    rpo_numbering<false>(entry, exit);
+    rpo_numbering<true> (entry);
+    rpo_numbering<false>(exit);
 }
 
 Scope::~Scope() {
@@ -102,7 +102,7 @@ void Scope::build_preds() {
 }
 
 void Scope::uce(Lambda* entry) {
-    auto set = reachable(true, entry);
+    auto set = ScopeView(*this, true).reachable(entry);
 
     // transitively erase all non-reachable stuff
     std::queue<Def> queue;
@@ -167,7 +167,7 @@ Lambda* Scope::find_exit() {
 
 void Scope::link_exit(Lambda* entry, Lambda* exit) {
     LambdaSet done;
-    auto r = reachable(false, exit);
+    auto r = ScopeView(*this, false).reachable(exit);
     post_order_visit(done, r, entry, exit);
 }
 
@@ -194,10 +194,9 @@ void Scope::post_order_visit(LambdaSet& done, LambdaSet& reachable, Lambda* cur,
 }
 
 template<bool forward>
-void Scope::rpo_numbering(Lambda* entry, Lambda* exit) {
+void Scope::rpo_numbering(Lambda* entry) {
     auto& rpo = forward ? rpo_ : reverse_rpo_;
     auto& sid = forward ? sid_ : reverse_sid_;
-    if (!forward) std::swap(entry, exit);
 
     LambdaSet visited;
     visit_first(visited, entry);
@@ -229,10 +228,9 @@ int Scope::po_visit(LambdaSet& done, Lambda* cur, int i) {
 
 //------------------------------------------------------------------------------
 
-LambdaSet Scope::reachable(bool forward, Lambda* entry) {
+LambdaSet ScopeView::reachable(Lambda* entry) {
     LambdaSet set;
     std::queue<Lambda*> queue;
-
     auto insert = [&] (Lambda* lambda) { queue.push(lambda); set.insert(lambda); };
     insert(entry);
 
@@ -240,12 +238,11 @@ LambdaSet Scope::reachable(bool forward, Lambda* entry) {
         Lambda* lambda = queue.front();
         queue.pop();
 
-        for (auto succ : (forward ? succs_ : preds_)[lambda]) {
+        for (auto succ : succs(lambda)) {
             if (!set.contains(succ))
                 insert(succ);
         }
     }
-
     return set;
 }
 

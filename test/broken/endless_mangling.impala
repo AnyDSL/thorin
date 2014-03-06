@@ -1,0 +1,10 @@
+fn f(a : int, ret1 : fn(int), ret2 : fn(int)) {
+    if (a < 42)
+        f(a + 1, ret2, ret1);
+    else
+        ret1(a+2);
+}
+
+fn main(i : int, ret : fn(int)) {
+    f(i, ret, |i : int| { ret(i); });
+}

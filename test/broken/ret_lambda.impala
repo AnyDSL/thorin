@@ -1,0 +1,12 @@
+fn f(a : int) -> fn(int) -> int {
+    return |i : int| -> int { 
+        if (i == a)
+            return i + a; 
+        else
+            return i + 42;
+    };
+}
+
+fn main(i : int) -> int {
+    return f(i)(i);
+}

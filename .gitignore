@@ -1,5 +1,6 @@
 *.bc
 *.ll
+*.nvvm
 CMakeCache.txt
 CMakeFiles/
 build*

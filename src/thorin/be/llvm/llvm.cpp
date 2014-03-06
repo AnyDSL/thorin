@@ -358,7 +358,6 @@ llvm::Value* CodeGen::lookup(Def def) {
 }
 
 llvm::AllocaInst* CodeGen::emit_alloca(llvm::Type* type, const std::string& name) {
-    assert(type->isArrayTy());
     auto entry = &builder_.GetInsertBlock()->getParent()->getEntryBlock();
     llvm::AllocaInst* alloca;
     if (entry->empty())

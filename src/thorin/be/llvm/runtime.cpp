@@ -58,8 +58,10 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
     for (size_t i = 6, e = lambda->num_args(); i < e; ++i) {
         Def target_arg = lambda->arg(i);
         const auto target_val = code_gen.lookup(target_arg);
+
         // check device target
-        if (auto ptr = target_arg->type()->as<Ptr>()) {
+        if (target_arg->type()->isa<Ptr>()) {
+            auto ptr = target_arg->type()->as<Ptr>();
             if (ptr->device() == target_device) {
                 // data is already on this device
                 if (ptr->addr_space() == AddressSpace::Texture) {
@@ -78,9 +80,16 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
                 auto mem_ptr = malloc(target_device_val, target_val);
                 device_ptrs[target_arg] = mem_ptr;
                 // copy memory to target device
+                auto void_ptr = builder_.CreateBitCast(mem_ptr, builder_.getInt8PtrTy());
                 write(target_device_val, mem_ptr, target_val);
-                set_kernel_arg(target_device_val, mem_ptr);
+                set_kernel_arg(target_device_val, void_ptr);
             }
+        } else {
+            // normal variable
+            auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name);
+            builder_.CreateStore(target_val, alloca);
+            auto void_ptr = builder_.CreateBitCast(alloca, builder_.getInt8PtrTy());
+            set_kernel_arg(target_device_val, void_ptr);
         }
     }
     const auto get_u64 = [&](Def def) { return builder_.getInt64(def->as<PrimLit>()->qu64_value()); };

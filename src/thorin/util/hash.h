@@ -78,9 +78,6 @@ struct Hash<T*> {
 
 //------------------------------------------------------------------------------
 
-#define IS_VALID(p) (*(p) != nullptr && *(p) != ((HashNode*)-1))
-#define IS_END(p)   (*(p) == ((HashNode*)1))
-
 template<class Key, class T, class Hasher, class KeyEqual>
 class HashTable {
 private:
@@ -117,6 +114,11 @@ private:
 
         friend class HashTable;
     };
+
+    static HashNode* free_but_reused() { return (HashNode*) -1; }
+    static HashNode* end_pointer()     { return (HashNode*)  1; }
+    static bool is_end(HashNode** p)   { return *p == end_pointer(); }
+    static bool is_valid(HashNode** p) { return *p != nullptr && *p != free_but_reused(); }
 
     template<bool is_const>
     class iterator_base {
@@ -160,7 +162,7 @@ private:
 
     private:
         static HashNode** move_to_valid(HashNode** n) {
-            while (!IS_VALID(n) && !IS_END(n)) ++n;
+            while (!is_valid(n) && !is_end(n)) ++n;
             return n; 
         }
         HashNode** node_;
@@ -219,7 +221,7 @@ public:
 
     // iterators
     iterator begin() { return iterator(iterator::move_to_valid(nodes_), this); }
-    iterator end() { auto n = nodes_ + capacity(); assert(IS_END(n)); return iterator(n, this); }
+    iterator end() { auto n = nodes_ + capacity(); assert(is_end(n)); return iterator(n, this); }
     const_iterator begin() const { return const_iterator(const_cast<HashTable*>(this)->begin()); }
     const_iterator end() const { return const_iterator(const_cast<HashTable*>(this)->end()); }
     const_iterator cbegin() const { return begin(); }
@@ -248,7 +250,7 @@ public:
         for (size_t i = hash_function_(key), step = 0; true; i = (i + step++)) {
             size_t x = i & (capacity_-1);
             auto it = nodes_ + x;
-            if (*it == nullptr || *it == (HashNode*)-1) {
+            if (*it == nullptr || *it == free_but_reused()) {
                 ++size_;
                 *it = n;
                 return std::make_pair(iterator(it, this), true);
@@ -272,10 +274,10 @@ public:
         assert(pos.table_ == this && "iterator does not match to this table");
         assert(pos.id_ == id_ && "iterator used after emplace/insert");
         assert(!empty());
-        assert(IS_VALID(pos.node_) && pos != end());
+        assert(is_valid(pos.node_) && pos != end());
         --size_;
         delete *pos.node_;
-        *pos.node_ = (HashNode*)-1;
+        *pos.node_ = free_but_reused();
         return iterator(iterator::move_to_valid(pos.node_), this);
     }
     iterator erase(const_iterator first, const_iterator last) {
@@ -304,7 +306,7 @@ public:
             auto it = nodes_ + x;
             if (*it == nullptr)
                 return end();
-            else if (*it != (HashNode*)-1 && key_eq_((*it)->key(), key))
+            else if (*it != free_but_reused() && key_eq_((*it)->key(), key))
                 return iterator(it, this);
         }
     }
@@ -319,7 +321,7 @@ public:
         auto nodes = alloc();
 
         for (size_t i = 0; i != old_capacity; ++i) {
-            if (IS_VALID(nodes_+i)) {
+            if (is_valid(nodes_+i)) {
                 HashNode* old = nodes_[i];
                 for (size_t i = hash_function_(old->key()), step = 0; true; i = (i + step++)) {
                     size_t x = i & (capacity_-1);
@@ -357,7 +359,7 @@ protected:
 #endif
     void destroy() {
         for (size_t i = 0, e = capacity_; i != e; ++i) {
-            if (IS_VALID(nodes_+i))
+            if (is_valid(nodes_+i))
                 delete nodes_[i];
         }
         delete[] nodes_;
@@ -365,7 +367,7 @@ protected:
     HashNode** alloc() {
         assert(is_power_of_2(capacity_));
         auto nodes = new HashNode*[capacity_+1](); // the last node servers as end
-        nodes[capacity_] = (HashNode*)1;           // mark end as occupied
+        nodes[capacity_] = end_pointer();          // mark end as occupied
         return nodes;
     }
 

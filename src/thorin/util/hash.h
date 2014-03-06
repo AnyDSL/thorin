@@ -365,7 +365,7 @@ public:
         swap(table1.id_,            table2.id_); 
 #endif
     }
-    HashTable& operator= (HashTable other) { std::swap(*this, other); return *this; }
+    HashTable& operator= (HashTable other) { swap(*this, other); return *this; }
 
 protected:
 #ifndef NDEBUG

@@ -46,8 +46,6 @@ namespace thorin {
 
 World::World(std::string name)
     : name_(name)
-    , primops_(1024)
-    , types_(1024)
     , gid_(0)
     , sigma0_ (unify(new Sigma(*this, ArrayRef<const Type*>())))
     , pi0_    (unify(new Pi   (*this, ArrayRef<const Type*>())))
@@ -763,7 +761,6 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, const Type* t
         assert(&op->world() == &to);
 #endif
 
-    if (ops.empty() && &in->world() == &to) return in;
     if (is_arithop (kind))  { assert(ops.size() == 3); return to.arithop((ArithOpKind) kind, ops[0], ops[1], ops[2], name); }
     if (is_cmp     (kind))  { assert(ops.size() == 3); return to.cmp(    (CmpKind)     kind, ops[0], ops[1], ops[2], name); }
     // TODO
@@ -962,30 +959,16 @@ void World::uce_insert(LambdaSet& set, Lambda* lambda) {
         uce_insert(set, succ);
 }
 
-static void sanity_check(Def def) {
-    if (auto param = def->isa<Param>())
-        assert(!param->lambda()->empty());
-    else if (auto lambda = def->isa_lambda())
-        assert(lambda->attribute().is(Lambda::Extern | Lambda::Intrinsic) || !lambda->empty());
-}
-
 void World::dead_code_elimination() {
-    const auto old_gid = gid_;
+    PrimOps old;
+    swap(primops_, old);
+
     Def2Def map;
     for (auto lambda : lambdas()) {
         for (size_t i = 0, e = lambda->ops().size(); i != e; ++i)
-            lambda->update_op(i, dce_rebuild(map, old_gid, lambda->op(i)));
+            lambda->update_op(i, dce_rebuild(map, lambda->op(i)));
     }
 
-    DefSet set;
-    for (auto lambda : lambdas()) {
-        for (size_t i = 0, e = lambda->ops().size(); i != e; ++i) {
-            assert(!lambda->op(i).node()->is_proxy());
-            dce_mark(set, lambda->op(i));
-        }
-    }
-
-    auto wipe_primop = [&] (const PrimOp* primop) { return !set.contains(primop); };
     auto wipe_lambda = [&] (Lambda* lambda) {
         return !lambda->attribute().is(Lambda::Extern) 
             && (   (!lambda->attribute().is(Lambda::Intrinsic) && lambda->empty()) 
@@ -998,17 +981,10 @@ void World::dead_code_elimination() {
         }
     };
 
-    for (auto primop : primops_) {
-        if (wipe_primop(primop)) {
-            for (size_t i = 0, e = primop->size(); i != e; ++i)
-                primop->unregister_use(i);
-            unlink_representative(primop);
-#ifndef NDEBUG
-        } else {
-            for (auto op : primop->ops())
-                sanity_check(op);
-#endif
-        }
+    for (auto primop : old) {
+        for (size_t i = 0, e = primop->size(); i != e; ++i)
+            primop->unregister_use(i);
+        unlink_representative(primop);
     }
 
     for (auto lambda : lambdas()) {
@@ -1016,50 +992,27 @@ void World::dead_code_elimination() {
             for (auto param : lambda->params())
                 unlink_representative(param);
             unlink_representative(lambda);
-#ifndef NDEBUG
-        } else {
-            for (auto op : lambda->ops())
-                sanity_check(op);
-#endif
         }
     }
 
-    wipe_out(primops_, wipe_primop);
     wipe_out(lambdas_, wipe_lambda);
     verify_closedness(*this);
 }
 
-const DefNode* World::dce_rebuild(Def2Def& map, const size_t old_gid, const DefNode* def) {
-    assert(!def->is_proxy());
-    if (const DefNode* mapped = find(map, def))
+Def World::dce_rebuild(Def2Def& map, Def def) {
+    if (auto mapped = find(map, def))
         return mapped;
-    if (def->gid() >= old_gid)
-        return def;
     if (def->isa<Lambda>() || def->isa<Param>())
         return map[def] = def;
 
     auto oprimop = def->as<PrimOp>();
-    if (oprimop->empty()) // no ops -> so reuse the old one
-        return map[oprimop] = oprimop;
 
-    bool has_proxy_ops = false;
     Array<Def> ops(oprimop->size());
-    for (size_t i = 0, e = oprimop->size(); i != e; ++i) {
-        has_proxy_ops |= oprimop->op(i).node()->is_proxy();
-        ops[i] = dce_rebuild(map, old_gid, Def(oprimop->op(i)));
-    }
-
-    if (has_proxy_ops) {
-        auto i = primops_.find(oprimop);
-        if (i != primops_.end()) {
-            for (size_t i = 0, e = oprimop->size(); i != e; ++i)
-                oprimop->unregister_use(i);
-            primops_.erase(i);
-        }
-    }
+    for (size_t i = 0, e = oprimop->size(); i != e; ++i)
+        ops[i] = dce_rebuild(map, oprimop->op(i));
 
     auto nprimop = rebuild(oprimop, ops);
-    assert(!has_proxy_ops || nprimop != oprimop);
+    assert(nprimop != oprimop);
     return map[oprimop] = nprimop;
 }
 

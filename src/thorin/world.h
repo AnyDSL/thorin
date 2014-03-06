@@ -180,17 +180,17 @@ public:
      * aggregate stuff
      */
 
-    Def array(const Type* elem, ArrayRef<Def> args, bool definite = true, const std::string& name = "") { 
-        return cse(new ArrayAgg(*this, elem, args, definite, name)); 
+    Def array(const Type* elem, ArrayRef<Def> args, bool definite = true, const std::string& name = "") {
+        return cse(new ArrayAgg(*this, elem, args, definite, name));
     }
-    Def array(ArrayRef<Def> args, bool definite = true, const std::string& name = "") { 
-        assert(!args.empty()); 
+    Def array(ArrayRef<Def> args, bool definite = true, const std::string& name = "") {
+        assert(!args.empty());
         return array(args.front()->type(), args, definite, name);
     }
     Def tuple(ArrayRef<Def> args, const std::string& name = "") { return cse(new Tuple(*this, args, name)); }
     Def vector(ArrayRef<Def> args, const std::string& name = "") {
         if (args.size() == 1) return args[0];
-        return cse(new Vector(*this, args, name)); 
+        return cse(new Vector(*this, args, name));
     }
     /// Splats \p arg to create a \p Vector with \p length.
     Def vector(Def arg, size_t length = 1, const std::string& name = "");
@@ -285,7 +285,7 @@ private:
     Def dce_rebuild(Def2Def&, Def);
     void ute_insert(HashSet<const Type*>&, const Type*);
     void uce_insert(LambdaSet&, Lambda*);
-    template<class S, class W> static void wipe_out(S& set, W wipe); 
+    template<class S, class W> static void wipe_out(S& set, W wipe);
 
     std::string name_;
     LambdaSet lambdas_;

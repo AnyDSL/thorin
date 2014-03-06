@@ -214,7 +214,7 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
 
     if (a == b) {
         switch (kind) {
-            case ArithOp_add: 
+            case ArithOp_add:
                 if (is_type_i(type))
                     return arithop_mul(cond, literal(type, 2), a);
                 else
@@ -269,11 +269,11 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
     auto lcmp = a->isa<Cmp>();
     auto rcmp = b->isa<Cmp>();
 
-    if (kind == ArithOp_or && lcmp && rcmp && lcmp->lhs() == rcmp->lhs() && lcmp->rhs() == rcmp->rhs() 
+    if (kind == ArithOp_or && lcmp && rcmp && lcmp->lhs() == rcmp->lhs() && lcmp->rhs() == rcmp->rhs()
             && lcmp->cmp_kind() == negate(rcmp->cmp_kind()))
             return literal_bool(true);
 
-    if (kind == ArithOp_and && lcmp && rcmp && lcmp->lhs() == rcmp->lhs() && lcmp->rhs() == rcmp->rhs() 
+    if (kind == ArithOp_and && lcmp && rcmp && lcmp->lhs() == rcmp->lhs() && lcmp->rhs() == rcmp->rhs()
             && lcmp->cmp_kind() == negate(rcmp->cmp_kind()))
             return literal_bool(false);
 
@@ -342,7 +342,7 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
     }
 
     // normalize: a - b = a + -b
-    if (kind == ArithOp_sub && !a->is_minus_zero()) { 
+    if (kind == ArithOp_sub && !a->is_minus_zero()) {
         rlit = (b = arithop_minus(b))->isa<PrimLit>();
         kind = ArithOp_add;
     }
@@ -363,19 +363,19 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
             case ArithOp_shl:
             case ArithOp_shr: return zero(type);
 
-            case ArithOp_add: 
+            case ArithOp_add:
             case ArithOp_or:
             case ArithOp_xor:  return b;
 
             default: break;
         }
-    } 
+    }
     if (a->is_one()) {
         switch (kind) {
             case ArithOp_mul: return b;
             default: break;
         }
-    } 
+    }
     if (a->is_allset()) {
         switch (kind) {
             case ArithOp_and: return b;
@@ -510,9 +510,9 @@ Def World::convop(ConvOpKind kind, Def cond, Def from, const Type* to, const std
         case ConvOp_trunc:      assert(num_bits(from_kind) > num_bits(to_kind)); break;
         case ConvOp_sext:
         case ConvOp_zext:       assert(num_bits(from_kind) < num_bits(to_kind)); break;
-        case ConvOp_stof:  
+        case ConvOp_stof:
         case ConvOp_utof:       assert(  is_int(from_kind) && is_float(to_kind)); break;
-        case ConvOp_ftos:       
+        case ConvOp_ftos:
         case ConvOp_ftou:       assert(is_float(from_kind) &&   is_int(to_kind)); break;
         case ConvOp_ftrunc:     assert(from_kind == PrimType_f64 && to_kind == PrimType_f32); break;
         case ConvOp_fext:       assert(from_kind == PrimType_f32 && to_kind == PrimType_f64); break;
@@ -618,12 +618,12 @@ Def World::insert(Def agg, Def index, Def value, const std::string& name) {
 }
 
 Def World::extract(Def tuple, u32 index, const std::string& name) { return extract(tuple, literal_qu32(index), name); }
-Def World::insert(Def tuple, u32 index, Def value, const std::string& name) { 
-    return insert(tuple, literal_qu32(index), value, name); 
+Def World::insert(Def tuple, u32 index, Def value, const std::string& name) {
+    return insert(tuple, literal_qu32(index), value, name);
 }
 
 Def World::vector(Def arg, size_t length, const std::string& name) {
-    if (length == 1) 
+    if (length == 1)
         return arg;
 
     Array<Def> args(length);
@@ -656,10 +656,10 @@ const Enter* World::enter(Def mem, const std::string& name) {
     return cse(new Enter(mem, name));
 }
 
-Def World::leave(Def mem, Def frame, const std::string& name) { 
+Def World::leave(Def mem, Def frame, const std::string& name) {
     for (auto use : frame->uses()) {
         if (use->isa<Slot>())
-            return cse(new Leave(mem, frame, name)); 
+            return cse(new Leave(mem, frame, name));
     }
 
     return mem;
@@ -674,7 +674,7 @@ const Map* World::map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space
     return cse(new Map(mem, ptr, device, addr_space, tleft, size, name));
 }
 
-Def World::load(Def mem, Def ptr, const std::string& name) { 
+Def World::load(Def mem, Def ptr, const std::string& name) {
     if (auto store = mem->isa<Store>())
         if (store->ptr() == ptr) {
             return store->val();
@@ -686,16 +686,16 @@ Def World::load(Def mem, Def ptr, const std::string& name) {
     }
 
 
-    return cse(new Load(mem, ptr, name)); 
+    return cse(new Load(mem, ptr, name));
 }
 
-const Store* World::store(Def mem, Def ptr, Def value, const std::string& name) { 
+const Store* World::store(Def mem, Def ptr, Def value, const std::string& name) {
     if (auto store = mem->isa<Store>()) {
         if (ptr == store->ptr())
             mem = store->mem();
     }
 
-    return cse(new Store(mem, ptr, value, name)); 
+    return cse(new Store(mem, ptr, value, name));
 }
 
 const LEA* World::lea(Def ptr, Def index, const std::string& name) { return cse(new LEA(ptr, index, name)); }
@@ -715,16 +715,16 @@ const Global* World::global_immutable_string(const std::string& str, const std::
     return global(array(str_array), false, name);
 }
 
-Def World::run(Def def, const std::string& name) { 
+Def World::run(Def def, const std::string& name) {
     if (auto run = def->isa<Run>()) return run;
     if (auto hlt = def->isa<Hlt>()) return hlt;
-    return cse(new Run(def, name)); 
+    return cse(new Run(def, name));
 }
 
-Def World::hlt(Def def, const std::string& name) { 
+Def World::hlt(Def def, const std::string& name) {
     if (auto hlt = def->isa<Hlt>()) return hlt;
     if (auto run = def->isa<Run>()) def = run->def();
-    return cse(new Hlt(def, name)); 
+    return cse(new Hlt(def, name));
 }
 
 Lambda* World::lambda(const Pi* pi, Lambda::Attribute attribute, const std::string& name) {
@@ -739,8 +739,8 @@ Lambda* World::lambda(const Pi* pi, Lambda::Attribute attribute, const std::stri
     return l;
 }
 
-Lambda* World::meta_lambda() { 
-    auto l = lambda(pi0(), "meta"); 
+Lambda* World::meta_lambda() {
+    auto l = lambda(pi0(), "meta");
     l->jump(bottom(pi0()), {});
     return l;
 }
@@ -765,10 +765,10 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, const Type* t
     if (is_cmp     (kind))  { assert(ops.size() == 3); return to.cmp(    (CmpKind)     kind, ops[0], ops[1], ops[2], name); }
     // TODO
     //if (is_convop  (kind))  { assert(ops.size() == 2); return to.convop( (ConvOpKind)  kind, ops[0], ops[1],   type, name); }
-    if (is_primtype(kind)) { 
-        assert(ops.size() == 0); 
+    if (is_primtype(kind)) {
+        assert(ops.size() == 0);
         auto primlit = in->as<PrimLit>();
-        return to.literal(primlit->primtype_kind(), primlit->value()); 
+        return to.literal(primlit->primtype_kind(), primlit->value());
     }
 
     switch (kind) {
@@ -789,22 +789,22 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, const Type* t
         case Node_Store:     assert(ops.size() == 3); return to.store(    ops[0], ops[1], ops[2], name);
         case Node_Tuple:                              return to.tuple(ops, name);
         case Node_Vector:                             return to.vector(ops, name);
-        case Node_ArrayAgg:                         
+        case Node_ArrayAgg:
             return to.array(type->as<ArrayType>()->elem_type(), ops, type->isa<DefArray>(), name);
-        case Node_Slot:    assert(ops.size() == 1); 
+        case Node_Slot:    assert(ops.size() == 1);
             return to.slot(type->as<Ptr>()->referenced_type(), ops[0], in->as<Slot>()->index(), name);
         default: THORIN_UNREACHABLE;
     }
 }
 
 const Type* World::rebuild(World& to, const Type* type, ArrayRef<const Type*> elems) {
-    if (elems.empty() && &type->world() == &to) 
+    if (elems.empty() && &type->world() == &to)
         return type;
 
     if (is_primtype(type->kind())) {
-        assert(elems.size() == 0); 
+        assert(elems.size() == 0);
         auto primtype = type->as<PrimType>();
-        return to.type(primtype->primtype_kind(), primtype->length()); 
+        return to.type(primtype->primtype_kind(), primtype->length());
     }
 
     switch (type->kind()) {
@@ -901,7 +901,7 @@ void World::opt() {
 }
 
 void World::eliminate_params() {
-    for (auto olambda : copy_lambdas()) { 
+    for (auto olambda : copy_lambdas()) {
         if (olambda->empty())
             continue;
 
@@ -916,7 +916,7 @@ void World::eliminate_params() {
                 param_idx.push_back(i++);
         }
 
-        if (proxy_idx.empty()) 
+        if (proxy_idx.empty())
             continue;
 
         auto nlambda = lambda(pi(olambda->type()->elems().cut(proxy_idx)), olambda->attribute(), olambda->name);
@@ -967,8 +967,8 @@ void World::dead_code_elimination() {
     }
 
     auto wipe_lambda = [&] (Lambda* lambda) {
-        return !lambda->attribute().is(Lambda::Extern) 
-            && (   (!lambda->attribute().is(Lambda::Intrinsic) && lambda->empty()) 
+        return !lambda->attribute().is(Lambda::Extern)
+            && (   (!lambda->attribute().is(Lambda::Intrinsic) && lambda->empty())
                 || (lambda->attribute().is(Lambda::Intrinsic) && lambda->num_uses() == 0));
     };
     auto unlink_representative = [&] (const DefNode* def) {

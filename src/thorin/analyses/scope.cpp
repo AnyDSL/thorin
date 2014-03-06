@@ -168,13 +168,13 @@ Lambda* Scope::find_exit() {
 void Scope::link_exit(Lambda* entry, Lambda* exit) {
     LambdaSet done;
     auto r = ScopeView(*this, false).reachable(exit);
-    post_order_visit(done, r, entry, exit);
+    link_exit(done, r, entry, exit);
 }
 
-void Scope::post_order_visit(LambdaSet& done, LambdaSet& reachable, Lambda* cur, Lambda* exit) {
+void Scope::link_exit(LambdaSet& done, LambdaSet& reachable, Lambda* cur, Lambda* exit) {
     for (auto succ : succs_[cur]) {
         if (!visit(done, succ))
-            post_order_visit(done, reachable, succ, exit);
+            link_exit(done, reachable, succ, exit);
     }
 
     if (!reachable.contains(cur)) {

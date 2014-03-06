@@ -57,7 +57,7 @@ private:
     void uce(Lambda* entry);
     Lambda* find_exit();
     void link_exit(Lambda* entry, Lambda* exit);
-    void post_order_visit(LambdaSet&, LambdaSet&, Lambda* cur, Lambda* exit);
+    void link_exit(LambdaSet&, LambdaSet&, Lambda* cur, Lambda* exit);
     void link_succ(Lambda* src, Lambda* dst) { assert(contains(src) && contains(dst)); succs_[src].push_back(dst); };
     void link_pred(Lambda* src, Lambda* dst) { assert(contains(src) && contains(dst)); preds_[dst].push_back(src); };
 

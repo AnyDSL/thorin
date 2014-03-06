@@ -12,9 +12,8 @@
 
 namespace thorin {
 
-Scope::Scope(World& world, ArrayRef<Lambda*> entries, bool is_forward)
+Scope::Scope(World& world, ArrayRef<Lambda*> entries)
     : world_(world)
-    , is_forward_(is_forward)
 {
     identify_scope(entries);
     build_succs();
@@ -100,26 +99,6 @@ void Scope::build_preds() {
         for (auto succ : succs_[lambda])
             link_pred(lambda, succ);
     }
-}
-
-LambdaSet Scope::reachable(bool forward, Lambda* entry) {
-    LambdaSet set;
-    std::queue<Lambda*> queue;
-
-    auto insert = [&] (Lambda* lambda) { queue.push(lambda); set.insert(lambda); };
-    insert(entry);
-
-    while (!queue.empty()) {
-        Lambda* lambda = queue.front();
-        queue.pop();
-
-        for (auto succ : (forward ? succs_ : preds_)[lambda]) {
-            if (!set.contains(succ))
-                insert(succ);
-        }
-    }
-
-    return set;
 }
 
 void Scope::uce(Lambda* entry) {
@@ -247,5 +226,29 @@ int Scope::po_visit(LambdaSet& done, Lambda* cur, int i) {
     sid[cur] = i;
     return i-1;
 }
+
+//------------------------------------------------------------------------------
+
+LambdaSet Scope::reachable(bool forward, Lambda* entry) {
+    LambdaSet set;
+    std::queue<Lambda*> queue;
+
+    auto insert = [&] (Lambda* lambda) { queue.push(lambda); set.insert(lambda); };
+    insert(entry);
+
+    while (!queue.empty()) {
+        Lambda* lambda = queue.front();
+        queue.pop();
+
+        for (auto succ : (forward ? succs_ : preds_)[lambda]) {
+            if (!set.contains(succ))
+                insert(succ);
+        }
+    }
+
+    return set;
+}
+
+//------------------------------------------------------------------------------
 
 }

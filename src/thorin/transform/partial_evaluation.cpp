@@ -53,8 +53,8 @@ struct CallHash {
 class PartialEvaluator {
 public:
     PartialEvaluator(World& world)
-        : scope_(world, top_level_lambdas(world), false)
-        , postdomtree_(scope_)
+        : scope_(world, top_level_lambdas(world))
+        , postdomtree_(scope_, false)
     {
         //emit_thorin(world);
         //postdomtree_.dump();

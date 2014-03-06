@@ -2,6 +2,7 @@
 #define THORIN_ANALYSES_DOMTREE_H
 
 #include "thorin/lambda.h"
+#include "thorin/analyses/scope.h"
 #include "thorin/util/array.h"
 
 namespace thorin {
@@ -35,9 +36,9 @@ private:
 
 class DomTree {
 public:
-    explicit DomTree(const Scope& scope);
+    explicit DomTree(const Scope& scope, bool is_forward = true);
 
-    const Scope& scope() const { return scope_; }
+    const ScopeView& scope_view() const { return scope_view_; }
     const DomNode* root() const { return root_; }
     int depth(Lambda* lambda) const { return lookup(lambda)->depth(); }
     /// Returns the least common ancestor of \p i and \p j.
@@ -48,17 +49,15 @@ public:
     Lambda* idom(Lambda* lambda) const { return lookup(lambda)->idom()->lambda(); }
     const DomNode* lookup(Lambda* lambda) const { return find(map_, lambda); }
     void dump() const { root()->dump(); }
-    bool is_forward() const { return is_forward_; }
 
 private:
     DomNode* lookup(Lambda* lambda) { return map_[lambda]; }
     void create();
     DomNode* lca(DomNode* i, DomNode* j);
 
-    const Scope& scope_;
+    ScopeView scope_view_;
     AutoPtr<DomNode> root_;
     LambdaMap<DomNode*> map_;
-    bool is_forward_;
 };
 
 }

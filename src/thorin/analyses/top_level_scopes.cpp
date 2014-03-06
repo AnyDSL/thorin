@@ -4,14 +4,14 @@
 
 namespace thorin {
 
-AutoVector<Scope*> top_level_scopes(World& world, bool is_forward) {
+AutoVector<Scope*> top_level_scopes(World& world) {
     AutoVector<Scope*> scopes;
     LambdaSet done;
 
     auto insert = [&] (Lambda* lambda) { 
         if (done.contains(lambda))
             return;
-        auto scope = new Scope(lambda, is_forward);
+        auto scope = new Scope(lambda);
         scopes.emplace_back(scope);
 
         for (auto lambda : *scope)

@@ -14,12 +14,10 @@ class Vectorizer {
 public:
     Vectorizer(Scope& scope, size_t length)
         : scope(scope)
-        , postdomtree(scope.reverse())
-        , domtree(scope.reverse())
+        , domtree(scope, true)
+        , postdomtree(scope, false)
         , length(length)
-    {
-        assert(scope.is_forward());
-    }
+    {}
 
     Lambda* vectorize();
     void infer_condition(Lambda* lambda);
@@ -31,8 +29,8 @@ public:
     World& world() { return scope.world(); }
 
     Scope& scope;
-    const DomTree postdomtree;
     const DomTree domtree;
+    const DomTree postdomtree;
     Def2Def mapped;
     const size_t length;
 };

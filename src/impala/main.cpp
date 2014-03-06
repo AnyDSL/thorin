@@ -162,8 +162,8 @@ int main(int argc, char** argv) {
                     DomTree(*scope).dump();
             }
             if (emit_postdomtree) {
-                for (auto scope : top_level_scopes(init.world, false))
-                    DomTree(*scope).dump();
+                for (auto scope : top_level_scopes(init.world))
+                    DomTree(*scope, false).dump();
             }
             if (emit_looptree) {
                 for (auto scope : top_level_scopes(init.world))

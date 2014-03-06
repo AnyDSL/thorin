@@ -7,16 +7,6 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-MemOp::MemOp(size_t size, NodeKind kind, const Type* type, Def mem, const std::string& name)
-    : PrimOp(size, kind, type, name)
-{
-    assert(mem->type()->isa<Mem>());
-    assert(size >= 1);
-    set_op(0, mem);
-}
-
-//------------------------------------------------------------------------------
-
 Map::Map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space,
          Def top_left, Def region_size, const std::string &name)
     : MemOp(4, Node_Map, mem->world().sigma({mem->type(),
@@ -62,4 +52,15 @@ Leave::Leave(Def mem, Def frame, const std::string& name)
 
 //------------------------------------------------------------------------------
 
-} // namespace thorin
+
+MemOp::MemOp(size_t size, NodeKind kind, const Type* type, Def mem, const std::string& name)
+    : PrimOp(size, kind, type, name)
+{
+    assert(mem->type()->isa<Mem>());
+    assert(size >= 1);
+    set_op(0, mem);
+}
+
+//------------------------------------------------------------------------------
+
+}

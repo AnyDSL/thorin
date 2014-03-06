@@ -679,7 +679,7 @@ llvm::Value* CodeGen::emit_shared_memmap(Def def) {
                              region_size->op(1)->as<PrimLit>()->ps32_value() *
                              region_size->op(2)->as<PrimLit>()->ps32_value();
     // construct array type
-    auto type = this->map(map->world().def_array(map->extract_mapped_ptr()->type()->as<Ptr>()->referenced_type(), total_region_size));
+    auto type = this->map(map->world().def_array(map->ptr_type()->referenced_type(), total_region_size));
     auto global = emit_global_memory(type, map->unique_name(), 3);
     // TODO: fill memory
     return global;
@@ -838,4 +838,4 @@ void emit_llvm(World& world) {
 
 //------------------------------------------------------------------------------
 
-} // namespace thorin
+}

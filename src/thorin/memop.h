@@ -18,28 +18,6 @@ public:
 
 //------------------------------------------------------------------------------
 
-class Map : public MemOp {
-private:
-    Map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space,
-        Def top_left, Def region_size, const std::string &name);
-
-public:
-    Def extract_mem() const;
-    Def extract_mapped_ptr() const;
-    Def ptr() const { return op(1); }
-    Def top_left() const { return op(2); }
-    Def region_size() const { return op(3); }
-    const Ptr* ptr_type() const { return type()->as<Sigma>()->elem(1)->as<Ptr>(); }
-
-    AddressSpace addr_space() const { return ptr_type()->addr_space(); }
-    uint32_t device() const { return ptr_type()->device(); }
-
-
-    friend class World;
-};
-
-//------------------------------------------------------------------------------
-
 class Access : public MemOp {
 protected:
     Access(size_t size, NodeKind kind, const Type* type, Def mem, Def ptr, const std::string& name)
@@ -100,6 +78,28 @@ public:
 
 //------------------------------------------------------------------------------
 
-} // namespace thorin
+class Map : public MemOp {
+private:
+    Map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space,
+        Def top_left, Def region_size, const std::string &name);
 
-#endif // THORIN_MEMOP_H
+public:
+    Def extract_mem() const;
+    Def extract_mapped_ptr() const;
+    Def ptr() const { return op(1); }
+    Def top_left() const { return op(2); }
+    Def region_size() const { return op(3); }
+    const Ptr* ptr_type() const { return type()->as<Sigma>()->elem(1)->as<Ptr>(); }
+
+    AddressSpace addr_space() const { return ptr_type()->addr_space(); }
+    uint32_t device() const { return ptr_type()->device(); }
+
+
+    friend class World;
+};
+
+//------------------------------------------------------------------------------
+
+}
+
+#endif

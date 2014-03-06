@@ -1,3 +1,5 @@
+// TODO remove this stuff once new impala front-end is done
+
 #ifndef THORIN_NODE_H
 #define THORIN_NODE_H
 
@@ -104,6 +106,6 @@ public:
 
 //------------------------------------------------------------------------------
 
-} // namespace thorin
+}
 
-#endif // THORIN_NODE_H
+#endif

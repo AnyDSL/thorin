@@ -783,10 +783,7 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, const Type* t
         case Node_Leave:     assert(ops.size() == 2); return to.leave(    ops[0], ops[1], name);
         case Node_Load:      assert(ops.size() == 2); return to.load(     ops[0], ops[1], name);
         case Node_Map:       assert(ops.size() == 4); return to.map(      ops[0], ops[1], in->as<Map>()->device(),
-                                                                          in->as<Map>()->addr_space(),
-                                                                          in->as<Map>()->top_left(),
-                                                                          in->as<Map>()->region_size(),
-                                                                          name);
+                                                                          in->as<Map>()->addr_space(), ops[2], ops[3], name);
         case Node_Run:       assert(ops.size() == 1); return to.run(      ops[0], name);
         case Node_Select:    assert(ops.size() == 3); return to.select(   ops[0], ops[1], ops[2], name);
         case Node_Store:     assert(ops.size() == 3); return to.store(    ops[0], ops[1], ops[2], name);
@@ -1014,15 +1011,6 @@ Def World::dce_rebuild(Def2Def& map, Def def) {
     auto nprimop = rebuild(oprimop, ops);
     assert(nprimop != oprimop);
     return map[oprimop] = nprimop;
-}
-
-void World::dce_mark(DefSet& set, const DefNode* def) {
-    assert(!def->is_proxy());
-    if (visit(set, def) || def->isa<Lambda>() || def->isa<Param>())
-        return;
-
-    for (auto op : def->as<PrimOp>()->ops())
-        dce_mark(set, op.node());
 }
 
 void World::unused_type_elimination() {

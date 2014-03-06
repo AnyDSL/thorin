@@ -283,7 +283,6 @@ private:
     const Param* param(const Type* type, Lambda* lambda, size_t index, const std::string& name = "");
     void eliminate_proxies();
     Def dce_rebuild(Def2Def&, Def);
-    void dce_mark(DefSet&, const DefNode*);
     void ute_insert(HashSet<const Type*>&, const Type*);
     void uce_insert(LambdaSet&, Lambda*);
     template<class S, class W> static void wipe_out(S& set, W wipe); 

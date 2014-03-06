@@ -29,9 +29,10 @@ public:
     Def ptr() const { return op(1); }
     Def top_left() const { return op(2); }
     Def region_size() const { return op(3); }
+    const Ptr* ptr_type() const { return type()->as<Sigma>()->elem(1)->as<Ptr>(); }
 
-    AddressSpace addr_space() const { return extract_mapped_ptr()->type()->as<Ptr>()->addr_space(); }
-    uint32_t device() const { return extract_mapped_ptr()->type()->as<Ptr>()->device(); }
+    AddressSpace addr_space() const { return ptr_type()->addr_space(); }
+    uint32_t device() const { return ptr_type()->device(); }
 
 
     friend class World;

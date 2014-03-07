@@ -9,15 +9,25 @@ public:
         : world_(world)
     {}
 
+    World::PrimOps& oprimops() { return oprimops_; }
+    World::PrimOps& nprimops() { return world_.primops_; }
+    LambdaSet& olambdas() { return olambdas_; }
+    LambdaSet& nlambdas() { return world_.lambdas_; }
+    World::Types& otypes() { return world_.types_; }
+    TypeSet& ntypes() { return ntypes_; }
+
     void cleanup();
     void eliminate_params();
-    Def dead_code_elimination(Def, Def2Def&, TypeSet&);
-    void unreachable_code_elimination(Lambda*, LambdaSet&, Def2Def&, TypeSet&);
-    void unused_type_elimination(const Type*, TypeSet&);
-    template<class S, class W> static void wipe_out(S& set, W wipe);
+    Def dead_code_elimination(Def);
+    void unreachable_code_elimination(Lambda*);
+    void unused_type_elimination(const Type*);
 
 private:
     World& world_;
+    World::PrimOps oprimops_;
+    LambdaSet olambdas_;
+    TypeSet ntypes_;
+    Def2Def dce_map_;
 };
 
 void Cleaner::eliminate_params() {
@@ -60,29 +70,31 @@ void Cleaner::eliminate_params() {
 void Cleaner::cleanup() {
     eliminate_params();
 
-    World::PrimOps old;
-    swap(world_.primops_, old);
-    LambdaSet uce_set;
-    Def2Def dce_map;
-    TypeSet type_set;
+    swap(world_.primops_, oprimops_);
+    swap(world_.lambdas_, olambdas_);
 
-    for (size_t i = 0, e = sizeof(world_.keep_)/sizeof(const Type*); i != e; ++i)
-        unused_type_elimination(world_.keep_[i], type_set);
-
-    for (auto lambda : world_.lambdas())
+    // collect all reachable and live stuff
+    for (auto lambda : olambdas())
         if (lambda->attribute().is(Lambda::Extern))
-            unreachable_code_elimination(lambda, uce_set, dce_map, type_set);
+            unreachable_code_elimination(lambda);
 
-    for (auto lambda : world_.lambdas()) {
-        if (!uce_set.contains(lambda))
+    // collect all used types
+    for (size_t i = 0, e = sizeof(world_.keep_)/sizeof(const Type*); i != e; ++i)
+        unused_type_elimination(world_.keep_[i]);
+    for (auto primop : nprimops())
+        unused_type_elimination(primop->type());
+    for (auto lambda : nlambdas()) {
+        unused_type_elimination(lambda->type());
+        for (auto param : lambda->params())
+            unused_type_elimination(param->type());
+    }
+
+    // destroy bodies of unreachable lambdas
+    for (auto lambda : olambdas()) {
+        if (!nlambdas().contains(lambda))
             lambda->destroy_body();
     }
 
-    auto wipe_lambda = [&] (Lambda* lambda) {
-        return !lambda->attribute().is(Lambda::Extern)
-            && (  (!lambda->attribute().is(Lambda::Intrinsic) && lambda->empty())
-                || (lambda->attribute().is(Lambda::Intrinsic) && lambda->num_uses() == 0));
-    };
     auto unlink_representative = [&] (const DefNode* def) {
         if (def->is_proxy()) {
             auto num = def->representative_->representatives_of_.erase(def);
@@ -90,79 +102,78 @@ void Cleaner::cleanup() {
         }
     };
 
-    for (auto primop : old) {
+    // unlink dead primops from the rest
+    for (auto primop : oprimops()) {
         for (size_t i = 0, e = primop->size(); i != e; ++i)
             primop->unregister_use(i);
         unlink_representative(primop);
     }
 
-    for (auto lambda : world_.lambdas()) {
-        if (wipe_lambda(lambda)) {
+    // unlink unreachable lambdas from the rest
+    for (auto lambda : olambdas()) {
+        if (!nlambdas().contains(lambda)) {
             for (auto param : lambda->params())
                 unlink_representative(param);
             unlink_representative(lambda);
         }
     }
 
-    wipe_out(world_.lambdas_, wipe_lambda);
-    wipe_out(world_.types_, [&] (const Type* type) { return type_set.find(type) == type_set.end(); });
     verify_closedness(world_);
+
+    // delete dead primops
+    for (auto primop : oprimops()) 
+        delete primop;
+
+    // delete unreachable lambdas
+    for (auto lambda : olambdas()) {
+        if (!nlambdas().contains(lambda))
+            delete lambda;
+    }
+
+    // delete unused types and remove from otypes map
+    for (auto i = otypes().begin(); i != otypes().end();) {
+        auto j = i++;
+        auto type = *j;
+        if (!ntypes().contains(type)) {
+            otypes().erase(j);
+            delete type;
+        }
+    }
+
     debug_verify(world_);
 }
 
-void Cleaner::unreachable_code_elimination(Lambda* lambda, LambdaSet& uce_set, Def2Def& dce_map, TypeSet& type_set) {
-    if (visit(uce_set, lambda)) return;
-
-    for (auto lambda : world_.lambdas()) {
-        unused_type_elimination(lambda->type(), type_set);
-        for (auto param : lambda->params())
-            unused_type_elimination(param->type(), type_set);
-    }
+void Cleaner::unreachable_code_elimination(Lambda* lambda) {
+    if (visit(nlambdas(), lambda)) return;
 
     for (size_t i = 0, e = lambda->ops().size(); i != e; ++i)
-        lambda->update_op(i, dead_code_elimination(lambda->op(i), dce_map, type_set));
+        lambda->update_op(i, dead_code_elimination(lambda->op(i)));
 
     for (auto succ : lambda->succs())
-        unreachable_code_elimination(succ, uce_set, dce_map, type_set);
+        unreachable_code_elimination(succ);
 }
 
-Def Cleaner::dead_code_elimination(Def def, Def2Def& dce_map, TypeSet& type_set) {
-    if (auto mapped = find(dce_map, def))
+Def Cleaner::dead_code_elimination(Def def) {
+    if (auto mapped = find(dce_map_, def))
         return mapped;
     if (def->isa<Lambda>() || def->isa<Param>())
-        return dce_map[def] = def;
+        return dce_map_[def] = def;
 
     auto oprimop = def->as<PrimOp>();
 
     Array<Def> ops(oprimop->size());
     for (size_t i = 0, e = oprimop->size(); i != e; ++i)
-        ops[i] = dead_code_elimination(oprimop->op(i), dce_map, type_set);
+        ops[i] = dead_code_elimination(oprimop->op(i));
 
     auto nprimop = world_.rebuild(oprimop, ops);
     assert(nprimop != oprimop);
-    unused_type_elimination(nprimop->type(), type_set);
-    return dce_map[oprimop] = nprimop;
+    return dce_map_[oprimop] = nprimop;
 }
 
-void Cleaner::unused_type_elimination(const Type* type, TypeSet& type_set) {
-    assert(world_.types_.find(type) != world_.types_.end() && "not in map");
-    if (type_set.find(type) != type_set.end()) return; // use visit
-    type_set.insert(type);
-
+void Cleaner::unused_type_elimination(const Type* type) {
+    if (visit(ntypes(), type)) return;
     for (auto elem : type->elems())
-        unused_type_elimination(elem, type_set);
-}
-
-template<class S, class W>
-void Cleaner::wipe_out(S& set, W wipe) {
-    for (auto i = set.begin(); i != set.end();) {
-        auto j = i++;
-        auto val = *j;
-        if (wipe(val)) {
-            set.erase(j);
-            delete val;
-        }
-    }
+        unused_type_elimination(elem);
 }
 
 void cleanup_world(World& world) { Cleaner(world).cleanup(); }

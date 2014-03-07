@@ -8,6 +8,7 @@
 namespace thorin {
 
 static void within(World& world, const DefNode* def) {
+    assert(world.types().find(def->type()) != world.types().end());
     if (auto primop = def->isa<PrimOp>()) {
         assert(world.primops().find(primop) != world.primops().end());
     } else if (auto lambda = def->isa_lambda())

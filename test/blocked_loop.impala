@@ -21,7 +21,7 @@ fn blocked_loop(length: int, bodyfn: fn(int, fn(int))) -> int {
         fn rec(ii: int) {
             res += blocked_iter(cur_level + 1, ii, block_size);
             if (ii < N)
-                $rec(ii + block_size);
+                rec(ii + block_size);
             else 
                 ret(res);
         }
@@ -32,5 +32,5 @@ fn blocked_loop(length: int, bodyfn: fn(int, fn(int))) -> int {
 }
 
 fn main(i: int) -> int {
-    return @blocked_loop(8192, |i: int| -> int { return i+7; });
+    return @blocked_loop(8192, $|i: int| -> int { return i+7; });
 }

@@ -1,5 +1,6 @@
 extern nvvm(int, (int, int, int), (int, int, int), fn() -> void) -> void;
 extern map([float], int, int, (int, int, int), (int, int, int)) -> [float];
+extern unmap([float]) -> void;
 
 fn iteration(width : int, height : int, body : fn(int, int) -> void) -> void {
     let dim = (width, height, 1);
@@ -108,6 +109,9 @@ fn iteration_sep_advanced(width : int, height : int,
         body_row(tid_x, tid_y, tex_row, out_row);
     });
 
+    unmap(tex_row);
+    unmap(out_row);
+
     let tex_col = map(tmp, 1, 1, (0, 0, 0), (width, height, 0));
     let out_col = map(out, 1, 0, (0, 0, 0), (width, height, 0));
 
@@ -117,5 +121,8 @@ fn iteration_sep_advanced(width : int, height : int,
 
         body_col(tid_x, tid_y, tex_col, out_col);
     });
+
+    unmap(tex_col);
+    unmap(out_col);
 }
 

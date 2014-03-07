@@ -37,7 +37,7 @@ static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
                              ulambda->arg(3)); // address space
     }
 
-    auto cont = ulambda->arg(6)->as_lambda(); // continuation
+    auto cont = ulambda->arg(is_map ? 6 : 4)->as_lambda(); // continuation
 
     Scope cont_scope(cont);
     auto ncont = drop(cont_scope, { mapped->extract_mem(), mapped->extract_mapped_ptr() });

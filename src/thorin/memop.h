@@ -84,8 +84,6 @@ protected:
           Def mem, Def ptr, uint32_t device, AddressSpace addr_space, const std::string &name);
 
 public:
-    Def extract_mem() const;
-    Def extract_mapped_ptr() const;
     Def ptr() const { return op(1); }
     const Ptr* ptr_type() const { return type()->as<Sigma>()->elem(1)->as<Ptr>(); }
     AddressSpace addr_space() const { return ptr_type()->addr_space(); }
@@ -98,6 +96,8 @@ private:
         Def top_left, Def region_size, const std::string &name);
 
 public:
+    Def extract_mem() const;
+    Def extract_mapped_ptr() const;
     Def top_left() const { return op(2); }
     Def region_size() const { return op(3); }
 

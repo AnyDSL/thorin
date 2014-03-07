@@ -23,28 +23,33 @@ static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
     auto ulambda = uses.begin()->def()->as_lambda();
 
     const MapOp* mapped;
+    auto cont = ulambda->arg(is_map ? 6 : 4)->as_lambda(); // continuation
+    Scope cont_scope(cont);
+    Lambda* ncont;
     if (is_map) {
-        mapped = world.map(  ulambda->arg(0),  // memory
+        auto map = world.map(ulambda->arg(0),  // memory
                              ulambda->arg(1),  // source ptr
                              ulambda->arg(2),  // target device (0 for host device)
                              ulambda->arg(3),  // address space
                              ulambda->arg(4),  // top_left of region
                              ulambda->arg(5)); // region size
+        ncont = drop(cont_scope, { map->extract_mem(), map->extract_mapped_ptr() });
+        mapped = map;
     } else {
         mapped = world.unmap(ulambda->arg(0),  // memory
                              ulambda->arg(1),  // source ptr
                              ulambda->arg(2),  // target device (0 for host device)
                              ulambda->arg(3)); // address space
+        ncont = drop(cont_scope, { mapped });
     }
 
-    auto cont = ulambda->arg(is_map ? 6 : 4)->as_lambda(); // continuation
-
-    Scope cont_scope(cont);
-    auto ncont = drop(cont_scope, { mapped->extract_mem(), mapped->extract_mapped_ptr() });
     ulambda->jump(ncont, {});
     cont->destroy_body();
-    for (auto use : mapped->extract_mapped_ptr()->uses())
-        todo.push_back(std::pair<const Type*, Use>(mapped->ptr_type(), use));
+    if (is_map) {
+        auto map = mapped->as<Map>();
+        for (auto use : map->extract_mapped_ptr()->uses())
+            todo.push_back(std::pair<const Type*, Use>(map->ptr_type(), use));
+    }
     return true;
 }
 

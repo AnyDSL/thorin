@@ -54,9 +54,6 @@ MapOp::MapOp(size_t size, NodeKind kind, const Type* type,
     set_op(1, ptr);
 }
 
-Def MapOp::extract_mem() const { return world().extract(this, 0); }
-Def MapOp::extract_mapped_ptr() const { return world().extract(this, 1); }
-
 Map::Map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space,
          Def top_left, Def region_size, const std::string &name)
     : MapOp(4, Node_Map, nullptr, mem, ptr, device, addr_space, name)
@@ -67,6 +64,9 @@ Map::Map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space,
     set_op(2, top_left);
     set_op(3, region_size);
 }
+
+Def Map::extract_mem() const { return world().extract(this, 0); }
+Def Map::extract_mapped_ptr() const { return world().extract(this, 1); }
 
 Unmap::Unmap(Def mem, Def ptr, uint32_t device, AddressSpace addr_space, const std::string &name)
     : MapOp(2, Node_Unmap, mem->type(), mem, ptr, device, addr_space, name)

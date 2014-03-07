@@ -354,7 +354,7 @@ llvm::Value* CodeGen::lookup(Def def) {
         return i->second;
 
     assert(phis_.find(param) != phis_.end());
-    return phis_[param];
+    return find(phis_, param);
 }
 
 llvm::AllocaInst* CodeGen::emit_alloca(llvm::Type* type, const std::string& name) {

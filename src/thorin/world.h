@@ -30,8 +30,6 @@ class Slot;
 class Store;
 class Type;
 
-//------------------------------------------------------------------------------
-
 /**
  * The World represents the whole program and manages creation and destruction of AIR nodes.
  * In particular, the following things are done by this class:
@@ -238,14 +236,6 @@ public:
     Def rebuild(const PrimOp* in, ArrayRef<Def> ops, const Type* type) { return rebuild(*this, in, ops, type); }
     Def rebuild(const PrimOp* in, ArrayRef<Def> ops) { return rebuild(in, ops, in->type()); }
     const Type* rebuild(const Type* in, ArrayRef<const Type*> elems) { return rebuild(*this, in, elems); }
-    /*
-     * optimizations
-     */
-
-    void dead_code_elimination();
-    void unreachable_code_elimination();
-    void unused_type_elimination();
-    void eliminate_params();
 
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();
@@ -279,12 +269,12 @@ protected:
     template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
 
 private:
-    PrimOp* release(const PrimOp*);
+    void eliminate_params();
     const Param* param(const Type* type, Lambda* lambda, size_t index, const std::string& name = "");
     void eliminate_proxies();
-    Def dce_rebuild(Def2Def&, Def);
-    void ute_insert(HashSet<const Type*>&, const Type*);
-    void uce_insert(LambdaSet&, Lambda*);
+    Def dead_code_elimination(Def, Def2Def&, TypeSet&);
+    void unreachable_code_elimination(Lambda*, LambdaSet&, Def2Def&, TypeSet&);
+    void unused_type_elimination(const Type*, TypeSet&);
     template<class S, class W> static void wipe_out(S& set, W wipe);
 
     std::string name_;
@@ -320,8 +310,6 @@ private:
     friend class Lambda;
 };
 
-//------------------------------------------------------------------------------
-
-} // namespace thorin
+}
 
 #endif

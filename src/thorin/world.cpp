@@ -877,14 +877,6 @@ void World::destroy(Lambda* lambda) {
  * optimizations
  */
 
-void World::cleanup() {
-    eliminate_params();
-    unreachable_code_elimination();
-    dead_code_elimination();
-    unused_type_elimination();
-    debug_verify(*this);
-}
-
 void World::opt() {
     cleanup();
     lower2cff(*this);
@@ -938,38 +930,30 @@ void World::eliminate_params() {
     }
 }
 
-void World::unreachable_code_elimination() {
-    LambdaSet set;
+void World::cleanup() {
+    eliminate_params();
+
+    PrimOps old;
+    swap(primops_, old);
+    LambdaSet uce_set;
+    Def2Def dce_map;
+    TypeSet type_set;
+
+    for (size_t i = 0, e = sizeof(keep_)/sizeof(const Type*); i != e; ++i)
+        unused_type_elimination(keep_[i], type_set);
 
     for (auto lambda : lambdas())
         if (lambda->attribute().is(Lambda::Extern))
-            uce_insert(set, lambda);
+            unreachable_code_elimination(lambda, uce_set, dce_map, type_set);
 
     for (auto lambda : lambdas()) {
-        if (!set.contains(lambda))
+        if (!uce_set.contains(lambda))
             lambda->destroy_body();
-    }
-}
-
-void World::uce_insert(LambdaSet& set, Lambda* lambda) {
-    if (visit(set, lambda)) return;
-    for (auto succ : lambda->succs())
-        uce_insert(set, succ);
-}
-
-void World::dead_code_elimination() {
-    PrimOps old;
-    swap(primops_, old);
-
-    Def2Def map;
-    for (auto lambda : lambdas()) {
-        for (size_t i = 0, e = lambda->ops().size(); i != e; ++i)
-            lambda->update_op(i, dce_rebuild(map, lambda->op(i)));
     }
 
     auto wipe_lambda = [&] (Lambda* lambda) {
         return !lambda->attribute().is(Lambda::Extern)
-            && (   (!lambda->attribute().is(Lambda::Intrinsic) && lambda->empty())
+            && (  (!lambda->attribute().is(Lambda::Intrinsic) && lambda->empty())
                 || (lambda->attribute().is(Lambda::Intrinsic) && lambda->num_uses() == 0));
     };
     auto unlink_representative = [&] (const DefNode* def) {
@@ -994,52 +978,52 @@ void World::dead_code_elimination() {
     }
 
     wipe_out(lambdas_, wipe_lambda);
+    wipe_out(types_, [&] (const Type* type) { return type_set.find(type) == type_set.end(); });
     verify_closedness(*this);
+    debug_verify(*this);
 }
 
-Def World::dce_rebuild(Def2Def& map, Def def) {
-    if (auto mapped = find(map, def))
+void World::unreachable_code_elimination(Lambda* lambda, LambdaSet& uce_set, Def2Def& dce_map, TypeSet& type_set) {
+    if (visit(uce_set, lambda)) return;
+
+    for (auto lambda : lambdas()) {
+        unused_type_elimination(lambda->type(), type_set);
+        for (auto param : lambda->params())
+            unused_type_elimination(param->type(), type_set);
+    }
+
+    for (size_t i = 0, e = lambda->ops().size(); i != e; ++i)
+        lambda->update_op(i, dead_code_elimination(lambda->op(i), dce_map, type_set));
+
+    for (auto succ : lambda->succs())
+        unreachable_code_elimination(succ, uce_set, dce_map, type_set);
+}
+
+Def World::dead_code_elimination(Def def, Def2Def& dce_map, TypeSet& type_set) {
+    if (auto mapped = find(dce_map, def))
         return mapped;
     if (def->isa<Lambda>() || def->isa<Param>())
-        return map[def] = def;
+        return dce_map[def] = def;
 
     auto oprimop = def->as<PrimOp>();
 
     Array<Def> ops(oprimop->size());
     for (size_t i = 0, e = oprimop->size(); i != e; ++i)
-        ops[i] = dce_rebuild(map, oprimop->op(i));
+        ops[i] = dead_code_elimination(oprimop->op(i), dce_map, type_set);
 
     auto nprimop = rebuild(oprimop, ops);
     assert(nprimop != oprimop);
-    return map[oprimop] = nprimop;
+    unused_type_elimination(nprimop->type(), type_set);
+    return dce_map[oprimop] = nprimop;
 }
 
-void World::unused_type_elimination() {
-    HashSet<const Type*> set;
-
-    for (size_t i = 0, e = sizeof(keep_)/sizeof(const Type*); i != e; ++i)
-        ute_insert(set, keep_[i]);
-
-    for (auto primop : primops())
-        ute_insert(set, primop->type());
-
-    for (auto lambda : lambdas()) {
-        ute_insert(set, lambda->type());
-        for (auto param : lambda->params())
-            ute_insert(set, param->type());
-    }
-
-    wipe_out(types_, [&] (const Type* type) { return set.find(type) == set.end(); });
-}
-
-void World::ute_insert(HashSet<const Type*>& set, const Type* type) {
+void World::unused_type_elimination(const Type* type, TypeSet& type_set) {
     assert(types_.find(type) != types_.end() && "not in map");
-
-    if (set.find(type) != set.end()) return;
-    set.insert(type);
+    if (type_set.find(type) != type_set.end()) return; // use visit
+    type_set.insert(type);
 
     for (auto elem : type->elems())
-        ute_insert(set, elem);
+        unused_type_elimination(elem, type_set);
 }
 
 template<class S, class W>

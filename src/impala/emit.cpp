@@ -95,8 +95,6 @@ bool CodeGen::emit_prg(const Scope* prg) {
     for (auto stmt : prg->stmts())
         emit(stmt->as<ItemStmt>()->item());
 
-    world().eliminate_params();
-
     return result;
 }
 

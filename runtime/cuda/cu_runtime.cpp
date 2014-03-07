@@ -355,6 +355,12 @@ void *array(size_t elem_size, size_t width, size_t height) {
     host_mems_[mem] = {elem_size, width, height};
     return mem;
 }
+void free_array(void *host) {
+    // TODO: free associated device memory
+
+    // free host memory
+    free(host);
+}
 void *map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, int sx, int sy, int sz) {
     assert(oz==0 && sz==0 && "3D memory not yet supported");
 
@@ -362,9 +368,17 @@ void *map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, i
     if (!mem) {
         mem = malloc_memory(dev, from);
         write_memory(dev, mem, from);
+        std::cerr << " * map memory(" << dev << "):    " << from << " -> " << mem << std::endl;
+    } else {
+        std::cerr << " * map memory(" << dev << "):    returning old copy " << mem << " for " << from << std::endl;
     }
 
     return from;
+}
+void unmap_memory(CUdeviceptr mem) {
+    void *host = dev_mems_[mem];
+    read_memory(0, mem, host);
+    // TODO: mark device memory as unmapped
 }
 float random_val(int max) {
     return ((float)random() / RAND_MAX) * max;

@@ -46,7 +46,9 @@ void nvvm_synchronize(size_t dev);
 
 // helper functions
 void *array(size_t elem_size, size_t width, size_t height);
+void free_array(void *host);
 void *map_memory(size_t dev, size_t type, void *from, int ox, int oy, int oz, int sx, int sy, int sz);
+void unmap_memory(CUdeviceptr mem);
 float random_val(int max);
 extern int main_impala();
 

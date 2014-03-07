@@ -220,7 +220,7 @@ public:
     {}
     HashTable(const HashTable& other)
         : capacity_(other.capacity_)
-        , size_(other.size_)
+        , size_(0)
         , nodes_(alloc())
         , hash_function_(other.hash_function_)
         , key_eq_(other.key_eq_)

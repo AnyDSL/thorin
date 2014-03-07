@@ -168,7 +168,7 @@ private:
             using std::swap;
             swap(i1.node_,  i2.node_);
 #ifndef NDEBUG
-            swap(i1.table_, i2.tabe_); 
+            swap(i1.table_, i2.table_); 
             swap(i1.id_,    i2.id_); 
 #endif
         }

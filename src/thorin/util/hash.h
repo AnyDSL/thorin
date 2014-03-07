@@ -218,7 +218,18 @@ public:
         , id_(std::move(other.id_))
 #endif
     {}
-    HashTable(const HashTable&) = delete;
+    HashTable(const HashTable& other)
+        : capacity_(other.capacity_)
+        , size_(other.size_)
+        , nodes_(alloc())
+        , hash_function_(other.hash_function_)
+        , key_eq_(other.key_eq_)
+#ifndef NDEBUG
+        , id_(0)
+#endif
+        {
+            insert(other.begin(), other.end());
+        }
     template<class InputIt>
     HashTable(InputIt first, InputIt last, size_type capacity = min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
         : HashTable(capacity, hash_function, key_eq)

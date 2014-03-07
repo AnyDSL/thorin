@@ -17,7 +17,7 @@ public:
         , lift(lift)
         , generic_map(generic_map)
         , world(scope.world())
-        , set(scope.in_scope().begin(), scope.in_scope().end())
+        , set(scope.in_scope()) // copy constructor
         , oentry(scope.entry())
         , nentry(oentry->world().lambda(oentry->name))
     {

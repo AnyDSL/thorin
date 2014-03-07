@@ -162,8 +162,8 @@ private:
         iterator_base operator++ (int) { iterator_base res = *this; ++(*this); return res; }
         reference operator* () const { return (*node_)->value_; }
         pointer operator-> () const { return &(*node_)->value_; }
-        bool operator== (const iterator_base& other) { assert(this->table_ == other.table_ && this->id_ == other.id_); return this->node_ == other.node_; }
-        bool operator!= (const iterator_base& other) { assert(this->table_ == other.table_ && this->id_ == other.id_); return this->node_ != other.node_; }
+        bool operator== (const iterator_base& other) { assert(this->table_ == other.table_ && this->id_ == other.id_ && this->table_->id_ == this->id_); return this->node_ == other.node_; }
+        bool operator!= (const iterator_base& other) { assert(this->table_ == other.table_ && this->id_ == other.id_ && this->table_->id_ == this->id_); return this->node_ != other.node_; }
         friend void swap(iterator_base& i1, iterator_base& i2) {
             using std::swap;
             swap(i1.node_,  i2.node_);

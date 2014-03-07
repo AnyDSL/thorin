@@ -10,9 +10,11 @@ namespace thorin {
 typedef std::vector<std::pair<const Type*, Use>> ToDo;
 
 static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
-    // useful sanity checks
-    assert(lambda->attribute().is(Lambda::Map) && "invalid map function");
-    assert(lambda->params().size() == 7 && "invalid signature");
+    bool is_map   = lambda->attribute().is(Lambda::Map);
+    bool is_unmap = lambda->attribute().is(Lambda::Unmap);
+    assert(is_map ^ is_unmap  && "invalid map function");
+    assert((is_unmap || lambda->params().size() == 7) && "invalid signature");
+    assert((is_map   || lambda->params().size() == 5) && "invalid signature");
     assert(lambda->param(1)->type()->isa<Ptr>() && "invalid pointer type");
 
     auto uses = lambda->uses();
@@ -20,12 +22,21 @@ static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
         return false;
     auto ulambda = uses.begin()->def()->as_lambda();
 
-    auto mapped = world.map(ulambda->arg(0),  // memory
-                            ulambda->arg(1),  // source ptr
-                            ulambda->arg(2),  // target device (0 for host device)
-                            ulambda->arg(3),  // address space
-                            ulambda->arg(4),  // top_left of region
-                            ulambda->arg(5)); // region size
+    const MapOp* mapped;
+    if (is_map) {
+        mapped = world.map(  ulambda->arg(0),  // memory
+                             ulambda->arg(1),  // source ptr
+                             ulambda->arg(2),  // target device (0 for host device)
+                             ulambda->arg(3),  // address space
+                             ulambda->arg(4),  // top_left of region
+                             ulambda->arg(5)); // region size
+    } else {
+        mapped = world.unmap(ulambda->arg(0),  // memory
+                             ulambda->arg(1),  // source ptr
+                             ulambda->arg(2),  // target device (0 for host device)
+                             ulambda->arg(3)); // address space
+    }
+
     auto cont = ulambda->arg(6)->as_lambda(); // continuation
 
     Scope cont_scope(cont);
@@ -84,7 +95,7 @@ void memmap_builtins(World& world) {
         // 1) look for "mapped" lambdas
         has_work = false;
         for (auto lambda : world.copy_lambdas()) {
-            if (lambda->attribute().is(Lambda::Map) && map_param(world, lambda, todo))
+            if (lambda->attribute().is(Lambda::Map | Lambda::Unmap) && map_param(world, lambda, todo))
                 has_work = true;
         }
         // 2) adapt mapped address spaces on users

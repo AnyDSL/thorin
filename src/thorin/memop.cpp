@@ -64,7 +64,6 @@ Map::Map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space,
     World& w = mem->world();
     set_type(w.sigma({mem->type(), w.ptr(ptr->type()->as<Ptr>()->referenced_type(),
                       ptr->type()->as<Ptr>()->length(), device, addr_space)}));
-    set_op(1, ptr);
     set_op(2, top_left);
     set_op(3, region_size);
 }

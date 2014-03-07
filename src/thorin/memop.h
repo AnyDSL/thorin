@@ -78,22 +78,35 @@ public:
 
 //------------------------------------------------------------------------------
 
-class Map : public MemOp {
-private:
-    Map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space,
-        Def top_left, Def region_size, const std::string &name);
+class MapOp : public MemOp {
+protected:
+    MapOp(size_t size, NodeKind kind, const Type* type, 
+          Def mem, Def ptr, uint32_t device, AddressSpace addr_space, const std::string &name);
 
 public:
     Def extract_mem() const;
     Def extract_mapped_ptr() const;
     Def ptr() const { return op(1); }
-    Def top_left() const { return op(2); }
-    Def region_size() const { return op(3); }
     const Ptr* ptr_type() const { return type()->as<Sigma>()->elem(1)->as<Ptr>(); }
-
     AddressSpace addr_space() const { return ptr_type()->addr_space(); }
     uint32_t device() const { return ptr_type()->device(); }
+};
 
+class Map : public MapOp {
+private:
+    Map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space,
+        Def top_left, Def region_size, const std::string &name);
+
+public:
+    Def top_left() const { return op(2); }
+    Def region_size() const { return op(3); }
+
+    friend class World;
+};
+
+class Unmap : public MapOp {
+private:
+    Unmap(Def mem, Def ptr, uint32_t device, AddressSpace addr_space, const std::string &name);
 
     friend class World;
 };

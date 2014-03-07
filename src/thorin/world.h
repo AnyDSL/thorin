@@ -18,8 +18,8 @@ class Any;
 class Bottom;
 class DefNode;
 class Enter;
-class Lambda;
 class LEA;
+class Lambda;
 class Map;
 class Pi;
 class PrimLit;
@@ -29,6 +29,7 @@ class Sigma;
 class Slot;
 class Store;
 class Type;
+class Unmap;
 
 /**
  * The World represents the whole program and manages creation and destruction of AIR nodes.
@@ -201,8 +202,6 @@ public:
      * memops
      */
 
-    const Map* map(Def mem, Def ptr, Def device, Def addr_space, Def tleft, Def size, const std::string& name = "");
-    const Map* map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space, Def tleft, Def size, const std::string& name = "");
     Def load(Def mem, Def ptr, const std::string& name = "");
     const Store* store(Def mem, Def ptr, Def val, const std::string& name = "");
     const Enter* enter(Def mem, const std::string& name = "");
@@ -211,6 +210,10 @@ public:
     const Global* global(Def init, bool is_mutable = true, const std::string& name = "");
     const Global* global_immutable_string(const std::string& str, const std::string& name = "");
     const LEA* lea(Def ptr, Def index, const std::string& name = "");
+    const Map* map(Def mem, Def ptr, Def device, Def addr_space, Def tleft, Def size, const std::string& name = "");
+    const Map* map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space, Def tleft, Def size, const std::string& name = "");
+    const Unmap* unmap(Def mem, Def ptr, Def device, Def addr_space, const std::string& name = "");
+    const Unmap* unmap(Def mem, Def ptr, uint32_t device, AddressSpace addr_space, const std::string& name = "");
 
     /*
      * other stuff

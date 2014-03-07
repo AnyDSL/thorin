@@ -84,6 +84,8 @@ bool CodeGen::emit_prg(const Scope* prg) {
                 lambda->attribute().set(Lambda::VectorizeTid | Lambda::Extern);
             // signature: map(type*, adr_space) -> type*[adr_space]
             if (lambda->name == "map")
+                lambda->attribute().set(Lambda::Unmap);
+            if (lambda->name == "unmap")
                 lambda->attribute().set(Lambda::Map);
             if (lambda->name == "parallel")
                 lambda->attribute().set(Lambda::Parallel);

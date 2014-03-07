@@ -32,7 +32,8 @@ public:
         VectorizeTid = 1 <<  7, ///< Flag for the external vectorizer (tid getter)
         Intrinsic    = 1 <<  8, ///< Flag for intrinsic LLVM function
         Map          = 1 <<  9, ///< Flag for intrinsic memory-mapping function
-        KernelEntry  = 1 << 10, ///< Flag for the kernel lambda
+        Unmap        = 1 << 10, ///< Flag for intrinsic memory-unmapping function
+        KernelEntry  = 1 << 11, ///< Flag for the kernel lambda
         Builtin      = NVVM | SPIR | OPENCL | Parallel | Vectorize
     };
 

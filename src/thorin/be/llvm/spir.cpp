@@ -104,8 +104,7 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     return f;
 }
 
-llvm::Value* SPIRCodeGen::emit_memmap(Def def) {
-    return emit_shared_memmap(def);
-}
+llvm::Value* SPIRCodeGen::emit_map(Def def) { return emit_shared_map(def); }
+llvm::Value* SPIRCodeGen::emit_unmap(Def def) { return emit_shared_unmap(def); }
 
 }

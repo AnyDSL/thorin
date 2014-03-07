@@ -21,7 +21,7 @@ protected:
     virtual llvm::Value* emit_load(Def);
     virtual llvm::Value* emit_store(Def);
     virtual llvm::Value* emit_lea(Def);
-    virtual llvm::Value* emit_memmap(Def);
+    virtual llvm::Value* emit_map(Def);
 
     virtual std::string get_output_name(const std::string& name) const { return name + ".nvvm"; }
     virtual std::string get_binary_output_name(const std::string& name) const { return name + ".nvvm.bc"; }

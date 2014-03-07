@@ -12,6 +12,7 @@ public:
 
     virtual llvm::Value* map(uint32_t device, uint32_t addr_space, llvm::Value* ptr,
                              llvm::Value* top_left, llvm::Value* region_size);
+    virtual llvm::Value* unmap(uint32_t device, uint32_t addr_space, llvm::Value* ptr);
     virtual llvm::Value* parallel_create(llvm::Value* num_threads, llvm::Value* closure_ptr,
                                          uint64_t closure_size, llvm::Value* fun_ptr);
     virtual llvm::Value* parallel_join(llvm::Value* handle);

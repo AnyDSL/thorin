@@ -624,7 +624,10 @@ llvm::Value* CodeGen::emit(Def def) {
         return builder_.CreateAlloca(map(slot->type()->as<Ptr>()->referenced_type()), 0, slot->unique_name());
 
     if (auto map = def->isa<Map>())
-        return emit_memmap(map);
+        return emit_map(map);
+
+    if (auto unmap = def->isa<Unmap>())
+        return emit_unmap(unmap);
 
     if (def->isa<Enter>() || def->isa<Leave>())
         return nullptr;
@@ -663,14 +666,22 @@ llvm::Value* CodeGen::emit_lea(Def def) {
     return builder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
 }
 
-llvm::Value* CodeGen::emit_memmap(Def def) {
+llvm::Value* CodeGen::emit_map(Def def) {
     auto map = def->as<Map>();
     // emit proper runtime call
     return runtime_->map(map->device(), (uint32_t)map->addr_space(), lookup(map->ptr()),
                          lookup(map->top_left()), lookup(map->region_size()));
 }
 
-llvm::Value* CodeGen::emit_shared_memmap(Def def) {
+llvm::Value* CodeGen::emit_unmap(Def def) {
+    auto unmap = def->as<Unmap>();
+    // emit proper runtime call
+    return runtime_->unmap(unmap->device(), (uint32_t)unmap->addr_space(), lookup(unmap->ptr()));
+}
+
+// TODO factor emit_shared_map/emit_shared_unmap with the help of its base class MapOp
+
+llvm::Value* CodeGen::emit_shared_map(Def def) {
     auto map = def->as<Map>();
     assert(map->addr_space() == AddressSpace::Shared &&
             "Only shared memory can be mapped inside NVVM code");
@@ -683,6 +694,11 @@ llvm::Value* CodeGen::emit_shared_memmap(Def def) {
     auto global = emit_global_memory(type, map->unique_name(), 3);
     // TODO: fill memory
     return global;
+}
+
+llvm::Value* CodeGen::emit_shared_unmap(Def def) { 
+    // TODO
+    return nullptr; 
 }
 
 llvm::Type* CodeGen::map(const Type* type) {

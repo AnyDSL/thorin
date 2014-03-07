@@ -6,10 +6,12 @@ fn range(a : int, b : int, yield : fn(int, fn())) -> void {
 
 fn f(x: int, y: int) -> int {
     let mut result = 0;
-    for (let mut i = 0; i < 10; ++i) {
+    for (let mut i = 0; i < x; ++i) {
         result += i;
         if (x == i)
             break;
+        fn f() { continue; }
+        @f();
     }
     return result;
 }

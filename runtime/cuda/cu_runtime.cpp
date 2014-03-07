@@ -355,7 +355,12 @@ void *array(size_t elem_size, size_t width, size_t height) {
 }
 void *map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, int sx, int sy, int sz) {
     assert(oz==0 && sz==0 && "3D memory not yet supported");
-    CUdeviceptr mem = malloc_memory(dev, from);
+
+    CUdevice mem = dev_mems2_[from];
+    if (!mem) {
+        mem = malloc_memory(dev, from);
+    }
+
     return from;
 }
 float random_val(int max) {

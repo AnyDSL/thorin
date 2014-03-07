@@ -21,3 +21,29 @@ fn iteration_bounds(wlower: int, wupper: int, hlower: int, hupper: int,
         });
     });
 }
+
+fn iteration_sep(width : int, height : int,
+                 body_col : fn(int, int) -> void,
+                 body_row : fn(int, int) -> void
+                ) -> void {
+    for (let mut y=0; y<height; ++y)
+        for (let mut x=0; x<width; ++x)
+            body_col(x, y);
+
+    for (let mut y=0; y<height; ++y)
+        for (let mut x=0; x<width; ++x)
+            body_row(x, y);
+}
+
+fn iteration_sep_advanced(width : int, height : int,
+                          arr : [float], out : [float], tmp : [float],
+                          body_col : fn(int, int, [float], [float]) -> void,
+                          body_row : fn(int, int, [float], [float]) -> void
+                         ) -> void {
+    for (let mut y=0; y<height; ++y) {
+        for (let mut x=0; x<width; ++x)
+            body_col(x, y, arr, tmp);
+        for (let mut x=0; x<width; ++x)
+            body_row(x, y, tmp, out);
+    }
+}

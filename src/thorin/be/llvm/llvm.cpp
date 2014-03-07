@@ -51,10 +51,10 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID calling_convention)
     , builder_(context_)
     , calling_convention_(calling_convention)
 {
-    runtime_ = new GenericRuntime(context_, module_.get(), builder_);
-    nvvm_runtime_ = new NVVMRuntime(context_, module_.get(), builder_);
-    spir_runtime_ = new SpirRuntime(context_, module_.get(), builder_);
-    opencl_runtime_ = new OpenCLRuntime(context_, module_.get(), builder_);
+    runtime_ = new GenericRuntime(context_, module_, builder_);
+    nvvm_runtime_ = new NVVMRuntime(context_, module_, builder_);
+    spir_runtime_ = new SpirRuntime(context_, module_, builder_);
+    opencl_runtime_ = new OpenCLRuntime(context_, module_, builder_);
 }
 
 Lambda* CodeGen::emit_builtin(llvm::Function* current, Lambda* lambda) {
@@ -804,7 +804,7 @@ multiple:
 }
 
 llvm::GlobalVariable* CodeGen::emit_global_memory(llvm::Type* type, const std::string& name, unsigned addr_space) {
-    return new llvm::GlobalVariable(*module_.get(), type, false,
+    return new llvm::GlobalVariable(*module_, type, false,
             llvm::GlobalValue::InternalLinkage, builder_.getInt64(0), name,
             nullptr, llvm::GlobalVariable::NotThreadLocal, addr_space);
 }

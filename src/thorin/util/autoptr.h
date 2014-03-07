@@ -12,24 +12,51 @@ public:
     AutoPtr(T* ptr = nullptr)
         : ptr_(ptr)
     {}
-    ~AutoPtr() { delete ptr_; }
     AutoPtr(AutoPtr<T>&& aptr)
-        : ptr_(aptr.get())
+        : ptr_(std::move(aptr.ptr_))
     {
         aptr.ptr_ = nullptr; // take ownership
     }
+    ~AutoPtr() { delete ptr_; }
 
     void release() { delete ptr_; ptr_ = nullptr; }
     T* get() const { return ptr_; }
-    operator T*() const { return ptr_; }
+    operator bool() const { return ptr_ != nullptr; }
+    operator T*() const {return ptr_; }
     T* operator -> () const { return ptr_; }
-    AutoPtr<T>& operator = (T* ptr) { delete ptr_; ptr_ = ptr; return *this; }
+    //AutoPtr<T>& operator = (T* ptr) { delete ptr_; ptr_ = ptr; return *this; }
     AutoPtr<T>& operator = (AutoPtr<T> other) { swap(*this, other); return *this; }
-    friend void swap(AutoPtr<T>& a, AutoPtr<T>& b) { std::swap(a.ptr_, b.ptr_); }
+    friend void swap(AutoPtr<T>& a, AutoPtr<T>& b) { using std::swap; swap(a.ptr_, b.ptr_); }
 
 private:
     T* ptr_;
     AutoPtr(const AutoPtr<T>& aptr); // forbid copy constructor
+};
+
+/// A simple wrapper around a usual pointer but initialized with nullptr 
+/// and checked via assert if valid prior to dereferencing.
+template<class T>
+class SafePtr {
+public:
+    SafePtr(const SafePtr<T>& sptr)
+        : ptr_(sptr.ptr_)
+    {}
+    SafePtr(SafePtr<T>&& sptr)
+        : ptr_(std::move(sptr.ptr_))
+    {}
+    SafePtr(T* ptr = nullptr)
+        : ptr_(ptr)
+    {}
+
+    T* get() const { assert(ptr_ != nullptr); return ptr_; }
+    operator bool() const { return ptr_ != nullptr; }
+    operator T*() const {return get(); }
+    T* operator -> () const { return get(); }
+    SafePtr<T>& operator= (SafePtr<T> other) { swap(*this, other); return *this; }
+    friend void swap(SafePtr<T>& a, SafePtr<T>& b) { using std::swap; swap(a.ptr_, b.ptr_); }
+
+private:
+    T* ptr_;
 };
 
 template<class T>

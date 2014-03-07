@@ -1,0 +1,10 @@
+fn f(i: int) -> int {
+    return i+1;
+}
+
+fn main(i: int) -> int {
+    let mut x = @f(i);
+    for (let mut j = 0; j != 10; ++j)
+        ++x;
+    return x;
+}

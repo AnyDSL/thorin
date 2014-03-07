@@ -88,11 +88,11 @@ fn main() -> int {
 
     //iteration_sep(width, height,
     //    |x : int, y : int| -> void {
-    //        tmp[y*width + x] = @apply_stencil_row(range, stencil_sep, x, y, arr, width);
+    //        tmp[y*width + x] = @apply_stencil_col(range, stencil_sep, x, y, arr, width);
     //    },
     //    |x : int, y : int| -> void {
     //        if (y > 0 && y < width-1)
-    //        out[y*width + x] = @apply_stencil_col(range, stencil_sep, x, y, tmp, width);
+    //        out[y*width + x] = @apply_stencil_row(range, stencil_sep, x, y, tmp, width);
     //    }
     //);
 
@@ -101,11 +101,11 @@ fn main() -> int {
     //});
     iteration_sep_advanced(width, height, arr, out, tmp,
         |x : int, y : int, arr : [float], out : [float]| -> void {
-            out[y*width + x] = @apply_stencil_row(range, stencil_sep, x, y, arr, width);
+            out[y*width + x] = @apply_stencil_col(range, stencil_sep, x, y, arr, width);
         },
         |x : int, y : int, arr : [float], out : [float]| -> void {
             if (y > 0 && y < width-1)
-            out[y*width + x] = @apply_stencil_col(range, stencil_sep, x, y, arr, width);
+            out[y*width + x] = @apply_stencil_row(range, stencil_sep, x, y, arr, width);
         }
     );
 

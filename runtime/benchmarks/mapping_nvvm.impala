@@ -1,6 +1,6 @@
 extern nvvm(int, (int, int, int), (int, int, int), fn() -> void) -> void;
 extern map([float], int, int, (int, int, int), (int, int, int)) -> [float];
-extern unmap([float]) -> void;
+extern unmap([float], int, int) -> void;
 
 fn iteration(width : int, height : int, body : fn(int, int) -> void) -> void {
     let dim = (width, height, 1);
@@ -15,8 +15,8 @@ fn iteration(width : int, height : int, body : fn(int, int) -> void) -> void {
 }
 
 fn iteration_sep(width : int, height : int,
-                 body_row : fn(int, int) -> void,
-                 body_col : fn(int, int) -> void
+                 body_col : fn(int, int) -> void,
+                 body_row : fn(int, int) -> void
                 ) -> void {
     let dim = (width, height, 1);
     let block = (128, 1, 1);
@@ -25,13 +25,13 @@ fn iteration_sep(width : int, height : int,
         let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
         let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
 
-        body_row(tid_x, tid_y);
+        body_col(tid_x, tid_y);
     });
     nvvm(1, dim, block, || -> void {
         let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
         let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
 
-        body_col(tid_x, tid_y);
+        body_row(tid_x, tid_y);
     });
 }
 
@@ -93,27 +93,14 @@ fn iteration_advanced(width : int, height : int, arr : [float], body : fn(int, i
 
 fn iteration_sep_advanced(width : int, height : int,
                           arr : [float], out : [float], tmp : [float],
-                          body_row : fn(int, int, [float], [float]) -> void,
-                          body_col : fn(int, int, [float], [float]) -> void
+                          body_col : fn(int, int, [float], [float]) -> void,
+                          body_row : fn(int, int, [float], [float]) -> void
                          ) -> void {
     let dim = (width, height, 1);
     let block = (128, 1, 1);
 
-    let tex_row = map(arr, 1, 1, (0, 0, 0), (width, height, 0));
-    let out_row = map(tmp, 1, 0, (0, 0, 0), (width, height, 0));
-
-    nvvm(1, dim, block, || -> void {
-        let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
-        let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
-
-        body_row(tid_x, tid_y, tex_row, out_row);
-    });
-
-    unmap(tex_row);
-    unmap(out_row);
-
-    let tex_col = map(tmp, 1, 1, (0, 0, 0), (width, height, 0));
-    let out_col = map(out, 1, 0, (0, 0, 0), (width, height, 0));
+    let tex_col = map(arr, 1, 1, (0, 0, 0), (width, height, 0));
+    let out_col = map(tmp, 1, 0, (0, 0, 0), (width, height, 0));
 
     nvvm(1, dim, block, || -> void {
         let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
@@ -122,7 +109,20 @@ fn iteration_sep_advanced(width : int, height : int,
         body_col(tid_x, tid_y, tex_col, out_col);
     });
 
-    unmap(tex_col);
-    unmap(out_col);
+    unmap(tex_col, 1, 1);
+    //unmap(out_col);
+
+    let tex_row = map(tmp, 1, 1, (0, 0, 0), (width, height, 0));
+    let out_row = map(out, 1, 0, (0, 0, 0), (width, height, 0));
+
+    nvvm(1, dim, block, || -> void {
+        let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+        let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
+
+        body_row(tid_x, tid_y, tex_row, out_row);
+    });
+
+    //unmap(tex_row);
+    //unmap(out_row);
 }
 

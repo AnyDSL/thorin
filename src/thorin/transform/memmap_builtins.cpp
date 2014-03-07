@@ -79,18 +79,18 @@ static void adapt_addr_space(World &world, ToDo& uses) {
 
 void memmap_builtins(World& world) {
     ToDo todo;
-    // 1) look for "mapped" lambdas
     bool has_work;
     do {
+        // 1) look for "mapped" lambdas
         has_work = false;
         for (auto lambda : world.copy_lambdas()) {
             if (lambda->attribute().is(Lambda::Map) && map_param(world, lambda, todo))
                 has_work = true;
         }
+        // 2) adapt mapped address spaces on users
+        while (!todo.empty())
+            adapt_addr_space(world, todo);
     } while (has_work);
-    // 2) adapt mapped address spaces on users
-    while (!todo.empty())
-        adapt_addr_space(world, todo);
     world.cleanup();
 }
 

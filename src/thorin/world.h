@@ -269,13 +269,7 @@ protected:
     template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
 
 private:
-    void eliminate_params();
     const Param* param(const Type* type, Lambda* lambda, size_t index, const std::string& name = "");
-    void eliminate_proxies();
-    Def dead_code_elimination(Def, Def2Def&, TypeSet&);
-    void unreachable_code_elimination(Lambda*, LambdaSet&, Def2Def&, TypeSet&);
-    void unused_type_elimination(const Type*, TypeSet&);
-    template<class S, class W> static void wipe_out(S& set, W wipe);
 
     std::string name_;
     LambdaSet lambdas_;
@@ -307,6 +301,7 @@ private:
         const Type* keep_[Num_PrimTypes + 4];
     };
 
+    friend class Cleaner;
     friend class Lambda;
 };
 

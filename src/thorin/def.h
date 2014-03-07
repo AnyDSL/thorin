@@ -195,6 +195,7 @@ public:
     friend class Def;
     friend class PrimOp;
     friend class World;
+    friend class Cleaner;
     friend void verify_closedness(World& world);
 };
 

@@ -177,8 +177,9 @@ private:
     Todos todos_;
     mutable std::vector<const GenericRef*> generic_refs_;
 
-    friend class World;
+    friend class Cleaner;
     friend class GenericRef;
+    friend class World;
 };
 
 //------------------------------------------------------------------------------

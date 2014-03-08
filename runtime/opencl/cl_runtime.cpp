@@ -500,16 +500,20 @@ void build_program_and_kernel(size_t dev, const char *file_name, const char *ker
 
 cl_mem malloc_buffer(size_t dev, void *host, cl_mem_flags flags) {
     cl_int err = CL_SUCCESS;
-    cl_mem mem;
+    cl_mem mem = dev_mems2_[host];
     mem_ info = host_mems_[host];
 
-    void *host_ptr = NULL;
-    if (flags & CL_MEM_USE_HOST_PTR) host_ptr = host;
-    mem = clCreateBuffer(contexts_[dev], flags, info.elem * info.width * info.height, host_ptr, &err);
-    checkErr(err, "clCreateBuffer()");
-    std::cerr << " * malloc buffer(" << dev << "): dev " << mem << " <-> host: " << host << std::endl;
-    dev_mems_[mem] = host;
-    dev_mems2_[host] = mem;
+    if (!mem) {
+        void *host_ptr = NULL;
+        if (flags & CL_MEM_USE_HOST_PTR) host_ptr = host;
+        mem = clCreateBuffer(contexts_[dev], flags, info.elem * info.width * info.height, host_ptr, &err);
+        checkErr(err, "clCreateBuffer()");
+        std::cerr << " * malloc buffer(" << dev << "): dev " << mem << " <-> host: " << host << std::endl;
+        dev_mems_[mem] = host;
+        dev_mems2_[host] = mem;
+    } else {
+        std::cerr << " * malloc buffer(" << dev << "): returning old copy " << mem << " for " << host << std::endl;
+    }
 
     return mem;
 }
@@ -605,10 +609,11 @@ void set_kernel_arg(size_t dev, void *param, size_t size) {
 
 
 void set_kernel_arg_map(size_t dev, void *param, size_t size) {
-    cl_mem mem = dev_mems2_[param];
+    cl_mem *mem = &dev_mems2_[param];
 
-    std::cerr << " * set arg mapped(" << dev << "): " << param << " (map: " << mem << ")" << std::endl;
-    set_kernel_arg(dev, &mem, sizeof(cl_mem));
+    std::cerr << " * set arg mapped(" << dev << "): " << param << " (map: " << *mem << ")" << std::endl;
+    assert(*mem && "couldn't find memory in map!");
+    set_kernel_arg(dev, mem, sizeof(cl_mem));
 }
 
 
@@ -682,10 +687,17 @@ void *map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, i
 
     assert(oz==0 && sz==0 && "3D memory not yet supported");
 
+    cl_mem mem = dev_mems2_[from];
+    if (mem) {
+        std::cerr << " * map memory(" << dev << "):    returning old copy " << mem << " for " << from << std::endl;
+        return from;
+    }
+
     if (type==Global) {
         std::cerr << " * map_memory(" << dev << "): from " << from << " " << std::endl;
         cl_mem_flags mem_flags = CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR;
         cl_mem mem = malloc_buffer(dev, from, mem_flags);
+        write_buffer(dev, mem, from);
 
         cl_event event;
         cl_ulong end, start;

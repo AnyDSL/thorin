@@ -1,0 +1,16 @@
+extern array(int, int, int) -> [float];
+extern random_val(int) -> float;
+
+extern map([float], int, int, (int, int, int), (int, int, int)) -> [float];
+extern unmap([float], int, int) -> void;
+
+extern nvvm(int, (int, int, int), (int, int, int), fn() -> void) -> void;
+extern spir(int, (int, int, int), (int, int, int), fn() -> void) -> void;
+extern vectorized(int, int, fn() -> void) -> int;
+extern wfv_get_tid() -> int;
+extern opencl(int, (int, int, int), (int, int, int), fn() -> void) -> void;
+intrinsic int64_to_int32(int64) -> int32;
+
+extern reset_and_start_timer() -> void;
+extern print_time() -> void;
+

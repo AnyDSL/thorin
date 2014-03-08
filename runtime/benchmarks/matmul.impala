@@ -1,7 +1,3 @@
-extern array(int) -> [float];
-extern reset_and_start_timer() -> void;
-extern print_time() -> void;
-
 fn matmul(res: [float], mut num_rows: int, mut num_cols: int, a: [float], b: [float], num: int) -> void {
     fn index_res(x: int, y: int) -> int {
         return num_cols*y + x;

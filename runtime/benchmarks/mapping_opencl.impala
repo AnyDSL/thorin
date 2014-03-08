@@ -1,6 +1,3 @@
-extern opencl(int, (int, int, int), (int, int, int), fn() -> void) -> void;
-extern map([float], int, int, (int, int, int), (int, int, int)) -> [float];
-intrinsic int64_to_int32(int64) -> int32;
 
 fn iteration(width : int, height : int, body : fn(int, int) -> void) -> void {
     let dim = (width, height, 1);

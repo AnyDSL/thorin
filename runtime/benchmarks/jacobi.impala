@@ -1,6 +1,3 @@
-extern array(int, int, int) -> [float];
-extern random_val(int) -> float;
-
 fn iterate(a : int, b : int, yield : fn(int, fn())) -> void {
     let mut i: int = a;
     while (i < b)

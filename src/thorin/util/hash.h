@@ -22,13 +22,11 @@ template<class T> struct FNV1 {};
 template<> struct FNV1<uint32_t> {
     static const uint32_t offset = 2166136261u;
     static const uint32_t prime  = 16777619u;
-    static const int size = 32;
 };
 
 template<> struct FNV1<uint64_t> {
     static const uint64_t offset = 14695981039346656037ull;
     static const uint64_t prime  = 1099511628211ull;
-    static const int size = 64;
 };
 
 #ifdef __APPLE__
@@ -39,7 +37,6 @@ template<> struct FNV1<uint64_t> {
 template<> struct FNV1<unsigned long> {
     static const unsigned long offset = 14695981039346656037ull;
     static const unsigned long prime  = 1099511628211ull;
-    static const int size = 64;
 };
 #endif
 
@@ -178,6 +175,7 @@ private:
             while (!is_valid(n) && !is_end(n)) ++n;
             return n; 
         }
+
         Node** node_;
 #ifndef NDEBUG
         const HashTable* table_;
@@ -375,7 +373,7 @@ public:
     }
     HashTable& operator= (HashTable other) { swap(*this, other); return *this; }
 
-protected:
+private:
 #ifndef NDEBUG
     int id() const { return id_; }
 #else
@@ -391,7 +389,7 @@ protected:
     Node** alloc() {
         assert(is_power_of_2(capacity_));
         auto nodes = new Node*[capacity_+1](); // the last node servers as end
-        nodes[capacity_] = end_pointer();          // mark end as occupied
+        nodes[capacity_] = end_pointer();      // mark end as occupied
         return nodes;
     }
 

@@ -375,9 +375,9 @@ void *map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, i
 
     return from;
 }
-void unmap_memory(CUdeviceptr mem) {
+void unmap_memory(size_t dev, CUdeviceptr mem) {
     void *host = dev_mems_[mem];
-    read_memory(0, mem, host);
+    read_memory(dev, mem, host);
     // TODO: mark device memory as unmapped
 }
 float random_val(int max) {

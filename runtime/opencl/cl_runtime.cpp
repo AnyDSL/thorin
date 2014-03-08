@@ -707,6 +707,11 @@ void *map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, i
 
     return from;
 }
+void unmap_memory(size_t dev, cl_mem mem) {
+    void *host = dev_mems_[mem];
+    read_buffer(dev, mem, host);
+    // TODO: mark device memory as unmapped
+}
 float random_val(int max) {
     return ((float)random() / RAND_MAX) * max;
 }

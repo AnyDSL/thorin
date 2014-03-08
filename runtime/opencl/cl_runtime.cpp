@@ -672,6 +672,9 @@ void *array(size_t elem_size, size_t width, size_t height) {
     host_mems_[mem] = {elem_size, width, height};
     return mem;
 }
+void free_array(void *host) {
+    free(host);
+}
 void *map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, int sx, int sy, int sz) {
     cl_int err = CL_SUCCESS;
     mem_type type = (mem_type)type_;

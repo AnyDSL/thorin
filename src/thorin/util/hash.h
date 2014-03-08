@@ -94,7 +94,7 @@ struct Hash<T*> {
 template<class Key, class T, class Hasher, class KeyEqual>
 class HashTable {
 private:
-    class HashNode {
+    class Node {
     private:
         template<class Key_, class T_> 
         struct get_key { static const Key_& get(const std::pair<Key_, T_>& pair) { return pair.first; } };
@@ -113,9 +113,9 @@ private:
         typedef typename std::conditional<std::is_void<T>::value, Key, T>::type mapped_type;
         typedef typename std::conditional<std::is_void<T>::value, Key, std::pair<Key, T>>::type value_type;
 
-        HashNode() {}
+        Node() {}
         template<class... Args>
-        HashNode(Args&&... args)
+        Node(Args&&... args)
             : value_(args...)
         {}
 
@@ -128,21 +128,21 @@ private:
         friend class HashTable;
     };
 
-    static HashNode* free_but_reused() { return (HashNode*) -1; }
-    static HashNode* end_pointer()     { return (HashNode*)  1; }
-    static bool is_end(HashNode** p)   { return *p == end_pointer(); }
-    static bool is_valid(HashNode** p) { return *p != nullptr && *p != free_but_reused(); }
+    static Node* free_but_reused() { return (Node*) -1; }
+    static Node* end_pointer()     { return (Node*)  1; }
+    static bool is_end(Node** p)   { return *p == end_pointer(); }
+    static bool is_valid(Node** p) { return *p != nullptr && *p != free_but_reused(); }
 
     template<bool is_const>
     class iterator_base {
     public:
         typedef std::ptrdiff_t difference_type;
-        typedef typename HashNode::value_type value_type;
+        typedef typename Node::value_type value_type;
         typedef typename std::conditional<is_const, const value_type&, value_type&>::type reference;
         typedef typename std::conditional<is_const, const value_type*, value_type*>::type pointer;
         typedef std::bidirectional_iterator_tag iterator_category;
 
-        iterator_base(HashNode** node, const HashTable* table) 
+        iterator_base(Node** node, const HashTable* table) 
             : node_(node)
 #ifndef NDEBUG
             , table_(table) 
@@ -174,11 +174,11 @@ private:
         }
 
     private:
-        static HashNode** move_to_valid(HashNode** n) {
+        static Node** move_to_valid(Node** n) {
             while (!is_valid(n) && !is_end(n)) ++n;
             return n; 
         }
-        HashNode** node_;
+        Node** node_;
 #ifndef NDEBUG
         const HashTable* table_;
         int id_;
@@ -189,9 +189,9 @@ private:
 
 public:
     static const size_t min_capacity = 16;
-    typedef typename HashNode::key_type key_type;
-    typedef typename HashNode::mapped_type mapped_type;
-    typedef typename HashNode::value_type value_type;
+    typedef typename Node::key_type key_type;
+    typedef typename Node::mapped_type mapped_type;
+    typedef typename Node::value_type value_type;
     typedef std::size_t size_type;
     typedef Hasher hasher;
     typedef KeyEqual key_equal;
@@ -264,7 +264,7 @@ public:
 #ifndef NDEBUG
         ++id_;
 #endif
-        auto n = new HashNode(args...);
+        auto n = new Node(args...);
         if (size_ > capacity_/size_t(4) + capacity_/size_t(2))
             rehash(capacity_*size_t(2));
         else if (capacity_ > min_capacity && size_ < capacity_/size_t(4))
@@ -346,7 +346,7 @@ public:
 
         for (size_t i = 0; i != old_capacity; ++i) {
             if (is_valid(nodes_+i)) {
-                HashNode* old = nodes_[i];
+                Node* old = nodes_[i];
                 for (size_t i = hash_function_(old->key()), step = 0; true; i = (i + step++)) {
                     size_t x = i & (capacity_-1);
                     if (nodes[x] == nullptr) {
@@ -388,16 +388,16 @@ protected:
         }
         delete[] nodes_;
     }
-    HashNode** alloc() {
+    Node** alloc() {
         assert(is_power_of_2(capacity_));
-        auto nodes = new HashNode*[capacity_+1](); // the last node servers as end
+        auto nodes = new Node*[capacity_+1](); // the last node servers as end
         nodes[capacity_] = end_pointer();          // mark end as occupied
         return nodes;
     }
 
     size_type capacity_;
     size_type size_;
-    HashNode** nodes_;
+    Node** nodes_;
     hasher hash_function_;
     key_equal key_eq_;
 #ifndef NDEBUG

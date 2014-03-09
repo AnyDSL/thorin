@@ -19,7 +19,7 @@ fn blocked_loop(length: int, bodyfn: fn(int, fn(int))) -> int {
         let mut res = 0;
 
         fn rec(ii: int) {
-            res += blocked_iter(cur_level + 1, ii, block_size);
+            res += @blocked_iter(cur_level + 1, ii, block_size);
             if (ii < N)
                 rec(ii + block_size);
             else 

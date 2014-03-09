@@ -5,9 +5,11 @@ fn range(a: int, b: int, yield: fn(int, fn())) -> void {
 }
 
 fn iteration(width: int, height: int, body: fn(int, int) -> void) -> void {
+    getMicroTime();
     for (let mut y=0; y<height; ++y)
         for (let mut x=0; x<width; ++x)
             body(x, y);
+    getMicroTime();
 }
 
 fn iteration_bounds(wlower: int, wupper: int, hlower: int, hupper: int,
@@ -26,6 +28,7 @@ fn iteration_sep(width : int, height : int,
                  body_col : fn(int, int) -> void,
                  body_row : fn(int, int) -> void
                 ) -> void {
+    getMicroTime();
     for (let mut y=0; y<height; ++y)
         for (let mut x=0; x<width; ++x)
             body_col(x, y);
@@ -33,17 +36,24 @@ fn iteration_sep(width : int, height : int,
     for (let mut y=0; y<height; ++y)
         for (let mut x=0; x<width; ++x)
             body_row(x, y);
+    getMicroTime();
 }
 
 fn iteration_sep_advanced(width : int, height : int,
-                          arr : [float], out : [float], tmp : [float],
+                          arr : [float], out : [float],
                           body_col : fn(int, int, [float], [float]) -> void,
                           body_row : fn(int, int, [float], [float]) -> void
                          ) -> void {
-    for (let mut y=0; y<height; ++y) {
+    let tmp = array(4, width, 1);
+
+    getMicroTime();
+    for (let mut y=1; y<height-1; ++y) {
         for (let mut x=0; x<width; ++x)
             body_col(x, y, arr, tmp);
         for (let mut x=0; x<width; ++x)
             body_row(x, y, tmp, out);
     }
+    getMicroTime();
+
+    free_array(tmp);
 }

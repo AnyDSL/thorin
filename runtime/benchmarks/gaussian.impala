@@ -107,9 +107,11 @@ fn main() -> int {
     //free_array(tmp);
 
 
-    //iteration_advanced(width, height, arr, |x : int, y : int, arr : [float]| -> void {
-    //    out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width);
-    //});
+    //iteration_advanced(width, height, arr, out,
+    //    |x : int, y : int, arr : [float], out : [float]| -> void {
+    //        out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width);
+    //    }
+    //);
 
     iteration_sep_advanced(width, height, arr, out,
         |x : int, y : int, arr : [float], out : [float]| -> void {

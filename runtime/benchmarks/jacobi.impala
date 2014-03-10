@@ -55,9 +55,11 @@ fn main() -> int {
     //    out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width);
     //});
 
-    iteration_advanced(width, height, arr, |x : int, y : int, arr : [float]| -> void {
-        out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width);
-    });
+    iteration_advanced(width, height, arr, out,
+        |x : int, y : int, arr : [float], out : [float]| -> void {
+            out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width);
+        }
+    );
 
 
     let mut passed = 0;

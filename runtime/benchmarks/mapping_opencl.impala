@@ -55,20 +55,24 @@ fn iterate_times_two(a : int, b : int, yield : fn(int, fn())) -> void {
         yield(i*=2, || { continue; });
 }
 
-fn iteration_advanced(width : int, height : int, arr : [float], body : fn(int, int, [float]) -> void) -> void {
+fn iteration_advanced(width : int, height : int,
+                      arr : [float], out : [float],
+                      body : fn(int, int, [float], [float]) -> void
+                     ) -> void {
     @iterate_times_two(1, 16+1, |unroll : int| -> void {
         let dim = (width, height/unroll, 1);
         let block = (128, 1, 1);
 
         // 0 -> global
-        let gmem = map(arr, 1, 0, (0, 0, 0), (width, height, 0));
+        let gmem_arr = map(arr, 1, 0, (0, 0, 0), (width, height, 0));
+        let gmem_out = map(out, 1, 0, (0, 0, 0), (width, height, 0));
 
         opencl(1, dim, block, || -> void {
             let tid_x = int64_to_int32(get_global_id(0));
             let tid_y = int64_to_int32(get_local_id(1)) + int64_to_int32(get_local_size(1) * get_group_id(1)) * unroll;
 
             @iterate_(0, unroll, |i : int| -> void {
-                body(tid_x, tid_y + i * int64_to_int32(get_local_size(1)), gmem);
+                body(tid_x, tid_y + i * int64_to_int32(get_local_size(1)), gmem_arr, gmem_out);
             });
         });
     });

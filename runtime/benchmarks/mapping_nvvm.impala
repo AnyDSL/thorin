@@ -55,7 +55,10 @@ fn iterate_times_two(a : int, b : int, yield : fn(int, fn())) -> void {
         yield(i*=2, || { continue; });
 }
 
-fn iteration_advanced(width : int, height : int, arr : [float], body : fn(int, int, [float]) -> void) -> void {
+fn iteration_advanced(width : int, height : int,
+                      arr : [float], out : [float],
+                      body : fn(int, int, [float], [float]) -> void
+                     ) -> void {
     @iterate_times_two(1, 16+1, |unroll : int| -> void {
         let dim = (width, height/unroll, 1);
         let block = (128, 1, 1);
@@ -63,25 +66,26 @@ fn iteration_advanced(width : int, height : int, arr : [float], body : fn(int, i
         // 0 -> global
         // 1 -> texture
         // 2 -> shared
-        let gmem = map(arr, 1, 0, (0, 0, 0), (width, height, 0));
+        let gmem_arr = map(arr, 1, 0, (0, 0, 0), (width, height, 0));
+        let gmem_out = map(out, 1, 0, (0, 0, 0), (width, height, 0));
 
         nvvm(1, dim, block, || -> void {
             let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
             let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
 
             @iterate_(0, unroll, |i : int| -> void {
-                body(tid_x, tid_y + i * nvvm_read_ptx_sreg_ntid_y(), gmem);
+                body(tid_x, tid_y + i * nvvm_read_ptx_sreg_ntid_y(), gmem_arr, gmem_out);
             });
         });
 
-        let tex = map(arr, 1, 1, (0, 0, 0), (width, height, 0));
+        let tex_arr = map(arr, 1, 1, (0, 0, 0), (width, height, 0));
 
         nvvm(1, dim, block, || -> void {
             let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
             let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
 
             @iterate_(0, unroll, |i : int| -> void {
-                body(tid_x, tid_y + i * nvvm_read_ptx_sreg_ntid_y(), tex);
+                body(tid_x, tid_y + i * nvvm_read_ptx_sreg_ntid_y(), tex_arr, gmem_out);
             });
         });
     });

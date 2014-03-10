@@ -72,7 +72,7 @@ class Memory {
         std::unordered_map<void*, mem_id> memtoid;
 
     public:
-        Memory() : count_(0) {}
+        Memory() : count_(42) {}
 
     mem_id get_id(void *mem) { return memtoid[mem]; }
     mem_id map_memory(void *from, cl_mem to, mem_type type) {
@@ -84,7 +84,7 @@ class Memory {
     }
 
     void *get_host_mem(mem_id id) { return mmap[id].cpu; }
-    cl_mem get_dev_mem(mem_id id) { return mmap[id].gpu; }
+    cl_mem &get_dev_mem(mem_id id) { return mmap[id].gpu; }
     void remove(mem_id id) {
         void *mem = idtomem[id];
         memtoid.erase(mem);
@@ -708,7 +708,8 @@ void spir_synchronize(size_t dev) { synchronize(dev); }
 
 // helper functions
 void *array(size_t elem_size, size_t width, size_t height) {
-    void *mem = malloc(elem_size * width * height);
+    void *mem;
+    posix_memalign(&mem, 16, elem_size * width * height);
     std::cerr << " * array() -> " << mem << std::endl;
     host_mems_[mem] = {elem_size, width, height};
     return mem;
@@ -733,10 +734,10 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, 
 
         if (sy==info.height) {
             // mapping the whole memory
-            std::cerr << " * map memory(" << dev << "):    from " << from << " " << std::endl;
             cl_mem_flags mem_flags = CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR;
             mem = malloc_buffer(dev, from, mem_flags);
             write_buffer(dev, mem, from);
+            std::cerr << " * map memory(" << dev << "):    " << from << " -> " << mem << std::endl;
 
             #if 0
             cl_event event;

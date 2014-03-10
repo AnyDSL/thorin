@@ -1,7 +1,3 @@
-extern nvvm(int, (int, int, int), (int, int, int), fn() -> void) -> void;
-extern array(int, int, int) -> [float];
-extern async(fn() -> void) -> int;
-
 // current mapping: arrays are implicitely mapped to GPU
 iteration(width, height, |x : int, y : int| -> void {
     out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width);

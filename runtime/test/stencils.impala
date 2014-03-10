@@ -1,4 +1,3 @@
-extern array(int, int, int) -> [float];
 extern sqrt(float) -> float;
 
 fn idx(x : int, y: int, width : int, height : int) -> int {

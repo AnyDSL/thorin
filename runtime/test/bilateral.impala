@@ -1,5 +1,3 @@
-extern accelerator([float], fn(fn() -> int, fn() -> int, fn() -> int) -> void) -> int;
-extern array(int, int, int) -> [float];
 extern exp(float) -> float;
 
 fn idx(x : int, y: int, width : int, height : int) -> int {

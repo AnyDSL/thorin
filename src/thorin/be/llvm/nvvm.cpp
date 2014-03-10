@@ -42,7 +42,9 @@ llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambd
         types.push_back(type);
     }
     auto ft = llvm::cast<llvm::FunctionType>(map(lambda->world().pi(types)));
-    auto f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, lambda->name, module_);
+    // TODO: factor emit_function_decl code
+    auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(lambda->name, ft));
+    f->setLinkage(llvm::Function::ExternalLinkage);
 
     if (!lambda->attribute().is(Lambda::KernelEntry))
         return f;

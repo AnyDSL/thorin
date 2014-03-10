@@ -37,7 +37,9 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     }
 
     auto ft = llvm::FunctionType::get(rtype, types, false);
-    auto f = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, name, module_);
+    // TODO: factor emit_function_decl code
+    auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, ft));
+    f->setLinkage(llvm::Function::ExternalLinkage);
 
     if (!lambda->attribute().is(Lambda::KernelEntry))
         return f;

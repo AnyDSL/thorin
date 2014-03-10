@@ -79,6 +79,7 @@ Lambda* CodeGen::emit_builtin(llvm::Function* current, Lambda* lambda) {
 
 llvm::Function* CodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
     auto ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
+    // TODO: factor emit_function_decl code
     auto fun = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, ft));
     fun->setLinkage(llvm::Function::ExternalLinkage);
     return fun;

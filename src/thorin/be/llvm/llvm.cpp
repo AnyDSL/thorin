@@ -95,8 +95,7 @@ void CodeGen::emit() {
         llvm::Function* f = nullptr;
         std::string name = lambda->name;
         if (lambda->attribute().is(Lambda::Intrinsic)) {
-            std::transform(name.begin(), name.end(), name.begin(), [] (char c) { return c == '_' ? '.' : c; });
-            name = "llvm." + name;
+            name = get_intrinsic_name(name);
             f = emit_intrinsic_decl(name, lambda);
         } else
             f = emit_function_decl(name, lambda);

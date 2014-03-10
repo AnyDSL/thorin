@@ -12,6 +12,7 @@ public:
     void emit();
 
 protected:
+    virtual std::string get_intrinsic_name(const std::string& name) const;
     virtual std::string get_output_name(const std::string& name) const { return name + ".cl"; }
     virtual std::string get_binary_output_name(const std::string& name) const { return name + ".cl.bc"; }
 };

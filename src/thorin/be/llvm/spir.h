@@ -14,6 +14,7 @@ protected:
     virtual llvm::Value* emit_map(Def def);
     virtual llvm::Value* emit_unmap(Def def);
 
+    virtual std::string get_intrinsic_name(const std::string& name) const { return name; }
     virtual std::string get_output_name(const std::string& name) const { return name + ".spir"; }
     virtual std::string get_binary_output_name(const std::string& name) const { return name + ".spir.bc"; }
 };

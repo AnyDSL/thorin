@@ -696,9 +696,9 @@ llvm::Value* CodeGen::emit_shared_map(Def def) {
     return global;
 }
 
-llvm::Value* CodeGen::emit_shared_unmap(Def def) { 
+llvm::Value* CodeGen::emit_shared_unmap(Def def) {
     // TODO
-    return nullptr; 
+    return nullptr;
 }
 
 llvm::Type* CodeGen::map(const Type* type) {

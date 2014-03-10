@@ -12,28 +12,23 @@ SpirRuntime::SpirRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm:
 }
 
 llvm::Value* SpirRuntime::malloc(llvm::Value* device, llvm::Value* ptr) {
-    auto alloca = builder_.CreateAlloca(get_device_ptr_ty());
     llvm::Value* malloc_args[] = { device, builder_.CreateBitCast(ptr, builder_.getInt8PtrTy()) };
-    auto device_ptr = builder_.CreateCall(get("spir_malloc_buffer"), malloc_args);
-    builder_.CreateStore(device_ptr, alloca);
-    return alloca;
+    auto device_mem = builder_.CreateCall(get("spir_malloc_buffer"), malloc_args);
+    return device_mem;
 }
 
-llvm::Value* SpirRuntime::free(llvm::Value* device, llvm::Value* ptr) {
-    auto loaded_device_ptr = builder_.CreateLoad(ptr);
-    llvm::Value* free_args[] = { device, loaded_device_ptr };
+llvm::Value* SpirRuntime::free(llvm::Value* device, llvm::Value* mem) {
+    llvm::Value* free_args[] = { device, mem };
     return builder_.CreateCall(get("spir_free_buffer"), free_args);
 }
 
-llvm::Value* SpirRuntime::write(llvm::Value* device, llvm::Value* ptr, llvm::Value* data) {
-    auto loaded_device_ptr = builder_.CreateLoad(ptr);
-    llvm::Value* mem_args[] = { device, loaded_device_ptr, builder_.CreateBitCast(data, builder_.getInt8PtrTy()) };
+llvm::Value* SpirRuntime::write(llvm::Value* device, llvm::Value* mem, llvm::Value* data) {
+    llvm::Value* mem_args[] = { device, mem, builder_.CreateBitCast(data, builder_.getInt8PtrTy()) };
     return builder_.CreateCall(get("spir_write_buffer"), mem_args);
 }
 
-llvm::Value* SpirRuntime::read(llvm::Value* device, llvm::Value* ptr, llvm::Value* data) {
-    auto loaded_device_ptr = builder_.CreateLoad(ptr);
-    llvm::Value* args[] = { device, loaded_device_ptr, builder_.CreateBitCast(data, builder_.getInt8PtrTy()) };
+llvm::Value* SpirRuntime::read(llvm::Value* device, llvm::Value* mem, llvm::Value* data) {
+    llvm::Value* args[] = { device, mem, builder_.CreateBitCast(data, builder_.getInt8PtrTy()) };
     return builder_.CreateCall(get("spir_read_buffer"), args);
 }
 
@@ -56,13 +51,13 @@ llvm::Value* SpirRuntime::set_kernel_arg(llvm::Value* device, llvm::Value* ptr) 
     return builder_.CreateCall(get("spir_set_kernel_arg"), arg_args);
 }
 
-llvm::Value* SpirRuntime::set_kernel_arg_map(llvm::Value* device, llvm::Value* ptr) {
-    llvm::Value* arg_args[] = { device, ptr };
+llvm::Value* SpirRuntime::set_kernel_arg_map(llvm::Value* device, llvm::Value* mem) {
+    llvm::Value* arg_args[] = { device, mem };
     return builder_.CreateCall(get("spir_set_kernel_arg_map"), arg_args);
 }
 
-llvm::Value* SpirRuntime::set_texture(llvm::Value* device, llvm::Value* ptr, llvm::Value* name, PrimTypeKind type) {
-    llvm::Value* tex_args[] = { device, ptr, name, builder_.getInt32(0) };
+llvm::Value* SpirRuntime::set_texture(llvm::Value* device, llvm::Value* mem, llvm::Value* name, PrimTypeKind type) {
+    llvm::Value* tex_args[] = { device, mem, name, builder_.getInt32(0) };
     return builder_.CreateCall(get("spir_set_kernel_arg_tex"), tex_args);
 }
 

@@ -79,12 +79,11 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
                 }
             } else {
                 // we need to allocate memory for this chunk on the target device
-                auto mem_ptr = malloc(target_device_val, target_val);
-                device_ptrs[target_arg] = mem_ptr;
+                auto mem = malloc(target_device_val, target_val);
+                device_ptrs[target_arg] = mem;
                 // copy memory to target device
-                auto void_ptr = builder_.CreateBitCast(mem_ptr, builder_.getInt8PtrTy());
-                write(target_device_val, mem_ptr, target_val);
-                set_kernel_arg(target_device_val, void_ptr);
+                write(target_device_val, mem, target_val);
+                set_kernel_arg_map(target_device_val, mem);
             }
         } else {
             // normal variable

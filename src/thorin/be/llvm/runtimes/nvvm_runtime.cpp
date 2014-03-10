@@ -9,28 +9,23 @@ NVVMRuntime::NVVMRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm:
 {}
 
 llvm::Value* NVVMRuntime::malloc(llvm::Value* device, llvm::Value* ptr) {
-    auto alloca = builder_.CreateAlloca(get_device_ptr_ty());
     llvm::Value* malloc_args[] = { device, builder_.CreateBitCast(ptr, builder_.getInt8PtrTy()) };
-    auto device_ptr = builder_.CreateCall(get("nvvm_malloc_memory"), malloc_args);
-    builder_.CreateStore(device_ptr, alloca);
-    return alloca;
+    auto device_mem = builder_.CreateCall(get("nvvm_malloc_memory"), malloc_args);
+    return device_mem;
 }
 
-llvm::Value* NVVMRuntime::free(llvm::Value* device, llvm::Value* ptr) {
-    auto loaded_device_ptr = builder_.CreateLoad(ptr);
-    llvm::Value* free_args[] = { device, loaded_device_ptr };
+llvm::Value* NVVMRuntime::free(llvm::Value* device, llvm::Value* mem) {
+    llvm::Value* free_args[] = { device, mem };
     return builder_.CreateCall(get("nvvm_free_memory"), free_args);
 }
 
-llvm::Value* NVVMRuntime::write(llvm::Value* device, llvm::Value* ptr, llvm::Value* data) {
-    auto loaded_device_ptr = builder_.CreateLoad(ptr);
-    llvm::Value* mem_args[] = { device, loaded_device_ptr, builder_.CreateBitCast(data, builder_.getInt8PtrTy()) };
+llvm::Value* NVVMRuntime::write(llvm::Value* device, llvm::Value* mem, llvm::Value* data) {
+    llvm::Value* mem_args[] = { device, mem, builder_.CreateBitCast(data, builder_.getInt8PtrTy()) };
     return builder_.CreateCall(get("nvvm_write_memory"), mem_args);
 }
 
-llvm::Value* NVVMRuntime::read(llvm::Value* device, llvm::Value* ptr, llvm::Value* data) {
-    auto loaded_device_ptr = builder_.CreateLoad(ptr);
-    llvm::Value* args[] = { device, loaded_device_ptr, builder_.CreateBitCast(data, builder_.getInt8PtrTy()) };
+llvm::Value* NVVMRuntime::read(llvm::Value* device, llvm::Value* mem, llvm::Value* data) {
+    llvm::Value* args[] = { device, mem, builder_.CreateBitCast(data, builder_.getInt8PtrTy()) };
     return builder_.CreateCall(get("nvvm_read_memory"), args);
 }
 
@@ -53,8 +48,8 @@ llvm::Value* NVVMRuntime::set_kernel_arg(llvm::Value* device, llvm::Value* ptr) 
     return builder_.CreateCall(get("nvvm_set_kernel_arg"), arg_args);
 }
 
-llvm::Value* NVVMRuntime::set_kernel_arg_map(llvm::Value* device, llvm::Value* ptr) {
-    llvm::Value* arg_args[] = { device, ptr };
+llvm::Value* NVVMRuntime::set_kernel_arg_map(llvm::Value* device, llvm::Value* mem) {
+    llvm::Value* arg_args[] = { device, mem };
     return builder_.CreateCall(get("nvvm_set_kernel_arg_map"), arg_args);
 }
 

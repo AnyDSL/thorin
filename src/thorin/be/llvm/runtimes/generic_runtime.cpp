@@ -11,12 +11,12 @@ GenericRuntime::GenericRuntime(llvm::LLVMContext& context, llvm::Module* target,
     , context_(context)
 {}
 
-llvm::Value* GenericRuntime::map(uint32_t device, uint32_t addr_space, llvm::Value* ptr,
+llvm::Value* GenericRuntime::map(uint32_t device, uint32_t addr_space, llvm::Value* mem,
                                  llvm::Value* top_left, llvm::Value* region_size) {
     llvm::Value* map_args[] = {
         builder_.getInt32(device),
         builder_.getInt32(addr_space),
-        builder_.CreateBitCast(ptr, builder_.getInt8PtrTy()),
+        mem,
         builder_.CreateExtractValue(top_left, 0), // x
         builder_.CreateExtractValue(top_left, 1), // y
         builder_.CreateExtractValue(top_left, 2), // z
@@ -27,11 +27,11 @@ llvm::Value* GenericRuntime::map(uint32_t device, uint32_t addr_space, llvm::Val
     return builder_.CreateCall(get("map_memory"), map_args);
 }
 
-llvm::Value* GenericRuntime::unmap(uint32_t device, uint32_t addr_space, llvm::Value* ptr) {
+llvm::Value* GenericRuntime::unmap(uint32_t device, uint32_t addr_space, llvm::Value* mem) {
     llvm::Value* map_args[] = {
         builder_.getInt32(device),
         builder_.getInt32(addr_space),
-        builder_.CreateBitCast(ptr, builder_.getInt8PtrTy()),
+        mem,
     };
     return builder_.CreateCall(get("unmap_memory"), map_args);
 }

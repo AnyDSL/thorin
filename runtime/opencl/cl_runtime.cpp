@@ -719,9 +719,12 @@ void *map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, i
 
     return from;
 }
-void unmap_memory(size_t dev, cl_mem mem) {
-    void *host = dev_mems_[mem];
-    read_buffer(dev, mem, host);
+void unmap_memory(size_t dev, size_t type_, cl_mem from) {
+    cl_mem mem = dev_mems2_[(void*)from];
+
+    std::cerr << " * unmap memory(" << dev << "):  " << mem << " bound to " << from << std::endl;
+
+    read_buffer(dev, mem, (void*)from);
     // TODO: mark device memory as unmapped
 }
 float random_val(int max) {

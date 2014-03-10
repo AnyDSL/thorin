@@ -33,7 +33,7 @@ llvm::Value* GenericRuntime::unmap(uint32_t device, uint32_t addr_space, llvm::V
         builder_.getInt32(addr_space),
         builder_.CreateBitCast(ptr, builder_.getInt8PtrTy()),
     };
-    return builder_.CreateCall(get("map_memory"), map_args);
+    return builder_.CreateCall(get("unmap_memory"), map_args);
 }
 
 llvm::Value* GenericRuntime::parallel_create(llvm::Value* num_threads, llvm::Value* closure_ptr,

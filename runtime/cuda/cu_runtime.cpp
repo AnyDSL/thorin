@@ -336,6 +336,7 @@ void nvvm_load_kernel(size_t dev, const char *file_name, const char *kernel_name
 void nvvm_set_kernel_arg(size_t dev, void *param) { set_kernel_arg(dev, param); }
 void nvvm_set_kernel_arg_map(size_t dev, void *param) {
     CUdeviceptr *mem = &dev_mems2_[param];
+    assert(*mem && "couldn't find memory in map!");
     set_kernel_arg(dev, (void *)mem);
 }
 void nvvm_set_kernel_arg_tex(size_t dev, CUdeviceptr param, char *name, CUarray_format format) {
@@ -375,9 +376,9 @@ void *map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, i
 
     return from;
 }
-void unmap_memory(size_t dev, CUdeviceptr mem) {
-    void *host = dev_mems_[mem];
-    read_memory(dev, mem, host);
+void unmap_memory(size_t dev, size_t type_, CUdeviceptr from) {
+    CUdeviceptr mem = dev_mems2_[(void*)from];
+    read_memory(dev, mem, (void*)from);
     // TODO: mark device memory as unmapped
 }
 float random_val(int max) {

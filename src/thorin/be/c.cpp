@@ -146,9 +146,6 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type *type) {
 void CCodeGen::emit() {
     auto scopes = top_level_scopes(world_);
 
-    stream() << "int int64_to_int32(long tid) { return (int)tid; }";
-    newline();
-
     // emit lambda and tuple declarations
     for (auto scope : scopes) {
         // tuple declarations
@@ -187,6 +184,8 @@ void CCodeGen::emit() {
         const Pi *ret_fn_type = ret_param->type()->as<Pi>();
         if (lambda->attribute().is(Lambda::KernelEntry)) {
             if (lang_==OPENCL) stream() << "__kernel ";
+        }
+        if (lambda->attribute().is(Lambda::Extern)) {
             emit_type(ret_fn_type->elems().back()) << " " << lambda->name << "(";
         } else {
             emit_type(ret_fn_type->elems().back()) << " " << lambda->unique_name() << "(";
@@ -368,7 +367,8 @@ void CCodeGen::emit() {
 
                         if (ret_arg == ret_param) {     // call + return
                             stream() << "return ";
-                            if (to_lambda->attribute().is(Lambda::Intrinsic))
+                            if (to_lambda->attribute().is(Lambda::Intrinsic) ||
+                                to_lambda->attribute().is(Lambda::Extern))
                                 stream() << to_lambda->name << "(";
                             else
                                 stream() << to_lambda->unique_name() << "(";
@@ -391,7 +391,8 @@ void CCodeGen::emit() {
                                 emit_type(param->type()) << " ";
                                 emit(param) << " = ";
                             }
-                            if (to_lambda->attribute().is(Lambda::Intrinsic))
+                            if (to_lambda->attribute().is(Lambda::Intrinsic) ||
+                                to_lambda->attribute().is(Lambda::Extern))
                                 stream() << to_lambda->name << "(";
                             else
                                 stream() << to_lambda->unique_name() << "(";
@@ -415,6 +416,10 @@ void CCodeGen::emit() {
         newline();
         newline();
     }
+
+    stream() << "int int64_to_int32(long tid) { return (int)tid; }";
+    newline();
+
     primops_.clear();
     gparams_.clear();
 }

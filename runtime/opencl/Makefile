@@ -20,7 +20,7 @@ endif
 
 all: $(MAIN).out
 	@echo "Running $(MAIN) ..."
-	@llvm-as simple-gpu64.spir
+	@if [ -f $(MAIN).spir ]; then llvm-as $(MAIN).spir; fi
 	@./$(MAIN).out
 
 %.s: %.cpp

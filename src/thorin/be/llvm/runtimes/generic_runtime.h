@@ -10,7 +10,7 @@ public:
     GenericRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder);
     virtual ~GenericRuntime() {}
 
-    virtual llvm::Value* map(uint32_t device, uint32_t addr_space, llvm::Value* mem,
+    virtual llvm::Value* map(uint32_t device, uint32_t addr_space, llvm::Value* ptr,
                              llvm::Value* top_left, llvm::Value* region_size);
     virtual llvm::Value* unmap(uint32_t device, uint32_t addr_space, llvm::Value* mem);
     virtual llvm::Value* parallel_create(llvm::Value* num_threads, llvm::Value* closure_ptr,

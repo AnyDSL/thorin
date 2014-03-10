@@ -83,10 +83,10 @@ fn iteration_sep_advanced(width : int, height : int,
                           body_col : fn(int, int, [float], [float]) -> void,
                           body_row : fn(int, int, [float], [float]) -> void
                          ) -> void {
-    // CPU:   1
+    // CPU:   1 (SPIR)
     // GPU-0: 2
     // GPU-1: 3
-    let dev = 2;
+    let dev = 1;
     let dim = (width, height, 1);
     let block = (128, 1, 1);
 

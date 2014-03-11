@@ -19,13 +19,9 @@ struct dim3 {
 typedef struct dim3 dim3;
 // define dim3
 
-// global variables ...
-typedef struct mem_ {
-    size_t elem;
-    size_t width;
-    size_t height;
-} mem_;
+const int num_devices_ = 3;
 
+// global variables ...
 enum mem_type {
     Global      = 0,
     Texture     = 1,
@@ -33,51 +29,75 @@ enum mem_type {
     Shared      = 3
 };
 
+typedef struct mem_ {
+    size_t elem;
+    size_t width;
+    size_t height;
+} mem_;
+std::unordered_map<void*, mem_> host_mems_;
+
 
 class Memory {
     private:
         size_t count_;
         mem_id new_id() { return count_++; }
-        void insert(void *mem, mem_id id) {
-            idtomem[id] = mem;
-            memtoid[mem] = id;
+        void insert(size_t dev, void *mem, mem_id id) {
+            idtomem[dev][id] = mem;
+            memtoid[dev][mem] = id;
         }
         typedef struct mapping_ {
             void *cpu;
             CUdeviceptr gpu;
             mem_type type;
-            int ox, oy, oz;
-            int sx, sy, sz;
+            size_t ox, oy, oz;
+            size_t sx, sy, sz;
             mem_id id;
         } mapping_;
-        std::unordered_map<mem_id, mapping_> mmap;
-        std::unordered_map<mem_id, void*> idtomem;
-        std::unordered_map<void*, mem_id> memtoid;
+        std::unordered_map<mem_id, mapping_> mmap[num_devices_];
+        std::unordered_map<mem_id, void*> idtomem[num_devices_];
+        std::unordered_map<void*, mem_id> memtoid[num_devices_];
 
     public:
         Memory() : count_(42) {}
 
-    mem_id get_id(void *mem) { return memtoid[mem]; }
-    mem_id map_memory(void *from, CUdeviceptr to, mem_type type) {
+    mem_id get_id(size_t dev, void *mem) { return memtoid[dev][mem]; }
+    mem_id map_memory(size_t dev, void *from, CUdeviceptr to, mem_type type,
+            size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz) {
         mem_id id = new_id();
-        mapping_ mem_map = { from, to, type, 0, 0, 0, 0, 0, 0, id };
-        mmap[id] = mem_map;
-        insert(from, id);
+        mapping_ mem_map = { from, to, type, ox, oy, oz, sx, sy, sz, id };
+        mmap[dev][id] = mem_map;
+        insert(dev, from, id);
         return id;
     }
+    mem_id map_memory(size_t dev, void *from, CUdeviceptr to, mem_type type) {
+        mem_ info = host_mems_[from];
+        return map_memory(dev, from, to, type, 0, 0, 0, info.width, info.height, 0);
+    }
 
-    void *get_host_mem(mem_id id) { return mmap[id].cpu; }
-    CUdeviceptr &get_dev_mem(mem_id id) { return mmap[id].gpu; }
-    void remove(mem_id id) {
-        void *mem = idtomem[id];
-        memtoid.erase(mem);
-        idtomem.erase(id);
+    void *get_host_mem(size_t dev, mem_id id) { return mmap[dev][id].cpu; }
+    CUdeviceptr &get_dev_mem(size_t dev, mem_id id) { return mmap[dev][id].gpu; }
+
+    void remove(size_t dev, mem_id id) {
+        void *mem = idtomem[dev][id];
+        memtoid[dev].erase(mem);
+        idtomem[dev].erase(id);
+    }
+
+    void read_memory(size_t dev, mem_id id) {
+        read_memory_size(dev, id, mmap[dev][id].cpu,
+                mmap[dev][id].ox, mmap[dev][id].oy, mmap[dev][id].oz,
+                mmap[dev][id].sx, mmap[dev][id].sy, mmap[dev][id].sz);
+    }
+    void write_memory(size_t dev, mem_id id, void *host) {
+        assert(host==mmap[dev][id].cpu && "invalid host memory");
+        write_memory_size(dev, id, host,
+                mmap[dev][id].ox, mmap[dev][id].oy, mmap[dev][id].oz,
+                mmap[dev][id].sx, mmap[dev][id].sy, mmap[dev][id].sz);
     }
 };
 Memory mem_manager;
 
 
-std::unordered_map<void*, mem_> host_mems_;
 CUdevice cuDevice;
 CUcontext cuContext;
 CUmodule cuModule;
@@ -254,30 +274,34 @@ void get_tex_ref(size_t dev, const char *name) {
 }
 
 void bind_tex(size_t dev, mem_id mem, CUarray_format format) {
-    void *host = mem_manager.get_host_mem(mem);
-    CUdeviceptr dev_mem = mem_manager.get_dev_mem(mem);
+    void *host = mem_manager.get_host_mem(dev, mem);
+    CUdeviceptr dev_mem = mem_manager.get_dev_mem(dev, mem);
     mem_ info = host_mems_[host];
     checkErrDrv(cuTexRefSetFormat(cuTexture, format, 1), "cuTexRefSetFormat()");
     checkErrDrv(cuTexRefSetFlags(cuTexture, CU_TRSF_READ_AS_INTEGER), "cuTexRefSetFlags()");
     checkErrDrv(cuTexRefSetAddress(0, cuTexture, dev_mem, info.elem * info.width * info.height), "cuTexRefSetAddress()");
 }
 
-mem_id malloc_memory(size_t dev, void *host) {
+mem_id malloc_memory_size(size_t dev, void *host, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz) {
     CUresult err = CUDA_SUCCESS;
-    mem_id mem = mem_manager.get_id(host);
+    mem_id mem = mem_manager.get_id(dev, host);
     mem_ info = host_mems_[host];
 
     if (!mem) {
         CUdeviceptr dev_mem;
-        err = cuMemAlloc(&dev_mem, info.elem * info.width * info.height);
+        err = cuMemAlloc(&dev_mem, info.elem * sx * sy);
         checkErrDrv(err, "cuMemAlloc()");
-        std::cerr << " * malloc memory(" << dev << "): dev " << dev_mem << " <-> host: " << host << std::endl;
-        mem = mem_manager.map_memory(host, dev_mem, Global);
+        mem = mem_manager.map_memory(dev, host, dev_mem, Global, ox, oy, oz, sx, sy, sz);
+        std::cerr << " * malloc memory(" << dev << "): " << dev_mem << " (" << mem << ") <-> host: " << host << std::endl;
     } else {
         std::cerr << " * malloc memory(" << dev << "): returning old copy " << mem << " for " << host << std::endl;
     }
 
     return mem;
+}
+mem_id malloc_memory(size_t dev, void *host) {
+    mem_ info = host_mems_[host];
+    return malloc_memory_size(dev, host, 0, 0, 0, info.width, info.height, 0);
 }
 
 void free_memory(size_t dev, mem_id mem) {
@@ -285,32 +309,40 @@ void free_memory(size_t dev, mem_id mem) {
 
     std::cerr << " * free memory(" << dev << "): " << mem << std::endl;
 
-    CUdeviceptr dev_mem = mem_manager.get_dev_mem(mem);
+    CUdeviceptr dev_mem = mem_manager.get_dev_mem(dev, mem);
     err = cuMemFree(dev_mem);
     checkErrDrv(err, "cuMemFree()");
-    mem_manager.remove(mem);
+    mem_manager.remove(dev, mem);
 }
 
-void write_memory(size_t dev, mem_id mem, void *host) {
+void write_memory_size(size_t dev, mem_id mem, void *host, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz) {
     CUresult err = CUDA_SUCCESS;
     mem_ info = host_mems_[host];
-    CUdeviceptr dev_mem = mem_manager.get_dev_mem(mem);
+    CUdeviceptr dev_mem = mem_manager.get_dev_mem(dev, mem);
 
-    std::cerr << " * write memory(" << dev << "):  " << mem << " <- " << host << std::endl;
+    std::cerr << " * write memory(" << dev << "):  " << mem << " <- " << host << " (" << ox << "," << oy << "," << oz << ")x(" << sx << "," << sy << "," << sz << ")" << std::endl;
 
-    err = cuMemcpyHtoD(dev_mem, host, info.elem * info.width * info.height);
+    err = cuMemcpyHtoD(dev_mem, (char*)host + info.elem * (oy*info.width + ox), info.elem * sx * sy);
     checkErrDrv(err, "cuMemcpyHtoD()");
 }
+void write_memory(size_t dev, mem_id mem, void *host) {
+    mem_ info = host_mems_[host];
+    return write_memory_size(dev, mem, host, 0, 0, 0, info.width, info.height, 0);
+}
 
-void read_memory(size_t dev, mem_id mem, void *host) {
+void read_memory_size(size_t dev, mem_id mem, void *host, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz) {
     CUresult err = CUDA_SUCCESS;
     mem_ info = host_mems_[host];
-    CUdeviceptr dev_mem = mem_manager.get_dev_mem(mem);
+    CUdeviceptr dev_mem = mem_manager.get_dev_mem(dev, mem);
 
-    std::cerr << " * read memory(" << dev << "): " << mem << " -> " << host << std::endl;
+    std::cerr << " * read memory(" << dev << "):   " << mem << " -> " << host << " (" << ox << "," << oy << "," << oz << ")x(" << sx << "," << sy << "," << sz << ")" << std::endl;
 
-    err = cuMemcpyDtoH(host, dev_mem, info.elem * info.width * info.height);
+    err = cuMemcpyDtoH((char*)host + info.elem * (oy*info.width + ox), dev_mem, info.elem * sx * sy);
     checkErrDrv(err, "cuMemcpyDtoH()");
+}
+void read_memory(size_t dev, mem_id mem, void *host) {
+    mem_ info = host_mems_[host];
+    return read_memory_size(dev, mem, host, 0, 0, 0, info.width, info.height, 0);
 }
 
 
@@ -348,7 +380,7 @@ void set_kernel_arg(size_t dev, void *param) {
 
 
 void set_kernel_arg_map(size_t dev, mem_id mem) {
-    CUdeviceptr *dev_mem = &mem_manager.get_dev_mem(mem);
+    CUdeviceptr *dev_mem = &mem_manager.get_dev_mem(dev, mem);
     std::cerr << " * set arg mapped(" << dev << "): " << mem << std::endl;
     set_kernel_arg(dev, dev_mem);
 }
@@ -432,9 +464,10 @@ void free_array(void *host) {
 mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, int sx, int sy, int sz) {
     mem_type type = (mem_type)type_;
     mem_ info = host_mems_[from];
+
     assert(oz==0 && sz==0 && "3D memory not yet supported");
 
-    mem_id mem = mem_manager.get_id(from);
+    mem_id mem = mem_manager.get_id(dev, from);
     if (mem) {
         std::cerr << " * map memory(" << dev << "):    returning old copy " << mem << " for " << from << std::endl;
         return mem;
@@ -449,7 +482,11 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, 
             write_memory(dev, mem, from);
             std::cerr << " * map memory(" << dev << "):    " << from << " -> " << mem << std::endl;
         } else {
-            assert(false && "not yet implemented");
+            // mapping and slicing of a region
+            assert(sy < info.height && "slice larger then original memory");
+            mem = malloc_memory_size(dev, from, ox, oy, oz, sx, sy, sz);
+            mem_manager.write_memory(dev, mem, from);
+            std::cerr << " * map memory(" << dev << "):    " << from << " (" << ox << "," << oy << "," << oz <<")x(" << sx << "," << sy << "," << sz << ") -> " << mem << std::endl;
         }
     } else {
         std::cerr << "unsupported memory: " << type << std::endl;
@@ -459,8 +496,7 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, 
     return mem;
 }
 void unmap_memory(size_t dev, size_t type_, mem_id mem) {
-    void *host = mem_manager.get_host_mem(mem);
-    read_memory(dev, mem, host);
+    mem_manager.read_memory(dev, mem);
     std::cerr << " * unmap memory(" << dev << "):  " << mem << std::endl;
     // TODO: mark device memory as unmapped
 }

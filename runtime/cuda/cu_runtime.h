@@ -11,10 +11,13 @@ typedef size_t mem_id;
 
 // runtime forward declarations
 mem_id malloc_memory(size_t dev, void *host);
+mem_id malloc_memory_size(size_t dev, void *host, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz);
 void free_memory(size_t dev, mem_id mem);
 
 void write_memory(size_t dev, mem_id mem, void *host);
+void write_memory_size(size_t dev, mem_id mem, void *host, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz);
 void read_memory(size_t dev, mem_id mem, void *host);
+void read_memory_size(size_t dev, mem_id mem, void *host, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz);
 
 void load_kernel(size_t dev, const char *file_name, const char *kernel_name);
 

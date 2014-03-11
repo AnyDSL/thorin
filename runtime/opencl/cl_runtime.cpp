@@ -76,8 +76,8 @@ class Memory {
         Memory() : count_(42) {}
 
     mem_id get_id(size_t dev, void *mem) { return memtoid[dev][mem]; }
-    mem_id map_memory(size_t dev, void *from, cl_mem to, mem_type type, size_t
-            ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz) {
+    mem_id map_memory(size_t dev, void *from, cl_mem to, mem_type type,
+            size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz) {
         mem_id id = new_id();
         mapping_ mem_map = { from, to, type, ox, oy, oz, sx, sy, sz, id };
         mmap[dev][id] = mem_map;
@@ -380,6 +380,7 @@ void init_opencl() {
                 std::string extensions(pd3Buffer);
                 size_t found = extensions.find("cl_khr_spir");
                 bool has_spir = found!=std::string::npos;
+                bool use_device = false;
                 if (c_pf_id == i && j == c_dev_id) {
                     devices_[c_dev] = devices[j];
                     create_context_command_queue(platforms[i], &devices[j], 1, c_dev);
@@ -388,6 +389,7 @@ void init_opencl() {
                         c_dev_id = the_machine[c_dev][1];
                     }
                     std::cerr << "      [*] ";
+                    use_device = true;
                 } else {
                     std::cerr << "      [ ] ";
                 }
@@ -399,7 +401,9 @@ void init_opencl() {
                 if (dev_type & CL_DEVICE_TYPE_CUSTOM) std::cerr << "CL_DEVICE_TYPE_CUSTOM";
                 #endif
                 if (dev_type & CL_DEVICE_TYPE_DEFAULT) std::cerr << "|CL_DEVICE_TYPE_DEFAULT";
-                std::cerr << ")" << std::endl;
+                std::cerr << ")";
+                if (use_device) std::cerr << " (" << c_dev-1 << ")";
+                std::cerr << std::endl;
                 std::cerr << "          Device Vendor: " << pvBuffer << " (ID: " << device_vendor_id << ")" << std::endl;
                 std::cerr << "          Device OpenCL Version: " << pdBuffer << std::endl;
                 std::cerr << "          Device Driver Version: " << pd2Buffer << std::endl;
@@ -703,7 +707,7 @@ void launch_kernel(size_t dev, const char *kernel_name) {
 
     if (print_timing) {
         std::cerr << "Kernel timing on device " << dev
-                  << " for '" << kernel_name << " ("
+                  << " for '" << kernel_name << "' ("
                   << global_work_size[0]*global_work_size[1] << ": "
                   << global_work_size[0] << "x" << global_work_size[1] << ", "
                   << local_work_size[0]*local_work_size[1] << ": "

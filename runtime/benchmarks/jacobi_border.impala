@@ -78,8 +78,6 @@ fn main() -> int {
     });
     
     // primitive border handling specialization
-    // TODO: crashes in this configuration
-    // adding @ to apply_stencil seems to cause an endless loop ... ?
     @iterate(0, 3, |i : int| -> void {
         iteration_bounds(L[0][i], U[0][i], L[1][i], U[1][i],
             |x : int, y : int, lwidth : int, lheight : int| -> void {
@@ -163,10 +161,31 @@ fn main() -> int {
         let bounds = Bounds2D[i];
         iteration_bounds(bounds[0], bounds[1], bounds[2], bounds[3],
             |x : int, y : int, lwidth : int, lheight : int| -> void {
-                out[y * width + x] = apply_stencil(range, stencil, x, y, arr, width,
-                                                   left, right, top, bottom);
-        });
+                out[y * width + x] = @apply_stencil(range, stencil, x, y, arr, width,
+                                                    left, right, top, bottom);
+            }
+        );
     });
 
-    return 0;
+
+    let mut passed = 0;
+
+    for (let mut y=1; y<height-1; ++y) {
+        for (let mut x=1; x<width-1; ++x) {
+            let ref =
+                b * arr[x + 0 + (y - 1)*width] +
+                b * arr[x - 1 + (y + 0)*width] +
+                a * arr[x + 0 + (y + 0)*width] +
+                b * arr[x + 1 + (y + 0)*width] +
+                b * arr[x + 0 + (y + 1)*width];
+            let mut diff = ref - out[x + y*width];
+            if (diff < 0.0f) diff = -diff;
+            if (diff > 0.01f) passed++;
+        }
+    }
+
+    free_array(arr);
+    free_array(out);
+
+    return passed;
 }

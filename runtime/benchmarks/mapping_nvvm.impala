@@ -130,3 +130,30 @@ fn iteration_sep_advanced(width : int, height : int,
     free_array(tmp);
 }
 
+fn iteration_multi(width : int, height : int,
+                   arr : [float], out : [float],
+                   body : fn(int, int, [float], [float]) -> void
+                  ) -> void {
+    let dim = (width, height/2, 1);
+    let block = (128, 1, 1);
+
+    let map_arr_GPU1 = map(arr, 1, 0, (0, 0, 0),        (width, height/2, 0));
+    let map_out_GPU1 = map(out, 1, 0, (0, 0, 0),        (width, height/2, 0));
+
+    nvvm(1, dim, block, || -> void {
+        let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+        let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
+
+        body(tid_x, tid_y, map_arr_GPU1, map_out_GPU1);
+    });
+
+    let map_arr_GPU2 = map(arr, 2, 0, (0, height/2, 0), (width, height/2, 0));
+    let map_out_GPU2 = map(out, 2, 0, (0, height/2, 0), (width, height/2, 0));
+
+    nvvm(2, dim, block, || -> void {
+        let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+        let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
+
+        body(tid_x, tid_y, map_arr_GPU2, map_out_GPU2);
+    });
+}

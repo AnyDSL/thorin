@@ -1,10 +1,12 @@
 *.bc
+*.cl
 *.ll
 *.nvvm
+*.s
 CMakeCache.txt
 CMakeFiles/
 build*
 html
 test/impala
 runtime/test/impala
-runtime/benchmark/impala
+runtime/benchmarks/impala

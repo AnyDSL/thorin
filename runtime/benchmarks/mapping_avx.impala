@@ -1,0 +1,120 @@
+fn iteration(width: int, height: int, body: fn(int, int) -> void) -> void {
+    let L = 8;
+    for (let mut y=0; y<height; ++y) {
+        for (let mut x=0; x<width; x += L) {
+            vectorized(width, L, || -> void {
+                let x = wfv_get_tid();
+                body(x, y);
+            });
+        }
+    }
+}
+
+fn iteration_bounds(width : int, height : int,
+                    clamp_lower : fn(int, int) -> int,
+                    clamp_upper : fn(int, int) -> int,
+                    clamp_none : fn(int, int) -> int,
+                    body : fn(int, int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int) -> void
+                   ) -> void {
+    // (minx, maxx, miny, maxy)
+    let Bounds2D = [
+        (0        , 1        , 0         , 1),
+        (1        , width - 1, 0         , 1),
+        (width - 1, width    , 0         , 1),
+
+        (0        , 1        , height - 1, height),
+        (1        , width - 1, height - 1, height),
+        (width - 1, width    , height - 1, height),
+
+        (0        , 1        , 1         , height - 1),
+        (width - 1, width    , 1         , height - 1),
+        (1        , width - 1, 1         , height - 1)
+    ];
+
+    @iterate(0, 9, |i : int| -> void {
+        let mut left = clamp_none;
+        let mut right = clamp_none;
+        let mut top = clamp_none;
+        let mut bottom = clamp_none;
+        // 0 --- 1 --- 2
+        // 6 --- 8 --- 7
+        // 3 --- 4 --- 5
+
+        // left
+        if (i == 0) {
+            left = clamp_lower;
+            top = clamp_lower;
+        }
+        if (i == 6) {
+            left = clamp_lower;
+        }
+        if (i == 3) {
+            left = clamp_lower;
+            bottom = clamp_upper;
+        }
+        // top + bottom
+        if (i == 1)
+            top = clamp_lower;
+        if (i == 4)
+            bottom = clamp_upper;
+        // right
+        if (i == 2) {
+            right = clamp_upper;
+            top = clamp_lower;
+        }
+        if (i == 7) {
+            right = clamp_upper;
+        }
+        if (i == 5) {
+            right = clamp_upper;
+            bottom = clamp_upper;
+        }
+        // center case
+        if(i == 8) {
+            // ignore this case
+        }
+
+        let bounds = Bounds2D[i];
+        let dim = (bounds[1] - bounds[0], bounds[3] - bounds[2], 1);
+
+        $iterate(bounds[2], bounds[3], |y: int| -> void {
+            $iterate(bounds[0], bounds[1], |x: int| -> void {
+                body(x, y, left, right, top, bottom);
+            });
+        });
+    });
+}
+
+fn iteration_sep(width : int, height : int,
+                 body_col : fn(int, int) -> void,
+                 body_row : fn(int, int) -> void
+                ) -> void {
+    getMicroTime();
+    for (let mut y=0; y<height; ++y)
+        for (let mut x=0; x<width; ++x)
+            body_col(x, y);
+
+    for (let mut y=0; y<height; ++y)
+        for (let mut x=0; x<width; ++x)
+            body_row(x, y);
+    getMicroTime();
+}
+
+fn iteration_sep_advanced(width : int, height : int,
+                          arr : [float], out : [float],
+                          body_col : fn(int, int, [float], [float]) -> void,
+                          body_row : fn(int, int, [float], [float]) -> void
+                         ) -> void {
+    let tmp = array(4, width, 1);
+
+    getMicroTime();
+    for (let mut y=1; y<height-1; ++y) {
+        for (let mut x=0; x<width; ++x)
+            body_col(x, y, arr, tmp);
+        for (let mut x=0; x<width; ++x)
+            body_row(x, y, tmp, out);
+    }
+    getMicroTime();
+
+    free_array(tmp);
+}

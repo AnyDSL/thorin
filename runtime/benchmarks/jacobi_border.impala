@@ -1,21 +1,20 @@
 fn apply_stencil(range : int, stencil : [float * 3 * 3],
-                 x : int, y : int, arr : [float], width : int,
-                 left_handling   : fn(int, int) -> (int, int),
-                 right_handling  : fn(int, int) -> (int, int),
-                 top_handling    : fn(int, int) -> (int, int),
-                 bottom_handling : fn(int, int) -> (int, int)) -> float {
+                 x : int, y : int, arr : [float], width : int, height : int,
+                 lower_x : fn(int, int) -> int,
+                 upper_x : fn(int, int) -> int,
+                 lower_y : fn(int, int) -> int,
+                 upper_y : fn(int, int) -> int) -> float {
     let mut sum = 0.0f;
     let half_range = range / 2;
     iterate(-half_range, half_range+1, |j : int| -> void {
         iterate(-half_range, half_range+1, |i : int| -> void {
             let stencil_val = stencil[i + half_range][j + half_range];
             if (stencil_val != 0.0f) {
-                let mut index = left_handling(x + i, y + j);
-                        index = right_handling(index[0], index[1]);
-                        index = top_handling(index[0], index[1]);
-                        index = bottom_handling(index[0], index[1]);
-                // sum += arr[(y+j)*width + x + i] * stencil_val;
-                sum += arr[index[1] * width + index[0]] * stencil_val;
+                let mut idx_x = lower_x(x + i, 0);
+                        idx_x = upper_x(idx_x, width);
+                let mut idx_y = lower_y(y + j, 0);
+                        idx_y = upper_y(idx_y, height);
+                sum += arr[idx_y * width + idx_x] * stencil_val;
             } else {
                 // additional logic for empty stencil value
             }
@@ -48,15 +47,15 @@ fn main() -> int {
         [1, width - 1, width],
         [1, height - 1, height]];
 
-    let center = |x : int, y : int| -> (int, int) {
-        return (x, y);
+    let center = |idx : int, bound : int| -> int {
+        return idx;
     };
 
     // full mode
     getMicroTime();
     iteration_bounds(0, width, 0, height,
         |x : int, y : int, lwidth : int, lheight : int| -> void {
-            out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width,
+            out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width, height,
                                               center, center, center, center);
         }
     );
@@ -67,7 +66,7 @@ fn main() -> int {
     @iterate(0, 3, |i : int| -> void {
         iteration_bounds(L[0][i], U[0][i], L[1][i], U[1][i],
             |x : int, y : int, lwidth : int, lheight : int| -> void {
-                out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width,
+                out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width, height,
                                                   center, center, center, center);
         });
     });
@@ -115,32 +114,32 @@ fn main() -> int {
 
         // left
         if (i == 0) {
-            left = left_handling;
-            top = top_handling;
+            left = clamp_lower;
+            top = clamp_lower;
         }
         if (i == 6) {
-            left = left_handling;
+            left = clamp_lower;
         }
         if (i == 3) {
-            left = left_handling;
-            bottom = bottom_handling;
+            left = clamp_lower;
+            bottom = clamp_upper;
         }
         // top + bottom
         if (i == 1)
-            top = top_handling;
+            top = clamp_lower;
         if (i == 4)
-            bottom = bottom_handling;
+            bottom = clamp_upper;
         // right
         if (i == 2) {
-            right = right_handling;
-            top = top_handling;
+            right = clamp_upper;
+            top = clamp_lower;
         }
         if (i == 7) {
-            right = right_handling;
+            right = clamp_upper;
         }
         if (i == 5) {
-            right = right_handling;
-            bottom = bottom_handling;
+            right = clamp_upper;
+            bottom = clamp_upper;
         }
         // center case
         if(i == 8) {
@@ -149,7 +148,8 @@ fn main() -> int {
         let bounds = Bounds2D[i];
         iteration_bounds(bounds[0], bounds[1], bounds[2], bounds[3],
             |x : int, y : int, lwidth : int, lheight : int| -> void {
-                out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width,
+                out[y*width + x] = @apply_stencil(range, stencil, x, y, arr,
+                                                  width, height,
                                                   left, right, top, bottom);
             }
         );

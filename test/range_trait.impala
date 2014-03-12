@@ -1,0 +1,3 @@
+fn main() -> int { return 42; }
+
+fn f(f: float, d : double) -> (bool, int) {  return (true, 23); }

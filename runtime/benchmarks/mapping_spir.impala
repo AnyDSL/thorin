@@ -31,16 +31,80 @@ fn iteration_sep(width : int, height : int,
     });
 }
 
-fn iteration_bounds(wlower : int, wupper : int, hlower : int, hupper : int,
-                    body : fn(int, int, int, int) -> void) -> void {
-    let dim = (wupper - wlower, hupper - hlower, 1);
-    let block = (32, 4, 1);
+fn iteration_bounds(width : int, height : int,
+                    clamp_lower : fn(int, int) -> int,
+                    clamp_upper : fn(int, int) -> int,
+                    clamp_none : fn(int, int) -> int,
+                    body : fn(int, int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int) -> void
+                   ) -> void {
+    let block = (128, 1, 1);
 
-    spir(1, dim, block, || -> void {
-        let tid_x = int64_to_int32(get_global_id(0)) + wlower;
-        let tid_y = int64_to_int32(get_global_id(1)) + hlower;
+    let Bounds2D = [
+        (0               , block[0]        , 0                , block[1]),
+        (block[0]        , width - block[0], 0                , block[1]),
+        (width - block[0], width           , 0                , block[1]),
 
-        body(tid_x, tid_y, dim[0], dim[1]);
+        (0               , block[0]        , height - block[1], height),
+        (block[0]        , width - block[0], height - block[1], height),
+        (width - block[0], width           , height - block[1], height),
+
+        (0               , block[0]        , block[1]         , height - block[1]),
+        (width - block[0], width           , block[1]         , height - block[1]),
+        (block[0]        , width - block[0], block[1]         , height - block[1])
+    ];
+
+    @iterate(0, 9, |i : int| -> void {
+        let mut left = clamp_none;
+        let mut right = clamp_none;
+        let mut top = clamp_none;
+        let mut bottom = clamp_none;
+        // 0 --- 1 --- 2
+        // 6 --- 8 --- 7
+        // 3 --- 4 --- 5
+
+        // left
+        if (i == 0) {
+            left = clamp_lower;
+            top = clamp_lower;
+        }
+        if (i == 6) {
+            left = clamp_lower;
+        }
+        if (i == 3) {
+            left = clamp_lower;
+            bottom = clamp_upper;
+        }
+        // top + bottom
+        if (i == 1)
+            top = clamp_lower;
+        if (i == 4)
+            bottom = clamp_upper;
+        // right
+        if (i == 2) {
+            right = clamp_upper;
+            top = clamp_lower;
+        }
+        if (i == 7) {
+            right = clamp_upper;
+        }
+        if (i == 5) {
+            right = clamp_upper;
+            bottom = clamp_upper;
+        }
+        // center case
+        if(i == 8) {
+            // ignore this case
+        }
+
+        let bounds = Bounds2D[i];
+        let dim = (bounds[1] - bounds[0], bounds[3] - bounds[2], 1);
+
+        spir(1, dim, block, || -> void {
+            let tid_x = int64_to_int32(get_global_id(0));
+            let tid_y = int64_to_int32(get_global_id(1));
+
+            body(tid_x + bounds[0], tid_y + bounds[2], left, right, top, bottom);
+        });
     });
 }
 

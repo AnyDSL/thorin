@@ -186,7 +186,6 @@ private:
     };
 
 public:
-    static const size_t min_capacity = 16;
     typedef typename Node::key_type key_type;
     typedef typename Node::mapped_type mapped_type;
     typedef typename Node::value_type value_type;
@@ -195,6 +194,7 @@ public:
     typedef KeyEqual key_equal;
     typedef iterator_base<false> iterator;
     typedef iterator_base<true> const_iterator;
+    static const size_t min_capacity = 16;
 
     HashTable(size_type capacity = min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
         : capacity_(std::max(size_type(min_capacity), capacity))
@@ -265,8 +265,8 @@ public:
         auto n = new Node(args...);
         if (size_ > capacity_/size_t(4) + capacity_/size_t(2))
             rehash(capacity_*size_t(2));
-        else if (capacity_ > min_capacity && size_ < capacity_/size_t(4))
-            rehash(capacity_/size_t(4));
+        else if (size_ < capacity_/size_t(4))
+            rehash(capacity_/size_t(2));
 
         auto& key = n->key();
         for (size_t i = hash_function_(key), step = 0; true; i = (i + step++)) {
@@ -339,6 +339,8 @@ public:
     void rehash(size_type new_capacity) {
         new_capacity = std::max(size_type(min_capacity), new_capacity);
         size_t old_capacity = capacity_;
+        if (new_capacity == old_capacity)
+            return;
         capacity_ = new_capacity;
         auto nodes = alloc();
 

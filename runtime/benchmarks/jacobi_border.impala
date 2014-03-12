@@ -47,31 +47,6 @@ fn main() -> int {
         [1, width - 1, width],
         [1, height - 1, height]];
 
-    let center = |idx : int, bound : int| -> int {
-        return idx;
-    };
-
-    // full mode
-    getMicroTime();
-    iteration_bounds(0, width, 0, height,
-        |x : int, y : int, lwidth : int, lheight : int| -> void {
-            out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width, height,
-                                              center, center, center, center);
-        }
-    );
-    getMicroTime();
-    
-    // primitive border handling specialization
-    getMicroTime();
-    @iterate(0, 3, |i : int| -> void {
-        iteration_bounds(L[0][i], U[0][i], L[1][i], U[1][i],
-            |x : int, y : int, lwidth : int, lheight : int| -> void {
-                out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width, height,
-                                                  center, center, center, center);
-        });
-    });
-    getMicroTime();
-
     // border handling specialization
     // HINT: naive realization which could be created by a domain expert
     let clamp_lower = |idx : int, lower : int| -> int {
@@ -80,74 +55,18 @@ fn main() -> int {
     let clamp_upper = |idx : int, upper : int| -> int {
         return idx >= upper ? upper - 1 : idx;
     };
-
-    // (minx, maxx, miny, maxy)
-    let Bounds2D = [
-        (0        , 1        , 0         , 1),
-        (1        , width - 1, 0         , 1),
-        (width - 1, width    , 0         , 1),
-
-        (0        , 1        , height - 1, height),
-        (1        , width - 1, height - 1, height),
-        (width - 1, width    , height - 1, height),
-
-        (0        , 1        , 1         , height - 1),
-        (width - 1, width    , 1         , height - 1),
-        (1        , width - 1, 1         , height - 1)
-    ];
+    let clamp_none = |idx : int, bound : int| -> int {
+        return idx;
+    };
 
     getMicroTime();
-    @iterate(0, 9, |i : int| -> void {
-        let mut left = center;
-        let mut right = center;
-        let mut top = center;
-        let mut bottom = center;
-        // 0 --- 1 --- 2
-        // 6 --- 8 --- 7
-        // 3 --- 4 --- 5
-
-        // left
-        if (i == 0) {
-            left = clamp_lower;
-            top = clamp_lower;
+    iteration_bounds(width, height, clamp_lower, clamp_upper, clamp_none,
+        |x : int, y : int, left : fn(int, int) -> int, right : fn(int, int) -> int, top : fn(int, int) -> int, bottom : fn(int, int) -> int| -> void {
+            out[y*width + x] = @apply_stencil(range, stencil, x, y, arr,
+                                              width, height,
+                                              left, right, top, bottom);
         }
-        if (i == 6) {
-            left = clamp_lower;
-        }
-        if (i == 3) {
-            left = clamp_lower;
-            bottom = clamp_upper;
-        }
-        // top + bottom
-        if (i == 1)
-            top = clamp_lower;
-        if (i == 4)
-            bottom = clamp_upper;
-        // right
-        if (i == 2) {
-            right = clamp_upper;
-            top = clamp_lower;
-        }
-        if (i == 7) {
-            right = clamp_upper;
-        }
-        if (i == 5) {
-            right = clamp_upper;
-            bottom = clamp_upper;
-        }
-        // center case
-        if(i == 8) {
-            // ignore this case
-        }
-        let bounds = Bounds2D[i];
-        iteration_bounds(bounds[0], bounds[1], bounds[2], bounds[3],
-            |x : int, y : int, lwidth : int, lheight : int| -> void {
-                out[y*width + x] = @apply_stencil(range, stencil, x, y, arr,
-                                                  width, height,
-                                                  left, right, top, bottom);
-            }
-        );
-    });
+    );
     getMicroTime();
 
 

@@ -56,6 +56,7 @@ void free_array(void *host);
 mem_id map_memory(size_t dev, size_t type, void *from, int ox, int oy, int oz, int sx, int sy, int sz);
 void unmap_memory(size_t dev, size_t type_, mem_id mem);
 float random_val(int max);
+void getMicroTime();
 extern int main_impala();
 
 }

@@ -34,7 +34,7 @@ fn apply_stencil(range : int, stencil : [float * 3 * 3],
                         index = top_handling(index[0], index[1]);
                         index = bottom_handling(index[0], index[1]);
                 // sum += arr[(y+j)*width + x + i] * stencil_val;
-                sum += arr[index[0] * width + index[1]] * stencil_val;
+                sum += arr[index[1] * width + index[0]] * stencil_val;
             } else {
                 // additional logic for empty stencil value
             }
@@ -72,19 +72,25 @@ fn main() -> int {
     };
 
     // full mode
-    iteration_bounds(0, width, 0, height, |x : int, y : int, lwidth : int, lheight : int| -> void {
-        out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width,
-                                          center, center, center, center);
-    });
+    getMicroTime();
+    iteration_bounds(0, width, 0, height,
+        |x : int, y : int, lwidth : int, lheight : int| -> void {
+            out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width,
+                                              center, center, center, center);
+        }
+    );
+    getMicroTime();
     
     // primitive border handling specialization
+    getMicroTime();
     @iterate(0, 3, |i : int| -> void {
         iteration_bounds(L[0][i], U[0][i], L[1][i], U[1][i],
             |x : int, y : int, lwidth : int, lheight : int| -> void {
-                out[y * width + x] = @apply_stencil(range, stencil, x, y, arr, width,
-                                                    center, center, center, center);
+                out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width,
+                                                  center, center, center, center);
         });
     });
+    getMicroTime();
 
     // border handling specialization
     // HINT: naive realization which could be created by a domain expert
@@ -107,15 +113,16 @@ fn main() -> int {
         (1        , width - 1, 0         , 1),
         (width - 1, width    , 0         , 1),
 
-        (0        , 1        , 1         , height - 1),
-        (1        , width - 1, 1         , height - 1),
-        (width - 1, width    , 1         , height - 1),
-
         (0        , 1        , height - 1, height),
         (1        , width - 1, height - 1, height),
-        (width - 1, width    , height - 1, height)
+        (width - 1, width    , height - 1, height),
+
+        (0        , 1        , 1         , height - 1),
+        (width - 1, width    , 1         , height - 1),
+        (1        , width - 1, 1         , height - 1)
     ];
 
+    getMicroTime();
     @iterate(0, 9, |i : int| -> void {
         let mut left = center;
         let mut right = center;
@@ -161,23 +168,28 @@ fn main() -> int {
         let bounds = Bounds2D[i];
         iteration_bounds(bounds[0], bounds[1], bounds[2], bounds[3],
             |x : int, y : int, lwidth : int, lheight : int| -> void {
-                out[y * width + x] = @apply_stencil(range, stencil, x, y, arr, width,
-                                                    left, right, top, bottom);
+                out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width,
+                                                  left, right, top, bottom);
             }
         );
     });
+    getMicroTime();
 
 
     let mut passed = 0;
 
-    for (let mut y=1; y<height-1; ++y) {
-        for (let mut x=1; x<width-1; ++x) {
+    let clamp = |idx : int, lower : int, upper : int | -> int {
+        return idx < lower ? lower : idx >= upper ? upper-1 : idx;
+    };
+
+    for (let mut y=0; y<height; ++y) {
+        for (let mut x=0; x<width; ++x) {
             let ref =
-                b * arr[x + 0 + (y - 1)*width] +
-                b * arr[x - 1 + (y + 0)*width] +
-                a * arr[x + 0 + (y + 0)*width] +
-                b * arr[x + 1 + (y + 0)*width] +
-                b * arr[x + 0 + (y + 1)*width];
+                b * arr[clamp(x + 0, 0, width) + clamp(y - 1, 0, height)*width] +
+                b * arr[clamp(x - 1, 0, width) + clamp(y + 0, 0, height)*width] +
+                a * arr[clamp(x + 0, 0, width) + clamp(y + 0, 0, height)*width] +
+                b * arr[clamp(x + 1, 0, width) + clamp(y + 0, 0, height)*width] +
+                b * arr[clamp(x + 0, 0, width) + clamp(y + 1, 0, height)*width];
             let mut diff = ref - out[x + y*width];
             if (diff < 0.0f) diff = -diff;
             if (diff > 0.01f) passed++;

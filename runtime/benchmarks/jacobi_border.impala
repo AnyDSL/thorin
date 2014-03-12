@@ -74,17 +74,11 @@ fn main() -> int {
 
     // border handling specialization
     // HINT: naive realization which could be created by a domain expert
-    let left_handling = |x : int, y : int| -> (int, int) {
-        return (x < 0 ? 0 : x, y);
+    let clamp_lower = |idx : int, lower : int| -> int {
+        return idx < lower ? lower : idx;
     };
-    let right_handling = |x : int, y : int| -> (int, int) {
-        return (x >= width ? width - 1 : x, y);
-    };
-    let top_handling = |x : int, y : int| -> (int, int) {
-        return (x, y < 0 ? 0 : y);
-    };
-    let bottom_handling = |x : int, y : int| -> (int, int) {
-        return (x, y >= height ? height - 1 : y);
+    let clamp_upper = |idx : int, upper : int| -> int {
+        return idx >= upper ? upper - 1 : idx;
     };
 
     // (minx, maxx, miny, maxy)

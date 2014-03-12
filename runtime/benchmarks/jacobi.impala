@@ -1,22 +1,3 @@
-fn iterate(a : int, b : int, yield : fn(int, fn())) -> void {
-    let mut i: int = a;
-    while (i < b)
-        yield(i++, || { continue; });
-}
-
-fn init_zero(arr : [float], width : int, height : int) -> void {
-    iterate(0, width*height, |i: int| -> void {
-        arr[i] = 0.0f;
-    });
-}
-fn init_rand(arr : [float], width : int, height : int) -> void {
-    iterate(0, height, |y: int| -> void {
-        iterate(0, width, |x: int| -> void {
-            arr[x + y*width] = random_val(width);
-        });
-    });
-}
-
 fn apply_stencil(range : int, stencil : [float * 3 * 3],
                  x : int, y : int, arr : [float], width : int) -> float {
     let mut sum = 0.0f;

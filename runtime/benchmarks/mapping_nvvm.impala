@@ -44,17 +44,6 @@ fn iteration_bounds(wlower : int, wupper : int, hlower : int, hupper : int,
     });
 }
 
-fn iterate_(a : int, b : int, yield : fn(int, fn())) -> void {
-    let mut i: int = a;
-    while (i < b)
-        yield(i++, || { continue; });
-}
-fn iterate_times_two(a : int, b : int, yield : fn(int, fn())) -> void {
-    let mut i: int = a;
-    while (i < b)
-        yield(i*=2, || { continue; });
-}
-
 fn iteration_advanced(width : int, height : int,
                       arr : [float], out : [float],
                       body : fn(int, int, [float], [float]) -> void
@@ -73,7 +62,7 @@ fn iteration_advanced(width : int, height : int,
             let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
             let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
 
-            @iterate_(0, unroll, |i : int| -> void {
+            @iterate(0, unroll, |i : int| -> void {
                 body(tid_x, tid_y + i * nvvm_read_ptx_sreg_ntid_y(), gmem_arr, gmem_out);
             });
         });
@@ -84,7 +73,7 @@ fn iteration_advanced(width : int, height : int,
             let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
             let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
 
-            @iterate_(0, unroll, |i : int| -> void {
+            @iterate(0, unroll, |i : int| -> void {
                 body(tid_x, tid_y + i * nvvm_read_ptx_sreg_ntid_y(), tex_arr, gmem_out);
             });
         });

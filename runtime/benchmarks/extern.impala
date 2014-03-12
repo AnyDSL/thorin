@@ -16,3 +16,28 @@ extern getMicroTime() -> void;
 extern reset_and_start_timer() -> void;
 extern print_time() -> void;
 
+fn iterate(a : int, b : int, yield : fn(int, fn())) -> void {
+    let mut i: int = a;
+    while (i < b)
+        yield(i++, || { continue; });
+}
+
+fn iterate_times_two(a : int, b : int, yield : fn(int, fn())) -> void {
+    let mut i: int = a;
+    while (i < b)
+        yield(i*=2, || { continue; });
+}
+
+fn init_zero(arr : [float], width : int, height : int) -> void {
+    iterate(0, width*height, |i: int| -> void {
+        arr[i] = 0.0f;
+    });
+}
+fn init_rand(arr : [float], width : int, height : int) -> void {
+    iterate(0, height, |y: int| -> void {
+        iterate(0, width, |x: int| -> void {
+            arr[x + y*width] = random_val(width);
+        });
+    });
+}
+

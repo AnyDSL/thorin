@@ -44,17 +44,6 @@ fn iteration_bounds(wlower : int, wupper : int, hlower : int, hupper : int,
     });
 }
 
-fn iterate_(a : int, b : int, yield : fn(int, fn())) -> void {
-    let mut i: int = a;
-    while (i < b)
-        yield(i++, || { continue; });
-}
-fn iterate_times_two(a : int, b : int, yield : fn(int, fn())) -> void {
-    let mut i: int = a;
-    while (i < b)
-        yield(i*=2, || { continue; });
-}
-
 fn iteration_advanced(width : int, height : int,
                       arr : [float], out : [float],
                       body : fn(int, int, [float], [float]) -> void
@@ -71,7 +60,7 @@ fn iteration_advanced(width : int, height : int,
             let tid_x = int64_to_int32(get_global_id(0));
             let tid_y = int64_to_int32(get_local_id(1)) + int64_to_int32(get_local_size(1) * get_group_id(1)) * unroll;
 
-            @iterate_(0, unroll, |i : int| -> void {
+            @iterate(0, unroll, |i : int| -> void {
                 body(tid_x, tid_y + i * int64_to_int32(get_local_size(1)), gmem_arr, gmem_out);
             });
         });

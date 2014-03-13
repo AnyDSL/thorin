@@ -503,7 +503,7 @@ void nvvm_synchronize(size_t dev) { synchronize(dev); }
 // helper functions
 void *array(size_t elem_size, size_t width, size_t height) {
     void *mem;
-    posix_memalign(&mem, 16, elem_size * width * height);
+    posix_memalign(&mem, 64, elem_size * width * height);
     std::cerr << " * array() -> " << mem << std::endl;
     host_mems_[mem] = {elem_size, width, height};
     return mem;

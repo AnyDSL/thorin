@@ -41,3 +41,14 @@ fn init_rand(arr : [float], width : int, height : int) -> void {
     });
 }
 
+// border handling specialization
+fn clamp_lower(idx : int, lower : int) -> int {
+    return idx < lower ? lower : idx;
+}
+fn clamp_upper(idx : int, upper : int) -> int {
+    return idx >= upper ? upper - 1 : idx;
+}
+fn clamp_none(idx : int, bound : int) -> int {
+    return idx;
+}
+

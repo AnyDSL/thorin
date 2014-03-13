@@ -1,13 +1,22 @@
 fn apply_stencil(range : int, stencil : [float * 3 * 3],
-                 x : int, y : int, arr : [float], width : int) -> float {
+                 x : int, y : int, arr : [float], width : int, height : int,
+                 lower_x : fn(int, int) -> int,
+                 upper_x : fn(int, int) -> int,
+                 lower_y : fn(int, int) -> int,
+                 upper_y : fn(int, int) -> int
+                ) -> float {
     let mut sum = 0.0f;
     let half_range = range / 2;
     iterate(-half_range, half_range+1, |j : int| -> void {
         iterate(-half_range, half_range+1, |i : int| -> void {
             let stencil_val = stencil[i + half_range][j + half_range];
-            if (stencil_val != 0.0f)
-                sum += arr[(y+j)*width + x + i] * stencil_val;
-            else {
+            if (stencil_val != 0.0f) {
+                let mut idx_x = lower_x(x + i, 0);
+                        idx_x = upper_x(idx_x, width);
+                let mut idx_y = lower_y(y + j, 0);
+                        idx_y = upper_y(idx_y, height);
+                sum += arr[idx_y * width + idx_x] * stencil_val;
+            } else {
                 // additional logic for empty stencil value
             }
         });
@@ -16,37 +25,37 @@ fn apply_stencil(range : int, stencil : [float * 3 * 3],
     return sum;
 }
 
-fn apply_stencil_row(range : int, stencil : [float * 3],
-                 x : int, y : int, arr : [float], width : int) -> float {
+fn apply_stencil_sep(range : int, stencil : [float * 3], x : int, y : int,
+                     arr : [float], width : int, height : int, row : bool,
+                     lower : fn(int, int) -> int,
+                     upper : fn(int, int) -> int
+                    ) -> float {
     let mut sum = 0.0f;
     let half_range = range / 2;
     iterate(-half_range, half_range+1, |i : int| -> void {
         let stencil_val = stencil[i + half_range];
-        sum += arr[y*width + x + i] * stencil_val;
+        let mut idx_x = row ? x + i : x;
+        let mut idx_y = row ? y : y + i;
+        if (row) {
+            idx_x = lower(idx_x, 0);
+            idx_x = upper(idx_x, width);
+        } else {
+            idx_y = lower(idx_y, 0);
+            idx_y = upper(idx_y, height);
+        }
+        sum += arr[idx_y*width + idx_x] * stencil_val;
     });
 
     return sum;
 }
 
 fn apply_stencil_row_cpu(range : int, stencil : [float * 3],
-                 x : int, y : int, arr : [float], width : int) -> float {
+                         x : int, y : int, arr : [float], width : int) -> float {
     let mut sum = 0.0f;
     let half_range = range / 2;
     iterate(-half_range, half_range+1, |i : int| -> void {
         let stencil_val = stencil[i + half_range];
         sum += arr[x + i] * stencil_val;
-    });
-
-    return sum;
-}
-
-fn apply_stencil_col(range : int, stencil : [float * 3],
-                 x : int, y : int, arr : [float], width : int) -> float {
-    let mut sum = 0.0f;
-    let half_range = range / 2;
-    iterate(-half_range, half_range+1, |i : int| -> void {
-        let stencil_val = stencil[i + half_range];
-        sum += arr[(y+i)*width + x] * stencil_val;
     });
 
     return sum;
@@ -71,18 +80,26 @@ fn main() -> int {
 
 
     //iteration(width, height, |x : int, y : int| -> void {
-    //    out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width);
+    //    out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width, height,
+    //                                      clamp_lower, clamp_upper, clamp_lower, clamp_upper);
     //});
 
     //let mut tmp = array(4, width, height);
     //init_zero(tmp, width, height);
-    //iteration_sep(width, height,
-    //    |x : int, y : int| -> void {
-    //        tmp[y*width + x] = @apply_stencil_col(range, stencil_sep, x, y, arr, width);
+    //iteration_sep_bounds(width, height, clamp_lower, clamp_upper, clamp_none,
+    //        // col component
+    //        let is_row = false;
+    //    |x : int, y : int, left : fn(int, int) -> int, right : fn(int, int) -> int, top : fn(int, int) -> int, bottom : fn(int, int) -> int| -> void {
+    //        tmp[y*width + x] = @apply_stencil_sep(range, stencil_sep, x, y, arr,
+    //                                              width, height, is_row,
+    //                                              top, bottom);
     //    },
-    //    |x : int, y : int| -> void {
-    //        if (y > 0 && y < width-1)
-    //        out[y*width + x] = @apply_stencil_row(range, stencil_sep, x, y, tmp, width);
+    //    |x : int, y : int, left : fn(int, int) -> int, right : fn(int, int) -> int, top : fn(int, int) -> int, bottom : fn(int, int) -> int| -> void {
+    //        // row component
+    //        let is_row = true;
+    //        out[y*width + x] = @apply_stencil_sep(range, stencil_sep, x, y, tmp,
+    //                                              width, height, is_row,
+    //                                              left, right);
     //    }
     //);
     //free_array(tmp);
@@ -90,25 +107,38 @@ fn main() -> int {
 
     //iteration_advanced(width, height, arr, out,
     //    |x : int, y : int, arr : [float], out : [float]| -> void {
-    //        out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width);
+    //        out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width, height,
+    //                                          clamp_none, clamp_none,
+    //                                          clamp_none, clamp_none);
     //    }
     //);
 
     iteration_sep_advanced(width, height, arr, out,
         |x : int, y : int, arr : [float], out : [float]| -> void {
-            out[y*width + x] = @apply_stencil_col(range, stencil_sep, x, y, arr, width);
+            // col component
+            let is_row = false;
+            out[y*width + x] = @apply_stencil_sep(range, stencil_sep, x, y, arr,
+                                                  width, height, is_row,
+                                                  clamp_none, clamp_none);
         },
         |x : int, y : int, arr : [float], out : [float]| -> void {
-            out[y*width + x] = @apply_stencil_row(range, stencil_sep, x, y, arr, width);
+            // row component
+            let is_row = true;
+            out[y*width + x] = @apply_stencil_sep(range, stencil_sep, x, y, arr,
+                                                  width, height, is_row,
+                                                  clamp_none, clamp_none);
         }
     );
 
-    // CPU variant
+    //// CPU variant
     //iteration_sep_advanced(width, height, arr, out,
     //    |x : int, y : int, arr : [float], out : [float]| -> void {
-    //        out[x] = @apply_stencil_col(range, stencil_sep, x, y, arr, width);
+    //        let is_row = false;
+    //        out[x] = @apply_stencil_sep(range, stencil_sep, x, y, arr, width,
+    //                                    height, is_row, clamp_none, clamp_none);
     //    },
     //    |x : int, y : int, arr : [float], out : [float]| -> void {
+    //        let is_row = true;
     //        out[y*width + x] = @apply_stencil_row_cpu(range, stencil_sep, x, y, arr, width);
     //    }
     //);
@@ -118,7 +148,8 @@ fn main() -> int {
 
     for (let mut y=1; y<height-1; ++y) {
         for (let mut x=1; x<width-1; ++x) {
-            let ref = apply_stencil(range, stencil, x, y, arr, width);
+            let ref = apply_stencil(range, stencil, x, y, arr, width, height,
+                                    clamp_lower, clamp_upper, clamp_lower, clamp_upper);
             let mut diff = ref - out[x + y*width];
             if (diff < 0.0f) diff = -diff;
             if (diff > 0.01f) passed++;

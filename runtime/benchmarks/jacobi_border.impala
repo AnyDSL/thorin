@@ -3,7 +3,8 @@ fn apply_stencil(range : int, stencil : [float * 3 * 3],
                  lower_x : fn(int, int) -> int,
                  upper_x : fn(int, int) -> int,
                  lower_y : fn(int, int) -> int,
-                 upper_y : fn(int, int) -> int) -> float {
+                 upper_y : fn(int, int) -> int
+                ) -> float {
     let mut sum = 0.0f;
     let half_range = range / 2;
     iterate(-half_range, half_range+1, |j : int| -> void {
@@ -46,18 +47,6 @@ fn main() -> int {
     let U : [int * 3 * 2] = [
         [1, width - 1, width],
         [1, height - 1, height]];
-
-    // border handling specialization
-    // HINT: naive realization which could be created by a domain expert
-    let clamp_lower = |idx : int, lower : int| -> int {
-        return idx < lower ? lower : idx;
-    };
-    let clamp_upper = |idx : int, upper : int| -> int {
-        return idx >= upper ? upper - 1 : idx;
-    };
-    let clamp_none = |idx : int, bound : int| -> int {
-        return idx;
-    };
 
     getMicroTime();
     iteration_bounds(width, height, clamp_lower, clamp_upper, clamp_none,

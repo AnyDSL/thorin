@@ -10,7 +10,9 @@
 #include <cassert>
 #include <fstream>
 #include <iostream>
+#include <tuple>
 #include <unordered_map>
+#include <vector>
 
 bool print_timing = true;
 
@@ -314,8 +316,6 @@ void create_context_command_queue(cl_platform_id platform, cl_device_id *device,
 void init_opencl() {
     char pnBuffer[1024], pvBuffer[1024], pv2Buffer[1024], pdBuffer[1024], pd2Buffer[1024], pd3Buffer[1024];
     cl_uint num_platforms, num_devices;
-    cl_platform_id *platforms;
-    cl_device_id *devices;
     cl_int err = CL_SUCCESS;
 
 
@@ -327,13 +327,13 @@ void init_opencl() {
     if (num_platforms == 0) {
         exit(EXIT_FAILURE);
     } else {
-        platforms = (cl_platform_id *)malloc(num_platforms * sizeof(cl_platform_id));
+        cl_platform_id *platforms = new cl_platform_id[num_platforms];
 
         err = clGetPlatformIDs(num_platforms, platforms, NULL);
         checkErr(err, "clGetPlatformIDs()");
 
         int n_dev = sizeof(the_machine)/sizeof(int[2]);
-        int c_dev = 1;
+        size_t c_dev = 1;
         int c_pf_id = the_machine[c_dev][0];
         int c_dev_id = the_machine[c_dev][1];
 
@@ -347,9 +347,12 @@ void init_opencl() {
             err = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, 0, NULL, &num_devices);
             checkErr(err, "clGetDeviceIDs()");
 
-            devices = (cl_device_id *)malloc(sizeof(cl_device_id) * num_devices);
+            cl_device_id *devices = new cl_device_id[num_devices];
             err = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, num_devices, devices, &num_devices);
             checkErr(err, "clGetDeviceIDs()");
+
+                        // device[idx], devices_[idx], has_unified
+            std::vector<std::tuple<size_t, size_t, cl_bool>> ctxts;
 
             // use first platform supporting desired device type
             if (c_pf_id==i) {
@@ -383,7 +386,7 @@ void init_opencl() {
                 bool use_device = false;
                 if (c_pf_id == i && j == c_dev_id) {
                     devices_[c_dev] = devices[j];
-                    create_context_command_queue(platforms[i], &devices[j], 1, c_dev);
+                    ctxts.push_back(std::make_tuple(j, c_dev, has_unified));
                     if (++c_dev < n_dev) {
                         c_pf_id = the_machine[c_dev][0];
                         c_dev_id = the_machine[c_dev][1];
@@ -416,7 +419,24 @@ void init_opencl() {
                 #endif
                 std::cerr << "          Device Host Unified Memory: " << has_unified << std::endl;
             }
-            free(devices);
+
+            // create context and command queues for devices of this platform
+            cl_device_id *tmp_devices = new cl_device_id[ctxts.size()];
+            size_t tmp_num_devices = 0;
+            for (size_t n=ctxts.size(); n>0; --n) {
+                size_t cur = n-1;
+                tmp_devices[cur] = devices[std::get<0>(ctxts.data()[cur])];
+                bool unified = std::get<2>(ctxts.data()[cur]);
+                tmp_num_devices++;
+                if (cur==0 || !unified) {
+                    std::cerr << "create_context_command_queue(platforms[" << i << "], tmp_devices[" << cur << "], tmp_num_devices=" << tmp_num_devices << ", devices_[" << std::get<1>(ctxts.data()[cur]) << "])" << std::endl;
+                    create_context_command_queue(platforms[i], &tmp_devices[cur], tmp_num_devices, std::get<1>(ctxts.data()[cur]));
+                    tmp_num_devices = 0;
+                }
+            }
+            delete[] tmp_devices;
+
+            delete[] devices;
         }
 
         if (c_dev != n_dev) {
@@ -424,7 +444,7 @@ void init_opencl() {
             exit(EXIT_FAILURE);
         }
 
-        free(platforms);
+        delete[] platforms;
     }
 
     // initialize clArgIdx

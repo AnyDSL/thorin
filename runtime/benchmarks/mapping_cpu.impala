@@ -97,6 +97,69 @@ fn iteration_sep(width : int, height : int,
     getMicroTime();
 }
 
+fn iteration_sep_bounds(width : int, height : int, range: int,
+                    clamp_lower : fn(int, int) -> int,
+                    clamp_upper : fn(int, int) -> int,
+                    clamp_none : fn(int, int) -> int,
+                    body_col : fn(int, int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int) -> void,
+                    body_row : fn(int, int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int) -> void
+                   ) -> void {
+    let bhr = range / 2;
+    let Bounds2DRow = [
+        (0          , bhr),
+        (bhr        , width - bhr),
+        (width - bhr, width)
+    ];
+    let Bounds2DCol = [
+        (0           , bhr),
+        (bhr         , height - bhr),
+        (height - bhr, height)
+    ];
+
+    getMicroTime();
+    @iterate(0, 3, |i : int| -> void {
+        let mut top = clamp_none;
+        let mut bottom = clamp_none;
+        // 0
+        // 1
+        // 2
+
+        // top
+        if (i == 0) top = clamp_lower;
+        // bottom
+        if (i == 2) bottom = clamp_upper;
+
+        let bounds = Bounds2DCol[i];
+        $iterate(0, height, |y: int| -> void {
+            $iterate(bounds[0], bounds[1], |x: int| -> void {
+                body_col(x, y, clamp_none, clamp_none, top, bottom);
+            });
+        });
+    });
+
+    @iterate(0, 3, |i : int| -> void {
+        let mut left = clamp_none;
+        let mut right = clamp_none;
+        // 0 --- 1 --- 2
+
+        // left
+        if (i == 0) left = clamp_lower;
+        // right
+        if (i == 2) right = clamp_upper;
+
+        let bounds = Bounds2DRow[i];
+        let dim = (bounds[1] - bounds[0], height, 1);
+
+        $iterate(bounds[0], bounds[1], |y: int| -> void {
+            $iterate(0, width, |x: int| -> void {
+                body_row(x, y, left, right, clamp_none, clamp_none);
+            });
+        });
+    });
+    getMicroTime();
+}
+
+
 fn iteration_sep_advanced(width : int, height : int,
                           arr : [float], out : [float],
                           body_col : fn(int, int, [float], [float]) -> void,

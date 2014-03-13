@@ -12,25 +12,26 @@ fn iteration(width: int, height: int, body: fn(int, int) -> void) -> void {
     getMicroTime();
 }
 
-fn iteration_bounds(width : int, height : int,
+fn iteration_bounds(width : int, height : int, range : int,
                     clamp_lower : fn(int, int) -> int,
                     clamp_upper : fn(int, int) -> int,
                     clamp_none : fn(int, int) -> int,
                     body : fn(int, int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int) -> void
                    ) -> void {
+    let bhr = range / 2;
     // (minx, maxx, miny, maxy)
     let Bounds2D = [
-        (0        , 1        , 0         , 1),
-        (1        , width - 1, 0         , 1),
-        (width - 1, width    , 0         , 1),
+        (0          , bhr        , 0         , bhr),
+        (bhr        , width - bhr, 0         , bhr),
+        (width - bhr, width      , 0         , bhr),
 
-        (0        , 1        , height - 1, height),
-        (1        , width - 1, height - 1, height),
-        (width - 1, width    , height - 1, height),
+        (0          , bhr        , height - bhr, height),
+        (bhr        , width - bhr, height - bhr, height),
+        (width - bhr, width      , height - bhr, height),
 
-        (0        , 1        , 1         , height - 1),
-        (width - 1, width    , 1         , height - 1),
-        (1        , width - 1, 1         , height - 1)
+        (0          , bhr        , bhr         , height - bhr),
+        (width - bhr, width      , bhr         , height - bhr),
+        (bhr        , width - bhr, bhr         , height - bhr)
     ];
 
     @iterate(0, 9, |i : int| -> void {

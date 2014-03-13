@@ -50,7 +50,7 @@ fn main() -> int {
     );
 
     // SS + BH
-    iteration_bounds(width, height, clamp_lower, clamp_upper, clamp_none,
+    iteration_bounds(width, height, range, clamp_lower, clamp_upper, clamp_none,
         |x : int, y : int, left : fn(int, int) -> int, right : fn(int, int) -> int, top : fn(int, int) -> int, bottom : fn(int, int) -> int| -> void {
             out[y*width + x] = @apply_stencil(range, stencil, x, y, arr,
                                               width, height,

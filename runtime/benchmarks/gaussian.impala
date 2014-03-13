@@ -90,7 +90,7 @@ fn main() -> int {
     );
 
     // SS + BH
-    iteration_bounds(width, height, clamp_lower, clamp_upper, clamp_none,
+    iteration_bounds(width, height, range, clamp_lower, clamp_upper, clamp_none,
         |x : int, y : int, left : fn(int, int) -> int, right : fn(int, int) -> int, top : fn(int, int) -> int, bottom : fn(int, int) -> int| -> void {
             out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width, height,
                                               clamp_lower, clamp_upper, clamp_lower, clamp_upper);
@@ -118,7 +118,7 @@ fn main() -> int {
     // SS + SEP + BH
     let mut tmp = array(4, width, height);
     init_zero(tmp, width, height);
-    iteration_sep_bounds(width, height, clamp_lower, clamp_upper, clamp_none,
+    iteration_sep_bounds(width, height, range, clamp_lower, clamp_upper, clamp_none,
         |x : int, y : int, left : fn(int, int) -> int, right : fn(int, int) -> int, top : fn(int, int) -> int, bottom : fn(int, int) -> int| -> void {
             // col component
             let is_row = false;

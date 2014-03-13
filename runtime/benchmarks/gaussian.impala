@@ -87,9 +87,9 @@ fn main() -> int {
     //let mut tmp = array(4, width, height);
     //init_zero(tmp, width, height);
     //iteration_sep_bounds(width, height, clamp_lower, clamp_upper, clamp_none,
+    //    |x : int, y : int, left : fn(int, int) -> int, right : fn(int, int) -> int, top : fn(int, int) -> int, bottom : fn(int, int) -> int| -> void {
     //        // col component
     //        let is_row = false;
-    //    |x : int, y : int, left : fn(int, int) -> int, right : fn(int, int) -> int, top : fn(int, int) -> int, bottom : fn(int, int) -> int| -> void {
     //        tmp[y*width + x] = @apply_stencil_sep(range, stencil_sep, x, y, arr,
     //                                              width, height, is_row,
     //                                              top, bottom);

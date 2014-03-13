@@ -24,8 +24,8 @@ fn main() -> int {
     let b       = 1.0f - 4.0f * a;
     let mut arr = array(4, width, height);
     let mut out = array(4, width, height);
-    //init_rand(arr, width, height);
-    //init_zero(out, width, height);
+    init_rand(arr, width, height);
+    init_zero(out, width, height);
 
     let stencil : [float * 3 * 3] = [
         [0.0f, b, 0.0f],
@@ -36,5 +36,38 @@ fn main() -> int {
         out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width);
     });
 
-    return 0;
+    //iteration_advanced(width, height, arr, out,
+        //|x : int, y : int, arr : [float], out : [float]| -> void {
+            //out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width);
+        //}
+    //);
+    iteration_multi(width, height, arr, out,
+        |x : int, y : int, arr : [float], out : [float]| -> void {
+            out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width);
+        }
+    );
+
+
+    let mut passed = 0;
+
+    for (let mut y=1; y<height-1; ++y) {
+        if (y==height/2-1) continue;
+        if (y==height/2) continue;
+        for (let mut x=1; x<width-1; ++x) {
+            let ref =
+                b * arr[x + 0 + (y - 1)*width] +
+                b * arr[x - 1 + (y + 0)*width] +
+                a * arr[x + 0 + (y + 0)*width] +
+                b * arr[x + 1 + (y + 0)*width] +
+                b * arr[x + 0 + (y + 1)*width];
+            let mut diff = ref - out[x + y*width];
+            if (diff < 0.0f) diff = -diff;
+            if (diff > 0.01f) passed++;
+        }
+    }
+
+    free_array(arr);
+    free_array(out);
+
+    return passed;
 }

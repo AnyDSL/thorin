@@ -73,10 +73,14 @@ class Memory {
         std::unordered_map<mem_id, mapping_> mmap[num_devices_];
         std::unordered_map<mem_id, void*> idtomem[num_devices_];
         std::unordered_map<void*, mem_id> memtoid[num_devices_];
+        std::unordered_map<size_t, size_t> ummap;
 
     public:
         Memory() : count_(42) {}
 
+    void associate_device(size_t host_dev, size_t assoc_dev) {
+        ummap[assoc_dev] = host_dev;
+    }
     mem_id get_id(size_t dev, void *mem) { return memtoid[dev][mem]; }
     mem_id map_memory(size_t dev, void *from, cl_mem to, mem_type type,
             size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz) {
@@ -299,9 +303,11 @@ void create_context_command_queue(cl_platform_id platform, cl_device_id *device,
     // create context
     cl_context_properties cprops[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)platform, 0 };
     contexts_[num] = clCreateContext(cprops, num_devices, device, NULL, NULL, &err);
+    mem_manager.associate_device(num, num);
     checkErr(err, "clCreateContext()");
     for (size_t i=1; i<num_devices; ++i) {
         contexts_[num+i] = contexts_[num];
+        mem_manager.associate_device(num, num+i);
     }
 
     // create command queues

@@ -12,26 +12,6 @@ extern "C"
 
 typedef size_t mem_id;
 
-// runtime forward declarations
-mem_id malloc_buffer(size_t dev, void *host, cl_mem_flags flags=CL_MEM_READ_WRITE);
-mem_id malloc_buffer_size(size_t dev, void *host, cl_mem_flags flags, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz);
-void free_buffer(size_t dev, mem_id mem);
-
-void write_buffer(size_t dev, mem_id mem, void *host);
-void write_buffer_size(size_t dev, mem_id mem, void *host, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz);
-void read_buffer(size_t dev, mem_id mem, void *host);
-void read_buffer_size(size_t dev, mem_id mem, void *host, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz);
-
-void build_program_and_kernel(size_t dev, const char *file_name, const char *kernel_name, bool);
-
-void set_kernel_arg(size_t dev, void *param, size_t size);
-void set_kernel_arg_map(size_t dev, mem_id mem);
-void set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
-void set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
-
-void launch_kernel(size_t dev, const char *kernel_name);
-void synchronize(size_t dev);
-
 // SPIR wrappers
 mem_id spir_malloc_buffer(size_t dev, void *host);
 void spir_free_buffer(size_t dev, mem_id mem);

@@ -38,6 +38,24 @@ int the_machine[][2] = {
 #endif
 
 
+// runtime forward declarations
+cl_mem malloc_buffer(size_t dev, void *host, cl_mem_flags flags, size_t size);
+void write_buffer(size_t dev, cl_mem mem, void *host, size_t size);
+void free_buffer(size_t dev, mem_id mem);
+void read_buffer(size_t dev, mem_id mem, void *host);
+void read_buffer_size(size_t dev, mem_id mem, void *host, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz);
+
+void build_program_and_kernel(size_t dev, const char *file_name, const char *kernel_name, bool);
+
+void set_kernel_arg(size_t dev, void *param, size_t size);
+void set_kernel_arg_map(size_t dev, mem_id mem);
+void set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
+void set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
+
+void launch_kernel(size_t dev, const char *kernel_name);
+void synchronize(size_t dev);
+
+
 // global variables ...
 enum mem_type {
     Global      = 0,
@@ -104,16 +122,48 @@ class Memory {
         idtomem[dev].erase(id);
     }
 
+
+    mem_id malloc(size_t dev, void *host, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz) {
+        mem_id id = get_id(dev, host);
+
+        if (id) {
+            std::cerr << " * malloc buffer(" << dev << "): returning old copy " << id << " for " << host << std::endl;
+            return id;
+        }
+
+        id = get_id(ummap[dev], host);
+        if (id) {
+            std::cerr << " * malloc buffer(" << dev << "): returning old copy " << id << " from associated device " << ummap[dev] << " for " << host << std::endl;
+            id = map_memory(dev, host, get_dev_mem(ummap[dev], id), Global,
+                            ox, oy, oz, sx, sy, sz);
+        } else {
+            mem_ info = host_mems_[host];
+            void *host_ptr = (char*)host + (ox + oy*info.width)*info.elem;
+            cl_mem_flags flags = CL_MEM_READ_WRITE & CL_MEM_USE_HOST_PTR;
+            cl_mem mem = malloc_buffer(dev, host_ptr, flags, info.elem*sx*sy);
+            id = map_memory(dev, host, mem, Global, ox, oy, oz, sx, sy, sz);
+            std::cerr << " * malloc buffer(" << dev << "): " << mem << " (" << id << ") <-> host: " << host << std::endl;
+        }
+        return id;
+    }
+    mem_id malloc(size_t dev, void *host) {
+        mem_ info = host_mems_[host];
+        return malloc(dev, host, 0, 0, 0, info.width, info.height, 1);
+    }
+
     void read_buffer(size_t dev, mem_id id) {
         read_buffer_size(dev, id, mmap[dev][id].cpu,
                 mmap[dev][id].ox, mmap[dev][id].oy, mmap[dev][id].oz,
                 mmap[dev][id].sx, mmap[dev][id].sy, mmap[dev][id].sz);
     }
-    void write_buffer(size_t dev, mem_id id, void *host) {
+    void write(size_t dev, mem_id id, void *host) {
+        mem_ info = host_mems_[host];
         assert(host==mmap[dev][id].cpu && "invalid host memory");
-        write_buffer_size(dev, id, host,
-                mmap[dev][id].ox, mmap[dev][id].oy, mmap[dev][id].oz,
-                mmap[dev][id].sx, mmap[dev][id].sy, mmap[dev][id].sz);
+        std::cerr << " * write buffer(" << dev << "):  " << id << " <- " << host
+                  << " (" << mmap[dev][id].ox << "," << mmap[dev][id].oy << "," << mmap[dev][id].oz << ")x("
+                  << mmap[dev][id].sx << "," << mmap[dev][id].sy << "," << mmap[dev][id].sz << ")" << std::endl;
+        void *host_ptr = (char*)host + (mmap[dev][id].ox + mmap[dev][id].oy*info.width)*info.elem;
+        write_buffer(dev, mmap[dev][id].gpu, host_ptr, info.elem * mmap[dev][id].sx * mmap[dev][id].sy);
     }
 };
 Memory mem_manager;
@@ -435,7 +485,6 @@ void init_opencl() {
                 bool unified = std::get<2>(ctxts.data()[cur]);
                 tmp_num_devices++;
                 if (cur==0 || !unified) {
-                    std::cerr << "create_context_command_queue(platforms[" << i << "], tmp_devices[" << cur << "], tmp_num_devices=" << tmp_num_devices << ", devices_[" << std::get<1>(ctxts.data()[cur]) << "])" << std::endl;
                     create_context_command_queue(platforms[i], &tmp_devices[cur], tmp_num_devices, std::get<1>(ctxts.data()[cur]));
                     tmp_num_devices = 0;
                 }
@@ -584,27 +633,15 @@ void build_program_and_kernel(size_t dev, const char *file_name, const char *ker
 }
 
 
-mem_id malloc_buffer_size(size_t dev, void *host, cl_mem_flags flags, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz) {
+cl_mem malloc_buffer(size_t dev, void *host, cl_mem_flags flags, size_t size) {
     cl_int err = CL_SUCCESS;
-    mem_id mem = mem_manager.get_id(dev, host);
-    mem_ info = host_mems_[host];
+    void *host_ptr = nullptr;
 
-    if (!mem) {
-        void *host_ptr = NULL;
-        if (flags & CL_MEM_USE_HOST_PTR) host_ptr = (char*)host + (ox + oy*info.width)*info.elem;
-        cl_mem dev_mem = clCreateBuffer(contexts_[dev], flags, info.elem * sx * sy, host_ptr, &err);
-        checkErr(err, "clCreateBuffer()");
-        mem = mem_manager.map_memory(dev, host, dev_mem, Global, ox, oy, oz, sx, sy, sz);
-        std::cerr << " * malloc buffer(" << dev << "): " << dev_mem << " (" << mem << ") <-> host: " << host << std::endl;
-    } else {
-        std::cerr << " * malloc buffer(" << dev << "): returning old copy " << mem << " for " << host << std::endl;
-    }
+    if (flags & CL_MEM_USE_HOST_PTR) host_ptr = (char*)host;
+    cl_mem mem = clCreateBuffer(contexts_[dev], flags, size, host_ptr, &err);
+    checkErr(err, "clCreateBuffer()");
 
     return mem;
-}
-mem_id malloc_buffer(size_t dev, void *host, cl_mem_flags flags) {
-    mem_ info = host_mems_[host];
-    return malloc_buffer_size(dev, host, flags, 0, 0, 0, info.width, info.height, 0);
 }
 
 
@@ -618,16 +655,13 @@ void free_buffer(size_t dev, mem_id mem) {
 }
 
 
-void write_buffer_size(size_t dev, mem_id mem, void *host, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz) {
+void write_buffer(size_t dev, cl_mem mem, void *host, size_t size) {
     cl_int err = CL_SUCCESS;
     cl_event event;
     cl_ulong end, start;
-    mem_ info = host_mems_[host];
-    cl_mem dev_mem = mem_manager.get_dev_mem(dev, mem);
 
-    std::cerr << " * write buffer(" << dev << "):  " << mem << " <- " << host << " (" << ox << "," << oy << "," << oz << ")x(" << sx << "," << sy << "," << sz << ")" << std::endl;
     getMicroTime();
-    err = clEnqueueWriteBuffer(command_queues_[dev], dev_mem, CL_FALSE, 0, info.elem * sx * sy, (char*)host + info.elem * (oy*info.width + ox), 0, NULL, &event);
+    err = clEnqueueWriteBuffer(command_queues_[dev], mem, CL_FALSE, 0, size, host, 0, NULL, &event);
     err |= clFinish(command_queues_[dev]);
     checkErr(err, "clEnqueueWriteBuffer()");
     getMicroTime();
@@ -639,10 +673,6 @@ void write_buffer_size(size_t dev, mem_id mem, void *host, size_t ox, size_t oy,
         std::cerr << "   timing for write buffer: "
                   << (end-start)*1.0e-6f << "(ms)" << std::endl;
     }
-}
-void write_buffer(size_t dev, mem_id mem, void *host) {
-    mem_ info = host_mems_[host];
-    return write_buffer_size(dev, mem, host, 0, 0, 0, info.width, info.height, 0);
 }
 
 
@@ -747,10 +777,10 @@ void launch_kernel(size_t dev, const char *kernel_name) {
 
 
 // SPIR wrappers
-mem_id spir_malloc_buffer(size_t dev, void *host) { return malloc_buffer(dev, host); }
+mem_id spir_malloc_buffer(size_t dev, void *host) { return mem_manager.malloc(dev, host); }
 void spir_free_buffer(size_t dev, mem_id mem) { free_buffer(dev, mem); }
 
-void spir_write_buffer(size_t dev, mem_id mem, void *host) { write_buffer(dev, mem, host); }
+void spir_write_buffer(size_t dev, mem_id mem, void *host) { mem_manager.write(dev, mem, host); }
 void spir_read_buffer(size_t dev, mem_id mem, void *host) { read_buffer(dev, mem, host); }
 
 void spir_build_program_and_kernel_from_binary(size_t dev, const char *file_name, const char *kernel_name) { build_program_and_kernel(dev, file_name, kernel_name, true); }
@@ -790,13 +820,10 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, 
     if (type==Global) {
         assert(sx==info.width && "currently only the y-dimension can be split");
 
-        cl_mem_flags mem_flags = CL_MEM_READ_WRITE;
-        if (dev==1) mem_flags |= CL_MEM_USE_HOST_PTR;
-
         if (sy==info.height) {
             // mapping the whole memory
-            mem = malloc_buffer(dev, from, mem_flags);
-            write_buffer(dev, mem, from);
+            mem = mem_manager.malloc(dev, from);
+            mem_manager.write(dev, mem, from);
             std::cerr << " * map memory(" << dev << "):    " << from << " -> " << mem << std::endl;
 
             #if 0
@@ -820,8 +847,8 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, 
         } else {
             // mapping and slicing of a region
             assert(sy < info.height && "slice larger then original memory");
-            mem = malloc_buffer_size(dev, from, mem_flags, ox, oy, oz, sx, sy, sz);
-            mem_manager.write_buffer(dev, mem, from);
+            mem = mem_manager.malloc(dev, from, ox, oy, oz, sx, sy, sz);
+            mem_manager.write(dev, mem, from);
             std::cerr << " * map memory(" << dev << "):    " << from << " (" << ox << "," << oy << "," << oz <<")x(" << sx << "," << sy << "," << sz << ") -> " << mem << std::endl;
 
             #if 0

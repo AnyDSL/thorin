@@ -15,18 +15,17 @@ int main_impala() {
     }
 
     // CODE TO BE GENERATED: BEGIN
-    bool is_binary = true;
-    build_program_and_kernel(dev, "main.spir.bc", "simple", is_binary);
-    mem_id mem = malloc_buffer(dev, host);
-    write_buffer(dev, mem, host);
+    spir_build_program_and_kernel_from_binary(dev, "main.spir.bc", "simple");
+    mem_id mem = spir_malloc_buffer(dev, host);
+    spir_write_buffer(dev, mem, host);
 
-    set_problem_size(dev, 1024, 1, 1);
-    set_config_size(dev, 128, 1, 1);
-    set_kernel_arg_map(dev, mem);
-    launch_kernel(dev, "simple");
-    synchronize(dev); // optional
-    read_buffer(dev, mem, host);
-    free_buffer(dev, mem);
+    spir_set_problem_size(dev, 1024, 1, 1);
+    spir_set_config_size(dev, 128, 1, 1);
+    spir_set_kernel_arg_map(dev, mem);
+    spir_launch_kernel(dev, "simple");
+    spir_synchronize(dev); // optional
+    spir_read_buffer(dev, mem, host);
+    spir_free_buffer(dev, mem);
     // CODE TO BE GENERATED: END
 
     // check result

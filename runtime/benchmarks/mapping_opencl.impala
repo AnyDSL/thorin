@@ -19,22 +19,28 @@ fn iteration_bounds(width : int, height : int, range : int,
                     clamp_none : fn(int, int) -> int,
                     body : fn(int, int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int) -> void
                    ) -> void {
+    // define the unroll factor
     let unroll = 1;
-    let bhr = range / 2;
+    // compute the number of blocks required for boundary handling
+    let mut bhr = range / 2;
+    if (bhr % unroll==0) bhr = bhr / unroll;
+    else bhr = bhr / unroll + 1;
     let block = (128, bhr, 1);
 
+    // bounds account for unroll factor
+    let hu = height/unroll;
     let Bounds2D = [
-        (0               , block[0]        , 0                , block[1]),
-        (block[0]        , width - block[0], 0                , block[1]),
-        (width - block[0], width           , 0                , block[1]),
+        (0               , block[0]        , 0            , block[1]),
+        (block[0]        , width - block[0], 0            , block[1]),
+        (width - block[0], width           , 0            , block[1]),
 
-        (0               , block[0]        , height - block[1], height),
-        (block[0]        , width - block[0], height - block[1], height),
-        (width - block[0], width           , height - block[1], height),
+        (0               , block[0]        , hu - block[1], hu),
+        (block[0]        , width - block[0], hu - block[1], hu),
+        (width - block[0], width           , hu - block[1], hu),
 
-        (0               , block[0]        , block[1]         , height - block[1]),
-        (width - block[0], width           , block[1]         , height - block[1]),
-        (block[0]        , width - block[0], block[1]         , height - block[1])
+        (0               , block[0]        , block[1]     , hu - block[1]),
+        (width - block[0], width           , block[1]     , hu - block[1]),
+        (block[0]        , width - block[0], block[1]     , hu - block[1])
     ];
 
     @iterate(0, 9, |i : int| -> void {
@@ -81,7 +87,7 @@ fn iteration_bounds(width : int, height : int, range : int,
         }
 
         let bounds = Bounds2D[i];
-        let dim = (bounds[1] - bounds[0], (bounds[3] - bounds[2])/unroll, 1);
+        let dim = (bounds[1] - bounds[0], bounds[3] - bounds[2], 1);
 
         opencl(1, dim, block, || -> void {
             let tid_x = int64_to_int32(get_global_id(0));
@@ -145,7 +151,12 @@ fn iteration_sep_bounds(width : int, height : int, range : int,
                     body_col : fn(int, int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int) -> void,
                     body_row : fn(int, int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int) -> void
                    ) -> void {
-    let bhr = range / 2;
+    // define the unroll factor
+    let unroll = 1;
+    // compute the number of blocks required for boundary handling
+    let mut bhr = range / 2;
+    if (bhr % unroll==0) bhr = bhr / unroll;
+    else bhr = bhr / unroll + 1;
     let block = (128, bhr, 1);
 
     let Bounds2DRow = [
@@ -176,9 +187,12 @@ fn iteration_sep_bounds(width : int, height : int, range : int,
 
         opencl(1, dim, block, || -> void {
             let tid_x = int64_to_int32(get_global_id(0));
-            let tid_y = int64_to_int32(get_global_id(1));
+            let tid_y = int64_to_int32(get_local_id(1)) + int64_to_int32(get_local_size(1) * get_group_id(1)) * unroll;
 
-            body_col(tid_x, tid_y + bounds[0], clamp_none, clamp_none, top, bottom);
+
+            @iterate(0, unroll, |i : int| -> void {
+                body_col(tid_x, tid_y + (bounds[0] + i) * int64_to_int32(get_local_size(1)), clamp_none, clamp_none, top, bottom);
+            });
         });
     });
 
@@ -197,9 +211,12 @@ fn iteration_sep_bounds(width : int, height : int, range : int,
 
         opencl(1, dim, block, || -> void {
             let tid_x = int64_to_int32(get_global_id(0));
-            let tid_y = int64_to_int32(get_global_id(1));
+            let tid_y = int64_to_int32(get_local_id(1)) + int64_to_int32(get_local_size(1) * get_group_id(1)) * unroll;
 
-            body_row(tid_x + bounds[0], tid_y, left, right, clamp_none, clamp_none);
+
+            @iterate(0, unroll, |i : int| -> void {
+                body_row(tid_x + bounds[0], tid_y + i * int64_to_int32(get_local_size(1)), left, right, clamp_none, clamp_none);
+            });
         });
     });
 }

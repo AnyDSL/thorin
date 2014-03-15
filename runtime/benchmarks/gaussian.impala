@@ -43,7 +43,7 @@ fn apply_stencil_sep(range : int, stencil : [float * 5], x : int, y : int,
             idx_y = lower(idx_y, 0);
             idx_y = upper(idx_y, height);
         }
-        sum += arr[idx_y*width + idx_x] * stencil_val;
+        sum += arr[idx_y * width + idx_x] * stencil_val;
     });
 
     return sum;
@@ -81,28 +81,30 @@ fn main() -> int {
         [ 0.005008f, 0.017300f, 0.026151f, 0.017300f, 0.005008f ]];
 
 
-    // SS
-    iteration(width, height,
-        |x : int, y : int| -> void {
-            out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width, height,
-                                              clamp_lower, clamp_upper, clamp_lower, clamp_upper);
-        }
-    );
+    //// SS
+    //iteration(width, height,
+    //    |x : int, y : int| -> void {
+    //        out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width, height,
+    //                                          clamp_lower, clamp_upper, clamp_lower, clamp_upper);
+    //    }
+    //);
 
-    // SS + BH
-    iteration_bounds(width, height, range, clamp_lower, clamp_upper, clamp_none,
-        |x : int, y : int, left : fn(int, int) -> int, right : fn(int, int) -> int, top : fn(int, int) -> int, bottom : fn(int, int) -> int| -> void {
-            out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width, height,
-                                              clamp_lower, clamp_upper, clamp_lower, clamp_upper);
-        }
-    );
+    //// SS + BH
+    //iteration_bounds(width, height, range, clamp_lower, clamp_upper, clamp_none,
+    //    |x : int, y : int, left : fn(int, int) -> int, right : fn(int, int) -> int, top : fn(int, int) -> int, bottom : fn(int, int) -> int| -> void {
+    //        out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width, height,
+    //                                          clamp_lower, clamp_upper, clamp_lower, clamp_upper);
+    //    }
+    //);
 
     // SS + SEP
+    let mut tmp0 = array(4, width, height);
+    init_zero(tmp0, width, height);
     iteration_sep(width, height,
         |x : int, y : int| -> void {
             // col component
             let is_row = false;
-            out[y*width + x] = @apply_stencil_sep(range, stencil_sep, x, y,
+            tmp0[y*width + x] = @apply_stencil_sep(range, stencil_sep, x, y,
                                                   arr, width, height, is_row,
                                                   clamp_lower, clamp_upper);
         },
@@ -110,31 +112,32 @@ fn main() -> int {
             // row component
             let is_row = true;
             out[y*width + x] = @apply_stencil_sep(range, stencil_sep, x, y,
-                                                  arr, width, height, is_row,
+                                                  tmp0, width, height, is_row,
                                                   clamp_lower, clamp_upper);
         }
     );
+    free_array(tmp0);
 
-    // SS + SEP + BH
-    let mut tmp = array(4, width, height);
-    init_zero(tmp, width, height);
-    iteration_sep_bounds(width, height, range, clamp_lower, clamp_upper, clamp_none,
-        |x : int, y : int, left : fn(int, int) -> int, right : fn(int, int) -> int, top : fn(int, int) -> int, bottom : fn(int, int) -> int| -> void {
-            // col component
-            let is_row = false;
-            tmp[y*width + x] = @apply_stencil_sep(range, stencil_sep, x, y, arr,
-                                                  width, height, is_row,
-                                                  top, bottom);
-        },
-        |x : int, y : int, left : fn(int, int) -> int, right : fn(int, int) -> int, top : fn(int, int) -> int, bottom : fn(int, int) -> int| -> void {
-            // row component
-            let is_row = true;
-            out[y*width + x] = @apply_stencil_sep(range, stencil_sep, x, y, tmp,
-                                                  width, height, is_row,
-                                                  left, right);
-        }
-    );
-    free_array(tmp);
+    //// SS + SEP + BH
+    //let mut tmp1 = array(4, width, height);
+    //init_zero(tmp1, width, height);
+    //iteration_sep_bounds(width, height, range, clamp_lower, clamp_upper, clamp_none,
+    //    |x : int, y : int, left : fn(int, int) -> int, right : fn(int, int) -> int, top : fn(int, int) -> int, bottom : fn(int, int) -> int| -> void {
+    //        // col component
+    //        let is_row = false;
+    //        tmp1[y*width + x] = @apply_stencil_sep(range, stencil_sep, x, y,
+    //                                              arr, width, height, is_row,
+    //                                              top, bottom);
+    //    },
+    //    |x : int, y : int, left : fn(int, int) -> int, right : fn(int, int) -> int, top : fn(int, int) -> int, bottom : fn(int, int) -> int| -> void {
+    //        // row component
+    //        let is_row = true;
+    //        out[y*width + x] = @apply_stencil_sep(range, stencil_sep, x, y,
+    //                                              tmp1, width, height, is_row,
+    //                                              left, right);
+    //    }
+    //);
+    //free_array(tmp1);
 
 
     //iteration_advanced(width, height, arr, out,
@@ -178,10 +181,23 @@ fn main() -> int {
 
     let mut passed = 0;
 
+    let mut tmp2 = array(4, width, height);
+    init_zero(tmp2, width, height);
+    for (let mut y=1; y<height; ++y) {
+        for (let mut x=0; x<width; ++x) {
+            let is_row = false;
+            tmp2[y*width + x] = apply_stencil_sep(range, stencil_sep, x, y,
+                                                  tmp2, width, height, is_row,
+                                                  clamp_lower, clamp_upper);
+        }
+    }
+
     for (let mut y=0; y<height; ++y) {
         for (let mut x=0; x<width; ++x) {
-            let ref = apply_stencil(range, stencil, x, y, arr, width, height,
-                                    clamp_lower, clamp_upper, clamp_lower, clamp_upper);
+            let ref = apply_stencil_sep(range, stencil_sep, x, y, tmp2, width, height,
+                                        true, clamp_lower, clamp_upper);
+//            let ref = apply_stencil(range, stencil, x, y, arr, width, height,
+//                                    clamp_lower, clamp_upper, clamp_lower, clamp_upper);
             let mut diff = ref - out[x + y*width];
             if (diff < 0.0f) diff = -diff;
             if (diff > 0.01f) passed++;

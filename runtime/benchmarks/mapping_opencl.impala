@@ -8,7 +8,7 @@ fn iteration(width : int, height : int, body : fn(int, int) -> void) -> void {
         let tid_y = int64_to_int32(get_local_id(1)) + int64_to_int32(get_local_size(1) * get_group_id(1)) * unroll;
 
         @iterate(0, unroll, |i : int| -> void {
-            $body(tid_x, tid_y + i * int64_to_int32(get_local_size(1)));
+            body(tid_x, tid_y + i * int64_to_int32(get_local_size(1)));
         });
     });
 }

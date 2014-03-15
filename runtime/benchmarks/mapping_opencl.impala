@@ -164,10 +164,11 @@ fn iteration_sep_bounds(width : int, height : int, range : int,
         (block[0]        , width - block[0]),
         (width - block[0], width)
     ];
+    let hu = height / unroll;
     let Bounds2DCol = [
-        (0                  , block[1]),
-        (block[1]           , height - block[1]),
-        (height - block[1]  , height)
+        (0               , block[1]),
+        (block[1]        , hu - block[1]),
+        (hu - block[1]   , hu)
     ];
 
     @iterate(0, 3, |i : int| -> void {
@@ -189,7 +190,6 @@ fn iteration_sep_bounds(width : int, height : int, range : int,
             let tid_x = int64_to_int32(get_global_id(0));
             let tid_y = int64_to_int32(get_local_id(1)) + int64_to_int32(get_local_size(1) * get_group_id(1)) * unroll;
 
-
             @iterate(0, unroll, |i : int| -> void {
                 body_col(tid_x, tid_y + (bounds[0] + i) * int64_to_int32(get_local_size(1)), clamp_none, clamp_none, top, bottom);
             });
@@ -207,12 +207,11 @@ fn iteration_sep_bounds(width : int, height : int, range : int,
         if (i == 2) right = clamp_upper;
 
         let bounds = Bounds2DRow[i];
-        let dim = (bounds[1] - bounds[0], height, 1);
+        let dim = (bounds[1] - bounds[0], height/unroll, 1);
 
         opencl(1, dim, block, || -> void {
             let tid_x = int64_to_int32(get_global_id(0));
             let tid_y = int64_to_int32(get_local_id(1)) + int64_to_int32(get_local_size(1) * get_group_id(1)) * unroll;
-
 
             @iterate(0, unroll, |i : int| -> void {
                 body_row(tid_x + bounds[0], tid_y + i * int64_to_int32(get_local_size(1)), left, right, clamp_none, clamp_none);

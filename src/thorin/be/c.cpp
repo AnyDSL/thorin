@@ -148,10 +148,10 @@ void CCodeGen::emit() {
 
     // emit lambda and tuple declarations
     for (auto scope : scopes) {
+        Schedule schedule = schedule_smart(*scope);
+
         // tuple declarations
         for (auto lambda : scope->rpo()) {
-            Schedule schedule = schedule_smart(*scope);
-
             for (auto param : lambda->params()) {
                 emit_aggop_decl(param->type());
                 primops_[param->gid()] = param->unique_name();

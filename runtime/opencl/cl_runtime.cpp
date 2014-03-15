@@ -110,7 +110,7 @@ class Memory {
     }
     mem_id map_memory(size_t dev, void *from, cl_mem to, mem_type type) {
         mem_ info = host_mems_[from];
-        return map_memory(dev, from, to, type, 0, 0, 0, info.width, info.height, 0);
+        return map_memory(dev, from, to, type, 0, 0, 0, info.width, info.height, 1);
     }
 
     void *get_host_mem(size_t dev, mem_id id) { return mmap[dev][id].cpu; }
@@ -700,7 +700,7 @@ void read_buffer_size(size_t dev, mem_id mem, void *host, size_t ox, size_t oy, 
 }
 void read_buffer(size_t dev, mem_id mem, void *host) {
     mem_ info = host_mems_[host];
-    return read_buffer_size(dev, mem, host, 0, 0, 0, info.width, info.height, 0);
+    return read_buffer_size(dev, mem, host, 0, 0, 0, info.width, info.height, 1);
 }
 
 
@@ -809,7 +809,7 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, 
     mem_type type = (mem_type)type_;
     mem_ info = host_mems_[from];
 
-    assert(oz==0 && sz==0 && "3D memory not yet supported");
+    assert(oz==0 && sz==1 && "3D memory not yet supported");
 
     mem_id mem = mem_manager.get_id(dev, from);
     if (mem) {

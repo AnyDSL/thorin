@@ -31,7 +31,6 @@ private:
     World& world_;
     LangType lang_;
     HashMap<int, std::string> primops_;
-    HashSet<int> gparams_;
 };
 
 std::ostream& CCodeGen::emit_type(const Type* type) {
@@ -73,6 +72,13 @@ std::ostream& CCodeGen::emit_type(const Type* type) {
         stream() << "} array_" << array->gid() << ";";
         return stream();
     } else if (auto ptr = type->isa<Ptr>()) {
+        if (lang_==OPENCL) {
+            switch (ptr->addr_space()) {
+                default: break;
+                case AddressSpace::Global: stream() << "__global "; break;
+                case AddressSpace::Shared: stream() << "__local ";  break;
+            }
+        }
         emit_type(ptr->referenced_type());
         stream() << '*';
         if (ptr->is_vector())
@@ -195,10 +201,6 @@ void CCodeGen::emit() {
         for (auto param : lambda->params()) {
             if (param->order() == 0 && !param->type()->isa<Mem>()) {
                 if (i++ > 0) stream() << ", ";
-                if (lang_==OPENCL && param->type()->isa<Ptr>()) {
-                    stream() << "__global ";
-                    gparams_.insert(param->gid());
-                }
                 emit_type(param->type());
                 primops_[param->gid()] = param->unique_name();
             }
@@ -247,10 +249,6 @@ void CCodeGen::emit() {
         for (auto param : lambda->params()) {
             if (param->order() == 0 && !param->type()->isa<Mem>()) {
                 if (i++ > 0) stream() << ", ";
-                if (lang_==OPENCL && param->type()->isa<Ptr>()) {
-                    stream() << "__global ";
-                    gparams_.insert(param->gid());
-                }
                 emit_type(param->type()) << " " << param->unique_name();
             }
         }
@@ -421,7 +419,6 @@ void CCodeGen::emit() {
     newline();
 
     primops_.clear();
-    gparams_.clear();
 }
 
 std::ostream& CCodeGen::emit(Def def) {
@@ -575,8 +572,6 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto lea = def->isa<LEA>()) {
-        if (lang_==OPENCL && gparams_.count(lea->ptr()->gid()))
-            stream() << "__global ";
         emit_type(lea->type()) << " " << lea->unique_name() << " = ";
         emit(lea->ptr()) << " + ";
         emit(lea->index()) << ";";

@@ -41,6 +41,7 @@ const DefNode* Def::deref() const {
 
 void DefNode::set_op(size_t i, Def def) {
     assert(!op(i) && "already set");
+    assert(def && "setting null pointer");
     auto node = *def;
     ops_[i] = node;
     if (isa<PrimOp>())

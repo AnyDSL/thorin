@@ -307,13 +307,14 @@ Def Lambda::fix(const Todo& todo) {
     for (auto pred : preds()) {
         assert(!pred->empty());
         assert(pred->direct_succs().size() == 1 && "critical edge");
+        auto def = pred->get_value(todo);
 
         // make potentially room for the new arg
         if (index >= pred->num_args())
             pred->resize(index+2);
 
         assert(!pred->arg(index) && "already set");
-        pred->set_op(index + 1, pred->get_value(todo));
+        pred->set_op(index + 1, def);
     }
 
     return try_remove_trivial_param(param);
@@ -361,4 +362,4 @@ Def Lambda::try_remove_trivial_param(const Param* param) {
     return same;
 }
 
-} // namespace thorin
+}

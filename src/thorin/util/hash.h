@@ -18,27 +18,16 @@ inline size_t is_power_of_2(size_t i) { return ((i != 0) && !(i & (i - 1))); }
 //------------------------------------------------------------------------------
 
 // magic numbers from http://www.isthe.com/chongo/tech/comp/fnv/index.html#FNV-param
-template<class T> struct FNV1 {};
-template<> struct FNV1<uint32_t> {
+template<int nu> struct FNV1 {};
+
+template<> struct FNV1<4> {
     static const uint32_t offset = 2166136261u;
     static const uint32_t prime  = 16777619u;
 };
-
-template<> struct FNV1<uint64_t> {
+template<> struct FNV1<8> {
     static const uint64_t offset = 14695981039346656037ull;
     static const uint64_t prime  = 1099511628211ull;
 };
-
-#ifdef __APPLE__
-// current workaround for Mac OS X:
-// uint64_t is defined as unsigned long long
-// uint32_t is defined as unsigned int
-// but size_t maps to unsigned long
-template<> struct FNV1<unsigned long> {
-    static const unsigned long offset = 14695981039346656037ull;
-    static const unsigned long prime  = 1099511628211ull;
-};
-#endif
 
 #define THORIN_SUPPORTED_HASH_TYPES \
     static_assert(std::is_signed<T>::value || std::is_unsigned<T>::value, \
@@ -53,7 +42,7 @@ size_t hash_combine(size_t seed, T val) {
     for (int i = 0; i < sizeof(T)/8; ++i) {
         T octet = val & T(0xff); // extract lower 8 bits
         seed ^= octet;
-        seed *= FNV1<size_t>::prime;
+        seed *= FNV1<sizeof(size_t)>::prime;
         val = val >> size_t(8);
     }
     return seed;
@@ -63,7 +52,7 @@ template<class T>
 size_t hash_combine(size_t seed, T* val) { return hash_combine(seed, uintptr_t(val)); }
 
 template<class T>
-size_t hash_begin(T val) { return hash_combine(FNV1<size_t>::offset, val); }
+size_t hash_begin(T val) { return hash_combine(FNV1<sizeof(size_t)>::offset, val); }
 
 template<class T> 
 struct Hash {

@@ -126,7 +126,7 @@ private:
         typedef typename Node::value_type value_type;
         typedef typename std::conditional<is_const, const value_type&, value_type&>::type reference;
         typedef typename std::conditional<is_const, const value_type*, value_type*>::type pointer;
-        typedef std::bidirectional_iterator_tag iterator_category;
+        typedef std::forward_iterator_tag iterator_category;
 
         iterator_base(Node** node, const HashTable* table) 
             : node_(node)

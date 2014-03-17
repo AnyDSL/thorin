@@ -268,14 +268,20 @@ public:
         else if (size_ < capacity_/size_t(4))
             rehash(capacity_/size_t(2));
 
+        Node** insert_pos = nullptr;
         auto& key = n->key();
-        for (size_t i = hash_function_(key), step = 0; true; i = (i + step++)) {
+        for (size_t i = hash_function_(key), step = 0; true; i += ++step) {
             size_t x = i & (capacity_-1);
             auto it = nodes_ + x;
-            if (*it == nullptr || *it == free_but_reused()) {
+            if (*it == nullptr) {
+                if (insert_pos == nullptr)
+                    insert_pos = it;
                 ++size_;
-                *it = n;
-                return std::make_pair(iterator(it, this), true);
+                *insert_pos = n;
+                return std::make_pair(iterator(insert_pos, this), true);
+            } else if (*it == free_but_reused()) {
+                if (insert_pos == nullptr)
+                    insert_pos = it;
             } else if (key_eq_((*it)->key(), key)) {
                 delete n;
                 return std::make_pair(iterator(it, this), false);
@@ -323,7 +329,7 @@ public:
 
     // find
     iterator find(const key_type& key) {
-        for (size_t i = hash_function_(key), step = 0; true; i = (i + step++)) {
+        for (size_t i = hash_function_(key), step = 0; true; i += ++step) {
             size_t x = i & (capacity_-1);
             auto it = nodes_ + x;
             if (*it == nullptr)
@@ -347,7 +353,7 @@ public:
         for (size_t i = 0; i != old_capacity; ++i) {
             if (is_valid(nodes_+i)) {
                 Node* old = nodes_[i];
-                for (size_t i = hash_function_(old->key()), step = 0; true; i = (i + step++)) {
+                for (size_t i = hash_function_(old->key()), step = 0; true; i += ++step) {
                     size_t x = i & (capacity_-1);
                     if (nodes[x] == nullptr) {
                         nodes[x] = old;

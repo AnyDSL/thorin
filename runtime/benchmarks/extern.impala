@@ -36,7 +36,7 @@ fn init_zero(arr : [float], width : int, height : int) -> void {
 fn init_rand(arr : [float], width : int, height : int) -> void {
     iterate(0, height, |y: int| -> void {
         iterate(0, width, |x: int| -> void {
-            arr[x + y*width] = random_val(width);
+            arr[x + y*width] = random_val(1024);
         });
     });
 }

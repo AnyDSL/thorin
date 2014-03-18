@@ -133,16 +133,25 @@ std::ostream& CCodeGen::emit_aggop_defs(Def def) {
 
 
 std::ostream& CCodeGen::emit_aggop_decl(const Type *type) {
+    if (primops_.count(type->gid())) return stream();
+
     if (auto pi = type->isa<Pi>())
         for (auto type : pi->elems()) emit_aggop_decl(type);
 
-    if (type->isa<Sigma>() || type->isa<DefArray>()) {
-        if (!primops_.count(type->gid())) {
-            emit_type(type);
-            newline();
-            primops_[type->gid()] = (type->isa<Sigma>()?"tuple_":"array_") +
-                std::to_string(type->gid());
-        }
+    // recurse into (multi-dimensional) array
+    if (auto array = type->isa<DefArray>()) {
+        emit_aggop_decl(array->elem_type());
+        emit_type(array);
+        primops_[type->gid()] = "array_" + std::to_string(type->gid());
+        newline();
+    }
+
+    // recurse into (multi-dimensional) tuple
+    if (auto tuple = type->isa<Sigma>()) {
+        for (auto elem : tuple->elems()) emit_aggop_decl(elem);
+        emit_type(tuple);
+        primops_[type->gid()] = "tuple_" + std::to_string(type->gid());
+        newline();
     }
 
     return stream();
@@ -468,8 +477,16 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto array = def->isa<ArrayAgg>()) {
-        if (array->is_const()) {
-            // DefArray is mapped to a struct
+        if (array->is_const()) { // DefArray is mapped to a struct
+            // recurse into multi-dimensional arrays and emit definitions of
+            // inlined arrays
+            for (size_t i = 0, e = array->size(); i != e; ++i)
+                if (auto subarray = array->op(i)->isa<ArrayAgg>())
+                    if (!primops_.count(subarray->gid())) {
+                        emit(subarray);
+                        newline();
+                    }
+
             emit_type(array->type()) << " " << array->unique_name() << " = {{";
             for (size_t i = 0, e = array->size(); i != e; ++i) {
                 if (i) stream() << ", ";

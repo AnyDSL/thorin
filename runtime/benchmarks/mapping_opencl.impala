@@ -34,13 +34,13 @@ fn iteration_bounds(width : int, height : int, range : int,
         (block[0]        , width - block[0], 0            , block[1]),
         (width - block[0], width           , 0            , block[1]),
 
+        (0               , block[0]        , block[1]     , hu - block[1]),
+        (block[0]        , width - block[0], block[1]     , hu - block[1]),
+        (width - block[0], width           , block[1]     , hu - block[1]),
+
         (0               , block[0]        , hu - block[1], hu),
         (block[0]        , width - block[0], hu - block[1], hu),
-        (width - block[0], width           , hu - block[1], hu),
-
-        (0               , block[0]        , block[1]     , hu - block[1]),
-        (width - block[0], width           , block[1]     , hu - block[1]),
-        (block[0]        , width - block[0], block[1]     , hu - block[1])
+        (width - block[0], width           , hu - block[1], hu)
     ];
 
     @iterate(0, 9, |i : int| -> void {
@@ -49,42 +49,28 @@ fn iteration_bounds(width : int, height : int, range : int,
         let mut top = clamp_none;
         let mut bottom = clamp_none;
         // 0 --- 1 --- 2
-        // 6 --- 8 --- 7
         // 3 --- 4 --- 5
+        // 6 --- 7 --- 8
 
         // left
-        if (i == 0) {
-            left = clamp_lower;
-            top = clamp_lower;
-        }
-        if (i == 6) {
-            left = clamp_lower;
-        }
-        if (i == 3) {
-            left = clamp_lower;
-            bottom = clamp_upper;
-        }
-        // top + bottom
-        if (i == 1)
-            top = clamp_lower;
-        if (i == 4)
-            bottom = clamp_upper;
+        if (i == 0) left = clamp_lower;
+        if (i == 3) left = clamp_lower;
+        if (i == 6) left = clamp_lower;
+
+        // top
+        if (i == 0) top = clamp_lower;
+        if (i == 1) top = clamp_lower;
+        if (i == 2) top = clamp_lower;
+
         // right
-        if (i == 2) {
-            right = clamp_upper;
-            top = clamp_lower;
-        }
-        if (i == 7) {
-            right = clamp_upper;
-        }
-        if (i == 5) {
-            right = clamp_upper;
-            bottom = clamp_upper;
-        }
-        // center case
-        if(i == 8) {
-            // ignore this case
-        }
+        if (i == 2) right = clamp_upper;
+        if (i == 5) right = clamp_upper;
+        if (i == 8) right = clamp_upper;
+
+        // bottom
+        if (i == 6) bottom = clamp_upper;
+        if (i == 7) bottom = clamp_upper;
+        if (i == 8) bottom = clamp_upper;
 
         let bounds = Bounds2D[i];
         let dim = (bounds[1] - bounds[0], bounds[3] - bounds[2], 1);
@@ -94,7 +80,7 @@ fn iteration_bounds(width : int, height : int, range : int,
             let tid_y = int64_to_int32(get_local_id(1)) + int64_to_int32(get_local_size(1) * get_group_id(1)) * unroll;
 
             @iterate(0, unroll, |i : int| -> void {
-                body(tid_x + bounds[0], tid_y + (bounds[2] + i) * int64_to_int32(get_local_size(1)), left, right, top, bottom);
+                body(tid_x + bounds[0], tid_y + bounds[2] + i * int64_to_int32(get_local_size(1)), left, right, top, bottom);
             });
         });
     });
@@ -159,11 +145,6 @@ fn iteration_sep_bounds(width : int, height : int, range : int,
     else bhr = bhr / unroll + 1;
     let block = (128, bhr, 1);
 
-    let Bounds2DRow = [
-        (0               , block[0]),
-        (block[0]        , width - block[0]),
-        (width - block[0], width)
-    ];
     let hu = height / unroll;
     let Bounds2DCol = [
         (0               , block[1]),
@@ -191,10 +172,16 @@ fn iteration_sep_bounds(width : int, height : int, range : int,
             let tid_y = int64_to_int32(get_local_id(1)) + int64_to_int32(get_local_size(1) * get_group_id(1)) * unroll;
 
             @iterate(0, unroll, |i : int| -> void {
-                body_col(tid_x, tid_y + (bounds[0] + i) * int64_to_int32(get_local_size(1)), clamp_none, clamp_none, top, bottom);
+                body_col(tid_x, tid_y + bounds[0] + i * int64_to_int32(get_local_size(1)), clamp_none, clamp_none, top, bottom);
             });
         });
     });
+
+    let Bounds2DRow = [
+        (0               , block[0]),
+        (block[0]        , width - block[0]),
+        (width - block[0], width)
+    ];
 
     @iterate(0, 3, |i : int| -> void {
         let mut left = clamp_none;

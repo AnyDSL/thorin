@@ -6,7 +6,9 @@
 #include <fstream>
 #include <iostream>
 #include <unordered_map>
+#include <vector>
 
+#define BENCH
 
 // define dim3
 struct dim3 {
@@ -306,7 +308,7 @@ void get_tex_ref(size_t dev, const char *name) {
 
 void bind_tex(size_t dev, mem_id mem, CUarray_format format) {
     void *host = mem_manager.get_host_mem(dev, mem);
-    CUdeviceptr dev_mem = mem_manager.get_dev_mem(dev, mem);
+    CUdeviceptr &dev_mem = mem_manager.get_dev_mem(dev, mem);
     mem_ info = host_mems_[host];
     checkErrDrv(cuTexRefSetFormat(cuTextures[dev], format, 1), "cuTexRefSetFormat()");
     checkErrDrv(cuTexRefSetFlags(cuTextures[dev], CU_TRSF_READ_AS_INTEGER), "cuTexRefSetFlags()");
@@ -345,7 +347,7 @@ void free_memory(size_t dev, mem_id mem) {
 
     std::cerr << " * free memory(" << dev << "): " << mem << std::endl;
 
-    CUdeviceptr dev_mem = mem_manager.get_dev_mem(dev, mem);
+    CUdeviceptr &dev_mem = mem_manager.get_dev_mem(dev, mem);
     err = cuMemFree(dev_mem);
     checkErrDrv(err, "cuMemFree()");
     mem_manager.remove(dev, mem);
@@ -357,7 +359,7 @@ void write_memory_size(size_t dev, mem_id mem, void *host, size_t ox, size_t oy,
     cuCtxPushCurrent(cuContexts[dev]);
     CUresult err = CUDA_SUCCESS;
     mem_ info = host_mems_[host];
-    CUdeviceptr dev_mem = mem_manager.get_dev_mem(dev, mem);
+    CUdeviceptr &dev_mem = mem_manager.get_dev_mem(dev, mem);
 
     std::cerr << " * write memory(" << dev << "):  " << mem << " <- " << host << " (" << ox << "," << oy << "," << oz << ")x(" << sx << "," << sy << "," << sz << ")" << std::endl;
 
@@ -375,7 +377,7 @@ void read_memory_size(size_t dev, mem_id mem, void *host, size_t ox, size_t oy, 
     cuCtxPushCurrent(cuContexts[dev]);
     CUresult err = CUDA_SUCCESS;
     mem_ info = host_mems_[host];
-    CUdeviceptr dev_mem = mem_manager.get_dev_mem(dev, mem);
+    CUdeviceptr &dev_mem = mem_manager.get_dev_mem(dev, mem);
 
     std::cerr << " * read memory(" << dev << "):   " << mem << " -> " << host << " (" << ox << "," << oy << "," << oz << ")x(" << sx << "," << sy << "," << sz << ")" << std::endl;
 
@@ -425,9 +427,9 @@ void set_kernel_arg(size_t dev, void *param) {
 
 
 void set_kernel_arg_map(size_t dev, mem_id mem) {
-    CUdeviceptr *dev_mem = &mem_manager.get_dev_mem(dev, mem);
+    CUdeviceptr &dev_mem = mem_manager.get_dev_mem(dev, mem);
     std::cerr << " * set arg mapped(" << dev << "): " << mem << std::endl;
-    set_kernel_arg(dev, dev_mem);
+    set_kernel_arg(dev, &dev_mem);
 }
 
 
@@ -451,6 +453,10 @@ void launch_kernel(size_t dev, const char *kernel_name) {
     cuEventCreate(&end, event_flags);
 
     // launch the kernel
+    #ifdef BENCH
+    std::vector<float> timings;
+    for (size_t iter=0; iter<7; ++iter) {
+    #endif
     cuEventRecord(start, 0);
     err = cuLaunchKernel(cuFunctions[dev], grid.x, grid.y, grid.z, cuDimBlock[dev].x, cuDimBlock[dev].y, cuDimBlock[dev].z, 0, NULL, cuArgs[dev], NULL);
     checkErrDrv(err, error_string.c_str());
@@ -460,6 +466,10 @@ void launch_kernel(size_t dev, const char *kernel_name) {
     cuEventRecord(end, 0);
     cuEventSynchronize(end);
     cuEventElapsedTime(&time, start, end);
+    timings.emplace_back(time);
+    #ifdef BENCH
+    }
+    #endif
 
     std::cerr << "Kernel timing on device " << dev
               << " for '" << kernel_name << "' ("
@@ -467,7 +477,13 @@ void launch_kernel(size_t dev, const char *kernel_name) {
               << cuDimProblem[dev].x << "x" << cuDimProblem[dev].y << ", "
               << cuDimBlock[dev].x*cuDimBlock[dev].y << ": "
               << cuDimBlock[dev].x << "x" << cuDimBlock[dev].y << "): "
-              << time << "(ms)" << std::endl;
+              #ifdef BENCH
+              << "median of " << timings.size() << " runs: "
+              << timings[timings.size()/2]
+              #else
+              << time
+              #endif
+              << "(ms)" << std::endl;
 
     cuEventDestroy(start);
     cuEventDestroy(end);

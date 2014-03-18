@@ -14,6 +14,11 @@
 #include <unordered_map>
 #include <vector>
 
+#define BENCH
+#ifdef BENCH
+std::vector<std::pair<size_t, void *>> kernel_args;
+#endif
+
 bool print_timing = true;
 
 // define machine as seen/used by OpenCL
@@ -442,7 +447,7 @@ void init_opencl() {
                 bool use_device = false;
                 if (c_pf_id == i && j == c_dev_id) {
                     devices_[c_dev] = devices[j];
-                    ctxts.push_back(std::make_tuple(j, c_dev, has_unified));
+                    ctxts.emplace_back(j, c_dev, has_unified);
                     if (++c_dev < n_dev) {
                         c_pf_id = the_machine[c_dev][0];
                         c_dev_id = the_machine[c_dev][1];
@@ -730,12 +735,15 @@ void set_kernel_arg(size_t dev, void *param, size_t size) {
     cl_int err = CL_SUCCESS;
     //std::cerr << " * set arg(" << dev << "): " << param << std::endl;
     err = clSetKernelArg(kernel, clArgIdx++, size, param);
+    #ifdef BENCH
+    kernel_args.emplace_back(size, param);
+    #endif
     checkErr(err, "clSetKernelArg()");
 }
 
 
 void set_kernel_arg_map(size_t dev, mem_id mem) {
-    cl_mem dev_mem = mem_manager.get_dev_mem(dev, mem);
+    cl_mem &dev_mem = mem_manager.get_dev_mem(dev, mem);
     //std::cerr << " * set arg mapped(" << dev << "): " << mem << std::endl;
     set_kernel_arg(dev, &dev_mem, sizeof(dev_mem));
 }
@@ -745,11 +753,20 @@ void launch_kernel(size_t dev, const char *kernel_name) {
     cl_int err = CL_SUCCESS;
     cl_event event;
     cl_ulong end, start;
+    float time;
 
-    getMicroTime();
+    // launch the kernel
+    #ifdef BENCH
+    std::vector<float> timings;
+    for (size_t iter=0; iter<7; ++iter) {
+        // set kernel arguments
+        for (size_t j=0; j<kernel_args.size(); ++j) {
+            err |= clSetKernelArg(kernel, j, kernel_args.data()[j].first, kernel_args.data()[j].second);
+        }
+        checkErr(err, "clSetKernelArg()");
+    #endif
     err = clEnqueueNDRangeKernel(command_queues_[dev], kernel, 2, NULL, global_work_size, local_work_size, 0, NULL, &event);
     err |= clFinish(command_queues_[dev]);
-    getMicroTime();
     checkErr(err, "clEnqueueNDRangeKernel()");
 
     err = clWaitForEvents(1, &event);
@@ -757,6 +774,12 @@ void launch_kernel(size_t dev, const char *kernel_name) {
     err = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);
     err |= clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
     checkErr(err, "clGetEventProfilingInfo()");
+    time = (end-start)*1.0e-6f;
+    timings.emplace_back(time);
+    #ifdef BENCH
+    }
+    kernel_args.clear();
+    #endif
 
     err = clReleaseEvent(event);
     checkErr(err, "clReleaseEvent()");
@@ -768,7 +791,13 @@ void launch_kernel(size_t dev, const char *kernel_name) {
                   << global_work_size[0] << "x" << global_work_size[1] << ", "
                   << local_work_size[0]*local_work_size[1] << ": "
                   << local_work_size[0] << "x" << local_work_size[1] << "): "
-                  << (end-start)*1.0e-6f << "(ms)" << std::endl;
+                  #ifdef BENCH
+                  << "median of " << timings.size() << " runs: "
+                  << timings[timings.size()/2]
+                  #else
+                  << time
+                  #endif
+                  << "(ms)" << std::endl;
     }
 
     // reset argument index

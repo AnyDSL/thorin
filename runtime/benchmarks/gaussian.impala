@@ -233,8 +233,8 @@ fn main() -> int {
 
     for (let mut y=0; y<height; ++y) {
         for (let mut x=0; x<width; ++x) {
-            let ref = apply_stencil(range, stencil, x, y, arr, width, height,
-                                    clamp_lower, clamp_upper, clamp_lower, clamp_upper);
+            let ref = @apply_stencil(range, stencil, x, y, arr,
+                                     width, height, 10);
             let mut diff = ref - out[x + y*width];
             if (diff < 0.0f) diff = -diff;
             if (diff > 0.01f) passed++;

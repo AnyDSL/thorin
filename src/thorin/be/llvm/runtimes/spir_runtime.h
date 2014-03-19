@@ -19,7 +19,7 @@ public:
     virtual llvm::Value* set_config_size(llvm::Value* device, llvm::Value* x, llvm::Value* y, llvm::Value* z);
     virtual llvm::Value* synchronize(llvm::Value* device);
 
-    virtual llvm::Value* set_kernel_arg(llvm::Value* device, llvm::Value* ptr);
+    virtual llvm::Value* set_kernel_arg(llvm::Value* device, llvm::Value* ptr, llvm::Type* type);
     virtual llvm::Value* set_kernel_arg_map(llvm::Value* device, llvm::Value* mem);
     virtual llvm::Value* set_texture(llvm::Value* device, llvm::Value* mem, llvm::Value* name, PrimTypeKind type);
     virtual llvm::Value* load_kernel(llvm::Value* device, llvm::Value* module, llvm::Value* data);
@@ -27,9 +27,6 @@ public:
 
 protected:
     virtual std::string get_module_name(Lambda*);
-
-private:
-    llvm::Value* size_of_kernel_arg_;
 };
 
 }

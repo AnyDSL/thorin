@@ -51,7 +51,7 @@ public:
     virtual llvm::Value* synchronize(llvm::Value* device) = 0;
 
     // void set_kernel_arg(void* ptr);
-    virtual llvm::Value* set_kernel_arg(llvm::Value* device, llvm::Value* ptr) = 0;
+    virtual llvm::Value* set_kernel_arg(llvm::Value* device, llvm::Value* ptr, llvm::Type* type) = 0;
     // void set_kernel_arg_map(void* ptr);
     virtual llvm::Value* set_kernel_arg_map(llvm::Value* device, llvm::Value* ptr) = 0;
     // void set_texture(void* ptr, i8* name, type);

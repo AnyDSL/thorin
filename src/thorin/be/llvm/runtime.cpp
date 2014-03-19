@@ -90,7 +90,7 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
             auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name);
             builder_.CreateStore(target_val, alloca);
             auto void_ptr = builder_.CreateBitCast(alloca, builder_.getInt8PtrTy());
-            set_kernel_arg(target_device_val, void_ptr);
+            set_kernel_arg(target_device_val, void_ptr, target_val->getType());
         }
     }
     const auto get_u64 = [&](Def def) { return builder_.CreateSExt(code_gen.lookup(def), builder_.getInt64Ty()); };

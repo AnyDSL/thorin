@@ -159,7 +159,7 @@ public:
     const GenericDecls& generics() const { return generics_; }
     bool is_extern() const { return extern_; }
     bool is_continuation() const { return orig_fntype()->return_type()->isa<NoRet>() != nullptr; }
-    bool is_lambda() const { return symbol_ == thorin::Symbol("<lambda>"); }
+    bool is_lambda() const { return symbol_ == thorin::Symbol("lambda"); }
     thorin::Lambda* lambda() const { return lambda_; }
     const thorin::Param* ret_param() const { return ret_param_; }
     void check_head(Sema&) const;

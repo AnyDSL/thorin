@@ -112,6 +112,13 @@ void PartialEvaluator::eval(Lambda* cur) {
                 if (auto lambda = cur->args().back()->isa_lambda()) {
                     cur = lambda;
                     continue;
+                } else if (dst->attribute().is(Lambda::Builtin)) {
+                    for (size_t i = cur->num_args(); i-- != 0;) {
+                        if (auto lambda = cur->arg(i)->isa_lambda()) {
+                            cur = lambda;
+                            goto next_lambda;
+                        }
+                    }
                 }
             }
             return;
@@ -143,6 +150,7 @@ void PartialEvaluator::eval(Lambda* cur) {
                 }
             }
         }
+next_lambda:;
     }
 }
 

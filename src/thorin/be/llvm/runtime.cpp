@@ -90,10 +90,10 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
             auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name);
             builder_.CreateStore(target_val, alloca);
             auto void_ptr = builder_.CreateBitCast(alloca, builder_.getInt8PtrTy());
-            set_kernel_arg(target_device_val, void_ptr);
+            set_kernel_arg(target_device_val, void_ptr, target_val->getType());
         }
     }
-    const auto get_u64 = [&](Def def) { return builder_.getInt64(def->as<PrimLit>()->qu64_value()); };
+    const auto get_u64 = [&](Def def) { return builder_.CreateSExt(code_gen.lookup(def), builder_.getInt64Ty()); };
 
     // setup configuration and launch
     set_problem_size(target_device_val, get_u64(it_space->op(0)), get_u64(it_space->op(1)), get_u64(it_space->op(2)));

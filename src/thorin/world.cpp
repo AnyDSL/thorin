@@ -23,7 +23,6 @@
 #include "thorin/transform/merge_lambdas.h"
 #include "thorin/transform/partial_evaluation.h"
 #include "thorin/util/array.h"
-#include "thorin/be/thorin.h"
 
 #if (defined(__clang__) || defined(__GNUC__)) && (defined(__x86_64__) || defined(__i386__))
 #define THORIN_BREAK asm("int3");
@@ -892,15 +891,14 @@ void World::cleanup() { cleanup_world(*this); }
 
 void World::opt() {
     cleanup();
-    lower2cff(*this);
-    clone_bodies(*this);
-    mem2reg(*this);
     partial_evaluation(*this);
     merge_lambdas(*this);
     cleanup();
     lower2cff(*this);
-    memmap_builtins(*this);
+    clone_bodies(*this);
+    mem2reg(*this);
     lift_builtins(*this);
+    memmap_builtins(*this);
     inliner(*this);
     merge_lambdas(*this);
     cleanup();

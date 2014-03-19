@@ -14,10 +14,7 @@ fn iteration(width : int, height : int, body : fn(int, int) -> void) -> void {
 }
 
 fn iteration_bounds(width : int, height : int, range : int,
-                    clamp_lower : fn(int, int) -> int,
-                    clamp_upper : fn(int, int) -> int,
-                    clamp_none : fn(int, int) -> int,
-                    body : fn(int, int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int) -> void
+                    body : fn(int, int, int) -> void
                    ) -> void {
     // define the unroll factor
     let unroll = 1;
@@ -43,36 +40,8 @@ fn iteration_bounds(width : int, height : int, range : int,
         (width - block[0], width           , hu - block[1], hu)
     ];
 
-    @iterate(0, 9, |i : int| -> void {
-        let mut left = clamp_none;
-        let mut right = clamp_none;
-        let mut top = clamp_none;
-        let mut bottom = clamp_none;
-        // 0 --- 1 --- 2
-        // 3 --- 4 --- 5
-        // 6 --- 7 --- 8
-
-        // left
-        if (i == 0) left = clamp_lower;
-        if (i == 3) left = clamp_lower;
-        if (i == 6) left = clamp_lower;
-
-        // top
-        if (i == 0) top = clamp_lower;
-        if (i == 1) top = clamp_lower;
-        if (i == 2) top = clamp_lower;
-
-        // right
-        if (i == 2) right = clamp_upper;
-        if (i == 5) right = clamp_upper;
-        if (i == 8) right = clamp_upper;
-
-        // bottom
-        if (i == 6) bottom = clamp_upper;
-        if (i == 7) bottom = clamp_upper;
-        if (i == 8) bottom = clamp_upper;
-
-        let bounds = Bounds2D[i];
+    @iterate(0, 9, |region : int| -> void {
+        let bounds = Bounds2D[region];
         let dim = (bounds[1] - bounds[0], bounds[3] - bounds[2], 1);
 
         spir(1, dim, block, || -> void {
@@ -80,7 +49,7 @@ fn iteration_bounds(width : int, height : int, range : int,
             let tid_y = int64_to_int32(get_local_id(1)) + int64_to_int32(get_local_size(1) * get_group_id(1)) * unroll;
 
             @iterate(0, unroll, |i : int| -> void {
-                body(tid_x + bounds[0], tid_y + bounds[2] + i * int64_to_int32(get_local_size(1)), left, right, top, bottom);
+                body(tid_x + bounds[0], tid_y + bounds[2] * unroll + i * int64_to_int32(get_local_size(1)), region);
             });
         });
     });
@@ -131,11 +100,8 @@ fn iteration_sep(width : int, height : int,
 }
 
 fn iteration_sep_bounds(width : int, height : int, range : int,
-                    clamp_lower : fn(int, int) -> int,
-                    clamp_upper : fn(int, int) -> int,
-                    clamp_none : fn(int, int) -> int,
-                    body_col : fn(int, int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int) -> void,
-                    body_row : fn(int, int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int) -> void
+                    body_col : fn(int, int, int) -> void,
+                    body_row : fn(int, int, int) -> void
                    ) -> void {
     // define the unroll factor
     let unroll = 1;
@@ -152,19 +118,8 @@ fn iteration_sep_bounds(width : int, height : int, range : int,
         (hu - block[1]   , hu)
     ];
 
-    @iterate(0, 3, |i : int| -> void {
-        let mut top = clamp_none;
-        let mut bottom = clamp_none;
-        // 0
-        // 1
-        // 2
-
-        // top
-        if (i == 0) top = clamp_lower;
-        // bottom
-        if (i == 2) bottom = clamp_upper;
-
-        let bounds = Bounds2DCol[i];
+    @iterate(0, 3, |region : int| -> void {
+        let bounds = Bounds2DCol[region];
         let dim = (width, bounds[1] - bounds[0], 1);
 
         spir(1, dim, block, || -> void {
@@ -172,7 +127,7 @@ fn iteration_sep_bounds(width : int, height : int, range : int,
             let tid_y = int64_to_int32(get_local_id(1)) + int64_to_int32(get_local_size(1) * get_group_id(1)) * unroll;
 
             @iterate(0, unroll, |i : int| -> void {
-                body_col(tid_x, tid_y + bounds[0] + i * int64_to_int32(get_local_size(1)), clamp_none, clamp_none, top, bottom);
+                body_col(tid_x, tid_y + bounds[0] * unroll + i * int64_to_int32(get_local_size(1)), region);
             });
         });
     });
@@ -183,17 +138,8 @@ fn iteration_sep_bounds(width : int, height : int, range : int,
         (width - block[0], width)
     ];
 
-    @iterate(0, 3, |i : int| -> void {
-        let mut left = clamp_none;
-        let mut right = clamp_none;
-        // 0 --- 1 --- 2
-
-        // left
-        if (i == 0) left = clamp_lower;
-        // right
-        if (i == 2) right = clamp_upper;
-
-        let bounds = Bounds2DRow[i];
+    @iterate(0, 3, |region : int| -> void {
+        let bounds = Bounds2DRow[region];
         let dim = (bounds[1] - bounds[0], height/unroll, 1);
 
         spir(1, dim, block, || -> void {
@@ -201,7 +147,7 @@ fn iteration_sep_bounds(width : int, height : int, range : int,
             let tid_y = int64_to_int32(get_local_id(1)) + int64_to_int32(get_local_size(1) * get_group_id(1)) * unroll;
 
             @iterate(0, unroll, |i : int| -> void {
-                body_row(tid_x + bounds[0], tid_y + i * int64_to_int32(get_local_size(1)), left, right, clamp_none, clamp_none);
+                body_row(tid_x + bounds[0], tid_y + i * int64_to_int32(get_local_size(1)), region);
             });
         });
     });

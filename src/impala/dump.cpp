@@ -121,10 +121,13 @@ std::ostream& Fun::print(Printer& p) const {
 
 std::ostream& Literal::print(Printer& p) const {
     switch (kind()) {
-#define IMPALA_LIT(itype, atype) \
-        case LIT_##itype: return p.stream() << box().get_##atype();
-#include "impala/tokenlist.h"
-        case LIT_bool: return p.stream() << (box().get_bool() ? "true" : "false");
+        case LIT_int8:   return p.stream() <<  box().get_ps8()  << 'b';
+        case LIT_int16:  return p.stream() <<  box().get_ps16() << 's';
+        case LIT_int32:  return p.stream() <<  box().get_ps32();
+        case LIT_int64:  return p.stream() <<  box().get_ps64() << 'l';
+        case LIT_float:  return p.stream() << box().get_pf32() << (float((long(box().get_pf32()))) - box().get_pf32() == 0.f ? ".f" : "f");
+        case LIT_double: return p.stream() << box().get_pf64();
+        case LIT_bool:   return p.stream() << (box().get_bool() ? "true" : "false");
         default: THORIN_UNREACHABLE;
     }
 }

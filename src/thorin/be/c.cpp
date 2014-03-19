@@ -20,17 +20,24 @@ public:
         : Printer(stream)
         , world_(world)
         , lang_(lang)
+        , process_kernel(false)
     {}
 
     void emit();
+private:
+    World& world_;
+    LangType lang_;
+    HashMap<size_t, std::string> globals_;
+    HashMap<size_t, std::string> primops_;
+
     std::ostream& emit_aggop_defs(Def def);
     std::ostream& emit_aggop_decl(const Type *type);
     std::ostream& emit_type(const Type* type);
     std::ostream& emit(Def def);
-private:
-    World& world_;
-    LangType lang_;
-    HashMap<int, std::string> primops_;
+    bool lookup(size_t gid);
+    void insert(size_t gid, std::string str);
+    std::string &get_name(size_t gid);
+    bool process_kernel;
 };
 
 std::ostream& CCodeGen::emit_type(const Type* type) {
@@ -43,8 +50,7 @@ std::ostream& CCodeGen::emit_type(const Type* type) {
     } else if (type->isa<Pi>()) {
         THORIN_UNREACHABLE;
     } else if (auto sigma = type->isa<Sigma>()) {
-        if (primops_.count(sigma->gid()))
-            return stream() << primops_[sigma->gid()];
+        if (lookup(sigma->gid())) return stream() << get_name(sigma->gid());
         stream() << "typedef struct tuple_" << sigma->gid() << " {";
         ++indent;
         size_t i = 0;
@@ -63,8 +69,7 @@ std::ostream& CCodeGen::emit_type(const Type* type) {
         emit_type(array->elem_type());
         return stream();
     } else if (auto array = type->isa<DefArray>()) { // DefArray is mapped to a struct
-        if (primops_.count(array->gid()))
-            return stream() << primops_[array->gid()];
+        if (lookup(array->gid())) return stream() << get_name(array->gid());
         stream() << "typedef struct array_" << array->gid() << " {";
         ++indent; newline();
         emit_type(array->elem_type()) << " e[" << array->dim() << "];";
@@ -107,7 +112,7 @@ std::ostream& CCodeGen::emit_type(const Type* type) {
 
 
 std::ostream& CCodeGen::emit_aggop_defs(Def def) {
-    if (primops_.count(def->gid())) return stream();
+    if (lookup(def->gid())) return stream();
 
     // recurse into (multi-dimensional) array
     if (auto array = def->isa<ArrayAgg>()) {
@@ -132,7 +137,7 @@ std::ostream& CCodeGen::emit_aggop_defs(Def def) {
 
 
 std::ostream& CCodeGen::emit_aggop_decl(const Type *type) {
-    if (primops_.count(type->gid())) return stream();
+    if (lookup(type->gid())) return stream();
 
     if (auto pi = type->isa<Pi>())
         for (auto type : pi->elems()) emit_aggop_decl(type);
@@ -141,7 +146,7 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type *type) {
     if (auto array = type->isa<DefArray>()) {
         emit_aggop_decl(array->elem_type());
         emit_type(array);
-        primops_[type->gid()] = "array_" + std::to_string(type->gid());
+        insert(type->gid(), "array_" + std::to_string(type->gid()));
         newline();
     }
 
@@ -149,7 +154,7 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type *type) {
     if (auto tuple = type->isa<Sigma>()) {
         for (auto elem : tuple->elems()) emit_aggop_decl(elem);
         emit_type(tuple);
-        primops_[type->gid()] = "tuple_" + std::to_string(type->gid());
+        insert(type->gid(), "tuple_" + std::to_string(type->gid()));
         newline();
     }
 
@@ -168,7 +173,7 @@ void CCodeGen::emit() {
         for (auto lambda : scope->rpo()) {
             for (auto param : lambda->params()) {
                 emit_aggop_decl(param->type());
-                primops_[param->gid()] = param->unique_name();
+                insert(param->gid(), param->unique_name());
             }
 
             for (auto primop : schedule[lambda]) {
@@ -210,7 +215,7 @@ void CCodeGen::emit() {
             if (param->order() == 0 && !param->type()->isa<Mem>()) {
                 if (i++ > 0) stream() << ", ";
                 emit_type(param->type());
-                primops_[param->gid()] = param->unique_name();
+                insert(param->gid(), param->unique_name());
             }
         }
         stream() << ");";
@@ -226,6 +231,7 @@ void CCodeGen::emit() {
 
     // emit connected functions first
     std::stable_sort(scopes.begin(), scopes.end(), [] (Scope* s1, Scope* s2) { return s1->entry()->is_connected_to_builtin(); });
+    process_kernel = true;
 
     for (auto ptr_scope : scopes) {
         auto& scope = *ptr_scope;
@@ -415,11 +421,14 @@ void CCodeGen::emit() {
         stream() << "}";
         newline();
         newline();
+
+        primops_.clear();
     }
 
     stream() << "int int64_to_int32(long tid) { return (int)tid; }";
     newline();
 
+    globals_.clear();
     primops_.clear();
 }
 
@@ -428,8 +437,7 @@ std::ostream& CCodeGen::emit(Def def) {
         return stream() << "goto l" << lambda->gid() << ";";
     }
 
-    if (primops_.count(def->gid()))
-        return stream() << primops_[def->gid()];
+    if (lookup(def->gid())) return stream() << get_name(def->gid());
 
     if (auto bin = def->isa<BinOp>()) {
         emit_type(def->type()) << " " << def->unique_name() << " = ";
@@ -461,7 +469,7 @@ std::ostream& CCodeGen::emit(Def def) {
         }
         emit(bin->rhs());
         stream() << ";";
-        primops_[def->gid()] = def->unique_name();
+        insert(def->gid(), def->unique_name());
         return stream();
     }
 
@@ -482,7 +490,7 @@ std::ostream& CCodeGen::emit(Def def) {
                 emit(array->op(i));
             }
             stream() << "}};";
-            primops_[def->gid()] = def->unique_name();
+            insert(def->gid(), def->unique_name());
             return stream();
         }
         THORIN_UNREACHABLE;
@@ -499,7 +507,7 @@ std::ostream& CCodeGen::emit(Def def) {
             emit(tuple->op(i));
         }
         stream() << "};";
-        primops_[def->gid()] = def->unique_name();
+        insert(def->gid(), def->unique_name());
         return stream();
     }
 
@@ -512,24 +520,24 @@ std::ostream& CCodeGen::emit(Def def) {
                 emit_type(aggop->type()) << " " << aggop->unique_name() << " = ";
                 emit(aggop->agg()) << ".e";
                 emit(aggop->index()) << ";";
-                primops_[def->gid()] = def->unique_name();
+                insert(def->gid(), def->unique_name());
             } else {
                 emit(aggop->agg()) << ".e";
                 emit(aggop->index()) << " = ";
                 emit(aggop->as<Insert>()->value()) << ";";
-                primops_[def->gid()] = aggop->agg()->unique_name();
+                insert(def->gid(), aggop->agg()->unique_name());
             }
         } else if (aggop->agg_type()->isa<ArrayType>()) {
             if (aggop->isa<Extract>()) {
                 emit_type(aggop->type()) << " " << aggop->unique_name() << " = ";
                 emit(aggop->agg()) << ".e[";
                 emit(aggop->index()) << "];";
-                primops_[def->gid()] = def->unique_name();
+                insert(def->gid(), def->unique_name());
             } else {
                 emit(aggop->agg()) << ".e[";
                 emit(aggop->index()) << "] = ";
                 emit(aggop->as<Insert>()->value()) << ";";
-                primops_[def->gid()] = aggop->agg()->unique_name();
+                insert(def->gid(), aggop->agg()->unique_name());
             }
         } else {
             THORIN_UNREACHABLE;
@@ -558,7 +566,7 @@ std::ostream& CCodeGen::emit(Def def) {
         emit_type(load->type()) << " " << load->unique_name() << " = *";
         emit(load->ptr()) << ";";
 
-        primops_[def->gid()] = def->unique_name();
+        insert(def->gid(), def->unique_name());
         return stream();
     }
 
@@ -567,12 +575,17 @@ std::ostream& CCodeGen::emit(Def def) {
         emit(store->ptr()) << " = ";
         emit(store->val()) << ";";
 
-        primops_[def->gid()] = def->unique_name();
+        insert(def->gid(), def->unique_name());
         return stream();
     }
 
-    if (def->isa<Slot>())
-        THORIN_UNREACHABLE;
+    if (auto slot = def->isa<Slot>()) {
+        emit_type(slot->ptr_type()->referenced_type()) << " " << slot->unique_name() << "_slot;";
+        newline();
+        emit_type(slot->ptr_type()->referenced_type()) << "* " << slot->unique_name() << " = &" << slot->unique_name() << "_slot;";
+        insert(def->gid(), def->unique_name());
+        return stream();
+    }
 
     if (def->isa<Enter>() || def->isa<Leave>())
         return stream();
@@ -586,11 +599,26 @@ std::ostream& CCodeGen::emit(Def def) {
         emit(lea->ptr()) << " + ";
         emit(lea->index()) << ";";
 
-        primops_[def->gid()] = def->unique_name();
+        insert(def->gid(), def->unique_name());
         return stream();
     }
 
     THORIN_UNREACHABLE;
+}
+
+bool CCodeGen::lookup(size_t gid) {
+    if (globals_.count(gid)) return true;
+    if (primops_.count(gid)) return true;
+    return false;
+}
+std::string &CCodeGen::get_name(size_t gid) {
+    if (globals_.count(gid)) return globals_[gid];
+    if (primops_.count(gid)) return primops_[gid];
+    assert(false && "couldn't find def");
+}
+void CCodeGen::insert(size_t gid, std::string str) {
+    if (process_kernel) primops_[gid] = str;
+    else globals_[gid] = str;
 }
 
 //------------------------------------------------------------------------------

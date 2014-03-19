@@ -6,10 +6,7 @@ namespace thorin {
 
 SpirRuntime::SpirRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder)
     : KernelRuntime(context, target, builder, llvm::IntegerType::getInt64Ty(context), "spir.s")
-{
-    AutoPtr<llvm::DataLayout> dl(new llvm::DataLayout(target));
-    size_of_kernel_arg_ = builder_.getInt64(dl->getTypeAllocSize(llvm::Type::getInt8PtrTy(context)));
-}
+{}
 
 llvm::Value* SpirRuntime::malloc(llvm::Value* device, llvm::Value* ptr) {
     llvm::Value* malloc_args[] = { device, builder_.CreateBitCast(ptr, builder_.getInt8PtrTy()) };
@@ -46,8 +43,9 @@ llvm::Value* SpirRuntime::synchronize(llvm::Value* device) {
     return builder_.CreateCall(get("spir_synchronize"), { device });
 }
 
-llvm::Value* SpirRuntime::set_kernel_arg(llvm::Value* device, llvm::Value* ptr) {
-    llvm::Value* arg_args[] = { device, ptr, size_of_kernel_arg_ };
+llvm::Value* SpirRuntime::set_kernel_arg(llvm::Value* device, llvm::Value* ptr, llvm::Type* type) {
+    AutoPtr<llvm::DataLayout> dl(new llvm::DataLayout(target_));
+    llvm::Value* arg_args[] = { device, ptr, builder_.getInt64(dl->getTypeAllocSize(type)) };
     return builder_.CreateCall(get("spir_set_kernel_arg"), arg_args);
 }
 

@@ -17,6 +17,7 @@
 #define BENCH
 #ifdef BENCH
 std::vector<std::pair<size_t, void *>> kernel_args;
+float total_timing = 0.0f;
 #endif
 
 bool print_timing = true;
@@ -775,10 +776,11 @@ void launch_kernel(size_t dev, const char *kernel_name) {
     err |= clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
     checkErr(err, "clGetEventProfilingInfo()");
     time = (end-start)*1.0e-6f;
-    timings.emplace_back(time);
     #ifdef BENCH
+    timings.emplace_back(time);
     }
     kernel_args.clear();
+    total_timing += timings[timings.size()/2];
     #endif
 
     err = clReleaseEvent(event);
@@ -906,6 +908,10 @@ float random_val(int max) {
 int main(int argc, char *argv[]) {
     init_opencl();
 
-    return main_impala();
+    int ret = main_impala();
+    #ifdef BENCH
+    std::cerr << "total timing: " << total_timing << " (ms)" << std::endl;
+    #endif
+    return ret;
 }
 

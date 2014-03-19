@@ -17,6 +17,10 @@ namespace thorin {
 Scope::Scope(World& world, ArrayRef<Lambda*> entries)
     : world_(world)
 {
+#ifndef NDEBUG
+    for (auto entry : entries) assert(!entry->is_proxy());
+#endif
+
     identify_scope(entries);
     build_succs();
 
@@ -52,7 +56,8 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
         if (!in_scope_.contains(entry)) {
             std::queue<Def> queue;
 
-            auto insert = [&] (Lambda* lambda) {
+            auto insert_lambda = [&] (Lambda* lambda) {
+                assert(!lambda->is_proxy());
                 for (auto param : lambda->params()) {
                     if (!param->is_proxy()) {
                         in_scope_.insert(param);
@@ -64,7 +69,7 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
                 rpo_.push_back(lambda);
             };
 
-            insert(entry);
+            insert_lambda(entry);
             in_scope_.insert(entry);
 
             while (!queue.empty()) {
@@ -73,7 +78,7 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
                 for (auto use : def->uses()) {
                     if (!in_scope_.contains(use)) {
                         if (auto ulambda = use->isa_lambda())
-                            insert(ulambda);
+                            insert_lambda(ulambda);
                         in_scope_.insert(use);
                         queue.push(use);
                     }
@@ -116,6 +121,7 @@ void Scope::uce(Lambda* entry) {
     };
 
     for (auto lambda : rpo_) {
+        assert(!lambda->is_proxy());
         if (!set.contains(lambda))
             insert(lambda);
     }

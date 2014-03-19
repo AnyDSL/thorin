@@ -10,79 +10,45 @@ fn iteration(width: int, height: int, body: fn(int, int) -> void) -> void {
     getMicroTime();
 }
 
-fn iteration_bounds(width : int, height : int,
-                    clamp_lower : fn(int, int) -> int,
-                    clamp_upper : fn(int, int) -> int,
-                    clamp_none : fn(int, int) -> int,
-                    body : fn(int, int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int, fn(int, int) -> int) -> void
+fn iteration_bounds(width : int, height : int, range : int,
+                    body : fn(int, int, int) -> void
                    ) -> void {
+    let L = 8;
+
+    // compute the number of vector strides for boundary handling
+    let bhy = range / 2;
+    let mut bhx = range / 2;
+    if (bhx % L == 0) bhx = bhx / L;
+    else bhx = bhx / L + L;
+
     // (minx, maxx, miny, maxy)
     let Bounds2D = [
-        (0        , 1        , 0         , 1),
-        (1        , width - 1, 0         , 1),
-        (width - 1, width    , 0         , 1),
+        (0          , bhx        , 0           , bhy),
+        (bhx        , width - bhx, 0           , bhy),
+        (width - bhx, width      , 0           , bhy),
 
-        (0        , 1        , height - 1, height),
-        (1        , width - 1, height - 1, height),
-        (width - 1, width    , height - 1, height),
+        (0          , bhx        , bhy         , height - bhy),
+        (bhx        , width - bhx, bhy         , height - bhy),
+        (width - bhx, width      , bhy         , height - bhy),
 
-        (0        , 1        , 1         , height - 1),
-        (width - 1, width    , 1         , height - 1),
-        (1        , width - 1, 1         , height - 1)
+        (0          , bhx        , height - bhy, height),
+        (bhx        , width - bhx, height - bhy, height),
+        (width - bhx, width      , height - bhy, height)
     ];
 
-    @iterate(0, 9, |i : int| -> void {
-        let mut left = clamp_none;
-        let mut right = clamp_none;
-        let mut top = clamp_none;
-        let mut bottom = clamp_none;
-        // 0 --- 1 --- 2
-        // 6 --- 8 --- 7
-        // 3 --- 4 --- 5
-
-        // left
-        if (i == 0) {
-            left = clamp_lower;
-            top = clamp_lower;
-        }
-        if (i == 6) {
-            left = clamp_lower;
-        }
-        if (i == 3) {
-            left = clamp_lower;
-            bottom = clamp_upper;
-        }
-        // top + bottom
-        if (i == 1)
-            top = clamp_lower;
-        if (i == 4)
-            bottom = clamp_upper;
-        // right
-        if (i == 2) {
-            right = clamp_upper;
-            top = clamp_lower;
-        }
-        if (i == 7) {
-            right = clamp_upper;
-        }
-        if (i == 5) {
-            right = clamp_upper;
-            bottom = clamp_upper;
-        }
-        // center case
-        if(i == 8) {
-            // ignore this case
-        }
-
-        let bounds = Bounds2D[i];
+    getMicroTime();
+    @iterate(0, 9, |region : int| -> void {
+        let bounds = Bounds2D[region];
         let dim = (bounds[1] - bounds[0], bounds[3] - bounds[2], 1);
 
         $iterate(bounds[2], bounds[3], |y: int| -> void {
-            $iterate(bounds[0], bounds[1], |x: int| -> void {
-                body(x, y, left, right, top, bottom);
+            $vectorized(bounds[1]-bounds[0], L, || -> void {
+                let x = wfv_get_tid();
+                body(x, y, region);
             });
         });
     });
+    getMicroTime();
 }
 
 fn iteration_sep(width : int, height : int,

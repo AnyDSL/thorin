@@ -24,7 +24,7 @@ Lambda* CodeGen::emit_vectorized(llvm::Function* current, Lambda* lambda) {
     assert(lambda->num_args() > 5 && "required arguments are missing");
 
     // vector length
-    u32 count = lambda->arg(1)->as<PrimLit>()->qu32_value();
+    auto count = lookup(lambda->arg(1));
     u32 vector_length = lambda->arg(2)->as<PrimLit>()->qu32_value();
     assert(vector_length >= 4 && "vector_length >= 4");
 
@@ -57,7 +57,7 @@ Lambda* CodeGen::emit_vectorized(llvm::Function* current, Lambda* lambda) {
     builder_.CreateBr(header);
     builder_.SetInsertPoint(header);
     // create conditional branch
-    llvm::Value* cond = builder_.CreateICmpSLT(loop_counter, builder_.getInt32(count));
+    llvm::Value* cond = builder_.CreateICmpSLT(loop_counter, count);
     builder_.CreateCondBr(cond, body, exit);
     // set body
     builder_.SetInsertPoint(body);

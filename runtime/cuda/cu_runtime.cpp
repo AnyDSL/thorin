@@ -9,6 +9,9 @@
 #include <vector>
 
 #define BENCH
+#ifdef BENCH
+float total_timing = 0.0f;
+#endif
 
 // define dim3
 struct dim3 {
@@ -469,6 +472,7 @@ void launch_kernel(size_t dev, const char *kernel_name) {
     timings.emplace_back(time);
     #ifdef BENCH
     }
+    total_timing += timings[timings.size()/2];
     #endif
 
     std::cerr << "Kernel timing on device " << dev
@@ -576,6 +580,10 @@ float random_val(int max) {
 int main(int argc, char *argv[]) {
     init_cuda();
 
-    return main_impala();
+    int ret = main_impala();
+    #ifdef BENCH
+    std::cerr << "total timing: " << total_timing << " (ms)" << std::endl;
+    #endif
+    return ret;
 }
 

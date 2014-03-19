@@ -111,9 +111,8 @@ std::ostream& CCodeGen::emit_aggop_defs(Def def) {
 
     // recurse into (multi-dimensional) array
     if (auto array = def->isa<ArrayAgg>()) {
-        for (size_t i = 0, e = array->size(); i != e; ++i) {
+        for (size_t i = 0, e = array->size(); i != e; ++i)
             emit_aggop_defs(array->op(i));
-        }
         emit(array);
         newline();
     }
@@ -337,15 +336,9 @@ void CCodeGen::emit() {
             } else {
                 Lambda* to_lambda = lambda->to()->as_lambda();
 
-                // emit inlined tuples before the call operation
-                for (auto arg : lambda->args()) {
-                    if (arg->isa<ArrayAgg>() || arg->isa<Tuple>()) {
-                        if (!primops_.count(arg->gid())) {
-                            emit(arg);
-                            newline();
-                        }
-                    }
-                }
+                // emit inlined arrays/tuples before the call operation
+                for (auto arg : lambda->args()) emit_aggop_defs(arg);
+
                 if (to_lambda->is_basicblock()) {    // ordinary jump
                     assert(to_lambda->num_params()==lambda->num_args());
                     size_t size = to_lambda->num_params();
@@ -479,13 +472,9 @@ std::ostream& CCodeGen::emit(Def def) {
     if (auto array = def->isa<ArrayAgg>()) {
         if (array->is_const()) { // DefArray is mapped to a struct
             // recurse into multi-dimensional arrays and emit definitions of
-            // inlined arrays
+            // inlined elements
             for (size_t i = 0, e = array->size(); i != e; ++i)
-                if (auto subarray = array->op(i)->isa<ArrayAgg>())
-                    if (!primops_.count(subarray->gid())) {
-                        emit(subarray);
-                        newline();
-                    }
+                emit_aggop_defs(array->op(i));
 
             emit_type(array->type()) << " " << array->unique_name() << " = {{";
             for (size_t i = 0, e = array->size(); i != e; ++i) {
@@ -500,6 +489,10 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto tuple = def->isa<Tuple>()) {
+        // recurse into nested tuple and emit definitions of inlined elements
+        for (size_t i = 0, e = tuple->ops().size(); i != e; ++i)
+            emit_aggop_defs(tuple->op(i));
+
         emit_type(tuple->type()) << " " << tuple->unique_name() << " = {";
         for (size_t i = 0, e = tuple->ops().size(); i != e; ++i) {
             if (i) stream() << ", ";

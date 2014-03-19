@@ -299,8 +299,8 @@ const Type* PrefixExpr::check(Sema& sema) const {
             return sema.typetable().type_bool();
         case RUN:
         case HLT:
-            if (!(rhs_type->isa<FnType>()))
-                sema.error(rhs()) << "evaluation expression expects function type\n";
+            //if (!(rhs_type->isa<FnType>()))
+                //sema.error(rhs()) << "evaluation expression expects function type\n";
             return rhs_type;
         default:
             return rhs_type;

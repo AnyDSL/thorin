@@ -147,6 +147,8 @@ Slot::Slot(const Type* type, Def frame, size_t index, const std::string& name)
     set_op(0, frame);
 }
 
+const Ptr* Slot::ptr_type() const { return type()->as<Ptr>(); }
+
 //------------------------------------------------------------------------------
 
 Global::Global(Def init, bool is_mutable, const std::string& name)

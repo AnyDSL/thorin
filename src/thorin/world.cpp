@@ -893,6 +893,7 @@ void World::cleanup() { cleanup_world(*this); }
 void World::opt() {
     cleanup();
     lower2cff(*this);
+    lift_builtins(*this);
     clone_bodies(*this);
     mem2reg(*this);
     partial_evaluation(*this);
@@ -900,7 +901,6 @@ void World::opt() {
     cleanup();
     lower2cff(*this);
     memmap_builtins(*this);
-    lift_builtins(*this);
     inliner(*this);
     merge_lambdas(*this);
     cleanup();

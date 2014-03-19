@@ -776,8 +776,8 @@ void launch_kernel(size_t dev, const char *kernel_name) {
     err |= clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, 0);
     checkErr(err, "clGetEventProfilingInfo()");
     time = (end-start)*1.0e-6f;
-    timings.emplace_back(time);
     #ifdef BENCH
+    timings.emplace_back(time);
     }
     kernel_args.clear();
     total_timing += timings[timings.size()/2];

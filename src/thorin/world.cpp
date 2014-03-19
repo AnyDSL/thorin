@@ -892,15 +892,13 @@ void World::cleanup() { cleanup_world(*this); }
 
 void World::opt() {
     cleanup();
+    partial_evaluation(*this);
+    cleanup();
+    merge_lambdas(*this);
     lower2cff(*this);
     clone_bodies(*this);
     mem2reg(*this);
     lift_builtins(*this);
-    cleanup();
-    partial_evaluation(*this);
-    merge_lambdas(*this);
-    cleanup();
-    lower2cff(*this);
     memmap_builtins(*this);
     inliner(*this);
     merge_lambdas(*this);

@@ -280,6 +280,7 @@ private:
 public:
     Def frame() const { return op(0); }
     size_t index() const { return index_; }
+    const Ptr* ptr_type() const { return type()->as<Ptr>(); }
 
     virtual size_t hash() const { return hash_combine(PrimOp::hash(), index()); }
     virtual bool equal(const PrimOp* other) const {

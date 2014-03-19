@@ -893,9 +893,10 @@ void World::cleanup() { cleanup_world(*this); }
 void World::opt() {
     cleanup();
     lower2cff(*this);
-    lift_builtins(*this);
     clone_bodies(*this);
     mem2reg(*this);
+    lift_builtins(*this);
+    cleanup();
     partial_evaluation(*this);
     merge_lambdas(*this);
     cleanup();

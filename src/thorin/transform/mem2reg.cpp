@@ -29,6 +29,12 @@ void mem2reg(const Scope& scope) {
         for (auto primop : schedule[lambda]) {
             auto def = Def(primop);
             if (auto slot = def->isa<Slot>()) {
+                // evil HACK
+                if (slot->name == "sum_xxx") {
+                    addresses[slot] = size_t(-1);     // mark as "address taken"
+                    goto next_primop;
+                }
+
                 // are all users loads and store?
                 for (auto use : slot->uses()) {
                     if (!use->isa<Load>() && !use->isa<Store>()) {

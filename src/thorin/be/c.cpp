@@ -579,8 +579,13 @@ std::ostream& CCodeGen::emit(Def def) {
         return stream();
     }
 
-    if (def->isa<Slot>())
-        THORIN_UNREACHABLE;
+    if (auto slot = def->isa<Slot>()) {
+        emit_type(slot->ptr_type()->referenced_type()) << " " << slot->unique_name() << "_slot;";
+        newline();
+        emit_type(slot->ptr_type()->referenced_type()) << "* " << slot->unique_name() << " = &" << slot->unique_name() << "_slot;";
+        insert(def->gid(), def->unique_name());
+        return stream();
+    }
 
     if (def->isa<Enter>() || def->isa<Leave>())
         return stream();

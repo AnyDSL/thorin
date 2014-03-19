@@ -1,0 +1,25 @@
+extern array(int, int, int) -> [float];
+
+fn iterate(a : int, b : int, yield : fn(int, fn())) -> void {
+    let mut i: int = a;
+    while (i < b)
+        yield(i++, || { continue; });
+}
+
+fn foo(i: int) -> float {
+    if (i == 0)
+        return 23.f;
+    else
+        return 42.f;
+}
+
+fn main(i: int) -> int {
+    let mut arr = array(4, 100, 100);
+
+    let unroll = 100;
+    @iterate(0, unroll, |x : int| -> void {
+        arr[0] = foo(i);
+    });
+
+    return 0;
+}

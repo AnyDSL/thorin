@@ -99,13 +99,27 @@ fn apply_stencil_sep(range : int, stencil : [float * 5], x : int, y : int,
     return sum_xxx;
 }
 
-fn apply_stencil_row_cpu(range : int, stencil : [float * 5],
-                         x : int, y : int, arr : [float], width : int) -> float {
+fn apply_stencil_row_cpu(range : int, stencil : [float * 5], x : int, y : int,
+                         arr : [float], width : int, height : int, region : int
+                        ) -> float {
     let mut sum_xxx = 0.0f;
     let half_range = range / 2;
     iterate(-half_range, half_range+1, |i : int| -> void {
         let stencil_val = stencil[i + half_range];
-        sum_xxx += arr[x + i] * stencil_val;
+        let mut idx_x = x + i;
+        // 0 --- 1 --- 2
+
+        // left
+        if (region == 0) idx_x = clamp_lower(idx_x, 0);
+        // right
+        if (region == 2) idx_x = clamp_upper(idx_x, width);
+
+        // all in
+        if (region == 10) {
+            idx_x = clamp_lower(idx_x, 0);
+            idx_x = clamp_upper(idx_x, width);
+        }
+        sum_xxx += arr[idx_x] * stencil_val;
     });
 
     return sum_xxx;
@@ -215,16 +229,29 @@ fn main() -> int {
     //    }
     //);
 
-    //// CPU variant
-    //iteration_sep_advanced(width, height, arr, out,
+    //// CPU variant: IL + SS
+    //@iteration_sep_advanced(width, height, arr, out,
     //    |x : int, y : int, arr : [float], out : [float]| -> void {
     //        let is_row = false;
-    //        out[x] = @apply_stencil_sep(range, stencil_sep, x, y, arr, width,
-    //                                    height, is_row, clamp_none, clamp_none);
+    //        out[x] = apply_stencil_sep(range, stencil_sep, x, y, arr, width,
+    //                                   height, is_row, 10);
     //    },
     //    |x : int, y : int, arr : [float], out : [float]| -> void {
-    //        let is_row = true;
-    //        out[y*width + x] = @apply_stencil_row_cpu(range, stencil_sep, x, y, arr, width);
+    //        out[y*width + x] = apply_stencil_row_cpu(range, stencil_sep, x, y,
+    //                                                 arr, width, height, 10);
+    //    }
+    //);
+
+    //// CPU variant IL + SS + BH
+    //@iteration_sep_bounds_advanced(width, height, arr, out, range,
+    //    |x : int, y : int, arr : [float], out : [float], region : int| -> void {
+    //        let is_row = false;
+    //        out[x] = apply_stencil_sep(range, stencil_sep, x, y, arr, width,
+    //                                   height, is_row, 10);
+    //    },
+    //    |x : int, y : int, arr : [float], out : [float], region : int| -> void {
+    //        out[y*width + x] = apply_stencil_row_cpu(range, stencil_sep, x, y,
+    //                                                 arr, width, height, 10);
     //    }
     //);
 

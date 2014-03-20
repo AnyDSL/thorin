@@ -1,8 +1,10 @@
 fn iteration(width: int, height: int, body: fn(int, int) -> void) -> void {
     getMicroTime();
-    for (let mut y=0; y<height; ++y)
-        for (let mut x=0; x<width; ++x)
+    $iterate(0, height, |y: int| -> void {
+        $iterate(0, width, |x: int| -> void {
             body(x, y);
+        });
+    });
     getMicroTime();
 }
 
@@ -25,7 +27,7 @@ fn iteration_bounds(width : int, height : int, range : int,
         (bhr        , width - bhr, bhr         , height - bhr)
     ];
 
-    @iterate(0, 9, |region : int| -> void {
+    iterate(0, 9, |region : int| -> void {
         let bounds = Bounds2D[region];
         $iterate(bounds[2], bounds[3], |y: int| -> void {
             $iterate(bounds[0], bounds[1], |x: int| -> void {
@@ -40,13 +42,17 @@ fn iteration_sep(width : int, height : int,
                  body_row : fn(int, int) -> void
                 ) -> void {
     getMicroTime();
-    for (let mut y=0; y<height; ++y)
-        for (let mut x=0; x<width; ++x)
+    $iterate(0, height, |y: int| -> void {
+        $iterate(0, width, |x: int| -> void {
             body_col(x, y);
+        });
+    });
 
-    for (let mut y=0; y<height; ++y)
-        for (let mut x=0; x<width; ++x)
+    $iterate(0, height, |y: int| -> void {
+        $iterate(0, width, |x: int| -> void {
             body_row(x, y);
+        });
+    });
     getMicroTime();
 }
 
@@ -62,26 +68,26 @@ fn iteration_sep_bounds(width : int, height : int, range : int,
         (height - bhr, height)
     ];
 
-    getMicroTime();
-    @iterate(0, 3, |region : int| -> void {
-        let bounds = Bounds2DCol[region];
-        $iterate(0, height, |y: int| -> void {
-            $iterate(bounds[0], bounds[1], |x: int| -> void {
-                body_col(x, y, region);
-            });
-        });
-    });
-
     let Bounds2DRow = [
         (0          , bhr),
         (bhr        , width - bhr),
         (width - bhr, width)
     ];
 
-    @iterate(0, 3, |region : int| -> void {
-        let bounds = Bounds2DRow[region];
+    getMicroTime();
+    iterate(0, 3, |region : int| -> void {
+        let bounds = Bounds2DCol[region];
         $iterate(bounds[0], bounds[1], |y: int| -> void {
             $iterate(0, width, |x: int| -> void {
+                body_col(x, y, region);
+            });
+        });
+    });
+
+    iterate(0, 3, |region : int| -> void {
+        let bounds = Bounds2DRow[region];
+        $iterate(0, height, |y: int| -> void {
+            $iterate(bounds[0], bounds[1], |x: int| -> void {
                 body_row(x, y, region);
             });
         });
@@ -95,16 +101,62 @@ fn iteration_sep_advanced(width : int, height : int,
                           body_col : fn(int, int, [float], [float]) -> void,
                           body_row : fn(int, int, [float], [float]) -> void
                          ) -> void {
+    getMicroTime();
     let tmp = array(4, width, 1);
 
-    getMicroTime();
-    for (let mut y=1; y<height-1; ++y) {
-        for (let mut x=0; x<width; ++x)
+    $iterate(0, height, |y: int| -> void {
+        $iterate(0, width, |x: int| -> void {
             body_col(x, y, arr, tmp);
-        for (let mut x=0; x<width; ++x)
+        });
+        $iterate(0, width, |x: int| -> void {
             body_row(x, y, tmp, out);
-    }
-    getMicroTime();
+        });
+    });
 
     free_array(tmp);
+    getMicroTime();
+}
+
+fn iteration_sep_bounds_advanced(width : int, height : int, arr : [float],
+                                 out : [float], range : int,
+                                 body_col : fn(int, int, [float], [float], int) -> void,
+                                 body_row : fn(int, int, [float], [float], int) -> void
+                               ) -> void {
+    let bhr = range / 2;
+
+    let Bounds2DCol = [
+        (0           , bhr),
+        (bhr         , height - bhr),
+        (height - bhr, height)
+    ];
+
+    let Bounds2DRow = [
+        (0          , bhr),
+        (bhr        , width - bhr),
+        (width - bhr, width)
+    ];
+
+    getMicroTime();
+    let tmp = array(4, width, 1);
+
+    iterate(0, 3, |region_col : int| -> void {
+        let bounds_col = Bounds2DCol[region_col];
+        $iterate(bounds_col[0], bounds_col[1], |y: int| -> void {
+            iterate(0, 3, |region_row : int| -> void {
+                let bounds_row = Bounds2DRow[region_row];
+                $iterate(bounds_row[0], bounds_row[1], |x: int| -> void {
+                    body_col(x, y, arr, tmp, region_col);
+                });
+            });
+            iterate(0, 3, |region_row : int| -> void {
+                let bounds_row = Bounds2DRow[region_row];
+                $iterate(bounds_row[0], bounds_row[1], |x: int| -> void {
+                    body_row(x, y, tmp, out, region_row);
+                });
+            });
+        });
+    });
+
+    free_array(tmp);
+    getMicroTime();
 }

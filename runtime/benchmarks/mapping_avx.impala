@@ -1,12 +1,12 @@
 fn iteration(width: int, height: int, body: fn(int, int) -> void) -> void {
     let L = 8;
     getMicroTime();
-    for (let mut y=0; y<height; ++y) {
+    $iterate(0, height, |y: int| -> void {
         vectorized(width, L, || -> void {
             let x = wfv_get_tid();
             body(x, y);
         });
-    }
+    });
     getMicroTime();
 }
 
@@ -37,12 +37,12 @@ fn iteration_bounds(width : int, height : int, range : int,
     ];
 
     getMicroTime();
-    @iterate(0, 9, |region : int| -> void {
+    iterate(0, 9, |region : int| -> void {
         let bounds = Bounds2D[region];
         let dim = (bounds[1] - bounds[0], bounds[3] - bounds[2], 1);
 
         $iterate(bounds[2], bounds[3], |y: int| -> void {
-            $vectorized(bounds[1]-bounds[0], L, || -> void {
+            vectorized(bounds[1]-bounds[0], L, || -> void {
                 let x = wfv_get_tid();
                 body(x, y, region);
             });

@@ -132,38 +132,38 @@ fn main() -> int {
 
 
     // SS
-    iteration(width, height,
+    @iteration(width, height,
         |x : int, y : int| -> void {
-            out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width,
+            out[y*width + x] = apply_stencil(range, stencil, x, y, arr, width,
                                               height, 10);
         }
     );
 
     //// SS + BH
-    //iteration_bounds(width, height, range,
+    //@iteration_bounds(width, height, range,
     //    |x : int, y : int, region : int| -> void {
-    //        out[y*width + x] = @apply_stencil(range, stencil, x, y, arr,
-    //                                          width, height, region);
+    //        out[y*width + x] = apply_stencil(range, stencil, x, y, arr,
+    //                                         width, height, region);
     //    }
     //);
 
     //// SS + SEP
     //let mut tmp0 = array(4, width, height);
     //init_zero(tmp0, width, height);
-    //iteration_sep(width, height,
+    //@iteration_sep(width, height,
     //    |x : int, y : int| -> void {
     //        // col component
     //        let is_row = false;
-    //        tmp0[y*width + x] = @apply_stencil_sep(range, stencil_sep, x, y,
+    //        tmp0[y*width + x] = apply_stencil_sep(range, stencil_sep, x, y,
     //                                              arr, width, height, is_row,
-    //                                              clamp_lower, clamp_upper);
+    //                                              10);
     //    },
     //    |x : int, y : int| -> void {
     //        // row component
     //        let is_row = true;
-    //        out[y*width + x] = @apply_stencil_sep(range, stencil_sep, x, y,
-    //                                              tmp0, width, height, is_row,
-    //                                              clamp_lower, clamp_upper);
+    //        out[y*width + x] = apply_stencil_sep(range, stencil_sep, x, y,
+    //                                             tmp0, width, height, is_row,
+    //                                             10);
     //    }
     //);
     //free_array(tmp0);
@@ -171,20 +171,20 @@ fn main() -> int {
     //// SS + SEP + BH
     //let mut tmp1 = array(4, width, height);
     //init_zero(tmp1, width, height);
-    //iteration_sep_bounds(width, height, range,
+    //@iteration_sep_bounds(width, height, range,
     //    |x : int, y : int, region : int| -> void {
     //        // col component
     //        let is_row = false;
-    //        tmp1[y*width + x] = @apply_stencil_sep(range, stencil_sep, x, y,
-    //                                              arr, width, height, is_row,
-    //                                              region);
+    //        tmp1[y*width + x] = apply_stencil_sep(range, stencil_sep, x, y,
+    //                                             arr, width, height, is_row,
+    //                                             region);
     //    },
     //    |x : int, y : int, region : int| -> void {
     //        // row component
     //        let is_row = true;
-    //        out[y*width + x] = @apply_stencil_sep(range, stencil_sep, x, y,
-    //                                              tmp1, width, height, is_row,
-    //                                              region);
+    //        out[y*width + x] = apply_stencil_sep(range, stencil_sep, x, y,
+    //                                             tmp1, width, height, is_row,
+    //                                             region);
     //    }
     //);
     //free_array(tmp1);

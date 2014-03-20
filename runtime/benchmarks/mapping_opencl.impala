@@ -40,7 +40,7 @@ fn iteration_bounds(width : int, height : int, range : int,
         (width - block[0], width           , hu - block[1], hu)
     ];
 
-    @iterate(0, 9, |region : int| -> void {
+    iterate(0, 9, |region : int| -> void {
         let bounds = Bounds2D[region];
         let dim = (bounds[1] - bounds[0], bounds[3] - bounds[2], 1);
 
@@ -82,20 +82,25 @@ fn iteration_sep(width : int, height : int,
                  body_col : fn(int, int) -> void,
                  body_row : fn(int, int) -> void
                 ) -> void {
-    let dim = (width, height, 1);
+    let unroll = 1;
+    let dim = (width, height/unroll, 1);
     let block = (128, 1, 1);
 
     opencl(1, dim, block, || -> void {
         let tid_x = int64_to_int32(get_global_id(0));
-        let tid_y = int64_to_int32(get_global_id(1));
+        let tid_y = int64_to_int32(get_local_id(1)) + int64_to_int32(get_local_size(1) * get_group_id(1)) * unroll;
 
-        body_col(tid_x, tid_y);
+        @iterate(0, unroll, |i : int| -> void {
+            body_col(tid_x, tid_y + i * int64_to_int32(get_local_size(1)));
+        });
     });
     opencl(1, dim, block, || -> void {
         let tid_x = int64_to_int32(get_global_id(0));
-        let tid_y = int64_to_int32(get_global_id(1));
+        let tid_y = int64_to_int32(get_local_id(1)) + int64_to_int32(get_local_size(1) * get_group_id(1)) * unroll;
 
-        body_row(tid_x, tid_y);
+        @iterate(0, unroll, |i : int| -> void {
+            body_row(tid_x, tid_y + i * int64_to_int32(get_local_size(1)));
+        });
     });
 }
 
@@ -118,7 +123,7 @@ fn iteration_sep_bounds(width : int, height : int, range : int,
         (hu - block[1]   , hu)
     ];
 
-    @iterate(0, 3, |region : int| -> void {
+    iterate(0, 3, |region : int| -> void {
         let bounds = Bounds2DCol[region];
         let dim = (width, bounds[1] - bounds[0], 1);
 
@@ -138,7 +143,7 @@ fn iteration_sep_bounds(width : int, height : int, range : int,
         (width - block[0], width)
     ];
 
-    @iterate(0, 3, |region : int| -> void {
+    iterate(0, 3, |region : int| -> void {
         let bounds = Bounds2DRow[region];
         let dim = (bounds[1] - bounds[0], height/unroll, 1);
 

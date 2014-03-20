@@ -109,38 +109,40 @@ void Scope::build_preds() {
 }
 
 void Scope::uce(Lambda* entry) {
-    auto set = ScopeView(*this, true).reachable(entry);
+    auto reachable = ScopeView(*this, true).reachable(entry);
+    // transitively mark all reachable stuff
 
-    // transitively erase all non-reachable stuff
+    DefSet new_in_scope;
     std::queue<Def> queue;
-    auto insert = [&] (Def def) { 
-        queue.push(def); 
-        if (Lambda* lambda = def->isa_lambda())
-            for (auto param : lambda->params())
-                queue.push(param);
+    auto enqueue = [&] (Def def) { 
+        assert(in_scope_.contains(def) && !new_in_scope.contains(def));
+        queue.push(def);
+        new_in_scope.insert(def);
     };
 
-    for (auto lambda : rpo_) {
-        assert(!lambda->is_proxy());
-        if (!set.contains(lambda))
-            insert(lambda);
+    for (auto lambda : reachable) {
+        for (auto param : lambda->params()) {
+            if (!param->is_proxy())
+                enqueue(param);
+        }
+
+        enqueue(lambda);
     }
 
     while (!queue.empty()) {
         Def def = queue.front();
         queue.pop();
-        in_scope_.erase(def);
-
-        for (auto use : def->uses()) {
-            if (contains(use))
-                insert(use);
+        for (auto op : def->ops()) {
+            if (in_scope_.contains(op) && !new_in_scope.contains(op))
+                enqueue(op);
         }
     }
 
-    rpo_.resize(set.size(), nullptr);
-    reverse_rpo_.resize(set.size(), nullptr);
-    std::copy(set.begin(), set.end(), rpo_.begin());
-    std::copy(set.begin(), set.end(), reverse_rpo_.begin());
+    rpo_.resize(reachable.size(), nullptr);
+    reverse_rpo_.resize(reachable.size(), nullptr);
+    std::copy(reachable.begin(), reachable.end(), rpo_.begin());
+    std::copy(reachable.begin(), reachable.end(), reverse_rpo_.begin());
+    swap(new_in_scope, in_scope_);
 
 #ifndef NDEBUG
     for (auto lambda : rpo_) 

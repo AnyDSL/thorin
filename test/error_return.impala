@@ -1,0 +1,11 @@
+fn f() -> void {
+}
+
+fn g() -> int {
+}
+
+fn h() {
+}
+
+fn i(a : int) {
+}

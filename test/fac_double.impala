@@ -1,4 +1,4 @@
-extern fn fac(n : double) -> double 
+fn fac(n : double) -> double 
 {
     if (n <= 1.0) 
         return 1.0;
@@ -8,4 +8,8 @@ extern fn fac(n : double) -> double
         r *= i;
 
     return r;
+}
+
+fn main(d: double) -> double {
+    return fac(d);
 }

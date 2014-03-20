@@ -94,6 +94,7 @@ Def World::literal(PrimTypeKind kind, int64_t value, size_t length) {
     Def lit;
     switch (kind) {
 #define THORIN_I_TYPE(T) case PrimType_##T:  lit = literal(T(value), 1); break;
+#define THORIN_F_TYPE(T) THORIN_I_TYPE(T)
 #include "thorin/tables/primtypetable.h"
                          case PrimType_bool: lit = literal(bool(value), 1); break;
             default: THORIN_UNREACHABLE;

@@ -1,5 +1,4 @@
-extern fn fac(n : float) -> float 
-{
+fn fac(n : float) -> float {
     if (n <= 1.f) 
         return 1.f;
 
@@ -8,4 +7,8 @@ extern fn fac(n : float) -> float
         r *= i;
 
     return r;
+}
+
+fn main(f: float) -> float {
+    return fac(f);
 }

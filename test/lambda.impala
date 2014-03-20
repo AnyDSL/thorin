@@ -1,4 +1,4 @@
-extern fn f(a : int) -> int {
+fn f(a : int) -> int {
     let mut i : int = 22;
     let mut j : int = 22;
     let mut b : bool = i == 23;
@@ -14,7 +14,7 @@ extern fn f(a : int) -> int {
         return g(g(42));
 }
 
-extern fn g(i : int) -> int {
+fn g(i : int) -> int {
     return |j : int| -> int { return j + 42 + i; }(23);
 }
 
@@ -22,9 +22,13 @@ fn foo(h : fn(int, fn(int))) -> int {
     return h(24);
 }
 
-extern fn bar(a : int) -> int {
+fn bar(a : int) -> int {
     let k : fn(int) -> int = |b : int| -> int {
         return a + b;
     };
     return foo(k);
+}
+
+fn main(i: int) -> int {
+    return bar(f(i));
 }

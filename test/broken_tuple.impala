@@ -1,10 +1,15 @@
-extern fn head(ir : sigma(int, int)) -> sigma(int, int, bool) {
+fn head(ir : (int, int)) -> (int, int, bool) {
     let mut i : int = ir[0];
     let mut r : int = ir[1];
     let mut n : int = 42;
 
     if (r == 17)
-        return (#(i, r, i <= n));
+        return (i, r, i <= n);
     else
-        return (#(i, r, i <= n));
+        return (i, r, i <= n);
+}
+
+
+fn main() -> int {
+    return head((1, 2))[1];
 }

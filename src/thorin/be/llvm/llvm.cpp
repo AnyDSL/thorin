@@ -374,7 +374,8 @@ llvm::Value* CodeGen::emit(Def def) {
         std::string& name = bin->name;
 
         if (auto cmp = bin->isa<Cmp>()) {
-            if (cmp->lhs()->type()->is_type_s()) {
+            auto type = cmp->lhs()->type();
+            if (type->is_type_s()) {
                 switch (cmp->cmp_kind()) {
                     case Cmp_eq: return builder_.CreateICmpEQ (lhs, rhs, name);
                     case Cmp_ne: return builder_.CreateICmpNE (lhs, rhs, name);
@@ -383,7 +384,7 @@ llvm::Value* CodeGen::emit(Def def) {
                     case Cmp_lt: return builder_.CreateICmpSLT(lhs, rhs, name);
                     case Cmp_le: return builder_.CreateICmpSLE(lhs, rhs, name);
                 }
-            } else if (cmp->lhs()->type()->is_type_u()) {
+            } else if (type->is_type_u()) {
                 switch (cmp->cmp_kind()) {
                     case Cmp_eq: return builder_.CreateICmpEQ (lhs, rhs, name);
                     case Cmp_ne: return builder_.CreateICmpNE (lhs, rhs, name);
@@ -392,7 +393,7 @@ llvm::Value* CodeGen::emit(Def def) {
                     case Cmp_lt: return builder_.CreateICmpULT(lhs, rhs, name);
                     case Cmp_le: return builder_.CreateICmpULE(lhs, rhs, name);
                 }
-            } else if (cmp->lhs()->type()->is_type_pf()) {
+            } else if (type->is_type_pf()) {
                 switch (cmp->cmp_kind()) {
                     case Cmp_eq: return builder_.CreateFCmpOEQ (lhs, rhs, name);
                     case Cmp_ne: return builder_.CreateFCmpONE (lhs, rhs, name);
@@ -401,7 +402,7 @@ llvm::Value* CodeGen::emit(Def def) {
                     case Cmp_lt: return builder_.CreateFCmpOLT (lhs, rhs, name);
                     case Cmp_le: return builder_.CreateFCmpOLE (lhs, rhs, name);
                 }
-            } else if (cmp->lhs()->type()->is_type_qf()) {
+            } else if (type->is_type_qf()) {
                 switch (cmp->cmp_kind()) {
                     case Cmp_eq: return builder_.CreateFCmpUEQ(lhs, rhs, name);
                     case Cmp_ne: return builder_.CreateFCmpUNE(lhs, rhs, name);
@@ -414,9 +415,10 @@ llvm::Value* CodeGen::emit(Def def) {
         }
 
         if (auto arithop = bin->isa<ArithOp>()) {
+            auto type = arithop->type();
             bool q = arithop->type()->is_type_q(); // quick? -> nsw/nuw/fast float
 
-            if (arithop->lhs()->type()->is_type_f()) {
+            if (type->is_type_f()) {
                 switch (arithop->arithop_kind()) {
                     case ArithOp_add: return builder_.CreateFAdd(lhs, rhs, name);
                     case ArithOp_sub: return builder_.CreateFSub(lhs, rhs, name);
@@ -431,7 +433,7 @@ llvm::Value* CodeGen::emit(Def def) {
                 }
             }
 
-            if (arithop->type()->is_type_s()) {
+            if (type->is_type_s() || type->is_bool()) {
                 switch (arithop->arithop_kind()) {
                     case ArithOp_add: return builder_.CreateAdd (lhs, rhs, name, false, q);
                     case ArithOp_sub: return builder_.CreateSub (lhs, rhs, name, false, q);
@@ -445,7 +447,7 @@ llvm::Value* CodeGen::emit(Def def) {
                     case ArithOp_shr: return builder_.CreateAShr(lhs, rhs, name);
                 }
             }
-            if (arithop->type()->is_type_u()) {
+            if (type->is_type_u() || type->is_bool()) {
                 switch (arithop->arithop_kind()) {
                     case ArithOp_add: return builder_.CreateAdd (lhs, rhs, name, q, false);
                     case ArithOp_sub: return builder_.CreateSub (lhs, rhs, name, q, false);

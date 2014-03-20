@@ -1,8 +1,11 @@
-extern fn f(i : int, dead : int) -> int {
+fn f(i : int, dead : int) -> int {
     return i;
 }
 
-extern fn g(i : int) -> int {
+fn g(i : int) -> int {
     return f(i, 42);
 }
 
+fn main(i: int) -> int {
+    return g(i);
+}

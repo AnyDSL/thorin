@@ -269,9 +269,10 @@ void load_kernel(size_t dev, const char *file_name, const char *kernel_name) {
     checkErrNvvm(err, "nvvmAddModuleToProgram()");
 
     int num_options = 1;
-    const char *options[2];
+    const char *options[3];
     options[0] = "-arch=compute_20";
     options[1] = "-ftz=1";
+    options[2] = "-g";
 
     err = nvvmCompileProgram(program, num_options, options);
     if (err != NVVM_SUCCESS) {

@@ -1,27 +1,37 @@
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <time.h>
 
-inline uint64_t rdtsc() {
-    uint32_t low, high;
-    __asm__ __volatile__ (
-        "xorl %%eax,%%eax \n    cpuid"
-        ::: "%rax", "%rbx", "%rcx", "%rdx" );
-    __asm__ __volatile__ (
-                            "rdtsc" : "=a" (low), "=d" (high));
-    return (uint64_t)high << 32 | low;
-}
-            
-static uint64_t start, end;
-void reset_and_start_timer() { start = rdtsc(); }
-void print_time() {
-    end = rdtsc();
-    printf("elapsed time: %d\n", (end-start) / (1024. * 1024.));
+int main_impala();
+
+void getMicroTime() {
+    static long global_time = 0;
+
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+
+    if (global_time==0) {
+        global_time = now.tv_sec*1000000LL + now.tv_nsec / 1000LL;
+    } else {
+        global_time = (now.tv_sec*1000000LL + now.tv_nsec / 1000LL) - global_time;
+        printf("\ttiming: %f(ms)\n", global_time * 1.0e-3);
+        global_time = 0;
+    }
 }
 
-void* array(int size) {
-    void* data;
-    posix_memalign(&data, 16, size*sizeof(float));
-    return data;
+void* array(int elem_size, int width, int height) {
+    void *mem;
+    posix_memalign(&mem, 32, elem_size * width * height);
+    return mem;
+}
+
+void free_array(void *host) {
+    free(host);
+}
+
+float random_val(int max) {
+    return ((float)random() / RAND_MAX) * max;
 }
 
 int main() {

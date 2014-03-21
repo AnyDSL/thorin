@@ -51,4 +51,3 @@ fn clamp_upper(idx : int, upper : int) -> int {
 fn clamp_none(idx : int, bound : int) -> int {
     return idx;
 }
-

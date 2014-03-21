@@ -124,30 +124,23 @@ void PartialEvaluator::eval(Lambda* cur) {
             return;
         } else {
             Call call(dst);
-            bool fold = false;
-            for (size_t i = 0; i != cur->num_args(); ++i) {
+            for (size_t i = 0; i != cur->num_args(); ++i)
                 call.arg(i) = cur->arg(i)->isa<Hlt>() ? nullptr : cur->arg(i);
-                fold |= call.arg(i) != nullptr;         // don't fold if there is nothing to fold
-            }
 
-            if (!fold) {                                // nothing to fold
-                cur = dst;
-            } else {
-                if (auto cached = find(cache_, call)) { // check for cached version
-                    rewrite_jump(cur, cached, call);
-                    return;
-                } else {                                // no cached version found... create a new one
-                    Scope scope(dst);
-                    Def2Def old2new;
-                    GenericMap generic_map;
-                    bool res = dst->type()->infer_with(generic_map, cur->arg_pi());
-                    assert(res);
-                    auto dropped = drop(scope, old2new, call.args(), generic_map);
-                    old2new[dst] = dropped;
-                    update_new2old(old2new);
-                    rewrite_jump(cur, dropped, call);
-                    cur = dropped;
-                }
+            if (auto cached = find(cache_, call)) { // check for cached version
+                rewrite_jump(cur, cached, call);
+                return;
+            } else {                                // no cached version found... create a new one
+                Scope scope(dst);
+                Def2Def old2new;
+                GenericMap generic_map;
+                bool res = dst->type()->infer_with(generic_map, cur->arg_pi());
+                assert(res);
+                auto dropped = drop(scope, old2new, call.args(), generic_map);
+                old2new[dst] = dropped;
+                update_new2old(old2new);
+                rewrite_jump(cur, dropped, call);
+                cur = dropped;
             }
         }
 next_lambda:;

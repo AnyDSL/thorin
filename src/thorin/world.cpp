@@ -11,8 +11,6 @@
 #include "thorin/literal.h"
 #include "thorin/memop.h"
 #include "thorin/type.h"
-#include "thorin/analyses/schedule.h"
-#include "thorin/analyses/scope.h"
 #include "thorin/transform/cleanup_world.h"
 #include "thorin/transform/clone_bodies.h"
 #include "thorin/transform/inliner.h"

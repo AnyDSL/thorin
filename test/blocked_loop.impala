@@ -19,18 +19,18 @@ fn blocked_loop(length: int, bodyfn: fn(int, fn(int))) -> int {
         let mut res = 0;
 
         fn rec(ii: int) {
-            res += @blocked_iter(cur_level + 1, ii, block_size);
-            if (ii < N)
+            if (ii < N) {
+                res += @blocked_iter(cur_level + 1, ii, block_size);
                 rec(ii + block_size);
-            else 
+            } else 
                 ret(res);
         }
-        $rec(i);
+        rec(i);
     }
 
     return blocked_iter(0, 0, length);
 }
 
 fn main(i: int) -> int {
-    return @blocked_loop(8192, $|i: int| -> int { return i+7; });
+    return @blocked_loop(8192, |i: int| -> int { return i+7; });
 }

@@ -373,8 +373,6 @@ public:
 private:
 #ifndef NDEBUG
     int id() const { return id_; }
-#else
-    int id() const { return 0; }
 #endif
     void destroy() {
         for (size_t i = 0, e = capacity_; i != e; ++i) {

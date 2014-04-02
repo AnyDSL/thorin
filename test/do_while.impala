@@ -1,21 +1,7 @@
 fn main(mut i: int) -> int {
     do {
-        if (i == 23)
-            break;
         ++i;
     } while (i < 42);
 
-    return foo(i);
-}
-
-fn foo(i: int) -> int {
-    if (i == 0)
-        return i;
-    return bar(i);
-}
-
-fn bar(i: int) -> int {
-    if (i == 0)
-        return i;
-    return foo(i);
+    return i;
 }

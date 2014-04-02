@@ -17,6 +17,45 @@ class World;
 
 //------------------------------------------------------------------------------
 
+class Var {
+public:
+    enum Kind {
+        Empty,
+        ValRef,
+        SlotRef
+    };
+
+    Var()
+        : kind_(Empty)
+        , builder_(nullptr)
+    {}
+    Var(IRBuilder& builder, size_t handle, const Type* type, const char* name);
+    Var(IRBuilder& builder, const Slot* slot);
+
+    const Kind kind() const { return kind_; }
+    Def load() const;
+    void store(Def val) const;
+    operator bool() { return kind() != Empty; }
+
+private:
+    Kind kind_;
+    IRBuilder* builder_;
+    union {
+        struct {
+            size_t handle_;
+            const Type* type_;
+            const char* name_;
+        };
+        struct {
+            const Slot* slot_;
+        };
+    };
+};
+
+//------------------------------------------------------------------------------
+
+// THIS CODE WILL BE REMOVED
+
 typedef AutoPtr<const Ref> RefPtr;
 
 class Ref {

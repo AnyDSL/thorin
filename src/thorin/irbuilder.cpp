@@ -9,6 +9,41 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
+Var::Var(IRBuilder& builder, size_t handle, const Type* type, const char* name)
+    : kind_(ValRef)
+    , builder_(&builder)
+    , handle_(handle)
+    , type_(type)
+    , name_(name)
+{}
+
+Var::Var(IRBuilder& builder, const Slot* slot)
+    : kind_(SlotRef)
+    , builder_(&builder)
+    , slot_(slot)
+{}
+
+Def Var::load() const { 
+    switch (kind()) {
+        case Empty:   return Def();
+        case ValRef:  return builder_->cur_bb->get_value(handle_, type_, name_); 
+        case SlotRef: return builder_->world().load(builder_->get_mem(), slot_);
+        default: THORIN_UNREACHABLE;
+    }
+}
+
+void Var::store(Def def) const { 
+    switch (kind()) {
+        case ValRef:  builder_->cur_bb->set_value(handle_, def); return;
+        case SlotRef: builder_->set_mem(builder_->world().store(builder_->get_mem(), slot_, def)); return;
+        default: THORIN_UNREACHABLE;
+    }
+}
+
+//------------------------------------------------------------------------------
+
+// THIS CODE WILL BE REMOVED
+
 VarRef::VarRef(Lambda* bb, size_t handle, const Type* type, const char* name)
     : Ref(type->world())
     , bb_(bb)
@@ -22,8 +57,6 @@ SlotRef::SlotRef(IRBuilder& builder, const Slot* slot)
     , builder_(builder)
     , slot_(slot)
 {}
-
-//------------------------------------------------------------------------------
 
 Def VarRef::load() const { return bb_->get_value(handle_, type_, name_); }
 Def AggRef::load() const { return loaded_ ? loaded_ : loaded_ = world().extract(lref_->load(), index_); } 

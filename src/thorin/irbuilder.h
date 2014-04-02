@@ -176,10 +176,10 @@ public:
 
     World& world() const;
     void seal();
-    void jump_from(Lambda* bb);
 
 private:
-    Lambda* get(World& world);
+    void jump_from(Lambda* bb);
+    Lambda* branch_to(World& world);
     Lambda* untangle();
     Lambda* enter();
     Lambda* enter_unsealed(World& world);

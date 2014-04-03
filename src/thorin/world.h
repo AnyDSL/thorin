@@ -114,10 +114,7 @@ public:
     Def zero(const Type*, size_t length = 1);
     Def one(PrimTypeKind kind, size_t length = 1) { return literal(kind, 1, length); }
     Def one(const Type*, size_t length = 1);
-    Def allset(PrimTypeKind kind, size_t length = 1) {
-        assert(kind == PrimType_bool && "must not be a float");
-        return literal(kind, -1, length);
-    }
+    Def allset(PrimTypeKind kind, size_t length = 1) { return literal(kind, -1, length); }
     Def allset(const Type*, size_t length = 1);
     Def any(const Type* type, size_t length = 1);
     Def any(PrimTypeKind kind, size_t length = 1) { return any(type(kind), length); }

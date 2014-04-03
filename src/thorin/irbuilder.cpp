@@ -107,14 +107,6 @@ void JumpTarget::jump_from(Lambda* bb) {
 }
 
 Lambda* JumpTarget::branch_to(World& world) {
-    if (lambda_ && lambda_->is_sealed()) {
-        auto bb = lambda_;
-        lambda_ = world.basicblock(name_ + std::string(".crit"));
-        bb->jump(lambda_, {});
-        first_ = false;
-        return bb;
-    }
-
     auto bb = world.basicblock(lambda_ ? name_ + std::string(".crit") : name_);
     jump_from(bb);
     bb->seal();

@@ -35,7 +35,6 @@ const DefNode* Def::deref() const {
         n = representative;
     }
 
-    //return node_ = target;
     return target;
 }
 

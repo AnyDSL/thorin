@@ -21,7 +21,8 @@ class Var {
 public:
     enum Kind {
         Empty,
-        ValRef,
+        ImmutableValRef,
+        MutableValRef,
         SlotRef
     };
 
@@ -29,6 +30,7 @@ public:
         : kind_(Empty)
         , builder_(nullptr)
     {}
+    Var(IRBuilder& builder, Def def);
     Var(IRBuilder& builder, size_t handle, const Type* type, const char* name);
     Var(IRBuilder& builder, const Slot* slot);
 
@@ -46,6 +48,7 @@ private:
             const Type* type_;
             const char* name_;
         };
+        Def def_;
         struct {
             const Slot* slot_;
         };

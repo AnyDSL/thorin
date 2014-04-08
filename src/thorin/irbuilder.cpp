@@ -9,8 +9,14 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
+Var::Var(IRBuilder& builder, Def def)
+    : kind_(ImmutableValRef)
+    , builder_(&builder)
+    , def_(def)
+{}
+
 Var::Var(IRBuilder& builder, size_t handle, const Type* type, const char* name)
-    : kind_(ValRef)
+    : kind_(MutableValRef)
     , builder_(&builder)
     , handle_(handle)
     , type_(type)
@@ -25,16 +31,17 @@ Var::Var(IRBuilder& builder, const Slot* slot)
 
 Def Var::load() const { 
     switch (kind()) {
-        case Empty:   return Def();
-        case ValRef:  return builder_->cur_bb->get_value(handle_, type_, name_); 
-        case SlotRef: return builder_->world().load(builder_->get_mem(), slot_);
+        case Empty:           return Def();
+        case ImmutableValRef: return def_;
+        case MutableValRef:   return builder_->cur_bb->get_value(handle_, type_, name_); 
+        case SlotRef:         return builder_->world().load(builder_->get_mem(), slot_);
         default: THORIN_UNREACHABLE;
     }
 }
 
 void Var::store(Def def) const { 
     switch (kind()) {
-        case ValRef:  builder_->cur_bb->set_value(handle_, def); return;
+        case MutableValRef:  builder_->cur_bb->set_value(handle_, def); return;
         case SlotRef: builder_->set_mem(builder_->world().store(builder_->get_mem(), slot_, def)); return;
         default: THORIN_UNREACHABLE;
     }

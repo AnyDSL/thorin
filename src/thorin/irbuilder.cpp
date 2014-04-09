@@ -49,45 +49,6 @@ void Var::store(Def def) const {
 
 //------------------------------------------------------------------------------
 
-// THIS CODE WILL BE REMOVED
-
-VarRef::VarRef(Lambda* bb, size_t handle, const Type* type, const char* name)
-    : Ref(type->world())
-    , bb_(bb)
-    , handle_(handle)
-    , type_(type)
-    , name_(name)
-{}
-
-SlotRef::SlotRef(IRBuilder& builder, const Slot* slot)
-    : Ref(builder.world())
-    , builder_(builder)
-    , slot_(slot)
-{}
-
-Def VarRef::load() const { return bb_->get_value(handle_, type_, name_); }
-Def AggRef::load() const { return loaded_ ? loaded_ : loaded_ = world().extract(lref_->load(), index_); } 
-Def SlotRef::load() const   { return  world().load(builder_.get_mem(), slot_); }
-
-Def AggPtrRef::load() const { 
-    auto mem = builder_.get_mem();
-    return world().load(mem, world().lea(lref_->load(), index_)); 
-}
-
-void VarRef::store(Def def) const { bb_->set_value(handle_, def); }
-void AggRef::store(Def val) const { lref_->store(world().insert(lref_->load(), index_, val)); }
-
-void SlotRef::store(Def val) const { 
-    builder_.set_mem(world().store(builder_.get_mem(), slot_, val)); 
-}
-
-void AggPtrRef::store(Def val) const { 
-    auto mem = builder_.get_mem();
-    builder_.set_mem(world().store(mem, world().lea(lref_->load(), index_), val)); 
-}
-
-//------------------------------------------------------------------------------
-
 #ifndef NDEBUG
 JumpTarget::~JumpTarget() { assert((!lambda_ || first_ || lambda_->is_sealed()) && "JumpTarget not sealed"); }
 #endif

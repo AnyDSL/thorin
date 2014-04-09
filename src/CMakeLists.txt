@@ -1,7 +1,5 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.1 FATAL_ERROR)
 
-OPTION ( BUILD_IMPALA "Builds the Impala frontend." ON )
-
 INCLUDE_DIRECTORIES ( ${PROJ_SOURCE_DIR} )
 LINK_DIRECTORIES ( ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY} )
 
@@ -40,10 +38,3 @@ INCLUDE ( thorin-shared )
 
 # build thorin lib
 ADD_SUBDIRECTORY ( thorin )
-
-# build impala frontend
-IF ( BUILD_IMPALA )
-    ADD_SUBDIRECTORY ( impala )
-ENDIF ()
-
-ADD_SUBDIRECTORY ( intrinsicgen )

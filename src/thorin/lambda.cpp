@@ -201,10 +201,6 @@ std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, const Type* ret
     auto next = world().lambda(world().pi(cont_elems), name);
     next->param(0)->name = "mem";
 
-    //if (pack) {
-    //}
-    //if (ret_type)
-
     // create jump to next
     size_t csize = args.size() + 1;
     Array<Def> cargs(csize);

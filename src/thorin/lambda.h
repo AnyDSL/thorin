@@ -15,7 +15,6 @@ class Lambda;
 class Pi;
 
 typedef std::vector<Lambda*> Lambdas;
-typedef std::vector<const Param*> Params;
 
 //------------------------------------------------------------------------------
 
@@ -79,7 +78,7 @@ public:
     Lambdas preds() const;
     Lambdas succs() const;
     const std::vector<const GenericRef*>& generic_refs() const { return generic_refs_; }
-    const Params& params() const { return params_; }
+    ArrayRef<const Param*> params() const { return params_; }
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
     Def to() const { return op(0); };
     ArrayRef<Def> args() const { return empty() ? ArrayRef<Def>(0, 0) : ops().slice_from_begin(1); }
@@ -112,8 +111,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
 
     void jump(Def to, ArrayRef<Def> args);
     void branch(Def cond, Def tto, Def fto);
-    Lambda* call(Def to, ArrayRef<Def> args, const Type* ret_type);
-    Lambda* mem_call(Def to, ArrayRef<Def> args, const Type* ret_type);
+    std::pair<Lambda*, Def> call(Def to, ArrayRef<Def> args, const Type* ret_type);
 
     // cps construction
 
@@ -159,7 +157,7 @@ private:
     void increase_values(size_t handle) { if (handle >= values_.size()) values_.resize(handle+1); }
 
     Attribute attribute_;
-    Params params_;
+    std::vector<const Param*> params_;
     /**
      * There exist three cases to distinguish here.
      * - \p parent_ == this: This \p Lambda is considered as a basic block, i.e., 

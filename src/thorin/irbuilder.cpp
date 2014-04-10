@@ -115,23 +115,13 @@ void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f) {
     }
 }
 
-void IRBuilder::mem_call(Def to, ArrayRef<Def> args, const Type* ret_type) {
-    if (is_reachable())
-        (cur_bb = cur_bb->mem_call(to, args, ret_type));
-}
-
-void IRBuilder::tail_call(Def to, ArrayRef<Def> args) {
+Def IRBuilder::call(Def to, ArrayRef<Def> args, const Type* ret_type) {
     if (is_reachable()) {
-        cur_bb->jump(to, args);
-        set_unreachable();
+        auto p = cur_bb->call(to, args, ret_type);
+        cur_bb = p.first;
+        return p.second;
     }
-}
-
-void IRBuilder::param_call(const Param* ret_param, ArrayRef<Def> args) {
-    if (is_reachable()) {
-        cur_bb->jump(ret_param, args);
-        set_unreachable();
-    }
+    return Def();
 }
 
 Def IRBuilder::get_mem() { return cur_bb->get_value(0, world().mem(), "mem"); }

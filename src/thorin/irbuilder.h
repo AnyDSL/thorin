@@ -101,9 +101,7 @@ public:
     Lambda* enter_unsealed(JumpTarget& jt) { return cur_bb = jt.enter_unsealed(world_); }
     void jump(JumpTarget& jt);
     void branch(Def cond, JumpTarget& t, JumpTarget& f);
-    void mem_call(Def to, ArrayRef<Def> args, const Type* ret_type);
-    void tail_call(Def to, ArrayRef<Def> args);
-    void param_call(const Param* ret_param, ArrayRef<Def> args);
+    Def call(Def to, ArrayRef<Def> args, const Type* ret_type);
     Def get_mem();
     void set_mem(Def def);
 

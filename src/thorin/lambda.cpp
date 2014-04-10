@@ -182,37 +182,48 @@ void Lambda::branch(Def cond, Def tto, Def fto) {
     return jump(world().select(cond, tto, fto), ArrayRef<Def>(nullptr, 0));
 }
 
-Lambda* Lambda::call(Def to, ArrayRef<Def> args, const Type* ret_type) {
-    // create next continuation in cascade
-    Lambda* next = world().lambda(world().pi({ret_type}), name);
-    const Param* result = next->param(0);
-    result->name = to->name;
+std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, const Type* ret_type) {
+    if (ret_type == nullptr) {
+        jump(to, args);
+        return std::make_pair(nullptr, Def());
+    }
 
-    // create jump to this new continuation
-    size_t csize = args.size() + 1;
-    Array<Def> cargs(csize);
-    *std::copy(args.begin(), args.end(), cargs.begin()) = next;
-    jump(to, cargs);
+    std::vector<const Type*> cont_elems;
+    cont_elems.push_back(world().mem());
+    bool pack = false;
+    if (auto sigma = ret_type->isa<Sigma>()) {
+        pack = true;
+        for (auto elem : sigma->elems())
+            cont_elems.push_back(elem);
+    } else
+        cont_elems.push_back(ret_type);
 
-    return next;
-}
-
-Lambda* Lambda::mem_call(Def to, ArrayRef<Def> args, const Type* ret_type) {
-    // create next continuation in cascade
-    auto pi = ret_type != nullptr ? world().pi({world().mem(), ret_type}) : world().pi({world().mem()});
-    auto next = world().lambda(pi, name);
+    auto next = world().lambda(world().pi(cont_elems), name);
     next->param(0)->name = "mem";
 
-    if (ret_type)
-        next->param(1)->name = to->name;
+    //if (pack) {
+    //}
+    //if (ret_type)
 
-    // create jump to this new continuation
+    // create jump to next
     size_t csize = args.size() + 1;
     Array<Def> cargs(csize);
     *std::copy(args.begin(), args.end(), cargs.begin()) = next;
     jump(to, cargs);
 
-    return next;
+    // determine return value
+    Def ret;
+    if (pack) {
+        Array<Def> defs(next->num_params()-1);
+        auto p = next->params().slice_from_begin(1);
+        std::copy(p.begin(), p.end(), defs.begin());
+        ret = world().tuple(defs);
+
+    } else 
+        ret = next->param(1);
+    ret->name = to->name;
+
+    return std::make_pair(next, ret);
 }
 
 /*

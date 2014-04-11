@@ -85,7 +85,7 @@ protected:
 
 public:
     Def ptr() const { return op(1); }
-    const Ptr* ptr_type() const { return type()->as<Sigma>()->elem(1)->as<Ptr>(); }
+    PtrType ptr_type() const { return type().as<TupleType>()->elem(1).as<PtrType>(); }
     AddressSpace addr_space() const { return ptr_type()->addr_space(); }
     uint32_t device() const { return ptr_type()->device(); }
 };

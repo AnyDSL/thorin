@@ -34,13 +34,14 @@
     THORIN_AIR_NODE(Param, param)
     // Type
         // PrimType
-        THORIN_AIR_NODE(Frame, frame)
-        THORIN_AIR_NODE(Generic, generic)
-        THORIN_AIR_NODE(Mem, mem)
-        THORIN_AIR_NODE(Pi, pi)
-        THORIN_AIR_NODE(Ptr, ptr)
-        THORIN_AIR_NODE(Sigma, sigma)
-        THORIN_AIR_NODE(DefArray, def_array)
-        THORIN_AIR_NODE(IndefArray, indef_array)
+        THORIN_AIR_NODE(FrameType, frame)
+        THORIN_AIR_NODE(GenericType, generic)
+        THORIN_AIR_NODE(MemType, mem)
+        THORIN_AIR_NODE(FnType, fn)
+        THORIN_AIR_NODE(PtrType, ptr)
+        THORIN_AIR_NODE(StructType, struct_type)
+        THORIN_AIR_NODE(TupleType, tuple_type)
+        THORIN_AIR_NODE(DefiniteArrayType, definite_array_type)
+        THORIN_AIR_NODE(IndefiniteArrayType, indefinite_array_type)
 
 #undef THORIN_AIR_NODE

@@ -17,7 +17,7 @@ public:
         : Printer(std::cout, fancy, colored)
     {}
 
-    std::ostream& emit_type(const Type*);
+    std::ostream& emit_type(Type);
     std::ostream& emit_name(Def);
     std::ostream& emit_def(Def);
     std::ostream& emit_primop(const PrimOp*);
@@ -28,7 +28,7 @@ public:
 
 //------------------------------------------------------------------------------
 
-std::ostream& CodeGen::emit_type(const Type* type) {
+std::ostream& CodeGen::emit_type(Type type) {
     if (type == nullptr) {
         return stream() << "<NULL>";
     } else if (type->isa<Frame>()) {
@@ -36,9 +36,9 @@ std::ostream& CodeGen::emit_type(const Type* type) {
     } else if (type->isa<Mem>()) {
         return stream() << "mem";
     } else if (auto pi = type->isa<Pi>()) {
-        return dump_list([&](const Type* type) { emit_type(type); }, pi->elems(), "fn(", ")");
+        return dump_list([&](Type type) { emit_type(type); }, pi->elems(), "fn(", ")");
     } else if (auto sigma = type->isa<Sigma>()) {
-        return dump_list([&](const Type* type) { emit_type(type); }, sigma->elems(), "(", ")");
+        return dump_list([&](Type type) { emit_type(type); }, sigma->elems(), "(", ")");
     } else if (auto generic = type->isa<Generic>()) {
         return stream() << '<' << generic->index() << '>';
     } else if (auto array = type->isa<IndefArray>()) {
@@ -200,7 +200,7 @@ void emit_thorin(World& world, bool fancy, bool nocolor) {
     }
 }
 
-void emit_type(const Type* type)           { CodeGen(false).emit_type(type);         }
+void emit_type(Type type)                  { CodeGen(false).emit_type(type);         }
 void emit_def(Def def)                     { CodeGen(false).emit_def(def);           }
 void emit_head(const Lambda* lambda)       { CodeGen(false).emit_head(lambda);       }
 void emit_jump(const Lambda* lambda)       { CodeGen(false).emit_jump(lambda);       }

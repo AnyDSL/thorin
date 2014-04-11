@@ -51,14 +51,14 @@ public:
     };
 
 private:
-    Lambda(size_t gid, const Pi* pi, Attribute attribute, bool is_sealed, const std::string& name)
-        : DefNode(gid, Node_Lambda, 0, pi, true, name)
+    Lambda(size_t gid, FnType fn, Attribute attribute, bool is_sealed, const std::string& name)
+        : DefNode(gid, Node_Lambda, 0, fn, true, name)
         , attribute_(attribute)
         , parent_(this)
         , is_sealed_(is_sealed)
         , is_visited_(false)
     {
-        params_.reserve(pi->size());
+        params_.reserve(fn->size());
     }
     virtual ~Lambda() { for (auto param : params()) delete param; }
 
@@ -68,7 +68,7 @@ public:
     Lambda* update_to(Def def) { return update_op(0, def); }
     Lambda* update_op(size_t i, Def def);
     Lambda* update_arg(size_t i, Def def) { return update_op(i+1, def); }
-    const Param* append_param(const Type* type, const std::string& name = "");
+    const Param* append_param(Type type, const std::string& name = "");
     Lambdas direct_preds() const;
     Lambdas direct_succs() const;
     Lambdas indirect_preds() const;
@@ -108,12 +108,12 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
 
     void jump(Def to, ArrayRef<Def> args);
     void branch(Def cond, Def tto, Def fto);
-    std::pair<Lambda*, Def> call(Def to, ArrayRef<Def> args, const Type* ret_type);
+    std::pair<Lambda*, Def> call(Def to, ArrayRef<Def> args, Type ret_type);
 
     // cps construction
 
     Def set_value(size_t handle, Def def);
-    Def get_value(size_t handle, const Type* type, const char* name = "");
+    Def get_value(size_t handle, Type type, const char* name = "");
     Def set_mem(Def def);
     Def get_mem();
     Lambda* parent() const { return parent_; }            ///< See \ref parent_ for more information.
@@ -128,7 +128,7 @@ private:
     class Todo {
     public:
         Todo() {}
-        Todo(size_t handle, size_t index, const Type* type, const char* name)
+        Todo(size_t handle, size_t index, Type type, const char* name)
             : handle_(handle)
             , index_(index)
             , type_(type)
@@ -137,13 +137,13 @@ private:
 
         size_t handle() const { return handle_; }
         size_t index() const { return index_; }
-        const Type* type() const { return type_; }
+        Type type() const { return type_; }
         const char* name() const { return name_; }
 
     private:
         size_t handle_;
         size_t index_;
-        const Type* type_;
+        Type type_;
         const char* name_;
     };
 

@@ -18,14 +18,14 @@ size_t PrimOp::hash() const {
 
 //------------------------------------------------------------------------------
 
-VectorOp::VectorOp(size_t size, NodeKind kind, const Type* type, Def cond, const std::string& name)
+VectorOp::VectorOp(size_t size, NodeKind kind, Type type, Def cond, const std::string& name)
     : PrimOp(size, kind, type, name)
 {
     assert(cond->type()->is_bool());
     set_op(0, cond);
 }
 
-BinOp::BinOp(NodeKind kind, const Type* type, Def cond, Def lhs, Def rhs, const std::string& name)
+BinOp::BinOp(NodeKind kind, Type type, Def cond, Def lhs, Def rhs, const std::string& name)
     : VectorOp(3, kind, type, cond, name)
 {
     assert(lhs->type() == rhs->type() && "types are not equal");
@@ -48,10 +48,10 @@ Select::Select(Def cond, Def tval, Def fval, const std::string& name)
 
 //------------------------------------------------------------------------------
 
-ArrayAgg::ArrayAgg(World& world, const Type* elem, ArrayRef<Def> args, bool definite, const std::string& name)
+ArrayAgg::ArrayAgg(World& world, Type elem, ArrayRef<Def> args, bool definite, const std::string& name)
     : Aggregate(Node_ArrayAgg, args, name)
 {
-    set_type(definite ? (const Type*) world.def_array(elem, args.size()) : (const Type*) world.indef_array(elem));
+    set_type(definite ? (Type) world.def_array(elem, args.size()) : (Type) world.indef_array(elem));
 #ifndef NDEBUG
     for (size_t i = 0, e = size(); i != e; ++i)
         assert(args[i]->type() == array_type()->elem_type());
@@ -60,12 +60,12 @@ ArrayAgg::ArrayAgg(World& world, const Type* elem, ArrayRef<Def> args, bool defi
 
 bool ArrayAgg::is_definite() const { return type()->isa<DefArray>(); }
 const ArrayType* ArrayAgg::array_type() const { return type()->as<ArrayType>(); }
-const Type* ArrayAgg::elem_type() const { return array_type()->elem_type(); }
+Type ArrayAgg::elem_type() const { return array_type()->elem_type(); }
 
 Tuple::Tuple(World& world, ArrayRef<Def> args, const std::string& name)
     : Aggregate(Node_Tuple, args, name)
 {
-    Array<const Type*> elems(size());
+    Array<Type> elems(size());
     for (size_t i = 0, e = size(); i != e; ++i)
         elems[i] = args[i]->type();
 
@@ -79,7 +79,7 @@ Vector::Vector(World& world, ArrayRef<Def> args, const std::string& name)
         assert(primtype->length() == 1);
         set_type(world.type(primtype->primtype_kind(), args.size()));
     } else {
-        const Ptr* ptr = args.front()->type()->as<Ptr>();
+        PtrType ptr = args.front()->type()->as<Ptr>();
         assert(ptr->length() == 1);
         set_type(world.ptr(ptr->referenced_type(), args.size()));
     }
@@ -91,7 +91,7 @@ Extract::Extract(Def agg, Def index, const std::string& name)
     : AggOp(2, Node_Extract, type(agg, index), agg, index, name)
 {}
 
-const Type* Extract::type(Def agg, Def index) {
+Type Extract::type(Def agg, Def index) {
     if (auto sigma = agg->type()->isa<Sigma>())
         return sigma->elem_via_lit(index);
     else if (auto array = agg->type()->isa<ArrayType>())
@@ -107,7 +107,7 @@ Insert::Insert(Def agg, Def index, Def value, const std::string& name)
     set_op(2, value);
 }
 
-const Type* Insert::type(Def agg) { return agg->type(); }
+Type Insert::type(Def agg) { return agg->type(); }
 
 //------------------------------------------------------------------------------
 
@@ -126,8 +126,8 @@ LEA::LEA(Def def, Def index, const std::string& name)
     }
 }
 
-const Ptr* LEA::ptr_type() const { return ptr()->type()->as<Ptr>(); }
-const Type* LEA::referenced_type() const { return ptr_type()->referenced_type(); }
+PtrType LEA::ptr_type() const { return ptr()->type()->as<Ptr>(); }
+Type LEA::referenced_type() const { return ptr_type()->referenced_type(); }
 
 //------------------------------------------------------------------------------
 
@@ -140,14 +140,14 @@ EvalOp::EvalOp(NodeKind kind, Def def, const std::string& name)
 
 //------------------------------------------------------------------------------
 
-Slot::Slot(const Type* type, Def frame, size_t index, const std::string& name)
+Slot::Slot(Type type, Def frame, size_t index, const std::string& name)
     : PrimOp(1, Node_Slot, type->world().ptr(type), name)
     , index_(index)
 {
     set_op(0, frame);
 }
 
-const Ptr* Slot::ptr_type() const { return type()->as<Ptr>(); }
+PtrType Slot::ptr_type() const { return type()->as<Ptr>(); }
 
 //------------------------------------------------------------------------------
 
@@ -159,7 +159,7 @@ Global::Global(Def init, bool is_mutable, const std::string& name)
     assert(init->is_const());
 }
 
-const Type* Global::referenced_type() const { return type()->as<Ptr>()->referenced_type(); }
+Type Global::referenced_type() const { return type()->as<Ptr>()->referenced_type(); }
 const char* Global::op_name() const { return is_mutable() ? "global_mutable" : "global_immutable"; }
 
 //------------------------------------------------------------------------------

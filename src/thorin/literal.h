@@ -8,14 +8,13 @@
 
 namespace thorin {
 
-class Type;
 class World;
 
 //------------------------------------------------------------------------------
 
 class Literal : public PrimOp {
 protected:
-    Literal(NodeKind kind, const Type* type, const std::string& name)
+    Literal(NodeKind kind, Type type, const std::string& name)
         : PrimOp(0, kind, type, name)
     {}
 };
@@ -25,7 +24,7 @@ protected:
 /// Base class for \p Any and \p Bottom.
 class Undef : public Literal {
 protected:
-    Undef(NodeKind kind, const Type* type, const std::string& name)
+    Undef(NodeKind kind, Type type, const std::string& name)
         : Literal(kind, type, name)
     {}
 };
@@ -41,7 +40,7 @@ protected:
  */
 class Any : public Undef {
 private:
-    Any(const Type* type, const std::string& name)
+    Any(Type type, const std::string& name)
         : Undef(Node_Any, type, name)
     {}
 
@@ -58,7 +57,7 @@ private:
  */
 class Bottom : public Undef {
 private:
-    Bottom(const Type* type, const std::string& name)
+    Bottom(Type type, const std::string& name)
         : Undef(Node_Bottom, type, name)
     {}
 
@@ -76,7 +75,7 @@ public:
 #define THORIN_ALL_TYPE(T) T T##_value() const { return value().get_##T(); }
 #include "thorin/tables/primtypetable.h"
     
-    const PrimType* primtype() const { return type()->as<PrimType>(); }
+    PrimType primtype() const { return type().as<PrimType>(); }
     PrimTypeKind primtype_kind() const { return primtype()->primtype_kind(); }
     virtual size_t hash() const { return hash_combine(Literal::hash(), bcast<uint64_t, Box>(value())); }
     virtual bool equal(const PrimOp* other) const { 

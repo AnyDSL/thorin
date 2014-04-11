@@ -27,16 +27,16 @@ const Pi* Lambda::pi() const { return type()->as<Pi>(); }
 const Pi* Lambda::to_pi() const { return to()->type()->as<Pi>(); }
 
 const Pi* Lambda::arg_pi() const {
-    Array<const Type*> elems(num_args());
+    Array<Type> elems(num_args());
     for (size_t i = 0, e = num_args(); i != e; ++i)
         elems[i] = arg(i)->type();
 
     return world().pi(elems);
 }
 
-const Param* Lambda::append_param(const Type* type, const std::string& name) {
+const Param* Lambda::append_param(Type type, const std::string& name) {
     size_t size = pi()->size();
-    Array<const Type*> elems(size + 1);
+    Array<Type> elems(size + 1);
     *std::copy(pi()->elems().begin(), pi()->elems().end(), elems.begin()) = type;
     set_type(world().pi(elems));                        // update type
     auto param = world().param(type, this, size, name); // append new param
@@ -182,13 +182,13 @@ void Lambda::branch(Def cond, Def tto, Def fto) {
     return jump(world().select(cond, tto, fto), ArrayRef<Def>(nullptr, 0));
 }
 
-std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, const Type* ret_type) {
+std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) {
     if (ret_type == nullptr) {
         jump(to, args);
         return std::make_pair(nullptr, Def());
     }
 
-    std::vector<const Type*> cont_elems;
+    std::vector<Type> cont_elems;
     cont_elems.push_back(world().mem());
     bool pack = false;
     if (auto sigma = ret_type->isa<Sigma>()) {
@@ -239,7 +239,7 @@ Def Lambda::set_value(size_t handle, Def def) {
     return values_[handle] = def;
 }
 
-Def Lambda::get_value(size_t handle, const Type* type, const char* name) {
+Def Lambda::get_value(size_t handle, Type type, const char* name) {
     if (auto def = find_def(handle))
         return def;
 

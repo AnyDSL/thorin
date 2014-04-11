@@ -13,39 +13,6 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-const Type*& GenericMap::operator [] (const Generic* generic) const {
-    size_t i = generic->index();
-    if (i >= types_.size())
-        types_.resize(i+1, nullptr);
-    return types_[i];
-}
-
-bool GenericMap::is_empty() const {
-    for (size_t i = 0, e = types_.size(); i != e; ++i)
-        if (!types_[i])
-            return false;
-
-    return true;
-}
-
-std::string GenericMap::to_string() const {
-    std::ostringstream o;
-    bool first = true;
-    for (size_t i = 0, e = types_.size(); i != e; ++i)
-        if (auto type = types_[i]) {
-            if (first)
-                first = false;
-            else
-                o << ", ";
-            o << '_' << i << " = "; 
-            type->dump();
-        }
-
-    return o.str();
-}
-
-//------------------------------------------------------------------------------
-
 size_t Type::hash() const {
     size_t seed = hash_combine(hash_begin((int) kind()), size());
     for (auto elem : elems_)
@@ -76,61 +43,6 @@ int Type::order() const {
         return sub + 1;
 
     return sub;
-}
-
-bool Type::check_with(const Type* other) const {
-    if (this == other || this->isa<Generic>() || other->isa<Generic>())
-        return true;
-
-    if (this->kind() != other->kind() || this->size() != other->size())
-        return false;
-
-    for (size_t i = 0, e = size(); i != e; ++i)
-        if (!this->elem(i)->check_with(other->elem(i)))
-            return false;
-
-    return true;
-}
-
-bool Type::infer_with(GenericMap& map, const Type* other) const {
-    size_t num_elems = this->size();
-    assert(this->isa<Generic>() || num_elems == other->size());
-    assert(this->isa<Generic>() || this->kind() == other->kind());
-
-    if (this == other)
-        return true;
-
-    if (auto generic = this->isa<Generic>()) {
-        const Type*& mapped = map[generic];
-        if (!mapped) {
-            mapped = other;
-            return true;
-        } else
-            return mapped == other;
-    }
-
-    for (size_t i = 0; i < num_elems; ++i) {
-        if (!this->elem(i)->infer_with(map, other->elem(i)))
-            return false;
-    }
-
-    return true;
-}
-
-const Type* Type::specialize(const GenericMap& map) const {
-    if (auto generic = this->isa<Generic>()) {
-        if (auto substitute = map[generic])
-            return substitute;
-        else
-            return this;
-    } else if (empty())
-        return this;
-
-    Array<const Type*> new_elems(size());
-    for (size_t i = 0, e = size(); i != e; ++i)
-        new_elems[i] = elem(i)->specialize(map);
-
-    return world().rebuild(this, new_elems);
 }
 
 //------------------------------------------------------------------------------

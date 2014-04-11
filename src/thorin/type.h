@@ -17,24 +17,63 @@ class World;
 
 //------------------------------------------------------------------------------
 
-class GenericMap {
+template<class T>
+class Proxy {
 public:
-    GenericMap() {}
+    typedef T BaseType;
 
-    const Type*& operator [] (const Generic* generic) const;
-    bool is_empty() const;
-    std::string to_string() const;
+    Proxy()
+        : node_(nullptr)
+    {}
+    explicit Proxy(T* node)
+        : node_(node)
+    {}
+
+    bool empty() const { return node_ == nullptr; }
+    bool operator == (const Proxy<T>& other) const {
+#if 0
+        assert(node_ != nullptr);         
+        assert(&node()->typetable() == &other.node()->typetable());
+        unify(node()->typetable(), *this);
+        unify(node()->typetable(), other);
+#endif
+        return representative() == other.representative();
+    }
+    bool operator != (const Proxy<T>& other) const { assert(node_ != nullptr); return !(*this == other); }
+    T* representative() const { assert(node_ != nullptr); return node_->representative()->template as<T>(); }
+    T* node() const { assert(node_ != nullptr); return node_; }
+    //T* operator  * () const { assert(node_ != nullptr); return node_->is_unified() ? representative() : node_->template as<T>(); }
+    T* operator  * () const { assert(node_ != nullptr); return representative(); }
+    T* operator -> () const { assert(node_ != nullptr); return *(*this); }
+    /// Automatic up-cast in the class hierarchy.
+    template<class U> operator Proxy<U>() {
+        static_assert(std::is_base_of<U, T>::value, "U is not a base type of T");
+        assert(node_ != nullptr); return Proxy<U>((U*) node_);
+    }
+    template<class U> Proxy<typename U::BaseType> isa() const { 
+        assert(node_ != nullptr); return Proxy<typename U::BaseType>((*this)->isa<typename U::BaseType>()); 
+    }
+    template<class U> Proxy<typename U::BaseType> as() const { 
+        assert(node_ != nullptr); return Proxy<typename U::BaseType>((*this)->as <typename U::BaseType>()); 
+    }
+    operator bool() { return !empty(); }
+    Proxy<T>& operator= (Proxy<T> other) { 
+        assert(node_ == nullptr);
+        node_ = *other; 
+        return *this; 
+    }
+    void clear() { node_ = nullptr; }
 
 private:
-    mutable std::vector<const Type*> types_;
+    T* node_;
 };
 
-//------------------------------------------------------------------------------
+typedef HashMap<const Type*, Type*> GenericMap;
 
 class Type : public MagicCast<Type> {
 private:
     Type& operator = (const Type&); ///< Do not copy-assign a \p Type instance.
-    Type(const Type&);             ///< Do not copy-construct a \p Type.
+    Type(const Type&);              ///< Do not copy-construct a \p Type.
 
 protected:
     Type(World& world, NodeKind kind, size_t num, bool is_generic)
@@ -57,9 +96,9 @@ public:
     bool empty() const { return elems_.empty(); }
     void dump() const;
     World& world() const { return world_; }
-    bool check_with(const Type* type) const;
-    bool infer_with(GenericMap& map, const Type* type) const;
-    const Type* specialize(const GenericMap&) const;
+    bool check_with(const Type*) const { return true; } // TODO
+    bool infer_with(GenericMap& map, const Type* type) const { return true; } // TODO
+    const Type* specialize(const GenericMap&) const { return this; } // TODO
     bool is_generic() const { return is_generic_; }
 
     bool is_primtype() const { return thorin::is_primtype(kind()); }

@@ -9,7 +9,6 @@
 
 namespace thorin {
 
-class GenericMap;
 class Lambda;
 class Pi;
 

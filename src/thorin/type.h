@@ -322,28 +322,6 @@ private:
 
 //------------------------------------------------------------------------------
 
-class GenericRef : public Type {
-private:
-    GenericRef(World& world, const Generic* generic, Lambda* lambda);
-    virtual ~GenericRef();
-
-    virtual size_t hash() const;
-    virtual bool equal(const Type* other) const { 
-        return Type::equal(other) && lambda() == other->as<GenericRef>()->lambda();
-    }
-
-public:
-    const Generic* generic() const { return elem(0)->as<Generic>(); }
-    Lambda* lambda() const { return lambda_; }
-
-private:
-    Lambda* lambda_;
-
-    friend class World;
-};
-
-//------------------------------------------------------------------------------
-
 template<class To> 
 using TypeMap   = HashMap<const Type*, To, GIDHash<const Type*>, GIDEq<const Type*>>;
 using TypeSet   = HashSet<const Type*, GIDHash<const Type*>, GIDEq<const Type*>>;

@@ -80,8 +80,6 @@ std::ostream& IlPrinter::emit_type(const Type* type) {
         return dump_list([&] (const Type* type) { emit_type(type); }, sigma->elems(), "", "", " * ");
     else if (type->isa<Generic>())
         return stream() << "TODO";
-    else if (type->isa<GenericRef>())
-        return stream() << "TODO";
     else if (auto ptr = type->isa<Ptr>()) {
         if (ptr->is_vector())
             stream() << '<' << ptr->length() << " x ";

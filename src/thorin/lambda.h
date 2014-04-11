@@ -10,7 +10,6 @@
 namespace thorin {
 
 class GenericMap;
-class GenericRef;
 class Lambda;
 class Pi;
 
@@ -77,7 +76,6 @@ public:
     Lambdas indirect_succs() const;
     Lambdas preds() const;
     Lambdas succs() const;
-    const std::vector<const GenericRef*>& generic_refs() const { return generic_refs_; }
     ArrayRef<const Param*> params() const { return params_; }
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
     Def to() const { return op(0); };
@@ -174,10 +172,8 @@ private:
     std::vector<Def> values_;
     typedef std::vector<Todo> Todos;
     Todos todos_;
-    mutable std::vector<const GenericRef*> generic_refs_;
 
     friend class Cleaner;
-    friend class GenericRef;
     friend class World;
 };
 

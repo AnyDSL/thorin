@@ -63,8 +63,6 @@ std::ostream& CCodeGen::emit_type(const Type* type) {
         return stream();
     } else if (type->isa<Generic>()) {
         THORIN_UNREACHABLE;
-    } else if (type->isa<GenericRef>()) {
-        THORIN_UNREACHABLE;
     } else if (auto array = type->isa<IndefArray>()) {
         emit_type(array->elem_type());
         return stream();

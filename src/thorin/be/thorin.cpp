@@ -41,10 +41,6 @@ std::ostream& CodeGen::emit_type(const Type* type) {
         return dump_list([&](const Type* type) { emit_type(type); }, sigma->elems(), "(", ")");
     } else if (auto generic = type->isa<Generic>()) {
         return stream() << '<' << generic->index() << '>';
-    } else if (auto genref = type->isa<GenericRef>()) {
-        stream() << '<';
-        emit_name(genref->lambda()) << ", ";
-        return emit_type(genref->generic()) << '>';
     } else if (auto array = type->isa<IndefArray>()) {
         stream() << '[';
         emit_type(array->elem_type());

@@ -79,7 +79,7 @@ int Type::order() const {
 }
 
 bool Type::check_with(const Type* other) const {
-    if (this == other || this->isa<Generic>() || this->isa<GenericRef>() || other->isa<Generic>() || other->isa<GenericRef>())
+    if (this == other || this->isa<Generic>() || other->isa<Generic>())
         return true;
 
     if (this->kind() != other->kind() || this->size() != other->size())
@@ -93,11 +93,6 @@ bool Type::check_with(const Type* other) const {
 }
 
 bool Type::infer_with(GenericMap& map, const Type* other) const {
-    if (auto genericref = this->isa<GenericRef>())
-        return genericref->generic()->infer_with(map, other);
-    if (auto genericref = other->isa<GenericRef>())
-        other = genericref->generic();
-
     size_t num_elems = this->size();
     assert(this->isa<Generic>() || num_elems == other->size());
     assert(this->isa<Generic>() || this->kind() == other->kind());
@@ -130,9 +125,6 @@ const Type* Type::specialize(const GenericMap& map) const {
             return this;
     } else if (empty())
         return this;
-
-    if (auto genref = this->isa<GenericRef>())
-        return genref->generic()->specialize(map);
 
     Array<const Type*> new_elems(size());
     for (size_t i = 0, e = size(); i != e; ++i)
@@ -200,28 +192,4 @@ bool Pi::is_returning() const {
 
 //------------------------------------------------------------------------------
 
-GenericRef::GenericRef(World& world, const Generic* generic, Lambda* lambda)
-    : Type(world, Node_GenericRef, 1, true)
-    , lambda_(lambda)
-{
-#if 0
-    lambda_->generic_refs_.push_back(this);
-#endif
-    set(0, generic);
 }
-
-GenericRef::~GenericRef() {
-#if 0
-    auto& generic_refs = lambda()->generic_refs_;
-    auto i = std::find(generic_refs.begin(), generic_refs.end(), this);
-    assert(i != generic_refs.end() && "must be in use set");
-    *i = generic_refs.back();
-    generic_refs.pop_back();
-#endif
-}
-
-size_t GenericRef::hash() const { return hash_combine(Type::hash(), lambda()->gid()); }
-
-//------------------------------------------------------------------------------
-
-} // namespace thorin

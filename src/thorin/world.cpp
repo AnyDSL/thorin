@@ -825,10 +825,6 @@ const Type* World::rebuild(World& to, const Type* type, ArrayRef<const Type*> el
         case Node_Ptr:        assert(elems.size() == 1); return to.ptr(elems.front(), type->as<Ptr>()->length(), type->as<Ptr>()->device(), type->as<Ptr>()->addr_space());
         case Node_Sigma:      return to.sigma(elems);
         case Node_Pi:         return to.pi(elems);
-        case Node_GenericRef: {
-            auto genref = type->as<GenericRef>();
-            return to.generic_ref(genref->generic(), genref->lambda());
-        }
         default: THORIN_UNREACHABLE;
     }
 }

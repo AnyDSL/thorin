@@ -109,6 +109,7 @@ public:
     bool infer_with(GenericMap&, Type) const { return true; } // TODO
     Type specialize(const GenericMap&) const { return Type(this); } // TODO
     bool is_generic() const { return is_generic_; }
+    TypeNode* representative() const { return representative_; }
 
     bool is_primtype() const { return thorin::is_primtype(kind()); }
     bool is_type_ps() const { return thorin::is_type_ps(kind()); }
@@ -143,6 +144,7 @@ private:
 
 protected:
     bool is_generic_;
+    TypeNode* representative_;
 
     friend class World;
 };

@@ -23,15 +23,12 @@ Lambda* Lambda::update_op(size_t i, Def def) {
     return this;
 }
 
-const Pi* Lambda::pi() const { return type()->as<Pi>(); }
-const Pi* Lambda::to_pi() const { return to()->type()->as<Pi>(); }
-
-const Pi* Lambda::arg_pi() const {
+FnType Lambda::arg_fn_type() const {
     Array<Type> elems(num_args());
     for (size_t i = 0, e = num_args(); i != e; ++i)
         elems[i] = arg(i)->type();
 
-    return world().pi(elems);
+    return world().type_fn(elems);
 }
 
 const Param* Lambda::append_param(Type type, const std::string& name) {

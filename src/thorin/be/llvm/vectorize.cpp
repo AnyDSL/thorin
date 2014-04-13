@@ -38,7 +38,7 @@ Lambda* CodeGen::emit_vectorized(llvm::Function* current, Lambda* lambda) {
     // build simd-function signature
     Array<llvm::Type*> simd_args(num_args);
     for (size_t i = 0; i < num_args; ++i) {
-        const Type* type = lambda->arg(i + arg_index)->type();
+        Type type = lambda->arg(i + arg_index)->type();
         simd_args[i] = map(type);
     }
 
@@ -66,7 +66,7 @@ Lambda* CodeGen::emit_vectorized(llvm::Function* current, Lambda* lambda) {
         // check target type
         Def arg = lambda->arg(i + arg_index);
         llvm::Value* llvm_arg = lookup(arg);
-        if (arg->type()->isa<Ptr>())
+        if (arg->type().isa<PtrType>())
             llvm_arg = builder_.CreateBitCast(llvm_arg, simd_args[i]);
         args[i] = llvm_arg;
     }

@@ -21,7 +21,7 @@ public:
 protected:
     CodeGen(World& world, llvm::CallingConv::ID calling_convention);
 
-    llvm::Type* map(const Type*);
+    llvm::Type* map(Type);
     llvm::Value* emit(Def);
     llvm::Value* lookup(Def);
     llvm::AllocaInst* emit_alloca(llvm::Type*, const std::string&);

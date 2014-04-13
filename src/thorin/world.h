@@ -60,7 +60,7 @@ private:
 
 public:
     typedef HashSet<const PrimOp*, PrimOpHash, PrimOpEqual> PrimOps;
-    typedef HashSet<const Type*, TypeHash, TypeEqual> Types;
+    typedef HashSet<const TypeNode*, TypeHash, TypeEqual> Types;
 
     World(std::string name = "");
     ~World();
@@ -70,7 +70,7 @@ public:
      */
 
 #define THORIN_ALL_TYPE(T) PrimType type_##T(size_t length = 1) { \
-    return length == 1 ? T##_ : unify(new PrimTypeNode(*this, PrimType_##T, length)); \
+    return length == 1 ? PrimType(T##_) : unify(new PrimTypeNode(*this, PrimType_##T, length)); \
 }
 #include "thorin/tables/primtypetable.h"
 
@@ -78,17 +78,17 @@ public:
     PrimType    type(PrimTypeKind kind, size_t length = 1) {
         size_t i = kind - Begin_PrimType;
         assert(0 <= i && i < (size_t) Num_PrimTypes);
-        return length == 1 ? primtypes_[i] : unify(new PrimTypeNode(*this, kind, length));
+        return length == 1 ? PrimType(primtypes_[i]) : unify(new PrimTypeNode(*this, kind, length));
     }
-    MemType     type_mem() const { return mem_; }
-    FrameType   type_frame() const { return frame_; }
+    MemType     type_mem() const { return MemType(mem_); }
+    FrameType   type_frame() const { return FrameType(frame_); }
     PtrType     type_ptr(Type referenced_type, size_t length = 1, uint32_t device = 0, AddressSpace adr_space = AddressSpace::Global) {
         return unify(new PtrTypeNode(*this, referenced_type, length, device, adr_space)); 
     }
-    TupleType           type_tuple0() { return tuple0_; }
+    TupleType           type_tuple0() { return TupleType(tuple0_); }
     TupleType           type_tuple(ArrayRef<Type> elems) { return unify(new TupleTypeNode(*this, elems)); }
     StructType          type_struct(size_t size, const std::string& name = ""); ///< Creates a fresh \em named sigma.
-    FnType              type_fn0() { return fn0_; }
+    FnType              type_fn0() { return FnType(fn0_); }
     FnType              type_fn(ArrayRef<Type> elems) { return unify(new FnTypeNode(*this, elems)); }
     GenericType         type_generic(size_t index) { return unify(new GenericTypeNode(*this, index)); }
     DefiniteArrayType   type_definite_array(Type elem, u64 dim) { return unify(new DefiniteArrayTypeNode(*this, elem, dim)); }
@@ -258,8 +258,8 @@ public:
 #endif
 
 protected:
-    Type unify_base(Type type);
-    template<class T> const T* unify(const T* type) { return unify_base(type)->template as<T>(); }
+    const TypeNode* unify_base(const TypeNode*);
+    template<class T> Proxy<T> unify(const T* type) { return Proxy<T>(unify_base(type)->template as<T>()); }
     const DefNode* cse_base(const PrimOp*);
     template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
 

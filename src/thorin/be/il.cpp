@@ -66,21 +66,21 @@ public:
 std::ostream& IlPrinter::emit_type(const Type* type) {
     if (type == nullptr)
         return stream() << "null";
-    else if (type->isa<Frame>())
+    else if (type.isa<FrameType>())
         return stream() << "frame";
-    else if (type->isa<Mem>())
+    else if (type.isa<MemType>())
         return stream() << "mem";
-    else if (auto pi = type->isa<Pi>()) {
-        if (pi->elems().empty())
+    else if (auto fn = type.isa<FnType>()) {
+        if (fn->elems().empty())
           return stream() << "unit -> unit";
         else
           return dump_list([&] (const Type* type) { emit_type(type); }, pi->elems(), "", " -> unit", " * ");
     }
-    else if (auto sigma = type->isa<Sigma>())
+    else if (auto tuple = type.isa<TupleType>())
         return dump_list([&] (const Type* type) { emit_type(type); }, sigma->elems(), "", "", " * ");
-    else if (type->isa<Generic>())
+    else if (type.isa<GenericType>())
         return stream() << "TODO";
-    else if (auto ptr = type->isa<Ptr>()) {
+    else if (auto ptr = type.isa<PtrType>()) {
         if (ptr->is_vector())
             stream() << '<' << ptr->length() << " x ";
         emit_type(ptr->referenced_type());
@@ -88,7 +88,7 @@ std::ostream& IlPrinter::emit_type(const Type* type) {
         if (ptr->is_vector())
             stream() << '>';
         return stream();
-    } else if (auto primtype = type->isa<PrimType>()) {
+    } else if (auto primtype = type.isa<PrimType>()) {
         if (primtype->is_vector())
             stream() << "<" << primtype->length() << " x ";
             switch (primtype->primtype_kind()) {

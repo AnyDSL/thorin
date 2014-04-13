@@ -10,7 +10,6 @@
 namespace thorin {
 
 class Lambda;
-class Pi;
 
 typedef std::vector<Lambda*> Lambdas;
 
@@ -80,9 +79,9 @@ public:
     Def to() const { return op(0); };
     ArrayRef<Def> args() const { return empty() ? ArrayRef<Def>(0, 0) : ops().slice_from_begin(1); }
     Def arg(size_t i) const { return args()[i]; }
-    const Pi* pi() const;
-    const Pi* to_pi() const;
-    const Pi* arg_pi() const;
+    FnType fn_type() const { return type().as<FnType>(); }
+    FnType to_fn_type() const { return to()->type().as<FnType>(); }
+    FnType arg_fn_type() const;
     size_t num_args() const { return args().size(); }
     size_t num_params() const { return params().size(); }
     Attribute& attribute() { return attribute_; }

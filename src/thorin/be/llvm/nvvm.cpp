@@ -27,21 +27,21 @@ NVVMCodeGen::NVVMCodeGen(World& world)
 //------------------------------------------------------------------------------
 
 static AddressSpace resolve_addr_space(Def def) {
-    if (auto ptr = def->type()->isa<Ptr>())
+    if (auto ptr = def->type().isa<PtrType>())
         return ptr->addr_space();
     return AddressSpace::Global;
 }
 
 llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
     // skip non-global address-space parameters
-    std::vector<const Type*> types;
+    std::vector<Type> types;
     for (auto type : lambda->type()->elems()) {
-        if (auto ptr = type->isa<Ptr>())
+        if (auto ptr = type.isa<PtrType>())
             if (ptr->addr_space() == AddressSpace::Texture)
                 continue;
         types.push_back(type);
     }
-    auto ft = llvm::cast<llvm::FunctionType>(map(lambda->world().pi(types)));
+    auto ft = llvm::cast<llvm::FunctionType>(map(lambda->world().type_fn(types)));
     // TODO: factor emit_function_decl code
     auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(lambda->name, ft));
     f->setLinkage(llvm::Function::ExternalLinkage);
@@ -60,7 +60,7 @@ llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     };
 
     const auto emit_texture_kernel_arg = [&](const Param* param) {
-        assert(param->type()->as<Ptr>()->addr_space() == AddressSpace::Texture);
+        assert(param->type().as<PtrType>()->addr_space() == AddressSpace::Texture);
         auto global = emit_global_memory(builder_.getInt64Ty(), param->name, 1);
         metadata_[param] = append_metadata(global, "texture");
     };
@@ -70,7 +70,7 @@ llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambd
 
     // check signature for texturing memory
     for (auto param : lambda->params()) {
-        if (auto ptr = param->type()->isa<Ptr>()){
+        if (auto ptr = param->type().isa<PtrType>()){
             switch (ptr->addr_space()) {
             case AddressSpace::Texture:
                 emit_texture_kernel_arg(param);
@@ -143,10 +143,10 @@ llvm::Value* NVVMCodeGen::emit_store(Def def) {
     return CodeGen::emit_store(store);
 }
 
-static std::string get_texture_fetch_command(const Type* type) {
+static std::string get_texture_fetch_command(Type type) {
     std::stringstream fun_str;
     fun_str << "tex.1d.v4.";
-    switch (type->as<PrimType>()->primtype_kind()) {
+    switch (type.as<PrimType>()->primtype_kind()) {
         case PrimType_ps8:  case PrimType_qs8:
         case PrimType_pu8:  case PrimType_qu8:  fun_str << "s8";  break;
         case PrimType_ps16: case PrimType_qs16:
@@ -165,10 +165,10 @@ static std::string get_texture_fetch_command(const Type* type) {
     return fun_str.str();
 }
 
-static std::string get_texture_fetch_constraint(const Type* type) {
+static std::string get_texture_fetch_constraint(Type type) {
     std::stringstream constraint_str;
     char c;
-    switch (type->as<PrimType>()->primtype_kind()) {
+    switch (type.as<PrimType>()->primtype_kind()) {
         case PrimType_ps8:  case PrimType_qs8:
         case PrimType_pu8:  case PrimType_qu8:  c = 'c'; break; // not officially listed
         case PrimType_ps16: case PrimType_qs16:
@@ -195,7 +195,7 @@ llvm::Value* NVVMCodeGen::emit_lea(Def def) {
         // sample for i32:
         // %tex_fetch = call { i32, i32, i32, i32 } asm sideeffect "tex.1d.v4.s32.s32 {$0,$1,$2,$3}, [$4, {$5,$6,$7,$8}];",
         // "=r,=r,=r,=r,l,r,r,r,r" (i64 %tex_ref, i32 %add, i32 0, i32 0, i32 0)
-        auto ptr_ty = lea->type()->as<Ptr>();
+        auto ptr_ty = lea->type().as<PtrType>();
         auto llvm_ptr_ty = map(ptr_ty->referenced_type());
         llvm::Type* struct_types[] = { llvm_ptr_ty, llvm_ptr_ty, llvm_ptr_ty, llvm_ptr_ty };
         auto ret_type = llvm::StructType::create(struct_types);

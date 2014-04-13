@@ -135,7 +135,7 @@ void CodeGen::emit() {
         const Param* ret_param = nullptr;
         auto arg = fct->arg_begin();
         for (auto param : lambda->params()) {
-            if (param->type()->isa<Mem>())
+            if (param->type().isa<MemType>())
                 continue;
             if (param->order() == 0) {
                 auto argv = &*arg;
@@ -165,7 +165,7 @@ void CodeGen::emit() {
             // create phi node stubs (for all non-cascading lambdas different from entry)
             if (!lambda->is_cascading() && scope.entry() != lambda) {
                 for (auto param : lambda->params())
-                    if (!param->type()->isa<Mem>())
+                    if (!param->type().isa<MemType>())
                         phis_[param] = llvm::PHINode::Create(map(param->type()), (unsigned) param->peek().size(), param->name, bb);
             }
 
@@ -189,8 +189,8 @@ void CodeGen::emit() {
 
             for (auto primop : schedule[lambda]) {
                 // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
-                if (!primop->type()->isa<Pi>() && !primop->type()->isa<Frame>()
-                        && (!primop->type()->isa<Mem>() || primop->isa<Store>()))
+                if (!primop->type().isa<FnType>() && !primop->type().isa<FrameType>()
+                        && (!primop->type().isa<MemType>() || primop->isa<Store>()))
                     primops_[primop] = emit(primop);
             }
 
@@ -200,16 +200,16 @@ void CodeGen::emit() {
                 switch (num_args) {
                     case 0: builder_.CreateRetVoid(); break;
                     case 1:
-                            if (lambda->arg(0)->type()->isa<Mem>())
+                            if (lambda->arg(0)->type().isa<MemType>())
                                 builder_.CreateRetVoid();
                             else
                                 builder_.CreateRet(lookup(lambda->arg(0)));
                             break;
                     case 2: {
-                                if (lambda->arg(0)->type()->isa<Mem>()) {
+                                if (lambda->arg(0)->type().isa<MemType>()) {
                                     builder_.CreateRet(lookup(lambda->arg(1)));
                                     break;
-                                } else if (lambda->arg(1)->type()->isa<Mem>()) {
+                                } else if (lambda->arg(1)->type().isa<MemType>()) {
                                     builder_.CreateRet(lookup(lambda->arg(0)));
                                     break;
                                 }
@@ -221,7 +221,7 @@ void CodeGen::emit() {
 
                                  size_t n = 0;
                                  for (size_t a = 0; a < num_args; ++a) {
-                                     if (!lambda->arg(n)->type()->isa<Mem>()) {
+                                     if (!lambda->arg(n)->type().isa<MemType>()) {
                                          llvm::Value* val = lookup(lambda->arg(a));
                                          values[n] = val;
                                          elems[n++] = val->getType();
@@ -262,7 +262,7 @@ void CodeGen::emit() {
                         Def ret_arg = 0;
                         for (auto arg : lambda->args()) {
                             if (arg->order() == 0) {
-                                if (!arg->type()->isa<Mem>())
+                                if (!arg->type().isa<MemType>())
                                     args[i++] = lookup(arg);
                             }
                             else {
@@ -278,7 +278,7 @@ void CodeGen::emit() {
                             builder_.CreateRet(call);
                         else {                          // call + continuation
                             Lambda* succ = ret_arg->as_lambda();
-                            const Param* param = succ->param(0)->type()->isa<Mem>() ? nullptr : succ->param(0);
+                            const Param* param = succ->param(0)->type().isa<MemType>() ? nullptr : succ->param(0);
                             if (param == nullptr && succ->num_params() == 2)
                                 param = succ->param(1);
 
@@ -466,16 +466,16 @@ llvm::Value* CodeGen::emit(Def def) {
 
     if (auto conv = def->isa<ConvOp>()) {
         auto from = lookup(conv->from());
-        auto src = conv->from()->type()->as<PrimType>();
-        auto dst = conv->type()->as<PrimType>();
+        auto src = conv->from()->type().as<PrimType>();
+        auto dst = conv->type().as<PrimType>();
         auto to = map(dst);
 
         if (conv->isa<Cast>()) {
-            if (src->isa<Ptr>()) {
+            if (src.isa<PtrType>()) {
                 assert(dst->is_type_i());
                 return builder_.CreatePtrToInt(from, to);
             }
-            if (dst->isa<Ptr>()) {
+            if (dst.isa<PtrType>()) {
                 assert(src->is_type_i());
                 return builder_.CreateIntToPtr(from, to);
             }
@@ -553,17 +553,17 @@ llvm::Value* CodeGen::emit(Def def) {
         auto agg = lookup(aggop->agg());
         auto idx = lookup(aggop->index());
 
-        if (aggop->agg_type()->isa<Sigma>()) {
+        if (aggop->agg_type().isa<TupleType>()) {
             unsigned i = aggop->index()->primlit_value<unsigned>();
 
             if (auto extract = aggop->isa<Extract>()) {
                 auto agg_type = extract->agg_type();
-                if (auto agg_sigma = agg_type->isa<Sigma>()) {
+                if (auto agg_tuple = agg_type.isa<TupleType>()) {
                     // check for a memory-mapped extract
                     // TODO: integrate memory-mappings in a nicer way :)
-                    if (agg_sigma->size() == 2 &&
-                        agg_sigma->elem(0)->isa<Mem>() &&
-                        agg_sigma->elem(1)->isa<Ptr>())
+                    if (agg_tuple->size() == 2 &&
+                        agg_tuple->elem(0).isa<MemType>() &&
+                        agg_tuple->elem(1).isa<PtrType>())
                         return lookup(extract->agg());
                 }
                 return builder_.CreateExtractValue(agg, { i });
@@ -573,7 +573,7 @@ llvm::Value* CodeGen::emit(Def def) {
             auto value = lookup(insert->value());
 
             return builder_.CreateInsertValue(agg, value, { i });
-        } else if (aggop->agg_type()->isa<ArrayType>()) {
+        } else if (aggop->agg_type().isa<ArrayType>()) {
             // TODO use llvm::ConstantArray if applicable
             std::cout << "warning: slow" << std::endl;
             auto alloca = emit_alloca(agg->getType(), aggop->name);
@@ -623,7 +623,7 @@ llvm::Value* CodeGen::emit(Def def) {
         return emit_store(store);
 
     if (auto slot = def->isa<Slot>())
-        return builder_.CreateAlloca(map(slot->type()->as<Ptr>()->referenced_type()), 0, slot->unique_name());
+        return builder_.CreateAlloca(map(slot->type().as<PtrType>()->referenced_type()), 0, slot->unique_name());
 
     if (auto map = def->isa<Map>())
         return emit_map(map);
@@ -660,10 +660,10 @@ llvm::Value* CodeGen::emit_store(Def def) {
 
 llvm::Value* CodeGen::emit_lea(Def def) {
     auto lea = def->as<LEA>();
-    if (lea->referenced_type()->isa<Sigma>())
+    if (lea->referenced_type().isa<TupleType>())
         return builder_.CreateConstInBoundsGEP2_64(lookup(lea->ptr()), 0ull, lea->index()->primlit_value<u64>());
 
-    assert(lea->referenced_type()->isa<ArrayType>());
+    assert(lea->referenced_type().isa<ArrayType>());
     llvm::Value* args[2] = { builder_.getInt64(0), lookup(lea->index()) };
     return builder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
 }
@@ -692,7 +692,7 @@ llvm::Value* CodeGen::emit_shared_map(Def def) {
                              region_size->op(1)->as<PrimLit>()->ps32_value() *
                              region_size->op(2)->as<PrimLit>()->ps32_value();
     // construct array type
-    auto type = this->map(map->world().def_array(map->ptr_type()->referenced_type(), total_region_size));
+    auto type = this->map(map->world().type_definite_array(map->ptr_type()->referenced_type(), total_region_size));
     auto global = emit_global_memory(type, map->unique_name(), 3);
     // TODO: fill memory
     return global;
@@ -703,8 +703,8 @@ llvm::Value* CodeGen::emit_shared_unmap(Def def) {
     return nullptr;
 }
 
-llvm::Type* CodeGen::map(const Type* type) {
-    assert(!type->isa<Mem>());
+llvm::Type* CodeGen::map(Type type) {
+    assert(!type.isa<MemType>());
     llvm::Type* llvm_type;
     switch (type->kind()) {
         case PrimType_bool:                                                             llvm_type = builder_. getInt1Ty(); break;
@@ -714,8 +714,8 @@ llvm::Type* CodeGen::map(const Type* type) {
         case PrimType_ps64: case PrimType_qs64: case PrimType_pu64: case PrimType_qu64: llvm_type = builder_.getInt64Ty(); break;
         case PrimType_pf32: case PrimType_qf32:                                         llvm_type = builder_.getFloatTy(); break;
         case PrimType_pf64: case PrimType_qf64:                                         llvm_type = builder_.getDoubleTy();break;
-        case Node_Ptr: {
-            auto ptr = type->as<Ptr>();
+        case Node_PtrType: {
+            auto ptr = type.as<PtrType>();
             unsigned address_space;
             switch(ptr->addr_space())
             {
@@ -735,43 +735,43 @@ llvm::Type* CodeGen::map(const Type* type) {
             llvm_type = llvm::PointerType::get(map(ptr->referenced_type()), address_space);
             break;
         }
-        case Node_IndefArray:
-            return llvm::ArrayType::get(map(type->as<ArrayType>()->elem_type()), 0);
-        case Node_DefArray: {
-            auto array = type->as<DefArray>();
+        case Node_IndefiniteArrayType:
+            return llvm::ArrayType::get(map(type.as<ArrayType>()->elem_type()), 0);
+        case Node_DefiniteArrayType: {
+            auto array = type.as<DefiniteArrayType>();
             return llvm::ArrayType::get(map(array->elem_type()), array->dim());
         }
-        case Node_Pi: {
+        case Node_FnType: {
             // extract "return" type, collect all other types
-            const Pi* pi = type->as<Pi>();
+            auto fn = type.as<FnType>();
             llvm::Type* ret = nullptr;
             size_t i = 0;
-            Array<llvm::Type*> elems(pi->size() - 1);
-            for (auto elem : pi->elems()) {
-                if (elem->isa<Mem>())
+            Array<llvm::Type*> elems(fn->size() - 1);
+            for (auto elem : fn->elems()) {
+                if (elem.isa<MemType>())
                     continue;
-                if (auto pi = elem->isa<Pi>()) {
+                if (auto fn = elem.isa<FnType>()) {
                     assert(!ret && "only one 'return' supported");
-                    if (pi->empty())
+                    if (fn->empty())
                         ret = llvm::Type::getVoidTy(context_);
-                    else if (pi->size() == 1)
-                        ret = pi->elem(0)->isa<Mem>() ? llvm::Type::getVoidTy(context_) : map(pi->elem(0));
-                    else if (pi->size() == 2) {
-                        if (pi->elem(0)->isa<Mem>())
-                            ret = map(pi->elem(1));
-                        else if (pi->elem(1)->isa<Mem>())
-                            ret = map(pi->elem(0));
+                    else if (fn->size() == 1)
+                        ret = fn->elem(0).isa<MemType>() ? llvm::Type::getVoidTy(context_) : map(fn->elem(0));
+                    else if (fn->size() == 2) {
+                        if (fn->elem(0).isa<MemType>())
+                            ret = map(fn->elem(1));
+                        else if (fn->elem(1).isa<MemType>())
+                            ret = map(fn->elem(0));
                         else
                             goto multiple;
                     } else {
 multiple:
-                        Array<llvm::Type*> elems(pi->size());
+                        Array<llvm::Type*> elems(fn->size());
                         size_t num = 0;
                         for (size_t j = 0, e = elems.size(); j != e; ++j) {
-                            if (pi->elem(j)->isa<Mem>())
+                            if (fn->elem(j).isa<MemType>())
                                 continue;
                             ++num;
-                            elems[j] = map(pi->elem(j));
+                            elems[j] = map(fn->elem(j));
                         }
                         elems.shrink(num);
                         ret = llvm::StructType::get(context_, llvm_ref(elems));
@@ -785,12 +785,12 @@ multiple:
             return llvm::FunctionType::get(ret, llvm_ref(elems), false);
         }
 
-        case Node_Sigma: {
+        case Node_TupleType: {
             // TODO watch out for cycles!
-            const Sigma* sigma = type->as<Sigma>();
-            Array<llvm::Type*> elems(sigma->size());
+            auto tuple = type.as<TupleType>();
+            Array<llvm::Type*> elems(tuple->size());
             size_t num = 0;
-            for (auto elem : sigma->elems())
+            for (auto elem : tuple->elems())
                 elems[num++] = map(elem);
             elems.shrink(num);
             return llvm::StructType::get(context_, llvm_ref(elems));

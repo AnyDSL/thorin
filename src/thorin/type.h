@@ -86,7 +86,8 @@ private:
 
 protected:
     TypeNode(World& world, NodeKind kind, size_t num, bool is_generic)
-        : world_(world)
+        : representative_(this)
+        , world_(world)
         , kind_(kind)
         , elems_(num)
         , gid_(-1)
@@ -137,6 +138,7 @@ public:
     size_t length() const;
 
 private:
+    TypeNode* representative_;
     World& world_;
     NodeKind kind_;
     std::vector<Type> elems_;
@@ -144,7 +146,6 @@ private:
 
 protected:
     bool is_generic_;
-    TypeNode* representative_;
 
     friend class World;
 };

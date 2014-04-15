@@ -49,7 +49,7 @@ void Cleaner::eliminate_params() {
         if (proxy_idx.empty())
             continue;
 
-        auto nlambda = world_.lambda(world_.pi(olambda->type()->elems().cut(proxy_idx)), olambda->attribute(), olambda->name);
+        auto nlambda = world_.lambda(world_.type_fn(olambda->type()->elems().cut(proxy_idx)), olambda->attribute(), olambda->name);
         size_t j = 0;
         for (auto i : param_idx) {
             olambda->param(i)->replace(nlambda->param(j));

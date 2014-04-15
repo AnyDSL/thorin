@@ -3,7 +3,7 @@
 namespace thorin {
 
 Type import(Type2Type& old2new, World& to, Type otype) {
-    if (auto ntype = find(old2new, otype)) {
+    if (auto ntype = Type(find(old2new, *otype))) {
         assert(&ntype->world() == &to);
         return ntype;
     }
@@ -13,9 +13,9 @@ Type import(Type2Type& old2new, World& to, Type otype) {
     for (size_t i = 0; i != size; ++i)
         nelems[i] = import(old2new, to, otype->elem(i));
     
-    auto ntype = old2new[otype] = World::rebuild(to, otype, nelems);
+    auto ntype = old2new[*otype] = *World::rebuild(to, otype, nelems);
     assert(&ntype->world() == &to);
-    return ntype;
+    return Type(ntype);
 }
 
 Def import(Type2Type& type_old2new, Def2Def& def_old2new, World& to, Def odef) {
@@ -35,7 +35,7 @@ Def import(Type2Type& type_old2new, Def2Def& def_old2new, World& to, Def odef) {
 
     Lambda* nlambda = nullptr;
     if (auto olambda = odef->isa_lambda()) { // create stub in new world
-        auto npi = import(type_old2new, to, olambda->pi())->as<Pi>();
+        auto npi = import(type_old2new, to, olambda->fn_type()).as<FnType>();
         nlambda = to.lambda(npi, olambda->attribute(), olambda->name);
         for (size_t i = 0, e = olambda->num_params(); i != e; ++i) {
             nlambda->param(i)->name = olambda->param(i)->name;

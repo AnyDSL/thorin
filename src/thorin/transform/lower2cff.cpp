@@ -68,7 +68,7 @@ void CFFLowering::transform(Lambda* lambda) {
     for (auto use : use_proxies) {
         auto ulambda = use.lambda();
         GenericMap map;
-        bool res = lambda->type()->infer_with(map, ulambda->arg_pi());
+        bool res = lambda->type()->infer_with(map, ulambda->arg_fn_type());
         assert(res);
         
         size_t num_args = lambda->num_params();

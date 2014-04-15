@@ -100,9 +100,9 @@ using DefSet  = HashSet<const DefNode*, GIDHash<const DefNode*>, GIDEq<const Def
 using Def2Def = DefMap<const DefNode*>;
 
 template<class To> 
-using TypeMap   = HashMap<const Type*, To, GIDHash<const Type*>, GIDEq<const Type*>>;
-using TypeSet   = HashSet<const Type*, GIDHash<const Type*>, GIDEq<const Type*>>;
-using Type2Type = TypeMap<const Type*>;
+using TypeMap   = HashMap<const TypeNode*, To, GIDHash<const TypeNode*>, GIDEq<const TypeNode*>>;
+using TypeSet   = HashSet<const TypeNode*, GIDHash<const TypeNode*>, GIDEq<const TypeNode*>>;
+using Type2Type = TypeMap<const TypeNode*>;
 
 //------------------------------------------------------------------------------
 

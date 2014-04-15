@@ -20,7 +20,7 @@ public:
     void eliminate_params();
     Def dead_code_elimination(Def);
     void unreachable_code_elimination(Lambda*);
-    void unused_type_elimination(const Type*);
+    void unused_type_elimination(const TypeNode*);
 
 private:
     World& world_;
@@ -49,7 +49,7 @@ void Cleaner::eliminate_params() {
         if (proxy_idx.empty())
             continue;
 
-        auto nlambda = world_.lambda(world_.type_fn(olambda->type()->elems().cut(proxy_idx)), olambda->attribute(), olambda->name);
+        auto nlambda = world_.lambda(world_.fn_type(olambda->type()->elems().cut(proxy_idx)), olambda->attribute(), olambda->name);
         size_t j = 0;
         for (auto i : param_idx) {
             olambda->param(i)->replace(nlambda->param(j));
@@ -79,14 +79,14 @@ void Cleaner::cleanup() {
             unreachable_code_elimination(lambda);
 
     // collect all used types
-    for (size_t i = 0, e = sizeof(world_.keep_)/sizeof(const Type*); i != e; ++i)
+    for (size_t i = 0, e = sizeof(world_.keep_)/sizeof(const TypeNode*); i != e; ++i)
         unused_type_elimination(world_.keep_[i]);
     for (auto primop : nprimops())
-        unused_type_elimination(primop->type());
+        unused_type_elimination(*primop->type());
     for (auto lambda : nlambdas()) {
-        unused_type_elimination(lambda->type());
+        unused_type_elimination(*lambda->type());
         for (auto param : lambda->params())
-            unused_type_elimination(param->type());
+            unused_type_elimination(*param->type());
     }
 
     // destroy bodies of unreachable lambdas
@@ -170,10 +170,10 @@ Def Cleaner::dead_code_elimination(Def def) {
     return dce_map_[oprimop] = nprimop;
 }
 
-void Cleaner::unused_type_elimination(const Type* type) {
+void Cleaner::unused_type_elimination(const TypeNode* type) {
     if (visit(ntypes(), type)) return;
     for (auto elem : type->elems())
-        unused_type_elimination(elem);
+        unused_type_elimination(*elem);
 }
 
 void cleanup_world(World& world) { Cleaner(world).cleanup(); }

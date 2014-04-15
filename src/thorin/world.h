@@ -80,19 +80,19 @@ public:
         assert(0 <= i && i < (size_t) Num_PrimTypes);
         return length == 1 ? PrimType(primtypes_[i]) : unify(new PrimTypeNode(*this, kind, length));
     }
-    MemType     type_mem() const { return MemType(mem_); }
-    FrameType   type_frame() const { return FrameType(frame_); }
-    PtrType     type_ptr(Type referenced_type, size_t length = 1, uint32_t device = 0, AddressSpace adr_space = AddressSpace::Global) {
+    MemType     mem_type() const { return MemType(mem_); }
+    FrameType   frame_type() const { return FrameType(frame_); }
+    PtrType     ptr_type(Type referenced_type, size_t length = 1, uint32_t device = 0, AddressSpace adr_space = AddressSpace::Global) {
         return unify(new PtrTypeNode(*this, referenced_type, length, device, adr_space)); 
     }
-    TupleType           type_tuple0() { return TupleType(tuple0_); }
-    TupleType           type_tuple(ArrayRef<Type> elems) { return unify(new TupleTypeNode(*this, elems)); }
-    StructType          type_struct(size_t size, const std::string& name = ""); ///< Creates a fresh \em named sigma.
-    FnType              type_fn0() { return FnType(fn0_); }
-    FnType              type_fn(ArrayRef<Type> elems) { return unify(new FnTypeNode(*this, elems)); }
-    GenericType         type_generic(size_t index) { return unify(new GenericTypeNode(*this, index)); }
-    DefiniteArrayType   type_definite_array(Type elem, u64 dim) { return unify(new DefiniteArrayTypeNode(*this, elem, dim)); }
-    IndefiniteArrayType type_indefinite_array(Type elem) { return unify(new IndefiniteArrayTypeNode(*this, elem)); }
+    TupleType           tuple_type() { return TupleType(tuple0_); }         ///< Returns unit, i.e., an empty \p TupleType.
+    TupleType           tuple_type(ArrayRef<Type> elems) { return unify(new TupleTypeNode(*this, elems)); }
+    StructType          struct_type(size_t size, const std::string& name = "");
+    FnType              fn_type() { return FnType(fn0_); }                  ///< Returns an empty \p FnType.
+    FnType              fn_type(ArrayRef<Type> elems) { return unify(new FnTypeNode(*this, elems)); }
+    GenericType         generic_type(size_t index) { return unify(new GenericTypeNode(*this, index)); }
+    DefiniteArrayType   definite_array_type(Type elem, u64 dim) { return unify(new DefiniteArrayTypeNode(*this, elem, dim)); }
+    IndefiniteArrayType indefinite_array_type(Type elem) { return unify(new IndefiniteArrayTypeNode(*this, elem)); }
 
     /*
      * literals
@@ -217,7 +217,7 @@ public:
 
     Lambda* lambda(FnType fn, Lambda::Attribute attribute = Lambda::Attribute(0), const std::string& name = "");
     Lambda* lambda(FnType fn, const std::string& name) { return lambda(fn, Lambda::Attribute(0), name); }
-    Lambda* lambda(const std::string& name) { return lambda(type_fn0(), Lambda::Attribute(0), name); }
+    Lambda* lambda(const std::string& name) { return lambda(fn_type(), Lambda::Attribute(0), name); }
     Lambda* basicblock(const std::string& name = "");
     Lambda* meta_lambda();
 

@@ -53,7 +53,7 @@ void mem2reg(const Scope& scope) {
             } else if (auto load = def->isa<Load>()) {
                 if (auto slot = load->ptr()->isa<Slot>()) {
                     if (addresses[slot] != size_t(-1)) {  // if not "address taken"
-                        auto type = slot->type()->as<Ptr>()->referenced_type();
+                        auto type = slot->type().as<PtrType>()->referenced_type();
                         load->replace(lambda->get_value(addresses[slot], type, slot->name.c_str()));
                     }
                 }

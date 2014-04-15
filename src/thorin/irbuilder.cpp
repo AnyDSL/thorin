@@ -15,11 +15,11 @@ Var::Var(IRBuilder& builder, Def def)
     , def_(def)
 {}
 
-Var::Var(IRBuilder& builder, size_t handle, const Type* type, const char* name)
+Var::Var(IRBuilder& builder, size_t handle, Type type, const char* name)
     : kind_(MutableValRef)
     , builder_(&builder)
     , handle_(handle)
-    , type_(type)
+    , type_(*type)
     , name_(name)
 {}
 
@@ -33,7 +33,7 @@ Def Var::load() const {
     switch (kind()) {
         case Empty:           return Def();
         case ImmutableValRef: return def_;
-        case MutableValRef:   return builder_->cur_bb->get_value(handle_, type_, name_); 
+        case MutableValRef:   return builder_->cur_bb->get_value(handle_, Type(type_), name_); 
         case SlotRef:         return builder_->world().load(builder_->get_mem(), slot_);
         default: THORIN_UNREACHABLE;
     }
@@ -115,7 +115,7 @@ void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f) {
     }
 }
 
-Def IRBuilder::call(Def to, ArrayRef<Def> args, const Type* ret_type) {
+Def IRBuilder::call(Def to, ArrayRef<Def> args, Type ret_type) {
     if (is_reachable()) {
         auto p = cur_bb->call(to, args, ret_type);
         cur_bb = p.first;
@@ -124,7 +124,7 @@ Def IRBuilder::call(Def to, ArrayRef<Def> args, const Type* ret_type) {
     return Def();
 }
 
-Def IRBuilder::get_mem() { return cur_bb->get_value(0, world().mem(), "mem"); }
+Def IRBuilder::get_mem() { return cur_bb->get_value(0, world().mem_type(), "mem"); }
 void IRBuilder::set_mem(Def def) { if (is_reachable()) cur_bb->set_value(0, def); }
 
 //------------------------------------------------------------------------------

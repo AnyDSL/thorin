@@ -25,7 +25,7 @@ public:
     Call() {}
     Call(Lambda* to)
         : to_(to)
-        , args_(to->pi()->size())
+        , args_(to->fn_type()->size())
     {}
 
     Lambda* to() const { return to_; }
@@ -134,7 +134,7 @@ void PartialEvaluator::eval(Lambda* cur) {
                 Scope scope(dst);
                 Def2Def old2new;
                 GenericMap generic_map;
-                bool res = dst->type()->infer_with(generic_map, cur->arg_pi());
+                bool res = dst->type()->infer_with(generic_map, cur->arg_fn_type());
                 assert(res);
                 auto dropped = drop(scope, old2new, call.args(), generic_map);
                 old2new[dst] = dropped;

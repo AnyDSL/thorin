@@ -9,10 +9,7 @@ namespace thorin {
 
 class IRBuilder;
 class Lambda;
-class Param;
-class Ref;
 class Slot;
-class Type;
 class World;
 
 //------------------------------------------------------------------------------
@@ -31,7 +28,7 @@ public:
         , builder_(nullptr)
     {}
     Var(IRBuilder& builder, Def def);
-    Var(IRBuilder& builder, size_t handle, const Type* type, const char* name);
+    Var(IRBuilder& builder, size_t handle, Type type, const char* name);
     Var(IRBuilder& builder, const Slot* slot);
 
     const Kind kind() const { return kind_; }
@@ -45,7 +42,7 @@ private:
     union {
         struct {
             size_t handle_;
-            const Type* type_;
+            const TypeNode* type_;
             const char* name_;
         };
         Def def_;
@@ -101,7 +98,7 @@ public:
     Lambda* enter_unsealed(JumpTarget& jt) { return cur_bb = jt.enter_unsealed(world_); }
     void jump(JumpTarget& jt);
     void branch(Def cond, JumpTarget& t, JumpTarget& f);
-    Def call(Def to, ArrayRef<Def> args, const Type* ret_type);
+    Def call(Def to, ArrayRef<Def> args, Type ret_type);
     Def get_mem();
     void set_mem(Def def);
 

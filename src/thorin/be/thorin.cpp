@@ -39,8 +39,8 @@ std::ostream& CodeGen::emit_type(Type type) {
         return dump_list([&](Type type) { emit_type(type); }, fn->elems(), "fn(", ")");
     } else if (auto tuple = type.isa<TupleType>()) {
         return dump_list([&](Type type) { emit_type(type); }, tuple->elems(), "(", ")");
-    } else if (auto generic = type.isa<GenericType>()) {
-        return stream() << '<' << generic->index() << '>';
+    } else if (auto type_var = type.isa<TypeVar>()) {
+        return stream() << '<' << type_var->index() << '>';
     } else if (auto array = type.isa<IndefiniteArrayType>()) {
         stream() << '[';
         emit_type(array->elem_type());

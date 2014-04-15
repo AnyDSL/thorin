@@ -61,7 +61,7 @@ std::ostream& CCodeGen::emit_type(Type type) {
         --indent; newline();
         stream() << "} tuple_" << tuple->gid() << ";";
         return stream();
-    } else if (type.isa<GenericType>()) {
+    } else if (type.isa<TypeVar>()) {
         THORIN_UNREACHABLE;
     } else if (auto array = type.isa<IndefiniteArrayType>()) {
         emit_type(array->elem_type());

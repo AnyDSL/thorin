@@ -35,7 +35,7 @@
     // Type
         // PrimType
         THORIN_AIR_NODE(FrameType, frame)
-        THORIN_AIR_NODE(GenericType, generic)
+        THORIN_AIR_NODE(TypeVar, type_var)
         THORIN_AIR_NODE(MemType, mem)
         THORIN_AIR_NODE(FnType, fn)
         THORIN_AIR_NODE(PtrType, ptr)

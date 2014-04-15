@@ -78,7 +78,7 @@ std::ostream& IlPrinter::emit_type(Type type) {
     }
     else if (auto tuple = type.isa<TupleType>())
         return dump_list([&] (Type type) { emit_type(type); }, tuple->elems(), "", "", " * ");
-    else if (type.isa<GenericType>())
+    else if (type.isa<TypeVar>())
         return stream() << "TODO";
     else if (auto ptr = type.isa<PtrType>()) {
         if (ptr->is_vector())

@@ -29,27 +29,27 @@ public:
 //------------------------------------------------------------------------------
 
 std::ostream& CodeGen::emit_type(Type type) {
-    if (type == nullptr) {
+    if (type.empty()) {
         return stream() << "<NULL>";
-    } else if (type->isa<Frame>()) {
+    } else if (type.isa<FrameType>()) {
         return stream() << "frame";
-    } else if (type->isa<Mem>()) {
+    } else if (type.isa<MemType>()) {
         return stream() << "mem";
-    } else if (auto pi = type->isa<Pi>()) {
-        return dump_list([&](Type type) { emit_type(type); }, pi->elems(), "fn(", ")");
-    } else if (auto sigma = type->isa<Sigma>()) {
-        return dump_list([&](Type type) { emit_type(type); }, sigma->elems(), "(", ")");
-    } else if (auto generic = type->isa<Generic>()) {
+    } else if (auto fn = type.isa<FnType>()) {
+        return dump_list([&](Type type) { emit_type(type); }, fn->elems(), "fn(", ")");
+    } else if (auto tuple = type.isa<TupleType>()) {
+        return dump_list([&](Type type) { emit_type(type); }, tuple->elems(), "(", ")");
+    } else if (auto generic = type.isa<GenericType>()) {
         return stream() << '<' << generic->index() << '>';
-    } else if (auto array = type->isa<IndefArray>()) {
+    } else if (auto array = type.isa<IndefiniteArrayType>()) {
         stream() << '[';
         emit_type(array->elem_type());
         return stream() << ']';
-    } else if (auto array = type->isa<DefArray>()) {
+    } else if (auto array = type.isa<DefiniteArrayType>()) {
         stream() << '[' << array->dim() << " x ";
         emit_type(array->elem_type());
         return stream() << ']';
-    } else if (auto ptr = type->isa<Ptr>()) {
+    } else if (auto ptr = type.isa<PtrType>()) {
         if (ptr->is_vector())
             stream() << '<' << ptr->length() << " x ";
         emit_type(ptr->referenced_type());
@@ -71,7 +71,7 @@ std::ostream& CodeGen::emit_type(Type type) {
             break;
         }
         return stream();
-    } else if (auto primtype = type->isa<PrimType>()) {
+    } else if (auto primtype = type.isa<PrimType>()) {
         if (primtype->is_vector())
             stream() << "<" << primtype->length() << " x ";
             switch (primtype->primtype_kind()) {

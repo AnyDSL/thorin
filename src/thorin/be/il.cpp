@@ -49,7 +49,7 @@ public:
         : Printer(std::cout, fancy)
     {}
 
-    std::ostream& emit_type(const Type*);
+    std::ostream& emit_type(Type);
     std::ostream& emit_name(Def);
     std::ostream& emit_def(Def);
     std::ostream& emit_primop(const PrimOp*);
@@ -63,8 +63,8 @@ public:
 
 //------------------------------------------------------------------------------
 
-std::ostream& IlPrinter::emit_type(const Type* type) {
-    if (type == nullptr)
+std::ostream& IlPrinter::emit_type(Type type) {
+    if (type.empty())
         return stream() << "null";
     else if (type.isa<FrameType>())
         return stream() << "frame";
@@ -74,10 +74,10 @@ std::ostream& IlPrinter::emit_type(const Type* type) {
         if (fn->elems().empty())
           return stream() << "unit -> unit";
         else
-          return dump_list([&] (const Type* type) { emit_type(type); }, pi->elems(), "", " -> unit", " * ");
+          return dump_list([&] (Type type) { emit_type(type); }, fn->elems(), "", " -> unit", " * ");
     }
     else if (auto tuple = type.isa<TupleType>())
-        return dump_list([&] (const Type* type) { emit_type(type); }, sigma->elems(), "", "", " * ");
+        return dump_list([&] (Type type) { emit_type(type); }, tuple->elems(), "", "", " * ");
     else if (type.isa<GenericType>())
         return stream() << "TODO";
     else if (auto ptr = type.isa<PtrType>()) {

@@ -31,8 +31,8 @@ private:
     HashMap<size_t, std::string> primops_;
 
     std::ostream& emit_aggop_defs(Def def);
-    std::ostream& emit_aggop_decl(const Type *type);
-    std::ostream& emit_type(const Type* type);
+    std::ostream& emit_aggop_decl(Type);
+    std::ostream& emit_type(Type);
     std::ostream& emit(Def def);
     bool lookup(size_t gid);
     void insert(size_t gid, std::string str);
@@ -40,33 +40,33 @@ private:
     bool process_kernel;
 };
 
-std::ostream& CCodeGen::emit_type(const Type* type) {
-    if (type == nullptr) {
+std::ostream& CCodeGen::emit_type(Type type) {
+    if (type.empty()) {
         return stream() << "NULL";
-    } else if (type->isa<Frame>()) {
+    } else if (type.isa<FrameType>()) {
         return stream();
-    } else if (type->isa<Mem>()) {
+    } else if (type.isa<MemType>()) {
         return stream() << "void";
-    } else if (type->isa<Pi>()) {
+    } else if (type.isa<FnType>()) {
         THORIN_UNREACHABLE;
-    } else if (auto sigma = type->isa<Sigma>()) {
-        if (lookup(sigma->gid())) return stream() << get_name(sigma->gid());
-        stream() << "typedef struct tuple_" << sigma->gid() << " {";
+    } else if (auto tuple = type.isa<TupleType>()) {
+        if (lookup(tuple->gid())) return stream() << get_name(tuple->gid());
+        stream() << "typedef struct tuple_" << tuple->gid() << " {";
         ++indent;
         size_t i = 0;
-        for (auto elem : sigma->elems()) {
+        for (auto elem : tuple->elems()) {
             newline();
             emit_type(elem) << " e" << i++ << ";";
         }
         --indent; newline();
-        stream() << "} tuple_" << sigma->gid() << ";";
+        stream() << "} tuple_" << tuple->gid() << ";";
         return stream();
-    } else if (type->isa<Generic>()) {
+    } else if (type.isa<GenericType>()) {
         THORIN_UNREACHABLE;
-    } else if (auto array = type->isa<IndefArray>()) {
+    } else if (auto array = type.isa<IndefiniteArrayType>()) {
         emit_type(array->elem_type());
         return stream();
-    } else if (auto array = type->isa<DefArray>()) { // DefArray is mapped to a struct
+    } else if (auto array = type.isa<DefiniteArrayType>()) { // DefArray is mapped to a struct
         if (lookup(array->gid())) return stream() << get_name(array->gid());
         stream() << "typedef struct array_" << array->gid() << " {";
         ++indent; newline();
@@ -74,7 +74,7 @@ std::ostream& CCodeGen::emit_type(const Type* type) {
         --indent; newline();
         stream() << "} array_" << array->gid() << ";";
         return stream();
-    } else if (auto ptr = type->isa<Ptr>()) {
+    } else if (auto ptr = type.isa<PtrType>()) {
         if (lang_==OPENCL) {
             switch (ptr->addr_space()) {
                 default: break;
@@ -87,7 +87,7 @@ std::ostream& CCodeGen::emit_type(const Type* type) {
         if (ptr->is_vector())
             stream() << ptr->referenced_type()->length();
         return stream();
-    } else if (auto primtype = type->isa<PrimType>()) {
+    } else if (auto primtype = type.isa<PrimType>()) {
         switch (primtype->primtype_kind()) {
             case PrimType_bool:                     stream() << "bool";     break;
             case PrimType_ps8:  case PrimType_qs8:  stream() << "char";     break;
@@ -134,14 +134,14 @@ std::ostream& CCodeGen::emit_aggop_defs(Def def) {
 }
 
 
-std::ostream& CCodeGen::emit_aggop_decl(const Type *type) {
+std::ostream& CCodeGen::emit_aggop_decl(Type type) {
     if (lookup(type->gid())) return stream();
 
-    if (auto pi = type->isa<Pi>())
-        for (auto type : pi->elems()) emit_aggop_decl(type);
+    if (auto fn = type.isa<FnType>())
+        for (auto type : fn->elems()) emit_aggop_decl(type);
 
     // recurse into (multi-dimensional) array
-    if (auto array = type->isa<DefArray>()) {
+    if (auto array = type.isa<DefiniteArrayType>()) {
         emit_aggop_decl(array->elem_type());
         emit_type(array);
         insert(type->gid(), "array_" + std::to_string(type->gid()));
@@ -149,7 +149,7 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type *type) {
     }
 
     // recurse into (multi-dimensional) tuple
-    if (auto tuple = type->isa<Sigma>()) {
+    if (auto tuple = type.isa<TupleType>()) {
         for (auto elem : tuple->elems()) emit_aggop_decl(elem);
         emit_type(tuple);
         insert(type->gid(), "tuple_" + std::to_string(type->gid()));
@@ -198,7 +198,7 @@ void CCodeGen::emit() {
         }
         assert(ret_param);
 
-        const Pi *ret_fn_type = ret_param->type()->as<Pi>();
+        auto ret_fn_type = ret_param->type().as<FnType>();
         if (lambda->attribute().is(Lambda::KernelEntry)) {
             if (lang_==OPENCL) stream() << "__kernel ";
         }
@@ -210,7 +210,7 @@ void CCodeGen::emit() {
         size_t i = 0;
         // emit all first-order params
         for (auto param : lambda->params()) {
-            if (param->order() == 0 && !param->type()->isa<Mem>()) {
+            if (param->order() == 0 && !param->type().isa<MemType>()) {
                 if (i++ > 0) stream() << ", ";
                 emit_type(param->type());
                 insert(param->gid(), param->unique_name());
@@ -249,7 +249,7 @@ void CCodeGen::emit() {
         }
         assert(ret_param);
 
-        const Pi *ret_fn_type = ret_param->type()->as<Pi>();
+        auto ret_fn_type = ret_param->type().as<FnType>();
         if (lambda->attribute().is(Lambda::KernelEntry)) {
             if (lang_==OPENCL) stream() << "__kernel ";
             emit_type(ret_fn_type->elems().back()) << " " << lambda->name << "(";
@@ -259,7 +259,7 @@ void CCodeGen::emit() {
         size_t i = 0;
         // emit and store all first-order params
         for (auto param : lambda->params()) {
-            if (param->order() == 0 && !param->type()->isa<Mem>()) {
+            if (param->order() == 0 && !param->type().isa<MemType>()) {
                 if (i++ > 0) stream() << ", ";
                 emit_type(param->type()) << " " << param->unique_name();
             }
@@ -271,7 +271,7 @@ void CCodeGen::emit() {
             // dump declarations for variables set in gotos
             if (!lambda->is_cascading() && scope.entry() != lambda)
                 for (auto param : lambda->params())
-                    if (!param->type()->isa<Mem>()) {
+                    if (!param->type().isa<MemType>()) {
                         newline();
                         emit_type(param->type()) << " " << param->unique_name() << ";";
                     }
@@ -295,8 +295,8 @@ void CCodeGen::emit() {
 
             for (auto primop : schedule[lambda]) {
                 // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
-                if (!primop->type()->isa<Pi>() && !primop->type()->isa<Frame>()
-                        && (!primop->type()->isa<Mem>() || primop->isa<Store>())) {
+                if (!primop->type().isa<FnType>() && !primop->type().isa<FrameType>()
+                        && (!primop->type().isa<MemType>() || primop->isa<Store>())) {
                     emit(primop);
                     newline();
                 }
@@ -309,16 +309,16 @@ void CCodeGen::emit() {
                 switch (num_args) {
                     case 0: break;
                     case 1:
-                            if (lambda->arg(0)->type()->isa<Mem>())
+                            if (lambda->arg(0)->type().isa<MemType>())
                                 break;
                             else
                                 emit(lambda->arg(0));
                             break;
                     case 2: {
-                                if (lambda->arg(0)->type()->isa<Mem>()) {
+                                if (lambda->arg(0)->type().isa<MemType>()) {
                                     emit(lambda->arg(1));
                                     break;
-                                } else if (lambda->arg(1)->type()->isa<Mem>()) {
+                                } else if (lambda->arg(1)->type().isa<MemType>()) {
                                     emit(lambda->arg(0));
                                     break;
                                 }
@@ -347,7 +347,7 @@ void CCodeGen::emit() {
                     assert(to_lambda->num_params()==lambda->num_args());
                     size_t size = to_lambda->num_params();
                     for (size_t i = 0; i != size; ++i) {
-                        if (!to_lambda->param(i)->type()->isa<Mem>()) {
+                        if (!to_lambda->param(i)->type().isa<MemType>()) {
                             if (to_lambda->param(i)->gid() == lambda->arg(i)->gid())
                                 stream() << "// ";  // self-assignment
                             stream() << to_lambda->param(i)->unique_name() << " = ";
@@ -379,7 +379,7 @@ void CCodeGen::emit() {
                             // emit all first-order args
                             size_t i = 0;
                             for (auto arg : lambda->args()) {
-                                if (arg->order() == 0 && !arg->type()->isa<Mem>()) {
+                                if (arg->order() == 0 && !arg->type().isa<MemType>()) {
                                     if (i++ > 0) stream() << ", ";
                                     emit(arg);
                                 }
@@ -387,7 +387,7 @@ void CCodeGen::emit() {
                             stream() << ");";
                         } else {                        // call + continuation
                             Lambda* succ = ret_arg->as_lambda();
-                            const Param* param = succ->param(0)->type()->isa<Mem>() ? nullptr : succ->param(0);
+                            const Param* param = succ->param(0)->type().isa<MemType>() ? nullptr : succ->param(0);
                             if (param == nullptr && succ->num_params() == 2)
                                 param = succ->param(1);
 
@@ -403,7 +403,7 @@ void CCodeGen::emit() {
                             // emit all first-order args
                             size_t i = 0;
                             for (auto arg : lambda->args()) {
-                                if (arg->order() == 0 && !arg->type()->isa<Mem>()) {
+                                if (arg->order() == 0 && !arg->type().isa<MemType>()) {
                                     if (i++ > 0) stream() << ", ";
                                     emit(arg);
                                 }
@@ -513,7 +513,7 @@ std::ostream& CCodeGen::emit(Def def) {
         // recurse into (multi-dimensional) tuple/array and emit definitions of
         // inlined tuples/arrays
         emit_aggop_defs(aggop->agg());
-        if (aggop->agg_type()->isa<Sigma>()) {
+        if (aggop->agg_type().isa<TupleType>()) {
             if (aggop->isa<Extract>()) {
                 emit_type(aggop->type()) << " " << aggop->unique_name() << " = ";
                 emit(aggop->agg()) << ".e";
@@ -525,7 +525,7 @@ std::ostream& CCodeGen::emit(Def def) {
                 emit(aggop->as<Insert>()->value()) << ";";
                 insert(def->gid(), aggop->agg()->unique_name());
             }
-        } else if (aggop->agg_type()->isa<ArrayType>()) {
+        } else if (aggop->agg_type().isa<ArrayType>()) {
             if (aggop->isa<Extract>()) {
                 emit_type(aggop->type()) << " " << aggop->unique_name() << " = ";
                 emit(aggop->agg()) << ".e[";

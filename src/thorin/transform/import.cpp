@@ -2,14 +2,14 @@
 
 namespace thorin {
 
-const Type* import(Type2Type& old2new, World& to, const Type* otype) {
+Type import(Type2Type& old2new, World& to, Type otype) {
     if (auto ntype = find(old2new, otype)) {
         assert(&ntype->world() == &to);
         return ntype;
     }
 
     size_t size = otype->size();
-    Array<const Type*> nelems(size);
+    Array<Type> nelems(size);
     for (size_t i = 0; i != size; ++i)
         nelems[i] = import(old2new, to, otype->elem(i));
     
@@ -61,7 +61,7 @@ Def import(Type2Type& type_old2new, Def2Def& def_old2new, World& to, Def odef) {
     return nlambda;
 }
 
-const Type* import(World& to, const Type* otype) {
+Type import(World& to, Type otype) {
     Type2Type old2new;
     return import(old2new, to, otype);
 }

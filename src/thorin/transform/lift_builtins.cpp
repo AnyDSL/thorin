@@ -30,7 +30,7 @@ void lift_builtins(World& world) {
                             std::copy(vars.begin(), vars.end(), nops.begin() + oops.size()); // append former free vars
                             ulambda->jump(cur, nops.slice_from_begin(1));                    // set new args
                             // jump to new top-level dummy function
-                            ulambda->update_to(world.lambda(ulambda->arg_pi(), to->attribute(), to->name));
+                            ulambda->update_to(world.lambda(ulambda->arg_fn_type(), to->attribute(), to->name));
                             lifted->attribute().clear();
                         }
                     }

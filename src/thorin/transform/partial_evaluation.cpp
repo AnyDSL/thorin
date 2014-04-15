@@ -133,10 +133,10 @@ void PartialEvaluator::eval(Lambda* cur) {
             } else {                                // no cached version found... create a new one
                 Scope scope(dst);
                 Def2Def old2new;
-                GenericMap generic_map;
-                bool res = dst->type()->infer_with(generic_map, cur->arg_fn_type());
+                Type2Type type2type;
+                bool res = dst->type()->infer_with(type2type, cur->arg_fn_type());
                 assert(res);
-                auto dropped = drop(scope, old2new, call.args(), generic_map);
+                auto dropped = drop(scope, old2new, call.args(), type2type);
                 old2new[dst] = dropped;
                 update_new2old(old2new);
                 rewrite_jump(cur, dropped, call);

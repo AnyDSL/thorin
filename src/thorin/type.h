@@ -78,7 +78,11 @@ class DefiniteArrayTypeNode;    typedef Proxy<DefiniteArrayTypeNode>    Definite
 class IndefiniteArrayTypeNode;  typedef Proxy<IndefiniteArrayTypeNode>  IndefiniteArrayType;
 class GenericTypeNode;          typedef Proxy<GenericTypeNode>          GenericType;
 
-typedef HashMap<const TypeNode*, TypeNode*> GenericMap;
+template<class T> struct GIDHash;
+template<class T> struct GIDEq;
+template<class To> 
+using TypeMap   = HashMap<const TypeNode*, To, GIDHash<const TypeNode*>, GIDEq<const TypeNode*>>;
+using Type2Type = TypeMap<const TypeNode*>;
 
 class TypeNode : public MagicCast<TypeNode> {
 private:
@@ -108,8 +112,8 @@ public:
     void dump() const;
     World& world() const { return world_; }
     bool check_with(Type) const { return true; } // TODO
-    bool infer_with(GenericMap&, Type) const { return true; } // TODO
-    Type specialize(const GenericMap&) const { return Type(this); } // TODO
+    bool infer_with(Type2Type&, Type) const { return true; } // TODO
+    Type specialize(const Type2Type&) const { return Type(this); } // TODO
     bool is_generic() const { return is_generic_; }
     TypeNode* representative() const { return representative_; }
 

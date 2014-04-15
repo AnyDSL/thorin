@@ -13,33 +13,33 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-size_t Type::hash() const {
+size_t TypeNode::hash() const {
     size_t seed = hash_combine(hash_begin((int) kind()), size());
     for (auto elem : elems_)
         seed = hash_combine(seed, elem->gid());
     return seed;
 }
 
-bool Type::equal(const Type* other) const {
+bool TypeNode::equal(const TypeNode* other) const {
     bool result = this->kind() == other->kind() && this->size() == other->size();
     for (size_t i = 0, e = size(); result && i != e; ++i)
         result &= this->elems_[i] == other->elems_[i];
     return result;
 }
 
-void Type::dump() const { emit_type(this); std::cout << std::endl; }
-size_t Type::length() const { return as<VectorType>()->length(); }
-const Type* Type::elem_via_lit(const Def& def) const { return elem(def->primlit_value<size_t>()); }
+void TypeNode::dump() const { emit_type(Type(this)); std::cout << std::endl; }
+size_t TypeNode::length() const { return as<VectorTypeNode>()->length(); }
+Type TypeNode::elem_via_lit(const Def& def) const { return elem(def->primlit_value<size_t>()); }
 
-int Type::order() const {
-    if (kind() == Node_Ptr)
+int TypeNode::order() const {
+    if (kind() == Node_PtrType)
         return 0;
 
     int sub = 0;
     for (auto elem : elems())
         sub = std::max(sub, elem->order());
 
-    if (kind() == Node_Pi)
+    if (kind() == Node_FnType)
         return sub + 1;
 
     return sub;
@@ -47,33 +47,29 @@ int Type::order() const {
 
 //------------------------------------------------------------------------------
 
-const VectorType* VectorType::scalarize() const {
-    if (auto ptr = isa<Ptr>())
-        return world().ptr(ptr->referenced_type());
-    return world().type(as<PrimType>()->primtype_kind());
+VectorType VectorTypeNode::scalarize() const {
+    if (auto ptr = isa<PtrTypeNode>())
+        return world().ptr_type(ptr->referenced_type());
+    return world().type(as<PrimTypeNode>()->primtype_kind());
 }
 
 //------------------------------------------------------------------------------
 
-size_t Ptr::hash() const {
-    return hash_combine(hash_combine(VectorType::hash(), (size_t)device()), (size_t)addr_space());
+size_t PtrTypeNode::hash() const {
+    return hash_combine(hash_combine(VectorTypeNode::hash(), (size_t)device()), (size_t)addr_space());
 }
 
-bool Ptr::equal(const Type* other) const {
-    if(!VectorType::equal(other))
+bool PtrTypeNode::equal(const TypeNode* other) const {
+    if(!VectorTypeNode::equal(other))
         return false;
-    auto ptr = other->as<Ptr>();
+    auto ptr = other->as<PtrTypeNode>();
     return ptr->device() == device() && ptr->addr_space() == addr_space();
 }
 
 //------------------------------------------------------------------------------
 
-CompoundType::CompoundType(World& world, NodeKind kind, size_t size)
-    : Type(world, kind, size, false /*TODO named sigma*/)
-{}
-
-CompoundType::CompoundType(World& world, NodeKind kind, ArrayRef<const Type*> elems)
-    : Type(world, kind, elems.size(), false)
+CompoundTypeNode::CompoundTypeNode(World& world, NodeKind kind, ArrayRef<Type> elems)
+    : TypeNode(world, kind, elems.size(), false)
 {
     size_t x = 0;
     for (auto elem : elems) {
@@ -85,7 +81,7 @@ CompoundType::CompoundType(World& world, NodeKind kind, ArrayRef<const Type*> el
 
 //------------------------------------------------------------------------------
 
-bool Pi::is_returning() const {
+bool FnTypeNode::is_returning() const {
     bool ret = false;
     for (auto elem : elems()) {
         switch (elem->order()) {

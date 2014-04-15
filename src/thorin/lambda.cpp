@@ -11,7 +11,7 @@
 namespace thorin {
 
 Lambda* Lambda::stub(const GenericMap& generic_map, const std::string& name) const {
-    auto result = world().lambda(pi()->specialize(generic_map)->as<Pi>(), attribute(), name);
+    auto result = world().lambda(fn_type()->specialize(generic_map).as<FnType>(), attribute(), name);
     for (size_t i = 0, e = num_params(); i != e; ++i)
         result->param(i)->name = param(i)->name;
     return result;
@@ -28,14 +28,14 @@ FnType Lambda::arg_fn_type() const {
     for (size_t i = 0, e = num_args(); i != e; ++i)
         elems[i] = arg(i)->type();
 
-    return world().type_fn(elems);
+    return world().fn_type(elems);
 }
 
 const Param* Lambda::append_param(Type type, const std::string& name) {
-    size_t size = pi()->size();
+    size_t size = fn_type()->size();
     Array<Type> elems(size + 1);
-    *std::copy(pi()->elems().begin(), pi()->elems().end(), elems.begin()) = type;
-    set_type(world().pi(elems));                        // update type
+    *std::copy(fn_type()->elems().begin(), fn_type()->elems().end(), elems.begin()) = type;
+    set_type(world().fn_type(elems));                        // update type
     auto param = world().param(type, this, size, name); // append new param
     params_.push_back(param);
 
@@ -156,8 +156,8 @@ bool Lambda::is_cascading() const {
     return use->isa<Lambda>() && use.index() > 0;
 }
 
-bool Lambda::is_basicblock() const { return pi()->is_basicblock(); }
-bool Lambda::is_returning() const { return pi()->is_returning(); }
+bool Lambda::is_basicblock() const { return fn_type()->is_basicblock(); }
+bool Lambda::is_returning() const { return fn_type()->is_returning(); }
 void Lambda::dump_head() const { emit_head(this); }
 void Lambda::dump_jump() const { emit_jump(this); }
 
@@ -180,22 +180,22 @@ void Lambda::branch(Def cond, Def tto, Def fto) {
 }
 
 std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) {
-    if (ret_type == nullptr) {
+    if (ret_type.empty()) {
         jump(to, args);
         return std::make_pair(nullptr, Def());
     }
 
     std::vector<Type> cont_elems;
-    cont_elems.push_back(world().mem());
+    cont_elems.push_back(world().mem_type());
     bool pack = false;
-    if (auto sigma = ret_type->isa<Sigma>()) {
+    if (auto tuple = ret_type.isa<TupleType>()) {
         pack = true;
-        for (auto elem : sigma->elems())
+        for (auto elem : tuple->elems())
             cont_elems.push_back(elem);
     } else
         cont_elems.push_back(ret_type);
 
-    auto next = world().lambda(world().pi(cont_elems), name);
+    auto next = world().lambda(world().fn_type(cont_elems), name);
     next->param(0)->name = "mem";
 
     // create jump to next
@@ -229,7 +229,7 @@ Def Lambda::find_def(size_t handle) {
 }
 
 Def Lambda::set_mem(Def def) { return set_value(0, def); }
-Def Lambda::get_mem() { return get_value(0, world().mem(), "mem"); }
+Def Lambda::get_mem() { return get_value(0, world().mem_type(), "mem"); }
 
 Def Lambda::set_value(size_t handle, Def def) { 
     increase_values(handle);

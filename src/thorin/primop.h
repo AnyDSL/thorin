@@ -148,7 +148,7 @@ private:
     ArrayAgg(World& world, Type elem, ArrayRef<Def> args, bool definite, const std::string& name);
 
 public:
-    const ArrayType* array_type() const;
+    ArrayType array_type() const;
     Type elem_type() const;
     bool is_definite() const;
 
@@ -160,7 +160,7 @@ private:
     Tuple(World& world, ArrayRef<Def> args, const std::string& name);
 
 public:
-    const Sigma* sigma() const;
+    TupleType tuple_type() const;
 
     friend class World;
 };

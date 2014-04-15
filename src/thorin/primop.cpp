@@ -34,7 +34,7 @@ BinOp::BinOp(NodeKind kind, Type type, Def cond, Def lhs, Def rhs, const std::st
 }
 
 Cmp::Cmp(CmpKind kind, Def cond, Def lhs, Def rhs, const std::string& name)
-    : BinOp((NodeKind) kind, lhs->world().type_bool(lhs->type()->as<PrimType>()->length()), cond, lhs, rhs, name)
+    : BinOp((NodeKind) kind, lhs->world().type_bool(lhs->type().as<PrimType>()->length()), cond, lhs, rhs, name)
 {
 }
 
@@ -51,15 +51,15 @@ Select::Select(Def cond, Def tval, Def fval, const std::string& name)
 ArrayAgg::ArrayAgg(World& world, Type elem, ArrayRef<Def> args, bool definite, const std::string& name)
     : Aggregate(Node_ArrayAgg, args, name)
 {
-    set_type(definite ? (Type) world.def_array(elem, args.size()) : (Type) world.indef_array(elem));
+    set_type(definite ? (Type) world.definite_array_type(elem, args.size()) : (Type) world.indefinite_array_type(elem));
 #ifndef NDEBUG
     for (size_t i = 0, e = size(); i != e; ++i)
         assert(args[i]->type() == array_type()->elem_type());
 #endif
 }
 
-bool ArrayAgg::is_definite() const { return type()->isa<DefArray>(); }
-const ArrayType* ArrayAgg::array_type() const { return type()->as<ArrayType>(); }
+bool ArrayAgg::is_definite() const { return type().isa<DefiniteArrayType>(); }
+ArrayType ArrayAgg::array_type() const { return type().as<ArrayType>(); }
 Type ArrayAgg::elem_type() const { return array_type()->elem_type(); }
 
 Tuple::Tuple(World& world, ArrayRef<Def> args, const std::string& name)
@@ -69,34 +69,34 @@ Tuple::Tuple(World& world, ArrayRef<Def> args, const std::string& name)
     for (size_t i = 0, e = size(); i != e; ++i)
         elems[i] = args[i]->type();
 
-    set_type(world.sigma(elems));
+    set_type(world.tuple_type(elems));
 }
 
 Vector::Vector(World& world, ArrayRef<Def> args, const std::string& name)
     : Aggregate(Node_Vector, args, name)
 {
-    if (const PrimType* primtype = args.front()->type()->isa<PrimType>()) {
+    if (auto primtype = args.front()->type().isa<PrimType>()) {
         assert(primtype->length() == 1);
         set_type(world.type(primtype->primtype_kind(), args.size()));
     } else {
-        PtrType ptr = args.front()->type()->as<Ptr>();
+        PtrType ptr = args.front()->type().as<PtrType>();
         assert(ptr->length() == 1);
-        set_type(world.ptr(ptr->referenced_type(), args.size()));
+        set_type(world.ptr_type(ptr->referenced_type(), args.size()));
     }
 }
 
-const Sigma* Tuple::sigma() const { return type()->as<Sigma>(); }
+TupleType Tuple::tuple_type() const { return type().as<TupleType>(); }
 
 Extract::Extract(Def agg, Def index, const std::string& name)
     : AggOp(2, Node_Extract, type(agg, index), agg, index, name)
 {}
 
 Type Extract::type(Def agg, Def index) {
-    if (auto sigma = agg->type()->isa<Sigma>())
-        return sigma->elem_via_lit(index);
-    else if (auto array = agg->type()->isa<ArrayType>())
+    if (auto tuple = agg->type().isa<TupleType>())
+        return tuple->elem_via_lit(index);
+    else if (auto array = agg->type().isa<ArrayType>())
         return array->elem_type();
-    else if (auto vector = agg->type()->isa<VectorType>())
+    else if (auto vector = agg->type().isa<VectorType>())
         return vector->scalarize();
     assert(false && "TODO");
 }
@@ -112,21 +112,21 @@ Type Insert::type(Def agg) { return agg->type(); }
 //------------------------------------------------------------------------------
 
 LEA::LEA(Def def, Def index, const std::string& name)
-    : PrimOp(2, Node_LEA, nullptr, name)
+    : PrimOp(2, Node_LEA, Type(), name)
 {
     set_op(0, def);
     set_op(1, index);
 
     auto type = ptr_type();
-    if (auto sigma = referenced_type()->isa<Sigma>())
-        set_type(index->world().ptr(sigma->elem_via_lit(index), type->length(), type->device(), type->addr_space()));
+    if (auto tuple = referenced_type().isa<TupleType>())
+        set_type(index->world().ptr_type(tuple->elem_via_lit(index), type->length(), type->device(), type->addr_space()));
     else {
-        auto array = referenced_type()->as<ArrayType>();
-        set_type(index->world().ptr(array->elem_type(), type->length(), type->device(), type->addr_space()));
+        auto array = referenced_type().as<ArrayType>();
+        set_type(index->world().ptr_type(array->elem_type(), type->length(), type->device(), type->addr_space()));
     }
 }
 
-PtrType LEA::ptr_type() const { return ptr()->type()->as<Ptr>(); }
+PtrType LEA::ptr_type() const { return ptr()->type().as<PtrType>(); }
 Type LEA::referenced_type() const { return ptr_type()->referenced_type(); }
 
 //------------------------------------------------------------------------------
@@ -141,25 +141,25 @@ EvalOp::EvalOp(NodeKind kind, Def def, const std::string& name)
 //------------------------------------------------------------------------------
 
 Slot::Slot(Type type, Def frame, size_t index, const std::string& name)
-    : PrimOp(1, Node_Slot, type->world().ptr(type), name)
+    : PrimOp(1, Node_Slot, type->world().ptr_type(type), name)
     , index_(index)
 {
     set_op(0, frame);
 }
 
-PtrType Slot::ptr_type() const { return type()->as<Ptr>(); }
+PtrType Slot::ptr_type() const { return type().as<PtrType>(); }
 
 //------------------------------------------------------------------------------
 
 Global::Global(Def init, bool is_mutable, const std::string& name)
-    : PrimOp(1, Node_Global, init->type()->world().ptr(init->type()), name)
+    : PrimOp(1, Node_Global, init->type()->world().ptr_type(init->type()), name)
     , is_mutable_(is_mutable)
 {
     set_op(0, init);
     assert(init->is_const());
 }
 
-Type Global::referenced_type() const { return type()->as<Ptr>()->referenced_type(); }
+Type Global::referenced_type() const { return type().as<PtrType>()->referenced_type(); }
 const char* Global::op_name() const { return is_mutable() ? "global_mutable" : "global_immutable"; }
 
 //------------------------------------------------------------------------------

@@ -23,7 +23,6 @@ class LEA;
 class Lambda;
 class Map;
 class PrimOp;
-class Sigma;
 class Slot;
 class Store;
 class Unmap;

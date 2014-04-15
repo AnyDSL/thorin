@@ -20,8 +20,6 @@ namespace thorin {
 class DefNode;
 class Lambda;
 class PrimOp;
-class Sigma;
-class Tracker;
 class Use;
 class World;
 

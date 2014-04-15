@@ -89,7 +89,7 @@ public:
     StructType          struct_type(size_t size, const std::string& name = "");
     FnType              fn_type() { return FnType(fn0_); }                  ///< Returns an empty \p FnType.
     FnType              fn_type(ArrayRef<Type> elems) { return unify(new FnTypeNode(*this, elems)); }
-    TypeVar             type_var(size_t index) { return unify(new TypeVarNode(*this, index)); }
+    TypeVar             type_var() { return TypeVar(new TypeVarNode(*this)); } // TODO register
     DefiniteArrayType   definite_array_type(Type elem, u64 dim) { return unify(new DefiniteArrayTypeNode(*this, elem, dim)); }
     IndefiniteArrayType indefinite_array_type(Type elem) { return unify(new IndefiniteArrayTypeNode(*this, elem)); }
 

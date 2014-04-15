@@ -353,21 +353,21 @@ private:
 
 class TypeVarNode : public TypeNode {
 private:
-    TypeVarNode(World& world, size_t index)
+    TypeVarNode(World& world)
         : TypeNode(world, Node_TypeVar, 0, true)
-        , index_(index)
+        , bound_at_(nullptr)
     {}
 
-    virtual size_t hash() const { return hash_combine(TypeNode::hash(), index()); }
-    virtual bool equal(const TypeNode* other) const { 
-        return TypeNode::equal(other) && index() == other->as<TypeVarNode>()->index();
-    }
+    //virtual size_t hash() const { return hash_combine(TypeNode::hash(), index()); }
+    //virtual bool equal(const TypeNode* other) const { 
+        //return TypeNode::equal(other) && index() == other->as<TypeVarNode>()->index();
+    //}
 
 public:
-    size_t index() const { return index_; }
+    Type bound_at() const { return Type(bound_at_); }
 
 private:
-    size_t index_;
+    const TypeNode* bound_at_;
 
     friend class World;
 };

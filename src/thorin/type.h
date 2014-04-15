@@ -76,7 +76,7 @@ class FnTypeNode;               typedef Proxy<FnTypeNode>               FnType;
 class ArrayTypeNode;            typedef Proxy<ArrayTypeNode>            ArrayType;
 class DefiniteArrayTypeNode;    typedef Proxy<DefiniteArrayTypeNode>    DefiniteArrayType;
 class IndefiniteArrayTypeNode;  typedef Proxy<IndefiniteArrayTypeNode>  IndefiniteArrayType;
-class TypeNodeVar;              typedef Proxy<TypeNodeVar>              TypeVar;
+class TypeVarNode;              typedef Proxy<TypeVarNode>              TypeVar;
 
 template<class T> struct GIDHash;
 template<class T> struct GIDEq;
@@ -351,16 +351,16 @@ private:
 
 //------------------------------------------------------------------------------
 
-class TypeNodeVar : public TypeNode {
+class TypeVarNode : public TypeNode {
 private:
-    TypeNodeVar(World& world, size_t index)
+    TypeVarNode(World& world, size_t index)
         : TypeNode(world, Node_TypeVar, 0, true)
         , index_(index)
     {}
 
     virtual size_t hash() const { return hash_combine(TypeNode::hash(), index()); }
     virtual bool equal(const TypeNode* other) const { 
-        return TypeNode::equal(other) && index() == other->as<TypeNodeVar>()->index();
+        return TypeNode::equal(other) && index() == other->as<TypeVarNode>()->index();
     }
 
 public:

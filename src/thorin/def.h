@@ -128,6 +128,7 @@ protected:
     {}
     virtual ~DefNode() {}
 
+    void clear_type() { type_.clear(); }
     void set_type(Type type) { type_ = type; }
     void unregister_use(size_t i) const;
     void resize(size_t n) { ops_.resize(n, nullptr); }

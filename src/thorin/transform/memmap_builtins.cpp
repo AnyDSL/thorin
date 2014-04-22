@@ -74,13 +74,15 @@ static void adapt_addr_space(World &world, ToDo& uses) {
             assert(nto->num_params() == to->num_params());
             nto->attribute() = to->attribute();
 
-            Scope to_scope(to);
-            Array<Def> mapping(nto->num_params());
-            for (size_t i = 0, e = nto->num_params(); i != e; ++i)
-                mapping[i] = nto->param(i);
+            if (!to->empty()) {
+                Scope to_scope(to);
+                Array<Def> mapping(nto->num_params());
+                for (size_t i = 0, e = nto->num_params(); i != e; ++i)
+                    mapping[i] = nto->param(i);
 
-            auto specialized = drop(to_scope, mapping);
-            nto->jump(specialized, {});
+                auto specialized = drop(to_scope, mapping);
+                nto->jump(specialized, {});
+            }
             ulambda->update_to(nto);
         }
     } else {

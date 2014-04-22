@@ -91,7 +91,7 @@ static void adapt_addr_space(World &world, ToDo& uses) {
             return;
         // search downwards
         for (auto puse : primop->uses())
-            uses.push_back(std::pair<const Type*, Use>(primop->type(), puse));
+            uses.emplace_back(primop->type(), puse);
     }
 }
 

@@ -177,6 +177,23 @@ fn main() -> int {
         }
     );
 
-    return 0;
+    let mut passed = 0;
+    // compare results
+    let mut rms_err = 0.0f;   // RMS error
+    let EPS = 0.02f;
+    for (let mut y=0; y<height; ++y) {
+        for (let mut x=0; x<width; ++x) {
+            let ref = @bilateral_filter_mask(sigma_d, c_r, mask, x, y, arr,
+                                             width, height, 10);
+            let mut err = ref - out[y*width + x];
+            rms_err += err*err;
+
+            if (err < 0.0f) err = -err;
+            if (err > EPS) passed++;
+        }
+    }
+    //rms_err = sqrtf(rms_err / ((float)(width*height)));
+
+    return passed;
 }
 

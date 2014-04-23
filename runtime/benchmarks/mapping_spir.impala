@@ -1,3 +1,8 @@
+intrinsic _Z3expf(float) -> float;
+fn expf(a: float) -> float {
+    return _Z3expf(a);
+}
+
 fn iteration(width : int, height : int, body : fn(int, int) -> void) -> void {
     let unroll = 1;
     let dim = (width, height/unroll, 1);

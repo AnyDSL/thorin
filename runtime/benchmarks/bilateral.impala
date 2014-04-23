@@ -62,7 +62,7 @@ fn bilateral_filter(sigma_d : int, c_d : float, c_r : float, x : int, y : int,
     return p/k;
 }
 
-fn bilateral_filter_mask(sigma_d : int, c_r : float, mask : [float * 5 * 5],
+fn bilateral_filter_mask(sigma_d : int, c_r : float, mask : [float * 9 * 9],
                          x : int, y : int, arr : [float],
                          width : int, height : int, region: int
                         ) -> float {
@@ -123,33 +123,34 @@ fn main() -> int {
     let width   = 1024;
     let height  = 1024;
     //let sigma_d = 3;
+    //let range = 4*sigma_d + 1;
     let sigma_r = 5.0f;
     //let c_d = 1.0f / (2.0f * sigma_d*sigma_d);
     let c_r = 1.0f / (2.0f * sigma_r*sigma_r);
     let mut arr = array(4, width, height);
     let mut out = array(4, width, height);
 
-    let sigma_d = 1;
-    let c_d = 1.0f / (2.0f * 1.0f*1.0f);
-    let mask = [
-        [0.018316f, 0.082085f, 0.135335f, 0.082085f, 0.018316f],
-        [0.082085f, 0.367879f, 0.606531f, 0.367879f, 0.082085f],
-        [0.135335f, 0.606531f, 1.000000f, 0.606531f, 0.135335f],
-        [0.082085f, 0.367879f, 0.606531f, 0.367879f, 0.082085f],
-        [0.018316f, 0.082085f, 0.135335f, 0.082085f, 0.018316f]];
-
-    //let sigma_d = 2;
-    //let c_d = 1.0f / (2.0f * 2.0f*2.0f);
+    //let sigma_d = 1;
+    //let c_d = 1.0f / (2.0f * 1.0f*1.0f);
     //let mask = [
-    //    [0.018316f, 0.043937f, 0.082085f, 0.119433f, 0.135335f, 0.119433f, 0.082085f, 0.043937f, 0.018316f],
-    //    [0.043937f, 0.105399f, 0.196912f, 0.286505f, 0.324652f, 0.286505f, 0.196912f, 0.105399f, 0.043937f],
-    //    [0.082085f, 0.196912f, 0.367879f, 0.535261f, 0.606531f, 0.535261f, 0.367879f, 0.196912f, 0.082085f],
-    //    [0.119433f, 0.286505f, 0.535261f, 0.778801f, 0.882497f, 0.778801f, 0.535261f, 0.286505f, 0.119433f],
-    //    [0.135335f, 0.324652f, 0.606531f, 0.882497f, 1.000000f, 0.882497f, 0.606531f, 0.324652f, 0.135335f],
-    //    [0.119433f, 0.286505f, 0.535261f, 0.778801f, 0.882497f, 0.778801f, 0.535261f, 0.286505f, 0.119433f],
-    //    [0.082085f, 0.196912f, 0.367879f, 0.535261f, 0.606531f, 0.535261f, 0.367879f, 0.196912f, 0.082085f],
-    //    [0.043937f, 0.105399f, 0.196912f, 0.286505f, 0.324652f, 0.286505f, 0.196912f, 0.105399f, 0.043937f],
-    //    [0.018316f, 0.043937f, 0.082085f, 0.119433f, 0.135335f, 0.119433f, 0.082085f, 0.043937f, 0.018316f]];
+    //    [0.018316f, 0.082085f, 0.135335f, 0.082085f, 0.018316f],
+    //    [0.082085f, 0.367879f, 0.606531f, 0.367879f, 0.082085f],
+    //    [0.135335f, 0.606531f, 1.000000f, 0.606531f, 0.135335f],
+    //    [0.082085f, 0.367879f, 0.606531f, 0.367879f, 0.082085f],
+    //    [0.018316f, 0.082085f, 0.135335f, 0.082085f, 0.018316f]];
+
+    let sigma_d = 2;
+    let c_d = 1.0f / (2.0f * 2.0f*2.0f);
+    let mask = [
+        [0.018316f, 0.043937f, 0.082085f, 0.119433f, 0.135335f, 0.119433f, 0.082085f, 0.043937f, 0.018316f],
+        [0.043937f, 0.105399f, 0.196912f, 0.286505f, 0.324652f, 0.286505f, 0.196912f, 0.105399f, 0.043937f],
+        [0.082085f, 0.196912f, 0.367879f, 0.535261f, 0.606531f, 0.535261f, 0.367879f, 0.196912f, 0.082085f],
+        [0.119433f, 0.286505f, 0.535261f, 0.778801f, 0.882497f, 0.778801f, 0.535261f, 0.286505f, 0.119433f],
+        [0.135335f, 0.324652f, 0.606531f, 0.882497f, 1.000000f, 0.882497f, 0.606531f, 0.324652f, 0.135335f],
+        [0.119433f, 0.286505f, 0.535261f, 0.778801f, 0.882497f, 0.778801f, 0.535261f, 0.286505f, 0.119433f],
+        [0.082085f, 0.196912f, 0.367879f, 0.535261f, 0.606531f, 0.535261f, 0.367879f, 0.196912f, 0.082085f],
+        [0.043937f, 0.105399f, 0.196912f, 0.286505f, 0.324652f, 0.286505f, 0.196912f, 0.105399f, 0.043937f],
+        [0.018316f, 0.043937f, 0.082085f, 0.119433f, 0.135335f, 0.119433f, 0.082085f, 0.043937f, 0.018316f]];
 
     //let sigma_d = 3;
     //let c_d = 1.0f / (2.0f * 3.0f*3.0f);
@@ -168,31 +169,39 @@ fn main() -> int {
     //    [0.033746f, 0.062177f, 0.102512f, 0.151240f, 0.199666f, 0.235877f, 0.249352f, 0.235877f, 0.199666f, 0.151240f, 0.102512f, 0.062177f, 0.033746f],
     //    [0.018316f, 0.033746f, 0.055638f, 0.082085f, 0.108368f, 0.128022f, 0.135335f, 0.128022f, 0.108368f, 0.082085f, 0.055638f, 0.033746f, 0.018316f]];
 
-    @iteration(width, height,
-        |x : int, y : int| -> void {
-            //out[y*width + x] = bilateral_filter(sigma_d, c_d, c_r, x, y, arr,
-            //                                    width, height, 10);
-            out[y*width + x] = bilateral_filter_mask(sigma_d, c_r, mask, x, y,
-                                                     arr, width, height, 10);
+    //// SS
+    //iteration(width, height,
+    //    |x : int, y : int| -> void {
+    //        //out[y*width + x] = bilateral_filter(sigma_d, c_d, c_r, x, y, arr, width, height, 10);
+    //        out[y*width + x] = @bilateral_filter_mask(sigma_d, c_r, mask, x, y, arr, width, height, 10);
+    //    }
+    //);
+
+    // SS + BH
+    let range = 4*sigma_d + 1;
+    @iteration_bounds(width, height, range,
+        |x : int, y : int, region : int| -> void {
+            //out[y*width + x] = bilateral_filter(sigma_d, c_d, c_r, x, y, arr, width, height, region);
+            out[y*width + x] = @bilateral_filter_mask(sigma_d, c_r, mask, x, y, arr, width, height, region);
         }
     );
 
     let mut passed = 0;
-    // compare results
-    let mut rms_err = 0.0f;   // RMS error
-    let EPS = 0.02f;
-    for (let mut y=0; y<height; ++y) {
-        for (let mut x=0; x<width; ++x) {
-            let ref = @bilateral_filter_mask(sigma_d, c_r, mask, x, y, arr,
-                                             width, height, 10);
-            let mut err = ref - out[y*width + x];
-            rms_err += err*err;
+    //// compare results
+    //let mut rms_err = 0.0f;   // RMS error
+    //let EPS = 0.02f;
+    //for (let mut y=0; y<height; ++y) {
+    //    for (let mut x=0; x<width; ++x) {
+    //        let ref = @bilateral_filter_mask(sigma_d, c_r, mask, x, y, arr,
+    //                                         width, height, 10);
+    //        let mut err = ref - out[y*width + x];
+    //        rms_err += err*err;
 
-            if (err < 0.0f) err = -err;
-            if (err > EPS) passed++;
-        }
-    }
-    //rms_err = sqrtf(rms_err / ((float)(width*height)));
+    //        if (err < 0.0f) err = -err;
+    //        if (err > EPS) passed++;
+    //    }
+    //}
+    ////rms_err = sqrtf(rms_err / ((float)(width*height)));
 
     return passed;
 }

@@ -2,6 +2,7 @@
 #define __CUDA_RT_HPP__
 
 #include <cuda.h>
+#include <cuda_occupancy.h>
 #include <nvvm.h>
 
 extern "C"

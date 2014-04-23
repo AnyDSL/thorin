@@ -1,3 +1,124 @@
+intrinsic int32_to_float(int) -> float;
+fn closeness(c_d : float, xf : int, yf : int) -> float {
+    return expf(-c_d * int32_to_float(xf*xf)) * expf(-c_d * int32_to_float(yf*yf));
+}
+fn similarity(c_r : float, xi : float, x : float) -> float {
+    let diff = xi - x;
+    return expf(-c_r * diff * diff);
+}
+
+fn bilateral_filter(sigma_d : int, c_d : float, c_r : float, x : int, y : int,
+                    arr : [float], width : int, height : int, region: int
+                   ) -> float {
+    let mut k = 0.0f;
+    let mut p = 0.0f;
+
+    iterate(-2*sigma_d, 2*sigma_d+1, |yf : int| -> void {
+        iterate(-2*sigma_d, 2*sigma_d+1, |xf : int| -> void {
+            let mut idx_x = x + xf;
+            let mut idx_y = y + yf;
+
+            // 0 --- 1 --- 2
+            // 3 --- 4 --- 5
+            // 6 --- 7 --- 8
+
+            // left
+            if (region == 0) idx_x = clamp_lower(idx_x, 0);
+            if (region == 3) idx_x = clamp_lower(idx_x, 0);
+            if (region == 6) idx_x = clamp_lower(idx_x, 0);
+
+            // right
+            if (region == 2) idx_x = clamp_upper(idx_x, width);
+            if (region == 5) idx_x = clamp_upper(idx_x, width);
+            if (region == 8) idx_x = clamp_upper(idx_x, width);
+
+            // top
+            if (region == 0) idx_y = clamp_lower(idx_y, 0);
+            if (region == 1) idx_y = clamp_lower(idx_y, 0);
+            if (region == 2) idx_y = clamp_lower(idx_y, 0);
+
+            // bottom
+            if (region == 6) idx_y = clamp_upper(idx_y, height);
+            if (region == 7) idx_y = clamp_upper(idx_y, height);
+            if (region == 8) idx_y = clamp_upper(idx_y, height);
+
+            // all in
+            if (region == 10) {
+                idx_x = clamp_lower(idx_x, 0);
+                idx_x = clamp_upper(idx_x, width);
+                idx_y = clamp_upper(idx_y, height);
+                idx_y = clamp_lower(idx_y, 0);
+            }
+
+            let diff = arr[idx_y * width + idx_x] - arr[y * width + x];
+
+            let c = closeness(c_d, xf, yf);
+            let s = similarity(c_r, arr[idx_y * width + idx_x], arr[y * width + x]);
+            k += c * s;
+            p += c * s * arr[idx_y * width + idx_x];
+        });
+    });
+
+    return p/k;
+}
+
+fn bilateral_filter_mask(sigma_d : int, c_r : float, mask : [float * 5 * 5],
+                         x : int, y : int, arr : [float],
+                         width : int, height : int, region: int
+                        ) -> float {
+    let mut k = 0.0f;
+    let mut p = 0.0f;
+
+    iterate(-2*sigma_d, 2*sigma_d+1, |yf : int| -> void {
+        iterate(-2*sigma_d, 2*sigma_d+1, |xf : int| -> void {
+            let mut idx_x = x + xf;
+            let mut idx_y = y + yf;
+
+            // 0 --- 1 --- 2
+            // 3 --- 4 --- 5
+            // 6 --- 7 --- 8
+
+            // left
+            if (region == 0) idx_x = clamp_lower(idx_x, 0);
+            if (region == 3) idx_x = clamp_lower(idx_x, 0);
+            if (region == 6) idx_x = clamp_lower(idx_x, 0);
+
+            // right
+            if (region == 2) idx_x = clamp_upper(idx_x, width);
+            if (region == 5) idx_x = clamp_upper(idx_x, width);
+            if (region == 8) idx_x = clamp_upper(idx_x, width);
+
+            // top
+            if (region == 0) idx_y = clamp_lower(idx_y, 0);
+            if (region == 1) idx_y = clamp_lower(idx_y, 0);
+            if (region == 2) idx_y = clamp_lower(idx_y, 0);
+
+            // bottom
+            if (region == 6) idx_y = clamp_upper(idx_y, height);
+            if (region == 7) idx_y = clamp_upper(idx_y, height);
+            if (region == 8) idx_y = clamp_upper(idx_y, height);
+
+            // all in
+            if (region == 10) {
+                idx_x = clamp_lower(idx_x, 0);
+                idx_x = clamp_upper(idx_x, width);
+                idx_y = clamp_upper(idx_y, height);
+                idx_y = clamp_lower(idx_y, 0);
+            }
+
+
+            let diff = arr[idx_y * width + idx_x] - arr[y * width + x];
+
+            let s = expf(-c_r * diff*diff) * mask[xf + 2*sigma_d][yf + 2*sigma_d];
+
+            k += s;
+            p += s * arr[idx_y * width + idx_x];
+        });
+    });
+
+    return p/k;
+}
+
 fn main() -> int {
     let width   = 1024;
     let height  = 1024;
@@ -49,20 +170,10 @@ fn main() -> int {
 
     @iteration(width, height,
         |x : int, y : int| -> void {
-            let mut k = 0.0f;
-            let mut p = 0.0f;
-
-            for (let mut yf = -2*sigma_d; yf<=2*sigma_d; yf++) {
-                for (let mut xf = -2*sigma_d; xf<=2*sigma_d; xf++) {
-                    let diff = arr[(y+yf)*width + x + xf] - arr[y*width + x];
-
-                    let s = expf(-c_r * diff*diff) * mask[xf + 2*sigma_d][yf + 2*sigma_d];
-                    k += s;
-                    p += s * arr[(y + yf)*width + x + xf];
-                }
-            }
-
-            out[y*width + x] = p/k;
+            //out[y*width + x] = bilateral_filter(sigma_d, c_d, c_r, x, y, arr,
+            //                                    width, height, 10);
+            out[y*width + x] = bilateral_filter_mask(sigma_d, c_r, mask, x, y,
+                                                     arr, width, height, 10);
         }
     );
 

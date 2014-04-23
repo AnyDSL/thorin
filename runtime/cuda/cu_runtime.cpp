@@ -194,8 +194,10 @@ void init_cuda() {
         checkErrDrv(err, "cuDeviceGet()");
         err = cuDeviceGetName(name, 100, cuDevices[i+1]);
         checkErrDrv(err, "cuDeviceGetName()");
-        err = cuDeviceComputeCapability(&major, &minor, cuDevices[i+1]);
-        checkErrDrv(err, "cuDeviceComputeCapability()");
+        err = cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, cuDevices[i+1]);
+        checkErrDrv(err, "cuDeviceGetAttribute()");
+        err = cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, cuDevices[i+1]);
+        checkErrDrv(err, "cuDeviceGetAttribute()");
 
         if (i==0) std::cerr << "  [*] ";
         else std::cerr << "  [ ] ";

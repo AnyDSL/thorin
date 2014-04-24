@@ -49,6 +49,7 @@ fn bh_clamp_upper(mut i : int, upper : int) -> int {
 
 fn main() -> [float] {
     let width   = 2048;
+    let height  = 2048;
     let a       = 0.2f;
     let b       = 1.0f - 4.0f * a;
     let num_it  = 100;

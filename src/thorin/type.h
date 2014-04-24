@@ -36,7 +36,7 @@ public:
         return representative() == other.representative();
     }
     bool operator != (const Proxy<T>& other) const { return !(*this == other); }
-    const T* representative() const { assert(node_ != nullptr); return node_->representative()->template as<T>(); }
+    const T* representative() const { return node()->representative()->template as<T>(); }
     const T* node() const { assert(node_ != nullptr); return node_; }
     const T* operator  * () const { return node()->unify()->template as<T>(); }
     const T* operator -> () const { return *(*this); }

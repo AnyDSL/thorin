@@ -111,14 +111,11 @@ bool PtrTypeNode::equal(const TypeNode* other) const {
 //------------------------------------------------------------------------------
 
 CompoundTypeNode::CompoundTypeNode(World& world, NodeKind kind, ArrayRef<Type> elems)
-    : TypeNode(world, kind, elems.size(), false)
+    : TypeNode(world, kind, elems.size())
 {
     size_t x = 0;
-    for (auto elem : elems) {
-        //if (elem->is_generic())
-            //is_generic_ = true;
+    for (auto elem : elems)
         set(x++, elem);
-    }
 }
 
 //------------------------------------------------------------------------------

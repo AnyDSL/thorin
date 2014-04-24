@@ -97,11 +97,6 @@ using DefMap  = HashMap<const DefNode*, To, GIDHash<const DefNode*>, GIDEq<const
 using DefSet  = HashSet<const DefNode*, GIDHash<const DefNode*>, GIDEq<const DefNode*>>;
 using Def2Def = DefMap<const DefNode*>;
 
-template<class To> 
-using TypeMap   = HashMap<const TypeNode*, To, GIDHash<const TypeNode*>, GIDEq<const TypeNode*>>;
-using TypeSet   = HashSet<const TypeNode*, GIDHash<const TypeNode*>, GIDEq<const TypeNode*>>;
-using Type2Type = TypeMap<const TypeNode*>;
-
 //------------------------------------------------------------------------------
 
 /**

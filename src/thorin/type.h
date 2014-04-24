@@ -82,7 +82,10 @@ template<class T> struct GIDHash;
 template<class T> struct GIDEq;
 template<class To> 
 using TypeMap   = HashMap<const TypeNode*, To, GIDHash<const TypeNode*>, GIDEq<const TypeNode*>>;
+using TypeSet   = HashSet<const TypeNode*, GIDHash<const TypeNode*>, GIDEq<const TypeNode*>>;
 using Type2Type = TypeMap<const TypeNode*>;
+
+//------------------------------------------------------------------------------
 
 class TypeNode : public MagicCast<TypeNode> {
 private:

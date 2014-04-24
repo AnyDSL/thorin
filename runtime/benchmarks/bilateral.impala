@@ -169,22 +169,26 @@ fn main() -> int {
     //    [0.033746f, 0.062177f, 0.102512f, 0.151240f, 0.199666f, 0.235877f, 0.249352f, 0.235877f, 0.199666f, 0.151240f, 0.102512f, 0.062177f, 0.033746f],
     //    [0.018316f, 0.033746f, 0.055638f, 0.082085f, 0.108368f, 0.128022f, 0.135335f, 0.128022f, 0.108368f, 0.082085f, 0.055638f, 0.033746f, 0.018316f]];
 
-    //// SS
-    //iteration(width, height,
-    //    |x : int, y : int| -> void {
-    //        //out[y*width + x] = bilateral_filter(sigma_d, c_d, c_r, x, y, arr, width, height, 10);
-    //        out[y*width + x] = @bilateral_filter_mask(sigma_d, c_r, mask, x, y, arr, width, height, 10);
-    //    }
-    //);
-
-    // SS + BH
-    let range = 4*sigma_d + 1;
-    @iteration_bounds(width, height, range,
-        |x : int, y : int, region : int| -> void {
-            //out[y*width + x] = bilateral_filter(sigma_d, c_d, c_r, x, y, arr, width, height, region);
-            out[y*width + x] = @bilateral_filter_mask(sigma_d, c_r, mask, x, y, arr, width, height, region);
+    // SS
+    let texture = 0;
+    let arr_mapped = map(arr, 1, texture, (0, 0, 0), (width, height, 0));
+    @iteration(width, height,
+        |x : int, y : int| -> void {
+            //out[y*width + x] = bilateral_filter(sigma_d, c_d, c_r, x, y, arr, width, height, 10);
+            out[y*width + x] = bilateral_filter_mask(sigma_d, c_r, mask, x, y, arr_mapped, width, height, 10);
         }
     );
+
+    //// SS + BH
+    //let range = 4*sigma_d + 1;
+    //let texture = 0;
+    //let arr_mapped = map(arr, 1, texture, (0, 0, 0), (width, height, 0));
+    //@iteration_bounds(width, height, range,
+    //    |x : int, y : int, region : int| -> void {
+    //        //out[y*width + x] = bilateral_filter(sigma_d, c_d, c_r, x, y, arr, width, height, region);
+    //        out[y*width + x] = bilateral_filter_mask(sigma_d, c_r, mask, x, y, arr_mapped, width, height, region);
+    //    }
+    //);
 
     let mut passed = 0;
     //// compare results

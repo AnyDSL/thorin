@@ -13,6 +13,8 @@ class World;
 
 //------------------------------------------------------------------------------
 
+class TypeVarNode;
+
 template<class T>
 class Proxy {
 public:
@@ -56,6 +58,7 @@ public:
         return *this; 
     }
     void clear() { assert(node_ != nullptr); node_ = nullptr; }
+    void bind(Proxy<TypeVarNode> v) const;
 
 private:
     const T* node_;
@@ -116,7 +119,6 @@ public:
     Type specialize(const Type2Type&) const { return Type(this); } // TODO
     bool is_generic() const { return is_generic_; }
     const TypeNode* representative() const { return representative_; }
-    void bind(TypeVar v) const;
     bool is_unified() const { return representative_ != nullptr; }
     const TypeNode* unify() const;
 
@@ -158,6 +160,7 @@ private:
 protected:
     bool is_generic_;
 
+    template<class T> friend void Proxy<T>::bind(Proxy<TypeVarNode> v) const;
     friend class World;
 };
 
@@ -360,11 +363,6 @@ private:
         : TypeNode(world, Node_TypeVar, 0, true)
     {}
 
-    //virtual size_t hash() const { return hash_combine(TypeNode::hash(), index()); }
-    //virtual bool equal(const TypeNode* other) const { 
-        //return TypeNode::equal(other) && index() == other->as<TypeVarNode>()->index();
-    //}
-
 public:
     bool equal(const TypeNode*);
     Type bound_at() const { return Type(bound_at_); }
@@ -373,10 +371,17 @@ private:
     mutable const TypeNode* bound_at_;
     mutable const TypeVarNode* equiv_;
 
-    friend void TypeNode::bind(TypeVar) const;
+    template<class T> friend void Proxy<T>::bind(Proxy<TypeVarNode> v) const;
     friend bool TypeNode::equal(const TypeNode*) const;
     friend class World;
 };
+
+template<class T>
+void Proxy<T>::bind(Proxy<TypeVarNode> v) const {
+    assert(!node()->is_unified());
+    node()->bound_vars_.push_back(v); 
+    v->bound_at_ = node(); 
+}
 
 //------------------------------------------------------------------------------
 

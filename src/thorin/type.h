@@ -108,11 +108,11 @@ public:
     NodeKind kind() const { return kind_; }
     bool is_corenode() const { return ::thorin::is_corenode(kind()); }
     ArrayRef<Type> elems() const { return elems_; }
-    ArrayRef<TypeVar> bound_vars() const { return bound_vars_; }
+    ArrayRef<TypeVar> type_vars() const { return type_vars_; }
     Type elem(size_t i) const { assert(i < elems().size()); return elems()[i]; }
-    TypeVar bound_var(size_t i) const { assert(i < bound_vars().size()); return bound_vars()[i]; }
+    TypeVar bound_var(size_t i) const { assert(i < type_vars().size()); return type_vars()[i]; }
     size_t size() const { return elems_.size(); }
-    size_t num_bound_vars() const { return bound_vars().size(); }
+    size_t num_type_vars() const { return type_vars().size(); }
     Type elem_via_lit(const Def& def) const;
     bool empty() const { return elems_.empty(); }
     void dump() const;
@@ -157,7 +157,7 @@ private:
     mutable const TypeNode* representative_;
     World& world_;
     NodeKind kind_;
-    mutable std::vector<TypeVar> bound_vars_;
+    mutable std::vector<TypeVar> type_vars_;
     std::vector<Type> elems_;
     mutable size_t gid_;
 
@@ -362,6 +362,7 @@ class TypeVarNode : public TypeNode {
 private:
     TypeVarNode(World& world)
         : TypeNode(world, Node_TypeVar, 0)
+        , equiv_(nullptr)
     {}
 
 public:
@@ -380,7 +381,7 @@ private:
 template<class T>
 void Proxy<T>::bind(Proxy<TypeVarNode> v) const {
     assert(!node()->is_unified());
-    node()->bound_vars_.push_back(v); 
+    node()->type_vars_.push_back(v); 
     v->bound_at_ = node(); 
 }
 

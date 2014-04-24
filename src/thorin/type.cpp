@@ -14,7 +14,7 @@ namespace thorin {
 //------------------------------------------------------------------------------
 
 size_t TypeNode::hash() const {
-    size_t seed = hash_combine(hash_combine(hash_begin((int) kind()), size()), num_bound_vars());
+    size_t seed = hash_combine(hash_combine(hash_begin((int) kind()), size()), num_type_vars());
     for (auto elem : elems_)
         seed = hash_combine(seed, elem->hash());
     return seed;
@@ -22,10 +22,10 @@ size_t TypeNode::hash() const {
 
 bool TypeNode::equal(const TypeNode* other) const {
     bool result = this->kind() == other->kind() && this->size() == other->size() 
-        && this->num_bound_vars() == other->num_bound_vars();
+        && this->num_type_vars() == other->num_type_vars();
 
     if (result) {
-        for (size_t i = 0, e = num_bound_vars(); result && i != e; ++i) {
+        for (size_t i = 0, e = num_type_vars(); result && i != e; ++i) {
             assert(this->bound_var(i)->equiv_ == nullptr);
             this->bound_var(i)->equiv_ = *other->bound_var(i);
         }
@@ -33,7 +33,7 @@ bool TypeNode::equal(const TypeNode* other) const {
         for (size_t i = 0, e = size(); result && i != e; ++i)
             result &= this->elems_[i] == other->elems_[i];
 
-        for (auto var : bound_vars())
+        for (auto var : type_vars())
             var->equiv_ = nullptr;
     }
 
@@ -63,7 +63,7 @@ void TypeNode::set_representative(const TypeNode* repr) const {
     if (representative_ != repr) {
         representative_ = repr;
 
-        for (size_t i = 0, e = num_bound_vars(); i != e; ++i)
+        for (size_t i = 0, e = num_type_vars(); i != e; ++i)
             this->bound_var(i)->set_representative(*repr->bound_var(i));
 
         for (size_t i = 0, e = size(); i != e; ++i)
@@ -75,7 +75,7 @@ const TypeNode* TypeNode::unify() const { return world().unify_base(this); }
 TypeVarSet TypeNode::free_type_vars() const { TypeVarSet bound, free; free_type_vars(bound, free); return free; }
 
 void TypeNode::free_type_vars(TypeVarSet& bound, TypeVarSet& free) const {
-    for (auto type_var : bound_vars())
+    for (auto type_var : type_vars())
         bound.insert(*type_var);
 
     for (auto elem : elems()) {
@@ -113,9 +113,8 @@ bool PtrTypeNode::equal(const TypeNode* other) const {
 CompoundTypeNode::CompoundTypeNode(World& world, NodeKind kind, ArrayRef<Type> elems)
     : TypeNode(world, kind, elems.size())
 {
-    size_t x = 0;
-    for (auto elem : elems)
-        set(x++, elem);
+    for (size_t i = 0, e = size(); i != e; ++i)
+        set(i, elems[i]);
 }
 
 //------------------------------------------------------------------------------

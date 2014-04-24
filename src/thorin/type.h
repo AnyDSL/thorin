@@ -27,20 +27,17 @@ public:
 
     bool empty() const { return node_ == nullptr; }
     bool operator == (const Proxy<T>& other) const {
-#if 0
         assert(node_ != nullptr);         
-        assert(&node()->typetable() == &other.node()->typetable());
-        unify(node()->typetable(), *this);
-        unify(node()->typetable(), other);
-#endif
+        assert(&node()->world() == &other.node()->world());
+        this->node()->unify();
+        other.node()->unify();
         return representative() == other.representative();
     }
     bool operator != (const Proxy<T>& other) const { assert(node_ != nullptr); return !(*this == other); }
-    T* representative() const { assert(node_ != nullptr); return node_->representative()->template as<T>(); }
-    T* node() const { assert(node_ != nullptr); return node_; }
-    //T* operator  * () const { assert(node_ != nullptr); return node_->is_unified() ? representative() : node_->template as<T>(); }
-    T* operator  * () const { assert(node_ != nullptr); return representative(); }
-    T* operator -> () const { assert(node_ != nullptr); return *(*this); }
+    const T* representative() const { assert(node_ != nullptr); return node_->representative()->template as<T>(); }
+    const T* node() const { assert(node_ != nullptr); return node_; }
+    const T* operator  * () const { assert(node_ != nullptr); return node_->is_unified() ? representative() : node_; }
+    const T* operator -> () const { assert(node_ != nullptr); return *(*this); }
     /// Automatic up-cast in the class hierarchy.
     template<class U> operator Proxy<U>() {
         static_assert(std::is_base_of<U, T>::value, "U is not a base type of T");
@@ -91,7 +88,7 @@ private:
 
 protected:
     TypeNode(World& world, NodeKind kind, size_t num, bool is_generic)
-        : representative_(this)
+        : representative_(nullptr)
         , world_(world)
         , kind_(kind)
         , elems_(num)
@@ -118,8 +115,10 @@ public:
     bool infer_with(Type2Type&, Type) const { return true; } // TODO
     Type specialize(const Type2Type&) const { return Type(this); } // TODO
     bool is_generic() const { return is_generic_; }
-    TypeNode* representative() const { return representative_; }
-    void add_bound_var(TypeVar v) const;
+    const TypeNode* representative() const { return representative_; }
+    void bind(TypeVar v) const;
+    bool is_unified() const { return representative_ != nullptr; }
+    void unify() const;
 
     bool is_primtype() const { return thorin::is_primtype(kind()); }
     bool is_type_ps() const { return thorin::is_type_ps(kind()); }
@@ -147,7 +146,9 @@ public:
     size_t length() const;
 
 private:
-    TypeNode* representative_;
+    void set_representative(const TypeNode*) const;
+
+    mutable const TypeNode* representative_;
     World& world_;
     NodeKind kind_;
     mutable std::vector<TypeVar> bound_vars_;
@@ -372,7 +373,7 @@ private:
     mutable const TypeNode* bound_at_;
     mutable const TypeVarNode* equiv_;
 
-    friend void TypeNode::add_bound_var(TypeVar) const;
+    friend void TypeNode::bind(TypeVar) const;
     friend bool TypeNode::equal(const TypeNode*) const;
     friend class World;
 };

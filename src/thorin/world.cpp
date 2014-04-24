@@ -845,15 +845,15 @@ const Param* World::param(Type type, Lambda* lambda, size_t index, const std::st
 const TypeNode* World::unify_base(const TypeNode* type) {
     auto i = types_.find(type);
     if (i != types_.end()) {
-        delete type;
-        return *i;
+        auto t = *i;
+        type->set_representative(t);
+        return t;
+    } else {
+        auto p = types_.insert(type);
+        assert(p.second && "hash/equal broken");
+        type->representative_ = type;
+        return type;
     }
-
-    auto p = types_.insert(type);
-    assert(type->gid_ == size_t(-1));
-    type->gid_ = gid_++;
-    assert(p.second && "hash/equal broken");
-    return type;
 }
 
 const DefNode* World::cse_base(const PrimOp* primop) {

@@ -92,7 +92,7 @@ public:
     StructType          struct_type(size_t size, const std::string& name = "");
     FnType              fn_type() { return FnType(fn0_); }                  ///< Returns an empty \p FnType.
     FnType              fn_type(ArrayRef<Type> elems) { return register_type(new FnTypeNode(*this, elems)); }
-    TypeVar             type_var() { return TypeVar(new TypeVarNode(*this)); } // TODO register
+    TypeVar             type_var() { return register_type(new TypeVarNode(*this)); }
     DefiniteArrayType   definite_array_type(Type elem, u64 dim) { return register_type(new DefiniteArrayTypeNode(*this, elem, dim)); }
     IndefiniteArrayType indefinite_array_type(Type elem) { return register_type(new IndefiniteArrayTypeNode(*this, elem)); }
 
@@ -258,12 +258,17 @@ public:
 #ifndef NDEBUG
     void breakpoint(size_t number) { breakpoints_.insert(number); }
 #endif
+    template<class T> Proxy<T> unify(const T* type) { return Proxy<T>(unify_base(type)->template as<T>()); }
 
 private:
-    const TypeNode* register_base(const TypeNode* t) { garbage_.push_back(t); return t; }
+    const TypeNode* register_base(const TypeNode* type) { 
+        assert(type->gid_ == size_t(-1));
+        type->gid_ = gid_++;
+        garbage_.push_back(type); 
+        return type; 
+    }
     template<class T> Proxy<T> register_type(const T* t) { return Proxy<T>(register_base(t)->template as<T>()); }
     const TypeNode* unify_base(const TypeNode*);
-    template<class T> Proxy<T> unify(const T* type) { return Proxy<T>(unify_base(type)->template as<T>()); }
     const DefNode* cse_base(const PrimOp*);
     template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
 

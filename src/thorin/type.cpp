@@ -40,7 +40,7 @@ bool TypeNode::equal(const TypeNode* other) const {
     return result;
 }
 
-void TypeNode::add_bound_var(TypeVar v) const { bound_vars_.push_back(v); v->bound_at_ = this; }
+void TypeNode::bind(TypeVar v) const { bound_vars_.push_back(v); v->bound_at_ = this; }
 void TypeNode::dump() const { emit_type(Type(this)); std::cout << std::endl; }
 size_t TypeNode::length() const { return as<VectorTypeNode>()->length(); }
 Type TypeNode::elem_via_lit(const Def& def) const { return elem(def->primlit_value<size_t>()); }
@@ -58,6 +58,21 @@ int TypeNode::order() const {
 
     return sub;
 }
+
+void TypeNode::set_representative(const TypeNode* repr) const {
+    assert(repr == repr->representative_);
+    if (representative_ != repr) {
+        representative_ = repr;
+
+        for (size_t i = 0, e = num_bound_vars(); i != e; ++i)
+            this->bound_var(i)->set_representative(*repr->bound_var(i));
+
+        for (size_t i = 0, e = size(); i != e; ++i)
+            this->elem(i)->set_representative(*repr->elem(i));
+    }
+}
+
+void TypeNode::unify() const { world().unify(this); }
 
 //------------------------------------------------------------------------------
 
@@ -87,8 +102,8 @@ CompoundTypeNode::CompoundTypeNode(World& world, NodeKind kind, ArrayRef<Type> e
 {
     size_t x = 0;
     for (auto elem : elems) {
-        if (elem->is_generic())
-            is_generic_ = true;
+        //if (elem->is_generic())
+            //is_generic_ = true;
         set(x++, elem);
     }
 }

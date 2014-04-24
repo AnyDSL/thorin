@@ -72,7 +72,7 @@ public:
      */
 
 #define THORIN_ALL_TYPE(T) PrimType type_##T(size_t length = 1) { \
-    return length == 1 ? PrimType(T##_) : unify(new PrimTypeNode(*this, PrimType_##T, length)); \
+    return length == 1 ? PrimType(T##_) : register_type(new PrimTypeNode(*this, PrimType_##T, length)); \
 }
 #include "thorin/tables/primtypetable.h"
 
@@ -80,21 +80,21 @@ public:
     PrimType    type(PrimTypeKind kind, size_t length = 1) {
         size_t i = kind - Begin_PrimType;
         assert(0 <= i && i < (size_t) Num_PrimTypes);
-        return length == 1 ? PrimType(primtypes_[i]) : unify(new PrimTypeNode(*this, kind, length));
+        return length == 1 ? PrimType(primtypes_[i]) : register_type(new PrimTypeNode(*this, kind, length));
     }
     MemType     mem_type() const { return MemType(mem_); }
     FrameType   frame_type() const { return FrameType(frame_); }
     PtrType     ptr_type(Type referenced_type, size_t length = 1, uint32_t device = 0, AddressSpace adr_space = AddressSpace::Global) {
-        return unify(new PtrTypeNode(*this, referenced_type, length, device, adr_space)); 
+        return register_type(new PtrTypeNode(*this, referenced_type, length, device, adr_space)); 
     }
     TupleType           tuple_type() { return TupleType(tuple0_); }         ///< Returns unit, i.e., an empty \p TupleType.
-    TupleType           tuple_type(ArrayRef<Type> elems) { return unify(new TupleTypeNode(*this, elems)); }
+    TupleType           tuple_type(ArrayRef<Type> elems) { return register_type(new TupleTypeNode(*this, elems)); }
     StructType          struct_type(size_t size, const std::string& name = "");
     FnType              fn_type() { return FnType(fn0_); }                  ///< Returns an empty \p FnType.
-    FnType              fn_type(ArrayRef<Type> elems) { return unify(new FnTypeNode(*this, elems)); }
+    FnType              fn_type(ArrayRef<Type> elems) { return register_type(new FnTypeNode(*this, elems)); }
     TypeVar             type_var() { return TypeVar(new TypeVarNode(*this)); } // TODO register
-    DefiniteArrayType   definite_array_type(Type elem, u64 dim) { return unify(new DefiniteArrayTypeNode(*this, elem, dim)); }
-    IndefiniteArrayType indefinite_array_type(Type elem) { return unify(new IndefiniteArrayTypeNode(*this, elem)); }
+    DefiniteArrayType   definite_array_type(Type elem, u64 dim) { return register_type(new DefiniteArrayTypeNode(*this, elem, dim)); }
+    IndefiniteArrayType indefinite_array_type(Type elem) { return register_type(new IndefiniteArrayTypeNode(*this, elem)); }
 
     /*
      * literals
@@ -260,6 +260,8 @@ public:
 #endif
 
 private:
+    const TypeNode* register_base(const TypeNode* t) { garbage_.push_back(t); return t; }
+    template<class T> Proxy<T> register_type(const T* t) { return Proxy<T>(register_base(t)->template as<T>()); }
     const TypeNode* unify_base(const TypeNode*);
     template<class T> Proxy<T> unify(const T* type) { return Proxy<T>(unify_base(type)->template as<T>()); }
     const DefNode* cse_base(const PrimOp*);

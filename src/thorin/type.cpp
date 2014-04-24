@@ -14,19 +14,33 @@ namespace thorin {
 //------------------------------------------------------------------------------
 
 size_t TypeNode::hash() const {
-    size_t seed = hash_combine(hash_begin((int) kind()), size());
+    size_t seed = hash_combine(hash_combine(hash_begin((int) kind()), size()), num_bound_vars());
     for (auto elem : elems_)
-        seed = hash_combine(seed, elem->gid());
+        seed = hash_combine(seed, elem->hash());
     return seed;
 }
 
 bool TypeNode::equal(const TypeNode* other) const {
-    bool result = this->kind() == other->kind() && this->size() == other->size();
-    for (size_t i = 0, e = size(); result && i != e; ++i)
-        result &= this->elems_[i] == other->elems_[i];
+    bool result = this->kind() == other->kind() && this->size() == other->size() 
+        && this->num_bound_vars() == other->num_bound_vars();
+
+    if (result) {
+        for (size_t i = 0, e = num_bound_vars(); result && i != e; ++i) {
+            assert(this->bound_var(i)->equiv_ == nullptr);
+            this->bound_var(i)->equiv_ = *other->bound_var(i);
+        }
+
+        for (size_t i = 0, e = size(); result && i != e; ++i)
+            result &= this->elems_[i] == other->elems_[i];
+
+        for (auto var : bound_vars())
+            var->equiv_ = nullptr;
+    }
+
     return result;
 }
 
+void TypeNode::add_bound_var(TypeVar v) const { bound_vars_.push_back(v); v->bound_at_ = this; }
 void TypeNode::dump() const { emit_type(Type(this)); std::cout << std::endl; }
 size_t TypeNode::length() const { return as<VectorTypeNode>()->length(); }
 Type TypeNode::elem_via_lit(const Def& def) const { return elem(def->primlit_value<size_t>()); }
@@ -100,4 +114,11 @@ bool FnTypeNode::is_returning() const {
 
 //------------------------------------------------------------------------------
 
+bool TypeVarNode::equal(const TypeNode* other) {
+    if (auto typevar = other->isa<TypeVarNode>())
+        return this->equiv_ == typevar;
+    return false;
+}
+
+//------------------------------------------------------------------------------
 }

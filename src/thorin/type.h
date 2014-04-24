@@ -58,7 +58,7 @@ public:
         node_ = *other; 
         return *this; 
     }
-    void clear() { node_ = nullptr; }
+    void clear() { assert(node_ != nullptr); node_ = nullptr; }
 
 private:
     const T* node_;
@@ -105,9 +105,12 @@ public:
     NodeKind kind() const { return kind_; }
     bool is_corenode() const { return ::thorin::is_corenode(kind()); }
     ArrayRef<Type> elems() const { return elems_; }
+    ArrayRef<TypeVar> bound_vars() const { return bound_vars_; }
     Type elem(size_t i) const { assert(i < elems().size()); return elems()[i]; }
-    Type elem_via_lit(const Def& def) const;
+    TypeVar bound_var(size_t i) const { assert(i < bound_vars().size()); return bound_vars()[i]; }
     size_t size() const { return elems_.size(); }
+    size_t num_bound_vars() const { return bound_vars().size(); }
+    Type elem_via_lit(const Def& def) const;
     bool empty() const { return elems_.empty(); }
     void dump() const;
     World& world() const { return world_; }
@@ -116,6 +119,7 @@ public:
     Type specialize(const Type2Type&) const { return Type(this); } // TODO
     bool is_generic() const { return is_generic_; }
     TypeNode* representative() const { return representative_; }
+    void add_bound_var(TypeVar v) const;
 
     bool is_primtype() const { return thorin::is_primtype(kind()); }
     bool is_type_ps() const { return thorin::is_type_ps(kind()); }
@@ -146,6 +150,7 @@ private:
     TypeNode* representative_;
     World& world_;
     NodeKind kind_;
+    mutable std::vector<TypeVar> bound_vars_;
     std::vector<Type> elems_;
     mutable size_t gid_;
 
@@ -154,9 +159,6 @@ protected:
 
     friend class World;
 };
-
-struct TypeHash { size_t operator () (const TypeNode* t) const { return t->hash(); } };
-struct TypeEqual { bool operator () (const TypeNode* t1, const TypeNode* t2) const { return t1->equal(t2); } };
 
 //------------------------------------------------------------------------------
 
@@ -355,7 +357,6 @@ class TypeVarNode : public TypeNode {
 private:
     TypeVarNode(World& world)
         : TypeNode(world, Node_TypeVar, 0, true)
-        , bound_at_(nullptr)
     {}
 
     //virtual size_t hash() const { return hash_combine(TypeNode::hash(), index()); }
@@ -364,11 +365,15 @@ private:
     //}
 
 public:
+    bool equal(const TypeNode*);
     Type bound_at() const { return Type(bound_at_); }
 
 private:
-    const TypeNode* bound_at_;
+    mutable const TypeNode* bound_at_;
+    mutable const TypeVarNode* equiv_;
 
+    friend void TypeNode::add_bound_var(TypeVar) const;
+    friend bool TypeNode::equal(const TypeNode*) const;
     friend class World;
 };
 

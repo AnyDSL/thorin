@@ -78,6 +78,7 @@ void Cleaner::cleanup() {
         if (lambda->attribute().is(Lambda::Extern))
             unreachable_code_elimination(lambda);
 
+#if 0
     // collect all used types
     for (size_t i = 0, e = sizeof(world_.keep_)/sizeof(const TypeNode*); i != e; ++i)
         unused_type_elimination(world_.keep_[i]);
@@ -88,6 +89,7 @@ void Cleaner::cleanup() {
         for (auto param : lambda->params())
             unused_type_elimination(*param->type());
     }
+#endif
 
     // destroy bodies of unreachable lambdas
     for (auto lambda : olambdas()) {
@@ -130,6 +132,7 @@ void Cleaner::cleanup() {
             delete lambda;
     }
 
+#if 0
     // delete unused types and remove from otypes map
     for (auto i = otypes().begin(); i != otypes().end();) {
         auto j = i++;
@@ -139,6 +142,7 @@ void Cleaner::cleanup() {
             delete type;
         }
     }
+#endif
 
     debug_verify(world_);
 }

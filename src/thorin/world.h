@@ -57,6 +57,9 @@ private:
     World& operator = (const World&); ///< Do not copy-assign a \p World instance.
     World(const World&);              ///< Do not copy-construct a \p World.
 
+    struct TypeHash { size_t operator () (const TypeNode* t) const { return t->hash(); } };
+    struct TypeEqual { bool operator () (const TypeNode* t1, const TypeNode* t2) const { return t1->equal(t2); } };
+
 public:
     typedef HashSet<const PrimOp*, PrimOpHash, PrimOpEqual> PrimOps;
     typedef HashSet<const TypeNode*, TypeHash, TypeEqual> Types;
@@ -256,19 +259,19 @@ public:
     void breakpoint(size_t number) { breakpoints_.insert(number); }
 #endif
 
-protected:
+private:
     const TypeNode* unify_base(const TypeNode*);
     template<class T> Proxy<T> unify(const T* type) { return Proxy<T>(unify_base(type)->template as<T>()); }
     const DefNode* cse_base(const PrimOp*);
     template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
 
-private:
     const Param* param(Type type, Lambda* lambda, size_t index, const std::string& name = "");
 
     std::string name_;
     LambdaSet lambdas_;
     PrimOps primops_;
     Types types_;
+    std::vector<const TypeNode*> garbage_;
 #ifndef NDEBUG
     HashSet<size_t> breakpoints_;
 #endif

@@ -23,7 +23,7 @@ fn iterate(a : int, b : int, yield : fn(int, fn())) -> void {
 }
 
 fn force_unroll(a : int, b : int, yield : fn(int, fn())) -> void {
-    if (i < b) {
+    if (a < b) {
         yield(a);
         @force_unroll(a+1, b, yield);
     }

@@ -258,6 +258,7 @@ public:
 #ifndef NDEBUG
     void breakpoint(size_t number) { breakpoints_.insert(number); }
 #endif
+    const TypeNode* unify_base(const TypeNode*);
     template<class T> Proxy<T> unify(const T* type) { return Proxy<T>(unify_base(type)->template as<T>()); }
 
 private:
@@ -268,7 +269,6 @@ private:
         return type; 
     }
     template<class T> Proxy<T> register_type(const T* t) { return Proxy<T>(register_base(t)->template as<T>()); }
-    const TypeNode* unify_base(const TypeNode*);
     const DefNode* cse_base(const PrimOp*);
     template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
 

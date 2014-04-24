@@ -33,21 +33,21 @@ public:
         other.node()->unify();
         return representative() == other.representative();
     }
-    bool operator != (const Proxy<T>& other) const { assert(node_ != nullptr); return !(*this == other); }
+    bool operator != (const Proxy<T>& other) const { return !(*this == other); }
     const T* representative() const { assert(node_ != nullptr); return node_->representative()->template as<T>(); }
     const T* node() const { assert(node_ != nullptr); return node_; }
-    const T* operator  * () const { assert(node_ != nullptr); return node_->is_unified() ? representative() : node_; }
-    const T* operator -> () const { assert(node_ != nullptr); return *(*this); }
+    const T* operator  * () const { return node()->unify()->template as<T>(); }
+    const T* operator -> () const { return *(*this); }
     /// Automatic up-cast in the class hierarchy.
     template<class U> operator Proxy<U>() {
         static_assert(std::is_base_of<U, T>::value, "U is not a base type of T");
-        assert(node_ != nullptr); return Proxy<U>((U*) node_);
+        return Proxy<U>((**this)->template as<T>());
     }
     template<class U> Proxy<typename U::BaseType> isa() const { 
-        assert(node_ != nullptr); return Proxy<typename U::BaseType>((*this)->isa<typename U::BaseType>()); 
+        return Proxy<typename U::BaseType>((*this)->isa<typename U::BaseType>()); 
     }
     template<class U> Proxy<typename U::BaseType> as() const { 
-        assert(node_ != nullptr); return Proxy<typename U::BaseType>((*this)->as <typename U::BaseType>()); 
+        return Proxy<typename U::BaseType>((*this)->as <typename U::BaseType>()); 
     }
     operator bool() { return !empty(); }
     Proxy<T>& operator= (Proxy<T> other) { 
@@ -118,7 +118,7 @@ public:
     const TypeNode* representative() const { return representative_; }
     void bind(TypeVar v) const;
     bool is_unified() const { return representative_ != nullptr; }
-    void unify() const;
+    const TypeNode* unify() const;
 
     bool is_primtype() const { return thorin::is_primtype(kind()); }
     bool is_type_ps() const { return thorin::is_type_ps(kind()); }

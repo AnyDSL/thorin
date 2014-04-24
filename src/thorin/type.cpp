@@ -40,7 +40,11 @@ bool TypeNode::equal(const TypeNode* other) const {
     return result;
 }
 
-void TypeNode::bind(TypeVar v) const { bound_vars_.push_back(v); v->bound_at_ = this; }
+void TypeNode::bind(TypeVar v) const { 
+    assert(!is_unified());
+    bound_vars_.push_back(v); 
+    v->bound_at_ = this; 
+}
 void TypeNode::dump() const { emit_type(Type(this)); std::cout << std::endl; }
 size_t TypeNode::length() const { return as<VectorTypeNode>()->length(); }
 Type TypeNode::elem_via_lit(const Def& def) const { return elem(def->primlit_value<size_t>()); }
@@ -72,7 +76,7 @@ void TypeNode::set_representative(const TypeNode* repr) const {
     }
 }
 
-void TypeNode::unify() const { world().unify(this); }
+const TypeNode* TypeNode::unify() const { return world().unify_base(this); }
 
 //------------------------------------------------------------------------------
 

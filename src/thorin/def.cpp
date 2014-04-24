@@ -166,7 +166,6 @@ Lambda* DefNode::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(th
 Lambda* DefNode::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(this)); }
 const PrimOp* DefNode::is_non_const_primop() const { return is_const() ? nullptr : isa<PrimOp>(); }
 int DefNode::order() const { return type()->order(); }
-bool DefNode::is_generic() const { return type()->is_generic(); }
 size_t DefNode::length() const { return type().as<VectorType>()->length(); }
 
 //------------------------------------------------------------------------------

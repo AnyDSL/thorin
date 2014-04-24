@@ -72,6 +72,20 @@ void TypeNode::set_representative(const TypeNode* repr) const {
 }
 
 const TypeNode* TypeNode::unify() const { return world().unify_base(this); }
+TypeVarSet TypeNode::free_type_vars() const { TypeVarSet bound, free; free_type_vars(bound, free); return free; }
+
+void TypeNode::free_type_vars(TypeVarSet& bound, TypeVarSet& free) const {
+    for (auto type_var : bound_vars())
+        bound.insert(*type_var);
+
+    for (auto elem : elems()) {
+        if (auto type_var = elem->isa<TypeVarNode>()) {
+            if (!bound.contains(type_var))
+                free.insert(type_var);
+        } else
+            elem->free_type_vars(bound, free);
+    }
+}
 
 //------------------------------------------------------------------------------
 

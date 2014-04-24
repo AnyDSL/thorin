@@ -84,6 +84,7 @@ template<class To>
 using TypeMap   = HashMap<const TypeNode*, To, GIDHash<const TypeNode*>, GIDEq<const TypeNode*>>;
 using TypeSet   = HashSet<const TypeNode*, GIDHash<const TypeNode*>, GIDEq<const TypeNode*>>;
 using Type2Type = TypeMap<const TypeNode*>;
+using TypeVarSet   = HashSet<const TypeVarNode*, GIDHash<const TypeVarNode*>, GIDEq<const TypeVarNode*>>;
 
 //------------------------------------------------------------------------------
 
@@ -93,13 +94,12 @@ private:
     TypeNode(const TypeNode&);              ///< Do not copy-construct a \p TypeNode.
 
 protected:
-    TypeNode(World& world, NodeKind kind, size_t num, bool is_generic)
+    TypeNode(World& world, NodeKind kind, size_t num)
         : representative_(nullptr)
         , world_(world)
         , kind_(kind)
         , elems_(num)
         , gid_(-1)
-        , is_generic_(is_generic)
     {}
 
     void set(size_t i, Type type) { elems_[i] = type; }
@@ -120,10 +120,11 @@ public:
     bool check_with(Type) const { return true; } // TODO
     bool infer_with(Type2Type&, Type) const { return true; } // TODO
     Type specialize(const Type2Type&) const { return Type(this); } // TODO
-    bool is_generic() const { return is_generic_; }
     const TypeNode* representative() const { return representative_; }
     bool is_unified() const { return representative_ != nullptr; }
     const TypeNode* unify() const;
+    void free_type_vars(TypeVarSet& bound, TypeVarSet& free) const;
+    TypeVarSet free_type_vars() const;
 
     bool is_primtype() const { return thorin::is_primtype(kind()); }
     bool is_type_ps() const { return thorin::is_type_ps(kind()); }
@@ -160,9 +161,6 @@ private:
     std::vector<Type> elems_;
     mutable size_t gid_;
 
-protected:
-    bool is_generic_;
-
     template<class T> friend void Proxy<T>::bind(Proxy<TypeVarNode> v) const;
     friend class World;
 };
@@ -173,7 +171,7 @@ protected:
 class MemTypeNode : public TypeNode {
 private:
     MemTypeNode(World& world)
-        : TypeNode(world, Node_MemType, 0, false)
+        : TypeNode(world, Node_MemType, 0)
     {}
 
     friend class World;
@@ -185,7 +183,7 @@ private:
 class FrameTypeNode : public TypeNode {
 private:
     FrameTypeNode(World& world)
-        : TypeNode(world, Node_FrameType, 0, false)
+        : TypeNode(world, Node_FrameType, 0)
     {}
 
     friend class World;
@@ -195,8 +193,8 @@ private:
 
 class VectorTypeNode : public TypeNode {
 protected:
-    VectorTypeNode(World& world, NodeKind kind, size_t num_elems, size_t length, bool is_generic)
-        : TypeNode(world, kind, num_elems, is_generic)
+    VectorTypeNode(World& world, NodeKind kind, size_t num_elems, size_t length)
+        : TypeNode(world, kind, num_elems)
         , length_(length)
     {}
 
@@ -222,7 +220,7 @@ private:
 class PrimTypeNode : public VectorTypeNode {
 private:
     PrimTypeNode(World& world, PrimTypeKind kind, size_t length)
-        : VectorTypeNode(world, (NodeKind) kind, 0, length, false)
+        : VectorTypeNode(world, (NodeKind) kind, 0, length)
     {}
 
 public:
@@ -243,7 +241,7 @@ enum class AddressSpace : uint32_t {
 class PtrTypeNode : public VectorTypeNode {
 private:
     PtrTypeNode(World& world, Type referenced_type, size_t length, uint32_t device, AddressSpace addr_space)
-        : VectorTypeNode(world, Node_PtrType, 1, length, referenced_type->is_generic())
+        : VectorTypeNode(world, Node_PtrType, 1, length)
         , addr_space_(addr_space)
         , device_(device)
     {
@@ -269,7 +267,7 @@ private:
 class StructTypeNode : public TypeNode {
 private:
     StructTypeNode(World& world, size_t size, const std::string& name)
-        : TypeNode(world, Node_StructType, size, false)
+        : TypeNode(world, Node_StructType, size)
         , name_(name)
     {}
 
@@ -278,7 +276,7 @@ private:
 
 public:
     const std::string& name() const { return name_; }
-    void set(size_t i, Type type) { TypeNode::set(i, type); is_generic_ |= type->is_generic(); }
+    void set(size_t i, Type type) { TypeNode::set(i, type); }
 
 private:
     std::string name_;
@@ -321,7 +319,7 @@ public:
 class ArrayTypeNode : public TypeNode {
 protected:
     ArrayTypeNode(World& world, NodeKind kind, Type elem_type)
-        : TypeNode(world, kind, 1, elem_type->is_generic())
+        : TypeNode(world, kind, 1)
     {
         set(0, elem_type);
     }
@@ -363,7 +361,7 @@ private:
 class TypeVarNode : public TypeNode {
 private:
     TypeVarNode(World& world)
-        : TypeNode(world, Node_TypeVar, 0, true)
+        : TypeNode(world, Node_TypeVar, 0)
     {}
 
 public:

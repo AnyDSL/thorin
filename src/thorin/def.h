@@ -155,7 +155,7 @@ public:
     std::string unique_name() const;
     Type type() const { return type_; }
     int order() const;
-    bool is_generic() const;
+    bool is_polymorphic() const { return type()->num_bound_vars() > 0; }
     World& world() const;
     ArrayRef<Def> ops() const { return ops_; }
     Def op(size_t i) const { assert(i < ops().size()); return ops()[i]; }

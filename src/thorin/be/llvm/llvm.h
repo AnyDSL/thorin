@@ -19,7 +19,7 @@ public:
     void emit();
 
 protected:
-    CodeGen(World& world, llvm::CallingConv::ID calling_convention);
+    CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID intrinsic_calling_convention, llvm::CallingConv::ID kernel_calling_convention);
 
     llvm::Type* map(const Type*);
     llvm::Value* emit(Def);
@@ -54,7 +54,9 @@ protected:
     llvm::LLVMContext context_;
     AutoPtr<llvm::Module> module_;
     llvm::IRBuilder<> builder_;
-    llvm::CallingConv::ID calling_convention_;
+    llvm::CallingConv::ID function_calling_convention_;
+    llvm::CallingConv::ID intrinsic_calling_convention_;
+    llvm::CallingConv::ID kernel_calling_convention_;
     HashMap<const Param*, llvm::Value*> params_;
     HashMap<const Param*, llvm::PHINode*> phis_;
     HashMap<const PrimOp*, llvm::Value*> primops_;

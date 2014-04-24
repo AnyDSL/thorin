@@ -44,12 +44,15 @@
 
 namespace thorin {
 
-CodeGen::CodeGen(World& world, llvm::CallingConv::ID calling_convention)
+CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID intrinsic_calling_convention, llvm::CallingConv::ID kernel_calling_convention)
     : world_(world)
     , context_()
     , module_(new llvm::Module(world.name(), context_))
     , builder_(context_)
-    , calling_convention_(calling_convention)
+    , debugger_(*module_.get())
+    , function_calling_convention_(function_calling_convention)
+    , intrinsic_calling_convention_(intrinsic_calling_convention)
+    , kernel_calling_convention_(kernel_calling_convention)
 {
     runtime_ = new GenericRuntime(context_, module_, builder_);
     nvvm_runtime_ = new NVVMRuntime(context_, module_, builder_);
@@ -272,7 +275,14 @@ void CodeGen::emit() {
                         }
                         args.shrink(i);
                         llvm::CallInst* call = builder_.CreateCall(fcts_[to_lambda], llvm_ref(args));
-                        call->setCallingConv(calling_convention_); // set proper calling convention
+                        // set proper calling convention
+                        if (to_lambda->attribute().is(Lambda::KernelEntry)) {
+                            call->setCallingConv(kernel_calling_convention_);
+                        } else if (to_lambda->attribute().is(Lambda::Intrinsic)) {
+                            call->setCallingConv(intrinsic_calling_convention_);
+                        } else {
+                            call->setCallingConv(function_calling_convention_);
+                        }
 
                         if (ret_arg == ret_param)       // call + return
                             builder_.CreateRet(call);

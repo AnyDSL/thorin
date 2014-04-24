@@ -49,7 +49,6 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
     , context_()
     , module_(new llvm::Module(world.name(), context_))
     , builder_(context_)
-    , debugger_(*module_.get())
     , function_calling_convention_(function_calling_convention)
     , intrinsic_calling_convention_(intrinsic_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)

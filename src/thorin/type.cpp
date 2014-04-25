@@ -26,8 +26,8 @@ bool TypeNode::equal(const TypeNode* other) const {
 
     if (result) {
         for (size_t i = 0, e = num_type_vars(); result && i != e; ++i) {
-            assert(this->bound_var(i)->equiv_ == nullptr);
-            this->bound_var(i)->equiv_ = *other->bound_var(i);
+            assert(this->type_var(i)->equiv_ == nullptr);
+            this->type_var(i)->equiv_ = *other->type_var(i);
         }
 
         for (size_t i = 0, e = size(); result && i != e; ++i)
@@ -64,7 +64,7 @@ void TypeNode::set_representative(const TypeNode* repr) const {
         representative_ = repr;
 
         for (size_t i = 0, e = num_type_vars(); i != e; ++i)
-            this->bound_var(i)->set_representative(*repr->bound_var(i));
+            this->type_var(i)->set_representative(*repr->type_var(i));
 
         for (size_t i = 0, e = size(); i != e; ++i)
             this->elem(i)->set_representative(*repr->elem(i));

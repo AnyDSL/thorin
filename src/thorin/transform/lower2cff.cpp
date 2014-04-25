@@ -114,7 +114,7 @@ size_t CFFLowering::process() {
             if (lambda->is_builtin() || lambda->is_connected_to_builtin())
                 continue;
             if (lambda->num_params() != 0                           // is there sth to drop?
-                && (lambda->is_polymorphic()                        // drop polymorphic functions
+                && (lambda->type()->is_polymorphic()                // drop polymorphic functions
                     || (!lambda->is_basicblock()                    // don't drop basic blocks
                         && (!lambda->is_returning()                 // drop non-returning lambdas
                             || top_.find(lambda) == top_.end()))))  // lift/drop returning non top-level lambdas

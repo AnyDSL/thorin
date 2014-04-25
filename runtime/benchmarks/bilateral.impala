@@ -207,6 +207,9 @@ fn main() -> int {
     //}
     ////rms_err = sqrtf(rms_err / ((float)(width*height)));
 
+    free_array(arr);
+    free_array(out);
+
     return passed;
 }
 

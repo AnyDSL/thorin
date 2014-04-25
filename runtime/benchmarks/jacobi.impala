@@ -55,8 +55,8 @@ fn apply_stencil(range : int, stencil : [float * 3 * 3],
 }
 
 fn main() -> int {
-    let width   = 4096;
-    let height  = 4096;
+    let width   = 2048;
+    let height  = 2048;
     let range   = 3;
     let a       = 0.2f;
     let b       = 1.0f - 4.0f * a;

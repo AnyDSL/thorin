@@ -1,5 +1,6 @@
 gcc support.c -c -O2 -mavx -Wall
-./impala extern.impala mapping_cpu.impala gaussian.impala -emit-llvm
-opt -O3 gaussian.bc -o gaussian_opt.bc
-llc gaussian_opt.bc -mattr=avx
-gcc gaussian_opt.s support.o
+./impala extern.impala mapping_cpu.impala $1 -emit-llvm
+base=${1%.*}
+opt -O3 ${base}.bc -o ${base}_opt.bc
+llc ${base}_opt.bc -mattr=avx
+gcc ${base}_opt.s support.o

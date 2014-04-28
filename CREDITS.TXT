@@ -5,9 +5,9 @@ name (N), email (E), description (D)
 
 (N) Marcel Köster
 (E) koester@cs.uni-saarland.de
-(D) build system
-(D) command line option system
+(D) build system / command line option system
 (D) LLVM backend
+(D) some internal transformations
 (D) MSVC port
 (D) runtime
 

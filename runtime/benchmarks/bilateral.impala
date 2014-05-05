@@ -171,7 +171,7 @@ fn main() -> int {
 
     // SS
     let texture = 0;
-    let arr_mapped = map(arr, 1, texture, (0, 0, 0), (width, height, 0));
+    let arr_mapped = map(arr, 1, texture, (0, 0, 0), (width, height, 1));
     @iteration(width, height,
         |x : int, y : int| -> void {
             //out[y*width + x] = bilateral_filter(sigma_d, c_d, c_r, x, y, arr, width, height, 10);
@@ -182,7 +182,7 @@ fn main() -> int {
     //// SS + BH
     //let range = 4*sigma_d + 1;
     //let texture = 0;
-    //let arr_mapped = map(arr, 1, texture, (0, 0, 0), (width, height, 0));
+    //let arr_mapped = map(arr, 1, texture, (0, 0, 0), (width, height, 1));
     //@iteration_bounds(width, height, range,
     //    |x : int, y : int, region : int| -> void {
     //        //out[y*width + x] = bilateral_filter(sigma_d, c_d, c_r, x, y, arr, width, height, region);

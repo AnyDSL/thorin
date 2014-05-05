@@ -77,7 +77,7 @@ class Memory {
     }
     mem_id map_memory(size_t dev, void *from, CUdeviceptr to, mem_type type) {
         mem_ info = host_mems_[from];
-        return map_memory(dev, from, to, type, 0, 0, 0, info.width, info.height, 0);
+        return map_memory(dev, from, to, type, 0, 0, 0, info.width, info.height, 1);
     }
 
     void *get_host_mem(size_t dev, mem_id id) { return mmap[dev][id].cpu; }
@@ -587,7 +587,7 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, 
     mem_type type = (mem_type)type_;
     mem_ info = host_mems_[from];
 
-    assert(oz==0 && sz==0 && "3D memory not yet supported");
+    assert(oz==0 && sz==1 && "3D memory not yet supported");
 
     mem_id mem = mem_manager.get_id(dev, from);
     if (mem) {

@@ -8,7 +8,7 @@ fn main() -> int {
     let mut arr = array(4, width, height);
     let mut out = array(4, width, height);
 
-    let mapped = map(arr, 1, 1, (0, 0, 0), (width, height, 0));
+    let mapped = map(arr, 1, 1, (0, 0, 0), (width, height, 1));
 
     iteration(width, height, |x : int, y : int| -> void {
         write(out, mapped, x);

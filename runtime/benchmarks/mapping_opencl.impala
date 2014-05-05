@@ -69,8 +69,8 @@ fn iteration_advanced(width : int, height : int,
         let block = (128, 1, 1);
 
         // 0 -> global
-        let gmem_arr = map(arr, 1, 0, (0, 0, 0), (width, height, 0));
-        let gmem_out = map(out, 1, 0, (0, 0, 0), (width, height, 0));
+        let gmem_arr = map(arr, 1, 0, (0, 0, 0), (width, height, 1));
+        let gmem_out = map(out, 1, 0, (0, 0, 0), (width, height, 1));
 
         opencl(1, dim, block, || -> void {
             let tid_x = int64_to_int32(get_global_id(0));
@@ -177,8 +177,8 @@ fn iteration_sep_advanced(width : int, height : int,
 
     let tmp = array(4, width, height);
 
-    let arr_col = map(arr, dev, 0, (0, 0, 0), (width, height, 0));
-    let out_col = map(tmp, dev, 0, (0, 0, 0), (width, height, 0));
+    let arr_col = map(arr, dev, 0, (0, 0, 0), (width, height, 1));
+    let out_col = map(tmp, dev, 0, (0, 0, 0), (width, height, 1));
 
     opencl(dev, dim, block, || -> void {
         let tid_x = int64_to_int32(get_global_id(0));
@@ -190,8 +190,8 @@ fn iteration_sep_advanced(width : int, height : int,
     //unmap(arr_col, dev, 1);
     //unmap(out_col);
 
-    let arr_row = map(tmp, dev, 0, (0, 0, 0), (width, height, 0));
-    let out_row = map(out, dev, 0, (0, 0, 0), (width, height, 0));
+    let arr_row = map(tmp, dev, 0, (0, 0, 0), (width, height, 1));
+    let out_row = map(out, dev, 0, (0, 0, 0), (width, height, 1));
 
     opencl(dev, dim, block, || -> void {
         let tid_x = int64_to_int32(get_global_id(0));
@@ -213,8 +213,8 @@ fn iteration_multi(width : int, height : int,
     let dim = (width, height/2, 1);
     let block = (128, 1, 1);
 
-    let map_arr_CPU = map(arr, 1, 0, (0, 0, 0),        (width, height/2, 0));
-    let map_out_CPU = map(out, 1, 0, (0, 0, 0),        (width, height/2, 0));
+    let map_arr_CPU = map(arr, 1, 0, (0, 0, 0),        (width, height/2, 1));
+    let map_out_CPU = map(out, 1, 0, (0, 0, 0),        (width, height/2, 1));
 
     opencl(1, dim, block, || -> void {
         let tid_x = int64_to_int32(get_global_id(0));
@@ -223,8 +223,8 @@ fn iteration_multi(width : int, height : int,
         body(tid_x, tid_y, map_arr_CPU, map_out_CPU);
     });
 
-    let map_arr_GPU = map(arr, 2, 0, (0, height/2, 0), (width, height/2, 0));
-    let map_out_GPU = map(out, 2, 0, (0, height/2, 0), (width, height/2, 0));
+    let map_arr_GPU = map(arr, 2, 0, (0, height/2, 0), (width, height/2, 1));
+    let map_out_GPU = map(out, 2, 0, (0, height/2, 0), (width, height/2, 1));
 
     opencl(2, dim, block, || -> void {
         let tid_x = int64_to_int32(get_global_id(0));

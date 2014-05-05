@@ -10,29 +10,6 @@ extern "C"
 
 typedef size_t mem_id;
 
-// runtime forward declarations
-mem_id malloc_memory(size_t dev, void *host);
-mem_id malloc_memory_size(size_t dev, void *host, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz);
-void free_memory(size_t dev, mem_id mem);
-
-void write_memory(size_t dev, mem_id mem, void *host);
-void write_memory_size(size_t dev, mem_id mem, void *host, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz);
-void read_memory(size_t dev, mem_id mem, void *host);
-void read_memory_size(size_t dev, mem_id mem, void *host, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz);
-
-void load_kernel(size_t dev, const char *file_name, const char *kernel_name);
-
-void get_tex_ref(size_t dev, const char *name);
-void bind_tex(size_t dev, mem_id mem, CUarray_format format);
-
-void set_kernel_arg(size_t dev, void *param);
-void set_kernel_arg_map(size_t dev, mem_id mem);
-void set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
-void set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
-
-void launch_kernel(size_t dev, const char *kernel_name);
-void synchronize(size_t dev);
-
 // NVVM wrappers
 mem_id nvvm_malloc_memory(size_t dev, void *host);
 void nvvm_free_memory(size_t dev, mem_id mem);

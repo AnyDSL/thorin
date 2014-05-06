@@ -701,9 +701,9 @@ llvm::Value* CodeGen::emit_shared_map(Def def) {
                              region_size->op(1)->as<PrimLit>()->ps32_value() *
                              region_size->op(2)->as<PrimLit>()->ps32_value();
     // construct array type
-    auto type = this->map(map->world().def_array(map->ptr_type()->referenced_type(), total_region_size));
+    auto elem_type = map->ptr_type()->referenced_type()->as<ArrayType>()->elem_type();
+    auto type = this->map(map->world().def_array(elem_type, total_region_size));
     auto global = emit_global_memory(type, map->unique_name(), 3);
-    // TODO: fill memory
     return global;
 }
 
@@ -816,7 +816,7 @@ multiple:
 
 llvm::GlobalVariable* CodeGen::emit_global_memory(llvm::Type* type, const std::string& name, unsigned addr_space) {
     return new llvm::GlobalVariable(*module_, type, false,
-            llvm::GlobalValue::InternalLinkage, builder_.getInt64(0), name,
+            llvm::GlobalValue::InternalLinkage, Constant::getNullValue(type), name,
             nullptr, llvm::GlobalVariable::NotThreadLocal, addr_space);
 }
 

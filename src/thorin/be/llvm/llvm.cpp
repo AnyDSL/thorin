@@ -816,7 +816,7 @@ multiple:
 
 llvm::GlobalVariable* CodeGen::emit_global_memory(llvm::Type* type, const std::string& name, unsigned addr_space) {
     return new llvm::GlobalVariable(*module_, type, false,
-            llvm::GlobalValue::InternalLinkage, Constant::getNullValue(type), name,
+            llvm::GlobalValue::InternalLinkage, llvm::Constant::getNullValue(type), name,
             nullptr, llvm::GlobalVariable::NotThreadLocal, addr_space);
 }
 

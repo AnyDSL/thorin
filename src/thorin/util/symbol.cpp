@@ -17,7 +17,7 @@ size_t StrHash::operator () (const char* s) const {
     return hash_combine(seed, i-s);
 }
 
-Symbol::Table Symbol::table_(1031);
+Symbol::Table Symbol::table_(1024);
 
 #ifdef _MSC_VER
 static const char* duplicate(const char* s) { return _strdup(s); }

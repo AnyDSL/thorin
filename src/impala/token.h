@@ -101,13 +101,13 @@ private:
     static thorin::Symbol insert(Kind tok, const char* str);
     static void insert_key(Kind tok, const char* str);
 
-    typedef std::unordered_map<Kind, thorin::Symbol, KindHash> Tok2Sym;
+    typedef thorin::HashMap<Kind, thorin::Symbol, KindHash> Tok2Sym;
     static Tok2Sym tok2sym_;
 
-    typedef std::unordered_map<thorin::Symbol, Kind> Sym2Tok;
+    typedef thorin::HashMap<thorin::Symbol, Kind> Sym2Tok;
     static Sym2Tok keywords_;
 
-    typedef std::unordered_map<Kind, const char*, KindHash> Tok2Str;
+    typedef thorin::HashMap<Kind, const char*, KindHash> Tok2Str;
     static Tok2Str tok2str_;
 
     friend void init();

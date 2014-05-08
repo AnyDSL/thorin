@@ -39,7 +39,7 @@ size_t hash_combine(size_t seed, T val) {
     if (std::is_signed<T>::value)  
         return hash_combine(seed, typename std::make_unsigned<T>::type(val));
     assert(std::is_unsigned<T>::value);
-    for (int i = 0; i < sizeof(T)/8; ++i) {
+    for (size_t i = 0; i < sizeof(T)/8; ++i) {
         T octet = val & T(0xff); // extract lower 8 bits
         seed ^= octet;
         seed *= FNV1<sizeof(size_t)>::prime;

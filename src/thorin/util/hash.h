@@ -204,7 +204,11 @@ public:
 #ifndef NDEBUG
         , id_(std::move(other.id_))
 #endif
-    {}
+    {
+        other.capacity_ = 0;
+        other.size_ = 0;
+        other.nodes_ = nullptr;
+    }
     HashTable(const HashTable& other)
         : capacity_(other.capacity_)
         , size_(0)

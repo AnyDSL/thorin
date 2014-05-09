@@ -32,12 +32,14 @@
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/top_level_scopes.h"
+#include "thorin/be/llvm/cuda.h"
 #include "thorin/be/llvm/cpu.h"
 #include "thorin/be/llvm/nvvm.h"
 #include "thorin/be/llvm/opencl.h"
 #include "thorin/be/llvm/spir.h"
 #include "thorin/transform/import.h"
 
+#include "thorin/be/llvm/runtimes/cuda_runtime.h"
 #include "thorin/be/llvm/runtimes/nvvm_runtime.h"
 #include "thorin/be/llvm/runtimes/spir_runtime.h"
 #include "thorin/be/llvm/runtimes/opencl_runtime.h"
@@ -54,6 +56,7 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
     , kernel_calling_convention_(kernel_calling_convention)
 {
     runtime_ = new GenericRuntime(context_, module_, builder_);
+    cuda_runtime_ = new CUDARuntime(context_, module_, builder_);
     nvvm_runtime_ = new NVVMRuntime(context_, module_, builder_);
     spir_runtime_ = new SpirRuntime(context_, module_, builder_);
     opencl_runtime_ = new OpenCLRuntime(context_, module_, builder_);
@@ -61,6 +64,8 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
 
 Lambda* CodeGen::emit_builtin(llvm::Function* current, Lambda* lambda) {
     Lambda* to = lambda->to()->as_lambda();
+    if (to->attribute().is(Lambda::CUDA))
+        return cuda_runtime_->emit_host_code(*this, lambda);
     if (to->attribute().is(Lambda::NVVM))
         return nvvm_runtime_->emit_host_code(*this, lambda);
     if (to->attribute().is(Lambda::SPIR))
@@ -823,6 +828,7 @@ llvm::GlobalVariable* CodeGen::emit_global_memory(llvm::Type* type, const std::s
 //------------------------------------------------------------------------------
 
 void emit_llvm(World& world) {
+    World cuda(world.name());
     World nvvm(world.name());
     World spir(world.name());
     World opencl(world.name());
@@ -831,7 +837,9 @@ void emit_llvm(World& world) {
     for (auto scope : top_level_scopes(world)) {
         auto lambda = scope->entry();
         Lambda* imported = nullptr;
-        if (lambda->is_connected_to_builtin(Lambda::NVVM))
+        if (lambda->is_connected_to_builtin(Lambda::CUDA))
+            imported = import(cuda, lambda)->as_lambda();
+        else if (lambda->is_connected_to_builtin(Lambda::NVVM))
             imported = import(nvvm, lambda)->as_lambda();
         else if (lambda->is_connected_to_builtin(Lambda::SPIR))
             imported = import(spir, lambda)->as_lambda();
@@ -851,10 +859,12 @@ void emit_llvm(World& world) {
         }
     }
 
-    if (!nvvm.lambdas().empty() || !spir.lambdas().empty() || !opencl.lambdas().empty())
+    if (!cuda.lambdas().empty() || !nvvm.lambdas().empty() || !spir.lambdas().empty() || !opencl.lambdas().empty())
         world.cleanup();
 
     CPUCodeGen(world).emit();
+    if (!cuda.lambdas().empty())
+        CUDACodeGen(cuda).emit();
     if (!nvvm.lambdas().empty())
         NVVMCodeGen(nvvm).emit();
     if (!spir.lambdas().empty())

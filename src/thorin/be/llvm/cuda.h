@@ -1,0 +1,22 @@
+#ifndef THORIN_BE_LLVM_CUDA_H
+#define THORIN_BE_LLVM_CUDA_H
+
+#include "thorin/be/llvm/llvm.h"
+
+namespace thorin {
+
+class CUDACodeGen : public CodeGen {
+public:
+    CUDACodeGen(World& world);
+
+    void emit();
+
+protected:
+    virtual std::string get_intrinsic_name(const std::string& name) const;
+    virtual std::string get_output_name(const std::string& name) const { return name + ".cu"; }
+    virtual std::string get_binary_output_name(const std::string& name) const { return name + ".cu.bc"; }
+};
+
+}
+
+#endif

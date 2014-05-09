@@ -77,6 +77,12 @@ std::ostream& CCodeGen::emit_type(const Type* type) {
         stream() << "} array_" << array->gid() << ";";
         return stream();
     } else if (auto ptr = type->isa<Ptr>()) {
+        if (lang_==CUDA) {
+            switch (ptr->addr_space()) {
+                default: break;
+                case AddressSpace::Shared: stream() << "__shared__ ";  break;
+            }
+        }
         if (lang_==OPENCL) {
             switch (ptr->addr_space()) {
                 default: break;
@@ -202,7 +208,10 @@ void CCodeGen::emit() {
 
         const Pi *ret_fn_type = ret_param->type()->as<Pi>();
         if (lambda->attribute().is(Lambda::KernelEntry)) {
+            if (lang_==CUDA) stream() << "__global__ ";
             if (lang_==OPENCL) stream() << "__kernel ";
+        } else {
+            if (lang_==CUDA) stream() << "__device__ ";
         }
         if (lambda->attribute().is(Lambda::Extern)) {
             emit_type(ret_fn_type->elems().back()) << " " << lambda->name << "(";
@@ -253,6 +262,7 @@ void CCodeGen::emit() {
 
         const Pi *ret_fn_type = ret_param->type()->as<Pi>();
         if (lambda->attribute().is(Lambda::KernelEntry)) {
+            if (lang_==CUDA) stream() << "__global__ ";
             if (lang_==OPENCL) stream() << "__kernel ";
             emit_type(ret_fn_type->elems().back()) << " " << lambda->name << "(";
         } else {
@@ -425,7 +435,26 @@ void CCodeGen::emit() {
         primops_.clear();
     }
 
+    if (lang_==CUDA) {
+        stream() << "__device__ int threadIdx_x() { return gridDim.x; }\n";
+        stream() << "__device__ int threadIdx_y() { return gridDim.y; }\n";
+        stream() << "__device__ int threadIdx_z() { return gridDim.z; }\n";
+        stream() << "__device__ int blockIdx_x() { return gridDim.x; }\n";
+        stream() << "__device__ int blockIdx_y() { return gridDim.y; }\n";
+        stream() << "__device__ int blockIdx_z() { return gridDim.z; }\n";
+        stream() << "__device__ int blockDim_x() { return gridDim.x; }\n";
+        stream() << "__device__ int blockDim_y() { return gridDim.y; }\n";
+        stream() << "__device__ int blockDim_z() { return gridDim.z; }\n";
+        stream() << "__device__ int gridDim_x() { return gridDim.x; }\n";
+        stream() << "__device__ int gridDim_y() { return gridDim.y; }\n";
+        stream() << "__device__ int gridDim_z() { return gridDim.z; }\n";
+    }
+
+    if (lang_==CUDA) stream() << "__device__ ";
     stream() << "int int64_to_int32(long tid) { return (int)tid; }";
+    newline();
+    if (lang_==CUDA) stream() << "__device__ ";
+    stream() << "float int32_to_float(int tid) { return (float)tid; }";
     newline();
 
     globals_.clear();
@@ -552,8 +581,9 @@ std::ostream& CCodeGen::emit(Def def) {
 #include "thorin/tables/primtypetable.h"
             default: THORIN_UNREACHABLE; break;
         }
-        if (lang_==C99 && (primlit->primtype_kind()==PrimType_pf32 ||
-                           primlit->primtype_kind()==PrimType_qf32))
+        if ((lang_==C99 || lang_==CUDA) &&
+            (primlit->primtype_kind()==PrimType_pf32 ||
+             primlit->primtype_kind()==PrimType_qf32))
             stream() << 'f';
         return stream();
     }

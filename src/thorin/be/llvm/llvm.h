@@ -64,6 +64,7 @@ protected:
     HashSet<llvm::Function*> fcts_to_remove_;
 
     AutoPtr<GenericRuntime> runtime_;
+    AutoPtr<KernelRuntime> cuda_runtime_;
     AutoPtr<KernelRuntime> nvvm_runtime_;
     AutoPtr<KernelRuntime> spir_runtime_;
     AutoPtr<KernelRuntime> opencl_runtime_;

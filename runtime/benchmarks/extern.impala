@@ -5,6 +5,7 @@ extern random_val(int) -> float;
 extern map([float], int, int, (int, int, int), (int, int, int)) -> [float];
 extern unmap([float], int, int) -> void;
 
+extern cuda(int, (int, int, int), (int, int, int), fn() -> void) -> void;
 extern nvvm(int, (int, int, int), (int, int, int), fn() -> void) -> void;
 extern spir(int, (int, int, int), (int, int, int), fn() -> void) -> void;
 extern vectorized(int, int, fn() -> void) -> int;

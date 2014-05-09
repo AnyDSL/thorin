@@ -70,6 +70,8 @@ bool CodeGen::emit_prg(const Scope* prg) {
                 lambda->attribute().set(Lambda::Intrinsic);
             lambda->name = proto->symbol().str();
             // HACK: eliminate this hack
+            if (lambda->name == "cuda")
+                lambda->attribute().set(Lambda::CUDA);
             if (lambda->name == "nvvm")
                 lambda->attribute().set(Lambda::NVVM);
             if (lambda->name == "spir")

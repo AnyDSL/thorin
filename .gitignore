@@ -1,5 +1,6 @@
 *.bc
 *.cl
+*.cu
 *.ll
 *.nvvm
 *.s

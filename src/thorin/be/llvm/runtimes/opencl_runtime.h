@@ -5,7 +5,7 @@
 
 namespace thorin {
 
-class OpenCLRuntime : public SpirRuntime {
+class OpenCLRuntime : public SPIRRuntime {
 public:
     OpenCLRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder);
 

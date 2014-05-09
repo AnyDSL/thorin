@@ -5,9 +5,9 @@
 
 namespace thorin {
 
-class SpirRuntime : public KernelRuntime {
+class SPIRRuntime : public KernelRuntime {
 public:
-    SpirRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder);
+    SPIRRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder);
 
     virtual llvm::Value* malloc(llvm::Value* device, llvm::Value* ptr);
     virtual llvm::Value* free(llvm::Value* device, llvm::Value* mem);

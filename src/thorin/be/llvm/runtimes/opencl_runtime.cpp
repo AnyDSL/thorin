@@ -3,7 +3,7 @@
 namespace thorin {
 
 OpenCLRuntime::OpenCLRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder)
-    : SpirRuntime(context, target, builder)
+    : SPIRRuntime(context, target, builder)
 {}
 
 llvm::Value* OpenCLRuntime::load_kernel(llvm::Value* device, llvm::Value* module, llvm::Value* data) {

@@ -58,7 +58,7 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
     runtime_ = new GenericRuntime(context_, module_, builder_);
     cuda_runtime_ = new CUDARuntime(context_, module_, builder_);
     nvvm_runtime_ = new NVVMRuntime(context_, module_, builder_);
-    spir_runtime_ = new SpirRuntime(context_, module_, builder_);
+    spir_runtime_ = new SPIRRuntime(context_, module_, builder_);
     opencl_runtime_ = new OpenCLRuntime(context_, module_, builder_);
 }
 

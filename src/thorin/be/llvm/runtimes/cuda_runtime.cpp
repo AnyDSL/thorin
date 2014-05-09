@@ -8,7 +8,7 @@ CUDARuntime::CUDARuntime(llvm::LLVMContext& context, llvm::Module* target, llvm:
 
 llvm::Value* CUDARuntime::load_kernel(llvm::Value* device, llvm::Value* module, llvm::Value* data) {
     llvm::Value* load_args[] = { device, module, data };
-    return builder_.CreateCall(get("nvvm_load_kernel_from_source"), load_args);
+    return builder_.CreateCall(get("nvvm_load_cuda_kernel"), load_args);
 }
 
 std::string CUDARuntime::get_module_name(Lambda* l) {

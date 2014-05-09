@@ -17,7 +17,8 @@ void nvvm_free_memory(size_t dev, mem_id mem);
 void nvvm_write_memory(size_t dev, mem_id mem, void *host);
 void nvvm_read_memory(size_t dev, mem_id mem, void *host);
 
-void nvvm_load_kernel(size_t dev, const char *file_name, const char *kernel_name);
+void nvvm_load_nvvm_kernel(size_t dev, const char *file_name, const char *kernel_name);
+void nvvm_load_cuda_kernel(size_t dev, const char *file_name, const char *kernel_name);
 
 void nvvm_set_kernel_arg(size_t dev, void *param);
 void nvvm_set_kernel_arg_map(size_t dev, mem_id mem);

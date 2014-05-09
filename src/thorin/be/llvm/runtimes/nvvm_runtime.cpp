@@ -79,7 +79,7 @@ llvm::Value* NVVMRuntime::set_texture(llvm::Value* device, llvm::Value* ptr, llv
 
 llvm::Value* NVVMRuntime::load_kernel(llvm::Value* device, llvm::Value* module, llvm::Value* name) {
     llvm::Value* load_args[] = { device, module, name };
-    return builder_.CreateCall(get("nvvm_load_kernel"), load_args);
+    return builder_.CreateCall(get("nvvm_load_nvvm_kernel"), load_args);
 }
 
 llvm::Value* NVVMRuntime::launch_kernel(llvm::Value* device, llvm::Value* name) {

@@ -34,7 +34,7 @@ void free_memory(size_t dev, mem_id mem);
 void read_memory(size_t dev, mem_id mem, void *host);
 void read_memory_size(size_t dev, mem_id mem, void *host, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz);
 
-void load_kernel(size_t dev, const char *file_name, const char *kernel_name);
+void load_kernel(size_t dev, const char *file_name, const char *kernel_name, bool is_nvvm);
 
 void get_tex_ref(size_t dev, const char *name);
 void bind_tex(size_t dev, mem_id mem, CUarray_format format);
@@ -351,60 +351,100 @@ void print_kernel_occupancy(size_t dev, const char *kernel_name) {
 }
 
 
-// load ll intermediate and compile to ptx
-void load_kernel(size_t dev, const char *file_name, const char *kernel_name) {
-    cuCtxPushCurrent(cuContexts[dev]);
-    nvvmResult err;
-    nvvmProgram program;
-    size_t PTXSize;
-    char *PTX = NULL;
+// compile CUDA source file to PTX assembly using nvcc compiler
+void cuda_to_ptx(const char *file_name) {
+    char line[FILENAME_MAX];
+    FILE *fpipe;
 
-    std::ifstream srcFile(file_name);
-    if (!srcFile.is_open()) {
-        std::cerr << "ERROR: Can't open LL source file '" << file_name << "'!" << std::endl;
+    std::string command = "nvcc -ptx ";//-arch=compute_20 ";
+    command += std::string(file_name) + " -o ";
+    command += std::string(file_name) + ".ptx 2>&1";
+
+    if (!(fpipe = (FILE *)popen(command.c_str(), "r"))) {
+        perror("Problems with pipe");
         exit(EXIT_FAILURE);
     }
 
-    std::string llString(std::istreambuf_iterator<char>(srcFile),
-            (std::istreambuf_iterator<char>()));
-
-    err = nvvmCreateProgram(&program);
-    checkErrNvvm(err, "nvvmCreateProgram()");
-
-    err = nvvmAddModuleToProgram(program, llString.c_str(), llString.length(), file_name);
-    checkErrNvvm(err, "nvvmAddModuleToProgram()");
-
-    int num_options = 1;
-    const char *options[3];
-    options[0] = "-arch=compute_20";
-    options[1] = "-ftz=1";
-    options[2] = "-g";
-
-    err = nvvmCompileProgram(program, num_options, options);
-    if (err != NVVM_SUCCESS) {
-        size_t log_size;
-        nvvmGetProgramLogSize(program, &log_size);
-        char *error_log = (char*)malloc(log_size);
-        nvvmGetProgramLog(program, error_log);
-        fprintf(stderr, "Error log: %s\n", error_log);
-        free(error_log);
+    while (fgets(line, sizeof(char) * FILENAME_MAX, fpipe)) {
+        std::cerr << line;
     }
-    checkErrNvvm(err, "nvvmAddModuleToProgram()");
+    pclose(fpipe);
+}
 
-    err = nvvmGetCompiledResultSize(program, &PTXSize);
-    checkErrNvvm(err, "nvvmGetCompiledResultSize()");
 
-    PTX = (char*)malloc(PTXSize);
-    err = nvvmGetCompiledResult(program, PTX);
-    if (err != NVVM_SUCCESS) free(PTX);
-    checkErrNvvm(err, "nvvmGetCompiledResult()");
+// load ll intermediate and compile to ptx
+void load_kernel(size_t dev, const char *file_name, const char *kernel_name, bool is_nvvm) {
+    cuCtxPushCurrent(cuContexts[dev]);
+    nvvmResult err;
+    nvvmProgram program;
+    std::string srcString;
+    char *PTX = NULL;
 
-    err = nvvmDestroyProgram(&program);
-    if (err != NVVM_SUCCESS) free(PTX);
-    checkErrNvvm(err, "nvvmDestroyProgram()");
+    if (is_nvvm) {
+        std::ifstream srcFile(file_name);
+        if (!srcFile.is_open()) {
+            std::cerr << "ERROR: Can't open LL source file '" << file_name << "'!" << std::endl;
+            exit(EXIT_FAILURE);
+        }
+
+        srcString = std::string(std::istreambuf_iterator<char>(srcFile),
+                (std::istreambuf_iterator<char>()));
+
+        err = nvvmCreateProgram(&program);
+        checkErrNvvm(err, "nvvmCreateProgram()");
+
+        err = nvvmAddModuleToProgram(program, srcString.c_str(), srcString.length(), file_name);
+        checkErrNvvm(err, "nvvmAddModuleToProgram()");
+
+        int num_options = 1;
+        const char *options[3];
+        options[0] = "-arch=compute_20";
+        options[1] = "-ftz=1";
+        options[2] = "-g";
+
+        err = nvvmCompileProgram(program, num_options, options);
+        if (err != NVVM_SUCCESS) {
+            size_t log_size;
+            nvvmGetProgramLogSize(program, &log_size);
+            char *error_log = (char*)malloc(log_size);
+            nvvmGetProgramLog(program, error_log);
+            fprintf(stderr, "Error log: %s\n", error_log);
+            free(error_log);
+        }
+        checkErrNvvm(err, "nvvmAddModuleToProgram()");
+
+        size_t PTXSize;
+        err = nvvmGetCompiledResultSize(program, &PTXSize);
+        checkErrNvvm(err, "nvvmGetCompiledResultSize()");
+
+        PTX = (char*)malloc(PTXSize);
+        err = nvvmGetCompiledResult(program, PTX);
+        if (err != NVVM_SUCCESS) free(PTX);
+        checkErrNvvm(err, "nvvmGetCompiledResult()");
+
+        err = nvvmDestroyProgram(&program);
+        if (err != NVVM_SUCCESS) free(PTX);
+        checkErrNvvm(err, "nvvmDestroyProgram()");
+    } else {
+        cuda_to_ptx(file_name);
+        std::string ptx_filename = file_name;
+        ptx_filename += ".ptx";
+
+        std::ifstream srcFile(ptx_filename.c_str());
+        if (!srcFile.is_open()) {
+            std::cerr << "ERROR: Can't open PTX source file '" << ptx_filename << "'!" << std::endl;
+            exit(EXIT_FAILURE);
+        }
+
+        srcString = std::string(std::istreambuf_iterator<char>(srcFile),
+                (std::istreambuf_iterator<char>()));
+        PTX = (char *)srcString.c_str();
+    }
 
     // compile ptx
     create_module_kernel(dev, PTX, kernel_name);
+
+    if (is_nvvm) free(PTX);
     cuCtxPopCurrent(NULL);
 }
 
@@ -594,7 +634,8 @@ void nvvm_free_memory(size_t dev, mem_id mem) { free_memory(dev, mem); }
 void nvvm_write_memory(size_t dev, mem_id mem, void *host) { mem_manager.write(dev, mem, host); }
 void nvvm_read_memory(size_t dev, mem_id mem, void *host) { read_memory(dev, mem, host); }
 
-void nvvm_load_kernel(size_t dev, const char *file_name, const char *kernel_name) { load_kernel(dev, file_name, kernel_name); }
+void nvvm_load_nvvm_kernel(size_t dev, const char *file_name, const char *kernel_name) { load_kernel(dev, file_name, kernel_name, true); }
+void nvvm_load_cuda_kernel(size_t dev, const char *file_name, const char *kernel_name) { load_kernel(dev, file_name, kernel_name, false); }
 
 void nvvm_set_kernel_arg(size_t dev, void *param) { set_kernel_arg(dev, param); }
 void nvvm_set_kernel_arg_map(size_t dev, mem_id mem) { set_kernel_arg_map(dev, mem); }

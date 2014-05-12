@@ -437,15 +437,15 @@ void CCodeGen::emit() {
     }
 
     if (lang_==CUDA) {
-        stream() << "__device__ int threadIdx_x() { return gridDim.x; }\n";
-        stream() << "__device__ int threadIdx_y() { return gridDim.y; }\n";
-        stream() << "__device__ int threadIdx_z() { return gridDim.z; }\n";
-        stream() << "__device__ int blockIdx_x() { return gridDim.x; }\n";
-        stream() << "__device__ int blockIdx_y() { return gridDim.y; }\n";
-        stream() << "__device__ int blockIdx_z() { return gridDim.z; }\n";
-        stream() << "__device__ int blockDim_x() { return gridDim.x; }\n";
-        stream() << "__device__ int blockDim_y() { return gridDim.y; }\n";
-        stream() << "__device__ int blockDim_z() { return gridDim.z; }\n";
+        stream() << "__device__ int threadIdx_x() { return threadIdx.x; }\n";
+        stream() << "__device__ int threadIdx_y() { return threadIdx.y; }\n";
+        stream() << "__device__ int threadIdx_z() { return threadIdx.z; }\n";
+        stream() << "__device__ int blockIdx_x() { return blockIdx.x; }\n";
+        stream() << "__device__ int blockIdx_y() { return blockIdx.y; }\n";
+        stream() << "__device__ int blockIdx_z() { return blockIdx.z; }\n";
+        stream() << "__device__ int blockDim_x() { return blockDim.x; }\n";
+        stream() << "__device__ int blockDim_y() { return blockDim.y; }\n";
+        stream() << "__device__ int blockDim_z() { return blockDim.z; }\n";
         stream() << "__device__ int gridDim_x() { return gridDim.x; }\n";
         stream() << "__device__ int gridDim_y() { return gridDim.y; }\n";
         stream() << "__device__ int gridDim_z() { return gridDim.z; }\n";

@@ -129,7 +129,7 @@ fn iteration_bounds(width : int, height : int, range : int,
                 let gid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
 
                 @iterate(0, unroll, |i : int| -> void {
-                    body(gid_x + bounds[0], gid_y + bounds[2] * unroll + i * nvvm_read_ptx_sreg_ntid_y(), region);
+                    body(gid_x + bounds[0], gid_y + bounds[2] + i * nvvm_read_ptx_sreg_ntid_y(), region);
                 });
             });
         });
@@ -299,7 +299,7 @@ fn iteration_sep_bounds(width : int, height : int, range : int,
                 let gid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
 
                 @iterate(0, unroll, |i : int| -> void {
-                    body_col(gid_x, gid_y + bounds[0] * unroll + i * nvvm_read_ptx_sreg_ntid_y(), region);
+                    body_col(gid_x, gid_y + bounds[0] + i * nvvm_read_ptx_sreg_ntid_y(), region);
                 });
             });
         });

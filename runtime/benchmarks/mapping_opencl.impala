@@ -54,7 +54,7 @@ fn iteration_bounds(width : int, height : int, range : int,
             let tid_y = int64_to_int32(get_local_id(1)) + int64_to_int32(get_local_size(1) * get_group_id(1)) * unroll;
 
             @iterate(0, unroll, |i : int| -> void {
-                body(tid_x + bounds[0], tid_y + bounds[2] * unroll + i * int64_to_int32(get_local_size(1)), region);
+                body(tid_x + bounds[0], tid_y + bounds[2] + i * int64_to_int32(get_local_size(1)), region);
             });
         });
     });
@@ -137,7 +137,7 @@ fn iteration_sep_bounds(width : int, height : int, range : int,
             let tid_y = int64_to_int32(get_local_id(1)) + int64_to_int32(get_local_size(1) * get_group_id(1)) * unroll;
 
             @iterate(0, unroll, |i : int| -> void {
-                body_col(tid_x, tid_y + bounds[0] * unroll + i * int64_to_int32(get_local_size(1)), region);
+                body_col(tid_x, tid_y + bounds[0] + i * int64_to_int32(get_local_size(1)), region);
             });
         });
     });

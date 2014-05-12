@@ -203,11 +203,10 @@ fn main() -> int {
     //free_array(tmp1);
 
 
-    //iteration_advanced(width, height, arr, out,
+    //@iteration_advanced(width, height, arr, out,
     //    |x : int, y : int, arr : [float], out : [float]| -> void {
     //        out[y*width + x] = @apply_stencil(range, stencil, x, y, arr, width, height,
-    //                                          clamp_none, clamp_none,
-    //                                          clamp_none, clamp_none);
+    //                                          10);
     //    }
     //);
 

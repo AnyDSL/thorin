@@ -8,11 +8,11 @@ fn iteration(width : int, height : int, body : fn(int, int) -> void) -> void {
     let block = (128, 1, 1);
 
     nvvm(1, dim, block, || -> void {
-        let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
-        let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
+        let gid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+        let gid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
 
         @iterate(0, unroll, |i : int| -> void {
-            body(tid_x, tid_y + i * nvvm_read_ptx_sreg_ntid_y());
+            body(gid_x, gid_y + i * nvvm_read_ptx_sreg_ntid_y());
         });
     });
 }
@@ -22,41 +22,118 @@ fn iteration_bounds(width : int, height : int, range : int,
                    ) -> void {
     // define the unroll factor
     let unroll = 1;
+    // define if we want to generate one big kernel or multiple kernels
+    let big_kernel = false;
+
+
     // compute the number of blocks required for boundary handling
-    let mut bhr = range / 2;
-    if (bhr % unroll==0) bhr = bhr / unroll;
-    else bhr = bhr / unroll + 1;
-    let block = (128, bhr, 1);
+    let mut bbh = range / 2;
+    if (bbh % unroll==0) bbh = bbh / unroll;
+    else bbh = bbh / unroll + 1;
+    let block = (128, bbh, 1);
 
-    // bounds account for unroll factor
-    let hu = height/unroll;
-    let Bounds2D = [
-        (0               , block[0]        , 0            , block[1]),
-        (block[0]        , width - block[0], 0            , block[1]),
-        (width - block[0], width           , 0            , block[1]),
-
-        (0               , block[0]        , block[1]     , hu - block[1]),
-        (block[0]        , width - block[0], block[1]     , hu - block[1]),
-        (width - block[0], width           , block[1]     , hu - block[1]),
-
-        (0               , block[0]        , hu - block[1], hu),
-        (block[0]        , width - block[0], hu - block[1], hu),
-        (width - block[0], width           , hu - block[1], hu)
-    ];
-
-    iterate(0, 9, |region : int| -> void {
-        let bounds = Bounds2D[region];
-        let dim = (bounds[1] - bounds[0], bounds[3] - bounds[2], 1);
+    if (big_kernel) {
+        let dim = (width, height/unroll, 1);
 
         nvvm(1, dim, block, || -> void {
-            let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
-            let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
+            let tid_x = nvvm_read_ptx_sreg_tid_x();
+            let tid_y = nvvm_read_ptx_sreg_tid_y();
+            let bid_x = nvvm_read_ptx_sreg_ctaid_x();
+            let bid_y = nvvm_read_ptx_sreg_ctaid_y();
+            let bdim_x = nvvm_read_ptx_sreg_ntid_x();
+            let bdim_y = nvvm_read_ptx_sreg_ntid_y();
+            let gdim_x = nvvm_read_ptx_sreg_nctaid_x();
+            let gdim_y = nvvm_read_ptx_sreg_nctaid_y();
+            let gid_x = tid_x + bdim_x * bid_x;
+            let gid_y = tid_y + bdim_y * bid_y * unroll;
 
+            // 0 --- 1 --- 2
+            // 3 --- 4 --- 5
+            // 6 --- 7 --- 8
+            if (bid_x < 1 && bid_y < 1) {                   // top-left: 0
+                @iterate(0, unroll, |i : int| -> void {
+                    body(gid_x, gid_y + i * nvvm_read_ptx_sreg_ntid_y(), 0);
+                });
+                return;
+            }
+            if (bid_x >= gdim_x-1 && bid_y < 1) {           // top-right: 2
+                @iterate(0, unroll, |i : int| -> void {
+                    body(gid_x, gid_y + i * nvvm_read_ptx_sreg_ntid_y(), 2);
+                });
+                return;
+            }
+            if (bid_y < 1) {                                // top: 1
+                @iterate(0, unroll, |i : int| -> void {
+                    body(gid_x, gid_y + i * nvvm_read_ptx_sreg_ntid_y(), 1);
+                });
+                return;
+            }
+            if (bid_y >= gdim_y-1 && bid_x < 1) {           // bottom-left: 6
+                @iterate(0, unroll, |i : int| -> void {
+                    body(gid_x, gid_y + i * nvvm_read_ptx_sreg_ntid_y(), 6);
+                });
+                return;
+            }
+            if (bid_y >= gdim_y-1 && bid_x >= gdim_x-1) {   // bottom-right: 8
+                @iterate(0, unroll, |i : int| -> void {
+                    body(gid_x, gid_y + i * nvvm_read_ptx_sreg_ntid_y(), 8);
+                });
+                return;
+            }
+            if (bid_y >= gdim_y-1) {                        // bottom: 7
+                @iterate(0, unroll, |i : int| -> void {
+                    body(gid_x, gid_y + i * nvvm_read_ptx_sreg_ntid_y(), 7);
+                });
+                return;
+            }
+            if (bid_x >= gdim_x-1) {                        // right: 5
+                @iterate(0, unroll, |i : int| -> void {
+                    body(gid_x, gid_y + i * nvvm_read_ptx_sreg_ntid_y(), 5);
+                });
+                return;
+            }
+            if (bid_x < 1) {                                // left: 3
+                @iterate(0, unroll, |i : int| -> void {
+                    body(gid_x, gid_y + i * nvvm_read_ptx_sreg_ntid_y(), 3);
+                });
+                return;
+            }
+            // no border handling
             @iterate(0, unroll, |i : int| -> void {
-                body(tid_x + bounds[0], tid_y + bounds[2] * unroll + i * nvvm_read_ptx_sreg_ntid_y(), region);
+                body(gid_x, gid_y + i * nvvm_read_ptx_sreg_ntid_y(), 4);
             });
         });
-    });
+    } else {
+        // bounds account for unroll factor
+        let hu = height/unroll;
+        let Bounds2D = [
+            (0               , block[0]        , 0            , block[1]),
+            (block[0]        , width - block[0], 0            , block[1]),
+            (width - block[0], width           , 0            , block[1]),
+
+            (0               , block[0]        , block[1]     , hu - block[1]),
+            (block[0]        , width - block[0], block[1]     , hu - block[1]),
+            (width - block[0], width           , block[1]     , hu - block[1]),
+
+            (0               , block[0]        , hu - block[1], hu),
+            (block[0]        , width - block[0], hu - block[1], hu),
+            (width - block[0], width           , hu - block[1], hu)
+        ];
+
+        iterate(0, 9, |region : int| -> void {
+            let bounds = Bounds2D[region];
+            let dim = (bounds[1] - bounds[0], bounds[3] - bounds[2], 1);
+
+            nvvm(1, dim, block, || -> void {
+                let gid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+                let gid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
+
+                @iterate(0, unroll, |i : int| -> void {
+                    body(gid_x + bounds[0], gid_y + bounds[2] * unroll + i * nvvm_read_ptx_sreg_ntid_y(), region);
+                });
+            });
+        });
+    }
 }
 
 fn iteration_advanced(width : int, height : int,
@@ -74,22 +151,22 @@ fn iteration_advanced(width : int, height : int,
         let gmem_out = map(out, 1, 0, (0, 0, 0), (width, height, 1));
 
         nvvm(1, dim, block, || -> void {
-            let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
-            let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
+            let gid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+            let gid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
 
             @iterate(0, unroll, |i : int| -> void {
-                body(tid_x, tid_y + i * nvvm_read_ptx_sreg_ntid_y(), gmem_arr, gmem_out);
+                body(gid_x, gid_y + i * nvvm_read_ptx_sreg_ntid_y(), gmem_arr, gmem_out);
             });
         });
 
         let tex_arr = map(arr, 1, 1, (0, 0, 0), (width, height, 1));
 
         nvvm(1, dim, block, || -> void {
-            let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
-            let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
+            let gid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+            let gid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
 
             @iterate(0, unroll, |i : int| -> void {
-                body(tid_x, tid_y + i * nvvm_read_ptx_sreg_ntid_y(), tex_arr, gmem_out);
+                body(gid_x, gid_y + i * nvvm_read_ptx_sreg_ntid_y(), tex_arr, gmem_out);
             });
         });
     });
@@ -104,19 +181,19 @@ fn iteration_sep(width : int, height : int,
     let block = (128, 1, 1);
 
     nvvm(1, dim, block, || -> void {
-        let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
-        let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
+        let gid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+        let gid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
 
         @iterate(0, unroll, |i : int| -> void {
-            body_col(tid_x, tid_y + i * nvvm_read_ptx_sreg_ntid_y());
+            body_col(gid_x, gid_y + i * nvvm_read_ptx_sreg_ntid_y());
         });
     });
     nvvm(1, dim, block, || -> void {
-        let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
-        let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
+        let gid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+        let gid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
 
         @iterate(0, unroll, |i : int| -> void {
-            body_row(tid_x, tid_y + i * nvvm_read_ptx_sreg_ntid_y());
+            body_row(gid_x, gid_y + i * nvvm_read_ptx_sreg_ntid_y());
         });
     });
 }
@@ -127,52 +204,126 @@ fn iteration_sep_bounds(width : int, height : int, range : int,
                    ) -> void {
     // define the unroll factor
     let unroll = 1;
+    // define if we want to generate one big kernel or multiple kernels
+    let big_kernel = false;
+
+
     // compute the number of blocks required for boundary handling
-    let mut bhr = range / 2;
-    if (bhr % unroll==0) bhr = bhr / unroll;
-    else bhr = bhr / unroll + 1;
-    let block = (128, bhr, 1);
+    let mut bbh = range / 2;
+    if (bbh % unroll==0) bbh = bbh / unroll;
+    else bbh = bbh / unroll + 1;
+    let block = (128, bbh, 1);
 
-    let hu = height / unroll;
-    let Bounds2DCol = [
-        (0               , block[1]),
-        (block[1]        , hu - block[1]),
-        (hu - block[1]   , hu)
-    ];
+    if (big_kernel) {
+        let dim = (width, height/unroll, 1);
 
-    iterate(0, 3, |region : int| -> void {
-        let bounds = Bounds2DCol[region];
-        let dim = (width, bounds[1] - bounds[0], 1);
-
+        // column component
         nvvm(1, dim, block, || -> void {
-            let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
-            let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
+            let tid_x = nvvm_read_ptx_sreg_tid_x();
+            let tid_y = nvvm_read_ptx_sreg_tid_y();
+            let bid_x = nvvm_read_ptx_sreg_ctaid_x();
+            let bid_y = nvvm_read_ptx_sreg_ctaid_y();
+            let bdim_x = nvvm_read_ptx_sreg_ntid_x();
+            let bdim_y = nvvm_read_ptx_sreg_ntid_y();
+            let gdim_x = nvvm_read_ptx_sreg_nctaid_x();
+            let gdim_y = nvvm_read_ptx_sreg_nctaid_y();
+            let gid_x = tid_x + bdim_x * bid_x;
+            let gid_y = tid_y + bdim_y * bid_y * unroll;
 
+            // 0
+            // 1
+            // 2
+            if (bid_y < 1) {                                // top: 0
+                @iterate(0, unroll, |i : int| -> void {
+                    body_col(gid_x, gid_y + i * nvvm_read_ptx_sreg_ntid_y(), 0);
+                });
+                return;
+            }
+            if (bid_y >= gdim_y-1) {                        // bottom: 2
+                @iterate(0, unroll, |i : int| -> void {
+                    body_col(gid_x, gid_y + i * nvvm_read_ptx_sreg_ntid_y(), 2);
+                });
+                return;
+            }
+            // no border handling
             @iterate(0, unroll, |i : int| -> void {
-                body_col(tid_x, tid_y + bounds[0] * unroll + i * nvvm_read_ptx_sreg_ntid_y(), region);
+                body_col(gid_x, gid_y + i * nvvm_read_ptx_sreg_ntid_y(), 1);
             });
         });
-    });
 
-    let Bounds2DRow = [
-        (0               , block[0]),
-        (block[0]        , width - block[0]),
-        (width - block[0], width)
-    ];
-
-    iterate(0, 3, |region : int| -> void {
-        let bounds = Bounds2DRow[region];
-        let dim = (bounds[1] - bounds[0], height/unroll, 1);
-
+        // row component
         nvvm(1, dim, block, || -> void {
-            let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
-            let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
+            let tid_x = nvvm_read_ptx_sreg_tid_x();
+            let tid_y = nvvm_read_ptx_sreg_tid_y();
+            let bid_x = nvvm_read_ptx_sreg_ctaid_x();
+            let bid_y = nvvm_read_ptx_sreg_ctaid_y();
+            let bdim_x = nvvm_read_ptx_sreg_ntid_x();
+            let bdim_y = nvvm_read_ptx_sreg_ntid_y();
+            let gdim_x = nvvm_read_ptx_sreg_nctaid_x();
+            let gdim_y = nvvm_read_ptx_sreg_nctaid_y();
+            let gid_x = tid_x + bdim_x * bid_x;
+            let gid_y = tid_y + bdim_y * bid_y * unroll;
 
+            // 0 --- 1 --- 2
+            if (bid_x < 1) {                                // left: 0
+                @iterate(0, unroll, |i : int| -> void {
+                    body_row(gid_x, gid_y + i * nvvm_read_ptx_sreg_ntid_y(), 0);
+                });
+                return;
+            }
+            if (bid_x >= gdim_x-1) {                        // right: 2
+                @iterate(0, unroll, |i : int| -> void {
+                    body_row(gid_x, gid_y + i * nvvm_read_ptx_sreg_ntid_y(), 2);
+                });
+                return;
+            }
+            // no border handling
             @iterate(0, unroll, |i : int| -> void {
-                body_row(tid_x + bounds[0], tid_y + i * nvvm_read_ptx_sreg_ntid_y(), region);
+                body_row(gid_x, gid_y + i * nvvm_read_ptx_sreg_ntid_y(), 1);
             });
         });
-    });
+    } else {
+        let hu = height / unroll;
+        let Bounds2DCol = [
+            (0               , block[1]),
+            (block[1]        , hu - block[1]),
+            (hu - block[1]   , hu)
+        ];
+
+        iterate(0, 3, |region : int| -> void {
+            let bounds = Bounds2DCol[region];
+            let dim = (width, bounds[1] - bounds[0], 1);
+
+            nvvm(1, dim, block, || -> void {
+                let gid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+                let gid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
+
+                @iterate(0, unroll, |i : int| -> void {
+                    body_col(gid_x, gid_y + bounds[0] * unroll + i * nvvm_read_ptx_sreg_ntid_y(), region);
+                });
+            });
+        });
+
+        let Bounds2DRow = [
+            (0               , block[0]),
+            (block[0]        , width - block[0]),
+            (width - block[0], width)
+        ];
+
+        iterate(0, 3, |region : int| -> void {
+            let bounds = Bounds2DRow[region];
+            let dim = (bounds[1] - bounds[0], height/unroll, 1);
+
+            nvvm(1, dim, block, || -> void {
+                let gid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+                let gid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
+
+                @iterate(0, unroll, |i : int| -> void {
+                    body_row(gid_x + bounds[0], gid_y + i * nvvm_read_ptx_sreg_ntid_y(), region);
+                });
+            });
+        });
+    }
 }
 
 fn iteration_sep_advanced(width : int, height : int,
@@ -189,10 +340,10 @@ fn iteration_sep_advanced(width : int, height : int,
     let out_col = map(tmp, 1, 0, (0, 0, 0), (width, height, 1));
 
     nvvm(1, dim, block, || -> void {
-        let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
-        let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
+        let gid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+        let gid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
 
-        body_col(tid_x, tid_y, tex_col, out_col);
+        body_col(gid_x, gid_y, tex_col, out_col);
     });
 
     //unmap(tex_col, 1, 1);
@@ -202,10 +353,10 @@ fn iteration_sep_advanced(width : int, height : int,
     let out_row = map(out, 1, 0, (0, 0, 0), (width, height, 1));
 
     nvvm(1, dim, block, || -> void {
-        let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
-        let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
+        let gid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+        let gid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
 
-        body_row(tid_x, tid_y, tex_row, out_row);
+        body_row(gid_x, gid_y, tex_row, out_row);
     });
 
     //unmap(tex_row);
@@ -225,19 +376,19 @@ fn iteration_multi(width : int, height : int,
     let map_out_GPU1 = map(out, 1, 0, (0, 0, 0),        (width, height/2, 1));
 
     nvvm(1, dim, block, || -> void {
-        let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
-        let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
+        let gid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+        let gid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
 
-        body(tid_x, tid_y, map_arr_GPU1, map_out_GPU1);
+        body(gid_x, gid_y, map_arr_GPU1, map_out_GPU1);
     });
 
     let map_arr_GPU2 = map(arr, 2, 0, (0, height/2, 0), (width, height/2, 1));
     let map_out_GPU2 = map(out, 2, 0, (0, height/2, 0), (width, height/2, 1));
 
     nvvm(2, dim, block, || -> void {
-        let tid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
-        let tid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
+        let gid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
+        let gid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y();
 
-        body(tid_x, tid_y, map_arr_GPU2, map_out_GPU2);
+        body(gid_x, gid_y, map_arr_GPU2, map_out_GPU2);
     });
 }

@@ -585,8 +585,10 @@ std::ostream& CCodeGen::emit(Def def) {
         }
         if ((lang_==C99 || lang_==CUDA) &&
             (primlit->primtype_kind()==PrimType_pf32 ||
-             primlit->primtype_kind()==PrimType_qf32))
+             primlit->primtype_kind()==PrimType_qf32)) {
+            if (primlit->is_zero()) stream() << ".0";
             stream() << 'f';
+        }
         return stream();
     }
 

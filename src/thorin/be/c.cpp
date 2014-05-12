@@ -169,6 +169,7 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type *type) {
 
 
 void CCodeGen::emit() {
+    if (lang_==CUDA) stream() << "extern \"C\" {\n";
     auto scopes = top_level_scopes(world_);
 
     // emit lambda and tuple declarations
@@ -459,6 +460,7 @@ void CCodeGen::emit() {
 
     globals_.clear();
     primops_.clear();
+    if (lang_==CUDA) stream() << "}\n"; // extern "C"
 }
 
 std::ostream& CCodeGen::emit(Def def) {

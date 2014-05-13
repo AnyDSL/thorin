@@ -267,6 +267,7 @@ void CCodeGen::emit() {
             if (lang_==OPENCL) stream() << "__kernel ";
             emit_type(ret_fn_type->elems().back()) << " " << lambda->name << "(";
         } else {
+            if (lang_==CUDA) stream() << "__device__ ";
             emit_type(ret_fn_type->elems().back()) << " " << lambda->unique_name() << "(";
         }
         size_t i = 0;

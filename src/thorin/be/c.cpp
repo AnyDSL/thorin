@@ -80,7 +80,8 @@ std::ostream& CCodeGen::emit_type(const Type* type) {
         if (lang_==CUDA) {
             switch (ptr->addr_space()) {
                 default: break;
-                case AddressSpace::Shared: stream() << "__shared__ ";  break;
+                // only declaration need __shared__
+                case AddressSpace::Shared: stream() << "";  break;
             }
         }
         if (lang_==OPENCL) {
@@ -158,6 +159,11 @@ std::ostream& CCodeGen::emit_aggop_decl(const Type *type) {
 
     // recurse into (multi-dimensional) tuple
     if (auto tuple = type->isa<Sigma>()) {
+        // hack for map() -> (mem, [type]*[dev][mem])
+        if (tuple->size()==2 && tuple->elem(0)->isa<Mem>()) {
+            insert(type->gid(), "");
+            return stream();
+        }
         for (auto elem : tuple->elems()) emit_aggop_decl(elem);
         emit_type(tuple);
         insert(type->gid(), "tuple_" + std::to_string(type->gid()));
@@ -547,11 +553,16 @@ std::ostream& CCodeGen::emit(Def def) {
         // recurse into (multi-dimensional) tuple/array and emit definitions of
         // inlined tuples/arrays
         emit_aggop_defs(aggop->agg());
-        if (aggop->agg_type()->isa<Sigma>()) {
+        if (auto tuple = aggop->agg_type()->isa<Sigma>()) {
             if (aggop->isa<Extract>()) {
                 emit_type(aggop->type()) << " " << aggop->unique_name() << " = ";
-                emit(aggop->agg()) << ".e";
-                emit(aggop->index()) << ";";
+                // hack for map() -> (mem, [type]*[dev][mem])
+                if (tuple->size()==2 && tuple->elem(0)->isa<Mem>()) {
+                    emit(aggop->agg()) << ";";
+                } else {
+                    emit(aggop->agg()) << ".e";
+                    emit(aggop->index()) << ";";
+                }
                 insert(def->gid(), def->unique_name());
             } else {
                 emit(aggop->agg()) << ".e";
@@ -633,6 +644,32 @@ std::ostream& CCodeGen::emit(Def def) {
         emit_type(lea->type()) << " " << lea->unique_name() << " = ";
         emit(lea->ptr()) << " + ";
         emit(lea->index()) << ";";
+
+        insert(def->gid(), def->unique_name());
+        return stream();
+    }
+
+    if (auto map = def->isa<Map>()) {
+        auto tuple = map->region_size()->isa<Tuple>();
+        assert(tuple && "couldn't extract region");
+
+        if (lang_==CUDA) {
+            switch (map->addr_space()) {
+                default: break;
+                case AddressSpace::Shared: stream() << "__shared__ ";  break;
+            }
+        }
+        if (lang_==OPENCL) {
+            switch (map->addr_space()) {
+                default: break;
+                case AddressSpace::Global: stream() << "__global "; break;
+                case AddressSpace::Shared: stream() << "__local ";  break;
+            }
+        }
+        emit_type(map->ptr_type()->referenced_type()) << " " << map->unique_name() << "[";
+        emit(tuple->op(0)) << "*";
+        emit(tuple->op(1)) << "*";
+        emit(tuple->op(2)) << "];";
 
         insert(def->gid(), def->unique_name());
         return stream();

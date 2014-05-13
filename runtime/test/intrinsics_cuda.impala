@@ -10,3 +10,4 @@ extern blockDim_z() -> int32;
 extern gridDim_x() -> int32;
 extern gridDim_y() -> int32;
 extern gridDim_z() -> int32;
+intrinsic __syncthreads() -> void;

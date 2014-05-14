@@ -5,8 +5,8 @@
 #include "thorin/literal.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
-#include "thorin/util/array.h"
 #include "thorin/be/thorin.h"
+#include "thorin/util/queue.h"
 
 namespace thorin {
 
@@ -50,7 +50,7 @@ static Lambdas preds(const Lambda* lambda) {
     std::queue<Use> queue;
     DefSet done;
 
-    auto insert = [&] (Def def) {
+    auto enqueue = [&] (Def def) {
         for (auto use : def->uses()) {
             if (done.find(use) == done.end()) {
                 queue.push(use);
@@ -60,19 +60,17 @@ static Lambdas preds(const Lambda* lambda) {
     };
 
     done.insert(lambda);
-    insert(lambda);
+    enqueue(lambda);
 
     while (!queue.empty()) {
-        Use use = queue.front();
-        queue.pop();
-
+        auto use = pop(queue);
         if (auto lambda = use->isa_lambda()) {
             if ((use.index() == 0 && direct) || (use.index() != 0 && indirect))
                 preds.push_back(lambda);
             continue;
         } 
 
-        insert(use);
+        enqueue(use);
     }
 
     return preds;
@@ -84,7 +82,7 @@ static Lambdas succs(const Lambda* lambda) {
     std::queue<Def> queue;
     DefSet done;
 
-    auto insert = [&] (Def def) {
+    auto enqueue = [&] (Def def) {
         if (done.find(def) == done.end()) {
             queue.push(def);
             done.insert(def);
@@ -93,22 +91,20 @@ static Lambdas succs(const Lambda* lambda) {
 
     done.insert(lambda);
     if (direct && !lambda->empty())
-        insert(lambda->to());
+        enqueue(lambda->to());
     if (indirect) {
         for (auto arg : lambda->args())
-            insert(arg);
+            enqueue(arg);
     }
 
     while (!queue.empty()) {
-        Def def = queue.front();
-        queue.pop();
-
+        auto def = pop(queue);
         if (auto lambda = def->isa_lambda()) {
             succs.push_back(lambda);
             continue;
         } 
         for (auto op : def->ops())
-            insert(op);
+            enqueue(op);
     }
 
     return succs;

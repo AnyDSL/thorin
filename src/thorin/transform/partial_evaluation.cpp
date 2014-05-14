@@ -1,5 +1,3 @@
-#include <queue>
-
 #include "thorin/literal.h"
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
@@ -7,6 +5,7 @@
 #include "thorin/analyses/top_level_scopes.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
+#include "thorin/util/queue.h"
 
 namespace thorin {
 
@@ -84,8 +83,7 @@ void PartialEvaluator::seek() {
     }
 
     while (!queue.empty()) {
-        auto lambda = queue.front();
-        queue.pop();
+        auto lambda = pop(queue);
         if (!lambda->empty() && lambda->to()->isa<Run>())
             eval(lambda);
         for (auto succ : lambda->succs()) {

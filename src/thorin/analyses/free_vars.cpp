@@ -1,7 +1,7 @@
-#include <queue>
 #include <vector>
 
 #include "thorin/world.h"
+#include "thorin/util/queue.h"
 #include "thorin/analyses/scope.h"
 
 namespace thorin {
@@ -12,7 +12,7 @@ std::vector<Def> free_vars(const Scope& scope) {
     DefSet set;
 
     // now find everything not in scope
-    auto fill_queue = [&] (Def def) {
+    auto enqueue = [&] (Def def) {
         for (auto op : def->ops()) {
             if (op->is_const())
                 continue;
@@ -28,13 +28,10 @@ std::vector<Def> free_vars(const Scope& scope) {
     };
 
     for (auto lambda : scope.rpo()) {
-        fill_queue(lambda);
+        enqueue(lambda);
 
-        while (!queue.empty()) {
-            auto def = queue.front();
-            queue.pop();
-            fill_queue(def);
-        }
+        while (!queue.empty())
+            enqueue(pop(queue));
     }
 
     return std::vector<Def>(vars.begin(), vars.end());

@@ -57,10 +57,8 @@ void verify_cyclefree(World& world) {
         }
     }
 
-    while (!queue.empty()) {
-        auto def = queue.front();
-        queue.pop();
-    }
+    while (!queue.empty())
+        pop(queue.front());
 }
 #endif
 

@@ -3,8 +3,7 @@
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
-
-#include <iostream>
+#include "thorin/util/queue.h"
 
 namespace thorin {
 
@@ -28,10 +27,7 @@ public:
             queue.push(def);
 
         while (!queue.empty()) {
-            auto def = queue.front();
-            queue.pop();
-
-            for (auto use : def->uses()) {
+            for (auto use : pop(queue)->uses()) {
                 if (!use->isa_lambda() && !visit(set, use))
                     queue.push(use);
             }

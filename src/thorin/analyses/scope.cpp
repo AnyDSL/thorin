@@ -1,7 +1,6 @@
 #include "thorin/analyses/scope.h"
 
 #include <algorithm>
-#include <queue>
 #include <iostream>
 #include <stack>
 
@@ -9,6 +8,7 @@
 #include "thorin/literal.h"
 #include "thorin/world.h"
 #include "thorin/be/thorin.h"
+#include "thorin/util/queue.h"
 
 namespace thorin {
 
@@ -73,8 +73,7 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
             in_scope_.insert(entry);
 
             while (!queue.empty()) {
-                auto def = queue.front();
-                queue.pop();
+                auto def = pop(queue);
                 for (auto use : def->uses()) {
                     if (!in_scope_.contains(use)) {
                         if (auto ulambda = use->isa_lambda())
@@ -130,8 +129,7 @@ void Scope::uce(Lambda* entry) {
     }
 
     while (!queue.empty()) {
-        Def def = queue.front();
-        queue.pop();
+        Def def = pop(queue);
         for (auto op : def->ops()) {
             if (in_scope_.contains(op) && !new_in_scope.contains(op))
                 enqueue(op);
@@ -208,16 +206,13 @@ void Scope::link_exit(LambdaSet& done, LambdaSet& reachable, Lambda* cur, Lambda
 LambdaSet ScopeView::reachable(Lambda* entry) {
     LambdaSet set;
     std::queue<Lambda*> queue;
-    auto insert = [&] (Lambda* lambda) { queue.push(lambda); set.insert(lambda); };
-    insert(entry);
+    auto enqueue = [&] (Lambda* lambda) { queue.push(lambda); set.insert(lambda); };
+    enqueue(entry);
 
     while (!queue.empty()) {
-        Lambda* lambda = queue.front();
-        queue.pop();
-
-        for (auto succ : succs(lambda)) {
+        for (auto succ : succs(pop(queue))) {
             if (!set.contains(succ))
-                insert(succ);
+                enqueue(succ);
         }
     }
     return set;

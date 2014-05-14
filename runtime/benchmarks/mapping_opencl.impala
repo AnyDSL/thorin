@@ -115,7 +115,7 @@ fn iteration_advanced(width : int, height : int, ksize : int,
                 }
             }
 
-            // CLK LOCAL MEM FENCE -> 1
+            // CLK_LOCAL_MEM_FENCE -> 1
             // CLK_GLOBAL_MEM_FENCE -> 2
             barrier(1);
 

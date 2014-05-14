@@ -9,11 +9,11 @@ fn iteration(width : int, height : int, body : fn(int, int) -> void) -> void {
     let block = (128, 1, 1);
 
     opencl(1, dim, block, || -> void {
-        let gid_x = int64_to_int32(get_global_id(0));
-        let gid_y = int64_to_int32(get_local_id(1)) + int64_to_int32(get_local_size(1) * get_group_id(1)) * unroll;
+        let gid_x = global_id(0);
+        let gid_y = local_id(1) + local_size(1) * group_id(1) * unroll;
 
         @iterate(0, unroll, |i : int| -> void {
-            body(gid_x, gid_y + i * int64_to_int32(get_local_size(1)));
+            body(gid_x, gid_y + i * local_size(1));
         });
     });
 }
@@ -50,11 +50,11 @@ fn iteration_bounds(width : int, height : int, range : int,
         let dim = (bounds[1] - bounds[0], bounds[3] - bounds[2], 1);
 
         opencl(1, dim, block, || -> void {
-            let gid_x = int64_to_int32(get_global_id(0));
-            let gid_y = int64_to_int32(get_local_id(1)) + int64_to_int32(get_local_size(1) * get_group_id(1)) * unroll;
+            let gid_x = global_id(0);
+            let gid_y = local_id(1) + local_size(1) * group_id(1) * unroll;
 
             @iterate(0, unroll, |i : int| -> void {
-                body(gid_x + bounds[0], gid_y + bounds[2] + i * int64_to_int32(get_local_size(1)), region);
+                body(gid_x + bounds[0], gid_y + bounds[2] + i * local_size(1), region);
             });
         });
     });
@@ -73,11 +73,11 @@ fn iteration_advanced(width : int, height : int,
         let gmem_out = map(out, 1, 0, (0, 0, 0), (width, height, 1));
 
         opencl(1, dim, block, || -> void {
-            let gid_x = int64_to_int32(get_global_id(0));
-            let gid_y = int64_to_int32(get_local_id(1)) + int64_to_int32(get_local_size(1) * get_group_id(1)) * unroll;
+            let gid_x = global_id(0);
+            let gid_y = local_id(1) + local_size(1) * group_id(1) * unroll;
 
             @iterate(0, unroll, |i : int| -> void {
-                body(gid_x, gid_y + i * int64_to_int32(get_local_size(1)), gmem_arr, gmem_out);
+                body(gid_x, gid_y + i * local_size(1), gmem_arr, gmem_out);
             });
         });
     });
@@ -92,19 +92,19 @@ fn iteration_sep(width : int, height : int,
     let block = (128, 1, 1);
 
     opencl(1, dim, block, || -> void {
-        let gid_x = int64_to_int32(get_global_id(0));
-        let gid_y = int64_to_int32(get_local_id(1)) + int64_to_int32(get_local_size(1) * get_group_id(1)) * unroll;
+        let gid_x = global_id(0);
+        let gid_y = local_id(1) + local_size(1) * group_id(1) * unroll;
 
         @iterate(0, unroll, |i : int| -> void {
-            body_col(gid_x, gid_y + i * int64_to_int32(get_local_size(1)));
+            body_col(gid_x, gid_y + i * local_size(1));
         });
     });
     opencl(1, dim, block, || -> void {
-        let gid_x = int64_to_int32(get_global_id(0));
-        let gid_y = int64_to_int32(get_local_id(1)) + int64_to_int32(get_local_size(1) * get_group_id(1)) * unroll;
+        let gid_x = global_id(0);
+        let gid_y = local_id(1) + local_size(1) * group_id(1) * unroll;
 
         @iterate(0, unroll, |i : int| -> void {
-            body_row(gid_x, gid_y + i * int64_to_int32(get_local_size(1)));
+            body_row(gid_x, gid_y + i * local_size(1));
         });
     });
 }
@@ -133,11 +133,11 @@ fn iteration_sep_bounds(width : int, height : int, range : int,
         let dim = (width, bounds[1] - bounds[0], 1);
 
         opencl(1, dim, block, || -> void {
-            let gid_x = int64_to_int32(get_global_id(0));
-            let gid_y = int64_to_int32(get_local_id(1)) + int64_to_int32(get_local_size(1) * get_group_id(1)) * unroll;
+            let gid_x = global_id(0);
+            let gid_y = local_id(1) + local_size(1) * group_id(1) * unroll;
 
             @iterate(0, unroll, |i : int| -> void {
-                body_col(gid_x, gid_y + bounds[0] + i * int64_to_int32(get_local_size(1)), region);
+                body_col(gid_x, gid_y + bounds[0] + i * local_size(1), region);
             });
         });
     });
@@ -153,11 +153,11 @@ fn iteration_sep_bounds(width : int, height : int, range : int,
         let dim = (bounds[1] - bounds[0], height/unroll, 1);
 
         opencl(1, dim, block, || -> void {
-            let gid_x = int64_to_int32(get_global_id(0));
-            let gid_y = int64_to_int32(get_local_id(1)) + int64_to_int32(get_local_size(1) * get_group_id(1)) * unroll;
+            let gid_x = global_id(0);
+            let gid_y = local_id(1) + local_size(1) * group_id(1) * unroll;
 
             @iterate(0, unroll, |i : int| -> void {
-                body_row(gid_x + bounds[0], gid_y + i * int64_to_int32(get_local_size(1)), region);
+                body_row(gid_x + bounds[0], gid_y + i * local_size(1), region);
             });
         });
     });
@@ -181,8 +181,8 @@ fn iteration_sep_advanced(width : int, height : int,
     let out_col = map(tmp, dev, 0, (0, 0, 0), (width, height, 1));
 
     opencl(dev, dim, block, || -> void {
-        let gid_x = int64_to_int32(get_global_id(0));
-        let gid_y = int64_to_int32(get_global_id(1));
+        let gid_x = global_id(0);
+        let gid_y = global_id(1);
 
         body_col(gid_x, gid_y, arr_col, out_col);
     });
@@ -194,8 +194,8 @@ fn iteration_sep_advanced(width : int, height : int,
     let out_row = map(out, dev, 0, (0, 0, 0), (width, height, 1));
 
     opencl(dev, dim, block, || -> void {
-        let gid_x = int64_to_int32(get_global_id(0));
-        let gid_y = int64_to_int32(get_global_id(1));
+        let gid_x = global_id(0);
+        let gid_y = global_id(1);
 
         body_row(gid_x, gid_y, arr_row, out_row);
     });
@@ -217,8 +217,8 @@ fn iteration_multi(width : int, height : int,
     let map_out_CPU = map(out, 1, 0, (0, 0, 0),        (width, height/2, 1));
 
     opencl(1, dim, block, || -> void {
-        let gid_x = int64_to_int32(get_global_id(0));
-        let gid_y = int64_to_int32(get_global_id(1));
+        let gid_x = global_id(0);
+        let gid_y = global_id(1);
 
         body(gid_x, gid_y, map_arr_CPU, map_out_CPU);
     });
@@ -227,8 +227,8 @@ fn iteration_multi(width : int, height : int,
     let map_out_GPU = map(out, 2, 0, (0, height/2, 0), (width, height/2, 1));
 
     opencl(2, dim, block, || -> void {
-        let gid_x = int64_to_int32(get_global_id(0));
-        let gid_y = int64_to_int32(get_global_id(1));
+        let gid_x = global_id(0);
+        let gid_y = global_id(1);
 
         body(gid_x, gid_y, map_arr_GPU, map_out_GPU);
     });

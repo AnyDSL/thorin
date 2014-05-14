@@ -116,7 +116,7 @@ fn iteration_advanced(width : int, height : int, ksize : int,
 
             // CLK LOCAL MEM FENCE -> 1
             // CLK_GLOBAL_MEM_FENCE -> 2
-            barrier(2);
+            barrier(1);
 
             @iterate(0, unroll, |i : int| -> void {
                 body(gid_x, gid_y + i * bdim_y, smem, gmem_out, tid_x+ksize2, tid_y+ksize2 + i * bdim_y, lstride);

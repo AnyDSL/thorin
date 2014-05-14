@@ -165,10 +165,12 @@ fn iteration_advanced(width : int, height : int, ksize : int,
         nvvm(1, dim, block, || -> void {
             let tid_x = nvvm_read_ptx_sreg_tid_x();
             let tid_y = nvvm_read_ptx_sreg_tid_y();
+            let bid_x = nvvm_read_ptx_sreg_ctaid_x();
+            let bid_y = nvvm_read_ptx_sreg_ctaid_y();
             let bdim_x = nvvm_read_ptx_sreg_ntid_x();
             let bdim_y = nvvm_read_ptx_sreg_ntid_y();
-            let gid_x = nvvm_read_ptx_sreg_tid_x() + nvvm_read_ptx_sreg_ntid_x() * nvvm_read_ptx_sreg_ctaid_x();
-            let gid_y = nvvm_read_ptx_sreg_tid_y() + nvvm_read_ptx_sreg_ntid_y() * nvvm_read_ptx_sreg_ctaid_y() * unroll;
+            let gid_x = tid_x + bdim_x * bid_x;
+            let gid_y = tid_y + bdim_y * bid_y * unroll;
 
             let smem = map(gmem_arr, 1, 2, (0, 0, 0), (block[0] + 2*ksize2, block[1]*unroll + 2*ksize2, 1));
             let lstride = block[0] + 2*ksize2;
@@ -193,7 +195,7 @@ fn iteration_advanced(width : int, height : int, ksize : int,
             nvvm_barrier0();
 
             @iterate(0, unroll, |i : int| -> void {
-                body(gid_x, gid_y + i * nvvm_read_ptx_sreg_ntid_y(), smem, gmem_out, tid_x+ksize2, tid_y+ksize2 + i * nvvm_read_ptx_sreg_ntid_y(), lstride);
+                body(gid_x, gid_y + i * bdim_y, smem, gmem_out, tid_x+ksize2, tid_y+ksize2 + i * bdim_y, lstride);
             });
         });
     });

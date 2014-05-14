@@ -13,37 +13,66 @@ fn iteration(width : int, height : int, body : fn(int, int) -> void) -> void {
     });
 }
 
-fn iteration_advanced(width : int, height : int,
+fn iteration_advanced(width : int, height : int, ksize : int,
                       arr : [float], out : [float],
-                      body : fn(int, int, [float], [float]) -> void
+                      body : fn(int, int, [float], [float], int, int, int) -> void
                      ) -> void {
     iterate_times_two(1, 16+1, |unroll : int| -> void {
+        // compute the number of blocks required for boundary handling
+        let mut bbh = ksize / 2;
+        if (bbh % unroll==0) bbh = bbh / unroll;
+        else bbh = bbh / unroll + 1;
+
         let dim = (width, height/unroll, 1);
-        let block = (128, 1, 1);
+        let block = (128/bbh, bbh, 1);
+
+        // compute number of steps required to stage data to shared memory
+        let ksize2 = ksize / 2;
+        let steps_x = 2;
+        let offset_y = (ksize%block[1]==0)?0:1;
+        let steps_y = unroll + ksize/block[1] + offset_y;
 
         // 0 -> global
         // 1 -> texture
         // 2 -> shared
         let gmem_arr = map(arr, 1, 0, (0, 0, 0), (width, height, 1));
         let gmem_out = map(out, 1, 0, (0, 0, 0), (width, height, 1));
-
-        cuda(1, dim, block, || -> void {
-            let gid_x = threadIdx_x() + blockDim_x() * blockIdx_x();
-            let gid_y = threadIdx_y() + blockDim_y() * blockIdx_y() * unroll;
-
-            @iterate(0, unroll, |i : int| -> void {
-                body(gid_x, gid_y + i * blockDim_y(), gmem_arr, gmem_out);
-            });
-        });
-
         let tex_arr = map(arr, 1, 1, (0, 0, 0), (width, height, 1));
 
         cuda(1, dim, block, || -> void {
-            let gid_x = threadIdx_x() + blockDim_x() * blockIdx_x();
-            let gid_y = threadIdx_y() + blockDim_y() * blockIdx_y() * unroll;
+            let tid_x = threadIdx_x();
+            let tid_y = threadIdx_y();
+            let bid_x = blockIdx_x();
+            let bid_y = blockIdx_y();
+            let bdim_x = blockDim_x();
+            let bdim_y = blockDim_y();
+            let gid_x = tid_x + bdim_x * bid_x;
+            let gid_y = tid_y + bdim_y * bid_y * unroll;
+
+            let smem = map(gmem_arr, 1, 2, (0, 0, 0), (block[0] + 2*ksize2, block[1]*unroll + 2*ksize2, 1));
+            let lstride = block[0] + 2*ksize2;
+
+            for (let mut y=0; y<steps_y; ++y) {
+                let lid_y = tid_y + y*bdim_y;
+                let mut idx_y = gid_y - ksize2 + y*bdim_y;
+                idx_y = clamp_upper(idx_y, height);
+                idx_y = clamp_lower(idx_y, 0);
+                for (let mut x=0; x<steps_x; ++x) {
+                    let lid_x = tid_x + x*bdim_x;
+                    let mut idx_x = gid_x - ksize2 + x*bdim_x;
+                    idx_x = clamp_lower(idx_x, 0);
+                    idx_x = clamp_upper(idx_x, width);
+
+                    if (lid_x < block[0] + 2*ksize2 &&
+                        lid_y < block[1]*unroll + 2*ksize2)
+                        smem[lid_y * lstride + lid_x] = tex_arr[idx_y * width + idx_x];
+                }
+            }
+
+            __syncthreads();
 
             @iterate(0, unroll, |i : int| -> void {
-                body(gid_x, gid_y + i * blockDim_y(), tex_arr, gmem_out);
+                body(gid_x, gid_y + i * bdim_y, smem, gmem_out, tid_x+ksize2, tid_y+ksize2 + i * bdim_y, lstride);
             });
         });
     });

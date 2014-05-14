@@ -6,6 +6,7 @@ intrinsic get_local_id(int32) -> int64;
 intrinsic get_num_groups(int32) -> int64;
 intrinsic get_group_id(int32) -> int64;
 intrinsic get_global_offset(int32) -> int64;
+intrinsic barrier(int32) -> void;
 
 fn global_size(idx : int) -> int { return int64_to_int32(get_global_size(idx)); }
 fn global_id(idx : int) -> int { return int64_to_int32(get_global_id(idx)); }

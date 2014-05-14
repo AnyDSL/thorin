@@ -37,8 +37,10 @@ private:
     bool lookup(size_t gid);
     void insert(size_t gid, std::string str);
     std::string &get_name(size_t gid);
+    bool is_texture_type(const Type* type);
     bool process_kernel;
 };
+
 
 std::ostream& CCodeGen::emit_type(const Type* type) {
     if (type == nullptr) {
@@ -213,6 +215,19 @@ void CCodeGen::emit() {
         }
         assert(ret_param);
 
+        // emit texture declaration for CUDA
+        for (auto param : lambda->params()) {
+            if (param->order() == 0 && !param->type()->isa<Mem>()) {
+                if (is_texture_type(param->type())) {
+                    stream() << "texture<";
+                    emit_type(param->type()->as<Ptr>()->referenced_type());
+                    stream() << ", cudaTextureType1D, cudaReadModeElementType> ";
+                    stream() << param->name << ";";
+                    newline();
+                    insert(param->gid(), param->name);
+                }
+            }
+        }
         const Pi *ret_fn_type = ret_param->type()->as<Pi>();
         if (lambda->attribute().is(Lambda::KernelEntry)) {
             if (lang_==CUDA) stream() << "__global__ ";
@@ -229,6 +244,8 @@ void CCodeGen::emit() {
         // emit all first-order params
         for (auto param : lambda->params()) {
             if (param->order() == 0 && !param->type()->isa<Mem>()) {
+                // skip arrays bound to texture memory
+                if (is_texture_type(param->type())) continue;
                 if (i++ > 0) stream() << ", ";
                 emit_type(param->type());
                 insert(param->gid(), param->unique_name());
@@ -280,6 +297,8 @@ void CCodeGen::emit() {
         // emit and store all first-order params
         for (auto param : lambda->params()) {
             if (param->order() == 0 && !param->type()->isa<Mem>()) {
+                // skip arrays bound to texture memory
+                if (is_texture_type(param->type())) continue;
                 if (i++ > 0) stream() << ", ";
                 emit_type(param->type()) << " " << param->unique_name();
             }
@@ -470,6 +489,7 @@ void CCodeGen::emit() {
     if (lang_==CUDA) stream() << "}\n"; // extern "C"
 }
 
+
 std::ostream& CCodeGen::emit(Def def) {
     if (auto lambda = def->isa<Lambda>()) {
         return stream() << "goto l" << lambda->gid() << ";";
@@ -609,7 +629,9 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto load = def->isa<Load>()) {
-        emit_type(load->type()) << " " << load->unique_name() << " = *";
+        emit_type(load->type()) << " " << load->unique_name() << " = ";
+        // handle texture fetches
+        if (!is_texture_type(load->ptr()->type())) stream() << "*";
         emit(load->ptr()) << ";";
 
         insert(def->gid(), def->unique_name());
@@ -641,9 +663,16 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto lea = def->isa<LEA>()) {
-        emit_type(lea->type()) << " " << lea->unique_name() << " = ";
-        emit(lea->ptr()) << " + ";
-        emit(lea->index()) << ";";
+        if (is_texture_type(lea->type())) { // handle texture fetches
+            emit_type(lea->referenced_type()) << " " << lea->unique_name() << " = ";
+            stream() << "tex1Dfetch(";
+            emit(lea->ptr()) << ", ";
+            emit(lea->index()) << ");";
+        } else {
+            emit_type(lea->type()) << " " << lea->unique_name() << " = ";
+            emit(lea->ptr()) << " + ";
+            emit(lea->index()) << ";";
+        }
 
         insert(def->gid(), def->unique_name());
         return stream();
@@ -692,6 +721,16 @@ void CCodeGen::insert(size_t gid, std::string str) {
     if (process_kernel) primops_[gid] = str;
     else globals_[gid] = str;
 }
+bool CCodeGen::is_texture_type(const Type* type) {
+    if (auto ptr = type->isa<Ptr>()) {
+        if (ptr->addr_space()==AddressSpace::Texture) {
+            assert(lang_==CUDA && "Textures currently only supported in CUDA");
+            return true;
+        }
+    }
+    return false;
+}
+
 
 //------------------------------------------------------------------------------
 

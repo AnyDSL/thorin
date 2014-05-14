@@ -279,15 +279,14 @@ void init_cuda() {
 
 
 // load ptx assembly, create a module and kernel
-void create_module_kernel(size_t dev, const char *ptx, const char *kernel_name) {
+void create_module_kernel(size_t dev, const char *ptx, const char *kernel_name, CUjit_target target_cc) {
     CUresult err = CUDA_SUCCESS;
     bool print_progress = true;
-    CUjit_target_enum target_cc = CU_TARGET_COMPUTE_20;
 
     const int errorLogSize = 10240;
     char errorLogBuffer[errorLogSize] = {0};
 
-    int num_options = 2;
+    int num_options = 3;
     CUjit_option options[] = { CU_JIT_ERROR_LOG_BUFFER, CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES, CU_JIT_TARGET };
     void *optionValues[] = { (void *)errorLogBuffer, (void *)errorLogSize, (void *)target_cc };
 
@@ -352,11 +351,11 @@ void print_kernel_occupancy(size_t dev, const char *kernel_name) {
 
 
 // compile CUDA source file to PTX assembly using nvcc compiler
-void cuda_to_ptx(const char *file_name) {
+void cuda_to_ptx(const char *file_name, std::string target_cc) {
     char line[FILENAME_MAX];
     FILE *fpipe;
 
-    std::string command = "nvcc -ptx ";//-arch=compute_20 ";
+    std::string command = "nvcc -ptx -arch=compute_" + target_cc;
     command += std::string(file_name) + " -o ";
     command += std::string(file_name) + ".ptx 2>&1";
 
@@ -375,12 +374,20 @@ void cuda_to_ptx(const char *file_name) {
 // load ll intermediate and compile to ptx
 void load_kernel(size_t dev, const char *file_name, const char *kernel_name, bool is_nvvm) {
     cuCtxPushCurrent(cuContexts[dev]);
-    nvvmResult err;
     nvvmProgram program;
     std::string srcString;
     char *PTX = NULL;
 
+    int major, minor;
+    CUresult err = CUDA_SUCCESS;
+    err = cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, cuDevices[dev]);
+    checkErrDrv(err, "cuDeviceGetAttribute()");
+    err = cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, cuDevices[dev]);
+    checkErrDrv(err, "cuDeviceGetAttribute()");
+    CUjit_target target_cc = (CUjit_target)(major*10 + minor);
+
     if (is_nvvm) {
+        nvvmResult err;
         std::ifstream srcFile(file_name);
         if (!srcFile.is_open()) {
             std::cerr << "ERROR: Can't open LL source file '" << file_name << "'!" << std::endl;
@@ -398,7 +405,7 @@ void load_kernel(size_t dev, const char *file_name, const char *kernel_name, boo
 
         int num_options = 1;
         const char *options[3];
-        options[0] = "-arch=compute_20";
+        options[0] = std::string("-arch=compute_" + std::to_string(target_cc)).c_str();
         options[1] = "-ftz=1";
         options[2] = "-g";
 
@@ -426,7 +433,7 @@ void load_kernel(size_t dev, const char *file_name, const char *kernel_name, boo
         if (err != NVVM_SUCCESS) free(PTX);
         checkErrNvvm(err, "nvvmDestroyProgram()");
     } else {
-        cuda_to_ptx(file_name);
+        cuda_to_ptx(file_name, std::to_string(target_cc));
         std::string ptx_filename = file_name;
         ptx_filename += ".ptx";
 
@@ -442,7 +449,7 @@ void load_kernel(size_t dev, const char *file_name, const char *kernel_name, boo
     }
 
     // compile ptx
-    create_module_kernel(dev, PTX, kernel_name);
+    create_module_kernel(dev, PTX, kernel_name, target_cc);
 
     if (is_nvvm) free(PTX);
     cuCtxPopCurrent(NULL);

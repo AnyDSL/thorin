@@ -11,3 +11,7 @@ extern gridDim_x() -> int32;
 extern gridDim_y() -> int32;
 extern gridDim_z() -> int32;
 intrinsic __syncthreads() -> void;
+intrinsic exp(float) -> float;
+fn expf(a: float) -> float {
+    return exp(a);
+}

@@ -7,6 +7,10 @@ intrinsic _Z14get_num_groupsj(int32) -> int64;
 intrinsic _Z12get_group_idj(int32) -> int64;
 intrinsic _Z17get_global_offsetj(int32) -> int64;
 intrinsic _Z7barrierj(int32) -> void;
+intrinsic _Z3expf(float) -> float;
+fn expf(a: float) -> float {
+    return _Z3expf(a);
+}
 
 fn work_dim() -> int { return _Z12get_work_dimv(); }
 fn global_size(idx : int) -> int { return int64_to_int32(_Z15get_global_sizej(idx)); }

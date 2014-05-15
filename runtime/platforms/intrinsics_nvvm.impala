@@ -262,3 +262,7 @@ intrinsic nvvm_ull2f_rm(int64) -> float;
 intrinsic nvvm_ull2f_rn(int64) -> float;
 intrinsic nvvm_ull2f_rp(int64) -> float;
 intrinsic nvvm_ull2f_rz(int64) -> float;
+
+fn expf(a: float) -> float {
+    return nvvm_ex2_approx_f(a * 1.442695041f);
+}

@@ -17,6 +17,8 @@ public:
         : Printer(std::cout, fancy, colored)
     {}
 
+    std::ostream& emit_type_vars(Type);
+    std::ostream& emit_type_elems(Type);
     std::ostream& emit_type(Type);
     std::ostream& emit_name(Def);
     std::ostream& emit_def(Def);
@@ -28,6 +30,16 @@ public:
 
 //------------------------------------------------------------------------------
 
+std::ostream& CodeGen::emit_type_vars(Type type) {
+    if (type->num_type_vars() != 0)
+        return dump_list([&](TypeVar type_var) { emit_type(type_var); }, type->type_vars(), "[", "]");
+    return stream();
+}
+
+std::ostream& CodeGen::emit_type_elems(Type type) {
+    return dump_list([&](Type type) { emit_type(type); }, type->elems(), "(", ")");
+}
+
 std::ostream& CodeGen::emit_type(Type type) {
     if (type.empty()) {
         return stream() << "<NULL>";
@@ -36,9 +48,12 @@ std::ostream& CodeGen::emit_type(Type type) {
     } else if (type.isa<MemType>()) {
         return stream() << "mem";
     } else if (auto fn = type.isa<FnType>()) {
-        return dump_list([&](Type type) { emit_type(type); }, fn->elems(), "fn(", ")");
+        stream() << "fn";
+        emit_type_vars(fn);
+        return emit_type_elems(fn);
     } else if (auto tuple = type.isa<TupleType>()) {
-        return dump_list([&](Type type) { emit_type(type); }, tuple->elems(), "(", ")");
+        emit_type_vars(tuple);
+        return emit_type_elems(tuple);
     } else if (auto type_var = type.isa<TypeVar>()) {
         return stream() << '<' << type_var->gid() << '>';
     } else if (auto array = type.isa<IndefiniteArrayType>()) {
@@ -151,8 +166,7 @@ std::ostream& CodeGen::emit_assignment(const PrimOp* primop) {
 
 std::ostream& CodeGen::emit_head(const Lambda* lambda) {
     emit_name(lambda);
-    if (lambda->fn_type()->num_type_vars() != 0)
-        dump_list([&](TypeVar var) { emit_type(var); }, lambda->fn_type()->type_vars(), "[", "]");
+    emit_type_vars(lambda->fn_type());
     dump_list([&](const Param* param) { emit_type(param->type()) << " "; emit_name(param); }, lambda->params(), "(", ")");
 
     if (lambda->attribute().is(Lambda::Extern))

@@ -106,11 +106,11 @@ public:
     bool is_corenode() const { return ::thorin::is_corenode(kind()); }
     ArrayRef<Type> elems() const { return elems_; }
     ArrayRef<TypeVar> type_vars() const { return type_vars_; }
+    size_t num_type_vars() const { return type_vars().size(); }
     Type elem(size_t i) const { assert(i < elems().size()); return elems()[i]; }
     TypeVar type_var(size_t i) const { assert(i < type_vars().size()); return type_vars()[i]; }
     void bind(TypeVar v) const;
     size_t size() const { return elems_.size(); }
-    size_t num_type_vars() const { return type_vars().size(); }
     bool is_polymorphic() const { return num_type_vars() > 0; }
     Type elem_via_lit(const Def& def) const;
     bool empty() const { return elems_.empty(); }

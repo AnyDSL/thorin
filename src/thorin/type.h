@@ -31,14 +31,12 @@ public:
     bool operator == (const Proxy<T>& other) const {
         assert(node_ != nullptr);         
         assert(&node()->world() == &other.node()->world());
-        this->node()->unify();
-        other.node()->unify();
-        return representative() == other.representative();
+        return this->node()->unify() == other.node()->unify();
     }
     bool operator != (const Proxy<T>& other) const { return !(*this == other); }
     const T* representative() const { return node()->representative()->template as<T>(); }
     const T* node() const { assert(node_ != nullptr); return node_; }
-    const T* operator  * () const { return node()->unify()->template as<T>(); }
+    const T* operator  * () const { return node()->is_unified() ? representative() : node(); }
     const T* operator -> () const { return *(*this); }
     /// Automatic up-cast in the class hierarchy.
     template<class U> operator Proxy<U>() {
@@ -58,7 +56,6 @@ public:
         return *this; 
     }
     void clear() { assert(node_ != nullptr); node_ = nullptr; }
-    void bind(Proxy<TypeVarNode> v) const;
 
 private:
     const T* node_;
@@ -111,6 +108,7 @@ public:
     ArrayRef<TypeVar> type_vars() const { return type_vars_; }
     Type elem(size_t i) const { assert(i < elems().size()); return elems()[i]; }
     TypeVar type_var(size_t i) const { assert(i < type_vars().size()); return type_vars()[i]; }
+    void bind(TypeVar v) const;
     size_t size() const { return elems_.size(); }
     size_t num_type_vars() const { return type_vars().size(); }
     bool is_polymorphic() const { return num_type_vars() > 0; }
@@ -153,8 +151,6 @@ public:
     size_t length() const;
 
 private:
-    void set_representative(const TypeNode*) const;
-
     mutable const TypeNode* representative_;
     World& world_;
     NodeKind kind_;
@@ -162,7 +158,6 @@ private:
     std::vector<Type> elems_;
     mutable size_t gid_;
 
-    template<class T> friend void Proxy<T>::bind(Proxy<TypeVarNode> v) const;
     friend class World;
 };
 
@@ -374,17 +369,10 @@ private:
     mutable const TypeNode* bound_at_;
     mutable const TypeVarNode* equiv_;
 
-    template<class T> friend void Proxy<T>::bind(Proxy<TypeVarNode> v) const;
     friend bool TypeNode::equal(const TypeNode*) const;
+    friend void TypeNode::bind(TypeVar type_var) const;
     friend class World;
 };
-
-template<class T>
-void Proxy<T>::bind(Proxy<TypeVarNode> v) const {
-    assert(!node()->is_unified());
-    node()->type_vars_.push_back(v); 
-    v->bound_at_ = node(); 
-}
 
 //------------------------------------------------------------------------------
 

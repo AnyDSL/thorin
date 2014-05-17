@@ -13,36 +13,11 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-size_t TypeNode::hash() const {
-    size_t seed = hash_combine(hash_combine(hash_begin((int) kind()), size()), num_type_vars());
-    for (auto elem : elems_)
-        seed = hash_combine(seed, elem->hash());
-    return seed;
+void TypeNode::bind(TypeVar type_var) const {
+    assert(!type_var->is_unified());
+    type_vars_.push_back(type_var); 
+    type_var->bound_at_ = this; 
 }
-
-bool TypeNode::equal(const TypeNode* other) const {
-    bool result = this->kind() == other->kind() && this->size() == other->size() 
-        && this->num_type_vars() == other->num_type_vars();
-
-    if (result) {
-        for (size_t i = 0, e = num_type_vars(); result && i != e; ++i) {
-            assert(this->type_var(i)->equiv_ == nullptr);
-            this->type_var(i)->equiv_ = *other->type_var(i);
-        }
-
-        for (size_t i = 0, e = size(); result && i != e; ++i)
-            result &= this->elems_[i] == other->elems_[i];
-
-        for (auto var : type_vars())
-            var->equiv_ = nullptr;
-    }
-
-    return result;
-}
-
-void TypeNode::dump() const { emit_type(Type(this)); std::cout << std::endl; }
-size_t TypeNode::length() const { return as<VectorTypeNode>()->length(); }
-Type TypeNode::elem_via_lit(const Def& def) const { return elem(def->primlit_value<size_t>()); }
 
 int TypeNode::order() const {
     if (kind() == Node_PtrType)
@@ -58,19 +33,9 @@ int TypeNode::order() const {
     return sub;
 }
 
-void TypeNode::set_representative(const TypeNode* repr) const {
-    assert(repr == repr->representative_);
-    if (representative_ != repr) {
-        representative_ = repr;
-
-        for (size_t i = 0, e = num_type_vars(); i != e; ++i)
-            this->type_var(i)->set_representative(*repr->type_var(i));
-
-        for (size_t i = 0, e = size(); i != e; ++i)
-            this->elem(i)->set_representative(*repr->elem(i));
-    }
-}
-
+void TypeNode::dump() const { emit_type(Type(this)); std::cout << std::endl; }
+size_t TypeNode::length() const { return as<VectorTypeNode>()->length(); }
+Type TypeNode::elem_via_lit(const Def& def) const { return elem(def->primlit_value<size_t>()); }
 const TypeNode* TypeNode::unify() const { return world().unify_base(this); }
 TypeVarSet TypeNode::free_type_vars() const { TypeVarSet bound, free; free_type_vars(bound, free); return free; }
 
@@ -87,28 +52,11 @@ void TypeNode::free_type_vars(TypeVarSet& bound, TypeVarSet& free) const {
     }
 }
 
-//------------------------------------------------------------------------------
-
 VectorType VectorTypeNode::scalarize() const {
     if (auto ptr = isa<PtrTypeNode>())
         return world().ptr_type(ptr->referenced_type());
     return world().type(as<PrimTypeNode>()->primtype_kind());
 }
-
-//------------------------------------------------------------------------------
-
-size_t PtrTypeNode::hash() const {
-    return hash_combine(hash_combine(VectorTypeNode::hash(), (size_t)device()), (size_t)addr_space());
-}
-
-bool PtrTypeNode::equal(const TypeNode* other) const {
-    if(!VectorTypeNode::equal(other))
-        return false;
-    auto ptr = other->as<PtrTypeNode>();
-    return ptr->device() == device() && ptr->addr_space() == addr_space();
-}
-
-//------------------------------------------------------------------------------
 
 CompoundTypeNode::CompoundTypeNode(World& world, NodeKind kind, ArrayRef<Type> elems)
     : TypeNode(world, kind, elems.size())
@@ -135,8 +83,55 @@ bool FnTypeNode::is_returning() const {
     }
     return true;
 }
+//------------------------------------------------------------------------------
+
+/*
+ * hash
+ */
+
+size_t TypeNode::hash() const {
+    size_t seed = hash_combine(hash_combine(hash_begin((int) kind()), size()), num_type_vars());
+    for (auto elem : elems_)
+        seed = hash_combine(seed, elem->hash());
+    return seed;
+}
+
+size_t PtrTypeNode::hash() const {
+    return hash_combine(hash_combine(VectorTypeNode::hash(), (size_t)device()), (size_t)addr_space());
+}
 
 //------------------------------------------------------------------------------
+
+/*
+ * equal
+ */
+
+bool TypeNode::equal(const TypeNode* other) const {
+    bool result = this->kind() == other->kind() && this->size() == other->size() 
+        && this->num_type_vars() == other->num_type_vars();
+
+    if (result) {
+        for (size_t i = 0, e = num_type_vars(); result && i != e; ++i) {
+            assert(this->type_var(i)->equiv_ == nullptr);
+            this->type_var(i)->equiv_ = *other->type_var(i);
+        }
+
+        for (size_t i = 0, e = size(); result && i != e; ++i)
+            result &= this->elems_[i] == other->elems_[i];
+
+        for (auto var : type_vars())
+            var->equiv_ = nullptr;
+    }
+
+    return result;
+}
+
+bool PtrTypeNode::equal(const TypeNode* other) const {
+    if(!VectorTypeNode::equal(other))
+        return false;
+    auto ptr = other->as<PtrTypeNode>();
+    return ptr->device() == device() && ptr->addr_space() == addr_space();
+}
 
 bool TypeVarNode::equal(const TypeNode* other) {
     if (auto typevar = other->isa<TypeVarNode>())
@@ -145,4 +140,5 @@ bool TypeVarNode::equal(const TypeNode* other) {
 }
 
 //------------------------------------------------------------------------------
+
 }

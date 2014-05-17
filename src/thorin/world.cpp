@@ -845,9 +845,9 @@ const Param* World::param(Type type, Lambda* lambda, size_t index, const std::st
 const TypeNode* World::unify_base(const TypeNode* type) {
     auto i = types_.find(type);
     if (i != types_.end()) {
-        auto t = *i;
-        type->set_representative(t);
-        return t;
+        auto representative = *i;
+        type->representative_ = representative;
+        return representative;
     } else {
         auto p = types_.insert(type);
         assert(p.second && "hash/equal broken");

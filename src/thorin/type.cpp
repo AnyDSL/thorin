@@ -58,15 +58,6 @@ VectorType VectorTypeNode::scalarize() const {
     return world().type(as<PrimTypeNode>()->primtype_kind());
 }
 
-CompoundTypeNode::CompoundTypeNode(World& world, NodeKind kind, ArrayRef<Type> elems)
-    : TypeNode(world, kind, elems.size())
-{
-    for (size_t i = 0, e = size(); i != e; ++i)
-        set(i, elems[i]);
-}
-
-//------------------------------------------------------------------------------
-
 bool FnTypeNode::is_returning() const {
     bool ret = false;
     for (auto elem : elems()) {

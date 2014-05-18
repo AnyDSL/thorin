@@ -13,8 +13,6 @@ class World;
 
 //------------------------------------------------------------------------------
 
-class TypeVarNode;
-
 template<class T>
 class Proxy {
 public:
@@ -280,28 +278,26 @@ private:
     friend class World;
 };
 
-//------------------------------------------------------------------------------
-
-class CompoundTypeNode : public TypeNode {
-protected:
-    CompoundTypeNode(World& world, NodeKind kind, ArrayRef<Type> elems);
-};
-
-class TupleTypeNode : public CompoundTypeNode {
+class TupleTypeNode : public TypeNode {
 private:
     TupleTypeNode(World& world, ArrayRef<Type> elems)
-        : CompoundTypeNode(world, Node_TupleType, elems)
-    {}
+        : TypeNode(world, Node_TupleType, elems.size())
+    {
+        for (size_t i = 0, e = size(); i != e; ++i)
+            set(i, elems[i]);
+    }
 
     friend class World;
 };
 
-/// A function type.
-class FnTypeNode : public CompoundTypeNode {
+class FnTypeNode : public TypeNode {
 private:
     FnTypeNode(World& world, ArrayRef<Type> elems)
-        : CompoundTypeNode(world, Node_FnType, elems)
-    {}
+        : TypeNode(world, Node_FnType, elems.size())
+    {
+        for (size_t i = 0, e = size(); i != e; ++i)
+            set(i, elems[i]);
+    }
 
 public:
     bool is_basicblock() const { return order() == 1; }

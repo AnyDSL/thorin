@@ -152,15 +152,53 @@ Type TypeNode::instantiate(Type2Type& map) const {
     return vinstantiate(map);
 }
 
-Type DefiniteArrayTypeNode::vinstantiate(Type2Type& map) const { return map[this] = *world().definite_array_type(elem_type(), dim()); }
-Type FnTypeNode::vinstantiate(Type2Type& map) const { return map[this] = *world().fn_type(elems()); }
-Type FrameTypeNode::vinstantiate(Type2Type& map) const { return map[this] = *world().frame_type(); }
-Type IndefiniteArrayTypeNode::vinstantiate(Type2Type& map) const { return map[this] = *world().indefinite_array_type(elem_type()); }
-Type MemTypeNode::vinstantiate(Type2Type& map) const { return map[this] = *world().mem_type(); }
-Type PrimTypeNode::vinstantiate(Type2Type& map) const { return map[this] = *world().type(primtype_kind(), length()); }
-Type PtrTypeNode::vinstantiate(Type2Type& map) const { return map[this] = *world().ptr_type(referenced_type(), length(), device(), addr_space()); }
-Type TupleTypeNode::vinstantiate(Type2Type& map) const { return map[this] = *world().tuple_type(elems()); }
+Type TypeNode::specialize(Type2Type& map) const {
+    if (auto result = find(map, this))
+        return result;
+
+    for (auto type_var : type_vars()) {
+        assert(!map.contains(*type_var));
+        map[*type_var] = *world().type_var();
+    }
+
+    auto t = instantiate(map);
+    for (auto type_var : type_vars())
+        t->bind(map[*type_var]->as<TypeVarNode>());
+
+    return t;
+}
+
+Array<Type> TypeNode::specialize_elems(Type2Type& map) const {
+    Array<Type> result(size());
+    for (size_t i = 0, e = size(); i != e; ++i)
+        result[i] = elem(i)->specialize(map);
+    return result;
+}
+
+Type FrameTypeNode::vinstantiate(Type2Type& map) const { return map[this] = this; }
+Type MemTypeNode::vinstantiate(Type2Type& map) const { return map[this] = this; }
+Type PrimTypeNode::vinstantiate(Type2Type& map) const { return map[this] = this; }
 Type TypeVarNode::vinstantiate(Type2Type& map) const { return map[this] = this; }
+
+Type DefiniteArrayTypeNode::vinstantiate(Type2Type& map) const { 
+    return map[this] = *world().definite_array_type(elem_type()->specialize(map), dim()); 
+}
+
+Type FnTypeNode::vinstantiate(Type2Type& map) const { 
+    return map[this] = *world().fn_type(specialize_elems(map)); 
+}
+
+Type IndefiniteArrayTypeNode::vinstantiate(Type2Type& map) const { 
+    return map[this] = *world().indefinite_array_type(elem_type()->specialize(map)); 
+}
+
+Type PtrTypeNode::vinstantiate(Type2Type& map) const { 
+    return map[this] = *world().ptr_type(referenced_type()->specialize(map), length(), device(), addr_space()); 
+}
+
+Type TupleTypeNode::vinstantiate(Type2Type& map) const {
+    return map[this] = *world().tuple_type(specialize_elems(map)); 
+}
 
 Type StructTypeNode::vinstantiate(Type2Type& map) const {
     return map[this] = *world().struct_type(size()); // TODO

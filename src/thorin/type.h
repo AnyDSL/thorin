@@ -119,7 +119,6 @@ public:
     World& world() const { return world_; }
     bool check_with(Type) const { return true; } // TODO
     bool infer_with(Type2Type&, Type) const { return true; } // TODO
-    Type specialize(const Type2Type&) const { return Type(this); } // TODO
     const TypeNode* representative() const { return representative_; }
     bool is_unified() const { return representative_ != nullptr; }
     const TypeNode* unify() const;
@@ -127,10 +126,11 @@ public:
     TypeVarSet free_type_vars() const;
     size_t gid() const { return gid_; }
     int order() const;
-    /// Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
+    /// Returns the vector length. Raises an assertion if this type is not a \p VectorType.
     size_t length() const;
     Type instantiate(ArrayRef<Type>) const;
     Type instantiate(Type2Type&) const;
+    Type specialize(Type2Type&) const;
 
     bool is_primtype() const { return thorin::is_primtype(kind()); }
     bool is_type_ps() const { return thorin::is_type_ps(kind()); }
@@ -149,6 +149,9 @@ public:
 
     virtual size_t hash() const;
     virtual bool equal(const TypeNode*) const;
+
+protected:
+    Array<Type> specialize_elems(Type2Type&) const;
 
 private:
     virtual Type vinstantiate(Type2Type&) const = 0;

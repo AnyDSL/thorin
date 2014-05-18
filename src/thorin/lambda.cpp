@@ -10,7 +10,7 @@
 
 namespace thorin {
 
-Lambda* Lambda::stub(const Type2Type& type2type, const std::string& name) const {
+Lambda* Lambda::stub(Type2Type& type2type, const std::string& name) const {
     auto result = world().lambda(fn_type()->specialize(type2type).as<FnType>(), attribute(), name);
     for (size_t i = 0, e = num_params(); i != e; ++i)
         result->param(i)->name = param(i)->name;

@@ -23,7 +23,7 @@ public:
     Proxy()
         : node_(nullptr)
     {}
-    explicit Proxy(const T* node)
+    Proxy(const T* node)
         : node_(node)
     {}
 

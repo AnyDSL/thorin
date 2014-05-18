@@ -72,7 +72,7 @@ public:
      */
 
 #define THORIN_ALL_TYPE(T) PrimType type_##T(size_t length = 1) { \
-    return length == 1 ? PrimType(T##_) : register_type(new PrimTypeNode(*this, PrimType_##T, length)); \
+    return length == 1 ? PrimType(T##_) : join(new PrimTypeNode(*this, PrimType_##T, length)); \
 }
 #include "thorin/tables/primtypetable.h"
 
@@ -80,21 +80,21 @@ public:
     PrimType    type(PrimTypeKind kind, size_t length = 1) {
         size_t i = kind - Begin_PrimType;
         assert(0 <= i && i < (size_t) Num_PrimTypes);
-        return length == 1 ? PrimType(primtypes_[i]) : register_type(new PrimTypeNode(*this, kind, length));
+        return length == 1 ? PrimType(primtypes_[i]) : join(new PrimTypeNode(*this, kind, length));
     }
     MemType     mem_type() const { return MemType(mem_); }
     FrameType   frame_type() const { return FrameType(frame_); }
     PtrType     ptr_type(Type referenced_type, size_t length = 1, uint32_t device = 0, AddressSpace adr_space = AddressSpace::Global) {
-        return register_type(new PtrTypeNode(*this, referenced_type, length, device, adr_space)); 
+        return join(new PtrTypeNode(*this, referenced_type, length, device, adr_space)); 
     }
     TupleType           tuple_type() { return TupleType(tuple0_); }         ///< Returns unit, i.e., an empty \p TupleType.
-    TupleType           tuple_type(ArrayRef<Type> elems) { return register_type(new TupleTypeNode(*this, elems)); }
+    TupleType           tuple_type(ArrayRef<Type> elems) { return join(new TupleTypeNode(*this, elems)); }
     StructType          struct_type(size_t size, const std::string& name = "");
     FnType              fn_type() { return FnType(fn0_); }                  ///< Returns an empty \p FnType.
-    FnType              fn_type(ArrayRef<Type> elems) { return register_type(new FnTypeNode(*this, elems)); }
-    TypeVar             type_var() { return register_type(new TypeVarNode(*this)); }
-    DefiniteArrayType   definite_array_type(Type elem, u64 dim) { return register_type(new DefiniteArrayTypeNode(*this, elem, dim)); }
-    IndefiniteArrayType indefinite_array_type(Type elem) { return register_type(new IndefiniteArrayTypeNode(*this, elem)); }
+    FnType              fn_type(ArrayRef<Type> elems) { return join(new FnTypeNode(*this, elems)); }
+    TypeVar             type_var() { return join(new TypeVarNode(*this)); }
+    DefiniteArrayType   definite_array_type(Type elem, u64 dim) { return join(new DefiniteArrayTypeNode(*this, elem, dim)); }
+    IndefiniteArrayType indefinite_array_type(Type elem) { return join(new IndefiniteArrayTypeNode(*this, elem)); }
 
     /*
      * literals
@@ -268,7 +268,7 @@ private:
         garbage_.push_back(type); 
         return type; 
     }
-    template<class T> Proxy<T> register_type(const T* t) { return Proxy<T>(register_base(t)->template as<T>()); }
+    template<class T> Proxy<T> join(const T* t) { return Proxy<T>(register_base(t)->template as<T>()); }
     const DefNode* cse_base(const PrimOp*);
     template<class T> const T* cse(const T* primop) { return cse_base(primop)->template as<T>(); }
 

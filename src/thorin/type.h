@@ -89,13 +89,16 @@ private:
     TypeNode(const TypeNode&);              ///< Do not copy-construct a \p TypeNode.
 
 protected:
-    TypeNode(World& world, NodeKind kind, size_t num)
+    TypeNode(World& world, NodeKind kind, ArrayRef<Type> elems)
         : representative_(nullptr)
         , world_(world)
         , kind_(kind)
-        , elems_(num)
+        , elems_(elems.size())
         , gid_(-1)
-    {}
+    {
+        for (size_t i = 0, e = size(); i != e; ++i)
+            set(i, elems[i]);
+    }
 
     void set(size_t i, Type type) { elems_[i] = type; }
 
@@ -122,6 +125,12 @@ public:
     const TypeNode* unify() const;
     void free_type_vars(TypeVarSet& bound, TypeVarSet& free) const;
     TypeVarSet free_type_vars() const;
+    size_t gid() const { return gid_; }
+    int order() const;
+    /// Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
+    size_t length() const;
+    Type instantiate(ArrayRef<Type>) const;
+    Type instantiate(Type2Type&) const;
 
     bool is_primtype() const { return thorin::is_primtype(kind()); }
     bool is_type_ps() const { return thorin::is_type_ps(kind()); }
@@ -138,17 +147,12 @@ public:
     bool is_type_f() const { return thorin::is_type_f(kind()); }
     bool is_bool() const { return kind() == Node_PrimType_bool; }
 
-    size_t gid() const { return gid_; }
-    int order() const;
     virtual size_t hash() const;
     virtual bool equal(const TypeNode*) const;
-    /**
-     * Returns the vector length.
-     * Raises an assertion if type of this is not a \p VectorType.
-     */
-    size_t length() const;
 
 private:
+    virtual Type vinstantiate(Type2Type&) const = 0;
+
     mutable const TypeNode* representative_;
     World& world_;
     NodeKind kind_;
@@ -159,36 +163,34 @@ private:
     friend class World;
 };
 
-//------------------------------------------------------------------------------
-
 /// The type of the memory monad.
 class MemTypeNode : public TypeNode {
 private:
     MemTypeNode(World& world)
-        : TypeNode(world, Node_MemType, 0)
+        : TypeNode(world, Node_MemType, {})
     {}
+
+    virtual Type vinstantiate(Type2Type&) const override;
 
     friend class World;
 };
-
-//------------------------------------------------------------------------------
 
 /// The type of a stack frame.
 class FrameTypeNode : public TypeNode {
 private:
     FrameTypeNode(World& world)
-        : TypeNode(world, Node_FrameType, 0)
+        : TypeNode(world, Node_FrameType, {})
     {}
+
+    virtual Type vinstantiate(Type2Type&) const override;
 
     friend class World;
 };
 
-//------------------------------------------------------------------------------
-
 class VectorTypeNode : public TypeNode {
 protected:
-    VectorTypeNode(World& world, NodeKind kind, size_t num_elems, size_t length)
-        : TypeNode(world, kind, num_elems)
+    VectorTypeNode(World& world, NodeKind kind, ArrayRef<Type> elems, size_t length)
+        : TypeNode(world, kind, elems)
         , length_(length)
     {}
 
@@ -208,23 +210,21 @@ private:
     size_t length_;
 };
 
-//------------------------------------------------------------------------------
-
 /// Primitive types -- also known as atomic or scalar types.
 class PrimTypeNode : public VectorTypeNode {
 private:
     PrimTypeNode(World& world, PrimTypeKind kind, size_t length)
-        : VectorTypeNode(world, (NodeKind) kind, 0, length)
+        : VectorTypeNode(world, (NodeKind) kind, {}, length)
     {}
 
 public:
     PrimTypeKind primtype_kind() const { return (PrimTypeKind) kind(); }
 
 private:
+    virtual Type vinstantiate(Type2Type&) const override;
+
     friend class World;
 };
-
-//------------------------------------------------------------------------------
 
 enum class AddressSpace : uint32_t {
     Global  = 0,
@@ -235,12 +235,10 @@ enum class AddressSpace : uint32_t {
 class PtrTypeNode : public VectorTypeNode {
 private:
     PtrTypeNode(World& world, Type referenced_type, size_t length, uint32_t device, AddressSpace addr_space)
-        : VectorTypeNode(world, Node_PtrType, 1, length)
+        : VectorTypeNode(world, Node_PtrType, {referenced_type}, length)
         , addr_space_(addr_space)
         , device_(device)
-    {
-        set(0, referenced_type);
-    }
+    {}
 
 public:
     Type referenced_type() const { return elem(0); }
@@ -252,6 +250,8 @@ public:
     virtual bool equal(const TypeNode* other) const override;
 
 private:
+    virtual Type vinstantiate(Type2Type&) const override;
+
     AddressSpace addr_space_;
     uint32_t device_;
 
@@ -261,7 +261,7 @@ private:
 class StructTypeNode : public TypeNode {
 private:
     StructTypeNode(World& world, size_t size, const std::string& name)
-        : TypeNode(world, Node_StructType, size)
+        : TypeNode(world, Node_StructType, Array<Type>(size))
         , name_(name)
     {}
 
@@ -273,6 +273,8 @@ public:
     void set(size_t i, Type type) { TypeNode::set(i, type); }
 
 private:
+    virtual Type vinstantiate(Type2Type&) const override;
+
     std::string name_;
 
     friend class World;
@@ -281,11 +283,10 @@ private:
 class TupleTypeNode : public TypeNode {
 private:
     TupleTypeNode(World& world, ArrayRef<Type> elems)
-        : TypeNode(world, Node_TupleType, elems.size())
-    {
-        for (size_t i = 0, e = size(); i != e; ++i)
-            set(i, elems[i]);
-    }
+        : TypeNode(world, Node_TupleType, elems)
+    {}
+
+    virtual Type vinstantiate(Type2Type&) const override;
 
     friend class World;
 };
@@ -293,28 +294,24 @@ private:
 class FnTypeNode : public TypeNode {
 private:
     FnTypeNode(World& world, ArrayRef<Type> elems)
-        : TypeNode(world, Node_FnType, elems.size())
-    {
-        for (size_t i = 0, e = size(); i != e; ++i)
-            set(i, elems[i]);
-    }
+        : TypeNode(world, Node_FnType, elems)
+    {}
 
 public:
     bool is_basicblock() const { return order() == 1; }
     bool is_returning() const;
 
+private:
+    virtual Type vinstantiate(Type2Type&) const override;
+
     friend class World;
 };
-
-//------------------------------------------------------------------------------
 
 class ArrayTypeNode : public TypeNode {
 protected:
     ArrayTypeNode(World& world, NodeKind kind, Type elem_type)
-        : TypeNode(world, kind, 1)
-    {
-        set(0, elem_type);
-    }
+        : TypeNode(world, kind, {elem_type})
+    {}
 
 public:
     Type elem_type() const { return elem(0); }
@@ -325,6 +322,9 @@ public:
     IndefiniteArrayTypeNode(World& world, Type elem_type)
         : ArrayTypeNode(world, Node_IndefiniteArrayType, elem_type)
     {}
+
+private:
+    virtual Type vinstantiate(Type2Type&) const override;
 
     friend class World;
 };
@@ -343,17 +343,17 @@ public:
     }
 
 private:
+    virtual Type vinstantiate(Type2Type&) const override;
+
     u64 dim_;
 
     friend class World;
 };
 
-//------------------------------------------------------------------------------
-
 class TypeVarNode : public TypeNode {
 private:
     TypeVarNode(World& world)
-        : TypeNode(world, Node_TypeVar, 0)
+        : TypeNode(world, Node_TypeVar, {})
         , equiv_(nullptr)
     {}
 
@@ -362,6 +362,8 @@ public:
     Type bound_at() const { return Type(bound_at_); }
 
 private:
+    virtual Type vinstantiate(Type2Type&) const override;
+
     mutable const TypeNode* bound_at_;
     mutable const TypeVarNode* equiv_;
 

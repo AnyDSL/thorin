@@ -132,4 +132,38 @@ bool TypeVarNode::equal(const TypeNode* other) {
 
 //------------------------------------------------------------------------------
 
+/*
+ * specialize and instantiate
+ */
+
+Type TypeNode::instantiate(ArrayRef<Type> types) const {
+    assert(types.size() == num_type_vars());
+    Type2Type map;
+    for (size_t i = 0, e = types.size(); i != e; ++i)
+        map[*type_var(i)] = *types[i];
+    return instantiate(map);
+}
+
+Type TypeNode::instantiate(Type2Type& map) const {
+#ifndef NDEBUG
+    for (auto type_var : type_vars())
+        assert(map.contains(*type_var));
+#endif
+    return vinstantiate(map);
+}
+
+Type DefiniteArrayTypeNode::vinstantiate(Type2Type& map) const { return map[this] = *world().definite_array_type(elem_type(), dim()); }
+Type FnTypeNode::vinstantiate(Type2Type& map) const { return map[this] = *world().fn_type(elems()); }
+Type FrameTypeNode::vinstantiate(Type2Type& map) const { return map[this] = *world().frame_type(); }
+Type IndefiniteArrayTypeNode::vinstantiate(Type2Type& map) const { return map[this] = *world().indefinite_array_type(elem_type()); }
+Type MemTypeNode::vinstantiate(Type2Type& map) const { return map[this] = *world().mem_type(); }
+Type PrimTypeNode::vinstantiate(Type2Type& map) const { return map[this] = *world().type(primtype_kind(), length()); }
+Type PtrTypeNode::vinstantiate(Type2Type& map) const { return map[this] = *world().ptr_type(referenced_type(), length(), device(), addr_space()); }
+Type TupleTypeNode::vinstantiate(Type2Type& map) const { return map[this] = *world().tuple_type(elems()); }
+Type TypeVarNode::vinstantiate(Type2Type& map) const { return map[this] = this; }
+
+Type StructTypeNode::vinstantiate(Type2Type& map) const {
+    return map[this] = *world().struct_type(size()); // TODO
+}
+
 }

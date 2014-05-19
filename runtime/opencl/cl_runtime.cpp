@@ -63,10 +63,11 @@ void synchronize(size_t dev);
 
 // global variables ...
 enum mem_type {
-    Global      = 0,
-    Texture     = 1,
-    Constant    = 2,
-    Shared      = 3
+    Generic     = 0,
+    Global      = 1,
+    Texture     = 2,
+    Shared      = 3,
+    Constant    = 4
 };
 
 typedef struct mem_ {

@@ -170,9 +170,11 @@ private:
 //------------------------------------------------------------------------------
 
 enum class AddressSpace : uint32_t {
-    Global  = 0,
-    Texture = 1,
-    Shared  = 2,
+    Generic  = 0,
+    Global   = 1,
+    Texture  = 2,
+    Shared   = 3,
+    Constant = 4,
 };
 
 class Ptr : public VectorType {

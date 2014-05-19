@@ -29,7 +29,7 @@ NVVMCodeGen::NVVMCodeGen(World& world)
 static AddressSpace resolve_addr_space(Def def) {
     if (auto ptr = def->type()->isa<Ptr>())
         return ptr->addr_space();
-    return AddressSpace::Global;
+    return AddressSpace::Generic;
 }
 
 llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambda) {

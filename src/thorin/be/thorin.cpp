@@ -64,11 +64,17 @@ std::ostream& CodeGen::emit_type(const Type* type) {
         if (device != 0)
             stream() << '[' << device << ']';
         switch (ptr->addr_space()) {
+        case AddressSpace::Global:
+            stream() << "[Global]";
+            break;
         case AddressSpace::Texture:
             stream() << "[Tex]";
             break;
         case AddressSpace::Shared:
             stream() << "[Shared]";
+            break;
+        case AddressSpace::Constant:
+            stream() << "[Constant]";
             break;
         default:
             // ignore unknown address space

@@ -733,14 +733,20 @@ llvm::Type* CodeGen::map(const Type* type) {
             unsigned address_space;
             switch(ptr->addr_space())
             {
-            case AddressSpace::Global:
+            case AddressSpace::Generic:
                 address_space = 0;
                 break;
-            case AddressSpace::Texture:
+            case AddressSpace::Global:
                 address_space = 1;
+                break;
+            case AddressSpace::Texture:
+                address_space = 2;
                 break;
             case AddressSpace::Shared:
                 address_space = 3;
+                break;
+            case AddressSpace::Constant:
+                address_space = 4;
                 break;
             default:
                 THORIN_UNREACHABLE;

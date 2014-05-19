@@ -29,10 +29,9 @@ const int num_devices_ = 3;
 
 // runtime forward declarations
 CUdeviceptr malloc_memory(size_t dev, void *host, size_t size);
+void read_memory(size_t dev, CUdeviceptr mem, void *host, size_t size);
 void write_memory(size_t dev, CUdeviceptr mem, void *host, size_t size);
 void free_memory(size_t dev, mem_id mem);
-void read_memory(size_t dev, mem_id mem, void *host);
-void read_memory_size(size_t dev, mem_id mem, void *host, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz);
 
 void load_kernel(size_t dev, const char *file_name, const char *kernel_name, bool is_nvvm);
 
@@ -142,10 +141,15 @@ class Memory {
         return malloc(dev, host, 0, 0, 0, info.width, info.height, 1);
     }
 
-    void read_memory(size_t dev, mem_id id) {
-        read_memory_size(dev, id, mmap[dev][id].cpu,
-                mmap[dev][id].ox, mmap[dev][id].oy, mmap[dev][id].oz,
-                mmap[dev][id].sx, mmap[dev][id].sy, mmap[dev][id].sz);
+    void read(size_t dev, mem_id id) {
+        assert(mmap[dev][id].cpu && "invalid host memory");
+        mem_ info = host_mems_[mmap[dev][id].cpu];
+        void *host = mmap[dev][id].cpu;
+        std::cerr << " * read memory(" << dev << "):   " << id << " -> " << host
+                  << " (" << mmap[dev][id].ox << "," << mmap[dev][id].oy << "," << mmap[dev][id].oz << ")x("
+                  << mmap[dev][id].sx << "," << mmap[dev][id].sy << "," << mmap[dev][id].sz << ")" << std::endl;
+        void *host_ptr = (char*)host + (mmap[dev][id].ox + mmap[dev][id].oy*info.width)*info.elem;
+        read_memory(dev, mmap[dev][id].gpu, host_ptr, info.elem * mmap[dev][id].sx * mmap[dev][id].sy);
     }
     void write(size_t dev, mem_id id, void *host) {
         mem_ info = host_mems_[host];
@@ -511,21 +515,13 @@ void write_memory(size_t dev, CUdeviceptr mem, void *host, size_t size) {
 }
 
 
-void read_memory_size(size_t dev, mem_id mem, void *host, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz) {
+void read_memory(size_t dev, CUdeviceptr mem, void *host, size_t size) {
     cuCtxPushCurrent(cuContexts[dev]);
     CUresult err = CUDA_SUCCESS;
-    mem_ info = host_mems_[host];
-    CUdeviceptr &dev_mem = mem_manager.get_dev_mem(dev, mem);
 
-    std::cerr << " * read memory(" << dev << "):   " << mem << " -> " << host << " (" << ox << "," << oy << "," << oz << ")x(" << sx << "," << sy << "," << sz << ")" << std::endl;
-
-    err = cuMemcpyDtoH((char*)host + info.elem * (oy*info.width + ox), dev_mem, info.elem * sx * sy);
+    err = cuMemcpyDtoH(host, mem, size);
     checkErrDrv(err, "cuMemcpyDtoH()");
     cuCtxPopCurrent(NULL);
-}
-void read_memory(size_t dev, mem_id mem, void *host) {
-    mem_ info = host_mems_[host];
-    return read_memory_size(dev, mem, host, 0, 0, 0, info.width, info.height, 0);
 }
 
 
@@ -639,7 +635,7 @@ mem_id nvvm_malloc_memory(size_t dev, void *host) { return mem_manager.malloc(de
 void nvvm_free_memory(size_t dev, mem_id mem) { free_memory(dev, mem); }
 
 void nvvm_write_memory(size_t dev, mem_id mem, void *host) { mem_manager.write(dev, mem, host); }
-void nvvm_read_memory(size_t dev, mem_id mem, void *host) { read_memory(dev, mem, host); }
+void nvvm_read_memory(size_t dev, mem_id mem, void *host) { mem_manager.read(dev, mem); }
 
 void nvvm_load_nvvm_kernel(size_t dev, const char *file_name, const char *kernel_name) { load_kernel(dev, file_name, kernel_name, true); }
 void nvvm_load_cuda_kernel(size_t dev, const char *file_name, const char *kernel_name) { load_kernel(dev, file_name, kernel_name, false); }
@@ -706,7 +702,7 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, 
     return mem;
 }
 void unmap_memory(size_t dev, size_t type_, mem_id mem) {
-    mem_manager.read_memory(dev, mem);
+    mem_manager.read(dev, mem);
     std::cerr << " * unmap memory(" << dev << "):  " << mem << std::endl;
     // TODO: mark device memory as unmapped
 }

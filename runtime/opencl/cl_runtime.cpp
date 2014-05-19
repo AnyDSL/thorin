@@ -46,10 +46,9 @@ int the_machine[][2] = {
 
 // runtime forward declarations
 cl_mem malloc_buffer(size_t dev, void *host, cl_mem_flags flags, size_t size);
+void read_buffer(size_t dev, cl_mem mem, void *host, size_t size);
 void write_buffer(size_t dev, cl_mem mem, void *host, size_t size);
 void free_buffer(size_t dev, mem_id mem);
-void read_buffer(size_t dev, mem_id mem, void *host);
-void read_buffer_size(size_t dev, mem_id mem, void *host, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz);
 
 void build_program_and_kernel(size_t dev, const char *file_name, const char *kernel_name, bool);
 
@@ -157,10 +156,15 @@ class Memory {
         return malloc(dev, host, 0, 0, 0, info.width, info.height, 1);
     }
 
-    void read_buffer(size_t dev, mem_id id) {
-        read_buffer_size(dev, id, mmap[dev][id].cpu,
-                mmap[dev][id].ox, mmap[dev][id].oy, mmap[dev][id].oz,
-                mmap[dev][id].sx, mmap[dev][id].sy, mmap[dev][id].sz);
+    void read(size_t dev, mem_id id) {
+        assert(mmap[dev][id].cpu && "invalid host memory");
+        mem_ info = host_mems_[mmap[dev][id].cpu];
+        void *host = mmap[dev][id].cpu;
+        std::cerr << " * read buffer(" << dev << "):   " << id << " -> " << host
+                  << " (" << mmap[dev][id].ox << "," << mmap[dev][id].oy << "," << mmap[dev][id].oz << ")x("
+                  << mmap[dev][id].sx << "," << mmap[dev][id].sy << "," << mmap[dev][id].sz << ")" << std::endl;
+        void *host_ptr = (char*)host + (mmap[dev][id].ox + mmap[dev][id].oy*info.width)*info.elem;
+        read_buffer(dev, mmap[dev][id].gpu, host_ptr, info.elem * mmap[dev][id].sx * mmap[dev][id].sy);
     }
     void write(size_t dev, mem_id id, void *host) {
         mem_ info = host_mems_[host];
@@ -682,16 +686,13 @@ void write_buffer(size_t dev, cl_mem mem, void *host, size_t size) {
 }
 
 
-void read_buffer_size(size_t dev, mem_id mem, void *host, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz) {
+void read_buffer(size_t dev, cl_mem mem, void *host, size_t size) {
     cl_int err = CL_SUCCESS;
     cl_event event;
     cl_ulong end, start;
-    mem_ info = host_mems_[host];
-    cl_mem dev_mem = mem_manager.get_dev_mem(dev, mem);
 
-    std::cerr << " * read buffer(" << dev << "):   " << mem << " -> " << host << " (" << ox << "," << oy << "," << oz << ")x(" << sx << "," << sy << "," << sz << ")" << std::endl;
     getMicroTime();
-    err = clEnqueueReadBuffer(command_queues_[dev], dev_mem, CL_FALSE, 0, info.elem * sx * sy, (char*)host + info.elem * (oy*info.width + ox), 0, NULL, &event);
+    err = clEnqueueReadBuffer(command_queues_[dev], mem, CL_FALSE, 0, size, host, 0, NULL, &event);
     err |= clFinish(command_queues_[dev]);
     checkErr(err, "clEnqueueReadBuffer()");
     getMicroTime();
@@ -703,10 +704,6 @@ void read_buffer_size(size_t dev, mem_id mem, void *host, size_t ox, size_t oy, 
         std::cerr << "   timing for read buffer: "
                   << (end-start)*1.0e-6f << "(ms)" << std::endl;
     }
-}
-void read_buffer(size_t dev, mem_id mem, void *host) {
-    mem_ info = host_mems_[host];
-    return read_buffer_size(dev, mem, host, 0, 0, 0, info.width, info.height, 1);
 }
 
 
@@ -812,7 +809,7 @@ mem_id spir_malloc_buffer(size_t dev, void *host) { return mem_manager.malloc(de
 void spir_free_buffer(size_t dev, mem_id mem) { free_buffer(dev, mem); }
 
 void spir_write_buffer(size_t dev, mem_id mem, void *host) { mem_manager.write(dev, mem, host); }
-void spir_read_buffer(size_t dev, mem_id mem, void *host) { read_buffer(dev, mem, host); }
+void spir_read_buffer(size_t dev, mem_id mem, void *host) { mem_manager.read(dev, mem); }
 
 void spir_build_program_and_kernel_from_binary(size_t dev, const char *file_name, const char *kernel_name) { build_program_and_kernel(dev, file_name, kernel_name, true); }
 void spir_build_program_and_kernel_from_source(size_t dev, const char *file_name, const char *kernel_name) { build_program_and_kernel(dev, file_name, kernel_name, false); }
@@ -897,7 +894,7 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, 
     return mem;
 }
 void unmap_memory(size_t dev, size_t type_, mem_id mem) {
-    mem_manager.read_buffer(dev, mem);
+    mem_manager.read(dev, mem);
     std::cerr << " * unmap memory(" << dev << "):  " << mem << std::endl;
     // TODO: mark device memory as unmapped
 }

@@ -6,7 +6,7 @@ LIB_DIRS   = -L $(CUDA_DIR)/nvvm/lib64
 CXX_FLAGS := -Wall -Wunused
 OPT_FLAGS := -O3
 DBG_FLAGS :=
-MAIN      := jacobi
+MAIN      := gaussian
 
 OS:=$(shell uname -s)
 

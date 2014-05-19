@@ -10,14 +10,14 @@ fn iteration(width: int, height: int, body: fn(int, int) -> void) -> void {
     getMicroTime();
 }
 
-fn iteration_bounds(width : int, height : int, range : int,
+fn iteration_bounds(width : int, height : int, ksize : int,
                     body : fn(int, int, int) -> void
                    ) -> void {
     let L = 8;
 
     // compute the number of vector strides for boundary handling
-    let bhy = range / 2;
-    let mut bhx = range / 2;
+    let bhy = ksize / 2;
+    let mut bhx = ksize / 2;
     if (bhx % L == 0) bhx = bhx / L;
     else bhx = bhx / L + L;
 

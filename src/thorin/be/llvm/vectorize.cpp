@@ -43,7 +43,7 @@ Lambda* CodeGen::emit_vectorized(llvm::Function* current, Lambda* lambda) {
     }
 
     llvm::FunctionType* simd_type = llvm::FunctionType::get(builder_.getVoidTy(), llvm_ref(simd_args), false);
-    llvm::Function* kernel_simd_func = (llvm::Function*)module_->getOrInsertFunction(kernel->name + "_vectorized", simd_type);
+    llvm::Function* kernel_simd_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name() + "_vectorized", simd_type);
 
     // build iteration loop and wire the calls
     llvm::BasicBlock* header = llvm::BasicBlock::Create(context_, "vec_header", current);
@@ -87,7 +87,7 @@ Lambda* CodeGen::emit_vectorized(llvm::Function* current, Lambda* lambda) {
     // vectorize function
     auto vector_tid_getter = get_vectorize_tid(module_);
     WFVInterface::WFVInterface wfv(module_, &context_, kernel_func, kernel_simd_func, vector_length);
-    if(vector_tid_getter) {
+    if (vector_tid_getter) {
         bool b_simd = wfv.addSIMDSemantics(*vector_tid_getter, false, true, false, false, false, true, false, true, false, true);
         assert(b_simd && "simd semantics for vectorization failed");
     }
@@ -99,7 +99,7 @@ Lambda* CodeGen::emit_vectorized(llvm::Function* current, Lambda* lambda) {
     llvm::InlineFunction(kernel_call, info);
 
     // wire loop counter
-    if(vector_tid_getter) {
+    if (vector_tid_getter) {
         std::vector<llvm::CallInst*> calls;
         for (auto it = vector_tid_getter->use_begin(), e = vector_tid_getter->use_end(); it != e; ++it) {
             if (auto call = llvm::dyn_cast<llvm::CallInst>(*it))
@@ -116,7 +116,7 @@ Lambda* CodeGen::emit_vectorized(llvm::Function* current, Lambda* lambda) {
     // remember to remove functions
     fcts_to_remove_.insert(kernel_func);
     fcts_to_remove_.insert(kernel_simd_func);
-    fcts_to_remove_.insert(vector_tid_getter);
+    if (vector_tid_getter) fcts_to_remove_.insert(vector_tid_getter);
 
     return ret;
 }

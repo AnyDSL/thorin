@@ -71,16 +71,16 @@ fn main() -> int {
         [0.0f, b, 0.0f]];
 
     // SS
-    iteration(width, height,
-        |x : int, y : int| -> void {
+    iteration(width, height, arr, out,
+        |x : int, y : int, arr : [float], out : [float]| -> void {
             out[y*width + x] = apply_stencil(range, stencil, x, y, arr, width,
-                                              height, 10);
+                                             height, 10);
         }
     );
 
     //// SS + BH
-    //@iteration_bounds(width, height, range,
-    //    |x : int, y : int, region : int| -> void {
+    //@iteration_bounds(width, height, range, arr, out,
+    //    |x : int, y : int, arr: [float], out : [float], region : int| -> void {
     //        out[y*width + x] = apply_stencil(range, stencil, x, y, arr,
     //                                         width, height, region);
     //    }

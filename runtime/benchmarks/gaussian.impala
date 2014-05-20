@@ -119,6 +119,25 @@ fn apply_stencil_sep(range : int, stencil : [float * 5], x : int, y : int,
     return sum_xxx;
 }
 
+fn apply_stencil_sep_local(range : int, stencil : [float * 5], x : int, y : int,
+                           arr : [float], width : int, height : int, row : bool
+                          ) -> float {
+    let mut sum_xxx = 0.0f;
+    let half_range = range / 2;
+    iterate(-half_range, half_range+1, |i : int| -> void {
+        let idx_x = row ? x + i : x;
+        let idx_y = row ? y : y + i;
+        let stencil_val = stencil[i + half_range];
+        if (stencil_val != 0.0f) {
+            sum_xxx += arr[idx_y * width + idx_x] * stencil_val;
+        } else {
+            // additional logic for empty stencil value
+        }
+    });
+
+    return sum_xxx;
+}
+
 fn apply_stencil_row_cpu(range : int, stencil : [float * 5], x : int, y : int,
                          arr : [float], width : int, height : int, region : int
                         ) -> float {
@@ -223,18 +242,16 @@ fn main() -> int {
         }
     );
 
-    //@iteration_sep_advanced(width, height, arr, out,
-    //    |x : int, y : int, arr : [float], out : [float]| -> void {
+    //@iteration_sep_advanced(width, height, range, arr, out,
+    //    |x : int, y : int, arr : [float], out : [float], x_in : int, y_in : int, width_in : int, width_out : int| -> void {
     //        // col component
     //        let is_row = false;
-    //        out[y*width + x] = apply_stencil_sep(range, stencil_sep, x, y, arr,
-    //                                             width, height, is_row, 10);
+    //        out[y*width_out + x] = apply_stencil_sep_local(range, stencil_sep, x_in, y_in, arr, width_in, height, is_row);
     //    },
-    //    |x : int, y : int, arr : [float], out : [float]| -> void {
+    //    |x : int, y : int, arr : [float], out : [float], x_in : int, y_in : int, width_in : int, width_out : int| -> void {
     //        // row component
     //        let is_row = true;
-    //        out[y*width + x] = apply_stencil_sep(range, stencil_sep, x, y, arr,
-    //                                             width, height, is_row, 10);
+    //        out[y*width_out + x] = apply_stencil_sep_local(range, stencil_sep, x_in, y_in, arr, width_in, height, is_row);
     //    }
     //);
 

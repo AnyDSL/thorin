@@ -1,77 +1,92 @@
-fn iteration(width: int, height: int, body: fn(int, int) -> void) -> void {
+fn iteration(width : int, height : int,
+             arr : [float], out : [float],
+             body : fn(int, int, [float], [float]) -> void
+            ) -> void {
     getMicroTime();
-    iterate(0, height, |y: int| -> void {
-        iterate(0, width, |x: int| -> void {
-            body(x, y);
+    $iterate(0, height, |y: int| -> void {
+        $iterate(0, width, |x: int| -> void {
+            body(x, y, arr, out);
         });
     });
     getMicroTime();
 }
 
 fn iteration_bounds(width : int, height : int, ksize : int,
-                    body : fn(int, int, int) -> void
+                    arr : [float], out : [float],
+                    body : fn(int, int, [float], [float], int) -> void
                    ) -> void {
-    let bhr = ksize / 2;
+    let bbh = ksize / 2;
     // (minx, maxx, miny, maxy)
     let Bounds2D = [
-        (0          , bhr        , 0         , bhr),
-        (bhr        , width - bhr, 0         , bhr),
-        (width - bhr, width      , 0         , bhr),
+        (0          , bbh        , 0         , bbh),
+        (bbh        , width - bbh, 0         , bbh),
+        (width - bbh, width      , 0         , bbh),
 
-        (0          , bhr        , height - bhr, height),
-        (bhr        , width - bhr, height - bhr, height),
-        (width - bhr, width      , height - bhr, height),
+        (0          , bbh        , height - bbh, height),
+        (bbh        , width - bbh, height - bbh, height),
+        (width - bbh, width      , height - bbh, height),
 
-        (0          , bhr        , bhr         , height - bhr),
-        (width - bhr, width      , bhr         , height - bhr),
-        (bhr        , width - bhr, bhr         , height - bhr)
+        (0          , bbh        , bbh         , height - bbh),
+        (width - bbh, width      , bbh         , height - bbh),
+        (bbh        , width - bbh, bbh         , height - bbh)
     ];
 
     iterate(0, 9, |region : int| -> void {
         let bounds = Bounds2D[region];
         $iterate(bounds[2], bounds[3], |y: int| -> void {
             $iterate(bounds[0], bounds[1], |x: int| -> void {
-                body(x, y, region);
+                body(x, y, arr, out, region);
             });
         });
     });
 }
 
 fn iteration_sep(width : int, height : int,
-                 body_col : fn(int, int) -> void,
-                 body_row : fn(int, int) -> void
+                 arr : [float], out : [float],
+                 body_col : fn(int, int, [float], [float]) -> void,
+                 body_row : fn(int, int, [float], [float]) -> void
                 ) -> void {
+    // allocate temporary array
+    let mut tmp = array(4, width, height);
+    init_zero(tmp, $width, $height);
+
     getMicroTime();
     $iterate(0, height, |y: int| -> void {
         $iterate(0, width, |x: int| -> void {
-            body_col(x, y);
+            body_col(x, y, arr, tmp);
         });
     });
 
     $iterate(0, height, |y: int| -> void {
         $iterate(0, width, |x: int| -> void {
-            body_row(x, y);
+            body_row(x, y, tmp, out);
         });
     });
     getMicroTime();
+    free_array(tmp);
 }
 
 fn iteration_sep_bounds(width : int, height : int, ksize : int,
-                    body_col : fn(int, int, int) -> void,
-                    body_row : fn(int, int, int) -> void
-                   ) -> void {
-    let bhr = ksize / 2;
+                        arr : [float], out : [float],
+                        body_col : fn(int, int, [float], [float], int) -> void,
+                        body_row : fn(int, int, [float], [float], int) -> void
+                       ) -> void {
+    // allocate temporary array
+    let mut tmp = array(4, width, height);
+    init_zero(tmp, $width, $height);
+
+    let bbh = ksize / 2;
 
     let Bounds2DCol = [
-        (0           , bhr),
-        (bhr         , height - bhr),
-        (height - bhr, height)
+        (0           , bbh),
+        (bbh         , height - bbh),
+        (height - bbh, height)
     ];
 
     let Bounds2DRow = [
-        (0          , bhr),
-        (bhr        , width - bhr),
-        (width - bhr, width)
+        (0          , bbh),
+        (bbh        , width - bbh),
+        (width - bbh, width)
     ];
 
     getMicroTime();
@@ -79,7 +94,7 @@ fn iteration_sep_bounds(width : int, height : int, ksize : int,
         let bounds = Bounds2DCol[region];
         $iterate(bounds[0], bounds[1], |y: int| -> void {
             $iterate(0, width, |x: int| -> void {
-                body_col(x, y, region);
+                body_col(x, y, arr, tmp, region);
             });
         });
     });
@@ -88,11 +103,12 @@ fn iteration_sep_bounds(width : int, height : int, ksize : int,
         let bounds = Bounds2DRow[region];
         $iterate(0, height, |y: int| -> void {
             $iterate(bounds[0], bounds[1], |x: int| -> void {
-                body_row(x, y, region);
+                body_row(x, y, tmp, arr, region);
             });
         });
     });
     getMicroTime();
+    free_array(tmp);
 }
 
 
@@ -101,9 +117,9 @@ fn iteration_sep_advanced(width : int, height : int,
                           body_col : fn(int, int, [float], [float]) -> void,
                           body_row : fn(int, int, [float], [float]) -> void
                          ) -> void {
-    getMicroTime();
     let tmp = array(4, width, 1);
 
+    getMicroTime();
     $iterate(0, height, |y: int| -> void {
         $iterate(0, width, |x: int| -> void {
             body_col(x, y, arr, tmp);
@@ -113,27 +129,27 @@ fn iteration_sep_advanced(width : int, height : int,
         });
     });
 
-    free_array(tmp);
     getMicroTime();
+    free_array(tmp);
 }
 
-fn iteration_sep_bounds_advanced(width : int, height : int, arr : [float],
-                                 out : [float], ksize : int,
+fn iteration_sep_bounds_advanced(width : int, height : int, ksize : int,
+                                 arr : [float], out : [float],
                                  body_col : fn(int, int, [float], [float], int) -> void,
                                  body_row : fn(int, int, [float], [float], int) -> void
                                ) -> void {
-    let bhr = ksize / 2;
+    let bbh = ksize / 2;
 
     let Bounds2DCol = [
-        (0           , bhr),
-        (bhr         , height - bhr),
-        (height - bhr, height)
+        (0           , bbh),
+        (bbh         , height - bbh),
+        (height - bbh, height)
     ];
 
     let Bounds2DRow = [
-        (0          , bhr),
-        (bhr        , width - bhr),
-        (width - bhr, width)
+        (0          , bbh),
+        (bbh        , width - bbh),
+        (width - bbh, width)
     ];
 
     getMicroTime();

@@ -1,17 +1,21 @@
-fn iteration(width: int, height: int, body: fn(int, int) -> void) -> void {
+fn iteration(width : int, height : int,
+             arr : [float], out : [float],
+             body : fn(int, int, [float], [float]) -> void
+            ) -> void {
     let L = 8;
     getMicroTime();
     $iterate(0, height, |y: int| -> void {
         vectorized(width, L, || -> void {
             let x = wfv_get_tid();
-            body(x, y);
+            body(x, y, arr, out);
         });
     });
     getMicroTime();
 }
 
 fn iteration_bounds(width : int, height : int, ksize : int,
-                    body : fn(int, int, int) -> void
+                    arr : [float], out : [float],
+                    body : fn(int, int, [float], [float], int) -> void
                    ) -> void {
     let L = 8;
 
@@ -44,7 +48,7 @@ fn iteration_bounds(width : int, height : int, ksize : int,
         $iterate(bounds[2], bounds[3], |y: int| -> void {
             vectorized(bounds[1]-bounds[0], L, || -> void {
                 let x = wfv_get_tid();
-                body(x, y, region);
+                body(x, y, arr, out, region);
             });
         });
     });
@@ -52,18 +56,29 @@ fn iteration_bounds(width : int, height : int, ksize : int,
 }
 
 fn iteration_sep(width : int, height : int,
-                 body_col : fn(int, int) -> void,
-                 body_row : fn(int, int) -> void
+                 arr : [float], out : [float],
+                 body_col : fn(int, int, [float], [float]) -> void,
+                 body_row : fn(int, int, [float], [float]) -> void
                 ) -> void {
-    getMicroTime();
-    for (let mut y=0; y<height; ++y)
-        for (let mut x=0; x<width; ++x)
-            body_col(x, y);
+    // allocate temporary array
+    let mut tmp = array(4, width, height);
+    init_zero(tmp, $width, $height);
 
-    for (let mut y=0; y<height; ++y)
-        for (let mut x=0; x<width; ++x)
-            body_row(x, y);
     getMicroTime();
+    $iterate(0, height, |y: int| -> void {
+        $iterate(0, width, |x: int| -> void {
+            body_col(x, y, arr, tmp);
+        });
+    });
+
+    $iterate(0, height, |y: int| -> void {
+        $iterate(0, width, |x: int| -> void {
+            body_row(x, y, tmp, out);
+        });
+    });
+    getMicroTime();
+
+    free_array(tmp);
 }
 
 fn iteration_sep_advanced(width : int, height : int,
@@ -74,12 +89,14 @@ fn iteration_sep_advanced(width : int, height : int,
     let tmp = array(4, width, 1);
 
     getMicroTime();
-    for (let mut y=1; y<height-1; ++y) {
-        for (let mut x=0; x<width; ++x)
+    $iterate(1, height-1, |y: int| -> void {
+        $iterate(0, width, |x: int| -> void {
             body_col(x, y, arr, tmp);
-        for (let mut x=0; x<width; ++x)
+        });
+        $iterate(0, width, |x: int| -> void {
             body_row(x, y, tmp, out);
-    }
+        });
+    });
     getMicroTime();
 
     free_array(tmp);

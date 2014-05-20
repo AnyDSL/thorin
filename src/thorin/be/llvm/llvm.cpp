@@ -104,8 +104,10 @@ void CodeGen::emit() {
         if (lambda->attribute().is(Lambda::Intrinsic)) {
             name = get_intrinsic_name(name);
             f = emit_intrinsic_decl(name, lambda);
-        } else
+        } else {
+            if (!lambda->attribute().is(Lambda::Extern)) name = lambda->unique_name();
             f = emit_function_decl(name, lambda);
+        }
 
         assert(f != nullptr && "invalid function declaration");
         fcts_.emplace(lambda, f);

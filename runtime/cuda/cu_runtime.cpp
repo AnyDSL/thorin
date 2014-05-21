@@ -313,45 +313,36 @@ void create_module_kernel(size_t dev, const char *ptx, const char *kernel_name, 
 
 // computes occupancy for kernel function
 void print_kernel_occupancy(size_t dev, const char *kernel_name) {
-    cudaOccDeviceProp dev_props;
-    cudaOccFuncAttributes fun_attrs;
-    cudaOccDeviceState dev_state { CACHE_PREFER_NONE };
-    int major, minor, maxThreadsPerBlock, maxThreadsPerMultiProcessor, regsPerBlock, regsPerMultiprocessor, warpSize, sharedMemPerBlock, sharedMemPerMultiprocessor;
-    int funcMaxThreadsPerBlock, numRegs, sharedSizeBytes;
+    #if CUDA_VERSION >= 6050
     CUresult err = CUDA_SUCCESS;
-
-    err = cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, cuDevices[dev]);                                   checkErrDrv(err, "cuDeviceGetAttribute()");
-    err = cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, cuDevices[dev]);                                   checkErrDrv(err, "cuDeviceGetAttribute()");
-    err = cuDeviceGetAttribute(&maxThreadsPerBlock, CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK, cuDevices[dev]);                         checkErrDrv(err, "cuDeviceGetAttribute()");
-    err = cuDeviceGetAttribute(&maxThreadsPerMultiProcessor, CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_MULTIPROCESSOR, cuDevices[dev]);       checkErrDrv(err, "cuDeviceGetAttribute()");
-    err = cuDeviceGetAttribute(&regsPerBlock, CU_DEVICE_ATTRIBUTE_MAX_REGISTERS_PER_BLOCK, cuDevices[dev]);                             checkErrDrv(err, "cuDeviceGetAttribute()");
-    err = cuDeviceGetAttribute(&regsPerMultiprocessor, CU_DEVICE_ATTRIBUTE_MAX_REGISTERS_PER_MULTIPROCESSOR, cuDevices[dev]);           checkErrDrv(err, "cuDeviceGetAttribute()");
-    err = cuDeviceGetAttribute(&warpSize, CU_DEVICE_ATTRIBUTE_WARP_SIZE, cuDevices[dev]);                                               checkErrDrv(err, "cuDeviceGetAttribute()");
-    err = cuDeviceGetAttribute(&sharedMemPerBlock, CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK, cuDevices[dev]);                    checkErrDrv(err, "cuDeviceGetAttribute()");
-    err = cuDeviceGetAttribute(&sharedMemPerMultiprocessor, CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_MULTIPROCESSOR, cuDevices[dev]);  checkErrDrv(err, "cuDeviceGetAttribute()");
-    cudaOccSetDeviceProp(&dev_props, major, minor, sharedMemPerBlock, sharedMemPerMultiprocessor, regsPerBlock, regsPerMultiprocessor, warpSize, maxThreadsPerBlock, maxThreadsPerMultiProcessor);
-
-    err = cuFuncGetAttribute(&funcMaxThreadsPerBlock, CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK, cuFunctions[dev]);   checkErrDrv(err, "cuFuncGetAttribute()");
-    err = cuFuncGetAttribute(&numRegs, CU_FUNC_ATTRIBUTE_NUM_REGS, cuFunctions[dev]);                               checkErrDrv(err, "cuFuncGetAttribute()");
-    err = cuFuncGetAttribute(&sharedSizeBytes, CU_FUNC_ATTRIBUTE_SHARED_SIZE_BYTES, cuFunctions[dev]);              checkErrDrv(err, "cuFuncGetAttribute()");
-    cudaOccSetFuncAttributes(&fun_attrs, funcMaxThreadsPerBlock, numRegs, sharedSizeBytes);
-
-    int blockSize = cuDimBlock[dev].x*cuDimBlock[dev].y;
+    int warp_size;
+    int block_size = cuDimBlock[dev].x*cuDimBlock[dev].y;
     size_t dynamic_smem_bytes = 0;
-    cudaOccResult fun_occ;
-    int active_blocks = cudaOccMaxActiveBlocksPerMultiprocessor(&dev_props, &fun_attrs, blockSize, dynamic_smem_bytes, &dev_state, &fun_occ);
-    int opt_block_size = cudaOccMaxPotentialOccupancyBlockSize(&dev_props, &fun_attrs, &dev_state, dynamic_smem_bytes);
-    int active_warps = active_blocks * (blockSize/warpSize);
+    int block_size_limit = 0;
+
+    err = cuDeviceGetAttribute(&warp_size, CU_DEVICE_ATTRIBUTE_WARP_SIZE, cuDevices[dev]);
+    checkErrDrv(err, "cuDeviceGetAttribute()");
+
+    int active_blocks;
+    int min_grid_size, opt_block_size;
+    err = cuOccupancyMaxActiveBlocksPerMultiprocessor(&active_blocks, cuFunctions[dev], block_size, dynamic_smem_bytes);
+    checkErrDrv(err, "cuOccupancyMaxActiveBlocksPerMultiprocessor()");
+    err = cuOccupancyMaxPotentialBlockSize(&min_grid_size, &opt_block_size, cuFunctions[dev], NULL, dynamic_smem_bytes, block_size_limit);
+    checkErrDrv(err, "cuOccupancyMaxPotentialBlockSize()");
 
     // re-compute with optimal block size
-    cudaOccMaxActiveBlocksPerMultiprocessor(&dev_props, &fun_attrs, opt_block_size, dynamic_smem_bytes, &dev_state, &fun_occ);
-    int max_blocks = std::min(fun_occ.blockLimitRegs, std::min(fun_occ.blockLimitSharedMem, std::min(fun_occ.blockLimitWarps, fun_occ.blockLimitBlocks)));
-    int max_warps = max_blocks * (opt_block_size/warpSize);
+    int max_blocks;
+    err = cuOccupancyMaxActiveBlocksPerMultiprocessor(&max_blocks, cuFunctions[dev], opt_block_size, dynamic_smem_bytes);
+    checkErrDrv(err, "cuOccupancyMaxActiveBlocksPerMultiprocessor()");
+
+    int max_warps = max_blocks * (opt_block_size/warp_size);
+    int active_warps = active_blocks * (block_size/warp_size);
     float occupancy = (float)active_warps/(float)max_warps;
     std::cerr << "Occupancy for kernel '" << kernel_name << "' is "
               << std::fixed << std::setprecision(2) << occupancy << ": "
               << active_warps << " out of " << max_warps << " warps" << std::endl
               << "Optimal block size for max occupancy: " << opt_block_size << std::endl;
+    #endif
 }
 
 

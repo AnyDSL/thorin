@@ -72,7 +72,7 @@ private:
 
 public:
     Box value() const { return box_; }
-#define THORIN_ALL_TYPE(T) T T##_value() const { return value().get_##T(); }
+#define THORIN_ALL_TYPE(T, M) T T##_value() const { return value().get_##T(); }
 #include "thorin/tables/primtypetable.h"
     
     PrimType primtype() const { return type().as<PrimType>(); }
@@ -94,7 +94,7 @@ template<class T>
 T DefNode::primlit_value() const {
     const PrimLit* lit = this->as<PrimLit>();
     switch (lit->primtype_kind()) {
-#define THORIN_ALL_TYPE(T) case PrimType_##T: return lit->value().get_##T();
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit->value().get_##T();
 #include "thorin/tables/primtypetable.h"
         default: THORIN_UNREACHABLE;
     }

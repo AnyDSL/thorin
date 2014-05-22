@@ -213,15 +213,15 @@ typedef double f64; typedef Float<f64, true> pf64; typedef Float<f64, false>  qf
 
 // define literals - not yet supported by MSVC
 #if (__cplusplus >= 201103L) && !defined(_MSC_VER)
-#define THORIN_I_TYPE(T) inline T operator "" _##T(unsigned long long int val) { return T(val); }
-#define THORIN_F_TYPE(T) inline T operator "" _##T(long double            val) { return T(val); }
+#define THORIN_I_TYPE(T, M) inline T operator "" _##T(unsigned long long int val) { return T(val); }
+#define THORIN_F_TYPE(T, M) inline T operator "" _##T(long double            val) { return T(val); }
 #include "thorin/tables/primtypetable.h"
 #endif
 
 union Box {
 public:
     Box()      { reset(); }
-#define THORIN_ALL_TYPE(T) Box(T val) { reset(); T##_ = val; }
+#define THORIN_ALL_TYPE(T, M) Box(T val) { reset(); M##_ = val; }
 #include "thorin/tables/primtypetable.h"
     Box( s8 val) { reset();  s8_ = val; } Box( u8 val) { reset();  u8_ = val; }
     Box(s16 val) { reset(); s16_ = val; } Box(u16 val) { reset(); u16_ = val; }
@@ -232,8 +232,8 @@ public:
 
     bool operator == (const Box& other) const { return bcast<uint64_t, Box>(*this) == bcast<uint64_t, Box>(other); }
     template <typename T> inline T get() { THORIN_UNREACHABLE; } 
-#define THORIN_ALL_TYPE(T) \
-    T get_##T() const { return T##_; }
+#define THORIN_ALL_TYPE(T, M) \
+    T get_##T() const { return (T)M##_; }
 #include "thorin/tables/primtypetable.h"
      s8  get_s8() const { return  s8_; }  u8  get_u8() const { return  u8_; }
     s16 get_s16() const { return s16_; } u16 get_u16() const { return u16_; }
@@ -245,8 +245,7 @@ public:
 private:
     void reset() { memset(this, 0, sizeof(Box)); }
 
-#define THORIN_ALL_TYPE(T) T T##_;
-#include "thorin/tables/primtypetable.h"
+    bool bool_;
     s8 s8_; s16 s16_; s32 s32_; s64 s64_;
     u8 u8_; u16 u16_; u32 u32_; u64 u64_;
     f32 f32_; f64 f64_;
@@ -254,7 +253,7 @@ private:
 
 static_assert(sizeof(Box) == sizeof(uint64_t), "Box has incorrect size in bytes");
 
-#define THORIN_ALL_TYPE(T) template <> inline  T Box::get<T>() { return T##_; }
+#define THORIN_ALL_TYPE(T, M) template <> inline  T Box::get<T>() { return M##_; }
 #include "thorin/tables/primtypetable.h"
 
 inline size_t hash_value(Box box) { return hash_value(bcast<u64, Box>(box)); }

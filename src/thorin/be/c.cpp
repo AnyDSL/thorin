@@ -546,7 +546,7 @@ std::ostream& CCodeGen::emit(Def def) {
 
     if (auto primlit = def->isa<PrimLit>()) {
         switch (primlit->primtype_kind()) {
-#define THORIN_ALL_TYPE(T) case PrimType_##T: stream() << primlit->T##_value(); break;
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: stream() << primlit->T##_value(); break;
 #include "thorin/tables/primtypetable.h"
             default: THORIN_UNREACHABLE; break;
         }

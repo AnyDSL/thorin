@@ -46,7 +46,7 @@ enum Markers {
 };
 
 enum PrimTypeKind {
-#define THORIN_ALL_TYPE(T) PrimType_##T = Node_PrimType_##T,
+#define THORIN_ALL_TYPE(T, M) PrimType_##T = Node_PrimType_##T,
 #include "thorin/tables/primtypetable.h"
 };
 
@@ -88,11 +88,11 @@ inline bool is_associative(int kind) { return kind == ArithOp_add || kind == Ari
                                            || kind == ArithOp_and || kind == ArithOp_or || kind == ArithOp_xor; }
 
 template<PrimTypeKind kind> struct kind2type {};
-#define THORIN_ALL_TYPE(T) template<> struct kind2type<PrimType_##T> { typedef T type; };
+#define THORIN_ALL_TYPE(T, M) template<> struct kind2type<PrimType_##T> { typedef T type; };
 #include "thorin/tables/primtypetable.h"
 
 template<class T> struct type2kind {};
-#define THORIN_ALL_TYPE(T) template<> struct type2kind<T> { static const PrimTypeKind kind = PrimType_##T; };
+#define THORIN_ALL_TYPE(T, M) template<> struct type2kind<T> { static const PrimTypeKind kind = PrimType_##T; };
 #include "thorin/tables/primtypetable.h"
 
 const char* kind2str(NodeKind kind);

@@ -71,7 +71,7 @@ public:
      * types
      */
 
-#define THORIN_ALL_TYPE(T) PrimType type_##T(size_t length = 1) { \
+#define THORIN_ALL_TYPE(T, M) PrimType type_##T(size_t length = 1) { \
     return length == 1 ? PrimType(T##_) : join(new PrimTypeNode(*this, PrimType_##T, length)); \
 }
 #include "thorin/tables/primtypetable.h"
@@ -100,7 +100,7 @@ public:
      * literals
      */
 
-#define THORIN_ALL_TYPE(T) \
+#define THORIN_ALL_TYPE(T, M) \
     Def literal_##T(T val, size_t length = 1) { return literal(PrimType_##T, Box(val), length); }
 #include "thorin/tables/primtypetable.h"
     Def literal(PrimTypeKind kind, Box value, size_t length = 1);
@@ -294,7 +294,7 @@ private:
 
             union {
                 struct {
-#define THORIN_ALL_TYPE(T) const PrimTypeNode* T##_;
+#define THORIN_ALL_TYPE(T, M) const PrimTypeNode* T##_;
 #include "thorin/tables/primtypetable.h"
                 };
 

@@ -45,7 +45,7 @@ private:
             const TypeNode* type_;
             const char* name_;
         };
-        Def def_;
+        const DefNode* def_;
         struct {
             const Slot* slot_;
         };

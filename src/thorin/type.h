@@ -27,7 +27,6 @@ public:
 
     bool empty() const { return node_ == nullptr; }
     bool operator == (const Proxy<T>& other) const {
-        assert(node_ != nullptr);         
         assert(&node()->world() == &other.node()->world());
         return this->node()->unify() == other.node()->unify();
     }
@@ -54,6 +53,7 @@ public:
         return *this; 
     }
     void clear() { assert(node_ != nullptr); node_ = nullptr; }
+    Proxy<T> unify() const { return node()->unify()->template as<T>(); }
 
 private:
     const T* node_;
@@ -149,6 +149,7 @@ public:
 
     virtual size_t hash() const;
     virtual bool equal(const TypeNode*) const;
+    virtual bool is_closed() const;
 
 protected:
     Array<Type> specialize_elems(Type2Type&) const;
@@ -361,8 +362,9 @@ private:
     {}
 
 public:
-    bool equal(const TypeNode*);
     Type bound_at() const { return Type(bound_at_); }
+    virtual bool equal(const TypeNode*) const override;
+    virtual bool is_closed() const override { return bound_at_ != nullptr; }
 
 private:
     virtual Type vinstantiate(Type2Type&) const override;

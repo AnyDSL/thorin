@@ -33,6 +33,14 @@ int TypeNode::order() const {
     return sub;
 }
 
+bool TypeNode::is_closed() const {
+    for (auto elem : elems()) {
+        if (!elem->is_closed())
+            return false;
+    }
+    return true;
+}
+
 void TypeNode::dump() const { emit_type(Type(this)); std::cout << std::endl; }
 size_t TypeNode::length() const { return as<VectorTypeNode>()->length(); }
 Type TypeNode::elem_via_lit(const Def& def) const { return elem(def->primlit_value<size_t>()); }
@@ -74,6 +82,7 @@ bool FnTypeNode::is_returning() const {
     }
     return true;
 }
+
 //------------------------------------------------------------------------------
 
 /*
@@ -124,7 +133,7 @@ bool PtrTypeNode::equal(const TypeNode* other) const {
     return ptr->device() == device() && ptr->addr_space() == addr_space();
 }
 
-bool TypeVarNode::equal(const TypeNode* other) {
+bool TypeVarNode::equal(const TypeNode* other) const {
     if (auto typevar = other->isa<TypeVarNode>())
         return this->equiv_ == typevar;
     return false;

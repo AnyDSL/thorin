@@ -843,6 +843,10 @@ const Param* World::param(Type type, Lambda* lambda, size_t index, const std::st
  */
 
 const TypeNode* World::unify_base(const TypeNode* type) {
+    assert(type->is_closed());
+    if (type->is_unified())
+        return type->representative();
+
     auto i = types_.find(type);
     if (i != types_.end()) {
         auto representative = *i;

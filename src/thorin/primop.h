@@ -12,8 +12,10 @@ namespace thorin {
 class PrimOp : public DefNode {
 protected:
     PrimOp(size_t size, NodeKind kind, Type type, const std::string& name)
-        : DefNode(-1, kind, size, type, true, name)
+        : DefNode(-1, kind, size, type ? type.unify() : nullptr, true, name)
     {}
+
+    void set_type(Type type) { type_ = type.unify(); }
 
 public:
     virtual const char* op_name() const;

@@ -91,7 +91,10 @@ public:
     Array(Array&& array)
         : ptr_(std::move(array.ptr_))
         , size_(std::move(array.size_))
-    {}
+    {
+        array.ptr_ = nullptr;
+        array.size_ = 0;
+    }
     Array(const Array& array)
         : ptr_(new T[array.size()])
         , size_(array.size())

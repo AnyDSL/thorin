@@ -15,7 +15,7 @@ void inliner(World& world) {
                 if (Lambda* ulambda = use->isa_lambda()) {
                     if (ulambda->to() == top) {
                         if (!scope->contains(ulambda))
-                            ulambda->jump(drop(*scope, ulambda->args()), {});
+                            ulambda->jump(drop(*scope, ulambda->args()), std::initializer_list<Def>());
                     }
                 }
             }

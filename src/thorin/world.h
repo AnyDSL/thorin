@@ -87,10 +87,10 @@ public:
     PtrType     ptr_type(Type referenced_type, size_t length = 1, uint32_t device = 0, AddressSpace adr_space = AddressSpace::Global) {
         return join(new PtrTypeNode(*this, referenced_type, length, device, adr_space)); 
     }
-    TupleType           tuple_type() { return TupleType(tuple0_); }         ///< Returns unit, i.e., an empty \p TupleType.
+    TupleType           tuple_type() { return tuple0_; } ///< Returns unit, i.e., an empty \p TupleType.
     TupleType           tuple_type(ArrayRef<Type> elems) { return join(new TupleTypeNode(*this, elems)); }
     StructType          struct_type(size_t size, const std::string& name = "");
-    FnType              fn_type() { return FnType(fn0_); }                  ///< Returns an empty \p FnType.
+    FnType              fn_type() { return fn0_; }       ///< Returns an empty \p FnType.
     FnType              fn_type(ArrayRef<Type> elems) { return join(new FnTypeNode(*this, elems)); }
     TypeVar             type_var() { return join(new TypeVarNode(*this)); }
     DefiniteArrayType   definite_array_type(Type elem, u64 dim) { return join(new DefiniteArrayTypeNode(*this, elem, dim)); }

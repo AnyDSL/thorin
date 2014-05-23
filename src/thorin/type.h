@@ -76,10 +76,10 @@ class TypeVarNode;              typedef Proxy<TypeVarNode>              TypeVar;
 template<class T> struct GIDHash;
 template<class T> struct GIDEq;
 template<class To> 
-using TypeMap   = HashMap<const TypeNode*, To, GIDHash<const TypeNode*>, GIDEq<const TypeNode*>>;
-using TypeSet   = HashSet<const TypeNode*, GIDHash<const TypeNode*>, GIDEq<const TypeNode*>>;
-using Type2Type = TypeMap<const TypeNode*>;
-using TypeVarSet   = HashSet<const TypeVarNode*, GIDHash<const TypeVarNode*>, GIDEq<const TypeVarNode*>>;
+using TypeMap    = HashMap<const TypeNode*, To, GIDHash<const TypeNode*>, GIDEq<const TypeNode*>>;
+using TypeSet    = HashSet<const TypeNode*, GIDHash<const TypeNode*>, GIDEq<const TypeNode*>>;
+using Type2Type  = TypeMap<const TypeNode*>;
+using TypeVarSet = HashSet<const TypeVarNode*, GIDHash<const TypeVarNode*>, GIDEq<const TypeVarNode*>>;
 
 //------------------------------------------------------------------------------
 

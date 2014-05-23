@@ -44,11 +44,11 @@ namespace thorin {
 World::World(std::string name)
     : name_(name)
     , gid_(0)
-    , tuple0_ (*unify(new TupleTypeNode(*this, ArrayRef<Type>())))
-    , fn0_    (*unify(new FnTypeNode   (*this, ArrayRef<Type>())))
-    , mem_    (*unify(new MemTypeNode  (*this)))
-    , frame_  (*unify(new FrameTypeNode(*this)))
-#define THORIN_ALL_TYPE(T, M) ,T##_(*unify(new PrimTypeNode(*this, PrimType_##T, 1)))
+    , tuple0_ (*unify(*join(new TupleTypeNode(*this, ArrayRef<Type>()))))
+    , fn0_    (*unify(*join(new FnTypeNode   (*this, ArrayRef<Type>()))))
+    , mem_    (*unify(*join(new MemTypeNode  (*this))))
+    , frame_  (*unify(*join(new FrameTypeNode(*this))))
+#define THORIN_ALL_TYPE(T, M) ,T##_(*unify(*join(new PrimTypeNode(*this, PrimType_##T, 1))))
 #include "thorin/tables/primtypetable.h"
 {}
 

@@ -1,21 +1,21 @@
-intrinsic get_work_dim() -> int32;
-intrinsic get_global_size(int32) -> int64;
-intrinsic get_global_id(int32) -> int64;
-intrinsic get_local_size(int32) -> int64;
-intrinsic get_local_id(int32) -> int64;
-intrinsic get_num_groups(int32) -> int64;
-intrinsic get_group_id(int32) -> int64;
-intrinsic get_global_offset(int32) -> int64;
-intrinsic barrier(int32) -> void;
+intrinsic get_work_dim() -> i32;
+intrinsic get_global_size(i32) -> i64;
+intrinsic get_global_id(i32) -> i64;
+intrinsic get_local_size(i32) -> i64;
+intrinsic get_local_id(i32) -> i64;
+intrinsic get_num_groups(i32) -> i64;
+intrinsic get_group_id(i32) -> i64;
+intrinsic get_global_offset(i32) -> i64;
+intrinsic barrier(i32) -> ();
 intrinsic exp(float) -> float;
 fn expf(a: float) -> float {
-    return exp(a);
+    exp(a)
 }
 
-fn global_size(idx : int) -> int { return int64_to_int32(get_global_size(idx)); }
-fn global_id(idx : int) -> int { return int64_to_int32(get_global_id(idx)); }
-fn local_size(idx : int) -> int { return int64_to_int32(get_local_size(idx)); }
-fn local_id(idx : int) -> int { return int64_to_int32(get_local_id(idx)); }
-fn num_groups(idx : int) -> int { return int64_to_int32(get_num_groups(idx)); }
-fn group_id(idx : int) -> int { return int64_to_int32(get_group_id(idx)); }
-fn global_offset(idx : int) -> int { return int64_to_int32(get_global_offset(idx)); }
+fn global_size(idx : int) -> int {   int64_to_int32(get_global_size(idx)) }
+fn global_id(idx : int) -> int {     int64_to_int32(get_global_id(idx)) }
+fn local_size(idx : int) -> int {    int64_to_int32(get_local_size(idx)) }
+fn local_id(idx : int) -> int {      int64_to_int32(get_local_id(idx)) }
+fn num_groups(idx : int) -> int {    int64_to_int32(get_num_groups(idx)) }
+fn group_id(idx : int) -> int {      int64_to_int32(get_group_id(idx)) }
+fn global_offset(idx : int) -> int { int64_to_int32(get_global_offset(idx)) }

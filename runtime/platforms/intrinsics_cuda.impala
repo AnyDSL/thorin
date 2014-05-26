@@ -1,4 +1,4 @@
-extern "naked" {
+extern "raw" {
     fn threadIdx_x() -> i32;
     fn threadIdx_y() -> i32;
     fn threadIdx_z() -> i32;

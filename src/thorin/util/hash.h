@@ -37,7 +37,7 @@ template<> struct FNV1<8> {
 template<class T>
 size_t hash_combine(size_t seed, T val) {
     THORIN_SUPPORTED_HASH_TYPES
-    if (std::is_signed<T>::value)  
+    if (std::is_signed<T>::value)
         return hash_combine(seed, typename std::make_unsigned<T>::type(val));
     assert(std::is_unsigned<T>::value);
     for (size_t i = 0; i < sizeof(T); ++i) {
@@ -55,11 +55,11 @@ size_t hash_combine(size_t seed, T* val) { return hash_combine(seed, uintptr_t(v
 template<class T>
 size_t hash_begin(T val) { return hash_combine(FNV1<sizeof(size_t)>::offset, val); }
 
-template<class T> 
+template<class T>
 struct Hash {
     size_t operator() (T val) const {
         THORIN_SUPPORTED_HASH_TYPES
-        if (std::is_signed<T>::value)  
+        if (std::is_signed<T>::value)
             return Hash<typename std::make_unsigned<T>::type>()(val);
         assert(std::is_unsigned<T>::value);
         if (sizeof(size_t) >= sizeof(T))
@@ -68,10 +68,10 @@ struct Hash {
     }
 };
 
-template<class T> 
+template<class T>
 size_t hash_value(T val) { return Hash<T>()(val); }
 
-template<class T> 
+template<class T>
 struct Hash<T*> {
     size_t operator() (T* val) const { return Hash<uintptr_t>()(uintptr_t(val)); }
 };
@@ -83,13 +83,13 @@ class HashTable {
 private:
     class Node {
     private:
-        template<class Key_, class T_> 
+        template<class Key_, class T_>
         struct get_key { static const Key_& get(const std::pair<Key_, T_>& pair) { return pair.first; } };
 
         template<class Key_>
         struct get_key<Key_, void> { static const Key_& get(const Key_& key) { return key; } };
 
-        template<class Key_, class T_> 
+        template<class Key_, class T_>
         struct get_value { static const T_& get(const std::pair<Key_, T_>& pair) { return pair.second; } };
 
         template<class Key_>
@@ -129,17 +129,17 @@ private:
         typedef typename std::conditional<is_const, const value_type*, value_type*>::type pointer;
         typedef std::forward_iterator_tag iterator_category;
 
-        iterator_base(Node** node, const HashTable* table) 
+        iterator_base(Node** node, const HashTable* table)
             : node_(node)
 #ifndef NDEBUG
-            , table_(table) 
+            , table_(table)
             , id_(table->id())
 #endif
         {}
-        iterator_base(const iterator_base<false>& i) 
+        iterator_base(const iterator_base<false>& i)
             : node_(i.node_)
 #ifndef NDEBUG
-            , table_(i.table_) 
+            , table_(i.table_)
             , id_(i.id_)
 #endif
         {}
@@ -155,15 +155,15 @@ private:
             using std::swap;
             swap(i1.node_,  i2.node_);
 #ifndef NDEBUG
-            swap(i1.table_, i2.table_); 
-            swap(i1.id_,    i2.id_); 
+            swap(i1.table_, i2.table_);
+            swap(i1.id_,    i2.id_);
 #endif
         }
 
     private:
         static Node** move_to_valid(Node** n) {
             while (!is_valid(n) && !is_end(n)) ++n;
-            return n; 
+            return n;
         }
 
         Node** node_;
@@ -252,7 +252,7 @@ public:
 
     // emplace/insert
     template<class... Args>
-    std::pair<iterator,bool> emplace(Args&&... args) { 
+    std::pair<iterator,bool> emplace(Args&&... args) {
 #ifndef NDEBUG
         ++id_;
 #endif
@@ -285,9 +285,9 @@ public:
     std::pair<iterator, bool> insert(const value_type& value) { return emplace(value); }
     std::pair<iterator, bool> insert(value_type&& value) { return emplace(value); }
     template<class InputIt>
-    void insert(InputIt first, InputIt last) { 
-        for (auto i = first; i != last; ++i) 
-            insert(*i); 
+    void insert(InputIt first, InputIt last) {
+        for (auto i = first; i != last; ++i)
+            insert(*i);
     }
     void insert(std::initializer_list<value_type> ilist) { insert(ilist.begin(), ilist.end()); }
 
@@ -303,7 +303,7 @@ public:
         return iterator(iterator::move_to_valid(pos.node_), this);
     }
     iterator erase(const_iterator first, const_iterator last) {
-        for (auto i = first; i != last; ++i) 
+        for (auto i = first; i != last; ++i)
             erase(i);
         return last;
     }
@@ -364,13 +364,13 @@ public:
     // copy/move stuff
     friend void swap(HashTable& table1, HashTable& table2) {
         using std::swap;
-        swap(table1.capacity_,      table2.capacity_); 
-        swap(table1.size_,          table2.size_); 
-        swap(table1.nodes_,         table2.nodes_); 
-        swap(table1.hash_function_, table2.hash_function_); 
-        swap(table1.key_eq_,        table2.key_eq_); 
+        swap(table1.capacity_,      table2.capacity_);
+        swap(table1.size_,          table2.size_);
+        swap(table1.nodes_,         table2.nodes_);
+        swap(table1.hash_function_, table2.hash_function_);
+        swap(table1.key_eq_,        table2.key_eq_);
 #ifndef NDEBUG
-        swap(table1.id_,            table2.id_); 
+        swap(table1.id_,            table2.id_);
 #endif
     }
     HashTable& operator= (HashTable other) { swap(*this, other); return *this; }
@@ -468,15 +468,15 @@ T* find(const HashMap<Key, T*, Hasher, KeyEqual>& map, const typename HashMap<Ke
     return i == map.end() ? nullptr : i->second;
 }
 
-template<class Key, class Hasher, class KeyEqual, class Arg> 
-bool visit(HashSet<Key, Hasher, KeyEqual>& set, const Arg& key) { 
-    return !set.insert(key).second; 
+template<class Key, class Hasher, class KeyEqual, class Arg>
+bool visit(HashSet<Key, Hasher, KeyEqual>& set, const Arg& key) {
+    return !set.insert(key).second;
 }
 
-template<class Key, class Hasher, class KeyEqual, class Arg> 
-void visit_first(HashSet<Key, Hasher, KeyEqual>& set, const Arg& key) { 
-    assert(!set.contains(key)); 
-    visit(set, key); 
+template<class Key, class Hasher, class KeyEqual, class Arg>
+void visit_first(HashSet<Key, Hasher, KeyEqual>& set, const Arg& key) {
+    assert(!set.contains(key));
+    visit(set, key);
 }
 
 //------------------------------------------------------------------------------

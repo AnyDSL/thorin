@@ -1,6 +1,7 @@
 #ifndef THORIN_UTIL_HASH_H
 #define THORIN_UTIL_HASH_H
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <functional>

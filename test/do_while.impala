@@ -1,7 +1,0 @@
-fn main(mut i: int) -> int {
-    do {
-        ++i;
-    } while (i < 42);
-
-    return i;
-}

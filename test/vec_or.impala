@@ -1,6 +1,0 @@
-fn main(i : int) -> int {
-    let mut res : int = 23;
-    if (i == 0 || i == 23)
-        res = 42;
-    return res;
-}

@@ -1,8 +1,0 @@
-fn main(mut i : int) -> int {
-    if (3 == 4) {
-        i++;
-    } else
-        --i;
-
-    return i;
-}

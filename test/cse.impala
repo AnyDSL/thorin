@@ -1,7 +1,0 @@
-fn f(a : int, b : int) -> int {
-    return a*b*3 + a*b*3;
-}
-
-fn main(i: int) -> int {
-    return f(i, i);
-}

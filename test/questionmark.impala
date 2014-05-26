@@ -1,3 +1,0 @@
-fn main(i : int) -> int {
-    return i == 0 ? i : 42;
-}

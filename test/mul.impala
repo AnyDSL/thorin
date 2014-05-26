@@ -1,3 +1,0 @@
-fn main(i : int, j : int) -> int {
-    return 4 * ((6 * i) * j);
-}

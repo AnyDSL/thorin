@@ -1,9 +1,0 @@
-fn f(i : int) -> int {
-    if (i == 42)
-        return 1;
-    return 2;
-}
-
-fn main(i : int) -> int {
-    return f(0);
-}

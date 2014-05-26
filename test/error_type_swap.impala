@@ -1,3 +1,0 @@
-fn main<T, U>(t : T, u : U) -> int {
-    return main(u, t);
-}

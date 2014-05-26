@@ -1,3 +1,0 @@
-fn main(i : int) -> int {
-    return -1 + i;
-}

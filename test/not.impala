@@ -1,6 +1,0 @@
-fn main(i : int) -> int {
-    if ( ~~~(i == 42) ) 
-        return 42;
-    else
-        return 23;
-}

@@ -1,8 +1,0 @@
-fn main(i : int) -> bool {
-    let mut result : int;
-    if (i == 0 || i == 1)
-        result = 23;
-    else
-        result = 43;
-    return (result == 23 && i < 18) || i == 42;
-}

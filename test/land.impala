@@ -1,3 +1,0 @@
-fn main(i : int) -> bool {
-    return !(i == 0 && i == 23);
-}

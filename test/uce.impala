@@ -1,7 +1,0 @@
-fn f(i : int) -> int {
-    return g(i);
-}
-
-fn g(i : int) -> int {
-    return f(i);
-}

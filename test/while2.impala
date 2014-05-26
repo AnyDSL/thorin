@@ -1,9 +1,0 @@
-fn main(n : int) -> int {
-    let mut res : int = 0;
-    for (let mut i : int = 0; i < n; ++i) {
-        for (let mut j : int = 0; i < j; ++i)
-            res += i*j;
-    }
-
-    return res;
-}

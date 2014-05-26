@@ -1,6 +1,6 @@
 extern "thorin" {
-    fn map([float], int, int, (int, int, int), (int, int, int)) -> [float];
-    fn unmap([float], int, int) -> ();
+    fn map(&[float], int, int, (int, int, int), (int, int, int)) -> &[float];
+    fn unmap(&[float], int, int) -> ();
 
     fn cuda(int, (int, int, int), (int, int, int), fn() -> ()) -> ();
     fn nvvm(int, (int, int, int), (int, int, int), fn() -> ()) -> ();

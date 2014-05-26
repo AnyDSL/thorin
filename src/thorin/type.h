@@ -1,66 +1,136 @@
 #ifndef THORIN_TYPE_H
 #define THORIN_TYPE_H
 
-#include "thorin/def.h"
+#include "thorin/enums.h"
 #include "thorin/util/array.h"
+#include "thorin/util/cast.h"
 #include "thorin/util/hash.h"
 
 namespace thorin {
 
-class Generic;
-class Lambda;
-class Pi;
-class PrimLit;
-class Ptr;
-class Type;
+class Def;
 class World;
 
 //------------------------------------------------------------------------------
 
-class GenericMap {
+template<class T>
+class Proxy {
 public:
-    GenericMap() {}
+    typedef T BaseType;
 
-    const Type*& operator [] (const Generic* generic) const;
-    bool is_empty() const;
-    std::string to_string() const;
+    Proxy()
+        : node_(nullptr)
+    {}
+    Proxy(const T* node)
+        : node_(node)
+    {}
+
+    bool empty() const { return node_ == nullptr; }
+    bool operator == (const Proxy<T>& other) const {
+        assert(&node()->world() == &other.node()->world());
+        return this->node()->unify() == other.node()->unify();
+    }
+    bool operator != (const Proxy<T>& other) const { return !(*this == other); }
+    const T* representative() const { return node()->representative()->template as<T>(); }
+    const T* node() const { assert(node_ != nullptr); return node_; }
+    const T* operator  * () const { return node()->is_unified() ? representative() : node(); }
+    const T* operator -> () const { return *(*this); }
+    /// Automatic up-cast in the class hierarchy.
+    template<class U> operator Proxy<U>() {
+        static_assert(std::is_base_of<U, T>::value, "U is not a base type of T");
+        return Proxy<U>((**this)->template as<T>());
+    }
+    template<class U> Proxy<typename U::BaseType> isa() const { 
+        return Proxy<typename U::BaseType>((*this)->isa<typename U::BaseType>()); 
+    }
+    template<class U> Proxy<typename U::BaseType> as() const { 
+        return Proxy<typename U::BaseType>((*this)->as <typename U::BaseType>()); 
+    }
+    operator bool() { return !empty(); }
+    Proxy<T>& operator= (Proxy<T> other) { 
+        assert(node_ == nullptr);
+        node_ = *other; 
+        return *this; 
+    }
+    void clear() { assert(node_ != nullptr); node_ = nullptr; }
+    Proxy<T> unify() const { return node()->unify()->template as<T>(); }
 
 private:
-    mutable std::vector<const Type*> types_;
+    const T* node_;
 };
+
+class TypeNode;                 typedef Proxy<TypeNode>                 Type;
+class MemTypeNode;              typedef Proxy<MemTypeNode>              MemType;
+class FrameTypeNode;            typedef Proxy<FrameTypeNode>            FrameType;
+class VectorTypeNode;           typedef Proxy<VectorTypeNode>           VectorType;
+class PrimTypeNode;             typedef Proxy<PrimTypeNode>             PrimType;
+class PtrTypeNode;              typedef Proxy<PtrTypeNode>              PtrType;
+class TupleTypeNode;            typedef Proxy<TupleTypeNode>            TupleType;
+class StructTypeNode;           typedef Proxy<StructTypeNode>           StructType;
+class FnTypeNode;               typedef Proxy<FnTypeNode>               FnType;
+class ArrayTypeNode;            typedef Proxy<ArrayTypeNode>            ArrayType;
+class DefiniteArrayTypeNode;    typedef Proxy<DefiniteArrayTypeNode>    DefiniteArrayType;
+class IndefiniteArrayTypeNode;  typedef Proxy<IndefiniteArrayTypeNode>  IndefiniteArrayType;
+class TypeVarNode;              typedef Proxy<TypeVarNode>              TypeVar;
+
+template<class T> struct GIDHash;
+template<class T> struct GIDEq;
+template<class To> 
+using TypeMap    = HashMap<const TypeNode*, To, GIDHash<const TypeNode*>, GIDEq<const TypeNode*>>;
+using TypeSet    = HashSet<const TypeNode*, GIDHash<const TypeNode*>, GIDEq<const TypeNode*>>;
+using Type2Type  = TypeMap<const TypeNode*>;
+using TypeVarSet = HashSet<const TypeVarNode*, GIDHash<const TypeVarNode*>, GIDEq<const TypeVarNode*>>;
 
 //------------------------------------------------------------------------------
 
-class Type : public MagicCast<Type> {
+class TypeNode : public MagicCast<TypeNode> {
 private:
-    Type& operator = (const Type&); ///< Do not copy-assign a \p Type instance.
-    Type(const Type&);             ///< Do not copy-construct a \p Type.
+    TypeNode& operator = (const TypeNode&); ///< Do not copy-assign a \p TypeNode instance.
+    TypeNode(const TypeNode&);              ///< Do not copy-construct a \p TypeNode.
 
 protected:
-    Type(World& world, NodeKind kind, size_t num, bool is_generic)
-        : world_(world)
+    TypeNode(World& world, NodeKind kind, ArrayRef<Type> elems)
+        : representative_(nullptr)
+        , world_(world)
         , kind_(kind)
-        , elems_(num)
+        , elems_(elems.size())
         , gid_(-1)
-        , is_generic_(is_generic)
-    {}
+    {
+        for (size_t i = 0, e = size(); i != e; ++i)
+            set(i, elems[i]);
+    }
 
-    void set(size_t i, const Type* n) { elems_[i] = n; }
+    void set(size_t i, Type type) { elems_[i] = type; }
 
 public:
     NodeKind kind() const { return kind_; }
     bool is_corenode() const { return ::thorin::is_corenode(kind()); }
-    ArrayRef<const Type*> elems() const { return elems_; }
-    const Type* elem(size_t i) const { assert(i < elems().size()); return elems()[i]; }
-    const Type* elem_via_lit(Def def) const;
+    ArrayRef<Type> elems() const { return elems_; }
+    ArrayRef<TypeVar> type_vars() const { return type_vars_; }
+    size_t num_type_vars() const { return type_vars().size(); }
+    Type elem(size_t i) const { assert(i < elems().size()); return elems()[i]; }
+    TypeVar type_var(size_t i) const { assert(i < type_vars().size()); return type_vars()[i]; }
+    void bind(TypeVar v) const;
     size_t size() const { return elems_.size(); }
+    bool is_polymorphic() const { return num_type_vars() > 0; }
+    Type elem_via_lit(const Def& def) const;
     bool empty() const { return elems_.empty(); }
     void dump() const;
     World& world() const { return world_; }
-    bool check_with(const Type* type) const;
-    bool infer_with(GenericMap& map, const Type* type) const;
-    const Type* specialize(const GenericMap&) const;
-    bool is_generic() const { return is_generic_; }
+    bool check_with(Type) const { return true; } // TODO
+    bool infer_with(Type2Type&, Type) const { return true; } // TODO
+    const TypeNode* representative() const { return representative_; }
+    bool is_unified() const { return representative_ != nullptr; }
+    const TypeNode* unify() const;
+    void free_type_vars(TypeVarSet& bound, TypeVarSet& free) const;
+    TypeVarSet free_type_vars() const;
+    size_t gid() const { return gid_; }
+    int order() const;
+    /// Returns the vector length. Raises an assertion if this type is not a \p VectorType.
+    size_t length() const;
+    Type instantiate(ArrayRef<Type>) const;
+    Type instantiate(Type2Type&) const;
+    Type specialize(Type2Type&) const;
 
     bool is_primtype() const { return thorin::is_primtype(kind()); }
     bool is_type_ps() const { return thorin::is_type_ps(kind()); }
@@ -77,67 +147,60 @@ public:
     bool is_type_f() const { return thorin::is_type_f(kind()); }
     bool is_bool() const { return kind() == Node_PrimType_bool; }
 
-    size_t gid() const { return gid_; }
-    int order() const;
     virtual size_t hash() const;
-    virtual bool equal(const Type* other) const;
-    /**
-     * Returns the vector length.
-     * Raises an assertion if type of this is not a \p VectorType.
-     */
-    size_t length() const;
+    virtual bool equal(const TypeNode*) const;
+    virtual bool is_closed() const;
+
+protected:
+    Array<Type> specialize_elems(Type2Type&) const;
 
 private:
+    virtual Type vinstantiate(Type2Type&) const = 0;
+
+    mutable const TypeNode* representative_;
     World& world_;
     NodeKind kind_;
-    std::vector<const Type*> elems_;
+    mutable std::vector<TypeVar> type_vars_;
+    std::vector<Type> elems_;
     mutable size_t gid_;
 
-protected:
-    bool is_generic_;
-
     friend class World;
 };
-
-struct TypeHash { size_t operator () (const Type* t) const { return t->hash(); } };
-struct TypeEqual { bool operator () (const Type* t1, const Type* t2) const { return t1->equal(t2); } };
-
-//------------------------------------------------------------------------------
 
 /// The type of the memory monad.
-class Mem : public Type {
+class MemTypeNode : public TypeNode {
 private:
-    Mem(World& world)
-        : Type(world, Node_Mem, 0, false)
+    MemTypeNode(World& world)
+        : TypeNode(world, Node_MemType, {})
     {}
+
+    virtual Type vinstantiate(Type2Type&) const override;
 
     friend class World;
 };
-
-//------------------------------------------------------------------------------
 
 /// The type of a stack frame.
-class Frame : public Type {
+class FrameTypeNode : public TypeNode {
 private:
-    Frame(World& world)
-        : Type(world, Node_Frame, 0, false)
+    FrameTypeNode(World& world)
+        : TypeNode(world, Node_FrameType, {})
     {}
+
+    virtual Type vinstantiate(Type2Type&) const override;
 
     friend class World;
 };
 
-//------------------------------------------------------------------------------
-
-class VectorType : public Type {
+class VectorTypeNode : public TypeNode {
 protected:
-    VectorType(World& world, NodeKind kind, size_t num_elems, size_t length, bool is_generic)
-        : Type(world, kind, num_elems, is_generic)
+    VectorTypeNode(World& world, NodeKind kind, ArrayRef<Type> elems, size_t length)
+        : TypeNode(world, kind, elems)
         , length_(length)
     {}
 
-    virtual size_t hash() const { return hash_combine(Type::hash(), length()); }
-    virtual bool equal(const Type* other) const { 
-        return Type::equal(other) && this->length() == other->as<VectorType>()->length();
+    virtual size_t hash() const override { return hash_combine(TypeNode::hash(), length()); }
+    virtual bool equal(const TypeNode* other) const override { 
+        return TypeNode::equal(other) && this->length() == other->as<VectorTypeNode>()->length();
     }
 
 public:
@@ -145,29 +208,27 @@ public:
     size_t length() const { return length_; }
     bool is_vector() const { return length_ != 1; }
     /// Rebuilds the type with vector length 1.
-    const VectorType* scalarize() const;
+    VectorType scalarize() const;
 
 private:
     size_t length_;
 };
 
-//------------------------------------------------------------------------------
-
 /// Primitive types -- also known as atomic or scalar types.
-class PrimType : public VectorType {
+class PrimTypeNode : public VectorTypeNode {
 private:
-    PrimType(World& world, PrimTypeKind kind, size_t length)
-        : VectorType(world, (NodeKind) kind, 0, length, false)
+    PrimTypeNode(World& world, PrimTypeKind kind, size_t length)
+        : VectorTypeNode(world, (NodeKind) kind, {}, length)
     {}
 
 public:
     PrimTypeKind primtype_kind() const { return (PrimTypeKind) kind(); }
 
 private:
+    virtual Type vinstantiate(Type2Type&) const override;
+
     friend class World;
 };
-
-//------------------------------------------------------------------------------
 
 enum class AddressSpace : uint32_t {
     Generic  = 0,
@@ -177,179 +238,146 @@ enum class AddressSpace : uint32_t {
     Constant = 4,
 };
 
-class Ptr : public VectorType {
+class PtrTypeNode : public VectorTypeNode {
 private:
-    Ptr(World& world, const Type* referenced_type, size_t length, uint32_t device, AddressSpace addr_space)
-        : VectorType(world, Node_Ptr, 1, length, referenced_type->is_generic())
+    PtrTypeNode(World& world, Type referenced_type, size_t length, uint32_t device, AddressSpace addr_space)
+        : VectorTypeNode(world, Node_PtrType, {referenced_type}, length)
         , addr_space_(addr_space)
         , device_(device)
-    {
-        set(0, referenced_type);
-    }
+    {}
 
 public:
-    const Type* referenced_type() const { return elem(0); }
+    Type referenced_type() const { return elem(0); }
     AddressSpace addr_space() const { return addr_space_; }
     uint32_t device() const { return device_; }
     bool is_host_device() const { return device_ == 0; }
 
-    virtual size_t hash() const;
-    virtual bool equal(const Type* other) const;
+    virtual size_t hash() const override;
+    virtual bool equal(const TypeNode* other) const override;
 
 private:
+    virtual Type vinstantiate(Type2Type&) const override;
+
     AddressSpace addr_space_;
     uint32_t device_;
 
     friend class World;
 };
 
-//------------------------------------------------------------------------------
-
-class CompoundType : public Type {
-protected:
-    CompoundType(World& world, NodeKind kind, size_t num_elems);
-    CompoundType(World& world, NodeKind kind, ArrayRef<const Type*> elems);
-};
-
-//------------------------------------------------------------------------------
-
-/// A tuple type.
-class Sigma : public CompoundType {
+class StructTypeNode : public TypeNode {
 private:
-    Sigma(World& world, size_t size, const std::string& name)
-        : CompoundType(world, Node_Sigma, size)
+    StructTypeNode(World& world, size_t size, const std::string& name)
+        : TypeNode(world, Node_StructType, Array<Type>(size))
         , name_(name)
-    {
-        assert(name != "");
-    }
-    Sigma(World& world, ArrayRef<const Type*> elems)
-        : CompoundType(world, Node_Sigma, elems)
-        , name_("")
     {}
 
-    virtual size_t hash() const { return is_named() ? hash_value(this->gid()) : CompoundType::hash(); }
-    virtual bool equal(const Type* other) const { return is_named() ? this == other : CompoundType::equal(other); }
+    virtual size_t hash() const override { return hash_value(this->gid()); }
+    virtual bool equal(const TypeNode* other) const override { return this == other; }
 
 public:
-    bool is_named() const { return false; /*hack*/ }
-    // TODO build setter for named sigmas which sets is_generic_
+    const std::string& name() const { return name_; }
+    void set(size_t i, Type type) { TypeNode::set(i, type); }
 
 private:
+    virtual Type vinstantiate(Type2Type&) const override;
+
     std::string name_;
 
     friend class World;
 };
 
-//------------------------------------------------------------------------------
-
-/// A function type.
-class Pi : public CompoundType {
+class TupleTypeNode : public TypeNode {
 private:
-    Pi(World& world, ArrayRef<const Type*> elems)
-        : CompoundType(world, Node_Pi, elems)
+    TupleTypeNode(World& world, ArrayRef<Type> elems)
+        : TypeNode(world, Node_TupleType, elems)
+    {}
+
+    virtual Type vinstantiate(Type2Type&) const override;
+
+    friend class World;
+};
+
+class FnTypeNode : public TypeNode {
+private:
+    FnTypeNode(World& world, ArrayRef<Type> elems)
+        : TypeNode(world, Node_FnType, elems)
     {}
 
 public:
     bool is_basicblock() const { return order() == 1; }
     bool is_returning() const;
 
+private:
+    virtual Type vinstantiate(Type2Type&) const override;
+
     friend class World;
 };
 
-//------------------------------------------------------------------------------
-
-class ArrayType : public Type {
+class ArrayTypeNode : public TypeNode {
 protected:
-    ArrayType(World& world, NodeKind kind, const Type* elem_type)
-        : Type(world, kind, 1, elem_type->is_generic())
-    {
-        set(0, elem_type);
-    }
-
-public:
-    const Type* elem_type() const { return elem(0); }
-};
-
-class IndefArray : public ArrayType {
-public:
-    IndefArray(World& world, const Type* elem_type)
-        : ArrayType(world, Node_IndefArray, elem_type)
+    ArrayTypeNode(World& world, NodeKind kind, Type elem_type)
+        : TypeNode(world, kind, {elem_type})
     {}
 
+public:
+    Type elem_type() const { return elem(0); }
+};
+
+class IndefiniteArrayTypeNode : public ArrayTypeNode {
+public:
+    IndefiniteArrayTypeNode(World& world, Type elem_type)
+        : ArrayTypeNode(world, Node_IndefiniteArrayType, elem_type)
+    {}
+
+private:
+    virtual Type vinstantiate(Type2Type&) const override;
+
     friend class World;
 };
 
-class DefArray : public ArrayType {
+class DefiniteArrayTypeNode : public ArrayTypeNode {
 public:
-    DefArray(World& world, const Type* elem_type, u64 dim)
-        : ArrayType(world, Node_DefArray, elem_type)
+    DefiniteArrayTypeNode(World& world, Type elem_type, u64 dim)
+        : ArrayTypeNode(world, Node_DefiniteArrayType, elem_type)
         , dim_(dim)
     {}
 
     u64 dim() const { return dim_; }
-    virtual size_t hash() const { return hash_combine(Type::hash(), dim()); }
-    virtual bool equal(const Type* other) const { 
-        return Type::equal(other) && this->dim() == other->as<DefArray>()->dim();
+    virtual size_t hash() const override { return hash_combine(TypeNode::hash(), dim()); }
+    virtual bool equal(const TypeNode* other) const override { 
+        return TypeNode::equal(other) && this->dim() == other->as<DefiniteArrayTypeNode>()->dim();
     }
 
 private:
+    virtual Type vinstantiate(Type2Type&) const override;
+
     u64 dim_;
 
     friend class World;
 };
 
-
-//------------------------------------------------------------------------------
-
-class Generic : public Type {
+class TypeVarNode : public TypeNode {
 private:
-    Generic(World& world, size_t index)
-        : Type(world, Node_Generic, 0, true)
-        , index_(index)
+    TypeVarNode(World& world)
+        : TypeNode(world, Node_TypeVar, {})
+        , equiv_(nullptr)
     {}
 
-    virtual size_t hash() const { return hash_combine(Type::hash(), index()); }
-    virtual bool equal(const Type* other) const { 
-        return Type::equal(other) && index() == other->as<Generic>()->index();
-    }
-
 public:
-    size_t index() const { return index_; }
+    Type bound_at() const { return Type(bound_at_); }
+    virtual bool equal(const TypeNode*) const override;
+    virtual bool is_closed() const override { return bound_at_ != nullptr; }
 
 private:
-    size_t index_;
+    virtual Type vinstantiate(Type2Type&) const override;
 
+    mutable const TypeNode* bound_at_;
+    mutable const TypeVarNode* equiv_;
+
+    friend bool TypeNode::equal(const TypeNode*) const;
+    friend void TypeNode::bind(TypeVar type_var) const;
     friend class World;
 };
-
-//------------------------------------------------------------------------------
-
-class GenericRef : public Type {
-private:
-    GenericRef(World& world, const Generic* generic, Lambda* lambda);
-    virtual ~GenericRef();
-
-    virtual size_t hash() const;
-    virtual bool equal(const Type* other) const { 
-        return Type::equal(other) && lambda() == other->as<GenericRef>()->lambda();
-    }
-
-public:
-    const Generic* generic() const { return elem(0)->as<Generic>(); }
-    Lambda* lambda() const { return lambda_; }
-
-private:
-    Lambda* lambda_;
-
-    friend class World;
-};
-
-//------------------------------------------------------------------------------
-
-template<class To> 
-using TypeMap   = HashMap<const Type*, To, GIDHash<const Type*>, GIDEq<const Type*>>;
-using TypeSet   = HashSet<const Type*, GIDHash<const Type*>, GIDEq<const Type*>>;
-using Type2Type = TypeMap<const Type*>;
 
 //------------------------------------------------------------------------------
 

@@ -1,5 +1,3 @@
-#include <queue>
-
 #include "thorin/literal.h"
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
@@ -7,6 +5,7 @@
 #include "thorin/analyses/top_level_scopes.h"
 #include "thorin/transform/mangle.h"
 #include "thorin/util/hash.h"
+#include "thorin/util/queue.h"
 
 namespace thorin {
 
@@ -25,7 +24,7 @@ public:
     Call() {}
     Call(Lambda* to)
         : to_(to)
-        , args_(to->pi()->size())
+        , args_(to->fn_type()->size())
     {}
 
     Lambda* to() const { return to_; }
@@ -84,8 +83,7 @@ void PartialEvaluator::seek() {
     }
 
     while (!queue.empty()) {
-        auto lambda = queue.front();
-        queue.pop();
+        auto lambda = pop(queue);
         if (!lambda->empty() && lambda->to()->isa<Run>())
             eval(lambda);
         for (auto succ : lambda->succs()) {
@@ -133,10 +131,10 @@ void PartialEvaluator::eval(Lambda* cur) {
             } else {                                // no cached version found... create a new one
                 Scope scope(dst);
                 Def2Def old2new;
-                GenericMap generic_map;
-                bool res = dst->type()->infer_with(generic_map, cur->arg_pi());
+                Type2Type type2type;
+                bool res = dst->type()->infer_with(type2type, cur->arg_fn_type());
                 assert(res);
-                auto dropped = drop(scope, old2new, call.args(), generic_map);
+                auto dropped = drop(scope, old2new, call.args(), type2type);
                 old2new[dst] = dropped;
                 update_new2old(old2new);
                 rewrite_jump(cur, dropped, call);

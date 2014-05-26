@@ -13,175 +13,60 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-const Type*& GenericMap::operator [] (const Generic* generic) const {
-    size_t i = generic->index();
-    if (i >= types_.size())
-        types_.resize(i+1, nullptr);
-    return types_[i];
+void TypeNode::bind(TypeVar type_var) const {
+    assert(!type_var->is_unified());
+    type_vars_.push_back(type_var); 
+    type_var->bound_at_ = this; 
 }
 
-bool GenericMap::is_empty() const {
-    for (size_t i = 0, e = types_.size(); i != e; ++i)
-        if (!types_[i])
-            return false;
-
-    return true;
-}
-
-std::string GenericMap::to_string() const {
-    std::ostringstream o;
-    bool first = true;
-    for (size_t i = 0, e = types_.size(); i != e; ++i)
-        if (auto type = types_[i]) {
-            if (first)
-                first = false;
-            else
-                o << ", ";
-            o << '_' << i << " = "; 
-            type->dump();
-        }
-
-    return o.str();
-}
-
-//------------------------------------------------------------------------------
-
-size_t Type::hash() const {
-    size_t seed = hash_combine(hash_begin((int) kind()), size());
-    for (auto elem : elems_)
-        seed = hash_combine(seed, elem->gid());
-    return seed;
-}
-
-bool Type::equal(const Type* other) const {
-    bool result = this->kind() == other->kind() && this->size() == other->size();
-    for (size_t i = 0, e = size(); result && i != e; ++i)
-        result &= this->elems_[i] == other->elems_[i];
-    return result;
-}
-
-void Type::dump() const { emit_type(this); std::cout << std::endl; }
-size_t Type::length() const { return as<VectorType>()->length(); }
-const Type* Type::elem_via_lit(Def def) const { return elem(def->primlit_value<size_t>()); }
-
-int Type::order() const {
-    if (kind() == Node_Ptr)
+int TypeNode::order() const {
+    if (kind() == Node_PtrType)
         return 0;
 
     int sub = 0;
     for (auto elem : elems())
         sub = std::max(sub, elem->order());
 
-    if (kind() == Node_Pi)
+    if (kind() == Node_FnType)
         return sub + 1;
 
     return sub;
 }
 
-bool Type::check_with(const Type* other) const {
-    if (this == other || this->isa<Generic>() || this->isa<GenericRef>() || other->isa<Generic>() || other->isa<GenericRef>())
-        return true;
-
-    if (this->kind() != other->kind() || this->size() != other->size())
-        return false;
-
-    for (size_t i = 0, e = size(); i != e; ++i)
-        if (!this->elem(i)->check_with(other->elem(i)))
+bool TypeNode::is_closed() const {
+    for (auto elem : elems()) {
+        if (!elem->is_closed())
             return false;
-
+    }
     return true;
 }
 
-bool Type::infer_with(GenericMap& map, const Type* other) const {
-    if (auto genericref = this->isa<GenericRef>())
-        return genericref->generic()->infer_with(map, other);
-    if (auto genericref = other->isa<GenericRef>())
-        other = genericref->generic();
+void TypeNode::dump() const { emit_type(Type(this)); std::cout << std::endl; }
+size_t TypeNode::length() const { return as<VectorTypeNode>()->length(); }
+Type TypeNode::elem_via_lit(const Def& def) const { return elem(def->primlit_value<size_t>()); }
+const TypeNode* TypeNode::unify() const { return world().unify_base(this); }
+TypeVarSet TypeNode::free_type_vars() const { TypeVarSet bound, free; free_type_vars(bound, free); return free; }
 
-    size_t num_elems = this->size();
-    assert(this->isa<Generic>() || num_elems == other->size());
-    assert(this->isa<Generic>() || this->kind() == other->kind());
+void TypeNode::free_type_vars(TypeVarSet& bound, TypeVarSet& free) const {
+    for (auto type_var : type_vars())
+        bound.insert(*type_var);
 
-    if (this == other)
-        return true;
-
-    if (auto generic = this->isa<Generic>()) {
-        const Type*& mapped = map[generic];
-        if (!mapped) {
-            mapped = other;
-            return true;
+    for (auto elem : elems()) {
+        if (auto type_var = elem->isa<TypeVarNode>()) {
+            if (!bound.contains(type_var))
+                free.insert(type_var);
         } else
-            return mapped == other;
-    }
-
-    for (size_t i = 0; i < num_elems; ++i) {
-        if (!this->elem(i)->infer_with(map, other->elem(i)))
-            return false;
-    }
-
-    return true;
-}
-
-const Type* Type::specialize(const GenericMap& map) const {
-    if (auto generic = this->isa<Generic>()) {
-        if (auto substitute = map[generic])
-            return substitute;
-        else
-            return this;
-    } else if (empty())
-        return this;
-
-    if (auto genref = this->isa<GenericRef>())
-        return genref->generic()->specialize(map);
-
-    Array<const Type*> new_elems(size());
-    for (size_t i = 0, e = size(); i != e; ++i)
-        new_elems[i] = elem(i)->specialize(map);
-
-    return world().rebuild(this, new_elems);
-}
-
-//------------------------------------------------------------------------------
-
-const VectorType* VectorType::scalarize() const {
-    if (auto ptr = isa<Ptr>())
-        return world().ptr(ptr->referenced_type());
-    return world().type(as<PrimType>()->primtype_kind());
-}
-
-//------------------------------------------------------------------------------
-
-size_t Ptr::hash() const {
-    return hash_combine(hash_combine(VectorType::hash(), (size_t)device()), (size_t)addr_space());
-}
-
-bool Ptr::equal(const Type* other) const {
-    if(!VectorType::equal(other))
-        return false;
-    auto ptr = other->as<Ptr>();
-    return ptr->device() == device() && ptr->addr_space() == addr_space();
-}
-
-//------------------------------------------------------------------------------
-
-CompoundType::CompoundType(World& world, NodeKind kind, size_t size)
-    : Type(world, kind, size, false /*TODO named sigma*/)
-{}
-
-CompoundType::CompoundType(World& world, NodeKind kind, ArrayRef<const Type*> elems)
-    : Type(world, kind, elems.size(), false)
-{
-    size_t x = 0;
-    for (auto elem : elems) {
-        if (elem->is_generic())
-            is_generic_ = true;
-        set(x++, elem);
+            elem->free_type_vars(bound, free);
     }
 }
 
-//------------------------------------------------------------------------------
+VectorType VectorTypeNode::scalarize() const {
+    if (auto ptr = isa<PtrTypeNode>())
+        return world().ptr_type(ptr->referenced_type());
+    return world().type(as<PrimTypeNode>()->primtype_kind());
+}
 
-bool Pi::is_returning() const {
+bool FnTypeNode::is_returning() const {
     bool ret = false;
     for (auto elem : elems()) {
         switch (elem->order()) {
@@ -200,28 +85,132 @@ bool Pi::is_returning() const {
 
 //------------------------------------------------------------------------------
 
-GenericRef::GenericRef(World& world, const Generic* generic, Lambda* lambda)
-    : Type(world, Node_GenericRef, 1, true)
-    , lambda_(lambda)
-{
-#if 0
-    lambda_->generic_refs_.push_back(this);
-#endif
-    set(0, generic);
+/*
+ * hash
+ */
+
+size_t TypeNode::hash() const {
+    size_t seed = hash_combine(hash_combine(hash_begin((int) kind()), size()), num_type_vars());
+    for (auto elem : elems_)
+        seed = hash_combine(seed, elem->hash());
+    return seed;
 }
 
-GenericRef::~GenericRef() {
-#if 0
-    auto& generic_refs = lambda()->generic_refs_;
-    auto i = std::find(generic_refs.begin(), generic_refs.end(), this);
-    assert(i != generic_refs.end() && "must be in use set");
-    *i = generic_refs.back();
-    generic_refs.pop_back();
-#endif
+size_t PtrTypeNode::hash() const {
+    return hash_combine(hash_combine(VectorTypeNode::hash(), (size_t)device()), (size_t)addr_space());
 }
-
-size_t GenericRef::hash() const { return hash_combine(Type::hash(), lambda()->gid()); }
 
 //------------------------------------------------------------------------------
 
-} // namespace thorin
+/*
+ * equal
+ */
+
+bool TypeNode::equal(const TypeNode* other) const {
+    bool result = this->kind() == other->kind() && this->size() == other->size() 
+        && this->num_type_vars() == other->num_type_vars();
+
+    if (result) {
+        for (size_t i = 0, e = num_type_vars(); result && i != e; ++i) {
+            assert(this->type_var(i)->equiv_ == nullptr);
+            this->type_var(i)->equiv_ = *other->type_var(i);
+        }
+
+        for (size_t i = 0, e = size(); result && i != e; ++i)
+            result &= this->elems_[i] == other->elems_[i];
+
+        for (auto var : type_vars())
+            var->equiv_ = nullptr;
+    }
+
+    return result;
+}
+
+bool PtrTypeNode::equal(const TypeNode* other) const {
+    if(!VectorTypeNode::equal(other))
+        return false;
+    auto ptr = other->as<PtrTypeNode>();
+    return ptr->device() == device() && ptr->addr_space() == addr_space();
+}
+
+bool TypeVarNode::equal(const TypeNode* other) const {
+    if (auto typevar = other->isa<TypeVarNode>())
+        return this->equiv_ == typevar;
+    return false;
+}
+
+//------------------------------------------------------------------------------
+
+/*
+ * specialize and instantiate
+ */
+
+Type TypeNode::instantiate(ArrayRef<Type> types) const {
+    assert(types.size() == num_type_vars());
+    Type2Type map;
+    for (size_t i = 0, e = types.size(); i != e; ++i)
+        map[*type_var(i)] = *types[i];
+    return instantiate(map);
+}
+
+Type TypeNode::instantiate(Type2Type& map) const {
+#ifndef NDEBUG
+    for (auto type_var : type_vars())
+        assert(map.contains(*type_var));
+#endif
+    return vinstantiate(map);
+}
+
+Type TypeNode::specialize(Type2Type& map) const {
+    if (auto result = find(map, this))
+        return result;
+
+    for (auto type_var : type_vars()) {
+        assert(!map.contains(*type_var));
+        map[*type_var] = *world().type_var();
+    }
+
+    auto t = instantiate(map);
+    for (auto type_var : type_vars())
+        t->bind(map[*type_var]->as<TypeVarNode>());
+
+    return t;
+}
+
+Array<Type> TypeNode::specialize_elems(Type2Type& map) const {
+    Array<Type> result(size());
+    for (size_t i = 0, e = size(); i != e; ++i)
+        result[i] = elem(i)->specialize(map);
+    return result;
+}
+
+Type FrameTypeNode::vinstantiate(Type2Type& map) const { return map[this] = this; }
+Type MemTypeNode::vinstantiate(Type2Type& map) const { return map[this] = this; }
+Type PrimTypeNode::vinstantiate(Type2Type& map) const { return map[this] = this; }
+Type TypeVarNode::vinstantiate(Type2Type& map) const { return map[this] = this; }
+
+Type DefiniteArrayTypeNode::vinstantiate(Type2Type& map) const { 
+    return map[this] = *world().definite_array_type(elem_type()->specialize(map), dim()); 
+}
+
+Type FnTypeNode::vinstantiate(Type2Type& map) const { 
+    return map[this] = *world().fn_type(specialize_elems(map)); 
+}
+
+Type IndefiniteArrayTypeNode::vinstantiate(Type2Type& map) const { 
+    return map[this] = *world().indefinite_array_type(elem_type()->specialize(map)); 
+}
+
+Type PtrTypeNode::vinstantiate(Type2Type& map) const { 
+    return map[this] = *world().ptr_type(referenced_type()->specialize(map), length(), device(), addr_space()); 
+}
+
+Type TupleTypeNode::vinstantiate(Type2Type& map) const {
+    return map[this] = *world().tuple_type(specialize_elems(map)); 
+}
+
+Type StructTypeNode::vinstantiate(Type2Type& map) const {
+    return map[this] = *world().struct_type(size()); // TODO
+}
+
+}

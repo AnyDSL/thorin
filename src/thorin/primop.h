@@ -7,20 +7,15 @@
 
 namespace thorin {
 
-class ArrayType;
-class Pi;
-class PrimLit;
-class Ptr;
-class Sigma;
-class VectorType;
-
 //------------------------------------------------------------------------------
 
 class PrimOp : public DefNode {
 protected:
-    PrimOp(size_t size, NodeKind kind, const Type* type, const std::string& name)
-        : DefNode(-1, kind, size, type, true, name)
+    PrimOp(size_t size, NodeKind kind, Type type, const std::string& name)
+        : DefNode(-1, kind, size, type ? type.unify() : nullptr, true, name)
     {}
+
+    void set_type(Type type) { type_ = type.unify(); }
 
 public:
     virtual const char* op_name() const;
@@ -47,7 +42,7 @@ struct PrimOpEqual { bool operator () (const PrimOp* o1, const PrimOp* o2) const
 
 class VectorOp : public PrimOp {
 protected:
-    VectorOp(size_t size, NodeKind kind, const Type* type, Def cond, const std::string& name);
+    VectorOp(size_t size, NodeKind kind, Type type, Def cond, const std::string& name);
 
 public:
     Def cond() const { return op(0); }
@@ -71,7 +66,7 @@ public:
 
 class BinOp : public VectorOp {
 protected:
-    BinOp(NodeKind kind, const Type* type, Def cond, Def lhs, Def rhs, const std::string& name);
+    BinOp(NodeKind kind, Type type, Def cond, Def lhs, Def rhs, const std::string& name);
 
 public:
     Def lhs() const { return op(1); }
@@ -110,7 +105,7 @@ public:
 
 class ConvOp : public VectorOp {
 protected:
-    ConvOp(NodeKind kind, Def cond, Def from, const Type* to, const std::string& name)
+    ConvOp(NodeKind kind, Def cond, Def from, Type to, const std::string& name)
         : VectorOp(2, kind, to, cond, name)
     {
         set_op(1, from);
@@ -122,7 +117,7 @@ public:
 
 class Cast : public ConvOp {
 private:
-    Cast(Def cond, Def from, const Type* to, const std::string& name)
+    Cast(Def cond, Def from, Type to, const std::string& name)
         : ConvOp(Node_Cast, cond, from, to, name)
     {}
 
@@ -131,7 +126,7 @@ private:
 
 class Bitcast : public ConvOp {
 private:
-    Bitcast(Def cond, Def from, const Type* to, const std::string& name)
+    Bitcast(Def cond, Def from, Type to, const std::string& name)
         : ConvOp(Node_Bitcast, cond, from, to, name)
     {}
 
@@ -143,7 +138,7 @@ private:
 class Aggregate : public PrimOp {
 protected:
     Aggregate(NodeKind kind, ArrayRef<Def> args, const std::string& name)
-        : PrimOp(args.size(), kind, /*type: set later*/ nullptr, name)
+        : PrimOp(args.size(), kind, Type() /*set later*/, name)
     {
         for (size_t i = 0, e = size(); i != e; ++i)
             set_op(i, args[i]);
@@ -152,11 +147,11 @@ protected:
 
 class ArrayAgg : public Aggregate {
 private:
-    ArrayAgg(World& world, const Type* elem, ArrayRef<Def> args, bool definite, const std::string& name);
+    ArrayAgg(World& world, Type elem, ArrayRef<Def> args, bool definite, const std::string& name);
 
 public:
-    const ArrayType* array_type() const;
-    const Type* elem_type() const;
+    ArrayType array_type() const;
+    Type elem_type() const;
     bool is_definite() const;
 
     friend class World;
@@ -167,7 +162,7 @@ private:
     Tuple(World& world, ArrayRef<Def> args, const std::string& name);
 
 public:
-    const Sigma* sigma() const;
+    TupleType tuple_type() const;
 
     friend class World;
 };
@@ -182,7 +177,7 @@ private:
 
 class AggOp : public PrimOp {
 protected:
-    AggOp(size_t size, NodeKind kind, const Type* type, Def agg, Def index, const std::string& name)
+    AggOp(size_t size, NodeKind kind, Type type, Def agg, Def index, const std::string& name)
         : PrimOp(size, kind, type, name)
     {
         set_op(0, agg);
@@ -192,7 +187,7 @@ protected:
 public:
     Def agg() const { return op(0); }
     Def index() const { return op(1); }
-    const Type* agg_type() const { return agg()->type(); }
+    Type agg_type() const { return agg()->type(); }
 
     friend class World;
 };
@@ -202,7 +197,7 @@ private:
     Extract(Def agg, Def index, const std::string& name);
 
 public:
-    static const Type* type(Def agg, Def index);
+    static Type type(Def agg, Def index);
 
     friend class World;
 };
@@ -213,7 +208,7 @@ private:
 
 public:
     Def value() const { return op(2); }
-    static const Type* type(Def agg);
+    static Type type(Def agg);
 
     friend class World;
 };
@@ -233,8 +228,8 @@ public:
     Def ptr() const { return op(0); }
     Def index() const { return op(1); }
 
-    const Ptr* ptr_type() const; ///< Returns the ptr type from \p ptr().
-    const Type* referenced_type() const; ///< Returns the type referenced by \p ptr().
+    PtrType ptr_type() const; ///< Returns the ptr type from \p ptr().
+    Type referenced_type() const; ///< Returns the type referenced by \p ptr().
 
     friend class World;
 };
@@ -275,12 +270,12 @@ private:
  */
 class Slot : public PrimOp {
 private:
-    Slot(const Type* type, Def frame, size_t index, const std::string& name);
+    Slot(Type type, Def frame, size_t index, const std::string& name);
 
 public:
     Def frame() const { return op(0); }
     size_t index() const { return index_; }
-    const Ptr* ptr_type() const;
+    PtrType ptr_type() const;
 
     virtual size_t hash() const { return hash_combine(PrimOp::hash(), index()); }
     virtual bool equal(const PrimOp* other) const {
@@ -305,7 +300,7 @@ private:
 public:
     Def init() const { return op(0); }
     bool is_mutable() const { return is_mutable_; }
-    const Type* referenced_type() const; ///< Returns the type referenced by this \p Global's pointer type.
+    Type referenced_type() const; ///< Returns the type referenced by this \p Global's pointer type.
 
     virtual const char* op_name() const;
     virtual size_t hash() const { return hash_value(gid()); }

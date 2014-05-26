@@ -71,7 +71,7 @@ Lambda* GenericRuntime::emit_parallel_start_code(CodeGen& code_gen, Lambda* lamb
     llvm::Value* handle;
     if (lambda->num_args() > arg_index) {
         // fetch values and create a unified struct which contains all values (closure)
-        auto closure_type = code_gen.map(world.sigma(lambda->arg_pi()->elems().slice_from_begin(4)));
+        auto closure_type = code_gen.map(world.tuple_type(lambda->arg_fn_type()->elems().slice_from_begin(4)));
         llvm::Value* closure = llvm::UndefValue::get(closure_type);
         for (size_t i = arg_index, e = lambda->num_args(); i != e; ++i)
             closure = builder_.CreateInsertValue(closure, code_gen.lookup(lambda->arg(i)), unsigned(i - arg_index));

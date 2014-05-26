@@ -98,7 +98,7 @@ bool DefNode::is_primlit(int val) const {
     if (auto lit = this->isa<PrimLit>()) {
         Box box = lit->value(); // TODO
         switch (lit->primtype_kind()) {
-#define THORIN_ALL_TYPE(T) case PrimType_##T: return box.get_##T() == T(val);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return box.get_##T() == T(val);
 #include "thorin/tables/primtypetable.h"
         }
     }
@@ -117,8 +117,8 @@ bool DefNode::is_minus_zero() const {
     if (auto lit = this->isa<PrimLit>()) {
         Box box = lit->value();
         switch (lit->primtype_kind()) {
-#define THORIN_I_TYPE(T) case PrimType_##T: return box.get_##T() == T(0);
-#define THORIN_F_TYPE(T) case PrimType_##T: return box.get_##T() == T(-0.0);
+#define THORIN_I_TYPE(T, M) case PrimType_##T: return box.get_##T() == T(0);
+#define THORIN_F_TYPE(T, M) case PrimType_##T: return box.get_##T() == T(-0.0);
 #include "thorin/tables/primtypetable.h"
             default: THORIN_UNREACHABLE;
         }
@@ -166,8 +166,7 @@ Lambda* DefNode::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(th
 Lambda* DefNode::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(this)); }
 const PrimOp* DefNode::is_non_const_primop() const { return is_const() ? nullptr : isa<PrimOp>(); }
 int DefNode::order() const { return type()->order(); }
-bool DefNode::is_generic() const { return type()->is_generic(); }
-size_t DefNode::length() const { return type()->as<VectorType>()->length(); }
+size_t DefNode::length() const { return type().as<VectorType>()->length(); }
 
 //------------------------------------------------------------------------------
 

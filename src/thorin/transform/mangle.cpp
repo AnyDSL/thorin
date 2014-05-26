@@ -3,19 +3,18 @@
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
-
-#include <iostream>
+#include "thorin/util/queue.h"
 
 namespace thorin {
 
 class Mangler {
 public:
-    Mangler(const Scope& scope, Def2Def& old2new, ArrayRef<Def> drop, ArrayRef<Def> lift, const GenericMap& generic_map)
+    Mangler(const Scope& scope, Def2Def& old2new, ArrayRef<Def> drop, ArrayRef<Def> lift, const Type2Type& type2type)
         : scope(scope)
         , old2new(old2new)
         , drop(drop)
         , lift(lift)
-        , generic_map(generic_map)
+        , type2type(type2type)
         , world(scope.world())
         , set(scope.in_scope()) // copy constructor
         , oentry(scope.entry())
@@ -28,10 +27,7 @@ public:
             queue.push(def);
 
         while (!queue.empty()) {
-            auto def = queue.front();
-            queue.pop();
-
-            for (auto use : def->uses()) {
+            for (auto use : pop(queue)->uses()) {
                 if (!use->isa_lambda() && !visit(set, use))
                     queue.push(use);
             }
@@ -51,7 +47,7 @@ public:
     Def2Def& old2new;
     ArrayRef<Def> drop;
     ArrayRef<Def> lift;
-    GenericMap generic_map;
+    Type2Type type2type;
     World& world;
     DefSet set;
     Lambda* oentry;
@@ -65,11 +61,11 @@ Lambda* Mangler::mangle() {
         if (auto def = drop[i])
             old2new[oparam] = def;
         else
-            old2new[oparam] = nentry->append_param(oparam->type()->specialize(generic_map), oparam->name);
+            old2new[oparam] = nentry->append_param(oparam->type()->specialize(type2type), oparam->name);
     }
 
     for (auto def : lift)
-        old2new[def] = nentry->append_param(def->type()->specialize(generic_map));
+        old2new[def] = nentry->append_param(def->type()->specialize(type2type));
 
     mangle_body(oentry, nentry);
 
@@ -86,7 +82,7 @@ Lambda* Mangler::mangle() {
 Lambda* Mangler::mangle_head(Lambda* olambda) {
     assert(!old2new.contains(olambda));
     assert(!olambda->empty());
-    Lambda* nlambda = olambda->stub(generic_map, olambda->name);
+    Lambda* nlambda = olambda->stub(type2type, olambda->name);
     old2new[olambda] = nlambda;
 
     for (size_t i = 0, e = olambda->num_params(); i != e; ++i)
@@ -158,8 +154,8 @@ Def Mangler::mangle(Def odef) {
 
 //------------------------------------------------------------------------------
 
-Lambda* mangle(const Scope& scope, Def2Def& old2new, ArrayRef<Def> drop, ArrayRef<Def> lift, const GenericMap& generic_map) {
-    return Mangler(scope, old2new, drop, lift, generic_map).mangle();
+Lambda* mangle(const Scope& scope, Def2Def& old2new, ArrayRef<Def> drop, ArrayRef<Def> lift, const Type2Type& type2type) {
+    return Mangler(scope, old2new, drop, lift, type2type).mangle();
 }
 
 //------------------------------------------------------------------------------

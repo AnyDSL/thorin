@@ -15,11 +15,11 @@ Var::Var(IRBuilder& builder, Def def)
     , def_(def)
 {}
 
-Var::Var(IRBuilder& builder, size_t handle, const Type* type, const char* name)
+Var::Var(IRBuilder& builder, size_t handle, Type type, const char* name)
     : kind_(MutableValRef)
     , builder_(&builder)
     , handle_(handle)
-    , type_(type)
+    , type_(*type)
     , name_(name)
 {}
 
@@ -33,7 +33,7 @@ Def Var::load() const {
     switch (kind()) {
         case Empty:           return Def();
         case ImmutableValRef: return def_;
-        case MutableValRef:   return builder_->cur_bb->get_value(handle_, type_, name_); 
+        case MutableValRef:   return builder_->cur_bb->get_value(handle_, Type(type_), name_); 
         case SlotRef:         return builder_->world().load(builder_->get_mem(), slot_);
         default: THORIN_UNREACHABLE;
     }
@@ -45,45 +45,6 @@ void Var::store(Def def) const {
         case SlotRef: builder_->set_mem(builder_->world().store(builder_->get_mem(), slot_, def)); return;
         default: THORIN_UNREACHABLE;
     }
-}
-
-//------------------------------------------------------------------------------
-
-// THIS CODE WILL BE REMOVED
-
-VarRef::VarRef(Lambda* bb, size_t handle, const Type* type, const char* name)
-    : Ref(type->world())
-    , bb_(bb)
-    , handle_(handle)
-    , type_(type)
-    , name_(name)
-{}
-
-SlotRef::SlotRef(IRBuilder& builder, const Slot* slot)
-    : Ref(builder.world())
-    , builder_(builder)
-    , slot_(slot)
-{}
-
-Def VarRef::load() const { return bb_->get_value(handle_, type_, name_); }
-Def AggRef::load() const { return loaded_ ? loaded_ : loaded_ = world().extract(lref_->load(), index_); } 
-Def SlotRef::load() const   { return  world().load(builder_.get_mem(), slot_); }
-
-Def AggPtrRef::load() const { 
-    auto mem = builder_.get_mem();
-    return world().load(mem, world().lea(lref_->load(), index_)); 
-}
-
-void VarRef::store(Def def) const { bb_->set_value(handle_, def); }
-void AggRef::store(Def val) const { lref_->store(world().insert(lref_->load(), index_, val)); }
-
-void SlotRef::store(Def val) const { 
-    builder_.set_mem(world().store(builder_.get_mem(), slot_, val)); 
-}
-
-void AggPtrRef::store(Def val) const { 
-    auto mem = builder_.get_mem();
-    builder_.set_mem(world().store(mem, world().lea(lref_->load(), index_), val)); 
 }
 
 //------------------------------------------------------------------------------
@@ -154,26 +115,16 @@ void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f) {
     }
 }
 
-void IRBuilder::mem_call(Def to, ArrayRef<Def> args, const Type* ret_type) {
-    if (is_reachable())
-        (cur_bb = cur_bb->mem_call(to, args, ret_type));
-}
-
-void IRBuilder::tail_call(Def to, ArrayRef<Def> args) {
+Def IRBuilder::call(Def to, ArrayRef<Def> args, Type ret_type) {
     if (is_reachable()) {
-        cur_bb->jump(to, args);
-        set_unreachable();
+        auto p = cur_bb->call(to, args, ret_type);
+        cur_bb = p.first;
+        return p.second;
     }
+    return Def();
 }
 
-void IRBuilder::param_call(const Param* ret_param, ArrayRef<Def> args) {
-    if (is_reachable()) {
-        cur_bb->jump(ret_param, args);
-        set_unreachable();
-    }
-}
-
-Def IRBuilder::get_mem() { return cur_bb->get_value(0, world().mem(), "mem"); }
+Def IRBuilder::get_mem() { return cur_bb->get_value(0, world().mem_type(), "mem"); }
 void IRBuilder::set_mem(Def def) { if (is_reachable()) cur_bb->set_value(0, def); }
 
 //------------------------------------------------------------------------------

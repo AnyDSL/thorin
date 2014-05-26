@@ -9,13 +9,9 @@
 
 namespace thorin {
 
-class GenericMap;
-class GenericRef;
 class Lambda;
-class Pi;
 
 typedef std::vector<Lambda*> Lambdas;
-typedef std::vector<const Param*> Params;
 
 //------------------------------------------------------------------------------
 
@@ -55,39 +51,38 @@ public:
     };
 
 private:
-    Lambda(size_t gid, const Pi* pi, Attribute attribute, bool is_sealed, const std::string& name)
-        : DefNode(gid, Node_Lambda, 0, pi, true, name)
+    Lambda(size_t gid, FnType fn, Attribute attribute, bool is_sealed, const std::string& name)
+        : DefNode(gid, Node_Lambda, 0, fn, true, name)
         , attribute_(attribute)
         , parent_(this)
         , is_sealed_(is_sealed)
         , is_visited_(false)
     {
-        params_.reserve(pi->size());
+        params_.reserve(fn->size());
     }
     virtual ~Lambda() { for (auto param : params()) delete param; }
 
 public:
-    Lambda* stub(const GenericMap& generic_map) const { return stub(generic_map, name); }
-    Lambda* stub(const GenericMap& generic_map, const std::string& name) const;
+    Lambda* stub(Type2Type& type2type) const { return stub(type2type, name); }
+    Lambda* stub(Type2Type& type2type, const std::string& name) const;
     Lambda* update_to(Def def) { return update_op(0, def); }
     Lambda* update_op(size_t i, Def def);
     Lambda* update_arg(size_t i, Def def) { return update_op(i+1, def); }
-    const Param* append_param(const Type* type, const std::string& name = "");
+    const Param* append_param(Type type, const std::string& name = "");
     Lambdas direct_preds() const;
     Lambdas direct_succs() const;
     Lambdas indirect_preds() const;
     Lambdas indirect_succs() const;
     Lambdas preds() const;
     Lambdas succs() const;
-    const std::vector<const GenericRef*>& generic_refs() const { return generic_refs_; }
-    const Params& params() const { return params_; }
+    ArrayRef<const Param*> params() const { return params_; }
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
     Def to() const { return op(0); };
     ArrayRef<Def> args() const { return empty() ? ArrayRef<Def>(0, 0) : ops().slice_from_begin(1); }
     Def arg(size_t i) const { return args()[i]; }
-    const Pi* pi() const;
-    const Pi* to_pi() const;
-    const Pi* arg_pi() const;
+    FnType fn_type() const { return type().as<FnType>(); }
+    FnType to_fn_type() const { return to()->type().as<FnType>(); }
+    FnType arg_fn_type() const;
     size_t num_args() const { return args().size(); }
     size_t num_params() const { return params().size(); }
     Attribute& attribute() { return attribute_; }
@@ -113,13 +108,12 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
 
     void jump(Def to, ArrayRef<Def> args);
     void branch(Def cond, Def tto, Def fto);
-    Lambda* call(Def to, ArrayRef<Def> args, const Type* ret_type);
-    Lambda* mem_call(Def to, ArrayRef<Def> args, const Type* ret_type);
+    std::pair<Lambda*, Def> call(Def to, ArrayRef<Def> args, Type ret_type);
 
     // cps construction
 
     Def set_value(size_t handle, Def def);
-    Def get_value(size_t handle, const Type* type, const char* name = "");
+    Def get_value(size_t handle, Type type, const char* name = "");
     Def set_mem(Def def);
     Def get_mem();
     Lambda* parent() const { return parent_; }            ///< See \ref parent_ for more information.
@@ -134,7 +128,7 @@ private:
     class Todo {
     public:
         Todo() {}
-        Todo(size_t handle, size_t index, const Type* type, const char* name)
+        Todo(size_t handle, size_t index, Type type, const char* name)
             : handle_(handle)
             , index_(index)
             , type_(type)
@@ -143,13 +137,13 @@ private:
 
         size_t handle() const { return handle_; }
         size_t index() const { return index_; }
-        const Type* type() const { return type_; }
+        Type type() const { return type_; }
         const char* name() const { return name_; }
 
     private:
         size_t handle_;
         size_t index_;
-        const Type* type_;
+        Type type_;
         const char* name_;
     };
 
@@ -160,7 +154,7 @@ private:
     void increase_values(size_t handle) { if (handle >= values_.size()) values_.resize(handle+1); }
 
     Attribute attribute_;
-    Params params_;
+    std::vector<const Param*> params_;
     /**
      * There exist three cases to distinguish here.
      * - \p parent_ == this: This \p Lambda is considered as a basic block, i.e., 
@@ -177,10 +171,8 @@ private:
     std::vector<Def> values_;
     typedef std::vector<Todo> Todos;
     Todos todos_;
-    mutable std::vector<const GenericRef*> generic_refs_;
 
     friend class Cleaner;
-    friend class GenericRef;
     friend class World;
 };
 

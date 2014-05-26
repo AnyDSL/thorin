@@ -7,7 +7,7 @@
 
 namespace thorin {
 
-typedef std::vector<std::pair<const Type*, Use>> ToDo;
+typedef std::vector<std::pair<Type, Use>> ToDo;
 
 static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
     bool is_map   = lambda->attribute().is(Lambda::Map);
@@ -15,7 +15,7 @@ static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
     assert(is_map ^ is_unmap  && "invalid map function");
     assert((is_unmap || lambda->params().size() == 7) && "invalid signature");
     assert((is_map   || lambda->params().size() == 5) && "invalid signature");
-    assert(lambda->param(1)->type()->isa<Ptr>() && "invalid pointer type");
+    assert(lambda->param(1)->type().isa<PtrType>() && "invalid pointer type");
 
     auto uses = lambda->uses();
     if (uses.size() < 1)
@@ -68,9 +68,9 @@ static void adapt_addr_space(World &world, ToDo& uses) {
         auto index = use.index() - 1;
         // -> specialize for new ptr type
         if (to->param(index)->type() != entry.first) {
-            Array<const Type*> pi(to->pi()->elems());
-            pi[index] = entry.first;
-            auto nto = world.lambda(world.pi(pi), to->name);
+            Array<Type> fn(to->fn_type()->elems());
+            fn[index] = entry.first;
+            auto nto = world.lambda(world.fn_type(fn), to->name);
             assert(nto->num_params() == to->num_params());
             nto->attribute() = to->attribute();
 

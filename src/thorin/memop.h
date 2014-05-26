@@ -10,7 +10,7 @@ namespace thorin {
 
 class MemOp : public PrimOp {
 protected:
-    MemOp(size_t size, NodeKind kind, const Type* type, Def mem, const std::string& name);
+    MemOp(size_t size, NodeKind kind, Type type, Def mem, const std::string& name);
 
 public:
     Def mem() const { return op(0); }
@@ -20,7 +20,7 @@ public:
 
 class Access : public MemOp {
 protected:
-    Access(size_t size, NodeKind kind, const Type* type, Def mem, Def ptr, const std::string& name)
+    Access(size_t size, NodeKind kind, Type type, Def mem, Def ptr, const std::string& name)
         : MemOp(size, kind, type, mem, name)
     {
         assert(size >= 2);
@@ -80,12 +80,12 @@ public:
 
 class MapOp : public MemOp {
 protected:
-    MapOp(size_t size, NodeKind kind, const Type* type, 
+    MapOp(size_t size, NodeKind kind, Type type, 
           Def mem, Def ptr, uint32_t device, AddressSpace addr_space, const std::string &name);
 
 public:
     Def ptr() const { return op(1); }
-    const Ptr* ptr_type() const { return type()->as<Sigma>()->elem(1)->as<Ptr>(); }
+    PtrType ptr_type() const { return type().as<TupleType>()->elem(1).as<PtrType>(); }
     AddressSpace addr_space() const { return ptr_type()->addr_space(); }
     uint32_t device() const { return ptr_type()->device(); }
 };

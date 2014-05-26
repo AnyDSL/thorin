@@ -8,7 +8,7 @@
 namespace thorin {
 
 static void within(World& world, const DefNode* def) {
-    assert(world.types().find(def->type()) != world.types().end());
+    //assert(world.types().find(*def->type()) != world.types().end());
     if (auto primop = def->isa<PrimOp>()) {
         assert(world.primops().find(primop) != world.primops().end());
     } else if (auto lambda = def->isa_lambda())
@@ -57,16 +57,16 @@ void verify_cyclefree(World& world) {
         }
     }
 
-    while (!queue.empty()) {
-        auto def = queue.front();
-        queue.pop();
-    }
+    while (!queue.empty())
+        pop(queue.front());
 }
 #endif
 
 void verify_calls(World& world) {
     for (auto lambda : world.lambdas()) {
         if (!lambda->empty()) {
+            // TODO
+#if 0
             if (!lambda->to_pi()->check_with(lambda->arg_pi())) {
                 std::cerr << "call in '" << lambda->unique_name() << "' broken" << std::endl;
                 lambda->dump_jump();
@@ -80,6 +80,7 @@ void verify_calls(World& world) {
             auto res = lambda->to_pi()->infer_with(map, lambda->arg_pi());
             assert(res);
             assert(lambda->to_pi()->specialize(map) == lambda->arg_pi()->specialize(map));
+#endif
         }
     }
 }

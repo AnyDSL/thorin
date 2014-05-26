@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "thorin/enums.h"
+#include "thorin/type.h"
 #include "thorin/util/array.h"
 #include "thorin/util/autoptr.h"
 #include "thorin/util/cast.h"
@@ -19,9 +20,6 @@ namespace thorin {
 class DefNode;
 class Lambda;
 class PrimOp;
-class Sigma;
-class Tracker;
-class Type;
 class Use;
 class World;
 
@@ -114,7 +112,7 @@ private:
     DefNode(const DefNode&);              ///< Do not copy-construct a \p DefNode.
 
 protected:
-    DefNode(size_t gid, NodeKind kind, size_t size, const Type* type, bool is_const, const std::string& name)
+    DefNode(size_t gid, NodeKind kind, size_t size, Type type, bool is_const, const std::string& name)
         : kind_(kind)
         , ops_(size)
         , type_(type)
@@ -125,7 +123,8 @@ protected:
     {}
     virtual ~DefNode() {}
 
-    void set_type(const Type* type) { type_ = type; }
+    void clear_type() { type_.clear(); }
+    void set_type(Type type) { type_ = type; }
     void unregister_use(size_t i) const;
     void resize(size_t n) { ops_.resize(n, nullptr); }
 
@@ -154,9 +153,8 @@ public:
     size_t num_uses() const { return uses().size(); }
     size_t gid() const { return gid_; }
     std::string unique_name() const;
-    const Type* type() const { return type_; }
+    Type type() const { return type_; }
     int order() const;
-    bool is_generic() const;
     World& world() const;
     ArrayRef<Def> ops() const { return ops_; }
     Def op(size_t i) const { assert(i < ops().size()); return ops()[i]; }
@@ -180,7 +178,7 @@ public:
 private:
     const NodeKind kind_;
     std::vector<Def> ops_;
-    const Type* type_;
+    Type type_;
     mutable std::set<Use, UseLT> uses_;
     mutable const DefNode* representative_;
     mutable DefSet representatives_of_;
@@ -213,7 +211,7 @@ bool UseLT::operator () (Use use1, Use use2) const { // <- note that we switch t
 
 class Param : public DefNode {
 private:
-    Param(size_t gid, const Type* type, Lambda* lambda, size_t index, const std::string& name)
+    Param(size_t gid, Type type, Lambda* lambda, size_t index, const std::string& name)
         : DefNode(gid, Node_Param, 0, type, false, name)
         , lambda_(lambda)
         , index_(index)

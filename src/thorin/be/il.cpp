@@ -49,7 +49,7 @@ public:
         : Printer(std::cout, fancy)
     {}
 
-    std::ostream& emit_type(const Type*);
+    std::ostream& emit_type(Type);
     std::ostream& emit_name(Def);
     std::ostream& emit_def(Def);
     std::ostream& emit_primop(const PrimOp*);
@@ -63,26 +63,24 @@ public:
 
 //------------------------------------------------------------------------------
 
-std::ostream& IlPrinter::emit_type(const Type* type) {
-    if (type == nullptr)
+std::ostream& IlPrinter::emit_type(Type type) {
+    if (type.empty())
         return stream() << "null";
-    else if (type->isa<Frame>())
+    else if (type.isa<FrameType>())
         return stream() << "frame";
-    else if (type->isa<Mem>())
+    else if (type.isa<MemType>())
         return stream() << "mem";
-    else if (auto pi = type->isa<Pi>()) {
-        if (pi->elems().empty())
+    else if (auto fn = type.isa<FnType>()) {
+        if (fn->elems().empty())
           return stream() << "unit -> unit";
         else
-          return dump_list([&] (const Type* type) { emit_type(type); }, pi->elems(), "", " -> unit", " * ");
+          return dump_list([&] (Type type) { emit_type(type); }, fn->elems(), "", " -> unit", " * ");
     }
-    else if (auto sigma = type->isa<Sigma>())
-        return dump_list([&] (const Type* type) { emit_type(type); }, sigma->elems(), "", "", " * ");
-    else if (type->isa<Generic>())
+    else if (auto tuple = type.isa<TupleType>())
+        return dump_list([&] (Type type) { emit_type(type); }, tuple->elems(), "", "", " * ");
+    else if (type.isa<TypeVar>())
         return stream() << "TODO";
-    else if (type->isa<GenericRef>())
-        return stream() << "TODO";
-    else if (auto ptr = type->isa<Ptr>()) {
+    else if (auto ptr = type.isa<PtrType>()) {
         if (ptr->is_vector())
             stream() << '<' << ptr->length() << " x ";
         emit_type(ptr->referenced_type());
@@ -90,11 +88,11 @@ std::ostream& IlPrinter::emit_type(const Type* type) {
         if (ptr->is_vector())
             stream() << '>';
         return stream();
-    } else if (auto primtype = type->isa<PrimType>()) {
+    } else if (auto primtype = type.isa<PrimType>()) {
         if (primtype->is_vector())
             stream() << "<" << primtype->length() << " x ";
             switch (primtype->primtype_kind()) {
-#define THORIN_ALL_TYPE(T) case Node_PrimType_##T: stream() << #T; break;
+#define THORIN_ALL_TYPE(T, M) case Node_PrimType_##T: stream() << #T; break;
 #include "thorin/tables/primtypetable.h"
             default: THORIN_UNREACHABLE;
         }
@@ -129,7 +127,7 @@ std::ostream& IlPrinter::emit_primop(const PrimOp* primop) {
     if (auto primlit = primop->isa<PrimLit>()) {
         //emit_type(primop->type()) << ' ';
         switch (primlit->primtype_kind()) {
-#define THORIN_ALL_TYPE(T) case PrimType_##T: stream() << primlit->T##_value(); break;
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: stream() << primlit->T##_value(); break;
 #include "thorin/tables/primtypetable.h"
             default: THORIN_UNREACHABLE; break;
         }

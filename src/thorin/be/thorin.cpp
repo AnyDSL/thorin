@@ -17,7 +17,9 @@ public:
         : Printer(std::cout, fancy, colored)
     {}
 
-    std::ostream& emit_type(const Type*);
+    std::ostream& emit_type_vars(Type);
+    std::ostream& emit_type_elems(Type);
+    std::ostream& emit_type(Type);
     std::ostream& emit_name(Def);
     std::ostream& emit_def(Def);
     std::ostream& emit_primop(const PrimOp*);
@@ -28,32 +30,41 @@ public:
 
 //------------------------------------------------------------------------------
 
-std::ostream& CodeGen::emit_type(const Type* type) {
-    if (type == nullptr) {
+std::ostream& CodeGen::emit_type_vars(Type type) {
+    if (type->num_type_vars() != 0)
+        return dump_list([&](TypeVar type_var) { emit_type(type_var); }, type->type_vars(), "[", "]");
+    return stream();
+}
+
+std::ostream& CodeGen::emit_type_elems(Type type) {
+    return dump_list([&](Type type) { emit_type(type); }, type->elems(), "(", ")");
+}
+
+std::ostream& CodeGen::emit_type(Type type) {
+    if (type.empty()) {
         return stream() << "<NULL>";
-    } else if (type->isa<Frame>()) {
+    } else if (type.isa<FrameType>()) {
         return stream() << "frame";
-    } else if (type->isa<Mem>()) {
+    } else if (type.isa<MemType>()) {
         return stream() << "mem";
-    } else if (auto pi = type->isa<Pi>()) {
-        return dump_list([&](const Type* type) { emit_type(type); }, pi->elems(), "fn(", ")");
-    } else if (auto sigma = type->isa<Sigma>()) {
-        return dump_list([&](const Type* type) { emit_type(type); }, sigma->elems(), "(", ")");
-    } else if (auto generic = type->isa<Generic>()) {
-        return stream() << '<' << generic->index() << '>';
-    } else if (auto genref = type->isa<GenericRef>()) {
-        stream() << '<';
-        emit_name(genref->lambda()) << ", ";
-        return emit_type(genref->generic()) << '>';
-    } else if (auto array = type->isa<IndefArray>()) {
+    } else if (auto fn = type.isa<FnType>()) {
+        stream() << "fn";
+        emit_type_vars(fn);
+        return emit_type_elems(fn);
+    } else if (auto tuple = type.isa<TupleType>()) {
+        emit_type_vars(tuple);
+        return emit_type_elems(tuple);
+    } else if (auto type_var = type.isa<TypeVar>()) {
+        return stream() << '<' << type_var->gid() << '>';
+    } else if (auto array = type.isa<IndefiniteArrayType>()) {
         stream() << '[';
         emit_type(array->elem_type());
         return stream() << ']';
-    } else if (auto array = type->isa<DefArray>()) {
+    } else if (auto array = type.isa<DefiniteArrayType>()) {
         stream() << '[' << array->dim() << " x ";
         emit_type(array->elem_type());
         return stream() << ']';
-    } else if (auto ptr = type->isa<Ptr>()) {
+    } else if (auto ptr = type.isa<PtrType>()) {
         if (ptr->is_vector())
             stream() << '<' << ptr->length() << " x ";
         emit_type(ptr->referenced_type());
@@ -81,11 +92,11 @@ std::ostream& CodeGen::emit_type(const Type* type) {
             break;
         }
         return stream();
-    } else if (auto primtype = type->isa<PrimType>()) {
+    } else if (auto primtype = type.isa<PrimType>()) {
         if (primtype->is_vector())
             stream() << "<" << primtype->length() << " x ";
             switch (primtype->primtype_kind()) {
-#define THORIN_ALL_TYPE(T) case Node_PrimType_##T: stream() << #T; break;
+#define THORIN_ALL_TYPE(T, M) case Node_PrimType_##T: stream() << #T; break;
 #include "thorin/tables/primtypetable.h"
                 default: THORIN_UNREACHABLE;
             }
@@ -120,7 +131,7 @@ std::ostream& CodeGen::emit_primop(const PrimOp* primop) {
     else if (auto primlit = primop->isa<PrimLit>()) {
         emit_type(primop->type()) << ' ';
         switch (primlit->primtype_kind()) {
-#define THORIN_ALL_TYPE(T) case PrimType_##T: stream() << primlit->T##_value(); break;
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: stream() << primlit->T##_value(); break;
 #include "thorin/tables/primtypetable.h"
             default: THORIN_UNREACHABLE; break;
         }
@@ -161,6 +172,7 @@ std::ostream& CodeGen::emit_assignment(const PrimOp* primop) {
 
 std::ostream& CodeGen::emit_head(const Lambda* lambda) {
     emit_name(lambda);
+    emit_type_vars(lambda->fn_type());
     dump_list([&](const Param* param) { emit_type(param->type()) << " "; emit_name(param); }, lambda->params(), "(", ")");
 
     if (lambda->attribute().is(Lambda::Extern))
@@ -210,7 +222,7 @@ void emit_thorin(World& world, bool fancy, bool nocolor) {
     }
 }
 
-void emit_type(const Type* type)           { CodeGen(false).emit_type(type);         }
+void emit_type(Type type)                  { CodeGen(false).emit_type(type);         }
 void emit_def(Def def)                     { CodeGen(false).emit_def(def);           }
 void emit_head(const Lambda* lambda)       { CodeGen(false).emit_head(lambda);       }
 void emit_jump(const Lambda* lambda)       { CodeGen(false).emit_jump(lambda);       }

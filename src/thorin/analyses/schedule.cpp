@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <iostream>
-#include <queue>
 
 #include "thorin/lambda.h"
 #include "thorin/memop.h"
@@ -9,6 +8,7 @@
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/looptree.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/util/queue.h"
 
 namespace thorin {
 
@@ -29,7 +29,7 @@ Schedule schedule_early(const Scope& scope) {
     std::queue<Def> queue;
     DefMap<size_t> num_placed;
     DefSet set;
-    auto insert = [&] (Def def) {
+    auto enqueue = [&] (Def def) {
         if (scope.contains(def))
             queue.push(def);
     };
@@ -39,13 +39,12 @@ Schedule schedule_early(const Scope& scope) {
 
         for (auto param : lambda->params())
             if (!param->is_proxy())
-                insert(param);
+                enqueue(param);
 
         while (!queue.empty()) {
-            Def def = queue.front();
+            auto def = pop(queue);
             if (auto primop = def->isa<PrimOp>())
                 primops.push_back(primop);
-            queue.pop();
 
             std::vector<Def> todo;
             for (auto use : def->uses()) {
@@ -68,7 +67,7 @@ Schedule schedule_early(const Scope& scope) {
 
             std::stable_sort(todo.begin(), todo.end(), sort_primops);
             for (auto def : todo)
-                insert(def);
+                enqueue(def);
         }
     }
 

@@ -22,7 +22,7 @@ public:
     Lambda* vectorize();
     void infer_condition(Lambda* lambda);
     void param2select(const Param* param);
-    const Type* vectorize_type(const Type* type, size_t length);
+    Type vectorize_type(Type, size_t length);
     void vectorize_primop(Def cond, const PrimOp* primop);
     Def vectorize(Def def, size_t length);
 
@@ -35,17 +35,17 @@ public:
     const size_t length;
 };
 
-const Type* Vectorizer::vectorize_type(const Type* type, size_t length) {
-    assert(!type->isa<VectorType>() || type->length() == 1);
+Type Vectorizer::vectorize_type(Type type, size_t length) {
+    assert(!type.isa<VectorType>() || type->length() == 1);
     World& world = type->world();
 
-    if (const PrimType* primtype = type->isa<PrimType>())
+    if (auto primtype = type.isa<PrimType>())
         return world.type(primtype->primtype_kind(), length);
 
-    if (const Ptr* ptr = type->isa<Ptr>())
-        return world.ptr(ptr->referenced_type(), length);
+    if (auto ptr = type.isa<PtrType>())
+        return world.ptr_type(ptr->referenced_type(), length);
 
-    Array<const Type*> new_elems(type->size());
+    Array<Type> new_elems(type->size());
     for (size_t i = 0, e = type->size(); i != e; ++i)
         new_elems[i] = vectorize_type(type->elem(i), length);
 
@@ -56,7 +56,7 @@ Lambda* Vectorizer::vectorize() {
     std::ostringstream oss;
     auto entry = scope.entry();
     oss << entry->name << "_x" << length;
-    Lambda* vlambda = world().lambda(vectorize_type(entry->pi(), length)->as<Pi>(), Lambda::Attribute(Lambda::Extern), oss.str());
+    auto vlambda = world().lambda(vectorize_type(entry->fn_type(), length).as<FnType>(), Lambda::Attribute(Lambda::Extern), oss.str());
     mapped[entry] = *world().true_mask(length);
 
     for (size_t i = 0, e = entry->num_params(); i != e; ++i) {
@@ -76,7 +76,7 @@ Lambda* Vectorizer::vectorize() {
         }
 
         for (auto primop : schedule[lambda]) {
-            if (primop->isa<Select>() && primop->type()->isa<Pi>())
+            if (primop->isa<Select>() && primop->type().isa<FnType>())
                 continue; // ignore branch
             vectorize_primop(mapped[lambda], primop);
         }

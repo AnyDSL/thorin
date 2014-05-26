@@ -67,8 +67,8 @@ void CFFLowering::transform(Lambda* lambda) {
 
     for (auto use : use_proxies) {
         auto ulambda = use.lambda();
-        GenericMap map;
-        bool res = lambda->type()->infer_with(map, ulambda->arg_pi());
+        Type2Type map;
+        bool res = lambda->type()->infer_with(map, ulambda->arg_fn_type());
         assert(res);
         
         size_t num_args = lambda->num_params();
@@ -114,7 +114,7 @@ size_t CFFLowering::process() {
             if (lambda->is_builtin() || lambda->is_connected_to_builtin())
                 continue;
             if (lambda->num_params() != 0                           // is there sth to drop?
-                && (lambda->is_generic()                            // drop generic stuff
+                && (lambda->type()->is_polymorphic()                // drop polymorphic functions
                     || (!lambda->is_basicblock()                    // don't drop basic blocks
                         && (!lambda->is_returning()                 // drop non-returning lambdas
                             || top_.find(lambda) == top_.end()))))  // lift/drop returning non top-level lambdas

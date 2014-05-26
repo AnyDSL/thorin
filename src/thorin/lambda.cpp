@@ -5,13 +5,13 @@
 #include "thorin/literal.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
-#include "thorin/util/array.h"
 #include "thorin/be/thorin.h"
+#include "thorin/util/queue.h"
 
 namespace thorin {
 
-Lambda* Lambda::stub(const GenericMap& generic_map, const std::string& name) const {
-    auto result = world().lambda(pi()->specialize(generic_map)->as<Pi>(), attribute(), name);
+Lambda* Lambda::stub(Type2Type& type2type, const std::string& name) const {
+    auto result = world().lambda(fn_type()->specialize(type2type).as<FnType>(), attribute(), name);
     for (size_t i = 0, e = num_params(); i != e; ++i)
         result->param(i)->name = param(i)->name;
     return result;
@@ -23,23 +23,22 @@ Lambda* Lambda::update_op(size_t i, Def def) {
     return this;
 }
 
-const Pi* Lambda::pi() const { return type()->as<Pi>(); }
-const Pi* Lambda::to_pi() const { return to()->type()->as<Pi>(); }
-
-const Pi* Lambda::arg_pi() const {
-    Array<const Type*> elems(num_args());
+FnType Lambda::arg_fn_type() const {
+    Array<Type> elems(num_args());
     for (size_t i = 0, e = num_args(); i != e; ++i)
         elems[i] = arg(i)->type();
 
-    return world().pi(elems);
+    return world().fn_type(elems);
 }
 
-const Param* Lambda::append_param(const Type* type, const std::string& name) {
-    size_t size = pi()->size();
-    Array<const Type*> elems(size + 1);
-    *std::copy(pi()->elems().begin(), pi()->elems().end(), elems.begin()) = type;
-    set_type(world().pi(elems));                        // update type
-    auto param = world().param(type, this, size, name); // append new param
+const Param* Lambda::append_param(Type type, const std::string& name) {
+    size_t size = fn_type()->size();
+    Array<Type> elems(size + 1);
+    *std::copy(fn_type()->elems().begin(), fn_type()->elems().end(), elems.begin()) = type;
+    auto& w = world();
+    clear_type();
+    set_type(w.fn_type(elems));                        // update type
+    auto param = w.param(type, this, size, name); // append new param
     params_.push_back(param);
 
     return param;
@@ -51,7 +50,7 @@ static Lambdas preds(const Lambda* lambda) {
     std::queue<Use> queue;
     DefSet done;
 
-    auto insert = [&] (Def def) {
+    auto enqueue = [&] (Def def) {
         for (auto use : def->uses()) {
             if (done.find(use) == done.end()) {
                 queue.push(use);
@@ -61,19 +60,17 @@ static Lambdas preds(const Lambda* lambda) {
     };
 
     done.insert(lambda);
-    insert(lambda);
+    enqueue(lambda);
 
     while (!queue.empty()) {
-        Use use = queue.front();
-        queue.pop();
-
+        auto use = pop(queue);
         if (auto lambda = use->isa_lambda()) {
             if ((use.index() == 0 && direct) || (use.index() != 0 && indirect))
                 preds.push_back(lambda);
             continue;
         } 
 
-        insert(use);
+        enqueue(use);
     }
 
     return preds;
@@ -85,7 +82,7 @@ static Lambdas succs(const Lambda* lambda) {
     std::queue<Def> queue;
     DefSet done;
 
-    auto insert = [&] (Def def) {
+    auto enqueue = [&] (Def def) {
         if (done.find(def) == done.end()) {
             queue.push(def);
             done.insert(def);
@@ -94,22 +91,20 @@ static Lambdas succs(const Lambda* lambda) {
 
     done.insert(lambda);
     if (direct && !lambda->empty())
-        insert(lambda->to());
+        enqueue(lambda->to());
     if (indirect) {
         for (auto arg : lambda->args())
-            insert(arg);
+            enqueue(arg);
     }
 
     while (!queue.empty()) {
-        Def def = queue.front();
-        queue.pop();
-
+        auto def = pop(queue);
         if (auto lambda = def->isa_lambda()) {
             succs.push_back(lambda);
             continue;
         } 
         for (auto op : def->ops())
-            insert(op);
+            enqueue(op);
     }
 
     return succs;
@@ -159,8 +154,8 @@ bool Lambda::is_cascading() const {
     return use->isa<Lambda>() && use.index() > 0;
 }
 
-bool Lambda::is_basicblock() const { return pi()->is_basicblock(); }
-bool Lambda::is_returning() const { return pi()->is_returning(); }
+bool Lambda::is_basicblock() const { return fn_type()->is_basicblock(); }
+bool Lambda::is_returning() const { return fn_type()->is_returning(); }
 void Lambda::dump_head() const { emit_head(this); }
 void Lambda::dump_jump() const { emit_jump(this); }
 
@@ -182,37 +177,44 @@ void Lambda::branch(Def cond, Def tto, Def fto) {
     return jump(world().select(cond, tto, fto), ArrayRef<Def>(nullptr, 0));
 }
 
-Lambda* Lambda::call(Def to, ArrayRef<Def> args, const Type* ret_type) {
-    // create next continuation in cascade
-    Lambda* next = world().lambda(world().pi({ret_type}), name);
-    const Param* result = next->param(0);
-    result->name = to->name;
+std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) {
+    if (ret_type.empty()) {
+        jump(to, args);
+        return std::make_pair(nullptr, Def());
+    }
 
-    // create jump to this new continuation
-    size_t csize = args.size() + 1;
-    Array<Def> cargs(csize);
-    *std::copy(args.begin(), args.end(), cargs.begin()) = next;
-    jump(to, cargs);
+    std::vector<Type> cont_elems;
+    cont_elems.push_back(world().mem_type());
+    bool pack = false;
+    if (auto tuple = ret_type.isa<TupleType>()) {
+        pack = true;
+        for (auto elem : tuple->elems())
+            cont_elems.push_back(elem);
+    } else
+        cont_elems.push_back(ret_type);
 
-    return next;
-}
-
-Lambda* Lambda::mem_call(Def to, ArrayRef<Def> args, const Type* ret_type) {
-    // create next continuation in cascade
-    auto pi = ret_type != nullptr ? world().pi({world().mem(), ret_type}) : world().pi({world().mem()});
-    auto next = world().lambda(pi, name);
+    auto next = world().lambda(world().fn_type(cont_elems), name);
     next->param(0)->name = "mem";
 
-    if (ret_type)
-        next->param(1)->name = to->name;
-
-    // create jump to this new continuation
+    // create jump to next
     size_t csize = args.size() + 1;
     Array<Def> cargs(csize);
     *std::copy(args.begin(), args.end(), cargs.begin()) = next;
     jump(to, cargs);
 
-    return next;
+    // determine return value
+    Def ret;
+    if (pack) {
+        Array<Def> defs(next->num_params()-1);
+        auto p = next->params().slice_from_begin(1);
+        std::copy(p.begin(), p.end(), defs.begin());
+        ret = world().tuple(defs);
+
+    } else 
+        ret = next->param(1);
+    ret->name = to->name;
+
+    return std::make_pair(next, ret);
 }
 
 /*
@@ -225,14 +227,14 @@ Def Lambda::find_def(size_t handle) {
 }
 
 Def Lambda::set_mem(Def def) { return set_value(0, def); }
-Def Lambda::get_mem() { return get_value(0, world().mem(), "mem"); }
+Def Lambda::get_mem() { return get_value(0, world().mem_type(), "mem"); }
 
 Def Lambda::set_value(size_t handle, Def def) { 
     increase_values(handle);
     return values_[handle] = def;
 }
 
-Def Lambda::get_value(size_t handle, const Type* type, const char* name) {
+Def Lambda::get_value(size_t handle, Type type, const char* name) {
     if (auto def = find_def(handle))
         return def;
 

@@ -41,10 +41,10 @@ public:
         return Proxy<U>((**this)->template as<T>());
     }
     template<class U> Proxy<typename U::BaseType> isa() const { 
-        return Proxy<typename U::BaseType>((*this)->isa<typename U::BaseType>()); 
+        return Proxy<typename U::BaseType>((*this)->template isa<typename U::BaseType>()); 
     }
     template<class U> Proxy<typename U::BaseType> as() const { 
-        return Proxy<typename U::BaseType>((*this)->as <typename U::BaseType>()); 
+        return Proxy<typename U::BaseType>((*this)->template as <typename U::BaseType>()); 
     }
     operator bool() { return !empty(); }
     Proxy<T>& operator= (Proxy<T> other) { 

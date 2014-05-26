@@ -1,15 +1,14 @@
-intrinsic _Z12get_work_dimv() -> i32;
-intrinsic _Z15get_global_sizej(i32) -> i64;
-intrinsic _Z13get_global_idj(i32) -> i64;
-intrinsic _Z14get_local_sizej(i32) -> i64;
-intrinsic _Z12get_local_idj(i32) -> i64;
-intrinsic _Z14get_num_groupsj(i32) -> i64;
-intrinsic _Z12get_group_idj(i32) -> i64;
-intrinsic _Z17get_global_offsetj(i32) -> i64;
-intrinsic _Z7barrierj(i32) -> ();
-intrinsic _Z3expf(float) -> float;
-fn expf(a: float) -> float {
-    _Z3expf(a)
+extern "naked" {
+    fn _Z12get_work_dimv() -> i32;
+    fn _Z15get_global_sizej(i32) -> i64;
+    fn _Z13get_global_idj(i32) -> i64;
+    fn _Z14get_local_sizej(i32) -> i64;
+    fn _Z12get_local_idj(i32) -> i64;
+    fn _Z14get_num_groupsj(i32) -> i64;
+    fn _Z12get_group_idj(i32) -> i64;
+    fn _Z17get_global_offsetj(i32) -> i64;
+    fn _Z7barrierj(i32) -> ();
+    fn _Z3expf(float) -> float;
 }
 
 fn work_dim() -> int {                  _Z12get_work_dimv() }
@@ -21,3 +20,6 @@ fn num_groups(idx : int) -> int {       int64_to_int32(_Z14get_num_groupsj(idx))
 fn group_id(idx : int) -> int {         int64_to_int32(_Z12get_group_idj(idx)) }
 fn global_offset(idx : int) -> int {    int64_to_int32(_Z17get_global_offsetj(idx)) }
 fn barrier(flag : int) -> () {          _Z7barrierj(flag) }
+
+fn expf(a: float) -> float { _Z3expf(a) }
+

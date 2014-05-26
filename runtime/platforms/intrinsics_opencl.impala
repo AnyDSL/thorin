@@ -1,15 +1,14 @@
-intrinsic get_work_dim() -> i32;
-intrinsic get_global_size(i32) -> i64;
-intrinsic get_global_id(i32) -> i64;
-intrinsic get_local_size(i32) -> i64;
-intrinsic get_local_id(i32) -> i64;
-intrinsic get_num_groups(i32) -> i64;
-intrinsic get_group_id(i32) -> i64;
-intrinsic get_global_offset(i32) -> i64;
-intrinsic barrier(i32) -> ();
-intrinsic exp(float) -> float;
-fn expf(a: float) -> float {
-    exp(a)
+extern "naked" {
+    fn get_work_dim() -> i32;
+    fn get_global_size(i32) -> i64;
+    fn get_global_id(i32) -> i64;
+    fn get_local_size(i32) -> i64;
+    fn get_local_id(i32) -> i64;
+    fn get_num_groups(i32) -> i64;
+    fn get_group_id(i32) -> i64;
+    fn get_global_offset(i32) -> i64;
+    fn barrier(i32) -> ();
+    fn exp(float) -> float;
 }
 
 fn global_size(idx : int) -> int {   int64_to_int32(get_global_size(idx)) }
@@ -19,3 +18,6 @@ fn local_id(idx : int) -> int {      int64_to_int32(get_local_id(idx)) }
 fn num_groups(idx : int) -> int {    int64_to_int32(get_num_groups(idx)) }
 fn group_id(idx : int) -> int {      int64_to_int32(get_group_id(idx)) }
 fn global_offset(idx : int) -> int { int64_to_int32(get_global_offset(idx)) }
+
+fn expf(a: float) -> float { exp(a) }
+

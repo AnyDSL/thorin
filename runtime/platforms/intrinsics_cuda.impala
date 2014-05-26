@@ -1,17 +1,19 @@
-extern threadIdx_x() -> i32;
-extern threadIdx_y() -> i32;
-extern threadIdx_z() -> i32;
-extern blockIdx_x() -> i32;
-extern blockIdx_y() -> i32;
-extern blockIdx_z() -> i32;
-extern blockDim_x() -> i32;
-extern blockDim_y() -> i32;
-extern blockDim_z() -> i32;
-extern gridDim_x() -> i32;
-extern gridDim_y() -> i32;
-extern gridDim_z() -> i32;
-intrinsic __syncthreads() -> ();
-intrinsic exp(float) -> float;
-fn expf(a: float) -> float {
-    exp(a)
+extern "naked" {
+    fn threadIdx_x() -> i32;
+    fn threadIdx_y() -> i32;
+    fn threadIdx_z() -> i32;
+    fn blockIdx_x() -> i32;
+    fn blockIdx_y() -> i32;
+    fn blockIdx_z() -> i32;
+    fn blockDim_x() -> i32;
+    fn blockDim_y() -> i32;
+    fn blockDim_z() -> i32;
+    fn gridDim_x() -> i32;
+    fn gridDim_y() -> i32;
+    fn gridDim_z() -> i32;
+    fn __syncthreads() -> ();
+    fn exp(float) -> float;
 }
+
+fn expf(a: float) -> float { exp(a) }
+

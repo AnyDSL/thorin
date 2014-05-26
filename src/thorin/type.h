@@ -40,17 +40,17 @@ public:
         static_assert(std::is_base_of<U, T>::value, "U is not a base type of T");
         return Proxy<U>((**this)->template as<T>());
     }
-    template<class U> Proxy<typename U::BaseType> isa() const { 
-        return Proxy<typename U::BaseType>((*this)->template isa<typename U::BaseType>()); 
+    template<class U> Proxy<typename U::BaseType> isa() const {
+        return Proxy<typename U::BaseType>((*this)->template isa<typename U::BaseType>());
     }
-    template<class U> Proxy<typename U::BaseType> as() const { 
-        return Proxy<typename U::BaseType>((*this)->template as <typename U::BaseType>()); 
+    template<class U> Proxy<typename U::BaseType> as() const {
+        return Proxy<typename U::BaseType>((*this)->template as <typename U::BaseType>());
     }
     operator bool() { return !empty(); }
-    Proxy<T>& operator= (Proxy<T> other) { 
+    Proxy<T>& operator= (Proxy<T> other) {
         assert(node_ == nullptr);
-        node_ = *other; 
-        return *this; 
+        node_ = *other;
+        return *this;
     }
     void clear() { assert(node_ != nullptr); node_ = nullptr; }
     Proxy<T> unify() const { return node()->unify()->template as<T>(); }
@@ -75,7 +75,7 @@ class TypeVarNode;              typedef Proxy<TypeVarNode>              TypeVar;
 
 template<class T> struct GIDHash;
 template<class T> struct GIDEq;
-template<class To> 
+template<class To>
 using TypeMap    = HashMap<const TypeNode*, To, GIDHash<const TypeNode*>, GIDEq<const TypeNode*>>;
 using TypeSet    = HashSet<const TypeNode*, GIDHash<const TypeNode*>, GIDEq<const TypeNode*>>;
 using Type2Type  = TypeMap<const TypeNode*>;
@@ -199,7 +199,7 @@ protected:
     {}
 
     virtual size_t hash() const override { return hash_combine(TypeNode::hash(), length()); }
-    virtual bool equal(const TypeNode* other) const override { 
+    virtual bool equal(const TypeNode* other) const override {
         return TypeNode::equal(other) && this->length() == other->as<VectorTypeNode>()->length();
     }
 
@@ -344,7 +344,7 @@ public:
 
     u64 dim() const { return dim_; }
     virtual size_t hash() const override { return hash_combine(TypeNode::hash(), dim()); }
-    virtual bool equal(const TypeNode* other) const override { 
+    virtual bool equal(const TypeNode* other) const override {
         return TypeNode::equal(other) && this->dim() == other->as<DefiniteArrayTypeNode>()->dim();
     }
 

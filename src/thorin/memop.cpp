@@ -8,8 +8,10 @@ namespace thorin {
 //------------------------------------------------------------------------------
 
 Alloc::Alloc(Def mem, Type type, Def num, const std::string& name)
-    : MemOp(2, Node_Alloc, world().ptr_type(type), mem ,name)
-{}
+    : MemOp(2, Node_Alloc, type->world().ptr_type(type), mem, name)
+{
+    set_op(1, num);
+}
 
 //------------------------------------------------------------------------------
 

@@ -196,9 +196,9 @@ public:
      * memops
      */
 
-    Def alloc(Def mem, Type type, Def num, const std::string& name);
-    Def alloc(Def mem, Type type, size_t num, const std::string& name) { return alloc(mem, type, literal_pu64(num), name); }
-    Def alloc(Def mem, Type type, const std::string& name) { return alloc(mem, type, 1, name); }
+    Def alloc(Def mem, Type type, Def num, const std::string& name = "");
+    Def alloc(Def mem, Type type, size_t num, const std::string& name = "") { return alloc(mem, type, literal_pu64(num), name); }
+    Def alloc(Def mem, Type type, const std::string& name = "") { return alloc(mem, type, 1, name); }
     Def load(Def mem, Def ptr, const std::string& name = "");
     const Store* store(Def mem, Def ptr, Def val, const std::string& name = "");
     const Enter* enter(Def mem, const std::string& name = "");

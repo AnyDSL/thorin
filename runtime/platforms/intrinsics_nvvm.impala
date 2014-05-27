@@ -87,8 +87,8 @@ extern "llvm" {
     fn nvvm_ex2_approx_d(double) -> double;
     fn nvvm_ex2_approx_f(float) -> float;
     fn nvvm_ex2_approx_ftz_f(float) -> float;
-    fn nvvm_f2h_rn(float) -> int16;
-    fn nvvm_f2h_rn_ftz(float) -> int16;
+    fn nvvm_f2h_rn(float) -> i16;
+    fn nvvm_f2h_rn_ftz(float) -> i16;
     fn nvvm_f2i_rm(float) -> i32;
     fn nvvm_f2i_rm_ftz(float) -> i32;
     fn nvvm_f2i_rn(float) -> i32;
@@ -145,7 +145,7 @@ extern "llvm" {
     fn nvvm_fmin_d(double, double) -> double;
     fn nvvm_fmin_f(float, float) -> float;
     fn nvvm_fmin_ftz_f(float, float) -> float;
-    fn nvvm_h2f(int16) -> float;
+    fn nvvm_h2f(i16) -> float;
     fn nvvm_i2d_rm(i32) -> double;
     fn nvvm_i2d_rn(i32) -> double;
     fn nvvm_i2d_rp(i32) -> double;
@@ -179,7 +179,7 @@ extern "llvm" {
     fn nvvm_min_ull(i64, i64) -> i64;
     fn nvvm_move_double(double) -> double;
     fn nvvm_move_float(float) -> float;
-    fn nvvm_move_i16(int16) -> int16;
+    fn nvvm_move_i16(i16) -> i16;
     fn nvvm_move_i32(i32) -> i32;
     fn nvvm_move_i64(i64) -> i64;
     fn nvvm_mul24_i(i32, i32) -> i32;

@@ -20,6 +20,7 @@ endif
 
 all: $(MAIN).out
 	@echo "Running $(MAIN) ..."
+	@ln -sf $(CUDA_DIR)/nvvm/libdevice/* .
 	@./$(MAIN).out
 
 %.s: %.cpp

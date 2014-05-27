@@ -265,5 +265,9 @@ extern "llvm" {
     fn nvvm_ull2f_rz(i64) -> float;
 }
 
-fn expf(a: float) -> float { nvvm_ex2_approx_f(a * 1.442695041f) }
+extern "raw" {
+    fn __nv_expf(float) -> float;
+}
+
+fn expf(a: float) -> float { __nv_expf(a) }
 

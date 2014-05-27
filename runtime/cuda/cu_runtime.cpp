@@ -384,6 +384,29 @@ void load_kernel(size_t dev, const char *file_name, const char *kernel_name, boo
 
     if (is_nvvm) {
         nvvmResult err;
+        // select libdevice module according to documentation
+        const char *libdevice_file_name;
+        switch (target_cc) {
+            default:
+                assert(false && "unsupported compute capability");
+            case CU_TARGET_COMPUTE_20:
+            case CU_TARGET_COMPUTE_21:
+            case CU_TARGET_COMPUTE_32:
+                libdevice_file_name = "libdevice.compute_20.10.bc"; break;
+            case CU_TARGET_COMPUTE_30:
+                libdevice_file_name = "libdevice.compute_30.10.bc"; break;
+            case CU_TARGET_COMPUTE_35:
+                libdevice_file_name = "libdevice.compute_35.10.bc"; break;
+        }
+        std::ifstream libdeviceFile(libdevice_file_name);
+        if (!libdeviceFile.is_open()) {
+            std::cerr << "ERROR: Can't open libdevice source file '" << libdevice_file_name << "'!" << std::endl;
+            exit(EXIT_FAILURE);
+        }
+
+        std::string libdeviceString = std::string(std::istreambuf_iterator<char>(libdeviceFile),
+                (std::istreambuf_iterator<char>()));
+
         std::ifstream srcFile(file_name);
         if (!srcFile.is_open()) {
             std::cerr << "ERROR: Can't open LL source file '" << file_name << "'!" << std::endl;
@@ -396,11 +419,14 @@ void load_kernel(size_t dev, const char *file_name, const char *kernel_name, boo
         err = nvvmCreateProgram(&program);
         checkErrNvvm(err, "nvvmCreateProgram()");
 
+        err = nvvmAddModuleToProgram(program, libdeviceString.c_str(), libdeviceString.length(), libdevice_file_name);
+        checkErrNvvm(err, "nvvmAddModuleToProgram()");
+
         err = nvvmAddModuleToProgram(program, srcString.c_str(), srcString.length(), file_name);
         checkErrNvvm(err, "nvvmAddModuleToProgram()");
 
         std::string compute_arch("-arch=compute_" + std::to_string(target_cc));
-        int num_options = 1;
+        int num_options = 2;
         const char *options[3];
         options[0] = compute_arch.c_str();
         options[1] = "-ftz=1";

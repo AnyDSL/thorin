@@ -635,7 +635,7 @@ void nvvm_load_cuda_kernel(size_t dev, const char *file_name, const char *kernel
 
 void nvvm_set_kernel_arg(size_t dev, void *param) { set_kernel_arg(dev, param); }
 void nvvm_set_kernel_arg_map(size_t dev, mem_id mem) { set_kernel_arg_map(dev, mem); }
-void nvvm_set_kernel_arg_tex(size_t dev, mem_id mem, char *name, CUarray_format format) {
+void nvvm_set_kernel_arg_tex(size_t dev, mem_id mem, const char *name, CUarray_format format) {
     std::cerr << "set arg tex: " << mem << std::endl;
     get_tex_ref(dev, name);
     bind_tex(dev, mem, format);

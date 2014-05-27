@@ -7,7 +7,7 @@
 static int num = 1024;
 
 int main_impala() {
-    size_t dev = 0;
+    size_t dev = 1;
     int *host = (int *)array(sizeof(int), num, 1);
 
     for (unsigned int i=0; i<num; ++i) {
@@ -15,17 +15,17 @@ int main_impala() {
     }
 
     // CODE TO BE GENERATED: BEGIN
-    mem_id mem = malloc_memory(dev, host);
-    write_memory(dev, mem, host);
+    mem_id mem = nvvm_malloc_memory(dev, host);
+    nvvm_write_memory(dev, mem, host);
 
-    load_kernel(dev, "simple-gpu64.nvvm", "simple");
-    set_kernel_arg_map(dev, mem);
-    set_problem_size(dev, 1024, 1, 1);
-    set_config_size(dev, 128, 1, 1);
-    launch_kernel(dev, "simple");
-    synchronize(dev); // optional
-    read_memory(dev, mem, host);
-    free_memory(dev, mem);
+    nvvm_load_nvvm_kernel(dev, "simple-gpu64.nvvm", "simple");
+    nvvm_set_kernel_arg_map(dev, mem);
+    nvvm_set_problem_size(dev, 1024, 1, 1);
+    nvvm_set_config_size(dev, 128, 1, 1);
+    nvvm_launch_kernel(dev, "simple");
+    nvvm_synchronize(dev); // optional
+    nvvm_read_memory(dev, mem, host);
+    nvvm_free_memory(dev, mem);
     // CODE TO BE GENERATED: END
 
     // check result
@@ -43,27 +43,26 @@ int main_impala() {
 
 
     // CODE TO BE GENERATED: BEGIN
-    CUdeviceptr tex = malloc_memory(dev, host);
-    write_memory(dev, tex, host);
+    CUdeviceptr tex = nvvm_malloc_memory(dev, host);
+    nvvm_write_memory(dev, tex, host);
 
     int *host_out = (int *)array(sizeof(int), num, 1);
-    CUdeviceptr out = malloc_memory(dev, host_out);
+    CUdeviceptr out = nvvm_malloc_memory(dev, host_out);
     for (unsigned int i=0; i<num; ++i) {
         host_out[i] = 0;
     }
-    write_memory(dev, out, host_out);
+    nvvm_write_memory(dev, out, host_out);
 
-    load_kernel(dev, "simple-gpu64.nvvm", "simple_tex");
-    get_tex_ref(dev, "texture");
-    bind_tex(dev, tex, CU_AD_FORMAT_SIGNED_INT32);
-    set_kernel_arg_map(dev, out);
-    set_problem_size(dev, 1024, 1, 1);
-    set_config_size(dev, 128, 1, 1);
-    launch_kernel(dev, "simple");
-    synchronize(dev); // optional
-    read_memory(dev, out, host_out);
-    free_memory(dev, out);
-    free_memory(dev, tex);
+    nvvm_load_nvvm_kernel(dev, "simple-gpu64.nvvm", "simple_tex");
+    nvvm_set_kernel_arg_tex(dev, tex, "texture", CU_AD_FORMAT_SIGNED_INT32);
+    nvvm_set_kernel_arg_map(dev, out);
+    nvvm_set_problem_size(dev, 1024, 1, 1);
+    nvvm_set_config_size(dev, 128, 1, 1);
+    nvvm_launch_kernel(dev, "simple");
+    nvvm_synchronize(dev); // optional
+    nvvm_read_memory(dev, out, host_out);
+    nvvm_free_memory(dev, out);
+    nvvm_free_memory(dev, tex);
     // CODE TO BE GENERATED: END
 
     // check result

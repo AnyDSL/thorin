@@ -16,6 +16,17 @@ public:
     Def mem() const { return op(0); }
 };
 
+class Alloc : public MemOp {
+private:
+    Alloc(Def mem, Type type, Def num, const std::string& name);
+
+public:
+    Def num() const { return op(1); }
+    Type alloced_type() const { return type().as<PtrType>()->referenced_type(); }
+
+    friend class World;
+};
+
 //------------------------------------------------------------------------------
 
 class Access : public MemOp {

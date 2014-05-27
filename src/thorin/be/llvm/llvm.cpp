@@ -632,6 +632,15 @@ llvm::Value* CodeGen::emit(Def def) {
     if (auto undef = def->isa<Undef>()) // bottom and any
         return llvm::UndefValue::get(map(undef->type()));
 
+    if (auto alloc = def->isa<Alloc>()) {
+        auto alloced_type = map(alloc->alloced_type());
+        auto cast = llvm::CallInst::CreateMalloc(builder_.GetInsertPoint(), 
+                map(alloc->type()), alloced_type, builder_.getInt64(alloced_type->getIntegerBitWidth()/8),
+                lookup(alloc->num()), nullptr, alloc->unique_name());
+        builder_.Insert(cast);
+        return cast;
+    }
+
     if (auto load = def->isa<Load>())
         return emit_load(load);
 

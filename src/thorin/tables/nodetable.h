@@ -9,8 +9,10 @@
             THORIN_AIR_NODE(Any, any)
             THORIN_AIR_NODE(Bottom, bottom)
         // MemOp
-            THORIN_AIR_NODE(Load, load)
-            THORIN_AIR_NODE(Store, store)
+            THORIN_AIR_NODE(Alloc, alloc)
+            // Access
+                THORIN_AIR_NODE(Load, load)
+                THORIN_AIR_NODE(Store, store)
             THORIN_AIR_NODE(Enter, enter)
             THORIN_AIR_NODE(Leave, leave)
             THORIN_AIR_NODE(Map, map)

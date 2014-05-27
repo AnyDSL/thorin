@@ -7,6 +7,12 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
+Alloc::Alloc(Def mem, Type type, Def num, const std::string& name)
+    : MemOp(2, Node_Alloc, world().ptr_type(type), mem ,name)
+{}
+
+//------------------------------------------------------------------------------
+
 Load::Load(Def mem, Def ptr, const std::string& name)
     : Access(2, Node_Load, ptr->type().as<PtrType>()->referenced_type(), mem, ptr, name)
 {}

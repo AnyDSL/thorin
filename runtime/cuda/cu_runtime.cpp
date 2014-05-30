@@ -1,5 +1,9 @@
 #include "cu_runtime.h"
 
+#if CUDA_VERSION < 6000
+    #error "CUDA 6.0 or higher required!"
+#endif
+
 #include <stdlib.h>
 
 #include <cassert>

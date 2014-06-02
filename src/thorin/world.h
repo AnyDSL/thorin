@@ -173,12 +173,13 @@ public:
      * aggregate stuff
      */
 
-    Def array(Type elem, ArrayRef<Def> args, bool definite = true, const std::string& name = "") {
-        return cse(new ArrayAgg(*this, elem, args, definite, name));
+    Def definite_array(Type elem, ArrayRef<Def> args, const std::string& name = "") {
+        return cse(new DefiniteArray(*this, elem, args, name));
     }
-    Def array(ArrayRef<Def> args, bool definite = true, const std::string& name = "") {
+    /// Create definite_array with at least one element. The type of that element is the element type of the definite array.
+    Def definite_array(ArrayRef<Def> args, const std::string& name = "") {
         assert(!args.empty());
-        return array(args.front()->type(), args, definite, name);
+        return definite_array(args.front()->type(), args, name);
     }
     Def tuple(ArrayRef<Def> args, const std::string& name = "") { return cse(new Tuple(*this, args, name)); }
     Def vector(ArrayRef<Def> args, const std::string& name = "") {

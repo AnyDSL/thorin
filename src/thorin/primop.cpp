@@ -48,19 +48,18 @@ Select::Select(Def cond, Def tval, Def fval, const std::string& name)
 
 //------------------------------------------------------------------------------
 
-ArrayAgg::ArrayAgg(World& world, Type elem, ArrayRef<Def> args, bool definite, const std::string& name)
-    : Aggregate(Node_ArrayAgg, args, name)
+DefiniteArray::DefiniteArray(World& world, Type elem, ArrayRef<Def> args, const std::string& name)
+    : Aggregate(Node_DefiniteArray, args, name)
 {
-    set_type(definite ? (Type) world.definite_array_type(elem, args.size()) : (Type) world.indefinite_array_type(elem));
+    set_type(world.definite_array_type(elem, args.size()));
 #ifndef NDEBUG
     for (size_t i = 0, e = size(); i != e; ++i)
         assert(args[i]->type() == array_type()->elem_type());
 #endif
 }
 
-bool ArrayAgg::is_definite() const { return type().isa<DefiniteArrayType>(); }
-ArrayType ArrayAgg::array_type() const { return type().as<ArrayType>(); }
-Type ArrayAgg::elem_type() const { return array_type()->elem_type(); }
+DefiniteArrayType DefiniteArray::array_type() const { return type().as<DefiniteArrayType>(); }
+Type DefiniteArray::elem_type() const { return array_type()->elem_type(); }
 
 Tuple::Tuple(World& world, ArrayRef<Def> args, const std::string& name)
     : Aggregate(Node_Tuple, args, name)

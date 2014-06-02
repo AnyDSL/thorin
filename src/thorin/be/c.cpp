@@ -121,7 +121,7 @@ std::ostream& CCodeGen::emit_aggop_defs(Def def) {
     if (lookup(def->gid())) return stream();
 
     // recurse into (multi-dimensional) array
-    if (auto array = def->isa<ArrayAgg>()) {
+    if (auto array = def->isa<DefiniteArray>()) {
         for (size_t i = 0, e = array->size(); i != e; ++i)
             emit_aggop_defs(array->op(i));
         emit(array);
@@ -532,7 +532,7 @@ std::ostream& CCodeGen::emit(Def def) {
         THORIN_UNREACHABLE;
     }
 
-    if (auto array = def->isa<ArrayAgg>()) {
+    if (auto array = def->isa<DefiniteArray>()) {
         if (array->is_const()) { // DefArray is mapped to a struct
             // recurse into multi-dimensional arrays and emit definitions of
             // inlined elements

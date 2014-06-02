@@ -25,7 +25,7 @@
         //THORIN_AIR_NODE(Conv, conv)
             THORIN_AIR_NODE(Cast, cast)
             THORIN_AIR_NODE(Bitcast, bitcast)
-        THORIN_AIR_NODE(ArrayAgg, array)
+        THORIN_AIR_NODE(DefiniteArray, array)
         THORIN_AIR_NODE(Tuple, tuple)
         THORIN_AIR_NODE(Vector, vector)
         THORIN_AIR_NODE(Extract, extract)

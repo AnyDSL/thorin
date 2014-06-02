@@ -718,7 +718,7 @@ const Global* World::global_immutable_string(const std::string& str, const std::
         str_array[i] = literal_qu8(str[i]);
     str_array.back() = literal_qu8('\0');
 
-    return global(array(str_array), false, name);
+    return global(definite_array(str_array), false, name);
 }
 
 Def World::run(Def def, const std::string& name) {
@@ -798,8 +798,8 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type) {
         case Node_Store:     assert(ops.size() == 3); return to.store(    ops[0], ops[1], ops[2], name);
         case Node_Tuple:                              return to.tuple(ops, name);
         case Node_Vector:                             return to.vector(ops, name);
-        case Node_ArrayAgg:
-            return to.array(type.as<ArrayType>()->elem_type(), ops, type.isa<DefiniteArrayType>(), name);
+        case Node_DefiniteArray:
+            return to.definite_array(type.as<DefiniteArrayType>()->elem_type(), ops, name);
         case Node_Slot:    assert(ops.size() == 1);
             return to.slot(type.as<PtrType>()->referenced_type(), ops[0], in->as<Slot>()->index(), name);
         default: THORIN_UNREACHABLE;

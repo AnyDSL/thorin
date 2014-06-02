@@ -145,14 +145,13 @@ protected:
     }
 };
 
-class ArrayAgg : public Aggregate {
+class DefiniteArray : public Aggregate {
 private:
-    ArrayAgg(World& world, Type elem, ArrayRef<Def> args, bool definite, const std::string& name);
+    DefiniteArray(World& world, Type elem, ArrayRef<Def> args, const std::string& name);
 
 public:
-    ArrayType array_type() const;
+    DefiniteArrayType array_type() const;
     Type elem_type() const;
-    bool is_definite() const;
 
     friend class World;
 };

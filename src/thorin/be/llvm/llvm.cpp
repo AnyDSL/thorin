@@ -531,8 +531,8 @@ llvm::Value* CodeGen::emit(Def def) {
         return builder_.CreateSelect(cond, tval, fval);
     }
 
-    if (auto array = def->isa<ArrayAgg>()) {
-        auto type = llvm::cast<llvm::ArrayType>(map(array->type()));
+    if (auto array = def->isa<DefiniteArray>()) {
+        auto type = llvm::cast<llvm::ArrayType>(map(array->type())); // TODO remove cast
         if (array->is_const()) {
             size_t size = array->size();
             Array<llvm::Constant*> vals(size);

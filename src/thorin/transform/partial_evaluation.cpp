@@ -24,7 +24,7 @@ public:
     Call() {}
     Call(Lambda* to)
         : to_(to)
-        , args_(to->fn_type()->size())
+        , args_(to->type()->size())
     {}
 
     Lambda* to() const { return to_; }

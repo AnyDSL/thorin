@@ -172,7 +172,7 @@ std::ostream& CodeGen::emit_assignment(const PrimOp* primop) {
 
 std::ostream& CodeGen::emit_head(const Lambda* lambda) {
     emit_name(lambda);
-    emit_type_vars(lambda->fn_type());
+    emit_type_vars(lambda->type());
     dump_list([&](const Param* param) { emit_type(param->type()) << " "; emit_name(param); }, lambda->params(), "(", ")");
 
     if (lambda->attribute().is(Lambda::Extern))

@@ -532,7 +532,7 @@ llvm::Value* CodeGen::emit(Def def) {
     }
 
     if (auto array = def->isa<DefiniteArray>()) {
-        auto type = llvm::cast<llvm::ArrayType>(map(array->type())); // TODO remove cast
+        auto type = llvm::cast<llvm::ArrayType>(map(array->type()));
         if (array->is_const()) {
             size_t size = array->size();
             Array<llvm::Constant*> vals(size);

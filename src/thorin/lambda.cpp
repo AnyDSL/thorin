@@ -11,7 +11,7 @@
 namespace thorin {
 
 Lambda* Lambda::stub(Type2Type& type2type, const std::string& name) const {
-    auto result = world().lambda(fn_type()->specialize(type2type).as<FnType>(), attribute(), name);
+    auto result = world().lambda(type()->specialize(type2type).as<FnType>(), attribute(), name);
     for (size_t i = 0, e = num_params(); i != e; ++i)
         result->param(i)->name = param(i)->name;
     return result;
@@ -31,14 +31,13 @@ FnType Lambda::arg_fn_type() const {
     return world().fn_type(elems);
 }
 
-const Param* Lambda::append_param(Type type, const std::string& name) {
-    size_t size = fn_type()->size();
+const Param* Lambda::append_param(Type param_type, const std::string& name) {
+    size_t size = type()->size();
     Array<Type> elems(size + 1);
-    *std::copy(fn_type()->elems().begin(), fn_type()->elems().end(), elems.begin()) = type;
-    auto& w = world();
+    *std::copy(type()->elems().begin(), type()->elems().end(), elems.begin()) = param_type;
     clear_type();
-    set_type(w.fn_type(elems));                        // update type
-    auto param = w.param(type, this, size, name); // append new param
+    set_type(world().fn_type(elems));                         // update type
+    auto param = world().param(param_type, this, size, name); // append new param
     params_.push_back(param);
 
     return param;
@@ -154,8 +153,8 @@ bool Lambda::is_cascading() const {
     return use->isa<Lambda>() && use.index() > 0;
 }
 
-bool Lambda::is_basicblock() const { return fn_type()->is_basicblock(); }
-bool Lambda::is_returning() const { return fn_type()->is_returning(); }
+bool Lambda::is_basicblock() const { return type()->is_basicblock(); }
+bool Lambda::is_returning() const { return type()->is_returning(); }
 void Lambda::dump_head() const { emit_head(this); }
 void Lambda::dump_jump() const { emit_jump(this); }
 

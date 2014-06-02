@@ -150,7 +150,7 @@ private:
     DefiniteArray(World& world, Type elem, ArrayRef<Def> args, const std::string& name);
 
 public:
-    DefiniteArrayType array_type() const;
+    DefiniteArrayType type() const { return Aggregate::type().as<DefiniteArrayType>(); }
     Type elem_type() const;
 
     friend class World;

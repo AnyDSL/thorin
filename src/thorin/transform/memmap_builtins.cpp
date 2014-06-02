@@ -68,7 +68,7 @@ static void adapt_addr_space(World &world, ToDo& uses) {
         auto index = use.index() - 1;
         // -> specialize for new ptr type
         if (to->param(index)->type() != entry.first) {
-            Array<Type> fn(to->fn_type()->elems());
+            Array<Type> fn(to->type()->elems());
             fn[index] = entry.first;
             auto nto = world.lambda(world.fn_type(fn), to->name);
             assert(nto->num_params() == to->num_params());

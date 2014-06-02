@@ -54,12 +54,11 @@ DefiniteArray::DefiniteArray(World& world, Type elem, ArrayRef<Def> args, const 
     set_type(world.definite_array_type(elem, args.size()));
 #ifndef NDEBUG
     for (size_t i = 0, e = size(); i != e; ++i)
-        assert(args[i]->type() == array_type()->elem_type());
+        assert(args[i]->type() == type()->elem_type());
 #endif
 }
 
-DefiniteArrayType DefiniteArray::array_type() const { return type().as<DefiniteArrayType>(); }
-Type DefiniteArray::elem_type() const { return array_type()->elem_type(); }
+Type DefiniteArray::elem_type() const { return type()->elem_type(); }
 
 Tuple::Tuple(World& world, ArrayRef<Def> args, const std::string& name)
     : Aggregate(Node_Tuple, args, name)

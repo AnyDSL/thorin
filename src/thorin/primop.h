@@ -151,7 +151,18 @@ private:
 
 public:
     DefiniteArrayType type() const { return Aggregate::type().as<DefiniteArrayType>(); }
-    Type elem_type() const;
+    Type elem_type() const { return type()->elem_type(); }
+
+    friend class World;
+};
+
+class IndefiniteArray : public Aggregate {
+private:
+    IndefiniteArray(World& world, Type elem, Def dim, const std::string& name);
+
+public:
+    IndefiniteArrayType type() const { return Aggregate::type().as<IndefiniteArrayType>(); }
+    Type elem_type() const { return type()->elem_type(); }
 
     friend class World;
 };

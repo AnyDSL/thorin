@@ -181,6 +181,9 @@ public:
         assert(!args.empty());
         return definite_array(args.front()->type(), args, name);
     }
+    Def indefinite_array(Type elem, Def dim, const std::string& name = "") {
+        return cse(new IndefiniteArray(*this, elem, dim, name));
+    }
     Def tuple(ArrayRef<Def> args, const std::string& name = "") { return cse(new Tuple(*this, args, name)); }
     Def vector(ArrayRef<Def> args, const std::string& name = "") {
         if (args.size() == 1) return args[0];

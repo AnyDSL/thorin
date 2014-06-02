@@ -58,7 +58,11 @@ DefiniteArray::DefiniteArray(World& world, Type elem, ArrayRef<Def> args, const 
 #endif
 }
 
-Type DefiniteArray::elem_type() const { return type()->elem_type(); }
+IndefiniteArray::IndefiniteArray(World& world, Type elem, Def dim, const std::string& name)
+    : Aggregate(Node_IndefiniteArray, {dim}, name)
+{
+    set_type(world.indefinite_array_type(elem));
+}
 
 Tuple::Tuple(World& world, ArrayRef<Def> args, const std::string& name)
     : Aggregate(Node_Tuple, args, name)
@@ -128,7 +132,6 @@ Type LEA::referenced_type() const { return ptr_type()->referenced_type(); }
 EvalOp::EvalOp(NodeKind kind, Def def, const std::string& name)
     : PrimOp(1, kind, def->type(), name)
 {
-    //assert(type()->isa<Pi>());
     set_op(0, def);
 }
 

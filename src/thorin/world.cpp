@@ -800,6 +800,8 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type) {
         case Node_Vector:                             return to.vector(ops, name);
         case Node_DefiniteArray:
             return to.definite_array(type.as<DefiniteArrayType>()->elem_type(), ops, name);
+        case Node_IndefiniteArray: assert(ops.size() == 1);
+            return to.indefinite_array(type.as<IndefiniteArrayType>()->elem_type(), ops[0], name);
         case Node_Slot:    assert(ops.size() == 1);
             return to.slot(type.as<PtrType>()->referenced_type(), ops[0], in->as<Slot>()->index(), name);
         default: THORIN_UNREACHABLE;

@@ -161,7 +161,7 @@ private:
     Tuple(World& world, ArrayRef<Def> args, const std::string& name);
 
 public:
-    TupleType tuple_type() const;
+    TupleType tuple_type() const { return Aggregate::type().as<TupleType>(); }
 
     friend class World;
 };
@@ -186,7 +186,6 @@ protected:
 public:
     Def agg() const { return op(0); }
     Def index() const { return op(1); }
-    Type agg_type() const { return agg()->type(); }
 
     friend class World;
 };

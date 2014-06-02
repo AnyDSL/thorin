@@ -570,7 +570,7 @@ std::ostream& CCodeGen::emit(Def def) {
         // recurse into (multi-dimensional) tuple/array and emit definitions of
         // inlined tuples/arrays
         emit_aggop_defs(aggop->agg());
-        if (auto tuple = aggop->agg_type().isa<TupleType>()) {
+        if (auto tuple = aggop->agg()->type().isa<TupleType>()) {
             if (aggop->isa<Extract>()) {
                 emit_type(aggop->type()) << " " << aggop->unique_name() << " = ";
                 // hack for map() -> (mem, [type]*[dev][mem])
@@ -587,7 +587,7 @@ std::ostream& CCodeGen::emit(Def def) {
                 emit(aggop->as<Insert>()->value()) << ";";
                 insert(def->gid(), aggop->agg()->unique_name());
             }
-        } else if (aggop->agg_type().isa<ArrayType>()) {
+        } else if (aggop->agg()->type().isa<ArrayType>()) {
             if (aggop->isa<Extract>()) {
                 emit_type(aggop->type()) << " " << aggop->unique_name() << " = ";
                 emit(aggop->agg()) << ".e[";

@@ -83,8 +83,6 @@ Vector::Vector(World& world, ArrayRef<Def> args, const std::string& name)
     }
 }
 
-TupleType Tuple::tuple_type() const { return type().as<TupleType>(); }
-
 Extract::Extract(Def agg, Def index, const std::string& name)
     : AggOp(2, Node_Extract, type(agg, index), agg, index, name)
 {}

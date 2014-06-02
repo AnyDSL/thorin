@@ -569,11 +569,11 @@ llvm::Value* CodeGen::emit(Def def) {
         auto agg = lookup(aggop->agg());
         auto idx = lookup(aggop->index());
 
-        if (aggop->agg_type().isa<TupleType>()) {
+        if (aggop->agg()->type().isa<TupleType>()) {
             unsigned i = aggop->index()->primlit_value<unsigned>();
 
             if (auto extract = aggop->isa<Extract>()) {
-                auto agg_type = extract->agg_type();
+                auto agg_type = extract->agg()->type();
                 if (auto agg_tuple = agg_type.isa<TupleType>()) {
                     // check for a memory-mapped extract
                     // TODO: integrate memory-mappings in a nicer way :)
@@ -589,7 +589,7 @@ llvm::Value* CodeGen::emit(Def def) {
             auto value = lookup(insert->value());
 
             return builder_.CreateInsertValue(agg, value, { i });
-        } else if (aggop->agg_type().isa<ArrayType>()) {
+        } else if (aggop->agg()->type().isa<ArrayType>()) {
             // TODO use llvm::ConstantArray if applicable
             std::cout << "warning: slow" << std::endl;
             auto alloca = emit_alloca(agg->getType(), aggop->name);

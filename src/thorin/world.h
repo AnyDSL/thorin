@@ -200,7 +200,8 @@ public:
      * memops
      */
 
-    Def alloc(Def mem, Def init, const std::string& name = "");
+    Def alloc(Def mem, Type type, Def extra, const std::string& name = "");
+    Def alloc(Def mem, Type type, const std::string& name = "") { return alloc(mem, type, literal_qu64(0), name); }
     Def load(Def mem, Def ptr, const std::string& name = "");
     const Store* store(Def mem, Def ptr, Def val, const std::string& name = "");
     const Enter* enter(Def mem, const std::string& name = "");

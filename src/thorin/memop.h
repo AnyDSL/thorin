@@ -18,10 +18,10 @@ public:
 
 class Alloc : public MemOp {
 private:
-    Alloc(Def mem, Def init, const std::string& name);
+    Alloc(Def mem, Type type, Def extra, const std::string& name);
 
 public:
-    Def init() const { return op(1); }
+    Def extra() const { return op(1); }
     Type alloced_type() const { return type().as<PtrType>()->referenced_type(); }
 
     friend class World;

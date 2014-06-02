@@ -632,12 +632,20 @@ llvm::Value* CodeGen::emit(Def def) {
     if (auto undef = def->isa<Undef>()) // bottom and any
         return llvm::UndefValue::get(map(undef->type()));
 
-    if (auto alloc = def->isa<Alloc>()) {
+    if (auto alloc = def->isa<Alloc>()) { // TODO factor this code
         auto llvm_malloc = module_->getOrInsertFunction("malloc", builder_.getInt8PtrTy(), builder_.getInt64Ty(), nullptr);
         auto alloced_type = map(alloc->alloced_type());
-        auto void_ptr = builder_.CreateCall(llvm_malloc, builder_.getInt64(alloced_type->getIntegerBitWidth()/8));
+        llvm::CallInst* void_ptr;
+        if (auto array = alloc->alloced_type()->is_indefinite()) {
+            auto size = builder_.CreateAdd(
+                    builder_.getInt64(alloced_type->getIntegerBitWidth()/8),
+                    builder_.CreateMul(lookup(alloc->extra()), 
+                        builder_.getInt64(map(array->elem_type())->getIntegerBitWidth()/8)));
+            void_ptr = builder_.CreateCall(llvm_malloc, size);
+        } else
+            void_ptr = builder_.CreateCall(llvm_malloc, builder_.getInt64(alloced_type->getIntegerBitWidth()/8));
+
         auto ptr = builder_.CreatePointerCast(void_ptr, map(alloc->type()));
-        builder_.CreateStore(lookup(alloc->init()), ptr);
         return ptr;
     }
 

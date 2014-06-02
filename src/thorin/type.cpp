@@ -19,6 +19,12 @@ void TypeNode::bind(TypeVar type_var) const {
     type_var->bound_at_ = this; 
 }
 
+//------------------------------------------------------------------------------
+
+/*
+ * recursive properties
+ */
+
 int TypeNode::order() const {
     if (kind() == Node_PtrType)
         return 0;
@@ -40,6 +46,16 @@ bool TypeNode::is_closed() const {
     }
     return true;
 }
+
+IndefiniteArrayType TypeNode::is_indefinite() const {
+    if (!empty())
+        return elems().back()->is_indefinite();
+    return IndefiniteArrayType();
+}
+
+IndefiniteArrayType IndefiniteArrayTypeNode::is_indefinite() const { return this; }
+
+//------------------------------------------------------------------------------
 
 void TypeNode::dump() const { emit_type(Type(this)); std::cout << std::endl; }
 size_t TypeNode::length() const { return as<VectorTypeNode>()->length(); }

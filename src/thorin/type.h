@@ -150,6 +150,7 @@ public:
     virtual size_t hash() const;
     virtual bool equal(const TypeNode*) const;
     virtual bool is_closed() const;
+    virtual IndefiniteArrayType is_indefinite() const;
 
 protected:
     Array<Type> specialize_elems(Type2Type&) const;
@@ -328,6 +329,8 @@ public:
     IndefiniteArrayTypeNode(World& world, Type elem_type)
         : ArrayTypeNode(world, Node_IndefiniteArrayType, elem_type)
     {}
+
+    virtual IndefiniteArrayType is_indefinite() const;
 
 private:
     virtual Type vinstantiate(Type2Type&) const override;

@@ -23,14 +23,14 @@ int TypeNode::order() const {
     if (kind() == Node_PtrType)
         return 0;
 
-    int sub = 0;
+    int result = 0;
     for (auto elem : elems())
-        sub = std::max(sub, elem->order());
+        result = std::max(result, elem->order());
 
     if (kind() == Node_FnType)
-        return sub + 1;
+        return result + 1;
 
-    return sub;
+    return result;
 }
 
 bool TypeNode::is_closed() const {

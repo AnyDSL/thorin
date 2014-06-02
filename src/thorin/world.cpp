@@ -613,6 +613,7 @@ Def World::insert(Def agg, Def index, Def value, const std::string& name) {
     return cse(new Insert(agg, index, value, name));
 }
 
+Def World::alloc(Def mem, Def init, const std::string& name) { return cse(new Alloc(mem, init, name)); }
 Def World::extract(Def tuple, u32 index, const std::string& name) { return extract(tuple, literal_qu32(index), name); }
 Def World::insert(Def tuple, u32 index, Def value, const std::string& name) {
     return insert(tuple, literal_qu32(index), value, name);
@@ -643,10 +644,6 @@ Def World::select(Def cond, Def a, Def b, const std::string& name) {
         return a;
 
     return cse(new Select(cond, a, b, name));
-}
-
-Def World::alloc(Def mem, Type type, Def num, const std::string& name) { 
-    return cse(new Alloc(mem, type, num, name)); 
 }
 
 const Enter* World::enter(Def mem, const std::string& name) {
@@ -781,7 +778,7 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type) {
     }
 
     switch (kind) {
-        case Node_Alloc:     assert(ops.size() == 2); return to.alloc(ops[0], type.as<PtrType>()->referenced_type(), ops[1], name);
+        case Node_Alloc:     assert(ops.size() == 2); return to.alloc(    ops[0], ops[1], name);
         case Node_Any:       assert(ops.size() == 0); return to.any(type);
         case Node_Bottom:    assert(ops.size() == 0); return to.bottom(type);
         case Node_Enter:     assert(ops.size() == 1); return to.enter(    ops[0], name);

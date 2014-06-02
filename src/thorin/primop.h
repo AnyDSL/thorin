@@ -206,7 +206,6 @@ private:
 
 public:
     Def value() const { return op(2); }
-    static Type type(Def agg);
 
     friend class World;
 };

@@ -98,12 +98,10 @@ Type Extract::type(Def agg, Def index) {
 }
 
 Insert::Insert(Def agg, Def index, Def value, const std::string& name)
-    : AggOp(3, Node_Insert, type(agg), agg, index, name)
+    : AggOp(3, Node_Insert, agg->type(), agg, index, name)
 {
     set_op(2, value);
 }
-
-Type Insert::type(Def agg) { return agg->type(); }
 
 //------------------------------------------------------------------------------
 

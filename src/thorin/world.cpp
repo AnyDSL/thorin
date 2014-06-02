@@ -581,9 +581,12 @@ Def World::extract(Def agg, Def index, const std::string& name) {
     if (agg->isa<Bottom>())
         return bottom(Extract::type(agg, index));
 
-    if (auto aggregate = agg->isa<Aggregate>())
-        if (auto lit = index->isa<PrimLit>())
-            return aggregate->op_via_lit(lit);
+    if (auto aggregate = agg->isa<Aggregate>()) {
+        if (auto lit = index->isa<PrimLit>()) {
+            if (!agg->isa<IndefiniteArray>())
+                return aggregate->op_via_lit(lit);
+        }
+    }
 
     if (auto insert = agg->isa<Insert>()) {
         if (index == insert->index())
@@ -603,10 +606,12 @@ Def World::insert(Def agg, Def index, Def value, const std::string& name) {
 
     if (auto aggregate = agg->isa<Aggregate>()) {
         if (auto literal = index->isa<PrimLit>()) {
-            Array<Def> args(agg->size());
-            std::copy(agg->ops().begin(), agg->ops().end(), args.begin());
-            args[literal->primlit_value<u64>()] = value;
-            return rebuild(aggregate, args);
+            if (!agg->isa<IndefiniteArray>()) {
+                Array<Def> args(agg->size());
+                std::copy(agg->ops().begin(), agg->ops().end(), args.begin());
+                args[literal->primlit_value<u64>()] = value;
+                return rebuild(aggregate, args);
+            }
         }
     }
 

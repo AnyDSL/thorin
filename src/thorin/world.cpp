@@ -123,8 +123,7 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
     assert(a->type().as<PrimType>()->length() == b->type().as<PrimType>()->length());
     PrimTypeKind type = a->type().as<PrimType>()->primtype_kind();
 
-    // bottom op bottom -> bottom
-    if (a->isa<Bottom>() || b->isa<Bottom>())
+    if (cond->isa<Bottom>() || a->isa<Bottom>() || b->isa<Bottom>())
         return bottom(type);
 
     auto llit = a->isa<PrimLit>();
@@ -417,7 +416,7 @@ Def World::arithop_minus(Def cond, Def def) {
 }
 
 Def World::cmp(CmpKind kind, Def cond, Def a, Def b, const std::string& name) {
-    if (a->isa<Bottom>() || b->isa<Bottom>())
+    if (cond->isa<Bottom>() || a->isa<Bottom>() || b->isa<Bottom>())
         return bottom(type_bool());
 
     CmpKind oldkind = kind;
@@ -488,12 +487,10 @@ Def World::cmp(CmpKind kind, Def cond, Def a, Def b, const std::string& name) {
 }
 
 Def World::cast(Def cond, Def from, Type to, const std::string& name) {
-    if (from->isa<Bottom>())
+    if (cond->isa<Bottom>() || from->isa<Bottom>())
         return bottom(to);
 
-    auto vec = from->isa<Vector>();
-
-    if (vec) {
+    if (auto vec = from->isa<Vector>()) {
         size_t num = vec->length();
         auto to_vec = to.as<VectorType>();
         Array<Def> ops(num);
@@ -577,6 +574,23 @@ Def World::cast(Def cond, Def from, Type to, const std::string& name) {
     }
 
     return cse(new Cast(cond, from, to, name));
+}
+
+Def World::bitcast(Def cond, Def from, Type to, const std::string& name) {
+    if (cond->isa<Bottom>() || from->isa<Bottom>())
+        return bottom(to);
+
+    if (auto vec = from->isa<Vector>()) {
+        size_t num = vec->length();
+        auto to_vec = to.as<VectorType>();
+        Array<Def> ops(num);
+        for (size_t i = 0; i != num; ++i)
+            ops[i] = bitcast(vec->op(i), to_vec->scalarize());
+        return vector(ops, name);
+    }
+
+    // TODO constant folding
+    return cse(new Bitcast(cond, from, to , name));
 }
 
 Def World::extract(Def agg, Def index, const std::string& name) {

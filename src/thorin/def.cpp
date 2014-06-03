@@ -96,9 +96,8 @@ std::vector<Use> DefNode::uses() const {
 
 bool DefNode::is_primlit(int val) const {
     if (auto lit = this->isa<PrimLit>()) {
-        Box box = lit->value(); // TODO
         switch (lit->primtype_kind()) {
-#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return box.get_##T() == T(val);
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return lit->value().get_##T() == T(val);
 #include "thorin/tables/primtypetable.h"
         }
     }

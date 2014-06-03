@@ -20,7 +20,7 @@ public:
         Empty,
         ImmutableValRef,
         MutableValRef,
-        SlotRef
+        PtrRef,
     };
 
     Var()
@@ -29,7 +29,7 @@ public:
     {}
     Var(IRBuilder& builder, Def def);
     Var(IRBuilder& builder, size_t handle, Type type, const char* name);
-    Var(IRBuilder& builder, const Slot* slot);
+    Var(IRBuilder& builder, const DefNode* ptr);
 
     const Kind kind() const { return kind_; }
     Def load() const;
@@ -46,9 +46,7 @@ private:
             const char* name_;
         };
         const DefNode* def_;
-        struct {
-            const Slot* slot_;
-        };
+        const DefNode* ptr_;
     };
 };
 

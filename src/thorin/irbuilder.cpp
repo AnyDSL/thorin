@@ -23,10 +23,10 @@ Var::Var(IRBuilder& builder, size_t handle, Type type, const char* name)
     , name_(name)
 {}
 
-Var::Var(IRBuilder& builder, const Slot* slot)
-    : kind_(SlotRef)
+Var::Var(IRBuilder& builder, const DefNode* ptr)
+    : kind_(PtrRef)
     , builder_(&builder)
-    , slot_(slot)
+    , ptr_(ptr)
 {}
 
 Def Var::load() const { 
@@ -34,7 +34,7 @@ Def Var::load() const {
         case Empty:           return Def();
         case ImmutableValRef: return def_;
         case MutableValRef:   return builder_->cur_bb->get_value(handle_, Type(type_), name_); 
-        case SlotRef:         return builder_->world().load(builder_->get_mem(), slot_);
+        case PtrRef:          return builder_->world().load(builder_->get_mem(), ptr_);
         default: THORIN_UNREACHABLE;
     }
 }
@@ -42,7 +42,7 @@ Def Var::load() const {
 void Var::store(Def def) const { 
     switch (kind()) {
         case MutableValRef:  builder_->cur_bb->set_value(handle_, def); return;
-        case SlotRef: builder_->set_mem(builder_->world().store(builder_->get_mem(), slot_, def)); return;
+        case PtrRef: builder_->set_mem(builder_->world().store(builder_->get_mem(), ptr_, def)); return;
         default: THORIN_UNREACHABLE;
     }
 }

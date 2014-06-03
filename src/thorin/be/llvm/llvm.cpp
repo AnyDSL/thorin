@@ -558,6 +558,9 @@ llvm::Value* CodeGen::emit(Def def) {
         return builder_.CreateLoad(alloca);
     }
 
+    if (auto array = def->isa<IndefiniteArray>())
+        return llvm::UndefValue::get(map(array->type()));
+
     if (auto tuple = def->isa<Tuple>()) {
         llvm::Value* agg = llvm::UndefValue::get(map(tuple->type()));
         for (size_t i = 0, e = tuple->ops().size(); i != e; ++i)

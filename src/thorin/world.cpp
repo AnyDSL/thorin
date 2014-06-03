@@ -498,42 +498,26 @@ static i64 box2i64(PrimTypeKind kind, Box box) {
     }
 }
 
-Def World::convop(ConvOpKind kind, Def cond, Def from, Type to, const std::string& name) {
-#define from_kind (from->type().as<PrimType>()->primtype_kind())
-#define   to_kind (  to        .as<PrimType>()->primtype_kind())
-#ifndef NDEBUG
-    switch (kind) {
-        case ConvOp_trunc:      assert(num_bits(from_kind) > num_bits(to_kind)); break;
-        case ConvOp_sext:
-        case ConvOp_zext:       assert(num_bits(from_kind) < num_bits(to_kind)); break;
-        case ConvOp_stof:
-        case ConvOp_utof:       assert(  is_int(from_kind) && is_float(to_kind)); break;
-        case ConvOp_ftos:
-        case ConvOp_ftou:       assert(is_float(from_kind) &&   is_int(to_kind)); break;
-        case ConvOp_ftrunc:     assert(from_kind == PrimType_f64 && to_kind == PrimType_f32); break;
-        case ConvOp_fext:       assert(from_kind == PrimType_f32 && to_kind == PrimType_f64); break;
-        case ConvOp_inttoptr:   assert(is_int(from_kind) && to->isa<Ptr>()); break;
-        case ConvOp_ptrtoint:   assert(from->type()->isa<Ptr>() && is_int(to_kind)); break;
-        case ConvOp_bitcast:    /* TODO check */;
-    }
 #endif
 
+Def World::cast(Def cond, Def from, Type to, const std::string& name) {
     if (from->isa<Bottom>())
         return bottom(to);
 
-    auto lit = from->isa<PrimLit>();
+    //auto lit = from->isa<PrimLit>();
     auto vec = from->isa<Vector>();
 
     if (vec) {
-        auto cvec = cond->isa<Vector>();
         size_t num = vec->length();
+        auto to_vec = to.as<VectorType>();
         Array<Def> ops(num);
-        auto to_scalar = to->as<VectorType>()->scalarize();
         for (size_t i = 0; i != num; ++i)
-            ops[i] = cvec && cvec->op(i)->is_zero() ? bottom(to_scalar, 1) :  convop(kind, vec->op(i), to_scalar);
+            ops[i] = cast(vec->op(i), to_vec->scalarize());
         return vector(ops, name);
     }
 
+    // TODO fold
+#if 0
     if (lit) {
         Box box = lit->value();
 
@@ -572,10 +556,10 @@ Def World::convop(ConvOpKind kind, Def cond, Def from, Type to, const std::strin
             case ConvOp_ptrtoint: /* FALLTROUGH */;
         }
     }
-
-    return cse(new ConvOp(kind, cond, from, to, name));
-}
 #endif
+
+    return cse(new Cast(cond, from, to, name));
+}
 
 Def World::extract(Def agg, Def index, const std::string& name) {
     if (agg->isa<Bottom>())
@@ -786,6 +770,7 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type) {
         case Node_Alloc:     assert(ops.size() == 2); return to.alloc(    ops[0], type.as<PtrType>()->referenced_type(), ops[1], name);
         case Node_Any:       assert(ops.size() == 0); return to.any(type);
         case Node_Bottom:    assert(ops.size() == 0); return to.bottom(type);
+        case Node_Cast:      assert(ops.size() == 2); return to.cast(     ops[0], ops[1], type);
         case Node_Enter:     assert(ops.size() == 1); return to.enter(    ops[0], name);
         case Node_Extract:   assert(ops.size() == 2); return to.extract(  ops[0], ops[1], name);
         case Node_Global:    assert(ops.size() == 1); return to.global(   ops[0], in->as<Global>()->is_mutable(), name);

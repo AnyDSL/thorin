@@ -636,14 +636,15 @@ llvm::Value* CodeGen::emit(Def def) {
         auto llvm_malloc = module_->getOrInsertFunction("malloc", builder_.getInt8PtrTy(), builder_.getInt64Ty(), nullptr);
         auto alloced_type = map(alloc->alloced_type());
         llvm::CallInst* void_ptr;
+        auto layout = llvm::DataLayout(module_->getDataLayout());
         if (auto array = alloc->alloced_type()->is_indefinite()) {
             auto size = builder_.CreateAdd(
-                    builder_.getInt64(alloced_type->getIntegerBitWidth()/8),
+                    builder_.getInt64(layout.getTypeAllocSize(alloced_type)),
                     builder_.CreateMul(lookup(alloc->extra()), 
-                        builder_.getInt64(map(array->elem_type())->getIntegerBitWidth()/8)));
+                        builder_.getInt64(layout.getTypeAllocSize(map(array->elem_type())))));
             void_ptr = builder_.CreateCall(llvm_malloc, size);
         } else
-            void_ptr = builder_.CreateCall(llvm_malloc, builder_.getInt64(alloced_type->getIntegerBitWidth()/8));
+            void_ptr = builder_.CreateCall(llvm_malloc, builder_.getInt64(layout.getTypeAllocSize(alloced_type)));
 
         auto ptr = builder_.CreatePointerCast(void_ptr, map(alloc->type()));
         return ptr;

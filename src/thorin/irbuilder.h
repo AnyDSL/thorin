@@ -3,7 +3,6 @@
 
 #include "thorin/def.h"
 #include "thorin/util/array.h"
-#include "thorin/util/autoptr.h"
 
 namespace thorin {
 
@@ -21,6 +20,7 @@ public:
         ImmutableValRef,
         MutableValRef,
         PtrRef,
+        AggRef,
     };
 
     Var()
@@ -30,8 +30,11 @@ public:
     Var(IRBuilder& builder, Def def);
     Var(IRBuilder& builder, size_t handle, Type type, const char* name);
     Var(IRBuilder& builder, const DefNode* ptr);
+    Var(const Var&, const DefNode* offset);
 
     const Kind kind() const { return kind_; }
+    IRBuilder* builder() const { return builder_; }
+    World& world() const;
     Def load() const;
     void store(Def val) const;
     operator bool() { return kind() != Empty; }
@@ -47,7 +50,9 @@ private:
         };
         const DefNode* def_;
         const DefNode* ptr_;
+        const DefNode* offset_;
     };
+    AutoPtr<Var> var_;
 };
 
 //------------------------------------------------------------------------------

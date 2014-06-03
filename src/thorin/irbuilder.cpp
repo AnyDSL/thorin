@@ -29,23 +29,40 @@ Var::Var(IRBuilder& builder, const DefNode* ptr)
     , ptr_(ptr)
 {}
 
-Def Var::load() const { 
+Var::Var(const Var& var, const DefNode* offset)
+    : kind_(var.kind())
+    , builder_(var.builder())
+    , offset_(offset)
+{
+    switch (var.kind()) {
+        case PtrRef:          kind_ = PtrRef; ptr_ = world().lea(var.ptr_, offset); return;
+        case MutableValRef:   var_ = new Var(*builder_, var.handle_, var.type_, var.name_); return;
+        case AggRef:          var_ = new Var(*var.var_, var.offset_); return;
+        default: THORIN_UNREACHABLE;
+    }
+}
+
+Def Var::load() const {
     switch (kind()) {
-        case Empty:           return Def();
-        case ImmutableValRef: return def_;
-        case MutableValRef:   return builder_->cur_bb->get_value(handle_, Type(type_), name_); 
-        case PtrRef:          return builder_->world().load(builder_->get_mem(), ptr_);
+        case Empty:             return Def();
+        case ImmutableValRef:   return def_;
+        case MutableValRef:     return builder_->cur_bb->get_value(handle_, Type(type_), name_); 
+        case PtrRef:            return world().load(builder_->get_mem(), ptr_);
+        case AggRef:            return world().extract(var_->load(), offset_);
         default: THORIN_UNREACHABLE;
     }
 }
 
 void Var::store(Def def) const { 
     switch (kind()) {
-        case MutableValRef:  builder_->cur_bb->set_value(handle_, def); return;
-        case PtrRef: builder_->set_mem(builder_->world().store(builder_->get_mem(), ptr_, def)); return;
+        case MutableValRef: builder_->cur_bb->set_value(handle_, def); return;
+        case PtrRef:        builder_->set_mem(world().store(builder_->get_mem(), ptr_, def)); return;
+        case AggRef:        world().insert(var_->load(), offset_, def); return;
         default: THORIN_UNREACHABLE;
     }
 }
+
+World& Var::world() const { return builder_->world(); }
 
 //------------------------------------------------------------------------------
 

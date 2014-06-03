@@ -487,24 +487,10 @@ Def World::cmp(CmpKind kind, Def cond, Def a, Def b, const std::string& name) {
     return cse(new Cmp(kind, cond, a, b, name));
 }
 
-#if 0
-
-static i64 box2i64(PrimTypeKind kind, Box box) {
-    switch (kind) {
-#define THORIN_U_TYPE(T, M) case PrimType_##T: return (i64) (make_signed<T>::type) box.get_##T();
-#include "thorin/tables/primtypetable.h"
-        THORIN_NO_F_TYPE;
-        default: THORIN_UNREACHABLE;
-    }
-}
-
-#endif
-
 Def World::cast(Def cond, Def from, Type to, const std::string& name) {
     if (from->isa<Bottom>())
         return bottom(to);
 
-    //auto lit = from->isa<PrimLit>();
     auto vec = from->isa<Vector>();
 
     if (vec) {
@@ -516,47 +502,79 @@ Def World::cast(Def cond, Def from, Type to, const std::string& name) {
         return vector(ops, name);
     }
 
-    // TODO fold
-#if 0
-    if (lit) {
+    auto lit = from->isa<PrimLit>();
+    auto to_type = to.isa<PrimType>();
+    if (lit && to_type) {
         Box box = lit->value();
 
-        switch (kind) {
-            case ConvOp_trunc:
-            case ConvOp_zext:   return literal(to_kind, box);
-            case ConvOp_sext:   return literal(to_kind, Box((u64) box2i64(from_kind, box)));
-            case ConvOp_utof:
-                switch (to_kind) {
-#define THORIN_F_TYPE(T, M) case PrimType_##T: return literal(to_kind, Box((T) box.get_u64()));
+        switch (lit->primtype_kind()) {
+            case PrimType_bool:
+                switch (to_type->primtype_kind()) {
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(T(box.get_bool()));
 #include "thorin/tables/primtypetable.h"
-                    THORIN_NO_U_TYPE;
                 }
-            case ConvOp_stof:
-                switch (to_kind) {
-#define THORIN_F_TYPE(T, M) case PrimType_##T: return literal(to_kind, Box((T) box2i64(from_kind, box)));
+            case PrimType_ps8:
+            case PrimType_qs8:
+                switch (to_type->primtype_kind()) {
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(T(box.get_s8()));
 #include "thorin/tables/primtypetable.h"
-                    THORIN_NO_U_TYPE;
                 }
-            case ConvOp_ftou:
-                switch (from_kind) {
-#define THORIN_F_TYPE(T, M) case PrimType_##T: return literal(to_kind, Box((u64) box.get_##T()));
+            case PrimType_ps16:
+            case PrimType_qs16:
+                switch (to_type->primtype_kind()) {
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(T(box.get_s16()));
 #include "thorin/tables/primtypetable.h"
-                    THORIN_NO_U_TYPE;
                 }
-            case ConvOp_ftos:
-                switch (from_kind) {
-#define THORIN_F_TYPE(T, M) case PrimType_##T: return literal(to_kind, Box((u64) (i64) box.get_##T()));
+            case PrimType_ps32:
+            case PrimType_qs32:
+                switch (to_type->primtype_kind()) {
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(T(box.get_s32()));
 #include "thorin/tables/primtypetable.h"
-                    THORIN_NO_U_TYPE;
                 }
-            case ConvOp_ftrunc: return literal(PrimType_f32, Box((f32) box.get_f64()));
-            case ConvOp_fext:   return literal(PrimType_f64, Box((f64) box.get_f32()));
-            case ConvOp_bitcast:
-            case ConvOp_inttoptr:
-            case ConvOp_ptrtoint: /* FALLTROUGH */;
+            case PrimType_ps64:
+            case PrimType_qs64:
+                switch (to_type->primtype_kind()) {
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(T(box.get_s64()));
+#include "thorin/tables/primtypetable.h"
+                }
+            case PrimType_pu8:
+            case PrimType_qu8:
+                switch (to_type->primtype_kind()) {
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(T(box.get_u8()));
+#include "thorin/tables/primtypetable.h"
+                }
+            case PrimType_pu16:
+            case PrimType_qu16:
+                switch (to_type->primtype_kind()) {
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(T(box.get_u16()));
+#include "thorin/tables/primtypetable.h"
+                }
+            case PrimType_pu32:
+            case PrimType_qu32:
+                switch (to_type->primtype_kind()) {
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(T(box.get_u32()));
+#include "thorin/tables/primtypetable.h"
+                }
+            case PrimType_pu64:
+            case PrimType_qu64:
+                switch (to_type->primtype_kind()) {
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(T(box.get_u64()));
+#include "thorin/tables/primtypetable.h"
+                }
+            case PrimType_pf32:
+            case PrimType_qf32:
+                switch (to_type->primtype_kind()) {
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(T(box.get_f32()));
+#include "thorin/tables/primtypetable.h"
+                }
+            case PrimType_pf64:
+            case PrimType_qf64:
+                switch (to_type->primtype_kind()) {
+#define THORIN_ALL_TYPE(T, M) case PrimType_##T: return literal_##T(T(box.get_f64()));
+#include "thorin/tables/primtypetable.h"
+                }
         }
     }
-#endif
 
     return cse(new Cast(cond, from, to, name));
 }

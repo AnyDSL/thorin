@@ -643,7 +643,7 @@ llvm::Value* CodeGen::emit(Def def) {
         if (auto array = alloc->alloced_type()->is_indefinite()) {
             auto size = builder_.CreateAdd(
                     builder_.getInt64(layout.getTypeAllocSize(alloced_type)),
-                    builder_.CreateMul(lookup(alloc->extra()), 
+                    builder_.CreateMul(builder_.CreateIntCast(lookup(alloc->extra()), builder_.getInt64Ty(), false),
                         builder_.getInt64(layout.getTypeAllocSize(map(array->elem_type())))));
             void_ptr = builder_.CreateCall(llvm_malloc, size);
         } else

@@ -9,46 +9,50 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-Var::Var(IRBuilder& builder, Def def)
-    : kind_(ImmutableValRef)
-    , builder_(&builder)
-    , def_(def)
-{}
+Var Var::create_val(IRBuilder& builder, Def val) {
+    Var result;
+    result.kind_    = ImmutableValRef;
+    result.builder_ = &builder;
+    result.def_     = val;
+    return result;
+}
 
-Var::Var(IRBuilder& builder, size_t handle, Type type, const char* name)
-    : kind_(MutableValRef)
-    , builder_(&builder)
-    , handle_(handle)
-    , type_(*type)
-    , name_(name)
-{}
+Var Var::create_mut(IRBuilder& builder, size_t handle, Type type, const char* name) {
+    Var result;
+    result.kind_    = MutableValRef;
+    result.builder_ = &builder;
+    result.handle_  = handle;
+    result.type_    = *type;
+    result.name_    = name;
+    return result;
+}
 
-Var::Var(IRBuilder& builder, const DefNode* ptr)
-    : kind_(PtrRef)
-    , builder_(&builder)
-    , ptr_(ptr)
-{}
+Var Var::create_ptr(IRBuilder& builder, Def ptr) {
+    Var result;
+    result.kind_    = PtrRef;
+    result.builder_ = &builder;
+    result.def_     = ptr;
+    return result;
+}
 
-Var::Var(const Var& var, const DefNode* offset)
-    : kind_(var.kind())
-    , builder_(var.builder())
-    , offset_(offset)
-{
-    switch (var.kind()) {
-        case PtrRef:          kind_ = PtrRef; ptr_ = world().lea(var.ptr_, offset); return;
-        case MutableValRef:   var_ = new Var(*builder_, var.handle_, var.type_, var.name_); return;
-        case AggRef:          var_ = new Var(*var.var_, var.offset_); return;
-        default: THORIN_UNREACHABLE;
-    }
+Var Var::create_agg(Var var, Def offset) {
+    assert(var.kind() != Empty);
+    if (var.kind() == PtrRef)
+        return create_ptr(*var.builder_, var.builder_->world().lea(var.def_, offset));
+    Var result;
+    result.kind_    = AggRef;
+    result.builder_ = var.builder_;
+    result.var_.reset(new Var(var));
+    result.def_     = offset;
+    return result;
 }
 
 Def Var::load() const {
     switch (kind()) {
-        case Empty:             return Def();
         case ImmutableValRef:   return def_;
         case MutableValRef:     return builder_->cur_bb->get_value(handle_, Type(type_), name_); 
-        case PtrRef:            return world().load(builder_->get_mem(), ptr_);
-        case AggRef:            return world().extract(var_->load(), offset_);
+        case PtrRef:            return world().load(builder_->get_mem(), def_);
+        case AggRef:            return world().extract(var_->load(), def_);
         default: THORIN_UNREACHABLE;
     }
 }
@@ -56,8 +60,8 @@ Def Var::load() const {
 void Var::store(Def def) const { 
     switch (kind()) {
         case MutableValRef: builder_->cur_bb->set_value(handle_, def); return;
-        case PtrRef:        builder_->set_mem(world().store(builder_->get_mem(), ptr_, def)); return;
-        case AggRef:        world().insert(var_->load(), offset_, def); return;
+        case PtrRef:        builder_->set_mem(world().store(builder_->get_mem(), def_, def)); return;
+        case AggRef:        world().insert(var_->load(), def_, def); return;
         default: THORIN_UNREACHABLE;
     }
 }

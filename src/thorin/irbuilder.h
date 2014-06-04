@@ -1,5 +1,7 @@
-#ifndef THORIN_JUMPTARGET_H
-#define THORIN_JUMPTARGET_H
+#ifndef THORIN_IRBUILDER_H
+#define THORIN_IRBUILDER_H
+
+#include <memory>
 
 #include "thorin/def.h"
 #include "thorin/util/array.h"
@@ -23,14 +25,37 @@ public:
         AggRef,
     };
 
-    Var()
+    Var() 
         : kind_(Empty)
         , builder_(nullptr)
+        , handle_(-1)
+        , type_(nullptr)
+        , name_(nullptr)
+        , def_(nullptr)
     {}
-    Var(IRBuilder& builder, Def def);
-    Var(IRBuilder& builder, size_t handle, Type type, const char* name);
-    Var(IRBuilder& builder, const DefNode* ptr);
-    Var(const Var&, const DefNode* offset);
+    Var(const Var& var)
+        : kind_   (var.kind())
+        , builder_(var.builder_)
+        , handle_ (var.handle_)
+        , type_   (var.type_)
+        , name_   (var.name_)
+        , def_    (var.def_)
+        , var_    (var.var_ == nullptr ? nullptr : new Var(*var.var_))
+    {}
+    Var(Var&& var)
+        : kind_   (std::move(var.kind()))
+        , builder_(std::move(var.builder_))
+        , handle_ (std::move(var.handle_))
+        , type_   (std::move(var.type_))
+        , name_   (std::move(var.name_))
+        , def_    (std::move(var.def_))
+        , var_    (std::move(var.var_))
+    {}
+
+    Var static create_val(IRBuilder&, Def val);
+    Var static create_mut(IRBuilder&, size_t handle, Type type, const char* name);
+    Var static create_ptr(IRBuilder&, Def ptr);
+    Var static create_agg(Var var, Def offset);
 
     const Kind kind() const { return kind_; }
     IRBuilder* builder() const { return builder_; }
@@ -39,20 +64,26 @@ public:
     void store(Def val) const;
     operator bool() { return kind() != Empty; }
 
+    Var& operator= (Var other) { swap(*this, other); return *this; }
+    friend void swap(Var& v1, Var& v2) {
+        using std::swap;
+        swap(v1.kind_,    v2.kind_);
+        swap(v1.builder_, v2.builder_);
+        swap(v1.handle_,  v2.handle_);
+        swap(v1.type_,    v2.type_);
+        swap(v1.name_,    v2.name_);
+        swap(v1.def_,     v2.def_);
+        swap(v1.var_,     v2.var_);
+    }
+
 private:
     Kind kind_;
     IRBuilder* builder_;
-    union {
-        struct {
-            size_t handle_;
-            const TypeNode* type_;
-            const char* name_;
-        };
-        const DefNode* def_;
-        const DefNode* ptr_;
-        const DefNode* offset_;
-    };
-    AutoPtr<Var> var_;
+    size_t handle_;
+    const TypeNode* type_;
+    const char* name_;
+    const DefNode* def_;
+    std::unique_ptr<Var> var_;
 };
 
 //------------------------------------------------------------------------------

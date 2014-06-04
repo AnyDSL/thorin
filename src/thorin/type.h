@@ -24,6 +24,14 @@ public:
     Proxy(const T* node)
         : node_(node)
     {}
+    Proxy(Proxy<T>&& other)
+        : node_(std::move(other.node_))
+    {
+        other.node_ = nullptr;
+    }
+    Proxy(const Proxy<T>& other)
+        : node_(other.node_)
+    {}
 
     bool empty() const { return node_ == nullptr; }
     bool operator == (const Proxy<T>& other) const {
@@ -47,13 +55,15 @@ public:
         return Proxy<typename U::BaseType>((*this)->template as <typename U::BaseType>());
     }
     operator bool() { return !empty(); }
-    Proxy<T>& operator= (Proxy<T> other) {
-        assert(node_ == nullptr);
-        node_ = *other;
-        return *this;
-    }
     void clear() { assert(node_ != nullptr); node_ = nullptr; }
     Proxy<T> unify() const { return node()->unify()->template as<T>(); }
+    Proxy<T>& operator= (Proxy<T> other) { swap(*this, other); return *this; }
+    friend void swap(Proxy<T>& p1, Proxy<T>& p2) {
+        assert(p1.node_ == nullptr);
+        auto tmp = p2.node();
+        p2.node_ = p1.node_;
+        p1.node_ = tmp;
+    }
 
 private:
     const T* node_;

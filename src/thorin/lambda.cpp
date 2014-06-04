@@ -36,7 +36,7 @@ const Param* Lambda::append_param(Type param_type, const std::string& name) {
     Array<Type> elems(size + 1);
     *std::copy(type()->elems().begin(), type()->elems().end(), elems.begin()) = param_type;
     clear_type();
-    set_type(world().fn_type(elems));                         // update type
+    set_type(param_type->world().fn_type(elems));             // update type
     auto param = world().param(param_type, this, size, name); // append new param
     params_.push_back(param);
 

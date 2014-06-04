@@ -5,6 +5,7 @@
 *.nvvm
 *.spir
 *.s
+*.out
 CMakeCache.txt
 CMakeFiles/
 build*

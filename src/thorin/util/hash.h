@@ -188,6 +188,7 @@ public:
 
     HashTable(size_type capacity = min_capacity, const hasher& hash_function = hasher(), const key_equal& key_eq = key_equal())
         : capacity_(std::max(size_type(min_capacity), capacity))
+        , load_(0)
         , size_(0)
         , nodes_(alloc())
         , hash_function_(hash_function)
@@ -198,6 +199,7 @@ public:
     {}
     HashTable(HashTable&& other)
         : capacity_     (std::move(other.capacity_))
+        , load_         (std::move(other.load_))
         , size_         (std::move(other.size_))
         , nodes_        (std::move(other.nodes_))
         , hash_function_(std::move(other.hash_function_))
@@ -207,11 +209,13 @@ public:
 #endif
     {
         other.capacity_ = 0;
+        other.load_ = 0;
         other.size_ = 0;
         other.nodes_ = nullptr;
     }
     HashTable(const HashTable& other)
         : capacity_(other.capacity_)
+        , load_(0)
         , size_(0)
         , nodes_(alloc())
         , hash_function_(other.hash_function_)
@@ -246,8 +250,9 @@ public:
     // getters
     hasher hash_function() const { return hash_function_; }
     key_equal key_eq() const { return key_eq_; }
-    size_type size() const { return size_; }
     size_type capacity() const { return capacity_; }
+    size_type load() const { return load_; }
+    size_type size() const { return size_; }
     bool empty() const { return size() == 0; }
 
     // emplace/insert
@@ -257,9 +262,9 @@ public:
         ++id_;
 #endif
         auto n = new Node(args...);
-        if (size_ > capacity_/size_t(4) + capacity_/size_t(2))
+        if (load_ > capacity_/size_t(4) + capacity_/size_t(2))
             rehash(capacity_*size_t(2));
-        else if (size_ < capacity_/size_t(4))
+        else if (load_ < capacity_/size_t(4))
             rehash(capacity_/size_t(2));
 
         Node** insert_pos = nullptr;
@@ -270,6 +275,7 @@ public:
             if (*it == nullptr) {
                 if (insert_pos == nullptr)
                     insert_pos = it;
+                ++load_;
                 ++size_;
                 *insert_pos = n;
                 return std::make_pair(iterator(insert_pos, this), true);
@@ -317,6 +323,7 @@ public:
     void clear() {
         destroy();
         size_ = 0;
+        load_ = 0;
         capacity_ = min_capacity;
         nodes_ = alloc();
     }
@@ -343,6 +350,7 @@ public:
             return;
         capacity_ = new_capacity;
         auto nodes = alloc();
+        load_ = size_;
 
         for (size_t i = 0; i != old_capacity; ++i) {
             if (is_valid(nodes_+i)) {
@@ -394,6 +402,7 @@ private:
     }
 
     size_type capacity_;
+    size_type load_;
     size_type size_;
     Node** nodes_;
     hasher hash_function_;

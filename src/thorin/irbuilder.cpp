@@ -61,7 +61,7 @@ void Var::store(Def def) const {
     switch (kind()) {
         case MutableValRef: builder_->cur_bb->set_value(handle_, def); return;
         case PtrRef:        builder_->set_mem(world().store(builder_->get_mem(), def_, def)); return;
-        case AggRef:        world().insert(var_->load(), def_, def); return;
+        case AggRef:        var_->store(world().insert(var_->load(), def_, def)); return;
         default: THORIN_UNREACHABLE;
     }
 }

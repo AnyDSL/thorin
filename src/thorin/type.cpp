@@ -19,6 +19,34 @@ void TypeNode::bind(TypeVar type_var) const {
     type_var->bound_at_ = this; 
 }
 
+void TypeNode::dump() const { emit_type(Type(this)); std::cout << std::endl; }
+size_t TypeNode::length() const { return as<VectorTypeNode>()->length(); }
+Type TypeNode::elem_via_lit(const Def& def) const { return elem(def->primlit_value<size_t>()); }
+const TypeNode* TypeNode::unify() const { return world().unify_base(this); }
+
+VectorType VectorTypeNode::scalarize() const {
+    if (auto ptr = isa<PtrTypeNode>())
+        return world().ptr_type(ptr->referenced_type());
+    return world().type(as<PrimTypeNode>()->primtype_kind());
+}
+
+bool FnTypeNode::is_returning() const {
+    bool ret = false;
+    for (auto elem : elems()) {
+        switch (elem->order()) {
+            case 0: continue;
+            case 1:
+                if (!ret) {
+                    ret = true;
+                    continue;
+                } // else fall-through
+            default:
+                return false;
+        }
+    }
+    return true;
+}
+
 //------------------------------------------------------------------------------
 
 /*
@@ -55,12 +83,6 @@ IndefiniteArrayType TypeNode::is_indefinite() const {
 
 IndefiniteArrayType IndefiniteArrayTypeNode::is_indefinite() const { return this; }
 
-//------------------------------------------------------------------------------
-
-void TypeNode::dump() const { emit_type(Type(this)); std::cout << std::endl; }
-size_t TypeNode::length() const { return as<VectorTypeNode>()->length(); }
-Type TypeNode::elem_via_lit(const Def& def) const { return elem(def->primlit_value<size_t>()); }
-const TypeNode* TypeNode::unify() const { return world().unify_base(this); }
 TypeVarSet TypeNode::free_type_vars() const { TypeVarSet bound, free; free_type_vars(bound, free); return free; }
 
 void TypeNode::free_type_vars(TypeVarSet& bound, TypeVarSet& free) const {
@@ -74,29 +96,6 @@ void TypeNode::free_type_vars(TypeVarSet& bound, TypeVarSet& free) const {
         } else
             elem->free_type_vars(bound, free);
     }
-}
-
-VectorType VectorTypeNode::scalarize() const {
-    if (auto ptr = isa<PtrTypeNode>())
-        return world().ptr_type(ptr->referenced_type());
-    return world().type(as<PrimTypeNode>()->primtype_kind());
-}
-
-bool FnTypeNode::is_returning() const {
-    bool ret = false;
-    for (auto elem : elems()) {
-        switch (elem->order()) {
-            case 0: continue;
-            case 1:
-                if (!ret) {
-                    ret = true;
-                    continue;
-                } // else fall-through
-            default:
-                return false;
-        }
-    }
-    return true;
 }
 
 //------------------------------------------------------------------------------
@@ -201,32 +200,34 @@ Array<Type> TypeNode::specialize_elems(Type2Type& map) const {
 }
 
 Type FrameTypeNode::vinstantiate(Type2Type& map) const { return map[this] = this; }
-Type MemTypeNode::vinstantiate(Type2Type& map) const { return map[this] = this; }
-Type PrimTypeNode::vinstantiate(Type2Type& map) const { return map[this] = this; }
-Type TypeVarNode::vinstantiate(Type2Type& map) const { return map[this] = this; }
+Type MemTypeNode  ::vinstantiate(Type2Type& map) const { return map[this] = this; }
+Type PrimTypeNode ::vinstantiate(Type2Type& map) const { return map[this] = this; }
+Type TypeVarNode  ::vinstantiate(Type2Type& map) const { return map[this] = this; }
 
-Type DefiniteArrayTypeNode::vinstantiate(Type2Type& map) const { 
+Type DefiniteArrayTypeNode::vinstantiate(Type2Type& map) const {
     return map[this] = *world().definite_array_type(elem_type()->specialize(map), dim()); 
 }
 
-Type FnTypeNode::vinstantiate(Type2Type& map) const { 
+Type FnTypeNode::vinstantiate(Type2Type& map) const {
     return map[this] = *world().fn_type(specialize_elems(map)); 
 }
 
-Type IndefiniteArrayTypeNode::vinstantiate(Type2Type& map) const { 
+Type IndefiniteArrayTypeNode::vinstantiate(Type2Type& map) const {
     return map[this] = *world().indefinite_array_type(elem_type()->specialize(map)); 
 }
 
-Type PtrTypeNode::vinstantiate(Type2Type& map) const { 
+Type PtrTypeNode::vinstantiate(Type2Type& map) const {
     return map[this] = *world().ptr_type(referenced_type()->specialize(map), length(), device(), addr_space()); 
+}
+
+Type StructTypeNode::vinstantiate(Type2Type& map) const {
+    return map[this] = *world().struct_type(size()); // TODO
 }
 
 Type TupleTypeNode::vinstantiate(Type2Type& map) const {
     return map[this] = *world().tuple_type(specialize_elems(map)); 
 }
 
-Type StructTypeNode::vinstantiate(Type2Type& map) const {
-    return map[this] = *world().struct_type(size()); // TODO
-}
+//------------------------------------------------------------------------------
 
 }

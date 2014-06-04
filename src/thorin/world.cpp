@@ -841,9 +841,7 @@ Type World::rebuild(World& to, Type type, ArrayRef<Type> elems) {
     }
 
     switch (type->kind()) {
-        case Node_DefiniteArrayType:
-            assert(elems.size() == 0); 
-            return to.definite_array_type(elems.front(), type.as<DefiniteArrayType>()->dim());
+        case Node_DefiniteArrayType:    assert(elems.size() == 1); return to.definite_array_type(elems.front(), type.as<DefiniteArrayType>()->dim());
         case Node_TypeVar:              assert(elems.size() == 0); return to.type_var();
         case Node_IndefiniteArrayType:  assert(elems.size() == 1); return to.indefinite_array_type(elems.front());
         case Node_MemType:              assert(elems.size() == 0); return to.mem_type();

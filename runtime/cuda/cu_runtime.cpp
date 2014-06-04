@@ -355,7 +355,7 @@ void cuda_to_ptx(const char *file_name, std::string target_cc) {
     char line[FILENAME_MAX];
     FILE *fpipe;
 
-    std::string command = "nvcc -ptx -arch=compute_" + target_cc;
+    std::string command = "nvcc -ptx -arch=compute_" + target_cc + " ";
     command += std::string(file_name) + " -o ";
     command += std::string(file_name) + ".ptx 2>&1";
 

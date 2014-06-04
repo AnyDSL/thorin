@@ -402,7 +402,7 @@ void load_kernel(size_t dev, const char *file_name, const char *kernel_name, boo
             case CU_TARGET_COMPUTE_35:
                 libdevice_file_name = "libdevice.compute_35.10.bc"; break;
         }
-        std::ifstream libdeviceFile(libdevice_file_name);
+        std::ifstream libdeviceFile(std::string(LIBDEVICE_DIR)+"/"+libdevice_file_name);
         if (!libdeviceFile.is_open()) {
             std::cerr << "ERROR: Can't open libdevice source file '" << libdevice_file_name << "'!" << std::endl;
             exit(EXIT_FAILURE);

@@ -28,9 +28,9 @@ void nvvm_set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_
 void nvvm_launch_kernel(size_t dev, const char *kernel_name);
 void nvvm_synchronize(size_t dev);
 
-// helper functions
-void *array(size_t elem_size, size_t width, size_t height);
-void free_array(void *host);
+// runtime functions
+void *thorin_malloc(size_t size);
+void thorin_free(void *ptr);
 mem_id map_memory(size_t dev, size_t type, void *from, int ox, int oy, int oz, int sx, int sy, int sz);
 void unmap_memory(size_t dev, size_t type_, mem_id mem);
 float random_val(int max);

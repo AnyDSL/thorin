@@ -8,7 +8,7 @@ static int num = 1024;
 
 int main_impala() {
     size_t dev = 1;
-    int *host = (int *)array(sizeof(int), num, 1);
+    int *host = (int *)thorin_malloc(sizeof(int) * num);
 
     for (unsigned int i=0; i<num; ++i) {
         host[i] = 0;
@@ -37,7 +37,7 @@ int main_impala() {
     }
     printf("Test passed!\n");
 
-    free(host);
+    thorin_free(host);
 
     return EXIT_SUCCESS;
 }

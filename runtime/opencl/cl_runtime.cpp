@@ -824,15 +824,18 @@ void spir_launch_kernel(size_t dev, const char *kernel_name) { launch_kernel(dev
 void spir_synchronize(size_t dev) { synchronize(dev); }
 
 // helper functions
-void *array(size_t elem_size, size_t width, size_t height) {
+void *thorin_malloc(size_t size) {
     void *mem;
-    posix_memalign(&mem, 4096, elem_size * width * height);
-    std::cerr << " * array() -> " << mem << std::endl;
-    host_mems_[mem] = {elem_size, width, height};
+    posix_memalign(&mem, 4096, size);
+    std::cerr << " * malloc() -> " << mem << std::endl;
+    host_mems_[mem] = {1, size, 1};
     return mem;
 }
-void free_array(void *host) {
-    free(host);
+void thorin_free(void *ptr) {
+    // TODO: free associated device memory
+
+    // free host memory
+    free(ptr);
 }
 mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, int sx, int sy, int sz) {
     mem_type type = (mem_type)type_;

@@ -8,7 +8,7 @@ static int num = 1024;
 
 int main_impala() {
     size_t dev = 1;
-    int *host = (int *)array(sizeof(int), num, 1);
+    int *host = (int *)thorin_malloc(sizeof(int) * num);
 
     for (unsigned int i=0; i<num; ++i) {
         host[i] = 0;
@@ -46,7 +46,7 @@ int main_impala() {
     CUdeviceptr tex = nvvm_malloc_memory(dev, host);
     nvvm_write_memory(dev, tex, host);
 
-    int *host_out = (int *)array(sizeof(int), num, 1);
+    int *host_out = (int *)thorin_malloc(sizeof(int) * num);
     CUdeviceptr out = nvvm_malloc_memory(dev, host_out);
     for (unsigned int i=0; i<num; ++i) {
         host_out[i] = 0;
@@ -74,8 +74,8 @@ int main_impala() {
     }
     printf("Texture test passed!\n");
 
-    free(host);
-    free(host_out);
+    thorin_free(host);
+    thorin_free(host_out);
 
     return EXIT_SUCCESS;
 }

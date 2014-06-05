@@ -14,7 +14,7 @@
 #include <llvm/IR/Type.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/Analysis/Verifier.h>
-#include "llvm/Support/raw_ostream.h"
+#include <llvm/Support/raw_ostream.h>
 
 #ifdef WFV2_SUPPORT
 #include <wfvInterface.h>

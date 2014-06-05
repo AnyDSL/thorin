@@ -258,7 +258,7 @@ void CodeGen::emit() {
                 builder_.CreateUnreachable();
             } else {
                 Lambda* to_lambda = lambda->to()->as_lambda();
-                if (to_lambda->is_basicblock())      // ordinary jump
+                if (to_lambda->is_basicblock())         // ordinary jump
                     builder_.CreateBr(bbs[to_lambda]);
                 else {
                     if (to_lambda->is_builtin()) {
@@ -290,9 +290,13 @@ void CodeGen::emit() {
                             call->setCallingConv(function_calling_convention_);
                         }
 
-                        if (ret_arg == ret_param)       // call + return
-                            builder_.CreateRet(call);
-                        else {                          // call + continuation
+                        if (ret_arg == ret_param) {     // call + return
+                            Lambda* succ = ret_param->lambda();
+                            if (succ->param(0)->type().isa<MemType>())
+                                builder_.CreateRetVoid();
+                            else
+                                builder_.CreateRet(call);
+                        } else {                        // call + continuation
                             Lambda* succ = ret_arg->as_lambda();
                             const Param* param = succ->param(0)->type().isa<MemType>() ? nullptr : succ->param(0);
                             if (param == nullptr && succ->num_params() == 2)

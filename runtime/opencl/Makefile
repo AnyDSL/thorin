@@ -24,7 +24,7 @@ all: $(MAIN).out
 	@./$(MAIN).out
 
 %.s: %.cpp
-	clang++ $(CXX_FLAGS) $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -S $<
+	clang++ $(CXX_FLAGS) -DPROVIDE_MAIN $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -S $<
 
 %.bc: %.ll
 	llvm-link $^ -o $*-unop.bc

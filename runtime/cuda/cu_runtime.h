@@ -29,6 +29,7 @@ void nvvm_launch_kernel(size_t dev, const char *kernel_name);
 void nvvm_synchronize(size_t dev);
 
 // runtime functions
+void thorin_init();
 void *thorin_malloc(size_t size);
 void thorin_free(void *ptr);
 mem_id map_memory(size_t dev, size_t type, void *from, int ox, int oy, int oz, int sx, int sy, int sz);

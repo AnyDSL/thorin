@@ -824,6 +824,7 @@ void spir_launch_kernel(size_t dev, const char *kernel_name) { launch_kernel(dev
 void spir_synchronize(size_t dev) { synchronize(dev); }
 
 // helper functions
+void thorin_init() { init_cuda(); }
 void *thorin_malloc(size_t size) {
     void *mem;
     posix_memalign(&mem, 4096, size);
@@ -906,6 +907,7 @@ float random_val(int max) {
     return ((float)random() / RAND_MAX) * max;
 }
 
+#ifdef PROVIDE_MAIN
 int main(int argc, char *argv[]) {
     init_opencl();
 
@@ -915,4 +917,5 @@ int main(int argc, char *argv[]) {
     #endif
     return ret;
 }
+#endif
 

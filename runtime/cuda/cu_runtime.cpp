@@ -6,6 +6,7 @@
 
 #include <stdlib.h>
 
+#include <algorithm>
 #include <cassert>
 #include <fstream>
 #include <iomanip>
@@ -626,6 +627,7 @@ void launch_kernel(size_t dev, const char *kernel_name) {
     timings.emplace_back(time);
     #ifdef BENCH
     }
+    std::sort(timings.begin(), timings.end());
     total_timing += timings[timings.size()/2];
     #endif
 

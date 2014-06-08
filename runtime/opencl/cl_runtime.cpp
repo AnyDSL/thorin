@@ -7,6 +7,7 @@
 #include <mach/mach.h>
 #endif
 
+#include <algorithm>
 #include <cassert>
 #include <fstream>
 #include <iostream>
@@ -778,6 +779,7 @@ void launch_kernel(size_t dev, const char *kernel_name) {
     timings.emplace_back(time);
     }
     kernel_args.clear();
+    std::sort(timings.begin(), timings.end());
     total_timing += timings[timings.size()/2];
     #endif
 
@@ -824,7 +826,7 @@ void spir_launch_kernel(size_t dev, const char *kernel_name) { launch_kernel(dev
 void spir_synchronize(size_t dev) { synchronize(dev); }
 
 // helper functions
-void thorin_init() { init_cuda(); }
+void thorin_init() { init_opencl(); }
 void *thorin_malloc(size_t size) {
     void *mem;
     posix_memalign(&mem, 4096, size);

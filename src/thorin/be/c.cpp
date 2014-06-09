@@ -476,13 +476,6 @@ void CCodeGen::emit() {
         stream() << "__device__ int gridDim_z() { return gridDim.z; }\n";
     }
 
-    if (lang_==CUDA) stream() << "__device__ ";
-    stream() << "int int64_to_int32(long tid) { return (int)tid; }";
-    newline();
-    if (lang_==CUDA) stream() << "__device__ ";
-    stream() << "float int32_to_float(int tid) { return (float)tid; }";
-    newline();
-
     globals_.clear();
     primops_.clear();
     if (lang_==CUDA) stream() << "}\n"; // extern "C"
@@ -530,8 +523,12 @@ std::ostream& CCodeGen::emit(Def def) {
         return stream();
     }
 
-    if (def->isa<ConvOp>()) {
-        THORIN_UNREACHABLE;
+    if (auto conv = def->isa<ConvOp>()) {
+        emit_type(conv->type()) << " " << conv->unique_name() << " = (";
+        emit_type(conv->type()) << ")";
+        emit(conv->from()) << ";";
+        insert(def->gid(), def->unique_name());
+        return stream();
     }
 
     if (auto array = def->isa<DefiniteArray>()) {

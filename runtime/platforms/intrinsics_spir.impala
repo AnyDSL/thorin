@@ -12,13 +12,13 @@ extern "raw" {
 }
 
 fn work_dim() -> int {                  _Z12get_work_dimv() }
-fn global_size(idx : int) -> int {      int64_to_int32(_Z15get_global_sizej(idx)) }
-fn global_id(idx : int) -> int {        int64_to_int32(_Z13get_global_idj(idx)) }
-fn local_size(idx : int) -> int {       int64_to_int32(_Z14get_local_sizej(idx)) }
-fn local_id(idx : int) -> int {         int64_to_int32(_Z12get_local_idj(idx)) }
-fn num_groups(idx : int) -> int {       int64_to_int32(_Z14get_num_groupsj(idx)) }
-fn group_id(idx : int) -> int {         int64_to_int32(_Z12get_group_idj(idx)) }
-fn global_offset(idx : int) -> int {    int64_to_int32(_Z17get_global_offsetj(idx)) }
+fn global_size(idx : int) -> int {      _Z15get_global_sizej(idx) as int }
+fn global_id(idx : int) -> int {        _Z13get_global_idj(idx) as int }
+fn local_size(idx : int) -> int {       _Z14get_local_sizej(idx) as int }
+fn local_id(idx : int) -> int {         _Z12get_local_idj(idx) as int }
+fn num_groups(idx : int) -> int {       _Z14get_num_groupsj(idx) as int }
+fn group_id(idx : int) -> int {         _Z12get_group_idj(idx) as int }
+fn global_offset(idx : int) -> int {    _Z17get_global_offsetj(idx) as int }
 fn barrier(flag : int) -> () {          _Z7barrierj(flag) }
 
 fn expf(a: float) -> float { _Z3expf(a) }

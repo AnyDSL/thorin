@@ -8,6 +8,5 @@ extern "thorin" {
     fn vectorized(int, int, fn() -> ()) -> int;
     fn wfv_get_tid() -> int;
     fn opencl(int, (int, int, int), (int, int, int), fn() -> ()) -> ();
-    fn int64_to_int32(i64) -> i32;
 }
 

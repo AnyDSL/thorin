@@ -11,13 +11,13 @@ extern "raw" {
     fn exp(float) -> float;
 }
 
-fn global_size(idx : int) -> int {   int64_to_int32(get_global_size(idx)) }
-fn global_id(idx : int) -> int {     int64_to_int32(get_global_id(idx)) }
-fn local_size(idx : int) -> int {    int64_to_int32(get_local_size(idx)) }
-fn local_id(idx : int) -> int {      int64_to_int32(get_local_id(idx)) }
-fn num_groups(idx : int) -> int {    int64_to_int32(get_num_groups(idx)) }
-fn group_id(idx : int) -> int {      int64_to_int32(get_group_id(idx)) }
-fn global_offset(idx : int) -> int { int64_to_int32(get_global_offset(idx)) }
+fn global_size(idx : int) -> int {   get_global_size(idx) as int }
+fn global_id(idx : int) -> int {     get_global_id(idx) as int }
+fn local_size(idx : int) -> int {    get_local_size(idx) as int }
+fn local_id(idx : int) -> int {      get_local_id(idx) as int }
+fn num_groups(idx : int) -> int {    get_num_groups(idx) as int }
+fn group_id(idx : int) -> int {      get_group_id(idx) as int }
+fn global_offset(idx : int) -> int { get_global_offset(idx) as int }
 
 fn expf(a: float) -> float { exp(a) }
 

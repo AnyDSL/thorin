@@ -373,6 +373,8 @@ void CCodeGen::emit() {
                 stream() << "} else {";
                 up(); emit(select->fval()); down();
                 stream() << "}";
+            } else if (lambda->to()->isa<Bottom>()) {
+                stream() << "return ; // bottom: unreachable";
             } else {
                 Lambda* to_lambda = lambda->to()->as_lambda();
 
@@ -622,7 +624,7 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (def->isa<Undef>()) {   // bottom and any
-        return stream() << "42";
+        return stream() << "42 /* undef: bottom and any */";
     }
 
     if (auto load = def->isa<Load>()) {

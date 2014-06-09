@@ -1,4 +1,4 @@
-extern "raw" {
+extern "C" {
     fn threadIdx_x() -> i32;
     fn threadIdx_y() -> i32;
     fn threadIdx_z() -> i32;
@@ -11,6 +11,9 @@ extern "raw" {
     fn gridDim_x() -> i32;
     fn gridDim_y() -> i32;
     fn gridDim_z() -> i32;
+}
+
+extern "raw" {
     fn __syncthreads() -> ();
     fn exp(float) -> float;
 }

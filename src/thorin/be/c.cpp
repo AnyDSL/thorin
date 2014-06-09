@@ -29,6 +29,7 @@ private:
     LangType lang_;
     HashMap<size_t, std::string> globals_;
     HashMap<size_t, std::string> primops_;
+    std::vector<Type> compounds_;
 
     std::ostream& emit_aggop_defs(Def def);
     std::ostream& emit_aggop_decl(Type);
@@ -36,6 +37,8 @@ private:
     std::ostream& emit(Def def);
     bool lookup(size_t gid);
     void insert(size_t gid, std::string str);
+    bool lookup_compound(Type t);
+    void insert_compound(Type t);
     std::string &get_name(size_t gid);
     bool is_texture_type(Type type);
     bool process_kernel;
@@ -69,6 +72,8 @@ std::ostream& CCodeGen::emit_type(Type type) {
         return stream();
     } else if (auto array = type.isa<DefiniteArrayType>()) { // DefArray is mapped to a struct
         if (lookup(array->gid())) return stream() << get_name(array->gid());
+        if (lookup_compound(array)) stream() << "";
+
         stream() << "typedef struct array_" << array->gid() << " {";
         ++indent; newline();
         emit_type(array->elem_type()) << " e[" << array->dim() << "];";
@@ -144,6 +149,8 @@ std::ostream& CCodeGen::emit_aggop_defs(Def def) {
 
 std::ostream& CCodeGen::emit_aggop_decl(Type type) {
     if (lookup(type->gid())) return stream();
+    // TODO: hack ... do not free compounds types yet
+    insert_compound(type);
 
     if (auto fn = type.isa<FnType>())
         for (auto type : fn->elems()) emit_aggop_decl(type);
@@ -476,6 +483,7 @@ void CCodeGen::emit() {
 
     globals_.clear();
     primops_.clear();
+    compounds_.clear();
     if (lang_==CUDA) stream() << "}\n"; // extern "C"
 }
 
@@ -714,6 +722,14 @@ std::string &CCodeGen::get_name(size_t gid) {
 void CCodeGen::insert(size_t gid, std::string str) {
     if (process_kernel) primops_[gid] = str;
     else globals_[gid] = str;
+}
+bool CCodeGen::lookup_compound(Type t) {
+    for (auto it=compounds_.begin(), e=compounds_.end(); it!=e; it++)
+        if (*it==t) return true;
+    return false;
+}
+void CCodeGen::insert_compound(Type t) {
+    compounds_.emplace_back(t);
 }
 bool CCodeGen::is_texture_type(Type type) {
     if (auto ptr = type.isa<PtrType>()) {

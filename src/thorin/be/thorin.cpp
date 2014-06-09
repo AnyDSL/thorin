@@ -179,6 +179,8 @@ std::ostream& CodeGen::emit_head(const Lambda* lambda) {
         stream() << " extern ";
     if (lambda->attribute().is(Lambda::Intrinsic))
         stream() << " intrinsic ";
+    if (lambda->attribute().is(Lambda::Raw))
+        stream() << " raw ";
 
     return up();
 }

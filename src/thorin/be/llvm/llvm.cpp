@@ -105,7 +105,7 @@ void CodeGen::emit() {
             name = get_intrinsic_name(name);
             f = emit_intrinsic_decl(name, lambda);
         } else {
-            if (!lambda->attribute().is(Lambda::Extern)) name = lambda->unique_name();
+            if (!lambda->attribute().is(Lambda::Extern | Lambda::Raw)) name = lambda->unique_name();
             f = emit_function_decl(name, lambda);
         }
 
@@ -284,7 +284,7 @@ void CodeGen::emit() {
                         // set proper calling convention
                         if (to_lambda->attribute().is(Lambda::KernelEntry)) {
                             call->setCallingConv(kernel_calling_convention_);
-                        } else if (to_lambda->attribute().is(Lambda::Intrinsic)) {
+                        } else if (to_lambda->attribute().is(Lambda::Intrinsic | Lambda::Raw)) {
                             call->setCallingConv(intrinsic_calling_convention_);
                         } else {
                             call->setCallingConv(function_calling_convention_);

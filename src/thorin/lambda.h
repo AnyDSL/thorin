@@ -28,9 +28,10 @@ public:
         Vectorize    = 1 <<  7, ///< Flag for the external vectorizer
         VectorizeTid = 1 <<  8, ///< Flag for the external vectorizer (tid getter)
         Intrinsic    = 1 <<  9, ///< Flag for intrinsic LLVM function
-        Map          = 1 << 10, ///< Flag for intrinsic memory-mapping function
-        Unmap        = 1 << 11, ///< Flag for intrinsic memory-unmapping function
-        KernelEntry  = 1 << 12, ///< Flag for the kernel lambda
+        Raw          = 1 << 10, ///< Flag for intrinsic raw function
+        Map          = 1 << 11, ///< Flag for intrinsic memory-mapping function
+        Unmap        = 1 << 12, ///< Flag for intrinsic memory-unmapping function
+        KernelEntry  = 1 << 13, ///< Flag for the kernel lambda
         Builtin      = CUDA | NVVM | SPIR | OPENCL | Parallel | Vectorize
     };
 

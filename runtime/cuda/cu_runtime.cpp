@@ -186,7 +186,7 @@ void **cuArgs[num_devices_];
 int cuArgIdx[num_devices_], cuArgIdxMax[num_devices_];
 dim3 cuDimProblem[num_devices_], cuDimBlock[num_devices_];
 
-long global_time = 0;
+static long global_time = 0;
 
 void getMicroTime() {
     struct timespec now;
@@ -659,8 +659,11 @@ void launch_kernel(size_t dev, const char *kernel_name) {
     // reset argument index
     cuArgIdx[dev] = 0;
     cuCtxPopCurrent(NULL);
-}
 
+    #ifdef BENCH
+    std::cerr << "total accumulated timing: " << total_timing << " (ms)" << std::endl;
+    #endif
+}
 
 // NVVM wrappers
 mem_id nvvm_malloc_memory(size_t dev, void *host) { return mem_manager.malloc(dev, host); }
@@ -739,19 +742,3 @@ void unmap_memory(size_t dev, size_t type_, mem_id mem) {
     std::cerr << " * unmap memory(" << dev << "):  " << mem << std::endl;
     // TODO: mark device memory as unmapped
 }
-float random_val(int max) {
-    return ((float)random() / RAND_MAX) * max;
-}
-
-#ifdef PROVIDE_MAIN
-int main(int argc, char *argv[]) {
-    init_cuda();
-
-    int ret = main_impala();
-    #ifdef BENCH
-    std::cerr << "total timing: " << total_timing << " (ms)" << std::endl;
-    #endif
-    return ret;
-}
-#endif
-

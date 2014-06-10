@@ -34,6 +34,12 @@ FIND_PATH ( THORIN_RUNTIME_DIR
 	PATHS
 		${THORIN_ROOT_DIR}/runtime
 )
+FIND_PATH ( THORIN_RUNTIME_INCLUDE_DIR
+	NAMES
+		thorin_ext_runtime.h
+	PATHS
+		${THORIN_ROOT_DIR}/runtime/common
+)
 
 # include anydsl specific stuff
 INCLUDE ( ${CMAKE_CURRENT_LIST_DIR}/thorin-shared.cmake )

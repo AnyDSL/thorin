@@ -14,6 +14,13 @@
 #include <unordered_map>
 #include <vector>
 
+#ifndef LIBDEVICE_DIR
+#define LIBDEVICE_DIR ""
+#endif
+#ifndef KERNEL_DIR
+#define KERNEL_DIR ""
+#endif
+
 #define BENCH
 #ifdef BENCH
 float total_timing = 0.0f;
@@ -179,31 +186,6 @@ void **cuArgs[num_devices_];
 int cuArgIdx[num_devices_], cuArgIdxMax[num_devices_];
 dim3 cuDimProblem[num_devices_], cuDimBlock[num_devices_];
 
-long global_time = 0;
-
-void getMicroTime() {
-    struct timespec now;
-    #ifdef __APPLE__ // OS X does not have clock_gettime, use clock_get_time
-    clock_serv_t cclock;
-    mach_timespec_t mts;
-    host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
-    clock_get_time(cclock, &mts);
-    mach_port_deallocate(mach_task_self(), cclock);
-    now.tv_sec = mts.tv_sec;
-    now.tv_nsec = mts.tv_nsec;
-    #else
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    #endif
-
-    if (global_time==0) {
-        global_time = now.tv_sec*1000000LL + now.tv_nsec / 1000LL;
-    } else {
-        global_time = (now.tv_sec*1000000LL + now.tv_nsec / 1000LL) - global_time;
-        std::cerr << "   timing: " << global_time * 1.0e-3f << "(ms)" << std::endl;
-        global_time = 0;
-    }
-}
-
 #define checkErrNvvm(err, name) __checkNvvmErrors (err, name, __FILE__, __LINE__)
 #define checkErrDrv(err, name)  __checkCudaErrors (err, name, __FILE__, __LINE__)
 
@@ -357,7 +339,7 @@ void cuda_to_ptx(const char *file_name, std::string target_cc) {
     FILE *fpipe;
 
     std::string command = "nvcc -ptx -arch=compute_" + target_cc + " ";
-    command += std::string(file_name) + " -o ";
+    command += std::string(KERNEL_DIR) + std::string(file_name) + " -o ";
     command += std::string(file_name) + ".ptx 2>&1";
 
     if (!(fpipe = (FILE *)popen(command.c_str(), "r"))) {
@@ -403,7 +385,7 @@ void load_kernel(size_t dev, const char *file_name, const char *kernel_name, boo
             case CU_TARGET_COMPUTE_35:
                 libdevice_file_name = "libdevice.compute_35.10.bc"; break;
         }
-        std::ifstream libdeviceFile(std::string(LIBDEVICE_DIR)+"/"+libdevice_file_name);
+        std::ifstream libdeviceFile(std::string(LIBDEVICE_DIR)+libdevice_file_name);
         if (!libdeviceFile.is_open()) {
             std::cerr << "ERROR: Can't open libdevice source file '" << libdevice_file_name << "'!" << std::endl;
             exit(EXIT_FAILURE);
@@ -412,9 +394,9 @@ void load_kernel(size_t dev, const char *file_name, const char *kernel_name, boo
         std::string libdeviceString = std::string(std::istreambuf_iterator<char>(libdeviceFile),
                 (std::istreambuf_iterator<char>()));
 
-        std::ifstream srcFile(file_name);
+        std::ifstream srcFile(std::string(KERNEL_DIR)+file_name);
         if (!srcFile.is_open()) {
-            std::cerr << "ERROR: Can't open LL source file '" << file_name << "'!" << std::endl;
+            std::cerr << "ERROR: Can't open LL source file '" << KERNEL_DIR << file_name << "'!" << std::endl;
             exit(EXIT_FAILURE);
         }
 
@@ -652,8 +634,11 @@ void launch_kernel(size_t dev, const char *kernel_name) {
     // reset argument index
     cuArgIdx[dev] = 0;
     cuCtxPopCurrent(NULL);
-}
 
+    #ifdef BENCH
+    std::cerr << "total accumulated timing: " << total_timing << " (ms)" << std::endl;
+    #endif
+}
 
 // NVVM wrappers
 mem_id nvvm_malloc_memory(size_t dev, void *host) { return mem_manager.malloc(dev, host); }
@@ -732,19 +717,3 @@ void unmap_memory(size_t dev, size_t type_, mem_id mem) {
     std::cerr << " * unmap memory(" << dev << "):  " << mem << std::endl;
     // TODO: mark device memory as unmapped
 }
-float random_val(int max) {
-    return ((float)random() / RAND_MAX) * max;
-}
-
-#ifdef PROVIDE_MAIN
-int main(int argc, char *argv[]) {
-    init_cuda();
-
-    int ret = main_impala();
-    #ifdef BENCH
-    std::cerr << "total timing: " << total_timing << " (ms)" << std::endl;
-    #endif
-    return ret;
-}
-#endif
-

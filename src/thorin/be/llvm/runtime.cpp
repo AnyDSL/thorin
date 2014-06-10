@@ -19,11 +19,12 @@ Runtime::Runtime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuild
 {
     llvm::SMDiagnostic diag;
     module_ = llvm::ParseIRFile(mod_name, diag, context);
+    assert(module_ != nullptr && "Runtime could not be loaded");
 }
 
 llvm::Function* Runtime::get(const char* name) {
     auto result = llvm::cast<llvm::Function>(target_->getOrInsertFunction(name, module_->getFunction(name)->getFunctionType()));
-    assert(result != nullptr && "Requires runtime function could not be resolved");
+    assert(result != nullptr && "Required runtime function could not be resolved");
     return result;
 }
 

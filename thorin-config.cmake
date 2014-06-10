@@ -5,6 +5,7 @@
 # THORIN_INCLUDE_DIR
 # THORIN_LIBS (including dependencies to LLVM/WFV2)
 # THORIN_LIBS_DIR
+# THORIN_RUNTIME_DIR
 
 SET ( PROJ_NAME THORIN )
 
@@ -26,6 +27,12 @@ FIND_PATH ( THORIN_LIBS_DIR
 		${THORIN_ROOT_DIR}/build/lib
 	PATH_SUFFIXES
 		${CMAKE_CONFIGURATION_TYPES}
+)
+FIND_PATH ( THORIN_RUNTIME_DIR
+	NAMES
+		cmake/ThorinRuntime.cmake cuda/cu_runtime.cpp platforms/intrinsics_thor.impala
+	PATHS
+		${THORIN_ROOT_DIR}/runtime
 )
 
 # include anydsl specific stuff

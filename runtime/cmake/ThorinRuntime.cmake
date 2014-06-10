@@ -62,7 +62,7 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
 		COMMAND impala
 		ARGS ${impala_platform} ${infiles} -f -emit-llvm
 		WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-		DEPENDS ${infile} VERBATIM)
+		DEPENDS ${impala_platform} ${infiles} VERBATIM)
 	add_custom_command(OUTPUT ${objfile}
 		COMMAND clang++
 		ARGS ${CLANG_OPTS} -g -c -o ${objfile} ${llfile}

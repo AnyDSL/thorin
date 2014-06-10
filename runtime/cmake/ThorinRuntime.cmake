@@ -16,7 +16,7 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
 		)
 	ENDIF()
 	# add specific runtime
-	set(CUDA_RUNTIME_DEFINES "'-DLIBDEVICE_DIR=\"${CUDA_DIR}/nvvm/libdevice/\"' '-DKERNEL_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/\"'")
+	set(CUDA_RUNTIME_DEFINES "'-DLIBDEVICE_DIR=\"${CUDA_DIR}/nvvm/libdevice/\"' '-DNVCC_BIN=\"${CUDA_DIR}/bin/nvcc\"' '-DKERNEL_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/\"'")
 	set(CUDA_RUNTIME_INCLUDES "-I${CUDA_DIR}/include -I${CUDA_DIR}/nvvm/include -I${CUDA_DIR}/nvvm/libnvvm-samples/common/include")
 	IF("${TRW_RTTYPE}" STREQUAL "nvvm")
 		set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/cuda/cu_runtime.cpp)

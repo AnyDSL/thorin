@@ -17,6 +17,9 @@
 #ifndef LIBDEVICE_DIR
 #define LIBDEVICE_DIR ""
 #endif
+#ifndef NVCC_BIN
+#define NVCC_BIN "nvcc"
+#endif
 #ifndef KERNEL_DIR
 #define KERNEL_DIR ""
 #endif
@@ -338,7 +341,7 @@ void cuda_to_ptx(const char *file_name, std::string target_cc) {
     char line[FILENAME_MAX];
     FILE *fpipe;
 
-    std::string command = "nvcc -ptx -arch=compute_" + target_cc + " ";
+    std::string command = (NVCC_BIN " -ptx -arch=compute_") + target_cc + " ";
     command += std::string(KERNEL_DIR) + std::string(file_name) + " -o ";
     command += std::string(file_name) + ".ptx 2>&1";
 
@@ -443,7 +446,8 @@ void load_kernel(size_t dev, const char *file_name, const char *kernel_name, boo
         if (err != NVVM_SUCCESS) free(PTX);
         checkErrNvvm(err, "nvvmDestroyProgram()");
     } else {
-        cuda_to_ptx(file_name, std::to_string(target_cc));
+        auto target_nvcc = target_cc == 21 ? 20 : target_cc; // target 21 does not exist for nvcc
+        cuda_to_ptx(file_name, std::to_string(target_nvcc));
         std::string ptx_filename = file_name;
         ptx_filename += ".ptx";
 

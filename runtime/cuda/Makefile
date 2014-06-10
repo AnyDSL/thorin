@@ -25,7 +25,7 @@ all: $(MAIN).out
 	@./$(MAIN).out
 
 %.s: %.cpp
-	clang++ $(CXX_FLAGS) -DPROVIDE_MAIN -DLIBDEVICE_DIR='"$(CUDA_DIR)/nvvm/libdevice/"' $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -S $^
+	clang++ $(CXX_FLAGS) -DPROVIDE_MAIN -DNVCC_BIN='"$(CUDA_DIR)/bin/nvcc"' -DLIBDEVICE_DIR='"$(CUDA_DIR)/nvvm/libdevice/"' $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -S $^
 
 %.bc: %.ll
 	llvm-link $^ -o $*-unop.bc

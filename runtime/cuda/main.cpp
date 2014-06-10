@@ -93,6 +93,7 @@ int test_kernelfile(const char *file)
     return EXIT_SUCCESS;
 }
 
+extern "C" { int main_impala(void); }
 int main_impala() {
     int ret = test_kernelfile("simple-gpu64.cu");
     if(ret == EXIT_SUCCESS)

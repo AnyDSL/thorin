@@ -1,8 +1,5 @@
 include(CMakeParseArguments)
 
-set(CUDA_RUNTIME_DEFINES "'-DLIBDEVICE_DIR=\"${CUDA_DIR}/nvvm/libdevice/\"' '-DKERNEL_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/\"'")
-set(CUDA_RUNTIME_INCLUDES "-I${CUDA_DIR}/include -I${CUDA_DIR}/nvvm/include -I${CUDA_DIR}/nvvm/libnvvm-samples/common/include")
-
 macro(THORIN_RUNTIME_WRAP outfiles outlibs)
 	CMAKE_PARSE_ARGUMENTS("TRW" "MAIN" "RTTYPE" "FILES" ${ARGN})
 	IF(NOT "${TRW_UNPARSED_ARGUMENTS}" STREQUAL "")
@@ -19,6 +16,8 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
 		)
 	ENDIF()
 	# add specific runtime
+	set(CUDA_RUNTIME_DEFINES "'-DLIBDEVICE_DIR=\"${CUDA_DIR}/nvvm/libdevice/\"' '-DKERNEL_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/\"'")
+	set(CUDA_RUNTIME_INCLUDES "-I${CUDA_DIR}/include -I${CUDA_DIR}/nvvm/include -I${CUDA_DIR}/nvvm/libnvvm-samples/common/include")
 	IF("${TRW_RTTYPE}" STREQUAL "nvvm")
 		set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/cuda/cu_runtime.cpp)
 		set(${outlibs} cuda ${CUDA_DIR}/nvvm/lib64/libnvvm.so)
@@ -56,6 +55,8 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
 	get_filename_component(basename ${lastfile} NAME_WE)
 	set(llfile ${CMAKE_CURRENT_BINARY_DIR}/${basename}.ll)
 	set(objfile ${CMAKE_CURRENT_BINARY_DIR}/${basename}.o)
+	# prepare platform symlinks in build directory
+	execute_process(COMMAND ln -s ${THORIN_RUNTIME_DIR}/platforms/generic.s ${THORIN_RUNTIME_DIR}/platforms/nvvm.s ${THORIN_RUNTIME_DIR}/platforms/spir.s ${CMAKE_CURRENT_BINARY_DIR})
 	# tell cmake what to do
 	add_custom_command(OUTPUT ${llfile}
 		COMMAND impala

@@ -6,7 +6,7 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
 		message(FATAL_ERROR "Unparsed arguments ${TRW_UNPARSED_ARGUMENTS}")
 	ENDIF()
 	# add the common runtime
-	set(impala_platform ${THORIN_RUNTIME_DIR}/platforms/intrinsics_thorin.impala)
+	set(_impala_platform ${THORIN_RUNTIME_DIR}/platforms/intrinsics_thorin.impala)
 	set(${outfiles} ${THORIN_RUNTIME_DIR}/common/thorin_runtime.cpp)
 	IF("${TRW_MAIN}")
 		SET_SOURCE_FILES_PROPERTIES(
@@ -21,7 +21,8 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
 	IF("${TRW_RTTYPE}" STREQUAL "nvvm")
 		set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/cuda/cu_runtime.cpp)
 		set(${outlibs} cuda ${CUDA_DIR}/nvvm/lib64/libnvvm.so)
-		set(impala_platform ${impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_nvvm.impala)
+		set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_nvvm.impala)
+		# lucky enough, cmake does the right thing here even when we compile impala programs from various folders
 		SET_SOURCE_FILES_PROPERTIES(
 			${THORIN_RUNTIME_DIR}/cuda/cu_runtime.cpp
 			PROPERTIES
@@ -30,7 +31,7 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
 	ELSEIF("${TRW_RTTYPE}" STREQUAL "cuda")
 		set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/cuda/cu_runtime.cpp)
 		set(${outlibs} cuda ${CUDA_DIR}/nvvm/lib64/libnvvm.so)
-		set(impala_platform ${impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_cuda.impala)
+		set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_cuda.impala)
 		SET_SOURCE_FILES_PROPERTIES(
 			${THORIN_RUNTIME_DIR}/cuda/cu_runtime.cpp
 			PROPERTIES
@@ -43,34 +44,35 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
 		message(FATAL_ERROR "Unknown runtime type ${TRW_RTTYPE}")
 	ENDIF()
 	# get the options right
-	set(CLANG_OPTS ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE})
-	separate_arguments(CLANG_OPTS)
+	set(_clangopts ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE})
+	separate_arguments(_clangopts)
 	# get last filename, and absolute filenames
-	foreach(it ${TRW_FILES})
-		get_filename_component(infile ${it} ABSOLUTE)
-		set(infiles ${infiles} ${infile})
-		set(lastfile ${it})
+	set(_infiles)
+	foreach(_it ${TRW_FILES})
+		get_filename_component(_infile ${_it} ABSOLUTE)
+		set(_infiles ${_infiles} ${_infile})
+		set(_lastfile ${_it})
 	endforeach()
 	# add all input files as one impala job
-	get_filename_component(basename ${lastfile} NAME_WE)
-	set(llfile ${CMAKE_CURRENT_BINARY_DIR}/${basename}.ll)
-	set(objfile ${CMAKE_CURRENT_BINARY_DIR}/${basename}.o)
+	get_filename_component(_basename ${_lastfile} NAME_WE)
+	set(_llfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.ll)
+	set(_objfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.o)
 	# prepare platform symlinks in build directory
-	execute_process(COMMAND ln -s ${THORIN_RUNTIME_DIR}/platforms/generic.s ${THORIN_RUNTIME_DIR}/platforms/nvvm.s ${THORIN_RUNTIME_DIR}/platforms/spir.s ${CMAKE_CURRENT_BINARY_DIR})
+	execute_process(COMMAND ln -fs ${THORIN_RUNTIME_DIR}/platforms/generic.s ${THORIN_RUNTIME_DIR}/platforms/nvvm.s ${THORIN_RUNTIME_DIR}/platforms/spir.s ${CMAKE_CURRENT_BINARY_DIR})
 	# tell cmake what to do
-	add_custom_command(OUTPUT ${llfile}
+	add_custom_command(OUTPUT ${_llfile}
 		COMMAND impala
-		ARGS ${impala_platform} ${infiles} -f -emit-llvm
+		ARGS ${_impala_platform} ${_infiles} -f -emit-llvm
 		WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-		DEPENDS ${impala_platform} ${infiles} VERBATIM)
-	add_custom_command(OUTPUT ${objfile}
+		DEPENDS ${_impala_platform} ${_infiles} VERBATIM)
+	add_custom_command(OUTPUT ${_objfile}
 		COMMAND clang++
-		ARGS ${CLANG_OPTS} -g -c -o ${objfile} ${llfile}
-		DEPENDS ${llfile} VERBATIM)
+		ARGS ${_clangopts} -g -c -o ${_objfile} ${_llfile}
+		DEPENDS ${_llfile} VERBATIM)
 	SET_SOURCE_FILES_PROPERTIES(
-		${objfile}
+		${_objfile}
 		PROPERTIES
 		EXTERNAL_OBJECT true
 		GENERATED true)
-	set(${outfiles} ${${outfiles}} ${objfile})
+	set(${outfiles} ${${outfiles}} ${_objfile})
 endmacro()

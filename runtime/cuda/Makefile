@@ -2,7 +2,7 @@ CUDA_DIR  ?= /usr/local/cuda
 INC_DIRS   = -I $(CUDA_DIR)/include \
              -I $(CUDA_DIR)/nvvm/include \
              -I $(CUDA_DIR)/nvvm/libnvvm-samples/common/include \
-             -I ../common/
+             -I .
 LIB_DIRS   = $(CUDA_DIR)/lib64 $(CUDA_DIR)/nvvm/lib64
 CXX_FLAGS := -Wall -Wunused
 OPT_FLAGS := -O3
@@ -36,7 +36,7 @@ all: $(MAIN).out
 %.s: %.bc
 	llc $(OPT_FLAGS) $^ -o $@
 
-%.out: %.s cu_runtime.s ../common/thorin_runtime.s
+%.out: %.s cu_runtime.s thorin_runtime.s
 	clang++ $^ $(addprefix $(RPATH_PRE),$(LIB_DIRS)) $(addprefix -L ,$(LIB_DIRS)) $(LD_FLAGS) -o $@
 
 clean:

@@ -270,6 +270,22 @@ private:
     friend class World;
 };
 
+class TaggedHlt : public PrimOp {
+private:
+    TaggedHlt(Def def, Def run, const std::string& name)
+        : PrimOp(2, Node_TaggedHlt, def->type(), name)
+    {
+        set_op(0, def);
+        set_op(1, run);
+    }
+
+public:
+    Def def() const { return op(0); }
+    Def run() const { return op(1); }
+
+    friend class World;
+};
+
 //------------------------------------------------------------------------------
 
 /**

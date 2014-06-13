@@ -754,6 +754,10 @@ Def World::hlt(Def def, const std::string& name) {
     return cse(new Hlt(def, name));
 }
 
+Def World::tagged_hlt(Def def, Def run, const std::string& name) {
+    return cse(new TaggedHlt(def, run, name));
+}
+
 Lambda* World::lambda(FnType fn, Lambda::Attribute attribute, const std::string& name) {
     THORIN_CHECK_BREAK(gid_)
     auto l = new Lambda(gid_++, fn, attribute, true, name);
@@ -807,6 +811,7 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type) {
         case Node_Extract:   assert(ops.size() == 2); return to.extract(  ops[0], ops[1], name);
         case Node_Global:    assert(ops.size() == 1); return to.global(   ops[0], in->as<Global>()->is_mutable(), name);
         case Node_Hlt:       assert(ops.size() == 1); return to.hlt(      ops[0], name);
+        case Node_TaggedHlt: assert(ops.size() == 2); return to.tagged_hlt(ops[0],ops[1], name);
         case Node_Insert:    assert(ops.size() == 3); return to.insert(   ops[0], ops[1], ops[2], name);
         case Node_LEA:       assert(ops.size() == 2); return to.lea(      ops[0], ops[1], name);
         case Node_Leave:     assert(ops.size() == 2); return to.leave(    ops[0], ops[1], name);

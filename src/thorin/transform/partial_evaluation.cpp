@@ -61,7 +61,7 @@ public:
     World& world() { return scope().world(); }
     const Scope& scope() const { return scope_; }
     void seek();
-    void eval(Lambda* cur);
+    void eval(const Run* cur_run, Lambda* cur);
     void rewrite_jump(Lambda* src, Lambda* dst, const Call&);
     void update_new2old(const Def2Def& map);
 
@@ -84,8 +84,10 @@ void PartialEvaluator::seek() {
 
     while (!queue.empty()) {
         auto lambda = pop(queue);
-        if (!lambda->empty() && lambda->to()->isa<Run>())
-            eval(lambda);
+        if (!lambda->empty()) {
+            if (auto run = lambda->to()->isa<Run>())
+                eval(run, lambda);
+        }
         for (auto succ : lambda->succs()) {
             if (!visited.contains(succ)) {
                 queue.push(succ);
@@ -95,7 +97,7 @@ void PartialEvaluator::seek() {
     }
 }
 
-void PartialEvaluator::eval(Lambda* cur) {
+void PartialEvaluator::eval(const Run* cur_run, Lambda* cur) {
     while (!done_.contains(cur)) {
         done_.insert(cur);
         if (cur->empty() || cur->to()->isa<Hlt>())
@@ -122,8 +124,16 @@ void PartialEvaluator::eval(Lambda* cur) {
             return;
         } else {
             Call call(dst);
-            for (size_t i = 0; i != cur->num_args(); ++i)
-                call.arg(i) = cur->arg(i)->isa<Hlt>() ? nullptr : cur->arg(i);
+            for (size_t i = 0; i != cur->num_args(); ++i) {
+                call.arg(i) = nullptr;
+                if (cur->arg(i)->isa<Hlt>()) {
+                    continue;
+                } else if (auto hlt = cur->arg(i)->isa<TaggedHlt>()) {
+                    if (hlt->run() == cur_run)
+                        continue;
+                }
+                call.arg(i) = cur->arg(i);
+            }
 
             if (auto cached = find(cache_, call)) { // check for cached version
                 rewrite_jump(cur, cached, call);
@@ -178,6 +188,9 @@ void partial_evaluation(World& world) {
     for (auto primop : world.primops()) {
         if (auto evalop = primop->isa<EvalOp>())
             evalop->replace(evalop->def());
+        else if (auto hlt = primop->isa<TaggedHlt>())
+            hlt->replace(hlt->def());
+
     }
 }
 

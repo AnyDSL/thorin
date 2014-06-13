@@ -72,7 +72,8 @@ void CFFLowering::transform(Lambda* lambda) {
         assert(res);
         
         size_t num_args = lambda->num_params();
-        bool ret = false;
+        //bool ret = false;
+        bool ret = true; // HACK
         Array<Def> args(num_args);
         for (size_t i = num_args; i-- != 0;) {
             // don't drop the "return" of a top-level function

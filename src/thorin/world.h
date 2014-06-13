@@ -222,6 +222,7 @@ public:
     Def select(Def cond, Def a, Def b, const std::string& name = "");
     Def run(Def def, const std::string& name = "");
     Def hlt(Def def, const std::string& name = "");
+    Def tagged_hlt(Def def, Def run, const std::string& name = "");
 
     Lambda* lambda(FnType fn, Lambda::Attribute attribute = Lambda::Attribute(0), const std::string& name = "");
     Lambda* lambda(FnType fn, const std::string& name) { return lambda(fn, Lambda::Attribute(0), name); }

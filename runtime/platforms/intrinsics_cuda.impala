@@ -1,16 +1,16 @@
 extern "C" {
-    fn threadIdx_x() -> i32;
-    fn threadIdx_y() -> i32;
-    fn threadIdx_z() -> i32;
-    fn blockIdx_x() -> i32;
-    fn blockIdx_y() -> i32;
-    fn blockIdx_z() -> i32;
-    fn blockDim_x() -> i32;
-    fn blockDim_y() -> i32;
-    fn blockDim_z() -> i32;
-    fn gridDim_x() -> i32;
-    fn gridDim_y() -> i32;
-    fn gridDim_z() -> i32;
+    fn threadIdx_x() -> int;
+    fn threadIdx_y() -> int;
+    fn threadIdx_z() -> int;
+    fn blockIdx_x() -> int;
+    fn blockIdx_y() -> int;
+    fn blockIdx_z() -> int;
+    fn blockDim_x() -> int;
+    fn blockDim_y() -> int;
+    fn blockDim_z() -> int;
+    fn gridDim_x() -> int;
+    fn gridDim_y() -> int;
+    fn gridDim_z() -> int;
 }
 
 extern "raw" {

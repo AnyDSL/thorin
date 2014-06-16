@@ -269,5 +269,20 @@ extern "raw" {
     fn __nv_expf(float) -> float;
 }
 
+fn acc(dev : int, dim : (int, int, int), block : (int, int, int), body : fn() -> ()) -> () { nvvm(dev, dim, block, body) }
+fn acc_tidx() -> int    { nvvm_read_ptx_sreg_tid_x() };
+fn acc_tidy() -> int    { nvvm_read_ptx_sreg_tid_y() };
+fn acc_tidz() -> int    { nvvm_read_ptx_sreg_tid_z() };
+fn acc_bidx() -> int    { nvvm_read_ptx_sreg_ctaid_x() };
+fn acc_bidy() -> int    { nvvm_read_ptx_sreg_ctaid_y() };
+fn acc_bidz() -> int    { nvvm_read_ptx_sreg_ctaid_z() };
+fn acc_bdimx() -> int   { nvvm_read_ptx_sreg_ntid_x() };
+fn acc_bdimy() -> int   { nvvm_read_ptx_sreg_ntid_y() };
+fn acc_bdimz() -> int   { nvvm_read_ptx_sreg_ntid_z() };
+fn acc_gdimx() -> int   { nvvm_read_ptx_sreg_nctaid_x() };
+fn acc_gdimy() -> int   { nvvm_read_ptx_sreg_nctaid_y() };
+fn acc_gdimz() -> int   { nvvm_read_ptx_sreg_nctaid_z() };
+fn acc_barrier() -> ()  { nvvm_barrier0(); };
+
 fn expf(a: float) -> float { __nv_expf(a) }
 

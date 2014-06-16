@@ -189,31 +189,6 @@ cl_kernel kernel;
 int clArgIdx;
 size_t local_work_size[3], global_work_size[3];
 
-long global_time = 0;
-
-void getMicroTime() {
-    struct timespec now;
-    #ifdef __APPLE__ // OS X does not have clock_gettime, use clock_get_time
-    clock_serv_t cclock;
-    mach_timespec_t mts;
-    host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
-    clock_get_time(cclock, &mts);
-    mach_port_deallocate(mach_task_self(), cclock);
-    now.tv_sec = mts.tv_sec;
-    now.tv_nsec = mts.tv_nsec;
-    #else
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    #endif
-
-    if (global_time==0) {
-        global_time = now.tv_sec*1000000LL + now.tv_nsec / 1000LL;
-    } else {
-        global_time = (now.tv_sec*1000000LL + now.tv_nsec / 1000LL) - global_time;
-        std::cerr << "   timing: " << global_time * 1.0e-3f << "(ms)" << std::endl;
-        global_time = 0;
-    }
-}
-
 const char *getOpenCLErrorCodeStr(int errorCode) {
     switch (errorCode) {
         case CL_SUCCESS:
@@ -843,6 +818,11 @@ void thorin_free(void *ptr) {
     // free host memory
     free(ptr);
 }
+void thorin_print_total_timing() {
+    #ifdef BENCH
+    std::cerr << "total accumulated timing: " << total_timing << " (ms)" << std::endl;
+    #endif
+}
 mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, int sx, int sy, int sz) {
     mem_type type = (mem_type)type_;
     mem_ info = host_mems_[from];
@@ -908,19 +888,3 @@ void unmap_memory(size_t dev, size_t type_, mem_id mem) {
     std::cerr << " * unmap memory(" << dev << "):  " << mem << std::endl;
     // TODO: mark device memory as unmapped
 }
-float random_val(int max) {
-    return ((float)random() / RAND_MAX) * max;
-}
-
-#ifdef PROVIDE_MAIN
-int main(int argc, char *argv[]) {
-    init_opencl();
-
-    int ret = main_impala();
-    #ifdef BENCH
-    std::cerr << "total timing: " << total_timing << " (ms)" << std::endl;
-    #endif
-    return ret;
-}
-#endif
-

@@ -2,17 +2,17 @@ OPENCL_DIR ?= /opt/intel/opencl
 CXX_FLAGS := -Wall -Wunused
 OPT_FLAGS := -O3
 DBG_FLAGS :=
-MAIN      := gaussian
+MAIN      ?= gaussian
 
 OS:=$(shell uname -s)
 
 ifeq ($(OS),Linux)
-	INC_DIRS = -I $(OPENCL_DIR)/include
+	INC_DIRS = -I $(OPENCL_DIR)/include -I .
 	LIB_DIRS = -L $(OPENCL_DIR)/lib64
 	LD_FLAGS = -lrt -lOpenCL
 endif
 ifeq ($(OS),Darwin) # assume Mac OS X
-	INC_DIRS =
+	INC_DIRS = -I .
 	LIB_DIRS =
 	LD_FLAGS = -framework OpenCL
 endif
@@ -24,7 +24,7 @@ all: $(MAIN).out
 	@./$(MAIN).out
 
 %.s: %.cpp
-	clang++ $(CXX_FLAGS) -DPROVIDE_MAIN $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -S $<
+	clang++ $(CXX_FLAGS) -DPROVIDE_MAIN $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -S $^
 
 %.bc: %.ll
 	llvm-link $^ -o $*-unop.bc
@@ -33,10 +33,10 @@ all: $(MAIN).out
 	llvm-dis $@ -o $*.ll
 
 %.s: %.bc
-	llc $(OPT_FLAGS) $< -o $@
+	llc $(OPT_FLAGS) $^ -o $@
 
-%.out: %.s cl_runtime.s
-	clang++ $< cl_runtime.s $(LIB_DIRS) $(LD_FLAGS) -o $@
+%.out: %.s cl_runtime.s thorin_runtime.s
+	clang++ $^ $(LIB_DIRS) $(LD_FLAGS) -o $@
 
 clean:
 	@rm -f $(MAIN).out *.ll *.o *.bc *.s

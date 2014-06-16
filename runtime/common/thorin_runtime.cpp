@@ -1,8 +1,10 @@
 #include <stdlib.h>
 #include <time.h>
+
 #include <iostream>
-#include <thorin_int_runtime.h>
-#include <thorin_ext_runtime.h>
+
+#include "thorin_int_runtime.h"
+#include "thorin_ext_runtime.h"
 
 // common implementations of internal runtime functions
 static long global_time = 0;

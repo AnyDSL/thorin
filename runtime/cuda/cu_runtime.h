@@ -3,7 +3,8 @@
 
 #include <cuda.h>
 #include <nvvm.h>
-#include <thorin_runtime.h>
+
+#include "thorin_runtime.h"
 
 extern "C"
 {

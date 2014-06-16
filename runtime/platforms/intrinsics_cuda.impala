@@ -18,5 +18,20 @@ extern "raw" {
     fn exp(float) -> float;
 }
 
+fn acc(dev : int, dim : (int, int, int), block : (int, int, int), body : fn() -> ()) -> () { cuda(dev, dim, block, body) }
+fn acc_tidx() -> int    { threadIdx_x() };
+fn acc_tidy() -> int    { threadIdx_y() };
+fn acc_tidz() -> int    { threadIdx_z() };
+fn acc_bidx() -> int    { blockIdx_x() };
+fn acc_bidy() -> int    { blockIdx_y() };
+fn acc_bidz() -> int    { blockIdx_z() };
+fn acc_bdimx() -> int   { blockDim_x() };
+fn acc_bdimy() -> int   { blockDim_y() };
+fn acc_bdimz() -> int   { blockDim_z() };
+fn acc_gdimx() -> int   { gridDim_x() };
+fn acc_gdimy() -> int   { gridDim_y() };
+fn acc_gdimz() -> int   { gridDim_z() };
+fn acc_barrier() -> ()  { __syncthreads(); };
+
 fn expf(a: float) -> float { exp(a) }
 

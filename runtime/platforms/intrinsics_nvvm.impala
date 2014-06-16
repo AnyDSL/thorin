@@ -127,7 +127,7 @@ extern "C" {
     fn "llvm.nvvm.floor.d" nvvm_floor_d(double) -> double;
     fn "llvm.nvvm.floor.f" nvvm_floor_f(float) -> float;
     fn "llvm.nvvm.floor.ftz.f" nvvm_floor_ftz_f(float) -> float;
-    fn "llvm.nvvm.fma.rm.d" nvvm.fma.rm.d(double, double, double) -> double;
+    fn "llvm.nvvm.fma.rm.d" nvvm_fma_rm_d(double, double, double) -> double;
     fn "llvm.nvvm.fma.rm.f" nvvm_fma_rm_f(float, float, float) -> float;
     fn "llvm.nvvm.fma.rm.ftz.f" nvvm_fma_rm_ftz_f(float, float, float) -> float;
     fn "llvm.nvvm.fma.rn.d" nvvm_fma_rn_d(double, double, double) -> double;

@@ -6,6 +6,7 @@ extern "C" {
     void thorin_init();
     void *thorin_malloc(size_t size);
     void thorin_free(void *ptr);
+    void thorin_print_total_timing();
 } 
 
 #endif

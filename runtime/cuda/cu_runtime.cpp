@@ -638,10 +638,6 @@ void launch_kernel(size_t dev, const char *kernel_name) {
     // reset argument index
     cuArgIdx[dev] = 0;
     cuCtxPopCurrent(NULL);
-
-    #ifdef BENCH
-    std::cerr << "total accumulated timing: " << total_timing << " (ms)" << std::endl;
-    #endif
 }
 
 // NVVM wrappers
@@ -681,6 +677,11 @@ void thorin_free(void *ptr) {
 
     // free host memory
     free(ptr);
+}
+void thorin_print_total_timing() {
+    #ifdef BENCH
+    std::cerr << "total accumulated timing: " << total_timing << " (ms)" << std::endl;
+    #endif
 }
 mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, int sx, int sy, int sz) {
     mem_type type = (mem_type)type_;

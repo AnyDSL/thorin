@@ -39,7 +39,6 @@ protected:
     virtual llvm::Value* emit_unmap(Def);
 
     virtual std::string get_alloc_name() const = 0;
-    virtual std::string get_intrinsic_name(const std::string& name) const = 0;
     virtual std::string get_output_name(const std::string& name) const = 0;
     virtual std::string get_binary_output_name(const std::string& name) const = 0;
     llvm::GlobalVariable* emit_global_memory(llvm::Type*, const std::string&, unsigned);

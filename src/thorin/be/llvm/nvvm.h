@@ -24,7 +24,6 @@ protected:
     virtual llvm::Value* emit_map(Def);
 
     virtual std::string get_alloc_name() const { return "malloc"; }
-    virtual std::string get_intrinsic_name(const std::string& name) const;
     virtual std::string get_output_name(const std::string& name) const { return name + ".nvvm"; }
     virtual std::string get_binary_output_name(const std::string& name) const { return name + ".nvvm.bc"; }
 

@@ -224,10 +224,4 @@ llvm::GlobalVariable* NVVMCodeGen::resolve_global_variable(const Param* param) {
     return nullptr;
 }
 
-std::string NVVMCodeGen::get_intrinsic_name(const std::string& name) const {
-    std::string intrinsic_name(name);
-    std::transform(intrinsic_name.begin(), intrinsic_name.end(), intrinsic_name.begin(), [] (char c) { return c == '_' ? '.' : c; });
-    return "llvm." + intrinsic_name;
-}
-
 }

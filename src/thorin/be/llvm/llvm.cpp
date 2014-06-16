@@ -100,14 +100,10 @@ void CodeGen::emit() {
         if (lambda->is_builtin())
             continue;
         llvm::Function* f = nullptr;
-        std::string name = lambda->name;
-        if (lambda->attribute().is(Lambda::Intrinsic)) {
-            name = get_intrinsic_name(name);
-            f = emit_intrinsic_decl(name, lambda);
-        } else {
-            if (!lambda->attribute().is(Lambda::Extern | Lambda::Raw)) name = lambda->unique_name();
-            f = emit_function_decl(name, lambda);
-        }
+        std::string name = lambda->unique_name();
+        if (lambda->attribute().is(Lambda::Intrinsic | Lambda::Extern | Lambda::Raw))
+            name = lambda->name;
+        f = emit_intrinsic_decl(name, lambda);
 
         assert(f != nullptr && "invalid function declaration");
         fcts_.emplace(lambda, f);

@@ -41,8 +41,8 @@ extern "C" void main_impala(void);
 int main(int argc, const char **argv) {
     // initialize AnyDSL runtime
     thorin_init();
-	// run main
-	main_impala();
-	return 0;
+    // run main
+    main_impala();
+    return 0;
 }
 #endif

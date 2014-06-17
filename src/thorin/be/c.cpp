@@ -205,7 +205,7 @@ void CCodeGen::emit() {
         }
 
         auto lambda = scope->entry();
-        if (lambda->is_builtin() || lambda->attribute().is(Lambda::Intrinsic | Lambda::Raw))
+        if (lambda->is_builtin() || lambda->attribute().is(Lambda::Device))
             continue;
 
         // retrieve return param
@@ -416,7 +416,7 @@ void CCodeGen::emit() {
 
                         if (ret_arg == ret_param) {     // call + return
                             stream() << "return ";
-                            if (to_lambda->attribute().is(Lambda::Extern | Lambda::Intrinsic | Lambda::Raw))
+                            if (to_lambda->attribute().is(Lambda::Extern | Lambda::Device))
                                 stream() << to_lambda->name << "(";
                             else
                                 stream() << to_lambda->unique_name() << "(";
@@ -439,7 +439,7 @@ void CCodeGen::emit() {
                                 emit_type(param->type()) << " ";
                                 emit(param) << " = ";
                             }
-                            if (to_lambda->attribute().is(Lambda::Extern | Lambda::Intrinsic | Lambda::Raw))
+                            if (to_lambda->attribute().is(Lambda::Extern | Lambda::Device))
                                 stream() << to_lambda->name << "(";
                             else
                                 stream() << to_lambda->unique_name() << "(";

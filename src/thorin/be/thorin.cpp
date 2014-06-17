@@ -177,10 +177,10 @@ std::ostream& CodeGen::emit_head(const Lambda* lambda) {
 
     if (lambda->attribute().is(Lambda::Extern))
         stream() << " extern ";
-    if (lambda->attribute().is(Lambda::Intrinsic))
-        stream() << " intrinsic ";
-    if (lambda->attribute().is(Lambda::Raw))
-        stream() << " raw ";
+    if (lambda->attribute().is(Lambda::Device))
+        stream() << " device ";
+    if (lambda->attribute().is(Lambda::Thorin))
+        stream() << " thorin ";
 
     return up();
 }

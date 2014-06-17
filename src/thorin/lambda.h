@@ -19,15 +19,15 @@ class Lambda : public DefNode {
 public:
     enum AttrType {
         Extern       = 1 <<  0, ///< Is the function visible in other translation units?
-        CUDA         = 1 <<  1, ///< Flag for the internal CUDA-Backend
-        NVVM         = 1 <<  2, ///< Flag for the internal NNVM-Backend
-        SPIR         = 1 <<  3, ///< Flag for the internal SPIR-Backend
-        OPENCL       = 1 <<  4, ///< Flag for the internal OpenCL-Backend
-        Parallel     = 1 <<  5, ///< Flag for the internal Parallel-CPU-Backend
-        Vectorize    = 1 <<  6, ///< Flag for the external vectorizer
-        VectorizeTid = 1 <<  7, ///< Flag for the external vectorizer (tid getter)
-        Intrinsic    = 1 <<  8, ///< Flag for intrinsic LLVM function
-        Raw          = 1 <<  9, ///< Flag for intrinsic raw function
+        Device       = 1 <<  1, ///< Flag for intrinsic function with device calling convention
+        Thorin       = 1 <<  2, ///< Flag for intrinsic function provided by thorin
+        CUDA         = 1 <<  3, ///< Flag for the internal CUDA-Backend
+        NVVM         = 1 <<  4, ///< Flag for the internal NNVM-Backend
+        SPIR         = 1 <<  5, ///< Flag for the internal SPIR-Backend
+        OPENCL       = 1 <<  6, ///< Flag for the internal OpenCL-Backend
+        Parallel     = 1 <<  7, ///< Flag for the internal Parallel-CPU-Backend
+        Vectorize    = 1 <<  8, ///< Flag for the external vectorizer
+        VectorizeTid = 1 <<  9, ///< Flag for the external vectorizer (tid getter)
         Map          = 1 << 10, ///< Flag for intrinsic memory-mapping function
         Unmap        = 1 << 11, ///< Flag for intrinsic memory-unmapping function
         KernelEntry  = 1 << 12, ///< Flag for the kernel lambda

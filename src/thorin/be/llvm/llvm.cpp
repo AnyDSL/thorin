@@ -101,7 +101,7 @@ void CodeGen::emit() {
             continue;
         llvm::Function* f = nullptr;
         std::string name = lambda->unique_name();
-        if (lambda->attribute().is(Lambda::Intrinsic | Lambda::Extern | Lambda::Raw))
+        if (lambda->attribute().is(Lambda::Extern | Lambda::Device))
             name = lambda->name;
         f = emit_function_decl(name, lambda);
 
@@ -280,7 +280,7 @@ void CodeGen::emit() {
                         // set proper calling convention
                         if (to_lambda->attribute().is(Lambda::KernelEntry)) {
                             call->setCallingConv(kernel_calling_convention_);
-                        } else if (to_lambda->attribute().is(Lambda::Intrinsic | Lambda::Raw)) {
+                        } else if (to_lambda->attribute().is(Lambda::Device)) {
                             call->setCallingConv(intrinsic_calling_convention_);
                         } else {
                             call->setCallingConv(function_calling_convention_);

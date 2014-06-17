@@ -1,4 +1,4 @@
-extern "C" {
+extern "device" {
     fn "llvm.nvvm.read.ptx.sreg.ctaid.x" nvvm_read_ptx_sreg_ctaid_x() -> i32;
     fn "llvm.nvvm.read.ptx.sreg.ctaid.y" nvvm_read_ptx_sreg_ctaid_y() -> i32;
     fn "llvm.nvvm.read.ptx.sreg.ctaid.z" nvvm_read_ptx_sreg_ctaid_z() -> i32;
@@ -284,7 +284,7 @@ fn acc_gidz() -> int    { acc_tidz() + acc_bdimz() * acc_bidz() }
 fn acc_barrier() -> ()  { nvvm_barrier0() }
 fn acc_tex() -> int     { 2 }
 
-extern "device" {
+extern "C" {
     fn __nv_expf(float) -> float;
 }
 

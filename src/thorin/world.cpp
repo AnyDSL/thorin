@@ -758,9 +758,9 @@ Def World::tagged_hlt(Def def, Def run, const std::string& name) {
     return cse(new TaggedHlt(def, run, name));
 }
 
-Lambda* World::lambda(FnType fn, Lambda::Attribute attribute, const std::string& name) {
+Lambda* World::lambda(FnType fn, Lambda::Attribute attribute, Lambda::Attribute intrinsic, const std::string& name) {
     THORIN_CHECK_BREAK(gid_)
-    auto l = new Lambda(gid_++, fn, attribute, true, name);
+    auto l = new Lambda(gid_++, fn, attribute, intrinsic, true, name);
     lambdas_.insert(l);
 
     size_t i = 0;
@@ -778,7 +778,7 @@ Lambda* World::meta_lambda() {
 
 Lambda* World::basicblock(const std::string& name) {
     THORIN_CHECK_BREAK(gid_)
-    auto bb = new Lambda(gid_++, fn_type(), Lambda::Attribute(0), false, name);
+    auto bb = new Lambda(gid_++, fn_type(), Lambda::Attribute(0), Lambda::Attribute(0), false, name);
     lambdas_.insert(bb);
     return bb;
 }

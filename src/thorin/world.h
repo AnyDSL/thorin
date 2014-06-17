@@ -224,9 +224,9 @@ public:
     Def hlt(Def def, const std::string& name = "");
     Def tagged_hlt(Def def, Def run, const std::string& name = "");
 
-    Lambda* lambda(FnType fn, Lambda::Attribute attribute = Lambda::Attribute(0), const std::string& name = "");
-    Lambda* lambda(FnType fn, const std::string& name) { return lambda(fn, Lambda::Attribute(0), name); }
-    Lambda* lambda(const std::string& name) { return lambda(fn_type(), Lambda::Attribute(0), name); }
+    Lambda* lambda(FnType fn, Lambda::Attribute attribute = Lambda::Attribute(0), Lambda::Attribute intrinsic = Lambda::Attribute(0), const std::string& name = "");
+    Lambda* lambda(FnType fn, const std::string& name) { return lambda(fn, Lambda::Attribute(0), Lambda::Attribute(0), name); }
+    Lambda* lambda(const std::string& name) { return lambda(fn_type(), Lambda::Attribute(0), Lambda::Attribute(0), name); }
     Lambda* basicblock(const std::string& name = "");
     Lambda* meta_lambda();
 

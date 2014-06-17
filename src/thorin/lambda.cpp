@@ -11,7 +11,7 @@
 namespace thorin {
 
 Lambda* Lambda::stub(Type2Type& type2type, const std::string& name) const {
-    auto result = world().lambda(type()->specialize(type2type).as<FnType>(), attribute(), name);
+    auto result = world().lambda(type()->specialize(type2type).as<FnType>(), attribute(), intrinsic(), name);
     for (size_t i = 0, e = num_params(); i != e; ++i)
         result->param(i)->name = param(i)->name;
     return result;
@@ -116,7 +116,19 @@ Lambdas Lambda::direct_succs() const { return thorin::succs<true, false>(this); 
 Lambdas Lambda::indirect_preds() const { return thorin::preds<false, true>(this); }
 Lambdas Lambda::indirect_succs() const { return thorin::succs<false, true>(this); }
 
-bool Lambda::is_builtin() const { return attribute().is(Lambda::Builtin); }
+bool Lambda::is_builtin() const { return intrinsic().is(Lambda::Builtin); }
+void Lambda::set_intrinsic() {
+    attribute().set(Lambda::Thorin);
+    if (name=="cuda") intrinsic().set(Lambda::CUDA);
+    else if (name=="nvvm") intrinsic().set(Lambda::NVVM);
+    else if (name=="spir") intrinsic().set(Lambda::SPIR);
+    else if (name=="opencl") intrinsic().set(Lambda::OPENCL);
+    else if (name=="parallel") intrinsic().set(Lambda::Parallel);
+    else if (name=="vectorized") intrinsic().set(Lambda::Vectorize);
+    else if (name=="mmap") intrinsic().set(Lambda::Mmap);
+    else if (name=="munmap") intrinsic().set(Lambda::Munmap);
+    else assert(false && "unsupported thorin intrinsic");
+}
 
 template<typename T>
 static bool aggregate_connected_builtins(const Lambda* lambda, T value, std::function<T(T, Lambda*)> func) {
@@ -136,7 +148,7 @@ bool Lambda::is_connected_to_builtin() const {
 }
 
 bool Lambda::is_connected_to_builtin(uint32_t flags) const {
-    return aggregate_connected_builtins<bool>(this, false, [&](bool v, Lambda* lambda) { return v || lambda->attribute().is(flags); });
+    return aggregate_connected_builtins<bool>(this, false, [&](bool v, Lambda* lambda) { return v || lambda->intrinsic().is(flags); });
 }
 
 std::vector<Lambda*> Lambda::connected_to_builtin_lambdas() const {

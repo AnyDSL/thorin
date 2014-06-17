@@ -64,18 +64,18 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
 
 Lambda* CodeGen::emit_builtin(llvm::Function* current, Lambda* lambda) {
     Lambda* to = lambda->to()->as_lambda();
-    if (to->attribute().is(Lambda::CUDA))
+    if (to->intrinsic().is(Lambda::CUDA))
         return cuda_runtime_->emit_host_code(*this, lambda);
-    if (to->attribute().is(Lambda::NVVM))
+    if (to->intrinsic().is(Lambda::NVVM))
         return nvvm_runtime_->emit_host_code(*this, lambda);
-    if (to->attribute().is(Lambda::SPIR))
+    if (to->intrinsic().is(Lambda::SPIR))
         return spir_runtime_->emit_host_code(*this, lambda);
-    if (to->attribute().is(Lambda::OPENCL))
+    if (to->intrinsic().is(Lambda::OPENCL))
         return opencl_runtime_->emit_host_code(*this, lambda);
-    if (to->attribute().is(Lambda::Parallel))
+    if (to->intrinsic().is(Lambda::Parallel))
         return runtime_->emit_parallel_start_code(*this, lambda);
 
-    assert(to->attribute().is(Lambda::Vectorize));
+    assert(to->intrinsic().is(Lambda::Vectorize));
 #ifdef WFV2_SUPPORT
     return emit_vectorized(current, lambda);
 #else

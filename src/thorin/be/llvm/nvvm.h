@@ -13,7 +13,6 @@ public:
 
 protected:
     virtual llvm::Function* emit_function_decl(std::string&, Lambda*);
-    virtual llvm::Function* emit_intrinsic_decl(std::string& name, Lambda* lambda);
 
     virtual llvm::Value* map_param(llvm::Function*, llvm::Argument*, const Param*);
     virtual void emit_function_start(llvm::BasicBlock*, llvm::Function*, Lambda*);

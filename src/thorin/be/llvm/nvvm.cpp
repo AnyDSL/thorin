@@ -45,6 +45,7 @@ llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     // TODO: factor emit_function_decl code
     auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(lambda->name, ft));
     f->setLinkage(llvm::Function::ExternalLinkage);
+    f->setAttributes(llvm::AttributeSet());
 
     if (!lambda->attribute().is(Lambda::KernelEntry))
         return f;
@@ -117,12 +118,6 @@ void NVVMCodeGen::emit_function_start(llvm::BasicBlock* bb, llvm::Function* f, L
             params_[param] = builder_.CreateCall(texture_handle, args);
         }
     }
-}
-
-llvm::Function* NVVMCodeGen::emit_intrinsic_decl(std::string& name, Lambda* lambda) {
-    auto f = CodeGen::emit_function_decl(name, lambda);
-    f->setAttributes(llvm::AttributeSet());
-    return f;
 }
 
 llvm::Value* NVVMCodeGen::emit_load(Def def) {

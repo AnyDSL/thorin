@@ -1,6 +1,11 @@
 #include <stdlib.h>
 #include <time.h>
 
+#ifdef __APPLE__
+#include <mach/clock.h>
+#include <mach/mach.h>
+#endif
+
 #include <iostream>
 
 #include "thorin_int_runtime.h"

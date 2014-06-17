@@ -1,12 +1,5 @@
 #include "cl_runtime.h"
 
-#include <time.h>
-
-#ifdef __APPLE__
-#include <mach/clock.h>
-#include <mach/mach.h>
-#endif
-
 #include <algorithm>
 #include <cassert>
 #include <fstream>

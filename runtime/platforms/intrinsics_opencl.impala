@@ -1,4 +1,4 @@
-extern "device" {
+extern "C" {
     fn get_work_dim() -> i32;
     fn get_global_size(i32) -> i64;
     fn get_global_id(i32) -> i64;

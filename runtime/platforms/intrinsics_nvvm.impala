@@ -278,6 +278,9 @@ fn acc_bdimz() -> int   { nvvm_read_ptx_sreg_ntid_z() };
 fn acc_gdimx() -> int   { nvvm_read_ptx_sreg_nctaid_x() };
 fn acc_gdimy() -> int   { nvvm_read_ptx_sreg_nctaid_y() };
 fn acc_gdimz() -> int   { nvvm_read_ptx_sreg_nctaid_z() };
+fn acc_gidx() -> int    { acc_tidx() + acc_bdimx() * acc_bidx() };
+fn acc_gidy() -> int    { acc_tidy() + acc_bdimy() * acc_bidy() };
+fn acc_gidz() -> int    { acc_tidz() + acc_bdimz() * acc_bidz() };
 fn acc_barrier() -> ()  { nvvm_barrier0(); };
 
 extern "raw" {

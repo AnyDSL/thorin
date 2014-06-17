@@ -31,6 +31,9 @@ fn acc_bdimz() -> int   { blockDim_z() };
 fn acc_gdimx() -> int   { gridDim_x() };
 fn acc_gdimy() -> int   { gridDim_y() };
 fn acc_gdimz() -> int   { gridDim_z() };
+fn acc_gidx() -> int    { acc_tidx() + acc_bdimx() * acc_bidx() };
+fn acc_gidy() -> int    { acc_tidy() + acc_bdimy() * acc_bidy() };
+fn acc_gidz() -> int    { acc_tidz() + acc_bdimz() * acc_bidz() };
 fn acc_barrier() -> ()  { __syncthreads(); };
 
 fn expf(a: float) -> float { exp(a) }

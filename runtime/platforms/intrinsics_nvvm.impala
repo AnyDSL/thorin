@@ -284,7 +284,7 @@ fn acc_gidz() -> int    { acc_tidz() + acc_bdimz() * acc_bidz() };
 fn acc_barrier() -> ()  { nvvm_barrier0() };
 fn acc_tex() -> int     { 2 };
 
-extern "raw" {
+extern "device" {
     fn __nv_expf(float) -> float;
 }
 

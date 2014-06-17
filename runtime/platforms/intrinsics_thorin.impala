@@ -1,12 +1,14 @@
 extern "thorin" {
-    fn map(&[float], int, int, (int, int, int), (int, int, int)) -> &[float];
-    fn unmap(&[float], int, int) -> ();
+    fn mmap(&[float], int, int, (int, int, int), (int, int, int)) -> &[float];
+    fn munmap(&[float], int, int) -> ();
 
     fn cuda(int, (int, int, int), (int, int, int), fn() -> ()) -> ();
     fn nvvm(int, (int, int, int), (int, int, int), fn() -> ()) -> ();
     fn spir(int, (int, int, int), (int, int, int), fn() -> ()) -> ();
-    fn vectorized(int, int, fn() -> ()) -> int;
-    fn wfv_get_tid() -> int;
     fn opencl(int, (int, int, int), (int, int, int), fn() -> ()) -> ();
+    fn vectorized(int, int, fn() -> ()) -> int;
 }
 
+extern "C" {
+    fn wfv_get_tid() -> int;
+}

@@ -11,11 +11,8 @@ extern "C" {
     fn gridDim_x() -> int;
     fn gridDim_y() -> int;
     fn gridDim_z() -> int;
-}
-
-extern "raw" {
     fn __syncthreads() -> ();
-    fn exp(float) -> float;
+    fn expf(float) -> float;
 }
 
 fn acc(dev : int, dim : (int, int, int), block : (int, int, int), body : fn() -> ()) -> () { cuda(dev, dim, block, body) }
@@ -36,6 +33,4 @@ fn acc_gidy() -> int    { acc_tidy() + acc_bdimy() * acc_bidy() };
 fn acc_gidz() -> int    { acc_tidz() + acc_bdimz() * acc_bidz() };
 fn acc_barrier() -> ()  { __syncthreads() };
 fn acc_tex() -> int     { 2 };
-
-fn expf(a: float) -> float { exp(a) }
 

@@ -46,13 +46,13 @@
 
 namespace thorin {
 
-CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID intrinsic_calling_convention, llvm::CallingConv::ID kernel_calling_convention)
+CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention)
     : world_(world)
     , context_()
     , module_(new llvm::Module(world.name(), context_))
     , builder_(context_)
     , function_calling_convention_(function_calling_convention)
-    , intrinsic_calling_convention_(intrinsic_calling_convention)
+    , device_calling_convention_(device_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)
 {
     runtime_ = new GenericRuntime(context_, module_, builder_);
@@ -281,7 +281,7 @@ void CodeGen::emit() {
                         if (to_lambda->attribute().is(Lambda::KernelEntry)) {
                             call->setCallingConv(kernel_calling_convention_);
                         } else if (to_lambda->attribute().is(Lambda::Device)) {
-                            call->setCallingConv(intrinsic_calling_convention_);
+                            call->setCallingConv(device_calling_convention_);
                         } else {
                             call->setCallingConv(function_calling_convention_);
                         }

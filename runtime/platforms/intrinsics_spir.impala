@@ -11,15 +11,27 @@ extern "raw" {
     fn _Z3expf(float) -> float;
 }
 
-fn work_dim() -> int {                  _Z12get_work_dimv() }
-fn global_size(idx : int) -> int {      _Z15get_global_sizej(idx) as int }
-fn global_id(idx : int) -> int {        _Z13get_global_idj(idx) as int }
-fn local_size(idx : int) -> int {       _Z14get_local_sizej(idx) as int }
-fn local_id(idx : int) -> int {         _Z12get_local_idj(idx) as int }
-fn num_groups(idx : int) -> int {       _Z14get_num_groupsj(idx) as int }
-fn group_id(idx : int) -> int {         _Z12get_group_idj(idx) as int }
-fn global_offset(idx : int) -> int {    _Z17get_global_offsetj(idx) as int }
-fn barrier(flag : int) -> () {          _Z7barrierj(flag) }
+fn work_dim() -> int               { _Z12get_work_dimv() }
+fn global_size(idx : int) -> int   { _Z15get_global_sizej(idx) as int }
+fn global_offset(idx : int) -> int { _Z17get_global_offsetj(idx) as int }
+
+fn acc(dev : int, dim : (int, int, int), block : (int, int, int), body : fn() -> ()) -> () { spir(dev, dim, block, body) }
+fn acc_tidx() -> int    { _Z12get_local_idj(0) as int };
+fn acc_tidy() -> int    { _Z12get_local_idj(1) as int };
+fn acc_tidz() -> int    { _Z12get_local_idj(2) as int };
+fn acc_bidx() -> int    { _Z12get_group_idj(0) as int };
+fn acc_bidy() -> int    { _Z12get_group_idj(1) as int };
+fn acc_bidz() -> int    { _Z12get_group_idj(2) as int };
+fn acc_bdimx() -> int   { _Z14get_local_sizej(0) as int };
+fn acc_bdimy() -> int   { _Z14get_local_sizej(1) as int };
+fn acc_bdimz() -> int   { _Z14get_local_sizej(2) as int };
+fn acc_gdimx() -> int   { _Z14get_num_groupsj(0) as int };
+fn acc_gdimy() -> int   { _Z14get_num_groupsj(1) as int };
+fn acc_gdimz() -> int   { _Z14get_num_groupsj(2) as int };
+fn acc_gidx() -> int    { _Z13get_global_idj(0) as int };
+fn acc_gidy() -> int    { _Z13get_global_idj(1) as int };
+fn acc_gidz() -> int    { _Z13get_global_idj(2) as int };
+fn acc_barrier() -> ()  { _Z7barrierj(1) }; // CLK_LOCAL_MEM_FENCE -> 1 // CLK_GLOBAL_MEM_FENCE -> 2
 
 fn expf(a: float) -> float { _Z3expf(a) }
 

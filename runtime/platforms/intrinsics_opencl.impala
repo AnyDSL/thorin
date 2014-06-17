@@ -11,13 +11,27 @@ extern "raw" {
     fn exp(float) -> float;
 }
 
-fn global_size(idx : int) -> int {   get_global_size(idx) as int }
-fn global_id(idx : int) -> int {     get_global_id(idx) as int }
-fn local_size(idx : int) -> int {    get_local_size(idx) as int }
-fn local_id(idx : int) -> int {      get_local_id(idx) as int }
-fn num_groups(idx : int) -> int {    get_num_groups(idx) as int }
-fn group_id(idx : int) -> int {      get_group_id(idx) as int }
+fn work_dim() -> int               { get_work_dim() }
+fn global_size(idx : int) -> int   { get_global_size(idx) as int }
 fn global_offset(idx : int) -> int { get_global_offset(idx) as int }
+
+fn acc(dev : int, dim : (int, int, int), block : (int, int, int), body : fn() -> ()) -> () { opencl(dev, dim, block, body) }
+fn acc_tidx() -> int    { get_local_id(0) as int };
+fn acc_tidy() -> int    { get_local_id(1) as int };
+fn acc_tidz() -> int    { get_local_id(2) as int };
+fn acc_bidx() -> int    { get_group_id(0) as int };
+fn acc_bidy() -> int    { get_group_id(1) as int };
+fn acc_bidz() -> int    { get_group_id(2) as int };
+fn acc_bdimx() -> int   { get_local_size(0) as int };
+fn acc_bdimy() -> int   { get_local_size(1) as int };
+fn acc_bdimz() -> int   { get_local_size(2) as int };
+fn acc_gdimx() -> int   { get_num_groups(0) as int };
+fn acc_gdimy() -> int   { get_num_groups(1) as int };
+fn acc_gdimz() -> int   { get_num_groups(2) as int };
+fn acc_gidx() -> int    { get_global_id(0) as int };
+fn acc_gidy() -> int    { get_global_id(1) as int };
+fn acc_gidz() -> int    { get_global_id(2) as int };
+fn acc_barrier() -> ()  { barrier(1) }; // CLK_LOCAL_MEM_FENCE -> 1 // CLK_GLOBAL_MEM_FENCE -> 2
 
 fn expf(a: float) -> float { exp(a) }
 

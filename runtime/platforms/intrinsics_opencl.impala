@@ -32,6 +32,7 @@ fn acc_gidx() -> int    { get_global_id(0) as int };
 fn acc_gidy() -> int    { get_global_id(1) as int };
 fn acc_gidz() -> int    { get_global_id(2) as int };
 fn acc_barrier() -> ()  { barrier(1) }; // CLK_LOCAL_MEM_FENCE -> 1 // CLK_GLOBAL_MEM_FENCE -> 2
+fn acc_tex() -> int     { 1 };
 
 fn expf(a: float) -> float { exp(a) }
 

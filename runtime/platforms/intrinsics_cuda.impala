@@ -35,6 +35,7 @@ fn acc_gidx() -> int    { acc_tidx() + acc_bdimx() * acc_bidx() };
 fn acc_gidy() -> int    { acc_tidy() + acc_bdimy() * acc_bidy() };
 fn acc_gidz() -> int    { acc_tidz() + acc_bdimz() * acc_bidz() };
 fn acc_barrier() -> ()  { __syncthreads() };
+fn acc_tex() -> int     { 2 };
 
 fn expf(a: float) -> float { exp(a) }
 

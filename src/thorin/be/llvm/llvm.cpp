@@ -205,45 +205,45 @@ void CodeGen::emit() {
                 switch (num_args) {
                     case 0: builder_.CreateRetVoid(); break;
                     case 1:
-                            if (lambda->arg(0)->type().isa<MemType>())
-                                builder_.CreateRetVoid();
-                            else
-                                builder_.CreateRet(lookup(lambda->arg(0)));
-                            break;
+                        if (lambda->arg(0)->type().isa<MemType>())
+                            builder_.CreateRetVoid();
+                        else
+                            builder_.CreateRet(lookup(lambda->arg(0)));
+                        break;
                     case 2: {
-                                if (lambda->arg(0)->type().isa<MemType>()) {
-                                    builder_.CreateRet(lookup(lambda->arg(1)));
-                                    break;
-                                } else if (lambda->arg(1)->type().isa<MemType>()) {
-                                    builder_.CreateRet(lookup(lambda->arg(0)));
-                                    break;
-                                }
-                                // FALLTHROUGH
-                            }
+                        if (lambda->arg(0)->type().isa<MemType>()) {
+                            builder_.CreateRet(lookup(lambda->arg(1)));
+                            break;
+                        } else if (lambda->arg(1)->type().isa<MemType>()) {
+                            builder_.CreateRet(lookup(lambda->arg(0)));
+                            break;
+                        }
+                        // FALLTHROUGH
+                    }
                     default: {
-                                 Array<llvm::Value*> values(num_args);
-                                 Array<llvm::Type*> elems(num_args);
+                        Array<llvm::Value*> values(num_args);
+                        Array<llvm::Type*> elems(num_args);
 
-                                 size_t n = 0;
-                                 for (size_t a = 0; a < num_args; ++a) {
-                                     if (!lambda->arg(n)->type().isa<MemType>()) {
-                                         llvm::Value* val = lookup(lambda->arg(a));
-                                         values[n] = val;
-                                         elems[n++] = val->getType();
-                                     }
-                                 }
+                        size_t n = 0;
+                        for (size_t a = 0; a < num_args; ++a) {
+                            if (!lambda->arg(n)->type().isa<MemType>()) {
+                                llvm::Value* val = lookup(lambda->arg(a));
+                                values[n] = val;
+                                elems[n++] = val->getType();
+                            }
+                        }
 
-                                 assert(n == num_args || n+1 == num_args);
-                                 values.shrink(n);
-                                 elems.shrink(n);
-                                 llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context_, llvm_ref(elems)));
+                        assert(n == num_args || n+1 == num_args);
+                        values.shrink(n);
+                        elems.shrink(n);
+                        llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context_, llvm_ref(elems)));
 
-                                 for (size_t i = 0; i != n; ++i)
-                                     agg = builder_.CreateInsertValue(agg, values[i], { unsigned(i) });
+                        for (size_t i = 0; i != n; ++i)
+                            agg = builder_.CreateInsertValue(agg, values[i], { unsigned(i) });
 
-                                 builder_.CreateRet(agg);
-                                 break;
-                             }
+                        builder_.CreateRet(agg);
+                        break;
+                    }
                 }
             } else if (auto select = lambda->to()->isa<Select>()) { // conditional branch
                 llvm::Value* cond = lookup(select->cond());
@@ -262,21 +262,18 @@ void CodeGen::emit() {
                         builder_.CreateBr(bbs[ret_lambda]);
                     } else {
                         // put all first-order args into an array
-                        Array<llvm::Value*> args(lambda->args().size() - 1);
-                        size_t i = 0;
-                        Def ret_arg = 0;
+                        std::vector<llvm::Value*> args;
+                        Def ret_arg;
                         for (auto arg : lambda->args()) {
                             if (arg->order() == 0) {
                                 if (!arg->type().isa<MemType>())
-                                    args[i++] = lookup(arg);
-                            }
-                            else {
+                                    args.push_back(lookup(arg));
+                            } else {
                                 assert(!ret_arg);
                                 ret_arg = arg;
                             }
                         }
-                        args.shrink(i);
-                        llvm::CallInst* call = builder_.CreateCall(fcts_[to_lambda], llvm_ref(args));
+                        llvm::CallInst* call = builder_.CreateCall(fcts_[to_lambda], args);
                         // set proper calling convention
                         if (to_lambda->attribute().is(Lambda::KernelEntry)) {
                             call->setCallingConv(kernel_calling_convention_);
@@ -784,8 +781,7 @@ llvm::Type* CodeGen::map(Type type) {
             // extract "return" type, collect all other types
             auto fn = type.as<FnType>();
             llvm::Type* ret = nullptr;
-            size_t i = 0;
-            Array<llvm::Type*> elems(fn->size() - 1);
+            std::vector<llvm::Type*> elems;
             for (auto elem : fn->elems()) {
                 if (elem.isa<MemType>())
                     continue;
@@ -804,24 +800,19 @@ llvm::Type* CodeGen::map(Type type) {
                             goto multiple;
                     } else {
 multiple:
-                        Array<llvm::Type*> elems(fn->size());
-                        size_t num = 0;
-                        for (size_t j = 0, e = elems.size(); j != e; ++j) {
-                            if (fn->elem(j).isa<MemType>())
-                                continue;
-                            ++num;
-                            elems[j] = map(fn->elem(j));
+                        std::vector<llvm::Type*> elems;
+                        for (auto elem : fn->elems()) {
+                            if (!elem.isa<MemType>())
+                                elems.push_back(map(elem));
                         }
-                        elems.shrink(num);
-                        ret = llvm::StructType::get(context_, llvm_ref(elems));
+                        ret = llvm::StructType::get(context_, elems);
                     }
                 } else
-                    elems[i++] = map(elem);
+                    elems.push_back(map(elem));
             }
-            elems.shrink(i);
             assert(ret);
 
-            return llvm::FunctionType::get(ret, llvm_ref(elems), false);
+            return llvm::FunctionType::get(ret, elems, false);
         }
 
         case Node_TupleType: {

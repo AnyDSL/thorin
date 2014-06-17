@@ -16,21 +16,21 @@ extern "C" {
 }
 
 fn acc(dev : int, dim : (int, int, int), block : (int, int, int), body : fn() -> ()) -> () { cuda(dev, dim, block, body) }
-fn acc_tidx() -> int    { threadIdx_x() };
-fn acc_tidy() -> int    { threadIdx_y() };
-fn acc_tidz() -> int    { threadIdx_z() };
-fn acc_bidx() -> int    { blockIdx_x() };
-fn acc_bidy() -> int    { blockIdx_y() };
-fn acc_bidz() -> int    { blockIdx_z() };
-fn acc_bdimx() -> int   { blockDim_x() };
-fn acc_bdimy() -> int   { blockDim_y() };
-fn acc_bdimz() -> int   { blockDim_z() };
-fn acc_gdimx() -> int   { gridDim_x() };
-fn acc_gdimy() -> int   { gridDim_y() };
-fn acc_gdimz() -> int   { gridDim_z() };
-fn acc_gidx() -> int    { acc_tidx() + acc_bdimx() * acc_bidx() };
-fn acc_gidy() -> int    { acc_tidy() + acc_bdimy() * acc_bidy() };
-fn acc_gidz() -> int    { acc_tidz() + acc_bdimz() * acc_bidz() };
-fn acc_barrier() -> ()  { __syncthreads() };
-fn acc_tex() -> int     { 2 };
+fn acc_tidx() -> int    { threadIdx_x() }
+fn acc_tidy() -> int    { threadIdx_y() }
+fn acc_tidz() -> int    { threadIdx_z() }
+fn acc_bidx() -> int    { blockIdx_x() }
+fn acc_bidy() -> int    { blockIdx_y() }
+fn acc_bidz() -> int    { blockIdx_z() }
+fn acc_bdimx() -> int   { blockDim_x() }
+fn acc_bdimy() -> int   { blockDim_y() }
+fn acc_bdimz() -> int   { blockDim_z() }
+fn acc_gdimx() -> int   { gridDim_x() }
+fn acc_gdimy() -> int   { gridDim_y() }
+fn acc_gdimz() -> int   { gridDim_z() }
+fn acc_gidx() -> int    { acc_tidx() + acc_bdimx() * acc_bidx() }
+fn acc_gidy() -> int    { acc_tidy() + acc_bdimy() * acc_bidy() }
+fn acc_gidz() -> int    { acc_tidz() + acc_bdimz() * acc_bidz() }
+fn acc_barrier() -> ()  { __syncthreads() }
+fn acc_tex() -> int     { 2 }
 

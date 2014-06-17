@@ -287,11 +287,7 @@ void CodeGen::emit() {
                         }
 
                         if (ret_arg == ret_param) {     // call + return
-                            Lambda* succ = ret_param->lambda();
-                            if (succ->param(0)->type().isa<MemType>())
-                                builder_.CreateRetVoid();
-                            else
-                                builder_.CreateRet(call);
+                            builder_.CreateRet(call);
                         } else {                        // call + continuation
                             Lambda* succ = ret_arg->as_lambda();
                             const Param* param = succ->param(0)->type().isa<MemType>() ? nullptr : succ->param(0);

@@ -103,7 +103,7 @@ void CodeGen::emit() {
         std::string name = lambda->unique_name();
         if (lambda->attribute().is(Lambda::Intrinsic | Lambda::Extern | Lambda::Raw))
             name = lambda->name;
-        f = emit_intrinsic_decl(name, lambda);
+        f = emit_function_decl(name, lambda);
 
         assert(f != nullptr && "invalid function declaration");
         fcts_.emplace(lambda, f);

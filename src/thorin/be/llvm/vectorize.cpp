@@ -20,7 +20,7 @@ static llvm::Function* get_vectorize_tid(llvm::Module* module) {
 
 Lambda* CodeGen::emit_vectorized(llvm::Function* current, Lambda* lambda) {
     Lambda* target = lambda->to()->as_lambda();
-    assert(target->is_builtin() && target->attribute().is(Lambda::Vectorize));
+    assert(target->is_builtin() && target->intrinsic().is(Lambda::Vectorize));
     assert(lambda->num_args() > 5 && "required arguments are missing");
 
     // vector length

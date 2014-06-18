@@ -597,6 +597,9 @@ Def World::extract(Def agg, Def index, const std::string& name) {
     if (agg->isa<Bottom>())
         return bottom(Extract::type(agg, index));
 
+    if (auto load = agg->isa<Load>())
+        return this->load(load->mem(), this->lea(load->ptr(), index));
+
     if (auto aggregate = agg->isa<Aggregate>()) {
         if (auto lit = index->isa<PrimLit>()) {
             if (!agg->isa<IndefiniteArray>())

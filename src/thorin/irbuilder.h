@@ -62,6 +62,7 @@ public:
     World& world() const;
     Def load() const;
     void store(Def val) const;
+    Def def() const { return def_; }
     operator bool() { return kind() != Empty; }
 
     Var& operator= (Var other) { swap(*this, other); return *this; }

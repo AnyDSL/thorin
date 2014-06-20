@@ -6,7 +6,9 @@
 
 static int num = 1024;
 
-int main_impala() {
+int test_kernelfile(const char *file) {
+    printf("Test file: %s\n", file);
+
     size_t dev = 1;
     int *host = (int *)thorin_malloc(sizeof(int) * num);
 
@@ -15,7 +17,7 @@ int main_impala() {
     }
 
     // CODE TO BE GENERATED: BEGIN
-    spir_build_program_and_kernel_from_binary(dev, "main.spir.bc", "simple");
+    spir_build_program_and_kernel_from_binary(dev, file, "simple");
     mem_id mem = spir_malloc_buffer(dev, host);
     spir_write_buffer(dev, mem, host);
 
@@ -40,5 +42,10 @@ int main_impala() {
     thorin_free(host);
 
     return EXIT_SUCCESS;
+}
+
+extern "C" { int main_impala(void); }
+int main_impala() {
+    return test_kernelfile("main.spir.bc");
 }
 

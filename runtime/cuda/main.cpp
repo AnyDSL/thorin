@@ -5,10 +5,9 @@
 
 #include "cu_runtime.h"
 
-static void nnvm_load_any_kernel(size_t dev, const char *file, const char *kernel)
-{
+static void nnvm_load_any_kernel(size_t dev, const char *file, const char *kernel) {
     size_t len = strlen(file);
-    if(len > 3 && !strcmp(file+len-3, ".cu")) // hack: nvcc checks for .cu extension, so we just do the same here
+    if (len > 3 && !strcmp(file+len-3, ".cu")) // hack: nvcc checks for .cu extension, so we just do the same here
         nvvm_load_cuda_kernel(dev, file, kernel);
     else
         nvvm_load_nvvm_kernel(dev, file, kernel);
@@ -16,8 +15,7 @@ static void nnvm_load_any_kernel(size_t dev, const char *file, const char *kerne
 
 static int num = 1024;
 
-int test_kernelfile(const char *file)
-{
+int test_kernelfile(const char *file) {
     printf("Test file: %s\n", file);
 
     size_t dev = 1;
@@ -96,7 +94,7 @@ int test_kernelfile(const char *file)
 extern "C" { int main_impala(void); }
 int main_impala() {
     int ret = test_kernelfile("simple-gpu64.cu");
-    if(ret == EXIT_SUCCESS)
+    if (ret == EXIT_SUCCESS)
         ret = test_kernelfile("simple-gpu64.nvvm");
     return ret;
 }

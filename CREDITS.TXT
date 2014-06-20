@@ -17,6 +17,6 @@ name (N), email (E), description (D)
 
 (N) Richard Membarth
 (E) membarth@cg.uni-saarland.de
-(D) C/OpenCL backend
+(D) C/CUDA/OpenCL backend
 (D) LLVM backend
 (D) runtime

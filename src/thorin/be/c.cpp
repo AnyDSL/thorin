@@ -176,10 +176,25 @@ std::ostream& CCodeGen::emit_aggop_decl(Type type) {
 
 
 void CCodeGen::emit() {
-    if (lang_==CUDA) stream() << "extern \"C\" {\n";
+    if (lang_==CUDA) {
+        stream() << "extern \"C\" {\n";
+        stream() << "__device__ int threadIdx_x() { return threadIdx.x; }\n";
+        stream() << "__device__ int threadIdx_y() { return threadIdx.y; }\n";
+        stream() << "__device__ int threadIdx_z() { return threadIdx.z; }\n";
+        stream() << "__device__ int blockIdx_x() { return blockIdx.x; }\n";
+        stream() << "__device__ int blockIdx_y() { return blockIdx.y; }\n";
+        stream() << "__device__ int blockIdx_z() { return blockIdx.z; }\n";
+        stream() << "__device__ int blockDim_x() { return blockDim.x; }\n";
+        stream() << "__device__ int blockDim_y() { return blockDim.y; }\n";
+        stream() << "__device__ int blockDim_z() { return blockDim.z; }\n";
+        stream() << "__device__ int gridDim_x() { return gridDim.x; }\n";
+        stream() << "__device__ int gridDim_y() { return gridDim.y; }\n";
+        stream() << "__device__ int gridDim_z() { return gridDim.z; }\n";
+    }
+
     auto scopes = top_level_scopes(world_);
 
-    // emit lambda and tuple declarations
+    // emit declarations
     for (auto scope : scopes) {
         Schedule schedule = schedule_smart(*scope);
 
@@ -199,6 +214,7 @@ void CCodeGen::emit() {
             }
         }
 
+        // lambda declarations
         auto lambda = scope->entry();
         if (lambda->is_builtin() || lambda->attribute().is(Lambda::Device))
             continue;
@@ -459,21 +475,6 @@ void CCodeGen::emit() {
         newline();
 
         primops_.clear();
-    }
-
-    if (lang_==CUDA) {
-        stream() << "__device__ int threadIdx_x() { return threadIdx.x; }\n";
-        stream() << "__device__ int threadIdx_y() { return threadIdx.y; }\n";
-        stream() << "__device__ int threadIdx_z() { return threadIdx.z; }\n";
-        stream() << "__device__ int blockIdx_x() { return blockIdx.x; }\n";
-        stream() << "__device__ int blockIdx_y() { return blockIdx.y; }\n";
-        stream() << "__device__ int blockIdx_z() { return blockIdx.z; }\n";
-        stream() << "__device__ int blockDim_x() { return blockDim.x; }\n";
-        stream() << "__device__ int blockDim_y() { return blockDim.y; }\n";
-        stream() << "__device__ int blockDim_z() { return blockDim.z; }\n";
-        stream() << "__device__ int gridDim_x() { return gridDim.x; }\n";
-        stream() << "__device__ int gridDim_y() { return gridDim.y; }\n";
-        stream() << "__device__ int gridDim_z() { return gridDim.z; }\n";
     }
 
     globals_.clear();

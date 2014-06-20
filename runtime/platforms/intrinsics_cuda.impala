@@ -1,4 +1,8 @@
-extern "C" {
+extern "device" {
+    // no declarations are emitted for "device" functions
+    fn __syncthreads() -> ();
+    fn expf(float) -> float;
+    // wrappers for threadIdx.x etc. are provided
     fn threadIdx_x() -> int;
     fn threadIdx_y() -> int;
     fn threadIdx_z() -> int;
@@ -11,8 +15,6 @@ extern "C" {
     fn gridDim_x() -> int;
     fn gridDim_y() -> int;
     fn gridDim_z() -> int;
-    fn __syncthreads() -> ();
-    fn expf(float) -> float;
 }
 
 fn acc(dev : int, dim : (int, int, int), block : (int, int, int), body : fn() -> ()) -> () { cuda(dev, dim, block, body) }

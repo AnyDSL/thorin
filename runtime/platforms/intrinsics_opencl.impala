@@ -1,4 +1,5 @@
-extern "C" {
+extern "device" {
+    // no declarations are emitted for "device" functions
     fn get_work_dim() -> u32;
     fn get_global_size(u32) -> u64;
     fn get_global_id(u32) -> u64;

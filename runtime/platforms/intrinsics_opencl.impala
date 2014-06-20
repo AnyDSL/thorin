@@ -1,36 +1,36 @@
 extern "C" {
-    fn get_work_dim() -> i32;
-    fn get_global_size(i32) -> i64;
-    fn get_global_id(i32) -> i64;
-    fn get_local_size(i32) -> i64;
-    fn get_local_id(i32) -> i64;
-    fn get_num_groups(i32) -> i64;
-    fn get_group_id(i32) -> i64;
-    fn get_global_offset(i32) -> i64;
+    fn get_work_dim() -> u32;
+    fn get_global_size(u32) -> u64;
+    fn get_global_id(u32) -> u64;
+    fn get_local_size(u32) -> u64;
+    fn get_local_id(u32) -> u64;
+    fn get_num_groups(u32) -> u64;
+    fn get_group_id(u32) -> u64;
+    fn get_global_offset(u32) -> u64;
     fn barrier(i32) -> ();
     fn exp(float) -> float;
 }
 
-fn work_dim() -> int               { get_work_dim() }
-fn global_size(idx : int) -> int   { get_global_size(idx) as int }
-fn global_offset(idx : int) -> int { get_global_offset(idx) as int }
+fn work_dim() -> int               { get_work_dim() as int }
+fn global_size(idx : int) -> int   { get_global_size(idx as uint) as int }
+fn global_offset(idx : int) -> int { get_global_offset(idx as uint) as int }
 
 fn acc(dev : int, dim : (int, int, int), block : (int, int, int), body : fn() -> ()) -> () { opencl(dev, dim, block, body) }
-fn acc_tidx() -> int    { get_local_id(0) as int }
-fn acc_tidy() -> int    { get_local_id(1) as int }
-fn acc_tidz() -> int    { get_local_id(2) as int }
-fn acc_bidx() -> int    { get_group_id(0) as int }
-fn acc_bidy() -> int    { get_group_id(1) as int }
-fn acc_bidz() -> int    { get_group_id(2) as int }
-fn acc_bdimx() -> int   { get_local_size(0) as int }
-fn acc_bdimy() -> int   { get_local_size(1) as int }
-fn acc_bdimz() -> int   { get_local_size(2) as int }
-fn acc_gdimx() -> int   { get_num_groups(0) as int }
-fn acc_gdimy() -> int   { get_num_groups(1) as int }
-fn acc_gdimz() -> int   { get_num_groups(2) as int }
-fn acc_gidx() -> int    { get_global_id(0) as int }
-fn acc_gidy() -> int    { get_global_id(1) as int }
-fn acc_gidz() -> int    { get_global_id(2) as int }
+fn acc_tidx() -> int    { get_local_id(0u) as int }
+fn acc_tidy() -> int    { get_local_id(1u) as int }
+fn acc_tidz() -> int    { get_local_id(2u) as int }
+fn acc_bidx() -> int    { get_group_id(0u) as int }
+fn acc_bidy() -> int    { get_group_id(1u) as int }
+fn acc_bidz() -> int    { get_group_id(2u) as int }
+fn acc_bdimx() -> int   { get_local_size(0u) as int }
+fn acc_bdimy() -> int   { get_local_size(1u) as int }
+fn acc_bdimz() -> int   { get_local_size(2u) as int }
+fn acc_gdimx() -> int   { get_num_groups(0u) as int }
+fn acc_gdimy() -> int   { get_num_groups(1u) as int }
+fn acc_gdimz() -> int   { get_num_groups(2u) as int }
+fn acc_gidx() -> int    { get_global_id(0u) as int }
+fn acc_gidy() -> int    { get_global_id(1u) as int }
+fn acc_gidz() -> int    { get_global_id(2u) as int }
 fn acc_barrier() -> ()  { barrier(1) }  // CLK_LOCAL_MEM_FENCE -> 1 // CLK_GLOBAL_MEM_FENCE -> 2
 fn acc_tex() -> int     { 1 }
 

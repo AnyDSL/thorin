@@ -598,7 +598,7 @@ Def World::extract(Def agg, Def index, const std::string& name) {
         return bottom(Extract::type(agg, index));
 
     if (auto load = agg->isa<Load>())
-        return this->load(load->mem(), this->lea(load->ptr(), index));
+        return this->load(load->mem(), lea(load->ptr(), index, load->name), name);
 
     if (auto aggregate = agg->isa<Aggregate>()) {
         if (auto lit = index->isa<PrimLit>()) {
@@ -724,6 +724,9 @@ const Store* World::store(Def mem, Def ptr, Def value, const std::string& name) 
         if (ptr == store->ptr())
             mem = store->mem();
     }
+
+    if (auto insert = value->isa<Insert>())
+        return store(mem, lea(ptr, insert->index(), insert->name), value, name);
 
     return cse(new Store(mem, ptr, value, name));
 }

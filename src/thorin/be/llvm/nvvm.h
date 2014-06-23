@@ -20,7 +20,7 @@ protected:
     virtual llvm::Value* emit_load(Def);
     virtual llvm::Value* emit_store(Def);
     virtual llvm::Value* emit_lea(Def);
-    virtual llvm::Value* emit_map(Def);
+    virtual llvm::Value* emit_mmap(Def);
 
     virtual std::string get_alloc_name() const { return "malloc"; }
     virtual std::string get_output_name(const std::string& name) const { return name + ".nvvm"; }

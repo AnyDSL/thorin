@@ -25,7 +25,7 @@ public:
 protected:
     void optimize(int opt);
 
-    llvm::Type* map(Type);
+    llvm::Type* convert(Type);
     llvm::Value* emit(Def);
     llvm::Value* lookup(Def);
     llvm::AllocaInst* emit_alloca(llvm::Type*, const std::string&);
@@ -36,15 +36,15 @@ protected:
     virtual llvm::Value* emit_load(Def);
     virtual llvm::Value* emit_store(Def);
     virtual llvm::Value* emit_lea(Def);
-    virtual llvm::Value* emit_map(Def);
-    virtual llvm::Value* emit_unmap(Def);
+    virtual llvm::Value* emit_mmap(Def);
+    virtual llvm::Value* emit_munmap(Def);
 
     virtual std::string get_alloc_name() const = 0;
     virtual std::string get_output_name(const std::string& name) const = 0;
     virtual std::string get_binary_output_name(const std::string& name) const = 0;
     llvm::GlobalVariable* emit_global_memory(llvm::Type*, const std::string&, unsigned);
-    llvm::Value* emit_shared_map(Def def);
-    llvm::Value* emit_shared_unmap(Def def);
+    llvm::Value* emit_shared_mmap(Def def);
+    llvm::Value* emit_shared_munmap(Def def);
 
 private:
     Lambda* emit_builtin(llvm::Function*, Lambda*);

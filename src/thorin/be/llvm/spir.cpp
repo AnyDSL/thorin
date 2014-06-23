@@ -23,8 +23,8 @@ SPIRCodeGen::SPIRCodeGen(World& world)
 
 llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
     // iterate over function type and set address space for SPIR
-    llvm::FunctionType* fty = llvm::dyn_cast<llvm::FunctionType>(map(lambda->world().fn_type(lambda->type()->elems())));
-    // TODO shouldn't this be just:                              map(lambda->fn_type())
+    llvm::FunctionType* fty = llvm::dyn_cast<llvm::FunctionType>(convert(lambda->world().fn_type(lambda->type()->elems())));
+    // TODO shouldn't this be just:                              convert(lambda->fn_type())
     llvm::SmallVector<llvm::Type*, 4> types;
     llvm::Type* rtype = fty->getReturnType();
     if (llvm::isa<llvm::PointerType>(rtype))
@@ -107,7 +107,7 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     return f;
 }
 
-llvm::Value* SPIRCodeGen::emit_map(Def def) { return emit_shared_map(def); }
-llvm::Value* SPIRCodeGen::emit_unmap(Def def) { return emit_shared_unmap(def); }
+llvm::Value* SPIRCodeGen::emit_mmap(Def def) { return emit_shared_mmap(def); }
+llvm::Value* SPIRCodeGen::emit_munmap(Def def) { return emit_shared_munmap(def); }
 
 }

@@ -11,8 +11,8 @@ public:
 
 protected:
     virtual llvm::Function* emit_function_decl(std::string&, Lambda*);
-    virtual llvm::Value* emit_map(Def def);
-    virtual llvm::Value* emit_unmap(Def def);
+    virtual llvm::Value* emit_mmap(Def def);
+    virtual llvm::Value* emit_munmap(Def def);
 
     virtual std::string get_alloc_name() const { assert(false && "alloc not supported in SPIR"); }
     virtual std::string get_output_name(const std::string& name) const { return name + ".spir"; }

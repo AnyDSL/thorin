@@ -87,7 +87,7 @@ Lambda* CodeGen::emit_builtin(llvm::Function* current, Lambda* lambda) {
 }
 
 llvm::Function* CodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
-    auto ft = llvm::cast<llvm::FunctionType>(map(lambda->type()));
+    auto ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
     // TODO: factor emit_function_decl code
     auto fun = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, ft));
     fun->setLinkage(llvm::Function::ExternalLinkage);
@@ -118,7 +118,7 @@ void CodeGen::emit(int opt) {
             if (auto lambda = global->init()->isa_lambda())
                 val = fcts_[lambda];
             else {
-                auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->name, map(global->referenced_type())));
+                auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->name, convert(global->referenced_type())));
                 var->setInitializer(llvm::cast<llvm::Constant>(emit(global->init())));
                 val = var;
             }
@@ -173,7 +173,7 @@ void CodeGen::emit(int opt) {
             if (!lambda->is_cascading() && scope.entry() != lambda) {
                 for (auto param : lambda->params())
                     if (!param->type().isa<MemType>())
-                        phis_[param] = llvm::PHINode::Create(map(param->type()), (unsigned) param->peek().size(), param->name, bb);
+                        phis_[param] = llvm::PHINode::Create(convert(param->type()), (unsigned) param->peek().size(), param->name, bb);
             }
 
         }
@@ -499,7 +499,7 @@ llvm::Value* CodeGen::emit(Def def) {
         auto from = lookup(conv->from());
         auto src = conv->from()->type().as<PrimType>();
         auto dst = conv->type().as<PrimType>();
-        auto to = map(dst);
+        auto to = convert(dst);
 
         if (conv->isa<Cast>()) {
             if (src.isa<PtrType>()) {
@@ -547,7 +547,7 @@ llvm::Value* CodeGen::emit(Def def) {
     }
 
     if (auto array = def->isa<DefiniteArray>()) {
-        auto type = llvm::cast<llvm::ArrayType>(map(array->type()));
+        auto type = llvm::cast<llvm::ArrayType>(convert(array->type()));
         if (array->is_const()) {
             size_t size = array->size();
             Array<llvm::Constant*> vals(size);
@@ -574,10 +574,10 @@ llvm::Value* CodeGen::emit(Def def) {
     }
 
     if (auto array = def->isa<IndefiniteArray>())
-        return llvm::UndefValue::get(map(array->type()));
+        return llvm::UndefValue::get(convert(array->type()));
 
     if (auto tuple = def->isa<Tuple>()) {
-        llvm::Value* agg = llvm::UndefValue::get(map(tuple->type()));
+        llvm::Value* agg = llvm::UndefValue::get(convert(tuple->type()));
         for (size_t i = 0, e = tuple->ops().size(); i != e; ++i)
             agg = builder_.CreateInsertValue(agg, lookup(tuple->op(i)), { unsigned(i) });
         return agg;
@@ -629,7 +629,7 @@ llvm::Value* CodeGen::emit(Def def) {
     }
 
     if (auto primlit = def->isa<PrimLit>()) {
-        llvm::Type* type = map(primlit->type());
+        llvm::Type* type = convert(primlit->type());
         Box box = primlit->value();
 
         switch (primlit->primtype_kind()) {
@@ -648,23 +648,23 @@ llvm::Value* CodeGen::emit(Def def) {
     }
 
     if (auto undef = def->isa<Undef>()) // bottom and any
-        return llvm::UndefValue::get(map(undef->type()));
+        return llvm::UndefValue::get(convert(undef->type()));
 
     if (auto alloc = def->isa<Alloc>()) { // TODO factor this code
         auto llvm_malloc = module_->getOrInsertFunction(get_alloc_name(), builder_.getInt8PtrTy(), builder_.getInt64Ty(), nullptr);
-        auto alloced_type = map(alloc->alloced_type());
+        auto alloced_type = convert(alloc->alloced_type());
         llvm::CallInst* void_ptr;
         auto layout = llvm::DataLayout(module_->getDataLayout());
         if (auto array = alloc->alloced_type()->is_indefinite()) {
             auto size = builder_.CreateAdd(
                     builder_.getInt64(layout.getTypeAllocSize(alloced_type)),
                     builder_.CreateMul(builder_.CreateIntCast(lookup(alloc->extra()), builder_.getInt64Ty(), false),
-                        builder_.getInt64(layout.getTypeAllocSize(map(array->elem_type())))));
+                        builder_.getInt64(layout.getTypeAllocSize(convert(array->elem_type())))));
             void_ptr = builder_.CreateCall(llvm_malloc, size);
         } else
             void_ptr = builder_.CreateCall(llvm_malloc, builder_.getInt64(layout.getTypeAllocSize(alloced_type)));
 
-        auto ptr = builder_.CreatePointerCast(void_ptr, map(alloc->type()));
+        auto ptr = builder_.CreatePointerCast(void_ptr, convert(alloc->type()));
         return ptr;
     }
 
@@ -675,19 +675,19 @@ llvm::Value* CodeGen::emit(Def def) {
         return emit_store(store);
 
     if (auto slot = def->isa<Slot>())
-        return builder_.CreateAlloca(map(slot->type().as<PtrType>()->referenced_type()), 0, slot->unique_name());
+        return builder_.CreateAlloca(convert(slot->type().as<PtrType>()->referenced_type()), 0, slot->unique_name());
 
-    if (auto map = def->isa<Map>())
-        return emit_map(map);
+    if (auto mmap = def->isa<Map>())
+        return emit_mmap(mmap);
 
-    if (auto unmap = def->isa<Unmap>())
-        return emit_unmap(unmap);
+    if (auto munmap = def->isa<Unmap>())
+        return emit_munmap(munmap);
 
     if (def->isa<Enter>() || def->isa<Leave>())
         return nullptr;
 
     if (auto vector = def->isa<Vector>()) {
-        llvm::Value* vec = llvm::UndefValue::get(map(vector->type()));
+        llvm::Value* vec = llvm::UndefValue::get(convert(vector->type()));
         for (size_t i = 0, e = vector->size(); i != e; ++i)
             vec = builder_.CreateInsertElement(vec, lookup(vector->op(i)), lookup(world_.literal_pu32(i)));
 
@@ -720,42 +720,42 @@ llvm::Value* CodeGen::emit_lea(Def def) {
     return builder_.CreateInBoundsGEP(lookup(lea->ptr()), args);
 }
 
-llvm::Value* CodeGen::emit_map(Def def) {
-    auto map = def->as<Map>();
+llvm::Value* CodeGen::emit_mmap(Def def) {
+    auto mmap = def->as<Map>();
     // emit proper runtime call
-    return runtime_->map(map->device(), (uint32_t)map->addr_space(), lookup(map->ptr()),
-                         lookup(map->top_left()), lookup(map->region_size()));
+    return runtime_->mmap(mmap->device(), (uint32_t)mmap->addr_space(), lookup(mmap->ptr()),
+                         lookup(mmap->top_left()), lookup(mmap->region_size()));
 }
 
-llvm::Value* CodeGen::emit_unmap(Def def) {
-    auto unmap = def->as<Unmap>();
+llvm::Value* CodeGen::emit_munmap(Def def) {
+    auto munmap = def->as<Unmap>();
     // emit proper runtime call
-    return runtime_->unmap(unmap->device(), (uint32_t)unmap->addr_space(), lookup(unmap->ptr()));
+    return runtime_->munmap(munmap->device(), (uint32_t)munmap->addr_space(), lookup(munmap->ptr()));
 }
 
 // TODO factor emit_shared_map/emit_shared_unmap with the help of its base class MapOp
 
-llvm::Value* CodeGen::emit_shared_map(Def def) {
-    auto map = def->as<Map>();
-    assert(map->addr_space() == AddressSpace::Shared &&
+llvm::Value* CodeGen::emit_shared_mmap(Def def) {
+    auto mmap = def->as<Map>();
+    assert(mmap->addr_space() == AddressSpace::Shared &&
             "Only shared memory can be mapped inside NVVM code");
-    auto region_size = map->region_size()->as<Tuple>();
+    auto region_size = mmap->region_size()->as<Tuple>();
     auto total_region_size = region_size->op(0)->as<PrimLit>()->ps32_value() *
                              region_size->op(1)->as<PrimLit>()->ps32_value() *
                              region_size->op(2)->as<PrimLit>()->ps32_value();
     // construct array type
-    auto elem_type = map->ptr_type()->referenced_type().as<ArrayType>()->elem_type();
-    auto type = this->map(map->world().definite_array_type(elem_type, total_region_size));
-    auto global = emit_global_memory(type, map->unique_name(), 3);
+    auto elem_type = mmap->ptr_type()->referenced_type().as<ArrayType>()->elem_type();
+    auto type = this->convert(mmap->world().definite_array_type(elem_type, total_region_size));
+    auto global = emit_global_memory(type, mmap->unique_name(), 3);
     return global;
 }
 
-llvm::Value* CodeGen::emit_shared_unmap(Def def) {
+llvm::Value* CodeGen::emit_shared_munmap(Def def) {
     // TODO
     return nullptr;
 }
 
-llvm::Type* CodeGen::map(Type type) {
+llvm::Type* CodeGen::convert(Type type) {
     assert(!type.isa<MemType>());
     llvm::Type* llvm_type;
     switch (type->kind()) {
@@ -790,14 +790,14 @@ llvm::Type* CodeGen::map(Type type) {
                 THORIN_UNREACHABLE;
                 break;
             }
-            llvm_type = llvm::PointerType::get(map(ptr->referenced_type()), address_space);
+            llvm_type = llvm::PointerType::get(convert(ptr->referenced_type()), address_space);
             break;
         }
         case Node_IndefiniteArrayType:
-            return llvm::ArrayType::get(map(type.as<ArrayType>()->elem_type()), 0);
+            return llvm::ArrayType::get(convert(type.as<ArrayType>()->elem_type()), 0);
         case Node_DefiniteArrayType: {
             auto array = type.as<DefiniteArrayType>();
-            return llvm::ArrayType::get(map(array->elem_type()), array->dim());
+            return llvm::ArrayType::get(convert(array->elem_type()), array->dim());
         }
         case Node_FnType: {
             // extract "return" type, collect all other types
@@ -812,12 +812,12 @@ llvm::Type* CodeGen::map(Type type) {
                     if (fn->empty())
                         ret = llvm::Type::getVoidTy(context_);
                     else if (fn->size() == 1)
-                        ret = fn->elem(0).isa<MemType>() ? llvm::Type::getVoidTy(context_) : map(fn->elem(0));
+                        ret = fn->elem(0).isa<MemType>() ? llvm::Type::getVoidTy(context_) : convert(fn->elem(0));
                     else if (fn->size() == 2) {
                         if (fn->elem(0).isa<MemType>())
-                            ret = map(fn->elem(1));
+                            ret = convert(fn->elem(1));
                         else if (fn->elem(1).isa<MemType>())
-                            ret = map(fn->elem(0));
+                            ret = convert(fn->elem(0));
                         else
                             goto multiple;
                     } else {
@@ -825,12 +825,12 @@ multiple:
                         std::vector<llvm::Type*> elems;
                         for (auto elem : fn->elems()) {
                             if (!elem.isa<MemType>())
-                                elems.push_back(map(elem));
+                                elems.push_back(convert(elem));
                         }
                         ret = llvm::StructType::get(context_, elems);
                     }
                 } else
-                    elems.push_back(map(elem));
+                    elems.push_back(convert(elem));
             }
             assert(ret);
 
@@ -843,7 +843,7 @@ multiple:
             Array<llvm::Type*> elems(tuple->size());
             size_t num = 0;
             for (auto elem : tuple->elems())
-                elems[num++] = map(elem);
+                elems[num++] = convert(elem);
             elems.shrink(num);
             return llvm::StructType::get(context_, llvm_ref(elems));
         }

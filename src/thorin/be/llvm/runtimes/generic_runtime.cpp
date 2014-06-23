@@ -11,9 +11,9 @@ GenericRuntime::GenericRuntime(llvm::LLVMContext& context, llvm::Module* target,
     , context_(context)
 {}
 
-llvm::Value* GenericRuntime::map(uint32_t device, uint32_t addr_space, llvm::Value* ptr,
+llvm::Value* GenericRuntime::mmap(uint32_t device, uint32_t addr_space, llvm::Value* ptr,
                                  llvm::Value* top_left, llvm::Value* region_size) {
-    llvm::Value* map_args[] = {
+    llvm::Value* mmap_args[] = {
         builder_.getInt32(device),
         builder_.getInt32(addr_space),
         builder_.CreateBitCast(ptr, builder_.getInt8PtrTy()),
@@ -24,16 +24,16 @@ llvm::Value* GenericRuntime::map(uint32_t device, uint32_t addr_space, llvm::Val
         builder_.CreateExtractValue(region_size, 1), // y
         builder_.CreateExtractValue(region_size, 2), // z
     };
-    return builder_.CreateCall(get("map_memory"), map_args);
+    return builder_.CreateCall(get("map_memory"), mmap_args);
 }
 
-llvm::Value* GenericRuntime::unmap(uint32_t device, uint32_t addr_space, llvm::Value* mem) {
-    llvm::Value* map_args[] = {
+llvm::Value* GenericRuntime::munmap(uint32_t device, uint32_t addr_space, llvm::Value* mem) {
+    llvm::Value* mmap_args[] = {
         builder_.getInt32(device),
         builder_.getInt32(addr_space),
         mem,
     };
-    return builder_.CreateCall(get("unmap_memory"), map_args);
+    return builder_.CreateCall(get("unmap_memory"), mmap_args);
 }
 
 llvm::Value* GenericRuntime::parallel_create(llvm::Value* num_threads, llvm::Value* closure_ptr,
@@ -71,7 +71,7 @@ Lambda* GenericRuntime::emit_parallel_start_code(CodeGen& code_gen, Lambda* lamb
     llvm::Value* handle;
     if (lambda->num_args() > arg_index) {
         // fetch values and create a unified struct which contains all values (closure)
-        auto closure_type = code_gen.map(world.tuple_type(lambda->arg_fn_type()->elems().slice_from_begin(4)));
+        auto closure_type = code_gen.convert(world.tuple_type(lambda->arg_fn_type()->elems().slice_from_begin(4)));
         llvm::Value* closure = llvm::UndefValue::get(closure_type);
         for (size_t i = arg_index, e = lambda->num_args(); i != e; ++i)
             closure = builder_.CreateInsertValue(closure, code_gen.lookup(lambda->arg(i)), unsigned(i - arg_index));

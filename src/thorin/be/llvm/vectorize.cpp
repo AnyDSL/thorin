@@ -39,7 +39,7 @@ Lambda* CodeGen::emit_vectorized(llvm::Function* current, Lambda* lambda) {
     Array<llvm::Type*> simd_args(num_args);
     for (size_t i = 0; i < num_args; ++i) {
         Type type = lambda->arg(i + arg_index)->type();
-        simd_args[i] = map(type);
+        simd_args[i] = convert(type);
     }
 
     llvm::FunctionType* simd_type = llvm::FunctionType::get(builder_.getVoidTy(), llvm_ref(simd_args), false);

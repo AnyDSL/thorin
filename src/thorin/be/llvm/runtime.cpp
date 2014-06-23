@@ -109,7 +109,7 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
         read(target_device_val, entry.second, code_gen.lookup(entry.first));
     // emit unmap operations
     for (auto entry : mapped_ptrs)
-        code_gen.runtime_->unmap(target_device, (uint32_t)entry.first->type().as<PtrType>()->addr_space(), entry.second);
+        code_gen.runtime_->munmap(target_device, (uint32_t)entry.first->type().as<PtrType>()->addr_space(), entry.second);
     // emit free operations
     for (auto entry : device_ptrs)
         free(target_device_val, entry.second);

@@ -501,6 +501,8 @@ llvm::Value* CodeGen::emit(Def def) {
         auto dst = conv->type().as<PrimType>();
         auto to = convert(dst);
 
+        if (from->getType() == to) return from;
+
         if (conv->isa<Cast>()) {
             if (src.isa<PtrType>()) {
                 assert(dst->is_type_i());
@@ -531,8 +533,7 @@ llvm::Value* CodeGen::emit(Def def) {
             if (src->is_type_u() && dst->is_type_u() && (num_bits(src->primtype_kind()) < num_bits(dst->primtype_kind())))
                 return builder_.CreateZExt(from, to);
 
-            assert(from->getType() == to);
-            return from;
+            assert(false && "unsupported cast");
         }
 
         if (conv->isa<Bitcast>())

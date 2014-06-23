@@ -4,17 +4,19 @@
 #include <iostream>
 #include <stdexcept>
 
+#include "llvm/PassManager.h"
+#include <llvm/Analysis/Verifier.h>
 #include <llvm/Bitcode/ReaderWriter.h>
 #include <llvm/IR/Constant.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
+#include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Type.h>
-#include <llvm/IR/GlobalVariable.h>
-#include <llvm/Analysis/Verifier.h>
 #include <llvm/Support/raw_ostream.h>
+#include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
 #ifdef WFV2_SUPPORT
 #include <wfvInterface.h>
@@ -92,7 +94,7 @@ llvm::Function* CodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
     return fun;
 }
 
-void CodeGen::emit() {
+void CodeGen::emit(int opt) {
     auto scopes = top_level_scopes(world_);
     // map all root-level lambdas to llvm function stubs
     for (auto scope : scopes) {
@@ -325,6 +327,11 @@ void CodeGen::emit() {
         rem->deleteBody();
     }
 
+#ifndef NDEBUG
+    llvm::verifyModule(*this->module_);
+#endif
+    optimize(opt);
+
     {
         std::string error;
         auto bc_name = get_binary_output_name(world_.name());
@@ -344,10 +351,25 @@ void CodeGen::emit() {
 
         module_->print(out, nullptr);
     }
+}
 
-#ifndef NDEBUG
-    llvm::verifyModule(*this->module_);
-#endif
+void CodeGen::optimize(int opt) {
+    if (opt != 0) {
+        llvm::PassManagerBuilder pmbuilder;
+        llvm::PassManager pass_manager;
+        llvm::FunctionPassManager function_pass_manager(module_);
+        if (opt == -1) {
+            pmbuilder.OptLevel = 2u;
+            pmbuilder.SizeLevel = 1;
+        } else {
+            pmbuilder.OptLevel = (unsigned) opt;
+            pmbuilder.SizeLevel = 0U;
+        }
+        pmbuilder.DisableUnitAtATime = true;
+        pmbuilder.populateFunctionPassManager(function_pass_manager);
+        pmbuilder.populateModulePassManager(pass_manager);
+        pass_manager.run(*module_);
+    }
 }
 
 llvm::Value* CodeGen::lookup(Def def) {
@@ -843,7 +865,7 @@ llvm::GlobalVariable* CodeGen::emit_global_memory(llvm::Type* type, const std::s
 
 //------------------------------------------------------------------------------
 
-void emit_llvm(World& world) {
+void emit_llvm(World& world, int opt) {
     World cuda(world.name());
     World nvvm(world.name());
     World spir(world.name());
@@ -870,23 +892,18 @@ void emit_llvm(World& world) {
         lambda->destroy_body();
         lambda->attribute().set(Lambda::Extern);
 
-        for (size_t i = 0, e = lambda->num_params(); i != e; ++i) {
+        for (size_t i = 0, e = lambda->num_params(); i != e; ++i)
             imported->param(i)->name = lambda->param(i)->unique_name();
-        }
     }
 
     if (!cuda.lambdas().empty() || !nvvm.lambdas().empty() || !spir.lambdas().empty() || !opencl.lambdas().empty())
         world.cleanup();
 
-    CPUCodeGen(world).emit();
-    if (!cuda.lambdas().empty())
-        CUDACodeGen(cuda).emit();
-    if (!nvvm.lambdas().empty())
-        NVVMCodeGen(nvvm).emit();
-    if (!spir.lambdas().empty())
-        SPIRCodeGen(spir).emit();
-    if (!opencl.lambdas().empty())
-        OpenCLCodeGen(opencl).emit();
+    CPUCodeGen(world).emit(opt);
+    if (!cuda.  lambdas().empty()) CUDACodeGen(cuda).emit(/*opt*/);
+    if (!nvvm.  lambdas().empty()) NVVMCodeGen(nvvm).emit(opt);
+    if (!spir.  lambdas().empty()) SPIRCodeGen(spir).emit(opt);
+    if (!opencl.lambdas().empty()) OpenCLCodeGen(opencl).emit(/*opt*/);
 }
 
 //------------------------------------------------------------------------------

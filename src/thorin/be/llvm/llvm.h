@@ -15,11 +15,15 @@ class World;
 typedef LambdaMap<llvm::BasicBlock*> BBMap;
 
 class CodeGen {
+protected:
+    CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, 
+            llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention);
+
 public:
-    void emit();
+    void emit(int opt);
 
 protected:
-    CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention);
+    void optimize(int opt);
 
     llvm::Type* map(Type);
     llvm::Value* emit(Def);
@@ -75,7 +79,7 @@ protected:
 template<class T>
 llvm::ArrayRef<T> llvm_ref(const Array<T>& array) { return llvm::ArrayRef<T>(array.begin(), array.end()); }
 
-void emit_llvm(World& world);
+void emit_llvm(World& world, int opt);
 
 } // namespace thorin
 

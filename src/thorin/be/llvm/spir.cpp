@@ -23,10 +23,9 @@ SPIRCodeGen::SPIRCodeGen(World& world)
 
 llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
     // iterate over function type and set address space for SPIR
-    llvm::FunctionType* fty = llvm::dyn_cast<llvm::FunctionType>(convert(lambda->world().fn_type(lambda->type()->elems())));
-    // TODO shouldn't this be just:                              convert(lambda->fn_type())
+    auto fty = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
+    auto rtype = fty->getReturnType();
     llvm::SmallVector<llvm::Type*, 4> types;
-    llvm::Type* rtype = fty->getReturnType();
     if (llvm::isa<llvm::PointerType>(rtype))
         rtype = llvm::dyn_cast<llvm::PointerType>(rtype)->getElementType()->getPointerTo(1);
     for (size_t i = 0; i < fty->getFunctionNumParams(); ++i) {
@@ -46,7 +45,6 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
         return f;
 
     // append required metadata
-    llvm::NamedMDNode* annotation;
     llvm::Value* annotation_values_12[] = { builder_.getInt32(1), builder_.getInt32(2) };
     size_t num_params = f->arg_size() + 1;
     Array<llvm::Value*> annotation_values_addr_space(num_params);
@@ -85,24 +83,23 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
         llvm::MDNode::get(context_, llvm_ref(annotation_values_type_qual)),
         llvm::MDNode::get(context_, llvm_ref(annotation_values_name))
     };
-    // TODO 'annotation' is reassigned a value before the old one has been used
     // opencl.kernels
-    annotation = module_->getOrInsertNamedMetadata("opencl.kernels");
-    annotation->addOperand(llvm::MDNode::get(context_, annotation_values_kernel));
+    auto kernels_md = module_->getOrInsertNamedMetadata("opencl.kernels");
+    kernels_md->addOperand(llvm::MDNode::get(context_, annotation_values_kernel));
     // opencl.enable.FP_CONTRACT
-    annotation = module_->getOrInsertNamedMetadata("opencl.enable.FP_CONTRACT");
+    module_->getOrInsertNamedMetadata("opencl.enable.FP_CONTRACT");
     // opencl.spir.version
-    annotation = module_->getOrInsertNamedMetadata("opencl.spir.version");
-    annotation->addOperand(llvm::MDNode::get(context_, annotation_values_12));
+    auto spir_version_md = module_->getOrInsertNamedMetadata("opencl.spir.version");
+    spir_version_md->addOperand(llvm::MDNode::get(context_, annotation_values_12));
     // opencl.ocl.version
-    annotation = module_->getOrInsertNamedMetadata("opencl.ocl.version");
-    annotation->addOperand(llvm::MDNode::get(context_, annotation_values_12));
+    auto ocl_version_md = module_->getOrInsertNamedMetadata("opencl.ocl.version");
+    ocl_version_md->addOperand(llvm::MDNode::get(context_, annotation_values_12));
     // opencl.used.extensions
-    annotation = module_->getOrInsertNamedMetadata("opencl.used.extensions");
+    module_->getOrInsertNamedMetadata("opencl.used.extensions");
     // opencl.used.optional.core.features
-    annotation = module_->getOrInsertNamedMetadata("opencl.used.optional.core.features");
+    module_->getOrInsertNamedMetadata("opencl.used.optional.core.features");
     // opencl.compiler.options
-    annotation = module_->getOrInsertNamedMetadata("opencl.compiler.options");
+    module_->getOrInsertNamedMetadata("opencl.compiler.options");
     f->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
     return f;
 }

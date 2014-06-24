@@ -35,7 +35,7 @@ static AddressSpace resolve_addr_space(Def def) {
 llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
     // skip non-global address-space parameters
     std::vector<Type> types;
-    for (auto type : lambda->type()->elems()) {
+    for (auto type : lambda->type()->args()) {
         if (auto ptr = type.isa<PtrType>())
             if (ptr->addr_space() == AddressSpace::Texture)
                 continue;

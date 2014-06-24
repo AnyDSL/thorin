@@ -88,10 +88,10 @@ public:
         return join(new PtrTypeNode(*this, referenced_type, length, device, adr_space)); 
     }
     TupleType           tuple_type() { return tuple0_; } ///< Returns unit, i.e., an empty \p TupleType.
-    TupleType           tuple_type(ArrayRef<Type> elems) { return join(new TupleTypeNode(*this, elems)); }
+    TupleType           tuple_type(ArrayRef<Type> args) { return join(new TupleTypeNode(*this, args)); }
     StructType          struct_type(size_t size, const std::string& name = "");
     FnType              fn_type() { return fn0_; }       ///< Returns an empty \p FnType.
-    FnType              fn_type(ArrayRef<Type> elems) { return join(new FnTypeNode(*this, elems)); }
+    FnType              fn_type(ArrayRef<Type> args) { return join(new FnTypeNode(*this, args)); }
     TypeVar             type_var() { return join(new TypeVarNode(*this)); }
     DefiniteArrayType   definite_array_type(Type elem, u64 dim) { return join(new DefiniteArrayTypeNode(*this, elem, dim)); }
     IndefiniteArrayType indefinite_array_type(Type elem) { return join(new IndefiniteArrayTypeNode(*this, elem)); }
@@ -235,11 +235,11 @@ public:
     /// Generic \p PrimOp constructor; inherits type and name name from \p in.
     static Def rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops) { return rebuild(to, in, ops, in->type()); }
     /// Generic \p Type constructor.
-    static Type rebuild(World& to, Type in, ArrayRef<Type> elems);
+    static Type rebuild(World& to, Type in, ArrayRef<Type> args);
 
     Def rebuild(const PrimOp* in, ArrayRef<Def> ops, Type type) { return rebuild(*this, in, ops, type); }
     Def rebuild(const PrimOp* in, ArrayRef<Def> ops) { return rebuild(in, ops, in->type()); }
-    Type rebuild(Type in, ArrayRef<Type> elems) { return rebuild(*this, in, elems); }
+    Type rebuild(Type in, ArrayRef<Type> args) { return rebuild(*this, in, args); }
 
     /// Performs dead code, unreachable code and unused type elimination.
     void cleanup();

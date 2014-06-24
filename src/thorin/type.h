@@ -99,34 +99,34 @@ private:
     TypeNode(const TypeNode&);              ///< Do not copy-construct a \p TypeNode.
 
 protected:
-    TypeNode(World& world, NodeKind kind, ArrayRef<Type> elems)
+    TypeNode(World& world, NodeKind kind, ArrayRef<Type> args)
         : representative_(nullptr)
         , world_(world)
         , kind_(kind)
-        , elems_(elems.size())
+        , args_(args.size())
         , gid_(-1)
     {
         for (size_t i = 0, e = num_args(); i != e; ++i) {
-            if (auto elem = elems[i])
-                set(i, elem);
+            if (auto arg = args[i])
+                set(i, arg);
         }
     }
 
-    void set(size_t i, Type type) { elems_[i] = type; }
+    void set(size_t i, Type type) { args_[i] = type; }
 
 public:
     NodeKind kind() const { return kind_; }
     bool is_corenode() const { return ::thorin::is_corenode(kind()); }
-    ArrayRef<Type> elems() const { return elems_; }
+    ArrayRef<Type> args() const { return args_; }
     ArrayRef<TypeVar> type_vars() const { return type_vars_; }
     size_t num_type_vars() const { return type_vars().size(); }
-    Type elem(size_t i) const { assert(i < elems().size()); return elems()[i]; }
+    Type arg(size_t i) const { assert(i < args().size()); return args()[i]; }
     TypeVar type_var(size_t i) const { assert(i < type_vars().size()); return type_vars()[i]; }
     void bind(TypeVar v) const;
-    size_t num_args() const { return elems_.size(); }
+    size_t num_args() const { return args_.size(); }
     bool is_polymorphic() const { return num_type_vars() > 0; }
-    Type elem_via_lit(const Def& def) const;
-    bool empty() const { return elems_.empty(); }
+    Type arg_via_lit(const Def& def) const;
+    bool empty() const { return args_.empty(); }
     void dump() const;
     World& world() const { return world_; }
     bool check_with(Type) const { return true; } // TODO
@@ -165,7 +165,7 @@ public:
     virtual IndefiniteArrayType is_indefinite() const;
 
 protected:
-    Array<Type> specialize_elems(Type2Type&) const;
+    Array<Type> specialize_args(Type2Type&) const;
 
 private:
     virtual Type vinstantiate(Type2Type&) const = 0;
@@ -174,7 +174,7 @@ private:
     World& world_;
     NodeKind kind_;
     mutable std::vector<TypeVar> type_vars_;
-    std::vector<Type> elems_;
+    std::vector<Type> args_;
     mutable size_t gid_;
 
     friend class World;
@@ -206,8 +206,8 @@ private:
 
 class VectorTypeNode : public TypeNode {
 protected:
-    VectorTypeNode(World& world, NodeKind kind, ArrayRef<Type> elems, size_t length)
-        : TypeNode(world, kind, elems)
+    VectorTypeNode(World& world, NodeKind kind, ArrayRef<Type> args, size_t length)
+        : TypeNode(world, kind, args)
         , length_(length)
     {}
 
@@ -217,7 +217,7 @@ protected:
     }
 
 public:
-    /// The number of vector elements - the vector length.
+    /// The number of vector argents - the vector length.
     size_t length() const { return length_; }
     bool is_vector() const { return length_ != 1; }
     /// Rebuilds the type with vector length 1.
@@ -260,7 +260,7 @@ private:
     {}
 
 public:
-    Type referenced_type() const { return elem(0); }
+    Type referenced_type() const { return arg(0); }
     AddressSpace addr_space() const { return addr_space_; }
     uint32_t device() const { return device_; }
     bool is_host_device() const { return device_ == 0; }
@@ -301,8 +301,8 @@ private:
 
 class TupleTypeNode : public TypeNode {
 private:
-    TupleTypeNode(World& world, ArrayRef<Type> elems)
-        : TypeNode(world, Node_TupleType, elems)
+    TupleTypeNode(World& world, ArrayRef<Type> args)
+        : TypeNode(world, Node_TupleType, args)
     {}
 
     virtual Type vinstantiate(Type2Type&) const override;
@@ -312,8 +312,8 @@ private:
 
 class FnTypeNode : public TypeNode {
 private:
-    FnTypeNode(World& world, ArrayRef<Type> elems)
-        : TypeNode(world, Node_FnType, elems)
+    FnTypeNode(World& world, ArrayRef<Type> args)
+        : TypeNode(world, Node_FnType, args)
     {}
 
 public:
@@ -333,7 +333,7 @@ protected:
     {}
 
 public:
-    Type elem_type() const { return elem(0); }
+    Type elem_type() const { return arg(0); }
 };
 
 class IndefiniteArrayTypeNode : public ArrayTypeNode {

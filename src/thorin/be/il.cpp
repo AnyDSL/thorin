@@ -71,13 +71,13 @@ std::ostream& IlPrinter::emit_type(Type type) {
     else if (type.isa<MemType>())
         return stream() << "mem";
     else if (auto fn = type.isa<FnType>()) {
-        if (fn->elems().empty())
+        if (fn->args().empty())
           return stream() << "unit -> unit";
         else
-          return dump_list([&] (Type type) { emit_type(type); }, fn->elems(), "", " -> unit", " * ");
+          return dump_list([&] (Type type) { emit_type(type); }, fn->args(), "", " -> unit", " * ");
     }
     else if (auto tuple = type.isa<TupleType>())
-        return dump_list([&] (Type type) { emit_type(type); }, tuple->elems(), "", "", " * ");
+        return dump_list([&] (Type type) { emit_type(type); }, tuple->args(), "", "", " * ");
     else if (type.isa<TypeVar>())
         return stream() << "TODO";
     else if (auto ptr = type.isa<PtrType>()) {

@@ -769,8 +769,8 @@ Lambda* World::lambda(FnType fn, Lambda::Attribute attribute, Lambda::Attribute 
     lambdas_.insert(l);
 
     size_t i = 0;
-    for (auto elem : fn->elems())
-        l->params_.push_back(param(elem, l, i++));
+    for (auto arg : fn->args())
+        l->params_.push_back(param(arg, l, i++));
 
     return l;
 }
@@ -840,29 +840,29 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type) {
     }
 }
 
-Type World::rebuild(World& to, Type type, ArrayRef<Type> elems) {
-    if (elems.empty() && &type->world() == &to)
+Type World::rebuild(World& to, Type type, ArrayRef<Type> args) {
+    if (args.empty() && &type->world() == &to)
         return type;
 
     if (is_primtype(type->kind())) {
-        assert(elems.size() == 0);
+        assert(args.size() == 0);
         auto primtype = type.as<PrimType>();
         return to.type(primtype->primtype_kind(), primtype->length());
     }
 
     switch (type->kind()) {
-        case Node_DefiniteArrayType:    assert(elems.size() == 1); return to.definite_array_type(elems.front(), type.as<DefiniteArrayType>()->dim());
-        case Node_TypeVar:              assert(elems.size() == 0); return to.type_var();
-        case Node_IndefiniteArrayType:  assert(elems.size() == 1); return to.indefinite_array_type(elems.front());
-        case Node_MemType:              assert(elems.size() == 0); return to.mem_type();
-        case Node_FrameType:            assert(elems.size() == 0); return to.frame_type();
+        case Node_DefiniteArrayType:    assert(args.size() == 1); return to.definite_array_type(args.front(), type.as<DefiniteArrayType>()->dim());
+        case Node_TypeVar:              assert(args.size() == 0); return to.type_var();
+        case Node_IndefiniteArrayType:  assert(args.size() == 1); return to.indefinite_array_type(args.front());
+        case Node_MemType:              assert(args.size() == 0); return to.mem_type();
+        case Node_FrameType:            assert(args.size() == 0); return to.frame_type();
         case Node_PtrType: {
-            assert(elems.size() == 1); 
+            assert(args.size() == 1); 
             auto p = type.as<PtrType>();
-            return to.ptr_type(elems.front(), p->length(), p->device(), p->addr_space());
+            return to.ptr_type(args.front(), p->length(), p->device(), p->addr_space());
         }
-        case Node_TupleType:  return to.tuple_type(elems);
-        case Node_FnType:     return to.fn_type(elems);
+        case Node_TupleType:  return to.tuple_type(args);
+        case Node_FnType:     return to.fn_type(args);
         default: THORIN_UNREACHABLE;
     }
 }

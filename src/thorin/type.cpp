@@ -21,7 +21,7 @@ void TypeNode::bind(TypeVar type_var) const {
 
 void TypeNode::dump() const { emit_type(Type(this)); std::cout << std::endl; }
 size_t TypeNode::length() const { return as<VectorTypeNode>()->length(); }
-Type TypeNode::elem_via_lit(const Def& def) const { return elem(def->primlit_value<size_t>()); }
+Type TypeNode::arg_via_lit(const Def& def) const { return arg(def->primlit_value<size_t>()); }
 const TypeNode* TypeNode::unify() const { return world().unify_base(this); }
 
 VectorType VectorTypeNode::scalarize() const {
@@ -32,8 +32,8 @@ VectorType VectorTypeNode::scalarize() const {
 
 bool FnTypeNode::is_returning() const {
     bool ret = false;
-    for (auto elem : elems()) {
-        switch (elem->order()) {
+    for (auto arg : args()) {
+        switch (arg->order()) {
             case 0: continue;
             case 1:
                 if (!ret) {
@@ -58,8 +58,8 @@ int TypeNode::order() const {
         return 0;
 
     int result = 0;
-    for (auto elem : elems())
-        result = std::max(result, elem->order());
+    for (auto arg : args())
+        result = std::max(result, arg->order());
 
     if (kind() == Node_FnType)
         return result + 1;
@@ -68,8 +68,8 @@ int TypeNode::order() const {
 }
 
 bool TypeNode::is_closed() const {
-    for (auto elem : elems()) {
-        if (!elem->is_closed())
+    for (auto arg : args()) {
+        if (!arg->is_closed())
             return false;
     }
     return true;
@@ -77,7 +77,7 @@ bool TypeNode::is_closed() const {
 
 IndefiniteArrayType TypeNode::is_indefinite() const {
     if (!empty())
-        return elems().back()->is_indefinite();
+        return args().back()->is_indefinite();
     return IndefiniteArrayType();
 }
 
@@ -89,12 +89,12 @@ void TypeNode::free_type_vars(TypeVarSet& bound, TypeVarSet& free) const {
     for (auto type_var : type_vars())
         bound.insert(*type_var);
 
-    for (auto elem : elems()) {
-        if (auto type_var = elem->isa<TypeVarNode>()) {
+    for (auto arg : args()) {
+        if (auto type_var = arg->isa<TypeVarNode>()) {
             if (!bound.contains(type_var))
                 free.insert(type_var);
         } else
-            elem->free_type_vars(bound, free);
+            arg->free_type_vars(bound, free);
     }
 }
 
@@ -106,8 +106,8 @@ void TypeNode::free_type_vars(TypeVarSet& bound, TypeVarSet& free) const {
 
 size_t TypeNode::hash() const {
     size_t seed = hash_combine(hash_combine(hash_begin((int) kind()), num_args()), num_type_vars());
-    for (auto elem : elems_)
-        seed = hash_combine(seed, elem->hash());
+    for (auto arg : args_)
+        seed = hash_combine(seed, arg->hash());
     return seed;
 }
 
@@ -132,7 +132,7 @@ bool TypeNode::equal(const TypeNode* other) const {
         }
 
         for (size_t i = 0, e = num_args(); result && i != e; ++i)
-            result &= this->elems_[i] == other->elems_[i];
+            result &= this->args_[i] == other->args_[i];
 
         for (auto var : type_vars())
             var->equiv_ = nullptr;
@@ -192,10 +192,10 @@ Type TypeNode::specialize(Type2Type& map) const {
     return t;
 }
 
-Array<Type> TypeNode::specialize_elems(Type2Type& map) const {
+Array<Type> TypeNode::specialize_args(Type2Type& map) const {
     Array<Type> result(num_args());
     for (size_t i = 0, e = num_args(); i != e; ++i)
-        result[i] = elem(i)->specialize(map);
+        result[i] = arg(i)->specialize(map);
     return result;
 }
 
@@ -209,7 +209,7 @@ Type DefiniteArrayTypeNode::vinstantiate(Type2Type& map) const {
 }
 
 Type FnTypeNode::vinstantiate(Type2Type& map) const {
-    return map[this] = *world().fn_type(specialize_elems(map)); 
+    return map[this] = *world().fn_type(specialize_args(map)); 
 }
 
 Type IndefiniteArrayTypeNode::vinstantiate(Type2Type& map) const {
@@ -225,7 +225,7 @@ Type StructTypeNode::vinstantiate(Type2Type& map) const {
 }
 
 Type TupleTypeNode::vinstantiate(Type2Type& map) const {
-    return map[this] = *world().tuple_type(specialize_elems(map)); 
+    return map[this] = *world().tuple_type(specialize_args(map)); 
 }
 
 //------------------------------------------------------------------------------

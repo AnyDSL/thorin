@@ -96,7 +96,7 @@ protected:
 
 public:
     Def ptr() const { return op(1); }
-    PtrType ptr_type() const { return type().as<TupleType>()->elem(1).as<PtrType>(); }
+    PtrType ptr_type() const { return type().as<TupleType>()->arg(1).as<PtrType>(); }
     AddressSpace addr_space() const { return ptr_type()->addr_space(); }
     uint32_t device() const { return ptr_type()->device(); }
 };

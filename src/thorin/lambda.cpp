@@ -24,19 +24,19 @@ Lambda* Lambda::update_op(size_t i, Def def) {
 }
 
 FnType Lambda::arg_fn_type() const {
-    Array<Type> elems(num_args());
+    Array<Type> args(num_args());
     for (size_t i = 0, e = num_args(); i != e; ++i)
-        elems[i] = arg(i)->type();
+        args[i] = arg(i)->type();
 
-    return world().fn_type(elems);
+    return world().fn_type(args);
 }
 
 const Param* Lambda::append_param(Type param_type, const std::string& name) {
     size_t size = type()->num_args();
-    Array<Type> elems(size + 1);
-    *std::copy(type()->elems().begin(), type()->elems().end(), elems.begin()) = param_type;
+    Array<Type> args(size + 1);
+    *std::copy(type()->args().begin(), type()->args().end(), args.begin()) = param_type;
     clear_type();
-    set_type(param_type->world().fn_type(elems));             // update type
+    set_type(param_type->world().fn_type(args));             // update type
     auto param = world().param(param_type, this, size, name); // append new param
     params_.push_back(param);
 
@@ -194,17 +194,17 @@ std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) 
         return std::make_pair(nullptr, Def());
     }
 
-    std::vector<Type> cont_elems;
-    cont_elems.push_back(world().mem_type());
+    std::vector<Type> cont_args;
+    cont_args.push_back(world().mem_type());
     bool pack = false;
     if (auto tuple = ret_type.isa<TupleType>()) {
         pack = true;
-        for (auto elem : tuple->elems())
-            cont_elems.push_back(elem);
+        for (auto arg : tuple->args())
+            cont_args.push_back(arg);
     } else
-        cont_elems.push_back(ret_type);
+        cont_args.push_back(ret_type);
 
-    auto next = world().lambda(world().fn_type(cont_elems), name);
+    auto next = world().lambda(world().fn_type(cont_args), name);
     next->param(0)->name = "mem";
 
     // create jump to next

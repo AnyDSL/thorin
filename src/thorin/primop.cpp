@@ -93,7 +93,7 @@ Extract::Extract(Def agg, Def index, const std::string& name)
 
 Type Extract::type(Def agg, Def index) {
     if (auto tuple = agg->type().isa<TupleType>())
-        return tuple->elem_via_lit(index);
+        return tuple->arg_via_lit(index);
     else if (auto array = agg->type().isa<ArrayType>())
         return array->elem_type();
     else if (auto vector = agg->type().isa<VectorType>())
@@ -117,7 +117,7 @@ LEA::LEA(Def def, Def index, const std::string& name)
 
     auto type = ptr_type();
     if (auto tuple = referenced_type().isa<TupleType>())
-        set_type(index->world().ptr_type(tuple->elem_via_lit(index), type->length(), type->device(), type->addr_space()));
+        set_type(index->world().ptr_type(tuple->arg_via_lit(index), type->length(), type->device(), type->addr_space()));
     else {
         auto array = referenced_type().as<ArrayType>();
         set_type(index->world().ptr_type(array->elem_type(), type->length(), type->device(), type->addr_space()));

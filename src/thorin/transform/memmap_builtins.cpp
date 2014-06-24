@@ -71,7 +71,7 @@ static void adapt_addr_space(World &world, ToDo& uses) {
             Array<Type> fn(to->type()->num_args());
             for (size_t i = 0, e = to->type()->num_args(); i != e; ++i) {
                 if (i==index) fn[i] = entry.first;
-                else fn[i] = to->type()->elem(i);
+                else fn[i] = to->type()->arg(i);
             }
             auto nto = world.lambda(world.fn_type(fn), to->name);
             assert(nto->num_params() == to->num_params());

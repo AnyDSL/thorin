@@ -9,11 +9,11 @@ Type import(Type2Type& old2new, World& to, Type otype) {
     }
 
     size_t size = otype->num_args();
-    Array<Type> nelems(size);
+    Array<Type> nargs(size);
     for (size_t i = 0; i != size; ++i)
-        nelems[i] = import(old2new, to, otype->elem(i));
+        nargs[i] = import(old2new, to, otype->arg(i));
     
-    auto ntype = old2new[*otype] = *World::rebuild(to, otype, nelems);
+    auto ntype = old2new[*otype] = *World::rebuild(to, otype, nargs);
     assert(&ntype->world() == &to);
     return Type(ntype);
 }

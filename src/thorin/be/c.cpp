@@ -55,9 +55,9 @@ std::ostream& CCodeGen::emit_type(Type type) {
         stream() << "typedef struct tuple_" << tuple->gid() << " {";
         ++indent;
         size_t i = 0;
-        for (auto elem : tuple->elems()) {
+        for (auto arg : tuple->args()) {
             newline();
-            emit_type(elem) << " e" << i++ << ";";
+            emit_type(arg) << " e" << i++ << ";";
         }
         --indent; newline();
         stream() << "} tuple_" << tuple->gid() << ";";
@@ -148,7 +148,7 @@ std::ostream& CCodeGen::emit_aggop_decl(Type type) {
     type.unify(); // make sure that we get the same id if types are equal
 
     if (auto fn = type.isa<FnType>())
-        for (auto type : fn->elems()) emit_aggop_decl(type);
+        for (auto type : fn->args()) emit_aggop_decl(type);
 
     // recurse into (multi-dimensional) array
     if (auto array = type.isa<DefiniteArrayType>()) {
@@ -161,11 +161,11 @@ std::ostream& CCodeGen::emit_aggop_decl(Type type) {
     // recurse into (multi-dimensional) tuple
     if (auto tuple = type.isa<TupleType>()) {
         // hack for map() -> (mem, [type]*[dev][mem])
-        if (tuple->num_args() == 2 && tuple->elem(0).isa<MemType>()) {
+        if (tuple->num_args() == 2 && tuple->arg(0).isa<MemType>()) {
             insert(type->gid(), "");
             return stream();
         }
-        for (auto elem : tuple->elems()) emit_aggop_decl(elem);
+        for (auto arg : tuple->args()) emit_aggop_decl(arg);
         emit_type(tuple);
         insert(type->gid(), "tuple_" + std::to_string(type->gid()));
         newline();
@@ -251,9 +251,9 @@ void CCodeGen::emit() {
             if (lang_==CUDA) stream() << "__device__ ";
         }
         if (lambda->attribute().is(Lambda::Extern)) {
-            emit_type(ret_fn_type->elems().back()) << " " << lambda->name << "(";
+            emit_type(ret_fn_type->args().back()) << " " << lambda->name << "(";
         } else {
-            emit_type(ret_fn_type->elems().back()) << " " << lambda->unique_name() << "(";
+            emit_type(ret_fn_type->args().back()) << " " << lambda->unique_name() << "(";
         }
         size_t i = 0;
         // emit all first-order params
@@ -303,10 +303,10 @@ void CCodeGen::emit() {
         if (lambda->attribute().is(Lambda::KernelEntry)) {
             if (lang_==CUDA) stream() << "__global__ ";
             if (lang_==OPENCL) stream() << "__kernel ";
-            emit_type(ret_fn_type->elems().back()) << " " << lambda->name << "(";
+            emit_type(ret_fn_type->args().back()) << " " << lambda->name << "(";
         } else {
             if (lang_==CUDA) stream() << "__device__ ";
-            emit_type(ret_fn_type->elems().back()) << " " << lambda->unique_name() << "(";
+            emit_type(ret_fn_type->args().back()) << " " << lambda->unique_name() << "(";
         }
         size_t i = 0;
         // emit and store all first-order params
@@ -574,7 +574,7 @@ std::ostream& CCodeGen::emit(Def def) {
             if (aggop->isa<Extract>()) {
                 emit_type(aggop->type()) << " " << aggop->unique_name() << " = ";
                 // hack for map() -> (mem, [type]*[dev][mem])
-                if (tuple->num_args() == 2 && tuple->elem(0).isa<MemType>()) {
+                if (tuple->num_args() == 2 && tuple->arg(0).isa<MemType>()) {
                     emit(aggop->agg()) << ";";
                 } else {
                     emit(aggop->agg()) << ".e";

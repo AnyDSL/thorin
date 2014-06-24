@@ -18,7 +18,7 @@ public:
     {}
 
     std::ostream& emit_type_vars(Type);
-    std::ostream& emit_type_elems(Type);
+    std::ostream& emit_type_args(Type);
     std::ostream& emit_type(Type);
     std::ostream& emit_name(Def);
     std::ostream& emit_def(Def);
@@ -36,8 +36,8 @@ std::ostream& CodeGen::emit_type_vars(Type type) {
     return stream();
 }
 
-std::ostream& CodeGen::emit_type_elems(Type type) {
-    return dump_list([&](Type type) { emit_type(type); }, type->elems(), "(", ")");
+std::ostream& CodeGen::emit_type_args(Type type) {
+    return dump_list([&](Type type) { emit_type(type); }, type->args(), "(", ")");
 }
 
 std::ostream& CodeGen::emit_type(Type type) {
@@ -50,14 +50,14 @@ std::ostream& CodeGen::emit_type(Type type) {
     } else if (auto fn = type.isa<FnType>()) {
         stream() << "fn";
         emit_type_vars(fn);
-        return emit_type_elems(fn);
+        return emit_type_args(fn);
     } else if (auto tuple = type.isa<TupleType>()) {
         emit_type_vars(tuple);
-        return emit_type_elems(tuple);
+        return emit_type_args(tuple);
     } else if (auto struct_type = type.isa<StructType>()) {
         stream() << struct_type->name();
         emit_type_vars(struct_type);
-        return emit_type_elems(struct_type);
+        return emit_type_args(struct_type);
     } else if (auto type_var = type.isa<TypeVar>()) {
         return stream() << '<' << type_var->gid() << '>';
     } else if (auto array = type.isa<IndefiniteArrayType>()) {

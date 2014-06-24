@@ -49,7 +49,7 @@ void Cleaner::eliminate_params() {
         if (proxy_idx.empty())
             continue;
 
-        auto nlambda = world_.lambda(world_.fn_type(olambda->type()->elems().cut(proxy_idx)), olambda->attribute(), olambda->intrinsic(), olambda->name);
+        auto nlambda = world_.lambda(world_.fn_type(olambda->type()->args().cut(proxy_idx)), olambda->attribute(), olambda->intrinsic(), olambda->name);
         size_t j = 0;
         for (auto i : param_idx) {
             olambda->param(i)->replace(nlambda->param(j));
@@ -176,8 +176,8 @@ Def Cleaner::dead_code_elimination(Def def) {
 
 void Cleaner::unused_type_elimination(const TypeNode* type) {
     if (visit(ntypes(), type)) return;
-    for (auto elem : type->elems())
-        unused_type_elimination(*elem);
+    for (auto arg : type->args())
+        unused_type_elimination(*arg);
 }
 
 void cleanup_world(World& world) { Cleaner(world).cleanup(); }

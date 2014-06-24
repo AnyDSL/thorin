@@ -224,21 +224,21 @@ void CodeGen::emit(int opt) {
                     }
                     default: {
                         Array<llvm::Value*> values(num_args);
-                        Array<llvm::Type*> elems(num_args);
+                        Array<llvm::Type*> args(num_args);
 
                         size_t n = 0;
                         for (size_t a = 0; a < num_args; ++a) {
                             if (!lambda->arg(n)->type().isa<MemType>()) {
                                 llvm::Value* val = lookup(lambda->arg(a));
                                 values[n] = val;
-                                elems[n++] = val->getType();
+                                args[n++] = val->getType();
                             }
                         }
 
                         assert(n == num_args || n+1 == num_args);
                         values.shrink(n);
-                        elems.shrink(n);
-                        llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context_, llvm_ref(elems)));
+                        args.shrink(n);
+                        llvm::Value* agg = llvm::UndefValue::get(llvm::StructType::get(context_, llvm_ref(args)));
 
                         for (size_t i = 0; i != n; ++i)
                             agg = builder_.CreateInsertValue(agg, values[i], { unsigned(i) });
@@ -597,8 +597,8 @@ llvm::Value* CodeGen::emit(Def def) {
                     // check for a memory-mapped extract
                     // TODO: integrate memory-mappings in a nicer way :)
                     if (agg_tuple->num_args() == 2 &&
-                        agg_tuple->elem(0).isa<MemType>() &&
-                        agg_tuple->elem(1).isa<PtrType>())
+                        agg_tuple->arg(0).isa<MemType>() &&
+                        agg_tuple->arg(1).isa<PtrType>())
                         return lookup(extract->agg());
                 }
                 return builder_.CreateExtractValue(agg, { i });
@@ -804,49 +804,49 @@ llvm::Type* CodeGen::convert(Type type) {
             // extract "return" type, collect all other types
             auto fn = type.as<FnType>();
             llvm::Type* ret = nullptr;
-            std::vector<llvm::Type*> elems;
-            for (auto elem : fn->elems()) {
-                if (elem.isa<MemType>())
+            std::vector<llvm::Type*> args;
+            for (auto arg : fn->args()) {
+                if (arg.isa<MemType>())
                     continue;
-                if (auto fn = elem.isa<FnType>()) {
+                if (auto fn = arg.isa<FnType>()) {
                     assert(!ret && "only one 'return' supported");
                     if (fn->empty())
                         ret = llvm::Type::getVoidTy(context_);
                     else if (fn->num_args() == 1)
-                        ret = fn->elem(0).isa<MemType>() ? llvm::Type::getVoidTy(context_) : convert(fn->elem(0));
+                        ret = fn->arg(0).isa<MemType>() ? llvm::Type::getVoidTy(context_) : convert(fn->arg(0));
                     else if (fn->num_args() == 2) {
-                        if (fn->elem(0).isa<MemType>())
-                            ret = convert(fn->elem(1));
-                        else if (fn->elem(1).isa<MemType>())
-                            ret = convert(fn->elem(0));
+                        if (fn->arg(0).isa<MemType>())
+                            ret = convert(fn->arg(1));
+                        else if (fn->arg(1).isa<MemType>())
+                            ret = convert(fn->arg(0));
                         else
                             goto multiple;
                     } else {
 multiple:
-                        std::vector<llvm::Type*> elems;
-                        for (auto elem : fn->elems()) {
-                            if (!elem.isa<MemType>())
-                                elems.push_back(convert(elem));
+                        std::vector<llvm::Type*> args;
+                        for (auto arg : fn->args()) {
+                            if (!arg.isa<MemType>())
+                                args.push_back(convert(arg));
                         }
-                        ret = llvm::StructType::get(context_, elems);
+                        ret = llvm::StructType::get(context_, args);
                     }
                 } else
-                    elems.push_back(convert(elem));
+                    args.push_back(convert(arg));
             }
             assert(ret);
 
-            return llvm::FunctionType::get(ret, elems, false);
+            return llvm::FunctionType::get(ret, args, false);
         }
 
         case Node_TupleType: {
             // TODO watch out for cycles!
             auto tuple = type.as<TupleType>();
-            Array<llvm::Type*> elems(tuple->num_args());
+            Array<llvm::Type*> args(tuple->num_args());
             size_t num = 0;
-            for (auto elem : tuple->elems())
-                elems[num++] = convert(elem);
-            elems.shrink(num);
-            return llvm::StructType::get(context_, llvm_ref(elems));
+            for (auto arg : tuple->args())
+                args[num++] = convert(arg);
+            args.shrink(num);
+            return llvm::StructType::get(context_, llvm_ref(args));
         }
 
         default:

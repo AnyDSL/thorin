@@ -287,7 +287,7 @@ private:
 
 public:
     const std::string& name() const { return name_; }
-    void set(size_t i, Type type) { TypeNode::set(i, type); }
+    void set(size_t i, Type type) const { const_cast<StructTypeNode*>(this)->TypeNode::set(i, type); }
 
 private:
     virtual Type vinstantiate(Type2Type&) const override;

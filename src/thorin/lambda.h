@@ -61,7 +61,7 @@ private:
         , is_sealed_(is_sealed)
         , is_visited_(false)
     {
-        params_.reserve(fn->size());
+        params_.reserve(fn->num_args());
     }
     virtual ~Lambda() { for (auto param : params()) delete param; }
 

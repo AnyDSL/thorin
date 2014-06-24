@@ -8,7 +8,7 @@ Type import(Type2Type& old2new, World& to, Type otype) {
         return ntype;
     }
 
-    size_t size = otype->size();
+    size_t size = otype->num_args();
     Array<Type> nelems(size);
     for (size_t i = 0; i != size; ++i)
         nelems[i] = import(old2new, to, otype->elem(i));

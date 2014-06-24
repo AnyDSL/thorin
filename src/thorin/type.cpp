@@ -105,7 +105,7 @@ void TypeNode::free_type_vars(TypeVarSet& bound, TypeVarSet& free) const {
  */
 
 size_t TypeNode::hash() const {
-    size_t seed = hash_combine(hash_combine(hash_begin((int) kind()), size()), num_type_vars());
+    size_t seed = hash_combine(hash_combine(hash_begin((int) kind()), num_args()), num_type_vars());
     for (auto elem : elems_)
         seed = hash_combine(seed, elem->hash());
     return seed;
@@ -122,7 +122,7 @@ size_t PtrTypeNode::hash() const {
  */
 
 bool TypeNode::equal(const TypeNode* other) const {
-    bool result = this->kind() == other->kind() && this->size() == other->size() 
+    bool result = this->kind() == other->kind() && this->num_args() == other->num_args() 
         && this->num_type_vars() == other->num_type_vars();
 
     if (result) {
@@ -131,7 +131,7 @@ bool TypeNode::equal(const TypeNode* other) const {
             this->type_var(i)->equiv_ = *other->type_var(i);
         }
 
-        for (size_t i = 0, e = size(); result && i != e; ++i)
+        for (size_t i = 0, e = num_args(); result && i != e; ++i)
             result &= this->elems_[i] == other->elems_[i];
 
         for (auto var : type_vars())
@@ -193,8 +193,8 @@ Type TypeNode::specialize(Type2Type& map) const {
 }
 
 Array<Type> TypeNode::specialize_elems(Type2Type& map) const {
-    Array<Type> result(size());
-    for (size_t i = 0, e = size(); i != e; ++i)
+    Array<Type> result(num_args());
+    for (size_t i = 0, e = num_args(); i != e; ++i)
         result[i] = elem(i)->specialize(map);
     return result;
 }
@@ -221,7 +221,7 @@ Type PtrTypeNode::vinstantiate(Type2Type& map) const {
 }
 
 Type StructTypeNode::vinstantiate(Type2Type& map) const {
-    return map[this] = *world().struct_type(size()); // TODO
+    return map[this] = *world().struct_type(num_args()); // TODO
 }
 
 Type TupleTypeNode::vinstantiate(Type2Type& map) const {

@@ -106,7 +106,7 @@ protected:
         , elems_(elems.size())
         , gid_(-1)
     {
-        for (size_t i = 0, e = size(); i != e; ++i) {
+        for (size_t i = 0, e = num_args(); i != e; ++i) {
             if (auto elem = elems[i])
                 set(i, elem);
         }
@@ -123,7 +123,7 @@ public:
     Type elem(size_t i) const { assert(i < elems().size()); return elems()[i]; }
     TypeVar type_var(size_t i) const { assert(i < type_vars().size()); return type_vars()[i]; }
     void bind(TypeVar v) const;
-    size_t size() const { return elems_.size(); }
+    size_t num_args() const { return elems_.size(); }
     bool is_polymorphic() const { return num_type_vars() > 0; }
     Type elem_via_lit(const Def& def) const;
     bool empty() const { return elems_.empty(); }

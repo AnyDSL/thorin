@@ -32,7 +32,7 @@ FnType Lambda::arg_fn_type() const {
 }
 
 const Param* Lambda::append_param(Type param_type, const std::string& name) {
-    size_t size = type()->size();
+    size_t size = type()->num_args();
     Array<Type> elems(size + 1);
     *std::copy(type()->elems().begin(), type()->elems().end(), elems.begin()) = param_type;
     clear_type();

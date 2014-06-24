@@ -596,7 +596,7 @@ llvm::Value* CodeGen::emit(Def def) {
                 if (auto agg_tuple = agg_type.isa<TupleType>()) {
                     // check for a memory-mapped extract
                     // TODO: integrate memory-mappings in a nicer way :)
-                    if (agg_tuple->size() == 2 &&
+                    if (agg_tuple->num_args() == 2 &&
                         agg_tuple->elem(0).isa<MemType>() &&
                         agg_tuple->elem(1).isa<PtrType>())
                         return lookup(extract->agg());
@@ -812,9 +812,9 @@ llvm::Type* CodeGen::convert(Type type) {
                     assert(!ret && "only one 'return' supported");
                     if (fn->empty())
                         ret = llvm::Type::getVoidTy(context_);
-                    else if (fn->size() == 1)
+                    else if (fn->num_args() == 1)
                         ret = fn->elem(0).isa<MemType>() ? llvm::Type::getVoidTy(context_) : convert(fn->elem(0));
-                    else if (fn->size() == 2) {
+                    else if (fn->num_args() == 2) {
                         if (fn->elem(0).isa<MemType>())
                             ret = convert(fn->elem(1));
                         else if (fn->elem(1).isa<MemType>())
@@ -841,7 +841,7 @@ multiple:
         case Node_TupleType: {
             // TODO watch out for cycles!
             auto tuple = type.as<TupleType>();
-            Array<llvm::Type*> elems(tuple->size());
+            Array<llvm::Type*> elems(tuple->num_args());
             size_t num = 0;
             for (auto elem : tuple->elems())
                 elems[num++] = convert(elem);

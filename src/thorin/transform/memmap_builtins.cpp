@@ -13,8 +13,8 @@ static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
     bool is_map   = lambda->intrinsic().is(Lambda::Mmap);
     bool is_unmap = lambda->intrinsic().is(Lambda::Munmap);
     assert(is_map ^ is_unmap  && "invalid map function");
-    assert((is_unmap || lambda->params().size() == 7) && "invalid signature");
-    assert((is_map   || lambda->params().size() == 5) && "invalid signature");
+    assert((is_unmap || lambda->num_params() == 7) && "invalid signature");
+    assert((is_map   || lambda->num_params() == 5) && "invalid signature");
     assert(lambda->param(1)->type().isa<PtrType>() && "invalid pointer type");
 
     auto uses = lambda->uses();
@@ -68,8 +68,8 @@ static void adapt_addr_space(World &world, ToDo& uses) {
         auto index = use.index() - 1;
         // -> specialize for new ptr type
         if (to->param(index)->type() != entry.first) {
-            Array<Type> fn(to->type()->size());
-            for (size_t i = 0, e = to->type()->size(); i != e; ++i) {
+            Array<Type> fn(to->type()->num_args());
+            for (size_t i = 0, e = to->type()->num_args(); i != e; ++i) {
                 if (i==index) fn[i] = entry.first;
                 else fn[i] = to->type()->elem(i);
             }

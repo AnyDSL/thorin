@@ -161,7 +161,7 @@ std::ostream& CCodeGen::emit_aggop_decl(Type type) {
     // recurse into (multi-dimensional) tuple
     if (auto tuple = type.isa<TupleType>()) {
         // hack for map() -> (mem, [type]*[dev][mem])
-        if (tuple->size()==2 && tuple->elem(0).isa<MemType>()) {
+        if (tuple->num_args() == 2 && tuple->elem(0).isa<MemType>()) {
             insert(type->gid(), "");
             return stream();
         }
@@ -574,7 +574,7 @@ std::ostream& CCodeGen::emit(Def def) {
             if (aggop->isa<Extract>()) {
                 emit_type(aggop->type()) << " " << aggop->unique_name() << " = ";
                 // hack for map() -> (mem, [type]*[dev][mem])
-                if (tuple->size()==2 && tuple->elem(0).isa<MemType>()) {
+                if (tuple->num_args() == 2 && tuple->elem(0).isa<MemType>()) {
                     emit(aggop->agg()) << ";";
                 } else {
                     emit(aggop->agg()) << ".e";

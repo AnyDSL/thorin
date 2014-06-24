@@ -106,8 +106,10 @@ protected:
         , elems_(elems.size())
         , gid_(-1)
     {
-        for (size_t i = 0, e = size(); i != e; ++i)
-            set(i, elems[i]);
+        for (size_t i = 0, e = size(); i != e; ++i) {
+            if (auto elem = elems[i])
+                set(i, elem);
+        }
     }
 
     void set(size_t i, Type type) { elems_[i] = type; }

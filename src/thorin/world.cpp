@@ -78,8 +78,7 @@ std::vector<Lambda*> World::externals() const {
  */
 
 StructType World::struct_type(size_t size, const std::string& name) {
-    assert(false && "TODO");
-    return StructType();
+    return *join(new StructTypeNode(*this, size, name));
 }
 
 /*

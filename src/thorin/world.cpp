@@ -202,6 +202,7 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
                     }
             }
         } catch (BottomException) {
+            std::cout << "warning: bottom" << std::endl;
             return bottom(type);
         }
     }

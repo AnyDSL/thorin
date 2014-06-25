@@ -19,26 +19,26 @@ SET ( THORIN_OUTPUT_LIBS thorin.lib thorin.so thorin.dll libthorin libthorin.so 
 
 FIND_PATH ( THORIN_INCLUDE_DIR NAMES thorin/world.h PATHS ${THORIN_ROOT_DIR}/src ${THORIN_ROOT_DIR}/include ${THORIN_ROOT_DIR}/build/include )
 FIND_PATH ( THORIN_LIBS_DIR
-	NAMES
-		${THORIN_OUTPUT_LIBS}
-	PATHS
-		${THORIN_ROOT_DIR}/build_debug/lib
-		${THORIN_ROOT_DIR}/build_release/lib
-		${THORIN_ROOT_DIR}/build/lib
-	PATH_SUFFIXES
-		${CMAKE_CONFIGURATION_TYPES}
+    NAMES
+        ${THORIN_OUTPUT_LIBS}
+    PATHS
+        ${THORIN_ROOT_DIR}/build_debug/lib
+        ${THORIN_ROOT_DIR}/build_release/lib
+        ${THORIN_ROOT_DIR}/build/lib
+    PATH_SUFFIXES
+        ${CMAKE_CONFIGURATION_TYPES}
 )
 FIND_PATH ( THORIN_RUNTIME_DIR
-	NAMES
-		cmake/ThorinRuntime.cmake cuda/cu_runtime.cpp platforms/intrinsics_thor.impala
-	PATHS
-		${THORIN_ROOT_DIR}/runtime
+    NAMES
+        cmake/ThorinRuntime.cmake cuda/cu_runtime.cpp platforms/intrinsics_thor.impala
+    PATHS
+        ${THORIN_ROOT_DIR}/runtime
 )
 FIND_PATH ( THORIN_RUNTIME_INCLUDE_DIR
-	NAMES
-		thorin_ext_runtime.h
-	PATHS
-		${THORIN_ROOT_DIR}/runtime/common
+    NAMES
+        thorin_ext_runtime.h
+    PATHS
+        ${THORIN_ROOT_DIR}/runtime/common
 )
 
 # include anydsl specific stuff
@@ -50,15 +50,15 @@ IF ( THORIN_LIBS_DIR )
     SET ( THORIN_LIBS
         optimized ${THORIN_LIBS_RELEASE}
         debug ${THORIN_LIBS_DEBUG}
-	)
+    )
     get_thorin_dependency_libs ( THORIN_TEMP_LIBS )
     SET ( THORIN_LIBS ${THORIN_TEMP_LIBS} ${THORIN_LIBS} )
 ENDIF()
 
 IF ( THORIN_INCLUDE_DIR AND THORIN_LIBS )
-	SET ( THORIN_FOUND TRUE CACHE BOOL "" FORCE )
+    SET ( THORIN_FOUND TRUE CACHE BOOL "" FORCE )
 ELSE()
-	SET ( THORIN_FOUND FALSE CACHE BOOL "" FORCE )
+    SET ( THORIN_FOUND FALSE CACHE BOOL "" FORCE )
 ENDIF()
 
 MARK_AS_ADVANCED ( THORIN_FOUND )

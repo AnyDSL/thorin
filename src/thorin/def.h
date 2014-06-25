@@ -82,16 +82,6 @@ struct UseLT {
 
 //------------------------------------------------------------------------------
 
-template<class T>
-struct GIDHash { 
-    size_t operator () (T n) const { return n->gid(); }
-};
-
-template<class T>
-struct GIDEq { 
-    size_t operator () (T n1, T n2) const { return n1->gid() == n2->gid(); }
-};
-
 template<class To> 
 using DefMap  = HashMap<const DefNode*, To, GIDHash<const DefNode*>, GIDEq<const DefNode*>>;
 using DefSet  = HashSet<const DefNode*, GIDHash<const DefNode*>, GIDEq<const DefNode*>>;

@@ -21,7 +21,7 @@ void TypeNode::bind(TypeVar type_var) const {
 
 void TypeNode::dump() const { emit_type(Type(this)); std::cout << std::endl; }
 size_t TypeNode::length() const { return as<VectorTypeNode>()->length(); }
-Type TypeNode::arg_via_lit(const Def& def) const { return arg(def->primlit_value<size_t>()); }
+Type TypeNode::elem(const Def& def) const { return elem(def->primlit_value<size_t>()); }
 const TypeNode* TypeNode::unify() const { return world().unify_base(this); }
 
 VectorType VectorTypeNode::scalarize() const {
@@ -45,6 +45,18 @@ bool FnTypeNode::is_returning() const {
         }
     }
     return true;
+}
+
+Type StructAppTypeNode::elem(size_t i) const {
+    if (auto type = elem_cache_[i])
+        return type;
+
+    if (i < struct_abs_type()->num_args()) {
+        auto type = struct_abs_type()->arg(i);
+        auto map = type2type(struct_abs_type(), args());
+        return elem_cache_[i] = type->specialize(map).unify();
+    }
+    return Type();
 }
 
 //------------------------------------------------------------------------------
@@ -115,6 +127,14 @@ size_t PtrTypeNode::hash() const {
     return hash_combine(hash_combine(VectorTypeNode::hash(), (size_t)device()), (size_t)addr_space());
 }
 
+size_t StructAppTypeNode::hash() const {
+    return hash_combine(TypeNode::hash(), struct_abs_type()->hash());
+}
+
+bool StructAppTypeNode::equal(const TypeNode* other) const {
+    return TypeNode::equal(other) && struct_abs_type()->equal(*other->as<StructAppTypeNode>()->struct_abs_type());
+}
+
 //------------------------------------------------------------------------------
 
 /*
@@ -159,6 +179,16 @@ bool TypeVarNode::equal(const TypeNode* other) const {
 /*
  * specialize and instantiate
  */
+
+Type2Type type2type(const TypeNode* type, ArrayRef<Type> args) {
+    assert(type->num_type_vars() == args.size());
+    Type2Type map;
+    size_t i = 0;
+    for (TypeVar v : type->type_vars())
+        map[*v] = *args[i++];
+    assert(map.size() == args.size());
+    return map;
+}
 
 Type TypeNode::instantiate(ArrayRef<Type> types) const {
     assert(types.size() == num_type_vars());
@@ -220,8 +250,8 @@ Type PtrTypeNode::vinstantiate(Type2Type& map) const {
     return map[this] = *world().ptr_type(referenced_type()->specialize(map), length(), device(), addr_space()); 
 }
 
-Type StructAbsTypeNode::vinstantiate(Type2Type& map) const {
-    return map[this] = *world().struct_abs_type(num_args()); // TODO
+Type StructAppTypeNode::vinstantiate(Type2Type& map) const { 
+    return map[this] = *world().struct_app_type(struct_abs_type(), specialize_args(map));
 }
 
 Type TupleTypeNode::vinstantiate(Type2Type& map) const {

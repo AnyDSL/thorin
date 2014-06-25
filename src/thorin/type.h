@@ -11,6 +11,44 @@ namespace thorin {
 class Def;
 class World;
 
+template<class T> class Proxy;
+class TypeNode;                 typedef Proxy<TypeNode>                 Type;
+class MemTypeNode;              typedef Proxy<MemTypeNode>              MemType;
+class FrameTypeNode;            typedef Proxy<FrameTypeNode>            FrameType;
+class VectorTypeNode;           typedef Proxy<VectorTypeNode>           VectorType;
+class PrimTypeNode;             typedef Proxy<PrimTypeNode>             PrimType;
+class PtrTypeNode;              typedef Proxy<PtrTypeNode>              PtrType;
+class TupleTypeNode;            typedef Proxy<TupleTypeNode>            TupleType;
+class StructAbsTypeNode;        typedef Proxy<StructAbsTypeNode>        StructAbsType;
+class StructAppTypeNode;        typedef Proxy<StructAppTypeNode>        StructAppType;
+class FnTypeNode;               typedef Proxy<FnTypeNode>               FnType;
+class ArrayTypeNode;            typedef Proxy<ArrayTypeNode>            ArrayType;
+class DefiniteArrayTypeNode;    typedef Proxy<DefiniteArrayTypeNode>    DefiniteArrayType;
+class IndefiniteArrayTypeNode;  typedef Proxy<IndefiniteArrayTypeNode>  IndefiniteArrayType;
+class TypeVarNode;              typedef Proxy<TypeVarNode>              TypeVar;
+
+//------------------------------------------------------------------------------
+
+template<class T>
+struct GIDHash { 
+    size_t operator () (T n) const { return n->gid(); }
+};
+
+template<class T>
+struct GIDEq { 
+    size_t operator () (T n1, T n2) const { return n1->gid() == n2->gid(); }
+};
+
+template<class To>
+using TypeMap    = HashMap<const TypeNode*, To, GIDHash<const TypeNode*>, GIDEq<const TypeNode*>>;
+using TypeSet    = HashSet<const TypeNode*, GIDHash<const TypeNode*>, GIDEq<const TypeNode*>>;
+using Type2Type  = TypeMap<const TypeNode*>;
+using TypeVarSet = HashSet<const TypeVarNode*, GIDHash<const TypeVarNode*>, GIDEq<const TypeVarNode*>>;
+
+Type2Type type2type(const TypeNode*, ArrayRef<Type>);
+template<class T> 
+Type2Type type2type(Proxy<T> type, ArrayRef<Type> args) { return type2type(*type, args); }
+
 //------------------------------------------------------------------------------
 
 template<class T>
@@ -69,29 +107,6 @@ private:
     const T* node_;
 };
 
-class TypeNode;                 typedef Proxy<TypeNode>                 Type;
-class MemTypeNode;              typedef Proxy<MemTypeNode>              MemType;
-class FrameTypeNode;            typedef Proxy<FrameTypeNode>            FrameType;
-class VectorTypeNode;           typedef Proxy<VectorTypeNode>           VectorType;
-class PrimTypeNode;             typedef Proxy<PrimTypeNode>             PrimType;
-class PtrTypeNode;              typedef Proxy<PtrTypeNode>              PtrType;
-class TupleTypeNode;            typedef Proxy<TupleTypeNode>            TupleType;
-class StructAbsTypeNode;        typedef Proxy<StructAbsTypeNode>        StructAbsType;
-class StructAppTypeNode;        typedef Proxy<StructAppTypeNode>        StructAppType;
-class FnTypeNode;               typedef Proxy<FnTypeNode>               FnType;
-class ArrayTypeNode;            typedef Proxy<ArrayTypeNode>            ArrayType;
-class DefiniteArrayTypeNode;    typedef Proxy<DefiniteArrayTypeNode>    DefiniteArrayType;
-class IndefiniteArrayTypeNode;  typedef Proxy<IndefiniteArrayTypeNode>  IndefiniteArrayType;
-class TypeVarNode;              typedef Proxy<TypeVarNode>              TypeVar;
-
-template<class T> struct GIDHash;
-template<class T> struct GIDEq;
-template<class To>
-using TypeMap    = HashMap<const TypeNode*, To, GIDHash<const TypeNode*>, GIDEq<const TypeNode*>>;
-using TypeSet    = HashSet<const TypeNode*, GIDHash<const TypeNode*>, GIDEq<const TypeNode*>>;
-using Type2Type  = TypeMap<const TypeNode*>;
-using TypeVarSet = HashSet<const TypeVarNode*, GIDHash<const TypeVarNode*>, GIDEq<const TypeVarNode*>>;
-
 //------------------------------------------------------------------------------
 
 class TypeNode : public MagicCast<TypeNode> {
@@ -126,7 +141,6 @@ public:
     void bind(TypeVar v) const;
     size_t num_args() const { return args_.size(); }
     bool is_polymorphic() const { return num_type_vars() > 0; }
-    Type arg_via_lit(const Def& def) const;
     bool empty() const { return args_.empty(); }
     void dump() const;
     World& world() const { return world_; }
@@ -144,6 +158,8 @@ public:
     Type instantiate(ArrayRef<Type>) const;
     Type instantiate(Type2Type&) const;
     Type specialize(Type2Type&) const;
+    Type elem(const Def& def) const;
+    virtual Type elem(size_t i) const { return arg(i); }
 
     bool is_primtype() const { return thorin::is_primtype(kind()); }
     bool is_type_ps() const { return thorin::is_type_ps(kind()); }
@@ -285,17 +301,40 @@ private:
         , name_(name)
     {}
 
-    virtual size_t hash() const override { return hash_value(this->gid()); }
-    virtual bool equal(const TypeNode* other) const override { return this == other; }
-
 public:
     const std::string& name() const { return name_; }
     void set(size_t i, Type type) const { const_cast<StructAbsTypeNode*>(this)->TypeNode::set(i, type); }
+    virtual size_t hash() const override { return hash_value(this->gid()); }
+    virtual bool equal(const TypeNode* other) const override { return this == other; }
+
+private:
+    virtual Type vinstantiate(Type2Type&) const override { THORIN_UNREACHABLE; }
+
+    std::string name_;
+
+    friend class World;
+};
+
+class StructAppTypeNode : public TypeNode {
+private:
+    StructAppTypeNode(StructAbsType struct_abs_type, ArrayRef<Type> args)
+        : TypeNode(struct_abs_type->world(), Node_StructAppType, args)
+        , struct_abs_type_(struct_abs_type)
+    {}
+
+    virtual size_t hash() const override;
+    virtual bool equal(const TypeNode* other) const override;
+
+public:
+    StructAbsType struct_abs_type() const { return struct_abs_type_; }
+    Type elem(const Def& def) const { return TypeNode::elem(def); }
+    virtual Type elem(size_t i) const;
 
 private:
     virtual Type vinstantiate(Type2Type&) const override;
 
-    std::string name_;
+    StructAbsType struct_abs_type_;
+    mutable Array<Type> elem_cache_;
 
     friend class World;
 };

@@ -89,7 +89,12 @@ public:
     }
     TupleType           tuple_type() { return tuple0_; } ///< Returns unit, i.e., an empty \p TupleType.
     TupleType           tuple_type(ArrayRef<Type> args) { return join(new TupleTypeNode(*this, args)); }
-    StructAbsType       struct_abs_type(size_t size, const std::string& name = "");
+    StructAbsType       struct_abs_type(size_t size, const std::string& name = "") {
+        return *join(new StructAbsTypeNode(*this, size, name));
+    }
+    StructAppType       struct_app_type(StructAbsType struct_abs_type, ArrayRef<Type> args) {
+        return *join(new StructAppTypeNode(struct_abs_type, args));
+    }
     FnType              fn_type() { return fn0_; }       ///< Returns an empty \p FnType.
     FnType              fn_type(ArrayRef<Type> args) { return join(new FnTypeNode(*this, args)); }
     TypeVar             type_var() { return join(new TypeVarNode(*this)); }

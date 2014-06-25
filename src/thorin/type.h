@@ -320,6 +320,7 @@ private:
     StructAppTypeNode(StructAbsType struct_abs_type, ArrayRef<Type> args)
         : TypeNode(struct_abs_type->world(), Node_StructAppType, args)
         , struct_abs_type_(struct_abs_type)
+        , elem_cache_(struct_abs_type->num_args())
     {}
 
     virtual size_t hash() const override;

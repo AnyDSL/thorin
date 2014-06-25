@@ -54,10 +54,14 @@ std::ostream& CodeGen::emit_type(Type type) {
     } else if (auto tuple = type.isa<TupleType>()) {
         emit_type_vars(tuple);
         return emit_type_args(tuple);
-    } else if (auto struct_abs_type = type.isa<StructAbsType>()) {
-        stream() << struct_abs_type->name();
-        emit_type_vars(struct_abs_type);
-        return emit_type_args(struct_abs_type);
+    } else if (auto struct_abs = type.isa<StructAbsType>()) {
+        stream() << struct_abs->name();
+        return emit_type_vars(struct_abs); 
+        // TODO emit args - but don't do this inline: structs may be recursive
+        //return emit_type_args(struct_abs);
+    } else if (auto struct_app = type.isa<StructAppType>()) {
+        stream() << struct_app->struct_abs_type()->name();
+        return emit_type_args(struct_app);
     } else if (auto type_var = type.isa<TypeVar>()) {
         return stream() << '<' << type_var->gid() << '>';
     } else if (auto array = type.isa<IndefiniteArrayType>()) {

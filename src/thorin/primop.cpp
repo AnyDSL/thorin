@@ -93,11 +93,14 @@ Extract::Extract(Def agg, Def index, const std::string& name)
 
 Type Extract::type(Def agg, Def index) {
     if (auto tuple = agg->type().isa<TupleType>())
-        return tuple->arg_via_lit(index);
+        return tuple->elem(index);
     else if (auto array = agg->type().isa<ArrayType>())
         return array->elem_type();
     else if (auto vector = agg->type().isa<VectorType>())
         return vector->scalarize();
+    else if (auto struct_app = agg->type().isa<StructAppType>())
+        return struct_app->elem(index);
+
     assert(false && "TODO");
 }
 
@@ -115,12 +118,16 @@ LEA::LEA(Def def, Def index, const std::string& name)
     set_op(0, def);
     set_op(1, index);
 
+    auto& world = index->world();
     auto type = ptr_type();
-    if (auto tuple = referenced_type().isa<TupleType>())
-        set_type(index->world().ptr_type(tuple->arg_via_lit(index), type->length(), type->device(), type->addr_space()));
-    else {
-        auto array = referenced_type().as<ArrayType>();
-        set_type(index->world().ptr_type(array->elem_type(), type->length(), type->device(), type->addr_space()));
+    if (auto tuple = referenced_type().isa<TupleType>()) {
+        set_type(world.ptr_type(tuple->elem(index), type->length(), type->device(), type->addr_space()));
+    } else if (auto array = referenced_type().as<ArrayType>()) {
+        set_type(world.ptr_type(array->elem_type(), type->length(), type->device(), type->addr_space()));
+    } else if (auto struct_app = referenced_type().isa<StructAppType>()) {
+        set_type(world.ptr_type(struct_app->elem(index)));
+    } else {
+        THORIN_UNREACHABLE;
     }
 }
 

@@ -41,6 +41,14 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, ft));
     f->setLinkage(llvm::Function::ExternalLinkage);
 
+    if (lambda->attribute().is(Lambda::KernelEntry)) {
+        f->setCallingConv(kernel_calling_convention_);
+    } else if (lambda->attribute().is(Lambda::Device)) {
+        f->setCallingConv(device_calling_convention_);
+    } else {
+        f->setCallingConv(function_calling_convention_);
+    }
+
     if (!lambda->attribute().is(Lambda::KernelEntry))
         return f;
 
@@ -100,7 +108,6 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     module_->getOrInsertNamedMetadata("opencl.used.optional.core.features");
     // opencl.compiler.options
     module_->getOrInsertNamedMetadata("opencl.compiler.options");
-    f->setCallingConv(llvm::CallingConv::SPIR_KERNEL);
     return f;
 }
 

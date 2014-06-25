@@ -47,6 +47,14 @@ llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     f->setLinkage(llvm::Function::ExternalLinkage);
     f->setAttributes(llvm::AttributeSet());
 
+    if (lambda->attribute().is(Lambda::KernelEntry)) {
+        f->setCallingConv(kernel_calling_convention_);
+    } else if (lambda->attribute().is(Lambda::Device)) {
+        f->setCallingConv(device_calling_convention_);
+    } else {
+        f->setCallingConv(function_calling_convention_);
+    }
+
     if (!lambda->attribute().is(Lambda::KernelEntry))
         return f;
 
@@ -67,7 +75,6 @@ llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     };
 
     append_metadata(f, "kernel");
-    f->setCallingConv(llvm::CallingConv::PTX_Kernel);
 
     // check signature for texturing memory
     for (auto param : lambda->params()) {

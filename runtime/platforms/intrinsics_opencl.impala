@@ -10,6 +10,7 @@ extern "device" {
     fn get_global_offset(u32) -> u64;
     fn barrier(u32) -> ();
     fn exp(float) -> float;
+    fn sqrt(float) -> float;
 }
 
 fn work_dim() -> int               { get_work_dim() as int }
@@ -36,4 +37,5 @@ fn acc_barrier() -> ()  { barrier(1u) }  // CLK_LOCAL_MEM_FENCE -> 1 // CLK_GLOB
 fn acc_tex() -> int     { 1 }
 
 fn expf(a: float) -> float { exp(a) }
+fn sqrtf(a: float) -> float { sqrt(a) }
 

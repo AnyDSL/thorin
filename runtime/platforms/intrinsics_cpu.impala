@@ -1,4 +1,5 @@
 extern "C" {
     fn wfv_get_tid() -> int;
     fn expf(float) -> float;
+    fn sqrtf(float) -> float;
 }

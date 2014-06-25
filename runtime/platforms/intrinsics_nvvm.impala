@@ -286,6 +286,7 @@ fn acc_tex() -> int     { 2 }
 
 extern "C" {
     fn __nv_expf(float) -> float;
+    fn __nv_sqrtf(float) -> float;
 }
 
 fn expf(a: float) -> float { __nv_expf(a) }

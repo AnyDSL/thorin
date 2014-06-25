@@ -9,6 +9,7 @@ extern "device" {
     fn _Z17get_global_offsetj(i32) -> i64;
     fn _Z7barrierj(i32) -> ();
     fn _Z3expf(float) -> float;
+    fn _Z3sqrtf(float) -> float;
 }
 
 fn work_dim() -> int               { _Z12get_work_dimv() }

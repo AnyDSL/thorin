@@ -829,9 +829,9 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, 
     }
 
     if (type==Global) {
-        assert(sx==info.width && "currently only the y-dimension can be split");
+        //assert(sx == info.width && "currently only the y-dimension can be split");
 
-        if (sy==info.height) {
+        if (sx * sy == info.width * info.height) {
             // mapping the whole memory
             mem = mem_manager.malloc(dev, from);
             mem_manager.write(dev, mem, from);
@@ -857,7 +857,6 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, 
             #endif
         } else {
             // mapping and slicing of a region
-            assert(sy < info.height && "slice larger then original memory");
             mem = mem_manager.malloc(dev, from, ox, oy, oz, sx, sy, sz);
             mem_manager.write(dev, mem, from);
             std::cerr << " * map memory(" << dev << "):    " << from << " (" << ox << "," << oy << "," << oz <<")x(" << sx << "," << sy << "," << sz << ") -> " << mem << std::endl;

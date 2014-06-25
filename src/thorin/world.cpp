@@ -77,8 +77,8 @@ std::vector<Lambda*> World::externals() const {
  * types
  */
 
-StructType World::struct_type(size_t size, const std::string& name) {
-    return *join(new StructTypeNode(*this, size, name));
+StructAbsType World::struct_abs_type(size_t size, const std::string& name) {
+    return *join(new StructAbsTypeNode(*this, size, name));
 }
 
 /*

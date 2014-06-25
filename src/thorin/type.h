@@ -76,7 +76,8 @@ class VectorTypeNode;           typedef Proxy<VectorTypeNode>           VectorTy
 class PrimTypeNode;             typedef Proxy<PrimTypeNode>             PrimType;
 class PtrTypeNode;              typedef Proxy<PtrTypeNode>              PtrType;
 class TupleTypeNode;            typedef Proxy<TupleTypeNode>            TupleType;
-class StructTypeNode;           typedef Proxy<StructTypeNode>           StructType;
+class StructAbsTypeNode;        typedef Proxy<StructAbsTypeNode>        StructAbsType;
+class StructAppTypeNode;        typedef Proxy<StructAppTypeNode>        StructAppType;
 class FnTypeNode;               typedef Proxy<FnTypeNode>               FnType;
 class ArrayTypeNode;            typedef Proxy<ArrayTypeNode>            ArrayType;
 class DefiniteArrayTypeNode;    typedef Proxy<DefiniteArrayTypeNode>    DefiniteArrayType;
@@ -277,10 +278,10 @@ private:
     friend class World;
 };
 
-class StructTypeNode : public TypeNode {
+class StructAbsTypeNode : public TypeNode {
 private:
-    StructTypeNode(World& world, size_t size, const std::string& name)
-        : TypeNode(world, Node_StructType, Array<Type>(size))
+    StructAbsTypeNode(World& world, size_t size, const std::string& name)
+        : TypeNode(world, Node_StructAbsType, Array<Type>(size))
         , name_(name)
     {}
 
@@ -289,7 +290,7 @@ private:
 
 public:
     const std::string& name() const { return name_; }
-    void set(size_t i, Type type) const { const_cast<StructTypeNode*>(this)->TypeNode::set(i, type); }
+    void set(size_t i, Type type) const { const_cast<StructAbsTypeNode*>(this)->TypeNode::set(i, type); }
 
 private:
     virtual Type vinstantiate(Type2Type&) const override;

@@ -220,8 +220,8 @@ Type PtrTypeNode::vinstantiate(Type2Type& map) const {
     return map[this] = *world().ptr_type(referenced_type()->specialize(map), length(), device(), addr_space()); 
 }
 
-Type StructTypeNode::vinstantiate(Type2Type& map) const {
-    return map[this] = *world().struct_type(num_args()); // TODO
+Type StructAbsTypeNode::vinstantiate(Type2Type& map) const {
+    return map[this] = *world().struct_abs_type(num_args()); // TODO
 }
 
 Type TupleTypeNode::vinstantiate(Type2Type& map) const {

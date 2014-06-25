@@ -54,10 +54,10 @@ std::ostream& CodeGen::emit_type(Type type) {
     } else if (auto tuple = type.isa<TupleType>()) {
         emit_type_vars(tuple);
         return emit_type_args(tuple);
-    } else if (auto struct_type = type.isa<StructType>()) {
-        stream() << struct_type->name();
-        emit_type_vars(struct_type);
-        return emit_type_args(struct_type);
+    } else if (auto struct_abs_type = type.isa<StructAbsType>()) {
+        stream() << struct_abs_type->name();
+        emit_type_vars(struct_abs_type);
+        return emit_type_args(struct_abs_type);
     } else if (auto type_var = type.isa<TypeVar>()) {
         return stream() << '<' << type_var->gid() << '>';
     } else if (auto array = type.isa<IndefiniteArrayType>()) {

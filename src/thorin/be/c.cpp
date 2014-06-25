@@ -144,8 +144,8 @@ std::ostream& CCodeGen::emit_aggop_defs(Def def) {
 
 
 std::ostream& CCodeGen::emit_aggop_decl(Type type) {
-    if (lookup(type->gid())) return stream();
     type.unify(); // make sure that we get the same id if types are equal
+    if (lookup(type->gid())) return stream();
 
     if (auto fn = type.isa<FnType>())
         for (auto type : fn->args()) emit_aggop_decl(type);

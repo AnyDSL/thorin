@@ -78,7 +78,7 @@ public:
     SInt operator << (SInt other) const {
         if (this->is_neg() || other.is_neg() 
                 || other.data_ >= std::numeric_limits<ST>::digits+1 
-                || this->data_ >= std::numeric_limits<ST>::max() >> other.data_) {
+                || this->data_ >  std::numeric_limits<ST>::max() >> other.data_) {
             throw BottomException();
         } 
 
@@ -149,7 +149,7 @@ public:
         return UInt(0);
         //if (this->is_neg() || other.is_neg() 
                 //|| other >= std::numeric_limits<UT>::digits+1 
-                //|| this->data_ >= std::numeric_limits<UT>::max() >> other.data_) {
+                //|| this->data_ > std::numeric_limits<UT>::max() >> other.data_) {
             //throw BottomException();
         //} 
 

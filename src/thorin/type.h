@@ -285,17 +285,38 @@ private:
         , name_(name)
     {}
 
-    virtual size_t hash() const override { return hash_value(this->gid()); }
-    virtual bool equal(const TypeNode* other) const override { return this == other; }
-
 public:
     const std::string& name() const { return name_; }
     void set(size_t i, Type type) const { const_cast<StructAbsTypeNode*>(this)->TypeNode::set(i, type); }
+    virtual size_t hash() const override { return hash_value(this->gid()); }
+    virtual bool equal(const TypeNode* other) const override { return this == other; }
 
 private:
     virtual Type vinstantiate(Type2Type&) const override;
 
     std::string name_;
+
+    friend class World;
+};
+
+class StructAppTypeNode : public TypeNode {
+private:
+    StructAppTypeNode(StructAbsType struct_abs_type, ArrayRef<Type> args)
+        : TypeNode(struct_abs_type->world(), Node_StructAppType, args)
+        , struct_abs_type_(struct_abs_type)
+    {}
+
+    virtual size_t hash() const override;
+    virtual bool equal(const TypeNode* other) const override;
+
+public:
+    StructAbsType struct_abs_type() const { return struct_abs_type_; }
+
+private:
+    virtual Type vinstantiate(Type2Type&) const override;
+
+    StructAbsType struct_abs_type_;
+    mutable Array<Type> elem_cache_;
 
     friend class World;
 };

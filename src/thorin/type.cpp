@@ -47,6 +47,21 @@ bool FnTypeNode::is_returning() const {
     return true;
 }
 
+#if 0
+
+Type StructAppTypeNode::elem(size_t i) const {
+    if (auto type = elem_cache_[i])
+        return type;
+
+    if (i < struct_abs_type()->num_args()) {
+        auto type = struct_abs_type()->arg(i);
+        auto map = specialize_map(struct_abs_type(), args());
+        return elem_cache_[i] = type->specialize(map).unify();
+    }
+    return Type();
+}
+#endif
+
 //------------------------------------------------------------------------------
 
 /*
@@ -113,6 +128,14 @@ size_t TypeNode::hash() const {
 
 size_t PtrTypeNode::hash() const {
     return hash_combine(hash_combine(VectorTypeNode::hash(), (size_t)device()), (size_t)addr_space());
+}
+
+size_t StructAppTypeNode::hash() const {
+    return hash_combine(TypeNode::hash(), struct_abs_type()->hash());
+}
+
+bool StructAppTypeNode::equal(const TypeNode* other) const {
+    return TypeNode::equal(other) && struct_abs_type()->equal(*other->as<StructAppTypeNode>()->struct_abs_type());
 }
 
 //------------------------------------------------------------------------------

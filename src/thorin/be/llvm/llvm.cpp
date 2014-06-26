@@ -724,8 +724,16 @@ llvm::Value* CodeGen::emit_lea(Def def) {
 llvm::Value* CodeGen::emit_mmap(Def def) {
     auto mmap = def->as<Map>();
     // emit proper runtime call
+    auto layout = llvm::DataLayout(module_->getDataLayout());
+    auto ref_ty = mmap->ptr_type()->referenced_type();
+    Type type;
+    if (auto array = ref_ty->is_indefinite())
+        type = array->elem_type();
+    else
+        type = mmap->ptr_type()->referenced_type();
+    auto size = builder_.getInt32(layout.getTypeAllocSize(convert(type)));
     return runtime_->mmap(mmap->device(), (uint32_t)mmap->addr_space(), lookup(mmap->ptr()),
-                         lookup(mmap->top_left()), lookup(mmap->region_size()));
+                         lookup(mmap->top_left()), lookup(mmap->region_size()), size);
 }
 
 llvm::Value* CodeGen::emit_munmap(Def def) {

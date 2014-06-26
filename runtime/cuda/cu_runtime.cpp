@@ -572,7 +572,7 @@ void set_kernel_arg(size_t dev, void *param) {
 
 void set_kernel_arg_map(size_t dev, mem_id mem) {
     CUdeviceptr &dev_mem = mem_manager.get_dev_mem(dev, mem);
-    std::cerr << " * set arg mapped(" << dev << "): " << mem << std::endl;
+    std::cerr << " * set arg map(" << dev << "): " << mem << std::endl;
     set_kernel_arg(dev, &dev_mem);
 }
 
@@ -653,7 +653,7 @@ void nvvm_load_cuda_kernel(size_t dev, const char *file_name, const char *kernel
 void nvvm_set_kernel_arg(size_t dev, void *param) { set_kernel_arg(dev, param); }
 void nvvm_set_kernel_arg_map(size_t dev, mem_id mem) { set_kernel_arg_map(dev, mem); }
 void nvvm_set_kernel_arg_tex(size_t dev, mem_id mem, const char *name, CUarray_format format) {
-    std::cerr << "set arg tex: " << mem << std::endl;
+    std::cerr << " * set arg tex(" << dev << "): " << mem << std::endl;
     get_tex_ref(dev, name);
     bind_tex(dev, mem, format);
 }

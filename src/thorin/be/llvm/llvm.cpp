@@ -744,7 +744,7 @@ llvm::Value* CodeGen::emit_munmap(Def def) {
 
 // TODO factor emit_shared_map/emit_shared_unmap with the help of its base class MapOp
 
-llvm::Value* CodeGen::emit_shared_mmap(Def def) {
+llvm::Value* CodeGen::emit_shared_mmap(Def def, std::string prefix) {
     auto mmap = def->as<Map>();
     assert(mmap->addr_space() == AddressSpace::Shared &&
             "Only shared memory can be mapped inside NVVM code");
@@ -755,7 +755,7 @@ llvm::Value* CodeGen::emit_shared_mmap(Def def) {
     // construct array type
     auto elem_type = mmap->ptr_type()->referenced_type().as<ArrayType>()->elem_type();
     auto type = this->convert(mmap->world().definite_array_type(elem_type, total_region_size));
-    auto global = emit_global_memory(type, mmap->unique_name(), 3);
+    auto global = emit_global_memory(type, prefix + mmap->unique_name(), 3);
     return global;
 }
 

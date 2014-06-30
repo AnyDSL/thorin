@@ -138,10 +138,23 @@ std::ostream& CodeGen::emit_primop(const PrimOp* primop) {
         stream() << "<proxy>";
     else if (auto primlit = primop->isa<PrimLit>()) {
         emit_type(primop->type()) << ' ';
-        switch (primlit->primtype_kind()) {
+        auto kind = primlit->primtype_kind();
+
+        // print i8 as ints
+        if (kind == PrimType_qs8)
+            stream() << (int) primlit->qs8_value();
+        else if (kind == PrimType_ps8)
+            stream() << (int) primlit->ps8_value();
+        else if (kind == PrimType_qu8)
+            stream() << (unsigned) primlit->qu8_value();
+        else if (kind == PrimType_pu8)
+            stream() << (unsigned) primlit->pu8_value();
+        else {
+            switch (kind) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: stream() << primlit->T##_value(); break;
 #include "thorin/tables/primtypetable.h"
-            default: THORIN_UNREACHABLE; break;
+                default: THORIN_UNREACHABLE; break;
+            }
         }
     } else if (primop->is_const()) {
         if (primop->empty()) {

@@ -558,17 +558,13 @@ llvm::Value* CodeGen::emit(Def def) {
         }
         std::cout << "warning: slow" << std::endl;
         auto alloca = emit_alloca(type, array->name);
-        llvm::Instruction* cur = alloca;
 
         u64 i = 0;
         llvm::Value* args[2] = { builder_.getInt64(0), nullptr };
         for (auto op : array->ops()) {
             args[1] = builder_.getInt64(i++);
-            auto gep = llvm::GetElementPtrInst::CreateInBounds(alloca, args, op->name);
-            gep->insertAfter(cur);
-            auto store = new llvm::StoreInst(lookup(op), gep);
-            store->insertAfter(gep);
-            cur = store;
+            auto gep = builder_.CreateInBoundsGEP(alloca, args, op->name);
+            builder_.CreateStore(lookup(op), gep);
         }
 
         return builder_.CreateLoad(alloca);

@@ -710,7 +710,7 @@ llvm::Value* CodeGen::emit_store(Def def) {
 llvm::Value* CodeGen::emit_lea(Def def) {
     auto lea = def->as<LEA>();
     if (lea->referenced_type().isa<TupleType>())
-        return builder_.CreateConstInBoundsGEP2_32(lookup(lea->ptr()), 0u, lea->index()->primlit_value<u32>());
+        return builder_.CreateStructGEP(lookup(lea->ptr()), lea->index()->primlit_value<u32>());
 
     assert(lea->referenced_type().isa<ArrayType>());
     llvm::Value* args[2] = { builder_.getInt64(0), lookup(lea->index()) };

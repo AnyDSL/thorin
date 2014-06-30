@@ -1,5 +1,9 @@
 extern "C" {
-    fn wfv_get_tid() -> int;
     fn expf(float) -> float;
     fn sqrtf(float) -> float;
+}
+
+fn get_vector_length() -> int { 1 }
+fn inner_loop(a : int, b : int, yield : fn(int, fn())) -> () {
+    $iterate(a, b, yield)
 }

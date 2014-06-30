@@ -246,7 +246,11 @@ public:
 
 class EvalOp : public PrimOp {
 protected:
-    EvalOp(NodeKind kind, Def def, const std::string& name);
+    EvalOp(NodeKind kind, Def def, const std::string& name)
+        : PrimOp(1, kind, def->type(), name)
+    {
+        set_op(0, def);
+    }
 
 public:
     Def def() const { return op(0); }
@@ -270,18 +274,40 @@ private:
     friend class World;
 };
 
-class TaggedHlt : public PrimOp {
-private:
-    TaggedHlt(Def def, Def run, const std::string& name)
-        : PrimOp(2, Node_TaggedHlt, def->type(), name)
+class EndEvalOp : public PrimOp {
+protected:
+    EndEvalOp(NodeKind kind, Def def, Def eval, const std::string& name)
+        : PrimOp(2, kind, def->type(), name)
     {
         set_op(0, def);
-        set_op(1, run);
+        set_op(1, eval);
     }
 
 public:
     Def def() const { return op(0); }
+    Def eval() const { return op(1); }
+};
+
+class EndRun : public EndEvalOp {
+private:
+    EndRun(Def def, Def run, const std::string& name)
+        : EndEvalOp(Node_EndRun, def, run, name)
+    {}
+
+public:
     Def run() const { return op(1); }
+
+    friend class World;
+};
+
+class EndHlt : public EndEvalOp {
+private:
+    EndHlt(Def def, Def hlt, const std::string& name)
+        : EndEvalOp(Node_EndHlt, def, hlt, name)
+    {}
+
+public:
+    Def hlt() const { return op(1); }
 
     friend class World;
 };

@@ -67,9 +67,7 @@ public:
     World(std::string name = "");
     ~World();
 
-    /*
-     * types
-     */
+    // types
 
 #define THORIN_ALL_TYPE(T, M) PrimType type_##T(size_t length = 1) { \
     return length == 1 ? PrimType(T##_) : join(new PrimTypeNode(*this, PrimType_##T, length)); \
@@ -90,10 +88,10 @@ public:
     TupleType           tuple_type() { return tuple0_; } ///< Returns unit, i.e., an empty \p TupleType.
     TupleType           tuple_type(ArrayRef<Type> args) { return join(new TupleTypeNode(*this, args)); }
     StructAbsType       struct_abs_type(size_t size, const std::string& name = "") {
-        return *join(new StructAbsTypeNode(*this, size, name));
+        return join(new StructAbsTypeNode(*this, size, name));
     }
     StructAppType       struct_app_type(StructAbsType struct_abs_type, ArrayRef<Type> args) {
-        return *join(new StructAppTypeNode(struct_abs_type, args));
+        return join(new StructAppTypeNode(struct_abs_type, args));
     }
     FnType              fn_type() { return fn0_; }       ///< Returns an empty \p FnType.
     FnType              fn_type(ArrayRef<Type> args) { return join(new FnTypeNode(*this, args)); }
@@ -101,9 +99,7 @@ public:
     DefiniteArrayType   definite_array_type(Type elem, u64 dim) { return join(new DefiniteArrayTypeNode(*this, elem, dim)); }
     IndefiniteArrayType indefinite_array_type(Type elem) { return join(new IndefiniteArrayTypeNode(*this, elem)); }
 
-    /*
-     * literals
-     */
+    // literals
 
 #define THORIN_ALL_TYPE(T, M) \
     Def literal_##T(T val, size_t length = 1) { return literal(PrimType_##T, Box(val), length); }
@@ -128,9 +124,7 @@ public:
     Def false_mask(Def def) { return literal(false, def->length()); }
     Def false_mask(size_t length) { return literal(false, length); }
 
-    /*
-     * arithop, cmp, convop
-     */
+    // arithops
 
     /// Creates an \p ArithOp or a \p Cmp.
     Def binop(int kind, Def cond, Def lhs, Def rhs, const std::string& name = "");
@@ -156,6 +150,8 @@ public:
     Def arithop_minus(Def cond, Def def);
     Def arithop_minus(Def def) { return arithop_minus(true_mask(def), def); }
 
+    // compares
+
     Def cmp(CmpKind kind, Def cond, Def lhs, Def rhs, const std::string& name = "");
     Def cmp(CmpKind kind, Def lhs, Def rhs, const std::string& name = "") {
         return cmp(kind, true_mask(lhs), lhs, rhs, name);
@@ -169,14 +165,14 @@ public:
     }
 #include "thorin/tables/cmptable.h"
 
+    // casts
+
     Def cast(Def cond, Def from, Type to, const std::string& name = "");
     Def cast(Def from, Type to, const std::string& name = "") { return cast(true_mask(from), from, to, name); }
     Def bitcast(Def cond, Def from, Type to, const std::string& name = "");
     Def bitcast(Def from, Type to, const std::string& name = "") { return bitcast(true_mask(from), from, to, name); }
 
-    /*
-     * aggregate stuff
-     */
+    // aggregate operations
 
     Def definite_array(Type elem, ArrayRef<Def> args, const std::string& name = "") {
         return cse(new DefiniteArray(*this, elem, args, name));
@@ -201,33 +197,34 @@ public:
     Def insert(Def tuple, Def index, Def value, const std::string& name = "");
     Def insert(Def tuple, u32 index, Def value, const std::string& name = "");
 
-    /*
-     * memops
-     */
+    // memory stuff
 
-    Def alloc(Def mem, Type type, Def extra, const std::string& name = "");
-    Def alloc(Def mem, Type type, const std::string& name = "") { return alloc(mem, type, literal_qu64(0), name); }
-    Def load(Def mem, Def ptr, const std::string& name = "");
-    const Store* store(Def mem, Def ptr, Def val, const std::string& name = "");
     const Enter* enter(Def mem, const std::string& name = "");
     Def leave(Def mem, Def frame, const std::string& name = "");
     const Slot* slot(Type type, Def frame, size_t index, const std::string& name = "");
+    Def alloc(Def mem, Type type, Def extra, const std::string& name = "");
+    Def alloc(Def mem, Type type, const std::string& name = "") { return alloc(mem, type, literal_qu64(0), name); }
     const Global* global(Def init, bool is_mutable = true, const std::string& name = "");
     const Global* global_immutable_string(const std::string& str, const std::string& name = "");
+    Def load(Def mem, Def ptr, const std::string& name = "");
+    const Store* store(Def mem, Def ptr, Def val, const std::string& name = "");
     const LEA* lea(Def ptr, Def index, const std::string& name = "");
     const Map* map(Def mem, Def ptr, Def device, Def addr_space, Def tleft, Def size, const std::string& name = "");
     const Map* map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space, Def tleft, Def size, const std::string& name = "");
     const Unmap* unmap(Def mem, Def ptr, Def device, Def addr_space, const std::string& name = "");
     const Unmap* unmap(Def mem, Def ptr, uint32_t device, AddressSpace addr_space, const std::string& name = "");
 
-    /*
-     * other stuff
-     */
+    // guided partial evaluation
 
-    Def select(Def cond, Def a, Def b, const std::string& name = "");
     Def run(Def def, const std::string& name = "");
     Def hlt(Def def, const std::string& name = "");
-    Def tagged_hlt(Def def, Def run, const std::string& name = "");
+    Def end_run(Def def, Def run, const std::string& name = "");
+    Def end_hlt(Def def, Def hlt, const std::string& name = "");
+
+    /// Select is higher-order. You can build branches with a \p Select primop.
+    Def select(Def cond, Def a, Def b, const std::string& name = "");
+
+    // lambdas
 
     Lambda* lambda(FnType fn, Lambda::Attribute attribute = Lambda::Attribute(0), Lambda::Attribute intrinsic = Lambda::Attribute(0), const std::string& name = "");
     Lambda* lambda(FnType fn, const std::string& name) { return lambda(fn, Lambda::Attribute(0), Lambda::Attribute(0), name); }
@@ -250,9 +247,7 @@ public:
     void cleanup();
     void opt();
 
-    /*
-     * getters
-     */
+    // getters
 
     const std::string& name() const { return name_; }
     const PrimOps& primops() const { return primops_; }
@@ -262,9 +257,7 @@ public:
     const Types& types() const { return types_; }
     size_t gid() const { return gid_; }
 
-    /*
-     * other
-     */
+    // other stuff
 
     void destroy(Lambda* lambda);
 #ifndef NDEBUG

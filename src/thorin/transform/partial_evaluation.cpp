@@ -103,9 +103,22 @@ void PartialEvaluator::eval(const Run* cur_run, Lambda* cur) {
         if (cur->empty() || cur->to()->isa<Hlt>())
             return;
 
-        auto run = cur->to()->isa<Run>();
-        auto dst = (run ? run->def() : cur->to())->isa_lambda();
-        if (dst == nullptr) {                           // skip to immediate post-dominator
+        Lambda* dst = nullptr;
+        if (auto hlt = cur->to()->isa<Hlt>()) {
+            cur = nullptr;
+            for (auto use : hlt->uses()) {
+                if (auto end = use->isa<EndHlt>()) {
+                    dst = end->def()->isa_lambda();
+                    break;      // TODO assert that there is only one EndHlt user
+                }
+            }
+        } else if (auto run = cur->to()->isa<Run>()) {
+            dst = run->def()->isa_lambda();
+        } else {
+            dst = cur->to()->isa_lambda();
+        }
+
+        if (dst == nullptr) {   // skip to immediate post-dominator
             cur = old2new_[postdomtree_.idom(new2old_[cur])];
         } else if (dst->empty()) {
             if (!cur->args().empty()) {
@@ -128,9 +141,13 @@ void PartialEvaluator::eval(const Run* cur_run, Lambda* cur) {
                 call.arg(i) = nullptr;
                 if (cur->arg(i)->isa<Hlt>()) {
                     continue;
-                } else if (auto hlt = cur->arg(i)->isa<TaggedHlt>()) {
-                    if (hlt->run() == cur_run)
+                } else if (auto end = cur->arg(i)->isa<EndRun>()) {
+                    if (end->run() == cur_run)
                         continue;
+                    else {
+                        call.arg(i) = end->def();
+                        continue;
+                    }
                 }
                 call.arg(i) = cur->arg(i);
             }
@@ -188,8 +205,8 @@ void partial_evaluation(World& world) {
     for (auto primop : world.primops()) {
         if (auto evalop = primop->isa<EvalOp>())
             evalop->replace(evalop->def());
-        else if (auto hlt = primop->isa<TaggedHlt>())
-            hlt->replace(hlt->def());
+        else if (auto end = primop->isa<EndEvalOp>())
+            end->replace(end->def());
 
     }
 }

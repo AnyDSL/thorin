@@ -752,9 +752,8 @@ Def World::hlt(Def def, const std::string& name) {
     return cse(new Hlt(def, name));
 }
 
-Def World::tagged_hlt(Def def, Def run, const std::string& name) {
-    return cse(new TaggedHlt(def, run, name));
-}
+Def World::end_run(Def def, Def run, const std::string& name) { return cse(new EndRun(def, run, name)); }
+Def World::end_hlt(Def def, Def hlt, const std::string& name) { return cse(new EndHlt(def, hlt, name)); }
 
 Lambda* World::lambda(FnType fn, Lambda::Attribute attribute, Lambda::Attribute intrinsic, const std::string& name) {
     THORIN_CHECK_BREAK(gid_)
@@ -801,28 +800,29 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type) {
     }
 
     switch (kind) {
-        case Node_Alloc:     assert(ops.size() == 2); return to.alloc(    ops[0], type.as<PtrType>()->referenced_type(), ops[1], name);
-        case Node_Any:       assert(ops.size() == 0); return to.any(type);
-        case Node_Bottom:    assert(ops.size() == 0); return to.bottom(type);
-        case Node_Cast:      assert(ops.size() == 2); return to.cast(     ops[0], ops[1], type);
-        case Node_Enter:     assert(ops.size() == 1); return to.enter(    ops[0], name);
-        case Node_Extract:   assert(ops.size() == 2); return to.extract(  ops[0], ops[1], name);
-        case Node_Global:    assert(ops.size() == 1); return to.global(   ops[0], in->as<Global>()->is_mutable(), name);
-        case Node_Hlt:       assert(ops.size() == 1); return to.hlt(      ops[0], name);
-        case Node_TaggedHlt: assert(ops.size() == 2); return to.tagged_hlt(ops[0],ops[1], name);
-        case Node_Insert:    assert(ops.size() == 3); return to.insert(   ops[0], ops[1], ops[2], name);
-        case Node_LEA:       assert(ops.size() == 2); return to.lea(      ops[0], ops[1], name);
-        case Node_Leave:     assert(ops.size() == 2); return to.leave(    ops[0], ops[1], name);
-        case Node_Load:      assert(ops.size() == 2); return to.load(     ops[0], ops[1], name);
-        case Node_Map:       assert(ops.size() == 4); return to.map(      ops[0], ops[1], 
-                                     in->as<Map>()->device(), in->as<Map>()->addr_space(), ops[2], ops[3], name);
-        case Node_Unmap:     assert(ops.size() == 2); return to.unmap(    ops[0], ops[1], 
-                                     in->as<Map>()->device(), in->as<Map>()->addr_space(),  name);
-        case Node_Run:       assert(ops.size() == 1); return to.run(      ops[0], name);
-        case Node_Select:    assert(ops.size() == 3); return to.select(   ops[0], ops[1], ops[2], name);
-        case Node_Store:     assert(ops.size() == 3); return to.store(    ops[0], ops[1], ops[2], name);
-        case Node_Tuple:                              return to.tuple(ops, name);
-        case Node_Vector:                             return to.vector(ops, name);
+        case Node_Alloc:    assert(ops.size() == 2); return to.alloc(   ops[0], type.as<PtrType>()->referenced_type(), ops[1], name);
+        case Node_Any:      assert(ops.size() == 0); return to.any(type);
+        case Node_Bottom:   assert(ops.size() == 0); return to.bottom(type);
+        case Node_Cast:     assert(ops.size() == 2); return to.cast(    ops[0], ops[1], type);
+        case Node_Enter:    assert(ops.size() == 1); return to.enter(   ops[0], name);
+        case Node_Extract:  assert(ops.size() == 2); return to.extract( ops[0], ops[1], name);
+        case Node_Global:   assert(ops.size() == 1); return to.global(  ops[0], in->as<Global>()->is_mutable(), name);
+        case Node_Hlt:      assert(ops.size() == 1); return to.hlt(     ops[0], name);
+        case Node_EndHlt:   assert(ops.size() == 2); return to.end_hlt( ops[0],ops[1], name);
+        case Node_EndRun:   assert(ops.size() == 2); return to.end_run( ops[0],ops[1], name);
+        case Node_Insert:   assert(ops.size() == 3); return to.insert(  ops[0], ops[1], ops[2], name);
+        case Node_LEA:      assert(ops.size() == 2); return to.lea(     ops[0], ops[1], name);
+        case Node_Leave:    assert(ops.size() == 2); return to.leave(   ops[0], ops[1], name);
+        case Node_Load:     assert(ops.size() == 2); return to.load(    ops[0], ops[1], name);
+        case Node_Map:      assert(ops.size() == 4); return to.map(     ops[0], ops[1], 
+                                    in->as<Map>()->device(), in->as<Map>()->addr_space(), ops[2], ops[3], name);
+        case Node_Unmap:    assert(ops.size() == 2); return to.unmap(   ops[0], ops[1], 
+                                    in->as<Map>()->device(), in->as<Map>()->addr_space(),  name);
+        case Node_Run:      assert(ops.size() == 1); return to.run(     ops[0], name);
+        case Node_Select:   assert(ops.size() == 3); return to.select(  ops[0], ops[1], ops[2], name);
+        case Node_Store:    assert(ops.size() == 3); return to.store(   ops[0], ops[1], ops[2], name);
+        case Node_Tuple:                             return to.tuple(ops, name);
+        case Node_Vector:                            return to.vector(ops, name);
         case Node_DefiniteArray:
             return to.definite_array(type.as<DefiniteArrayType>()->elem_type(), ops, name);
         case Node_IndefiniteArray: assert(ops.size() == 1);

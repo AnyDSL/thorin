@@ -34,8 +34,8 @@
         THORIN_AIR_NODE(LEA, lea)
         THORIN_AIR_NODE(Run, run)
         THORIN_AIR_NODE(Hlt, hlt)
-        THORIN_AIR_NODE(TaggedRun, tagged_run)
-        THORIN_AIR_NODE(TaggedHlt, tagged_hlt)
+        THORIN_AIR_NODE(EndRun, end_run)
+        THORIN_AIR_NODE(EndHlt, end_hlt)
     THORIN_AIR_NODE(Param, param)
     // Type
         // PrimType

@@ -136,14 +136,6 @@ Type LEA::referenced_type() const { return ptr_type()->referenced_type(); }
 
 //------------------------------------------------------------------------------
 
-EvalOp::EvalOp(NodeKind kind, Def def, const std::string& name)
-    : PrimOp(1, kind, def->type(), name)
-{
-    set_op(0, def);
-}
-
-//------------------------------------------------------------------------------
-
 Slot::Slot(Type type, Def frame, size_t index, const std::string& name)
     : PrimOp(1, Node_Slot, type->world().ptr_type(type), name)
     , index_(index)

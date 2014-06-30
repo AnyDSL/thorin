@@ -27,8 +27,12 @@ public:
     {}
 
     SInt operator - () const {
-        if (data_ == std::numeric_limits<ST>::min())
-            throw BottomException();
+        if (data_ == std::numeric_limits<ST>::min()) {
+            if (!wrap)
+                throw BottomException();
+            else
+                return SInt(0);
+        }
         return SInt(-data_); 
     }
 
@@ -76,13 +80,13 @@ public:
     SInt operator % (SInt other) const { div_check(other); return SInt(this->data_ % other.data_); }
 
     SInt operator << (SInt other) const {
-        if (this->is_neg() || other.is_neg() 
-                || other.data_ >= std::numeric_limits<ST>::digits+1 
-                || this->data_ >  std::numeric_limits<ST>::max() >> other.data_) {
+        if (other.data_ >= std::numeric_limits<ST>::digits+1 || other.is_neg())
             throw BottomException();
-        } 
 
-        return this->data_ << other.data_;
+        if (!wrap && (this->is_neg() || this->data_ > std::numeric_limits<ST>::max() >> other.data_))
+            throw BottomException();
+
+        return ST(UT(this->data_) << UT(other.data_));
     }
 
     SInt operator & (SInt other) const { return this->data_ & other.data_; }
@@ -115,7 +119,8 @@ public:
         : data_(data)
     {}
 
-    UInt operator - () const { return UInt(-this->data_); }
+    UInt operator - () const { return UInt(0u) - *this; }
+
     UInt operator + (UInt other) const {
         UInt res(UT(this->data_) + UT(other.data_));
         if (!wrap && res.data_ < this->data_)
@@ -136,20 +141,14 @@ public:
         return UT(this->data_) * UT(other.data_);
     }
 
-    void div_check(UInt other) const { if (other.data_ == UT(0)) throw BottomException(); }
+    void div_check(UInt other) const { if (other.data_ == UT(0u)) throw BottomException(); }
     UInt operator / (UInt other) const { div_check(other); return UInt(this->data_ / other.data_); }
     UInt operator % (UInt other) const { div_check(other); return UInt(this->data_ % other.data_); }
 
     UInt operator << (UInt other) const {
-        assert(false && "TODO");
-        return UInt(0);
-        //if (this->is_neg() || other.is_neg() 
-                //|| other >= std::numeric_limits<UT>::digits+1 
-                //|| this->data_ > std::numeric_limits<UT>::max() >> other.data_) {
-            //throw BottomException();
-        //} 
-
-        //return this->data_ << other->data_;
+        if (!wrap && other.data_ >= std::numeric_limits<UT>::digits)
+            throw BottomException();
+        return this->data_ << other.data_;
     }
 
     UInt operator & (UInt other) const { return this->data_ & other.data_; }
@@ -162,7 +161,7 @@ public:
     bool operator >=(UInt other) const { return this->data_ >=other.data_; }
     bool operator ==(UInt other) const { return this->data_ ==other.data_; }
     bool operator !=(UInt other) const { return this->data_ !=other.data_; }
-    bool is_neg() const { return data_ < UT(0); }
+    bool is_neg() const { return data_ < UT(0u); }
     operator UT() const { return data_; }
     UT data() const { return data_; }
 

@@ -115,11 +115,7 @@ public:
         : data_(data)
     {}
 
-    UInt operator - () const {
-        assert(false && "TODO");
-        return UInt(0);
-    }
-
+    UInt operator - () const { return UInt(-this->data_); }
     UInt operator + (UInt other) const {
         UInt res(UT(this->data_) + UT(other.data_));
         if (!wrap && res.data_ < this->data_)

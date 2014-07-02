@@ -42,7 +42,7 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
     assert(lambda->num_args() > 5 && "required arguments are missing");
 
     // get input
-    auto target_device  = lambda->arg(1)->as<PrimLit>()->qu32_value().data();
+    auto target_device = int(lambda->arg(1)->as<PrimLit>()->qu32_value().data());
     auto target_device_val = builder_.getInt32(target_device);
     auto it_space  = lambda->arg(2)->as<Tuple>();
     auto it_config = lambda->arg(3)->as<Tuple>();

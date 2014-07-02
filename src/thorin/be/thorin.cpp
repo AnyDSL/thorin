@@ -80,7 +80,7 @@ std::ostream& CodeGen::emit_type(Type type) {
         if (ptr->is_vector())
             stream() << '>';
         auto device = ptr->device();
-        if (device != 0)
+        if (device != -1)
             stream() << '[' << device << ']';
         switch (ptr->addr_space()) {
         case AddressSpace::Global:

@@ -16,28 +16,6 @@ float total_timing = 0.0f;
 
 bool print_timing = true;
 
-// define machine as seen/used by OpenCL
-// each tuple consists of platform and device
-#ifdef __APPLE__
-// Macbook Pro
-const int num_devices_ = 3;
-int the_machine[][2] = {
-    {0, 0}, // Dummy
-    {0, 0}, // Intel, i5-4288U
-    {0, 1}, // Intel, Iris
-};
-#else
-// Desktop
-const int num_devices_ = 4;
-int the_machine[][2] = {
-    {0, 0}, // Dummy
-    {1, 0}, // Intel, i7-3770K
-    {2, 0}, // NVIDIA, GTX 680
-    {2, 1}  // NVIDIA, GTX 580
-};
-#endif
-
-
 // runtime forward declarations
 cl_mem malloc_buffer(size_t dev, void *host, cl_mem_flags flags, size_t size);
 void read_buffer(size_t dev, cl_mem mem, void *host, size_t size);
@@ -88,14 +66,19 @@ class Memory {
             size_t sx, sy, sz;
             mem_id id;
         } mapping_;
-        std::unordered_map<mem_id, mapping_> mmap[num_devices_];
-        std::unordered_map<mem_id, void*> idtomem[num_devices_];
-        std::unordered_map<void*, mem_id> memtoid[num_devices_];
+        std::vector<std::unordered_map<mem_id, mapping_>> mmap;
+        std::vector<std::unordered_map<mem_id, void*>> idtomem;
+        std::vector<std::unordered_map<void*, mem_id>> memtoid;
         std::unordered_map<size_t, size_t> ummap;
 
     public:
         Memory() : count_(42) {}
 
+    void reserve(size_t num) {
+        mmap.resize(mmap.size() + num);
+        idtomem.resize(idtomem.size() + num);
+        memtoid.resize(memtoid.size() + num);
+    }
     void associate_device(size_t host_dev, size_t assoc_dev) {
         ummap[assoc_dev] = host_dev;
     }
@@ -173,10 +156,9 @@ class Memory {
 };
 Memory mem_manager;
 
-
-cl_device_id devices_[num_devices_];
-cl_context contexts_[num_devices_];
-cl_command_queue command_queues_[num_devices_];
+std::vector<cl_device_id> devices_;
+std::vector<cl_context> contexts_;
+std::vector<cl_command_queue> command_queues_;
 cl_program program;
 cl_kernel kernel;
 int clArgIdx;
@@ -334,22 +316,22 @@ inline void __check_device(size_t dev) {
 }
 
 // create context and command queue(s) for device(s) of a given platform
-void create_context_command_queue(cl_platform_id platform, cl_device_id *device, size_t num_devices, size_t num) {
-    cl_int err = CL_SUCCESS;
+void create_context_command_queue(cl_platform_id platform, std::vector<cl_device_id>&& devices,  std::vector<size_t>&& device_ids) {
+    if (devices.size() == 0) return;
 
     // create context
+    cl_int err = CL_SUCCESS;
     cl_context_properties cprops[3] = { CL_CONTEXT_PLATFORM, (cl_context_properties)platform, 0 };
-    contexts_[num] = clCreateContext(cprops, num_devices, device, NULL, NULL, &err);
-    mem_manager.associate_device(num, num);
+    cl_context context = clCreateContext(cprops, devices.size(), devices.data(), NULL, NULL, &err);
+    mem_manager.associate_device(device_ids.front(), device_ids.front());
     checkErr(err, "clCreateContext()");
-    for (size_t i=1; i<num_devices; ++i) {
-        contexts_[num+i] = contexts_[num];
-        mem_manager.associate_device(num, num+i);
-    }
 
-    // create command queues
-    for (size_t i=0; i<num_devices; ++i) {
-        command_queues_[num+i] = clCreateCommandQueue(contexts_[num+i], device[i], CL_QUEUE_PROFILING_ENABLE, &err);
+    for (size_t i=0; i<devices.size(); ++i) {
+        // associate context
+        contexts_.push_back(context);
+        mem_manager.associate_device(device_ids.front(), device_ids.data()[i]);
+        // create command queue
+        command_queues_.push_back(clCreateCommandQueue(context, devices[i], CL_QUEUE_PROFILING_ENABLE, &err));
         checkErr(err, "clCreateCommandQueue()");
     }
 }
@@ -375,11 +357,6 @@ void init_opencl() {
         err = clGetPlatformIDs(num_platforms, platforms, NULL);
         checkErr(err, "clGetPlatformIDs()");
 
-        int n_dev = sizeof(the_machine)/sizeof(int[2]);
-        size_t c_dev = 1;
-        int c_pf_id = the_machine[c_dev][0];
-        int c_dev_id = the_machine[c_dev][1];
-
         // get platform info for each platform
         for (unsigned int i=0; i<num_platforms; ++i) {
             err = clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME, 1024, &pnBuffer, NULL);
@@ -394,17 +371,14 @@ void init_opencl() {
             err = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, num_devices, devices, &num_devices);
             checkErr(err, "clGetDeviceIDs()");
 
-                        // device[idx], devices_[idx], has_unified
-            std::vector<std::tuple<size_t, size_t, cl_bool>> ctxts;
+            mem_manager.reserve(num_devices);
+            std::vector<cl_device_id> unified_devices;
+            std::vector<size_t> unified_device_ids;
 
-            // use first platform supporting desired device type
-            if (c_pf_id==i) {
-                std::cerr << "  [*] Platform Name: " << pnBuffer << std::endl;
-            } else {
-                std::cerr << "  [ ] Platform Name: " << pnBuffer << std::endl;
-            }
-            std::cerr << "      Platform Vendor: " << pvBuffer << std::endl;
-            std::cerr << "      Platform Version: " << pv2Buffer << std::endl;
+            // get platform info
+            std::cerr << "  Platform Name: " << pnBuffer << std::endl;
+            std::cerr << "  Platform Vendor: " << pvBuffer << std::endl;
+            std::cerr << "  Platform Version: " << pv2Buffer << std::endl;
 
             // get device info for each device
             for (unsigned int j=0; j<num_devices; ++j) {
@@ -422,23 +396,19 @@ void init_opencl() {
                 err |= clGetDeviceInfo(devices[j], CL_DEVICE_HOST_UNIFIED_MEMORY, sizeof(has_unified), &has_unified, NULL);
                 checkErr(err, "clGetDeviceInfo()");
 
+                devices_.push_back(devices[j]);
+                if (has_unified) {
+                    unified_devices.push_back(devices_[j]);
+                    unified_device_ids.push_back(devices_.size());
+                } else {
+                    create_context_command_queue(platforms[i], { devices_.back() }, { devices_.size() } );
+                }
+
                 // use first device of desired type
                 std::string extensions(pd3Buffer);
                 size_t found = extensions.find("cl_khr_spir");
                 bool has_spir = found!=std::string::npos;
-                bool use_device = false;
-                if (c_pf_id == i && j == c_dev_id) {
-                    devices_[c_dev] = devices[j];
-                    ctxts.emplace_back(j, c_dev, has_unified);
-                    if (++c_dev < n_dev) {
-                        c_pf_id = the_machine[c_dev][0];
-                        c_dev_id = the_machine[c_dev][1];
-                    }
-                    std::cerr << "      [*] ";
-                    use_device = true;
-                } else {
-                    std::cerr << "      [ ] ";
-                }
+                std::cerr << "  (" << devices_.size()-1 << ") ";
                 std::cerr << "Device Name: " << pnBuffer << " (";
                 if (dev_type & CL_DEVICE_TYPE_CPU) std::cerr << "CL_DEVICE_TYPE_CPU";
                 if (dev_type & CL_DEVICE_TYPE_GPU) std::cerr << "CL_DEVICE_TYPE_GPU";
@@ -448,44 +418,24 @@ void init_opencl() {
                 #endif
                 if (dev_type & CL_DEVICE_TYPE_DEFAULT) std::cerr << "|CL_DEVICE_TYPE_DEFAULT";
                 std::cerr << ")";
-                if (use_device) std::cerr << " (" << c_dev-1 << ")";
                 std::cerr << std::endl;
-                std::cerr << "          Device Vendor: " << pvBuffer << " (ID: " << device_vendor_id << ")" << std::endl;
-                std::cerr << "          Device OpenCL Version: " << pdBuffer << std::endl;
-                std::cerr << "          Device Driver Version: " << pd2Buffer << std::endl;
-                //std::cerr << "          Device Extensions: " << pd3Buffer << std::endl;
-                std::cerr << "          Device SPIR Support: " << has_spir << std::endl;
+                std::cerr << "      Device Vendor: " << pvBuffer << " (ID: " << device_vendor_id << ")" << std::endl;
+                std::cerr << "      Device OpenCL Version: " << pdBuffer << std::endl;
+                std::cerr << "      Device Driver Version: " << pd2Buffer << std::endl;
+                //std::cerr << "      Device Extensions: " << pd3Buffer << std::endl;
+                std::cerr << "      Device SPIR Support: " << has_spir << std::endl;
                 #ifdef CL_DEVICE_SPIR_VERSIONS
                 err = clGetDeviceInfo(devices[j], CL_DEVICE_SPIR_VERSIONS, sizeof(pd3Buffer), &pd3Buffer, NULL);
                 checkErr(err, "clGetDeviceInfo()");
-                std::cerr << "          Device SPIR Version: " << pd3Buffer << std::endl;
+                std::cerr << "      Device SPIR Version: " << pd3Buffer << std::endl;
                 #endif
-                std::cerr << "          Device Host Unified Memory: " << has_unified << std::endl;
+                std::cerr << "      Device Host Unified Memory: " << has_unified << std::endl;
             }
 
-            // create context and command queues for devices of this platform
-            cl_device_id *tmp_devices = new cl_device_id[ctxts.size()];
-            size_t tmp_num_devices = 0;
-            for (size_t n=ctxts.size(); n>0; --n) {
-                size_t cur = n-1;
-                tmp_devices[cur] = devices[std::get<0>(ctxts.data()[cur])];
-                bool unified = std::get<2>(ctxts.data()[cur]);
-                tmp_num_devices++;
-                if (cur==0 || !unified) {
-                    create_context_command_queue(platforms[i], &tmp_devices[cur], tmp_num_devices, std::get<1>(ctxts.data()[cur]));
-                    tmp_num_devices = 0;
-                }
-            }
-            delete[] tmp_devices;
-
+            // create context and command queues for unified memory devices
+            create_context_command_queue(platforms[i], std::move(unified_devices), std::move(unified_device_ids));
             delete[] devices;
         }
-
-        if (c_dev != n_dev) {
-            std::cerr << "No suitable OpenCL platform available, aborting ..." << std::endl;
-            exit(EXIT_FAILURE);
-        }
-
         delete[] platforms;
     }
 

@@ -4,7 +4,6 @@
 #include <cassert>
 #include <fstream>
 #include <iostream>
-#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -316,7 +315,7 @@ inline void __check_device(size_t dev) {
 }
 
 // create context and command queue(s) for device(s) of a given platform
-void create_context_command_queue(cl_platform_id platform, std::vector<cl_device_id>&& devices,  std::vector<size_t>&& device_ids) {
+void create_context_command_queue(cl_platform_id platform, std::vector<cl_device_id> &&devices,  std::vector<size_t> &&device_ids) {
     if (devices.size() == 0) return;
 
     // create context
@@ -358,7 +357,7 @@ void init_opencl() {
         checkErr(err, "clGetPlatformIDs()");
 
         // get platform info for each platform
-        for (unsigned int i=0; i<num_platforms; ++i) {
+        for (size_t i=0; i<num_platforms; ++i) {
             err = clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME, 1024, &pnBuffer, NULL);
             err |= clGetPlatformInfo(platforms[i], CL_PLATFORM_VENDOR, 1024, &pvBuffer, NULL);
             err |= clGetPlatformInfo(platforms[i], CL_PLATFORM_VERSION, 1024, &pv2Buffer, NULL);
@@ -381,7 +380,7 @@ void init_opencl() {
             std::cerr << "  Platform Version: " << pv2Buffer << std::endl;
 
             // get device info for each device
-            for (unsigned int j=0; j<num_devices; ++j) {
+            for (size_t j=0; j<num_devices; ++j) {
                 cl_device_type dev_type;
                 cl_uint device_vendor_id;
                 cl_bool has_unified;
@@ -468,24 +467,24 @@ void dump_program_binary(cl_program program, cl_device_id device) {
 
     // get the binaries
     unsigned char **binary = (unsigned char **)malloc(num_devices * sizeof(unsigned char *));
-    for (unsigned int i=0; i<num_devices; i++) {
+    for (size_t i=0; i<num_devices; i++) {
         binary[i] = (unsigned char *)malloc(binary_sizes[i]);
     }
     err |= clGetProgramInfo(program, CL_PROGRAM_BINARIES,  sizeof(unsigned char *)*num_devices, binary, NULL);
     checkErr(err, "clGetProgramInfo()");
 
-    for (unsigned int i=0; i<num_devices; i++) {
+    for (size_t i=0; i<num_devices; i++) {
         if (devices[i] == device) {
             std::cerr << "OpenCL binary : " << std::endl;
             // binary can contain any character, emit char by char
-            for (unsigned int n=0; n<binary_sizes[i]; n++) {
+            for (size_t n=0; n<binary_sizes[i]; n++) {
                 std::cerr << binary[i][n];
             }
             std::cerr << std::endl;
         }
     }
 
-    for (unsigned int i=0; i<num_devices; i++) {
+    for (size_t i=0; i<num_devices; i++) {
         free(binary[i]);
     }
     free(binary);

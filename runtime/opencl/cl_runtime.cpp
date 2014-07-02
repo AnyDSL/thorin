@@ -315,6 +315,7 @@ const char *getOpenCLErrorCodeStr(int errorCode) {
     }
 }
 
+#define check_dev(dev) __check_device(dev)
 #define checkErr(err, name)  __checkOpenCLErrors(err, name, __FILE__, __LINE__)
 
 inline void __checkOpenCLErrors(cl_int err, const char *name, const char *file, const int line) {
@@ -325,6 +326,12 @@ inline void __checkOpenCLErrors(cl_int err, const char *name, const char *file, 
     }
 }
 
+inline void __check_device(size_t dev) {
+    if (dev >= devices_.size()) {
+        std::cerr << "ERROR: requested device #" << dev << ", but only " << devices_.size() << " OpenCL devices [0.." << devices_.size()-1 << "] available!" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+}
 
 // create context and command queue(s) for device(s) of a given platform
 void create_context_command_queue(cl_platform_id platform, cl_device_id *device, size_t num_devices, size_t num) {
@@ -779,22 +786,22 @@ void launch_kernel(size_t dev, const char *kernel_name) {
 
 
 // SPIR wrappers
-mem_id spir_malloc_buffer(size_t dev, void *host) { return mem_manager.malloc(dev, host); }
-void spir_free_buffer(size_t dev, mem_id mem) { free_buffer(dev, mem); }
+mem_id spir_malloc_buffer(size_t dev, void *host) { check_dev(dev); return mem_manager.malloc(dev, host); }
+void spir_free_buffer(size_t dev, mem_id mem) { check_dev(dev); free_buffer(dev, mem); }
 
-void spir_write_buffer(size_t dev, mem_id mem, void *host) { mem_manager.write(dev, mem, host); }
-void spir_read_buffer(size_t dev, mem_id mem, void *host) { mem_manager.read(dev, mem); }
+void spir_write_buffer(size_t dev, mem_id mem, void *host) { check_dev(dev); mem_manager.write(dev, mem, host); }
+void spir_read_buffer(size_t dev, mem_id mem, void *host) { check_dev(dev); mem_manager.read(dev, mem); }
 
-void spir_build_program_and_kernel_from_binary(size_t dev, const char *file_name, const char *kernel_name) { build_program_and_kernel(dev, file_name, kernel_name, true); }
-void spir_build_program_and_kernel_from_source(size_t dev, const char *file_name, const char *kernel_name) { build_program_and_kernel(dev, file_name, kernel_name, false); }
+void spir_build_program_and_kernel_from_binary(size_t dev, const char *file_name, const char *kernel_name) { check_dev(dev); build_program_and_kernel(dev, file_name, kernel_name, true); }
+void spir_build_program_and_kernel_from_source(size_t dev, const char *file_name, const char *kernel_name) { check_dev(dev); build_program_and_kernel(dev, file_name, kernel_name, false); }
 
-void spir_set_kernel_arg(size_t dev, void *param, size_t size) { set_kernel_arg(dev, param, size); }
-void spir_set_kernel_arg_map(size_t dev, mem_id mem) { set_kernel_arg_map(dev, mem); }
-void spir_set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) { set_problem_size(dev, size_x, size_y, size_z); }
-void spir_set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) { set_config_size(dev, size_x, size_y, size_z); }
+void spir_set_kernel_arg(size_t dev, void *param, size_t size) { check_dev(dev); set_kernel_arg(dev, param, size); }
+void spir_set_kernel_arg_map(size_t dev, mem_id mem) { check_dev(dev); set_kernel_arg_map(dev, mem); }
+void spir_set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) { check_dev(dev); set_problem_size(dev, size_x, size_y, size_z); }
+void spir_set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) { check_dev(dev); set_config_size(dev, size_x, size_y, size_z); }
 
-void spir_launch_kernel(size_t dev, const char *kernel_name) { launch_kernel(dev, kernel_name); }
-void spir_synchronize(size_t dev) { synchronize(dev); }
+void spir_launch_kernel(size_t dev, const char *kernel_name) { check_dev(dev); launch_kernel(dev, kernel_name); }
+void spir_synchronize(size_t dev) { check_dev(dev); synchronize(dev); }
 
 // helper functions
 void thorin_init() { init_opencl(); }
@@ -817,6 +824,7 @@ void thorin_print_total_timing() {
     #endif
 }
 mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, int sx, int sy, int sz) {
+    check_dev(dev);
     mem_type type = (mem_type)type_;
     mem_ info = host_mems_[from];
 
@@ -876,6 +884,7 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, 
     return mem;
 }
 void unmap_memory(size_t dev, size_t type_, mem_id mem) {
+    check_dev(dev);
     mem_manager.read(dev, mem);
     std::cerr << " * unmap memory(" << dev << "):  " << mem << std::endl;
     // TODO: mark device memory as unmapped

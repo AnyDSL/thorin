@@ -40,8 +40,6 @@ struct dim3 {
 typedef struct dim3 dim3;
 // define dim3
 
-const int num_devices_ = 3;
-
 // runtime forward declarations
 CUdeviceptr malloc_memory(size_t dev, void *host, size_t size);
 void read_memory(size_t dev, CUdeviceptr mem, void *host, size_t size);
@@ -95,14 +93,19 @@ class Memory {
             size_t sx, sy, sz;
             mem_id id;
         } mapping_;
-        std::unordered_map<mem_id, mapping_> mmap[num_devices_];
-        std::unordered_map<mem_id, void*> idtomem[num_devices_];
-        std::unordered_map<void*, mem_id> memtoid[num_devices_];
+        std::vector<std::unordered_map<mem_id, mapping_>> mmap;
+        std::vector<std::unordered_map<mem_id, void*>> idtomem;
+        std::vector<std::unordered_map<void*, mem_id>> memtoid;
         std::unordered_map<size_t, size_t> ummap;
 
     public:
         Memory() : count_(42) {}
 
+    void reserve(size_t num) {
+        mmap.resize(mmap.size() + num);
+        idtomem.resize(idtomem.size() + num);
+        memtoid.resize(memtoid.size() + num);
+    }
     void associate_device(size_t host_dev, size_t assoc_dev) {
         ummap[assoc_dev] = host_dev;
     }
@@ -179,16 +182,16 @@ class Memory {
 };
 Memory mem_manager;
 
+std::vector<CUdevice> devices_;
+std::vector<CUcontext> contexts_;
+std::vector<CUmodule> modules_;
+std::vector<CUfunction> functions_;
+std::vector<CUtexref> textures_;
+void **cuArgs;
+int cuArgIdx, cuArgIdxMax;
+dim3 cuDimProblem, cuDimBlock;
 
-CUdevice cuDevices[num_devices_];
-CUcontext cuContexts[num_devices_];
-CUmodule cuModules[num_devices_];
-CUfunction cuFunctions[num_devices_];
-CUtexref cuTextures[num_devices_];
-void **cuArgs[num_devices_];
-int cuArgIdx[num_devices_], cuArgIdxMax[num_devices_];
-dim3 cuDimProblem[num_devices_], cuDimBlock[num_devices_];
-
+#define check_dev(dev) __check_device(dev)
 #define checkErrNvvm(err, name) __checkNvvmErrors (err, name, __FILE__, __LINE__)
 #define checkErrDrv(err, name)  __checkCudaErrors (err, name, __FILE__, __LINE__)
 
@@ -202,19 +205,26 @@ std::string getCUDAErrorCodeStrDrv(CUresult errorCode) {
 
 inline void __checkCudaErrors(CUresult err, const char *name, const char *file, const int line) {
     if (CUDA_SUCCESS != err) {
-        fprintf(stderr, "checkErrDrv(%s) Driver API error = %04d \"%s\" from file <%s>, line %i.\n",
-                name, err, getCUDAErrorCodeStrDrv(err).c_str(), file, line);
-        exit(EXIT_FAILURE);
-    }
-}
-inline void __checkNvvmErrors(nvvmResult err, const char *name, const char *file, const int line) {
-    if (NVVM_SUCCESS != err) {
-        fprintf(stderr, "checkErrNvvm(%s) NVVM API error = %04d \"%s\" from file <%s>, line %i.\n",
-                name, err, nvvmGetErrorString(err), file, line);
+        std::cerr << "ERROR (Driver API): " << name << " (" << err << ")" << " [file " << file << ", line " << line << "]: " << std::endl;
+        std::cerr << getCUDAErrorCodeStrDrv(err) << std::endl;
         exit(EXIT_FAILURE);
     }
 }
 
+inline void __checkNvvmErrors(nvvmResult err, const char *name, const char *file, const int line) {
+    if (NVVM_SUCCESS != err) {
+        std::cerr << "ERROR (NVVM API): " << name << " (" << err << ")" << " [file " << file << ", line " << line << "]: " << std::endl;
+        std::cerr << nvvmGetErrorString(err) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+}
+
+inline void __check_device(size_t dev) {
+    if (dev >= devices_.size()) {
+        std::cerr << "ERROR: requested device #" << dev << ", but only " << devices_.size() << " OpenCL devices [0.." << devices_.size()-1 << "] available!" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+}
 
 // initialize CUDA device
 void init_cuda() {
@@ -238,26 +248,31 @@ void init_cuda() {
     std::cerr << "CUDA Driver Version " << driver_version/1000 << "." << (driver_version%100)/10 << std::endl;
     std::cerr << "NVVM Version " << nvvm_major << "." << nvvm_minor << std::endl;
 
-    for (int i=0; i<device_count; i++) {
+    mem_manager.reserve(device_count);
+    devices_.resize(device_count);
+    contexts_.resize(device_count);
+    modules_.resize(device_count);
+    functions_.resize(device_count);
+    textures_.resize(device_count);
+
+    for (size_t i=0; i<device_count; ++i) {
         int major, minor;
         char name[100];
 
-        err = cuDeviceGet(&cuDevices[i+1], i);
+        err = cuDeviceGet(&devices_[i], i);
         checkErrDrv(err, "cuDeviceGet()");
-        err = cuDeviceGetName(name, 100, cuDevices[i+1]);
+        err = cuDeviceGetName(name, 100, devices_[i]);
         checkErrDrv(err, "cuDeviceGetName()");
-        err = cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, cuDevices[i+1]);
+        err = cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, devices_[i]);
         checkErrDrv(err, "cuDeviceGetAttribute()");
-        err = cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, cuDevices[i+1]);
+        err = cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, devices_[i]);
         checkErrDrv(err, "cuDeviceGetAttribute()");
 
-        if (i==0) std::cerr << "  [*] ";
-        else std::cerr << "  [ ] ";
-        std::cerr << "Name: " << name << " (" << i+1 << ")" << std::endl;
-        std::cerr << "      Compute capability: " << major << "." << minor << std::endl;
+        std::cerr << " (" << i << ")" << " Name: " << name << std::endl;
+        std::cerr << "     Compute capability: " << major << "." << minor << std::endl;
 
         // create context
-        err = cuCtxCreate(&cuContexts[i+1], 0, cuDevices[i+1]);
+        err = cuCtxCreate(&contexts_[i], 0, devices_[i]);
         checkErrDrv(err, "cuCtxCreate()");
 
         // TODO: check for unified memory support and add missing associations
@@ -265,11 +280,9 @@ void init_cuda() {
     }
 
     // initialize cuArgs
-    for (size_t i=0; i<num_devices_; ++i) {
-        cuArgs[i] = (void **)malloc(sizeof(void *));
-        cuArgIdx[i] = 0;
-        cuArgIdxMax[i] = 1;
-    }
+    cuArgs = (void **)malloc(sizeof(void *));
+    cuArgIdx = 0;
+    cuArgIdxMax = 1;
 }
 
 
@@ -287,7 +300,7 @@ void create_module_kernel(size_t dev, const char *ptx, const char *kernel_name, 
 
     // load ptx source
     if (print_progress) std::cerr << "Compiling(" << dev << ") '" << kernel_name << "' .";
-    err = cuModuleLoadDataEx(&cuModules[dev], ptx, num_options, options, optionValues);
+    err = cuModuleLoadDataEx(&modules_[dev], ptx, num_options, options, optionValues);
     if (err != CUDA_SUCCESS) {
         std::cerr << "Error log: " << errorLogBuffer << std::endl;
     }
@@ -295,7 +308,7 @@ void create_module_kernel(size_t dev, const char *ptx, const char *kernel_name, 
 
     // get function entry point
     if (print_progress) std::cerr << ".";
-    err = cuModuleGetFunction(&cuFunctions[dev], cuModules[dev], kernel_name);
+    err = cuModuleGetFunction(&functions_[dev], modules_[dev], kernel_name);
     checkErrDrv(err, "cuModuleGetFunction()");
     if (print_progress) std::cerr << ". done" << std::endl;
 }
@@ -306,23 +319,23 @@ void print_kernel_occupancy(size_t dev, const char *kernel_name) {
     #if CUDA_VERSION >= 6050
     CUresult err = CUDA_SUCCESS;
     int warp_size;
-    int block_size = cuDimBlock[dev].x*cuDimBlock[dev].y;
+    int block_size = cuDimBlock.x*cuDimBlock.y;
     size_t dynamic_smem_bytes = 0;
     int block_size_limit = 0;
 
-    err = cuDeviceGetAttribute(&warp_size, CU_DEVICE_ATTRIBUTE_WARP_SIZE, cuDevices[dev]);
+    err = cuDeviceGetAttribute(&warp_size, CU_DEVICE_ATTRIBUTE_WARP_SIZE, devices_[dev]);
     checkErrDrv(err, "cuDeviceGetAttribute()");
 
     int active_blocks;
     int min_grid_size, opt_block_size;
-    err = cuOccupancyMaxActiveBlocksPerMultiprocessor(&active_blocks, cuFunctions[dev], block_size, dynamic_smem_bytes);
+    err = cuOccupancyMaxActiveBlocksPerMultiprocessor(&active_blocks, functions_[dev], block_size, dynamic_smem_bytes);
     checkErrDrv(err, "cuOccupancyMaxActiveBlocksPerMultiprocessor()");
-    err = cuOccupancyMaxPotentialBlockSize(&min_grid_size, &opt_block_size, cuFunctions[dev], NULL, dynamic_smem_bytes, block_size_limit);
+    err = cuOccupancyMaxPotentialBlockSize(&min_grid_size, &opt_block_size, functions_[dev], NULL, dynamic_smem_bytes, block_size_limit);
     checkErrDrv(err, "cuOccupancyMaxPotentialBlockSize()");
 
     // re-compute with optimal block size
     int max_blocks;
-    err = cuOccupancyMaxActiveBlocksPerMultiprocessor(&max_blocks, cuFunctions[dev], opt_block_size, dynamic_smem_bytes);
+    err = cuOccupancyMaxActiveBlocksPerMultiprocessor(&max_blocks, functions_[dev], opt_block_size, dynamic_smem_bytes);
     checkErrDrv(err, "cuOccupancyMaxActiveBlocksPerMultiprocessor()");
 
     int max_warps = max_blocks * (opt_block_size/warp_size);
@@ -359,16 +372,16 @@ void cuda_to_ptx(const char *file_name, std::string target_cc) {
 
 // load ll intermediate and compile to ptx
 void load_kernel(size_t dev, const char *file_name, const char *kernel_name, bool is_nvvm) {
-    cuCtxPushCurrent(cuContexts[dev]);
+    cuCtxPushCurrent(contexts_[dev]);
     nvvmProgram program;
     std::string srcString;
     char *PTX = NULL;
 
     int major, minor;
     CUresult err = CUDA_SUCCESS;
-    err = cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, cuDevices[dev]);
+    err = cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, devices_[dev]);
     checkErrDrv(err, "cuDeviceGetAttribute()");
-    err = cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, cuDevices[dev]);
+    err = cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, devices_[dev]);
     checkErrDrv(err, "cuDeviceGetAttribute()");
     CUjit_target target_cc = (CUjit_target)(major*10 + minor);
 
@@ -428,7 +441,7 @@ void load_kernel(size_t dev, const char *file_name, const char *kernel_name, boo
             nvvmGetProgramLogSize(program, &log_size);
             char *error_log = (char*)malloc(log_size);
             nvvmGetProgramLog(program, error_log);
-            fprintf(stderr, "Error log: %s\n", error_log);
+            std::cerr << "Error log: " << error_log << std::endl;
             free(error_log);
         }
         checkErrNvvm(err, "nvvmAddModuleToProgram()");
@@ -473,7 +486,7 @@ void load_kernel(size_t dev, const char *file_name, const char *kernel_name, boo
 void get_tex_ref(size_t dev, const char *name) {
     CUresult err = CUDA_SUCCESS;
 
-    err = cuModuleGetTexRef(&cuTextures[dev], cuModules[dev], name);
+    err = cuModuleGetTexRef(&textures_[dev], modules_[dev], name);
     checkErrDrv(err, "cuModuleGetTexRef()");
 }
 
@@ -481,14 +494,14 @@ void bind_tex(size_t dev, mem_id mem, CUarray_format format) {
     void *host = mem_manager.get_host_mem(dev, mem);
     CUdeviceptr &dev_mem = mem_manager.get_dev_mem(dev, mem);
     mem_ info = host_mems_[host];
-    checkErrDrv(cuTexRefSetFormat(cuTextures[dev], format, 1), "cuTexRefSetFormat()");
-    checkErrDrv(cuTexRefSetFlags(cuTextures[dev], CU_TRSF_READ_AS_INTEGER), "cuTexRefSetFlags()");
-    checkErrDrv(cuTexRefSetAddress(0, cuTextures[dev], dev_mem, info.elem * info.width * info.height), "cuTexRefSetAddress()");
+    checkErrDrv(cuTexRefSetFormat(textures_[dev], format, 1), "cuTexRefSetFormat()");
+    checkErrDrv(cuTexRefSetFlags(textures_[dev], CU_TRSF_READ_AS_INTEGER), "cuTexRefSetFlags()");
+    checkErrDrv(cuTexRefSetAddress(0, textures_[dev], dev_mem, info.elem * info.width * info.height), "cuTexRefSetAddress()");
 }
 
 
 CUdeviceptr malloc_memory(size_t dev, void *host, size_t size) {
-    cuCtxPushCurrent(cuContexts[dev]);
+    cuCtxPushCurrent(contexts_[dev]);
     CUdeviceptr mem;
     CUresult err = CUDA_SUCCESS;
 
@@ -502,7 +515,7 @@ CUdeviceptr malloc_memory(size_t dev, void *host, size_t size) {
 
 
 void free_memory(size_t dev, mem_id mem) {
-    cuCtxPushCurrent(cuContexts[dev]);
+    cuCtxPushCurrent(contexts_[dev]);
     CUresult err = CUDA_SUCCESS;
 
     std::cerr << " * free memory(" << dev << "):   " << mem << std::endl;
@@ -516,7 +529,7 @@ void free_memory(size_t dev, mem_id mem) {
 
 
 void write_memory(size_t dev, CUdeviceptr mem, void *host, size_t size) {
-    cuCtxPushCurrent(cuContexts[dev]);
+    cuCtxPushCurrent(contexts_[dev]);
     CUresult err = CUDA_SUCCESS;
 
     err = cuMemcpyHtoD(mem, host, size);
@@ -526,7 +539,7 @@ void write_memory(size_t dev, CUdeviceptr mem, void *host, size_t size) {
 
 
 void read_memory(size_t dev, CUdeviceptr mem, void *host, size_t size) {
-    cuCtxPushCurrent(cuContexts[dev]);
+    cuCtxPushCurrent(contexts_[dev]);
     CUresult err = CUDA_SUCCESS;
 
     err = cuMemcpyDtoH(host, mem, size);
@@ -536,7 +549,7 @@ void read_memory(size_t dev, CUdeviceptr mem, void *host, size_t size) {
 
 
 void synchronize(size_t dev) {
-    cuCtxPushCurrent(cuContexts[dev]);
+    cuCtxPushCurrent(contexts_[dev]);
     CUresult err = CUDA_SUCCESS;
 
     err = cuCtxSynchronize();
@@ -546,27 +559,27 @@ void synchronize(size_t dev) {
 
 
 void set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) {
-    cuDimProblem[dev].x = size_x;
-    cuDimProblem[dev].y = size_y;
-    cuDimProblem[dev].z = size_z;
+    cuDimProblem.x = size_x;
+    cuDimProblem.y = size_y;
+    cuDimProblem.z = size_z;
 }
 
 
 void set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) {
-    cuDimBlock[dev].x = size_x;
-    cuDimBlock[dev].y = size_y;
-    cuDimBlock[dev].z = size_z;
+    cuDimBlock.x = size_x;
+    cuDimBlock.y = size_y;
+    cuDimBlock.z = size_z;
 }
 
 
 void set_kernel_arg(size_t dev, void *param) {
-    cuArgIdx[dev]++;
-    if (cuArgIdx[dev] > cuArgIdxMax[dev]) {
-        cuArgs[dev] = (void **)realloc(cuArgs[dev], sizeof(void *)*cuArgIdx[dev]);
-        cuArgIdxMax[dev] = cuArgIdx[dev];
+    cuArgIdx++;
+    if (cuArgIdx > cuArgIdxMax) {
+        cuArgs = (void **)realloc(cuArgs, sizeof(void *)*cuArgIdx);
+        cuArgIdxMax = cuArgIdx;
     }
-    cuArgs[dev][cuArgIdx[dev]-1] = (void *)malloc(sizeof(void *));
-    cuArgs[dev][cuArgIdx[dev]-1] = param;
+    cuArgs[cuArgIdx-1] = (void *)malloc(sizeof(void *));
+    cuArgs[cuArgIdx-1] = param;
 }
 
 
@@ -578,7 +591,7 @@ void set_kernel_arg_map(size_t dev, mem_id mem) {
 
 
 void launch_kernel(size_t dev, const char *kernel_name) {
-    cuCtxPushCurrent(cuContexts[dev]);
+    cuCtxPushCurrent(contexts_[dev]);
     CUresult err = CUDA_SUCCESS;
     CUevent start, end;
     unsigned int event_flags = CU_EVENT_DEFAULT;
@@ -589,9 +602,9 @@ void launch_kernel(size_t dev, const char *kernel_name) {
 
     // compute launch configuration
     dim3 grid;
-    grid.x = cuDimProblem[dev].x / cuDimBlock[dev].x;
-    grid.y = cuDimProblem[dev].y / cuDimBlock[dev].y;
-    grid.z = cuDimProblem[dev].z / cuDimBlock[dev].z;
+    grid.x = cuDimProblem.x / cuDimBlock.x;
+    grid.y = cuDimProblem.y / cuDimBlock.y;
+    grid.z = cuDimProblem.z / cuDimBlock.z;
 
     cuEventCreate(&start, event_flags);
     cuEventCreate(&end, event_flags);
@@ -602,7 +615,7 @@ void launch_kernel(size_t dev, const char *kernel_name) {
     for (size_t iter=0; iter<7; ++iter) {
     #endif
     cuEventRecord(start, 0);
-    err = cuLaunchKernel(cuFunctions[dev], grid.x, grid.y, grid.z, cuDimBlock[dev].x, cuDimBlock[dev].y, cuDimBlock[dev].z, 0, NULL, cuArgs[dev], NULL);
+    err = cuLaunchKernel(functions_[dev], grid.x, grid.y, grid.z, cuDimBlock.x, cuDimBlock.y, cuDimBlock.z, 0, NULL, cuArgs, NULL);
     checkErrDrv(err, error_string.c_str());
     err = cuCtxSynchronize();
     checkErrDrv(err, error_string.c_str());
@@ -619,10 +632,10 @@ void launch_kernel(size_t dev, const char *kernel_name) {
 
     std::cerr << "Kernel timing on device " << dev
               << " for '" << kernel_name << "' ("
-              << cuDimProblem[dev].x*cuDimProblem[dev].y << ": "
-              << cuDimProblem[dev].x << "x" << cuDimProblem[dev].y << ", "
-              << cuDimBlock[dev].x*cuDimBlock[dev].y << ": "
-              << cuDimBlock[dev].x << "x" << cuDimBlock[dev].y << "): "
+              << cuDimProblem.x*cuDimProblem.y << ": "
+              << cuDimProblem.x << "x" << cuDimProblem.y << ", "
+              << cuDimBlock.x*cuDimBlock.y << ": "
+              << cuDimBlock.x << "x" << cuDimBlock.y << "): "
               #ifdef BENCH
               << "median of " << timings.size() << " runs: "
               << timings[timings.size()/2]
@@ -636,7 +649,7 @@ void launch_kernel(size_t dev, const char *kernel_name) {
     cuEventDestroy(end);
 
     // reset argument index
-    cuArgIdx[dev] = 0;
+    cuArgIdx = 0;
     cuCtxPopCurrent(NULL);
 }
 
@@ -644,24 +657,25 @@ void launch_kernel(size_t dev, const char *kernel_name) {
 mem_id nvvm_malloc_memory(size_t dev, void *host) { return mem_manager.malloc(dev, host); }
 void nvvm_free_memory(size_t dev, mem_id mem) { free_memory(dev, mem); }
 
-void nvvm_write_memory(size_t dev, mem_id mem, void *host) { mem_manager.write(dev, mem, host); }
-void nvvm_read_memory(size_t dev, mem_id mem, void *host) { mem_manager.read(dev, mem); }
+void nvvm_write_memory(size_t dev, mem_id mem, void *host) { check_dev(dev); mem_manager.write(dev, mem, host); }
+void nvvm_read_memory(size_t dev, mem_id mem, void *host) { check_dev(dev); mem_manager.read(dev, mem); }
 
-void nvvm_load_nvvm_kernel(size_t dev, const char *file_name, const char *kernel_name) { load_kernel(dev, file_name, kernel_name, true); }
-void nvvm_load_cuda_kernel(size_t dev, const char *file_name, const char *kernel_name) { load_kernel(dev, file_name, kernel_name, false); }
+void nvvm_load_nvvm_kernel(size_t dev, const char *file_name, const char *kernel_name) { check_dev(dev); load_kernel(dev, file_name, kernel_name, true); }
+void nvvm_load_cuda_kernel(size_t dev, const char *file_name, const char *kernel_name) { check_dev(dev); load_kernel(dev, file_name, kernel_name, false); }
 
-void nvvm_set_kernel_arg(size_t dev, void *param) { set_kernel_arg(dev, param); }
-void nvvm_set_kernel_arg_map(size_t dev, mem_id mem) { set_kernel_arg_map(dev, mem); }
+void nvvm_set_kernel_arg(size_t dev, void *param) { check_dev(dev); set_kernel_arg(dev, param); }
+void nvvm_set_kernel_arg_map(size_t dev, mem_id mem) { check_dev(dev); set_kernel_arg_map(dev, mem); }
 void nvvm_set_kernel_arg_tex(size_t dev, mem_id mem, const char *name, CUarray_format format) {
+    check_dev(dev);
     std::cerr << " * set arg tex(" << dev << "): " << mem << std::endl;
     get_tex_ref(dev, name);
     bind_tex(dev, mem, format);
 }
-void nvvm_set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) { set_problem_size(dev, size_x, size_y, size_z); }
-void nvvm_set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) { set_config_size(dev, size_x, size_y, size_z); }
+void nvvm_set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) { check_dev(dev); set_problem_size(dev, size_x, size_y, size_z); }
+void nvvm_set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) { check_dev(dev); set_config_size(dev, size_x, size_y, size_z); }
 
-void nvvm_launch_kernel(size_t dev, const char *kernel_name) { launch_kernel(dev, kernel_name); }
-void nvvm_synchronize(size_t dev) { synchronize(dev); }
+void nvvm_launch_kernel(size_t dev, const char *kernel_name) { check_dev(dev); launch_kernel(dev, kernel_name); }
+void nvvm_synchronize(size_t dev) { check_dev(dev); synchronize(dev); }
 
 // helper functions
 void thorin_init() { init_cuda(); }
@@ -684,6 +698,7 @@ void thorin_print_total_timing() {
     #endif
 }
 mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, int sx, int sy, int sz) {
+    check_dev(dev);
     mem_type type = (mem_type)type_;
     mem_ info = host_mems_[from];
 
@@ -717,6 +732,7 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, 
     return mem;
 }
 void unmap_memory(size_t dev, size_t type_, mem_id mem) {
+    check_dev(dev);
     mem_manager.read(dev, mem);
     std::cerr << " * unmap memory(" << dev << "):  " << mem << std::endl;
     // TODO: mark device memory as unmapped

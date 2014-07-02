@@ -270,7 +270,7 @@ enum class AddressSpace : uint32_t {
 
 class PtrTypeNode : public VectorTypeNode {
 private:
-    PtrTypeNode(World& world, Type referenced_type, size_t length, uint32_t device, AddressSpace addr_space)
+    PtrTypeNode(World& world, Type referenced_type, size_t length, int32_t device, AddressSpace addr_space)
         : VectorTypeNode(world, Node_PtrType, {referenced_type}, length)
         , addr_space_(addr_space)
         , device_(device)
@@ -279,8 +279,8 @@ private:
 public:
     Type referenced_type() const { return arg(0); }
     AddressSpace addr_space() const { return addr_space_; }
-    uint32_t device() const { return device_; }
-    bool is_host_device() const { return device_ == 0; }
+    int32_t device() const { return device_; }
+    bool is_host_device() const { return device_ == -1; }
 
     virtual size_t hash() const override;
     virtual bool equal(const TypeNode* other) const override;
@@ -289,7 +289,7 @@ private:
     virtual Type vinstantiate(Type2Type&) const override;
 
     AddressSpace addr_space_;
-    uint32_t device_;
+    int32_t device_;
 
     friend class World;
 };

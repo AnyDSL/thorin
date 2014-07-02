@@ -92,18 +92,18 @@ public:
 class MapOp : public MemOp {
 protected:
     MapOp(size_t size, NodeKind kind, Type type, 
-          Def mem, Def ptr, uint32_t device, AddressSpace addr_space, const std::string &name);
+          Def mem, Def ptr, int32_t device, AddressSpace addr_space, const std::string &name);
 
 public:
     Def ptr() const { return op(1); }
     PtrType ptr_type() const { return type().as<TupleType>()->arg(1).as<PtrType>(); }
     AddressSpace addr_space() const { return ptr_type()->addr_space(); }
-    uint32_t device() const { return ptr_type()->device(); }
+    int32_t device() const { return ptr_type()->device(); }
 };
 
 class Map : public MapOp {
 private:
-    Map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space,
+    Map(Def mem, Def ptr, int32_t device, AddressSpace addr_space,
         Def top_left, Def region_size, const std::string &name);
 
 public:
@@ -117,7 +117,7 @@ public:
 
 class Unmap : public MapOp {
 private:
-    Unmap(Def mem, Def ptr, uint32_t device, AddressSpace addr_space, const std::string &name);
+    Unmap(Def mem, Def ptr, int32_t device, AddressSpace addr_space, const std::string &name);
 
     friend class World;
 };

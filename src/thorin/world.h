@@ -82,7 +82,7 @@ public:
     }
     MemType     mem_type() const { return MemType(mem_); }
     FrameType   frame_type() const { return FrameType(frame_); }
-    PtrType     ptr_type(Type referenced_type, size_t length = 1, uint32_t device = 0, AddressSpace adr_space = AddressSpace::Generic) {
+    PtrType     ptr_type(Type referenced_type, size_t length = 1, int32_t device = -1, AddressSpace adr_space = AddressSpace::Generic) {
         return join(new PtrTypeNode(*this, referenced_type, length, device, adr_space)); 
     }
     TupleType           tuple_type() { return tuple0_; } ///< Returns unit, i.e., an empty \p TupleType.

@@ -317,6 +317,8 @@ inline void __check_device(size_t dev) {
 // create context and command queue(s) for device(s) of a given platform
 void create_context_command_queue(cl_platform_id platform, std::vector<cl_device_id> &&devices,  std::vector<size_t> &&device_ids) {
     if (devices.size() == 0) return;
+    contexts_.resize(devices_.size());
+    command_queues_.resize(devices_.size());
 
     // create context
     cl_int err = CL_SUCCESS;
@@ -325,12 +327,12 @@ void create_context_command_queue(cl_platform_id platform, std::vector<cl_device
     mem_manager.associate_device(device_ids.front(), device_ids.front());
     checkErr(err, "clCreateContext()");
 
-    for (size_t i=0; i<devices.size(); ++i) {
+    for (size_t i : device_ids) {
         // associate context
-        contexts_.push_back(context);
-        mem_manager.associate_device(device_ids.front(), device_ids.data()[i]);
+        contexts_[i] = context;
+        mem_manager.associate_device(device_ids.front(), i);
         // create command queue
-        command_queues_.push_back(clCreateCommandQueue(context, devices[i], CL_QUEUE_PROFILING_ENABLE, &err));
+        command_queues_[i] = clCreateCommandQueue(context, devices_[i], CL_QUEUE_PROFILING_ENABLE, &err);
         checkErr(err, "clCreateCommandQueue()");
     }
 }
@@ -397,10 +399,10 @@ void init_opencl() {
 
                 devices_.push_back(devices[j]);
                 if (has_unified) {
-                    unified_devices.push_back(devices_[j]);
-                    unified_device_ids.push_back(devices_.size());
+                    unified_devices.push_back(devices_.back());
+                    unified_device_ids.push_back(devices_.size()-1);
                 } else {
-                    create_context_command_queue(platforms[i], { devices_.back() }, { devices_.size() } );
+                    create_context_command_queue(platforms[i], { devices_.back() }, { devices_.size()-1 } );
                 }
 
                 // use first device of desired type
@@ -688,7 +690,7 @@ void launch_kernel(size_t dev, const char *kernel_name) {
     for (size_t iter=0; iter<7; ++iter) {
         // set kernel arguments
         for (size_t j=0; j<kernel_args.size(); ++j) {
-            err |= clSetKernelArg(kernel, j, kernel_args.data()[j].first, kernel_args.data()[j].second);
+            err |= clSetKernelArg(kernel, j, kernel_args[j].first, kernel_args[j].second);
         }
         checkErr(err, "clSetKernelArg()");
     #endif

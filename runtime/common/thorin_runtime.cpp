@@ -13,7 +13,7 @@
 
 // common implementations of internal runtime functions
 static long global_time = 0;
-void getMicroTime() {
+long get_micro_time() {
     struct timespec now;
     #ifdef __APPLE__ // OS X does not have clock_gettime, use clock_get_time
     clock_serv_t cclock;

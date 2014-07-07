@@ -601,11 +601,11 @@ void write_buffer(size_t dev, cl_mem mem, void *host, size_t size) {
     cl_event event;
     cl_ulong end, start;
 
-    getMicroTime();
+    get_micro_time();
     err = clEnqueueWriteBuffer(command_queues_[dev], mem, CL_FALSE, 0, size, host, 0, NULL, &event);
     err |= clFinish(command_queues_[dev]);
     checkErr(err, "clEnqueueWriteBuffer()");
-    getMicroTime();
+    get_micro_time();
 
     if (print_timing) {
         err = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);
@@ -622,11 +622,11 @@ void read_buffer(size_t dev, cl_mem mem, void *host, size_t size) {
     cl_event event;
     cl_ulong end, start;
 
-    getMicroTime();
+    get_micro_time();
     err = clEnqueueReadBuffer(command_queues_[dev], mem, CL_FALSE, 0, size, host, 0, NULL, &event);
     err |= clFinish(command_queues_[dev]);
     checkErr(err, "clEnqueueReadBuffer()");
-    getMicroTime();
+    get_micro_time();
 
     if (print_timing) {
         err = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);

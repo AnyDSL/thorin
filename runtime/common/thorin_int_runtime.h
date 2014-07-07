@@ -4,7 +4,7 @@
 extern "C" {
     // runtime functions, used internally (by Impala etc.) [TODO: better namespacing]
     float random_val(int max);
-    void getMicroTime();
+    long get_micro_time();
 } 
 
 #endif

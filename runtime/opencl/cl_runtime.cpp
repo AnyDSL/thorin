@@ -459,38 +459,35 @@ void dump_program_binary(cl_program program, cl_device_id device) {
     err = clGetProgramInfo(program, CL_PROGRAM_NUM_DEVICES, sizeof(cl_uint), &num_devices, NULL);
 
     // get the associated device ids
-    cl_device_id *devices = (cl_device_id *)malloc(num_devices * sizeof(cl_device_id));
-    err |= clGetProgramInfo(program, CL_PROGRAM_DEVICES, num_devices * sizeof(cl_device_id), devices, 0);
+    std::vector<cl_device_id> devices(num_devices);
+    err |= clGetProgramInfo(program, CL_PROGRAM_DEVICES, devices.size() * sizeof(cl_device_id), devices.data(), 0);
 
     // get the sizes of the binaries
-    size_t *binary_sizes = (size_t *)malloc(num_devices * sizeof(size_t));
-    err |= clGetProgramInfo(program, CL_PROGRAM_BINARY_SIZES, num_devices * sizeof(size_t), binary_sizes, NULL);
+    std::vector<size_t> binary_sizes(num_devices);
+    err |= clGetProgramInfo(program, CL_PROGRAM_BINARY_SIZES, binary_sizes.size() * sizeof(size_t), binary_sizes.data(), NULL);
 
     // get the binaries
-    unsigned char **binary = (unsigned char **)malloc(num_devices * sizeof(unsigned char *));
-    for (size_t i=0; i<num_devices; i++) {
-        binary[i] = (unsigned char *)malloc(binary_sizes[i]);
+    std::vector<unsigned char *> binaries(num_devices);
+    for (size_t i=0; i<binaries.size(); ++i) {
+        binaries[i] = new unsigned char[binary_sizes[i]];
     }
-    err |= clGetProgramInfo(program, CL_PROGRAM_BINARIES,  sizeof(unsigned char *)*num_devices, binary, NULL);
+    err |= clGetProgramInfo(program, CL_PROGRAM_BINARIES,  sizeof(unsigned char *)*binaries.size(), binaries.data(), NULL);
     checkErr(err, "clGetProgramInfo()");
 
-    for (size_t i=0; i<num_devices; i++) {
+    for (size_t i=0; i<devices.size(); ++i) {
         if (devices[i] == device) {
             std::cerr << "OpenCL binary : " << std::endl;
             // binary can contain any character, emit char by char
-            for (size_t n=0; n<binary_sizes[i]; n++) {
-                std::cerr << binary[i][n];
+            for (size_t n=0; n<binary_sizes[i]; ++n) {
+                std::cerr << binaries[i][n];
             }
             std::cerr << std::endl;
         }
     }
 
     for (size_t i=0; i<num_devices; i++) {
-        free(binary[i]);
+        delete[] binaries[i];
     }
-    free(binary);
-    free(binary_sizes);
-    free(devices);
 }
 
 
@@ -544,8 +541,8 @@ void build_program_and_kernel(size_t dev, const char *file_name, const char *ker
         err |= clGetProgramBuildInfo(program, devices_[dev], CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
 
         // allocate memory for the options and log
-        char *program_build_options = (char *)malloc(options_size);
-        char *program_build_log = (char *)malloc(log_size);
+        char *program_build_options = new char[options_size];
+        char *program_build_log = new char[log_size];
 
         // get the options and log
         err |= clGetProgramBuildInfo(program, devices_[dev], CL_PROGRAM_BUILD_OPTIONS, options_size, program_build_options, NULL);
@@ -561,8 +558,8 @@ void build_program_and_kernel(size_t dev, const char *file_name, const char *ker
                   << program_build_log << std::endl;
 
         // free memory for options and log
-        free(program_build_options);
-        free(program_build_log);
+        delete[] program_build_options;
+        delete[] program_build_log;
     }
     checkErr(err, "clBuildProgram(), clGetProgramBuildInfo()");
 

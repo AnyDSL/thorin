@@ -158,7 +158,6 @@ Memory mem_manager;
 std::vector<cl_device_id> devices_;
 std::vector<cl_context> contexts_;
 std::vector<cl_command_queue> command_queues_;
-cl_program program;
 cl_kernel kernel;
 int clArgIdx;
 size_t local_work_size[3], global_work_size[3];
@@ -497,6 +496,7 @@ void dump_program_binary(cl_program program, cl_device_id device) {
 
 // load OpenCL source file, build program, and create kernel
 void build_program_and_kernel(size_t dev, const char *file_name, const char *kernel_name, bool is_binary) {
+    cl_program program;
     cl_int err = CL_SUCCESS;
     bool print_progress = true;
     bool print_log = false;
@@ -571,6 +571,10 @@ void build_program_and_kernel(size_t dev, const char *file_name, const char *ker
     kernel = clCreateKernel(program, kernel_name, &err);
     checkErr(err, "clCreateKernel()");
     if (print_progress) std::cerr << ". done" << std::endl;
+
+    // release program
+    err = clReleaseProgram(program);
+    checkErr(err, "clReleaseProgram()");
 }
 
 
@@ -614,6 +618,8 @@ void write_buffer(size_t dev, cl_mem mem, void *host, size_t size) {
         std::cerr << "   timing for write buffer: "
                   << (end-start)*1.0e-6f << "(ms)" << std::endl;
     }
+    err = clReleaseEvent(event);
+    checkErr(err, "clReleaseEvent()");
 }
 
 
@@ -635,6 +641,8 @@ void read_buffer(size_t dev, cl_mem mem, void *host, size_t size) {
         std::cerr << "   timing for read buffer: "
                   << (end-start)*1.0e-6f << "(ms)" << std::endl;
     }
+    err = clReleaseEvent(event);
+    checkErr(err, "clReleaseEvent()");
 }
 
 
@@ -731,6 +739,9 @@ void launch_kernel(size_t dev, const char *kernel_name) {
                   << "(ms)" << std::endl;
     }
 
+    // release kernel
+    clReleaseKernel(kernel);
+    checkErr(err, "clReleaseKernel()");
     // reset argument index
     clArgIdx = 0;
 }
@@ -813,6 +824,8 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, 
                 std::cerr << "   timing for map_memory: "
                           << (end-start)*1.0e-6f << "(ms)" << std::endl;
             }
+            err = clReleaseEvent(event);
+            checkErr(err, "clReleaseEvent()");
             #endif
         } else {
             // mapping and slicing of a region

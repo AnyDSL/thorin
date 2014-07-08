@@ -27,13 +27,15 @@ long get_micro_time() {
     clock_gettime(CLOCK_MONOTONIC, &now);
     #endif
 
+    long time = now.tv_sec*1000000LL + now.tv_nsec / 1000LL;
     if (global_time==0) {
-        global_time = now.tv_sec*1000000LL + now.tv_nsec / 1000LL;
+        global_time = time;
     } else {
-        global_time = (now.tv_sec*1000000LL + now.tv_nsec / 1000LL) - global_time;
+        global_time = time - global_time;
         std::cerr << "   timing: " << global_time * 1.0e-3f << "(ms)" << std::endl;
         global_time = 0;
     }
+    return time;
 }
 float random_val(int max) {
     return ((float)random() / RAND_MAX) * max;

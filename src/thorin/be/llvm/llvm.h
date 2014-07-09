@@ -61,6 +61,7 @@ protected:
     HashMap<const Param*, llvm::Value*> params_;
     HashMap<const Param*, llvm::PHINode*> phis_;
     HashMap<const PrimOp*, llvm::Value*> primops_;
+    TypeMap<llvm::Type*> types_;
     HashMap<Lambda*, llvm::Function*> fcts_;
     HashSet<llvm::Function*> fcts_to_remove_;
 

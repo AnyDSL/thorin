@@ -845,7 +845,10 @@ Type World::rebuild(World& to, Type type, ArrayRef<Type> args) {
     }
 
     switch (type->kind()) {
-        case Node_DefiniteArrayType:    assert(args.size() == 1); return to.definite_array_type(args.front(), type.as<DefiniteArrayType>()->dim());
+        case Node_DefiniteArrayType: {
+            assert(args.size() == 1); 
+            return to.definite_array_type(args.front(), type.as<DefiniteArrayType>()->dim());
+        }
         case Node_TypeVar:              assert(args.size() == 0); return to.type_var();
         case Node_IndefiniteArrayType:  assert(args.size() == 1); return to.indefinite_array_type(args.front());
         case Node_MemType:              assert(args.size() == 0); return to.mem_type();
@@ -855,8 +858,19 @@ Type World::rebuild(World& to, Type type, ArrayRef<Type> args) {
             auto p = type.as<PtrType>();
             return to.ptr_type(args.front(), p->length(), p->device(), p->addr_space());
         }
-        case Node_TupleType:  return to.tuple_type(args);
-        case Node_FnType:     return to.fn_type(args);
+        case Node_StructAbsType: {
+            // TODO how do we handle recursive types?
+            auto ntype = to.struct_abs_type(args.size());
+            for (size_t i = 0, e = args.size(); i != e; ++i)
+                ntype->set(i, args[i]);
+            return ntype;
+        }
+        case Node_StructAppType: {
+            assert(args.size() >= 1); 
+            return to.struct_app_type(args[0].as<StructAbsType>(), args.slice_from_begin(1));
+        }
+        case Node_TupleType:        return to.tuple_type(args);
+        case Node_FnType:           return to.fn_type(args);
         default: THORIN_UNREACHABLE;
     }
 }

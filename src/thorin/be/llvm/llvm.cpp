@@ -573,18 +573,19 @@ llvm::Value* CodeGen::emit(Def def) {
     if (auto array = def->isa<IndefiniteArray>())
         return llvm::UndefValue::get(convert(array->type()));
 
-    if (auto tuple = def->isa<Tuple>()) {
-        llvm::Value* agg = llvm::UndefValue::get(convert(tuple->type()));
-        for (size_t i = 0, e = tuple->ops().size(); i != e; ++i)
-            agg = builder_.CreateInsertValue(agg, lookup(tuple->op(i)), { unsigned(i) });
-        return agg;
+    if (auto agg = def->isa<Aggregate>()) {
+        assert(def->isa<Tuple>() || def->isa<StructAgg>());
+        llvm::Value* llvm_agg = llvm::UndefValue::get(convert(agg->type()));
+        for (size_t i = 0, e = agg->ops().size(); i != e; ++i)
+            llvm_agg = builder_.CreateInsertValue(llvm_agg, lookup(agg->op(i)), { unsigned(i) });
+        return llvm_agg;
     }
 
     if (auto aggop = def->isa<AggOp>()) {
         auto agg = lookup(aggop->agg());
         auto idx = lookup(aggop->index());
 
-        if (aggop->agg()->type().isa<TupleType>()) {
+        if (aggop->agg()->type().isa<TupleType>() || aggop->agg()->type().isa<StructAppType>()) {
             unsigned i = aggop->index()->primlit_value<unsigned>();
 
             if (auto extract = aggop->isa<Extract>()) {
@@ -709,7 +710,7 @@ llvm::Value* CodeGen::emit_store(Def def) {
 
 llvm::Value* CodeGen::emit_lea(Def def) {
     auto lea = def->as<LEA>();
-    if (lea->referenced_type().isa<TupleType>())
+    if (lea->referenced_type().isa<TupleType>() || lea->referenced_type().isa<StructAppType>())
         return builder_.CreateStructGEP(lookup(lea->ptr()), lea->index()->primlit_value<u32>());
 
     assert(lea->referenced_type().isa<ArrayType>());
@@ -761,6 +762,9 @@ llvm::Value* CodeGen::emit_shared_munmap(Def def) {
 }
 
 llvm::Type* CodeGen::convert(Type type) {
+    if (auto ltype = thorin::find(types_, *type.unify()))
+        return ltype;
+
     assert(!type.isa<MemType>());
     llvm::Type* llvm_type;
     switch (type->kind()) {
@@ -799,10 +803,10 @@ llvm::Type* CodeGen::convert(Type type) {
             break;
         }
         case Node_IndefiniteArrayType:
-            return llvm::ArrayType::get(convert(type.as<ArrayType>()->elem_type()), 0);
+            return types_[*type] = llvm::ArrayType::get(convert(type.as<ArrayType>()->elem_type()), 0);
         case Node_DefiniteArrayType: {
             auto array = type.as<DefiniteArrayType>();
-            return llvm::ArrayType::get(convert(array->elem_type()), array->dim());
+            return types_[*type] = llvm::ArrayType::get(convert(array->elem_type()), array->dim());
         }
         case Node_FnType: {
             // extract "return" type, collect all other types
@@ -839,18 +843,30 @@ multiple:
             }
             assert(ret);
 
-            return llvm::FunctionType::get(ret, args, false);
+            return types_[*type] = llvm::FunctionType::get(ret, args, false);
+        }
+
+        case Node_StructAbsType: 
+            return types_[*type] = llvm::StructType::get(context_);
+
+        case Node_StructAppType: {
+            auto struct_app = type.as<StructAppType>();
+            auto llvm_struct = llvm::cast<llvm::StructType>(convert(struct_app->struct_abs_type()));
+            // import: memoize before recursing into element types to avoid endless recursion
+            types_[*struct_app] = llvm_struct;
+            Array<llvm::Type*> llvm_types(struct_app->num_elems());
+            for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
+                llvm_types[i] = convert(struct_app->elem(i));
+            llvm_struct->setBody(llvm_ref(llvm_types));
+            return llvm_struct;
         }
 
         case Node_TupleType: {
-            // TODO watch out for cycles!
             auto tuple = type.as<TupleType>();
-            Array<llvm::Type*> args(tuple->num_args());
-            size_t num = 0;
-            for (auto arg : tuple->args())
-                args[num++] = convert(arg);
-            args.shrink(num);
-            return llvm::StructType::get(context_, llvm_ref(args));
+            Array<llvm::Type*> llvm_types(tuple->num_args());
+            for (size_t i = 0, e = llvm_types.size(); i != e; ++i)
+                llvm_types[i] = convert(tuple->arg(i));
+            return types_[*tuple] = llvm::StructType::get(context_, llvm_ref(llvm_types));
         }
 
         default:
@@ -858,8 +874,8 @@ multiple:
     }
 
     if (type->length() == 1)
-        return llvm_type;
-    return llvm::VectorType::get(llvm_type, type->length());
+        return types_[*type] = llvm_type;
+    return types_[*type] = llvm::VectorType::get(llvm_type, type->length());
 }
 
 llvm::GlobalVariable* CodeGen::emit_global_memory(llvm::Type* type, const std::string& name, unsigned addr_space) {

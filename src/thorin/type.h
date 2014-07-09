@@ -318,18 +318,23 @@ private:
 class StructAppTypeNode : public TypeNode {
 private:
     StructAppTypeNode(StructAbsType struct_abs_type, ArrayRef<Type> args)
-        : TypeNode(struct_abs_type->world(), Node_StructAppType, args)
+        : TypeNode(struct_abs_type->world(), Node_StructAppType, Array<Type>(args.size() + 1))
         , struct_abs_type_(struct_abs_type)
         , elem_cache_(struct_abs_type->num_args())
-    {}
-
-    virtual size_t hash() const override;
-    virtual bool equal(const TypeNode* other) const override;
+    {
+        set(0, struct_abs_type);
+        for (size_t i = 0, e = args.size(); i != e; ++i)
+            set(i+1, args[i]);
+    }
 
 public:
-    StructAbsType struct_abs_type() const { return struct_abs_type_; }
+    StructAbsType struct_abs_type() const { return arg(0).as<StructAbsType>(); }
+    ArrayRef<Type> type_args() const { return args().slice_from_begin(1); }
+    Type type_arg(size_t i) const { return type_args()[i]; }
+    size_t num_type_args() const { return type_args().size(); }
     Type elem(const Def& def) const { return TypeNode::elem(def); }
     virtual Type elem(size_t i) const;
+    size_t num_elems() const { return struct_abs_type()->num_args(); }
 
 private:
     virtual Type vinstantiate(Type2Type&) const override;

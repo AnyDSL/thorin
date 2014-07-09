@@ -847,11 +847,12 @@ multiple:
         }
 
         case Node_StructAbsType: 
-            return types_[*type] = llvm::StructType::get(context_);
+            return types_[*type] = llvm::StructType::create(context_);
 
         case Node_StructAppType: {
             auto struct_app = type.as<StructAppType>();
             auto llvm_struct = llvm::cast<llvm::StructType>(convert(struct_app->struct_abs_type()));
+            assert(!types_.contains(*struct_app) && "type already converted");
             // import: memoize before recursing into element types to avoid endless recursion
             types_[*struct_app] = llvm_struct;
             Array<llvm::Type*> llvm_types(struct_app->num_elems());

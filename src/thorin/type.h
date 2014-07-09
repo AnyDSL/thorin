@@ -155,7 +155,7 @@ public:
     int order() const;
     /// Returns the vector length. Raises an assertion if this type is not a \p VectorType.
     size_t length() const;
-    Type instantiate(ArrayRef<Type>) const;
+    virtual Type instantiate(ArrayRef<Type>) const;
     Type instantiate(Type2Type&) const;
     Type specialize(Type2Type&) const;
     Type elem(const Def& def) const;
@@ -306,6 +306,7 @@ public:
     void set(size_t i, Type type) const { const_cast<StructAbsTypeNode*>(this)->TypeNode::set(i, type); }
     virtual size_t hash() const override { return hash_value(this->gid()); }
     virtual bool equal(const TypeNode* other) const override { return this == other; }
+    virtual Type instantiate(ArrayRef<Type> args) const override;
 
 private:
     virtual Type vinstantiate(Type2Type&) const override { THORIN_UNREACHABLE; }

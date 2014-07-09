@@ -177,6 +177,16 @@ public:
     friend class World;
 };
 
+class StructAgg : public Aggregate {
+private:
+    StructAgg(World& world, StructAppType, ArrayRef<Def> args, const std::string& name);
+
+public:
+    StructAppType struct_app_type() const { return Aggregate::type().as<StructAppType>(); }
+
+    friend class World;
+};
+
 class Vector : public Aggregate {
 private:
     Vector(World& world, ArrayRef<Def> args, const std::string& name);

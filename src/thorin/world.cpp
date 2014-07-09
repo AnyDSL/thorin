@@ -821,6 +821,7 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type) {
         case Node_Run:      assert(ops.size() == 1); return to.run(     ops[0], name);
         case Node_Select:   assert(ops.size() == 3); return to.select(  ops[0], ops[1], ops[2], name);
         case Node_Store:    assert(ops.size() == 3); return to.store(   ops[0], ops[1], ops[2], name);
+        case Node_StructAgg:                         return to.struct_agg(type.as<StructAppType>(), ops, name);
         case Node_Tuple:                             return to.tuple(ops, name);
         case Node_Vector:                            return to.vector(ops, name);
         case Node_DefiniteArray:

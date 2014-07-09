@@ -28,6 +28,7 @@
         THORIN_AIR_NODE(DefiniteArray, definite_array)
         THORIN_AIR_NODE(IndefiniteArray, indefinite_array)
         THORIN_AIR_NODE(Tuple, tuple)
+        THORIN_AIR_NODE(StructAgg, struct_agg)
         THORIN_AIR_NODE(Vector, vector)
         THORIN_AIR_NODE(Extract, extract)
         THORIN_AIR_NODE(Insert, insert)

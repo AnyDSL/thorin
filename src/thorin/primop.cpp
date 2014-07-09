@@ -74,6 +74,17 @@ Tuple::Tuple(World& world, ArrayRef<Def> args, const std::string& name)
     set_type(world.tuple_type(elems));
 }
 
+StructAgg::StructAgg(World& world, StructAppType struct_app_type, ArrayRef<Def> args, const std::string& name)
+    : Aggregate(Node_StructAgg, args, name)
+{
+#ifndef NDEBUG
+    for (size_t i = 0, e = size(); i != e; ++i)
+        assert(struct_app_type->elem(i) == args[i]->type());
+#endif
+
+    set_type(struct_app_type);
+}
+
 Vector::Vector(World& world, ArrayRef<Def> args, const std::string& name)
     : Aggregate(Node_Vector, args, name)
 {
@@ -122,7 +133,7 @@ LEA::LEA(Def def, Def index, const std::string& name)
     auto type = ptr_type();
     if (auto tuple = referenced_type().isa<TupleType>()) {
         set_type(world.ptr_type(tuple->elem(index), type->length(), type->device(), type->addr_space()));
-    } else if (auto array = referenced_type().as<ArrayType>()) {
+    } else if (auto array = referenced_type().isa<ArrayType>()) {
         set_type(world.ptr_type(array->elem_type(), type->length(), type->device(), type->addr_space()));
     } else if (auto struct_app = referenced_type().isa<StructAppType>()) {
         set_type(world.ptr_type(struct_app->elem(index)));

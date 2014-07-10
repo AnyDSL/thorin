@@ -1,8 +1,5 @@
 include(CMakeParseArguments)
 
-set(CUDA_DIR "/opt/cuda6.0" CACHE STRING "The directory containing the CUDA toolkit")
-message("Using THORIN at ${THORIN_RUNTIME_DIR}, CUDA at ${CUDA_DIR}")
-
 macro(THORIN_RUNTIME_WRAP outfiles outlibs)
 	CMAKE_PARSE_ARGUMENTS("TRW" "MAIN" "RTTYPE" "FILES" ${ARGN})
 	IF(NOT "${TRW_UNPARSED_ARGUMENTS}" STREQUAL "")
@@ -19,45 +16,32 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
 		)
 	ENDIF()
 	# add specific runtime
-	set(CUDA_RUNTIME_DEFINES "'-DLIBDEVICE_DIR=\"${CUDA_DIR}/nvvm/libdevice/\"' '-DNVCC_BIN=\"${CUDA_DIR}/bin/nvcc\"' '-DKERNEL_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/\"'")
-	set(CUDA_RUNTIME_INCLUDES "-I${CUDA_DIR}/include -I${CUDA_DIR}/nvvm/include -I${CUDA_DIR}/nvvm/libnvvm-samples/common/include")
-	IF("${TRW_RTTYPE}" STREQUAL "nvvm")
+	IF("${TRW_RTTYPE}" STREQUAL "nvvm" OR "${TRW_RTTYPE}" STREQUAL "cuda")
+		Find_Package(CUDA REQUIRED)
+		set(CUDA_RUNTIME_DEFINES "'-DLIBDEVICE_DIR=\"${CUDA_TOOLKIT_ROOT_DIR}/nvvm/libdevice/\"' '-DNVCC_BIN=\"${CUDA_TOOLKIT_ROOT_DIR}/bin/nvcc\"' '-DKERNEL_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/\"'")
+		set(CUDA_RUNTIME_INCLUDES "-I${CUDA_TOOLKIT_ROOT_DIR}/include -I${CUDA_TOOLKIT_ROOT_DIR}/nvvm/include -I${CUDA_TOOLKIT_ROOT_DIR}/nvvm/libnvvm-samples/common/include")
+		# set variables expected below
 		set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/cuda/cu_runtime.cpp)
-		set(${outlibs} cuda ${CUDA_DIR}/nvvm/lib64/libnvvm.so)
-		set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_nvvm.impala)
+		set(${outlibs} cuda ${CUDA_TOOLKIT_ROOT_DIR}/nvvm/lib64/libnvvm.so)
+		set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${TRW_RTTYPE}.impala)
+		# cu_runtime needs some defines
 		# lucky enough, cmake does the right thing here even when we compile impala programs from various folders
 		SET_SOURCE_FILES_PROPERTIES(
 			${THORIN_RUNTIME_DIR}/cuda/cu_runtime.cpp
 			PROPERTIES
 			COMPILE_FLAGS "${CUDA_RUNTIME_DEFINES} ${CUDA_RUNTIME_INCLUDES}"
 		)
-	ELSEIF("${TRW_RTTYPE}" STREQUAL "cuda")
-		set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/cuda/cu_runtime.cpp)
-		set(${outlibs} cuda ${CUDA_DIR}/nvvm/lib64/libnvvm.so)
-		set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_cuda.impala)
-		SET_SOURCE_FILES_PROPERTIES(
-			${THORIN_RUNTIME_DIR}/cuda/cu_runtime.cpp
-			PROPERTIES
-			COMPILE_FLAGS "${CUDA_RUNTIME_DEFINES} ${CUDA_RUNTIME_INCLUDES}"
-		)
-	ELSEIF("${TRW_RTTYPE}" STREQUAL "spir")
-		set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/opencl/cl_runtime.cpp)
+	ELSEIF("${TRW_RTTYPE}" STREQUAL "spir" OR "${TRW_RTTYPE}" STREQUAL "opencl")
 		FIND_LIBRARY(CL_LIB OpenCL)
-		set(${outlibs} ${CL_LIB})
-		set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_spir.impala)
-	ELSEIF("${TRW_RTTYPE}" STREQUAL "opencl")
+		# set variables expected below
 		set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/opencl/cl_runtime.cpp)
-		FIND_LIBRARY(CL_LIB OpenCL)
 		set(${outlibs} ${CL_LIB})
-		set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_opencl.impala)
-	ELSEIF("${TRW_RTTYPE}" STREQUAL "cpu")
+		set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${TRW_RTTYPE}.impala)
+	ELSEIF("${TRW_RTTYPE}" STREQUAL "cpu" OR "${TRW_RTTYPE}" STREQUAL "avx")
+		# set variables expected below
 		set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/cpu/cpu_runtime.cpp)
 		set(${outlibs})
-		set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_cpu.impala)
-	ELSEIF("${TRW_RTTYPE}" STREQUAL "avx")
-		set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/cpu/cpu_runtime.cpp)
-		set(${outlibs})
-		set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_avx.impala)
+		set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${TRW_RTTYPE}.impala)
 	ELSE()
 		message(FATAL_ERROR "Unknown runtime type ${TRW_RTTYPE}")
 	ENDIF()

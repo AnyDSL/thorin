@@ -54,13 +54,25 @@ std::ostream& CCodeGen::emit_type(Type type) {
         if (lookup(tuple->gid())) return stream() << get_name(tuple->gid());
         stream() << "typedef struct tuple_" << tuple->gid() << " {";
         ++indent;
-        size_t i = 0;
-        for (auto arg : tuple->args()) {
+        for (size_t i = 0, e = tuple->args().size(); i != e; ++i) {
             newline();
-            emit_type(arg) << " e" << i++ << ";";
+            emit_type(tuple->arg(i)) << " e" << i << ";";
         }
         --indent; newline();
         stream() << "} tuple_" << tuple->gid() << ";";
+        return stream();
+    } else if (auto struct_abs = type.isa<StructAbsType>()) {
+        return stream() << struct_abs->name();
+    } else if (auto struct_app = type.isa<StructAppType>()) {
+        if (lookup(struct_app->gid())) return stream() << get_name(struct_app->gid());
+        stream() << "typedef struct struct_" << struct_app->gid() << " {";
+        ++indent;
+        for (size_t i = 0, e = struct_app->elems().size(); i != e; ++i) {
+            newline();
+            emit_type(struct_app->elem(i)) << " e" << i << ";";
+        }
+        --indent; newline();
+        stream() << "} struct_" << struct_app->gid() << ";";
         return stream();
     } else if (type.isa<TypeVar>()) {
         THORIN_UNREACHABLE;
@@ -123,19 +135,17 @@ std::ostream& CCodeGen::emit_aggop_defs(Def def) {
 
     // recurse into (multi-dimensional) array
     if (auto array = def->isa<DefiniteArray>()) {
-        for (size_t i = 0, e = array->size(); i != e; ++i)
-            emit_aggop_defs(array->op(i));
+        for (auto op : array->ops()) emit_aggop_defs(op);
+        if (lookup(def->gid())) return stream();
         emit(array);
         newline();
     }
 
-    // recurse into (multi-dimensional) tuple
-    if (auto tuple = def->isa<Tuple>()) {
-        for (size_t i = 0, e = tuple->ops().size(); i != e; ++i) {
-            if (i) stream() << ", ";
-            emit_aggop_defs(tuple->op(i));
-        }
-        emit(tuple);
+    // recurse into (multi-dimensional) tuple or struct
+    if (auto agg = def->isa<Aggregate>()) {
+        for (auto op : agg->ops()) emit_aggop_defs(op);
+        if (lookup(def->gid())) return stream();
+        emit(agg);
         newline();
     }
 
@@ -160,14 +170,23 @@ std::ostream& CCodeGen::emit_aggop_decl(Type type) {
 
     // recurse into (multi-dimensional) tuple
     if (auto tuple = type.isa<TupleType>()) {
-        // hack for map() -> (mem, [type]*[dev][mem])
-        if (tuple->num_args() == 2 && tuple->arg(0).isa<MemType>()) {
+        // check for a memory-mapped extract: map() -> (mem, [type]*[dev][mem])
+        if (tuple->num_args() == 2 &&
+            tuple->arg(0).isa<MemType>() && tuple->arg(1).isa<PtrType>()) {
             insert(type->gid(), "");
             return stream();
         }
         for (auto arg : tuple->args()) emit_aggop_decl(arg);
         emit_type(tuple);
         insert(type->gid(), "tuple_" + std::to_string(type->gid()));
+        newline();
+    }
+
+    // recurse into (multi-dimensional) struct
+    if (auto struct_app = type.isa<StructAppType>()) {
+        for (auto elem : struct_app->elems()) emit_aggop_decl(elem);
+        emit_type(struct_app);
+        insert(type->gid(), "struct_" + std::to_string(type->gid()));
         newline();
     }
 
@@ -396,7 +415,7 @@ void CCodeGen::emit() {
             } else {
                 Lambda* to_lambda = lambda->to()->as_lambda();
 
-                // emit inlined arrays/tuples before the call operation
+                // emit inlined arrays/tuples/structs before the call operation
                 for (auto arg : lambda->args()) emit_aggop_defs(arg);
 
                 if (to_lambda->is_basicblock()) {    // ordinary jump
@@ -534,10 +553,8 @@ std::ostream& CCodeGen::emit(Def def) {
 
     if (auto array = def->isa<DefiniteArray>()) {
         if (array->is_const()) { // DefArray is mapped to a struct
-            // recurse into multi-dimensional arrays and emit definitions of
-            // inlined elements
-            for (size_t i = 0, e = array->size(); i != e; ++i)
-                emit_aggop_defs(array->op(i));
+            // emit definitions of inlined elements
+            for (auto op : array->ops()) emit_aggop_defs(op);
 
             emit_type(array->type()) << " " << array->unique_name() << " = {{";
             for (size_t i = 0, e = array->size(); i != e; ++i) {
@@ -551,15 +568,15 @@ std::ostream& CCodeGen::emit(Def def) {
         THORIN_UNREACHABLE;
     }
 
-    if (auto tuple = def->isa<Tuple>()) {
-        // recurse into nested tuple and emit definitions of inlined elements
-        for (size_t i = 0, e = tuple->ops().size(); i != e; ++i)
-            emit_aggop_defs(tuple->op(i));
+    if (auto agg = def->isa<Aggregate>()) {
+        assert(def->isa<Tuple>() || def->isa<StructAgg>());
+        // emit definitions of inlined elements
+        for (auto op : agg->ops()) emit_aggop_defs(op);
 
-        emit_type(tuple->type()) << " " << tuple->unique_name() << " = {";
-        for (size_t i = 0, e = tuple->ops().size(); i != e; ++i) {
+        emit_type(agg->type()) << " " << agg->unique_name() << " = {";
+        for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
             if (i) stream() << ", ";
-            emit(tuple->op(i));
+            emit(agg->op(i));
         }
         stream() << "};";
         insert(def->gid(), def->unique_name());
@@ -567,14 +584,18 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto aggop = def->isa<AggOp>()) {
-        // recurse into (multi-dimensional) tuple/array and emit definitions of
-        // inlined tuples/arrays
+        // emit definitions of inlined elements
         emit_aggop_defs(aggop->agg());
-        if (auto tuple = aggop->agg()->type().isa<TupleType>()) {
-            if (aggop->isa<Extract>()) {
+        if (aggop->agg()->type().isa<TupleType>() ||
+            aggop->agg()->type().isa<StructAppType>()) {
+            if (auto extract = aggop->isa<Extract>()) {
                 emit_type(aggop->type()) << " " << aggop->unique_name() << " = ";
-                // hack for map() -> (mem, [type]*[dev][mem])
-                if (tuple->num_args() == 2 && tuple->arg(0).isa<MemType>()) {
+                auto agg_type = extract->agg()->type();
+                auto agg_tuple = agg_type.isa<TupleType>();
+                // check for a memory-mapped extract: map() -> (mem, [type]*[dev][mem])
+                if (agg_tuple && agg_tuple->num_args() == 2 &&
+                    agg_tuple->arg(0).isa<MemType>() &&
+                    agg_tuple->arg(1).isa<PtrType>()) {
                     emit(aggop->agg()) << ";";
                 } else {
                     emit(aggop->agg()) << ".e";

@@ -14,14 +14,21 @@ OS:=$(shell uname -s)
 
 ifeq ($(OS),Linux)
 	LD_FLAGS = -lcuda -lnvvm
+	SED_EXT =
 endif
 ifeq ($(OS),Darwin) # assume Mac OS X
 	LD_FLAGS = -lcuda -lnvvm
+	SED_EXT = ''
 endif
 
 
 all: $(MAIN).out
 	@echo "Running $(MAIN) ..."
+	@# remove attribute from asm
+	@if [ -f $(MAIN).nvvm ]; then \
+		sed -i $(SED_EXT) '/attributes #0/d' $(MAIN).nvvm; \
+		sed -i $(SED_EXT) 's/#0//' $(MAIN).nvvm; \
+	fi
 	@./$(MAIN).out
 
 %.s: %.cpp

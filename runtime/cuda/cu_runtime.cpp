@@ -221,7 +221,7 @@ inline void __checkNvvmErrors(nvvmResult err, const char *name, const char *file
 
 inline void __check_device(size_t dev) {
     if (dev >= devices_.size()) {
-        std::cerr << "ERROR: requested device #" << dev << ", but only " << devices_.size() << " OpenCL devices [0.." << devices_.size()-1 << "] available!" << std::endl;
+        std::cerr << "ERROR: requested device #" << dev << ", but only " << devices_.size() << " CUDA devices [0.." << devices_.size()-1 << "] available!" << std::endl;
         exit(EXIT_FAILURE);
     }
 }

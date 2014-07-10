@@ -1,5 +1,8 @@
 include(CMakeParseArguments)
 
+set(CUDA_DIR "/opt/cuda6.0" CACHE STRING "The directory containing the CUDA toolkit")
+message("Using THORIN at ${THORIN_RUNTIME_DIR}, CUDA at ${CUDA_DIR}")
+
 macro(THORIN_RUNTIME_WRAP outfiles outlibs)
 	CMAKE_PARSE_ARGUMENTS("TRW" "MAIN" "RTTYPE" "FILES" ${ARGN})
 	IF(NOT "${TRW_UNPARSED_ARGUMENTS}" STREQUAL "")

@@ -7,6 +7,10 @@
 #include <unordered_map>
 #include <vector>
 
+#ifndef KERNEL_DIR
+#define KERNEL_DIR ""
+#endif
+
 #define BENCH
 #ifdef BENCH
 std::vector<std::pair<size_t, void *>> kernel_args;
@@ -499,9 +503,9 @@ void build_program_and_kernel(size_t dev, const char *file_name, const char *ker
     bool print_log = false;
     bool dump_binary = false;
 
-    std::ifstream srcFile(file_name);
+    std::ifstream srcFile(std::string(KERNEL_DIR) + file_name);
     if (!srcFile.is_open()) {
-        std::cerr << "ERROR: Can't open"
+        std::cerr << "ERROR: Can't open "
                   << (is_binary?"SPIR binary":"OpenCL source")
                   << " file '" << file_name << "'!" << std::endl;
         exit(EXIT_FAILURE);

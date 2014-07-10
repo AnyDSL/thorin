@@ -57,6 +57,11 @@ Type StructAppTypeNode::elem(size_t i) const {
     return elem_cache_[i] = type->specialize(map).unify();
 }
 
+ArrayRef<Type> StructAppTypeNode::elems() const {
+    for (size_t i = 0; i < num_elems(); ++i) elem(i);
+    return elem_cache_;
+}
+
 //------------------------------------------------------------------------------
 
 /*

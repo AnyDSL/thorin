@@ -335,6 +335,7 @@ public:
     size_t num_type_args() const { return type_args().size(); }
     Type elem(const Def& def) const { return TypeNode::elem(def); }
     virtual Type elem(size_t i) const;
+    ArrayRef<Type> elems() const;
     size_t num_elems() const { return struct_abs_type()->num_args(); }
 
 private:

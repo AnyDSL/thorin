@@ -19,6 +19,7 @@ public:
 
     std::ostream& emit_type_vars(Type);
     std::ostream& emit_type_args(Type);
+    std::ostream& emit_type_elems(Type);
     std::ostream& emit_type(Type);
     std::ostream& emit_name(Def);
     std::ostream& emit_def(Def);
@@ -38,6 +39,12 @@ std::ostream& CodeGen::emit_type_vars(Type type) {
 
 std::ostream& CodeGen::emit_type_args(Type type) {
     return dump_list([&](Type type) { emit_type(type); }, type->args(), "(", ")");
+}
+
+std::ostream& CodeGen::emit_type_elems(Type type) {
+    if (auto struct_app = type.isa<StructAppType>())
+        return dump_list([&](Type type) { emit_type(type); }, struct_app->elems(), "{", "}");
+    return emit_type_args(type);
 }
 
 std::ostream& CodeGen::emit_type(Type type) {
@@ -61,7 +68,7 @@ std::ostream& CodeGen::emit_type(Type type) {
         //return emit_type_args(struct_abs);
     } else if (auto struct_app = type.isa<StructAppType>()) {
         stream() << struct_app->struct_abs_type()->name();
-        return emit_type_args(struct_app);
+        return emit_type_elems(struct_app);
     } else if (auto type_var = type.isa<TypeVar>()) {
         return stream() << '<' << type_var->gid() << '>';
     } else if (auto array = type.isa<IndefiniteArrayType>()) {

@@ -283,6 +283,7 @@ fn acc_gidy() -> int    { acc_tidy() + acc_bdimy() * acc_bidy() }
 fn acc_gidz() -> int    { acc_tidz() + acc_bdimz() * acc_bidz() }
 fn acc_barrier() -> ()  { nvvm_barrier0() }
 fn acc_tex() -> int     { 2 }
+fn acc_dev() -> int     { 0 }
 
 extern "C" {
     fn __nv_expf(float) -> float;

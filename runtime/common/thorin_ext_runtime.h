@@ -1,6 +1,8 @@
 #ifndef _THORIN_EXT_RUNTIME_H
 #define _THORIN_EXT_RUNTIME_H
 
+#include <stdlib.h>
+
 extern "C" {
     // runtime functions, used externally from C++ interface
     void thorin_init();

@@ -396,7 +396,7 @@ private:
     }
     Node** alloc() {
         assert(is_power_of_2(capacity_));
-        auto nodes = new Node*[capacity_+1](); // the last node servers as end
+        auto nodes = new Node*[capacity_+1](); // the last node serves as end
         nodes[capacity_] = end_pointer();      // mark end as occupied
         return nodes;
     }

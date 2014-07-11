@@ -273,9 +273,10 @@ public:
             size_t x = i & (capacity_-1);
             auto it = nodes_ + x;
             if (*it == nullptr) {
-                if (insert_pos == nullptr)
+                if (insert_pos == nullptr) {
                     insert_pos = it;
-                ++load_;
+                    ++load_;
+                }
                 ++size_;
                 *insert_pos = n;
                 return std::make_pair(iterator(insert_pos, this), true);

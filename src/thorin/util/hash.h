@@ -145,10 +145,10 @@ private:
         {}
 
         iterator_base& operator= (iterator_base other) { swap(*this, other); return *this; }
-        iterator_base& operator++ () { node_ = move_to_valid(++node_); return *this; }
-        iterator_base operator++ (int) { iterator_base res = *this; ++(*this); return res; }
-        reference operator* () const { return (*node_)->value_; }
-        pointer operator-> () const { return &(*node_)->value_; }
+        iterator_base& operator++ () { assert(this->table_->id_ == this->id_); node_ = move_to_valid(++node_); return *this; }
+        iterator_base operator++ (int) { assert(this->table_->id_ == this->id_); iterator_base res = *this; ++(*this); return res; }
+        reference operator* () const { assert(this->table_->id_ == this->id_); return (*node_)->value_; }
+        pointer operator-> () const { assert(this->table_->id_ == this->id_); return &(*node_)->value_; }
         bool operator== (const iterator_base& other) { assert(this->table_ == other.table_ && this->id_ == other.id_ && this->table_->id_ == this->id_); return this->node_ == other.node_; }
         bool operator!= (const iterator_base& other) { assert(this->table_ == other.table_ && this->id_ == other.id_ && this->table_->id_ == this->id_); return this->node_ != other.node_; }
         friend void swap(iterator_base& i1, iterator_base& i2) {
@@ -330,13 +330,19 @@ public:
 
     // find
     iterator find(const key_type& key) {
+#ifndef NDEBUG
+        int old_id = id_;
+#endif
         for (size_t i = hash_function_(key), step = 0; true; i += ++step) {
             size_t x = i & (capacity_-1);
             auto it = nodes_ + x;
-            if (*it == nullptr)
+            if (*it == nullptr) {
+                assert(old_id == id());
                 return end();
-            else if (*it != free_but_reused() && key_eq_((*it)->key(), key))
+            } else if (*it != free_but_reused() && key_eq_((*it)->key(), key)) {
+                assert(old_id == id());
                 return iterator(it, this);
+            }
         }
     }
     const_iterator find(const key_type& key) const { return const_iterator(const_cast<HashTable*>(this)->find(key).node_, this); }

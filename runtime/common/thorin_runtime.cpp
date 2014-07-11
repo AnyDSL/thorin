@@ -43,15 +43,15 @@ float random_val(int max) {
 
 
 #ifdef PROVIDE_MAIN
-extern "C" void main_impala(void);
+extern "C" int main_impala(void);
 
 int main(int argc, const char **argv) {
     // initialize AnyDSL runtime
     thorin_init();
     // run main
-    main_impala(); // FIXME this has some unknown return type - we don't enforce it to be int...
+    int ret = main_impala();
     // print total timing
     thorin_print_total_timing();
-    return 0;
+    return ret;
 }
 #endif

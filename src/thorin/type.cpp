@@ -15,8 +15,8 @@ namespace thorin {
 
 void TypeNode::bind(TypeVar type_var) const {
     assert(!type_var->is_unified());
-    type_vars_.push_back(type_var); 
-    type_var->bound_at_ = this; 
+    type_vars_.push_back(type_var);
+    type_var->bound_at_ = this;
 }
 
 void TypeNode::dump() const { emit_type(Type(this)); std::cout << std::endl; }
@@ -137,7 +137,7 @@ size_t PtrTypeNode::hash() const {
  */
 
 bool TypeNode::equal(const TypeNode* other) const {
-    bool result = this->kind() == other->kind() && this->num_args() == other->num_args() 
+    bool result = this->kind() == other->kind() && this->num_args() == other->num_args()
         && this->num_type_vars() == other->num_type_vars();
 
     if (result) {
@@ -147,7 +147,7 @@ bool TypeNode::equal(const TypeNode* other) const {
         }
 
         for (size_t i = 0, e = num_args(); result && i != e; ++i)
-            result &= this->args_[i] == other->args_[i];
+            result &= this->args_[i]->equal(*other->args_[i]);
 
         for (auto var : type_vars())
             var->equiv_ = nullptr;
@@ -230,26 +230,26 @@ Type PrimTypeNode ::vinstantiate(Type2Type& map) const { return map[this] = this
 Type TypeVarNode  ::vinstantiate(Type2Type& map) const { return map[this] = this; }
 
 Type DefiniteArrayTypeNode::vinstantiate(Type2Type& map) const {
-    return map[this] = *world().definite_array_type(elem_type()->specialize(map), dim()); 
+    return map[this] = *world().definite_array_type(elem_type()->specialize(map), dim());
 }
 
 Type FnTypeNode::vinstantiate(Type2Type& map) const {
-    return map[this] = *world().fn_type(specialize_args(map)); 
+    return map[this] = *world().fn_type(specialize_args(map));
 }
 
 Type IndefiniteArrayTypeNode::vinstantiate(Type2Type& map) const {
-    return map[this] = *world().indefinite_array_type(elem_type()->specialize(map)); 
+    return map[this] = *world().indefinite_array_type(elem_type()->specialize(map));
 }
 
 Type PtrTypeNode::vinstantiate(Type2Type& map) const {
-    return map[this] = *world().ptr_type(referenced_type()->specialize(map), length(), device(), addr_space()); 
+    return map[this] = *world().ptr_type(referenced_type()->specialize(map), length(), device(), addr_space());
 }
 
 Type StructAbsTypeNode::instantiate(ArrayRef<Type> args) const {
     return world().struct_app_type(this, args);
 }
 
-Type StructAppTypeNode::vinstantiate(Type2Type& map) const { 
+Type StructAppTypeNode::vinstantiate(Type2Type& map) const {
     Array<Type> nargs(num_type_args());
     for (size_t i = 0, e = num_type_args(); i != e; ++i)
         nargs[i] = type_arg(i)->specialize(map);
@@ -257,7 +257,7 @@ Type StructAppTypeNode::vinstantiate(Type2Type& map) const {
 }
 
 Type TupleTypeNode::vinstantiate(Type2Type& map) const {
-    return map[this] = *world().tuple_type(specialize_args(map)); 
+    return map[this] = *world().tuple_type(specialize_args(map));
 }
 
 //------------------------------------------------------------------------------

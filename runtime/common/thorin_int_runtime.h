@@ -3,8 +3,9 @@
 
 extern "C" {
     // runtime functions, used internally (by Impala etc.) [TODO: better namespacing]
-    float random_val(int max);
+    float random_val(int);
     long get_micro_time();
+    void print_gflops(float);
 } 
 
 #endif

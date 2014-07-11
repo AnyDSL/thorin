@@ -37,6 +37,7 @@ long get_micro_time() {
     }
     return time;
 }
+void print_gflops(float f) { printf("GFLOPS: %f\n", f); }
 float random_val(int max) {
     return ((float)random() / RAND_MAX) * max;
 }

@@ -199,132 +199,134 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
         }
     }
 
-    if (a == b) {
-        switch (kind) {
-            case ArithOp_add:
-                if (is_type_i(type))
-                    return arithop_mul(cond, literal(type, 2), a);
-                else
-                    break;
+    if (is_type_i(kind)) {
+        if (a == b) {
+            switch (kind) {
+                case ArithOp_add:
+                    if (is_type_i(type))
+                        return arithop_mul(cond, literal(type, 2), a);
+                    else
+                        break;
 
-            case ArithOp_sub:
-            case ArithOp_rem:
-            case ArithOp_xor: return zero(type);
+                case ArithOp_sub:
+                case ArithOp_rem:
+                case ArithOp_xor: return zero(type);
 
-            case ArithOp_div: return one(type);
+                case ArithOp_div: return one(type);
 
-            case ArithOp_and:
-            case ArithOp_or:  return a;
+                case ArithOp_and:
+                case ArithOp_or:  return a;
 
-            default: break;
+                default: break;
+            }
         }
-    }
 
-    if (a->is_zero()) {
-        switch (kind) {
-            case ArithOp_div:
-            case ArithOp_rem: return bottom(type);
+        if (a->is_zero()) {
+            switch (kind) {
+                case ArithOp_div:
+                case ArithOp_rem: return bottom(type);
 
-            case ArithOp_shl:
-            case ArithOp_shr: return a;
+                case ArithOp_shl:
+                case ArithOp_shr: return a;
 
-            default: break;
+                default: break;
+            }
+        } else if (a->is_one()) {
+            switch (kind) {
+                case ArithOp_div: return a;
+                case ArithOp_rem: return zero(type);
+
+                default: break;
+            }
+        } else if (rlit && rlit->primlit_value<uint64_t>() >= uint64_t(num_bits(type))) {
+            switch (kind) {
+                case ArithOp_shl:
+                case ArithOp_shr: return bottom(type);
+
+                default: break;
+            }
         }
-    } else if (a->is_one()) {
-        switch (kind) {
-            case ArithOp_div: return a;
-            case ArithOp_rem: return zero(type);
 
-            default: break;
+        if (kind == ArithOp_xor && a->is_allset()) {    // is this a NOT
+            if (b->is_not())                            // do we have ~~x?
+                return b->as<ArithOp>()->rhs();
+            if (auto cmp = b->isa<Cmp>())   // do we have ~(a cmp b)?
+                return this->cmp(negate(cmp->cmp_kind()), cond, cmp->lhs(), cmp->rhs());
         }
-    } else if (rlit && rlit->primlit_value<uint64_t>() >= uint64_t(num_bits(type))) {
-        switch (kind) {
-            case ArithOp_shl:
-            case ArithOp_shr: return bottom(type);
 
-            default: break;
-        }
-    }
+        auto lcmp = a->isa<Cmp>();
+        auto rcmp = b->isa<Cmp>();
 
-    if (kind == ArithOp_xor && a->is_allset()) {    // is this a NOT
-        if (b->is_not())                            // do we have ~~x?
-            return b->as<ArithOp>()->rhs();
-        if (auto cmp = b->isa<Cmp>())   // do we have ~(a cmp b)?
-            return this->cmp(negate(cmp->cmp_kind()), cond, cmp->lhs(), cmp->rhs());
-    }
+        if (kind == ArithOp_or && lcmp && rcmp && lcmp->lhs() == rcmp->lhs() && lcmp->rhs() == rcmp->rhs()
+                && lcmp->cmp_kind() == negate(rcmp->cmp_kind()))
+                return literal_bool(true);
 
-    auto lcmp = a->isa<Cmp>();
-    auto rcmp = b->isa<Cmp>();
+        if (kind == ArithOp_and && lcmp && rcmp && lcmp->lhs() == rcmp->lhs() && lcmp->rhs() == rcmp->rhs()
+                && lcmp->cmp_kind() == negate(rcmp->cmp_kind()))
+                return literal_bool(false);
 
-    if (kind == ArithOp_or && lcmp && rcmp && lcmp->lhs() == rcmp->lhs() && lcmp->rhs() == rcmp->rhs()
-            && lcmp->cmp_kind() == negate(rcmp->cmp_kind()))
-            return literal_bool(true);
+        auto land = a->kind() == Node_and ? a->as<ArithOp>() : nullptr;
+        auto rand = b->kind() == Node_and ? b->as<ArithOp>() : nullptr;
 
-    if (kind == ArithOp_and && lcmp && rcmp && lcmp->lhs() == rcmp->lhs() && lcmp->rhs() == rcmp->rhs()
-            && lcmp->cmp_kind() == negate(rcmp->cmp_kind()))
-            return literal_bool(false);
-
-    auto land = a->kind() == Node_and ? a->as<ArithOp>() : nullptr;
-    auto rand = b->kind() == Node_and ? b->as<ArithOp>() : nullptr;
-
-    // distributivity (a and b) or (a and c)
-    if (kind == ArithOp_or && land && rand) {
-        if (land->lhs() == rand->lhs())
-            return arithop_and(cond, land->lhs(), arithop_or(cond, land->rhs(), rand->rhs()));
-        if (land->rhs() == rand->rhs())
-            return arithop_and(cond, land->rhs(), arithop_or(cond, land->lhs(), rand->lhs()));
-    }
-
-    auto lor = a->kind() == Node_or ? a->as<ArithOp>() : nullptr;
-    auto ror = b->kind() == Node_or ? b->as<ArithOp>() : nullptr;
-
-    // distributivity (a or b) and (a or c)
-    if (kind == ArithOp_and && lor && ror) {
-        if (lor->lhs() == ror->lhs())
-            return arithop_or(cond, lor->lhs(), arithop_and(cond, lor->rhs(), ror->rhs()));
-        if (lor->rhs() == ror->rhs())
-            return arithop_or(cond, lor->rhs(), arithop_and(cond, lor->lhs(), ror->lhs()));
-    }
-
-    // absorption
-    if (kind == ArithOp_and) {
-        if (ror) {
-            if (a == ror->lhs()) return ror->rhs();
-            if (a == ror->rhs()) return ror->lhs();
-        }
-        if (lor) {
-            if (a == lor->lhs()) return lor->rhs();
-            if (a == lor->rhs()) return lor->lhs();
-        }
-    }
-
-    // absorption
-    if (kind == ArithOp_or) {
-        if (rand) {
-            if (a == rand->lhs()) return rand->rhs();
-            if (a == rand->rhs()) return rand->lhs();
-        }
-        if (land) {
-            if (a == land->lhs()) return land->rhs();
-            if (a == land->rhs()) return land->lhs();
-        }
-    }
-
-    if (kind == ArithOp_or) {
-        if (lor && ror) {
-            if (lor->lhs() == ror->lhs())
-                return arithop_or(lor->rhs(), ror->rhs());
-            if (lor->rhs() == ror->rhs())
-                return arithop_or(lor->lhs(), ror->lhs());
-        }
-    }
-
-    if (kind == ArithOp_and) {
-        if (land && rand) {
+        // distributivity (a and b) or (a and c)
+        if (kind == ArithOp_or && land && rand) {
             if (land->lhs() == rand->lhs())
-                return arithop_and(land->rhs(), rand->rhs());
+                return arithop_and(cond, land->lhs(), arithop_or(cond, land->rhs(), rand->rhs()));
             if (land->rhs() == rand->rhs())
-                return arithop_and(land->lhs(), rand->lhs());
+                return arithop_and(cond, land->rhs(), arithop_or(cond, land->lhs(), rand->lhs()));
+        }
+
+        auto lor = a->kind() == Node_or ? a->as<ArithOp>() : nullptr;
+        auto ror = b->kind() == Node_or ? b->as<ArithOp>() : nullptr;
+
+        // distributivity (a or b) and (a or c)
+        if (kind == ArithOp_and && lor && ror) {
+            if (lor->lhs() == ror->lhs())
+                return arithop_or(cond, lor->lhs(), arithop_and(cond, lor->rhs(), ror->rhs()));
+            if (lor->rhs() == ror->rhs())
+                return arithop_or(cond, lor->rhs(), arithop_and(cond, lor->lhs(), ror->lhs()));
+        }
+
+        // absorption
+        if (kind == ArithOp_and) {
+            if (ror) {
+                if (a == ror->lhs()) return ror->rhs();
+                if (a == ror->rhs()) return ror->lhs();
+            }
+            if (lor) {
+                if (a == lor->lhs()) return lor->rhs();
+                if (a == lor->rhs()) return lor->lhs();
+            }
+        }
+
+        // absorption
+        if (kind == ArithOp_or) {
+            if (rand) {
+                if (a == rand->lhs()) return rand->rhs();
+                if (a == rand->rhs()) return rand->lhs();
+            }
+            if (land) {
+                if (a == land->lhs()) return land->rhs();
+                if (a == land->rhs()) return land->lhs();
+            }
+        }
+
+        if (kind == ArithOp_or) {
+            if (lor && ror) {
+                if (lor->lhs() == ror->lhs())
+                    return arithop_or(lor->rhs(), ror->rhs());
+                if (lor->rhs() == ror->rhs())
+                    return arithop_or(lor->lhs(), ror->lhs());
+            }
+        }
+
+        if (kind == ArithOp_and) {
+            if (land && rand) {
+                if (land->lhs() == rand->lhs())
+                    return arithop_and(land->rhs(), rand->rhs());
+                if (land->rhs() == rand->rhs())
+                    return arithop_and(land->lhs(), rand->lhs());
+            }
         }
     }
 
@@ -341,38 +343,40 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
         std::swap(lvec, rvec);
     }
 
-    if (a->is_zero()) {
-        switch (kind) {
-            case ArithOp_mul:
-            case ArithOp_div:
-            case ArithOp_rem:
-            case ArithOp_and:
-            case ArithOp_shl:
-            case ArithOp_shr: return zero(type);
+    if (is_type_i(kind)) {
+        if (a->is_zero()) {
+            switch (kind) {
+                case ArithOp_mul:
+                case ArithOp_div:
+                case ArithOp_rem:
+                case ArithOp_and:
+                case ArithOp_shl:
+                case ArithOp_shr: return zero(type);
 
-            case ArithOp_add:
-            case ArithOp_or:
-            case ArithOp_xor:  return b;
+                case ArithOp_add:
+                case ArithOp_or:
+                case ArithOp_xor:  return b;
 
-            default: break;
+                default: break;
+            }
         }
-    }
-    if (a->is_one()) {
-        switch (kind) {
-            case ArithOp_mul: return b;
-            default: break;
+        if (a->is_one()) {
+            switch (kind) {
+                case ArithOp_mul: return b;
+                default: break;
+            }
         }
-    }
-    if (a->is_allset()) {
-        switch (kind) {
-            case ArithOp_and: return b;
-            case ArithOp_or:  return llit; // allset
-            default: break;
+        if (a->is_allset()) {
+            switch (kind) {
+                case ArithOp_and: return b;
+                case ArithOp_or:  return llit; // allset
+                default: break;
+            }
         }
     }
 
     // normalize: try to reorder same ops to have the literal/vector on the left-most side
-    if (is_associative(kind)) {
+    if (is_associative(kind)) { // TODO properly obey floats
         auto a_same = a->isa<ArithOp>() && a->as<ArithOp>()->arithop_kind() == kind ? a->as<ArithOp>() : nullptr;
         auto b_same = b->isa<ArithOp>() && b->as<ArithOp>()->arithop_kind() == kind ? b->as<ArithOp>() : nullptr;
         auto a_lhs_lv = a_same && (a_same->lhs()->isa<PrimLit>() || a_same->lhs()->isa<Vector>()) ? a_same->lhs() : nullptr;

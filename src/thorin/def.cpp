@@ -136,7 +136,7 @@ void DefNode::replace(Def with) const {
 }
 
 int DefNode::non_const_depth() const {
-    if (this->is_const() || this->isa<Param>()) 
+    if (this->is_const() || this->isa<Param>())
         return 0;
 
     const PrimOp* primop = this->as<PrimOp>();
@@ -149,18 +149,18 @@ int DefNode::non_const_depth() const {
     return max + 1;
 }
 
-void DefNode::dump() const { 
+void DefNode::dump() const {
     auto primop = this->isa<PrimOp>();
     if (primop && !primop->is_const())
         emit_assignment(primop);
     else {
-        emit_def(this); 
+        emit_def(this);
         std::cout << std::endl;
     }
 }
 
 World& DefNode::world() const { return type()->world(); }
-Def DefNode::op_via_lit(Def def) const { return op(def->primlit_value<size_t>()); }
+Def DefNode::op(Def def) const { return op(def->primlit_value<size_t>()); }
 Lambda* DefNode::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(this)); }
 Lambda* DefNode::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(this)); }
 const PrimOp* DefNode::is_non_const_primop() const { return is_const() ? nullptr : isa<PrimOp>(); }

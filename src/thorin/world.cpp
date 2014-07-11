@@ -595,7 +595,7 @@ Def World::extract(Def agg, Def index, const std::string& name) {
     if (auto aggregate = agg->isa<Aggregate>()) {
         if (auto lit = index->isa<PrimLit>()) {
             if (!agg->isa<IndefiniteArray>())
-                return aggregate->op_via_lit(lit);
+                return aggregate->op(lit);
         }
     }
 
@@ -683,7 +683,7 @@ const Map* World::map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space
 }
 
 const Map* World::map(Def mem, Def ptr, Def device, Def addr_space, Def tleft, Def size, const std::string& name) {
-    return map(mem, ptr, device->as<PrimLit>()->ps32_value().data(), 
+    return map(mem, ptr, device->as<PrimLit>()->ps32_value().data(),
             (AddressSpace)addr_space->as<PrimLit>()->ps32_value().data(), tleft, size, name);
 }
 
@@ -692,7 +692,7 @@ const Unmap* World::unmap(Def mem, Def ptr, uint32_t device, AddressSpace addr_s
 }
 
 const Unmap* World::unmap(Def mem, Def ptr, Def device, Def addr_space, const std::string& name) {
-    return unmap(mem, ptr, device->as<PrimLit>()->ps32_value().data(), 
+    return unmap(mem, ptr, device->as<PrimLit>()->ps32_value().data(),
             (AddressSpace)addr_space->as<PrimLit>()->ps32_value().data(), name);
 }
 
@@ -814,9 +814,9 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type) {
         case Node_LEA:      assert(ops.size() == 2); return to.lea(     ops[0], ops[1], name);
         case Node_Leave:    assert(ops.size() == 2); return to.leave(   ops[0], ops[1], name);
         case Node_Load:     assert(ops.size() == 2); return to.load(    ops[0], ops[1], name);
-        case Node_Map:      assert(ops.size() == 4); return to.map(     ops[0], ops[1], 
+        case Node_Map:      assert(ops.size() == 4); return to.map(     ops[0], ops[1],
                                     in->as<Map>()->device(), in->as<Map>()->addr_space(), ops[2], ops[3], name);
-        case Node_Unmap:    assert(ops.size() == 2); return to.unmap(   ops[0], ops[1], 
+        case Node_Unmap:    assert(ops.size() == 2); return to.unmap(   ops[0], ops[1],
                                     in->as<Map>()->device(), in->as<Map>()->addr_space(),  name);
         case Node_Run:      assert(ops.size() == 1); return to.run(     ops[0], name);
         case Node_Select:   assert(ops.size() == 3); return to.select(  ops[0], ops[1], ops[2], name);
@@ -846,7 +846,7 @@ Type World::rebuild(World& to, Type type, ArrayRef<Type> args) {
 
     switch (type->kind()) {
         case Node_DefiniteArrayType: {
-            assert(args.size() == 1); 
+            assert(args.size() == 1);
             return to.definite_array_type(args.front(), type.as<DefiniteArrayType>()->dim());
         }
         case Node_TypeVar:              assert(args.size() == 0); return to.type_var();
@@ -854,7 +854,7 @@ Type World::rebuild(World& to, Type type, ArrayRef<Type> args) {
         case Node_MemType:              assert(args.size() == 0); return to.mem_type();
         case Node_FrameType:            assert(args.size() == 0); return to.frame_type();
         case Node_PtrType: {
-            assert(args.size() == 1); 
+            assert(args.size() == 1);
             auto p = type.as<PtrType>();
             return to.ptr_type(args.front(), p->length(), p->device(), p->addr_space());
         }
@@ -866,7 +866,7 @@ Type World::rebuild(World& to, Type type, ArrayRef<Type> args) {
             return ntype;
         }
         case Node_StructAppType: {
-            assert(args.size() >= 1); 
+            assert(args.size() >= 1);
             return to.struct_app_type(args[0].as<StructAbsType>(), args.slice_from_begin(1));
         }
         case Node_TupleType:        return to.tuple_type(args);

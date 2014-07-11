@@ -34,7 +34,7 @@ class World;
  */
 class Def {
 public:
-    Def() 
+    Def()
         : node_(nullptr)
     {}
     Def(const DefNode* node)
@@ -53,7 +53,7 @@ private:
     mutable const DefNode* node_;
 };
 
-/** 
+/**
  * References a user.
  * A \p Def u which uses \p Def d as i^th operand is a \p Use with \p index_ i of \p Def d.
  */
@@ -76,13 +76,13 @@ private:
     Def def_;
 };
 
-struct UseLT { 
+struct UseLT {
     inline bool operator () (Use use1, Use use2) const;
 };
 
 //------------------------------------------------------------------------------
 
-template<class To> 
+template<class To>
 using DefMap  = HashMap<const DefNode*, To, GIDHash<const DefNode*>, GIDEq<const DefNode*>>;
 using DefSet  = HashSet<const DefNode*, GIDHash<const DefNode*>, GIDEq<const DefNode*>>;
 using Def2Def = DefMap<const DefNode*>;
@@ -148,7 +148,7 @@ public:
     World& world() const;
     ArrayRef<Def> ops() const { return ops_; }
     Def op(size_t i) const { assert(i < ops().size()); return ops()[i]; }
-    Def op_via_lit(Def def) const;
+    Def op(Def def) const;
     void replace(Def) const;
     size_t length() const; ///< Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
     bool is_primlit(int val) const;
@@ -240,7 +240,7 @@ private:
 
 template<>
 struct Hash<ArrayRef<Def>> {
-    size_t operator () (ArrayRef<Def> defs) const { 
+    size_t operator () (ArrayRef<Def> defs) const {
         size_t seed = hash_begin(defs.size());
         for (auto def : defs)
             seed = hash_combine(seed, def.empty() ? size_t(-1) : def->gid());
@@ -250,7 +250,7 @@ struct Hash<ArrayRef<Def>> {
 
 template<>
 struct Hash<Array<Def>> {
-    size_t operator () (const Array<Def> defs) const { return Hash<ArrayRef<Def>>()(defs); } 
+    size_t operator () (const Array<Def> defs) const { return Hash<ArrayRef<Def>>()(defs); }
 };
 
 //------------------------------------------------------------------------------

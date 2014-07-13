@@ -100,25 +100,27 @@ void PartialEvaluator::seek() {
 void PartialEvaluator::eval(const Run* cur_run, Lambda* cur) {
     while (!done_.contains(cur)) {
         done_.insert(cur);
-        if (cur->empty() || cur->to()->isa<Hlt>())
+        if (cur->empty())
             return;
 
         Lambda* dst = nullptr;
         if (auto hlt = cur->to()->isa<Hlt>()) {
             cur = nullptr;
-            for (auto use : hlt->uses()) {
+            for (auto use : hlt->uses()) {  // TODO assert that there is only one EndHlt user
                 if (auto end = use->isa<EndHlt>()) {
-                    dst = end->def()->isa_lambda();
-                    break;      // TODO assert that there is only one EndHlt user
+                    if (auto lambda = end->def()->isa_lambda())
+                        lambda->update_to(world().run(lambda->to()));
+                    //break; // TODO there may be multiple versions of that due to updates
                 }
             }
+            return;
         } else if (auto run = cur->to()->isa<Run>()) {
             dst = run->def()->isa_lambda();
         } else {
             dst = cur->to()->isa_lambda();
         }
 
-        if (dst == nullptr) {   // skip to immediate post-dominator
+        if (dst == nullptr) {               // skip to immediate post-dominator
             cur = old2new_[postdomtree_.idom(new2old_[cur])];
         } else if (dst->empty()) {
             if (!cur->args().empty()) {
@@ -142,9 +144,11 @@ void PartialEvaluator::eval(const Run* cur_run, Lambda* cur) {
                 if (cur->arg(i)->isa<Hlt>()) {
                     continue;
                 } else if (auto end = cur->arg(i)->isa<EndRun>()) {
-                    if (end->run() == cur_run)
+                    if (end->run() == cur_run) {
+                        end->replace(end->def()); // TODO factor
                         continue;
-                    else {
+                    } else {
+                        end->replace(end->def()); // TODO factor
                         call.arg(i) = end->def();
                         continue;
                     }
@@ -203,9 +207,9 @@ void partial_evaluation(World& world) {
     PartialEvaluator(world).seek(); 
 
     for (auto primop : world.primops()) {
-        if (auto evalop = primop->isa<EvalOp>())
+        if (auto evalop = Def(primop)->isa<EvalOp>())
             evalop->replace(evalop->def());
-        else if (auto end = primop->isa<EndEvalOp>())
+        else if (auto end = Def(primop)->isa<EndEvalOp>())
             end->replace(end->def());
 
     }

@@ -415,7 +415,7 @@ llvm::Value* CodeGen::emit(Def def) {
                     case Cmp_lt: return builder_.CreateICmpSLT(lhs, rhs, name);
                     case Cmp_le: return builder_.CreateICmpSLE(lhs, rhs, name);
                 }
-            } else if (type->is_type_u()) {
+            } else if (type->is_type_u() || type->is_bool()) {
                 switch (cmp->cmp_kind()) {
                     case Cmp_eq: return builder_.CreateICmpEQ (lhs, rhs, name);
                     case Cmp_ne: return builder_.CreateICmpNE (lhs, rhs, name);

@@ -6,5 +6,5 @@ extern "thorin" {
     fn nvvm(int, (int, int, int), (int, int, int), fn() -> ()) -> ();
     fn spir(int, (int, int, int), (int, int, int), fn() -> ()) -> ();
     fn opencl(int, (int, int, int), (int, int, int), fn() -> ()) -> ();
-    fn vectorized(int, int, fn() -> ()) -> int;
+    fn vectorized(int, int, fn() -> ()) -> ();
 }

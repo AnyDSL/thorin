@@ -207,13 +207,20 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
                         break;
 
                 case ArithOp_sub:
-                case ArithOp_rem:
                 case ArithOp_xor: return zero(type);
-
-                case ArithOp_div: return one(type);
 
                 case ArithOp_and:
                 case ArithOp_or:  return a;
+
+                case ArithOp_div:
+                    if (b->is_zero())
+                        return bottom(type);
+                    return one(type);
+
+                case ArithOp_rem:
+                    if (b->is_zero())
+                        return bottom(type);
+                    return zero(type);
 
                 default: break;
             }

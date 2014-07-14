@@ -197,7 +197,7 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
         }
     }
 
-    if (is_type_i(kind)) {
+    if (is_type_i(type)) {
         if (a == b) {
             switch (kind) {
                 case ArithOp_add:
@@ -219,7 +219,7 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
             }
         }
 
-        if (a->is_zero()) {
+        if (b->is_zero()) {
             switch (kind) {
                 case ArithOp_div:
                 case ArithOp_rem: return bottom(type);
@@ -229,7 +229,7 @@ Def World::arithop(ArithOpKind kind, Def cond, Def a, Def b, const std::string& 
 
                 default: break;
             }
-        } else if (a->is_one()) {
+        } else if (b->is_one()) {
             switch (kind) {
                 case ArithOp_div: return a;
                 case ArithOp_rem: return zero(type);

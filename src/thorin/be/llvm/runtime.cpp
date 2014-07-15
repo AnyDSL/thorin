@@ -1,5 +1,6 @@
 #include "thorin/be/llvm/runtime.h"
 
+#include <exception>
 #include <sstream>
 #include <llvm/Bitcode/ReaderWriter.h>
 #include <llvm/IR/LLVMContext.h>
@@ -19,7 +20,8 @@ Runtime::Runtime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuild
 {
     llvm::SMDiagnostic diag;
     module_ = llvm::ParseIRFile(mod_name, diag, context);
-    assert(module_ != nullptr && "Runtime could not be loaded");
+    if (module_ == nullptr)
+        throw std::logic_error("runtime could not be loaded");
 }
 
 llvm::Function* Runtime::get(const char* name) {

@@ -291,4 +291,5 @@ extern "C" {
 }
 
 fn expf(a: float) -> float { __nv_expf(a) }
+fn sqrtf(a: float) -> float { __nv_sqrtf(a) }
 

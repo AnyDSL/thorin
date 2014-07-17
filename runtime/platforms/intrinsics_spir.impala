@@ -37,4 +37,5 @@ fn acc_tex() -> int     { 1 }
 fn acc_dev() -> int     { 1 }
 
 fn expf(a: float) -> float { _Z3expf(a) }
+fn sqrtf(a: float) -> float { _Z3sqrtf(a) }
 

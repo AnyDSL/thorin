@@ -46,9 +46,9 @@ void read_memory(size_t dev, CUdeviceptr mem, void *host, size_t size);
 void write_memory(size_t dev, CUdeviceptr mem, void *host, size_t size);
 void free_memory(size_t dev, mem_id mem);
 
-void load_kernel(size_t dev, const char *file_name, const char *kernel_name, bool is_nvvm);
+void load_kernel(size_t dev, std::string file_name, std::string kernel_name, bool is_nvvm);
 
-void get_tex_ref(size_t dev, const char *name);
+void get_tex_ref(size_t dev, std::string name);
 void bind_tex(size_t dev, mem_id mem, CUarray_format format);
 
 void set_kernel_arg(size_t dev, void *param);
@@ -56,7 +56,7 @@ void set_kernel_arg_map(size_t dev, mem_id mem);
 void set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
 void set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
 
-void launch_kernel(size_t dev, const char *kernel_name);
+void launch_kernel(size_t dev, std::string kernel_name);
 void synchronize(size_t dev);
 
 
@@ -203,7 +203,7 @@ std::string getCUDAErrorCodeStrDrv(CUresult errorCode) {
     return std::string(errorName) + ": " + std::string(errorString);
 }
 
-inline void __checkCudaErrors(CUresult err, const char *name, const char *file, const int line) {
+inline void __checkCudaErrors(CUresult err, std::string name, std::string file, const int line) {
     if (CUDA_SUCCESS != err) {
         std::cerr << "ERROR (Driver API): " << name << " (" << err << ")" << " [file " << file << ", line " << line << "]: " << std::endl;
         std::cerr << getCUDAErrorCodeStrDrv(err) << std::endl;
@@ -211,7 +211,7 @@ inline void __checkCudaErrors(CUresult err, const char *name, const char *file, 
     }
 }
 
-inline void __checkNvvmErrors(nvvmResult err, const char *name, const char *file, const int line) {
+inline void __checkNvvmErrors(nvvmResult err, std::string name, std::string file, const int line) {
     if (NVVM_SUCCESS != err) {
         std::cerr << "ERROR (NVVM API): " << name << " (" << err << ")" << " [file " << file << ", line " << line << "]: " << std::endl;
         std::cerr << nvvmGetErrorString(err) << std::endl;
@@ -287,7 +287,7 @@ void init_cuda() {
 
 
 // load ptx assembly, create a module and kernel
-void create_module_kernel(size_t dev, const char *ptx, const char *kernel_name, CUjit_target target_cc) {
+void create_module_kernel(size_t dev, std::string ptx, std::string kernel_name, CUjit_target target_cc) {
     CUresult err = CUDA_SUCCESS;
     bool print_progress = true;
 
@@ -315,7 +315,7 @@ void create_module_kernel(size_t dev, const char *ptx, const char *kernel_name, 
 
 
 // computes occupancy for kernel function
-void print_kernel_occupancy(size_t dev, const char *kernel_name) {
+void print_kernel_occupancy(size_t dev, std::string kernel_name) {
     #if CUDA_VERSION >= 6050
     CUresult err = CUDA_SUCCESS;
     int warp_size;
@@ -350,7 +350,7 @@ void print_kernel_occupancy(size_t dev, const char *kernel_name) {
 
 
 // compile CUDA source file to PTX assembly using nvcc compiler
-void cuda_to_ptx(const char *file_name, std::string target_cc) {
+void cuda_to_ptx(std::string file_name, std::string target_cc) {
     char line[FILENAME_MAX];
     FILE *fpipe;
 
@@ -371,7 +371,7 @@ void cuda_to_ptx(const char *file_name, std::string target_cc) {
 
 
 // load ll intermediate and compile to ptx
-void load_kernel(size_t dev, const char *file_name, const char *kernel_name, bool is_nvvm) {
+void load_kernel(size_t dev, std::string file_name, std::string kernel_name, bool is_nvvm) {
     cuCtxPushCurrent(contexts_[dev]);
     nvvmProgram program;
     std::string srcString;
@@ -388,7 +388,7 @@ void load_kernel(size_t dev, const char *file_name, const char *kernel_name, boo
     if (is_nvvm) {
         nvvmResult err;
         // select libdevice module according to documentation
-        const char *libdevice_file_name;
+        std::string libdevice_file_name;
         switch (target_cc) {
             default:
                 assert(false && "unsupported compute capability");
@@ -407,8 +407,7 @@ void load_kernel(size_t dev, const char *file_name, const char *kernel_name, boo
             exit(EXIT_FAILURE);
         }
 
-        std::string libdeviceString = std::string(std::istreambuf_iterator<char>(libdeviceFile),
-                (std::istreambuf_iterator<char>()));
+        std::string libdeviceString = std::string(std::istreambuf_iterator<char>(libdeviceFile), (std::istreambuf_iterator<char>()));
 
         std::ifstream srcFile(std::string(KERNEL_DIR)+file_name);
         if (!srcFile.is_open()) {
@@ -416,8 +415,7 @@ void load_kernel(size_t dev, const char *file_name, const char *kernel_name, boo
             exit(EXIT_FAILURE);
         }
 
-        srcString = std::string(std::istreambuf_iterator<char>(srcFile),
-                (std::istreambuf_iterator<char>()));
+        srcString = std::string(std::istreambuf_iterator<char>(srcFile), (std::istreambuf_iterator<char>()));
 
         err = nvvmCreateProgram(&program);
         checkErrNvvm(err, "nvvmCreateProgram()");
@@ -483,7 +481,7 @@ void load_kernel(size_t dev, const char *file_name, const char *kernel_name, boo
 }
 
 
-void get_tex_ref(size_t dev, const char *name) {
+void get_tex_ref(size_t dev, std::string name) {
     CUresult err = CUDA_SUCCESS;
 
     err = cuModuleGetTexRef(&textures_[dev], modules_[dev], name);
@@ -590,7 +588,7 @@ void set_kernel_arg_map(size_t dev, mem_id mem) {
 }
 
 
-void launch_kernel(size_t dev, const char *kernel_name) {
+void launch_kernel(size_t dev, std::string kernel_name) {
     cuCtxPushCurrent(contexts_[dev]);
     CUresult err = CUDA_SUCCESS;
     CUevent start, end;

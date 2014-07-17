@@ -25,14 +25,14 @@ void read_buffer(size_t dev, cl_mem mem, void *host, size_t size);
 void write_buffer(size_t dev, cl_mem mem, void *host, size_t size);
 void free_buffer(size_t dev, mem_id mem);
 
-void build_program_and_kernel(size_t dev, const char *file_name, const char *kernel_name, bool);
+void build_program_and_kernel(size_t dev, std::string file_name, std::string kernel_name, bool);
 
 void set_kernel_arg(size_t dev, void *param, size_t size);
 void set_kernel_arg_map(size_t dev, mem_id mem);
 void set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
 void set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
 
-void launch_kernel(size_t dev, const char *kernel_name);
+void launch_kernel(size_t dev, std::string kernel_name);
 void synchronize(size_t dev);
 
 
@@ -166,7 +166,7 @@ cl_kernel kernel;
 int clArgIdx;
 size_t local_work_size[3], global_work_size[3];
 
-const char *getOpenCLErrorCodeStr(int errorCode) {
+std::string getOpenCLErrorCodeStr(int errorCode) {
     switch (errorCode) {
         case CL_SUCCESS:
             return "CL_SUCCESS";
@@ -302,7 +302,7 @@ const char *getOpenCLErrorCodeStr(int errorCode) {
 #define check_dev(dev) __check_device(dev)
 #define checkErr(err, name)  __checkOpenCLErrors(err, name, __FILE__, __LINE__)
 
-inline void __checkOpenCLErrors(cl_int err, const char *name, const char *file, const int line) {
+inline void __checkOpenCLErrors(cl_int err, std::string name, std::string file, const int line) {
     if (err != CL_SUCCESS) {
         std::cerr << "ERROR: " << name << " (" << err << ")" << " [file " << file << ", line " << line << "]: " << std::endl;
         std::cerr << getOpenCLErrorCodeStr(err) << std::endl;
@@ -496,7 +496,7 @@ void dump_program_binary(cl_program program, cl_device_id device) {
 
 
 // load OpenCL source file, build program, and create kernel
-void build_program_and_kernel(size_t dev, const char *file_name, const char *kernel_name, bool is_binary) {
+void build_program_and_kernel(size_t dev, std::string file_name, std::string kernel_name, bool is_binary) {
     cl_program program;
     cl_int err = CL_SUCCESS;
     bool print_progress = true;
@@ -569,7 +569,7 @@ void build_program_and_kernel(size_t dev, const char *file_name, const char *ker
 
     if (dump_binary) dump_program_binary(program, devices_[dev]);
 
-    kernel = clCreateKernel(program, kernel_name, &err);
+    kernel = clCreateKernel(program, kernel_name.c_str(), &err);
     checkErr(err, "clCreateKernel()");
     if (print_progress) std::cerr << ". done" << std::endl;
 
@@ -687,7 +687,7 @@ void set_kernel_arg_map(size_t dev, mem_id mem) {
 }
 
 
-void launch_kernel(size_t dev, const char *kernel_name) {
+void launch_kernel(size_t dev, std::string kernel_name) {
     cl_int err = CL_SUCCESS;
     cl_event event;
     cl_ulong end, start;

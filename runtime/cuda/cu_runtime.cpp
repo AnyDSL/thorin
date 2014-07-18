@@ -308,7 +308,7 @@ void create_module_kernel(size_t dev, const void *ptx, std::string kernel_name, 
 
     // get function entry point
     if (print_progress) std::cerr << ".";
-    err = cuModuleGetFunction(&functions_[dev], modules_[dev], kernel_name);
+    err = cuModuleGetFunction(&functions_[dev], modules_[dev], kernel_name.c_str());
     checkErrDrv(err, "cuModuleGetFunction()");
     if (print_progress) std::cerr << ". done" << std::endl;
 }
@@ -420,10 +420,10 @@ void load_kernel(size_t dev, std::string file_name, std::string kernel_name, boo
         err = nvvmCreateProgram(&program);
         checkErrNvvm(err, "nvvmCreateProgram()");
 
-        err = nvvmAddModuleToProgram(program, libdeviceString.c_str(), libdeviceString.length(), libdevice_file_name);
+        err = nvvmAddModuleToProgram(program, libdeviceString.c_str(), libdeviceString.length(), libdevice_file_name.c_str());
         checkErrNvvm(err, "nvvmAddModuleToProgram()");
 
-        err = nvvmAddModuleToProgram(program, srcString.c_str(), srcString.length(), file_name);
+        err = nvvmAddModuleToProgram(program, srcString.c_str(), srcString.length(), file_name.c_str());
         checkErrNvvm(err, "nvvmAddModuleToProgram()");
 
         std::string compute_arch("-arch=compute_" + std::to_string(target_cc));
@@ -484,7 +484,7 @@ void load_kernel(size_t dev, std::string file_name, std::string kernel_name, boo
 void get_tex_ref(size_t dev, std::string name) {
     CUresult err = CUDA_SUCCESS;
 
-    err = cuModuleGetTexRef(&textures_[dev], modules_[dev], name);
+    err = cuModuleGetTexRef(&textures_[dev], modules_[dev], name.c_str());
     checkErrDrv(err, "cuModuleGetTexRef()");
 }
 

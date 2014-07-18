@@ -287,7 +287,7 @@ void init_cuda() {
 
 
 // load ptx assembly, create a module and kernel
-void create_module_kernel(size_t dev, std::string ptx, std::string kernel_name, CUjit_target target_cc) {
+void create_module_kernel(size_t dev, const void *ptx, std::string kernel_name, CUjit_target target_cc) {
     CUresult err = CUDA_SUCCESS;
     bool print_progress = true;
 

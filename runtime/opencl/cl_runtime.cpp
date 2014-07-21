@@ -529,10 +529,7 @@ void build_program_and_kernel(size_t dev, std::string file_name, std::string ker
     }
 
     std::string options = "-cl-single-precision-constant -cl-denorms-are-zero";
-    // according to the OpenCL specification -x spir -spir-std=1.2 has to be
-    // specified as compiler option. however, these options are not recognized
-    // by the Intel compiler
-    //options += " -x spir -spir-std=1.2";
+    options += " -x spir -spir-std=1.2";
 
     err = clBuildProgram(program, 0, NULL, options.c_str(), NULL, NULL);
     if (print_progress) std::cerr << ".";

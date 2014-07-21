@@ -741,7 +741,7 @@ void launch_kernel(size_t dev, std::string kernel_name) {
     }
 
     // release kernel
-    clReleaseKernel(kernel);
+    err = clReleaseKernel(kernel);
     checkErr(err, "clReleaseKernel()");
     // reset argument index
     clArgIdx = 0;

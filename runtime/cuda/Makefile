@@ -1,4 +1,4 @@
-CUDA_DIR  ?= /usr/local/cuda
+CUDA_DIR   ?= $(shell dirname `which nvcc`)/..
 INC_DIRS   = -I $(CUDA_DIR)/include \
              -I $(CUDA_DIR)/nvvm/include \
              -I $(CUDA_DIR)/nvvm/libnvvm-samples/common/include \

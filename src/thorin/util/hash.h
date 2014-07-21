@@ -262,10 +262,13 @@ public:
         ++id_;
 #endif
         auto n = new Node(args...);
-        if (load_ > capacity_/size_t(4) + capacity_/size_t(2))
+        auto c4 = capacity_/size_t(4), c2 = capacity_/size_t(2);
+        if (size_ < c4)
+            rehash(c2);
+        else if (size_ > c4 + c2)
             rehash(capacity_*size_t(2));
-        else if (load_ < capacity_/size_t(4))
-            rehash(capacity_/size_t(2));
+        else if (load_ > c4 + c2)
+            rehash(capacity_);  // free garbage (remove all free_but_reused entries)
 
         Node** insert_pos = nullptr;
         auto& key = n->key();
@@ -353,8 +356,6 @@ public:
     void rehash(size_type new_capacity) {
         new_capacity = std::max(size_type(min_capacity), new_capacity);
         size_t old_capacity = capacity_;
-        if (new_capacity == old_capacity)
-            return;
         capacity_ = new_capacity;
         auto nodes = alloc();
         load_ = size_;

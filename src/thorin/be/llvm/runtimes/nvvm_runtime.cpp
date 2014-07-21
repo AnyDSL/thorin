@@ -53,6 +53,10 @@ llvm::Value* NVVMRuntime::set_kernel_arg_map(llvm::Value* device, llvm::Value* m
     return builder_.CreateCall(get("nvvm_set_kernel_arg_map"), arg_args);
 }
 
+llvm::Value* NVVMRuntime::set_kernel_arg_struct(llvm::Value* device, llvm::Value* ptr, llvm::Type* type) {
+    return set_kernel_arg(device, ptr, type);
+}
+
 llvm::Value* NVVMRuntime::set_texture(llvm::Value* device, llvm::Value* ptr, llvm::Value* name, PrimTypeKind type) {
     int32_t format;
     switch(type) {

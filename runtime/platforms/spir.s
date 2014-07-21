@@ -12,6 +12,7 @@ declare void @spir_synchronize(i32);
 
 declare void @spir_set_kernel_arg(i32, i8*, i64);
 declare void @spir_set_kernel_arg_map(i32, i64);
+declare void @spir_set_kernel_arg_struct(i32, i8*, i64);
 declare void @spir_build_program_and_kernel_from_binary(i32, i8*, i8*);
 declare void @spir_build_program_and_kernel_from_source(i32, i8*, i8*);
 declare void @spir_launch_kernel(i32, i8*);

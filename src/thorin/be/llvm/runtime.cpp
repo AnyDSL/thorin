@@ -64,7 +64,15 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
         const auto target_val = code_gen.lookup(target_arg);
 
         // check device target
-        if (target_arg->type().isa<PtrType>()) {
+        if (target_arg->type().isa<StructAppType>() ||
+            target_arg->type().isa<TupleType>()) {
+            // struct
+            auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name);
+            builder_.CreateStore(target_val, alloca);
+            auto void_ptr = builder_.CreateBitCast(alloca, builder_.getInt8PtrTy());
+            // TODO: recurse over struct|tuple and check if it contains pointers
+            set_kernel_arg_struct(target_device_val, void_ptr, target_val->getType());
+        } else if (target_arg->type().isa<PtrType>()) {
             auto ptr = target_arg->type().as<PtrType>();
             if (ptr->device() == target_device) {
                 // data is already on this device

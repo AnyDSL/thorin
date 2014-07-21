@@ -66,7 +66,7 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
         // check device target
         if (target_arg->type().isa<StructAppType>() ||
             target_arg->type().isa<TupleType>()) {
-            // struct
+            // struct|tuple
             auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name);
             builder_.CreateStore(target_val, alloca);
             auto void_ptr = builder_.CreateBitCast(alloca, builder_.getInt8PtrTy());

@@ -265,7 +265,7 @@ void init_cuda() {
     functions_.resize(device_count);
     textures_.resize(device_count);
 
-    for (size_t i=0; i<device_count; ++i) {
+    for (int i=0; i<device_count; ++i) {
         int major, minor;
         char name[100];
 
@@ -355,6 +355,10 @@ void print_kernel_occupancy(size_t dev, std::string kernel_name) {
               << std::fixed << std::setprecision(2) << occupancy << ": "
               << active_warps << " out of " << max_warps << " warps" << std::endl
               << "Optimal block size for max occupancy: " << opt_block_size << std::endl;
+    #else
+    // unused parameters
+    (void)dev;
+    (void)kernel_name;
     #endif
 }
 
@@ -511,7 +515,7 @@ void bind_tex(size_t dev, mem_id mem, CUarray_format format) {
 }
 
 
-CUdeviceptr malloc_memory(size_t dev, void *host, size_t size) {
+CUdeviceptr malloc_memory(size_t dev, void */*host*/, size_t size) {
     cuCtxPushCurrent(contexts_[dev]);
     CUdeviceptr mem;
     CUresult err = CUDA_SUCCESS;
@@ -569,21 +573,21 @@ void synchronize(size_t dev) {
 }
 
 
-void set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) {
+void set_problem_size(size_t /*dev*/, size_t size_x, size_t size_y, size_t size_z) {
     cuDimProblem.x = size_x;
     cuDimProblem.y = size_y;
     cuDimProblem.z = size_z;
 }
 
 
-void set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) {
+void set_config_size(size_t /*dev*/, size_t size_x, size_t size_y, size_t size_z) {
     cuDimBlock.x = size_x;
     cuDimBlock.y = size_y;
     cuDimBlock.z = size_z;
 }
 
 
-void set_kernel_arg(size_t dev, void *param) {
+void set_kernel_arg(size_t /*dev*/, void *param) {
     cuArgIdx++;
     if (cuArgIdx > cuArgIdxMax) {
         cuArgs = (void **)realloc(cuArgs, sizeof(void *)*cuArgIdx);
@@ -669,7 +673,7 @@ mem_id nvvm_malloc_memory(size_t dev, void *host) { return mem_manager.malloc(de
 void nvvm_free_memory(size_t dev, mem_id mem) { free_memory(dev, mem); }
 
 void nvvm_write_memory(size_t dev, mem_id mem, void *host) { check_dev(dev); mem_manager.write(dev, mem, host); }
-void nvvm_read_memory(size_t dev, mem_id mem, void *host) { check_dev(dev); mem_manager.read(dev, mem); }
+void nvvm_read_memory(size_t dev, mem_id mem, void */*host*/) { check_dev(dev); mem_manager.read(dev, mem); }
 
 void nvvm_load_nvvm_kernel(size_t dev, const char *file_name, const char *kernel_name) { check_dev(dev); load_kernel(dev, file_name, kernel_name, true); }
 void nvvm_load_cuda_kernel(size_t dev, const char *file_name, const char *kernel_name) { check_dev(dev); load_kernel(dev, file_name, kernel_name, false); }
@@ -710,7 +714,7 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int offset, int size) {
     }
 
     if (type==Global || type==Texture) {
-        if (size == from_size) {
+        if ((size_t)size == from_size) {
             // mapping the whole memory
             mem = mem_manager.malloc(dev, from);
             mem_manager.write(dev, mem, from);
@@ -728,7 +732,7 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int offset, int size) {
 
     return mem;
 }
-void unmap_memory(size_t dev, size_t type_, mem_id mem) {
+void unmap_memory(size_t dev, size_t /*type_*/, mem_id mem) {
     check_dev(dev);
     mem_manager.read(dev, mem);
     std::cerr << " * unmap memory(" << dev << "):  " << mem << std::endl;

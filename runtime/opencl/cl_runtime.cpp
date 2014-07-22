@@ -514,22 +514,20 @@ void build_program_and_kernel(size_t dev, std::string file_name, std::string ker
     }
 
     std::string clString(std::istreambuf_iterator<char>(srcFile), (std::istreambuf_iterator<char>()));
+    std::string options = "-cl-single-precision-constant -cl-denorms-are-zero";
 
     const size_t length = clString.length();
     const char *c_str = clString.c_str();
 
-
     if (print_progress) std::cerr << "Compiling(" << dev << ") '" << kernel_name << "' .";
     if (is_binary) {
+        options += " -x spir -spir-std=1.2";
         program = clCreateProgramWithBinary(contexts_[dev], 1, &devices_[dev], &length, (const unsigned char **)&c_str, NULL, &err);
         checkErr(err, "clCreateProgramWithBinary()");
     } else {
         program = clCreateProgramWithSource(contexts_[dev], 1, (const char **)&c_str, &length, &err);
         checkErr(err, "clCreateProgramWithSource()");
     }
-
-    std::string options = "-cl-single-precision-constant -cl-denorms-are-zero";
-    options += " -x spir -spir-std=1.2";
 
     err = clBuildProgram(program, 0, NULL, options.c_str(), NULL, NULL);
     if (print_progress) std::cerr << ".";

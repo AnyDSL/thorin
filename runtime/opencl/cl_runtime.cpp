@@ -46,13 +46,6 @@ enum mem_type {
     Constant    = 4
 };
 
-typedef struct mem_ {
-    size_t elem;
-    size_t width;
-    size_t height;
-} mem_;
-std::unordered_map<void*, mem_> host_mems_;
-
 
 class Memory {
     private:
@@ -66,14 +59,14 @@ class Memory {
             void *cpu;
             cl_mem gpu;
             mem_type type;
-            size_t ox, oy, oz;
-            size_t sx, sy, sz;
+            size_t offset, size;
             mem_id id;
         } mapping_;
         std::vector<std::unordered_map<mem_id, mapping_>> mmap;
         std::vector<std::unordered_map<mem_id, void*>> idtomem;
         std::vector<std::unordered_map<void*, mem_id>> memtoid;
         std::unordered_map<size_t, size_t> ummap;
+        std::unordered_map<void*, size_t> hostmem;
 
     public:
         Memory() : count_(42) {}
@@ -88,16 +81,16 @@ class Memory {
     }
     mem_id get_id(size_t dev, void *mem) { return memtoid[dev][mem]; }
     mem_id map_memory(size_t dev, void *from, cl_mem to, mem_type type,
-            size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz) {
+            size_t offset, size_t size) {
         mem_id id = new_id();
-        mapping_ mem_map = { from, to, type, ox, oy, oz, sx, sy, sz, id };
+        mapping_ mem_map = { from, to, type, offset, size, id };
         mmap[dev][id] = mem_map;
         insert(dev, from, id);
         return id;
     }
     mem_id map_memory(size_t dev, void *from, cl_mem to, mem_type type) {
-        mem_ info = host_mems_[from];
-        return map_memory(dev, from, to, type, 0, 0, 0, info.width, info.height, 1);
+        assert(hostmem.count(from) && "memory not allocated by thorin");
+        return map_memory(dev, from, to, type, 0, hostmem[from]);
     }
 
     void *get_host_mem(size_t dev, mem_id id) { return mmap[dev][id].cpu; }
@@ -109,8 +102,29 @@ class Memory {
         idtomem[dev].erase(id);
     }
 
+    void *malloc_host(size_t size) {
+        void *mem;
+        posix_memalign(&mem, 4096, size);
+        std::cerr << " * malloc host(" << size << ") -> " << mem << std::endl;
+        hostmem[mem] = size;
+        return mem;
+    }
+    void free_host(void *ptr) {
+        if (ptr==nullptr) return;
+        // TODO: free associated device memory
+        assert(hostmem.count(ptr) && "memory not allocated by thorin");
+        std::cerr << " * free host(" << ptr << ")" << std::endl;
+        hostmem.erase(ptr);
+        // free host memory
+        free(ptr);
+    }
+    size_t host_mem_size(void *ptr) {
+        assert(hostmem.count(ptr) && "memory not allocated by thorin");
+        return hostmem[ptr];
+    }
 
-    mem_id malloc(size_t dev, void *host, size_t ox, size_t oy, size_t oz, size_t sx, size_t sy, size_t sz) {
+    mem_id malloc(size_t dev, void *host, size_t offset, size_t size) {
+        assert(hostmem.count(host) && "memory not allocated by thorin");
         mem_id id = get_id(dev, host);
 
         if (id) {
@@ -121,41 +135,37 @@ class Memory {
         id = get_id(ummap[dev], host);
         if (id) {
             std::cerr << " * malloc buffer(" << dev << "): returning old copy " << id << " from associated device " << ummap[dev] << " for " << host << std::endl;
-            id = map_memory(dev, host, get_dev_mem(ummap[dev], id), Global,
-                            ox, oy, oz, sx, sy, sz);
+            id = map_memory(dev, host, get_dev_mem(ummap[dev], id), Global, offset, size);
         } else {
-            mem_ info = host_mems_[host];
-            void *host_ptr = (char*)host + (ox + oy*info.width)*info.elem;
+            void *host_ptr = (char*)host + offset;
             cl_mem_flags flags = CL_MEM_READ_WRITE & CL_MEM_USE_HOST_PTR;
-            cl_mem mem = malloc_buffer(dev, host_ptr, flags, info.elem*sx*sy);
-            id = map_memory(dev, host, mem, Global, ox, oy, oz, sx, sy, sz);
+            cl_mem mem = malloc_buffer(dev, host_ptr, flags, size);
+            id = map_memory(dev, host, mem, Global, offset, size);
             std::cerr << " * malloc buffer(" << dev << "): " << mem << " (" << id << ") <-> host: " << host << std::endl;
         }
         return id;
     }
     mem_id malloc(size_t dev, void *host) {
-        mem_ info = host_mems_[host];
-        return malloc(dev, host, 0, 0, 0, info.width, info.height, 1);
+        assert(hostmem.count(host) && "memory not allocated by thorin");
+        return malloc(dev, host, 0, hostmem[host]);
     }
 
     void read(size_t dev, mem_id id) {
         assert(mmap[dev][id].cpu && "invalid host memory");
-        mem_ info = host_mems_[mmap[dev][id].cpu];
         void *host = mmap[dev][id].cpu;
         std::cerr << " * read buffer(" << dev << "):   " << id << " -> " << host
-                  << " (" << mmap[dev][id].ox << "," << mmap[dev][id].oy << "," << mmap[dev][id].oz << ")x("
-                  << mmap[dev][id].sx << "," << mmap[dev][id].sy << "," << mmap[dev][id].sz << ")" << std::endl;
-        void *host_ptr = (char*)host + (mmap[dev][id].ox + mmap[dev][id].oy*info.width)*info.elem;
-        read_buffer(dev, mmap[dev][id].gpu, host_ptr, info.elem * mmap[dev][id].sx * mmap[dev][id].sy);
+                  << " (" << mmap[dev][id].offset << ")x(" << mmap[dev][id].size
+                  << ")" << std::endl;
+        void *host_ptr = (char*)host + mmap[dev][id].offset;
+        read_buffer(dev, mmap[dev][id].gpu, host_ptr, mmap[dev][id].size);
     }
     void write(size_t dev, mem_id id, void *host) {
-        mem_ info = host_mems_[host];
         assert(host==mmap[dev][id].cpu && "invalid host memory");
         std::cerr << " * write buffer(" << dev << "):  " << id << " <- " << host
-                  << " (" << mmap[dev][id].ox << "," << mmap[dev][id].oy << "," << mmap[dev][id].oz << ")x("
-                  << mmap[dev][id].sx << "," << mmap[dev][id].sy << "," << mmap[dev][id].sz << ")" << std::endl;
-        void *host_ptr = (char*)host + (mmap[dev][id].ox + mmap[dev][id].oy*info.width)*info.elem;
-        write_buffer(dev, mmap[dev][id].gpu, host_ptr, info.elem * mmap[dev][id].sx * mmap[dev][id].sy);
+                  << " (" << mmap[dev][id].offset << ")x(" << mmap[dev][id].size
+                  << ")" << std::endl;
+        void *host_ptr = (char*)host + mmap[dev][id].offset;
+        write_buffer(dev, mmap[dev][id].gpu, host_ptr, mmap[dev][id].size);
     }
 };
 Memory mem_manager;
@@ -782,28 +792,18 @@ void spir_synchronize(size_t dev) { check_dev(dev); synchronize(dev); }
 
 // helper functions
 void thorin_init() { init_opencl(); }
-void *thorin_malloc(size_t size) {
-    void *mem;
-    posix_memalign(&mem, 4096, size);
-    std::cerr << " * malloc() -> " << mem << std::endl;
-    host_mems_[mem] = {1, size, 1};
-    return mem;
-}
-void thorin_free(void *ptr) {
-    // TODO: free associated device memory
-
-    // free host memory
-    free(ptr);
-}
+void *thorin_malloc(size_t size) { return mem_manager.malloc_host(size); }
+void thorin_free(void *ptr) { mem_manager.free_host(ptr); }
 void thorin_print_total_timing() {
     #ifdef BENCH
     std::cerr << "total accumulated timing: " << total_timing << " (ms)" << std::endl;
     #endif
 }
-mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, int sx, int sy, int sz) {
+mem_id map_memory(size_t dev, size_t type_, void *from, int offset, int oy, int oz, size_t size, size_t sy, size_t sz) {
     check_dev(dev);
     mem_type type = (mem_type)type_;
-    mem_ info = host_mems_[from];
+    assert(mem_manager.host_mem_size(from) && "memory not allocated by thorin");
+    size_t from_size = mem_manager.host_mem_size(from);
 
     assert(oz==0 && sz==1 && "3D memory not yet supported");
 
@@ -814,9 +814,7 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, 
     }
 
     if (type==Global) {
-        //assert(sx == info.width && "currently only the y-dimension can be split");
-
-        if (sx * sy == info.width * info.height) {
+        if (size * sy == from_size) {
             // mapping the whole memory
             mem = mem_manager.malloc(dev, from);
             mem_manager.write(dev, mem, from);
@@ -830,7 +828,7 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, 
             cl_map_flags map_flags = CL_MAP_READ;
             cl_mem dev_mem = mem_manager.get_dev_mem(dev, mem);
             cl_int err = CL_SUCCESS;
-            void *mapped_mem = clEnqueueMapBuffer(command_queues_[dev], dev_mem, blocking_map, map_flags, 0, info.elem * info.width * info.height, 0, NULL, &event, &err);
+            void *mapped_mem = clEnqueueMapBuffer(command_queues_[dev], dev_mem, blocking_map, map_flags, 0, size, 0, NULL, &event, &err);
             checkErr(err, "clEnqueueMapBuffer()");
             if (print_timing) {
                 err = clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, 0);
@@ -844,13 +842,13 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int ox, int oy, int oz, 
             #endif
         } else {
             // mapping and slicing of a region
-            mem = mem_manager.malloc(dev, from, ox, oy, oz, sx, sy, sz);
+            mem = mem_manager.malloc(dev, from, offset, size);
             mem_manager.write(dev, mem, from);
-            std::cerr << " * map memory(" << dev << "):    " << from << " (" << ox << "," << oy << "," << oz <<")x(" << sx << "," << sy << "," << sz << ") -> " << mem << std::endl;
+            std::cerr << " * map memory(" << dev << "):    " << from << " (" << offset << "," << oy << "," << oz <<")x(" << size << "," << sy << "," << sz << ") -> " << mem << std::endl;
 
             #if 0
             cl_mem_flags mem_flags = CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR;
-            cl_buffer_region buffer_region = { (ox + oy*info.width)*info.elem, sx*sy*info.elem };
+            cl_buffer_region buffer_region = { offset, size };
             cl_mem sub_buffer = clCreateSubBuffer(buffer, mem_flags, CL_BUFFER_CREATE_TYPE_REGION, buffer_region, err);
             checkErr(err, "clCreateSubBuffer()");
             #endif

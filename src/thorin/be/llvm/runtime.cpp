@@ -44,6 +44,7 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
     assert(lambda->num_args() > 5 && "required arguments are missing");
 
     // get input
+    assert(lambda->arg(1)->isa<PrimLit>() && "target device must be hard-coded");
     auto target_device = int(lambda->arg(1)->as<PrimLit>()->qu32_value().data());
     auto target_device_val = builder_.getInt32(target_device);
     auto it_space  = lambda->arg(2)->as<Tuple>();

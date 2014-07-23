@@ -853,7 +853,7 @@ multiple:
             auto struct_app = type.as<StructAppType>();
             auto llvm_struct = llvm::cast<llvm::StructType>(convert(struct_app->struct_abs_type()));
             assert(!types_.contains(*struct_app) && "type already converted");
-            // import: memoize before recursing into element types to avoid endless recursion
+            // important: memoize before recursing into element types to avoid endless recursion
             types_[*struct_app] = llvm_struct;
             Array<llvm::Type*> llvm_types(struct_app->num_elems());
             for (size_t i = 0, e = llvm_types.size(); i != e; ++i)

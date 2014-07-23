@@ -2,6 +2,11 @@ extern "C" {
     fn wfv_get_tid() -> int;
     fn expf(float) -> float;
     fn sqrtf(float) -> float;
+    fn fabsf(float) -> float;
+    fn tanf(float) -> float;
+    fn atan2f(float, float) -> float;
+    fn sinf(float) -> float;
+    fn cosf(float) -> float;
 }
 
 fn get_vector_length() -> int { 8 }

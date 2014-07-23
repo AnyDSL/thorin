@@ -288,8 +288,18 @@ fn acc_dev() -> int     { 0 }
 extern "C" {
     fn __nv_expf(float) -> float;
     fn __nv_sqrtf(float) -> float;
+    fn __nv_fabsf(float) -> float;
+    fn __nv_tanf(float) -> float;
+    fn __nv_atan2f(float, float) -> float;
+    fn __nv_sinf(float) -> float;
+    fn __nv_cosf(float) -> float;
 }
 
 fn expf(a: float) -> float { __nv_expf(a) }
 fn sqrtf(a: float) -> float { __nv_sqrtf(a) }
+fn fabsf(a: float) -> float { __nv_fabsf(a) }
+fn tanf(a: float) -> float { __nv_tanf(a) }
+fn atan2f(a: float, b: float) -> float { __nv_atan2f(a, b) }
+fn sinf(a: float) -> float -> { __nv_sinf(a) }
+fn cosf(a: float) -> float -> { __nv_cosf(a) }
 

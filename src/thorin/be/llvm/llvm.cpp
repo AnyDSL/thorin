@@ -88,9 +88,14 @@ Lambda* CodeGen::emit_builtin(llvm::Function* current, Lambda* lambda) {
 
 llvm::Function* CodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
     auto ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
-    // TODO: factor emit_function_decl code
     auto fun = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, ft));
-    fun->setLinkage(llvm::Function::ExternalLinkage);
+    if (lambda->attribute().is(Lambda::Extern)) {
+        fun->setLinkage(llvm::Function::ExternalLinkage);
+        fun->setVisibility(llvm::Function::DefaultVisibility);
+    } else {
+        fun->setLinkage(llvm::Function::InternalLinkage);
+        fun->setVisibility(llvm::Function::HiddenVisibility);
+    }
     return fun;
 }
 
@@ -846,7 +851,7 @@ multiple:
             return types_[*type] = llvm::FunctionType::get(ret, args, false);
         }
 
-        case Node_StructAbsType: 
+        case Node_StructAbsType:
             return types_[*type] = llvm::StructType::create(context_);
 
         case Node_StructAppType: {

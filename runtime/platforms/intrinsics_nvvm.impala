@@ -300,6 +300,6 @@ fn sqrtf(a: float) -> float { __nv_sqrtf(a) }
 fn fabsf(a: float) -> float { __nv_fabsf(a) }
 fn tanf(a: float) -> float { __nv_tanf(a) }
 fn atan2f(a: float, b: float) -> float { __nv_atan2f(a, b) }
-fn sinf(a: float) -> float -> { __nv_sinf(a) }
-fn cosf(a: float) -> float -> { __nv_cosf(a) }
+fn sinf(a: float) -> float { __nv_sinf(a) }
+fn cosf(a: float) -> float { __nv_cosf(a) }
 

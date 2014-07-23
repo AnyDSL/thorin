@@ -47,6 +47,6 @@ fn sqrtf(a: float) -> float { sqrt(a) }
 fn fabsf(a: float) -> float { fabs(a) }
 fn tanf(a: float) -> float { tan(a) }
 fn atan2f(a: float, b: float) -> float { atan2(a, b) }
-fn sinf(a: float) -> float -> { sin(a) }
-fn cosf(a: float) -> float -> { cos(a) }
+fn sinf(a: float) -> float { sin(a) }
+fn cosf(a: float) -> float { cos(a) }
 

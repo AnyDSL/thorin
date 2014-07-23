@@ -12,7 +12,7 @@ extern "device" {
     fn _Z4sqrtf(float) -> float;
     fn _Z4fabsf(float) -> float;
     fn _Z3tanf(float) -> float;
-    fn _Z5atan2ff(float) -> float;
+    fn _Z5atan2ff(float, float) -> float;
     fn _Z3sinf(float) -> float;
     fn _Z3cosf(float) -> float;
 }
@@ -46,6 +46,6 @@ fn sqrtf(a: float) -> float { _Z4sqrtf(a) }
 fn fabsf(a: float) -> float { _Z4fabsf(a) }
 fn tanf(a: float) -> float { _Z3tanf(a) }
 fn atan2f(a: float, b: float) -> float { _Z5atan2ff(a, b) }
-fn sinf(a: float) -> float -> { _Z3sinf(a) }
-fn cosf(a: float) -> float -> { _Z3cosf(a) }
+fn sinf(a: float) -> float { _Z3sinf(a) }
+fn cosf(a: float) -> float { _Z3cosf(a) }
 

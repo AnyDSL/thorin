@@ -697,8 +697,7 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto map = def->isa<Map>()) {
-        auto tuple = map->region_size()->isa<Tuple>();
-        assert(tuple && "couldn't extract region");
+        assert(map->mem_size()->isa<PrimLit>() && "couldn't extract memory size");
 
         if (lang_==CUDA) {
             switch (map->addr_space()) {
@@ -714,9 +713,7 @@ std::ostream& CCodeGen::emit(Def def) {
             }
         }
         emit_type(map->ptr_type()->referenced_type()) << " " << map->unique_name() << "[";
-        emit(tuple->op(0)) << "*";
-        emit(tuple->op(1)) << "*";
-        emit(tuple->op(2)) << "];";
+        emit(map->mem_size()) << "];";
 
         insert(def->gid(), def->unique_name());
         return stream();

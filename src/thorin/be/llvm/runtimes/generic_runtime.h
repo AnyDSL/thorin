@@ -11,7 +11,7 @@ public:
     virtual ~GenericRuntime() {}
 
     virtual llvm::Value* mmap(uint32_t device, uint32_t addr_space, llvm::Value* ptr,
-                             llvm::Value* top_left, llvm::Value* region_size, llvm::Value* elem_size);
+                             llvm::Value* mem_offset, llvm::Value* mem_size, llvm::Value* elem_size);
     virtual llvm::Value* munmap(uint32_t device, uint32_t addr_space, llvm::Value* mem);
     virtual llvm::Value* parallel_create(llvm::Value* num_threads, llvm::Value* closure_ptr,
                                          uint64_t closure_size, llvm::Value* fun_ptr);

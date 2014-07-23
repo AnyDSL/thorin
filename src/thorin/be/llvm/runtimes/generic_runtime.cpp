@@ -12,19 +12,13 @@ GenericRuntime::GenericRuntime(llvm::LLVMContext& context, llvm::Module* target,
 {}
 
 llvm::Value* GenericRuntime::mmap(uint32_t device, uint32_t addr_space, llvm::Value* ptr,
-                                 llvm::Value* top_left, llvm::Value* region_size, llvm::Value* elem_size) {
+                                 llvm::Value* mem_offset, llvm::Value* mem_size, llvm::Value* elem_size) {
     llvm::Value* mmap_args[] = {
         builder_.getInt32(device),
         builder_.getInt32(addr_space),
         builder_.CreateBitCast(ptr, builder_.getInt8PtrTy()),
-        builder_.CreateExtractValue(top_left, 0), // x
-        builder_.CreateExtractValue(top_left, 1), // y
-        builder_.CreateExtractValue(top_left, 2), // z
-        builder_.CreateMul(
-                builder_.CreateExtractValue(region_size, 0), // x * sizeof(<type>)
-                elem_size),
-        builder_.CreateExtractValue(region_size, 1), // y
-        builder_.CreateExtractValue(region_size, 2), // z
+        builder_.CreateMul(mem_offset, elem_size),
+        builder_.CreateMul(mem_size, elem_size)
     };
     return builder_.CreateCall(get("map_memory"), mmap_args);
 }

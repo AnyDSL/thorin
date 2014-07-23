@@ -31,8 +31,8 @@ static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
                              ulambda->arg(1),  // source ptr
                              ulambda->arg(2),  // target device (0 for host device)
                              ulambda->arg(3),  // address space
-                             ulambda->arg(4),  // top_left of region
-                             ulambda->arg(5)); // region size
+                             ulambda->arg(4),  // offset to memory
+                             ulambda->arg(5)); // size of memory
         ncont = drop(cont_scope, { map->extract_mem(), map->extract_mapped_ptr() });
         mapped = map;
     } else {

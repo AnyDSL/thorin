@@ -104,13 +104,13 @@ public:
 class Map : public MapOp {
 private:
     Map(Def mem, Def ptr, int32_t device, AddressSpace addr_space,
-        Def top_left, Def region_size, const std::string &name);
+        Def offset, Def size, const std::string &name);
 
 public:
     Def extract_mem() const;
     Def extract_mapped_ptr() const;
-    Def top_left() const { return op(2); }
-    Def region_size() const { return op(3); }
+    Def mem_offset() const { return op(2); }
+    Def mem_size() const { return op(3); }
 
     friend class World;
 };

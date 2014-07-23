@@ -678,7 +678,7 @@ void nvvm_set_kernel_arg(size_t dev, void *param) { check_dev(dev); set_kernel_a
 void nvvm_set_kernel_arg_map(size_t dev, mem_id mem) { check_dev(dev); set_kernel_arg_map(dev, mem); }
 void nvvm_set_kernel_arg_tex(size_t dev, mem_id mem, const char *name, CUarray_format format) {
     check_dev(dev);
-    std::cerr << " * set arg tex(" << dev << "): " << mem << std::endl;
+    std::cerr << " * set arg tex(" << dev << "):   " << mem << std::endl;
     get_tex_ref(dev, name);
     bind_tex(dev, mem, format);
 }
@@ -697,13 +697,11 @@ void thorin_print_total_timing() {
     std::cerr << "total accumulated timing: " << total_timing << " (ms)" << std::endl;
     #endif
 }
-mem_id map_memory(size_t dev, size_t type_, void *from, int offset, int oy, int oz, size_t size, size_t sy, size_t sz) {
+mem_id map_memory(size_t dev, size_t type_, void *from, int offset, int size) {
     check_dev(dev);
     mem_type type = (mem_type)type_;
     assert(mem_manager.host_mem_size(from) && "memory not allocated by thorin");
     size_t from_size = mem_manager.host_mem_size(from);
-
-    assert(oz==0 && sz==1 && "3D memory not yet supported");
 
     mem_id mem = mem_manager.get_id(dev, from);
     if (mem) {
@@ -712,7 +710,7 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int offset, int oy, int 
     }
 
     if (type==Global || type==Texture) {
-        if (size * sy == from_size) {
+        if (size == from_size) {
             // mapping the whole memory
             mem = mem_manager.malloc(dev, from);
             mem_manager.write(dev, mem, from);
@@ -721,7 +719,7 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int offset, int oy, int 
             // mapping and slicing of a region
             mem = mem_manager.malloc(dev, from, offset, size);
             mem_manager.write(dev, mem, from);
-            std::cerr << " * map memory(" << dev << "):    " << from << " (" << offset << "," << oy << "," << oz <<")x(" << size << "," << sy << "," << sz << ") -> " << mem << std::endl;
+            std::cerr << " * map memory(" << dev << "):    " << from << " (" << offset << "x(" << size << ") -> " << mem << std::endl;
         }
     } else {
         std::cerr << "unsupported memory: " << type << std::endl;

@@ -63,15 +63,15 @@ MapOp::MapOp(size_t size, NodeKind kind, Type type,
 }
 
 Map::Map(Def mem, Def ptr, int32_t device, AddressSpace addr_space,
-         Def top_left, Def region_size, const std::string &name)
+         Def mem_offset, Def mem_size, const std::string &name)
     : MapOp(4, Node_Map, Type(), mem, ptr, device, addr_space, name)
 {
     World& w = mem->world();
     set_type(w.tuple_type({ mem->type(), 
                             w.ptr_type(ptr->type().as<PtrType>()->referenced_type(),
                             ptr->type().as<PtrType>()->length(), device, addr_space)}));
-    set_op(2, top_left);
-    set_op(3, region_size);
+    set_op(2, mem_offset);
+    set_op(3, mem_size);
 }
 
 Def Map::extract_mem() const { return world().extract(this, 0); }

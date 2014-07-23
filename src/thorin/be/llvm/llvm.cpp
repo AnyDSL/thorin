@@ -735,7 +735,7 @@ llvm::Value* CodeGen::emit_mmap(Def def) {
         type = mmap->ptr_type()->referenced_type();
     auto size = builder_.getInt32(layout.getTypeAllocSize(convert(type)));
     return runtime_->mmap(mmap->device(), (uint32_t)mmap->addr_space(), lookup(mmap->ptr()),
-                         lookup(mmap->top_left()), lookup(mmap->region_size()), size);
+                          lookup(mmap->mem_offset()), lookup(mmap->mem_size()), size);
 }
 
 llvm::Value* CodeGen::emit_munmap(Def def) {
@@ -750,13 +750,11 @@ llvm::Value* CodeGen::emit_shared_mmap(Def def, std::string prefix) {
     auto mmap = def->as<Map>();
     assert(mmap->addr_space() == AddressSpace::Shared &&
             "Only shared memory can be mapped inside NVVM code");
-    auto region_size = mmap->region_size()->as<Tuple>();
-    auto total_region_size = region_size->op(0)->as<PrimLit>()->ps32_value() *
-                             region_size->op(1)->as<PrimLit>()->ps32_value() *
-                             region_size->op(2)->as<PrimLit>()->ps32_value();
+    auto num_elems = mmap->mem_size()->as<PrimLit>()->ps32_value();
+
     // construct array type
     auto elem_type = mmap->ptr_type()->referenced_type().as<ArrayType>()->elem_type();
-    auto type = this->convert(mmap->world().definite_array_type(elem_type, total_region_size));
+    auto type = this->convert(mmap->world().definite_array_type(elem_type, num_elems));
     auto global = emit_global_memory(type, prefix + mmap->unique_name(), 3);
     return global;
 }

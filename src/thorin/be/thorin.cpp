@@ -63,7 +63,7 @@ std::ostream& CodeGen::emit_type(Type type) {
         return emit_type_args(tuple);
     } else if (auto struct_abs = type.isa<StructAbsType>()) {
         stream() << struct_abs->name();
-        return emit_type_vars(struct_abs); 
+        return emit_type_vars(struct_abs);
         // TODO emit args - but don't do this inline: structs may be recursive
         //return emit_type_args(struct_abs);
     } else if (auto struct_app = type.isa<StructAppType>()) {
@@ -260,4 +260,4 @@ void emit_assignment(const PrimOp* primop) { CodeGen(false).emit_assignment(prim
 
 //------------------------------------------------------------------------------
 
-} // namespace thorin
+}

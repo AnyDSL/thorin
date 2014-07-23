@@ -28,7 +28,7 @@ enum {
 
 class LoopTreeBuilder {
 public:
-    LoopTreeBuilder(LoopTree& looptree) 
+    LoopTreeBuilder(LoopTree& looptree)
         : looptree(looptree)
         , dfs_index(0)
     {
@@ -40,7 +40,7 @@ public:
 
 private:
     struct Number {
-        Number() 
+        Number()
             : dfs(-1)
             , low(-1)
         {}
@@ -75,7 +75,7 @@ private:
         return false;
     }
 
-    void push(Lambda* lambda) { 
+    void push(Lambda* lambda) {
         assert(set.contains(lambda) && (states[lambda] & OnStack) == 0);
         stack.push_back(lambda);
         states[lambda] |= OnStack;
@@ -153,7 +153,7 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
         for (size_t i = ++b; i != e; ++i) {
             Lambda* lambda = stack[i];
 
-            if (scope().entry() == lambda) 
+            if (scope().entry() == lambda)
                 headers.push_back(lambda); // entries are axiomatically headers
             else {
                 for (auto pred : scope().preds(lambda)) {
@@ -245,7 +245,7 @@ LoopNode::LoopNode(LoopHeader* parent, int depth, const std::vector<Lambda*>& la
 }
 
 std::ostream& LoopNode::indent() const {
-    for (int i = 0; i < depth(); ++i) 
+    for (int i = 0; i < depth(); ++i)
         std::cout << '\t';
     return std::cout;
 }
@@ -334,4 +334,4 @@ Array<Lambda*> LoopTree::loop_lambdas_in_rpo(const LoopHeader* header) {
 
 //------------------------------------------------------------------------------
 
-} // namespace thorin
+}

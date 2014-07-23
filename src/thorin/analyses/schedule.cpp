@@ -34,7 +34,7 @@ Schedule schedule_early(const Scope& scope) {
             queue.push(def);
     };
 
-    for (Lambda* lambda : scope) {
+    for (auto lambda : scope) {
         auto& primops = schedule[lambda];
 
         for (auto param : lambda->params())
@@ -161,15 +161,18 @@ Schedule schedule_smart(const Scope& scope) {
         for (auto primop : early[lambda_early]) {
             if (!def2late.contains(primop))
                 continue;       // primop is dead
-            Lambda* lambda_best = def2late[primop];
+            auto lambda_best = def2late[primop];
             assert(scope.contains(lambda_best));
             int depth = std::numeric_limits<int>::max();
-            for (Lambda* i = lambda_best; i != lambda_early; i = domtree.idom(i)) {
+            for (auto i = lambda_best; true; i = domtree.idom(i)) {
                 int cur_depth = looptree.depth(i);
                 if (cur_depth < depth) {
                     lambda_best = i;
                     depth = cur_depth;
                 }
+
+                if (i == lambda_early)
+                    break;
             }
             smart[lambda_best].push_back(primop);
         }
@@ -178,4 +181,4 @@ Schedule schedule_smart(const Scope& scope) {
     return smart;
 }
 
-} // namespace thorin
+}

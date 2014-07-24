@@ -11,7 +11,7 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
     IF(NOT "${TRW_UNPARSED_ARGUMENTS}" STREQUAL "")
         message(FATAL_ERROR "Unparsed arguments ${TRW_UNPARSED_ARGUMENTS}")
     ENDIF()
-    
+
     ## add runtime
     # add the common runtime
     set(_impala_platform ${THORIN_RUNTIME_DIR}/platforms/intrinsics_thorin.impala)
@@ -63,7 +63,7 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
     ELSE()
         message(FATAL_ERROR "Unknown runtime type ${TRW_RTTYPE}")
     ENDIF()
-    
+
     ## generate files
     # get the options right
     set(_clangopts ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE})

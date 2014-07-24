@@ -65,6 +65,7 @@ void verify_cyclefree(World& world) {
 void verify_calls(World& world) {
     for (auto lambda : world.lambdas()) {
         if (!lambda->empty()) {
+            assert(lambda->to_fn_type()->num_args() == lambda->arg_fn_type()->num_args() && "argument/parameter mismatch");
             // TODO
 #if 0
             if (!lambda->to_pi()->check_with(lambda->arg_pi())) {
@@ -87,8 +88,8 @@ void verify_calls(World& world) {
 
 //------------------------------------------------------------------------------
 
-void verify(World& world) { 
-    verify_closedness(world); 
+void verify(World& world) {
+    verify_closedness(world);
     verify_calls(world);
     //verify_cyclefree(world);
 }

@@ -1,5 +1,6 @@
 #include "thorin/be/llvm/runtime.h"
 
+#include <iostream>
 #include <exception>
 #include <sstream>
 #include <llvm/Bitcode/ReaderWriter.h>
@@ -75,6 +76,14 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
             set_kernel_arg_struct(target_device_val, void_ptr, target_val->getType());
         } else if (target_arg->type().isa<PtrType>()) {
             auto ptr = target_arg->type().as<PtrType>();
+            auto rtype = ptr->referenced_type();
+
+            if (!rtype.isa<ArrayType>()) {
+                std::cout << "only pointers to arrays supported as kernel argument; got other pointer:" << std::endl;
+                ptr->dump();
+                assert(rtype.isa<ArrayType>() && "currently only pointers to arrays supported");
+            }
+
             if (ptr->device() == target_device) {
                 // data is already on this device
                 mapped_ptrs[target_arg] = target_val;

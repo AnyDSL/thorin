@@ -16,6 +16,7 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
     # add the common runtime
     set(_impala_platform ${THORIN_RUNTIME_DIR}/platforms/intrinsics_thorin.impala)
     set(${outfiles} ${THORIN_RUNTIME_DIR}/common/thorin_runtime.cpp)
+    set(${outlibs})
     IF("${TRW_MAIN}")
         SET_SOURCE_FILES_PROPERTIES(
             ${THORIN_RUNTIME_DIR}/common/thorin_runtime.cpp
@@ -30,7 +31,7 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
         set(CUDA_RUNTIME_INCLUDES "-I${CUDA_TOOLKIT_ROOT_DIR}/include -I${CUDA_TOOLKIT_ROOT_DIR}/nvvm/include -I${CUDA_TOOLKIT_ROOT_DIR}/nvvm/libnvvm-samples/common/include")
         # set variables expected below
         set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/cuda/cu_runtime.cpp)
-        set(${outlibs} ${CUDA_CUDA_LIBRARY} ${CUDA_TOOLKIT_ROOT_DIR}/nvvm/lib64/libnvvm.so)
+        set(${outlibs} ${${outlibs}} ${CUDA_CUDA_LIBRARY} ${CUDA_TOOLKIT_ROOT_DIR}/nvvm/lib64/libnvvm.so)
         set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${TRW_RTTYPE}.impala)
         # cu_runtime needs some defines
         # lucky enough, cmake does the right thing here even when we compile impala programs from various folders
@@ -43,7 +44,7 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
         FIND_LIBRARY(CL_LIB OpenCL ENV CL_LIB)
         # set variables expected below
         set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/opencl/cl_runtime.cpp)
-        set(${outlibs} ${CL_LIB})
+        set(${outlibs} ${${outlibs}} ${CL_LIB})
         set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${TRW_RTTYPE}.impala)
         # cl_runtime needs some defines
         # lucky enough, cmake does the right thing here even when we compile impala programs from various folders
@@ -55,8 +56,10 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
     ELSEIF("${TRW_RTTYPE}" STREQUAL "cpu" OR "${TRW_RTTYPE}" STREQUAL "avx")
         # set variables expected below
         set(${outfiles} ${${outfiles}} ${THORIN_RUNTIME_DIR}/cpu/cpu_runtime.cpp)
-        set(${outlibs})
         set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_${TRW_RTTYPE}.impala)
+    ELSEIF("${TRW_RTTYPE}" STREQUAL "none")
+        # don't add any runtime, but provide CPU intrinsicis
+        set(_impala_platform ${_impala_platform} ${THORIN_RUNTIME_DIR}/platforms/intrinsics_cpu.impala)
     ELSE()
         message(FATAL_ERROR "Unknown runtime type ${TRW_RTTYPE}")
     ENDIF()

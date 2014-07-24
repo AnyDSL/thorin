@@ -687,13 +687,13 @@ Def World::leave(Def mem, Def frame, const std::string& name) {
     return mem;
 }
 
-const Map* World::map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space, Def tleft, Def size, const std::string& name) {
-    return cse(new Map(mem, ptr, device, addr_space, tleft, size, name));
+const Map* World::map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space, Def mem_offset, Def mem_size, const std::string& name) {
+    return cse(new Map(mem, ptr, device, addr_space, mem_offset, mem_size, name));
 }
 
-const Map* World::map(Def mem, Def ptr, Def device, Def addr_space, Def tleft, Def size, const std::string& name) {
+const Map* World::map(Def mem, Def ptr, Def device, Def addr_space, Def mem_offset, Def mem_size, const std::string& name) {
     return map(mem, ptr, device->as<PrimLit>()->ps32_value().data(),
-            (AddressSpace)addr_space->as<PrimLit>()->ps32_value().data(), tleft, size, name);
+            (AddressSpace)addr_space->as<PrimLit>()->ps32_value().data(), mem_offset, mem_size, name);
 }
 
 const Unmap* World::unmap(Def mem, Def ptr, uint32_t device, AddressSpace addr_space, const std::string& name) {

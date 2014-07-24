@@ -286,6 +286,7 @@ fn acc_tex() -> int     { 2 }
 fn acc_dev() -> int     { 0 }
 
 extern "C" {
+    // libdevice intrinsics: http://docs.nvidia.com/cuda/libdevice-users-guide
     fn __nv_expf(float) -> float;
     fn __nv_sqrtf(float) -> float;
     fn __nv_fabsf(float) -> float;

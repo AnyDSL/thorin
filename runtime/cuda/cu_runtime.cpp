@@ -441,11 +441,10 @@ void load_kernel(size_t dev, std::string file_name, std::string kernel_name, boo
         checkErrNvvm(err, "nvvmAddModuleToProgram()");
 
         std::string compute_arch("-arch=compute_" + std::to_string(target_cc));
-        int num_options = 2;
-        const char *options[3];
+        int num_options = 1;
+        const char *options[2];
         options[0] = compute_arch.c_str();
-        options[1] = "-ftz=1";
-        options[2] = "-g";
+        options[1] = "-g";
 
         err = nvvmCompileProgram(program, num_options, options);
         if (err != NVVM_SUCCESS) {

@@ -1,10 +1,18 @@
 include(CMakeParseArguments)
 
+# find impala
+find_file(IMPALA_BIN impala)
+IF (NOT IMPALA_BIN)
+    message(FATAL_ERROR "Could not find impala binary, it has to be in the PATH")
+ENDIF()
+
 macro(THORIN_RUNTIME_WRAP outfiles outlibs)
     CMAKE_PARSE_ARGUMENTS("TRW" "MAIN" "RTTYPE" "FILES" ${ARGN})
     IF(NOT "${TRW_UNPARSED_ARGUMENTS}" STREQUAL "")
         message(FATAL_ERROR "Unparsed arguments ${TRW_UNPARSED_ARGUMENTS}")
     ENDIF()
+    
+    ## add runtime
     # add the common runtime
     set(_impala_platform ${THORIN_RUNTIME_DIR}/platforms/intrinsics_thorin.impala)
     set(${outfiles} ${THORIN_RUNTIME_DIR}/common/thorin_runtime.cpp)
@@ -52,6 +60,8 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
     ELSE()
         message(FATAL_ERROR "Unknown runtime type ${TRW_RTTYPE}")
     ENDIF()
+    
+    ## generate files
     # get the options right
     set(_clangopts ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE})
     separate_arguments(_clangopts)
@@ -70,10 +80,10 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
     execute_process(COMMAND ln -fs ${THORIN_RUNTIME_DIR}/platforms/generic.s ${THORIN_RUNTIME_DIR}/platforms/nvvm.s ${THORIN_RUNTIME_DIR}/platforms/spir.s ${CMAKE_CURRENT_BINARY_DIR})
     # tell cmake what to do
     add_custom_command(OUTPUT ${_llfile}
-        COMMAND impala
+        COMMAND ${IMPALA_BIN}
         ARGS ${_impala_platform} ${_infiles} -emit-llvm -O2
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        DEPENDS ${_impala_platform} ${_infiles} VERBATIM)
+        DEPENDS ${IMPALA_BIN} ${_impala_platform} ${_infiles} VERBATIM)
     add_custom_command(OUTPUT ${_objfile}
         COMMAND clang++
         ARGS ${_clangopts} -g -c -o ${_objfile} ${_llfile}

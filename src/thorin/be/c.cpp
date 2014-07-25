@@ -636,7 +636,9 @@ std::ostream& CCodeGen::emit(Def def) {
         if ((lang_==C99 || lang_==CUDA) &&
             (primlit->primtype_kind()==PrimType_pf32 ||
              primlit->primtype_kind()==PrimType_qf32)) {
-            if (primlit->is_zero()) stream() << ".0";
+            float integral;
+            float fractional = std::modf(primlit->pf32_value(), &integral);
+            if (fractional == 0) stream() << ".0";
             stream() << 'f';
         }
         return stream();

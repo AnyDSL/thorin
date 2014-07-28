@@ -90,21 +90,21 @@ std::ostream& CodeGen::emit_type(Type type) {
         if (device != -1)
             stream() << '[' << device << ']';
         switch (ptr->addr_space()) {
-        case AddressSpace::Global:
-            stream() << "[Global]";
-            break;
-        case AddressSpace::Texture:
-            stream() << "[Tex]";
-            break;
-        case AddressSpace::Shared:
-            stream() << "[Shared]";
-            break;
-        case AddressSpace::Constant:
-            stream() << "[Constant]";
-            break;
-        default:
-            // ignore unknown address space
-            break;
+            case AddressSpace::Global:
+                stream() << "[Global]";
+                break;
+            case AddressSpace::Texture:
+                stream() << "[Tex]";
+                break;
+            case AddressSpace::Shared:
+                stream() << "[Shared]";
+                break;
+            case AddressSpace::Constant:
+                stream() << "[Constant]";
+                break;
+            default:
+                // ignore unknown address space
+                break;
         }
         return stream();
     } else if (auto primtype = type.isa<PrimType>()) {
@@ -160,7 +160,7 @@ std::ostream& CodeGen::emit_primop(const PrimOp* primop) {
             switch (kind) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: stream() << primlit->T##_value(); break;
 #include "thorin/tables/primtypetable.h"
-                default: THORIN_UNREACHABLE; break;
+                default: THORIN_UNREACHABLE;
             }
         }
     } else if (primop->is_const()) {

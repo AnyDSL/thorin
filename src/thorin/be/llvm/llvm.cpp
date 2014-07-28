@@ -217,7 +217,7 @@ void CodeGen::emit(int opt) {
                         else
                             builder_.CreateRet(lookup(lambda->arg(0)));
                         break;
-                    case 2: {
+                    case 2:
                         if (lambda->arg(0)->type().isa<MemType>()) {
                             builder_.CreateRet(lookup(lambda->arg(1)));
                             break;
@@ -226,7 +226,6 @@ void CodeGen::emit(int opt) {
                             break;
                         }
                         // FALLTHROUGH
-                    }
                     default: {
                         Array<llvm::Value*> values(num_args);
                         Array<llvm::Type*> args(num_args);
@@ -726,13 +725,13 @@ llvm::Value* CodeGen::emit_lea(Def def) {
 llvm::Value* CodeGen::emit_mmap(Def def) {
     auto mmap = def->as<Map>();
     // emit proper runtime call
-    auto layout = llvm::DataLayout(module_->getDataLayout());
     auto ref_ty = mmap->ptr_type()->referenced_type();
     Type type;
     if (auto array = ref_ty->is_indefinite())
         type = array->elem_type();
     else
         type = mmap->ptr_type()->referenced_type();
+    auto layout = llvm::DataLayout(module_->getDataLayout());
     auto size = builder_.getInt32(layout.getTypeAllocSize(convert(type)));
     return runtime_->mmap(mmap->device(), (uint32_t)mmap->addr_space(), lookup(mmap->ptr()),
                           lookup(mmap->mem_offset()), lookup(mmap->mem_size()), size);
@@ -781,26 +780,24 @@ llvm::Type* CodeGen::convert(Type type) {
         case Node_PtrType: {
             auto ptr = type.as<PtrType>();
             unsigned address_space;
-            switch(ptr->addr_space())
-            {
-            case AddressSpace::Generic:
-                address_space = 0;
-                break;
-            case AddressSpace::Global:
-                address_space = 1;
-                break;
-            case AddressSpace::Texture:
-                address_space = 2;
-                break;
-            case AddressSpace::Shared:
-                address_space = 3;
-                break;
-            case AddressSpace::Constant:
-                address_space = 4;
-                break;
-            default:
-                THORIN_UNREACHABLE;
-                break;
+            switch(ptr->addr_space()) {
+                case AddressSpace::Generic:
+                    address_space = 0;
+                    break;
+                case AddressSpace::Global:
+                    address_space = 1;
+                    break;
+                case AddressSpace::Texture:
+                    address_space = 2;
+                    break;
+                case AddressSpace::Shared:
+                    address_space = 3;
+                    break;
+                case AddressSpace::Constant:
+                    address_space = 4;
+                    break;
+                default:
+                    THORIN_UNREACHABLE;
             }
             llvm_type = llvm::PointerType::get(convert(ptr->referenced_type()), address_space);
             break;

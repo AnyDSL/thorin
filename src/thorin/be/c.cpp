@@ -382,24 +382,22 @@ void CCodeGen::emit() {
                 switch (num_args) {
                     case 0: break;
                     case 1:
-                            if (lambda->arg(0)->type().isa<MemType>())
-                                break;
-                            else
-                                emit(lambda->arg(0));
+                        if (lambda->arg(0)->type().isa<MemType>())
                             break;
-                    case 2: {
-                                if (lambda->arg(0)->type().isa<MemType>()) {
-                                    emit(lambda->arg(1));
-                                    break;
-                                } else if (lambda->arg(1)->type().isa<MemType>()) {
-                                    emit(lambda->arg(0));
-                                    break;
-                                }
-                                // FALLTHROUGH
-                            }
-                    default: {
-                                THORIN_UNREACHABLE;
-                             }
+                        else
+                            emit(lambda->arg(0));
+                        break;
+                    case 2:
+                        if (lambda->arg(0)->type().isa<MemType>()) {
+                            emit(lambda->arg(1));
+                            break;
+                        } else if (lambda->arg(1)->type().isa<MemType>()) {
+                            emit(lambda->arg(0));
+                            break;
+                        }
+                        // FALLTHROUGH
+                    default:
+                        THORIN_UNREACHABLE;
                 }
                 stream() << ";";
             } else if (auto select = lambda->to()->isa<Select>()) { // conditional branch
@@ -631,7 +629,7 @@ std::ostream& CCodeGen::emit(Def def) {
         switch (primlit->primtype_kind()) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: stream() << primlit->T##_value(); break;
 #include "thorin/tables/primtypetable.h"
-            default: THORIN_UNREACHABLE; break;
+            default: THORIN_UNREACHABLE;
         }
         if ((lang_==C99 || lang_==CUDA) &&
             (primlit->primtype_kind()==PrimType_pf32 ||

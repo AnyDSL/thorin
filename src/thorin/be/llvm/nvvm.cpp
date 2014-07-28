@@ -78,14 +78,14 @@ llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambd
 
     // check signature for texturing memory
     for (auto param : lambda->params()) {
-        if (auto ptr = param->type().isa<PtrType>()){
+        if (auto ptr = param->type().isa<PtrType>()) {
             switch (ptr->addr_space()) {
-            case AddressSpace::Texture:
-                emit_texture_kernel_arg(param);
-                break;
-            default:
-                // ignore this address space
-                break;
+                case AddressSpace::Texture:
+                    emit_texture_kernel_arg(param);
+                    break;
+                default:
+                    // ignore this address space
+                    break;
             }
         }
     }
@@ -130,11 +130,11 @@ void NVVMCodeGen::emit_function_start(llvm::BasicBlock* bb, llvm::Function* f, L
 llvm::Value* NVVMCodeGen::emit_load(Def def) {
     auto load = def->as<Load>();
     switch (resolve_addr_space(load->ptr())) {
-    case AddressSpace::Texture:
-        return builder_.CreateExtractValue(lookup(load->ptr()), { unsigned(0) });
-    default:
-        // shared address space uses the same load functionality
-        return CodeGen::emit_load(def);
+        case AddressSpace::Texture:
+            return builder_.CreateExtractValue(lookup(load->ptr()), { unsigned(0) });
+        default:
+            // shared address space uses the same load functionality
+            return CodeGen::emit_load(def);
     }
 }
 
@@ -193,28 +193,28 @@ static std::string get_texture_fetch_constraint(Type type) {
 llvm::Value* NVVMCodeGen::emit_lea(Def def) {
     auto lea = def->as<LEA>();
     switch (resolve_addr_space(lea->ptr())) {
-    case AddressSpace::Texture: {
-        // sample for i32:
-        // %tex_fetch = call { i32, i32, i32, i32 } asm sideeffect "tex.1d.v4.s32.s32 {$0,$1,$2,$3}, [$4, {$5,$6,$7,$8}];",
-        // "=r,=r,=r,=r,l,r,r,r,r" (i64 %tex_ref, i32 %add, i32 0, i32 0, i32 0)
-        auto ptr_ty = lea->type().as<PtrType>();
-        auto llvm_ptr_ty = convert(ptr_ty->referenced_type());
-        llvm::Type* struct_types[] = { llvm_ptr_ty, llvm_ptr_ty, llvm_ptr_ty, llvm_ptr_ty };
-        auto ret_type = llvm::StructType::create(struct_types);
-        llvm::Type* args[] = {
-            builder_.getInt64Ty(),
-            builder_.getInt32Ty(), builder_.getInt32Ty(), builder_.getInt32Ty(), builder_.getInt32Ty() };
-        auto type = llvm::FunctionType::get(ret_type, args, false);
-        auto fetch_command = get_texture_fetch_command(ptr_ty->referenced_type());
-        auto fetch_constraint = get_texture_fetch_constraint(ptr_ty->referenced_type());
-        auto get_call = llvm::InlineAsm::get(type, fetch_command, fetch_constraint, false);
-        llvm::Value* values[] = {
-            lookup(lea->ptr()), lookup(lea->index()),
-            builder_.getInt32(0), builder_.getInt32(0), builder_.getInt32(0) };
-        return builder_.CreateCall(get_call, values);
-    }
-    default:
-        return CodeGen::emit_lea(def);
+        case AddressSpace::Texture: {
+            // sample for i32:
+            // %tex_fetch = call { i32, i32, i32, i32 } asm sideeffect "tex.1d.v4.s32.s32 {$0,$1,$2,$3}, [$4, {$5,$6,$7,$8}];",
+            // "=r,=r,=r,=r,l,r,r,r,r" (i64 %tex_ref, i32 %add, i32 0, i32 0, i32 0)
+            auto ptr_ty = lea->type().as<PtrType>();
+            auto llvm_ptr_ty = convert(ptr_ty->referenced_type());
+            llvm::Type* struct_types[] = { llvm_ptr_ty, llvm_ptr_ty, llvm_ptr_ty, llvm_ptr_ty };
+            auto ret_type = llvm::StructType::create(struct_types);
+            llvm::Type* args[] = {
+                builder_.getInt64Ty(),
+                builder_.getInt32Ty(), builder_.getInt32Ty(), builder_.getInt32Ty(), builder_.getInt32Ty() };
+            auto type = llvm::FunctionType::get(ret_type, args, false);
+            auto fetch_command = get_texture_fetch_command(ptr_ty->referenced_type());
+            auto fetch_constraint = get_texture_fetch_constraint(ptr_ty->referenced_type());
+            auto get_call = llvm::InlineAsm::get(type, fetch_command, fetch_constraint, false);
+            llvm::Value* values[] = {
+                lookup(lea->ptr()), lookup(lea->index()),
+                builder_.getInt32(0), builder_.getInt32(0), builder_.getInt32(0) };
+            return builder_.CreateCall(get_call, values);
+        }
+        default:
+            return CodeGen::emit_lea(def);
     }
 }
 

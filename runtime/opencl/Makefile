@@ -35,7 +35,7 @@ all: $(MAIN).out
 %.s: %.bc
 	llc $(OPT_FLAGS) $^ -o $@
 
-%.out: %.s cl_runtime.s thorin_runtime.s
+%.out: %.s cl_runtime.s thorin_runtime.s thorin_utils.s
 	clang++ $^ $(LIB_DIRS) $(LD_FLAGS) -o $@
 
 clean:

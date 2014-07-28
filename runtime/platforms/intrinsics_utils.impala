@@ -1,0 +1,5 @@
+extern "C" {
+    fn random_val(int) -> float;
+    fn get_micro_time() -> i64;
+    fn print_gflops(float) -> ();
+}

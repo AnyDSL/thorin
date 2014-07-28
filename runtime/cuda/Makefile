@@ -43,7 +43,7 @@ all: $(MAIN).out
 %.s: %.bc
 	llc $(OPT_FLAGS) $^ -o $@
 
-%.out: %.s cu_runtime.s thorin_runtime.s
+%.out: %.s cu_runtime.s thorin_runtime.s thorin_utils.s
 	clang++ $^ $(addprefix $(RPATH_PRE),$(LIB_DIRS)) $(addprefix -L ,$(LIB_DIRS)) $(LD_FLAGS) -o $@
 
 clean:

@@ -14,8 +14,8 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
 
     ## add runtime
     # add the common runtime
-    set(_impala_platform ${THORIN_RUNTIME_DIR}/platforms/intrinsics_thorin.impala)
-    set(${outfiles} ${THORIN_RUNTIME_DIR}/common/thorin_runtime.cpp)
+    set(_impala_platform ${THORIN_RUNTIME_DIR}/platforms/intrinsics_thorin.impala ${THORIN_RUNTIME_DIR}/platforms/intrinsics_utils.impala)
+    set(${outfiles} ${THORIN_RUNTIME_DIR}/common/thorin_runtime.cpp ${THORIN_RUNTIME_DIR}/common/thorin_utils.cpp)
     set(${outlibs})
     IF("${TRW_MAIN}")
         SET_SOURCE_FILES_PROPERTIES(

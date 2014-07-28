@@ -1,13 +1,13 @@
 #ifndef __OPENCL_RT_HPP__
 #define __OPENCL_RT_HPP__
 
+#include "thorin_runtime.h"
+
 #ifdef __APPLE__
 #include <OpenCL/cl.h>
 #else
 #include <CL/cl.h>
 #endif
-
-#include "thorin_runtime.h"
 
 extern "C"
 {

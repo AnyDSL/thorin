@@ -21,4 +21,4 @@ std::ostream& Printer::reset_color() {
     return stream();
 }
 
-} // namespace thorin
+}

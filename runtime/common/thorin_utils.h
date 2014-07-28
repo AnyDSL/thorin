@@ -2,10 +2,11 @@
 #define _THORIN_INT_RUNTIME_H
 
 extern "C" {
-    // runtime functions, used internally (by Impala etc.) [TODO: better namespacing]
-    float random_val(int);
-    long get_micro_time();
-    void print_gflops(float);
+    // runtime functions orovided to Impala
+    float thorin_random_val(int);
+    long long thorin_get_micro_time();
+    void thorin_print_micro_time(long long);
+    void thorin_print_gflops(float);
 } 
 
 #endif

@@ -10,9 +10,8 @@
 
 #include "thorin_utils.h"
 
-// common implementations of internal runtime functions
-static long global_time = 0;
-long get_micro_time() {
+// common implementations of runtime utility functions
+long long thorin_get_micro_time() {
     struct timespec now;
     #ifdef __APPLE__ // OS X does not have clock_gettime, use clock_get_time
     clock_serv_t cclock;
@@ -26,17 +25,14 @@ long get_micro_time() {
     clock_gettime(CLOCK_MONOTONIC, &now);
     #endif
 
-    long time = now.tv_sec*1000000LL + now.tv_nsec / 1000LL;
-    if (global_time==0) {
-        global_time = time;
-    } else {
-        global_time = time - global_time;
-        std::cerr << "   timing: " << global_time * 1.0e-3f << "(ms)" << std::endl;
-        global_time = 0;
-    }
+    long long time = now.tv_sec*1000000LL + now.tv_nsec / 1000LL;
     return time;
 }
-void print_gflops(float f) { printf("GFLOPS: %f\n", f); }
-float random_val(int max) {
+void thorin_print_micro_time(long long time)
+{
+    std::cerr << "   timing: " << time * 1.0e-3f << "(ms)" << std::endl;
+}
+void thorin_print_gflops(float f) { printf("GFLOPS: %f\n", f); }
+float thorin_random_val(int max) {
     return ((float)random() / RAND_MAX) * max;
 }

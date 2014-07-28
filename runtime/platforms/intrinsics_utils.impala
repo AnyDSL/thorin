@@ -1,5 +1,6 @@
 extern "C" {
-    fn random_val(int) -> float;
-    fn get_micro_time() -> i64;
-    fn print_gflops(float) -> ();
+    fn thorin_random_val(int) -> float;
+    fn thorin_get_micro_time() -> i64;
+    fn thorin_print_micro_time(i64) -> ();
+    fn thorin_print_gflops(float) -> ();
 }

@@ -53,6 +53,7 @@ void bind_tex(size_t dev, mem_id mem, CUarray_format format);
 
 void set_kernel_arg(size_t dev, void *param);
 void set_kernel_arg_map(size_t dev, mem_id mem);
+void set_kernel_arg_const(size_t dev, void *param, std::string name, size_t size);
 void set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
 void set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
 
@@ -604,6 +605,17 @@ void set_kernel_arg_map(size_t dev, mem_id mem) {
 }
 
 
+void set_kernel_arg_const(size_t dev, void *param, std::string name, size_t size) {
+    CUresult err = CUDA_SUCCESS;
+    CUdeviceptr const_mem;
+    std::cerr << " * set arg const(" << dev << "): " << param << std::endl;
+    size_t bytes;
+    err = cuModuleGetGlobal(&const_mem, &bytes, modules_[dev], name.c_str());
+    checkErrDrv(err, "cuModuleGetGlobal()");
+    write_memory(dev, const_mem, param, size);
+}
+
+
 void launch_kernel(size_t dev, std::string kernel_name) {
     cuCtxPushCurrent(contexts_[dev]);
     CUresult err = CUDA_SUCCESS;
@@ -685,6 +697,7 @@ void nvvm_set_kernel_arg_tex(size_t dev, mem_id mem, const char *name, CUarray_f
     get_tex_ref(dev, name);
     bind_tex(dev, mem, format);
 }
+void nvvm_set_kernel_arg_const(size_t dev, void *param, const char *name, size_t size) { check_dev(dev); set_kernel_arg_const(dev, param, name, size); }
 void nvvm_set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) { check_dev(dev); set_problem_size(dev, size_x, size_y, size_z); }
 void nvvm_set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) { check_dev(dev); set_config_size(dev, size_x, size_y, size_z); }
 

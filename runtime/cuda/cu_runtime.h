@@ -24,6 +24,7 @@ void nvvm_load_cuda_kernel(size_t dev, const char *file_name, const char *kernel
 void nvvm_set_kernel_arg(size_t dev, void *param);
 void nvvm_set_kernel_arg_map(size_t dev, mem_id mem);
 void nvvm_set_kernel_arg_tex(size_t dev, mem_id mem, const char *name, CUarray_format format);
+void nvvm_set_kernel_arg_const(size_t dev, void *param, const char *name, size_t size);
 void nvvm_set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
 void nvvm_set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
 

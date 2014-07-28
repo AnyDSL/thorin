@@ -18,17 +18,16 @@ static int num = 1024;
 int test_kernelfile(const char *file) {
     printf("Test file: %s\n", file);
 
-    size_t dev = 1;
+    size_t dev = 0;
+    int *cmem = (int *)thorin_malloc(sizeof(int) * 32);
     int *host = (int *)thorin_malloc(sizeof(int) * num);
+    int *host_out = (int *)thorin_malloc(sizeof(int) * num);
 
-    for (unsigned int i=0; i<num; ++i) {
-        host[i] = 0;
-    }
 
     // CODE TO BE GENERATED: BEGIN
+    for (size_t i=0; i<num; ++i) host[i] = 0;
     mem_id mem = nvvm_malloc_memory(dev, host);
     nvvm_write_memory(dev, mem, host);
-
     nnvm_load_any_kernel(dev, file, "simple");
     nvvm_set_kernel_arg_map(dev, mem);
     nvvm_set_problem_size(dev, 1024, 1, 1);
@@ -40,7 +39,7 @@ int test_kernelfile(const char *file) {
     // CODE TO BE GENERATED: END
 
     // check result
-    for (unsigned int i=0; i<num; ++i) {
+    for (size_t i=0; i<num; ++i) {
         if (host[i] != i) {
             printf("Test failed!\n");
             return EXIT_FAILURE;
@@ -48,22 +47,14 @@ int test_kernelfile(const char *file) {
     }
     printf("Test passed!\n");
 
-    for (unsigned int i=0; i<num; ++i) {
-        host[i] = i;
-    }
-
 
     // CODE TO BE GENERATED: BEGIN
+    for (size_t i=0; i<num; ++i) host[i] = i;
+    for (size_t i=0; i<num; ++i) host_out[i] = 0;
     CUdeviceptr tex = nvvm_malloc_memory(dev, host);
     nvvm_write_memory(dev, tex, host);
-
-    int *host_out = (int *)thorin_malloc(sizeof(int) * num);
     CUdeviceptr out = nvvm_malloc_memory(dev, host_out);
-    for (unsigned int i=0; i<num; ++i) {
-        host_out[i] = 0;
-    }
     nvvm_write_memory(dev, out, host_out);
-
     nnvm_load_any_kernel(dev, file, "simple_tex");
     nvvm_set_kernel_arg_tex(dev, tex, "tex", CU_AD_FORMAT_SIGNED_INT32);
     nvvm_set_kernel_arg_map(dev, out);
@@ -77,7 +68,7 @@ int test_kernelfile(const char *file) {
     // CODE TO BE GENERATED: END
 
     // check result
-    for (unsigned int i=0; i<num; ++i) {
+    for (size_t i=0; i<num; ++i) {
         if (host_out[i] != i) {
             printf("Texture test failed!\n");
             return EXIT_FAILURE;
@@ -85,6 +76,33 @@ int test_kernelfile(const char *file) {
     }
     printf("Texture test passed!\n");
 
+
+    // CODE TO BE GENERATED: BEGIN
+    for (size_t i=0; i<32; ++i)  cmem[i] = i;
+    for (size_t i=0; i<num; ++i) host[i] = 0;
+    mem = nvvm_malloc_memory(dev, host);
+    nvvm_write_memory(dev, mem, host);
+    nnvm_load_any_kernel(dev, file, "simple_cmem");
+    nvvm_set_kernel_arg_map(dev, mem);
+    nvvm_set_kernel_arg_const(dev, cmem, "cmem", sizeof(int) * 32);
+    nvvm_set_problem_size(dev, 1024, 1, 1);
+    nvvm_set_config_size(dev, 32, 1, 1);
+    nvvm_launch_kernel(dev, "simple_cmem");
+    nvvm_synchronize(dev); // optional
+    nvvm_read_memory(dev, mem, host);
+    nvvm_free_memory(dev, mem);
+    // CODE TO BE GENERATED: END
+
+    // check result
+    for (size_t i=0; i<num; ++i) {
+        if (host[i] != i%32) {
+            printf("Constant test failed!\n");
+            return EXIT_FAILURE;
+        }
+    }
+    printf("Constant test passed!\n");
+
+    thorin_free(cmem);
     thorin_free(host);
     thorin_free(host_out);
 

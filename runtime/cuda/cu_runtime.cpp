@@ -177,16 +177,16 @@ class Memory {
         assert(mmap[dev][id].cpu && "invalid host memory");
         void *host = mmap[dev][id].cpu;
         std::cerr << " * read memory(" << dev << "):   " << id << " -> " << host
-                  << " (" << mmap[dev][id].offset << ")x(" << mmap[dev][id].size
-                  << ")" << std::endl;
+                  << " [" << mmap[dev][id].offset << ":" << mmap[dev][id].size
+                  << "]" << std::endl;
         void *host_ptr = (char*)host + mmap[dev][id].offset;
         read_memory(dev, mmap[dev][id].gpu, host_ptr, mmap[dev][id].size);
     }
     void write(size_t dev, mem_id id, void *host) {
         assert(host==mmap[dev][id].cpu && "invalid host memory");
         std::cerr << " * write memory(" << dev << "):  " << id << " <- " << host
-                  << " (" << mmap[dev][id].offset << ")x(" << mmap[dev][id].size
-                  << ")" << std::endl;
+                  << " [" << mmap[dev][id].offset << ":" << mmap[dev][id].size
+                  << "]" << std::endl;
         void *host_ptr = (char*)host + mmap[dev][id].offset;
         write_memory(dev, mmap[dev][id].gpu, host_ptr, mmap[dev][id].size);
     }

@@ -155,16 +155,16 @@ class Memory {
         assert(mmap[dev][id].cpu && "invalid host memory");
         void *host = mmap[dev][id].cpu;
         std::cerr << " * read buffer(" << dev << "):   " << id << " -> " << host
-                  << " (" << mmap[dev][id].offset << ")x(" << mmap[dev][id].size
-                  << ")" << std::endl;
+                  << " [" << mmap[dev][id].offset << ":" << mmap[dev][id].size
+                  << "]" << std::endl;
         void *host_ptr = (char*)host + mmap[dev][id].offset;
         read_buffer(dev, mmap[dev][id].gpu, host_ptr, mmap[dev][id].size);
     }
     void write(size_t dev, mem_id id, void *host) {
         assert(host==mmap[dev][id].cpu && "invalid host memory");
         std::cerr << " * write buffer(" << dev << "):  " << id << " <- " << host
-                  << " (" << mmap[dev][id].offset << ")x(" << mmap[dev][id].size
-                  << ")" << std::endl;
+                  << " [" << mmap[dev][id].offset << ":" << mmap[dev][id].size
+                  << "]" << std::endl;
         void *host_ptr = (char*)host + mmap[dev][id].offset;
         write_buffer(dev, mmap[dev][id].gpu, host_ptr, mmap[dev][id].size);
     }
@@ -679,7 +679,7 @@ void set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) {
 
 void set_kernel_arg(size_t dev, void *param, size_t size) {
     cl_int err = CL_SUCCESS;
-    //std::cerr << " * set arg(" << dev << "): " << param << std::endl;
+    //std::cerr << " * set arg(" << dev << "):       " << param << std::endl;
     err = clSetKernelArg(kernel, clArgIdx++, size, param);
     #ifdef BENCH
     kernel_args.emplace_back(size, param);
@@ -690,20 +690,19 @@ void set_kernel_arg(size_t dev, void *param, size_t size) {
 
 void set_kernel_arg_map(size_t dev, mem_id mem) {
     cl_mem &dev_mem = mem_manager.get_dev_mem(dev, mem);
-    //std::cerr << " * set arg mapped(" << dev << "): " << mem << std::endl;
+    std::cerr << " * set arg map(" << dev << "):   " << mem << std::endl;
     set_kernel_arg(dev, &dev_mem, sizeof(dev_mem));
 }
 
 void set_kernel_arg_struct(size_t dev, void *param, size_t size) {
-    cl_int err = CL_SUCCESS;
     cl_mem_flags flags = CL_MEM_READ_WRITE & CL_MEM_USE_HOST_PTR;
-    cl_mem struct_buf = clCreateBuffer(contexts_[dev], flags, size, param, &err);
-    checkErr(err, "clCreateBuffer()");
+    cl_mem struct_buf = malloc_buffer(dev, param, flags, size);
     kernel_structs_.push_back(struct_buf);
     cl_mem &buf = kernel_structs_.back();
-    //std::cerr << " * set arg struct(" << dev << "): " << buf << std::endl;
+    std::cerr << " * set arg struct(" << dev << "): " << buf << std::endl;
     set_kernel_arg(dev, &buf, sizeof(cl_mem));
 }
+
 
 void launch_kernel(size_t dev, std::string kernel_name) {
     cl_int err = CL_SUCCESS;

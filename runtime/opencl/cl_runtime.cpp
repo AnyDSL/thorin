@@ -139,7 +139,7 @@ class Memory {
             id = map_memory(dev, host, get_dev_mem(ummap[dev], id), Global, offset, size);
         } else {
             void *host_ptr = (char*)host + offset;
-            cl_mem_flags flags = CL_MEM_READ_WRITE & CL_MEM_USE_HOST_PTR;
+            cl_mem_flags flags = CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR;
             cl_mem mem = malloc_buffer(dev, host_ptr, flags, size);
             id = map_memory(dev, host, mem, Global, offset, size);
             std::cerr << " * malloc buffer(" << dev << "): " << mem << " (" << id << ") <-> host: " << host << std::endl;
@@ -591,7 +591,7 @@ cl_mem malloc_buffer(size_t dev, void *host, cl_mem_flags flags, size_t size) {
     cl_int err = CL_SUCCESS;
     void *host_ptr = nullptr;
 
-    if (flags & CL_MEM_USE_HOST_PTR) host_ptr = (char*)host;
+    if (flags & CL_MEM_USE_HOST_PTR || flags & CL_MEM_COPY_HOST_PTR) host_ptr = (char*)host;
     cl_mem mem = clCreateBuffer(contexts_[dev], flags, size, host_ptr, &err);
     checkErr(err, "clCreateBuffer()");
 
@@ -695,7 +695,7 @@ void set_kernel_arg_map(size_t dev, mem_id mem) {
 }
 
 void set_kernel_arg_struct(size_t dev, void *param, size_t size) {
-    cl_mem_flags flags = CL_MEM_READ_WRITE & CL_MEM_USE_HOST_PTR;
+    cl_mem_flags flags = CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR;
     cl_mem struct_buf = malloc_buffer(dev, param, flags, size);
     kernel_structs_.push_back(struct_buf);
     cl_mem &buf = kernel_structs_.back();

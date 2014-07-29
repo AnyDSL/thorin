@@ -26,6 +26,7 @@ void spir_build_program_and_kernel_from_source(size_t dev, const char *file_name
 
 void spir_set_kernel_arg(size_t dev, void *param, size_t size);
 void spir_set_kernel_arg_map(size_t dev, mem_id mem);
+void spir_set_kernel_arg_const(size_t dev, void *param, size_t size);
 void spir_set_kernel_arg_struct(size_t dev, void *param, size_t size);
 void spir_set_problem_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);
 void spir_set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z);

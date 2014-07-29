@@ -678,13 +678,13 @@ void set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) {
 
 
 void set_kernel_arg(size_t dev, void *param, size_t size) {
-    cl_int err = CL_SUCCESS;
     //std::cerr << " * set arg(" << dev << "):       " << param << std::endl;
-    err = clSetKernelArg(kernel, clArgIdx++, size, param);
     #ifdef BENCH
     kernel_args.emplace_back(size, param);
-    #endif
+    #else
+    cl_int err = clSetKernelArg(kernel, clArgIdx++, size, param);
     checkErr(err, "clSetKernelArg()");
+    #endif
 }
 
 

@@ -140,6 +140,8 @@ class Memory {
             id = map_memory(dev, host, get_dev_mem(ummap[dev], id), Global, offset, size);
         } else {
             void *host_ptr = (char*)host + offset;
+            // CL_MEM_ALLOC_HOST_PTR -> OpenCL allocates memory that can be shared - preferred on AMD hardware ?
+            // CL_MEM_USE_HOST_PTR   -> use existing, properly aligned and sized memory
             cl_mem_flags flags = CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR;
             cl_mem mem = malloc_buffer(dev, host_ptr, flags, size);
             id = map_memory(dev, host, mem, Global, offset, size);

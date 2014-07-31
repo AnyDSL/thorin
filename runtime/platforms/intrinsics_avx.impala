@@ -9,6 +9,8 @@ extern "C" {
     fn cosf(float) -> float;
 }
 
+fn fmaf(float a, float b, float c) -> float { a * b + c }
+fn madf(float a, float b, float c) -> float { a * b + c }
 fn get_vector_length() -> int { 8 }
 fn inner_loop(a : int, b : int, yield : fn(int, fn())) -> () {
     for vectorized(b-a, @get_vector_length()) {

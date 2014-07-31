@@ -294,6 +294,7 @@ extern "C" {
     fn __nv_atan2f(float, float) -> float;
     fn __nv_sinf(float) -> float;
     fn __nv_cosf(float) -> float;
+    fn __nv_fmaf(float, float, float) -> float;
 }
 
 fn expf(a: float) -> float { __nv_expf(a) }
@@ -303,4 +304,6 @@ fn tanf(a: float) -> float { __nv_tanf(a) }
 fn atan2f(a: float, b: float) -> float { __nv_atan2f(a, b) }
 fn sinf(a: float) -> float { __nv_sinf(a) }
 fn cosf(a: float) -> float { __nv_cosf(a) }
+fn fmaf(a: float, b: float, c: float) -> float { __nv_fmaf(a, b, c) }
+fn madf(a: float, b: float, c: float) -> float { __nv_fmaf(a, b, c) }
 

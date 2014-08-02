@@ -4,8 +4,9 @@ OPT_FLAGS := -O3
 DBG_FLAGS :=
 MAIN      ?= gaussian
 RPATH_PRE := -Wl,-rpath,
-
-OS:=$(shell uname -s)
+OS        := $(shell uname -s)
+CPP        = $(shell echo *.cpp)
+OBJS       = $(CPP:%.cpp=%.o)
 
 ifeq ($(OS),Linux)
 	LD_FLAGS = -lrt
@@ -13,9 +14,6 @@ endif
 ifeq ($(OS),Darwin) # assume Mac OS X
 	LD_FLAGS =
 endif
-
-CPP = $(shell echo *.cpp)
-OBJS = $(CPP:%.cpp=%.o)
 
 
 all: $(MAIN).out

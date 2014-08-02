@@ -1,20 +1,21 @@
-OPENCL_DIR ?= /opt/intel/opencl
-CXX_FLAGS := -Wall -Wunused
+INC_DIRS   = -I .
+CXX_FLAGS := -std=c++11 -Wall -Wunused
 OPT_FLAGS := -O3
 DBG_FLAGS :=
 MAIN      ?= gaussian
-
-OS:=$(shell uname -s)
+OS        :=$(shell uname -s)
+CPP        = $(shell echo thorin_*.cpp cl_*.cpp)
+OBJS       = $(CPP:%.cpp=%.o)
 
 ifeq ($(OS),Linux)
-	INC_DIRS = -I $(OPENCL_DIR)/include -I .
-	LIB_DIRS = -L $(OPENCL_DIR)/lib64
-	LD_FLAGS = -lrt -lOpenCL
+	OPENCL_DIR ?= /opt/intel/opencl
+	INC_DIRS   += -I $(OPENCL_DIR)/include
+	LIB_DIRS    = -L $(OPENCL_DIR)/lib64
+	LD_FLAGS    = -lrt -lOpenCL
 endif
 ifeq ($(OS),Darwin) # assume Mac OS X
-	INC_DIRS = -I .
-	LIB_DIRS =
-	LD_FLAGS = -framework OpenCL
+	LIB_DIRS    =
+	LD_FLAGS    = -framework OpenCL
 endif
 
 
@@ -23,23 +24,17 @@ all: $(MAIN).out
 	@if [ -f $(MAIN).spir ]; then llvm-as $(MAIN).spir; fi
 	@./$(MAIN).out
 
-%.s: %.cpp
-	clang++ $(CXX_FLAGS) -DPROVIDE_MAIN $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -S $^
+%.o: %.cpp
+	clang++ $(CXX_FLAGS) -DPROVIDE_MAIN $(DBG_FLAGS) $(OPT_FLAGS) $(INC_DIRS) -c -o $@ $^
 
-%.bc: %.ll
-	llvm-link $^ -o $*-unop.bc
-	opt $*-unop.bc $(OPT_FLAGS) -o $@
-	llvm-link $@ -o $@
-	llvm-dis $@ -o $*.ll
+%.o: %.ll
+	clang++ $(CXX_FLAGS) $(DBG_FLAGS) $(OPT_FLAGS) -c -o $@ $^
 
-%.s: %.bc
-	llc $(OPT_FLAGS) $^ -o $@
-
-%.out: %.s cl_runtime.s thorin_runtime.s thorin_utils.s
+%.out: %.o $(OBJS)
 	clang++ $^ $(LIB_DIRS) $(LD_FLAGS) -o $@
 
 clean:
-	@rm -f $(MAIN).out *.ll *.o *.bc *.s
+	@rm -f $(filter-out $(wildcard main.cl main.spir),$(wildcard *.ll *.o *.bc *.s *.cl *.spir *.out))
 
 .PHONY: all
 

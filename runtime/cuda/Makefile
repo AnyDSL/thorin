@@ -1,16 +1,17 @@
-CUDA_DIR   ?= $(shell dirname `which nvcc`)/..
+CUDA_DIR  ?= $(shell dirname `which nvcc`)/..
 INC_DIRS   = -I $(CUDA_DIR)/include \
              -I $(CUDA_DIR)/nvvm/include \
              -I $(CUDA_DIR)/nvvm/libnvvm-samples/common/include \
              -I .
 LIB_DIRS   = $(CUDA_DIR)/lib64 $(CUDA_DIR)/nvvm/lib64
-CXX_FLAGS := -Wall -Wunused
+CXX_FLAGS := -std=c++11 -Wall -Wunused
 OPT_FLAGS := -O3
 DBG_FLAGS :=
 MAIN      ?= gaussian
 RPATH_PRE := -Wl,-rpath,
-
-OS:=$(shell uname -s)
+OS        := $(shell uname -s)
+CPP        = $(shell echo thorin_*.cpp cu_*.cpp)
+OBJS       = $(CPP:%.cpp=%.o)
 
 ifeq ($(OS),Linux)
 	LD_FLAGS = -lcuda -lnvvm
@@ -29,25 +30,20 @@ all: $(MAIN).out
 		sed -i $(SED_EXT) '/attributes #0/d' $(MAIN).nvvm; \
 		sed -i $(SED_EXT) 's/#0//' $(MAIN).nvvm; \
 	fi
-	@./$(MAIN).out
+	@CUDA_VISIBLE_DEVICES=0 ./$(MAIN).out
+	@CUDA_VISIBLE_DEVICES=1 ./$(MAIN).out
 
-%.s: %.cpp
-	clang++ $(CXX_FLAGS) -DPROVIDE_MAIN -DNVCC_BIN='"$(CUDA_DIR)/bin/nvcc"' -DLIBDEVICE_DIR='"$(CUDA_DIR)/nvvm/libdevice/"' $(DBG_FLAGS) $(INC_DIRS) -std=c++11 -o $@ -S $^
+%.o: %.cpp
+	clang++ $(CXX_FLAGS) -DPROVIDE_MAIN -DNVCC_BIN='"$(CUDA_DIR)/bin/nvcc"' -DLIBDEVICE_DIR='"$(CUDA_DIR)/nvvm/libdevice/"' $(DBG_FLAGS) $(OPT_FLAGS) $(INC_DIRS) -c -o $@ $^
 
-%.bc: %.ll
-	llvm-link $^ -o $*-unop.bc
-	opt $*-unop.bc $(OPT_FLAGS) -o $@
-	llvm-link $@ -o $@
-	llvm-dis $@ -o $*.ll
+%.o: %.ll
+	clang++ $(CXX_FLAGS) $(DBG_FLAGS) $(OPT_FLAGS) -c -o $@ $^
 
-%.s: %.bc
-	llc $(OPT_FLAGS) $^ -o $@
-
-%.out: %.s cu_runtime.s thorin_runtime.s thorin_utils.s
+%.out: %.o $(OBJS)
 	clang++ $^ $(addprefix $(RPATH_PRE),$(LIB_DIRS)) $(addprefix -L ,$(LIB_DIRS)) $(LD_FLAGS) -o $@
 
 clean:
-	@rm -f $(MAIN).out *.ll *.o *.bc *.s
+	@rm -f $(filter-out $(wildcard simple-gpu64.cu simple-gpu64.nvvm),$(wildcard *.ll *.o *.bc *.s *.cu *.nvvm *.ptx *.out))
 
 .PHONY: all
 

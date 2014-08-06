@@ -289,8 +289,13 @@ Def Lambda::get_value(size_t handle, Type type, const char* name) {
                 if (same != (const DefNode*)-1)
                     return same;
 
-                Def result = def ? Def(def) : fix(Todo(handle, append_param(type, name)->index(), type, name));
-                return set_value(handle, result);
+                if (def)
+                    return set_value(handle, def);
+
+                auto param = append_param(type, name);
+                set_value(handle, param);
+                fix(Todo(handle, param->index(), type, name));
+                return param;
             }
         }
     }

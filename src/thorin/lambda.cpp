@@ -67,7 +67,7 @@ static Lambdas preds(const Lambda* lambda) {
             if ((use.index() == 0 && direct) || (use.index() != 0 && indirect))
                 preds.push_back(lambda);
             continue;
-        } 
+        }
 
         enqueue(use);
     }
@@ -101,7 +101,7 @@ static Lambdas succs(const Lambda* lambda) {
         if (auto lambda = def->isa_lambda()) {
             succs.push_back(lambda);
             continue;
-        } 
+        }
         for (auto op : def->ops())
             enqueue(op);
     }
@@ -221,7 +221,7 @@ std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) 
         std::copy(p.begin(), p.end(), defs.begin());
         ret = world().tuple(defs);
 
-    } else 
+    } else
         ret = next->param(1);
     ret->name = to->name;
 
@@ -240,7 +240,7 @@ Def Lambda::find_def(size_t handle) {
 Def Lambda::set_mem(Def def) { return set_value(0, def); }
 Def Lambda::get_mem() { return get_value(0, world().mem_type(), "mem"); }
 
-Def Lambda::set_value(size_t handle, Def def) { 
+Def Lambda::set_value(size_t handle, Def def) {
     increase_values(handle);
     return values_[handle] = def;
 }

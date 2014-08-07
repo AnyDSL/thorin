@@ -108,7 +108,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     std::vector<Lambda*> connected_to_builtin_lambdas() const;
     void dump_head() const;
     void dump_jump() const;
-    void destroy_body() { unset_ops(); resize(0); }
+    void destroy_body();
 
     // terminate
 
@@ -153,8 +153,7 @@ private:
         const char* name_;
     };
 
-    Def fix(const Todo& todo);
-    Def get_value(const Todo& todo) { return get_value(todo.handle(), todo.type(), todo.name()); }
+    Def fix(size_t handle, size_t index, Type type, const char* name);
     Def try_remove_trivial_param(const Param*);
     Def find_def(size_t handle);
     void increase_values(size_t handle) { if (handle >= values_.size()) values_.resize(handle+1); }
@@ -164,7 +163,7 @@ private:
     std::vector<const Param*> params_;
     /**
      * There exist three cases to distinguish here.
-     * - \p parent_ == this: This \p Lambda is considered as a basic block, i.e., 
+     * - \p parent_ == this: This \p Lambda is considered as a basic block, i.e.,
      *                       SSA construction will propagate value through this \p Lambda's predecessors.
      * - \p parent_ == nullptr: This \p Lambda is considered as top level function, i.e.,
      *                          SSA construction will stop propagate values here.
@@ -176,8 +175,7 @@ private:
     bool is_sealed_;
     bool is_visited_;
     std::vector<Def> values_;
-    typedef std::vector<Todo> Todos;
-    Todos todos_;
+    std::vector<Todo> todos_;
 
     friend class Cleaner;
     friend class World;
@@ -185,7 +183,7 @@ private:
 
 //------------------------------------------------------------------------------
 
-template<class To> 
+template<class To>
 using LambdaMap     = HashMap<Lambda*, To, GIDHash<Lambda*>, GIDEq<Lambda*>>;
 using LambdaSet     = HashSet<Lambda*, GIDHash<Lambda*>, GIDEq<Lambda*>>;
 using Lambda2Lambda = LambdaMap<Lambda*>;

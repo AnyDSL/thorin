@@ -23,6 +23,11 @@ Lambda* Lambda::update_op(size_t i, Def def) {
     return this;
 }
 
+void Lambda::destroy_body() {
+    unset_ops();
+    resize(0);
+}
+
 FnType Lambda::arg_fn_type() const {
     Array<Type> args(num_args());
     for (size_t i = 0, e = num_args(); i != e; ++i)
@@ -255,7 +260,7 @@ Def Lambda::get_value(size_t handle, Type type, const char* name) {
         goto return_bottom;
     } else {
         if (!is_sealed_) {
-            const Param* param = append_param(type, name);
+            auto param = append_param(type, name);
             todos_.emplace_back(handle, param->index(), type, name);
             return set_value(handle, param);
         }
@@ -284,7 +289,7 @@ Def Lambda::get_value(size_t handle, Type type, const char* name) {
                 // fix any params which may have been introduced to break the cycle above
                 const DefNode* def = nullptr;
                 if (auto found = find_def(handle))
-                    def = fix(Todo(handle, found->as<Param>()->index(), type, name));
+                    def = fix(handle, found->as<Param>()->index(), type, name);
 
                 if (same != (const DefNode*)-1)
                     return same;
@@ -294,7 +299,7 @@ Def Lambda::get_value(size_t handle, Type type, const char* name) {
 
                 auto param = append_param(type, name);
                 set_value(handle, param);
-                fix(Todo(handle, param->index(), type, name));
+                fix(handle, param->index(), type, name);
                 return param;
             }
         }
@@ -310,22 +315,21 @@ void Lambda::seal() {
     assert(!is_sealed() && "already sealed");
     is_sealed_ = true;
 
-    for (auto todo : todos_)
-        fix(todo);
+    for (const auto& todo : todos_)
+        fix(todo.handle(), todo.index(), todo.type(), todo.name());
     todos_.clear();
 }
 
-Def Lambda::fix(const Todo& todo) {
-    size_t index = todo.index();
-    const Param* param = this->param(index);
+Def Lambda::fix(size_t handle, size_t index, Type type, const char* name) {
+    auto param = this->param(index);
 
     assert(is_sealed() && "must be sealed");
-    assert(todo.index() == param->index());
+    assert(index == param->index());
 
     for (auto pred : preds()) {
         assert(!pred->empty());
         assert(pred->direct_succs().size() == 1 && "critical edge");
-        auto def = pred->get_value(todo);
+        auto def = pred->get_value(handle, type, name);
 
         // make potentially room for the new arg
         if (index >= pred->num_args())

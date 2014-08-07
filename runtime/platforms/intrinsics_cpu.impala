@@ -7,6 +7,7 @@ extern "C" {
     fn atan2f(float, float) -> float;
     fn sinf(float) -> float;
     fn cosf(float) -> float;
+    fn floorf(float) -> float;
 }
 
 extern "device" {

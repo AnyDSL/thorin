@@ -2,6 +2,7 @@ extern "device" {
     // no declarations are emitted for "device" functions
     fn __syncthreads() -> ();
     fn expf(float) -> float;
+    fn powf(float, float) -> float;
     fn sqrtf(float) -> float;
     fn fabsf(float) -> float;
     fn tanf(float) -> float;
@@ -41,8 +42,9 @@ fn acc_gidx() -> int    { acc_tidx() + acc_bdimx() * acc_bidx() }
 fn acc_gidy() -> int    { acc_tidy() + acc_bdimy() * acc_bidy() }
 fn acc_gidz() -> int    { acc_tidz() + acc_bdimz() * acc_bidz() }
 fn acc_barrier() -> ()  { __syncthreads() }
+fn acc_vector_length() -> int { 32 }
 fn acc_tex() -> int     { 2 }
 fn acc_dev() -> int     { 0 }
 
-fn madf(float a, float b, float c) -> float { fmaf(a, b, c) }
+fn madf(a : float, b : float, c : float) -> float { fmaf(a, b, c) }
 

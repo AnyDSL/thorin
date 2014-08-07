@@ -1,6 +1,7 @@
 extern "C" {
     fn wfv_get_tid() -> int;
     fn expf(float) -> float;
+    fn powf(float, float) -> float;
     fn sqrtf(float) -> float;
     fn fabsf(float) -> float;
     fn tanf(float) -> float;

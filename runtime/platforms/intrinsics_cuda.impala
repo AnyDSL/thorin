@@ -45,5 +45,5 @@ fn acc_barrier() -> ()  { __syncthreads() }
 fn acc_tex() -> int     { 2 }
 fn acc_dev() -> int     { 0 }
 
-fn madf(float a, float b, float c) -> float { fmaf(a, b, c) }
+fn madf(a : float, b : float, c : float) -> float { fmaf(a, b, c) }
 

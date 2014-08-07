@@ -19,6 +19,7 @@ extern "device" {
     fn sin(float) -> float;
     fn cos(float) -> float;
     fn erf(float) -> float;
+    fn floor(float) -> float;
     fn fma(float, float, float) -> float;
     fn mad(float, float, float) -> float;
 }
@@ -58,6 +59,7 @@ fn atan2f(a: float, b: float) -> float { atan2(a, b) }
 fn sinf(a: float) -> float { sin(a) }
 fn cosf(a: float) -> float { cos(a) }
 fn erff(a: float) -> float { erf(a) }
+fn floorf(a: float) -> float { floor(a) }
 fn fmaf(a: float, b: float, c:float) -> float { fma(a, b, c) }
 fn madf(a: float, b: float, c:float) -> float { mad(a, b, c) }
 

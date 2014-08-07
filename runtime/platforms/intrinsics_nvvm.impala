@@ -311,11 +311,8 @@ fn tanf(a: float) -> float { __nv_tanf(a) }
 fn atan2f(a: float, b: float) -> float { __nv_atan2f(a, b) }
 fn sinf(a: float) -> float { __nv_sinf(a) }
 fn cosf(a: float) -> float { __nv_cosf(a) }
-<<<<<<< HEAD
 fn floorf(a: float) -> float { __nv_floorf(a) }
-=======
 fn erff(a: float) -> float { __nv_erff(a) }
->>>>>>> Add intrinsics for rsqrtf() and erff().
 fn fmaf(a: float, b: float, c: float) -> float { __nv_fmaf(a, b, c) }
 fn madf(a: float, b: float, c: float) -> float { __nv_fmaf(a, b, c) }
 

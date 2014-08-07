@@ -9,6 +9,7 @@ extern "C" {
     fn sinf(float) -> float;
     fn cosf(float) -> float;
     fn erff(float) -> float;
+    fn floorf(float) -> float;
 }
 
 extern "device" {

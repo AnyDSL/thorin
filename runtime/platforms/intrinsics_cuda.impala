@@ -11,6 +11,7 @@ extern "device" {
     fn sinf(float) -> float;
     fn cosf(float) -> float;
     fn erff(float) -> float;
+    fn floorf(float) -> float;
     fn fmaf(float, float, float) -> float;
     // wrappers for threadIdx.x etc. are provided
     fn threadIdx_x() -> int;

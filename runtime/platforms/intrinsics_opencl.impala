@@ -42,6 +42,7 @@ fn acc_gidx() -> int    { get_global_id(0u) as int }
 fn acc_gidy() -> int    { get_global_id(1u) as int }
 fn acc_gidz() -> int    { get_global_id(2u) as int }
 fn acc_barrier() -> ()  { barrier(1u) }  // CLK_LOCAL_MEM_FENCE -> 1 // CLK_GLOBAL_MEM_FENCE -> 2
+fn acc_vector_length() -> int { 32 }
 fn acc_tex() -> int     { 1 }
 fn acc_dev() -> int     { 1 }
 

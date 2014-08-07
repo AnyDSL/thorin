@@ -10,12 +10,14 @@ extern "device" {
     fn _Z7barrierj(i32) -> ();
     fn _Z3expf(float) -> float;
     fn _Z3powff(float, float) -> float;
+    fn _Z5rsqrtf(float) -> float;
     fn _Z4sqrtf(float) -> float;
     fn _Z4fabsf(float) -> float;
     fn _Z3tanf(float) -> float;
     fn _Z5atan2ff(float, float) -> float;
     fn _Z3sinf(float) -> float;
     fn _Z3cosf(float) -> float;
+    fn _Z3erff(float) -> float;
     fn _Z3fmafff(float, float, float) -> float;
     fn _Z3madfff(float, float, float) -> float;
 }
@@ -47,12 +49,14 @@ fn acc_dev() -> int     { 1 }
 
 fn expf(a: float) -> float { _Z3expf(a) }
 fn powf(a: float, b: float) -> float { _Z3powff(a, b) }
+fn rsqrtf(a: float) -> float { _Z5rsqrtf(a) }
 fn sqrtf(a: float) -> float { _Z4sqrtf(a) }
 fn fabsf(a: float) -> float { _Z4fabsf(a) }
 fn tanf(a: float) -> float { _Z3tanf(a) }
 fn atan2f(a: float, b: float) -> float { _Z5atan2ff(a, b) }
 fn sinf(a: float) -> float { _Z3sinf(a) }
 fn cosf(a: float) -> float { _Z3cosf(a) }
+fn erff(a: float) -> float { _Z3erff(a) }
 fn fmaf(a: float, b: float, c:float) -> float { _Z3fmafff(a, b, c) }
 fn madf(a: float, b: float, c:float) -> float { _Z3madfff(a, b, c) }
 

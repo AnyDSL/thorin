@@ -11,12 +11,14 @@ extern "device" {
     fn barrier(u32) -> ();
     fn exp(float) -> float;
     fn pow(float, float) -> float;
+    fn rsqrt(float) -> float;
     fn sqrt(float) -> float;
     fn fabs(float) -> float;
     fn tan(float) -> float;
     fn atan2(float, float) -> float;
     fn sin(float) -> float;
     fn cos(float) -> float;
+    fn erf(float) -> float;
     fn fma(float, float, float) -> float;
     fn mad(float, float, float) -> float;
 }
@@ -48,12 +50,14 @@ fn acc_dev() -> int     { 1 }
 
 fn expf(a: float) -> float { exp(a) }
 fn powf(a: float, b: float) -> float { pow(a, b) }
+fn rsqrtf(a: float) -> float { rsqrt(a) }
 fn sqrtf(a: float) -> float { sqrt(a) }
 fn fabsf(a: float) -> float { fabs(a) }
 fn tanf(a: float) -> float { tan(a) }
 fn atan2f(a: float, b: float) -> float { atan2(a, b) }
 fn sinf(a: float) -> float { sin(a) }
 fn cosf(a: float) -> float { cos(a) }
+fn erff(a: float) -> float { erf(a) }
 fn fmaf(a: float, b: float, c:float) -> float { fma(a, b, c) }
 fn madf(a: float, b: float, c:float) -> float { mad(a, b, c) }
 

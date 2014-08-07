@@ -3,12 +3,14 @@ extern "device" {
     fn __syncthreads() -> ();
     fn expf(float) -> float;
     fn powf(float, float) -> float;
+    fn rsqrtf(float) -> float;
     fn sqrtf(float) -> float;
     fn fabsf(float) -> float;
     fn tanf(float) -> float;
     fn atan2f(float, float) -> float;
     fn sinf(float) -> float;
     fn cosf(float) -> float;
+    fn erff(float) -> float;
     fn fmaf(float, float, float) -> float;
     // wrappers for threadIdx.x etc. are provided
     fn threadIdx_x() -> int;

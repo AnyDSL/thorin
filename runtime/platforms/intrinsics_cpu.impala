@@ -7,6 +7,7 @@ extern "C" {
     fn atan2f(float, float) -> float;
     fn sinf(float) -> float;
     fn cosf(float) -> float;
+    fn erff(float) -> float;
     fn floorf(float) -> float;
 }
 
@@ -14,6 +15,8 @@ extern "device" {
     fn "llvm.fma.f32" fmaf(float, float, float) -> float;
     fn "llvm.fmuladd.f32" madf(float, float, float) -> float;
 }
+
+fn rsqrtf(a: float) -> float { 1.0f / sqrtf(a) }
 
 fn get_vector_length() -> int { 1 }
 fn inner_loop(a : int, b : int, yield : fn(int, fn())) -> () {

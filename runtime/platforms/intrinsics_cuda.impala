@@ -2,6 +2,7 @@ extern "device" {
     // no declarations are emitted for "device" functions
     fn __syncthreads() -> ();
     fn expf(float) -> float;
+    fn powf(float, float) -> float;
     fn sqrtf(float) -> float;
     fn fabsf(float) -> float;
     fn tanf(float) -> float;

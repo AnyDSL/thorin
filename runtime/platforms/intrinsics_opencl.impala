@@ -10,6 +10,7 @@ extern "device" {
     fn get_global_offset(u32) -> u64;
     fn barrier(u32) -> ();
     fn exp(float) -> float;
+    fn pow(float, float) -> float;
     fn sqrt(float) -> float;
     fn fabs(float) -> float;
     fn tan(float) -> float;
@@ -45,6 +46,7 @@ fn acc_tex() -> int     { 1 }
 fn acc_dev() -> int     { 1 }
 
 fn expf(a: float) -> float { exp(a) }
+fn powf(a: float, b: float) -> float { pow(a, b) }
 fn sqrtf(a: float) -> float { sqrt(a) }
 fn fabsf(a: float) -> float { fabs(a) }
 fn tanf(a: float) -> float { tan(a) }

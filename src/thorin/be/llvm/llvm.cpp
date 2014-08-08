@@ -509,11 +509,11 @@ llvm::Value* CodeGen::emit(Def def) {
 
         if (conv->isa<Cast>()) {
             if (src.isa<PtrType>()) {
-                assert(dst->is_type_i());
+                assert(dst->is_type_i() || dst->is_bool());
                 return builder_.CreatePtrToInt(from, to);
             }
             if (dst.isa<PtrType>()) {
-                assert(src->is_type_i());
+                assert(src->is_type_i() || dst->is_bool());
                 return builder_.CreateIntToPtr(from, to);
             }
             if (src->is_type_f() && dst->is_type_f()) {
@@ -530,11 +530,15 @@ llvm::Value* CodeGen::emit(Def def) {
                     return builder_.CreateSIToFP(from, to);
                 return builder_.CreateSIToFP(from, to);
             }
-            if (src->is_type_i() && dst->is_type_i() && (num_bits(src->primtype_kind()) > num_bits(dst->primtype_kind())))
+            if (       (src->is_type_i() || src->is_bool())
+                    && (dst->is_type_i() || dst->is_bool())
+                    && (num_bits(src->primtype_kind()) > num_bits(dst->primtype_kind()))
                 return builder_.CreateTrunc(from, to);
             if (src->is_type_s() && dst->is_type_s() && (num_bits(src->primtype_kind()) < num_bits(dst->primtype_kind())))
                 return builder_.CreateSExt(from, to);
-            if (src->is_type_u() && dst->is_type_u() && (num_bits(src->primtype_kind()) < num_bits(dst->primtype_kind())))
+            if (       (src->is_type_u() || src->is_bool())
+                    && (dst->is_type_u() || dst->is_bool())
+                    && (num_bits(src->primtype_kind()) < num_bits(dst->primtype_kind())))
                 return builder_.CreateZExt(from, to);
 
             assert(false && "unsupported cast");

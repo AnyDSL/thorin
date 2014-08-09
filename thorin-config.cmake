@@ -36,7 +36,7 @@ FIND_PATH ( THORIN_RUNTIME_DIR
 )
 FIND_PATH ( THORIN_RUNTIME_INCLUDE_DIR
     NAMES
-        thorin_ext_runtime.h
+        thorin_runtime.h
     PATHS
         ${THORIN_ROOT_DIR}/runtime/common
 )

@@ -116,21 +116,6 @@ void CodeGen::emit(int opt) {
         fcts_.emplace(lambda, f);
     }
 
-    // emit all globals
-    for (auto primop : world_.primops()) {
-        if (auto global = primop->isa<Global>()) {
-            llvm::Value* val;
-            if (auto lambda = global->init()->isa_lambda())
-                val = fcts_[lambda];
-            else {
-                auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->name, convert(global->referenced_type())));
-                var->setInitializer(llvm::cast<llvm::Constant>(emit(global->init())));
-                val = var;
-            }
-            primops_[global] = val;
-        }
-    }
-
     // emit connected functions first
     std::stable_sort(scopes.begin(), scopes.end(), [] (Scope* s1, Scope* s2) { return s1->entry()->is_connected_to_builtin(); });
 
@@ -377,19 +362,23 @@ void CodeGen::optimize(int opt) {
 }
 
 llvm::Value* CodeGen::lookup(Def def) {
-    if (def->is_const())
-        return emit(def);
+    if (auto primop = def->isa<PrimOp>()) {
+        if (auto res = find(primops_, primop))
+            return res;
+        else
+            return primops_[primop] = emit(def);
+    }
 
-    if (auto primop = def->isa<PrimOp>())
-        return primops_[primop];
+    if (auto param = def->isa<Param>()) {
+        auto i = params_.find(param);
+        if (i != params_.end())
+            return i->second;
 
-    const Param* param = def->as<Param>();
-    auto i = params_.find(param);
-    if (i != params_.end())
-        return i->second;
+        assert(phis_.find(param) != phis_.end());
+        return find(phis_, param);
+    }
 
-    assert(phis_.find(param) != phis_.end());
-    return find(phis_, param);
+    THORIN_UNREACHABLE;
 }
 
 llvm::AllocaInst* CodeGen::emit_alloca(llvm::Type* type, const std::string& name) {
@@ -704,6 +693,19 @@ llvm::Value* CodeGen::emit(Def def) {
 
     if (auto lea = def->isa<LEA>())
         return emit_lea(lea);
+
+
+    if (auto global = def->isa<Global>()) {
+        llvm::Value* val;
+        if (auto lambda = global->init()->isa_lambda())
+            val = fcts_[lambda];
+        else {
+            auto var = llvm::cast<llvm::GlobalVariable>(module_->getOrInsertGlobal(global->name, convert(global->referenced_type())));
+            var->setInitializer(llvm::cast<llvm::Constant>(emit(global->init())));
+            val = var;
+        }
+        return val;
+    }
 
     THORIN_UNREACHABLE;
 }

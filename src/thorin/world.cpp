@@ -812,6 +812,7 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type) {
         case Node_Alloc:    assert(ops.size() == 2); return to.alloc(   ops[0], type.as<PtrType>()->referenced_type(), ops[1], name);
         case Node_Any:      assert(ops.size() == 0); return to.any(type);
         case Node_Bottom:   assert(ops.size() == 0); return to.bottom(type);
+        case Node_Bitcast:  assert(ops.size() == 2); return to.bitcast( ops[0], ops[1], type);
         case Node_Cast:     assert(ops.size() == 2); return to.cast(    ops[0], ops[1], type);
         case Node_Enter:    assert(ops.size() == 1); return to.enter(   ops[0], name);
         case Node_Extract:  assert(ops.size() == 2); return to.extract( ops[0], ops[1], name);

@@ -490,21 +490,26 @@ llvm::Value* CodeGen::emit(Def def) {
 
     if (auto conv = def->isa<ConvOp>()) {
         auto from = lookup(conv->from());
-        auto src = conv->from()->type().as<PrimType>();
-        auto dst = conv->type().as<PrimType>();
-        auto to = convert(dst);
+        auto src_type = conv->from()->type();
+        auto dst_type = conv->type();
+        auto to = convert(dst_type);
 
-        if (from->getType() == to) return from;
+        if (from->getType() == to)
+            return from;
 
         if (conv->isa<Cast>()) {
-            if (src.isa<PtrType>()) {
-                assert(dst->is_type_i() || dst->is_bool());
+            if (src_type.isa<PtrType>()) {
+                assert(dst_type->is_type_i() || dst_type->is_bool());
                 return builder_.CreatePtrToInt(from, to);
             }
-            if (dst.isa<PtrType>()) {
-                assert(src->is_type_i() || dst->is_bool());
+            if (dst_type.isa<PtrType>()) {
+                assert(src_type->is_type_i() || dst_type->is_bool());
                 return builder_.CreateIntToPtr(from, to);
             }
+
+            auto src = src_type.as<PrimType>();
+            auto dst = dst_type.as<PrimType>();
+
             if (src->is_type_f() && dst->is_type_f()) {
                 assert(num_bits(src->primtype_kind()) != num_bits(dst->primtype_kind()));
                 return builder_.CreateFPCast(from, to);

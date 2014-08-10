@@ -163,7 +163,7 @@ Global::Global(Def init, bool is_mutable, const std::string& name)
     , is_mutable_(is_mutable)
 {
     set_op(0, init);
-    assert(init->is_const());
+    // TODO assert that init does not depend on some param
 }
 
 Type Global::referenced_type() const { return type().as<PtrType>()->referenced_type(); }
@@ -197,4 +197,4 @@ const char* Cmp::op_name() const {
 
 //------------------------------------------------------------------------------
 
-} // namespace thorin
+}

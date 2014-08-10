@@ -5,7 +5,7 @@
 namespace thorin {
 
 NVVMRuntime::NVVMRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder)
-    : KernelRuntime(context, target, builder, llvm::IntegerType::getInt64Ty(context), "nvvm.s")
+    : KernelRuntime(context, target, builder, llvm::IntegerType::getInt64Ty(context), THORIN_RUNTIME_PLATFORMS "nvvm.s")
 {}
 
 llvm::Value* NVVMRuntime::malloc(llvm::Value* device, llvm::Value* ptr) {

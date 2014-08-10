@@ -5,7 +5,7 @@
 namespace thorin {
 
 SPIRRuntime::SPIRRuntime(llvm::LLVMContext& context, llvm::Module* target, llvm::IRBuilder<>& builder)
-    : KernelRuntime(context, target, builder, llvm::IntegerType::getInt64Ty(context), "spir.s")
+    : KernelRuntime(context, target, builder, llvm::IntegerType::getInt64Ty(context), THORIN_RUNTIME_PLATFORMS "spir.s")
 {}
 
 llvm::Value* SPIRRuntime::malloc(llvm::Value* device, llvm::Value* ptr) {

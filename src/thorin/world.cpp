@@ -14,6 +14,7 @@
 #include "thorin/transform/clone_bodies.h"
 #include "thorin/transform/inliner.h"
 #include "thorin/transform/lift_builtins.h"
+#include "thorin/transform/lift_enters.h"
 #include "thorin/transform/lower2cff.h"
 #include "thorin/transform/mem2reg.h"
 #include "thorin/transform/memmap_builtins.h"
@@ -954,6 +955,7 @@ void World::opt() {
     lift_builtins(*this);
     inliner(*this);
     merge_lambdas(*this);
+    lift_enters(*this);
     cleanup();
 }
 

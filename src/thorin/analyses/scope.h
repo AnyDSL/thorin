@@ -26,6 +26,7 @@ public:
 
     /// All lambdas within this scope in reverse postorder.
     ArrayRef<Lambda*> rpo() const { return rpo_; }
+    Lambda* rpo(size_t i) const { return rpo_[i]; }
     Lambda* entry() const { return rpo().front(); }
     Lambda* exit()  const { return reverse_rpo_.front(); }
     /// Like \p rpo() but without \p entry()

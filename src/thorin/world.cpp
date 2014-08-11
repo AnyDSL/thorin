@@ -800,8 +800,6 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type) {
 
     if (is_arithop (kind))  { assert(ops.size() == 3); return to.arithop((ArithOpKind) kind, ops[0], ops[1], ops[2], name); }
     if (is_cmp     (kind))  { assert(ops.size() == 3); return to.cmp(    (CmpKind)     kind, ops[0], ops[1], ops[2], name); }
-    // TODO
-    //if (is_convop  (kind))  { assert(ops.size() == 2); return to.convop( (ConvOpKind)  kind, ops[0], ops[1],   type, name); }
     if (is_primtype(kind)) {
         assert(ops.size() == 0);
         auto primlit = in->as<PrimLit>();

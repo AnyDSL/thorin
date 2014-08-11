@@ -31,8 +31,15 @@ static void lift_enters(const Scope& scope) {
     }
 
     auto enter = find_enter(scope.entry());
-    if (enter == nullptr)
-        enter = world.enter(scope.entry()->param(0));
+    if (enter == nullptr) {
+        for (auto param : scope.entry()->params()) {
+            if (param->type().isa<MemType>()) {
+                enter = world.enter(scope.entry()->param(0));
+                break;
+            }
+        }
+    }
+    assert(enter != nullptr);
 
     // find max slot index
     size_t index = 0;

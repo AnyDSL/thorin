@@ -163,6 +163,8 @@ std::ostream& CodeGen::emit_primop(const PrimOp* primop) {
                 default: THORIN_UNREACHABLE;
             }
         }
+    } else if (primop->isa<Global>()) {
+        emit_name(primop);
     } else if (primop->is_const()) {
         if (primop->empty()) {
             stream() << primop->op_name() << ' ';

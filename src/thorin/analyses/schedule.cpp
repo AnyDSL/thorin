@@ -164,15 +164,19 @@ Schedule schedule_smart(const Scope& scope) {
             auto lambda_best = def2late[primop];
             assert(scope.contains(lambda_best));
             int depth = std::numeric_limits<int>::max();
-            for (auto i = lambda_best; true; i = domtree.idom(i)) {
-                int cur_depth = looptree.depth(i);
-                if (cur_depth < depth) {
-                    lambda_best = i;
-                    depth = cur_depth;
-                }
+            if (primop->isa<Enter>() || primop->isa<Slot>())
+                lambda_best = lambda_early;
+            else {
+                for (auto i = lambda_best; true; i = domtree.idom(i)) {
+                    int cur_depth = looptree.depth(i);
+                    if (cur_depth < depth) {
+                        lambda_best = i;
+                        depth = cur_depth;
+                    }
 
-                if (i == lambda_early)
-                    break;
+                    if (i == lambda_early)
+                        break;
+                }
             }
             smart[lambda_best].push_back(primop);
         }

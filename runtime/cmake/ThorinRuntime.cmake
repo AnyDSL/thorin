@@ -66,8 +66,6 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
 
     ## generate files
     # get the options right
-    set(_clangopts ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE})
-    separate_arguments(_clangopts)
     # get last filename, and absolute filenames
     set(_infiles)
     foreach(_it ${TRW_FILES})
@@ -86,8 +84,8 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         DEPENDS ${IMPALA_BIN} ${_impala_platform} ${_infiles} VERBATIM)
     add_custom_command(OUTPUT ${_objfile}
-        COMMAND clang++
-        ARGS ${_clangopts} -g -c -o ${_objfile} ${_llfile}
+        COMMAND llc
+        ARGS -O2 -filetype=obj ${_llfile} -o ${_objfile}
         DEPENDS ${_llfile} VERBATIM)
     SET_SOURCE_FILES_PROPERTIES(
         ${_objfile}

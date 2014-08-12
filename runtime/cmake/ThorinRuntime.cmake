@@ -66,8 +66,6 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
 
     ## generate files
     # get the options right
-    set(_clangopts ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE})
-    separate_arguments(_clangopts)
     # get last filename, and absolute filenames
     set(_infiles)
     foreach(_it ${TRW_FILES})
@@ -79,8 +77,6 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
     get_filename_component(_basename ${_lastfile} NAME_WE)
     set(_llfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.ll)
     set(_objfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.o)
-    # prepare platform symlinks in build directory
-    execute_process(COMMAND ln -fs ${THORIN_RUNTIME_DIR}/platforms/generic.s ${THORIN_RUNTIME_DIR}/platforms/nvvm.s ${THORIN_RUNTIME_DIR}/platforms/spir.s ${CMAKE_CURRENT_BINARY_DIR})
     # tell cmake what to do
     add_custom_command(OUTPUT ${_llfile}
         COMMAND ${IMPALA_BIN}
@@ -88,8 +84,8 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         DEPENDS ${IMPALA_BIN} ${_impala_platform} ${_infiles} VERBATIM)
     add_custom_command(OUTPUT ${_objfile}
-        COMMAND clang++
-        ARGS ${_clangopts} -g -c -o ${_objfile} ${_llfile}
+        COMMAND llc
+        ARGS -O2 -filetype=obj ${_llfile} -o ${_objfile}
         DEPENDS ${_llfile} VERBATIM)
     SET_SOURCE_FILES_PROPERTIES(
         ${_objfile}

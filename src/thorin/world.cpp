@@ -817,8 +817,8 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type) {
         case Node_Extract:  assert(ops.size() == 2); return to.extract( ops[0], ops[1], name);
         case Node_Global:   assert(ops.size() == 1); return to.global(  ops[0], in->as<Global>()->is_mutable(), name);
         case Node_Hlt:      assert(ops.size() == 1); return to.hlt(     ops[0], name);
-        case Node_EndHlt:   assert(ops.size() == 2); return to.end_hlt( ops[0],ops[1], name);
-        case Node_EndRun:   assert(ops.size() == 2); return to.end_run( ops[0],ops[1], name);
+        case Node_EndHlt:   assert(ops.size() == 2); return to.end_hlt( ops[0], ops[1], name);
+        case Node_EndRun:   assert(ops.size() == 2); return to.end_run( ops[0], ops[1], name);
         case Node_Insert:   assert(ops.size() == 3); return to.insert(  ops[0], ops[1], ops[2], name);
         case Node_LEA:      assert(ops.size() == 2); return to.lea(     ops[0], ops[1], name);
         case Node_Leave:    assert(ops.size() == 2); return to.leave(   ops[0], ops[1], name);

@@ -79,8 +79,6 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
     get_filename_component(_basename ${_lastfile} NAME_WE)
     set(_llfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.ll)
     set(_objfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.o)
-    # prepare platform symlinks in build directory
-    execute_process(COMMAND ln -fs ${THORIN_RUNTIME_DIR}/platforms/generic.s ${THORIN_RUNTIME_DIR}/platforms/nvvm.s ${THORIN_RUNTIME_DIR}/platforms/spir.s ${CMAKE_CURRENT_BINARY_DIR})
     # tell cmake what to do
     add_custom_command(OUTPUT ${_llfile}
         COMMAND ${IMPALA_BIN}

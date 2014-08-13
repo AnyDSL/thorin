@@ -56,6 +56,7 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
     , function_calling_convention_(function_calling_convention)
     , device_calling_convention_(device_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)
+    , current_kernel_(nullptr)
 {
     runtime_ = new GenericRuntime(context_, module_, builder_);
     cuda_runtime_ = new CUDARuntime(context_, module_, builder_);
@@ -122,6 +123,9 @@ void CodeGen::emit(int opt) {
     for (auto ptr_scope : scopes) {
         auto& scope = *ptr_scope;
         auto lambda = scope.entry();
+        current_kernel_ = nullptr;
+        if (lambda->attribute().is(Lambda::KernelEntry))
+            current_kernel_ = lambda;
         if (lambda->is_builtin() || lambda->empty())
             continue;
 
@@ -758,16 +762,16 @@ llvm::Value* CodeGen::emit_munmap(Def def) {
 
 // TODO factor emit_shared_map/emit_shared_unmap with the help of its base class MapOp
 
-llvm::Value* CodeGen::emit_shared_mmap(Def def, std::string prefix) {
+llvm::Value* CodeGen::emit_shared_mmap(Def def) {
     auto mmap = def->as<Map>();
-    assert(mmap->addr_space() == AddressSpace::Shared &&
-            "Only shared memory can be mapped inside NVVM code");
+    assert(current_kernel_ && "shared memory can only be mapped inside kernel");
+    assert(mmap->addr_space() == AddressSpace::Shared && "wrong address space for shared memory");
     auto num_elems = mmap->mem_size()->as<PrimLit>()->ps32_value();
 
     // construct array type
     auto elem_type = mmap->ptr_type()->referenced_type().as<ArrayType>()->elem_type();
     auto type = this->convert(mmap->world().definite_array_type(elem_type, num_elems));
-    auto global = emit_global_memory(type, prefix + mmap->unique_name(), 3);
+    auto global = emit_global_memory(type, current_kernel_->name + "." + mmap->unique_name(), 3);
     return global;
 }
 

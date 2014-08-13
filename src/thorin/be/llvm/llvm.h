@@ -43,7 +43,7 @@ protected:
     virtual std::string get_output_name(const std::string& name) const = 0;
     virtual std::string get_binary_output_name(const std::string& name) const = 0;
     llvm::GlobalVariable* emit_global_memory(llvm::Type*, const std::string&, unsigned);
-    llvm::Value* emit_shared_mmap(Def def, std::string name=std::string());
+    llvm::Value* emit_shared_mmap(Def def);
     llvm::Value* emit_shared_munmap(Def def);
 
 private:
@@ -70,6 +70,7 @@ protected:
     AutoPtr<KernelRuntime> nvvm_runtime_;
     AutoPtr<KernelRuntime> spir_runtime_;
     AutoPtr<KernelRuntime> opencl_runtime_;
+    Lambda* current_kernel_;
 
     friend class GenericRuntime;
     friend class KernelRuntime;

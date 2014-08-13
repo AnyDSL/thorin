@@ -17,8 +17,6 @@ protected:
     virtual std::string get_alloc_name() const { assert(false && "alloc not supported in SPIR"); }
     virtual std::string get_output_name(const std::string& name) const { return name + ".spir"; }
     virtual std::string get_binary_output_name(const std::string& name) const { return name + ".spir.bc"; }
-private:
-    llvm::Function *current_kernel;
 };
 
 }

@@ -48,7 +48,7 @@ protected:
 
 private:
     Lambda* emit_builtin(llvm::Function*, Lambda*);
-    Lambda* emit_vectorized(llvm::Function*, Lambda*);
+    Lambda* emit_vectorize(llvm::Function*, Lambda*);
 
 protected:
     World& world_;

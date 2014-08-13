@@ -79,7 +79,7 @@ Lambda* CodeGen::emit_builtin(llvm::Function* current, Lambda* lambda) {
 
     assert(to->intrinsic().is(Lambda::Vectorize));
 #ifdef WFV2_SUPPORT
-    return emit_vectorized(current, lambda);
+    return emit_vectorize(current, lambda);
 #else
     assert(false && "vectorization not supported: missing WFV2");
     return nullptr;

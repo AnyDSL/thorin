@@ -129,7 +129,7 @@ void Lambda::set_intrinsic() {
     else if (name=="spir") intrinsic().set(Lambda::SPIR);
     else if (name=="opencl") intrinsic().set(Lambda::OPENCL);
     else if (name=="parallel") intrinsic().set(Lambda::Parallel);
-    else if (name=="vectorized") intrinsic().set(Lambda::Vectorize);
+    else if (name=="vectorize") intrinsic().set(Lambda::Vectorize);
     else if (name=="mmap") intrinsic().set(Lambda::Mmap);
     else if (name=="munmap") intrinsic().set(Lambda::Munmap);
     else assert(false && "unsupported thorin intrinsic");

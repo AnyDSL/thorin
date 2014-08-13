@@ -18,7 +18,7 @@ static llvm::Function* get_vectorize_tid(llvm::Module* module) {
     return module->getFunction(vectorize_intrinsic_name);
 }
 
-Lambda* CodeGen::emit_vectorized(llvm::Function* current, Lambda* lambda) {
+Lambda* CodeGen::emit_vectorize(llvm::Function* current, Lambda* lambda) {
     Lambda* target = lambda->to()->as_lambda();
     assert(target->is_builtin() && target->intrinsic().is(Lambda::Vectorize));
     assert(lambda->num_args() > 5 && "required arguments are missing");
@@ -43,7 +43,7 @@ Lambda* CodeGen::emit_vectorized(llvm::Function* current, Lambda* lambda) {
     }
 
     llvm::FunctionType* simd_type = llvm::FunctionType::get(builder_.getVoidTy(), llvm_ref(simd_args), false);
-    llvm::Function* kernel_simd_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name() + "_vectorized", simd_type);
+    llvm::Function* kernel_simd_func = (llvm::Function*)module_->getOrInsertFunction(kernel->unique_name() + "_vectorize", simd_type);
 
     // build iteration loop and wire the calls
     llvm::BasicBlock* header = llvm::BasicBlock::Create(context_, "vec_header", current);

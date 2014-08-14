@@ -80,12 +80,12 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
     # tell cmake what to do
     add_custom_command(OUTPUT ${_llfile}
         COMMAND ${IMPALA_BIN}
-        ARGS ${_impala_platform} ${_infiles} -emit-llvm -O2
+        ARGS ${_impala_platform} ${_infiles} -emit-llvm -O3
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         DEPENDS ${IMPALA_BIN} ${_impala_platform} ${_infiles} VERBATIM)
     add_custom_command(OUTPUT ${_objfile}
-        COMMAND llc
-        ARGS -O2 -filetype=obj ${_llfile} -o ${_objfile}
+        COMMAND clang++
+        ARGS -O3 -g -c -o ${_objfile} ${_llfile}
         DEPENDS ${_llfile} VERBATIM)
     SET_SOURCE_FILES_PROPERTIES(
         ${_objfile}

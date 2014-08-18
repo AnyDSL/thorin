@@ -1,9 +1,5 @@
 #include "thorin/world.h"
 
-#include <cmath>
-#include <algorithm>
-#include <queue>
-
 #include "thorin/def.h"
 #include "thorin/primop.h"
 #include "thorin/lambda.h"

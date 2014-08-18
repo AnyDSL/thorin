@@ -169,14 +169,13 @@ void CodeGen::emit(int opt) {
                     if (!param->type().isa<MemType>())
                         phis_[param] = llvm::PHINode::Create(convert(param->type()), (unsigned) param->peek().size(), param->name, bb);
             }
-
         }
+
         auto oldStartBB = fct->begin();
         auto startBB = llvm::BasicBlock::Create(context_, fct->getName() + "_start", fct, oldStartBB);
         builder_.SetInsertPoint(startBB);
         emit_function_start(startBB, fct, lambda);
         builder_.CreateBr(oldStartBB);
-
 
         // never use early schedule here - this may break memory operations
         Schedule schedule = schedule_smart(scope);

@@ -17,6 +17,13 @@ Lambda* Lambda::stub(Type2Type& type2type, const std::string& name) const {
     return result;
 }
 
+Array<Def> Lambda::params_as_defs() const {
+    Array<Def> params(num_params());
+    for (size_t i = 0, e = num_params(); i != e; ++i)
+        params[i] = param(i);
+    return params;
+}
+
 Lambda* Lambda::update_op(size_t i, Def def) {
     unset_op(i);
     set_op(i, def);

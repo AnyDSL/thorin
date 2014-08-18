@@ -101,7 +101,6 @@ next_lambda:;
     }
 
     for (auto lambda : todo) {
-        lambda->dump_head();
         for (auto pred : lambda->preds()) {
             // create new lambda
             Type2Type map;

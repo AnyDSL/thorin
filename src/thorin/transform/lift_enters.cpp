@@ -3,15 +3,23 @@
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/top_level_scopes.h"
 #include "thorin/analyses/verify.h"
+#include "thorin/util/queue.h"
 
 namespace thorin {
 
 static const Enter* find_enter(Lambda* lambda) {
     for (auto param : lambda->params()) {
         if (param->type().isa<MemType>()) {
-            for (auto use : param->uses()) {
-                if (auto enter = use->isa<Enter>())
-                    return enter;
+            std::queue<Def> queue;
+            queue.push(param);
+            while (!queue.empty()) {
+                for (auto use : pop(queue)->uses()) {
+                    if (auto enter = use->isa<Enter>())
+                        return enter;
+
+                    if (use->type().isa<MemType>())
+                        queue.push(use);
+                }
             }
         }
     }

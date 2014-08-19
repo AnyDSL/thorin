@@ -43,7 +43,7 @@ llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     }
     auto ft = llvm::cast<llvm::FunctionType>(convert(lambda->world().fn_type(types)));
     // TODO: factor emit_function_decl code
-    auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(lambda->name, ft));
+    auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, ft));
     f->setLinkage(llvm::Function::ExternalLinkage);
     f->setAttributes(llvm::AttributeSet());
 

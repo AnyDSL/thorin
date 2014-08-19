@@ -761,7 +761,7 @@ llvm::Value* CodeGen::emit_munmap(Def def) {
 
 // TODO factor emit_shared_map/emit_shared_unmap with the help of its base class MapOp
 
-llvm::Value* CodeGen::emit_shared_mmap(Def def) {
+llvm::Value* CodeGen::emit_shared_mmap(Def def, bool prefix) {
     auto mmap = def->as<Map>();
     assert(current_kernel_ && "shared memory can only be mapped inside kernel");
     assert(mmap->addr_space() == AddressSpace::Shared && "wrong address space for shared memory");
@@ -770,7 +770,7 @@ llvm::Value* CodeGen::emit_shared_mmap(Def def) {
     // construct array type
     auto elem_type = mmap->ptr_type()->referenced_type().as<ArrayType>()->elem_type();
     auto type = this->convert(mmap->world().definite_array_type(elem_type, num_elems));
-    auto global = emit_global_memory(type, current_kernel_->name + "." + mmap->unique_name(), 3);
+    auto global = emit_global_memory(type, (prefix ? current_kernel_->name + "." : "") + mmap->unique_name(), 3);
     return global;
 }
 

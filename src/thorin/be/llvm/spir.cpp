@@ -111,7 +111,7 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     return f;
 }
 
-llvm::Value* SPIRCodeGen::emit_mmap(Def def) { return emit_shared_mmap(def); }
+llvm::Value* SPIRCodeGen::emit_mmap(Def def) { return emit_shared_mmap(def, true /* add kernel prefix */); }
 llvm::Value* SPIRCodeGen::emit_munmap(Def def) { return emit_shared_munmap(def); }
 
 }

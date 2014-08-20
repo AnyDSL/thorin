@@ -316,7 +316,7 @@ void init_cuda() {
 }
 
 
-// load ptx assembly, create a module and kernel
+// create module and kernel from ptx assembly
 void create_module_kernel(size_t dev, const void *ptx, std::string kernel_name, CUjit_target target_cc) {
     CUresult err = CUDA_SUCCESS;
     bool print_progress = true;
@@ -385,8 +385,8 @@ void print_kernel_occupancy(size_t dev, std::string kernel_name) {
 }
 
 
-// compile NVVM source file to PTX assembly
-void nvvm_to_ptx(size_t dev, std::string file_name, std::string kernel_name, CUjit_target target_cc) {
+// load NVVM source and compile kernel
+void compile_nvvm(size_t dev, std::string file_name, std::string kernel_name, CUjit_target target_cc) {
     nvvmResult err;
     nvvmProgram program;
 
@@ -465,8 +465,8 @@ void nvvm_to_ptx(size_t dev, std::string file_name, std::string kernel_name, CUj
 }
 
 
-// compile CUDA source file to PTX assembly using nvcc compiler
-void cuda_to_ptx(size_t dev, std::string file_name, std::string kernel_name, CUjit_target target_cc) {
+// load CUDA source and compile kernel
+void compile_cuda(size_t dev, std::string file_name, std::string kernel_name, CUjit_target target_cc) {
     char line[FILENAME_MAX];
     FILE *fpipe;
 
@@ -502,7 +502,7 @@ void cuda_to_ptx(size_t dev, std::string file_name, std::string kernel_name, CUj
 }
 
 
-// load ll intermediate and compile to ptx
+// load CUDA/NVVM source and compile kernel
 void load_kernel(size_t dev, std::string file_name, std::string kernel_name, bool is_nvvm) {
     // get module and function from cache
     if (module_cache_[dev].count(kernel_name)) {
@@ -522,9 +522,9 @@ void load_kernel(size_t dev, std::string file_name, std::string kernel_name, boo
     CUjit_target target_cc = (CUjit_target)(major*10 + minor);
 
     if (is_nvvm) {
-        nvvm_to_ptx(dev, file_name, kernel_name, target_cc);
+        compile_nvvm(dev, file_name, kernel_name, target_cc);
     } else {
-        cuda_to_ptx(dev, file_name, kernel_name, target_cc);
+        compile_cuda(dev, file_name, kernel_name, target_cc);
     }
     cuCtxPopCurrent(NULL);
 }

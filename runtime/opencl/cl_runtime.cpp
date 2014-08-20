@@ -28,6 +28,7 @@ void write_buffer(size_t dev, cl_mem mem, void *host, size_t size);
 void free_buffer(size_t dev, cl_mem mem);
 
 void build_program_and_kernel(size_t dev, std::string file_name, std::string kernel_name, bool);
+void free_kernel(size_t dev, cl_kernel kernel);
 
 void set_kernel_arg(size_t dev, void *param, size_t size);
 void set_kernel_arg_map(size_t dev, mem_id mem);
@@ -41,6 +42,15 @@ void synchronize(size_t dev);
 
 
 // global variables ...
+std::vector<cl_device_id> devices_;
+std::vector<cl_context> contexts_;
+std::vector<cl_command_queue> command_queues_;
+std::vector<cl_kernel> kernels_;
+std::vector<std::unordered_map<std::string, cl_kernel>> kernel_cache_;
+std::vector<cl_mem> kernel_structs_;
+int clArgIdx;
+size_t local_work_size[3], global_work_size[3];
+
 enum mem_type {
     Generic     = 0,
     Global      = 1,
@@ -85,6 +95,12 @@ class Memory {
             size_t dev = 0;
             for (auto dmap : mmap) {
                 for (auto it : dmap) free(dev, it.first);
+                dev++;
+            }
+            // release kernels from cache
+            dev = 0;
+            for (auto dcache : kernel_cache_) {
+                for (auto it : dcache) free_kernel(dev, it.second);
                 dev++;
             }
         }
@@ -190,14 +206,6 @@ class Memory {
     }
 };
 Memory mem_manager;
-
-std::vector<cl_device_id> devices_;
-std::vector<cl_context> contexts_;
-std::vector<cl_command_queue> command_queues_;
-cl_kernel kernel;
-std::vector<cl_mem> kernel_structs_;
-int clArgIdx;
-size_t local_work_size[3], global_work_size[3];
 
 std::string getOpenCLErrorCodeStr(int errorCode) {
     switch (errorCode) {
@@ -355,6 +363,8 @@ void create_context_command_queue(cl_platform_id platform, std::vector<cl_device
     if (devices.size() == 0) return;
     contexts_.resize(devices_.size());
     command_queues_.resize(devices_.size());
+    kernels_.resize(devices_.size());
+    kernel_cache_.resize(devices_.size());
 
     // create context
     cl_int err = CL_SUCCESS;
@@ -530,9 +540,17 @@ void dump_program_binary(cl_program program, cl_device_id device) {
 
 // load OpenCL source file, build program, and create kernel
 void build_program_and_kernel(size_t dev, std::string file_name, std::string kernel_name, bool is_binary) {
+    bool print_progress = true;
+
+    // get module and function from cache
+    if (kernel_cache_[dev].count(kernel_name)) {
+        kernels_[dev] = kernel_cache_[dev][kernel_name];
+        if (print_progress) std::cerr << "Compiling(" << dev << ") '" << kernel_name << "' ... returning old copy!" << std::endl;
+        return;
+    }
+
     cl_program program;
     cl_int err = CL_SUCCESS;
-    bool print_progress = true;
     bool print_log = false;
     bool dump_binary = false;
 
@@ -597,13 +615,20 @@ void build_program_and_kernel(size_t dev, std::string file_name, std::string ker
 
     if (dump_binary) dump_program_binary(program, devices_[dev]);
 
-    kernel = clCreateKernel(program, kernel_name.c_str(), &err);
+    kernels_[dev] = clCreateKernel(program, kernel_name.c_str(), &err);
+    kernel_cache_[dev][kernel_name] = kernels_[dev];
     checkErr(err, "clCreateKernel()");
     if (print_progress) std::cerr << ". done" << std::endl;
 
     // release program
     err = clReleaseProgram(program);
     checkErr(err, "clReleaseProgram()");
+}
+
+
+void free_kernel(size_t dev, cl_kernel kernel) {
+    cl_int err = clReleaseKernel(kernel);
+    checkErr(err, "clReleaseKernel()");
 }
 
 
@@ -622,9 +647,7 @@ cl_mem malloc_buffer(size_t dev, void *host, cl_mem_flags flags, size_t size) {
 
 
 void free_buffer(size_t dev, cl_mem mem) {
-    cl_int err = CL_SUCCESS;
-
-    err = clReleaseMemObject(mem);
+    cl_int err = clReleaseMemObject(mem);
     checkErr(err, "clReleaseMemObject()");
 }
 
@@ -676,9 +699,7 @@ void read_buffer(size_t dev, cl_mem mem, void *host, size_t size) {
 
 
 void synchronize(size_t dev) {
-    cl_int err = CL_SUCCESS;
-
-    err |= clFinish(command_queues_[dev]);
+    cl_int err = clFinish(command_queues_[dev]);
     checkErr(err, "clFinish()");
 }
 
@@ -702,7 +723,7 @@ void set_kernel_arg(size_t dev, void *param, size_t size) {
     #ifdef BENCH
     kernel_args.emplace_back(size, param);
     #else
-    cl_int err = clSetKernelArg(kernel, clArgIdx++, size, param);
+    cl_int err = clSetKernelArg(kernels_[dev], clArgIdx++, size, param);
     checkErr(err, "clSetKernelArg()");
     #endif
 }
@@ -746,11 +767,11 @@ void launch_kernel(size_t dev, std::string kernel_name) {
     for (size_t iter=0; iter<7; ++iter) {
         // set kernel arguments
         for (size_t j=0; j<kernel_args.size(); ++j) {
-            err |= clSetKernelArg(kernel, j, kernel_args[j].first, kernel_args[j].second);
+            err |= clSetKernelArg(kernels_[dev], j, kernel_args[j].first, kernel_args[j].second);
         }
         checkErr(err, "clSetKernelArg()");
     #endif
-    err = clEnqueueNDRangeKernel(command_queues_[dev], kernel, 2, NULL, global_work_size, local_work_size, 0, NULL, &event);
+    err = clEnqueueNDRangeKernel(command_queues_[dev], kernels_[dev], 2, NULL, global_work_size, local_work_size, 0, NULL, &event);
     err |= clFinish(command_queues_[dev]);
     checkErr(err, "clEnqueueNDRangeKernel()");
 
@@ -787,9 +808,6 @@ void launch_kernel(size_t dev, std::string kernel_name) {
                   << "(ms)" << std::endl;
     }
 
-    // release kernel
-    err = clReleaseKernel(kernel);
-    checkErr(err, "clReleaseKernel()");
     // release temporary buffers for struct arguments
     for (cl_mem buf : kernel_structs_) {
         err = clReleaseMemObject(buf);

@@ -212,6 +212,8 @@ std::vector<CUdevice> devices_;
 std::vector<CUcontext> contexts_;
 std::vector<CUmodule> modules_;
 std::vector<CUfunction> functions_;
+std::vector<std::unordered_map<std::string, CUmodule>> module_cache_;
+std::vector<std::unordered_map<std::string, CUfunction>> function_cache_;
 std::vector<CUtexref> textures_;
 void **cuArgs;
 int cuArgIdx, cuArgIdxMax;
@@ -279,6 +281,8 @@ void init_cuda() {
     contexts_.resize(device_count);
     modules_.resize(device_count);
     functions_.resize(device_count);
+    module_cache_.resize(device_count);
+    function_cache_.resize(device_count);
     textures_.resize(device_count);
 
     for (int i=0; i<device_count; ++i) {
@@ -337,6 +341,8 @@ void create_module_kernel(size_t dev, const void *ptx, std::string kernel_name, 
     err = cuModuleGetFunction(&functions_[dev], modules_[dev], kernel_name.c_str());
     checkErrDrv(err, "cuModuleGetFunction()");
     if (print_progress) std::cerr << ". done" << std::endl;
+    module_cache_[dev][kernel_name] = modules_[dev];
+    function_cache_[dev][kernel_name] = functions_[dev];
 }
 
 
@@ -416,6 +422,15 @@ void load_kernel(size_t dev, std::string file_name, std::string kernel_name, boo
     CUjit_target target_cc = (CUjit_target)(major*10 + minor);
 
     if (is_nvvm) {
+        // get module and function from cache
+        if (module_cache_[dev].count(kernel_name)) {
+            modules_[dev] = module_cache_[dev][kernel_name];
+            functions_[dev] = function_cache_[dev][kernel_name];
+            cuCtxPopCurrent(NULL);
+            std::cerr << "Compiling(" << dev << ") '" << kernel_name << "' ... returning old copy!" << std::endl;
+            return;
+        }
+
         nvvmResult err;
         // select libdevice module according to documentation
         std::string libdevice_file_name;

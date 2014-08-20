@@ -79,13 +79,12 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
     set(_objfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.o)
     # tell cmake what to do
     add_custom_command(OUTPUT ${_llfile}
-        COMMAND ${IMPALA_BIN}
-        ARGS ${_impala_platform} ${_infiles} -emit-llvm -O3
+        COMMAND ${IMPALA_BIN} ${_impala_platform} ${_infiles} -emit-llvm -O3
+        COMMAND ${THORIN_RUNTIME_DIR}/post-patcher ${TRW_RTTYPE} ${CMAKE_CURRENT_BINARY_DIR}/${_basename}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        DEPENDS ${IMPALA_BIN} ${_impala_platform} ${_infiles} VERBATIM)
+        DEPENDS ${IMPALA_BIN} ${THORIN_RUNTIME_DIR}/post-patcher ${_impala_platform} ${_infiles} VERBATIM)
     add_custom_command(OUTPUT ${_objfile}
-        COMMAND clang++
-        ARGS -O3 -g -c -o ${_objfile} ${_llfile}
+        COMMAND clang++ -O3 -g -c -o ${_objfile} ${_llfile}
         DEPENDS ${_llfile} VERBATIM)
     SET_SOURCE_FILES_PROPERTIES(
         ${_objfile}

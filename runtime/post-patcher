@@ -1,0 +1,30 @@
+#!/usr/bin/python3
+import sys
+rttype, basename = sys.argv[1:]
+
+if rttype == "nvvm":
+    # we need to patch
+    result = []
+    with open(basename+".nvvm") as f:
+        for line in f:
+            # patch to opaque identity functions
+            if line == 'declare [0 x i32]* @magic_uint_array_id([0 x i32]*)\n':
+                print("Patching a magic_uint_array_id")
+                # emit definition instead
+                result.append('define [0 x i32]* @magic_uint_array_id([0 x i32]* %name) {\n')
+                result.append('  ret [0 x i32]* %name\n')
+                result.append('}\n')
+            # get rid of attributes
+            elif 'attributes #0' in line:
+                print("Removing attribute declarations")
+                # ignore this line
+                pass
+            # it's a normal line, keep it but apply substitutions
+            else:
+                line = line.replace('#0', '')
+                result.append(line)
+    # we have the patched thing, write it
+    with open(basename+".nvvm", "w") as f:
+        for line in result:
+            f.write(line)
+

@@ -516,6 +516,8 @@ void bind_tex(size_t dev, mem_id mem, CUarray_format format) {
 
 
 CUdeviceptr malloc_memory(size_t dev, void */*host*/, size_t size) {
+    if (!size) return 0;
+
     cuCtxPushCurrent(contexts_[dev]);
     CUdeviceptr mem;
     CUresult err = CUDA_SUCCESS;

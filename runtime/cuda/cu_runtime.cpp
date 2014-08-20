@@ -401,6 +401,10 @@ void compile_nvvm(size_t dev, std::string file_name, CUjit_target target_cc) {
     // select libdevice module according to documentation
     std::string libdevice_file_name;
     switch (target_cc) {
+        #if CUDA_VERSION >= 6050
+        case CU_TARGET_COMPUTE_37:
+        #endif
+        case CU_TARGET_COMPUTE_50:
         default:
             assert(false && "unsupported compute capability");
         case CU_TARGET_COMPUTE_20:

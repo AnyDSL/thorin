@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <unordered_map>
@@ -24,7 +25,7 @@ bool print_timing = true;
 cl_mem malloc_buffer(size_t dev, void *host, cl_mem_flags flags, size_t size);
 void read_buffer(size_t dev, cl_mem mem, void *host, size_t size);
 void write_buffer(size_t dev, cl_mem mem, void *host, size_t size);
-void free_buffer(size_t dev, mem_id mem);
+void free_buffer(size_t dev, cl_mem mem);
 
 void build_program_and_kernel(size_t dev, std::string file_name, std::string kernel_name, bool);
 
@@ -52,11 +53,6 @@ enum mem_type {
 class Memory {
     private:
         size_t count_;
-        mem_id new_id() { return count_++; }
-        void insert(size_t dev, void *mem, mem_id id) {
-            idtomem[dev][id] = mem;
-            memtoid[dev][mem] = id;
-        }
         typedef struct mapping_ {
             void *cpu;
             cl_mem gpu;
@@ -70,8 +66,28 @@ class Memory {
         std::unordered_map<size_t, size_t> ummap;
         std::unordered_map<void*, size_t> hostmem;
 
+        mem_id new_id() { return count_++; }
+        void insert(size_t dev, void *mem, mem_id id, mapping_ mem_map) {
+            idtomem[dev][id] = mem;
+            memtoid[dev][mem] = id;
+            mmap[dev][id] = mem_map;
+        }
+        void remove(size_t dev, mem_id id) {
+            void *mem = idtomem[dev][id];
+            idtomem[dev].erase(id);
+            memtoid[dev].erase(mem);
+            mmap[dev].erase(id);
+        }
+
     public:
         Memory() : count_(42) {}
+        ~Memory() {
+            size_t dev = 0;
+            for (auto dmap : mmap) {
+                for (auto it : dmap) free(dev, it.first);
+                dev++;
+            }
+        }
 
     void reserve(size_t num) {
         mmap.resize(mmap.size() + num);
@@ -86,8 +102,7 @@ class Memory {
             size_t offset, size_t size) {
         mem_id id = new_id();
         mapping_ mem_map = { from, to, type, offset, size, id };
-        mmap[dev][id] = mem_map;
-        insert(dev, from, id);
+        insert(dev, from, id, mem_map);
         return id;
     }
     mem_id map_memory(size_t dev, void *from, cl_mem to, mem_type type) {
@@ -98,11 +113,6 @@ class Memory {
     void *get_host_mem(size_t dev, mem_id id) { return mmap[dev][id].cpu; }
     cl_mem &get_dev_mem(size_t dev, mem_id id) { return mmap[dev][id].gpu; }
 
-    void remove(size_t dev, mem_id id) {
-        void *mem = idtomem[dev][id];
-        memtoid[dev].erase(mem);
-        idtomem[dev].erase(id);
-    }
 
     void *malloc_host(size_t size) {
         void *mem;
@@ -118,7 +128,7 @@ class Memory {
         std::cerr << " * free host(" << ptr << ")" << std::endl;
         hostmem.erase(ptr);
         // free host memory
-        free(ptr);
+        ::free(ptr);
     }
     size_t host_mem_size(void *ptr) {
         assert(hostmem.count(ptr) && "memory not allocated by thorin");
@@ -152,6 +162,13 @@ class Memory {
     mem_id malloc(size_t dev, void *host) {
         assert(hostmem.count(host) && "memory not allocated by thorin");
         return malloc(dev, host, 0, hostmem[host]);
+    }
+
+    void free(size_t dev, mem_id mem) {
+        std::cerr << " * free buffer(" << dev << "):   " << mem << std::endl;
+        cl_mem dev_mem = get_dev_mem(dev, mem);
+        free_buffer(dev, dev_mem);
+        remove(dev, mem);
     }
 
     void read(size_t dev, mem_id id) {
@@ -604,13 +621,11 @@ cl_mem malloc_buffer(size_t dev, void *host, cl_mem_flags flags, size_t size) {
 }
 
 
-void free_buffer(size_t dev, mem_id mem) {
+void free_buffer(size_t dev, cl_mem mem) {
     cl_int err = CL_SUCCESS;
 
-    cl_mem dev_mem = mem_manager.get_dev_mem(dev, mem);
-    err = clReleaseMemObject(dev_mem);
+    err = clReleaseMemObject(mem);
     checkErr(err, "clReleaseMemObject()");
-    mem_manager.remove(dev, mem);
 }
 
 
@@ -788,7 +803,7 @@ void launch_kernel(size_t dev, std::string kernel_name) {
 
 // SPIR wrappers
 mem_id spir_malloc_buffer(size_t dev, void *host) { check_dev(dev); return mem_manager.malloc(dev, host); }
-void spir_free_buffer(size_t dev, mem_id mem) { check_dev(dev); free_buffer(dev, mem); }
+void spir_free_buffer(size_t dev, mem_id mem) { check_dev(dev); mem_manager.free(dev, mem); }
 
 void spir_write_buffer(size_t dev, mem_id mem, void *host) { check_dev(dev); mem_manager.write(dev, mem, host); }
 void spir_read_buffer(size_t dev, mem_id mem, void *host) { check_dev(dev); mem_manager.read(dev, mem); }
@@ -828,7 +843,7 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int offset, int size) {
     }
 
     if (type==Global || type==Texture) {
-        if (size == from_size) {
+        if ((size_t)size == from_size) {
             // mapping the whole memory
             mem = mem_manager.malloc(dev, from);
             mem_manager.write(dev, mem, from);

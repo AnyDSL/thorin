@@ -42,7 +42,7 @@ static void lift_enters(const Scope& scope) {
     if (enter == nullptr) {
         for (auto param : scope.entry()->params()) {
             if (param->type().isa<MemType>()) {
-                enter = world.enter(scope.entry()->param(0));
+                enter = world.enter(param);
                 break;
             }
         }

@@ -177,7 +177,6 @@ void CodeGen::emit(int opt) {
         emit_function_start(startBB, fct, lambda);
         builder_.CreateBr(oldStartBB);
 
-        // never use early schedule here - this may break memory operations
         Schedule schedule = schedule_smart(scope);
 
         // emit body for each bb

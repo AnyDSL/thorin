@@ -14,6 +14,7 @@ protected:
 
 public:
     Def mem() const { return op(0); }
+    virtual Def out_mem() const { return Def(); }
 };
 
 class Alloc : public MemOp {
@@ -62,6 +63,7 @@ private:
 
 public:
     Def val() const { return op(2); }
+    virtual Def out_mem() const override { return this; }
 
     friend class World;
 };
@@ -83,6 +85,7 @@ private:
 
 public:
     const Enter* frame() const { return op(1)->as<Enter>(); }
+    virtual Def out_mem() const override { return this; }
 
     friend class World;
 };
@@ -91,7 +94,7 @@ public:
 
 class MapOp : public MemOp {
 protected:
-    MapOp(size_t size, NodeKind kind, Type type, 
+    MapOp(size_t size, NodeKind kind, Type type,
           Def mem, Def ptr, int32_t device, AddressSpace addr_space, const std::string &name);
 
 public:
@@ -111,6 +114,7 @@ public:
     Def extract_mapped_ptr() const;
     Def mem_offset() const { return op(2); }
     Def mem_size() const { return op(3); }
+    virtual Def out_mem() const override;
 
     friend class World;
 };
@@ -118,6 +122,7 @@ public:
 class Unmap : public MapOp {
 private:
     Unmap(Def mem, Def ptr, int32_t device, AddressSpace addr_space, const std::string &name);
+    virtual Def out_mem() const override { return this; }
 
     friend class World;
 };

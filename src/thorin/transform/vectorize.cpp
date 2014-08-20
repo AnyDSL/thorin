@@ -66,7 +66,7 @@ Lambda* Vectorizer::vectorize() {
         vparam->name = param->name;
     }
 
-    Schedule schedule = schedule_early(scope);
+    Schedule schedule = schedule_smart(scope);
 
     for (auto lambda : scope) {
         if (lambda != entry) {
@@ -124,7 +124,7 @@ void Vectorizer::param2select(const Param* param) {
     Array<Lambda*> preds = scope.preds(param->lambda()); // copy
     // begin with pred with the most expensive condition (non_const_depth) - this keeps select chains simpler
     std::stable_sort(preds.begin(), preds.end(), [&](const Lambda* l1, const Lambda* l2) {
-        return mapped[l1]->non_const_depth() > mapped[l2]->non_const_depth(); 
+        return mapped[l1]->non_const_depth() > mapped[l2]->non_const_depth();
     });
 
     for (auto pred : preds) {

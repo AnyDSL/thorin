@@ -8,18 +8,16 @@
 namespace thorin {
 
 static const Enter* find_enter(Lambda* lambda) {
-    for (auto param : lambda->params()) {
-        if (param->type().isa<MemType>()) {
-            std::queue<Def> queue;
-            queue.push(param);
-            while (!queue.empty()) {
-                for (auto use : pop(queue)->uses()) {
-                    if (auto enter = use->isa<Enter>())
-                        return enter;
+    if (auto param = lambda->mem_param()) {
+        std::queue<Def> queue;
+        queue.push(param);
+        while (!queue.empty()) {
+            for (auto use : pop(queue)->uses()) {
+                if (auto enter = use->isa<Enter>())
+                    return enter;
 
-                    if (use->type().isa<MemType>())
-                        queue.push(use);
-                }
+                if (use->type().isa<MemType>())
+                    queue.push(use);
             }
         }
     }
@@ -39,15 +37,8 @@ static void lift_enters(const Scope& scope) {
     }
 
     auto enter = find_enter(scope.entry());
-    if (enter == nullptr) {
-        for (auto param : scope.entry()->params()) {
-            if (param->type().isa<MemType>()) {
-                enter = world.enter(param);
-                break;
-            }
-        }
-    }
-    assert(enter != nullptr);
+    if (enter == nullptr)
+        enter = world.enter(scope.entry()->mem_param());
 
     // find max slot index
     size_t index = 0;

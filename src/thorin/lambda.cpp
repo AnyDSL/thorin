@@ -24,6 +24,14 @@ Array<Def> Lambda::params_as_defs() const {
     return params;
 }
 
+const Param* Lambda::mem_param() const {
+    for (auto param : params()) {
+        if (param->type().isa<MemType>())
+            return param;
+    }
+    return nullptr;
+}
+
 Lambda* Lambda::update_op(size_t i, Def def) {
     unset_op(i);
     set_op(i, def);

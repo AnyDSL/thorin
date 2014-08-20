@@ -81,6 +81,7 @@ public:
     ArrayRef<const Param*> params() const { return params_; }
     Array<Def> params_as_defs() const;
     const Param* param(size_t i) const { assert(i < num_params()); return params_[i]; }
+    const Param* mem_param() const;
     Def to() const { return op(0); };
     ArrayRef<Def> args() const { return empty() ? ArrayRef<Def>(0, 0) : ops().slice_from_begin(1); }
     Def arg(size_t i) const { return args()[i]; }

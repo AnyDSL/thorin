@@ -591,6 +591,8 @@ void build_program_and_kernel(size_t dev, std::string file_name, std::string ker
 
 
 cl_mem malloc_buffer(size_t dev, void *host, cl_mem_flags flags, size_t size) {
+    if (!size) return 0;
+
     cl_int err = CL_SUCCESS;
     void *host_ptr = nullptr;
 

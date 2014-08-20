@@ -23,7 +23,7 @@
 #define KERNEL_DIR ""
 #endif
 
-#define BENCH
+//#define BENCH
 #ifdef BENCH
 float total_timing = 0.0f;
 #endif

@@ -2,10 +2,10 @@
 import sys
 rttype, basename = sys.argv[1:]
 
-if rttype == "nvvm":
+if rttype in ("nvvm", "spir"):
     # we need to patch
     result = []
-    with open(basename+".nvvm") as f:
+    with open(basename+"."+rttype) as f:
         for line in f:
             # patch to opaque identity functions
             if line == 'declare [0 x i32]* @magic_uint_array_id([0 x i32]*)\n':
@@ -24,7 +24,7 @@ if rttype == "nvvm":
                 line = line.replace('#0', '')
                 result.append(line)
     # we have the patched thing, write it
-    with open(basename+".nvvm", "w") as f:
+    with open(basename+"."+rttype, "w") as f:
         for line in result:
             f.write(line)
 

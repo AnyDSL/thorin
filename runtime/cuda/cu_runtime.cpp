@@ -555,10 +555,9 @@ CUdeviceptr malloc_memory(size_t dev, void */*host*/, size_t size) {
 
     cuCtxPushCurrent(contexts_[dev]);
     CUdeviceptr mem;
-    CUresult err = CUDA_SUCCESS;
 
     // TODO: unified memory support using cuMemAllocManaged();
-    err = cuMemAlloc(&mem, size);
+    CUresult err = cuMemAlloc(&mem, size);
     checkErrDrv(err, "cuMemAlloc()");
 
     cuCtxPopCurrent(NULL);
@@ -568,9 +567,7 @@ CUdeviceptr malloc_memory(size_t dev, void */*host*/, size_t size) {
 
 void free_memory(size_t dev, CUdeviceptr mem) {
     cuCtxPushCurrent(contexts_[dev]);
-    CUresult err = CUDA_SUCCESS;
-
-    err = cuMemFree(mem);
+    CUresult err = cuMemFree(mem);
     checkErrDrv(err, "cuMemFree()");
     cuCtxPopCurrent(NULL);
 }
@@ -578,9 +575,7 @@ void free_memory(size_t dev, CUdeviceptr mem) {
 
 void write_memory(size_t dev, CUdeviceptr mem, void *host, size_t size) {
     cuCtxPushCurrent(contexts_[dev]);
-    CUresult err = CUDA_SUCCESS;
-
-    err = cuMemcpyHtoD(mem, host, size);
+    CUresult err = cuMemcpyHtoD(mem, host, size);
     checkErrDrv(err, "cuMemcpyHtoD()");
     cuCtxPopCurrent(NULL);
 }
@@ -588,9 +583,7 @@ void write_memory(size_t dev, CUdeviceptr mem, void *host, size_t size) {
 
 void read_memory(size_t dev, CUdeviceptr mem, void *host, size_t size) {
     cuCtxPushCurrent(contexts_[dev]);
-    CUresult err = CUDA_SUCCESS;
-
-    err = cuMemcpyDtoH(host, mem, size);
+    CUresult err = cuMemcpyDtoH(host, mem, size);
     checkErrDrv(err, "cuMemcpyDtoH()");
     cuCtxPopCurrent(NULL);
 }
@@ -598,9 +591,7 @@ void read_memory(size_t dev, CUdeviceptr mem, void *host, size_t size) {
 
 void synchronize(size_t dev) {
     cuCtxPushCurrent(contexts_[dev]);
-    CUresult err = CUDA_SUCCESS;
-
-    err = cuCtxSynchronize();
+    CUresult err = cuCtxSynchronize();
     checkErrDrv(err, "cuCtxSynchronize()");
     cuCtxPopCurrent(NULL);
 }
@@ -639,11 +630,10 @@ void set_kernel_arg_map(size_t dev, mem_id mem) {
 
 
 void set_kernel_arg_const(size_t dev, void *param, std::string name, size_t size) {
-    CUresult err = CUDA_SUCCESS;
+    size_t bytes;
     CUdeviceptr const_mem;
     std::cerr << " * set arg const(" << dev << "): " << param << std::endl;
-    size_t bytes;
-    err = cuModuleGetGlobal(&const_mem, &bytes, modules_[dev], name.c_str());
+    CUresult err = cuModuleGetGlobal(&const_mem, &bytes, modules_[dev], name.c_str());
     checkErrDrv(err, "cuModuleGetGlobal()");
     write_memory(dev, const_mem, param, size);
 }

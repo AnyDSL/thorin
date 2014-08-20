@@ -14,7 +14,7 @@ if rttype in ("nvvm", "spir"):
                 assert ty1 == ty2, "Argument and return types of magic IDs must match"
                 print("Patching magic ID {0}".format(fname))
                 # emit definition instead
-                result.append('define {0} @{1}({0}* %name) {{\n'.format(ty1, fname))
+                result.append('define {0} @{1}({0} %name) {{\n'.format(ty1, fname))
                 result.append('  ret {0} %name\n'.format(ty1))
                 result.append('}\n')
             # get rid of attributes

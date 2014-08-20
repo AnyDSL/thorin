@@ -164,7 +164,7 @@ Schedule schedule_smart(const Scope& scope) {
             auto lambda_best = def2late[primop];
             assert(scope.contains(lambda_best));
             int depth = std::numeric_limits<int>::max();
-            if (primop->isa<Enter>() || primop->isa<Slot>() || primop->isa<Load>())
+            if (primop->isa<Enter>() || primop->isa<Slot>())
                 lambda_best = lambda_early;
             else {
                 for (auto i = lambda_best; true; i = domtree.idom(i)) {

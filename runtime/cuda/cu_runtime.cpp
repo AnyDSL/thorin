@@ -4,10 +4,9 @@
     #error "CUDA 6.0 or higher required!"
 #endif
 
-#include <stdlib.h>
-
 #include <algorithm>
 #include <cassert>
+#include <cstdlib>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -44,7 +43,7 @@ typedef struct dim3 dim3;
 CUdeviceptr malloc_memory(size_t dev, void *host, size_t size);
 void read_memory(size_t dev, CUdeviceptr mem, void *host, size_t size);
 void write_memory(size_t dev, CUdeviceptr mem, void *host, size_t size);
-void free_memory(size_t dev, mem_id mem);
+void free_memory(size_t dev, CUdeviceptr mem);
 
 void load_kernel(size_t dev, std::string file_name, std::string kernel_name, bool is_nvvm);
 
@@ -74,11 +73,6 @@ enum mem_type {
 class Memory {
     private:
         size_t count_;
-        mem_id new_id() { return count_++; }
-        void insert(size_t dev, void *mem, mem_id id) {
-            idtomem[dev][id] = mem;
-            memtoid[dev][mem] = id;
-        }
         typedef struct mapping_ {
             void *cpu;
             CUdeviceptr gpu;
@@ -92,8 +86,28 @@ class Memory {
         std::unordered_map<size_t, size_t> ummap;
         std::unordered_map<void*, size_t> hostmem;
 
+        mem_id new_id() { return count_++; }
+        void insert(size_t dev, void *mem, mem_id id, mapping_ mem_map) {
+            idtomem[dev][id] = mem;
+            memtoid[dev][mem] = id;
+            mmap[dev][id] = mem_map;
+        }
+        void remove(size_t dev, mem_id id) {
+            void *mem = idtomem[dev][id];
+            idtomem[dev].erase(id);
+            memtoid[dev].erase(mem);
+            mmap[dev].erase(id);
+        }
+
     public:
         Memory() : count_(42) {}
+        ~Memory() {
+            size_t dev = 0;
+            for (auto dmap : mmap) {
+                for (auto it : dmap) free(dev, it.first);
+                dev++;
+            }
+        }
 
     void reserve(size_t num) {
         mmap.resize(mmap.size() + num);
@@ -108,8 +122,7 @@ class Memory {
             size_t offset, size_t size) {
         mem_id id = new_id();
         mapping_ mem_map = { from, to, type, offset, size, id };
-        mmap[dev][id] = mem_map;
-        insert(dev, from, id);
+        insert(dev, from, id, mem_map);
         return id;
     }
     mem_id map_memory(size_t dev, void *from, CUdeviceptr to, mem_type type) {
@@ -120,11 +133,6 @@ class Memory {
     void *get_host_mem(size_t dev, mem_id id) { return mmap[dev][id].cpu; }
     CUdeviceptr &get_dev_mem(size_t dev, mem_id id) { return mmap[dev][id].gpu; }
 
-    void remove(size_t dev, mem_id id) {
-        void *mem = idtomem[dev][id];
-        memtoid[dev].erase(mem);
-        idtomem[dev].erase(id);
-    }
 
     void *malloc_host(size_t size) {
         void *mem;
@@ -140,7 +148,7 @@ class Memory {
         std::cerr << " * free host(" << ptr << ")" << std::endl;
         hostmem.erase(ptr);
         // free host memory
-        free(ptr);
+        ::free(ptr);
     }
     size_t host_mem_size(void *ptr) {
         assert(hostmem.count(ptr) && "memory not allocated by thorin");
@@ -171,6 +179,13 @@ class Memory {
     mem_id malloc(size_t dev, void *host) {
         assert(hostmem.count(host) && "memory not allocated by thorin");
         return malloc(dev, host, 0, hostmem[host]);
+    }
+
+    void free(size_t dev, mem_id mem) {
+        std::cerr << " * free memory(" << dev << "):   " << mem << std::endl;
+        CUdeviceptr dev_mem = get_dev_mem(dev, mem);
+        free_memory(dev, dev_mem);
+        remove(dev, mem);
     }
 
     void read(size_t dev, mem_id id) {
@@ -531,16 +546,12 @@ CUdeviceptr malloc_memory(size_t dev, void */*host*/, size_t size) {
 }
 
 
-void free_memory(size_t dev, mem_id mem) {
+void free_memory(size_t dev, CUdeviceptr mem) {
     cuCtxPushCurrent(contexts_[dev]);
     CUresult err = CUDA_SUCCESS;
 
-    std::cerr << " * free memory(" << dev << "):   " << mem << std::endl;
-
-    CUdeviceptr &dev_mem = mem_manager.get_dev_mem(dev, mem);
-    err = cuMemFree(dev_mem);
+    err = cuMemFree(mem);
     checkErrDrv(err, "cuMemFree()");
-    mem_manager.remove(dev, mem);
     cuCtxPopCurrent(NULL);
 }
 
@@ -682,8 +693,8 @@ void launch_kernel(size_t dev, std::string kernel_name) {
 }
 
 // NVVM wrappers
-mem_id nvvm_malloc_memory(size_t dev, void *host) { return mem_manager.malloc(dev, host); }
-void nvvm_free_memory(size_t dev, mem_id mem) { free_memory(dev, mem); }
+mem_id nvvm_malloc_memory(size_t dev, void *host) { check_dev(dev); return mem_manager.malloc(dev, host); }
+void nvvm_free_memory(size_t dev, mem_id mem) { check_dev(dev); mem_manager.free(dev, mem); }
 
 void nvvm_write_memory(size_t dev, mem_id mem, void *host) { check_dev(dev); mem_manager.write(dev, mem, host); }
 void nvvm_read_memory(size_t dev, mem_id mem, void */*host*/) { check_dev(dev); mem_manager.read(dev, mem); }

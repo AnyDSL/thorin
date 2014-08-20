@@ -1,9 +1,8 @@
-CUDA_DIR  ?= $(shell dirname `which nvcc`)/..
+CUDA_DIR  ?= $(shell dirname $(shell dirname `which nvcc`))
 INC_DIRS   = -I $(CUDA_DIR)/include \
              -I $(CUDA_DIR)/nvvm/include \
              -I $(CUDA_DIR)/nvvm/libnvvm-samples/common/include \
              -I .
-LIB_DIRS   = $(CUDA_DIR)/lib64 $(CUDA_DIR)/nvvm/lib64
 CXX_FLAGS := -std=c++11 -Wall -Wunused
 OPT_FLAGS := -O3
 DBG_FLAGS :=
@@ -15,10 +14,12 @@ OBJS       = $(CPP:%.cpp=%.o)
 
 ifeq ($(OS),Linux)
 	LD_FLAGS = -lcuda -lnvvm
+	LIB_DIRS = $(CUDA_DIR)/lib64 $(CUDA_DIR)/nvvm/lib64
 	SED_EXT =
 endif
 ifeq ($(OS),Darwin) # assume Mac OS X
 	LD_FLAGS = -lcuda -lnvvm
+	LIB_DIRS = $(CUDA_DIR)/lib $(CUDA_DIR)/nvvm/lib
 	SED_EXT = ''
 endif
 

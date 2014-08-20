@@ -46,6 +46,7 @@ void write_memory(size_t dev, CUdeviceptr mem, void *host, size_t size);
 void free_memory(size_t dev, CUdeviceptr mem);
 
 void load_kernel(size_t dev, std::string file_name, std::string kernel_name, bool is_nvvm);
+void unload_module(size_t dev, CUmodule module);
 
 void get_tex_ref(size_t dev, std::string name);
 void bind_tex(size_t dev, mem_id mem, CUarray_format format);
@@ -61,6 +62,17 @@ void synchronize(size_t dev);
 
 
 // global variables ...
+std::vector<CUdevice> devices_;
+std::vector<CUcontext> contexts_;
+std::vector<CUmodule> modules_;
+std::vector<CUfunction> functions_;
+std::vector<std::unordered_map<std::string, CUmodule>> module_cache_;
+std::vector<std::unordered_map<std::string, CUfunction>> function_cache_;
+std::vector<CUtexref> textures_;
+void **cuArgs;
+int cuArgIdx, cuArgIdxMax;
+dim3 cuDimProblem, cuDimBlock;
+
 enum mem_type {
     Generic     = 0,
     Global      = 1,
@@ -107,6 +119,8 @@ class Memory {
                 for (auto it : dmap) free(dev, it.first);
                 dev++;
             }
+            // CUDA is shutting down when the destructor is called
+            // unloading modules will fail
         }
 
     void reserve(size_t num) {
@@ -208,17 +222,6 @@ class Memory {
 };
 Memory mem_manager;
 
-std::vector<CUdevice> devices_;
-std::vector<CUcontext> contexts_;
-std::vector<CUmodule> modules_;
-std::vector<CUfunction> functions_;
-std::vector<std::unordered_map<std::string, CUmodule>> module_cache_;
-std::vector<std::unordered_map<std::string, CUfunction>> function_cache_;
-std::vector<CUtexref> textures_;
-void **cuArgs;
-int cuArgIdx, cuArgIdxMax;
-dim3 cuDimProblem, cuDimBlock;
-
 #define check_dev(dev) __check_device(dev)
 #define checkErrNvvm(err, name) __checkNvvmErrors (err, name, __FILE__, __LINE__)
 #define checkErrDrv(err, name)  __checkCudaErrors (err, name, __FILE__, __LINE__)
@@ -316,8 +319,8 @@ void init_cuda() {
 }
 
 
-// create module and kernel from ptx assembly
-void create_module_kernel(size_t dev, const void *ptx, std::string kernel_name, CUjit_target target_cc) {
+// create module from ptx assembly
+void create_module(size_t dev, const void *ptx, std::string file_name, CUjit_target target_cc) {
     CUresult err = CUDA_SUCCESS;
     bool print_progress = true;
 
@@ -329,19 +332,24 @@ void create_module_kernel(size_t dev, const void *ptx, std::string kernel_name, 
     void *optionValues[] = { (void *)errorLogBuffer, (void *)errorLogSize, (void *)target_cc };
 
     // load ptx source
-    if (print_progress) std::cerr << "Compiling(" << dev << ") '" << kernel_name << "' .";
+    if (print_progress) std::cerr << "Compiling(" << dev << ") '" << file_name << "' .";
     err = cuModuleLoadDataEx(&modules_[dev], ptx, num_options, options, optionValues);
+    std::cerr << "create module: " << modules_[dev] << std::endl;
+    module_cache_[dev][file_name] = modules_[dev];
+
     if (err != CUDA_SUCCESS) {
         std::cerr << "Error log: " << errorLogBuffer << std::endl;
     }
     checkErrDrv(err, "cuModuleLoadDataEx()");
-
-    // get function entry point
-    if (print_progress) std::cerr << ".";
-    err = cuModuleGetFunction(&functions_[dev], modules_[dev], kernel_name.c_str());
-    checkErrDrv(err, "cuModuleGetFunction()");
     if (print_progress) std::cerr << ". done" << std::endl;
-    module_cache_[dev][kernel_name] = modules_[dev];
+}
+
+
+// get kernel from module
+void create_kernel(size_t dev, std::string kernel_name) {
+    // get function entry point
+    CUresult err = cuModuleGetFunction(&functions_[dev], modules_[dev], kernel_name.c_str());
+    checkErrDrv(err, "cuModuleGetFunction()");
     function_cache_[dev][kernel_name] = functions_[dev];
 }
 
@@ -386,7 +394,7 @@ void print_kernel_occupancy(size_t dev, std::string kernel_name) {
 
 
 // load NVVM source and compile kernel
-void compile_nvvm(size_t dev, std::string file_name, std::string kernel_name, CUjit_target target_cc) {
+void compile_nvvm(size_t dev, std::string file_name, CUjit_target target_cc) {
     nvvmResult err;
     nvvmProgram program;
 
@@ -460,13 +468,13 @@ void compile_nvvm(size_t dev, std::string file_name, std::string kernel_name, CU
     checkErrNvvm(err, "nvvmDestroyProgram()");
 
     // compile ptx
-    create_module_kernel(dev, PTX, kernel_name, target_cc);
+    create_module(dev, PTX, file_name, target_cc);
     free(PTX);
 }
 
 
 // load CUDA source and compile kernel
-void compile_cuda(size_t dev, std::string file_name, std::string kernel_name, CUjit_target target_cc) {
+void compile_cuda(size_t dev, std::string file_name, CUjit_target target_cc) {
     char line[FILENAME_MAX];
     FILE *fpipe;
 
@@ -498,43 +506,57 @@ void compile_cuda(size_t dev, std::string file_name, std::string kernel_name, CU
             (std::istreambuf_iterator<char>()));
     const char *PTX = (const char *)srcString.c_str();
     // compile ptx
-    create_module_kernel(dev, PTX, kernel_name, target_cc);
+    create_module(dev, PTX, file_name, target_cc);
 }
 
 
 // load CUDA/NVVM source and compile kernel
 void load_kernel(size_t dev, std::string file_name, std::string kernel_name, bool is_nvvm) {
     // get module and function from cache
-    if (module_cache_[dev].count(kernel_name)) {
-        modules_[dev] = module_cache_[dev][kernel_name];
+    if (function_cache_[dev].count(kernel_name)) {
         functions_[dev] = function_cache_[dev][kernel_name];
+        modules_[dev] = module_cache_[dev][file_name];
         std::cerr << "Compiling(" << dev << ") '" << kernel_name << "' ... returning old copy!" << std::endl;
         return;
     }
 
     cuCtxPushCurrent(contexts_[dev]);
-    int major, minor;
-    CUresult err = CUDA_SUCCESS;
-    err = cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, devices_[dev]);
-    checkErrDrv(err, "cuDeviceGetAttribute()");
-    err = cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, devices_[dev]);
-    checkErrDrv(err, "cuDeviceGetAttribute()");
-    CUjit_target target_cc = (CUjit_target)(major*10 + minor);
-
-    if (is_nvvm) {
-        compile_nvvm(dev, file_name, kernel_name, target_cc);
+    if (module_cache_[dev].count(file_name)) {
+        modules_[dev] = module_cache_[dev][file_name];
     } else {
-        compile_cuda(dev, file_name, kernel_name, target_cc);
+        int major, minor;
+        CUresult err = CUDA_SUCCESS;
+        err = cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, devices_[dev]);
+        checkErrDrv(err, "cuDeviceGetAttribute()");
+        err = cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, devices_[dev]);
+        checkErrDrv(err, "cuDeviceGetAttribute()");
+        CUjit_target target_cc = (CUjit_target)(major*10 + minor);
+
+        if (is_nvvm) {
+            compile_nvvm(dev, file_name, target_cc);
+        } else {
+            compile_cuda(dev, file_name, target_cc);
+        }
     }
+    create_kernel(dev, kernel_name);
+    cuCtxPopCurrent(NULL);
+}
+
+
+void unload_module(size_t dev, CUmodule module) {
+    std::cerr << "unload module: " << module << std::endl;
+    cuCtxPushCurrent(contexts_[dev]);
+    CUresult err = cuModuleUnload(module);
+    checkErrDrv(err, "cuUnloadModule()");
     cuCtxPopCurrent(NULL);
 }
 
 
 void get_tex_ref(size_t dev, std::string name) {
-    CUresult err = CUDA_SUCCESS;
-
-    err = cuModuleGetTexRef(&textures_[dev], modules_[dev], name.c_str());
+    cuCtxPushCurrent(contexts_[dev]);
+    CUresult err = cuModuleGetTexRef(&textures_[dev], modules_[dev], name.c_str());
     checkErrDrv(err, "cuModuleGetTexRef()");
+    cuCtxPopCurrent(NULL);
 }
 
 void bind_tex(size_t dev, mem_id mem, CUarray_format format) {

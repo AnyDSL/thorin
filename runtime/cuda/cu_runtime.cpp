@@ -651,8 +651,8 @@ void launch_kernel(size_t dev, std::string kernel_name) {
     cuEventRecord(end, 0);
     cuEventSynchronize(end);
     cuEventElapsedTime(&time, start, end);
-    timings.emplace_back(time);
     #ifdef BENCH
+    timings.emplace_back(time);
     }
     std::sort(timings.begin(), timings.end());
     total_timing += timings[timings.size()/2];

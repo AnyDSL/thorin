@@ -667,6 +667,7 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto store = def->isa<Store>()) {
+        emit_aggop_defs(store->val());
         stream() << "*";
         emit(store->ptr()) << " = ";
         emit(store->val()) << ";";

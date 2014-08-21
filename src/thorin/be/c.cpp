@@ -699,13 +699,19 @@ std::ostream& CCodeGen::emit(Def def) {
             emit(lea->index()) << ");";
         } else {
             emit_type(lea->type()) << " " << lea->unique_name() << " = ";
-            if (lea->referenced_type().isa<StructAppType>()) {
+            if (lea->referenced_type().isa<TupleType>() ||
+                lea->referenced_type().isa<StructAppType>()) {
                 stream() << "&";
                 emit(lea->ptr()) << "->e";
+                emit(lea->index()) << ";";
+            } else if (lea->referenced_type().isa<DefiniteArrayType>()) {
+                stream() << "&";
+                emit(lea->ptr()) << "->e[";
+                emit(lea->index()) << "];";
             } else {
                 emit(lea->ptr()) << " + ";
+                emit(lea->index()) << ";";
             }
-            emit(lea->index()) << ";";
         }
 
         insert(def->gid(), def->unique_name());

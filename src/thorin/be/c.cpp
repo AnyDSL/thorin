@@ -475,6 +475,8 @@ void CCodeGen::emit() {
 
                             if (param) {
                                 emit_type(param->type()) << " ";
+                                emit(param) << ";";
+                                newline();
                                 emit(param) << " = ";
                             }
                             if (to_lambda->attribute().is(Lambda::Extern | Lambda::Device))
@@ -518,7 +520,8 @@ std::ostream& CCodeGen::emit(Def def) {
     if (lookup(def->gid())) return stream() << get_name(def->gid());
 
     if (auto bin = def->isa<BinOp>()) {
-        emit_type(def->type()) << " " << def->unique_name() << " = ";
+        emit_type(bin->type()) << " " << bin->unique_name() << ";";
+        newline() << bin->unique_name() << " = ";
         emit(bin->lhs());
         if (auto cmp = bin->isa<Cmp>()) {
             switch (cmp->cmp_kind()) {
@@ -552,7 +555,8 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto conv = def->isa<ConvOp>()) {
-        emit_type(conv->type()) << " " << conv->unique_name() << " = (";
+        emit_type(conv->type()) << " " << conv->unique_name() << ";";
+        newline() << conv->unique_name() << " = (";
         emit_type(conv->type()) << ")";
         emit(conv->from()) << ";";
         insert(def->gid(), def->unique_name());
@@ -564,12 +568,11 @@ std::ostream& CCodeGen::emit(Def def) {
             // emit definitions of inlined elements
             for (auto op : array->ops()) emit_aggop_defs(op);
 
-            emit_type(array->type()) << " " << array->unique_name() << " = {{";
+            emit_type(array->type()) << " " << array->unique_name() << ";";
             for (size_t i = 0, e = array->size(); i != e; ++i) {
-                if (i) stream() << ", ";
-                emit(array->op(i));
+                newline() << array->unique_name() << ".e[" << i << "] = ";
+                emit(array->op(i)) << ";";
             }
-            stream() << "}};";
             insert(def->gid(), def->unique_name());
             return stream();
         }
@@ -581,12 +584,11 @@ std::ostream& CCodeGen::emit(Def def) {
         // emit definitions of inlined elements
         for (auto op : agg->ops()) emit_aggop_defs(op);
 
-        emit_type(agg->type()) << " " << agg->unique_name() << " = {";
+        emit_type(agg->type()) << " " << agg->unique_name() << ";";
         for (size_t i = 0, e = agg->ops().size(); i != e; ++i) {
-            if (i) stream() << ", ";
-            emit(agg->op(i));
+            newline() << agg->unique_name() << ".e" << i << " = ";
+            emit(agg->op(i)) << ";";
         }
-        stream() << "};";
         insert(def->gid(), def->unique_name());
         return stream();
     }
@@ -597,7 +599,8 @@ std::ostream& CCodeGen::emit(Def def) {
         if (aggop->agg()->type().isa<TupleType>() ||
             aggop->agg()->type().isa<StructAppType>()) {
             if (auto extract = aggop->isa<Extract>()) {
-                emit_type(aggop->type()) << " " << aggop->unique_name() << " = ";
+                emit_type(aggop->type()) << " " << aggop->unique_name() << ";";
+                newline() << aggop->unique_name() << " = ";
                 auto agg_type = extract->agg()->type();
                 auto agg_tuple = agg_type.isa<TupleType>();
                 // check for a memory-mapped extract: map() -> (mem, [type]*[dev][mem])
@@ -618,7 +621,8 @@ std::ostream& CCodeGen::emit(Def def) {
             }
         } else if (aggop->agg()->type().isa<ArrayType>()) {
             if (aggop->isa<Extract>()) {
-                emit_type(aggop->type()) << " " << aggop->unique_name() << " = ";
+                emit_type(aggop->type()) << " " << aggop->unique_name() << ";";
+                newline() << aggop->unique_name() << " = ";
                 emit(aggop->agg()) << ".e[";
                 emit(aggop->index()) << "];";
                 insert(def->gid(), def->unique_name());
@@ -659,7 +663,8 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto load = def->isa<Load>()) {
-        emit_type(load->type()) << " " << load->unique_name() << " = ";
+        emit_type(load->type()) << " " << load->unique_name() << ";";
+        newline() << load->unique_name() << " = ";
         // handle texture fetches
         if (!is_texture_type(load->ptr()->type())) stream() << "*";
         emit(load->ptr()) << ";";
@@ -681,7 +686,8 @@ std::ostream& CCodeGen::emit(Def def) {
     if (auto slot = def->isa<Slot>()) {
         emit_type(slot->ptr_type()->referenced_type()) << " " << slot->unique_name() << "_slot;";
         newline();
-        emit_type(slot->ptr_type()->referenced_type()) << "* " << slot->unique_name() << " = &" << slot->unique_name() << "_slot;";
+        emit_type(slot->ptr_type()->referenced_type()) << "* " << slot->unique_name() << ";";
+        newline() << slot->unique_name() << " = &" << slot->unique_name() << "_slot;";
         insert(def->gid(), def->unique_name());
         return stream();
     }
@@ -695,12 +701,14 @@ std::ostream& CCodeGen::emit(Def def) {
 
     if (auto lea = def->isa<LEA>()) {
         if (is_texture_type(lea->type())) { // handle texture fetches
-            emit_type(lea->referenced_type()) << " " << lea->unique_name() << " = ";
+            emit_type(lea->referenced_type()) << " " << lea->unique_name() << ";";
+            newline() << lea->unique_name() << " = ";
             stream() << "tex1Dfetch(";
             emit(lea->ptr()) << ", ";
             emit(lea->index()) << ");";
         } else {
-            emit_type(lea->type()) << " " << lea->unique_name() << " = ";
+            emit_type(lea->type()) << " " << lea->unique_name() << ";";
+            newline() << lea->unique_name() << " = ";
             if (lea->referenced_type().isa<TupleType>() ||
                 lea->referenced_type().isa<StructAppType>()) {
                 stream() << "&";

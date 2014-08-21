@@ -76,7 +76,7 @@ static Schedule schedule_late(const Scope& scope, const Def2Lambda& def2early) {
                     ++num;
             }
             assert(num != 0 && "primop dead");
-            def2num[def] = num;
+            def2num[def] += num;
 
             auto memop = primop->isa<MemOp>();
             // schedule Slots and MemOps without memory out always early
@@ -86,10 +86,13 @@ static Schedule schedule_late(const Scope& scope, const Def2Lambda& def2early) {
             // artificially increase the use counter of all non-memory-out uses of the mem's operand of a memory-out-primop
             if (memop && memop->has_mem_out()) {
                 auto mem = memop->mem();
+                assert(scope.contains(mem));
                 for (auto use : mem->uses()) {
-                    if (auto umemop = use->isa<MemOp>()) {
-                        if (!umemop->has_mem_out())
-                            ++def2num[umemop];
+                    if (scope.contains(use)) {
+                        if (auto umemop = use->isa<MemOp>()) {
+                            if (!umemop->has_mem_out())
+                                ++def2num[umemop];
+                        }
                     }
                 }
             }
@@ -97,8 +100,11 @@ static Schedule schedule_late(const Scope& scope, const Def2Lambda& def2early) {
     }
 
     auto enqueue = [&] (Lambda* lambda, Def def) {
+        if (!scope.contains(def) || def->isa_lambda() || def->isa<Param>())
+            return;
         auto& late = def2late[def];
         late = late ? domtree.lca(late, lambda) : lambda;
+        assert(def2num[def] != 0);
         if (--def2num[def] == 0) {
             queue.push(def);
             if (auto primop = def->isa<PrimOp>()) {
@@ -107,12 +113,16 @@ static Schedule schedule_late(const Scope& scope, const Def2Lambda& def2early) {
                 if (auto memop = primop->isa<MemOp>()) {
                     if (memop->has_mem_out()) {
                         auto mem = memop->mem();
+                        assert(scope.contains(mem));
                         for (auto use : mem->uses()) {
-                            if (auto umemop = use->isa<MemOp>()) {
-                                if (!umemop->has_mem_out()) {
-                                    if (--def2num[umemop] == 0) {
-                                        queue.push(umemop);
-                                        schedule[late].push_back(umemop);
+                            if (scope.contains(use)) {
+                                if (auto umemop = use->isa<MemOp>()) {
+                                    if (!umemop->has_mem_out()) {
+                                        assert(def2num[umemop] != 0);
+                                        if (--def2num[umemop] == 0) {
+                                            queue.push(umemop);
+                                            schedule[late].push_back(umemop);
+                                        }
                                     }
                                 }
                             }

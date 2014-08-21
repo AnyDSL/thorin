@@ -50,14 +50,14 @@ Var Var::create_agg(Var var, Def offset) {
 Def Var::load() const {
     switch (kind()) {
         case ImmutableValRef:   return def_;
-        case MutableValRef:     return builder_->cur_bb->get_value(handle_, Type(type_), name_); 
+        case MutableValRef:     return builder_->cur_bb->get_value(handle_, Type(type_), name_);
         case PtrRef:            return world().load(builder_->get_mem(), def_);
         case AggRef:            return world().extract(var_->load(), def_);
         default: THORIN_UNREACHABLE;
     }
 }
 
-void Var::store(Def def) const { 
+void Var::store(Def def) const {
     switch (kind()) {
         case MutableValRef: builder_->cur_bb->set_value(handle_, def); return;
         case PtrRef:        builder_->set_mem(world().store(builder_->get_mem(), def_, def)); return;
@@ -82,7 +82,7 @@ Lambda* JumpTarget::untangle() {
         return lambda_;
     assert(lambda_);
     auto bb = world().basicblock(name_);
-    lambda_->jump(bb, {});
+    lambda_->jump(bb, {lambda_->get_mem()});
     first_ = false;
     return lambda_ = bb;
 }
@@ -92,7 +92,7 @@ void JumpTarget::jump_from(Lambda* bb) {
         lambda_ = bb;
         first_ = true;
     } else
-        bb->jump(untangle(), {});
+        bb->jump(untangle(), {bb->get_mem()});
 }
 
 Lambda* JumpTarget::branch_to(World& world) {
@@ -123,14 +123,14 @@ void IRBuilder::jump(JumpTarget& jt) {
 
 void IRBuilder::branch(Def cond, JumpTarget& t, JumpTarget& f) {
     if (is_reachable()) {
-        if (auto lit = cond->isa<PrimLit>())
+        if (auto lit = cond->isa<PrimLit>()) {
             jump(lit->value().get_bool() ? t : f);
-        else if (&t == &f)
+        } else if (&t == &f) {
             jump(t);
-        else {
-            auto tl = t.branch_to(world());
-            auto fl = f.branch_to(world());
-            cur_bb->branch(cond, tl, fl);
+        } else {
+            auto tl = t.branch_to(world_);
+            auto fl = f.branch_to(world_);
+            cur_bb->branch(cond, tl, fl, {get_mem()});
             set_unreachable();
         }
     }
@@ -145,8 +145,8 @@ Def IRBuilder::call(Def to, ArrayRef<Def> args, Type ret_type) {
     return Def();
 }
 
-Def IRBuilder::get_mem() { return cur_bb->get_value(0, world().mem_type(), "mem"); }
-void IRBuilder::set_mem(Def def) { if (is_reachable()) cur_bb->set_value(0, def); }
+Def IRBuilder::get_mem() { return cur_bb->get_mem(); }
+void IRBuilder::set_mem(Def mem) { if (is_reachable()) cur_bb->set_mem(mem); }
 
 //------------------------------------------------------------------------------
 

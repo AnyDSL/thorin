@@ -25,7 +25,7 @@ public:
         AggRef,
     };
 
-    Var() 
+    Var()
         : kind_(Empty)
         , builder_(nullptr)
         , handle_(-1)

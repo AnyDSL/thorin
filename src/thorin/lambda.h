@@ -115,7 +115,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     // terminate
 
     void jump(Def to, ArrayRef<Def> args);
-    void branch(Def cond, Def tto, Def fto);
+    void branch(Def cond, Def tto, Def fto, ArrayRef<Def> args = ArrayRef<Def>(nullptr, 0));
     std::pair<Lambda*, Def> call(Def to, ArrayRef<Def> args, Type ret_type);
 
     // cps construction
@@ -131,6 +131,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     void unseal() { is_sealed_ = false; }
     void clear() { values_.clear(); }
     bool is_cleared() { return values_.empty(); }
+
 
 private:
     class Todo {

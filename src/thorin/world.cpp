@@ -767,8 +767,14 @@ Lambda* World::lambda(FnType fn, Lambda::Attribute attribute, Lambda::Attribute 
     lambdas_.insert(l);
 
     size_t i = 0;
-    for (auto arg : fn->args())
-        l->params_.push_back(param(arg, l, i++));
+    for (auto arg : fn->args()) {
+        auto p = param(arg, l, i++);
+        l->params_.push_back(p);
+        if (arg.isa<MemType>()) {
+            l->set_mem(p);
+            p->name = "mem";
+        }
+    }
 
     return l;
 }
@@ -781,8 +787,11 @@ Lambda* World::meta_lambda() {
 
 Lambda* World::basicblock(const std::string& name) {
     THORIN_CHECK_BREAK(gid_)
-    auto bb = new Lambda(gid_++, fn_type(), Lambda::Attribute(0), Lambda::Attribute(0), false, name);
+    auto bb = new Lambda(gid_++, fn_type({mem_type()}), Lambda::Attribute(0), Lambda::Attribute(0), false, name);
     lambdas_.insert(bb);
+    auto mem = param(mem_type(), bb, 0, "mem");
+    bb->params_.push_back(mem);
+    bb->set_mem(mem);
     return bb;
 }
 

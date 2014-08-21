@@ -204,8 +204,8 @@ void Lambda::jump(Def to, ArrayRef<Def> args) {
         set_op(x++, arg);
 }
 
-void Lambda::branch(Def cond, Def tto, Def fto) {
-    return jump(world().select(cond, tto, fto), ArrayRef<Def>(nullptr, 0));
+void Lambda::branch(Def cond, Def tto, Def fto, ArrayRef<Def> args) {
+    return jump(world().select(cond, tto, fto), args);
 }
 
 std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) {

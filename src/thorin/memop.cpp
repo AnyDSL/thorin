@@ -77,7 +77,7 @@ Map::Map(Def mem, Def ptr, int32_t device, AddressSpace addr_space,
 Def Map::extract_mem() const { return world().extract(this, 0); }
 Def Map::extract_mapped_ptr() const { return world().extract(this, 1); }
 
-Def Map::out_mem() const {
+Def Map::mem_out() const {
     assert(false && "TODO");
 }
 

@@ -636,18 +636,20 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto primlit = def->isa<PrimLit>()) {
-        switch (primlit->primtype_kind()) {
+        auto kind = primlit->primtype_kind();
+        if (kind == PrimType_bool) {
+            stream() << (primlit->bool_value() ? "true" : "false");
+        } else if (kind==PrimType_pf32 || kind==PrimType_qf32) {
+            stream() << std::fixed << primlit->pf32_value();
+            if ((lang_==C99 || lang_==CUDA)) stream() << 'f';
+        } else if (kind==PrimType_pf64 || kind==PrimType_qf64) {
+            stream() << std::fixed << primlit->pf64_value();
+        } else {
+            switch (kind) {
 #define THORIN_ALL_TYPE(T, M) case PrimType_##T: stream() << primlit->T##_value(); break;
 #include "thorin/tables/primtypetable.h"
-            default: THORIN_UNREACHABLE;
-        }
-        if ((lang_==C99 || lang_==CUDA) &&
-            (primlit->primtype_kind()==PrimType_pf32 ||
-             primlit->primtype_kind()==PrimType_qf32)) {
-            float integral;
-            float fractional = std::modf(primlit->pf32_value(), &integral);
-            if (fractional == 0) stream() << ".0";
-            stream() << 'f';
+                default: THORIN_UNREACHABLE;
+            }
         }
         return stream();
     }

@@ -90,9 +90,11 @@ void mem2reg(World& world) {
             auto preds = lambda->preds();
             if (preds.size() > 1) {
                 for (auto pred : preds) {
-                    if (pred->to() != lambda) {
-                        todo.push_back(lambda);
-                        goto next_lambda;
+                    for (auto arg : pred->args()) {
+                        if (arg == lambda) {
+                            todo.push_back(lambda);
+                            goto next_lambda;
+                        }
                     }
                 }
             }
@@ -117,6 +119,9 @@ next_lambda:;
             THORIN_UNREACHABLE;
 next_pred:;
         }
+
+
+        // TODO eliminate critical edges
     }
 
     for (auto scope : top_level_scopes(world))

@@ -699,7 +699,12 @@ std::ostream& CCodeGen::emit(Def def) {
             emit(lea->index()) << ");";
         } else {
             emit_type(lea->type()) << " " << lea->unique_name() << " = ";
-            emit(lea->ptr()) << " + ";
+            if (lea->referenced_type().isa<StructAppType>()) {
+                stream() << "&";
+                emit(lea->ptr()) << "->e";
+            } else {
+                emit(lea->ptr()) << " + ";
+            }
             emit(lea->index()) << ";";
         }
 

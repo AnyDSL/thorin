@@ -23,7 +23,7 @@
 #define KERNEL_DIR ""
 #endif
 
-#define BENCH
+//#define BENCH
 #ifdef BENCH
 float total_timing = 0.0f;
 #endif
@@ -46,6 +46,7 @@ void write_memory(size_t dev, CUdeviceptr mem, void *host, size_t size);
 void free_memory(size_t dev, CUdeviceptr mem);
 
 void load_kernel(size_t dev, std::string file_name, std::string kernel_name, bool is_nvvm);
+void unload_module(size_t dev, CUmodule module);
 
 void get_tex_ref(size_t dev, std::string name);
 void bind_tex(size_t dev, mem_id mem, CUarray_format format);
@@ -61,6 +62,17 @@ void synchronize(size_t dev);
 
 
 // global variables ...
+std::vector<CUdevice> devices_;
+std::vector<CUcontext> contexts_;
+std::vector<CUmodule> modules_;
+std::vector<CUfunction> functions_;
+std::vector<std::unordered_map<std::string, CUmodule>> module_cache_;
+std::vector<std::unordered_map<std::string, CUfunction>> function_cache_;
+std::vector<CUtexref> textures_;
+void **cuArgs;
+int cuArgIdx, cuArgIdxMax;
+dim3 cuDimProblem, cuDimBlock;
+
 enum mem_type {
     Generic     = 0,
     Global      = 1,
@@ -107,6 +119,8 @@ class Memory {
                 for (auto it : dmap) free(dev, it.first);
                 dev++;
             }
+            // CUDA is shutting down when the destructor is called
+            // unloading modules will fail
         }
 
     void reserve(size_t num) {
@@ -208,15 +222,6 @@ class Memory {
 };
 Memory mem_manager;
 
-std::vector<CUdevice> devices_;
-std::vector<CUcontext> contexts_;
-std::vector<CUmodule> modules_;
-std::vector<CUfunction> functions_;
-std::vector<CUtexref> textures_;
-void **cuArgs;
-int cuArgIdx, cuArgIdxMax;
-dim3 cuDimProblem, cuDimBlock;
-
 #define check_dev(dev) __check_device(dev)
 #define checkErrNvvm(err, name) __checkNvvmErrors (err, name, __FILE__, __LINE__)
 #define checkErrDrv(err, name)  __checkCudaErrors (err, name, __FILE__, __LINE__)
@@ -279,6 +284,8 @@ void init_cuda() {
     contexts_.resize(device_count);
     modules_.resize(device_count);
     functions_.resize(device_count);
+    module_cache_.resize(device_count);
+    function_cache_.resize(device_count);
     textures_.resize(device_count);
 
     for (int i=0; i<device_count; ++i) {
@@ -312,8 +319,8 @@ void init_cuda() {
 }
 
 
-// load ptx assembly, create a module and kernel
-void create_module_kernel(size_t dev, const void *ptx, std::string kernel_name, CUjit_target target_cc) {
+// create module from ptx assembly
+void create_module(size_t dev, const void *ptx, std::string file_name, CUjit_target target_cc) {
     CUresult err = CUDA_SUCCESS;
     bool print_progress = true;
 
@@ -325,18 +332,25 @@ void create_module_kernel(size_t dev, const void *ptx, std::string kernel_name, 
     void *optionValues[] = { (void *)errorLogBuffer, (void *)errorLogSize, (void *)target_cc };
 
     // load ptx source
-    if (print_progress) std::cerr << "Compiling(" << dev << ") '" << kernel_name << "' .";
+    if (print_progress) std::cerr << "Compiling(" << dev << ") '" << file_name << "' .";
     err = cuModuleLoadDataEx(&modules_[dev], ptx, num_options, options, optionValues);
+    std::cerr << "create module: " << modules_[dev] << std::endl;
+    module_cache_[dev][file_name] = modules_[dev];
+
     if (err != CUDA_SUCCESS) {
         std::cerr << "Error log: " << errorLogBuffer << std::endl;
     }
     checkErrDrv(err, "cuModuleLoadDataEx()");
-
-    // get function entry point
-    if (print_progress) std::cerr << ".";
-    err = cuModuleGetFunction(&functions_[dev], modules_[dev], kernel_name.c_str());
-    checkErrDrv(err, "cuModuleGetFunction()");
     if (print_progress) std::cerr << ". done" << std::endl;
+}
+
+
+// get kernel from module
+void create_kernel(size_t dev, std::string kernel_name) {
+    // get function entry point
+    CUresult err = cuModuleGetFunction(&functions_[dev], modules_[dev], kernel_name.c_str());
+    checkErrDrv(err, "cuModuleGetFunction()");
+    function_cache_[dev][kernel_name] = functions_[dev];
 }
 
 
@@ -379,12 +393,97 @@ void print_kernel_occupancy(size_t dev, std::string kernel_name) {
 }
 
 
-// compile CUDA source file to PTX assembly using nvcc compiler
-void cuda_to_ptx(std::string file_name, std::string target_cc) {
+// load NVVM source and compile kernel
+void compile_nvvm(size_t dev, std::string file_name, CUjit_target target_cc) {
+    nvvmResult err;
+    nvvmProgram program;
+
+    // select libdevice module according to documentation
+    std::string libdevice_file_name;
+    switch (target_cc) {
+        #if CUDA_VERSION >= 6050
+        case CU_TARGET_COMPUTE_37:
+        #endif
+        case CU_TARGET_COMPUTE_50:
+        default:
+            assert(false && "unsupported compute capability");
+        case CU_TARGET_COMPUTE_20:
+        case CU_TARGET_COMPUTE_21:
+        case CU_TARGET_COMPUTE_32:
+            libdevice_file_name = "libdevice.compute_20.10.bc"; break;
+        case CU_TARGET_COMPUTE_30:
+            libdevice_file_name = "libdevice.compute_30.10.bc"; break;
+        case CU_TARGET_COMPUTE_35:
+            libdevice_file_name = "libdevice.compute_35.10.bc"; break;
+    }
+    std::ifstream libdeviceFile(std::string(LIBDEVICE_DIR)+libdevice_file_name);
+    if (!libdeviceFile.is_open()) {
+        std::cerr << "ERROR: Can't open libdevice source file '" << libdevice_file_name << "'!" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    std::string libdeviceString = std::string(std::istreambuf_iterator<char>(libdeviceFile), (std::istreambuf_iterator<char>()));
+
+    std::ifstream srcFile(std::string(KERNEL_DIR)+file_name);
+    if (!srcFile.is_open()) {
+        std::cerr << "ERROR: Can't open LL source file '" << KERNEL_DIR << file_name << "'!" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    std::string srcString = std::string(std::istreambuf_iterator<char>(srcFile), (std::istreambuf_iterator<char>()));
+
+    err = nvvmCreateProgram(&program);
+    checkErrNvvm(err, "nvvmCreateProgram()");
+
+    err = nvvmAddModuleToProgram(program, libdeviceString.c_str(), libdeviceString.length(), libdevice_file_name.c_str());
+    checkErrNvvm(err, "nvvmAddModuleToProgram()");
+
+    err = nvvmAddModuleToProgram(program, srcString.c_str(), srcString.length(), file_name.c_str());
+    checkErrNvvm(err, "nvvmAddModuleToProgram()");
+
+    std::string compute_arch("-arch=compute_" + std::to_string(target_cc));
+    int num_options = 1;
+    const char *options[2];
+    options[0] = compute_arch.c_str();
+    options[1] = "-g";
+
+    err = nvvmCompileProgram(program, num_options, options);
+    if (err != NVVM_SUCCESS) {
+        size_t log_size;
+        nvvmGetProgramLogSize(program, &log_size);
+        char *error_log = (char*)malloc(log_size);
+        nvvmGetProgramLog(program, error_log);
+        std::cerr << "Error log: " << error_log << std::endl;
+        free(error_log);
+    }
+    checkErrNvvm(err, "nvvmAddModuleToProgram()");
+
+    size_t PTXSize;
+    err = nvvmGetCompiledResultSize(program, &PTXSize);
+    checkErrNvvm(err, "nvvmGetCompiledResultSize()");
+
+    char *PTX = (char*)malloc(PTXSize);
+    err = nvvmGetCompiledResult(program, PTX);
+    if (err != NVVM_SUCCESS) free(PTX);
+    checkErrNvvm(err, "nvvmGetCompiledResult()");
+
+    err = nvvmDestroyProgram(&program);
+    if (err != NVVM_SUCCESS) free(PTX);
+    checkErrNvvm(err, "nvvmDestroyProgram()");
+
+    // compile ptx
+    create_module(dev, PTX, file_name, target_cc);
+    free(PTX);
+}
+
+
+// load CUDA source and compile kernel
+void compile_cuda(size_t dev, std::string file_name, CUjit_target target_cc) {
     char line[FILENAME_MAX];
     FILE *fpipe;
 
-    std::string command = (NVCC_BIN " -ptx -arch=compute_") + target_cc + " ";
+    target_cc = target_cc == CU_TARGET_COMPUTE_21 ? CU_TARGET_COMPUTE_20 : target_cc; // compute_21 does not exist for nvcc
+    std::string command = (NVCC_BIN " -ptx -arch=compute_") + std::to_string(target_cc) + " ";
     command += std::string(KERNEL_DIR) + std::string(file_name) + " -o ";
     command += std::string(file_name) + ".ptx 2>&1";
 
@@ -397,124 +496,71 @@ void cuda_to_ptx(std::string file_name, std::string target_cc) {
         std::cerr << line;
     }
     pclose(fpipe);
+
+    std::string ptx_filename = file_name;
+    ptx_filename += ".ptx";
+
+    std::ifstream srcFile(ptx_filename.c_str());
+    if (!srcFile.is_open()) {
+        std::cerr << "ERROR: Can't open PTX source file '" << ptx_filename << "'!" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    std::string srcString = std::string(std::istreambuf_iterator<char>(srcFile),
+            (std::istreambuf_iterator<char>()));
+    const char *PTX = (const char *)srcString.c_str();
+    // compile ptx
+    create_module(dev, PTX, file_name, target_cc);
 }
 
 
-// load ll intermediate and compile to ptx
+// load CUDA/NVVM source and compile kernel
 void load_kernel(size_t dev, std::string file_name, std::string kernel_name, bool is_nvvm) {
-    cuCtxPushCurrent(contexts_[dev]);
-    nvvmProgram program;
-    std::string srcString;
-    char *PTX = NULL;
-
-    int major, minor;
-    CUresult err = CUDA_SUCCESS;
-    err = cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, devices_[dev]);
-    checkErrDrv(err, "cuDeviceGetAttribute()");
-    err = cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, devices_[dev]);
-    checkErrDrv(err, "cuDeviceGetAttribute()");
-    CUjit_target target_cc = (CUjit_target)(major*10 + minor);
-
-    if (is_nvvm) {
-        nvvmResult err;
-        // select libdevice module according to documentation
-        std::string libdevice_file_name;
-        switch (target_cc) {
-            default:
-                assert(false && "unsupported compute capability");
-            case CU_TARGET_COMPUTE_20:
-            case CU_TARGET_COMPUTE_21:
-            case CU_TARGET_COMPUTE_32:
-                libdevice_file_name = "libdevice.compute_20.10.bc"; break;
-            case CU_TARGET_COMPUTE_30:
-                libdevice_file_name = "libdevice.compute_30.10.bc"; break;
-            case CU_TARGET_COMPUTE_35:
-                libdevice_file_name = "libdevice.compute_35.10.bc"; break;
-        }
-        std::ifstream libdeviceFile(std::string(LIBDEVICE_DIR)+libdevice_file_name);
-        if (!libdeviceFile.is_open()) {
-            std::cerr << "ERROR: Can't open libdevice source file '" << libdevice_file_name << "'!" << std::endl;
-            exit(EXIT_FAILURE);
-        }
-
-        std::string libdeviceString = std::string(std::istreambuf_iterator<char>(libdeviceFile), (std::istreambuf_iterator<char>()));
-
-        std::ifstream srcFile(std::string(KERNEL_DIR)+file_name);
-        if (!srcFile.is_open()) {
-            std::cerr << "ERROR: Can't open LL source file '" << KERNEL_DIR << file_name << "'!" << std::endl;
-            exit(EXIT_FAILURE);
-        }
-
-        srcString = std::string(std::istreambuf_iterator<char>(srcFile), (std::istreambuf_iterator<char>()));
-
-        err = nvvmCreateProgram(&program);
-        checkErrNvvm(err, "nvvmCreateProgram()");
-
-        err = nvvmAddModuleToProgram(program, libdeviceString.c_str(), libdeviceString.length(), libdevice_file_name.c_str());
-        checkErrNvvm(err, "nvvmAddModuleToProgram()");
-
-        err = nvvmAddModuleToProgram(program, srcString.c_str(), srcString.length(), file_name.c_str());
-        checkErrNvvm(err, "nvvmAddModuleToProgram()");
-
-        std::string compute_arch("-arch=compute_" + std::to_string(target_cc));
-        int num_options = 1;
-        const char *options[2];
-        options[0] = compute_arch.c_str();
-        options[1] = "-g";
-
-        err = nvvmCompileProgram(program, num_options, options);
-        if (err != NVVM_SUCCESS) {
-            size_t log_size;
-            nvvmGetProgramLogSize(program, &log_size);
-            char *error_log = (char*)malloc(log_size);
-            nvvmGetProgramLog(program, error_log);
-            std::cerr << "Error log: " << error_log << std::endl;
-            free(error_log);
-        }
-        checkErrNvvm(err, "nvvmAddModuleToProgram()");
-
-        size_t PTXSize;
-        err = nvvmGetCompiledResultSize(program, &PTXSize);
-        checkErrNvvm(err, "nvvmGetCompiledResultSize()");
-
-        PTX = (char*)malloc(PTXSize);
-        err = nvvmGetCompiledResult(program, PTX);
-        if (err != NVVM_SUCCESS) free(PTX);
-        checkErrNvvm(err, "nvvmGetCompiledResult()");
-
-        err = nvvmDestroyProgram(&program);
-        if (err != NVVM_SUCCESS) free(PTX);
-        checkErrNvvm(err, "nvvmDestroyProgram()");
-    } else {
-        auto target_nvcc = target_cc == 21 ? 20 : target_cc; // target 21 does not exist for nvcc
-        cuda_to_ptx(file_name, std::to_string(target_nvcc));
-        std::string ptx_filename = file_name;
-        ptx_filename += ".ptx";
-
-        std::ifstream srcFile(ptx_filename.c_str());
-        if (!srcFile.is_open()) {
-            std::cerr << "ERROR: Can't open PTX source file '" << ptx_filename << "'!" << std::endl;
-            exit(EXIT_FAILURE);
-        }
-
-        srcString = std::string(std::istreambuf_iterator<char>(srcFile),
-                (std::istreambuf_iterator<char>()));
-        PTX = (char *)srcString.c_str();
+    // get module and function from cache
+    if (function_cache_[dev].count(kernel_name)) {
+        functions_[dev] = function_cache_[dev][kernel_name];
+        modules_[dev] = module_cache_[dev][file_name];
+        std::cerr << "Compiling(" << dev << ") '" << kernel_name << "' ... returning old copy!" << std::endl;
+        return;
     }
 
-    // compile ptx
-    create_module_kernel(dev, PTX, kernel_name, target_cc);
+    cuCtxPushCurrent(contexts_[dev]);
+    if (module_cache_[dev].count(file_name)) {
+        modules_[dev] = module_cache_[dev][file_name];
+    } else {
+        int major, minor;
+        CUresult err = CUDA_SUCCESS;
+        err = cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, devices_[dev]);
+        checkErrDrv(err, "cuDeviceGetAttribute()");
+        err = cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, devices_[dev]);
+        checkErrDrv(err, "cuDeviceGetAttribute()");
+        CUjit_target target_cc = (CUjit_target)(major*10 + minor);
 
-    if (is_nvvm) free(PTX);
+        if (is_nvvm) {
+            compile_nvvm(dev, file_name, target_cc);
+        } else {
+            compile_cuda(dev, file_name, target_cc);
+        }
+    }
+    create_kernel(dev, kernel_name);
+    cuCtxPopCurrent(NULL);
+}
+
+
+void unload_module(size_t dev, CUmodule module) {
+    std::cerr << "unload module: " << module << std::endl;
+    cuCtxPushCurrent(contexts_[dev]);
+    CUresult err = cuModuleUnload(module);
+    checkErrDrv(err, "cuUnloadModule()");
     cuCtxPopCurrent(NULL);
 }
 
 
 void get_tex_ref(size_t dev, std::string name) {
-    CUresult err = CUDA_SUCCESS;
-
-    err = cuModuleGetTexRef(&textures_[dev], modules_[dev], name.c_str());
+    cuCtxPushCurrent(contexts_[dev]);
+    CUresult err = cuModuleGetTexRef(&textures_[dev], modules_[dev], name.c_str());
     checkErrDrv(err, "cuModuleGetTexRef()");
+    cuCtxPopCurrent(NULL);
 }
 
 void bind_tex(size_t dev, mem_id mem, CUarray_format format) {
@@ -535,10 +581,9 @@ CUdeviceptr malloc_memory(size_t dev, void */*host*/, size_t size) {
 
     cuCtxPushCurrent(contexts_[dev]);
     CUdeviceptr mem;
-    CUresult err = CUDA_SUCCESS;
 
     // TODO: unified memory support using cuMemAllocManaged();
-    err = cuMemAlloc(&mem, size);
+    CUresult err = cuMemAlloc(&mem, size);
     checkErrDrv(err, "cuMemAlloc()");
 
     cuCtxPopCurrent(NULL);
@@ -548,9 +593,7 @@ CUdeviceptr malloc_memory(size_t dev, void */*host*/, size_t size) {
 
 void free_memory(size_t dev, CUdeviceptr mem) {
     cuCtxPushCurrent(contexts_[dev]);
-    CUresult err = CUDA_SUCCESS;
-
-    err = cuMemFree(mem);
+    CUresult err = cuMemFree(mem);
     checkErrDrv(err, "cuMemFree()");
     cuCtxPopCurrent(NULL);
 }
@@ -558,9 +601,7 @@ void free_memory(size_t dev, CUdeviceptr mem) {
 
 void write_memory(size_t dev, CUdeviceptr mem, void *host, size_t size) {
     cuCtxPushCurrent(contexts_[dev]);
-    CUresult err = CUDA_SUCCESS;
-
-    err = cuMemcpyHtoD(mem, host, size);
+    CUresult err = cuMemcpyHtoD(mem, host, size);
     checkErrDrv(err, "cuMemcpyHtoD()");
     cuCtxPopCurrent(NULL);
 }
@@ -568,9 +609,7 @@ void write_memory(size_t dev, CUdeviceptr mem, void *host, size_t size) {
 
 void read_memory(size_t dev, CUdeviceptr mem, void *host, size_t size) {
     cuCtxPushCurrent(contexts_[dev]);
-    CUresult err = CUDA_SUCCESS;
-
-    err = cuMemcpyDtoH(host, mem, size);
+    CUresult err = cuMemcpyDtoH(host, mem, size);
     checkErrDrv(err, "cuMemcpyDtoH()");
     cuCtxPopCurrent(NULL);
 }
@@ -578,9 +617,7 @@ void read_memory(size_t dev, CUdeviceptr mem, void *host, size_t size) {
 
 void synchronize(size_t dev) {
     cuCtxPushCurrent(contexts_[dev]);
-    CUresult err = CUDA_SUCCESS;
-
-    err = cuCtxSynchronize();
+    CUresult err = cuCtxSynchronize();
     checkErrDrv(err, "cuCtxSynchronize()");
     cuCtxPopCurrent(NULL);
 }
@@ -619,11 +656,10 @@ void set_kernel_arg_map(size_t dev, mem_id mem) {
 
 
 void set_kernel_arg_const(size_t dev, void *param, std::string name, size_t size) {
-    CUresult err = CUDA_SUCCESS;
+    size_t bytes;
     CUdeviceptr const_mem;
     std::cerr << " * set arg const(" << dev << "): " << param << std::endl;
-    size_t bytes;
-    err = cuModuleGetGlobal(&const_mem, &bytes, modules_[dev], name.c_str());
+    CUresult err = cuModuleGetGlobal(&const_mem, &bytes, modules_[dev], name.c_str());
     checkErrDrv(err, "cuModuleGetGlobal()");
     write_memory(dev, const_mem, param, size);
 }

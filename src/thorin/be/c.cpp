@@ -157,8 +157,18 @@ std::ostream& CCodeGen::emit_aggop_decl(Type type) {
     type.unify(); // make sure that we get the same id if types are equal
     if (lookup(type->gid())) return stream();
 
-    if (auto fn = type.isa<FnType>())
+    if (auto ptr = type.isa<PtrType>()) {
+        emit_aggop_decl(ptr->referenced_type());
+        return stream();
+    }
+    if (auto array = type.isa<IndefiniteArrayType>()) {
+        emit_aggop_decl(array->elem_type());
+        return stream();
+    }
+    if (auto fn = type.isa<FnType>()) {
         for (auto type : fn->args()) emit_aggop_decl(type);
+        return stream();
+    }
 
     // recurse into (multi-dimensional) array
     if (auto array = type.isa<DefiniteArrayType>()) {
@@ -657,6 +667,7 @@ std::ostream& CCodeGen::emit(Def def) {
     }
 
     if (auto store = def->isa<Store>()) {
+        emit_aggop_defs(store->val());
         stream() << "*";
         emit(store->ptr()) << " = ";
         emit(store->val()) << ";";
@@ -688,8 +699,19 @@ std::ostream& CCodeGen::emit(Def def) {
             emit(lea->index()) << ");";
         } else {
             emit_type(lea->type()) << " " << lea->unique_name() << " = ";
-            emit(lea->ptr()) << " + ";
-            emit(lea->index()) << ";";
+            if (lea->referenced_type().isa<TupleType>() ||
+                lea->referenced_type().isa<StructAppType>()) {
+                stream() << "&";
+                emit(lea->ptr()) << "->e";
+                emit(lea->index()) << ";";
+            } else if (lea->referenced_type().isa<DefiniteArrayType>()) {
+                stream() << "&";
+                emit(lea->ptr()) << "->e[";
+                emit(lea->index()) << "];";
+            } else {
+                emit(lea->ptr()) << " + ";
+                emit(lea->index()) << ";";
+            }
         }
 
         insert(def->gid(), def->unique_name());

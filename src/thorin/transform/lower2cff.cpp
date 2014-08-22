@@ -11,7 +11,7 @@ namespace thorin {
 
 class CFFLowering {
 public:
-    CFFLowering(World& world) 
+    CFFLowering(World& world)
         : world_(world)
     {
         for (auto scope : top_level_scopes(world))
@@ -70,7 +70,7 @@ void CFFLowering::transform(Lambda* lambda) {
         Type2Type map;
         bool res = lambda->type()->infer_with(map, ulambda->arg_fn_type());
         assert(res);
-        
+
         size_t num_args = lambda->num_params();
         //bool ret = false;
         bool ret = true; // HACK
@@ -80,15 +80,15 @@ void CFFLowering::transform(Lambda* lambda) {
             if (!ret &&  top_.find(lambda) != top_.end() && lambda->param(i)->type()->specialize(map)->order() == 1) {
                 ret = true;
                 args[i] = nullptr;
-            } else 
+            } else
                 args[i] = (lambda->param(i)->order() >= 1) ? ulambda->arg(i) : nullptr;
         }
 
         // check whether we can reuse an existing version
         auto i = args2lambda.find(args);
         Lambda* target;
-        if (i != args2lambda.end()) 
-            target = i->second; // use already dropped version as target 
+        if (i != args2lambda.end())
+            target = i->second; // use already dropped version as target
         else
             args2lambda[args] = target = drop(scope, args, map);
 

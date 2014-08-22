@@ -30,12 +30,12 @@ class TypeVarNode;              typedef Proxy<TypeVarNode>              TypeVar;
 //------------------------------------------------------------------------------
 
 template<class T>
-struct GIDHash { 
+struct GIDHash {
     size_t operator () (T n) const { return n->gid(); }
 };
 
 template<class T>
-struct GIDEq { 
+struct GIDEq {
     size_t operator () (T n1, T n2) const { return n1->gid() == n2->gid(); }
 };
 
@@ -46,7 +46,7 @@ using Type2Type  = TypeMap<const TypeNode*>;
 using TypeVarSet = HashSet<const TypeVarNode*, GIDHash<const TypeVarNode*>, GIDEq<const TypeVarNode*>>;
 
 Type2Type type2type(const TypeNode*, ArrayRef<Type>);
-template<class T> 
+template<class T>
 Type2Type type2type(Proxy<T> type, ArrayRef<Type> args) { return type2type(*type, args); }
 
 //------------------------------------------------------------------------------
@@ -92,7 +92,7 @@ public:
     template<class U> Proxy<typename U::BaseType> as() const {
         return Proxy<typename U::BaseType>((*this)->template as <typename U::BaseType>());
     }
-    operator bool() { return !empty(); }
+    operator bool() const { return !empty(); }
     void clear() { assert(node_ != nullptr); node_ = nullptr; }
     Proxy<T> unify() const { return node()->unify()->template as<T>(); }
     Proxy<T>& operator= (Proxy<T> other) { swap(*this, other); return *this; }

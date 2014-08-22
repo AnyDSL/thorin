@@ -151,7 +151,7 @@ static Schedule schedule_late(const Scope& scope, const Def2Lambda& def2early) {
     return schedule;
 }
 
-void verify(const Scope& scope, Schedule& schedule) {
+static void verify(const Scope& scope, Schedule& schedule) {
 #ifndef NDEBUG
     const DomTree domtree(scope);
     LambdaMap<Def> lambda2mem;

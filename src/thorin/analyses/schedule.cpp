@@ -27,8 +27,8 @@ static Def2Lambda schedule_early(const Scope& scope) {
                 if (scope.contains(op) && !op->isa_lambda())
                     ++num;
             }
-            assert(num != 0 && "in scope but no operands");
-            def2num[def] = num;
+            if (num != 0) // in scope but no operands
+                def2num[def] = num;
         }
     }
 

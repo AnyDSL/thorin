@@ -66,6 +66,8 @@ private:
     virtual ~Lambda() { for (auto param : params()) delete param; }
 
 public:
+    Lambda* stub() const { Type2Type map; return stub(map); }
+    Lambda* stub(const std::string& name) const { Type2Type map; return stub(map, name); }
     Lambda* stub(Type2Type& type2type) const { return stub(type2type, name); }
     Lambda* stub(Type2Type& type2type, const std::string& name) const;
     Lambda* update_to(Def def) { return update_op(0, def); }

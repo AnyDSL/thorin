@@ -83,7 +83,7 @@ public:
     MemType     mem_type() const { return MemType(mem_); }
     FrameType   frame_type() const { return FrameType(frame_); }
     PtrType     ptr_type(Type referenced_type, size_t length = 1, int32_t device = -1, AddressSpace adr_space = AddressSpace::Generic) {
-        return join(new PtrTypeNode(*this, referenced_type, length, device, adr_space)); 
+        return join(new PtrTypeNode(*this, referenced_type, length, device, adr_space));
     }
     TupleType           tuple_type() { return tuple0_; } ///< Returns unit, i.e., an empty \p TupleType.
     TupleType           tuple_type(ArrayRef<Type> args) { return join(new TupleTypeNode(*this, args)); }
@@ -185,8 +185,8 @@ public:
     Def indefinite_array(Type elem, Def dim, const std::string& name = "") {
         return cse(new IndefiniteArray(*this, elem, dim, name));
     }
-    Def struct_agg(StructAppType struct_app_type, ArrayRef<Def> args, const std::string& name = "") { 
-        return cse(new StructAgg(*this, struct_app_type, args, name)); 
+    Def struct_agg(StructAppType struct_app_type, ArrayRef<Def> args, const std::string& name = "") {
+        return cse(new StructAgg(*this, struct_app_type, args, name));
     }
     Def tuple(ArrayRef<Def> args, const std::string& name = "") { return cse(new Tuple(*this, args, name)); }
     Def vector(ArrayRef<Def> args, const std::string& name = "") {
@@ -225,7 +225,7 @@ public:
     Def end_hlt(Def def, Def hlt, const std::string& name = "");
 
     /// Select is higher-order. You can build branches with a \p Select primop.
-    Def select(Def cond, Def a, Def b, const std::string& name = "");
+    Def select(Def cond, Def t, Def f, const std::string& name = "");
 
     // lambdas
 
@@ -270,11 +270,11 @@ public:
     template<class T> Proxy<T> unify(const T* type) { return Proxy<T>(unify_base(type)->template as<T>()); }
 
 private:
-    const TypeNode* register_base(const TypeNode* type) { 
+    const TypeNode* register_base(const TypeNode* type) {
         assert(type->gid_ == size_t(-1));
         type->gid_ = gid_++;
-        garbage_.push_back(type); 
-        return type; 
+        garbage_.push_back(type);
+        return type;
     }
     template<class T> Proxy<T> join(const T* t) { return Proxy<T>(register_base(t)->template as<T>()); }
     const DefNode* cse_base(const PrimOp*);

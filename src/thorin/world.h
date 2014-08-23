@@ -167,8 +167,7 @@ public:
 
     // casts
 
-    Def convert(Def cond, Def from, Type to, const std::string& name = "");
-    Def convert(Def from, Type to, const std::string& name = "") { return convert(true_mask(from), from, to, name); }
+    Def convert(Def from, Type to, const std::string& name = "");
     Def cast(Def cond, Def from, Type to, const std::string& name = "");
     Def cast(Def from, Type to, const std::string& name = "") { return cast(true_mask(from), from, to, name); }
     Def bitcast(Def cond, Def from, Type to, const std::string& name = "");

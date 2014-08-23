@@ -484,10 +484,10 @@ Def World::cmp(CmpKind kind, Def cond, Def a, Def b, const std::string& name) {
     return cse(new Cmp(kind, cond, a, b, name));
 }
 
-Def World::convert(Def cond, Def from, Type to, const std::string& name) {
+Def World::convert(Def from, Type to, const std::string& name) {
     if (from->type().isa<PtrType>() && to.isa<PtrType>())
-        return bitcast(cond, from, to, name);
-    return cast(cond, from, to, name);
+        return bitcast(from, to, name);
+    return cast(from, to, name);
 }
 
 Def World::cast(Def cond, Def from, Type to, const std::string& name) {

@@ -21,7 +21,8 @@ public:
 
     void release() { delete ptr_; ptr_ = nullptr; }
     T* get() const { return ptr_; }
-    T** address() const { return &ptr_; }
+    T** address() { return &ptr_; }
+    T* const* address() const { return &ptr_; }
     operator bool() const { return ptr_ != nullptr; }
     operator T*() const {return ptr_; }
     T* operator -> () const { return ptr_; }
@@ -49,7 +50,8 @@ public:
     {}
 
     T* get() const { assert(ptr_ != nullptr); return ptr_; }
-    T** address() const { return &ptr_; }
+    T** address() { return &ptr_; }
+    T* const* address() const { return &ptr_; }
     operator bool() const { return ptr_ != nullptr; }
     operator T*() const {return get(); }
     T* operator -> () const { return get(); }

@@ -21,10 +21,10 @@ public:
 
     void release() { delete ptr_; ptr_ = nullptr; }
     T* get() const { return ptr_; }
+    T** address() const { return &ptr_; }
     operator bool() const { return ptr_ != nullptr; }
     operator T*() const {return ptr_; }
     T* operator -> () const { return ptr_; }
-    //AutoPtr<T>& operator = (T* ptr) { delete ptr_; ptr_ = ptr; return *this; }
     AutoPtr<T>& operator = (AutoPtr<T> other) { swap(*this, other); return *this; }
     friend void swap(AutoPtr<T>& a, AutoPtr<T>& b) { using std::swap; swap(a.ptr_, b.ptr_); }
 
@@ -33,7 +33,7 @@ private:
     AutoPtr(const AutoPtr<T>& aptr); // forbid copy constructor
 };
 
-/// A simple wrapper around a usual pointer but initialized with nullptr 
+/// A simple wrapper around a usual pointer but initialized with nullptr
 /// and checked via assert if valid prior to dereferencing.
 template<class T>
 class SafePtr {
@@ -49,6 +49,7 @@ public:
     {}
 
     T* get() const { assert(ptr_ != nullptr); return ptr_; }
+    T** address() const { return &ptr_; }
     operator bool() const { return ptr_ != nullptr; }
     operator T*() const {return get(); }
     T* operator -> () const { return get(); }
@@ -62,8 +63,8 @@ private:
 template<class T>
 class AutoVector : public std::vector<T> {
 public:
-    AutoVector() 
-        : std::vector<T>() 
+    AutoVector()
+        : std::vector<T>()
     {}
     explicit AutoVector(typename std::vector<T>::size_type s)
         : std::vector<T>(s)

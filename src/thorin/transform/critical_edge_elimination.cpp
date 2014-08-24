@@ -1,8 +1,7 @@
 #include "thorin/lambda.h"
 #include "thorin/world.h"
 #include "thorin/analyses/top_level_scopes.h"
-
-#include <iostream>
+#include "thorin/analyses/verify.h"
 
 namespace thorin {
 
@@ -16,8 +15,9 @@ static void update_src(Lambda* src, Lambda* resolver, Lambda* dst) {
     World& world = src->world();
     Def nto;
 
-    if (src->to()->isa_lambda()) {
-        nto = resolver;
+    if (auto to = src->to()->isa_lambda()) {
+        if (to == dst)
+            nto = resolver;
     } else if (auto select = src->to()->isa<Select>()) {
         if (select->tval() == dst)
             nto = world.select(select->cond(), resolver, select->fval());
@@ -53,9 +53,12 @@ static void critical_edge_elimination(const Scope& scope) {
         }
     }
 
-    // remove them critical edges by inserting a resovling lambda
-    for (auto edge : edges)
-        update_src(edge.first, resolve(edge.second, ".crit"), edge.second);
+    // remove critical edges by inserting a resovling lambda
+    for (auto edge : edges) {
+        auto src = edge.first;
+        auto dst = edge.second;
+        update_src(src, resolve(dst, ".crit"), dst);
+    }
 }
 
 void critical_edge_elimination(World& world) {
@@ -89,6 +92,8 @@ next_lambda:;
 
     for (auto scope : top_level_scopes(world))
         critical_edge_elimination(*scope);
+
+    debug_verify(world);
 }
 
 }

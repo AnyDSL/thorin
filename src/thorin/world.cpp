@@ -597,12 +597,14 @@ Def World::bitcast(Def cond, Def from, Type to, const std::string& name) {
     return cse(new Bitcast(cond, from, to , name));
 }
 
-Def World::extract(Def agg, Def index, const std::string& name) {
+Def World::extract(Def agg, Def index, const std::string& name, Def mem) {
     if (agg->isa<Bottom>())
         return bottom(Extract::type(agg, index));
 
-    if (auto load = agg->isa<Load>())
-        return this->load(load->mem(), lea(load->ptr(), index, load->name), name);
+    if (mem) {
+        if (auto load = agg->isa<Load>())
+            return this->load(mem, lea(load->ptr(), index, load->name), name);
+    }
 
     if (auto aggregate = agg->isa<Aggregate>()) {
         if (auto lit = index->isa<PrimLit>()) {
@@ -616,11 +618,15 @@ Def World::extract(Def agg, Def index, const std::string& name) {
             return insert->value();
         else if (index->isa<PrimLit>()) {
             if (insert->index()->isa<PrimLit>())
-                return extract(insert->agg(), index);
+                return extract(insert->agg(), index, name, mem);
         }
     }
 
     return cse(new Extract(agg, index, name));
+}
+
+Def World::extract(Def tuple, u32 index, const std::string& name, Def mem) {
+    return extract(tuple, literal_qu32(index), name, mem);
 }
 
 Def World::insert(Def agg, Def index, Def value, const std::string& name) {
@@ -642,7 +648,6 @@ Def World::insert(Def agg, Def index, Def value, const std::string& name) {
 }
 
 Def World::alloc(Def mem, Type type, Def extra, const std::string& name) { return cse(new Alloc(mem, type, extra, name)); }
-Def World::extract(Def tuple, u32 index, const std::string& name) { return extract(tuple, literal_qu32(index), name); }
 Def World::insert(Def tuple, u32 index, Def value, const std::string& name) {
     return insert(tuple, literal_qu32(index), value, name);
 }

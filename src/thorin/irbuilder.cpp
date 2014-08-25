@@ -52,7 +52,7 @@ Def Var::load() const {
         case ImmutableValRef:   return def_;
         case MutableValRef:     return builder_->cur_bb->get_value(handle_, Type(type_), name_);
         case PtrRef:            return world().load(builder_->get_mem(), def_);
-        case AggRef:            return world().extract(var_->load(), def_);
+        case AggRef:            return world().extract(var_->load(), def_, "", builder()->get_mem());
         default: THORIN_UNREACHABLE;
     }
 }

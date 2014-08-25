@@ -530,11 +530,11 @@ llvm::Value* CodeGen::emit(Def def) {
                     && (dst->is_type_i() || dst->is_bool())
                     && (num_bits(src->primtype_kind()) > num_bits(dst->primtype_kind())))
                 return builder_.CreateTrunc(from, to);
-            if (       (src->is_type_s() || src->is_bool())
+            if (       (src->is_type_i() || src->is_bool())
                     && (dst->is_type_s() || dst->is_bool())
                     && (num_bits(src->primtype_kind()) < num_bits(dst->primtype_kind())))
                 return builder_.CreateSExt(from, to);
-            if (       (src->is_type_u() || src->is_bool())
+            if (       (src->is_type_i() || src->is_bool())
                     && (dst->is_type_u() || dst->is_bool())
                     && (num_bits(src->primtype_kind()) < num_bits(dst->primtype_kind())))
                 return builder_.CreateZExt(from, to);

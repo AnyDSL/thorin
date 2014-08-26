@@ -78,7 +78,8 @@ StructAgg::StructAgg(World& world, StructAppType struct_app_type, ArrayRef<Def> 
     : Aggregate(Node_StructAgg, args, name)
 {
 #ifndef NDEBUG
-    for (size_t i = 0, e = size(); i != e; ++i)
+    assert(struct_app_type->num_elems() == args.size());
+    for (size_t i = 0, e = args.size(); i != e; ++i)
         assert(struct_app_type->elem(i) == args[i]->type());
 #endif
 

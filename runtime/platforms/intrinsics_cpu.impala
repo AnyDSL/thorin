@@ -1,11 +1,15 @@
 extern "C" {
     fn expf(float) -> float;
     fn powf(float, float) -> float;
+    fn sqrt(f64) -> f64;
     fn sqrtf(float) -> float;
+    fn fabs(f64) -> f64;
     fn fabsf(float) -> float;
     fn tanf(float) -> float;
     fn atan2f(float, float) -> float;
+    fn sin(f64) -> f64;
     fn sinf(float) -> float;
+    fn cos(f64) -> f64;
     fn cosf(float) -> float;
     fn erff(float) -> float;
     fn floorf(float) -> float;

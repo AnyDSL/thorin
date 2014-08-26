@@ -1,23 +1,36 @@
 extern "C" {
     fn wfv_get_tid() -> int;
-    fn expf(float) -> float;
-    fn powf(float, float) -> float;
-    fn sqrtf(float) -> float;
-    fn fabsf(float) -> float;
-    fn tanf(float) -> float;
-    fn atan2f(float, float) -> float;
-    fn sinf(float) -> float;
-    fn cosf(float) -> float;
-    fn erff(float) -> float;
-    fn floorf(float) -> float;
+    fn expf(f32) -> f32;
+    fn powf(f32, f32) -> f32;
+    fn sqrtf(f32) -> f32;
+    fn fabsf(f32) -> f32;
+    fn tanf(f32) -> f32;
+    fn atan2f(f32, f32) -> f32;
+    fn sinf(f32) -> f32;
+    fn cosf(f32) -> f32;
+    fn erff(f32) -> f32;
+    fn floorf(f32) -> f32;
+    fn exp(f64) -> f64;
+    fn pow(f64) -> f64;
+    fn sqrt(f64) -> f64;
+    fn fabs(f64) -> f64;
+    fn tan(f64) -> f64;
+    fn atan2(f64) -> f64;
+    fn sin(f64) -> f64;
+    fn cos(f64) -> f64;
+    fn erf(f64) -> f64;
+    fn floor(f64) -> f64;
 }
 
 extern "device" {
-    fn "llvm.fma.f32" fmaf(float, float, float) -> float;
-    fn "llvm.fmuladd.f32" madf(float, float, float) -> float;
+    fn "llvm.fma.f32" fmaf(f32, f32, f32) -> f32;
+    fn "llvm.fmuladd.f32" madf(f32, f32, f32) -> f32;
+    fn "llvm.fma.f64" fma(f64, f64, f64) -> f64;
+    fn "llvm.fmuladd.f64" mad(f64, f64, f64) -> f64;
 }
 
-fn rsqrtf(a: float) -> float { 1.0f / sqrtf(a) }
+fn rsqrtf(a: f32) -> f32 { 1.0f / sqrtf(a) }
+fn rsqrt(a: f64) -> f64 { 1.0 / sqrt(a) }
 
 fn get_vector_length() -> int { 8 }
 fn inner_loop(a : int, b : int, yield : fn(int, fn())) -> () {

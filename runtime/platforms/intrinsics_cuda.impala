@@ -1,18 +1,30 @@
 extern "device" {
     // no declarations are emitted for "device" functions
     fn __syncthreads() -> ();
-    fn expf(float) -> float;
-    fn powf(float, float) -> float;
-    fn rsqrtf(float) -> float;
-    fn sqrtf(float) -> float;
-    fn fabsf(float) -> float;
-    fn tanf(float) -> float;
-    fn atan2f(float, float) -> float;
-    fn sinf(float) -> float;
-    fn cosf(float) -> float;
-    fn erff(float) -> float;
-    fn floorf(float) -> float;
-    fn fmaf(float, float, float) -> float;
+    fn expf(f32) -> f32;
+    fn powf(f32, f32) -> f32;
+    fn rsqrtf(f32) -> f32;
+    fn sqrtf(f32) -> f32;
+    fn fabsf(f32) -> f32;
+    fn tanf(f32) -> f32;
+    fn atan2f(f32, f32) -> f32;
+    fn sinf(f32) -> f32;
+    fn cosf(f32) -> f32;
+    fn erff(f32) -> f32;
+    fn floorf(f32) -> f32;
+    fn fmaf(f32, f32, f32) -> f32;
+    fn exp(f64) -> f64;
+    fn pow(f64, f64) -> f64;
+    fn rsqrt(f64) -> f64;
+    fn sqrt(f64) -> f64;
+    fn fabs(f64) -> f64;
+    fn tan(f64) -> f64;
+    fn atan2(f64, f64) -> f64;
+    fn sin(f64) -> f64;
+    fn cos(f64) -> f64;
+    fn erf(f64) -> f64;
+    fn floor(f64) -> f64;
+    fn fma(f64, f64, f64) -> f64;
     // wrappers for threadIdx.x etc. are provided
     fn threadIdx_x() -> int;
     fn threadIdx_y() -> int;
@@ -49,5 +61,6 @@ fn acc_vector_length() -> int { 32 }
 fn acc_tex() -> int     { 2 }
 fn acc_dev() -> int     { 0 }
 
-fn madf(a : float, b : float, c : float) -> float { fmaf(a, b, c) }
+fn madf(a : f32, b : f32, c : f32) -> f32 { fmaf(a, b, c) }
+fn mad(a : f64, b : f64, c : f64) -> f64 { fma(a, b, c) }
 

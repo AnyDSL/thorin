@@ -288,31 +288,56 @@ fn acc_dev() -> int     { 0 }
 
 extern "C" {
     // libdevice intrinsics: http://docs.nvidia.com/cuda/libdevice-users-guide
-    fn __nv_expf(float) -> float;
-    fn __nv_powf(float, float) -> float;
-    fn __nv_rsqrtf(float) -> float;
-    fn __nv_sqrtf(float) -> float;
-    fn __nv_fabsf(float) -> float;
-    fn __nv_tanf(float) -> float;
-    fn __nv_atan2f(float, float) -> float;
-    fn __nv_sinf(float) -> float;
-    fn __nv_cosf(float) -> float;
-    fn __nv_erff(float) -> float;
-    fn __nv_floorf(float) -> float;
-    fn __nv_fmaf(float, float, float) -> float;
+    fn __nv_expf(f32) -> f32;
+    fn __nv_powf(f32, f32) -> f32;
+    fn __nv_rsqrtf(f32) -> f32;
+    fn __nv_sqrtf(f32) -> f32;
+    fn __nv_fabsf(f32) -> f32;
+    fn __nv_tanf(f32) -> f32;
+    fn __nv_atan2f(f32, f32) -> f32;
+    fn __nv_sinf(f32) -> f32;
+    fn __nv_cosf(f32) -> f32;
+    fn __nv_erff(f32) -> f32;
+    fn __nv_floorf(f32) -> f32;
+    fn __nv_fmaf(f32, f32, f32) -> f32;
+    fn __nv_exp(f64) -> f64;
+    fn __nv_pow(f64, f64) -> f64;
+    fn __nv_rsqrt(f64) -> f64;
+    fn __nv_sqrt(f64) -> f64;
+    fn __nv_fabs(f64) -> f64;
+    fn __nv_tan(f64) -> f64;
+    fn __nv_atan2(f64, f64) -> f64;
+    fn __nv_sin(f64) -> f64;
+    fn __nv_cos(f64) -> f64;
+    fn __nv_erf(f64) -> f64;
+    fn __nv_floor(f64) -> f64;
+    fn __nv_fma(f64, f64, f64) -> f64;
 }
 
-fn expf(a: float) -> float { __nv_expf(a) }
-fn powf(a: float, b: float) -> float { __nv_powf(a, b) }
-fn rsqrtf(a: float) -> float { __nv_rsqrtf(a) }
-fn sqrtf(a: float) -> float { __nv_sqrtf(a) }
-fn fabsf(a: float) -> float { __nv_fabsf(a) }
-fn tanf(a: float) -> float { __nv_tanf(a) }
-fn atan2f(a: float, b: float) -> float { __nv_atan2f(a, b) }
-fn sinf(a: float) -> float { __nv_sinf(a) }
-fn cosf(a: float) -> float { __nv_cosf(a) }
-fn floorf(a: float) -> float { __nv_floorf(a) }
-fn erff(a: float) -> float { __nv_erff(a) }
-fn fmaf(a: float, b: float, c: float) -> float { __nv_fmaf(a, b, c) }
-fn madf(a: float, b: float, c: float) -> float { __nv_fmaf(a, b, c) }
+fn expf(a: f32) -> f32 { __nv_expf(a) }
+fn powf(a: f32, b: f32) -> f32 { __nv_powf(a, b) }
+fn rsqrtf(a: f32) -> f32 { __nv_rsqrtf(a) }
+fn sqrtf(a: f32) -> f32 { __nv_sqrtf(a) }
+fn fabsf(a: f32) -> f32 { __nv_fabsf(a) }
+fn tanf(a: f32) -> f32 { __nv_tanf(a) }
+fn atan2f(a: f32, b: f32) -> f32 { __nv_atan2f(a, b) }
+fn sinf(a: f32) -> f32 { __nv_sinf(a) }
+fn cosf(a: f32) -> f32 { __nv_cosf(a) }
+fn floorf(a: f32) -> f32 { __nv_floorf(a) }
+fn erff(a: f32) -> f32 { __nv_erff(a) }
+fn fmaf(a: f32, b: f32, c: f32) -> f32 { __nv_fmaf(a, b, c) }
+fn madf(a: f32, b: f32, c: f32) -> f32 { __nv_fmaf(a, b, c) }
+fn exp(a: f64) -> f64 { __nv_exp(a) }
+fn pow(a: f64, b: f64) -> f64 { __nv_pow(a, b) }
+fn rsqrt(a: f64) -> f64 { __nv_rsqrt(a) }
+fn sqrt(a: f64) -> f64 { __nv_sqrt(a) }
+fn fabs(a: f64) -> f64 { __nv_fabs(a) }
+fn tan(a: f64) -> f64 { __nv_tan(a) }
+fn atan2(a: f64, b: f64) -> f64 { __nv_atan2(a, b) }
+fn sin(a: f64) -> f64 { __nv_sin(a) }
+fn cos(a: f64) -> f64 { __nv_cos(a) }
+fn floor(a: f64) -> f64 { __nv_floor(a) }
+fn erf(a: f64) -> f64 { __nv_erf(a) }
+fn fma(a: f64, b: f64, c: f64) -> f64 { __nv_fma(a, b, c) }
+fn mad(a: f64, b: f64, c: f64) -> f64 { __nv_fma(a, b, c) }
 

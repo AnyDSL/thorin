@@ -1,4 +1,6 @@
 extern "device" {
+    // libdevice intrinsics: http://docs.nvidia.com/cuda/libdevice-users-guide
+    // 32-bit http://github.com/KhronosGroup/SPIR-Tools/wiki/SPIR-1.2-built-in-functions
     fn _Z12get_work_dimv() -> u32;
     fn _Z15get_global_sizej(u32) -> u64;
     fn _Z13get_global_idj(u32) -> u64;

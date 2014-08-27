@@ -80,14 +80,10 @@ Def Map::extract_mapped_ptr() const { return world().extract(this, 1); }
 Def Map::mem_out() const {
     auto uses = this->uses();
     assert(1 <= uses.size() && uses.size() <= 2);
-    if (uses[0]->type().isa<MemType>()) {
-        assert(uses[0]->isa<Extract>());
-        assert(uses[0]->num_uses() == 1);
-        return uses[0]->uses().front();
-    }
-    assert(uses[1]->isa<Extract>());
-    assert(uses[1]->num_uses() == 1);
-    return uses[1]->uses().front();
+    size_t i = uses[0]->type().isa<MemType>() ? 0 : 1;
+    assert(uses[i]->isa<Extract>());
+    assert(uses[i]->num_uses() == 1);
+    return uses[i];
 }
 
 Unmap::Unmap(Def mem, Def ptr, int32_t device, AddressSpace addr_space, const std::string &name)

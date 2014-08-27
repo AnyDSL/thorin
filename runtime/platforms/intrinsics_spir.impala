@@ -1,51 +1,64 @@
 extern "device" {
-    // libdevice intrinsics: http://docs.nvidia.com/cuda/libdevice-users-guide
-    // 32-bit http://github.com/KhronosGroup/SPIR-Tools/wiki/SPIR-1.2-built-in-functions
-    fn _Z12get_work_dimv() -> u32;
-    fn _Z15get_global_sizej(u32) -> u64;
-    fn _Z13get_global_idj(u32) -> u64;
-    fn _Z14get_local_sizej(u32) -> u64;
-    fn _Z12get_local_idj(u32) -> u64;
-    fn _Z14get_num_groupsj(u32) -> u64;
-    fn _Z12get_group_idj(u32) -> u64;
-    fn _Z17get_global_offsetj(u32) -> u64;
-    fn _Z7barrierj(u32) -> ();
-    fn _Z3expf(float) -> float;
-    fn _Z3powff(float, float) -> float;
-    fn _Z5rsqrtf(float) -> float;
-    fn _Z4sqrtf(float) -> float;
-    fn _Z4fabsf(float) -> float;
-    fn _Z3tanf(float) -> float;
-    fn _Z5atan2ff(float, float) -> float;
-    fn _Z3sinf(float) -> float;
-    fn _Z3cosf(float) -> float;
-    fn _Z3erff(float) -> float;
-    fn _Z5floorf(float) -> float;
-    fn _Z3fmafff(float, float, float) -> float;
-    fn _Z3madfff(float, float, float) -> float;
+    // 32-bit name-mangled SPIR built-in functions
+    // http://github.com/KhronosGroup/SPIR-Tools/wiki/SPIR-1.2-built-in-functions
+    fn _Z12get_work_dimv() -> i32;
+    fn _Z15get_global_sizej(i32) -> i64;
+    fn _Z13get_global_idj(i32) -> i64;
+    fn _Z14get_local_sizej(i32) -> i64;
+    fn _Z12get_local_idj(i32) -> i64;
+    fn _Z14get_num_groupsj(i32) -> i64;
+    fn _Z12get_group_idj(i32) -> i64;
+    fn _Z17get_global_offsetj(i32) -> i64;
+    fn _Z7barrierj(i32) -> ();
+    fn _Z3expf(f32) -> f32;
+    fn _Z3powff(f32, f32) -> f32;
+    fn _Z5rsqrtf(f32) -> f32;
+    fn _Z4sqrtf(f32) -> f32;
+    fn _Z4fabsf(f32) -> f32;
+    fn _Z3tanf(f32) -> f32;
+    fn _Z5atan2ff(f32, f32) -> f32;
+    fn _Z3sinf(f32) -> f32;
+    fn _Z3cosf(f32) -> f32;
+    fn _Z3erff(f32) -> f32;
+    fn _Z5floorf(f32) -> f32;
+    fn _Z3fmafff(f32, f32, f32) -> f32;
+    fn _Z3madfff(f32, f32, f32) -> f32;
+    fn _Z3expd(f64) -> f64;
+    fn _Z3powdd(f64, f64) -> f64;
+    fn _Z5rsqrtd(f64) -> f64;
+    fn _Z4sqrtd(f64) -> f64;
+    fn _Z4fabsd(f64) -> f64;
+    fn _Z3tand(f64) -> f64;
+    fn _Z5atan2dd(f64, f64) -> f64;
+    fn _Z3sind(f64) -> f64;
+    fn _Z3cosd(f64) -> f64;
+    fn _Z3erfd(f64) -> f64;
+    fn _Z5floord(f64) -> f64;
+    fn _Z3fmaddd(f64, f64, f64) -> f64;
+    fn _Z3madddd(f64, f64, f64) -> f64;
 }
 
-fn work_dim() -> int               { _Z12get_work_dimv() as int }
-fn global_size(idx : int) -> int   { _Z15get_global_sizej(idx as uint) as int }
-fn global_offset(idx : int) -> int { _Z17get_global_offsetj(idx as uint) as int }
+fn work_dim() -> int               { _Z12get_work_dimv()}
+fn global_size(idx : int) -> int   { _Z15get_global_sizej(idx) as int }
+fn global_offset(idx : int) -> int { _Z17get_global_offsetj(idx) as int }
 
 fn acc(dev : int, dim : (int, int, int), block : (int, int, int), body : fn() -> ()) -> () { spir(dev, dim, block, body) }
-fn acc_tidx() -> int    { _Z12get_local_idj(0u) as int }
-fn acc_tidy() -> int    { _Z12get_local_idj(1u) as int }
-fn acc_tidz() -> int    { _Z12get_local_idj(2u) as int }
-fn acc_bidx() -> int    { _Z12get_group_idj(0u) as int }
-fn acc_bidy() -> int    { _Z12get_group_idj(1u) as int }
-fn acc_bidz() -> int    { _Z12get_group_idj(2u) as int }
-fn acc_bdimx() -> int   { _Z14get_local_sizej(0u) as int }
-fn acc_bdimy() -> int   { _Z14get_local_sizej(1u) as int }
-fn acc_bdimz() -> int   { _Z14get_local_sizej(2u) as int }
-fn acc_gdimx() -> int   { _Z14get_num_groupsj(0u) as int }
-fn acc_gdimy() -> int   { _Z14get_num_groupsj(1u) as int }
-fn acc_gdimz() -> int   { _Z14get_num_groupsj(2u) as int }
-fn acc_gidx() -> int    { _Z13get_global_idj(0u) as int }
-fn acc_gidy() -> int    { _Z13get_global_idj(1u) as int }
-fn acc_gidz() -> int    { _Z13get_global_idj(2u) as int }
-fn acc_barrier() -> ()  { _Z7barrierj(1u) }  // CLK_LOCAL_MEM_FENCE -> 1 // CLK_GLOBAL_MEM_FENCE -> 2
+fn acc_tidx() -> int    { _Z12get_local_idj(0) as int }
+fn acc_tidy() -> int    { _Z12get_local_idj(1) as int }
+fn acc_tidz() -> int    { _Z12get_local_idj(2) as int }
+fn acc_bidx() -> int    { _Z12get_group_idj(0) as int }
+fn acc_bidy() -> int    { _Z12get_group_idj(1) as int }
+fn acc_bidz() -> int    { _Z12get_group_idj(2) as int }
+fn acc_bdimx() -> int   { _Z14get_local_sizej(0) as int }
+fn acc_bdimy() -> int   { _Z14get_local_sizej(1) as int }
+fn acc_bdimz() -> int   { _Z14get_local_sizej(2) as int }
+fn acc_gdimx() -> int   { _Z14get_num_groupsj(0) as int }
+fn acc_gdimy() -> int   { _Z14get_num_groupsj(1) as int }
+fn acc_gdimz() -> int   { _Z14get_num_groupsj(2) as int }
+fn acc_gidx() -> int    { _Z13get_global_idj(0) as int }
+fn acc_gidy() -> int    { _Z13get_global_idj(1) as int }
+fn acc_gidz() -> int    { _Z13get_global_idj(2) as int }
+fn acc_barrier() -> ()  { _Z7barrierj(1) }  // CLK_LOCAL_MEM_FENCE -> 1 // CLK_GLOBAL_MEM_FENCE -> 2
 fn acc_vector_length() -> int { 32 }
 fn acc_tex() -> int     { 1 }
 fn acc_dev() -> int     { 1 }
@@ -63,4 +76,17 @@ fn erff(a: f32) -> f32 { _Z3erff(a) }
 fn floorf(a: f32) -> f32 { _Z5floorf(a) }
 fn fmaf(a: f32, b: f32, c:f32) -> f32 { _Z3fmafff(a, b, c) }
 fn madf(a: f32, b: f32, c:f32) -> f32 { _Z3madfff(a, b, c) }
+fn exp(a: f64) -> f64 { _Z3expd(a) }
+fn pow(a: f64, b: f64) -> f64 { _Z3powdd(a, b) }
+fn rsqrt(a: f64) -> f64 { _Z5rsqrtd(a) }
+fn sqrt(a: f64) -> f64 { _Z4sqrtd(a) }
+fn fabs(a: f64) -> f64 { _Z4fabsd(a) }
+fn tan(a: f64) -> f64 { _Z3tand(a) }
+fn atan2(a: f64, b: f64) -> f64 { _Z5atan2dd(a, b) }
+fn sin(a: f64) -> f64 { _Z3sind(a) }
+fn cos(a: f64) -> f64 { _Z3cosd(a) }
+fn erf(a: f64) -> f64 { _Z3erfd(a) }
+fn floor(a: f64) -> f64 { _Z5floord(a) }
+fn fma(a: f64, b: f64, c:f64) -> f64 { _Z3fmaddd(a, b, c) }
+fn mad(a: f64, b: f64, c:f64) -> f64 { _Z3madddd(a, b, c) }
 

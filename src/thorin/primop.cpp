@@ -34,7 +34,7 @@ BinOp::BinOp(NodeKind kind, Type type, Def cond, Def lhs, Def rhs, const std::st
 }
 
 Cmp::Cmp(CmpKind kind, Def cond, Def lhs, Def rhs, const std::string& name)
-    : BinOp((NodeKind) kind, lhs->world().type_bool(lhs->type().as<PrimType>()->length()), cond, lhs, rhs, name)
+    : BinOp((NodeKind) kind, lhs->world().type_bool(lhs->type()->length()), cond, lhs, rhs, name)
 {
 }
 

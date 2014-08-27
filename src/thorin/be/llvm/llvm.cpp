@@ -437,6 +437,12 @@ llvm::Value* CodeGen::emit(Def def) {
                     case Cmp_lt: return builder_.CreateFCmpULT(lhs, rhs, name);
                     case Cmp_le: return builder_.CreateFCmpULE(lhs, rhs, name);
                 }
+            } else if (type.isa<PtrType>()) {
+                switch (cmp->cmp_kind()) {
+                    case Cmp_eq: return builder_.CreateICmpEQ (lhs, rhs, name);
+                    case Cmp_ne: return builder_.CreateICmpNE (lhs, rhs, name);
+                    default: THORIN_UNREACHABLE;
+                }
             }
         }
 

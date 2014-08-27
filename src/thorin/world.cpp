@@ -474,9 +474,9 @@ Def World::cmp(CmpKind kind, Def cond, Def a, Def b, const std::string& name) {
     if (a == b) {
         switch (kind) {
             case Cmp_lt:
-            case Cmp_eq:  return zero(type_bool());
+            case Cmp_ne:  return zero(type_bool());
             case Cmp_le:
-            case Cmp_ne:  return one(type_bool());
+            case Cmp_eq:  return one(type_bool());
             default: break;
         }
     }

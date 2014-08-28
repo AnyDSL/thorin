@@ -211,7 +211,7 @@ public:
     const Global* global(Def init, bool is_mutable = true, const std::string& name = "");
     const Global* global_immutable_string(const std::string& str, const std::string& name = "");
     Def load(Def mem, Def ptr, const std::string& name = "");
-    const Store* store(Def mem, Def ptr, Def val, const std::string& name = "");
+    Def store(Def mem, Def ptr, Def val, const std::string& name = "");
     const LEA* lea(Def ptr, Def index, const std::string& name = "");
     const Map* map(Def mem, Def ptr, Def device, Def addr_space, Def mem_offset, Def mem_size, const std::string& name = "");
     const Map* map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space, Def mem_offset, Def mem_size, const std::string& name = "");

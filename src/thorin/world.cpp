@@ -727,7 +727,9 @@ Def World::load(Def mem, Def ptr, const std::string& name) {
     return cse(new Load(mem, ptr, name));
 }
 
-const Store* World::store(Def mem, Def ptr, Def value, const std::string& name) {
+Def World::store(Def mem, Def ptr, Def value, const std::string& name) {
+    if (value->isa<Bottom>())
+        return mem;
     if (auto insert = value->isa<Insert>())
         return store(mem, lea(ptr, insert->index(), insert->name), value, name);
 

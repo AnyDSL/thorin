@@ -6,6 +6,7 @@
 #include "thorin/world.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/analyses/bb_schedule.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/top_level_scopes.h"
 #include "thorin/util/autoptr.h"
@@ -366,8 +367,9 @@ void CCodeGen::emit() {
         // never use early schedule here - this may break memory operations
         Schedule schedule = schedule_smart(scope);
 
+        auto bbs = bb_schedule(scope);
         // emit body for each bb
-        for (auto lambda : scope.rpo()) {
+        for (auto lambda : bbs) {
             if (lambda->empty())
                 continue;
             assert(lambda == scope.entry() || lambda->is_basicblock());

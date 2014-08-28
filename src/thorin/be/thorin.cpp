@@ -5,6 +5,7 @@
 #include "thorin/world.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/scope.h"
+#include "thorin/analyses/bb_schedule.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/top_level_scopes.h"
 #include "thorin/util/printer.h"
@@ -237,7 +238,8 @@ void emit_thorin(World& world, bool fancy, bool nocolor) {
     for (auto scope : top_level_scopes(world)) {
         const DomTree domtree(*scope);
         Schedule schedule = schedule_smart(*scope);
-        for (auto lambda : *scope) {
+        auto bbs = bb_schedule(*scope);
+        for (auto lambda : bbs) {
             int depth = fancy ? domtree.depth(lambda) : 0;
             cg.indent += depth;
             cg.newline();

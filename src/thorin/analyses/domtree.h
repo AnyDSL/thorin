@@ -14,14 +14,15 @@ class World;
 
 class DomNode {
 public:
-    explicit DomNode(Lambda* lambda) 
-        : lambda_(lambda) 
+    explicit DomNode(Lambda* lambda)
+        : lambda_(lambda)
         , idom_(nullptr)
     {}
 
     Lambda* lambda() const { return lambda_; }
     const DomNode* idom() const { return idom_; }
     const std::vector<const DomNode*>& children() const { return children_; }
+    size_t num_children() const { return children_.size(); }
     bool entry() const { return idom_ == this; }
     int depth() const;
     void dump() const;
@@ -43,8 +44,8 @@ public:
     int depth(Lambda* lambda) const { return lookup(lambda)->depth(); }
     /// Returns the least common ancestor of \p i and \p j.
     Lambda* lca(Lambda* i, Lambda* j) const { return lca(lookup(i), lookup(j))->lambda(); }
-    const DomNode* lca(const DomNode* i, const DomNode* j) const { 
-        return const_cast<DomTree*>(this)->lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j)); 
+    const DomNode* lca(const DomNode* i, const DomNode* j) const {
+        return const_cast<DomTree*>(this)->lca(const_cast<DomNode*>(i), const_cast<DomNode*>(j));
     }
     Lambda* idom(Lambda* lambda) const { return lookup(lambda)->idom()->lambda(); }
     const DomNode* lookup(Lambda* lambda) const { return find(map_, lambda); }

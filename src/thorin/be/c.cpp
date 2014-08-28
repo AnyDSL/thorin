@@ -744,13 +744,18 @@ std::ostream& CCodeGen::emit(Def def) {
         assert(!global->init()->isa_lambda() && "no global init lambda supported");
         if (lang_==CUDA) stream() << "__device__ ";
         if (lang_==OPENCL) stream() << "__constant ";
-        emit_type(global->referenced_type()) << " " << global->unique_name();
+        emit_type(global->referenced_type()) << " " << global->unique_name() << "_slot";
         if (global->init()->isa<Bottom>()) {
             stream() << ";";
         } else {
             stream() << " = ";
             emit(global->init()) << ";";
         }
+        newline();
+
+        if (lang_==CUDA) stream() << "__device__ ";
+        if (lang_==OPENCL) stream() << "__constant ";
+        emit_type(global->referenced_type()) << " *" << global->unique_name() << " = &" << global->unique_name() << "_slot;";
 
         insert(def->gid(), def->unique_name());
         return stream();

@@ -110,17 +110,17 @@ std::ostream& CCodeGen::emit_type(Type type) {
         return stream();
     } else if (auto primtype = type.isa<PrimType>()) {
         switch (primtype->primtype_kind()) {
-            case PrimType_bool:                     stream() << "bool";     break;
-            case PrimType_ps8:  case PrimType_qs8:  stream() << "char";     break;
-            case PrimType_pu8:  case PrimType_qu8:  stream() << "uchar";    break;
-            case PrimType_ps16: case PrimType_qs16: stream() << "short";    break;
-            case PrimType_pu16: case PrimType_qu16: stream() << "ushort";   break;
-            case PrimType_ps32: case PrimType_qs32: stream() << "int";      break;
-            case PrimType_pu32: case PrimType_qu32: stream() << "uint";     break;
-            case PrimType_ps64: case PrimType_qs64: stream() << "long";     break;
-            case PrimType_pu64: case PrimType_qu64: stream() << "ulong";    break;
-            case PrimType_pf32: case PrimType_qf32: stream() << "float";    break;
-            case PrimType_pf64: case PrimType_qf64: stream() << "double";   break;
+            case PrimType_bool:                     stream() << "bool";             break;
+            case PrimType_ps8:  case PrimType_qs8:  stream() << "char";             break;
+            case PrimType_pu8:  case PrimType_qu8:  stream() << "unsigned char";    break;
+            case PrimType_ps16: case PrimType_qs16: stream() << "short";            break;
+            case PrimType_pu16: case PrimType_qu16: stream() << "unsigned short";   break;
+            case PrimType_ps32: case PrimType_qs32: stream() << "int";              break;
+            case PrimType_pu32: case PrimType_qu32: stream() << "unsigned int";     break;
+            case PrimType_ps64: case PrimType_qs64: stream() << "long";             break;
+            case PrimType_pu64: case PrimType_qu64: stream() << "unsigned long";    break;
+            case PrimType_pf32: case PrimType_qf32: stream() << "float";            break;
+            case PrimType_pf64: case PrimType_qf64: stream() << "double";           break;
         }
         if (primtype->is_vector())
             stream() << primtype->length();

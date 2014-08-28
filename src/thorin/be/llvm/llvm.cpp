@@ -31,6 +31,7 @@
 #include "thorin/world.h"
 #include "thorin/util/array.h"
 #include "thorin/util/push.h"
+#include "thorin/analyses/bb_schedule.h"
 #include "thorin/analyses/schedule.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/top_level_scopes.h"
@@ -157,11 +158,12 @@ void CodeGen::emit(int opt) {
         }
         assert(ret_param);
 
-        BBMap bbs;
+        BBMap bb2lambda;
+        auto bbs = bb_schedule(scope);
 
-        for (auto lambda : scope.rpo()) {
+        for (auto lambda : bbs) {
             // map all bb-like lambdas to llvm bb stubs
-            auto bb = bbs[lambda] = llvm::BasicBlock::Create(context_, lambda->name, fct);
+            auto bb = bb2lambda[lambda] = llvm::BasicBlock::Create(context_, lambda->name, fct);
 
             // create phi node stubs (for all non-cascading lambdas different from entry)
             if (!lambda->is_cascading() && scope.entry() != lambda) {
@@ -180,11 +182,11 @@ void CodeGen::emit(int opt) {
         Schedule schedule = schedule_smart(scope);
 
         // emit body for each bb
-        for (auto lambda : scope.rpo()) {
+        for (auto lambda : bbs) {
             if (lambda->empty())
                 continue;
             assert(lambda == scope.entry() || lambda->is_basicblock());
-            builder_.SetInsertPoint(bbs[lambda]);
+            builder_.SetInsertPoint(bb2lambda[lambda]);
 
             for (auto primop : schedule[lambda]) {
                 // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
@@ -240,19 +242,19 @@ void CodeGen::emit(int opt) {
                 }
             } else if (auto select = lambda->to()->isa<Select>()) { // conditional branch
                 llvm::Value* cond = lookup(select->cond());
-                llvm::BasicBlock* tbb = bbs[select->tval()->as_lambda()];
-                llvm::BasicBlock* fbb = bbs[select->fval()->as_lambda()];
+                llvm::BasicBlock* tbb = bb2lambda[select->tval()->as_lambda()];
+                llvm::BasicBlock* fbb = bb2lambda[select->fval()->as_lambda()];
                 builder_.CreateCondBr(cond, tbb, fbb);
             } else if (lambda->to()->isa<Bottom>()) {
                 builder_.CreateUnreachable();
             } else {
                 Lambda* to_lambda = lambda->to()->as_lambda();
                 if (to_lambda->is_basicblock())         // ordinary jump
-                    builder_.CreateBr(bbs[to_lambda]);
+                    builder_.CreateBr(bb2lambda[to_lambda]);
                 else {
                     if (to_lambda->is_builtin()) {
                         Lambda* ret_lambda = emit_builtin(fct, lambda);
-                        builder_.CreateBr(bbs[ret_lambda]);
+                        builder_.CreateBr(bb2lambda[ret_lambda]);
                     } else {
                         // put all first-order args into an array
                         std::vector<llvm::Value*> args;
@@ -284,7 +286,7 @@ void CodeGen::emit(int opt) {
                             if (param == nullptr && succ->num_params() == 2)
                                 param = succ->param(1);
 
-                            builder_.CreateBr(bbs[succ]);
+                            builder_.CreateBr(bb2lambda[succ]);
                             if (param) {
                                 auto i = phis_.find(param);
                                 if (i != phis_.end())
@@ -304,7 +306,7 @@ void CodeGen::emit(int opt) {
             llvm::PHINode* phi = p.second;
 
             for (auto peek : param->peek())
-                phi->addIncoming(lookup(peek.def()), bbs[peek.from()]);
+                phi->addIncoming(lookup(peek.def()), bb2lambda[peek.from()]);
         }
 
         params_.clear();

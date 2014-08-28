@@ -24,10 +24,12 @@ static Def2Lambda schedule_early(const Scope& scope) {
         if (auto primop = def->isa<PrimOp>()) {
             int num = 0;
             for (auto op : primop->ops()) {
-                if (scope.contains(op) && !op->isa_lambda())
+                if (scope.contains(op) && !op->isa_lambda() && def2early.find(op) == def2early.end())
                     ++num;
             }
-            if (num != 0) // in scope but no operands
+            if (num == 0) // in scope but no operands
+                def2early[def] = scope.entry();
+            else
                 def2num[def] = num;
         }
     }
@@ -194,7 +196,9 @@ Schedule schedule_smart(const Scope& scope) {
 
     for (auto lambda : scope) {
         for (auto primop : late[lambda]) {
+            assert(scope.contains(primop));
             auto lambda_early = def2early[primop];
+            assert(lambda_early != nullptr);
             auto lambda_best = lambda;
             int depth = looptree.depth(lambda_best);
             for (auto i = lambda_best; i != lambda_early;) {

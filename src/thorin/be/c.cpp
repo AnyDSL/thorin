@@ -482,6 +482,15 @@ void CCodeGen::emit() {
                                 newline();
                                 emit(param) << " = ";
                             }
+
+                            // emit temporaries for args
+                            for (auto arg : lambda->args()) {
+                                if (arg->order() == 0 && !arg->type().isa<MemType>() && !lookup(arg->gid())) {
+                                    emit(arg);
+                                    newline();
+                                }
+                            }
+
                             if (to_lambda->attribute().is(Lambda::Extern | Lambda::Device))
                                 stream() << to_lambda->name << "(";
                             else

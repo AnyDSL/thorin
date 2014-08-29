@@ -478,19 +478,20 @@ void CCodeGen::emit() {
                             if (param == nullptr && succ->num_params() == 2)
                                 param = succ->param(1);
 
+                            // emit temporaries for args
+                            for (auto arg : lambda->args()) {
+                                if (arg->order() == 0 && !arg->type().isa<MemType>() &&
+                                    !lookup(arg->gid()) && !arg->isa<PrimLit>()) {
+                                    emit(arg);
+                                    newline();
+                                }
+                            }
+
                             if (param) {
                                 emit_type(param->type()) << " ";
                                 emit(param) << ";";
                                 newline();
                                 emit(param) << " = ";
-                            }
-
-                            // emit temporaries for args
-                            for (auto arg : lambda->args()) {
-                                if (arg->order() == 0 && !arg->type().isa<MemType>() && !lookup(arg->gid())) {
-                                    emit(arg);
-                                    newline();
-                                }
                             }
 
                             if (to_lambda->attribute().is(Lambda::Extern | Lambda::Device))

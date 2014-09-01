@@ -838,7 +838,7 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type) {
         case Node_Map:      assert(ops.size() == 4); return to.map(     ops[0], ops[1],
                                     in->as<Map>()->device(), in->as<Map>()->addr_space(), ops[2], ops[3], name);
         case Node_Unmap:    assert(ops.size() == 2); return to.unmap(   ops[0], ops[1],
-                                    in->as<Map>()->device(), in->as<Map>()->addr_space(),  name);
+                                    in->as<Unmap>()->device(), in->as<Unmap>()->addr_space(),  name);
         case Node_Run:      assert(ops.size() == 1); return to.run(     ops[0], name);
         case Node_Select:   assert(ops.size() == 3); return to.select(  ops[0], ops[1], ops[2], name);
         case Node_Store:    assert(ops.size() == 3); return to.store(   ops[0], ops[1], ops[2], name);

@@ -36,7 +36,7 @@ void spir_synchronize(size_t dev);
 
 // runtime functions
 mem_id map_memory(size_t dev, size_t type_, void *from, int offset, int size);
-void unmap_memory(size_t dev, size_t type_, mem_id mem);
+void unmap_memory(mem_id mem);
 
 }
 

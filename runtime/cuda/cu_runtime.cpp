@@ -219,6 +219,20 @@ class Memory {
         void *host_ptr = (char*)host + mmap[dev][id].offset;
         write_memory(dev, mmap[dev][id].gpu, host_ptr, mmap[dev][id].size);
     }
+
+    void munmap(mem_id id) {
+        size_t dev = 0;
+        for (auto dmap : mmap) {
+            if (dmap.count(id)) {
+                std::cerr << " * munmap memory(" << dev << "): " << id << std::endl;
+                read(dev, id);
+                free(dev, id);
+                return;
+            }
+            dev++;
+        }
+        assert(false && "cannot find mapped device memory");
+    }
 };
 Memory mem_manager;
 
@@ -793,9 +807,4 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int offset, int size) {
 
     return mem;
 }
-void unmap_memory(size_t dev, size_t /*type_*/, mem_id mem) {
-    check_dev(dev);
-    mem_manager.read(dev, mem);
-    std::cerr << " * unmap memory(" << dev << "):  " << mem << std::endl;
-    // TODO: mark device memory as unmapped
-}
+void unmap_memory(mem_id mem) { mem_manager.munmap(mem); }

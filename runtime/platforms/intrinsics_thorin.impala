@@ -1,6 +1,6 @@
 extern "thorin" {
     fn mmap(&[float], int, int, int, int) -> &[float];
-    fn munmap(&[float], int, int) -> ();
+    fn munmap(&[float]) -> ();
 
     fn cuda(int, (int, int, int), (int, int, int), fn() -> ()) -> ();
     fn nvvm(int, (int, int, int), (int, int, int), fn() -> ()) -> ();

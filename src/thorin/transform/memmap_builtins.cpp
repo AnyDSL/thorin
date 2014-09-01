@@ -37,9 +37,7 @@ static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
         mapped = map;
     } else {
         mapped = world.unmap(ulambda->arg(0),  // memory
-                             ulambda->arg(1),  // source ptr
-                             ulambda->arg(2),  // target device (-1 for host device)
-                             ulambda->arg(3)); // address space
+                             ulambda->arg(1)); // source ptr
         ncont = drop(cont_scope, { mapped });
     }
 

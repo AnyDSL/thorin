@@ -97,14 +97,10 @@ public:
 
 class MapOp : public MemOp {
 protected:
-    MapOp(size_t size, NodeKind kind, Type type,
-          Def mem, Def ptr, int32_t device, AddressSpace addr_space, const std::string &name);
+    MapOp(size_t size, NodeKind kind, Type type, Def mem, Def ptr, const std::string &name);
 
 public:
     Def ptr() const { return op(1); }
-    PtrType ptr_type() const { return type().as<TupleType>()->arg(1).as<PtrType>(); }
-    AddressSpace addr_space() const { return ptr_type()->addr_space(); }
-    int32_t device() const { return ptr_type()->device(); }
 };
 
 class Map : public MapOp {
@@ -117,6 +113,9 @@ public:
     Def extract_mapped_ptr() const;
     Def mem_offset() const { return op(2); }
     Def mem_size() const { return op(3); }
+    PtrType ptr_type() const { return type().as<TupleType>()->arg(1).as<PtrType>(); }
+    AddressSpace addr_space() const { return ptr_type()->addr_space(); }
+    int32_t device() const { return ptr_type()->device(); }
     virtual bool has_mem_out() const { return true; }
     virtual Def mem_out() const override;
 
@@ -125,7 +124,7 @@ public:
 
 class Unmap : public MapOp {
 private:
-    Unmap(Def mem, Def ptr, int32_t device, AddressSpace addr_space, const std::string &name);
+    Unmap(Def mem, Def ptr, const std::string &name);
     virtual bool has_mem_out() const { return true; }
     virtual Def mem_out() const override { return this; }
 

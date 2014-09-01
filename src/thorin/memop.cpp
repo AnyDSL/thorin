@@ -55,8 +55,7 @@ MemOp::MemOp(size_t size, NodeKind kind, Type type, Def mem, const std::string& 
 
 //------------------------------------------------------------------------------
 
-MapOp::MapOp(size_t size, NodeKind kind, Type type,
-             Def mem, Def ptr, int32_t device, AddressSpace addr_space, const std::string &name)
+MapOp::MapOp(size_t size, NodeKind kind, Type type, Def mem, Def ptr, const std::string &name)
     : MemOp(size, kind, type, mem, name)
 {
     set_op(1, ptr);
@@ -64,7 +63,7 @@ MapOp::MapOp(size_t size, NodeKind kind, Type type,
 
 Map::Map(Def mem, Def ptr, int32_t device, AddressSpace addr_space,
          Def mem_offset, Def mem_size, const std::string &name)
-    : MapOp(4, Node_Map, Type(), mem, ptr, device, addr_space, name)
+    : MapOp(4, Node_Map, Type(), mem, ptr, name)
 {
     World& w = mem->world();
     set_type(w.tuple_type({ mem->type(),
@@ -86,8 +85,8 @@ Def Map::mem_out() const {
     return uses[i];
 }
 
-Unmap::Unmap(Def mem, Def ptr, int32_t device, AddressSpace addr_space, const std::string &name)
-    : MapOp(2, Node_Unmap, mem->type(), mem, ptr, device, addr_space, name)
+Unmap::Unmap(Def mem, Def ptr, const std::string &name)
+    : MapOp(2, Node_Unmap, mem->type(), mem, ptr, name)
 {}
 
 //------------------------------------------------------------------------------

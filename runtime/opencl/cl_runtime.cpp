@@ -171,7 +171,7 @@ class Memory {
             cl_mem_flags flags = CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR;
             cl_mem mem = malloc_buffer(dev, host_ptr, flags, size);
             id = map_memory(dev, host, mem, Global, offset, size);
-            std::cerr << " * malloc buffer(" << dev << "): " << mem << " (" << id << ") <-> host: " << host << std::endl;
+            std::cerr << " * malloc buffer(" << dev << "):  " << mem << " (" << id << ") <-> host: " << host << std::endl;
         }
         return id;
     }
@@ -181,7 +181,7 @@ class Memory {
     }
 
     void free(size_t dev, mem_id mem) {
-        std::cerr << " * free buffer(" << dev << "):   " << mem << std::endl;
+        std::cerr << " * free buffer(" << dev << "):    " << mem << std::endl;
         cl_mem dev_mem = get_dev_mem(dev, mem);
         free_buffer(dev, dev_mem);
         remove(dev, mem);
@@ -190,7 +190,7 @@ class Memory {
     void read(size_t dev, mem_id id) {
         assert(mmap[dev][id].cpu && "invalid host memory");
         void *host = mmap[dev][id].cpu;
-        std::cerr << " * read buffer(" << dev << "):   " << id << " -> " << host
+        std::cerr << " * read buffer(" << dev << "):    " << id << " -> " << host
                   << " [" << mmap[dev][id].offset << ":" << mmap[dev][id].size
                   << "]" << std::endl;
         void *host_ptr = (char*)host + mmap[dev][id].offset;
@@ -198,7 +198,7 @@ class Memory {
     }
     void write(size_t dev, mem_id id, void *host) {
         assert(host==mmap[dev][id].cpu && "invalid host memory");
-        std::cerr << " * write buffer(" << dev << "):  " << id << " <- " << host
+        std::cerr << " * write buffer(" << dev << "):   " << id << " <- " << host
                   << " [" << mmap[dev][id].offset << ":" << mmap[dev][id].size
                   << "]" << std::endl;
         void *host_ptr = (char*)host + mmap[dev][id].offset;
@@ -209,7 +209,7 @@ class Memory {
         size_t dev = 0;
         for (auto dmap : mmap) {
             if (dmap.count(id)) {
-                std::cerr << " * munmap buffer(" << dev << "): " << id << std::endl;
+                std::cerr << " * munmap buffer(" << dev << "):  " << id << std::endl;
                 read(dev, id);
                 free(dev, id);
                 return;
@@ -733,7 +733,7 @@ void set_config_size(size_t dev, size_t size_x, size_t size_y, size_t size_z) {
 
 
 void set_kernel_arg(size_t dev, void *param, size_t size) {
-    //std::cerr << " * set arg(" << dev << "):       " << param << std::endl;
+    //std::cerr << " * set arg(" << dev << "):        " << param << std::endl;
     #ifdef BENCH
     kernel_args.emplace_back(size, param);
     #else
@@ -745,7 +745,7 @@ void set_kernel_arg(size_t dev, void *param, size_t size) {
 
 void set_kernel_arg_map(size_t dev, mem_id mem) {
     cl_mem &dev_mem = mem_manager.get_dev_mem(dev, mem);
-    std::cerr << " * set arg map(" << dev << "):   " << mem << std::endl;
+    std::cerr << " * set arg map(" << dev << "):    " << mem << std::endl;
     set_kernel_arg(dev, &dev_mem, sizeof(dev_mem));
 }
 
@@ -755,6 +755,7 @@ void set_kernel_arg_const(size_t dev, void *param, size_t size) {
     cl_mem const_buf = malloc_buffer(dev, param, flags, size);
     kernel_structs_.push_back(const_buf);
     cl_mem &buf = kernel_structs_.back();
+    std::cerr << " * set arg const(" << dev << "):  " << buf << std::endl;
     set_kernel_arg(dev, &buf, sizeof(cl_mem));
 }
 
@@ -871,7 +872,7 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int offset, int size) {
 
     mem_id mem = mem_manager.get_id(dev, from);
     if (mem) {
-        std::cerr << " * map memory(" << dev << "):    returning old copy " << mem << " for " << from << std::endl;
+        std::cerr << " * map memory(" << dev << "):     returning old copy " << mem << " for " << from << std::endl;
         return mem;
     }
 
@@ -880,7 +881,7 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int offset, int size) {
             // mapping the whole memory
             mem = mem_manager.malloc(dev, from);
             mem_manager.write(dev, mem, from);
-            std::cerr << " * map memory(" << dev << "):    " << from << " -> " << mem << std::endl;
+            std::cerr << " * map memory(" << dev << "):     " << from << " -> " << mem << std::endl;
 
             #if 0
             cl_event event;
@@ -906,7 +907,7 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int offset, int size) {
             // mapping and slicing of a region
             mem = mem_manager.malloc(dev, from, offset, size);
             mem_manager.write(dev, mem, from);
-            std::cerr << " * map memory(" << dev << "):    " << from << " (" << offset << "x(" << size << ") -> " << mem << std::endl;
+            std::cerr << " * map memory(" << dev << "):     " << from << " (" << offset << "x(" << size << ") -> " << mem << std::endl;
 
             #if 0
             cl_mem_flags mem_flags = CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR;

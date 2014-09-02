@@ -150,6 +150,12 @@ std::ostream& CCodeGen::emit_aggop_defs(Def def) {
         newline();
     }
 
+    // argument is a cast
+    if (auto conv = def->isa<ConvOp>()) {
+        emit(conv);
+        newline();
+    }
+
     return stream();
 }
 
@@ -535,6 +541,9 @@ std::ostream& CCodeGen::emit(Def def) {
     if (lookup(def->gid())) return stream() << get_name(def->gid());
 
     if (auto bin = def->isa<BinOp>()) {
+        // emit definitions of inlined elements
+        emit_aggop_defs(bin->lhs());
+        emit_aggop_defs(bin->rhs());
         emit_type(bin->type()) << " " << bin->unique_name() << ";";
         newline() << bin->unique_name() << " = ";
         emit(bin->lhs());

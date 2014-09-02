@@ -665,12 +665,15 @@ std::ostream& CCodeGen::emit(Def def) {
 
     if (auto primlit = def->isa<PrimLit>()) {
         auto kind = primlit->primtype_kind();
-        if (kind == PrimType_bool) {
-            stream() << (primlit->bool_value() ? "true" : "false");
-        } else if (kind==PrimType_pf32 || kind==PrimType_qf32) {
+        if (kind == PrimType_bool) stream() << (primlit->bool_value() ? "true" : "false");
+        else if (kind == PrimType_qs8) stream() << (int) primlit->qs8_value();
+        else if (kind == PrimType_ps8) stream() << (int) primlit->ps8_value();
+        else if (kind == PrimType_qu8) stream() << (unsigned) primlit->qu8_value();
+        else if (kind == PrimType_pu8) stream() << (unsigned) primlit->pu8_value();
+        else if (kind == PrimType_pf32 || kind==PrimType_qf32) {
             stream() << std::fixed << primlit->pf32_value();
             if ((lang_==C99 || lang_==CUDA)) stream() << 'f';
-        } else if (kind==PrimType_pf64 || kind==PrimType_qf64) {
+        } else if (kind == PrimType_pf64 || kind==PrimType_qf64) {
             stream() << std::fixed << primlit->pf64_value();
         } else {
             switch (kind) {

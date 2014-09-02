@@ -799,7 +799,7 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int offset, int size) {
             // mapping and slicing of a region
             mem = mem_manager.malloc(dev, from, offset, size);
             mem_manager.write(dev, mem, from);
-            std::cerr << " * map memory(" << dev << "):    " << from << " (" << offset << "x(" << size << ") -> " << mem << std::endl;
+            std::cerr << " * map memory(" << dev << "):    " << from << " [" << offset << ":" << size << "] -> " << mem << std::endl;
         }
     } else {
         std::cerr << "unsupported memory: " << type << std::endl;

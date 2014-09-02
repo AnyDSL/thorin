@@ -767,6 +767,7 @@ mem_id map_memory(size_t dev, size_t type_, void *from, int offset, int size) {
     mem_type type = (mem_type)type_;
     assert(mem_manager.host_mem_size(from) && "memory not allocated by thorin");
     size_t from_size = mem_manager.host_mem_size(from);
+    if (size == 0) size = from_size-offset;
 
     mem_id mem = mem_manager.get_id(dev, from);
     if (mem) {

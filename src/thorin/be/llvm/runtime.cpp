@@ -66,9 +66,10 @@ Lambda* KernelRuntime::emit_host_code(CodeGen &code_gen, Lambda* lambda) {
         const auto target_val = code_gen.lookup(target_arg);
 
         // check device target
-        if (target_arg->type().isa<StructAppType>() ||
+        if (target_arg->type().isa<DefiniteArrayType>() ||
+            target_arg->type().isa<StructAppType>() ||
             target_arg->type().isa<TupleType>()) {
-            // struct|tuple
+            // definite array | struct | tuple
             auto alloca = code_gen.emit_alloca(target_val->getType(), target_arg->name);
             builder_.CreateStore(target_val, alloca);
             auto void_ptr = builder_.CreateBitCast(alloca, builder_.getInt8PtrTy());

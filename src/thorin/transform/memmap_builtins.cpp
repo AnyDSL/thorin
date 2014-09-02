@@ -14,7 +14,7 @@ static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
     bool is_unmap = lambda->intrinsic().is(Lambda::Munmap);
     assert(is_map ^ is_unmap  && "invalid map function");
     assert((is_unmap || lambda->num_params() == 7) && "invalid signature");
-    assert((is_map   || lambda->num_params() == 5) && "invalid signature");
+    assert((is_map   || lambda->num_params() == 3) && "invalid signature");
     assert(lambda->param(1)->type().isa<PtrType>() && "invalid pointer type");
 
     auto uses = lambda->uses();
@@ -23,7 +23,7 @@ static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
     auto ulambda = uses.begin()->def()->as_lambda();
 
     const MapOp* mapped;
-    auto cont = ulambda->arg(is_map ? 6 : 4)->as_lambda(); // continuation
+    auto cont = ulambda->arg(is_map ? 6 : 2)->as_lambda(); // continuation
     Scope cont_scope(cont);
     Lambda* ncont;
     if (is_map) {
@@ -37,9 +37,7 @@ static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
         mapped = map;
     } else {
         mapped = world.unmap(ulambda->arg(0),  // memory
-                             ulambda->arg(1),  // source ptr
-                             ulambda->arg(2),  // target device (-1 for host device)
-                             ulambda->arg(3)); // address space
+                             ulambda->arg(1)); // source ptr
         ncont = drop(cont_scope, { mapped });
     }
 

@@ -215,8 +215,7 @@ public:
     const LEA* lea(Def ptr, Def index, const std::string& name = "");
     const Map* map(Def mem, Def ptr, Def device, Def addr_space, Def mem_offset, Def mem_size, const std::string& name = "");
     const Map* map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space, Def mem_offset, Def mem_size, const std::string& name = "");
-    const Unmap* unmap(Def mem, Def ptr, Def device, Def addr_space, const std::string& name = "");
-    const Unmap* unmap(Def mem, Def ptr, uint32_t device, AddressSpace addr_space, const std::string& name = "");
+    const Unmap* unmap(Def mem, Def ptr, const std::string& name = "");
 
     // guided partial evaluation
 

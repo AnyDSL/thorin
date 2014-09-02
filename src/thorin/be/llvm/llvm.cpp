@@ -767,7 +767,7 @@ llvm::Value* CodeGen::emit_mmap(Def def) {
 llvm::Value* CodeGen::emit_munmap(Def def) {
     auto munmap = def->as<Unmap>();
     // emit proper runtime call
-    return runtime_->munmap(munmap->device(), (uint32_t)munmap->addr_space(), lookup(munmap->ptr()));
+    return runtime_->munmap(lookup(munmap->ptr()));
 }
 
 // TODO factor emit_shared_map/emit_shared_unmap with the help of its base class MapOp

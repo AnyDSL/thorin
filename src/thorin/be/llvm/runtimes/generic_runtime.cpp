@@ -23,13 +23,8 @@ llvm::Value* GenericRuntime::mmap(uint32_t device, uint32_t addr_space, llvm::Va
     return builder_.CreateCall(get("map_memory"), mmap_args);
 }
 
-llvm::Value* GenericRuntime::munmap(uint32_t device, uint32_t addr_space, llvm::Value* mem) {
-    llvm::Value* mmap_args[] = {
-        builder_.getInt32(device),
-        builder_.getInt32(addr_space),
-        mem,
-    };
-    return builder_.CreateCall(get("unmap_memory"), mmap_args);
+llvm::Value* GenericRuntime::munmap(llvm::Value* mem) {
+    return builder_.CreateCall(get("unmap_memory"), mem);
 }
 
 llvm::Value* GenericRuntime::parallel_create(llvm::Value* num_threads, llvm::Value* closure_ptr,

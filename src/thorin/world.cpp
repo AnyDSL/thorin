@@ -704,13 +704,8 @@ const Map* World::map(Def mem, Def ptr, Def device, Def addr_space, Def mem_offs
             (AddressSpace)addr_space->as<PrimLit>()->ps32_value().data(), mem_offset, mem_size, name);
 }
 
-const Unmap* World::unmap(Def mem, Def ptr, uint32_t device, AddressSpace addr_space, const std::string& name) {
-    return cse(new Unmap(mem, ptr, device, addr_space, name));
-}
-
-const Unmap* World::unmap(Def mem, Def ptr, Def device, Def addr_space, const std::string& name) {
-    return unmap(mem, ptr, device->as<PrimLit>()->ps32_value().data(),
-            (AddressSpace)addr_space->as<PrimLit>()->ps32_value().data(), name);
+const Unmap* World::unmap(Def mem, Def ptr, const std::string& name) {
+    return cse(new Unmap(mem, ptr, name));
 }
 
 Def World::load(Def mem, Def ptr, const std::string& name) {
@@ -837,8 +832,7 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type) {
         case Node_Load:     assert(ops.size() == 2); return to.load(    ops[0], ops[1], name);
         case Node_Map:      assert(ops.size() == 4); return to.map(     ops[0], ops[1],
                                     in->as<Map>()->device(), in->as<Map>()->addr_space(), ops[2], ops[3], name);
-        case Node_Unmap:    assert(ops.size() == 2); return to.unmap(   ops[0], ops[1],
-                                    in->as<Unmap>()->device(), in->as<Unmap>()->addr_space(),  name);
+        case Node_Unmap:    assert(ops.size() == 2); return to.unmap(   ops[0], ops[1], name);
         case Node_Run:      assert(ops.size() == 1); return to.run(     ops[0], name);
         case Node_Select:   assert(ops.size() == 3); return to.select(  ops[0], ops[1], ops[2], name);
         case Node_Store:    assert(ops.size() == 3); return to.store(   ops[0], ops[1], ops[2], name);

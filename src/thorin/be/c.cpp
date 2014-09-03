@@ -227,6 +227,9 @@ void CCodeGen::emit() {
         stream() << "__device__ int gridDim_y() { return gridDim.y; }\n";
         stream() << "__device__ int gridDim_z() { return gridDim.z; }\n";
     }
+    if (lang_==OPENCL) {
+        stream() << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
+    }
 
     auto scopes = top_level_scopes(world_);
 

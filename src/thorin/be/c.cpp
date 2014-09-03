@@ -587,20 +587,17 @@ std::ostream& CCodeGen::emit(Def def) {
         return stream();
     }
 
-    if (auto array = def->isa<DefiniteArray>()) {
-        if (array->is_const()) { // DefArray is mapped to a struct
-            // emit definitions of inlined elements
-            for (auto op : array->ops()) emit_aggop_defs(op);
+    if (auto array = def->isa<DefiniteArray>()) { // DefArray is mapped to a struct
+        // emit definitions of inlined elements
+        for (auto op : array->ops()) emit_aggop_defs(op);
 
-            emit_type(array->type()) << " " << array->unique_name() << ";";
-            for (size_t i = 0, e = array->size(); i != e; ++i) {
-                newline() << array->unique_name() << ".e[" << i << "] = ";
-                emit(array->op(i)) << ";";
-            }
-            insert(def->gid(), def->unique_name());
-            return stream();
+        emit_type(array->type()) << " " << array->unique_name() << ";";
+        for (size_t i = 0, e = array->size(); i != e; ++i) {
+            newline() << array->unique_name() << ".e[" << i << "] = ";
+            emit(array->op(i)) << ";";
         }
-        THORIN_UNREACHABLE;
+        insert(def->gid(), def->unique_name());
+        return stream();
     }
 
     if (auto agg = def->isa<Aggregate>()) {

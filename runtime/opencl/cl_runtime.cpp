@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <list>
 #include <unordered_map>
 #include <vector>
 
@@ -47,7 +48,7 @@ std::vector<cl_context> contexts_;
 std::vector<cl_command_queue> command_queues_;
 std::vector<cl_kernel> kernels_;
 std::vector<std::unordered_map<std::string, cl_kernel>> kernel_cache_;
-std::vector<cl_mem> kernel_structs_;
+std::list<cl_mem> kernel_structs_;
 int clArgIdx;
 size_t local_work_size[3], global_work_size[3];
 
@@ -743,17 +744,17 @@ void set_kernel_arg(size_t dev, void *param, size_t size) {
 }
 
 
-void set_kernel_arg_map(size_t dev, mem_id mem) {
-    cl_mem &dev_mem = mem_manager.get_dev_mem(dev, mem);
-    std::cerr << " * set arg map(" << dev << "):    " << mem << std::endl;
-    set_kernel_arg(dev, &dev_mem, sizeof(dev_mem));
+void set_kernel_arg_map(size_t dev, mem_id id) {
+    cl_mem &mem = mem_manager.get_dev_mem(dev, id);
+    std::cerr << " * set arg map(" << dev << "):    " << id << std::endl;
+    set_kernel_arg(dev, &mem, sizeof(cl_mem));
 }
 
 
 void set_kernel_arg_const(size_t dev, void *param, size_t size) {
     cl_mem_flags flags = CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR;
     cl_mem const_buf = malloc_buffer(dev, param, flags, size);
-    kernel_structs_.push_back(const_buf);
+    kernel_structs_.emplace_back(const_buf);
     cl_mem &buf = kernel_structs_.back();
     std::cerr << " * set arg const(" << dev << "):  " << buf << std::endl;
     set_kernel_arg(dev, &buf, sizeof(cl_mem));
@@ -763,7 +764,7 @@ void set_kernel_arg_const(size_t dev, void *param, size_t size) {
 void set_kernel_arg_struct(size_t dev, void *param, size_t size) {
     cl_mem_flags flags = CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR;
     cl_mem struct_buf = malloc_buffer(dev, param, flags, size);
-    kernel_structs_.push_back(struct_buf);
+    kernel_structs_.emplace_back(struct_buf);
     cl_mem &buf = kernel_structs_.back();
     std::cerr << " * set arg struct(" << dev << "): " << buf << std::endl;
     set_kernel_arg(dev, &buf, sizeof(cl_mem));
@@ -781,8 +782,9 @@ void launch_kernel(size_t dev, std::string kernel_name) {
     std::vector<float> timings;
     for (size_t iter=0; iter<7; ++iter) {
         // set kernel arguments
-        for (size_t j=0; j<kernel_args.size(); ++j) {
-            err |= clSetKernelArg(kernels_[dev], j, kernel_args[j].first, kernel_args[j].second);
+        size_t arg_index = 0;
+        for (auto arg : kernel_args) {
+            err |= clSetKernelArg(kernels_[dev], arg_index++, arg.first, arg.second);
         }
         checkErr(err, "clSetKernelArg()");
     #endif

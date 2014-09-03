@@ -351,11 +351,34 @@ void CCodeGen::emit() {
                 // skip arrays bound to texture memory
                 if (is_texture_type(param->type())) continue;
                 if (i++ > 0) stream() << ", ";
-                emit_type(param->type()) << " " << param->unique_name();
+                if (lang_==OPENCL && lambda->attribute().is(Lambda::KernelEntry) &&
+                    (param->type().isa<DefiniteArrayType>() ||
+                     param->type().isa<StructAppType>() ||
+                     param->type().isa<TupleType>())) {
+                    // structs are passed via buffer; the parameter is a pointer to this buffer
+                    stream() << "__global ";
+                    emit_type(param->type()) << " *" << param->unique_name() << "_";
+                } else {
+                    emit_type(param->type()) << " " << param->unique_name();
+                }
             }
         }
         stream() << ") {";
         ++indent;
+
+        // emit and store all first-order params
+        for (auto param : lambda->params()) {
+            if (param->order() == 0 && !param->type().isa<MemType>()) {
+                if (lang_==OPENCL && lambda->attribute().is(Lambda::KernelEntry) &&
+                    (param->type().isa<DefiniteArrayType>() ||
+                     param->type().isa<StructAppType>() ||
+                     param->type().isa<TupleType>())) {
+                    // load struct from buffer
+                    newline();
+                    emit_type(param->type()) << " " << param->unique_name() << " = *" << param->unique_name() << "_;";
+                }
+            }
+        }
 
         for (auto lambda : scope.rpo()) {
             // dump declarations for variables set in gotos

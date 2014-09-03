@@ -280,12 +280,9 @@ void CCodeGen::emit() {
             }
         }
         auto ret_fn_type = ret_param->type().as<FnType>();
-        if (lambda->attribute().is(Lambda::KernelEntry)) {
-            if (lang_==CUDA) stream() << "__global__ ";
-            if (lang_==OPENCL) stream() << "__kernel ";
-        } else {
-            if (lang_==CUDA) stream() << "__device__ ";
-        }
+        if (lambda->attribute().is(Lambda::KernelEntry))
+            continue;
+        if (lang_==CUDA) stream() << "__device__ ";
         if (lambda->attribute().is(Lambda::Extern)) {
             emit_type(ret_fn_type->args().back()) << " " << lambda->name << "(";
         } else {

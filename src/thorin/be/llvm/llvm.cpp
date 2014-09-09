@@ -69,13 +69,13 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
 Lambda* CodeGen::emit_builtin(llvm::Function* current, Lambda* lambda) {
     Lambda* to = lambda->to()->as_lambda();
     switch (to->intrinsic()) {
-        case Lambda::CUDA:      return cuda_runtime_->emit_host_code(*this, lambda);
-        case Lambda::NVVM:      return nvvm_runtime_->emit_host_code(*this, lambda);
-        case Lambda::SPIR:      return spir_runtime_->emit_host_code(*this, lambda);
-        case Lambda::OPENCL:    return opencl_runtime_->emit_host_code(*this, lambda);
-        case Lambda::Parallel:  return runtime_->emit_parallel_start_code(*this, lambda);
+        case Intrinsic::CUDA:      return cuda_runtime_->emit_host_code(*this, lambda);
+        case Intrinsic::NVVM:      return nvvm_runtime_->emit_host_code(*this, lambda);
+        case Intrinsic::SPIR:      return spir_runtime_->emit_host_code(*this, lambda);
+        case Intrinsic::OPENCL:    return opencl_runtime_->emit_host_code(*this, lambda);
+        case Intrinsic::Parallel:  return runtime_->emit_parallel_start_code(*this, lambda);
 #ifdef WFV2_SUPPORT
-        case Lambda::Vectorize: return emit_vectorize(current, lambda);
+        case Intrinsic::Vectorize: return emit_vectorize(current, lambda);
 #endif
         default: THORIN_UNREACHABLE;
     }
@@ -917,13 +917,13 @@ void emit_llvm(World& world, int opt) {
     for (auto scope : top_level_scopes(world)) {
         auto lambda = scope->entry();
         Lambda* imported = nullptr;
-        if (lambda->is_connected_to_builtin(Lambda::CUDA))
+        if (lambda->is_connected_to_builtin(Intrinsic::CUDA))
             imported = import(cuda, lambda)->as_lambda();
-        else if (lambda->is_connected_to_builtin(Lambda::NVVM))
+        else if (lambda->is_connected_to_builtin(Intrinsic::NVVM))
             imported = import(nvvm, lambda)->as_lambda();
-        else if (lambda->is_connected_to_builtin(Lambda::SPIR))
+        else if (lambda->is_connected_to_builtin(Intrinsic::SPIR))
             imported = import(spir, lambda)->as_lambda();
-        else if (lambda->is_connected_to_builtin(Lambda::OPENCL))
+        else if (lambda->is_connected_to_builtin(Intrinsic::OPENCL))
             imported = import(opencl, lambda)->as_lambda();
         else
             continue;

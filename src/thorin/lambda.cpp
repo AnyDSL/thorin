@@ -136,17 +136,17 @@ Lambdas Lambda::direct_succs() const { return thorin::succs<true, false>(this); 
 Lambdas Lambda::indirect_preds() const { return thorin::preds<false, true>(this); }
 Lambdas Lambda::indirect_succs() const { return thorin::succs<false, true>(this); }
 
-bool Lambda::is_builtin() const { return intrinsic_ != None; }
+bool Lambda::is_builtin() const { return intrinsic_ != Intrinsic::None; }
 void Lambda::set_intrinsic() {
     attribute().set(Lambda::Thorin);
-    if      (name == "cuda")      intrinsic_ = CUDA;
-    else if (name == "nvvm")      intrinsic_ = NVVM;
-    else if (name == "spir")      intrinsic_ = SPIR;
-    else if (name == "opencl")    intrinsic_ = OPENCL;
-    else if (name == "parallel")  intrinsic_ = Parallel;
-    else if (name == "vectorize") intrinsic_ = Vectorize;
-    else if (name == "mmap")      intrinsic_ = Mmap;
-    else if (name == "munmap")    intrinsic_ = Munmap;
+    if      (name == "cuda")      intrinsic_ = Intrinsic::CUDA;
+    else if (name == "nvvm")      intrinsic_ = Intrinsic::NVVM;
+    else if (name == "spir")      intrinsic_ = Intrinsic::SPIR;
+    else if (name == "opencl")    intrinsic_ = Intrinsic::OPENCL;
+    else if (name == "parallel")  intrinsic_ = Intrinsic::Parallel;
+    else if (name == "vectorize") intrinsic_ = Intrinsic::Vectorize;
+    else if (name == "mmap")      intrinsic_ = Intrinsic::Mmap;
+    else if (name == "munmap")    intrinsic_ = Intrinsic::Munmap;
     else assert(false && "unsupported thorin intrinsic");
 }
 

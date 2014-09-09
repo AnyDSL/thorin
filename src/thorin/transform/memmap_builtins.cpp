@@ -10,8 +10,8 @@ namespace thorin {
 typedef std::vector<std::pair<Type, Use>> ToDo;
 
 static bool map_param(World& world, Lambda* lambda, ToDo& todo) {
-    bool is_map   = lambda->intrinsic() == Lambda::Mmap;
-    bool is_unmap = lambda->intrinsic() == Lambda::Munmap;
+    bool is_map   = lambda->intrinsic() == Intrinsic::Mmap;
+    bool is_unmap = lambda->intrinsic() == Intrinsic::Munmap;
     assert(is_map ^ is_unmap  && "invalid map function");
     assert((is_unmap || lambda->num_params() == 7) && "invalid signature");
     assert((is_map   || lambda->num_params() == 3) && "invalid signature");
@@ -104,7 +104,7 @@ void memmap_builtins(World& world) {
         // 1) look for "mapped" lambdas
         has_work = false;
         for (auto lambda : world.copy_lambdas()) {
-            if ((lambda->intrinsic() == Lambda::Mmap || lambda->intrinsic() == Lambda::Munmap) && map_param(world, lambda, todo))
+            if ((lambda->intrinsic() == Intrinsic::Mmap || lambda->intrinsic() == Intrinsic::Munmap) && map_param(world, lambda, todo))
                 has_work = true;
         }
         // 2) adapt mapped address spaces on users

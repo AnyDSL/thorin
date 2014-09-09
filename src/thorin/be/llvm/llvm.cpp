@@ -72,7 +72,7 @@ Lambda* CodeGen::emit_builtin(llvm::Function* current, Lambda* lambda) {
         case Intrinsic::CUDA:      return cuda_runtime_->emit_host_code(*this, lambda);
         case Intrinsic::NVVM:      return nvvm_runtime_->emit_host_code(*this, lambda);
         case Intrinsic::SPIR:      return spir_runtime_->emit_host_code(*this, lambda);
-        case Intrinsic::OPENCL:    return opencl_runtime_->emit_host_code(*this, lambda);
+        case Intrinsic::OpenCL:    return opencl_runtime_->emit_host_code(*this, lambda);
         case Intrinsic::Parallel:  return runtime_->emit_parallel_start_code(*this, lambda);
 #ifdef WFV2_SUPPORT
         case Intrinsic::Vectorize: return emit_vectorize(current, lambda);
@@ -923,7 +923,7 @@ void emit_llvm(World& world, int opt) {
             imported = import(nvvm, lambda)->as_lambda();
         else if (lambda->is_connected_to_builtin(Intrinsic::SPIR))
             imported = import(spir, lambda)->as_lambda();
-        else if (lambda->is_connected_to_builtin(Intrinsic::OPENCL))
+        else if (lambda->is_connected_to_builtin(Intrinsic::OpenCL))
             imported = import(opencl, lambda)->as_lambda();
         else
             continue;

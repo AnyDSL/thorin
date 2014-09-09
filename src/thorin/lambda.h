@@ -20,7 +20,7 @@ enum class Intrinsic : uint8_t {
     CUDA,       ///< Internal CUDA-Backend.
     NVVM,       ///< Internal NNVM-Backend.
     SPIR,       ///< Internal SPIR-Backend.
-    OPENCL,     ///< Internal OpenCL-Backend.
+    OpenCL,     ///< Internal OpenCL-Backend.
     Parallel,   ///< Internal Parallel-CPU-Backend.
     Vectorize,  ///< External vectorizer.
     Mmap,       ///< Intrinsic memory-mapping function.

@@ -142,7 +142,7 @@ void Lambda::set_intrinsic() {
     if      (name == "cuda")      intrinsic_ = Intrinsic::CUDA;
     else if (name == "nvvm")      intrinsic_ = Intrinsic::NVVM;
     else if (name == "spir")      intrinsic_ = Intrinsic::SPIR;
-    else if (name == "opencl")    intrinsic_ = Intrinsic::OPENCL;
+    else if (name == "opencl")    intrinsic_ = Intrinsic::OpenCL;
     else if (name == "parallel")  intrinsic_ = Intrinsic::Parallel;
     else if (name == "vectorize") intrinsic_ = Intrinsic::Vectorize;
     else if (name == "mmap")      intrinsic_ = Intrinsic::Mmap;

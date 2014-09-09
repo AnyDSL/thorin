@@ -15,6 +15,18 @@ typedef std::vector<Lambda*> Lambdas;
 
 //------------------------------------------------------------------------------
 
+enum class Intrinsic : uint8_t {
+    None,       ///< Not an intrinsic.
+    CUDA,       ///< Internal CUDA-Backend.
+    NVVM,       ///< Internal NNVM-Backend.
+    SPIR,       ///< Internal SPIR-Backend.
+    OPENCL,     ///< Internal OpenCL-Backend.
+    Parallel,   ///< Internal Parallel-CPU-Backend.
+    Vectorize,  ///< External vectorizer.
+    Mmap,       ///< Intrinsic memory-mapping function.
+    Munmap,     ///< Intrinsic memory-unmapping function.
+};
+
 class Lambda : public DefNode {
 public:
     enum AttrKind {
@@ -22,18 +34,6 @@ public:
         Device       = 1 <<  1, ///< Flag for intrinsic function with device calling convention.
         Thorin       = 1 <<  2, ///< Flag for intrinsic function provided by thorin.
         KernelEntry  = 1 <<  3, ///< Flag for the kernel lambda.
-    };
-
-    enum Intrinsic {
-        None,       ///< Not an intrinsic.
-        CUDA,       ///< Internal CUDA-Backend.
-        NVVM,       ///< Internal NNVM-Backend.
-        SPIR,       ///< Internal SPIR-Backend.
-        OPENCL,     ///< Internal OpenCL-Backend.
-        Parallel,   ///< Internal Parallel-CPU-Backend.
-        Vectorize,  ///< External vectorizer.
-        Mmap,       ///< Intrinsic memory-mapping function.
-        Munmap,     ///< Intrinsic memory-unmapping function.
     };
 
     struct Attribute {

@@ -229,9 +229,9 @@ public:
 
     // lambdas
 
-    Lambda* lambda(FnType fn, Lambda::Attribute attribute = Lambda::Attribute(0), Lambda::Intrinsic intrinsic = Lambda::None, const std::string& name = "");
-    Lambda* lambda(FnType fn, const std::string& name) { return lambda(fn, Lambda::Attribute(0), Lambda::None, name); }
-    Lambda* lambda(const std::string& name) { return lambda(fn_type(), Lambda::Attribute(0), Lambda::None, name); }
+    Lambda* lambda(FnType fn, Lambda::Attribute attribute = Lambda::Attribute(0), Intrinsic intrinsic = Intrinsic::None, const std::string& name = "");
+    Lambda* lambda(FnType fn, const std::string& name) { return lambda(fn, Lambda::Attribute(0), Intrinsic::None, name); }
+    Lambda* lambda(const std::string& name) { return lambda(fn_type(), Lambda::Attribute(0), Intrinsic::None, name); }
     Lambda* basicblock(const std::string& name = "");
     Lambda* meta_lambda();
 

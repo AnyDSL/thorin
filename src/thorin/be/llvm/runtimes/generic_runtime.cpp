@@ -48,7 +48,7 @@ Lambda* GenericRuntime::emit_parallel_start_code(CodeGen& code_gen, Lambda* lamb
     // to-target is the desired parallel-target call
     // target(mem, num_threads, body, return, free_vars)
     auto target = lambda->to()->as_lambda();
-    assert(target->is_builtin() && target->attribute().is(Lambda::Parallel));
+    assert(target->intrinsic() == Intrinsic::Parallel);
     assert(lambda->num_args() > 3 && "required arguments are missing");
 
     // get input

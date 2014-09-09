@@ -9,32 +9,32 @@ extern "device" {
     fn get_group_id(u32) -> u64;
     fn get_global_offset(u32) -> u64;
     fn barrier(u32) -> ();
-    fn "exp" opencl_expf(f32) -> f32;
-    fn "pow" opencl_powf(f32, f32) -> f32;
-    fn "rsqrt" opencl_rsqrtf(f32) -> f32;
-    fn "sqrt" opencl_sqrtf(f32) -> f32;
-    fn "fabs" opencl_fabsf(f32) -> f32;
-    fn "tan" opencl_tanf(f32) -> f32;
-    fn "atan2" opencl_atan2f(f32, f32) -> f32;
-    fn "sin" opencl_sinf(f32) -> f32;
-    fn "cos" opencl_cosf(f32) -> f32;
-    fn "erf" opencl_erff(f32) -> f32;
-    fn "floor" opencl_floorf(f32) -> f32;
-    fn "fma" opencl_fmaf(f32, f32, f32) -> f32;
-    fn "mad" opencl_madf(f32, f32, f32) -> f32;
-    fn "exp" opencl_exp(f64) -> f64;
-    fn "pow" opencl_pow(f64, f64) -> f64;
-    fn "rsqrt" opencl_rsqrt(f64) -> f64;
-    fn "sqrt" opencl_sqrt(f64) -> f64;
-    fn "fabs" opencl_fabs(f64) -> f64;
-    fn "tan" opencl_tan(f64) -> f64;
-    fn "atan2" opencl_atan2(f64, f64) -> f64;
-    fn "sin" opencl_sin(f64) -> f64;
-    fn "cos" opencl_cos(f64) -> f64;
-    fn "erf" opencl_erf(f64) -> f64;
-    fn "floor" opencl_floor(f64) -> f64;
-    fn "fma" opencl_fma(f64, f64, f64) -> f64;
-    fn "mad" opencl_mad(f64, f64, f64) -> f64;
+    fn "exp"    expf(f32) -> f32;
+    fn "pow"    powf(f32, f32) -> f32;
+    fn "rsqrt"  rsqrtf(f32) -> f32;
+    fn "sqrt"   sqrtf(f32) -> f32;
+    fn "fabs"   fabsf(f32) -> f32;
+    fn "tan"    tanf(f32) -> f32;
+    fn "atan2"  atan2f(f32, f32) -> f32;
+    fn "sin"    sinf(f32) -> f32;
+    fn "cos"    cosf(f32) -> f32;
+    fn "erf"    erff(f32) -> f32;
+    fn "floor"  floorf(f32) -> f32;
+    fn "fma"    fmaf(f32, f32, f32) -> f32;
+    fn "mad"    madf(f32, f32, f32) -> f32;
+    fn "exp"    exp(f64) -> f64;
+    fn "pow"    pow(f64, f64) -> f64;
+    fn "rsqrt"  rsqrt(f64) -> f64;
+    fn "sqrt"   sqrt(f64) -> f64;
+    fn "fabs"   fabs(f64) -> f64;
+    fn "tan"    tan(f64) -> f64;
+    fn "atan2"  atan2(f64, f64) -> f64;
+    fn "sin"    sin(f64) -> f64;
+    fn "cos"    cos(f64) -> f64;
+    fn "erf"    erf(f64) -> f64;
+    fn "floor"  floor(f64) -> f64;
+    fn "fma"    fma(f64, f64, f64) -> f64;
+    fn "mad"    mad(f64, f64, f64) -> f64;
 }
 
 fn work_dim() -> int               { get_work_dim() as int }
@@ -62,31 +62,4 @@ fn acc_vector_length() -> int { 32 }
 fn acc_mem() -> int     { 1 }
 fn acc_tex() -> int     { acc_mem() }
 fn acc_dev() -> int     { 1 }
-
-fn expf(a: f32) -> f32 { opencl_expf(a) }
-fn powf(a: f32, b: f32) -> f32 { opencl_powf(a, b) }
-fn rsqrtf(a: f32) -> f32 { opencl_rsqrtf(a) }
-fn sqrtf(a: f32) -> f32 { opencl_sqrtf(a) }
-fn fabsf(a: f32) -> f32 { opencl_fabsf(a) }
-fn tanf(a: f32) -> f32 { opencl_tanf(a) }
-fn atan2f(a: f32, b: f32) -> f32 { opencl_atan2f(a, b) }
-fn sinf(a: f32) -> f32 { opencl_sinf(a) }
-fn cosf(a: f32) -> f32 { opencl_cosf(a) }
-fn erff(a: f32) -> f32 { opencl_erff(a) }
-fn floorf(a: f32) -> f32 { opencl_floorf(a) }
-fn fmaf(a: f32, b: f32, c:f32) -> f32 { opencl_fmaf(a, b, c) }
-fn madf(a: f32, b: f32, c:f32) -> f32 { opencl_madf(a, b, c) }
-fn exp(a: f64) -> f64 { opencl_exp(a) }
-fn pow(a: f64, b: f64) -> f64 { opencl_pow(a, b) }
-fn rsqrt(a: f64) -> f64 { opencl_rsqrt(a) }
-fn sqrt(a: f64) -> f64 { opencl_sqrt(a) }
-fn fabs(a: f64) -> f64 { opencl_fabs(a) }
-fn tan(a: f64) -> f64 { opencl_tan(a) }
-fn atan2(a: f64, b: f64) -> f64 { opencl_atan2(a, b) }
-fn sin(a: f64) -> f64 { opencl_sin(a) }
-fn cos(a: f64) -> f64 { opencl_cos(a) }
-fn erf(a: f64) -> f64 { opencl_erf(a) }
-fn floor(a: f64) -> f64 { opencl_floor(a) }
-fn fma(a: f64, b: f64, c:f64) -> f64 { opencl_fma(a, b, c) }
-fn mad(a: f64, b: f64, c:f64) -> f64 { opencl_mad(a, b, c) }
 

@@ -136,17 +136,17 @@ Lambdas Lambda::direct_succs() const { return thorin::succs<true, false>(this); 
 Lambdas Lambda::indirect_preds() const { return thorin::preds<false, true>(this); }
 Lambdas Lambda::indirect_succs() const { return thorin::succs<false, true>(this); }
 
-bool Lambda::is_builtin() const { return intrinsic().is(Lambda::Builtin); }
+bool Lambda::is_builtin() const { return intrinsic_ != None; }
 void Lambda::set_intrinsic() {
     attribute().set(Lambda::Thorin);
-    if (name=="cuda") intrinsic().set(Lambda::CUDA);
-    else if (name=="nvvm") intrinsic().set(Lambda::NVVM);
-    else if (name=="spir") intrinsic().set(Lambda::SPIR);
-    else if (name=="opencl") intrinsic().set(Lambda::OPENCL);
-    else if (name=="parallel") intrinsic().set(Lambda::Parallel);
-    else if (name=="vectorize") intrinsic().set(Lambda::Vectorize);
-    else if (name=="mmap") intrinsic().set(Lambda::Mmap);
-    else if (name=="munmap") intrinsic().set(Lambda::Munmap);
+    if      (name == "cuda")      intrinsic_ = CUDA;
+    else if (name == "nvvm")      intrinsic_ = NVVM;
+    else if (name == "spir")      intrinsic_ = SPIR;
+    else if (name == "opencl")    intrinsic_ = OPENCL;
+    else if (name == "parallel")  intrinsic_ = Parallel;
+    else if (name == "vectorize") intrinsic_ = Vectorize;
+    else if (name == "mmap")      intrinsic_ = Mmap;
+    else if (name == "munmap")    intrinsic_ = Munmap;
     else assert(false && "unsupported thorin intrinsic");
 }
 
@@ -167,8 +167,8 @@ bool Lambda::is_connected_to_builtin() const {
     return aggregate_connected_builtins<bool>(this, false, [&](bool v, Lambda* lambda) { return true; });
 }
 
-bool Lambda::is_connected_to_builtin(uint32_t flags) const {
-    return aggregate_connected_builtins<bool>(this, false, [&](bool v, Lambda* lambda) { return v || lambda->intrinsic().is(flags); });
+bool Lambda::is_connected_to_builtin(Intrinsic intrinsic) const {
+    return aggregate_connected_builtins<bool>(this, false, [&](bool v, Lambda* lambda) { return v || lambda->intrinsic() == intrinsic; });
 }
 
 std::vector<Lambda*> Lambda::connected_to_builtin_lambdas() const {

@@ -68,24 +68,17 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
 
 Lambda* CodeGen::emit_builtin(llvm::Function* current, Lambda* lambda) {
     Lambda* to = lambda->to()->as_lambda();
-    if (to->intrinsic().is(Lambda::CUDA))
-        return cuda_runtime_->emit_host_code(*this, lambda);
-    if (to->intrinsic().is(Lambda::NVVM))
-        return nvvm_runtime_->emit_host_code(*this, lambda);
-    if (to->intrinsic().is(Lambda::SPIR))
-        return spir_runtime_->emit_host_code(*this, lambda);
-    if (to->intrinsic().is(Lambda::OPENCL))
-        return opencl_runtime_->emit_host_code(*this, lambda);
-    if (to->intrinsic().is(Lambda::Parallel))
-        return runtime_->emit_parallel_start_code(*this, lambda);
-
-    assert(to->intrinsic().is(Lambda::Vectorize));
+    switch (to->intrinsic()) {
+        case Lambda::CUDA:      return cuda_runtime_->emit_host_code(*this, lambda);
+        case Lambda::NVVM:      return nvvm_runtime_->emit_host_code(*this, lambda);
+        case Lambda::SPIR:      return spir_runtime_->emit_host_code(*this, lambda);
+        case Lambda::OPENCL:    return opencl_runtime_->emit_host_code(*this, lambda);
+        case Lambda::Parallel:  return runtime_->emit_parallel_start_code(*this, lambda);
 #ifdef WFV2_SUPPORT
-    return emit_vectorize(current, lambda);
-#else
-    assert(false && "vectorization not supported: missing WFV2");
-    return nullptr;
+        case Lambda::Vectorize: return emit_vectorize(current, lambda);
 #endif
+        default: THORIN_UNREACHABLE;
+    }
 }
 
 llvm::Function* CodeGen::emit_function_decl(std::string& name, Lambda* lambda) {

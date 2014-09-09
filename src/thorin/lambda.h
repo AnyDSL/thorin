@@ -19,21 +19,21 @@ class Lambda : public DefNode {
 public:
     enum AttrKind {
         Extern       = 1 <<  0, ///< Is the function visible in other translation units?
-        Device       = 1 <<  1, ///< Flag for intrinsic function with device calling convention
-        Thorin       = 1 <<  2, ///< Flag for intrinsic function provided by thorin
-        KernelEntry  = 1 <<  3, ///< Flag for the kernel lambda
+        Device       = 1 <<  1, ///< Flag for intrinsic function with device calling convention.
+        Thorin       = 1 <<  2, ///< Flag for intrinsic function provided by thorin.
+        KernelEntry  = 1 <<  3, ///< Flag for the kernel lambda.
     };
 
-    enum IntrinsicKind {
-        CUDA         = 1 <<  0, ///< Flag for the internal CUDA-Backend
-        NVVM         = 1 <<  1, ///< Flag for the internal NNVM-Backend
-        SPIR         = 1 <<  2, ///< Flag for the internal SPIR-Backend
-        OPENCL       = 1 <<  3, ///< Flag for the internal OpenCL-Backend
-        Parallel     = 1 <<  4, ///< Flag for the internal Parallel-CPU-Backend
-        Vectorize    = 1 <<  5, ///< Flag for the external vectorizer
-        Mmap         = 1 <<  6, ///< Flag for intrinsic memory-mapping function
-        Munmap       = 1 <<  7, ///< Flag for intrinsic memory-unmapping function
-        Builtin      = CUDA | NVVM | SPIR | OPENCL | Parallel | Vectorize
+    enum Intrinsic {
+        None,       ///< Not an intrinsic.
+        CUDA,       ///< Internal CUDA-Backend.
+        NVVM,       ///< Internal NNVM-Backend.
+        SPIR,       ///< Internal SPIR-Backend.
+        OPENCL,     ///< Internal OpenCL-Backend.
+        Parallel,   ///< Internal Parallel-CPU-Backend.
+        Vectorize,  ///< External vectorizer.
+        Mmap,       ///< Intrinsic memory-mapping function.
+        Munmap,     ///< Intrinsic memory-unmapping function.
     };
 
     struct Attribute {
@@ -53,7 +53,7 @@ public:
     };
 
 private:
-    Lambda(size_t gid, FnType fn, Attribute attribute, Attribute intrinsic, bool is_sealed, const std::string& name)
+    Lambda(size_t gid, FnType fn, Attribute attribute, Intrinsic intrinsic, bool is_sealed, const std::string& name)
         : DefNode(gid, Node_Lambda, 0, fn, true, name)
         , attribute_(attribute)
         , intrinsic_(intrinsic)
@@ -94,9 +94,9 @@ public:
     size_t num_params() const { return params().size(); }
     Attribute& attribute() { return attribute_; }
     const Attribute& attribute() const { return attribute_; }
-    Attribute& intrinsic() { return intrinsic_; }
-    const Attribute& intrinsic() const { return intrinsic_; }
-    void set_intrinsic();
+    Intrinsic& intrinsic() { return intrinsic_; }
+    Intrinsic intrinsic() const { return intrinsic_; }
+    void set_intrinsic(); ///< Sets \p intrinsic_ derived on this \p Lambda's \p name.
     /**
      * Is this Lambda part of a call-lambda-cascade? <br>
      * @code
@@ -108,7 +108,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     bool is_returning() const;
     bool is_builtin() const;
     bool is_connected_to_builtin() const;
-    bool is_connected_to_builtin(uint32_t flags) const;
+    bool is_connected_to_builtin(Intrinsic) const;
     std::vector<Lambda*> connected_to_builtin_lambdas() const;
     void dump_head() const;
     void dump_jump() const;
@@ -164,7 +164,7 @@ private:
     void increase_values(size_t handle) { if (handle >= values_.size()) values_.resize(handle+1); }
 
     Attribute attribute_;
-    Attribute intrinsic_;
+    Intrinsic intrinsic_;
     std::vector<const Param*> params_;
     /**
      * There exist three cases to distinguish here.

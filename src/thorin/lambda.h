@@ -106,10 +106,10 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     bool is_cascading() const;
     bool is_basicblock() const;
     bool is_returning() const;
-    bool is_builtin() const;
-    bool is_connected_to_builtin() const;
-    bool is_connected_to_builtin(Intrinsic) const;
-    std::vector<Lambda*> connected_to_builtin_lambdas() const;
+    bool is_intrinsic() const;
+    bool is_connected_to_intrinsic() const;
+    bool is_connected_to_intrinsic(Intrinsic) const;
+    std::vector<Lambda*> connected_to_intrinsic_lambdas() const;
     void dump_head() const;
     void dump_jump() const;
     void destroy_body();

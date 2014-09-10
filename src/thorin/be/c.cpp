@@ -255,7 +255,7 @@ void CCodeGen::emit() {
 
         // lambda declarations
         auto lambda = scope->entry();
-        if (lambda->is_builtin() || lambda->attribute().is(Lambda::Device))
+        if (lambda->is_intrinsic() || lambda->attribute().is(Lambda::Device))
             continue;
 
         // retrieve return param
@@ -317,13 +317,13 @@ void CCodeGen::emit() {
     }
 
     // emit connected functions first
-    std::stable_sort(scopes.begin(), scopes.end(), [] (Scope* s1, Scope* s2) { return s1->entry()->is_connected_to_builtin(); });
+    std::stable_sort(scopes.begin(), scopes.end(), [] (Scope* s1, Scope* s2) { return s1->entry()->is_connected_to_intrinsic(); });
     process_kernel = true;
 
     for (auto ptr_scope : scopes) {
         auto& scope = *ptr_scope;
         auto lambda = scope.entry();
-        if (lambda->is_builtin() || lambda->empty())
+        if (lambda->is_intrinsic() || lambda->empty())
             continue;
 
         assert(lambda->is_returning());
@@ -474,7 +474,7 @@ void CCodeGen::emit() {
                     }
                     emit(to_lambda);
                 } else {
-                    if (to_lambda->is_builtin()) {
+                    if (to_lambda->is_intrinsic()) {
                         THORIN_UNREACHABLE;
                     } else {
                         // retrieve return argument

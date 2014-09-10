@@ -9,7 +9,7 @@ namespace thorin {
 
 void lift_builtins(World& world) {
     for (auto cur : world.copy_lambdas()) {
-        if (cur->is_connected_to_builtin() && !cur->is_basicblock()) {
+        if (cur->is_connected_to_intrinsic() && !cur->is_basicblock()) {
             Scope scope(cur);
             auto vars = free_vars(scope);
 #ifndef NDEBUG
@@ -21,7 +21,7 @@ void lift_builtins(World& world) {
             for (auto use : cur->uses()) {
                 if (auto ulambda = use->isa_lambda()) {
                     if (auto to = ulambda->to()->isa_lambda()) {
-                        if (to->is_builtin()) {
+                        if (to->is_intrinsic()) {
                             auto oops = ulambda->ops();
                             Array<Def> nops(oops.size() + vars.size());
                             std::copy(oops.begin(), oops.end(), nops.begin());               // copy over old ops

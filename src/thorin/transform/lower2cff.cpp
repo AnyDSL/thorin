@@ -111,8 +111,8 @@ size_t CFFLowering::process() {
         Scope scope(top);
         for (auto i = scope.rbegin(), e = scope.rend(); i != e; ++i) {
             auto lambda = *i;
-            // check for builtin functionality
-            if (lambda->is_builtin() || lambda->is_connected_to_builtin())
+            // skip intrinsic and functions connected to intrinsics
+            if (lambda->is_intrinsic() || lambda->is_connected_to_intrinsic())
                 continue;
             if (lambda->num_params() != 0                           // is there sth to drop?
                 && (lambda->type()->is_polymorphic()                // drop polymorphic functions

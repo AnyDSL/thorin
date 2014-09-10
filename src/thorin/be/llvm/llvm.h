@@ -16,7 +16,7 @@ typedef LambdaMap<llvm::BasicBlock*> BBMap;
 
 class CodeGen {
 protected:
-    CodeGen(World& world, llvm::CallingConv::ID function_calling_convention, 
+    CodeGen(World& world, llvm::CallingConv::ID function_calling_convention,
             llvm::CallingConv::ID device_calling_convention, llvm::CallingConv::ID kernel_calling_convention);
 
 public:
@@ -47,7 +47,7 @@ protected:
     llvm::Value* emit_shared_munmap(Def def);
 
 private:
-    Lambda* emit_builtin(llvm::Function*, Lambda*);
+    Lambda* emit_intrinsic(llvm::Function*, Lambda*);
     Lambda* emit_vectorize(llvm::Function*, Lambda*);
 
 protected:

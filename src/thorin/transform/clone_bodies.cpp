@@ -6,7 +6,7 @@ namespace thorin {
 
 void clone_bodies(World& world) {
     for (auto lambda : world.copy_lambdas()) {
-        if (lambda->is_connected_to_builtin()) {
+        if (lambda->is_connected_to_intrinsic()) {
             Scope scope(lambda);
             bool first = true;
             for (auto use : lambda->uses()) {

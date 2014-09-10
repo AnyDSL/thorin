@@ -127,7 +127,7 @@ void PartialEvaluator::eval(const Run* cur_run, Lambda* cur) {
                 if (auto lambda = cur->args().back()->isa_lambda()) {
                     cur = lambda;
                     continue;
-                } else if (dst->is_builtin()) {
+                } else if (dst->is_intrinsic()) {
                     for (size_t i = cur->num_args(); i-- != 0;) {
                         if (auto lambda = cur->arg(i)->isa_lambda()) {
                             cur = lambda;

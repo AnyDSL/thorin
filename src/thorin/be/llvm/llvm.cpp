@@ -66,7 +66,7 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
     opencl_runtime_ = new OpenCLRuntime(context_, module_, builder_);
 }
 
-Lambda* CodeGen::emit_builtin(llvm::Function* current, Lambda* lambda) {
+Lambda* CodeGen::emit_intrinsic(llvm::Function* current, Lambda* lambda) {
     Lambda* to = lambda->to()->as_lambda();
     switch (to->intrinsic()) {
         case Intrinsic::CUDA:      return cuda_runtime_->emit_host_code(*this, lambda);
@@ -99,7 +99,7 @@ void CodeGen::emit(int opt) {
     // map all root-level lambdas to llvm function stubs
     for (auto scope : scopes) {
         auto lambda = scope->entry();
-        if (lambda->is_builtin())
+        if (lambda->is_intrinsic())
             continue;
         llvm::Function* f = nullptr;
         std::string name = lambda->unique_name();
@@ -112,7 +112,7 @@ void CodeGen::emit(int opt) {
     }
 
     // emit connected functions first
-    std::stable_sort(scopes.begin(), scopes.end(), [] (Scope* s1, Scope* s2) { return s1->entry()->is_connected_to_builtin(); });
+    std::stable_sort(scopes.begin(), scopes.end(), [] (Scope* s1, Scope* s2) { return s1->entry()->is_connected_to_intrinsic(); });
 
     for (auto ptr_scope : scopes) {
         auto& scope = *ptr_scope;
@@ -120,7 +120,7 @@ void CodeGen::emit(int opt) {
         current_kernel_ = nullptr;
         if (lambda->attribute().is(Lambda::KernelEntry))
             current_kernel_ = lambda;
-        if (lambda->is_builtin() || lambda->empty())
+        if (lambda->is_intrinsic() || lambda->empty())
             continue;
 
         assert(lambda->is_returning());
@@ -245,8 +245,8 @@ void CodeGen::emit(int opt) {
                 if (to_lambda->is_basicblock())         // ordinary jump
                     builder_.CreateBr(bb2lambda[to_lambda]);
                 else {
-                    if (to_lambda->is_builtin()) {
-                        Lambda* ret_lambda = emit_builtin(fct, lambda);
+                    if (to_lambda->is_intrinsic()) {
+                        Lambda* ret_lambda = emit_intrinsic(fct, lambda);
                         builder_.CreateBr(bb2lambda[ret_lambda]);
                     } else {
                         // put all first-order args into an array
@@ -917,13 +917,13 @@ void emit_llvm(World& world, int opt) {
     for (auto scope : top_level_scopes(world)) {
         auto lambda = scope->entry();
         Lambda* imported = nullptr;
-        if (lambda->is_connected_to_builtin(Intrinsic::CUDA))
+        if (lambda->is_connected_to_intrinsic(Intrinsic::CUDA))
             imported = import(cuda, lambda)->as_lambda();
-        else if (lambda->is_connected_to_builtin(Intrinsic::NVVM))
+        else if (lambda->is_connected_to_intrinsic(Intrinsic::NVVM))
             imported = import(nvvm, lambda)->as_lambda();
-        else if (lambda->is_connected_to_builtin(Intrinsic::SPIR))
+        else if (lambda->is_connected_to_intrinsic(Intrinsic::SPIR))
             imported = import(spir, lambda)->as_lambda();
-        else if (lambda->is_connected_to_builtin(Intrinsic::OpenCL))
+        else if (lambda->is_connected_to_intrinsic(Intrinsic::OpenCL))
             imported = import(opencl, lambda)->as_lambda();
         else
             continue;

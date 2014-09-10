@@ -136,7 +136,7 @@ Lambdas Lambda::direct_succs() const { return thorin::succs<true, false>(this); 
 Lambdas Lambda::indirect_preds() const { return thorin::preds<false, true>(this); }
 Lambdas Lambda::indirect_succs() const { return thorin::succs<false, true>(this); }
 
-bool Lambda::is_builtin() const { return intrinsic_ != Intrinsic::None; }
+bool Lambda::is_intrinsic() const { return intrinsic_ != Intrinsic::None; }
 void Lambda::set_intrinsic() {
     attribute().set(Lambda::Thorin);
     if      (name == "cuda")      intrinsic_ = Intrinsic::CUDA;
@@ -151,29 +151,29 @@ void Lambda::set_intrinsic() {
 }
 
 template<typename T>
-static bool aggregate_connected_builtins(const Lambda* lambda, T value, std::function<T(T, Lambda*)> func) {
-    if (!lambda->is_builtin()) {
+static bool aggregate_connected_intrinsics(const Lambda* lambda, T value, std::function<T(T, Lambda*)> func) {
+    if (!lambda->is_intrinsic()) {
         for (auto use : lambda->uses()) {
             if (auto lambda = (use->isa<Global>() ? *use->uses().begin() : use)->isa<Lambda>())
                 if (auto to_lambda = lambda->to()->isa_lambda())
-                    if (to_lambda->is_builtin())
+                    if (to_lambda->is_intrinsic())
                         value = func(value, to_lambda);
         }
     }
     return value;
 }
 
-bool Lambda::is_connected_to_builtin() const {
-    return aggregate_connected_builtins<bool>(this, false, [&](bool v, Lambda* lambda) { return true; });
+bool Lambda::is_connected_to_intrinsic() const {
+    return aggregate_connected_intrinsics<bool>(this, false, [&](bool v, Lambda* lambda) { return true; });
 }
 
-bool Lambda::is_connected_to_builtin(Intrinsic intrinsic) const {
-    return aggregate_connected_builtins<bool>(this, false, [&](bool v, Lambda* lambda) { return v || lambda->intrinsic() == intrinsic; });
+bool Lambda::is_connected_to_intrinsic(Intrinsic intrinsic) const {
+    return aggregate_connected_intrinsics<bool>(this, false, [&](bool v, Lambda* lambda) { return v || lambda->intrinsic() == intrinsic; });
 }
 
-std::vector<Lambda*> Lambda::connected_to_builtin_lambdas() const {
+std::vector<Lambda*> Lambda::connected_to_intrinsic_lambdas() const {
     std::vector<Lambda*> result;
-    aggregate_connected_builtins<bool>(this, false, [&](bool v, Lambda* lambda) { result.push_back(lambda); return true; });
+    aggregate_connected_intrinsics<bool>(this, false, [&](bool v, Lambda* lambda) { result.push_back(lambda); return true; });
     return result;
 }
 

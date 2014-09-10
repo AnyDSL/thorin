@@ -62,5 +62,7 @@ fn acc_barrier() -> ()  { _Z7barrierj(1) }  // CLK_LOCAL_MEM_FENCE -> 1 // CLK_G
 fn acc_vector_length() -> int { 32 }
 fn acc_mem() -> int     { 1 }
 fn acc_tex() -> int     { acc_mem() }
+fn acc_spm() -> int     { 3 }
+fn acc_cst() -> int     { 4 }
 fn acc_dev() -> int     { 1 }
 

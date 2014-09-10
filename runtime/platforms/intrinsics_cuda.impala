@@ -60,6 +60,8 @@ fn acc_barrier() -> ()  { __syncthreads() }
 fn acc_vector_length() -> int { 32 }
 fn acc_mem() -> int     { 1 }
 fn acc_tex() -> int     { 2 }
+fn acc_spm() -> int     { 3 }
+fn acc_cst() -> int     { 4 }
 fn acc_dev() -> int     { 0 }
 
 fn madf(a : f32, b : f32, c : f32) -> f32 { fmaf(a, b, c) }

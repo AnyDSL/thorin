@@ -10,14 +10,20 @@ if rttype in ("nvvm", "spir"):
         with open(filename) as f:
             for line in f:
                 # patch to opaque identity functions
-                m = re.match('^declare (.*) (.*) @(magic_.*_id)\((.*)\)\n$', line)
+                if rttype=="spir":
+                    m = re.match('^declare cc75 (.*) @(magic_.*_id)\((.*)\)\n$', line)
+                else:
+                    m = re.match('^declare (.*) @(magic_.*_id)\((.*)\)\n$', line)
                 if m is not None:
-                    cc, ty1, fname, ty2 = m.groups()
+                    ty1, fname, ty2 = m.groups()
                     assert ty1 == ty2, "Argument and return types of magic IDs must match"
                     print("Patching magic ID {0}".format(fname))
                     # emit definition instead
-                    result.append('define {0} {1} @{2}({1} %name) {{\n'.format(cc, ty1, fname))
-                    result.append('  ret {1} %name\n'.format(ty1))
+                    if rttype=="spir":
+                        result.append('define cc75 {0} @{1}({0} %name) {{\n'.format(ty1, fname))
+                    else:
+                        result.append('define {0} @{1}({0} %name) {{\n'.format(ty1, fname))
+                    result.append('  ret {0} %name\n'.format(ty1))
                     result.append('}\n')
                 # get rid of attributes
                 elif 'attributes #0' in line:

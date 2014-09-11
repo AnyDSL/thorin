@@ -800,22 +800,12 @@ llvm::Type* CodeGen::convert(Type type) {
         case Node_PtrType: {
             auto ptr = type.as<PtrType>();
             unsigned address_space;
-            switch(ptr->addr_space()) {
-                case AddressSpace::Generic:
-                    address_space = 0;
-                    break;
-                case AddressSpace::Global:
-                    address_space = 1;
-                    break;
-                case AddressSpace::Texture:
-                    address_space = 2;
-                    break;
-                case AddressSpace::Shared:
-                    address_space = 3;
-                    break;
-                case AddressSpace::Constant:
-                    address_space = 4;
-                    break;
+            switch (ptr->addr_space()) {
+                case AddressSpace::Generic:  address_space = 0; break;
+                case AddressSpace::Global:   address_space = 1; break;
+                case AddressSpace::Texture:  address_space = 2; break;
+                case AddressSpace::Shared:   address_space = 3; break;
+                case AddressSpace::Constant: address_space = 4; break;
                 default:
                     THORIN_UNREACHABLE;
             }

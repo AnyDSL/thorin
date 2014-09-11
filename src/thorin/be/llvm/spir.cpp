@@ -23,20 +23,26 @@ SPIRCodeGen::SPIRCodeGen(World& world)
 
 llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
     // iterate over function type and set address space for SPIR
-    auto fty = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
-    auto rtype = fty->getReturnType();
+    auto ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
+    auto rtype = ft->getReturnType();
     llvm::SmallVector<llvm::Type*, 4> types;
-    if (llvm::isa<llvm::PointerType>(rtype))
-        rtype = llvm::dyn_cast<llvm::PointerType>(rtype)->getElementType()->getPointerTo(1);
-    for (size_t i = 0; i < fty->getFunctionNumParams(); ++i) {
-        llvm::Type* ty = fty->getFunctionParamType(i);
-        if (llvm::isa<llvm::PointerType>(ty))
-            types.push_back(llvm::dyn_cast<llvm::PointerType>(ty)->getElementType()->getPointerTo(1));
-        else
-            types.push_back(ty);
+    if (lambda->attribute().is(Lambda::KernelEntry)) {
+        // SPIR address space qualifiers are different:
+        // 0 - private
+        // 1 - global
+        // 2 - constant
+        // 3 - local
+        if (llvm::isa<llvm::PointerType>(rtype))
+            rtype = llvm::dyn_cast<llvm::PointerType>(rtype)->getElementType()->getPointerTo(1);
+        for (size_t i = 0; i < ft->getFunctionNumParams(); ++i) {
+            llvm::Type* ty = ft->getFunctionParamType(i);
+            if (llvm::isa<llvm::PointerType>(ty))
+                types.push_back(llvm::dyn_cast<llvm::PointerType>(ty)->getElementType()->getPointerTo(1));
+            else
+                types.push_back(ty);
+        }
     }
 
-    auto ft = llvm::FunctionType::get(rtype, types, false);
     // TODO: factor emit_function_decl code
     auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, ft));
     f->setLinkage(llvm::Function::ExternalLinkage);

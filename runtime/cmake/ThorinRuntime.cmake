@@ -87,6 +87,13 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
         COMMAND ${THORIN_RUNTIME_DIR}/post-patcher ${TRW_RTTYPE} ${CMAKE_CURRENT_BINARY_DIR}/${_basename}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         DEPENDS ${IMPALA_BIN} ${THORIN_RUNTIME_DIR}/post-patcher ${_impala_platform} ${_infiles} VERBATIM)
+    IF("${TRW_RTTYPE}" STREQUAL "spir")
+        set(_spirfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.spir)
+        set(_bcfile ${CMAKE_CURRENT_BINARY_DIR}/${_basename}.spir.bc)
+        add_custom_command(OUTPUT ${_bcfile}
+            COMMAND llvm-as ${_spirfile}
+            DEPENDS ${_spirfile} VERBATIM)
+    ENDIF()
     add_custom_command(OUTPUT ${_objfile}
         COMMAND clang++ -O3 -g -c -o ${_objfile} ${_llfile}
         DEPENDS ${_llfile} VERBATIM)
@@ -95,5 +102,5 @@ macro(THORIN_RUNTIME_WRAP outfiles outlibs)
         PROPERTIES
         EXTERNAL_OBJECT true
         GENERATED true)
-    set(${outfiles} ${${outfiles}} ${_objfile})
+    set(${outfiles} ${${outfiles}} ${_objfile} ${_bcfile})
 endmacro()

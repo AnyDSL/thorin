@@ -77,7 +77,7 @@ public:
     /// Get PrimType.
     PrimType    type(PrimTypeKind kind, size_t length = 1) {
         size_t i = kind - Begin_PrimType;
-        assert(0 <= i && i < (size_t) Num_PrimTypes);
+        assert(i < (size_t) Num_PrimTypes);
         return length == 1 ? PrimType(primtypes_[i]) : join(new PrimTypeNode(*this, kind, length));
     }
     MemType     mem_type() const { return MemType(mem_); }

@@ -262,7 +262,7 @@ public:
 
     // other stuff
 
-    void add_external(Lambda* lambda) { auto p = externals_.insert(lambda); }
+    void add_external(Lambda* lambda) { externals_.insert(lambda); }
     void remove_external(Lambda* lambda) { externals_.erase(lambda); }
     bool is_external(const Lambda* lambda) { return externals().contains(const_cast<Lambda*>(lambda)); }
     void destroy(Lambda* lambda);

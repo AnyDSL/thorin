@@ -86,7 +86,7 @@ llvm::Function* CodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
     auto fun = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, ft));
     // REVIEW
     //if (lambda->attribute().is(Lambda::Extern | Lambda::Device))
-    if (lambda->is_external())
+    if (lambda->is_external() || lambda->empty())
         fun->setLinkage(llvm::Function::ExternalLinkage);
     else
         fun->setLinkage(llvm::Function::InternalLinkage);
@@ -104,7 +104,7 @@ void CodeGen::emit(int opt) {
         std::string name = lambda->unique_name();
         // REVIEW
         //if (lambda->attribute().is(Lambda::Extern | Lambda::Device))
-        if (lambda->is_external())
+        if (lambda->is_external() || lambda->empty())
             name = lambda->name;
         f = emit_function_decl(name, lambda);
 

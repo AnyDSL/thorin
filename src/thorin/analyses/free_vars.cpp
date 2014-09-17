@@ -14,23 +14,25 @@ std::vector<Def> free_vars(const Scope& scope) {
 
     // now find all params not in scope
     auto enqueue = [&] (Def def) {
-        if (def->isa<Alloc>() || def->isa<Slot>()) { // HACK;
-            vars.insert(def);
-        } else {
-            for (auto op : def->ops()) {
-                if (!visit(set, op)) {
-                    if (auto param = op->isa<Param>()) {
-                        if (!scope.contains(param->lambda()))
-                            vars.insert(param);
-                    } else
+        if (!visit(set, def)) {
+            if (auto param = def->isa<Param>()) {
+                if (!scope.contains(param->lambda()))
+                    vars.insert(param);
+                }
+            else if (auto primop = def->isa<PrimOp>()) {
+                if (primop->isa<Alloc>() || primop->isa<Slot>()) { // HACK;
+                    vars.insert(primop);
+                } else {
+                    for (auto op : primop->ops())
                         queue.push(op);
                 }
             }
         }
     };
 
-    for (auto lambda : scope.rpo()) {
-        enqueue(lambda);
+    for (auto lambda : scope) {
+        for (auto op : lambda->ops())
+            enqueue(op);
 
         while (!queue.empty())
             enqueue(pop(queue));

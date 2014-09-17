@@ -13,8 +13,8 @@ void lift_builtins(World& world) {
             Scope scope(cur);
             auto vars = free_vars(scope);
 #ifndef NDEBUG
-            //for (auto var : vars)
-                //assert(var->order() == 0 && "creating a higher-order function");
+            for (auto var : vars)
+                assert(var->order() == 0 && "creating a higher-order function");
 #endif
             auto lifted = lift(scope, vars);
 

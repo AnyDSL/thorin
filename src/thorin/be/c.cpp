@@ -255,8 +255,7 @@ void CCodeGen::emit() {
 
         // lambda declarations
         auto lambda = scope->entry();
-        // REVIEW
-        if (lambda->is_intrinsic() || lambda->cc() == CC::Device)
+        if (lambda->empty())
             continue;
 
         // retrieve return param
@@ -284,8 +283,6 @@ void CCodeGen::emit() {
             }
         }
         auto ret_fn_type = ret_param->type().as<FnType>();
-        // REVIEW
-        //if (lambda->attribute().is(Lambda::KernelEntry))
         if (lambda->is_external())
             continue;
         if (lang_==CUDA) stream() << "__device__ ";
@@ -342,8 +339,6 @@ void CCodeGen::emit() {
         assert(ret_param);
 
         auto ret_fn_type = ret_param->type().as<FnType>();
-        // REVIEW
-        //if (lambda->attribute().is(Lambda::KernelEntry)) {
         if (lambda->is_external()) {
             if (lang_==CUDA) stream() << "__global__ ";
             if (lang_==OPENCL) stream() << "__kernel ";
@@ -359,8 +354,6 @@ void CCodeGen::emit() {
                 // skip arrays bound to texture memory
                 if (is_texture_type(param->type())) continue;
                 if (i++ > 0) stream() << ", ";
-                // REVIEW
-                //if (lang_==OPENCL && lambda->attribute().is(Lambda::KernelEntry) &&
                 if (lang_==OPENCL && lambda->is_external() &&
                     (param->type().isa<DefiniteArrayType>() ||
                      param->type().isa<StructAppType>() ||
@@ -379,8 +372,6 @@ void CCodeGen::emit() {
         // emit and store all first-order params
         for (auto param : lambda->params()) {
             if (param->order() == 0 && !param->type().isa<MemType>()) {
-                // REVIEW
-                //if (lang_==OPENCL && lambda->attribute().is(Lambda::KernelEntry) &&
                 if (lang_==OPENCL && lambda->is_external() &&
                     (param->type().isa<DefiniteArrayType>() ||
                      param->type().isa<StructAppType>() ||
@@ -497,9 +488,7 @@ void CCodeGen::emit() {
 
                         if (ret_arg == ret_param) {     // call + return
                             stream() << "return ";
-                            // REVIEW
-                            //if (to_lambda->attribute().is(Lambda::Extern | Lambda::Device))
-                            if (to_lambda->is_external() || lambda->cc() == CC::Device)
+                            if (to_lambda->is_external() || lambda->empty())
                                 stream() << to_lambda->name << "(";
                             else
                                 stream() << to_lambda->unique_name() << "(";

@@ -57,7 +57,7 @@ CodeGen::CodeGen(World& world, llvm::CallingConv::ID function_calling_convention
     , function_calling_convention_(function_calling_convention)
     , device_calling_convention_(device_calling_convention)
     , kernel_calling_convention_(kernel_calling_convention)
-    , current_kernel_(nullptr)
+    , current_entry_(nullptr)
 {
     runtime_ = new GenericRuntime(context_, module_, builder_);
     cuda_runtime_ = new CUDARuntime(context_, module_, builder_);
@@ -84,8 +84,6 @@ Lambda* CodeGen::emit_intrinsic(llvm::Function* current, Lambda* lambda) {
 llvm::Function* CodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
     auto ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
     auto fun = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, ft));
-    // REVIEW
-    //if (lambda->attribute().is(Lambda::Extern | Lambda::Device))
     if (lambda->is_external() || lambda->empty())
         fun->setLinkage(llvm::Function::ExternalLinkage);
     else
@@ -101,11 +99,7 @@ void CodeGen::emit(int opt) {
         if (lambda->is_intrinsic())
             continue;
         llvm::Function* f = nullptr;
-        std::string name = lambda->unique_name();
-        // REVIEW
-        //if (lambda->attribute().is(Lambda::Extern | Lambda::Device))
-        if (lambda->is_external() || lambda->empty())
-            name = lambda->name;
+        std::string name = (lambda->is_external() || lambda->empty()) ? lambda->name : lambda->unique_name();
         f = emit_function_decl(name, lambda);
 
         assert(f != nullptr && "invalid function declaration");
@@ -117,15 +111,9 @@ void CodeGen::emit(int opt) {
 
     for (auto ptr_scope : scopes) {
         auto& scope = *ptr_scope;
-        auto lambda = scope.entry();
-        current_kernel_ = nullptr;
-        // REVIEW
-        //if (lambda->attribute().is(Lambda::KernelEntry))
-        if (lambda->is_external())
-            current_kernel_ = lambda;
-        if (lambda->is_intrinsic() || lambda->empty())
+        auto lambda = current_entry_ = scope.entry();
+        if (lambda->empty())
             continue;
-
         assert(lambda->is_returning());
         llvm::Function* fct = fcts_[lambda];
 
@@ -266,8 +254,6 @@ void CodeGen::emit(int opt) {
                         }
                         llvm::CallInst* call = builder_.CreateCall(fcts_[to_lambda], args);
                         // set proper calling convention
-                        // REVIEW
-                        //if (to_lambda->attribute().is(Lambda::KernelEntry)) {
                         if (to_lambda->is_external()) {
                             call->setCallingConv(kernel_calling_convention_);
                         } else if (to_lambda->cc() == CC::Device) {
@@ -772,14 +758,14 @@ llvm::Value* CodeGen::emit_munmap(Def def) {
 
 llvm::Value* CodeGen::emit_shared_mmap(Def def, bool prefix) {
     auto mmap = def->as<Map>();
-    assert(current_kernel_ && "shared memory can only be mapped inside kernel");
+    assert(current_entry_ && "shared memory can only be mapped inside kernel");
     assert(mmap->addr_space() == AddressSpace::Shared && "wrong address space for shared memory");
     auto num_elems = mmap->mem_size()->as<PrimLit>()->ps32_value();
 
     // construct array type
     auto elem_type = mmap->ptr_type()->referenced_type().as<ArrayType>()->elem_type();
     auto type = this->convert(mmap->world().definite_array_type(elem_type, num_elems));
-    auto global = emit_global_memory(type, (prefix ? current_kernel_->name + "." : "") + mmap->unique_name(), 3);
+    auto global = emit_global_memory(type, (prefix ? current_entry_->name + "." : "") + mmap->unique_name(), 3);
     return global;
 }
 
@@ -927,8 +913,6 @@ void emit_llvm(World& world, int opt) {
         imported->make_external();
         lambda->name = lambda->unique_name();
         lambda->destroy_body();
-        // REVIEW - I believe this line must be removed
-        //lambda->attribute().set(Lambda::Extern);
 
         for (size_t i = 0, e = lambda->num_params(); i != e; ++i)
             imported->param(i)->name = lambda->param(i)->unique_name();

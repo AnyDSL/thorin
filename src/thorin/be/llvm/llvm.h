@@ -70,7 +70,7 @@ protected:
     AutoPtr<KernelRuntime> nvvm_runtime_;
     AutoPtr<KernelRuntime> spir_runtime_;
     AutoPtr<KernelRuntime> opencl_runtime_;
-    Lambda* current_kernel_;
+    Lambda* current_entry_;
 
     friend class GenericRuntime;
     friend class KernelRuntime;

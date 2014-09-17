@@ -31,8 +31,6 @@ void lift_builtins(World& world) {
                             ulambda->jump(cur, nops.slice_from_begin(1));                    // set new args
                             // jump to new top-level dummy function
                             ulambda->update_to(world.lambda(ulambda->arg_fn_type(), to->cc(), to->intrinsic(), to->name));
-                            // REVIEW
-                            //lifted->attribute().clear();
                         }
                     }
                 }

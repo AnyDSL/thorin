@@ -47,21 +47,16 @@ llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     f->setLinkage(llvm::Function::ExternalLinkage);
     f->setAttributes(llvm::AttributeSet());
 
-    // REVIEW
-    //if (lambda->attribute().is(Lambda::KernelEntry)) {
     if (lambda->is_external()) {
         f->setCallingConv(kernel_calling_convention_);
-    } else if (lambda->cc() == CC::Device) {
-        f->setCallingConv(device_calling_convention_);
     } else {
-        f->setCallingConv(function_calling_convention_);
-    }
-
-    // REVIEW
-    // besides: this check is here twice. is this correct, anyway?
-    //if (!lambda->attribute().is(Lambda::KernelEntry))
-    if (!lambda->is_external())
+        if (lambda->cc() == CC::Device) {
+            f->setCallingConv(device_calling_convention_);
+        } else {
+            f->setCallingConv(function_calling_convention_);
+        }
         return f;
+    }
 
     // append required metadata
     auto annotation = module_->getOrInsertNamedMetadata("nvvm.annotations");
@@ -99,8 +94,6 @@ llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambd
 }
 
 llvm::Value* NVVMCodeGen::map_param(llvm::Function*, llvm::Argument* arg, const Param* param) {
-    // REVIEW
-    //if (!param->lambda()->attribute().is(Lambda::KernelEntry))
     if (!param->lambda()->is_external())
         return arg;
     else if (auto var = resolve_global_variable(param))
@@ -119,8 +112,6 @@ llvm::Function* NVVMCodeGen::get_texture_handle_fun() {
 }
 
 void NVVMCodeGen::emit_function_start(llvm::BasicBlock* bb, llvm::Function* f, Lambda* lambda) {
-    // REVIEW
-    //if (!lambda->attribute().is(Lambda::KernelEntry))
     if (!lambda->is_external())
         return;
     // kernel needs special setup code for the arguments

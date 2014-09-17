@@ -138,7 +138,6 @@ Lambdas Lambda::indirect_succs() const { return thorin::succs<false, true>(this)
 
 bool Lambda::is_intrinsic() const { return intrinsic_ != Intrinsic::None; }
 void Lambda::set_intrinsic() {
-    attribute().set(Lambda::Thorin);
     if      (name == "cuda")      intrinsic_ = Intrinsic::CUDA;
     else if (name == "nvvm")      intrinsic_ = Intrinsic::NVVM;
     else if (name == "spir")      intrinsic_ = Intrinsic::SPIR;

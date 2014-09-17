@@ -32,8 +32,7 @@ public:
     enum AttrKind {
         Extern       = 1 <<  0, ///< Is the function visible in other translation units?
         Device       = 1 <<  1, ///< Flag for intrinsic function with device calling convention.
-        Thorin       = 1 <<  2, ///< Flag for intrinsic function provided by thorin.
-        KernelEntry  = 1 <<  3, ///< Flag for the kernel lambda.
+        KernelEntry  = 1 <<  2, ///< Flag for the kernel lambda.
     };
 
     struct Attribute {

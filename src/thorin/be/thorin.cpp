@@ -200,8 +200,6 @@ std::ostream& CodeGen::emit_head(const Lambda* lambda) {
         stream() << " extern ";
     if (lambda->attribute().is(Lambda::Device))
         stream() << " device ";
-    if (lambda->attribute().is(Lambda::Thorin))
-        stream() << " thorin ";
 
     return up();
 }

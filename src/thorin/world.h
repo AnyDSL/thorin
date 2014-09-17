@@ -262,8 +262,8 @@ public:
 
     // other stuff
 
-    void add_external(Lambda* lambda) { auto p = externals_.insert(lambda); assert(p.second && "already external"); }
-    void remove_external(Lambda* lambda) { assert(externals_.contains(lambda) && "not external"); externals_.erase(lambda); }
+    void add_external(Lambda* lambda) { auto p = externals_.insert(lambda); }
+    void remove_external(Lambda* lambda) { externals_.erase(lambda); }
     bool is_external(const Lambda* lambda) { return externals().contains(const_cast<Lambda*>(lambda)); }
     void destroy(Lambda* lambda);
 #ifndef NDEBUG

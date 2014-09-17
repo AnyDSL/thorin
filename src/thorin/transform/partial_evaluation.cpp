@@ -11,7 +11,7 @@ namespace thorin {
 
 static std::vector<Lambda*> top_level_lambdas(World& world) {
     std::vector<Lambda*> result;
-    auto scopes = top_level_scopes(world);
+    auto scopes = top_level_scopes_deprecated(world);
     for (auto scope : scopes)
         result.push_back(scope->entry());
     return result;

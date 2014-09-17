@@ -25,11 +25,11 @@ public:
     const DomTree domtree;
 };
 
-const DomNode* Merger::dom_succ(const DomNode* n) { 
+const DomNode* Merger::dom_succ(const DomNode* n) {
     auto succs = scope.succs(n->lambda());
     auto& children = n->children();
-    return succs.size() == 1 && children.size() == 1 
-        && succs.front() == children.front()->lambda() 
+    return succs.size() == 1 && children.size() == 1
+        && succs.front() == children.front()->lambda()
         && succs.front()->num_uses() == 1
         && succs.front() == n->lambda()->to()
         ? children.front() : nullptr;
@@ -51,9 +51,8 @@ void Merger::merge(const DomNode* n) {
         merge(child);
 }
 
-void merge_lambdas(World& world) { 
-    for (auto scope : top_level_scopes(world))
-        Merger merger(*scope); 
+void merge_lambdas(World& world) {
+    top_level_scopes(world, [] (Scope& scope) { Merger merger(scope); });
 }
 
-} // namespace thorin
+}

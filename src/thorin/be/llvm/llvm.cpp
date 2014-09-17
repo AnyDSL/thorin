@@ -92,7 +92,7 @@ llvm::Function* CodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
 }
 
 void CodeGen::emit(int opt) {
-    auto scopes = top_level_scopes(world_);
+    auto scopes = top_level_scopes_deprecated(world_);
     // map all root-level lambdas to llvm function stubs
     for (auto scope : scopes) {
         auto lambda = scope->entry();
@@ -895,8 +895,8 @@ void emit_llvm(World& world, int opt) {
     World opencl(world.name());
 
     // determine different parts of the world which need to be compiled differently
-    for (auto scope : top_level_scopes(world)) {
-        auto lambda = scope->entry();
+    top_level_scopes(world, [&] (Scope& scope) {
+        auto lambda = scope.entry();
         Lambda* imported = nullptr;
         if (lambda->is_connected_to_intrinsic(Intrinsic::CUDA))
             imported = import(cuda, lambda)->as_lambda();
@@ -907,7 +907,7 @@ void emit_llvm(World& world, int opt) {
         else if (lambda->is_connected_to_intrinsic(Intrinsic::OpenCL))
             imported = import(opencl, lambda)->as_lambda();
         else
-            continue;
+            return;
 
         imported->name = lambda->unique_name();
         imported->make_external();
@@ -916,7 +916,7 @@ void emit_llvm(World& world, int opt) {
 
         for (size_t i = 0, e = lambda->num_params(); i != e; ++i)
             imported->param(i)->name = lambda->param(i)->unique_name();
-    }
+    });
 
     if (!cuda.lambdas().empty() || !nvvm.lambdas().empty() || !spir.lambdas().empty() || !opencl.lambdas().empty())
         world.cleanup();

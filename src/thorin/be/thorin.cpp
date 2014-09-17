@@ -223,10 +223,10 @@ void emit_thorin(World& world, bool fancy, bool nocolor) {
             cg.emit_assignment(global);
     }
 
-    for (auto scope : top_level_scopes(world)) {
-        const DomTree domtree(*scope);
-        Schedule schedule = schedule_smart(*scope);
-        auto bbs = bb_schedule(*scope);
+    top_level_scopes(world, [&] (Scope& scope) {
+        const DomTree domtree(scope);
+        Schedule schedule = schedule_smart(scope);
+        auto bbs = bb_schedule(scope);
         for (auto lambda : bbs) {
             int depth = fancy ? domtree.depth(lambda) : 0;
             cg.indent += depth;
@@ -241,7 +241,7 @@ void emit_thorin(World& world, bool fancy, bool nocolor) {
         }
 
         cg.newline();
-    }
+    }, false);
 }
 
 void emit_type(Type type)                  { CodeGen(false).emit_type(type);         }

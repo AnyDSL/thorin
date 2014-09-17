@@ -231,7 +231,7 @@ void CCodeGen::emit() {
         stream() << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
     }
 
-    auto scopes = top_level_scopes(world_);
+    auto scopes = top_level_scopes_deprecated(world_);
 
     // emit declarations
     for (auto scope : scopes) {

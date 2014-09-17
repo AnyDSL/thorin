@@ -5,7 +5,7 @@
 
 namespace thorin {
 
-AutoVector<Scope*> top_level_scopes(World& world) {
+AutoVector<Scope*> top_level_scopes_deprecated(World& world) {
     AutoVector<Scope*> scopes;
     LambdaSet done;
 
@@ -51,7 +51,6 @@ void top_level_scopes(World& world, std::function<void(Scope&)> f, bool elide_em
         auto lambda = pop(queue);
         if (elide_empty && lambda->empty())
             continue;
-        assert(!done.contains(lambda));
         Scope scope(lambda);
         f(scope);
         for (auto lambda : scope)

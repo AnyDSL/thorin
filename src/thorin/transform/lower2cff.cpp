@@ -14,7 +14,7 @@ public:
     CFFLowering(World& world)
         : world_(world)
     {
-        for (auto scope : top_level_scopes(world))
+        for (auto scope : top_level_scopes_deprecated(world))
             top_.insert(scope->entry());
     }
 

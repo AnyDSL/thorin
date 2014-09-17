@@ -8,7 +8,7 @@
 
 namespace thorin {
 
-AutoVector<Scope*> top_level_scopes(World&);
+AutoVector<Scope*> top_level_scopes_deprecated(World&);
 void top_level_scopes(World&, std::function<void(Scope&)>, bool elide_empty = true);
 
 }

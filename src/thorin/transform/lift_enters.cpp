@@ -25,9 +25,6 @@ static const Enter* find_enter(Lambda* lambda) {
 }
 
 static void lift_enters(const Scope& scope) {
-    if (scope.size() <= 1)
-        return;
-
     World& world = scope.world();
     std::vector<const Enter*> enters;
 
@@ -56,8 +53,7 @@ static void lift_enters(const Scope& scope) {
 }
 
 void lift_enters(World& world) {
-    for (auto scope : top_level_scopes(world))
-        lift_enters(*scope);
+    top_level_scopes(world, [] (Scope& scope) { lift_enters(scope); });
     world.cleanup();
     debug_verify(world);
 }

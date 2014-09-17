@@ -71,10 +71,8 @@ static void adapt_addr_space(World &world, ToDo& uses) {
                 if (i==index) fn[i] = entry.first;
                 else fn[i] = to->type()->arg(i);
             }
-            auto nto = world.lambda(world.fn_type(fn), to->name);
+            auto nto = world.lambda(world.fn_type(fn), to->cc(), to->intrinsic(), to->name);
             assert(nto->num_params() == to->num_params());
-            nto->attribute() = to->attribute();
-            nto->intrinsic() = to->intrinsic();
 
             if (!to->empty()) {
                 Scope to_scope(to);

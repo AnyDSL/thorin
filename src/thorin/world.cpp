@@ -60,15 +60,6 @@ Array<Lambda*> World::copy_lambdas() const {
     return result;
 }
 
-std::vector<Lambda*> World::externals() const {
-    std::vector<Lambda*> result;
-    for (auto lambda : lambdas_) {
-        if (lambda->attribute().is(Lambda::Extern))
-            result.push_back(lambda);
-    }
-    return result;
-}
-
 /*
  * literals
  */
@@ -763,9 +754,9 @@ Def World::hlt(Def def, const std::string& name) {
 Def World::end_run(Def def, Def run, const std::string& name) { return cse(new EndRun(def, run, name)); }
 Def World::end_hlt(Def def, Def hlt, const std::string& name) { return cse(new EndHlt(def, hlt, name)); }
 
-Lambda* World::lambda(FnType fn, Lambda::Attribute attribute, Intrinsic intrinsic, const std::string& name) {
+Lambda* World::lambda(FnType fn, CC cc, Intrinsic intrinsic, const std::string& name) {
     THORIN_CHECK_BREAK(gid_)
-    auto l = new Lambda(gid_++, fn, attribute, intrinsic, true, name);
+    auto l = new Lambda(gid_++, fn, cc, intrinsic, true, name);
     lambdas_.insert(l);
 
     size_t i = 0;
@@ -789,7 +780,7 @@ Lambda* World::meta_lambda() {
 
 Lambda* World::basicblock(const std::string& name) {
     THORIN_CHECK_BREAK(gid_)
-    auto bb = new Lambda(gid_++, fn_type({mem_type()}), Lambda::Attribute(0), Intrinsic::None, false, name);
+    auto bb = new Lambda(gid_++, fn_type({mem_type()}), CC::C, Intrinsic::None, false, name);
     lambdas_.insert(bb);
     auto mem = param(mem_type(), bb, 0, "mem");
     bb->params_.push_back(mem);

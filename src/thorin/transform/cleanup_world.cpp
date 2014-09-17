@@ -49,7 +49,7 @@ void Cleaner::eliminate_params() {
         if (proxy_idx.empty())
             continue;
 
-        auto nlambda = world_.lambda(world_.fn_type(olambda->type()->args().cut(proxy_idx)), olambda->attribute(), olambda->intrinsic(), olambda->name);
+        auto nlambda = world_.lambda(world_.fn_type(olambda->type()->args().cut(proxy_idx)), olambda->cc(), olambda->intrinsic(), olambda->name);
         size_t j = 0;
         for (auto i : param_idx) {
             olambda->param(i)->replace(nlambda->param(j));
@@ -75,7 +75,7 @@ void Cleaner::cleanup() {
 
     // collect all reachable and live stuff
     for (auto lambda : olambdas())
-        if (lambda->attribute().is(Lambda::Extern))
+        if (lambda->is_external())
             unreachable_code_elimination(lambda);
 
 #if 0
@@ -123,7 +123,7 @@ void Cleaner::cleanup() {
     verify_closedness(world_);
 
     // delete dead primops
-    for (auto primop : oprimops()) 
+    for (auto primop : oprimops())
         delete primop;
 
     // delete unreachable lambdas

@@ -11,7 +11,7 @@
 namespace thorin {
 
 Lambda* Lambda::stub(Type2Type& type2type, const std::string& name) const {
-    auto result = world().lambda(type()->specialize(type2type).as<FnType>(), attribute(), intrinsic(), name);
+    auto result = world().lambda(type()->specialize(type2type).as<FnType>(), cc(), intrinsic(), name);
     for (size_t i = 0, e = num_params(); i != e; ++i)
         result->param(i)->name = param(i)->name;
     return result;
@@ -136,6 +136,9 @@ Lambdas Lambda::direct_succs() const { return thorin::succs<true, false>(this); 
 Lambdas Lambda::indirect_preds() const { return thorin::preds<false, true>(this); }
 Lambdas Lambda::indirect_succs() const { return thorin::succs<false, true>(this); }
 
+void Lambda::make_external() { return world().add_external(this); }
+void Lambda::make_internal() { return world().remove_external(this); }
+bool Lambda::is_external() const { return world().is_external(this); }
 bool Lambda::is_intrinsic() const { return intrinsic_ != Intrinsic::None; }
 void Lambda::set_intrinsic() {
     if      (name == "cuda")      intrinsic_ = Intrinsic::CUDA;

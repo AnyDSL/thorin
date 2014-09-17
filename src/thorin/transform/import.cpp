@@ -12,7 +12,7 @@ Type import(Type2Type& old2new, World& to, Type otype) {
     Array<Type> nargs(size);
     for (size_t i = 0; i != size; ++i)
         nargs[i] = import(old2new, to, otype->arg(i));
-    
+
     auto ntype = old2new[*otype] = *World::rebuild(to, otype, nargs);
     assert(&ntype->world() == &to);
     return Type(ntype);
@@ -36,7 +36,7 @@ Def import(Type2Type& type_old2new, Def2Def& def_old2new, World& to, Def odef) {
     Lambda* nlambda = nullptr;
     if (auto olambda = odef->isa_lambda()) { // create stub in new world
         auto npi = import(type_old2new, to, olambda->type()).as<FnType>();
-        nlambda = to.lambda(npi, olambda->attribute(), olambda->intrinsic(), olambda->name);
+        nlambda = to.lambda(npi, olambda->cc(), olambda->intrinsic(), olambda->name);
         for (size_t i = 0, e = olambda->num_params(); i != e; ++i) {
             nlambda->param(i)->name = olambda->param(i)->name;
             def_old2new[olambda->param(i)] = nlambda->param(i);
@@ -51,7 +51,7 @@ Def import(Type2Type& type_old2new, Def2Def& def_old2new, World& to, Def odef) {
         nops[i] = import(type_old2new, def_old2new, to, odef->op(i));
         assert(&nops[i]->world() == &to);
     }
-    
+
     if (auto oprimop = odef->isa<PrimOp>())
         return def_old2new[oprimop] = World::rebuild(to, oprimop, nops, ntype);
 

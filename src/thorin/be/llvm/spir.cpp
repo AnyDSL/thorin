@@ -26,7 +26,9 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     auto ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
     auto rtype = ft->getReturnType();
     llvm::SmallVector<llvm::Type*, 4> types;
-    if (lambda->attribute().is(Lambda::KernelEntry)) {
+    // REVIEW
+    //if (lambda->attribute().is(Lambda::KernelEntry)) {
+    if (lambda->is_external()) {
         // SPIR address space qualifiers are different:
         // 0 - private
         // 1 - global
@@ -47,15 +49,19 @@ llvm::Function* SPIRCodeGen::emit_function_decl(std::string& name, Lambda* lambd
     auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, ft));
     f->setLinkage(llvm::Function::ExternalLinkage);
 
-    if (lambda->attribute().is(Lambda::KernelEntry)) {
+    // REVIEW
+    //if (lambda->attribute().is(Lambda::KernelEntry)) {
+    if (lambda->is_external()) {
         f->setCallingConv(kernel_calling_convention_);
-    } else if (lambda->attribute().is(Lambda::Device)) {
+    } else if (lambda->cc() == CC::Device) {
         f->setCallingConv(device_calling_convention_);
     } else {
         f->setCallingConv(function_calling_convention_);
     }
 
-    if (!lambda->attribute().is(Lambda::KernelEntry))
+    // REVIEW
+    //if (!lambda->attribute().is(Lambda::KernelEntry))
+    if (!lambda->is_external())
         return f;
 
     // append required metadata

@@ -84,7 +84,9 @@ Lambda* CodeGen::emit_intrinsic(llvm::Function* current, Lambda* lambda) {
 llvm::Function* CodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
     auto ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
     auto fun = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, ft));
-    if (lambda->attribute().is(Lambda::Extern | Lambda::Device))
+    // REVIEW
+    //if (lambda->attribute().is(Lambda::Extern | Lambda::Device))
+    if (lambda->is_external())
         fun->setLinkage(llvm::Function::ExternalLinkage);
     else
         fun->setLinkage(llvm::Function::InternalLinkage);
@@ -100,7 +102,9 @@ void CodeGen::emit(int opt) {
             continue;
         llvm::Function* f = nullptr;
         std::string name = lambda->unique_name();
-        if (lambda->attribute().is(Lambda::Extern | Lambda::Device))
+        // REVIEW
+        //if (lambda->attribute().is(Lambda::Extern | Lambda::Device))
+        if (lambda->is_external())
             name = lambda->name;
         f = emit_function_decl(name, lambda);
 
@@ -115,7 +119,9 @@ void CodeGen::emit(int opt) {
         auto& scope = *ptr_scope;
         auto lambda = scope.entry();
         current_kernel_ = nullptr;
-        if (lambda->attribute().is(Lambda::KernelEntry))
+        // REVIEW
+        //if (lambda->attribute().is(Lambda::KernelEntry))
+        if (lambda->is_external())
             current_kernel_ = lambda;
         if (lambda->is_intrinsic() || lambda->empty())
             continue;
@@ -260,9 +266,11 @@ void CodeGen::emit(int opt) {
                         }
                         llvm::CallInst* call = builder_.CreateCall(fcts_[to_lambda], args);
                         // set proper calling convention
-                        if (to_lambda->attribute().is(Lambda::KernelEntry)) {
+                        // REVIEW
+                        //if (to_lambda->attribute().is(Lambda::KernelEntry)) {
+                        if (to_lambda->is_external()) {
                             call->setCallingConv(kernel_calling_convention_);
-                        } else if (to_lambda->attribute().is(Lambda::Device)) {
+                        } else if (to_lambda->cc() == CC::Device) {
                             call->setCallingConv(device_calling_convention_);
                         } else {
                             call->setCallingConv(function_calling_convention_);
@@ -916,10 +924,11 @@ void emit_llvm(World& world, int opt) {
             continue;
 
         imported->name = lambda->unique_name();
-        imported->attribute().set(Lambda::Extern | Lambda::KernelEntry);
+        imported->make_external();
         lambda->name = lambda->unique_name();
         lambda->destroy_body();
-        lambda->attribute().set(Lambda::Extern);
+        // REVIEW - I believe this line must be removed
+        //lambda->attribute().set(Lambda::Extern);
 
         for (size_t i = 0, e = lambda->num_params(); i != e; ++i)
             imported->param(i)->name = lambda->param(i)->unique_name();

@@ -229,9 +229,9 @@ public:
 
     // lambdas
 
-    Lambda* lambda(FnType fn, Lambda::Attribute attribute = Lambda::Attribute(0), Intrinsic intrinsic = Intrinsic::None, const std::string& name = "");
-    Lambda* lambda(FnType fn, const std::string& name) { return lambda(fn, Lambda::Attribute(0), Intrinsic::None, name); }
-    Lambda* lambda(const std::string& name) { return lambda(fn_type(), Lambda::Attribute(0), Intrinsic::None, name); }
+    Lambda* lambda(FnType fn, CC cc = CC::C, Intrinsic intrinsic = Intrinsic::None, const std::string& name = "");
+    Lambda* lambda(FnType fn, const std::string& name) { return lambda(fn, CC::C, Intrinsic::None, name); }
+    Lambda* lambda(const std::string& name) { return lambda(fn_type(), CC::C, Intrinsic::None, name); }
     Lambda* basicblock(const std::string& name = "");
     Lambda* meta_lambda();
 
@@ -256,12 +256,15 @@ public:
     const PrimOps& primops() const { return primops_; }
     const LambdaSet& lambdas() const { return lambdas_; }
     Array<Lambda*> copy_lambdas() const;
-    std::vector<Lambda*> externals() const;
+    const LambdaSet& externals() const { return externals_; }
     const Types& types() const { return types_; }
     size_t gid() const { return gid_; }
 
     // other stuff
 
+    void add_external(Lambda* lambda) { auto p = externals_.insert(lambda); assert(p.second && "already external"); }
+    void remove_external(Lambda* lambda) { assert(externals_.contains(lambda) && "not external"); externals_.erase(lambda); }
+    bool is_external(const Lambda* lambda) { return externals().contains(const_cast<Lambda*>(lambda)); }
     void destroy(Lambda* lambda);
 #ifndef NDEBUG
     void breakpoint(size_t number) { breakpoints_.insert(number); }
@@ -284,6 +287,7 @@ private:
 
     std::string name_;
     LambdaSet lambdas_;
+    LambdaSet externals_;
     PrimOps primops_;
     Types types_;
     std::vector<const TypeNode*> garbage_;

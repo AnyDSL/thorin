@@ -129,7 +129,8 @@ void DefNode::replace(Def with) const {
     assert(type() == with->type());
     if (this == *with) return;
     assert(!is_proxy());
-    assert(!isa<Param>() || !as<Param>()->lambda()->attribute().is(Lambda::Extern | Lambda::Device));
+    // REVIEW
+    //assert(!isa<Param>() || !as<Param>()->lambda()->attribute().is(Lambda::Extern | Lambda::Device));
     this->representative_ = with;
     auto p = with->representatives_of_.insert(this);
     assert(p.second);

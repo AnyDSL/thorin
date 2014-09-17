@@ -196,9 +196,9 @@ std::ostream& CodeGen::emit_head(const Lambda* lambda) {
     emit_type_vars(lambda->type());
     dump_list([&](const Param* param) { emit_type(param->type()) << " "; emit_name(param); }, lambda->params(), "(", ")");
 
-    if (lambda->attribute().is(Lambda::Extern))
+    if (lambda->is_external())
         stream() << " extern ";
-    if (lambda->attribute().is(Lambda::Device))
+    if (lambda->cc() == CC::Device)
         stream() << " device ";
 
     return up();

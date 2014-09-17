@@ -56,7 +56,8 @@ Lambda* Vectorizer::vectorize() {
     std::ostringstream oss;
     auto entry = scope.entry();
     oss << entry->name << "_x" << length;
-    auto vlambda = world().lambda(vectorize_type(entry->type(), length).as<FnType>(), Lambda::Attribute(Lambda::Extern), Intrinsic::None, oss.str());
+    auto vlambda = world().lambda(vectorize_type(entry->type(), length).as<FnType>(), oss.str());
+    vlambda->make_external();
     mapped[entry] = *world().true_mask(length);
 
     for (size_t i = 0, e = entry->num_params(); i != e; ++i) {

@@ -27,34 +27,16 @@ enum class Intrinsic : uint8_t {
     Munmap,     ///< Intrinsic memory-unmapping function.
 };
 
+enum class CC : uint8_t {
+    C,          ///< C calling convention.
+    Device,     ///< Device calling convention. These are special functions only available on a particular device.
+};
+
 class Lambda : public DefNode {
-public:
-    enum AttrKind {
-        Extern       = 1 <<  0, ///< Is the function visible in other translation units?
-        Device       = 1 <<  1, ///< Flag for intrinsic function with device calling convention.
-        KernelEntry  = 1 <<  2, ///< Flag for the kernel lambda.
-    };
-
-    struct Attribute {
-        explicit Attribute(uint32_t flags)
-            : flags_(flags)
-        {}
-
-        uint32_t filter(uint32_t flags) const { return flags_ & flags; }
-        bool is(uint32_t flags) const { return filter(flags) != 0; }
-        void set(uint32_t flags) { flags_ |=  flags; }
-        void clear(uint32_t flags = uint32_t(-1)) { flags_ &= ~flags; }
-        void toggle(uint32_t flags) { flags_ ^= flags; }
-        uint32_t flags() const { return flags_; }
-
-    private:
-        uint32_t flags_;
-    };
-
 private:
-    Lambda(size_t gid, FnType fn, Attribute attribute, Intrinsic intrinsic, bool is_sealed, const std::string& name)
+    Lambda(size_t gid, FnType fn, CC cc, Intrinsic intrinsic, bool is_sealed, const std::string& name)
         : DefNode(gid, Node_Lambda, 0, fn, true, name)
-        , attribute_(attribute)
+        , cc_(cc)
         , intrinsic_(intrinsic)
         , parent_(this)
         , is_sealed_(is_sealed)
@@ -91,11 +73,14 @@ public:
     FnType arg_fn_type() const;
     size_t num_args() const { return args().size(); }
     size_t num_params() const { return params().size(); }
-    Attribute& attribute() { return attribute_; }
-    const Attribute& attribute() const { return attribute_; }
     Intrinsic& intrinsic() { return intrinsic_; }
     Intrinsic intrinsic() const { return intrinsic_; }
+    CC& cc() { return cc_; }
+    CC cc() const { return cc_; }
     void set_intrinsic(); ///< Sets \p intrinsic_ derived on this \p Lambda's \p name.
+    bool is_external() const;
+    void make_external();
+    void make_internal();
     /**
      * Is this Lambda part of a call-lambda-cascade? <br>
      * @code
@@ -164,7 +149,7 @@ private:
     Def find_def(size_t handle);
     void increase_values(size_t handle) { if (handle >= values_.size()) values_.resize(handle+1); }
 
-    Attribute attribute_;
+    CC cc_;
     Intrinsic intrinsic_;
     std::vector<const Param*> params_;
     /**
@@ -196,6 +181,6 @@ using Lambda2Lambda = LambdaMap<Lambda*>;
 
 //------------------------------------------------------------------------------
 
-} // namespace thorin
+}
 
 #endif

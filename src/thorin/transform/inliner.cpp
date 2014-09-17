@@ -8,9 +8,7 @@
 namespace thorin {
 
 void inliner(World& world) {
-    auto top = top_level_scopes(world);
-    for (auto top_scope : top) {
-        Scope scope(top_scope->entry()); // work around: the scopes in top may change so we recompute them here
+    top_level_scopes(world, [] (Scope& scope) {
         auto top = scope.entry();
         if (!top->empty() && top->num_uses() <= 2) {
             for (auto use : top->uses()) {
@@ -22,7 +20,7 @@ void inliner(World& world) {
                 }
             }
         }
-    }
+    });
 
     debug_verify(world);
 }

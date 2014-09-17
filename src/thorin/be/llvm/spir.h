@@ -10,7 +10,7 @@ public:
     SPIRCodeGen(World& world);
 
 protected:
-    virtual llvm::Function* emit_function_decl(std::string&, Lambda*);
+    virtual llvm::Function* emit_function_decl(Lambda*);
     virtual llvm::Value* emit_mmap(Def def);
     virtual llvm::Value* emit_munmap(Def def);
 

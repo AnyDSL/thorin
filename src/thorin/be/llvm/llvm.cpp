@@ -81,41 +81,26 @@ Lambda* CodeGen::emit_intrinsic(llvm::Function* current, Lambda* lambda) {
     }
 }
 
-llvm::Function* CodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
+llvm::Function* CodeGen::emit_function_decl(Lambda* lambda) {
+    auto i = fcts_.find(lambda);
+    if (i != fcts_.end())
+        return i->second;
+
+    std::string name = (lambda->is_external() || lambda->empty()) ? lambda->name : lambda->unique_name();
     auto ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
     auto fun = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, ft));
     if (lambda->is_external() || lambda->empty())
         fun->setLinkage(llvm::Function::ExternalLinkage);
     else
         fun->setLinkage(llvm::Function::InternalLinkage);
-    return fun;
+    return fcts_[lambda] = fun;
 }
 
 void CodeGen::emit(int opt) {
-    auto scopes = top_level_scopes_deprecated(world_);
-    // map all root-level lambdas to llvm function stubs
-    for (auto scope : scopes) {
-        auto lambda = scope->entry();
-        if (lambda->is_intrinsic())
-            continue;
-        llvm::Function* f = nullptr;
-        std::string name = (lambda->is_external() || lambda->empty()) ? lambda->name : lambda->unique_name();
-        f = emit_function_decl(name, lambda);
-
-        assert(f != nullptr && "invalid function declaration");
-        fcts_.emplace(lambda, f);
-    }
-
-    // emit connected functions first
-    std::stable_sort(scopes.begin(), scopes.end(), [] (Scope* s1, Scope* s2) { return s1->entry()->is_connected_to_intrinsic(); });
-
-    for (auto ptr_scope : scopes) {
-        auto& scope = *ptr_scope;
+    top_level_scopes(world_, [&] (Scope& scope) {
         auto lambda = current_entry_ = scope.entry();
-        if (lambda->empty())
-            continue;
         assert(lambda->is_returning());
-        llvm::Function* fct = fcts_[lambda];
+        llvm::Function* fct = emit_function_decl(lambda);
 
         // map params
         const Param* ret_param = nullptr;
@@ -252,7 +237,7 @@ void CodeGen::emit(int opt) {
                                 ret_arg = arg;
                             }
                         }
-                        llvm::CallInst* call = builder_.CreateCall(fcts_[to_lambda], args);
+                        llvm::CallInst* call = builder_.CreateCall(emit_function_decl(to_lambda), args);
                         // set proper calling convention
                         if (to_lambda->is_external()) {
                             call->setCallingConv(kernel_calling_convention_);
@@ -296,7 +281,7 @@ void CodeGen::emit(int opt) {
         params_.clear();
         phis_.clear();
         primops_.clear();
-    }
+    });
 
     // remove marked functions
     for (llvm::Function* rem : fcts_to_remove_) {

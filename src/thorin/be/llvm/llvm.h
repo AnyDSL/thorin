@@ -29,7 +29,7 @@ protected:
     llvm::Value* emit(Def);
     llvm::Value* lookup(Def);
     llvm::AllocaInst* emit_alloca(llvm::Type*, const std::string&);
-    virtual llvm::Function* emit_function_decl(std::string&, Lambda*);
+    virtual llvm::Function* emit_function_decl(Lambda*);
     virtual llvm::Value* map_param(llvm::Function*, llvm::Argument* a, const Param*) { return a; }
     virtual void emit_function_start(llvm::BasicBlock*, llvm::Function*, Lambda*) {}
 
@@ -62,7 +62,6 @@ protected:
     HashMap<const Param*, llvm::PHINode*> phis_;
     HashMap<const PrimOp*, llvm::Value*> primops_;
     TypeMap<llvm::Type*> types_;
-    HashMap<Lambda*, llvm::Function*> fcts_;
     HashSet<llvm::Function*> fcts_to_remove_;
 
     AutoPtr<GenericRuntime> runtime_;
@@ -71,6 +70,9 @@ protected:
     AutoPtr<KernelRuntime> spir_runtime_;
     AutoPtr<KernelRuntime> opencl_runtime_;
     Lambda* current_entry_;
+
+private:
+    HashMap<Lambda*, llvm::Function*> fcts_;
 
     friend class GenericRuntime;
     friend class KernelRuntime;

@@ -84,13 +84,10 @@ Lambda* CodeGen::emit_intrinsic(llvm::Function* current, Lambda* lambda) {
 llvm::Function* CodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
     auto ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
     auto fun = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, ft));
-    if (lambda->attribute().is(Lambda::Extern | Lambda::Device)) {
+    if (lambda->attribute().is(Lambda::Extern | Lambda::Device))
         fun->setLinkage(llvm::Function::ExternalLinkage);
-        fun->setVisibility(llvm::Function::DefaultVisibility);
-    } else {
+    else
         fun->setLinkage(llvm::Function::InternalLinkage);
-        fun->setVisibility(llvm::Function::HiddenVisibility);
-    }
     return fun;
 }
 

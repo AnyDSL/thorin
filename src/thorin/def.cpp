@@ -144,20 +144,6 @@ void DefNode::replace(Def with) const {
     assert(p.second);
 }
 
-int DefNode::non_const_depth() const {
-    if (this->is_const() || this->isa<Param>())
-        return 0;
-
-    const PrimOp* primop = this->as<PrimOp>();
-    int max = 0;
-    for (auto op : primop->ops()) {
-        int d = op->non_const_depth();
-        max = d > max ? d : max;
-    }
-
-    return max + 1;
-}
-
 void DefNode::dump() const {
     auto primop = this->isa<PrimOp>();
     if (primop && !primop->is_const())
@@ -172,7 +158,6 @@ World& DefNode::world() const { return type()->world(); }
 Def DefNode::op(Def def) const { return op(def->primlit_value<size_t>()); }
 Lambda* DefNode::as_lambda() const { return const_cast<Lambda*>(scast<Lambda>(this)); }
 Lambda* DefNode::isa_lambda() const { return const_cast<Lambda*>(dcast<Lambda>(this)); }
-const PrimOp* DefNode::is_non_const_primop() const { return is_const() ? nullptr : isa<PrimOp>(); }
 int DefNode::order() const { return type()->order(); }
 size_t DefNode::length() const { return type().as<VectorType>()->length(); }
 

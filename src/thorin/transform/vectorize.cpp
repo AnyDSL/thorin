@@ -120,12 +120,26 @@ void Vectorizer::infer_condition(Lambda* lambda) {
     }
 }
 
+static int non_const_depth(Def def) {
+    if (def->is_const() || def->isa<Param>())
+        return 0;
+
+    auto primop = def->as<PrimOp>();
+    int max = 0;
+    for (auto op : primop->ops()) {
+        int d = non_const_depth(op);
+        max = d > max ? d : max;
+    }
+
+    return max + 1;
+}
+
 void Vectorizer::param2select(const Param* param) {
     Def select = nullptr;
     Array<Lambda*> preds = scope.preds(param->lambda()); // copy
     // begin with pred with the most expensive condition (non_const_depth) - this keeps select chains simpler
     std::stable_sort(preds.begin(), preds.end(), [&](const Lambda* l1, const Lambda* l2) {
-        return mapped[l1]->non_const_depth() > mapped[l2]->non_const_depth();
+        return non_const_depth(mapped[l1]) > non_const_depth(mapped[l2]);
     });
 
     for (auto pred : preds) {
@@ -153,7 +167,7 @@ void Vectorizer::vectorize_primop(Def cond, const PrimOp* primop) {
 }
 
 Def Vectorizer::vectorize(Def def, size_t length) {
-    if (def->isa<Param>() || def->is_non_const_primop())
+    if (def->isa<Param>() || (def->isa<PrimOp>() && !def->is_const()))
         return mapped[def];
     if (auto primlit = def->isa<PrimLit>())
         return world().literal(primlit->primtype_kind(), primlit->value(), length);

@@ -150,39 +150,24 @@ void Lambda::set_intrinsic() {
     else assert(false && "unsupported thorin intrinsic");
 }
 
-template<typename T>
-static bool aggregate_connected_intrinsics(const Lambda* lambda, T value, std::function<T(T, Lambda*)> func) {
-    if (!lambda->is_intrinsic()) {
-        for (auto use : lambda->uses()) {
-            if (auto lambda = (use->isa<Global>() ? *use->uses().begin() : use)->isa<Lambda>())
+bool Lambda::visit_connected_intrinsics(std::function<bool(Lambda*)> func) const {
+    if (!is_intrinsic()) {
+        for (auto use : uses()) {
+            if (auto lambda = (use->isa<Global>() ? use->uses().front() : use)->isa<Lambda>()) // TODO make more robust
                 if (auto to_lambda = lambda->to()->isa_lambda())
-                    if (to_lambda->is_intrinsic())
-                        value = func(value, to_lambda);
+                    if (to_lambda->is_intrinsic() && func(to_lambda))
+                        return true;
         }
     }
-    return value;
-}
-
-bool Lambda::is_connected_to_intrinsic() const {
-    return aggregate_connected_intrinsics<bool>(this, false, [&](bool v, Lambda* lambda) { return true; });
-}
-
-bool Lambda::is_connected_to_intrinsic(Intrinsic intrinsic) const {
-    return aggregate_connected_intrinsics<bool>(this, false, [&](bool v, Lambda* lambda) { return v || lambda->intrinsic() == intrinsic; });
-}
-
-std::vector<Lambda*> Lambda::connected_to_intrinsic_lambdas() const {
-    std::vector<Lambda*> result;
-    aggregate_connected_intrinsics<bool>(this, false, [&](bool v, Lambda* lambda) { result.push_back(lambda); return true; });
-    return result;
+    return false;
 }
 
 bool Lambda::is_cascading() const {
-    if (uses().size() != 1)
-        return false;
-
-    Use use = *uses().begin();
-    return use->isa<Lambda>() && use.index() > 0;
+    if (uses().size() == 1) {
+        Use use = uses().front();
+        return use->isa<Lambda>() && use.index() > 0;
+    }
+    return false;
 }
 
 bool Lambda::is_basicblock() const { return type()->is_basicblock(); }

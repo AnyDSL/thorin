@@ -107,9 +107,11 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     bool is_basicblock() const;
     bool is_returning() const;
     bool is_intrinsic() const;
-    bool is_connected_to_intrinsic() const;
-    bool is_connected_to_intrinsic(Intrinsic) const;
-    std::vector<Lambda*> connected_to_intrinsic_lambdas() const;
+    bool visit_connected_intrinsics(std::function<bool(Lambda*)> func) const;
+    bool is_connected_to_intrinsic() const { return visit_connected_intrinsics([&] (Lambda*) { return true; }); }
+    bool is_connected_to_intrinsic(Intrinsic intrinsic) const {
+        return visit_connected_intrinsics([&] (Lambda* lambda) { return lambda->intrinsic() == intrinsic; });
+    }
     void dump_head() const;
     void dump_jump() const;
     void destroy_body();

@@ -81,10 +81,7 @@ next_primop:;
 
 void mem2reg(World& world) {
     critical_edge_elimination(world);
-
-    for (auto scope : top_level_scopes(world))
-        mem2reg(*scope);
-
+    top_level_scopes(world, [] (Scope& scope) { mem2reg(scope); });
     world.cleanup();
     debug_verify(world);
 }

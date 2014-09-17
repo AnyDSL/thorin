@@ -42,13 +42,16 @@ void top_level_scopes(World& world, std::function<void(Scope&)> f, bool elide_em
     LambdaSet done;
     std::queue<Lambda*> queue;
 
-    for (auto lambda : world.externals())
+    for (auto lambda : world.externals()) {
+        assert(!lambda->empty() && "external must not be empty");
         queue.push(lambda);
+    }
 
     while (!queue.empty()) {
         auto lambda = pop(queue);
         if (elide_empty && lambda->empty())
             continue;
+        assert(!done.contains(lambda));
         Scope scope(lambda);
         f(scope);
         for (auto lambda : scope)
@@ -56,8 +59,10 @@ void top_level_scopes(World& world, std::function<void(Scope&)> f, bool elide_em
 
         for (auto lambda : scope) {
             for (auto succ : lambda->succs()) {
-                if (!done.contains(succ))
+                if (!done.contains(succ)) {
+                    done.insert(succ);
                     queue.push(succ);
+                }
             }
         }
     }

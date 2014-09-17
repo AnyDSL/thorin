@@ -12,7 +12,7 @@ namespace thorin {
 class PrimOp : public DefNode {
 protected:
     PrimOp(size_t size, NodeKind kind, Type type, const std::string& name)
-        : DefNode(-1, kind, size, type ? type.unify() : nullptr, true, name)
+        : DefNode(-1, kind, size, type ? type.unify() : nullptr, name)
     {}
 
     void set_type(Type type) { type_ = type.unify(); }
@@ -374,7 +374,7 @@ private:
 
 //------------------------------------------------------------------------------
 
-template<class To> 
+template<class To>
 using PrimOpMap     = HashMap<const PrimOp*, To>;
 using PrimOpSet     = HashSet<const PrimOp*>;
 using PrimOp2PrimOp = PrimOpMap<const PrimOp*>;

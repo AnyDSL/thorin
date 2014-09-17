@@ -102,13 +102,12 @@ private:
     DefNode(const DefNode&);              ///< Do not copy-construct a \p DefNode.
 
 protected:
-    DefNode(size_t gid, NodeKind kind, size_t size, Type type, bool is_const, const std::string& name)
+    DefNode(size_t gid, NodeKind kind, size_t size, Type type, const std::string& name)
         : kind_(kind)
         , ops_(size)
         , type_(type)
         , representative_(this)
         , gid_(gid)
-        , is_const_(is_const)
         , name(name)
     {}
     virtual ~DefNode() {}
@@ -128,7 +127,7 @@ public:
     void unset_ops();
     Lambda* as_lambda() const;
     Lambda* isa_lambda() const;
-    bool is_const() const { return is_const_; }
+    bool is_const() const;
     /**
      * Returns the maximum depth of this \p Def%s depdency tree (induced by the \p ops).
      * \em const dependences are consideres leaves in this tree.
@@ -174,9 +173,6 @@ private:
     mutable DefSet representatives_of_;
     const size_t gid_;
 
-protected:
-    bool is_const_;
-
 public:
     mutable std::string name; ///< Just do what ever you want with this field.
 
@@ -202,7 +198,7 @@ bool UseLT::operator () (Use use1, Use use2) const { // <- note that we switch t
 class Param : public DefNode {
 private:
     Param(size_t gid, Type type, Lambda* lambda, size_t index, const std::string& name)
-        : DefNode(gid, Node_Param, 0, type, false, name)
+        : DefNode(gid, Node_Param, 0, type, name)
         , lambda_(lambda)
         , index_(index)
     {}

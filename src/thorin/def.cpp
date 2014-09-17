@@ -43,8 +43,6 @@ void DefNode::set_op(size_t i, Def def) {
     assert(def && "setting null pointer");
     auto node = *def;
     ops_[i] = node;
-    if (isa<PrimOp>())
-        is_const_ &= node->is_const();
     assert(def->uses_.count(Use(i, this)) == 0);
     auto p = node->uses_.emplace(i, this);
     assert(p.second);
@@ -71,6 +69,18 @@ std::string DefNode::unique_name() const {
     std::ostringstream oss;
     oss << name << '_' << gid();
     return oss.str();
+}
+
+bool DefNode::is_const() const {
+    if (isa<Param>()) return false;
+    if (isa<PrimOp>()) {
+        for (auto op : ops()) { // TODO slow because ops form a DAG not a tree
+            if (!op->is_const())
+                return false;
+        }
+    }
+
+    return true; // lambdas are always const
 }
 
 std::vector<Use> DefNode::uses() const {

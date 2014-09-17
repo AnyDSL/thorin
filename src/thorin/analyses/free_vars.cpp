@@ -1,5 +1,6 @@
 #include <vector>
 
+#include "thorin/memop.h"
 #include "thorin/world.h"
 #include "thorin/util/queue.h"
 #include "thorin/analyses/scope.h"
@@ -11,19 +12,20 @@ std::vector<Def> free_vars(const Scope& scope) {
     std::queue<Def> queue;
     DefSet set;
 
-    // now find everything not in scope
+    // now find all params not in scope
     auto enqueue = [&] (Def def) {
-        for (auto op : def->ops()) {
-            if (op->is_const())
-                continue;
-            if (!scope.contains(op)) {
-                vars.insert(op);
-                visit(set, op);
-                continue;
+        if (def->isa<Alloc>() || def->isa<Slot>()) { // HACK;
+            vars.insert(def);
+        } else {
+            for (auto op : def->ops()) {
+                if (!visit(set, op)) {
+                    if (auto param = op->isa<Param>()) {
+                        if (!scope.contains(param->lambda()))
+                            vars.insert(param);
+                    } else
+                        queue.push(op);
+                }
             }
-
-            if (!visit(set, op))
-                queue.push(op);
         }
     };
 

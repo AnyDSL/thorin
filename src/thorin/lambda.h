@@ -35,7 +35,7 @@ enum class CC : uint8_t {
 class Lambda : public DefNode {
 private:
     Lambda(size_t gid, FnType fn, CC cc, Intrinsic intrinsic, bool is_sealed, const std::string& name)
-        : DefNode(gid, Node_Lambda, 0, fn, true, name)
+        : DefNode(gid, Node_Lambda, 0, fn, name)
         , cc_(cc)
         , intrinsic_(intrinsic)
         , parent_(this)

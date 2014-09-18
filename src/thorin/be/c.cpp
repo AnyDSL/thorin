@@ -21,7 +21,6 @@ public:
         : Printer(stream)
         , world_(world)
         , lang_(lang)
-        , process_kernel(false)
     {}
 
     void emit();
@@ -39,7 +38,7 @@ private:
     void insert(size_t gid, std::string str);
     std::string &get_name(size_t gid);
     bool is_texture_type(Type type);
-    bool process_kernel;
+    bool process_kernel_ = false;
 };
 
 std::ostream& CCodeGen::emit_type(Type type) {
@@ -231,14 +230,12 @@ void CCodeGen::emit() {
         stream() << "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n";
     }
 
-    auto scopes = top_level_scopes_deprecated(world_);
-
     // emit declarations
-    for (auto scope : scopes) {
-        Schedule schedule = schedule_smart(*scope);
+    top_level_scopes(world_, [&] (Scope& scope) {
+        Schedule schedule = schedule_smart(scope);
 
         // tuple declarations
-        for (auto lambda : scope->rpo()) {
+        for (auto lambda : scope) {
             for (auto param : lambda->params()) {
                 emit_aggop_decl(param->type());
                 insert(param->gid(), param->unique_name());
@@ -254,9 +251,7 @@ void CCodeGen::emit() {
         }
 
         // lambda declarations
-        auto lambda = scope->entry();
-        if (lambda->empty())
-            continue;
+        auto lambda = scope.entry();
 
         // retrieve return param
         const Param *ret_param = nullptr;
@@ -284,7 +279,7 @@ void CCodeGen::emit() {
         }
         auto ret_fn_type = ret_param->type().as<FnType>();
         if (lambda->is_external())
-            continue;
+            return;
         if (lang_==CUDA) stream() << "__device__ ";
         if (lambda->is_external()) {
             emit_type(ret_fn_type->args().back()) << " " << lambda->name << "(";
@@ -304,7 +299,7 @@ void CCodeGen::emit() {
         }
         stream() << ");";
         newline();
-    }
+    });
     newline();
 
     // emit all globals
@@ -317,14 +312,12 @@ void CCodeGen::emit() {
     }
 
     // emit connected functions first
-    std::stable_sort(scopes.begin(), scopes.end(), [] (Scope* s1, Scope* s2) { return s1->entry()->is_connected_to_intrinsic(); });
-    process_kernel = true;
+    process_kernel_ = true;
 
-    for (auto ptr_scope : scopes) {
-        auto& scope = *ptr_scope;
+    top_level_scopes(world_, [&] (Scope& scope) {
         auto lambda = scope.entry();
-        if (lambda->is_intrinsic() || lambda->empty())
-            continue;
+        if (lambda->is_intrinsic())
+            return;
 
         assert(lambda->is_returning());
 
@@ -550,7 +543,7 @@ void CCodeGen::emit() {
         newline();
 
         primops_.clear();
-    }
+    });
 
     globals_.clear();
     primops_.clear();
@@ -835,7 +828,7 @@ std::string &CCodeGen::get_name(size_t gid) {
     assert(false && "couldn't find def");
 }
 void CCodeGen::insert(size_t gid, std::string str) {
-    if (process_kernel) primops_[gid] = str;
+    if (process_kernel_) primops_[gid] = str;
     else globals_[gid] = str;
 }
 bool CCodeGen::is_texture_type(Type type) {

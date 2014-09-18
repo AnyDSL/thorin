@@ -7,31 +7,44 @@
 
 namespace thorin {
 
-static const Enter* find_enter(Lambda* lambda) {
-    if (auto param = lambda->mem_param()) {
-        std::queue<Def> queue;
-        queue.push(param);
-        while (!queue.empty()) {
-            for (auto use : pop(queue)->uses()) {
-                if (auto enter = use->isa<Enter>())
-                    return enter;
+static const Enter* find_enter(Def def) {
+    for (auto use : def->uses()) {
+        if (auto enter = use->isa<Enter>())
+            return enter;
+    }
+    return nullptr;
+}
 
-                if (use->type().isa<MemType>())
-                    queue.push(use);
+static void find_enters(Lambda* lambda, std::vector<const Enter*>& enters) {
+    if (auto param = lambda->mem_param()) {
+        for (Def cur = param; cur;) {
+            if (auto enter = find_enter(cur))
+                enters.push_back(enter);
+
+            if (auto memop = cur->isa<MemOp>()) {
+                if (auto mem_out = memop->mem_out()) {
+                    assert(mem_out);
+                    cur = mem_out;
+                }
+            }
+
+            for (auto use : cur->uses()) {
+                cur = nullptr;
+                if (auto memop = use->isa<MemOp>()) {
+                    if (memop->has_mem_out())
+                        cur = memop;
+                }
             }
         }
     }
-    return nullptr;
 }
 
 static void lift_enters(const Scope& scope) {
     World& world = scope.world();
     std::vector<const Enter*> enters;
 
-    for (size_t i = scope.size(); i-- != 1;) {
-        if (auto enter = find_enter(scope.rpo(i)))
-            enters.push_back(enter);
-    }
+    for (size_t i = scope.size(); i-- != 1;)
+        find_enters(scope.rpo(i), enters);
 
     auto enter = find_enter(scope.entry());
     if (enter == nullptr)
@@ -48,6 +61,13 @@ static void lift_enters(const Scope& scope) {
         for (auto use : old_enter->uses()) {
             if (auto slot = use->isa<Slot>())
                 slot->replace(world.slot(slot->ptr_type()->referenced_type(), enter, index++, slot->name));
+        }
+    }
+
+    for (auto old_enter : enters) {
+        for (auto use : old_enter->uses()) {
+            assert(!use->isa<Slot>());
+            assert(use->isa<Leave>());
         }
     }
 }

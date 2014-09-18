@@ -86,9 +86,8 @@ llvm::FunctionType* CodeGen::convert_fn_type(Lambda* lambda) {
 }
 
 llvm::Function* CodeGen::emit_function_decl(Lambda* lambda) {
-    auto i = fcts_.find(lambda);
-    if (i != fcts_.end())
-        return i->second;
+    if (auto f = find(fcts_, lambda))
+        return f;
 
     std::string name = (lambda->is_external() || lambda->empty()) ? lambda->name : lambda->unique_name();
     auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(lambda)));

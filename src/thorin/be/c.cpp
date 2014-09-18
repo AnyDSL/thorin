@@ -277,17 +277,17 @@ void CCodeGen::emit() {
                 }
             }
         }
-        auto ret_fn_type = ret_param->type().as<FnType>();
-        if (lambda->is_external())
+
+        // skip device functions and kernel entries (the kernel signature below is different)
+        if (lambda->cc() == CC::Device || lambda->is_external())
             return;
+
+        // emit function declaration
+        auto ret_fn_type = ret_param->type().as<FnType>();
+        auto name = (lambda->is_external() || lambda->empty()) ? lambda->name : lambda->unique_name();
         if (lang_==CUDA) stream() << "__device__ ";
-        if (lambda->is_external()) {
-            emit_type(ret_fn_type->args().back()) << " " << lambda->name << "(";
-        } else {
-            emit_type(ret_fn_type->args().back()) << " " << lambda->unique_name() << "(";
-        }
+        emit_type(ret_fn_type->args().back()) << " " << name << "(";
         size_t i = 0;
-        // emit all first-order params
         for (auto param : lambda->params()) {
             if (param->order() == 0 && !param->type().isa<MemType>()) {
                 // skip arrays bound to texture memory
@@ -299,7 +299,7 @@ void CCodeGen::emit() {
         }
         stream() << ");";
         newline();
-    });
+    }, false);
     newline();
 
     // emit all globals
@@ -332,14 +332,14 @@ void CCodeGen::emit() {
         assert(ret_param);
 
         auto ret_fn_type = ret_param->type().as<FnType>();
+        auto name = (lambda->is_external() || lambda->empty()) ? lambda->name : lambda->unique_name();
         if (lambda->is_external()) {
             if (lang_==CUDA) stream() << "__global__ ";
             if (lang_==OPENCL) stream() << "__kernel ";
-            emit_type(ret_fn_type->args().back()) << " " << lambda->name << "(";
         } else {
             if (lang_==CUDA) stream() << "__device__ ";
-            emit_type(ret_fn_type->args().back()) << " " << lambda->unique_name() << "(";
         }
+        emit_type(ret_fn_type->args().back()) << " " << name << "(";
         size_t i = 0;
         // emit and store all first-order params
         for (auto param : lambda->params()) {
@@ -470,6 +470,15 @@ void CCodeGen::emit() {
                     if (to_lambda->is_intrinsic()) {
                         THORIN_UNREACHABLE;
                     } else {
+                        // emit temporaries for args
+                        for (auto arg : lambda->args()) {
+                            if (arg->order() == 0 && !arg->type().isa<MemType>() &&
+                                !lookup(arg->gid()) && !arg->isa<PrimLit>()) {
+                                emit(arg);
+                                newline();
+                            }
+                        }
+
                         // retrieve return argument
                         Def ret_arg = 0;
                         for (auto arg : lambda->args()) {
@@ -481,33 +490,11 @@ void CCodeGen::emit() {
 
                         if (ret_arg == ret_param) {     // call + return
                             stream() << "return ";
-                            if (to_lambda->is_external() || lambda->empty())
-                                stream() << to_lambda->name << "(";
-                            else
-                                stream() << to_lambda->unique_name() << "(";
-                            // emit all first-order args
-                            size_t i = 0;
-                            for (auto arg : lambda->args()) {
-                                if (arg->order() == 0 && !arg->type().isa<MemType>()) {
-                                    if (i++ > 0) stream() << ", ";
-                                    emit(arg);
-                                }
-                            }
-                            stream() << ");";
                         } else {                        // call + continuation
                             Lambda* succ = ret_arg->as_lambda();
                             const Param* param = succ->param(0)->type().isa<MemType>() ? nullptr : succ->param(0);
                             if (param == nullptr && succ->num_params() == 2)
                                 param = succ->param(1);
-
-                            // emit temporaries for args
-                            for (auto arg : lambda->args()) {
-                                if (arg->order() == 0 && !arg->type().isa<MemType>() &&
-                                    !lookup(arg->gid()) && !arg->isa<PrimLit>()) {
-                                    emit(arg);
-                                    newline();
-                                }
-                            }
 
                             if (param) {
                                 emit_type(param->type()) << " ";
@@ -515,23 +502,19 @@ void CCodeGen::emit() {
                                 newline();
                                 emit(param) << " = ";
                             }
-
-                            // TODO
-                            //if (to_lambda->attribute().is(Lambda::Extern | Lambda::Device))
-                            if (to_lambda->is_external() || lambda->cc() == CC::Device)
-                                stream() << to_lambda->name << "(";
-                            else
-                                stream() << to_lambda->unique_name() << "(";
-                            // emit all first-order args
-                            size_t i = 0;
-                            for (auto arg : lambda->args()) {
-                                if (arg->order() == 0 && !arg->type().isa<MemType>()) {
-                                    if (i++ > 0) stream() << ", ";
-                                    emit(arg);
-                                }
-                            }
-                            stream() << ");";
                         }
+
+                        auto name = (to_lambda->is_external() || to_lambda->empty()) ? to_lambda->name : to_lambda->unique_name();
+                        stream() << name << "(";
+                        // emit all first-order args
+                        size_t i = 0;
+                        for (auto arg : lambda->args()) {
+                            if (arg->order() == 0 && !arg->type().isa<MemType>()) {
+                                if (i++ > 0) stream() << ", ";
+                                emit(arg);
+                            }
+                        }
+                        stream() << ");";
                     }
                 }
             }

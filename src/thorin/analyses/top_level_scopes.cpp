@@ -38,7 +38,8 @@ AutoVector<Scope*> top_level_scopes_deprecated(World& world) {
     return scopes;
 }
 
-void top_level_scopes(World& world, std::function<void(Scope&)> f, bool elide_empty) {
+template<bool elide_empty>
+void top_level_scopes(World& world, std::function<void(Scope&)> f) {
     LambdaSet done;
     std::queue<Lambda*> queue;
 
@@ -66,5 +67,8 @@ void top_level_scopes(World& world, std::function<void(Scope&)> f, bool elide_em
         }
     }
 }
+
+template void top_level_scopes<true> (World&, std::function<void(Scope&)>);
+template void top_level_scopes<false>(World&, std::function<void(Scope&)>);
 
 }

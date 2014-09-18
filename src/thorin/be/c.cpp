@@ -231,7 +231,7 @@ void CCodeGen::emit() {
     }
 
     // emit declarations
-    top_level_scopes(world_, [&] (Scope& scope) {
+    top_level_scopes<false>(world_, [&] (Scope& scope) {
         Schedule schedule = schedule_smart(scope);
 
         // tuple declarations
@@ -299,7 +299,7 @@ void CCodeGen::emit() {
         }
         stream() << ");";
         newline();
-    }, false);
+    });
     newline();
 
     // emit all globals

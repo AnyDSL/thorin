@@ -223,7 +223,7 @@ void emit_thorin(World& world, bool fancy, bool nocolor) {
             cg.emit_assignment(global);
     }
 
-    top_level_scopes(world, [&] (Scope& scope) {
+    top_level_scopes<false>(world, [&] (Scope& scope) {
         const DomTree domtree(scope);
         Schedule schedule = schedule_smart(scope);
         auto bbs = bb_schedule(scope);
@@ -241,7 +241,7 @@ void emit_thorin(World& world, bool fancy, bool nocolor) {
         }
 
         cg.newline();
-    }, false);
+    });
 }
 
 void emit_type(Type type)                  { CodeGen(false).emit_type(type);         }

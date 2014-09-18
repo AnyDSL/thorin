@@ -231,7 +231,7 @@ void IlPrinter::print_lambda(const DomTree& domtree, Schedule& schedule, Lambda*
 void emit_il(World& world, bool fancy) {
     IlPrinter cg(fancy);
 
-    top_level_scopes(world, [&] (Scope& scope) {
+    top_level_scopes<false>(world, [&] (Scope& scope) {
         auto lambda = scope.entry();
         const DomTree domtree(scope);
         Schedule schedule = schedule_smart(scope);
@@ -239,7 +239,7 @@ void emit_il(World& world, bool fancy) {
         Vars def_vars;
         cg.print_lambda(domtree, schedule, lambda, def_vars);
         cg.newline();
-    }, false);
+    });
 }
 
 //------------------------------------------------------------------------------

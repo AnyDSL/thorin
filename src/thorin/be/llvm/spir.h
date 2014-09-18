@@ -10,13 +10,13 @@ public:
     SPIRCodeGen(World& world);
 
 protected:
-    virtual llvm::Function* emit_function_decl(Lambda*);
-    virtual llvm::Value* emit_mmap(Def def);
-    virtual llvm::Value* emit_munmap(Def def);
-
-    virtual std::string get_alloc_name() const { assert(false && "alloc not supported in SPIR"); }
-    virtual std::string get_output_name(const std::string& name) const { return name + ".spir"; }
-    virtual std::string get_binary_output_name(const std::string& name) const { return name + ".spir.bc"; }
+    virtual void emit_function_decl_hook(Lambda*, llvm::Function*) override;
+    virtual llvm::FunctionType* convert_fn_type(Lambda*) override;
+    virtual llvm::Value* emit_mmap(Def def) override;
+    virtual llvm::Value* emit_munmap(Def def) override;
+    virtual std::string get_alloc_name() const override { assert(false && "alloc not supported in SPIR"); }
+    virtual std::string get_output_name(const std::string& name) const override { return name + ".spir"; }
+    virtual std::string get_binary_output_name(const std::string& name) const override { return name + ".spir.bc"; }
 };
 
 }

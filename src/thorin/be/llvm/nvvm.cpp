@@ -32,7 +32,7 @@ static AddressSpace resolve_addr_space(Def def) {
     return AddressSpace::Generic;
 }
 
-llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambda) {
+llvm::FunctionType* NVVMCodeGen::convert_fn_type(Lambda* lambda) {
     // skip non-global address-space parameters
     std::vector<Type> types;
     for (auto type : lambda->type()->args()) {
@@ -41,22 +41,11 @@ llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambd
                 continue;
         types.push_back(type);
     }
-    auto ft = llvm::cast<llvm::FunctionType>(convert(lambda->world().fn_type(types)));
-    // TODO: factor emit_function_decl code
-    auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, ft));
-    f->setLinkage(llvm::Function::ExternalLinkage);
-    f->setAttributes(llvm::AttributeSet());
+    return llvm::cast<llvm::FunctionType>(convert(lambda->world().fn_type(types)));
+}
 
-    if (lambda->is_external()) {
-        f->setCallingConv(kernel_calling_convention_);
-    } else {
-        if (lambda->cc() == CC::Device) {
-            f->setCallingConv(device_calling_convention_);
-        } else {
-            f->setCallingConv(function_calling_convention_);
-        }
-        return f;
-    }
+void NVVMCodeGen::emit_function_decl_hook(Lambda* lambda, llvm::Function* f) {
+    f->setAttributes(llvm::AttributeSet());
 
     // append required metadata
     auto annotation = module_->getOrInsertNamedMetadata("nvvm.annotations");
@@ -89,8 +78,6 @@ llvm::Function* NVVMCodeGen::emit_function_decl(std::string& name, Lambda* lambd
             }
         }
     }
-
-    return f;
 }
 
 llvm::Value* NVVMCodeGen::map_param(llvm::Function*, llvm::Argument* arg, const Param* param) {

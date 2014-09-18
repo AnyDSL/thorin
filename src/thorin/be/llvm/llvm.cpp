@@ -81,19 +81,36 @@ Lambda* CodeGen::emit_intrinsic(llvm::Function* current, Lambda* lambda) {
     }
 }
 
+llvm::FunctionType* CodeGen::convert_fn_type(Lambda* lambda) {
+    return llvm::cast<llvm::FunctionType>(convert(lambda->type()));
+}
+
 llvm::Function* CodeGen::emit_function_decl(Lambda* lambda) {
     auto i = fcts_.find(lambda);
     if (i != fcts_.end())
         return i->second;
 
     std::string name = (lambda->is_external() || lambda->empty()) ? lambda->name : lambda->unique_name();
-    auto ft = llvm::cast<llvm::FunctionType>(convert(lambda->type()));
-    auto fun = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, ft));
+    auto f = llvm::cast<llvm::Function>(module_->getOrInsertFunction(name, convert_fn_type(lambda)));
+
+    // set linkage
     if (lambda->is_external() || lambda->empty())
-        fun->setLinkage(llvm::Function::ExternalLinkage);
+        f->setLinkage(llvm::Function::ExternalLinkage);
     else
-        fun->setLinkage(llvm::Function::InternalLinkage);
-    return fcts_[lambda] = fun;
+        f->setLinkage(llvm::Function::InternalLinkage);
+
+    // set calling convention
+    if (lambda->is_external()) {
+        f->setCallingConv(kernel_calling_convention_);
+        emit_function_decl_hook(lambda, f);
+    } else {
+        if (lambda->cc() == CC::Device)
+            f->setCallingConv(device_calling_convention_);
+        else
+            f->setCallingConv(function_calling_convention_);
+    }
+
+    return fcts_[lambda] = f;
 }
 
 void CodeGen::emit(int opt) {

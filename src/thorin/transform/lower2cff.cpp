@@ -11,9 +11,7 @@ namespace thorin {
 
 class CFFLowering {
 public:
-    CFFLowering(World& world)
-        : world_(world)
-    {
+    CFFLowering(World& world) {
         top_level_scopes(world, [&] (Scope& scope) { top_.insert(scope.entry()); });
     }
 
@@ -21,7 +19,6 @@ public:
     size_t process();
 
 private:
-    World& world_;
     LambdaSet top_;
 };
 

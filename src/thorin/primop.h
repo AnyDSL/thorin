@@ -30,9 +30,12 @@ public:
 private:
     void set_gid(size_t gid) const { const_cast<size_t&>(const_cast<PrimOp*>(this)->gid_) = gid; }
 
+    mutable uint32_t live_ = 0;
+
     friend struct PrimOpHash;
     friend struct PrimOpEqual;
     friend class World;
+    friend class Cleaner;
 };
 
 struct PrimOpHash { size_t operator () (const PrimOp* o) const { return o->hash(); } };

@@ -11,6 +11,7 @@
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/be/thorin.h"
+#include "thorin/util/queue.h"
 
 namespace thorin {
 
@@ -69,6 +70,38 @@ std::string DefNode::unique_name() const {
     std::ostringstream oss;
     oss << name << '_' << gid();
     return oss.str();
+}
+
+Def DefNode::refresh() const {
+    return this;
+    if (up_to_date_ || isa<Param>() || isa<Lambda>())
+        return this;
+
+    auto oprimop = as<PrimOp>();
+    Array<Def> ops(oprimop->size());
+    for (size_t i = 0, e = oprimop->size(); i != e; ++i)
+        ops[i] = oprimop->op(i)->refresh();
+
+    auto nprimop = world().rebuild(oprimop, ops);
+    assert(nprimop != oprimop);
+    //this->representative_ = nprimop;
+    //auto p = nprimop->representatives_of_.insert(this);
+    //assert(p.second);
+    return nprimop;
+}
+
+Def DefNode::op(size_t i) const {
+    assert(i < ops().size() && "index out of bounds");
+    //assert(up_to_date_ && "retrieving operand of Def that is not up-to-date");
+
+    auto op = ops_[i];
+    if (op && !op->up_to_date_) {
+        op = op->refresh();
+        //if (auto lambda = isa_lambda())
+            //lambda->update_op(i, op);
+        ops_[i]->replace(op);
+    }
+    return op;
 }
 
 bool DefNode::is_const() const {
@@ -137,11 +170,24 @@ bool DefNode::is_minus_zero() const {
 
 void DefNode::replace(Def with) const {
     assert(type() == with->type());
-    if (this == *with) return;
-    assert(!is_proxy());
-    this->representative_ = with;
-    auto p = with->representatives_of_.insert(this);
-    assert(p.second);
+    if (this != *with) {
+        assert(!is_proxy());
+        this->representative_ = with;
+        auto p = with->representatives_of_.insert(this);
+        assert(p.second);
+
+        std::queue<const DefNode*> queue;
+        queue.push(this);
+        while (!queue.empty()) {
+            auto def = pop(queue);
+            def->up_to_date_ = false;
+
+            for (auto use : def->uses_) {
+                if (use.def().node()->up_to_date_ && !use.def().node()->isa_lambda())
+                    queue.push(use.def().node());
+            }
+        }
+    }
 }
 
 void DefNode::dump() const {
@@ -184,4 +230,4 @@ std::vector<Param::Peek> Param::peek() const {
 
 //------------------------------------------------------------------------------
 
-} // namespace thorin
+}

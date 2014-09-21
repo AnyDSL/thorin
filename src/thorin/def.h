@@ -139,7 +139,7 @@ public:
     int order() const;
     World& world() const;
     ArrayRef<Def> ops() const { return ops_; }
-    Def op(size_t i) const { assert(i < ops().size()); return ops()[i]; }
+    Def op(size_t i) const;
     Def op(Def def) const;
     void replace(Def) const;
     size_t length() const; ///< Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
@@ -156,6 +156,7 @@ public:
     bool is_commutative() const { return thorin::is_commutative(kind()); }
     bool is_associative() const { return thorin::is_associative(kind()); }
     template<class T> inline T primlit_value() const; // implementation in literal.h
+    Def refresh() const;
 
 private:
     const NodeKind kind_;
@@ -165,6 +166,7 @@ private:
     mutable const DefNode* representative_;
     mutable DefSet representatives_of_;
     const size_t gid_;
+    mutable bool up_to_date_ = true;
 
 public:
     mutable std::string name; ///< Just do what ever you want with this field.

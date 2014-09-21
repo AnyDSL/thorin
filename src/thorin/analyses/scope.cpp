@@ -46,9 +46,9 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries)
 
 Scope::~Scope() {
     if (!entry()->empty() && entry()->to()->isa<Bottom>())
-        world().destroy(entry());
+        entry()->destroy_body();
     if (exit() != entry() && !exit()->empty() && exit()->to()->isa<Bottom>())
-        world().destroy(exit());
+        exit()->destroy_body();
 }
 
 void Scope::identify_scope(ArrayRef<Lambda*> entries) {
@@ -113,7 +113,7 @@ void Scope::uce(Lambda* entry) {
 
     DefSet new_in_scope;
     std::queue<Def> queue;
-    auto enqueue = [&] (Def def) { 
+    auto enqueue = [&] (Def def) {
         assert(in_scope_.contains(def) && !new_in_scope.contains(def));
         queue.push(def);
         new_in_scope.insert(def);
@@ -143,7 +143,7 @@ void Scope::uce(Lambda* entry) {
     swap(new_in_scope, in_scope_);
 
 #ifndef NDEBUG
-    for (auto lambda : rpo_) 
+    for (auto lambda : rpo_)
         assert(contains(lambda));
 #endif
 }

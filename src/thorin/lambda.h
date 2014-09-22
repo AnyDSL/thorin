@@ -160,7 +160,6 @@ private:
      *              Any \p get_value which arrives here without finding a definition will recursively try to find one in \p parent_.
      */
     Lambda* parent_;
-    uint32_t reachable_ = 0;
     std::vector<Def> values_;
     std::vector<Todo> todos_;
     CC cc_;

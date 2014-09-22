@@ -50,13 +50,13 @@ void DefNode::set_op(size_t i, Def def) {
 }
 
 void DefNode::unregister_use(size_t i) const {
-    auto def = op(i).node();
+    auto def = ops_[i].node();
     assert(def->uses_.count(Use(i, this)) == 1);
     def->uses_.erase(Use(i, this));
 }
 
 void DefNode::unset_op(size_t i) {
-    assert(op(i) && "must be set");
+    assert(ops_[i] && "must be set");
     unregister_use(i);
     ops_[i] = nullptr;
 }
@@ -73,7 +73,6 @@ std::string DefNode::unique_name() const {
 }
 
 Def DefNode::refresh() const {
-    return this;
     if (up_to_date_ || isa<Param>() || isa<Lambda>())
         return this;
 
@@ -97,8 +96,8 @@ Def DefNode::op(size_t i) const {
     auto op = ops_[i];
     if (op && !op->up_to_date_) {
         op = op->refresh();
-        //if (auto lambda = isa_lambda())
-            //lambda->update_op(i, op);
+        if (auto lambda = isa_lambda())
+            lambda->update_op(i, op);
         ops_[i]->replace(op);
     }
     return op;

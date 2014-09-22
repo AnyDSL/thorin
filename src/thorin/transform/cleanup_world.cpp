@@ -1,6 +1,7 @@
 #include "thorin/world.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/util/queue.h"
+#include "thorin/be/thorin.h"
 
 namespace thorin {
 
@@ -9,7 +10,6 @@ public:
     Cleaner(World& world)
         : world_(world)
     {}
-    ~Cleaner() { ++counter_; }
 
     World& world() { return world_; }
     void cleanup();
@@ -19,10 +19,9 @@ public:
 
 private:
     World& world_;
-    static uint32_t counter_;
+    LambdaSet reachable_;
+    World::PrimOps live_;
 };
-
-uint32_t Cleaner::counter_ = 1;
 
 void Cleaner::eliminate_params() {
     for (auto olambda : world().copy_lambdas()) {
@@ -43,7 +42,8 @@ void Cleaner::eliminate_params() {
         if (proxy_idx.empty())
             continue;
 
-        auto nlambda = world().lambda(world().fn_type(olambda->type()->args().cut(proxy_idx)), olambda->cc(), olambda->intrinsic(), olambda->name);
+        auto nlambda = world().lambda(world().fn_type(olambda->type()->args().cut(proxy_idx)),
+                                      olambda->cc(), olambda->intrinsic(), olambda->name);
         size_t j = 0;
         for (auto i : param_idx) {
             olambda->param(i)->replace(nlambda->param(j));
@@ -63,50 +63,54 @@ void Cleaner::eliminate_params() {
 
 void Cleaner::unreachable_code_elimination() {
     std::queue<const Lambda*> queue;
-    for (auto lambda : world().externals()) {
-        lambda->reachable_ = counter_;
+    auto enqueue = [&] (Lambda* lambda) {
+        for (size_t i = 0, e = lambda->size(); i != e; ++i)
+            lambda->op(i); // HACK: refresh
+
+        reachable_.insert(lambda);
         queue.push(lambda);
+    };
+
+    for (auto lambda : world().externals()) {
+        assert(!reachable_.contains(lambda));
+        enqueue(lambda);
     }
 
     while (!queue.empty()) {
         auto lambda = pop(queue);
         for (auto succ : lambda->succs()) {
-            if (succ->reachable_ != counter_) {
-                succ->reachable_ = counter_;
-                queue.push(succ);
-            }
+            if (!reachable_.contains(succ))
+                enqueue(succ);
         }
     }
 
     for (auto lambda : world().lambdas()) {
-        if (lambda->reachable_ != counter_)
+        if (!reachable_.contains(lambda))
             lambda->destroy_body();
     }
-
 }
 
 void Cleaner::dead_code_elimination() {
     std::queue<const PrimOp*> queue;
+    auto enqueue = [&] (const PrimOp* primop) {
+        if (!live_.contains(primop)) {
+            live_.insert(primop);
+            queue.push(primop);
+        }
+    };
+
     for (auto lambda : world().lambdas()) {
         for (auto op : lambda->ops()) {
-            if (auto primop = op->isa<PrimOp>()) {
-                if (primop->live_ != counter_) {
-                    primop->live_ = counter_;
-                    queue.push(primop);
-                }
-            }
+            if (auto primop = op->isa<PrimOp>())
+                enqueue(primop);
         }
     }
 
     while (!queue.empty()) {
         auto primop = pop(queue);
         for (auto op : primop->ops()) {
-            if (auto primop = op->isa<PrimOp>()) {
-                if (primop->live_ != counter_) {
-                    primop->live_ = counter_;
-                    queue.push(primop);
-                }
-            }
+            if (auto primop = op->isa<PrimOp>())
+                enqueue(primop);
         }
     }
 }
@@ -125,7 +129,7 @@ void Cleaner::cleanup() {
 
     // unlink dead primops from the rest
     for (auto primop : world().primops()) {
-        if (primop->live_ != counter_) {
+        if (!live_.contains(primop)) {
             for (size_t i = 0, e = primop->size(); i != e; ++i)
                 primop->unregister_use(i);
             unlink_representative(primop);
@@ -134,7 +138,7 @@ void Cleaner::cleanup() {
 
     // unlink unreachable lambdas from the rest
     for (auto lambda : world().lambdas()) {
-        if (lambda->reachable_ != counter_) {
+        if (!reachable_.contains(lambda)) {
             for (auto param : lambda->params())
                 unlink_representative(param);
             unlink_representative(lambda);
@@ -143,21 +147,20 @@ void Cleaner::cleanup() {
 
     verify_closedness(world());
 
-    // delete dead primops
-    for (auto primop : world().primops()) {
-        //if (primop->live_ != counter_)
-            //delete primop;
-    }
+    swap(world().primops_, live_);      // delete dead primops
+    swap(world().lambdas_, reachable_); // delete unreachable lambdas
 
-    // delete unreachable lambdas
-    for (auto lambda : world().lambdas()) {
-        //if (lambda->reachable_ != counter_)
-            //delete lambda;
-    }
+#ifndef NDEBUG
+    for (auto primop : world().primops())
+        assert(primop->up_to_date_);
+#endif
 
     debug_verify(world());
 }
 
-void cleanup_world(World& world) { Cleaner(world).cleanup(); }
+void cleanup_world(World& world) {
+    emit_thorin(world, true);
+    Cleaner(world).cleanup();
+}
 
 }

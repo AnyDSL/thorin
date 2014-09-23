@@ -23,10 +23,7 @@ Def PrimOp::rebuild() const {
             ops[i] = op(i)->rebuild();
 
         auto def = world().rebuild(this, ops);
-        //assert(def != oprimop);
-        //this->representative_ = def;
-        //auto p = def->representatives_of_.insert(this);
-        //assert(p.second);
+        this->replace(def);
         return def;
     } else
         return this;

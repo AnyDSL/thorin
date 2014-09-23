@@ -72,37 +72,6 @@ std::string DefNode::unique_name() const {
     return oss.str();
 }
 
-Def DefNode::refresh() const {
-    if (up_to_date_ || isa<Param>() || isa<Lambda>())
-        return this;
-
-    auto oprimop = as<PrimOp>();
-    Array<Def> ops(oprimop->size());
-    for (size_t i = 0, e = oprimop->size(); i != e; ++i)
-        ops[i] = oprimop->op(i)->refresh();
-
-    auto nprimop = world().rebuild(oprimop, ops);
-    //assert(nprimop != oprimop);
-    //this->representative_ = nprimop;
-    //auto p = nprimop->representatives_of_.insert(this);
-    //assert(p.second);
-    return nprimop;
-}
-
-Def DefNode::op(size_t i) const {
-    assert(i < ops().size() && "index out of bounds");
-    //assert(up_to_date_ && "retrieving operand of Def that is not up-to-date");
-
-    auto op = ops_[i];
-    if (op && !op->up_to_date_) {
-        op = op->refresh();
-        if (auto lambda = isa_lambda())
-            lambda->update_op(i, op);
-        ops_[i]->replace(op);
-    }
-    return op;
-}
-
 bool DefNode::is_const() const {
     if (isa<Param>()) return false;
     if (isa<PrimOp>()) {
@@ -179,11 +148,13 @@ void DefNode::replace(Def with) const {
         queue.push(this);
         while (!queue.empty()) {
             auto def = pop(queue);
-            def->up_to_date_ = false;
-
             for (auto use : def->uses_) {
-                if (use.def().node()->up_to_date_ && !use.def().node()->isa_lambda())
-                    queue.push(use.def().node());
+                if (auto uprimop = use.def().node()->isa<PrimOp>()) {
+                    if (uprimop->up_to_date_) {
+                        uprimop->up_to_date_ = false;
+                        queue.push(uprimop);
+                    }
+                }
             }
         }
     }

@@ -16,6 +16,22 @@ size_t PrimOp::hash() const {
     return seed;
 }
 
+Def PrimOp::rebuild() const {
+    if (!up_to_date_) {
+        Array<Def> ops(size());
+        for (size_t i = 0, e = size(); i != e; ++i)
+            ops[i] = op(i)->rebuild();
+
+        auto def = world().rebuild(this, ops);
+        //assert(def != oprimop);
+        //this->representative_ = def;
+        //auto p = def->representatives_of_.insert(this);
+        //assert(p.second);
+        return def;
+    } else
+        return this;
+}
+
 //------------------------------------------------------------------------------
 
 VectorOp::VectorOp(size_t size, NodeKind kind, Type type, Def cond, const std::string& name)

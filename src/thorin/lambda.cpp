@@ -38,6 +38,11 @@ Lambda* Lambda::update_op(size_t i, Def def) {
     return this;
 }
 
+void Lambda::refresh() {
+    for (size_t i = 0, e = size(); i != e; ++i)
+        update_op(i, op(i)->rebuild());
+}
+
 void Lambda::destroy_body() {
     unset_ops();
     resize(0);

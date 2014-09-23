@@ -1,8 +1,8 @@
 #ifndef THORIN_PRIMOP_H
 #define THORIN_PRIMOP_H
 
-#include "thorin/enums.h"
 #include "thorin/def.h"
+#include "thorin/enums.h"
 #include "thorin/util/hash.h"
 
 namespace thorin {
@@ -13,27 +13,34 @@ class PrimOp : public DefNode {
 protected:
     PrimOp(size_t size, NodeKind kind, Type type, const std::string& name)
         : DefNode(-1, kind, size, type ? type.unify() : nullptr, name)
+        , up_to_date_(true)
     {}
 
     void set_type(Type type) { type_ = type.unify(); }
 
 public:
+    bool up_to_date() const { return up_to_date_; }
+    virtual Def rebuild() const override;
     virtual const char* op_name() const;
     virtual size_t hash() const;
     virtual bool equal(const PrimOp* other) const {
         bool result = this->kind() == other->kind() && this->size() == other->size() && this->type() == other->type();
         for (size_t i = 0, e = size(); result && i != e; ++i)
-            result &= this->ops_[i] == other->ops_[i];
+            result &= this->ops_[i].node() == other->ops_[i].node();
         return result;
     }
 
 private:
     void set_gid(size_t gid) const { const_cast<size_t&>(const_cast<PrimOp*>(this)->gid_) = gid; }
 
+    mutable uint32_t live_ = 0;
+    mutable bool up_to_date_ : 1;
+
     friend struct PrimOpHash;
     friend struct PrimOpEqual;
     friend class World;
     friend class Cleaner;
+    friend void DefNode::replace(Def) const;
 };
 
 struct PrimOpHash { size_t operator () (const PrimOp* o) const { return o->hash(); } };

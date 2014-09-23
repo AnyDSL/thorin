@@ -99,6 +99,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     void dump_head() const;
     void dump_jump() const;
     void destroy_body();
+    void refresh();
 
     // terminate
 
@@ -164,8 +165,9 @@ private:
     std::vector<Todo> todos_;
     CC cc_;
     Intrinsic intrinsic_;
-    unsigned is_sealed_  : 1;
-    unsigned is_visited_ : 1;
+    mutable uint32_t reachable_ = 0;
+    bool is_sealed_  : 1;
+    bool is_visited_ : 1;
 
     friend class Cleaner;
     friend class World;

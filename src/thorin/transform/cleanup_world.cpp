@@ -145,10 +145,22 @@ void Cleaner::cleanup() {
         }
     }
 
+    swap(world().primops_, live_);
+    swap(world().lambdas_, reachable_);
+
     verify_closedness(world());
 
-    swap(world().primops_, live_);      // delete dead primops
-    swap(world().lambdas_, reachable_); // delete unreachable lambdas
+    // delete dead primops
+    for (auto primop : world().primops()) {
+        if (!live_.contains(primop))
+            delete primop;
+    }
+
+    // delete unreachable lambdas
+    for (auto lambda : world().lambdas()) {
+        if (!reachable_.contains(lambda))
+            delete lambda;
+    }
 
 #ifndef NDEBUG
     for (auto primop : world().primops())

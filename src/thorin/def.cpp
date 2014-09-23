@@ -82,7 +82,7 @@ Def DefNode::refresh() const {
         ops[i] = oprimop->op(i)->refresh();
 
     auto nprimop = world().rebuild(oprimop, ops);
-    assert(nprimop != oprimop);
+    //assert(nprimop != oprimop);
     //this->representative_ = nprimop;
     //auto p = nprimop->representatives_of_.insert(this);
     //assert(p.second);

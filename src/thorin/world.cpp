@@ -670,21 +670,7 @@ Def World::select(Def cond, Def a, Def b, const std::string& name) {
     return cse(new Select(cond, a, b, name));
 }
 
-const Enter* World::enter(Def mem, const std::string& name) {
-    if (auto leave = mem->isa<Leave>())
-        return leave->frame();
-
-    return cse(new Enter(mem, name));
-}
-
-Def World::leave(Def mem, Def frame, const std::string& name) {
-    for (auto use : frame->uses()) {
-        if (use->isa<Slot>())
-            return cse(new Leave(mem, frame, name));
-    }
-
-    return mem;
-}
+const Enter* World::enter(Def mem, const std::string& name) { return cse(new Enter(mem, name)); }
 
 const Map* World::map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space, Def mem_offset, Def mem_size, const std::string& name) {
     return cse(new Map(mem, ptr, device, addr_space, mem_offset, mem_size, name));
@@ -819,7 +805,6 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type) {
         case Node_EndRun:   assert(ops.size() == 2); return to.end_run( ops[0], ops[1], name);
         case Node_Insert:   assert(ops.size() == 3); return to.insert(  ops[0], ops[1], ops[2], name);
         case Node_LEA:      assert(ops.size() == 2); return to.lea(     ops[0], ops[1], name);
-        case Node_Leave:    assert(ops.size() == 2); return to.leave(   ops[0], ops[1], name);
         case Node_Load:     assert(ops.size() == 2); return to.load(    ops[0], ops[1], name);
         case Node_Map:      assert(ops.size() == 4); return to.map(     ops[0], ops[1],
                                     in->as<Map>()->device(), in->as<Map>()->addr_space(), ops[2], ops[3], name);

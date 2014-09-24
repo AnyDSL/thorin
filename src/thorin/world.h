@@ -204,7 +204,6 @@ public:
     // memory stuff
 
     const Enter* enter(Def mem, const std::string& name = "");
-    Def leave(Def mem, Def frame, const std::string& name = "");
     const Slot* slot(Type type, Def frame, size_t index, const std::string& name = "");
     Def alloc(Def mem, Type type, Def extra, const std::string& name = "");
     Def alloc(Def mem, Type type, const std::string& name = "") { return alloc(mem, type, literal_qu64(0), name); }

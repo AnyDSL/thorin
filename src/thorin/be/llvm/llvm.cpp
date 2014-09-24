@@ -680,7 +680,7 @@ llvm::Value* CodeGen::emit(Def def) {
     if (auto munmap = def->isa<Unmap>())
         return emit_munmap(munmap);
 
-    if (def->isa<Enter>() || def->isa<Leave>())
+    if (def->isa<Enter>())
         return nullptr;
 
     if (auto vector = def->isa<Vector>()) {

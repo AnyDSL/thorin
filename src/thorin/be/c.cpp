@@ -717,7 +717,7 @@ std::ostream& CCodeGen::emit(Def def) {
         return stream();
     }
 
-    if (def->isa<Enter>() || def->isa<Leave>())
+    if (def->isa<Enter>())
         return stream();
 
     if (def->isa<Vector>()) {

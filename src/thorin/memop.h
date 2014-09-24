@@ -81,20 +81,6 @@ private:
 
 //------------------------------------------------------------------------------
 
-class Leave : public MemOp {
-private:
-    Leave(Def mem, Def frame, const std::string& name);
-
-public:
-    const Enter* frame() const { return op(1)->as<Enter>(); }
-    virtual bool has_mem_out() const { return true; }
-    virtual Def mem_out() const override { return this; }
-
-    friend class World;
-};
-
-//------------------------------------------------------------------------------
-
 class MapOp : public MemOp {
 protected:
     MapOp(size_t size, NodeKind kind, Type type, Def mem, Def ptr, const std::string &name);

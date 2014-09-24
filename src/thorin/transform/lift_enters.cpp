@@ -64,12 +64,10 @@ static void lift_enters(const Scope& scope) {
         }
     }
 
-    for (auto old_enter : enters) {
-        for (auto use : old_enter->uses()) {
-            assert(!use->isa<Slot>());
-            assert(use->isa<Leave>());
-        }
-    }
+#ifndef NDEBUG
+    for (auto old_enter : enters)
+        assert(old_enter->num_uses() == 0);
+#endif
 }
 
 void lift_enters(World& world) {

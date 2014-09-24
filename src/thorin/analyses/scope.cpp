@@ -14,37 +14,59 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
+uint32_t Scope::counter_ = 0;
+
 Scope::Scope(World& world, ArrayRef<Lambda*> entries)
     : world_(world)
 {
 #ifndef NDEBUG
-    for (auto entry : entries) assert(!entry->is_proxy());
+    for (auto entry : entries)
+        assert(!entry->is_proxy());
 #endif
 
     identify_scope(entries);
-    build_succs();
 
-    Lambda* entry;
-    if (entries.size() == 1)
-        entry = entries.front();
-    else {
-        entry = world.meta_lambda();
-        rpo_.push_back(entry);
-        in_scope_.insert(entry);
+    size_t n;
+    if (entries.size() == 1) {
+        n = number(entries.front(), 0);
+    } else {
+        auto entry = world.meta_lambda();
+        po_.push_back(entry);
+        set_candidate(entry);
 
-        for (auto e : entries)
-            link_succ(entry, e);
+        n = number(entry, 0);
+        assert(n == 1);
+        for (auto entry : entries) {
+            if (!entry->find(this)) // if not visited
+                n = number(entry, n);
+        }
     }
 
-    uce(entry);
-    build_preds();
-    auto exit = find_exit();
-    link_exit(entry, exit);
-    ScopeView(*this,  true).rpo_numbering(entry);
-    ScopeView(*this, false).rpo_numbering(exit);
+    // sort in post order and remove unreachable lambdas
+    std::sort(po_.begin(), po_.end(), [&](Lambda* l1, Lambda* l2) { return po_index(l1) < po_index(l2); });
+    po_.resize(n);
+    assert(rpo_.empty());
+    rpo_.resize(n);
+
+    // build rpo
+    for (size_t i = n; i-- != 0;) {
+        auto lambda = po_[i];
+        auto info = lambda->find(this);
+        assert(info && info->po_index == i && info->rpo_index == size_t(-1));
+        info->rpo_index = n-1 - i;
+        rpo_[info->rpo_index] = lambda;
+    }
+
+    build_cfg();
+    //auto exit = find_exit();
+    //link_exit(entry, exit);
+    //ScopeView(*this,  true).rpo_numbering(entry);
+    //ScopeView(*this, false).rpo_numbering(exit);
 }
 
 Scope::~Scope() {
+    ++counter_;
+
     if (!entry()->empty() && entry()->to()->isa<Bottom>())
         entry()->destroy_body();
     if (exit() != entry() && !exit()->empty() && exit()->to()->isa<Bottom>())
@@ -53,24 +75,24 @@ Scope::~Scope() {
 
 void Scope::identify_scope(ArrayRef<Lambda*> entries) {
     for (auto entry : entries) {
-        if (!in_scope_.contains(entry)) {
+        if (!is_candidate(entry)) {
             std::queue<Def> queue;
 
             auto insert_lambda = [&] (Lambda* lambda) {
                 assert(!lambda->is_proxy());
                 for (auto param : lambda->params()) {
                     if (!param->is_proxy()) {
-                        in_scope_.insert(param);
+                        set_candidate(param);
                         queue.push(param);
                     }
                 }
 
-                assert(std::find(rpo_.begin(), rpo_.end(), lambda) == rpo_.end());
-                rpo_.push_back(lambda);
+                assert(std::find(po_.begin(), po_.end(), lambda) == po_.end());
+                po_.push_back(lambda);
             };
 
             insert_lambda(entry);
-            in_scope_.insert(entry);
+            set_candidate(entry);
 
             while (!queue.empty()) {
                 auto def = pop(queue);
@@ -78,7 +100,7 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
                     if (!in_scope_.contains(use)) {
                         if (auto ulambda = use->isa_lambda())
                             insert_lambda(ulambda);
-                        in_scope_.insert(use);
+                        set_candidate(use);
                         queue.push(use);
                     }
                 }
@@ -87,67 +109,37 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
     }
 
 #ifndef NDEBUG
-    for (auto lambda : rpo_) assert(contains(lambda));
+    for (auto lambda : po_)
+        assert(is_candidate(lambda));
 #endif
 }
 
-void Scope::build_succs() {
+size_t Scope::number(Lambda* cur, size_t i) {
+    cur->scopes_.emplace_front(this);
+
+    for (auto succ : cur->succs()) {
+        if (is_candidate(succ)) {
+            if (!succ->find(this)) // if not visited
+                i = number(succ, i);
+        }
+    }
+
+    assert(cur->scopes_.front().po_index == size_t(-1) && "already set");
+    assert(cur->scopes_.front().scope == this && "front item does not point to this scope");
+    cur->scopes_.front().po_index = i;
+    return i+1;
+}
+
+void Scope::build_cfg() {
     for (auto lambda : rpo_) {
         for (auto succ : lambda->succs()) {
-            if (contains(succ))
-                link_succ(lambda, succ);
+            if (contains(succ)) // TODO
+                link(lambda, succ);
         }
     }
 }
 
-void Scope::build_preds() {
-    for (auto lambda : rpo_) {
-        for (auto succ : succs_[lambda])
-            link_pred(lambda, succ);
-    }
-}
-
-void Scope::uce(Lambda* entry) {
-    auto reachable = ScopeView(*this, true).reachable(entry);
-    // transitively mark all reachable stuff
-
-    DefSet new_in_scope;
-    std::queue<Def> queue;
-    auto enqueue = [&] (Def def) {
-        assert(in_scope_.contains(def) && !new_in_scope.contains(def));
-        queue.push(def);
-        new_in_scope.insert(def);
-    };
-
-    for (auto lambda : reachable) {
-        for (auto param : lambda->params()) {
-            if (!param->is_proxy())
-                enqueue(param);
-        }
-
-        enqueue(lambda);
-    }
-
-    while (!queue.empty()) {
-        Def def = pop(queue);
-        for (auto op : def->ops()) {
-            if (in_scope_.contains(op) && !new_in_scope.contains(op))
-                enqueue(op);
-        }
-    }
-
-    rpo_.resize(reachable.size(), nullptr);
-    reverse_rpo_.resize(reachable.size(), nullptr);
-    std::copy(reachable.begin(), reachable.end(), rpo_.begin());
-    std::copy(reachable.begin(), reachable.end(), reverse_rpo_.begin());
-    swap(new_in_scope, in_scope_);
-
-#ifndef NDEBUG
-    for (auto lambda : rpo_)
-        assert(contains(lambda));
-#endif
-}
-
+#if 0
 Lambda* Scope::find_exit() {
     LambdaSet exits;
 
@@ -162,7 +154,7 @@ Lambda* Scope::find_exit() {
     else {
         exit = world().meta_lambda();
         rpo_.push_back(exit);
-        reverse_rpo_.push_back(exit);
+        po_.push_back(exit);
         in_scope_.insert(exit);
         for (auto e : exits) {
             link_succ(e, exit);
@@ -201,48 +193,6 @@ void Scope::link_exit(LambdaSet& done, LambdaSet& reachable, Lambda* cur, Lambda
     }
 }
 
-//------------------------------------------------------------------------------
-
-LambdaSet ScopeView::reachable(Lambda* entry) {
-    LambdaSet set;
-    std::queue<Lambda*> queue;
-    auto enqueue = [&] (Lambda* lambda) { queue.push(lambda); set.insert(lambda); };
-    enqueue(entry);
-
-    while (!queue.empty()) {
-        for (auto succ : succs(pop(queue))) {
-            if (!set.contains(succ))
-                enqueue(succ);
-        }
-    }
-    return set;
-}
-
-void ScopeView::rpo_numbering(Lambda* entry) {
-    LambdaSet visited;
-    visit_first(visited, entry);
-    int num = po_visit(visited, entry, size()-1);
-    assert(size() == visited.size() && num == -1);
-
-    // sort rpo according to sid which now holds the rpo number
-    std::stable_sort(rpo_vector().begin(), rpo_vector().end(), [&](Lambda* l1, Lambda* l2) { return sid()[l1] < sid()[l2]; });
-
-#ifndef NDEBUG
-    for (int i = 0, e = size(); i != e; ++i)
-        assert(sid()[rpo()[i]] == i && "double check of sids went wrong");
 #endif
-}
-
-int ScopeView::po_visit(LambdaSet& done, Lambda* cur, int i) {
-    for (auto succ : succs(cur)) {
-        if (!visit(done,  succ))
-            i = po_visit(done, succ, i);
-    }
-
-    sid()[cur] = i;
-    return i-1;
-}
-
-//------------------------------------------------------------------------------
 
 }

@@ -1,6 +1,7 @@
 #ifndef THORIN_LAMBDA_H
 #define THORIN_LAMBDA_H
 
+#include <list>
 #include <vector>
 
 #include "thorin/def.h"
@@ -10,6 +11,7 @@
 namespace thorin {
 
 class Lambda;
+class Scope;
 
 typedef std::vector<Lambda*> Lambdas;
 
@@ -146,7 +148,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     void branch(Def cond, Def tto, Def fto, ArrayRef<Def> args = ArrayRef<Def>(nullptr, 0));
     std::pair<Lambda*, Def> call(Def to, ArrayRef<Def> args, Type ret_type);
 
-    // cps construction
+    // value numbering
 
     Def set_value(size_t handle, Def def);
     Def get_value(size_t handle, Type type, const char* name = "");
@@ -188,6 +190,20 @@ private:
     Def find_def(size_t handle);
     void increase_values(size_t handle) { if (handle >= values_.size()) values_.resize(handle+1); }
 
+    struct ScopeInfo {
+        ScopeInfo(const Scope* scope)
+            : scope(scope)
+            , po_index(-1)
+            , rpo_index(-1)
+        {}
+
+        const Scope* scope;
+        size_t po_index;
+        size_t rpo_index;
+    };
+
+    ScopeInfo* find(const Scope* scope);
+
     std::vector<const Param*> params_;
     /**
      * There exist three cases to distinguish here.
@@ -208,7 +224,10 @@ private:
     bool is_sealed_  : 1;
     bool is_visited_ : 1;
 
+    std::list<ScopeInfo> scopes_;
+
     friend class Cleaner;
+    friend class Scope;
     friend class World;
 };
 

@@ -327,7 +327,7 @@ Array<Lambda*> LoopTree::loop_lambdas(const LoopHeader* header) {
 Array<Lambda*> LoopTree::loop_lambdas_in_rpo(const LoopHeader* header) {
     auto result = loop_lambdas(header);
     std::stable_sort(result.begin(), result.end(), [&](Lambda* l1, Lambda* l2) {
-        return scope_.sid(l1) < scope_.sid(l2);
+        return scope_.rpo_index(l1) < scope_.rpo_index(l2);
     });
     return result;
 }

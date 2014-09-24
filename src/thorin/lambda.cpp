@@ -149,8 +149,10 @@ static Lambdas succs(const Lambda* lambda) {
             succs.push_back(lambda);
             continue;
         }
-        for (auto op : def->ops())
-            enqueue(op);
+        for (auto op : def->ops()) {
+            if (op->order() >= 1)
+                enqueue(op);
+        }
     }
 
     return succs;
@@ -262,8 +264,17 @@ std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) 
     return std::make_pair(next, ret);
 }
 
+Lambda::ScopeInfo* Lambda::find(const Scope* scope) {
+    auto i = std::find_if(scopes_.begin(), scopes_.end(), [&] (const ScopeInfo& info) { return info.scope == scope; });
+    if (i != scopes_.end()) {
+        std::swap(scopes_.front(), *i); // heuristic: swap found node to front so current scope will be found as first element in list
+        return &scopes_.front();
+    } else
+        return nullptr;
+}
+
 /*
- * CPS construction
+ * value numbering
  */
 
 Def Lambda::find_def(size_t handle) {

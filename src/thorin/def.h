@@ -168,12 +168,14 @@ private:
     mutable const DefNode* representative_;
     mutable DefSet representatives_of_;
     const size_t gid_;
+    mutable uint32_t candidate_ = 0;
 
 public:
     mutable std::string name; ///< Just do what ever you want with this field.
 
     friend class Def;
     friend class PrimOp;
+    friend class Scope;
     friend class World;
     friend class Cleaner;
     friend void verify_closedness(World& world);

@@ -16,7 +16,7 @@ public:
     Scope(const Scope&) = delete;
     Scope& operator= (Scope) = delete;
 
-    /// Always builds a unique meta \p Lambda as entry.
+    /// Builds a unique meta \p Lambda as dummy entry if necessary.
     explicit Scope(World& world, ArrayRef<Lambda*> entries);
     /// Does not build a meta \p Lambda
     explicit Scope(Lambda* entry)
@@ -24,20 +24,22 @@ public:
     {}
     ~Scope();
 
-    /// All lambdas within this scope in reverse postorder.
+    /// All lambdas within this scope in reverse post-order.
     ArrayRef<Lambda*> rpo() const { return rpo_; }
     Lambda* rpo(size_t i) const { return rpo_[i]; }
     Lambda* entry() const { return rpo().front(); }
-    Lambda* exit()  const { return reverse_rpo_.front(); }
+    Lambda* exit()  const { return po_.front(); }
     /// Like \p rpo() but without \p entry()
     ArrayRef<Lambda*> body() const { return rpo().slice_from_begin(1); }
     const DefSet& in_scope() const { return in_scope_; }
     bool contains(Def def) const { return in_scope_.contains(def); }
-    ArrayRef<Lambda*> preds(Lambda* lambda) const { return preds_[lambda]; }
-    ArrayRef<Lambda*> succs(Lambda* lambda) const { return succs_[lambda]; }
+    ArrayRef<Lambda*> preds(Lambda* lambda) const { return preds_[rpo_index(lambda)]; }
+    ArrayRef<Lambda*> succs(Lambda* lambda) const { return succs_[rpo_index(lambda)]; }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
-    int sid(Lambda* lambda) const { assert(contains(lambda)); return sid_[lambda]; }
+    size_t po_index(Lambda* lambda) const { return lambda->find(this)->po_index; }
+    size_t rpo_index(Lambda* lambda) const { return lambda->find(this)->rpo_index; }
+
     size_t size() const { return rpo_.size(); }
     World& world() const { return world_; }
 
@@ -51,23 +53,27 @@ public:
 
 private:
     void identify_scope(ArrayRef<Lambda*> entries);
-    void build_succs();
-    void build_preds();
-    void uce(Lambda* entry);
+    void build_cfg();
     Lambda* find_exit();
-    void link_exit(Lambda* entry, Lambda* exit);
-    void link_exit(LambdaSet&, LambdaSet&, Lambda* cur, Lambda* exit);
-    void link_succ(Lambda* src, Lambda* dst) { assert(contains(src) && contains(dst)); succs_[src].push_back(dst); };
-    void link_pred(Lambda* src, Lambda* dst) { assert(contains(src) && contains(dst)); preds_[dst].push_back(src); };
+    void link(Lambda* src, Lambda* dst) {
+        assert(contains(src) && contains(dst));
+        succs_[rpo_index(src)].push_back(dst);
+        preds_[rpo_index(dst)].push_back(src);
+    }
+
+    static bool is_candidate(Def def) { return def->candidate_ == counter_; }
+    static void set_candidate(Def def) { def->candidate_ = counter_; }
+
+    size_t number(Lambda* lambda, size_t i);
 
     World& world_;
     DefSet in_scope_;
     mutable std::vector<Lambda*> rpo_;
-    mutable std::vector<Lambda*> reverse_rpo_;
-    mutable LambdaMap<std::vector<Lambda*>> preds_;
-    mutable LambdaMap<std::vector<Lambda*>> succs_;
-    mutable LambdaMap<int> sid_;
-    mutable LambdaMap<int> reverse_sid_;
+    mutable std::vector<Lambda*> po_;
+    mutable std::vector<std::vector<Lambda*>> preds_;
+    mutable std::vector<std::vector<Lambda*>> succs_;
+
+    static uint32_t counter_;
 
     friend class ScopeView;
 };
@@ -83,10 +89,10 @@ public:
 
     const Scope& scope() const { return scope_; }
     bool is_forward() const { return is_forward_; }
-    /// All lambdas within this scope in reverse postorder.
-    ArrayRef<Lambda*> rpo() const { return is_forward() ? scope().rpo_ : scope().reverse_rpo_; }
+    /// All lambdas within this scope in reverse post-order.
+    ArrayRef<Lambda*> rpo() const { return is_forward() ? scope().rpo_ : scope().po_; }
     Lambda* entry() const { return rpo().front(); }
-    Lambda* exit()  const { return (is_forward() ? scope().reverse_rpo_ : scope().rpo_).front(); }
+    Lambda* exit()  const { return (is_forward() ? scope().po_ : scope().rpo_).front(); }
     /// Like \p rpo() but without \p entry()
     ArrayRef<Lambda*> body() const { return rpo().slice_from_begin(1); }
     const DefSet& in_scope() const { return scope().in_scope_; }
@@ -95,7 +101,8 @@ public:
     ArrayRef<Lambda*> succs(Lambda* lambda) const { return is_forward() ? scope().succs(lambda) : scope().preds(lambda); }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
-    int sid(Lambda* lambda) const { assert(contains(lambda)); return sid()[lambda]; }
+    size_t po_index(Lambda* lambda) const  { return is_forward() ? scope().po_index(lambda) : scope().rpo_index(lambda); }
+    size_t rpo_index(Lambda* lambda) const { return is_forward() ? scope().rpo_index(lambda) : scope().po_index(lambda); }
     size_t size() const { return scope().size(); }
     World& world() const { return scope().world(); }
 
@@ -108,12 +115,6 @@ public:
     const_reverse_iterator rend() const { return rpo().rend(); }
 
 private:
-    LambdaSet reachable(Lambda* entry);
-    void rpo_numbering(Lambda* entry);
-    int po_visit(LambdaSet& set, Lambda* cur, int i);
-    LambdaMap<int>& sid() const { return is_forward() ? scope().sid_ : scope().reverse_sid_; }
-    std::vector<Lambda*>& rpo_vector() const { return is_forward() ? scope().rpo_ : scope().reverse_rpo_; }
-
     const Scope& scope_;
     const bool is_forward_;
 

@@ -31,11 +31,11 @@ protected:
 
 //------------------------------------------------------------------------------
 
-/** 
+/**
  * @brief The wish-you-a-value value.
  *
  * This literal represents an arbitrary value.
- * When ever an operation takes an \p Undef value as argument, 
+ * When ever an operation takes an \p Undef value as argument,
  * you may literally wish your favorite value instead.
  */
 class Any : public Undef {
@@ -49,7 +49,7 @@ private:
 
 //------------------------------------------------------------------------------
 
-/** 
+/**
  * @brief The novalue-value.
  *
  * This literal represents literally 'no value'.

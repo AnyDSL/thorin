@@ -97,7 +97,7 @@ private:
 
 public:
     ArithOpKind arithop_kind() const { return (ArithOpKind) kind(); }
-    virtual const char* op_name() const;
+    virtual const char* op_name() const override;
 
     friend class World;
 };
@@ -110,7 +110,7 @@ private:
 
 public:
     CmpKind cmp_kind() const { return (CmpKind) kind(); }
-    virtual const char* op_name() const;
+    virtual const char* op_name() const override;
 
     friend class World;
 };

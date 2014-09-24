@@ -11,10 +11,13 @@ namespace thorin {
 
 class PrimOp : public DefNode {
 protected:
-    PrimOp(size_t size, NodeKind kind, Type type, const std::string& name)
-        : DefNode(-1, kind, size, type ? type.unify() : nullptr, name)
+    PrimOp(NodeKind kind, Type type, ArrayRef<Def> args, const std::string& name)
+        : DefNode(-1, kind, type ? type.unify() : nullptr, args.size(), name)
         , up_to_date_(true)
-    {}
+    {
+        for (size_t i = 0, e = size(); i != e; ++i)
+            set_op(i, args[i]);
+    }
 
     void set_type(Type type) { type_ = type.unify(); }
 
@@ -62,7 +65,7 @@ struct PrimOpEqual { bool operator () (const PrimOp* o1, const PrimOp* o2) const
 class Literal : public PrimOp {
 protected:
     Literal(NodeKind kind, Type type, const std::string& name)
-        : PrimOp(0, kind, type, name)
+        : PrimOp(kind, type, {}, name)
     {}
 };
 
@@ -129,11 +132,10 @@ private:
 
 class VectorOp : public PrimOp {
 protected:
-    VectorOp(size_t size, NodeKind kind, Type type, Def cond, const std::string& name)
-        : PrimOp(size, kind, type, name)
+    VectorOp(NodeKind kind, Type type, ArrayRef<Def> args, const std::string& name)
+        : PrimOp(kind, type, args, name)
     {
-        assert(cond->type()->is_bool());
-        set_op(0, cond);
+        assert(cond()->type()->is_bool());
     }
 
 public:
@@ -143,10 +145,8 @@ public:
 class Select : public VectorOp {
 private:
     Select(Def cond, Def tval, Def fval, const std::string& name)
-        : VectorOp(3, Node_Select, tval->type(), cond, name)
+        : VectorOp(Node_Select, tval->type(), {cond, tval, fval}, name)
     {
-        set_op(1, tval);
-        set_op(2, fval);
         assert(tval->type() == fval->type() && "types of both values must be equal");
     }
 
@@ -160,11 +160,9 @@ public:
 class BinOp : public VectorOp {
 protected:
     BinOp(NodeKind kind, Type type, Def cond, Def lhs, Def rhs, const std::string& name)
-        : VectorOp(3, kind, type, cond, name)
+        : VectorOp(kind, type, {cond, lhs, rhs}, name)
     {
         assert(lhs->type() == rhs->type() && "types are not equal");
-        set_op(1, lhs);
-        set_op(2, rhs);
     }
 
 public:
@@ -199,10 +197,8 @@ public:
 class ConvOp : public VectorOp {
 protected:
     ConvOp(NodeKind kind, Def cond, Def from, Type to, const std::string& name)
-        : VectorOp(2, kind, to, cond, name)
-    {
-        set_op(1, from);
-    }
+        : VectorOp(kind, to, {cond, from}, name)
+    {}
 
 public:
     Def from() const { return op(1); }
@@ -210,7 +206,7 @@ public:
 
 class Cast : public ConvOp {
 private:
-    Cast(Def cond, Def from, Type to, const std::string& name)
+    Cast(Type to, Def cond, Def from, const std::string& name)
         : ConvOp(Node_Cast, cond, from, to, name)
     {}
 
@@ -219,7 +215,7 @@ private:
 
 class Bitcast : public ConvOp {
 private:
-    Bitcast(Def cond, Def from, Type to, const std::string& name)
+    Bitcast(Type to, Def cond, Def from, const std::string& name)
         : ConvOp(Node_Bitcast, cond, from, to, name)
     {}
 
@@ -229,11 +225,8 @@ private:
 class Aggregate : public PrimOp {
 protected:
     Aggregate(NodeKind kind, ArrayRef<Def> args, const std::string& name)
-        : PrimOp(args.size(), kind, Type() /*set later*/, name)
-    {
-        for (size_t i = 0, e = size(); i != e; ++i)
-            set_op(i, args[i]);
-    }
+        : PrimOp(kind, Type() /*set later*/, args, name)
+    {}
 };
 
 class DefiniteArray : public Aggregate {
@@ -296,12 +289,9 @@ private:
 
 class AggOp : public PrimOp {
 protected:
-    AggOp(size_t size, NodeKind kind, Type type, Def agg, Def index, const std::string& name)
-        : PrimOp(size, kind, type, name)
-    {
-        set_op(0, agg);
-        set_op(1, index);
-    }
+    AggOp(NodeKind kind, Type type, ArrayRef<Def> args, const std::string& name)
+        : PrimOp(kind, type, args, name)
+    {}
 
 public:
     Def agg() const { return op(0); }
@@ -313,7 +303,7 @@ public:
 class Extract : public AggOp {
 private:
     Extract(Def agg, Def index, const std::string& name)
-        : AggOp(2, Node_Extract, type(agg, index), agg, index, name)
+        : AggOp(Node_Extract, type(agg, index), {agg, index}, name)
     {}
 
 public:
@@ -325,10 +315,8 @@ public:
 class Insert : public AggOp {
 private:
     Insert(Def agg, Def index, Def value, const std::string& name)
-        : AggOp(3, Node_Insert, agg->type(), agg, index, name)
-    {
-        set_op(2, value);
-    }
+        : AggOp(Node_Insert, agg->type(), {agg, index, value}, name)
+    {}
 
 public:
     Def value() const { return op(2); }
@@ -358,10 +346,8 @@ public:
 class EvalOp : public PrimOp {
 protected:
     EvalOp(NodeKind kind, Def def, const std::string& name)
-        : PrimOp(1, kind, def->type(), name)
-    {
-        set_op(0, def);
-    }
+        : PrimOp(kind, def->type(), {def}, name)
+    {}
 
 public:
     Def def() const { return op(0); }
@@ -388,11 +374,8 @@ private:
 class EndEvalOp : public PrimOp {
 protected:
     EndEvalOp(NodeKind kind, Def def, Def eval, const std::string& name)
-        : PrimOp(2, kind, def->type(), name)
-    {
-        set_op(0, def);
-        set_op(1, eval);
-    }
+        : PrimOp(kind, def->type(), {def, eval}, name)
+    {}
 
 public:
     Def def() const { return op(0); }
@@ -471,12 +454,11 @@ private:
 
 class MemOp : public PrimOp {
 protected:
-    MemOp(size_t size, NodeKind kind, Type type, Def mem, const std::string& name)
-        : PrimOp(size, kind, type, name)
+    MemOp(NodeKind kind, Type type, ArrayRef<Def> args, const std::string& name)
+        : PrimOp(kind, type, args, name)
     {
-        assert(mem->type().isa<MemType>());
-        assert(size >= 1);
-        set_op(0, mem);
+        assert(mem()->type().isa<MemType>());
+        assert(args.size() >= 1);
     }
 
 public:
@@ -487,7 +469,7 @@ public:
 
 class Alloc : public MemOp {
 private:
-    Alloc(Def mem, Type type, Def extra, const std::string& name);
+    Alloc(Type type, Def mem, Def extra, const std::string& name);
 
 public:
     Def extra() const { return op(1); }
@@ -498,11 +480,10 @@ public:
 
 class Access : public MemOp {
 protected:
-    Access(size_t size, NodeKind kind, Type type, Def mem, Def ptr, const std::string& name)
-        : MemOp(size, kind, type, mem, name)
+    Access(NodeKind kind, Type type, ArrayRef<Def> args, const std::string& name)
+        : MemOp(kind, type, args, name)
     {
-        assert(size >= 2);
-        set_op(1, ptr);
+        assert(args.size() >= 2);
     }
 
 public:
@@ -512,11 +493,8 @@ public:
 class Load : public Access {
 private:
     Load(Def mem, Def ptr, const std::string& name)
-        : Access(2, Node_Load, ptr->type().as<PtrType>()->referenced_type(), mem, ptr, name)
+        : Access(Node_Load, ptr->type().as<PtrType>()->referenced_type(), {mem, ptr}, name)
     {}
-
-public:
-    Def ptr() const { return op(1); }
 
     friend class World;
 };
@@ -524,10 +502,8 @@ public:
 class Store : public Access {
 private:
     Store(Def mem, Def ptr, Def value, const std::string& name)
-        : Access(3, Node_Store, mem->type(), mem, ptr, name)
-    {
-        set_op(2, value);
-    }
+        : Access(Node_Store, mem->type(), {mem, ptr, value}, name)
+    {}
 
 public:
     Def val() const { return op(2); }
@@ -544,22 +520,16 @@ private:
     friend class World;
 };
 
-class MapOp : public MemOp {
+class MapOp : public Access {
 protected:
-    MapOp(size_t size, NodeKind kind, Type type, Def mem, Def ptr, const std::string &name)
-        : MemOp(size, kind, type, mem, name)
-    {
-        set_op(1, ptr);
-    }
-
-public:
-    Def ptr() const { return op(1); }
+    MapOp(NodeKind kind, Type type, ArrayRef<Def> args, const std::string& name)
+        : Access(kind, type, args, name)
+    {}
 };
 
 class Map : public MapOp {
 private:
-    Map(Def mem, Def ptr, int32_t device, AddressSpace addr_space,
-        Def offset, Def size, const std::string &name);
+    Map(int32_t device, AddressSpace addr_space, Def mem, Def ptr, Def offset, Def size, const std::string& name);
 
 public:
     Def extract_mem() const;
@@ -577,8 +547,8 @@ public:
 
 class Unmap : public MapOp {
 private:
-    Unmap(Def mem, Def ptr, const std::string &name)
-        : MapOp(2, Node_Unmap, mem->type(), mem, ptr, name)
+    Unmap(Def mem, Def ptr, const std::string& name)
+        : MapOp(Node_Unmap, mem->type(), {mem, ptr}, name)
     {}
 
     virtual bool has_mem_out() const override { return true; }

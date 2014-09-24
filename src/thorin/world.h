@@ -104,19 +104,19 @@ public:
 #define THORIN_ALL_TYPE(T, M) \
     Def literal_##T(T val, size_t length = 1) { return literal(PrimType_##T, Box(val), length); }
 #include "thorin/tables/primtypetable.h"
-    Def literal(PrimTypeKind kind, Box value, size_t length = 1);
+    Def literal(PrimTypeKind kind, Box box, size_t length = 1) { return vector(cse(new PrimLit(*this, kind, box, "")), length); }
     Def literal(PrimTypeKind kind, int64_t value, size_t length = 1);
     template<class T>
     Def literal(T value, size_t length = 1) { return literal(type2kind<T>::kind, Box(value), length); }
     Def zero(PrimTypeKind kind, size_t length = 1) { return literal(kind, 0, length); }
-    Def zero(Type, size_t length = 1);
+    Def zero(Type type, size_t length = 1) { return zero(type.as<PrimType>()->primtype_kind(), length); }
     Def one(PrimTypeKind kind, size_t length = 1) { return literal(kind, 1, length); }
-    Def one(Type, size_t length = 1);
+    Def one(Type type, size_t length = 1) { return one(type.as<PrimType>()->primtype_kind(), length); }
     Def allset(PrimTypeKind kind, size_t length = 1) { return literal(kind, -1, length); }
-    Def allset(Type, size_t length = 1);
-    Def any(Type type, size_t length = 1);
+    Def allset(Type type, size_t length = 1) { return allset(type.as<PrimType>()->primtype_kind(), length); }
+    Def any(Type type, size_t length = 1) { return vector(cse(new Any(type, "")), length); }
     Def any(PrimTypeKind kind, size_t length = 1) { return any(type(kind), length); }
-    Def bottom(Type type, size_t length = 1);
+    Def bottom(Type type, size_t length = 1) { return vector(cse(new Bottom(type, "")), length); }
     Def bottom(PrimTypeKind kind, size_t length = 1) { return bottom(type(kind), length); }
     /// Creates a vector of all true while the length is derived from @p def.
     Def true_mask(Def def) { return literal(true, def->length()); }
@@ -167,11 +167,11 @@ public:
 
     // casts
 
-    Def convert(Def from, Type to, const std::string& name = "");
-    Def cast(Def cond, Def from, Type to, const std::string& name = "");
-    Def cast(Def from, Type to, const std::string& name = "") { return cast(true_mask(from), from, to, name); }
-    Def bitcast(Def cond, Def from, Type to, const std::string& name = "");
-    Def bitcast(Def from, Type to, const std::string& name = "") { return bitcast(true_mask(from), from, to, name); }
+    Def convert(Type to, Def from, const std::string& name = "");
+    Def cast(Type to, Def cond, Def from, const std::string& name = "");
+    Def cast(Type to, Def from, const std::string& name = "") { return cast(to, true_mask(from), from, name); }
+    Def bitcast(Type to, Def cond, Def from, const std::string& name = "");
+    Def bitcast(Type to, Def from, const std::string& name = "") { return bitcast(to, true_mask(from), from, name); }
 
     // aggregate operations
 
@@ -197,31 +197,42 @@ public:
     /// Splats \p arg to create a \p Vector with \p length.
     Def vector(Def arg, size_t length = 1, const std::string& name = "");
     Def extract(Def tuple, Def index, const std::string& name = "", Def mem = Def());
-    Def extract(Def tuple, u32 index, const std::string& name = "", Def mem = Def());
+    Def extract(Def tuple, u32 index, const std::string& name = "", Def mem = Def()) {
+        return extract(tuple, literal_qu32(index), name, mem);
+    }
     Def insert(Def tuple, Def index, Def value, const std::string& name = "");
-    Def insert(Def tuple, u32 index, Def value, const std::string& name = "");
+    Def insert(Def tuple, u32 index, Def value, const std::string& name = "") {
+        return insert(tuple, literal_qu32(index), value, name);
+    }
 
     // memory stuff
 
-    const Enter* enter(Def mem, const std::string& name = "");
-    const Slot* slot(Type type, Def frame, size_t index, const std::string& name = "");
-    Def alloc(Def mem, Type type, Def extra, const std::string& name = "");
-    Def alloc(Def mem, Type type, const std::string& name = "") { return alloc(mem, type, literal_qu64(0), name); }
-    const Global* global(Def init, bool is_mutable = true, const std::string& name = "");
+    const Enter* enter(Def mem, const std::string& name = "") { return cse(new Enter(mem, name)); }
+    const Slot* slot(Type type, Def frame, size_t index, const std::string& name = "") {
+        return cse(new Slot(type, frame, index, name));
+    }
+    Def alloc(Type type, Def mem, Def extra, const std::string& name = "") { return cse(new Alloc(type, mem, extra, name)); }
+    Def alloc(Type type, Def mem, const std::string& name = "") { return alloc(type, mem, literal_qu64(0), name); }
+    const Global* global(Def init, bool is_mutable = true, const std::string& name = "") {
+        return cse(new Global(init, is_mutable, name));
+    }
     const Global* global_immutable_string(const std::string& str, const std::string& name = "");
     Def load(Def mem, Def ptr, const std::string& name = "");
     Def store(Def mem, Def ptr, Def val, const std::string& name = "");
-    const LEA* lea(Def ptr, Def index, const std::string& name = "");
-    const Map* map(Def mem, Def ptr, Def device, Def addr_space, Def mem_offset, Def mem_size, const std::string& name = "");
-    const Map* map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space, Def mem_offset, Def mem_size, const std::string& name = "");
-    const Unmap* unmap(Def mem, Def ptr, const std::string& name = "");
+    const LEA* lea(Def ptr, Def index, const std::string& name = "") { return cse(new LEA(ptr, index, name)); }
+    const Map* map(Def device, Def addr_space, Def mem, Def ptr, Def mem_offset, Def mem_size, const std::string& name = "");
+    const Map* map(uint32_t device, AddressSpace addr_space, Def mem, Def ptr, Def mem_offset,
+                   Def mem_size, const std::string& name = "") {
+        return cse(new Map(device, addr_space, mem, ptr, mem_offset, mem_size, name));
+    }
+    const Unmap* unmap(Def mem, Def ptr, const std::string& name = "") { return cse(new Unmap(mem, ptr, name)); }
 
     // guided partial evaluation
 
     Def run(Def def, const std::string& name = "");
     Def hlt(Def def, const std::string& name = "");
-    Def end_run(Def def, Def run, const std::string& name = "");
-    Def end_hlt(Def def, Def hlt, const std::string& name = "");
+    Def end_run(Def def, Def run, const std::string& name = "") { return cse(new EndRun(def, run, name)); }
+    Def end_hlt(Def def, Def hlt, const std::string& name = "") { return cse(new EndHlt(def, hlt, name)); }
 
     /// Select is higher-order. You can build branches with a \p Select primop.
     Def select(Def cond, Def t, Def f, const std::string& name = "");

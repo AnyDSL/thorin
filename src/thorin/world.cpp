@@ -75,13 +75,6 @@ Def World::literal(PrimTypeKind kind, int64_t value, size_t length) {
     return vector(lit, length);
 }
 
-Def World::literal(PrimTypeKind kind, Box box, size_t length) { return vector(cse(new PrimLit(*this, kind, box, "")), length); }
-Def World::any    (Type type, size_t length) { return vector(cse(new Any(type, "")), length); }
-Def World::bottom (Type type, size_t length) { return vector(cse(new Bottom(type, "")), length); }
-Def World::zero   (Type type, size_t length) { return zero  (type.as<PrimType>()->primtype_kind(), length); }
-Def World::one    (Type type, size_t length) { return one   (type.as<PrimType>()->primtype_kind(), length); }
-Def World::allset (Type type, size_t length) { return allset(type.as<PrimType>()->primtype_kind(), length); }
-
 /*
  * create
  */
@@ -473,13 +466,13 @@ Def World::cmp(CmpKind kind, Def cond, Def a, Def b, const std::string& name) {
     return cse(new Cmp(kind, cond, a, b, name));
 }
 
-Def World::convert(Def from, Type to, const std::string& name) {
+Def World::convert(Type to, Def from, const std::string& name) {
     if (from->type().isa<PtrType>() && to.isa<PtrType>())
-        return bitcast(from, to, name);
-    return cast(from, to, name);
+        return bitcast(to, from, name);
+    return cast(to, from, name);
 }
 
-Def World::cast(Def cond, Def from, Type to, const std::string& name) {
+Def World::cast(Type to, Def cond, Def from, const std::string& name) {
     if (cond->isa<Bottom>() || from->isa<Bottom>())
         return bottom(to);
 
@@ -488,7 +481,7 @@ Def World::cast(Def cond, Def from, Type to, const std::string& name) {
         auto to_vec = to.as<VectorType>();
         Array<Def> ops(num);
         for (size_t i = 0; i != num; ++i)
-            ops[i] = cast(vec->op(i), to_vec->scalarize());
+            ops[i] = cast(to_vec->scalarize(), vec->op(i));
         return vector(ops, name);
     }
 
@@ -566,10 +559,10 @@ Def World::cast(Def cond, Def from, Type to, const std::string& name) {
         }
     }
 
-    return cse(new Cast(cond, from, to, name));
+    return cse(new Cast(to, cond, from, name));
 }
 
-Def World::bitcast(Def cond, Def from, Type to, const std::string& name) {
+Def World::bitcast(Type to, Def cond, Def from, const std::string& name) {
     if (cond->isa<Bottom>() || from->isa<Bottom>())
         return bottom(to);
 
@@ -578,12 +571,12 @@ Def World::bitcast(Def cond, Def from, Type to, const std::string& name) {
         auto to_vec = to.as<VectorType>();
         Array<Def> ops(num);
         for (size_t i = 0; i != num; ++i)
-            ops[i] = bitcast(vec->op(i), to_vec->scalarize());
+            ops[i] = bitcast(to_vec->scalarize(), vec->op(i));
         return vector(ops, name);
     }
 
     // TODO constant folding
-    return cse(new Bitcast(cond, from, to , name));
+    return cse(new Bitcast(to, cond, from, name));
 }
 
 Def World::extract(Def agg, Def index, const std::string& name, Def mem) {
@@ -614,10 +607,6 @@ Def World::extract(Def agg, Def index, const std::string& name, Def mem) {
     return cse(new Extract(agg, index, name));
 }
 
-Def World::extract(Def tuple, u32 index, const std::string& name, Def mem) {
-    return extract(tuple, literal_qu32(index), name, mem);
-}
-
 Def World::insert(Def agg, Def index, Def value, const std::string& name) {
     if (agg->isa<Bottom>() || value->isa<Bottom>())
         return bottom(agg->type());
@@ -634,11 +623,6 @@ Def World::insert(Def agg, Def index, Def value, const std::string& name) {
     }
 
     return cse(new Insert(agg, index, value, name));
-}
-
-Def World::alloc(Def mem, Type type, Def extra, const std::string& name) { return cse(new Alloc(mem, type, extra, name)); }
-Def World::insert(Def tuple, u32 index, Def value, const std::string& name) {
-    return insert(tuple, literal_qu32(index), value, name);
 }
 
 Def World::vector(Def arg, size_t length, const std::string& name) {
@@ -668,19 +652,9 @@ Def World::select(Def cond, Def a, Def b, const std::string& name) {
     return cse(new Select(cond, a, b, name));
 }
 
-const Enter* World::enter(Def mem, const std::string& name) { return cse(new Enter(mem, name)); }
-
-const Map* World::map(Def mem, Def ptr, uint32_t device, AddressSpace addr_space, Def mem_offset, Def mem_size, const std::string& name) {
-    return cse(new Map(mem, ptr, device, addr_space, mem_offset, mem_size, name));
-}
-
-const Map* World::map(Def mem, Def ptr, Def device, Def addr_space, Def mem_offset, Def mem_size, const std::string& name) {
-    return map(mem, ptr, device->as<PrimLit>()->ps32_value().data(),
-            (AddressSpace)addr_space->as<PrimLit>()->ps32_value().data(), mem_offset, mem_size, name);
-}
-
-const Unmap* World::unmap(Def mem, Def ptr, const std::string& name) {
-    return cse(new Unmap(mem, ptr, name));
+const Map* World::map(Def device, Def addr_space, Def mem, Def ptr, Def mem_offset, Def mem_size, const std::string& name) {
+    return map(device->as<PrimLit>()->ps32_value().data(), (AddressSpace)addr_space->as<PrimLit>()->ps32_value().data(),
+               mem, ptr, mem_offset, mem_size, name);
 }
 
 Def World::load(Def mem, Def ptr, const std::string& name) {
@@ -706,12 +680,6 @@ Def World::store(Def mem, Def ptr, Def value, const std::string& name) {
     return cse(new Store(mem, ptr, value, name));
 }
 
-const LEA* World::lea(Def ptr, Def index, const std::string& name) { return cse(new LEA(ptr, index, name)); }
-const Global* World::global(Def init, bool is_mutable, const std::string& name) { return cse(new Global(init, is_mutable, name)); }
-const Slot* World::slot(Type type, Def frame, size_t index, const std::string& name) {
-    return cse(new Slot(type, frame, index, name));
-}
-
 const Global* World::global_immutable_string(const std::string& str, const std::string& name) {
     size_t size = str.size() + 1;
 
@@ -734,9 +702,6 @@ Def World::hlt(Def def, const std::string& name) {
     if (auto run = def->isa<Run>()) def = run->def();
     return cse(new Hlt(def, name));
 }
-
-Def World::end_run(Def def, Def run, const std::string& name) { return cse(new EndRun(def, run, name)); }
-Def World::end_hlt(Def def, Def hlt, const std::string& name) { return cse(new EndHlt(def, hlt, name)); }
 
 Lambda* World::lambda(FnType fn, CC cc, Intrinsic intrinsic, const std::string& name) {
     THORIN_CHECK_BREAK(gid_)
@@ -790,11 +755,12 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type) {
     }
 
     switch (kind) {
-        case Node_Alloc:    assert(ops.size() == 2); return to.alloc(   ops[0], type.as<PtrType>()->referenced_type(), ops[1], name);
+        case Node_Alloc:    assert(ops.size() == 2); return to.alloc(   type.as<PtrType>()->referenced_type(),
+                                                                        ops[0], ops[1], name);
         case Node_Any:      assert(ops.size() == 0); return to.any(type);
         case Node_Bottom:   assert(ops.size() == 0); return to.bottom(type);
-        case Node_Bitcast:  assert(ops.size() == 2); return to.bitcast( ops[0], ops[1], type);
-        case Node_Cast:     assert(ops.size() == 2); return to.cast(    ops[0], ops[1], type);
+        case Node_Bitcast:  assert(ops.size() == 2); return to.bitcast( type, ops[0], ops[1], name);
+        case Node_Cast:     assert(ops.size() == 2); return to.cast(    type, ops[0], ops[1], name);
         case Node_Enter:    assert(ops.size() == 1); return to.enter(   ops[0], name);
         case Node_Extract:  assert(ops.size() == 2); return to.extract( ops[0], ops[1], name);
         case Node_Global:   assert(ops.size() == 1); return to.global(  ops[0], in->as<Global>()->is_mutable(), name);
@@ -804,8 +770,8 @@ Def World::rebuild(World& to, const PrimOp* in, ArrayRef<Def> ops, Type type) {
         case Node_Insert:   assert(ops.size() == 3); return to.insert(  ops[0], ops[1], ops[2], name);
         case Node_LEA:      assert(ops.size() == 2); return to.lea(     ops[0], ops[1], name);
         case Node_Load:     assert(ops.size() == 2); return to.load(    ops[0], ops[1], name);
-        case Node_Map:      assert(ops.size() == 4); return to.map(     ops[0], ops[1],
-                                    in->as<Map>()->device(), in->as<Map>()->addr_space(), ops[2], ops[3], name);
+        case Node_Map:      assert(ops.size() == 4); return to.map(     in->as<Map>()->device(), in->as<Map>()->addr_space(),
+                                                                        ops[0], ops[1], ops[2], ops[3], name);
         case Node_Unmap:    assert(ops.size() == 2); return to.unmap(   ops[0], ops[1], name);
         case Node_Run:      assert(ops.size() == 1); return to.run(     ops[0], name);
         case Node_Select:   assert(ops.size() == 3); return to.select(  ops[0], ops[1], ops[2], name);

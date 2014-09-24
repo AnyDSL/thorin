@@ -61,11 +61,8 @@ Vector::Vector(World& world, ArrayRef<Def> args, const std::string& name)
 }
 
 LEA::LEA(Def def, Def index, const std::string& name)
-    : PrimOp(2, Node_LEA, Type(), name)
+    : PrimOp(Node_LEA, Type(), {def, index}, name)
 {
-    set_op(0, def);
-    set_op(1, index);
-
     auto& world = index->world();
     auto type = ptr_type();
     if (auto tuple = referenced_type().isa<TupleType>()) {
@@ -80,40 +77,30 @@ LEA::LEA(Def def, Def index, const std::string& name)
 }
 
 Slot::Slot(Type type, Def frame, size_t index, const std::string& name)
-    : PrimOp(1, Node_Slot, type->world().ptr_type(type), name)
+    : PrimOp(Node_Slot, type->world().ptr_type(type), {frame}, name)
     , index_(index)
-{
-    set_op(0, frame);
-}
-
-Global::Global(Def init, bool is_mutable, const std::string& name)
-    : PrimOp(1, Node_Global, init->type()->world().ptr_type(init->type()), name)
-    , is_mutable_(is_mutable)
-{
-    set_op(0, init);
-    // TODO assert that init does not depend on some param
-}
-
-Alloc::Alloc(Def mem, Type type, Def extra, const std::string& name)
-    : MemOp(2, Node_Alloc, mem->world().ptr_type(type), mem, name)
-{
-    set_op(1, extra);
-}
-
-Enter::Enter(Def mem, const std::string& name)
-    : MemOp(1, Node_Enter, mem->world().frame_type(), mem, name)
 {}
 
-Map::Map(Def mem, Def ptr, int32_t device, AddressSpace addr_space,
-         Def mem_offset, Def mem_size, const std::string &name)
-    : MapOp(4, Node_Map, Type(), mem, ptr, name)
+Global::Global(Def init, bool is_mutable, const std::string& name)
+    : PrimOp(Node_Global, init->type()->world().ptr_type(init->type()), {init}, name)
+    , is_mutable_(is_mutable)
+{ /* TODO assert that init does not depend on some param */ }
+
+Alloc::Alloc(Type type, Def mem, Def extra, const std::string& name)
+    : MemOp(Node_Alloc, mem->world().ptr_type(type), {mem, extra}, name)
+{}
+
+Enter::Enter(Def mem, const std::string& name)
+    : MemOp(Node_Enter, mem->world().frame_type(), {mem}, name)
+{}
+
+Map::Map(int32_t device, AddressSpace addr_space, Def mem, Def ptr, Def mem_offset, Def mem_size, const std::string &name)
+    : MapOp(Node_Map, Type(), {mem, ptr, mem_offset, mem_size}, name)
 {
     World& w = mem->world();
     set_type(w.tuple_type({ mem->type(),
                             w.ptr_type(ptr->type().as<PtrType>()->referenced_type(),
                             ptr->type().as<PtrType>()->length(), device, addr_space)}));
-    set_op(2, mem_offset);
-    set_op(3, mem_size);
 }
 
 //------------------------------------------------------------------------------

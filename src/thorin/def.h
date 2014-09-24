@@ -102,7 +102,7 @@ private:
     DefNode(const DefNode&);              ///< Do not copy-construct a \p DefNode.
 
 protected:
-    DefNode(size_t gid, NodeKind kind, size_t size, Type type, const std::string& name)
+    DefNode(size_t gid, NodeKind kind, Type type, size_t size, const std::string& name)
         : kind_(kind)
         , ops_(size)
         , type_(type)
@@ -194,7 +194,7 @@ bool UseLT::operator () (Use use1, Use use2) const { // <- note that we switch t
 class Param : public DefNode {
 private:
     Param(size_t gid, Type type, Lambda* lambda, size_t index, const std::string& name)
-        : DefNode(gid, Node_Param, 0, type, name)
+        : DefNode(gid, Node_Param, type, 0, name)
         , lambda_(lambda)
         , index_(index)
     {}

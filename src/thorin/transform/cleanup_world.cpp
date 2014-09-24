@@ -126,19 +126,11 @@ void Cleaner::cleanup() {
     unreachable_code_elimination();
     dead_code_elimination();
 
-    auto unlink_representative = [&] (const DefNode* def) {
-        if (def->is_proxy()) {
-            auto num = def->representative_->representatives_of_.erase(def);
-            assert(num == 1);
-        }
-    };
-
     // unlink dead primops from the rest
     for (auto primop : world().primops()) {
         if (!is_live(primop)) {
-            for (size_t i = 0, e = primop->size(); i != e; ++i)
-                primop->unregister_use(i);
-            unlink_representative(primop);
+            primop->unregister_uses();
+            primop->unlink_representative();
         }
     }
 
@@ -146,8 +138,8 @@ void Cleaner::cleanup() {
     for (auto lambda : world().lambdas()) {
         if (!is_reachable(lambda)) {
             for (auto param : lambda->params())
-                unlink_representative(param);
-            unlink_representative(lambda);
+                param->unlink_representative();
+            lambda->unlink_representative();
         }
     }
 

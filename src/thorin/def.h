@@ -115,7 +115,9 @@ protected:
     void clear_type() { type_.clear(); }
     void set_type(Type type) { type_ = type; }
     void unregister_use(size_t i) const;
+    void unregister_uses() const;
     void resize(size_t n) { ops_.resize(n, nullptr); }
+    void unlink_representative() const;
 
 public:
     NodeKind kind() const { return kind_; }

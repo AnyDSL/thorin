@@ -896,9 +896,7 @@ const TypeNode* World::unify_base(const TypeNode* type) {
 const DefNode* World::cse_base(const PrimOp* primop) {
     auto i = primops_.find(primop);
     if (i != primops_.end()) {
-        for (size_t x = 0, e = primop->size(); x != e; ++x)
-            primop->unregister_use(x);
-
+        primop->unregister_uses();
         delete primop;
         primop = *i;
     } else {

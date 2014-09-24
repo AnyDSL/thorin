@@ -49,10 +49,22 @@ void DefNode::set_op(size_t i, Def def) {
     assert(p.second);
 }
 
+void DefNode::unregister_uses() const {
+    for (size_t i = 0, e = size(); i != e; ++i)
+        unregister_use(i);
+}
+
 void DefNode::unregister_use(size_t i) const {
     auto def = ops_[i].node();
     assert(def->uses_.count(Use(i, this)) == 1);
     def->uses_.erase(Use(i, this));
+}
+
+void DefNode::unlink_representative() const {
+    if (is_proxy()) {
+        auto num = this->representative_->representatives_of_.erase(this);
+        assert(num == 1);
+    }
 }
 
 void DefNode::unset_op(size_t i) {

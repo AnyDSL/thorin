@@ -15,6 +15,45 @@ typedef std::vector<Lambda*> Lambdas;
 
 //------------------------------------------------------------------------------
 
+class Param : public DefNode {
+private:
+    Param(size_t gid, Type type, Lambda* lambda, size_t index, const std::string& name)
+        : DefNode(gid, Node_Param, type, 0, name)
+        , lambda_(lambda)
+        , index_(index)
+    {}
+
+public:
+    class Peek {
+    public:
+        Peek() {}
+        Peek(Def def, Lambda* from)
+            : def_(def)
+            , from_(from)
+        {}
+
+        Def def() const { return def_; }
+        Lambda* from() const { return from_; }
+
+    private:
+        Def def_;
+        Lambda* from_;
+    };
+
+    Lambda* lambda() const { return lambda_; }
+    size_t index() const { return index_; }
+    std::vector<Peek> peek() const;
+
+private:
+    Lambda* const lambda_;
+    const size_t index_;
+
+    friend class World;
+    friend class Lambda;
+};
+
+//------------------------------------------------------------------------------
+
 enum class Intrinsic : uint8_t {
     None,       ///< Not an intrinsic.
     CUDA,       ///< Internal CUDA-Backend.

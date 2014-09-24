@@ -9,6 +9,29 @@
 
 namespace thorin {
 
+//------------------------------------------------------------------------------
+
+std::vector<Param::Peek> Param::peek() const {
+    std::vector<Peek> peeks;
+    for (auto use : lambda()->uses()) {
+        if (auto pred = use->isa_lambda()) {
+            if (use.index() == 0)
+                peeks.emplace_back(pred->arg(index()), pred);
+        } else if (auto evalop = use->isa<EvalOp>()) {
+            for (auto use : evalop->uses()) {
+                if (auto pred = use->isa_lambda()) {
+                    if (use.index() == 0)
+                        peeks.emplace_back(pred->arg(index()), pred);
+                }
+            }
+        }
+    }
+
+    return peeks;
+}
+
+//------------------------------------------------------------------------------
+
 Lambda* Lambda::stub(Type2Type& type2type, const std::string& name) const {
     auto result = world().lambda(type()->specialize(type2type).as<FnType>(), cc(), intrinsic(), name);
     for (size_t i = 0, e = num_params(); i != e; ++i)
@@ -389,5 +412,7 @@ Def Lambda::try_remove_trivial_param(const Param* param) {
 
     return same;
 }
+
+//------------------------------------------------------------------------------
 
 }

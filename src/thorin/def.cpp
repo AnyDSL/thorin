@@ -190,25 +190,4 @@ size_t DefNode::length() const { return type().as<VectorType>()->length(); }
 
 //------------------------------------------------------------------------------
 
-std::vector<Param::Peek> Param::peek() const {
-    std::vector<Peek> peeks;
-    for (auto use : lambda()->uses()) {
-        if (auto pred = use->isa_lambda()) {
-            if (use.index() == 0)
-                peeks.emplace_back(pred->arg(index()), pred);
-        } else if (auto evalop = use->isa<EvalOp>()) {
-            for (auto use : evalop->uses()) {
-                if (auto pred = use->isa_lambda()) {
-                    if (use.index() == 0)
-                        peeks.emplace_back(pred->arg(index()), pred);
-                }
-            }
-        }
-    }
-
-    return peeks;
-}
-
-//------------------------------------------------------------------------------
-
 }

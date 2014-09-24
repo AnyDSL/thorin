@@ -74,12 +74,12 @@ public:
     Box value() const { return box_; }
 #define THORIN_ALL_TYPE(T, M) T T##_value() const { return value().get_##T(); }
 #include "thorin/tables/primtypetable.h"
-    
+
     PrimType primtype() const { return type().as<PrimType>(); }
     PrimTypeKind primtype_kind() const { return primtype()->primtype_kind(); }
-    virtual size_t hash() const { return hash_combine(Literal::hash(), bcast<uint64_t, Box>(value())); }
-    virtual bool equal(const PrimOp* other) const { 
-        return Literal::equal(other) ? this->value() == other->as<PrimLit>()->value() : false; 
+    virtual size_t vhash() const override { return hash_combine(Literal::vhash(), bcast<uint64_t, Box>(value())); }
+    virtual bool equal(const PrimOp* other) const override {
+        return Literal::equal(other) ? this->value() == other->as<PrimLit>()->value() : false;
     }
 
 private:

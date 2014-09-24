@@ -1,5 +1,4 @@
 #include "thorin/lambda.h"
-#include "thorin/literal.h"
 #include "thorin/primop.h"
 #include "thorin/type.h"
 #include "thorin/world.h"

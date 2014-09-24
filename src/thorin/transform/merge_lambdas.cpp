@@ -1,5 +1,5 @@
 #include "thorin/lambda.h"
-#include "thorin/literal.h"
+#include "thorin/primop.h"
 #include "thorin/world.h"
 #include "thorin/analyses/domtree.h"
 #include "thorin/analyses/scope.h"

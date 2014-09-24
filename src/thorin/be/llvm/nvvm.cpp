@@ -10,9 +10,8 @@
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/SourceMgr.h>
 
-#include "thorin/literal.h"
+#include "thorin/primop.h"
 #include "thorin/world.h"
-#include "thorin/memop.h"
 
 namespace thorin {
 

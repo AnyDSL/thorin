@@ -1,6 +1,5 @@
 #include "thorin/primop.h"
 
-#include "thorin/literal.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/util/array.h"
@@ -9,57 +8,18 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-size_t PrimOp::vhash() const {
-    size_t seed = hash_combine(hash_combine(hash_begin((int) kind()), size()), type().unify()->gid());
-    for (auto op : ops_)
-        seed = hash_combine(seed, op.node()->gid());
-    return seed;
-}
+/*
+ * constructors
+ */
 
-Def PrimOp::rebuild() const {
-    if (!up_to_date_) {
-        Array<Def> ops(size());
-        for (size_t i = 0, e = size(); i != e; ++i)
-            ops[i] = op(i)->rebuild();
-
-        auto def = world().rebuild(this, ops);
-        this->replace(def);
-        return def;
-    } else
-        return this;
-}
-
-//------------------------------------------------------------------------------
-
-VectorOp::VectorOp(size_t size, NodeKind kind, Type type, Def cond, const std::string& name)
-    : PrimOp(size, kind, type, name)
-{
-    assert(cond->type()->is_bool());
-    set_op(0, cond);
-}
-
-BinOp::BinOp(NodeKind kind, Type type, Def cond, Def lhs, Def rhs, const std::string& name)
-    : VectorOp(3, kind, type, cond, name)
-{
-    assert(lhs->type() == rhs->type() && "types are not equal");
-    set_op(1, lhs);
-    set_op(2, rhs);
-}
+PrimLit::PrimLit(World& world, PrimTypeKind kind, Box box, const std::string& name)
+    : Literal((NodeKind) kind, world.type(kind), name)
+    , box_(box)
+{}
 
 Cmp::Cmp(CmpKind kind, Def cond, Def lhs, Def rhs, const std::string& name)
     : BinOp((NodeKind) kind, lhs->world().type_bool(lhs->type()->length()), cond, lhs, rhs, name)
-{
-}
-
-Select::Select(Def cond, Def tval, Def fval, const std::string& name)
-    : VectorOp(3, Node_Select, tval->type(), cond, name)
-{
-    set_op(1, tval);
-    set_op(2, fval);
-    assert(tval->type() == fval->type() && "types of both values must be equal");
-}
-
-//------------------------------------------------------------------------------
+{}
 
 DefiniteArray::DefiniteArray(World& world, Type elem, ArrayRef<Def> args, const std::string& name)
     : Aggregate(Node_DefiniteArray, args, name)
@@ -87,18 +47,6 @@ Tuple::Tuple(World& world, ArrayRef<Def> args, const std::string& name)
     set_type(world.tuple_type(elems));
 }
 
-StructAgg::StructAgg(World& world, StructAppType struct_app_type, ArrayRef<Def> args, const std::string& name)
-    : Aggregate(Node_StructAgg, args, name)
-{
-#ifndef NDEBUG
-    assert(struct_app_type->num_elems() == args.size());
-    for (size_t i = 0, e = args.size(); i != e; ++i)
-        assert(struct_app_type->elem(i) == args[i]->type());
-#endif
-
-    set_type(struct_app_type);
-}
-
 Vector::Vector(World& world, ArrayRef<Def> args, const std::string& name)
     : Aggregate(Node_Vector, args, name)
 {
@@ -111,31 +59,6 @@ Vector::Vector(World& world, ArrayRef<Def> args, const std::string& name)
         set_type(world.ptr_type(ptr->referenced_type(), args.size()));
     }
 }
-
-Extract::Extract(Def agg, Def index, const std::string& name)
-    : AggOp(2, Node_Extract, type(agg, index), agg, index, name)
-{}
-
-Type Extract::type(Def agg, Def index) {
-    if (auto tuple = agg->type().isa<TupleType>())
-        return tuple->elem(index);
-    else if (auto array = agg->type().isa<ArrayType>())
-        return array->elem_type();
-    else if (auto vector = agg->type().isa<VectorType>())
-        return vector->scalarize();
-    else if (auto struct_app = agg->type().isa<StructAppType>())
-        return struct_app->elem(index);
-
-    assert(false && "TODO");
-}
-
-Insert::Insert(Def agg, Def index, Def value, const std::string& name)
-    : AggOp(3, Node_Insert, agg->type(), agg, index, name)
-{
-    set_op(2, value);
-}
-
-//------------------------------------------------------------------------------
 
 LEA::LEA(Def def, Def index, const std::string& name)
     : PrimOp(2, Node_LEA, Type(), name)
@@ -156,21 +79,12 @@ LEA::LEA(Def def, Def index, const std::string& name)
     }
 }
 
-PtrType LEA::ptr_type() const { return ptr()->type().as<PtrType>(); }
-Type LEA::referenced_type() const { return ptr_type()->referenced_type(); }
-
-//------------------------------------------------------------------------------
-
 Slot::Slot(Type type, Def frame, size_t index, const std::string& name)
     : PrimOp(1, Node_Slot, type->world().ptr_type(type), name)
     , index_(index)
 {
     set_op(0, frame);
 }
-
-PtrType Slot::ptr_type() const { return type().as<PtrType>(); }
-
-//------------------------------------------------------------------------------
 
 Global::Global(Def init, bool is_mutable, const std::string& name)
     : PrimOp(1, Node_Global, init->type()->world().ptr_type(init->type()), name)
@@ -180,10 +94,57 @@ Global::Global(Def init, bool is_mutable, const std::string& name)
     // TODO assert that init does not depend on some param
 }
 
-Type Global::referenced_type() const { return type().as<PtrType>()->referenced_type(); }
-const char* Global::op_name() const { return is_mutable() ? "global_mutable" : "global_immutable"; }
+Alloc::Alloc(Def mem, Type type, Def extra, const std::string& name)
+    : MemOp(2, Node_Alloc, mem->world().ptr_type(type), mem, name)
+{
+    set_op(1, extra);
+}
+
+Enter::Enter(Def mem, const std::string& name)
+    : MemOp(1, Node_Enter, mem->world().frame_type(), mem, name)
+{}
+
+Map::Map(Def mem, Def ptr, int32_t device, AddressSpace addr_space,
+         Def mem_offset, Def mem_size, const std::string &name)
+    : MapOp(4, Node_Map, Type(), mem, ptr, name)
+{
+    World& w = mem->world();
+    set_type(w.tuple_type({ mem->type(),
+                            w.ptr_type(ptr->type().as<PtrType>()->referenced_type(),
+                            ptr->type().as<PtrType>()->length(), device, addr_space)}));
+    set_op(2, mem_offset);
+    set_op(3, mem_size);
+}
 
 //------------------------------------------------------------------------------
+
+/*
+ * getters
+ */
+
+PtrType LEA::ptr_type() const { return ptr()->type().as<PtrType>(); }
+Type LEA::referenced_type() const { return ptr_type()->referenced_type(); }
+PtrType Slot::ptr_type() const { return type().as<PtrType>(); }
+Type Global::referenced_type() const { return type().as<PtrType>()->referenced_type(); }
+Def Map::extract_mem() const { return world().extract(this, 0); }
+Def Map::extract_mapped_ptr() const { return world().extract(this, 1); }
+
+Def Map::mem_out() const {
+    auto uses = this->uses();
+    assert(1 <= uses.size() && uses.size() <= 2);
+    size_t i = uses[0]->type().isa<MemType>() ? 0 : 1;
+    assert(uses[i]->isa<Extract>());
+    assert(uses[i]->num_uses() == 1);
+    return uses[i];
+}
+
+//------------------------------------------------------------------------------
+
+/*
+ * op_name
+ */
+
+const char* Global::op_name() const { return is_mutable() ? "global_mutable" : "global_immutable"; }
 
 const char* PrimOp::op_name() const {
     switch (kind()) {
@@ -207,6 +168,38 @@ const char* Cmp::op_name() const {
 #include "thorin/tables/cmptable.h"
         default: THORIN_UNREACHABLE;
     }
+}
+
+//------------------------------------------------------------------------------
+
+/*
+ * misc
+ */
+
+Def PrimOp::rebuild() const {
+    if (!up_to_date_) {
+        Array<Def> ops(size());
+        for (size_t i = 0, e = size(); i != e; ++i)
+            ops[i] = op(i)->rebuild();
+
+        auto def = world().rebuild(this, ops);
+        this->replace(def);
+        return def;
+    } else
+        return this;
+}
+
+Type Extract::type(Def agg, Def index) {
+    if (auto tuple = agg->type().isa<TupleType>())
+        return tuple->elem(index);
+    else if (auto array = agg->type().isa<ArrayType>())
+        return array->elem_type();
+    else if (auto vector = agg->type().isa<VectorType>())
+        return vector->scalarize();
+    else if (auto struct_app = agg->type().isa<StructAppType>())
+        return struct_app->elem(index);
+
+    assert(false && "TODO");
 }
 
 //------------------------------------------------------------------------------

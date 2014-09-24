@@ -1,6 +1,5 @@
-#include "thorin/memop.h"
+#include "thorin/primop.h"
 #include "thorin/world.h"
-#include "thorin/analyses/scope.h"
 #include "thorin/analyses/top_level_scopes.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/util/queue.h"

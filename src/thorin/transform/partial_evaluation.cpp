@@ -1,4 +1,4 @@
-#include "thorin/literal.h"
+#include "thorin/primop.h"
 #include "thorin/world.h"
 #include "thorin/analyses/scope.h"
 #include "thorin/analyses/domtree.h"

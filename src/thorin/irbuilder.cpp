@@ -1,8 +1,7 @@
 #include "thorin/irbuilder.h"
 
 #include "thorin/lambda.h"
-#include "thorin/literal.h"
-#include "thorin/memop.h"
+#include "thorin/primop.h"
 #include "thorin/world.h"
 
 namespace thorin {

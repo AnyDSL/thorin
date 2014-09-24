@@ -6,7 +6,7 @@
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 #include <llvm/Transforms/Scalar.h>
 
-#include "thorin/literal.h"
+#include "thorin/primop.h"
 #include "thorin/world.h"
 
 #include <wfvInterface.h>

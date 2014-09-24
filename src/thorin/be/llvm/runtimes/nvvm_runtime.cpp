@@ -1,6 +1,7 @@
 #include "thorin/be/llvm/runtimes/nvvm_runtime.h"
+
+#include "thorin/primop.h"
 #include "thorin/be/llvm/llvm.h"
-#include "thorin/literal.h"
 
 namespace thorin {
 

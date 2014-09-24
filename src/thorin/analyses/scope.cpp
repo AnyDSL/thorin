@@ -5,7 +5,7 @@
 #include <stack>
 
 #include "thorin/lambda.h"
-#include "thorin/literal.h"
+#include "thorin/primop.h"
 #include "thorin/world.h"
 #include "thorin/be/thorin.h"
 #include "thorin/util/queue.h"

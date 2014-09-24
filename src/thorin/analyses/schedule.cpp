@@ -2,7 +2,6 @@
 #include <iostream>
 
 #include "thorin/lambda.h"
-#include "thorin/memop.h"
 #include "thorin/primop.h"
 #include "thorin/world.h"
 #include "thorin/analyses/domtree.h"

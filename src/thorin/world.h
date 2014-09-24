@@ -187,7 +187,7 @@ public:
         return cse(new IndefiniteArray(*this, elem, dim, name));
     }
     Def struct_agg(StructAppType struct_app_type, ArrayRef<Def> args, const std::string& name = "") {
-        return cse(new StructAgg(*this, struct_app_type, args, name));
+        return cse(new StructAgg(struct_app_type, args, name));
     }
     Def tuple(ArrayRef<Def> args, const std::string& name = "") { return cse(new Tuple(*this, args, name)); }
     Def vector(ArrayRef<Def> args, const std::string& name = "") {

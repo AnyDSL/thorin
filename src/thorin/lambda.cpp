@@ -2,7 +2,6 @@
 
 #include <iostream>
 
-#include "thorin/literal.h"
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/be/thorin.h"

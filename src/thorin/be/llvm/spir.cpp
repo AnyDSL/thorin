@@ -5,7 +5,7 @@
 #include <llvm/IR/Module.h>
 #include <llvm/Support/raw_ostream.h>
 
-#include "thorin/literal.h"
+#include "thorin/primop.h"
 #include "thorin/world.h"
 
 namespace thorin {

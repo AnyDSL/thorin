@@ -1,6 +1,6 @@
 #include <vector>
 
-#include "thorin/memop.h"
+#include "thorin/primop.h"
 #include "thorin/world.h"
 #include "thorin/util/queue.h"
 #include "thorin/analyses/scope.h"

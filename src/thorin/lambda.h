@@ -36,9 +36,9 @@ class Lambda : public DefNode {
 private:
     Lambda(size_t gid, FnType fn, CC cc, Intrinsic intrinsic, bool is_sealed, const std::string& name)
         : DefNode(gid, Node_Lambda, 0, fn, name)
+        , parent_(this)
         , cc_(cc)
         , intrinsic_(intrinsic)
-        , parent_(this)
         , is_sealed_(is_sealed)
         , is_visited_(false)
     {
@@ -99,6 +99,7 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     void dump_head() const;
     void dump_jump() const;
     void destroy_body();
+    void refresh();
 
     // terminate
 
@@ -119,7 +120,6 @@ lambda(...) jump (foo, [..., lambda(...) ..., ...]
     void unseal() { is_sealed_ = false; }
     void clear() { values_.clear(); }
     bool is_cleared() { return values_.empty(); }
-
 
 private:
     class Todo {
@@ -149,8 +149,6 @@ private:
     Def find_def(size_t handle);
     void increase_values(size_t handle) { if (handle >= values_.size()) values_.resize(handle+1); }
 
-    CC cc_;
-    Intrinsic intrinsic_;
     std::vector<const Param*> params_;
     /**
      * There exist three cases to distinguish here.
@@ -163,10 +161,13 @@ private:
      *              Any \p get_value which arrives here without finding a definition will recursively try to find one in \p parent_.
      */
     Lambda* parent_;
-    bool is_sealed_;
-    bool is_visited_;
     std::vector<Def> values_;
     std::vector<Todo> todos_;
+    CC cc_;
+    Intrinsic intrinsic_;
+    mutable uint32_t reachable_ = 0;
+    bool is_sealed_  : 1;
+    bool is_visited_ : 1;
 
     friend class Cleaner;
     friend class World;

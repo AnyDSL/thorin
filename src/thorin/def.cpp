@@ -11,6 +11,7 @@
 #include "thorin/type.h"
 #include "thorin/world.h"
 #include "thorin/be/thorin.h"
+#include "thorin/util/queue.h"
 
 namespace thorin {
 
@@ -48,14 +49,26 @@ void DefNode::set_op(size_t i, Def def) {
     assert(p.second);
 }
 
+void DefNode::unregister_uses() const {
+    for (size_t i = 0, e = size(); i != e; ++i)
+        unregister_use(i);
+}
+
 void DefNode::unregister_use(size_t i) const {
-    auto def = op(i).node();
+    auto def = ops_[i].node();
     assert(def->uses_.count(Use(i, this)) == 1);
     def->uses_.erase(Use(i, this));
 }
 
+void DefNode::unlink_representative() const {
+    if (is_proxy()) {
+        auto num = this->representative_->representatives_of_.erase(this);
+        assert(num == 1);
+    }
+}
+
 void DefNode::unset_op(size_t i) {
-    assert(op(i) && "must be set");
+    assert(ops_[i] && "must be set");
     unregister_use(i);
     ops_[i] = nullptr;
 }
@@ -137,11 +150,26 @@ bool DefNode::is_minus_zero() const {
 
 void DefNode::replace(Def with) const {
     assert(type() == with->type());
-    if (this == *with) return;
-    assert(!is_proxy());
-    this->representative_ = with;
-    auto p = with->representatives_of_.insert(this);
-    assert(p.second);
+    if (this != *with) {
+        assert(!is_proxy());
+        this->representative_ = with;
+        auto p = with->representatives_of_.insert(this);
+        assert(p.second);
+
+        std::queue<const DefNode*> queue;
+        queue.push(this);
+        while (!queue.empty()) {
+            auto def = pop(queue);
+            for (auto use : def->uses_) {
+                if (auto uprimop = use.def().node()->isa<PrimOp>()) {
+                    if (uprimop->up_to_date_) {
+                        uprimop->up_to_date_ = false;
+                        queue.push(uprimop);
+                    }
+                }
+            }
+        }
+    }
 }
 
 void DefNode::dump() const {
@@ -184,4 +212,4 @@ std::vector<Param::Peek> Param::peek() const {
 
 //------------------------------------------------------------------------------
 
-} // namespace thorin
+}

@@ -115,7 +115,9 @@ protected:
     void clear_type() { type_.clear(); }
     void set_type(Type type) { type_ = type; }
     void unregister_use(size_t i) const;
+    void unregister_uses() const;
     void resize(size_t n) { ops_.resize(n, nullptr); }
+    void unlink_representative() const;
 
 public:
     NodeKind kind() const { return kind_; }
@@ -139,7 +141,7 @@ public:
     int order() const;
     World& world() const;
     ArrayRef<Def> ops() const { return ops_; }
-    Def op(size_t i) const { assert(i < ops().size()); return ops()[i]; }
+    Def op(size_t i) const { assert(i < ops().size() && "index out of bounds"); return ops_[i]; }
     Def op(Def def) const;
     void replace(Def) const;
     size_t length() const; ///< Returns the vector length. Raises an assertion if type of this is not a \p VectorType.
@@ -156,6 +158,7 @@ public:
     bool is_commutative() const { return thorin::is_commutative(kind()); }
     bool is_associative() const { return thorin::is_associative(kind()); }
     template<class T> inline T primlit_value() const; // implementation in literal.h
+    virtual Def rebuild() const { return this; }
 
 private:
     const NodeKind kind_;

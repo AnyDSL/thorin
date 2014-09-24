@@ -1,8 +1,8 @@
 #ifndef THORIN_PRIMOP_H
 #define THORIN_PRIMOP_H
 
-#include "thorin/enums.h"
 #include "thorin/def.h"
+#include "thorin/enums.h"
 #include "thorin/util/hash.h"
 
 namespace thorin {
@@ -13,26 +13,40 @@ class PrimOp : public DefNode {
 protected:
     PrimOp(size_t size, NodeKind kind, Type type, const std::string& name)
         : DefNode(-1, kind, size, type ? type.unify() : nullptr, name)
+        , up_to_date_(true)
     {}
 
     void set_type(Type type) { type_ = type.unify(); }
 
 public:
+    bool up_to_date() const { return up_to_date_; }
+    virtual Def rebuild() const override;
     virtual const char* op_name() const;
-    virtual size_t hash() const;
+    size_t hash() const {
+        if (hash_ == 0)
+            hash_ = vhash();
+        return hash_;
+    }
+    virtual size_t vhash() const;
     virtual bool equal(const PrimOp* other) const {
         bool result = this->kind() == other->kind() && this->size() == other->size() && this->type() == other->type();
         for (size_t i = 0, e = size(); result && i != e; ++i)
-            result &= this->ops_[i] == other->ops_[i];
+            result &= this->ops_[i].node() == other->ops_[i].node();
         return result;
     }
 
 private:
     void set_gid(size_t gid) const { const_cast<size_t&>(const_cast<PrimOp*>(this)->gid_) = gid; }
 
+    mutable size_t hash_ = 0;
+    mutable uint32_t live_ = 0;
+    mutable bool up_to_date_ : 1;
+
     friend struct PrimOpHash;
     friend struct PrimOpEqual;
     friend class World;
+    friend class Cleaner;
+    friend void DefNode::replace(Def) const;
 };
 
 struct PrimOpHash { size_t operator () (const PrimOp* o) const { return o->hash(); } };
@@ -83,7 +97,7 @@ private:
 
 public:
     ArithOpKind arithop_kind() const { return (ArithOpKind) kind(); }
-    virtual const char* op_name() const;
+    virtual const char* op_name() const override;
 
     friend class World;
 };
@@ -96,7 +110,7 @@ private:
 
 public:
     CmpKind cmp_kind() const { return (CmpKind) kind(); }
-    virtual const char* op_name() const;
+    virtual const char* op_name() const override;
 
     friend class World;
 };
@@ -337,8 +351,8 @@ public:
     size_t index() const { return index_; }
     PtrType ptr_type() const;
 
-    virtual size_t hash() const { return hash_combine(PrimOp::hash(), index()); }
-    virtual bool equal(const PrimOp* other) const {
+    virtual size_t vhash() const override { return hash_combine(PrimOp::vhash(), index()); }
+    virtual bool equal(const PrimOp* other) const override {
         return PrimOp::equal(other) ? this->index() == other->as<Slot>()->index() : false;
     }
 
@@ -362,9 +376,9 @@ public:
     bool is_mutable() const { return is_mutable_; }
     Type referenced_type() const; ///< Returns the type referenced by this \p Global's pointer type.
 
-    virtual const char* op_name() const;
-    virtual size_t hash() const { return hash_value(gid()); }
-    virtual bool equal(const PrimOp* other) const { return this == other; }
+    virtual const char* op_name() const override;
+    virtual size_t vhash() const override { return hash_value(gid()); }
+    virtual bool equal(const PrimOp* other) const override { return this == other; }
 
 private:
     bool is_mutable_;

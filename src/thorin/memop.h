@@ -64,7 +64,7 @@ private:
 
 public:
     Def val() const { return op(2); }
-    virtual bool has_mem_out() const { return true; }
+    virtual bool has_mem_out() const override { return true; }
     virtual Def mem_out() const override { return this; }
 
     friend class World;
@@ -75,20 +75,6 @@ public:
 class Enter : public MemOp {
 private:
     Enter(Def mem, const std::string& name);
-
-    friend class World;
-};
-
-//------------------------------------------------------------------------------
-
-class Leave : public MemOp {
-private:
-    Leave(Def mem, Def frame, const std::string& name);
-
-public:
-    const Enter* frame() const { return op(1)->as<Enter>(); }
-    virtual bool has_mem_out() const { return true; }
-    virtual Def mem_out() const override { return this; }
 
     friend class World;
 };
@@ -116,7 +102,7 @@ public:
     PtrType ptr_type() const { return type().as<TupleType>()->arg(1).as<PtrType>(); }
     AddressSpace addr_space() const { return ptr_type()->addr_space(); }
     int32_t device() const { return ptr_type()->device(); }
-    virtual bool has_mem_out() const { return true; }
+    virtual bool has_mem_out() const override { return true; }
     virtual Def mem_out() const override;
 
     friend class World;
@@ -125,7 +111,7 @@ public:
 class Unmap : public MapOp {
 private:
     Unmap(Def mem, Def ptr, const std::string &name);
-    virtual bool has_mem_out() const { return true; }
+    virtual bool has_mem_out() const override { return true; }
     virtual Def mem_out() const override { return this; }
 
     friend class World;

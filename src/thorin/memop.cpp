@@ -35,16 +35,6 @@ Enter::Enter(Def mem, const std::string& name)
 
 //------------------------------------------------------------------------------
 
-Leave::Leave(Def mem, Def frame, const std::string& name)
-    : MemOp(2, Node_Leave, mem->type(), mem, name)
-{
-    assert(frame->type().isa<FrameType>());
-    set_op(1, frame);
-}
-
-//------------------------------------------------------------------------------
-
-
 MemOp::MemOp(size_t size, NodeKind kind, Type type, Def mem, const std::string& name)
     : PrimOp(size, kind, type, name)
 {

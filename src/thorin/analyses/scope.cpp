@@ -26,6 +26,7 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries)
     for (auto entry : entries) assert(!entry->is_proxy());
 #endif
 
+    po_.push_back(nullptr); // reserve for exit
     identify_scope(entries);
     number(entries);
     build_cfg(entries);
@@ -79,20 +80,19 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
     }
 
 #ifndef NDEBUG
-    for (auto lambda : po_)
+    for (auto lambda : po().slice_from_begin(1))
         assert(is_candidate(lambda));
 #endif
 }
 
 void Scope::number(ArrayRef<Lambda*> entries) {
-    size_t n;
+    size_t n = 1; // reserve 0 for exit
     if (entries.size() == 1)
-        n = number(entries.front(), 0);
+        n = number(entries.front(), n);
     else {
         auto entry = world().meta_lambda();
         po_.push_back(entry);
         set_candidate(entry);
-        n = 0;
         for (auto entry : entries) {
             if (!entry->find(this)) // if not visited
                 n = number(entry, n);
@@ -100,8 +100,8 @@ void Scope::number(ArrayRef<Lambda*> entries) {
         n = number(entry, n);
     }
 
-    // remove unreachable lambdas and their params from candidate set and unregister from this scope
-    for (auto lambda : po_) {
+    // remove unreachable lambdas and their params from candidate set
+    for (auto lambda : po().slice_from_begin(1)) {
         if (lambda->find(this) == nullptr) {
             for (auto param : lambda->params()) {
                 if (!param->is_proxy())
@@ -112,7 +112,7 @@ void Scope::number(ArrayRef<Lambda*> entries) {
     }
 
     // remove unreachable lambdas and sort remaining stuff in post-order
-    std::sort(po_.begin(), po_.end(), [&](Lambda* l1, Lambda* l2) {
+    std::sort(po_.begin()+1, po_.end(), [&](Lambda* l1, Lambda* l2) {
         auto info1 = l1->find(this);
         auto info2 = l2->find(this);
         if (info1 && info2) return info1->po_index < info2->po_index;
@@ -126,7 +126,7 @@ void Scope::number(ArrayRef<Lambda*> entries) {
     assert(rpo_.empty());
     rpo_.resize(n);
 
-    for (size_t i = n; i-- != 0;) {
+    for (size_t i = n; i-- != 1;) {
         auto lambda = po_[i];
         auto info = lambda->find(this);
         assert(info && info->po_index == i && info->rpo_index == size_t(-1));
@@ -152,9 +152,9 @@ size_t Scope::number(Lambda* cur, size_t i) {
 }
 
 void Scope::build_cfg(ArrayRef<Lambda*> entries) {
-    succs_.resize(size() + 1); // alloc one more:
-    preds_.resize(size() + 1); // we could need a meta lambda as exit
-    for (auto lambda : rpo_) {
+    succs_.resize(size());
+    preds_.resize(size());
+    for (auto lambda : rpo().slice_num_from_end(1)) {
         for (auto succ : lambda->succs()) {
             if (succ->find(this))
                 link(lambda, succ);
@@ -171,7 +171,7 @@ void Scope::build_cfg(ArrayRef<Lambda*> entries) {
     LambdaSet entry_set(entries.begin(), entries.end());
     LambdaSet exits;
 
-    for (auto lambda : rpo()) {
+    for (auto lambda : rpo().slice_num_from_end(1)) {
         for (auto succ : succs(lambda)) {
             if (!entry_set.contains(succ))
                 goto next;
@@ -180,36 +180,17 @@ void Scope::build_cfg(ArrayRef<Lambda*> entries) {
 next:;
     }
 
-    //if (exits.size() == 1) {
-        //auto exit = *exits.begin();
-        //auto  pox =  po_index(exit);
-        //auto rpox = rpo_index(exit);
-        //std::swap(*exit->find(this), *rpo_.back()->find(this));
-        //std::swap( po_[ pox],  po_.front());
-        //std::swap(rpo_[rpox], rpo_.back());
-        //std::swap(succs_[rpox], succs_.back());
-        //std::swap(preds_[rpox], preds_.back());
-    //} else {
-        assert(!exits.empty() && "TODO");
-        auto exit = world().meta_lambda();
-        exit->scopes_.emplace_front(this);
-        set_candidate(exit);
-        po_.push_back(nullptr);
-        rpo_.push_back(exit);
-        auto& info = exit->scopes_.front();
-        info.po_index = 0;
-        info.rpo_index = size()-1;
-        // correct po_ lambdas
-        for (size_t i = size(); i-- != 1;) {
-            po_[i] = po_[i-1];
-            ++po_[i]->find(this)->po_index;
-            assert(po_[i]->find(this)->po_index == i);
-        }
-        po_[0] = exit;
-
-        for (auto e : exits)
-            link(e, exit);
-    //}
+    assert(!exits.empty() && "TODO");
+    auto exit = world().meta_lambda();
+    exit->scopes_.emplace_front(this);
+    set_candidate(exit);
+    po_.front() = exit;
+    rpo_.back() = exit;
+    auto& info = exit->scopes_.front();
+    info.po_index = 0;
+    info.rpo_index = size()-1;
+    for (auto e : exits)
+        link(e, exit);
 }
 
 void Scope::build_in_scope() {

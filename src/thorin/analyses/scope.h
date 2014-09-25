@@ -24,8 +24,11 @@ public:
     {}
     ~Scope();
 
+    /// All lambdas within this scope in post-order.
+    ArrayRef<Lambda*>  po() const { return  po_; }
     /// All lambdas within this scope in reverse post-order.
     ArrayRef<Lambda*> rpo() const { return rpo_; }
+    Lambda*  po(size_t i) const { return  po_[i]; }
     Lambda* rpo(size_t i) const { return rpo_[i]; }
     Lambda* entry() const { return rpo().front(); }
     Lambda* exit()  const { return po_.front(); }

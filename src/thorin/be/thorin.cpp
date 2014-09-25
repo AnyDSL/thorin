@@ -217,8 +217,8 @@ void emit_thorin(const Scope& scope, bool fancy, bool nocolor) {
     CodeGen cg(fancy, nocolor);
     const DomTree domtree(scope);
     Schedule schedule = schedule_smart(scope);
-    auto bbs = bb_schedule(scope);
-    for (auto lambda : bbs) {
+    //auto bbs = bb_schedule(scope);
+    for (auto lambda : scope) {
         int depth = fancy ? domtree.depth(lambda) : 0;
         cg.indent += depth;
         cg.newline();

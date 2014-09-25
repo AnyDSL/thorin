@@ -98,22 +98,27 @@ void Scope::number(ArrayRef<Lambda*> entries) {
         }
         n = number(entry, n);
     }
-    assert(po_.size() == n);
-
-    // sort in post-order
-    std::sort(po_.begin(), po_.end(), [&](Lambda* l1, Lambda* l2) { return po_index(l1) < po_index(l2); });
 
     // remove unreachable lambdas and their params from candidate set and unregister from this scope
-    std::for_each(po_.begin() + n, po_.end(), [&] (Lambda* lambda) {
-        for (auto param : lambda->params()) {
-            if (!param->is_proxy())
-                unset_candidate(param);
+    for (auto lambda : po_) {
+        if (lambda->find(this) == nullptr) {
+            for (auto param : lambda->params()) {
+                if (!param->is_proxy())
+                    unset_candidate(param);
+            }
+            unset_candidate(lambda);
         }
-        unset_candidate(lambda);
-        lambda->unregister(this);
-    });
+    }
 
-    // remove unreachable lambdas
+    // remove unreachable lambdas and sort remaining stuff in post-order
+    std::sort(po_.begin(), po_.end(), [&](Lambda* l1, Lambda* l2) {
+        auto info1 = l1->find(this);
+        auto info2 = l2->find(this);
+        if (info1 && info2) return info1->po_index < info2->po_index;
+        if (info1) return true;
+        if (info2) return false;
+        return l1->gid_ < l2->gid_;
+    });
     po_.resize(n);
 
     // fill rpo
@@ -146,8 +151,8 @@ size_t Scope::number(Lambda* cur, size_t i) {
 }
 
 void Scope::build_cfg(ArrayRef<Lambda*> entries) {
-    succs_.resize(size());
-    preds_.resize(size());
+    succs_.resize(size() + 1); // alloc one more:
+    preds_.resize(size() + 1); // we could need a meta lambda as exit
     for (auto lambda : rpo_) {
         for (auto succ : lambda->succs()) {
             if (is_candidate(succ))
@@ -160,9 +165,8 @@ void Scope::build_cfg(ArrayRef<Lambda*> entries) {
         for (auto e : entries)
             link(entry(), e);
     }
-}
 
-void Scope::find_exits(ArrayRef<Lambda*> entries) {
+    // find exits
     LambdaSet entry_set(entries.begin(), entries.end());
     LambdaSet exits;
 
@@ -183,12 +187,23 @@ next:;
         std::swap( po_[ pox],  po_.front());
         std::swap(rpo_[rpox], rpo_.back());
     } else {
+        assert(!exits.empty() && "TODO");
         auto exit = world().meta_lambda();
+        exit->scopes_.emplace_front(this);
+        set_candidate(exit);
+        po_.push_back(nullptr);
         rpo_.push_back(exit);
-        assert(false && "TODO");
-        //set_candidate(exit);
-        //po_.push_front(exit);
-        //in_scope_.insert(exit);
+        auto& info = exit->scopes_.front();
+        info.po_index = 0;
+        info.rpo_index = size()-1;
+        // correct po_ lambdas up
+        for (size_t i = size(); i-- != 1;) {
+            po_[i] = po_[i-1];
+            ++po_[i]->find(this)->po_index;
+            assert(po_[i]->find(this)->po_index == i);
+        }
+        po_[0] = exit;
+
         for (auto e : exits)
             link(e, exit);
     }

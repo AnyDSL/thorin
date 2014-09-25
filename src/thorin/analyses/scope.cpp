@@ -156,7 +156,7 @@ void Scope::build_cfg(ArrayRef<Lambda*> entries) {
     preds_.resize(size() + 1); // we could need a meta lambda as exit
     for (auto lambda : rpo_) {
         for (auto succ : lambda->succs()) {
-            if (is_candidate(succ))
+            if (succ->find(this))
                 link(lambda, succ);
         }
     }

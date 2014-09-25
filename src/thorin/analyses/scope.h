@@ -60,9 +60,10 @@ private:
     void number(ArrayRef<Lambda*> entries);
     size_t number(Lambda* lambda, size_t i);
     void build_cfg(ArrayRef<Lambda*> entries);
+    void build_in_scope();
     void find_exits(ArrayRef<Lambda*> entries);
     void link(Lambda* src, Lambda* dst) {
-        assert(contains(src) && contains(dst));
+        assert(is_candidate(src) && is_candidate(dst));
         succs_[rpo_index(src)].push_back(dst);
         preds_[rpo_index(dst)].push_back(src);
     }

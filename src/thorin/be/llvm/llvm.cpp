@@ -111,7 +111,7 @@ llvm::Function* CodeGen::emit_function_decl(Lambda* lambda) {
 }
 
 void CodeGen::emit(int opt) {
-    top_level_scopes(world_, [&] (Scope& scope) {
+    top_level_scopes(world_, [&] (const Scope& scope) {
         auto lambda = current_entry_ = scope.entry();
         assert(lambda->is_returning());
         llvm::Function* fct = emit_function_decl(lambda);
@@ -894,7 +894,7 @@ void emit_llvm(World& world, int opt) {
     World opencl(world.name());
 
     // determine different parts of the world which need to be compiled differently
-    top_level_scopes(world, [&] (Scope& scope) {
+    top_level_scopes(world, [&] (const Scope& scope) {
         auto lambda = scope.entry();
         Lambda* imported = nullptr;
         if (lambda->is_connected_to_intrinsic(Intrinsic::CUDA))

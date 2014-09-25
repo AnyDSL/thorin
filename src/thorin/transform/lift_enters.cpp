@@ -71,7 +71,7 @@ static void lift_enters(const Scope& scope) {
 
 void lift_enters(World& world) {
     world.cleanup();
-    top_level_scopes(world, [] (Scope& scope) { lift_enters(scope); });
+    top_level_scopes(world, [] (const Scope& scope) { lift_enters(scope); });
     world.cleanup();
     debug_verify(world);
 }

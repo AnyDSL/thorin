@@ -8,7 +8,7 @@
 namespace thorin {
 
 template<bool elide_empty = true>
-void top_level_scopes(World&, std::function<void(Scope&)>);
+void top_level_scopes(World&, std::function<void(const Scope&)>);
 
 }
 

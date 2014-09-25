@@ -229,7 +229,7 @@ void CCodeGen::emit() {
     }
 
     // emit declarations
-    top_level_scopes<false>(world_, [&] (Scope& scope) {
+    top_level_scopes<false>(world_, [&] (const Scope& scope) {
         Schedule schedule = schedule_smart(scope);
 
         // tuple declarations
@@ -312,7 +312,7 @@ void CCodeGen::emit() {
     // emit connected functions first
     process_kernel_ = true;
 
-    top_level_scopes(world_, [&] (Scope& scope) {
+    top_level_scopes(world_, [&] (const Scope& scope) {
         auto lambda = scope.entry();
         if (lambda->is_intrinsic())
             return;

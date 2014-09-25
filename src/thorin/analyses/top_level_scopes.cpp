@@ -6,7 +6,7 @@
 namespace thorin {
 
 template<bool elide_empty>
-void top_level_scopes(World& world, std::function<void(Scope&)> f) {
+void top_level_scopes(World& world, std::function<void(const Scope&)> f) {
     LambdaSet done;
     std::queue<Lambda*> queue;
 
@@ -36,7 +36,7 @@ void top_level_scopes(World& world, std::function<void(Scope&)> f) {
     }
 }
 
-template void top_level_scopes<true> (World&, std::function<void(Scope&)>);
-template void top_level_scopes<false>(World&, std::function<void(Scope&)>);
+template void top_level_scopes<true> (World&, std::function<void(const Scope&)>);
+template void top_level_scopes<false>(World&, std::function<void(const Scope&)>);
 
 }

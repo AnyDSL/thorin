@@ -11,7 +11,7 @@ namespace thorin {
 
 static std::vector<Lambda*> top_level_lambdas(World& world) {
     std::vector<Lambda*> result;
-    top_level_scopes<false>(world, [&] (Scope& scope) {
+    top_level_scopes<false>(world, [&] (const Scope& scope) {
         result.push_back(scope.entry());
     });
     return result;

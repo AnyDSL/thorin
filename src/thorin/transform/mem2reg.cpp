@@ -5,6 +5,7 @@
 #include "thorin/analyses/top_level_scopes.h"
 #include "thorin/analyses/verify.h"
 #include "thorin/transform/critical_edge_elimination.h"
+#include "thorin/be/thorin.h"
 
 namespace thorin {
 
@@ -81,7 +82,11 @@ next_primop:;
 
 void mem2reg(World& world) {
     critical_edge_elimination(world);
-    top_level_scopes(world, [] (Scope& scope) { mem2reg(scope); });
+    top_level_scopes(world, [] (const Scope& scope) {
+            emit_thorin(scope);
+            mem2reg(scope);
+            emit_thorin(scope);
+    });
     world.cleanup();
     debug_verify(world);
 }

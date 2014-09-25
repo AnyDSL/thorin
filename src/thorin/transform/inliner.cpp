@@ -8,7 +8,7 @@
 namespace thorin {
 
 void inliner(World& world) {
-    top_level_scopes(world, [] (Scope& scope) {
+    top_level_scopes(world, [] (const Scope& scope) {
         auto top = scope.entry();
         if (!top->empty() && top->num_uses() <= 2) {
             for (auto use : top->uses()) {

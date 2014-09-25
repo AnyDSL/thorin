@@ -10,7 +10,7 @@ namespace thorin {
 
 class Merger {
 public:
-    Merger(Scope& scope)
+    Merger(const Scope& scope)
         : scope(scope)
         , domtree(scope)
     {
@@ -21,7 +21,7 @@ public:
     const DomNode* dom_succ(const DomNode* n);
     World& world() { return scope.world(); }
 
-    Scope& scope;
+    const Scope& scope;
     const DomTree domtree;
 };
 
@@ -52,7 +52,7 @@ void Merger::merge(const DomNode* n) {
 }
 
 void merge_lambdas(World& world) {
-    top_level_scopes(world, [] (Scope& scope) { Merger merger(scope); });
+    top_level_scopes(world, [] (const Scope& scope) { Merger merger(scope); });
 }
 
 }

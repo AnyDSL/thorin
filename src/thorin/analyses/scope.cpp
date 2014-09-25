@@ -42,13 +42,25 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries)
         }
     }
 
-    // sort in post order and remove unreachable lambdas
+    // sort in post-order
     std::sort(po_.begin(), po_.end(), [&](Lambda* l1, Lambda* l2) { return po_index(l1) < po_index(l2); });
+
+    // remove unreachable lambdas and their params from candidate set
+    std::for_each(po_.begin() + n, po_.end(), [&] (Lambda* lambda) {
+        for (auto param : lambda->params()) {
+            if (!param->is_proxy())
+                unset_candidate(param);
+        }
+        unset_candidate(lambda);
+    });
+
+    // remove unreachable lambdas
     po_.resize(n);
+
+    // fill rpo
     assert(rpo_.empty());
     rpo_.resize(n);
 
-    // build rpo
     for (size_t i = n; i-- != 0;) {
         auto lambda = po_[i];
         auto info = lambda->find(this);

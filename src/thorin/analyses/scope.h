@@ -104,8 +104,8 @@ public:
     ArrayRef<Lambda*> succs(Lambda* lambda) const { return is_forward() ? scope().succs(lambda) : scope().preds(lambda); }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
-    size_t po_index(Lambda* lambda) const  { return is_forward() ? scope().po_index(lambda) : scope().rpo_index(lambda); }
-    size_t rpo_index(Lambda* lambda) const { return is_forward() ? scope().rpo_index(lambda) : scope().po_index(lambda); }
+    size_t  po_index(Lambda* lambda) const { return is_forward() ? scope(). po_index(lambda) : scope().rpo_index(lambda); }
+    size_t rpo_index(Lambda* lambda) const { return is_forward() ? scope().rpo_index(lambda) : scope(). po_index(lambda); }
     size_t size() const { return scope().size(); }
     World& world() const { return scope().world(); }
 

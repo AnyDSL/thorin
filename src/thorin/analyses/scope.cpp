@@ -26,21 +26,20 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries)
 #endif
 
     identify_scope(entries);
-    fill_arrays(number(entries));
+    number(entries);
     build_cfg(entries);
-    //auto exit = find_exit();
-    //link_exit(entry, exit);
-    //ScopeView(*this,  true).rpo_numbering(entry);
-    //ScopeView(*this, false).rpo_numbering(exit);
 }
 
 Scope::~Scope() {
-    ++counter_;
+    for (auto lambda : rpo())
+        lambda->unregister(this);
 
     if (!entry()->empty() && entry()->to()->isa<Bottom>())
         entry()->destroy_body();
     if (exit() != entry() && !exit()->empty() && exit()->to()->isa<Bottom>())
         exit()->destroy_body();
+
+    ++counter_;
 }
 
 void Scope::identify_scope(ArrayRef<Lambda*> entries) {
@@ -84,35 +83,34 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
 #endif
 }
 
-size_t Scope::number(ArrayRef<Lambda*> entries) {
+void Scope::number(ArrayRef<Lambda*> entries) {
+    size_t n;
     if (entries.size() == 1)
-        return number(entries.front(), 0);
+        n = number(entries.front(), 0);
+    else {
+        auto entry = world().meta_lambda();
+        po_.push_back(entry);
+        set_candidate(entry);
 
-    auto entry = world().meta_lambda();
-    po_.push_back(entry);
-    set_candidate(entry);
-
-    size_t n = number(entry, 0);
-    assert(n == 1);
-    for (auto entry : entries) {
-        if (!entry->find(this)) // if not visited
-            n = number(entry, n);
+        n = number(entry, 0);
+        assert(n == 1);
+        for (auto entry : entries) {
+            if (!entry->find(this)) // if not visited
+                n = number(entry, n);
+        }
     }
-    return n;
-}
 
-
-void Scope::fill_arrays(size_t n) {
     // sort in post-order
     std::sort(po_.begin(), po_.end(), [&](Lambda* l1, Lambda* l2) { return po_index(l1) < po_index(l2); });
 
-    // remove unreachable lambdas and their params from candidate set
+    // remove unreachable lambdas and their params from candidate set and unregister from this scope
     std::for_each(po_.begin() + n, po_.end(), [&] (Lambda* lambda) {
         for (auto param : lambda->params()) {
             if (!param->is_proxy())
                 unset_candidate(param);
         }
         unset_candidate(lambda);
+        lambda->unregister(this);
     });
 
     // remove unreachable lambdas
@@ -129,7 +127,6 @@ void Scope::fill_arrays(size_t n) {
         info->rpo_index = n-1 - i;
         rpo_[info->rpo_index] = lambda;
     }
-
 }
 
 size_t Scope::number(Lambda* cur, size_t i) {
@@ -163,13 +160,17 @@ void Scope::build_cfg(ArrayRef<Lambda*> entries) {
     }
 }
 
-#if 0
-Lambda* Scope::find_exit() {
+void Scope::find_exits(ArrayRef<Lambda*> entries) {
+    LambdaSet entry_set(entries.begin(), entries.end());
     LambdaSet exits;
 
-    for (auto lambda : rpo_) {
-        if (succs_[lambda].empty())
-            exits.insert(lambda);
+    for (auto lambda : rpo()) {
+        for (auto succ : succs(lambda)) {
+            if (!entry_set.contains(succ))
+                goto next;
+        }
+        exits.insert(lambda);
+next:;
     }
 
     Lambda* exit;
@@ -178,45 +179,13 @@ Lambda* Scope::find_exit() {
     else {
         exit = world().meta_lambda();
         rpo_.push_back(exit);
-        po_.push_back(exit);
-        in_scope_.insert(exit);
-        for (auto e : exits) {
-            link_succ(e, exit);
-            link_pred(e, exit);
-        }
+        //po_.push_front(exit);
+        //in_scope_.insert(exit);
+        for (auto e : exits)
+            link(e, exit);
     }
 
-    return exit;
+    //return exit;
 }
-
-void Scope::link_exit(Lambda* entry, Lambda* exit) {
-    LambdaSet done;
-    auto r = ScopeView(*this, false).reachable(exit);
-    link_exit(done, r, entry, exit);
-}
-
-void Scope::link_exit(LambdaSet& done, LambdaSet& reachable, Lambda* cur, Lambda* exit) {
-    for (auto succ : succs_[cur]) {
-        if (!visit(done, succ))
-            link_exit(done, reachable, succ, exit);
-    }
-
-    if (!reachable.contains(cur)) {
-        bool still_unreachable = true;
-        for (auto succ : succs_[cur]) {
-            if (reachable.contains(succ)) {
-                still_unreachable = false;
-                break;
-            }
-        }
-        reachable.insert(cur);
-        if (still_unreachable) {
-            link_succ(cur, exit);
-            link_pred(cur, exit);
-        }
-    }
-}
-
-#endif
 
 }

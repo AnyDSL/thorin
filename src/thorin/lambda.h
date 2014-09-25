@@ -202,7 +202,9 @@ private:
         size_t rpo_index;
     };
 
-    ScopeInfo* find(const Scope* scope);
+    std::list<ScopeInfo>::iterator list_iter(const Scope*);
+    ScopeInfo* find(const Scope*);
+    void unregister(const Scope* scope) { scopes_.erase(list_iter(scope)); }
 
     std::vector<const Param*> params_;
     /**

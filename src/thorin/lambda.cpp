@@ -264,8 +264,12 @@ std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) 
     return std::make_pair(next, ret);
 }
 
+std::list<Lambda::ScopeInfo>::iterator Lambda::list_iter(const Scope* scope) {
+    return std::find_if(scopes_.begin(), scopes_.end(), [&] (const ScopeInfo& info) { return info.scope == scope; });
+}
+
 Lambda::ScopeInfo* Lambda::find(const Scope* scope) {
-    auto i = std::find_if(scopes_.begin(), scopes_.end(), [&] (const ScopeInfo& info) { return info.scope == scope; });
+    auto i = list_iter(scope);
     if (i != scopes_.end()) {
         // heuristic: swap found node to front so current scope will be found as first element in list
         scopes_.splice(scopes_.begin(), scopes_, i);

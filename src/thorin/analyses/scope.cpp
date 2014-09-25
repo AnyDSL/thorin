@@ -180,14 +180,16 @@ void Scope::build_cfg(ArrayRef<Lambda*> entries) {
 next:;
     }
 
-    if (exits.size() == 1) {
-        auto exit = *exits.begin();
-        auto  pox =  po_index(exit);
-        auto rpox = rpo_index(exit);
-        std::swap(*exit->find(this), *rpo_.back()->find(this));
-        std::swap( po_[ pox],  po_.front());
-        std::swap(rpo_[rpox], rpo_.back());
-    } else {
+    //if (exits.size() == 1) {
+        //auto exit = *exits.begin();
+        //auto  pox =  po_index(exit);
+        //auto rpox = rpo_index(exit);
+        //std::swap(*exit->find(this), *rpo_.back()->find(this));
+        //std::swap( po_[ pox],  po_.front());
+        //std::swap(rpo_[rpox], rpo_.back());
+        //std::swap(succs_[rpox], succs_.back());
+        //std::swap(preds_[rpox], preds_.back());
+    //} else {
         assert(!exits.empty() && "TODO");
         auto exit = world().meta_lambda();
         exit->scopes_.emplace_front(this);
@@ -197,7 +199,7 @@ next:;
         auto& info = exit->scopes_.front();
         info.po_index = 0;
         info.rpo_index = size()-1;
-        // correct po_ lambdas up
+        // correct po_ lambdas
         for (size_t i = size(); i-- != 1;) {
             po_[i] = po_[i-1];
             ++po_[i]->find(this)->po_index;
@@ -207,7 +209,7 @@ next:;
 
         for (auto e : exits)
             link(e, exit);
-    }
+    //}
 }
 
 void Scope::build_in_scope() {

@@ -173,12 +173,17 @@ void Scope::find_exits(ArrayRef<Lambda*> entries) {
 next:;
     }
 
-    Lambda* exit;
-    if (exits.size() == 1)
-        exit = *exits.begin();
-    else {
-        exit = world().meta_lambda();
+    if (exits.size() == 1) {
+        auto exit = *exits.begin();
+        auto  pox =  po_index(exit);
+        auto rpox = rpo_index(exit);
+        std::swap(*exit->find(this), *rpo_.back()->find(this));
+        std::swap( po_[ pox],  po_.front());
+        std::swap(rpo_[rpox], rpo_.back());
+    } else {
+        auto exit = world().meta_lambda();
         rpo_.push_back(exit);
+        //set_candidate(exit);
         //po_.push_front(exit);
         //in_scope_.insert(exit);
         for (auto e : exits)

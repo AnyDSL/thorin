@@ -19,6 +19,7 @@ uint32_t Scope::counter_ = 0;
 Scope::Scope(World& world, ArrayRef<Lambda*> entries)
     : world_(world)
 {
+    assert(!entries.empty());
 #ifndef NDEBUG
     for (auto entry : entries)
         assert(!entry->is_proxy());
@@ -69,7 +70,7 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries)
         rpo_[info->rpo_index] = lambda;
     }
 
-    build_cfg();
+    build_cfg(entries);
     //auto exit = find_exit();
     //link_exit(entry, exit);
     //ScopeView(*this,  true).rpo_numbering(entry);
@@ -142,12 +143,18 @@ size_t Scope::number(Lambda* cur, size_t i) {
     return i+1;
 }
 
-void Scope::build_cfg() {
+void Scope::build_cfg(ArrayRef<Lambda*> entries) {
     for (auto lambda : rpo_) {
         for (auto succ : lambda->succs()) {
-            if (contains(succ)) // TODO
+            if (is_candidate(succ))
                 link(lambda, succ);
         }
+    }
+
+    // link meta lambda to real entries
+    if (entries.size() != 1) {
+        for (auto e : entries)
+            link(entry(), e);
     }
 }
 

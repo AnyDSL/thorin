@@ -53,7 +53,7 @@ public:
 
 private:
     void identify_scope(ArrayRef<Lambda*> entries);
-    void build_cfg();
+    void build_cfg(ArrayRef<Lambda*> entries);
     Lambda* find_exit();
     void link(Lambda* src, Lambda* dst) {
         assert(contains(src) && contains(dst));
@@ -63,6 +63,7 @@ private:
 
     static bool is_candidate(Def def) { return def->candidate_ == counter_; }
     static void set_candidate(Def def) { def->candidate_ = counter_; }
+    static void unset_candidate(Def def) { assert(is_candidate(def)); --def->candidate_; }
 
     size_t number(Lambda* lambda, size_t i);
 

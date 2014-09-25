@@ -12,6 +12,7 @@ void top_level_scopes(World& world, std::function<void(Scope&)> f) {
 
     for (auto lambda : world.externals()) {
         assert(!lambda->empty() && "external must not be empty");
+        done.insert(lambda);
         queue.push(lambda);
     }
 

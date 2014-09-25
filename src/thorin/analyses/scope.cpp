@@ -26,50 +26,7 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries)
 #endif
 
     identify_scope(entries);
-
-    size_t n;
-    if (entries.size() == 1) {
-        n = number(entries.front(), 0);
-    } else {
-        auto entry = world.meta_lambda();
-        po_.push_back(entry);
-        set_candidate(entry);
-
-        n = number(entry, 0);
-        assert(n == 1);
-        for (auto entry : entries) {
-            if (!entry->find(this)) // if not visited
-                n = number(entry, n);
-        }
-    }
-
-    // sort in post-order
-    std::sort(po_.begin(), po_.end(), [&](Lambda* l1, Lambda* l2) { return po_index(l1) < po_index(l2); });
-
-    // remove unreachable lambdas and their params from candidate set
-    std::for_each(po_.begin() + n, po_.end(), [&] (Lambda* lambda) {
-        for (auto param : lambda->params()) {
-            if (!param->is_proxy())
-                unset_candidate(param);
-        }
-        unset_candidate(lambda);
-    });
-
-    // remove unreachable lambdas
-    po_.resize(n);
-
-    // fill rpo
-    assert(rpo_.empty());
-    rpo_.resize(n);
-
-    for (size_t i = n; i-- != 0;) {
-        auto lambda = po_[i];
-        auto info = lambda->find(this);
-        assert(info && info->po_index == i && info->rpo_index == size_t(-1));
-        info->rpo_index = n-1 - i;
-        rpo_[info->rpo_index] = lambda;
-    }
-
+    fill_arrays(number(entries));
     build_cfg(entries);
     //auto exit = find_exit();
     //link_exit(entry, exit);
@@ -125,6 +82,54 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
     for (auto lambda : po_)
         assert(is_candidate(lambda));
 #endif
+}
+
+size_t Scope::number(ArrayRef<Lambda*> entries) {
+    if (entries.size() == 1)
+        return number(entries.front(), 0);
+
+    auto entry = world().meta_lambda();
+    po_.push_back(entry);
+    set_candidate(entry);
+
+    size_t n = number(entry, 0);
+    assert(n == 1);
+    for (auto entry : entries) {
+        if (!entry->find(this)) // if not visited
+            n = number(entry, n);
+    }
+    return n;
+}
+
+
+void Scope::fill_arrays(size_t n) {
+    // sort in post-order
+    std::sort(po_.begin(), po_.end(), [&](Lambda* l1, Lambda* l2) { return po_index(l1) < po_index(l2); });
+
+    // remove unreachable lambdas and their params from candidate set
+    std::for_each(po_.begin() + n, po_.end(), [&] (Lambda* lambda) {
+        for (auto param : lambda->params()) {
+            if (!param->is_proxy())
+                unset_candidate(param);
+        }
+        unset_candidate(lambda);
+    });
+
+    // remove unreachable lambdas
+    po_.resize(n);
+
+    // fill rpo
+    assert(rpo_.empty());
+    rpo_.resize(n);
+
+    for (size_t i = n; i-- != 0;) {
+        auto lambda = po_[i];
+        auto info = lambda->find(this);
+        assert(info && info->po_index == i && info->rpo_index == size_t(-1));
+        info->rpo_index = n-1 - i;
+        rpo_[info->rpo_index] = lambda;
+    }
+
 }
 
 size_t Scope::number(Lambda* cur, size_t i) {

@@ -52,7 +52,14 @@ public:
     const_reverse_iterator rend() const { return rpo().rend(); }
 
 private:
+    static bool is_candidate(Def def) { return def->candidate_ == counter_; }
+    static void set_candidate(Def def) { def->candidate_ = counter_; }
+    static void unset_candidate(Def def) { assert(is_candidate(def)); --def->candidate_; }
+
     void identify_scope(ArrayRef<Lambda*> entries);
+    size_t number(ArrayRef<Lambda*> entries);
+    size_t number(Lambda* lambda, size_t i);
+    void fill_arrays(size_t n);
     void build_cfg(ArrayRef<Lambda*> entries);
     Lambda* find_exit();
     void link(Lambda* src, Lambda* dst) {
@@ -60,12 +67,6 @@ private:
         succs_[rpo_index(src)].push_back(dst);
         preds_[rpo_index(dst)].push_back(src);
     }
-
-    static bool is_candidate(Def def) { return def->candidate_ == counter_; }
-    static void set_candidate(Def def) { def->candidate_ = counter_; }
-    static void unset_candidate(Def def) { assert(is_candidate(def)); --def->candidate_; }
-
-    size_t number(Lambda* lambda, size_t i);
 
     World& world_;
     DefSet in_scope_;

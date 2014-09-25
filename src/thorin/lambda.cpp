@@ -4,6 +4,7 @@
 
 #include "thorin/type.h"
 #include "thorin/world.h"
+#include "thorin/analyses/scope.h"
 #include "thorin/be/thorin.h"
 #include "thorin/util/queue.h"
 
@@ -265,7 +266,9 @@ std::pair<Lambda*, Def> Lambda::call(Def to, ArrayRef<Def> args, Type ret_type) 
 }
 
 std::list<Lambda::ScopeInfo>::iterator Lambda::list_iter(const Scope* scope) {
-    return std::find_if(scopes_.begin(), scopes_.end(), [&] (const ScopeInfo& info) { return info.scope == scope; });
+    return std::find_if(scopes_.begin(), scopes_.end(), [&] (const ScopeInfo& info) {
+        return info.scope->sid() == scope->sid();
+    });
 }
 
 Lambda::ScopeInfo* Lambda::find(const Scope* scope) {

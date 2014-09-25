@@ -39,7 +39,7 @@ public:
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
     size_t po_index(Lambda* lambda) const { return lambda->find(this)->po_index; }
     size_t rpo_index(Lambda* lambda) const { return lambda->find(this)->rpo_index; }
-
+    uint32_t sid() const { return sid_; }
     size_t size() const { return rpo_.size(); }
     World& world() const { return world_; }
 
@@ -52,8 +52,8 @@ public:
     const_reverse_iterator rend() const { return rpo().rend(); }
 
 private:
-    static bool is_candidate(Def def) { return def->candidate_ == counter_; }
-    static void set_candidate(Def def) { def->candidate_ = counter_; }
+    static bool is_candidate(Def def) { return def->candidate_ == candidate_counter_; }
+    static void set_candidate(Def def) { def->candidate_ = candidate_counter_; }
     static void unset_candidate(Def def) { assert(is_candidate(def)); --def->candidate_; }
 
     void identify_scope(ArrayRef<Lambda*> entries);
@@ -69,12 +69,14 @@ private:
 
     World& world_;
     DefSet in_scope_;
-    mutable std::vector<Lambda*> rpo_;
-    mutable std::vector<Lambda*> po_;
-    mutable std::vector<std::vector<Lambda*>> preds_;
-    mutable std::vector<std::vector<Lambda*>> succs_;
+    uint32_t sid_;
+    std::vector<Lambda*> rpo_;
+    std::vector<Lambda*> po_;
+    std::vector<std::vector<Lambda*>> preds_;
+    std::vector<std::vector<Lambda*>> succs_;
 
-    static uint32_t counter_;
+    static uint32_t candidate_counter_;
+    static uint32_t sid_counter_;
 
     friend class ScopeView;
 };

@@ -36,28 +36,28 @@ void mem2reg(const Scope& scope) {
             if (auto slot = def->isa<Slot>()) {
                 // evil HACK
                 if (slot->name == "sum_xxx") {
-                    addresses[slot] = size_t(-1);     // mark as "address taken"
+                    addresses[slot] = size_t(-1);           // mark as "address taken"
                     goto next_primop;
                 }
 
                 // are all users loads and store?
                 for (auto use : slot->uses()) {
                     if (!use->isa<Load>() && !use->isa<Store>()) {
-                        addresses[slot] = size_t(-1);     // mark as "address taken"
+                        addresses[slot] = size_t(-1);       // mark as "address taken"
                         goto next_primop;
                     }
                 }
                 addresses[slot] = cur_handle++;
             } else if (auto store = def->isa<Store>()) {
                 if (auto slot = store->ptr()->isa<Slot>()) {
-                    if (addresses[slot] != size_t(-1)) {  // if not "address taken"
+                    if (addresses[slot] != size_t(-1)) {    // if not "address taken"
                         lambda->set_value(addresses[slot], store->val());
                         store->replace(store->mem());
                     }
                 }
             } else if (auto load = def->isa<Load>()) {
                 if (auto slot = load->ptr()->isa<Slot>()) {
-                    if (addresses[slot] != size_t(-1)) {  // if not "address taken"
+                    if (addresses[slot] != size_t(-1)) {    // if not "address taken"
                         auto type = slot->type().as<PtrType>()->referenced_type();
                         load->replace(lambda->get_value(addresses[slot], type, slot->name.c_str()));
                     }
@@ -85,7 +85,8 @@ void mem2reg(World& world) {
     top_level_scopes(world, [] (const Scope& scope) {
             emit_thorin(scope);
             mem2reg(scope);
-            emit_thorin(scope);
+            Scope s(scope.entry());
+            emit_thorin(s);
     });
     world.cleanup();
     debug_verify(world);

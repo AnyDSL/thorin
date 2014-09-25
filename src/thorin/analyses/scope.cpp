@@ -14,10 +14,12 @@ namespace thorin {
 
 //------------------------------------------------------------------------------
 
-uint32_t Scope::counter_ = 1;
+uint32_t Scope::sid_counter_ = 1;
+uint32_t Scope::candidate_counter_ = 1;
 
 Scope::Scope(World& world, ArrayRef<Lambda*> entries)
     : world_(world)
+    , sid_(sid_counter_++)
 {
 #ifndef NDEBUG
     assert(!entries.empty());
@@ -28,6 +30,7 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries)
     number(entries);
     build_cfg(entries);
     build_in_scope();
+    ++candidate_counter_;
 }
 
 Scope::~Scope() {
@@ -38,8 +41,6 @@ Scope::~Scope() {
         entry()->destroy_body();
     if (exit() != entry() && !exit()->empty() && exit()->to()->isa<Bottom>())
         exit()->destroy_body();
-
-    ++counter_;
 }
 
 void Scope::identify_scope(ArrayRef<Lambda*> entries) {
@@ -219,8 +220,10 @@ void Scope::build_in_scope() {
     };
 
     for (auto lambda : rpo_) {
-        for (auto param : lambda->params())
-            in_scope_.insert(param);
+        for (auto param : lambda->params()) {
+            if (!param->is_proxy())
+                in_scope_.insert(param);
+        }
         in_scope_.insert(lambda);
 
         for (auto op : lambda->ops())

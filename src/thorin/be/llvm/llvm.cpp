@@ -295,6 +295,7 @@ void CodeGen::emit(int opt) {
         primops_.clear();
     });
 
+#ifdef WFV2_SUPPORT
     // emit vectorized code
     for (const auto& tuple : wfv_todo_)
         emit_vectorize(std::get<0>(tuple), std::get<1>(tuple), std::get<2>(tuple), std::get<3>(tuple));
@@ -304,6 +305,7 @@ void CodeGen::emit(int opt) {
         tid->removeFromParent();
         tid->deleteBody();
     }
+#endif
 
 #ifndef NDEBUG
     llvm::verifyModule(*this->module_);

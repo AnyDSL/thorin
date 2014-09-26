@@ -10,8 +10,6 @@
 
 namespace thorin {
 
-//------------------------------------------------------------------------------
-
 uint32_t Scope::sid_counter_ = 1;
 uint32_t Scope::candidate_counter_ = 1;
 
@@ -254,16 +252,12 @@ void Scope::build_in_scope() {
     }
 }
 
-//------------------------------------------------------------------------------
-
 const DomTree* Scope::domtree() const { return lazy(domtree_); }
 const PostDomTree* Scope::postdomtree() const { return lazy(postdomtree_); }
 const LoopTree* Scope::looptree() const { return lazy(looptree_); }
 
-//------------------------------------------------------------------------------
-
 template<bool elide_empty>
-void top_level_scopes(World& world, std::function<void(const Scope&)> f) {
+void Scope::for_each(World& world, std::function<void(const Scope&)> f) {
     LambdaSet done;
     std::queue<Lambda*> queue;
 
@@ -293,9 +287,7 @@ void top_level_scopes(World& world, std::function<void(const Scope&)> f) {
     }
 }
 
-template void top_level_scopes<true> (World&, std::function<void(const Scope&)>);
-template void top_level_scopes<false>(World&, std::function<void(const Scope&)>);
-
-//------------------------------------------------------------------------------
+template void Scope::for_each<true> (World&, std::function<void(const Scope&)>);
+template void Scope::for_each<false>(World&, std::function<void(const Scope&)>);
 
 }

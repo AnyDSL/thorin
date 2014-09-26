@@ -11,7 +11,7 @@ namespace thorin {
 class CFFLowering {
 public:
     CFFLowering(World& world) {
-        top_level_scopes(world, [&] (const Scope& scope) { top_.insert(scope.entry()); });
+        Scope::for_each(world, [&] (const Scope& scope) { top_.insert(scope.entry()); });
     }
 
     void transform(Lambda* lambda);

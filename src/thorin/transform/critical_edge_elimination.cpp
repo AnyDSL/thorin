@@ -90,7 +90,7 @@ next_lambda:;
             update_src(src, resolve(dst, ".cascading"), dst);
     }
 
-    top_level_scopes(world, [] (const Scope& scope) { critical_edge_elimination(scope); });
+    Scope::for_each(world, [] (const Scope& scope) { critical_edge_elimination(scope); });
     debug_verify(world);
 }
 

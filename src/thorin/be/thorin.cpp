@@ -241,7 +241,7 @@ void emit_thorin(World& world, bool fancy, bool nocolor) {
             cg.emit_assignment(global);
     }
 
-    top_level_scopes<false>(world, [&] (const Scope& scope) { emit_thorin(scope, fancy, nocolor); });
+    Scope::for_each<false>(world, [&] (const Scope& scope) { emit_thorin(scope, fancy, nocolor); });
 }
 
 void emit_type(Type type)                  { CodeGen(false).emit_type(type);         }

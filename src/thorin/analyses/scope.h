@@ -63,6 +63,9 @@ public:
     const_reverse_iterator rbegin() const { return rpo().rbegin(); }
     const_reverse_iterator rend() const { return rpo().rend(); }
 
+    template<bool elide_empty = true>
+    static void for_each(World&, std::function<void(const Scope&)>);
+
 private:
     static bool is_candidate(Def def) { return def->candidate_ == candidate_counter_; }
     static void set_candidate(Def def) { def->candidate_ = candidate_counter_; }
@@ -138,11 +141,6 @@ private:
 
     friend class Scope;
 };
-
-//------------------------------------------------------------------------------
-
-template<bool elide_empty = true>
-void top_level_scopes(World&, std::function<void(const Scope&)>);
 
 //------------------------------------------------------------------------------
 

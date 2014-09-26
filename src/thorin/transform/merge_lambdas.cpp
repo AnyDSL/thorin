@@ -51,7 +51,7 @@ void Merger::merge(const DomNode* n) {
 }
 
 void merge_lambdas(World& world) {
-    top_level_scopes(world, [] (const Scope& scope) { Merger merger(scope); });
+    Scope::for_each(world, [] (const Scope& scope) { Merger merger(scope); });
 }
 
 }

@@ -111,14 +111,14 @@ llvm::Function* CodeGen::emit_function_decl(Lambda* lambda) {
 
 void CodeGen::emit(int opt) {
     top_level_scopes(world_, [&] (const Scope& scope) {
-        auto lambda = current_entry_ = scope.entry();
-        assert(lambda->is_returning());
-        llvm::Function* fct = emit_function_decl(lambda);
+        auto entry = current_entry_ = scope.entry();
+        assert(entry->is_returning());
+        llvm::Function* fct = emit_function_decl(entry);
 
         // map params
         const Param* ret_param = nullptr;
         auto arg = fct->arg_begin();
-        for (auto param : lambda->params()) {
+        for (auto param : entry->params()) {
             if (param->type().isa<MemType>())
                 continue;
             if (param->order() == 0) {
@@ -143,13 +143,13 @@ void CodeGen::emit(int opt) {
         BBMap bb2lambda;
         auto bbs = bb_schedule(scope);
 
-        for (auto lambda : bbs) {
+        for (auto bb_lambda : bbs) {
             // map all bb-like lambdas to llvm bb stubs
-            auto bb = bb2lambda[lambda] = llvm::BasicBlock::Create(context_, lambda->name, fct);
+            auto bb = bb2lambda[bb_lambda] = llvm::BasicBlock::Create(context_, bb_lambda->name, fct);
 
             // create phi node stubs (for all non-cascading lambdas different from entry)
-            if (!lambda->is_cascading() && scope.entry() != lambda) {
-                for (auto param : lambda->params())
+            if (!bb_lambda->is_cascading() && entry != bb_lambda) {
+                for (auto param : bb_lambda->params())
                     if (!param->type().isa<MemType>())
                         phis_[param] = llvm::PHINode::Create(convert(param->type()), (unsigned) param->peek().size(), param->name, bb);
             }
@@ -158,19 +158,19 @@ void CodeGen::emit(int opt) {
         auto oldStartBB = fct->begin();
         auto startBB = llvm::BasicBlock::Create(context_, fct->getName() + "_start", fct, oldStartBB);
         builder_.SetInsertPoint(startBB);
-        emit_function_start(startBB, fct, lambda);
+        emit_function_start(startBB, fct, entry);
         builder_.CreateBr(oldStartBB);
 
         Schedule schedule = schedule_smart(scope);
 
         // emit body for each bb
-        for (auto lambda : bbs) {
-            if (lambda->empty())
+        for (auto bb_lambda : bbs) {
+            if (bb_lambda->empty())
                 continue;
-            assert(lambda == scope.entry() || lambda->is_basicblock());
-            builder_.SetInsertPoint(bb2lambda[lambda]);
+            assert(bb_lambda == entry || bb_lambda->is_basicblock());
+            builder_.SetInsertPoint(bb2lambda[bb_lambda]);
 
-            for (auto primop : schedule[lambda]) {
+            for (auto primop : schedule[bb_lambda]) {
                 // skip higher-order primops, stuff dealing with frames and all memory related stuff except stores
                 if (!primop->type().isa<FnType>() && !primop->type().isa<FrameType>()
                         && (!primop->type().isa<MemType>() || primop->isa<Store>()))
@@ -178,22 +178,22 @@ void CodeGen::emit(int opt) {
             }
 
             // terminate bb
-            if (lambda->to() == ret_param) { // return
-                size_t num_args = lambda->num_args();
+            if (bb_lambda->to() == ret_param) { // return
+                size_t num_args = bb_lambda->num_args();
                 switch (num_args) {
                     case 0: builder_.CreateRetVoid(); break;
                     case 1:
-                        if (lambda->arg(0)->type().isa<MemType>())
+                        if (bb_lambda->arg(0)->type().isa<MemType>())
                             builder_.CreateRetVoid();
                         else
-                            builder_.CreateRet(lookup(lambda->arg(0)));
+                            builder_.CreateRet(lookup(bb_lambda->arg(0)));
                         break;
                     case 2:
-                        if (lambda->arg(0)->type().isa<MemType>()) {
-                            builder_.CreateRet(lookup(lambda->arg(1)));
+                        if (bb_lambda->arg(0)->type().isa<MemType>()) {
+                            builder_.CreateRet(lookup(bb_lambda->arg(1)));
                             break;
-                        } else if (lambda->arg(1)->type().isa<MemType>()) {
-                            builder_.CreateRet(lookup(lambda->arg(0)));
+                        } else if (bb_lambda->arg(1)->type().isa<MemType>()) {
+                            builder_.CreateRet(lookup(bb_lambda->arg(0)));
                             break;
                         }
                         // FALLTHROUGH
@@ -203,8 +203,8 @@ void CodeGen::emit(int opt) {
 
                         size_t n = 0;
                         for (size_t a = 0; a < num_args; ++a) {
-                            if (!lambda->arg(n)->type().isa<MemType>()) {
-                                llvm::Value* val = lookup(lambda->arg(a));
+                            if (!bb_lambda->arg(n)->type().isa<MemType>()) {
+                                llvm::Value* val = lookup(bb_lambda->arg(a));
                                 values[n] = val;
                                 args[n++] = val->getType();
                             }
@@ -222,26 +222,26 @@ void CodeGen::emit(int opt) {
                         break;
                     }
                 }
-            } else if (auto select = lambda->to()->isa<Select>()) { // conditional branch
+            } else if (auto select = bb_lambda->to()->isa<Select>()) { // conditional branch
                 llvm::Value* cond = lookup(select->cond());
                 llvm::BasicBlock* tbb = bb2lambda[select->tval()->as_lambda()];
                 llvm::BasicBlock* fbb = bb2lambda[select->fval()->as_lambda()];
                 builder_.CreateCondBr(cond, tbb, fbb);
-            } else if (lambda->to()->isa<Bottom>()) {
+            } else if (bb_lambda->to()->isa<Bottom>()) {
                 builder_.CreateUnreachable();
             } else {
-                Lambda* to_lambda = lambda->to()->as_lambda();
+                Lambda* to_lambda = bb_lambda->to()->as_lambda();
                 if (to_lambda->is_basicblock())         // ordinary jump
                     builder_.CreateBr(bb2lambda[to_lambda]);
                 else {
                     if (to_lambda->is_intrinsic()) {
-                        Lambda* ret_lambda = emit_intrinsic(fct, lambda);
+                        Lambda* ret_lambda = emit_intrinsic(fct, bb_lambda);
                         builder_.CreateBr(bb2lambda[ret_lambda]);
                     } else {
                         // put all first-order args into an array
                         std::vector<llvm::Value*> args;
                         Def ret_arg;
-                        for (auto arg : lambda->args()) {
+                        for (auto arg : bb_lambda->args()) {
                             if (arg->order() == 0) {
                                 if (!arg->type().isa<MemType>())
                                     args.push_back(lookup(arg));

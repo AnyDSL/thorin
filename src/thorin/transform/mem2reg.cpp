@@ -13,6 +13,9 @@ void mem2reg(const Scope& scope) {
     LambdaSet set;
     size_t cur_handle = 0;
 
+    auto take_address = [&] (const Slot* slot) { addresses[slot] = size_t(-1); };
+    auto is_address_taken = [&] (const Slot* slot) { return addresses[slot] == size_t(-1); };
+
     for (auto lambda : scope)
         lambda->clear();        // clean up value numbering table
 
@@ -34,28 +37,28 @@ void mem2reg(const Scope& scope) {
             if (auto slot = def->isa<Slot>()) {
                 // evil HACK
                 if (slot->name == "sum_xxx") {
-                    addresses[slot] = size_t(-1);           // mark as "address taken"
+                    take_address(slot);
                     goto next_primop;
                 }
 
                 // are all users loads and store?
                 for (auto use : slot->uses()) {
                     if (!use->isa<Load>() && !use->isa<Store>()) {
-                        addresses[slot] = size_t(-1);       // mark as "address taken"
+                        take_address(slot);
                         goto next_primop;
                     }
                 }
                 addresses[slot] = cur_handle++;
             } else if (auto store = def->isa<Store>()) {
                 if (auto slot = store->ptr()->isa<Slot>()) {
-                    if (addresses[slot] != size_t(-1)) {    // if not "address taken"
+                    if (!is_address_taken(slot)) {
                         lambda->set_value(addresses[slot], store->val());
                         store->replace(store->mem());
                     }
                 }
             } else if (auto load = def->isa<Load>()) {
                 if (auto slot = load->ptr()->isa<Slot>()) {
-                    if (addresses[slot] != size_t(-1)) {    // if not "address taken"
+                    if (!is_address_taken(slot)) {
                         auto type = slot->type().as<PtrType>()->referenced_type();
                         load->replace(lambda->get_value(addresses[slot], type, slot->name.c_str()));
                     }

@@ -30,7 +30,7 @@ class LoopTreeBuilder {
 public:
     LoopTreeBuilder(LoopTree& looptree)
         : looptree(looptree)
-        , dfs_index(0)
+        , dfs_id(0)
     {
         stack.reserve(looptree.scope().size());
         build();
@@ -95,7 +95,7 @@ private:
     LambdaMap<Number> numbers;
     LambdaMap<uint8_t> states;
     LambdaSet set;
-    size_t dfs_index;
+    size_t dfs_id;
     std::vector<Lambda*> stack;
 };
 
@@ -169,8 +169,8 @@ int LoopTreeBuilder::walk_scc(Lambda* cur, LoopHeader* parent, int depth, int sc
 
         if (is_leaf(cur, num)) {
             assert(headers.size() == 1);
-            LoopLeaf* leaf = new LoopLeaf(dfs_index++, parent, depth, headers);
-            looptree.map_[headers.front()] = looptree.dfs_leaves_[leaf->dfs_index()] = leaf;
+            LoopLeaf* leaf = new LoopLeaf(dfs_id++, parent, depth, headers);
+            looptree.map_[headers.front()] = looptree.dfs_leaves_[leaf->dfs_id()] = leaf;
         } else
             new LoopHeader(parent, depth, headers);
 
@@ -199,7 +199,7 @@ std::pair<size_t, size_t> LoopTreeBuilder::propagate_bounds(LoopNode* n) {
         return std::make_pair(begin, end);
     } else {
         LoopLeaf* leaf = n->as<LoopLeaf>();
-        return std::make_pair(leaf->dfs_index(), leaf->dfs_index()+1);
+        return std::make_pair(leaf->dfs_id(), leaf->dfs_id()+1);
     }
 }
 
@@ -252,7 +252,7 @@ std::ostream& LoopNode::indent() const {
 
 void LoopLeaf::dump() const {
     indent() << '<' << lambda()->unique_name() << '>' << std::endl;
-    indent() << "+ dfs: " << dfs_index() << std::endl;
+    indent() << "+ dfs: " << dfs_id() << std::endl;
 }
 
 void LoopHeader::Edge::dump() {
@@ -327,7 +327,7 @@ Array<Lambda*> LoopTree::loop_lambdas(const LoopHeader* header) {
 Array<Lambda*> LoopTree::loop_lambdas_in_rpo(const LoopHeader* header) {
     auto result = loop_lambdas(header);
     std::stable_sort(result.begin(), result.end(), [&](Lambda* l1, Lambda* l2) {
-        return scope_.rpo_index(l1) < scope_.rpo_index(l2);
+        return scope_.rpo_id(l1) < scope_.rpo_id(l2);
     });
     return result;
 }

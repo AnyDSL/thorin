@@ -26,7 +26,7 @@ Scope::Scope(World& world, ArrayRef<Lambda*> entries)
     for (auto entry : entries) assert(!entry->is_proxy());
 #endif
 
-    po_.push_back(nullptr); // reserve for exit
+    rev_rpo_.push_back(nullptr); // reserve for exit
     identify_scope(entries);
     number(entries);
     build_cfg(entries);
@@ -58,8 +58,8 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
                     }
                 }
 
-                assert(std::find(po_.begin(), po_.end(), lambda) == po_.end());
-                po_.push_back(lambda);
+                assert(std::find(rev_rpo_.begin(), rev_rpo_.end(), lambda) == rev_rpo_.end());
+                rev_rpo_.push_back(lambda);
             };
 
             insert_lambda(entry);
@@ -80,7 +80,7 @@ void Scope::identify_scope(ArrayRef<Lambda*> entries) {
     }
 
 #ifndef NDEBUG
-    for (auto lambda : po().slice_from_begin(1))
+    for (auto lambda : rev_rpo().slice_from_begin(1))
         assert(is_candidate(lambda));
 #endif
 }
@@ -91,7 +91,7 @@ void Scope::number(ArrayRef<Lambda*> entries) {
         n = number(entries.front(), n);
     else {
         auto entry = world().meta_lambda();
-        po_.push_back(entry);
+        rev_rpo_.push_back(entry);
         set_candidate(entry);
         for (auto entry : entries) {
             if (!entry->find(this)) // if not visited
@@ -101,7 +101,7 @@ void Scope::number(ArrayRef<Lambda*> entries) {
     }
 
     // remove unreachable lambdas and their params from candidate set
-    for (auto lambda : po().slice_from_begin(1)) {
+    for (auto lambda : rev_rpo().slice_from_begin(1)) {
         if (lambda->find(this) == nullptr) {
             for (auto param : lambda->params()) {
                 if (!param->is_proxy())
@@ -112,26 +112,26 @@ void Scope::number(ArrayRef<Lambda*> entries) {
     }
 
     // remove unreachable lambdas and sort remaining stuff in post-order
-    std::sort(po_.begin()+1, po_.end(), [&](Lambda* l1, Lambda* l2) {
+    std::sort(rev_rpo_.begin()+1, rev_rpo_.end(), [&](Lambda* l1, Lambda* l2) {
         auto info1 = l1->find(this);
         auto info2 = l2->find(this);
-        if (info1 && info2) return info1->po_index < info2->po_index;
+        if (info1 && info2) return info1->rev_rpo_id < info2->rev_rpo_id;
         if (info1) return true;
         if (info2) return false;
         return l1->gid_ < l2->gid_;
     });
-    po_.resize(n);
+    rev_rpo_.resize(n);
 
     // fill rpo
     assert(rpo_.empty());
     rpo_.resize(n);
 
     for (size_t i = n; i-- != 1;) {
-        auto lambda = po_[i];
+        auto lambda = rev_rpo_[i];
         auto info = lambda->find(this);
-        assert(info && info->po_index == i && info->rpo_index == size_t(-1));
-        info->rpo_index = n-1 - i;
-        rpo_[info->rpo_index] = lambda;
+        assert(info && info->rev_rpo_id == i && info->rpo_id == size_t(-1));
+        info->rpo_id = n-1 - i;
+        rpo_[info->rpo_id] = lambda;
     }
 }
 
@@ -145,9 +145,9 @@ size_t Scope::number(Lambda* cur, size_t i) {
         }
     }
 
-    assert(cur->scopes_.front().po_index == size_t(-1) && "already set");
     assert(cur->scopes_.front().scope == this && "front item does not point to this scope");
-    cur->scopes_.front().po_index = i;
+    assert(cur->scopes_.front().rev_rpo_id == size_t(-1) && "already set");
+    cur->scopes_.front().rev_rpo_id = i;
     return i+1;
 }
 
@@ -184,11 +184,11 @@ next:;
     auto exit = world().meta_lambda();
     exit->scopes_.emplace_front(this);
     set_candidate(exit);
-    po_.front() = exit;
+    rev_rpo_.front() = exit;
     rpo_.back() = exit;
     auto& info = exit->scopes_.front();
-    info.po_index = 0;
-    info.rpo_index = size()-1;
+    info.rpo_id = size()-1;
+    info.rev_rpo_id = 0;
     for (auto e : exits)
         link(e, exit);
 }

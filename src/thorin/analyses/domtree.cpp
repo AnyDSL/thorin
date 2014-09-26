@@ -37,7 +37,7 @@ void DomTree::create() {
     for (auto lambda : scope_view().body()) {
         for (auto pred : scope_view().preds(lambda)) {
             assert(scope_view().contains(pred));
-            if (scope_view().rpo_index(pred) < scope_view().rpo_index(lambda)) {
+            if (scope_view().rpo_id(pred) < scope_view().rpo_id(lambda)) {
                 auto n = lookup(pred);
                 assert(n);
                 lookup(lambda)->idom_ = n;
@@ -76,11 +76,11 @@ outer_loop:;
 
 DomNode* DomTree::lca(DomNode* i, DomNode* j) {
     assert(i && j);
-    auto rpo_index = [&] (DomNode* n) { return scope_view().rpo_index(n->lambda()); };
+    auto rpo_id = [&] (DomNode* n) { return scope_view().rpo_id(n->lambda()); };
 
-    while (rpo_index(i) != rpo_index(j)) {
-        while (rpo_index(i) < rpo_index(j)) j = j->idom_;
-        while (rpo_index(j) < rpo_index(i)) i = i->idom_;
+    while (rpo_id(i) != rpo_id(j)) {
+        while (rpo_id(i) < rpo_id(j)) j = j->idom_;
+        while (rpo_id(j) < rpo_id(i)) i = i->idom_;
     }
 
     return i;

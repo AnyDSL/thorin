@@ -48,7 +48,7 @@ class LoopHeader : public LoopNode {
 public:
     struct Edge {
         Edge() {}
-        Edge(Lambda* src, Lambda* dst, int levels) 
+        Edge(Lambda* src, Lambda* dst, int levels)
             : src_(src)
             , dst_(dst)
             , levels_(levels)
@@ -111,19 +111,19 @@ private:
 
 class LoopLeaf : public LoopNode {
 public:
-    explicit LoopLeaf(size_t dfs_index, LoopHeader* parent, int depth, const std::vector<Lambda*>& lambdas)
+    explicit LoopLeaf(size_t dfs_id, LoopHeader* parent, int depth, const std::vector<Lambda*>& lambdas)
         : LoopNode(parent, depth, lambdas)
-        , dfs_index_(dfs_index)
+        , dfs_id_(dfs_id)
     {
         assert(num_lambdas() == 1);
     }
 
     Lambda* lambda() const { return lambdas().front(); }
-    size_t dfs_index() const { return dfs_index_; }
+    size_t dfs_id() const { return dfs_id_; }
     virtual void dump() const;
 
 private:
-    size_t dfs_index_;
+    size_t dfs_id_;
 };
 
 /**
@@ -138,7 +138,7 @@ public:
     const Scope& scope() const { return scope_; }
     const LoopHeader* root() const { return root_; }
     int depth(Lambda* lambda) const { return lambda2leaf(lambda)->depth(); }
-    size_t lambda2dfs(Lambda* lambda) const { return lambda2leaf(lambda)->dfs_index(); }
+    size_t lambda2dfs(Lambda* lambda) const { return lambda2leaf(lambda)->dfs_id(); }
     bool contains(const LoopHeader* header, Lambda* lambda) const;
     ArrayRef<const LoopLeaf*> loop(const LoopHeader* header) {
         return ArrayRef<const LoopLeaf*>(dfs_leaves_.data() + header->dfs_begin(), header->dfs_end() - header->dfs_begin());

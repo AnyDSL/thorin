@@ -24,24 +24,24 @@ public:
     {}
     ~Scope();
 
-    /// All lambdas within this scope in post-order.
-    ArrayRef<Lambda*>  po() const { return  po_; }
     /// All lambdas within this scope in reverse post-order.
     ArrayRef<Lambda*> rpo() const { return rpo_; }
-    Lambda*  po(size_t i) const { return  po_[i]; }
+    /// All lambdas within this scope in reverse rpo (this is \em no post-order).
+    ArrayRef<Lambda*> rev_rpo() const { return rev_rpo_; }
+    Lambda* rev_rpo(size_t i) const { return rev_rpo_[i]; }
     Lambda* rpo(size_t i) const { return rpo_[i]; }
     Lambda* entry() const { return rpo().front(); }
-    Lambda* exit()  const { return po_.front(); }
+    Lambda* exit()  const { return rev_rpo_.front(); }
     /// Like \p rpo() but without \p entry()
     ArrayRef<Lambda*> body() const { return rpo().slice_from_begin(1); }
     const DefSet& in_scope() const { return in_scope_; }
     bool contains(Def def) const { return in_scope_.contains(def); }
-    ArrayRef<Lambda*> preds(Lambda* lambda) const { return preds_[rpo_index(lambda)]; }
-    ArrayRef<Lambda*> succs(Lambda* lambda) const { return succs_[rpo_index(lambda)]; }
+    ArrayRef<Lambda*> preds(Lambda* lambda) const { return preds_[rpo_id(lambda)]; }
+    ArrayRef<Lambda*> succs(Lambda* lambda) const { return succs_[rpo_id(lambda)]; }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
-    size_t po_index(Lambda* lambda) const { return lambda->find(this)->po_index; }
-    size_t rpo_index(Lambda* lambda) const { return lambda->find(this)->rpo_index; }
+    size_t rev_rpo_id(Lambda* lambda) const { return lambda->find(this)->rev_rpo_id; }
+    size_t rpo_id(Lambda* lambda) const { return lambda->find(this)->rpo_id; }
     uint32_t sid() const { return sid_; }
     size_t size() const { return rpo_.size(); }
     World& world() const { return world_; }
@@ -66,15 +66,15 @@ private:
     void build_in_scope();
     void link(Lambda* src, Lambda* dst) {
         assert(is_candidate(src) && is_candidate(dst));
-        succs_[rpo_index(src)].push_back(dst);
-        preds_[rpo_index(dst)].push_back(src);
+        succs_[rpo_id(src)].push_back(dst);
+        preds_[rpo_id(dst)].push_back(src);
     }
 
     World& world_;
     DefSet in_scope_;
     uint32_t sid_;
     std::vector<Lambda*> rpo_;
-    std::vector<Lambda*> po_;
+    std::vector<Lambda*>rev_rpo_;
     std::vector<std::vector<Lambda*>> preds_;
     std::vector<std::vector<Lambda*>> succs_;
 
@@ -95,10 +95,10 @@ public:
 
     const Scope& scope() const { return scope_; }
     bool is_forward() const { return is_forward_; }
-    /// All lambdas within this scope in reverse post-order.
-    ArrayRef<Lambda*> rpo() const { return is_forward() ? scope().rpo_ : scope().po_; }
+    /// All lambdas within this scope in reverserev_rpost-order.
+    ArrayRef<Lambda*> rpo() const { return is_forward() ? scope().rpo_ : scope().rev_rpo_; }
     Lambda* entry() const { return rpo().front(); }
-    Lambda* exit()  const { return (is_forward() ? scope().po_ : scope().rpo_).front(); }
+    Lambda* exit()  const { return (is_forward() ? scope().rev_rpo_ : scope().rpo_).front(); }
     /// Like \p rpo() but without \p entry()
     ArrayRef<Lambda*> body() const { return rpo().slice_from_begin(1); }
     const DefSet& in_scope() const { return scope().in_scope_; }
@@ -107,8 +107,8 @@ public:
     ArrayRef<Lambda*> succs(Lambda* lambda) const { return is_forward() ? scope().succs(lambda) : scope().preds(lambda); }
     size_t num_preds(Lambda* lambda) const { return preds(lambda).size(); }
     size_t num_succs(Lambda* lambda) const { return succs(lambda).size(); }
-    size_t  po_index(Lambda* lambda) const { return is_forward() ? scope(). po_index(lambda) : scope().rpo_index(lambda); }
-    size_t rpo_index(Lambda* lambda) const { return is_forward() ? scope().rpo_index(lambda) : scope(). po_index(lambda); }
+    size_t rev_rpo_id(Lambda* lambda) const { return is_forward() ? scope().rev_rpo_id(lambda) : scope().rpo_id(lambda); }
+    size_t rpo_id(Lambda* lambda) const { return is_forward() ? scope().rpo_id(lambda) : scope().rev_rpo_id(lambda); }
     size_t size() const { return scope().size(); }
     World& world() const { return scope().world(); }
 

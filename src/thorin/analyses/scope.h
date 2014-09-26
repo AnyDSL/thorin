@@ -63,6 +63,10 @@ private:
     void number(ArrayRef<Lambda*> entries);
     size_t number(Lambda* lambda, size_t i);
     void build_cfg(ArrayRef<Lambda*> entries);
+    std::vector<Lambda*> find_exits(Array<Lambda*> entries);
+    void rev_number(ArrayRef<Lambda*> exits);
+    size_t rev_number(Lambda* lambda, size_t i);
+
     void build_in_scope();
     void link(Lambda* src, Lambda* dst) {
         assert(is_candidate(src) && is_candidate(dst));

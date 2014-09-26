@@ -889,7 +889,7 @@ void World::cleanup() { cleanup_world(*this); }
 
 void World::opt() {
     cleanup();
-    partial_evaluation(*this);
+    //partial_evaluation(*this);
     merge_lambdas(*this);
     cleanup();
     lower2cff(*this);
